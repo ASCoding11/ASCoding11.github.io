@@ -1,0 +1,1634 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Hype Cycle Exchange</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+/* ============================================================
+   STEP 1 OF SETUP: paste your Firebase web app config here.
+   Firebase console -> Project settings -> Your apps -> Web app
+   ============================================================ */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBlncA4rSK-WAO7BJWmUTEbj00Wxpv8fTg",
+  authDomain: "yis-week-1-ga.firebaseapp.com",
+  projectId: "yis-week-1-ga",
+  appId: "1:416718770225:web:eef6d97d329351b02a4510"
+};
+</script>
+<style>
+:root{
+  color-scheme:light;
+  --ground:#EEF1EC; --panel:#FFFFFF; --panel-2:#F6F8F4; --ink:#16201B; --ink-2:#4A5751; --line:#D3DAD2;
+  --accent:#1D6A4B; --accent-ink:#FFFFFF; --up:#0B7A43; --down:#B42318; --warn:#9A5B00;
+  --up-bg:#E3F3E9; --down-bg:#FBE7E4; --warn-bg:#FBF0DC; --ticker:#10261C; --ticker-ink:#D8F2E3;
+  --display:"Big Shoulders Display","Arial Narrow",Impact,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    color-scheme:dark;
+    --ground:#0E1412; --panel:#161E1A; --panel-2:#1B2520; --ink:#E4ECE7; --ink-2:#9FB0A7; --line:#2A3631;
+    --accent:#4FB488; --accent-ink:#0A1510; --up:#4CC98A; --down:#F2796C; --warn:#E3A948;
+    --up-bg:#15301F; --down-bg:#3A1C19; --warn-bg:#35280F; --ticker:#07100C; --ticker-ink:#BFEBD2;
+  }
+}
+*{box-sizing:border-box}
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;padding-inline:16px;padding-block:0 48px}
+[hidden]{display:none!important}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+h1,h2,h3{margin:0;text-wrap:balance}
+.label{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2);font-weight:600}
+button{font:inherit;cursor:pointer;border-radius:6px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);padding:8px 12px;min-height:40px}
+button:hover:not(:disabled){border-color:var(--ink-2)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+button.buy{background:var(--up-bg);border-color:transparent;color:var(--up);font-weight:600}
+button.sell{background:var(--down-bg);border-color:transparent;color:var(--down);font-weight:600}
+button.danger{color:var(--down)}
+button.link{background:none;border:0;color:var(--ink-2);text-decoration:underline;min-height:auto;padding:4px 0}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input,select{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 10px;min-height:40px;max-width:100%}
+input[type=number]{width:84px;font-family:var(--mono)}
+input.code{font-family:var(--mono);text-transform:uppercase;letter-spacing:.2em;width:9ch}
+
+.mast{position:sticky;top:0;z-index:5;background:var(--ground);padding-block:14px 10px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.brand h1{font-family:var(--display);font-weight:800;font-size:34px;letter-spacing:.01em;line-height:1;text-transform:uppercase}
+.brand .sub{color:var(--ink-2);font-size:13px}
+.clock{display:flex;align-items:center;gap:14px}
+.phase{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:5px 10px;border-radius:999px;background:var(--panel-2);color:var(--ink-2);border:1px solid var(--line);white-space:nowrap}
+.phase.open{background:var(--up-bg);color:var(--up);border-color:transparent}
+.phase.closed{background:var(--warn-bg);color:var(--warn);border-color:transparent}
+.phase.results{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+.timer{font-family:var(--mono);font-weight:600;font-size:30px;font-variant-numeric:tabular-nums;min-width:5ch;text-align:right}
+.timer.hurry{color:var(--down)}
+.timebar{height:4px;background:var(--line);border-radius:2px;overflow:hidden;margin-top:6px}
+.timebar i{display:block;height:100%;background:var(--accent);width:0%;transition:width .25s linear}
+
+.tape{background:var(--ticker);color:var(--ticker-ink);border-radius:8px;overflow-x:auto}
+.tape-row{display:flex;min-width:max-content}
+.tape .t{display:flex;align-items:baseline;gap:8px;padding:10px 16px;border-right:1px solid rgba(255,255,255,.08);font-family:var(--mono);font-size:13px;white-space:nowrap}
+.tape .t b{font-family:var(--display);font-weight:700;font-size:17px;letter-spacing:.04em}
+.chg{font-family:var(--mono);font-size:12px;font-weight:600;padding:1px 6px;border-radius:4px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.chg.up{color:var(--up);background:var(--up-bg)}
+.chg.down{color:var(--down);background:var(--down-bg)}
+.chg.flat{color:var(--ink-2);background:var(--panel-2)}
+.chg.dead{color:#fff;background:var(--down)}
+.tape .chg.up{background:rgba(76,201,138,.14);color:#6FE0A6}
+.tape .chg.down{background:rgba(242,121,108,.16);color:#FF9A8E}
+.tape .chg.flat{background:rgba(255,255,255,.08);color:var(--ticker-ink)}
+
+.notice{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:14px 16px}
+.notice.warn{background:var(--warn-bg);border-color:transparent}
+
+.grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+.col{display:flex;flex-direction:column;gap:18px;min-width:0}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.panel-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.panel-head h2{font-family:var(--display);font-weight:700;font-size:22px;text-transform:uppercase;letter-spacing:.02em}
+
+.market{display:flex;flex-direction:column}
+.mrow{display:grid;grid-template-columns:minmax(0,1.3fr) 100px 90px minmax(0,1.5fr);gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
+.mrow:first-child{border-top:0}
+.co b{font-family:var(--display);font-weight:700;font-size:19px;letter-spacing:.03em}
+.co span{display:block;color:var(--ink-2);font-size:13px}
+.px{font-family:var(--mono);font-size:17px;font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+.pos{font-family:var(--mono);font-size:13px;text-align:right;color:var(--ink-2)}
+.pos.short{color:var(--down)}
+.pos.long{color:var(--up)}
+.act{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;align-items:center}
+.hint{flex-basis:100%;text-align:right;font-size:12px;color:var(--ink-2);font-family:var(--mono)}
+@media (max-width:640px){
+  .mrow{grid-template-columns:minmax(0,1fr) auto;row-gap:8px}
+  .pos{text-align:left}
+  .act{grid-column:1 / -1;justify-content:flex-start}
+  .hint{text-align:left}
+}
+.msg{min-height:22px;font-size:14px}
+.msg.err{color:var(--down)}
+.msg.ok{color:var(--up)}
+
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.stat{background:var(--panel-2);border-radius:8px;padding:10px 12px}
+.stat .v{font-family:var(--mono);font-size:20px;font-weight:600;font-variant-numeric:tabular-nums}
+.stat.big{grid-column:1 / -1}
+.stat.big .v{font-size:30px}
+.holdings{width:100%;border-collapse:collapse;font-size:14px}
+.holdings th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);text-align:left;font-weight:600;padding:6px 0;border-bottom:1px solid var(--line)}
+.holdings td{padding:7px 0;border-bottom:1px solid var(--line);font-family:var(--mono);font-variant-numeric:tabular-nums}
+.holdings td:not(:first-child),.holdings th:not(:first-child){text-align:right}
+
+.board{width:100%;border-collapse:collapse}
+.board td{padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+.board td.rank{width:32px;font-family:var(--mono);color:var(--ink-2)}
+.board td.val,.board td.ret{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.board td.ret{width:84px}
+.board tr.me td{font-weight:600}
+.you{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin-left:6px;font-weight:600}
+
+.news{display:flex;flex-direction:column;gap:16px}
+.round{border-top:1px solid var(--line);padding-top:14px;display:flex;flex-direction:column;gap:10px}
+.round:first-child{border-top:0;padding-top:0}
+.round h3{font-family:var(--display);font-weight:700;font-size:21px;text-transform:uppercase;letter-spacing:.02em}
+.macro{margin:0;color:var(--ink-2);max-width:72ch;font-style:italic}
+.moves{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.moves li{display:grid;grid-template-columns:64px 76px minmax(0,1fr);gap:10px;align-items:baseline}
+.moves li b{font-family:var(--display);font-weight:700;font-size:16px;letter-spacing:.03em}
+.moves li p{margin:0;font-size:14px}
+@media (max-width:520px){.moves li{grid-template-columns:56px minmax(0,1fr)}.moves li p{grid-column:1 / -1}}
+
+.host{border:2px dashed var(--accent)}
+.host-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.bigcode{font-family:var(--mono);font-size:34px;font-weight:600;letter-spacing:.25em}
+.rules{margin:0;padding-left:18px;color:var(--ink-2);font-size:14px;display:flex;flex-direction:column;gap:4px}
+
+.landing{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-top:8px}
+@media (max-width:760px){.landing{grid-template-columns:minmax(0,1fr)}}
+.landing form{display:flex;flex-direction:column;gap:10px}
+.field{display:flex;flex-direction:column;gap:4px}
+.lede{margin:0;color:var(--ink-2);max-width:60ch}
+.stats-drop{grid-column:1 / -1;border-top:1px dashed var(--line);padding-top:6px}
+.stats-drop summary{cursor:pointer;font-size:13px;color:var(--ink-2);font-weight:600;padding:6px 0;list-style-position:inside}
+.stats-drop summary::marker{color:var(--accent)}
+.stats-drop[open] summary{color:var(--ink)}
+.ytable-wrap{overflow-x:auto;margin-top:4px}
+.ytable{width:100%;border-collapse:collapse;font-size:13px;min-width:600px}
+.ytable th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);font-weight:600;text-align:right;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+.ytable th:first-child,.ytable td:first-child{text-align:left;padding-left:0}
+.ytable td{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+.ytable td:first-child{font-family:var(--body);font-weight:600}
+.ytable .neg{color:var(--down)} .ytable .pos{color:var(--up)}
+.ynote{font-size:12px;color:var(--ink-2);margin:6px 0 0}
+body.hosting .act, body.hosting #qtyLabel{display:none!important}
+.crawl{position:relative;overflow:hidden;background:var(--panel);border:1px solid var(--line);border-radius:8px;height:40px;display:flex;align-items:center}
+.crawl::before{content:"NEWS";position:absolute;left:0;top:0;bottom:0;z-index:1;display:flex;align-items:center;padding:0 12px;background:var(--down);color:#fff;font-family:var(--display);font-weight:800;font-size:16px;letter-spacing:.08em}
+.crawl-track{display:inline-flex;white-space:nowrap;padding-left:78px;animation:crawl var(--dur,40s) linear infinite;will-change:transform}
+.crawl:hover .crawl-track{animation-play-state:paused}
+.crawl-item{font-size:14px;padding-right:28px}
+.crawl-item b{font-family:var(--display);font-weight:700;font-size:16px;letter-spacing:.03em;margin-right:6px}
+.crawl-item .up{color:var(--up);font-family:var(--mono);font-weight:600;margin-right:6px}
+.crawl-item .down{color:var(--down);font-family:var(--mono);font-weight:600;margin-right:6px}
+.crawl-item::after{content:"◆";color:var(--ink-2);opacity:.5;margin-left:28px;font-size:10px}
+@keyframes crawl{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@media (prefers-reduced-motion: reduce){.crawl{overflow-x:auto}.crawl-track{animation:none}}
+.lotnote{font-family:var(--body);font-size:12px;color:var(--ink-2)}
+@media (prefers-reduced-motion: reduce){.timebar i{transition:none}}
+
+/* chart series colors (validated categorical slots 1-6) */
+:root{--s-AP:#2a78d6;--s-DMI:#eb6834;--s-PPF:#1baf7a;--s-BBMI:#eda100;--s-WTW:#e87ba4;--s-CES:#008300}
+@media (prefers-color-scheme: dark){:root{--s-AP:#3987e5;--s-DMI:#d95926;--s-PPF:#199e70;--s-BBMI:#c98500;--s-WTW:#d55181;--s-CES:#008300}}
+
+/* tabs */
+.tabs{display:flex;gap:6px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tabs button{border:0;border-bottom:3px solid transparent;border-radius:0;background:none;font-family:var(--display);font-weight:700;font-size:19px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2);padding:8px 14px;position:relative;white-space:nowrap}
+.tabs button[aria-selected=true]{color:var(--ink);border-bottom-color:var(--accent)}
+.tabs .dot{position:absolute;top:8px;right:4px;width:8px;height:8px;border-radius:50%;background:var(--down);animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{transform:scale(1.5);opacity:.6}}
+
+/* host rule switches */
+.switches{display:flex;flex-wrap:wrap;gap:10px}
+.switch{display:flex;align-items:center;gap:10px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:8px 12px;cursor:pointer;font-size:14px}
+.switch input{appearance:none;-webkit-appearance:none;width:40px;height:22px;min-height:0;padding:0;border-radius:999px;background:var(--line);border:0;position:relative;cursor:pointer;transition:background .2s;flex:none}
+.switch input::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .2s}
+.switch input:checked{background:var(--accent)}
+.switch input:checked::after{transform:translateX(18px)}
+.switch b{font-weight:600}
+.switch small{display:block;color:var(--ink-2);font-size:12px}
+body.notax .taxbit,body:not(.notax) .notaxbit,body.noshort .shortbit,body:not(.noshort) .noshortbit{display:none!important}
+
+/* trade animations */
+.mrow{position:relative}
+.mrow.flash-buy{animation:flashBuy .9s ease-out}
+.mrow.flash-sell{animation:flashSell .9s ease-out}
+@keyframes flashBuy{0%{background:var(--up-bg);box-shadow:inset 4px 0 0 var(--up)}100%{background:transparent;box-shadow:inset 0 0 0 transparent}}
+@keyframes flashSell{0%{background:var(--down-bg);box-shadow:inset 4px 0 0 var(--down)}100%{background:transparent;box-shadow:inset 0 0 0 transparent}}
+.fly{position:fixed;z-index:50;pointer-events:none;font-family:var(--display);font-weight:800;font-size:24px;letter-spacing:.03em;white-space:nowrap;transform:translate(-50%,-50%);animation:fly 1.3s cubic-bezier(.2,.7,.3,1) forwards;text-shadow:0 1px 0 var(--panel)}
+.fly.buy{color:var(--up)} .fly.sell{color:var(--down)}
+@keyframes fly{0%{opacity:0;transform:translate(-50%,-30%) scale(.6)}15%{opacity:1;transform:translate(-50%,-80%) scale(1.15)}100%{opacity:0;transform:translate(-50%,-260%) scale(1)}}
+.spark{position:fixed;z-index:49;pointer-events:none;width:7px;height:7px;border-radius:2px;animation:spark .8s ease-out forwards}
+@keyframes spark{from{opacity:1;transform:translate(0,0) rotate(0)}to{opacity:0;transform:translate(var(--dx),var(--dy)) rotate(200deg)}}
+.pop{animation:pop .5s ease-out}
+@keyframes pop{40%{transform:scale(1.08)}}
+
+/* toasts */
+.toasts{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:60;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;width:min(420px,calc(100% - 32px))}
+.toast{background:var(--ticker);color:var(--ticker-ink);border-radius:10px;padding:10px 16px;box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;gap:12px;align-items:center;width:100%;animation:toastIn .45s cubic-bezier(.2,.9,.3,1.3), toastOut .4s ease-in 3.6s forwards}
+.toast b{font-family:var(--display);font-weight:800;font-size:20px;letter-spacing:.05em;color:#FFD66B;white-space:nowrap}
+.toast span{font-size:14px}
+@keyframes toastIn{from{opacity:0;transform:translateY(-24px) scale(.9)}}
+@keyframes toastOut{to{opacity:0;transform:translateY(-12px)}}
+
+/* leaderboard climbs */
+.board tr{transition:none}
+.board tr.climb td{animation:climbBg 2.4s ease-out}
+.board tr.climb td:nth-child(2){animation:climbBg 2.4s ease-out, nudge .6s ease-out}
+@keyframes climbBg{0%,30%{background:var(--warn-bg)}100%{background:transparent}}
+@keyframes nudge{30%{transform:translateX(6px)}}
+.arrow{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--up);margin-left:6px;animation:arrowUp 2.4s ease-out forwards}
+@keyframes arrowUp{0%{opacity:0;transform:translateY(6px)}15%{opacity:1;transform:none}80%{opacity:1}100%{opacity:0}}
+.board td.rank .crown{color:var(--warn)}
+
+/* news tab */
+.news-tools{display:flex;flex-wrap:wrap;gap:6px}
+.news-tools button{min-height:34px;padding:4px 12px;font-size:13px;border-radius:999px}
+.news-tools button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.round.latest{border:1px solid var(--accent);border-radius:10px;padding:14px;background:var(--panel-2)}
+.newtag{font-family:var(--body);font-size:11px;font-weight:600;letter-spacing:.08em;background:var(--down);color:#fff;padding:2px 8px;border-radius:999px;margin-left:8px;vertical-align:middle}
+.chg.gone{color:var(--ink-2);background:var(--panel-2);text-decoration:line-through}
+
+/* markets tab */
+.chart{position:relative;width:100%}
+.chart svg{display:block;width:100%;height:auto;overflow:visible}
+.chart .grid-l{stroke:var(--line);stroke-width:1}
+.chart .axis-t{fill:var(--ink-2);font-family:var(--mono);font-size:11px}
+.chart .ser{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.chart .hit{fill:transparent}
+.chart .xhair{stroke:var(--ink-2);stroke-width:1;stroke-dasharray:3 3}
+.tip{position:absolute;pointer-events:none;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;box-shadow:0 6px 18px rgba(0,0,0,.14);min-width:170px;z-index:3}
+.tip .tr{display:flex;justify-content:space-between;gap:14px;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.tip .tr i{display:inline-block;width:10px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px}
+.legend span{display:flex;align-items:center;gap:6px}
+.legend i{width:16px;height:3px;border-radius:2px;display:inline-block}
+.multiples{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media (max-width:900px){.multiples{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:520px){.multiples{grid-template-columns:minmax(0,1fr)}}
+.mini{background:var(--panel-2);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:4px}
+.mini-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.mini-head b{font-family:var(--display);font-weight:700;font-size:18px;letter-spacing:.03em}
+.mini-head span{font-family:var(--mono);font-size:14px;font-weight:600}
+.mini small{color:var(--ink-2);font-size:12px}
+.empty{color:var(--ink-2);margin:0}
+/* podium finale */
+.podium-ov{position:fixed;inset:0;z-index:70;background:radial-gradient(ellipse at 50% 35%,#1f5a40 0%,#0b1c15 55%,#050b08 100%);color:#fff;display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px 16px 24px;overflow-y:auto;overflow-x:hidden}
+.podium-ov:not([hidden]){animation:ovIn .5s ease-out}
+@keyframes ovIn{from{opacity:0}}
+.pd-top{display:flex;justify-content:space-between;gap:8px;width:100%;max-width:1000px}
+.pd-grp{display:flex;gap:6px;flex-wrap:wrap}
+.pd-grp:last-child{justify-content:flex-end}
+.snd{display:flex;gap:6px}
+.sndbtn{min-height:34px;padding:4px 10px;font-size:12px;border-radius:999px;white-space:nowrap}
+.sndbtn[aria-pressed=false]{color:var(--ink-2);text-decoration:line-through}
+@media (max-width:1500px){.sndbtn .sl{display:none}.sndbtn{padding:4px 10px}}
+@media (max-width:520px){.sndbtn .sl{display:none}.sndbtn{padding:4px 9px}.clock{gap:8px}.timer{font-size:24px}}
+.tabs .podium-tab{color:#9A6B00;margin-left:auto}
+@media (prefers-color-scheme: dark){.tabs .podium-tab{color:#FFD66B}}
+.clock{flex-wrap:wrap;justify-content:flex-end}
+.pd-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);color:#fff;min-height:36px;padding:6px 12px;font-size:13px}
+.pd-btn:hover:not(:disabled){border-color:#fff}
+.pd-title{font-family:var(--display);font-weight:800;font-size:clamp(36px,7vw,76px);line-height:1;text-transform:uppercase;letter-spacing:.03em;text-align:center;color:#FFD66B;text-shadow:0 4px 24px rgba(255,214,107,.3)}
+.pd-sub{color:#BFEBD2;font-size:clamp(16px,2.4vw,22px);min-height:1.5em;text-align:center;max-width:40ch}
+.pd-sub.drumming{font-family:var(--display);font-weight:800;font-size:clamp(26px,4.5vw,44px);color:#fff;text-transform:uppercase;letter-spacing:.04em;animation:throb .45s ease-in-out infinite}
+@keyframes throb{50%{transform:scale(1.06)}}
+.pd-sub.win{font-family:var(--display);font-weight:800;font-size:clamp(28px,5vw,48px);color:#fff;text-transform:uppercase;letter-spacing:.04em;animation:toastIn .5s cubic-bezier(.2,.9,.3,1.3)}
+.pd-stage{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:end;gap:clamp(6px,1.5vw,16px);width:min(860px,100%);height:clamp(300px,50vh,460px);margin-top:8px;flex:none}
+.pd-stage.shake{animation:shake .12s linear infinite}
+@keyframes shake{25%{transform:translate(-1.5px,1px)}75%{transform:translate(1.5px,-1px)}}
+.pd-col{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0}
+.pd-card{text-align:center;opacity:0;transform:translateY(24px) scale(.85);transition:opacity .5s ease .5s,transform .6s cubic-bezier(.2,.9,.3,1.4) .5s;margin-bottom:10px;max-width:100%;padding:0 4px}
+.pd-col.shown .pd-card,.pd-col.drum .pd-card{opacity:1;transform:none}
+.pd-crown{font-size:clamp(28px,5vw,46px);line-height:1;display:block;animation:bob 1.6s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-6px) rotate(-6deg)}}
+.pd-name{font-family:var(--display);font-weight:800;font-size:clamp(20px,3.6vw,38px);line-height:1.05;overflow-wrap:anywhere}
+.p1 .pd-name{font-size:clamp(24px,4.6vw,50px);color:#FFD66B}
+.pd-val{font-family:var(--mono);font-size:clamp(12px,1.7vw,17px);color:#D8F2E3;margin-top:4px}
+.pd-q{display:none;font-family:var(--display);font-weight:800;font-size:clamp(56px,10vw,110px);line-height:1;color:#FFD66B;animation:throb .45s ease-in-out infinite}
+.pd-col.drum .pd-q{display:block}
+.pd-col.drum .pd-name,.pd-col.drum .pd-val,.pd-col.drum .pd-crown{display:none}
+.pd-block{width:100%;height:0;overflow:hidden;border-radius:10px 10px 0 0;display:flex;justify-content:center;align-items:flex-start;font-family:var(--display);font-weight:800;font-size:clamp(44px,8vw,92px);line-height:1.3;color:rgba(0,0,0,.35);transition:height .9s cubic-bezier(.2,.9,.25,1.1);box-shadow:inset 0 -30px 40px rgba(0,0,0,.18)}
+.pd-col.shown .pd-block,.pd-col.drum .pd-block{height:var(--h)}
+.p1{--h:64%} .p2{--h:46%} .p3{--h:32%}
+.p1 .pd-block{background:linear-gradient(#FFE08A,#D9A21B)}
+.p2 .pd-block{background:linear-gradient(#F0F3F5,#9AA6B0)}
+.p3 .pd-block{background:linear-gradient(#F0B98A,#A8612C)}
+.p1.shown .pd-block{box-shadow:inset 0 -30px 40px rgba(0,0,0,.18),0 0 60px rgba(255,214,107,.45)}
+.pd-after{width:min(620px,100%);display:flex;flex-direction:column;gap:10px;animation:toastIn .5s ease-out}
+.pd-me{text-align:center;font-size:clamp(16px,2.4vw,21px);background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:10px 14px}
+.pd-me b{color:#FFD66B}
+.pd-rest{margin:0;padding:0;list-style:none;display:flex;flex-direction:column}
+.pd-rest li{display:grid;grid-template-columns:40px minmax(0,1fr) auto auto;gap:12px;padding:8px 4px;border-bottom:1px solid rgba(255,255,255,.12);font-size:15px;align-items:baseline}
+.pd-rest li span{font-family:var(--mono);font-variant-numeric:tabular-nums;color:#D8F2E3}
+.pd-rest li .rk{color:#9FB0A7}
+.pd-rest li.me{color:#FFD66B;font-weight:600}
+.cf{position:fixed;top:-24px;z-index:3;border-radius:2px;pointer-events:none;animation-name:cf;animation-timing-function:cubic-bezier(.3,.2,.6,1);animation-fill-mode:forwards}
+@keyframes cf{to{transform:translate(var(--dx),112vh) rotate(var(--r))}}
+@media (prefers-reduced-motion: reduce){
+  .pd-card,.pd-block{transition:none}
+  .pd-stage.shake,.pd-sub.drumming,.pd-q,.pd-crown,.podium-ov:not([hidden]),.pd-after{animation:none}
+  .cf{display:none}
+}
+@media (prefers-reduced-motion: reduce){
+  .mrow.flash-buy,.mrow.flash-sell,.pop,.board tr.climb td,.arrow,.tabs .dot{animation:none}
+  .fly,.spark{display:none}
+  .toast{animation:toastOut .3s ease-in 3.6s forwards}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="mast">
+    <div class="brand">
+      <h1>Hype Cycle Exchange</h1>
+      <span class="sub" id="roundLabel">7 rounds, one year each</span>
+    </div>
+    <div class="clock" id="clockBox" hidden>
+      <div class="snd">
+        <button type="button" class="sndbtn" id="musicBtn" aria-pressed="false">🎵 Music off</button>
+        <button type="button" class="sndbtn" id="sfxBtn" aria-pressed="true">🔊 Sounds on</button>
+      </div>
+      <span class="phase" id="phaseChip">Lobby</span>
+      <div>
+        <div class="timer" id="timer">--:--</div>
+        <div class="timebar"><i id="timebar"></i></div>
+      </div>
+    </div>
+  </header>
+
+  <div class="notice warn" id="notice" hidden></div>
+
+  <!-- Landing -->
+  <section id="landing" hidden>
+    <p class="lede">A classroom stock game. Buy or short five companies and the A&amp;P index across seven years of AI booms and busts, chip shortages, a food plague, new AI laws and a bankruptcy.</p>
+    <div class="landing">
+      <div class="panel">
+        <div class="panel-head"><h2>Join a game</h2></div>
+        <form id="joinForm">
+          <div class="field"><label class="label" for="joinCode">Game code</label><input class="code" id="joinCode" maxlength="5" autocomplete="off" required></div>
+          <div class="field"><label class="label" for="joinName">Team or player name</label><input id="joinName" maxlength="28" required></div>
+          <button class="primary" type="submit">Join</button>
+          <div class="msg" id="joinMsg" role="status"></div>
+        </form>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>Host a game</h2></div>
+        <form id="hostForm">
+          <p class="lede" style="font-size:14px">Choose the <b>rounds.json</b> file from your computer. It holds the secret results and never goes on the website.</p>
+          <div class="field"><label class="label" for="roundsFile">Round results file</label><input type="file" id="roundsFile" accept=".json,application/json" required></div>
+          <button class="primary" type="submit">Create game</button>
+          <div class="msg" id="hostFormMsg" role="status"></div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- Game -->
+  <div id="game" hidden style="display:flex;flex-direction:column;gap:18px">
+    <div class="tape" aria-label="Current prices"><div class="tape-row" id="tape"></div></div>
+    <div class="crawl" aria-label="Headlines"><div class="crawl-track" id="crawl"></div></div>
+
+    <section class="panel host" id="hostPanel" hidden aria-label="Host controls">
+      <div class="panel-head"><h2>Host controls</h2><span class="label">Players join with this code</span></div>
+      <div class="bigcode" id="hostCode"></div>
+      <div class="host-row">
+        <label class="label" for="durSel">Trading window</label>
+        <select id="durSel">
+          <option value="60">1 minute</option>
+          <option value="120">2 minutes</option>
+          <option value="180">3 minutes</option>
+          <option value="300">5 minutes</option>
+          <option value="480">8 minutes</option>
+          <option value="600">10 minutes</option>
+        </select>
+        <button class="primary" id="openBtn">Open trading</button>
+        <button id="addBtn">+1 minute</button>
+        <button id="closeBtn">Close trading now</button>
+        <button class="primary" id="revealBtn">Reveal results</button>
+        <button class="primary" id="podiumBtn" hidden>🏆 Reveal the podium</button>
+        <button class="danger" id="resetBtn">Reset game</button>
+      </div>
+      <div class="label">Game rules (you can change these any time)</div>
+      <div class="switches">
+        <label class="switch"><input type="checkbox" id="optTaxes"><span><b>Capital gains taxes</b><small>30% short-term, 15% after 2+ years</small></span></label>
+        <label class="switch"><input type="checkbox" id="optShort"><span><b>Short selling</b><small>Sell shares you don't own to bet on a fall</small></span></label>
+      </div>
+      <div class="msg" id="hostMsg" role="status"></div>
+    </section>
+
+    <div class="tabs" role="tablist" aria-label="Sections">
+      <button type="button" role="tab" id="tab-trade" aria-controls="view-trade" aria-selected="true">Trade</button>
+      <button type="button" role="tab" id="tab-news" aria-controls="view-news" aria-selected="false">News<span class="dot" id="newsDot" hidden></span></button>
+      <button type="button" role="tab" id="tab-markets" aria-controls="view-markets" aria-selected="false">Markets</button>
+      <button type="button" class="podium-tab" id="tab-podium" hidden>🏆 Podium</button>
+    </div>
+
+    <div id="view-trade" role="tabpanel" aria-labelledby="tab-trade">
+    <div class="grid">
+      <section class="panel" aria-label="Market" id="marketPanel">
+        <div class="panel-head">
+          <h2>Market</h2>
+          <label class="label" for="qty" id="qtyLabel">Shares per trade <input type="number" id="qty" min="1" step="1" value="10"></label>
+        </div>
+        <div class="market" id="market"></div>
+        <div class="msg" id="tradeMsg" role="status"></div>
+      </section>
+
+      <div class="col">
+        <section class="panel" aria-label="Your account" id="accountPanel">
+          <div class="panel-head"><h2>Your account</h2><span class="label" id="meName"></span></div>
+          <div class="stats">
+            <div class="stat big"><div class="label" id="sAfterLabel">After-tax value (what you'd keep if you sold everything)</div><div class="v" id="sAfter">$10,000.00</div></div>
+            <div class="stat"><div class="label">Value before tax</div><div class="v" id="sEquity">$10,000.00</div></div>
+            <div class="stat"><div class="label">Return after tax</div><div class="v" id="sRet">0.0%</div></div>
+            <div class="stat"><div class="label">Cash</div><div class="v" id="sCash">$10,000.00</div></div>
+            <div class="stat taxbit"><div class="label">Taxes paid</div><div class="v" id="sTaxPaid">$0.00</div></div>
+            <div class="stat taxbit"><div class="label">Tax if you sold now</div><div class="v" id="sTaxDue">$0.00</div></div>
+            <div class="stat taxbit"><div class="label">Losses saved for later</div><div class="v" id="sBank">$0.00</div></div>
+            <div class="stat"><div class="label">Long positions</div><div class="v" id="sLong">$0.00</div></div>
+            <div class="stat"><div class="label">Short positions</div><div class="v" id="sShort">$0.00</div></div>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="holdings">
+              <thead><tr><th>Stock</th><th>Shares</th><th>Value</th><th>Gain</th><th class="taxbit">Tax if sold</th></tr></thead>
+              <tbody id="holdings"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel" aria-label="Leaderboard">
+          <div class="panel-head"><h2>Leaderboard</h2><span class="label" id="playerCount">0 players</span></div>
+          <button type="button" id="viewPodiumBtn" hidden>🏆 Open the podium</button>
+          <table class="board"><tbody id="board"></tbody></table>
+        </section>
+
+        <section class="panel" aria-label="How to play">
+          <div class="panel-head"><h2>How it works</h2></div>
+          <ul class="rules">
+            <li>Everyone starts with $10,000. Trade only while the timer is running.</li>
+            <li class="shortbit"><b>Buy</b> if you think a stock will rise. <b>Sell</b> shares you don't own to <b>short</b> it and profit if it falls.</li>
+            <li class="noshortbit"><b>Buy</b> if you think a stock will rise, and <b>sell</b> shares you own to lock in gains. Short selling is turned off in this game.</li>
+            <li>You can't spend more cash than you have<span class="shortbit">, and your shorts can't be worth more than your whole account</span>.</li>
+            <li>After trading closes, the host reveals the year's news and new prices. Open the <b>News</b> tab for every story and the <b>Markets</b> tab for charts.</li>
+            <li class="taxbit"><b>Taxes:</b> when you sell for a profit you pay tax on the gain. Shares held through fewer than 2 years of results pay <b>30% short-term</b> tax; shares held 2 or more years pay <b>15% long-term</b> tax. Profits on shorts are always short-term.</li>
+            <li class="taxbit">Losses aren't taxed. They're saved and lower the tax on your next gains.</li>
+            <li class="taxbit">The leaderboard ranks everyone by <b>after-tax value</b>: what you'd keep if you sold everything today.</li>
+            <li class="notaxbit">Taxes are turned off in this game, so you keep every dollar of profit.</li>
+            <li>If a company goes bankrupt its stock goes to $0: owners lose everything<span class="shortbit">, and short sellers profit on the full sale price</span>.</li>
+          </ul>
+          <button class="link" type="button" id="leaveBtn">Leave this game</button>
+        </section>
+      </div>
+    </div>
+
+    </div>
+
+    <div id="view-news" role="tabpanel" aria-labelledby="tab-news" hidden>
+      <section class="panel" aria-label="News">
+        <div class="panel-head"><h2>All market news</h2><span class="label">Newest first</span></div>
+        <div class="news-tools" id="newsFilter" aria-label="Filter news by company"></div>
+        <div class="news" id="news"></div>
+      </section>
+    </div>
+
+    <div id="view-markets" role="tabpanel" aria-labelledby="tab-markets" hidden>
+      <div class="col">
+        <section class="panel" aria-label="Growth chart">
+          <div class="panel-head"><h2>Growth of $100</h2><span class="label">If you'd put $100 in each stock at the start</span></div>
+          <div class="legend" id="legend"></div>
+          <div class="chart" id="mainChart"></div>
+        </section>
+        <section class="panel" aria-label="Price charts">
+          <div class="panel-head"><h2>Share prices</h2><span class="label">Each chart has its own scale</span></div>
+          <div class="multiples" id="multiples"></div>
+        </section>
+        <section class="panel" aria-label="Price table">
+          <div class="panel-head"><h2>Price table</h2></div>
+          <div class="ytable-wrap"><table class="ytable" id="priceTable"></table></div>
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<div class="podium-ov" id="podium" hidden role="dialog" aria-modal="true" aria-labelledby="pdTitle">
+  <div class="pd-top">
+    <div class="pd-grp"><button type="button" class="pd-btn" id="pdSound">🔊 Sound on</button><button type="button" class="pd-btn" id="pdReplay" hidden>↻ Replay</button></div>
+    <div class="pd-grp"><button type="button" class="pd-btn" id="pdNews">📰 Year 7 news</button><button type="button" class="pd-btn" id="pdClose">✕ Close</button></div>
+  </div>
+  <div class="pd-title" id="pdTitle">Final standings</div>
+  <div class="pd-sub" id="pdSub" aria-live="polite"></div>
+  <div class="pd-stage" id="pdStage">
+    <div class="pd-col p2" id="pd2"><div class="pd-card"><div class="pd-name"></div><div class="pd-val"></div></div><div class="pd-block">2</div></div>
+    <div class="pd-col p1" id="pd1"><div class="pd-card"><div class="pd-q" aria-hidden="true">?</div><span class="pd-crown" aria-hidden="true">👑</span><div class="pd-name"></div><div class="pd-val"></div></div><div class="pd-block">1</div></div>
+    <div class="pd-col p3" id="pd3"><div class="pd-card"><div class="pd-name"></div><div class="pd-val"></div></div><div class="pd-block">3</div></div>
+  </div>
+  <div class="pd-after" id="pdAfter" hidden>
+    <div class="pd-me" id="pdMe"></div>
+    <ol class="pd-rest" id="pdRest"></ol>
+  </div>
+</div>
+
+<script>
+(function(){
+  const SEC = [
+    {t:"AP", label:"A&P", name:"Aviator & Poore Index", start:500},
+    {t:"DMI", label:"DMI", name:"Dunder Mifflin", start:20},
+    {t:"PPF", label:"PPF", name:"Princess Peach Farms", start:50},
+    {t:"BBMI", label:"BBMI", name:"Bikini Bottom Marine", start:95},
+    {t:"WTW", label:"WTW", name:"Wakanda TechWear", start:85},
+    {t:"CES", label:"CES", name:"Cursed Energy Solutions", start:68}
+  ];
+  const START_CASH = 10000, DEFAULT_ROUNDS = 7;
+  const totalRounds = () => (state && state.totalRounds) || DEFAULT_ROUNDS;
+  const settings = () => ({taxes: true, shorting: true, ...((state && state.settings) || {})});
+  const taxesOn = () => settings().taxes !== false;
+  const shortingOn = () => settings().shorting !== false;
+  const numWord = n => ["zero","one","two","three","four","five","six","seven","eight","nine","ten","eleven","twelve"][n] || String(n);
+  // Starting figures from the company sheets (public before the game starts).
+  const START_STATS = {
+    DMI:  {marketCap: 800e6, revenue: 650e6, netIncome: 40e6,  revGrowth: -0.03, divYield: 0.018},
+    PPF:  {marketCap: 2e9,   revenue: 400e6, netIncome: 60e6,  revGrowth: 0.08,  divYield: 0.02},
+    BBMI: {marketCap: 48e9,  revenue: 30e9,  netIncome: 6.8e9, revGrowth: 0.15,  divYield: 0.052},
+    WTW:  {marketCap: 75e9,  revenue: 65e9,  netIncome: 2e9,   revGrowth: 0.26,  divYield: 0},
+    CES:  {marketCap: 80e6,  revenue: 25e6,  netIncome: 2e6,   revGrowth: 0.30,  divYield: 0},
+    AP:   {marketCap: 40e12, revenue: 25e12, netIncome: 2e12,  revGrowth: 0.05,  divYield: 0.016}
+  };
+  const startPrices = Object.fromEntries(SEC.map(s => [s.t, s.start]));
+  const $ = id => document.getElementById(id);
+  const money = v => (v < 0 ? "−$" : "$") + Math.abs(v).toLocaleString("en-US", {minimumFractionDigits:2, maximumFractionDigits:2});
+  const pct = v => (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v * 100).toFixed(1) + "%";
+  const r2 = v => Math.round(v * 100) / 100;
+  const labelOf = t => (SEC.find(s => s.t === t) || {label:t}).label;
+  const store = {
+    get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
+    set(k, v){ try { localStorage.setItem(k, v); } catch(e){} },
+    del(k){ try { localStorage.removeItem(k); } catch(e){} }
+  };
+
+  function showNotice(text){ const n = $("notice"); n.textContent = text; n.hidden = !text; }
+
+  if (!window.firebase || String(FIREBASE_CONFIG.apiKey).startsWith("PASTE")){
+    showNotice("Setup isn't finished: paste your Firebase settings into FIREBASE_CONFIG near the top of index.html. See README.md for the steps.");
+    return;
+  }
+
+  firebase.initializeApp(FIREBASE_CONFIG);
+  const auth = firebase.auth(), fs = firebase.firestore();
+
+  let uid = null, code = null, isHost = false;
+  let state = null, players = [], me = null, revealed = {};
+  let unsubs = [], busy = false, resetArmed = false;
+
+  const gameRef = () => fs.collection("games").doc(code);
+
+  /* ---------- helpers ---------- */
+  function equityOf(cash, pos, prices){ let v = cash; for (const t in pos) v += pos[t] * (prices[t] || 0); return v; }
+  function shortExposure(pos, prices){ let v = 0; for (const t in pos) if (pos[t] < 0) v += -pos[t] * (prices[t] || 0); return v; }
+  function longValue(pos, prices){ let v = 0; for (const t in pos) if (pos[t] > 0) v += pos[t] * (prices[t] || 0); return v; }
+  function tradingOpen(){ return !!state && state.phase === "trading" && Date.now() < state.endsAt; }
+  const ST_RATE = 0.30, LT_RATE = 0.15, LT_YEARS = 2;
+  function cloneLots(a){
+    const o = {};
+    if (a && a.lots){ for (const t in a.lots) o[t] = a.lots[t].map(l => ({...l})); return o; }
+    const pos = (a && a.pos) || {};
+    for (const t in pos) if (pos[t]) o[t] = [{q: pos[t], px: startPrices[t] || 0, r: 0}];
+    return o;
+  }
+  function posFromLots(lots){ const pos = {}; for (const t in lots){ const n = lots[t].reduce((x, l) => x + l.q, 0); if (n) pos[t] = n; } return pos; }
+  function taxRealize(gain, rate, bank){
+    if (!taxesOn()) return {tax: 0, bank};
+    if (gain <= 0) return {tax: 0, bank: bank - gain};
+    const off = Math.min(bank, gain);
+    return {tax: (gain - off) * rate, bank: bank - off};
+  }
+  function heldYears(lot){ return (state ? state.round : 0) - lot.r; }
+  function lotRate(lot){ return lot.q > 0 && heldYears(lot) >= LT_YEARS ? LT_RATE : ST_RATE; }
+  // Apply one trade to a copy of the account, closing the oldest shares first.
+  function applyTrade(acct, t, side, qty, p){
+    const lots = cloneLots(acct), list = lots[t] || [];
+    let cash = acct.cash, bank = acct.lossBank || 0, tax = 0, gain = 0, left = qty;
+    for (const l of list){
+      if (left <= 0) break;
+      if (side === "buy" && l.q < 0){
+        const c = Math.min(left, -l.q), g = (l.px - p) * c, r = taxRealize(g, ST_RATE, bank);
+        tax += r.tax; bank = r.bank; gain += g; cash -= c * p; l.q += c; left -= c;
+      } else if (side === "sell" && l.q > 0){
+        const n = Math.min(left, l.q), g = (p - l.px) * n, r = taxRealize(g, lotRate(l), bank);
+        tax += r.tax; bank = r.bank; gain += g; cash += n * p; l.q -= n; left -= n;
+      }
+    }
+    if (left > 0){ list.push({q: side === "buy" ? left : -left, px: p, r: state.round}); cash += side === "buy" ? -left * p : left * p; }
+    lots[t] = list.filter(l => l.q !== 0); if (!lots[t].length) delete lots[t];
+    cash -= tax;
+    return {cash: r2(cash), lots, pos: posFromLots(lots), lossBank: r2(bank), tax: r2(tax), gain};
+  }
+  // Tax owed if every position were closed at today's prices (losses counted first).
+  function cashOutTax(acct, prices){
+    if (!taxesOn()) return 0;
+    const lots = cloneLots(acct), items = [];
+    for (const t in lots) for (const l of lots[t]){
+      const p = prices[t] || 0;
+      items.push(l.q > 0 ? {g: (p - l.px) * l.q, rate: lotRate(l)} : {g: (l.px - p) * -l.q, rate: ST_RATE});
+    }
+    items.sort((a, b) => a.g - b.g);
+    let bank = acct.lossBank || 0, tax = 0;
+    for (const it of items){ const r = taxRealize(it.g, it.rate, bank); tax += r.tax; bank = r.bank; }
+    return tax;
+  }
+  function posOf(a){ return a.lots ? posFromLots(a.lots) : (a.pos || {}); }
+  function afterTaxOf(a, prices){ return equityOf(a.cash, posOf(a), prices) - cashOutTax(a, prices); }
+
+  function say(id, text, kind){ const el = $(id); el.textContent = text; el.className = "msg" + (kind ? " " + kind : ""); }
+  function newCode(){ const a = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; let s = ""; for (let i = 0; i < 5; i++) s += a[Math.floor(Math.random() * a.length)]; return s; }
+
+  function big(v){
+    const a = Math.abs(v), sign = v < 0 ? "−$" : "$";
+    if (a >= 1e12) return sign + (a / 1e12).toFixed(2) + "T";
+    if (a >= 1e9) return sign + (a / 1e9).toFixed(2) + "B";
+    if (a >= 1e6) return sign + (a / 1e6).toFixed(1) + "M";
+    return sign + a.toLocaleString("en-US", {maximumFractionDigits: 0});
+  }
+  function renderStats(){
+    for (const s of SEC){
+      const base = START_STATS[s.t], shares = base.marketCap / s.start;
+      const rows = [{label: "Start", price: s.start, chg: null, st: base}];
+      let prevPrice = s.start;
+      const ns = Object.keys(revealed).map(Number).sort((a, b) => a - b);
+      for (const n of ns){
+        const r = revealed[n];
+        const price = r.prices && r.prices[s.t] != null ? r.prices[s.t] : null;
+        const st = r.stats && r.stats[s.t];
+        if (price == null || !st) continue;
+        rows.push({label: "Year " + n, price, chg: prevPrice > 0 ? price / prevPrice - 1 : null, st});
+        prevPrice = price;
+      }
+      const row = $("row-" + s.t); if (!row) continue;
+      const tb = row.querySelector(".ytable tbody"); tb.textContent = "";
+      for (const x of rows){
+        const tr = document.createElement("tr");
+        const mcap = x.price * shares, ni = x.st.netIncome;
+        const cells = [
+          [x.label, ""],
+          [x.price > 0 ? "$" + x.price.toFixed(2) : "$0.00", ""],
+          [x.price <= 0 && x.chg !== null ? "Bankrupt" : x.price <= 0 ? "Delisted" : x.chg === null ? "—" : pct(x.chg), x.chg === null ? "" : x.chg < 0 ? "neg" : "pos"],
+          [big(mcap), ""],
+          [big(x.st.revenue), ""],
+          [pct(x.st.revGrowth), x.st.revGrowth < 0 ? "neg" : ""],
+          [big(ni), ni < 0 ? "neg" : ""],
+          [ni > 0 && mcap > 0 ? (mcap / ni).toFixed(1) : "n/a", ""],
+          [(x.st.divYield * 100).toFixed(1) + "%", ""],
+          ["$" + (x.price * x.st.divYield).toFixed(2), ""]
+        ];
+        for (const [text, cls] of cells){ const td = document.createElement("td"); td.textContent = text; if (cls) td.className = cls; tr.appendChild(td); }
+        tb.appendChild(tr);
+      }
+      const left = totalRounds() - (rows.length - 1);
+      row.querySelector(".ynote").textContent = left > 0 ? (left === 1 ? "One more year" : left + " more years") + " will appear here as results are revealed." : "All " + numWord(totalRounds()) + " years revealed.";
+    }
+  }
+
+  /* ---------- sound: effects + original background music (made in the browser, no files) ---------- */
+  let actx = null, master = null, musicBus = null;
+  let sfxOn = store.get("hce.sound") !== "off";
+  const musicOn = () => { const p = store.get("hce.music"); return p ? p === "on" : isHost; }; // music defaults on for the host screen only
+  function ctx(){
+    try {
+      if (!actx){
+        actx = new (window.AudioContext || window.webkitAudioContext)();
+        master = actx.createGain(); master.gain.value = 0.9; master.connect(actx.destination);
+        musicBus = actx.createGain(); musicBus.gain.value = 0.5; musicBus.connect(master);
+      }
+      if (actx.state === "suspended") actx.resume();
+      return actx;
+    } catch (e){ return null; }
+  }
+  const sfx = () => (sfxOn ? ctx() : null);
+  // Browsers only allow sound after the first tap or click on the page.
+  ["pointerdown", "keydown"].forEach(ev => document.addEventListener(ev, () => { if (sfxOn || musicOn()) ctx(); }, {passive: true}));
+  const bufCache = {};
+  function noiseBuf(a, sec, curve){
+    const key = sec + ":" + curve; if (bufCache[key]) return bufCache[key];
+    const len = Math.max(1, Math.floor(a.sampleRate * sec)), buf = a.createBuffer(1, len, a.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, curve);
+    return (bufCache[key] = buf);
+  }
+  const mf = m => 440 * Math.pow(2, (m - 69) / 12);
+  function tone(a, dest, o){
+    const osc = a.createOscillator(), g = a.createGain(), t = o.t, len = o.len, at = o.attack || 0.01;
+    osc.type = o.type || "triangle"; osc.frequency.setValueAtTime(o.f, t);
+    if (o.f2) osc.frequency.exponentialRampToValueAtTime(o.f2, t + (o.glide || len));
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(o.vol || 0.2, t + at); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+    osc.connect(g).connect(dest); osc.start(t); osc.stop(t + len + 0.03);
+  }
+  function noise(a, dest, o){
+    const src = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+    src.buffer = noiseBuf(a, o.len, o.curve || 3); f.type = o.type || "highpass"; f.frequency.setValueAtTime(o.freq || 6000, o.t);
+    if (o.freq2) f.frequency.exponentialRampToValueAtTime(o.freq2, o.t + o.len);
+    f.Q.value = o.q || 0.7; g.gain.value = o.vol || 0.2;
+    src.connect(f).connect(g).connect(dest); src.start(o.t); return src;
+  }
+  const SFX = {
+    start(){ // trading opens: bright rising chime
+      const a = sfx(); if (!a) return; const t = a.currentTime + 0.02;
+      [67, 72, 76, 79, 84].forEach((m, i) => { tone(a, master, {f: mf(m), t: t + i * 0.075, len: i === 4 ? 1.1 : 0.18, type: "square", vol: 0.07}); tone(a, master, {f: mf(m + 12), t: t + i * 0.075, len: i === 4 ? 1.1 : 0.15, type: "sine", vol: 0.05}); });
+      noise(a, master, {t: t + 0.3, len: 1.1, vol: 0.13, freq: 7000, curve: 2});
+    },
+    end(){ // time's up: falling buzzer and a gong
+      const a = sfx(); if (!a) return; const t = a.currentTime + 0.02;
+      [[67, 0], [63, 0.18], [58, 0.36]].forEach(([m, d], i) => tone(a, master, {f: mf(m), t: t + d, len: i === 2 ? 0.7 : 0.2, type: "square", vol: 0.07}));
+      [[98, 0.4, 2.4], [270, 0.14, 1.5], [529, 0.06, 0.9]].forEach(([f, v, len]) => tone(a, master, {f, t: t + 0.36, len, type: "sine", vol: v, attack: 0.005}));
+    },
+    reveal(){ // results: whoosh and bell
+      const a = sfx(); if (!a) return; const t = a.currentTime + 0.02;
+      noise(a, master, {t, len: 0.6, vol: 0.25, type: "bandpass", freq: 300, freq2: 5000, q: 1.2, curve: 1});
+      [[88, 0.12], [95, 0.06]].forEach(([m, v]) => tone(a, master, {f: mf(m), t: t + 0.55, len: 1.6, type: "sine", vol: v, attack: 0.004}));
+    },
+    tick(last){ const a = sfx(); if (!a) return; tone(a, master, {f: last ? 1318.5 : 987.8, t: a.currentTime + 0.01, len: last ? 0.25 : 0.09, type: "square", vol: 0.06, attack: 0.003}); },
+    buy(){ const a = sfx(); if (!a) return; const t = a.currentTime + 0.01; tone(a, master, {f: mf(83), t, len: 0.08, type: "square", vol: 0.05}); tone(a, master, {f: mf(88), t: t + 0.07, len: 0.3, type: "square", vol: 0.05}); },
+    sell(){ const a = sfx(); if (!a) return; const t = a.currentTime + 0.01; tone(a, master, {f: mf(84), t, len: 0.08, type: "square", vol: 0.05}); tone(a, master, {f: mf(76), t: t + 0.07, len: 0.3, type: "square", vol: 0.05}); }
+  };
+
+  // An original, upbeat four-bar loop (C – Am – F – G). "chill" for the lobby, "full" while trading,
+  // "hurry" (faster, busier) in the last 10 seconds of a round.
+  const Music = (() => {
+    const BPM = 126, STEP = 60 / BPM / 4;
+    const BARS = [{root: 48, ch: [60, 64, 67]}, {root: 45, ch: [60, 64, 69]}, {root: 41, ch: [60, 65, 69]}, {root: 43, ch: [59, 62, 67]}];
+    const ARP = [0, 1, 2, 1, 2, 0, 1, 2];
+    let mode = null, timer = null, next = 0, step = 0;
+    function hit(a, t, s, bar, m){
+      const B = BARS[bar], full = m !== "chill", hurry = m === "hurry", out = musicBus;
+      if (full && s % 4 === 0) tone(a, out, {f: 160, f2: 45, glide: 0.12, t, len: 0.25, type: "sine", vol: 0.55, attack: 0.002});
+      if (full && (s === 4 || s === 12)) noise(a, out, {t, len: 0.13, vol: 0.16, type: "bandpass", freq: 1600, q: 0.6, curve: 4});
+      if (s % 4 === 2 || (hurry && s % 2 === 1)) noise(a, out, {t, len: 0.045, vol: 0.08, freq: 8000, curve: 5});
+      if (s % 2 === 0) tone(a, out, {f: mf(B.root + (s % 4 === 2 ? 12 : 0)), t, len: STEP * 1.7, type: "triangle", vol: 0.24, attack: 0.005});
+      if (s === 0 || s === 6 || s === 10) B.ch.forEach(n => tone(a, out, {f: mf(n), t, len: STEP * (s === 0 ? 3 : 1.6), type: "triangle", vol: 0.05}));
+      if (full && s % 2 === 0){ const n = B.ch[ARP[(s / 2) % 8]] + 12 + (hurry ? 12 : 0); tone(a, out, {f: mf(n), t, len: STEP * 1.3, type: "square", vol: 0.032, attack: 0.004}); }
+      if (!full && s % 4 === 0){ const n = B.ch[(s / 4 + bar) % 3] + 12; tone(a, out, {f: mf(n), t, len: STEP * 3.5, type: "sine", vol: 0.09}); }
+    }
+    function pump(){
+      const a = actx; if (!a || !mode || a.state !== "running") return;
+      if (next < a.currentTime - 0.25) next = a.currentTime + 0.05;
+      while (next < a.currentTime + 0.15){
+        hit(a, next, step % 16, Math.floor(step / 16) % 4, mode);
+        next += STEP * (mode === "hurry" ? 0.82 : 1); step++;
+      }
+    }
+    return {
+      set(m){
+        if (m === mode) return;
+        const was = mode; mode = m;
+        if (!m){ clearInterval(timer); timer = null; return; }
+        const a = ctx(); if (!a){ mode = null; return; }
+        if (!was){ next = a.currentTime + 0.08; step = 0; }
+        if (!timer) timer = setInterval(pump, 25);
+      }
+    };
+  })();
+  function updateMusic(){
+    let m = null;
+    if (musicOn() && state && !document.hidden){
+      if (!$("podium").hidden) m = pdCelebrate ? "full" : null;
+      else if (state.phase === "lobby") m = "chill";
+      else if (tradingOpen()) m = state.endsAt - Date.now() <= 10000 ? "hurry" : "full";
+    }
+    Music.set(m);
+  }
+  function soundUI(){
+    const mo = musicOn();
+    $("musicBtn").innerHTML = mo ? '🎵<span class="sl"> Music on</span>' : '🎵<span class="sl"> Music off</span>';
+    $("musicBtn").setAttribute("aria-pressed", String(mo)); $("musicBtn").setAttribute("aria-label", mo ? "Music on" : "Music off"); $("musicBtn").title = mo ? "Music on (click to turn off)" : "Music off (click to turn on)";
+    $("sfxBtn").innerHTML = sfxOn ? '🔊<span class="sl"> Sounds on</span>' : '🔇<span class="sl"> Sounds off</span>';
+    $("sfxBtn").setAttribute("aria-pressed", String(sfxOn)); $("sfxBtn").setAttribute("aria-label", sfxOn ? "Sound effects on" : "Sound effects off"); $("sfxBtn").title = sfxOn ? "Sound effects on (click to turn off)" : "Sound effects off (click to turn on)";
+    $("pdSound").textContent = sfxOn ? "🔊 Sound on" : "🔇 Sound off";
+  }
+  function toggleSfx(){ sfxOn = !sfxOn; store.set("hce.sound", sfxOn ? "on" : "off"); if (sfxOn) ctx(); else stopDrum(); soundUI(); }
+  $("sfxBtn").addEventListener("click", toggleSfx);
+  $("pdSound").addEventListener("click", toggleSfx);
+  $("musicBtn").addEventListener("click", () => { store.set("hce.music", musicOn() ? "off" : "on"); if (musicOn()) ctx(); soundUI(); updateMusic(); });
+
+  /* ---------- podium finale ---------- */
+  let podiumShown = false, podiumRunning = false, pdTimers = [], pdCelebrate = false, drumNodes = [];
+  const podiumOpen = () => !$("podium").hidden;
+  const psfx = () => (podiumOpen() ? sfx() : null); // podium sounds only play while it's on screen
+  function boom(freq){
+    const a = psfx(); if (!a) return;
+    tone(a, master, {f: freq * 2.2, f2: freq, glide: 0.18, t: a.currentTime + 0.01, len: 0.6, type: "sine", vol: 0.55, attack: 0.004});
+  }
+  function startDrum(sec){
+    const a = psfx(); if (!a) return;
+    const t0 = a.currentTime;
+    for (let t = 0; t < sec; t += 0.045){
+      drumNodes.push(noise(a, master, {t: t0 + t + Math.random() * 0.01, len: 0.06, vol: 0.2 + 0.8 * Math.pow(t / sec, 1.5), type: "bandpass", freq: 170 + Math.random() * 70, q: 0.9, curve: 3}));
+    }
+  }
+  function stopDrum(){ drumNodes.forEach(s => { try { s.stop(); } catch (e){} }); drumNodes = []; }
+  function fanfare(){
+    const a = psfx(); if (!a) return;
+    const t0 = a.currentTime + 0.01;
+    [[72, 0, .18], [76, .15, .18], [79, .3, .18], [84, .45, 1.5], [79, .45, 1.5], [76, .45, 1.5]].forEach(([m, t, len]) => tone(a, master, {f: mf(m), t: t0 + t, len, type: "triangle", vol: 0.18, attack: 0.03}));
+    noise(a, master, {t: t0 + 0.45, len: 1.6, vol: 0.35, freq: 4500, curve: 2});
+  }
+  function confetti(){
+    if (reduceMotion() || !podiumOpen()) return;
+    const cols = ["#FFD66B", "#4CC98A", "#e87ba4", "#3987e5", "#F2796C", "#FFFFFF"], box = $("podium");
+    for (let i = 0; i < 170; i++){
+      const c = document.createElement("i"); c.className = "cf";
+      c.style.left = Math.random() * 100 + "vw"; c.style.background = cols[i % cols.length];
+      c.style.width = 6 + Math.random() * 6 + "px"; c.style.height = 8 + Math.random() * 9 + "px";
+      c.style.setProperty("--dx", Math.random() * 200 - 100 + "px"); c.style.setProperty("--r", Math.random() * 900 - 450 + "deg");
+      c.style.animationDuration = 2.6 + Math.random() * 2.4 + "s"; c.style.animationDelay = Math.random() * 1.2 + "s";
+      box.appendChild(c); setTimeout(() => c.remove(), 6500);
+    }
+  }
+  // Hide the podium but let the reveal keep going, so the standings still unlock on time.
+  function hidePodium(){
+    stopDrum(); $("podium").hidden = true; document.body.style.overflow = "";
+    if (state){ boardSig = ""; render(); } updateMusic();
+  }
+  function showPodiumEl(){ $("podium").hidden = false; document.body.style.overflow = "hidden"; updateMusic(); }
+  // Stop the reveal completely (new game, reset, leaving).
+  function closePodium(){
+    pdTimers.forEach(clearTimeout); pdTimers = []; stopDrum(); pdCelebrate = false;
+    const was = podiumRunning; podiumRunning = false;
+    $("podium").hidden = true; document.body.style.overflow = "";
+    if (was && state) render();
+    updateMusic();
+  }
+  function openPodium(){ if (podiumRunning) showPodiumEl(); else playPodium(podiumShown); }
+  function fillPodium(rows){
+    for (let k = 1; k <= 3; k++){
+      const col = $("pd" + k), r = rows[k - 1];
+      col.classList.remove("shown", "drum");
+      col.style.visibility = r ? "" : "hidden";
+      if (!r) continue;
+      col.querySelector(".pd-name").textContent = r.name + (r.id === uid ? " (you!)" : "");
+      col.querySelector(".pd-val").textContent = money(r.eq) + " · " + pct(r.eq / START_CASH - 1);
+    }
+    const i = rows.findIndex(r => r.id === uid), me = $("pdMe");
+    me.textContent = "";
+    if (i >= 0){
+      const b = document.createElement("b"); b.textContent = "#" + (i + 1);
+      me.append("You finished ", b, " of " + rows.length + " with " + money(rows[i].eq) + " (" + pct(rows[i].eq / START_CASH - 1) + ").");
+    } else me.textContent = rows.length + (rows.length === 1 ? " player" : " players") + " took part. Thanks for playing!";
+    const ol = $("pdRest"); ol.textContent = "";
+    rows.slice(3).forEach((r, j) => {
+      const li = document.createElement("li"); if (r.id === uid) li.className = "me";
+      const a = document.createElement("span"); a.className = "rk"; a.textContent = "#" + (j + 4);
+      const n = document.createElement("div"); n.textContent = r.name;
+      const v = document.createElement("span"); v.textContent = money(r.eq);
+      const p = document.createElement("span"); p.textContent = pct(r.eq / START_CASH - 1);
+      li.append(a, n, v, p); ol.appendChild(li);
+    });
+  }
+  function winnerLine(rows){ return rows.length ? (rows[0].id === uid ? "You win!" : rows[0].name + " wins!") : "No players joined this game."; }
+  function playPodium(instant){
+    closePodium();
+    const rows = ranked(), sub = $("pdSub");
+    fillPodium(rows);
+    $("pdAfter").hidden = true; $("pdReplay").hidden = true;
+    sub.classList.remove("drumming", "win"); $("pdStage").classList.remove("shake");
+    showPodiumEl();
+    const finish = () => {
+      podiumRunning = false; podiumShown = true; pdCelebrate = true;
+      $("pdAfter").hidden = false; $("pdReplay").hidden = false;
+      boardSig = ""; render(); updateMusic();
+    };
+    const winner = () => {
+      stopDrum(); sub.classList.remove("drumming"); $("pdStage").classList.remove("shake");
+      $("pd1").classList.remove("drum"); $("pd1").classList.add("shown");
+      sub.textContent = winnerLine(rows); sub.classList.add("win");
+    };
+    if (instant || !rows.length){
+      ["pd1", "pd2", "pd3"].forEach(id => $(id).classList.add("shown"));
+      winner(); finish(); return;
+    }
+    podiumRunning = true; render();
+    const at = (ms, fn) => pdTimers.push(setTimeout(fn, ms));
+    sub.textContent = "After " + numWord(totalRounds()) + " years of booms and busts, here are your top investors…";
+    if (podiumOpen()) SFX.reveal();
+    at(2400, () => { if (rows[2]){ sub.textContent = "In third place…"; $("pd3").classList.add("shown"); boom(90); } });
+    at(5200, () => { if (rows[1]){ sub.textContent = "In second place…"; $("pd2").classList.add("shown"); boom(110); } });
+    at(8200, () => {
+      sub.textContent = "And the winner is…"; sub.classList.add("drumming");
+      $("pd1").classList.add("drum"); $("pdStage").classList.add("shake"); startDrum(3.8);
+    });
+    at(12000, () => { winner(); fanfare(); confetti(); setTimeout(confetti, 900); });
+    at(13600, finish);
+  }
+  $("pdClose").addEventListener("click", hidePodium);
+  $("pdNews").addEventListener("click", () => { hidePodium(); newsFilter = "ALL"; buildNewsFilter(); renderNewsList(); showTab("news"); window.scrollTo(0, 0); });
+  $("pdReplay").addEventListener("click", () => playPodium(false));
+  document.addEventListener("keydown", ev => { if (ev.key === "Escape" && podiumOpen()) hidePodium(); });
+  $("viewPodiumBtn").addEventListener("click", openPodium);
+  $("tab-podium").addEventListener("click", openPodium);
+
+  /* ---------- static market rows ---------- */
+  for (const s of SEC){
+    const tt = document.createElement("div"); tt.className = "t"; tt.id = "tape-" + s.t;
+    tt.innerHTML = '<b></b><span class="p"></span><span class="chg flat"></span>';
+    tt.querySelector("b").textContent = s.label; $("tape").appendChild(tt);
+
+    const row = document.createElement("div"); row.className = "mrow"; row.id = "row-" + s.t;
+    row.innerHTML = '<div class="co"><b></b><span></span></div>' +
+      '<div class="px"><div class="pv"></div><span class="chg flat"></span></div>' +
+      '<div class="pos"></div>' +
+      '<div class="act"><button class="buy" type="button">Buy</button><button class="sell" type="button">Sell / short</button><div class="hint"></div></div>' +
+      '<details class="stats-drop"><summary>Stats by year</summary><div class="ytable-wrap"><table class="ytable"><thead><tr>' +
+      '<th>Year</th><th>Price</th><th>Change</th><th>Market cap</th><th>Revenue</th><th>Rev growth</th><th>Net income</th><th>P/E</th><th>Div yield</th><th>Div / share</th>' +
+      '</tr></thead><tbody></tbody></table></div><p class="ynote"></p></details>';
+    row.querySelector(".co b").textContent = s.label;
+    row.querySelector(".co span").textContent = s.name;
+    row.querySelector(".buy").addEventListener("click", ev => trade(s.t, "buy", ev.currentTarget));
+    row.querySelector(".sell").addEventListener("click", ev => trade(s.t, "sell", ev.currentTarget));
+    $("market").appendChild(row);
+  }
+
+  /* ---------- tabs ---------- */
+  const TABS = ["trade", "news", "markets"];
+  let activeTab = "trade", seenNews = 0;
+  function showTab(name){
+    activeTab = name;
+    for (const t of TABS){
+      $("tab-" + t).setAttribute("aria-selected", String(t === name));
+      $("view-" + t).hidden = t !== name;
+    }
+    if (name === "news"){ seenNews = latestRevealed(); $("newsDot").hidden = true; }
+    if (name === "markets") renderMarkets();
+  }
+  TABS.forEach(t => $("tab-" + t).addEventListener("click", () => showTab(t)));
+  let resizeT = 0;
+  window.addEventListener("resize", () => { clearTimeout(resizeT); resizeT = setTimeout(() => { if (activeTab === "markets") renderMarkets(); }, 150); });
+  const latestRevealed = () => Object.keys(revealed).map(Number).reduce((a, b) => Math.max(a, b), 0);
+
+  /* ---------- animations ---------- */
+  const reduceMotion = () => window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function toast(title, text){
+    const box = $("toasts"), el = document.createElement("div"); el.className = "toast";
+    const b = document.createElement("b"); b.textContent = title;
+    const s = document.createElement("span"); s.textContent = text;
+    el.append(b, s); box.appendChild(el);
+    while (box.children.length > 3) box.firstChild.remove();
+    setTimeout(() => el.remove(), 4200);
+  }
+  function tradeFx(btn, text, kind, row){
+    if (row){ row.classList.remove("flash-buy", "flash-sell"); void row.offsetWidth; row.classList.add("flash-" + kind); }
+    const acct = $("sAfter"); acct.classList.remove("pop"); void acct.offsetWidth; acct.classList.add("pop");
+    if (reduceMotion() || !btn) return;
+    const r = btn.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
+    const f = document.createElement("div"); f.className = "fly " + kind; f.textContent = text;
+    f.style.left = x + "px"; f.style.top = y + "px"; document.body.appendChild(f);
+    setTimeout(() => f.remove(), 1400);
+    const colors = kind === "buy" ? ["var(--up)", "#FFD66B", "var(--accent)"] : ["var(--down)", "#FFD66B", "var(--warn)"];
+    for (let i = 0; i < 12; i++){
+      const sp = document.createElement("i"); sp.className = "spark";
+      const ang = (Math.PI * 2 * i) / 12 + Math.random() * 0.4, dist = 40 + Math.random() * 40;
+      sp.style.left = x + "px"; sp.style.top = y + "px"; sp.style.background = colors[i % 3];
+      sp.style.setProperty("--dx", Math.cos(ang) * dist + "px");
+      sp.style.setProperty("--dy", Math.sin(ang) * dist - 20 + "px");
+      document.body.appendChild(sp); setTimeout(() => sp.remove(), 900);
+    }
+  }
+
+  /* ---------- views ---------- */
+  function showLanding(){
+    $("landing").hidden = false; $("game").hidden = true; $("clockBox").hidden = true;
+    $("roundLabel").textContent = DEFAULT_ROUNDS + " rounds, one year each";
+    const q = new URLSearchParams(location.search).get("game");
+    if (q) $("joinCode").value = q.toUpperCase().slice(0, 5);
+  }
+  function showGame(){
+    $("landing").hidden = true; $("game").hidden = false; $("clockBox").hidden = false;
+    $("marketPanel").hidden = false; $("accountPanel").hidden = isHost;
+    document.body.classList.toggle("hosting", isHost);
+  }
+
+  function setChg(el, cur, prev){
+    el.classList.remove("up","down","flat","dead");
+    if (cur <= 0){ el.textContent = "Bankrupt"; el.classList.add("dead"); return; }
+    if (!prev || !state || state.round === 0){ el.textContent = "—"; el.classList.add("flat"); return; }
+    const c = cur / prev - 1;
+    el.textContent = pct(c); el.classList.add(c > 0.0005 ? "up" : c < -0.0005 ? "down" : "flat");
+  }
+
+  function render(){
+    if (!state) return;
+    $("tab-podium").hidden = state.phase !== "final";
+    soundUI();
+    const P = state.prices, prev = state.prev || startPrices, ROUNDS = totalRounds();
+    const upcoming = Math.min(state.round + 1, ROUNDS);
+    const taxes = taxesOn(), shorting = shortingOn();
+    document.body.classList.toggle("notax", !taxes);
+    document.body.classList.toggle("noshort", !shorting);
+    $("sAfterLabel").textContent = taxes ? "After-tax value (what you'd keep if you sold everything)" : "Account value";
+    const chip = $("phaseChip"); chip.className = "phase";
+    let label;
+    if (state.phase === "lobby"){ chip.textContent = "Lobby"; label = "Waiting for the host to open Year One trading"; }
+    else if (state.phase === "trading"){ const o = tradingOpen(); chip.textContent = o ? "Trading open" : "Trading closed"; chip.classList.add(o ? "open" : "closed"); label = "Year " + upcoming + " of " + ROUNDS + " · place your trades"; }
+    else if (state.phase === "locked"){ chip.textContent = "Trading closed"; chip.classList.add("closed"); label = "Year " + upcoming + " of " + ROUNDS + " · waiting for results"; }
+    else if (state.phase === "revealed"){ chip.textContent = "Results"; chip.classList.add("results"); label = "Year " + state.round + " of " + ROUNDS + " results are in"; }
+    else { chip.textContent = "Final"; chip.classList.add("results"); label = "Game over · final standings"; }
+    $("roundLabel").textContent = label + " · Game " + code;
+
+    const open = tradingOpen();
+    for (const s of SEC){
+      const cur = P[s.t] ?? s.start;
+      const tt = $("tape-" + s.t);
+      tt.querySelector(".p").textContent = "$" + Math.max(0, cur).toFixed(2);
+      setChg(tt.querySelector(".chg"), cur, prev[s.t]);
+      const row = $("row-" + s.t);
+      row.querySelector(".pv").textContent = "$" + Math.max(0, cur).toFixed(2);
+      setChg(row.querySelector(".px .chg"), cur, prev[s.t]);
+      const held = me ? (posOf(me)[s.t] || 0) : 0;
+      const posEl = row.querySelector(".pos");
+      posEl.className = "pos" + (held > 0 ? " long" : held < 0 ? " short" : "");
+      posEl.textContent = held > 0 ? "Own " + held : held < 0 ? "Short " + (-held) : "—";
+      const dead = cur <= 0, can = !!me && open && !dead && !busy;
+      const sellBtn = row.querySelector(".sell");
+      sellBtn.textContent = shorting ? "Sell / short" : "Sell";
+      row.querySelector(".buy").disabled = !can;
+      sellBtn.disabled = !can || (!shorting && held <= 0);
+      const hint = row.querySelector(".hint");
+      if (dead) hint.textContent = "Bankrupt and delisted: can't be traded";
+      else if (me){
+        const mp = posOf(me), eq = equityOf(me.cash, mp, P), sx = shortExposure(mp, P);
+        const maxBuy = Math.max(0, Math.floor(me.cash / cur + 1e-9));
+        const maxSell = shorting ? Math.max(0, held) + Math.max(0, Math.floor((eq - sx) / cur + 1e-9)) : Math.max(0, held);
+        hint.textContent = "Max buy " + maxBuy + " · max sell " + maxSell;
+      } else hint.textContent = "";
+    }
+
+    const acct = me || {cash: START_CASH, pos: {}, lots: {}};
+    const apos = posOf(acct), eq = equityOf(acct.cash, apos, P), due = cashOutTax(acct, P), after = eq - due, ret = after / START_CASH - 1;
+    $("sAfter").textContent = money(after);
+    $("sEquity").textContent = money(eq);
+    $("sCash").textContent = money(acct.cash);
+    $("sRet").textContent = pct(ret);
+    $("sRet").style.color = ret > 0.0005 ? "var(--up)" : ret < -0.0005 ? "var(--down)" : "";
+    $("sTaxPaid").textContent = money(acct.taxPaid || 0);
+    $("sTaxDue").textContent = money(due);
+    $("sBank").textContent = money(acct.lossBank || 0);
+    $("sLong").textContent = money(longValue(apos, P));
+    $("sShort").textContent = money(shortExposure(apos, P));
+    const hb = $("holdings"); hb.textContent = "";
+    const lots = cloneLots(acct), keys = SEC.map(s => s.t).filter(t => lots[t] && lots[t].length);
+    if (!keys.length){
+      const tr = document.createElement("tr"), td = document.createElement("td");
+      td.colSpan = 5; td.style.fontFamily = "var(--body)"; td.style.color = "var(--ink-2)";
+      td.textContent = "No positions yet. Pick a stock and trade while the timer runs.";
+      tr.appendChild(td); hb.appendChild(tr);
+    } else for (const t of keys) for (const l of lots[t]){
+      const px = P[t] || 0, tr = document.createElement("tr");
+      const g = l.q > 0 ? (px - l.px) * l.q : (l.px - px) * -l.q;
+      const a = document.createElement("td");
+      a.textContent = labelOf(t) + (l.q < 0 ? " (short)" : "");
+      const note = document.createElement("div"); note.className = "lotnote";
+      note.textContent = (l.q < 0 ? "Shorted " : "Bought ") + (l.r === 0 ? "before Year 1" : "after Year " + l.r) + " at $" + l.px.toFixed(2);
+      a.appendChild(note);
+      const b = document.createElement("td"); b.textContent = l.q;
+      const c = document.createElement("td"); c.textContent = money(l.q * px); if (l.q < 0) c.style.color = "var(--down)";
+      const d = document.createElement("td"); d.textContent = money(g); d.style.color = g > 0.005 ? "var(--up)" : g < -0.005 ? "var(--down)" : "";
+      const e = document.createElement("td"); e.className = "taxbit";
+      if (l.q < 0) e.textContent = "30% short-term";
+      else {
+        const yrs = heldYears(l);
+        e.textContent = yrs >= LT_YEARS ? "15% long-term" : "30% · long-term in " + (LT_YEARS - yrs) + " yr";
+      }
+      e.style.fontFamily = "var(--body)"; e.style.fontSize = "12px";
+      tr.append(a, b, c, d, e); hb.appendChild(tr);
+    }
+    $("meName").textContent = me ? me.name : "";
+    renderBoard(); renderHost();
+  }
+
+  function ranked(){
+    const P = state.prices;
+    return players.map(p => ({id: p.id, name: p.name || "Player", eq: r2(afterTaxOf(p, P)), j: p.joinedAt || 0}))
+      .sort((a, b) => (b.eq - a.eq) || (a.j - b.j) || (a.id < b.id ? -1 : 1));
+  }
+  function renderBoard(){
+    const rows = ranked();
+    $("playerCount").textContent = rows.length + (rows.length === 1 ? " player" : " players") + (taxesOn() ? " · after tax" : "");
+    const final = state.phase === "final";
+    $("viewPodiumBtn").hidden = !(final && rows.length && (podiumShown || podiumRunning));
+    $("viewPodiumBtn").textContent = podiumRunning ? "🏆 Back to the podium" : "🏆 Open the podium";
+    const tb = $("board");
+    if (final && !podiumShown){
+      // Keep the winner secret until the podium reveal.
+      const hs = "hidden:" + podiumRunning;
+      if (boardSig === hs) return;
+      boardSig = hs; tb.textContent = "";
+      const tr = document.createElement("tr"), td = document.createElement("td");
+      td.style.cssText = "color:var(--ink-2);text-align:center;padding:22px 0;font-size:15px";
+      td.textContent = podiumRunning ? "🏆 The podium reveal is on. The standings unlock once the winner is announced." : "🏆 Final standings are hidden until the podium reveal.";
+      tr.appendChild(td); tb.appendChild(tr); return;
+    }
+    const sig = JSON.stringify([uid, rows.map(r => [r.id, r.name, r.eq])]);
+    if (sig === boardSig) return;
+    boardSig = sig;
+
+    // Who moved up since the last update? (No pop-ups at the end: the podium does that.)
+    const newRanks = new Map(rows.map((r, i) => [r.id, i]));
+    if (prevRanks && state.phase !== "lobby" && !final){
+      const now = Date.now(), notes = [];
+      rows.forEach((r, i) => {
+        const was = prevRanks.get(r.id);
+        if (was == null || was <= i) return;
+        climbs.set(r.id, {n: was - i, until: now + 2400});
+        if (i === 0) notes.push(["NEW LEADER", (r.id === uid ? "You take" : r.name + " takes") + " first place!"]);
+        else if (i < 3 && was >= 3) notes.push(["TOP 3", (r.id === uid ? "You climb" : r.name + " climbs") + " to #" + (i + 1) + ", passing " + (was - i) + (was - i === 1 ? " player" : " players") + "."]);
+        else if (r.id === uid) notes.push(["MOVING UP", "You passed " + (was - i) + (was - i === 1 ? " player" : " players") + ". Now #" + (i + 1) + "."]);
+      });
+      notes.slice(0, 3).forEach(([a, b]) => toast(a, b));
+    }
+    prevRanks = newRanks;
+
+    const oldTop = new Map();
+    tb.querySelectorAll("tr[data-id]").forEach(tr => oldTop.set(tr.dataset.id, tr.getBoundingClientRect().top));
+    tb.textContent = "";
+    if (!rows.length){
+      const tr = document.createElement("tr"), td = document.createElement("td");
+      td.style.color = "var(--ink-2)"; td.textContent = "Players appear here as they join.";
+      tr.appendChild(td); tb.appendChild(tr); return;
+    }
+    const now = Date.now();
+    rows.forEach((r, i) => {
+      const tr = document.createElement("tr"); tr.dataset.id = r.id;
+      if (r.id === uid) tr.classList.add("me");
+      const cl = climbs.get(r.id);
+      const a = document.createElement("td"); a.className = "rank"; a.textContent = i + 1;
+      if (i === 0 && rows.length > 1) a.innerHTML = '<span class="crown" aria-label="first place">★</span>';
+      const b = document.createElement("td"); b.textContent = r.name;
+      if (r.id === uid){ const y = document.createElement("span"); y.className = "you"; y.textContent = "you"; b.appendChild(y); }
+      if (cl && cl.until > now){
+        tr.classList.add("climb");
+        const ar = document.createElement("span"); ar.className = "arrow"; ar.textContent = "▲" + cl.n; b.appendChild(ar);
+      }
+      const c = document.createElement("td"); c.className = "val"; c.textContent = money(r.eq);
+      const d = document.createElement("td"); d.className = "ret"; const rr = r.eq / START_CASH - 1;
+      d.textContent = pct(rr); d.style.color = rr > 0.0005 ? "var(--up)" : rr < -0.0005 ? "var(--down)" : "var(--ink-2)";
+      tr.append(a, b, c, d); tb.appendChild(tr);
+    });
+    if (reduceMotion()) return;
+    tb.querySelectorAll("tr[data-id]").forEach(tr => {
+      const o = oldTop.get(tr.dataset.id); if (o == null) return;
+      const dy = o - tr.getBoundingClientRect().top; if (Math.abs(dy) < 1) return;
+      tr.style.transition = "none"; tr.style.transform = "translateY(" + dy + "px)";
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        tr.style.transition = "transform .8s cubic-bezier(.2,.8,.2,1)"; tr.style.transform = "";
+      }));
+    });
+  }
+  let boardSig = "", prevRanks = null;
+  const climbs = new Map();
+
+  let crawlSig = "";
+  function renderCrawl(){
+    const ns = Object.keys(revealed).map(Number).sort((a, b) => b - a);
+    const items = [];
+    const first = str => { const m = String(str || "").match(/^.*?[.!?](\s|$)/); return (m ? m[0] : String(str || "")).trim(); };
+    if (ns.length){
+      const n = ns[0], r = revealed[n];
+      items.push({tag: "YEAR " + n, text: (r.title || "").replace(/^Year \w+: /, "") + ". " + first(r.macro)});
+      const order = Array.isArray(r.order) ? r.order : SEC.map(s => s.t);
+      for (const t of order){
+        const mv = r.moves && r.moves[t]; if (!mv || mv.delisted) continue;
+        items.push({tag: labelOf(t), chg: mv.pct <= -1 ? "BANKRUPT" : pct(mv.pct), dir: mv.pct >= 0 ? "up" : "down", text: first(mv.story)});
+      }
+      items.push({tag: "MORE", text: "Open the News tab for every full story."});
+    } else {
+      items.push({tag: "WELCOME", text: "Five companies, one index fund, " + numWord(totalRounds()) + " years of AI booms and busts."});
+      if (taxesOn()) items.push({tag: "TAXES", text: "Short-term gains are taxed 30%. Hold 2+ years and pay just 15%."});
+      if (shortingOn()) items.push({tag: "SHORTING", text: "Think a stock will crash? Sell shares you don't own and profit if it falls."});
+      items.push({tag: "RUMOR", text: "Analysts warn that at least one company won't survive the years ahead."});
+      items.push({tag: "MARKET", text: "Trading opens when the host starts Year 1."});
+    }
+    const sig = JSON.stringify(items);
+    if (sig === crawlSig) return;
+    crawlSig = sig;
+    const track = $("crawl"); track.textContent = "";
+    for (let copy = 0; copy < 2; copy++) for (const it of items){
+      const span = document.createElement("span"); span.className = "crawl-item";
+      if (copy) span.setAttribute("aria-hidden", "true");
+      const b = document.createElement("b"); b.textContent = it.tag; span.appendChild(b);
+      if (it.chg){ const c = document.createElement("span"); c.className = it.dir; c.textContent = it.chg; span.appendChild(c); }
+      span.appendChild(document.createTextNode(it.text));
+      track.appendChild(span);
+    }
+    const chars = items.reduce((x, it) => x + it.text.length + it.tag.length + 8, 0);
+    track.style.setProperty("--dur", Math.max(30, Math.round(chars * 0.18)) + "s");
+  }
+
+  let newsFilter = "ALL";
+  function buildNewsFilter(){
+    const box = $("newsFilter"); box.textContent = "";
+    for (const f of [{t: "ALL", label: "All companies"}, ...SEC]){
+      const b = document.createElement("button"); b.type = "button"; b.textContent = f.label;
+      b.setAttribute("aria-pressed", String(newsFilter === f.t));
+      b.addEventListener("click", () => { newsFilter = f.t; buildNewsFilter(); renderNewsList(); });
+      box.appendChild(b);
+    }
+  }
+  buildNewsFilter();
+
+  function renderNews(){
+    renderStats();
+    renderCrawl();
+    renderNewsList();
+    const latest = latestRevealed();
+    $("newsDot").hidden = !(latest > seenNews && activeTab !== "news");
+    if (activeTab === "news") seenNews = latest;
+    if (activeTab === "markets") renderMarkets();
+  }
+  function renderNewsList(){
+    const box = $("news"); box.textContent = "";
+    const ns = Object.keys(revealed).map(Number).sort((a, b) => b - a);
+    if (!ns.length){
+      const p = document.createElement("p"); p.className = "empty";
+      p.textContent = "News appears here when the host reveals each year's results. Every story for every company will be listed, newest year first.";
+      box.appendChild(p); return;
+    }
+    ns.forEach((n, idx) => {
+      const r = revealed[n], sec = document.createElement("div"); sec.className = "round" + (idx === 0 ? " latest" : "");
+      const h = document.createElement("h3"); h.textContent = "Year " + n + " · " + (r.title || "").replace(/^Year \w+: /, "");
+      if (idx === 0){ const tag = document.createElement("span"); tag.className = "newtag"; tag.textContent = "LATEST"; h.appendChild(tag); }
+      const m = document.createElement("p"); m.className = "macro"; m.textContent = r.macro || "";
+      const ul = document.createElement("ul"); ul.className = "moves";
+      const order = Array.isArray(r.order) ? r.order : SEC.map(s => s.t);
+      for (const t of order){
+        if (newsFilter !== "ALL" && t !== newsFilter) continue;
+        const mv = r.moves && r.moves[t]; if (!mv) continue;
+        const li = document.createElement("li");
+        const b = document.createElement("b"); b.textContent = labelOf(t);
+        const c = document.createElement("span"); c.className = "chg";
+        if (mv.delisted){ c.classList.add("gone"); c.textContent = "Delisted"; }
+        else if (mv.pct <= -1){ c.classList.add("dead"); c.textContent = "Bankrupt"; }
+        else { c.classList.add(mv.pct > 0 ? "up" : mv.pct < 0 ? "down" : "flat"); c.textContent = pct(mv.pct); }
+        const p = document.createElement("p"); p.textContent = mv.story || "";
+        const px = r.prices && r.prices[t];
+        if (px != null && !mv.delisted){ const s = document.createElement("span"); s.style.color = "var(--ink-2)"; s.style.fontFamily = "var(--mono)"; s.style.fontSize = "12px"; s.textContent = "  New price $" + Math.max(0, px).toFixed(2); p.appendChild(s); }
+        li.append(b, c, p); ul.appendChild(li);
+      }
+      if (newsFilter === "ALL") sec.append(h, m, ul); else sec.append(h, ul);
+      box.appendChild(sec);
+    });
+  }
+
+  /* ---------- markets tab (hand-drawn SVG charts) ---------- */
+  const SVGNS = "http://www.w3.org/2000/svg";
+  function svgEl(tag, attrs, parent){ const e = document.createElementNS(SVGNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+  function niceMax(v){ if (v <= 0) return 1; const p = Math.pow(10, Math.floor(Math.log10(v))), f = v / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p; }
+  // series: [{key, label, color, values:[number|null], fmt}], xLabels: [...]
+  function lineChart(box, series, xLabels, opts){
+    box.textContent = "";
+    const W = Math.max(260, Math.round(box.clientWidth || opts.w || 720)), H = opts.h || Math.round(Math.min(340, Math.max(230, W * 0.42))), m = {l: opts.ml || 48, r: 14, t: 12, b: 26};
+    const iw = W - m.l - m.r, ih = H - m.t - m.b, n = xLabels.length;
+    let hi = 0; series.forEach(s => s.values.forEach(v => { if (v != null) hi = Math.max(hi, v); }));
+    const step = niceMax(Math.max(hi * 1.05, 1e-9) / 4), yMax = step * Math.max(1, Math.ceil((hi * 1.05) / step)), ticks = Math.round(yMax / step);
+    const X = i => m.l + (n <= 1 ? iw / 2 : (iw * i) / (n - 1)), Y = v => m.t + ih - (ih * v) / yMax;
+    const svg = svgEl("svg", {viewBox: "0 0 " + W + " " + H, role: "img", "aria-label": opts.aria || "Line chart"}, box);
+    for (let k = 0; k <= ticks; k++){
+      const v = (yMax * k) / ticks, y = Y(v);
+      svgEl("line", {class: "grid-l", x1: m.l, x2: W - m.r, y1: y, y2: y}, svg);
+      const t = svgEl("text", {class: "axis-t", x: m.l - 6, y: y + 4, "text-anchor": "end"}, svg); t.textContent = opts.yFmt(v);
+    }
+    const every = n > 8 && opts.small ? 2 : 1;
+    xLabels.forEach((l, i) => { if (i % every) return; const t = svgEl("text", {class: "axis-t", x: X(i), y: H - 6, "text-anchor": "middle"}, svg); t.textContent = l; });
+    for (const s of series){
+      let d = "", pen = false;
+      s.values.forEach((v, i) => { if (v == null){ pen = false; return; } d += (pen ? "L" : "M") + X(i).toFixed(1) + " " + Y(v).toFixed(1); pen = true; });
+      if (d) svgEl("path", {class: "ser", d}, svg).style.stroke = s.color;
+      const lastI = s.values.reduce((a, v, i) => v != null ? i : a, -1);
+      if (lastI >= 0){ const c = svgEl("circle", {cx: X(lastI), cy: Y(s.values[lastI]), r: opts.small ? 4 : 5, "stroke-width": 2}, svg); c.style.fill = s.color; c.style.stroke = "var(--panel)"; }
+    }
+    // hover crosshair + tooltip
+    const xh = svgEl("line", {class: "xhair", y1: m.t, y2: m.t + ih, x1: 0, x2: 0, visibility: "hidden"}, svg);
+    const tip = document.createElement("div"); tip.className = "tip"; tip.hidden = true; box.appendChild(tip);
+    const hit = svgEl("rect", {class: "hit", x: m.l - 10, y: 0, width: iw + 20, height: H}, svg);
+    const move = ev => {
+      const r = svg.getBoundingClientRect(), sx = (ev.clientX - r.left) * (W / r.width);
+      const i = Math.max(0, Math.min(n - 1, Math.round(((sx - m.l) / iw) * (n - 1))));
+      const has = series.some(s => s.values[i] != null);
+      if (!has){ tip.hidden = true; xh.setAttribute("visibility", "hidden"); return; }
+      xh.setAttribute("x1", X(i)); xh.setAttribute("x2", X(i)); xh.setAttribute("visibility", "visible");
+      tip.textContent = "";
+      const hd = document.createElement("div"); hd.className = "label"; hd.textContent = xLabels[i]; tip.appendChild(hd);
+      series.filter(s => s.values[i] != null).sort((a, b) => b.values[i] - a.values[i]).forEach(s => {
+        const row = document.createElement("div"); row.className = "tr";
+        const a = document.createElement("span"); const sw = document.createElement("i"); sw.style.background = s.color; a.append(sw, s.label);
+        const b = document.createElement("span"); b.textContent = s.fmt(s.values[i], i);
+        row.append(a, b); tip.appendChild(row);
+      });
+      tip.hidden = false;
+      const bx = box.getBoundingClientRect(), px = (X(i) / W) * r.width;
+      tip.style.top = "0px";
+      tip.style.left = Math.max(0, Math.min(bx.width - tip.offsetWidth, px + (px > bx.width / 2 ? -tip.offsetWidth - 12 : 12))) + "px";
+    };
+    hit.addEventListener("pointermove", move);
+    hit.addEventListener("pointerdown", move);
+    hit.addEventListener("pointerleave", () => { tip.hidden = true; xh.setAttribute("visibility", "hidden"); });
+  }
+
+  function priceHistory(){
+    const N = totalRounds(), xs = ["Start"], hist = {};
+    for (let n = 1; n <= N; n++) xs.push("Y" + n);
+    for (const s of SEC){
+      const vals = [s.start];
+      for (let n = 1; n <= N; n++){ const r = revealed[n]; vals.push(r && r.prices && r.prices[s.t] != null ? Math.max(0, r.prices[s.t]) : null); }
+      // After a bankruptcy, stop the line at $0 instead of running along the floor.
+      let deadAt = -1; vals.forEach((v, i) => { if (deadAt < 0 && v === 0) deadAt = i; });
+      if (deadAt >= 0) for (let i = deadAt + 1; i < vals.length; i++) vals[i] = null;
+      hist[s.t] = vals;
+    }
+    return {xs, hist};
+  }
+  function renderMarkets(){
+    const {xs, hist} = priceHistory(), any = latestRevealed() > 0;
+    const color = t => "var(--s-" + t + ")";
+    const lg = $("legend"); lg.textContent = "";
+    for (const s of SEC){ const sp = document.createElement("span"); const i = document.createElement("i"); i.style.background = color(s.t); sp.append(i, s.label + " · " + s.name); lg.appendChild(sp); }
+    const series = SEC.map(s => ({key: s.t, label: s.label, color: color(s.t),
+      values: hist[s.t].map(v => v == null ? null : (v / s.start) * 100),
+      fmt: (v, i) => i > 0 && hist[s.t][i] === 0 ? "Bankrupt" : "$" + v.toFixed(0)}));
+    const main = $("mainChart");
+    if (!any){ main.textContent = ""; const p = document.createElement("p"); p.className = "empty"; p.textContent = "Charts fill in as the host reveals each year. Every stock starts at $100 here so you can compare them fairly."; main.appendChild(p); }
+    else lineChart(main, series, xs, {aria: "Growth of $100 invested in each stock at the start", yFmt: v => "$" + Math.round(v)});
+
+    const mult = $("multiples"); mult.textContent = "";
+    for (const s of SEC){
+      const vals = hist[s.t], last = vals.reduce((a, v) => v != null ? v : a, s.start);
+      const card = document.createElement("div"); card.className = "mini";
+      const hd = document.createElement("div"); hd.className = "mini-head";
+      const b = document.createElement("b"); b.textContent = s.label;
+      const pr = document.createElement("span"); pr.textContent = last > 0 ? "$" + last.toFixed(2) : "Bankrupt";
+      if (last <= 0) pr.style.color = "var(--down)";
+      hd.append(b, pr);
+      const sm = document.createElement("small"); const tot = last / s.start - 1;
+      sm.textContent = s.name + " · " + (any ? (last <= 0 ? "−100%" : pct(tot)) + " since start" : "starts at $" + s.start.toFixed(2));
+      const ch = document.createElement("div"); ch.className = "chart";
+      card.append(hd, sm, ch); mult.appendChild(card);
+      lineChart(ch, [{key: s.t, label: s.label, color: color(s.t), values: vals, fmt: (v, i) => i > 0 && v === 0 ? "Bankrupt" : "$" + v.toFixed(2)}], xs,
+        {small: true, w: 320, h: 150, ml: 46, aria: s.name + " share price by year", yFmt: v => v >= 1000 ? "$" + +(v / 1000).toFixed(1) + "k" : "$" + +v.toFixed(v < 10 ? 1 : 0)});
+    }
+
+    const tbl = $("priceTable"); tbl.textContent = "";
+    const thead = document.createElement("thead"), hr = document.createElement("tr");
+    ["Stock", ...xs].forEach(x => { const th = document.createElement("th"); th.textContent = x; hr.appendChild(th); });
+    thead.appendChild(hr); tbl.appendChild(thead);
+    const tb = document.createElement("tbody");
+    for (const s of SEC){
+      const tr = document.createElement("tr"), a = document.createElement("td"); a.textContent = s.label; tr.appendChild(a);
+      hist[s.t].forEach((v, i) => {
+        const td = document.createElement("td");
+        const r = i > 0 ? revealed[i] : null, dl = r && r.moves && r.moves[s.t] && r.moves[s.t].delisted;
+        td.textContent = v == null ? (dl ? "Delisted" : "—") : v === 0 ? "$0.00" : "$" + v.toFixed(2);
+        if (v === 0) td.className = "neg";
+        tr.appendChild(td);
+      });
+      tb.appendChild(tr);
+    }
+    tbl.appendChild(tb);
+  }
+
+  function renderHost(){
+    $("hostPanel").hidden = !isHost;
+    if (!isHost) return;
+    const ph = state.phase, open = tradingOpen(), nxt = Math.min(state.round + 1, totalRounds());
+    $("hostCode").textContent = code;
+    $("optTaxes").checked = taxesOn(); $("optShort").checked = shortingOn();
+    $("optTaxes").disabled = busy; $("optShort").disabled = busy;
+    $("podiumBtn").hidden = ph !== "final";
+    ["openBtn", "addBtn", "closeBtn", "revealBtn", "durSel"].forEach(id => { $(id).hidden = ph === "final"; });
+    document.querySelector('label[for="durSel"]').hidden = ph === "final";
+    $("podiumBtn").disabled = busy || podiumRunning;
+    $("podiumBtn").textContent = state.podium ? "🏆 Replay the podium on every screen" : "🏆 Reveal the podium";
+    $("durSel").value = String(state.tradeSeconds || 300);
+    $("openBtn").textContent = "Open Year " + nxt + " trading";
+    $("openBtn").disabled = busy || !(ph === "lobby" || ph === "revealed");
+    $("addBtn").disabled = busy || ph !== "trading";
+    $("closeBtn").disabled = busy || !(ph === "trading" && open);
+    $("revealBtn").textContent = "Reveal Year " + nxt + " results";
+    $("revealBtn").disabled = busy || !(ph === "locked" || (ph === "trading" && !open));
+    $("resetBtn").textContent = resetArmed ? "Click again to erase all trades" : "Reset game";
+  }
+
+  function tick(){
+    updateMusic();
+    if (!state) return;
+    const t = $("timer"), bar = $("timebar");
+    if (state.phase === "trading"){
+      const left = Math.max(0, state.endsAt - Date.now()), s = Math.ceil(left / 1000);
+      // countdown beeps in the last 5 seconds, then the time's-up sound
+      if (left > 0){ tick.openKey = state.endsAt; if (s <= 5 && s !== tick.beep){ tick.beep = s; SFX.tick(s === 1); } else if (s > 5) tick.beep = null; }
+      else if (tick.openKey === state.endsAt && tick.endKey !== state.endsAt){ tick.endKey = state.endsAt; SFX.end(); }
+      t.textContent = String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+      t.classList.toggle("hurry", left > 0 && left <= 30000);
+      bar.style.width = Math.min(100, 100 * left / ((state.tradeSeconds || 300) * 1000)) + "%";
+      if (left <= 0 && isHost && !busy) hostUpdate({phase: "locked"}, "Time's up. Trading closed.");
+    } else { t.textContent = "--:--"; t.classList.remove("hurry"); bar.style.width = "0%"; }
+    const nowOpen = tradingOpen();
+    if (tick.last !== nowOpen){ tick.last = nowOpen; render(); }
+  }
+  setInterval(tick, 250);
+
+  /* ---------- live data ---------- */
+  function subscribe(){
+    unsubs.forEach(u => u()); unsubs = [];
+    let lastSnap = null;
+    unsubs.push(gameRef().onSnapshot(s => {
+      if (!s.exists){ showNotice("That game no longer exists."); leave(); return; }
+      const d = s.data(), old = lastSnap; lastSnap = d;
+      isHost = d.hostUid === uid;
+      state = {...d, prices: {...startPrices, ...(d.prices || {})}, prev: {...startPrices, ...(d.prev || {})}};
+      const pseq = d.podium && d.podium.seq, oseq = old && old.podium && old.podium.seq;
+      if (d.phase !== "final"){ podiumShown = false; closePodium(); }
+      else if (pseq && !old) podiumShown = true; // opened the page after the podium was already revealed
+      showGame(); render();
+      if (old && d.phase === "final" && pseq && pseq !== oseq) playPodium();
+      if (old){
+        const N = totalRounds();
+        if (d.phase === "trading" && old.phase !== "trading"){ toast("TRADING OPEN", "Year " + Math.min(d.round + 1, N) + " of " + N + ". The clock is running!"); SFX.start(); }
+        else if (d.phase === "revealed" && d.round > old.round){ toast("YEAR " + d.round, "Results are in. Check the News tab for every story."); SFX.reveal(); }
+        if (old.phase === "trading" && d.phase === "locked" && old.endsAt > Date.now() + 400 && tick.endKey !== old.endsAt){ tick.endKey = old.endsAt; SFX.end(); }
+        const os = {taxes: true, shorting: true, ...(old.settings || {})}, ns = settings();
+        if (!isHost && os.taxes !== ns.taxes) toast("RULE CHANGE", ns.taxes ? "Taxes are now on." : "Taxes are now off.");
+        if (!isHost && os.shorting !== ns.shorting) toast("RULE CHANGE", ns.shorting ? "Short selling is now allowed." : "Short selling is now off.");
+      }
+    }, () => showNotice("Lost the connection to the game. Reload the page to reconnect.")));
+    unsubs.push(gameRef().collection("players").onSnapshot(q => {
+      players = q.docs.map(d => ({id: d.id, ...d.data(), pos: {...(d.data().pos || {})}}));
+      const mine = players.find(p => p.id === uid);
+      if (!busy) me = mine || null;
+      render();
+    }));
+    let firstNews = true;
+    unsubs.push(gameRef().collection("revealed").onSnapshot(q => {
+      revealed = {};
+      q.docs.forEach(d => { const v = d.data(); revealed[v.n || Number(d.id.slice(1))] = v; });
+      if (firstNews){ firstNews = false; seenNews = latestRevealed(); }
+      if (latestRevealed() < seenNews) seenNews = latestRevealed();
+      renderNews();
+    }));
+  }
+
+  function leave(){
+    unsubs.forEach(u => u()); unsubs = [];
+    code = null; state = null; me = null; players = []; revealed = {}; isHost = false;
+    prevRanks = null; boardSig = ""; climbs.clear(); seenNews = 0; showTab("trade");
+    podiumShown = false; closePodium(); Music.set(null);
+    store.del("hce.code"); showLanding();
+  }
+  $("leaveBtn").addEventListener("click", leave);
+
+  /* ---------- join / host ---------- */
+  $("joinForm").addEventListener("submit", async ev => {
+    ev.preventDefault();
+    const c = $("joinCode").value.trim().toUpperCase(), name = $("joinName").value.trim().slice(0, 28);
+    if (!c || !name) return;
+    say("joinMsg", "Joining…");
+    try {
+      const g = await fs.collection("games").doc(c).get();
+      if (!g.exists){ say("joinMsg", "No game has that code. Check it with your host.", "err"); return; }
+      const pref = fs.collection("games").doc(c).collection("players").doc(uid);
+      const existing = await pref.get();
+      if (!existing.exists) await pref.set({name, cash: START_CASH, pos: {}, lots: {}, lossBank: 0, taxPaid: 0, trades: 0, joinedAt: Date.now()});
+      code = c; store.set("hce.code", c); say("joinMsg", "");
+      subscribe();
+    } catch (e){ say("joinMsg", "Couldn't join. Check your internet connection and try again.", "err"); }
+  });
+
+  $("hostForm").addEventListener("submit", async ev => {
+    ev.preventDefault();
+    const f = $("roundsFile").files[0]; if (!f) return;
+    let rounds;
+    try {
+      const data = JSON.parse(await f.text());
+      rounds = Array.isArray(data) ? data : data.rounds;
+      if (!Array.isArray(rounds) || rounds.length < 1 || rounds.length > 12 || !rounds.every(r => r && r.prices && r.moves)) throw new Error("shape");
+    } catch (e){ say("hostFormMsg", "That file isn't a valid rounds.json. Use the rounds.json that came with the game.", "err"); return; }
+    say("hostFormMsg", "Creating game…");
+    try {
+      let c = newCode();
+      for (let i = 0; i < 5 && (await fs.collection("games").doc(c).get()).exists; i++) c = newCode();
+      const ref = fs.collection("games").doc(c);
+      await ref.set({hostUid: uid, phase: "lobby", round: 0, totalRounds: rounds.length, settings: {taxes: true, shorting: true}, endsAt: 0, tradeSeconds: 300, prices: {...startPrices}, prev: {...startPrices}, createdAt: Date.now()});
+      const batch = fs.batch();
+      rounds.forEach((r, i) => batch.set(ref.collection("secret").doc("r" + (i + 1)), {n: i + 1, title: r.title, macro: r.macro, moves: r.moves, prices: r.prices, stats: r.stats || null, order: r.order || null}));
+      await batch.commit();
+      code = c; store.set("hce.code", c); say("hostFormMsg", "");
+      subscribe();
+    } catch (e){ say("hostFormMsg", "Couldn't create the game. Check that the Firestore rules from firestore.rules are published.", "err"); }
+  });
+
+  /* ---------- trading ---------- */
+  async function trade(t, side, btn){
+    if (!me || !code) return;
+    const qty = Math.floor(Number($("qty").value));
+    if (!(qty >= 1)){ say("tradeMsg", "Enter a whole number of shares, 1 or more.", "err"); return; }
+    if (!tradingOpen()){ say("tradeMsg", "Trading is closed. Wait for the host to open the next round.", "err"); return; }
+    const p = state.prices[t];
+    if (!(p > 0)){ say("tradeMsg", labelOf(t) + " is bankrupt and can't be traded.", "err"); return; }
+    const mePos = posOf(me), held = mePos[t] || 0;
+    if (side === "sell" && !shortingOn() && qty > Math.max(0, held)){
+      say("tradeMsg", held > 0 ? "Short selling is off in this game. You can sell up to the " + held + " shares of " + labelOf(t) + " you own." : "Short selling is off in this game, so you can only sell shares you own.", "err"); return;
+    }
+    const res = applyTrade(me, t, side, qty, p);
+    const next = res.pos[t] || 0;
+    const eq = equityOf(me.cash, mePos, state.prices);
+    if (res.cash < -0.005){ say("tradeMsg", "Not enough cash. You can buy up to " + Math.floor(me.cash / p) + " shares of " + labelOf(t) + ".", "err"); return; }
+    if (shortExposure(res.pos, state.prices) > eq + 0.005){
+      const room = Math.max(0, held) + Math.max(0, Math.floor((eq - shortExposure(mePos, state.prices)) / p));
+      say("tradeMsg", "That short is too big for your account. You can sell up to " + room + " shares of " + labelOf(t) + ".", "err"); return;
+    }
+    busy = true; render();
+    const body = {name: me.name, cash: res.cash, pos: res.pos, lots: res.lots, lossBank: res.lossBank, taxPaid: r2((me.taxPaid || 0) + res.tax),
+      trades: (me.trades || 0) + 1, joinedAt: me.joinedAt || Date.now(), updatedAt: Date.now()};
+    try {
+      await gameRef().collection("players").doc(uid).set(body);
+      me = {...body, id: uid};
+      const verb = side === "buy" ? (held < 0 ? "Covered" : "Bought") : (held > 0 && next >= 0 ? "Sold" : "Shorted");
+      let extra = "";
+      if (res.tax > 0) extra = " Gain " + money(res.gain) + ", tax paid " + money(res.tax) + ".";
+      else if (res.gain < -0.005) extra = " Loss of " + money(-res.gain) + " saved to lower future taxes.";
+      else if (res.gain > 0.005) extra = " Gain " + money(res.gain) + ", covered by saved losses, so no tax.";
+      say("tradeMsg", verb + " " + qty + " " + labelOf(t) + " at $" + p.toFixed(2) + "." + extra, "ok");
+      tradeFx(btn, verb + " " + qty + " " + labelOf(t), side === "buy" ? "buy" : "sell", $("row-" + t));
+      if (side === "buy") SFX.buy(); else SFX.sell();
+    } catch (e){ say("tradeMsg", "The trade didn't go through. Check your connection and try again.", "err"); }
+    finally { busy = false; render(); }
+  }
+  $("qty").addEventListener("input", render);
+
+  /* ---------- host actions ---------- */
+  async function hostUpdate(patch, doneText){
+    busy = true; renderHost();
+    try { await gameRef().update(patch); state = {...state, ...patch}; if (doneText) say("hostMsg", doneText, "ok"); }
+    catch (e){ say("hostMsg", "That didn't save. Check your connection and try again.", "err"); }
+    finally { busy = false; render(); }
+  }
+  $("durSel").addEventListener("change", () => hostUpdate({tradeSeconds: Number($("durSel").value)}, "Trading window updated."));
+  $("openBtn").addEventListener("click", () => {
+    const sec = Number($("durSel").value) || 300;
+    hostUpdate({phase: "trading", tradeSeconds: sec, endsAt: Date.now() + sec * 1000}, "Year " + Math.min(state.round + 1, totalRounds()) + " trading is open.");
+  });
+  $("podiumBtn").addEventListener("click", () => {
+    audio(); // unlock sound on the projector laptop
+    hostUpdate({podium: {seq: Date.now()}}, "The podium is playing on every screen. Turn the projector volume up!");
+  });
+  $("optTaxes").addEventListener("change", ev => {
+    const on = ev.target.checked;
+    hostUpdate({settings: {...settings(), taxes: on}}, on ? "Taxes are on. Profits are taxed when players sell." : "Taxes are off. Players keep all their profits.");
+  });
+  $("optShort").addEventListener("change", ev => {
+    const on = ev.target.checked;
+    hostUpdate({settings: {...settings(), shorting: on}}, on ? "Short selling is on." : "Short selling is off. Players can still buy back shorts they already have.");
+  });
+  $("addBtn").addEventListener("click", () => hostUpdate({phase: "trading", endsAt: Math.max(Date.now(), state.endsAt) + 60000}, "Added one minute."));
+  $("closeBtn").addEventListener("click", () => hostUpdate({phase: "locked", endsAt: Date.now()}, "Trading closed."));
+  $("revealBtn").addEventListener("click", async () => {
+    const ROUNDS = totalRounds(), n = state.round + 1; if (n > ROUNDS) return;
+    busy = true; renderHost();
+    try {
+      const snap = await gameRef().collection("secret").doc("r" + n).get();
+      if (!snap.exists){ say("hostMsg", "Year " + n + " results are missing. Create a new game with rounds.json.", "err"); return; }
+      const d = snap.data();
+      await gameRef().collection("revealed").doc("r" + n).set({n, title: d.title, macro: d.macro, moves: d.moves, order: d.order || null, prices: d.prices, stats: d.stats || null});
+      const patch = {phase: n >= ROUNDS ? "final" : "revealed", round: n, endsAt: 0, prev: {...state.prices}, prices: {...d.prices}};
+      if (n >= ROUNDS) patch.podium = {seq: Date.now()}; // the podium starts on every screen right away
+      await gameRef().update(patch); state = {...state, ...patch};
+      say("hostMsg", n >= ROUNDS ? "Final results are in. The podium is playing on every screen. Turn the volume up!" :"Year " + n + " results revealed. Read the news aloud, then open the next round.", "ok");
+    } catch (e){ say("hostMsg", "Couldn't reveal results. Try again.", "err"); }
+    finally { busy = false; render(); }
+  });
+  $("resetBtn").addEventListener("click", async () => {
+    if (!resetArmed){ resetArmed = true; renderHost(); setTimeout(() => { resetArmed = false; renderHost(); }, 5000); return; }
+    resetArmed = false; busy = true; renderHost();
+    try {
+      const batch = fs.batch();
+      for (let n = 1; n <= totalRounds(); n++) batch.delete(gameRef().collection("revealed").doc("r" + n));
+      players.forEach(p => batch.set(gameRef().collection("players").doc(p.id), {name: p.name, cash: START_CASH, pos: {}, lots: {}, lossBank: 0, taxPaid: 0, trades: 0, joinedAt: p.joinedAt || Date.now(), updatedAt: Date.now()}));
+      batch.update(gameRef(), {phase: "lobby", round: 0, endsAt: 0, prices: {...startPrices}, prev: {...startPrices}, podium: null});
+      await batch.commit();
+      say("hostMsg", "Game reset. Everyone is back to $10,000 in the lobby.", "ok");
+    } catch (e){ say("hostMsg", "Reset didn't finish. Try again.", "err"); }
+    finally { busy = false; render(); }
+  });
+
+  /* ---------- boot ---------- */
+  showNotice("Connecting…");
+  auth.onAuthStateChanged(async u => {
+    if (!u) return;
+    uid = u.uid; showNotice("");
+    const saved = store.get("hce.code");
+    if (saved){
+      try {
+        const g = await fs.collection("games").doc(saved).get();
+        if (g.exists){ code = saved; subscribe(); return; }
+      } catch (e){}
+      store.del("hce.code");
+    }
+    showLanding();
+  });
+  auth.signInAnonymously().catch(() => showNotice("Couldn't sign in. In Firebase, turn on Anonymous sign-in (Security → Authentication → Sign-in method)."));
+})();
+</script>
+</body>
+</html>
