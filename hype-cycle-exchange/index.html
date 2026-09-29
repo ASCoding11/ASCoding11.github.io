@@ -185,8 +185,8 @@ body.hosting .act, body.hosting #qtyLabel{display:none!important}
 @media (prefers-reduced-motion: reduce){.timebar i{transition:none}}
 
 /* chart series colors (validated categorical slots 1-6) */
-:root{--s-AP:#2a78d6;--s-DMI:#eb6834;--s-PPF:#1baf7a;--s-BBMI:#eda100;--s-WTW:#e87ba4;--s-CES:#008300}
-@media (prefers-color-scheme: dark){:root{--s-AP:#3987e5;--s-DMI:#d95926;--s-PPF:#199e70;--s-BBMI:#c98500;--s-WTW:#d55181;--s-CES:#008300}}
+:root{--c1:#2a78d6;--c2:#eb6834;--c3:#1baf7a;--c4:#eda100;--c5:#e87ba4;--c6:#008300;--c7:#4a3aa7;--c8:#e34948}
+@media (prefers-color-scheme: dark){:root{--c1:#3987e5;--c2:#d95926;--c3:#199e70;--c4:#c98500;--c5:#d55181;--c6:#008300;--c7:#9085e9;--c8:#e66767}}
 
 /* tabs */
 .tabs{display:flex;gap:6px;border-bottom:1px solid var(--line);overflow-x:auto}
@@ -269,6 +269,32 @@ body.notax .taxbit,body:not(.notax) .notaxbit,body.noshort .shortbit,body:not(.n
 .mini-head span{font-family:var(--mono);font-size:14px;font-weight:600}
 .mini small{color:var(--ink-2);font-size:12px}
 .empty{color:var(--ink-2);margin:0}
+/* editions: briefings, company profiles, the big unmasking */
+.brief{margin-bottom:18px;border-left:4px solid var(--accent)}
+.brief #briefBody > p{margin:0;max-width:75ch}
+.co .sector{font-family:var(--mono);font-size:12px;color:var(--ink-2)}
+.mrow.unmasked .co .nm{color:var(--accent);font-weight:600}
+.about{margin:6px 0 8px;font-size:14px;color:var(--ink-2);max-width:75ch}
+.ytable.slim{min-width:0}
+.chips{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}
+.chips li{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:6px 10px;display:flex;flex-direction:column;min-width:112px}
+.chips li span{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);font-weight:600}
+.chips li b{font-family:var(--mono);font-size:16px;font-variant-numeric:tabular-nums}
+.brief-block{display:flex;flex-direction:column;gap:10px}
+.brief-block p{margin:0;max-width:75ch;font-size:14px}
+.round .brief-block{background:var(--panel-2);border-radius:8px;padding:10px 12px}
+.unmask{border:2px solid var(--accent);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;text-align:left}
+.unmask h3{font-family:var(--display);font-weight:800;font-size:24px;letter-spacing:.02em;text-transform:uppercase;margin:0}
+.unmask ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+.unmask li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;align-items:baseline}
+.unmask .who{font-weight:600}
+.unmask .who strong{color:var(--accent)}
+.unmask .tr{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.unmask li p{grid-column:1 / -1;margin:0;font-size:14px;color:var(--ink-2)}
+.pd-after .unmask{border-color:rgba(255,214,107,.55);background:rgba(255,255,255,.05)}
+.pd-after .unmask .who strong,.pd-after .unmask h3{color:#FFD66B}
+.pd-after .unmask li p{color:#BFEBD2}
+
 /* podium finale */
 .podium-ov{position:fixed;inset:0;z-index:70;background:radial-gradient(ellipse at 50% 35%,#1f5a40 0%,#0b1c15 55%,#050b08 100%);color:#fff;display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px 16px 24px;overflow-y:auto;overflow-x:hidden}
 .podium-ov:not([hidden]){animation:ovIn .5s ease-out}
@@ -422,6 +448,10 @@ body.notax .taxbit,body:not(.notax) .notaxbit,body.noshort .shortbit,body:not(.n
     </div>
 
     <div id="view-trade" role="tabpanel" aria-labelledby="tab-trade">
+    <section class="panel brief" id="briefPanel" hidden aria-label="Market briefing">
+      <div class="panel-head"><h2 id="briefTitle">Market briefing</h2><span class="label" id="briefSub"></span></div>
+      <div id="briefBody"></div>
+    </section>
     <div class="grid">
       <section class="panel" aria-label="Market" id="marketPanel">
         <div class="panel-head">
@@ -492,7 +522,7 @@ body.notax .taxbit,body:not(.notax) .notaxbit,body.noshort .shortbit,body:not(.n
     <div id="view-markets" role="tabpanel" aria-labelledby="tab-markets" hidden>
       <div class="col">
         <section class="panel" aria-label="Growth chart">
-          <div class="panel-head"><h2>Growth of $100</h2><span class="label">If you'd put $100 in each stock at the start</span></div>
+          <div class="panel-head"><h2>Growth of $100</h2><span class="label" id="growthNote">If you'd put $100 in each stock at the start</span></div>
           <div class="legend" id="legend"></div>
           <div class="chart" id="mainChart"></div>
         </section>
@@ -553,6 +583,35 @@ body.notax .taxbit,body:not(.notax) .notaxbit,body.noshort .shortbit,body:not(.n
     AP:   {marketCap: 40e12, revenue: 25e12, netIncome: 2e12,  revGrowth: 0.05,  divYield: 0.016}
   };
   const startPrices = Object.fromEntries(SEC.map(s => [s.t, s.start]));
+  // A rounds file can bring its own lineup ("securities"), round dates ("periods") and an "edition" blurb.
+  const DEFAULT_SEC = SEC.map(s => ({...s})), DEFAULT_STATS = {...START_STATS};
+  let secSig = JSON.stringify(DEFAULT_SEC);
+  const secOf = t => SEC.find(s => s.t === t) || {t, label: t, name: t, start: 0};
+  const colorOf = t => "var(--c" + (Math.max(0, SEC.findIndex(s => s.t === t)) % 8 + 1) + ")";
+  const periods = () => (state && Array.isArray(state.periods) && state.periods.length ? state.periods : null);
+  const edition = () => (state && state.edition) || null;
+  const rword = () => (periods() ? "round" : "year");
+  const rlabel = n => { const p = periods(); return p && p[n - 1] ? p[n - 1].label : "Year " + n; };          // "1987"
+  const rn = n => { const p = periods(); return p && p[n - 1] ? "Round " + n + " (" + p[n - 1].label + ")" : "Year " + n; }; // "Round 3 (1987)"
+  const rOf = (n, N) => { const p = periods(); return p && p[n - 1] ? "Round " + n + " of " + N + " · " + p[n - 1].label : "Year " + n + " of " + N; };
+  const xLabel = n => { const p = periods(), e = edition(); if (!n) return p && e && e.startLabel ? e.startLabel : "Start"; return p && p[n - 1] ? (p[n - 1].end || p[n - 1].label) : "Y" + n; };
+  const preIPO = (t, upcoming) => { const s = secOf(t); return !!(s.ipo && (upcoming == null ? (state ? state.round + 1 : 1) : upcoming) < s.ipo); };
+  let revealMeta = null; // real names, shown only after the final round
+  const realOf = t => (state && state.phase === "final" && revealMeta && revealMeta.real && revealMeta.real[t]) || null;
+  function applySecurities(list){
+    const use = Array.isArray(list) && list.length ? list : DEFAULT_SEC;
+    const sig = JSON.stringify(use);
+    if (sig === secSig) return false;
+    secSig = sig;
+    SEC.splice(0, SEC.length, ...use.map(x => ({...x})));
+    for (const k in startPrices) delete startPrices[k];
+    SEC.forEach(x => { startPrices[x.t] = x.start; });
+    for (const k in START_STATS) delete START_STATS[k];
+    if (use === DEFAULT_SEC) Object.assign(START_STATS, DEFAULT_STATS);
+    else SEC.forEach(x => { if (x.stats) START_STATS[x.t] = x.stats; });
+    buildMarket(); buildNewsFilter(); boardSig = ""; crawlSig = "";
+    return true;
+  }
   const $ = id => document.getElementById(id);
   const money = v => (v < 0 ? "−$" : "$") + Math.abs(v).toLocaleString("en-US", {minimumFractionDigits:2, maximumFractionDigits:2});
   const pct = v => (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v * 100).toFixed(1) + "%";
@@ -648,41 +707,44 @@ body.notax .taxbit,body:not(.notax) .notaxbit,body.noshort .shortbit,body:not(.n
     return sign + a.toLocaleString("en-US", {maximumFractionDigits: 0});
   }
   function renderStats(){
-    for (const s of SEC){
-      const base = START_STATS[s.t], shares = base.marketCap / s.start;
-      const rows = [{label: "Start", price: s.start, chg: null, st: base}];
+    for (const x0 of SEC){
+      const s = x0, row = $("row-" + s.t); if (!row) continue;
+      const base = START_STATS[s.t], full = !!base, shares = full ? base.marketCap / s.start : 0;
+      const rows = [{label: s.ipo > 1 ? "IPO price" : xLabel(0) === "Start" ? "Start" : "Start (" + xLabel(0) + ")", price: s.start, chg: null, st: base}];
       let prevPrice = s.start;
       const ns = Object.keys(revealed).map(Number).sort((a, b) => a - b);
       for (const n of ns){
+        if (s.ipo && n < s.ipo) continue;
         const r = revealed[n];
         const price = r.prices && r.prices[s.t] != null ? r.prices[s.t] : null;
         const st = r.stats && r.stats[s.t];
-        if (price == null || !st) continue;
-        rows.push({label: "Year " + n, price, chg: prevPrice > 0 ? price / prevPrice - 1 : null, st});
+        if (price == null || (full && !st)) continue;
+        rows.push({label: rlabel(n), price, chg: prevPrice > 0 ? price / prevPrice - 1 : null, st});
         prevPrice = price;
       }
-      const row = $("row-" + s.t); if (!row) continue;
       const tb = row.querySelector(".ytable tbody"); tb.textContent = "";
-      for (const x of rows){
+      rows.forEach((x, i) => {
         const tr = document.createElement("tr");
-        const mcap = x.price * shares, ni = x.st.netIncome;
         const cells = [
           [x.label, ""],
           [x.price > 0 ? "$" + x.price.toFixed(2) : "$0.00", ""],
-          [x.price <= 0 && x.chg !== null ? "Bankrupt" : x.price <= 0 ? "Delisted" : x.chg === null ? "—" : pct(x.chg), x.chg === null ? "" : x.chg < 0 ? "neg" : "pos"],
-          [big(mcap), ""],
-          [big(x.st.revenue), ""],
-          [pct(x.st.revGrowth), x.st.revGrowth < 0 ? "neg" : ""],
-          [big(ni), ni < 0 ? "neg" : ""],
-          [ni > 0 && mcap > 0 ? (mcap / ni).toFixed(1) : "n/a", ""],
-          [(x.st.divYield * 100).toFixed(1) + "%", ""],
-          ["$" + (x.price * x.st.divYield).toFixed(2), ""]
+          [x.price <= 0 && x.chg !== null ? "Bankrupt" : x.price <= 0 ? "Delisted" : x.chg === null ? "—" : pct(x.chg), x.chg === null ? "" : x.chg < 0 ? "neg" : "pos"]
         ];
+        if (full && x.st){
+          const mcap = x.price * shares, ni = x.st.netIncome;
+          cells.push([big(mcap), ""], [big(x.st.revenue), ""], [pct(x.st.revGrowth), x.st.revGrowth < 0 ? "neg" : ""], [big(ni), ni < 0 ? "neg" : ""],
+            [ni > 0 && mcap > 0 ? (mcap / ni).toFixed(1) : "n/a", ""], [(x.st.divYield * 100).toFixed(1) + "%", ""], ["$" + (x.price * x.st.divYield).toFixed(2), ""]);
+        } else if (!full){
+          const tot = x.price / s.start - 1;
+          cells.push([i === 0 ? "—" : x.price <= 0 ? "−100%" : pct(tot), i === 0 ? "" : tot < 0 ? "neg" : "pos"]);
+        }
         for (const [text, cls] of cells){ const td = document.createElement("td"); td.textContent = text; if (cls) td.className = cls; tr.appendChild(td); }
         tb.appendChild(tr);
-      }
-      const left = totalRounds() - (rows.length - 1);
-      row.querySelector(".ynote").textContent = left > 0 ? (left === 1 ? "One more year" : left + " more years") + " will appear here as results are revealed." : "All " + numWord(totalRounds()) + " years revealed.";
+      });
+      const playable = totalRounds() - (s.ipo ? s.ipo - 1 : 0), left = playable - (rows.length - 1), w = rword();
+      row.querySelector(".ynote").textContent = preIPO(s.t)
+        ? "Not public yet. It lists on the stock exchange in " + rn(s.ipo) + "."
+        : left > 0 ? (left === 1 ? "One more " + w : left + " more " + w + "s") + " will appear here as results are revealed." : "All " + numWord(playable) + " " + w + "s revealed.";
     }
   }
 
@@ -886,10 +948,13 @@ body.notax .taxbit,body:not(.notax) .notaxbit,body.noshort .shortbit,body:not(.n
     fillPodium(rows);
     $("pdAfter").hidden = true; $("pdReplay").hidden = true;
     sub.classList.remove("drumming", "win"); $("pdStage").classList.remove("shake");
+    $("pdNews").textContent = "📰 " + (periods() ? rlabel(totalRounds()) : "Year " + totalRounds()) + " news";
     showPodiumEl();
     const finish = () => {
       podiumRunning = false; podiumShown = true; pdCelebrate = true;
       $("pdAfter").hidden = false; $("pdReplay").hidden = false;
+      const old = $("pdAfter").querySelector(".unmask"); if (old) old.remove();
+      if (revealMeta && revealMeta.real) $("pdAfter").appendChild(unmaskBlock());
       boardSig = ""; render(); updateMusic();
     };
     const winner = () => {
@@ -903,7 +968,7 @@ body.notax .taxbit,body:not(.notax) .notaxbit,body.noshort .shortbit,body:not(.n
     }
     podiumRunning = true; render();
     const at = (ms, fn) => pdTimers.push(setTimeout(fn, ms));
-    sub.textContent = "After " + numWord(totalRounds()) + " years of booms and busts, here are your top investors…";
+    sub.textContent = edition() && edition().span ? "After " + numWord(totalRounds()) + " rounds of real market history (" + edition().span + "), here are your top investors…" : "After " + numWord(totalRounds()) + " years of booms and busts, here are your top investors…";
     if (podiumOpen()) SFX.reveal();
     at(2400, () => { if (rows[2]){ sub.textContent = "In third place…"; $("pd3").classList.add("shown"); boom(90); } });
     at(5200, () => { if (rows[1]){ sub.textContent = "In second place…"; $("pd2").classList.add("shown"); boom(110); } });
@@ -921,26 +986,34 @@ body.notax .taxbit,body:not(.notax) .notaxbit,body.noshort .shortbit,body:not(.n
   $("viewPodiumBtn").addEventListener("click", openPodium);
   $("tab-podium").addEventListener("click", openPodium);
 
-  /* ---------- static market rows ---------- */
-  for (const s of SEC){
-    const tt = document.createElement("div"); tt.className = "t"; tt.id = "tape-" + s.t;
-    tt.innerHTML = '<b></b><span class="p"></span><span class="chg flat"></span>';
-    tt.querySelector("b").textContent = s.label; $("tape").appendChild(tt);
+  /* ---------- market rows (rebuilt when a game brings its own lineup) ---------- */
+  function buildMarket(){
+    $("tape").textContent = ""; $("market").textContent = "";
+    for (const s of SEC){
+      const tt = document.createElement("div"); tt.className = "t"; tt.id = "tape-" + s.t;
+      tt.innerHTML = '<b></b><span class="p"></span><span class="chg flat"></span>';
+      tt.querySelector("b").textContent = s.label; $("tape").appendChild(tt);
 
-    const row = document.createElement("div"); row.className = "mrow"; row.id = "row-" + s.t;
-    row.innerHTML = '<div class="co"><b></b><span></span></div>' +
-      '<div class="px"><div class="pv"></div><span class="chg flat"></span></div>' +
-      '<div class="pos"></div>' +
-      '<div class="act"><button class="buy" type="button">Buy</button><button class="sell" type="button">Sell / short</button><div class="hint"></div></div>' +
-      '<details class="stats-drop"><summary>Stats by year</summary><div class="ytable-wrap"><table class="ytable"><thead><tr>' +
-      '<th>Year</th><th>Price</th><th>Change</th><th>Market cap</th><th>Revenue</th><th>Rev growth</th><th>Net income</th><th>P/E</th><th>Div yield</th><th>Div / share</th>' +
-      '</tr></thead><tbody></tbody></table></div><p class="ynote"></p></details>';
-    row.querySelector(".co b").textContent = s.label;
-    row.querySelector(".co span").textContent = s.name;
-    row.querySelector(".buy").addEventListener("click", ev => trade(s.t, "buy", ev.currentTarget));
-    row.querySelector(".sell").addEventListener("click", ev => trade(s.t, "sell", ev.currentTarget));
-    $("market").appendChild(row);
+      const full = !!START_STATS[s.t], first = periods() ? "Period" : "Year";
+      const head = full ? [first, "Price", "Change", "Market cap", "Revenue", "Rev growth", "Net income", "P/E", "Div yield", "Div / share"] : [first, "Price", "Change", "Since start"];
+      const row = document.createElement("div"); row.className = "mrow"; row.id = "row-" + s.t;
+      row.innerHTML = '<div class="co"><b></b><span class="nm"></span><span class="sector"></span></div>' +
+        '<div class="px"><div class="pv"></div><span class="chg flat"></span></div>' +
+        '<div class="pos"></div>' +
+        '<div class="act"><button class="buy" type="button">Buy</button><button class="sell" type="button">Sell / short</button><div class="hint"></div></div>' +
+        '<details class="stats-drop"><summary></summary><p class="about" hidden></p><div class="ytable-wrap"><table class="ytable' + (full ? "" : " slim") + '"><thead><tr></tr></thead><tbody></tbody></table></div><p class="ynote"></p></details>';
+      head.forEach(h => { const th = document.createElement("th"); th.textContent = h; row.querySelector("thead tr").appendChild(th); });
+      row.querySelector("summary").textContent = s.desc ? "Company profile & stats" : "Stats by " + (periods() ? "round" : "year");
+      if (s.desc){ const ab = row.querySelector(".about"); ab.textContent = s.desc; ab.hidden = false; }
+      row.querySelector(".co b").textContent = s.label;
+      row.querySelector(".co .nm").textContent = s.name;
+      const sc = row.querySelector(".co .sector"); sc.textContent = s.sector || ""; sc.hidden = !s.sector;
+      row.querySelector(".buy").addEventListener("click", ev => trade(s.t, "buy", ev.currentTarget));
+      row.querySelector(".sell").addEventListener("click", ev => trade(s.t, "sell", ev.currentTarget));
+      $("market").appendChild(row);
+    }
   }
+  buildMarket();
 
   /* ---------- tabs ---------- */
   const TABS = ["trade", "news", "markets"];
@@ -1021,22 +1094,37 @@ body.notax .taxbit,body:not(.notax) .notaxbit,body.noshort .shortbit,body:not(.n
     $("sAfterLabel").textContent = taxes ? "After-tax value (what you'd keep if you sold everything)" : "Account value";
     const chip = $("phaseChip"); chip.className = "phase";
     let label;
-    if (state.phase === "lobby"){ chip.textContent = "Lobby"; label = "Waiting for the host to open Year One trading"; }
-    else if (state.phase === "trading"){ const o = tradingOpen(); chip.textContent = o ? "Trading open" : "Trading closed"; chip.classList.add(o ? "open" : "closed"); label = "Year " + upcoming + " of " + ROUNDS + " · place your trades"; }
-    else if (state.phase === "locked"){ chip.textContent = "Trading closed"; chip.classList.add("closed"); label = "Year " + upcoming + " of " + ROUNDS + " · waiting for results"; }
-    else if (state.phase === "revealed"){ chip.textContent = "Results"; chip.classList.add("results"); label = "Year " + state.round + " of " + ROUNDS + " results are in"; }
+    if (state.phase === "lobby"){ chip.textContent = "Lobby"; label = "Waiting for the host to open " + (periods() ? rn(1) : "Year One") + " trading"; }
+    else if (state.phase === "trading"){ const o = tradingOpen(); chip.textContent = o ? "Trading open" : "Trading closed"; chip.classList.add(o ? "open" : "closed"); label = rOf(upcoming, ROUNDS) + " · place your trades"; }
+    else if (state.phase === "locked"){ chip.textContent = "Trading closed"; chip.classList.add("closed"); label = rOf(upcoming, ROUNDS) + " · waiting for results"; }
+    else if (state.phase === "revealed"){ chip.textContent = "Results"; chip.classList.add("results"); label = rOf(state.round, ROUNDS) + " results are in"; }
     else { chip.textContent = "Final"; chip.classList.add("results"); label = "Game over · final standings"; }
     $("roundLabel").textContent = label + " · Game " + code;
+    renderBrief();
 
     const open = tradingOpen();
     for (const s of SEC){
-      const cur = P[s.t] ?? s.start;
-      const tt = $("tape-" + s.t);
+      const cur = P[s.t] ?? s.start, pre = preIPO(s.t);
+      const tt = $("tape-" + s.t), row = $("row-" + s.t);
+      if (!tt || !row) continue;
+      const real = realOf(s.t);
+      row.querySelector(".co .nm").textContent = s.name + (real ? " → really " + real.name : "");
+      row.classList.toggle("unmasked", !!real);
+      if (pre){
+        tt.querySelector(".p").textContent = "IPO " + rlabel(s.ipo);
+        const tc = tt.querySelector(".chg"); tc.className = "chg flat"; tc.textContent = "Soon";
+        row.querySelector(".pv").textContent = "$" + s.start.toFixed(2);
+        const rc = row.querySelector(".px .chg"); rc.className = "chg flat"; rc.textContent = "IPO price";
+        row.querySelector(".pos").textContent = "—"; row.querySelector(".pos").className = "pos";
+        row.querySelector(".buy").disabled = true; row.querySelector(".sell").disabled = true;
+        row.querySelector(".hint").textContent = "Not public yet · lists in " + rn(s.ipo);
+        continue;
+      }
       tt.querySelector(".p").textContent = "$" + Math.max(0, cur).toFixed(2);
       setChg(tt.querySelector(".chg"), cur, prev[s.t]);
-      const row = $("row-" + s.t);
       row.querySelector(".pv").textContent = "$" + Math.max(0, cur).toFixed(2);
       setChg(row.querySelector(".px .chg"), cur, prev[s.t]);
+      if (s.ipo && state.round + 1 === s.ipo){ const nc = row.querySelector(".px .chg"), tc = tt.querySelector(".chg"); [nc, tc].forEach(el => { el.className = "chg up"; el.textContent = "New listing"; }); }
       const held = me ? (posOf(me)[s.t] || 0) : 0;
       const posEl = row.querySelector(".pos");
       posEl.className = "pos" + (held > 0 ? " long" : held < 0 ? " short" : "");
@@ -1081,7 +1169,7 @@ body.notax .taxbit,body:not(.notax) .notaxbit,body.noshort .shortbit,body:not(.n
       const a = document.createElement("td");
       a.textContent = labelOf(t) + (l.q < 0 ? " (short)" : "");
       const note = document.createElement("div"); note.className = "lotnote";
-      note.textContent = (l.q < 0 ? "Shorted " : "Bought ") + (l.r === 0 ? "before Year 1" : "after Year " + l.r) + " at $" + l.px.toFixed(2);
+      note.textContent = (l.q < 0 ? "Shorted " : "Bought ") + (l.r === 0 ? "before " + rn(1) : "after " + rn(l.r)) + " at $" + l.px.toFixed(2);
       a.appendChild(note);
       const b = document.createElement("td"); b.textContent = l.q;
       const c = document.createElement("td"); c.textContent = money(l.q * px); if (l.q < 0) c.style.color = "var(--down)";
@@ -1187,13 +1275,15 @@ body.notax .taxbit,body:not(.notax) .notaxbit,body.noshort .shortbit,body:not(.n
     const first = str => { const m = String(str || "").match(/^.*?[.!?](\s|$)/); return (m ? m[0] : String(str || "")).trim(); };
     if (ns.length){
       const n = ns[0], r = revealed[n];
-      items.push({tag: "YEAR " + n, text: (r.title || "").replace(/^Year \w+: /, "") + ". " + first(r.macro)});
+      items.push({tag: periods() ? rlabel(n).toUpperCase() : "YEAR " + n, text: (r.title || "").replace(/^(Year|Round) \w+: /, "") + ". " + first(r.macro)});
       const order = Array.isArray(r.order) ? r.order : SEC.map(s => s.t);
       for (const t of order){
-        const mv = r.moves && r.moves[t]; if (!mv || mv.delisted) continue;
+        const mv = r.moves && r.moves[t]; if (!mv || mv.delisted || mv.preIPO) continue;
         items.push({tag: labelOf(t), chg: mv.pct <= -1 ? "BANKRUPT" : pct(mv.pct), dir: mv.pct >= 0 ? "up" : "down", text: first(mv.story)});
       }
       items.push({tag: "MORE", text: "Open the News tab for every full story."});
+    } else if (edition() && Array.isArray(edition().crawl)){
+      edition().crawl.forEach(it => items.push({tag: String(it.tag || "NEWS"), text: String(it.text || "")}));
     } else {
       items.push({tag: "WELCOME", text: "Five companies, one index fund, " + numWord(totalRounds()) + " years of AI booms and busts."});
       if (taxesOn()) items.push({tag: "TAXES", text: "Short-term gains are taxed 30%. Hold 2+ years and pay just 15%."});
@@ -1241,6 +1331,7 @@ body.notax .taxbit,body:not(.notax) .notaxbit,body.noshort .shortbit,body:not(.n
   function renderNewsList(){
     const box = $("news"); box.textContent = "";
     const ns = Object.keys(revealed).map(Number).sort((a, b) => b - a);
+    if (state && state.phase === "final" && revealMeta && revealMeta.real) box.appendChild(unmaskBlock());
     if (!ns.length){
       const p = document.createElement("p"); p.className = "empty";
       p.textContent = "News appears here when the host reveals each year's results. Every story for every company will be listed, newest year first.";
@@ -1248,14 +1339,15 @@ body.notax .taxbit,body:not(.notax) .notaxbit,body.noshort .shortbit,body:not(.n
     }
     ns.forEach((n, idx) => {
       const r = revealed[n], sec = document.createElement("div"); sec.className = "round" + (idx === 0 ? " latest" : "");
-      const h = document.createElement("h3"); h.textContent = "Year " + n + " · " + (r.title || "").replace(/^Year \w+: /, "");
+      const h = document.createElement("h3"); h.textContent = rn(n) + " · " + (r.title || "").replace(/^(Year|Round) \w+: /, "");
       if (idx === 0){ const tag = document.createElement("span"); tag.className = "newtag"; tag.textContent = "LATEST"; h.appendChild(tag); }
       const m = document.createElement("p"); m.className = "macro"; m.textContent = r.macro || "";
+      const bw = r.briefing ? briefBlock(r.briefing, "Going in") : null;
       const ul = document.createElement("ul"); ul.className = "moves";
       const order = Array.isArray(r.order) ? r.order : SEC.map(s => s.t);
       for (const t of order){
         if (newsFilter !== "ALL" && t !== newsFilter) continue;
-        const mv = r.moves && r.moves[t]; if (!mv) continue;
+        const mv = r.moves && r.moves[t]; if (!mv || mv.preIPO) continue;
         const li = document.createElement("li");
         const b = document.createElement("b"); b.textContent = labelOf(t);
         const c = document.createElement("span"); c.className = "chg";
@@ -1267,9 +1359,61 @@ body.notax .taxbit,body:not(.notax) .notaxbit,body.noshort .shortbit,body:not(.n
         if (px != null && !mv.delisted){ const s = document.createElement("span"); s.style.color = "var(--ink-2)"; s.style.fontFamily = "var(--mono)"; s.style.fontSize = "12px"; s.textContent = "  New price $" + Math.max(0, px).toFixed(2); p.appendChild(s); }
         li.append(b, c, p); ul.appendChild(li);
       }
-      if (newsFilter === "ALL") sec.append(h, m, ul); else sec.append(h, ul);
+      if (newsFilter === "ALL"){ sec.append(h); if (bw) sec.append(bw); sec.append(m, ul); } else sec.append(h, ul);
       box.appendChild(sec);
     });
+  }
+
+  /* ---------- briefings and the end-of-game unmasking ---------- */
+  function briefBlock(b, head){
+    const wrap = document.createElement("div"); wrap.className = "brief-block";
+    if (head){ const h = document.createElement("div"); h.className = "label"; h.textContent = head + (b.title ? ": " + b.title : ""); wrap.appendChild(h); }
+    if (Array.isArray(b.stats) && b.stats.length){
+      const ul = document.createElement("ul"); ul.className = "chips";
+      b.stats.forEach(st => { const li = document.createElement("li"), k = document.createElement("span"), v = document.createElement("b"); k.textContent = st.label; v.textContent = st.value; li.append(k, v); ul.appendChild(li); });
+      wrap.appendChild(ul);
+    }
+    if (b.text){ const p = document.createElement("p"); p.textContent = b.text; wrap.appendChild(p); }
+    return wrap;
+  }
+  function renderBrief(){
+    const e = edition(), b = state.briefing;
+    const key = JSON.stringify([state.phase, state.round, b && b.n, e && e.name]);
+    if (renderBrief.key === key) return;
+    renderBrief.key = key;
+    const body = $("briefBody"); body.textContent = "";
+    let show = false;
+    if (b && b.n === state.round + 1 && (state.phase === "trading" || state.phase === "locked")){
+      $("briefTitle").textContent = "Market briefing · " + rlabel(b.n);
+      $("briefSub").textContent = b.title || "";
+      body.appendChild(briefBlock(b, null)); show = true;
+    } else if (e && e.intro && state.phase === "lobby"){
+      $("briefTitle").textContent = e.name || "About this game";
+      $("briefSub").textContent = e.span || "";
+      const p = document.createElement("p"); p.textContent = e.intro; body.appendChild(p); show = true;
+    }
+    $("briefPanel").hidden = !show;
+  }
+  function unmaskBlock(){
+    const box = document.createElement("div"); box.className = "unmask";
+    const h = document.createElement("h3"); h.textContent = "Who were they really?"; box.appendChild(h);
+    const ul = document.createElement("ul"), hist = priceHistory().hist;
+    SEC.forEach(s => {
+      const r = revealMeta.real[s.t]; if (!r) return;
+      const vals = (hist[s.t] || []).filter(v => v != null), a = vals[0], z = vals[vals.length - 1];
+      const li = document.createElement("li");
+      const who = document.createElement("div"); who.className = "who";
+      const st = document.createElement("strong"); st.textContent = r.name;
+      who.append(s.name + " (" + s.label + ") was ", st);
+      const tr = document.createElement("span"); tr.className = "tr";
+      tr.textContent = a > 0 && z != null ? (z <= 0 ? "−100%" : pct(z / a - 1)) : "";
+      li.append(who, tr);
+      if (r.blurb){ const p = document.createElement("p"); p.textContent = r.blurb; li.appendChild(p); }
+      ul.appendChild(li);
+    });
+    box.appendChild(ul);
+    if (revealMeta.note){ const p = document.createElement("p"); p.style.cssText = "margin:0;font-size:13px;opacity:.8"; p.textContent = revealMeta.note; box.appendChild(p); }
+    return box;
   }
 
   /* ---------- markets tab (hand-drawn SVG charts) ---------- */
@@ -1281,12 +1425,25 @@ body.notax .taxbit,body:not(.notax) .notaxbit,body.noshort .shortbit,body:not(.n
     box.textContent = "";
     const W = Math.max(260, Math.round(box.clientWidth || opts.w || 720)), H = opts.h || Math.round(Math.min(340, Math.max(230, W * 0.42))), m = {l: opts.ml || 48, r: 14, t: 12, b: 26};
     const iw = W - m.l - m.r, ih = H - m.t - m.b, n = xLabels.length;
-    let hi = 0; series.forEach(s => s.values.forEach(v => { if (v != null) hi = Math.max(hi, v); }));
-    const step = niceMax(Math.max(hi * 1.05, 1e-9) / 4), yMax = step * Math.max(1, Math.ceil((hi * 1.05) / step)), ticks = Math.round(yMax / step);
-    const X = i => m.l + (n <= 1 ? iw / 2 : (iw * i) / (n - 1)), Y = v => m.t + ih - (ih * v) / yMax;
+    let hi = 0, lo = Infinity; series.forEach(s => s.values.forEach(v => { if (v != null){ hi = Math.max(hi, v); if (v > 0) lo = Math.min(lo, v); } }));
+    // Switch to a log scale when one line would otherwise flatten all the others.
+    const useLog = opts.log && hi > 0 && lo < Infinity && hi / lo > 40;
+    if (opts.onScale) opts.onScale(useLog);
+    const X = i => m.l + (n <= 1 ? iw / 2 : (iw * i) / (n - 1));
+    let Y, tickVals;
+    if (useLog){
+      const a = Math.floor(Math.log10(lo)), z = Math.max(a + 1, Math.ceil(Math.log10(hi)));
+      const hasZero = series.some(s => s.values.some(v => v === 0)), lh = hasZero ? ih - 24 : ih; // a separate $0 floor for bankruptcies
+      Y = v => v <= 0 ? m.t + ih : m.t + lh - (lh * (Math.log10(v) - a)) / (z - a);
+      tickVals = hasZero ? [0] : []; for (let k = a; k <= z; k++) tickVals.push(Math.pow(10, k));
+    } else {
+      const step = niceMax(Math.max(hi * 1.05, 1e-9) / 4), yMax = step * Math.max(1, Math.ceil((hi * 1.05) / step)), ticks = Math.round(yMax / step);
+      Y = v => m.t + ih - (ih * v) / yMax;
+      tickVals = []; for (let k = 0; k <= ticks; k++) tickVals.push((yMax * k) / ticks);
+    }
     const svg = svgEl("svg", {viewBox: "0 0 " + W + " " + H, role: "img", "aria-label": opts.aria || "Line chart"}, box);
-    for (let k = 0; k <= ticks; k++){
-      const v = (yMax * k) / ticks, y = Y(v);
+    for (const v of tickVals){
+      const y = Y(v);
       svgEl("line", {class: "grid-l", x1: m.l, x2: W - m.r, y1: y, y2: y}, svg);
       const t = svgEl("text", {class: "axis-t", x: m.l - 6, y: y + 4, "text-anchor": "end"}, svg); t.textContent = opts.yFmt(v);
     }
@@ -1328,11 +1485,15 @@ body.notax .taxbit,body:not(.notax) .notaxbit,body.noshort .shortbit,body:not(.n
   }
 
   function priceHistory(){
-    const N = totalRounds(), xs = ["Start"], hist = {};
-    for (let n = 1; n <= N; n++) xs.push("Y" + n);
+    const N = totalRounds(), xs = [xLabel(0)], hist = {};
+    for (let n = 1; n <= N; n++) xs.push(xLabel(n));
     for (const s of SEC){
-      const vals = [s.start];
-      for (let n = 1; n <= N; n++){ const r = revealed[n]; vals.push(r && r.prices && r.prices[s.t] != null ? Math.max(0, r.prices[s.t]) : null); }
+      const vals = [s.ipo > 1 ? null : s.start];
+      for (let n = 1; n <= N; n++){
+        const r = revealed[n];
+        if (s.ipo && n < s.ipo){ vals.push(n === s.ipo - 1 && r ? s.start : null); continue; }
+        vals.push(r && r.prices && r.prices[s.t] != null ? Math.max(0, r.prices[s.t]) : null);
+      }
       // After a bankruptcy, stop the line at $0 instead of running along the floor.
       let deadAt = -1; vals.forEach((v, i) => { if (deadAt < 0 && v === 0) deadAt = i; });
       if (deadAt >= 0) for (let i = deadAt + 1; i < vals.length; i++) vals[i] = null;
@@ -1342,19 +1503,21 @@ body.notax .taxbit,body:not(.notax) .notaxbit,body.noshort .shortbit,body:not(.n
   }
   function renderMarkets(){
     const {xs, hist} = priceHistory(), any = latestRevealed() > 0;
-    const color = t => "var(--s-" + t + ")";
+    const color = colorOf;
     const lg = $("legend"); lg.textContent = "";
-    for (const s of SEC){ const sp = document.createElement("span"); const i = document.createElement("i"); i.style.background = color(s.t); sp.append(i, s.label + " · " + s.name); lg.appendChild(sp); }
+    for (const s of SEC){ const sp = document.createElement("span"); const i = document.createElement("i"); i.style.background = color(s.t); sp.append(i, s.label + " · " + s.name + (realOf(s.t) ? " (" + realOf(s.t).name + ")" : "")); lg.appendChild(sp); }
     const series = SEC.map(s => ({key: s.t, label: s.label, color: color(s.t),
       values: hist[s.t].map(v => v == null ? null : (v / s.start) * 100),
       fmt: (v, i) => i > 0 && hist[s.t][i] === 0 ? "Bankrupt" : "$" + v.toFixed(0)}));
     const main = $("mainChart");
-    if (!any){ main.textContent = ""; const p = document.createElement("p"); p.className = "empty"; p.textContent = "Charts fill in as the host reveals each year. Every stock starts at $100 here so you can compare them fairly."; main.appendChild(p); }
-    else lineChart(main, series, xs, {aria: "Growth of $100 invested in each stock at the start", yFmt: v => "$" + Math.round(v)});
+    if (!any){ main.textContent = ""; const p = document.createElement("p"); p.className = "empty"; p.textContent = "Charts fill in as the host reveals each " + rword() + ". Every stock starts at $100 here (or at its IPO) so you can compare them fairly."; main.appendChild(p); }
+    else lineChart(main, series, xs, {aria: "Growth of $100 invested in each stock at the start", log: true,
+      yFmt: v => v >= 1e6 ? "$" + +(v / 1e6).toFixed(1) + "M" : v >= 1e3 ? "$" + +(v / 1e3).toFixed(1) + "k" : "$" + Math.round(v),
+      onScale: lg => { $("growthNote").textContent = lg ? "$100 in each stock at the start · log scale: each line up is 10× more" : "If you'd put $100 in each stock at the start"; }});
 
     const mult = $("multiples"); mult.textContent = "";
     for (const s of SEC){
-      const vals = hist[s.t], last = vals.reduce((a, v) => v != null ? v : a, s.start);
+      const vals = hist[s.t], last = vals.reduce((a, v) => v != null ? v : a, s.start), pre = preIPO(s.t);
       const card = document.createElement("div"); card.className = "mini";
       const hd = document.createElement("div"); hd.className = "mini-head";
       const b = document.createElement("b"); b.textContent = s.label;
@@ -1362,7 +1525,7 @@ body.notax .taxbit,body:not(.notax) .notaxbit,body.noshort .shortbit,body:not(.n
       if (last <= 0) pr.style.color = "var(--down)";
       hd.append(b, pr);
       const sm = document.createElement("small"); const tot = last / s.start - 1;
-      sm.textContent = s.name + " · " + (any ? (last <= 0 ? "−100%" : pct(tot)) + " since start" : "starts at $" + s.start.toFixed(2));
+      sm.textContent = s.name + (realOf(s.t) ? " (" + realOf(s.t).name + ")" : "") + " · " + (pre ? "goes public in " + rn(s.ipo) : any && vals.filter(v => v != null).length > 1 ? (last <= 0 ? "−100%" : pct(tot)) + (s.ipo > 1 ? " since IPO" : " since start") : "starts at $" + s.start.toFixed(2));
       const ch = document.createElement("div"); ch.className = "chart";
       card.append(hd, sm, ch); mult.appendChild(card);
       lineChart(ch, [{key: s.t, label: s.label, color: color(s.t), values: vals, fmt: (v, i) => i > 0 && v === 0 ? "Bankrupt" : "$" + v.toFixed(2)}], xs,
@@ -1379,7 +1542,7 @@ body.notax .taxbit,body:not(.notax) .notaxbit,body.noshort .shortbit,body:not(.n
       hist[s.t].forEach((v, i) => {
         const td = document.createElement("td");
         const r = i > 0 ? revealed[i] : null, dl = r && r.moves && r.moves[s.t] && r.moves[s.t].delisted;
-        td.textContent = v == null ? (dl ? "Delisted" : "—") : v === 0 ? "$0.00" : "$" + v.toFixed(2);
+        td.textContent = v == null ? (dl ? "Delisted" : s.ipo && i < s.ipo - 1 ? "Not public" : "—") : v === 0 ? "$0.00" : "$" + v.toFixed(2);
         if (v === 0) td.className = "neg";
         tr.appendChild(td);
       });
@@ -1401,11 +1564,11 @@ body.notax .taxbit,body:not(.notax) .notaxbit,body.noshort .shortbit,body:not(.n
     $("podiumBtn").disabled = busy || podiumRunning;
     $("podiumBtn").textContent = state.podium ? "🏆 Replay the podium on every screen" : "🏆 Reveal the podium";
     $("durSel").value = String(state.tradeSeconds || 300);
-    $("openBtn").textContent = "Open Year " + nxt + " trading";
+    $("openBtn").textContent = "Open " + rn(nxt) + " trading";
     $("openBtn").disabled = busy || !(ph === "lobby" || ph === "revealed");
     $("addBtn").disabled = busy || ph !== "trading";
     $("closeBtn").disabled = busy || !(ph === "trading" && open);
-    $("revealBtn").textContent = "Reveal Year " + nxt + " results";
+    $("revealBtn").textContent = "Reveal " + rn(nxt) + " results";
     $("revealBtn").disabled = busy || !(ph === "locked" || (ph === "trading" && !open));
     $("resetBtn").textContent = resetArmed ? "Click again to erase all trades" : "Reset game";
   }
@@ -1437,6 +1600,8 @@ body.notax .taxbit,body:not(.notax) .notaxbit,body.noshort .shortbit,body:not(.n
       if (!s.exists){ showNotice("That game no longer exists."); leave(); return; }
       const d = s.data(), old = lastSnap; lastSnap = d;
       isHost = d.hostUid === uid;
+      state = {...d};
+      applySecurities(d.securities);
       state = {...d, prices: {...startPrices, ...(d.prices || {})}, prev: {...startPrices, ...(d.prev || {})}};
       const pseq = d.podium && d.podium.seq, oseq = old && old.podium && old.podium.seq;
       if (d.phase !== "final"){ podiumShown = false; closePodium(); }
@@ -1445,8 +1610,8 @@ body.notax .taxbit,body:not(.notax) .notaxbit,body.noshort .shortbit,body:not(.n
       if (old && d.phase === "final" && pseq && pseq !== oseq) playPodium();
       if (old){
         const N = totalRounds();
-        if (d.phase === "trading" && old.phase !== "trading"){ toast("TRADING OPEN", "Year " + Math.min(d.round + 1, N) + " of " + N + ". The clock is running!"); SFX.start(); }
-        else if (d.phase === "revealed" && d.round > old.round){ toast("YEAR " + d.round, "Results are in. Check the News tab for every story."); SFX.reveal(); }
+        if (d.phase === "trading" && old.phase !== "trading"){ toast("TRADING OPEN", rOf(Math.min(d.round + 1, N), N) + ". The clock is running!"); SFX.start(); }
+        else if (d.phase === "revealed" && d.round > old.round){ toast(periods() ? rlabel(d.round).toUpperCase() : "YEAR " + d.round, "Results are in. Check the News tab for every story."); SFX.reveal(); }
         if (old.phase === "trading" && d.phase === "locked" && old.endsAt > Date.now() + 400 && tick.endKey !== old.endsAt){ tick.endKey = old.endsAt; SFX.end(); }
         const os = {taxes: true, shorting: true, ...(old.settings || {})}, ns = settings();
         if (!isHost && os.taxes !== ns.taxes) toast("RULE CHANGE", ns.taxes ? "Taxes are now on." : "Taxes are now off.");
@@ -1462,16 +1627,18 @@ body.notax .taxbit,body:not(.notax) .notaxbit,body.noshort .shortbit,body:not(.n
     let firstNews = true;
     unsubs.push(gameRef().collection("revealed").onSnapshot(q => {
       revealed = {};
-      q.docs.forEach(d => { const v = d.data(); revealed[v.n || Number(d.id.slice(1))] = v; });
+      revealMeta = null;
+      q.docs.forEach(d => { const v = d.data(); if (d.id === "meta"){ revealMeta = v; return; } revealed[v.n || Number(d.id.slice(1))] = v; });
       if (firstNews){ firstNews = false; seenNews = latestRevealed(); }
       if (latestRevealed() < seenNews) seenNews = latestRevealed();
-      renderNews();
+      renderNews(); if (state) render();
     }));
   }
 
   function leave(){
     unsubs.forEach(u => u()); unsubs = [];
-    code = null; state = null; me = null; players = []; revealed = {}; isHost = false;
+    code = null; state = null; me = null; players = []; revealed = {}; isHost = false; revealMeta = null;
+    applySecurities(null);
     prevRanks = null; boardSig = ""; climbs.clear(); seenNews = 0; showTab("trade");
     podiumShown = false; closePodium(); Music.set(null);
     store.del("hce.code"); showLanding();
@@ -1498,20 +1665,33 @@ body.notax .taxbit,body:not(.notax) .notaxbit,body.noshort .shortbit,body:not(.n
   $("hostForm").addEventListener("submit", async ev => {
     ev.preventDefault();
     const f = $("roundsFile").files[0]; if (!f) return;
-    let rounds;
+    let rounds, data;
     try {
-      const data = JSON.parse(await f.text());
+      data = JSON.parse(await f.text());
       rounds = Array.isArray(data) ? data : data.rounds;
       if (!Array.isArray(rounds) || rounds.length < 1 || rounds.length > 12 || !rounds.every(r => r && r.prices && r.moves)) throw new Error("shape");
+      if (data.securities){
+        const ok = Array.isArray(data.securities) && data.securities.length >= 2 && data.securities.length <= 8 &&
+          data.securities.every(x => x && typeof x.t === "string" && x.label && x.name && x.start > 0) &&
+          rounds.every(r => data.securities.every(x => r.prices[x.t] != null));
+        if (!ok) throw new Error("securities");
+      }
     } catch (e){ say("hostFormMsg", "That file isn't a valid rounds.json. Use the rounds.json that came with the game.", "err"); return; }
     say("hostFormMsg", "Creating game…");
     try {
       let c = newCode();
       for (let i = 0; i < 5 && (await fs.collection("games").doc(c).get()).exists; i++) c = newCode();
       const ref = fs.collection("games").doc(c);
-      await ref.set({hostUid: uid, phase: "lobby", round: 0, totalRounds: rounds.length, settings: {taxes: true, shorting: true}, endsAt: 0, tradeSeconds: 300, prices: {...startPrices}, prev: {...startPrices}, createdAt: Date.now()});
+      const secs = Array.isArray(data.securities) ? data.securities : null;
+      const sp = secs ? Object.fromEntries(secs.map(x => [x.t, x.start])) : Object.fromEntries(DEFAULT_SEC.map(x => [x.t, x.start]));
+      const game = {hostUid: uid, phase: "lobby", round: 0, totalRounds: rounds.length, settings: {taxes: true, shorting: true}, endsAt: 0, tradeSeconds: 300, prices: sp, prev: {...sp}, createdAt: Date.now()};
+      if (secs) game.securities = secs.map(x => { const o = {t: x.t, label: x.label, name: x.name, start: x.start}; ["sector", "desc", "ipo", "stats"].forEach(k => { if (x[k] != null) o[k] = x[k]; }); return o; });
+      if (Array.isArray(data.periods) && data.periods.length === rounds.length) game.periods = data.periods.map(p => ({label: String(p.label), end: String(p.end || p.label)}));
+      if (data.edition) game.edition = data.edition;
+      await ref.set(game);
       const batch = fs.batch();
-      rounds.forEach((r, i) => batch.set(ref.collection("secret").doc("r" + (i + 1)), {n: i + 1, title: r.title, macro: r.macro, moves: r.moves, prices: r.prices, stats: r.stats || null, order: r.order || null}));
+      rounds.forEach((r, i) => batch.set(ref.collection("secret").doc("r" + (i + 1)), {n: i + 1, title: r.title, macro: r.macro, moves: r.moves, prices: r.prices, stats: r.stats || null, order: r.order || null, briefing: r.briefing || null}));
+      if (data.reveal) batch.set(ref.collection("secret").doc("meta"), data.reveal);
       await batch.commit();
       code = c; store.set("hce.code", c); say("hostFormMsg", "");
       subscribe();
@@ -1525,6 +1705,7 @@ body.notax .taxbit,body:not(.notax) .notaxbit,body.noshort .shortbit,body:not(.n
     if (!(qty >= 1)){ say("tradeMsg", "Enter a whole number of shares, 1 or more.", "err"); return; }
     if (!tradingOpen()){ say("tradeMsg", "Trading is closed. Wait for the host to open the next round.", "err"); return; }
     const p = state.prices[t];
+    if (preIPO(t)){ say("tradeMsg", labelOf(t) + " isn't public yet. It lists in " + rn(secOf(t).ipo) + ".", "err"); return; }
     if (!(p > 0)){ say("tradeMsg", labelOf(t) + " is bankrupt and can't be traded.", "err"); return; }
     const mePos = posOf(me), held = mePos[t] || 0;
     if (side === "sell" && !shortingOn() && qty > Math.max(0, held)){
@@ -1565,12 +1746,16 @@ body.notax .taxbit,body:not(.notax) .notaxbit,body.noshort .shortbit,body:not(.n
     finally { busy = false; render(); }
   }
   $("durSel").addEventListener("change", () => hostUpdate({tradeSeconds: Number($("durSel").value)}, "Trading window updated."));
-  $("openBtn").addEventListener("click", () => {
-    const sec = Number($("durSel").value) || 300;
-    hostUpdate({phase: "trading", tradeSeconds: sec, endsAt: Date.now() + sec * 1000}, "Year " + Math.min(state.round + 1, totalRounds()) + " trading is open.");
+  $("openBtn").addEventListener("click", async () => {
+    const sec = Number($("durSel").value) || 300, n = Math.min(state.round + 1, totalRounds());
+    let briefing = state.briefing && state.briefing.n === n ? state.briefing : null;
+    if (!briefing){
+      try { const snap = await gameRef().collection("secret").doc("r" + n).get(); const b = snap.exists && snap.data().briefing; if (b) briefing = {n, ...b}; } catch (e){}
+    }
+    hostUpdate({phase: "trading", tradeSeconds: sec, endsAt: Date.now() + sec * 1000, briefing: briefing || null}, rn(n) + " trading is open.");
   });
   $("podiumBtn").addEventListener("click", () => {
-    audio(); // unlock sound on the projector laptop
+    ctx(); // unlock sound on the projector laptop
     hostUpdate({podium: {seq: Date.now()}}, "The podium is playing on every screen. Turn the projector volume up!");
   });
   $("optTaxes").addEventListener("change", ev => {
@@ -1588,13 +1773,16 @@ body.notax .taxbit,body:not(.notax) .notaxbit,body.noshort .shortbit,body:not(.n
     busy = true; renderHost();
     try {
       const snap = await gameRef().collection("secret").doc("r" + n).get();
-      if (!snap.exists){ say("hostMsg", "Year " + n + " results are missing. Create a new game with rounds.json.", "err"); return; }
+      if (!snap.exists){ say("hostMsg", rn(n) + " results are missing. Create a new game with the rounds file.", "err"); return; }
       const d = snap.data();
-      await gameRef().collection("revealed").doc("r" + n).set({n, title: d.title, macro: d.macro, moves: d.moves, order: d.order || null, prices: d.prices, stats: d.stats || null});
+      await gameRef().collection("revealed").doc("r" + n).set({n, title: d.title, macro: d.macro, moves: d.moves, order: d.order || null, prices: d.prices, stats: d.stats || null, briefing: d.briefing || null});
+      if (n >= ROUNDS){ // unmask the real companies at the end
+        try { const m = await gameRef().collection("secret").doc("meta").get(); if (m.exists) await gameRef().collection("revealed").doc("meta").set(m.data()); } catch (e){}
+      }
       const patch = {phase: n >= ROUNDS ? "final" : "revealed", round: n, endsAt: 0, prev: {...state.prices}, prices: {...d.prices}};
       if (n >= ROUNDS) patch.podium = {seq: Date.now()}; // the podium starts on every screen right away
       await gameRef().update(patch); state = {...state, ...patch};
-      say("hostMsg", n >= ROUNDS ? "Final results are in. The podium is playing on every screen. Turn the volume up!" :"Year " + n + " results revealed. Read the news aloud, then open the next round.", "ok");
+      say("hostMsg", n >= ROUNDS ? "Final results are in. The podium is playing on every screen. Turn the volume up!" : rn(n) + " results revealed. Read the news aloud, then open the next round.", "ok");
     } catch (e){ say("hostMsg", "Couldn't reveal results. Try again.", "err"); }
     finally { busy = false; render(); }
   });
@@ -1604,8 +1792,9 @@ body.notax .taxbit,body:not(.notax) .notaxbit,body.noshort .shortbit,body:not(.n
     try {
       const batch = fs.batch();
       for (let n = 1; n <= totalRounds(); n++) batch.delete(gameRef().collection("revealed").doc("r" + n));
+      batch.delete(gameRef().collection("revealed").doc("meta"));
       players.forEach(p => batch.set(gameRef().collection("players").doc(p.id), {name: p.name, cash: START_CASH, pos: {}, lots: {}, lossBank: 0, taxPaid: 0, trades: 0, joinedAt: p.joinedAt || Date.now(), updatedAt: Date.now()}));
-      batch.update(gameRef(), {phase: "lobby", round: 0, endsAt: 0, prices: {...startPrices}, prev: {...startPrices}, podium: null});
+      batch.update(gameRef(), {phase: "lobby", round: 0, endsAt: 0, prices: {...startPrices}, prev: {...startPrices}, podium: null, briefing: null});
       await batch.commit();
       say("hostMsg", "Game reset. Everyone is back to $10,000 in the lobby.", "ok");
     } catch (e){ say("hostMsg", "Reset didn't finish. Try again.", "err"); }
