@@ -270,6 +270,10 @@ body.notax .taxbit,body:not(.notax) .notaxbit,body.noshort .shortbit,body:not(.n
 .mini small{color:var(--ink-2);font-size:12px}
 .empty{color:var(--ink-2);margin:0}
 /* editions: briefings, company profiles, the big unmasking */
+.filepeek{background:var(--panel-2);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:8px;padding:10px 12px;font-size:14px}
+.filepeek b{display:block;font-family:var(--display);font-size:19px;letter-spacing:.02em;text-transform:uppercase}
+.filepeek.bad{border-left-color:var(--down)}
+.ver{margin:0;font-size:11px;color:var(--ink-2);font-family:var(--mono)}
 .brief{margin-bottom:18px;border-left:4px solid var(--accent)}
 .brief #briefBody > p{margin:0;max-width:75ch}
 .co .sector{font-family:var(--mono);font-size:12px;color:var(--ink-2)}
@@ -365,7 +369,7 @@ body.notax .taxbit,body:not(.notax) .notaxbit,body.noshort .shortbit,body:not(.n
   <header class="mast">
     <div class="brand">
       <h1>Hype Cycle Exchange</h1>
-      <span class="sub" id="roundLabel">7 rounds, one year each</span>
+      <span class="sub" id="roundLabel">Two editions: AI Hype or Decades (1980–2008)</span>
     </div>
     <div class="clock" id="clockBox" hidden>
       <div class="snd">
@@ -384,7 +388,7 @@ body.notax .taxbit,body:not(.notax) .notaxbit,body.noshort .shortbit,body:not(.n
 
   <!-- Landing -->
   <section id="landing" hidden>
-    <p class="lede">A classroom stock game. Buy or short five companies and the A&amp;P index across seven years of AI booms and busts, chip shortages, a food plague, new AI laws and a bankruptcy.</p>
+    <p class="lede">A classroom stock game. Buy or short companies and an index fund through booms, busts and bankruptcies. Play the <b>AI Hype edition</b> (seven made-up years of AI mania) or the <b>Decades Edition</b> (real companies in disguise, 1980–2008).</p>
     <div class="landing">
       <div class="panel">
         <div class="panel-head"><h2>Join a game</h2></div>
@@ -398,10 +402,12 @@ body.notax .taxbit,body:not(.notax) .notaxbit,body.noshort .shortbit,body:not(.n
       <div class="panel">
         <div class="panel-head"><h2>Host a game</h2></div>
         <form id="hostForm">
-          <p class="lede" style="font-size:14px">Choose the <b>rounds.json</b> file from your computer. It holds the secret results and never goes on the website.</p>
+          <p class="lede" style="font-size:14px">Choose a results file from your computer: <b>rounds.json</b> for the AI Hype edition or <b>rounds-decades.json</b> for the Decades Edition. It holds the secret results and never goes on the website.</p>
           <div class="field"><label class="label" for="roundsFile">Round results file</label><input type="file" id="roundsFile" accept=".json,application/json" required></div>
           <button class="primary" type="submit">Create game</button>
+          <div class="filepeek" id="filePeek" hidden></div>
           <div class="msg" id="hostFormMsg" role="status"></div>
+          <p class="ver">Game version 2.0 · supports the Decades Edition</p>
         </form>
       </div>
     </div>
@@ -1064,7 +1070,7 @@ body.notax .taxbit,body:not(.notax) .notaxbit,body.noshort .shortbit,body:not(.n
   /* ---------- views ---------- */
   function showLanding(){
     $("landing").hidden = false; $("game").hidden = true; $("clockBox").hidden = true;
-    $("roundLabel").textContent = DEFAULT_ROUNDS + " rounds, one year each";
+    $("roundLabel").textContent = "Two editions: AI Hype or Decades (1980–2008)";
     const q = new URLSearchParams(location.search).get("game");
     if (q) $("joinCode").value = q.toUpperCase().slice(0, 5);
   }
@@ -1099,7 +1105,7 @@ body.notax .taxbit,body:not(.notax) .notaxbit,body.noshort .shortbit,body:not(.n
     else if (state.phase === "locked"){ chip.textContent = "Trading closed"; chip.classList.add("closed"); label = rOf(upcoming, ROUNDS) + " · waiting for results"; }
     else if (state.phase === "revealed"){ chip.textContent = "Results"; chip.classList.add("results"); label = rOf(state.round, ROUNDS) + " results are in"; }
     else { chip.textContent = "Final"; chip.classList.add("results"); label = "Game over · final standings"; }
-    $("roundLabel").textContent = label + " · Game " + code;
+    $("roundLabel").textContent = (edition() && edition().name ? edition().name + " · " : "") + label + " · Game " + code;
     renderBrief();
 
     const open = tradingOpen();
@@ -1660,6 +1666,22 @@ body.notax .taxbit,body:not(.notax) .notaxbit,body.noshort .shortbit,body:not(.n
       code = c; store.set("hce.code", c); say("joinMsg", "");
       subscribe();
     } catch (e){ say("joinMsg", "Couldn't join. Check your internet connection and try again.", "err"); }
+  });
+
+  // Show which edition a rounds file holds as soon as it's picked.
+  $("roundsFile").addEventListener("change", async () => {
+    const f = $("roundsFile").files[0], box = $("filePeek");
+    if (!f){ box.hidden = true; return; }
+    try {
+      const d = JSON.parse(await f.text()), rs = Array.isArray(d) ? d : d.rounds;
+      const secs = Array.isArray(d.securities) ? d.securities : DEFAULT_SEC;
+      const name = d.edition && d.edition.name ? d.edition.name + (d.edition.span ? " (" + d.edition.span + ")" : "") : "AI Hype edition";
+      box.textContent = "";
+      const b = document.createElement("b"); b.textContent = name;
+      box.append(b, (rs ? rs.length : 0) + (Array.isArray(d.periods) ? " rounds" : " years") + " · " + secs.map(x => x.label).join(", "));
+      box.className = "filepeek";
+    } catch (e){ box.textContent = "This file couldn't be read. Pick rounds.json or rounds-decades.json."; box.className = "filepeek bad"; }
+    box.hidden = false;
   });
 
   $("hostForm").addEventListener("submit", async ev => {
