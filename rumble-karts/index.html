@@ -129,6 +129,12 @@ kbd{font:700 12px var(--f-ui);display:inline-block;min-width:20px;text-align:cen
 .res-next{margin-top:14px;font-weight:700;color:var(--muted)}
 .res-next b{font-family:var(--f-display);font-weight:400;color:var(--ink);font-size:20px}
 
+/* ---------- ads (menu and results screen only, never during a match) ---------- */
+.adbox{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0 2px}
+.adbox .ad-lbl{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.adbox ins{display:inline-block;width:320px;max-width:100%;height:100px}
+.menu-col .adbox{background:var(--paper);border:3px solid var(--ink);border-radius:14px;box-shadow:4px 4px 0 var(--ink);padding:8px 8px 10px}
+
 /* ---------- touch ---------- */
 #touch{position:absolute;inset:0;pointer-events:none}
 #joy{position:absolute;left:calc(22px + var(--sal));bottom:calc(64px + var(--sab));width:132px;height:132px;border-radius:50%;background:rgba(27,23,51,.28);border:3px solid rgba(255,255,255,.7);pointer-events:auto;touch-action:none}
@@ -196,6 +202,7 @@ body.touch #hint{bottom:calc(210px + var(--sab))}
       <h2 id="rWinner">Round over</h2>
       <ol id="rList"></ol>
       <div class="res-next">Next round in <b id="rNext">9</b></div>
+      <div class="adbox" id="adResults" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
     </div>
   </div>
 
@@ -217,9 +224,10 @@ body.touch #hint{bottom:calc(210px + var(--sab))}
         <div class="btns"><button id="bOnline" class="btn" type="button">Play online</button><button id="bBots" class="btn alt" type="button">Practice vs bots</button></div>
         <p id="netMsg" class="msg"></p>
         <div class="items" id="itemLegend"></div>
-        <div class="keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or arrows to drive &nbsp;·&nbsp; <kbd>Space</kbd> use item &nbsp;·&nbsp; <kbd>M</kbd> mute &nbsp;·&nbsp; <kbd>Esc</kbd> leave</div>
+        <div class="keys" id="keysRow"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or arrows to drive &nbsp;·&nbsp; <kbd>Space</kbd> use item &nbsp;·&nbsp; <kbd>M</kbd> mute &nbsp;·&nbsp; <kbd>Esc</kbd> leave</div>
         <div class="touch-keys">Left stick drives · Fire uses your item</div>
       </div>
+      <div class="adbox" id="adMenu" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
     </div>
   </div>
 </div>
@@ -248,6 +256,15 @@ const FIREBASE_CONFIG = {
   messagingSenderId: "910009166464",
   appId: "1:910009166464:web:cb0f8872c8f06749fc9465"
 };
+
+// =====================================================================
+//  Ads (Google AdSense). Banners appear only on the main menu and the
+//  between-rounds results screen, never over a match.
+//  To turn them on: in AdSense go to Ads → By ad unit → Display ads,
+//  create a unit, and paste its "data-ad-slot" number into AD_SLOT.
+// =====================================================================
+const AD_CLIENT = 'ca-pub-1712937102765568';
+const AD_SLOT = '';
 
 // ---------- tiny helpers ----------
 const $ = s => document.querySelector(s);
@@ -1189,6 +1206,26 @@ function handleEvent(e) {
 // =====================================================================
 const S = { mode: 'attract', me: null, round: null, lastRoundId: -1, phase: 'play', camH: 0, shake: 0, hintDone: false, hintT: 0 };
 
+let adScript = null;
+function showAd(id) {
+  if (!AD_SLOT) return;
+  const box = document.getElementById(id); if (!box || box.dataset.state) return;
+  const ins = box.querySelector('ins');
+  if (!adScript) {
+    // No ?client= on the script, so AdSense's automatic ads never place anything over the game.
+    adScript = document.createElement('script'); adScript.async = true; adScript.crossOrigin = 'anonymous';
+    adScript.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js';
+    document.head.appendChild(adScript);
+  }
+  box.hidden = false; box.dataset.state = 'asked';
+  ins.setAttribute('data-ad-client', AD_CLIENT); ins.setAttribute('data-ad-slot', AD_SLOT);
+  requestAnimationFrame(() => {
+    try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch (_) { box.hidden = true; return; }
+    // hide the box again if no ad arrives (ad blocker, no inventory, or the site isn't approved yet)
+    setTimeout(() => { if (ins.getAttribute('data-ad-status') !== 'filled') { box.hidden = true; box.dataset.state = ''; } }, 5000);
+  });
+}
+
 function clearWorld() {
   for (const k of [...karts.values()]) k.dispose();
   for (const p of [...projectiles]) removeProjectile(p);
@@ -1202,6 +1239,7 @@ function startAttract() {
   clearWorld(); S.mode = 'attract';
   pickBotNames(6).forEach((n, i) => { const k = new Kart('bot' + i, n, COLORS[(i + 2) % COLORS.length], { local: true, ai: true }); k.respawn(); });
   $('#hud').hidden = true; $('#touch').hidden = true; $('#menu').hidden = false;
+  showAd('adMenu');
 }
 function startOffline() {
   clearWorld(); S.mode = 'offline';
@@ -1337,7 +1375,7 @@ function renderLeaderboard() {
 }
 let lbHTML = '';
 function showResults() {
-  renderResults(); $('#results').hidden = false; hideBanner();
+  renderResults(); $('#results').hidden = false; hideBanner(); showAd('adResults');
   const top = standings()[0]; if (top && top === S.me && top.score > 0) Snd.play('win');
 }
 function renderResults() {
