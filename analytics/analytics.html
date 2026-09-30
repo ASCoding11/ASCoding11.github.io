@@ -48,6 +48,8 @@ th{color:var(--muted);font-weight:500;font-size:12px}
 .bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;min-width:70px}
 .bar>i{display:block;height:100%;background:var(--accent)}
 .muted{color:var(--muted)}
+.cardhead{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start}
+#gscBody .kpis{margin-bottom:14px}
 </style>
 </head>
 <body>
@@ -82,8 +84,19 @@ th{color:var(--muted);font-weight:500;font-size:12px}
 
     <section class="card full">
       <h2>Traffic by day</h2>
-      <p class="hint">Unique visitors and pageviews per day (your local time).</p>
+      <p class="hint">Unique visitors and pageviews per day (your local time), plus Google Search clicks once connected.</p>
       <div class="chartbox"><canvas id="daily"></canvas></div>
+    </section>
+
+    <section class="card full" id="searchCard">
+      <div class="cardhead">
+        <div>
+          <h2>Google Search</h2>
+          <p class="hint">From Search Console — how people find you on Google. Google's numbers run 2–3 days behind.</p>
+        </div>
+        <button id="gscConnect" class="primary hidden">Connect Google Search</button>
+      </div>
+      <div id="gscBody"></div>
     </section>
 
     <section class="grid two">
@@ -159,10 +172,29 @@ const dayDiff = (a, b) => Math.round((dayStart(b) - dayStart(a)) / 86400000);
 function weekStart(d){ const x = dayStart(d); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
 const bar = (v, max) => `<div class="bar"><i style="width:${max ? Math.max(2, 100*v/max) : 0}%"></i></div>`;
 
-// ---- Auth ----
-$('signin').onclick = () => auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())
+// ---- Auth (also asks for read-only Search Console access) ----
+const GSC_SITE = 'https://ascoding11.github.io/';
+const provider = new firebase.auth.GoogleAuthProvider();
+provider.addScope('https://www.googleapis.com/auth/webmasters.readonly');
+let gsc = null, gscTok = null;
+function saveToken(res){
+  const t = res && res.credential && res.credential.accessToken;
+  if (!t) return;
+  gscTok = { t, exp: Date.now() + 55 * 60 * 1000 };
+  try { sessionStorage.setItem('gsc_tok', JSON.stringify(gscTok)); } catch (e) {}
+}
+function getToken(){
+  if (!gscTok) { try { gscTok = JSON.parse(sessionStorage.getItem('gsc_tok') || 'null'); } catch (e) {} }
+  return gscTok && gscTok.exp > Date.now() ? gscTok.t : null;
+}
+function clearToken(){ gscTok = null; try { sessionStorage.removeItem('gsc_tok'); } catch (e) {} }
+$('signin').onclick = () => auth.signInWithPopup(provider)
+  .then(r => { saveToken(r); loadSearch(); })
   .catch(e => $('gateMsg').textContent = e.message);
-$('signout').onclick = () => auth.signOut();
+$('gscConnect').onclick = () => auth.currentUser.reauthenticateWithPopup(provider)
+  .then(r => { saveToken(r); gsc = null; render(); loadSearch(); })
+  .catch(e => { $('gscBody').innerHTML = `<p class="muted">Couldn't connect: ${esc(e.message)}</p>`; });
+$('signout').onclick = () => { clearToken(); auth.signOut(); };
 auth.onAuthStateChanged(u => {
   $('gate').classList.toggle('hidden', !!u);
   $('app').classList.toggle('hidden', !u);
@@ -197,11 +229,111 @@ async function load(){
     sel.value = sites.includes(cur) ? cur : 'all';
     $('status').innerHTML = `<span class="live"><span class="dot"></span>${fmtN(rows.length)} pageviews loaded · ${new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}</span>`;
     render();
+    loadSearch();
   } catch (e) {
     $('status').textContent = e.code === 'permission-denied'
       ? 'Permission denied — this Google account doesn’t match the email in your Firestore rules.'
       : 'Error: ' + e.message;
   }
+}
+
+// ---- Google Search Console ----
+function pageSite(u){
+  let path = '/';
+  try { path = new URL(u).pathname; } catch (e) {}
+  const seg = path.split('/').filter(Boolean)[0] || '';
+  if (!seg || seg === 'index.html') return 'home';
+  if (seg === 'hype-cycle-exchange') return 'hype-cycle';
+  return seg.replace(/\.html$/, '');
+}
+async function gscQuery(token, body){
+  const r = await fetch('https://www.googleapis.com/webmasters/v3/sites/' + encodeURIComponent(GSC_SITE) + '/searchAnalytics/query', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error((j.error && j.error.message) || ('HTTP ' + r.status)); e.status = r.status; throw e; }
+  return j.rows || [];
+}
+let gscSeq = 0;
+async function loadSearch(){
+  const token = getToken();
+  if (!token) { gsc = null; render(); return; }
+  const seq = ++gscSeq;
+  const days = +$('range').value;
+  const end = new Date(), start = new Date(); start.setDate(start.getDate() - (days - 1));
+  const f = d => d.toLocaleDateString('en-CA');
+  let result;
+  try {
+    const [daily, qp] = await Promise.all([
+      gscQuery(token, { startDate: f(start), endDate: f(end), dimensions: ['date', 'page'], rowLimit: 25000 }),
+      gscQuery(token, { startDate: f(start), endDate: f(end), dimensions: ['query', 'page'], rowLimit: 5000 })
+    ]);
+    result = { daily, qp };
+  } catch (e) {
+    if (e.status === 401) { clearToken(); result = null; }
+    else result = { error: e.message };
+  }
+  if (seq !== gscSeq) return;
+  gsc = result;
+  render();
+}
+function gscClicksByDay(site){
+  const m = new Map();
+  if (!gsc || !gsc.daily) return m;
+  for (const r of gsc.daily) {
+    if (site !== 'all' && pageSite(r.keys[1]) !== site) continue;
+    m.set(r.keys[0], (m.get(r.keys[0]) || 0) + r.clicks);
+  }
+  return m;
+}
+function renderSearch(site){
+  const btn = $('gscConnect'), body = $('gscBody');
+  const kpi = (label, value, sub='') => `<div class="card kpi"><div class="label">${label}</div><div class="value">${value}</div><div class="sub">${sub}</div></div>`;
+  if (!getToken()) {
+    btn.classList.remove('hidden');
+    body.innerHTML = '<p class="muted">Click <b>Connect Google Search</b> to show your searches, clicks and rankings here. It stays connected for about an hour per browser tab.</p>';
+    return;
+  }
+  btn.classList.add('hidden');
+  if (!gsc) { body.innerHTML = '<p class="muted">Loading Google Search data…</p>'; return; }
+  if (gsc.error) {
+    let fix = '';
+    if (/has not been used|is disabled|SERVICE_DISABLED|accessNotConfigured/i.test(gsc.error))
+      fix = ' Turn it on here: <a href="https://console.cloud.google.com/apis/library/searchconsole.googleapis.com?project=rumblekarts" target="_blank" rel="noopener">enable the Search Console API</a>, wait a minute, then click Refresh.';
+    else if (/permission|not.*owner|sufficient/i.test(gsc.error))
+      fix = ' Make sure you signed in with the same Google account that owns the site in Search Console.';
+    body.innerHTML = `<p class="muted">Couldn't load Search Console data: ${esc(gsc.error)}${fix}</p>`;
+    btn.classList.remove('hidden'); btn.textContent = 'Reconnect Google Search';
+    return;
+  }
+  const keep = r => site === 'all' || pageSite(r.keys[1]) === site;
+  const D = gsc.daily.filter(keep), Q = gsc.qp.filter(keep);
+  if (!D.length) {
+    body.innerHTML = '<p class="muted">No Google Search data yet for this range. Google usually starts reporting a few days after a site is verified, so check back later this week.</p>';
+    return;
+  }
+  let clicks = 0, imps = 0, posW = 0;
+  for (const r of D) { clicks += r.clicks; imps += r.impressions; posW += r.position * r.impressions; }
+  const qm = new Map();
+  for (const r of Q) {
+    let q = qm.get(r.keys[0]);
+    if (!q) { q = { c: 0, i: 0, pw: 0 }; qm.set(r.keys[0], q); }
+    q.c += r.clicks; q.i += r.impressions; q.pw += r.position * r.impressions;
+  }
+  const top = [...qm.entries()].sort((a, b) => b[1].c - a[1].c || b[1].i - a[1].i).slice(0, 15);
+  body.innerHTML =
+    '<div class="grid kpis">' + [
+      kpi('Search clicks', fmtN(clicks), 'visits from Google'),
+      kpi('Impressions', fmtN(imps), 'times you appeared in results'),
+      kpi('Click rate', imps ? (100 * clicks / imps).toFixed(1) + '%' : '—', 'clicks ÷ impressions'),
+      kpi('Avg position', imps ? (posW / imps).toFixed(1) : '—', '1 = top result')
+    ].join('') + '</div>' +
+    '<h2>Top searches</h2><div class="scroll"><table><tr><th>Search</th><th class="num">Clicks</th><th class="num">Impressions</th><th class="num">Click rate</th><th class="num">Position</th></tr>' +
+    (top.map(([k, q]) => `<tr><td class="trunc">${esc(k)}</td><td class="num">${fmtN(q.c)}</td><td class="num">${fmtN(q.i)}</td><td class="num">${q.i ? (100 * q.c / q.i).toFixed(1) + '%' : '—'}</td><td class="num">${q.i ? (q.pw / q.i).toFixed(1) : '—'}</td></tr>`).join('')
+      || '<tr><td class="muted" colspan="5">Google hides very rare searches for privacy, so this can be empty even when there are clicks.</td></tr>') +
+    '</table></div>';
 }
 
 function sessionsOf(R){
@@ -261,6 +393,8 @@ function render(){
   }
   for (const r of R) { const b = dayMap.get(dayKey(r.ts)); if (b) { b.v.add(r.vid); b.pv++; } }
   for (const b of dayMap.values()) { vis.push(b.v.size); pvs.push(b.pv); }
+  const gByDay = gscClicksByDay(site);
+  const gcl = [...dayMap.keys()].map(k => gByDay.has(k) ? gByDay.get(k) : null);
   const css = getComputedStyle(document.documentElement);
   const accent = css.getPropertyValue('--accent').trim(), accent2 = css.getPropertyValue('--accent2').trim();
   const muted = css.getPropertyValue('--muted').trim(), line = css.getPropertyValue('--line').trim();
@@ -269,7 +403,8 @@ function render(){
     type: 'line',
     data: { labels, datasets: [
       { label: 'Visitors', data: vis, borderColor: accent, backgroundColor: accent + '22', fill: true, tension: .3, pointRadius: days > 30 ? 0 : 2 },
-      { label: 'Pageviews', data: pvs, borderColor: accent2, tension: .3, pointRadius: days > 30 ? 0 : 2 }
+      { label: 'Pageviews', data: pvs, borderColor: accent2, tension: .3, pointRadius: days > 30 ? 0 : 2 },
+      ...(gByDay.size ? [{ label: 'Google clicks', data: gcl, borderColor: '#f79009', borderDash: [5, 4], tension: .3, spanGaps: true, pointRadius: days > 30 ? 0 : 2 }] : [])
     ]},
     options: {
       maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
@@ -336,16 +471,18 @@ function render(){
   // Sites table (all rows)
   const bySite = new Map();
   for (const r of rows) { if (!bySite.has(r.site)) bySite.set(r.site, []); bySite.get(r.site).push(r); }
+  const gSite = new Map();
+  if (gsc && gsc.daily) for (const r of gsc.daily) { const s = pageSite(r.keys[1]); gSite.set(s, (gSite.get(s) || 0) + r.clicks); }
   const siteStats = [...bySite.entries()].map(([name, rs]) => {
     const s = sessionsOf(rs), v = visitorsOf(rs);
     const ss = [...s.values()], dur = ss.reduce((a, x) => a + x.dur, 0);
     const ret = [...v.values()].filter(x => !x.newInRange || x.sessions.size > 1).length;
-    return { name, v: v.size, pv: rs.length, avg: ss.length ? dur / ss.length : 0, total: dur, ret: pct(ret, v.size), bounce: pct(ss.filter(x => x.pv === 1 && x.dur < 10).length, ss.length) };
+    return { name, g: gSite.has(name) ? fmtN(gSite.get(name)) : (gsc && gsc.daily ? '0' : '—'), v: v.size, pv: rs.length, avg: ss.length ? dur / ss.length : 0, total: dur, ret: pct(ret, v.size), bounce: pct(ss.filter(x => x.pv === 1 && x.dur < 10).length, ss.length) };
   }).sort((a, b) => b.v - a.v);
   const smax = Math.max(1, ...siteStats.map(s => s.v));
-  $('sites').innerHTML = '<tr><th>Site</th><th class="num">Visitors</th><th class="num">Pageviews</th><th class="num">Avg time / visit</th><th class="num">Total time</th><th class="num">Returning</th><th class="num">Bounce</th><th></th></tr>' +
-    (siteStats.map(s => `<tr><td>${esc(s.name)}</td><td class="num">${fmtN(s.v)}</td><td class="num">${fmtN(s.pv)}</td><td class="num">${fmtDur(s.avg)}</td><td class="num">${fmtDur(s.total)}</td><td class="num">${s.ret}</td><td class="num">${s.bounce}</td><td style="width:18%">${bar(s.v, smax)}</td></tr>`).join('')
-     || '<tr><td class="muted" colspan="8">No data yet.</td></tr>');
+  $('sites').innerHTML = '<tr><th>Site</th><th class="num">Visitors</th><th class="num">Pageviews</th><th class="num">Avg time / visit</th><th class="num">Total time</th><th class="num">Returning</th><th class="num">Bounce</th><th class="num">Google clicks</th><th></th></tr>' +
+    (siteStats.map(s => `<tr><td>${esc(s.name)}</td><td class="num">${fmtN(s.v)}</td><td class="num">${fmtN(s.pv)}</td><td class="num">${fmtDur(s.avg)}</td><td class="num">${fmtDur(s.total)}</td><td class="num">${s.ret}</td><td class="num">${s.bounce}</td><td class="num">${s.g}</td><td style="width:18%">${bar(s.v, smax)}</td></tr>`).join('')
+     || '<tr><td class="muted" colspan="9">No data yet.</td></tr>');
 
   // Top pages
   const pages = new Map();
@@ -374,6 +511,8 @@ function render(){
   $('devices').innerHTML = '<tr><th>Device</th><th class="num">Sessions</th><th class="num">Share</th></tr>' +
     ([...devs.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => `<tr><td>${esc(k)}</td><td class="num">${fmtN(n)}</td><td class="num">${pct(n, sessions.length)}</td></tr>`).join('')
      || '<tr><td class="muted" colspan="3">No data yet.</td></tr>');
+
+  renderSearch(site);
 }
 </script>
 </body>
