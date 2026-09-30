@@ -329,7 +329,8 @@ const store = {
 };
 
 // ---------- game constants ----------
-const ARENA = 60, KART_R = 1.6;
+const MAP_SCALE = 1.5;                 // maps are laid out at the original size, then spread out by this much
+const ARENA = 60 * MAP_SCALE, KART_R = 1.6;
 const ROUND_MS = 180000, INTER_MS = 9000;
 const RESPAWN_S = 3, SPAWN_SHIELD = 2.5, BOX_RESPAWN = 7;
 const COLORS = ['#ff4d6d', '#ffc93c', '#3fb8ff', '#2ed19a', '#a66bff', '#ff8a3d', '#f4f4f8', '#39334f'];
@@ -375,7 +376,7 @@ const MAPS = [
   {
     id: 'yard', name: 'Rumble Yard', tip: 'Grab a box, find a lane, fire',
     look: {
-      sky: 0x8fd3ff, fog: [120, 280], hemi: [0xe4f4ff, 0x5b7d3c, .78], sun: [0xffffff, .82], ground: 0x7cc95a,
+      sky: 0x8fd3ff, fog: [160, 360], hemi: [0xe4f4ff, 0x5b7d3c, .78], sun: [0xffffff, .82], ground: 0x7cc95a,
       floor: ['#4b5070', 'rgba(255,255,255,.07)'], marks: ['rgba(255,255,255,.35)', 'rgba(255,201,60,.55)', 'rgba(255,255,255,.14)'],
       words: ['RUMBLE', 'KARTS'], ring: 11, barrier: ['#fbfbff', '#ff4d6d'], wall: 0xe8e5f3, cap: 0x3fb8ff, scenery: 'trees'
     },
@@ -388,13 +389,19 @@ const MAPS = [
       PADS.push(...sym4(20, 20).map(([x, z]) => ({ x, z })));
       BOX_POS.push(...rot4(0, 16), ...sym4(44, 44), ...rot4(48, 0));
       spawnAt([...sym4(52, 24), ...sym4(24, 52)]);
+    },
+    more() {
+      for (const [x, z] of sym4(22, 30)) OB_BOX.push({ x, z, w: 2, d: 2, h: 2.4, k: 'crate' });
+      for (const [x, z] of rot4(66, 40)) OB_BOX.push({ x, z, w: 2, d: 2, h: 2.4, k: 'crate' });
+      for (const [x, z] of rot4(62, 0)) OB_CIR.push({ x, z, r: 2.4, h: 4, k: 'pillar' });
+      BOX_POS.push(...rot4(0, 56), ...rot4(40, 22));
     }
   },
   {
     id: 'frost', name: 'Frost Lake', tip: 'The frozen lake is slippery',
     look: {
-      sky: 0xcfe7f7, fog: [110, 260], hemi: [0xf2f8ff, 0x9db4c8, .9], sun: [0xf2f7ff, .7], ground: 0xeef4fa,
-      floor: ['#c3d6e4', 'rgba(255,255,255,.3)'], marks: ['rgba(70,110,150,.35)', 'rgba(63,184,255,.55)', 'rgba(60,110,160,.16)'],
+      sky: 0xcfe7f7, fog: [150, 340], hemi: [0xf2f8ff, 0x8aa3b8, .78], sun: [0xf2f7ff, .66], ground: 0xe6eef6,
+      floor: ['#b6cadb', 'rgba(255,255,255,.3)'], marks: ['rgba(70,110,150,.35)', 'rgba(63,184,255,.55)', 'rgba(60,110,160,.16)'],
       words: ['FROST', 'LAKE'], ring: 0, barrier: ['#ffffff', '#3fb8ff'], wall: 0xbfe6ff, cap: 0xffffff, scenery: 'snow'
     },
     layout() {
@@ -406,12 +413,18 @@ const MAPS = [
       PADS.push(...rot4(0, 26).map(([x, z]) => ({ x, z })));
       BOX_POS.push([0, 0], ...rot4(10, 0), ...sym4(30, 30), ...rot4(0, 40));
       spawnAt([...sym4(52, 24), ...sym4(24, 52)]);
+    },
+    more() {
+      for (let i = 0; i < 8; i++) { const a = (i + .5) * TAU / 8; OB_CIR.push({ x: Math.sin(a) * 58, z: Math.cos(a) * 58, r: 2, h: 7, k: 'spire' }); }
+      for (const [x, z] of rot4(40, 52)) OB_BOX.push({ x, z, w: 2, d: 2, h: 2.4, k: 'crate' });
+      for (const [x, z] of sym4(52, 34)) ZONES.push({ x, z, r: 5, k: 'ice' });
+      BOX_POS.push(...rot4(0, 30), ...sym4(66, 66));
     }
   },
   {
     id: 'foundry', name: 'Lava Foundry', tip: 'Knock rivals into the lava for the wreck',
     look: {
-      sky: 0x2b1d38, fogColor: 0x3a2338, fog: [90, 240], hemi: [0xffb48c, 0x2a2030, .72], sun: [0xffd0a0, .72], ground: 0x2c2630,
+      sky: 0x2b1d38, fogColor: 0x3a2338, fog: [120, 310], hemi: [0xffb48c, 0x2a2030, .72], sun: [0xffd0a0, .72], ground: 0x2c2630,
       floor: ['#3b3642', 'rgba(255,140,60,.12)'], marks: ['rgba(255,201,60,.35)', 'rgba(255,106,43,.6)', 'rgba(255,160,90,.14)'],
       words: ['LAVA', 'FOUNDRY'], ring: 9, barrier: ['#1b1733', '#ffc93c'], wall: 0x57526a, cap: 0xffc93c, scenery: 'rocks'
     },
@@ -424,9 +437,25 @@ const MAPS = [
       PADS.push(...rot4(26, 0).map(([x, z]) => ({ x, z })));
       BOX_POS.push(...sym4(9, 9), ...sym4(25, 25), ...sym4(50, 50));
       spawnAt([...sym4(52, 22), ...sym4(22, 52)]);
+    },
+    more() {
+      for (const [x, z] of sym4(30, 60).concat(sym4(60, 30))) OB_BOX.push({ x, z, w: 2, d: 2, h: 2.6, k: 'steel' });
+      for (const [x, z] of rot4(0, 76)) ZONES.push({ x, z, r: 5, k: 'lava' });
+      BOX_POS.push(...rot4(62, 20), ...rot4(0, 40));
     }
   }
 ];
+// Spread a map's original layout out by MAP_SCALE: positions and long walls stretch, the lake and
+// lava pools grow, and karts, crates and pillars keep their size.
+function scaleLayout() {
+  const S = MAP_SCALE;
+  for (const b of OB_BOX) { b.x *= S; b.z *= S; if (b.k === 'wall') { if (b.w > b.d) b.w *= S; else b.d *= S; } }
+  for (const c of OB_CIR) { c.x *= S; c.z *= S; if (c.k === 'tower' || c.k === 'furnace') c.r *= 1.2; if (c.k === 'igloo') c.r *= 1.25; }
+  for (const p of PADS) { p.x *= S; p.z *= S; }
+  for (const b of BOX_POS) { b[0] *= S; b[1] *= S; }
+  for (const s of SPAWNS) { s.x *= S; s.z *= S; }
+  for (const q of ZONES) { q.x *= S; q.z *= S; q.r *= 1.35; }
+}
 function zoneAt(x, z) {
   for (const q of ZONES) { const dx = x - q.x, dz = z - q.z; if (dx * dx + dz * dz < q.r * q.r) return q; }
   return null;
@@ -585,7 +614,7 @@ function setMap(i) {
   world.map = i;
   const M = MAPS[i], L = M.look;
   for (const a of [OB_BOX, OB_CIR, PADS, BOX_POS, SPAWNS, ZONES]) a.length = 0;
-  M.layout();
+  M.layout(); scaleLayout(); if (M.more) M.more();
   if (world.group) { scene.remove(world.group); disposeGroup(world.group); }
   const G = world.group = new THREE.Group(); scene.add(G);
   world.pads = []; world.flag = null; world.anim = [];
@@ -609,24 +638,26 @@ function setMap(i) {
       for (let n = 0; n < 5; n++) { g.beginPath(); let x = Math.random() * w, y = Math.random() * h; g.moveTo(x, y); for (let s = 0; s < 5; s++) { x += rand(-40, 40); y += rand(-40, 40); g.lineTo(x, y); } g.stroke(); }
     }
     g.strokeStyle = L.floor[1]; g.lineWidth = 3; g.strokeRect(1.5, 1.5, w - 3, h - 3);
-  }, [10, 10]);
+  }, [10 * MAP_SCALE, 10 * MAP_SCALE]);
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(ARENA * 2, ARENA * 2), lam(0xffffff, { map: floorTex }));
   floor.rotation.x = -Math.PI / 2; add(floor, false);
 
   // painted markings: one texture for the whole arena
-  const SZ = 1024, k = SZ / (ARENA * 2), P = v => (v + ARENA) * k;
+  const SZ = 2048, k = SZ / (ARENA * 2), P = v => (v + ARENA) * k;
   const markTex = canvasTex(SZ, SZ, (g) => {
     g.lineCap = 'round';
     g.strokeStyle = L.marks[0]; g.lineWidth = 6; g.setLineDash([26, 18]);
-    g.strokeRect(P(-56), P(-56), 112 * k, 112 * k); g.setLineDash([]);
+    g.strokeRect(P(4 - ARENA), P(4 - ARENA), (ARENA - 4) * 2 * k, (ARENA - 4) * 2 * k); g.setLineDash([]);
     if (L.ring) {
-      g.strokeStyle = L.marks[1]; g.lineWidth = 10; g.beginPath(); g.arc(P(0), P(0), L.ring * k, 0, TAU); g.stroke();
-      g.strokeStyle = L.marks[0]; g.lineWidth = 4; g.beginPath(); g.arc(P(0), P(0), (L.ring + 2.5) * k, 0, TAU); g.stroke();
+      const rr = L.ring * 1.2;
+      g.strokeStyle = L.marks[1]; g.lineWidth = 10; g.beginPath(); g.arc(P(0), P(0), rr * k, 0, TAU); g.stroke();
+      g.strokeStyle = L.marks[0]; g.lineWidth = 4; g.beginPath(); g.arc(P(0), P(0), (rr + 2.5) * k, 0, TAU); g.stroke();
     }
     for (const s of SPAWNS) { g.fillStyle = L.marks[2]; g.beginPath(); g.arc(P(s.x), P(s.z), 3.2 * k, 0, TAU); g.fill(); }
     g.fillStyle = L.marks[2]; g.font = `700 ${7 * k}px "Lilita One", "Arial Black", sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.save(); g.translate(P(0), P(-40)); g.rotate(Math.PI); g.fillText(L.words[0], 0, 0); g.restore();
-    g.fillText(L.words[1], P(0), P(40));
+    const ty = ARENA * .7;
+    g.save(); g.translate(P(0), P(-ty)); g.rotate(Math.PI); g.fillText(L.words[0], 0, 0); g.restore();
+    g.fillText(L.words[1], P(0), P(ty));
   });
   const marks = new THREE.Mesh(new THREE.PlaneGeometry(ARENA * 2, ARENA * 2), new THREE.MeshLambertMaterial({ map: markTex, transparent: true, depthWrite: false }));
   marks.rotation.x = -Math.PI / 2; marks.position.y = 0.02; add(marks, false);
@@ -635,12 +666,12 @@ function setMap(i) {
   for (const q of ZONES) {
     if (q.k === 'ice') {
       const tex = canvasTex(256, 256, (g, w, h) => {
-        const gr = g.createRadialGradient(w / 2, h / 2, 10, w / 2, h / 2, w / 2); gr.addColorStop(0, '#e9f7ff'); gr.addColorStop(1, '#bfe4fa');
+        const gr = g.createRadialGradient(w / 2, h / 2, 10, w / 2, h / 2, w / 2); gr.addColorStop(0, '#9fd6f7'); gr.addColorStop(.75, '#7cc3ee'); gr.addColorStop(1, '#5fb0e4');
         g.fillStyle = gr; g.fillRect(0, 0, w, h);
         g.strokeStyle = 'rgba(255,255,255,.8)'; g.lineWidth = 2;
         for (let n = 0; n < 14; n++) { const x = rand(20, w - 20), y = rand(20, h - 20), l = rand(10, 40), a = rand(0, TAU); g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke(); }
       });
-      const m = new THREE.Mesh(new THREE.CircleGeometry(q.r, 48), new THREE.MeshLambertMaterial({ map: tex, transparent: true, opacity: .92, depthWrite: false }));
+      const m = new THREE.Mesh(new THREE.CircleGeometry(q.r, 48), new THREE.MeshLambertMaterial({ map: tex, transparent: true, opacity: .95, depthWrite: false }));
       m.rotation.x = -Math.PI / 2; m.position.set(q.x, .03, q.z); add(m, false);
       const rim = new THREE.Mesh(new THREE.RingGeometry(q.r - .15, q.r + .45, 48), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .7, depthWrite: false }));
       rim.rotation.x = -Math.PI / 2; rim.position.set(q.x, .035, q.z); add(rim, false, false);
@@ -757,7 +788,7 @@ function setMap(i) {
     const crowns = new THREE.InstancedMesh(new THREE.ConeGeometry(3.2, 7, 7), lam(L.scenery === 'snow' ? 0x2f7a5c : 0x3f9e4d), N);
     const caps = L.scenery === 'snow' ? new THREE.InstancedMesh(new THREE.ConeGeometry(2, 3.4, 7), lam(0xffffff), N) : null;
     for (let n = 0; n < N; n++) {
-      const a = srand() * TAU, r = 78 + srand() * 90, s = .8 + srand() * .8, x = Math.cos(a) * r, z = Math.sin(a) * r;
+      const a = srand() * TAU, r = ARENA + 18 + srand() * 90, s = .8 + srand() * .8, x = Math.cos(a) * r, z = Math.sin(a) * r;
       sc.set(s, s, s); pos.set(x, 1.5 * s, z); mtx.compose(pos, q, sc); trunks.setMatrixAt(n, mtx);
       pos.set(x, 6.2 * s, z); mtx.compose(pos, q, sc); crowns.setMatrixAt(n, mtx);
       if (caps) { pos.set(x, 8.6 * s, z); mtx.compose(pos, q, sc); caps.setMatrixAt(n, mtx); }
@@ -765,19 +796,19 @@ function setMap(i) {
     crowns.castShadow = true; G.add(trunks, crowns); if (caps) G.add(caps);
     if (L.scenery === 'snow') {
       const drifts = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 12, 8), lam(0xffffff), 40);
-      for (let n = 0; n < 40; n++) { const a = srand() * TAU, r = 66 + srand() * 40, s = 2 + srand() * 4; sc.set(s * 1.6, s * .5, s); pos.set(Math.cos(a) * r, 0, Math.sin(a) * r); mtx.compose(pos, q, sc); drifts.setMatrixAt(n, mtx); }
+      for (let n = 0; n < 40; n++) { const a = srand() * TAU, r = ARENA + 6 + srand() * 40, s = 2 + srand() * 4; sc.set(s * 1.6, s * .5, s); pos.set(Math.cos(a) * r, 0, Math.sin(a) * r); mtx.compose(pos, q, sc); drifts.setMatrixAt(n, mtx); }
       G.add(drifts);
     }
   } else {
     const N = 70, rocks = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), lam(0x3a3340), N);
     for (let n = 0; n < N; n++) {
-      const a = srand() * TAU, r = 70 + srand() * 100, s = 1.5 + srand() * 5;
+      const a = srand() * TAU, r = ARENA + 10 + srand() * 100, s = 1.5 + srand() * 5;
       sc.set(s, s * (.6 + srand() * .8), s); pos.set(Math.cos(a) * r, s * .3, Math.sin(a) * r);
       q.setFromEuler(new THREE.Euler(srand() * 3, srand() * 3, 0)); mtx.compose(pos, q, sc); rocks.setMatrixAt(n, mtx);
     }
     q.identity(); rocks.castShadow = true; G.add(rocks);
-    const volcano = new THREE.Mesh(new THREE.ConeGeometry(70, 60, 24, 1, true), lam(0x2a2230)); volcano.position.set(-60, 26, -200); G.add(volcano);
-    const crater = new THREE.Mesh(new THREE.CircleGeometry(14, 20), new THREE.MeshBasicMaterial({ color: 0xff6a2b, fog: false })); crater.rotation.x = -Math.PI / 2; crater.position.set(-60, 49, -200); G.add(crater);
+    const volcano = new THREE.Mesh(new THREE.ConeGeometry(70, 60, 24, 1, true), lam(0x2a2230)); volcano.position.set(-80, 26, -250); G.add(volcano);
+    const crater = new THREE.Mesh(new THREE.CircleGeometry(14, 20), new THREE.MeshBasicMaterial({ color: 0xff6a2b, fog: false })); crater.rotation.x = -Math.PI / 2; crater.position.set(-80, 49, -250); G.add(crater);
   }
 
   buildBoxes();
@@ -1653,7 +1684,7 @@ function pickBotNames(n) { const a = [...BOT_NAMES].sort(() => Math.random() - .
 function startAttract() {
   clearWorld(); S.mode = 'attract';
   setMap(Math.floor(Math.random() * MAPS.length));
-  pickBotNames(6).forEach((n, i) => { const k = new Kart('bot' + i, n, COLORS[(i + 2) % COLORS.length], { local: true, ai: true }); k.respawn(); });
+  pickBotNames(7).forEach((n, i) => { const k = new Kart('bot' + i, n, COLORS[(i + 2) % COLORS.length], { local: true, ai: true }); k.respawn(); });
   $('#hud').hidden = true; $('#touch').hidden = true; $('#menu').hidden = false;
   showAd('adMenu');
 }
@@ -1661,7 +1692,7 @@ function startOffline() {
   clearWorld(); S.mode = 'offline'; S.mapOff = Math.floor(Math.random() * MAPS.length);
   S.me = new Kart('me', player.name, player.color, { local: true, me: true });
   const others = COLORS.filter(c => c !== player.color);
-  pickBotNames(5).forEach((n, i) => new Kart('bot' + i, n, others[i % others.length], { local: true, ai: true }));
+  pickBotNames(6).forEach((n, i) => new Kart('bot' + i, n, others[i % others.length], { local: true, ai: true }));
   enterHud();
 }
 async function startOnline() {
@@ -1882,8 +1913,8 @@ function updateCamera(dt) {
   const t = performance.now() / 1000;
   if (S.mode === 'attract' || !S.me) {
     const a = t * .07;
-    camera.position.set(Math.sin(a) * 82, 42, Math.cos(a) * 82); camera.lookAt(0, 0, 0); lookNow.set(0, 0, 0);
-    setFov(baseFov); aimSun(0, 0, 72);
+    camera.position.set(Math.sin(a) * ARENA * 1.3, ARENA * .62, Math.cos(a) * ARENA * 1.3); camera.lookAt(0, 0, 0); lookNow.set(0, 0, 0);
+    setFov(baseFov); aimSun(0, 0, ARENA * 1.2);
     return;
   }
   const k = S.me;
@@ -1992,7 +2023,7 @@ $('#bMute').addEventListener('click', toggleMute);
 addEventListener('pagehide', () => Net.disconnect());
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { for (const k of karts.values()) drawLabel(k.label); });
 
-window.__rumble = { karts, S, mines, projectiles, simulate, Kart, Net, Q, booms, gbombs };   // handy for debugging in the console
+window.__rumble = { karts, S, mines, projectiles, simulate, Kart, Net, Q, booms, gbombs, setMap, MAPS, OB_BOX, OB_CIR, PADS, BOX_POS, SPAWNS, ZONES, pointBlocked, zoneAt, lavaNear, world };   // handy for debugging in the console
 startAttract();
 requestAnimationFrame(frame);
 })();
