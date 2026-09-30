@@ -48,6 +48,16 @@ th{color:var(--muted);font-weight:500;font-size:12px}
 .bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;min-width:70px}
 .bar>i{display:block;height:100%;background:var(--accent)}
 .muted{color:var(--muted)}
+details.game{border:1px solid var(--line);border-radius:10px;margin-top:8px;background:var(--bg)}
+details.game>summary{cursor:pointer;list-style:none;display:flex;gap:6px 14px;align-items:center;justify-content:space-between;padding:12px 14px;flex-wrap:wrap}
+details.game>summary::-webkit-details-marker{display:none}
+details.game .nm{font-weight:650;font-size:15px;display:flex;align-items:center;gap:8px}
+details.game .nm::before{content:'\25B8';color:var(--muted);display:inline-block;transition:transform .15s}
+details.game[open] .nm::before{transform:rotate(90deg)}
+details.game .qs{color:var(--muted);font-size:12.5px;font-variant-numeric:tabular-nums}
+details.game .inner{padding:2px 14px 14px}
+details.game .kpis{grid-template-columns:repeat(auto-fit,minmax(135px,1fr))}
+details.game .kpi .value{font-size:20px}
 .cardhead{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start}
 #gscBody .kpis{margin-bottom:14px}
 </style>
@@ -81,6 +91,12 @@ th{color:var(--muted);font-weight:500;font-size:12px}
 
   <main>
     <section class="grid kpis" id="kpis"></section>
+
+    <section class="card full">
+      <h2>Games</h2>
+      <p class="hint">Open a game to see its numbers on their own.</p>
+      <div id="panels"></div>
+    </section>
 
     <section class="card full">
       <h2>Traffic by day</h2>
@@ -155,6 +171,17 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 const $ = id => document.getElementById(id);
+const SITE_NAMES = { 'rumble-karts': 'Rumble Karts', 'starhop': 'Starhop', 'hype-cycle': 'Hype Cycle Exchange', 'home': 'Homepage' };
+const KNOWN_SITES = Object.keys(SITE_NAMES);
+const siteLabel = s => SITE_NAMES[s] || s;
+const allSites = () => [...new Set([...KNOWN_SITES, ...rows.map(r => r.site)])];
+const openPanels = new Set();
+const kpiHTML = (label, value, sub = '') => `<div class="card kpi"><div class="label">${label}</div><div class="value">${value}</div><div class="sub">${sub}</div></div>`;
+function fillSites(){
+  const sel = $('site'), cur = sel.value;
+  sel.innerHTML = '<option value="all">All sites</option>' + allSites().map(s => `<option value="${esc(s)}">${esc(siteLabel(s))}</option>`).join('');
+  sel.value = allSites().includes(cur) ? cur : 'all';
+}
 let rows = [], chart = null;
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -200,6 +227,7 @@ auth.onAuthStateChanged(u => {
   $('app').classList.toggle('hidden', !u);
   if (u) load();
 });
+fillSites();
 $('range').onchange = load;
 $('refresh').onclick = load;
 $('site').onchange = render;
@@ -223,10 +251,7 @@ async function load(){
         dur: +x.dur || 0
       };
     });
-    const sel = $('site'), cur = sel.value;
-    const sites = [...new Set(rows.map(r => r.site))].sort();
-    sel.innerHTML = '<option value="all">All sites</option>' + sites.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
-    sel.value = sites.includes(cur) ? cur : 'all';
+    fillSites();
     $('status').innerHTML = `<span class="live"><span class="dot"></span>${fmtN(rows.length)} pageviews loaded · ${new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}</span>`;
     render();
     loadSearch();
@@ -334,6 +359,78 @@ function renderSearch(site){
     (top.map(([k, q]) => `<tr><td class="trunc">${esc(k)}</td><td class="num">${fmtN(q.c)}</td><td class="num">${fmtN(q.i)}</td><td class="num">${q.i ? (100 * q.c / q.i).toFixed(1) + '%' : '—'}</td><td class="num">${q.i ? (q.pw / q.i).toFixed(1) : '—'}</td></tr>`).join('')
       || '<tr><td class="muted" colspan="5">Google hides very rare searches for privacy, so this can be empty even when there are clicks.</td></tr>') +
     '</table></div>';
+}
+
+function statsFor(R){
+  const S = sessionsOf(R), V = visitorsOf(R), ss = [...S.values()];
+  const dur = ss.reduce((a, s) => a + s.dur, 0);
+  const today = dayStart(new Date());
+  const newV = [...V.values()].filter(v => v.newInRange && v.firstEver);
+  const ret = (w, exact) => {
+    let e = 0, r = 0;
+    for (const v of newV) {
+      if (dayDiff(v.firstEver, today) < w) continue;
+      e++;
+      if (v.dates.some(t => { const dd = dayDiff(v.firstEver, t); return exact ? dd === w : dd >= 1 && dd <= w; })) r++;
+    }
+    return [r, e];
+  };
+  return {
+    visitors: V.size, pv: R.length, sessions: ss.length, dur, avg: ss.length ? dur / ss.length : 0,
+    bounce: ss.filter(s => s.pv === 1 && s.dur < 10).length,
+    returning: [...V.values()].filter(v => !v.newInRange || v.sessions.size > 1).length,
+    d1: ret(1, true), w1: ret(7, false)
+  };
+}
+function searchFor(site){
+  if (!gsc || !gsc.daily) return null;
+  let clicks = 0, imps = 0, posW = 0;
+  for (const r of gsc.daily) if (pageSite(r.keys[1]) === site) { clicks += r.clicks; imps += r.impressions; posW += r.position * r.impressions; }
+  const qm = new Map();
+  for (const r of gsc.qp) {
+    if (pageSite(r.keys[1]) !== site) continue;
+    let q = qm.get(r.keys[0]);
+    if (!q) { q = { c: 0, i: 0, pw: 0 }; qm.set(r.keys[0], q); }
+    q.c += r.clicks; q.i += r.impressions; q.pw += r.position * r.impressions;
+  }
+  const top = [...qm.entries()].sort((a, b) => b[1].c - a[1].c || b[1].i - a[1].i).slice(0, 5);
+  return { clicks, imps, pos: imps ? posW / imps : null, top };
+}
+function renderPanels(){
+  $('panels').innerHTML = allSites().map(site => {
+    const s = statsFor(rows.filter(r => r.site === site));
+    const g = searchFor(site);
+    const cards = [
+      kpiHTML('Visitors', fmtN(s.visitors)),
+      kpiHTML('Pageviews', fmtN(s.pv), `${fmtN(s.sessions)} visits`),
+      kpiHTML('Avg engaged time', fmtDur(s.avg), 'per visit'),
+      kpiHTML('Total play time', fmtDur(s.dur)),
+      kpiHTML('Bounce rate', pct(s.bounce, s.sessions)),
+      kpiHTML('Returning', pct(s.returning, s.visitors), `${fmtN(s.returning)} of ${fmtN(s.visitors)}`),
+      kpiHTML('Back next day', pct(s.d1[0], s.d1[1]), `${fmtN(s.d1[0])} of ${fmtN(s.d1[1])} new`),
+      kpiHTML('Back within 7 days', pct(s.w1[0], s.w1[1]), `${fmtN(s.w1[0])} of ${fmtN(s.w1[1])} new`),
+      kpiHTML('Google clicks', g ? fmtN(g.clicks) : '—', g ? `${fmtN(g.imps)} impressions` : 'connect Google Search'),
+      kpiHTML('Google position', g && g.pos != null ? g.pos.toFixed(1) : '—', '1 = top result')
+    ].join('');
+    const searches = g && g.top.length
+      ? '<h2 style="margin-top:14px">Top searches</h2><div class="scroll"><table><tr><th>Search</th><th class="num">Clicks</th><th class="num">Impressions</th><th class="num">Position</th></tr>' +
+        g.top.map(([k, q]) => `<tr><td class="trunc">${esc(k)}</td><td class="num">${fmtN(q.c)}</td><td class="num">${fmtN(q.i)}</td><td class="num">${q.i ? (q.pw / q.i).toFixed(1) : '—'}</td></tr>`).join('') + '</table></div>'
+      : '';
+    const quick = s.visitors
+      ? `${fmtN(s.visitors)} visitors · ${fmtN(s.pv)} views · ${fmtDur(s.avg)} avg${g ? ` · ${fmtN(g.clicks)} Google clicks` : ''}`
+      : 'No visits yet in this range';
+    return `<details class="game" data-site="${esc(site)}"${openPanels.has(site) ? ' open' : ''}>
+      <summary><span class="nm">${esc(siteLabel(site))}</span><span class="qs">${quick}</span></summary>
+      <div class="inner"><div class="grid kpis">${cards}</div>${searches}
+        <p style="margin:12px 0 0"><button class="focus" data-site="${esc(site)}">Filter the whole dashboard to ${esc(siteLabel(site))}</button></p>
+      </div></details>`;
+  }).join('');
+  $('panels').querySelectorAll('details.game').forEach(d => d.addEventListener('toggle', () => {
+    if (d.open) openPanels.add(d.dataset.site); else openPanels.delete(d.dataset.site);
+  }));
+  $('panels').querySelectorAll('button.focus').forEach(b => b.onclick = () => {
+    $('site').value = b.dataset.site; render(); window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
 }
 
 function sessionsOf(R){
@@ -481,7 +578,7 @@ function render(){
   }).sort((a, b) => b.v - a.v);
   const smax = Math.max(1, ...siteStats.map(s => s.v));
   $('sites').innerHTML = '<tr><th>Site</th><th class="num">Visitors</th><th class="num">Pageviews</th><th class="num">Avg time / visit</th><th class="num">Total time</th><th class="num">Returning</th><th class="num">Bounce</th><th class="num">Google clicks</th><th></th></tr>' +
-    (siteStats.map(s => `<tr><td>${esc(s.name)}</td><td class="num">${fmtN(s.v)}</td><td class="num">${fmtN(s.pv)}</td><td class="num">${fmtDur(s.avg)}</td><td class="num">${fmtDur(s.total)}</td><td class="num">${s.ret}</td><td class="num">${s.bounce}</td><td class="num">${s.g}</td><td style="width:18%">${bar(s.v, smax)}</td></tr>`).join('')
+    (siteStats.map(s => `<tr><td>${esc(siteLabel(s.name))}</td><td class="num">${fmtN(s.v)}</td><td class="num">${fmtN(s.pv)}</td><td class="num">${fmtDur(s.avg)}</td><td class="num">${fmtDur(s.total)}</td><td class="num">${s.ret}</td><td class="num">${s.bounce}</td><td class="num">${s.g}</td><td style="width:18%">${bar(s.v, smax)}</td></tr>`).join('')
      || '<tr><td class="muted" colspan="9">No data yet.</td></tr>');
 
   // Top pages
@@ -512,6 +609,7 @@ function render(){
     ([...devs.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => `<tr><td>${esc(k)}</td><td class="num">${fmtN(n)}</td><td class="num">${pct(n, sessions.length)}</td></tr>`).join('')
      || '<tr><td class="muted" colspan="3">No data yet.</td></tr>');
 
+  renderPanels();
   renderSearch(site);
 }
 </script>
