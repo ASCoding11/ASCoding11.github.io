@@ -105,6 +105,13 @@ kbd{font:700 12px var(--f-ui);display:inline-block;min-width:20px;text-align:cen
 #bSub{margin-top:10px;display:inline-block;font-weight:700;font-size:18px;color:#fff;background:var(--shade);padding:4px 14px;border-radius:999px}
 #bSub:empty{display:none}
 #hint{position:absolute;left:50%;bottom:calc(126px + var(--sab));transform:translateX(-50%);white-space:nowrap;background:var(--shade);color:#fff;font-weight:700;font-size:15px;padding:6px 14px;border-radius:999px}
+#hitmark{position:absolute;left:50%;top:44%;width:34px;height:34px;margin:-17px 0 0 -17px;pointer-events:none;opacity:0}
+#hitmark i{position:absolute;left:50%;top:50%;width:12px;height:4px;margin:-2px 0 0 -6px;background:#fff;border-radius:2px;box-shadow:0 0 0 1.5px var(--ink)}
+#hitmark i:nth-child(1){transform:rotate(45deg) translateX(-12px)} #hitmark i:nth-child(2){transform:rotate(135deg) translateX(-12px)}
+#hitmark i:nth-child(3){transform:rotate(225deg) translateX(-12px)} #hitmark i:nth-child(4){transform:rotate(315deg) translateX(-12px)}
+#hitmark.big i{background:var(--pop)}
+#hitmark.on{animation:hitm .32s ease-out}
+@keyframes hitm{0%{opacity:1;transform:scale(1.35)}100%{opacity:0;transform:scale(1)}}
 #flash{position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 120px 30px rgba(255,77,109,.75);opacity:0;transition:opacity .35s ease-out}
 
 /* ---------- results ---------- */
@@ -163,6 +170,7 @@ body.touch #hint{bottom:calc(210px + var(--sab))}
 <div id="app">
   <canvas id="view" tabindex="-1" aria-label="Rumble Karts arena"></canvas>
   <div id="flash"></div>
+  <div id="hitmark" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
 
   <div id="hud" hidden>
     <div id="lb" class="sticker" aria-label="Leaderboard"></div>
@@ -342,9 +350,8 @@ function segDist(ax, az, bx, bz, px, pz) {
 // =====================================================================
 const canvas = $('#view');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x8fd3ff);
 scene.fog = new THREE.Fog(0x8fd3ff, 120, 280);
@@ -358,7 +365,54 @@ sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
 Object.assign(sun.shadow.camera, { left: -72, right: 72, top: 72, bottom: -72, near: 20, far: 220 });
 sun.shadow.bias = -0.0006;
-scene.add(sun);
+scene.add(sun, sun.target);
+const SUN_OFF = new THREE.Vector3(40, 90, 30);
+// Shadows only need to cover what's near the player, so the shadow box follows the action:
+// a smaller box means sharper shadows from the same (or a cheaper) shadow map.
+function aimSun(x, z, r) {
+  const c = sun.shadow.camera, step = (2 * r) / sun.shadow.mapSize.x;
+  x = Math.round(x / step) * step; z = Math.round(z / step) * step;   // snap to texels to stop shimmering
+  sun.position.set(x + SUN_OFF.x, SUN_OFF.y, z + SUN_OFF.z); sun.target.position.set(x, 0, z);
+  if (c.right !== r) { c.left = c.bottom = -r; c.right = c.top = r; c.updateProjectionMatrix(); }
+}
+
+// ---------- automatic quality ----------
+// Starts high and steps down (sharpness first, then shadow detail, then shadows) whenever frames
+// run slow, so older laptops and phones stay smooth. It never climbs back to a level that was too slow.
+const DPR = window.devicePixelRatio || 1;
+const QUALITY = [
+  { pr: Math.min(DPR, 2), shadow: 2048 },
+  { pr: Math.min(DPR, 1.5), shadow: 1024 },
+  { pr: Math.min(DPR, 1), shadow: 1024 },
+  { pr: Math.min(DPR, .85), shadow: 0 },
+  { pr: Math.min(DPR, .7), shadow: 0 }
+];
+const Q = { i: matchMedia('(pointer: coarse)').matches ? 1 : 0, ceil: 0, win: [], cool: 3, good: 0 };
+function applyQuality() {
+  const q = QUALITY[Q.i];
+  renderer.setPixelRatio(q.pr);
+  if (Q.ready) resize();
+  const want = q.shadow > 0;
+  if (sun.castShadow !== want) sun.castShadow = want;
+  if (want && sun.shadow.mapSize.x !== q.shadow) {
+    sun.shadow.mapSize.set(q.shadow, q.shadow);
+    if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
+  }
+}
+function tuneQuality(ms) {
+  if (document.hidden || ms > 5000) return;
+  Q.cool -= ms / 1000; Q.win.push(ms); Q.span = (Q.span || 0) + ms;
+  if (Q.win.length < 40 && !(Q.win.length >= 4 && Q.span > 1500)) return;
+  const w = Q.win.sort((a, b) => a - b), med = w[w.length >> 1]; Q.win.length = 0; Q.span = 0;
+  if (Q.cool > 0) return;
+  if (med > 23 && Q.i < QUALITY.length - 1) {
+    Q.i = Math.min(QUALITY.length - 1, Q.i + (med > 60 ? 2 : 1));
+    Q.ceil = Math.max(Q.ceil, Q.i); Q.good = 0; Q.cool = 1; applyQuality();
+  }
+  else if (med < 12 && Q.i > Q.ceil) { if (++Q.good >= 6) { Q.i--; Q.good = 0; Q.cool = 3; applyQuality(); } }
+  else Q.good = 0;
+}
+applyQuality();
 
 const maxAniso = renderer.capabilities.getMaxAnisotropy();
 function canvasTex(w, h, draw, repeat) {
@@ -578,6 +632,22 @@ const Snd = {
     g.gain.setValueAtTime(Math.max(.0011, vol), t); g.gain.exponentialRampToValueAtTime(.001, t + dur);
     s.connect(f); f.connect(g); g.connect(this.master); s.start(t); s.stop(t + dur);
   },
+  engine: null,
+  engineSet(k) {
+    const c = this.ctx; if (!c) return;
+    if (!k) { if (this.engine) { const e = this.engine; e.g.gain.setTargetAtTime(0, c.currentTime, .05); setTimeout(() => { try { e.a.stop(); e.b.stop(); } catch (_) {} }, 300); this.engine = null; } return; }
+    if (!this.engine) {
+      const a = c.createOscillator(), b = c.createOscillator(), f = c.createBiquadFilter(), g = c.createGain();
+      a.type = 'sawtooth'; b.type = 'square'; f.type = 'lowpass'; f.frequency.value = 520; g.gain.value = 0;
+      a.connect(f); b.connect(f); f.connect(g); g.connect(this.master); a.start(); b.start();
+      this.engine = { a, b, f, g };
+    }
+    const e = this.engine, t = c.currentTime, sp = Math.min(Math.abs(k.fwd), 44);
+    const hz = 48 + sp * 3.2 + (k.turbo > 0 ? 25 : 0);
+    e.a.frequency.setTargetAtTime(hz, t, .06); e.b.frequency.setTargetAtTime(hz * .5, t, .06);
+    e.f.frequency.setTargetAtTime(420 + sp * 22, t, .08);
+    e.g.gain.setTargetAtTime(this.on && !k.dead ? .022 + sp / 44 * .03 : 0, t, .08);
+  },
   play(name, x, z, s = 1) {
     if (S.mode === 'attract' || !this.ctx) return;
     let v = 1;
@@ -590,6 +660,7 @@ const Snd = {
       case 'shield': this.tone(420, .4, 'sine', .15, 500); break;
       case 'turbo': this.tone(140, .6, 'sawtooth', .07, 520); this.noise(.5, .12, 3000); break;
       case 'hurt': this.tone(200, .18, 'square', .12, -120); break;
+      case 'hit': this.tone(1800, .05, 'square', .07, -600); break;
       case 'ting': this.tone(1500, .12, 'triangle', .1 * v, 0); break;
       case 'mine': this.tone(260, .12, 'square', .07 * v, -60); break;
       case 'win': [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => this.tone(f, .18, 'triangle', .15, 0), i * 110)); break;
@@ -693,7 +764,7 @@ class Kart {
     const it = this.item; if (!it || this.dead) return;
     this.item = null; this.itemHeld = 0;
     const fx = Math.sin(this.h), fz = Math.cos(this.h);
-    if (it === 'rocket') Net.send({ type: 'rk', x: r2(this.x + fx * 2.8), z: r2(this.z + fz * 2.8), h: r3(this.h), o: this.id });
+    if (it === 'rocket') { const h = assistAim(this, 60, .2, 58); Net.send({ type: 'rk', x: r2(this.x + Math.sin(h) * 2.8), z: r2(this.z + Math.cos(h) * 2.8), h: r3(h), o: this.id }); }
     else if (it === 'blaster') { this.blast = 10; this.blastT = 0; }
     else if (it === 'mine') Net.send({ type: 'mn', x: r2(this.x - fx * 3.2), z: r2(this.z - fz * 3.2), o: this.id });
     else if (it === 'shield') { this.shield = 6; Snd.play('shield', this.x, this.z); }
@@ -712,7 +783,7 @@ class Kart {
       this.blastT -= dt;
       if (this.blastT <= 0) {
         this.blastT = .09; this.blast--;
-        const h = this.h + rand(-.035, .035);
+        const h = assistAim(this, 40, .12, 95) + rand(-.03, .03);
         Net.send({ type: 'bl', x: r2(this.x + Math.sin(h) * 2.6), z: r2(this.z + Math.cos(h) * 2.6), h: r3(h), o: this.id });
       }
     }
@@ -761,20 +832,37 @@ class Kart {
     this.hp = v.hp | 0; this.shield = v.sh ? 1 : 0; this.turbo = v.tb ? 1 : 0; this.score = v.sc | 0;
     const wasDead = this.dead; this.dead = !!v.d;
     if (typeof v.n === 'string' && v.n !== this.name) { this.name = v.n.slice(0, 16); this.label.userData.name = this.name; drawLabel(this.label); }
+    // Measure how late updates arrive and keep just enough delay to always have two to blend between.
+    const late = Net.now() - v.ts;
+    if (late > -500 && late < 3000) {
+      if (this.latM === undefined) { this.latM = late; this.latD = 20; }
+      else { this.latD += (Math.abs(late - this.latM) - this.latD) * .1; this.latM += (late - this.latM) * .1; }
+      this.delay = clamp(this.latM + this.latD * 2.5 + 55, 80, 320);
+    }
+    if (this.buf.length && v.ts <= this.buf[this.buf.length - 1].ts) return;
     this.buf.push({ ts: v.ts, x: v.x, z: v.z, h: v.h, s: v.s || 0, st: v.st || 0 });
     if (this.buf.length > 30) this.buf.shift();
     if (wasDead && !this.dead) { this.x = v.x; this.z = v.z; this.h = v.h; this.buf = [this.buf[this.buf.length - 1]]; }
   }
-  updateRemote() {
+  updateRemote(dt) {
     const b = this.buf; if (!b.length) return;
-    const rt = Net.now() - 130;
-    let a = b[0], c = b[b.length - 1];
-    if (rt <= a.ts) c = a;
-    else if (rt >= c.ts) a = c;
-    else for (let i = 0; i < b.length - 1; i++) if (b[i].ts <= rt && b[i + 1].ts >= rt) { a = b[i]; c = b[i + 1]; break; }
-    const t = c.ts > a.ts ? clamp((rt - a.ts) / (c.ts - a.ts), 0, 1) : 1;
-    this.x = lerp(a.x, c.x, t); this.z = lerp(a.z, c.z, t); this.h = a.h + wrapAng(c.h - a.h) * t;
-    this.fwd = lerp(a.s, c.s, t); this.steerIn = lerp(a.st, c.st, t);
+    const rt = Net.now() - (this.delay || 150);
+    let a = b[0], c = b[b.length - 1], x, z, h;
+    if (rt <= a.ts) { x = a.x; z = a.z; h = a.h; c = a; }
+    else if (rt >= c.ts) {
+      // no newer update yet: keep coasting along the last known heading for a moment instead of freezing
+      const e = Math.min(rt - c.ts, 220) / 1000;
+      x = c.x + Math.sin(c.h) * c.s * e; z = c.z + Math.cos(c.h) * c.s * e; h = c.h; a = c;
+    } else {
+      for (let i = b.length - 2; i >= 0; i--) if (b[i].ts <= rt) { a = b[i]; c = b[i + 1]; break; }
+      const t = clamp((rt - a.ts) / (c.ts - a.ts), 0, 1);
+      x = lerp(a.x, c.x, t); z = lerp(a.z, c.z, t); h = a.h + wrapAng(c.h - a.h) * t;
+    }
+    while (b.length > 3 && b[1].ts < rt - 400) b.shift();
+    // glide out small corrections; snap big ones (respawns, teleports)
+    const k = Math.hypot(x - this.x, z - this.z) > 6 || !dt ? 1 : 1 - Math.exp(-22 * dt);
+    this.x += (x - this.x) * k; this.z += (z - this.z) * k; this.h += wrapAng(h - this.h) * k;
+    this.fwd = lerp(a.s, c.s, .5); this.steerIn = lerp(a.st, c.st, .5);
   }
   updateVisual(dt) {
     const o = this.obj, P = this.parts;
@@ -850,18 +938,40 @@ class BotBrain {
   }
 }
 
+// Gentle aim assist: if a rival is inside a narrow cone ahead with a clear line, nudge the shot
+// toward where they're heading. The final angle travels with the shot, so every player sees the same path.
+function assistAim(k, range, cone, speed) {
+  let best = null, bestA = cone;
+  for (const o of karts.values()) {
+    if (o === k || o.dead) continue;
+    const d0 = Math.hypot(o.x - k.x, o.z - k.z); if (d0 > range || d0 < 2.5) continue;
+    const lt = d0 / speed, ovx = o.local ? o.vx : Math.sin(o.h) * o.fwd, ovz = o.local ? o.vz : Math.cos(o.h) * o.fwd;
+    const tx = o.x + ovx * lt, tz = o.z + ovz * lt;
+    const a = wrapAng(Math.atan2(tx - k.x, tz - k.z) - k.h);
+    if (Math.abs(a) < Math.abs(bestA) && lineClear(k.x, k.z, o.x, o.z)) { bestA = a; best = a; }
+  }
+  return best === null ? k.h : k.h + best;
+}
+
 // =====================================================================
 //  Projectiles & mines
 // =====================================================================
 const projectiles = [], mines = [];
 const rocketMatW = lam(0xf4f4f8), rocketMatR = lam(0xff4d6d);
+const RG = {
+  body: new THREE.CylinderGeometry(.28, .28, 1.5, 10).rotateX(Math.PI / 2),
+  nose: new THREE.ConeGeometry(.28, .6, 10).rotateX(Math.PI / 2),
+  fin: new THREE.BoxGeometry(1, .08, .4),
+  glow: new THREE.SphereGeometry(.3, 8, 6),
+  glowMat: new THREE.MeshBasicMaterial({ color: 0xffc93c })
+};
 function makeRocketMesh() {
   const g = new THREE.Group();
-  const b = new THREE.Mesh(new THREE.CylinderGeometry(.28, .28, 1.5, 10).rotateX(Math.PI / 2), rocketMatW); g.add(b);
-  const n = new THREE.Mesh(new THREE.ConeGeometry(.28, .6, 10).rotateX(Math.PI / 2), rocketMatR); n.position.z = 1.05; g.add(n);
-  const f = new THREE.Mesh(new THREE.BoxGeometry(1, .08, .4), rocketMatR); f.position.z = -.55; g.add(f);
+  const b = new THREE.Mesh(RG.body, rocketMatW); g.add(b);
+  const n = new THREE.Mesh(RG.nose, rocketMatR); n.position.z = 1.05; g.add(n);
+  const f = new THREE.Mesh(RG.fin, rocketMatR); f.position.z = -.55; g.add(f);
   const f2 = f.clone(); f2.rotation.z = Math.PI / 2; g.add(f2);
-  const glow = new THREE.Mesh(new THREE.SphereGeometry(.3, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffc93c })); glow.position.z = -.85; g.add(glow);
+  const glow = new THREE.Mesh(RG.glow, RG.glowMat); glow.position.z = -.85; g.add(glow);
   g.traverse(m => { if (m.isMesh) m.castShadow = true; });
   return g;
 }
@@ -891,9 +1001,11 @@ function projectileImpact(p, x, z, directKart) {
       const dmg = direct ? 100 : Math.round(20 + 60 * (1 - d / 5.5));
       const nx = d > .01 ? (k.x - x) / d : Math.sin(p.h), nz = d > .01 ? (k.z - z) / d : Math.cos(p.h);
       Net.send({ type: 'hit', v: k.id, d: dmg, o: p.o, on: owner.name, w: 'rocket', kx: r2(nx * 16), kz: r2(nz * 16), p: p.id });
+      if (owner.isMe && k.shield <= 0) hitMarker(dmg >= 60);
     }
   } else if (directKart) {
     Net.send({ type: 'hit', v: directKart.id, d: 20, o: p.o, on: owner.name, w: 'blaster', kx: r2(Math.sin(p.h) * 4), kz: r2(Math.cos(p.h) * 4), p: p.id });
+    if (owner.isMe && directKart.shield <= 0) hitMarker(false);
   }
 }
 function stepProjectile(p, dt) {
@@ -1024,7 +1136,7 @@ const Net = {
   },
   publish(dt) {
     if (!this.online || !S.me) return;
-    this.pubT -= dt; if (this.pubT > 0) return; this.pubT = 1 / 15;
+    this.pubT -= dt; if (this.pubT > 0) return; this.pubT = 1 / 20;
     this.refs.me.set(this.stateOf(S.me)).catch(() => {});
   },
   disconnect() {
@@ -1035,7 +1147,9 @@ const Net = {
   }
 };
 
+const seenEv = new Set();
 function handleEvent(e) {
+  if (e.id) { if (seenEv.has(e.id)) return; seenEv.add(e.id); if (seenEv.size > 600) seenEv.delete(seenEv.values().next().value); }
   switch (e.type) {
     case 'rk': spawnProjectile('rocket', e); break;
     case 'bl': spawnProjectile('bullet', e); break;
@@ -1120,7 +1234,7 @@ function enterHud() {
   S.hintDone = false; S.hintT = 0; lastItem = undefined;
   canvas.focus({ preventScroll: true });
 }
-function leaveToMenu() { Net.disconnect(); startAttract(); }
+function leaveToMenu() { Net.disconnect(); Snd.engineSet(null); startAttract(); }
 function onNewRound() {
   for (const p of [...projectiles]) removeProjectile(p);
   for (const m of [...mines]) removeMine(m);
@@ -1198,6 +1312,12 @@ function showBanner(title, sub, ms, bad) {
   $('#bSub').textContent = sub || ''; $('#banner').hidden = false; bannerT = ms ? ms / 1000 : 0;
 }
 function hideBanner() { $('#banner').hidden = true; bannerT = 0; }
+let hitT = 0;
+function hitMarker(big) {
+  const el = $('#hitmark'); el.classList.remove('on', 'big'); void el.offsetWidth;
+  el.classList.add('on'); if (big) el.classList.add('big');
+  const now = performance.now(); if (now - hitT > 60) { hitT = now; Snd.play('hit'); }
+}
 function flashScreen() { const f = $('#flash'); f.style.transition = 'none'; f.style.opacity = '1'; requestAnimationFrame(() => { f.style.transition = ''; f.style.opacity = '0'; }); }
 function addFeed(e) {
   const feed = $('#feed'), row = document.createElement('div');
@@ -1212,8 +1332,10 @@ function renderLeaderboard() {
   const list = standings();
   let rows = list.slice(0, 6);
   if (S.me && !rows.includes(S.me)) rows = rows.slice(0, 5).concat(S.me);
-  $('#lb').innerHTML = rows.map(k => `<div class="lb-row${k === S.me ? ' me' : ''}"><span class="rk">${list.indexOf(k) + 1}</span><span class="nm"><span class="dot" style="background:${esc(k.color)}"></span>${esc(k.name)}</span><span class="sc">${k.score}</span></div>`).join('');
+  const html = rows.map(k => `<div class="lb-row${k === S.me ? ' me' : ''}"><span class="rk">${list.indexOf(k) + 1}</span><span class="nm"><span class="dot" style="background:${esc(k.color)}"></span>${esc(k.name)}</span><span class="sc">${k.score}</span></div>`).join('');
+  if (html !== lbHTML) { lbHTML = html; $('#lb').innerHTML = html; }
 }
+let lbHTML = '';
 function showResults() {
   renderResults(); $('#results').hidden = false; hideBanner();
   const top = standings()[0]; if (top && top === S.me && top.score > 0) Snd.play('win');
@@ -1261,13 +1383,20 @@ function updateHud(dt) {
 
 // minimap
 const mini = $('#mini'), mg = mini.getContext('2d');
-function drawMini() {
+const miniBg = document.createElement('canvas');
+let miniT = 0;
+(function () {
+  const W = miniBg.width = miniBg.height = mini.width, g = miniBg.getContext('2d'), s = W / (ARENA * 2), X = x => (ARENA - x) * s, Y = z => (ARENA - z) * s;
+  g.fillStyle = '#5d6282'; g.fillRect(0, 0, W, W);
+  g.fillStyle = '#e8e5f3';
+  for (const b of OB_BOX) g.fillRect(X(b.x + b.w), Y(b.z + b.d), b.w * 2 * s, b.d * 2 * s);
+  for (const c of OB_CIR) { g.beginPath(); g.arc(X(c.x), Y(c.z), c.r * s, 0, TAU); g.fill(); }
+})();
+function drawMini(dt) {
   if (S.mode === 'attract') return;
+  miniT -= dt; if (miniT > 0) return; miniT = 1 / 20;
   const W = mini.width, s = W / (ARENA * 2), X = x => (ARENA - x) * s, Y = z => (ARENA - z) * s;
-  mg.fillStyle = '#5d6282'; mg.fillRect(0, 0, W, W);
-  mg.fillStyle = '#e8e5f3';
-  for (const b of OB_BOX) mg.fillRect(X(b.x + b.w), Y(b.z + b.d), b.w * 2 * s, b.d * 2 * s);
-  for (const c of OB_CIR) { mg.beginPath(); mg.arc(X(c.x), Y(c.z), c.r * s, 0, TAU); mg.fill(); }
+  mg.drawImage(miniBg, 0, 0);
   mg.fillStyle = '#ffc93c';
   for (const b of boxes) if (b.up) mg.fillRect(X(b.x) - 4, Y(b.z) - 4, 8, 8);
   for (const k of karts.values()) {
@@ -1296,6 +1425,7 @@ function updateCamera(dt) {
   if (S.mode === 'attract' || !S.me) {
     const a = t * .07;
     camera.position.set(Math.sin(a) * 82, 42, Math.cos(a) * 82); camera.lookAt(0, 0, 0); lookNow.set(0, 0, 0);
+    setFov(baseFov); aimSun(0, 0, 72);
     return;
   }
   const k = S.me;
@@ -1309,24 +1439,37 @@ function updateCamera(dt) {
   lookNow.lerp(camLook, 1 - Math.exp(-12 * dt));
   if (S.shake > .01) { camera.position.x += rand(-1, 1) * S.shake * .6; camera.position.y += rand(-1, 1) * S.shake * .4; S.shake *= Math.exp(-6 * dt); }
   camera.lookAt(lookNow);
+  setFov(baseFov + (k.dead ? 0 : clamp(k.fwd - 18, 0, 24) * .3 + (k.turbo > 0 ? 5 : 0)), dt);
+  aimSun(k.x + fx * 20, k.z + fz * 20, 46);
+}
+let baseFov = 62;
+function setFov(f, dt) {
+  const n = dt ? camera.fov + (f - camera.fov) * (1 - Math.exp(-5 * dt)) : f;
+  if (Math.abs(n - camera.fov) > .01) { camera.fov = n; camera.updateProjectionMatrix(); }
 }
 function resize() {
   const w = innerWidth, h = innerHeight;
-  renderer.setSize(w, h, false); camera.aspect = w / h; camera.fov = w / h < 1 ? 80 : 62; camera.updateProjectionMatrix();
+  renderer.setSize(w, h, false); camera.aspect = w / h; baseFov = w / h < 1 ? 80 : 62; camera.fov = baseFov; camera.updateProjectionMatrix();
 }
-addEventListener('resize', resize); resize();
+addEventListener('resize', resize); resize(); Q.ready = true;
 
 // =====================================================================
 //  Main loop
 // =====================================================================
 let lastT = performance.now();
 function frame(now) {
-  const dt = Math.min(.05, (now - lastT) / 1000); lastT = now;
-  simulate(dt, now / 1000);
+  const raw = now - lastT; lastT = now;
+  tuneQuality(raw);
+  // Run the game in steps of at most 1/30 s, catching up after a slow frame (up to 0.15 s),
+  // so a struggling computer still plays at full speed and stays in sync online.
+  let left = Math.min(.15, raw / 1000);
+  const dt = Math.min(.05, left);
+  while (left > 1e-4) { const st = Math.min(left, 1 / 30); simulate(st, now / 1000); left -= st; }
   updateCamera(dt);
   updateHud(dt);
-  drawMini();
+  drawMini(dt);
   Net.publish(dt);
+  if (S.mode !== 'attract' && S.me) Snd.engineSet(S.me);
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
@@ -1337,7 +1480,7 @@ function simulate(dt, t) {
     if (k.local) {
       const inp = frozen ? IDLE : k.isMe ? humanInput() : k.ai ? k.ai.think(dt) : IDLE;
       k.updateLocal(dt, inp);
-    } else k.updateRemote();
+    } else k.updateRemote(dt);
     k.updateVisual(dt);
   }
   if (frozen) fireQueued = false;
@@ -1383,13 +1526,13 @@ $('#bInvite').addEventListener('click', () => {
   const done = ok => { btn.textContent = ok ? 'Link copied' : url; setTimeout(() => { btn.textContent = 'Copy invite link'; }, 2500); };
   try { navigator.clipboard.writeText(url).then(() => done(true), () => done(false)); } catch (_) { done(false); }
 });
-function toggleMute() { Snd.on = !Snd.on; store.set('sound', Snd.on ? '1' : '0'); $('#bMute').textContent = Snd.on ? 'Sound on' : 'Sound off'; }
+function toggleMute() { Snd.on = !Snd.on; if (!Snd.on) Snd.engineSet(null); store.set('sound', Snd.on ? '1' : '0'); $('#bMute').textContent = Snd.on ? 'Sound on' : 'Sound off'; }
 $('#bMute').textContent = Snd.on ? 'Sound on' : 'Sound off';
 $('#bMute').addEventListener('click', toggleMute);
 addEventListener('pagehide', () => Net.disconnect());
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { for (const k of karts.values()) drawLabel(k.label); });
 
-window.__rumble = { karts, S, mines, projectiles, simulate };   // handy for debugging in the console
+window.__rumble = { karts, S, mines, projectiles, simulate, Kart, Net, Q };   // handy for debugging in the console
 startAttract();
 requestAnimationFrame(frame);
 })();
