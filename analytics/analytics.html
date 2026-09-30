@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Site Analytics</title>
+<style>
+:root{
+  --bg:#f5f6f8;--card:#fff;--text:#12151a;--muted:#667085;--line:#e4e7ec;
+  --accent:#2f6fed;--accent2:#12b76a;--cell:47,111,237;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#0d1015;--card:#151a21;--text:#e6edf3;--muted:#8b949e;--line:#252c35;--accent:#5b8cff;--accent2:#3fd08a;--cell:91,140,255}
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:0;z-index:5}
+h1{font-size:17px;margin:0;font-weight:650}
+.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+select,button{font:inherit;padding:7px 11px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text);cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+main{max-width:1200px;margin:0 auto;padding:18px 16px 60px}
+.grid{display:grid;gap:12px}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.two{grid-template-columns:repeat(auto-fit,minmax(340px,1fr));margin-top:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;min-width:0}
+.full{margin-top:12px}
+.kpi .label{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.05em}
+.kpi .value{font-size:26px;font-weight:650;margin-top:4px;font-variant-numeric:tabular-nums}
+.kpi .sub{color:var(--muted);font-size:12px;margin-top:2px}
+h2{font-size:14px;margin:0 0 4px;font-weight:650}
+.hint{color:var(--muted);font-size:12px;margin:0 0 12px}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--muted);font-weight:500;font-size:12px}
+.num{text-align:right}
+.scroll{overflow-x:auto}
+.trunc{max-width:260px;overflow:hidden;text-overflow:ellipsis}
+.cohort td.c{text-align:center;font-size:12.5px}
+.status{color:var(--muted);font-size:12.5px}
+.live{display:inline-flex;align-items:center;gap:7px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--accent2);box-shadow:0 0 0 4px rgba(18,183,106,.18)}
+.gate{max-width:440px;margin:14vh auto;text-align:center;padding:0 16px}
+.gate p{color:var(--muted)}
+.hidden{display:none!important}
+.chartbox{position:relative;height:280px}
+.bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;min-width:70px}
+.bar>i{display:block;height:100%;background:var(--accent)}
+.muted{color:var(--muted)}
+</style>
+</head>
+<body>
+
+<div id="gate" class="gate">
+  <h1>Site Analytics</h1>
+  <p>Sign in with the Google account allowed in your Firestore rules.</p>
+  <button class="primary" id="signin">Sign in with Google</button>
+  <p id="gateMsg" class="status"></p>
+</div>
+
+<div id="app" class="hidden">
+  <header>
+    <div>
+      <h1>Site Analytics</h1>
+      <div class="status" id="status">—</div>
+    </div>
+    <div class="controls">
+      <select id="site"><option value="all">All sites</option></select>
+      <select id="range">
+        <option value="7">Last 7 days</option>
+        <option value="30" selected>Last 30 days</option>
+        <option value="90">Last 90 days</option>
+      </select>
+      <button id="refresh">Refresh</button>
+      <button id="signout" title="Sign out">Sign out</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="grid kpis" id="kpis"></section>
+
+    <section class="card full">
+      <h2>Traffic by day</h2>
+      <p class="hint">Unique visitors and pageviews per day (your local time).</p>
+      <div class="chartbox"><canvas id="daily"></canvas></div>
+    </section>
+
+    <section class="grid two">
+      <div class="card">
+        <h2>Retention</h2>
+        <p class="hint">Of first-time visitors in this window, how many came back.</p>
+        <div class="grid kpis" id="retKpis"></div>
+      </div>
+      <div class="card">
+        <h2>How long visits last</h2>
+        <p class="hint">Engaged time per session (tab visible and someone interacting).</p>
+        <table id="lengths"></table>
+      </div>
+    </section>
+
+    <section class="card full">
+      <h2>Weekly cohorts</h2>
+      <p class="hint">Rows are first-time visitors grouped by the week they first arrived. Each cell is the share of that group who visited during week N after.</p>
+      <div class="scroll"><table class="cohort" id="cohorts"></table></div>
+    </section>
+
+    <section class="card full">
+      <h2>Sites</h2>
+      <p class="hint">Always shows every site so you can compare.</p>
+      <div class="scroll"><table id="sites"></table></div>
+    </section>
+
+    <section class="grid two">
+      <div class="card">
+        <h2>Top pages</h2>
+        <div class="scroll"><table id="pages"></table></div>
+      </div>
+      <div class="card">
+        <h2>Where visitors come from</h2>
+        <div class="scroll"><table id="refs"></table></div>
+        <h2 style="margin-top:18px">Devices</h2>
+        <table id="devices"></table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+// ---- Config: paste the web apiKey from Firebase console → Project settings → General ----
+const firebaseConfig = {
+  apiKey: "AIzaSyDZD_Ku8cixteXfwkDYzGv3GKiZFF8sRSM",
+  authDomain: "rumblekarts.firebaseapp.com",
+  projectId: "rumblekarts"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const $ = id => document.getElementById(id);
+let rows = [], chart = null;
+
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtN = n => Number(n).toLocaleString();
+const pct = (a, b) => b ? Math.round(100 * a / b) + '%' : '—';
+function fmtDur(s){
+  s = Math.round(s || 0);
+  if (s < 60) return s + 's';
+  if (s < 3600) return Math.floor(s/60) + 'm ' + (s%60) + 's';
+  return Math.floor(s/3600) + 'h ' + Math.floor((s%3600)/60) + 'm';
+}
+const dayStart = d => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
+const dayKey = d => dayStart(d).toLocaleDateString('en-CA');
+const dayDiff = (a, b) => Math.round((dayStart(b) - dayStart(a)) / 86400000);
+function weekStart(d){ const x = dayStart(d); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
+const bar = (v, max) => `<div class="bar"><i style="width:${max ? Math.max(2, 100*v/max) : 0}%"></i></div>`;
+
+// ---- Auth ----
+$('signin').onclick = () => auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())
+  .catch(e => $('gateMsg').textContent = e.message);
+$('signout').onclick = () => auth.signOut();
+auth.onAuthStateChanged(u => {
+  $('gate').classList.toggle('hidden', !!u);
+  $('app').classList.toggle('hidden', !u);
+  if (u) load();
+});
+$('range').onchange = load;
+$('refresh').onclick = load;
+$('site').onchange = render;
+
+// ---- Data ----
+async function load(){
+  const days = +$('range').value;
+  const start = dayStart(new Date()); start.setDate(start.getDate() - (days - 1));
+  $('status').textContent = 'Loading…';
+  try {
+    const snap = await db.collection('pv')
+      .where('ts', '>=', firebase.firestore.Timestamp.fromDate(start))
+      .orderBy('ts').get();
+    rows = snap.docs.map(doc => {
+      const x = doc.data();
+      const ts = x.ts && x.ts.toDate ? x.ts.toDate() : new Date();
+      return {
+        site: x.site || '(unknown)', path: x.path || '/', title: x.title || '',
+        vid: x.vid || doc.id, sid: x.sid || doc.id, nv: !!x.nv, ref: x.ref || '',
+        dev: x.dev || 'desktop', ts, last: x.last && x.last.toDate ? x.last.toDate() : ts,
+        dur: +x.dur || 0
+      };
+    });
+    const sel = $('site'), cur = sel.value;
+    const sites = [...new Set(rows.map(r => r.site))].sort();
+    sel.innerHTML = '<option value="all">All sites</option>' + sites.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+    sel.value = sites.includes(cur) ? cur : 'all';
+    $('status').innerHTML = `<span class="live"><span class="dot"></span>${fmtN(rows.length)} pageviews loaded · ${new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}</span>`;
+    render();
+  } catch (e) {
+    $('status').textContent = e.code === 'permission-denied'
+      ? 'Permission denied — this Google account doesn’t match the email in your Firestore rules.'
+      : 'Error: ' + e.message;
+  }
+}
+
+function sessionsOf(R){
+  const m = new Map();
+  for (const r of R) {
+    let s = m.get(r.sid);
+    if (!s) { s = { vid: r.vid, pv: 0, dur: 0, start: r.ts, ref: r.ref, dev: r.dev }; m.set(r.sid, s); }
+    s.pv++; s.dur += r.dur;
+  }
+  return m;
+}
+
+function visitorsOf(R){
+  const m = new Map();
+  for (const r of R) {
+    let v = m.get(r.vid);
+    if (!v) { v = { sessions: new Set(), days: new Set(), dates: [], firstEver: null, newInRange: false }; m.set(r.vid, v); }
+    v.sessions.add(r.sid); v.days.add(dayKey(r.ts)); v.dates.push(r.ts);
+    if (r.nv) { v.newInRange = true; if (!v.firstEver || r.ts < v.firstEver) v.firstEver = r.ts; }
+  }
+  return m;
+}
+
+// ---- Render ----
+function render(){
+  const site = $('site').value;
+  const days = +$('range').value;
+  const R = site === 'all' ? rows : rows.filter(r => r.site === site);
+  const S = sessionsOf(R), V = visitorsOf(R);
+  const today = dayStart(new Date());
+
+  // KPIs
+  const sessions = [...S.values()];
+  const totalDur = sessions.reduce((a, s) => a + s.dur, 0);
+  const bounces = sessions.filter(s => s.pv === 1 && s.dur < 10).length;
+  const returning = [...V.values()].filter(v => !v.newInRange || v.sessions.size > 1).length;
+  const activeNow = new Set(R.filter(r => Date.now() - r.last < 5*60*1000).map(r => r.vid)).size;
+  const kpi = (label, value, sub='') => `<div class="card kpi"><div class="label">${label}</div><div class="value">${value}</div><div class="sub">${sub}</div></div>`;
+  $('kpis').innerHTML = [
+    kpi('Unique visitors', fmtN(V.size), `${fmtN(Math.round(V.size / days * 10) / 10)} / day`),
+    kpi('Pageviews', fmtN(R.length), `${sessions.length ? (R.length / sessions.length).toFixed(1) : '0'} per session`),
+    kpi('Sessions', fmtN(sessions.length)),
+    kpi('Avg engaged time', fmtDur(sessions.length ? totalDur / sessions.length : 0), 'per session'),
+    kpi('Total engaged time', fmtDur(totalDur)),
+    kpi('Bounce rate', pct(bounces, sessions.length), '1 page, under 10s'),
+    kpi('Returning visitors', pct(returning, V.size), `${fmtN(returning)} of ${fmtN(V.size)}`),
+    kpi('Active now', fmtN(activeNow), 'last 5 min, as of refresh')
+  ].join('');
+
+  // Daily chart
+  const labels = [], vis = [], pvs = [], dayMap = new Map();
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(today); d.setDate(d.getDate() - i);
+    const k = dayKey(d);
+    dayMap.set(k, { v: new Set(), pv: 0 });
+    labels.push(d.toLocaleDateString([], { month: 'short', day: 'numeric' }));
+  }
+  for (const r of R) { const b = dayMap.get(dayKey(r.ts)); if (b) { b.v.add(r.vid); b.pv++; } }
+  for (const b of dayMap.values()) { vis.push(b.v.size); pvs.push(b.pv); }
+  const css = getComputedStyle(document.documentElement);
+  const accent = css.getPropertyValue('--accent').trim(), accent2 = css.getPropertyValue('--accent2').trim();
+  const muted = css.getPropertyValue('--muted').trim(), line = css.getPropertyValue('--line').trim();
+  if (chart) chart.destroy();
+  chart = new Chart($('daily'), {
+    type: 'line',
+    data: { labels, datasets: [
+      { label: 'Visitors', data: vis, borderColor: accent, backgroundColor: accent + '22', fill: true, tension: .3, pointRadius: days > 30 ? 0 : 2 },
+      { label: 'Pageviews', data: pvs, borderColor: accent2, tension: .3, pointRadius: days > 30 ? 0 : 2 }
+    ]},
+    options: {
+      maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { labels: { color: muted, boxWidth: 12 } } },
+      scales: {
+        x: { ticks: { color: muted, maxTicksLimit: 10 }, grid: { display: false } },
+        y: { beginAtZero: true, ticks: { color: muted, precision: 0 }, grid: { color: line } }
+      }
+    }
+  });
+
+  // Retention KPIs (new visitors only, so "first visit" is real)
+  const newV = [...V.values()].filter(v => v.newInRange && v.firstEver);
+  function retention(windowDays, exact){
+    let elig = 0, ret = 0;
+    for (const v of newV) {
+      if (dayDiff(v.firstEver, today) < windowDays) continue;
+      elig++;
+      if (v.dates.some(t => { const dd = dayDiff(v.firstEver, t); return exact ? dd === windowDays : dd >= 1 && dd <= windowDays; })) ret++;
+    }
+    return [ret, elig];
+  }
+  const [d1r, d1e] = retention(1, true), [w1r, w1e] = retention(7, false), [m1r, m1e] = retention(30, false);
+  $('retKpis').innerHTML = [
+    kpi('New visitors', fmtN(newV.length), 'first visit in this window'),
+    kpi('Came back next day', pct(d1r, d1e), `${fmtN(d1r)} of ${fmtN(d1e)} eligible`),
+    kpi('Came back within 7 days', pct(w1r, w1e), `${fmtN(w1r)} of ${fmtN(w1e)} eligible`),
+    kpi('Came back within 30 days', m1e ? pct(m1r, m1e) : '—', m1e ? `${fmtN(m1r)} of ${fmtN(m1e)} eligible` : 'switch to the 90-day range')
+  ].join('');
+
+  // Session length buckets
+  const buckets = [['Under 10s', 0, 10], ['10s – 1m', 10, 60], ['1 – 5m', 60, 300], ['5 – 15m', 300, 900], ['15 – 60m', 900, 3600], ['1h +', 3600, Infinity]];
+  const bc = buckets.map(([n, lo, hi]) => [n, sessions.filter(s => s.dur >= lo && s.dur < hi).length]);
+  const bmax = Math.max(1, ...bc.map(b => b[1]));
+  $('lengths').innerHTML = '<tr><th>Engaged time</th><th class="num">Sessions</th><th class="num">Share</th><th></th></tr>' +
+    bc.map(([n, c]) => `<tr><td>${n}</td><td class="num">${fmtN(c)}</td><td class="num">${pct(c, sessions.length)}</td><td style="width:40%">${bar(c, bmax)}</td></tr>`).join('');
+
+  // Weekly cohorts
+  const thisWeek = weekStart(today);
+  const cohorts = new Map();
+  for (const v of newV) {
+    const wk = weekStart(v.firstEver).getTime();
+    if (!cohorts.has(wk)) cohorts.set(wk, []);
+    cohorts.get(wk).push(v);
+  }
+  const wkKeys = [...cohorts.keys()].sort((a, b) => a - b);
+  const maxW = wkKeys.length ? Math.round((thisWeek - wkKeys[0]) / (7*86400000)) : 0;
+  let ch = '<tr><th>First week</th><th class="num">New</th>' + Array.from({ length: maxW + 1 }, (_, i) => `<th class="num">Wk ${i}</th>`).join('') + '</tr>';
+  for (const wk of wkKeys) {
+    const group = cohorts.get(wk);
+    const span = Math.round((thisWeek - wk) / (7*86400000));
+    ch += `<tr><td>${new Date(wk).toLocaleDateString([], { month: 'short', day: 'numeric' })}</td><td class="num">${fmtN(group.length)}</td>`;
+    for (let i = 0; i <= maxW; i++) {
+      if (i > span) { ch += '<td></td>'; continue; }
+      const ws = wk + i * 7 * 86400000, we = ws + 7 * 86400000;
+      const active = group.filter(v => v.dates.some(t => t.getTime() >= ws && t.getTime() < we)).length;
+      const p = active / group.length;
+      ch += `<td class="c" style="background:rgba(var(--cell),${(0.08 + 0.72 * p).toFixed(2)});color:${p > .55 ? '#fff' : 'inherit'}">${Math.round(p * 100)}%</td>`;
+    }
+    ch += '</tr>';
+  }
+  $('cohorts').innerHTML = wkKeys.length ? ch : '<tr><td class="muted">No first-time visitors in this window yet.</td></tr>';
+
+  // Sites table (all rows)
+  const bySite = new Map();
+  for (const r of rows) { if (!bySite.has(r.site)) bySite.set(r.site, []); bySite.get(r.site).push(r); }
+  const siteStats = [...bySite.entries()].map(([name, rs]) => {
+    const s = sessionsOf(rs), v = visitorsOf(rs);
+    const ss = [...s.values()], dur = ss.reduce((a, x) => a + x.dur, 0);
+    const ret = [...v.values()].filter(x => !x.newInRange || x.sessions.size > 1).length;
+    return { name, v: v.size, pv: rs.length, avg: ss.length ? dur / ss.length : 0, total: dur, ret: pct(ret, v.size), bounce: pct(ss.filter(x => x.pv === 1 && x.dur < 10).length, ss.length) };
+  }).sort((a, b) => b.v - a.v);
+  const smax = Math.max(1, ...siteStats.map(s => s.v));
+  $('sites').innerHTML = '<tr><th>Site</th><th class="num">Visitors</th><th class="num">Pageviews</th><th class="num">Avg time / visit</th><th class="num">Total time</th><th class="num">Returning</th><th class="num">Bounce</th><th></th></tr>' +
+    (siteStats.map(s => `<tr><td>${esc(s.name)}</td><td class="num">${fmtN(s.v)}</td><td class="num">${fmtN(s.pv)}</td><td class="num">${fmtDur(s.avg)}</td><td class="num">${fmtDur(s.total)}</td><td class="num">${s.ret}</td><td class="num">${s.bounce}</td><td style="width:18%">${bar(s.v, smax)}</td></tr>`).join('')
+     || '<tr><td class="muted" colspan="8">No data yet.</td></tr>');
+
+  // Top pages
+  const pages = new Map();
+  for (const r of R) {
+    const k = r.site + '\u0000' + r.path;
+    if (!pages.has(k)) pages.set(k, { site: r.site, path: r.path, title: r.title, n: 0, v: new Set(), dur: 0 });
+    const p = pages.get(k); p.n++; p.v.add(r.vid); p.dur += r.dur;
+  }
+  const topPages = [...pages.values()].sort((a, b) => b.n - a.n).slice(0, 12);
+  $('pages').innerHTML = '<tr><th>Page</th><th class="num">Views</th><th class="num">Visitors</th><th class="num">Avg time</th></tr>' +
+    (topPages.map(p => `<tr><td class="trunc" title="${esc(p.site + ' ' + p.path)}">${esc(p.title || p.path)}<br><span class="muted" style="font-size:12px">${esc(p.site)} · ${esc(p.path)}</span></td><td class="num">${fmtN(p.n)}</td><td class="num">${fmtN(p.v.size)}</td><td class="num">${fmtDur(p.dur / p.n)}</td></tr>`).join('')
+     || '<tr><td class="muted" colspan="4">No data yet.</td></tr>');
+
+  // Referrers (by session)
+  const refs = new Map();
+  for (const s of sessions) { const k = s.ref || '(direct / none)'; refs.set(k, (refs.get(k) || 0) + 1); }
+  const topRefs = [...refs.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
+  const rmax = Math.max(1, ...topRefs.map(r => r[1]));
+  $('refs').innerHTML = '<tr><th>Source</th><th class="num">Sessions</th><th></th></tr>' +
+    (topRefs.map(([k, n]) => `<tr><td class="trunc">${esc(k)}</td><td class="num">${fmtN(n)}</td><td style="width:40%">${bar(n, rmax)}</td></tr>`).join('')
+     || '<tr><td class="muted" colspan="3">No data yet.</td></tr>');
+
+  // Devices (by session)
+  const devs = new Map();
+  for (const s of sessions) devs.set(s.dev, (devs.get(s.dev) || 0) + 1);
+  $('devices').innerHTML = '<tr><th>Device</th><th class="num">Sessions</th><th class="num">Share</th></tr>' +
+    ([...devs.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => `<tr><td>${esc(k)}</td><td class="num">${fmtN(n)}</td><td class="num">${pct(n, sessions.length)}</td></tr>`).join('')
+     || '<tr><td class="muted" colspan="3">No data yet.</td></tr>');
+}
+</script>
+</body>
+</html>
