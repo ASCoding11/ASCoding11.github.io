@@ -4,5 +4,6 @@ Personal site hosted with GitHub Pages.
 
 - `index.html`: the home page listing my projects
 - `hype-cycle-exchange/`: Hype Cycle Exchange, a live classroom stock-market game (Firebase)
+- `rumble-karts/`: Rumble Karts, a multiplayer kart-battle game (Three.js + Firebase Realtime Database, project `rumblekarts`)
 
 The game's secret results file (`rounds.json`) is intentionally **not** in this repository. Keep it on your own computer and choose it when you host a game.
