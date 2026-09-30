@@ -2,7 +2,10 @@
 
 Personal site hosted with GitHub Pages.
 
-- `index.html`: the home page listing my projects
+- `index.html`: the home page, with links to the Games and Productivity pages
+- `games/`: the Games page, with a full card for each game
+- `productivity/`: the Productivity page for tools (empty for now, and hidden from search results until the first tool is added)
+- `site.css`: styles shared by the home, Games and Productivity pages
 - `hype-cycle-exchange/`: Hype Cycle Exchange, a live classroom stock-market game (Firebase)
 - `rumble-karts/`: Rumble Karts, a multiplayer kart-battle game (Three.js + Firebase Realtime Database, project `rumblekarts`)
 - `starhop/`: Starhop, a single-player one-tap space game (plain JavaScript + Canvas, no backend; progress is saved in the player's browser)
