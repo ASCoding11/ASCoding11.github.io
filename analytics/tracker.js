@@ -2,7 +2,7 @@
  * Site analytics tracker — writes anonymous pageview records to Firestore.
  * No libraries, no Node, no cookies. One small script tag per page:
  *
- *   <script src="https://ascoding11.github.io/analytics/tracker.js" data-site="rumble-karts" defer></script>
+ *   <script src="/analytics/tracker.js" data-site="rumble-karts" defer></script>
  *
  * data-site is the label that appears in the dashboard (e.g. "home", "hype-cycle", "rumble-karts").
  * Visit any tracked page with #notrack at the end of the URL once to exclude your own browser.
