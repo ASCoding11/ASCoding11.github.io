@@ -3,7 +3,7 @@
 Personal site hosted with GitHub Pages.
 
 - `index.html`: the home page, with links to the Web Development Projects and Productivity pages
-- `games/`: the Web Development Projects page, with a full card for each game
+- `projects/`: the Web Development Projects page, with a full card for each game
 - `productivity/`: the Productivity page for tools (empty for now, and hidden from search results until the first tool is added)
 - `site.css`: styles shared by the home, Web Development Projects and Productivity pages
 - `hype-cycle-exchange/`: Hype Cycle Exchange, a live classroom stock-market game (Firebase)
