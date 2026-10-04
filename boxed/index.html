@@ -274,7 +274,7 @@ input.code{text-transform:uppercase;font-family:var(--serif);font-size:24px;lett
       </section>
       <section class="panel mode" aria-labelledby="mH">
         <h2 id="mH">Live game</h2>
-        <p>The host puts problems up on a projector, everyone answers on their own phone, and a leaderboard rewards right answers and fast ones. The host picks the difficulty before each problem.</p>
+        <p>The host puts problems up on a projector, everyone answers on their own phone, and a leaderboard rewards right answers, fast ones, and whoever gets there first. The host picks the difficulty before each problem.</p>
         <a class="btn go" href="#mp" id="mpJump">Join or host a game</a>
       </section>
     </div>
@@ -371,11 +371,12 @@ input.code{text-transform:uppercase;font-family:var(--serif);font-size:24px;lett
           </div>
           <div><label class="lbl" for="timeSel">Time per problem</label>
             <select id="timeSel">
-              <option value="auto">Auto: more time for harder problems</option>
+              <option value="auto">Auto (more for harder)</option>
               <option value="60">1 minute</option><option value="90">90 seconds</option><option value="120">2 minutes</option>
               <option value="180">3 minutes</option><option value="300">5 minutes</option>
             </select></div>
           <label class="switch"><input type="checkbox" id="optSpeed" checked><span><b>Speed bonus</b><small>Faster right answers earn up to 50% extra</small></span></label>
+          <label class="switch"><input type="checkbox" id="optFirst" checked><span><b>First-answer bonus</b><small>The first person to lock in the right answer gets 50% extra</small></span></label>
           <div class="host-row">
             <span class="lbl" style="margin:0">Problem size</span>
             <div class="zoom"><button id="zOut" aria-label="Smaller problem text">A−</button><button id="zIn" aria-label="Larger problem text">A+</button></div>
@@ -828,7 +829,7 @@ $("hostForm").addEventListener("submit", async e => {
     for (let i = 0; i < 5 && (await fs.collection("games").doc(c).get()).exists; i++) c = newCode();
     await fs.collection("games").doc(c).set({
       kind: "math", hostUid: uid, createdAt: Date.now(), phase: "lobby", round: 0,
-      total: +$("roundsSel").value, tiers: hostStartSel.slice(), time: "auto", speed: true,
+      total: +$("roundsSel").value, tiers: hostStartSel.slice(), time: "auto", speed: true, first: true,
       current: null, used: [], scores: {}, reveal: null, endsAt: 0, limit: 0
     });
     store.set("boxed.code", c); say("hostMsg", "");
@@ -911,9 +912,18 @@ function grade(){
       }
     }
     const s = scores[p.id] || {pts: 0, right: 0};
-    scores[p.id] = {pts: s.pts + (gains[p.id] || 0), right: s.right + (ok ? 1 : 0), name: p.name, streak: ok ? (s.streak || 0) + 1 : 0};
+    scores[p.id] = {pts: s.pts + (gains[p.id] || 0), right: s.right + (ok ? 1 : 0), firsts: s.firsts || 0, name: p.name, streak: ok ? (s.streak || 0) + 1 : 0};
   });
-  hostUpdate({phase: "reveal", reveal: {k: cur.k, counts, gains, fastest, answered, of: players.length}, scores});
+  // First-answer bonus: the earliest right answer by server clock, so phone speed or lag doesn't matter.
+  let firstBonus = 0;
+  if (fastest && state.first !== false){
+    firstBonus = Math.round(t.pts * 0.5);
+    gains[fastest.id] += firstBonus;
+    scores[fastest.id].pts += firstBonus;
+    scores[fastest.id].firsts += 1;
+    fastest.bonus = firstBonus;
+  }
+  hostUpdate({phase: "reveal", reveal: {k: cur.k, counts, gains, fastest, firstBonus, answered, of: players.length}, scores});
 }
 function resetGame(){
   hostUpdate({phase: "lobby", round: 0, current: null, used: [], scores: {}, reveal: null, endsAt: 0}, "Game reset. Everyone is still in the lobby.");
@@ -937,9 +947,11 @@ function renderHostSettings(){
   tierChips($("hostTiers"), hostTierSel, sel => hostUpdate({tiers: sel.slice()}));
   $("timeSel").value = String(state.time || "auto");
   $("optSpeed").checked = !!state.speed;
+  $("optFirst").checked = state.first !== false;
 }
 $("timeSel").onchange = () => hostUpdate({time: $("timeSel").value === "auto" ? "auto" : +$("timeSel").value});
 $("optSpeed").onchange = () => hostUpdate({speed: $("optSpeed").checked});
+$("optFirst").onchange = () => hostUpdate({first: $("optFirst").checked});
 function applyZoom(){ document.querySelector("#game .live").style.setProperty("--z", zoom); store.set("boxed.zoom", zoom); }
 $("zIn").onclick = () => { zoom = Math.min(2.6, +(zoom + 0.15).toFixed(2)); applyZoom(); };
 $("zOut").onclick = () => { zoom = Math.max(0.85, +(zoom - 0.15).toFixed(2)); applyZoom(); };
@@ -961,7 +973,7 @@ $("lockBtn").onclick = lockIn;
 /* ---- rendering ---- */
 function board(){
   const sc = state.scores || {};
-  const rows = players.map(p => ({id: p.id, name: p.name, pts: (sc[p.id] && sc[p.id].pts) || 0, right: (sc[p.id] && sc[p.id].right) || 0}))
+  const rows = players.map(p => ({id: p.id, name: p.name, pts: (sc[p.id] && sc[p.id].pts) || 0, right: (sc[p.id] && sc[p.id].right) || 0, firsts: (sc[p.id] && sc[p.id].firsts) || 0}))
     .sort((a, b) => b.pts - a.pts || b.right - a.right || a.name.localeCompare(b.name));
   return rows;
 }
@@ -1001,7 +1013,7 @@ function renderStage(){
   } else if (ph === "done"){
     const rows = board(), top = rows.slice(0, 3), me = rows.findIndex(r => r.id === uid);
     const order = [top[1], top[0], top[2]], h = [120, 170, 90], place = [2, 1, 3];
-    stage.innerHTML = '<section class="panel"><h2 style="font-size:28px">Final results</h2><div class="podium">' + order.map((r, i) => r ? '<div class="step pop"><div class="name">' + esc(r.name) + '</div><div class="p">' + r.pts.toLocaleString() + ' pts · ' + r.right + ' right</div><div class="block" style="height:' + h[i] + 'px">' + place[i] + '</div></div>' : '<div class="step"></div>').join("") + '</div>' + (!isHost && me >= 0 ? '<p class="state-big" style="margin-top:18px;text-align:center">You finished #' + (me + 1) + ' of ' + rows.length + '.</p>' : '') + '</section>';
+    stage.innerHTML = '<section class="panel"><h2 style="font-size:28px">Final results</h2><div class="podium">' + order.map((r, i) => r ? '<div class="step pop"><div class="name">' + esc(r.name) + '</div><div class="p">' + r.pts.toLocaleString() + ' pts · ' + r.right + ' right' + (r.firsts ? ' · ' + r.firsts + '× first' : '') + '</div><div class="block" style="height:' + h[i] + 'px">' + place[i] + '</div></div>' : '<div class="step"></div>').join("") + '</div>' + (!isHost && me >= 0 ? '<p class="state-big" style="margin-top:18px;text-align:center">You finished #' + (me + 1) + ' of ' + rows.length + '.</p>' : '') + '</section>';
   } else stage.innerHTML = "";
   // player pad
   const playerAnswering = !isHost && cur && (ph === "question" || ph === "closed" || ph === "reveal");
@@ -1029,7 +1041,8 @@ function renderStage(){
     let me = "";
     if (!isHost){
       const mine = myPlayer(), a = mine && mine.ans && mine.ans[cur.k], g = (r.gains || {})[uid];
-      me = '<div class="feedback ' + (g ? "r" : a && a.v != null ? "w" : "s") + '" style="margin-top:12px"><b>' + (g ? "Right. +" + g + " points" : a && a.v != null ? "Not this time" : "No answer") + '</b>' + (a && a.v != null && !g ? '<span>You put ' + esc(fmtVal(cur.c, a.v)) + '.</span>' : '') + '</div>';
+      const wasFirst = g && r.fastest && r.fastest.id === uid && r.firstBonus;
+      me = '<div class="feedback ' + (g ? "r" : a && a.v != null ? "w" : "s") + '" style="margin-top:12px"><b>' + (g ? (wasFirst ? "First right answer! +" : "Right. +") + g + " points" : a && a.v != null ? "Not this time" : "No answer") + '</b>' + (wasFirst ? '<span>Includes a +' + r.firstBonus + ' bonus for getting there first.</span>' : '') + (a && a.v != null && !g ? '<span>You put ' + esc(fmtVal(cur.c, a.v)) + '.</span>' : '') + '</div>';
     }
     let dist = "";
     if (type === "a"){
@@ -1040,7 +1053,7 @@ function renderStage(){
       dist = entries.length ? '<p class="muted" style="margin-top:12px;font-size:14px">Most common answers: ' + entries.map(([v, n]) => esc(String(v).padStart(3, "0")) + (Number(v) === right ? " ✓" : "") + " (" + n + ")").join(", ") + '</p>' : "";
     }
     const nRight = Object.keys(r.gains || {}).length;
-    rb.innerHTML = '<section class="panel pop"><div class="answer-reveal"><span class="muted">Answer</span><span class="val">' + fmtAns(cur.c, cur.n) + '</span><span>' + nRight + ' of ' + (r.of || 0) + ' got it' + (r.fastest ? '. Fastest: <b>' + esc(r.fastest.name) + '</b> in ' + (r.fastest.ms / 1000).toFixed(1) + ' s' : '') + '</span></div>' + dist + me + '</section>';
+    rb.innerHTML = '<section class="panel pop"><div class="answer-reveal"><span class="muted">Answer</span><span class="val">' + fmtAns(cur.c, cur.n) + '</span><span>' + nRight + ' of ' + (r.of || 0) + ' got it' + (r.fastest ? '. First right answer: <b>' + esc(r.fastest.name) + '</b> in ' + (r.fastest.ms / 1000).toFixed(1) + ' s' + (r.firstBonus ? ' (+' + r.firstBonus + ' bonus)' : '') : '') + '</span></div>' + dist + me + '</section>';
   } else rb.innerHTML = "";
 }
 function tick(){
