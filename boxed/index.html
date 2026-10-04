@@ -1,0 +1,1091 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Boxed – Real AMC 10 &amp; AIME Problems, Daily and Live</title>
+<meta name="description" content="A free competition math game with real AMC 10 and AIME problems. Solve a new set of five every day, practice at your level, or host a live round for your math team where everyone answers on their phone.">
+<link rel="canonical" href="https://ascoding11.github.io/boxed/">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Arjun's Projects">
+<meta property="og:title" content="Boxed – Real AMC 10 &amp; AIME Problems, Daily and Live">
+<meta property="og:description" content="Solve real AMC 10 and AIME problems: a daily set of five, practice by difficulty, or a live game for your math team.">
+<meta property="og:url" content="https://ascoding11.github.io/boxed/">
+<meta name="twitter:card" content="summary">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "VideoGame",
+ "name": "Boxed",
+ "url": "https://ascoding11.github.io/boxed/",
+ "description": "A free competition math game with real AMC 10 and AIME problems: a daily set, practice by difficulty, and live multiplayer rounds for math teams.",
+ "genre": ["Educational", "Puzzle", "Quiz"],
+ "gamePlatform": "Web browser",
+ "applicationCategory": "Game",
+ "operatingSystem": "Any",
+ "isAccessibleForFree": true,
+ "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"},
+ "author": {"@type": "Person", "name": "Arjun", "url": "https://ascoding11.github.io/"}
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=STIX+Two+Text:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="preconnect" href="https://artofproblemsolving.com">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+/* Same Firebase project and Firestore rules as Hype Cycle Exchange.
+   Boxed games live in the same "games" collection, marked kind: "math". */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBlncA4rSK-WAO7BJWmUTEbj00Wxpv8fTg",
+  authDomain: "yis-week-1-ga.firebaseapp.com",
+  projectId: "yis-week-1-ga",
+  appId: "1:416718770225:web:eef6d97d329351b02a4510"
+};
+</script>
+<style>
+:root{
+  color-scheme:light;
+  --paper:#ECEFEE; --panel:#FFFFFF; --panel-2:#F5F7F6; --ink:#23262B; --ink-2:#5C626A; --line:#D8DDDB;
+  --form:#C2385E; --form-bg:#FBE9EE; --form-line:#EBC3CF; --lead:#2C2F35; --lead-ink:#FFFFFF;
+  --ok:#1C7548; --ok-bg:#E1F1E7; --no:#B42318; --no-bg:#FBE5E2;
+  --serif:"STIX Two Text","Cambria Math",Cambria,Georgia,serif;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    color-scheme:dark;
+    --paper:#141619; --panel:#1C1F23; --panel-2:#22262B; --ink:#E7E9EC; --ink-2:#A2A8B0; --line:#30353B;
+    --form:#F08BA8; --form-bg:#3A1F28; --form-line:#5A3341; --lead:#E7E9EC; --lead-ink:#16181B;
+    --ok:#5DCB8F; --ok-bg:#163021; --no:#F2857A; --no-bg:#3A1C19;
+  }
+}
+*{box-sizing:border-box}
+html{padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.5;padding:0 16px 64px}
+[hidden]{display:none!important}
+.wrap{max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--form);outline-offset:2px}
+h1,h2,h3{margin:0;font-family:var(--serif);font-weight:600;text-wrap:balance}
+p{margin:0}
+button,.btn{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:9px 14px;min-height:42px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+button:hover:not(:disabled),.btn:hover{border-color:var(--ink-2)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.primary,.btn.primary{background:var(--lead);border-color:var(--lead);color:var(--lead-ink);font-weight:600}
+button.quiet{background:none;border-color:transparent;color:var(--ink-2);text-decoration:underline;padding-inline:4px}
+button.danger{color:var(--no)}
+input,select{font:inherit;color:inherit;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 12px;min-height:42px;width:100%}
+label.lbl{display:block;font-size:14px;color:var(--ink-2);margin-bottom:4px}
+.msg{font-size:14px;min-height:1.5em;color:var(--ink-2)}
+.msg.err{color:var(--no)} .msg.ok{color:var(--ok)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}
+.muted{color:var(--ink-2)}
+.notice{background:var(--form-bg);color:var(--ink);border:1px solid var(--form-line);border-radius:10px;padding:10px 14px;font-size:14px}
+
+/* top bar */
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.topbar a.back{font-size:14px;color:var(--ink-2);text-decoration:none}
+.topbar a.back:hover{text-decoration:underline}
+.mark{font-family:var(--serif);font-weight:700;font-size:20px;border:1.5px solid currentColor;padding:0 7px;line-height:1.35;text-decoration:none}
+
+/* hero: \boxed{Boxed} */
+.hero{padding:44px 0 8px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:28px;align-items:end}
+@media (max-width:760px){.hero{grid-template-columns:minmax(0,1fr)}}
+.boxed-title{position:relative;display:inline-block;font-family:var(--serif);font-weight:600;font-size:clamp(64px,13vw,132px);line-height:1;letter-spacing:-.01em;padding:.08em .22em .14em}
+.boxed-title svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.boxed-title rect{fill:none;stroke:currentColor;stroke-width:3;vector-effect:non-scaling-stroke}
+@media (prefers-reduced-motion: no-preference){
+  .boxed-title rect{stroke-dasharray:1;stroke-dashoffset:1;animation:draw 1.1s .25s cubic-bezier(.6,.05,.3,1) forwards}
+  @keyframes draw{to{stroke-dashoffset:0}}
+}
+.lede{font-size:19px;max-width:44ch;margin-top:18px;color:var(--ink-2)}
+.hero-sheet{font-family:var(--serif);border:1px solid var(--form-line);background:var(--panel);border-radius:6px;padding:12px 14px 10px;min-width:260px}
+.hero-sheet .row{display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px dashed var(--form-line)}
+.hero-sheet .row:last-child{border-bottom:0}
+.hero-sheet .qn{width:22px;text-align:right;color:var(--form);font-size:15px}
+
+/* answer bubbles, styled like a contest answer sheet */
+.bub{display:inline-flex;align-items:center;justify-content:center;flex:none;width:40px;height:30px;min-height:0;padding:0;border-radius:50%;border:1.5px solid var(--form);background:transparent;color:var(--form);font-family:var(--serif);font-size:16px;font-weight:600;line-height:1}
+.bub.sm{width:30px;height:22px;font-size:13px;border-width:1.25px;cursor:default}
+.bub:hover:not(:disabled){border-color:var(--form);background:var(--form-bg)}
+.bub[aria-pressed="true"],.bub.on{background:var(--lead);border-color:var(--lead);color:transparent}
+.bub.right{background:var(--ok);border-color:var(--ok);color:#fff}
+.bub.wrong{background:var(--no);border-color:var(--no);color:#fff}
+.bub:disabled{opacity:.55;cursor:default}
+.bub.right:disabled,.bub.wrong:disabled,.bub[aria-pressed="true"]:disabled{opacity:1}
+.pad{display:flex;flex-direction:column;gap:12px}
+.pad-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.pad .bub{width:56px;height:42px;font-size:20px}
+.aime{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap}
+.aime-grid{display:flex;gap:6px;padding:8px;border:1px solid var(--form-line);border-radius:8px}
+.aime-col{display:flex;flex-direction:column;gap:4px;align-items:center}
+.aime-col .digit{width:34px;height:34px;border:1.5px solid var(--form);border-radius:4px;font-family:var(--serif);font-size:20px;font-weight:600;display:flex;align-items:center;justify-content:center;margin-bottom:4px}
+.aime-col .bub{width:34px;height:24px;font-size:13px}
+.aime-type{max-width:180px}
+.aime-type input{font-family:var(--serif);font-size:22px;letter-spacing:.2em}
+
+/* landing modes */
+.modes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+@media (max-width:900px){.modes{grid-template-columns:minmax(0,1fr)}}
+.mode{display:flex;flex-direction:column;gap:10px;border-top:3px solid var(--lead)}
+.mode h2{font-size:26px}
+.mode p{color:var(--ink-2)}
+.mode .go{margin-top:auto;align-self:flex-start}
+.mode .status{font-size:14px;color:var(--ink)}
+.mp{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+@media (max-width:760px){.mp{grid-template-columns:minmax(0,1fr)}}
+.mp form{display:flex;flex-direction:column;gap:12px}
+.mp h2{font-size:22px}
+input.code{text-transform:uppercase;font-family:var(--serif);font-size:24px;letter-spacing:.25em;font-weight:600}
+.tierpick{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border-radius:999px;min-height:36px;padding:6px 12px;font-size:14px;background:var(--panel)}
+.chip[aria-pressed="true"]{background:var(--lead);border-color:var(--lead);color:var(--lead-ink)}
+.credit{font-size:13px;color:var(--ink-2);max-width:80ch;border-top:1px solid var(--line);padding-top:14px}
+.adbox{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px}
+.adbox .ad-lbl{font-size:12px;color:var(--ink-2)}
+.adbox ins{display:inline-block;width:320px;max-width:100%;height:100px}
+
+/* problem sheet: always white paper so the AoPS math images stay readable */
+.sheet{background:#fff;color:#1d1f23;border:1px solid var(--line);border-radius:4px;padding:22px 24px 26px;font-family:var(--serif);font-size:18px;line-height:1.6;box-shadow:0 1px 0 var(--line);overflow-x:auto}
+.sheet p{margin:0 0 .7em}
+.sheet img{max-width:100%;height:auto;vertical-align:middle}
+.sheet img.latex{vertical-align:middle}
+.sheet img.latexcenter{display:block;margin:.6em auto}
+.sheet center{display:block;margin:.6em 0}
+.sheet table{border-collapse:collapse;margin:.6em 0}
+.sheet td,.sheet th{border:1px solid #ccc;padding:4px 8px}
+.sheet .loading{color:#6b7078;font-family:var(--sans);font-size:15px}
+.sheet .fail{font-family:var(--sans);font-size:15px;color:#3b3f45}
+.sheet .fail a{color:#9b2449}
+.sheet-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.sheet-head h2{font-size:22px}
+.tier-tag{font-size:14px;color:var(--form);font-weight:600}
+.src{font-size:14px;color:var(--ink-2)}
+.src a{color:var(--form)}
+
+/* solo */
+.solo{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:20px;align-items:start}
+@media (max-width:900px){.solo{grid-template-columns:minmax(0,1fr)}}
+.side{display:flex;flex-direction:column;gap:14px}
+.progress{display:flex;gap:6px}
+.progress i{flex:1;height:8px;border-radius:4px;background:var(--line)}
+.progress i.cur{background:var(--ink-2)} .progress i.r{background:var(--ok)} .progress i.w{background:var(--no)} .progress i.s{background:var(--form-line)}
+.feedback{border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.feedback.r{background:var(--ok-bg)} .feedback.w{background:var(--no-bg)} .feedback.s{background:var(--panel-2)}
+.feedback b{font-family:var(--serif);font-size:20px}
+.actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.results{max-width:640px;display:flex;flex-direction:column;gap:16px}
+.results .big{font-family:var(--serif);font-size:56px;font-weight:600;line-height:1}
+.res-list{display:flex;flex-direction:column;gap:0}
+.res-list .row{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);font-size:15px}
+.stats{display:flex;gap:24px;flex-wrap:wrap}
+.stats div{display:flex;flex-direction:column}
+.stats b{font-family:var(--serif);font-size:28px;font-weight:600;line-height:1.1}
+.stats span{font-size:13px;color:var(--ink-2)}
+
+/* live game */
+.gamebar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.gamebar .code{font-family:var(--serif);font-weight:700;font-size:20px;letter-spacing:.2em}
+.timer{font-family:var(--serif);font-size:34px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1}
+.timer.low{color:var(--no)}
+.timebar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;width:180px;margin-top:6px}
+.timebar i{display:block;height:100%;background:var(--ink);width:0}
+.phase{font-size:14px;padding:4px 10px;border-radius:999px;background:var(--panel-2);border:1px solid var(--line)}
+.live{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start}
+@media (max-width:900px){.live{grid-template-columns:minmax(0,1fr)}}
+.host-controls{display:flex;flex-direction:column;gap:14px}
+.host-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.joinbig{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap}
+.joinbig .bigcode{font-family:var(--serif);font-weight:700;font-size:clamp(48px,8vw,84px);letter-spacing:.18em;line-height:1;border:2px solid currentColor;padding:4px 10px 8px 18px}
+.switch{display:flex;gap:10px;align-items:flex-start;font-size:15px;cursor:pointer}
+.switch input{width:18px;height:18px;min-height:0;margin-top:3px;accent-color:var(--lead)}
+.switch small{display:block;color:var(--ink-2);font-size:13px}
+.board{display:flex;flex-direction:column}
+.board .row{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);font-size:15px}
+.board .row.me{font-weight:600}
+.board .rank{font-family:var(--serif);color:var(--ink-2);text-align:right}
+.board .pts{font-variant-numeric:tabular-nums;font-weight:600}
+.board .gain{color:var(--ok);font-size:13px;margin-left:6px;font-weight:500}
+.dots{display:flex;flex-wrap:wrap;gap:6px}
+.dots span{font-size:13px;padding:3px 9px;border-radius:999px;background:var(--panel-2);border:1px solid var(--line)}
+.dots span.in{background:var(--lead);border-color:var(--lead);color:var(--lead-ink)}
+.dist{display:flex;flex-direction:column;gap:6px}
+.dist .bar{display:grid;grid-template-columns:40px minmax(0,1fr) 36px;gap:10px;align-items:center;font-size:14px}
+.dist .bar div{height:22px;border-radius:4px;background:var(--line);overflow:hidden}
+.dist .bar div i{display:block;height:100%;background:var(--ink-2)}
+.dist .bar.ok div i{background:var(--ok)}
+.answer-reveal{display:flex;align-items:center;gap:14px}
+.answer-reveal .val{font-family:var(--serif);font-size:44px;font-weight:700;border:2px solid currentColor;padding:0 14px;line-height:1.25}
+.zoom{display:flex;gap:6px}
+.zoom button{min-height:32px;padding:2px 10px;font-size:14px}
+.host .sheet{zoom:var(--z,1.35)}
+.podium{display:flex;align-items:flex-end;justify-content:center;gap:14px;padding:20px 0 0}
+.podium .step{display:flex;flex-direction:column;align-items:center;gap:8px;width:min(30%,200px)}
+.podium .block{width:100%;background:var(--lead);color:var(--lead-ink);border-radius:8px 8px 0 0;display:flex;align-items:flex-start;justify-content:center;font-family:var(--serif);font-size:34px;font-weight:700;padding-top:8px}
+.podium .name{font-family:var(--serif);font-size:20px;font-weight:600;text-align:center;overflow-wrap:anywhere}
+.podium .p{font-size:14px;color:var(--ink-2)}
+.state-big{font-family:var(--serif);font-size:24px;font-weight:600}
+@media (prefers-reduced-motion: no-preference){
+  .pop{animation:pop .35s ease-out}
+  @keyframes pop{from{transform:scale(.92);opacity:.3}to{transform:none;opacity:1}}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <a class="back" href="../projects/">‹ Web Development Projects</a>
+    <a class="mark" href="./" aria-label="Boxed home">Boxed</a>
+  </div>
+
+  <div class="notice" id="notice" hidden></div>
+
+  <!-- ============ Landing ============ -->
+  <main id="landing">
+    <section class="hero">
+      <div>
+        <h1 class="boxed-title">Boxed<svg aria-hidden="true" preserveAspectRatio="none"><rect x="0" y="0" width="100%" height="100%" pathLength="1"/></svg></h1>
+        <p class="lede">Real AMC 10 and AIME problems. Solve today's five, practice at your level, or run a live round for your math team.</p>
+      </div>
+      <div class="hero-sheet" aria-hidden="true">
+        <div class="row"><span class="qn">1</span><span class="bub sm">A</span><span class="bub sm">B</span><span class="bub sm on">C</span><span class="bub sm">D</span><span class="bub sm">E</span></div>
+        <div class="row"><span class="qn">2</span><span class="bub sm on">A</span><span class="bub sm">B</span><span class="bub sm">C</span><span class="bub sm">D</span><span class="bub sm">E</span></div>
+        <div class="row"><span class="qn">3</span><span class="bub sm">A</span><span class="bub sm">B</span><span class="bub sm">C</span><span class="bub sm on">D</span><span class="bub sm">E</span></div>
+        <div class="row"><span class="qn">4</span><span class="bub sm">A</span><span class="bub sm">B</span><span class="bub sm">C</span><span class="bub sm">D</span><span class="bub sm">E</span></div>
+      </div>
+    </section>
+
+    <div class="modes" style="margin-top:28px">
+      <section class="panel mode" aria-labelledby="dH">
+        <h2 id="dH">Daily five</h2>
+        <p>Five problems a day, the same for everyone, climbing from AMC 10 #1–5 up to #21–25. One try each. Share your score and keep a streak.</p>
+        <p class="status" id="dailyStatus"></p>
+        <button class="primary go" id="dailyGo">Play today's five</button>
+      </section>
+      <section class="panel mode" aria-labelledby="pH">
+        <h2 id="pH">Practice</h2>
+        <p>Pick the difficulty bands you want and keep going for as long as you like. After each problem you see the answer and a link to full solutions.</p>
+        <div class="tierpick" id="practiceTiers" aria-label="Practice difficulty"></div>
+        <button class="go" id="practiceGo">Start practicing</button>
+      </section>
+      <section class="panel mode" aria-labelledby="mH">
+        <h2 id="mH">Live game</h2>
+        <p>The host puts problems up on a projector, everyone answers on their own phone, and a leaderboard rewards right answers and fast ones. The host picks the difficulty before each problem.</p>
+        <a class="btn go" href="#mp" id="mpJump">Join or host a game</a>
+      </section>
+    </div>
+
+    <div class="mp" id="mp" style="margin-top:20px">
+      <section class="panel">
+        <form id="joinForm">
+          <h2>Join a game</h2>
+          <div><label class="lbl" for="joinCode">Game code</label><input class="code" id="joinCode" maxlength="5" autocomplete="off" required></div>
+          <div><label class="lbl" for="joinName">Your name or team name</label><input id="joinName" maxlength="24" autocomplete="nickname" required></div>
+          <button class="primary" type="submit">Join</button>
+          <div class="msg" id="joinMsg" role="status"></div>
+        </form>
+      </section>
+      <section class="panel">
+        <form id="hostForm">
+          <h2>Host a game</h2>
+          <p class="muted" style="font-size:15px">You get a code to put on the screen. Pick the difficulty bands now; you can change them before any problem.</p>
+          <div class="tierpick" id="hostTiersStart" aria-label="Starting difficulty"></div>
+          <div><label class="lbl" for="roundsSel">Number of problems</label>
+            <select id="roundsSel"><option value="5">5</option><option value="8">8</option><option value="10" selected>10</option><option value="15">15</option><option value="20">20</option></select></div>
+          <button class="primary" type="submit">Create game</button>
+          <div class="msg" id="hostMsg" role="status"></div>
+        </form>
+      </section>
+    </div>
+
+    <div class="adbox" id="adMenu" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
+
+    <p class="credit" style="margin-top:28px">Problems are from the American Mathematics Competitions (AMC 10, 2010–2025) and the AIME (2010–2026), © Mathematical Association of America. Boxed stores only the problem numbers and official answers; the problem text loads from the <a href="https://artofproblemsolving.com/wiki/index.php/AMC_Problems_and_Solutions" target="_blank" rel="noopener">AoPS Wiki</a> while you play, and every answer links to the full solutions there.</p>
+  </main>
+
+  <!-- ============ Solo (daily + practice) ============ -->
+  <main id="solo" hidden>
+    <div class="solo">
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="sheet-head">
+          <h2 id="soloTitle">Daily five</h2>
+          <span class="tier-tag" id="soloTier"></span>
+        </div>
+        <div class="tierpick" id="soloTiers" hidden aria-label="Practice difficulty"></div>
+        <article class="sheet" id="soloSheet" aria-live="polite"></article>
+        <div class="panel pad-wrap">
+          <div id="soloPad"></div>
+          <div class="actions" style="margin-top:14px">
+            <button class="primary" id="soloCheck" disabled>Check answer</button>
+            <button id="soloSkip">Skip</button>
+            <button class="primary" id="soloNext" hidden>Next problem</button>
+          </div>
+        </div>
+        <div id="soloFeedback"></div>
+      </div>
+      <aside class="side">
+        <div class="panel" id="soloSide"></div>
+        <button class="quiet" id="soloQuit" style="align-self:flex-start">Back to menu</button>
+      </aside>
+    </div>
+  </main>
+
+  <main id="dailyDone" hidden></main>
+
+  <!-- ============ Live game ============ -->
+  <main id="game" hidden>
+    <div class="gamebar panel">
+      <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+        <span class="phase" id="phaseChip">Lobby</span>
+        <span class="muted" id="roundLbl"></span>
+        <span class="muted">Code <span class="code" id="codeLbl"></span></span>
+      </div>
+      <div><div class="timer" id="timer">–:––</div><div class="timebar"><i id="timebar"></i></div></div>
+    </div>
+
+    <div class="live" style="margin-top:20px">
+      <div style="display:flex;flex-direction:column;gap:16px;min-width:0" id="liveMain">
+        <!-- host lobby / player lobby / problem / reveal render here -->
+        <div id="stage"></div>
+        <div id="revealBox"></div>
+        <article class="sheet" id="liveSheet" hidden></article>
+        <div class="panel" id="playerPad" hidden>
+          <div id="livePad"></div>
+          <div class="actions" style="margin-top:14px">
+            <button class="primary" id="lockBtn" disabled>Lock in answer</button>
+            <span class="msg" id="lockMsg" role="status"></span>
+          </div>
+        </div>
+      </div>
+      <aside class="side">
+        <section class="panel host-controls" id="hostPanel" hidden aria-label="Host controls">
+          <h3 style="font-size:20px">Host controls</h3>
+          <div class="host-row" id="hostButtons"></div>
+          <div>
+            <div class="lbl">Difficulty for the next problem</div>
+            <div class="tierpick" id="hostTiers"></div>
+          </div>
+          <div><label class="lbl" for="timeSel">Time per problem</label>
+            <select id="timeSel">
+              <option value="auto">Auto: more time for harder problems</option>
+              <option value="60">1 minute</option><option value="90">90 seconds</option><option value="120">2 minutes</option>
+              <option value="180">3 minutes</option><option value="300">5 minutes</option>
+            </select></div>
+          <label class="switch"><input type="checkbox" id="optSpeed" checked><span><b>Speed bonus</b><small>Faster right answers earn up to 50% extra</small></span></label>
+          <div class="host-row">
+            <span class="lbl" style="margin:0">Problem size</span>
+            <div class="zoom"><button id="zOut" aria-label="Smaller problem text">A−</button><button id="zIn" aria-label="Larger problem text">A+</button></div>
+          </div>
+          <div class="msg" id="hostCtlMsg" role="status"></div>
+        </section>
+        <section class="panel">
+          <h3 style="font-size:20px;margin-bottom:8px">Leaderboard</h3>
+          <div class="board" id="board"></div>
+        </section>
+        <button class="quiet" id="leaveBtn" style="align-self:flex-start">Leave game</button>
+      </aside>
+    </div>
+  </main>
+</div>
+
+<script>
+/* =====================================================================
+   Ads (Google AdSense): only on the menu, never on a problem screen.
+   To turn them on, paste a display ad unit's "data-ad-slot" into AD_SLOT.
+   ===================================================================== */
+const AD_CLIENT = 'ca-pub-1712937102765568';
+const AD_SLOT = '';
+function showAd(id){
+  if (!AD_SLOT) return;
+  const box = document.getElementById(id); if (!box || box.dataset.state) return;
+  const ins = box.querySelector('ins');
+  const s = document.createElement('script'); s.async = true; s.crossOrigin = 'anonymous';
+  s.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js'; document.head.appendChild(s);
+  box.hidden = false; box.dataset.state = 'asked';
+  ins.setAttribute('data-ad-client', AD_CLIENT); ins.setAttribute('data-ad-slot', AD_SLOT);
+  requestAnimationFrame(() => {
+    try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch (_) { box.hidden = true; return; }
+    setTimeout(() => { if (ins.getAttribute('data-ad-status') !== 'filled') { box.hidden = true; box.dataset.state = ''; } }, 5000);
+  });
+}
+</script>
+<script>
+/* =====================================================================
+   The problem bank: contest name, type (a = AMC multiple choice,
+   i = AIME integer), the official answer key (lightly scrambled so it
+   isn't readable at a glance), and any problems the MAA threw out.
+   Answers come from the AoPS Wiki answer key pages.
+   ===================================================================== */
+const BANK=[["2019 AMC 10A","a","IS48JyBuIi4hbiIsKSEnLjwhJm8lLyBvJQ==",[]],["2019 AMC 10B","a","Jio6JCFuIy8ibCAqLCYjLjsmJ2gjLyBuIg==",[]],["2018 AMC 10A","a","IC49ICBvJC4mbCQqKSQmKzshIW8kKSdpJQ==",[]],["2018 AMC 10B","a","Iys6JyBpJS4naCIqLiEjKjohIW8iLiFuIg==",[]],["2017 AMC 10A","a","ISs6JydvIC8gbyUsKSEhLTwhJ2klKCFuIA==",[]],["2017 AMC 10B","a","ICw9ISBvIi4naCUoLiEnLjohIW8lKSBuJA==",[]],["2016 AMC 10A","a","ICw7JyBpJS4nbyUoLyYjKzkmIW8lKSJoIA==",[]],["2016 AMC 10B","a","Ji08JyBvIiwgaSMtKSEhKjwgIG4jLCBpIA==",[]],["2015 AMC 10A","a","ISs8JyFvIy8nbiIqLiYgLTwgIG8iLCBvIA==",[20]],["2015 AMC 10B","a","IS05JiZoICghbiMoKCEgLDohJ2wlKSFpIw==",[]],["2014 AMC 10A","a","ISw9JydsIykgbyIqLiEhKjwnJWkkKCBsIw==",[]],["2014 AMC 10B","a","ISo9JyVuICgibiIqLyEjLTwgIG4jLyZvIg==",[]],["2013 AMC 10A","a","IS09JiZpIi4haCAqLyEmKjonJ24lLydoIA==",[]],["2013 AMC 10B","a","IS47ISZuIy8nbiMrKCAgLT0hIG8iLiFsJA==",[]],["2012 AMC 10A","a","Jio9JiZpIiknbiUoLicgLDsgIGwiLCFoJQ==",[]],["2012 AMC 10B","a","ISo6JCBsJS8iaSArLyEmLjsmJ2wgLydvJA==",[]],["2011 AMC 10A","a","Jio8JCduIy4ibyMoLCchLTsmIWklLiBpIg==",[]],["2011 AMC 10B","a","ISo5JiFsIy8nbyUoKSYnLjsgJW4jLCdvJQ==",[]],["2010 AMC 10A","a","Ji08JyFuIikmaCUqLCYmLTknIWkgLCJsIw==",[]],["2010 AMC 10B","a","ISw7JiZvJSgnbiAtLichLTogJmkkLidoIw==",[]],["2020 AMC 10A","a","Jyw5ICdvIi8hbyIqLyEnLT0mIWkiLCJuIA==",[]],["2020 AMC 10B","a","Jio9ISZvICknbiUtLyEmLjsnJW8jKSBuIA==",[]],["2021 AMC 10A","a","Jiw8ISZsJSgnbiQsLiQhLDwgIWkiLydpJA==",[]],["2021 AMC 10B","a","Jis7JyZuJSwnbCUqLycgLDsmIGkgKSBvJA==",[]],["2021 Fall AMC 10A","a","ISo8JyFvJS8mbyAtKSEhKzwmJW8kLydoIA==",[]],["2021 Fall AMC 10B","a","Jy09JiFvIi4gbCMtLyYmKzwgJW4kLydsJA==",[]],["2022 AMC 10A","a","Ji09ICdsIyknaCIoLiAmKzwkJ2gjKSFoIw==",[]],["2022 AMC 10B","a","Iys8JCZsIy8naSMqKCcmKzsnJ2kkKCBvIA==",[]],["2023 AMC 10A","a","Jy45ISFpIykmaSIrLicnLTkhIWklKSBuIA==",[]],["2023 AMC 10B","a","IS08JiVoIywhbiMqLyYhKjwgJmwkLyFoIw==",[]],["2024 AMC 10A","a","Iy06JyBpIywhbiUsLiEnKz0hIW4iLydvIg==",[]],["2024 AMC 10B","a","IC09ISZvICkibCIoLychLjwnJ2wiLCFoJA==",[]],["2025 AMC 10A","a","Jy08JCFuJC8gbiQtKScjKz0nJWwiLyduIA==",[]],["2025 AMC 10B","a","ICs8JCduIi4gbCMqLCYmKzohIGwiLCBoIw==",[]],["2010 AIME I","i","U19PSVUdWEFWH1hFWFRXQ01VVQ==",[]],["2010 AIME II","i","VFtISVYVUEFSGFFFWFdOWE0=",[]],["2011 AIME I","i","WlpUVlIBUlxPGFdFXFFW",[]],["2011 AIME II","i","UVhUXVUdTVxXHk1cXElXW0o=",[]],["2012 AIME I","i","Vl9UVF0YTV9SG01bWlxOXEtV",[]],["2012 AIME II","i","UVtUVlIeTVVbAVdYQVJXXw==",[]],["2013 AIME I","i","U1pISVYdUUFSFU1dX1xOVkA=",[]],["2013 AIME II","i","UFhNSVwVUEFQGFFFWVVOXUg=",[]],["2014 AIME I","i","VVZISVUZVUFRHVFFWVxOXktR",[]],["2014 AIME II","i","UVxMSVMbTVpRHU1dWVJOW0pV",[]],["2015 AIME I","i","VV1KSVUeWEFQHVZFWFVVQ0tRVQ==",[]],["2015 AIME II","i","U1xJSVYYTVlUG01YVUlbXw==",[]],["2016 AIME I","i","UVxOSVMcTVVSHU1YXV1OWks=",[]],["2016 AIME II","i","U19ASVUdVkFRG1RFXF1SQ0ldVg==",[]],["2017 AIME I","i","UVZISVIfTVtaAVlZXklRXUk=",[]],["2017 AIME II","i","U1ZOSVMVUEFXHVhFX1dQQ09cVQ==",[]],["2018 AIME I","i","VF9ISV0fVEFSGFZFX11bQ0ldXQ==",[]],["2018 AIME II","i","Wl9ISVUcU0FQGlBFX1ZOWEw=",[]],["2019 AIME I","i","UVtKSVYUTVxRHU1YX1dOXU1X",[]],["2019 AIME II","i","V1ZUVFQaTVRVAVBRWklXXUg=",[]],["2020 AIME I","i","V1tPSVUaTVtRHE1QXklXXQ==",[]],["2020 AIME II","i","UFxJSVUaUEFSHVJFXFVaQ0lQVQ==",[]],["2021 AIME I","i","W1hUVFQUTVhTAVJaXElRXg==",[]],["2021 AIME II","i","V1pISVceV0FbHU1aXlVOWEtT",[]],["2022 AIME I","i","U15OSVYfVkFRGVNFVVZWQ01QVA==",[]],["2022 AIME II","i","U1pMSVUfVEFRHE1YXFdOWEo=",[]],["2023 AIME I","i","U1ZJSVwVUEFVHVZFXFdOXkhT",[]],["2023 AIME II","i","UF1ISVEVVEFRGFFFX1JRQ09UXQ==",[]],["2024 AIME I","i","UF9MSVYYTVVTFE1YXFNOXkhR",[]],["2024 AIME II","i","VVxUV1cbTVlWAVJaQV1S",[]],["2025 AIME I","i","VV9UUFwVTVxVAVBYWklQWEE=",[]],["2025 AIME II","i","VllASVAUTVVRAVBZW0lRXE4=",[]],["2026 AIME I","i","UFhPSVIfTVpaAVZZQVNX",[]],["2026 AIME II","i","U1hASVYZUkFWHVJFX1JbQ0lcVA==",[]]];
+</script>
+<script>
+(() => {
+"use strict";
+const $ = id => document.getElementById(id);
+const store = {
+  get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
+  set(k, v){ try { localStorage.setItem(k, v); } catch(e){} },
+  del(k){ try { localStorage.removeItem(k); } catch(e){} }
+};
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function showNotice(t){ $("notice").textContent = t || ""; $("notice").hidden = !t; }
+
+/* ---------------- Bank & tiers ---------------- */
+const KEY = "boxed-amc-aime";
+function unscramble(b64){ const s = atob(b64); let o = ""; for (let i = 0; i < s.length; i++) o += String.fromCharCode(s.charCodeAt(i) ^ KEY.charCodeAt(i % KEY.length)); return o; }
+const CONTESTS = BANK.map(([id, type, enc, drop]) => {
+  const raw = unscramble(enc);
+  const ans = type === "a" ? raw.split("") : raw.split(",").map(Number);
+  return {id, type, ans, drop: new Set(drop)};
+});
+const CBYID = Object.fromEntries(CONTESTS.map(c => [c.id, c]));
+
+const TIERS = [
+  {id:1, label:"AMC 10 #1–5",   short:"#1–5",   kind:"a", lo:1,  hi:5,  pts:100, secs:60},
+  {id:2, label:"AMC 10 #6–10",  short:"#6–10",  kind:"a", lo:6,  hi:10, pts:150, secs:90},
+  {id:3, label:"AMC 10 #11–15", short:"#11–15", kind:"a", lo:11, hi:15, pts:200, secs:120},
+  {id:4, label:"AMC 10 #16–20", short:"#16–20", kind:"a", lo:16, hi:20, pts:300, secs:180},
+  {id:5, label:"AMC 10 #21–25", short:"#21–25", kind:"a", lo:21, hi:25, pts:400, secs:240},
+  {id:6, label:"AIME #1–5",     short:"AIME #1–5", kind:"i", lo:1, hi:5, pts:500, secs:300}
+];
+const TBYID = Object.fromEntries(TIERS.map(t => [t.id, t]));
+const POOL = {};
+TIERS.forEach(t => {
+  POOL[t.id] = [];
+  CONTESTS.filter(c => c.type === t.kind).forEach(c => {
+    for (let n = t.lo; n <= t.hi; n++) if (!c.drop.has(n) && c.ans[n - 1] != null) POOL[t.id].push(c.id + "|" + n);
+  });
+});
+const keyOf = (c, n) => c + "|" + n;
+function answerOf(c, n){ return CBYID[c].ans[n - 1]; }
+function isRight(c, n, v){
+  const a = answerOf(c, n);
+  if (CBYID[c].type === "a") return String(v).toUpperCase() === a;
+  return Number(v) === a;
+}
+function fmtAns(c, n){ const a = answerOf(c, n); return CBYID[c].type === "a" ? "(" + a + ")" : String(a).padStart(3, "0"); }
+function fmtVal(c, v){ if (v == null || v === "") return "—"; return CBYID[c].type === "a" ? "(" + v + ")" : String(v).padStart(3, "0"); }
+function pickProblem(tierIds, used, rand){
+  rand = rand || Math.random;
+  const tiers = tierIds.filter(t => POOL[t] && POOL[t].length);
+  if (!tiers.length) return null;
+  for (let tries = 0; tries < 40; tries++){
+    const t = tiers[Math.floor(rand() * tiers.length)];
+    const k = POOL[t][Math.floor(rand() * POOL[t].length)];
+    if (!used || !used.includes(k) || tries > 30){ const [c, n] = k.split("|"); return {c, n: +n, tier: t}; }
+  }
+  return null;
+}
+
+/* ---------------- Loading problem text from the AoPS Wiki ---------------- */
+const WIKI = "https://artofproblemsolving.com/wiki/";
+const wikiPath = t => WIKI + "index.php/" + t.replace(/ /g, "_");
+const problemURL = (c, n) => wikiPath(c + " Problems/Problem " + n);
+const loaded = {};
+const OK_TAGS = new Set(["P","BR","IMG","B","I","EM","STRONG","U","SUP","SUB","UL","OL","LI","TABLE","THEAD","TBODY","TR","TD","TH","CENTER","DIV","SPAN","PRE","CODE","HR","DL","DD","DT","BLOCKQUOTE","SMALL"]);
+const DROP_TAGS = new Set(["SCRIPT","STYLE","IFRAME","OBJECT","EMBED","FORM","INPUT","BUTTON","TEXTAREA","SELECT","LINK","META","NOSCRIPT","SVG","MATH","VIDEO","AUDIO"]);
+function clean(node){
+  [...node.childNodes].forEach(ch => {
+    if (ch.nodeType === 3) return;
+    if (ch.nodeType !== 1){ ch.remove(); return; }
+    const tag = ch.tagName;
+    if (DROP_TAGS.has(tag) || ch.classList.contains("mw-editsection") || ch.id === "toc"){ ch.remove(); return; }
+    clean(ch);
+    if (!OK_TAGS.has(tag)){ ch.replaceWith(...ch.childNodes); return; }
+    const keep = {};
+    if (tag === "IMG"){
+      let src = ch.getAttribute("src") || "";
+      if (src.startsWith("//")) src = "https:" + src;
+      else if (src.startsWith("/")) src = "https://artofproblemsolving.com" + src;
+      let host = ""; try { host = new URL(src).hostname; } catch(e){}
+      if (!/(^|\.)artofproblemsolving\.com$/.test(host)){ ch.remove(); return; }
+      keep.src = src; ["alt","width","height"].forEach(a => { if (ch.hasAttribute(a)) keep[a] = ch.getAttribute(a); });
+      const cls = [...ch.classList].filter(x => /^latex/.test(x)); if (cls.length) keep.class = cls.join(" ");
+      const va = /vertical-align:\s*(-?[\d.]+px)/.exec(ch.getAttribute("style") || ""); if (va) keep.style = "vertical-align:" + va[1];
+    }
+    if (tag === "TD" || tag === "TH") ["colspan","rowspan"].forEach(a => { if (ch.hasAttribute(a)) keep[a] = ch.getAttribute(a); });
+    [...ch.attributes].forEach(a => ch.removeAttribute(a.name));
+    for (const a in keep) ch.setAttribute(a, keep[a]);
+    if (tag === "IMG") ch.setAttribute("loading", "eager");
+  });
+  return node;
+}
+function headingOf(el){
+  if (/^H[2-4]$/.test(el.tagName)) return el;
+  if (el.classList && el.classList.contains("mw-heading")) return el.querySelector("h2,h3,h4");
+  return null;
+}
+function extractProblems(html){
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  const root = doc.querySelector(".mw-parser-output") || doc.body;
+  const out = {}; let cur = null;
+  for (const el of [...root.children]){
+    const h = headingOf(el);
+    if (h){
+      const txt = (h.querySelector(".mw-headline") || h).textContent.trim();
+      const m = /^Problem\s*(\d+)\b/i.exec(txt);
+      if (m){ cur = +m[1]; out[cur] = doc.createElement("div"); }
+      else if (h.tagName === "H2") cur = null;
+      continue;
+    }
+    if (!cur) continue;
+    const t = el.textContent.replace(/\s+/g, " ").trim();
+    if (el.tagName === "P" && /^\[?\s*(solutions?|solution \d+|video solution.*)\s*\]?$/i.test(t)) continue;
+    out[cur].appendChild(el.cloneNode(true));
+  }
+  const res = {};
+  for (const n in out){ const h = clean(out[n]).innerHTML.trim(); if (h) res[n] = h; }
+  return res;
+}
+function loadContest(c){
+  if (loaded[c]) return loaded[c];
+  const cached = store.get("boxed.p2." + c);
+  if (cached){ try { const v = JSON.parse(cached); if (v && Object.keys(v).length >= 5) return (loaded[c] = Promise.resolve(v)); } catch(e){} }
+  const url = WIKI + "api.php?action=parse&format=json&formatversion=2&prop=text&redirects=1&disableeditsection=1&origin=*&page=" + encodeURIComponent(c + " Problems");
+  loaded[c] = fetch(url).then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); }).then(j => {
+    if (!j.parse || !j.parse.text) throw new Error("no page");
+    const map = extractProblems(j.parse.text);
+    if (Object.keys(map).length < 5) throw new Error("couldn't read problems");
+    store.set("boxed.p2." + c, JSON.stringify(map));
+    return map;
+  }).catch(e => { delete loaded[c]; throw e; });
+  return loaded[c];
+}
+/* Fill a sheet element with a problem. `token` guards against a slow load landing on a newer problem. */
+function showProblem(el, c, n, token){
+  el.dataset.token = token;
+  el.innerHTML = '<p class="loading">Loading the problem…</p>';
+  loadContest(c).then(map => {
+    if (el.dataset.token !== token) return;
+    if (!map[n]) throw new Error("missing");
+    el.innerHTML = map[n];
+  }).catch(() => {
+    if (el.dataset.token !== token) return;
+    el.innerHTML = '<div class="fail"><p>The problem text didn\'t load here (the AoPS Wiki may be blocked on this network).</p><p><a href="' + esc(problemURL(c, n)) + '" target="_blank" rel="noopener">Open the problem on the AoPS Wiki</a>, then answer below.</p></div>';
+  });
+}
+function preload(c){ loadContest(c).catch(() => {}); }
+
+/* ---------------- Answer pad: bubbles like the real answer sheet ---------------- */
+function makePad(el, kind, onChange){
+  el.innerHTML = "";
+  let val = null, locked = false;
+  const wrap = document.createElement("div"); wrap.className = "pad"; el.appendChild(wrap);
+  if (kind === "a"){
+    const lab = document.createElement("div"); lab.className = "lbl"; lab.textContent = "Fill in one answer"; wrap.appendChild(lab);
+    const row = document.createElement("div"); row.className = "pad-row"; row.setAttribute("role", "group"); row.setAttribute("aria-label", "Answer choices"); wrap.appendChild(row);
+    const btns = "ABCDE".split("").map(L => {
+      const b = document.createElement("button"); b.type = "button"; b.className = "bub"; b.textContent = L;
+      b.setAttribute("aria-label", "Answer " + L); b.setAttribute("aria-pressed", "false");
+      b.onclick = () => { if (locked) return; set(val === L ? null : L); onChange && onChange(val); };
+      row.appendChild(b); return b;
+    });
+    function set(v){ val = v; btns.forEach(b => b.setAttribute("aria-pressed", String(b.textContent === v))); }
+    const keyH = e => { if (locked || !el.isConnected || el.closest("[hidden]")) return; if (e.target.tagName === "INPUT") return; const L = e.key.toUpperCase(); if ("ABCDE".includes(L) && L.length === 1){ set(L); onChange && onChange(val); } };
+    document.addEventListener("keydown", keyH);
+    return {get: () => val, set, lock(on){ locked = on; btns.forEach(b => b.disabled = on); }, mark(right, chosen){ btns.forEach(b => { b.classList.toggle("right", b.textContent === right); b.classList.toggle("wrong", b.textContent === chosen && chosen !== right); }); }, destroy(){ document.removeEventListener("keydown", keyH); }};
+  }
+  // AIME: three digit columns, plus a box to type into
+  const lab = document.createElement("div"); lab.className = "lbl"; lab.textContent = "AIME answers are whole numbers from 000 to 999"; wrap.appendChild(lab);
+  const box = document.createElement("div"); box.className = "aime"; wrap.appendChild(box);
+  const grid = document.createElement("div"); grid.className = "aime-grid"; box.appendChild(grid);
+  const digits = [null, null, null];
+  const cols = [0,1,2].map(ci => {
+    const col = document.createElement("div"); col.className = "aime-col"; grid.appendChild(col);
+    const d = document.createElement("div"); d.className = "digit"; col.appendChild(d);
+    const bs = [...Array(10).keys()].map(k => {
+      const b = document.createElement("button"); b.type = "button"; b.className = "bub"; b.textContent = k;
+      b.setAttribute("aria-label", ["Hundreds","Tens","Ones"][ci] + " digit " + k); b.setAttribute("aria-pressed", "false");
+      b.onclick = () => { if (locked) return; digits[ci] = digits[ci] === k ? null : k; sync(true); };
+      col.appendChild(b); return b;
+    });
+    return {d, bs};
+  });
+  const tw = document.createElement("div"); tw.className = "aime-type"; box.appendChild(tw);
+  tw.innerHTML = '<label class="lbl">Or type it</label>';
+  const inp = document.createElement("input"); inp.inputMode = "numeric"; inp.maxLength = 3; inp.autocomplete = "off"; inp.setAttribute("aria-label", "Type your answer");
+  tw.appendChild(inp);
+  inp.addEventListener("input", () => {
+    const s = inp.value.replace(/\D/g, "").slice(0, 3); inp.value = s;
+    const p = s.padStart(3, "#");
+    for (let i = 0; i < 3; i++) digits[i] = p[i] === "#" ? null : +p[i];
+    if (!s){ digits.fill(null); }
+    sync(false);
+  });
+  function current(){ return digits.every(d => d == null) ? null : digits.reduce((a, d) => a * 10 + (d || 0), 0); }
+  function sync(fromBubbles){
+    cols.forEach((c, i) => { c.d.textContent = digits[i] == null ? "" : digits[i]; c.bs.forEach((b, k) => b.setAttribute("aria-pressed", String(digits[i] === k))); });
+    val = current();
+    if (fromBubbles) inp.value = val == null ? "" : String(val).padStart(3, "0");
+    onChange && onChange(val);
+  }
+  function set(v){ if (v == null){ digits.fill(null); } else { const s = String(v).padStart(3, "0"); for (let i = 0; i < 3; i++) digits[i] = +s[i]; } cols.forEach((c, i) => { c.d.textContent = digits[i] == null ? "" : digits[i]; c.bs.forEach((b, k) => b.setAttribute("aria-pressed", String(digits[i] === k))); }); val = current(); inp.value = val == null ? "" : String(val).padStart(3, "0"); }
+  return {get: () => val, set, lock(on){ locked = on; inp.disabled = on; cols.forEach(c => c.bs.forEach(b => b.disabled = on)); }, mark(){}, destroy(){}};
+}
+
+/* ---------------- Tier chips ---------------- */
+function tierChips(el, selected, onChange){
+  el.innerHTML = "";
+  TIERS.forEach(t => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "chip"; b.textContent = t.label;
+    b.setAttribute("aria-pressed", String(selected.includes(t.id)));
+    b.onclick = () => {
+      const i = selected.indexOf(t.id);
+      if (i >= 0){ if (selected.length === 1) return; selected.splice(i, 1); } else selected.push(t.id);
+      selected.sort((a, b) => a - b);
+      b.setAttribute("aria-pressed", String(selected.includes(t.id)));
+      onChange && onChange(selected);
+    };
+    el.appendChild(b);
+  });
+}
+
+/* ---------------- Screens ---------------- */
+function show(id){ ["landing","solo","dailyDone","game"].forEach(s => $(s).hidden = s !== id); window.scrollTo(0, 0); if (id === "landing"){ renderDailyStatus(); showAd("adMenu"); } }
+
+/* =====================================================================
+   SOLO: daily five + practice
+   ===================================================================== */
+function todayStr(){ const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+const DAY0 = Date.UTC(2026, 9, 4);
+function dayNum(s){ const [y, m, d] = s.split("-").map(Number); return Math.round((Date.UTC(y, m - 1, d) - DAY0) / 864e5) + 1; }
+function seeded(str){ let h = 1779033703 ^ str.length; for (let i = 0; i < str.length; i++){ h = Math.imul(h ^ str.charCodeAt(i), 3432918353); h = h << 13 | h >>> 19; } return () => { h = Math.imul(h ^ h >>> 16, 2246822507); h = Math.imul(h ^ h >>> 13, 3266489909); h ^= h >>> 16; let t = (h >>> 0) + 0x6D2B79F5; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function dailyItems(s){ const r = seeded("boxed:" + s); return [1,2,3,4,5].map(t => pickProblem([t], null, r)); }
+function dailyRec(s){ try { return JSON.parse(store.get("boxed.daily." + s)) || null; } catch(e){ return null; } }
+function streakInfo(){ try { return JSON.parse(store.get("boxed.streak")) || {cur:0, best:0, last:null}; } catch(e){ return {cur:0, best:0, last:null}; } }
+
+let solo = null, soloPad = null;
+const practiceSel = (() => { try { const v = JSON.parse(store.get("boxed.practiceTiers")); if (Array.isArray(v) && v.length) return v; } catch(e){} return [1, 2]; })();
+
+function renderDailyStatus(){
+  const s = todayStr(), rec = dailyRec(s), st = streakInfo();
+  const done = rec && rec.results && rec.results.length >= 5;
+  $("dailyStatus").textContent = done ? "Done for today: " + rec.results.filter(r => r.ok).length + " of 5 right. Come back tomorrow." + (st.cur > 1 ? " Streak: " + st.cur + " days." : "") :
+    (rec && rec.results && rec.results.length ? "In progress: " + rec.results.length + " of 5 answered." : "Boxed #" + dayNum(s) + (st.cur ? " · streak " + st.cur : ""));
+  $("dailyGo").textContent = done ? "See today's results" : (rec && rec.results && rec.results.length ? "Keep going" : "Play today's five");
+}
+
+function startDaily(){
+  const s = todayStr(), rec = dailyRec(s) || {results: []};
+  solo = {mode: "daily", date: s, items: dailyItems(s), i: rec.results.length, results: rec.results, answered: false};
+  if (solo.i >= 5) return showDailyResults();
+  solo.items.forEach(p => preload(p.c));
+  show("solo"); renderSolo();
+}
+function startPractice(){
+  solo = {mode: "practice", tiers: practiceSel, items: [], i: 0, results: [], answered: false, used: []};
+  nextPractice();
+  show("solo"); renderSolo();
+}
+function nextPractice(){
+  const p = pickProblem(solo.tiers, solo.used);
+  solo.items[solo.i] = p; solo.used.push(keyOf(p.c, p.n));
+  const ahead = pickProblem(solo.tiers, solo.used); if (ahead) preload(ahead.c);
+}
+function renderSolo(){
+  const p = solo.items[solo.i], t = TBYID[p.tier];
+  solo.answered = false; solo.t0 = Date.now();
+  $("soloTitle").textContent = solo.mode === "daily" ? "Boxed #" + dayNum(solo.date) + ": problem " + (solo.i + 1) + " of 5" : "Practice";
+  $("soloTier").textContent = t.label + " · " + t.pts + " pts";
+  $("soloTiers").hidden = solo.mode !== "practice";
+  if (solo.mode === "practice") tierChips($("soloTiers"), solo.tiers, sel => { store.set("boxed.practiceTiers", JSON.stringify(sel)); });
+  showProblem($("soloSheet"), p.c, p.n, "solo" + solo.mode + solo.i + p.c + p.n);
+  if (soloPad) soloPad.destroy();
+  soloPad = makePad($("soloPad"), CBYID[p.c].type, v => { $("soloCheck").disabled = v == null; });
+  $("soloCheck").disabled = true; $("soloCheck").hidden = false; $("soloSkip").hidden = false; $("soloNext").hidden = true;
+  $("soloFeedback").innerHTML = "";
+  renderSoloSide();
+}
+function renderSoloSide(){
+  const side = $("soloSide");
+  if (solo.mode === "daily"){
+    const bars = solo.items.map((_, k) => { const r = solo.results[k]; return '<i class="' + (r ? (r.ok ? "r" : r.v == null ? "s" : "w") : k === solo.i ? "cur" : "") + '"></i>'; }).join("");
+    const pts = solo.results.reduce((a, r, k) => a + (r && r.ok ? TBYID[solo.items[k].tier].pts : 0), 0);
+    side.innerHTML = '<div class="lbl">Today\'s five</div><div class="progress">' + bars + '</div><div class="stats" style="margin-top:14px"><div><b>' + pts + '</b><span>points</span></div><div><b>' + solo.results.filter(r => r.ok).length + '</b><span>right</span></div></div><p class="muted" style="font-size:14px;margin-top:12px">One try per problem. No calculators, just like the real thing.</p>';
+  } else {
+    const right = solo.results.filter(r => r.ok).length, n = solo.results.length;
+    side.innerHTML = '<div class="stats"><div><b>' + right + '/' + n + '</b><span>right this session</span></div><div><b>' + solo.results.reduce((a, r) => a + (r.ok ? r.pts : 0), 0) + '</b><span>points</span></div></div><p class="muted" style="font-size:14px;margin-top:12px">Change the difficulty above any time; it applies from the next problem.</p>';
+  }
+}
+function soloAnswer(skip){
+  if (solo.answered) return;
+  const p = solo.items[solo.i], v = skip ? null : soloPad.get();
+  const ok = v != null && isRight(p.c, p.n, v);
+  solo.answered = true;
+  const r = {v, ok, ms: Date.now() - solo.t0, pts: ok ? TBYID[p.tier].pts : 0};
+  solo.results[solo.i] = r;
+  soloPad.lock(true);
+  if (CBYID[p.c].type === "a") soloPad.mark(answerOf(p.c, p.n), v);
+  const cls = ok ? "r" : v == null ? "s" : "w";
+  const head = ok ? "Right. +" + r.pts + " points" : v == null ? "Skipped" : "Not this time";
+  $("soloFeedback").innerHTML = '<div class="feedback ' + cls + ' pop"><b>' + head + '</b><span>The answer is <strong>' + fmtAns(p.c, p.n) + '</strong>' + (v != null && !ok ? '; you put ' + esc(fmtVal(p.c, v)) : '') + '.</span><span class="src">' + esc(p.c) + ', Problem ' + p.n + ' · <a href="' + esc(problemURL(p.c, p.n)) + '" target="_blank" rel="noopener">Solutions on the AoPS Wiki</a></span></div>';
+  $("soloCheck").hidden = true; $("soloSkip").hidden = true; $("soloNext").hidden = false;
+  if (solo.mode === "daily"){
+    store.set("boxed.daily." + solo.date, JSON.stringify({results: solo.results}));
+    $("soloNext").textContent = solo.i >= 4 ? "See results" : "Next problem";
+    if (solo.i >= 4) finishDaily();
+  } else $("soloNext").textContent = "Next problem";
+  renderSoloSide();
+  $("soloNext").focus();
+}
+function finishDaily(){
+  const st = streakInfo(), s = solo.date;
+  if (st.last !== s){
+    const y = new Date(); y.setDate(y.getDate() - 1);
+    const ys = y.getFullYear() + "-" + String(y.getMonth() + 1).padStart(2, "0") + "-" + String(y.getDate()).padStart(2, "0");
+    st.cur = st.last === ys ? st.cur + 1 : 1; st.best = Math.max(st.best || 0, st.cur); st.last = s;
+    store.set("boxed.streak", JSON.stringify(st));
+  }
+}
+function showDailyResults(){
+  const s = solo ? solo.date : todayStr(), rec = dailyRec(s), items = dailyItems(s), st = streakInfo();
+  const res = rec.results;
+  const pts = res.reduce((a, r, k) => a + (r.ok ? TBYID[items[k].tier].pts : 0), 0);
+  const right = res.filter(r => r.ok).length;
+  const grid = res.map(r => r.ok ? "🟩" : r.v == null ? "⬜" : "🟥").join("");
+  const share = "Boxed #" + dayNum(s) + ": " + right + "/5, " + pts + " pts\n" + grid + "\nhttps://ascoding11.github.io/boxed/";
+  $("dailyDone").innerHTML = '<div class="results">' +
+    '<h2 style="font-size:28px">Boxed #' + dayNum(s) + '</h2>' +
+    '<div class="stats"><div><b class="big">' + pts + '</b><span>points out of 1,150</span></div><div><b>' + right + '/5</b><span>right</span></div><div><b>' + (st.cur || 0) + '</b><span>day streak</span></div><div><b>' + (st.best || 0) + '</b><span>best streak</span></div></div>' +
+    '<div class="res-list">' + res.map((r, k) => { const p = items[k]; return '<div class="row"><span class="bub sm ' + (r.ok ? "right" : r.v == null ? "" : "wrong") + '">' + (k + 1) + '</span><span>' + esc(p.c) + ', Problem ' + p.n + ' <span class="muted">· ' + TBYID[p.tier].label + '</span><br><a class="src" href="' + esc(problemURL(p.c, p.n)) + '" target="_blank" rel="noopener">Solutions</a></span><span>' + fmtAns(p.c, p.n) + (r.ok ? "" : ' <span class="muted">(you: ' + esc(fmtVal(p.c, r.v)) + ')</span>') + '</span></div>'; }).join("") + '</div>' +
+    '<div class="actions"><button class="primary" id="shareBtn">Share result</button><button id="toPractice">Keep practicing</button><button class="quiet" id="toMenu">Back to menu</button></div><div class="msg" id="shareMsg" role="status"></div></div>';
+  show("dailyDone");
+  $("shareBtn").onclick = async () => {
+    try { if (navigator.share && /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) { await navigator.share({text: share}); return; } await navigator.clipboard.writeText(share); $("shareMsg").textContent = "Copied. Paste it anywhere."; }
+    catch(e){ $("shareMsg").textContent = share; }
+  };
+  $("toPractice").onclick = startPractice;
+  $("toMenu").onclick = () => show("landing");
+}
+$("dailyGo").onclick = () => { const rec = dailyRec(todayStr()); if (rec && rec.results && rec.results.length >= 5){ solo = null; showDailyResults(); } else startDaily(); };
+$("practiceGo").onclick = startPractice;
+$("soloCheck").onclick = () => soloAnswer(false);
+$("soloSkip").onclick = () => soloAnswer(true);
+$("soloNext").onclick = () => {
+  if (solo.mode === "daily"){ if (solo.i >= 4) return showDailyResults(); solo.i++; renderSolo(); }
+  else { solo.i++; nextPractice(); renderSolo(); }
+};
+$("soloQuit").onclick = () => { if (soloPad) soloPad.destroy(); show("landing"); };
+tierChips($("practiceTiers"), practiceSel, sel => store.set("boxed.practiceTiers", JSON.stringify(sel)));
+
+/* =====================================================================
+   LIVE GAME (Firebase). Uses the same Firestore rules as Hype Cycle
+   Exchange: only the host can change the game document (problems,
+   timer, scores); each player can only write their own answers.
+   ===================================================================== */
+const hostStartSel = [1, 2];
+tierChips($("hostTiersStart"), hostStartSel);
+
+if (!window.firebase){ showNotice("The live game couldn't load (Firebase was blocked). Daily five and Practice still work."); }
+const fbOK = !!window.firebase;
+let auth, fs, FV;
+if (fbOK){ firebase.initializeApp(FIREBASE_CONFIG); auth = firebase.auth(); fs = firebase.firestore(); FV = firebase.firestore.FieldValue; }
+
+let uid = null, code = null, isHost = false, state = null, players = [], unsubs = [], busy = false;
+let livePad = null, padKey = null, sheetKey = null, zoom = +(store.get("boxed.zoom") || 1.35);
+const gameRef = () => fs.collection("games").doc(code);
+const ms = ts => ts && ts.toMillis ? ts.toMillis() : (typeof ts === "number" ? ts : 0);
+function say(id, t, kind){ const el = $(id); el.textContent = t || ""; el.className = "msg" + (kind ? " " + kind : ""); }
+function newCode(){ const A = "ABCDEFGHJKMNPQRSTUVWXYZ"; let s = ""; for (let i = 0; i < 5; i++) s += A[Math.floor(Math.random() * A.length)]; return s; }
+function randKey(){ return Math.random().toString(36).slice(2, 10); }
+function myPlayer(){ return players.find(p => p.id === uid); }
+function limitFor(tier){ return state && state.time !== "auto" ? +state.time : TBYID[tier].secs; }
+
+async function whenSignedIn(){
+  if (uid) return uid;
+  if (!fbOK) throw new Error("no firebase");
+  const c = await auth.signInAnonymously(); uid = c.user.uid; return uid;
+}
+
+$("joinForm").addEventListener("submit", async e => {
+  e.preventDefault(); if (busy) return;
+  const c = $("joinCode").value.trim().toUpperCase(), name = $("joinName").value.trim().slice(0, 24);
+  if (c.length !== 5 || !name) return say("joinMsg", "Enter the 5-letter code and a name.", "err");
+  busy = true; say("joinMsg", "Joining…");
+  try {
+    await whenSignedIn();
+    const g = await fs.collection("games").doc(c).get();
+    if (!g.exists || g.data().kind !== "math"){ busy = false; return say("joinMsg", "There's no Boxed game with that code. Check the code on the host's screen.", "err"); }
+    const pref = fs.collection("games").doc(c).collection("players").doc(uid);
+    const ex = await pref.get();
+    if (ex.exists) await pref.set({name}, {merge: true});
+    else await pref.set({name, joinedAt: Date.now(), ans: {}});
+    store.set("boxed.code", c); store.set("boxed.name", name); say("joinMsg", "");
+    enterGame(c);
+  } catch(err){ say("joinMsg", "Couldn't join. Check your connection and try again.", "err"); }
+  busy = false;
+});
+$("hostForm").addEventListener("submit", async e => {
+  e.preventDefault(); if (busy) return;
+  busy = true; say("hostMsg", "Creating the game…");
+  try {
+    await whenSignedIn();
+    let c = newCode();
+    for (let i = 0; i < 5 && (await fs.collection("games").doc(c).get()).exists; i++) c = newCode();
+    await fs.collection("games").doc(c).set({
+      kind: "math", hostUid: uid, createdAt: Date.now(), phase: "lobby", round: 0,
+      total: +$("roundsSel").value, tiers: hostStartSel.slice(), time: "auto", speed: true,
+      current: null, used: [], scores: {}, reveal: null, endsAt: 0, limit: 0
+    });
+    store.set("boxed.code", c); say("hostMsg", "");
+    enterGame(c);
+  } catch(err){ say("hostMsg", "Couldn't create the game. Check your connection and try again.", "err"); }
+  busy = false;
+});
+
+function enterGame(c){
+  unsubs.forEach(u => u()); unsubs = [];
+  code = c; state = null; players = []; padKey = null; sheetKey = null;
+  $("codeLbl").textContent = c;
+  show("game");
+  unsubs.push(gameRef().onSnapshot(s => {
+    if (!s.exists){ leave("This game was deleted."); return; }
+    state = s.data({serverTimestamps: "estimate"});
+    isHost = state.hostUid === uid;
+    render();
+  }, () => leave("Lost access to this game.")));
+  unsubs.push(gameRef().collection("players").onSnapshot(q => {
+    players = q.docs.map(d => ({id: d.id, ...d.data({serverTimestamps: "estimate"})}));
+    render();
+    if (isHost) maybeAutoClose();
+  }));
+}
+function leave(msg){
+  unsubs.forEach(u => u()); unsubs = []; code = null; state = null; players = []; isHost = false;
+  if (livePad){ livePad.destroy(); livePad = null; }
+  store.del("boxed.code");
+  show("landing");
+  if (msg) showNotice(msg);
+}
+$("leaveBtn").onclick = () => leave("");
+
+/* ---- host actions ---- */
+async function hostUpdate(patch, okText){
+  if (busy) return; busy = true;
+  try { await gameRef().update(patch); if (okText) say("hostCtlMsg", okText, "ok"); else say("hostCtlMsg", ""); }
+  catch(e){ say("hostCtlMsg", "That didn't save. Check your connection and try again.", "err"); }
+  busy = false;
+}
+function nextQuestion(){
+  const p = pickProblem(state.tiers || [1], state.used || []);
+  if (!p) return say("hostCtlMsg", "No problems left in those bands. Turn on another band.", "err");
+  const limit = limitFor(p.tier);
+  hostUpdate({
+    phase: "question", round: (state.phase === "question" || state.phase === "closed") ? state.round : state.round + 1,
+    current: {c: p.c, n: p.n, tier: p.tier, k: randKey()},
+    used: FV.arrayUnion(keyOf(p.c, p.n)),
+    openedAt: FV.serverTimestamp(), closedAt: null, limit, endsAt: Date.now() + limit * 1000, reveal: null
+  });
+}
+function closeNow(){ hostUpdate({phase: "closed", closedAt: FV.serverTimestamp(), endsAt: Date.now()}); }
+function addTime(){ hostUpdate({endsAt: Math.max(state.endsAt, Date.now()) + 30000, limit: (state.limit || 0) + 30}); }
+function maybeAutoClose(){
+  if (!isHost || !state || state.phase !== "question" || busy || !players.length) return;
+  const k = state.current && state.current.k;
+  if (players.every(p => p.ans && p.ans[k] && p.ans[k].v != null) && Date.now() - ms(state.openedAt) > 3000) closeNow();
+}
+function grade(){
+  const cur = state.current, t = TBYID[cur.tier], opened = ms(state.openedAt);
+  const cutoff = Math.min(opened + (state.limit || t.secs) * 1000 + 2000, state.closedAt ? ms(state.closedAt) + 1500 : Infinity);
+  const counts = {}, gains = {}, scores = {...(state.scores || {})};
+  let fastest = null, answered = 0;
+  players.forEach(p => {
+    const a = p.ans && p.ans[cur.k];
+    let ok = false;
+    if (a && a.v != null){
+      const ta = ms(a.t);
+      if (ta && ta <= cutoff){
+        answered++;
+        counts[a.v] = (counts[a.v] || 0) + 1;
+        ok = isRight(cur.c, cur.n, a.v);
+        if (ok){
+          const el = Math.max(0, ta - opened);
+          const bonus = state.speed ? Math.round(t.pts * 0.5 * Math.max(0, 1 - el / ((state.limit || t.secs) * 1000))) : 0;
+          gains[p.id] = t.pts + bonus;
+          if (!fastest || el < fastest.ms) fastest = {id: p.id, name: p.name, ms: el};
+        }
+      }
+    }
+    const s = scores[p.id] || {pts: 0, right: 0};
+    scores[p.id] = {pts: s.pts + (gains[p.id] || 0), right: s.right + (ok ? 1 : 0), name: p.name, streak: ok ? (s.streak || 0) + 1 : 0};
+  });
+  hostUpdate({phase: "reveal", reveal: {k: cur.k, counts, gains, fastest, answered, of: players.length}, scores});
+}
+function resetGame(){
+  hostUpdate({phase: "lobby", round: 0, current: null, used: [], scores: {}, reveal: null, endsAt: 0}, "Game reset. Everyone is still in the lobby.");
+}
+let resetArmed = false;
+function renderHostButtons(){
+  const el = $("hostButtons"); el.innerHTML = "";
+  const add = (txt, cls, fn) => { const b = document.createElement("button"); b.textContent = txt; if (cls) b.className = cls; b.onclick = fn; el.appendChild(b); return b; };
+  const ph = state.phase, last = state.round >= state.total;
+  if (ph === "lobby") add("Start problem 1", "primary", nextQuestion).disabled = !players.length;
+  if (ph === "question"){ add("Close answers now", "primary", closeNow); add("+30 seconds", "", addTime); add("Swap problem", "", nextQuestion); }
+  if (ph === "closed") { add("Reveal the answer", "primary", grade); }
+  if (ph === "reveal"){ if (last) add("Show the podium", "primary", () => hostUpdate({phase: "done"})); else add("Next problem (" + (state.round + 1) + " of " + state.total + ")", "primary", nextQuestion); }
+  if (ph === "reveal" && !last) add("End game now", "", () => hostUpdate({phase: "done"}));
+  if (ph === "done") add("Play again with everyone", "primary", resetGame);
+  if (ph !== "lobby"){ const r = add(resetArmed ? "Tap again to reset" : "Reset game", "danger", () => { if (!resetArmed){ resetArmed = true; renderHostButtons(); setTimeout(() => { resetArmed = false; if (state) renderHostButtons(); }, 3000); } else { resetArmed = false; resetGame(); } }); }
+}
+const hostTierSel = [];
+function renderHostSettings(){
+  hostTierSel.length = 0; (state.tiers || [1]).forEach(t => hostTierSel.push(t));
+  tierChips($("hostTiers"), hostTierSel, sel => hostUpdate({tiers: sel.slice()}));
+  $("timeSel").value = String(state.time || "auto");
+  $("optSpeed").checked = !!state.speed;
+}
+$("timeSel").onchange = () => hostUpdate({time: $("timeSel").value === "auto" ? "auto" : +$("timeSel").value});
+$("optSpeed").onchange = () => hostUpdate({speed: $("optSpeed").checked});
+function applyZoom(){ document.querySelector("#game .live").style.setProperty("--z", zoom); store.set("boxed.zoom", zoom); }
+$("zIn").onclick = () => { zoom = Math.min(2.6, +(zoom + 0.15).toFixed(2)); applyZoom(); };
+$("zOut").onclick = () => { zoom = Math.max(0.85, +(zoom - 0.15).toFixed(2)); applyZoom(); };
+
+/* ---- player actions ---- */
+async function lockIn(){
+  const v = livePad && livePad.get();
+  if (v == null || !state || state.phase !== "question") return;
+  const k = state.current.k;
+  $("lockBtn").disabled = true; say("lockMsg", "Saving…");
+  try {
+    await gameRef().collection("players").doc(uid).set({ans: {[k]: {v, t: FV.serverTimestamp()}}}, {merge: true});
+    say("lockMsg", "Locked in " + fmtVal(state.current.c, v) + ". You can change it until time runs out.", "ok");
+  } catch(e){ say("lockMsg", "That didn't save. Try again.", "err"); }
+  $("lockBtn").disabled = false;
+}
+$("lockBtn").onclick = lockIn;
+
+/* ---- rendering ---- */
+function board(){
+  const sc = state.scores || {};
+  const rows = players.map(p => ({id: p.id, name: p.name, pts: (sc[p.id] && sc[p.id].pts) || 0, right: (sc[p.id] && sc[p.id].right) || 0}))
+    .sort((a, b) => b.pts - a.pts || b.right - a.right || a.name.localeCompare(b.name));
+  return rows;
+}
+function renderBoard(){
+  const rows = board(), gains = state.phase === "reveal" && state.reveal ? state.reveal.gains || {} : {};
+  $("board").innerHTML = rows.length ? rows.map((r, i) => '<div class="row' + (r.id === uid ? " me" : "") + '"><span class="rank">' + (i + 1) + '</span><span style="overflow-wrap:anywhere">' + esc(r.name) + '</span><span class="pts">' + r.pts.toLocaleString() + (gains[r.id] ? '<span class="gain">+' + gains[r.id] + '</span>' : '') + '</span></div>').join("") : '<p class="muted" style="font-size:14px">No players yet.</p>';
+}
+const PHASE = {lobby: "Lobby", question: "Answering", closed: "Time's up", reveal: "Answer", done: "Final results"};
+function render(){
+  if (!state) return;
+  $("phaseChip").textContent = PHASE[state.phase] || state.phase;
+  $("roundLbl").textContent = state.round ? "Problem " + state.round + " of " + state.total : state.total + " problems";
+  $("hostPanel").hidden = !isHost;
+  $("game").classList.toggle("host", isHost);
+  if (isHost){ renderHostButtons(); renderHostSettings(); applyZoom(); }
+  renderBoard();
+  renderStage();
+  tick();
+}
+function renderStage(){
+  const ph = state.phase, cur = state.current, stage = $("stage"), sheet = $("liveSheet"), padBox = $("playerPad"), rb = $("revealBox");
+  const showingProblem = cur && (ph === "question" || ph === "closed" || ph === "reveal");
+  // problem sheet
+  sheet.hidden = !showingProblem;
+  if (showingProblem && sheetKey !== cur.k){ sheetKey = cur.k; showProblem(sheet, cur.c, cur.n, cur.k); }
+  // stage header
+  if (ph === "lobby"){
+    stage.innerHTML = isHost
+      ? '<section class="panel"><div class="joinbig"><span class="bigcode">' + esc(code) + '</span><div><div class="state-big">Join at ' + esc(location.host + location.pathname.replace(/index\.html$/, "")) + '</div><p class="muted">' + (players.length ? players.length + ' joined so far.' : 'Start once at least one player has joined.') + '</p></div></div><div class="dots" style="margin-top:16px">' + players.map(p => '<span>' + esc(p.name) + '</span>').join("") + '</div></section>'
+      : '<section class="panel"><div class="state-big">You\'re in, ' + esc((myPlayer() || {}).name || "") + '.</div><p class="muted" style="margin-top:6px">Waiting for the host to start. ' + players.length + ' player' + (players.length === 1 ? "" : "s") + ' here.</p></section>';
+  } else if (showingProblem){
+    const t = TBYID[cur.tier];
+    const src = ph === "reveal" ? '<span class="src">' + esc(cur.c) + ', Problem ' + cur.n + ' · <a href="' + esc(problemURL(cur.c, cur.n)) + '" target="_blank" rel="noopener">Solutions</a></span>' : '<span class="tier-tag">' + t.label + ' · ' + t.pts + ' pts</span>';
+    let extra = "";
+    if (isHost && ph === "question"){ const k = cur.k, inn = players.filter(p => p.ans && p.ans[k] && p.ans[k].v != null); extra = '<div class="dots" style="margin-top:10px">' + players.map(p => '<span class="' + (inn.includes(p) ? "in" : "") + '">' + esc(p.name) + '</span>').join("") + '</div><p class="muted" style="font-size:14px;margin-top:6px">' + inn.length + ' of ' + players.length + ' answered</p>'; }
+    stage.innerHTML = '<div class="sheet-head"><h2>Problem ' + state.round + '</h2>' + src + '</div>' + extra;
+  } else if (ph === "done"){
+    const rows = board(), top = rows.slice(0, 3), me = rows.findIndex(r => r.id === uid);
+    const order = [top[1], top[0], top[2]], h = [120, 170, 90], place = [2, 1, 3];
+    stage.innerHTML = '<section class="panel"><h2 style="font-size:28px">Final results</h2><div class="podium">' + order.map((r, i) => r ? '<div class="step pop"><div class="name">' + esc(r.name) + '</div><div class="p">' + r.pts.toLocaleString() + ' pts · ' + r.right + ' right</div><div class="block" style="height:' + h[i] + 'px">' + place[i] + '</div></div>' : '<div class="step"></div>').join("") + '</div>' + (!isHost && me >= 0 ? '<p class="state-big" style="margin-top:18px;text-align:center">You finished #' + (me + 1) + ' of ' + rows.length + '.</p>' : '') + '</section>';
+  } else stage.innerHTML = "";
+  // player pad
+  const playerAnswering = !isHost && cur && (ph === "question" || ph === "closed" || ph === "reveal");
+  padBox.hidden = !playerAnswering;
+  if (playerAnswering){
+    if (padKey !== cur.k){
+      padKey = cur.k; if (livePad) livePad.destroy();
+      livePad = makePad($("livePad"), CBYID[cur.c].type, v => { $("lockBtn").disabled = v == null || state.phase !== "question"; });
+      const mine = myPlayer(), prev = mine && mine.ans && mine.ans[cur.k];
+      if (prev && prev.v != null){ livePad.set(prev.v); say("lockMsg", "Locked in " + fmtVal(cur.c, prev.v) + ".", "ok"); } else say("lockMsg", "");
+    }
+    const open = ph === "question";
+    livePad.lock(!open);
+    $("lockBtn").hidden = !open;
+    $("lockBtn").disabled = !open || livePad.get() == null;
+    if (!open){
+      const mine = myPlayer(), a = mine && mine.ans && mine.ans[cur.k];
+      if (ph === "closed") say("lockMsg", a && a.v != null ? "Time. Your answer: " + fmtVal(cur.c, a.v) + ". Waiting for the reveal." : "Time. You didn't lock in an answer.");
+      if (ph === "reveal"){ say("lockMsg", ""); if (CBYID[cur.c].type === "a") livePad.mark(answerOf(cur.c, cur.n), a && a.v); }
+    }
+  }
+  // reveal panel
+  if (ph === "reveal" && state.reveal && state.reveal.k === cur.k){
+    const r = state.reveal, type = CBYID[cur.c].type, right = answerOf(cur.c, cur.n);
+    let me = "";
+    if (!isHost){
+      const mine = myPlayer(), a = mine && mine.ans && mine.ans[cur.k], g = (r.gains || {})[uid];
+      me = '<div class="feedback ' + (g ? "r" : a && a.v != null ? "w" : "s") + '" style="margin-top:12px"><b>' + (g ? "Right. +" + g + " points" : a && a.v != null ? "Not this time" : "No answer") + '</b>' + (a && a.v != null && !g ? '<span>You put ' + esc(fmtVal(cur.c, a.v)) + '.</span>' : '') + '</div>';
+    }
+    let dist = "";
+    if (type === "a"){
+      const max = Math.max(1, ...Object.values(r.counts || {}));
+      dist = '<div class="dist" style="margin-top:14px">' + "ABCDE".split("").map(L => { const n = (r.counts || {})[L] || 0; return '<div class="bar' + (L === right ? " ok" : "") + '"><span>(' + L + ')</span><div><i style="width:' + (100 * n / max) + '%"></i></div><span>' + n + '</span></div>'; }).join("") + '</div>';
+    } else {
+      const entries = Object.entries(r.counts || {}).sort((a, b) => b[1] - a[1]).slice(0, 5);
+      dist = entries.length ? '<p class="muted" style="margin-top:12px;font-size:14px">Most common answers: ' + entries.map(([v, n]) => esc(String(v).padStart(3, "0")) + (Number(v) === right ? " ✓" : "") + " (" + n + ")").join(", ") + '</p>' : "";
+    }
+    const nRight = Object.keys(r.gains || {}).length;
+    rb.innerHTML = '<section class="panel pop"><div class="answer-reveal"><span class="muted">Answer</span><span class="val">' + fmtAns(cur.c, cur.n) + '</span><span>' + nRight + ' of ' + (r.of || 0) + ' got it' + (r.fastest ? '. Fastest: <b>' + esc(r.fastest.name) + '</b> in ' + (r.fastest.ms / 1000).toFixed(1) + ' s' : '') + '</span></div>' + dist + me + '</section>';
+  } else rb.innerHTML = "";
+}
+function tick(){
+  if (!state){ return; }
+  const live = state.phase === "question";
+  const left = live ? Math.max(0, state.endsAt - Date.now()) : 0;
+  const s = Math.ceil(left / 1000);
+  $("timer").textContent = live ? Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0") : "–:––";
+  $("timer").classList.toggle("low", live && s <= 10);
+  $("timebar").style.width = live && state.limit ? (100 * left / (state.limit * 1000)) + "%" : "0%";
+  if (live && isHost) maybeAutoClose();
+  if (live && left <= 0){
+    if (isHost && !busy) closeNow();
+    else if (!isHost && livePad){ livePad.lock(true); $("lockBtn").disabled = true; }
+  }
+}
+setInterval(tick, 250);
+
+/* ---- start up ---- */
+const params = new URLSearchParams(location.search);
+if (params.get("code")) $("joinCode").value = params.get("code").toUpperCase().slice(0, 5);
+if (store.get("boxed.name")) $("joinName").value = store.get("boxed.name");
+show("landing");
+if (params.get("mode") === "daily") $("dailyGo").click();
+else if (params.get("mode") === "practice") startPractice();
+else if (params.get("code") || location.hash === "#mp") setTimeout(() => $("mp").scrollIntoView({block: "start"}), 50);
+
+if (fbOK){
+  auth.onAuthStateChanged(async u => {
+    if (!u) return;
+    uid = u.uid;
+    const saved = store.get("boxed.code");
+    if (saved && !code){
+      try {
+        const g = await fs.collection("games").doc(saved).get();
+        if (g.exists && g.data().kind === "math" && (g.data().hostUid === uid || (await g.ref.collection("players").doc(uid).get()).exists)) enterGame(saved);
+        else store.del("boxed.code");
+      } catch(e){}
+    }
+  });
+  if (store.get("boxed.code")) auth.signInAnonymously().catch(() => {});
+}
+$("mpJump").onclick = e => { e.preventDefault(); $("mp").scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start"}); $("joinCode").focus({preventScroll: true}); };
+})();
+</script>
+<script src="/analytics/tracker.js" data-site="boxed" defer></script>
+</body>
+</html>
