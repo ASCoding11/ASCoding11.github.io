@@ -293,6 +293,12 @@ img{max-width:100%}
 .adbox{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 8px 10px;background:var(--panel);border:2px solid var(--panel-edge);box-shadow:6px 6px 0 rgba(0,0,0,.4);width:100%}
 .adbox .ad-lbl{font-family:var(--f-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
 .adbox ins{display:inline-block;width:320px;max-width:100%;height:100px}
+
+.phint{margin:-8px 0 0;color:var(--dim);font-size:15px}
+.autonote{grid-column:1/-1;margin:2px 0 0;font-family:var(--f-mono);font-size:11px;letter-spacing:.04em;color:var(--biolum)}
+.fb .sugg{appearance:none;border:2px solid var(--biolum);background:rgba(123,227,255,.12);color:var(--ink);font-family:var(--f-display);font-weight:600;font-size:15px;padding:3px 10px;margin:0 2px;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.45)}
+.fb .sugg:hover{background:rgba(123,227,255,.25)}
+.fb{color:var(--miss)}
 </style>
 </head>
 <body>
@@ -372,6 +378,8 @@ img{max-width:100%}
         <li><span>7 prompts</span> each asks you to name one thing in a category.</li>
         <li><span>25 seconds</span> per prompt. Wrong guesses cost time, not points.</li>
         <li><span>Rarer answers</span> land in deeper tiers and score more.</li>
+        <li><span>Too Clever</span> is the "obscure" pick everyone else also thought of. It scores just 15.</li>
+        <li><span>Typos are fine.</span> Close misspellings are autocorrected, and near misses get a "Did you mean…?" you can accept.</li>
         <li><span>1 point</span> sinks you 10 m. A perfect 700 reaches the trench floor at 7,000 m.</li>
       </ul>
       <div class="ladder" id="ladder"></div>
@@ -391,6 +399,7 @@ img{max-width:100%}
       <div class="card" id="card">
         <div class="ask" id="askLabel">Name…</div>
         <h2 class="prompt" id="promptText"></h2>
+        <p class="phint" id="promptHint" hidden></p>
         <form class="answer" id="answerForm" autocomplete="off">
           <input id="answerInput" type="text" placeholder="Type a rare answer" autocapitalize="off" spellcheck="false" aria-label="Your answer">
           <button class="btn primary" id="diveBtn" type="submit">Dive</button>
@@ -405,6 +414,7 @@ img{max-width:100%}
           <div class="badge" id="badge"></div>
           <div class="tiername" id="tierName"></div>
           <div class="tiernote" id="tierNote"></div>
+          <p class="autonote" id="autoNote" hidden></p>
           <div class="picks">
             <div>Popular picks: <b id="popPicks"></b></div>
             <div>Deep cuts: <b id="deepPicks"></b></div>
@@ -479,11 +489,11 @@ function showAd(id) {
 }
 /* ---------- Tiers ---------- */
 const TIERS = [
-  {name:"Plankton",   pts:5,   color:"#A3BEBA", emoji:"🫧", note:"The answer everyone reaches for first."},
-  {name:"Sardine",    pts:15,  color:"#86D4E8", emoji:"🐟", note:"A popular pick. You're swimming with the school."},
-  {name:"Octopus",    pts:30,  color:"#BCA0FF", emoji:"🐙", note:"Off the obvious path."},
-  {name:"Shark",      pts:50,  color:"#72A9FF", emoji:"🦈", note:"A deep cut. Few divers go here."},
-  {name:"Anglerfish", pts:75,  color:"#FFB25E", emoji:"🏮", note:"Rare. You found the light in the dark."},
+  {name:"Plankton",   pts:10,  color:"#A3BEBA", emoji:"🫧", note:"The answer everyone reaches for first."},
+  {name:"Too Clever", pts:15,  color:"#F2D35B", emoji:"🐡", note:"Everyone thinks this one is a deep cut. It isn't."},
+  {name:"Sardine",    pts:30,  color:"#86D4E8", emoji:"🐟", note:"A popular pick. You're swimming with the school."},
+  {name:"Octopus",    pts:60,  color:"#BCA0FF", emoji:"🐙", note:"Off the obvious path."},
+  {name:"Anglerfish", pts:85,  color:"#FFB25E", emoji:"🏮", note:"Rare. You found the light in the dark."},
   {name:"Leviathan",  pts:100, color:"#FF82B4", emoji:"🐋", note:"Almost nobody says this. Maximum depth."}
 ];
 const ROUND_SECONDS = 25, ROUNDS = 7;
@@ -700,51 +710,285 @@ const THEME_PARKS = [
 ];
 const PACKS = { themeparks:{name:"Theme Parks", prompts:THEME_PARKS} };
 
-/* ---------- Matching ---------- */
-function norm(s){
-  let n = s.normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase()
-    .replace(/&/g," and ").replace(/['’`]/g,"").replace(/[^a-z0-9+# ]+/g," ")
-    .replace(/\s+/g," ").trim();
-  n = n.replace(/^(the|a|an) /,"");
-  return n;
-}
-const keyOf = s => norm(s).replace(/ /g,"");
-[...PROMPTS, ...THEME_PARKS].forEach(p=>{
-  p.idx = new Map(); p.byTier = [];
-  p.t.forEach((group,ti)=>{
-    p.byTier[ti] = [];
-    group.split("|").forEach(entry=>{
-      const aliases = entry.split("/");
-      const rec = {display:aliases[0], tier:ti};
-      p.byTier[ti].push(aliases[0]);
-      aliases.forEach(a=>{ const k=keyOf(a); if(k && !p.idx.has(k)) p.idx.set(k,rec); });
-    });
-  });
-});
-function lev(a,b){
-  const m=a.length,n=b.length; let prev=Array.from({length:n+1},(_,j)=>j);
-  for(let i=1;i<=m;i++){ const cur=[i]; for(let j=1;j<=n;j++){ cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1)); } prev=cur; }
-  return prev[n];
-}
-function lookup(p, raw){
-  const n = norm(raw); if(!n) return null;
-  const k = n.replace(/ /g,"");
-  const tries = [k];
-  if(k.endsWith("es")) tries.push(k.slice(0,-2));
-  if(k.endsWith("s")) tries.push(k.slice(0,-1));
-  tries.push(k+"s");
-  if(p.last){ const w=n.split(" "); if(w.length>1){ tries.push(w[w.length-1]); tries.push(w.slice(-2).join("")); } }
-  for(const t of tries) if(p.idx.has(t)) return p.idx.get(t);
-  if(k.length>=5){
-    const lim = k.length>=9 ? 2 : 1; let best=null, bd=99;
-    for(const [key,v] of p.idx){
-      if(key.length<5 || Math.abs(key.length-k.length)>lim) continue;
-      const d=lev(k,key); if(d<=lim && d<bd){bd=d;best=v;}
-    }
-    return best;
+/* ---------- New prompts: five rarity groups (common → rare) plus "tc", the Too Clever picks ---------- */
+const NEW_PROMPTS = [
+{q:"a cheese", hint:"Any cheese from anywhere. The weirder the better.", strip:["cheese"], tc:"Casu marzu|Pule|Stinking Bishop|Limburger", t:[
+"Cheddar|Mozzarella|Swiss|Parmesan/Parmigiano-Reggiano/Parmigiano|American",
+"Brie|Gouda|Feta|Provolone|Pepper Jack|Monterey Jack/Jack|Colby|Ricotta|Cream cheese|Blue cheese/Blue|Goat cheese/Chevre|Camembert|Gruyere|Havarti|Muenster/Munster|Cottage cheese|String cheese|Mascarpone",
+"Manchego|Halloumi|Burrata|Stilton|Gorgonzola|Roquefort|Asiago|Pecorino/Pecorino Romano|Emmental/Emmentaler|Fontina|Edam|Jarlsberg|Paneer|Queso fresco|Cotija|Oaxaca/Queso Oaxaca|Romano|Colby Jack|Bocconcini|Boursin|Comte|Raclette|Wensleydale|Red Leicester|Double Gloucester|Velveeta|Neufchatel|Fromage blanc|Buffalo mozzarella/Mozzarella di bufala|Grana Padano|Labneh|Queso blanco",
+"Taleggio|Epoisses|Reblochon|Morbier|Port Salut|Tomme|Beaufort|Saint-Nectaire|Cantal|Mimolette|Pont-l'Eveque|Livarot|Valencay|Crottin|Saint-Andre|Brillat-Savarin|Cambozola|Danish Blue/Danablu|Maytag Blue|Shropshire Blue|Lancashire|Cheshire|Caerphilly|Sage Derby|Leerdammer|Maasdam|Appenzeller|Tete de Moine|Vacherin|Scamorza|Provola|Stracchino|Robiola|Montasio|Piave|Caciocavallo|Ricotta salata|Chihuahua|Panela|Manouri|Kefalotyri|Kasseri|Mizithra|Graviera|Akkawi|Nabulsi|Brunost/Gjetost|Humboldt Fog|Brick|Langres|Chaource|Maroilles|Mont d'Or|Fourme d'Ambert|Bleu d'Auvergne|Ossau-Iraty|Idiazabal|Mahon|Cabrales|Tetilla|Kashkaval|Bryndza|Oscypek|Sulguni",
+"Torta del Casar|Roncal|Zamorano|Majorero|Payoyo|Serra da Estrela|Azeitao|Queijo de Minas|Requeson|Kesong puti|Rushan|Chhena|Chhurpi|Bandel|Kalari|Chechil|Leipajuusto/Squeaky cheese|Juustoleipa|Hushallsost|Vasterbottensost|Svecia|Cougar Gold|Harbison|Rogue River Blue|Teleme|Liederkranz|Pinconning|Pepato|Ubriaco|Castelmagno|Bitto|Bra|Fiore Sardo|Puzzone di Moena|Salers|Laguiole|Bleu de Gex|Selles-sur-Cher|Sainte-Maure|Pouligny-Saint-Pierre|Banon|Rocamadour|Abondance|Explorateur|Milbenkase|Korbacik|Sirene|Byaslag|Cashel Blue|Tomme de Savoie"]},
+
+{q:"a pasta shape", hint:"Long, short, stuffed or tiny.", strip:["pasta"], tc:"Su filindeu|Bucatini|Cavatappi", t:[
+"Spaghetti|Penne|Macaroni|Fettuccine|Lasagna/Lasagne",
+"Rigatoni|Linguine|Farfalle/Bow tie|Ravioli|Fusilli|Rotini|Tortellini|Ziti|Angel hair/Capellini|Orzo|Gnocchi|Shells/Conchiglie|Elbow|Manicotti",
+"Orecchiette|Pappardelle|Tagliatelle|Bucatini|Cavatappi|Vermicelli|Cannelloni|Ditalini|Gemelli|Radiatori|Campanelle|Rotelle/Wagon wheels/Ruote|Cavatelli|Paccheri|Stelline|Acini di pepe|Mafaldine/Mafalde|Tortelloni|Agnolotti|Strozzapreti|Trofie|Fregola|Couscous|Spaghettini|Mostaccioli|Alphabet/Alfabeto|Fideo/Fideos",
+"Casarecce|Calamarata|Mezze maniche|Lumache|Lumaconi|Maltagliati|Cappelletti|Mezzelune|Anelli|Anellini|Ditali|Tubetti|Sedani|Pipe rigate/Pipe|Trenette|Tagliolini|Perciatelli|Spaghettoni|Quadrettini|Farfalline|Tortiglioni|Garganelli|Pici|Bigoli|Busiate|Malloreddus|Cappellacci",
+"Su filindeu|Lorighittas|Corzetti|Testaroli|Fileja|Lagane|Scialatielli|Cencioni|Strangozzi|Umbricelli|Tajarin|Fagottini|Sacchetti|Caramelle|Candele|Gramigna|Zitoni|Reginette|Creste di gallo|Cappelli del prete|Chifferi|Lanterne|Fiori|Gigli|Torchio|Trottole|Ciriole|Picagge|Mandilli di seta|Croxetti|Sagnarelli|Pizzoccheri|Spatzle"]},
+
+{q:"a dinosaur", hint:"Any genus. Birds are technically dinosaurs, but name an extinct one.", tc:"Spinosaurus|Dreadnoughtus|Zuul|Irritator", t:[
+"Tyrannosaurus/T. rex/T rex/Tyrannosaurus rex|Triceratops|Velociraptor/Raptor|Stegosaurus|Brachiosaurus",
+"Brontosaurus|Ankylosaurus|Spinosaurus|Diplodocus|Allosaurus|Parasaurolophus|Iguanodon|Apatosaurus|Pachycephalosaurus|Dilophosaurus|Carnotaurus|Gallimimus|Compsognathus|Giganotosaurus|Archaeopteryx",
+"Argentinosaurus|Utahraptor|Deinonychus|Therizinosaurus|Oviraptor|Protoceratops|Styracosaurus|Baryonyx|Maiasaura|Plateosaurus|Coelophysis|Edmontosaurus|Corythosaurus|Microraptor|Troodon|Albertosaurus|Gorgosaurus|Ceratosaurus|Kentrosaurus|Mamenchisaurus|Camarasaurus|Suchomimus|Carcharodontosaurus|Megalosaurus|Hadrosaurus|Lambeosaurus|Psittacosaurus|Pachyrhinosaurus|Euoplocephalus|Nodosaurus|Dreadnoughtus|Patagotitan|Sauropelta|Daspletosaurus",
+"Amargasaurus|Concavenator|Cryolophosaurus|Dracorex|Stygimoloch|Einiosaurus|Kosmoceratops|Nasutoceratops|Sinosauropteryx|Yutyrannus|Guanlong|Dilong|Eoraptor|Herrerasaurus|Mussaurus|Massospondylus|Lesothosaurus|Heterodontosaurus|Scelidosaurus|Scutellosaurus|Gastonia|Minmi|Muttaburrasaurus|Leaellynasaura|Australovenator|Rapetosaurus|Majungasaurus|Masiakasaurus|Rugops|Ouranosaurus|Nigersaurus|Afrovenator|Jobaria|Tarbosaurus|Alioramus|Saurolophus|Shantungosaurus|Centrosaurus|Chasmosaurus|Pentaceratops|Torosaurus|Achelousaurus|Zuniceratops|Sinornithosaurus|Caudipteryx|Citipati|Gigantoraptor|Deinocheirus|Struthiomimus|Ornithomimus|Saurornitholestes|Dromaeosaurus|Anchiornis|Sauroposeidon|Supersaurus|Seismosaurus|Borealopelta",
+"Halszkaraptor|Balaur|Zhenyuanlong|Changyuraptor|Xiaotingia|Yi qi/Yi|Epidexipteryx|Scansoriopteryx|Tianyulong|Kulindadromeus|Spinophorosaurus|Charonosaurus|Olorotitan|Tsintaosaurus|Nedoceratops|Austroraptor|Buitreraptor|Unenlagia|Mononykus|Shuvuuia|Alvarezsaurus|Pelecanimimus|Spicomellus|Vectaerovenator|Irritator|Bistahieversor|Teratophoneus|Lythronax|Nanuqsaurus|Qianzhousaurus|Zuul|Puertasaurus|Futalognkosaurus|Bajadasaurus|Brachytrachelopan|Isisaurus|Rajasaurus|Bonapartenykus|Atrociraptor|Hesperonychus|Fruitadens|Pegomastax|Eocursor|Nyasasaurus|Buriolestes|Pampadromaeus|Dromiceiomimus|Rahonavis"]},
+
+{q:"a mathematician", hint:"Last name is fine.", last:true, tc:"Ramanujan|Hypatia|Erdos|Perelman", t:[
+"Pythagoras|Euler|Newton|Gauss|Euclid",
+"Archimedes|Fibonacci|Descartes|Pascal|Fermat|Ramanujan|Turing|Leibniz|Riemann|Nash|Lovelace|Hypatia|Galileo",
+"Noether|Hilbert|Cantor|Godel|Galois|Lagrange|Laplace|Cauchy|Fourier|Poincare|Erdos|Tao|Wiles|Perelman|Bernoulli|von Neumann/Neumann|Hardy|Kepler|Napier|Boole|Mandelbrot|Conway|Shannon|Bayes|Markov|Kolmogorov|Mirzakhani|al-Khwarizmi/Khwarizmi|Brahmagupta|Aryabhata|Khayyam/Omar Khayyam|Lobachevsky|Eratosthenes|Diophantus|Thales|Zeno|Ptolemy|Germain/Sophie Germain",
+"Jacobi|Dirichlet|Abel|Lie|Klein|Dedekind|Weierstrass|Kronecker|Hamilton|Cayley|Sylvester|De Morgan|Russell|Whitehead|Frege|Peano|Zermelo|Banach|Hausdorff|Lebesgue|Borel|Weil|Grothendieck|Serre|Deligne|Atiyah|Milnor|Smale|Thurston|Langlands|Hamming|Viete|Cardano|Tartaglia|Bombelli|Wallis|Huygens|Stirling|De Moivre|Legendre|Monge|Mobius|Chebyshev|Lyapunov|Minkowski|Ramsey|Polya|Riesz|Frechet|Artin|Chern|Yau|Ito|Ulam|Wiener|Knuth|Cohen|Robinson|Apollonius|Heron|Bhaskara|Fields|Somerville|Fisher|Pearson|Neyman|Tukey|Hermite|Hadamard|Littlewood",
+"Madhava|Qin Jiushao|Zu Chongzhi|Liu Hui|Pappus|Agnesi|Fraenkel|Hasse|Siegel|Selberg|Kovalevskaya|Bolyai|Brouwer|Viazovska|Scholze|Bhargava|Venkatesh|Ngo|Lindenstrauss|Smirnov|Villani|Avila|Hairer|Figalli|Birkar|Duminil-Copin|Huh|Maynard|Okounkov|Tate|Thue|Hurwitz|Lindemann|Liouville|Sturm|Gram|Schmidt|de la Vallee Poussin/Poussin|Landau|Mordell|Faltings|Bombieri|Zagier|Gowers|Szemeredi|Lovasz|Turan|Kac|Feller|Doob|Levy|Gosset|Galton|Oresme|Regiomontanus|Fibonacci-Pisano/Pisano"]},
+
+{q:"a Broadway musical", hint:"Revivals and flops count.", strip:["the musical"], tc:"Spider-Man: Turn Off the Dark|Carrie|Starlight Express|Diana", t:[
+"Hamilton|The Lion King|Wicked|Les Miserables/Les Mis|The Phantom of the Opera/Phantom",
+"Cats|Chicago|Rent|Grease|Mamma Mia!|Hairspray|Annie|Dear Evan Hansen|The Book of Mormon|Mean Girls|Frozen|Aladdin|Beauty and the Beast|Into the Woods|West Side Story|The Sound of Music|Six|Hadestown|Moulin Rouge!",
+"Oklahoma!|Cabaret|Fiddler on the Roof|Sweeney Todd|Jersey Boys|Matilda|Kinky Boots|Waitress|Come From Away|Beetlejuice|Heathers|Little Shop of Horrors|The Music Man|My Fair Lady|Hello, Dolly!|A Chorus Line|Spring Awakening|Avenue Q|Miss Saigon|Evita|Jesus Christ Superstar|Joseph and the Amazing Technicolor Dreamcoat/Joseph|Godspell|Pippin|Company|Hair|Anastasia|Newsies|School of Rock|Spamalot|The Producers|Legally Blonde|Next to Normal|In the Heights|Mary Poppins|Shrek|Guys and Dolls|South Pacific|The King and I|Carousel|& Juliet/And Juliet|Back to the Future|MJ",
+"Sunday in the Park with George|A Little Night Music|Follies|Assassins|Merrily We Roll Along|Pacific Overtures|Passion|Gypsy|Funny Girl|Mame|Sweet Charity|Kiss Me, Kate|Anything Goes|Show Boat|Porgy and Bess|Brigadoon|Camelot|The Fantasticks|Man of La Mancha|Fun Home|The Band's Visit|A Strange Loop|Natasha, Pierre & The Great Comet of 1812/The Great Comet|Once|The Light in the Piazza|Grey Gardens|Falsettos|Ragtime|Parade|The Scottsboro Boys|Bring It On|Urinetown|The Drowsy Chaperone|Xanadu|Kimberly Akimbo|Suffs|Hell's Kitchen|Maybe Happy Ending|Shucked|Some Like It Hot|Water for Elephants|The Outsiders|Bright Star|Groundhog Day|Something Rotten!|Tuck Everlasting|Dreamgirls|The Wiz|Big River|The Secret Garden|Little Women|Starlight Express|Sunset Boulevard|Chess|Blood Brothers|Jekyll & Hyde|Footloose|Aspects of Love",
+"Carrie|Spider-Man: Turn Off the Dark|Via Galactica|Dude|Rags|Mack and Mabel|Allegro|Pipe Dream|Me and Juliet|Flahooley|Subways Are for Sleeping|Do Re Mi|Anyone Can Whistle|The Act|Seesaw|Dear World|Bajour|Tovarich|The Happy Time|Coco|Glory Days|Chaplin|Leap of Faith|Hands on a Hardbody|Big Fish|First Date|The Last Ship|Amazing Grace|Holler If Ya Hear Me|Escape to Margaritaville|Diana|Flying Over Sunset|Paradise Square|KPOP|Lempicka|The Who's Tommy/Tommy|Here Lies Love|Swept Away|Death Becomes Her|Boop!|Smash|Floyd Collins|Grand Hotel|Kiss of the Spider Woman|Steel Pier|Titanic|Side Show|The Life|Jane Eyre|Wonderful Town|Bells Are Ringing|Fiorello!|Bye Bye Birdie|Li'l Abner|Damn Yankees|The Pajama Game"]},
+
+{q:"a collective noun for animals", hint:"Like a murder of crows.", tc:"Murder|Parliament|Flamboyance|Murmuration", t:[
+"Herd|Flock|Pack|School|Swarm",
+"Pride|Pod|Gaggle|Murder|Colony|Litter|Hive|Troop|Parliament|Shoal",
+"Flight|Nest|Brood|Clutch|Drove|Kindle|Clowder|Mob|Band|Bevy|Covey|Leap|Crash|Tower|Bloat|Business|Army|Congregation|Unkindness|Exaltation|Murmuration|Romp|Sleuth/Sloth|Charm|Dazzle|Prickle|Raft|Rookery|Skulk|Tribe|Gang|Caravan|Flamboyance|Waddle",
+"Parade|Implausibility|Smack|Bloom|Fever|Cackle|Mischief|Conspiracy|Coalition|Ambush|Streak|Cauldron|Kettle|Wake|Descent|Siege|Paddling|Team|Plump|Huddle|Scurry|Dray|Knot|Bale|Turn|Rhumba/Rumba|Gulp|Party|Glint|Muster|Ostentation|Watch|Clamor/Clamour|Chattering|Fall|Host|Bed|Cast|Drift|Sounder|Leash|Mute|Kennel|Rag|String|Span|Yoke|Obstinacy|Pace|Shrewdness|Stand|Labor/Labour|Cloud|Scold|Tiding|Pandemonium|Quiver",
+"Bouquet|Nye/Nide|Ugly|Bazaar|Tittering|Richness|Asylum|Committee|Venue|Kit|Flink|Trip|Husk|Intrusion|Grist|Erst|Bike|Rout|Rafter|Surfeit|Sord|Badelynge|Gaze|Pitying|Bellowing|Fesnyng|Hover|Murmuration of starlings|Harras|Barren|Singular|Dule|Cry|Bury|Prayer"]},
+
+{q:"a chess opening", hint:"Gambits, defenses and lines all count.", strip:["defense","defence","opening","game","system","variation"], tc:"Bongcloud|Fried Liver|Stafford Gambit|Englund Gambit", t:[
+"Sicilian|Queen's Gambit|Ruy Lopez/Spanish",
+"Italian/Giuoco Piano|French|Caro-Kann|King's Gambit|London|English|King's Indian|Scandinavian/Center Counter|Fried Liver|Scotch",
+"Queen's Gambit Declined/QGD|Queen's Gambit Accepted/QGA|Slav|Nimzo-Indian|Grunfeld|Dutch|Pirc|Alekhine|Catalan|Benoni|Petrov/Petroff/Russian|Vienna|Evans Gambit|Two Knights|Four Knights|Najdorf|Dragon|Berlin|Bongcloud|Stafford Gambit|Englund Gambit|Danish Gambit|Smith-Morra Gambit/Morra Gambit/Smith-Morra|Philidor|Reti|Bird|Colle|Stonewall|Modern|Marshall Attack|Jobava London|Alapin|Trompowsky",
+"Semi-Slav|Queen's Indian|Benko Gambit/Benko|King's Indian Attack|Larsen|Scheveningen|Sveshnikov|Accelerated Dragon|Taimanov|Kan|Budapest Gambit|Albin Countergambit|Traxler|Hippopotamus/Hippo|Owen's|Nimzowitsch|Torre Attack/Torre|Veresov|Richter-Rauzer|Grand Prix Attack|Closed Sicilian|Botvinnik|Ponziani|Center|Bishop's|Latvian Gambit|Elephant Gambit|Polish|Grob|Orangutan|Halloween Gambit|Blackmar-Diemer Gambit/Blackmar-Diemer|Staunton Gambit|Old Indian|Bogo-Indian|Ragozin|Tarrasch|Chigorin|Winawer|Schliemann/Jaenisch|Rossolimo|Moscow|Wing Gambit|Muzio Gambit",
+"Damiano|Sokolsky|Fajarowicz|Czech Benoni|Baltic|Marshall|Rubinstein|Cozio|Steinitz|Nimzo-Larsen|Dunst|Saragossa|Anderssen|Ware|Amar|Clemenz|Durkin|Barnes|Mieses|Van 't Kruijs|Rat|Borg|St. George|Lemming|Kadas|Hungarian|Pterodactyl|Lion|Sniper|Tennison Gambit|Jerome Gambit|Rousseau Gambit|Fishing Pole|Frankenstein-Dracula|Vulture|Snake"]},
+
+{q:"a sandwich", hint:"Is a hot dog a sandwich? Your call.", strip:["sandwich","sando"], tc:"Hot dog|Hamburger/Burger|Ice cream sandwich|Fluffernutter", t:[
+"Grilled cheese|BLT|Peanut butter and jelly/PB&J/PB and J|Ham and cheese|Club",
+"Reuben|Cuban/Cubano|Philly cheesesteak/Cheesesteak|Sub/Submarine|Hoagie|Panini|Turkey|Tuna melt|Patty melt|Sloppy Joe|French dip|Egg salad|Chicken salad|Monte Cristo|Banh mi|Gyro|Po' boy/Po boy|Meatball sub|Italian sub|Croque monsieur",
+"Muffuletta|Croque madame|Pastrami on rye/Pastrami|Corned beef|Pulled pork|Lobster roll|Fluffernutter|Elvis|Cucumber|Tea|Torta|Arepa|Shawarma|Falafel|Doner kebab/Doner|Katsu|Tamago|Bocadillo|Medianoche|Chopped cheese|Beef on weck|Italian beef|Hot Brown/Kentucky Hot Brown|Bacon egg and cheese/BEC|Breakfast|Smorrebrod|Chip butty|Bacon butty|Ploughman's|Chicken parm|Pimento cheese|Fried bologna|Denver/Western|Dagwood|Vada pav|Choripan|Chivito|Piadina|Jambon-beurre|Sabich|Cemita",
+"Pambazo|Lomito|Prego|Bun maska|Pork tenderloin|Loose meat/Maid-Rite|Primanti|Pan bagnat|Leberkase|Bifana|Francesinha|Lampredotto|Tramezzino|Mortadella|Fruit sando|Yakisoba pan|Zapiekanka|Toast Hawaii|Broodje kroket|Fischbrotchen|Uitsmijter|Bunny chow|Gatsby|Roti john",
+"Barros Luco|Barros Jarpa|Chacarero|Bauru|Cudighi|Spiedie|Gerber|Jibarito|Mother-in-law|St. Paul|Runza|Horseshoe|Fool's Gold Loaf|Bierock|Pasty"]},
+
+{q:"a typeface", hint:"Any font, from Helvetica to the one on your phone.", strip:["font","typeface","mt"], tc:"Papyrus|Wingdings|Webdings|Zapfino|Jokerman", t:[
+"Times New Roman|Arial|Comic Sans|Helvetica|Calibri",
+"Georgia|Verdana|Courier/Courier New|Garamond|Futura|Cambria|Papyrus|Impact|Roboto|Open Sans|Tahoma|Trebuchet|Baskerville|Gill Sans|Wingdings|Lato|Montserrat|Inter|San Francisco/SF Pro|Segoe UI/Segoe",
+"Bodoni|Didot|Rockwell|Franklin Gothic|Century Gothic|Lucida/Lucida Grande|Palatino|Book Antiqua|Bookman|Century Schoolbook|Optima|Avenir|Gotham|Proxima Nova|Univers|Frutiger|Myriad|Minion|Caslon|Clarendon|Copperplate|Brush Script|Lobster|Pacifico|Poppins|Raleway|Source Sans|Noto|Ubuntu|Consolas|Menlo|Monaco|Fira|JetBrains Mono|Trajan|Chalkboard|Marker Felt|Bradley Hand|Zapfino|Cooper Black|Goudy|Akzidenz-Grotesk/Akzidenz|DIN|Eurostile|Neue Haas Grotesk|Sabon|Perpetua|Bembo|Jenson|Candara|Constantia|Corbel|Symbol|Webdings|Helvetica Neue",
+"Johnston|Transport|Rail Alphabet|Kabel|Erbar|Akkurat|Circular|Graphik|Neue Montreal|Sohne|GT America|Apercu|Brandon Grotesque|Mrs Eaves|Filosofia|Fournier|Plantin|Electra|Caledonia|Dante|Joanna|Albertus|Peignot|Broadway|Bauhaus|Arnold Bocklin|Hobo|Souvenir|Avant Garde/ITC Avant Garde|Benguiat|Fraktur|Old English|Wide Latin|Algerian|Jokerman|Curlz|Chiller|Harrington|Kristen|Stencil|Haettenschweiler|Agency FB|OCR-A|OCR-B|Comic Neue|Source Code Pro|IBM Plex/Plex|Iosevka|Cascadia Code/Cascadia|Lucida Console|Andale Mono|Droid Sans|Product Sans|Google Sans|Playfair Display/Playfair|Merriweather|Bebas Neue/Bebas|Oswald|Courier Prime|Hoefler Text|Whitney|Mercury|Chicago|Geneva|Charcoal|Mistral|Snell Roundhand|Edwardian Script|Vivaldi",
+"Walbaum|Bell|Fleischmann|Van Dijck|Granjon|Romain du Roi|Ehrhardt|Janson|Fairfield|Spectral|Cormorant|Alegreya|Crimson|Vollkorn|Abril Fatface|Anton|Archivo|Space Grotesk|Space Mono|Syne|Unbounded|Bricolage Grotesque|Fraunces|Recoleta|Clash Display|Satoshi|General Sans|Cabinet Grotesk|Neue Machina|Ogg|Tiempos|Lyon|Druk|Knockout|Tungsten|Sentinel|Archer|Chronicle|Vectora|Officina|Meta|Thesis|Scala|Dax|Interstate|Highway Gothic|Clearview|Doves Type|Golden Type|Centaur|Poliphilus|Blado|Arrighi|Pixelify Sans|Silkscreen|Press Start 2P|VT323|Skia|Lucida Calligraphy|Segoe Script|Kunstler Script"]},
+
+{q:"a bird", hint:"Wild, pet, farm or extinct.", tc:"Dodo|Kakapo|Shoebill|Hoatzin", t:[
+"Eagle/Bald eagle|Robin|Blue jay/Bluejay|Cardinal|Pigeon|Crow|Penguin|Parrot|Owl|Flamingo",
+"Hawk|Sparrow|Hummingbird|Seagull/Gull|Duck|Swan|Ostrich|Peacock/Peafowl|Toucan|Pelican|Woodpecker|Falcon|Vulture|Raven|Dove|Goose|Chicken|Turkey|Emu|Canary|Finch|Mockingbird|Heron|Stork|Kiwi|Bluebird|Oriole|Magpie|Starling|Parakeet/Budgie/Budgerigar|Cockatoo|Macaw|Kingfisher|Swallow|Wren|Quail|Pheasant|Albatross",
+"Crane|Egret|Ibis|Spoonbill|Puffin|Loon|Cormorant|Osprey|Condor|Kestrel|Kite|Harrier|Buzzard|Goldfinch|Chickadee|Titmouse|Nuthatch|Warbler|Thrush|Nightingale|Lark|Skylark|Blackbird|Grackle|Cowbird|Meadowlark|Tanager|Grosbeak|Bunting|Junco|Waxwing|Catbird|Thrasher|Mallard|Teal|Wood duck|Merganser|Grebe|Coot|Sandpiper|Plover|Killdeer|Avocet|Curlew|Oystercatcher|Tern|Petrel|Frigatebird|Booby|Gannet|Hornbill|Lyrebird|Kookaburra|Cassowary|Rhea|Dodo|Roadrunner|Cuckoo|Swift|Lovebird|Cockatiel|Lorikeet|Kakapo|Kea|Jay|Jackdaw|Myna/Mynah|Guineafowl|Partridge|Grouse|Ptarmigan",
+"Pintail|Canvasback|Rail|Godwit|Skua|Shearwater|Tropicbird|Nightjar|Whip-poor-will|Bee-eater|Hoopoe|Roller|Quetzal|Trogon|Rook|Chough|Shrike|Vireo|Kinglet|Creeper|Dipper|Pipit|Wagtail|Weaver|Bulbul|Sunbird|Shoebill|Secretary bird|Marabou|Hoatzin|Potoo|Frogmouth|Oilbird|Bowerbird|Bird-of-paradise|Honeyeater|Fairywren|Barbet|Toucanet|Aracari|Motmot|Flycatcher|Phoebe|Kingbird|Pewee|Bobolink|Siskin|Redpoll|Crossbill|Linnet|Chaffinch|Yellowhammer|Redstart|Wheatear|Stonechat|Fieldfare|Redwing|Capercaillie|Prairie chicken|Sage grouse|Moa|Great auk|Passenger pigeon",
+"Pitta|Jacamar|Puffbird|Tody|Manakin|Cotinga|Antbird|Ovenbird|Woodcreeper|Dickcissel|Brambling|Serin|Dunnock|Whinchat|Megapode|Tinamou|Elephant bird|Haast's eagle|Ivory-billed woodpecker|Hamerkop|Sungrebe|Limpkin|Seriema|Kagu|Sunbittern|Mesite|Trumpeter|Screamer|Jacana|Sheathbill|Pratincole|Courser|Thick-knee|Ibisbill|Wallcreeper|Bearded reedling|Spinetail|Tapaculo|Gnatcatcher|Silky-flycatcher|Palmchat|Hypocolius|Rockfowl|Rockjumper|Sugarbird|Vanga|Asity|Broadbill|Logrunner"]},
+
+{q:"a palindrome", hint:"A word or name that reads the same backwards, like noon.", tc:"Tacocat|Aibohphobia|Tattarrattat", t:[
+"Racecar/Race car|Level|Mom|Dad|Kayak|Radar|Noon|Wow",
+"Civic|Madam|Anna|Bob|Hannah|Eye|Pop|Refer|Rotor|Stats|Tenet|Otto|Eve|Pup|Did|Peep|Deed|Sees|Solos|Gag|Toot|Nun|Tot|Ewe|Pip|Sis|Mum|Nan|Aha|Huh|Ada|Ava",
+"Redder|Reviver|Rotator|Repaper|Deified|Bib|Dud|Kook|Minim|Shahs|Sagas|Abba|Elle|Ere|Tacocat|Xanax|Oxo|Ogopogo|Laval|Natan|Asa|Ana|Aya|Lil|Aviva|Malayalam|Tut|Tat|Bub|Mem|Hallah|Selles",
+"Tattarrattat|Aibohphobia|Kinnikinnik|Pullup|Ottetto|Siris|Seres|Tebet|Kelek|Mesem|Tirrit|Reifier|Rever|Semes",
+"Saippuakivikauppias|Wassamassaw|Glenelg|Releveler|Sememes|Degged|Terret|Murdrum|Navan|Rotavator|Detartrated"]},
+
+{q:"a phobia", hint:"The -phobia word, like acrophobia.", tc:"Hippopotomonstrosesquippedaliophobia|Arachibutyrophobia|Triskaidekaphobia|Phobophobia|Nomophobia", t:[
+"Arachnophobia|Claustrophobia|Acrophobia|Agoraphobia",
+"Hydrophobia|Nyctophobia|Trypophobia|Coulrophobia|Ophidiophobia|Aerophobia|Aviophobia|Glossophobia|Hemophobia/Haemophobia|Thanatophobia|Mysophobia/Germophobia|Thalassophobia|Emetophobia|Cynophobia|Entomophobia|Astraphobia|Brontophobia|Trypanophobia|Technophobia|Triskaidekaphobia|Phobophobia|Ailurophobia|Necrophobia|Xenophobia",
+"Hippopotomonstrosesquippedaliophobia|Arachibutyrophobia|Nomophobia|Pogonophobia|Ombrophobia|Chionophobia|Heliophobia|Selenophobia|Pyrophobia|Iatrophobia|Dentophobia|Nosocomephobia|Nosophobia|Atychiphobia|Gamophobia|Philophobia|Anthophobia|Bacteriophobia|Chronophobia|Dendrophobia|Didaskaleinophobia|Ergophobia|Gephyrophobia|Bathophobia|Basophobia|Catoptrophobia|Somniphobia|Taphophobia|Tokophobia|Apiphobia|Melissophobia|Musophobia|Ornithophobia|Ranidaphobia|Equinophobia|Ichthyophobia|Lepidopterophobia|Myrmecophobia|Spheksophobia|Herpetophobia|Zoophobia|Turophobia|Chromophobia|Arithmophobia|Numerophobia|Hexakosioihexekontahexaphobia|Paraskevidekatriaphobia|Friggatriskaidekaphobia|Tetraphobia|Logophobia|Bibliophobia|Podophobia|Omphalophobia|Odontophobia|Globophobia|Koumpounophobia|Automatonophobia|Pediophobia|Cyberphobia|Gerascophobia|Phasmophobia|Spectrophobia|Demonophobia|Eisoptrophobia|Achluophobia|Scotophobia|Phonophobia|Aquaphobia|Ablutophobia|Anemophobia|Lilapsophobia|Keraunophobia|Cryophobia|Thermophobia|Autophobia|Monophobia|Anthropophobia|Haphephobia|Atelophobia|Hypnophobia|Amaxophobia|Hylophobia|Xylophobia",
+"Pteromerhanophobia|Hodophobia|Trichophobia|Alektorophobia|Scoleciphobia|Batrachophobia|Mageirocophobia|Lachanophobia|Cibophobia|Xanthophobia|Leukophobia|Melanophobia|Porphyrophobia|Sesquipedalophobia|Papyrophobia|Ommetaphobia|Linonophobia|Pupaphobia|Mechanophobia|Ergasiophobia|Ephebiphobia|Wiccaphobia|Uranophobia|Kenophobia|Lygophobia|Ligyrophobia|Frigophobia|Siderophobia|Cometophobia|Eosophobia|Kakorrhaphiophobia|Decidophobia|Plutophobia|Chrometophobia|Venustraphobia|Anuptaphobia|Eremophobia|Isolophobia|Ochlophobia|Demophobia|Enochlophobia|Aphenphosmphobia|Androphobia|Gynophobia|Pentheraphobia|Novercaphobia|Soceraphobia|Geniophobia|Rhytiphobia|Oneirophobia|Clinophobia|Siderodromophobia|Cymophobia|Potamophobia|Limnophobia|Botanophobia",
+"Optophobia|Mycophobia|Ataxophobia|Allodoxaphobia|Anablephobia|Athazagoraphobia|Bufonophobia|Cacophobia|Chorophobia|Cleithrophobia|Dikephobia|Ecclesiophobia|Ereuthophobia|Erythrophobia|Euphobia|Geliophobia|Hagiophobia|Hellenologophobia|Homichlophobia|Ideophobia|Kathisophobia|Kinetophobia|Koinoniphobia|Lutraphobia|Mottephobia|Nephophobia|Oikophobia|Ouranophobia|Panophobia/Pantophobia|Peladophobia|Philemaphobia|Phronemophobia|Politicophobia|Sciophobia|Sitophobia|Symmetrophobia|Telephonophobia|Topophobia|Verbophobia|Zemmiphobia"]},
+
+{q:"a knot", hint:"Hitches and bends count too.", strip:["knot"], tc:"Gordian knot|Sheepshank|Monkey's fist", t:[
+"Square knot/Reef knot/Square/Reef|Bowline|Slip knot/Slip|Granny knot/Granny|Overhand knot/Overhand",
+"Figure-eight knot/Figure eight/Figure 8|Clove hitch|Sheet bend|Half hitch/Two half hitches|Noose|Taut-line hitch/Tautline hitch|Trucker's hitch|Windsor|Half Windsor|Four-in-hand|Bow/Shoelace knot|Surgeon's knot/Surgeon's|Cleat hitch|Timber hitch|Prusik",
+"Rolling hitch|Constrictor knot/Constrictor|Fisherman's knot/Fisherman's|Double fisherman's|Palomar|Improved clinch/Clinch|Blood knot/Blood|Uni knot/Uni|Albright|Monkey's fist|Alpine butterfly/Butterfly loop/Butterfly|Water knot/Water|Carrick bend|Cat's paw|Sheepshank|Thief knot/Thief|Highwayman's hitch|Marlinspike hitch|Running bowline|Bowline on a bight|Spanish bowline|Klemheist|Munter hitch/Italian hitch|Girth hitch/Lark's head|Pile hitch|Buntline hitch|Midshipman's hitch|Anchor bend/Fisherman's bend|Ashley stopper|Stevedore|Diamond knot/Diamond|Turk's head|Eldredge|Trinity|Pratt/Shelby|Kelvin|Oriental|Hangman's knot/Hangman's",
+"Icicle hitch|Distel hitch|Blake's hitch|Autoblock|Bachmann hitch|Garda hitch|Mariner's hitch|Wall knot|Crown knot|Yosemite bowline|Water bowline|Cowboy bowline|French bowline|Dropper loop|Perfection loop|Arbor knot|Snell knot|Nail knot|Spider hitch|Trilene knot|Orvis knot|Poacher's knot/Double overhand noose|Halyard hitch|Zeppelin bend|Hunter's bend|Gordian knot",
+"Farrimond friction hitch|Ossel hitch|Jury mast knot|Tom fool's knot|Handcuff knot|Manrope knot|Star knot|Lanyard knot|Matthew Walker knot|Eskimo bowline|Dutch marine bowline|Portuguese bowline|San Diego jam|Davy knot|Bimini twist|Ocean plait mat|Carrick mat|Boom hitch|Heaving line knot|Miller's knot|Strangle knot|Pretzel link|Celtic button knot|Chinese button knot|Flemish bend|Vice versa bend|Ashley bend|Adjustable grip hitch|Magnus hitch|Becket hitch"]},
+
+{q:'a word that rhymes with "light"', hint:"Any real word that ends in the same sound.", tc:"Fahrenheit|Indict|Kryptonite", t:[
+"Night|Kite|Bite|Fight|Right|Sight|White|Bright|Write",
+"Flight|Might|Tight|Height|Knight|Quite|Spite|Fright|Slight|Delight|Polite|Invite|Excite|Ignite|Unite|Tonight|Plight|Mite|Site|Cite|Rite|Despite|Midnight|Sunlight|Moonlight",
+"Dynamite|Appetite|Parasite|Satellite|Termite|Meteorite|Kryptonite|Overnight|Outright|Upright|Daylight|Spotlight|Highlight|Flashlight|Starlight|Twilight|Insight|Oversight|Foresight|Hindsight|Airtight|Uptight|Recite|Alight|Blight|Smite|Sprite|Trite|Byte|Fortnight|Copyright|Birthright|Website|Campsite|Bullfight|Gunfight|Dogfight|Stoplight|Headlight|Skylight|Lamplight|Firelight|Candlelight|Searchlight|Limelight|Gaslight|Torchlight|Nightlight|Floodlight|Graphite|Impolite|Reunite|Expedite|Incite|Downright|Forthright|Megabyte|Gigabyte|Kilobyte|Terabyte|Erudite|Socialite|Contrite|Watertight",
+"Extradite|Marmite|Cellulite|Luddite|Israelite|Fahrenheit|Indict|Underwrite|Overwrite|Penlight|Backlight|Taillight|Sidelight|Half-light|Spaceflight|Prizefight|Pillow fight|Food fight|Firefight|Stalactite|Stalagmite|Malachite|Hematite|Dolomite|Calcite|Pyrite|Ammonite|Plebiscite|Proselyte|Troglodyte|Acolyte|Neophyte|Anthracite|Bauxite|Magnetite|Lignite|Recondite|Jacobite|Hittite",
+"Bedight|Dight|Wight|Bight|Vulcanite|Sodalite|Cryolite|Kyanite|Amazonite|Labradorite|Benight|Requite|Eremite|Sybarite|Marcasite|Leucite|Cordite|Ebonite|Bakelite|Lucite|Fluorite|Selenite|Celestite|Phosphorite|Cuprite|Azurite|Augite"]},
+
+{q:"a sauce", hint:"Pour it, dip it or make it from a roux.", strip:["sauce"], tc:"Espagnole|Veloute|Big Mac sauce", t:[
+"Ketchup|Barbecue/BBQ|Ranch|Mayonnaise/Mayo|Mustard",
+"Hot sauce|Soy sauce/Soy|Marinara|Alfredo|Pesto|Hollandaise|Gravy|Salsa|Teriyaki|Sriracha|Buffalo|Honey mustard|Tartar|Sweet and sour|Worcestershire|Tabasco|Aioli/Allioli|Guacamole|Cranberry|Caramel|Chocolate|Bechamel|Vodka|Cocktail|Hoisin|Tzatziki",
+"Bearnaise|Chimichurri|Romesco|Remoulade|Gochujang|Sambal|Harissa|Mole|Enchilada|Pico de gallo|Tahini|Fish sauce/Nam pla|Oyster|Ponzu|Tonkatsu/Katsu|Eel/Unagi|Yum yum|Peanut|Satay|Bolognese|Puttanesca|Arrabbiata|Carbonara|Beurre blanc|Veloute|Espagnole|Demi-glace|Bordelaise|Au jus|Chipotle|Adobo|Sweet chili/Sweet chilli|Thousand Island|Russian dressing|Big Mac sauce/Special sauce|Fry|Applesauce|Mint|Brown|HP|Piri piri/Peri peri|Mojo|Salsa verde|Duck|Plum|Black bean|Chili crisp/Chili oil|Raita|Chutney|Mornay",
+"Zhug/Zhoug|Ajvar|Pistou|Gremolata|Gribiche|Ravigote|Robert|Soubise|Nantua|Diane|Cumberland|Muhammara|Skordalia|Tarator|Agrodolce|Bagna cauda|Salmoriglio|Mojo picon|Toum|Amba|Tkemali|Adjika|Choron|Foyot|Bread|Mumbo|Comeback|Alabama white/White|Salsa macha|Ssamjang|XO|Nuoc cham",
+"Sauce Albert/Albert|Sauce Bercy/Bercy|Bigarade|Chasseur|Charcutiere|Lyonnaise|Poivrade|Perigueux|Maltaise|Mousseline|Paloise|Valois|Cardinal|Normande|Aurore|Supreme|Allemande|Poulette|Smitane|Vin blanc|Colbert|Grand veneur|Chaud-froid|Sauce Messine/Messine|Bontemps|Hongroise|Sauce verte|Salsa roja|Pebre|Llajwa|Hogao|Guasacaca|Sofrito|Recaito|Ezme"]},
+
+{q:"a U.S. state capital", hint:"Not the biggest city. The capital.", tc:"Montpelier|Juneau|Pierre", t:[
+"Sacramento|Austin|Albany|Boston|Atlanta|Denver|Phoenix|Honolulu|Nashville",
+"Tallahassee|Columbus|Springfield|Salt Lake City|Richmond|Indianapolis|Raleigh|Santa Fe|Oklahoma City|Baton Rouge|Little Rock|Juneau|Olympia|Madison|Annapolis",
+"Trenton|Harrisburg|Hartford|Providence|Lansing|Montgomery|Jackson|Carson City|Boise|Saint Paul/St. Paul|Des Moines|Cheyenne|Columbia|Charleston",
+"Helena|Bismarck|Pierre|Lincoln|Topeka|Jefferson City|Frankfort|Concord|Salem|Augusta",
+"Dover|Montpelier"]},
+
+{q:"a landlocked country", hint:"No coastline at all.", tc:"Uzbekistan|Liechtenstein|Lesotho", t:[
+"Switzerland|Austria|Bolivia|Paraguay|Mongolia|Afghanistan|Nepal",
+"Hungary|Czech Republic/Czechia|Slovakia|Kazakhstan|Ethiopia|Uganda|Zimbabwe|Zambia|Chad|Niger|Mali|Bhutan|Laos|Rwanda|Luxembourg|Liechtenstein|Vatican City/Vatican|San Marino|Andorra|Belarus|Serbia|Armenia|Uzbekistan",
+"Kyrgyzstan|Tajikistan|Turkmenistan|Azerbaijan|Botswana|Malawi|Burkina Faso",
+"Moldova|North Macedonia/Macedonia|Kosovo|Lesotho|Eswatini/Swaziland|Burundi|South Sudan|Central African Republic/CAR",
+""]},
+
+{q:"a card game", hint:"Anything played with a standard deck, plus a few classics.", tc:"Egyptian Ratscrew|Cheat|Mao", t:[
+"Poker|Blackjack|Solitaire|Go Fish|Uno",
+"War|Rummy|Gin rummy|Bridge|Hearts|Spades|Crazy Eights|Old Maid|Euchre|Texas Hold'em/Hold'em|Speed|Slapjack|Cribbage|Canasta|Spit|President|Baccarat",
+"Spoons|Egyptian Ratscrew/Egyptian Rat Screw|Cheat/I Doubt It/BS|Pinochle|Whist|Oh Hell|Pitch|Tonk|Concentration/Memory|Kings in the Corner|Nertz|Rummy 500|Pyramid|Spider/Spider solitaire|FreeCell|Klondike|Omaha|Seven-card stud|Five-card draw|Durak|Mao|Snap|Skat|Piquet|Bezique|Uno|Phase 10|Skip-Bo|Set|Exploding Kittens|Sushi Go",
+"Sheepshead|Schafkopf|Doppelkopf|Jass|Belote|Tarot|Scopa|Briscola|Truco|Mus|Tute|Hanafuda|Koi-Koi|Daifugo|Big Two|Tien Len|Teen Patti|Rummikub|Mahjong|Pai Gow|Faro|Cassino|Casino|Napoleon|Nap|Rook|Forty-five|Five Hundred/500|Hand and Foot|Shanghai|Golf|Garbage|Idiot|Palace|Ninety-nine|Blitz|Thirty-one|Cuarenta|Tichu|Sevens|Fan Tan|Newmarket|Pope Joan|Beggar My Neighbour|Speed Solitaire|Patience",
+"Gleek|Ombre|Primero|Quadrille|Brag|Put|All Fours|Loo|Pedro|Bourre|Boo-ray|Smear|Klaberjass|Klabberjass|Clobyosh|Jo-Jotte|Manille|Ecarte|Preference|Kaiser|Tysiacha|Thousand|Kalooki|Contract rummy|Conquian|Panguingue|Pan|Toepen|Pishti|Batak|Bastra|Svoi Koziri|Mighty|Go-Stop|Hwatu|Sueca|Bisca"]}
+];
+
+/* ---------- Upgrades to the original prompts (more answers, Too Clever picks, sharper wording) ---------- */
+const LEGACY_EDITS = {
+"a country in Africa": {hint:"All 54 count.", tc:"Djibouti|Burkina Faso|Eswatini"},
+"a U.S. state": {drop:true},
+"a chemical element": {hint:"All 118 count, even the ones that lasted a millisecond.", tc:"Oganesson|Tennessine|Einsteinium|Californium"},
+"a Shakespeare play": {q:"a play by Shakespeare", hint:"Histories and collaborations count.", tc:"Titus Andronicus|Timon of Athens"},
+"a European capital city": {hint:"Microstates count.", tc:"Vaduz|Valletta|Andorra la Vella"},
+"a bone in the human body": {hint:"The smallest one is in your ear.", tc:"Stapes|Hyoid|Coccyx"},
+"a Greek god, goddess, or Titan": {tc:"Nyx|Hecate|Eris|Nemesis"},
+"a word in the NATO phonetic alphabet": {q:"a word from the NATO phonetic alphabet", hint:"Alfa, Bravo, Charlie…", tc:"Quebec"},
+"a U.S. president (last name)": {q:"a U.S. president", hint:"Just the last name works.", tc:"Fillmore|Pierce|Van Buren|Garfield"},
+"a constellation": {hint:"There are 88 official ones.", tc:"Ophiuchus|Camelopardalis"},
+"a fruit": {hint:"Botanically speaking, a few vegetables qualify.", tc:"Tomato|Cucumber|Eggplant/Aubergine|Pumpkin|Durian|Dragon fruit", add:["","","","Bell pepper/Pepper|Zucchini/Courgette|Okra|Squash","Chayote|Tomatillo|Breadnut|Wolfberry/Goji/Goji berry|Haskap|Saskatoon berry|Marionberry|Loganberry|Tayberry|Dewberry|Muscadine|Pluot|Aprium|Tangelo|Minneola|Kaffir lime|Key lime|Meyer lemon|Sugar apple|Custard apple|Rose apple|Wax apple|Star apple|Velvet apple|Monstera|Hala fruit"]},
+"a dog breed": {hint:"AKC-recognized or not.", tc:"Xoloitzcuintli|Puli|Komondor|Shiba Inu"},
+"a musical instrument": {hint:"Orchestral, folk or electronic.", tc:"Theremin|Didgeridoo|Kazoo|Triangle"},
+"an Olympic sport or event (past or present)": {hint:"Retired events count too.", tc:"Tug of war|Curling|Breaking|Skeleton"},
+"an animal that lives in the ocean": {q:"a sea creature", hint:"Anything that lives in salt water.", tc:"Blobfish|Narwhal|Coelacanth|Vampire squid"},
+"a programming language": {hint:"Esoteric languages count.", tc:"COBOL|Fortran|Malbolge|Whitespace"},
+"a spice or herb": {tc:"Saffron|Sumac|Asafoetida|Grains of paradise"},
+"a unit of measurement": {hint:"Old, obscure and joke units count.", tc:"Smoot|Furlong|Parsec|Jiffy|Barn"},
+"a geometric shape": {hint:"2D or 3D.", tc:"Gomboc|Reuleaux triangle|Tesseract|Klein bottle|Mobius strip"},
+"a Greek letter (archaic ones count)": {q:"a Greek letter", hint:"Archaic letters count.", tc:"Digamma|Koppa|Sampi"},
+"a kind of tree": {q:"a tree", tc:"Baobab|Ginkgo|Joshua tree|Dragon blood tree"},
+"a planet, dwarf planet, or moon in our solar system": {tc:"Pluto|Phobos|Deimos|Charon"}
+};
+const PACK_EDITS = {
+"a theme park or amusement park": {tc:"Tivoli Gardens|Dollywood"},
+"a roller coaster (by name)": {tc:"Formula Rossa|Leap-the-Dips"},
+"a Disney park ride or attraction": {tc:"Splash Mountain|Horizons"},
+"a type of amusement park ride": {tc:"Gravitron|Tilt-A-Whirl"},
+"a food you'd buy at a theme park": {tc:"Dole Whip|Butterbeer|Turkey leg"},
+"a themed land at a Disney or Universal park": {tc:"Super Nintendo World|Bear Country"},
+"a roller coaster manufacturer": {tc:"Rocky Mountain Construction|Schwarzkopf"}
+};
+function upgradeLegacy(p, edit){
+  // old prompts had six groups; Sardine absorbs the old second and third groups
+  const t=p.t, merged=[t[0], [t[1],t[2]].filter(Boolean).join("|"), t[3]||"", t[4]||"", t[5]||""];
+  const out={...p, t:merged};
+  if(edit){
+    if(edit.q) out.q=edit.q;
+    if(edit.hint) out.hint=edit.hint;
+    if(edit.tc) out.tc=edit.tc;
+    if(edit.add) out.t=out.t.map((g,i)=>[g,edit.add[i]].filter(Boolean).join("|"));
   }
-  return null;
+  return out;
 }
+
+/* ---------- Matching and autocorrect ---------- */
+const GROUP_TIER=[0,2,3,4,5]; // rarity groups -> tiers (tier 1 is Too Clever)
+function norm(s){
+  let n=String(s).normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase()
+    .replace(/ß/g,"ss").replace(/æ/g,"ae").replace(/ø/g,"o").replace(/œ/g,"oe")
+    .replace(/&/g," and ").replace(/['’‘`´]/g,"").replace(/[^a-z0-9+# ]+/g," ")
+    .replace(/\s+/g," ").trim();
+  return n.replace(/^(the|a|an) /,"");
+}
+// spelling-insensitive form: British/American, ph/f, doubled letters
+function canon(k){
+  return k.replace(/our/g,"or").replace(/ise/g,"ize").replace(/yse/g,"yze").replace(/ae/g,"e").replace(/oe/g,"e").replace(/ph/g,"f").replace(/(.)\1+/g,"$1");
+}
+function dlev(a,b,max){
+  const m=a.length,n=b.length; if(Math.abs(m-n)>max) return max+1;
+  const d=[]; for(let i=0;i<=m;i++){ d[i]=new Array(n+1); d[i][0]=i; } for(let j=0;j<=n;j++) d[0][j]=j;
+  for(let i=1;i<=m;i++){ let rowMin=1e9;
+    for(let j=1;j<=n;j++){
+      let v=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));
+      if(i>1&&j>1&&a[i-1]===b[j-2]&&a[i-2]===b[j-1]) v=Math.min(v,d[i-2][j-2]+1);
+      d[i][j]=v; if(v<rowMin) rowMin=v;
+    }
+    if(rowMin>max) return max+1;
+  }
+  return d[m][n];
+}
+function buildPrompt(p){
+  const strip = p.strip ? new RegExp("\\b("+p.strip.map(w=>norm(w)).join("|")+")\\b","g") : null;
+  p.keyFn = s => { let n=norm(s); if(strip){ const c=n.replace(strip," ").replace(/\s+/g," ").trim(); if(c) n=c; } return n; };
+  const key = s => p.keyFn(s).replace(/ /g,"");
+  p.idx=new Map(); p.canonIdx=new Map(); p.byTier=[[],[],[],[],[],[]]; p.recs=[];
+  const groups=p.t.map(g=>String(g||"").split("|").map(s=>s.trim()).filter(s=>s && !s.endsWith("?")));
+  const add=(entry,tier)=>{
+    const aliases=entry.split("/").map(a=>a.trim()).filter(Boolean); if(!aliases.length) return;
+    const keys=aliases.map(key).filter(Boolean); if(!keys.length) return;
+    const existing=keys.find(k=>p.idx.has(k));
+    if(existing){ const rec=p.idx.get(existing); keys.forEach(k=>{ if(!p.idx.has(k)){ p.idx.set(k,rec); rec.keys.push(k); } }); return; }
+    const rec={display:aliases[0].replace(/\s*\?$/,""),tier,keys}; p.recs.push(rec); p.byTier[tier].push(rec.display);
+    keys.forEach(k=>p.idx.set(k,rec));
+  };
+  // Too Clever picks first: pull the matching entry (with its aliases) out of whichever group holds it
+  String(p.tc||"").split("|").map(s=>s.trim()).filter(Boolean).forEach(name=>{
+    const k=key(name.split("/")[0]); let found=null;
+    for(const g of groups){ const i=g.findIndex(e=>e.split("/").some(a=>key(a)===k)); if(i>=0){ found=g[i]; g.splice(i,1); break; } }
+    add(found ? [found,name].join("/") : name, 1);
+  });
+  groups.forEach((g,gi)=>g.forEach(e=>add(e,GROUP_TIER[gi])));
+  p.recs.forEach(rec=>rec.keys.forEach(k=>{ const c=canon(k), prev=p.canonIdx.get(c);
+    if(prev===undefined) p.canonIdx.set(c,rec); else if(prev!==rec) p.canonIdx.set(c,null); }));
+  p.all=[...p.idx.entries()].map(([k,rec])=>({k,c:canon(k),rec}));
+  p.count=p.recs.length;
+}
+function wordVariants(k){
+  const v=[k];
+  if(k.endsWith("ies")) v.push(k.slice(0,-3)+"y");
+  if(k.endsWith("ves")) v.push(k.slice(0,-3)+"f");
+  if(k.endsWith("es")) v.push(k.slice(0,-2));
+  if(k.endsWith("s")) v.push(k.slice(0,-1));
+  v.push(k+"s");
+  return v;
+}
+/* Returns {rec} for an exact or forgiving match, {rec, corrected:true} when a typo was fixed,
+   {suggest:[recs]} for a near miss worth asking about, or {} when nothing is close. */
+function lookup(p, raw){
+  const n=p.keyFn(raw); if(!n) return {};
+  const cands=[n.replace(/ /g,"")];
+  if(p.last){ const w=n.split(" "); if(w.length>1){ cands.push(w[w.length-1]); cands.push(w.slice(-2).join("")); } }
+  for(const c of cands) for(const v of wordVariants(c)) if(p.idx.has(v)) return {rec:p.idx.get(v)};
+  for(const c of cands) for(const v of wordVariants(c)){ const r=p.canonIdx.get(canon(v)); if(r) return {rec:r, corrected:true}; }
+  // typo correction (Damerau-Levenshtein on the spelling-insensitive form)
+  let best=null;
+  for(const c of cands){
+    const cc=canon(c); if(cc.length<4) continue;
+    const lim = cc.length<=4 ? 0 : cc.length<=8 ? 1 : cc.length<=12 ? 2 : 3;
+    let bd=99, recs=[];
+    for(const e of p.all){
+      if(e.c.length<4 || Math.abs(e.c.length-cc.length)>lim+1) continue;
+      const d=dlev(cc,e.c,lim+1);
+      if(d<bd){ bd=d; recs=[e.rec]; } else if(d===bd && !recs.includes(e.rec)) recs.push(e.rec);
+    }
+    if(recs.length && (!best || bd-best.lim < best.bd-best.lim)) best={bd,lim,recs};
+  }
+  if(best){
+    if(best.bd<=best.lim && best.recs.length===1) return {rec:best.recs[0], corrected:true};
+    if(best.bd<=best.lim+1) return {suggest:best.recs.slice(0,2)};
+  }
+  // started typing a long answer? suggest the completion
+  const k0=canon(cands[0]);
+  if(k0.length>=5){
+    const pre=[]; for(const e of p.all){ if(e.c.startsWith(k0) && !pre.includes(e.rec)) pre.push(e.rec); if(pre.length>2) break; }
+    if(pre.length && pre.length<=2) return {suggest:pre};
+  }
+  return {};
+}
+
+/* ---------- Assemble the prompt bank ---------- */
+(function(){
+  const legacy=PROMPTS.splice(0,PROMPTS.length);
+  legacy.forEach(p=>{ const e=LEGACY_EDITS[p.q]; if(e && e.drop) return; PROMPTS.push(upgradeLegacy(p,e)); });
+  NEW_PROMPTS.forEach(p=>PROMPTS.push(p));
+  THEME_PARKS.forEach((p,i)=>{ THEME_PARKS[i]=upgradeLegacy(p,PACK_EDITS[p.q]); });
+  [...PROMPTS,...THEME_PARKS].forEach(buildPrompt);
+})();
 
 /* ---------- Dates, seeding, storage ---------- */
 function todayStr(d=new Date()){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
@@ -755,7 +999,7 @@ function niceDate(ds){ return dateFromStr(ds).toLocaleDateString("en-US",{weekda
 function hashStr(s){ let h=2166136261; for(const c of s){ h^=c.charCodeAt(0); h=Math.imul(h,16777619);} return h>>>0; }
 function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
 function shuffled(n, rnd){ const a=[...Array(n).keys()]; for(let i=n-1;i>0;i--){ const j=Math.floor(rnd()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
-const STORE_KEY="abyssal:v1";
+const STORE_KEY="abyssal:v2";
 function loadStore(){ try{ const s=JSON.parse(localStorage.getItem(STORE_KEY))||{}; s.days=s.days||{}; s.packs=s.packs||{}; return s; }catch(e){ return {days:{},packs:{}}; } }
 function saveStore(s){ try{ localStorage.setItem(STORE_KEY,JSON.stringify(s)); }catch(e){} }
 function streakOf(store){
@@ -825,6 +1069,8 @@ function showPrompt(){
   [...$("pips").children].forEach((el,k)=>el.classList.toggle("on",k<S.i));
   $("askLabel").textContent = S.pack ? `${S.pack.name} · Name…` : "Name…";
   $("promptText").textContent = p.q;
+  $("promptHint").textContent = p.hint||""; $("promptHint").hidden = !p.hint;
+  S.sug=null; $("autoNote").hidden=true;
   const inp=$("answerInput"); inp.value=""; inp.disabled=false; $("diveBtn").disabled=false;
   $("fb").textContent=""; $("reveal").hidden=true; $("descending").hidden=true; S.descending=false;
   $("timeNum").textContent=ROUND_SECONDS; $("barFill").style.transform="scaleX(1)";
@@ -835,13 +1081,25 @@ function showPrompt(){
 function submitAnswer(e){
   e.preventDefault(); if(S.answered) return;
   const raw=$("answerInput").value.trim(); if(!raw) return;
-  const p=S.prompts[S.i], hit=lookup(p,raw);
-  if(!hit){
-    $("fb").textContent = `“${raw}” doesn't fit this prompt. Try another answer.`;
-    const f=$("answerForm"); f.classList.remove("shake"); void f.offsetWidth; f.classList.add("shake");
-    $("answerInput").select(); return;
+  const p=S.prompts[S.i];
+  // pressing Enter again on the same text accepts the suggestion
+  if(S.sug && S.sug.raw===raw) return acceptAnswer(S.sug.recs[0], raw, true);
+  const r=lookup(p,raw);
+  if(r.rec) return acceptAnswer(r.rec, raw, !!r.corrected);
+  const f=$("answerForm"); f.classList.remove("shake"); void f.offsetWidth; f.classList.add("shake");
+  if(r.suggest){
+    S.sug={raw, recs:r.suggest};
+    $("fb").innerHTML = `Not quite. Did you mean ${r.suggest.map((x,i)=>`<button type="button" class="sugg" data-i="${i}">${esc(x.display)}</button>`).join(" or ")}?`;
+    $("fb").querySelectorAll(".sugg").forEach(btn=>btn.addEventListener("click",()=>{ if(S.sug && !S.answered) acceptAnswer(S.sug.recs[+btn.dataset.i], raw, true); }));
+  } else {
+    S.sug=null;
+    $("fb").textContent = `“${raw}” isn't on the list for this prompt. Try another answer.`;
   }
-  finishRound({prompt:p.q, answer:hit.display, tier:hit.tier, pts:TIERS[hit.tier].pts});
+  $("answerInput").select();
+}
+function acceptAnswer(rec, raw, corrected){
+  S.sug=null;
+  finishRound({prompt:S.prompts[S.i].q, answer:rec.display, tier:rec.tier, pts:TIERS[rec.tier].pts, typed: corrected ? raw : null});
 }
 function timeUp(){ if(S.answered) return; finishRound({prompt:S.prompts[S.i].q, answer:null, tier:-1, pts:0}); }
 function sample(arr,n){ const a=[...arr]; for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a.slice(0,n); }
@@ -870,6 +1128,7 @@ function reveal(r){
     $("tierNote").textContent="No answer, no depth. On to the next one.";
   }
   badge.classList.remove("pop"); void badge.offsetWidth; badge.classList.add("pop");
+  if(r.typed){ $("autoNote").textContent=`Autocorrected from “${r.typed}”`; $("autoNote").hidden=false; } else $("autoNote").hidden=true;
   $("popPicks").textContent = p.byTier[0].slice(0,3).join(", ");
   const deep = p.byTier[5].length ? p.byTier[5] : p.byTier[4];
   $("deepPicks").textContent = sample(deep,3).join(", ");
@@ -977,6 +1236,7 @@ const SPR = {
          ["..........bbbbbbbbbbb.........","........bbbbbbbbbbbbbbbbb.....","......bbbbbbbbgbbbbbgbbbbbb...","bb..bbbbbbbbbbbbbbbbbbbbbbebb.",".bbbbbbbbbbgbbbbbbbbgbbbbbbbbb","bb..bbbllllllllllllllllllbbbbb","b.....lllllllllllllllllbbbb...","...........bbb................"]],
   turtle:[["....ssssss....","..ssdssdssss..",".ssssdssdsssbb","bsssssssssssbe","..b.......b.bb",".b.........b.."],
           ["....ssssss....","..ssdssdssss..",".ssssdssdsssbb","bsssssssssssbe",".b.........bbb","..b.......b..."]],
+  puffer:[[".....b.b.....","..b.bbbbb.b..","...bbbbbbbb..","b.bbbbbbbebb.","bbbbbbbbbbbbw","b.bbbllllbbb.","...bbllllbb..","..b.bbbbb.b..",".....b.b....."]],
   plankton:[[".g...g.","ggg.ggg",".g...g.","...g...","..ggg..","...g..."]]
 };
 const PAL = {
@@ -994,7 +1254,7 @@ function spriteCanvas(name, frame, palKey, pal){
   spriteCache.set(key,c); return c;
 }
 // tier badges use the same sprites, painted in the tier colour
-const TIER_SPRITE=["plankton","fish","octo","shark","angler","whale"];
+const TIER_SPRITE=["plankton","puffer","fish","octo","angler","whale"];
 TIERS.forEach((t,i)=>{
   const c=t.color, pal={b:c,l:shade(c,1.25),e:"#0a1420",j:c,t:shade(c,.8),s:c,d:shade(c,.7),w:"#ffffff",g:shade(c,1.3),o:"#ffd08a"};
   t.glyph=`<img alt="" src="${spriteCanvas(TIER_SPRITE[i],0,"tier"+i,pal).toDataURL()}">`;
