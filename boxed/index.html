@@ -143,6 +143,11 @@ label.lbl{display:block;font-size:14px;color:var(--ink-2);margin-bottom:4px}
 input.code{text-transform:uppercase;font-family:var(--serif);font-size:24px;letter-spacing:.25em;font-weight:600}
 .tierpick{display:flex;flex-wrap:wrap;gap:8px}
 .chip{border-radius:999px;min-height:36px;padding:6px 12px;font-size:14px;background:var(--panel)}
+.pickers{display:flex;flex-direction:column;gap:8px}
+.pick-lbl{font-size:14px;color:var(--ink-2);margin:2px 0 -2px}
+.topic-tag{color:var(--ink-2);font-weight:500}
+.topic-stats{display:flex;flex-direction:column;gap:6px;margin-top:14px;font-size:14px}
+.topic-stats div{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid var(--line);padding-bottom:6px}
 .chip[aria-pressed="true"]{background:var(--lead);border-color:var(--lead);color:var(--lead-ink)}
 .credit{font-size:13px;color:var(--ink-2);max-width:80ch;border-top:1px solid var(--line);padding-top:14px}
 .adbox{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px}
@@ -268,13 +273,16 @@ input.code{text-transform:uppercase;font-family:var(--serif);font-size:24px;lett
       </section>
       <section class="panel mode" aria-labelledby="pH">
         <h2 id="pH">Practice</h2>
-        <p>Pick the difficulty bands you want and keep going for as long as you like. After each problem you see the answer and a link to full solutions.</p>
+        <p>Pick the difficulty and topics you want and keep going for as long as you like. After each problem you see the answer and a link to full solutions.</p>
+        <div class="pick-lbl">Difficulty</div>
         <div class="tierpick" id="practiceTiers" aria-label="Practice difficulty"></div>
+        <div class="pick-lbl">Topics</div>
+        <div class="tierpick" id="practiceTopics" aria-label="Practice topics"></div>
         <button class="go" id="practiceGo">Start practicing</button>
       </section>
       <section class="panel mode" aria-labelledby="mH">
         <h2 id="mH">Live game</h2>
-        <p>The host puts problems up on a projector, everyone answers on their own phone, and a leaderboard rewards right answers, fast ones, and whoever gets there first. The host picks the difficulty before each problem.</p>
+        <p>The host puts problems up on a projector, everyone answers on their own phone, and a leaderboard rewards right answers, fast ones, and whoever gets there first. The host picks the difficulty and topics before each problem.</p>
         <a class="btn go" href="#mp" id="mpJump">Join or host a game</a>
       </section>
     </div>
@@ -292,8 +300,11 @@ input.code{text-transform:uppercase;font-family:var(--serif);font-size:24px;lett
       <section class="panel">
         <form id="hostForm">
           <h2>Host a game</h2>
-          <p class="muted" style="font-size:15px">You get a code to put on the screen. Pick the difficulty bands now; you can change them before any problem.</p>
+          <p class="muted" style="font-size:15px">You get a code to put on the screen. Pick the difficulty and topics now; you can change them before any problem.</p>
+          <div class="pick-lbl">Difficulty</div>
           <div class="tierpick" id="hostTiersStart" aria-label="Starting difficulty"></div>
+          <div class="pick-lbl">Topics</div>
+          <div class="tierpick" id="hostTopicsStart" aria-label="Starting topics"></div>
           <div><label class="lbl" for="roundsSel">Number of problems</label>
             <select id="roundsSel"><option value="5">5</option><option value="8">8</option><option value="10" selected>10</option><option value="15">15</option><option value="20">20</option></select></div>
           <button class="primary" type="submit">Create game</button>
@@ -315,7 +326,10 @@ input.code{text-transform:uppercase;font-family:var(--serif);font-size:24px;lett
           <h2 id="soloTitle">Daily five</h2>
           <span class="tier-tag" id="soloTier"></span>
         </div>
-        <div class="tierpick" id="soloTiers" hidden aria-label="Practice difficulty"></div>
+        <div id="soloPickers" class="pickers" hidden>
+          <div class="tierpick" id="soloTiers" aria-label="Practice difficulty"></div>
+          <div class="tierpick" id="soloTopics" aria-label="Practice topics"></div>
+        </div>
         <article class="sheet" id="soloSheet" aria-live="polite"></article>
         <div class="panel pad-wrap">
           <div id="soloPad"></div>
@@ -369,6 +383,10 @@ input.code{text-transform:uppercase;font-family:var(--serif);font-size:24px;lett
             <div class="lbl">Difficulty for the next problem</div>
             <div class="tierpick" id="hostTiers"></div>
           </div>
+          <div>
+            <div class="lbl">Topics for the next problem</div>
+            <div class="tierpick" id="hostTopics"></div>
+          </div>
           <div><label class="lbl" for="timeSel">Time per problem</label>
             <select id="timeSel">
               <option value="auto">Auto (more for harder)</option>
@@ -418,10 +436,12 @@ function showAd(id){
 /* =====================================================================
    The problem bank: contest name, type (a = AMC multiple choice,
    i = AIME integer), the official answer key (lightly scrambled so it
-   isn't readable at a glance), and any problems the MAA threw out.
+   isn't readable at a glance), any problems the MAA threw out, and each
+   problem's topic (A = Algebra, G = Geometry, N = Number Theory,
+   C = Counting & Probability).
    Answers come from the AoPS Wiki answer key pages.
    ===================================================================== */
-const BANK=[["2019 AMC 10A","a","IS48JyBuIi4hbiIsKSEnLjwhJm8lLyBvJQ==",[]],["2019 AMC 10B","a","Jio6JCFuIy8ibCAqLCYjLjsmJ2gjLyBuIg==",[]],["2018 AMC 10A","a","IC49ICBvJC4mbCQqKSQmKzshIW8kKSdpJQ==",[]],["2018 AMC 10B","a","Iys6JyBpJS4naCIqLiEjKjohIW8iLiFuIg==",[]],["2017 AMC 10A","a","ISs6JydvIC8gbyUsKSEhLTwhJ2klKCFuIA==",[]],["2017 AMC 10B","a","ICw9ISBvIi4naCUoLiEnLjohIW8lKSBuJA==",[]],["2016 AMC 10A","a","ICw7JyBpJS4nbyUoLyYjKzkmIW8lKSJoIA==",[]],["2016 AMC 10B","a","Ji08JyBvIiwgaSMtKSEhKjwgIG4jLCBpIA==",[]],["2015 AMC 10A","a","ISs8JyFvIy8nbiIqLiYgLTwgIG8iLCBvIA==",[20]],["2015 AMC 10B","a","IS05JiZoICghbiMoKCEgLDohJ2wlKSFpIw==",[]],["2014 AMC 10A","a","ISw9JydsIykgbyIqLiEhKjwnJWkkKCBsIw==",[]],["2014 AMC 10B","a","ISo9JyVuICgibiIqLyEjLTwgIG4jLyZvIg==",[]],["2013 AMC 10A","a","IS09JiZpIi4haCAqLyEmKjonJ24lLydoIA==",[]],["2013 AMC 10B","a","IS47ISZuIy8nbiMrKCAgLT0hIG8iLiFsJA==",[]],["2012 AMC 10A","a","Jio9JiZpIiknbiUoLicgLDsgIGwiLCFoJQ==",[]],["2012 AMC 10B","a","ISo6JCBsJS8iaSArLyEmLjsmJ2wgLydvJA==",[]],["2011 AMC 10A","a","Jio8JCduIy4ibyMoLCchLTsmIWklLiBpIg==",[]],["2011 AMC 10B","a","ISo5JiFsIy8nbyUoKSYnLjsgJW4jLCdvJQ==",[]],["2010 AMC 10A","a","Ji08JyFuIikmaCUqLCYmLTknIWkgLCJsIw==",[]],["2010 AMC 10B","a","ISw7JiZvJSgnbiAtLichLTogJmkkLidoIw==",[]],["2020 AMC 10A","a","Jyw5ICdvIi8hbyIqLyEnLT0mIWkiLCJuIA==",[]],["2020 AMC 10B","a","Jio9ISZvICknbiUtLyEmLjsnJW8jKSBuIA==",[]],["2021 AMC 10A","a","Jiw8ISZsJSgnbiQsLiQhLDwgIWkiLydpJA==",[]],["2021 AMC 10B","a","Jis7JyZuJSwnbCUqLycgLDsmIGkgKSBvJA==",[]],["2021 Fall AMC 10A","a","ISo8JyFvJS8mbyAtKSEhKzwmJW8kLydoIA==",[]],["2021 Fall AMC 10B","a","Jy09JiFvIi4gbCMtLyYmKzwgJW4kLydsJA==",[]],["2022 AMC 10A","a","Ji09ICdsIyknaCIoLiAmKzwkJ2gjKSFoIw==",[]],["2022 AMC 10B","a","Iys8JCZsIy8naSMqKCcmKzsnJ2kkKCBvIA==",[]],["2023 AMC 10A","a","Jy45ISFpIykmaSIrLicnLTkhIWklKSBuIA==",[]],["2023 AMC 10B","a","IS08JiVoIywhbiMqLyYhKjwgJmwkLyFoIw==",[]],["2024 AMC 10A","a","Iy06JyBpIywhbiUsLiEnKz0hIW4iLydvIg==",[]],["2024 AMC 10B","a","IC09ISZvICkibCIoLychLjwnJ2wiLCFoJA==",[]],["2025 AMC 10A","a","Jy08JCFuJC8gbiQtKScjKz0nJWwiLyduIA==",[]],["2025 AMC 10B","a","ICs8JCduIi4gbCMqLCYmKzohIGwiLCBoIw==",[]],["2010 AIME I","i","U19PSVUdWEFWH1hFWFRXQ01VVQ==",[]],["2010 AIME II","i","VFtISVYVUEFSGFFFWFdOWE0=",[]],["2011 AIME I","i","WlpUVlIBUlxPGFdFXFFW",[]],["2011 AIME II","i","UVhUXVUdTVxXHk1cXElXW0o=",[]],["2012 AIME I","i","Vl9UVF0YTV9SG01bWlxOXEtV",[]],["2012 AIME II","i","UVtUVlIeTVVbAVdYQVJXXw==",[]],["2013 AIME I","i","U1pISVYdUUFSFU1dX1xOVkA=",[]],["2013 AIME II","i","UFhNSVwVUEFQGFFFWVVOXUg=",[]],["2014 AIME I","i","VVZISVUZVUFRHVFFWVxOXktR",[]],["2014 AIME II","i","UVxMSVMbTVpRHU1dWVJOW0pV",[]],["2015 AIME I","i","VV1KSVUeWEFQHVZFWFVVQ0tRVQ==",[]],["2015 AIME II","i","U1xJSVYYTVlUG01YVUlbXw==",[]],["2016 AIME I","i","UVxOSVMcTVVSHU1YXV1OWks=",[]],["2016 AIME II","i","U19ASVUdVkFRG1RFXF1SQ0ldVg==",[]],["2017 AIME I","i","UVZISVIfTVtaAVlZXklRXUk=",[]],["2017 AIME II","i","U1ZOSVMVUEFXHVhFX1dQQ09cVQ==",[]],["2018 AIME I","i","VF9ISV0fVEFSGFZFX11bQ0ldXQ==",[]],["2018 AIME II","i","Wl9ISVUcU0FQGlBFX1ZOWEw=",[]],["2019 AIME I","i","UVtKSVYUTVxRHU1YX1dOXU1X",[]],["2019 AIME II","i","V1ZUVFQaTVRVAVBRWklXXUg=",[]],["2020 AIME I","i","V1tPSVUaTVtRHE1QXklXXQ==",[]],["2020 AIME II","i","UFxJSVUaUEFSHVJFXFVaQ0lQVQ==",[]],["2021 AIME I","i","W1hUVFQUTVhTAVJaXElRXg==",[]],["2021 AIME II","i","V1pISVceV0FbHU1aXlVOWEtT",[]],["2022 AIME I","i","U15OSVYfVkFRGVNFVVZWQ01QVA==",[]],["2022 AIME II","i","U1pMSVUfVEFRHE1YXFdOWEo=",[]],["2023 AIME I","i","U1ZJSVwVUEFVHVZFXFdOXkhT",[]],["2023 AIME II","i","UF1ISVEVVEFRGFFFX1JRQ09UXQ==",[]],["2024 AIME I","i","UF9MSVYYTVVTFE1YXFNOXkhR",[]],["2024 AIME II","i","VVxUV1cbTVlWAVJaQV1S",[]],["2025 AIME I","i","VV9UUFwVTVxVAVBYWklQWEE=",[]],["2025 AIME II","i","VllASVAUTVVRAVBZW0lRXE4=",[]],["2026 AIME I","i","UFhPSVIfTVpaAVZZQVNX",[]],["2026 AIME II","i","U1hASVYZUkFWHVJFX1JbQ0lcVA==",[]]];
+const BANK=[["2019 AMC 10A","a","IS48JyBuIi4hbiIsKSEnLjwhJm8lLyBvJQ==",[],"ANAACGGGNGNAGCACCNACGCAAN"],["2019 AMC 10B","a","Jio6JCFuIy8ibCAqLCYjLjsmJ2gjLyBuIg==",[],"ANAAGANGAGANAGGGCANGCCGAC"],["2018 AMC 10A","a","IC49ICBvJC4mbCQqKSQmKzshIW8kKSdpJQ==",[],"AAACAANAGAGAGAGGNNCCGNGGN"],["2018 AMC 10B","a","Iys6JyBpJS4naCIqLiEjKjohIW8iLiFuIg==",[],"AAAGCCACGGNGNAGNGCAANCNGA"],["2017 AMC 10A","a","ISs6JydvIC8gbyUsKSEhLTwhJ2klKCFuIA==",[],"AAGAAAGCAGGGNACNGCCNGGCAN"],["2017 AMC 10B","a","ICw9ISBvIi4naCUoLiEnLjohIW8lKSBuJA==",[],"AAAAAGAGCGCACNGNNCGNGGNGA"],["2016 AMC 10A","a","ICw7JyBpJS4nbyUoLyYjKzkmIW8lKSJoIA==",[],"AAAANAAAAGGCACGGCCGCGNAGN"],["2016 AMC 10B","a","Ji08JyBvIiwgaSMtKSEhKjwgIG4jLCBpIA==",[],"AAAAANAAGAGCAGCACNGGGCGNA"],["2015 AMC 10A","a","ISs8JyFvIy8nbiIqLiYgLTwgIG8iLCBvIA==",[20],"AAAAAAAAACGGCGAAGNGAGCAGC"],["2015 AMC 10B","a","IS05JiZoICghbiMoKCEgLDohJ2wlKSFpIw==",[],"AAAAAAAGGNCGGAACGCGCNGNAN"],["2014 AMC 10A","a","ISw9JydsIykgbyIqLiEhKjwnJWkkKCBsIw==",[],"AAACAAANGAAGGGAGCGGNAGGAN"],["2014 AMC 10B","a","ISo9JyVuICgibiIqLyEjLTwgIG4jLyZvIg==",[],"AAAAGAAAANANGAGCNACAGGGCC"],["2013 AMC 10A","a","IS09JiZpIi4haCAqLyEmKjonJ24lLydoIA==",[],"AAGAAACAAACGNGGGCGNGNGGCC"],["2013 AMC 10B","a","IS47ISZuIy8nbiMrKCAgLT0hIG8iLiFsJA==",[],"AAAAAAGANAACAAGGANANACGNN"],["2012 AMC 10A","a","Jio9JiZpIiknbiUoLicgLDsgIGwiLCFoJQ==",[],"AGAGAAAACAGAACGAAGAGGACAC"],["2012 AMC 10B","a","ISo6JCBsJS8iaSArLyEmLjsmJ2wgLydvJA==",[],"AGANAAAAANCGAGCGGCGAGCGCC"],["2011 AMC 10A","a","Jio8JCduIy4ibyMoLCchLTsmIWklLiBpIg==",[],"AAAAAAAAGAGACGAAAGACCCAGC"],["2011 AMC 10B","a","ISo5JiFsIy8nbyUoKSYnLjsgJW4jLCdvJQ==",[],"AAGANAGAGACGCGACGGAGAGNAG"],["2010 AMC 10A","a","Ji08JyFuIikmaCUqLCYmLTknIWkgLCJsIw==",[],"AGAAGAGANAAGAGAGGCGGACCNA"],["2010 AMC 10B","a","ISw7JiZvJSgnbiAtLichLTogJmkkLidoIw==",[],"AACAAGGNAAAAAAAGCNGGNCCAA"],["2020 AMC 10A","a","Jyw5ICdvIi8hbyIqLyEnLT0mIWkiLCJuIA==",[],"AAAAANAANGAGCACCACCGNNCNC"],["2020 AMC 10B","a","Jio9ISZvICknbiUtLyEmLjsnJW8jKSBuIA==",[],"AAANCANGAGCNAGAACCNGGACAN"],["2021 AMC 10A","a","Jiw8ISZsJSgnbiQsLiQhLDwgIWkiLydpJA==",[],"AAAAAAAAAANGGACAGNGCGAGGC"],["2021 AMC 10B","a","Jis7JyZuJSwnbCUqLycgLDsmIGkgKSBvJA==",[],"AAAAAAGAGGANNGANACAGGCGCN"],["2021 Fall AMC 10A","a","ISo8JyFvJS8mbyAtKSEhKzwmJW8kLydoIA==",[],"AAAANAGACAANCAGAGCGACGNCA"],["2021 Fall AMC 10B","a","Jy09JiFvIi4gbCMtLyYmKzwgJW4kLydsJA==",[],"AGAAANANAAGAGCGCGGNCCACCG"],["2022 AMC 10A","a","Ji09ICdsIyknaCIoLiAmKzwkJ2gjKSFoIw==",[],"AAAAGANACGAAGCGAAGNAGCGCN"],["2022 AMC 10B","a","Iys8JCZsIy8naSMqKCcmKzsnJ2kkKCBvIA==",[],"AGCAANANAAACNCAGNACGAGCAN"],["2023 AMC 10A","a","Jy45ISFpIykmaSIrLicnLTkhIWklKSBuIA==",[],"AANANACACAGNGCGAGGGCAGNGC"],["2023 AMC 10B","a","IS08JiVoIywhbiMqLyYhKjwgJmwkLyFoIw==",[],"AAGAANGNNCAAGNNNGNCGCAAGG"],["2024 AMC 10A","a","Iy06JyBpIywhbiUsLiEnKz0hIW4iLydvIg==",[],"AANANCAACANAGGNGCNNCAGACC"],["2024 AMC 10B","a","IC09ISZvICkibCIoLychLjwnJ2wiLCFoJA==",[],"AAANNNNNAGGCAGACCNCCGCAAG"],["2025 AMC 10A","a","Jy08JCFuJC8gbiQtKScjKz0nJWwiLyduIA==",[],"AAGAAGAAAGACGCGCNAAGCGGCG"],["2025 AMC 10B","a","ICs8JCduIi4gbCMqLCYmKzohIGwiLCBoIw==",[],"ANCNGGANAACGGCACAAGGCCNCG"],["2010 AIME I","i","U19PSVUdWEFWH1hFWFRXQ01VVQ==",[],"NNACN"],["2010 AIME II","i","VFtISVYVUEFSGFFFWFdOWE0=",[],"NGNCA"],["2011 AIME I","i","WlpUVlIBUlxPGFdFXFFW",[],"AGGGC"],["2011 AIME II","i","UVhUXVUdTVxXHk1cXElXW0o=",[],"AGAGA"],["2012 AIME I","i","Vl9UVF0YTV9SG01bWlxOXEtV",[],"NACAC"],["2012 AIME II","i","UVtUVlIeTVVbAVdYQVJXXw==",[],"NACAG"],["2013 AIME I","i","U1pISVYdUUFSFU1dX1xOVkA=",[],"ANGCA"],["2013 AIME II","i","UFhNSVwVUEFQGFFFWVVOXUg=",[],"AAAGG"],["2014 AIME I","i","VVZISVUZVUFRHVFFWVxOXktR",[],"GCNAC"],["2014 AIME II","i","UVxMSVMbTVpRHU1dWVJOW0pV",[],"ACGAA"],["2015 AIME I","i","VV1KSVUeWEFQHVZFWFVVQ0tRVQ==",[],"ACNGC"],["2015 AIME II","i","U1xJSVYYTVlUG01YVUlbXw==",[],"NCNGC"],["2016 AIME I","i","UVxOSVMcTVVSHU1YXV1OWks=",[],"ACCGA"],["2016 AIME II","i","U19ASVUdVkFRG1RFXF1SQ0ldVg==",[],"ACANG"],["2017 AIME I","i","UVZISVIfTVtaAVlZXklRXUk=",[],"CNNGN"],["2017 AIME II","i","U1ZOSVMVUEFXHVhFX1dQQ09cVQ==",[],"CCGNA"],["2018 AIME I","i","VF9ISV0fVEFSGFZFX11bQ0ldXQ==",[],"ANCGA"],["2018 AIME II","i","Wl9ISVUcU0FQGlBFX1ZOWEw=",[],"ANNGA"],["2019 AIME I","i","UVtKSVYUTVxRHU1YX1dOXU1X",[],"ACGCC"],["2019 AIME II","i","V1ZUVFQaTVRVAVBRWklXXUg=",[],"GCNCC"],["2020 AIME I","i","V1tPSVUaTVtRHE1QXklXXQ==",[],"GANNC"],["2020 AIME II","i","UFxJSVUaUEFSHVJFXFVaQ0lQVQ==",[],"NGAGN"],["2021 AIME I","i","W1hUVFQUTVhTAVJaXElRXg==",[],"CGNCA"],["2021 AIME II","i","V1pISVceV0FbHU1aXlVOWEtT",[],"NGCAG"],["2022 AIME I","i","U15OSVYfVkFRGVNFVVZWQ01QVA==",[],"ANGCA"],["2022 AIME II","i","U1pMSVUfVEFRHE1YXFdOWEo=",[],"ACGAC"],["2023 AIME I","i","U1ZJSVwVUEFVHVZFXFdOXkhT",[],"CACNG"],["2023 AIME II","i","UF1ISVEVVEFRGFFFX1JRQ09UXQ==",[],"ANGAN"],["2024 AIME I","i","UF9MSVYYTVVTFE1YXFNOXkhR",[],"AACCG"],["2024 AIME II","i","VVxUV1cbTVlWAVJaQV1S",[],"CANAG"],["2025 AIME I","i","VV9UUFwVTVxVAVBYWklQWEE=",[],"NGCAN"],["2025 AIME II","i","VllASVAUTVVRAVBZW0lRXE4=",[],"GNCAG"],["2026 AIME I","i","UFhPSVIfTVpaAVZZQVNX",[],"ANGAG"],["2026 AIME II","i","U1hASVYZUkFWHVJFX1JbQ0lcVA==",[],"ACGNC"]];
 </script>
 <script>
 (() => {
@@ -438,11 +458,21 @@ function showNotice(t){ $("notice").textContent = t || ""; $("notice").hidden = 
 /* ---------------- Bank & tiers ---------------- */
 const KEY = "boxed-amc-aime";
 function unscramble(b64){ const s = atob(b64); let o = ""; for (let i = 0; i < s.length; i++) o += String.fromCharCode(s.charCodeAt(i) ^ KEY.charCodeAt(i % KEY.length)); return o; }
-const CONTESTS = BANK.map(([id, type, enc, drop]) => {
+const CONTESTS = BANK.map(([id, type, enc, drop, topics]) => {
   const raw = unscramble(enc);
   const ans = type === "a" ? raw.split("") : raw.split(",").map(Number);
-  return {id, type, ans, drop: new Set(drop)};
+  return {id, type, ans, drop: new Set(drop), topics: topics || ""};
 });
+const TOPICS = [
+  {id:"A", label:"Algebra"},
+  {id:"G", label:"Geometry"},
+  {id:"N", label:"Number Theory"},
+  {id:"C", label:"Counting & Probability"}
+];
+const TOPIC_IDS = TOPICS.map(t => t.id);
+const TOPBYID = Object.fromEntries(TOPICS.map(t => [t.id, t]));
+const topicOf = (c, n) => CBYID[c].topics[n - 1] || "A";
+const topicName = (c, n) => TOPBYID[topicOf(c, n)].label;
 const CBYID = Object.fromEntries(CONTESTS.map(c => [c.id, c]));
 
 const TIERS = [
@@ -462,6 +492,7 @@ TIERS.forEach(t => {
   });
 });
 const keyOf = (c, n) => c + "|" + n;
+const okTopics = t => { const v = (Array.isArray(t) ? t : TOPIC_IDS).filter(x => TOPBYID[x]); return v.length ? v : TOPIC_IDS.slice(); };
 function answerOf(c, n){ return CBYID[c].ans[n - 1]; }
 function isRight(c, n, v){
   const a = answerOf(c, n);
@@ -470,13 +501,17 @@ function isRight(c, n, v){
 }
 function fmtAns(c, n){ const a = answerOf(c, n); return CBYID[c].type === "a" ? "(" + a + ")" : String(a).padStart(3, "0"); }
 function fmtVal(c, v){ if (v == null || v === "") return "—"; return CBYID[c].type === "a" ? "(" + v + ")" : String(v).padStart(3, "0"); }
-function pickProblem(tierIds, used, rand){
+function pickProblem(tierIds, used, rand, topics){
   rand = rand || Math.random;
-  const tiers = tierIds.filter(t => POOL[t] && POOL[t].length);
+  const want = okTopics(topics), all = want.length === TOPIC_IDS.length;
+  // with every topic on, use the full pool so the Daily five stays the same for everyone
+  const pool = {};
+  tierIds.forEach(t => { pool[t] = all ? POOL[t] : (POOL[t] || []).filter(k => { const [c, n] = k.split("|"); return want.includes(topicOf(c, +n)); }); });
+  const tiers = tierIds.filter(t => pool[t] && pool[t].length);
   if (!tiers.length) return null;
   for (let tries = 0; tries < 40; tries++){
     const t = tiers[Math.floor(rand() * tiers.length)];
-    const k = POOL[t][Math.floor(rand() * POOL[t].length)];
+    const k = pool[t][Math.floor(rand() * pool[t].length)];
     if (!used || !used.includes(k) || tries > 30){ const [c, n] = k.split("|"); return {c, n: +n, tier: t}; }
   }
   return null;
@@ -629,15 +664,17 @@ function makePad(el, kind, onChange){
 }
 
 /* ---------------- Tier chips ---------------- */
-function tierChips(el, selected, onChange){
+function tierChips(el, selected, onChange){ chipRow(el, TIERS, selected, onChange, (a, b) => a - b); }
+function topicChips(el, selected, onChange){ chipRow(el, TOPICS, selected, onChange, (a, b) => TOPIC_IDS.indexOf(a) - TOPIC_IDS.indexOf(b)); }
+function chipRow(el, items, selected, onChange, order){
   el.innerHTML = "";
-  TIERS.forEach(t => {
+  items.forEach(t => {
     const b = document.createElement("button"); b.type = "button"; b.className = "chip"; b.textContent = t.label;
     b.setAttribute("aria-pressed", String(selected.includes(t.id)));
     b.onclick = () => {
       const i = selected.indexOf(t.id);
       if (i >= 0){ if (selected.length === 1) return; selected.splice(i, 1); } else selected.push(t.id);
-      selected.sort((a, b) => a - b);
+      selected.sort(order);
       b.setAttribute("aria-pressed", String(selected.includes(t.id)));
       onChange && onChange(selected);
     };
@@ -661,6 +698,7 @@ function streakInfo(){ try { return JSON.parse(store.get("boxed.streak")) || {cu
 
 let solo = null, soloPad = null;
 const practiceSel = (() => { try { const v = JSON.parse(store.get("boxed.practiceTiers")); if (Array.isArray(v) && v.length) return v; } catch(e){} return [1, 2]; })();
+const practiceTop = (() => { try { const v = JSON.parse(store.get("boxed.practiceTopics")); if (Array.isArray(v) && v.length) return okTopics(v); } catch(e){} return TOPIC_IDS.slice(); })();
 
 function renderDailyStatus(){
   const s = todayStr(), rec = dailyRec(s), st = streakInfo();
@@ -678,22 +716,25 @@ function startDaily(){
   show("solo"); renderSolo();
 }
 function startPractice(){
-  solo = {mode: "practice", tiers: practiceSel, items: [], i: 0, results: [], answered: false, used: []};
+  solo = {mode: "practice", tiers: practiceSel, topics: practiceTop, items: [], i: 0, results: [], answered: false, used: []};
   nextPractice();
   show("solo"); renderSolo();
 }
 function nextPractice(){
-  const p = pickProblem(solo.tiers, solo.used);
+  const p = pickProblem(solo.tiers, solo.used, null, solo.topics);
   solo.items[solo.i] = p; solo.used.push(keyOf(p.c, p.n));
-  const ahead = pickProblem(solo.tiers, solo.used); if (ahead) preload(ahead.c);
+  const ahead = pickProblem(solo.tiers, solo.used, null, solo.topics); if (ahead) preload(ahead.c);
 }
 function renderSolo(){
   const p = solo.items[solo.i], t = TBYID[p.tier];
   solo.answered = false; solo.t0 = Date.now();
   $("soloTitle").textContent = solo.mode === "daily" ? "Boxed #" + dayNum(solo.date) + ": problem " + (solo.i + 1) + " of 5" : "Practice";
-  $("soloTier").textContent = t.label + " · " + t.pts + " pts";
-  $("soloTiers").hidden = solo.mode !== "practice";
-  if (solo.mode === "practice") tierChips($("soloTiers"), solo.tiers, sel => { store.set("boxed.practiceTiers", JSON.stringify(sel)); });
+  $("soloTier").innerHTML = esc(t.label) + ' · <span class="topic-tag">' + esc(topicName(p.c, p.n)) + '</span> · ' + t.pts + " pts";
+  $("soloPickers").hidden = solo.mode !== "practice";
+  if (solo.mode === "practice"){
+    tierChips($("soloTiers"), solo.tiers, sel => { store.set("boxed.practiceTiers", JSON.stringify(sel)); });
+    topicChips($("soloTopics"), solo.topics, sel => { store.set("boxed.practiceTopics", JSON.stringify(sel)); });
+  }
   showProblem($("soloSheet"), p.c, p.n, "solo" + solo.mode + solo.i + p.c + p.n);
   if (soloPad) soloPad.destroy();
   soloPad = makePad($("soloPad"), CBYID[p.c].type, v => { $("soloCheck").disabled = v == null; });
@@ -709,7 +750,10 @@ function renderSoloSide(){
     side.innerHTML = '<div class="lbl">Today\'s five</div><div class="progress">' + bars + '</div><div class="stats" style="margin-top:14px"><div><b>' + pts + '</b><span>points</span></div><div><b>' + solo.results.filter(r => r.ok).length + '</b><span>right</span></div></div><p class="muted" style="font-size:14px;margin-top:12px">One try per problem. No calculators, just like the real thing.</p>';
   } else {
     const right = solo.results.filter(r => r.ok).length, n = solo.results.length;
-    side.innerHTML = '<div class="stats"><div><b>' + right + '/' + n + '</b><span>right this session</span></div><div><b>' + solo.results.reduce((a, r) => a + (r.ok ? r.pts : 0), 0) + '</b><span>points</span></div></div><p class="muted" style="font-size:14px;margin-top:12px">Change the difficulty above any time; it applies from the next problem.</p>';
+    const by = {};
+    solo.results.forEach((r, k) => { if (!r) return; const tp = topicOf(solo.items[k].c, solo.items[k].n); by[tp] = by[tp] || [0, 0]; by[tp][1]++; if (r.ok) by[tp][0]++; });
+    const rows = TOPICS.filter(tp => by[tp.id]).map(tp => '<div><span>' + tp.label + '</span><b>' + by[tp.id][0] + '/' + by[tp.id][1] + '</b></div>').join("");
+    side.innerHTML = '<div class="stats"><div><b>' + right + '/' + n + '</b><span>right this session</span></div><div><b>' + solo.results.reduce((a, r) => a + (r.ok ? r.pts : 0), 0) + '</b><span>points</span></div></div>' + (rows ? '<div class="topic-stats">' + rows + '</div>' : '') + '<p class="muted" style="font-size:14px;margin-top:12px">Change the difficulty or topics above any time; it applies from the next problem.</p>';
   }
 }
 function soloAnswer(skip){
@@ -723,7 +767,7 @@ function soloAnswer(skip){
   if (CBYID[p.c].type === "a") soloPad.mark(answerOf(p.c, p.n), v);
   const cls = ok ? "r" : v == null ? "s" : "w";
   const head = ok ? "Right. +" + r.pts + " points" : v == null ? "Skipped" : "Not this time";
-  $("soloFeedback").innerHTML = '<div class="feedback ' + cls + ' pop"><b>' + head + '</b><span>The answer is <strong>' + fmtAns(p.c, p.n) + '</strong>' + (v != null && !ok ? '; you put ' + esc(fmtVal(p.c, v)) : '') + '.</span><span class="src">' + esc(p.c) + ', Problem ' + p.n + ' · <a href="' + esc(problemURL(p.c, p.n)) + '" target="_blank" rel="noopener">Solutions on the AoPS Wiki</a></span></div>';
+  $("soloFeedback").innerHTML = '<div class="feedback ' + cls + ' pop"><b>' + head + '</b><span>The answer is <strong>' + fmtAns(p.c, p.n) + '</strong>' + (v != null && !ok ? '; you put ' + esc(fmtVal(p.c, v)) : '') + '.</span><span class="src">' + esc(p.c) + ', Problem ' + p.n + ' · ' + esc(topicName(p.c, p.n)) + ' · <a href="' + esc(problemURL(p.c, p.n)) + '" target="_blank" rel="noopener">Solutions on the AoPS Wiki</a></span></div>';
   $("soloCheck").hidden = true; $("soloSkip").hidden = true; $("soloNext").hidden = false;
   if (solo.mode === "daily"){
     store.set("boxed.daily." + solo.date, JSON.stringify({results: solo.results}));
@@ -752,7 +796,7 @@ function showDailyResults(){
   $("dailyDone").innerHTML = '<div class="results">' +
     '<h2 style="font-size:28px">Boxed #' + dayNum(s) + '</h2>' +
     '<div class="stats"><div><b class="big">' + pts + '</b><span>points out of 1,150</span></div><div><b>' + right + '/5</b><span>right</span></div><div><b>' + (st.cur || 0) + '</b><span>day streak</span></div><div><b>' + (st.best || 0) + '</b><span>best streak</span></div></div>' +
-    '<div class="res-list">' + res.map((r, k) => { const p = items[k]; return '<div class="row"><span class="bub sm ' + (r.ok ? "right" : r.v == null ? "" : "wrong") + '">' + (k + 1) + '</span><span>' + esc(p.c) + ', Problem ' + p.n + ' <span class="muted">· ' + TBYID[p.tier].label + '</span><br><a class="src" href="' + esc(problemURL(p.c, p.n)) + '" target="_blank" rel="noopener">Solutions</a></span><span>' + fmtAns(p.c, p.n) + (r.ok ? "" : ' <span class="muted">(you: ' + esc(fmtVal(p.c, r.v)) + ')</span>') + '</span></div>'; }).join("") + '</div>' +
+    '<div class="res-list">' + res.map((r, k) => { const p = items[k]; return '<div class="row"><span class="bub sm ' + (r.ok ? "right" : r.v == null ? "" : "wrong") + '">' + (k + 1) + '</span><span>' + esc(p.c) + ', Problem ' + p.n + ' <span class="muted">· ' + TBYID[p.tier].label + ' · ' + esc(topicName(p.c, p.n)) + '</span><br><a class="src" href="' + esc(problemURL(p.c, p.n)) + '" target="_blank" rel="noopener">Solutions</a></span><span>' + fmtAns(p.c, p.n) + (r.ok ? "" : ' <span class="muted">(you: ' + esc(fmtVal(p.c, r.v)) + ')</span>') + '</span></div>'; }).join("") + '</div>' +
     '<div class="actions"><button class="primary" id="shareBtn">Share result</button><button id="toPractice">Keep practicing</button><button class="quiet" id="toMenu">Back to menu</button></div><div class="msg" id="shareMsg" role="status"></div></div>';
   show("dailyDone");
   $("shareBtn").onclick = async () => {
@@ -772,14 +816,16 @@ $("soloNext").onclick = () => {
 };
 $("soloQuit").onclick = () => { if (soloPad) soloPad.destroy(); show("landing"); };
 tierChips($("practiceTiers"), practiceSel, sel => store.set("boxed.practiceTiers", JSON.stringify(sel)));
+topicChips($("practiceTopics"), practiceTop, sel => store.set("boxed.practiceTopics", JSON.stringify(sel)));
 
 /* =====================================================================
    LIVE GAME (Firebase). Uses the same Firestore rules as Hype Cycle
    Exchange: only the host can change the game document (problems,
    timer, scores); each player can only write their own answers.
    ===================================================================== */
-const hostStartSel = [1, 2];
+const hostStartSel = [1, 2], hostStartTop = TOPIC_IDS.slice();
 tierChips($("hostTiersStart"), hostStartSel);
+topicChips($("hostTopicsStart"), hostStartTop);
 
 if (!window.firebase){ showNotice("The live game couldn't load (Firebase was blocked). Daily five and Practice still work."); }
 const fbOK = !!window.firebase;
@@ -829,7 +875,7 @@ $("hostForm").addEventListener("submit", async e => {
     for (let i = 0; i < 5 && (await fs.collection("games").doc(c).get()).exists; i++) c = newCode();
     await fs.collection("games").doc(c).set({
       kind: "math", hostUid: uid, createdAt: Date.now(), phase: "lobby", round: 0,
-      total: +$("roundsSel").value, tiers: hostStartSel.slice(), time: "auto", speed: true, first: true,
+      total: +$("roundsSel").value, tiers: hostStartSel.slice(), topics: hostStartTop.slice(), time: "auto", speed: true, first: true,
       current: null, used: [], scores: {}, reveal: null, endsAt: 0, limit: 0
     });
     store.set("boxed.code", c); say("hostMsg", "");
@@ -872,8 +918,8 @@ async function hostUpdate(patch, okText){
   busy = false;
 }
 function nextQuestion(){
-  const p = pickProblem(state.tiers || [1], state.used || []);
-  if (!p) return say("hostCtlMsg", "No problems left in those bands. Turn on another band.", "err");
+  const p = pickProblem(state.tiers || [1], state.used || [], null, state.topics);
+  if (!p) return say("hostCtlMsg", "No problems match those bands and topics. Turn on another band or topic.", "err");
   const limit = limitFor(p.tier);
   hostUpdate({
     phase: "question", round: (state.phase === "question" || state.phase === "closed") ? state.round : state.round + 1,
@@ -941,10 +987,12 @@ function renderHostButtons(){
   if (ph === "done") add("Play again with everyone", "primary", resetGame);
   if (ph !== "lobby"){ const r = add(resetArmed ? "Tap again to reset" : "Reset game", "danger", () => { if (!resetArmed){ resetArmed = true; renderHostButtons(); setTimeout(() => { resetArmed = false; if (state) renderHostButtons(); }, 3000); } else { resetArmed = false; resetGame(); } }); }
 }
-const hostTierSel = [];
+const hostTierSel = [], hostTopSel = [];
 function renderHostSettings(){
   hostTierSel.length = 0; (state.tiers || [1]).forEach(t => hostTierSel.push(t));
   tierChips($("hostTiers"), hostTierSel, sel => hostUpdate({tiers: sel.slice()}));
+  hostTopSel.length = 0; okTopics(state.topics).forEach(t => hostTopSel.push(t));
+  topicChips($("hostTopics"), hostTopSel, sel => hostUpdate({topics: sel.slice()}));
   $("timeSel").value = String(state.time || "auto");
   $("optSpeed").checked = !!state.speed;
   $("optFirst").checked = state.first !== false;
@@ -1006,7 +1054,7 @@ function renderStage(){
       : '<section class="panel"><div class="state-big">You\'re in, ' + esc((myPlayer() || {}).name || "") + '.</div><p class="muted" style="margin-top:6px">Waiting for the host to start. ' + players.length + ' player' + (players.length === 1 ? "" : "s") + ' here.</p></section>';
   } else if (showingProblem){
     const t = TBYID[cur.tier];
-    const src = ph === "reveal" ? '<span class="src">' + esc(cur.c) + ', Problem ' + cur.n + ' · <a href="' + esc(problemURL(cur.c, cur.n)) + '" target="_blank" rel="noopener">Solutions</a></span>' : '<span class="tier-tag">' + t.label + ' · ' + t.pts + ' pts</span>';
+    const src = ph === "reveal" ? '<span class="src">' + esc(cur.c) + ', Problem ' + cur.n + ' · ' + esc(topicName(cur.c, cur.n)) + ' · <a href="' + esc(problemURL(cur.c, cur.n)) + '" target="_blank" rel="noopener">Solutions</a></span>' : '<span class="tier-tag">' + t.label + ' · <span class="topic-tag">' + esc(topicName(cur.c, cur.n)) + '</span> · ' + t.pts + ' pts</span>';
     let extra = "";
     if (isHost && ph === "question"){ const k = cur.k, inn = players.filter(p => p.ans && p.ans[k] && p.ans[k].v != null); extra = '<div class="dots" style="margin-top:10px">' + players.map(p => '<span class="' + (inn.includes(p) ? "in" : "") + '">' + esc(p.name) + '</span>').join("") + '</div><p class="muted" style="font-size:14px;margin-top:6px">' + inn.length + ' of ' + players.length + ' answered</p>'; }
     stage.innerHTML = '<div class="sheet-head"><h2>Problem ' + state.round + '</h2>' + src + '</div>' + extra;
