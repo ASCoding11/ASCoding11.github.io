@@ -1,0 +1,924 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Prompted – Free Supplemental Essay Tracker for College Applications</title>
+<meta name="description" content="Prompted keeps every college's supplemental essay prompts, word limits, drafts and deadlines in one place, and shows you which prompts overlap so you can reuse your best writing. Free, and it runs entirely in your browser.">
+<link rel="canonical" href="https://ascoding11.github.io/prompted/">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Arjun's Projects">
+<meta property="og:title" content="Prompted – Free Supplemental Essay Tracker">
+<meta property="og:description" content="Every supplement prompt, word limit, draft and deadline in one place, with a map of which prompts you can write once and reuse.">
+<meta property="og:url" content="https://ascoding11.github.io/prompted/">
+<meta property="og:image" content="https://ascoding11.github.io/prompted/preview.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://ascoding11.github.io/prompted/preview.jpg">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "WebApplication",
+ "name": "Prompted",
+ "url": "https://ascoding11.github.io/prompted/",
+ "applicationCategory": "EducationalApplication",
+ "operatingSystem": "Any (web browser)",
+ "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+ "description": "A supplemental essay tracker for college applicants: prompts, word limits, drafts, versions and deadlines for every school, plus a map of overlapping prompts.",
+ "author": { "@type": "Person", "name": "Arjun", "url": "https://ascoding11.github.io/" }
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="../site.css">
+<style>
+:root{
+  --c0:#2563A8;--c1:#B4531B;--c2:#7A3FA0;--c3:#0F7A6E;--c4:#A8325A;--c5:#5F6E0E;--c6:#8A5A00;--c7:#3F51B5;
+  --warn:#9A5B00; --warn-bg:#FFF4DE; --track:#E3E8E1;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --c0:#6FA8E8;--c1:#F0995E;--c2:#C094E0;--c3:#4CC7B5;--c4:#EE7FA3;--c5:#B8C95A;--c6:#E2B048;--c7:#8E9BEA;
+    --warn:#F2B35B; --warn-bg:#2C2414; --track:#222D28;
+  }
+}
+button{font:inherit;color:inherit}
+button.btn{cursor:pointer;color:var(--ink)}
+button.btn.primary{color:var(--accent-ink)}
+.btn.sm{min-height:36px;padding:6px 12px;font-size:14px}
+.btn.ghost{background:none;border-color:transparent}
+.btn.ghost:hover{border-color:var(--line)}
+.btn.danger:hover{border-color:var(--down);color:var(--down)}
+.btn:disabled{opacity:.5;cursor:default}
+.muted{color:var(--ink-2)}
+.mono{font-family:var(--mono)}
+.hide{display:none!important}
+
+#heroActs{margin-top:20px}
+#app{display:flex;flex-direction:column}
+.pr-sec{padding-top:40px}
+.pr-sec>h2{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.pr-sec>h2 .sub{font-family:var(--body);font-size:15px;font-weight:400;letter-spacing:0;text-transform:none;color:var(--ink-2)}
+.pr-sec>h2 .end{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.pr-sec>h2 .btn{font-family:var(--body);font-size:14px;font-weight:600;letter-spacing:0;text-transform:none}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;min-width:0}
+.card h3{font-family:var(--display);font-weight:800;font-size:24px;line-height:1.05;letter-spacing:.02em;text-transform:uppercase;margin:0 0 6px}
+.card p{margin:0 0 12px;color:var(--ink-2)}
+.card p:last-child{margin-bottom:0}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}
+@media (max-width:820px){.grid2{grid-template-columns:minmax(0,1fr)}}
+
+label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;color:var(--ink-2);min-width:0}
+input[type=text],input[type=url],input[type=date],input[type=number],select,textarea{font:inherit;font-size:15px;font-weight:400;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:var(--ink);min-height:40px;min-width:0;width:100%}
+textarea{resize:vertical;line-height:1.55}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:0;border-color:var(--accent)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.row>*{flex:1 1 140px}
+.row>.btn{flex:0 0 auto}
+.msg{margin-top:12px;font-size:14px;padding:10px 12px;border-radius:8px;background:var(--panel-2);border:1px solid var(--line)}
+.msg.warn{background:var(--warn-bg);border-color:var(--warn);color:var(--ink)}
+.msg:empty{display:none}
+.chip{display:inline-block;font-family:var(--mono);font-size:12px;font-weight:500;background:var(--panel-2);border:1px solid var(--line);border-radius:999px;padding:1px 9px;color:var(--ink-2);white-space:nowrap}
+.chip.acc{color:var(--accent);border-color:var(--accent)}
+.chip.warn{color:var(--warn);border-color:var(--warn)}
+.chip.bad{color:var(--down);border-color:var(--down)}
+.dot{width:10px;height:10px;border-radius:50%;flex:0 0 auto;display:inline-block}
+.x{width:36px;height:36px;border-radius:8px;border:1px solid transparent;background:none;cursor:pointer;color:var(--ink-2);font-size:20px;line-height:1;flex:0 0 auto}
+.x:hover{border-color:var(--line);color:var(--ink)}
+
+/* status pills */
+.st{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;color:var(--ink-2)}
+.st::before{content:"";width:8px;height:8px;border-radius:50%;border:1.5px solid currentColor;flex:0 0 auto}
+.st.brainstorm{color:var(--c6)} .st.brainstorm::before{background:linear-gradient(90deg,currentColor 50%,transparent 50%)}
+.st.draft{color:var(--c0)} .st.draft::before{background:linear-gradient(90deg,currentColor 50%,transparent 50%)}
+.st.revise{color:var(--c2)} .st.revise::before{background:currentColor;opacity:.75}
+.st.final{color:var(--up)} .st.final::before{background:currentColor}
+
+/* meter */
+.meter{height:6px;border-radius:999px;background:var(--track);overflow:hidden;min-width:60px}
+.meter i{display:block;height:100%;background:var(--accent);border-radius:999px}
+.meter.over i{background:var(--down)}
+.meter.short i{background:var(--warn)}
+
+/* stats */
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}
+@media (max-width:820px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;min-width:0}
+.stat .k{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.stat .v{font-family:var(--display);font-weight:800;font-size:34px;line-height:1.05;letter-spacing:.01em}
+.stat .v small{font-size:20px;color:var(--ink-2)}
+.stat .s{font-size:13px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stat.bad .v{color:var(--down)} .stat.warn .v{color:var(--warn)}
+
+/* lists */
+.ul{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
+.ul>li{border-bottom:1px solid var(--line)}
+.ul>li:last-child{border-bottom:0}
+.erow{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:6px 12px;align-items:center;width:100%;text-align:left;background:none;border:0;padding:12px 4px;cursor:pointer;color:var(--ink);border-radius:8px}
+.erow:hover{background:var(--panel-2)}
+.erow .p{font-size:15px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.erow .meta{grid-column:2/4;display:flex;gap:8px 12px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--ink-2)}
+.erow .cnt{font-family:var(--mono);font-size:12px;color:var(--ink-2);white-space:nowrap;text-align:right}
+.erow .meter{width:90px}
+.empty-line{padding:14px 4px;color:var(--ink-2);font-size:15px}
+
+/* schools */
+.schools{display:flex;flex-direction:column;gap:18px}
+.school{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;border-left:5px solid var(--sc,var(--accent))}
+.school.done{opacity:.72}
+.school-h{display:flex;gap:12px 18px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;padding:18px 20px 12px}
+.school-h h3{font-family:var(--display);font-weight:800;font-size:30px;line-height:1;letter-spacing:.02em;text-transform:uppercase;margin:0;overflow-wrap:anywhere}
+.school-h .sub{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px;font-size:14px;color:var(--ink-2)}
+.school-h .sub a{color:var(--accent)}
+.school-h .acts{display:flex;gap:6px;flex-wrap:wrap}
+.school .prog{display:flex;align-items:center;gap:10px;padding:0 20px 12px;font-family:var(--mono);font-size:12px;color:var(--ink-2)}
+.school .prog .meter{flex:1}
+.school .ul{margin:0 16px}
+.school-f{display:flex;gap:8px;flex-wrap:wrap;padding:12px 20px 18px}
+.school .notes{margin:0 20px 12px;font-size:14px;color:var(--ink-2);white-space:pre-wrap}
+
+/* deadlines */
+.dl{list-style:none;margin:0;padding:0}
+.dl li{display:grid;grid-template-columns:64px minmax(0,1fr);gap:14px;padding:12px 0;border-top:1px solid var(--line)}
+.dl li:first-child{border-top:0;padding-top:0}
+.dl .date{font-family:var(--mono);text-align:center;border:1px solid var(--line);border-radius:10px;padding:6px 0;line-height:1.1;background:var(--panel-2)}
+.dl .date b{display:block;font-family:var(--display);font-size:26px;font-weight:800}
+.dl .date span{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.dl .date.soon{border-color:var(--warn)} .dl .date.soon b{color:var(--warn)}
+.dl .date.past{border-color:var(--down)} .dl .date.past b{color:var(--down)}
+.dl .who{display:flex;flex-direction:column;gap:8px;min-width:0}
+.dl .sch{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center;font-size:15px}
+.dl .sch b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.dl .sch .meter{grid-column:2/4}
+.dl .pace{font-size:13px;color:var(--ink-2)}
+
+/* reuse */
+.groups{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}
+@media (max-width:820px){.groups{grid-template-columns:minmax(0,1fr)}}
+.group .hint{font-size:14px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin:0 0 10px;color:var(--ink)}
+.group .gh{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.group .gh .chip{flex:0 0 auto}
+
+/* dialogs */
+dialog{border:1px solid var(--line);border-radius:14px;background:var(--panel);color:var(--ink);padding:0;width:min(880px,calc(100vw - 24px));max-height:calc(100dvh - 24px)}
+dialog.narrow{width:min(560px,calc(100vw - 24px))}
+dialog::backdrop{background:rgba(10,20,15,.55)}
+.dlg{display:flex;flex-direction:column;max-height:calc(100dvh - 26px)}
+.dlg-h{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line)}
+.dlg-h h3{font-family:var(--display);font-weight:800;font-size:26px;line-height:1;letter-spacing:.02em;text-transform:uppercase;margin:0}
+.dlg-h .kick{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:0 0 4px}
+.dlg-b{padding:18px 20px;overflow:auto;display:flex;flex-direction:column;gap:14px}
+.dlg-f{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;padding:14px 20px;border-top:1px solid var(--line)}
+.dlg-f .left{margin-right:auto}
+@media (max-width:640px){
+  dialog,dialog.narrow{width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;border-radius:0;margin:0}
+  .dlg{max-height:100dvh;height:100%}
+  .dlg-b{flex:1}
+}
+
+/* editor */
+#edPrompt{min-height:64px;font-size:15px;font-weight:500}
+#edText{min-height:300px;font-size:16px;line-height:1.7;padding:14px 16px}
+.count{display:flex;align-items:center;gap:12px;font-family:var(--mono);font-size:13px;color:var(--ink-2)}
+.count .meter{flex:1;height:8px}
+.count b{color:var(--ink);font-weight:600}
+.count.over b{color:var(--down)}
+.tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.tools select{width:auto;min-height:36px;font-size:14px;padding:6px 8px;max-width:100%}
+details.box{border:1px solid var(--line);border-radius:10px;background:var(--panel-2)}
+details.box>summary{cursor:pointer;padding:10px 12px;font-weight:600;font-size:14px;list-style-position:inside}
+details.box>div{padding:0 12px 12px}
+.vers{list-style:none;margin:0;padding:0}
+.vers li{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:14px}
+.vers li .grow{flex:1;min-width:0}
+.vers li small{color:var(--ink-2);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.saved{font-family:var(--mono);font-size:12px;color:var(--ink-2)}
+
+/* paste preview */
+.found{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.found li{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--panel-2);display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 10px}
+.found li.off{opacity:.5}
+.found input[type=checkbox]{width:20px;height:20px;margin-top:10px;accent-color:var(--accent)}
+.found textarea{min-height:60px;font-size:14px;background:var(--panel)}
+.found .row{grid-column:2}
+.found .row select,.found .row input{background:var(--panel);font-size:14px;min-height:36px;padding:6px 8px}
+
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:60;background:var(--ink);color:var(--ground);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:14px;max-width:calc(100vw - 32px);font-size:15px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.toast button{background:none;border:1px solid currentColor;border-radius:8px;padding:6px 10px;color:inherit;cursor:pointer;font-weight:600;white-space:nowrap}
+.how{margin-top:0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <a class="wordmark" href="../">Arjun</a>
+    <nav class="nav" aria-label="Site"><a href="../">Home</a><a href="../projects/">Web Development Projects</a><a href="../productivity/" aria-current="page">Productivity</a></nav>
+  </div>
+  <header>
+    <p class="kicker">Supplemental essay tracker</p>
+    <h1>Prompted</h1>
+    <p class="intro">Every college's supplement prompts, word limits, drafts and deadlines in one place. Prompted also shows you which prompts ask the same thing, so you can write your best answer once and adapt it.</p>
+    <div class="actions" id="heroActs"><button class="btn primary" type="button" data-act="add-school">Add your first school</button><button class="btn" type="button" data-act="sample">Try it with an example</button></div>
+  </header>
+
+  <noscript><p class="msg warn">Prompted needs JavaScript turned on.</p></noscript>
+
+  <div id="app">
+    <section class="pr-sec hide" id="secOverview" aria-labelledby="hOverview">
+      <h2 id="hOverview">Overview <span class="sub" id="todayLine"></span></h2>
+      <div class="stats" id="stats"></div>
+      <div class="grid2">
+        <div class="card"><h3>Up next</h3><p>Unfinished essays, soonest deadline first.</p><ul class="ul" id="upNext"></ul></div>
+        <div class="card"><h3>Deadlines</h3><p>How far along each school is, and the pace it takes to finish.</p><ul class="dl" id="deadlines"></ul></div>
+      </div>
+    </section>
+
+    <section class="pr-sec" id="secSchools" aria-labelledby="hSchools">
+      <h2 id="hSchools">Schools <span class="sub" id="schoolsSub">Add each college, then its supplement prompts.</span><span class="end"><button class="btn sm primary" type="button" data-act="add-school">Add a school</button></span></h2>
+      <div class="schools" id="schools"></div>
+      <div class="how hide" id="howTo" aria-label="How Prompted works">
+        <div class="step"><span class="n">01</span><h4>Add your schools</h4><p>Enter each college with its application plan and deadline.</p></div>
+        <div class="step"><span class="n">02</span><h4>Paste the prompts</h4><p>Copy the supplement page from the portal. Prompted pulls out each prompt and its word limit.</p></div>
+        <div class="step"><span class="n">03</span><h4>Write and reuse</h4><p>Draft right here with a live word count, save versions, and start new essays from ones you've already written.</p></div>
+      </div>
+    </section>
+
+    <section class="pr-sec hide" id="secReuse" aria-labelledby="hReuse">
+      <h2 id="hReuse">Reuse map <span class="sub">Prompts across your list that ask for the same kind of essay.</span></h2>
+      <div class="groups" id="groups"></div>
+    </section>
+
+    <section class="pr-sec" id="secData" aria-labelledby="hData">
+      <h2 id="hData">Your data</h2>
+      <div class="card">
+        <p>Everything you write stays in this browser on this device. Nothing is uploaded. Download a backup now and then, and use it to move your essays to another computer.</p>
+        <div class="actions">
+          <button class="btn sm" type="button" data-act="export-txt">Download all drafts (.txt)</button>
+          <button class="btn sm" type="button" data-act="export-json">Download backup</button>
+          <button class="btn sm" type="button" data-act="import-json">Restore from backup</button>
+          <button class="btn sm ghost danger" type="button" data-act="erase">Erase everything</button>
+          <input type="file" id="importFile" accept=".json,application/json" class="hide">
+        </div>
+        <p class="msg" id="dataMsg"></p>
+      </div>
+    </section>
+  </div>
+
+  <footer>© 2026 Arjun · <a href="../privacy.html">Privacy policy</a></footer>
+</div>
+
+<!-- school -->
+<dialog id="dlgSchool" class="narrow" aria-labelledby="dsTitle">
+  <form class="dlg" method="dialog" id="formSchool">
+    <div class="dlg-h"><h3 id="dsTitle">Add a school</h3><button class="x" type="button" data-close aria-label="Close">×</button></div>
+    <div class="dlg-b">
+      <label class="f">School name<input type="text" id="dsName" required autocomplete="off" placeholder="e.g. State University"></label>
+      <div class="row">
+        <label class="f">Application plan<select id="dsPlan"></select></label>
+        <label class="f">Deadline<input type="date" id="dsDate"></label>
+      </div>
+      <label class="f">Link to the application portal or prompts page (optional)<input type="text" inputmode="url" autocomplete="url" id="dsUrl" placeholder="e.g. apply.college.edu"></label>
+      <label class="f">Notes (optional)<textarea id="dsNotes" rows="3" placeholder="Interview, portfolio, recommendation reminders, anything else"></textarea></label>
+      <label class="row" style="align-items:center;gap:8px;font-size:15px"><input type="checkbox" id="dsDone" style="flex:0 0 auto;width:18px;height:18px;accent-color:var(--accent)"> <span>Application submitted</span></label>
+    </div>
+    <div class="dlg-f">
+      <button class="btn sm ghost danger left hide" type="button" id="dsDelete">Delete school</button>
+      <button class="btn sm" type="button" data-close>Cancel</button>
+      <button class="btn sm primary" type="submit" id="dsSave">Add school</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- paste prompts -->
+<dialog id="dlgPaste" aria-labelledby="dpTitle">
+  <div class="dlg">
+    <div class="dlg-h"><div><p class="kick" id="dpSchool"></p><h3 id="dpTitle">Paste prompts</h3></div><button class="x" type="button" data-close aria-label="Close">×</button></div>
+    <div class="dlg-b">
+      <div id="dpStep1">
+        <p class="muted" style="margin:0 0 10px">Copy the supplement questions from the application portal or the college's website and paste them below. Prompted finds each prompt, its word or character limit, and whether it's optional. You can check and fix everything before adding.</p>
+        <textarea id="dpText" rows="10" placeholder="1. Why are you interested in attending? (250 words)&#10;&#10;2. Describe a community you belong to. (200 words)&#10;&#10;Optional: Is there anything else you'd like us to know? (300 words)"></textarea>
+        <p class="msg warn hide" id="dpMsg"></p>
+      </div>
+      <div id="dpStep2" class="hide">
+        <p class="muted" style="margin:0 0 10px" id="dpFoundLine"></p>
+        <ul class="found" id="dpFound"></ul>
+      </div>
+    </div>
+    <div class="dlg-f">
+      <button class="btn sm ghost left hide" type="button" id="dpBack">Back</button>
+      <button class="btn sm" type="button" data-close>Cancel</button>
+      <button class="btn sm primary" type="button" id="dpGo">Find prompts</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- editor -->
+<dialog id="dlgEd" aria-labelledby="edTitle">
+  <div class="dlg">
+    <div class="dlg-h">
+      <div style="min-width:0"><p class="kick" id="edKick"></p><h3 id="edTitle">Essay</h3></div>
+      <button class="x" type="button" data-close aria-label="Close">×</button>
+    </div>
+    <div class="dlg-b">
+      <label class="f">Prompt<textarea id="edPrompt" rows="2" placeholder="Paste or type the prompt exactly as the school words it"></textarea></label>
+      <div class="row">
+        <label class="f" style="flex:0 1 110px">Limit<input type="number" id="edLimit" min="0" step="1" inputmode="numeric" placeholder="None"></label>
+        <label class="f" style="flex:0 1 140px">Counted in<select id="edUnit"><option value="words">Words</option><option value="chars">Characters</option></select></label>
+        <label class="f">Kind of essay<select id="edType"></select></label>
+        <label class="f" style="flex:0 1 130px">Required?<select id="edReq"><option value="1">Required</option><option value="0">Optional</option></select></label>
+        <label class="f">Status<select id="edStatus"></select></label>
+      </div>
+      <label class="f">Your draft<textarea id="edText" placeholder="Start writing. Everything saves as you type."></textarea></label>
+      <div class="count" id="edCount" aria-live="polite"></div>
+      <div class="tools">
+        <button class="btn sm" type="button" id="edCopy">Copy draft</button>
+        <button class="btn sm" type="button" id="edSnap" title="Ctrl/⌘ + S">Save a version</button>
+        <select id="edFrom" aria-label="Start from another draft"></select>
+        <span class="saved" id="edSaved"></span>
+      </div>
+      <details class="box" id="edVersBox"><summary>Saved versions <span class="muted" id="edVersN"></span></summary><div><ul class="vers" id="edVers"></ul></div></details>
+      <details class="box" id="edNotesBox"><summary>Notes and brainstorming</summary><div><textarea id="edNotes" rows="5" placeholder="Ideas, specific programs or professors to mention, feedback from readers…"></textarea></div></details>
+    </div>
+    <div class="dlg-f">
+      <button class="btn sm ghost danger left" type="button" id="edDelete">Delete prompt</button>
+      <button class="btn sm primary" type="button" data-close>Done</button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-3);
+const fmtN = n => Number(n).toLocaleString('en-US');
+
+const TYPES = [
+  ['why', 'Why us', 'Why this college or program, and what draws you to it.'],
+  ['major', 'Academic interest', 'Your intended major, a field of study or an academic program.'],
+  ['community', 'Community & identity', 'A community you belong to, your background or a perspective you bring.'],
+  ['activity', 'Activity', 'An activity, job or commitment you want to say more about.'],
+  ['curiosity', 'Intellectual curiosity', 'An idea, question or topic that excites you.'],
+  ['challenge', 'Challenge & growth', 'A setback, a disagreement or a time you changed your mind.'],
+  ['short', 'Short answers', 'Lists, favorites and one-line questions.'],
+  ['other', 'Other', "Anything that doesn't fit the groups above."]
+];
+const TYPE = Object.fromEntries(TYPES.map(t => [t[0], {label: t[1], desc: t[2]}]));
+const STATUSES = [['todo', 'Not started'], ['brainstorm', 'Brainstorming'], ['draft', 'Drafting'], ['revise', 'Revising'], ['final', 'Final']];
+const STATUS = Object.fromEntries(STATUSES);
+const SRANK = Object.fromEntries(STATUSES.map((s, i) => [s[0], i]));
+const PLANS = ['ED', 'ED II', 'EA', 'REA / SCEA', 'RD', 'Rolling', 'Priority', 'Other'];
+const MAX_VERSIONS = 30;
+
+/* ---------- state ---------- */
+const KEY = 'prompted:v1';
+function defaults(){ return {v: 1, schools: [], essays: []}; }
+function load(){
+  try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.v === 1 && Array.isArray(s.schools) && Array.isArray(s.essays)) return s; } catch (e) {}
+  return defaults();
+}
+let S = load();
+let saveWarned = false;
+function save(){
+  try { localStorage.setItem(KEY, JSON.stringify(S)); }
+  catch (e) { if (!saveWarned) { saveWarned = true; toast('Your browser blocked saving. Download a backup before you close this tab.'); } }
+}
+
+/* ---------- counting & dates ---------- */
+const wordsIn = t => { t = (t || '').trim(); return t ? t.split(/\s+/).length : 0; };
+function measure(e){ return e.unit === 'chars' ? (e.text || '').length : wordsIn(e.text); }
+function unitLabel(e, n){ return e.unit === 'chars' ? (n === 1 ? 'character' : 'characters') : (n === 1 ? 'word' : 'words'); }
+/* words still to write, in words (characters are converted at ~6 per word) */
+function toGo(e){
+  if (e.status === 'final' || !e.limit) return 0;
+  const left = Math.max(0, e.limit - measure(e));
+  return e.unit === 'chars' ? Math.ceil(left / 6) : left;
+}
+function today(){ const d = new Date(); d.setHours(0, 0, 0, 0); return d; }
+function parseDate(s){ if (!s) return null; const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null; }
+function daysLeft(s){ const d = parseDate(s); return d ? Math.round((d - today()) / 864e5) : null; }
+function fmtDate(s, opts){ const d = parseDate(s); return d ? d.toLocaleDateString('en-US', opts || {month: 'short', day: 'numeric'}) : ''; }
+function dueText(n){ if (n == null) return 'No deadline set'; if (n < 0) return `${-n} day${n === -1 ? '' : 's'} past due`; if (n === 0) return 'Due today'; if (n === 1) return 'Due tomorrow'; return `${n} days left`; }
+function dueClass(n){ return n == null ? '' : n < 0 ? 'bad' : n <= 7 ? 'warn' : ''; }
+function isoOf(d){ return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+
+const schoolOf = id => S.schools.find(s => s.id === id);
+const essaysOf = id => S.essays.filter(e => e.schoolId === id);
+function sortedSchools(){
+  return S.schools.slice().sort((a, b) => (!!a.done - !!b.done) || ((a.deadline || '9999') < (b.deadline || '9999') ? -1 : (a.deadline || '9999') > (b.deadline || '9999') ? 1 : 0) || a.name.localeCompare(b.name));
+}
+function essayOrder(a, b){ return (b.required - a.required) || (a.order || 0) - (b.order || 0); }
+
+/* ---------- prompt parsing ---------- */
+function parseLimit(s){
+  const re = /(\d{1,3}(?:,\d{3})+|\d+)(?:\s*(?:-|–|—|to)\s*(\d{1,3}(?:,\d{3})+|\d+))?\s*-?\s*(words?|characters?|chars?)\b/gi;
+  let best = null, m;
+  while ((m = re.exec(s))) {
+    const n = Math.max(+m[1].replace(/,/g, ''), m[2] ? +m[2].replace(/,/g, '') : 0);
+    if (n < 1 || n > 10000) continue;
+    const unit = /^w/i.test(m[3]) ? 'words' : 'chars';
+    if (!best || n > best.n) best = {n, unit};
+  }
+  if (!best) {
+    const m2 = /(?:word\s+(?:limit|count|max(?:imum)?)|max(?:imum)?(?:\s+of)?|up to|no more than|limit(?:\s+of)?)[:\s]+(\d{2,4})\b/i.exec(s);
+    if (m2) best = {n: +m2[1], unit: 'words'};
+  }
+  return best;
+}
+function guessType(p, limit, unit){
+  const t = ' ' + p.toLowerCase() + ' ';
+  const words = limit ? (unit === 'chars' ? limit / 6 : limit) : 0;
+  if (words && words <= 60) return 'short';
+  if (/^\s*(optional:?\s*)?why\s+[a-z .'&-]{2,40}\?/.test(t.trim() + ' ') || /\bwhy\b[^.?!]{0,80}\b(us|our|attend|apply|applying|interested|choose|want|here)\b/.test(t) || /\bwhat (draws|attracts|excites|interests) you\b[^.?!]{0,40}\b(our|this|to)\b/.test(t) || /\b(fit|match)\b[^.?!]{0,40}\b(college|university|school|campus)\b/.test(t)) return 'why';
+  if (/\b(major|academic interests?|field of study|area of study|course of study|program of study|intended (area|field|program)|concentration|intend to (study|pursue)|academic (area|program|path))\b/.test(t)) return 'major';
+  if (/\b(challenge|obstacle|setback|failure|failed|difficult|disagree\w*|conflict|changed your mind|mistake)\b/.test(t)) return 'challenge';
+  if (/\b(intellectual\w*|curious|curiosity|ideas?|excites you|lose track of time|outside (of )?(the )?classroom|learn\w* (something|outside))\b/.test(t)) return 'curiosity';
+  if (/\b(extracurricular|activit(y|ies)|involvement|job|work experience|elaborate)\b/.test(t)) return 'activity';
+  if (/\b(community|communities|identity|identities|background|perspectives?|diversity|diverse|belong\w*|culture|cultural)\b/.test(t)) return 'community';
+  if (/\b(list|favou?rite|one word|single word|top (three|five|ten)|in a sentence)\b/.test(t)) return 'short';
+  return 'other';
+}
+const LEAD = /^\s*(?:\(?\d{1,2}[.):]|[a-h][.)]|[•●▪◦\-*–—]|q\d+[.):]?|prompt\s*\d+[.):]?|question\s*\d+[.):]?)\s+/i;
+const LIMIT_TXT = /\(?\s*(?:up to|max(?:imum)?(?: of)?|no more than|word limit:?|limit:?)?\s*(\d{1,3}(?:,\d{3})+|\d+)(?:\s*(?:-|–|—|to)\s*(\d{1,3}(?:,\d{3})+|\d+))?\s*-?\s*(?:words?|characters?|chars?)(?:\s*(?:max(?:imum)?|limit|or (?:fewer|less)|each))?\s*\)?/gi;
+/* A label is a line that is only metadata: "Required – 150 words", "(250 words)", "Optional", "Short answers (35 words each)" */
+function isLabel(s){
+  if (/\?/.test(s)) return false;
+  const rest = s.replace(LIMIT_TXT, ' ').replace(/\b(required|optional|short[- ]answers?|each|questions?|prompts?|essay|response|max(imum)?|limit)\b/gi, ' ').replace(/[^a-z0-9]+/gi, ' ').trim();
+  return wordsIn(rest) <= 1 && wordsIn(s) <= 12;
+}
+const INSTRUCT = /\b(applicants?|the following|all (required )?(prompts|questions)|respond to (each|all|the|both|one|two)|answer (each|all|the|both|one|two))\b/i;
+function parsePrompts(raw){
+  const text = String(raw || '').replace(/\r/g, '').replace(/\u00a0/g, ' ').replace(/[ \t]+/g, ' ');
+  let blocks = text.split(/\n\s*\n/).map(b => b.trim()).filter(Boolean);
+  blocks = blocks.flatMap(b => {
+    const lines = b.split('\n').map(l => l.trim()).filter(Boolean);
+    // label lines ("Required – 150 words", "(250 words)") stand alone, so they never get glued to a prompt
+    const res = []; let grp = [];
+    for (const l of lines) {
+      if (lines.length > 1 && isLabel(l.replace(LEAD, ''))) { if (grp.length) res.push(...splitLines(grp)); grp = []; res.push(l); }
+      else grp.push(l);
+    }
+    if (grp.length) res.push(...splitLines(grp));
+    return res;
+  });
+  function splitLines(lines){
+    const lead = lines.filter(l => LEAD.test(l)).length;
+    const lim = lines.filter(l => parseLimit(l)).length;
+    // several numbered/bulleted lines, or several lines that each carry a limit: one prompt per item
+    if (lines.length > 1 && (lead >= 2 || lim >= 2)) {
+      const parts = []; let cur = [];
+      for (const l of lines) {
+        const startsNew = lead >= 2 ? LEAD.test(l) : false;
+        if (startsNew && cur.length) { parts.push(cur.join(' ')); cur = []; }
+        cur.push(l);
+        if (lead < 2 && parseLimit(l)) { parts.push(cur.join(' ')); cur = []; }
+      }
+      if (cur.length) parts.push(cur.join(' '));
+      return parts;
+    }
+    return [lines.join(' ')];
+  }
+  const out = []; let pend = {};
+  for (const b0 of blocks) {
+    const b = b0.replace(LEAD, '').trim();
+    if (!b) continue;
+    const lim = parseLimit(b);
+    const opt = /\boptional\b/i.test(b), req = /\brequired\b/i.test(b);
+    if (isLabel(b)) {
+      const prev = out[out.length - 1];
+      // "(250 words)" right after a prompt with no limit belongs to that prompt
+      if (lim && prev && !prev.limit && !opt && !req && !/\beach\b/i.test(b)) { prev.limit = lim.n; prev.unit = lim.unit; continue; }
+      pend = {lim: lim || null, sticky: /\beach\b|short[- ]answers?/i.test(b)};
+      if (opt) pend.optional = true; else if (req) pend.optional = false;
+      continue;
+    }
+    if (!lim && !/\?/.test(b) && INSTRUCT.test(b)) continue; // instructions, not a prompt
+    const L = lim || pend.lim || null;
+    const optional = pend.optional != null ? pend.optional : opt;
+    if (!out.some(o => o.prompt === b)) out.push({prompt: b, limit: L ? L.n : '', unit: L ? L.unit : 'words', required: !optional});
+    if (!pend.sticky) pend = {};
+  }
+  out.forEach(o => { o.type = guessType(o.prompt, o.limit, o.unit); o.on = true; });
+  return out;
+}
+
+/* ---------- rendering ---------- */
+function statusHTML(st){ return `<span class="st ${st}">${esc(STATUS[st] || st)}</span>`; }
+function meterHTML(e){
+  if (!e.limit) return '';
+  const n = measure(e), pct = Math.min(100, n / e.limit * 100);
+  const cls = n > e.limit ? 'over' : '';
+  return `<span class="meter ${cls}" aria-hidden="true"><i style="width:${pct.toFixed(1)}%"></i></span>`;
+}
+function countHTML(e){
+  const n = measure(e);
+  return e.limit ? `${fmtN(n)} / ${fmtN(e.limit)} ${e.unit === 'chars' ? 'chars' : 'words'}` : `${fmtN(n)} ${e.unit === 'chars' ? 'chars' : 'words'}`;
+}
+function essayRow(e, opts = {}){
+  const sc = schoolOf(e.schoolId);
+  const over = e.limit && measure(e) > e.limit;
+  return `<li><button class="erow" type="button" data-open="${e.id}">
+    ${opts.school ? `<span class="dot" style="background:var(--c${sc.c % 8})" aria-hidden="true"></span>` : `<span class="st ${e.status}" title="${esc(STATUS[e.status])}" aria-label="${esc(STATUS[e.status])}"></span>`}
+    <span class="p">${opts.school ? `<b>${esc(sc.name)}</b> · ` : ''}${esc(e.prompt || 'Untitled prompt')}</span>
+    <span class="cnt">${countHTML(e)}</span>
+    <span class="meta">${opts.school ? statusHTML(e.status) : `<span class="chip">${esc(TYPE[e.type].label)}</span>`}${e.required ? '' : '<span class="chip">Optional</span>'}${over ? '<span class="chip bad">Over limit</span>' : ''}${opts.extra || ''}${meterHTML(e)}</span>
+  </button></li>`;
+}
+
+function render(){
+  const has = S.schools.length > 0;
+  $('#heroActs').classList.toggle('hide', has);
+  $('#secOverview').classList.toggle('hide', !has);
+  $('#secReuse').classList.toggle('hide', S.essays.length < 2);
+  $('#howTo').classList.toggle('hide', has);
+  $('#secData').classList.toggle('hide', !has);
+  renderOverview(); renderSchools(); renderReuse();
+}
+
+function renderOverview(){
+  if (!S.schools.length) return;
+  $('#todayLine').textContent = new Date().toLocaleDateString('en-US', {weekday: 'long', month: 'long', day: 'numeric'});
+  const live = S.schools.filter(s => !s.done);
+  const liveEssays = S.essays.filter(e => { const s = schoolOf(e.schoolId); return s && !s.done; });
+  const finals = S.essays.filter(e => e.status === 'final').length;
+  const written = S.essays.reduce((a, e) => a + wordsIn(e.text), 0);
+  const togo = liveEssays.filter(e => e.required).reduce((a, e) => a + toGo(e), 0);
+  const next = sortedSchools().find(s => !s.done && s.deadline && daysLeft(s.deadline) >= 0);
+  const nd = next ? daysLeft(next.deadline) : null;
+  $('#stats').innerHTML = `
+    <div class="stat"><div class="k">Schools</div><div class="v">${S.schools.length}</div><div class="s">${S.schools.length - live.length} submitted</div></div>
+    <div class="stat"><div class="k">Essays final</div><div class="v">${finals}<small> / ${S.essays.length}</small></div><div class="s">${S.essays.filter(e => e.required).length} required</div></div>
+    <div class="stat"><div class="k">Words to go</div><div class="v">${fmtN(togo)}</div><div class="s">${fmtN(written)} written so far</div></div>
+    <div class="stat ${dueClass(nd)}"><div class="k">Next deadline</div><div class="v">${next ? (nd === 0 ? 'Today' : nd + (nd === 1 ? ' day' : ' days')) : '—'}</div><div class="s">${next ? esc(next.name) + ' · ' + esc(fmtDate(next.deadline)) : 'Add deadlines to your schools'}</div></div>`;
+
+  // up next
+  const up = liveEssays.filter(e => e.status !== 'final').sort((a, b) => {
+    const da = schoolOf(a.schoolId).deadline || '9999', db = schoolOf(b.schoolId).deadline || '9999';
+    return (da < db ? -1 : da > db ? 1 : 0) || (b.required - a.required) || (SRANK[b.status] - SRANK[a.status]);
+  }).slice(0, 7);
+  $('#upNext').innerHTML = up.length ? up.map(e => {
+    const n = daysLeft(schoolOf(e.schoolId).deadline);
+    return essayRow(e, {school: true, extra: n != null ? `<span class="chip ${dueClass(n)}">${esc(dueText(n))}</span>` : ''});
+  }).join('') : `<li class="empty-line">${S.essays.length ? 'Every essay at your open schools is final. Nice work.' : 'Add prompts to your schools to see them here.'}</li>`;
+
+  // deadlines
+  const byDate = new Map();
+  S.schools.slice().sort((a, b) => ((a.deadline || '9999') < (b.deadline || '9999') ? -1 : (a.deadline || '9999') > (b.deadline || '9999') ? 1 : a.name.localeCompare(b.name))).forEach(s => { const k = s.deadline || ''; if (!byDate.has(k)) byDate.set(k, []); byDate.get(k).push(s); });
+  $('#deadlines').innerHTML = Array.from(byDate.entries()).map(([k, list]) => {
+    const n = daysLeft(k), allDone = list.every(s => s.done);
+    const words = list.filter(s => !s.done).reduce((a, s) => a + essaysOf(s.id).filter(e => e.required).reduce((b, e) => b + toGo(e), 0), 0);
+    const left = list.filter(s => !s.done).reduce((a, s) => a + essaysOf(s.id).filter(e => e.required && e.status !== 'final').length, 0);
+    let pace = '';
+    if (allDone) pace = 'All submitted.';
+    else if (n == null) pace = left ? `${left} required essay${left === 1 ? '' : 's'} still open.` : 'Every required essay is final.';
+    else if (n < 0) pace = left ? `Deadline passed with ${left} required essay${left === 1 ? '' : 's'} still open.` : 'Deadline passed. Mark it submitted when it is.';
+    else if (!left) pace = 'Every required essay is final. Submit when ready.';
+    else if (words) pace = `${fmtN(words)} words to go across ${left} essay${left === 1 ? '' : 's'}: about ${fmtN(Math.ceil(words / Math.max(1, n)))} a day.`;
+    else pace = `${left} essay${left === 1 ? '' : 's'} at length but not marked final yet.`;
+    const d = parseDate(k);
+    const box = d ? `<div class="date ${allDone ? '' : n < 0 ? 'past' : n <= 7 ? 'soon' : ''}"><span>${esc(d.toLocaleDateString('en-US', {month: 'short'}))}</span><b>${d.getDate()}</b><span>${allDone ? 'Done' : n < 0 ? 'Past' : n === 0 ? 'Today' : n + 'd'}</span></div>` : `<div class="date"><span>No</span><b>—</b><span>date</span></div>`;
+    return `<li>${box}<div class="who">${list.map(s => {
+      const es = essaysOf(s.id), f = es.filter(e => e.status === 'final').length;
+      return `<div class="sch"><span class="dot" style="background:var(--c${s.c % 8})" aria-hidden="true"></span><b>${esc(s.name)}</b><span class="chip ${s.done ? 'acc' : ''}">${s.done ? 'Submitted' : esc(s.plan) + ' · ' + f + '/' + es.length}</span><span class="meter" aria-hidden="true"><i style="width:${s.done ? 100 : es.length ? (f / es.length * 100).toFixed(1) : 0}%"></i></span></div>`;
+    }).join('')}<div class="pace">${esc(pace)}</div></div></li>`;
+  }).join('');
+}
+
+function renderSchools(){
+  const list = sortedSchools();
+  $('#schoolsSub').textContent = list.length ? `${list.length} school${list.length === 1 ? '' : 's'}, sorted by deadline. Click any prompt to write.` : 'Add each college, then its supplement prompts.';
+  $('#schools').innerHTML = list.map(s => {
+    const es = essaysOf(s.id).sort(essayOrder);
+    const f = es.filter(e => e.status === 'final').length;
+    const n = daysLeft(s.deadline);
+    let url = '';
+    if (s.url) { try { const u = new URL(s.url); if (/^https?:$/.test(u.protocol)) url = `<a href="${esc(u.href)}" target="_blank" rel="noopener noreferrer">Portal ↗</a>`; } catch (e) {} }
+    return `<article class="school ${s.done ? 'done' : ''}" style="--sc:var(--c${s.c % 8})" aria-label="${esc(s.name)}">
+      <div class="school-h">
+        <div style="min-width:0"><h3>${esc(s.name)}</h3>
+          <div class="sub"><span class="chip">${esc(s.plan)}</span>${s.deadline ? `<span>${esc(fmtDate(s.deadline, {month: 'long', day: 'numeric', year: 'numeric'}))}</span>` : ''}${s.done ? '<span class="chip acc">Submitted</span>' : `<span class="chip ${dueClass(n)}">${esc(dueText(n))}</span>`}${url}</div>
+        </div>
+        <div class="acts"><button class="btn sm ghost" type="button" data-act="edit-school" data-id="${s.id}">Edit</button>${s.done ? '' : `<button class="btn sm ghost" type="button" data-act="mark-done" data-id="${s.id}">Mark submitted</button>`}</div>
+      </div>
+      ${es.length ? `<div class="prog"><span>${f} of ${es.length} final</span><span class="meter" aria-hidden="true"><i style="width:${(f / es.length * 100).toFixed(1)}%"></i></span></div>` : ''}
+      ${s.notes ? `<p class="notes">${esc(s.notes)}</p>` : ''}
+      ${es.length ? `<ul class="ul">${es.map(e => essayRow(e)).join('')}</ul>` : `<p class="notes">No prompts yet. Paste the school's supplement questions, or add them one at a time.</p>`}
+      <div class="school-f"><button class="btn sm primary" type="button" data-act="paste" data-id="${s.id}">Paste prompts</button><button class="btn sm" type="button" data-act="add-essay" data-id="${s.id}">Add one prompt</button></div>
+    </article>`;
+  }).join('');
+}
+
+function renderReuse(){
+  if (S.essays.length < 2) return;
+  const groups = TYPES.map(([k]) => ({k, es: S.essays.filter(e => e.type === k)})).filter(g => g.es.length);
+  groups.sort((a, b) => b.es.length - a.es.length);
+  $('#groups').innerHTML = groups.map(g => {
+    const es = g.es.slice().sort((a, b) => (SRANK[b.status] - SRANK[a.status]) || wordsIn(b.text) - wordsIn(a.text));
+    const best = es.find(e => wordsIn(e.text) >= 20);
+    const empty = es.filter(e => wordsIn(e.text) < 20 && e !== best);
+    let hint = '';
+    if (g.k !== 'short' && g.k !== 'other' && es.length >= 2) {
+      if (best && empty.length) hint = `Your ${esc(schoolOf(best.schoolId).name)} draft is the furthest along. Open ${empty.length === 1 ? 'the other prompt' : `any of the other ${empty.length}`} and choose “Start from” to adapt it.`;
+      else if (!best) hint = `${es.length} schools ask for this. Write one strong version first, then adapt it for the rest.`;
+    }
+    return `<div class="card group">
+      <div class="gh"><h3>${esc(TYPE[g.k].label)}</h3><span class="chip">${es.length} prompt${es.length === 1 ? '' : 's'}</span></div>
+      <p>${esc(TYPE[g.k].desc)}</p>
+      ${hint ? `<p class="hint">${hint}</p>` : ''}
+      <ul class="ul">${es.map(e => essayRow(e, {school: true})).join('')}</ul>
+    </div>`;
+  }).join('');
+}
+
+/* ---------- school dialog ---------- */
+let editingSchool = null;
+$('#dsPlan').innerHTML = PLANS.map(p => `<option>${esc(p)}</option>`).join('');
+function openSchool(id){
+  editingSchool = id ? schoolOf(id) : null;
+  const s = editingSchool || {name: '', plan: 'RD', deadline: '', url: '', notes: '', done: false};
+  $('#dsTitle').textContent = editingSchool ? 'Edit school' : 'Add a school';
+  $('#dsSave').textContent = editingSchool ? 'Save' : 'Add school';
+  $('#dsDelete').classList.toggle('hide', !editingSchool);
+  $('#dsName').value = s.name; $('#dsPlan').value = s.plan; $('#dsDate').value = s.deadline || '';
+  $('#dsUrl').value = s.url || ''; $('#dsNotes').value = s.notes || ''; $('#dsDone').checked = !!s.done;
+  $('#dlgSchool').showModal(); $('#dsName').focus();
+}
+$('#formSchool').addEventListener('submit', ev => {
+  ev.preventDefault();
+  const name = $('#dsName').value.trim(); if (!name) { $('#dsName').focus(); return; }
+  let url = $('#dsUrl').value.trim(); if (url && !/^https?:\/\//i.test(url)) url = 'https://' + url;
+  const vals = {name, plan: $('#dsPlan').value, deadline: $('#dsDate').value, url, notes: $('#dsNotes').value.trim(), done: $('#dsDone').checked};
+  let created = null;
+  if (editingSchool) Object.assign(editingSchool, vals);
+  else { const used = S.schools.map(s => s.c); let c = S.schools.length % 8; for (let i = 0; i < 8; i++) if (!used.includes(i)) { c = i; break; } created = Object.assign({id: uid(), c, created: Date.now()}, vals); S.schools.push(created); }
+  save(); $('#dlgSchool').close(); render();
+  if (created) { toast(`${created.name} added. Next, paste its supplement prompts.`, 'Paste prompts', () => openPaste(created.id)); }
+});
+$('#dsDelete').addEventListener('click', () => {
+  const s = editingSchool; if (!s) return;
+  const n = essaysOf(s.id).length;
+  if (!confirm(`Delete ${s.name}${n ? ` and its ${n} prompt${n === 1 ? '' : 's'} and drafts` : ''}? This can't be undone, so download a backup first if you might want them.`)) return;
+  S.essays = S.essays.filter(e => e.schoolId !== s.id); S.schools = S.schools.filter(x => x !== s);
+  save(); $('#dlgSchool').close(); render();
+});
+
+/* ---------- paste dialog ---------- */
+let pasteSchool = null, found = [];
+function openPaste(id){
+  pasteSchool = id; found = [];
+  $('#dpSchool').textContent = schoolOf(id).name;
+  $('#dpText').value = ''; $('#dpMsg').classList.add('hide');
+  pasteStep(1); $('#dlgPaste').showModal(); $('#dpText').focus();
+}
+function pasteStep(n){
+  $('#dpStep1').classList.toggle('hide', n !== 1); $('#dpStep2').classList.toggle('hide', n !== 2);
+  $('#dpBack').classList.toggle('hide', n !== 2);
+  $('#dpGo').textContent = n === 1 ? 'Find prompts' : 'Add prompts';
+  if (n === 2) updatePasteCount();
+}
+function updatePasteCount(){
+  const k = found.filter(f => f.on).length;
+  $('#dpGo').textContent = `Add ${k} prompt${k === 1 ? '' : 's'}`; $('#dpGo').disabled = !k;
+  $('#dpFoundLine').textContent = `Found ${found.length} prompt${found.length === 1 ? '' : 's'}. Uncheck anything that isn't a prompt, and fix any limit or kind that looks wrong.`;
+}
+function renderFound(){
+  const typeOpts = TYPES.map(t => `<option value="${t[0]}">${esc(t[1])}</option>`).join('');
+  $('#dpFound').innerHTML = found.map((f, i) => `<li class="${f.on ? '' : 'off'}" data-i="${i}">
+    <input type="checkbox" ${f.on ? 'checked' : ''} aria-label="Include this prompt" data-k="on">
+    <textarea data-k="prompt" aria-label="Prompt text" rows="2">${esc(f.prompt)}</textarea>
+    <div class="row">
+      <label class="f" style="flex:0 1 96px">Limit<input type="number" min="0" data-k="limit" value="${esc(f.limit)}" placeholder="None"></label>
+      <label class="f" style="flex:0 1 130px">Counted in<select data-k="unit"><option value="words">Words</option><option value="chars">Characters</option></select></label>
+      <label class="f">Kind<select data-k="type">${typeOpts}</select></label>
+      <label class="f" style="flex:0 1 124px">Required?<select data-k="required"><option value="1">Required</option><option value="0">Optional</option></select></label>
+    </div></li>`).join('');
+  $$('#dpFound li').forEach(li => {
+    const f = found[+li.dataset.i];
+    $('[data-k=unit]', li).value = f.unit; $('[data-k=type]', li).value = f.type; $('[data-k=required]', li).value = f.required ? '1' : '0';
+  });
+}
+$('#dpFound').addEventListener('input', ev => {
+  const li = ev.target.closest('li'); if (!li) return; const f = found[+li.dataset.i], k = ev.target.dataset.k;
+  if (k === 'on') { f.on = ev.target.checked; li.classList.toggle('off', !f.on); updatePasteCount(); }
+  else if (k === 'prompt') f.prompt = ev.target.value;
+  else if (k === 'limit') f.limit = ev.target.value === '' ? '' : Math.max(0, Math.round(+ev.target.value));
+  else if (k === 'unit') f.unit = ev.target.value;
+  else if (k === 'type') f.type = ev.target.value;
+  else if (k === 'required') f.required = ev.target.value === '1';
+});
+$('#dpBack').addEventListener('click', () => pasteStep(1));
+$('#dpGo').addEventListener('click', () => {
+  if (!$('#dpStep1').classList.contains('hide')) {
+    found = parsePrompts($('#dpText').value);
+    if (!found.length) { $('#dpMsg').textContent = $('#dpText').value.trim() ? "Couldn't find any prompts in that text. Try putting a blank line between prompts, or add them one at a time." : 'Paste the prompts first.'; $('#dpMsg').classList.remove('hide'); return; }
+    renderFound(); pasteStep(2); return;
+  }
+  const add = found.filter(f => f.on && f.prompt.trim());
+  const base = essaysOf(pasteSchool).length;
+  add.forEach((f, i) => S.essays.push(newEssay(pasteSchool, {prompt: f.prompt.trim(), limit: f.limit === '' ? 0 : +f.limit, unit: f.unit, type: f.type, required: f.required, order: base + i})));
+  save(); $('#dlgPaste').close(); render();
+  toast(`Added ${add.length} prompt${add.length === 1 ? '' : 's'} to ${schoolOf(pasteSchool).name}.`);
+});
+
+/* ---------- essays & editor ---------- */
+function newEssay(schoolId, o = {}){
+  return Object.assign({id: uid(), schoolId, prompt: '', limit: 0, unit: 'words', type: 'other', required: true, status: 'todo', text: '', notes: '', versions: [], reuseOf: null, order: essaysOf(schoolId).length, created: Date.now(), updated: Date.now()}, o);
+}
+let cur = null, saveT = null;
+$('#edType').innerHTML = TYPES.map(t => `<option value="${t[0]}">${esc(t[1])}</option>`).join('');
+$('#edStatus').innerHTML = STATUSES.map(s => `<option value="${s[0]}">${esc(s[1])}</option>`).join('');
+function openEditor(id){
+  cur = S.essays.find(e => e.id === id); if (!cur) return;
+  const s = schoolOf(cur.schoolId), n = daysLeft(s.deadline);
+  $('#edKick').textContent = `${s.name} · ${s.plan}${s.deadline ? ' · ' + (s.done ? 'Submitted' : dueText(n)) : ''}`;
+  $('#edTitle').textContent = TYPE[cur.type].label;
+  $('#edPrompt').value = cur.prompt; $('#edLimit').value = cur.limit || ''; $('#edUnit').value = cur.unit;
+  $('#edType').value = cur.type; $('#edReq').value = cur.required ? '1' : '0'; $('#edStatus').value = cur.status;
+  $('#edText').value = cur.text; $('#edNotes').value = cur.notes || '';
+  $('#edNotesBox').open = !!cur.notes; $('#edVersBox').open = false; $('#edSaved').textContent = '';
+  fillFrom(); renderVersions(); updateCount();
+  $('#dlgEd').showModal();
+  if (!cur.prompt) $('#edPrompt').focus(); else { const t = $('#edText'); t.focus(); t.setSelectionRange(t.value.length, t.value.length); t.scrollTop = 0; }
+  sizePrompt();
+}
+function sizePrompt(){ const p = $('#edPrompt'); p.style.height = 'auto'; p.style.height = Math.min(220, p.scrollHeight + 2) + 'px'; }
+function updateCount(){
+  if (!cur) return;
+  const n = measure(cur), L = cur.limit, unit = unitLabel(cur, L || n);
+  const el = $('#edCount'); el.classList.toggle('over', !!L && n > L);
+  if (L) {
+    const pct = Math.min(100, n / L * 100);
+    const note = n > L ? `${fmtN(n - L)} over` : n >= L * 0.9 ? 'right at length' : `${fmtN(L - n)} to go`;
+    el.innerHTML = `<span><b>${fmtN(n)}</b> / ${fmtN(L)} ${unit}</span><span class="meter ${n > L ? 'over' : ''}" aria-hidden="true"><i style="width:${pct.toFixed(1)}%"></i></span><span>${note}</span>`;
+  } else el.innerHTML = `<span><b>${fmtN(n)}</b> ${unit}</span><span>${cur.unit === 'chars' ? fmtN(wordsIn(cur.text)) + ' words' : fmtN((cur.text || '').length) + ' characters'} · no limit set</span>`;
+}
+function fillFrom(){
+  const others = S.essays.filter(e => e !== cur && wordsIn(e.text) > 0).sort((a, b) => (a.type === cur.type ? 0 : 1) - (b.type === cur.type ? 0 : 1) || wordsIn(b.text) - wordsIn(a.text));
+  const sel = $('#edFrom');
+  sel.innerHTML = `<option value="">Start from another draft…</option>` + others.map(e => `<option value="${e.id}">${esc(schoolOf(e.schoolId).name)} · ${esc(TYPE[e.type].label)} · ${fmtN(wordsIn(e.text))} words${e.type === cur.type ? ' (same kind)' : ''}</option>`).join('');
+  sel.classList.toggle('hide', !others.length);
+  const src = cur.reuseOf && S.essays.find(e => e.id === cur.reuseOf);
+  sel.title = src ? `Adapted from your ${schoolOf(src.schoolId).name} draft` : '';
+}
+function renderVersions(){
+  const v = cur.versions || [];
+  $('#edVersN').textContent = v.length ? `(${v.length})` : '';
+  $('#edVers').innerHTML = v.length ? v.slice().reverse().map((x, i) => {
+    const idx = v.length - 1 - i;
+    return `<li><span class="grow">${esc(new Date(x.t).toLocaleString('en-US', {month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'}))} · ${fmtN(wordsIn(x.text))} words${x.label ? ' · ' + esc(x.label) : ''}<small>${esc((x.text || '').slice(0, 140))}</small></span><button class="btn sm" type="button" data-restore="${idx}">Restore</button></li>`;
+  }).join('') : '<li><span class="grow muted">No saved versions yet. Save one before a big rewrite so you can always go back.</span></li>';
+}
+function snapshot(label){
+  if (!cur || !(cur.text || '').trim()) return false;
+  const v = cur.versions || (cur.versions = []);
+  if (v.length && v[v.length - 1].text === cur.text) return false;
+  v.push({t: Date.now(), text: cur.text, label: label || ''});
+  if (v.length > MAX_VERSIONS) v.splice(0, v.length - MAX_VERSIONS);
+  return true;
+}
+function touch(){
+  cur.updated = Date.now();
+  $('#edSaved').textContent = 'Saving…';
+  clearTimeout(saveT); saveT = setTimeout(() => { save(); $('#edSaved').textContent = 'Saved'; }, 350);
+}
+$('#edText').addEventListener('input', () => {
+  cur.text = $('#edText').value;
+  if (cur.status === 'todo' && cur.text.trim()) { cur.status = 'draft'; $('#edStatus').value = 'draft'; }
+  updateCount(); touch();
+});
+$('#edPrompt').addEventListener('input', () => { cur.prompt = $('#edPrompt').value; sizePrompt(); touch(); });
+$('#edNotes').addEventListener('input', () => { cur.notes = $('#edNotes').value; touch(); });
+$('#edLimit').addEventListener('input', () => { const v = $('#edLimit').value; cur.limit = v === '' ? 0 : Math.max(0, Math.round(+v)); updateCount(); touch(); });
+$('#edUnit').addEventListener('change', () => { cur.unit = $('#edUnit').value; updateCount(); touch(); });
+$('#edType').addEventListener('change', () => { cur.type = $('#edType').value; $('#edTitle').textContent = TYPE[cur.type].label; fillFrom(); touch(); });
+$('#edReq').addEventListener('change', () => { cur.required = $('#edReq').value === '1'; touch(); });
+$('#edStatus').addEventListener('change', () => {
+  cur.status = $('#edStatus').value;
+  if (cur.status === 'final' && snapshot('Marked final')) renderVersions();
+  touch();
+});
+$('#edCopy').addEventListener('click', async () => {
+  const t = cur.text || '';
+  try { await navigator.clipboard.writeText(t); toast('Draft copied. Paste it into the application.'); }
+  catch (e) { const ta = $('#edText'); ta.focus(); ta.select(); document.execCommand && document.execCommand('copy'); toast('Draft selected. Press Ctrl+C or ⌘+C if it didn\'t copy.'); }
+});
+$('#edSnap').addEventListener('click', () => { if (snapshot()) { renderVersions(); save(); toast('Version saved.'); $('#edVersBox').open = true; } else toast(cur.text.trim() ? 'This version is already saved.' : 'Write something first.'); });
+$('#edVers').addEventListener('click', ev => {
+  const b = ev.target.closest('[data-restore]'); if (!b) return;
+  const x = cur.versions[+b.dataset.restore]; if (!x) return;
+  snapshot('Before restoring');
+  cur.text = x.text; $('#edText').value = x.text; updateCount(); renderVersions(); touch();
+  toast('Restored. Your previous draft was saved as a version.');
+});
+$('#edFrom').addEventListener('change', () => {
+  const src = S.essays.find(e => e.id === $('#edFrom').value); $('#edFrom').value = ''; if (!src) return;
+  if ((cur.text || '').trim()) { if (!confirm(`Replace this draft with your ${schoolOf(src.schoolId).name} draft? The current text will be kept as a saved version.`)) return; snapshot('Before reusing'); }
+  cur.text = src.text; cur.reuseOf = src.id;
+  if (cur.status === 'todo' || cur.status === 'brainstorm') cur.status = 'draft';
+  $('#edText').value = cur.text; $('#edStatus').value = cur.status;
+  updateCount(); renderVersions(); fillFrom(); touch();
+  const L = cur.limit, n = measure(cur);
+  toast(L && n > L ? `Copied in. It's ${fmtN(n - L)} ${unitLabel(cur, n - L)} over this school's limit, so trim and tailor it.` : 'Copied in. Now tailor it to this school.');
+  $('#edText').focus();
+});
+$('#edDelete').addEventListener('click', () => {
+  if (!cur) return;
+  const gone = cur, idx = S.essays.indexOf(gone);
+  S.essays.splice(idx, 1); cur = null; save(); $('#dlgEd').close(); render();
+  toast('Prompt deleted.', 'Undo', () => { S.essays.splice(Math.min(idx, S.essays.length), 0, gone); save(); render(); });
+});
+$('#dlgEd').addEventListener('keydown', ev => { if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 's') { ev.preventDefault(); $('#edSnap').click(); } });
+$('#dlgEd').addEventListener('close', () => { clearTimeout(saveT); if (cur) save(); cur = null; render(); });
+
+/* ---------- dialogs: close buttons, backdrop ---------- */
+$$('dialog').forEach(d => {
+  d.addEventListener('click', ev => { if (ev.target === d) d.close(); if (ev.target.closest('[data-close]')) { ev.preventDefault(); d.close(); } });
+});
+
+/* ---------- global actions ---------- */
+document.addEventListener('click', ev => {
+  const o = ev.target.closest('[data-open]'); if (o) { openEditor(o.dataset.open); return; }
+  const b = ev.target.closest('[data-act]'); if (!b) return;
+  const id = b.dataset.id;
+  switch (b.dataset.act) {
+    case 'add-school': openSchool(); break;
+    case 'edit-school': openSchool(id); break;
+    case 'mark-done': { const s = schoolOf(id); s.done = true; save(); render(); toast(`${s.name} marked submitted.`, 'Undo', () => { s.done = false; save(); render(); }); break; }
+    case 'paste': openPaste(id); break;
+    case 'add-essay': { const e = newEssay(id); S.essays.push(e); save(); render(); openEditor(e.id); break; }
+    case 'sample': loadSample(); break;
+    case 'export-json': download(`prompted-backup-${isoOf(new Date())}.json`, JSON.stringify(S, null, 2), 'application/json'); dataMsg('Backup downloaded. Keep it somewhere safe, like your school drive.'); break;
+    case 'export-txt': download(`supplemental-essays-${isoOf(new Date())}.txt`, exportText(), 'text/plain'); dataMsg('All drafts downloaded as one text file.'); break;
+    case 'import-json': $('#importFile').click(); break;
+    case 'erase':
+      if (!confirm('Erase every school, prompt and draft from this browser? Download a backup first if you might want them back.')) return;
+      S = defaults(); save(); render(); dataMsg(''); toast('Everything erased.'); window.scrollTo({top: 0, behavior: 'smooth'}); break;
+  }
+});
+function dataMsg(t){ $('#dataMsg').textContent = t; }
+$('#importFile').addEventListener('change', async ev => {
+  const f = ev.target.files[0]; ev.target.value = ''; if (!f) return;
+  try {
+    const d = JSON.parse(await f.text());
+    if (!d || d.v !== 1 || !Array.isArray(d.schools) || !Array.isArray(d.essays)) throw new Error('shape');
+    if (S.schools.length && !confirm(`Replace what's here with the backup (${d.schools.length} schools, ${d.essays.length} prompts)?`)) return;
+    S = d; save(); render(); dataMsg(`Restored ${d.schools.length} schools and ${d.essays.length} prompts.`);
+  } catch (e) { dataMsg("That file isn't a Prompted backup."); }
+});
+function download(name, content, type){
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([content], {type: type + ';charset=utf-8'})); a.download = name;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+function exportText(){
+  const line = '='.repeat(60);
+  return sortedSchools().map(s => {
+    const head = `${line}\n${s.name.toUpperCase()}\n${s.plan}${s.deadline ? ' · due ' + fmtDate(s.deadline, {month: 'long', day: 'numeric', year: 'numeric'}) : ''}${s.done ? ' · submitted' : ''}\n${line}`;
+    const body = essaysOf(s.id).sort(essayOrder).map((e, i) => {
+      const n = measure(e);
+      return `${i + 1}. ${e.prompt || 'Untitled prompt'}\n[${e.required ? 'Required' : 'Optional'} · ${STATUS[e.status]} · ${fmtN(n)}${e.limit ? ' / ' + fmtN(e.limit) : ''} ${unitLabel(e, e.limit || n)}]\n\n${(e.text || '').trim() || '(no draft yet)'}`;
+    }).join('\n\n' + '-'.repeat(40) + '\n\n');
+    return head + '\n\n' + (body || '(no prompts yet)');
+  }).join('\n\n\n') + '\n';
+}
+
+/* ---------- example ---------- */
+function loadSample(){
+  const t = today(), y = t.getMonth() >= 7 ? t.getFullYear() : t.getFullYear() - 1;
+  let early = new Date(y, 10, 1); if (early < t) early = new Date(t.getTime() + 20 * 864e5);
+  let reg = new Date(y + 1, 0, 1); if (reg <= early) reg = new Date(early.getTime() + 60 * 864e5);
+  const a = {id: uid(), c: 0, name: 'Example University', plan: 'EA', deadline: isoOf(early), url: '', notes: 'Example school. Delete it whenever you like (Edit, then Delete school).', done: false, created: Date.now()};
+  const b = {id: uid(), c: 1, name: 'Sample College', plan: 'RD', deadline: isoOf(reg), url: '', notes: '', done: false, created: Date.now()};
+  S.schools.push(a, b);
+  const why = 'The first time I read a course catalog for fun, I was looking for a place where engineering students are expected to take ideas apart in public. Your first-year design studio, where every project is critiqued by students from three different majors, is exactly that place. I want to bring the habit I built running my school\'s robotics team, testing the ugly prototype early, to a room full of people who will tell me what is wrong with it.';
+  S.essays.push(
+    newEssay(a.id, {prompt: 'Why are you interested in attending Example University? Be specific. (250 words)', limit: 250, type: 'why', status: 'draft', text: why, order: 0}),
+    newEssay(a.id, {prompt: 'Describe a community you belong to and the role you play in it. (200 words)', limit: 200, type: 'community', status: 'brainstorm', notes: 'Robotics team? Sunday kitchen shift? The group chat that plans every trip?', order: 1}),
+    newEssay(a.id, {prompt: 'What is a word or phrase that captures you? (35 words)', limit: 35, type: 'short', status: 'final', text: 'Prototype. I would rather build a rough version tonight and fix it tomorrow than plan the perfect one forever.', order: 2}),
+    newEssay(b.id, {prompt: 'What draws you to Sample College, and how would you contribute to our campus? (300 words)', limit: 300, type: 'why', order: 0}),
+    newEssay(b.id, {prompt: 'Tell us about an academic interest you hope to pursue. (1,500 characters)', limit: 1500, unit: 'chars', type: 'major', order: 1}),
+    newEssay(b.id, {prompt: 'Optional: Is there anything else you would like us to know? (250 words)', limit: 250, type: 'other', required: false, order: 2})
+  );
+  save(); render();
+  toast('Example loaded. Open any prompt to see the editor.');
+  document.getElementById('secOverview').scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+/* ---------- toast ---------- */
+let toastT = null;
+function toast(msg, actLabel, fn){
+  $$('.toast').forEach(x => x.remove());
+  const d = document.createElement('div'); d.className = 'toast'; d.setAttribute('role', 'status');
+  d.innerHTML = `<span>${esc(msg)}</span>`;
+  if (actLabel) { const b = document.createElement('button'); b.type = 'button'; b.textContent = actLabel; b.onclick = () => { d.remove(); fn(); }; d.appendChild(b); }
+  document.body.appendChild(d);
+  clearTimeout(toastT); toastT = setTimeout(() => d.remove(), actLabel ? 8000 : 4500);
+}
+
+window.addEventListener('storage', ev => { if (ev.key === KEY && !$('#dlgEd').open) { S = load(); render(); } });
+render();
+</script>
+<script src="/analytics/tracker.js" data-site="prompted" defer></script>
+</body>
+</html>
