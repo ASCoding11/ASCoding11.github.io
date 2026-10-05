@@ -1,6 +1,11 @@
 /* Prompted school library: supplemental essays for the 2026–27 application cycle (fall 2027 entry).
  *
  * Schools: the top 50 of the U.S. News 2027 Best National Universities list (51 schools, with a tie at 49).
+ * RULE: never paste a school's official prompt text into this file, even though schools post it publicly.
+ * The wording belongs to the schools. Store only facts (limits, plans, deadlines, which college a prompt
+ * is for, how many to choose) and summaries rewritten in your own words. Students paste the exact
+ * wording into their own copy in the app.
+ *
  * Prompts are SHORT SUMMARIES in our own words, not the official wording. Students paste the exact
  * prompt from the application; the editor reminds them to. Limits, plans and deadlines are what each
  * school published for 2026–27 as of the date below; schools sometimes change them, so the app links
@@ -177,7 +182,7 @@ window.PR_LIB = {
       note: 'No word limits. Aim for about one to two pages each.',
       prompts: [
         ['How UChicago’s learning, community and future opportunities fit your goals (about 1–2 pages)', 0, 'w', 'why'],
-        ['How do thoughts eat? What do they need, and how do they grow?', 0, 'w', 'curiosity', { g: 'g1' }],
+        ['What feeds a thought, and how it grows (a playful question about where ideas get their energy)', 0, 'w', 'curiosity', { g: 'g1' }],
         ['Use the principles of an art form to solve a real problem', 0, 'w', 'curiosity', { g: 'g1' }],
         ['Invent a mixed metaphor, explain it, and put it to use', 0, 'w', 'curiosity', { g: 'g1' }],
         ['Turn an everyday activity into an Olympic event, with scoring and a case for it', 0, 'w', 'curiosity', { g: 'g1' }],
