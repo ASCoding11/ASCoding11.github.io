@@ -204,6 +204,26 @@ details.box>div{padding:0 12px 12px}
 .found .row{grid-column:2}
 .found .row select,.found .row input{background:var(--panel);font-size:14px;min-height:36px;padding:6px 8px}
 
+/* library */
+.lib-top{position:sticky;top:-18px;background:var(--panel);padding:2px 0 12px;margin-top:-2px;z-index:2;display:flex;flex-direction:column;gap:10px;border-bottom:1px solid var(--line)}
+.lib-note{margin:0;font-size:13px}
+.lib-list{list-style:none;margin:-14px 0 0;padding:0}
+.lib{border-bottom:1px solid var(--line)}
+.lib-h{display:grid;grid-template-columns:auto 40px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 6px;cursor:pointer;border-radius:8px}
+.lib-h:hover{background:var(--panel-2)}
+.lib-h input{width:20px;height:20px;margin:0;accent-color:var(--accent)}
+.lib .rk{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--ink-2)}
+.lib .nm{min-width:0}
+.lib .nm b{display:block;font-weight:600}
+.lib .nm small{display:block;color:var(--ink-2);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lib .ld{font-family:var(--mono);font-size:12px;color:var(--ink-2);text-align:right;white-space:nowrap}
+.lib .ld.none{color:var(--up)}
+.lib.on{background:var(--panel-2)}
+.lib.on .lib-h:hover{background:none}
+.lib.added .lib-h{cursor:default;opacity:.55}
+.lib-o{padding:0 6px 12px 36px}
+.lib-o select{background:var(--panel);font-size:14px;min-height:36px;padding:6px 8px}
+@media (max-width:640px){.lib-top{position:static;margin-top:0}.lib-note{font-size:12px}.lib-h{grid-template-columns:auto 30px minmax(0,1fr)}.lib .ld{grid-column:3;text-align:left;white-space:normal}.lib-o{padding-left:6px}}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:60;background:var(--ink);color:var(--ground);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:14px;max-width:calc(100vw - 32px);font-size:15px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
 .toast button{background:none;border:1px solid currentColor;border-radius:8px;padding:6px 10px;color:inherit;cursor:pointer;font-weight:600;white-space:nowrap}
 .how{margin-top:0}
@@ -219,7 +239,7 @@ details.box>div{padding:0 12px 12px}
     <p class="kicker">Supplemental essay tracker</p>
     <h1>Prompted</h1>
     <p class="intro">Every college's supplement prompts, word limits, drafts and deadlines in one place. Prompted also shows you which prompts ask the same thing, so you can write your best answer once and adapt it.</p>
-    <div class="actions" id="heroActs"><button class="btn primary" type="button" data-act="add-school">Add your first school</button><button class="btn" type="button" data-act="sample">Try it with an example</button></div>
+    <div class="actions" id="heroActs"><button class="btn primary" type="button" data-act="library">Add schools from the top 50</button><button class="btn" type="button" data-act="add-school">Add any other school</button><button class="btn ghost" type="button" data-act="sample">Try it with an example</button></div>
   </header>
 
   <noscript><p class="msg warn">Prompted needs JavaScript turned on.</p></noscript>
@@ -235,11 +255,11 @@ details.box>div{padding:0 12px 12px}
     </section>
 
     <section class="pr-sec" id="secSchools" aria-labelledby="hSchools">
-      <h2 id="hSchools">Schools <span class="sub" id="schoolsSub">Add each college, then its supplement prompts.</span><span class="end"><button class="btn sm primary" type="button" data-act="add-school">Add a school</button></span></h2>
+      <h2 id="hSchools">Schools <span class="sub" id="schoolsSub">Add each college, then its supplement prompts.</span><span class="end"><button class="btn sm primary" type="button" data-act="library">Add from top 50</button><button class="btn sm" type="button" data-act="add-school">Add any school</button></span></h2>
       <div class="schools" id="schools"></div>
       <div class="how hide" id="howTo" aria-label="How Prompted works">
         <div class="step"><span class="n">01</span><h4>Add your schools</h4><p>Enter each college with its application plan and deadline.</p></div>
-        <div class="step"><span class="n">02</span><h4>Paste the prompts</h4><p>Copy the supplement page from the portal. Prompted pulls out each prompt and its word limit.</p></div>
+        <div class="step"><span class="n">02</span><h4>Get the prompts</h4><p>Pick from the top 50 and your intended major, and the 2026–27 prompts are filled in. For other schools, paste the supplement page.</p></div>
         <div class="step"><span class="n">03</span><h4>Write and reuse</h4><p>Draft right here with a live word count, save versions, and start new essays from ones you've already written.</p></div>
       </div>
     </section>
@@ -313,6 +333,29 @@ details.box>div{padding:0 12px 12px}
   </div>
 </dialog>
 
+<!-- school library -->
+<dialog id="dlgLib" aria-labelledby="dlTitle">
+  <div class="dlg">
+    <div class="dlg-h"><div><p class="kick" id="dlKick"></p><h3 id="dlTitle">Add schools</h3></div><button class="x" type="button" data-close aria-label="Close">×</button></div>
+    <div class="dlg-b" id="dlBody">
+      <div class="lib-top">
+        <div class="row">
+          <label class="f">Intended major<select id="libField"></select></label>
+          <label class="f">Major, in your words (optional)<input type="text" id="libMajor" autocomplete="off" placeholder="e.g. Mechanical engineering"></label>
+        </div>
+        <p class="muted lib-note">Your major decides which school or college prompts you get (Penn Engineering vs. Wharton, Cornell's colleges, Princeton B.S.E. vs. A.B.) and you can change it per school below. Prompts are short summaries of each 2026–27 question, with the real word limits; paste the exact wording when you write. Confirm deadlines on each school's site.</p>
+        <input type="text" id="libQ" placeholder="Search schools" aria-label="Search schools" autocomplete="off">
+      </div>
+      <ul class="lib-list" id="libList"></ul>
+    </div>
+    <div class="dlg-f">
+      <span class="left muted" id="libCount" style="align-self:center;font-size:14px"></span>
+      <button class="btn sm" type="button" data-close>Cancel</button>
+      <button class="btn sm primary" type="button" id="libAdd" disabled>Add schools</button>
+    </div>
+  </div>
+</dialog>
+
 <!-- editor -->
 <dialog id="dlgEd" aria-labelledby="edTitle">
   <div class="dlg">
@@ -322,6 +365,7 @@ details.box>div{padding:0 12px 12px}
     </div>
     <div class="dlg-b">
       <label class="f">Prompt<textarea id="edPrompt" rows="2" placeholder="Paste or type the prompt exactly as the school words it"></textarea></label>
+      <p class="msg hide" id="edSum" style="margin-top:-6px"></p>
       <div class="row">
         <label class="f" style="flex:0 1 110px">Limit<input type="number" id="edLimit" min="0" step="1" inputmode="numeric" placeholder="None"></label>
         <label class="f" style="flex:0 1 140px">Counted in<select id="edUnit"><option value="words">Words</option><option value="chars">Characters</option></select></label>
@@ -347,6 +391,7 @@ details.box>div{padding:0 12px 12px}
   </div>
 </dialog>
 
+<script src="schools.js"></script>
 <script>
 'use strict';
 const $ = (s, r = document) => r.querySelector(s);
@@ -369,7 +414,7 @@ const TYPE = Object.fromEntries(TYPES.map(t => [t[0], {label: t[1], desc: t[2]}]
 const STATUSES = [['todo', 'Not started'], ['brainstorm', 'Brainstorming'], ['draft', 'Drafting'], ['revise', 'Revising'], ['final', 'Final']];
 const STATUS = Object.fromEntries(STATUSES);
 const SRANK = Object.fromEntries(STATUSES.map((s, i) => [s[0], i]));
-const PLANS = ['ED', 'ED II', 'EA', 'REA / SCEA', 'RD', 'Rolling', 'Priority', 'Other'];
+const PLANS = ['ED', 'ED II', 'EA', 'EA II', 'REA / SCEA', 'RD', 'Rolling', 'Priority', 'Other'];
 const MAX_VERSIONS = 30;
 
 /* ---------- state ---------- */
@@ -516,18 +561,37 @@ function countHTML(e){
   const n = measure(e);
   return e.limit ? `${fmtN(n)} / ${fmtN(e.limit)} ${e.unit === 'chars' ? 'chars' : 'words'}` : `${fmtN(n)} ${e.unit === 'chars' ? 'chars' : 'words'}`;
 }
+/* The essays a student actually has to write: every required one, plus N from each "choose N" set
+   (the ones furthest along). In an optional set, only the ones they've started count. */
+function countedSet(){
+  const set = new Set(), groups = new Map();
+  for (const e of S.essays) {
+    if (e.group) { const k = e.schoolId + '|' + e.group; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(e); }
+    else if (e.required) set.add(e.id);
+  }
+  for (const list of groups.values()) {
+    const need = list[0].pick || 1;
+    const ranked = list.slice().sort((a, b) => (SRANK[b.status] - SRANK[a.status]) || measure(b) - measure(a) || (a.order || 0) - (b.order || 0));
+    (list[0].groupOpt ? ranked.filter(e => e.status !== 'todo' || wordsIn(e.text) > 0) : ranked).slice(0, need).forEach(e => set.add(e.id));
+  }
+  return set;
+}
+let COUNTED = new Set();
+
 function essayRow(e, opts = {}){
   const sc = schoolOf(e.schoolId);
   const over = e.limit && measure(e) > e.limit;
+  const tag = e.group ? `<span class="chip ${COUNTED.has(e.id) ? 'acc' : ''}">${esc(e.pickLabel || 'Choose one')}</span>` : (e.required ? '' : '<span class="chip">Optional</span>');
   return `<li><button class="erow" type="button" data-open="${e.id}">
     ${opts.school ? `<span class="dot" style="background:var(--c${sc.c % 8})" aria-hidden="true"></span>` : `<span class="st ${e.status}" title="${esc(STATUS[e.status])}" aria-label="${esc(STATUS[e.status])}"></span>`}
     <span class="p">${opts.school ? `<b>${esc(sc.name)}</b> · ` : ''}${esc(e.prompt || 'Untitled prompt')}</span>
     <span class="cnt">${countHTML(e)}</span>
-    <span class="meta">${opts.school ? statusHTML(e.status) : `<span class="chip">${esc(TYPE[e.type].label)}</span>`}${e.required ? '' : '<span class="chip">Optional</span>'}${over ? '<span class="chip bad">Over limit</span>' : ''}${opts.extra || ''}${meterHTML(e)}</span>
+    <span class="meta">${opts.school ? statusHTML(e.status) : `<span class="chip">${esc(TYPE[e.type].label)}</span>`}${tag}${over ? '<span class="chip bad">Over limit</span>' : ''}${opts.extra || ''}${meterHTML(e)}</span>
   </button></li>`;
 }
 
 function render(){
+  COUNTED = countedSet();
   const has = S.schools.length > 0;
   $('#heroActs').classList.toggle('hide', has);
   $('#secOverview').classList.toggle('hide', !has);
@@ -537,26 +601,29 @@ function render(){
   renderOverview(); renderSchools(); renderReuse();
 }
 
+function countedOf(sid){ return essaysOf(sid).filter(e => COUNTED.has(e.id)); }
 function renderOverview(){
   if (!S.schools.length) return;
   $('#todayLine').textContent = new Date().toLocaleDateString('en-US', {weekday: 'long', month: 'long', day: 'numeric'});
   const live = S.schools.filter(s => !s.done);
-  const liveEssays = S.essays.filter(e => { const s = schoolOf(e.schoolId); return s && !s.done; });
-  const finals = S.essays.filter(e => e.status === 'final').length;
+  const counted = S.essays.filter(e => COUNTED.has(e.id));
+  const liveCounted = counted.filter(e => { const s = schoolOf(e.schoolId); return s && !s.done; });
+  const finals = counted.filter(e => e.status === 'final').length;
+  const extra = S.essays.length - counted.length;
   const written = S.essays.reduce((a, e) => a + wordsIn(e.text), 0);
-  const togo = liveEssays.filter(e => e.required).reduce((a, e) => a + toGo(e), 0);
+  const togo = liveCounted.reduce((a, e) => a + toGo(e), 0);
   const next = sortedSchools().find(s => !s.done && s.deadline && daysLeft(s.deadline) >= 0);
   const nd = next ? daysLeft(next.deadline) : null;
   $('#stats').innerHTML = `
     <div class="stat"><div class="k">Schools</div><div class="v">${S.schools.length}</div><div class="s">${S.schools.length - live.length} submitted</div></div>
-    <div class="stat"><div class="k">Essays final</div><div class="v">${finals}<small> / ${S.essays.length}</small></div><div class="s">${S.essays.filter(e => e.required).length} required</div></div>
+    <div class="stat"><div class="k">Essays final</div><div class="v">${finals}<small> / ${counted.length}</small></div><div class="s">${extra ? `plus ${extra} optional or unchosen` : 'all required'}</div></div>
     <div class="stat"><div class="k">Words to go</div><div class="v">${fmtN(togo)}</div><div class="s">${fmtN(written)} written so far</div></div>
     <div class="stat ${dueClass(nd)}"><div class="k">Next deadline</div><div class="v">${next ? (nd === 0 ? 'Today' : nd + (nd === 1 ? ' day' : ' days')) : '—'}</div><div class="s">${next ? esc(next.name) + ' · ' + esc(fmtDate(next.deadline)) : 'Add deadlines to your schools'}</div></div>`;
 
   // up next
-  const up = liveEssays.filter(e => e.status !== 'final').sort((a, b) => {
+  const up = liveCounted.filter(e => e.status !== 'final').sort((a, b) => {
     const da = schoolOf(a.schoolId).deadline || '9999', db = schoolOf(b.schoolId).deadline || '9999';
-    return (da < db ? -1 : da > db ? 1 : 0) || (b.required - a.required) || (SRANK[b.status] - SRANK[a.status]);
+    return (da < db ? -1 : da > db ? 1 : 0) || (SRANK[b.status] - SRANK[a.status]) || (a.order || 0) - (b.order || 0);
   }).slice(0, 7);
   $('#upNext').innerHTML = up.length ? up.map(e => {
     const n = daysLeft(schoolOf(e.schoolId).deadline);
@@ -568,20 +635,25 @@ function renderOverview(){
   S.schools.slice().sort((a, b) => ((a.deadline || '9999') < (b.deadline || '9999') ? -1 : (a.deadline || '9999') > (b.deadline || '9999') ? 1 : a.name.localeCompare(b.name))).forEach(s => { const k = s.deadline || ''; if (!byDate.has(k)) byDate.set(k, []); byDate.get(k).push(s); });
   $('#deadlines').innerHTML = Array.from(byDate.entries()).map(([k, list]) => {
     const n = daysLeft(k), allDone = list.every(s => s.done);
-    const words = list.filter(s => !s.done).reduce((a, s) => a + essaysOf(s.id).filter(e => e.required).reduce((b, e) => b + toGo(e), 0), 0);
-    const left = list.filter(s => !s.done).reduce((a, s) => a + essaysOf(s.id).filter(e => e.required && e.status !== 'final').length, 0);
+    const open = list.filter(s => !s.done);
+    const words = open.reduce((a, s) => a + countedOf(s.id).reduce((b, e) => b + toGo(e), 0), 0);
+    const left = open.reduce((a, s) => a + countedOf(s.id).filter(e => e.status !== 'final').length, 0);
     let pace = '';
+    const total = open.reduce((a, s) => a + countedOf(s.id).length, 0);
     if (allDone) pace = 'All submitted.';
-    else if (n == null) pace = left ? `${left} required essay${left === 1 ? '' : 's'} still open.` : 'Every required essay is final.';
-    else if (n < 0) pace = left ? `Deadline passed with ${left} required essay${left === 1 ? '' : 's'} still open.` : 'Deadline passed. Mark it submitted when it is.';
-    else if (!left) pace = 'Every required essay is final. Submit when ready.';
+    else if (!total) pace = open.every(s => s.lib) ? 'No supplemental essays. Just your personal essay.' : 'No essays added yet.';
+    else if (n == null) pace = left ? `${left} essay${left === 1 ? '' : 's'} still open.` : 'Every essay is final.';
+    else if (n < 0) pace = left ? `Deadline passed with ${left} essay${left === 1 ? '' : 's'} still open.` : 'Deadline passed. Mark it submitted when it is.';
+    else if (!left) pace = 'Every essay is final. Submit when ready.';
     else if (words) pace = `${fmtN(words)} words to go across ${left} essay${left === 1 ? '' : 's'}: about ${fmtN(Math.ceil(words / Math.max(1, n)))} a day.`;
-    else pace = `${left} essay${left === 1 ? '' : 's'} at length but not marked final yet.`;
+    else pace = `${left} essay${left === 1 ? '' : 's'} not marked final yet.`;
     const d = parseDate(k);
     const box = d ? `<div class="date ${allDone ? '' : n < 0 ? 'past' : n <= 7 ? 'soon' : ''}"><span>${esc(d.toLocaleDateString('en-US', {month: 'short'}))}</span><b>${d.getDate()}</b><span>${allDone ? 'Done' : n < 0 ? 'Past' : n === 0 ? 'Today' : n + 'd'}</span></div>` : `<div class="date"><span>No</span><b>—</b><span>date</span></div>`;
     return `<li>${box}<div class="who">${list.map(s => {
-      const es = essaysOf(s.id), f = es.filter(e => e.status === 'final').length;
-      return `<div class="sch"><span class="dot" style="background:var(--c${s.c % 8})" aria-hidden="true"></span><b>${esc(s.name)}</b><span class="chip ${s.done ? 'acc' : ''}">${s.done ? 'Submitted' : esc(s.plan) + ' · ' + f + '/' + es.length}</span><span class="meter" aria-hidden="true"><i style="width:${s.done ? 100 : es.length ? (f / es.length * 100).toFixed(1) : 0}%"></i></span></div>`;
+      const es = countedOf(s.id), f = es.filter(e => e.status === 'final').length;
+      const pct = s.done ? 100 : es.length ? f / es.length * 100 : 0;
+      const lbl = s.done ? 'Submitted' : esc(s.plan) + ' · ' + (es.length ? f + '/' + es.length : 'no essays');
+      return `<div class="sch"><span class="dot" style="background:var(--c${s.c % 8})" aria-hidden="true"></span><b>${esc(s.name)}</b><span class="chip ${s.done ? 'acc' : ''}">${lbl}</span><span class="meter" aria-hidden="true"><i style="width:${pct.toFixed(1)}%"></i></span></div>`;
     }).join('')}<div class="pace">${esc(pace)}</div></div></li>`;
   }).join('');
 }
@@ -591,21 +663,23 @@ function renderSchools(){
   $('#schoolsSub').textContent = list.length ? `${list.length} school${list.length === 1 ? '' : 's'}, sorted by deadline. Click any prompt to write.` : 'Add each college, then its supplement prompts.';
   $('#schools').innerHTML = list.map(s => {
     const es = essaysOf(s.id).sort(essayOrder);
-    const f = es.filter(e => e.status === 'final').length;
+    const need = countedOf(s.id), f = need.filter(e => e.status === 'final').length;
     const n = daysLeft(s.deadline);
     let url = '';
-    if (s.url) { try { const u = new URL(s.url); if (/^https?:$/.test(u.protocol)) url = `<a href="${esc(u.href)}" target="_blank" rel="noopener noreferrer">Portal ↗</a>`; } catch (e) {} }
+    if (s.url) { try { const u = new URL(s.url); if (/^https?:$/.test(u.protocol)) url = `<a href="${esc(u.href)}" target="_blank" rel="noopener noreferrer">${s.lib ? 'Admissions site' : 'Portal'} ↗</a>`; } catch (e) {} }
+    const empty = s.lib ? '' : `<p class="notes">No prompts yet. Paste the school's supplement questions, or add them one at a time.</p>`;
     return `<article class="school ${s.done ? 'done' : ''}" style="--sc:var(--c${s.c % 8})" aria-label="${esc(s.name)}">
       <div class="school-h">
         <div style="min-width:0"><h3>${esc(s.name)}</h3>
-          <div class="sub"><span class="chip">${esc(s.plan)}</span>${s.deadline ? `<span>${esc(fmtDate(s.deadline, {month: 'long', day: 'numeric', year: 'numeric'}))}</span>` : ''}${s.done ? '<span class="chip acc">Submitted</span>' : `<span class="chip ${dueClass(n)}">${esc(dueText(n))}</span>`}${url}</div>
+          <div class="sub">${s.rank ? `<span class="chip" title="${esc(LIB ? LIB.ranking : '')}">#${s.rank}</span>` : ''}<span class="chip">${esc(s.plan)}</span>${s.deadline ? `<span>${esc(fmtDate(s.deadline, {month: 'long', day: 'numeric', year: 'numeric'}))}</span>` : ''}${s.done ? '<span class="chip acc">Submitted</span>' : `<span class="chip ${dueClass(n)}">${esc(dueText(n))}</span>`}${url}</div>
+          ${s.college || s.app ? `<div class="sub">${[s.college, s.app].filter(Boolean).map(esc).join(' · ')}</div>` : ''}
         </div>
         <div class="acts"><button class="btn sm ghost" type="button" data-act="edit-school" data-id="${s.id}">Edit</button>${s.done ? '' : `<button class="btn sm ghost" type="button" data-act="mark-done" data-id="${s.id}">Mark submitted</button>`}</div>
       </div>
-      ${es.length ? `<div class="prog"><span>${f} of ${es.length} final</span><span class="meter" aria-hidden="true"><i style="width:${(f / es.length * 100).toFixed(1)}%"></i></span></div>` : ''}
+      ${need.length ? `<div class="prog"><span>${f} of ${need.length} final</span><span class="meter" aria-hidden="true"><i style="width:${(f / need.length * 100).toFixed(1)}%"></i></span></div>` : ''}
       ${s.notes ? `<p class="notes">${esc(s.notes)}</p>` : ''}
-      ${es.length ? `<ul class="ul">${es.map(e => essayRow(e)).join('')}</ul>` : `<p class="notes">No prompts yet. Paste the school's supplement questions, or add them one at a time.</p>`}
-      <div class="school-f"><button class="btn sm primary" type="button" data-act="paste" data-id="${s.id}">Paste prompts</button><button class="btn sm" type="button" data-act="add-essay" data-id="${s.id}">Add one prompt</button></div>
+      ${es.length ? `<ul class="ul">${es.map(e => essayRow(e)).join('')}</ul>` : empty}
+      <div class="school-f"><button class="btn sm ${s.lib ? '' : 'primary'}" type="button" data-act="paste" data-id="${s.id}">Paste prompts</button><button class="btn sm" type="button" data-act="add-essay" data-id="${s.id}">Add one prompt</button></div>
     </article>`;
   }).join('');
 }
@@ -645,6 +719,11 @@ function openSchool(id){
   $('#dsUrl').value = s.url || ''; $('#dsNotes').value = s.notes || ''; $('#dsDone').checked = !!s.done;
   $('#dlgSchool').showModal(); $('#dsName').focus();
 }
+$('#dsPlan').addEventListener('change', () => {
+  const sp = editingSchool && editingSchool.lib && libSpecById(editingSchool.lib);
+  const hit = sp && sp.plans.find(p => p[0] === $('#dsPlan').value);
+  if (hit) $('#dsDate').value = hit[1];
+});
 $('#formSchool').addEventListener('submit', ev => {
   ev.preventDefault();
   const name = $('#dsName').value.trim(); if (!name) { $('#dsName').focus(); return; }
@@ -652,7 +731,7 @@ $('#formSchool').addEventListener('submit', ev => {
   const vals = {name, plan: $('#dsPlan').value, deadline: $('#dsDate').value, url, notes: $('#dsNotes').value.trim(), done: $('#dsDone').checked};
   let created = null;
   if (editingSchool) Object.assign(editingSchool, vals);
-  else { const used = S.schools.map(s => s.c); let c = S.schools.length % 8; for (let i = 0; i < 8; i++) if (!used.includes(i)) { c = i; break; } created = Object.assign({id: uid(), c, created: Date.now()}, vals); S.schools.push(created); }
+  else { created = Object.assign({id: uid(), c: nextColor(), created: Date.now()}, vals); S.schools.push(created); }
   save(); $('#dlgSchool').close(); render();
   if (created) { toast(`${created.name} added. Next, paste its supplement prompts.`, 'Paste prompts', () => openPaste(created.id)); }
 });
@@ -724,7 +803,7 @@ $('#dpGo').addEventListener('click', () => {
 
 /* ---------- essays & editor ---------- */
 function newEssay(schoolId, o = {}){
-  return Object.assign({id: uid(), schoolId, prompt: '', limit: 0, unit: 'words', type: 'other', required: true, status: 'todo', text: '', notes: '', versions: [], reuseOf: null, order: essaysOf(schoolId).length, created: Date.now(), updated: Date.now()}, o);
+  return Object.assign({id: uid(), schoolId, prompt: '', limit: 0, unit: 'words', type: 'other', required: true, status: 'todo', text: '', notes: '', versions: [], reuseOf: null, group: null, pick: 0, pickLabel: '', groupOpt: false, summary: false, order: essaysOf(schoolId).length, created: Date.now(), updated: Date.now()}, o);
 }
 let cur = null, saveT = null;
 $('#edType').innerHTML = TYPES.map(t => `<option value="${t[0]}">${esc(t[1])}</option>`).join('');
@@ -737,6 +816,7 @@ function openEditor(id){
   $('#edPrompt').value = cur.prompt; $('#edLimit').value = cur.limit || ''; $('#edUnit').value = cur.unit;
   $('#edType').value = cur.type; $('#edReq').value = cur.required ? '1' : '0'; $('#edStatus').value = cur.status;
   $('#edText').value = cur.text; $('#edNotes').value = cur.notes || '';
+  showSummaryNote(s);
   $('#edNotesBox').open = !!cur.notes; $('#edVersBox').open = false; $('#edSaved').textContent = '';
   fillFrom(); renderVersions(); updateCount();
   $('#dlgEd').showModal();
@@ -788,7 +868,15 @@ $('#edText').addEventListener('input', () => {
   if (cur.status === 'todo' && cur.text.trim()) { cur.status = 'draft'; $('#edStatus').value = 'draft'; }
   updateCount(); touch();
 });
-$('#edPrompt').addEventListener('input', () => { cur.prompt = $('#edPrompt').value; sizePrompt(); touch(); });
+$('#edPrompt').addEventListener('input', () => { cur.prompt = $('#edPrompt').value; if (cur.summary) { cur.summary = false; $('#edSum').classList.add('hide'); } sizePrompt(); touch(); });
+function showSummaryNote(s){
+  const el = $('#edSum');
+  if (!cur.summary) { el.classList.add('hide'); return; }
+  let link = '';
+  if (s.url) { try { const u = new URL(s.url); link = ` <a href="${esc(u.href)}" target="_blank" rel="noopener noreferrer">Open ${esc(s.name)}’s admissions site ↗</a>`; } catch (e) {} }
+  el.innerHTML = `This is a short summary of the question, with the real ${cur.limit ? 'limit' : 'requirements'}. Copy the exact wording from the application and paste it over the summary before you write.${link}`;
+  el.classList.remove('hide');
+}
 $('#edNotes').addEventListener('input', () => { cur.notes = $('#edNotes').value; touch(); });
 $('#edLimit').addEventListener('input', () => { const v = $('#edLimit').value; cur.limit = v === '' ? 0 : Math.max(0, Math.round(+v)); updateCount(); touch(); });
 $('#edUnit').addEventListener('change', () => { cur.unit = $('#edUnit').value; updateCount(); touch(); });
@@ -844,6 +932,7 @@ document.addEventListener('click', ev => {
   const id = b.dataset.id;
   switch (b.dataset.act) {
     case 'add-school': openSchool(); break;
+    case 'library': openLibrary(); break;
     case 'edit-school': openSchool(id); break;
     case 'mark-done': { const s = schoolOf(id); s.done = true; save(); render(); toast(`${s.name} marked submitted.`, 'Undo', () => { s.done = false; save(); render(); }); break; }
     case 'paste': openPaste(id); break;
@@ -881,6 +970,131 @@ function exportText(){
     }).join('\n\n' + '-'.repeat(40) + '\n\n');
     return head + '\n\n' + (body || '(no prompts yet)');
   }).join('\n\n\n') + '\n';
+}
+
+/* ---------- school library (top 50, 2026–27 prompts) ---------- */
+const LIB = window.PR_LIB || null;
+function nextColor(){ const used = S.schools.map(s => s.c); for (let i = 0; i < 8; i++) if (!used.includes(i)) return i; return S.schools.length % 8; }
+function libEntry(id){ return LIB.schools.find(x => x.id === id); }
+function libSpecById(id){ if (!LIB) return null; if (id === 'uc') return LIB.uc; return libEntry(id); }
+function libSpec(x){ return x.shared === 'uc' ? LIB.uc : x; }
+function defaultCollege(x, field){
+  const cs = libSpec(x).colleges; if (!cs) return null;
+  return (cs.find(c => c.f.includes(field)) || cs.find(c => c.f.includes('*')) || cs[0]).id;
+}
+function defaultPlan(x){ const ps = libSpec(x).plans; return (ps.find(p => p[0] === 'RD') || ps[ps.length - 1])[0]; }
+function libPrompts(spec, college){ return (spec.prompts || []).filter(p => !(p[4] && p[4].c) || p[4].c === college); }
+/* how many essays a student would write for this school, and roughly how many words */
+function libLoad(x, college){
+  const spec = libSpec(x), ps = libPrompts(spec, college), taken = {};
+  let n = 0, w = 0, open = false;
+  for (const p of ps) {
+    const ex = p[4] || {};
+    if (ex.opt) continue;
+    if (ex.g) { const need = spec.groups[ex.g][0]; taken[ex.g] = (taken[ex.g] || 0) + 1; if (taken[ex.g] > need) continue; }
+    n++;
+    if (!p[1]) open = true; else w += p[2] === 'c' ? p[1] / 6 : p[1];
+  }
+  return {n, w: Math.round(w / 10) * 10, open};
+}
+function loadText(L){
+  if (!L.n) return 'No supplements';
+  return `${L.n} essay${L.n === 1 ? '' : 's'} · ${L.w ? '~' + fmtN(L.w) + ' words' : ''}${L.open ? (L.w ? ' + ' : '') + 'open length' : ''}`;
+}
+const ucSchool = () => S.schools.find(s => s.lib === 'uc');
+function libAdded(x){
+  if (x.shared === 'uc') { const u = ucSchool(); return !!(u && (u.campuses || []).includes(x.name)); }
+  return S.schools.some(s => s.lib === x.id);
+}
+
+let libSel = new Map();
+function openLibrary(){
+  if (!LIB) { toast("The school list didn't load. Check your connection and reload the page."); return; }
+  libSel = new Map();
+  $('#dlKick').textContent = `${LIB.ranking.replace('Best National Universities', 'top 50')} · ${LIB.cycle} prompts`;
+  $('#libField').innerHTML = `<option value="">Choose your intended major…</option>` + LIB.fields.map(f => `<option value="${f[0]}">${esc(f[1])}</option>`).join('');
+  $('#libField').value = S.major || ''; $('#libMajor').value = S.majorName || ''; $('#libQ').value = '';
+  renderLib(); $('#dlgLib').showModal();
+  (S.major ? $('#libQ') : $('#libField')).focus();
+}
+function renderLib(){
+  const q = $('#libQ').value.trim().toLowerCase();
+  const body = $('#dlBody'), top = body.scrollTop;
+  const rows = LIB.schools.filter(x => !q || (x.name + ' ' + x.full).toLowerCase().includes(q));
+  $('#libList').innerHTML = rows.map(x => {
+    const added = libAdded(x), sel = libSel.get(x.id), spec = libSpec(x);
+    const college = sel ? sel.college : defaultCollege(x, S.major);
+    const L = libLoad(x, college);
+    const ucShared = x.shared === 'uc' && !added && (ucSchool() || Array.from(libSel.keys()).some(j => j !== x.id && libEntry(j).shared === 'uc'));
+    let opts = '';
+    if (sel) {
+      const plans = spec.plans.map(p => `<option value="${esc(p[0])}" ${p[0] === sel.plan ? 'selected' : ''}>${esc(p[0])} · ${esc(fmtDate(p[1]))}</option>`).join('');
+      const cols = spec.colleges ? `<label class="f">Applying to<select data-college="${x.id}">${spec.colleges.map(c => `<option value="${c.id}" ${c.id === sel.college ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></label>` : '';
+      opts = `<div class="lib-o row"><label class="f" style="flex:0 1 220px">Plan & deadline<select data-plan="${x.id}">${plans}</select></label>${cols}</div>${spec.note ? `<p class="muted lib-o" style="margin:-4px 0 0;font-size:13px">${esc(spec.note)}</p>` : ''}`;
+    }
+    return `<li class="lib ${sel ? 'on' : ''} ${added ? 'added' : ''}">
+      <label class="lib-h"><input type="checkbox" data-pick="${x.id}" ${sel ? 'checked' : ''} ${added ? 'disabled' : ''}><span class="rk">#${x.rank}</span><span class="nm"><b>${esc(x.name)}</b><small>${esc(x.full)}${x.shared === 'uc' ? ' · shares one UC application' : ''}</small></span><span class="ld ${L.n ? '' : 'none'}">${added ? 'Added' : ucShared ? 'Same UC essays' : esc(loadText(L))}</span></label>
+      ${opts}
+    </li>`;
+  }).join('') || '<li class="empty-line">No school in the top 50 matches that. Close this and use “Add any school” instead.</li>';
+  body.scrollTop = top;
+  const k = libSel.size;
+  let n = 0, ucDone = !!ucSchool(); libSel.forEach((o, id) => { const x = libEntry(id); if (x.shared === 'uc') { if (ucDone) return; ucDone = true; } n += libLoad(x, o.college).n; });
+  $('#libCount').textContent = k ? `${k} selected · ${n} essay${n === 1 ? '' : 's'}` : '';
+  $('#libAdd').disabled = !k; $('#libAdd').textContent = k ? `Add ${k} school${k === 1 ? '' : 's'}` : 'Add schools';
+}
+$('#libQ').addEventListener('input', renderLib);
+$('#libField').addEventListener('change', () => {
+  S.major = $('#libField').value; save();
+  libSel.forEach((o, id) => { o.college = defaultCollege(libEntry(id), S.major); });
+  renderLib();
+});
+$('#libMajor').addEventListener('input', () => { S.majorName = $('#libMajor').value.trim(); save(); });
+$('#libList').addEventListener('change', ev => {
+  const t = ev.target;
+  if (t.dataset.pick) {
+    const x = libEntry(t.dataset.pick);
+    if (t.checked) libSel.set(x.id, {plan: defaultPlan(x), college: defaultCollege(x, S.major)}); else libSel.delete(x.id);
+  } else if (t.dataset.plan) libSel.get(t.dataset.plan).plan = t.value;
+  else if (t.dataset.college) libSel.get(t.dataset.college).college = t.value;
+  renderLib();
+});
+$('#libAdd').addEventListener('click', () => {
+  let nS = 0, nE = 0;
+  for (const [id, o] of libSel) {
+    const x = libEntry(id);
+    if (x.shared === 'uc') {
+      let u = ucSchool();
+      if (!u) { u = makeLibSchool(LIB.uc, 'uc', o.plan, null, x.rank); u.campuses = []; nS++; nE += addLibEssays(u, LIB.uc, null); }
+      if (!u.campuses.includes(x.name)) u.campuses.push(x.name);
+      u.rank = Math.min(u.rank || 99, x.rank);
+      u.notes = (u.notes || '').replace(/\n?Campuses: .*$/, '') + `\nCampuses: ${u.campuses.join(', ')}`;
+      if (u.notes.startsWith('\n')) u.notes = u.notes.slice(1);
+      continue;
+    }
+    const s = makeLibSchool(x, x.id, o.plan, o.college, x.rank); nS++; nE += addLibEssays(s, x, o.college);
+  }
+  save(); $('#dlgLib').close(); render();
+  toast(`Added ${nS} school${nS === 1 ? '' : 's'} and ${nE} prompt${nE === 1 ? '' : 's'}. Paste each school's exact wording as you start writing.`);
+  document.getElementById('secOverview').scrollIntoView({behavior: 'smooth', block: 'start'});
+});
+function makeLibSchool(spec, libId, plan, collegeId, rank){
+  const hit = spec.plans.find(p => p[0] === plan) || spec.plans[spec.plans.length - 1];
+  const col = collegeId && spec.colleges ? spec.colleges.find(c => c.id === collegeId) : null;
+  const s = {id: uid(), c: nextColor(), name: libId === 'uc' ? spec.name : spec.name, full: spec.full || spec.name, plan: hit[0], deadline: hit[1], url: spec.url || '', notes: spec.note || '', done: false, created: Date.now(), lib: libId, rank, app: spec.app || '', college: col ? col.name : ''};
+  S.schools.push(s); return s;
+}
+function addLibEssays(s, spec, college){
+  const ps = libPrompts(spec, college), base = essaysOf(s.id).length;
+  ps.forEach((p, i) => {
+    const ex = p[4] || {}, g = ex.g && spec.groups ? spec.groups[ex.g] : null;
+    S.essays.push(newEssay(s.id, {
+      prompt: p[0], limit: p[1], unit: p[2] === 'c' ? 'chars' : 'words', type: p[3], required: !ex.opt,
+      group: g ? ex.g : null, pick: g ? g[0] : 0, pickLabel: g ? g[1] : '', groupOpt: !!(g && ex.opt), summary: true,
+      notes: p[3] === 'major' && S.majorName ? `Intended major: ${S.majorName}` : '', order: base + i
+    }));
+  });
+  return ps.length;
 }
 
 /* ---------- example ---------- */
