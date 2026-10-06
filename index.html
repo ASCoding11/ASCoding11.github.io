@@ -99,19 +99,23 @@
 <script>
 (function(){
   var f=document.querySelector('footer'),c=f&&f.querySelector('span');if(!c)return;
-  var t=[],box=null,miss=0,shown=false,ov=null;
-  var GAMES=['/rumble-karts/','/starhop/','/abyssal/'];
+  var t=[],box=null,miss=0,shown=false,ov=null,base='',room='';
+  // An invite link (home page + #room) is held until the code is entered, and the address is tidied right away.
+  var m=/^#([a-z0-9-]{1,20})$/.exec(location.hash);
+  if(m&&m[1]!=='notrack'&&m[1]!=='track'){room=m[1];history.replaceState(null,'',location.pathname+location.search)}
   async function h(s){var b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('ascoding11:'+s));return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,'0')}).join('').slice(0,16)}
   function close(){if(box){box.remove();box=null;miss=0}}
 
   // Show the hidden page's games right here, without changing the address.
-  function reveal(html){
+  function reveal(html,dir){
     var d=new DOMParser().parseFromString(html,'text/html');
     var hd=document.querySelector('header'),sec=document.querySelector('section[aria-label="Sections"]');
     hd.replaceWith(document.importNode(d.querySelector('header'),true));
     sec.replaceWith(document.importNode(d.querySelector('section'),true));
     document.querySelectorAll('.nav a[aria-current]').forEach(function(a){a.removeAttribute('aria-current')});
-    shown=true;history.pushState({br:1},'',location.href);window.scrollTo(0,0);
+    shown=true;base=dir;history.pushState({br:1},'',location.href);window.scrollTo(0,0);
+    var inv=room&&document.querySelector('a[data-invite]');
+    if(inv){var u=new URL(inv.href,location.href);openGame(u.pathname+'#'+room,'');room=''}
   }
 
   // Open a game in a full-screen layer over this page; the address bar stays the same.
@@ -131,12 +135,13 @@
     fr.style.cssText='flex:1;width:100%;border:0;display:block;background:#000';
     fr.addEventListener('load',function(){
       try{
-        var w=fr.contentWindow,base=path.split(/[?#]/)[0];
-        if(w.location.pathname.indexOf(base)!==0){shut();return}
+        var w=fr.contentWindow,gp=path.split(/[?#]/)[0];
+        if(w.location.pathname.indexOf(gp)!==0){shut();return}
+        if(!lbl.textContent)lbl.textContent=w.document.title.split(/\s[\u2013\u2014|-]\s/)[0];
         // Links that leave the game close this layer instead of loading inside it.
         w.document.addEventListener('click',function(e){
           var a=e.target.closest&&e.target.closest('a[href]');if(!a||a.target==='_blank')return;
-          var u=new URL(a.href,w.location.href);if(u.origin!==location.origin||u.pathname.indexOf(base)===0)return;
+          var u=new URL(a.href,w.location.href);if(u.origin!==location.origin||u.pathname.indexOf(gp)===0)return;
           e.preventDefault();
           if(u.pathname==='/privacy.html')window.open(u.href,'_blank','noopener');else history.back();
         },true);
@@ -155,8 +160,8 @@
   document.addEventListener('click',function(e){
     if(!shown||e.defaultPrevented||e.button||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;
     var a=e.target.closest&&e.target.closest('a[href]');if(!a)return;
-    var u=new URL(a.href,location.href);if(u.origin!==location.origin)return;
-    var g=GAMES.filter(function(p){return u.pathname.indexOf(p)===0})[0];if(!g)return;
+    var u=new URL(a.href,location.href);
+    if(u.origin!==location.origin||u.pathname.indexOf(base)!==0||u.pathname===base)return;
     e.preventDefault();
     var art=a.closest('article'),n=art&&art.querySelector('h3');
     openGame(u.pathname+u.search+u.hash,n?n.textContent:'');
@@ -174,7 +179,7 @@
       if(e.key!=='Enter')return;
       var v=box.value.toLowerCase().replace(/\s+/g,'');if(!v)return;
       var p=await h(v),r=await fetch(p+'/',{cache:'no-store'}).catch(function(){return{ok:false}});
-      if(r.ok){var html=await r.text();close();reveal(html);return}
+      if(r.ok){var html=await r.text();close();reveal(html,'/'+p+'/');return}
       box.value='';box.style.transform='translateX(6px)';setTimeout(function(){if(box)box.style.transform=''},90);
       if(++miss>=3)close();
     });
