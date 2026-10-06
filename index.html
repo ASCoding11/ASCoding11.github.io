@@ -99,12 +99,72 @@
 <script>
 (function(){
   var f=document.querySelector('footer'),c=f&&f.querySelector('span');if(!c)return;
-  var t=[],box=null,miss=0;
+  var t=[],box=null,miss=0,shown=false,ov=null;
+  var GAMES=['/rumble-karts/','/starhop/','/abyssal/'];
   async function h(s){var b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('ascoding11:'+s));return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,'0')}).join('').slice(0,16)}
   function close(){if(box){box.remove();box=null;miss=0}}
+
+  // Show the hidden page's games right here, without changing the address.
+  function reveal(html){
+    var d=new DOMParser().parseFromString(html,'text/html');
+    var hd=document.querySelector('header'),sec=document.querySelector('section[aria-label="Sections"]');
+    hd.replaceWith(document.importNode(d.querySelector('header'),true));
+    sec.replaceWith(document.importNode(d.querySelector('section'),true));
+    document.querySelectorAll('.nav a[aria-current]').forEach(function(a){a.removeAttribute('aria-current')});
+    shown=true;history.pushState({br:1},'',location.href);window.scrollTo(0,0);
+  }
+
+  // Open a game in a full-screen layer over this page; the address bar stays the same.
+  function openGame(path,name){
+    if(ov)return;
+    ov=document.createElement('div');
+    ov.style.cssText='position:fixed;inset:0;z-index:1000;display:flex;flex-direction:column;background:var(--ground)';
+    var bar=document.createElement('div');
+    bar.style.cssText='flex:0 0 40px;display:flex;align-items:center;gap:12px;padding:0 12px;border-bottom:1px solid var(--line);background:var(--panel);font-family:var(--mono);font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase';
+    var back=document.createElement('button');back.type='button';back.textContent='← Back';
+    back.style.cssText='font:inherit;letter-spacing:inherit;text-transform:inherit;color:var(--accent);background:none;border:1px solid var(--line);border-radius:6px;padding:4px 10px;cursor:pointer';
+    back.onclick=function(){history.back()};
+    var lbl=document.createElement('span');lbl.textContent=name;lbl.style.color='var(--ink-2)';
+    bar.append(back,lbl);
+    var fr=document.createElement('iframe');fr.src=path;fr.title=name;
+    fr.setAttribute('allow','fullscreen; autoplay; gamepad; clipboard-write');fr.setAttribute('allowfullscreen','');
+    fr.style.cssText='flex:1;width:100%;border:0;display:block;background:#000';
+    fr.addEventListener('load',function(){
+      try{
+        var w=fr.contentWindow,base=path.split(/[?#]/)[0];
+        if(w.location.pathname.indexOf(base)!==0){shut();return}
+        // Links that leave the game close this layer instead of loading inside it.
+        w.document.addEventListener('click',function(e){
+          var a=e.target.closest&&e.target.closest('a[href]');if(!a||a.target==='_blank')return;
+          var u=new URL(a.href,w.location.href);if(u.origin!==location.origin||u.pathname.indexOf(base)===0)return;
+          e.preventDefault();
+          if(u.pathname==='/privacy.html')window.open(u.href,'_blank','noopener');else history.back();
+        },true);
+        w.focus();
+      }catch(e){}
+    });
+    ov.append(bar,fr);document.body.appendChild(ov);document.body.style.overflow='hidden';
+    history.pushState({g:1},'',location.href);
+  }
+  function shut(){if(ov){ov.remove();ov=null;document.body.style.overflow=''}}
+
+  window.addEventListener('popstate',function(){
+    if(ov)return shut();
+    if(shown)location.reload();
+  });
+  document.addEventListener('click',function(e){
+    if(!shown||e.defaultPrevented||e.button||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;
+    var a=e.target.closest&&e.target.closest('a[href]');if(!a)return;
+    var u=new URL(a.href,location.href);if(u.origin!==location.origin)return;
+    var g=GAMES.filter(function(p){return u.pathname.indexOf(p)===0})[0];if(!g)return;
+    e.preventDefault();
+    var art=a.closest('article'),n=art&&art.querySelector('h3');
+    openGame(u.pathname+u.search+u.hash,n?n.textContent:'');
+  });
+
   c.addEventListener('click',function(){
     var n=Date.now();t=t.filter(function(x){return n-x<1500});t.push(n);
-    if(t.length<3||box)return;t=[];
+    if(t.length<3||box||shown)return;t=[];
     box=document.createElement('input');box.type='password';box.autocomplete='off';box.spellcheck=false;box.setAttribute('aria-label','Code');
     box.style.cssText='margin-left:10px;width:11ch;font:inherit;color:inherit;background:transparent;border:0;border-bottom:1px solid var(--line);outline:0;padding:0 2px;transition:transform .08s';
     f.appendChild(box);box.focus();
@@ -113,8 +173,8 @@
       if(e.key==='Escape')return close();
       if(e.key!=='Enter')return;
       var v=box.value.toLowerCase().replace(/\s+/g,'');if(!v)return;
-      var p=await h(v),r=await fetch(p+'/',{method:'HEAD',cache:'no-store'}).catch(function(){return{ok:false}});
-      if(r.ok){location.href=p+'/';return}
+      var p=await h(v),r=await fetch(p+'/',{cache:'no-store'}).catch(function(){return{ok:false}});
+      if(r.ok){var html=await r.text();close();reveal(html);return}
       box.value='';box.style.transform='translateX(6px)';setTimeout(function(){if(box)box.style.transform=''},90);
       if(++miss>=3)close();
     });
