@@ -311,16 +311,23 @@ const RESPAWN_S = 3, SPAWN_SHIELD = 2.5, BOX_RESPAWN = 7;
 const COLORS = ['#ff4d6d', '#ffc93c', '#3fb8ff', '#2ed19a', '#a66bff', '#ff8a3d', '#f4f4f8', '#39334f'];
 // w = how often each item comes out of a ? box (relative odds, out of 100). tier sets the slot frame color.
 const ITEMS = {
-  rocket:    { name: 'Rocket',    w: 17, tier: 0, tip: 'Fire straight ahead. A direct hit wrecks.' },
-  blaster:   { name: 'Blaster',   w: 13, tier: 0, tip: '10 quick shots. Keep a rival in your sights.' },
-  boomerang: { name: 'Boomerang', w: 12, tier: 0, tip: 'Locks onto a rival ahead and hits going out and coming back.' },
-  mine:      { name: 'Mine',      w: 9,  tier: 0, tip: 'Drops behind you. Lure someone over it.' },
-  shockwave: { name: 'Shockwave', w: 9,  tier: 0, tip: 'Blasts everyone near you away.' },
-  gravity:   { name: 'Gravity',   w: 9,  tier: 0, tip: 'Lob a black hole. It drags karts in, and touching it wrecks them.' },
-  spikes:    { name: 'Spikes',    w: 9,  tier: 0, tip: '5 s invincible. Ram karts to damage them.' },
-  turbo:     { name: 'Turbo',     w: 9,  tier: 0, tip: 'Speed burst. Ramming at full speed hurts.' },
-  popper:    { name: 'Popper',    full: 'Copper Popper',   w: 7, tier: 1, tip: 'Lob a copper grenade: one big boom, then four pops.' },
-  wesley:    { name: 'Wesley',    full: 'Wyoming Wesley',  w: 4, tier: 2, tip: 'A buffalo charges out. Anyone it tramples is wrecked.' },
+  rocket:    { name: 'Rocket',    w: 11, tier: 0, tip: 'Fire straight ahead. A direct hit wrecks.' },
+  blaster:   { name: 'Blaster',   w: 8,  tier: 0, tip: '10 quick shots. Keep a rival in your sights.' },
+  boomerang: { name: 'Boomerang', w: 8,  tier: 0, tip: 'Locks onto a rival ahead and hits going out and coming back.' },
+  mine:      { name: 'Mine',      w: 5,  tier: 0, tip: 'Drops behind you. Lure someone over it.' },
+  shockwave: { name: 'Shockwave', w: 6,  tier: 0, tip: 'Blasts everyone near you away.' },
+  gravity:   { name: 'Gravity',   w: 6,  tier: 0, tip: 'Lob a black hole. It drags karts in, and touching it wrecks them.' },
+  spikes:    { name: 'Spikes',    w: 6,  tier: 0, tip: '5 s invincible. Ram karts to damage them.' },
+  turbo:     { name: 'Turbo',     w: 5,  tier: 0, tip: 'Speed burst. Ramming at full speed hurts.' },
+  freeze:    { name: 'Freeze',    full: 'Freeze Ray', w: 7, tier: 0, tip: 'Freezes a kart solid for 2 s. Frozen karts take extra damage.' },
+  warp:      { name: 'Warp',      w: 5,  tier: 0, tip: 'Teleports you about 25 m forward, even through walls.' },
+  decoy:     { name: 'Decoy',     full: 'Decoy Box', w: 5, tier: 0, tip: 'Drops a fake ? box behind you that explodes on whoever grabs it.' },
+  popper:    { name: 'Popper',    full: 'Copper Popper',   w: 4, tier: 1, tip: 'Lob a copper grenade: one big boom, then four pops.' },
+  ghost:     { name: 'Ghost',     w: 4,  tier: 1, tip: '5 s see-through: shots, rams and karts pass right through you.' },
+  magnet:    { name: 'Magnet',    w: 4,  tier: 1, tip: "Yanks the item out of the nearest rival's hands." },
+  tornado:   { name: 'Tornado',   w: 4,  tier: 1, tip: 'A twister wanders forward and flings karts into the air.' },
+  wesley:    { name: 'Wesley',    full: 'Wyoming Wesley',  w: 3, tier: 2, tip: 'A buffalo charges out. Anyone it tramples is wrecked.' },
+  shrink:    { name: 'Shrink',    full: 'Shrink Ray', w: 3, tier: 2, tip: 'Lightning shrinks every rival. Drive into tiny karts to squash them.' },
   gandiva:   { name: 'Gandiva',   full: "Arjun's Gandiva", w: 2, tier: 3, tip: 'Three homing golden arrows. Each one explodes on a kart.' }
 };
 const TIERS = ['Common', 'Rare', 'Epic', 'Legendary'];
@@ -328,6 +335,7 @@ const ROLL_T = .5;     // item roulette spins this long after a pickup before th
 const BOT_NAMES = ['Axle', 'Dizzy', 'Nitro', 'Pickles', 'Rusty', 'Zippy', 'Gizmo', 'Sprocket', 'Bolt', 'Waffles'];
 
 const ICON = {
+  squash: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M3 22h26v5H3z" fill="#e8e5f3" stroke="#1b1733" stroke-width="2.4" stroke-linejoin="round"/><path d="M9 22l7-14 7 14" fill="#ff4d6d" stroke="#1b1733" stroke-width="2.4" stroke-linejoin="round"/><path d="M5 18l3 2M27 18l-3 2M16 3v3" stroke="#1b1733" stroke-width="2.2" stroke-linecap="round"/></svg>',
   rocket: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M22 4c3 0 6 3 6 6-2 5-7 10-12 12l-6-6C12 11 17 6 22 4z" fill="#fff" stroke="#1b1733" stroke-width="2.5" stroke-linejoin="round"/><circle cx="21" cy="11" r="2.6" fill="#3fb8ff" stroke="#1b1733" stroke-width="2"/><path d="M10 16l-5 1-2 4 6-1M16 22l-1 5-4 2 1-6" fill="#ff4d6d" stroke="#1b1733" stroke-width="2.5" stroke-linejoin="round"/><path d="M9 23l-4 4" stroke="#ffc93c" stroke-width="3" stroke-linecap="round"/></svg>',
   blaster: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M3 10h20l3 3v5H13l-2 8H6l1-8H3z" fill="#3fb8ff" stroke="#1b1733" stroke-width="2.5" stroke-linejoin="round"/><path d="M26 12.5h3.5v4H26" fill="#ffc93c" stroke="#1b1733" stroke-width="2"/><rect x="7" y="12.6" width="11" height="2.6" rx="1" fill="#1b1733"/></svg>',
   mine: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 4v6M5 10l4 3M27 10l-4 3" stroke="#1b1733" stroke-width="2.5" stroke-linecap="round"/><circle cx="16" cy="19" r="9" fill="#ff4d6d" stroke="#1b1733" stroke-width="2.5"/><circle cx="16" cy="19" r="3" fill="#ffc93c" stroke="#1b1733" stroke-width="2"/></svg>',
@@ -338,6 +346,13 @@ const ICON = {
   popper: '<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="12" y="3.5" width="7" height="5" rx="1.2" fill="#9d98b2" stroke="#1b1733" stroke-width="2"/><circle cx="24" cy="6" r="3" fill="none" stroke="#1b1733" stroke-width="2"/><circle cx="15.5" cy="19" r="10" fill="#c8743a" stroke="#1b1733" stroke-width="2.5"/><path d="M8 15.5h15M7 20h17M8.5 24.5h14" stroke="#7a3e18" stroke-width="1.8"/><circle cx="12" cy="15" r="2" fill="#ffd9b0"/></svg>',
   wesley: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 8c-1 5 2 8 6 8M27 8c1 5-2 8-6 8" fill="none" stroke="#1b1733" stroke-width="4.5" stroke-linecap="round"/><path d="M5 8c-1 5 2 8 6 8M27 8c1 5-2 8-6 8" fill="none" stroke="#f2ead8" stroke-width="2.3" stroke-linecap="round"/><path d="M8 11q8-7 16 0l1.5 8-3 8h-13l-3-8z" fill="#6b4423" stroke="#1b1733" stroke-width="2.5" stroke-linejoin="round"/><path d="M8.5 11.5q7.5-6 15 0l-1 3q-6.5-3.5-13 0z" fill="#3b2414"/><rect x="12" y="21" width="8" height="5" rx="2" fill="#8a6a50" stroke="#1b1733" stroke-width="2"/><circle cx="12.5" cy="17" r="1.4" fill="#1b1733"/><circle cx="19.5" cy="17" r="1.4" fill="#1b1733"/></svg>',
   gandiva: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M9 3q15 13 0 26" fill="none" stroke="#1b1733" stroke-width="5" stroke-linecap="round"/><path d="M9 3q15 13 0 26" fill="none" stroke="#ffc93c" stroke-width="2.8" stroke-linecap="round"/><path d="M9 3v26" stroke="#1b1733" stroke-width="1.3"/><path d="M4 16h21" stroke="#1b1733" stroke-width="2.4"/><path d="M29 16l-6-3.8v7.6z" fill="#fff2a8" stroke="#1b1733" stroke-width="1.8" stroke-linejoin="round"/><path d="M5 16l-2.5-3M5 16l-2.5 3" stroke="#ff4d6d" stroke-width="2.2" stroke-linecap="round"/></svg>',
+  freeze: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3v26M4.7 9.5l22.6 13M4.7 22.5l22.6-13" stroke="#1b1733" stroke-width="5" stroke-linecap="round"/><path d="M16 3v26M4.7 9.5l22.6 13M4.7 22.5l22.6-13" stroke="#8fdcff" stroke-width="2.6" stroke-linecap="round"/><circle cx="16" cy="16" r="3.6" fill="#fff" stroke="#1b1733" stroke-width="2"/></svg>',
+  warp: '<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="12" fill="#a66bff" stroke="#1b1733" stroke-width="2.5"/><path d="M16 9a7 7 0 1 1-7 7 4 4 0 0 1 4-4 2.5 2.5 0 0 1 2.5 2.5" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg>',
+  decoy: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M9 9L5.5 3.5l6 3.5M23 9l3.5-5.5-6 3.5" fill="#ff4d6d" stroke="#1b1733" stroke-width="2" stroke-linejoin="round"/><rect x="6" y="8" width="20" height="20" rx="3" fill="#7a2a3a" stroke="#1b1733" stroke-width="2.5"/><path d="M12.5 15a3.5 3.5 0 1 1 5 3.2c-1 .5-1.5 1.2-1.5 2.3M16 24.5v.1" fill="none" stroke="#ffc93c" stroke-width="2.6" stroke-linecap="round"/></svg>',
+  ghost: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 28V14a10 10 0 0 1 20 0v14l-3.3-2.5L19.3 28 16 25.5 12.7 28l-3.4-2.5z" fill="#f4f4f8" stroke="#1b1733" stroke-width="2.5" stroke-linejoin="round"/><circle cx="12.5" cy="14" r="2" fill="#1b1733"/><circle cx="19.5" cy="14" r="2" fill="#1b1733"/><path d="M13.5 19.5q2.5 2 5 0" fill="none" stroke="#1b1733" stroke-width="1.8" stroke-linecap="round"/></svg>',
+  magnet: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 5h6v11a3 3 0 0 0 6 0V5h6v11a9 9 0 0 1-18 0z" fill="#ff4d6d" stroke="#1b1733" stroke-width="2.5" stroke-linejoin="round"/><path d="M7 5h6v5H7zM19 5h6v5h-6z" fill="#e8e5f3" stroke="#1b1733" stroke-width="2.5" stroke-linejoin="round"/></svg>',
+  tornado: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4 6h24M7 11h19M10 16h14M12.5 21h9M14.5 26h5" stroke="#1b1733" stroke-width="4.6" stroke-linecap="round"/><path d="M4 6h24M7 11h19M10 16h14M12.5 21h9M14.5 26h5" stroke="#cfd8e6" stroke-width="2.4" stroke-linecap="round"/></svg>',
+  shrink: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M18 2L8 17h7l-3 13 12-17h-7z" fill="#fff6a8" stroke="#1b1733" stroke-width="2.4" stroke-linejoin="round"/><path d="M3 24l5 5M3 29v-5h5M29 24l-5 5M29 29v-5h-5" fill="none" stroke="#1b1733" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   lava: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3c2 6 9 8 9 16a9 9 0 0 1-18 0c0-5 3-7 4-11 1 3 2 4 4 5 1-4 0-7 1-10z" fill="#ff6a2b" stroke="#1b1733" stroke-width="2.5" stroke-linejoin="round"/><path d="M16 17c2 2 4 3 4 6a4 4 0 0 1-8 0c0-2 2-3 4-6z" fill="#ffc93c"/></svg>',
   turbo: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M18 2L6 18h8l-2 12 14-17h-9z" fill="#ffc93c" stroke="#1b1733" stroke-width="2.5" stroke-linejoin="round"/></svg>',
   empty: '<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="6" y="6" width="20" height="20" rx="4" fill="none" stroke="#b9b4d0" stroke-width="2.5" stroke-dasharray="4 3"/><text x="16" y="21.5" text-anchor="middle" font-family="Arial" font-weight="700" font-size="14" fill="#b9b4d0">?</text></svg>'
@@ -927,6 +942,13 @@ const Snd = {
       case 'pop': [0, 70, 140, 210].forEach(d => setTimeout(() => { this.noise(.12, .18 * v, 2600); this.tone(300, .08, 'square', .06 * v, -150); }, d)); break;
       case 'stampede': this.tone(130, .7, 'sawtooth', .1 * v, -70); this.noise(1.6, .14 * v, 500); break;
       case 'thud': this.tone(90, .2, 'sine', .3 * v, -40); this.noise(.15, .12 * v, 800); break;
+      case 'freeze': this.tone(1600, .3, 'triangle', .12 * v, -1100); this.noise(.25, .1 * v, 7000); break;
+      case 'warp': this.tone(240, .3, 'sine', .18 * v, 900); this.tone(900, .25, 'triangle', .08 * v, -600); break;
+      case 'wind': this.noise(2.2, .16 * v, 900); this.tone(180, 1.5, 'sine', .05 * v, 60); break;
+      case 'magnet': this.tone(300, .3, 'square', .07 * v, 500); break;
+      case 'zap': this.noise(.5, .35, 6000); this.tone(1200, .4, 'sawtooth', .12, -1000); break;
+      case 'ghost': this.tone(500, .6, 'sine', .1, 300); this.tone(750, .6, 'sine', .06, 200); break;
+      case 'squash': this.tone(200, .2, 'square', .2, -150); this.noise(.2, .25, 1200); break;
       case 'legend': [659, 784, 988, 1319].forEach((f, i) => setTimeout(() => this.tone(f, .22, 'triangle', .16, 0), i * 90)); break;
       case 'spikes': this.tone(900, .08, 'square', .08, 400); setTimeout(() => this.tone(1300, .12, 'square', .08, 200), 70); break;
       case 'mine': this.tone(260, .12, 'square', .07 * v, -60); break;
@@ -974,7 +996,8 @@ function buildKart(color) {
   const ring = new THREE.Mesh(spikeRingGeo, spikeRingMat); ring.rotation.x = Math.PI / 2; spikes.add(ring);
   for (let i = 0; i < 10; i++) { const a = i / 10 * TAU, c = new THREE.Mesh(spikeGeo, spikeMat); c.position.set(Math.cos(a) * 2.25, 0, Math.sin(a) * 2.25); c.rotation.set(0, -a, -Math.PI / 2); spikes.add(c); }
   const bow = makeBow(); g.add(bow);
-  return { group: g, body, paint, wheels, pivots, shield, spikes, bow };
+  const ice = new THREE.Mesh(iceCubeGeo, iceCubeMat); ice.position.y = 1.2; ice.visible = false; g.add(ice);
+  return { group: g, body, paint, wheels, pivots, shield, spikes, bow, ice };
 }
 
 function makeLabel(name, color) {
@@ -1006,6 +1029,7 @@ class Kart {
     this.buf = []; this.wheelRot = 0; this.flameT = 0; this.padCool = 0;
     this.spikes = 0; this.ramCd = {}; this.lastBy = null; this.zone = null; this.burnT = 0;
     this.arrows = 0; this.bowCd = 0; this.gv = 0; this.pickN = 0;
+    this.frozen = 0; this.ghost = 0; this.tiny = 0; this.squashCd = {};
     this.parts = buildKart(color); this.obj = this.parts.group; this.obj.visible = false; scene.add(this.obj);
     this.label = makeLabel(name, color); this.label.position.set(0, 3.6, 0); this.label.visible = !this.isMe; this.obj.add(this.label);
     karts.set(id, this);
@@ -1022,19 +1046,21 @@ class Kart {
     }
     this.x = best.x; this.z = best.z; this.h = best.h; this.vx = this.vz = this.fwd = 0; this.y = 0; this.vy = 0;
     this.hp = 100; this.dead = false; this.shield = SPAWN_SHIELD; this.item = null; this.blast = 0; this.turbo = 0; this.itemHeld = 0;
-    this.spikes = 0; this.lastBy = null; this.ramCd = {}; this.arrows = 0;
+    this.spikes = 0; this.lastBy = null; this.ramCd = {}; this.arrows = 0; this.frozen = 0; this.ghost = 0; this.tiny = 0;
     if (this.isMe) { S.camH = this.h; S.camSnap = true; hideBanner(); }
   }
   damage(d, o, on, w, kx, kz) {
-    if (this.dead) return;
+    if (this.dead || this.ghost > 0) return;                  // ghosts can't be hurt (lava and black holes still get them)
     if (this.shield > 0) { this.vx += kx * .35; this.vz += kz * .35; Snd.play('ting', this.x, this.z); return; }
     if (o && o !== this.id) this.lastBy = { o, on, t: Net.now() };
+    if (this.tiny > 0) d *= 2;                                // shrunk karts are fragile
+    if (this.frozen > 0) d *= 1.5;                            // and frozen ones shatter
     this.hp -= d; this.vx += kx; this.vz += kz; this.vy = Math.max(this.vy, w === 'blaster' ? 2.5 : 9); this.flashT = .25;
     if (this.isMe) { shake(w === 'blaster' ? .25 : 1); Snd.play('hurt'); flashScreen(); }
     if (this.hp <= 0) this.die(o, on, w);
   }
   die(o, on, w) {
-    this.hp = 0; this.dead = true; this.respawnT = RESPAWN_S; this.item = null; this.blast = 0; this.turbo = 0; this.shield = 0; this.spikes = 0;
+    this.hp = 0; this.dead = true; this.respawnT = RESPAWN_S; this.item = null; this.blast = 0; this.turbo = 0; this.shield = 0; this.spikes = 0; this.frozen = 0; this.ghost = 0; this.tiny = 0;
     Net.send({ type: 'kill', v: this.id, vn: this.name, vc: this.color, o: o || '', on: on || '', oc: (karts.get(o) || {}).color || '#fff', w: w || 'rocket', x: r2(this.x), z: r2(this.z) });
   }
   // Lava burns fast. Whoever last hit you (within 5 s) gets credit for the wreck.
@@ -1059,7 +1085,7 @@ class Kart {
       // Locks onto the rival closest to straight ahead and sizes the loop so its outward leg runs through them.
       let h = this.h, reach = BOOM_REACH, best = .6;
       for (const o of karts.values()) {
-        if (o === this || o.dead) continue;
+        if (o === this || o.dead || o.ghost > 0) continue;
         const ovx = o.local ? o.vx : Math.sin(o.h) * o.fwd, ovz = o.local ? o.vz : Math.cos(o.h) * o.fwd;
         const px = o.x + ovx * .55, pz = o.z + ovz * .55, d = Math.hypot(px - this.x, pz - this.z);
         const ang = wrapAng(Math.atan2(px - this.x, pz - this.z) - this.h);
@@ -1079,7 +1105,7 @@ class Kart {
       // Lands where a rival ahead of you will be when it goes off; with nobody ahead it flies about 22 m.
       let p = { x: this.x + fx * (22 + Math.max(0, this.fwd) * .4), z: this.z + fz * (22 + Math.max(0, this.fwd) * .4) }, best = .45;
       for (const o of karts.values()) {
-        if (o === this || o.dead) continue;
+        if (o === this || o.dead || o.ghost > 0) continue;
         const ovx = o.local ? o.vx : Math.sin(o.h) * o.fwd, ovz = o.local ? o.vz : Math.cos(o.h) * o.fwd;
         const px = o.x + ovx * .9, pz = o.z + ovz * .9, d = Math.hypot(px - this.x, pz - this.z);
         const a = Math.abs(wrapAng(Math.atan2(px - this.x, pz - this.z) - this.h));
@@ -1088,6 +1114,24 @@ class Kart {
       collideCircle(p, 1);
       Net.send({ type: 'cp', x: r2(this.x), z: r2(this.z), tx: r2(p.x), tz: r2(p.z), o: this.id, on: this.name });
     }
+    else if (it === 'freeze') { const h = assistAim(this, 60, .22, 80); Net.send({ type: 'fz', x: r2(this.x + Math.sin(h) * 2.6), z: r2(this.z + Math.cos(h) * 2.6), h: r3(h), o: this.id }); }
+    else if (it === 'warp') {
+      const t = warpTarget(this);
+      if (!t) { this.item = 'warp'; this.itemHeld = ROLL_T; return; }      // nowhere safe ahead: keep it
+      Net.send({ type: 'wp', x0: r2(this.x), z0: r2(this.z), x1: r2(t.x), z1: r2(t.z), o: this.id });
+      this.x = t.x; this.z = t.z; this.shield = Math.max(this.shield, .4);
+      if (this.isMe) { S.camSnap = true; S.camH = this.h; }
+    }
+    else if (it === 'decoy') Net.send({ type: 'mn', x: r2(this.x - fx * 3.4), z: r2(this.z - fz * 3.4), o: this.id, dc: 1 });
+    else if (it === 'ghost') { this.ghost = GHOST_S; Snd.play('ghost'); }
+    else if (it === 'magnet') {
+      let v = null, bd = 60;
+      for (const o of karts.values()) { if (o === this || o.dead || o.ghost > 0) continue; const d = Math.hypot(o.x - this.x, o.z - this.z); if (d < bd) { bd = d; v = o; } }
+      if (!v) { this.item = 'magnet'; this.itemHeld = ROLL_T; if (this.isMe) showNote('No one in range', 'Get within 60 m of a rival'); return; }
+      Net.send({ type: 'pk', o: this.id, v: v.id });
+    }
+    else if (it === 'tornado') Net.send({ type: 'tn', x: r2(this.x), z: r2(this.z), h: r3(this.h), sd: Math.random() < .5 ? 1 : -1, o: this.id });
+    else if (it === 'shrink') Net.send({ type: 'shr', o: this.id, on: this.name });
     else if (it === 'wesley') Net.send({ type: 'bf', x: r2(this.x), z: r2(this.z), h: r3(assistAim(this, 50, .2, BF_SPEED)), o: this.id, on: this.name });
   }
   shootArrow() {
@@ -1096,7 +1140,7 @@ class Kart {
     // Homing: the arrow locks onto the rival closest to where you're aiming and curves after them.
     let tg = '', best = 1e9;
     for (const o of karts.values()) {
-      if (o === this || o.dead) continue;
+      if (o === this || o.dead || o.ghost > 0) continue;
       const d = Math.hypot(o.x - this.x, o.z - this.z), ang = Math.abs(wrapAng(Math.atan2(o.x - this.x, o.z - this.z) - this.h));
       if (d > 100 || ang > 1.05) continue;
       const score = ang * 60 + d; if (score < best) { best = score; tg = o.id; }
@@ -1115,6 +1159,8 @@ class Kart {
       return;
     }
     this.shield = Math.max(0, this.shield - dt); this.turbo = Math.max(0, this.turbo - dt); this.spikes = Math.max(0, this.spikes - dt); this.padCool -= dt;
+    this.ghost = Math.max(0, this.ghost - dt); this.tiny = Math.max(0, this.tiny - dt);
+    if (this.frozen > 0) { this.frozen = Math.max(0, this.frozen - dt); inp = { throttle: 0, steer: 0, fire: false }; }   // frozen solid: no driving or firing
     const zone = zoneAt(this.x, this.z); this.zone = zone ? zone.k : null;
     const ice = this.zone === 'ice';
     if (this.item) this.itemHeld += dt;
@@ -1131,7 +1177,7 @@ class Kart {
     // --- arcade drive model: forward speed + lateral slip with grip ---
     let fx = Math.sin(this.h), fz = Math.cos(this.h);
     let fwd = this.vx * fx + this.vz * fz, lat = this.vx * -fz + this.vz * fx;
-    const maxF = this.turbo > 0 ? 42 : 26, th = inp.throttle;
+    const maxF = (this.turbo > 0 ? 42 : 26) * (this.tiny > 0 ? .62 : 1), th = inp.throttle * (this.tiny > 0 ? .75 : 1);
     if (th > 0) fwd += (fwd < 0 ? 60 : 34) * (ice ? .6 : 1) * th * dt;
     else if (th < 0) fwd += (fwd > 0 ? -58 : -26) * -th * dt;
     else fwd *= Math.exp(-1.1 * dt);
@@ -1147,8 +1193,9 @@ class Kart {
     const n = collideCircle(this, KART_R);
     if (n) { const vn = this.vx * n.x + this.vz * n.z; if (vn < 0) { this.vx -= 1.35 * vn * n.x; this.vz -= 1.35 * vn * n.z; } }
     for (const o of karts.values()) {
-      if (o === this || o.dead) continue;
+      if (o === this || o.dead || o.ghost > 0 || this.ghost > 0) continue;    // ghosts drive through karts
       const dx = this.x - o.x, dz = this.z - o.z, d = Math.hypot(dx, dz), min = KART_R * 2;
+      if (d < min + .3 && this.tiny <= 0 && o.tiny > 0) this.squash(o);
       if (d < min + .3 && d > 1e-4 && (this.spikes > 0 || (this.turbo > 0 && this.fwd > 26))) this.ram(o, dx / d, dz / d);
       if (d < min && d > 1e-4) {
         const nx = dx / d, nz = dz / d, push = (min - d) * (o.local ? .5 : 1);
@@ -1173,6 +1220,13 @@ class Kart {
       break;
     }
   }
+  // A full-size kart that touches a shrunk one squashes it flat.
+  squash(o) {
+    const now = Net.now(); if ((this.squashCd[o.id] || 0) > now) return;
+    this.squashCd[o.id] = now + 1500;
+    Net.send({ type: 'hit', v: o.id, d: 100, o: this.id, on: this.name, w: 'squash', kx: 0, kz: 0 });
+    Snd.play('squash', o.x, o.z); if (this.isMe) { shake(.4); hitMarker(true); }
+  }
   // Spikes (or turbo at full speed) turn a bump into a hit. This kart's computer decides, like a shot.
   ram(o, nx, nz) {
     const now = Net.now(); if (this.ramCd[o.id] > now) return;
@@ -1186,7 +1240,7 @@ class Kart {
     if (this.isMe) { shake(.35); if (o.shield <= 0) hitMarker(sp); }
   }
   applySnapshot(v) {
-    this.hp = v.hp | 0; this.shield = v.sh ? 1 : 0; this.turbo = v.tb ? 1 : 0; this.spikes = v.sp ? 1 : 0; this.gv = v.gv ? 1 : 0; this.score = v.sc | 0;
+    this.hp = v.hp | 0; this.shield = v.sh ? 1 : 0; this.turbo = v.tb ? 1 : 0; this.spikes = v.sp ? 1 : 0; this.gv = v.gv ? 1 : 0; this.frozen = v.fz ? 1 : 0; this.ghost = v.gh ? 1 : 0; this.tiny = v.tn ? 1 : 0; this.score = v.sc | 0;
     const wasDead = this.dead; this.dead = !!v.d;
     if (typeof v.n === 'string' && v.n !== this.name) { this.name = v.n.slice(0, 16); this.label.userData.name = this.name; drawLabel(this.label); }
     // Measure how late updates arrive and keep just enough delay to always have two to blend between.
@@ -1233,6 +1287,16 @@ class Kart {
     P.body.rotation.x = -clamp(this.vy * .03, -.2, .2);
     P.shield.visible = this.shield > 0 && !(this.spikes > 0);
     P.spikes.visible = this.spikes > 0;
+    P.ice.visible = this.frozen > 0;
+    const gh = this.ghost > 0;
+    if (gh !== !!this.ghostOn) {
+      this.ghostOn = gh;
+      const swap = m => { if (!m.isMesh) return; if (gh) { m.userData.mat = m.material; m.material = ghostMat; } else if (m.userData.mat) m.material = m.userData.mat; };
+      P.body.traverse(swap); P.wheels.forEach(w => w.traverse(swap));
+      this.label.visible = !this.isMe && !gh;
+    }
+    const sc = this.tiny > 0 ? TINY : 1, cur = o.scale.x;
+    if (Math.abs(cur - sc) > .01) o.scale.setScalar(cur + (sc - cur) * Math.min(1, dt * 8));
     P.bow.visible = this.item === 'gandiva' || this.gv > 0;
     if (P.bow.visible) { const t = performance.now() / 1000; P.bow.position.y = 2.2 + Math.sin(t * 3) * .12; P.bow.children[2].scale.setScalar(1 + Math.sin(t * 8) * .25); }
     if (P.spikes.visible) P.spikes.rotation.y += dt * 5;
@@ -1250,14 +1314,14 @@ class Kart {
 
 // ---------- bot driver ----------
 class BotBrain {
-  constructor(k) { this.k = k; this.stuck = 0; this.rev = 0; this.revSteer = 0; this.retarget = 0; this.target = null; this.delay = rand(.4, 1.2); this.skill = rand(.75, 1.1); }
+  constructor(k) { this.k = k; this.gullible = Math.random() < .45; this.stuck = 0; this.rev = 0; this.revSteer = 0; this.retarget = 0; this.target = null; this.delay = rand(.4, 1.2); this.skill = rand(.75, 1.1); }
   think(dt) {
     const k = this.k, inp = { throttle: 1, steer: 0, fire: false };
     this.retarget -= dt;
     if (this.retarget <= 0 || !this.target || this.target.dead || !karts.has(this.target.id)) {
       this.retarget = rand(.8, 1.8);
       let best = null, bd = 1e9;
-      for (const o of karts.values()) { if (o === k || o.dead) continue; const d = Math.hypot(o.x - k.x, o.z - k.z) + (o.shield > 0 ? 25 : 0) + rand(0, 10); if (d < bd) { bd = d; best = o; } }
+      for (const o of karts.values()) { if (o === k || o.dead || o.ghost > 0) continue; const d = Math.hypot(o.x - k.x, o.z - k.z) + (o.shield > 0 ? 25 : 0) - (o.tiny > 0 && k.tiny <= 0 ? 30 : 0) + rand(0, 10); if (d < bd) { bd = d; best = o; } }
       this.target = best;
     }
     const e = this.target;
@@ -1268,8 +1332,10 @@ class BotBrain {
     }
     if (inp.fleeing) { /* keep the escape target */ }
     else if (k.spikes > 0 && e) { gx = e.x; gz = e.z; }            // spiked: go ram someone
+    else if (e && e.tiny > 0 && k.tiny <= 0) { gx = e.x; gz = e.z; }  // a shrunk rival: go squash it
     else if (!k.item && k.blast === 0) {
       let bd = 1e9; for (const b of boxes) if (b.up) { const d = Math.hypot(b.x - k.x, b.z - k.z); if (d < bd) { bd = d; gx = b.x; gz = b.z; } }
+      if (this.gullible) for (const m of mines) if (m.decoy && m.o !== k.id) { const d = Math.hypot(m.x - k.x, m.z - k.z); if (d < bd) { bd = d; gx = m.x; gz = m.z; } }   // bots fall for decoys
     }
     if (gx === undefined) { if (e) { gx = e.x; gz = e.z; } else { gx = 0; gz = 20; } }
     const diff = wrapAng(Math.atan2(gx - k.x, gz - k.z) - k.h), dist = Math.hypot(gx - k.x, gz - k.z);
@@ -1299,6 +1365,13 @@ class BotBrain {
         case 'shockwave': go = [...karts.values()].some(o => o !== k && !o.dead && Math.hypot(o.x - k.x, o.z - k.z) < SHOCK_R - 1.5) || k.itemHeld > 12; break;
         case 'gravity': go = (de > 10 && de < 28 && Math.abs(ae) < .35) || k.itemHeld > 10; break;
         case 'spikes': go = de < 22 || k.itemHeld > 8; break;
+        case 'freeze': go = (de < 45 && Math.abs(ae) < .25 * this.skill && lineClear(k.x, k.z, e.x, e.z)) || k.itemHeld > 10; break;
+        case 'warp': go = k.itemHeld > 5 || (k.hp < 40 && de < 14); break;
+        case 'decoy': go = (Math.abs(ae) > 2.4 && de < 20) || k.itemHeld > 7; break;
+        case 'ghost': go = (k.hp < 55 && de < 22) || k.itemHeld > 9; break;
+        case 'magnet': go = k.itemHeld > 1.2; break;
+        case 'tornado': go = (de < 40 && Math.abs(ae) < .4) || k.itemHeld > 9; break;
+        case 'shrink': go = k.itemHeld > 1; break;
         case 'popper': go = (de > 10 && de < 30 && Math.abs(ae) < .35) || k.itemHeld > 9; break;
         case 'wesley': go = (de < 45 && Math.abs(ae) < .25) || k.itemHeld > 10; break;
         case 'gandiva': go = (de < 85 && Math.abs(ae) < .6) || k.itemHeld > 16; if (de < 60) inp.steer = clamp(-ae * 3, -1, 1); break;
@@ -1316,7 +1389,7 @@ class BotBrain {
 function assistAim(k, range, cone, speed) {
   let best = null, bestA = cone;
   for (const o of karts.values()) {
-    if (o === k || o.dead) continue;
+    if (o === k || o.dead || o.ghost > 0) continue;
     const d0 = Math.hypot(o.x - k.x, o.z - k.z); if (d0 > range || d0 < 2.5) continue;
     const lt = d0 / speed, ovx = o.local ? o.vx : Math.sin(o.h) * o.fwd, ovz = o.local ? o.vz : Math.cos(o.h) * o.fwd;
     const tx = o.x + ovx * lt, tz = o.z + ovz * lt;
@@ -1351,13 +1424,13 @@ function makeRocketMesh() {
 const bulletGeo = new THREE.BoxGeometry(.22, .22, 1.4), bulletMat = new THREE.MeshBasicMaterial({ color: 0xffe45c });
 
 function spawnProjectile(kind, e) {
-  const arrow = kind === 'arrow', sp = kind === 'rocket' ? 58 : arrow ? 92 : 95;
-  const mesh = kind === 'rocket' ? makeRocketMesh() : arrow ? makeArrowMesh() : new THREE.Mesh(bulletGeo, bulletMat);
-  const p = { id: e.id, kind, o: e.o, tg: e.tg || '', sp, x: e.x, z: e.z, h: e.h, vx: Math.sin(e.h) * sp, vz: Math.cos(e.h) * sp, age: 0, life: kind === 'rocket' ? 2.4 : arrow ? 1.8 : .75, r: kind === 'rocket' ? .9 : arrow ? .6 : .35, trailT: 0, mesh };
+  const arrow = kind === 'arrow', ice = kind === 'ice', sp = kind === 'rocket' ? 58 : arrow ? 92 : ice ? 80 : 95;
+  const mesh = kind === 'rocket' ? makeRocketMesh() : arrow ? makeArrowMesh() : ice ? makeIceBolt() : new THREE.Mesh(bulletGeo, bulletMat);
+  const p = { id: e.id, kind, o: e.o, tg: e.tg || '', sp, x: e.x, z: e.z, h: e.h, vx: Math.sin(e.h) * sp, vz: Math.cos(e.h) * sp, age: 0, life: kind === 'rocket' ? 2.4 : arrow ? 1.8 : ice ? 1 : .75, r: kind === 'rocket' ? .9 : arrow ? .6 : ice ? .6 : .35, trailT: 0, mesh };
   mesh.position.set(p.x, 1.1, p.z); mesh.rotation.y = p.h; scene.add(mesh); projectiles.push(p);
   const age = clamp((Net.now() - e.t) / 1000, 0, .25);
   if (age > 0) stepProjectile(p, age);
-  Snd.play(kind === 'rocket' ? 'rocket' : arrow ? 'twang' : 'shot', e.x, e.z);
+  Snd.play(kind === 'rocket' ? 'rocket' : arrow ? 'twang' : ice ? 'freeze' : 'shot', e.x, e.z);
 }
 function removeProjectile(p) { const i = projectiles.indexOf(p); if (i >= 0) projectiles.splice(i, 1); scene.remove(p.mesh); }
 // confirmed = the shooter's computer already reported this hit, so only show the effect here
@@ -1367,7 +1440,7 @@ function projectileImpact(p, x, z, directKart, confirmed) {
   if (p.kind === 'arrow') {
     if (!directKart && !confirmed) { if (p.age <= p.life) stickArrow(p); return; }   // missed: sticks in the wall
     explodeFX(x, z, 1.25, GOLD, '#fffbe0'); ringFX(x, z, 6, 0xffd34d, .3);
-  } else if (p.kind === 'rocket') explodeFX(x, z, 1); else sparkFX(x, z);
+  } else if (p.kind === 'rocket') explodeFX(x, z, 1); else if (p.kind === 'ice') iceBurst(x, z); else sparkFX(x, z);
   if (confirmed) return;
   const owner = karts.get(p.o);
   if (!owner || !owner.local) return;           // only the shooter's machine deals damage
@@ -1382,6 +1455,8 @@ function projectileImpact(p, x, z, directKart, confirmed) {
       Net.send({ type: 'hit', v: k.id, d: dmg, o: p.o, on: owner.name, w: p.kind === 'arrow' ? 'gandiva' : 'rocket', kx: r2(nx * 16), kz: r2(nz * 16), p: p.id });
       if (owner.isMe && k.shield <= 0) hitMarker(dmg >= 60);
     }
+  } else if (p.kind === 'ice') {
+    if (directKart) { Net.send({ type: 'hit', v: directKart.id, d: 15, o: p.o, on: owner.name, w: 'freeze', kx: r2(Math.sin(p.h) * 3), kz: r2(Math.cos(p.h) * 3), fz: FREEZE_S, p: p.id }); if (owner.isMe && directKart.shield <= 0) hitMarker(true); }
   } else if (directKart) {
     Net.send({ type: 'hit', v: directKart.id, d: 20, o: p.o, on: owner.name, w: 'blaster', kx: r2(Math.sin(p.h) * 4), kz: r2(Math.cos(p.h) * 4), p: p.id });
     if (owner.isMe && directKart.shield <= 0) hitMarker(false);
@@ -1391,7 +1466,7 @@ const ARROW_TURN = 5.5;     // radians per second a Gandiva arrow can turn towar
 function stepProjectile(p, dt) {
   if (p.tg) {
     const k = karts.get(p.tg);
-    if (k && !k.dead) {
+    if (k && !k.dead && !(k.ghost > 0)) {
       const want = Math.atan2(k.x - p.x, k.z - p.z), turn = clamp(wrapAng(want - p.h), -ARROW_TURN * dt, ARROW_TURN * dt);
       p.h += turn; p.vx = Math.sin(p.h) * p.sp; p.vz = Math.cos(p.h) * p.sp; p.mesh.rotation.y = p.h;
     }
@@ -1399,7 +1474,7 @@ function stepProjectile(p, dt) {
   const nx = p.x + p.vx * dt, nz = p.z + p.vz * dt;
   p.age += dt;
   for (const k of karts.values()) {
-    if (k.id === p.o || k.dead) continue;
+    if (k.id === p.o || k.dead || k.ghost > 0) continue;
     if (segDist(p.x, p.z, nx, nz, k.x, k.z) < KART_R + p.r) { projectileImpact(p, k.x - Math.sin(p.h) * 1.2, k.z - Math.cos(p.h) * 1.2, k); return; }
   }
   if (pointBlocked(nx, nz, p.r * .5)) { projectileImpact(p, p.x, p.z, null); return; }
@@ -1410,6 +1485,7 @@ function stepProjectile(p, dt) {
 function updateProjectiles(dt) {
   for (let i = projectiles.length - 1; i >= 0; i--) {
     const p = projectiles[i]; stepProjectile(p, dt);
+    if (p.kind === 'ice' && projectiles.includes(p)) { p.mesh.rotation.z += dt * 12; if (Math.random() < .6) particle({ x: p.x, y: 1.1, z: p.z, life: .3, size: rand(.12, .25), color: '#e6f8ff' }); }
     if (p.kind === 'arrow' && projectiles.includes(p)) {
       p.trailT -= dt;
       if (p.trailT <= 0) { p.trailT = .015; particle({ x: p.x - Math.sin(p.h) * 1.2 + rand(-.15, .15), y: 1.1 + rand(-.15, .15), z: p.z - Math.cos(p.h) * 1.2, life: rand(.25, .4), size: rand(.15, .3), color: Math.random() < .5 ? '#ffd34d' : '#fff2a8' }); }
@@ -1422,7 +1498,14 @@ function updateProjectiles(dt) {
 }
 
 const mineMat = lam(0xff4d6d), mineCapMat = lam(0x39334f);
+const decoyMat = new THREE.MeshLambertMaterial({ map: itemTex, color: 0xffc4c4 });   // a faint red tint is the only tell
 function spawnMine(e) {
+  if (e.dc) {
+    const g = new THREE.Group(), box = new THREE.Mesh(boxGeo, decoyMat); box.position.y = 1.6; box.castShadow = true; g.add(box);
+    g.position.set(e.x, 0, e.z); scene.add(g);
+    mines.push({ id: e.id, o: e.o, x: e.x, z: e.z, arm: .8 - clamp((Net.now() - e.t) / 1000, 0, .5), life: 45, g, box, decoy: true, boom: false });
+    Snd.play('mine', e.x, e.z); return;
+  }
   const g = new THREE.Group();
   const d = new THREE.Mesh(new THREE.CylinderGeometry(.9, 1.05, .35, 16), mineMat); d.position.y = .18; d.castShadow = true; g.add(d);
   const c = new THREE.Mesh(new THREE.CylinderGeometry(.45, .5, .2, 12), mineCapMat); c.position.y = .45; g.add(c);
@@ -1438,13 +1521,14 @@ function updateMines(dt) {
   for (let i = mines.length - 1; i >= 0; i--) {
     const m = mines[i]; m.arm -= dt; m.life -= dt;
     if (m.life <= 0) { removeMine(m); continue; }
-    m.light.material.color.set(m.arm > 0 ? 0x9a96b0 : (Math.sin(t * 10) > 0 ? 0xffc93c : 0xff2d55));
+    if (m.decoy) { m.box.rotation.y = t * 1.3; m.box.rotation.x = Math.sin(t) * .25; m.box.position.y = 1.7 + Math.sin(t * 2.2) * .25; }
+    else m.light.material.color.set(m.arm > 0 ? 0x9a96b0 : (Math.sin(t * 10) > 0 ? 0xffc93c : 0xff2d55));
     if (m.arm > 0 || m.boom) continue;
     for (const k of karts.values()) {
       if (!k.local || k.dead || k.id === m.o) continue;
       if (Math.hypot(k.x - m.x, k.z - m.z) < 2.4) {
         m.boom = true;
-        Net.send({ type: 'mb', m: m.id, x: r2(m.x), z: r2(m.z), o: m.o, on: (karts.get(m.o) || {}).name || 'A mine' });
+        Net.send({ type: 'mb', m: m.id, x: r2(m.x), z: r2(m.z), o: m.o, on: (karts.get(m.o) || {}).name || 'A mine', w: m.decoy ? 'decoy' : 'mine' });
         break;
       }
     }
@@ -1603,14 +1687,14 @@ function updateGravity(dt) {
   }
 }
 function clearWeapons() {
-  clearSpecials();
+  clearSpecials(); clearPowerups();
   for (const p of [...projectiles]) removeProjectile(p);
   for (const m of [...mines]) removeMine(m);
   for (const b of booms) scene.remove(b.mesh); booms.length = 0;
   for (const b of [...gbombs]) removeGravity(b);
   for (const r of rings) { scene.remove(r.m); r.m.material.dispose(); } rings.length = 0;
 }
-function updateWeapons(dt) { updateBooms(dt); updateGravity(dt); updateRings(dt); updateSpecials(dt); }
+function updateWeapons(dt) { updateBooms(dt); updateGravity(dt); updateRings(dt); updateSpecials(dt); updatePowerups(dt); }
 
 // =====================================================================
 //  Special weapons: Copper Popper, Wyoming Wesley, Arjun's Gandiva
@@ -1804,6 +1888,164 @@ function clearSpecials() {
 function updateSpecials(dt) { updatePoppers(dt); updateBuffaloes(dt); updateStuck(dt); }
 
 // =====================================================================
+//  Power-ups: Freeze Ray, Warp, Decoy Box, Ghost, Magnet, Tornado, Shrink Ray
+// =====================================================================
+const FREEZE_S = 2.2, GHOST_S = 5, SHRINK_S = 6, TINY = .55;
+const iceBoltGeo = new THREE.OctahedronGeometry(.55, 0), iceBoltMat = new THREE.MeshBasicMaterial({ color: 0xbff0ff });
+function makeIceBolt() { const m = new THREE.Mesh(iceBoltGeo, iceBoltMat); m.scale.set(.7, .7, 1.8); return m; }
+const iceCubeGeo = new THREE.BoxGeometry(3.3, 2.6, 4.6), iceCubeMat = new THREE.MeshLambertMaterial({ color: 0xbfeaff, transparent: true, opacity: .55, emissive: new THREE.Color(0x1a4a66), depthWrite: false });
+const ghostMat = new THREE.MeshBasicMaterial({ color: 0xd6ecff, transparent: true, opacity: .26, depthWrite: false });
+function iceBurst(x, z) {
+  for (let i = 0; i < 14; i++) particle({ x, y: 1.2, z, vx: rand(-9, 9), vy: rand(2, 9), vz: rand(-9, 9), life: rand(.35, .7), size: rand(.2, .45), color: i % 2 ? '#bff0ff' : '#ffffff', grav: -18 });
+  Snd.play('freeze', x, z);
+}
+
+// ---------- quick effects: beams and lightning ----------
+const fxBeams = [];
+const beamGeo = new THREE.CylinderGeometry(.18, .18, 1, 6).rotateX(Math.PI / 2);
+function beamFX(x1, z1, x2, z2, color, y = 1.6, dur = .5, thick = 1) {
+  const len = Math.hypot(x2 - x1, z2 - z1) || .01;
+  const m = new THREE.Mesh(beamGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .9, depthWrite: false }));
+  m.position.set((x1 + x2) / 2, y, (z1 + z2) / 2); m.rotation.y = Math.atan2(x2 - x1, z2 - z1); m.scale.set(thick, thick, len);
+  scene.add(m); fxBeams.push({ m, t: dur, dur });
+}
+function boltFX(x, z) {        // lightning from the sky
+  const m = new THREE.Mesh(new THREE.BoxGeometry(.5, 60, .5), new THREE.MeshBasicMaterial({ color: 0xfff6a8, transparent: true, opacity: 1, depthWrite: false }));
+  m.position.set(x, 30, z); scene.add(m); fxBeams.push({ m, t: .3, dur: .3, own: true });
+  ringFX(x, z, 5, 0xfff6a8, .3);
+  for (let i = 0; i < 8; i++) particle({ x, y: 1, z, vx: rand(-8, 8), vy: rand(3, 8), vz: rand(-8, 8), life: .4, size: .3, color: '#fff6a8', grav: -16 });
+}
+function updateBeams(dt) {
+  for (let i = fxBeams.length - 1; i >= 0; i--) {
+    const b = fxBeams[i]; b.t -= dt;
+    if (b.t <= 0) { scene.remove(b.m); b.m.material.dispose(); if (b.own) b.m.geometry.dispose(); fxBeams.splice(i, 1); continue; }
+    b.m.material.opacity = b.t / b.dur;
+  }
+}
+
+// ---------- Warp: blink about 25 m forward to a safe spot ----------
+function warpTarget(k) {
+  const fx = Math.sin(k.h), fz = Math.cos(k.h);
+  for (let d = 26; d >= 6; d -= 2) {
+    const x = k.x + fx * d, z = k.z + fz * d;
+    if (!pointBlocked(x, z, KART_R + .6) && !lavaNear(x, z, 1.5)) return { x, z };
+  }
+  return null;
+}
+function warpFX(e) {
+  for (const [x, z, s] of [[e.x0, e.z0, 1], [e.x1, e.z1, 1.3]]) {
+    ringFX(x, z, 5 * s, 0xc08bff, .35);
+    for (let i = 0; i < 16; i++) { const a = rand(0, TAU); particle({ x: x + Math.cos(a) * 2, y: rand(.5, 2.5), z: z + Math.sin(a) * 2, vx: -Math.cos(a) * 6, vz: -Math.sin(a) * 6, vy: rand(0, 3), life: .4, size: rand(.2, .4), color: i % 2 ? '#c08bff' : '#ffffff' }); }
+  }
+  beamFX(e.x0, e.z0, e.x1, e.z1, 0xc08bff, 1.2, .35, 2.2);
+  Snd.play('warp', e.x1, e.z1);
+}
+
+// ---------- Tornado: a twister that wanders forward, bouncing off walls ----------
+// Like the buffalo, its whole path comes from the throw, so everyone sees the same twister;
+// the thrower's computer decides who gets flung.
+const TN_SPEED = 13, TN_TIME = 6, TN_R = 4.6;
+const tnRingGeo = new THREE.TorusGeometry(1, .24, 6, 24), tnMat = new THREE.MeshBasicMaterial({ color: 0x8e9bb0, transparent: true, opacity: .62, depthWrite: false });
+function makeTornado() {
+  const g = new THREE.Group(), rings = [];
+  for (let i = 0; i < 9; i++) { const r = new THREE.Mesh(tnRingGeo, tnMat); r.rotation.x = Math.PI / 2; r.position.y = .4 + i * .85; const s = .7 + i * .42; r.scale.set(s, s, 1); g.add(r); rings.push(r); }
+  g.userData.rings = rings; return g;
+}
+function tornadoPath(x, z, h, sd) {
+  const pts = [], p = { x: x + Math.sin(h) * 4, z: z + Math.cos(h) * 4 }, dt = 1 / 60;
+  for (let i = 0; i < TN_TIME * 60; i++) {
+    h += Math.sin(i / 60 * 1.6) * .9 * dt * sd;
+    p.x += Math.sin(h) * TN_SPEED * dt; p.z += Math.cos(h) * TN_SPEED * dt;
+    const n = collideCircle(p, 3);
+    if (n) { let vx = Math.sin(h), vz = Math.cos(h); const dot = vx * n.x + vz * n.z; if (dot < 0) { vx -= 2 * dot * n.x; vz -= 2 * dot * n.z; h = Math.atan2(vx, vz); } }
+    pts.push({ x: p.x, z: p.z });
+  }
+  return pts;
+}
+const tornadoes = [];
+function spawnTornado(e) {
+  const mesh = makeTornado(); scene.add(mesh);
+  tornadoes.push({ id: e.id, o: e.o, t0: e.t, path: tornadoPath(e.x, e.z, e.h, e.sd || 1), mesh, hitAt: {}, dustT: 0 });
+  Snd.play('wind', e.x, e.z);
+}
+function updateTornadoes(dt) {
+  const now = Net.now();
+  for (let i = tornadoes.length - 1; i >= 0; i--) {
+    const t = tornadoes[i], idx = Math.floor((now - t.t0) / 1000 * 60);
+    if (idx >= t.path.length) { scene.remove(t.mesh); tornadoes.splice(i, 1); continue; }
+    const p = t.path[Math.max(0, idx)], life = idx / t.path.length;
+    t.mesh.position.set(p.x, 0, p.z);
+    const fade = Math.min(1, idx / 20, (t.path.length - idx) / 30);
+    t.mesh.scale.setScalar(.3 + .7 * fade);
+    t.mesh.userData.rings.forEach((r, n) => { r.rotation.z += dt * (8 - n * .4); r.position.x = Math.sin(now / 160 + n * .7) * (.25 + n * .07); });
+    t.dustT -= dt;
+    while (t.dustT <= 0) {
+      t.dustT += .02; const a = rand(0, TAU), r = rand(1, 5), y = rand(.3, 7);
+      particle({ x: p.x + Math.cos(a) * r, y, z: p.z + Math.sin(a) * r, vx: -Math.sin(a) * 14, vz: Math.cos(a) * 14, vy: rand(2, 6), life: .45, size: rand(.2, .5), color: world.map === 1 ? '#f4f9ff' : world.map === 2 ? '#6d6070' : '#b9a48a', op: .8 });
+    }
+    shakeFrom(p.x, p.z, dt * 1.2);
+    const owner = karts.get(t.o); if (!owner || !owner.local || life < .03) continue;
+    for (const k of karts.values()) {
+      if (k === owner || k.dead || k.ghost > 0 || (t.hitAt[k.id] || 0) > now) continue;
+      const dx = k.x - p.x, dz = k.z - p.z, d = Math.hypot(dx, dz);
+      if (d < TN_R + KART_R) {
+        t.hitAt[k.id] = now + 1100;
+        const tx = -dz / (d || 1), tz = dx / (d || 1);       // flung around the funnel
+        Net.send({ type: 'hit', v: k.id, d: 40, o: owner.id, on: owner.name, w: 'tornado', kx: r2(tx * 18 + dx / (d || 1) * 6), kz: r2(tz * 18 + dz / (d || 1) * 6), up: 17 });
+        if (owner.isMe && k.shield <= 0) hitMarker(false);
+      }
+    }
+  }
+}
+
+// ---------- Magnet: yank the item out of the nearest rival's hands ----------
+// The thief asks; the victim's computer hands over whatever it's holding (it's the only one that knows).
+function magnetPull(e) {
+  const a = karts.get(e.o), v = karts.get(e.v); if (!a || !v) return;
+  beamFX(a.x, a.z, v.x, v.z, 0xff4d6d, 1.6, .5, .9);
+  for (let i = 0; i < 10; i++) particle({ x: v.x, y: 1.5, z: v.z, vx: (a.x - v.x) * rand(1.5, 3), vz: (a.z - v.z) * rand(1.5, 3), vy: rand(0, 2), life: .35, size: .3, color: i % 2 ? '#ffc93c' : '#ff4d6d' });
+  Snd.play('magnet', v.x, v.z);
+  if (!v.local) return;
+  const it = v.item;
+  const ar = v.arrows;
+  v.item = null; v.itemHeld = 0; v.arrows = 0;
+  if (v.isMe && it) showNote('Magnet!', `${a.name} stole your ${ITEMS[it].full || ITEMS[it].name}`);
+  Net.send({ type: 'pkr', o: e.o, v: e.v, it: it || '', ar });
+}
+function magnetResult(e) {
+  const a = karts.get(e.o), v = karts.get(e.v);
+  if (e.it && ITEMS[e.it]) {
+    const feed = $('#feed'), row = document.createElement('div');
+    row.className = 'kf' + (S.me && (e.o === S.me.id || e.v === S.me.id) ? ' mine' : '');
+    row.innerHTML = `<i style="background:${esc(a ? a.color : '#fff')}"></i>${esc(a ? a.name : '?')} ${ICON.magnet} ${ICON[e.it]}<i style="background:${esc(v ? v.color : '#fff')}"></i>${esc(v ? v.name : '?')}`;
+    feed.prepend(row); while (feed.children.length > 5) feed.lastChild.remove(); setTimeout(() => row.remove(), 6000);
+  }
+  if (!a || !a.local || a.dead || a.item) return;
+  a.item = e.it && ITEMS[e.it] ? e.it : 'turbo';        // empty pockets: you get a Turbo instead
+  a.arrows = a.item === 'gandiva' ? (e.ar || 3) : 0; a.itemHeld = 0; a.pickN++;
+  if (a.isMe && !e.it) showNote('Empty pockets', 'They had nothing, so you get a Turbo');
+}
+
+// ---------- Shrink Ray: lightning shrinks every rival; full-size karts squash tiny ones ----------
+function shrinkStrike(e) {
+  Snd.play('zap');
+  for (const k of karts.values()) {
+    if (k.id === e.o || k.dead || k.ghost > 0) continue;
+    boltFX(k.x, k.z);
+    if (k.local && k.shield <= 0) { k.tiny = SHRINK_S; k.lastBy = { o: e.o, on: e.on, t: Net.now() }; if (k.isMe) { showNote('Shrunk!', `${e.on || 'Someone'} hit everyone with the Shrink Ray. Avoid full-size karts.`); flashScreen(); } }
+  }
+}
+function showNote(title, text) {
+  const el = $('#itemTip'); el.innerHTML = `<b class="t2">${esc(title)}</b>${esc(text)}`; el.hidden = false; tipT = 2.6;
+}
+
+function clearPowerups() {
+  for (const t of tornadoes) scene.remove(t.mesh); tornadoes.length = 0;
+  for (const b of fxBeams) { scene.remove(b.m); b.m.material.dispose(); } fxBeams.length = 0;
+}
+function updatePowerups(dt) { updateTornadoes(dt); updateBeams(dt); }
+
+// =====================================================================
 //  Networking — offline loopback or Firebase Realtime Database
 // =====================================================================
 let evSeq = 0;
@@ -1875,7 +2117,7 @@ const Net = {
     }).catch(() => {});
   },
   stateOf(k) {
-    return { n: k.name, c: k.color, x: r2(k.x), z: r2(k.z), h: r3(k.h), s: r2(k.fwd), st: r2(k.steerIn), hp: Math.max(0, Math.round(k.hp)), sh: k.shield > 0 ? 1 : 0, tb: k.turbo > 0 ? 1 : 0, sp: k.spikes > 0 ? 1 : 0, gv: k.item === 'gandiva' ? 1 : 0, d: k.dead ? 1 : 0, sc: k.score, ts: Math.round(this.now()) };
+    return { n: k.name, c: k.color, x: r2(k.x), z: r2(k.z), h: r3(k.h), s: r2(k.fwd), st: r2(k.steerIn), hp: Math.max(0, Math.round(k.hp)), sh: k.shield > 0 ? 1 : 0, tb: k.turbo > 0 ? 1 : 0, sp: k.spikes > 0 ? 1 : 0, gv: k.item === 'gandiva' ? 1 : 0, fz: k.frozen > 0 ? 1 : 0, gh: k.ghost > 0 ? 1 : 0, tn: k.tiny > 0 ? 1 : 0, d: k.dead ? 1 : 0, sc: k.score, ts: Math.round(this.now()) };
   },
   publish(dt) {
     if (!this.online || !S.me) return;
@@ -1905,10 +2147,22 @@ function handleEvent(e) {
     case 'cpx': popperTrigger(e); break;
     case 'bf': spawnBuffalo(e); break;
     case 'lg': if (ITEMS[e.it]) specialNote(e); break;
+    case 'fz': spawnProjectile('ice', e); break;
+    case 'wp': warpFX(e); break;
+    case 'tn': spawnTornado(e); break;
+    case 'pk': magnetPull(e); break;
+    case 'pkr': magnetResult(e); break;
+    case 'shr': shrinkStrike(e); break;
     case 'box': hideBox(e.i); break;
     case 'hit': {
       if (e.p) { const p = projectiles.find(q => q.id === e.p); if (p) projectileImpact(p, p.x, p.z, null, true); }
-      const k = karts.get(e.v); if (k && k.local) k.damage(e.d, e.o, e.on, e.w, e.kx || 0, e.kz || 0);
+      const k = karts.get(e.v); if (k && k.local) {
+        k.damage(e.d, e.o, e.on, e.w, e.kx || 0, e.kz || 0);
+        if (!k.dead && k.shield <= 0 && k.ghost <= 0) {
+          if (e.fz) { k.frozen = Math.max(k.frozen, e.fz); if (k.isMe) showNote('Frozen!', 'You can move again in 2 seconds'); }
+          if (e.up) k.vy = e.up;
+        }
+      }
       break;
     }
     case 'mb': {
@@ -1918,7 +2172,7 @@ function handleEvent(e) {
         if (!k.local || k.dead || k.id === e.o) continue;
         const d = Math.hypot(k.x - e.x, k.z - e.z); if (d > 4.8) continue;
         const nx = d > .01 ? (k.x - e.x) / d : 1, nz = d > .01 ? (k.z - e.z) / d : 0;
-        k.damage(d < 2.8 ? 100 : 60, e.o, e.on, 'mine', nx * 10, nz * 10);
+        k.damage(d < 2.8 ? 100 : 60, e.o, e.on, e.w || 'mine', nx * 10, nz * 10);
         k.vy = 13;
       }
       break;
@@ -2343,7 +2597,7 @@ $('#bMute').addEventListener('click', toggleMute);
 addEventListener('pagehide', () => Net.disconnect());
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { for (const k of karts.values()) drawLabel(k.label); });
 
-window.__rumble = { GB_R, ITEMS, poppers, buffaloes, karts, S, mines, projectiles, simulate, Kart, Net, Q, booms, gbombs, setMap, MAPS, OB_BOX, OB_CIR, PADS, BOX_POS, SPAWNS, ZONES, pointBlocked, zoneAt, lavaNear, world };   // handy for debugging in the console
+window.__rumble = { tornadoes, GB_R, ITEMS, poppers, buffaloes, karts, S, mines, projectiles, simulate, Kart, Net, Q, booms, gbombs, setMap, MAPS, OB_BOX, OB_CIR, PADS, BOX_POS, SPAWNS, ZONES, pointBlocked, zoneAt, lavaNear, world };   // handy for debugging in the console
 startAttract();
 requestAnimationFrame(frame);
 })();
