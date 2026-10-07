@@ -241,7 +241,8 @@ details.ctrl[open] .keys{margin-top:10px}
             <div><dt>WASD</dt><dd>Move</dd></div>
             <div><dt>SPACE</dt><dd>Jump</dd></div>
             <div><dt>L-CLICK</dt><dd>Shoot / place build</dd></div>
-            <div><dt>R-CLICK</dt><dd>Aim down sights</dd></div>
+            <div><dt>SHIFT</dt><dd>Hold to aim / scope</dd></div>
+            <div><dt>R-CLICK</dt><dd>Also aims</dd></div>
             <div><dt>1 2 3</dt><dd>Rifle, shotgun, sniper</dd></div>
             <div><dt>Q F C</dt><dd>Wall, floor, ramp</dd></div>
             <div><dt>R</dt><dd>Reload</dd></div>
@@ -816,7 +817,9 @@ function resolveShot(shooter,w,rays,color){
   }
   return{ends,pd,hit};
 }
-function isADS(){return state==='playing'&&!paused&&mode==='combat'&&rmb&&player.alive&&player.reloadT<=0}
+// Right-click or hold Shift to aim; with the sniper that brings up the scope.
+const aimHeld=()=>rmb||keys.has('ShiftLeft')||keys.has('ShiftRight');
+function isADS(){return state==='playing'&&!paused&&mode==='combat'&&aimHeld()&&player.alive&&player.reloadT<=0}
 function curSpread(e,w,ads){const moving=Math.hypot(e.vel.x,e.vel.z)>1.2||!e.onGround;let s=ads?w.ads:w.hip;if(moving&&w.pellets===1)s=s*1.7+.004;return s}
 function playerShoot(){
   const w=WEAPONS[player.wi],ads=isADS();
@@ -1200,7 +1203,7 @@ function updateHud(dt){
     hud.shN.textContent=Math.ceil(p.shield);hud.shF.style.width=(p.shield/50*100)+'%';
     for(let i=0;i<3;i++){$('slot'+i).classList.toggle('on',mode==='combat'&&p.wi===i);$('am'+i).textContent=(p.wi===i&&p.reloadT>0)?'reload':p.ammo[i]+' / '+WEAPONS[i].mag}
     for(const t of ['wall','floor','ramp'])$('slot'+t).classList.toggle('on',mode==='build'&&buildType===t);
-    hud.hint.hidden=mode!=='build';if(mode==='build')hud.hint.textContent='Build · '+buildType+' · click to place · 1 to shoot';
+    hud.hint.hidden=mode!=='build';if(mode==='build')hud.hint.textContent='Build · '+buildType+' · click to place · Shift or 1 for your gun';
   }
   hud.reload.hidden=!(p.reloadT>0);if(p.reloadT>0)hud.reloadF.style.width=(100*(1-p.reloadT/w.reload))+'%';
   const ads=isADS();const scoped=ads&&w.id==='sr';hud.scope.hidden=!scoped;
@@ -1316,6 +1319,7 @@ addEventListener('keydown',e=>{
   if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();
   if(e.code==='Digit1'||e.code==='Digit2'||e.code==='Digit3'){switchWeapon(player,+e.code.slice(5)-1);mode='combat'}
   else if(BUILD_KEYS[e.code]){mode='build';buildType=BUILD_KEYS[e.code];player.reloadT=0}
+  else if((e.code==='ShiftLeft'||e.code==='ShiftRight')&&mode==='build'&&!e.repeat)mode='combat';
   else if(e.code==='KeyR'&&mode==='combat')startReload(player);
   else if(e.code==='KeyP'||(e.code==='Escape'&&!locked))pauseGame();
 });
