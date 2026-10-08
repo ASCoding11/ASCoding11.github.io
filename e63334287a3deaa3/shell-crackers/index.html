@@ -1390,7 +1390,7 @@ function updateHud(dt){
   updateDmgDirs(dt);
   // network line
   let nl='';
-  if(online){const others=ents.filter(e=>e.remote).length;if(!others)nl=Net.isPublic?'Waiting for other eggs to join this lobby…':'Waiting for friends · Esc for the invite link'}
+  if(online){const others=ents.filter(e=>e.remote).length;if(Net.matchId==null&&Net.roundErr)nl='The database wouldn\'t start this room\'s match ('+(Net.roundErr.code||Net.roundErr.message)+')';else if(!others)nl=Net.isPublic?'Waiting for other eggs to join this lobby…':'Waiting for friends · Esc for the invite link'}
   setT('netline',nl);
   $('lockHint').hidden=!!document.pointerLockElement||paused;
   // scoreboard
@@ -1474,6 +1474,9 @@ function playerControl(dt){
 //  Online (Firebase Realtime Database)
 // =====================================================================
 const remotes=new Map();
+// Every network step gets a time limit, so a stalled connection says what stalled instead of hanging on "Connecting…".
+function withTimeout(p,ms,msg){let t;return Promise.race([p,new Promise((_,rej)=>{t=setTimeout(()=>rej(new Error(msg)),ms)})]).finally(()=>clearTimeout(t))}
+const NET_BLOCKED='Couldn\'t reach the game database. If you\'re on a school or work network it may be blocking it; try another network, or play Practice.';
 function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('Could not load '+src));document.head.appendChild(s)})}
 function cleanName(n){return String(n||'Egg').replace(/[^\w \-.'!?]/g,'').trim().slice(0,14)||'Egg'}
 const Net={
@@ -1486,10 +1489,10 @@ const Net={
       catch(e){throw new Error('Could not reach the game server. Check your connection, or play Practice.')}
     }
     if(!firebase.apps.length)firebase.initializeApp(FIREBASE_CONFIG);
-    try{await firebase.auth().signInAnonymously()}
-    catch(err){const c=err&&err.code||'';throw new Error(/operation-not-allowed|admin-restricted|configuration-not-found/.test(c)?'Anonymous sign-in is off in the Firebase console (Authentication → Sign-in method → Anonymous).':'Sign-in failed: '+(err.message||c))}
+    try{await withTimeout(firebase.auth().signInAnonymously(),12000,'Signing in to the game server timed out. Check your connection, or play Practice.')}
+    catch(err){const c=err&&err.code||'';if(/timed out/.test(err&&err.message||''))throw err;throw new Error(/operation-not-allowed|admin-restricted|configuration-not-found/.test(c)?'Anonymous sign-in is off in the Firebase console (Authentication → Sign-in method → Anonymous).':'Sign-in failed: '+(err.message||c))}
     this.uid=firebase.auth().currentUser.uid;this.db=firebase.database();
-    await new Promise(res=>this.db.ref('.info/serverTimeOffset').once('value',s=>{this.offset=s.val()||0;res()}));
+    await new Promise(res=>{setTimeout(res,3000);this.db.ref('.info/serverTimeOffset').once('value',s=>{this.offset=s.val()||0;res()})});
     this.db.ref('.info/serverTimeOffset').on('value',s=>{this.offset=s.val()||0});
     this.ready=true;
   },
@@ -1504,20 +1507,20 @@ const Net={
   },
   async joinRoom(room,isPublic){
     await this.init();
-    const others=await this.count(room);
+    const others=await withTimeout(this.count(room),10000,NET_BLOCKED);
     if(others>=MAX_ROOM)throw new Error('That room is full (8 eggs). Try another code.');
     const roomRef=this.db.ref('rooms/'+room);
     this.room=room;this.isPublic=!!isPublic;this.matchId=null;this.seen.clear();
     this.refs={room:roomRef,players:roomRef.child('players'),events:roomRef.child('events'),round:roomRef.child('round'),me:roomRef.child('players/'+this.uid)};
     online=true;player.id=this.uid;
-    try{await this.refs.me.set(this.stateOf())}
-    catch(e){online=false;this.refs=null;player.id='me';throw new Error('The database rules blocked the game. They need to allow rooms/sc-… the same way they allow Rumble Karts rooms.')}
+    try{await withTimeout(this.refs.me.set(this.stateOf()),10000,NET_BLOCKED)}
+    catch(e){online=false;this.refs=null;player.id='me';throw new Error(e.message===NET_BLOCKED?NET_BLOCKED:'The database rules blocked the game ('+(e.code||e.message||'denied')+').')}
     this.refs.me.onDisconnect().remove();
     this.joinT=this.now();
     // The shared database rules only accept a round "ends" up to 200 s ahead, so a round stores
     // its start time in "ends" and its length in "len"; the real end is ends + len.
     this.roundErr=null;
-    await this.refs.round.transaction(cur=>{const n=this.now();if(cur&&typeof cur.ends==='number'&&typeof cur.id==='number'&&n<roundEnd(cur)+20000)return;return{id:(cur&&+cur.id||0)+1,ends:n,len:MATCH_MS,map:Math.floor(Math.random()*MAPS.length)}}).catch(err=>{this.roundErr=err});
+    this.refs.round.transaction(cur=>{const n=this.now();if(cur&&typeof cur.ends==='number'&&typeof cur.id==='number'&&n<roundEnd(cur)+20000)return;return{id:(cur&&+cur.id||0)+1,ends:n,len:MATCH_MS,map:Math.floor(Math.random()*MAPS.length)}}).catch(err=>{this.roundErr=err});
     const r=this.refs;
     const up=s=>{if(s.key===this.uid)return;onRemoteState(s.key,s.val())};
     r.players.on('child_added',up);r.players.on('child_changed',up);
@@ -1549,13 +1552,14 @@ const Net={
   }
 };
 function roundEnd(v){const st=+v.ends||Net.now(),len=+v.len;return st+(len>0&&len<=MATCH_MS?len:MATCH_MS)}
-// After joining, wait for the room's round so a blocked or failed start shows a message instead of hanging.
-function waitForMatch(){
-  return new Promise((res,rej)=>{const t0=performance.now();const tick=()=>{
-    if(Net.matchId!=null)return res();
-    if(!online)return rej(new Error('Lost the connection to the room.'));
-    if(performance.now()-t0>9000)return rej(new Error(Net.roundErr?'The database wouldn\'t start a match in that room ('+(Net.roundErr.code||Net.roundErr.message||'blocked')+').':'Couldn\'t start a match in that room. Try again in a moment.'));
-    setTimeout(tick,150)};tick()});
+// Like Backrooms 1v1: you're dropped into the room as soon as your egg is saved. If the room's match
+// info hasn't arrived yet, play starts on a local clock and switches over when it does.
+function enterRoom(){
+  if(Net.matchId!=null||state==='playing')return;
+  matchEnds=Date.now()+MATCH_MS;target=TARGET_ONLINE;$('goal').textContent='First to '+target;
+  player.kills=0;player.deaths=0;player.streak=0;
+  state='playing';showHud();respawn(player);sfx('spawn');requestLock();
+  banner(MAPS[mapIdx].name.toUpperCase(),(Net.isPublic?'Public lobby':'Room '+Net.room)+' · first to '+target+' cracks',2.6);
 }
 function onRemoteState(uid,v){
   if(!v||typeof v.x!=='number'||!isFinite(v.x)||!isFinite(v.z))return;
@@ -1602,9 +1606,10 @@ function handleEvent(ev){
 function onMatch(v){
   Net.matchId=v.id;matchEnds=roundEnd(v);
   const mi=clamp(v.map|0,0,MAPS.length-1);
-  resetFx();if(mi!==mapIdx)buildMap(mi);
+  const sameMap=mi===mapIdx;const wasIn=state==='playing'&&player.alive;
+  resetFx();if(!sameMap)buildMap(mi);
   player.kills=0;player.deaths=0;player.streak=0;target=TARGET_ONLINE;$('goal').textContent='First to '+target;
-  respawn(player);sfx('spawn');
+  if(!(wasIn&&sameMap)){respawn(player);sfx('spawn')}
   for(const e of remotes.values()){e.kills=0;e.deaths=0}
   if(state!=='playing'){state='playing';showHud();if(!paused)requestLock()}
   else{$('end').hidden=true}
@@ -1632,7 +1637,7 @@ function prepOnline(){
 async function joinPrivate(){
   const code=sanitizeRoom($('room').value)||randomRoom();$('room').value=code;store.set('room',code);
   busy(true);setMsg('Connecting…');
-  try{Net.leave();prepOnline();await Net.joinRoom('sc-'+code,false);await waitForMatch();setMsg('')}
+  try{Net.leave();prepOnline();await Net.joinRoom('sc-'+code,false);enterRoom();setMsg('')}
   catch(err){Net.leave();setupAttract();setMsg(err.message||String(err),true)}
   finally{busy(false)}
 }
@@ -1641,9 +1646,11 @@ async function quickMatch(){
   try{
     Net.leave();await Net.init();
     const rooms=[1,2,3,4,5,6].map(i=>'sc-pub-'+i);
-    const counts=await Promise.all(rooms.map(r=>Net.count(r).catch(()=>0)));
+    const res=await Promise.all(rooms.map(r=>withTimeout(Net.count(r),8000,NET_BLOCKED).catch(e=>e)));
+    if(res.every(x=>x instanceof Error))throw new Error(res[0].message===NET_BLOCKED?NET_BLOCKED:'Couldn\'t read the lobbies ('+(res[0].code||res[0].message)+').');
+    const counts=res.map(x=>x instanceof Error?0:x);
     let best=0,bn=-1;counts.forEach((n,i)=>{if(n<MAX_ROOM&&n>bn){bn=n;best=i}});
-    prepOnline();await Net.joinRoom(rooms[best],true);await waitForMatch();setMsg('');
+    prepOnline();await Net.joinRoom(rooms[best],true);enterRoom();setMsg('');
   }catch(err){Net.leave();setupAttract();setMsg(err.message||String(err),true)}
   finally{busy(false)}
 }
