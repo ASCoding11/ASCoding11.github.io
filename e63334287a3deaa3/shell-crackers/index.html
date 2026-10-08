@@ -811,16 +811,29 @@ const player=makeEntity({id:'me',name:myName,color:myColor,model:false,loadout:m
 player.active=false;ents.push(player);
 
 function fillAmmo(e){for(const k of WKEYS)e.ammo[k]=WEAPONS[k].mag}
-function pickSpawn(e){
-  let best=null,bs=-1;
-  for(const s of spawns){
-    let md=99;for(const o of ents){if(o===e||!o.active||!o.alive)continue;md=Math.min(md,Math.hypot(o.pos.x-s.x,o.pos.z-s.z))}
-    const sc=md+Math.random()*7;if(sc>bs){bs=sc;best=s}
-  }
-  return best||{x:SPAN/2,z:SPAN/2};
+// Spots other eggs are standing on (online this also covers players whose updates haven't arrived yet).
+function occupied(e){
+  const out=[];for(const o of ents){if(o===e||!o.active||!o.alive)continue;out.push(o.pos)}
+  if(online&&e===player)for(const q of Net.peek)if(!remotes.has(q.uid))out.push(q);
+  return out;
 }
-function respawn(e){
-  const s=pickSpawn(e);
+// The spawn farthest from everyone, picking at random among the near-ties so two eggs rarely land together.
+function pickSpawn(e){
+  const occ=occupied(e);if(!spawns.length)return{x:SPAN/2,z:SPAN/2};
+  const sc=spawns.map(s=>{let md=99;for(const o of occ)md=Math.min(md,Math.hypot(o.x-s.x,o.z-s.z));return md});
+  const top=Math.max(...sc),near=spawns.filter((s,i)=>sc[i]>=top-(top>20?6:2));
+  return pick(near);
+}
+// Spawns ordered so each next one is as far as possible from the ones before it.
+function spreadOrder(seed){
+  const n=spawns.length,used=new Array(n).fill(false),out=[];let cur=Math.abs(seed|0)%n;
+  for(let k=0;k<n;k++){used[cur]=true;out.push(spawns[cur]);let bi=-1,bd=-1;
+    for(let i=0;i<n;i++){if(used[i])continue;let md=1e9;for(const o of out)md=Math.min(md,Math.hypot(o.x-spawns[i].x,o.z-spawns[i].z));if(md>bd){bd=md;bi=i}}
+    if(bi<0)break;cur=bi}
+  return out;
+}
+function respawn(e,at){
+  const s=at||pickSpawn(e);
   e.pos.set(s.x,surfAt(s.x,s.z),s.z);e.vel.set(0,0,0);
   e.yaw=Math.atan2(-(SPAN/2-s.x),-(SPAN/2-s.z));e.pitch=0;
   e.hp=100;e.alive=true;e.slot=0;e.wkey=e.loadout;fillAmmo(e);e.reloadT=0;e.switchT=0;e.fireCD=0;e.burstLeft=0;e.bloom=0;
@@ -1480,7 +1493,7 @@ const NET_BLOCKED='Couldn\'t reach the game database. If you\'re on a school or 
 function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('Could not load '+src));document.head.appendChild(s)})}
 function cleanName(n){return String(n||'Egg').replace(/[^\w \-.'!?]/g,'').trim().slice(0,14)||'Egg'}
 const Net={
-  ready:false,uid:null,db:null,offset:0,room:null,refs:null,isPublic:false,matchId:null,joinT:0,pubTimer:0,seen:new Set(),pruneTimer:0,
+  peek:[],peekRoom:{},ready:false,uid:null,db:null,offset:0,room:null,refs:null,isPublic:false,matchId:null,joinT:0,pubTimer:0,seen:new Set(),pruneTimer:0,
   now(){return Date.now()+this.offset},
   async init(){
     if(this.ready)return;
@@ -1502,15 +1515,16 @@ const Net={
       w:WKEYS.indexOf(p.wkey),sc:p.shotCount,k:p.kills,dt:p.deaths,sp:p.spawnShield>0?1:0,m:this.matchId==null?-1:this.matchId,ts:Math.round(this.now())};
   },
   async count(room){
-    const s=await this.db.ref('rooms/'+room+'/players').once('value');let n=0;
-    s.forEach(c=>{const v=c.val();if(c.key!==this.uid&&v&&this.now()-(+v.ts||0)<10000)n++});return n;
+    const s=await this.db.ref('rooms/'+room+'/players').once('value');let n=0;const pk=[];
+    s.forEach(c=>{const v=c.val();if(c.key!==this.uid&&v&&this.now()-(+v.ts||0)<10000){n++;if(!v.d&&isFinite(+v.x)&&isFinite(+v.z))pk.push({uid:c.key,x:+v.x,z:+v.z})}});
+    this.peekRoom[room]=pk;return n;
   },
   async joinRoom(room,isPublic){
     await this.init();
     const others=await withTimeout(this.count(room),10000,NET_BLOCKED);
     if(others>=MAX_ROOM)throw new Error('That room is full (8 eggs). Try another code.');
     const roomRef=this.db.ref('rooms/'+room);
-    this.room=room;this.isPublic=!!isPublic;this.matchId=null;this.seen.clear();
+    this.room=room;this.isPublic=!!isPublic;this.matchId=null;this.seen.clear();this.peek=this.peekRoom[room]||[];
     this.refs={room:roomRef,players:roomRef.child('players'),events:roomRef.child('events'),round:roomRef.child('round'),me:roomRef.child('players/'+this.uid)};
     online=true;player.id=this.uid;
     try{await withTimeout(this.refs.me.set(this.stateOf()),10000,NET_BLOCKED)}
@@ -1609,7 +1623,11 @@ function onMatch(v){
   const sameMap=mi===mapIdx;const wasIn=state==='playing'&&player.alive;
   resetFx();if(!sameMap)buildMap(mi);
   player.kills=0;player.deaths=0;player.streak=0;target=TARGET_ONLINE;$('goal').textContent='First to '+target;
-  if(!(wasIn&&sameMap)){respawn(player);sfx('spawn')}
+  if(!(wasIn&&sameMap)){
+    const ids=[Net.uid,...remotes.keys()].sort();
+    const order=spreadOrder(v.id*7+mi);
+    respawn(player,ids.length>1?order[ids.indexOf(Net.uid)%order.length]:null);sfx('spawn');
+  }
   for(const e of remotes.values()){e.kills=0;e.deaths=0}
   if(state!=='playing'){state='playing';showHud();if(!paused)requestLock()}
   else{$('end').hidden=true}
