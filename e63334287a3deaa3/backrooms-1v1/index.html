@@ -150,6 +150,16 @@ details.ctrl[open] .keys{margin-top:10px}
 .adbox{display:flex;flex-direction:column;align-items:flex-start;gap:4px}
 .adbox .ad-lbl{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-dim)}
 .adbox ins{display:inline-block;width:320px;max-width:100%;height:100px}
+/* Side rails: two tall ads beside the game on wide screens. The game area shrinks to sit between them, so nothing overlaps play. */
+:root{--rail:184px}
+.rail{display:none;position:fixed;top:0;bottom:0;width:var(--rail);background:#0d0b05;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+.rail.l{left:0;border-right:1px solid var(--line)} .rail.r{right:0;border-left:1px solid var(--line)}
+.rail .ad-lbl{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-dim)}
+.rail ins{display:block;width:160px;height:600px}
+@media (min-width:1180px) and (min-height:640px){
+  body.rails #app{left:var(--rail);right:var(--rail)}
+  body.rails .rail{display:flex}
+}
 @media (max-width:560px){
   .keys{grid-template-columns:1fr}
   #score{gap:8px;padding:4px 10px} #score .n{font-size:26px} #score .who{display:none}
@@ -160,6 +170,8 @@ details.ctrl[open] .keys{margin-top:10px}
 </style>
 </head>
 <body>
+<aside class="rail l" aria-label="Advertisement"><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></aside>
+<aside class="rail r" aria-label="Advertisement"><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></aside>
 <div id="app">
   <div class="vhs"></div>
   <div class="osd" id="osd" hidden><span><span class="rec blink">●</span> REC</span><span id="clock">00:00:00</span><span>LEVEL 0</span></div>
@@ -298,6 +310,9 @@ const FIREBASE_SDK='https://www.gstatic.com/firebasejs/10.12.2/';
 // Paste a display ad unit's data-ad-slot number into AD_SLOT to turn them on.
 const AD_CLIENT='ca-pub-1712937102765568';
 const AD_SLOT='';
+// Side rails beside the game on wide screens (1180px+). Uses its own ad unit if you set RAIL_SLOT
+// (a vertical 160x600 unit works best); otherwise falls back to AD_SLOT. Rails collapse if no ad fills.
+const RAIL_SLOT='';
 
 const $=id=>document.getElementById(id);
 const V3=THREE.Vector3;
@@ -347,7 +362,8 @@ const camera=new THREE.PerspectiveCamera(72,1,0.05,200);
 const amb=new THREE.AmbientLight(0xfff0c4,0.55);scene.add(amb);
 scene.add(new THREE.HemisphereLight(0xfff8dc,0x5e4f22,0.78));
 const sun=new THREE.DirectionalLight(0xfff3cf,0.22);sun.position.set(0.3,1,0.2);scene.add(sun);
-function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);renderer.domElement.style.width='100%';renderer.domElement.style.height='100%';camera.aspect=w/h;camera.updateProjectionMatrix()}
+let VW=innerWidth,VH=innerHeight;
+function resize(){const a=document.getElementById('app'),w=VW=a.clientWidth||innerWidth,h=VH=a.clientHeight||innerHeight;renderer.setSize(w,h,false);renderer.domElement.style.width='100%';renderer.domElement.style.height='100%';camera.aspect=w/h;camera.updateProjectionMatrix()}
 addEventListener('resize',resize);resize();
 
 /* ---------- textures ---------- */
@@ -650,7 +666,7 @@ function updateFx(dt){
 const dmgLayer=$('dmg');const dnums=[];
 function dmgNumber(pt,amt,head,sh){const el=document.createElement('div');el.className='dn'+(head?' head':sh?' sh':'');el.textContent=amt;dmgLayer.appendChild(el);dnums.push({el,p:pt.clone().add(new V3((Math.random()-.5)*.6,.3,(Math.random()-.5)*.6)),t:0})}
 const tmpV=new V3();
-function toScreen(p){tmpV.copy(p).project(camera);return{x:(tmpV.x*.5+.5)*innerWidth,y:(-tmpV.y*.5+.5)*innerHeight,front:tmpV.z<1}}
+function toScreen(p){tmpV.copy(p).project(camera);return{x:(tmpV.x*.5+.5)*VW,y:(-tmpV.y*.5+.5)*VH,front:tmpV.z<1}}
 function updateDnums(dt){
   for(let i=dnums.length-1;i>=0;i--){const d=dnums[i];d.t+=dt;d.p.y+=dt*1.1;const s=toScreen(d.p);
     if(d.t>.9||!s.front){d.el.remove();dnums.splice(i,1);continue}
@@ -1208,7 +1224,7 @@ function updateHud(dt){
   hud.reload.hidden=!(p.reloadT>0);if(p.reloadT>0)hud.reloadF.style.width=(100*(1-p.reloadT/w.reload))+'%';
   const ads=isADS();const scoped=ads&&w.id==='sr';hud.scope.hidden=!scoped;
   const sp=mode==='build'?.004:(w.pellets>1?(ads?w.ads:w.hip):curSpread(p,w,ads));
-  const gap=4+sp*(innerHeight/2)/Math.tan(camera.fov*Math.PI/360)*.9;
+  const gap=4+sp*(VH/2)/Math.tan(camera.fov*Math.PI/360)*.9;
   hud.cl.style.transform=`translate(${-gap-9}px,0)`;hud.cr.style.transform=`translate(${gap}px,0)`;hud.ct.style.transform=`translate(0,${-gap-9}px)`;hud.cb.style.transform=`translate(0,${gap}px)`;
   hud.cross.style.opacity=scoped?'0':'1';
   hitT-=dt;hud.hitm.style.opacity=hitT>0?'1':'0';
@@ -1245,7 +1261,7 @@ function showAd(id){
   if(!AD_SLOT)return;
   const boxEl=$(id);if(!boxEl||boxEl.dataset.state)return;
   const ins=boxEl.querySelector('ins');
-  if(!adScript){adScript=document.createElement('script');adScript.async=true;adScript.crossOrigin='anonymous';adScript.src='https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js';document.head.appendChild(adScript)}
+  loadAdScript();
   boxEl.hidden=false;boxEl.dataset.state='asked';
   ins.setAttribute('data-ad-client',AD_CLIENT);ins.setAttribute('data-ad-slot',AD_SLOT);
   requestAnimationFrame(()=>{
@@ -1253,6 +1269,28 @@ function showAd(id){
     setTimeout(()=>{if(ins.getAttribute('data-ad-status')!=='filled'){boxEl.hidden=true;boxEl.dataset.state=''}},5000);
   });
 }
+
+/* Side rails: only on wide screens, only once a slot is set, and they fold away if Google sends no ad. */
+const railWide=matchMedia('(min-width:1180px) and (min-height:640px)');
+let railState='';
+function loadAdScript(){if(!adScript){adScript=document.createElement('script');adScript.async=true;adScript.crossOrigin='anonymous';adScript.src='https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js';document.head.appendChild(adScript)}}
+function setupRails(){
+  const slot=RAIL_SLOT||AD_SLOT;
+  if(!slot||railState||!railWide.matches)return;
+  railState='asked';loadAdScript();
+  document.body.classList.add('rails');resize();
+  const ins=[...document.querySelectorAll('.rail ins')];
+  ins.forEach(el=>{el.setAttribute('data-ad-client',AD_CLIENT);el.setAttribute('data-ad-slot',slot)});
+  requestAnimationFrame(()=>{
+    ins.forEach(()=>{try{(window.adsbygoogle=window.adsbygoogle||[]).push({})}catch(e){}});
+    setTimeout(()=>{
+      if(!ins.some(el=>el.getAttribute('data-ad-status')==='filled')){document.body.classList.remove('rails');railState='empty';resize()}
+      else railState='filled';
+    },6000);
+  });
+}
+railWide.addEventListener('change',()=>{setupRails();resize()});
+setupRails();
 
 /* ---------- main loop ---------- */
 let last=performance.now();
