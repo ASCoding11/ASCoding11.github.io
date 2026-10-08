@@ -1514,7 +1514,10 @@ const Net={
     catch(e){online=false;this.refs=null;player.id='me';throw new Error('The database rules blocked the game. They need to allow rooms/sc-… the same way they allow Rumble Karts rooms.')}
     this.refs.me.onDisconnect().remove();
     this.joinT=this.now();
-    await this.refs.round.transaction(cur=>{const n=this.now();if(cur&&typeof cur.ends==='number'&&typeof cur.id==='number'&&n<cur.ends+20000)return;return{id:(cur&&+cur.id||0)+1,ends:n+MATCH_MS,map:Math.floor(Math.random()*MAPS.length)}}).catch(()=>{});
+    // The shared database rules only accept a round "ends" up to 200 s ahead, so a round stores
+    // its start time in "ends" and its length in "len"; the real end is ends + len.
+    this.roundErr=null;
+    await this.refs.round.transaction(cur=>{const n=this.now();if(cur&&typeof cur.ends==='number'&&typeof cur.id==='number'&&n<roundEnd(cur)+20000)return;return{id:(cur&&+cur.id||0)+1,ends:n,len:MATCH_MS,map:Math.floor(Math.random()*MAPS.length)}}).catch(err=>{this.roundErr=err});
     const r=this.refs;
     const up=s=>{if(s.key===this.uid)return;onRemoteState(s.key,s.val())};
     r.players.on('child_added',up);r.players.on('child_changed',up);
@@ -1536,7 +1539,7 @@ const Net={
   },
   rematch(){
     if(!online||!this.refs)return;const id=this.matchId;
-    this.refs.round.transaction(cur=>(cur&&cur.id===id)?{id:id+1,ends:this.now()+MATCH_MS,map:((+cur.map||0)+1)%MAPS.length}:undefined).catch(()=>{});
+    this.refs.round.transaction(cur=>(cur&&cur.id===id)?{id:id+1,ends:this.now(),len:MATCH_MS,map:((+cur.map||0)+1)%MAPS.length}:undefined).catch(()=>{});
   },
   leave(){
     clearInterval(this.pubTimer);clearInterval(this.pruneTimer);
@@ -1545,6 +1548,15 @@ const Net={
     clearRemotes();
   }
 };
+function roundEnd(v){const st=+v.ends||Net.now(),len=+v.len;return st+(len>0&&len<=MATCH_MS?len:MATCH_MS)}
+// After joining, wait for the room's round so a blocked or failed start shows a message instead of hanging.
+function waitForMatch(){
+  return new Promise((res,rej)=>{const t0=performance.now();const tick=()=>{
+    if(Net.matchId!=null)return res();
+    if(!online)return rej(new Error('Lost the connection to the room.'));
+    if(performance.now()-t0>9000)return rej(new Error(Net.roundErr?'The database wouldn\'t start a match in that room ('+(Net.roundErr.code||Net.roundErr.message||'blocked')+').':'Couldn\'t start a match in that room. Try again in a moment.'));
+    setTimeout(tick,150)};tick()});
+}
 function onRemoteState(uid,v){
   if(!v||typeof v.x!=='number'||!isFinite(v.x)||!isFinite(v.z))return;
   let e=remotes.get(uid);
@@ -1588,7 +1600,7 @@ function handleEvent(ev){
   }
 }
 function onMatch(v){
-  Net.matchId=v.id;matchEnds=+v.ends||Net.now()+MATCH_MS;
+  Net.matchId=v.id;matchEnds=roundEnd(v);
   const mi=clamp(v.map|0,0,MAPS.length-1);
   resetFx();if(mi!==mapIdx)buildMap(mi);
   player.kills=0;player.deaths=0;player.streak=0;target=TARGET_ONLINE;$('goal').textContent='First to '+target;
@@ -1620,7 +1632,7 @@ function prepOnline(){
 async function joinPrivate(){
   const code=sanitizeRoom($('room').value)||randomRoom();$('room').value=code;store.set('room',code);
   busy(true);setMsg('Connecting…');
-  try{Net.leave();prepOnline();await Net.joinRoom('sc-'+code,false);setMsg('')}
+  try{Net.leave();prepOnline();await Net.joinRoom('sc-'+code,false);await waitForMatch();setMsg('')}
   catch(err){Net.leave();setupAttract();setMsg(err.message||String(err),true)}
   finally{busy(false)}
 }
@@ -1631,7 +1643,7 @@ async function quickMatch(){
     const rooms=[1,2,3,4,5,6].map(i=>'sc-pub-'+i);
     const counts=await Promise.all(rooms.map(r=>Net.count(r).catch(()=>0)));
     let best=0,bn=-1;counts.forEach((n,i)=>{if(n<MAX_ROOM&&n>bn){bn=n;best=i}});
-    prepOnline();await Net.joinRoom(rooms[best],true);setMsg('');
+    prepOnline();await Net.joinRoom(rooms[best],true);await waitForMatch();setMsg('');
   }catch(err){Net.leave();setupAttract();setMsg(err.message||String(err),true)}
   finally{busy(false)}
 }
