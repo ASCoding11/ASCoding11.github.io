@@ -238,6 +238,17 @@ input.code{text-transform:uppercase;font-family:var(--serif);font-size:24px;lett
   .pop{animation:pop .35s ease-out}
   @keyframes pop{from{transform:scale(.92);opacity:.3}to{transform:none;opacity:1}}
 }
+
+/* Side rails: two tall ads fixed to the screen edges on wide screens (1180px+); the page gets side padding so nothing sits under them. */
+:root{--rail:184px}
+.rail{display:none;box-sizing:border-box;position:fixed;top:0;bottom:0;width:var(--rail);background:var(--paper);flex-direction:column;align-items:center;justify-content:center;gap:6px;z-index:50}
+.rail.l{left:0;border-right:1px solid rgba(0,0,0,.1)} .rail.r{right:0;border-left:1px solid rgba(0,0,0,.1)}
+.rail .ad-lbl{font:700 11px/1 system-ui,sans-serif;letter-spacing:.12em;text-transform:uppercase;opacity:.55}
+.rail ins{display:block;width:160px;height:600px}
+@media (min-width:1180px) and (min-height:640px){
+  html.rails body{padding-left:calc(var(--rail) + 16px);padding-right:calc(var(--rail) + 16px)}
+  html.rails .rail{display:flex}
+}
 </style>
 </head>
 <body>
@@ -1145,6 +1156,32 @@ if (fbOK){
   if (store.get("boxed.code")) auth.signInAnonymously().catch(() => {});
 }
 $("mpJump").onclick = e => { e.preventDefault(); $("mp").scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start"}); $("joinCode").focus({preventScroll: true}); };
+})();
+</script>
+<aside class="rail l" aria-label="Advertisement"><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></aside>
+<aside class="rail r" aria-label="Advertisement"><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></aside>
+<script>
+// Side-rail ads. Uses RAIL_SLOT (a vertical 160x600 unit works best), else falls back to AD_SLOT.
+// Only on screens 1180px+ wide; the rails fold away if Google sends no ad.
+const RAIL_SLOT='';
+(function(){
+  const wide=matchMedia('(min-width:1180px) and (min-height:640px)');let state='';
+  const relayout=()=>dispatchEvent(new Event('resize'));
+  function setup(){
+    let slot=RAIL_SLOT;try{slot=slot||AD_SLOT}catch(e){}
+    if(!slot||state||!wide.matches)return;
+    state='asked';
+    if(!document.querySelector('script[src*="adsbygoogle.js"]')){const s=document.createElement('script');s.async=true;s.crossOrigin='anonymous';s.src='https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js';document.head.appendChild(s)}
+    document.documentElement.classList.add('rails');relayout();
+    const ins=[...document.querySelectorAll('.rail ins')];
+    ins.forEach(el=>{el.setAttribute('data-ad-client','ca-pub-1712937102765568');el.setAttribute('data-ad-slot',slot)});
+    requestAnimationFrame(()=>{
+      ins.forEach(()=>{try{(window.adsbygoogle=window.adsbygoogle||[]).push({})}catch(e){}});
+      setTimeout(()=>{if(!ins.some(el=>el.getAttribute('data-ad-status')==='filled')){document.documentElement.classList.remove('rails');state='empty';relayout()}},6000);
+    });
+  }
+  wide.addEventListener('change',()=>{setup();relayout()});
+  setup();
 })();
 </script>
 <script src="/analytics/tracker.js" data-site="boxed" defer></script>

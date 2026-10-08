@@ -176,6 +176,19 @@ details[open] summary::before{content:'－ '}
 #lockHint{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:30px;background:rgba(43,26,16,.6);padding:10px 22px;border-radius:14px}
 #touchNote{color:var(--tomato)}
 @media (max-width:640px){#hpbar{width:120px}#mag{font-size:44px}.tbox{min-width:60px;padding:3px 9px}.tbox span{font-size:22px}}
+
+/* Side rails: two tall ads beside the game on wide screens (1180px+). The game area shrinks to sit
+   between them (body becomes the game's frame), so nothing overlaps play. Off until a slot is set. */
+:root{--rail:184px}
+.rail{display:none;box-sizing:border-box;position:fixed;top:0;bottom:0;width:var(--rail);background:#1b2a38;flex-direction:column;align-items:center;justify-content:center;gap:6px;z-index:2147483000}
+.rail.l{left:calc(-1 * var(--rail));border-right:1px solid rgba(255,255,255,.12)} .rail.r{right:calc(-1 * var(--rail));border-left:1px solid rgba(255,255,255,.12)}
+.rail .ad-lbl{font:700 11px/1 system-ui,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.55)}
+.rail ins{display:block;width:160px;height:600px}
+@media (min-width:1180px) and (min-height:640px){
+  html.rails{background:#1b2a38;overflow:hidden}
+  html.rails body{position:fixed;top:0;bottom:0;left:var(--rail);right:var(--rail);width:auto;height:auto;margin:0;transform:translateZ(0);overflow:visible}
+  html.rails .rail{display:flex}
+}
 </style>
 </head>
 <body>
@@ -404,7 +417,7 @@ const vmSun=new THREE.DirectionalLight(0xffffff,.55);vmSun.position.set(.4,1,.6)
 const vmRoot=new THREE.Group();vmScene.add(vmRoot);
 
 function resize(){
-  const w=innerWidth,h=innerHeight;
+  const w=(document.body.clientWidth||innerWidth),h=(document.body.clientHeight||innerHeight);
   renderer.setPixelRatio(gfx==='high'?Math.min(devicePixelRatio,2):Math.min(devicePixelRatio,1)*.8);
   renderer.setSize(w,h,false);
   camera.aspect=w/h;camera.updateProjectionMatrix();
@@ -1386,7 +1399,7 @@ function updateHud(dt){
   setT('magN',player.reloadT>0?'…':String(player.ammo[player.wkey]));
   const rel=$('rel');if(player.reloadT>0&&player.alive){rel.hidden=false;rel.firstChild.style.width=(100*(1-player.reloadT/w.reload))+'%'}else rel.hidden=true;
   // crosshair
-  const sp=spreadNow(player,w),gap=clamp(sp/Math.tan(camera.fov*Math.PI/360)*innerHeight/2,3,90);
+  const sp=spreadNow(player,w),gap=clamp(sp/Math.tan(camera.fov*Math.PI/360)*(document.body.clientHeight||innerHeight)/2,3,90);
   const xh=$('xh');xh.style.setProperty('--g',gap.toFixed(1)+'px');
   const scoped=w.scope&&player.adsK>.85&&player.alive;
   xh.style.opacity=player.alive?(scoped?0:player.adsK>.6&&w.ads<.005?.35:1):0;
@@ -1838,6 +1851,32 @@ if(navigator.webdriver)window.__sc={get state(){return state},get mode(){return 
 renderSwatches();renderWeapons($('weapons'));renderDiff();renderGfx();
 setupAttract();showAd('adMenu');
 requestAnimationFrame(t=>{last=t;frame(t)});
+})();
+</script>
+<aside class="rail l" aria-label="Advertisement"><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></aside>
+<aside class="rail r" aria-label="Advertisement"><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></aside>
+<script>
+// Side-rail ads. Uses RAIL_SLOT (a vertical 160x600 unit works best), else falls back to AD_SLOT.
+// Only on screens 1180px+ wide; the rails fold away if Google sends no ad.
+const RAIL_SLOT='';
+(function(){
+  const wide=matchMedia('(min-width:1180px) and (min-height:640px)');let state='';
+  const relayout=()=>dispatchEvent(new Event('resize'));
+  function setup(){
+    let slot=RAIL_SLOT;try{slot=slot||AD_SLOT}catch(e){}
+    if(!slot||state||!wide.matches)return;
+    state='asked';
+    if(!document.querySelector('script[src*="adsbygoogle.js"]')){const s=document.createElement('script');s.async=true;s.crossOrigin='anonymous';s.src='https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js';document.head.appendChild(s)}
+    document.documentElement.classList.add('rails');relayout();
+    const ins=[...document.querySelectorAll('.rail ins')];
+    ins.forEach(el=>{el.setAttribute('data-ad-client','ca-pub-1712937102765568');el.setAttribute('data-ad-slot',slot)});
+    requestAnimationFrame(()=>{
+      ins.forEach(()=>{try{(window.adsbygoogle=window.adsbygoogle||[]).push({})}catch(e){}});
+      setTimeout(()=>{if(!ins.some(el=>el.getAttribute('data-ad-status')==='filled')){document.documentElement.classList.remove('rails');state='empty';relayout()}},6000);
+    });
+  }
+  wide.addEventListener('change',()=>{setup();relayout()});
+  setup();
 })();
 </script>
 <script src="/analytics/tracker.js" data-site="shell-crackers" defer></script>
