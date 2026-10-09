@@ -5,6 +5,7 @@ Personal site hosted with GitHub Pages.
 - `index.html`: the home page, with links to the Web Development Projects and Productivity pages
 - `projects/`: the Web Development Projects page, with a full card for each game
 - `productivity/`: the Productivity page, with a full card for each tool
+- `account/account.js`: optional Google sign-in, added to every page with the shared top bar. Uses the `rumblekarts` Firebase project (same as the analytics and the Back Room games). Signed-in visitors get a row in Firestore `members/{uid}` (name, email, photo, first/last visit, page count and the analytics visitor IDs of their browsers), which the analytics dashboard shows under Signed-in visitors. The Back Room games reuse a signed-in account instead of switching to an anonymous one.
 - `site.css`: styles shared by the home, Web Development Projects and Productivity pages
 - `hype-cycle-exchange/`: Hype Cycle Exchange, a live classroom stock-market game (Firebase)
 - `boxed/`: Boxed, a competition math game with real AMC 10 and AIME problems: a Daily five, Practice, and live multiplayer games (Firebase, same project and Firestore rules as Hype Cycle Exchange; games are stored in `games` with `kind: "math"`). The page holds only contest names, problem numbers, official answers and a topic tag per problem (Algebra, Geometry, Number Theory, Counting & Probability); the problem text is loaded from the AoPS Wiki API while playing

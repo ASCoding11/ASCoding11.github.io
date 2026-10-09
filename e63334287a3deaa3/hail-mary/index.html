@@ -1774,7 +1774,7 @@ const Net={
       catch(e){throw new Error('Could not reach the game server. Check your connection, or play Practice.')}
     }
     if(!firebase.apps.length)firebase.initializeApp(FIREBASE_CONFIG);
-    try{await withTimeout(firebase.auth().signInAnonymously(),12000,NET_BLOCKED)}
+    try{await withTimeout((a=>new Promise(r=>{const s=a.onAuthStateChanged(()=>{s();r()})}).then(()=>a.currentUser||a.signInAnonymously()))(firebase.auth()),12000,NET_BLOCKED)}
     catch(err){const c=err&&err.code||'';throw new Error(err.message===NET_BLOCKED?NET_BLOCKED:/operation-not-allowed|admin-restricted|configuration-not-found/.test(c)?'Anonymous sign-in is off in the Firebase console (Authentication → Sign-in method → Anonymous).':'Sign-in failed: '+(err.message||c))}
     this.uid=firebase.auth().currentUser.uid;this.db=firebase.database();
     await withTimeout(new Promise(res=>this.db.ref('.info/serverTimeOffset').once('value',s=>{this.offset=s.val()||0;res()})),10000,NET_BLOCKED);

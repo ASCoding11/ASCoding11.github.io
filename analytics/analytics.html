@@ -58,6 +58,10 @@ details.game .qs{color:var(--muted);font-size:12.5px;font-variant-numeric:tabula
 details.game .inner{padding:2px 14px 14px}
 details.game .kpis{grid-template-columns:repeat(auto-fit,minmax(135px,1fr))}
 details.game .kpi .value{font-size:20px}
+.who{display:flex;align-items:center;gap:10px}
+.who img,.who .ph{width:28px;height:28px;border-radius:50%;object-fit:cover;flex:none;background:var(--line)}
+.who .ph{display:grid;place-items:center;font-weight:650;font-size:12px;color:var(--muted)}
+.who small{display:block;color:var(--muted);font-size:12px}
 .cardhead{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start}
 #gscBody .kpis{margin-bottom:14px}
 </style>
@@ -91,6 +95,12 @@ details.game .kpi .value{font-size:20px}
 
   <main>
     <section class="grid kpis" id="kpis"></section>
+
+    <section class="card full">
+      <h2>Signed-in visitors</h2>
+      <p class="hint">People who used the optional Google sign-in. Pageviews and time are for the site and range above, matched to each browser they signed in on.</p>
+      <div class="scroll" id="people"></div>
+    </section>
 
     <section class="card full">
       <h2>Games</h2>
@@ -182,7 +192,7 @@ function fillSites(){
   sel.innerHTML = '<option value="all">All sites</option>' + allSites().map(s => `<option value="${esc(s)}">${esc(siteLabel(s))}</option>`).join('');
   sel.value = allSites().includes(cur) ? cur : 'all';
 }
-let rows = [], chart = null;
+let rows = [], chart = null, members = null, membersErr = '';
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmtN = n => Number(n).toLocaleString();
@@ -237,6 +247,7 @@ async function load(){
   const days = +$('range').value;
   const start = dayStart(new Date()); start.setDate(start.getDate() - (days - 1));
   $('status').textContent = 'Loading…';
+  const mp = loadMembers();
   try {
     const snap = await db.collection('pv')
       .where('ts', '>=', firebase.firestore.Timestamp.fromDate(start))
@@ -251,6 +262,7 @@ async function load(){
         dur: +x.dur || 0
       };
     });
+    await mp;
     fillSites();
     $('status').innerHTML = `<span class="live"><span class="dot"></span>${fmtN(rows.length)} pageviews loaded · ${new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}</span>`;
     render();
@@ -260,6 +272,46 @@ async function load(){
       ? 'Permission denied — this Google account doesn’t match the email in your Firestore rules.'
       : 'Error: ' + e.message;
   }
+}
+
+async function loadMembers(){
+  try {
+    const snap = await db.collection('members').orderBy('last', 'desc').limit(500).get();
+    members = snap.docs.map(doc => {
+      const x = doc.data();
+      return {
+        uid: doc.id, name: x.name || '', email: x.email || '', photo: x.photo || '',
+        first: x.first ? new Date(+x.first) : null,
+        last: x.last && x.last.toDate ? x.last.toDate() : null,
+        visits: +x.visits || 0, vids: new Set(x.vids || [])
+      };
+    });
+    membersErr = '';
+  } catch (e) {
+    members = null;
+    membersErr = e.code === 'permission-denied'
+      ? 'Add the <code>members</code> block to your Firestore rules to see who signed in.'
+      : 'Couldn’t load signed-in visitors: ' + esc(e.message);
+  }
+}
+function renderPeople(R){
+  const el = $('people');
+  if (!members) { el.innerHTML = `<p class="muted">${membersErr || 'Loading…'}</p>`; return; }
+  if (!members.length) { el.innerHTML = '<p class="muted">Nobody has signed in yet.</p>'; return; }
+  const when = d => d ? d.toLocaleDateString([], { month: 'short', day: 'numeric', year: d.getFullYear() === new Date().getFullYear() ? undefined : 'numeric' }) + ' ' + d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '—';
+  const list = members.map(m => {
+    const mine = R.filter(r => m.vids.has(r.vid));
+    const bySite = new Map();
+    for (const r of mine) bySite.set(r.site, (bySite.get(r.site) || 0) + r.dur + 1);
+    const top = [...bySite.entries()].sort((a, b) => b[1] - a[1])[0];
+    return { m, pv: mine.length, dur: mine.reduce((a, r) => a + r.dur, 0), top: top ? siteLabel(top[0]) : '—' };
+  });
+  el.innerHTML = '<table><tr><th>Person</th><th class="num">Pageviews</th><th class="num">Engaged time</th><th>Most time on</th><th>Last signed-in visit</th><th>First signed in</th></tr>' +
+    list.map(({ m, pv, dur, top }) => `<tr>
+      <td><div class="who">${m.photo ? `<img src="${esc(m.photo)}" alt="" referrerpolicy="no-referrer">` : `<span class="ph">${esc((m.name || m.email || '?').charAt(0).toUpperCase())}</span>`}
+        <div>${esc(m.name || '(no name)')}<small>${esc(m.email)}</small></div></div></td>
+      <td class="num">${fmtN(pv)}</td><td class="num">${fmtDur(dur)}</td><td>${esc(top)}</td>
+      <td>${when(m.last)}</td><td>${when(m.first)}</td></tr>`).join('') + '</table>';
 }
 
 // ---- Google Search Console ----
@@ -461,6 +513,7 @@ function render(){
   const days = +$('range').value;
   const R = site === 'all' ? rows : rows.filter(r => r.site === site);
   const S = sessionsOf(R), V = visitorsOf(R);
+  renderPeople(R);
   const today = dayStart(new Date());
 
   // KPIs

@@ -2139,7 +2139,7 @@ const Net = {
     if (!cfg) throw new Error('No Firebase config found. Deploy with Firebase Hosting, or paste your web-app config into FIREBASE_CONFIG in index.html.');
     if (!cfg.databaseURL) throw new Error('This Firebase project has no Realtime Database yet. Create one (Build → Realtime Database), then reload.');
     if (!firebase.apps.length) firebase.initializeApp(cfg);
-    try { await firebase.auth().signInAnonymously(); }
+    try { await (a=>new Promise(r=>{const s=a.onAuthStateChanged(()=>{s();r()})}).then(()=>a.currentUser||a.signInAnonymously()))(firebase.auth()); }
     catch (err) {
       const c = err && err.code || '';
       throw new Error(/operation-not-allowed|admin-restricted|configuration-not-found/.test(c)

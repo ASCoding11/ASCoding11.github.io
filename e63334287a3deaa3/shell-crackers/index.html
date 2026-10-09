@@ -1515,7 +1515,7 @@ const Net={
       catch(e){throw new Error('Could not reach the game server. Check your connection, or play Practice.')}
     }
     if(!firebase.apps.length)firebase.initializeApp(FIREBASE_CONFIG);
-    try{await withTimeout(firebase.auth().signInAnonymously(),12000,'Signing in to the game server timed out. Check your connection, or play Practice.')}
+    try{await withTimeout((a=>new Promise(r=>{const s=a.onAuthStateChanged(()=>{s();r()})}).then(()=>a.currentUser||a.signInAnonymously()))(firebase.auth()),12000,'Signing in to the game server timed out. Check your connection, or play Practice.')}
     catch(err){const c=err&&err.code||'';if(/timed out/.test(err&&err.message||''))throw err;throw new Error(/operation-not-allowed|admin-restricted|configuration-not-found/.test(c)?'Anonymous sign-in is off in the Firebase console (Authentication → Sign-in method → Anonymous).':'Sign-in failed: '+(err.message||c))}
     this.uid=firebase.auth().currentUser.uid;this.db=firebase.database();
     await new Promise(res=>{setTimeout(res,3000);this.db.ref('.info/serverTimeOffset').once('value',s=>{this.offset=s.val()||0;res()})});
