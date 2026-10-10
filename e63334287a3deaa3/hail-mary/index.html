@@ -412,7 +412,10 @@ const COVS=[
   {n:'Prevent',a:{7:'rush',8:'rush',9:['zone',11,-7],10:['zone',11,7],11:['zone',19,-15],12:['zone',19,15],13:['zone',25,0]}}
 ];
 const ROLE=['QB','RB','WR','WR','TE','OL','OL','DL','DL','LB','LB','CB','CB','S'];
-const SPD={QB:7.1,RB:8.3,WR:8.6,TE:7.6,OL:5.7,DL:6.3,LB:7.6,CB:8.5,S:8.2};
+const SPD={QB:7.1,RB:8.3,WR:8.6,TE:7.6,OL:5.7,DL:6.3,LB:7.9,CB:8.5,S:8.2};
+// Defenders run this much faster than their base speed, so each one is a step quicker than the player he covers.
+const DEF_SPD=1.06;
+const spdOf=p=>SPD[p.role]*(p.o?1:DEF_SPD);
 const NUM=[7,28,81,11,88,72,64,94,97,54,52,24,21,33];
 const FORM_O=[[-4.5,0],[-5,1.8],[-0.7,-15],[-0.7,15],[-0.8,4.2],[-0.7,-1.4],[-0.7,1.4]];
 const FORM_D=[[0.9,-1.6],[0.9,1.6],[5,-1],[5,4.5],[6,-15],[6,15],[13,0]];
@@ -776,7 +779,7 @@ function simStep(dt){
     else if(!p.o&&p.i===pl.ctl&&(!car||car.o))it=di;
     if(p.fall>0){accel(p,0,0,dt,40);continue}
     if(p.diveT>0){p.diveT-=dt;if(p.diveT<=0&&car===p){p.fall=1;endPlay('tackle',p)}continue}
-    const pr=par(p.o?pl.O:pl.D);let spd=SPD[p.role]*pr.spd;
+    const pr=par(p.o?pl.O:pl.D);let spd=spdOf(p)*pr.spd;
     if(p.eng>=0)spd*=p.manual?.35:.16;
     if(p.stun>0)spd*=.3;
     if(car===p){
@@ -1588,7 +1591,7 @@ function followerControl(dt){
   if(mv||to){if(!myDef){myDef=makeP(fin.d);myDef.x=src.x;myDef.y=src.y;myDef.face=src.face;myDef.engCD=0}myDef.idleAt=0}
   else if(myDef&&myDef.lungeT<=0&&myDef.fall<=0){if(!myDef.idleAt)myDef.idleAt=now;if(now-myDef.idleAt>350)myDef=null}
   if(!myDef){fin.m=0;if(act)fin.lg++;return}
-  const d=myDef;let spd=SPD[d.role];
+  const d=myDef;let spd=spdOf(d);
   d.engT=Math.max(0,d.engT-dt);d.engCD=Math.max(0,d.engCD-dt);d.lungeT=Math.max(0,d.lungeT-dt);d.fall=Math.max(0,d.fall-dt);
   for(let i=0;i<7;i++){if(i===b.who&&b.st==='held')continue;const o=P[i];if(d.engCD<=0&&hyp(o.x-d.x,o.y-d.y)<.85){d.engT=.45;d.engCD=1.2}}
   if(d.engT>0)spd*=.35;
