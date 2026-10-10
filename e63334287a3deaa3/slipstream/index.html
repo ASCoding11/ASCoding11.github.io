@@ -1142,7 +1142,9 @@ const Net={
     return m;
   },
   stateOf(){
-    const o={n:myName||'Driver',j:this.j,ts:Math.round(this.now()),sd:mySeat,sdt:mySeatT,rd:myReady?1:0};
+    const col=mySeat>=0&&mySeat<SEATS?TEAMS[mySeat>>1].c:'#f3f5f9';
+    // n, c, x, z, h and ts are always sent (zeros until there's a car): the shared database rules expect that shape
+    const o={n:myName||'Driver',c:col,x:0,z:0,h:0,j:this.j,ts:Math.round(this.now()),sd:mySeat,sdt:mySeatT,rd:myReady?1:0};
     if(race&&race.online&&!race.attract){
       o.rid=race.id;
       const c=race.me;
@@ -1170,17 +1172,17 @@ const Net={
     this.j=this.now();myReady=false;mySeatT=this.now();
     mode='online';
     try{await withTimeout(this.refs.me.set(this.stateOf()),10000,NET_BLOCKED)}
-    catch(e){this.refs=null;mode='attract';throw new Error(e.message===NET_BLOCKED?NET_BLOCKED:'The database rules blocked the game. They need to allow rooms/ss-… the same way they allow Rumble Karts rooms.')}
+    catch(e){this.refs=null;mode='attract';console.error('Slipstream join write rejected',e);throw new Error(e.message===NET_BLOCKED?NET_BLOCKED:'The database rules blocked the game ('+(e.code||e.message||'permission denied')+'). They need to allow rooms/ss-… the same way they allow Rumble Karts rooms.')}
     this.refs.me.onDisconnect().remove();
     // an empty room starts fresh; otherwise make sure there is a round to join
     const now=this.now(),pub=this.isPublic;
-    const fresh=cur=>({id:(cur&&+cur.id||0)+1,ph:'lobby',tr:cur&&cur.tr!=null?cur.tr|0:(pub?Math.floor(Math.random()*TRACKS.length):prefs.track),laps:cur&&cur.laps?cur.laps|0:(pub?3:prefs.laps),dl:pub?now+PUBLIC_LOBBY_MS:0});
+    const fresh=cur=>({id:(cur&&+cur.id||0)+1,ends:now,ph:'lobby',tr:cur&&cur.tr!=null?cur.tr|0:(pub?Math.floor(Math.random()*TRACKS.length):prefs.track),laps:cur&&cur.laps?cur.laps|0:(pub?3:prefs.laps),dl:pub?now+PUBLIC_LOBBY_MS:0});
     await this.refs.round.transaction(cur=>{
       if(info.n===0)return fresh(cur);
       if(!cur||typeof cur.id!=='number')return fresh(cur);
       if(cur.ph==='race'&&now-(+cur.go||0)>30*60000)return fresh(cur);
       return;
-    }).catch(()=>{});
+    }).catch(e=>{this.roundErr=e&&(e.code||e.message)||'blocked';console.error('Slipstream round write rejected',e)});
     const r=this.refs;
     const up=s=>{if(s.key===this.uid)return;onPlayerNode(s.key,s.val())};
     r.players.on('child_added',up);r.players.on('child_changed',up);
@@ -1215,7 +1217,7 @@ const Net={
   tx(fn){
     if(!this.refs||this.txBusy)return;
     this.txBusy=true;
-    this.refs.round.transaction(fn).catch(()=>{}).finally(()=>{this.txBusy=false});
+    this.refs.round.transaction(fn).then(()=>{this.roundErr=''}).catch(e=>{this.roundErr=e&&(e.code||e.message)||'blocked';console.error('Slipstream round write rejected',e)}).finally(()=>{this.txBusy=false});
   },
   leave(){
     clearInterval(this.pubTimer);
@@ -1306,7 +1308,7 @@ function hostDuties(){
   }else if(r.ph==='race'){
     if(race&&race.id===r.id&&!race.attract){
       adoptOrphans();
-      if(race.ended)Net.tx(cur=>cur&&cur.id===r.id&&cur.ph==='race'?Object.assign({},cur,{ph:'done',end:now}):undefined);
+      if(race.ended)Net.tx(cur=>cur&&cur.id===r.id&&cur.ph==='race'?Object.assign({},cur,{ph:'done',end:now,ends:now}):undefined);
     }
     if(now-(+r.go||0)>25*60000)newLobbyTx(r);
   }else if(r.ph==='done'){
@@ -1317,7 +1319,7 @@ function newLobbyTx(r){
   const now=Net.now(),pub=Net.isPublic;
   Net.tx(cur=>{
     if(!cur||cur.id!==r.id)return;
-    return {id:cur.id+1,ph:'lobby',tr:pub?((cur.tr|0)+1)%TRACKS.length:cur.tr|0,laps:cur.laps|0||3,dl:pub?now+PUBLIC_LOBBY_MS:0};
+    return {id:cur.id+1,ends:now,ph:'lobby',tr:pub?((cur.tr|0)+1)%TRACKS.length:cur.tr|0,laps:cur.laps|0||3,dl:pub?now+PUBLIC_LOBBY_MS:0};
   });
 }
 function startRaceTx(r){
@@ -1331,7 +1333,7 @@ function startRaceTx(r){
   const go=Net.now()+START_DELAY;
   Net.tx(cur=>{
     if(!cur||cur.id!==r.id||cur.ph!=='lobby')return;
-    return {id:cur.id,ph:'race',tr:cur.tr|0,laps:cur.laps|0||3,go,gr:grid.join(','),as:[...as].map(([s,u])=>s+':'+u).join(';'),seed};
+    return {id:cur.id,ends:go,ph:'race',tr:cur.tr|0,laps:cur.laps|0||3,go,gr:grid.join(','),as:[...as].map(([s,u])=>s+':'+u).join(';'),seed};
   });
 }
 function onRound(r){
@@ -1803,6 +1805,7 @@ function renderLobby(){
   // status line
   let st='';
   if(!online)st='Pick any seat, then start. The other 21 cars are bots.';
+  else if(Net.roundErr)st='The database rules blocked the race setup ('+esc(Net.roundErr)+'). They need to allow rooms/ss-… the same way they allow Rumble Karts rooms.';
   else if(!r)st='Connecting…';
   else if(r.ph==='lobby'){
     const ready=hs.filter(h=>h.rd).length;
