@@ -109,6 +109,17 @@ body.touch #board li:nth-child(n+5):not(.me){display:none}
   #itemKey{display:none}
 }
 
+/* N64 look: a chunkier, flatter HUD to sit over the 240-line picture */
+body.retro #hud{font-style:italic}
+body.retro #board li{border-radius:4px;background:rgba(10,12,40,.72);border:2px solid rgba(0,0,0,.55);box-shadow:2px 2px 0 rgba(0,0,0,.45);font-weight:700}
+body.retro #board li.me{background:#ffd23a}
+body.retro .slot{border-radius:10px;border-width:4px;box-shadow:3px 3px 0 rgba(0,0,0,.5)}
+body.retro #lap,body.retro #time{-webkit-text-stroke:2px #14162e;paint-order:stroke fill;text-shadow:3px 3px 0 rgba(0,0,0,.5);color:#fff}
+body.retro #lap b{font-size:46px;background:linear-gradient(#fff6b0,#ffc21a 60%,#ff8a00);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-stroke:3px #14162e}
+body.retro #placeN,body.retro #placeS,body.retro #count,body.retro #banner{font-style:italic;text-shadow:5px 5px 0 rgba(0,0,0,.45)}
+body.retro #mini{border-radius:8px;background:rgba(10,12,40,.45)}
+body.retro #toasts div{border-radius:4px;border:2px solid rgba(0,0,0,.5);box-shadow:2px 2px 0 rgba(0,0,0,.45)}
+
 /* ---------- Menus ---------- */
 .screen{position:absolute;inset:0;display:flex;align-items:center;justify-content:flex-start;padding:24px clamp(16px,5vw,64px);overflow:auto;background:linear-gradient(90deg,rgba(11,13,30,.9) 0%,rgba(11,13,30,.5) 50%,rgba(11,13,30,0) 76%)}
 .card{width:min(460px,100%);background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:22px 22px 18px;box-shadow:0 30px 80px rgba(0,0,0,.45);margin:auto 0}
@@ -252,6 +263,8 @@ hr.sep{border:0;border-top:1px solid var(--line);margin:16px 0 4px}
         <div><label class="f">Track (single race)</label><div class="seg" id="trackSeg" role="radiogroup" aria-label="Track"></div></div>
         <div><label class="f">Engine</label><div class="seg" id="ccSeg" role="radiogroup" aria-label="Engine class"><button type="button" data-v="50">50cc</button><button type="button" data-v="100">100cc</button><button type="button" data-v="150">150cc</button></div></div>
       </div>
+      <label class="f">Graphics</label>
+      <div class="seg" id="gfxSeg" role="radiogroup" aria-label="Graphics"><button type="button" data-v="n64">N64 (240p, sprites)</button><button type="button" data-v="hd">Modern</button></div>
       <div class="row"><button class="cta" id="gp" type="button">🏆 Grand Prix</button><button class="ghost" id="single" type="button">Single race</button></div>
       <hr class="sep">
       <label class="f">Online</label>
@@ -346,6 +359,9 @@ const store={
   get(k,d){try{const v=localStorage.getItem('kw:'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},
   set(k,v){try{localStorage.setItem('kw:'+k,JSON.stringify(v))}catch(e){}}
 };
+// Graphics: 'n64' (the default) renders at 240 lines with 16-bit colour, vertex lighting, chunky textures,
+// fog and pre-rendered kart sprites, like a 1996 console racer. 'hd' is the clean modern look.
+let retro=store.get('gfx','n64')!=='hd';
 function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 function strHash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0}
 function cleanName(s){return String(s||'').replace(/[\u0000-\u001f<>]/g,'').trim().slice(0,16)}
@@ -1060,20 +1076,47 @@ const renderer=new THREE.WebGLRenderer({canvas:cv,antialias:!touchUI,powerPrefer
 renderer.setPixelRatio(Math.min(devicePixelRatio||1,touchUI?1.5:1.75));
 // colours are authored as seen on screen, so no colour-space conversion or tone mapping: keeps the cartoon palette bright
 const scene=new THREE.Scene();
-const camera=new THREE.PerspectiveCamera(70,1,.2,9000);
+const camera=new THREE.PerspectiveCamera(70,1,.3,7000);
 const hemi=new THREE.HemisphereLight(0xffffff,0x445533,.85);
 const sun=new THREE.DirectionalLight(0xffffff,1.0);
 scene.add(hemi,sun,sun.target);
 let W=1,H=1,shake=0;
+// N64 output: draw the scene at 240 lines, then stretch it to the screen with bilinear blur, 16-bit colour
+// (5 bits a channel) with an ordered dither, and a slight horizontal smear like the console's video output.
+const LOW_H=240;
+const post={rt:new THREE.WebGLRenderTarget(4,4,{minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter,depthBuffer:true,stencilBuffer:true}), // stencil gives a 24-bit depth buffer: 16 bits makes the road flicker into the grass
+ scene:new THREE.Scene(),cam:new THREE.OrthographicCamera(-1,1,1,-1,0,1)};
+post.mat=new THREE.ShaderMaterial({uniforms:{tex:{value:post.rt.texture},res:{value:new THREE.Vector2(4,4)}},depthTest:false,depthWrite:false,
+  vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}',
+  fragmentShader:[
+    'uniform sampler2D tex;uniform vec2 res;varying vec2 vUv;',
+    'float b2(vec2 p){return 2.*p.x+3.*p.y-4.*p.x*p.y;}',
+    'float bayer(vec2 p){vec2 a=mod(p,2.),b=mod(floor(p/2.),2.);return (4.*b2(a)+b2(b))/16.;}',
+    'void main(){',
+    ' vec2 o=vec2(.5/res.x,0.);',
+    ' vec3 c=texture2D(tex,vUv).rgb*.5+texture2D(tex,vUv+o).rgb*.25+texture2D(tex,vUv-o).rgb*.25;',
+    ' float d=bayer(floor(vUv*res))-.47;',
+    ' c=floor(c*31.+d+.5)/31.;',
+    ' gl_FragColor=vec4(clamp(c,0.,1.),1.);',
+    '}'].join('\n')});
+post.scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2),post.mat));
+function sizePost(){const h=LOW_H,w=Math.max(4,Math.round(h*W/H));post.rt.setSize(w,h);post.mat.uniforms.res.value.set(w,h)}
+function renderFrame(){
+  if(!retro){renderer.render(scene,camera);return}
+  renderer.setRenderTarget(post.rt);renderer.render(scene,camera);renderer.setRenderTarget(null);renderer.render(post.scene,post.cam);
+}
 function resize(){
   const r=document.body.getBoundingClientRect();W=Math.max(1,r.width|0);H=Math.max(1,r.height|0);
-  renderer.setSize(W,H,false);camera.aspect=W/H;camera.updateProjectionMatrix();
+  renderer.setSize(W,H,false);camera.aspect=W/H;camera.updateProjectionMatrix();sizePost();
   const d=Math.min(devicePixelRatio||1,2);ov.width=W*d;ov.height=H*d;ox.setTransform(d,0,0,d,0,0);
 }
 addEventListener('resize',resize);
 
-function canvasTex(w,h,draw,rep){
-  const c=document.createElement('canvas');c.width=w;c.height=h;draw(c.getContext('2d'),w,h);
+function canvasTex(w,h,draw,rep,div){
+  let c=document.createElement('canvas');c.width=w;c.height=h;draw(c.getContext('2d'),w,h);
+  // N64 look: textures were tiny and smeared by bilinear filtering, so shrink big ones to a quarter
+  const k=div||(retro&&w>=128&&h>=16?4:1);
+  if(k>1){const d=document.createElement('canvas');d.width=Math.max(8,w/k|0);d.height=Math.max(8,h/k|0);const g2=d.getContext('2d');g2.imageSmoothingQuality='high';g2.drawImage(c,0,0,d.width,d.height);c=d}
   const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;
   t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
   if(rep)t.repeat.set(rep[0],rep[1]);return t;
@@ -1089,7 +1132,8 @@ const STAR_TEX=canvasTex(64,64,(g)=>{g.translate(32,32);g.fillStyle='#ffe14a';g.
 // a 3-step light ramp gives the karts and racers a cartoon look
 const TOON=(()=>{const d=new Uint8Array([90,90,90,255,170,170,170,255,255,255,255,255]);const t=new THREE.DataTexture(d,3,1,THREE.RGBAFormat);t.minFilter=t.magFilter=THREE.NearestFilter;t.generateMipmaps=false;t.needsUpdate=true;return t})();
 const toonMats={};
-function toon(col,emi){const k=col+'|'+(emi||'');if(!toonMats[k]){const m=new THREE.MeshToonMaterial({color:col,gradientMap:TOON});if(emi){m.emissive=new THREE.Color(emi)}m.shared=true;toonMats[k]=m}return toonMats[k]}
+const instMat=()=>retro?new THREE.MeshLambertMaterial({color:0xffffff}):new THREE.MeshToonMaterial({color:0xffffff,gradientMap:TOON});
+function toon(col,emi){const k=(retro?'L':'T')+col+'|'+(emi||'');if(!toonMats[k]){const m=retro?new THREE.MeshLambertMaterial({color:col}):new THREE.MeshToonMaterial({color:col,gradientMap:TOON});if(emi){m.emissive=new THREE.Color(emi)}m.shared=true;toonMats[k]=m}return toonMats[k]}
 function stripeTex(a,b,n){return canvasTex(8,64,(g)=>{for(let i=0;i<n;i++){g.fillStyle=i%2?b:a;g.fillRect(0,i*64/n,8,64/n)}})}
 const TEX={
   checker:canvasTex(64,16,(g)=>{for(let x=0;x<16;x++)for(let y=0;y<4;y++){g.fillStyle=(x+y)%2?'#16161c':'#f6f6f6';g.fillRect(x*4,y*4,4,4)}}),
@@ -1166,7 +1210,7 @@ function buildWorld(ti){
   const [mnx,mxx,mnz,mxz]=T.box,cx=(mnx+mxx)/2,cz=(mnz+mxz)/2,span=Math.max(mxx-mnx,mxz-mnz);
   world.center=[cx,cz];world.span=span;
   // sky, fog, light
-  scene.fog=new THREE.Fog(new THREE.Color(D.fog),D.theme==='nebula'?600:260,D.theme==='nebula'?3200:1900);
+  scene.fog=retro?new THREE.Fog(new THREE.Color(D.fog),D.theme==='nebula'?320:110,D.theme==='nebula'?1700:640):new THREE.Fog(new THREE.Color(D.fog),D.theme==='nebula'?600:260,D.theme==='nebula'?3200:1900);
   scene.background=new THREE.Color(D.sky[1]);
   const skyG=new THREE.SphereGeometry(5000,32,16),top=new THREE.Color(D.sky[0]),hor=new THREE.Color(D.sky[1]),cols=[];
   const sp=skyG.attributes.position;for(let i=0;i<sp.count;i++){const y=sp.getY(i)/5000,c=hor.clone().lerp(top,clamp(y*2.4,0,1));cols.push(c.r,c.g,c.b)}
@@ -1184,7 +1228,7 @@ function buildWorld(ti){
     const gt=canvasTex(256,256,(gg,w,h)=>{noise(gg,w,h,D.ground,D.theme==='ember'?.1:.06,7000);if(D.theme==='meadow'){gg.fillStyle='rgba(255,255,255,.04)';for(let i=0;i<4;i++)gg.fillRect(0,i*64,w,32)}if(D.theme==='ember'){gg.strokeStyle='rgba(255,90,20,.18)';gg.lineWidth=2;for(let i=0;i<14;i++){gg.beginPath();let x=Math.random()*w,y=Math.random()*h;gg.moveTo(x,y);for(let k=0;k<5;k++){x+=rand(-30,30);y+=rand(-30,30);gg.lineTo(x,y)}gg.stroke()}}});
     gt.repeat.set(gw/40,gw/40);
     const ground=new THREE.Mesh(D.theme==='cove'?new THREE.CircleGeometry(span/2+380,64):new THREE.PlaneGeometry(gw,gw),new THREE.MeshLambertMaterial({map:gt}));
-    ground.rotation.x=-Math.PI/2;ground.position.set(cx,-.06,cz);g.add(ground);
+    ground.rotation.x=-Math.PI/2;ground.position.set(cx,-.4,cz);g.add(ground); // well below the track, so low-precision depth never lets it show through
     if(D.theme==='cove'){
       const sea=new THREE.Mesh(new THREE.PlaneGeometry(gw*2,gw*2),new THREE.MeshLambertMaterial({color:0x1fa3d6}));sea.rotation.x=-Math.PI/2;sea.position.set(cx,-.5,cz);g.add(sea);
       const shore=new THREE.Mesh(new THREE.RingGeometry(span/2+370,span/2+420,64),new THREE.MeshBasicMaterial({color:0xbff3ff,transparent:true,opacity:.7}));shore.rotation.x=-Math.PI/2;shore.position.set(cx,-.3,cz);g.add(shore);world.anim.push(t=>{shore.material.opacity=.45+.3*Math.sin(t*1.3)});
@@ -1234,7 +1278,7 @@ function buildWorld(ti){
     const lt=canvasTex(128,128,(gg,w,h)=>{const gr=gg.createLinearGradient(0,0,w,h);gr.addColorStop(0,'#ff4a12');gr.addColorStop(.5,'#ffb21a');gr.addColorStop(1,'#ff3a0a');gg.fillStyle=gr;gg.fillRect(0,0,w,h);gg.strokeStyle='rgba(120,20,0,.55)';gg.lineWidth=5;for(let i=0;i<10;i++){gg.beginPath();gg.moveTo(Math.random()*w,Math.random()*h);gg.bezierCurveTo(Math.random()*w,Math.random()*h,Math.random()*w,Math.random()*h,Math.random()*w,Math.random()*h);gg.stroke()}});
     const lm=new THREE.MeshBasicMaterial({map:lt});
     for(const sg of [-1,1])g.add(new THREE.Mesh(ribbon(T,sg>0?LAVA_EDGE:-70,sg>0?70:-LAVA_EDGE,-.25,14,i=>!T.WL[i]),lm));
-    g.add(new THREE.Mesh(ribbon(T,-WALL-.2,WALL+.2,-.6,10,inGap),lm));
+    g.add(new THREE.Mesh(ribbon(T,-WALL-.2,WALL+.2,-.3,10,inGap),lm));
     world.anim.push(t=>{lt.offset.set(t*.02,t*.05)});
     // pools of lava out in the rock
     for(let k=0;k<26;k++){const x=lerp(mnx-300,mxx+300,rng()),z=lerp(mnz-300,mxz+300,rng());if(distTrack(T,x,z)<WALL+40)continue;const r=12+rng()*40;const pool=new THREE.Mesh(new THREE.CircleGeometry(r,20),lm);pool.rotation.x=-Math.PI/2;pool.position.set(x,.02,z);pool.scale.set(1,.6+rng()*.6,1);g.add(pool)}
@@ -1291,7 +1335,7 @@ function buildWorld(ti){
     const pc=D.theme==='nebula'?new THREE.MeshBasicMaterial({color:0x3df5ff}):toon(D.theme==='ember'?'#3b3236':'#f6f6f6');
     const w2=WALL+(th.wall==='none'?-3:.8);
     for(const s of [-1,1]){const post=new THREE.Mesh(new THREE.CylinderGeometry(.55,.7,8,12),pc);post.position.set(0,4,s*w2);arch.add(post)}
-    const bt=canvasTex(1024,128,(gg,w,h)=>{gg.fillStyle=D.theme==='nebula'?'#1a1240':'#1d1d2e';gg.fillRect(0,0,w,h);for(let x=0;x<w;x+=32){gg.fillStyle=(x/32)%2?'#f6f6f6':'#16161c';gg.fillRect(x,0,32,14);gg.fillStyle=(x/32)%2?'#16161c':'#f6f6f6';gg.fillRect(x,h-14,32,14)}gg.font='700 78px Fredoka, Arial, sans-serif';gg.textAlign='center';gg.textBaseline='middle';const gr=gg.createLinearGradient(0,0,w,0);gr.addColorStop(0,'#ffd23a');gr.addColorStop(1,'#ff4f8b');gg.fillStyle=gr;gg.fillText('KARTWHEEL',w/2,h/2+4)});
+    const bt=canvasTex(1024,128,(gg,w,h)=>{gg.fillStyle=D.theme==='nebula'?'#1a1240':'#1d1d2e';gg.fillRect(0,0,w,h);for(let x=0;x<w;x+=32){gg.fillStyle=(x/32)%2?'#f6f6f6':'#16161c';gg.fillRect(x,0,32,14);gg.fillStyle=(x/32)%2?'#16161c':'#f6f6f6';gg.fillRect(x,h-14,32,14)}gg.font='700 78px Fredoka, Arial, sans-serif';gg.textAlign='center';gg.textBaseline='middle';const gr=gg.createLinearGradient(0,0,w,0);gr.addColorStop(0,'#ffd23a');gr.addColorStop(1,'#ff4f8b');gg.fillStyle=gr;gg.fillText('KARTWHEEL',w/2,h/2+4)},null,retro?2:1);
     bt.wrapS=THREE.ClampToEdgeWrapping;
     const bm=new THREE.MeshLambertMaterial({map:bt});const ban=new THREE.Mesh(new THREE.BoxGeometry(1,2.6,w2*2+1.2),[bm,bm,pc,pc,pc,pc]);ban.position.set(0,8,0);arch.add(ban);
     g.add(arch);
@@ -1329,12 +1373,12 @@ function buildScenery(g,T,D,rng,box,cx,cz,span){
   }
   if(D.theme==='meadow'){
     // round trees, hedges, flowers, windmills, soft hills, clouds
-    const n=420,trunk=new THREE.InstancedMesh(new THREE.CylinderGeometry(.4,.55,3,6),toon('#7a4b2a'),n),crown=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(3,1),new THREE.MeshToonMaterial({color:0xffffff,gradientMap:TOON}),n);
+    const n=420,trunk=new THREE.InstancedMesh(new THREE.CylinderGeometry(.4,.55,3,6),toon('#7a4b2a'),n),crown=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(3,retro?0:1),instMat(),n);
     const c=scatter(n,WALL+6,(x,z,k)=>{const s=.7+rng()*.8;mm.compose(ps.set(x,1.5*s,z),q.identity(),sc.set(s,s,s));trunk.setMatrixAt(k,mm);mm.compose(ps.set(x,(3+2.4)*s,z),q.setFromAxisAngle(Y,rng()*6),sc.set(s,s*(.85+rng()*.3),s));crown.setMatrixAt(k,mm);col.setHSL(.26+rng()*.08,.55,.36+rng()*.12);crown.setColorAt(k,col)});
     trunk.count=crown.count=c;g.add(trunk,crown);
     const fl=new THREE.InstancedMesh(new THREE.SphereGeometry(.35,6,4),new THREE.MeshLambertMaterial({color:0xffffff}),1400);
     const fc=scatter(1400,WALL+1.5,(x,z,k)=>{mm.compose(ps.set(x,.25,z),q.identity(),sc.set(1,.6,1));fl.setMatrixAt(k,mm);col.set(['#ffffff','#ffe14a','#ff8ab8','#b9a7ff','#ff6b5e'][(rng()*5)|0]);fl.setColorAt(k,col)});fl.count=fc;g.add(fl);
-    const hills=new THREE.InstancedMesh(new THREE.SphereGeometry(1,20,12),new THREE.MeshLambertMaterial({color:0xffffff}),40);
+    const hills=new THREE.InstancedMesh(new THREE.SphereGeometry(1,retro?10:20,retro?6:12),new THREE.MeshLambertMaterial({color:0xffffff,fog:!retro}),40);
     for(let i=0;i<40;i++){const a=i/40*TAU,r=span/2+600+rng()*500,s=180+rng()*260;mm.compose(ps.set(cx+Math.cos(a)*r,-s*.55,cz+Math.sin(a)*r),q.identity(),sc.set(s,s*(.55+rng()*.25),s));hills.setMatrixAt(i,mm);col.setHSL(.27+rng()*.06,.45,.32+rng()*.1);hills.setColorAt(i,col)}
     g.add(hills);
     for(let k=0;k<4;k++){
@@ -1371,12 +1415,12 @@ function buildScenery(g,T,D,rng,box,cx,cz,span){
   }else if(D.theme==='ember'){
     // the volcano, jagged rocks, drifting embers
     const vx=cx+span*.15,vz=cz-span/2-520;
-    const vol=new THREE.Mesh(new THREE.CylinderGeometry(70,420,360,24,1,true),toon('#2a1f22'));vol.position.set(vx,180,vz);g.add(vol);
-    const crater=new THREE.Mesh(new THREE.CircleGeometry(70,24),new THREE.MeshBasicMaterial({color:0xff6a1a}));crater.rotation.x=-Math.PI/2;crater.position.set(vx,359,vz);g.add(crater);
+    const vol=new THREE.Mesh(new THREE.CylinderGeometry(70,420,360,24,1,true),new THREE.MeshLambertMaterial({color:'#2a1f22',fog:!retro}));vol.position.set(vx,180,vz);g.add(vol);
+    const crater=new THREE.Mesh(new THREE.CircleGeometry(70,24),new THREE.MeshBasicMaterial({color:0xff6a1a,fog:!retro}));crater.rotation.x=-Math.PI/2;crater.position.set(vx,359,vz);g.add(crater);
     const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW_TEX,color:0xff5a1a,transparent:true,opacity:.75,depthWrite:false,blending:THREE.AdditiveBlending,fog:false}));glow.scale.set(520,300,1);glow.position.set(vx,390,vz);g.add(glow);
-    for(let k=0;k<4;k++){const flow=new THREE.Mesh(new THREE.PlaneGeometry(16,300),new THREE.MeshBasicMaterial({color:0xff5a12}));const a=-.6+k*.4;flow.position.set(vx+Math.sin(a)*240,180,vz+Math.cos(a)*240);flow.lookAt(vx,180,vz);flow.rotateX(-.95);g.add(flow)}
+    for(let k=0;k<4;k++){const flow=new THREE.Mesh(new THREE.PlaneGeometry(16,300),new THREE.MeshBasicMaterial({color:0xff5a12,fog:!retro}));const a=-.6+k*.4;flow.position.set(vx+Math.sin(a)*240,180,vz+Math.cos(a)*240);flow.lookAt(vx,180,vz);flow.rotateX(-.95);g.add(flow)}
     world.anim.push(t=>{glow.material.opacity=.6+.15*Math.sin(t*2.3)});
-    const rk=new THREE.InstancedMesh(new THREE.ConeGeometry(1,1,5),new THREE.MeshToonMaterial({color:0xffffff,gradientMap:TOON}),260);
+    const rk=new THREE.InstancedMesh(new THREE.ConeGeometry(1,1,5),instMat(),260);
     const rc=scatter(260,WALL+5,(x,z,k)=>{const s=2+rng()*7;mm.compose(ps.set(x,s*.9,z),q.setFromAxisAngle(Y,rng()*TAU),sc.set(s,s*(1.2+rng()*1.8),s));rk.setMatrixAt(k,mm);col.setHSL(.02,.12,.12+rng()*.1);rk.setColorAt(k,col)});rk.count=rc;g.add(rk);
     const em=new THREE.BufferGeometry(),ep=[];for(let i=0;i<900;i++)ep.push(lerp(mnx-200,mxx+200,Math.random()),Math.random()*60,lerp(mnz-200,mxz+200,Math.random()));
     em.setAttribute('position',new THREE.Float32BufferAttribute(ep,3));
@@ -1390,7 +1434,7 @@ function buildScenery(g,T,D,rng,box,cx,cz,span){
     g.add(new THREE.Points(sg,new THREE.PointsMaterial({size:7,vertexColors:true,fog:false,sizeAttenuation:true,depthWrite:false})));
     for(let k=0;k<7;k++){const neb=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW_TEX,color:new THREE.Color().setHSL(.72+k*.06,.8,.5),transparent:true,opacity:.35,depthWrite:false,blending:THREE.AdditiveBlending,fog:false}));const a=k*.9;neb.position.set(cx+Math.cos(a)*2400,300+k*90,cz+Math.sin(a)*2400);neb.scale.set(1600,900,1);g.add(neb)}
     const pl=[['#ff8a5c',160,[1,.6]],['#5ce1ff',90,[-1,.3]],['#c46bff',240,[.2,-1]]];
-    pl.forEach(([c,r,[ax,az]],k)=>{const m=new THREE.Mesh(new THREE.SphereGeometry(r,32,20),new THREE.MeshLambertMaterial({color:c,emissive:new THREE.Color(c).multiplyScalar(.25)}));m.position.set(cx+ax*1500,200+k*160,cz+az*1500);g.add(m);if(k!==1){const ring=new THREE.Mesh(new THREE.RingGeometry(r*1.4,r*2.1,48),new THREE.MeshBasicMaterial({color:0xffe1b0,transparent:true,opacity:.45,side:THREE.DoubleSide}));ring.position.copy(m.position);ring.rotation.set(1.2,.3,0);g.add(ring)}});
+    pl.forEach(([c,r,[ax,az]],k)=>{const m=new THREE.Mesh(new THREE.SphereGeometry(r,retro?14:32,retro?10:20),new THREE.MeshLambertMaterial({color:c,emissive:new THREE.Color(c).multiplyScalar(.25),fog:!retro}));m.position.set(cx+ax*1500,200+k*160,cz+az*1500);g.add(m);if(k!==1){const ring=new THREE.Mesh(new THREE.RingGeometry(r*1.4,r*2.1,48),new THREE.MeshBasicMaterial({color:0xffe1b0,transparent:true,opacity:.45,side:THREE.DoubleSide,fog:!retro}));ring.position.copy(m.position);ring.rotation.set(1.2,.3,0);g.add(ring)}});
     const ast=new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1,0),toon('#5b5470'),160);
     const asts=[];
     for(let i=0;i<160;i++){let x,z,t=0;do{x=lerp(area[0],area[1],rng());z=lerp(area[2],area[3],rng());t++}while(!far(x,z,40)&&t<50);const s=2+rng()*9;asts.push({x,y:-30+rng()*80,z,s,r:rng()*6,v:rng()*.4})}
@@ -1401,7 +1445,7 @@ function buildScenery(g,T,D,rng,box,cx,cz,span){
   }
   // distant mountains all round (not in space or at sea)
   if(D.theme==='meadow'||D.theme==='ember'){
-    const n=60,mt=new THREE.InstancedMesh(new THREE.ConeGeometry(1,1,7),new THREE.MeshLambertMaterial({color:new THREE.Color(D.theme==='ember'?'#3a2226':'#6f8fb0')}),n);
+    const n=60,mt=new THREE.InstancedMesh(new THREE.ConeGeometry(1,1,7),new THREE.MeshLambertMaterial({color:new THREE.Color(D.theme==='ember'?'#3a2226':'#6f8fb0'),fog:!retro}),n);
     const R=span/2+1500;
     for(let i=0;i<n;i++){const a=i/n*TAU+rng()*.05,r=R+rng()*400,s=260+rng()*420;mm.compose(ps.set(cx+Math.cos(a)*r,s*.35,cz+Math.sin(a)*r),q.identity(),sc.set(s,s*(.6+rng()*.6),s));mt.setMatrixAt(i,mm)}
     g.add(mt);
@@ -1465,20 +1509,59 @@ function makeHead(ch){
   else if(ch.k==='chick'){C(.11,.3,c2,.48,-.06,0,0,-Math.PI/2);eyes(.3,.1,.15,.085);for(let k=-1;k<=1;k++)C(.05,.22,c,0,.46,k*.07,0,k*.3)}
   return h;
 }
-function makeKartMesh(c){
-  const ch=c.ch,g=new THREE.Group(),body=new THREE.Group();g.add(body);
-  body.add(new THREE.Mesh(KG.body,toon(ch.kart)),new THREE.Mesh(KG.trim,toon(ch.trim)),new THREE.Mesh(KG.dark,KM.dark),new THREE.Mesh(KG.metal,KM.metal));
-  const sw=new THREE.Mesh(KG.sw,KM.dark);sw.position.set(.18,1.02,0);body.add(sw);
-  // the racer
-  const rider=new THREE.Group();rider.position.set(-.3,0,0);body.add(rider);
+// The kart and its racer as a 3D model (used directly in the modern look, or baked into sprites).
+function kartModel(ch){
+  const body=new THREE.Group(),parts=[];
+  const add=o=>{body.add(o);parts.push(o);return o};
+  add(new THREE.Mesh(KG.body,toon(ch.kart)));add(new THREE.Mesh(KG.trim,toon(ch.trim)));add(new THREE.Mesh(KG.dark,KM.dark));add(new THREE.Mesh(KG.metal,KM.metal));
+  const sw=add(new THREE.Mesh(KG.sw,KM.dark));sw.position.set(.18,1.02,0);
+  const rider=add(new THREE.Group());rider.position.set(-.3,0,0);
   const torso=new THREE.Mesh(new THREE.SphereGeometry(.42,14,10),toon(ch.k==='robot'?'#8792a3':ch.c));torso.scale.set(.95,1.1,1);torso.position.set(0,.98,0);rider.add(torso);
   for(const s of [-1,1]){const arm=new THREE.Mesh(new THREE.CylinderGeometry(.09,.09,.62,8),toon(ch.c));arm.position.set(.25,1.05,s*.28);arm.rotation.set(s*.25,0,-1.25);rider.add(arm)}
   const head=makeHead(ch);head.position.set(.02,1.7,0);rider.add(head);
   const wheels=[],pivots=[];
   for(const [x,z,front] of [[1.05,.82,1],[1.05,-.82,1],[-.95,.86,0],[-.95,-.86,0]]){
-    const piv=new THREE.Group();piv.position.set(x,front?.34:.42,z);
+    const piv=add(new THREE.Group());piv.position.set(x,front?.34:.42,z);
     const w=new THREE.Group();w.add(new THREE.Mesh(front?KG.wheelF:KG.wheelR,KM.tyre),new THREE.Mesh(front?KG.hubF:KG.hubR,toon(ch.trim)));
-    piv.add(w);body.add(piv);wheels.push(w);if(front)pivots.push(piv);
+    piv.add(w);wheels.push(w);if(front)pivots.push(piv);
+  }
+  return {body,parts,wheels,pivots,rider,head};
+}
+// N64-style sprites: each racer pre-rendered from 16 directions with the wheels turned left, straight and right,
+// the way 1990s kart racers drew their drivers. Baked once per racer into one texture.
+const SPR={az:16,sv:3,px:96,size:3.8,atlas:{}};
+function bakeSprites(seat){
+  if(SPR.atlas[seat])return SPR.atlas[seat];
+  const {az,sv,px}=SPR,ch=CHARS[seat],sc=new THREE.Scene(),mdl=kartModel(ch);sc.add(mdl.body);
+  sc.add(new THREE.HemisphereLight(0xffffff,0x707080,.72));const dl=new THREE.DirectionalLight(0xffffff,.7);sc.add(dl,dl.target);
+  const h=SPR.size/2,cam=new THREE.OrthographicCamera(-h,h,h,-h,.1,60);
+  const rt=new THREE.WebGLRenderTarget(px,px);
+  const atlas=document.createElement('canvas');atlas.width=px*az;atlas.height=px*sv;const g=atlas.getContext('2d');
+  const buf=new Uint8Array(px*px*4),img=g.createImageData(px,px);
+  const prevT=renderer.getRenderTarget(),prevC=renderer.getClearColor(new THREE.Color()),prevA=renderer.getClearAlpha();
+  renderer.setClearColor(0x000000,0);
+  for(let v=0;v<sv;v++){
+    const st=v-1;for(const p of mdl.pivots)p.rotation.y=-st*.42;mdl.rider.rotation.x=st*.14;mdl.head.rotation.y=-st*.25;
+    for(let k=0;k<az;k++){
+      const a=k/az*TAU,el=.22,d=14;
+      cam.position.set(Math.cos(a)*Math.cos(el)*d,.95+Math.sin(el)*d,Math.sin(a)*Math.cos(el)*d);cam.lookAt(0,.95,0);
+      dl.position.set(cam.position.x*.6-Math.sin(a)*4,10,cam.position.z*.6+Math.cos(a)*4);
+      renderer.setRenderTarget(rt);renderer.clear();renderer.render(sc,cam);
+      renderer.readRenderTargetPixels(rt,0,0,px,px,buf);
+      for(let y=0;y<px;y++)img.data.set(buf.subarray((px-1-y)*px*4,(px-y)*px*4),y*px*4);
+      g.putImageData(img,k*px,v*px);
+    }
+  }
+  renderer.setRenderTarget(prevT);renderer.setClearColor(prevC,prevA);rt.dispose();
+  const tex=new THREE.CanvasTexture(atlas);tex.minFilter=THREE.LinearFilter;tex.generateMipmaps=false;tex.repeat.set(1/az,1/sv);tex.shared=true;
+  SPR.atlas[seat]=tex;return tex;
+}
+function makeKartMesh(c){
+  const ch=c.ch,g=new THREE.Group(),mdl=kartModel(ch),body=mdl.body;g.add(body);
+  let spr=null;
+  if(retro){
+    for(const o of mdl.parts)o.visible=false;
+    spr=new THREE.Sprite(new THREE.SpriteMaterial({map:bakeSprites(c.seat),alphaTest:.5}));spr.scale.set(SPR.size,SPR.size,1);spr.position.y=1.12;g.add(spr);
   }
   const flames=[];for(const z of [.3,-.3]){const f=new THREE.Group();f.position.set(-1.55,.62,z);const a=new THREE.Mesh(KG.flame,KM.flameA),b=new THREE.Mesh(KG.flame,KM.flameB);b.scale.set(.6,.55,.55);f.add(a,b);f.visible=false;body.add(f);flames.push(f)}
   const sparks=[];for(const z of [.86,-.86]){const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW_TEX,color:0xffffff,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));sp.position.set(-1.1,.2,z);sp.visible=false;body.add(sp);sparks.push(sp)}
@@ -1486,7 +1569,7 @@ function makeKartMesh(c){
   const bubble=new THREE.Mesh(KG.bubble,KM.bubble);bubble.position.y=.9;bubble.visible=false;g.add(bubble);
   const aura=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW_TEX,color:0xffffff,transparent:true,opacity:.8,depthWrite:false,blending:THREE.AdditiveBlending}));aura.scale.set(5,5,1);aura.position.y=.9;aura.visible=false;g.add(aura);
   const stars=new THREE.Group();stars.position.y=2.6;stars.visible=false;for(let k=0;k<3;k++){const s=new THREE.Sprite(new THREE.SpriteMaterial({map:STAR_TEX,transparent:true,depthWrite:false}));s.scale.set(.55,.55,1);stars.add(s)}g.add(stars);
-  return {g,body,wheels,pivots,flames,sparks,shadow:sh,bubble,aura,stars,head};
+  return {g,body,wheels:mdl.wheels,pivots:mdl.pivots,flames,sparks,shadow:sh,bubble,aura,stars,head:mdl.head,spr};
 }
 let kartMeshes=[];
 function buildKarts(){
@@ -1514,6 +1597,13 @@ function syncKarts(dt,time){
     m.body.rotation.set(c.trick?vis.flip:vis.lean,0,pitch);
     m.body.position.y=(c.revving&&raceT()<0?Math.sin(time*60)*.02:0)+(c.ground?Math.sin(time*25+c.seat)*.012*Math.min(1,Math.abs(c.v)/10):0);
     if(fall&&track.def.theme==='ember')m.body.position.y-=(1.5-c.fallT)*.6;
+    if(m.spr){ // pick the pre-rendered frame for the angle we're seeing this kart from
+      const cp=camera.position,hv=c.h+vis.yaw+vis.spinA,ang=Math.atan2(cp.z-c.z,cp.x-c.x)-hv;
+      const k=((Math.round(ang/TAU*SPR.az)%SPR.az)+SPR.az)%SPR.az,st=c.drift||c.steer,v=st<-.3?0:st>.3?2:1;
+      m.spr.material.map.offset.set(k/SPR.az,1-(v+1)/SPR.sv);
+      m.spr.material.rotation=c.trick||c.tumbleT>0?vis.flip:-vis.lean*.8;
+      m.spr.position.y=1.12+m.body.position.y;
+    }
     c.spin=(c.spin+c.v*dt/.4)%TAU;
     for(const w of m.wheels)w.rotation.z=-c.spin;
     for(const p of m.pivots)p.rotation.y=-clamp(c.steer,-1,1)*.4;
@@ -2516,6 +2606,14 @@ TRACKS.forEach((t,i)=>{for(const id of ['trackSeg','lbTrack']){const b=document.
 lobbyOpt($('lbTrack'),'track');lobbyOpt($('lbCc'),'cc');
 function menuSeg(id,key){$(id).addEventListener('click',e=>{const b=e.target.closest('button[data-v]');if(!b)return;const v=b.dataset.v|0;prefs[key]=v;store.set(key,v);segSet($(id),v);if(key==='track'&&state==='menu')setupAttract(v)})}
 menuSeg('trackSeg','track');menuSeg('ccSeg','cc');
+// switching looks rebuilds the track and karts with the other materials
+function setGraphics(v){
+  retro=v!=='hd';store.set('gfx',retro?'n64':'hd');segSet($('gfxSeg'),retro?'n64':'hd');
+  for(const k in toonMats)delete toonMats[k];
+  if(race){worldTrack=-1;setTrack(race.track);buildKarts();clearItemMeshes();for(const o of race.proj.concat(race.haz))o.mesh=null}
+  sizePost();document.body.classList.toggle('retro',retro);
+}
+$('gfxSeg').addEventListener('click',e=>{const b=e.target.closest('button[data-v]');if(b)setGraphics(b.dataset.v)});
 function renderChars(){
   const box=$('chars');
   if(!box.children.length)CHARS.forEach((ch,s)=>{const b=document.createElement('button');b.type='button';b.dataset.s=s;b.setAttribute('role','radio');b.appendChild(portraitCanvas(s,104));const n=document.createElement('span');n.textContent=ch.n;b.appendChild(n);box.appendChild(b)});
@@ -2635,7 +2733,7 @@ function frame(now){
     if(state==='lobby'&&(lobbyT<=0||lobbyDirty)){lobbyT=.25;lobbyDirty=false;renderLobby()}
     if(state==='results'&&mode==='online'&&Net.round&&Net.round.ph==='done'){const s=Math.max(0,Math.ceil(((+Net.round.end||0)+RESULTS_MS-Net.now())/1000));$('resNext').textContent='Back to the lobby in '+s+'s'}
     if(race){updateCamera(dt);syncKarts(dt,clock);syncItems(dt,clock);hideNearCamera()}
-    renderer.render(scene,camera);
+    renderFrame();
     updateHud(dt);drawOverlay();
     if(state==='race')drawMini();
     engineSound(state==='race'?camTarget():null);
@@ -2648,7 +2746,7 @@ function frame(now){
 resize();
 $('name').value=myName;
 $('room').value=store.get('room','')||'';
-segSet($('trackSeg'),prefs.track);segSet($('ccSeg'),prefs.cc);
+segSet($('trackSeg'),prefs.track);segSet($('ccSeg'),prefs.cc);segSet($('gfxSeg'),retro?'n64':'hd');document.body.classList.toggle('retro',retro);
 renderChars();
 setMuted(muted);$('music').style.opacity=prefs.music?1:.45;
 document.body.classList.toggle('touch',touchUI);
