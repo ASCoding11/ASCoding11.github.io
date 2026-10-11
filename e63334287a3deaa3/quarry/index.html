@@ -77,7 +77,7 @@ button:disabled{opacity:.5;cursor:default}
 #sleepFade{position:absolute;inset:0;background:#05070c;opacity:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;transition:opacity .2s}
 #sleepFade span{font:600 22px var(--f-d);color:var(--ink)}
 #sleepFade small{font:700 13px var(--f-u);color:var(--ink-3)}
-#water{position:absolute;inset:0;background:rgba(30,70,170,.32);display:none}
+#water{position:absolute;inset:0;background:rgba(40,96,210,.5);mix-blend-mode:multiply;display:none}
 #water.lava{background:rgba(230,90,10,.6)}
 #lookMsg{position:absolute;left:50%;top:58%;transform:translateX(-50%);font:700 15px var(--f-u);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:6px 16px;color:var(--ink-2)}
 #mute{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:12px;width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--panel);cursor:pointer;font:700 16px var(--f-d);color:var(--ink-2);z-index:5}
@@ -456,7 +456,7 @@ blk(PINE,'Pine leaves',26,{k:2,h:.2,drop:0,snd:'leaf'});
 blk(SHELF,'Bookshelf',[10,27,10],{h:1.5,tool:'axe',snd:'wood'});
 blk(LAMP,'Lamp',28,{h:.3,em:15,snd:'glass'});
 blk(BENCH,'Crafting table',[29,30,10],{h:2.5,tool:'axe',snd:'wood'});
-blk(LAVA,'Lava',33,{k:3,h:-1,em:13,drop:0,snd:'water'});
+blk(LAVA,'Lava',33,{k:3,h:-1,em:15,drop:0,snd:'water'});
 blk(MOSSY,'Mossy cobblestone',34,{h:2,tool:'pick',tier:1});
 blk(RED,'Red tile',35,{h:.8});
 blk(YELLOW,'Yellow tile',36,{h:.8});
@@ -473,6 +473,15 @@ function facing(base,n,front,side,top,o){
 }
 facing(KILN,'Furnace',31,32,32,{h:3.5,tool:'pick',tier:1});
 facing(CHEST,'Chest',84,85,86,{h:2.5,tool:'axe',snd:'wood'});
+// ---- flowing water and lava: one id per level (1 is next to the source), plus a falling column ----
+const WFLOW=46,WFALL=53,LFLOW=54,LFALL=57,OBSIDIAN=58;
+for(let l=1;l<=7;l++)blk(WFLOW+l-1,'Water',12,{k:3,h:-1,drop:0,snd:'water',base:WATER});
+blk(WFALL,'Water',12,{k:3,h:-1,drop:0,snd:'water',base:WATER});
+for(let l=1;l<=3;l++)blk(LFLOW+l-1,'Lava',33,{k:3,h:-1,em:15,drop:0,snd:'water',base:LAVA});
+blk(LFALL,'Lava',33,{k:3,h:-1,em:15,drop:0,snd:'water',base:LAVA});
+blk(OBSIDIAN,'Obsidian',144,{h:50,tool:'pick',tier:4});
+const isWater=id=>id===WATER||(id>=WFLOW&&id<=WFALL),isLava=id=>id===LAVA||(id>=LFLOW&&id<=LFALL);
+const BUCKET=155,WBUCKET=156,LBUCKET=157;
 // ---- doors, beds, farming, plants and redstone (ids 160 and up; data is one byte per block) ----
 const DUST=160,DUST_ON=161,RTORCH=162,RTORCH_OFF=163,RLAMP=164,RLAMP_ON=165,RBLOCK=166,RORE=167,
   LEVER=168,BUTTON=178,PLATE=188,PLATE_ON=189,REPEATER=190,DOOR=198,IDOOR=214,BED=230,FARMLAND=238,FARMLAND_WET=239,
@@ -511,6 +520,7 @@ item(APPLE,'Apple',53,{food:[4,2.4]});item(PORK,'Raw porkchop',54,{food:[3,1.8]}
 item(BEEF,'Raw beef',56,{food:[3,1.8]});item(STEAK,'Steak',57,{food:[8,12.8]});item(CHICK,'Raw chicken',58,{food:[2,1.2]});
 item(CHICK_C,'Cooked chicken',59,{food:[6,7.2]});item(FLESH,'Rotten flesh',60,{food:[4,.8]});
 item(LEATHER,'Leather',61);item(FEATHER,'Feather',62);item(CHARCOAL,'Charcoal',63);
+item(BUCKET,'Bucket',145,{stack:16});item(WBUCKET,'Water bucket',146,{stack:1});item(LBUCKET,'Lava bucket',147,{stack:1});
 item(WHEAT,'Wheat',142);item(BREAD,'Bread',143,{food:[5,6]});
 // Tools: id = 130 + type*5 + material. Harvest level, dig speed, uses and attack damage (in half hearts) per material.
 const TIERS=['Wooden','Stone','Iron','Golden','Diamond'],LEVEL=[1,2,3,1,4],SPEED=[2,4,6,12,8],DUR=[59,131,250,32,1561];
@@ -523,10 +533,10 @@ TTYPES.forEach(([type,word,dmg],ti)=>{for(let m=0;m<5;m++){const lv=[0,1,2,0,3][
 const MIGRATE={};for(let t=0;t<3;t++)for(let i=0;i<4;i++)MIGRATE[110+t*4+i]=toolId(t,[0,1,2,4][i]);
 const fixId=id=>MIGRATE[id]||id;
 const CREATIVE=[GRASS,DIRT,STONE,COBBLE,MOSSY,SAND,SANDSTONE,GRAVEL,SNOWY,SNOW,LOG,BIRCH,PLANKS,LEAVES,PINE,GLASS,BRICK,SHELF,
-  TORCH,LAMP,BENCH,KILN,CHEST,WOOL,RED,YELLOW,BLUE,GREEN,WHITE,COAL_ORE,IRON_ORE,GOLD_ORE,AZ_ORE,BASALT,WATER,LAVA,
+  TORCH,LAMP,BENCH,KILN,CHEST,WOOL,RED,YELLOW,BLUE,GREEN,WHITE,COAL_ORE,IRON_ORE,GOLD_ORE,AZ_ORE,BASALT,OBSIDIAN,WATER,LAVA,
   STICK,COAL,CHARCOAL,IRON,GOLD,GEM,LEATHER,FEATHER,APPLE,PORK,PORK_C,BEEF,STEAK,CHICK,CHICK_C,FLESH];
 for(let ti=0;ti<5;ti++)for(let m=0;m<5;m++)CREATIVE.push(toolId(ti,m));
-CREATIVE.push(DOOR,IDOOR,BED,FARMLAND,TALLGRASS,POPPY,DANDELION,OAK_SAP,PINE_SAP,WHEAT0,WHEAT,BREAD,
+CREATIVE.push(BUCKET,WBUCKET,LBUCKET,DOOR,IDOOR,BED,FARMLAND,TALLGRASS,POPPY,DANDELION,OAK_SAP,PINE_SAP,WHEAT0,WHEAT,BREAD,
   DUST,RTORCH,LEVER,BUTTON,PLATE,REPEATER,RLAMP,RBLOCK,RORE);
 
 // =====================================================================
@@ -690,8 +700,15 @@ tile(129,(x,y)=>{if(x===8&&y>=6)return jit([60,130,40],8);if((x===6||x===7)&&y==
   tile(130,(x,y)=>{if(x===8&&y>=7)return jit([60,130,40],8);if((x===9||x===10)&&y===12)return[70,140,44];const d=Math.hypot(x-8,y-5);if(d<2.6)return jit(d<1?[255,236,90]:[250,210,30],12);return[0,0,0,0]});
   tile(131,(x,y)=>{if(x>=7&&x<=8&&y>=9)return jit([110,80,44],8);const d=Math.hypot(x-7.5,(y-6)*1.15)+vn.n2(x*.9,y*.9+40);return d<5.2&&hash3(x,y,11)%6?jit([66,140,44],16):[0,0,0,0]});
   tile(132,(x,y)=>{if(x>=7&&x<=8&&y>=11)return jit([90,64,36],8);const w=(y-1)*.42;return y>=2&&y<=12&&Math.abs(x-7.5)<w&&(y%3)!==0?jit([40,96,60],12):[0,0,0,0]});
+  tile(144,(x,y)=>{const n=vn.n2(x*.45+120,y*.45);return jit(mix([24,16,36],[58,40,84],clamp(n*1.6+.3,0,1)),8)});
   // ---- item sprites ----
   const noA=c=>c&&c.length>3&&c[3]===0?null:c;
+  const bucket=fill=>(x,y)=>{
+    const w=y<4?5.6:5.6-(y-4)*.22,cx=7.5;if(y<3||y>13||Math.abs(x-cx)>w)return null;
+    if(y===3)return fill?jit(fill,10):((Math.abs(x-cx)>w-1.2)?[200,200,206]:[70,70,76]);
+    if(y===4&&fill)return jit(fill,14);
+    return jit(x<cx-1?[214,214,220]:x>cx+2?[150,150,158]:[186,186,192],5)};
+  sprite(145,bucket(null),[50,50,56,255]);sprite(146,bucket([52,96,226]),[50,50,56,255]);sprite(147,bucket([236,110,20]),[50,50,56,255]);
   sprite(133,(x,y)=>{const d=Math.hypot((x-7.5)/1.4,y-10)+vn.n2(x*.9,y*.9+12)*.8;return d<3.6?jit(d<1.5?[255,90,70]:[200,20,14],14):null},[70,8,6,255]);
   sprite(134,(x,y)=>x>=4&&x<=11?noA(oakDoor(y<8)(x===4?0:x===11?15:Math.round((x-4)*2),y<8?y*2:(y-8)*2)):null,[50,34,18,255]);
   sprite(135,(x,y)=>x>=4&&x<=11?noA(ironDoor(y<8)(x===4?0:x===11?15:Math.round((x-4)*2),y<8?y*2:(y-8)*2)):null,[70,70,74,255]);
@@ -881,6 +898,7 @@ class World{
     const ed=this.edits.get(k);if(ed)for(const [i,id] of ed)data[i]=id;
     c={cx,cz,key:k,data,maxY:0,em:0,mesh:null,meshed:false};
     this.stats(c);this.chunks.set(k,c);trackChunk(c);
+    if(ed)for(const i of ed.keys())liquidNotify(cx*CS+(i&15),i>>8,cz*CS+((i>>4)&15));
     return c;
   }
   stats(c){
@@ -899,6 +917,7 @@ class World{
     const old=c.data[i];if(old===id)return true;
     c.data[i]=id;
     if(old>=160||id>=160)trackBlock(x,y,z,id);
+    liquidNotify(x,y,z);
     if(id&&y>c.maxY)c.maxY=y;
     if(EMIT[old])c.em--;if(EMIT[id])c.em++;
     this.dirty.add(k);
@@ -1028,7 +1047,7 @@ function meshChunk(world,c){
     spread(RL);
   }
   // --- faces ---
-  const bo=new Buf(),bc=new Buf(),bl=new Buf();
+  const bo=new Buf(),bc=new Buf(),bl=new LBuf(),bv=new LBuf();
   const P=new Float32Array(12),U=new Float32Array(8),Lt=new Float32Array(16),ao=[0,0,0,0];
   for(let y=0;y<=c.maxY;y++)for(let z=0;z<CS;z++)for(let x=0;x<CS;x++){
     const r=(y*PW+z+PAD)*PW+x+PAD,id=RB[r];if(!id)continue;
@@ -1036,6 +1055,7 @@ function meshChunk(world,c){
     if(kA===4){torchMesh(bc,x,y,z,b.t[1],RS[r]/15,id===RTORCH_OFF?RL[r]/15:1);continue}
     if(kA===5){shapeMesh(bc,id,x,y,z,r);continue}
     if(kA===6){crossMesh(bc,b.t[1],x,y,z,r);continue}
+    if(kA===3){liquidMesh(isLava(id)?bv:bl,id,x,y,z,r);continue}
     const liquid=kA===3,buf=kA===1?bo:kA===2?bc:bl;
     const lowTop=liquid&&RB[r+PA]!==id;
     for(let d=0;d<6;d++){
@@ -1081,7 +1101,7 @@ function meshChunk(world,c){
     const r=(y*PW+z+PAD)*PW+PAD;
     for(let x=0;x<CS;x++)LT[o+x]=(RS[r+x]<<4)|RL[r+x];
   }
-  return{o:bo.geometry(),c:bc.geometry(),l:bl.geometry()};
+  return{o:bo.geometry(),c:bc.geometry(),l:bl.geometry(),v:bv.geometry()};
 }
 function torchMesh(buf,x,y,z,tile,sky,blk){
   const a=7/16,b=9/16,h=10/16;
@@ -1260,6 +1280,110 @@ function crossMesh(buf,tile,x,y,z,r){
 }
 
 // =====================================================================
+//  Water and lava: levels, surface heights, which way they flow, and how
+//  they're drawn (sloped surfaces, animated by a shader in 4_render.js)
+// =====================================================================
+const fam=id=>isWater(id)?1:isLava(id)?2:0;
+const srcOf=f=>f===1?WATER:LAVA;
+const maxLevel=f=>f===1?7:3;
+const fallOf=f=>f===1?WFALL:LFALL;
+// 0 for a source or a falling column, 1… for flowing liquid further from its source
+function levelOf(id){
+  if(id===WATER||id===LAVA||id===WFALL||id===LFALL)return 0;
+  if(id>=WFLOW&&id<WFALL)return id-WFLOW+1;
+  if(id>=LFLOW&&id<LFALL)return id-LFLOW+1;
+  return 99;
+}
+const flowOf=(f,l)=>l<=0?srcOf(f):f===1?WFLOW+l-1:LFLOW+l-1;
+// surface height inside the block, like the real game: a source sits at 8/9
+function liqHeight(id){
+  if(id===WFALL||id===LFALL)return 1;
+  const l=levelOf(id),f=fam(id);if(!f)return 0;
+  const wl=f===1?l:l*2;
+  return Math.max(1,8-wl)/9;
+}
+// height of the liquid at a cell, counting a full column when there's more of it above
+function cellHeight(get,dx,dy,dz,f){
+  const id=get(dx,dy,dz);if(fam(id)!==f)return -1;
+  return fam(get(dx,dy+1,dz))===f?1:liqHeight(id);
+}
+// the way liquid in a cell is running (x, z), from the slope of its surface
+function flowVec(get,f){
+  const h0=cellHeight(get,0,0,0,f);if(h0<0)return[0,0];
+  let vx=0,vz=0;
+  for(let k=0;k<4;k++){
+    const [dx,,dz]=DIR4[k];let h=cellHeight(get,dx,0,dz,f);
+    if(h<0){const n=get(dx,0,dz);if(OPAQ[n]||SOLID[n])continue;h=fam(get(dx,-1,dz))===f||!OPAQ[get(dx,-1,dz)]?-.6:0}
+    const d=h0-h;vx+=dx*d;vz+=dz*d;
+  }
+  const l=Math.hypot(vx,vz);return l<1e-4?[0,0]:[vx/l,vz/l];
+}
+
+// ---- meshing ----
+class LBuf extends Buf{
+  constructor(){super();this.f=[]}
+  lquad(P,U,Lt,F){this.quad(P,U,Lt,false);for(let k=0;k<4;k++)this.f.push(F[0],F[1])}
+  geometry(){const g=super.geometry();if(g)g.setAttribute('flow',new THREE.Float32BufferAttribute(this.f,2));return g}
+}
+const _LP=new Float32Array(12),_LU=new Float32Array(8),_LL=new Float32Array(16);
+function liquidMesh(buf,id,x,y,z,r){
+  const f=fam(id),above=RB[r+PA],top=fam(above)===f;
+  // most water is deep inside a lake or sea: skip it quickly when no face shows
+  if(top||OPAQ[above]){
+    const bl=RB[r-PA],e=RB[r+1],w=RB[r-1],so=RB[r+PW],no=RB[r-PW];
+    if((fam(bl)===f||OPAQ[bl]||y===0)&&(fam(e)===f||OPAQ[e])&&(fam(w)===f||OPAQ[w])&&(fam(so)===f||OPAQ[so])&&(fam(no)===f||OPAQ[no]))return;
+  }
+  const get=(dx,dy,dz)=>RB[r+dx+dz*PW+dy*PA];
+  const lava=f===2;
+  // corner heights: average of the up-to-four cells that share each top corner
+  const ch=[[0,0],[0,0]];
+  for(let cx=0;cx<2;cx++)for(let cz=0;cz<2;cz++){
+    if(top){ch[cx][cz]=1;continue}
+    let sum=0,w=0,full=false;
+    for(let ox=cx-1;ox<=cx;ox++)for(let oz=cz-1;oz<=cz;oz++){
+      const n=get(ox,0,oz);
+      if(fam(n)===f){if(fam(get(ox,1,oz))===f){full=true;break}const h=liqHeight(n),k=h>=.8?10:1;sum+=h*k;w+=k}
+      else if(!SOLID[n])w+=1;
+    }
+    ch[cx][cz]=full?1:w?sum/w:liqHeight(id);
+  }
+  const fl=top?[0,0]:flowVec(get,f);
+  const lit=(rr)=>[Math.max(RS[r],RS[rr])/15,lava?1:Math.max(RL[r],RL[rr])/15];
+  const alpha=lava?1:.74;
+  const put=(pts,uvs,flow,shade,L)=>{
+    for(let k=0;k<4;k++){_LP[k*3]=pts[k][0];_LP[k*3+1]=pts[k][1];_LP[k*3+2]=pts[k][2];_LU[k*2]=uvs[k][0];_LU[k*2+1]=uvs[k][1];_LL[k*4]=L[0];_LL[k*4+1]=L[1];_LL[k*4+2]=shade;_LL[k*4+3]=alpha}
+    buf.lquad(_LP,_LU,_LL,flow);
+  };
+  // top surface (seen from below too: the material is double-sided)
+  if(!top){
+    const L=lit(r+PA);
+    put([[x,y+ch[0][0],z],[x+1,y+ch[1][0],z],[x+1,y+ch[1][1],z+1],[x,y+ch[0][1],z+1]],
+        [[x,z],[x+1,z],[x+1,z+1],[x,z+1]],fl,1,L);
+  }
+  // sides wherever the neighbour isn't the same liquid or a solid block
+  const sides=[
+    [[1,0],[[x+1,1,0],[x+1,1,1]],(a)=>[x+1,a,z],(a)=>[x+1,a,z+1],[1,0,0]],
+    [[-1,0],[[x,0,0],[x,0,1]],(a)=>[x,a,z],(a)=>[x,a,z+1],[-1,0,0]],
+    [[0,1],null,(a)=>[x,a,z+1],(a)=>[x+1,a,z+1],[0,0,1]],
+    [[0,-1],null,(a)=>[x,a,z],(a)=>[x+1,a,z],[0,0,-1]]];
+  for(let k=0;k<4;k++){
+    const [dx,dz]=sides[k][0],n=get(dx,0,dz);
+    if(fam(n)===f||OPAQ[n])continue;
+    let h0,h1;
+    if(k===0){h0=ch[1][0];h1=ch[1][1]}else if(k===1){h0=ch[0][0];h1=ch[0][1]}else if(k===2){h0=ch[0][1];h1=ch[1][1]}else{h0=ch[0][0];h1=ch[1][0]}
+    const A=sides[k][2],Bf=sides[k][3],u0=k<2?z:x,L=lit(r+dx+dz*PW);
+    const a0=A(y),b0=Bf(y),a1=A(y+h0),b1=Bf(y+h1);
+    put([a0,b0,b1,a1],[[u0,y],[u0+1,y],[u0+1,y+h1],[u0,y+h0]],[0,-1],k<2?.8:.68,L);
+  }
+  // bottom, over air
+  const below=get(0,-1,0);
+  if(fam(below)!==f&&!OPAQ[below]&&y>0){
+    const L=lit(r-PA);
+    put([[x,y+.001,z],[x+1,y+.001,z],[x+1,y+.001,z+1],[x,y+.001,z+1]],[[x,z],[x+1,z],[x+1,z+1],[x,z+1]],[0,0],.55,L);
+  }
+}
+
+// =====================================================================
 //  Rendering
 // =====================================================================
 const canvas=$('view');
@@ -1288,7 +1412,36 @@ void main(){
 }`;
 const UNI={map:{value:TEX},uDay:{value:1},uSky:{value:new THREE.Color(1,1,1)},uFog:{value:new THREE.Color(.55,.75,1)},uNear:{value:50},uFar:{value:90}};
 const mkMat=(cut,o)=>new THREE.ShaderMaterial(Object.assign({uniforms:Object.assign({},UNI,{uCut:{value:cut}}),vertexShader:VS,fragmentShader:FS},o||{}));
-const MAT_O=mkMat(0),MAT_C=mkMat(1,{side:THREE.DoubleSide}),MAT_L=mkMat(2,{transparent:true,depthWrite:false,side:THREE.DoubleSide});
+const MAT_O=mkMat(0),MAT_C=mkMat(1,{side:THREE.DoubleSide});
+// Water and lava are drawn by their own shader: a 16-pixels-a-block pattern that drifts
+// along the way the liquid is flowing (uv holds world coordinates for these faces).
+const LVS=`attribute vec4 light;attribute vec2 flow;varying vec2 vUv;varying vec4 vL;varying float vD;varying vec2 vF;
+void main(){vUv=uv;vL=light;vF=flow;vec4 mv=modelViewMatrix*vec4(position,1.0);vD=length(mv.xyz);gl_Position=projectionMatrix*mv;}`;
+const LFS=`uniform float uDay;uniform vec3 uSky;uniform vec3 uFog;uniform float uNear;uniform float uFar;uniform float uTime;uniform float uLava;
+varying vec2 vUv;varying vec4 vL;varying float vD;varying vec2 vF;
+float h21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}
+float vn(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
+  return mix(mix(h21(i),h21(i+vec2(1,0)),f.x),mix(h21(i+vec2(0,1)),h21(i+vec2(1,1)),f.x),f.y);}
+void main(){
+  float spd=uLava>0.5?1.4:5.0;
+  vec2 drift=uLava>0.5?vec2(uTime*0.25,uTime*0.17):vec2(uTime*0.6,uTime*0.35);
+  vec2 px=floor(vUv*16.0-vF*uTime*spd-(length(vF)>0.0?vec2(0.0):drift));
+  float n=vn(px*0.21+vec2(0.0,uTime*0.12))*0.65+vn(px*0.53-vec2(uTime*0.2,0.0))*0.35;
+  n=floor(n*5.0)/4.0;
+  vec3 c;float a=vL.w;
+  if(uLava>0.5){c=mix(vec3(0.62,0.16,0.02),vec3(1.0,0.72,0.16),smoothstep(0.25,1.0,n));c=mix(c,vec3(1.0,0.93,0.55),step(0.95,n)*0.6);}
+  else{c=mix(vec3(0.13,0.30,0.78),vec3(0.30,0.52,0.95),smoothstep(0.2,0.9,n));c=mix(c,vec3(0.62,0.78,1.0),step(0.98,n)*0.45);}
+  float s=vL.x<0.01?0.0:pow(0.8,(1.0-vL.x)*15.0)*uDay;
+  float b=vL.y<0.01?0.0:pow(0.8,(1.0-vL.y)*15.0);
+  vec3 li=uLava>0.5?vec3(1.0):max(max(uSky*s,vec3(1.0,0.84,0.62)*b),vec3(0.04));
+  c*=li*vL.z;
+  float fo=smoothstep(uNear,uFar,vD);
+  gl_FragColor=vec4(mix(c,uFog,fo),a);
+}`;
+const UTIME={value:0};
+const mkLiq=lava=>new THREE.ShaderMaterial({uniforms:{uDay:UNI.uDay,uSky:UNI.uSky,uFog:UNI.uFog,uNear:UNI.uNear,uFar:UNI.uFar,uTime:UTIME,uLava:{value:lava?1:0}},
+  vertexShader:LVS,fragmentShader:LFS,transparent:!lava,depthWrite:lava,side:THREE.DoubleSide});
+const MAT_L=mkLiq(false),MAT_V=mkLiq(true);
 
 // sky dressing: sun, moon, stars, clouds
 scene.fog=new THREE.Fog(0x8fc6ff,120,420);
@@ -1458,6 +1611,7 @@ function applyMesh(c,m){
   const grp=new THREE.Group();grp.position.set(c.cx*CS,0,c.cz*CS);
   if(m.o)grp.add(new THREE.Mesh(m.o,MAT_O));
   if(m.c)grp.add(new THREE.Mesh(m.c,MAT_C));
+  if(m.v)grp.add(new THREE.Mesh(m.v,MAT_V));
   if(m.l){const ml=new THREE.Mesh(m.l,MAT_L);ml.renderOrder=2;grp.add(ml)}
   scene.add(grp);c.mesh=grp;c.meshed=true;
 }
@@ -1496,7 +1650,7 @@ function stream(px,pz,budget,dt){
   if(unloadT<=0){unloadT=1;const lim=(R_DIST+3)*(R_DIST+3);
     for(const [k,c] of world.chunks){if((c.cx-pcx)**2+(c.cz-pcz)**2>lim){dropMesh(c);untrackChunk(c);world.chunks.delete(k)}}}
 }
-function clearWorld(){clearTech();if(!world)return;for(const c of world.chunks.values())dropMesh(c);world.chunks.clear();world=null}
+function clearWorld(){clearTech();clearLiquids();if(!world)return;for(const c of world.chunks.values())dropMesh(c);world.chunks.clear();world=null}
 
 // =====================================================================
 //  Sky and time of day (0 = sunrise, .25 = noon, .5 = sunset, .75 = midnight)
@@ -1638,6 +1792,7 @@ shaped(DOOR,3,['PP','PP','PP'],{P:PLANKS},'Blocks');
 shaped(IDOOR,3,['II','II','II'],{I:IRON},'Redstone');
 shaped(BED,1,['WWW','PPP'],{W:WOOL,P:PLANKS},'Blocks');
 shaped(BREAD,1,['WWW'],{W:WHEAT},'Food');
+shaped(BUCKET,1,['I I',' I '],{I:IRON},'Tools');
 shaped(RTORCH,1,['R','S'],{R:DUST,S:STICK},'Redstone');
 shaped(LEVER,1,['S','C'],{S:STICK,C:COBBLE},'Redstone');
 shapeless(BUTTON,1,[STONE],'Redstone');
@@ -1762,7 +1917,7 @@ function updateDrops(dt){
     const d=drops[i];d.age+=dt;
     if(d.age>300||d.y<-40){removeDrop(i);continue}
     const here=world.get(Math.floor(d.x),Math.floor(d.y+.1),Math.floor(d.z));
-    if(here===WATER||here===LAVA){if(here===LAVA&&d.age>.3){smoke(d.x,d.y,d.z,4);removeDrop(i);continue}d.vy+=(1.5-d.vy)*Math.min(1,dt*4);d.vx*=Math.exp(-dt*2);d.vz*=Math.exp(-dt*2)}
+    if(isWater(here)||isLava(here)){if(isLava(here)&&d.age>.3){smoke(d.x,d.y,d.z,4);removeDrop(i);continue}d.vy+=(1.5-d.vy)*Math.min(1,dt*4);d.vx*=Math.exp(-dt*2);d.vz*=Math.exp(-dt*2);const [cx,cz]=currentAt(d.x,d.y+.1,d.z);d.vx+=cx*dt*6;d.vz+=cz*dt*6}
     else d.vy=Math.max(d.vy-16*dt,-30);
     const ny=d.y+d.vy*dt;
     if(d.vy<0&&solidAt(Math.floor(d.x),Math.floor(ny),Math.floor(d.z))){d.y=Math.floor(ny)+1;d.vy=0;d.ground=true}else{d.y=ny;if(d.vy!==0)d.ground=false}
@@ -1865,9 +2020,10 @@ function physics(dt){
   const feet=world.get(Math.floor(pl.x),Math.floor(pl.y+.3),Math.floor(pl.z));
   const eye=world.get(Math.floor(pl.x),Math.floor(pl.y+EYE),Math.floor(pl.z));
   const wasWater=pl.inWater;
-  pl.inWater=feet===WATER||world.get(Math.floor(pl.x),Math.floor(pl.y+1),Math.floor(pl.z))===WATER;
-  pl.inLava=feet===LAVA||world.get(Math.floor(pl.x),Math.floor(pl.y+1),Math.floor(pl.z))===LAVA;
-  pl.head=eye===WATER||eye===LAVA?eye:0;
+  const lf=liquidAt(pl.x,pl.y+.3,pl.z),lu=liquidAt(pl.x,pl.y+1,pl.z),le=liquidAt(pl.x,eyeY(),pl.z);
+  pl.inWater=lf===1||lu===1;
+  pl.inLava=lf===2||lu===2;
+  pl.head=le===1?WATER:le===2?LAVA:0;
   if(pl.inWater&&!wasWater&&pl.vy<-4)Snd.splash();
   pl.sneak=!!(keys.ShiftLeft||keys.ShiftRight)&&!pl.fly;
   const fwd=keys.KeyW||keys.ArrowUp;
@@ -1881,6 +2037,8 @@ function physics(dt){
   if(pl.eatT>0&&!pl.fly)sp*=.3;
   const k=1-Math.exp(-dt*(pl.fly?10:pl.ground||liquid?18:5));
   pl.vx+=(wx*sp-pl.vx)*k;pl.vz+=(wz*sp-pl.vz)*k;
+  // flowing water carries you along
+  if(pl.inWater&&!pl.fly){const [cx,cz]=currentAt(pl.x,pl.y+.3,pl.z);pl.vx+=cx*dt*28;pl.vz+=cz*dt*28}
   const up=!!keys.Space,down=!!(keys.ShiftLeft||keys.ShiftRight);
   if(pl.fly){
     pl.vy+=((up?8:0)-(down?8:0)-pl.vy)*(1-Math.exp(-dt*12));
@@ -1985,7 +2143,7 @@ function unstick(){let n=0;while(collides(pl.x,pl.y,pl.z)&&n<6){pl.y=Math.floor(
 // =====================================================================
 const eyeY=()=>pl.y+(pl.sneak?EYE-.12:EYE);
 function lookDir(){const cp=Math.cos(pl.pitch);return[-Math.sin(pl.yaw)*cp,Math.sin(pl.pitch),-Math.cos(pl.yaw)*cp]}
-function raycast(max){
+function raycast(max,liq){
   const ox=pl.x,oy=eyeY(),oz=pl.z,[dx,dy,dz]=lookDir();
   let x=Math.floor(ox),y=Math.floor(oy),z=Math.floor(oz);
   const sx=Math.sign(dx),sy=Math.sign(dy),sz=Math.sign(dz);
@@ -1994,7 +2152,7 @@ function raycast(max){
   let nx=0,ny=0,nz=0,t=0;
   for(let i=0;i<64&&t<=max;i++){
     const id=world.get(x,y,z);
-    if(id>0&&KIND[id]!==3){
+    if(id>0&&(KIND[id]!==3||liq)){
       if(KIND[id]<4)return{x,y,z,id,nx,ny,nz,t};
       const h=rayBox(ox,oy,oz,dx,dy,dz,selBox(id),x,y,z,max);
       if(h)return{x,y,z,id,nx:h[1],ny:h[2],nz:h[3],t:h[0]};
@@ -2151,11 +2309,7 @@ function breakBlock(h){
     if(B[id].h>0){const t=heldTool();if(t)wearTool(t.type==='sword'?2:1)}
   }
   Snd.mat(id,'break');swingT=.25;blockParticles(h.x,h.y,h.z,id,18);
-  let fill=AIR;
-  const wn=[[1,0,0],[-1,0,0],[0,0,1],[0,0,-1],[0,1,0]].some(([a,b,c])=>world.get(h.x+a,h.y+b,h.z+c)===WATER);
-  if(wn&&h.y<=SEA+12)fill=WATER;
-  edit(h.x,h.y,h.z,fill);
-  if(fill===WATER){for(let y=h.y-1,n=0;y>0&&n<12&&world.get(h.x,y,h.z)===AIR;y--,n++)edit(h.x,y,h.z,WATER)}
+  edit(h.x,h.y,h.z,AIR);
   removeOther(h.x,h.y,h.z,id);
   popNeighbours(h.x,h.y,h.z);
   settleFalling(h.x,h.y+1,h.z);
@@ -2292,7 +2446,9 @@ function interact(dt){
     }
   }else{
     pl.eatT=0;
-    if(target&&mouseR&&useT<=0){
+    const bk=held&&(held.id===BUCKET||held.id===WBUCKET||held.id===LBUCKET);
+    if(bk&&mouseR&&useT<=0&&!(target&&!pl.sneak&&[BENCH,KILN,CHEST,DOOR,LEVER,BUTTON,BED].includes(BASE[target.id]))){useT=.3;if(useBucket(held))mouseR=false}
+    else if(target&&mouseR&&useT<=0){
       useT=.2;
       if(useBlock(target)){mouseR=false}
       else if(placeBlock(target)){}
@@ -2442,7 +2598,7 @@ function updateMobs(dt){
     }
     // what to do
     let mx=0,mz=0,sp=T.speed;m.atk=false;
-    const inWater=world.get(Math.floor(m.x),Math.floor(m.y+.4),Math.floor(m.z))===WATER;
+    const inWater=liquidAt(m.x,m.y+.4,m.z)===1;
     if(T.hostile){
       let best=null,bd=24;
       for(const t of targets){const d=Math.hypot(t.x-m.x,t.y-m.y,t.z-m.z);if(d<bd){bd=d;best=t}}
@@ -2467,7 +2623,7 @@ function updateMobs(dt){
       if((mx||mz)&&m.ground){
         const ax=Math.floor(m.x+mx*(m.w/2+.4)),az=Math.floor(m.z+mz*(m.w/2+.4)),fy=Math.floor(m.y);
         let drop=0;while(drop<4&&isAirish(world.get(ax,fy-1-drop,az)))drop++;
-        if(drop>=3||world.get(ax,fy-1,az)===WATER&&m.panic<=0||world.get(ax,fy,az)===WATER&&m.panic<=0){m.ai.t=0;mx=mz=0}
+        if(drop>=3||isWater(world.get(ax,fy-1,az))&&m.panic<=0||isWater(world.get(ax,fy,az))&&m.panic<=0||isLava(world.get(ax,fy-1,az))||isLava(world.get(ax,fy,az))){m.ai.t=0;mx=mz=0}
       }
     }
     if(m.fire>0){m.fire-=dt;if(inWater)m.fire=0;if(Math.floor(m.fire+dt)!==Math.floor(m.fire))damageMob(m,1,0,0,null);if(Math.random()<dt*14)spawnParticle(m.x+(Math.random()-.5)*m.w,m.y+Math.random()*m.h,m.z+(Math.random()-.5)*m.w,0,.6,0,33,.4,.07)}
@@ -2757,7 +2913,7 @@ function useTech(h){
 //  saplings turn into trees
 // ---------------------------------------------------------------------
 function waterNear(x,y,z){
-  for(let dy=0;dy<=1;dy++)for(let dz=-4;dz<=4;dz++)for(let dx=-4;dx<=4;dx++)if(G(x+dx,y+dy,z+dz)===WATER)return true;
+  for(let dy=0;dy<=1;dy++)for(let dz=-4;dz<=4;dz++)for(let dx=-4;dx<=4;dx++)if(isWater(G(x+dx,y+dy,z+dz)))return true;
   return false;
 }
 function litEnough(x,y,z){const l=world.light(x,y,z);return(l>>4)*dayLight>=9||(l&15)>=9}
@@ -2860,6 +3016,154 @@ function updateTech(dt){
   if(rsAcc>.3)rsAcc=0;
   growAcc+=dt;if(growAcc>=1){growAcc=0;try{growTick()}catch(e){console.error(e)}}
   updateSleep(dt);
+}
+
+// =====================================================================
+//  Flowing water and lava, on roughly the real game's rules:
+//  - liquid falls straight down when it can, and only spreads sideways
+//    when it's resting on something
+//  - each step sideways is one level weaker: water reaches 7 blocks,
+//    lava 3, and both head for the nearest drop within reach
+//  - flowing water with two sources beside it becomes a source
+//  - water meeting lava makes obsidian (from a lava source) or cobblestone
+//  - torches, redstone dust, crops and flowers get washed away
+//  Every player works this out on their own computer from the same blocks,
+//  so flowing water never fills up the shared world history.
+// =====================================================================
+const LQ=new Set();
+let wAcc=0,lAcc=0;
+function liquidNotify(x,y,z){
+  if(!world)return;
+  if(fam(world.get(x,y,z))>0)LQ.add(pkey(x,y,z));
+  for(const [dx,dy,dz] of N6)if(fam(world.get(x+dx,y+dy,z+dz))>0)LQ.add(pkey(x+dx,y+dy,z+dz));
+}
+const washable=id=>id===AIR||id===TALLGRASS||id===POPPY||id===DANDELION||id===OAK_SAP||id===PINE_SAP||isWheat(id)||
+  id===TORCH||id===RTORCH||id===RTORCH_OFF||isDust(id)||isRep(id);
+// can liquid of family f move into this block?
+const flowable=(id,f)=>id>=0&&(washable(id)||(fam(id)===f&&id!==srcOf(f)));
+function washAway(x,y,z,id){
+  if(id===AIR||fam(id))return;
+  blockDrops(id,x,y,z);
+  blockParticles(x,y,z,id,6);
+}
+// sideways directions worth flowing in: toward the closest place it can drop down
+function flowDirs(x,y,z,f){
+  const reach=f===1?4:2,best=[],dist=[99,99,99,99];
+  for(let k=0;k<4;k++){
+    const [dx,,dz]=DIR4[k];
+    if(!flowable(G(x+dx,y,z+dz),f))continue;
+    // breadth-first search outward from that first step
+    const seen=new Set([pkey(x,y,z)]),q=[[x+dx,z+dz,1]];seen.add(pkey(x+dx,y,z+dz));
+    for(let i=0;i<q.length;i++){
+      const [qx,qz,d]=q[i];
+      const b=G(qx,y-1,qz);if(flowable(b,f)||fam(b)===f){dist[k]=d;break}
+      if(d>=reach)continue;
+      for(const [ex,,ez] of DIR4){const nx=qx+ex,nz=qz+ez,kk=pkey(nx,y,nz);if(seen.has(kk))continue;seen.add(kk);if(flowable(G(nx,y,nz),f))q.push([nx,nz,d+1])}
+    }
+  }
+  const m=Math.min(...dist);
+  for(let k=0;k<4;k++){if(!flowable(G(x+DIR4[k][0],y,z+DIR4[k][2]),f))continue;if(m===99||dist[k]===m)best.push(k)}
+  return best;
+}
+// does this liquid block feed the blocks beside it?
+function feeds(x,y,z,id){
+  const f=fam(id);if(id===srcOf(f))return true;
+  const b=G(x,y-1,z);
+  return b>=0&&!washable(b)&&fam(b)!==f;
+}
+function hiss(x,y,z){smoke(x+.5,y+.6,z+.5,6);Snd.burst(2400,.6,.5,.12*Snd.at(x,y,z),'highpass')}
+function liquidStep(x,y,z){
+  let id=G(x,y,z);const f=fam(id);if(!f)return;
+  const src=srcOf(f),max=maxLevel(f);
+  // lava touching water hardens
+  if(f===2){
+    for(const [dx,dy,dz] of [[1,0,0],[-1,0,0],[0,0,1],[0,0,-1],[0,1,0]])if(fam(G(x+dx,y+dy,z+dz))===1){world.set(x,y,z,id===LAVA?OBSIDIAN:COBBLE);hiss(x,y,z);return}
+  }
+  // what should be here now?
+  if(id!==src){
+    let want;
+    if(fam(G(x,y+1,z))===f)want=fallOf(f);
+    else{
+      let best=99,sources=0;
+      for(const [dx,,dz] of DIR4){
+        const n=G(x+dx,y,z+dz);if(fam(n)!==f)continue;
+        if(n===src)sources++;
+        if(feeds(x+dx,y,z+dz,n))best=Math.min(best,levelOf(n));
+      }
+      const b=G(x,y-1,z);
+      if(f===1&&sources>=2&&(b===src||(b>=0&&!washable(b)&&fam(b)!==f)))want=src;
+      else want=best+1>max?AIR:flowOf(f,best+1);
+    }
+    if(want!==id){world.set(x,y,z,want);if(want===AIR)return;id=want}
+  }
+  // fall straight down if there's room
+  const below=G(x,y-1,z);if(below<0)return;
+  if(f===1&&fam(below)===2){world.set(x,y-1,z,below===LAVA?OBSIDIAN:COBBLE);hiss(x,y-1,z);return}
+  if(f===2&&fam(below)===1){world.set(x,y-1,z,STONE);hiss(x,y-1,z);return}
+  if(flowable(below,f)){
+    if(below!==fallOf(f)){washAway(x,y-1,z,below);world.set(x,y-1,z,fallOf(f))}
+    return;
+  }
+  if(fam(below)===f)return;
+  // otherwise spread out sideways, one level weaker
+  const nl=levelOf(id)+1;if(nl>max)return;
+  if(f===1)for(const [dx,,dz] of DIR4){const n=G(x+dx,y,z+dz);if(fam(n)===2){world.set(x+dx,y,z+dz,n===LAVA?OBSIDIAN:COBBLE);hiss(x+dx,y,z+dz)}}
+  for(const k of flowDirs(x,y,z,f)){
+    const [dx,,dz]=DIR4[k],X=x+dx,Z=z+dz,n=G(X,y,Z);
+    if(f===2&&fam(n)===1){world.set(x,y,z,id===LAVA?OBSIDIAN:COBBLE);hiss(x,y,z);return}
+    if(f===1&&fam(n)===2){world.set(X,y,Z,n===LAVA?OBSIDIAN:COBBLE);hiss(X,y,Z);continue}
+    if(fam(n)===f){if(n!==src&&n!==fallOf(f)&&levelOf(n)>nl)world.set(X,y,Z,flowOf(f,nl));continue}
+    if(washable(n)){washAway(X,y,Z,n);world.set(X,y,Z,flowOf(f,nl))}
+  }
+}
+function liquidTick(f,limit){
+  if(!LQ.size)return;
+  const todo=[];
+  for(const k of LQ){const [x,y,z]=k.split(',').map(Number);const id=world.get(x,y,z);if(id<0){LQ.delete(k);continue}if(fam(id)===f||fam(id)===0){todo.push([x,y,z]);LQ.delete(k);if(todo.length>=limit)break}}
+  for(const [x,y,z] of todo)liquidStep(x,y,z);
+}
+function updateLiquids(dt){
+  wAcc+=dt;lAcc+=dt;
+  if(wAcc>=.25){wAcc=0;try{liquidTick(1,500)}catch(e){console.error(e)}}
+  if(lAcc>=1.5){lAcc=0;try{liquidTick(2,300)}catch(e){console.error(e)}}
+}
+function clearLiquids(){LQ.clear();wAcc=lAcc=0}
+
+// how deep the liquid is where you are, and which way it pushes you
+function liquidAt(px,py,pz){
+  const x=Math.floor(px),y=Math.floor(py),z=Math.floor(pz),id=world.get(x,y,z),f=fam(id);
+  if(!f)return 0;
+  const h=fam(world.get(x,y+1,z))===f?1:liqHeight(id);
+  return py-y<h?f:0;
+}
+function currentAt(px,py,pz){
+  const x=Math.floor(px),y=Math.floor(py),z=Math.floor(pz),f=fam(world.get(x,y,z));
+  if(!f)return[0,0];
+  return flowVec((dx,dy,dz)=>world.get(x+dx,y+dy,z+dz),f);
+}
+
+// ---- buckets ----
+function useBucket(held){
+  const surv=mode==='survival';
+  if(held.id===BUCKET){
+    const h=raycast(surv?4.5:5,true);if(!h||KIND[h.id]!==3)return false;
+    if(h.id!==WATER&&h.id!==LAVA)return true;           // only a still source fills a bucket
+    const full=h.id===WATER?WBUCKET:LBUCKET;
+    edit(h.x,h.y,h.z,AIR);Snd.splash();swingT=.25;
+    if(surv){if(held.n>1){held.n--;const left=inv.add(full,1);if(left)throwStack(mkStack(full,1))}else inv.slots[inv.sel]=mkStack(full,1);uiDirty=true}
+    return true;
+  }
+  if(held.id===WBUCKET||held.id===LBUCKET){
+    const h=raycast(surv?4.5:5);if(!h)return false;
+    let x=h.x+h.nx,y=h.y+h.ny,z=h.z+h.nz;
+    if(washable(h.id)&&h.id!==AIR){x=h.x;y=h.y;z=h.z}
+    const cur=world.get(x,y,z);if(cur<0||!(washable(cur)||KIND[cur]===3))return true;
+    const liq=held.id===WBUCKET?WATER:LAVA;
+    washAway(x,y,z,cur);edit(x,y,z,liq);Snd.splash();swingT=.25;
+    if(surv){inv.slots[inv.sel]=mkStack(BUCKET,1);uiDirty=true}
+    return true;
+  }
+  return false;
 }
 
 // =====================================================================
@@ -3824,7 +4128,7 @@ function frame(t){
       if(running){
         if(!online)worldMs+=dt*1000;
         dayTime=online?((Net.now()/1000/DAY_LEN)+session.phase+(session.shift||0))%1:(dayTime+dt/DAY_LEN)%1;
-        updateMobs(dt);updateDrops(dt);updateDecay(dt);updateTech(dt);
+        updateMobs(dt);updateDrops(dt);updateDecay(dt);updateTech(dt);updateLiquids(dt);
       }
       camKick=Math.max(0,camKick-dt);
       const bob=pl.ground&&!pl.fly&&camMode===0?Math.sin(pl.bob*Math.PI)*.045:0;
@@ -3856,6 +4160,7 @@ function frame(t){
     }
     updateParticles(dt);
     if(uiDirty&&state!=='menu'){uiDirty=false;drawHUD()}
+    UTIME.value=(performance.now()/1000)%3600;
     updateSky(dayTime,under);
     renderer.render(scene,camera);
     if(camMode===0&&!hideHud&&(state==='play'||state==='inv'||state==='pause'||state==='chat')){renderer.autoClear=false;renderer.clearDepth();renderer.render(vmScene,vmCam);renderer.autoClear=true}
