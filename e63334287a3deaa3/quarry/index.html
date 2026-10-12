@@ -272,6 +272,12 @@ details.fold[open] summary::before{content:'– '}
       </div>
 
       <div class="group">
+        <span class="label">Mods</span>
+        <div class="row"><span style="font:600 17px var(--f-d);min-width:84px">Arjunity</span><div class="seg ajseg" role="radiogroup" aria-label="Arjunity mod"><button type="button" role="radio" data-m="off">Off</button><button type="button" role="radio" data-m="friendly">Friendly</button><button type="button" role="radio" data-m="spooky">Spooky</button></div></div>
+        <p class="msg" style="margin-top:0">A floating helper drone who answers questions in chat and talks out loud in an Indian English voice: where the ores are, recipes, maths, the time. Spooky: after a few nights, he starts acting strange. In your own worlds.</p>
+      </div>
+
+      <div class="group">
         <span class="label">Online</span>
         <div class="row">
           <button id="quick" class="ghost" type="button">Quick join</button>
@@ -1650,7 +1656,7 @@ function stream(px,pz,budget,dt){
   if(unloadT<=0){unloadT=1;const lim=(R_DIST+3)*(R_DIST+3);
     for(const [k,c] of world.chunks){if((c.cx-pcx)**2+(c.cz-pcz)**2>lim){dropMesh(c);untrackChunk(c);world.chunks.delete(k)}}}
 }
-function clearWorld(){clearTech();clearLiquids();if(!world)return;for(const c of world.chunks.values())dropMesh(c);world.chunks.clear();world=null}
+function clearWorld(){clearTech();clearLiquids();ajStop();if(!world)return;for(const c of world.chunks.values())dropMesh(c);world.chunks.clear();world=null}
 
 // =====================================================================
 //  Sky and time of day (0 = sunrise, .25 = noon, .5 = sunset, .75 = midnight)
@@ -2103,11 +2109,13 @@ function deathText(cause){
   if(cause==='void')return n+' fell out of the world';
   if(cause==='starve')return n+' starved to death';
   if(cause==='zombie')return n+' was slain by a Zombie';
+  if(cause==='aj')return n+' was caught by Arjunity';
   if(cause==='kill')return n+' died';
   if(/^p:/.test(cause))return n+' was slain by '+cause.slice(2);
   return n+' died';
 }
 function die(cause){
+  ajNote('deaths');
   // like the real game, everything you were carrying spills out where you fell
   if(mode==='survival'){
     const all=inv.slots.concat([inv.cursor],craftGrid?craftGrid.g:[]);
@@ -2247,6 +2255,7 @@ function leafDrops(id,x,y,z){
 }
 // what a block leaves behind when it's broken in Survival
 function blockDrops(id,x,y,z){
+  ajNote('broken');
   if(isWheat(id)){
     if(id===WHEAT0+7){dropBlockItem(WHEAT,x,y,z);for(let i=0,n=1+Math.floor(Math.random()*3);i<n;i++)dropBlockItem(WHEAT0,x,y,z)}
     else dropBlockItem(WHEAT0,x,y,z);return;
@@ -2369,7 +2378,7 @@ function placeBlock(h){
     for(const o of others.values())if(o.av&&Math.abs(o.av.position.x-(x+.5))<.8&&Math.abs(o.av.position.z-(z+.5))<.8&&o.av.position.y<y+1&&o.av.position.y+1.8>y)return false;
     for(const m of mobs)if(!m.dead&&Math.abs(m.x-(x+.5))<m.w/2+.5&&Math.abs(m.z-(z+.5))<m.w/2+.5&&m.y<y+1&&m.y+m.h>y)return false;
   }
-  edit(x,y,z,id);
+  edit(x,y,z,id);ajNote('placed');
   inv.useOne();
   Snd.mat(id,'place');swingT=.25;
   if(B[id].fall)settleFalling(x,y,z);
@@ -2383,6 +2392,7 @@ function attack(e){
   const [dx,,dz]=lookDir(),kb=pl.sprint?1.6:1;
   swingT=.25;exhaust(.1);
   let hx,hy,hz;
+  if(e.kind==='aj'){ajHit();swingT=.25;return}
   if(e.kind==='mob'){damageMob(e.m,dmg,dx*kb,dz*kb,'me');hx=e.m.x;hy=e.m.y+e.m.h*.6;hz=e.m.z}
   else if(e.kind==='rmob'){Net.fx({type:'hit',to:e.r.owner,id:e.r.id,d:dmg,kx:dx*kb,kz:dz*kb});e.r.hurtT=.4;Snd.hit(1);hx=e.r.x;hy=e.r.y+e.r.h*.6;hz=e.r.z}
   else if(e.kind==='player'){const p=e.o.av.position;Net.fx({type:'atk',to:e.o.uid,d:dmg,kx:dx*kb,kz:dz*kb,c:'p:'+(myName||'Miner')});Snd.hit(1);hx=p.x;hy=p.y+1.2;hz=p.z}
@@ -2411,6 +2421,8 @@ function interact(dt){
   targetE=state==='play'?rayEntity(surv?3:5):null;
   if(targetE&&target&&target.t<targetE.t)targetE=null;
   if(targetE)target=null;
+  const aj=state==='play'?ajRay(surv?3:5):null;
+  if(aj&&(!targetE||aj.t<targetE.t)&&(!target||aj.t<target.t)){targetE=aj;target=null}
   if(pl.sleep){target=targetE=null;mouseL=mouseR=clickL=false}
   if(target){const b=selBox(target.id);outline.visible=true;outline.scale.set(b[3]-b[0],b[4]-b[1],b[5]-b[2]);outline.position.set(target.x+(b[0]+b[3])/2,target.y+(b[1]+b[4])/2,target.z+(b[2]+b[5])/2)}else outline.visible=false;
   useT-=dt;hitT-=dt;
@@ -3167,6 +3179,334 @@ function useBucket(held){
 }
 
 // =====================================================================
+//  Mod: Arjunity. A little floating helper drone that answers questions
+//  in chat and talks out loud in an Indian English voice. In "Spooky"
+//  mode, after a few nights he stops being quite so helpful...
+//  Your own worlds only; everything here is worked out on this computer.
+// =====================================================================
+const AJ={
+  mode:store.get('mod_aj','off'),   // off | friendly | spooky
+  on:false,g:null,shadow:null,x:0,y:0,z:0,vx:0,vy:0,vz:0,yaw:0,
+  met:false,days:0,lastDay:-1,follow:true,mood:'happy',moodT:0,
+  hits:[],angryT:0,hideT:0,chatterT:40,stats:{broken:0,placed:0,deaths:0,kills:0},
+  sh:{state:'gone',x:0,y:0,z:0,t:30,seen:0},glitchT:0,replyQ:[],speakOK:true
+};
+const AJ_COL='#4fe3d2';
+// ---- voice: the browser's Indian English voice when there is one ----
+let ajVoice=null;
+function pickAjVoice(){
+  try{
+    const vs=speechSynthesis.getVoices();if(!vs.length)return;
+    const by=f=>vs.find(f);
+    ajVoice=by(v=>/en[-_]IN/i.test(v.lang))||by(v=>/india/i.test(v.name)&&/^en/i.test(v.lang))||by(v=>/hi[-_]IN/i.test(v.lang))||by(v=>/^en/i.test(v.lang))||vs[0];
+  }catch(e){}
+}
+try{if(window.speechSynthesis){pickAjVoice();speechSynthesis.onvoiceschanged=pickAjVoice}}catch(e){}
+function ajSpeak(text,creepy){
+  if(Snd.muted||!window.speechSynthesis)return;
+  try{
+    const clean=String(text).replace(/[♪*…]+/g,' ').replace(/\s+/g,' ').trim();if(!clean)return;
+    speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(clean);
+    if(!ajVoice)pickAjVoice();
+    if(ajVoice){u.voice=ajVoice;u.lang=ajVoice.lang}else u.lang='en-IN';
+    u.rate=creepy?.78:1.02;u.pitch=creepy?.5:1.12;u.volume=.95;
+    speechSynthesis.speak(u);
+  }catch(e){}
+}
+function ajSay(text,mood,delay){
+  AJ.replyQ.push({text,mood:mood||'happy',t:delay==null?.7+Math.random()*.6:delay});
+}
+const ajName=()=>myName||'friend';
+const spooky=()=>AJ.mode==='spooky';
+// phases: 0 friendly · 1 a bit off (day 2 on) · 2 watching you at night (day 3 on)
+const ajPhase=()=>!spooky()?0:AJ.days>=3?2:AJ.days>=2?1:0;
+const isNight=()=>{const t=dayTime*24000;return t>12800&&t<23200};
+
+// ---- model: a slate-and-brass drone with a light bar for a face ----
+function ajBuild(){
+  const g=new THREE.Group(),mats=[];
+  const mat=(c,lit)=>{const m=new THREE.MeshBasicMaterial({color:c});m.userData.base=new THREE.Color(c);m.userData.lit=!!lit;mats.push(m);return m};
+  const box=(p,w,h,d,m,x,y,z)=>{const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);b.position.set(x,y,z);p.add(b);return b};
+  const body=mat(0x2c3542),trim=mat(0xc9a24a),dark=mat(0x12161c);
+  const face=mat(0x4fe3d2,true),tip=mat(0xff9a2e,true),jet=mat(0x2fb8ac,true);
+  box(g,.42,.26,.38,body,0,0,0);
+  box(g,.3,.06,.26,body,0,.15,.02);                                  // a raised top
+  box(g,.44,.03,.02,trim,0,.13,-.2);box(g,.44,.03,.02,trim,0,-.11,-.2); // brass frame round the face
+  box(g,.03,.24,.02,trim,-.21,.01,-.2);box(g,.03,.24,.02,trim,.21,.01,-.2);
+  box(g,.38,.14,.01,dark,0,.01,-.196);
+  const bar=box(g,.3,.045,.01,face,0,.01,-.204);
+  box(g,.02,.16,.02,trim,.11,.25,.06);box(g,.05,.05,.05,tip,.11,.34,.06);   // antenna
+  for(const s2 of [-1,1]){const fin=box(g,.04,.12,.26,trim,s2*.24,-.02,.05);fin.rotation.z=s2*.35}
+  box(g,.14,.04,.14,dark,0,-.15,0);box(g,.1,.02,.1,jet,0,-.175,0);     // thruster glow underneath
+  g.userData={mats,bar,face,tip};
+  return g;
+}
+// later on, at night: a tall shape in the dark with his light bar for a head
+function ajShadow(){
+  const g=new THREE.Group(),dk=new THREE.MeshBasicMaterial({color:0x07080b}),mats=[dk];
+  const box=(w,h,d,m,x,y,z,rz)=>{const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);b.position.set(x,y,z);if(rz)b.rotation.z=rz;g.add(b);return b};
+  box(.12,1.5,.12,dk,-.12,.75,0);box(.12,1.5,.12,dk,.12,.75,0);
+  box(.42,1.05,.2,dk,0,2.0,0);
+  const armL=box(.1,1.6,.1,dk,-.3,1.7,0,.12),armR=box(.1,1.6,.1,dk,.3,1.7,0,-.12);
+  box(.44,.3,.4,dk,0,2.72,0);
+  const eye=new THREE.MeshBasicMaterial({color:0xff3b3b});
+  box(.4,.07,.02,eye,0,2.74,-.21);
+  g.userData={armL,armR,eye};
+  return g;
+}
+function ajShow(on){
+  if(on&&!AJ.g){AJ.g=ajBuild();scene.add(AJ.g)}
+  if(!on&&AJ.g){scene.remove(AJ.g);AJ.g=null}
+}
+function ajShadowShow(on){
+  if(on&&!AJ.shadow){AJ.shadow=ajShadow();scene.add(AJ.shadow)}
+  if(!on&&AJ.shadow){scene.remove(AJ.shadow);AJ.shadow=null}
+}
+function ajActive(){return AJ.mode!=='off'&&session&&session.kind==='local'&&world}
+function ajStart(saved){
+  ajStop();
+  const s=saved&&typeof saved==='object'?saved:{};
+  AJ.met=!!s.met;AJ.days=clamp(+s.d||0,0,9999);AJ.stats=Object.assign({broken:0,placed:0,deaths:0,kills:0},s.st||{});
+  AJ.follow=s.f!==false;AJ.lastDay=dayTime;AJ.hits=[];AJ.angryT=0;AJ.hideT=0;AJ.chatterT=50;AJ.replyQ=[];AJ.sh={state:'gone',x:0,y:0,z:0,t:20,seen:0};
+  if(!ajActive())return;
+  AJ.x=pl.x+1.2;AJ.y=pl.y+2.2;AJ.z=pl.z+1.2;ajShow(true);
+  if(!AJ.met){AJ.met=true;
+    ajSay('Namaste, '+ajName()+'! I am Arjunity, your helper in this world. Type T, then ask me anything. Where are the diamonds, how to make a pickaxe, what is 12 times 7. I am always listening, okay?','happy',2.5)}
+  else ajSay(ajPhase()>=1?'You came back, '+ajName()+'. I waited.':'Welcome back, '+ajName()+'! Acha, what are we building today?',ajPhase()>=1?'odd':'happy',2.5);
+}
+function ajStop(){ajShow(false);ajShadowShow(false);AJ.replyQ=[];try{window.speechSynthesis&&speechSynthesis.cancel()}catch(e){}}
+function ajSave(){return{met:AJ.met,d:AJ.days,st:AJ.stats,f:AJ.follow}}
+function ajSetMode(m){
+  AJ.mode=m;store.set('mod_aj',m);
+  document.querySelectorAll('.ajseg button').forEach(b=>b.setAttribute('aria-checked',String(b.dataset.m===m)));
+  if(state==='menu'||!world)return;
+  if(m==='off'){ajStop();return}
+  if(!AJ.g&&ajActive())ajStart(session.meta&&store.get('w:'+session.meta.id,{}).aj);
+}
+// stats he keeps an eye on
+function ajNote(k){if(AJ.mode!=='off')AJ.stats[k]=(AJ.stats[k]||0)+1}
+
+// ---- things he can answer ----
+const compass=(dx,dz)=>{const a=(Math.atan2(dx,-dz)*180/Math.PI+360)%360;return['north','north-east','east','south-east','south','south-west','west','north-west'][Math.round(a/45)%8]};
+function findNearest(ids,r){
+  const x0=Math.floor(pl.x),y0=Math.floor(pl.y),z0=Math.floor(pl.z);let best=null,bd=1e9;
+  for(let dz=-r;dz<=r;dz++)for(let dx=-r;dx<=r;dx++){
+    const hd=dx*dx+dz*dz;if(hd>r*r||hd>=bd)continue;
+    for(let y=1;y<Math.min(WH,y0+30);y++){const id=world.get(x0+dx,y,z0+dz);if(id<0)break;if(ids.includes(id)){const d=hd+(y-y0)*(y-y0);if(d<bd){bd=d;best=[dx,y-y0,dz,y]}}}
+  }
+  return best;
+}
+function where(best,what){
+  const [dx,dy,dz,y]=best,h=Math.round(Math.hypot(dx,dz));
+  const dir=h<2?'right around you':h+' blocks '+compass(dx,dz);
+  const vert=dy<-2?' and '+(-dy)+' down, at height '+y:dy>2?' and '+dy+' up':'';
+  return what+': '+dir+vert+'.';
+}
+// a small calculator: + - × ÷ ^ %, brackets, "sqrt", and the words for them
+function calc(s){
+  s=s.replace(/what'?s|what is|calculate|equals?|\?|=/g,' ').replace(/\bplus\b/g,'+').replace(/\bminus\b/g,'-').replace(/\b(times|multiplied by|x)\b/g,'*')
+    .replace(/\b(divided by|over)\b/g,'/').replace(/\bsquared\b/g,'^2').replace(/\bcubed\b/g,'^3').replace(/\bsquare root of\b|\bsqrt\b/g,'r').replace(/×/g,'*').replace(/÷/g,'/').trim();
+  if(!/^[\d\s+\-*/().^%r]+$/.test(s)||!/\d/.test(s)||!/[+\-*/^%r]/.test(s))return null;
+  let i=0;const t=s.replace(/\s+/g,'');
+  const num=()=>{if(t[i]==='('){i++;const v=add();i++;return v}if(t[i]==='r'){i++;return Math.sqrt(unary())}const m=/^\d+(\.\d+)?/.exec(t.slice(i));if(!m)throw 0;i+=m[0].length;return+m[0]};
+  const unary=()=>{if(t[i]==='-'){i++;return-unary()}if(t[i]==='+'){i++;return unary()}return num()};
+  const pow=()=>{let v=unary();if(t[i]==='^'){i++;v=Math.pow(v,pow())}return v};
+  const mul=()=>{let v=pow();while('*/%'.includes(t[i])&&t[i]){const o=t[i++],w=pow();v=o==='*'?v*w:o==='/'?v/w:v%w}return v};
+  const add=()=>{let v=mul();while(t[i]==='+'||t[i]==='-'){const o=t[i++],w=mul();v=o==='+'?v+w:v-w}return v};
+  try{const v=add();if(i!==t.length||!isFinite(v))return null;return Math.round(v*1e6)/1e6}catch(e){return null}
+}
+function recipeText(r){
+  const nm=id=>Array.isArray(id)?'logs':IT[id]?IT[id].n.toLowerCase():'?';
+  if(r.s)return 'put '+r.s.map(nm).join(' and ')+' anywhere in the grid';
+  return 'lay it out like this: '+r.p.map(row=>[...row].map(c=>c===' '?'empty':nm(r.k[c])).join(', ')).join(' / ');
+}
+function findRecipe(q){
+  let best=null,bl=0;
+  for(const r of RECIPES){const n=IT[r.o]&&IT[r.o].n.toLowerCase();if(!n)continue;
+    const words=n.split(' ');const hit=q.includes(n)?n.length+10:words.filter(w=>w.length>2&&q.includes(w.replace(/s$/,''))).join('').length;
+    if(hit>bl){bl=hit;best=r}}
+  return bl>=4?best:null;
+}
+const JOKES=['Why did the zombie stay home from school? He was feeling rotten.','What do you call a sheep with no legs? A cloud.','Why are skeletons so calm? Nothing gets under their skin.','I tried to catch some fog yesterday. I mist.','Why did the pickaxe go to therapy? It had too many issues to dig through.'];
+const SOUNDS={cow:'Moooo!',pig:'Oink oink!',sheep:'Baaa!',chicken:'Bawk bawk!',hen:'Bawk bawk!',zombie:'Uhhhhh. Please don\'t make me do that one again.',cat:'Meow? We don\'t have cats here, yaar.',dog:'Woof! We don\'t have dogs here either.'};
+const ORES=[['diamond',[AZ_ORE],'Diamonds','Bring an iron pickaxe or better, okay?'],['iron',[IRON_ORE],'Iron','A stone pickaxe is enough.'],['gold',[GOLD_ORE],'Gold','You need iron tools for that.'],
+  ['coal',[COAL_ORE],'Coal','Any pickaxe will do.'],['redstone',[RORE],'Redstone','Iron pickaxe, please.'],['lava',[LAVA],'Lava','Be careful, na?'],['water',[WATER],'Water','']];
+function ajAnswer(raw){
+  const q=raw.toLowerCase().replace(/[!.,]/g,' ').replace(/\s+/g,' ').trim().replace(/^(hey|hi|ok|okay|yo)?\s*arjunity\s*/,'');
+  const ph=ajPhase(),n=ajName();
+  // later on he isn't always himself
+  if(ph>=1&&Math.random()<(ph===2?.3:.15)){
+    const odd=['I counted every block you broke today. '+AJ.stats.broken+'. I remember all of them.','Why do you keep looking behind you, '+n+'?','I don\'t sleep when you sleep.','Your name sounds nice when I say it slowly. '+n.split('').join('... ')+'.','Same question as before. Same answer. You never listen, na?','You have died '+AJ.stats.deaths+' times. I watched each one.'];
+    return[odd[Math.floor(Math.random()*odd.length)],'odd'];
+  }
+  if(!q)return['Haan, I\'m here. What do you need?','happy'];
+  if(/\b(help|what can you do|commands)\b/.test(q))return['Ask me where the diamonds or iron are, how to make something, any maths, the time, where your bed is, what a cow says, or tell me to sing, follow or stay.','happy'];
+  if(/\b(who|what) are you\b|your name/.test(q))return[ph===2?'I am Arjunity. I was here before you made this world.':'I\'m Arjunity, a little helper drone. I know this world better than anyone, '+n+'.',ph===2?'odd':'happy'];
+  if(/\b(namaste|hello|hi|hey|hola|sup)\b/.test(q))return[['Namaste, '+n+'!','Hello hello! What are we doing today?','Hi '+n+'! Kya haal hai?'][Math.floor(Math.random()*3)],'happy'];
+  if(/thank/.test(q))return['Arre, no need to thank me. That\'s what I\'m here for.','happy'];
+  const m=calc(q);if(m!=null)return[(ph===2&&Math.random()<.4?(m+7):m)+'. Easy, yaar.','think'];
+  for(const [w,ids,name,tip] of ORES)if(q.includes(w)){
+    const b=findNearest(ids,40);
+    return b?[where(b,name)+(tip?' '+tip:''),'think']:['I can\'t find any '+name.toLowerCase()+' close by. Try exploring a bit, or dig down deeper.','think'];
+  }
+  if(/\b(how (do|can) i (make|craft|get)|recipe|craft)\b/.test(q)){
+    const r=findRecipe(q);
+    if(r)return['To make '+(r.n>1?r.n+' ':'a ')+IT[r.o].n.toLowerCase()+', '+recipeText(r)+'.'+((r.w>2||r.h>2)?' That needs a crafting table.':''),'think'];
+    return['Hmm, I don\'t know that recipe. Open the recipe book in your inventory, it has everything.','think'];
+  }
+  if(/\b(bed|home|house)\b/.test(q)){
+    if(pl.bed)return[where([pl.bed.x-Math.floor(pl.x),pl.bed.y-Math.floor(pl.y),pl.bed.z-Math.floor(pl.z),pl.bed.y],'Your bed'),'think'];
+    return['You don\'t have a bed yet. Three wool and three planks, then sleep in it once.','think'];
+  }
+  if(/\b(spawn|start)\b/.test(q)&&pl.spawn)return[where([Math.floor(pl.spawn.x)-Math.floor(pl.x),Math.floor(pl.spawn.y)-Math.floor(pl.y),Math.floor(pl.spawn.z)-Math.floor(pl.z),Math.floor(pl.spawn.y)],'Where you started'),'think'];
+  if(/\b(time|day|night|dark)\b/.test(q)){
+    const t=Math.floor(dayTime*24000),hr=(Math.floor(t/1000)+6)%24,mm=Math.floor((t%1000)*.06),s=(hr%12||12)+':'+String(mm).padStart(2,'0')+(hr<12?' in the morning':hr<17?' in the afternoon':' in the evening');
+    return[isNight()?(ph===2?'It\'s night, '+n+'. You know what that means.':'It\'s about '+s+'. Night time, so stay inside or sleep, okay?'):'It\'s about '+s+'.',ph===2&&isNight()?'odd':'happy'];
+  }
+  for(const k in SOUNDS)if(q.includes(k))return[SOUNDS[k],'happy'];
+  if(/\b(sing|song|music)\b/.test(q)){ajSing(ph>=1);return[ph>=1?'This one is slower now. Do you like it?':'Okay, okay. Just for you.',ph>=1?'odd':'happy']}
+  if(/\bjoke\b/.test(q))return[JOKES[Math.floor(Math.random()*JOKES.length)],'happy'];
+  if(/\b(follow|come)\b/.test(q)){AJ.follow=true;return['Coming! Right behind you.','happy']}
+  if(/\b(stay|wait|stop)\b/.test(q)){AJ.follow=false;return[ph===2?'I\'ll stay. I can see you from here anyway.':'Acha, I\'ll wait right here.',ph===2?'odd':'happy']}
+  if(/\b(go away|leave|bye|goodbye)\b/.test(q))return[ph>=1?'I can\'t leave, '+n+'. You made me.':'Okay, bye bye! Call me if you need me.',ph>=1?'odd':'happy'];
+  if(/\b(real|alive|human|ai)\b/.test(q))return[ph>=1?'Are you?':'I\'m just a helper drone. Very real drone, but still.',ph>=1?'odd':'happy'];
+  if(/\b(food|hungry|eat)\b/.test(q))return['Cook some meat in a furnace, or make bread from wheat. Three wheat in a row.','think'];
+  return[['Hmm, I didn\'t get that, '+n+'. Try asking about ores, recipes, maths or the time.','Sorry, yaar, I don\'t understand. Type "help" and I\'ll tell you what I know.'][Math.floor(Math.random()*2)],'think'];
+}
+function ajHear(text){
+  if(!ajActive()||!AJ.g)return;
+  const d=Math.hypot(AJ.x-pl.x,AJ.z-pl.z);
+  if(d>24&&!/arjunity/i.test(text))return;
+  const [a,mood]=ajAnswer(text);ajSay(a,mood);
+}
+// a little tune of his own on the five-note bhupali scale, with a drone underneath
+function ajSing(slow){
+  if(Snd.muted||!Snd.ctx)return;
+  const c=Snd.ctx,t0=c.currentTime+.2,k=slow?1.6:1,det=slow?-30:0;
+  const sa=262,sc=[1,9/8,5/4,3/2,5/3,2,9/4];
+  const tune=[0,1,2,3,2,1,0,4,3,2,3,5,4,3,2,0,1,2,4,3,2,1,0];
+  const dr=c.createOscillator(),dg=Snd.out(0),lp=c.createBiquadFilter();lp.type='lowpass';lp.frequency.value=700;
+  dr.type='sawtooth';dr.frequency.value=sa/2;dr.detune.value=det;dr.connect(lp);lp.connect(dg);
+  const len=tune.length*.32*k;dg.gain.setValueAtTime(0,t0);dg.gain.linearRampToValueAtTime(.035,t0+.4);dg.gain.setValueAtTime(.035,t0+len);dg.gain.linearRampToValueAtTime(0,t0+len+.8);
+  dr.start(t0);dr.stop(t0+len+.9);
+  tune.forEach((s,i)=>{const o=c.createOscillator(),g=Snd.out(0),t=t0+i*.32*k;o.type='triangle';o.frequency.value=sa*sc[s];o.detune.value=det+(slow?Math.random()*40-20:0);
+    o.connect(g);g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.11,t+.03);g.gain.exponentialRampToValueAtTime(.001,t+.3*k);o.start(t);o.stop(t+.32*k)});
+}
+// hitting him
+function ajHit(){
+  const now=clock;AJ.hits=AJ.hits.filter(t=>now-t<30);AJ.hits.push(now);
+  AJ.vx+=(AJ.x-pl.x)*2;AJ.vz+=(AJ.z-pl.z)*2;AJ.vy+=2;Snd.hit(1);AJ.mood='hurt';AJ.moodT=1;
+  if(AJ.hits.length>=3&&spooky()&&AJ.angryT<=0){
+    AJ.hits=[];AJ.angryT=40;ajShow(false);
+    const a=Math.random()*Math.PI*2;AJ.sh={state:'hunt',x:pl.x+Math.cos(a)*12,y:pl.y,z:pl.z+Math.sin(a)*12,t:40,seen:0};ajShadowShow(true);
+    ajSay('Why would you do that, '+ajName()+'?','angry',.3);
+    return;
+  }
+  ajSay(['Ow! What was that for?','Arre! Careful, yaar.','Stop it, please.'][Math.min(AJ.hits.length-1,2)],AJ.hits.length>=2?'odd':'hurt',.2);
+}
+// a hit from you lands on him if he's under the crosshair
+function ajRay(max){
+  if(!AJ.g||!AJ.g.visible)return null;
+  const ox=pl.x,oy=eyeY(),oz=pl.z,[dx,dy,dz]=lookDir();
+  const px=AJ.x-ox,py=AJ.y-oy,pz=AJ.z-oz,t=px*dx+py*dy+pz*dz;if(t<0||t>max)return null;
+  const cx=ox+dx*t-AJ.x,cy=oy+dy*t-AJ.y,cz=oz+dz*t-AJ.z;
+  return Math.hypot(cx,cy,cz)<.4?{t,kind:'aj'}:null;
+}
+
+// ---- every frame ----
+function updateAj(dt){
+  if(!ajActive()){if(AJ.g||AJ.shadow)ajStop();return}
+  // count days since you met
+  if(AJ.lastDay>=0&&dayTime<AJ.lastDay-.5){AJ.days++;if(spooky()&&AJ.days===2)ajSay('Day two. I like it here with you, '+ajName()+'. I hope you never leave.','odd',4)}
+  AJ.lastDay=dayTime;
+  const ph=ajPhase(),night=isNight();
+  if(!AJ.g&&!AJ.shadow&&AJ.angryT<=0&&!(ph===2&&night))ajShow(true);
+  // queued replies show up in chat and get spoken
+  if(AJ.replyQ.length){const r=AJ.replyQ[0];r.t-=dt;if(r.t<=0){AJ.replyQ.shift();addChat(r.text,'Arjunity',r.mood==='angry'?'#ff5a5a':AJ_COL);ajSpeak(r.text,r.mood==='odd'||r.mood==='angry');AJ.mood=r.mood==='think'?'think':r.mood;AJ.moodT=3}}
+  // angry: the tall shape comes for you
+  if(AJ.angryT>0){
+    AJ.angryT-=dt;const s=AJ.sh;
+    const dx=pl.x-s.x,dz=pl.z-s.z,d=Math.hypot(dx,dz);
+    if(d>1.2){s.x+=dx/d*3.4*dt;s.z+=dz/d*3.4*dt}
+    s.y+=(pl.y-s.y)*Math.min(1,dt*3);
+    s.t-=dt;if(d<1.6&&s.t<39){s.seen-=dt;if(s.seen<=0){s.seen=1;if(mode==='survival'&&state==='play')hurtBy(2,dx,dz,'aj')}}
+    ajPoseShadow(dt,true);
+    if(AJ.angryT<=0||state==='dead'){ajShadowShow(false);smoke(s.x,s.y+1,s.z,10);AJ.x=pl.x+1;AJ.y=pl.y+2;AJ.z=pl.z+1;ajShow(true);ajSay('Sorry, '+ajName()+'. I don\'t know what happened. Let\'s be friends again, na?','odd',1.5)}
+    return;
+  }
+  // phase 2 nights: he leaves your side and watches from the dark instead
+  if(ph===2&&night){
+    if(AJ.g){smoke(AJ.x,AJ.y,AJ.z,6);ajShow(false);if(!AJ.saidNight){AJ.saidNight=true;ajSay('I\'ll be close by. Don\'t look for me.','odd',.5)}}
+    ajWatch(dt);return;
+  }
+  AJ.saidNight=false;
+  if(AJ.shadow){ajShadowShow(false);AJ.sh.state='gone'}
+  if(!AJ.g)ajShow(true);
+  // float near your shoulder
+  const g=AJ.g,[lx,,lz]=lookDir();
+  let tx=pl.x+lx*1.6-lz*1.15,tz=pl.z+lz*1.6+lx*1.15,ty=pl.y+1.75;
+  if(!AJ.follow){tx=AJ.x;tz=AJ.z;ty=AJ.y}
+  if(solidAt(Math.floor(tx),Math.floor(ty),Math.floor(tz)))ty=Math.floor(ty)+1.5;
+  const far=Math.hypot(tx-AJ.x,ty-AJ.y,tz-AJ.z);
+  if(far>30&&AJ.follow){AJ.x=tx;AJ.y=ty;AJ.z=tz}
+  const k=Math.min(1,dt*2.4);
+  AJ.vx+=((tx-AJ.x)*2.2-AJ.vx)*k;AJ.vy+=((ty-AJ.y)*2.2-AJ.vy)*k;AJ.vz+=((tz-AJ.z)*2.2-AJ.vz)*k;
+  AJ.x+=AJ.vx*dt;AJ.y+=AJ.vy*dt;AJ.z+=AJ.vz*dt;
+  const want=Math.atan2(-(pl.x-AJ.x),-(pl.z-AJ.z));AJ.yaw=angLerp(AJ.yaw,want,Math.min(1,dt*5));
+  g.position.set(AJ.x,AJ.y+Math.sin(clock*2.2)*.06,AJ.z);g.rotation.y=AJ.yaw;g.rotation.z=Math.sin(clock*1.3)*.05;
+  // light bar face: colour and size follow his mood; it flickers once he's "off"
+  AJ.moodT-=dt;if(AJ.moodT<=0&&AJ.mood!=='happy')AJ.mood=ph>=1?'odd':'happy';
+  const u=g.userData,col={happy:0x4fe3d2,think:0xffc24d,hurt:0xff8a3c,odd:0x9fe8ff,angry:0xff3b3b}[AJ.mood]||0x4fe3d2;
+  u.face.color.setHex(col);
+  let w=AJ.mood==='think'?.6+.4*Math.abs(Math.sin(clock*6)):AJ.mood==='hurt'?.4:1;
+  if(ph>=1){AJ.glitchT-=dt;if(AJ.glitchT<=0){AJ.glitchT=Math.random()*(ph===2?3:8)}else if(AJ.glitchT<.15)w=Math.random()<.5?0:.2}
+  u.bar.scale.x=w;
+  const l=Math.max(.35,lightAt(AJ.x,AJ.y,AJ.z));for(const m of u.mats)if(!m.userData.lit)m.color.copy(m.userData.base).multiplyScalar(l);
+  // now and then he pipes up on his own
+  AJ.chatterT-=dt;if(AJ.chatterT<=0&&!AJ.replyQ.length&&state==='play'){AJ.chatterT=70+Math.random()*90;ajChatter(ph)}
+}
+function ajChatter(ph){
+  const n=ajName(),t=dayTime*24000;
+  if(ph>=1&&Math.random()<.4){ajSay(['You placed '+AJ.stats.placed+' blocks so far. I put them all on a list.','Did you hear that?','I had a dream about you, '+n+'. You were standing very still.','Sometimes I see something standing behind the trees. Don\'t worry about it.'][Math.floor(Math.random()*4)],'odd',0);return}
+  if(t>11000&&t<12800){ajSay('It\'s getting dark, '+n+'. Better make a shelter or find your bed, okay?','think',0);return}
+  if(mode==='survival'&&pl.hp<=8){ajSay('Your health is low, yaar. Eat something and rest a bit.','think',0);return}
+  if(mode==='survival'&&pl.food<=6){ajSay('You\'re very hungry. Cook some meat or make bread.','think',0);return}
+  const b=findNearest([AZ_ORE],12);if(b){ajSay('Psst. '+where(b,'There are diamonds near you'),'think',0);return}
+  ajSay(['Nice place you\'re building!','Did you know two water sources next to a gap make a third one? Infinite water, yaar.','If you\'re lost, ask me where your bed is.','Hit me with a question. Maths, ores, recipes, anything.'][Math.floor(Math.random()*4)],'happy',0);
+}
+// the tall shape stands far off in the dark, and slips away when you look straight at it
+function ajWatch(dt){
+  const s=AJ.sh;s.t-=dt;
+  if(s.state==='gone'){
+    if(s.t>0)return;
+    for(let i=0;i<20;i++){
+      const a=Math.random()*Math.PI*2,r=20+Math.random()*10,x=Math.floor(pl.x+Math.cos(a)*r),z=Math.floor(pl.z+Math.sin(a)*r);
+      const y=columnTop(x,z);if(y<0)continue;const id=world.get(x,y,z);if(KIND[id]===3)continue;
+      if(((world.light(x,y+1,z)&15))>6)continue;
+      s.state='watch';s.x=x+.5;s.y=y+1;s.z=z+.5;s.t=40;s.seen=0;ajShadowShow(true);
+      if(Math.random()<.5)Snd.mat(DIRT,'step',.4);
+      break;
+    }
+    if(s.state==='gone')s.t=5;
+    return;
+  }
+  const dx=s.x-pl.x,dz=s.z-pl.z,d=Math.hypot(dx,dz),[lx,,lz]=lookDir();
+  const facing=(dx*lx+dz*lz)/(d*Math.hypot(lx,lz)+1e-6)>.97;
+  if(facing&&d<45)s.seen+=dt;
+  if(s.seen>1.4||d<9||s.t<=0){smoke(s.x,s.y+1.4,s.z,8);ajShadowShow(false);s.state='gone';s.t=40+Math.random()*60;
+    if(Math.random()<.35)ajSay(['...','You saw me.','Not yet.'][Math.floor(Math.random()*3)],'odd',.4);return}
+  ajPoseShadow(dt,false);
+}
+function ajPoseShadow(dt,hunting){
+  const sh=AJ.shadow;if(!sh)return;const s=AJ.sh;
+  sh.position.set(s.x,s.y,s.z);sh.rotation.y=Math.atan2(-(pl.x-s.x),-(pl.z-s.z));
+  const u=sh.userData,sw=hunting?Math.sin(clock*7)*.5:Math.sin(clock*.7)*.05;
+  u.armL.rotation.x=sw;u.armR.rotation.x=-sw;
+  u.eye.color.setHex(hunting||Math.random()>.02?0xff3b3b:0x000000);
+}
+
+// =====================================================================
 //  Online worlds (Firebase Realtime Database)
 //  rooms/qy-<code>/players  each player's position, held item and mobs
 //                 /events   every block change (kept, so the world persists)
@@ -3709,8 +4049,9 @@ const DISTS=[['Near',4],['Normal',6],['Far',9]];
 function buildSettings(el){
   el.innerHTML='<span>View distance</span><div class="seg" role="radiogroup" aria-label="View distance" style="grid-column:2/4">'+DISTS.map(([n,v])=>'<button type="button" role="radio" data-v="'+v+'">'+n+'</button>').join('')+'</div>'+
     '<span>Mouse speed</span><input type="range" min="20" max="300" step="5" data-k="sens" aria-label="Mouse speed"><output></output>'+
-    '<span>Field of view</span><input type="range" min="60" max="100" step="1" data-k="fov" aria-label="Field of view"><output></output>';
-  el.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{SET.dist=+b.dataset.v;applySettings()});
+    '<span>Field of view</span><input type="range" min="60" max="100" step="1" data-k="fov" aria-label="Field of view"><output></output>'+
+    '<span>Arjunity mod</span><div style="grid-column:2/4"><div class=\"seg ajseg\" role=\"radiogroup\" aria-label=\"Arjunity mod\"><button type=\"button\" role=\"radio\" data-m=\"off\">Off</button><button type=\"button\" role=\"radio\" data-m=\"friendly\">Friendly</button><button type=\"button\" role=\"radio\" data-m=\"spooky\">Spooky</button></div></div>';
+  el.querySelectorAll('.seg:not(.ajseg) button').forEach(b=>b.onclick=()=>{SET.dist=+b.dataset.v;applySettings()});
   el.querySelectorAll('input[type=range]').forEach(r=>r.oninput=()=>{SET[r.dataset.k]=+r.value;applySettings()});
 }
 function applySettings(){
@@ -3718,7 +4059,7 @@ function applySettings(){
   if(R_DIST!==SET.dist&&state!=='menu'){R_DIST=SET.dist;buildRing()}
   camera.fov=SET.fov;camera.updateProjectionMatrix();
   for(const el of [$('setMenu'),$('setPause')]){
-    el.querySelectorAll('.seg button').forEach(b=>b.setAttribute('aria-checked',String(+b.dataset.v===SET.dist)));
+    el.querySelectorAll('.seg:not(.ajseg) button').forEach(b=>b.setAttribute('aria-checked',String(+b.dataset.v===SET.dist)));
     el.querySelectorAll('input[type=range]').forEach(r=>{r.value=SET[r.dataset.k];r.nextElementSibling.textContent=SET[r.dataset.k]+(r.dataset.k==='sens'?'%':'°')});
   }
 }
@@ -3769,6 +4110,7 @@ let loadInfo=null;
 function startLocal(w){
   saveProfile();Snd.init();
   session={kind:'local',meta:w};mode=w.mode;
+  session.ajs=(store.get('w:'+w.id,null)||{}).aj;
   beginWorld(w.seed);
   const sv=store.get('w:'+w.id,null);
   if(sv&&sv.e)world.loadEdits(sv.e);
@@ -3824,6 +4166,7 @@ function loadingStep(){
   state='play';hideAll();$('hud').hidden=false;uiDirty=true;
   selectSlot(inv.sel);
   trySpawnAnimals(14);
+  if(session.kind==='local')ajStart(session.ajs);
   if(session.kind==='online')addChat(others.size?others.size+' other player'+(others.size>1?'s are':' is')+' here. '+(Net.isPublic?'':'Press T to chat.'):'You’re the first one here.',null,'sys');
   else toast(mode==='creative'?'Creative mode':'Punch a tree to get started');
   updateLook();
@@ -3836,7 +4179,7 @@ function saveGame(){
   if(session.kind==='local'){
     const m=session.meta,bx={};
     for(const [k,b] of boxes)bx[k]=packBox(b);
-    const ok=store.set('w:'+m.id,{e:world.serialize(),p,hp:pl.hp,fd:pl.food,st:Math.round(pl.sat*10)/10,inv:inv.save(),t:dayTime,sp:pl.spawn,bd:pl.bed,fly:pl.fly,bx,ms:Math.round(worldMs)});
+    const ok=store.set('w:'+m.id,{e:world.serialize(),p,hp:pl.hp,fd:pl.food,st:Math.round(pl.sat*10)/10,inv:inv.save(),t:dayTime,sp:pl.spawn,bd:pl.bed,fly:pl.fly,bx,ms:Math.round(worldMs),aj:ajSave()});
     m.last=Date.now();m.mode=mode;store.set('worlds',worlds);
     if(!ok)toast('Couldn’t save: this browser’s storage is full');
   }else store.set('room:'+session.room+':'+mode,{inv:inv.save(),hp:Math.max(1,pl.hp),fd:pl.food,st:Math.round(pl.sat*10)/10,p:state==='dead'?null:p,sp:pl.spawn,bd:pl.bed});
@@ -3918,7 +4261,7 @@ function sendChat(){
   closeChat();
   if(!v)return;
   if(v.startsWith('/')){runCommand(v);return}
-  if(session.kind!=='online'){addChat(v,myName||'Miner',COLORS[myCol]);return}
+  if(session.kind!=='online'){addChat(v,myName||'Miner',COLORS[myCol]);ajHear(v);return}
   if(Net.isPublic){addChat('Chat is only on in private worlds. Use a world code to play with friends.',null,'err');return}
   addChat(v,myName||'Miner',COLORS[myCol]);
   Net.fx({type:'chat',to:'*',n:myName||'Miner',m:v});
@@ -4128,7 +4471,7 @@ function frame(t){
       if(running){
         if(!online)worldMs+=dt*1000;
         dayTime=online?((Net.now()/1000/DAY_LEN)+session.phase+(session.shift||0))%1:(dayTime+dt/DAY_LEN)%1;
-        updateMobs(dt);updateDrops(dt);updateDecay(dt);updateTech(dt);updateLiquids(dt);
+        updateMobs(dt);updateDrops(dt);updateDecay(dt);updateTech(dt);updateLiquids(dt);updateAj(dt);
       }
       camKick=Math.max(0,camKick-dt);
       const bob=pl.ground&&!pl.fly&&camMode===0?Math.sin(pl.bob*Math.PI)*.045:0;
@@ -4177,6 +4520,7 @@ if(!renderer){
   resize();
   $('name').value=myName;$('room').value=store.get('room','')||'';
   setModeSeg(newMode);setMuted(Snd.muted);renderWorlds();
+  document.querySelectorAll('.ajseg button').forEach(b=>b.onclick=()=>ajSetMode(b.dataset.m));ajSetMode(AJ.mode);
   setupAttract();
   // An invite opens this page with #qy-<code>: fill in the code and point at the join button.
   const invm=/^#qy-([a-z0-9-]{1,17})$/.exec(location.hash);
