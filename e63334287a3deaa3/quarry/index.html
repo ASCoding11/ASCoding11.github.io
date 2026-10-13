@@ -364,6 +364,8 @@ details.fold[open] summary::before{content:'– '}
 <script>
 (function(){
 'use strict';
+// the game's own source, so chunk building can run in background threads (see 4b_worker.js)
+const QY_SRC=(document.currentScript&&document.currentScript.textContent)||'';
 // =====================================================================
 //  Firebase (same project and Realtime Database rules as Rumble Karts).
 //  Online worlds live under rooms/qy-<code>, so the existing rules cover them.
@@ -383,6 +385,7 @@ const FIREBASE_SDK='https://www.gstatic.com/firebasejs/10.12.2/';
 const AD_CLIENT='ca-pub-1712937102765568';
 const AD_SLOT='';
 window.QUARRY_AD_SLOT=AD_SLOT;
+/*W+*/
 
 const $=id=>document.getElementById(id);
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
@@ -545,6 +548,7 @@ for(let ti=0;ti<5;ti++)for(let m=0;m<5;m++)CREATIVE.push(toolId(ti,m));
 CREATIVE.push(BUCKET,WBUCKET,LBUCKET,DOOR,IDOOR,BED,FARMLAND,TALLGRASS,POPPY,DANDELION,OAK_SAP,PINE_SAP,WHEAT0,WHEAT,BREAD,
   DUST,RTORCH,LEVER,BUTTON,PLATE,REPEATER,RLAMP,RBLOCK,RORE);
 
+/*W-*/
 // =====================================================================
 //  Textures: every tile is painted here from seeded noise, 16×16 pixels.
 // =====================================================================
@@ -750,6 +754,7 @@ function iconFor(id){
   ICONS[id]=cv.toDataURL();return ICONS[id];
 }
 
+/*W+*/
 // =====================================================================
 //  Terrain generation
 // =====================================================================
@@ -899,8 +904,12 @@ class World{
     return c.light[(y*CS+(z&15))*CS+(x&15)];
   }
   load(cx,cz){
-    const k=ckey(cx,cz);let c=this.chunks.get(k);if(c)return c;
-    const data=this.gen.chunk(cx,cz);
+    const c=this.chunks.get(ckey(cx,cz));if(c)return c;
+    return this.install(cx,cz,this.gen.chunk(cx,cz));
+  }
+  // add a freshly generated chunk (from here or from a background thread) and replay changes made to it
+  install(cx,cz,data){
+    const k=ckey(cx,cz);let c;
     const ed=this.edits.get(k);if(ed)for(const [i,id] of ed)data[i]=id;
     c={cx,cz,key:k,data,maxY:0,em:0,mesh:null,meshed:false};
     this.stats(c);this.chunks.set(k,c);trackChunk(c);
@@ -1121,6 +1130,9 @@ function torchMesh(buf,x,y,z,tile,sky,blk){
   quad([[a,h,b],[b,h,b],[b,h,a],[a,h,a]],[[a,8/16],[b,8/16],[b,10/16],[a,10/16]]);
 }
 
+/*W-*/
+
+/*W+*/
 // =====================================================================
 //  Blocks that aren't full cubes: doors, beds, farmland, levers, buttons,
 //  pressure plates, repeaters, redstone dust and plants. Boxes are in
@@ -1285,6 +1297,9 @@ function crossMesh(buf,tile,x,y,z,r){
   flatQuad(buf,[[x+a,y,z+b],[x+b,y,z+a],[x+b,y+1,z+a],[x+a,y+1,z+b]],[[0,0],[1,0],[1,1],[0,1]],tile,sky,bl,.92);
 }
 
+/*W-*/
+
+/*W+*/
 // =====================================================================
 //  Water and lava: levels, surface heights, which way they flow, and how
 //  they're drawn (sloped surfaces, animated by a shader in 4_render.js)
@@ -1388,6 +1403,8 @@ function liquidMesh(buf,id,x,y,z,r){
     put([[x,y+.001,z],[x+1,y+.001,z],[x+1,y+.001,z+1],[x,y+.001,z+1]],[[x,z],[x+1,z],[x+1,z+1],[x,z+1]],[0,0],.55,L);
   }
 }
+
+/*W-*/
 
 // =====================================================================
 //  Rendering
@@ -1635,6 +1652,7 @@ function neighboursLoaded(cx,cz){for(let z=-1;z<=1;z++)for(let x=-1;x<=1;x++)if(
 let unloadT=0;
 function stream(px,pz,budget,dt){
   if(!world)return;
+  if(!WK.ok&&!WK.failed)initWorkers();
   const t0=performance.now(),pcx=Math.floor(px/CS),pcz=Math.floor(pz/CS);
   const r2=(R_DIST+.5)*(R_DIST+.5),g2=(R_DIST+1.5)*(R_DIST+1.5);
   // edited chunks first
@@ -1644,7 +1662,10 @@ function stream(px,pz,budget,dt){
     for(let i=0;i<list.length;i++){
       const c=world.chunks.get(list[i]);if(!c)continue;
       if(i>0&&performance.now()-t0>budget){world.dirty.add(list[i]);continue}
-      if(neighboursLoaded(c.cx,c.cz)&&c.meshed)applyMesh(c,meshChunk(world,c));
+      if(c.pending){c.again=true;continue}
+      if(!neighboursLoaded(c.cx,c.cz)||!c.meshed)continue;
+      if(WK.ok){requestMesh(c,true);continue}
+      applyMesh(c,meshChunk(world,c));
     }
   }
   for(const [dx,dz,d2] of RING){
@@ -1652,8 +1673,8 @@ function stream(px,pz,budget,dt){
     if(d2>g2)continue;
     const cx=pcx+dx,cz=pcz+dz;
     let c=world.chunks.get(ckey(cx,cz));
-    if(!c){world.load(cx,cz);continue}
-    if(!c.meshed&&d2<=r2&&neighboursLoaded(cx,cz))applyMesh(c,meshChunk(world,c));
+    if(!c){if(WK.ok){if(!requestGen(cx,cz))break;continue}world.load(cx,cz);continue}
+    if(!c.meshed&&!c.pending&&d2<=r2&&neighboursLoaded(cx,cz)){if(WK.ok){if(!requestMesh(c))break;continue}applyMesh(c,meshChunk(world,c))}
   }
   unloadT-=dt;
   if(unloadT<=0){unloadT=1;const lim=(R_DIST+3)*(R_DIST+3);
@@ -1694,6 +1715,92 @@ function updateSky(t,under){
   scene.fog.near=UNI.uNear.value;scene.fog.far=UNI.uFar.value;
 }
 const perfNow=()=>performance.now();
+
+// =====================================================================
+//  Background threads: terrain generation and chunk meshing run in Web
+//  Workers so the game never stalls while new land streams in. The
+//  workers run the same code as this page (the parts marked W+ … W-).
+//  If workers aren't available, everything still runs here as before.
+// =====================================================================
+const WK={list:[],ok:false,jobs:new Map(),seq:0,gen:new Set()};
+function workerSource(){
+  const open='/*W'+'+*/',close='/*W'+'-*/';
+  const parts=QY_SRC.split(open).slice(1).map(p=>p.split(close)[0]);
+  if(parts.length<4)return null;
+  return "'use strict';var window=self;\n"+parts.join('\n')+`
+Buf.prototype.geometry=function(){if(!this.n)return null;return{p:new Float32Array(this.p),u:new Float32Array(this.u),l:new Float32Array(this.l),i:this.n>65535?new Uint32Array(this.i):new Uint16Array(this.i)}};
+LBuf.prototype.geometry=function(){const g=Buf.prototype.geometry.call(this);if(g)g.f=new Float32Array(this.f);return g};
+let GEN=null;
+onmessage=e=>{
+  const m=e.data;
+  try{
+    if(m.t==='gen'){
+      if(!GEN||GEN.seed!==m.seed)GEN=new Gen(m.seed);
+      const d=GEN.chunk(m.cx,m.cz);postMessage({t:'gen',id:m.id,data:d},[d.buffer]);
+    }else if(m.t==='mesh'){
+      const map=new Map();for(const n of m.n)map.set(ckey(n.cx,n.cz),n);
+      const c=map.get(ckey(m.cx,m.cz)),r=meshChunk({chunk:(x,z)=>map.get(ckey(x,z))},c),tr=[c.light.buffer];
+      for(const k in r)if(r[k])for(const a of Object.values(r[k]))tr.push(a.buffer);
+      postMessage({t:'mesh',id:m.id,r,light:c.light},tr);
+    }
+  }catch(err){postMessage({t:'err',id:m.id,msg:String(err&&err.stack||err)})}
+};`;
+}
+function initWorkers(){
+  if(WK.list.length||WK.failed)return;
+  try{
+    const src=workerSource();if(!src||typeof Worker==='undefined')throw new Error('no workers');
+    const url=URL.createObjectURL(new Blob([src],{type:'text/javascript'}));
+    const n=clamp((navigator.hardwareConcurrency||4)-1,1,3);
+    for(let i=0;i<n;i++){
+      const w=new Worker(url);w.busy=0;
+      w.onmessage=e=>onWorker(w,e.data);
+      w.onerror=e=>{console.error('chunk worker',e.message);WK.failed=true;WK.ok=false};
+      WK.list.push(w);
+    }
+    WK.ok=true;
+  }catch(e){WK.failed=true;WK.ok=false}
+}
+function pickWorker(){let b=null;for(const w of WK.list)if(!b||w.busy<b.busy)b=w;return b}
+const inflight=()=>{let n=0;for(const w of WK.list)n+=w.busy;return n};
+function requestGen(cx,cz){
+  const k=ckey(cx,cz);if(WK.gen.has(k))return true;
+  if(inflight()>=WK.list.length*3)return false;
+  const w=pickWorker(),id=++WK.seq;
+  WK.jobs.set(id,{t:'gen',world,k,cx,cz,w});WK.gen.add(k);w.busy++;
+  w.postMessage({t:'gen',id,seed:world.seed,cx,cz});
+  return true;
+}
+function requestMesh(c,urgent){
+  if(c.pending){c.again=true;return true}
+  if(!urgent&&inflight()>=WK.list.length*3)return false;
+  const n=[];
+  for(let z=-1;z<=1;z++)for(let x=-1;x<=1;x++){const o=world.chunk(c.cx+x,c.cz+z);if(o)n.push({cx:o.cx,cz:o.cz,maxY:o.maxY,em:o.em,data:o.data.slice()})}
+  const w=pickWorker(),id=++WK.seq;
+  WK.jobs.set(id,{t:'mesh',world,c,w});c.pending=true;c.again=false;w.busy++;
+  w.postMessage({t:'mesh',id,cx:c.cx,cz:c.cz,n},n.map(o=>o.data.buffer));
+  return true;
+}
+function toGeo(r,c){
+  if(!r)return null;
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.BufferAttribute(r.p,3));g.setAttribute('uv',new THREE.BufferAttribute(r.u,2));
+  g.setAttribute('light',new THREE.BufferAttribute(r.l,4));if(r.f)g.setAttribute('flow',new THREE.BufferAttribute(r.f,2));
+  g.setIndex(new THREE.BufferAttribute(r.i,1));
+  // the chunk's own box is a good enough bound for culling, and much quicker than measuring every vertex
+  const h=(c.maxY+2)/2;g.boundingSphere=new THREE.Sphere(new THREE.Vector3(8,h,8),Math.hypot(8,8,h)+.5);return g;
+}
+function onWorker(w,m){
+  const j=WK.jobs.get(m.id);if(!j)return;WK.jobs.delete(m.id);w.busy--;
+  if(m.t==='err'){console.error('chunk worker:',m.msg);if(j.t==='gen')WK.gen.delete(j.k);else j.c.pending=false;return}
+  if(j.world!==world)return;
+  if(j.t==='gen'){WK.gen.delete(j.k);if(!world.chunks.has(j.k))world.install(j.cx,j.cz,m.data);return}
+  const c=j.c;c.pending=false;
+  if(world.chunks.get(c.key)!==c)return;
+  c.light=m.light;
+  const r=m.r;applyMesh(c,{o:toGeo(r.o,c),c:toGeo(r.c,c),l:toGeo(r.l,c),v:toGeo(r.v,c)});
+  if(c.again){c.again=false;world.dirty.add(c.key)}
+}
 
 // =====================================================================
 //  Sound (all synthesised with Web Audio)
@@ -2009,7 +2116,7 @@ function moveBody(e,dx,dy,dz,hw,h,edgeStop,step){
       if(!bs.length){e.x=nx;e.z=nz;continue}
       // walk up onto anything half a block high or less (slabs of farmland, beds, repeaters)
       let top=-1e9;for(const b of bs)top=Math.max(top,b[4]);
-      if(step&&top>e.y&&top-e.y<=.6&&!boxHits(nx,top,nz,hw,h)){e.y=top;e.x=nx;e.z=nz;continue}
+      if(step&&top>e.y&&top-e.y<=.6&&!boxHits(nx,top,nz,hw,h)){if(e===pl)pl.stepUp=(pl.stepUp||0)+(top-e.y);e.y=top;e.x=nx;e.z=nz;continue}
       if(ax===0){let c=d>0?1e9:-1e9;for(const b of bs)c=d>0?Math.min(c,b[0]):Math.max(c,b[3]);e.x=d>0?c-hw-1e-4:c+hw+1e-4;e.vx=0;dx=0}
       else{let c=d>0?1e9:-1e9;for(const b of bs)c=d>0?Math.min(c,b[2]):Math.max(c,b[5]);e.z=d>0?c-hw-1e-4:c+hw+1e-4;e.vz=0;dz=0}
       e.hitWall=true;
@@ -4293,7 +4400,13 @@ function attract(dt){
 //  Input
 // =====================================================================
 let locked=false,camMode=0,hideHud=false,showDebug=false,selfAv=null;
-function lockPointer(){try{const p=canvas.requestPointerLock();if(p&&p.catch)p.catch(()=>{})}catch(e){}}
+let rawOK=true;
+function lockPointer(){
+  try{
+    const p=rawOK?canvas.requestPointerLock({unadjustedMovement:true}):canvas.requestPointerLock();
+    if(p&&p.catch)p.catch(err=>{if(rawOK&&err&&err.name==='NotSupportedError'){rawOK=false;lockPointer()}});
+  }catch(e){try{canvas.requestPointerLock()}catch(e2){}}
+}
 function updateLook(){$('lookMsg').hidden=!(state==='play'&&!locked)}
 document.addEventListener('pointerlockchange',()=>{
   locked=document.pointerLockElement===canvas;
@@ -4354,8 +4467,9 @@ addEventListener('mousemove',e=>{
   mx=e.clientX;my=e.clientY;
   if(state==='inv'){drawHeld();const t=$('tip');if(!t.hidden){t.style.left=Math.min(innerWidth-270,mx+16)+'px';t.style.top=(my-30)+'px'}return}
   if(state==='play'&&locked){
-    const k=.0022*SET.sens/100;
-    pl.yaw-=e.movementX*k;pl.pitch=clamp(pl.pitch-e.movementY*k,-1.55,1.55);
+    const k=.0022*SET.sens/100,mxv=e.movementX,myv=e.movementY;
+    if(Math.abs(mxv)>600||Math.abs(myv)>600)return;
+    pl.yaw-=mxv*k;pl.pitch=clamp(pl.pitch-myv*k,-1.55,1.55);
   }
 });
 addEventListener('wheel',e=>{if(state==='play'&&locked&&e.deltaY)selectSlot((inv.sel+(e.deltaY>0?1:8))%9)},{passive:true});
@@ -4451,16 +4565,29 @@ function resize(){
 addEventListener('resize',resize);
 const _d=new THREE.Vector3();
 function placeCamera(bob){
-  const ey=eyeY()+Math.abs(bob);
-  if(camMode===0||state==='dead'){camera.position.set(pl.x,ey,pl.z);camera.rotation.set(pl.pitch,pl.yaw,camKick*.25*Math.sin(clock*40)*(camKick>0?1:0));return}
+  const px=RP.x,pz=RP.z,ey=RP.y+camEye+camStep+Math.abs(bob);
+  if(camMode===0||state==='dead'){camera.position.set(px,ey,pz);camera.rotation.set(pl.pitch,pl.yaw,camKick*.25*Math.sin(clock*40)*(camKick>0?1:0));return}
   const [dx,dy,dz]=lookDir(),back=camMode===1?-1:1;
   // pull the camera in when there's a wall behind you
   let dist=4;
-  for(let t=.3;t<=4;t+=.1){const x=pl.x+dx*back*t,y=ey+dy*back*t,z=pl.z+dz*back*t;if(solidAt(Math.floor(x),Math.floor(y),Math.floor(z))){dist=Math.max(.3,t-.3);break}}
-  camera.position.set(pl.x+dx*back*dist,ey+dy*back*dist,pl.z+dz*back*dist);
-  _d.set(pl.x,ey,pl.z);camera.lookAt(_d);
+  for(let t=.3;t<=4;t+=.1){const x=px+dx*back*t,y=ey+dy*back*t,z=pz+dz*back*t;if(solidAt(Math.floor(x),Math.floor(y),Math.floor(z))){dist=Math.max(.3,t-.3);break}}
+  camera.position.set(px+dx*back*dist,ey+dy*back*dist,pz+dz*back*dist);
+  _d.set(px,ey,pz);camera.lookAt(_d);
 }
 let last=performance.now(),saveT=0;
+// Movement runs in fixed 1/120 s steps and the camera is drawn between the last two steps,
+// so motion stays smooth whatever the frame rate. Stepping up, sneaking and sprinting ease in.
+const PSTEP=1/120,RP={x:0,y:0,z:0},PP={x:0,y:0,z:0};
+let physAcc=0,camEye=EYE,camStep=0,fovNow=75,underShown=-1;
+// automatic resolution: drop the render scale a little when frames run long, raise it back when there's room
+let frEma=16,resScale=1,resT=0;
+function adaptResolution(gapMs,dt){
+  if(gapMs>0&&gapMs<120)frEma=frEma*.94+gapMs*.06;
+  resT+=dt;if(resT<2)return;
+  if(frEma>23&&resScale>.6){resScale=Math.round((resScale-.1)*10)/10;renderer.setPixelRatio(resScale);resize();resT=0}
+  else if(frEma<14.5&&resScale<1){resScale=Math.round((resScale+.1)*10)/10;renderer.setPixelRatio(resScale);resize();resT=-3}
+  else resT=1.5;
+}
 function frame(t){
   const gap=t-last,dt=Math.min(.05,Math.max(0,gap/1000));last=t;clock+=dt;
   try{
@@ -4471,7 +4598,16 @@ function frame(t){
       const online=session.kind==='online';
       // single-player pauses behind menus; online worlds keep going
       const running=state==='play'||state==='inv'||state==='chat'||state==='dead'||online;
-      if(state==='play'||state==='inv'||state==='chat')physics(dt);
+      if(state==='play'||state==='inv'||state==='chat'){
+        physAcc+=Math.min(.25,Math.max(0,gap/1000));let n=0;
+        while(physAcc>=PSTEP&&n<30){PP.x=pl.x;PP.y=pl.y;PP.z=pl.z;physics(PSTEP);physAcc-=PSTEP;n++}
+        if(n>=30)physAcc=0;
+      }else{physAcc=0;PP.x=pl.x;PP.y=pl.y;PP.z=pl.z}
+      {const a=physAcc/PSTEP,jump=Math.abs(pl.x-PP.x)+Math.abs(pl.y-PP.y)+Math.abs(pl.z-PP.z)>3;
+        RP.x=jump?pl.x:PP.x+(pl.x-PP.x)*a;RP.y=jump?pl.y:PP.y+(pl.y-PP.y)*a;RP.z=jump?pl.z:PP.z+(pl.z-PP.z)*a;}
+      if(pl.stepUp){camStep-=pl.stepUp;pl.stepUp=0}
+      camStep*=Math.exp(-dt*14);if(Math.abs(camStep)<.002)camStep=0;
+      camEye+=((pl.sneak?EYE-.12:EYE)-camEye)*Math.min(1,dt*14);
       interact(dt);
       if(running){
         if(!online)worldMs+=dt*1000;
@@ -4481,17 +4617,18 @@ function frame(t){
       camKick=Math.max(0,camKick-dt);
       const bob=pl.ground&&!pl.fly&&camMode===0?Math.sin(pl.bob*Math.PI)*.045:0;
       placeCamera(bob);
-      camera.fov=SET.fov*(pl.sprint&&Math.hypot(pl.vx,pl.vz)>5?1.1:1);camera.updateProjectionMatrix();
+      const fovT=SET.fov*(pl.sprint&&Math.hypot(pl.vx,pl.vz)>5?1.1:1);fovNow+=(fovT-fovNow)*Math.min(1,dt*10);
+      if(Math.abs(camera.fov-fovNow)>.01){camera.fov=fovNow;camera.updateProjectionMatrix()}
       stream(pl.x,pl.z,7,dt);
       if(online){Net.tick(dt);updateOthers(dt,gap);updateRemoteMobs(dt)}
       under=camMode===0?pl.head:0;
-      $('water').style.display=under?'block':'none';$('water').classList.toggle('lava',under===LAVA);
+      if(under!==underShown){underShown=under;$('water').style.display=under?'block':'none';$('water').classList.toggle('lava',under===LAVA)}
       // your own body in third person
       if(camMode>0&&state!=='dead'){
         if(!selfAv)selfAv=makeAvatar(myCol,myName,true);
         selfAv.g.visible=true;const s=inv.cur();
         if(swingT>.22)selfAv.swing=.3;
-        poseAvatar(selfAv,pl.x,pl.y,pl.z,pl.yaw,pl.pitch,Math.hypot(pl.vx,pl.vz),dt,s?s.id:0,pl.sneak);
+        poseAvatar(selfAv,RP.x,RP.y,RP.z,pl.yaw,pl.pitch,Math.hypot(pl.vx,pl.vz),dt,s?s.id:0,pl.sneak);
       }else if(selfAv)selfAv.g.visible=false;
       // hand
       swingT=Math.max(0,swingT-dt);
@@ -4507,6 +4644,7 @@ function frame(t){
       drawDebug(dt);
     }
     updateParticles(dt);
+    adaptResolution(gap,dt);
     if(uiDirty&&state!=='menu'){uiDirty=false;drawHUD()}
     UTIME.value=(performance.now()/1000)%3600;
     updateSky(dayTime,under);
