@@ -64,6 +64,26 @@ details.game .kpi .value{font-size:20px}
 .who small{display:block;color:var(--muted);font-size:12px}
 .cardhead{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start}
 #gscBody .kpis{margin-bottom:14px}
+.vtools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.vtools input{font:inherit;padding:7px 11px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text);min-width:200px;flex:1;max-width:320px}
+tr.vrow{cursor:pointer}
+tr.vrow:hover td{background:rgba(var(--cell),.07)}
+.more{margin-top:10px}
+.drawer-bg{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:20}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(640px,100%);background:var(--bg);border-left:1px solid var(--line);z-index:21;overflow-y:auto;padding:18px 18px 40px;box-shadow:-12px 0 32px rgba(0,0,0,.18)}
+.drawer .dhead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px}
+.drawer h2{font-size:18px}
+.drawer .kpis{grid-template-columns:repeat(auto-fit,minmax(120px,1fr));margin-bottom:12px}
+.drawer .kpi .value{font-size:19px}
+.drawer .card{margin-top:12px}
+.sess{border-top:1px solid var(--line);padding:10px 0}
+.sess:first-of-type{border-top:0}
+.sess .sh{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-weight:600}
+.sess .sh span{color:var(--muted);font-weight:400;font-size:12.5px}
+.steps{list-style:none;margin:6px 0 0;padding:0}
+.steps li{display:grid;grid-template-columns:62px 1fr auto;gap:10px;padding:4px 0;font-size:13px;align-items:baseline}
+.steps .t{color:var(--muted);font-variant-numeric:tabular-nums}
+.steps .d{font-variant-numeric:tabular-nums}
 </style>
 </head>
 <body>
@@ -98,8 +118,23 @@ details.game .kpi .value{font-size:20px}
 
     <section class="card full">
       <h2>Signed-in visitors</h2>
-      <p class="hint">People who used the optional Google sign-in. Pageviews and time are for the site and range above, matched to each browser they signed in on.</p>
+      <p class="hint">People who used the optional Google sign-in. Pageviews and time are for the site and range above, matched to each browser they signed in on. Click a person to see everything they did.</p>
       <div class="scroll" id="people"></div>
+    </section>
+
+    <section class="card full">
+      <h2>Visitors</h2>
+      <p class="hint">Every visitor in the range, one row per browser. Click a visitor to see each visit, every page they opened and how long they spent on it. Visitors are anonymous unless they signed in.</p>
+      <div class="vtools">
+        <input id="vsearch" type="search" placeholder="Search by name, email or visitor ID">
+        <select id="vsort">
+          <option value="time">Most time</option>
+          <option value="recent">Most recent</option>
+          <option value="visits">Most visits</option>
+          <option value="pv">Most pageviews</option>
+        </select>
+      </div>
+      <div class="scroll" id="visitors"></div>
     </section>
 
     <section class="card full">
@@ -241,6 +276,9 @@ fillSites();
 $('range').onchange = load;
 $('refresh').onclick = load;
 $('site').onchange = render;
+$('vsearch').oninput = () => { vLimit = 50; renderVisitors(); };
+$('vsort').onchange = () => { vLimit = 50; renderVisitors(); };
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeVisitor(); });
 
 // ---- Data ----
 async function load(){
@@ -307,11 +345,16 @@ function renderPeople(R){
     return { m, pv: mine.length, dur: mine.reduce((a, r) => a + r.dur, 0), top: top ? siteLabel(top[0]) : '—' };
   });
   el.innerHTML = '<table><tr><th>Person</th><th class="num">Pageviews</th><th class="num">Engaged time</th><th>Most time on</th><th>Last signed-in visit</th><th>First signed in</th></tr>' +
-    list.map(({ m, pv, dur, top }) => `<tr>
+    list.map(({ m, pv, dur, top }) => `<tr class="vrow" data-uid="${esc(m.uid)}" tabindex="0">
       <td><div class="who">${m.photo ? `<img src="${esc(m.photo)}" alt="" referrerpolicy="no-referrer">` : `<span class="ph">${esc((m.name || m.email || '?').charAt(0).toUpperCase())}</span>`}
         <div>${esc(m.name || '(no name)')}<small>${esc(m.email)}</small></div></div></td>
       <td class="num">${fmtN(pv)}</td><td class="num">${fmtDur(dur)}</td><td>${esc(top)}</td>
       <td>${when(m.last)}</td><td>${when(m.first)}</td></tr>`).join('') + '</table>';
+  el.querySelectorAll('tr.vrow').forEach(tr => {
+    const m = members.find(x => x.uid === tr.dataset.uid);
+    const open = () => m && openVisitor([...m.vids], m.name || m.email || 'Signed-in visitor');
+    tr.onclick = open; tr.onkeydown = e => { if (e.key === 'Enter') open(); };
+  });
 }
 
 // ---- Google Search Console ----
@@ -486,6 +529,123 @@ function renderPanels(){
   });
 }
 
+// ---- Individual visitors ----
+let vLimit = 50, vCurrentR = [];
+const shortId = vid => String(vid).slice(-6).toUpperCase();
+const fmtWhen = d => d ? d.toLocaleDateString([], { month: 'short', day: 'numeric', year: d.getFullYear() === new Date().getFullYear() ? undefined : 'numeric' }) + ', ' + d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '—';
+function memberFor(vid){
+  if (!members) return null;
+  for (const m of members) if (m.vids.has(vid)) return m;
+  return null;
+}
+function visitorName(vid){
+  const m = memberFor(vid);
+  return m ? (m.name || m.email || 'Signed-in visitor') : 'Visitor ' + shortId(vid);
+}
+function pageName(r){
+  const sub = r.path && r.path !== '/' && !/\/(index\.html)?$/.test(r.path.replace(/^\/[^/]+/, '')) ? r.path : '';
+  return { main: siteLabel(r.site), sub };
+}
+function visitorSummaries(R){
+  const m = new Map();
+  for (const r of R) {
+    let v = m.get(r.vid);
+    if (!v) { v = { vid: r.vid, pv: 0, dur: 0, sids: new Set(), first: r.ts, last: r.last || r.ts, dev: r.dev, ref: '', bySite: new Map() }; m.set(r.vid, v); }
+    v.pv++; v.dur += r.dur; v.sids.add(r.sid);
+    if (r.ts < v.first) { v.first = r.ts; }
+    const end = r.last > r.ts ? r.last : r.ts;
+    if (end > v.last) v.last = end;
+    if (r.ref && !v.ref) v.ref = r.ref;
+    v.bySite.set(r.site, (v.bySite.get(r.site) || 0) + r.dur + 1);
+  }
+  return [...m.values()];
+}
+function renderVisitors(R){
+  if (R) vCurrentR = R;
+  const q = $('vsearch').value.trim().toLowerCase();
+  let list = visitorSummaries(vCurrentR);
+  if (q) list = list.filter(v => {
+    const mm = memberFor(v.vid);
+    return [visitorName(v.vid), shortId(v.vid), v.vid, mm && mm.email].some(s => s && String(s).toLowerCase().includes(q));
+  });
+  const sort = $('vsort').value;
+  const key = { time: v => v.dur, recent: v => +v.last, visits: v => v.sids.size * 1e9 + v.dur, pv: v => v.pv * 1e9 + v.dur }[sort];
+  list.sort((a, b) => key(b) - key(a));
+  const el = $('visitors');
+  if (!list.length) { el.innerHTML = `<p class="muted">${q ? 'No visitors match that search.' : 'No visitors in this range yet.'}</p>`; return; }
+  const shown = list.slice(0, vLimit);
+  el.innerHTML = '<table><tr><th>Visitor</th><th class="num">Visits</th><th class="num">Pageviews</th><th class="num">Time on site</th><th>Most time on</th><th>Device</th><th>Last seen</th><th>First seen</th></tr>' +
+    shown.map(v => {
+      const top = [...v.bySite.entries()].sort((a, b) => b[1] - a[1])[0];
+      const mm = memberFor(v.vid);
+      const who = mm
+        ? `<div class="who">${mm.photo ? `<img src="${esc(mm.photo)}" alt="" referrerpolicy="no-referrer">` : `<span class="ph">${esc((mm.name || mm.email || '?').charAt(0).toUpperCase())}</span>`}<div>${esc(mm.name || '(no name)')}<small>${esc(mm.email)}</small></div></div>`
+        : `<div class="who"><span class="ph">#</span><div>Visitor ${esc(shortId(v.vid))}<small>${v.ref ? 'from ' + esc(v.ref) : 'anonymous'}</small></div></div>`;
+      return `<tr class="vrow" data-vid="${esc(v.vid)}" tabindex="0"><td>${who}</td><td class="num">${fmtN(v.sids.size)}</td><td class="num">${fmtN(v.pv)}</td><td class="num">${fmtDur(v.dur)}</td><td>${top ? esc(siteLabel(top[0])) : '—'}</td><td>${esc(v.dev)}</td><td>${fmtWhen(v.last)}</td><td>${fmtWhen(v.first)}</td></tr>`;
+    }).join('') + '</table>' +
+    (list.length > vLimit ? `<button class="more" id="vmore">Show more (${fmtN(list.length - vLimit)} left)</button>` : `<p class="hint" style="margin:10px 0 0">${fmtN(list.length)} visitor${list.length === 1 ? '' : 's'}</p>`);
+  el.querySelectorAll('tr.vrow').forEach(tr => {
+    tr.onclick = () => openVisitor(tr.dataset.vid);
+    tr.onkeydown = e => { if (e.key === 'Enter') openVisitor(tr.dataset.vid); };
+  });
+  const more = $('vmore'); if (more) more.onclick = () => { vLimit += 50; renderVisitors(); };
+}
+function closeVisitor(){ document.querySelectorAll('.drawer,.drawer-bg').forEach(n => n.remove()); }
+function openVisitor(vidOrVids, title){
+  closeVisitor();
+  const vids = new Set(Array.isArray(vidOrVids) ? vidOrVids : [vidOrVids]);
+  // All of this visitor's activity in the date range, across every page (not just the site filter).
+  const mine = rows.filter(r => vids.has(r.vid)).sort((a, b) => a.ts - b.ts);
+  const mm = memberFor([...vids][0]);
+  const name = title || visitorName([...vids][0]);
+  const kpi = (l, v, s = '') => `<div class="card kpi"><div class="label">${l}</div><div class="value">${v}</div><div class="sub">${s}</div></div>`;
+  let body;
+  if (!mine.length) {
+    body = '<p class="muted">No visits from this person in the selected date range. Try a longer range.</p>';
+  } else {
+    const sess = new Map();
+    for (const r of mine) { if (!sess.has(r.sid)) sess.set(r.sid, []); sess.get(r.sid).push(r); }
+    const total = mine.reduce((a, r) => a + r.dur, 0);
+    const days = new Set(mine.map(r => dayKey(r.ts))).size;
+    const pages = new Map();
+    for (const r of mine) {
+      const pn = pageName(r), k = r.site + '\u0000' + pn.sub;
+      if (!pages.has(k)) pages.set(k, { pn, n: 0, dur: 0 });
+      const p = pages.get(k); p.n++; p.dur += r.dur;
+    }
+    const plist = [...pages.values()].sort((a, b) => b.dur - a.dur || b.n - a.n);
+    const pmax = Math.max(1, ...plist.map(p => p.dur));
+    const sessions = [...sess.values()].sort((a, b) => b[0].ts - a[0].ts);
+    body =
+      '<div class="grid kpis">' + [
+        kpi('Visits', fmtN(sess.size), `on ${fmtN(days)} day${days === 1 ? '' : 's'}`),
+        kpi('Pageviews', fmtN(mine.length)),
+        kpi('Time on site', fmtDur(total)),
+        kpi('Avg per visit', fmtDur(total / sess.size)),
+        kpi('First seen', mine[0].ts.toLocaleDateString([], { month: 'short', day: 'numeric' })),
+        kpi('Last seen', (mine[mine.length - 1].last || mine[mine.length - 1].ts).toLocaleDateString([], { month: 'short', day: 'numeric' }))
+      ].join('') + '</div>' +
+      '<div class="card"><h2>Time on each page</h2><div class="scroll"><table><tr><th>Page</th><th class="num">Views</th><th class="num">Time</th><th class="num">Share</th><th></th></tr>' +
+      plist.map(p => `<tr><td>${esc(p.pn.main)}${p.pn.sub ? `<br><span class="muted" style="font-size:12px">${esc(p.pn.sub)}</span>` : ''}</td><td class="num">${fmtN(p.n)}</td><td class="num">${fmtDur(p.dur)}</td><td class="num">${pct(p.dur, total)}</td><td style="width:30%">${bar(p.dur, pmax)}</td></tr>`).join('') +
+      '</table></div></div>' +
+      '<div class="card"><h2>Every visit</h2><p class="hint">Newest first. Time is active time on that page: tab open and someone interacting.</p>' +
+      sessions.map(ss => {
+        const d = ss.reduce((a, r) => a + r.dur, 0);
+        const src = ss[0].ref ? 'from ' + esc(ss[0].ref) : 'direct';
+        return `<div class="sess"><div class="sh">${fmtWhen(ss[0].ts)}<span>${fmtN(ss.length)} page${ss.length === 1 ? '' : 's'} · ${fmtDur(d)} · ${esc(ss[0].dev)} · ${src}</span></div><ol class="steps">` +
+          ss.map(r => { const pn = pageName(r); return `<li><span class="t">${r.ts.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span><span>${esc(pn.main)}${pn.sub ? ` <span class="muted">${esc(pn.sub)}</span>` : ''}</span><span class="d">${fmtDur(r.dur)}</span></li>`; }).join('') +
+          '</ol></div>';
+      }).join('') + '</div>';
+  }
+  const sub = mm ? esc(mm.email) : (vids.size > 1 ? `${vids.size} browsers` : 'Anonymous visitor · ID ' + esc([...vids][0]));
+  const bg = document.createElement('div'); bg.className = 'drawer-bg'; bg.onclick = closeVisitor;
+  const dr = document.createElement('aside'); dr.className = 'drawer'; dr.setAttribute('role', 'dialog'); dr.setAttribute('aria-label', 'Visitor details');
+  dr.innerHTML = `<div class="dhead"><div><h2>${esc(name)}</h2><div class="hint" style="margin:2px 0 0">${sub} · ${esc($('range').selectedOptions[0].textContent.toLowerCase())}, all pages</div></div><button id="dclose" aria-label="Close">Close</button></div>` + body;
+  document.body.append(bg, dr);
+  $('dclose').onclick = closeVisitor;
+  $('dclose').focus();
+}
+
 function sessionsOf(R){
   const m = new Map();
   for (const r of R) {
@@ -514,6 +674,7 @@ function render(){
   const R = site === 'all' ? rows : rows.filter(r => r.site === site);
   const S = sessionsOf(R), V = visitorsOf(R);
   renderPeople(R);
+  renderVisitors(R);
   const today = dayStart(new Date());
 
   // KPIs
