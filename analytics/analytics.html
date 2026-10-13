@@ -123,6 +123,12 @@ tr.vrow:hover td{background:rgba(var(--cell),.07)}
     </section>
 
     <section class="card full">
+      <h2>Prize wheel</h2>
+      <p class="hint">Back Room spins and prize requests. Each Google account gets one spin; 1 in 10 wins. Mark a request done once the item is in the game.</p>
+      <div id="wheel"></div>
+    </section>
+
+    <section class="card full">
       <h2>Visitors</h2>
       <p class="hint">Every visitor in the range, one row per browser. Click a visitor to see each visit, every page they opened and how long they spent on it. Visitors are anonymous unless they signed in.</p>
       <div class="vtools">
@@ -286,6 +292,7 @@ async function load(){
   const start = dayStart(new Date()); start.setDate(start.getDate() - (days - 1));
   $('status').textContent = 'Loading…';
   const mp = loadMembers();
+  loadWheel();
   try {
     const snap = await db.collection('pv')
       .where('ts', '>=', firebase.firestore.Timestamp.fromDate(start))
@@ -526,6 +533,59 @@ function renderPanels(){
   }));
   $('panels').querySelectorAll('button.focus').forEach(b => b.onclick = () => {
     $('site').value = b.dataset.site; render(); window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+}
+
+// ---- Prize wheel ----
+let wheel = null, wheelErr = '';
+const wheelWon = ts => { const n = ts && ts.nanoseconds != null ? ts.nanoseconds : 0; return n % 10000 < 1000; };
+async function loadWheel(){
+  try {
+    const [sp, pr] = await Promise.all([db.collection('spins').get(), db.collection('prizes').get()]);
+    const spins = sp.docs.map(d => ({ uid: d.id, ts: d.data().ts }));
+    wheel = {
+      spins: spins.length,
+      wins: spins.filter(s => wheelWon(s.ts)).length,
+      prizes: pr.docs.map(d => ({ uid: d.id, ...d.data() })).sort((a, b) => (a.status === 'done') - (b.status === 'done') || ((b.ts && b.ts.seconds) || 0) - ((a.ts && a.ts.seconds) || 0))
+    };
+    wheelErr = '';
+  } catch (e) {
+    wheel = null;
+    wheelErr = e.code === 'permission-denied'
+      ? 'Add the prize wheel block to your Firestore rules to see spins and prize requests.'
+      : 'Couldn’t load the prize wheel: ' + esc(e.message);
+  }
+  renderWheel();
+}
+function renderWheel(){
+  const el = $('wheel');
+  if (!wheel) { el.innerHTML = `<p class="muted">${wheelErr || 'Loading…'}</p>`; return; }
+  const k = (l, v, s = '') => `<div class="card kpi"><div class="label">${l}</div><div class="value">${v}</div><div class="sub">${s}</div></div>`;
+  const open = wheel.prizes.filter(p => p.status !== 'done').length;
+  const STATUS = { requested: 'Requested', building: 'Building', done: 'Done' };
+  el.innerHTML = '<div class="grid kpis" style="margin-bottom:14px">' + [
+      k('Spins', fmtN(wheel.spins), 'one per Google account'),
+      k('Winners', fmtN(wheel.wins), wheel.spins ? (100 * wheel.wins / wheel.spins).toFixed(0) + '% of spins' : ''),
+      k('Requests to build', fmtN(open), `${fmtN(wheel.prizes.length - open)} done`)
+    ].join('') + '</div>' +
+    (wheel.prizes.length
+      ? '<div class="scroll"><table><tr><th>Winner</th><th>Game</th><th>Item</th><th>Details</th><th>Requested</th><th>Status</th></tr>' +
+        wheel.prizes.map(p => `<tr>
+          <td><div class="who"><span class="ph">${esc((p.who || p.email || '?').charAt(0).toUpperCase())}</span><div>${esc(p.who || '(no name)')}<small>${esc(p.email)}</small></div></div></td>
+          <td>${esc(p.game)}</td>
+          <td><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${/^#[0-9a-fA-F]{6}$/.test(p.color || '') ? p.color : 'transparent'};border:1px solid var(--line);vertical-align:-1px;margin-right:6px"></span><b>${esc(p.name)}</b><br><span class="muted" style="font-size:12px">${esc(p.kind)} · ${esc(p.color)}</span></td>
+          <td style="white-space:normal;min-width:200px">${esc(p.details) || '<span class="muted">—</span>'}</td>
+          <td>${p.ts && p.ts.toDate ? fmtWhen(p.ts.toDate()) : '—'}</td>
+          <td><select data-prize="${esc(p.uid)}">${Object.entries(STATUS).map(([v, l]) => `<option value="${v}"${(p.status || 'requested') === v ? ' selected' : ''}>${l}</option>`).join('')}</select></td>
+        </tr>`).join('') + '</table></div>'
+      : '<p class="muted">No prize requests yet.</p>');
+  el.querySelectorAll('select[data-prize]').forEach(s => s.onchange = async () => {
+    s.disabled = true;
+    try {
+      await db.collection('prizes').doc(s.dataset.prize).update({ status: s.value });
+      const p = wheel.prizes.find(x => x.uid === s.dataset.prize); if (p) p.status = s.value;
+      renderWheel();
+    } catch (e) { s.disabled = false; alert('Couldn’t update: ' + e.message); }
   });
 }
 

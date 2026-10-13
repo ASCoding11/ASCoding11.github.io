@@ -58,7 +58,7 @@
   box.id = 'acct';
   bar.appendChild(box);
 
-  var user = null, ready = null, auth = null, menuOpen = false, msgTimer = 0;
+  var user = null, ready = null, auth = null, menuOpen = false, msgTimer = 0, listeners = [];
 
   function esc(s) { return String(s || '').replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function firstName(u) { return ((u.displayName || u.email || 'Account').split(/[\s@]/)[0]) || 'Account'; }
@@ -124,6 +124,7 @@
             store('acct', user ? '1' : null);
             if (changed || !box.firstChild) draw();
             if (user && changed) record(user);
+            if (changed) listeners.forEach(function (f) { try { f(user); } catch (e) {} });
             res();
           });
         });
@@ -171,7 +172,7 @@
     var p = new firebase.auth.GoogleAuthProvider();
     p.setCustomParameters({ prompt: 'select_account' });
     var b = box.querySelector('[data-a="in"]'); if (b) b.disabled = true;
-    auth.signInWithPopup(p).catch(function (e) {
+    return auth.signInWithPopup(p).then(function (r) { return r.user; }, function (e) {
       var c = (e && e.code) || '';
       if (b) b.disabled = false;
       if (/popup-closed-by-user|cancelled-popup-request/.test(c)) return;
@@ -181,6 +182,15 @@
       say('Sign-in didn’t work. Please try again.');
     });
   }
+
+  // Small API for other scripts on the page (e.g. the Back Room prize wheel).
+  window.SiteAccount = {
+    boot: function () { return boot().then(function () { return user; }); },
+    user: function () { return user; },
+    signIn: function () { return auth ? signIn() : Promise.reject(new Error('not-ready')); },
+    onChange: function (f) { listeners.push(f); },
+    docsPath: DOCS
+  };
 
   box.addEventListener('click', function (e) {
     var t = e.target.closest('[data-a]'); if (!t) return;
