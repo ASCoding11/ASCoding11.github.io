@@ -82,7 +82,14 @@ button:disabled{opacity:.5;cursor:default}
 #lookMsg{position:absolute;left:50%;top:58%;transform:translateX(-50%);font:700 15px var(--f-u);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:6px 16px;color:var(--ink-2)}
 #mute{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:12px;width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--panel);cursor:pointer;font:700 16px var(--f-d);color:var(--ink-2);z-index:5}
 #mute.off{color:var(--ink-3);text-decoration:line-through}
-#hud.bare>*:not(#water):not(#hurt):not(#chatLog):not(#chatIn){visibility:hidden}
+#hud.bare>*:not(#water):not(#hurt):not(#chatLog):not(#chatIn):not(#portalFx){visibility:hidden}
+#portalFx{position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(170,70,255,.25),rgba(80,10,150,.85));opacity:0;pointer-events:none}
+#boss{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);width:min(440px,70vw);text-align:center;pointer-events:none}
+#boss b{font:600 16px var(--f-d);color:#ead8ff;text-shadow:0 2px 0 rgba(0,0,0,.6)}
+#boss .bar{height:9px;margin-top:5px;background:rgba(10,6,20,.6);border:1px solid rgba(234,216,255,.35);border-radius:2px;overflow:hidden}
+#bossFill{display:block;height:100%;width:100%;background:linear-gradient(#d6a2ff,#7a3cd8);transition:width .2s}
+#win{background:radial-gradient(ellipse at center,rgba(40,20,70,.75),rgba(5,3,10,.95))}
+#win .lede{max-width:none}
 #dead{background:rgba(110,8,8,.5)}
 
 /* overlays */
@@ -221,6 +228,8 @@ details.fold[open] summary::before{content:'– '}
 
   <div id="hud" hidden>
     <div id="water"></div>
+    <div id="portalFx"></div>
+    <div id="boss" hidden><b>Void Wyrm</b><div class="bar"><span id="bossFill"></span></div></div>
     <div id="hurt"></div>
     <div id="sleepFade" hidden><span id="sleepTxt">Sleeping…</span><small>Press Shift to leave the bed</small></div>
     <div id="cross"></div>
@@ -309,6 +318,7 @@ details.fold[open] summary::before{content:'– '}
             <dt>ESC</dt><dd>Pause, settings, invite link</dd>
           </dl>
           <p class="msg">Survival: punch a tree for logs, turn them into planks, make a crafting table and lay out a wooden pickaxe in its 3×3 grid. Stone tools mine iron, iron tools mine gold and diamonds. Smelt ore and cook meat in a furnace with coal or wood. Eat to keep your hunger bar up, and get somewhere bright before night, when zombies come out, or sleep through it in a bed.</p>
+          <p class="msg">The Nether: build an obsidian frame (4 wide, 5 tall) and light it with flint and steel. Inside are nether fortresses, where flares drop ember rods. The End: combine ember powder with a void pearl (from voidwalkers) to make Seeker eyes, follow them to a stronghold, fill its portal frames, then beat the Void Wyrm.</p>
           <p class="msg">Farming: hoe grass into farmland near water and plant seeds from tall grass; wheat makes bread. Saplings from leaves grow into trees. Redstone ore, deep down, gives redstone dust for wiring levers, buttons, pressure plates, torches, repeaters, lamps and doors.</p>
         </details>
       </div>
@@ -339,6 +349,15 @@ details.fold[open] summary::before{content:'– '}
       <div class="row"><button class="cta" id="resume" type="button">Resume</button><button class="ghost" id="copyInvite" type="button" hidden>Copy invite link</button><button class="ghost" id="leave" type="button">Save &amp; quit</button></div>
       <p class="msg" id="inviteMsg"></p>
       <details class="fold" style="margin-top:8px"><summary>Settings</summary><div class="set" id="setPause"></div></details>
+    </div>
+  </section>
+
+  <section id="win" class="overlay center" hidden>
+    <div class="inner">
+      <h2 class="endtitle" style="color:#d6a2ff">The End</h2>
+      <p class="lede">You crossed the Nether, found a stronghold, opened the End and beat the Void Wyrm. That's the whole journey.</p>
+      <p class="msg">Your world is still yours: keep building, go back to the End, or explore further than anyone has.</p>
+      <div class="row"><button class="cta" id="winGo" type="button">Keep playing</button></div>
     </div>
   </section>
 
@@ -512,6 +531,35 @@ blk(COPPER_BLOCK,'Block of copper',158,{h:3,tool:'pick',tier:2});
 blk(COAL_BLOCK,'Block of coal',159,{h:5,tool:'pick',tier:1});
 // like the real game, iron and gold ore now drop raw metal to smelt
 B[IRON_ORE].drop=RAW_IRON;B[GOLD_ORE].drop=RAW_GOLD;
+// ---- the Nether and the End ----
+const NETHERRACK=37,SOUL_SAND=38,GLOWSTONE=39,NQUARTZ_ORE=79,NGOLD_ORE=80,NETHER_BRICK=81,NPORTAL=82,NPORTAL_Z=83,FIRE=84,MAGMA=85,
+  CRIMSON_NYL=86,WARPED_NYL=87,CRIMSON_STEM=88,WARPED_STEM=89,NWART=96,WWART=97,SHROOMLIGHT=98,END_STONE=99,
+  END_FRAME=158,END_FRAME_EYE=159,END_PORTAL=253,STONE_BRICKS=254,CRYSTAL=255;
+const FLINT=300,FLINT_STEEL=301,QUARTZ=302,NUGGET=303,EMBER_ROD=304,EMBER_POWDER=305,VOID_PEARL=306,SEEKER_EYE=307,GLOW_DUST=308,NBRICK=309;
+// kind 7: portals, drawn by their own animated shader and walked through
+blk(NETHERRACK,'Netherrack',174,{h:.4,tool:'pick',tier:1});
+blk(SOUL_SAND,'Soul sand',175,{h:.5,tool:'shovel',snd:'sand'});
+blk(GLOWSTONE,'Glowstone',176,{h:.3,em:15,drop:GLOW_DUST,snd:'glass'});
+blk(NQUARTZ_ORE,'Nether quartz ore',177,{h:3,tool:'pick',tier:1,drop:QUARTZ});
+blk(NGOLD_ORE,'Nether gold ore',178,{h:3,tool:'pick',tier:1,drop:NUGGET});
+blk(NETHER_BRICK,'Nether bricks',179,{h:2,tool:'pick',tier:1});
+blk(NPORTAL,'Nether portal',180,{k:7,h:0,em:11,drop:0,snd:'glass'});blk(NPORTAL_Z,'Nether portal',180,{k:7,h:0,em:11,drop:0,snd:'glass',base:NPORTAL});
+blk(FIRE,'Fire',181,{k:6,h:0,em:15,drop:0,snd:'leaf'});
+blk(MAGMA,'Magma block',182,{h:.5,tool:'pick',tier:1,em:3});
+blk(CRIMSON_NYL,'Crimson nylium',[183,184,174],{h:.4,tool:'pick',tier:1,drop:NETHERRACK});
+blk(WARPED_NYL,'Warped nylium',[185,186,174],{h:.4,tool:'pick',tier:1,drop:NETHERRACK});
+blk(CRIMSON_STEM,'Crimson stem',[188,187,188],{h:2,tool:'axe',snd:'wood'});
+blk(WARPED_STEM,'Warped stem',[190,189,190],{h:2,tool:'axe',snd:'wood'});
+blk(NWART,'Nether wart block',191,{h:1,snd:'leaf'});
+blk(WWART,'Warped wart block',192,{h:1,snd:'leaf'});
+blk(SHROOMLIGHT,'Shroomlight',193,{h:1,em:15,snd:'leaf'});
+blk(END_STONE,'End stone',194,{h:3,tool:'pick',tier:1});
+blk(END_FRAME,'End portal frame',[195,196,194],{k:5,h:-1,drop:0});
+blk(END_FRAME_EYE,'End portal frame',[198,196,194],{k:5,h:-1,drop:0,base:END_FRAME});
+blk(END_PORTAL,'End portal',199,{k:7,h:-1,em:15,drop:0});
+blk(STONE_BRICKS,'Stone bricks',200,{h:1.5,tool:'pick',tier:1});
+blk(CRYSTAL,'End crystal',201,{k:5,h:0,em:15,drop:0,snd:'glass'});
+const isNPortal=id=>id===NPORTAL||id===NPORTAL_Z;
 const isWater=id=>id===WATER||(id>=WFLOW&&id<=WFALL),isLava=id=>id===LAVA||(id>=LFLOW&&id<=LFALL);
 const BUCKET=155,WBUCKET=156,LBUCKET=157;
 // ---- doors, beds, farming, plants and redstone (ids 160 and up; data is one byte per block) ----
@@ -555,6 +603,9 @@ item(LEATHER,'Leather',61);item(FEATHER,'Feather',62);item(CHARCOAL,'Charcoal',6
 item(BUCKET,'Bucket',145,{stack:16});item(WBUCKET,'Water bucket',146,{stack:1});item(LBUCKET,'Lava bucket',147,{stack:1});
 item(RAW_IRON,'Raw iron',168);item(RAW_GOLD,'Raw gold',169);item(RAW_COPPER,'Raw copper',170);item(COPPER,'Copper ingot',171);
 item(LAPIS,'Lapis lazuli',172);item(EMERALD,'Emerald',173);
+item(FLINT,'Flint',202);item(FLINT_STEEL,'Flint and steel',203,{stack:1,tool:{type:'fire',tier:0,speed:1,dur:64,dmg:1,mat:-1}});
+item(QUARTZ,'Nether quartz',204);item(NUGGET,'Gold nugget',205);item(EMBER_ROD,'Ember rod',206);item(EMBER_POWDER,'Ember powder',207);
+item(VOID_PEARL,'Void pearl',208,{stack:16});item(SEEKER_EYE,'Seeker eye',209);item(GLOW_DUST,'Glowstone dust',210);item(NBRICK,'Nether brick',211);
 item(WHEAT,'Wheat',142);item(BREAD,'Bread',143,{food:[5,6]});
 // Tools: id = 130 + type*5 + material. Harvest level, dig speed, uses and attack damage (in half hearts) per material.
 const TIERS=['Wooden','Stone','Iron','Golden','Diamond'],LEVEL=[1,2,3,1,4],SPEED=[2,4,6,12,8],DUR=[59,131,250,32,1561];
@@ -573,7 +624,9 @@ const CREATIVE=[GRASS,DIRT,STONE,COBBLE,MOSSY,SAND,SANDSTONE,GRAVEL,SNOWY,SNOW,L
   STICK,COAL,CHARCOAL,RAW_IRON,RAW_COPPER,RAW_GOLD,IRON,COPPER,GOLD,LAPIS,GEM,EMERALD,LEATHER,FEATHER,APPLE,PORK,PORK_C,BEEF,STEAK,CHICK,CHICK_C,FLESH];
 for(let ti=0;ti<5;ti++)for(let m=0;m<5;m++)CREATIVE.push(toolId(ti,m));
 CREATIVE.push(BUCKET,WBUCKET,LBUCKET,DOOR,IDOOR,BED,FARMLAND,TALLGRASS,POPPY,DANDELION,OAK_SAP,PINE_SAP,WHEAT0,WHEAT,BREAD,
-  DUST,RTORCH,LEVER,BUTTON,PLATE,REPEATER,RLAMP,RBLOCK);
+  DUST,RTORCH,LEVER,BUTTON,PLATE,REPEATER,RLAMP,RBLOCK,
+  NETHERRACK,SOUL_SAND,GLOWSTONE,MAGMA,NETHER_BRICK,NQUARTZ_ORE,NGOLD_ORE,CRIMSON_NYL,WARPED_NYL,CRIMSON_STEM,WARPED_STEM,NWART,WWART,SHROOMLIGHT,
+  END_STONE,STONE_BRICKS,END_FRAME,CRYSTAL,FLINT,FLINT_STEEL,QUARTZ,NUGGET,GLOW_DUST,NBRICK,EMBER_ROD,EMBER_POWDER,VOID_PEARL,SEEKER_EYE);
 
 /*W-*/
 // =====================================================================
@@ -781,6 +834,53 @@ tile(129,(x,y)=>{if(x===8&&y>=6)return jit([60,130,40],8);if((x===6||x===7)&&y==
   sprite(140,(x,y)=>x>=2&&x<=13&&y>=10&&y<=12?(y===10?[200,200,204]:jit([150,150,156],6)):null,[60,60,64,255]);
   sprite(141,(x,y)=>{const pts=[[5,6],[9,5],[7,9],[11,9],[6,12],[10,12]];for(const [px,py] of pts){if(Math.abs(x-px)<=.6&&Math.abs(y-py)<=1.2)return jit([120,150,60],14)}return null},[40,50,20,255]);
   sprite(142,(x,y)=>{const a=x-y;if(y>=7&&y<=14&&Math.abs(x-7.5+(y-10)*.1)<1.6+(14-y)*.05&&(x+y)%2)return jit([196,170,70],10);if(y<=7&&y>=1&&Math.abs(x-7.5)<4-Math.abs(y-4)*.5)return jit([226,196,96],12);return null},[80,60,20,255]);
+  // ---- the Nether ----
+  const NR=[112,40,38];
+  const nrack=(x,y)=>{const n=vn.n2(x*.7+200,y*.7)+vn.n2(x*1.9,y*1.9+33)*.4;const c=jit(mix(NR,[78,22,24],clamp(n+.35,0,1)),10);return hash3(x,y,201)%13===0?mix(c,[160,70,64],.6):c};
+  tile(174,nrack);
+  tile(175,(x,y)=>{const c=jit(mix([92,70,54],[70,52,40],clamp(vn.n2(x*.6+40,y*.6)+.4,0,1)),8);
+    for(const [cx,cy] of [[4,5],[11,4],[7,11]]){const d=Math.hypot((x-cx)/1.2,y-cy);if(d<1.6)return mix(c,[40,28,22],.75);if(d<2.4&&y>cy)return mix(c,[52,38,30],.4)}return c});
+  tile(176,(x,y)=>{const n=vn.n2(x*.8+300,y*.8),m=vn.n2(x*1.7+5,y*1.7+300);return jit(m>.32?[120,74,36]:mix([255,226,140],[214,150,64],clamp(n+.5,0,1)),10)});
+  ore(177,[236,230,222],61,nrack);ore(178,[252,204,64],62,nrack);
+  tile(179,(x,y)=>{const row=y>>2,off=(row%2)*4;if(y%4===3||(x+off)%8===7)return jit([34,14,20],5);return jit(hash3(x>>2,row,7)%3?[70,30,36]:[58,24,30],7)});
+  tile(180,(x,y)=>{const n=vn.n2(x*.5+500,y*.5)+vn.n2(x*.25,y*1.2+9)*.6;return[120+n*60,40+n*30,220,200]});
+  tile(181,(x,y)=>{const h=8+vn.n2(x*.45+70,3)*7+((x*5)%3);const t=16-y;if(t>h||(hash3(x,y,8)%9===0&&t>h-3))return[0,0,0,0];const f=t/h;return f<.35?[255,236,120]:f<.7?[255,150,30]:[214,60,20]});
+  tile(182,(x,y)=>{const n=Math.abs(vn.n2(x*.5+90,y*.5+90));return n<.06?jit([255,160,40],12):n<.12?jit([200,70,20],10):jit([66,26,14],8)});
+  const nylTop=(c,d)=>(x,y)=>{const n=vn.n2(x*.8+(c[0]),y*.8);return jit(n>.25?d:c,12)};
+  tile(183,nylTop([150,30,40],[100,16,24]));tile(185,nylTop([30,124,112],[18,84,80]));
+  tile(184,(x,y)=>{const e=3+((hash3(x,4,9)%3)===0?1:0)+(x%5===0?1:0);return y<e?jit([150,30,40],10):nrack(x,y)});
+  tile(186,(x,y)=>{const e=3+((hash3(x,5,9)%3)===0?1:0)+(x%4===1?1:0);return y<e?jit([30,124,112],10):nrack(x,y)});
+  const stemSide=(a,b)=>(x,y)=>jit((x%4===0||(x*3+y)%11===0)?a:b,8);
+  const stemTop=(rim,core)=>(x,y)=>{const d=Math.max(Math.abs(x-7.5),Math.abs(y-7.5));if(d>6.5)return jit(rim,8);return jit(Math.floor(d)%2?core:mix(core,[0,0,0],.18),6)};
+  tile(187,stemSide([84,30,48],[126,48,70]));tile(188,stemTop([110,40,60],[170,80,90]));
+  tile(189,stemSide([30,74,84],[50,110,120]));tile(190,stemTop([40,90,100],[60,160,140]));
+  tile(191,(x,y)=>jit(mix([150,12,16],[104,4,10],clamp(vn.n2(x*.7+11,y*.7)+.4,0,1)),12));
+  tile(192,(x,y)=>jit(mix([22,140,128],[12,96,92],clamp(vn.n2(x*.7+21,y*.7)+.4,0,1)),12));
+  tile(193,(x,y)=>{const n=vn.n2(x*.6+41,y*.6+7);return jit(n>.2?[255,228,150]:n>-.15?[246,160,70]:[200,100,44],10)});
+  // ---- the End ----
+  const ESC=[222,222,164];
+  const estone=(x,y)=>{const c=jit(ESC,7);return hash3(x,y,77)%7===0?mix(c,[176,174,118],.7):vn.n2(x*.6+61,y*.6)>.35?mix(c,[200,198,140],.5):c};
+  tile(194,estone);
+  const frameTop=eye=>(x,y)=>{if(x===0||y===0||x===15||y===15)return jit([190,196,150],5);if(x===1||y===1||x===14||y===14)return jit([60,96,82],6);
+    if(eye){const d=Math.hypot(x-7.5,y-7.5);if(d<1.4)return[16,20,18];if(d<3.4)return jit(d<2.4?[40,190,150]:[24,120,100],10);if(d<4.2)return[226,232,200]}
+    return jit(mix([70,112,96],[52,90,78],clamp(vn.n2(x*.6+81,y*.6)+.4,0,1)),6)};
+  tile(195,frameTop(false));tile(198,frameTop(true));
+  tile(196,(x,y)=>y>=3&&y<6?jit([60,96,82],6):y===6?[40,64,56]:(x%5===2&&y>8&&y<13)?jit([66,104,90],6):estone(x,y));
+  tile(212,(x,y)=>{const d=Math.hypot(x-7.5,y-7.5);if(d<2)return[14,18,16];if(d<5)return jit(d<3.5?[50,200,160]:[26,128,104],10);return jit([30,96,80],8)});
+  tile(199,(x,y)=>{const h=hash3(x,y,99)%37;return h===0?[160,240,220]:h===1?[200,150,255]:h===2?[90,140,220]:[8,10,18]});
+  tile(200,(x,y)=>{const row=y>>3,off=(row%2)*8;if(y%8===7||(x+off)%16===15||(x+off)%16===0&&y%8===0)return jit([88,88,92],5);return jit(mix([132,132,136],[118,118,122],clamp(vn.n2(x*.4+9,y*.4)+.3,0,1)),7)});
+  tile(201,(x,y)=>{if(x===0||y===0||x===15||y===15)return[160,90,200];if(Math.abs(x-y)<1||Math.abs(x+y-15)<1)return[255,230,255];return jit(mix([220,140,240],[150,80,200],(x+y)/30),10)});
+  // items
+  sprite(202,(x,y)=>{const d=Math.abs(x-7.5)/4.2+Math.abs(y-8)/6.5;return d<1&&(x+y)>5?jit(x+y<15?[96,96,104]:[60,60,68],8):null},[24,24,28,255]);
+  sprite(203,(x,y)=>{const d=Math.hypot(x-6,y-6);if(d>3.2&&d<5&&!(x>6&&y>4&&y<8))return jit([196,196,204],6);if(x>=8&&x<=12&&y>=9&&y<=13&&x+y>18)return jit([80,80,88],8);return null},[30,30,34,255]);
+  sprite(204,(x,y)=>{const dx=Math.abs(x-7.5),dy=y-7.5;if(dy<-6||dy>6||dx>3.2-Math.abs(dy)*.25)return null;return x<8?[250,248,240]:jit([214,206,196],6)},[110,100,96,255]);
+  sprite(205,(x,y)=>{const d=Math.hypot(x-7.5,(y-9)*1.3);return d<3.6?jit(d<1.5&&x<8?[255,244,160]:[240,190,40],8):null},[90,60,10,255]);
+  sprite(206,(x,y)=>{const a=x+y-15;if(Math.abs(x-y)>1.6||x<3||x>12)return null;return jit(Math.abs(a)<.6||x%3===0?[255,222,90]:[230,150,30],10)},[110,60,10,255]);
+  sprite(207,(x,y)=>{const d=Math.hypot((x-7.5)/1.6,y-11)+vn.n2(x*.9,y*.9+50)*.8;return d<3.6?jit(d<1.6?[255,210,80]:[236,130,30],16):null},[100,46,10,255]);
+  sprite(208,(x,y)=>{const d=Math.hypot(x-7.5,y-8);if(d>5)return null;if(Math.hypot(x-6,y-6.5)<1.6)return[180,255,240];return jit(mix([30,150,140],[10,60,70],d/5),8)},[6,30,34,255]);
+  sprite(209,(x,y)=>{const d=Math.hypot(x-7.5,y-8);if(d>5)return null;const e=Math.hypot(x-7.5,(y-8)*1.6);if(e<1.2)return[20,14,6];if(e<2.6)return jit([240,170,40],10);if(Math.hypot(x-5.5,y-5.5)<1.3)return[220,255,240];return jit(mix([40,140,120],[14,60,56],d/5),8)},[6,30,26,255]);
+  sprite(210,(x,y)=>{const d=Math.hypot((x-7.5)/1.6,y-11)+vn.n2(x*.9,y*.9+70)*.8;return d<3.6?jit(d<1.6?[255,244,170]:[240,200,90],14):null},[110,80,20,255]);
+  ingot(211,[96,38,44]);
   sprite(143,(x,y)=>{const d=Math.hypot((x-7.5)/1.6,(y-9)/.9);if(d>4.6)return null;if(y<=7&&(x===5||x===8||x===11))return[160,96,40];return jit(y<8?[196,128,56]:[214,160,80],8)},[70,40,16,255]);
   return cv;
 })();
@@ -812,6 +912,11 @@ function iconFor(id){
 // =====================================================================
 // deepslate starts mixing in below DS_HIGH and is solid below DS_LOW; caves under LAVA_Y fill with lava
 const DS_HIGH=18,DS_LOW=13,LAVA_Y=7;
+// The Nether and the End live in the same block grid as the Overworld, far off along x, so saving,
+// online sync, redstone and water all work there unchanged. 1 block in the Nether is 8 in the Overworld.
+const NOFF=400000,EOFF=-400000,DIM_EDGE=200000,NLAVA=24;
+const dimOfX=x=>x>=DIM_EDGE?1:x<=-DIM_EDGE?2:0;
+const DIM_NAMES=['Overworld','Nether','End'];
 const BIO_PLAINS=0,BIO_FOREST=1,BIO_DESERT=2,BIO_SNOW=3,BIO_BEACH=4,BIO_OCEAN=5;
 class Gen{
   constructor(seed){
@@ -821,7 +926,10 @@ class Gen{
     this.c1=new Noise(seed+77);this.c2=new Noise(seed+78);this.c3=new Noise(seed+79);
     this.c4=new Noise(seed+80);this.c5=new Noise(seed+81);this.c6=new Noise(seed+82);this.c7=new Noise(seed+83);
     this.r1=new Noise(seed+91);this.r2=new Noise(seed+92);this.r3=new Noise(seed+93);
+    this.q1=new Noise(seed+101);this.q2=new Noise(seed+102);this.q3=new Noise(seed+103);this.q4=new Noise(seed+104);
+    this.e1=new Noise(seed+111);this.e2=new Noise(seed+112);
     this.h=0;this.b=0;
+    this.sh=this.strongholds();
   }
   // height and biome of one column (results in this.h / this.b)
   column(x,z){
@@ -837,7 +945,19 @@ class Gen{
     else if(temp<-.15||h>SEA+36)b=BIO_SNOW;else if(temp>.13&&wet<.05)b=BIO_DESERT;else if(wet>.01)b=BIO_FOREST;else b=BIO_PLAINS;
     this.h=h;this.b=b;
   }
+  // three strongholds, each with an End portal room, in a ring 500–850 blocks from the middle of the world
+  strongholds(){
+    const r=mulberry32(this.seed^0x5743a1),a0=r()*Math.PI*2,out=[];
+    for(let i=0;i<3;i++){
+      const a=a0+i*Math.PI*2/3+(r()-.5)*.6,dd=520+r()*330,x=Math.round(Math.cos(a)*dd),z=Math.round(Math.sin(a)*dd);
+      this.column(x,z);out.push({x,z,y:clamp(this.h-20,8,26)});
+    }
+    return out;
+  }
   chunk(cx,cz){
+    const dm=dimOfX(cx*CS);
+    if(dm===1)return this.nether(cx,cz);
+    if(dm===2)return this.end(cx,cz);
     const d=new Uint8Array(CS*CS*WH),X0=cx*CS,Z0=cz*CS,H=new Int16Array(CS*CS),BI=new Uint8Array(CS*CS);
     const I=(x,y,z)=>(y*CS+z)*CS+x;
     for(let z=0;z<CS;z++)for(let x=0;x<CS;x++){
@@ -943,6 +1063,7 @@ class Gen{
       if(h<SEA+26){R();continue}
       const y=24+Math.floor(R()*(h-30)),i=I(x,y,z);if(d[i]===STONE)d[i]=EMERALD_ORE;else if(d[i]===DEEPSLATE)d[i]=DS_EMERALD;
     }
+    for(const sh of this.sh)paintStronghold(d,X0,Z0,sh,this.seed);
     // trees
     for(let t=0;t<10;t++){
       const x=2+Math.floor(R()*12),z=2+Math.floor(R()*12),r=R(),b=BI[z*CS+x];
@@ -983,6 +1104,222 @@ class Gen{
   }
 }
 
+// ---------------------------------------------------------------------
+//  The Nether: netherrack caverns between a bedrock floor and roof, a lava
+//  sea, soul sand valleys, crimson and warped forests, glowstone hanging
+//  from the roof, quartz and gold ores, and nether brick fortresses.
+// ---------------------------------------------------------------------
+const NB_WASTES=1,NB_SOUL=2,NB_CRIMSON=3,NB_WARPED=4;
+Gen.prototype.netherBiome=function(x,z){
+  const s=this.q3.n2(x/170+50,z/170),t=this.q4.n2(x/240,z/240);
+  return s<-.26?NB_SOUL:t>.2?NB_CRIMSON:t<-.2?NB_WARPED:NB_WASTES;
+};
+Gen.prototype.nether=function(cx,cz){
+  const d=new Uint8Array(CS*CS*WH),X0=cx*CS,Z0=cz*CS,I=(x,y,z)=>(y*CS+z)*CS+x;
+  const LX=5,LY=WH/4+1,L=new Float32Array(LX*LX*LY*2);
+  for(let ly=0;ly<LY;ly++)for(let lz=0;lz<LX;lz++)for(let lx=0;lx<LX;lx++){
+    const wx=X0+lx*4,wy=ly*4,wz=Z0+lz*4,o=((ly*LX+lz)*LX+lx)*2;
+    L[o]=this.q1.n3(wx/58,wy/30,wz/58);L[o+1]=this.q2.n3(wx/22,wy/13,wz/22);
+  }
+  const samp=(x,y,z)=>{
+    const fx=x/4,fy=y/4,fz=z/4,ix=Math.min(3,fx|0),iy=Math.min(LY-2,fy|0),iz=Math.min(3,fz|0),tx=fx-ix,ty=fy-iy,tz=fz-iz;
+    let v=0;
+    for(let k=0;k<2;k++){
+      const o=((iy*LX+iz)*LX+ix)*2+k,dX=2,dZ=LX*2,dY=LX*LX*2;
+      const a=L[o]+(L[o+dX]-L[o])*tx,b=L[o+dZ]+(L[o+dZ+dX]-L[o+dZ])*tx,c=L[o+dY]+(L[o+dY+dX]-L[o+dY])*tx,e=L[o+dY+dZ]+(L[o+dY+dZ+dX]-L[o+dY+dZ])*tx;
+      const lo=a+(b-a)*tz,hi=c+(e-c)*tz;v+=(lo+(hi-lo)*ty)*(k?.42:1);
+    }
+    return v;
+  };
+  const BIO=new Uint8Array(CS*CS);
+  for(let z=0;z<CS;z++)for(let x=0;x<CS;x++){
+    const wx=X0+x,wz=Z0+z,hr=hash3(wx,wz,this.seed^0x77);BIO[z*CS+x]=this.netherBiome(wx,wz);
+    for(let y=0;y<WH;y++){
+      let id;
+      if(y===0||(y<4&&((hr>>(y+2))&1))||y===WH-1||(y>WH-5&&((hr>>(y-80))&1)))id=BASALT;
+      else{
+        const v=samp(x,y,z)+(y<18?(18-y)/18*.9:0)+(y>70?(y-70)/16*1.1:0)-.06;
+        id=v>0?NETHERRACK:y<=NLAVA?LAVA:AIR;
+      }
+      d[I(x,y,z)]=id;
+    }
+  }
+  const R=mulberry32(hash3(cx,cz,this.seed^0x3e7));
+  // floors: nylium, soul sand, shores, fire and magma
+  for(let z=0;z<CS;z++)for(let x=0;x<CS;x++){
+    const b=BIO[z*CS+x],wx=X0+x,wz=Z0+z;
+    for(let y=WH-3;y>1;y--){
+      const i=I(x,y,z);if(d[i]!==NETHERRACK||d[i+CS*CS]!==AIR)continue;
+      const h=hash3(wx,y,wz^this.seed);
+      if(b===NB_SOUL){d[i]=SOUL_SAND;if(d[i-CS*CS]===NETHERRACK&&(h&1))d[i-CS*CS]=SOUL_SAND;if(h%40===0)d[i+CS*CS]=FIRE}
+      else if(b===NB_CRIMSON)d[i]=CRIMSON_NYL;
+      else if(b===NB_WARPED)d[i]=WARPED_NYL;
+      else{
+        if(y<=NLAVA+2&&this.q3.n2(wx/9,wz/9)>.25)d[i]=(h&3)?GRAVEL:SOUL_SAND;
+        else if(y<=NLAVA+1&&h%9===0)d[i]=MAGMA;
+        else if(h%170===0)d[i+CS*CS]=FIRE;
+      }
+    }
+  }
+  // glowstone hanging from the roof
+  for(let t=0;t<3;t++){
+    const x=Math.floor(R()*CS),z=Math.floor(R()*CS);
+    for(let y=WH-6;y>40;y--){
+      const i=I(x,y,z);if(d[i]===NETHERRACK&&d[i-CS*CS]===AIR){
+        if(R()<.5)break;
+        let px=x,py=y-1,pz=z;
+        for(let k=0;k<12+Math.floor(R()*14);k++){
+          if(px>=0&&px<CS&&pz>=0&&pz<CS&&py>1&&d[I(px,py,pz)]===AIR)d[I(px,py,pz)]=GLOWSTONE;
+          const m=Math.floor(R()*5);if(m===0)px++;else if(m===1)px--;else if(m===2)pz++;else if(m===3)pz--;else py--;
+        }
+        break;
+      }
+    }
+  }
+  // ores
+  const blob=(id,tries,size)=>{
+    for(let t=0;t<tries;t++){
+      let x=Math.floor(R()*CS),z=Math.floor(R()*CS),y=8+Math.floor(R()*80);
+      for(let k=0;k<size;k++){
+        if(x>=0&&x<CS&&z>=0&&z<CS&&y>0&&y<WH){const i=I(x,y,z);if(d[i]===NETHERRACK)d[i]=id}
+        const m=Math.floor(R()*6);if(m===0)x++;else if(m===1)x--;else if(m===2)y++;else if(m===3)y--;else if(m===4)z++;else z--;
+      }
+    }
+  };
+  blob(NQUARTZ_ORE,12,7);blob(NGOLD_ORE,8,6);blob(GRAVEL,2,10);
+  // huge fungi in the crimson and warped forests
+  for(let t=0;t<7;t++){
+    const x=2+Math.floor(R()*12),z=2+Math.floor(R()*12),b=BIO[z*CS+x],r=R();
+    if((b!==NB_CRIMSON&&b!==NB_WARPED)||r<.25)continue;
+    const nyl=b===NB_CRIMSON?CRIMSON_NYL:WARPED_NYL,stem=b===NB_CRIMSON?CRIMSON_STEM:WARPED_STEM,wart=b===NB_CRIMSON?NWART:WWART;
+    let y=-1;for(let yy=NLAVA+1;yy<WH-14;yy++)if(d[I(x,yy,z)]===nyl&&d[I(x,yy+1,z)]===AIR){y=yy;if(R()<.5)break}
+    if(y<0)continue;
+    const th=4+Math.floor(R()*5);let ok=true;for(let k=1;k<=th+2;k++)if(d[I(x,y+k,z)]!==AIR)ok=false;
+    if(!ok)continue;
+    for(let k=1;k<=th;k++)d[I(x,y+k,z)]=stem;
+    for(let dy=th-2;dy<=th+1;dy++){
+      const rad=dy===th+1?1:2;
+      for(let oz=-rad;oz<=rad;oz++)for(let ox=-rad;ox<=rad;ox++){
+        if(dy<th&&Math.abs(ox)<rad&&Math.abs(oz)<rad)continue;      // hollow underneath the cap
+        if(Math.abs(ox)===rad&&Math.abs(oz)===rad&&R()<.6)continue;
+        const i=I(x+ox,y+dy,z+oz);if(d[i]===AIR)d[i]=R()<.09?SHROOMLIGHT:wart;
+      }
+    }
+  }
+  paintFortress(d,X0,Z0,this.seed);
+  return d;
+};
+// a nether brick fortress: two long bridges crossing at a walled hall, part open bridge and part covered corridor
+const FCELL=192;
+function fortressAt(ix,iz,seed){
+  const h=hash3(ix,iz,seed^0xf0f7);if(h%3===0)return null;
+  return{x:NOFF+ix*FCELL+48+(h>>3)%96,z:iz*FCELL+48+(h>>10)%96,y:42+(h>>17)%8};
+}
+function paintFortress(d,X0,Z0,seed){
+  const I=(x,y,z)=>(y*CS+z)*CS+x,lx0=X0-NOFF;
+  for(let ix=Math.floor((lx0-80)/FCELL);ix<=Math.floor((lx0+CS+80)/FCELL);ix++)for(let iz=Math.floor((Z0-80)/FCELL);iz<=Math.floor((Z0+CS+80)/FCELL);iz++){
+    const f=fortressAt(ix,iz,seed);if(!f)continue;
+    if(X0+CS<f.x-72||X0>f.x+72||Z0+CS<f.z-72||Z0>f.z+72)continue;
+    const FY=f.y;
+    const put=(x,y,z,id)=>{if(y>0&&y<WH-1)d[I(x,y,z)]=id};
+    for(let z=0;z<CS;z++)for(let x=0;x<CS;x++){
+      const dx=X0+x-f.x,dz=Z0+z-f.z,adx=Math.abs(dx),adz=Math.abs(dz);
+      // the hall in the middle
+      if(adx<=7&&adz<=7){
+        for(let y=FY;y<=FY+7;y++){
+          const shell=adx===7||adz===7||y===FY||y===FY+7,door=(adx<=1||adz<=1)&&y>FY&&y<=FY+3;
+          put(x,y,z,shell&&!door?NETHER_BRICK:AIR);
+        }
+        continue;
+      }
+      // the bridges
+      for(const [along,off] of [[dx,dz],[dz,dx]]){
+        const a=Math.abs(along),o=Math.abs(off);if(a>66||o>2)continue;
+        const covered=(Math.floor(a/12)&1)===1;
+        put(x,FY,z,NETHER_BRICK);
+        for(let y=FY+1;y<=FY+5;y++){
+          if(o===2)put(x,y,z,y===FY+1||(covered&&y<=FY+4)?NETHER_BRICK:AIR);
+          else put(x,y,z,covered&&y===FY+5?NETHER_BRICK:AIR);
+        }
+        if(covered&&o===2)put(x,FY+5,z,NETHER_BRICK);
+        // pillars down to the ground or the lava every 12 blocks
+        if(a%12===6&&o===2)for(let y=FY-1;y>1;y--){const i=I(x,y,z);if(d[i]!==AIR&&d[i]!==LAVA&&y<FY-1)break;d[i]=NETHER_BRICK}
+      }
+    }
+  }
+}
+// ---------------------------------------------------------------------
+//  The End: a big island of end stone with a ring of obsidian pillars
+//  (each with a crystal on top) around the exit portal, then a wide gap
+//  of void and smaller islands further out.
+// ---------------------------------------------------------------------
+const END_R=96;
+const PILLARS=[];for(let i=0;i<10;i++){const a=i*Math.PI/5;PILLARS.push({x:Math.round(Math.cos(a)*42),z:Math.round(Math.sin(a)*42),r:2+(i*7)%3,top:68+((i*37)%5)*4})}
+Gen.prototype.endTop=function(lx,z){const r=Math.hypot(lx,z)/END_R;return Math.round(50+(1-r*r)*5+this.e1.n2(lx/24,z/24)*2)};
+Gen.prototype.endFountainY=function(){return this.endTop(0,0)};
+Gen.prototype.end=function(cx,cz){
+  const d=new Uint8Array(CS*CS*WH),X0=cx*CS,Z0=cz*CS,I=(x,y,z)=>(y*CS+z)*CS+x;
+  for(let z=0;z<CS;z++)for(let x=0;x<CS;x++){
+    const lx=X0+x-EOFF,wz=Z0+z,r=Math.hypot(lx,wz);
+    let top=-1,bot=0;
+    if(r<END_R+6){
+      const e=r/END_R,wob=this.e2.n2(lx/30,wz/30)*7;
+      if(r<END_R+wob){top=this.endTop(lx,wz);bot=top-Math.round(3+Math.max(0,1-e)*Math.max(0,1-e)*32+this.e2.n2(lx/12,wz/12)*3)}
+    }else if(r>330){
+      const v=this.e1.n2(lx/70+40,wz/70)*.7+this.e2.n2(lx/23,wz/23)*.3;
+      if(v>.26){const t=Math.min(1,(v-.26)/.35);top=Math.round(46+this.e1.n2(lx/40,wz/40+9)*6+t*3);bot=top-Math.round(2+t*t*20)}
+    }
+    if(top>0)for(let y=Math.max(1,bot);y<=top;y++)d[I(x,y,z)]=END_STONE;
+    // obsidian pillars, a bedrock cap and a crystal
+    for(const p of PILLARS){
+      const dx=lx-p.x,dz=wz-p.z;if(dx*dx+dz*dz>p.r*p.r+.6)continue;
+      for(let y=40;y<=p.top;y++)d[I(x,y,z)]=OBSIDIAN;
+      if(dx===0&&dz===0){d[I(x,p.top+1,z)]=BASALT;d[I(x,p.top+2,z)]=CRYSTAL}
+    }
+  }
+  // the exit portal: a bedrock bowl with a pillar in the middle (it opens when the Wyrm is beaten)
+  const fy=this.endFountainY();
+  for(let z=0;z<CS;z++)for(let x=0;x<CS;x++){
+    const lx=X0+x-EOFF,wz=Z0+z,r=Math.hypot(lx,wz);if(r>4.6)continue;
+    for(let y=fy+1;y<=fy+5;y++)d[I(x,y,z)]=AIR;
+    if(r<=3.6){d[I(x,fy-1,z)]=BASALT;d[I(x,fy,z)]=r>2.6?BASALT:AIR}
+    if(lx===0&&wz===0)for(let y=fy-1;y<=fy+3;y++)d[I(x,y,z)]=BASALT;
+  }
+  return d;
+};
+// cells of the exit portal (relative to the fountain centre, at height fy)
+const EXIT_CELLS=[];for(let z=-3;z<=3;z++)for(let x=-3;x<=3;x++){const r=Math.hypot(x,z);if(r<=2.6&&(x||z))EXIT_CELLS.push([x,z])}
+// ---------------------------------------------------------------------
+//  Strongholds: a stone brick portal room with twelve End portal frames
+//  around a pool of lava, and corridors leading off it, lit by torches
+// ---------------------------------------------------------------------
+const FRAME_CELLS=[];for(let k=-1;k<=1;k++)FRAME_CELLS.push([2,k],[-2,k],[k,2],[k,-2]);
+function paintStronghold(d,X0,Z0,sh,seed){
+  if(X0+CS<sh.x-50||X0>sh.x+50||Z0+CS<sh.z-50||Z0>sh.z+50)return;
+  const I=(x,y,z)=>(y*CS+z)*CS+x,SY=sh.y;
+  const brick=(x,y,z)=>hash3(x,y,z^seed)%7===0?MOSSY:STONE_BRICKS;
+  for(let z=0;z<CS;z++)for(let x=0;x<CS;x++){
+    const wx=X0+x,wz=Z0+z,dx=wx-sh.x,dz=wz-sh.z,adx=Math.abs(dx),adz=Math.abs(dz);
+    if(adx<=7&&adz<=7){
+      for(let y=SY;y<=SY+7;y++){
+        const shell=adx===7||adz===7||y===SY||y===SY+7,door=(adx<=1||adz<=1)&&(adx===7||adz===7)&&y>SY&&y<=SY+3;
+        d[I(x,y,z)]=shell&&!door?brick(wx,y,wz):AIR;
+      }
+      if(adx<=1&&adz<=1){d[I(x,SY,z)]=LAVA;d[I(x,SY-1,z)]=STONE_BRICKS}
+      else if(adx<=2&&adz<=2&&(adx===2)!==(adz===2)){d[I(x,SY+1,z)]=(hash3(wx,wz,seed^0xe7e)%10===0)?END_FRAME_EYE:END_FRAME}
+      continue;
+    }
+    for(const [along,off] of [[dx,dz],[dz,dx]]){
+      const a=Math.abs(along),o=Math.abs(off);if(a<7||a>46||o>2)continue;
+      for(let y=SY;y<=SY+4;y++){
+        const shell=o===2||y===SY||y===SY+4;
+        d[I(x,y,z)]=shell?brick(wx,y,wz):AIR;
+      }
+      if(o===1&&a%8===3&&off>0)d[I(x,SY+1,z)]=TORCH;
+    }
+  }
+}
+
 // =====================================================================
 //  The world: chunks of 16×96×16 blocks, plus every block anyone changed
 // =====================================================================
@@ -998,7 +1335,7 @@ class World{
   chunk(cx,cz){return this.chunks.get(ckey(cx,cz))}
   // -1 means "not loaded yet"
   get(x,y,z){
-    if(y<0)return BASALT;if(y>=WH)return AIR;
+    if(y<0)return x<=-DIM_EDGE?AIR:BASALT;if(y>=WH)return AIR;
     const c=this.chunks.get(ckey(x>>4,z>>4));if(!c)return -1;
     return c.data[(y*CS+(z&15))*CS+(x&15)];
   }
@@ -1167,7 +1504,7 @@ function meshChunk(world,c){
     spread(RL);
   }
   // --- faces ---
-  const bo=new Buf(),bc=new Buf(),bl=new LBuf(),bv=new LBuf();
+  const bo=new Buf(),bc=new Buf(),bl=new LBuf(),bv=new LBuf(),bp=new LBuf();
   const P=new Float32Array(12),U=new Float32Array(8),Lt=new Float32Array(16),ao=[0,0,0,0];
   for(let y=0;y<=c.maxY;y++)for(let z=0;z<CS;z++)for(let x=0;x<CS;x++){
     const r=(y*PW+z+PAD)*PW+x+PAD,id=RB[r];if(!id)continue;
@@ -1176,6 +1513,7 @@ function meshChunk(world,c){
     if(kA===5){shapeMesh(bc,id,x,y,z,r);continue}
     if(kA===6){crossMesh(bc,b.t[1],x,y,z,r);continue}
     if(kA===3){liquidMesh(isLava(id)?bv:bl,id,x,y,z,r);continue}
+    if(kA===7){portalMesh(bp,id,x,y,z,r);continue}
     const liquid=kA===3,buf=kA===1?bo:kA===2?bc:bl;
     const lowTop=liquid&&RB[r+PA]!==id;
     for(let d=0;d<6;d++){
@@ -1221,7 +1559,7 @@ function meshChunk(world,c){
     const r=(y*PW+z+PAD)*PW+PAD;
     for(let x=0;x<CS;x++)LT[o+x]=(RS[r+x]<<4)|RL[r+x];
   }
-  return{o:bo.geometry(),c:bc.geometry(),l:bl.geometry(),v:bv.geometry()};
+  return{o:bo.geometry(),c:bc.geometry(),l:bl.geometry(),v:bv.geometry(),p:bp.geometry()};
 }
 function torchMesh(buf,x,y,z,tile,sky,blk){
   const a=7/16,b=9/16,h=10/16;
@@ -1294,6 +1632,9 @@ function shapeBoxes(id){
     add(v?wallBox(b,v-1):b,T6(3));
   }else if(id===PLATE||id===PLATE_ON){
     add([1,0,1,15,id===PLATE_ON?.5:1,15],T6(3));
+  }else if(id===END_FRAME||id===END_FRAME_EYE){
+    add([0,0,0,16,13,16],[196,196,id===END_FRAME_EYE?198:195,194,196,196]);
+    if(id===END_FRAME_EYE)add([4,13,4,12,16,12],[212,212,212,212,212,212]);
   }else if(isRep(id)){
     const v=id-REPEATER,dir=v>>1,on=v&1,nub=on?104:13;
     add([0,0,0,16,2,16],[108,108,on?107:106,108,108,108],dir);
@@ -1308,7 +1649,7 @@ function collBoxes(id){
   if(!(KIND[id]===5))return null;
   let c=COLL.get(id);if(c!==undefined)return c;
   c=null;
-  if(isDoor(id)||isBed(id)||isFarm(id)||isRep(id))c=shapeBoxes(id).slice(0,1).map(o=>o.b.map(v=>v/16));
+  if(isDoor(id)||isBed(id)||isFarm(id)||isRep(id)||id===END_FRAME||id===END_FRAME_EYE)c=shapeBoxes(id).slice(0,1).map(o=>o.b.map(v=>v/16));
   COLL.set(id,c);return c;
 }
 // the box the crosshair picks and outlines
@@ -1316,7 +1657,9 @@ const SEL=new Map();
 function selBox(id){
   let b=SEL.get(id);if(b)return b;
   const k=KIND[id];
-  if(k===6)b=isWheat(id)?[.1,0,.1,.9,.25+(id-WHEAT0)*.1,.9]:[.2,0,.2,.8,.8,.8];
+  if(id===CRYSTAL)b=[.15,.15,.15,.85,.85,.85];
+  else if(id===NPORTAL)b=[0,0,.375,1,1,.625];else if(id===NPORTAL_Z)b=[.375,0,0,.625,1,1];else if(id===END_PORTAL)b=[0,0,0,1,.75,1];
+  else if(k===6)b=isWheat(id)?[.1,0,.1,.9,.25+(id-WHEAT0)*.1,.9]:[.2,0,.2,.8,.8,.8];
   else if(k===4)b=[.38,0,.38,.62,.65,.62];
   else if(isDust(id))b=[0,0,0,1,1/16,1];
   else if(k===5){const s=shapeBoxes(id);b=[1,1,1,0,0,0];for(const o of s)for(let i=0;i<3;i++){b[i]=Math.min(b[i],o.b[i]/16);b[i+3]=Math.max(b[i+3],o.b[i+3]/16)}}
@@ -1509,6 +1852,15 @@ function liquidMesh(buf,id,x,y,z,r){
   }
 }
 
+// ---- portals: one quad per block, patterned by their shader (flow.x: 1 Nether portal, 2 End portal) ----
+const _PF1=[1,0],_PF1Z=[1,1],_PF2=[2,0];
+function portalMesh(buf,id,x,y,z,r){
+  const L=[1,1,1,1];
+  const put=(pts,uvs,F)=>{for(let k=0;k<4;k++){_LP[k*3]=pts[k][0];_LP[k*3+1]=pts[k][1];_LP[k*3+2]=pts[k][2];_LU[k*2]=uvs[k][0];_LU[k*2+1]=uvs[k][1];_LL[k*4]=1;_LL[k*4+1]=1;_LL[k*4+2]=1;_LL[k*4+3]=1}buf.lquad(_LP,_LU,_LL,F)};
+  if(id===END_PORTAL){const h=y+.75;put([[x,h,z],[x+1,h,z],[x+1,h,z+1],[x,h,z+1]],[[x,z],[x+1,z],[x+1,z+1],[x,z+1]],_PF2);return}
+  if(id===NPORTAL){const c=z+.5;put([[x,y,c],[x+1,y,c],[x+1,y+1,c],[x,y+1,c]],[[x,y],[x+1,y],[x+1,y+1],[x,y+1]],_PF1)}
+  else{const c=x+.5;put([[c,y,z],[c,y,z+1],[c,y+1,z+1],[c,y+1,z]],[[z,y],[z+1,y],[z+1,y+1],[z,y+1]],_PF1Z)}
+}
 /*W-*/
 
 // =====================================================================
@@ -1525,7 +1877,7 @@ const TEX=new THREE.CanvasTexture(ATLAS);
 TEX.magFilter=THREE.NearestFilter;TEX.minFilter=THREE.NearestFilter;TEX.generateMipmaps=false;
 const VS=`attribute vec4 light;varying vec2 vUv;varying vec4 vL;varying float vD;
 void main(){vUv=uv;vL=light;vec4 mv=modelViewMatrix*vec4(position,1.0);vD=length(mv.xyz);gl_Position=projectionMatrix*mv;}`;
-const FS=`uniform sampler2D map;uniform float uBright;uniform float uDay;uniform vec3 uSky;uniform vec3 uFog;uniform float uNear;uniform float uFar;uniform float uCut;
+const FS=`uniform sampler2D map;uniform vec3 uAmb;uniform float uBright;uniform float uDay;uniform vec3 uSky;uniform vec3 uFog;uniform float uNear;uniform float uFar;uniform float uCut;
 varying vec2 vUv;varying vec4 vL;varying float vD;
 void main(){
   vec4 t=texture2D(map,vUv);
@@ -1534,19 +1886,19 @@ void main(){
   float b=vL.y<0.01?0.0:pow(0.8,(1.0-vL.y)*15.0);
   vec3 li=max(uSky*s,vec3(1.0,0.84,0.62)*b);
   // brightness: lift the dark end of the curve and never go fully black (a cool, dim glow in caves)
-  li=mix(li,1.0-pow(1.0-min(li,vec3(1.0)),vec3(3.0)),uBright*0.55);li=max(li,(0.16+0.24*uBright)*vec3(0.9,0.94,1.06));
+  li=mix(li,1.0-pow(1.0-min(li,vec3(1.0)),vec3(3.0)),uBright*0.55);li=max(li,(0.16+0.24*uBright)*vec3(0.9,0.94,1.06));li=max(li,uAmb);
   vec3 c=t.rgb*li*vL.z;
   float f=smoothstep(uNear,uFar,vD);
   gl_FragColor=vec4(mix(c,uFog,f),vL.w);
 }`;
-const UNI={map:{value:TEX},uBright:{value:.5},uDay:{value:1},uSky:{value:new THREE.Color(1,1,1)},uFog:{value:new THREE.Color(.55,.75,1)},uNear:{value:50},uFar:{value:90}};
+const UNI={map:{value:TEX},uAmb:{value:new THREE.Color(0,0,0)},uBright:{value:.5},uDay:{value:1},uSky:{value:new THREE.Color(1,1,1)},uFog:{value:new THREE.Color(.55,.75,1)},uNear:{value:50},uFar:{value:90}};
 const mkMat=(cut,o)=>new THREE.ShaderMaterial(Object.assign({uniforms:Object.assign({},UNI,{uCut:{value:cut}}),vertexShader:VS,fragmentShader:FS},o||{}));
 const MAT_O=mkMat(0),MAT_C=mkMat(1,{side:THREE.DoubleSide});
 // Water and lava are drawn by their own shader: a 16-pixels-a-block pattern that drifts
 // along the way the liquid is flowing (uv holds world coordinates for these faces).
 const LVS=`attribute vec4 light;attribute vec2 flow;varying vec2 vUv;varying vec4 vL;varying float vD;varying vec2 vF;
 void main(){vUv=uv;vL=light;vF=flow;vec4 mv=modelViewMatrix*vec4(position,1.0);vD=length(mv.xyz);gl_Position=projectionMatrix*mv;}`;
-const LFS=`uniform float uBright;uniform float uDay;uniform vec3 uSky;uniform vec3 uFog;uniform float uNear;uniform float uFar;uniform float uTime;uniform float uLava;
+const LFS=`uniform vec3 uAmb;uniform float uBright;uniform float uDay;uniform vec3 uSky;uniform vec3 uFog;uniform float uNear;uniform float uFar;uniform float uTime;uniform float uLava;
 varying vec2 vUv;varying vec4 vL;varying float vD;varying vec2 vF;
 float h21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}
 float vn(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
@@ -1562,15 +1914,47 @@ void main(){
   else{c=mix(vec3(0.13,0.30,0.78),vec3(0.30,0.52,0.95),smoothstep(0.2,0.9,n));c=mix(c,vec3(0.62,0.78,1.0),step(0.98,n)*0.45);}
   float s=vL.x<0.01?0.0:pow(0.8,(1.0-vL.x)*15.0)*uDay;
   float b=vL.y<0.01?0.0:pow(0.8,(1.0-vL.y)*15.0);
-  vec3 li=max(uSky*s,vec3(1.0,0.84,0.62)*b);li=mix(li,1.0-pow(1.0-min(li,vec3(1.0)),vec3(3.0)),uBright*0.55);li=max(li,(0.16+0.24*uBright)*vec3(0.9,0.94,1.06));if(uLava>0.5)li=vec3(1.0);
+  vec3 li=max(uSky*s,vec3(1.0,0.84,0.62)*b);li=mix(li,1.0-pow(1.0-min(li,vec3(1.0)),vec3(3.0)),uBright*0.55);li=max(li,(0.16+0.24*uBright)*vec3(0.9,0.94,1.06));li=max(li,uAmb);if(uLava>0.5)li=vec3(1.0);
   c*=li*vL.z;
   float fo=smoothstep(uNear,uFar,vD);
   gl_FragColor=vec4(mix(c,uFog,fo),a);
 }`;
 const UTIME={value:0};
-const mkLiq=lava=>new THREE.ShaderMaterial({uniforms:{uBright:UNI.uBright,uDay:UNI.uDay,uSky:UNI.uSky,uFog:UNI.uFog,uNear:UNI.uNear,uFar:UNI.uFar,uTime:UTIME,uLava:{value:lava?1:0}},
+const mkLiq=lava=>new THREE.ShaderMaterial({uniforms:{uAmb:UNI.uAmb,uBright:UNI.uBright,uDay:UNI.uDay,uSky:UNI.uSky,uFog:UNI.uFog,uNear:UNI.uNear,uFar:UNI.uFar,uTime:UTIME,uLava:{value:lava?1:0}},
   vertexShader:LVS,fragmentShader:LFS,transparent:!lava,depthWrite:lava,side:THREE.DoubleSide});
 const MAT_L=mkLiq(false),MAT_V=mkLiq(true);
+// Nether portals swirl purple; End portals are a black field of drifting stars, the same from any angle
+const PVS=`attribute vec4 light;attribute vec2 flow;varying vec2 vUv;varying float vD;varying vec2 vF;varying vec3 vW;
+void main(){vUv=uv;vF=flow;vec4 w=modelMatrix*vec4(position,1.0);vW=w.xyz;vec4 mv=viewMatrix*w;vD=length(mv.xyz);gl_Position=projectionMatrix*mv;}`;
+const PFS=`uniform vec3 uFog;uniform float uNear;uniform float uFar;uniform float uTime;
+varying vec2 vUv;varying float vD;varying vec2 vF;varying vec3 vW;
+float h21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}
+float vn(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
+  return mix(mix(h21(i),h21(i+vec2(1,0)),f.x),mix(h21(i+vec2(0,1)),h21(i+vec2(1,1)),f.x),f.y);}
+void main(){
+  float fo=smoothstep(uNear,uFar,vD);
+  if(vF.x<1.5){
+    vec2 p=floor(vUv*16.0)/16.0;
+    vec2 q=p-vec2(0.5);float a=uTime*0.6;
+    float n=vn(p*2.5+vec2(sin(a+p.y*3.0),cos(a*0.8+p.x*3.0))*0.9)*0.6+vn(p*6.0+vec2(uTime*0.4,-uTime*0.9))*0.4;
+    n=floor(n*6.0)/5.0;
+    vec3 c=mix(vec3(0.28,0.04,0.52),vec3(0.82,0.42,1.0),n);
+    // seen edge-on (standing in it) it fades out instead of showing a hard line
+    vec3 nrm=vF.y>0.5?vec3(1.0,0.0,0.0):vec3(0.0,0.0,1.0);
+    float k=abs(dot(nrm,normalize(cameraPosition-vW)));
+    gl_FragColor=vec4(mix(c,uFog,fo),0.8*smoothstep(0.03,0.2,k));
+  }else{
+    vec3 c=vec3(0.02,0.03,0.07);
+    for(int i=0;i<3;i++){
+      float L=float(i);
+      vec2 q=floor(vUv*(10.0+L*7.0)+vec2(uTime*(0.25+L*0.12),uTime*(0.07-L*0.05)));
+      float h=h21(q+L*17.3);
+      if(h>0.955)c+=(i==0?vec3(0.25,0.85,0.75):i==1?vec3(0.55,0.35,0.95):vec3(0.3,0.5,0.95))*(h-0.955)*16.0;
+    }
+    gl_FragColor=vec4(c,1.0);
+  }
+}`;
+const MAT_P=new THREE.ShaderMaterial({uniforms:{uFog:UNI.uFog,uNear:UNI.uNear,uFar:UNI.uFar,uTime:UTIME},vertexShader:PVS,fragmentShader:PFS,transparent:true,depthWrite:false,side:THREE.DoubleSide});
 
 // sky dressing: sun, moon, stars, clouds
 scene.fog=new THREE.Fog(0x8fc6ff,120,420);
@@ -1654,7 +2038,7 @@ function lightAt(x,y,z){
   const l=world.light(Math.floor(x),Math.floor(y),Math.floor(z)),s=l>>4,b=l&15;
   let v=Math.max(Math.pow(.8,15-s)*dayLight,Math.pow(.8,15-b));const k=UNI.uBright.value;
   v=v+(1-Math.pow(1-Math.min(v,1),3)-v)*k*.55;
-  return Math.max(v,.16+.24*k);
+  return Math.max(v,.16+.24*k,AMBV);
 }
 
 // view model: the block, tool or hand in front of you
@@ -1744,6 +2128,7 @@ function applyMesh(c,m){
   if(m.c)grp.add(new THREE.Mesh(m.c,MAT_C));
   if(m.v)grp.add(new THREE.Mesh(m.v,MAT_V));
   if(m.l){const ml=new THREE.Mesh(m.l,MAT_L);ml.renderOrder=2;grp.add(ml)}
+  if(m.p){const mp=new THREE.Mesh(m.p,MAT_P);mp.renderOrder=3;grp.add(mp)}
   scene.add(grp);c.mesh=grp;c.meshed=true;
 }
 function dropMesh(c){if(c.mesh){scene.remove(c.mesh);for(const ch of c.mesh.children)ch.geometry.dispose();c.mesh=null}}
@@ -1794,7 +2179,30 @@ const DAY_LEN=1200;
 const C_DAY=new THREE.Color(0x8fc6ff),C_NIGHT=new THREE.Color(0x0a0f1e),C_DUSK=new THREE.Color(0xff9a5c),C_WATER=new THREE.Color(0x14336e),C_LAVA=new THREE.Color(0xc8460a);
 const tmpC=new THREE.Color();
 let dayLight=1;
+// each dimension's sky: the Nether is a hazy cave lit by its own glow, the End a dark void with a steady light
+let DIM=0,AMBV=0;
+const C_NETHER=[null,new THREE.Color(0x3a0c08),new THREE.Color(0x1d2a33),new THREE.Color(0x4a0a0e),new THREE.Color(0x0c2a2a)],C_END=new THREE.Color(0x120d1c);
+function dimSky(under){
+  const far=R_DIST*CS;
+  sunMesh.visible=moonMesh.visible=clouds.visible=false;
+  if(DIM===1){
+    const b=world?world.gen.netherBiome(Math.floor(pl.x),Math.floor(pl.z)):1;
+    tmpC.copy(C_NETHER[b]);UNI.uFog.value.lerp(tmpC,.04);
+    UNI.uDay.value=0;UNI.uAmb.value.setRGB(.44,.31,.26);AMBV=.36;stars.visible=false;
+    if(!under){UNI.uNear.value=far*.2;UNI.uFar.value=far*.9}
+  }else{
+    UNI.uFog.value.copy(C_END);UNI.uDay.value=.72;dayLight=.72;UNI.uSky.value.setRGB(.86,.8,1);UNI.uAmb.value.setRGB(.24,.22,.3);AMBV=.24;
+    stars.visible=!under;stars.material.opacity=.55;stars.position.copy(camera.position);
+    if(!under){UNI.uNear.value=far*.5;UNI.uFar.value=far*.97}
+  }
+  if(under===WATER){UNI.uFog.value.copy(C_WATER).multiplyScalar(.4);UNI.uNear.value=1;UNI.uFar.value=20}
+  else if(under===LAVA){UNI.uFog.value.copy(C_LAVA);UNI.uNear.value=0;UNI.uFar.value=2.5}
+  scene.background=UNI.uFog.value;scene.fog.color.copy(UNI.uFog.value);
+  scene.fog.near=UNI.uNear.value;scene.fog.far=UNI.uFar.value;
+}
 function updateSky(t,under){
+  if(DIM){dimSky(under);return}
+  UNI.uAmb.value.setRGB(0,0,0);AMBV=0;
   const a=t*Math.PI*2,sun=Math.sin(a);
   const day=clamp((sun+.1)/.35,0,1),dd=day*day*(3-2*day);
   dayLight=.16+.84*dd;
@@ -1903,7 +2311,7 @@ function onWorker(w,m){
   const c=j.c;c.pending=false;
   if(world.chunks.get(c.key)!==c)return;
   c.light=m.light;
-  const r=m.r;applyMesh(c,{o:toGeo(r.o,c),c:toGeo(r.c,c),l:toGeo(r.l,c),v:toGeo(r.v,c)});
+  const r=m.r;applyMesh(c,{o:toGeo(r.o,c),c:toGeo(r.c,c),l:toGeo(r.l,c),v:toGeo(r.v,c),p:toGeo(r.p,c)});
   if(c.again){c.again=false;world.dirty.add(c.key)}
 }
 
@@ -1953,12 +2361,21 @@ const Snd={
   click(v,off){v=v==null?1:v;if(v<=.02)return;this.tone(off?520:720,off?440:620,.05,.09*v,'square')},
   door(v,open){v=v==null?1:v;if(v<=.02)return;this.burst(open?760:520,1.6,.2,.16*v);this.tone(open?230:170,open?190:120,.14,.07*v,'triangle')},
   breakTool(){this.tone(500,200,.2,.1,'sawtooth')},
+  ignite(){this.burst(3000,2,.12,.12);this.burst(900,1,.25,.08)},
+  portalOn(end){this.tone(end?220:160,end?660:420,.9,.08,'triangle');this.tone(end?330:240,end?990:630,.9,.05,'sine');this.burst(1200,.6,.8,.06)},
+  travel(v){v=v==null?1:v;this.tone(120,620,1.2,.08*v,'sine');this.tone(180,930,1.2,.05*v,'triangle');this.burst(600,.4,1.1,.08*v,'lowpass')},
+  boom(v,p){if(v<=.02)return;this.burst(160,.5,.6+p*.12,.5*v,'lowpass');this.burst(900,.7,.3,.25*v);this.tone(90,40,.5,.2*v,'sawtooth')},
+  win(){[523,659,784,1047].forEach((f,i)=>setTimeout(()=>this.tone(f,f*1.01,.5,.07,'triangle'),i*180))},
   mob(type,v){
     if(v<=.02)return;
     if(type==='pig'){this.tone(380,260,.16,.07*v,'square');this.tone(300,220,.12,.05*v,'square')}
     else if(type==='cow')this.tone(140,105,.6,.12*v,'sawtooth');
     else if(type==='sheep'){this.tone(480,470,.45,.06*v,'triangle');this.tone(520,500,.45,.03*v,'square')}
     else if(type==='chicken')this.tone(1300,900,.07,.05*v,'square');
+    else if(type==='cinderjelly'){this.tone(700,260,.9,.07*v,'sine');this.tone(520,200,.9,.05*v,'triangle')}
+    else if(type==='flare'){this.burst(500,.8,.5,.1*v,'lowpass');this.tone(200,240,.4,.04*v,'sawtooth')}
+    else if(type==='voidwalker'){this.tone(260,180,.5,.06*v,'sine');this.tone(300,150,.5,.04*v,'triangle')}
+    else if(type==='wyrm'){this.tone(80,42,1.4,.16*v,'sawtooth');this.burst(250,.5,1.2,.12*v,'lowpass')}
     else this.tone(105,75,.7,.1*v,'sawtooth');
   }
 };
@@ -1998,7 +2415,7 @@ const CREATIVE_HOT=[GRASS,DIRT,STONE,COBBLE,PLANKS,LOG,GLASS,BENCH,TORCH];
 //  Crafting: shaped recipes in a 2×2 or 3×3 grid, matched like the real game
 //  (any position in the grid, mirrored left-right allowed)
 // =====================================================================
-const LOGS=[LOG,BIRCH],FUELC=[COAL,CHARCOAL],STONES=[COBBLE,COBBLED_DS];
+const LOGS=[LOG,BIRCH,CRIMSON_STEM,WARPED_STEM],FUELC=[COAL,CHARCOAL],STONES=[COBBLE,COBBLED_DS];
 const RECIPES=[];
 function shaped(o,n,p,k,cat){const w=Math.max(...p.map(r=>r.length));RECIPES.push({o,n,p:p.map(r=>r.padEnd(w,' ')),k,w,h:p.length,cat})}
 function shapeless(o,n,s,cat){RECIPES.push({o,n,s,w:s.length>1?2:1,h:s.length>2?2:1,cat})}
@@ -2022,6 +2439,14 @@ shaped(REPEATER,1,['TRT','SSS'],{T:RTORCH,R:DUST,S:STONE},'Redstone');
 shaped(RLAMP,1,[' R ','RGR',' R '],{R:DUST,G:GLASS},'Redstone');
 shaped(RBLOCK,1,['RRR','RRR','RRR'],{R:DUST},'Redstone');
 shapeless(DUST,9,[RBLOCK],'Redstone');
+// the Nether and the End
+shapeless(FLINT_STEEL,1,[IRON,FLINT],'Tools');
+shapeless(EMBER_POWDER,2,[EMBER_ROD],'Items');
+shapeless(SEEKER_EYE,1,[VOID_PEARL,EMBER_POWDER],'Items');
+shaped(GLOWSTONE,1,['GG','GG'],{G:GLOW_DUST},'Blocks');
+shaped(NETHER_BRICK,1,['BB','BB'],{B:NBRICK},'Blocks');
+shaped(STONE_BRICKS,4,['SS','SS'],{S:STONE},'Blocks');
+shaped(GOLD,1,['NNN','NNN','NNN'],{N:NUGGET},'Items');shapeless(NUGGET,9,[GOLD],'Items');
 // blocks of each mineral, and back again
 [[COAL_BLOCK,COAL],[IRON_BLOCK,IRON],[GOLD_BLOCK,GOLD],[DIAMOND_BLOCK,GEM],[LAPIS_BLOCK,LAPIS],[EMERALD_BLOCK,EMERALD],[COPPER_BLOCK,COPPER]].forEach(([b,m])=>{
   shaped(b,1,['MMM','MMM','MMM'],{M:m},'Blocks');shapeless(m,9,[b],'Items');
@@ -2076,8 +2501,8 @@ const canMake=r=>needs(r).every(e=>specCount(e.spec)>=e.n);
 //  the same thing without anyone having to run them.
 // =====================================================================
 const SMELT={[RAW_IRON]:IRON,[RAW_GOLD]:GOLD,[RAW_COPPER]:COPPER,[COPPER_ORE]:COPPER,[LAPIS_ORE]:LAPIS,[EMERALD_ORE]:EMERALD,[COBBLED_DS]:DEEPSLATE,
-  [DS_COAL]:COAL,[DS_IRON]:IRON,[DS_COPPER]:COPPER,[DS_GOLD]:GOLD,[DS_RORE]:DUST,[DS_LAPIS]:LAPIS,[DS_DIAMOND]:GEM,[DS_EMERALD]:EMERALD,[RORE]:DUST,[IRON_ORE]:IRON,[GOLD_ORE]:GOLD,[SAND]:GLASS,[COBBLE]:STONE,[LOG]:CHARCOAL,[BIRCH]:CHARCOAL,[PORK]:PORK_C,[BEEF]:STEAK,[CHICK]:CHICK_C,[AZ_ORE]:GEM,[COAL_ORE]:COAL};
-const FUEL={[COAL_BLOCK]:800,[COAL]:80,[CHARCOAL]:80,[LOG]:15,[BIRCH]:15,[PLANKS]:15,[STICK]:5,[BENCH]:15,[CHEST]:15,[SHELF]:15};
+  [NETHERRACK]:NBRICK,[NQUARTZ_ORE]:QUARTZ,[NGOLD_ORE]:GOLD,[DS_COAL]:COAL,[DS_IRON]:IRON,[DS_COPPER]:COPPER,[DS_GOLD]:GOLD,[DS_RORE]:DUST,[DS_LAPIS]:LAPIS,[DS_DIAMOND]:GEM,[DS_EMERALD]:EMERALD,[RORE]:DUST,[IRON_ORE]:IRON,[GOLD_ORE]:GOLD,[SAND]:GLASS,[COBBLE]:STONE,[LOG]:CHARCOAL,[BIRCH]:CHARCOAL,[PORK]:PORK_C,[BEEF]:STEAK,[CHICK]:CHICK_C,[AZ_ORE]:GEM,[COAL_ORE]:COAL};
+const FUEL={[EMBER_ROD]:120,[COAL_BLOCK]:800,[COAL]:80,[CHARCOAL]:80,[LOG]:15,[BIRCH]:15,[PLANKS]:15,[STICK]:5,[BENCH]:15,[CHEST]:15,[SHELF]:15};
 for(let t=0;t<5;t++)FUEL[toolId(t,0)]=10;
 FUEL[OAK_SAP]=FUEL[PINE_SAP]=5;FUEL[DOOR]=10;
 const COOK=10;
@@ -2261,6 +2686,7 @@ function physics(dt){
   const liquid=pl.inWater||pl.inLava;
   let sp=pl.fly?(pl.sprint?21:10.9):liquid?(pl.inLava?1.4:2.4):pl.sneak?1.3:pl.sprint?5.6:4.3;
   if(pl.eatT>0&&!pl.fly)sp*=.3;
+  if(pl.ground&&!pl.fly&&world.get(Math.floor(pl.x),Math.floor(pl.y-.2),Math.floor(pl.z))===SOUL_SAND)sp*=.45;
   const k=1-Math.exp(-dt*(pl.fly?10:pl.ground||liquid?18:5));
   pl.vx+=(wx*sp-pl.vx)*k;pl.vz+=(wz*sp-pl.vz)*k;
   // flowing water carries you along
@@ -2279,6 +2705,7 @@ function physics(dt){
   const x0=pl.x,z0=pl.z;
   const landed=moveBody(pl,pl.vx*dt,pl.vy*dt,pl.vz*dt,PW2,PH,pl.sneak&&pl.ground&&!pl.fly,pl.ground&&!pl.fly);
   if(pl.hitWall&&pl.sprint&&!pl.fly)pl.sprint=false;
+  borderClamp(pl);
   pl.ground=landed||(pl.vy<=0&&collides(pl.x,pl.y-.03,pl.z));
   if(pl.ground&&pl.vy<0)pl.vy=0;
   if(pl.fly&&pl.ground&&mode==='creative'&&down)pl.fly=false;
@@ -2330,6 +2757,13 @@ function deathText(cause){
   if(cause==='starve')return n+' starved to death';
   if(cause==='zombie')return n+' was slain by a Zombie';
   if(cause==='aj')return n+' was caught by Arjunity';
+  if(cause==='voidwalker')return n+' was slain by a Voidwalker';
+  if(cause==='flare')return n+' was burned up by a Flare';
+  if(cause==='fireball')return n+' was hit by a Cinderjelly fireball';
+  if(cause==='wyrm')return n+' was slain by the Void Wyrm';
+  if(cause==='boom')return n+' blew up';
+  if(cause==='bed')return n+' tried to sleep somewhere beds don\'t work';
+  if(cause==='magma')return n+' found out the floor was magma';
   if(cause==='kill')return n+' died';
   if(/^p:/.test(cause))return n+' was slain by '+cause.slice(2);
   return n+' died';
@@ -2351,9 +2785,10 @@ function die(cause){
 }
 function respawn(){
   $('dead').hidden=true;pl.hp=20;pl.air=10;pl.food=20;pl.sat=5;pl.exh=0;pl.fire=0;pl.vx=pl.vy=pl.vz=0;pl.fallTop=null;
-  const bs=bedSpawn();
+  const bs=bedSpawn(),s=pl.spawn||{x:.5,y:70,z:.5},to=bs?{x:bs[0],y:bs[1],z:bs[2]}:s;
+  if(dimOfX(to.x)!==dimOfX(pl.x)||Math.hypot(to.x-pl.x,to.z-pl.z)>R_DIST*CS){uiDirty=true;longJump(to.x,to.y,to.z,{kind:bs?'bed':'spawn'},'Respawning');return}
   if(bs){[pl.x,pl.y,pl.z]=bs}
-  else{const s=pl.spawn||{x:.5,y:70,z:.5};pl.x=s.x;pl.z=s.z;pl.y=s.y;settle()}
+  else{pl.x=s.x;pl.z=s.z;pl.y=s.y;settle()}
   state='play';lockPointer();uiDirty=true;
 }
 function settle(){
@@ -2416,8 +2851,9 @@ function rayEntity(max){
     }
     if(!best||t0<best.t)best=Object.assign({t:t0},ref);
   };
-  for(const m of mobs)if(!m.dead)test(m.x,m.y,m.z,m.w/2+.05,m.h,{kind:'mob',m});
-  for(const r of rmobs.values())if(!r.dead)test(r.x,r.y,r.z,r.w/2+.05,r.h,{kind:'rmob',r});
+  for(const m of mobs)if(!m.dead)mobBoxes(m).forEach((b,j)=>test(b[0],b[1],b[2],b[3],b[4],{kind:'mob',m,body:j>0}));
+  for(const r of rmobs.values())if(!r.dead)mobBoxes(r).forEach((b,j)=>test(b[0],b[1],b[2],b[3],b[4],{kind:'rmob',r,body:j>0}));
+  for(const s of shots)if(s.kind==='fireball')test(s.x,s.y-.4,s.z,.5,.8,{kind:'shot',s});
   for(const o of others.values())if(o.av)test(o.av.position.x,o.av.position.y,o.av.position.z,.35,1.85,{kind:'player',o});
   return best;
 }
@@ -2481,17 +2917,20 @@ function blockDrops(id,x,y,z){
     else dropBlockItem(WHEAT0,x,y,z);return;
   }
   if(id===TALLGRASS){if(Math.random()<.125)dropBlockItem(WHEAT0,x,y,z);return}
+  if(id===GRAVEL){dropBlockItem(Math.random()<.1?FLINT:GRAVEL,x,y,z);return}
   // ores that drop a handful, like the real game
   const many=(it,lo,hi)=>{for(let i=0,n=lo+Math.floor(Math.random()*(hi-lo+1));i<n;i++)dropBlockItem(it,x,y,z)};
   if(id===RORE||id===DS_RORE){many(DUST,4,5);return}
   if(id===COPPER_ORE||id===DS_COPPER){many(RAW_COPPER,2,5);return}
   if(id===LAPIS_ORE||id===DS_LAPIS){many(LAPIS,4,9);return}
+  if(id===GLOWSTONE){many(GLOW_DUST,2,4);return}
+  if(id===NGOLD_ORE){many(NUGGET,2,6);return}
   const drop=B[id].drop;if(drop)dropBlockItem(drop,x,y,z);
 }
 // the block a thing is attached to, as an offset, or null for free-standing blocks
 function supportOf(id){
   if(isLever(id)||isButton(id)){const v=(id-(isLever(id)?LEVER:BUTTON))>>1;return v?DIR4[v-1]:[0,-1,0]}
-  if(id===TORCH||id===RTORCH||id===RTORCH_OFF||isDust(id)||id===PLATE||id===PLATE_ON||isRep(id)||isWheat(id)||isPlant(id)||isBed(id))return[0,-1,0];
+  if(id===TORCH||id===FIRE||id===RTORCH||id===RTORCH_OFF||isDust(id)||id===PLATE||id===PLATE_ON||isRep(id)||isWheat(id)||isPlant(id)||isBed(id))return[0,-1,0];
   if(isDoor(id))return((id-doorBase(id))&1)?[0,-1,0]:[0,-1,0];
   return null;
 }
@@ -2544,6 +2983,8 @@ function breakBlock(h){
   Snd.mat(id,'break');swingT=.25;blockParticles(h.x,h.y,h.z,id,18);
   edit(h.x,h.y,h.z,AIR);
   removeOther(h.x,h.y,h.z,id);
+  if(isNPortal(id))breakPortal(h.x,h.y,h.z,id);else checkPortalsAround(h.x,h.y,h.z);
+  if(id===CRYSTAL)crystalBoom(h.x,h.y,h.z);
   popNeighbours(h.x,h.y,h.z);
   settleFalling(h.x,h.y+1,h.z);
   if(base===LOG||base===BIRCH)scheduleDecay(h.x,h.y,h.z);
@@ -2554,7 +2995,7 @@ function facingId(base){
   if(Math.abs(dx)>Math.abs(dz))return dx>0?ids[3]:ids[2];
   return dz>0?ids[1]:ids[0];
 }
-const replaceable=id=>id===AIR||KIND[id]===3||id===TALLGRASS;
+const replaceable=id=>id===AIR||KIND[id]===3||id===TALLGRASS||id===FIRE;
 // someone (you, another player or a mob) standing in a block cell
 function bodyIn(x,y,z){
   const x0=pl.x-PW2,x1=pl.x+PW2,z0=pl.z-PW2,z1=pl.z+PW2;
@@ -2617,6 +3058,8 @@ function attack(e){
   swingT=.25;exhaust(.1);
   let hx,hy,hz;
   if(e.kind==='aj'){ajHit();swingT=.25;return}
+  if(e.kind==='shot'){deflectShot(e.s);return}
+  if(e.body)dmg=Math.max(1,Math.floor(dmg/2));
   if(e.kind==='mob'){damageMob(e.m,dmg,dx*kb,dz*kb,'me');hx=e.m.x;hy=e.m.y+e.m.h*.6;hz=e.m.z}
   else if(e.kind==='rmob'){Net.fx({type:'hit',to:e.r.owner,id:e.r.id,d:dmg,kx:dx*kb,kz:dz*kb});e.r.hurtT=.4;Snd.hit(1);hx=e.r.x;hy=e.r.y+e.r.h*.6;hz=e.r.z}
   else if(e.kind==='player'){const p=e.o.av.position;Net.fx({type:'atk',to:e.o.uid,d:dmg,kx:dx*kb,kz:dz*kb,c:'p:'+(myName||'Miner')});Snd.hit(1);hx=p.x;hy=p.y+1.2;hz=p.z}
@@ -2683,7 +3126,8 @@ function interact(dt){
   }else{
     pl.eatT=0;
     const bk=held&&(held.id===BUCKET||held.id===WBUCKET||held.id===LBUCKET);
-    if(bk&&mouseR&&useT<=0&&!(target&&!pl.sneak&&[BENCH,KILN,CHEST,DOOR,LEVER,BUTTON,BED].includes(BASE[target.id]))){useT=.3;if(useBucket(held))mouseR=false}
+    if(held&&SPECIAL_USE.has(held.id)&&mouseR&&useT<=0&&!(target&&!pl.sneak&&[BENCH,KILN,CHEST,DOOR,LEVER,BUTTON,BED].includes(BASE[target.id]))){useT=.3;if(useSpecial(held,target))mouseR=false}
+    else if(bk&&mouseR&&useT<=0&&!(target&&!pl.sneak&&[BENCH,KILN,CHEST,DOOR,LEVER,BUTTON,BED].includes(BASE[target.id]))){useT=.3;if(useBucket(held))mouseR=false}
     else if(target&&mouseR&&useT<=0){
       useT=.2;
       if(useBlock(target)){mouseR=false}
@@ -2703,7 +3147,12 @@ const MOBT={
   cow:{w:.9,h:1.4,hp:10,speed:1.1,drops:[[BEEF,1,3],[LEATHER,0,2]]},
   sheep:{w:.9,h:1.3,hp:8,speed:1.2,drops:[[WOOL,1,1]]},
   chicken:{w:.45,h:.75,hp:4,speed:1.1,drops:[[CHICK,1,1],[FEATHER,0,2]]},
-  zombie:{w:.6,h:1.95,hp:20,speed:2.4,hostile:1,dmg:3,drops:[[FLESH,0,2]]}
+  zombie:{w:.6,h:1.95,hp:20,speed:2.4,hostile:1,dmg:3,drops:[[FLESH,0,2]]},
+  // the Nether and the End
+  cinderjelly:{w:2.2,h:2.2,hp:10,speed:2,hostile:1,dmg:0,fly:1,fireproof:1,ranged:1,range:44,drops:[[GLOW_DUST,0,2]]},
+  flare:{w:.7,h:1.75,hp:20,speed:2.6,hostile:1,dmg:4,fly:1,fireproof:1,ranged:1,range:26,drops:[[EMBER_ROD,0,1]]},
+  voidwalker:{w:.6,h:2.7,hp:40,speed:3.4,hostile:1,neutral:1,dmg:7,drops:[[VOID_PEARL,0,1]]},
+  wyrm:{w:3,h:2,hp:200,speed:14,hostile:1,dmg:10,fly:1,fireproof:1,boss:1,drops:[]}
 };
 const MTYPES=Object.keys(MOBT);
 const BOXG={};
@@ -2718,6 +3167,7 @@ function sbox(w,h,d){
 function buildMob(type){
   const g=new THREE.Group(),mats=[],legs=[],arms=[];let head=null;
   const mat=c=>{const m=new THREE.MeshBasicMaterial({color:c,vertexColors:true});m.userData.base=new THREE.Color(c);mats.push(m);return m};
+  const glow=c=>{const m=mat(c);m.userData.glow=true;return m};
   const box=(p,c,w,h,d,x,y,z)=>{const b=new THREE.Mesh(sbox(w,h,d),typeof c==='object'?c:mat(c));b.position.set(x,y,z);p.add(b);return b};
   const pivot=(p,x,y,z)=>{const q=new THREE.Group();q.position.set(x,y,z);p.add(q);return q};
   const eyes=(p,y,z,sp,s)=>{const w=mat(0xf4f4f0),k=mat(0x161616);box(p,w,s*1.4,s,.02,-sp,y,z);box(p,w,s*1.4,s,.02,sp,y,z);box(p,k,s*.7,s,.025,-sp+s*.35,y,z-.002);box(p,k,s*.7,s,.025,sp-s*.35,y,z-.002)};
@@ -2758,6 +3208,57 @@ function buildMob(type){
     for(const x of [-.2,.2]){const a=pivot(g,x,.56,0);box(a,dk,.05,.24,.34,0,-.1,0);arms.push(a)}
     head=pivot(g,0,.6,-.2);box(head,rus,.22,.26,.2,0,.12,-.04);box(head,mat(0xd9a43a),.1,.06,.1,0,.1,-.19);box(head,mat(0xc8262a),.06,.1,.16,0,.3,-.04);
     eyes(head,.16,-.142,.07,.045);
+  }else if(type==='cinderjelly'){
+    // a floating bell of cooling magma with a glowing core and a skirt of dangling ember tendrils
+    const body=mat(0xc84a1c),top=mat(0xe2702a),crust=mat(0x5a1a0a),eye=glow(0xffe46a),core=glow(0xff9a30),hot=glow(0xff5a1a);
+    box(g,top,1.0,.3,1.0,0,2.12,0);box(g,top,1.6,.32,1.6,0,1.86,0);
+    box(g,body,2.0,.5,2.0,0,1.48,0);box(g,body,2.2,.34,2.2,0,1.08,0);box(g,crust,2.3,.1,2.3,0,.86,0);
+    box(g,core,1.3,.3,1.3,0,.74,0);box(g,hot,.7,.2,.7,0,.58,0);
+    for(const [x,y,z,w] of [[.6,1.8,.5,.34],[-.7,1.32,.7,.3],[.5,1.12,-.95,.24],[-.5,1.95,-.3,.28],[.95,1.3,-.2,.22]])box(g,crust,w,.1,w,x,y,z);
+    box(g,eye,.44,.14,.04,-.46,1.46,-1.01);box(g,eye,.44,.14,.04,.46,1.46,-1.01);
+    head=pivot(g,0,1.18,-1.11);box(head,crust,.62,.12,.04,0,0,0);
+    for(let k=0;k<12;k++){
+      const a=k/12*Math.PI*2,r=k&1?.95:.6,len=.7+((k*7)%5)*.14;
+      const l=pivot(g,Math.cos(a)*r,.8,Math.sin(a)*r);
+      box(l,k%3?crust:body,.09,len,.09,0,-len/2,0);
+      const tip=pivot(l,0,-len,0);box(tip,core,.1,.38,.1,0,-.19,0);
+      arms.push(l);
+    }
+  }else if(type==='flare'){
+    // a brass lantern-spirit: a hollow head on a column of smoke, with ember shards orbiting it
+    const brass=mat(0xc8902c),dk=mat(0x3a2410),smokeM=mat(0x4a3a30),eye=glow(0xfff2b0),sh=glow(0xffb030),sh2=glow(0xff6a1c);
+    head=pivot(g,0,1.22,0);box(head,brass,.5,.5,.5,0,.25,0);box(head,dk,.44,.12,.02,0,.28,-.255);
+    box(head,eye,.12,.07,.03,-.11,.28,-.262);box(head,eye,.12,.07,.03,.11,.28,-.262);
+    for(const [x,z] of [[.17,.17],[-.17,.17],[.17,-.17],[-.17,-.17]])box(head,sh,.09,.16,.09,x,.57,z);
+    box(g,smokeM,.2,.8,.2,0,.8,0);box(g,dk,.12,.4,.12,0,.25,0);
+    for(const [y,c,n] of [[.98,sh,4],[.5,sh2,4]]){const ring=pivot(g,0,y,0);for(let k=0;k<n;k++){const a=k/n*Math.PI*2;box(ring,c,.11,.42,.11,Math.cos(a)*.46,0,Math.sin(a)*.46)}arms.push(ring)}
+  }else if(type==='voidwalker'){
+    // a tall wanderer in a hooded violet robe, one cyan eye glowing inside the hood
+    const robe=mat(0x3a1e52),trim=mat(0x7a52b0),dk=mat(0x0b0710),eye=glow(0x60fff0);
+    box(g,robe,.74,.92,.64,0,.46,0);box(g,trim,.76,.08,.66,0,.06,0);
+    box(g,robe,.6,.82,.5,0,1.32,0);box(g,trim,.08,.82,.02,0,1.32,-.26);box(g,robe,.76,.3,.5,0,1.86,0);
+    for(const x of [-.43,.43]){const a=pivot(g,x,1.96,0);box(a,robe,.18,.96,.18,0,-.48,0);box(a,trim,.2,.08,.2,0,-.92,0);box(a,dk,.12,.16,.12,0,-1.04,0);arms.push(a)}
+    head=pivot(g,0,2.0,0);box(head,robe,.54,.58,.54,0,.3,0);box(head,robe,.32,.22,.32,0,.66,.1);
+    box(head,dk,.38,.38,.03,0,.27,-.26);box(head,eye,.2,.05,.035,0,.33,-.268);
+  }else if(type==='wyrm'){
+    // the Void Wyrm: a long armoured serpent with glowing seams, two fin-wings and a crown of horns
+    const sc=mat(0x2a163e),sc2=mat(0x3a2054),belly=mat(0x5a3a7c),horn=mat(0xd8cfe8),gl=glow(0x46ffe0),gl2=glow(0x2ab8ff),mem=mat(0x4e2f72);
+    head=new THREE.Group();g.add(head);
+    box(head,sc,1.5,1.0,2.0,0,.5,0);box(head,sc2,1.1,.62,1.1,0,.4,-1.45);box(head,gl,.1,.05,1.9,0,1.02,0);
+    box(head,gl,.08,.22,.4,-.76,.66,-.55);box(head,gl,.08,.22,.4,.76,.66,-.55);
+    const jaw=pivot(head,0,.12,-.4);box(jaw,belly,.98,.24,1.5,0,0,-.8);arms.push(jaw);
+    for(const x of [-.5,.5]){const hp=pivot(head,x,1.0,.6);hp.rotation.x=.55;box(hp,horn,.18,.18,1.2,0,0,.6);box(hp,horn,.12,.12,.5,0,0,1.35)}
+    for(const x of [-.32,.32])box(head,horn,.1,.1,.32,x,.24,-2.05);
+    const segs=[];
+    for(let i=0;i<WYRM_SEGS;i++){
+      const s=Math.max(.45,1.4-i*.068),q=new THREE.Group();q.visible=false;g.add(q);
+      box(q,i%2?sc:sc2,s,s,s*1.7,0,0,0);box(q,belly,s*.78,.1,s*1.5,0,-s/2-.02,0);
+      box(q,i%3?gl:gl2,.07,s*.5,s*.8,0,s/2+s*.22,0);
+      if(i===1)for(const sd of [-1,1]){const w=pivot(q,sd*s/2,s*.2,0);box(w,mem,2.8,.06,1.5,sd*1.4,0,.2);box(w,gl2,2.8,.05,.08,sd*1.4,.02,-.52);legs.push(w)}
+      if(i===WYRM_SEGS-1)box(q,gl,.06,1.1,.9,0,.2,.6);
+      segs.push(q);
+    }
+    return{g,mats,legs,arms,head,segs,trail:[]};
   }else{
     // zombie: a shambling, grey-green undead in a torn shirt
     const skin=mat(0x7b9a68),shirt=mat(0x5e3333),pants=mat(0x3c4047),dk=mat(0x2a1e1a);
@@ -2771,7 +3272,7 @@ function buildMob(type){
   return{g,mats,legs,arms,head};
 }
 function lightMob(model,k,hurt){
-  for(const m of model.mats){m.color.copy(m.userData.base).multiplyScalar(k);if(hurt){m.color.g*=.4;m.color.b*=.4;m.color.r=Math.min(1,m.color.r*1.3+.15)}}
+  for(const m of model.mats){m.color.copy(m.userData.base).multiplyScalar(m.userData.glow?1:k);if(hurt){m.color.g*=.4;m.color.b*=.4;m.color.r=Math.min(1,m.color.r*1.3+.15)}}
 }
 function animMob(model,type,sp,dt,state){
   state.phase+=Math.min(sp,6)*dt*(type==='chicken'?5:3);
@@ -2780,6 +3281,10 @@ function animMob(model,type,sp,dt,state){
   if(L.length===4){L[0].rotation.x=sw;L[3].rotation.x=sw;L[1].rotation.x=-sw;L[2].rotation.x=-sw}
   else if(L.length===2){L[0].rotation.x=sw;L[1].rotation.x=-sw}
   if(type==='chicken'&&model.arms.length){const f=state.flap?Math.sin(clock*30)*.6:0;model.arms[0].rotation.z=f;model.arms[1].rotation.z=-f}
+  if(type==='cinderjelly'){model.arms.forEach((a,i)=>{a.rotation.x=Math.sin(clock*1.6+i*.9)*.28;a.rotation.z=Math.cos(clock*1.3+i*1.3)*.28;const t=a.children[1];if(t)t.rotation.x=Math.sin(clock*2.2+i)*.5});if(model.head)model.head.scale.y=1+(state.mouth>0?state.mouth*10:0);model.g.position.y+=Math.sin(clock*1.2)*.15}
+  if(type==='flare'){if(model.arms[0])model.arms[0].rotation.y=clock*2.4;if(model.arms[1])model.arms[1].rotation.y=-clock*3.1;model.head.position.y=1.22+Math.sin(clock*3)*.06}
+  if(type==='voidwalker'){const s=Math.min(sp/2,1)*.5*Math.sin(state.phase*.7);model.arms[0].rotation.x=s+(state.atk?-.9:0);model.arms[1].rotation.x=-s+(state.atk?-.9:0)}
+  if(type==='wyrm'){for(const w of model.legs)w.rotation.z=Math.sin(clock*2.6)*.55*(w.position.x<0?-1:1);if(model.arms[0])model.arms[0].rotation.x=state.mouth>0?.5:.08}
   if(type==='zombie'&&model.arms.length){model.arms[0].rotation.x=-1.45+Math.sin(state.phase*.5)*.08+(state.atk?.25:0);model.arms[1].rotation.x=-1.45-Math.sin(state.phase*.5)*.08+(state.atk?.25:0)}
 }
 
@@ -2788,7 +3293,8 @@ const rmobs=new Map();
 function spawnMob(type,x,y,z){
   const T=MOBT[type];
   const m={id:(++mobSeq).toString(36),type,T,x,y,z,vx:0,vy:0,vz:0,yaw:Math.random()*6.28,w:T.w,h:T.h,hp:T.hp,ground:false,
-    hitAt:0,hurtT:0,dead:false,deadT:0,ai:{t:0,mx:0,mz:0},panic:0,atkT:0,fire:0,phase:0,soundT:4+Math.random()*12,model:buildMob(type),flap:false,atk:false,stuck:0};
+    hitAt:0,hurtT:0,dead:false,deadT:0,ai:{t:0,mx:0,mz:0},panic:0,atkT:0,fire:0,phase:0,soundT:4+Math.random()*12,model:buildMob(type),flap:false,atk:false,stuck:0,
+    shotT:2+Math.random()*2,burst:0,burstT:0,mouth:0,angry:0,stareT:0,losT:0,los:false,tgt:null};
   scene.add(m.model.g);mobs.push(m);return m;
 }
 function removeMob(i){scene.remove(mobs[i].model.g);mobs.splice(i,1)}
@@ -2800,7 +3306,9 @@ function damageMob(m,d,kx,kz,by){
   const now=performance.now();
   if(m.dead||now-(m.hitAt||0)<450)return;
   m.hp-=d;m.hitAt=now;m.hurtT=.4;
-  const l=Math.hypot(kx,kz)||1;m.vx+=kx/l*5.5;m.vz+=kz/l*5.5;m.vy=Math.max(m.vy,4.8);m.ground=false;
+  if(m.T.boss){Snd.mob('wyrm',Snd.at(m.x,m.y,m.z)*.6);if(m.hp<=0){m.dead=true;m.deadT=0;m.killer=by||null}return}
+  const l=Math.hypot(kx,kz)||1,kb=m.T.fly?.5:1;m.vx+=kx/l*5.5*kb;m.vz+=kz/l*5.5*kb;if(!m.T.fly){m.vy=Math.max(m.vy,4.8);m.ground=false}
+  if(m.T.neutral){m.angry=30;if(Math.random()<.55)m.tp=true}
   const v=Snd.at(m.x,m.y,m.z);Snd.hit(v);Snd.mob(m.type,v);
   if(!m.T.hostile){m.panic=5;m.ai.t=0}
   if(m.hp<=0){m.dead=true;m.deadT=0;m.killer=by||null}
@@ -2817,6 +3325,8 @@ function updateMobs(dt){
   const targets=mobTargets(),day=nightFactor()<.35;
   for(let i=mobs.length-1;i>=0;i--){
     const m=mobs[i],T=m.T;
+    if(T.boss){wyrmTick(m,i,dt,targets);continue}
+    if(m.y<-20){removeMob(i);continue}
     const dist=Math.hypot(m.x-pl.x,m.z-pl.z);
     if(dist>(T.hostile?80:100)||(T.hostile&&dist>36&&Math.random()<dt/40)){removeMob(i);continue}
     if(!world.chunk(Math.floor(m.x)>>4,Math.floor(m.z)>>4)){removeMob(i);continue}
@@ -2832,11 +3342,18 @@ function updateMobs(dt){
       }
       continue;
     }
+    if(T.fly){flyTick(m,dt,targets);continue}
     // what to do
     let mx=0,mz=0,sp=T.speed;m.atk=false;
     const inWater=liquidAt(m.x,m.y+.4,m.z)===1;
-    if(T.hostile){
-      let best=null,bd=24;
+    if(T.neutral){
+      // a voidwalker minds its own business until you hit it or stare it in the eye
+      m.angry-=dt;
+      if(state==='play'&&mode==='survival'&&m.angry<=0&&staredAt(m)){m.stareT+=dt;if(m.stareT>.5){m.angry=30;m.tp=Math.random()<.5;Snd.mob('voidwalker',1)}}else m.stareT=0;
+      if(m.tp||(inWater&&Math.random()<dt*4)){m.tp=false;voidHop(m)}
+    }
+    if(T.hostile&&(!T.neutral||m.angry>0)){
+      let best=null,bd=T.neutral?40:24;
       for(const t of targets){const d=Math.hypot(t.x-m.x,t.y-m.y,t.z-m.z);if(d<bd){bd=d;best=t}}
       if(best){
         const dx=best.x-m.x,dz=best.z-m.z,l=Math.hypot(dx,dz)||1;
@@ -2844,13 +3361,16 @@ function updateMobs(dt){
         m.atk=bd<4;
         if(l<1.25&&Math.abs(best.y-m.y)<1.7&&m.atkT<=0){
           m.atkT=1;
-          if(best.uid==='me')hurtBy(T.dmg,dx/l,dz/l,'zombie');
-          else Net.fx({type:'atk',to:best.uid,d:T.dmg,kx:dx/l,kz:dz/l,c:'zombie'});
+          if(best.uid==='me')hurtBy(T.dmg,dx/l,dz/l,m.type);
+          else Net.fx({type:'atk',to:best.uid,d:T.dmg,kx:dx/l,kz:dz/l,c:m.type});
         }
       }else{m.ai.t-=dt;if(m.ai.t<=0){m.ai.t=2+Math.random()*4;const a=Math.random()*6.28,go=Math.random()<.5;m.ai.mx=go?Math.cos(a):0;m.ai.mz=go?Math.sin(a):0}mx=m.ai.mx;mz=m.ai.mz;sp*=.45}
       // zombies catch fire under an open sky in daylight
       const l=world.light(Math.floor(m.x),Math.floor(m.y+1.6),Math.floor(m.z));
-      if(day&&(l>>4)===15&&!inWater)m.fire=Math.max(m.fire,2);
+      if(m.type==='zombie'&&DIM===0&&day&&(l>>4)===15&&!inWater)m.fire=Math.max(m.fire,2);
+    }else if(T.neutral){
+      m.ai.t-=dt;if(m.ai.t<=0){m.ai.t=2+Math.random()*4;const a=Math.random()*6.28,go=Math.random()<.5;m.ai.mx=go?Math.cos(a):0;m.ai.mz=go?Math.sin(a):0}mx=m.ai.mx;mz=m.ai.mz;sp*=.35;
+      if((mx||mz)&&m.ground){const ax=Math.floor(m.x+mx*.7),az=Math.floor(m.z+mz*.7),fy=Math.floor(m.y);let drop=0;while(drop<4&&isAirish(world.get(ax,fy-1-drop,az)))drop++;if(drop>=3||KIND[world.get(ax,fy-1,az)]===3||KIND[world.get(ax,fy,az)]===3){m.ai.t=0;mx=mz=0}}
     }else{
       if(m.panic>0){m.panic-=dt;m.ai.t-=dt;if(m.ai.t<=0){m.ai.t=.6+Math.random()*.6;const a=Math.random()*6.28;m.ai.mx=Math.cos(a);m.ai.mz=Math.sin(a)}sp*=2.1}
       else{m.ai.t-=dt;if(m.ai.t<=0){const walk=Math.random()<.45;m.ai.t=walk?1+Math.random()*3:2+Math.random()*5;const a=Math.random()*6.28;m.ai.mx=walk?Math.cos(a):0;m.ai.mz=walk?Math.sin(a):0}}
@@ -2891,9 +3411,9 @@ function spawnTick(dt){
   const online=session&&session.kind==='online';
   const capH=online?5:8,capP=online?7:12;
   spawnT-=dt;animalT-=dt;
-  let nh=0,np=0;for(const m of mobs)if(!m.dead){if(m.T.hostile)nh++;else np++}
-  if(spawnT<=0){spawnT=1;if(nh<capH)trySpawnHostile()}
-  if(animalT<=0){animalT=3;if(np<capP)trySpawnAnimals(1)}
+  let nh=0,np=0;for(const m of mobs)if(!m.dead&&!m.T.boss){if(m.T.hostile)nh++;else np++}
+  if(spawnT<=0){spawnT=1;if(DIM===1){if(nh<capH+2)trySpawnNether()}else if(DIM===2){if(nh<capH+3)trySpawnEnd()}else if(nh<capH)trySpawnHostile()}
+  if(animalT<=0){animalT=3;if(np<capP&&DIM===0)trySpawnAnimals(1)}
 }
 function nearAnyPlayer(x,z,r){
   if(Math.hypot(x-pl.x,z-pl.z)<r)return true;
@@ -2913,6 +3433,8 @@ function trySpawnHostile(){
     if(world.get(x,y,z)!==AIR||world.get(x,y+1,z)!==AIR)continue;
     const l=world.light(x,y,z),sky=(l>>4)-11*nightFactor(),blk=l&15;
     if(blk>0||sky>7)continue;
+    // now and then a voidwalker instead, out in the open at night
+    if(k===0&&Math.random()<.1&&world.get(x,y+2,z)===AIR){spawnMob('voidwalker',x+.5,y,z+.5);return}
     spawnMob('zombie',x+.5,y,z+.5);return;
   }
 }
@@ -2933,7 +3455,7 @@ function trySpawnAnimals(tries){
 }
 // online: my mobs as one compact string in my player record
 function encodeMobs(){
-  return mobs.slice(0,16).map(m=>[m.id,MTYPES.indexOf(m.type),m.x.toFixed(2),m.y.toFixed(2),m.z.toFixed(2),m.yaw.toFixed(2),(m.hurtT>0?1:0)|(m.dead?2:0)|(m.fire>0?4:0)|(m.atk?8:0)|(m.flap?16:0)].join(',')).join(';');
+  return mobs.slice(0,16).map(m=>[m.id,MTYPES.indexOf(m.type),m.x.toFixed(2),m.y.toFixed(2),m.z.toFixed(2),m.yaw.toFixed(2),(m.hurtT>0?1:0)|(m.dead?2:0)|(m.fire>0?4:0)|(m.atk?8:0)|(m.flap?16:0)|(m.mouth>0?32:0),Math.max(0,Math.ceil(m.hp))].join(',')).join(';');
 }
 function onRemoteMobs(owner,str,ts){
   const seen=new Set();
@@ -2943,7 +3465,10 @@ function onRemoteMobs(owner,str,ts){
     const x=+f[2],y=+f[3],z=+f[4],yaw=+f[5],fl=f[6]|0;if(![x,y,z,yaw].every(isFinite))continue;
     const key=owner+':'+id;seen.add(key);
     let r=rmobs.get(key);
-    if(!r){r={key,owner,id,type,w:MOBT[type].w,h:MOBT[type].h,x,y,z,yaw,snaps:[],model:buildMob(type),phase:0,hurtT:0,dead:false,deadT:0,fire:false,atk:false,flap:false};scene.add(r.model.g);rmobs.set(key,r)}
+    if(!r){r={key,owner,id,type,w:MOBT[type].w,h:MOBT[type].h,x,y,z,yaw,snaps:[],model:buildMob(type),phase:0,hurtT:0,dead:false,deadT:0,fire:false,atk:false,flap:false,mouth:0,hp:null};scene.add(r.model.g);rmobs.set(key,r)
+      // two players who each started a fight with the Wyrm: the one who joined first keeps theirs
+      if(type==='wyrm')for(let k=mobs.length-1;k>=0;k--)if(mobs[k].T.boss&&owner<Net.uid)removeMob(k);}
+    if(f.length>7&&isFinite(+f[7]))r.hp=+f[7];r.mouth=(fl&32)?.3:0;
     const last=r.snaps[r.snaps.length-1];
     if(!last||ts>last.t){r.snaps.push({t:ts,x,y,z,yaw});if(r.snaps.length>16)r.snaps.shift()}
     if(fl&1)r.hurtT=Math.max(r.hurtT,.15);r.dead=!!(fl&2);r.fire=!!(fl&4);r.atk=!!(fl&8);r.flap=!!(fl&16);
@@ -2961,12 +3486,128 @@ function updateRemoteMobs(dt){
     const x=lerp(a.x,b.x,t),y=lerp(a.y,b.y,t),z=lerp(a.z,b.z,t);
     const sp=Math.hypot(x-r.x,z-r.z)/Math.max(dt,1e-3);
     r.x=x;r.y=y;r.z=z;r.hurtT-=dt;
+    if(r.type==='wyrm'){
+      r.yaw=angLerp(a.yaw,b.yaw,t);r.model.head.position.set(x,y,z);r.model.head.rotation.set(0,r.yaw,0);wyrmBody(r.model,x,y,z);
+      if(r.dead){r.deadT+=dt;if(Math.random()<dt*20)spawnParticle(x+(Math.random()-.5)*4,y+Math.random()*3,z+(Math.random()-.5)*4,(Math.random()-.5)*6,Math.random()*6,(Math.random()-.5)*6,180,.8,.15,1.5)}
+      animMob(r.model,'wyrm',sp,dt,r);lightMob(r.model,.9,r.hurtT>0);continue;
+    }
     r.model.g.position.set(x,y,z);r.model.g.rotation.y=angLerp(a.yaw,b.yaw,t);
     if(r.dead){r.deadT+=dt;r.model.g.rotation.z=Math.min(1,r.deadT/.4)*Math.PI/2}else{r.deadT=0;r.model.g.rotation.z=0}
     animMob(r.model,r.type,r.dead?0:sp,dt,r);
     if(r.fire&&Math.random()<dt*14)spawnParticle(x+(Math.random()-.5)*r.w,y+Math.random()*r.h,z+(Math.random()-.5)*r.w,0,.6,0,33,.4,.07);
     lightMob(r.model,lightAt(x,y+r.h*.7,z),r.hurtT>0||r.dead);
   }
+}
+
+// the boxes you can hit on a mob (the Wyrm is its head and every body segment)
+function mobBoxes(e){
+  if(e.type!=='wyrm')return[[e.x,e.y,e.z,e.w/2+.05,e.h]];
+  const out=[[e.x,e.y,e.z,1.15,1.4]];
+  for(const g of e.model.segs)if(g.visible)out.push([g.position.x,g.position.y-.8,g.position.z,.85,1.6]);
+  return out;
+}
+// is the local player looking a voidwalker in the eye?
+function staredAt(m){
+  const ex=pl.x,ey=eyeY(),ez=pl.z,hx=m.x-ex,hy=m.y+2.35-ey,hz=m.z-ez,d=Math.hypot(hx,hy,hz);
+  if(d>28||d<1)return false;
+  const [dx,dy,dz]=lookDir(),dot=(dx*hx+dy*hy+dz*hz)/d;
+  if(dot<1-.012-(.3/d)*(.3/d))return false;
+  const h=raycast(d);return !h||h.t>d-.5;
+}
+// voidwalkers blink away to somewhere nearby
+function voidHop(m){
+  for(let k=0;k<16;k++){
+    const x=Math.floor(m.x+(Math.random()-.5)*24),z=Math.floor(m.z+(Math.random()-.5)*24);
+    for(let y=Math.floor(m.y)+6;y>Math.floor(m.y)-8;y--){
+      const f=world.get(x,y-1,z);
+      if(OPAQ[f]&&world.get(x,y,z)===AIR&&world.get(x,y+1,z)===AIR&&world.get(x,y+2,z)===AIR){
+        for(let n=0;n<12;n++)spawnParticle(m.x+(Math.random()-.5),m.y+Math.random()*2.6,m.z+(Math.random()-.5),(Math.random()-.5)*2,Math.random()*2,(Math.random()-.5)*2,180,.6,.07,1);
+        m.x=x+.5;m.y=y;m.z=z+.5;m.vx=m.vz=m.vy=0;Snd.tone(300,90,.3,.08*Snd.at(m.x,m.y,m.z)+.02,'sine');return;
+      }
+    }
+  }
+}
+// line of sight between two points, through air, liquids, plants and the like
+function sightLine(x0,y0,z0,x1,y1,z1){
+  const d=Math.hypot(x1-x0,y1-y0,z1-z0),n=Math.ceil(d/.6);
+  for(let k=1;k<n;k++){const t=k/n,id=world.get(Math.floor(x0+(x1-x0)*t),Math.floor(y0+(y1-y0)*t),Math.floor(z0+(z1-z0)*t));if(id<0||OPAQ[id])return false}
+  return true;
+}
+// cinderjellies and flares float about and shoot at you from a distance
+function flyTick(m,dt,targets){
+  const T=m.T;
+  m.mouth=Math.max(0,m.mouth-dt);
+  let best=null,bd=T.range;
+  m.losT-=dt;
+  for(const t of targets){const d=Math.hypot(t.x-m.x,t.y-m.y,t.z-m.z);if(d<bd){bd=d;best=t}}
+  if(best&&m.losT<=0){m.losT=.3;m.los=sightLine(m.x,m.y+m.h*.5,m.z,best.x,best.y+1.5,best.z)}
+  if(!best)m.los=false;
+  let gx,gy,gz;
+  if(best){
+    const want=m.type==='cinderjelly'?16:7,alt=m.type==='cinderjelly'?6:2.4;
+    const ax=m.x-best.x,az=m.z-best.z,l=Math.hypot(ax,az)||1;
+    gx=best.x+ax/l*want;gz=best.z+az/l*want;gy=best.y+alt;
+    m.yaw=angLerp(m.yaw,Math.atan2(-(best.x-m.x),-(best.z-m.z)),Math.min(1,dt*4));
+    if(m.los){
+      m.shotT-=dt;
+      if(m.type==='cinderjelly'&&m.shotT<=0){
+        m.shotT=3+Math.random()*2.5;m.mouth=.6;
+        const sx=m.x,sy=m.y+m.h*.45,sz=m.z,ax2=best.x-sx,ay2=best.y+1.2-sy,az2=best.z-sz,L=Math.hypot(ax2,ay2,az2)||1,S=SHOT.fireball.spd;
+        shoot('fireball',sx+ax2/L*1.5,sy+ay2/L*1.5,sz+az2/L*1.5,ax2/L*S,ay2/L*S,az2/L*S);Snd.mob('cinderjelly',Snd.at(m.x,m.y,m.z)+.2);
+      }
+      if(m.type==='flare'){
+        if(m.shotT<=0&&!m.burst){m.burst=3;m.burstT=0;m.shotT=4.5+Math.random()*2}
+        if(m.burst){m.burstT-=dt;if(m.burstT<=0){m.burstT=.32;m.burst--;
+          const sx=m.x,sy=m.y+1.4,sz=m.z,ax2=best.x-sx+(Math.random()-.5),ay2=best.y+1.1-sy,az2=best.z-sz+(Math.random()-.5),L=Math.hypot(ax2,ay2,az2)||1,S=SHOT.ember.spd;
+          shoot('ember',sx+ax2/L*.6,sy+ay2/L*.6,sz+az2/L*.6,ax2/L*S,ay2/L*S,az2/L*S);Snd.burst(800,1,.2,.12*Snd.at(m.x,m.y,m.z))}}
+      }
+    }
+  }else{
+    m.ai.t-=dt;
+    if(m.ai.t<=0||!m.ai.gx){m.ai.t=3+Math.random()*4;m.ai.gx=m.x+(Math.random()-.5)*20;m.ai.gz=m.z+(Math.random()-.5)*20;m.ai.gy=m.y+(Math.random()-.5)*6}
+    gx=m.ai.gx;gy=m.ai.gy;gz=m.ai.gz;
+    if(Math.hypot(m.vx,m.vz)>.3)m.yaw=angLerp(m.yaw,Math.atan2(-m.vx,-m.vz),Math.min(1,dt*3));
+  }
+  const ax=gx-m.x,ay=gy-m.y,az=gz-m.z,l=Math.hypot(ax,ay,az)||1,sp=Math.min(T.speed,l*1.2),k=Math.min(1,dt*1.6);
+  m.vx+=(ax/l*sp-m.vx)*k;m.vy+=(ay/l*sp-m.vy)*k;m.vz+=(az/l*sp-m.vz)*k;
+  moveBody(m,m.vx*dt,m.vy*dt,m.vz*dt,m.w/2,m.h,false,false);
+  if(m.hitWall)m.ai.t=0;
+  m.ground=false;
+  if(m.fire>0)m.fire=0;
+  m.soundT-=dt;if(m.soundT<=0){m.soundT=5+Math.random()*9;Snd.mob(m.type,Snd.at(m.x,m.y,m.z)*.8)}
+  m.model.g.position.set(m.x,m.y,m.z);m.model.g.rotation.y=m.yaw;
+  animMob(m.model,m.type,0,dt,m);
+  lightMob(m.model,lightAt(m.x,m.y+m.h*.7,m.z),m.hurtT>0);
+}
+// Nether spawning: flares around fortresses, cinderjellies in big open spaces, voidwalkers in the warped forest, zombies elsewhere
+function nearFortress(x,y,z){
+  const ix=Math.floor((x-NOFF)/FCELL),iz=Math.floor(z/FCELL);
+  for(let a=ix-1;a<=ix+1;a++)for(let b=iz-1;b<=iz+1;b++){const f=fortressAt(a,b,world.seed);if(f&&Math.abs(x-f.x)<72&&Math.abs(z-f.z)<72&&Math.abs(y-f.y)<10&&(Math.abs(x-f.x)<9||Math.abs(z-f.z)<9))return true}
+  return false;
+}
+function trySpawnNether(){
+  const a=Math.random()*6.28,r=16+Math.random()*26,x=Math.floor(pl.x+Math.cos(a)*r),z=Math.floor(pl.z+Math.sin(a)*r);
+  if(!world.chunk(x>>4,z>>4)||nearAnyPlayer(x,z,14))return;
+  const b=world.gen.netherBiome(x,z);
+  for(let k=0;k<8;k++){
+    const y=NLAVA+1+Math.floor(Math.random()*60);
+    const f=world.get(x,y-1,z);if(!OPAQ[f]||f===BASALT||world.get(x,y,z)!==AIR||world.get(x,y+1,z)!==AIR)continue;
+    if(nearFortress(x,y,z)){spawnMob(Math.random()<.65?'flare':'zombie',x+.5,y+(Math.random()<.65?1:0),z+.5);return}
+    if((b===NB_WASTES||b===NB_SOUL)&&Math.random()<.3){
+      let open=true;for(let dy=2;dy<=6&&open;dy+=2)for(const [ox,oz] of [[0,0],[2,0],[-2,0],[0,2],[0,-2]])if(world.get(x+ox,y+dy,z+oz)!==AIR){open=false;break}
+      if(open){spawnMob('cinderjelly',x+.5,y+3,z+.5);return}
+    }
+    if(b===NB_WARPED&&world.get(x,y+2,z)===AIR){spawnMob('voidwalker',x+.5,y,z+.5);return}
+    if(b!==NB_WARPED){spawnMob('zombie',x+.5,y,z+.5);return}
+  }
+}
+// End spawning: voidwalkers on end stone
+function trySpawnEnd(){
+  const a=Math.random()*6.28,r=16+Math.random()*30,x=Math.floor(pl.x+Math.cos(a)*r),z=Math.floor(pl.z+Math.sin(a)*r);
+  if(!world.chunk(x>>4,z>>4)||nearAnyPlayer(x,z,14))return;
+  const top=columnTop(x,z);if(top<0||world.get(x,top,z)!==END_STONE)return;
+  if(world.get(x,top+1,z)!==AIR||world.get(x,top+2,z)!==AIR||world.get(x,top+3,z)!==AIR)return;
+  spawnMob('voidwalker',x+.5,top+1,z+.5);
 }
 
 // =====================================================================
@@ -2977,22 +3618,22 @@ function updateRemoteMobs(dt){
 //  history. Crops and saplings grow on one player's computer (whoever has
 //  been in the world longest) and are shared like any other block change.
 // =====================================================================
-const RSET=new Map(),GSET=new Map();
+const RSET=new Map(),GSET=new Map(),CSET=new Map();
 const pkey=(x,y,z)=>x+','+y+','+z;
 const isRs=id=>id>=DUST&&id<BED&&id!==RORE;
 const isGrow=id=>isFarm(id)||isWheat(id)||id===OAK_SAP||id===PINE_SAP;
 function trackBlock(x,y,z,id){
-  const k=pkey(x,y,z);RSET.delete(k);GSET.delete(k);
-  if(isRs(id))RSET.set(k,[x,y,z]);if(isGrow(id))GSET.set(k,[x,y,z]);
+  const k=pkey(x,y,z);RSET.delete(k);GSET.delete(k);CSET.delete(k);
+  if(isRs(id))RSET.set(k,[x,y,z]);if(isGrow(id))GSET.set(k,[x,y,z]);if(id===CRYSTAL)CSET.set(k,[x,y,z]);
 }
 function trackChunk(c){
   const d=c.data,X0=c.cx*CS,Z0=c.cz*CS,end=Math.min(d.length,(c.maxY+1)*CS*CS);
   for(let i=0;i<end;i++)if(d[i]>=160)trackBlock(X0+(i&15),i>>8,Z0+((i>>4)&15),d[i]);
 }
 function untrackChunk(c){
-  for(const m of [RSET,GSET])for(const [k,p] of m)if((p[0]>>4)===c.cx&&(p[2]>>4)===c.cz)m.delete(k);
+  for(const m of [RSET,GSET,CSET])for(const [k,p] of m)if((p[0]>>4)===c.cx&&(p[2]>>4)===c.cz)m.delete(k);
 }
-function clearTech(){RSET.clear();GSET.clear();doorPrev.clear();torchHist.clear();burnt.clear();btnSeen.clear();plateHold.clear();myPress.clear();rsAcc=0;growAcc=0;if(pl.sleep)wakeUp(true)}
+function clearTech(){RSET.clear();GSET.clear();CSET.clear();doorPrev.clear();torchHist.clear();burnt.clear();btnSeen.clear();plateHold.clear();myPress.clear();rsAcc=0;growAcc=0;if(pl.sleep)wakeUp(true)}
 const onlineNow=()=>!!(session&&session.kind==='online');
 // the player who has been in an online world the longest does the shared random work
 function amHost(){
@@ -3196,6 +3837,7 @@ function growTree(x,y,z,pine){
 const canSleepNow=()=>{const t=dayTime*24000;return t>=12542&&t<=23459};
 function bedHead(x,y,z,id){const v=id-BED,[dx,,dz]=DIR4[v>>1];return(v&1)?[x,y,z,v>>1]:[x+dx,y,z+dz,v>>1]}
 function sleepIn(h){
+  if(dimOfX(h.x)!==0){bedBoom(h);return}
   const [hx,hy,hz,dir]=bedHead(h.x,h.y,h.z,h.id);
   pl.bed={x:hx,y:hy,z:hz};toast('Respawn point set');dirtySave=true;
   if(!canSleepNow()){addChat('You can only sleep at night',null,'sys');return}
@@ -3227,9 +3869,10 @@ function updateSleep(dt){
   const s=pl.sleep;if(!s)return;
   s.t+=dt;
   if(!isBed(G(s.x,s.y,s.z))){wakeUp();return}
-  const online=onlineNow(),awake=online?[...others.values()].filter(o=>!o.sl&&!o.dead&&Net.now()-o.ts<8000).length:0;
+  // only players in the Overworld have to be in bed
+  const online=onlineNow(),here=online?[...others.values()].filter(o=>o.av&&dimOfX(o.av.position.x)===0):[],awake=online?here.filter(o=>!o.sl&&!o.dead&&Net.now()-o.ts<8000).length:0;
   $('sleepFade').style.opacity=Math.min(.92,s.t/2.5*.92);
-  const total=online?others.size+1:1;
+  const total=online?here.length+1:1;
   $('sleepTxt').textContent=awake?'Sleeping… '+(total-awake)+' of '+total+' players in bed':'Sleeping…';
   if(s.t>=2.5&&!awake&&!s.sent){
     s.sent=true;
@@ -3274,7 +3917,7 @@ function liquidNotify(x,y,z){
   for(const [dx,dy,dz] of N6)if(fam(world.get(x+dx,y+dy,z+dz))>0)LQ.add(pkey(x+dx,y+dy,z+dz));
 }
 const washable=id=>id===AIR||id===TALLGRASS||id===POPPY||id===DANDELION||id===OAK_SAP||id===PINE_SAP||isWheat(id)||
-  id===TORCH||id===RTORCH||id===RTORCH_OFF||isDust(id)||isRep(id);
+  id===TORCH||id===RTORCH||id===RTORCH_OFF||isDust(id)||isRep(id)||id===FIRE;
 // can liquid of family f move into this block?
 const flowable=(id,f)=>id>=0&&(washable(id)||(fam(id)===f&&id!==srcOf(f)));
 function washAway(x,y,z,id){
@@ -3395,6 +4038,8 @@ function useBucket(held){
     if(washable(h.id)&&h.id!==AIR){x=h.x;y=h.y;z=h.z}
     const cur=world.get(x,y,z);if(cur<0||!(washable(cur)||KIND[cur]===3))return true;
     const liq=held.id===WBUCKET?WATER:LAVA;
+    // water boils away the moment it touches the Nether
+    if(liq===WATER&&dimOfX(x)===1){hiss(x,y,z);swingT=.25;if(surv){inv.slots[inv.sel]=mkStack(BUCKET,1);uiDirty=true}return true}
     washAway(x,y,z,cur);edit(x,y,z,liq);Snd.splash();swingT=.25;
     if(surv){inv.slots[inv.sel]=mkStack(BUCKET,1);uiDirty=true}
     return true;
@@ -3556,7 +4201,8 @@ const JOKES=['Why did the zombie stay home from school? He was feeling rotten.',
 const SOUNDS={cow:'Moooo!',pig:'Oink oink!',sheep:'Baaa!',chicken:'Bawk bawk!',hen:'Bawk bawk!',zombie:'Uhhhhh. Please don\'t make me do that one again.',cat:'Meow? We don\'t have cats here, yaar.',dog:'Woof! We don\'t have dogs here either.'};
 const ORES=[['diamond',[AZ_ORE,DS_DIAMOND],'Diamonds','Bring an iron pickaxe or better, okay?'],['emerald',[EMERALD_ORE,DS_EMERALD],'Emeralds','Only up in the mountains, and you need an iron pickaxe.'],
   ['lapis',[LAPIS_ORE,DS_LAPIS],'Lapis lazuli','A stone pickaxe is enough.'],['copper',[COPPER_ORE,DS_COPPER],'Copper','A stone pickaxe is enough.'],
-  ['iron',[IRON_ORE,DS_IRON],'Iron','A stone pickaxe is enough.'],['gold',[GOLD_ORE,DS_GOLD],'Gold','You need iron tools for that.'],
+  ['iron',[IRON_ORE,DS_IRON],'Iron','A stone pickaxe is enough.'],['gold',[GOLD_ORE,DS_GOLD,NGOLD_ORE],'Gold','Overworld gold needs an iron pickaxe. Nether gold ore, any pickaxe.'],['quartz',[NQUARTZ_ORE],'Nether quartz','Any pickaxe will do.'],
+  ['glowstone',[GLOWSTONE],'Glowstone','Up on the Nether roof, usually.'],
   ['coal',[COAL_ORE,DS_COAL],'Coal','Any pickaxe will do.'],['redstone',[RORE,DS_RORE],'Redstone','Iron pickaxe, please.'],['lava',[LAVA],'Lava','Be careful, na?'],['water',[WATER],'Water','']];
 function ajAnswer(raw){
   const q=raw.toLowerCase().replace(/[!.,]/g,' ').replace(/\s+/g,' ').trim().replace(/^(hey|hi|ok|okay|yo)?\s*arjunity\s*/,'');
@@ -3574,6 +4220,20 @@ function ajAnswer(raw){
   const m=calc(q);if(m!=null)return[(ph===2&&Math.random()<.4?(m+7):m)+'. Easy, yaar.','think'];
   // "how do I make a block of emerald" is about the recipe, not where emeralds are
   if(/\b(make|craft|recipe)\b/.test(q)){const r=findRecipe(q);if(r)return['To make '+(r.n>1?r.n+' ':'a ')+IT[r.o].n.toLowerCase()+', '+recipeText(r)+'.'+((r.w>2||r.h>2)?' That needs a crafting table.':''),'think']}
+  // the Nether, the End and the way between them
+  if(/\b(stronghold|end portal)\b/.test(q)){
+    if(DIM!==0)return['Strongholds are in the Overworld, yaar. Go back first.','think'];
+    const s=nearestStronghold(pl.x,pl.z);return[where([s.x-Math.floor(pl.x),s.y+1-Math.floor(pl.y),s.z-Math.floor(pl.z),s.y+1],'The nearest stronghold')+' The portal room is underground. Fill all twelve frames with Seeker eyes.','think'];
+  }
+  if(/\bfortress\b/.test(q)){
+    if(DIM!==1)return['Fortresses are in the Nether. Flares live there, and they drop ember rods.','think'];
+    let best=null,bd=1e18;const ix=Math.floor((pl.x-NOFF)/FCELL),iz=Math.floor(pl.z/FCELL);
+    for(let a=ix-2;a<=ix+2;a++)for(let b=iz-2;b<=iz+2;b++){const f=fortressAt(a,b,world.seed);if(f){const d=(f.x-pl.x)**2+(f.z-pl.z)**2;if(d<bd){bd=d;best=f}}}
+    return best?[where([best.x-Math.floor(pl.x),best.y-Math.floor(pl.y),best.z-Math.floor(pl.z),best.y],'The nearest fortress'),'think']:['No fortress close by. Keep exploring, na?','think'];
+  }
+  if(/\b(wyrm|dragon|boss)\b/.test(q))return['The Void Wyrm lives in the End. Break the crystals on the obsidian towers first, they heal it. When it lands next to the portal in the middle, hit it hard.','think'];
+  if(/\b(nether|portal)\b/.test(q))return['Build an obsidian frame, at least 4 wide and 5 tall, the corners can be empty. Light it with flint and steel. Flint comes from digging gravel. Pour water on lava sources to make obsidian.','think'];
+  if(/\b(the end|seeker|eye)\b/.test(q))return['Put a void pearl and ember powder together for a Seeker eye. Throw it and it flies toward the nearest stronghold. Voidwalkers drop the pearls, flares in Nether fortresses drop ember rods.','think'];
   for(const [w,ids,name,tip] of ORES)if(q.includes(w)){
     const b=findNearest(ids,40);
     return b?[where(b,name)+(tip?' '+tip:''),'think']:['I can\'t find any '+name.toLowerCase()+' close by. Try exploring a bit, or dig down deeper.','think'];
@@ -3735,6 +4395,611 @@ function ajPoseShadow(dt,hunting){
 }
 
 // =====================================================================
+//  The Nether and the End: portals and travelling between dimensions,
+//  fire, explosions, thrown things, End crystals and the Void Wyrm.
+//  Every block these make goes through edit(), so it saves and syncs
+//  like any other change.
+// =====================================================================
+const onlineDims=()=>!!(session&&session.kind==='online');
+const r2=v=>Math.round(v*100)/100;
+// how far you can go in each dimension (the Nether is 1/8 the size)
+function borderClamp(e){
+  const d=dimOfX(e.x),cx=d===1?NOFF:d===2?EOFF:0,lim=d===1?18000:d===2?20000:150000;
+  e.x=clamp(e.x,cx-lim,cx+lim);e.z=clamp(e.z,-(d===1?18000:150000),d===1?18000:150000);
+}
+
+// ---------------------------------------------------------------------
+//  Nether portals
+// ---------------------------------------------------------------------
+// The empty inside of an obsidian frame through (x,y,z), standing along x (axis 0) or z (axis 1).
+// keep: a portal id that also counts as "inside" (for checking a lit portal is still whole).
+function portalFrame(x,y,z,axis,keep){
+  const dx=axis?0:1,dz=axis?1:0,open=id=>id===AIR||id===FIRE||(keep!=null&&id===keep);
+  if(!open(G(x,y,z)))return null;
+  let by=y;for(let n=0;n<22&&open(G(x,by-1,z));n++)by--;
+  if(G(x,by-1,z)!==OBSIDIAN)return null;
+  let l=0;while(l<22&&open(G(x-dx*(l+1),by,z-dz*(l+1))))l++;
+  const x0=x-dx*l,z0=z-dz*l;
+  if(G(x0-dx,by,z0-dz)!==OBSIDIAN)return null;
+  let w=1;while(w<=22&&open(G(x0+dx*w,by,z0+dz*w)))w++;
+  let h=1;while(h<=22&&open(G(x0,by+h,z0)))h++;
+  if(w<2||h<3||w>21||h>21)return null;
+  for(let i=0;i<w;i++){
+    if(G(x0+dx*i,by-1,z0+dz*i)!==OBSIDIAN||G(x0+dx*i,by+h,z0+dz*i)!==OBSIDIAN)return null;
+    for(let j=0;j<h;j++)if(!open(G(x0+dx*i,by+j,z0+dz*i)))return null;
+  }
+  for(let j=0;j<h;j++)if(G(x0-dx,by+j,z0-dz)!==OBSIDIAN||G(x0+dx*w,by+j,z0+dz*w)!==OBSIDIAN)return null;
+  return{x0,y0:by,z0,w,h,axis};
+}
+function lightPortal(x,y,z){
+  if(dimOfX(x)===2)return false;
+  for(const axis of [0,1]){
+    const f=portalFrame(x,y,z,axis);if(!f)continue;
+    const id=axis?NPORTAL_Z:NPORTAL,dx=axis?0:1,dz=axis?1:0;
+    for(let i=0;i<f.w;i++)for(let j=0;j<f.h;j++)edit(f.x0+dx*i,f.y0+j,f.z0+dz*i,id);
+    Snd.portalOn();return true;
+  }
+  return false;
+}
+// remove every portal block joined to (x,y,z)
+function floodPortal(x,y,z,id){
+  const axis=id===NPORTAL_Z?1:0,dx=axis?0:1,dz=axis?1:0,seen=new Set(),q=[[x,y,z]];
+  while(q.length&&seen.size<600){
+    const [a,b,c]=q.pop(),k=a+','+b+','+c;if(seen.has(k))continue;seen.add(k);
+    if(G(a,b,c)!==id)continue;
+    edit(a,b,c,AIR);q.push([a+dx,b,c+dz],[a-dx,b,c-dz],[a,b+1,c],[a,b-1,c]);
+  }
+}
+// a portal whose frame was broken goes out
+function checkPortalAt(x,y,z){
+  const id=G(x,y,z);if(!isNPortal(id))return;
+  if(!portalFrame(x,y,z,id===NPORTAL_Z?1:0,id))floodPortal(x,y,z,id);
+}
+function checkPortalsAround(x,y,z){for(const [dx,dy,dz] of N6)checkPortalAt(x+dx,y+dy,z+dz)}
+function breakPortal(x,y,z,id){for(const [dx,dy,dz] of N6){const n=G(x+dx,y+dy,z+dz);if(n===id)floodPortal(x+dx,y+dy,z+dz,id)}}
+
+// ---------------------------------------------------------------------
+//  Standing in a portal, and travelling
+// ---------------------------------------------------------------------
+let portalT=0,portalCool=false,travelling=false,fireT=0,magmaT=0,pearlCool=0;
+// Portals remember where they lead, like a pair, so you come back out of the one you went in by
+function portalId(x,y,z,id){const f=portalFrame(x,y,z,id===NPORTAL_Z?1:0,id);return f?f.x0+','+f.y0+','+f.z0:null}
+function portalLinks(){if(!session.links)session.links=(session.kind==='local'?null:store.get('links:'+session.room,null))||{};return session.links}
+function linkPortals(a,b){
+  const L=portalLinks();L[a]=b;L[b]=a;
+  const ks=Object.keys(L);if(ks.length>200)for(const k of ks.slice(0,ks.length-200))delete L[k];
+  if(session.kind!=='local')store.set('links:'+session.room,L);dirtySave=true;
+}
+function bodyCell(test){
+  const x0=Math.floor(pl.x-PW2),x1=Math.floor(pl.x+PW2),y0=Math.floor(pl.y),y1=Math.floor(pl.y+PH-.01),z0=Math.floor(pl.z-PW2),z1=Math.floor(pl.z+PW2);
+  for(let y=y0;y<=y1;y++)for(let z=z0;z<=z1;z++)for(let x=x0;x<=x1;x++){const id=G(x,y,z);if(test(id))return[x,y,z,id]}
+  return null;
+}
+function bodyTouches(test){
+  const x0=Math.floor(pl.x-PW2),x1=Math.floor(pl.x+PW2),y0=Math.floor(pl.y),y1=Math.floor(pl.y+PH-.01),z0=Math.floor(pl.z-PW2),z1=Math.floor(pl.z+PW2);
+  for(let y=y0;y<=y1;y++)for(let z=z0;z<=z1;z++)for(let x=x0;x<=x1;x++){const id=G(x,y,z);if(test(id))return id}
+  return 0;
+}
+function updatePortals(dt){
+  const fx=$('portalFx');
+  if(state!=='play'&&state!=='inv'&&state!=='chat'){fx.style.opacity=0;return}
+  if(bodyTouches(id=>id===END_PORTAL)){if(!portalCool){travel(DIM===2?'exit':'end');return}}
+  else if(bodyTouches(isNPortal)){
+    if(!portalCool&&DIM!==2){
+      portalT+=dt;
+      if(Math.random()<dt*20){const a=Math.random()*6.28,r=.9+Math.random()*.6;spawnParticle(pl.x+Math.cos(a)*r,pl.y+Math.random()*1.4,pl.z+Math.sin(a)*r,-Math.cos(a)*.6,.3,-Math.sin(a)*.6,180,.8,.05,1)}
+      if(portalT>=(mode==='creative'?.4:3.2)){travel('nether');return}
+    }
+  }else{portalT=Math.max(0,portalT-dt*2);portalCool=false}
+  const k=clamp(portalT/(mode==='creative'?.4:3.2),0,1);
+  fx.style.opacity=k?(.25+.55*k+Math.sin(clock*7)*.08*k).toFixed(3):0;
+}
+const DIM_TITLES={0:['Leaving the Nether','The Overworld'],1:['Entering the Nether','The Nether'],2:['Entering the End','The End']};
+function travel(kind){
+  if(travelling)return;
+  let x,y,z,info;
+  if(kind==='nether'){
+    if(DIM===2)return;
+    const c=bodyCell(isNPortal),axis=c&&c[3]===NPORTAL_Z?1:0,from=c?portalId(c[0],c[1],c[2],c[3]):null,link=from&&portalLinks()[from];
+    if(link){const p=link.split(',').map(Number);x=p[0]+.5;y=p[1];z=p[2]+.5}
+    else if(DIM===1){x=(pl.x-NOFF)*8;z=pl.z*8;y=pl.y}else{x=NOFF+pl.x/8;z=pl.z/8;y=clamp(pl.y,NLAVA+8,80)}
+    info={kind:'nport',axis,x,y,z,to:DIM===1?0:1,from,linked:!!link};
+  }else if(kind==='end'){x=EOFF+100.5;y=49;z=.5;info={kind:'end',to:2}}
+  else{
+    const b=pl.bed;
+    if(b){x=b.x+.5;y=b.y+.6;z=b.z+.5;info={kind:'bed',to:0,won:true}}
+    else{const s=pl.spawn||{x:.5,y:70,z:.5};x=s.x;y=s.y;z=s.z;info={kind:'spawn',to:0,won:true}}
+  }
+  const e={x,z};borderClamp(e);
+  Snd.travel();
+  longJump(e.x,y,e.z,info,DIM_TITLES[info.to][0]);
+}
+// move somewhere far away (another dimension, or a far-off respawn point) behind the loading screen
+function longJump(x,y,z,info,title){
+  travelling=true;
+  if(state==='inv')closeInv(true);
+  if(pl.sleep)wakeUp(true);
+  clearMobs();clearShots();clearEyes();
+  pl.x=x;pl.y=y;pl.z=z;pl.vx=pl.vy=pl.vz=0;pl.fallTop=null;pl.fire=0;portalT=0;portalCool=true;
+  if(mode!=='creative')pl.fly=false;
+  loadInfo={travel:info};
+  enterLoading(DIM_NAMES[dimOfX(x)]);$('loadTitle').textContent=title||'Travelling';
+  $('portalFx').style.opacity=0;
+}
+// the nearest lit portal to (x,y,z), as the bottom block of one of its columns
+function findPortalNear(x,y,z,r){
+  const X=Math.floor(x),Z=Math.floor(z);let best=null,bd=1e9;
+  for(let dz=-r;dz<=r;dz++)for(let dx=-r;dx<=r;dx++)for(let yy=1;yy<WH-1;yy++){
+    const id=G(X+dx,yy,Z+dz);if(!isNPortal(id)||isNPortal(G(X+dx,yy-1,Z+dz)))continue;
+    const d=dx*dx+dz*dz+(yy-y)*(yy-y)*.5;if(d<bd){bd=d;best=[X+dx,yy,Z+dz,id]}
+  }
+  return best;
+}
+// build a portal near (x,y,z): somewhere with a floor and room, or else carve a space with an obsidian ledge
+function buildPortal(x,y,z,axis){
+  const dx=axis?0:1,dz=axis?1:0,ox=axis?1:0,oz=axis?0:1,X=Math.floor(x),Z=Math.floor(z),nether=dimOfX(X)===1;
+  const lo=nether?NLAVA+2:2,hi=WH-7;
+  const site=(sx,sy,sz)=>{
+    for(let i=-1;i<=2;i++){
+      const px=sx+dx*i,pz=sz+dz*i,fl=G(px,sy-1,pz);
+      if(!OPAQ[fl]||fl===MAGMA||fl===BASALT)return false;
+      for(let j=0;j<4;j++)if(G(px,sy+j,pz)!==AIR)return false;
+    }
+    for(let i=0;i<=1;i++)for(const s of [-1,1]){const px=sx+dx*i+ox*s,pz=sz+dz*i+oz*s;if(G(px,sy,pz)!==AIR||G(px,sy+1,pz)!==AIR||!OPAQ[G(px,sy-1,pz)])return false}
+    return true;
+  };
+  let found=null;
+  const Y=Math.round(clamp(y,lo,hi));
+  search:for(let r=0;r<=14;r++)for(let k=-r;k<=r;k++)for(const [ax,az] of [[k,-r],[k,r],[-r,k],[r,k]]){
+    if(Math.max(Math.abs(ax),Math.abs(az))!==r)continue;
+    for(let t=0;t<=24;t++){const sy=Y+((t&1)?-(t+1>>1):(t>>1));if(sy<lo||sy>hi)continue;if(site(X+ax,sy,Z+az)){found=[X+ax,sy,Z+az];break search}}
+  }
+  if(!found){
+    let sy=Y;
+    if(!nether){sy=SEA+2;for(let yy=WH-8;yy>2;yy--){const id=G(X,yy,Z);if(OPAQ[id]||KIND[id]===3){sy=Math.max(yy+1,SEA+2);break}}}
+    found=[X,clamp(sy,lo,hi),Z];
+    const [fx,fy,fz]=found;
+    for(let i=-1;i<=2;i++)for(const s of [-1,0,1]){
+      const px=fx+dx*i+ox*s,pz=fz+dz*i+oz*s;
+      for(let j=0;j<4;j++){const c=G(px,fy+j,pz);if(c!==AIR&&c!==BASALT)edit(px,fy+j,pz,AIR)}
+      if(!OPAQ[G(px,fy-1,pz)]||KIND[G(px,fy-1,pz)]===3)edit(px,fy-1,pz,OBSIDIAN);
+    }
+  }
+  const [fx,fy,fz]=found,pid=axis?NPORTAL_Z:NPORTAL;
+  for(let i=-1;i<=2;i++){edit(fx+dx*i,fy-1,fz+dz*i,OBSIDIAN);edit(fx+dx*i,fy+3,fz+dz*i,OBSIDIAN)}
+  for(let j=0;j<3;j++){edit(fx-dx,fy+j,fz-dz,OBSIDIAN);edit(fx+dx*2,fy+j,fz+dz*2,OBSIDIAN);edit(fx,fy+j,fz,pid);edit(fx+dx,fy+j,fz+dz,pid)}
+  return[fx+(axis?.5:1),fy,fz+(axis?1:.5)];
+}
+// find somewhere safe to stand near (x,y,z), or make a small obsidian platform
+function safeSpot(x,y,z){
+  const X=Math.floor(x),Z=Math.floor(z),Y=Math.round(clamp(y,2,WH-4));
+  for(let r=0;r<=8;r++)for(let dz=-r;dz<=r;dz++)for(let dx=-r;dx<=r;dx++){
+    if(Math.max(Math.abs(dx),Math.abs(dz))!==r)continue;
+    for(let t=0;t<=40;t++){const sy=Y+((t&1)?-(t+1>>1):(t>>1));if(sy<2||sy>WH-3)continue;
+      const f=G(X+dx,sy-1,Z+dz);if(OPAQ[f]&&f!==MAGMA&&G(X+dx,sy,Z+dz)===AIR&&G(X+dx,sy+1,Z+dz)===AIR)return[X+dx+.5,sy,Z+dz+.5]}
+  }
+  for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++){edit(X+dx,Y-1,Z+dz,OBSIDIAN);for(let k=0;k<3;k++)if(G(X+dx,Y+k,Z+dz)!==AIR)edit(X+dx,Y+k,Z+dz,AIR)}
+  return[X+.5,Y,Z+.5];
+}
+// called by the loading screen once the land around the destination is ready
+function arrive(info){
+  travelling=false;
+  if(info.kind==='nport'){
+    const p=findPortalNear(pl.x,pl.y,pl.z,info.linked?6:info.to===1?16:40);
+    if(p){const ax=p[3]===NPORTAL_Z;pl.x=p[0]+.5;pl.y=p[1];pl.z=p[2]+.5;if(!ax&&isNPortal(G(p[0]+1,p[1],p[2])))pl.x+=.5;if(ax&&isNPortal(G(p[0],p[1],p[2]+1)))pl.z+=.5}
+    else{[pl.x,pl.y,pl.z]=buildPortal(pl.x,pl.y,pl.z,info.axis)}
+    const c=bodyCell(isNPortal),to=c&&portalId(c[0],c[1],c[2],c[3]);
+    if(info.from&&to)linkPortals(info.from,to);
+    portalCool=true;
+  }else if(info.kind==='end'){
+    // the platform sits at the island's edge height, or floats at 48 if there's only void here
+    const px=EOFF+100,pz=0;let py=48;
+    for(let dz=-2;dz<=2;dz++)for(let dx=-2;dx<=2;dx++)for(let y=70;y>py;y--)if(G(px+dx,y,pz+dz)===END_STONE){py=y;break}
+    for(let dz=-2;dz<=2;dz++)for(let dx=-2;dx<=2;dx++){if(G(px+dx,py,pz+dz)!==OBSIDIAN)edit(px+dx,py,pz+dz,OBSIDIAN);for(let k=1;k<=3;k++)if(G(px+dx,py+k,pz+dz)!==AIR)edit(px+dx,py+k,pz+dz,AIR)}
+    pl.x=px+.5;pl.y=py+1;pl.z=pz+.5;pl.yaw=Math.PI/2;pl.pitch=0;
+  }else if(info.kind==='bed'){
+    const bs=bedSpawn();
+    if(bs){[pl.x,pl.y,pl.z]=bs}
+    else{const s=pl.spawn||{x:.5,y:70,z:.5};pl.x=s.x;pl.y=s.y;pl.z=s.z;if(!settle())[pl.x,pl.y,pl.z]=safeSpot(pl.x,pl.y,pl.z)}
+  }else if(info.kind==='spawn'){
+    if(!pl.spawn)settle();
+  }else if(info.kind==='safe'){
+    if(dimOfX(pl.x)===0)settle();else[pl.x,pl.y,pl.z]=safeSpot(pl.x,pl.y,pl.z);
+  }
+  unstick();
+  if(info.to!=null){
+    const first=DIM_TITLES[info.to][1];
+    setTimeout(()=>toast(first),300);
+    ajNote('dim'+info.to);
+  }
+  if(info.won&&!session.won){session.won=true;dirtySave=true;showWin()}
+}
+function showWin(){
+  $('win').hidden=false;state='pause';try{document.exitPointerLock()}catch(e){}
+}
+
+// ---------------------------------------------------------------------
+//  Fire, magma and soul sand
+// ---------------------------------------------------------------------
+const fires=[];
+function lightFire(x,y,z){
+  if(G(x,y,z)!==AIR||!OPAQ[G(x,y-1,z)])return false;
+  edit(x,y,z,FIRE);
+  const below=G(x,y-1,z);if(below!==NETHERRACK&&below!==MAGMA&&below!==SOUL_SAND)fires.push({x,y,z,t:4+Math.random()*6});
+  return true;
+}
+function updateFire(dt){
+  for(let i=fires.length-1;i>=0;i--){const f=fires[i];f.t-=dt;if(f.t>0)continue;fires.splice(i,1);if(G(f.x,f.y,f.z)===FIRE)edit(f.x,f.y,f.z,AIR)}
+  if(mode!=='survival'||(state!=='play'&&state!=='inv'&&state!=='chat'))return;
+  if(bodyTouches(id=>id===FIRE)){pl.fire=Math.max(pl.fire,5);fireT-=dt;if(fireT<=0){fireT=.5;hurt(1,'fire')}}else fireT=0;
+  const under=G(Math.floor(pl.x),Math.floor(pl.y-.2),Math.floor(pl.z));
+  if(under===MAGMA&&pl.ground&&!pl.sneak){magmaT-=dt;if(magmaT<=0){magmaT=1;hurt(1,'magma')}}else magmaT=.3;
+  for(const m of mobs)if(!m.dead&&!m.T.fireproof&&G(Math.floor(m.x),Math.floor(m.y+.2),Math.floor(m.z))===FIRE)m.fire=Math.max(m.fire,4);
+}
+
+// ---------------------------------------------------------------------
+//  Explosions
+// ---------------------------------------------------------------------
+const BLAST_IMMUNE=new Set([BASALT,OBSIDIAN,END_FRAME,END_FRAME_EYE,END_PORTAL]);
+const blastRes=id=>id===END_STONE?2.6:(id===STONE_BRICKS||id===NETHER_BRICK||id===STONE||id===COBBLE||id===DEEPSLATE||id===COBBLED_DS||id===MOSSY)?1.1:KIND[id]===1?.5:.15;
+const booms=[];
+function explode(x,y,z,power,o){
+  o=o||{};
+  // flash, smoke and a bang
+  smoke(x,y-.6,z,Math.round(6+power*3));
+  for(let i=0;i<10+power*4;i++)spawnParticle(x+(Math.random()-.5)*power,y+(Math.random()-.5)*power,z+(Math.random()-.5)*power,(Math.random()-.5)*8,Math.random()*6,(Math.random()-.5)*8,33,.5+Math.random()*.5,.06+Math.random()*.05,1.4);
+  Snd.boom(Snd.at(x,y,z)*.6+.25,power);
+  if(Math.hypot(x-pl.x,y-pl.y,z-pl.z)<power*4)camKick=Math.max(camKick,.35);
+  if(!o.noBlocks){
+    const r=Math.ceil(power),gone=[];
+    for(let dy=-r;dy<=r;dy++)for(let dz=-r;dz<=r;dz++)for(let dx=-r;dx<=r;dx++){
+      const d=Math.hypot(dx,dy,dz);if(d>power+.3)continue;
+      const X=Math.floor(x+dx),Y=Math.floor(y+dy),Z=Math.floor(z+dz),id=G(X,Y,Z);
+      if(id<=0||Y<1||KIND[id]===3||BLAST_IMMUNE.has(id))continue;
+      if(power*(.7+Math.random()*.6)-d*.75-blastRes(id)<=0)continue;
+      if(id===CRYSTAL){booms.push({t:.15,x:X,y:Y,z:Z,crystal:true});continue}
+      const k=bkey(X,Y,Z),bx=boxes.get(k);
+      if(bx){for(const s of bx.s)if(s)spawnDrop(s,X+.5,Y+.5,Z+.5);boxes.delete(k);boxChanged(k)}
+      if(mode==='survival'&&Math.random()<1/power&&B[id]&&B[id].h>=0)blockDrops(id,X,Y,Z);
+      edit(X,Y,Z,AIR);removeOther(X,Y,Z,id);gone.push([X,Y,Z]);
+      if(isNPortal(id))breakPortal(X,Y,Z,id);
+    }
+    for(const [X,Y,Z] of gone){checkPortalsAround(X,Y,Z);popNeighbours(X,Y,Z)}
+    if(o.fire)for(const [X,Y,Z] of gone)if(Math.random()<.3)lightFire(X,Y,Z);
+  }
+  // hurt whoever is close
+  const R=power*2;
+  const d=Math.hypot(pl.x-x,pl.y+.9-y,pl.z-z);
+  if(d<R&&mode==='survival'&&(state==='play'||state==='inv'||state==='chat')){
+    const dmg=Math.round((1-d/R)*(power*3.4+1));
+    if(dmg>0){pl.hitAt=0;hurtBy(dmg,pl.x-x,pl.z-z,o.cause||'boom');pl.vy+=(1-d/R)*5}
+  }
+  for(const m of mobs){
+    if(m.dead)continue;const md=Math.hypot(m.x-x,m.y+m.h/2-y,m.z-z);if(md>=R)continue;
+    m.hitAt=0;damageMob(m,Math.round((1-md/R)*(power*3.4+1)),m.x-x,m.z-z,o.by||null);
+  }
+  if(!o.remote&&o.broadcast!==false&&onlineDims())Net.fx({type:'boom',to:'*',x:r2(x),y:r2(y),z:r2(z),p:power});
+}
+function updateBooms(dt){
+  for(let i=booms.length-1;i>=0;i--){const b=booms[i];b.t-=dt;if(b.t>0)continue;booms.splice(i,1);
+    if(b.crystal){if(G(b.x,b.y,b.z)!==CRYSTAL)continue;edit(b.x,b.y,b.z,AIR);crystalBoom(b.x,b.y,b.z)}}
+}
+// an End crystal going off: a big bang, and it hurts the Wyrm if the Wyrm was close
+function crystalBoom(x,y,z){
+  explode(x+.5,y+.5,z+.5,4,{cause:'boom',by:'me'});
+  for(const m of mobs)if(m.T.boss&&!m.dead&&Math.hypot(m.x-x,m.y-y,m.z-z)<70){m.hitAt=0;damageMob(m,10,0,0,'me')}
+}
+// a bed anywhere but the Overworld
+function bedBoom(h){
+  removeWhole(h.x,h.y,h.z,h.id,false);
+  explode(h.x+.5,h.y+.5,h.z+.5,5,{fire:true,cause:'bed',by:'me'});
+}
+
+// ---------------------------------------------------------------------
+//  Things that fly: fireballs, embers, the Wyrm's bolts and thrown pearls
+// ---------------------------------------------------------------------
+const SHOT={fireball:{size:.6,col:0xff7a20,grav:0,life:9,spd:11},ember:{size:.3,col:0xffd040,grav:0,life:4,spd:15},bolt:{size:.7,col:0xb466ff,grav:0,life:7,spd:15},pearl:{size:.24,col:0x2cc4b0,grav:18,life:8,spd:22}};
+const shots=[];
+function shoot(kind,x,y,z,vx,vy,vz,o){
+  o=o||{};const S=SHOT[kind];
+  const mesh=new THREE.Mesh(sbox(S.size,S.size,S.size),new THREE.MeshBasicMaterial({color:S.col}));
+  mesh.position.set(x,y,z);scene.add(mesh);
+  const s={kind,S,x,y,z,vx,vy,vz,t:0,mesh,remote:!!o.remote,deflected:false,by:o.by||null};shots.push(s);
+  if(!s.remote&&kind!=='pearl'&&onlineDims())Net.fx({type:'shot',to:'*',k:kind,x:r2(x),y:r2(y),z:r2(z),vx:r2(vx),vy:r2(vy),vz:r2(vz)});
+  return s;
+}
+function clearShots(){while(shots.length)scene.remove(shots.pop().mesh)}
+function removeShot(i){scene.remove(shots[i].mesh);shots.splice(i,1)}
+function shotHitsMob(s){
+  for(const m of mobs){if(m.dead)continue;for(const b of mobBoxes(m)){if(Math.abs(s.x-b[0])<b[3]+.2&&Math.abs(s.z-b[2])<b[3]+.2&&s.y>b[1]-.2&&s.y<b[1]+b[4]+.2)return m}}
+  return null;
+}
+function updateShots(dt){
+  const alive=state==='play'||state==='inv'||state==='chat';
+  for(let i=shots.length-1;i>=0;i--){
+    const s=shots[i];s.t+=dt;
+    if(s.t>s.S.life||s.y<-40){removeShot(i);continue}
+    s.vy-=s.S.grav*dt;
+    const sp=Math.hypot(s.vx,s.vy,s.vz),n=Math.max(1,Math.ceil(sp*dt/.3));
+    let hit=null,px=s.x,py=s.y,pz=s.z;
+    for(let k=0;k<n&&!hit;k++){
+      px=s.x;py=s.y;pz=s.z;
+      s.x+=s.vx*dt/n;s.y+=s.vy*dt/n;s.z+=s.vz*dt/n;
+      const X=Math.floor(s.x),Y=Math.floor(s.y),Z=Math.floor(s.z),id=G(X,Y,Z);
+      if(id===CRYSTAL){hit={what:'crystal',X,Y,Z};break}
+      if(id<0||SOLID[id]||(collBoxes(id)&&boxHitsCell(s,id,X,Y,Z))){hit={what:'block',X,Y,Z};break}
+      if(isWater(id)&&s.kind!=='pearl'&&s.kind!=='bolt'){smoke(s.x,s.y,s.z,4);hit={what:'fizzle'};break}
+      if(s.kind!=='pearl'&&!s.deflected&&alive&&mode==='survival'){
+        if(Math.abs(s.x-pl.x)<PW2+s.S.size/2+.1&&Math.abs(s.z-pl.z)<PW2+s.S.size/2+.1&&s.y>pl.y-.2&&s.y<pl.y+PH+.2){hit={what:'me'};break}
+      }
+      if((s.deflected||s.kind==='pearl'||s.by==='me')&&!s.remote){const m=shotHitsMob(s);if(m&&!(s.kind!=='pearl'&&!s.deflected&&m.T.ranged)){hit={what:'mob',m};break}}
+    }
+    if(hit){impact(s,hit,px,py,pz);removeShot(i);continue}
+    s.mesh.position.set(s.x,s.y,s.z);s.mesh.rotation.set(s.t*5,s.t*7,0);
+    if(s.kind!=='pearl'&&Math.random()<dt*30)spawnParticle(s.x,s.y,s.z,(Math.random()-.5)*.6,(Math.random()-.5)*.6,(Math.random()-.5)*.6,s.kind==='bolt'?180:33,.35,.08,1.2);
+  }
+}
+function boxHitsCell(s,id,X,Y,Z){for(const b of collBoxes(id)){if(s.x>X+b[0]&&s.x<X+b[3]&&s.y>Y+b[1]&&s.y<Y+b[4]&&s.z>Z+b[2]&&s.z<Z+b[5])return true}return false}
+function impact(s,hit,px,py,pz){
+  if(hit.what==='crystal'&&!s.remote){edit(hit.X,hit.Y,hit.Z,AIR);crystalBoom(hit.X,hit.Y,hit.Z);return}
+  if(hit.what==='fizzle')return;
+  if(s.kind==='fireball'){explode(s.x,s.y,s.z,1.4,{fire:true,noBlocks:s.remote,remote:s.remote,broadcast:false,cause:s.deflected?'boom':'fireball',by:s.deflected?'me':null});return}
+  if(s.kind==='ember'){
+    if(hit.what==='me'){hurtBy(5,s.vx,s.vz,'flare');pl.fire=Math.max(pl.fire,4)}
+    else if(hit.what==='mob'){damageMob(hit.m,5,s.vx,s.vz,'me');if(!hit.m.T.fireproof)hit.m.fire=4}
+    else if(hit.what==='block'&&!s.remote&&Math.random()<.35)lightFire(Math.floor(px),Math.floor(py),Math.floor(pz));
+    for(let k=0;k<6;k++)spawnParticle(s.x,s.y,s.z,(Math.random()-.5)*3,Math.random()*3,(Math.random()-.5)*3,181,.4,.07);
+    return;
+  }
+  if(s.kind==='bolt'){explode(s.x,s.y,s.z,1.6,{noBlocks:true,remote:true,broadcast:false,cause:'wyrm'});return}
+  if(s.kind==='pearl'){
+    for(let k=0;k<16;k++)spawnParticle(s.x,s.y,s.z,(Math.random()-.5)*3,Math.random()*3,(Math.random()-.5)*3,180,.6,.07,1);
+    if(state==='dead'||s.remote)return;
+    let tx=px,ty=py,tz=pz;
+    if(hit.what==='mob'){tx=hit.m.x;ty=hit.m.y;tz=hit.m.z;damageMob(hit.m,1,s.vx,s.vz,'me')}
+    else if(hit.what==='block'&&hit.Y<Math.floor(py))ty=hit.Y+1;
+    if(dimOfX(tx)!==DIM)return;
+    pl.x=tx;pl.y=Math.max(ty-.2,1);pl.z=tz;pl.vx=pl.vy=pl.vz=0;pl.fallTop=null;
+    unstick();for(const [ax,az] of [[.31,0],[-.31,0],[0,.31],[0,-.31]])if(collides(pl.x,pl.y,pl.z)){pl.x+=ax;pl.z+=az}
+    if(mode==='survival'){pl.hitAt=0;hurt(5,'fall')}
+    Snd.travel(.5);
+  }
+}
+function throwPearl(){
+  const [dx,dy,dz]=lookDir(),S=SHOT.pearl;
+  shoot('pearl',pl.x+dx*.5,eyeY()-.1+dy*.5,pl.z+dz*.5,dx*S.spd,dy*S.spd+2,dz*S.spd,{by:'me'});
+  pearlCool=1;swingT=.25;Snd.tone(300,700,.15,.06,'triangle');
+}
+// hitting a fireball sends it back where you're looking
+function deflectShot(s){
+  const [dx,dy,dz]=lookDir(),v=Math.hypot(s.vx,s.vy,s.vz)*1.2;
+  s.vx=dx*v;s.vy=dy*v;s.vz=dz*v;s.deflected=true;s.t=0;s.by='me';Snd.hit(1);swingT=.25;
+}
+
+// ---------------------------------------------------------------------
+//  Seeker eyes: thrown, one flies toward the nearest stronghold; put
+//  twelve into a stronghold's frames to open the way to the End
+// ---------------------------------------------------------------------
+const eyes=[];
+function nearestStronghold(x,z){let b=null,bd=1e18;for(const s of world.gen.sh){const d=(s.x-x)**2+(s.z-z)**2;if(d<bd){bd=d;b=s}}return b}
+function throwEye(){
+  const s=nearestStronghold(pl.x,pl.z),ex=pl.x,ey=eyeY(),ez=pl.z;
+  const dx=s.x+.5-ex,dz=s.z+.5-ez,d=Math.hypot(dx,dz),go=Math.min(12,d);
+  const m=itemMesh(SEEKER_EYE,.3);m.material.color.setScalar(1);scene.add(m);
+  eyes.push({x:ex,y:ey,z:ez,sx:ex,sy:ey,sz:ez,tx:ex+(d?dx/d*go:0),tz:ez+(d?dz/d*go:0),near:d<12,t:0,mesh:m});
+  swingT=.25;Snd.tone(500,900,.25,.06,'sine');
+}
+function clearEyes(){while(eyes.length)scene.remove(eyes.pop().mesh)}
+function updateEyes(dt){
+  for(let i=eyes.length-1;i>=0;i--){
+    const e=eyes[i];e.t+=dt;
+    const f=Math.min(1,e.t/2),ease=1-(1-f)*(1-f);
+    e.x=e.sx+(e.tx-e.sx)*ease;e.z=e.sz+(e.tz-e.sz)*ease;e.y=e.sy+(e.near?-1:1)*Math.sin(f*Math.PI/2)*(e.near?2:7)+(e.t>2?Math.sin((e.t-2)*6)*.15:0);
+    e.mesh.position.set(e.x,e.y,e.z);e.mesh.rotation.y=e.t*4;
+    if(Math.random()<dt*25)spawnParticle(e.x,e.y,e.z,(Math.random()-.5)*.5,(Math.random()-.5)*.5,(Math.random()-.5)*.5,180,.6,.06,1);
+    if(e.t>2.8){
+      scene.remove(e.mesh);eyes.splice(i,1);
+      if(Math.random()<.8)spawnDrop(mkStack(SEEKER_EYE,1),e.x,e.y,e.z,0,0,0,.2);
+      else{for(let k=0;k<14;k++)spawnParticle(e.x,e.y,e.z,(Math.random()-.5)*3,Math.random()*3,(Math.random()-.5)*3,209,.6,.06);Snd.burst(4200,3,.2,.12*Snd.at(e.x,e.y,e.z))}
+    }
+  }
+}
+// all twelve frames around an empty 3×3 filled with eyes: open the portal
+function checkEndPortal(fx,fy,fz){
+  for(const [ox,oz] of FRAME_CELLS){
+    const cx=fx-ox,cz=fz-oz;
+    if(!FRAME_CELLS.every(([a,b])=>G(cx+a,fy,cz+b)===END_FRAME_EYE))continue;
+    for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++){const id=G(cx+dx,fy,cz+dz);if(id===AIR||KIND[id]===3||id===FIRE)edit(cx+dx,fy,cz+dz,END_PORTAL)}
+    Snd.portalOn(true);toast('The End portal is open');return true;
+  }
+  return false;
+}
+
+// ---------------------------------------------------------------------
+//  Right-clicking with flint and steel, a Seeker eye or a Void pearl
+// ---------------------------------------------------------------------
+const SPECIAL_USE=new Set([FLINT_STEEL,SEEKER_EYE,VOID_PEARL]);
+function useSpecial(held,target){
+  if(held.id===FLINT_STEEL){
+    if(!target)return false;
+    swingT=.25;
+    if(target.id===CRYSTAL){edit(target.x,target.y,target.z,AIR);crystalBoom(target.x,target.y,target.z);wearTool(1);return true}
+    const x=target.x+target.nx,y=target.y+target.ny,z=target.z+target.nz;
+    Snd.ignite();
+    if(lightPortal(x,y,z)){wearTool(1);return true}
+    if(lightFire(x,y,z))wearTool(1);
+    return true;
+  }
+  if(held.id===SEEKER_EYE){
+    if(target&&target.id===END_FRAME){edit(target.x,target.y,target.z,END_FRAME_EYE);inv.useOne();swingT=.25;Snd.tone(900,1400,.2,.07,'sine');checkEndPortal(target.x,target.y,target.z);return true}
+    if(target&&target.id===END_FRAME_EYE)return true;
+    if(DIM!==0){toast('The eye drifts, lost. It only works in the Overworld');return true}
+    throwEye();inv.useOne();return true;
+  }
+  if(held.id===VOID_PEARL){
+    if(pearlCool>0)return true;
+    throwPearl();inv.useOne();return true;
+  }
+  return false;
+}
+
+// ---------------------------------------------------------------------
+//  End crystals: drawn as spinning cubes over their blocks
+// ---------------------------------------------------------------------
+const crystalMeshes=new Map();
+let beamLine=null;
+function crystalMesh(){
+  const g=new THREE.Group();
+  const core=new THREE.Mesh(cubeGeo(CRYSTAL),new THREE.MeshBasicMaterial({map:TEX,vertexColors:true}));core.scale.setScalar(.55);g.add(core);
+  const cage=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(.9,.9,.9)),new THREE.LineBasicMaterial({color:0xf0b8ff}));g.add(cage);
+  const cage2=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1.15,1.15,1.15)),new THREE.LineBasicMaterial({color:0xb070ff,transparent:true,opacity:.7}));g.add(cage2);
+  g.userData={core,cage,cage2};scene.add(g);return g;
+}
+function nearestCrystal(x,y,z,r){let b=null,bd=r*r;for(const p of CSET.values()){const d=(p[0]+.5-x)**2+(p[1]+.5-y)**2+(p[2]+.5-z)**2;if(d<bd){bd=d;b=p}}return b}
+function updateCrystals(dt){
+  for(const [k,g] of crystalMeshes)if(!CSET.has(k)){scene.remove(g);crystalMeshes.delete(k)}
+  for(const [k,p] of CSET){
+    let g=crystalMeshes.get(k);if(!g){g=crystalMesh();crystalMeshes.set(k,g)}
+    const t=clock+p[0]*.37;g.position.set(p[0]+.5,p[1]+.55+Math.sin(t*2)*.15,p[2]+.5);
+    g.userData.core.rotation.set(t*1.3,t*1.7,0);g.userData.cage.rotation.set(-t,t*.8,t*.5);g.userData.cage2.rotation.set(t*.6,-t*1.1,0);
+  }
+  // the healing beam from a crystal to the Wyrm
+  let from=null,to=null;
+  const w=mobs.find(m=>m.T.boss&&!m.dead)||[...rmobs.values()].find(r=>r.type==='wyrm'&&!r.dead);
+  if(w){const c=nearestCrystal(w.x,w.y,w.z,48);if(c){from=[c[0]+.5,c[1]+.6,c[2]+.5];to=[w.x,w.y+.8,w.z]}}
+  if(from){
+    if(!beamLine){beamLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]),new THREE.LineBasicMaterial({color:0xff9cf0}));beamLine.frustumCulled=false;scene.add(beamLine)}
+    const a=beamLine.geometry.attributes.position;a.setXYZ(0,...from);a.setXYZ(1,...to);a.needsUpdate=true;beamLine.visible=true;
+  }else if(beamLine)beamLine.visible=false;
+}
+function clearCrystals(){for(const g of crystalMeshes.values())scene.remove(g);crystalMeshes.clear();if(beamLine)beamLine.visible=false}
+
+// ---------------------------------------------------------------------
+//  The Void Wyrm: a long serpent that circles the pillars, swoops at
+//  players, and now and then lands by the exit portal where you can hit it.
+//  Crystals in range heal it; beat it and the exit portal opens.
+// ---------------------------------------------------------------------
+const WYRM_SEGS=14,WYRM_SP=1.35;
+const endFY=()=>world.gen.endFountainY();
+const exitOpen=()=>{const id=G(EOFF+1,endFY(),0);return id<0?null:id===END_PORTAL};
+function openExit(){
+  const fy=endFY();
+  for(const [dx,dz] of EXIT_CELLS)if(G(EOFF+dx,fy,dz)!==END_PORTAL)edit(EOFF+dx,fy,dz,END_PORTAL);
+}
+function wyrmAlive(){return mobs.some(m=>m.T.boss)||[...rmobs.values()].some(r=>r.type==='wyrm')}
+let wyrmWait=0;
+function updateWyrmSpawn(dt){
+  if(DIM!==2||state!=='play'&&state!=='inv'&&state!=='chat'){wyrmWait=0;return}
+  if(Math.hypot(pl.x-EOFF,pl.z)>240||wyrmAlive()){wyrmWait=0;return}
+  if(exitOpen()!==false){wyrmWait=0;return}
+  wyrmWait+=dt;if(wyrmWait<2.5)return;wyrmWait=0;
+  const m=spawnMob('wyrm',EOFF+46,78,0);m.ph='circle';m.ang=0;m.pt=12;m.vx=0;m.vy=0;m.vz=-8;m.healT=0;m.spitT=2;
+  addChat('Something stirs above the island…',null,'sys');Snd.mob('wyrm',1);
+}
+// trail of head positions -> body segments
+function wyrmBody(model,x,y,z){
+  const tr=model.trail;
+  if(!tr.length||Math.hypot(tr[0][0]-x,tr[0][1]-y,tr[0][2]-z)>.4){tr.unshift([x,y,z]);if(tr.length>160)tr.pop()}
+  let seg=0,acc=0,want=WYRM_SP*1.1,prev=[x,y+.5,z];
+  for(let i=0;i<tr.length-1&&seg<model.segs.length;i++){
+    const a=tr[i],b=tr[i+1],l=Math.hypot(b[0]-a[0],b[1]-a[1],b[2]-a[2]);
+    while(acc+l>=want&&seg<model.segs.length){
+      const t=(want-acc)/l,p=[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t+.5,a[2]+(b[2]-a[2])*t];
+      const g=model.segs[seg];g.position.set(p[0],p[1],p[2]);g.lookAt(prev[0],prev[1],prev[2]);g.visible=true;
+      prev=p;seg++;want+=WYRM_SP;
+    }
+    acc+=l;
+  }
+  for(;seg<model.segs.length;seg++){const g=model.segs[seg];g.position.set(prev[0],prev[1],prev[2]);g.visible=tr.length>3}
+}
+function wyrmTick(m,i,dt,targets){
+  const T=m.T,fy=endFY(),C={x:EOFF+.5,y:fy,z:.5};
+  m.hurtT-=dt;m.mouth=Math.max(0,(m.mouth||0)-dt);
+  if(DIM!==2){removeMob(i);return}
+  if(m.dead){
+    m.deadT+=dt;m.y+=dt*2.5;m.vx*=.9;m.vz*=.9;
+    for(let k=0;k<3;k++)spawnParticle(m.x+(Math.random()-.5)*4,m.y+Math.random()*3,m.z+(Math.random()-.5)*4,(Math.random()-.5)*6,Math.random()*6,(Math.random()-.5)*6,k?180:33,.8,.15,1.5);
+    if(m.deadT>4.5&&!m.done){
+      m.done=true;openExit();
+      const msg='The Void Wyrm has been defeated! The exit portal is open.';addChat(msg,null,'sys');toast('The Void Wyrm is defeated');
+      if(onlineDims()&&!Net.isPublic)Net.fx({type:'chat',to:'*',sys:1,m:msg});
+      Snd.win();removeMob(i);return;
+    }
+    drawWyrm(m,dt);return;
+  }
+  // crystals heal it
+  const c=nearestCrystal(m.x,m.y,m.z,48);
+  if(c){m.healT-=dt;if(m.healT<=0){m.healT=.5;if(m.hp<T.hp)m.hp=Math.min(T.hp,m.hp+1)}}
+  // nearest player it can see
+  let best=null,bd=150;
+  for(const t of targets){const d=Math.hypot(t.x-m.x,t.y-m.y,t.z-m.z);if(d<bd){bd=d;best=t}}
+  m.pt-=dt;
+  let tx,ty,tz,spd=11;
+  if(m.ph==='circle'){
+    m.ang+=dt*.26;tx=C.x+Math.cos(m.ang)*46;ty=74+Math.sin(m.ang*2.3)*5;tz=C.z+Math.sin(m.ang)*46;
+    if(m.pt<=0){
+      if(best&&Math.random()<.6){m.ph='strafe';m.pt=7;m.tgt=best.uid}
+      else{m.ph='perch';m.pt=26;const a=best?Math.atan2(best.z-C.z,best.x-C.x):Math.random()*6.28;m.perchA=a}
+    }
+  }else if(m.ph==='strafe'){
+    const t=targets.find(q=>q.uid===m.tgt)||best;
+    if(!t||m.pt<=0){m.ph='circle';m.pt=14+Math.random()*10}
+    else{tx=t.x;ty=t.y+1;tz=t.z;spd=16;if(Math.hypot(tx-m.x,ty-m.y,tz-m.z)<2.5){m.ph='circle';m.pt=14+Math.random()*10;m.ang=Math.atan2(m.z-C.z,m.x-C.x)}}
+  }else{
+    // perch beside the fountain, head low enough to hit
+    tx=C.x+Math.cos(m.perchA)*3.6;ty=fy+1.1;tz=C.z+Math.sin(m.perchA)*3.6;
+    const dd=Math.hypot(tx-m.x,ty-m.y,tz-m.z);
+    if(dd<1.5){m.perched=(m.perched||0)+dt;spd=0;
+      m.spitT-=dt;
+      if(best&&m.spitT<=0){m.spitT=2.6;m.mouth=.5;const sx=m.x-Math.sin(m.yaw)*1.4,sy=m.y+.8,sz=m.z-Math.cos(m.yaw)*1.4,ax=best.x-sx,ay=best.y+1-sy,az=best.z-sz,l=Math.hypot(ax,ay,az)||1;shoot('bolt',sx,sy,sz,ax/l*SHOT.bolt.spd,ay/l*SHOT.bolt.spd,az/l*SHOT.bolt.spd);Snd.mob('wyrm',Snd.at(m.x,m.y,m.z))}
+      if(m.perched>9){m.ph='circle';m.pt=16+Math.random()*10;m.perched=0;m.ang=Math.atan2(m.z-C.z,m.x-C.x);m.vy=6}
+    }else if(m.pt<=0){m.ph='circle';m.pt=12}
+  }
+  // steer smoothly toward the goal
+  const ax=tx-m.x,ay=ty-m.y,az=tz-m.z,l=Math.hypot(ax,ay,az)||1,sp=Math.min(spd,l*2);
+  const k=Math.min(1,dt*(m.ph==='perch'?2.4:1.5));
+  m.vx+=(ax/l*sp-m.vx)*k;m.vy+=(ay/l*sp-m.vy)*k;m.vz+=(az/l*sp-m.vz)*k;
+  m.x+=m.vx*dt;m.y+=m.vy*dt;m.z+=m.vz*dt;
+  if(Math.hypot(m.vx,m.vz)>.5)m.yaw=angLerp(m.yaw,Math.atan2(-m.vx,-m.vz),Math.min(1,dt*5));
+  else if(best)m.yaw=angLerp(m.yaw,Math.atan2(-(best.x-m.x),-(best.z-m.z)),Math.min(1,dt*4));
+  // anything it runs into gets hurt
+  m.atkT-=dt;
+  for(const t of targets){
+    const near=Math.hypot(t.x-m.x,t.y+.9-m.y-.6,t.z-m.z)<2.6||m.model.segs.some((g,j)=>j<8&&g.visible&&Math.hypot(t.x-g.position.x,t.y+.9-g.position.y,t.z-g.position.z)<1.9);
+    if(!near)continue;
+    if(t.uid==='me')hurtBy(T.dmg,t.x-m.x,t.z-m.z,'wyrm');
+    else if((m.hitSent||0)<clock-1){m.hitSent=clock;Net.fx({type:'atk',to:t.uid,d:T.dmg,kx:t.x-m.x,kz:t.z-m.z,c:'wyrm'})}
+  }
+  m.soundT-=dt;if(m.soundT<=0){m.soundT=7+Math.random()*8;Snd.mob('wyrm',Snd.at(m.x,m.y,m.z)*.9+.15)}
+  drawWyrm(m,dt);
+}
+function drawWyrm(m,dt){
+  const h=m.model.head;h.position.set(m.x,m.y,m.z);h.rotation.set(clamp(-m.vy*.05,-.6,.6),m.yaw,m.dead?m.deadT:0,'YXZ');
+  wyrmBody(m.model,m.x,m.y,m.z);
+  animMob(m.model,'wyrm',Math.hypot(m.vx,m.vz),dt,m);
+  lightMob(m.model,.9,m.hurtT>0);
+}
+
+// ---------------------------------------------------------------------
+//  Boss bar
+// ---------------------------------------------------------------------
+function updateBossBar(){
+  const el=$('boss');let w=null;
+  if(DIM===2){w=mobs.find(m=>m.T.boss)||[...rmobs.values()].find(r=>r.type==='wyrm');if(w&&Math.hypot(w.x-pl.x,w.z-pl.z)>260)w=null}
+  if(!w||!(state==='play'||state==='inv'||state==='chat'||state==='pause'||state==='dead')){if(!el.hidden)el.hidden=true;return}
+  el.hidden=false;const hp=w.hp!=null?w.hp:200;$('bossFill').style.width=clamp(hp/200*100,0,100).toFixed(1)+'%';
+}
+
+// ---------------------------------------------------------------------
+//  Every frame
+// ---------------------------------------------------------------------
+function updateDims(dt){
+  pearlCool=Math.max(0,pearlCool-dt);
+  updatePortals(dt);updateFire(dt);updateBooms(dt);updateShots(dt);updateEyes(dt);updateCrystals(dt);updateWyrmSpawn(dt);updateBossBar();
+}
+function clearDims(){clearShots();clearEyes();clearCrystals();fires.length=0;booms.length=0;portalT=0;portalCool=false;travelling=false;$('portalFx').style.opacity=0;$('boss').hidden=true}
+
+// =====================================================================
 //  Online worlds (Firebase Realtime Database)
 //  rooms/qy-<code>/players  each player's position, held item and mobs
 //                 /events   every block change (kept, so the world persists)
@@ -3838,7 +5103,14 @@ function applyRemote(v){
 function onFx(v){
   const num=(a,lo,hi)=>clamp(+a||0,lo,hi);
   if(v.type==='hit'){const m=mobs.find(m=>m.id===v.id);if(m)damageMob(m,num(v.d,0,20),num(v.kx,-2,2),num(v.kz,-2,2),v.by)}
-  else if(v.type==='atk'){const c=String(v.c||'');hurtBy(num(v.d,0,20),num(v.kx,-2,2),num(v.kz,-2,2),c==='zombie'?'zombie':'p:'+(cleanName(c.slice(2))||'someone'))}
+  else if(v.type==='atk'){const c=String(v.c||'');hurtBy(num(v.d,0,20),num(v.kx,-2,2),num(v.kz,-2,2),MOBT[c]?c:'p:'+(cleanName(c.slice(2))||'someone'))}
+  else if(v.type==='shot'){if(SHOT[v.k]&&v.k!=='pearl'&&Math.hypot(+v.x-pl.x,+v.z-pl.z)<120)shoot(v.k,+v.x,+v.y,+v.z,num(v.vx,-40,40),num(v.vy,-40,40),num(v.vz,-40,40),{remote:true})}
+  else if(v.type==='boom'){
+    const x=+v.x,y=+v.y,z=+v.z,p=num(v.p,0,6);if(![x,y,z].every(isFinite)||Math.hypot(x-pl.x,z-pl.z)>120)return;
+    explode(x,y,z,p,{noBlocks:true,remote:true});
+    // a crystal going off near my Wyrm hurts it
+    if(p>=4)for(const m of mobs)if(m.T.boss&&!m.dead&&Math.hypot(m.x-x,m.y-y,m.z-z)<70){m.hitAt=0;damageMob(m,10,0,0,v.by)}
+  }
   else if(v.type==='kill'){if(MOBT[v.mt]&&Math.hypot(v.x-pl.x,v.z-pl.z)<64)mobDrops(v.mt,+v.x,+v.y,+v.z)}
   else if(v.type==='chat'&&!Net.isPublic){const o=others.get(v.by);const m=String(v.m||'').slice(0,120);if(v.sys)addChat(m,null,'sys');else addChat(m,o?o.name:cleanName(v.n)||'Miner',o?COLORS[o.col]:'#fff')}
 }
@@ -4327,6 +5599,7 @@ function createWorld(){
 }
 function saveProfile(){myName=cleanName($('name').value);store.set('name',myName)}
 function clearSession(){
+  clearDims();
   clearMobs();clearDrops();boxes.clear();decay.length=0;parts.length=0;
   for(const o of others.values())scene.remove(o.av);others.clear();
   if(selfAv){scene.remove(selfAv.g);selfAv=null}
@@ -4340,7 +5613,7 @@ let loadInfo=null;
 function startLocal(w){
   saveProfile();Snd.init();
   session={kind:'local',meta:w};mode=w.mode;
-  session.ajs=(store.get('w:'+w.id,null)||{}).aj;
+  session.ajs=(store.get('w:'+w.id,null)||{}).aj;session.won=!!(store.get('w:'+w.id,null)||{}).won;{const l=(store.get('w:'+w.id,null)||{}).ln;session.links=l&&typeof l==='object'?l:{}}
   beginWorld(w.seed);
   const sv=store.get('w:'+w.id,null);
   if(sv&&sv.e)world.loadEdits(sv.e);
@@ -4390,18 +5663,20 @@ function loadingStep(){
   $('loadBar').style.width=Math.round(have/need*100)+'%';
   camera.position.set(pl.x,pl.y+EYE,pl.z);
   if(have<need)return;
+  const trip=loadInfo.travel;
+  if(trip){arrive(trip);pl.ground=false;state=$('win').hidden?'play':'pause';hideAll(true);$('hud').hidden=false;uiDirty=true;selectSlot(inv.sel);saveGame();updateLook();return}
   if(loadInfo.place){settle();pl.spawn={x:pl.x,y:pl.y,z:pl.z}}
   else{unstick();if(!pl.spawn){const p=[pl.x,pl.y,pl.z];settle();pl.spawn={x:pl.x,y:pl.y,z:pl.z};[pl.x,pl.y,pl.z]=p}}
   pl.ground=false;
   state='play';hideAll();$('hud').hidden=false;uiDirty=true;
   selectSlot(inv.sel);
-  trySpawnAnimals(14);
+  if(dimOfX(pl.x)===0)trySpawnAnimals(14);
   if(session.kind==='local')ajStart(session.ajs);
   if(session.kind==='online')addChat(others.size?others.size+' other player'+(others.size>1?'s are':' is')+' here. '+(Net.isPublic?'':'Press T to chat.'):'You’re the first one here.',null,'sys');
   else toast(mode==='creative'?'Creative mode':'Punch a tree to get started');
   updateLook();
 }
-function hideAll(){for(const id of ['menu','loading','pause','dead','inv'])$(id).hidden=true;$('heldStack').hidden=true;$('tip').hidden=true;$('chatIn').hidden=true}
+function hideAll(keepWin){for(const id of ['menu','loading','pause','dead','inv'])$(id).hidden=true;if(!keepWin)$('win').hidden=true;$('heldStack').hidden=true;$('tip').hidden=true;$('chatIn').hidden=true}
 function saveGame(){
   if(!session||!world)return;
   const sp=pl.sleep?standNear(pl.sleep.x,pl.sleep.y,pl.sleep.z):null;
@@ -4409,7 +5684,7 @@ function saveGame(){
   if(session.kind==='local'){
     const m=session.meta,bx={};
     for(const [k,b] of boxes)bx[k]=packBox(b);
-    const ok=store.set('w:'+m.id,{e:world.serialize(),p,hp:pl.hp,fd:pl.food,st:Math.round(pl.sat*10)/10,inv:inv.save(),t:dayTime,sp:pl.spawn,bd:pl.bed,fly:pl.fly,bx,ms:Math.round(worldMs),aj:ajSave()});
+    const ok=store.set('w:'+m.id,{e:world.serialize(),p,hp:pl.hp,fd:pl.food,st:Math.round(pl.sat*10)/10,inv:inv.save(),t:dayTime,sp:pl.spawn,bd:pl.bed,fly:pl.fly,bx,ms:Math.round(worldMs),aj:ajSave(),won:session.won?1:0,ln:session.links||null});
     m.last=Date.now();m.mode=mode;store.set('worlds',worlds);
     if(!ok)toast('Couldn’t save: this browser’s storage is full');
   }else store.set('room:'+session.room+':'+mode,{inv:inv.save(),hp:Math.max(1,pl.hp),fd:pl.food,st:Math.round(pl.sat*10)/10,p:state==='dead'?null:p,sp:pl.spawn,bd:pl.bed});
@@ -4424,7 +5699,7 @@ function openPause(){
   $('pauseMsg').textContent=on?(Net.isPublic?'This is a public world. Anyone can join and build here.':'Send friends the invite link. They open it and enter the code to join you here.')+' Everything built here is saved in the world. The game keeps running while this menu is open.':'Game paused. Your world is saved in this browser.';
   $('copyInvite').hidden=!(on&&!Net.isPublic);$('inviteMsg').textContent='';
 }
-function resume(){$('pause').hidden=true;state='play';lockPointer();updateLook()}
+function resume(){$('pause').hidden=true;$('win').hidden=true;state='play';lockPointer();updateLook()}
 function quit(){
   if(state==='inv')closeInv(true);
   saveGame();
@@ -4452,7 +5727,18 @@ function runCommand(line){
   const say=(t,c)=>addChat(t,null,c||'sys');
   const need=()=>{if(!local){say('That command only works in your own worlds.','err');return false}return true};
   switch((cmd||'').toLowerCase()){
-    case 'help':say('Commands: /gamemode survival|creative, /time set day|noon|night|midnight|<0–24000>, /tp <x> <y> <z>, /give <item> [count], /spawnpoint, /seed, /kill');break;
+    case 'help':say('Commands: /gamemode survival|creative, /time set day|noon|night|midnight|<0–24000>, /tp <x> <y> <z>, /give <item> [count], /dimension overworld|nether|end, /spawnpoint, /seed, /kill');break;
+    case 'dimension':case 'dim':{
+      if(!need())break;
+      const want=['overworld','nether','end'].findIndex(n=>n.startsWith((a[0]||'').toLowerCase())&&a[0]);
+      if(want<0){say('Use /dimension overworld, /dimension nether or /dimension end','err');break}
+      if(want===DIM){say('You are already in the '+DIM_NAMES[want]);break}
+      let x=pl.x,z=pl.z,y=pl.y;
+      const ow=DIM===1?{x:(pl.x-NOFF)*8,z:pl.z*8}:DIM===2?(pl.spawn||{x:.5,z:.5}):{x:pl.x,z:pl.z};
+      if(want===0){x=ow.x;z=ow.z;y=WH-4}else if(want===1){x=NOFF+ow.x/8;z=ow.z/8;y=60}else{x=EOFF+100.5;z=.5;y=49}
+      const e={x,z};borderClamp(e);
+      longJump(e.x,y,e.z,want===2?{kind:'end',to:2}:{kind:'safe',to:want},DIM_TITLES[want][0]);break;
+    }
     case 'gamemode':case 'gm':{
       if(!need())break;
       const m=(a[0]||'').toLowerCase(),to=/^(s|0|survival)$/.test(m)?'survival':/^(c|1|creative)$/.test(m)?'creative':null;
@@ -4614,6 +5900,7 @@ $('joinRoom').onclick=()=>{
 $('room').addEventListener('keydown',e=>{if(e.key==='Enter')$('joinRoom').click()});
 $('modeSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>setModeSeg(b.dataset.m));
 $('resume').onclick=resume;
+$('winGo').onclick=()=>{$('win').hidden=true;state='play';lockPointer();updateLook()};
 $('leave').onclick=quit;
 $('respawn').onclick=respawn;
 $('deadQuit').onclick=()=>{respawn();quit()};
@@ -4664,7 +5951,7 @@ function drawDebug(dt){
     'XYZ: '+pl.x.toFixed(3)+' / '+pl.y.toFixed(3)+' / '+pl.z.toFixed(3),
     'Block: '+bx+' '+by+' '+bz+'   Chunk: '+(bx>>4)+' '+(bz>>4),
     'Facing: '+face,
-    'Biome: '+BIOMES[world.gen.b],
+    DIM===0?'Biome: '+BIOMES[world.gen.b]:DIM===1?'Nether: '+['','Nether wastes','Soul sand valley','Crimson forest','Warped forest'][world.gen.netherBiome(bx,bz)]+' (Overworld '+Math.floor((pl.x-NOFF)*8)+' '+Math.floor(pl.z*8)+')':'The End ('+Math.floor(pl.x-EOFF)+' '+Math.floor(pl.z)+' from the middle)',
     'Light: '+(l>>4)+' sky, '+(l&15)+' block',
     'Time: '+Math.floor(dayTime*24000)+' ('+(nightFactor()>.5?'night':'day')+')',
     'Mode: '+(mode==='creative'?'Creative':'Survival')+(pl.fly?', flying':''),
@@ -4710,9 +5997,10 @@ function frame(t){
   const gap=t-last,dt=Math.min(.05,Math.max(0,gap/1000));last=t;clock+=dt;
   try{
     let under=0;
-    if(state==='menu')attract(dt);
-    else if(state==='loading')loadingStep();
+    if(state==='menu'){DIM=0;attract(dt)}
+    else if(state==='loading'){DIM=dimOfX(pl.x);loadingStep()}
     else if(world){
+      DIM=dimOfX(pl.x);
       const online=session.kind==='online';
       // single-player pauses behind menus; online worlds keep going
       const running=state==='play'||state==='inv'||state==='chat'||state==='dead'||online;
@@ -4730,7 +6018,7 @@ function frame(t){
       if(running){
         if(!online)worldMs+=dt*1000;
         dayTime=online?((Net.now()/1000/DAY_LEN)+session.phase+(session.shift||0))%1:(dayTime+dt/DAY_LEN)%1;
-        updateMobs(dt);updateDrops(dt);updateDecay(dt);updateTech(dt);updateLiquids(dt);updateAj(dt);
+        updateMobs(dt);updateDrops(dt);updateDecay(dt);updateTech(dt);updateLiquids(dt);updateAj(dt);updateDims(dt);
       }
       camKick=Math.max(0,camKick-dt);
       const bob=pl.ground&&!pl.fly&&camMode===0?Math.sin(pl.bob*Math.PI)*.045:0;
