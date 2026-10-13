@@ -1403,7 +1403,7 @@ const TEX=new THREE.CanvasTexture(ATLAS);
 TEX.magFilter=THREE.NearestFilter;TEX.minFilter=THREE.NearestFilter;TEX.generateMipmaps=false;
 const VS=`attribute vec4 light;varying vec2 vUv;varying vec4 vL;varying float vD;
 void main(){vUv=uv;vL=light;vec4 mv=modelViewMatrix*vec4(position,1.0);vD=length(mv.xyz);gl_Position=projectionMatrix*mv;}`;
-const FS=`uniform sampler2D map;uniform float uDay;uniform vec3 uSky;uniform vec3 uFog;uniform float uNear;uniform float uFar;uniform float uCut;
+const FS=`uniform sampler2D map;uniform float uBright;uniform float uDay;uniform vec3 uSky;uniform vec3 uFog;uniform float uNear;uniform float uFar;uniform float uCut;
 varying vec2 vUv;varying vec4 vL;varying float vD;
 void main(){
   vec4 t=texture2D(map,vUv);
@@ -1411,19 +1411,20 @@ void main(){
   float s=vL.x<0.01?0.0:pow(0.8,(1.0-vL.x)*15.0)*uDay;
   float b=vL.y<0.01?0.0:pow(0.8,(1.0-vL.y)*15.0);
   vec3 li=max(uSky*s,vec3(1.0,0.84,0.62)*b);
-  li=max(li,vec3(0.03));
+  // brightness: lift the dark end of the curve and never go fully black (a cool, dim glow in caves)
+  li=mix(li,1.0-pow(1.0-min(li,vec3(1.0)),vec3(3.0)),uBright*0.55);li=max(li,(0.16+0.24*uBright)*vec3(0.9,0.94,1.06));
   vec3 c=t.rgb*li*vL.z;
   float f=smoothstep(uNear,uFar,vD);
   gl_FragColor=vec4(mix(c,uFog,f),vL.w);
 }`;
-const UNI={map:{value:TEX},uDay:{value:1},uSky:{value:new THREE.Color(1,1,1)},uFog:{value:new THREE.Color(.55,.75,1)},uNear:{value:50},uFar:{value:90}};
+const UNI={map:{value:TEX},uBright:{value:.5},uDay:{value:1},uSky:{value:new THREE.Color(1,1,1)},uFog:{value:new THREE.Color(.55,.75,1)},uNear:{value:50},uFar:{value:90}};
 const mkMat=(cut,o)=>new THREE.ShaderMaterial(Object.assign({uniforms:Object.assign({},UNI,{uCut:{value:cut}}),vertexShader:VS,fragmentShader:FS},o||{}));
 const MAT_O=mkMat(0),MAT_C=mkMat(1,{side:THREE.DoubleSide});
 // Water and lava are drawn by their own shader: a 16-pixels-a-block pattern that drifts
 // along the way the liquid is flowing (uv holds world coordinates for these faces).
 const LVS=`attribute vec4 light;attribute vec2 flow;varying vec2 vUv;varying vec4 vL;varying float vD;varying vec2 vF;
 void main(){vUv=uv;vL=light;vF=flow;vec4 mv=modelViewMatrix*vec4(position,1.0);vD=length(mv.xyz);gl_Position=projectionMatrix*mv;}`;
-const LFS=`uniform float uDay;uniform vec3 uSky;uniform vec3 uFog;uniform float uNear;uniform float uFar;uniform float uTime;uniform float uLava;
+const LFS=`uniform float uBright;uniform float uDay;uniform vec3 uSky;uniform vec3 uFog;uniform float uNear;uniform float uFar;uniform float uTime;uniform float uLava;
 varying vec2 vUv;varying vec4 vL;varying float vD;varying vec2 vF;
 float h21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}
 float vn(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
@@ -1439,13 +1440,13 @@ void main(){
   else{c=mix(vec3(0.13,0.30,0.78),vec3(0.30,0.52,0.95),smoothstep(0.2,0.9,n));c=mix(c,vec3(0.62,0.78,1.0),step(0.98,n)*0.45);}
   float s=vL.x<0.01?0.0:pow(0.8,(1.0-vL.x)*15.0)*uDay;
   float b=vL.y<0.01?0.0:pow(0.8,(1.0-vL.y)*15.0);
-  vec3 li=uLava>0.5?vec3(1.0):max(max(uSky*s,vec3(1.0,0.84,0.62)*b),vec3(0.04));
+  vec3 li=max(uSky*s,vec3(1.0,0.84,0.62)*b);li=mix(li,1.0-pow(1.0-min(li,vec3(1.0)),vec3(3.0)),uBright*0.55);li=max(li,(0.16+0.24*uBright)*vec3(0.9,0.94,1.06));if(uLava>0.5)li=vec3(1.0);
   c*=li*vL.z;
   float fo=smoothstep(uNear,uFar,vD);
   gl_FragColor=vec4(mix(c,uFog,fo),a);
 }`;
 const UTIME={value:0};
-const mkLiq=lava=>new THREE.ShaderMaterial({uniforms:{uDay:UNI.uDay,uSky:UNI.uSky,uFog:UNI.uFog,uNear:UNI.uNear,uFar:UNI.uFar,uTime:UTIME,uLava:{value:lava?1:0}},
+const mkLiq=lava=>new THREE.ShaderMaterial({uniforms:{uBright:UNI.uBright,uDay:UNI.uDay,uSky:UNI.uSky,uFog:UNI.uFog,uNear:UNI.uNear,uFar:UNI.uFar,uTime:UTIME,uLava:{value:lava?1:0}},
   vertexShader:LVS,fragmentShader:LFS,transparent:!lava,depthWrite:lava,side:THREE.DoubleSide});
 const MAT_L=mkLiq(false),MAT_V=mkLiq(true);
 
@@ -1529,7 +1530,9 @@ function itemMesh(id,size){
 function lightAt(x,y,z){
   if(!world)return 1;
   const l=world.light(Math.floor(x),Math.floor(y),Math.floor(z)),s=l>>4,b=l&15;
-  return Math.max(Math.pow(.8,15-s)*dayLight,Math.pow(.8,15-b),.06);
+  let v=Math.max(Math.pow(.8,15-s)*dayLight,Math.pow(.8,15-b));const k=UNI.uBright.value;
+  v=v+(1-Math.pow(1-Math.min(v,1),3)-v)*k*.55;
+  return Math.max(v,.16+.24*k);
 }
 
 // view model: the block, tool or hand in front of you
@@ -4044,12 +4047,13 @@ function drawHeld(){
 // =====================================================================
 //  Settings
 // =====================================================================
-const SET=Object.assign({dist:6,sens:100,fov:75},store.get('set',{}));
+const SET=Object.assign({dist:6,sens:100,fov:75,bright:50},store.get('set',{}));
 const DISTS=[['Near',4],['Normal',6],['Far',9]];
 function buildSettings(el){
   el.innerHTML='<span>View distance</span><div class="seg" role="radiogroup" aria-label="View distance" style="grid-column:2/4">'+DISTS.map(([n,v])=>'<button type="button" role="radio" data-v="'+v+'">'+n+'</button>').join('')+'</div>'+
     '<span>Mouse speed</span><input type="range" min="20" max="300" step="5" data-k="sens" aria-label="Mouse speed"><output></output>'+
     '<span>Field of view</span><input type="range" min="60" max="100" step="1" data-k="fov" aria-label="Field of view"><output></output>'+
+    '<span>Brightness</span><input type="range" min="0" max="100" step="5" data-k="bright" aria-label="Brightness"><output></output>'+
     '<span>Arjunity mod</span><div style="grid-column:2/4"><div class=\"seg ajseg\" role=\"radiogroup\" aria-label=\"Arjunity mod\"><button type=\"button\" role=\"radio\" data-m=\"off\">Off</button><button type=\"button\" role=\"radio\" data-m=\"friendly\">Friendly</button><button type=\"button\" role=\"radio\" data-m=\"spooky\">Spooky</button></div></div>';
   el.querySelectorAll('.seg:not(.ajseg) button').forEach(b=>b.onclick=()=>{SET.dist=+b.dataset.v;applySettings()});
   el.querySelectorAll('input[type=range]').forEach(r=>r.oninput=()=>{SET[r.dataset.k]=+r.value;applySettings()});
@@ -4058,9 +4062,10 @@ function applySettings(){
   store.set('set',SET);
   if(R_DIST!==SET.dist&&state!=='menu'){R_DIST=SET.dist;buildRing()}
   camera.fov=SET.fov;camera.updateProjectionMatrix();
+  UNI.uBright.value=SET.bright/100;
   for(const el of [$('setMenu'),$('setPause')]){
     el.querySelectorAll('.seg:not(.ajseg) button').forEach(b=>b.setAttribute('aria-checked',String(+b.dataset.v===SET.dist)));
-    el.querySelectorAll('input[type=range]').forEach(r=>{r.value=SET[r.dataset.k];r.nextElementSibling.textContent=SET[r.dataset.k]+(r.dataset.k==='sens'?'%':'°')});
+    el.querySelectorAll('input[type=range]').forEach(r=>{r.value=SET[r.dataset.k];r.nextElementSibling.textContent=r.dataset.k==='bright'?(SET.bright<=15?'Moody':SET.bright>=85?'Bright':SET.bright+'%'):SET[r.dataset.k]+(r.dataset.k==='sens'?'%':'°')});
   }
 }
 
