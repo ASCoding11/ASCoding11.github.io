@@ -83,7 +83,8 @@ button,input{font:inherit;color:inherit}
 #drift{position:absolute;left:50%;bottom:58px;transform:translateX(-50%);display:flex;gap:5px;opacity:0;transition:opacity .2s}
 #drift.on{opacity:1}
 #drift i{width:26px;height:9px;border-radius:5px;background:rgba(255,255,255,.18);border:1px solid rgba(0,0,0,.3)}
-#drift i.b{background:#3fb6ff;box-shadow:0 0 10px #3fb6ff} #drift i.o{background:#ff8a2a;box-shadow:0 0 10px #ff8a2a} #drift i.v{background:#c46bff;box-shadow:0 0 10px #c46bff}
+#drift i.y{background:#ffd21f;box-shadow:0 0 10px #ffd21f} #drift i.r{background:#ff2a1a;box-shadow:0 0 12px #ff2a1a}
+#drift.red i{animation:dred .18s steps(2) infinite}@keyframes dred{50%{filter:brightness(1.6)}}
 .hbtn{position:absolute;pointer-events:auto;width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--panel);font-size:17px;cursor:pointer;display:grid;place-items:center}
 #mute{right:14px;top:96px}#music{right:60px;top:96px}#pauseBtn{right:106px;top:96px}
 #touch{position:absolute;inset:auto 0 0 0;height:0;pointer-events:none}
@@ -240,7 +241,7 @@ hr.sep{border:0;border-top:1px solid var(--line);margin:16px 0 4px}
     <div id="toasts"></div>
     <div id="spec" hidden></div>
     <div id="hint" style="opacity:0"></div>
-    <div id="drift"><i></i><i></i><i></i></div>
+    <div id="drift"><i></i><i></i><i></i><i></i></div>
     <button class="hbtn" id="mute" type="button" aria-label="Mute">🔊</button>
     <button class="hbtn" id="music" type="button" aria-label="Music">🎵</button>
     <button class="hbtn" id="pauseBtn" type="button" aria-label="Pause">❚❚</button>
@@ -253,7 +254,7 @@ hr.sep{border:0;border-top:1px solid var(--line);margin:16px 0 4px}
   <section class="screen" id="menu">
     <div class="card">
       <h1 class="logo">KART<span>WHEEL</span></h1>
-      <p class="kick">Eight racers, four tracks and a sky full of trouble. Drift for boosts, smash item gems, take the cup.</p>
+      <p class="kick">Eight racers, four tracks and a sky full of trouble. Power slide for boosts, smash item gems, take the cup.</p>
       <label class="f" for="name">Your name</label>
       <input class="t" id="name" maxlength="16" placeholder="Your name" autocomplete="off" spellcheck="false">
       <label class="f">Racer</label>
@@ -273,7 +274,7 @@ hr.sep{border:0;border-top:1px solid var(--line);margin:16px 0 4px}
       <p class="msg" id="netMsg">Make up a room code and send friends the invite link once you're in. Bots fill empty karts.</p>
       <dl class="keys">
         <dt>W / ↑</dt><dd>Accelerate</dd><dt>S / ↓</dt><dd>Brake, reverse</dd><dt>A D / ← →</dt><dd>Steer</dd>
-        <dt>Space</dt><dd>Hop and drift: hold through a turn, let go for a boost</dd>
+        <dt>Space</dt><dd>Hop into a power slide. While sliding, wiggle A D: the smoke turns yellow, then red. Let go on red for a mini-turbo</dd>
         <dt>E / Shift</dt><dd>Use item (hold S / ↓ to throw it backward)</dd>
         <dt>C</dt><dd>Look behind</dd><dt>R</dt><dd>Back onto the track</dd><dt>Esc</dt><dd>Pause, invite link</dd>
       </dl>
@@ -461,8 +462,12 @@ const VBASE=31;         // top speed at 150cc, m/s
 const GRAV=21;
 const KR=1.05;          // kart collision radius
 const GRID_GAP=6.5, GRID_FRONT=7;
-const MT=[.85,1.75,2.9]; // drift charge for blue, orange, purple mini-turbos
-const MT_BOOST=[.55,1.0,1.55];
+// Power slides work like the 1996 original: while sliding, tilt the stick out of the turn and back in.
+// Every tilt counts; after 2 the tyre smoke goes from grey to yellow, after 4 it goes red, and letting go
+// of the slide on red fires one mini-turbo. Let go early and you get nothing.
+const TILT_YELLOW=2,TILT_RED=4,TILT_IN=.35;
+const MT_TIME=1.05,MT_POW=.95;
+const dStage=c=>c.drift?(c.tilts>=TILT_RED?2:c.tilts>=TILT_YELLOW?1:0):0;
 
 function sampleTrack(P){
   const n=P.length,raw=[];
@@ -558,7 +563,7 @@ function makeKart(seat){
     x:0,z:0,y:0,vy:0,h:0,vx:0,vz:0,v:0,yaw:0,steer:0,thr:0,brk:0,
     idx:-1,s:0,P:0,lat:0,k:-1,lastCross:0,fin:0,est:false,best:0,gridPos:0,
     ground:true,rampSlope:0,rampAir:false,airT:0,trick:0,trickT:0,
-    wantDrift:false,drift:0,dch:0,offroad:false,
+    wantDrift:false,drift:0,dch:0,tilts:0,tiltSide:1,offroad:false,
     boostT:0,boostP:0,spinT:0,tumbleT:0,shieldT:0,starT:0,mudT:0,fallT:0,respT:0,hitCD:0,safeP:0,
     item:'',itemN:0,roulT:0,pend:'',
     rev:null,started:false,stall:0,stuck:0,skill:1,rb:1,hits:0,
@@ -655,7 +660,7 @@ function walls(c){
   // turn the nose along the wall a little
   const th=Math.atan2(T.TZ[i],T.TX[i]),ah=Math.cos(angDiff(c.h,th))>0?th:th+Math.PI;
   c.h+=angDiff(ah,c.h)*clamp(vn*.03,0,.4);
-  if(c.drift&&vn>6){c.drift=0;c.dch=0}
+  if(c.drift&&vn>6){c.drift=0;c.dch=0;c.tilts=0}
   return vn;
 }
 // Ramps launch you, holes drop you, landings end tricks and start drifts.
@@ -674,12 +679,12 @@ function vertical(c,inp,dt){
     c.y=g;c.vy=0;c.ground=true;
     if(c.trick){c.trick=0;if(c.tumbleT<=0&&c.spinT<=0){giveBoost(c,.9,.85);if(c===race.me)hint('Trick boost!',900)}}
     c.rampAir=false;
-    if(c.wantDrift){c.wantDrift=false;if(inp.hop&&Math.abs(inp.steer)>.25&&c.v>9&&c.spinT<=0&&c.tumbleT<=0){c.drift=Math.sign(inp.steer);c.dch=0}}
+    if(c.wantDrift){c.wantDrift=false;if(inp.hop&&Math.abs(inp.steer)>.25&&c.v>9&&c.spinT<=0&&c.tumbleT<=0){c.drift=Math.sign(inp.steer);c.dch=0;c.tilts=0;c.tiltSide=1;if(c===race.me)driftTip()}}
     if(c.airT>.5&&c===race.me)thud(6);
   }else if(g===-Infinity&&c.y<-1.3)startFall(c);
 }
 function startFall(c){
-  c.fallT=1.5;c.drift=0;c.dch=0;c.boostT=0;c.trick=0;
+  c.fallT=1.5;c.drift=0;c.dch=0;c.tilts=0;c.boostT=0;c.trick=0;
   if(c===race.me){toast(track.def.theme==='ember'?'Into the lava!':track.def.theme==='nebula'?'Lost in space!':'Splash!','hit');thud(10)}
 }
 function respawn(c){
@@ -714,7 +719,7 @@ function hitKart(k,kind,by){
   if(k.shieldT>0){k.shieldT=0;fxPop(k);if(k===race.me)toast('Your bubble took the hit','good');return false}
   if(kind==='comet'){k.tumbleT=1.9;k.vy=7;k.ground=false;k.rampAir=false;k.vx*=.2;k.vz*=.2}
   else{k.spinT=kind==='slip'?1.0:1.3;k.vx*=.45;k.vz*=.45}
-  k.drift=0;k.dch=0;k.boostT=0;k.trick=0;k.hitCD=kind==='comet'?2.2:1.6;k.hits++;
+  k.drift=0;k.dch=0;k.tilts=0;k.boostT=0;k.trick=0;k.hitCD=kind==='comet'?2.2:1.6;k.hits++;
   if(k===race.me){thud(14);shake=.5;const who=by!=null&&by!==k.seat?race.cars[by]:null;
     toast(kind==='slip'?'Slipped on oil!':kind==='comet'?'Hit by the Comet!':who?'Hit by '+who.name+'!':'Hit!','hit')}
   else if(race.me&&by===race.me.seat&&!race.attract)toast('You hit '+k.name+'!','good');
@@ -731,14 +736,24 @@ function driftLogic(c,inp,dt){
   if(c.wantDrift&&c.ground)c.wantDrift=false;
   if(c.drift){
     if(!inp.hop||c.v<7||!ctl)releaseDrift(c);
-    else if(c.ground){const into=inp.steer*c.drift;c.dch+=dt*(c.offroad?.2:into>.3?1.35:into<-.3?.8:1)}
+    else if(c.ground){
+      c.dch+=dt;
+      // a tilt is the stick crossing from one side to the other: out of the turn, then back into it
+      const rel=(inp.raw!=null?inp.raw:inp.steer)*c.drift,was=dStage(c);
+      if(c.tiltSide>0&&rel<-TILT_IN){c.tiltSide=-1;c.tilts++}
+      else if(c.tiltSide<0&&rel>TILT_IN){c.tiltSide=1;c.tilts++}
+      const now=dStage(c);
+      if(now!==was&&c===race.me)tone(now===2?880:620,.09,.1,'square');
+    }
   }
 }
 function releaseDrift(c){
-  const lv=c.dch>=MT[2]?3:c.dch>=MT[1]?2:c.dch>=MT[0]?1:0;
-  c.drift=0;c.dch=0;
-  if(lv&&c.spinT<=0&&c.tumbleT<=0)giveBoost(c,MT_BOOST[lv-1],.8+lv*.07);
+  const red=dStage(c)===2;
+  c.drift=0;c.dch=0;c.tilts=0;c.tiltSide=1;
+  if(red&&c.spinT<=0&&c.tumbleT<=0)giveBoost(c,MT_TIME,MT_POW);
 }
+let driftTips=0;
+function driftTip(){if(driftTips++<3)hint(touchUI?'Sliding! Tap ◀ ▶ back and forth: smoke goes yellow, then red. Let go of DRIFT on red':'Sliding! Wiggle A D back and forth: smoke goes yellow, then red. Let go of Space on red',4200)}
 
 // ---------- items ----------
 function rollItem(c){
@@ -948,7 +963,10 @@ function botInput(c,dt,t){
   if(c.drift){
     const sd=(desYaw*c.drift/(S.hand*Math.max(sf,.3))-1.12)/.6;
     inp.steer=clamp(sd,-1,1)*c.drift;inp.hop=true;
-    if(desYaw*c.drift<.42*S.hand*sf||(c.dch>MT[ai.mtGoal]+.15&&desYaw*c.drift<.95)||(edgeRisk&&edgeRisk!==c.drift))inp.hop=false;
+    // bots wiggle the stick in their heads (their steering stays on the line); sharper bots wiggle faster
+    ai.tiltT=(ai.tiltT==null?rand(.15,.3):ai.tiltT)-dt;
+    if(ai.tiltT<=0&&c.ground){c.tilts++;ai.tiltT=ai.mtGoal===2?rand(.2,.34):rand(.32,.6)}
+    if(desYaw*c.drift<.42*S.hand*sf||(dStage(c)===2&&desYaw*c.drift<.95)||(edgeRisk&&edgeRisk!==c.drift))inp.hop=false;
   }else{
     const maxYaw=Math.min(1.85*S.hand,Math.max(.5,Math.abs(c.v))*.17);
     inp.steer=clamp(desYaw/maxYaw,-1,1);
@@ -956,7 +974,7 @@ function botInput(c,dt,t){
     // drift into long bends
     if(c.ground&&c.v>15&&ai.driftCD<=0&&!c.offroad&&!edgeRisk){
       let k=0;for(let q=4;q<34;q+=3)k+=T.K[(i+Math.round(q/T.ds))%N];k/=10;
-      if(Math.abs(k)>1/52&&Math.sign(k)===Math.sign(desYaw)){inp.hop=inp.hopPress=true;inp.steer=Math.sign(k);ai.driftCD=1.4}
+      if(Math.abs(k)>1/52&&Math.sign(k)===Math.sign(desYaw)){inp.hop=inp.hopPress=true;inp.steer=Math.sign(k);ai.driftCD=1.4;ai.tiltT=null}
     }
   }
   if(c.wantDrift){inp.hop=true;inp.steer=inp.steer||1}
@@ -1485,7 +1503,7 @@ const KM={
   bubble:new THREE.MeshPhongMaterial({color:0x7fe3ff,transparent:true,opacity:.28,shininess:120,specular:0xffffff,depthWrite:false,emissive:0x0a4a66})
 };
 KM.metal.shared=KM.shadow.shared=KM.flameA.shared=KM.flameB.shared=KM.bubble.shared=true;
-const SPARK_COL=[0xffffff,0x3fb6ff,0xff8a2a,0xc46bff];
+const SMOKE_COL=[0xd9d9de,0xffd21f,0xff2a1a]; // tyre smoke while sliding: grey, yellow, red
 function makeHead(ch){
   const h=new THREE.Group(),c=toon(ch.c),c2=toon(ch.c2),blk=KM.black,wht=KM.white;
   const S=(r,m,x,y,z,sx,sy,sz)=>{const o=new THREE.Mesh(new THREE.SphereGeometry(r,16,12),m);o.position.set(x,y,z);if(sx)o.scale.set(sx,sy,sz);h.add(o);return o};
@@ -1587,7 +1605,7 @@ function syncKarts(dt,time){
     m.g.position.set(c.x,y,c.z);
     // visual yaw: drifting karts point into the turn; spin-outs whirl; tricks flip
     const vis=c.vis;
-    const dYaw=c.drift?c.drift*.42:0;vis.yaw=lerp(vis.yaw,dYaw,1-Math.exp(-dt*8));
+    const dYaw=c.drift?c.drift*(.5+.16*clamp(c.steer*c.drift,-1,1)):0;vis.yaw=lerp(vis.yaw,dYaw,1-Math.exp(-dt*8));
     if(c.spinT>0||c.tumbleT>0)vis.spinA+=dt*(c.tumbleT>0?10:14);else vis.spinA=lerp(vis.spinA,Math.round(vis.spinA/TAU)*TAU,1-Math.exp(-dt*10));
     vis.flip=c.trick?Math.min(1,c.trickT/.45)*TAU:c.tumbleT>0?vis.flip+dt*9:0;
     m.g.rotation.set(0,-c.h-vis.yaw-vis.spinA,0);
@@ -1611,8 +1629,8 @@ function syncKarts(dt,time){
     m.shadow.visible=!fall&&gsy>-10;m.shadow.position.y=-y+gsy;m.shadow.scale.setScalar(clamp(1-(y-gsy)*.12,.4,1));
     const boost=c.boostT>0;
     for(const f of m.flames){f.visible=boost;if(boost){const k=.8+Math.random()*.5;f.scale.set(k*(1+c.boostP*.4),.8+Math.random()*.3,.8+Math.random()*.3)}}
-    const lv=c.drift?(c.dch>=MT[2]?3:c.dch>=MT[1]?2:c.dch>=MT[0]?1:0):0;
-    for(const s of m.sparks){s.visible=!!c.drift&&c.ground;if(s.visible){s.material.color.setHex(SPARK_COL[lv]);const k=(lv?.7:.35)+Math.random()*.35;s.scale.set(k,k,1)}}
+    const lv=dStage(c);
+    for(const s of m.sparks){s.visible=!!c.drift&&c.ground&&lv>0;if(s.visible){s.material.color.setHex(SMOKE_COL[lv]);const k=(lv===2?.75:.5)+Math.random()*.3;s.scale.set(k,k,1)}}
     m.bubble.visible=c.shieldT>0;if(m.bubble.visible){const k=1+Math.sin(time*6)*.04;m.bubble.scale.setScalar(c.shieldT<2&&(time*8|0)%2?0.001:k)}
     m.aura.visible=c.starT>0;if(m.aura.visible){m.aura.material.color.setHSL((time*1.5)%1,1,.6);m.aura.material.opacity=c.starT<1.5&&(time*8|0)%2?.3:.8}
     const dizzy=c.spinT>0||c.tumbleT>0||c.stall>0;m.stars.visible=dizzy;
@@ -1621,7 +1639,7 @@ function syncKarts(dt,time){
     // particles
     if(paused)continue;
     if(c.ground&&!fall){
-      if(c.drift&&Math.random()<.7){const col=SPARK_COL[lv];spawnP(c,'spark',col)}
+      if(c.drift){spawnP(c,'smoke2',SMOKE_COL[lv]);if(Math.random()<.5)spawnP(c,'smoke2',SMOKE_COL[lv]);if(lv&&Math.random()<.4)spawnP(c,'spark',SMOKE_COL[lv])}
       if(c.offroad&&Math.abs(c.v)>8&&Math.random()<.5)spawnP(c,'dust',THEME[track.def.theme].off);
     }
     if(boost&&Math.random()<.6)spawnP(c,'smoke',0xff7a1a);
@@ -1643,6 +1661,7 @@ function spawnP(c,type,col){
   const fx=Math.cos(c.h),fz=Math.sin(c.h),side=Math.random()<.5?1:-1,nx=-fz*side*.86,nz=fx*side*.86;
   const bx=c.x-fx*1.15+nx,bz=c.z-fz*1.15+nz;
   if(type==='spark')particle(bx,c.y+.2,bz,-fx*3+rand(-2,2)+c.vx*.5,rand(1,3),-fz*3+rand(-2,2)+c.vz*.5,.3,.35,col,true,12);
+  else if(type==='smoke2')particle(bx,c.y+.35,bz,-fx*2.5+rand(-1,1)-nx*.8,rand(.6,1.6),-fz*2.5+rand(-1,1)-nz*.8,.5,1,col,false,-1);
   else if(type==='dust')particle(bx,c.y+.3,bz,-fx*2+rand(-1,1),rand(.5,2),-fz*2+rand(-1,1),.7,1.3,col,false,-1);
   else particle(c.x-fx*1.75+rand(-.3,.3),c.y+.62,c.z-fz*1.75+rand(-.3,.3),-fx*5+rand(-1,1),rand(0,1),-fz*5+rand(-1,1),.22,.45,col,true,0);
 }
@@ -1747,7 +1766,7 @@ function loadScript(src){return new Promise((res,rej)=>{const s=document.createE
 let mySeat=-1,mySeatT=0,myReady=false,startNowAsk=false;
 const BIT={boost:1,dl:2,dr:4,spin:8,tumble:16,shield:32,star:64,fall:128,resp:256,lv:512,trick:2048,off:4096};
 function bitsOf(c){
-  const lv=c.drift?(c.dch>=MT[2]?3:c.dch>=MT[1]?2:c.dch>=MT[0]?1:0):0;
+  const lv=dStage(c);
   return (c.boostT>0?1:0)|(c.drift<0?2:0)|(c.drift>0?4:0)|(c.spinT>0||c.stall>0?8:0)|(c.tumbleT>0?16:0)|(c.shieldT>0?32:0)|(c.starT>0?64:0)|(c.fallT>0?128:0)|(c.respT>0?256:0)|(lv*512)|(c.trick?2048:0)|(c.offroad?4096:0);
 }
 const Net={
@@ -1921,7 +1940,7 @@ function applySnap(c,s){
   c.snap=s;
   if(s.f&&!c.fin)c.fin=s.f;
   const b=s.b;
-  c.boostT=b&1?.3:0;c.boostP=1;c.drift=b&2?-1:b&4?1:0;const lv=(b>>9)&3;c.dch=lv?MT[lv-1]+.01:0;
+  c.boostT=b&1?.3:0;c.boostP=1;c.drift=b&2?-1:b&4?1:0;const lv=(b>>9)&3;c.tilts=lv===2?TILT_RED:lv===1?TILT_YELLOW:0;
   c.spinT=b&8?1:0;c.tumbleT=b&16?1:0;c.shieldT=b&32?5:0;c.starT=b&64?5:0;c.fallT=b&128?1:0;c.respT=b&256?.5:0;
   if(b&2048){if(!c.trick){c.trick=1;c.trickT=0}}else c.trick=0;
   c.offroad=!!(b&4096);
@@ -1952,7 +1971,7 @@ function adoptOrphans(){
     if(!c.bot){c.bot=true;c.name=CHARS[c.seat].n}
     c.ctrl='bot';c.owner=Net.uid;c.started=t>0;
     c.k=Math.floor(c.P/track.L);c.lastCross=Math.max(0,t);c.safeP=c.P;
-    c.spinT=c.tumbleT=c.fallT=c.respT=0;c.shieldT=0;c.starT=0;c.trick=0;c.drift=0;c.dch=0;c.ground=true;c.y=Math.max(0,c.y);
+    c.spinT=c.tumbleT=c.fallT=c.respT=0;c.shieldT=0;c.starT=0;c.trick=0;c.drift=0;c.dch=0;c.tilts=0;c.ground=true;c.y=Math.max(0,c.y);
     c.snap=null;
   }
 }
@@ -2115,7 +2134,7 @@ function engineSound(c){
   eng.f.frequency.setTargetAtTime(500+sp*1800,t,.05);
   eng.g.gain.setTargetAtTime((c===race.me?1:.4)*(.025+.04*Math.max(c.thr||0,rev)+(c.boostT>0?.03:0)),t,.06);
   const dr=c.drift&&c.ground?1:0;
-  skid.g.gain.setTargetAtTime(dr*(c===race.me?.05:.02),t,.04);skid.f.frequency.setTargetAtTime(1800+((c.dch/3)|0)*500,t,.1);
+  skid.g.gain.setTargetAtTime(dr*(c===race.me?.05:.02),t,.04);skid.f.frequency.setTargetAtTime(1800+dStage(c)*450,t,.1);
 }
 // ---------- music ----------
 const SONGS=[
@@ -2171,7 +2190,7 @@ function humanInput(c,dt){
   if(raceT()<0){item=false;hopPress=false}
   const cur=c.inSteer||0,rate=(st===0||Math.sign(st)!==Math.sign(cur))?9:5.5;
   c.inSteer=cur+clamp(st-cur,-rate*dt,rate*dt);
-  return {thr,brk,steer:c.inSteer,hop,hopPress,item,back};
+  return {thr,brk,steer:c.inSteer,raw:st,hop,hopPress,item,back}; // raw: the stick itself, so quick taps count as power-slide tilts
 }
 function keyName(k){
   if(k==='w'||k==='W'||k==='ArrowUp')return 'up';
@@ -2353,9 +2372,9 @@ function updateHud(dt){
       $('itemKey').textContent=local&&c.item&&c===me?(touchUI?'Tap ITEM':'E / Shift'):'';
     }
     // drift charge
-    const lv=c.drift?(c.dch>=MT[2]?3:c.dch>=MT[1]?2:c.dch>=MT[0]?1:0):0;
-    const dm=$('drift');dm.classList.toggle('on',!!c.drift&&c===me);
-    [...dm.children].forEach((el,i)=>{el.className=i<lv?['b','o','v'][Math.min(lv,3)-1]:''});
+    const lv=dStage(c),nt=c.drift?Math.min(TILT_RED,c.tilts):0;
+    const dm=$('drift');dm.classList.toggle('on',!!c.drift&&c===me);dm.classList.toggle('red',lv===2);
+    [...dm.children].forEach((el,i)=>{el.className=i<nt?(lv===2?'r':'y'):''});
   }
   if(me&&!me.fin&&t>0){
     const T=track,dot=Math.cos(me.h)*T.TX[me.idx]+Math.sin(me.h)*T.TZ[me.idx];
@@ -2492,7 +2511,7 @@ function beginRaceView(){
   $('count').classList.remove('show');$('banner').classList.remove('show');
   Music.stop();
   if(race.me){
-    hint(touchUI?'Steer with ◀ ▶ · hold DRIFT through turns · tap ITEM':'W accelerate · A D steer · hold Space to drift · E for items',6500);
+    hint(touchUI?'Steer with ◀ ▶ · hold DRIFT to power slide · tap ITEM':'W accelerate · A D steer · hold Space to power slide · E for items',6500);
     if(!race.online||raceT()<-3)setTimeout(()=>{if(state==='race'&&raceT()<-2)hint('Tip: hold accelerate right after the 2 for a rocket start',2600)},2400);
   }
 }
