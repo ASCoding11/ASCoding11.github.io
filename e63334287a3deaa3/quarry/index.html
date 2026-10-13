@@ -489,6 +489,29 @@ blk(WFALL,'Water',12,{k:3,h:-1,drop:0,snd:'water',base:WATER});
 for(let l=1;l<=3;l++)blk(LFLOW+l-1,'Lava',33,{k:3,h:-1,em:15,drop:0,snd:'water',base:LAVA});
 blk(LFALL,'Lava',33,{k:3,h:-1,em:15,drop:0,snd:'water',base:LAVA});
 blk(OBSIDIAN,'Obsidian',144,{h:50,tool:'pick',tier:4});
+// ---- the rest of the ores, deepslate (the dark stone deep underground) and blocks of each mineral ----
+const COPPER_ORE=59,LAPIS_ORE=60,EMERALD_ORE=61,DEEPSLATE=62,COBBLED_DS=63,
+  DS_COAL=64,DS_IRON=65,DS_COPPER=66,DS_GOLD=67,DS_RORE=68,DS_LAPIS=69,DS_DIAMOND=70,DS_EMERALD=71,
+  IRON_BLOCK=72,GOLD_BLOCK=73,DIAMOND_BLOCK=74,LAPIS_BLOCK=75,EMERALD_BLOCK=76,COPPER_BLOCK=77,COAL_BLOCK=78;
+const RAW_IRON=90,RAW_GOLD=91,RAW_COPPER=92,COPPER=93,LAPIS=94,EMERALD=95;
+blk(COPPER_ORE,'Copper ore',88,{h:3,tool:'pick',tier:2,drop:RAW_COPPER});
+blk(LAPIS_ORE,'Lapis lazuli ore',89,{h:3,tool:'pick',tier:2,drop:LAPIS});
+blk(EMERALD_ORE,'Emerald ore',90,{h:3,tool:'pick',tier:3,drop:EMERALD});
+blk(DEEPSLATE,'Deepslate',[92,91,92],{h:3,tool:'pick',tier:1,drop:COBBLED_DS});
+blk(COBBLED_DS,'Cobbled deepslate',93,{h:3.5,tool:'pick',tier:1});
+// deepslate ores: [id, name, tile, harvest tier, drop]
+[[DS_COAL,'coal',160,1,COAL],[DS_IRON,'iron',161,2,RAW_IRON],[DS_COPPER,'copper',162,2,RAW_COPPER],[DS_GOLD,'gold',163,3,RAW_GOLD],
+ [DS_RORE,'redstone',164,3,160/*redstone dust*/],[DS_LAPIS,'lapis lazuli',165,2,LAPIS],[DS_DIAMOND,'diamond',166,3,GEM],[DS_EMERALD,'emerald',167,3,EMERALD]]
+  .forEach(([id,n,t,tier,drop])=>blk(id,'Deepslate '+n+' ore',t,{h:4.5,tool:'pick',tier,drop}));
+blk(IRON_BLOCK,'Block of iron',94,{h:5,tool:'pick',tier:2});
+blk(GOLD_BLOCK,'Block of gold',95,{h:3,tool:'pick',tier:3});
+blk(DIAMOND_BLOCK,'Block of diamond',155,{h:5,tool:'pick',tier:3});
+blk(LAPIS_BLOCK,'Block of lapis lazuli',156,{h:3,tool:'pick',tier:2});
+blk(EMERALD_BLOCK,'Block of emerald',157,{h:5,tool:'pick',tier:3});
+blk(COPPER_BLOCK,'Block of copper',158,{h:3,tool:'pick',tier:2});
+blk(COAL_BLOCK,'Block of coal',159,{h:5,tool:'pick',tier:1});
+// like the real game, iron and gold ore now drop raw metal to smelt
+B[IRON_ORE].drop=RAW_IRON;B[GOLD_ORE].drop=RAW_GOLD;
 const isWater=id=>id===WATER||(id>=WFLOW&&id<=WFALL),isLava=id=>id===LAVA||(id>=LFLOW&&id<=LFALL);
 const BUCKET=155,WBUCKET=156,LBUCKET=157;
 // ---- doors, beds, farming, plants and redstone (ids 160 and up; data is one byte per block) ----
@@ -530,6 +553,8 @@ item(BEEF,'Raw beef',56,{food:[3,1.8]});item(STEAK,'Steak',57,{food:[8,12.8]});i
 item(CHICK_C,'Cooked chicken',59,{food:[6,7.2]});item(FLESH,'Rotten flesh',60,{food:[4,.8]});
 item(LEATHER,'Leather',61);item(FEATHER,'Feather',62);item(CHARCOAL,'Charcoal',63);
 item(BUCKET,'Bucket',145,{stack:16});item(WBUCKET,'Water bucket',146,{stack:1});item(LBUCKET,'Lava bucket',147,{stack:1});
+item(RAW_IRON,'Raw iron',168);item(RAW_GOLD,'Raw gold',169);item(RAW_COPPER,'Raw copper',170);item(COPPER,'Copper ingot',171);
+item(LAPIS,'Lapis lazuli',172);item(EMERALD,'Emerald',173);
 item(WHEAT,'Wheat',142);item(BREAD,'Bread',143,{food:[5,6]});
 // Tools: id = 130 + type*5 + material. Harvest level, dig speed, uses and attack damage (in half hearts) per material.
 const TIERS=['Wooden','Stone','Iron','Golden','Diamond'],LEVEL=[1,2,3,1,4],SPEED=[2,4,6,12,8],DUR=[59,131,250,32,1561];
@@ -542,11 +567,13 @@ TTYPES.forEach(([type,word,dmg],ti)=>{for(let m=0;m<5;m++){const lv=[0,1,2,0,3][
 const MIGRATE={};for(let t=0;t<3;t++)for(let i=0;i<4;i++)MIGRATE[110+t*4+i]=toolId(t,[0,1,2,4][i]);
 const fixId=id=>MIGRATE[id]||id;
 const CREATIVE=[GRASS,DIRT,STONE,COBBLE,MOSSY,SAND,SANDSTONE,GRAVEL,SNOWY,SNOW,LOG,BIRCH,PLANKS,LEAVES,PINE,GLASS,BRICK,SHELF,
-  TORCH,LAMP,BENCH,KILN,CHEST,WOOL,RED,YELLOW,BLUE,GREEN,WHITE,COAL_ORE,IRON_ORE,GOLD_ORE,AZ_ORE,BASALT,OBSIDIAN,WATER,LAVA,
-  STICK,COAL,CHARCOAL,IRON,GOLD,GEM,LEATHER,FEATHER,APPLE,PORK,PORK_C,BEEF,STEAK,CHICK,CHICK_C,FLESH];
+  TORCH,LAMP,BENCH,KILN,CHEST,WOOL,RED,YELLOW,BLUE,GREEN,WHITE,DEEPSLATE,COBBLED_DS,COAL_ORE,IRON_ORE,COPPER_ORE,GOLD_ORE,RORE,LAPIS_ORE,AZ_ORE,EMERALD_ORE,
+  DS_COAL,DS_IRON,DS_COPPER,DS_GOLD,DS_RORE,DS_LAPIS,DS_DIAMOND,DS_EMERALD,
+  COAL_BLOCK,IRON_BLOCK,COPPER_BLOCK,GOLD_BLOCK,LAPIS_BLOCK,DIAMOND_BLOCK,EMERALD_BLOCK,BASALT,OBSIDIAN,WATER,LAVA,
+  STICK,COAL,CHARCOAL,RAW_IRON,RAW_COPPER,RAW_GOLD,IRON,COPPER,GOLD,LAPIS,GEM,EMERALD,LEATHER,FEATHER,APPLE,PORK,PORK_C,BEEF,STEAK,CHICK,CHICK_C,FLESH];
 for(let ti=0;ti<5;ti++)for(let m=0;m<5;m++)CREATIVE.push(toolId(ti,m));
 CREATIVE.push(BUCKET,WBUCKET,LBUCKET,DOOR,IDOOR,BED,FARMLAND,TALLGRASS,POPPY,DANDELION,OAK_SAP,PINE_SAP,WHEAT0,WHEAT,BREAD,
-  DUST,RTORCH,LEVER,BUTTON,PLATE,REPEATER,RLAMP,RBLOCK,RORE);
+  DUST,RTORCH,LEVER,BUTTON,PLATE,REPEATER,RLAMP,RBLOCK);
 
 /*W-*/
 // =====================================================================
@@ -586,8 +613,9 @@ const ATLAS=(function(){
   tile(11,(x,y)=>{if(x===0||y===0||x===15||y===15)return[214,236,240,255];if((x+y===9&&x>2&&x<7)||(x+y===12&&x>4&&x<8))return[235,248,252,150];return[0,0,0,0]});
   tile(12,(x,y)=>{const n=vn.n2(x*.4+20,y*.4);return jit(mix([40,92,196],[70,130,220],clamp(n+.4,0,1)),6)});
   tile(13,()=>{const c=jit([44,42,48],10);return R()<.15?mix(c,[20,20,24],.7):c});
-  function ore(t,col,seed){const r=mulberry32(seed),spots=[];for(let i=0;i<5;i++)spots.push([2+r()*12,2+r()*12]);
-    tile(t,(x,y)=>{for(const s of spots){const d=Math.hypot(x-s[0],y-s[1]);if(d<1.5)return jit(col,16);if(d<2.1)return mix(stone(x,y),[50,50,50],.35)}return stone(x,y)})}
+  // an ore: specks of colour (optionally two colours) set into stone or deepslate
+  function ore(t,col,seed,base,col2){const r=mulberry32(seed),spots=[];for(let i=0;i<5;i++)spots.push([2+r()*12,2+r()*12,r()]);base=base||stone;
+    tile(t,(x,y)=>{for(const s of spots){const d=Math.hypot(x-s[0],y-s[1]);if(d<1.5)return jit(col2&&s[2]<.4?col2:col,16);if(d<2.1)return mix(base(x,y),[30,30,34],.35)}return base(x,y)})}
   ore(14,[36,34,34],5);ore(15,[214,170,140],6);ore(16,[250,210,64],7);ore(17,[70,214,226],8);
   tile(18,()=>jit([240,246,252],6));
   tile(19,(x,y)=>{const e=3+((hash3(x,9,2)%3)===0?1:0);return y<e?jit([238,244,250],5):dirt(x,y)});
@@ -672,6 +700,30 @@ const ATLAS=(function(){
   tile(102,rlamp(false));tile(103,rlamp(true));
   tile(104,(x,y)=>{const n=vn.n2(x*.5+90,y*.5);if(x%8===0||y%8===0)return jit([120,8,6],6);return jit(mix([210,26,16],[160,12,8],clamp(n+.5,0,1)),12)});
   ore(105,[226,24,20],9);
+  // ---- deepslate and the newer ores ----
+  const DSC=[74,74,82];
+  const deep=(x,y)=>{const n=vn.n2(x*.9+140,y*.22);return jit(mix(DSC,[50,50,58],clamp(n+.45,0,1)),7)};
+  const deepTop=(x,y)=>{const n=vn.n2(x*.5+170,y*.5+3),ring=Math.abs(Math.hypot(x-7.5,y-7.5)-5)<.6;return jit(ring?[56,56,64]:mix(DSC,[60,60,68],clamp(n+.4,0,1)),6)};
+  tile(91,deep);tile(92,deepTop);
+  const dcob=stones(23,[78,78,86]);
+  tile(93,(x,y)=>{const c=dcob(x,y);return c[0]<80?mix(c,[24,24,30],.5):mix(c,[60,60,70],.55)});
+  ore(88,[224,128,84],31,null,[96,178,136]);ore(89,[38,74,196],32);ore(90,[40,206,100],33);
+  [[[36,34,34],5],[[214,170,140],6],[[224,128,84],31,[96,178,136]],[[250,210,64],7],[[226,24,20],9],[[38,74,196],32],[[70,214,226],8],[[40,206,100],33]]
+    .forEach(([c,sd,c2],i)=>ore(160+i,c,sd+50,deep,c2));
+  // blocks of each mineral: a bevelled square with a pattern in its own colour
+  const metal=(t,c,kind)=>tile(t,(x,y)=>{
+    if(x===0||y===0)return mix(c,[255,255,255],.35);if(x===15||y===15)return mix(c,[0,0,0],.35);
+    if(kind==='gem'){const d=(x+y)%6===0||(x-y+16)%6===0;return jit(d?mix(c,[255,255,255],.3):c,6)}
+    if(kind==='speck')return jit(hash3(x,y,t)%5===0?mix(c,[255,255,255],.35):hash3(x,y,t+1)%6===0?mix(c,[0,0,0],.3):c,6);
+    if(kind==='coal')return jit(hash3(x,y,t)%4===0?[56,54,58]:[22,20,24],5);
+    return jit((y===5||y===10)&&x>1&&x<14?mix(c,[0,0,0],.18):(y===6||y===11)&&x>1&&x<14?mix(c,[255,255,255],.2):c,4)});
+  metal(94,[216,216,222]);metal(95,[248,206,64]);metal(155,[98,226,226],'gem');metal(156,[40,72,180],'speck');
+  metal(157,[48,200,96],'gem');metal(158,[214,118,74]);metal(159,[0,0,0],'coal');
+  // raw metal, copper ingot, lapis and emerald
+  lump(168,[180,140,116],[220,186,160],5);lump(169,[200,150,30],[250,212,70],15);lump(170,[156,86,58],[226,132,92],25);
+  ingot(171,[224,126,80]);
+  sprite(172,(x,y)=>{const d=Math.hypot(x-7.5,(y-8)*1.2)+vn.n2(x*.8+30,y*.8)*1.8;return d<5?jit(hash3(x,y,6)%5===0?[120,150,240]:[34,70,190],12):null},[14,24,70,255]);
+  sprite(173,(x,y)=>{const dx=Math.abs(x-7.5),dy=Math.abs(y-7.5);if(dx/4.5+dy/6.5>1)return null;return dx/4.5+dy/6.5>.62?[24,150,70]:(x<8&&y<8?[170,255,190]:jit([46,210,104],8))},[10,60,26,255]);
   // repeater top: smooth stone with an arrow toward the top of the tile (the output side)
   const smooth=(x,y)=>(x===0||y===0||x===15||y===15)?jit([130,130,134],5):jit([166,166,170],6);
   const rep=on=>(x,y)=>{const ac=on?[240,40,30]:[110,24,20];if(x>=7&&x<=8&&y>=3&&y<=13)return ac;if(y>=3&&y<=5&&Math.abs(x-7.5)<=(y-2.5)+.6&&Math.abs(x-7.5)>=(y-2.5)-1.4)return ac;return smooth(x,y)};
@@ -758,6 +810,8 @@ function iconFor(id){
 // =====================================================================
 //  Terrain generation
 // =====================================================================
+// deepslate starts mixing in below DS_HIGH and is solid below DS_LOW; caves under LAVA_Y fill with lava
+const DS_HIGH=18,DS_LOW=13,LAVA_Y=7;
 const BIO_PLAINS=0,BIO_FOREST=1,BIO_DESERT=2,BIO_SNOW=3,BIO_BEACH=4,BIO_OCEAN=5;
 class Gen{
   constructor(seed){
@@ -765,6 +819,8 @@ class Gen{
     this.nA=new Noise(seed);this.nB=new Noise(seed^0x9e3779b9);this.nC=new Noise(seed+1013);this.nD=new Noise(Math.imul(seed,7)+3);
     this.nT=new Noise(seed^0x51ed27);this.nW=new Noise(seed^0x2c1b3c6d);
     this.c1=new Noise(seed+77);this.c2=new Noise(seed+78);this.c3=new Noise(seed+79);
+    this.c4=new Noise(seed+80);this.c5=new Noise(seed+81);this.c6=new Noise(seed+82);this.c7=new Noise(seed+83);
+    this.r1=new Noise(seed+91);this.r2=new Noise(seed+92);this.r3=new Noise(seed+93);
     this.h=0;this.b=0;
   }
   // height and biome of one column (results in this.h / this.b)
@@ -791,7 +847,7 @@ class Gen{
       for(let y=0;y<=h;y++){
         let id;
         if(y===0||(y<3&&((hr>>(y+3))&1)))id=BASALT;
-        else if(y<h-3)id=STONE;
+        else if(y<h-3)id=y<DS_LOW||(y<DS_HIGH&&(hash3(X0+x,y,Z0+z^this.seed)&7)<(DS_HIGH-y)*8/(DS_HIGH-DS_LOW))?DEEPSLATE:STONE;
         else if(y<h)id=sea||(sandy?(b===BIO_DESERT&&y<h-1?SANDSTONE:SAND):DIRT);
         else{
           id=sea||(sandy?SAND:b===BIO_SNOW?SNOWY:GRASS);
@@ -801,43 +857,92 @@ class Gen{
       }
       for(let y=h+1;y<=SEA;y++)d[I(x,y,z)]=WATER;
     }
-    // Caves: three noise fields sampled on a 4-block lattice and blended
-    const LX=5,LY=WH/4+1,L=new Float32Array(LX*LX*LY*3);
+    // ---- Caves, the way the newer versions of the real game make them ----
+    //  cheese caves: huge open caverns with pillars, deep down
+    //  spaghetti caves: long winding tunnels, some wide, some narrow, that can break out at the surface
+    //  noodle caves: thin twisty passages that link everything up
+    //  ravines: deep narrow cracks, sometimes open to the sky
+    //  anything carved at the very bottom fills with lava (lava lakes)
+    // The 3D noise is sampled on a 4-block grid and blended, which keeps this quick.
+    const NF=7,LX=5,LY=WH/4+1,L=new Float32Array(LX*LX*LY*NF);
     for(let ly=0;ly<LY;ly++)for(let lz=0;lz<LX;lz++)for(let lx=0;lx<LX;lx++){
-      const wx=X0+lx*4,wy=ly*4,wz=Z0+lz*4,o=((ly*LX+lz)*LX+lx)*3;
-      L[o]=this.c1.n3(wx/42,wy/24,wz/42);L[o+1]=this.c2.n3(wx/42,wy/24,wz/42);L[o+2]=this.c3.n3(wx/64,wy/30,wz/64);
+      const wx=X0+lx*4,wy=ly*4,wz=Z0+lz*4,o=((ly*LX+lz)*LX+lx)*NF;
+      L[o]=this.c1.n3(wx/46,wy/26,wz/46);L[o+1]=this.c2.n3(wx/46,wy/26,wz/46);
+      L[o+2]=this.c3.n3(wx/84,wy/30,wz/84);L[o+3]=this.c4.n3(wx/26,wy/15,wz/26);
+      L[o+4]=this.c5.n3(wx/22,wy/14,wz/22);L[o+5]=this.c6.n3(wx/22,wy/14,wz/22);
+      L[o+6]=this.c7.n3(wx/100,wy/50,wz/100);
     }
-    const s=[0,0,0];
+    const s=new Float32Array(NF);
     const samp=(x,y,z)=>{
       const fx=x/4,fy=y/4,fz=z/4,ix=Math.min(3,fx|0),iy=Math.min(LY-2,fy|0),iz=Math.min(3,fz|0),tx=fx-ix,ty=fy-iy,tz=fz-iz;
-      for(let k=0;k<3;k++){
-        const v=(a,b2,c)=>L[(((iy+b2)*LX+(iz+c))*LX+(ix+a))*3+k];
-        s[k]=lerp(lerp(lerp(v(0,0,0),v(1,0,0),tx),lerp(v(0,0,1),v(1,0,1),tx),tz),lerp(lerp(v(0,1,0),v(1,1,0),tx),lerp(v(0,1,1),v(1,1,1),tx),tz),ty);
+      const b000=((iy*LX+iz)*LX+ix)*NF,dX=NF,dZ=LX*NF,dY=LX*LX*NF;
+      for(let k=0;k<NF;k++){
+        const o=b000+k;
+        const a=L[o]+(L[o+dX]-L[o])*tx,b2=L[o+dZ]+(L[o+dZ+dX]-L[o+dZ])*tx;
+        const c=L[o+dY]+(L[o+dY+dX]-L[o+dY])*tx,e=L[o+dY+dZ]+(L[o+dY+dZ+dX]-L[o+dY+dZ])*tx;
+        const lo=a+(b2-a)*tz,hi=c+(e-c)*tz;s[k]=lo+(hi-lo)*ty;
       }
     };
     for(let z=0;z<CS;z++)for(let x=0;x<CS;x++){
-      const h=H[z*CS+x],wet=h<=SEA+2;
+      const h=H[z*CS+x],wet=h<=SEA+2,wx=X0+x,wz=Z0+z;
+      // ravine: a meandering line where this 2D noise crosses zero, only in some parts of the world
+      const rm=this.r2.n2(wx/300,wz/300),rw=rm>.2?Math.min(1,(rm-.2)/.15)*.065:0;
+      let rv=1,rb=0,rt=0;
+      if(rw>0){
+        rv=Math.abs(this.r1.n2(wx/150,wz/150)+this.r3.n2(wx/30,wz/30)*.04);
+        rb=10+Math.round(this.r3.n2(wx/50+9,wz/50)*5);
+        rt=wet||h<SEA+8?Math.min(h-8,SEA-6):h+1;   // only open to the sky well away from water
+      }
       for(let y=3;y<=h;y++){
         if(wet&&y>h-6)break;
-        samp(x,y,z);
-        const tunnel=s[0]*s[0]+s[1]*s[1]<.0042+(y<24?.002:0);
-        const cavern=y<34&&y<h-10&&s[2]>.36-(34-y)*.004;
-        if(tunnel||cavern){const i=I(x,y,z);if(d[i]!==BASALT&&d[i]!==WATER)d[i]=y<=7?LAVA:AIR}
+        const i=I(x,y,z);
+        if(d[i]===BASALT||d[i]===WATER)continue;
+        let cut=false;
+        if(rw>0&&y>=rb&&y<=rt){const f=(y-rb)/Math.max(1,rt-rb);if(rv<rw*Math.sin(Math.PI*(.12+.8*f)))cut=true}
+        if(!cut){
+          samp(x,y,z);
+          const depth=h-y;
+          // spaghetti: width changes slowly along the tunnel
+          const sw=.003+.01*clamp(s[6]+.3,0,.7);
+          if(s[0]*s[0]+s[1]*s[1]<sw*(y<20?1.25:1))cut=true;
+          // cheese: big caverns, deeper is more open; they stay well under the surface
+          else if(y<SEA+6&&depth>10){
+            const v=s[2]+s[3]*.32,edge=Math.min(1,(depth-10)/8);
+            if(v>.44-clamp((SEA-y)*.006,-.04,.14)+(1-edge)*.2)cut=true;
+          }
+          // noodles: thin passages between everything else
+          if(!cut&&depth>4&&s[4]*s[4]+s[5]*s[5]<.0016)cut=true;
+        }
+        if(cut)d[i]=y<=LAVA_Y?LAVA:AIR;
       }
     }
     const R=mulberry32(hash3(cx,cz,this.seed^0xabcdef));
-    // ore and gravel blobs
-    const blob=(id,tries,size,ymax,within)=>{
+    // ore blobs. Where a blob lands in deepslate it uses the deepslate kind of that ore.
+    // lo/hi is the height range; peak 'mid' makes the middle most common, 'low' favours the bottom
+    const blob=(id,dsid,tries,size,lo,hi,peak)=>{
       for(let t=0;t<tries;t++){
-        let x=Math.floor(R()*CS),z=Math.floor(R()*CS),y=1+Math.floor(R()*ymax);
+        const r=peak==='mid'?(R()+R())/2:peak==='low'?Math.min(R(),R()):R();
+        let x=Math.floor(R()*CS),z=Math.floor(R()*CS),y=lo+Math.floor(r*(hi-lo+1));
         for(let k=0;k<size;k++){
-          if(x>=0&&x<CS&&z>=0&&z<CS&&y>0&&y<WH){const i=I(x,y,z);if(d[i]===within)d[i]=id}
+          if(x>=0&&x<CS&&z>=0&&z<CS&&y>0&&y<WH){const i=I(x,y,z);if(d[i]===STONE)d[i]=id;else if(d[i]===DEEPSLATE&&dsid)d[i]=dsid}
           const m=Math.floor(R()*6);if(m===0)x++;else if(m===1)x--;else if(m===2)y++;else if(m===3)y--;else if(m===4)z++;else z--;
         }
       }
     };
-    blob(GRAVEL,4,14,60,STONE);blob(DIRT,4,14,60,STONE);
-    blob(COAL_ORE,16,7,70,STONE);blob(IRON_ORE,9,5,50,STONE);blob(GOLD_ORE,3,4,28,STONE);blob(AZ_ORE,2,3,16,STONE);blob(RORE,5,6,16,STONE);
+    blob(GRAVEL,0,4,14,4,70);blob(DIRT,0,4,14,20,70);
+    blob(COAL_ORE,DS_COAL,14,9,14,90,'mid');blob(COAL_ORE,DS_COAL,6,7,20,50);
+    blob(COPPER_ORE,DS_COPPER,7,9,12,54,'mid');
+    blob(IRON_ORE,DS_IRON,8,6,6,44,'mid');blob(IRON_ORE,DS_IRON,4,4,40,90);
+    blob(LAPIS_ORE,DS_LAPIS,2,6,2,34,'mid');blob(LAPIS_ORE,DS_LAPIS,1,5,2,30);
+    blob(GOLD_ORE,DS_GOLD,3,6,2,30,'mid');
+    blob(RORE,DS_RORE,5,7,2,20,'low');
+    blob(AZ_ORE,DS_DIAMOND,2,5,2,20,"low");
+    // emeralds: single blocks, only inside mountains
+    for(let t=0;t<10;t++){
+      const x=Math.floor(R()*CS),z=Math.floor(R()*CS),h=H[z*CS+x];
+      if(h<SEA+26){R();continue}
+      const y=24+Math.floor(R()*(h-30)),i=I(x,y,z);if(d[i]===STONE)d[i]=EMERALD_ORE;else if(d[i]===DEEPSLATE)d[i]=DS_EMERALD;
+    }
     // trees
     for(let t=0;t<10;t++){
       const x=2+Math.floor(R()*12),z=2+Math.floor(R()*12),r=R(),b=BI[z*CS+x];
@@ -1893,7 +1998,7 @@ const CREATIVE_HOT=[GRASS,DIRT,STONE,COBBLE,PLANKS,LOG,GLASS,BENCH,TORCH];
 //  Crafting: shaped recipes in a 2×2 or 3×3 grid, matched like the real game
 //  (any position in the grid, mirrored left-right allowed)
 // =====================================================================
-const LOGS=[LOG,BIRCH],FUELC=[COAL,CHARCOAL];
+const LOGS=[LOG,BIRCH],FUELC=[COAL,CHARCOAL],STONES=[COBBLE,COBBLED_DS];
 const RECIPES=[];
 function shaped(o,n,p,k,cat){const w=Math.max(...p.map(r=>r.length));RECIPES.push({o,n,p:p.map(r=>r.padEnd(w,' ')),k,w,h:p.length,cat})}
 function shapeless(o,n,s,cat){RECIPES.push({o,n,s,w:s.length>1?2:1,h:s.length>2?2:1,cat})}
@@ -1902,7 +2007,7 @@ shaped(STICK,4,['P','P'],{P:PLANKS},'Items');
 shaped(BENCH,1,['PP','PP'],{P:PLANKS},'Blocks');
 shaped(TORCH,4,['C','S'],{C:FUELC,S:STICK},'Blocks');
 shaped(CHEST,1,['PPP','P P','PPP'],{P:PLANKS},'Blocks');
-shaped(KILN,1,['CCC','C C','CCC'],{C:COBBLE},'Blocks');
+shaped(KILN,1,['CCC','C C','CCC'],{C:STONES},'Blocks');
 shaped(SANDSTONE,1,['SS','SS'],{S:SAND},'Blocks');
 shaped(DOOR,3,['PP','PP','PP'],{P:PLANKS},'Blocks');
 shaped(IDOOR,3,['II','II','II'],{I:IRON},'Redstone');
@@ -1917,7 +2022,11 @@ shaped(REPEATER,1,['TRT','SSS'],{T:RTORCH,R:DUST,S:STONE},'Redstone');
 shaped(RLAMP,1,[' R ','RGR',' R '],{R:DUST,G:GLASS},'Redstone');
 shaped(RBLOCK,1,['RRR','RRR','RRR'],{R:DUST},'Redstone');
 shapeless(DUST,9,[RBLOCK],'Redstone');
-[PLANKS,COBBLE,IRON,GOLD,GEM].forEach((M,m)=>{
+// blocks of each mineral, and back again
+[[COAL_BLOCK,COAL],[IRON_BLOCK,IRON],[GOLD_BLOCK,GOLD],[DIAMOND_BLOCK,GEM],[LAPIS_BLOCK,LAPIS],[EMERALD_BLOCK,EMERALD],[COPPER_BLOCK,COPPER]].forEach(([b,m])=>{
+  shaped(b,1,['MMM','MMM','MMM'],{M:m},'Blocks');shapeless(m,9,[b],'Items');
+});
+[PLANKS,STONES,IRON,GOLD,GEM].forEach((M,m)=>{
   shaped(toolId(0,m),1,['MMM',' S ',' S '],{M,S:STICK},'Tools');
   shaped(toolId(1,m),1,['MM','MS',' S'],{M,S:STICK},'Tools');
   shaped(toolId(2,m),1,['M','S','S'],{M,S:STICK},'Tools');
@@ -1966,8 +2075,9 @@ const canMake=r=>needs(r).every(e=>specCount(e.spec)>=e.n);
 //  Furnaces work out their progress from timestamps, so every player sees
 //  the same thing without anyone having to run them.
 // =====================================================================
-const SMELT={[RORE]:DUST,[IRON_ORE]:IRON,[GOLD_ORE]:GOLD,[SAND]:GLASS,[COBBLE]:STONE,[LOG]:CHARCOAL,[BIRCH]:CHARCOAL,[PORK]:PORK_C,[BEEF]:STEAK,[CHICK]:CHICK_C,[AZ_ORE]:GEM,[COAL_ORE]:COAL};
-const FUEL={[COAL]:80,[CHARCOAL]:80,[LOG]:15,[BIRCH]:15,[PLANKS]:15,[STICK]:5,[BENCH]:15,[CHEST]:15,[SHELF]:15};
+const SMELT={[RAW_IRON]:IRON,[RAW_GOLD]:GOLD,[RAW_COPPER]:COPPER,[COPPER_ORE]:COPPER,[LAPIS_ORE]:LAPIS,[EMERALD_ORE]:EMERALD,[COBBLED_DS]:DEEPSLATE,
+  [DS_COAL]:COAL,[DS_IRON]:IRON,[DS_COPPER]:COPPER,[DS_GOLD]:GOLD,[DS_RORE]:DUST,[DS_LAPIS]:LAPIS,[DS_DIAMOND]:GEM,[DS_EMERALD]:EMERALD,[RORE]:DUST,[IRON_ORE]:IRON,[GOLD_ORE]:GOLD,[SAND]:GLASS,[COBBLE]:STONE,[LOG]:CHARCOAL,[BIRCH]:CHARCOAL,[PORK]:PORK_C,[BEEF]:STEAK,[CHICK]:CHICK_C,[AZ_ORE]:GEM,[COAL_ORE]:COAL};
+const FUEL={[COAL_BLOCK]:800,[COAL]:80,[CHARCOAL]:80,[LOG]:15,[BIRCH]:15,[PLANKS]:15,[STICK]:5,[BENCH]:15,[CHEST]:15,[SHELF]:15};
 for(let t=0;t<5;t++)FUEL[toolId(t,0)]=10;
 FUEL[OAK_SAP]=FUEL[PINE_SAP]=5;FUEL[DOOR]=10;
 const COOK=10;
@@ -2371,7 +2481,11 @@ function blockDrops(id,x,y,z){
     else dropBlockItem(WHEAT0,x,y,z);return;
   }
   if(id===TALLGRASS){if(Math.random()<.125)dropBlockItem(WHEAT0,x,y,z);return}
-  if(id===RORE){for(let i=0,n=4+Math.floor(Math.random()*2);i<n;i++)dropBlockItem(DUST,x,y,z);return}
+  // ores that drop a handful, like the real game
+  const many=(it,lo,hi)=>{for(let i=0,n=lo+Math.floor(Math.random()*(hi-lo+1));i<n;i++)dropBlockItem(it,x,y,z)};
+  if(id===RORE||id===DS_RORE){many(DUST,4,5);return}
+  if(id===COPPER_ORE||id===DS_COPPER){many(RAW_COPPER,2,5);return}
+  if(id===LAPIS_ORE||id===DS_LAPIS){many(LAPIS,4,9);return}
   const drop=B[id].drop;if(drop)dropBlockItem(drop,x,y,z);
 }
 // the block a thing is attached to, as an offset, or null for free-standing blocks
@@ -3427,7 +3541,7 @@ function calc(s){
   try{const v=add();if(i!==t.length||!isFinite(v))return null;return Math.round(v*1e6)/1e6}catch(e){return null}
 }
 function recipeText(r){
-  const nm=id=>Array.isArray(id)?'logs':IT[id]?IT[id].n.toLowerCase():'?';
+  const nm=id=>Array.isArray(id)?(id===LOGS?'logs':nm(id[0])):IT[id]?IT[id].n.toLowerCase():'?';
   if(r.s)return 'put '+r.s.map(nm).join(' and ')+' anywhere in the grid';
   return 'lay it out like this: '+r.p.map(row=>[...row].map(c=>c===' '?'empty':nm(r.k[c])).join(', ')).join(' / ');
 }
@@ -3440,8 +3554,10 @@ function findRecipe(q){
 }
 const JOKES=['Why did the zombie stay home from school? He was feeling rotten.','What do you call a sheep with no legs? A cloud.','Why are skeletons so calm? Nothing gets under their skin.','I tried to catch some fog yesterday. I mist.','Why did the pickaxe go to therapy? It had too many issues to dig through.'];
 const SOUNDS={cow:'Moooo!',pig:'Oink oink!',sheep:'Baaa!',chicken:'Bawk bawk!',hen:'Bawk bawk!',zombie:'Uhhhhh. Please don\'t make me do that one again.',cat:'Meow? We don\'t have cats here, yaar.',dog:'Woof! We don\'t have dogs here either.'};
-const ORES=[['diamond',[AZ_ORE],'Diamonds','Bring an iron pickaxe or better, okay?'],['iron',[IRON_ORE],'Iron','A stone pickaxe is enough.'],['gold',[GOLD_ORE],'Gold','You need iron tools for that.'],
-  ['coal',[COAL_ORE],'Coal','Any pickaxe will do.'],['redstone',[RORE],'Redstone','Iron pickaxe, please.'],['lava',[LAVA],'Lava','Be careful, na?'],['water',[WATER],'Water','']];
+const ORES=[['diamond',[AZ_ORE,DS_DIAMOND],'Diamonds','Bring an iron pickaxe or better, okay?'],['emerald',[EMERALD_ORE,DS_EMERALD],'Emeralds','Only up in the mountains, and you need an iron pickaxe.'],
+  ['lapis',[LAPIS_ORE,DS_LAPIS],'Lapis lazuli','A stone pickaxe is enough.'],['copper',[COPPER_ORE,DS_COPPER],'Copper','A stone pickaxe is enough.'],
+  ['iron',[IRON_ORE,DS_IRON],'Iron','A stone pickaxe is enough.'],['gold',[GOLD_ORE,DS_GOLD],'Gold','You need iron tools for that.'],
+  ['coal',[COAL_ORE,DS_COAL],'Coal','Any pickaxe will do.'],['redstone',[RORE,DS_RORE],'Redstone','Iron pickaxe, please.'],['lava',[LAVA],'Lava','Be careful, na?'],['water',[WATER],'Water','']];
 function ajAnswer(raw){
   const q=raw.toLowerCase().replace(/[!.,]/g,' ').replace(/\s+/g,' ').trim().replace(/^(hey|hi|ok|okay|yo)?\s*arjunity\s*/,'');
   const ph=ajPhase(),n=ajName();
@@ -3456,6 +3572,8 @@ function ajAnswer(raw){
   if(/\b(namaste|hello|hi|hey|hola|sup)\b/.test(q))return[['Namaste, '+n+'!','Hello hello! What are we doing today?','Hi '+n+'! Kya haal hai?'][Math.floor(Math.random()*3)],'happy'];
   if(/thank/.test(q))return['Arre, no need to thank me. That\'s what I\'m here for.','happy'];
   const m=calc(q);if(m!=null)return[(ph===2&&Math.random()<.4?(m+7):m)+'. Easy, yaar.','think'];
+  // "how do I make a block of emerald" is about the recipe, not where emeralds are
+  if(/\b(make|craft|recipe)\b/.test(q)){const r=findRecipe(q);if(r)return['To make '+(r.n>1?r.n+' ':'a ')+IT[r.o].n.toLowerCase()+', '+recipeText(r)+'.'+((r.w>2||r.h>2)?' That needs a crafting table.':''),'think']}
   for(const [w,ids,name,tip] of ORES)if(q.includes(w)){
     const b=findNearest(ids,40);
     return b?[where(b,name)+(tip?' '+tip:''),'think']:['I can\'t find any '+name.toLowerCase()+' close by. Try exploring a bit, or dig down deeper.','think'];
@@ -3582,7 +3700,7 @@ function ajChatter(ph){
   if(t>11000&&t<12800){ajSay('It\'s getting dark, '+n+'. Better make a shelter or find your bed, okay?','think',0);return}
   if(mode==='survival'&&pl.hp<=8){ajSay('Your health is low, yaar. Eat something and rest a bit.','think',0);return}
   if(mode==='survival'&&pl.food<=6){ajSay('You\'re very hungry. Cook some meat or make bread.','think',0);return}
-  const b=findNearest([AZ_ORE],12);if(b){ajSay('Psst. '+where(b,'There are diamonds near you'),'think',0);return}
+  const b=findNearest([AZ_ORE,DS_DIAMOND],12);if(b){ajSay('Psst. '+where(b,'There are diamonds near you'),'think',0);return}
   ajSay(['Nice place you\'re building!','Did you know two water sources next to a gap make a third one? Infinite water, yaar.','If you\'re lost, ask me where your bed is.','Hit me with a question. Maths, ores, recipes, anything.'][Math.floor(Math.random()*4)],'happy',0);
 }
 // the tall shape stands far off in the dark, and slips away when you look straight at it
