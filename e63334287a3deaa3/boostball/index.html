@@ -257,7 +257,7 @@ body.free #scorebar .sc{display:none}
             <div><dt>SPACE</dt><dd>Jump, again to double jump</dd></div>
             <div><dt>SPACE + DIR</dt><dd>Flip into the ball</dd></div>
             <div><dt>SHIFT · L-CLICK</dt><dd>Boost</dd></div>
-            <div><dt>C · CTRL</dt><dd>Powerslide, air roll with A/D</dd></div>
+            <div><dt>C · X</dt><dd>Drift; in the air, air roll with A/D</dd></div>
             <div><dt>Q · E</dt><dd>Air roll left · right</dd></div>
             <div><dt>Y · M-CLICK</dt><dd>Ball cam on/off</dd></div>
             <div><dt>1 – 4</dt><dd>Quick chat</dd></div>
@@ -364,7 +364,9 @@ const BR=91.25*UU,GRAV=650*UU,BALL_MAX=6000*UU;
 const CAR_HX=.84,CAR_HY=.36,CAR_HZ=1.2,CAR_Y=.62,CAR_R=1.08;
 const MAXD=1410*UU,MAXB=2300*UU,SUPER=2200*UU,BOOST_USE=100/3,KICK_BOOST=100/3;
 const BOOST_GROUND=(2975/3)*UU,BOOST_AIR=(3175/3)*UU,THROTTLE_AIR=(200/3)*UU;
-const DRIVE_ACC=1600*UU,BRAKE_ACC=3500*UU,COAST_ACC=525*UU;
+// Braking and coasting are stronger than Rocket League's (3500 and 525 uu/s²) so the car stops quicker,
+// and speed above the top driving speed bleeds off when you stop boosting.
+const DRIVE_ACC=1600*UU,BRAKE_ACC=5000*UU,COAST_ACC=1300*UU,OVERSPEED_DEC=500*UU;
 // Jumps
 const JUMP_IMM=(875/3)*UU,JUMP_ACC=(4375/3)*UU,JUMP_MIN=.025,JUMP_MAX=.2,DJ_DELAY=1.25,DODGE_DEADZONE=.5;
 // Dodges (flips)
@@ -507,7 +509,7 @@ function makeCar(o){
   return Object.assign({id:'',name:'',team:0,body:0,accent:0,isBot:false,isMe:false,remote:false,
     pos:new V3(0,CAR_Y,0),vel:new V3(),q:new QT(),ang:new V3(),yaw:0,boost:KICK_BOOST,onGround:true,
     jumping:false,hasJumped:false,jumpT:0,airT:0,airSinceJump:0,hasDbl:false,hasFlipped:false,flipping:false,flipT:0,flipF:0,flipS:0,
-    autoFlipT:0,autoFlipS:1,contact:false,gN:new V3(0,1,0),cN:new V3(0,1,0),noLandT:0,prevJump:false,boosting:false,landQ:new QT(),landT:0,
+    autoFlipT:0,autoFlipS:1,contact:false,hb:0,slideAmt:0,gN:new V3(0,1,0),cN:new V3(0,1,0),noLandT:0,prevJump:false,boosting:false,landQ:new QT(),landT:0,
     demo:0,lastHit:0,lastTouchEv:0,inp:newInput(),stats:{g:0,a:0,sv:0,sh:0,dm:0},
     // remote smoothing
     tpos:new V3(0,CAR_Y,0),tvel:new V3(),tq:new QT(),tts:0,seen:0,
@@ -576,22 +578,30 @@ function stepCar(c,dt,frozen){
     const fs=sticky?1:piece(NONSTICKY,ny); // with no throttle, walls barely grip
     let vf=fwdSpeed,lat=c.vel.dot(_rt),a=0;
     if(canBoost)a+=BOOST_GROUND;
+    // the drift (powerslide) eases in and out like Rocket League's handbrake: on in 0.2 s, off over 0.5 s
+    c.hb=clamp(c.hb+(inp.slide?5:-2)*dt,0,1);
     if(sticky){
       if(thr*vf<0&&Math.abs(vf)>25*UU)a+=Math.sign(thr)*BRAKE_ACC;
       else a+=thr*DRIVE_ACC*piece(DRIVE_CURVE,Math.abs(vf)/UU);
     }else{
-      const dec=(Math.abs(vf)<25*UU?BRAKE_ACC:COAST_ACC)*fs*dt;
+      const dec=(Math.abs(vf)<25*UU?BRAKE_ACC:COAST_ACC*(1-.5*c.hb))*fs*dt;
       vf=Math.abs(vf)<=dec?0:vf-Math.sign(vf)*dec;
     }
+    if(!canBoost&&Math.abs(vf)>MAXD){const d=Math.min(Math.abs(vf)-MAXD,OVERSPEED_DEC*fs*dt);vf-=Math.sign(vf)*d}
     // gravity along the surface: what slows you climbing a wall and pulls you back down it
     _v1.set(0,-GRAV,0).addScaledVector(N,GRAV*ny);
     vf+=(a+_v1.dot(_f))*dt;lat+=_v1.dot(_rt)*dt;
     vf=clamp(vf,-MAXD,MAXB);
-    let yr=-inp.steer*vf*curv(Math.abs(vf));
-    if(inp.slide)yr*=1+1.5*clamp(Math.abs(vf)/30,0,1);
-    _qs.setFromAxisAngle(N,yr*dt);c.q.premultiply(_qs).normalize();carAxes(c);
-    lat*=Math.exp(-(inp.slide?1.4:16)*fs*dt);
+    // Steering: in a drift the car turns on its whole sliding speed and much tighter, while the tires let go
+    // sideways, so the back end swings out and the car slides along its old line.
+    const sp=Math.hypot(vf,lat),dv=lerp(vf,Math.sign(vf||1)*sp,c.hb);
+    let yr=-inp.steer*dv*curv(Math.abs(dv));
+    yr*=1+c.hb*(.7*clamp(Math.abs(dv)/28,0,1)-.1);
+    lat*=Math.exp(-lerp(16,4.6,c.hb)*fs*dt);
+    c.slideAmt=clamp((Math.abs(lat)-3)/9,0,1);
+    // velocity stays in the world while the car turns under it: the difference is the slide
     c.vel.copy(_f).multiplyScalar(vf).addScaledVector(_rt,lat);
+    _qs.setFromAxisAngle(N,yr*dt);c.q.premultiply(_qs).normalize();carAxes(c);
     c.ang.copy(N).multiplyScalar(yr);
     // The sticky force (half gravity, plus more on walls while you're driving) against gravity pulling you off:
     // it holds you to walls but not to the ceiling.
@@ -599,6 +609,7 @@ function stepCar(c,dt,frozen){
     if(-GRAV*ny-GRAV*(.5+(full?1-Math.abs(ny):0))>0){c.onGround=false;c.noLandT=.25}
   }
 
+  if(!c.onGround)c.slideAmt=0;
   // ---- first jump: an instant kick plus extra lift while held (min 0.025 s, max 0.2 s) ----
   if(c.onGround&&!c.jumping)resetAir(c);
   if(c.jumping){if(!(c.jumpT<JUMP_MIN||(inp.jump&&c.jumpT<JUMP_MAX)))c.jumping=false}
@@ -1092,6 +1103,58 @@ function shockRing(pos,hex,big){
 function updateRings(dt){
   for(let i=rings.length-1;i>=0;i--){const r=rings[i];r.t+=dt;const s=1+r.k*Math.sqrt(r.t/.6);r.m.scale.setScalar(s);r.m.material.opacity=Math.max(0,.55-r.t*.95);if(r.t>.6){scene.remove(r.m);r.m.geometry.dispose();r.m.material.dispose();rings.splice(i,1)}}
 }
+// ---------- drifting: skid marks and tire smoke ----------
+// Skid marks are dark strips laid behind the rear wheels on whatever surface the car is sliding on; they fade out.
+const SKID_N=1600,SKID_LIFE=7;
+const skPos=new Float32Array(SKID_N*4*3),skA=new Float32Array(SKID_N*4),skBorn=new Float32Array(SKID_N).fill(-99),skBase=new Float32Array(SKID_N);
+const skGeo=new THREE.BufferGeometry();
+skGeo.setAttribute('position',new THREE.BufferAttribute(skPos,3));skGeo.setAttribute('alpha',new THREE.BufferAttribute(skA,1));
+{const idx=new Uint32Array(SKID_N*6);for(let i=0;i<SKID_N;i++){const v=i*4;idx.set([v,v+1,v+2,v,v+2,v+3],i*6)}skGeo.setIndex(new THREE.BufferAttribute(idx,1))}
+const skMesh=new THREE.Mesh(skGeo,new THREE.ShaderMaterial({
+  vertexShader:'attribute float alpha;varying float vA;void main(){vA=alpha;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+  fragmentShader:'varying float vA;void main(){gl_FragColor=vec4(0.03,0.04,0.05,vA);}',
+  transparent:true,depthWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}));
+skMesh.frustumCulled=false;skMesh.renderOrder=2;scene.add(skMesh);
+let skNext=0;
+const _sk0=new V3(),_sk1=new V3(),_skS=new V3(),_skW=new V3();
+function addSkid(a,b,n,w,alpha,time){
+  _skS.subVectors(b,a).cross(n);const l=_skS.length();if(l<1e-4)return;_skS.multiplyScalar(w/2/l);
+  const i=skNext;skNext=(skNext+1)%SKID_N;const o=i*12;
+  _sk0.copy(a).addScaledVector(n,.03);_sk1.copy(b).addScaledVector(n,.03);
+  skPos[o]=_sk0.x-_skS.x;skPos[o+1]=_sk0.y-_skS.y;skPos[o+2]=_sk0.z-_skS.z;
+  skPos[o+3]=_sk0.x+_skS.x;skPos[o+4]=_sk0.y+_skS.y;skPos[o+5]=_sk0.z+_skS.z;
+  skPos[o+6]=_sk1.x+_skS.x;skPos[o+7]=_sk1.y+_skS.y;skPos[o+8]=_sk1.z+_skS.z;
+  skPos[o+9]=_sk1.x-_skS.x;skPos[o+10]=_sk1.y-_skS.y;skPos[o+11]=_sk1.z-_skS.z;
+  skBorn[i]=time;skBase[i]=alpha;skGeo.attributes.position.needsUpdate=true;
+}
+function updateSkids(time){
+  for(let i=0;i<SKID_N;i++){const k=1-(time-skBorn[i])/SKID_LIFE,a=k>0?skBase[i]*Math.min(1,k*2):0;skA[i*4]=skA[i*4+1]=skA[i*4+2]=skA[i*4+3]=a}
+  skGeo.attributes.alpha.needsUpdate=true;
+}
+function clearSkids(){skBorn.fill(-99)}
+const WHEEL_REAR=[[.8,-.62,-.78],[-.8,-.62,-.78]];
+function driftFx(c,dt,time){
+  if(!c.mesh||c.demo>0||c.active===false){c.skid=null;return}
+  const grounded=c.remote?!!c.netGround:c.onGround;
+  carAxes(c);
+  let amt=0;
+  if(grounded){
+    const lat=Math.abs(c.vel.dot(_rt)),sp=c.vel.length();
+    amt=c.remote?clamp((lat-3)/9,0,1):c.slideAmt;
+    if(!c.remote&&c.hb>.4&&sp>8)amt=Math.max(amt,.35);
+  }
+  c.driftVis=amt;
+  if(amt<=.05){c.skid=null;return}
+  if(!c.skid)c.skid=[null,null];
+  for(let w=0;w<2;w++){
+    const lw=WHEEL_REAR[w];
+    _skW.copy(c.pos).addScaledVector(_rt,-lw[0]).addScaledVector(_u,lw[1]).addScaledVector(_f,lw[2]);
+    const last=c.skid[w];
+    if(!last)c.skid[w]=_skW.clone();
+    else if(last.distanceToSquared(_skW)>.09){addSkid(last,_skW,_u,.34,.55*amt+.15,time);last.copy(_skW)}
+    if(Math.random()<amt*.9)emit(_skW.x,_skW.y+.15,_skW.z,c.vel.x*.15+rand(-1,1),rand(.6,1.8),c.vel.z*.15+rand(-1,1),rand(.5,.9),rand(1.1,1.8),pick([0x5a5f6a,0x6d7280,0x4a4e58]),-.6,1.5);
+  }
+}
 function boostTrail(c){
   if(!c.mesh||c.demo>0)return;
   carAxes(c);
@@ -1210,6 +1273,7 @@ function kickoffSpot(c){
   return c.team===0?[x,z]:[-x,-z];
 }
 function setupKickoff(){
+  clearSkids();for(const c of cars)c.skid=null;
   ball.pos.set(0,BR,0);ball.vel.set(0,0,0);ball.ang.set(0,0,0);ballVisOff.set(0,0,0);ballHidden=false;ballBack=0;
   touches=[];lastTouchBt=R?R.ko:0;owner=online?Net.hostUid():'local';goalPending=false;
   for(const p of PADS)p.t=0;
@@ -1560,7 +1624,7 @@ function readInput(inp){
   let thr=(k.KeyW||k.ArrowUp?1:0)-(k.KeyS||k.ArrowDown?1:0);
   let steer=(k.KeyD||k.ArrowRight?1:0)-(k.KeyA||k.ArrowLeft?1:0);
   let pitch=thr,roll=(k.KeyE?1:0)-(k.KeyQ?1:0);
-  let jump=!!(k.Space||mouseR),boost=!!(k.ShiftLeft||k.ShiftRight||mouseL),slide=!!(k.KeyC||k.ControlLeft||k.ControlRight);
+  let jump=!!(k.Space||mouseR),boost=!!(k.ShiftLeft||k.ShiftRight||mouseL),slide=!!(k.KeyC||k.KeyX);
   const pads=navigator.getGamepads?navigator.getGamepads():[];
   for(const gp of pads){
     if(!gp||!gp.connected)continue;
@@ -1766,7 +1830,7 @@ function renderTeams(el,end){
 // =====================================================================
 //  Audio (all synthesised)
 // =====================================================================
-let actx=null,master=null,engG=null,engO=null,engF=null,bstG=null,crowdG=null;
+let actx=null,master=null,engG=null,engO=null,engF=null,bstG=null,crowdG=null,skidG=null;
 function initAudio(){
   if(actx){if(actx.state==='suspended')actx.resume();return}
   try{
@@ -1785,6 +1849,9 @@ function initAudio(){
     const cs=actx.createBufferSource();cs.buffer=nb;cs.loop=true;cs.playbackRate.value=.5;
     const cf=actx.createBiquadFilter();cf.type='bandpass';cf.frequency.value=600;cf.Q.value=.4;
     crowdG=actx.createGain();crowdG.gain.value=0;cs.connect(cf);cf.connect(crowdG);crowdG.connect(master);cs.start();
+    const ks=actx.createBufferSource();ks.buffer=nb;ks.loop=true;ks.playbackRate.value=1.3;
+    const kf=actx.createBiquadFilter();kf.type='bandpass';kf.frequency.value=2300;kf.Q.value=4;
+    skidG=actx.createGain();skidG.gain.value=0;ks.connect(kf);kf.connect(skidG);skidG.connect(master);ks.start();
   }catch(e){actx=null}
 }
 function audioTick(dt){
@@ -1797,6 +1864,7 @@ function audioTick(dt){
   engF.frequency.setTargetAtTime(260+sp*22,t,.1);
   engG.gain.setTargetAtTime(live?.045+sp*.0012:0,t,.12);
   bstG.gain.setTargetAtTime(live&&me.boosting?.11:0,t,.05);
+  skidG.gain.setTargetAtTime(live&&me.driftVis?.09*me.driftVis:0,t,.04);
   crowdG.gain.setTargetAtTime(state==='playing'?.035+(crowdBoost>0?.16*crowdBoost:0):state==='menu'?.015:0,t,.3);
   if(crowdBoost>0)crowdBoost=Math.max(0,crowdBoost-dt*.3);
 }
@@ -2103,7 +2171,7 @@ function startLocal(m){
   document.body.classList.toggle('free',m==='free');
   const tch=touchIn.active;
   setHint(m==='free'?(tch?'Boost is unlimited in free play · <b>CAM</b> switches ball cam':'<b>R</b> resets the ball · <b>Y</b> ball cam · <b>Esc</b> menu · Boost is unlimited in free play')
-    :(tch?'Push the stick up to drive · <b>JUMP</b> twice with the stick tilted to flip · hold <b>BOOST</b>':'<b>W/S</b> drive · <b>Space</b> jump, again with a direction to flip · <b>Shift</b> boost · <b>Y</b> ball cam'),7);
+    :(tch?'Push the stick up to drive · <b>JUMP</b> twice with the stick tilted to flip · hold <b>BOOST</b> · hold <b>DRIFT</b> and steer':'<b>W/S</b> drive · <b>Space</b> jump, again with a direction to flip · <b>Shift</b> boost · hold <b>C</b> and steer to drift · <b>Y</b> ball cam'),7);
 }
 function setupAttract(){
   document.body.classList.remove('free');Net.leave();clearCars(false);mode='attract';state='menu';paused=false;R=null;me=null;
@@ -2304,10 +2372,12 @@ function step(dt){
   for(const c of cars){
     updateCarMesh(c,dt,clock);
     if(c.boosting&&c.demo<=0&&!freeze)boostTrail(c);
+    if(!freeze)driftFx(c,dt,clock);
     if(c.vel.length()>=SUPER&&c.demo<=0&&!freeze&&Math.random()<.6)superTrail(c);
   }
   padsVisual(now,clock);
   if(!freeze){updateParts(dt);updateRings(dt)}
+  updateSkids(clock);
   updateCamera(dt);
   updateHud(dt,now);
   if(state==='playing'&&online){
