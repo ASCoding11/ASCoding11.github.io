@@ -175,6 +175,30 @@ details[open] summary::before{content:'－ '}
 #board h3{font-family:var(--f-d);font-weight:400;margin:0;font-size:26px}
 #lockHint{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:30px;background:rgba(43,26,16,.6);padding:10px 22px;border-radius:14px}
 #touchNote{color:var(--tomato)}
+.rank{margin-top:16px;border:3px solid var(--ink);border-radius:14px;background:#fff;padding:10px 12px 11px;box-shadow:0 4px 0 var(--ink)}
+.rank-top{display:flex;align-items:center;gap:12px}
+.rank-top svg{flex:0 0 auto;width:38px;height:46px}
+.rank-num{font-family:var(--f-d);font-size:34px;line-height:.9;font-variant-numeric:tabular-nums}
+.rank-tier{font-weight:900;font-size:14px;letter-spacing:.02em}
+.rank-meta{margin-left:auto;text-align:right;font-size:12px;font-weight:800;color:var(--ink-2);line-height:1.35}
+.rank-how{margin:8px 0 0;font-size:12.5px;font-weight:700;color:var(--ink-2);line-height:1.4}
+.rank-how b{color:var(--ink)}
+.mult{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap}
+.mult span{font-size:11px;font-weight:900;border:2px solid var(--ink);border-radius:8px;padding:1px 6px;background:var(--cream);font-variant-numeric:tabular-nums}
+.mult span.hi{background:var(--yolk)}
+.rank details{margin-top:8px;padding-top:8px}
+.lb{list-style:none;margin:8px 0 0;padding:0;font-size:14px;font-weight:800;counter-reset:lb}
+.lb li{display:flex;gap:8px;align-items:center;padding:4px 2px;border-top:2px solid rgba(43,26,16,.1);counter-increment:lb}
+.lb li::before{content:counter(lb);min-width:1.6em;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.lb li.me{background:rgba(255,201,60,.4)}
+.lb .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lb .r{font-variant-numeric:tabular-nums}
+.lb .t{font-size:11px;color:var(--ink-2);min-width:10em;text-align:right}
+.rankline{margin:10px 0 0;padding:9px 12px;border:3px solid var(--ink);border-radius:12px;background:#fff;font-weight:800;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline}
+.rankline .big{font-family:var(--f-d);font-weight:400;font-size:22px}
+.rankline .up{color:var(--mint)}.rankline .down{color:var(--tomato)}
+.rankline small{font-size:12.5px;color:var(--ink-2);flex-basis:100%}
+.standings .rt{font-size:11px;font-weight:900;color:var(--ink-2);margin-left:6px}
 @media (max-width:640px){#hpbar{width:120px}#mag{font-size:44px}.tbox{min-width:60px;padding:3px 9px}.tbox span{font-size:22px}}
 
 /* Side rails: two tall ads beside the game on wide screens (1180px+). The game area shrinks to sit
@@ -253,6 +277,19 @@ details[open] summary::before{content:'－ '}
         </div>
         <p id="netMsg" class="msg" role="status"></p>
         <p id="touchNote" class="note" hidden>This game needs a keyboard and mouse.</p>
+        <div class="rank" id="rankBox">
+          <div class="rank-top">
+            <svg viewBox="0 0 38 46" aria-hidden="true"><path id="rankEgg" d="M19 2C9 2 2 19 2 29c0 9 7 15 17 15s17-6 17-15C36 19 29 2 19 2z" fill="#fbf6ea" stroke="#2b1a10" stroke-width="3"/><path id="rankShine" d="M11 14q3-6 7-7" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".8"/></svg>
+            <div><div class="rank-num" id="rankNum">1000</div><div class="rank-tier" id="rankTier">Soft-Boiled</div></div>
+            <div class="rank-meta" id="rankMeta">Ranked rating<br>No matches yet</div>
+          </div>
+          <p class="rank-how">Every match is ranked. The more <b>real players</b> you face, the more your rating moves:</p>
+          <div class="mult" id="multRow" aria-label="Rating multiplier by number of real opponents"></div>
+          <details id="lbBox">
+            <summary>Leaderboard</summary>
+            <ol class="lb" id="lbList"><li style="list-style:none">Loading…</li></ol>
+          </details>
+        </div>
         <details>
           <summary>Controls</summary>
           <dl class="keys">
@@ -317,6 +354,7 @@ details[open] summary::before{content:'－ '}
       <h2 id="endTitle">Champion egg!</h2>
       <p class="sub" id="endSub"></p>
       <table class="standings" id="endTable"></table>
+      <div class="rankline" id="endRank" hidden></div>
       <div class="row" style="margin-top:14px">
         <button class="btn" id="again" type="button">Play again</button>
         <button class="btn alt" id="toMenu" type="button">Menu</button>
@@ -1311,17 +1349,22 @@ function startPractice(){
   buildMap(Math.floor(Math.random()*MAPS.length));
   addBots(5);
   player.id='me';player.name=myName;player.color=myColor;player.loadout=myLoadout;player.active=true;player.kills=0;player.deaths=0;
-  respawn(player);sfx('spawn');
+  respawn(player);sfx('spawn');startRatedMatch();
   matchEnds=Date.now()+MATCH_MS;$('goal').textContent='First to '+target;
   showHud();requestLock();banner(MAPS[mapIdx].name.toUpperCase(),'Practice · first to '+target+' cracks',2.4);
 }
 function showHud(){
   $('menu').hidden=true;$('pause').hidden=true;$('end').hidden=true;$('hud').hidden=false;$('dead').hidden=true;hudDirty=true;
 }
+// Leaving an online match partway through counts as finishing last against the real players there.
+function leaveCheck(){if(state==='playing'&&mode==='online')applyRating(standings(),true)}
 function toMenu(){
+  leaveCheck();
   Net.leave();if(document.pointerLockElement)document.exitPointerLock();
   $('hud').hidden=true;$('pause').hidden=true;$('end').hidden=true;$('menu').hidden=false;
-  setupAttract();showAd('adMenu');
+  setupAttract();showAd('adMenu');renderRank();
+  if(lastRated&&lastRated.leftEarly&&lastRated.delta){setMsg('Left the match early: rating '+(lastRated.delta>=0?'+':'')+lastRated.delta+'.');lastRated=null}
+  if($('lbBox').open)loadLeaderboard();
 }
 function endMatch(){
   if(state!=='playing')return;
@@ -1331,6 +1374,7 @@ function endMatch(){
   const lead=list[0];
   $('endSub').textContent=(myRank===1?'Most cracks in ':lead.name+' won ')+MAPS[mapIdx].name+' with '+lead.k+'.';
   fillTable($('endTable'),list);
+  showEndRank(applyRating(list,false));
   $('hud').hidden=true;$('pause').hidden=true;$('end').hidden=false;
   $('again').disabled=false;$('again').textContent=online?'Next match now':'Play again';
   endTimer=online?12:0;$('endMsg').textContent='';
@@ -1340,15 +1384,125 @@ function ordinal(n){const s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]
 function standings(){
   const out=[];
   for(const e of ents){if(!e.active&&e!==player)continue;if(e===player&&!player.active)continue;
-    let k=e.kills,d=e.deaths;if(e.remote){const ok=e.net&&e.net.m===Net.matchId;k=ok?(+e.net.k||0):0;d=ok?(+e.net.dt||0):0}
-    out.push({name:e.name,k,d,color:e.color,me:e===player})}
+    let k=e.kills,d=e.deaths;if(e.remote){const ok=e.net&&e.net.m===Net.matchId;if(!ok)continue;k=+e.net.k||0;d=+e.net.dt||0}
+    const r=e===player?rank.r:e.isBot?BOT_R[diffKey]:clamp(+(e.net&&e.net.r)||RATING_START,100,3000);
+    out.push({name:e.name,k,d,color:e.color,me:e===player,human:!e.isBot,r})}
   out.sort((a,b)=>b.k-a.k||a.d-b.d||(a.me?-1:1));return out;
 }
 function fillTable(tbl,list){
   tbl.textContent='';const hr=tbl.insertRow();for(const h of ['#','Egg','Cracks','Cracked']){const th=document.createElement('th');th.textContent=h;hr.appendChild(th)}
   list.forEach((r,i)=>{const tr=tbl.insertRow();if(r.me)tr.className='me';
-    tr.insertCell().textContent=i+1;const c=tr.insertCell().appendChild(document.createElement('span'));c.className='nm';const dot=document.createElement('span');dot.className='dot';dot.style.background=r.color;c.append(dot,document.createTextNode(r.name+(r.me?' (you)':'')));
+    tr.insertCell().textContent=i+1;const c=tr.insertCell().appendChild(document.createElement('span'));c.className='nm';const dot=document.createElement('span');dot.className='dot';dot.style.background=r.color;c.append(dot,document.createTextNode(r.name+(r.me?' (you)':'')));if(r.human||r.me){const rt=document.createElement('span');rt.className='rt';rt.textContent=Math.round(r.r);c.appendChild(rt)}else{const rt=document.createElement('span');rt.className='rt';rt.textContent='bot';c.appendChild(rt)}
     tr.insertCell().textContent=r.k;tr.insertCell().textContent=r.d});
+}
+
+// =====================================================================
+//  Ranked rating (Elo, weighted by how many real players were in the match)
+// =====================================================================
+// After a match you're compared one-on-one with every opponent by finishing place. The usual Elo
+// change is then multiplied by HUMAN_W(real opponents): ×1 for one real opponent, growing 25% per
+// extra real player (×1.95 for four), capped at ×3. A bots-only match counts at ×0.4.
+const RATING_START=1000,K_BASE=24,K_NEW=36,NEW_GAMES=10,PRACTICE_W=.4;
+const BOT_R={easy:800,normal:1000,hard:1200};
+const TIERS=[[0,'Raw','#fbf6ea'],[850,'Runny','#fde9a8'],[950,'Soft-Boiled','#ffd77a'],[1050,'Hard-Boiled','#ffc93c'],[1150,'Deviled','#ff9a4a'],[1275,'Golden','#f4b81c'],[1400,'Fabergé','#58b4ff']];
+function HUMAN_W(h){return h<=0?PRACTICE_W:Math.min(3,Math.pow(1.25,h-1))}
+function tierOf(r){let t=TIERS[0];for(const x of TIERS)if(r>=x[0])t=x;return t}
+function fmtMult(w){return '×'+(Math.round(w*100)/100)}
+let rank={uid:null,r:RATING_START,g:0,wn:0,pk:RATING_START};
+try{const v=JSON.parse(store.get('rank','null'));if(v&&isFinite(+v.r))rank={uid:v.uid||null,r:clamp(+v.r,100,3000),g:Math.max(0,v.g|0),wn:Math.max(0,v.wn|0),pk:clamp(+v.pk||+v.r,100,3000)}}catch(e){}
+let matchJoinClock=0,ratedThis=false,lastRated=null,lbCache=null;
+function saveRank(){store.set('rank',JSON.stringify(rank));pushRank();renderRank()}
+// Ratings live next to the game rooms (rooms/sc-ratings/players/<uid>), which the existing database rules allow.
+function pushRank(){
+  if(!Net.ready||!Net.db||!rank.g)return;
+  Net.db.ref('rooms/sc-ratings/players/'+Net.uid).set({n:myName,c:myColor,x:0,z:0,h:0,ts:Math.round(Net.now()),r:Math.round(rank.r),g:rank.g,wn:rank.wn,pk:Math.round(rank.pk)}).catch(()=>{});
+}
+// Called once the database is reachable: the account's saved rating wins; a brand-new account keeps this browser's.
+async function syncRank(){
+  try{
+    const s=await withTimeout(Net.db.ref('rooms/sc-ratings/players/'+Net.uid).once('value'),8000,'timeout');const v=s.val();
+    if(v&&isFinite(+v.r)&&(+v.g||0)>0){rank={uid:Net.uid,r:clamp(+v.r,100,3000),g:v.g|0,wn:v.wn|0,pk:clamp(+v.pk||+v.r,100,3000)};store.set('rank',JSON.stringify(rank));renderRank()}
+    else{rank.uid=Net.uid;if(rank.g)saveRank()}
+  }catch(e){}
+}
+// Opponents this match: everyone else in the final standings, with a rating and whether they're a real player.
+function rankedField(list){
+  const me=list.find(x=>x.me);const opp=list.filter(x=>!x.me);
+  return{me,opp,humans:opp.filter(x=>x.human).length};
+}
+function ratingChange(list,leftEarly){
+  const {me,opp,humans}=rankedField(list);if(!me||!opp.length)return null;
+  const myPos=list.indexOf(me);let sum=0;
+  for(const o of opp){
+    const oPos=list.indexOf(o);
+    const S=leftEarly?0:(o.k===me.k&&o.d===me.d)?.5:(myPos<oPos?1:0);
+    const E=1/(1+Math.pow(10,(o.r-rank.r)/400));sum+=S-E;
+  }
+  const K=rank.g<NEW_GAMES?K_NEW:K_BASE,w=HUMAN_W(humans);
+  return{delta:Math.round(K*w*sum/opp.length),humans,w,place:myPos+1,of:list.length};
+}
+function applyRating(list,leftEarly){
+  if(ratedThis)return null;
+  const online_=mode==='online',played=clock-matchJoinClock;
+  const {humans}=rankedField(list);
+  if(online_&&humans<1)return null;                 // alone in a room: nothing to rate
+  if(!leftEarly&&played<60&&!list.some(x=>x.k>=target))return null; // joined at the very end
+  if(leftEarly&&(!online_||played<45))return null;
+  const ch=ratingChange(list,leftEarly);if(!ch)return null;
+  ratedThis=true;
+  const before=Math.round(rank.r);
+  rank.r=clamp(rank.r+ch.delta,100,3000);rank.g++;if(ch.place===1&&!leftEarly)rank.wn++;rank.pk=Math.max(rank.pk,rank.r);
+  saveRank();
+  lastRated=Object.assign(ch,{before,after:Math.round(rank.r),leftEarly:!!leftEarly});
+  return lastRated;
+}
+function startRatedMatch(){matchJoinClock=clock;ratedThis=false}
+function liveRankInfo(){
+  const list=standings();const {humans}=rankedField(list);
+  if(mode==='online'&&humans<1)return 'Unranked until another real player joins';
+  return 'Ranked '+fmtMult(HUMAN_W(humans))+' · '+(humans?humans+' real player'+(humans>1?'s':''):'bots only');
+}
+function renderRank(){
+  const r=Math.round(rank.r),t=tierOf(r);
+  $('rankNum').textContent=r;$('rankTier').textContent=t[1];$('rankEgg').setAttribute('fill',t[2]);
+  $('rankMeta').innerHTML='';
+  const a=document.createElement('span');a.textContent='Ranked rating';
+  const b=document.createElement('span');b.textContent=rank.g?(rank.g+' match'+(rank.g>1?'es':'')+' · '+rank.wn+' won'):'No matches yet';
+  const c=document.createElement('span');c.textContent=rank.g?'Best '+Math.round(rank.pk):'';
+  $('rankMeta').append(a,document.createElement('br'),b,document.createElement('br'),c);
+  const row=$('multRow');if(!row.childElementCount){
+    const add=(lab,w,hi)=>{const s=document.createElement('span');s.textContent=lab+' '+fmtMult(w);if(hi)s.className='hi';row.appendChild(s)};
+    add('Bots only',HUMAN_W(0));for(let h=1;h<=5;h++)add(h+(h===1?' real':''),HUMAN_W(h),h>=4);add('6+',HUMAN_W(6),true);
+  }
+}
+async function loadLeaderboard(){
+  const ol=$('lbList');
+  try{
+    await withTimeout(Net.init(),15000,'timeout');
+    const s=await withTimeout(Net.db.ref('rooms/sc-ratings/players').once('value'),10000,'timeout');
+    const rows=[];s.forEach(c=>{const v=c.val();if(v&&isFinite(+v.r)&&(+v.g||0)>=1)rows.push({uid:c.key,n:cleanName(v.n),r:Math.round(clamp(+v.r,100,3000)),g:v.g|0})});
+    rows.sort((a,b)=>b.r-a.r||b.g-a.g);lbCache=rows;
+    ol.textContent='';
+    const mine=rows.findIndex(x=>x.uid===Net.uid);
+    const show=rows.slice(0,10);
+    if(!show.length){const li=document.createElement('li');li.style.listStyle='none';li.textContent='No ranked players yet. Play a match to be first.';ol.appendChild(li);return}
+    for(const x of show){const li=document.createElement('li');if(x.uid===Net.uid)li.className='me';
+      const n=document.createElement('span');n.className='nm';n.textContent=x.n+(x.uid===Net.uid?' (you)':'');
+      const r=document.createElement('span');r.className='r';r.textContent=x.r;
+      const t=document.createElement('span');t.className='t';t.textContent=tierOf(x.r)[1]+' · '+x.g+(x.g===1?' match':' matches');
+      li.append(n,r,t);ol.appendChild(li)}
+    if(mine>=10){const li=document.createElement('li');li.className='me';li.style.listStyle='none';li.textContent='You: #'+(mine+1)+' of '+rows.length+' · '+rows[mine].r;ol.appendChild(li)}
+  }catch(e){ol.textContent='';const li=document.createElement('li');li.style.listStyle='none';li.textContent='Couldn\'t load the leaderboard right now.';ol.appendChild(li)}
+}
+function showEndRank(ch){
+  const box=$('endRank');box.textContent='';
+  if(!ch){box.hidden=false;const m=document.createElement('span');m.textContent=mode==='online'?'Unranked: no other real players finished this match.':'Unranked: you joined too late in the match to count.';box.appendChild(m);return}
+  box.hidden=false;
+  const big=document.createElement('span');big.className='big';big.textContent=ch.before+' → '+ch.after;
+  const d=document.createElement('span');d.className=ch.delta>=0?'up':'down';d.textContent=(ch.delta>=0?'+':'')+ch.delta;
+  const t=document.createElement('span');t.textContent=tierOf(ch.after)[1];
+  const sm=document.createElement('small');sm.textContent=(ch.humans?ch.humans+' real player'+(ch.humans>1?'s':''):'Bots only')+' · '+fmtMult(ch.w)+' rating weight'+(rank.g<=NEW_GAMES?' · first '+NEW_GAMES+' matches move faster':'');
+  box.append(big,d,t,sm);
 }
 
 // =====================================================================
@@ -1421,7 +1575,7 @@ function updateHud(dt){
   $('lockHint').hidden=!!document.pointerLockElement||paused;
   // scoreboard
   const showBoard=!!keys.Tab;$('board').hidden=!showBoard;
-  if(showBoard){fillTable($('boardTable'),standings());$('boardTitle').textContent=MAPS[mapIdx].name+' · first to '+target}
+  if(showBoard){fillTable($('boardTable'),standings());$('boardTitle').textContent=MAPS[mapIdx].name+' · first to '+target+' · '+liveRankInfo()}
 }
 
 // =====================================================================
@@ -1438,6 +1592,7 @@ document.addEventListener('pointerlockchange',()=>{
 function showPause(){
   paused=true;$('pause').hidden=false;
   $('pauseSub').textContent=online?(Net.isPublic?'Public lobby '+Net.room.replace(/^sc-/,'')+' · the match keeps going':'Room '+Net.room+' · the match keeps going'):'Practice on '+MAPS[mapIdx].name+' ('+diffKey+' bots)';
+  $('pauseSub').textContent+=' · '+liveRankInfo()+(mode==='online'?'. Leaving now counts as last place.':'.');
   $('copyInvite').hidden=!online;$('inviteMsg').textContent='';renderWeapons($('weapons2'));
 }
 function resumeGame(){initAudio();$('pause').hidden=true;paused=false;requestLock()}
@@ -1521,11 +1676,12 @@ const Net={
     await new Promise(res=>{setTimeout(res,3000);this.db.ref('.info/serverTimeOffset').once('value',s=>{this.offset=s.val()||0;res()})});
     this.db.ref('.info/serverTimeOffset').on('value',s=>{this.offset=s.val()||0});
     this.ready=true;
+    syncRank();
   },
   stateOf(){
     const p=player;
     return{n:myName,c:myColor,x:r2(p.pos.x),y:r2(p.pos.y),z:r2(p.pos.z),h:r3(p.yaw),p:r3(p.pitch),hp:Math.max(0,Math.round(p.hp)),d:p.alive?0:1,
-      w:WKEYS.indexOf(p.wkey),sc:p.shotCount,k:p.kills,dt:p.deaths,sp:p.spawnShield>0?1:0,m:this.matchId==null?-1:this.matchId,ts:Math.round(this.now())};
+      w:WKEYS.indexOf(p.wkey),sc:p.shotCount,k:p.kills,dt:p.deaths,r:Math.round(rank.r),sp:p.spawnShield>0?1:0,m:this.matchId==null?-1:this.matchId,ts:Math.round(this.now())};
   },
   async count(room){
     const s=await this.db.ref('rooms/'+room+'/players').once('value');let n=0;const pk=[];
@@ -1585,7 +1741,7 @@ function enterRoom(){
   if(Net.matchId!=null||state==='playing')return;
   matchEnds=Date.now()+MATCH_MS;target=TARGET_ONLINE;$('goal').textContent='First to '+target;
   player.kills=0;player.deaths=0;player.streak=0;
-  state='playing';showHud();respawn(player);sfx('spawn');requestLock();
+  state='playing';showHud();respawn(player);sfx('spawn');requestLock();startRatedMatch();
   banner(MAPS[mapIdx].name.toUpperCase(),(Net.isPublic?'Public lobby':'Room '+Net.room)+' · first to '+target+' cracks',2.6);
 }
 function onRemoteState(uid,v){
@@ -1642,6 +1798,7 @@ function onMatch(v){
     respawn(player,ids.length>1?order[ids.indexOf(Net.uid)%order.length]:null);sfx('spawn');
   }
   for(const e of remotes.values()){e.kills=0;e.deaths=0}
+  if(!(wasIn&&sameMap&&!ratedThis&&clock-matchJoinClock<15))startRatedMatch();
   if(state!=='playing'){state='playing';showHud();if(!paused)requestLock()}
   else{$('end').hidden=true}
   banner(MAPS[mapIdx].name.toUpperCase(),(Net.isPublic?'Public lobby':'Room '+Net.room)+' · first to '+target+' cracks',2.6);
@@ -1820,6 +1977,8 @@ $('gfxSeg').addEventListener('click',e=>{const q=e.target.dataset&&e.target.data
   renderer.shadowMap.enabled=gfx==='high';sun.castShadow=gfx==='high';scene.traverse(o=>{if(o.material){const ms=Array.isArray(o.material)?o.material:[o.material];ms.forEach(m=>m.needsUpdate=true)}});resize()});
 $('name').value=myName;
 $('name').addEventListener('input',()=>{myName=cleanName($('name').value);store.set('name',myName);player.name=myName});
+$('name').addEventListener('change',()=>pushRank());
+$('lbBox').addEventListener('toggle',()=>{if($('lbBox').open)loadLeaderboard()});
 $('sens').value=sens;$('sensOut').textContent=sens.toFixed(2);
 $('sens').addEventListener('input',()=>{sens=+$('sens').value;store.set('sens',sens);$('sensOut').textContent=sens.toFixed(2)});
 $('vol').value=volume;$('volOut').textContent=Math.round(volume*100);
@@ -1840,15 +1999,15 @@ $('copyInvite').addEventListener('click',()=>{
 });
 document.addEventListener('pointerdown',()=>initAudio(),{once:true});
 if(matchMedia('(pointer: coarse)').matches&&!matchMedia('(any-pointer: fine)').matches)$('touchNote').hidden=false;
-addEventListener('pagehide',()=>Net.leave());
+addEventListener('pagehide',()=>{leaveCheck();Net.leave()});
 
 // An invite opens this page with #sc-<code>: fill in the room and point at the join button.
 const inv=/^#sc-([a-z0-9-]{1,17})$/.exec(location.hash);
 if(inv){$('room').value=inv[1];setMsg('You were invited to room sc-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.remove('alt');$('quick').classList.add('alt')}
 
-if(navigator.webdriver)window.__sc={get state(){return state},get mode(){return mode},player,get ents(){return ents},get map(){return mapIdx},findPath,surfAt,footMax,buildMap,MAPS,N,CS,kind,top,walkable,spawns:()=>spawns,canStep,Net,onRemoteState,handleEvent,onMatch,endMatch,standings,DIFF,WEAPONS,fireShot,damage,throwNade,nades,addFeed,respawn,spawnSplat,keys,setPaused:v=>{paused=v},renderer,scene,camera,vmScene,vmCam,advance:s=>{noRender=true;try{for(let t=0;t<s;t+=1/30)step(1/30)}finally{noRender=false}},get matchEnds(){return matchEnds},set matchEnds(v){matchEnds=v},get remotes(){return remotes}};
+if(navigator.webdriver)window.__sc={get state(){return state},get mode(){return mode},player,get ents(){return ents},get map(){return mapIdx},findPath,surfAt,footMax,buildMap,MAPS,N,CS,kind,top,walkable,spawns:()=>spawns,canStep,Net,onRemoteState,handleEvent,onMatch,endMatch,standings,DIFF,WEAPONS,fireShot,damage,throwNade,nades,addFeed,respawn,spawnSplat,keys,setPaused:v=>{paused=v},get rank(){return rank},HUMAN_W,ratingChange,applyRating,get lastRated(){return lastRated},get clock(){return clock},toMenu,loadLeaderboard,renderer,scene,camera,vmScene,vmCam,advance:s=>{noRender=true;try{for(let t=0;t<s;t+=1/30)step(1/30)}finally{noRender=false}},get matchEnds(){return matchEnds},set matchEnds(v){matchEnds=v},get remotes(){return remotes}};
 
-renderSwatches();renderWeapons($('weapons'));renderDiff();renderGfx();
+renderSwatches();renderWeapons($('weapons'));renderDiff();renderGfx();renderRank();
 setupAttract();showAd('adMenu');
 requestAnimationFrame(t=>{last=t;frame(t)});
 })();
