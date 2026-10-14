@@ -5,32 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Trivium – Free Trivia Quiz with Live Multiplayer Contests</title>
 <meta name="description" content="A free trivia game with nearly 1,800 questions in 19 categories, each with a fact to learn. Play a daily ten, quick games, Survival or a 60-second Blitz, or host a live contest where everyone answers on their phone.">
-<link rel="canonical" href="https://ascoding11.github.io/trivium/">
-<meta name="robots" content="index,follow,max-image-preview:large">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#0D0F2B">
-<meta property="og:type" content="website">
-<meta property="og:site_name" content="Arjun's Projects">
-<meta property="og:title" content="Trivium – Free Trivia Quiz with Live Multiplayer Contests">
-<meta property="og:description" content="Nearly 1,800 trivia questions, each with a fact to learn. Play daily, or host a live contest where everyone answers on their phone.">
-<meta property="og:url" content="https://ascoding11.github.io/trivium/">
-<meta property="og:image" content="https://ascoding11.github.io/trivium/preview.jpg">
-<meta name="twitter:card" content="summary_large_image">
-<script type="application/ld+json">
-{
- "@context": "https://schema.org",
- "@type": "VideoGame",
- "name": "Trivium",
- "url": "https://ascoding11.github.io/trivium/",
- "description": "A free trivia quiz game with nearly 1,800 questions in 19 categories, a daily ten, Survival and Blitz modes, and live multiplayer contests hosted from one screen.",
- "genre": ["Trivia", "Quiz", "Educational"],
- "gamePlatform": "Web browser",
- "applicationCategory": "Game",
- "operatingSystem": "Any",
- "isAccessibleForFree": true,
- "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"},
- "author": {"@type": "Person", "name": "Arjun", "url": "https://ascoding11.github.io/"}
-}
-</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
@@ -326,7 +303,7 @@ html.rails .rail.r{right:max(8px,calc(50% - 590px - 176px))}
 <body>
 <div class="wrap">
   <div class="topbar">
-    <a class="back" href="../projects/">‹ Web Development Projects</a>
+    <span></span>
     <div class="top-r">
       <button class="iconbtn" id="muteBtn" type="button" aria-label="Turn sound off" title="Sound"></button>
       <a class="mark" href="./" aria-label="Trivium home">Trivi<b>u</b>m</a>
@@ -494,7 +471,7 @@ html.rails .rail.r{right:max(8px,calc(50% - 590px - 176px))}
     </div>
   </main>
 
-  <footer>© 2026 Arjun · <a href="../privacy.html">Privacy policy</a> · Questions and facts written for Trivium.</footer>
+  <footer>© 2026 Arjun · <a href="/privacy.html">Privacy policy</a> · Questions and facts written for Trivium.</footer>
 </div>
 
 <script>
@@ -851,7 +828,7 @@ function showResults(){
     const st = streakInfo(), grid = res.map(r => r.ok ? "🟩" : "🟥").join("");
     head = "<p class='label'>Daily #" + dayNum(solo.date) + "</p><h2>" + (right >= 9 ? "Brilliant." : right >= 7 ? "Sharp work." : right >= 5 ? "Not bad at all." : "Tomorrow's a new ten.") + "</h2><p class='grid-emoji' aria-label='" + right + " of 10 right'>" + grid + "</p>";
     stats = '<div><b class="big">' + fmt(pts) + '</b><span>points</span></div><div><b>' + right + '/10</b><span>right</span></div><div><b>' + (st.cur || 0) + '</b><span>day streak</span></div><div><b>' + (st.best || 0) + '</b><span>best streak</span></div>';
-    share = "Trivium Daily #" + dayNum(solo.date) + " · " + right + "/10 · " + fmt(pts) + " pts\n" + grid + "\n" + location.origin + location.pathname.replace(/index\.html$/, "");
+    share = "Trivium Daily #" + dayNum(solo.date) + " · " + right + "/10 · " + fmt(pts) + " pts\n" + grid;
   } else if (m === "quick"){
     head = "<p class='label'>Quick play</p><h2>" + right + " of " + res.length + " right</h2>";
     stats = '<div><b class="big">' + fmt(pts) + '</b><span>points</span></div><div><b>' + right + '/' + res.length + '</b><span>right</span></div><div><b>' + Math.max(0, ...streaks(res)) + '</b><span>longest streak</span></div>';
@@ -904,7 +881,8 @@ function say(id, t, kind){ const el = $(id); if (!el) return; el.textContent = t
 function newCode(){ const A = "ABCDEFGHJKMNPQRSTUVWXYZ"; let s = ""; for (let i = 0; i < 5; i++) s += A[Math.floor(Math.random() * A.length)]; return s; }
 function randKey(){ return Math.random().toString(36).slice(2, 10); }
 function myPlayer(){ return players.find(p => p.id === uid); }
-function joinURL(){ return location.origin + location.pathname.replace(/index\.html$/, ""); }
+/* Invites go through the home page (#tv-code), the same way as the other Back Room games. */
+function inviteURL(){ return location.origin + "/#tv-" + code.toLowerCase(); }
 async function whenSignedIn(){
   if (uid) return uid;
   if (!fbOK) throw new Error("no firebase");
@@ -1119,10 +1097,10 @@ function renderStage(){
   const st = $("stage");
   if (ph === "lobby"){
     if (isHost){
-      st.innerHTML = '<section class="panel pop"><div class="lobby"><div><p class="label">Join at</p><div class="joinurl"><b>' + esc(joinURL().replace(/^https?:\/\//, "")) + '</b></div><p class="label" style="margin-top:16px">with the code</p><div class="bigcode">' + esc(code) + '</div><div class="row-actions" style="margin:14px 0 0"><button class="btn" id="copyInvite" type="button">Copy invite link</button></div></div><div class="qr" id="qrBox" aria-label="QR code to join"></div></div>' +
+      st.innerHTML = '<section class="panel pop"><div class="lobby"><div><p class="label">Open Trivium and join with the code</p><div class="bigcode">' + esc(code) + '</div><div class="row-actions" style="margin:14px 0 0"><button class="btn" id="copyInvite" type="button">Copy invite link</button></div></div><div class="qr" id="qrBox" aria-label="QR code to join"></div></div>' +
         '<p class="state-big" style="margin-top:18px">' + (players.length ? players.length + " player" + (players.length === 1 ? "" : "s") + " in" : "Waiting for players…") + '</p><div class="dots">' + players.map(p => '<span>' + esc(p.name) + '</span>').join("") + '</div></section>';
-      $("copyInvite").onclick = async () => { try { await navigator.clipboard.writeText(joinURL() + "?code=" + code); say("hostCtlMsg", "Invite link copied.", "ok"); } catch(e){ say("hostCtlMsg", joinURL() + "?code=" + code); } };
-      drawQR($("qrBox"), joinURL() + "?code=" + code);
+      $("copyInvite").onclick = async () => { try { await navigator.clipboard.writeText(inviteURL()); say("hostCtlMsg", "Invite link copied.", "ok"); } catch(e){ say("hostCtlMsg", inviteURL()); } };
+      drawQR($("qrBox"), inviteURL());
     } else {
       st.innerHTML = '<section class="panel pop"><div class="state-big">You\'re in, ' + esc((me || {}).name || "") + '.</div><p class="muted" style="margin:6px 0 0">Waiting for the host to start. ' + players.length + ' player' + (players.length === 1 ? "" : "s") + ' here.</p><div class="dots">' + players.map(p => '<span>' + esc(p.name) + '</span>').join("") + '</div></section>';
     }
@@ -1209,13 +1187,14 @@ document.addEventListener("keydown", e => {
 
 /* ---- start up ---- */
 const params = new URLSearchParams(location.search);
-if (params.get("code")) $("joinCode").value = params.get("code").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 5);
+const invited = (/^#tv-([a-z]{5})$/i.exec(location.hash) || [])[1] || params.get("code");
+if (invited) $("joinCode").value = invited.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 5);
 if (store.get("trivium.name")) $("joinName").value = $("hostName").value = store.get("trivium.name");
 show("landing");
 const mode = params.get("mode");
 if (mode === "daily") startSolo("daily");
 else if (mode === "survival" || mode === "blitz") startSolo(mode);
-else if (params.get("code") || location.hash === "#mp") setTimeout(() => { $("mp").scrollIntoView({block: "start"}); (params.get("code") ? $("joinName") : $("joinCode")).focus({preventScroll: true}); }, 60);
+else if (invited || location.hash === "#mp") setTimeout(() => { $("mp").scrollIntoView({block: "start"}); (invited ? $("joinName") : $("joinCode")).focus({preventScroll: true}); }, 60);
 $("mpJump").onclick = e => { e.preventDefault(); $("mp").scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start"}); $("joinCode").focus({preventScroll: true}); };
 
 if (fbOK){
