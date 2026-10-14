@@ -273,7 +273,6 @@ hr.sep{border:0;border-top:1px solid var(--line);margin:16px 0 4px}
         <div><label class="f">Laps</label><div class="seg" id="lapsSeg" role="radiogroup" aria-label="Laps"><button type="button" data-v="3">3</button><button type="button" data-v="5">5</button><button type="button" data-v="10">10</button></div></div>
         <div><label class="f">Bots</label><div class="seg" id="diffSeg" role="radiogroup" aria-label="Bot skill"><button type="button" data-v="easy">Easy</button><button type="button" data-v="normal">Normal</button><button type="button" data-v="hard">Hard</button></div></div>
       </div>
-      <label class="check"><input type="checkbox" id="assist"> Braking assist (brakes for you if you're too fast for a corner)</label>
       <div class="row"><button class="ghost" id="practice" type="button">Practice vs bots</button></div>
       <dl class="keys">
         <dt>W / ↑</dt><dd>Throttle</dd><dt>S / ↓</dt><dd>Brake (hold when stopped to reverse)</dd>
@@ -610,7 +609,7 @@ let mode='attract';    // attract | practice | online
 let state='menu';      // menu | lobby | race | results
 let race=null,paused=false,localClock=0;
 let myName=store.get('name','');
-const prefs={track:Math.max(0,TRACKS.findIndex(t=>t.id===store.get('trackId',TRACKS[DEFAULT_TRACK].id))),laps:store.get('laps',5),diff:store.get('diff','normal'),assist:store.get('assist',true)};
+const prefs={track:Math.max(0,TRACKS.findIndex(t=>t.id===store.get('trackId',TRACKS[DEFAULT_TRACK].id))),laps:store.get('laps',5),diff:store.get('diff','normal')};
 const DIFF={easy:.86,normal:.935,hard:.985};
 function nowMs(){return mode==='online'?Net.now():localClock}
 function raceT(){return race?(nowMs()-race.go)/1000:0}
@@ -724,6 +723,34 @@ function collide(a,b){
       hit=Math.max(hit,-rel);
     }
   }
+  return hit;
+}
+// Contact between a car this computer drives (l) and one it only sees (r). Each computer sees the other car
+// a fraction of a second late, so contact must never depend on agreeing who is exactly where:
+//  - each computer only moves its own car, and only by half the overlap (the other computer does the other half);
+//  - sideways, both agree on the direction (by lane, or by seat number when level), so they ease apart;
+//  - nose to tail, only the FASTER car is slowed, toward the other's speed - never both, so two cars
+//    can't drag each other to a stop - and nobody is shoved along the track;
+//  - if two cars still overlap after half a second, they pass through each other for a moment.
+const CAR_LEN=4.7,CAR_WID=1.9;
+function contactRemote(l,r,dt){
+  if((r.ghostT||0)>0||!r.snap){r.olap=0;return 0}
+  const T=track,L=T.L;
+  let dP=((r.P-l.P)%L+L)%L;if(dP>L/2)dP-=L;
+  const dl=r.lat-l.lat;
+  if(Math.abs(dP)>=CAR_LEN||Math.abs(dl)>=CAR_WID){r.olap=Math.max(0,(r.olap||0)-dt*2);return 0}
+  r.olap=(r.olap||0)+dt;
+  if(r.olap>.5){r.ghostT=1.5;r.olap=0;return 0}
+  const oLat=CAR_WID-Math.abs(dl),oLong=CAR_LEN-Math.abs(dP),i=Math.max(0,l.idx);
+  let hit=0;
+  // sideways: away from the other car (lowest seat goes left when dead level)
+  const away=Math.abs(dl)>.15?(dl>0?-1:1):(l.seat<r.seat?-1:1);
+  const side=oLat*2.2<oLong?1:.35;
+  const mv=Math.min(oLat*.5,3.5*dt)*side*away;
+  l.x+=T.NX[i]*mv;l.z+=T.NZ[i]*mv;l.lat+=mv;
+  if(side===1){l.v*=1-.25*dt;hit=oLat*3}
+  // nose to tail: the faster car scrubs toward the slower one's speed
+  else if(l.v>r.v){const d=l.v-r.v;l.v-=d*Math.min(1,6*dt);hit=d}
   return hit;
 }
 function slipstream(c){
@@ -844,7 +871,7 @@ function stepRace(dt){
   for(let i=0;i<cars.length;i++)for(let j=i+1;j<cars.length;j++){
     const a=cars[i],b=cars[j];
     if(a.ctrl==='remote'&&b.ctrl==='remote')continue;
-    const h=collide(a,b);
+    const h=a.ctrl==='remote'?contactRemote(b,a,dt):b.ctrl==='remote'?contactRemote(a,b,dt):collide(a,b);
     if(h>3.5&&(a.ctrl==='me'||b.ctrl==='me'))bump(h);
   }
   for(const c of cars){
@@ -1339,14 +1366,14 @@ const Net={
     r.players.on('child_removed',s=>{if(s.key!==this.uid)onPlayerGone(s.key)});
     r.round.on('value',s=>onRound(s.val()));
     clearInterval(this.pubTimer);
-    this.pubTimer=setInterval(()=>this.publish(),100);
+    this.pubTimer=setInterval(()=>this.publish(),50);
     try{if(!isPublic)history.replaceState(null,'','#'+room)}catch(e){}
   },
   publish(force){
     if(!this.refs)return;
     const racing=race&&race.online&&!race.attract&&!race.ended;
     if(racing&&document.hidden)return; // a hidden tab stops sending, so someone else takes over its cars
-    if(!force&&!racing&&++this.pubT%5)return;
+    if(!force&&!racing&&++this.pubT%10)return;
     this.refs.me.set(this.stateOf()).catch(()=>{});
   },
   tick(){
@@ -1361,7 +1388,7 @@ const Net={
     if(this.amHost&&!was)this.hostSince=performance.now();
     if(was&&!this.amHost&&race&&race.online&&!race.attract){
       // someone who was here first is back: hand the bots over
-      for(const c of race.cars)if(c.ctrl==='bot'){c.ctrl='remote';c.owner=best;c.snap={t:this.now(),x:c.x,z:c.z,h:c.h,v:c.v,P:c.P,st:c.steer}}
+      for(const c of race.cars)if(c.ctrl==='bot'){c.ctrl='remote';c.owner=best;const i=Math.max(0,c.idx);c.snap={t:this.now(),x:c.x,z:c.z,h:c.h,v:c.v,P:c.P,st:c.steer,l:c.lat,hr:clamp(angDiff(c.h,Math.atan2(track.TZ[i],track.TX[i])),-1.2,1.2)};c.snapIdx=i;c.rP=null}
     }
   },
   tx(fn){
@@ -1419,19 +1446,35 @@ function applySnap(c,s){
   if(s.f&&!c.fin)c.fin=s.f;
   if(s.bl)c.best=s.bl;
   c.boost=!!(s.b&1);c.brk=s.b&2?1:0;
-  if(first){c.x=s.x;c.z=s.z;c.h=s.h;c.P=s.P;c.idx=nearest(c.x,c.z,c.idx)}
+  // lane and heading relative to the track, so the car can be carried round corners between updates
+  const T=track,i=nearest(s.x,s.z,c.snapIdx!=null?c.snapIdx:c.idx);c.snapIdx=i;
+  s.l=(s.x-T.X[i])*T.NX[i]+(s.z-T.Z[i])*T.NZ[i];
+  s.hr=clamp(angDiff(s.h,Math.atan2(T.TZ[i],T.TX[i])),-1.2,1.2);
+  if(first){c.x=s.x;c.z=s.z;c.h=s.h;c.P=s.P;c.idx=i;c.rP=null;c.ghostT=1}
 }
+// Other people's cars (and, off the host, the bots) are drawn from their last update, carried forward
+// ALONG THE TRACK at their speed (so they follow corners instead of drifting straight into you),
+// and eased toward each new update rather than snapped.
 function predictRemote(c,dt){
   const s=c.snap;if(!s)return;
-  const age=clamp((Net.now()-s.t)/1000,0,.45);
-  const px=s.x+Math.cos(s.h)*s.v*age,pz=s.z+Math.sin(s.h)*s.v*age,pP=s.P+s.v*age;
-  const k=1-Math.exp(-dt*12);
-  if(Math.hypot(px-c.x,pz-c.z)>25){c.x=px;c.z=pz;c.h=s.h;c.P=pP}
-  else{c.x+=(px-c.x)*k;c.z+=(pz-c.z)*k;c.h+=angDiff(s.h,c.h)*k;c.P+=(pP-c.P)*k}
-  c.v=s.v;c.steer=lerp(c.steer,s.st||0,k);
-  const T=track,i=nearest(c.x,c.z,c.idx);c.idx=i;
-  c.lat=(c.x-T.X[i])*T.NX[i]+(c.z-T.Z[i])*T.NZ[i];
+  const T=track,age=clamp((Net.now()-s.t)/1000,0,.6);
+  const tP=s.P+s.v*Math.min(age,.35),tl=s.l;
+  c.ghostT=Math.max(0,(c.ghostT||0)-dt);
+  if(c.rP==null||Math.abs(tP-c.rP)>35||Math.abs(tl-c.rl)>12){
+    // first sight, or the car jumped (respawn, big lag spike): place it and let it pass through for a moment
+    c.rP=tP;c.rl=tl;c.rh=s.hr;c.v=s.v;if(c.rP!=null)c.ghostT=Math.max(c.ghostT,1);
+  }else{
+    c.rP+=c.v*dt;
+    c.rP+=(tP-c.rP)*(1-Math.exp(-dt*4));
+    c.rl+=(tl-c.rl)*(1-Math.exp(-dt*7));
+    c.rh+=angDiff(s.hr,c.rh)*(1-Math.exp(-dt*8));
+    c.v+=(s.v-c.v)*(1-Math.exp(-dt*10));
+  }
+  if(age>.6)c.ghostT=Math.max(c.ghostT,.25); // updates have stopped arriving: don't collide with a guess
+  const p=posAt(c.rP,c.rl);
+  c.x=p.x;c.z=p.z;c.h=p.h+c.rh;c.P=c.rP;c.idx=p.i;c.lat=c.rl;
   c.s=((c.P%T.L)+T.L)%T.L;
+  c.steer=lerp(c.steer,s.st||0,1-Math.exp(-dt*10));
 }
 // The host drives every car nobody live is driving: bots, and anyone who left mid-race.
 function adoptOrphans(){
@@ -1686,10 +1729,7 @@ function humanInput(c,dt){
   if(touchUI&&!keys.size){thr=tch.b?0:1;brk=tch.b?1:0;st=(tch.r?1:0)-(tch.l?1:0);boost=tch.bo}
   const cur=c.inSteer||0,rate=(st===0||Math.sign(st)!==Math.sign(cur))?7:4.2;
   c.inSteer=cur+clamp(st-cur,-rate*dt,rate*dt);
-  if(prefs.assist&&c.v>12&&raceT()>0){
-    const T=track,vt=Math.min(T.VT[(c.idx+1)%T.N],T.VT[(c.idx+3)%T.N])*1.035;
-    if(c.v>vt){brk=Math.max(brk,clamp((c.v-vt)/5,.35,1));thr=0;boost=false}
-  }
+
   return {thr,brk,steer:c.inSteer,boost};
 }
 function keyName(k){
@@ -2121,7 +2161,6 @@ $('trackSel').addEventListener('change',()=>{const v=$('trackSel').value|0;setTr
 lobbyOpt($('lbLaps'),'laps');
 function menuSeg(id,key,num){$(id).addEventListener('click',e=>{const b=e.target.closest('button[data-v]');if(!b)return;const v=num?b.dataset.v|0:b.dataset.v;prefs[key]=v;store.set(key,v);segSet($(id),v);if(key==='track'&&state==='menu')setupAttract(v)})}
 menuSeg('lapsSeg','laps',1);menuSeg('diffSeg','diff',0);
-$('assist').checked=!!prefs.assist;$('assist').onchange=()=>{prefs.assist=$('assist').checked;store.set('assist',prefs.assist)};
 function copyInvite(msgEl){
   const url=location.origin+'/#'+Net.room;
   const done=ok=>{msgEl.textContent=ok?'Invite link copied. Friends open it and enter the code to join.':url};
