@@ -501,6 +501,29 @@ function equity(hole,board,nOpp,iters){
   }
   return win/iters;
 }
+// Win chance when each opponent holds a hand from the top `ranges[k]` share of starting hands (1 = any two cards).
+function equityVs(hole,board,ranges,iters){
+  const dead=new Uint8Array(52);for(const c of hole)dead[c]=1;for(const c of board)dead[c]=1;
+  const R=[];for(let c=0;c<52;c++)if(!dead[c])R.push(c);
+  const L=R.length,need=5-board.length,n=ranges.length,opp=new Int32Array(n*2),taken=new Uint8Array(52);
+  const draw=()=>{for(;;){const c=R[Math.floor(Math.random()*L)];if(!taken[c]){taken[c]=1;return c}}};
+  let win=0;
+  for(let it=0;it<iters;it++){
+    taken.fill(0);
+    for(let o=0;o<n;o++){
+      let a,b;
+      for(let t=0;;t++){a=draw();b=draw();if(ranges[o]>=1||t>=40||pfPct(a,b)<=ranges[o])break;taken[a]=0;taken[b]=0}
+      opp[2*o]=a;opp[2*o+1]=b;
+    }
+    for(let j=0;j<board.length;j++)EB[j]=board[j];
+    for(let j=0;j<need;j++)EB[board.length+j]=draw();
+    EB[5]=hole[0];EB[6]=hole[1];const mine=evalHand(EB,7);
+    let lost=false,ties=0;
+    for(let o=0;o<n;o++){EB[5]=opp[2*o];EB[6]=opp[2*o+1];const sc=evalHand(EB,7);if(sc>mine){lost=true;break}if(sc===mine)ties++}
+    if(!lost)win+=1/(ties+1);
+  }
+  return win/iters;
+}
 // Starting hands: 169 kinds, ranked by equity against one random hand.
 // pfIdx: pairs on the diagonal, suited above it, offsuit below.
 function pfIdx(a,b){let r1=a>>2,r2=b>>2;if(r1<r2){const t=r1;r1=r2;r2=t}return r1===r2?r1*13+r2:((a&3)===(b&3)?r1*13+r2:r2*13+r1)}
@@ -545,12 +568,15 @@ class Table{
     this.id=0;this.ph='wait';this.st=0;this.btn=-1;this.sbI=-1;this.bbI=-1;this.board=[];this.deck=[];
     this.pot=0;this.cb=0;this.mr=set.bb;this.turn=-1;this.dl=0;this.q=0;this.log=[];this.win=null;this.pots=null;
     this.bank={};this.job=null;this.v=0;this.msg='';this.ro=0;this.botAt=0;this.queue=[];this.onChange=null;
-    this.bid=Math.floor(Math.random()*1e6);this.agg=-1;this.pfAgg=-1;this.nr=0;this.speed=1;
+    this.bid=Math.floor(Math.random()*1e6);this.agg=-1;this.pfAgg=-1;this.nr=0;this.speed=1;this.stats={};
   }
   changed(){this.v++;if(this.onChange)this.onChange(this)}
   addLog(t){this.log.push(t);if(this.log.length>40)this.log.shift()}
   newSeat(o){return{u:o.u,n:o.n,av:o.av|0,st:Math.max(0,Math.round(o.st)),bet:0,tot:0,f:0,ai:0,in:0,so:0,bot:o.bot|0,la:'',sh:'',w:0,buy:o.buy||o.st,hn:'',best:'',acted:0,cr:1,to:0,gone:0,kick:0}}
   seatOf(u){return this.seats.findIndex(s=>s&&s.u===u)}
+  // How often each player shoves or makes a huge bet. Bots use it to guess how wide that player's range is.
+  statOf(u){return this.stats[u]||(this.stats[u]={h:0,j:0})}
+  rangeOf(i){const s=this.seats[i];if(!s)return 1;const st=this.stats[s.u]||{h:0,j:0};return clamp((st.j+1)/(st.h+8)*1.15,.1,1)}
   nextOf(from,pred){for(let k=1;k<=MAXS;k++){const i=((from+k)%MAXS+MAXS)%MAXS;if(this.seats[i]&&pred(i))return i}return -1}
   betting(){return BETTING.includes(this.ph)}
   active(i){const s=this.seats[i];return !!(s&&s.in&&!s.f&&this.betting())}
@@ -621,7 +647,7 @@ class Table{
     this.job=null;
     for(let i=0;i<MAXS;i++){const s=this.seats[i];if(!s)continue;if(s.gone||i>=this.set.seats)this.removeSeat(i);else if(s.bot&&(s.kick||s.st<=0))this.seats[i]=null}
     this.seatQueue();this.fillBots();
-    for(const s of this.seats)if(s){s.bet=0;s.tot=0;s.f=0;s.ai=0;s.in=0;s.la='';s.sh='';s.w=0;s.hn='';s.best='';s.acted=0;s.cr=1}
+    for(const s of this.seats)if(s){s.bet=0;s.tot=0;s.f=0;s.ai=0;s.in=0;s.la='';s.sh='';s.w=0;s.hn='';s.best='';s.acted=0;s.cr=1;s.jam=0}
     this.holes.fill(null);this.board=[];this.pot=0;this.win=null;this.pots=null;this.ro=0;this.turn=-1;this.dl=0;
     const el=this.eligible();
     if(el.length<2){
@@ -630,7 +656,7 @@ class Table{
     }
     const inEl=i=>el.includes(i);
     this.id++;this.ph='pre';this.st=0;this.msg='';this.log=[];this.agg=-1;this.pfAgg=-1;this.nr=0;
-    for(const i of el)this.seats[i].in=1;
+    for(const i of el){this.seats[i].in=1;this.statOf(this.seats[i].u).h++}
     this.btn=this.nextOf(this.btn,inEl);
     if(el.length===2){this.sbI=this.btn;this.bbI=this.nextOf(this.btn,inEl)}
     else{this.sbI=this.nextOf(this.btn,inEl);this.bbI=this.nextOf(this.sbI,inEl)}
@@ -664,7 +690,8 @@ class Table{
       else{const p=Math.min(toCall,s.st);this.put(i,p);s.la=s.ai?'All-in':'Call';this.addLog(s.n+' calls '+fmt(p)+(s.ai?' and is all-in':''))}
     }else{
       const lo=this.minTo(i),hi=s.bet+s.st;let to=Math.round(+a)||lo;to=clamp(to,lo,hi);
-      const prev=this.cb,inc=to-prev;this.put(i,to-s.bet);
+      const prev=this.cb,inc=to-prev,start=s.st+s.tot;this.put(i,to-s.bet);
+      if(!s.jam&&(s.ai||to>=start*.5)){s.jam=1;this.statOf(s.u).j++}
       const live=this.liveIdx();
       if(inc>=this.mr){this.mr=inc;for(const j of live)if(j!==i){const o=this.seats[j];o.acted=0;o.cr=1}}
       else for(const j of live)if(j!==i){const o=this.seats[j];if(o.acted){o.acted=0;o.cr=0}}
@@ -832,6 +859,14 @@ function botDecide(T,i){
   const to=x=>({t:'r',a:clamp(Math.round(x/T.set.sb)*T.set.sb,lo,hi)});
   const call={t:'c'},fold={t:toCall>0?'f':'c'};
   const potOdds=toCall/(pot+toCall);
+  if(toCall>0&&(toCall>=s.st*.3||(T.st===0&&T.cb>=bb*12))){
+    const opps=live.filter(j=>j!==i&&T.seats[j].tot>bb);
+    const ranges=(opps.length?opps:[T.agg>=0?T.agg:live.find(j=>j!==i)]).map(j=>T.rangeOf(j));
+    const eq=equityVs(h,T.board,ranges,d===1?250:d===2?450:700);
+    const margin=d===1?-.05:d===2?0:.02;
+    if(canR&&eq>.62&&d>=2)return{t:'r',a:hi};
+    return eq>=potOdds+margin?call:fold;
+  }
   if(T.st===0){
     const pct=pfPct(h[0],h[1]),late=lateness(T,i),bbs=T.cb/bb;
     let open=d===1?.6:d===2?.3:.13+.32*late;if(d===3&&i===T.sbI)open=.36;
