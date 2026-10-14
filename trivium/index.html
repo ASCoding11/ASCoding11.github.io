@@ -1,0 +1,1266 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Trivium – Free Trivia Quiz with Live Multiplayer Contests</title>
+<meta name="description" content="A free trivia game with nearly 1,800 questions in 19 categories, each with a fact to learn. Play a daily ten, quick games, Survival or a 60-second Blitz, or host a live contest where everyone answers on their phone.">
+<link rel="canonical" href="https://ascoding11.github.io/trivium/">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<meta name="theme-color" content="#0D0F2B">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Arjun's Projects">
+<meta property="og:title" content="Trivium – Free Trivia Quiz with Live Multiplayer Contests">
+<meta property="og:description" content="Nearly 1,800 trivia questions, each with a fact to learn. Play daily, or host a live contest where everyone answers on their phone.">
+<meta property="og:url" content="https://ascoding11.github.io/trivium/">
+<meta property="og:image" content="https://ascoding11.github.io/trivium/preview.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "VideoGame",
+ "name": "Trivium",
+ "url": "https://ascoding11.github.io/trivium/",
+ "description": "A free trivia quiz game with nearly 1,800 questions in 19 categories, a daily ten, Survival and Blitz modes, and live multiplayer contests hosted from one screen.",
+ "genre": ["Trivia", "Quiz", "Educational"],
+ "gamePlatform": "Web browser",
+ "applicationCategory": "Game",
+ "operatingSystem": "Any",
+ "isAccessibleForFree": true,
+ "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"},
+ "author": {"@type": "Person", "name": "Arjun", "url": "https://ascoding11.github.io/"}
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+/* Same Firebase project and Firestore rules as Hype Cycle Exchange and Boxed.
+   Trivium contests live in the same "games" collection, marked kind: "trivia". */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBlncA4rSK-WAO7BJWmUTEbj00Wxpv8fTg",
+  authDomain: "yis-week-1-ga.firebaseapp.com",
+  projectId: "yis-week-1-ga",
+  appId: "1:416718770225:web:eef6d97d329351b02a4510"
+};
+/* The question bank is split into one file per category in bank/.
+   Each file calls TRIVIA.cat(id, name, rows). */
+window.TRIVIA = { cats: [], cat(id, name, rows){ this.cats.push({id, name, rows}); } };
+</script>
+<script src="bank/geography.js"></script>
+<script src="bank/history.js"></script>
+<script src="bank/science.js"></script>
+<script src="bank/space.js"></script>
+<script src="bank/animals.js"></script>
+<script src="bank/body.js"></script>
+<script src="bank/literature.js"></script>
+<script src="bank/arts.js"></script>
+<script src="bank/screen.js"></script>
+<script src="bank/sports.js"></script>
+<script src="bank/food.js"></script>
+<script src="bank/math.js"></script>
+<script src="bank/tech.js"></script>
+<script src="bank/myth.js"></script>
+<script src="bank/money.js"></script>
+<script src="bank/words.js"></script>
+<script src="bank/usa.js"></script>
+<script src="bank/games.js"></script>
+<script src="bank/nyc.js"></script>
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#0D0F2B; --bg-2:#11143A; --panel:#171A48; --panel-2:#1F2359; --panel-3:#282D6B; --line:#2F3478; --line-2:#3D4392;
+  --ink:#F6F2E7; --ink-2:#B3B5DA; --ink-3:#8487B8;
+  --gold:#F6C453; --gold-ink:#2A1E00;
+  --ok:#2FBF7F; --ok-bg:#0F3B2E; --no:#F0605A; --no-bg:#43182A;
+  --a0:#E5534B; --a1:#3B82F6; --a2:#E3A12F; --a3:#20A26B;
+  --serif:"Fraunces",Georgia,"Times New Roman",serif;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r:14px;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;min-height:100vh;background:var(--bg);background-image:radial-gradient(1100px 520px at 50% -180px,rgba(92,104,230,.28),transparent 70%);background-attachment:fixed;color:var(--ink);font:16px/1.5 var(--sans)}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:var(--gold)}
+[hidden]{display:none!important}
+.wrap{max-width:1180px;margin:0 auto;padding:0 16px 48px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.topbar a.back{font-size:14px;color:var(--ink-2);text-decoration:none}
+.topbar a.back:hover{color:var(--ink);text-decoration:underline}
+.topbar .mark{font:800 22px/1 var(--serif);color:var(--ink);text-decoration:none;letter-spacing:.2px}
+.topbar .mark b{color:var(--gold);font-weight:700}
+.top-r{display:flex;align-items:center;gap:8px}
+.iconbtn{background:transparent;border:1px solid var(--line);border-radius:999px;width:36px;height:36px;display:grid;place-items:center;color:var(--ink-2)}
+.iconbtn:hover{color:var(--ink);border-color:var(--line-2)}
+.iconbtn svg{width:18px;height:18px}
+.notice{margin:14px 0 0;padding:10px 14px;border-radius:10px;background:var(--no-bg);border:1px solid #6b2a3c;font-size:14px}
+.muted{color:var(--ink-2)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 18px;border-radius:12px;border:1px solid var(--line-2);background:var(--panel-2);color:var(--ink);font-weight:600;text-decoration:none;font-size:15px;transition:transform .08s,background .15s}
+.btn:hover{background:var(--panel-3)}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--gold);color:var(--gold-ink);border-color:var(--gold)}
+.btn.primary:hover{background:#FFD375}
+.btn.big{padding:14px 22px;font-size:17px;border-radius:14px}
+.btn.danger{border-color:#7a2f43;color:#FFB4B0;background:transparent}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.link{background:none;border:0;color:var(--ink-2);padding:6px 4px;font-size:14px}
+.link:hover{color:var(--ink);text-decoration:underline}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px}
+h1,h2,h3{margin:0;font-weight:600}
+.label{font:600 12px/1.2 var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);margin:0 0 8px}
+.msg{min-height:1.4em;font-size:14px;margin:8px 0 0;color:var(--ink-2)}
+.msg.err{color:#FF9E99}.msg.ok{color:#7EE2B0}
+input[type=text]{width:100%;padding:11px 12px;border-radius:10px;border:1px solid var(--line-2);background:var(--bg-2);outline:none}
+input[type=text]:focus{border-color:var(--gold)}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.field>span{font-size:13px;color:var(--ink-2)}
+
+/* landing */
+.hero{padding:40px 0 18px;display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:28px;align-items:center}
+.logo{font:800 clamp(56px,10vw,112px)/.9 var(--serif);letter-spacing:-2px;margin:0}
+.logo b{color:var(--gold);font-weight:800}
+.tag{font-size:18px;color:var(--ink-2);max-width:34em;margin:16px 0 22px}
+.tag b{color:var(--ink);font-weight:600}
+.hero-actions{display:flex;flex-wrap:wrap;gap:10px}
+.daily-status{font:500 13px var(--mono);color:var(--ink-3);margin:12px 0 0}
+.fact{position:relative;background:linear-gradient(160deg,var(--panel-2),var(--panel));border:1px solid var(--line-2);border-radius:20px;padding:22px 22px 18px;box-shadow:0 20px 50px rgba(0,0,0,.3)}
+.fact .k{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.fact .q{font-size:13px;color:var(--ink-3);margin:12px 0 4px}
+.fact .q b{color:var(--ink-2);font-weight:600}
+.fact p.f{font:600 21px/1.35 var(--serif);margin:0 0 14px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font:600 12px/1.6 var(--mono);text-transform:uppercase;letter-spacing:.05em;background:var(--panel-3);color:var(--ink-2);white-space:nowrap}
+.chip.cat{background:color-mix(in srgb,var(--c) 18%,transparent);color:var(--c)}
+.chip.cat::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--c)}
+.modes{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:14px;margin:18px 0}
+.mode h3{font:700 24px/1.1 var(--serif);margin:2px 0 6px}
+.mode p{margin:0 0 14px;color:var(--ink-2);font-size:15px}
+.mode .best{font:500 13px var(--mono);color:var(--ink-3);margin:10px 0 0}
+.mode.quick{grid-row:span 2}
+.mode:not(.quick){display:flex;flex-direction:column;align-items:flex-start}
+.mode:not(.quick) p:not(.label):not(.best){flex:1}
+@media (pointer:coarse){.keys{display:none}}
+.seg{display:inline-flex;background:var(--bg-2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px;flex-wrap:wrap}
+.seg button{border:0;background:transparent;border-radius:8px;padding:6px 11px;font-size:14px;color:var(--ink-2)}
+.seg button.on{background:var(--panel-3);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line-2)}
+.cchips{display:flex;flex-wrap:wrap;gap:6px}
+.cchip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:transparent;border-radius:999px;padding:5px 10px;font-size:13px;color:var(--ink-3)}
+.cchip i{width:8px;height:8px;border-radius:50%;background:var(--c);opacity:.35}
+.cchip span{font:500 11px var(--mono);opacity:.7}
+.cchip.on{color:var(--ink);border-color:color-mix(in srgb,var(--c) 60%,var(--line));background:color-mix(in srgb,var(--c) 14%,transparent)}
+.cchip.on i{opacity:1}
+.cchip.all{color:var(--ink-2);border-style:dashed}
+.opts{display:flex;flex-direction:column;gap:12px;margin:0 0 16px}
+.opt-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.opt-row .label{margin:0;min-width:84px}
+.mp{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin:30px 0 18px;scroll-margin-top:12px}
+.mp h2{font:700 28px/1.1 var(--serif);margin:0 0 6px}
+.mp p.lede{margin:0 0 16px;color:var(--ink-2)}
+.check{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--ink-2);margin:4px 0 12px}
+.check input{accent-color:var(--gold);width:16px;height:16px}
+.catgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px;margin-top:10px}
+.catgrid div{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 12px;border-radius:10px;background:var(--panel);border:1px solid var(--line);font-size:14px}
+.catgrid div i{width:9px;height:9px;border-radius:50%;background:var(--c);flex:none}
+.catgrid div span{flex:1}
+.catgrid div b{font:500 12px var(--mono);color:var(--ink-3)}
+.how{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:14px 0}
+.how div{padding:14px 16px;border-left:2px solid var(--gold);background:linear-gradient(90deg,rgba(246,196,83,.06),transparent)}
+.how b{display:block;font:700 18px var(--serif);margin-bottom:4px}
+.how span{font-size:14px;color:var(--ink-2)}
+footer{margin-top:28px;padding-top:16px;border-top:1px solid var(--line);font-size:13px;color:var(--ink-3)}
+footer a{color:var(--ink-2)}
+
+/* play screens */
+.hud{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 0 10px}
+.hud .grow{flex:1}
+.hud .score{font:600 22px var(--mono);color:var(--gold)}
+.hud .prog{font:500 14px var(--mono);color:var(--ink-2)}
+.lives{display:flex;gap:4px}
+.lives i{width:14px;height:14px;border-radius:50%;background:var(--no);box-shadow:0 0 0 2px rgba(240,96,90,.2)}
+.lives i.lost{background:transparent;box-shadow:inset 0 0 0 2px var(--line-2)}
+.timebar{height:6px;background:var(--bg-2);border-radius:99px;overflow:hidden}
+.timebar i{display:block;height:100%;width:0;background:var(--gold);border-radius:99px;transition:width .12s linear}
+.timebar.low i{background:var(--no)}
+.timer{font:600 18px var(--mono);min-width:3.2em;text-align:right}
+.timer.low{color:var(--no)}
+.qcard{margin:18px auto 0;max-width:900px}
+.qmeta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.qmeta .grow{flex:1}
+.diff{font:600 12px var(--mono);color:var(--ink-3);letter-spacing:.05em}
+.diff i{display:inline-block;width:6px;height:10px;margin-right:2px;border-radius:2px;background:var(--line-2);vertical-align:-1px}
+.diff i.on{background:var(--gold)}
+.qtext{font:600 clamp(24px,3.6vw,38px)/1.22 var(--serif);margin:0 0 22px;text-wrap:balance}
+.answers{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ans{position:relative;display:flex;align-items:center;gap:14px;min-height:76px;padding:14px 16px;border-radius:16px;border:0;text-align:left;font-size:18px;font-weight:600;color:#fff;background:var(--tc);box-shadow:inset 0 -4px 0 rgba(0,0,0,.22);transition:transform .08s,opacity .2s,filter .2s}
+.ans:hover:not(:disabled){filter:brightness(1.08)}
+.ans:active:not(:disabled){transform:translateY(2px)}
+.ans:disabled{cursor:default}
+.ans .key{flex:none;display:grid;place-items:center;width:34px;height:34px;border-radius:9px;background:rgba(0,0,0,.22);font:600 15px var(--mono)}
+.ans .txt{flex:1;overflow-wrap:anywhere;line-height:1.3}
+.ans .cnt{font:600 15px var(--mono);opacity:.9}
+.ans .bar{position:absolute;left:0;bottom:0;height:5px;background:rgba(255,255,255,.55);border-radius:0 3px 3px 16px;transition:width .5s}
+.a0{--tc:var(--a0)}.a1{--tc:var(--a1)}.a2{--tc:var(--a2)}.a3{--tc:var(--a3)}
+.answers.done .ans{opacity:.32}
+.answers.done .ans.right{opacity:1;box-shadow:0 0 0 3px var(--ok),inset 0 -4px 0 rgba(0,0,0,.22)}
+.answers.done .ans.picked{opacity:.85}
+.answers.done .ans.picked.wrong{box-shadow:0 0 0 3px #fff,inset 0 -4px 0 rgba(0,0,0,.22)}
+.ans .mark{flex:none;font-size:20px}
+.answers.locked .ans:not(.picked){opacity:.4}
+.answers.locked .ans.picked{box-shadow:0 0 0 3px #fff,inset 0 -4px 0 rgba(0,0,0,.22)}
+.after{margin-top:18px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:end}
+.verdict{font:700 22px var(--serif)}
+.verdict.r{color:var(--ok)}.verdict.w{color:var(--no)}
+.verdict small{display:block;font:500 14px var(--sans);color:var(--ink-2);margin-top:2px}
+.factbox{grid-column:1/-1;padding:14px 16px;border-radius:12px;background:var(--panel);border:1px solid var(--line);font-size:16px;color:var(--ink)}
+.factbox b{font:600 12px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--gold);display:block;margin-bottom:4px}
+.blitz-flash{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .25s}
+.blitz-flash.r{background:radial-gradient(circle,rgba(47,191,127,.25),transparent 60%);opacity:1}
+.blitz-flash.w{background:radial-gradient(circle,rgba(240,96,90,.25),transparent 60%);opacity:1}
+.keys{font-size:12px;color:var(--ink-3);margin-top:12px;text-align:center}
+
+/* results */
+.res{max-width:900px;margin:24px auto 0}
+.res h2{font:700 clamp(30px,5vw,44px)/1.05 var(--serif);margin:0 0 6px}
+.stats{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0}
+.stats div{flex:1;min-width:120px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.stats b{display:block;font:600 26px var(--mono);color:var(--ink)}
+.stats b.big{color:var(--gold)}
+.stats span{font-size:13px;color:var(--ink-2)}
+.grid-emoji{font-size:22px;letter-spacing:2px}
+.recap{display:flex;flex-direction:column;gap:8px;margin:18px 0}
+.recap details{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+.recap summary{cursor:pointer;display:flex;gap:10px;align-items:baseline;list-style:none}
+.recap summary::-webkit-details-marker{display:none}
+.recap summary .m{flex:none;font-weight:700}
+.recap .m.r{color:var(--ok)}.recap .m.w{color:var(--no)}
+.recap summary .t{flex:1}
+.recap summary .p{font:500 13px var(--mono);color:var(--ink-3);white-space:nowrap}
+.recap .body{margin:8px 0 2px 24px;font-size:14px;color:var(--ink-2)}
+.recap .body p{margin:4px 0}
+.row-actions{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0}
+
+/* live */
+.livebar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 0}
+.codebox{font:500 13px var(--mono);color:var(--ink-3);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 10px}
+.codebox b{color:var(--ink);font-size:17px;letter-spacing:.12em;margin-left:4px}
+.livebar .grow{flex:1}
+.live-grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px;margin-top:14px;align-items:start}
+.stage{min-width:0}
+.side{display:flex;flex-direction:column;gap:14px}
+.side h3{font:700 18px var(--serif);margin:0 0 10px}
+.board .row{display:grid;grid-template-columns:26px minmax(0,1fr) auto;gap:8px;align-items:center;padding:7px 4px;border-bottom:1px solid var(--line);font-size:15px}
+.board .row:last-child{border-bottom:0}
+.board .row.me{background:rgba(246,196,83,.08);border-radius:8px}
+.board .rank{font:600 13px var(--mono);color:var(--ink-3)}
+.board .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.board .pts{font:600 14px var(--mono)}
+.board .gain{display:block;font:500 11px var(--mono);color:var(--ok);text-align:right}
+.board .fire{font-size:12px;margin-left:4px}
+.lobby{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:center}
+.bigcode{font:600 clamp(54px,9vw,96px)/1 var(--mono);letter-spacing:.14em;color:var(--gold)}
+.joinurl{font-size:clamp(16px,2vw,20px);color:var(--ink-2);margin:8px 0 0;overflow-wrap:anywhere}
+.joinurl b{color:var(--ink)}
+.qr{background:var(--ink);border-radius:12px;padding:10px;width:180px;height:180px;display:grid;place-items:center}
+.qr img,.qr canvas{display:block;width:160px!important;height:160px!important}
+.dots{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+.dots span{padding:5px 11px;border-radius:999px;background:var(--panel-2);border:1px solid var(--line);font-size:14px}
+.dots span.in{background:var(--ok-bg);border-color:#1e7d58;color:#BFF5DC}
+.state-big{font:700 26px/1.2 var(--serif)}
+.hostbtns{display:flex;flex-direction:column;gap:8px}
+.hostbtns .btn{width:100%}
+.settings{display:flex;flex-direction:column;gap:12px;margin-top:14px}
+#setDetails summary{cursor:pointer;font:700 18px var(--serif)}
+.settings .cchips{max-height:180px;overflow:auto}
+.answered{font:500 14px var(--mono);color:var(--ink-2);margin-top:14px}
+.youbox{margin-top:16px;padding:14px 16px;border-radius:12px;border:1px solid var(--line);background:var(--panel)}
+.youbox.r{background:var(--ok-bg);border-color:#1e7d58}
+.youbox.w{background:var(--no-bg);border-color:#6b2a3c}
+.youbox b{font:700 22px var(--serif);display:block}
+.youbox span{font-size:14px;color:var(--ink-2)}
+.podium{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:end;margin:22px 0 8px;max-width:620px}
+.podium .step{text-align:center}
+.podium .name{font:700 20px/1.2 var(--serif);overflow-wrap:anywhere}
+.podium .p{font:500 13px var(--mono);color:var(--ink-2);margin:4px 0 8px}
+.podium .block{border-radius:12px 12px 0 0;display:grid;place-items:center;font:800 34px var(--serif);color:var(--gold-ink);background:var(--gold)}
+.podium .step:nth-child(1) .block{background:#C9CCE6}
+.podium .step:nth-child(3) .block{background:#D99A6C}
+.pop{animation:pop .35s ease-out}
+@keyframes pop{from{transform:scale(.96);opacity:0}to{transform:none;opacity:1}}
+.ad{margin:22px auto;text-align:center;min-height:90px}
+.ad-lbl{display:block;font-size:11px;color:var(--ink-3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.08em}
+.rail{display:none}
+html.rails .rail{display:block;position:fixed;top:120px;width:160px}
+html.rails .rail.l{left:max(8px,calc(50% - 590px - 176px))}
+html.rails .rail.r{right:max(8px,calc(50% - 590px - 176px))}
+
+@media (max-width:900px){
+  .hero{grid-template-columns:1fr;padding-top:26px}
+  .modes{grid-template-columns:1fr 1fr}
+  .mode.quick{grid-row:auto;grid-column:1/-1}
+  .mp{grid-template-columns:1fr}
+  .live-grid{grid-template-columns:1fr}
+  .lobby{grid-template-columns:1fr}
+  .how{grid-template-columns:1fr}
+}
+@media (max-width:600px){
+  .livebar{gap:8px}
+  .livebar .grow{display:none}
+  #liveTimer{margin-left:auto}
+  .codebox b{font-size:15px}
+  .modes{grid-template-columns:1fr}
+  .answers{grid-template-columns:1fr;gap:9px}
+  .ans{min-height:62px;font-size:16px;padding:11px 13px}
+  .after{grid-template-columns:1fr}
+  .after .btn{width:100%}
+  .qtext{margin-bottom:16px}
+  .qr{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <a class="back" href="../projects/">‹ Web Development Projects</a>
+    <div class="top-r">
+      <button class="iconbtn" id="muteBtn" type="button" aria-label="Turn sound off" title="Sound"></button>
+      <a class="mark" href="./" aria-label="Trivium home">Trivi<b>u</b>m</a>
+    </div>
+  </div>
+  <div class="notice" id="notice" hidden></div>
+
+  <!-- ================= LANDING ================= -->
+  <main id="landing">
+    <section class="hero">
+      <div>
+        <h1 class="logo">Trivi<b>u</b>m</h1>
+        <p class="tag"><b id="qCount">Over a thousand</b> trivia questions in <b id="cCount">19</b> categories, and every answer comes with a fact worth knowing. Play on your own, or host a live contest where everyone answers on their phone.</p>
+        <div class="hero-actions">
+          <button class="btn primary big" id="dailyGo" type="button">▶ Play today's ten</button>
+          <a class="btn big" href="#mp" id="mpJump">Host or join a contest</a>
+        </div>
+        <p class="daily-status" id="dailyStatus"></p>
+      </div>
+      <aside class="fact" aria-live="polite">
+        <div class="k"><span class="label" style="margin:0">Did you know?</span><span class="chip cat" id="factCat"></span></div>
+        <p class="q" id="factQ"></p>
+        <p class="f" id="factText"></p>
+        <button class="btn" id="factNext" type="button">Another fact</button>
+      </aside>
+    </section>
+
+    <section class="modes" aria-label="Ways to play">
+      <article class="panel mode quick">
+        <p class="label">Pick your topics</p>
+        <h3>Quick play</h3>
+        <p>Choose the categories, the difficulty and how many questions. You'll see the fact behind every answer.</p>
+        <div class="opts">
+          <div class="cchips" id="quickCats"></div>
+          <div class="opt-row"><span class="label">Difficulty</span><div class="seg" id="quickDiff"><button type="button" data-v="mix">Mixed</button><button type="button" data-v="1">Easy</button><button type="button" data-v="2">Medium</button><button type="button" data-v="3">Hard</button></div></div>
+          <div class="opt-row"><span class="label">Questions</span><div class="seg" id="quickLen"><button type="button" data-v="10">10</button><button type="button" data-v="20">20</button><button type="button" data-v="30">30</button></div></div>
+          <div class="opt-row"><span class="label">Timer</span><div class="seg" id="quickTime"><button type="button" data-v="15">15 s</button><button type="button" data-v="20">20 s</button><button type="button" data-v="30">30 s</button><button type="button" data-v="0">Off</button></div></div>
+        </div>
+        <button class="btn primary" id="quickGo" type="button">Start quick play</button>
+        <p class="msg" id="quickMsg"></p>
+      </article>
+      <article class="panel mode">
+        <p class="label">Three lives</p>
+        <h3>Survival</h3>
+        <p>Questions get harder every five you get right. Three wrong answers and you're out.</p>
+        <button class="btn" id="survGo" type="button">Start Survival</button>
+        <p class="best" id="survBest"></p>
+      </article>
+      <article class="panel mode">
+        <p class="label">Sixty seconds</p>
+        <h3>Blitz</h3>
+        <p>As many as you can in a minute. A wrong answer costs you three seconds.</p>
+        <button class="btn" id="blitzGo" type="button">Start Blitz</button>
+        <p class="best" id="blitzBest"></p>
+      </article>
+    </section>
+
+    <div class="ad" id="adMenu" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle" style="display:block" data-ad-format="auto" data-full-width-responsive="true"></ins></div>
+
+    <section class="mp" id="mp" aria-label="Live contest">
+      <div class="panel">
+        <h2>Host a contest</h2>
+        <p class="lede">Put your screen on a projector or share it on a call. Players join with a code, answer on their own phones, and the leaderboard updates after every question.</p>
+        <form id="hostForm">
+          <label class="check"><input type="checkbox" id="hostPlays"> I'll play too, from this screen</label>
+          <label class="field" id="hostNameWrap" hidden><span>Your name</span><input type="text" id="hostName" maxlength="24" autocomplete="nickname"></label>
+          <button class="btn primary" type="submit">Create a contest</button>
+          <p class="msg" id="hostMsg"></p>
+        </form>
+        <p class="muted" style="font-size:14px;margin:6px 0 0">You'll pick categories, difficulty, length and the timer in the lobby.</p>
+      </div>
+      <div class="panel">
+        <h2>Join a contest</h2>
+        <p class="lede">Enter the 5-letter code on the host's screen.</p>
+        <form id="joinForm">
+          <label class="field"><span>Game code</span><input type="text" id="joinCode" maxlength="5" autocomplete="off" autocapitalize="characters" spellcheck="false" style="text-transform:uppercase;letter-spacing:.14em;font-family:var(--mono)"></label>
+          <label class="field"><span>Your name</span><input type="text" id="joinName" maxlength="24" autocomplete="nickname"></label>
+          <button class="btn primary" type="submit">Join</button>
+          <p class="msg" id="joinMsg"></p>
+        </form>
+      </div>
+    </section>
+
+    <div class="how" aria-label="How a contest works">
+      <div><b>Join</b><span>Players scan the code or type it in with a name. No account or download.</span></div>
+      <div><b>Answer fast</b><span>A right answer is worth up to 1,000 points, or 1,500 on a hard question. Faster answers and streaks score more.</span></div>
+      <div><b>Learn something</b><span>Every reveal shows who got it, what everyone picked and a fact behind the answer.</span></div>
+    </div>
+
+    <section aria-label="Categories" style="margin-top:26px">
+      <p class="label">What's in the bank</p>
+      <div class="catgrid" id="catGrid"></div>
+    </section>
+  </main>
+
+  <!-- ================= SOLO ================= -->
+  <main id="solo" hidden>
+    <div class="hud">
+      <button class="link" id="soloQuit" type="button">‹ Quit</button>
+      <span class="chip" id="soloMode"></span>
+      <span class="prog" id="soloProg"></span>
+      <span class="grow"></span>
+      <span class="lives" id="soloLives" hidden></span>
+      <span class="timer" id="soloTimer"></span>
+      <span class="score" id="soloScore">0</span>
+    </div>
+    <div class="timebar" id="soloBarWrap"><i id="soloBar"></i></div>
+    <section class="qcard">
+      <div class="qmeta"><span class="chip cat" id="soloCat"></span><span class="diff" id="soloDiff"></span><span class="grow"></span><span class="muted" id="soloStreak" style="font-size:14px"></span></div>
+      <h2 class="qtext" id="soloQ"></h2>
+      <div class="answers" id="soloAns"></div>
+      <div class="after" id="soloAfter" hidden>
+        <div class="verdict" id="soloVerdict"></div>
+        <button class="btn primary big" id="soloNext" type="button">Next ›</button>
+        <div class="factbox" id="soloFact"></div>
+      </div>
+      <p class="keys">Keys: 1–4 or A–D to answer, Enter for the next question.</p>
+    </section>
+    <div class="blitz-flash" id="flash"></div>
+  </main>
+
+  <!-- ================= RESULTS ================= -->
+  <main id="results" hidden>
+    <section class="res" id="resBox"></section>
+    <div class="ad" id="adResults" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle" style="display:block" data-ad-format="auto" data-full-width-responsive="true"></ins></div>
+  </main>
+
+  <!-- ================= LIVE CONTEST ================= -->
+  <main id="game" hidden>
+    <div class="livebar">
+      <span class="codebox">Code<b id="codeLbl"></b></span>
+      <span class="chip" id="phaseChip"></span>
+      <span class="prog muted" id="roundLbl"></span>
+      <span class="grow"></span>
+      <span class="timer" id="liveTimer"></span>
+      <button class="link" id="leaveBtn" type="button">Leave</button>
+    </div>
+    <div class="timebar" id="liveBarWrap"><i id="liveBar"></i></div>
+    <div class="live-grid">
+      <div class="stage" id="stage"></div>
+      <aside class="side">
+        <section class="panel" id="hostPanel" hidden>
+          <h3>Host controls</h3>
+          <div class="hostbtns" id="hostButtons"></div>
+          <p class="msg" id="hostCtlMsg"></p>
+        </section>
+        <section class="panel">
+          <h3>Standings</h3>
+          <div class="board" id="board"></div>
+        </section>
+        <section class="panel" id="hostSettings" hidden>
+          <details id="setDetails">
+            <summary>Contest settings</summary>
+          <div class="settings">
+            <div><p class="label">Categories</p><div class="cchips" id="hostCats"></div></div>
+            <div><p class="label">Difficulty</p><div class="seg" id="hostDiff"><button type="button" data-v="mix">Mixed</button><button type="button" data-v="1">Easy</button><button type="button" data-v="2">Medium</button><button type="button" data-v="3">Hard</button></div></div>
+            <div><p class="label">Questions</p><div class="seg" id="hostLen"><button type="button" data-v="10">10</button><button type="button" data-v="15">15</button><button type="button" data-v="20">20</button><button type="button" data-v="30">30</button></div></div>
+            <div><p class="label">Seconds per question</p><div class="seg" id="hostSecs"><button type="button" data-v="10">10</button><button type="button" data-v="15">15</button><button type="button" data-v="20">20</button><button type="button" data-v="30">30</button></div></div>
+            <label class="check" style="margin:0"><input type="checkbox" id="optSpeed"> Faster answers score more</label>
+            <label class="check" style="margin:0"><input type="checkbox" id="optAuto"> Autopilot: move on by itself after each reveal</label>
+          </div>
+          </details>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>© 2026 Arjun · <a href="../privacy.html">Privacy policy</a> · Questions and facts written for Trivium.</footer>
+</div>
+
+<script>
+/* =====================================================================
+   Ads (Google AdSense): only on the menu and results, never mid-question.
+   To turn them on, paste a display ad unit's "data-ad-slot" into AD_SLOT.
+   ===================================================================== */
+const AD_CLIENT = 'ca-pub-1712937102765568';
+const AD_SLOT = '';
+function showAd(id){
+  if (!AD_SLOT) return;
+  const box = document.getElementById(id); if (!box || box.dataset.state) return;
+  const ins = box.querySelector('ins');
+  if (!document.querySelector('script[src*="adsbygoogle.js"]')){ const s = document.createElement('script'); s.async = true; s.crossOrigin = 'anonymous'; s.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js'; document.head.appendChild(s); }
+  box.hidden = false; box.dataset.state = 'asked';
+  ins.setAttribute('data-ad-client', AD_CLIENT); ins.setAttribute('data-ad-slot', AD_SLOT);
+  requestAnimationFrame(() => {
+    try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch (_) { box.hidden = true; return; }
+    setTimeout(() => { if (ins.getAttribute('data-ad-status') !== 'filled') { box.hidden = true; box.dataset.state = ''; } }, 5000);
+  });
+}
+</script>
+<script>
+(() => {
+"use strict";
+const $ = id => document.getElementById(id);
+const store = {
+  get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
+  set(k, v){ try { localStorage.setItem(k, v); } catch(e){} },
+  del(k){ try { localStorage.removeItem(k); } catch(e){} }
+};
+const getJSON = (k, d) => { try { const v = JSON.parse(store.get(k)); return v == null ? d : v; } catch(e){ return d; } };
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt = n => Math.round(n).toLocaleString("en-US");
+function showNotice(t){ $("notice").textContent = t || ""; $("notice").hidden = !t; }
+
+/* =====================================================================
+   QUESTION BANK
+   ===================================================================== */
+const CAT_COLOR = {geo:"#38BDF8", his:"#F59E0B", sci:"#34D399", spc:"#A78BFA", ani:"#9BD84A", bod:"#F87171", lit:"#E879F9", art:"#FB923C", scr:"#F472B6", spo:"#22D3EE", fod:"#FACC15", mth:"#60A5FA", tec:"#2DD4BF", myt:"#C4A1FF", mon:"#4ADE80", wrd:"#FDBA74", usa:"#93C5FD", vid:"#F0ABFC", nyc:"#FDE047"};
+function hash(s){ let h = 0x811c9dc5; for (let i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); }
+const CATS = TRIVIA.cats.map(c => ({id: c.id, name: c.name, color: CAT_COLOR[c.id] || "#9AA0FF", n: c.rows.length}));
+const CBY = Object.fromEntries(CATS.map(c => [c.id, c]));
+const CAT_IDS = CATS.map(c => c.id);
+const Q = [], QBY = {};
+TRIVIA.cats.forEach(c => c.rows.forEach(r => {
+  const q = {id: c.id + "-" + hash(r[1]), cat: c.id, d: r[0], q: r[1], a: r.slice(2, 6), f: r[6]};
+  if (!QBY[q.id]){ Q.push(q); QBY[q.id] = q; }
+}));
+const DIFF_NAME = ["", "Easy", "Medium", "Hard"];
+const diffsFor = v => v === "mix" || v == null ? [1, 2, 3] : [+v];
+function diffHTML(d){ return '<i class="on"></i><i class="' + (d >= 2 ? "on" : "") + '"></i><i class="' + (d >= 3 ? "on" : "") + '"></i> ' + DIFF_NAME[d]; }
+function catChip(el, id){ const c = CBY[id] || {name: "", color: "#999"}; el.textContent = c.name; el.style.setProperty("--c", c.color); }
+function pool(cats, diffs, exclude){ return Q.filter(q => cats.includes(q.cat) && diffs.includes(q.d) && !(exclude && exclude.has(q.id))); }
+function pick(cats, diffs, exclude, rnd){
+  rnd = rnd || Math.random;
+  let p = pool(cats, diffs, exclude);
+  if (!p.length) p = pool(cats, diffs);
+  if (!p.length) return null;
+  return p[Math.floor(rnd() * p.length)];
+}
+function shuffled(n, rnd){ rnd = rnd || Math.random; const a = [...Array(n).keys()]; for (let i = n - 1; i > 0; i--){ const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+/* Scoring, shared by solo and live: up to 1,000 points for an Easy question
+   (×1.25 Medium, ×1.5 Hard). With speed scoring, half the points are for speed.
+   Each right answer in a row after the first adds 100, up to +500. */
+const MULT = [0, 1, 1.25, 1.5];
+function pointsFor(d, elapsed, limit, speed){
+  const base = speed && limit ? 500 + 500 * Math.max(0, 1 - elapsed / limit) : 1000;
+  return Math.round(MULT[d] * base / 10) * 10;
+}
+const streakBonus = s => s >= 2 ? Math.min(500, 100 * (s - 1)) : 0;
+
+/* recently seen questions, so solo games don't repeat for a while */
+let seenList = getJSON("trivium.seen", []);
+const seen = new Set(seenList);
+function markSeen(id){ if (seen.has(id)) return; seen.add(id); seenList.push(id); if (seenList.length > Math.min(900, Q.length * 0.7)){ seen.delete(seenList.shift()); } store.set("trivium.seen", JSON.stringify(seenList)); }
+
+/* =====================================================================
+   SOUND
+   ===================================================================== */
+let actx = null, muted = store.get("trivium.mute") === "1";
+const ICON_ON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>';
+const ICON_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="m23 9-6 6"/><path d="m17 9 6 6"/></svg>';
+function renderMute(){ $("muteBtn").innerHTML = muted ? ICON_OFF : ICON_ON; $("muteBtn").setAttribute("aria-label", muted ? "Turn sound on" : "Turn sound off"); }
+$("muteBtn").onclick = () => { muted = !muted; store.set("trivium.mute", muted ? "1" : "0"); renderMute(); };
+renderMute();
+function tone(seq, type, vol){
+  if (muted) return;
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === "suspended") actx.resume();
+    let t = actx.currentTime;
+    seq.forEach(([f, dur]) => {
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = type || "triangle"; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol || 0.09, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g).connect(actx.destination); o.start(t); o.stop(t + dur + 0.03); t += dur * 0.85;
+    });
+  } catch(e){}
+}
+const SFX = {
+  right: () => tone([[784, .1], [1047, .18]]),
+  wrong: () => tone([[196, .16], [147, .24]], "sawtooth", 0.05),
+  tick:  () => tone([[1320, .05]], "square", 0.025),
+  start: () => tone([[523, .09], [659, .09], [784, .16]]),
+  win:   () => tone([[523, .1], [659, .1], [784, .1], [1047, .3]])
+};
+
+/* =====================================================================
+   SMALL UI HELPERS
+   ===================================================================== */
+function catChips(el, sel, onChange){
+  el.innerHTML = CATS.map(c => '<button type="button" class="cchip' + (sel.includes(c.id) ? " on" : "") + '" data-id="' + c.id + '" style="--c:' + c.color + '" aria-pressed="' + sel.includes(c.id) + '"><i></i>' + esc(c.name) + '<span>' + c.n + '</span></button>').join("") +
+    '<button type="button" class="cchip all" data-all="1">All</button><button type="button" class="cchip all" data-none="1">None</button>';
+  el.onclick = e => {
+    const b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.all){ sel.length = 0; CAT_IDS.forEach(id => sel.push(id)); }
+    else if (b.dataset.none) sel.length = 0;
+    else { const i = sel.indexOf(b.dataset.id); if (i >= 0) sel.splice(i, 1); else sel.push(b.dataset.id); }
+    catChips(el, sel, onChange);
+    if (onChange) onChange(sel);
+  };
+}
+function seg(el, value, onChange){
+  el.querySelectorAll("button").forEach(b => {
+    b.classList.toggle("on", b.dataset.v === String(value));
+    b.setAttribute("aria-pressed", b.dataset.v === String(value));
+    b.onclick = () => { seg(el, b.dataset.v, onChange); if (onChange) onChange(b.dataset.v); };
+  });
+}
+const KEYS = ["A", "B", "C", "D"];
+function answersHTML(opts, clickable){
+  return opts.map((t, i) => '<button type="button" class="ans a' + i + '" data-i="' + i + '"' + (clickable ? "" : " disabled") + '><span class="key">' + KEYS[i] + '</span><span class="txt">' + esc(t) + '</span></button>').join("");
+}
+function show(id){
+  ["landing", "solo", "results", "game"].forEach(s => $(s).hidden = s !== id);
+  window.scrollTo(0, 0);
+  if (id === "landing"){ renderLanding(); showAd("adMenu"); }
+  if (id === "results") showAd("adResults");
+}
+
+/* =====================================================================
+   LANDING
+   ===================================================================== */
+$("qCount").textContent = fmt(Q.length);
+$("cCount").textContent = CATS.length;
+$("catGrid").innerHTML = CATS.map(c => '<div style="--c:' + c.color + '"><i></i><span>' + esc(c.name) + '</span><b>' + c.n + '</b></div>').join("");
+function newFact(){
+  const q = Q[Math.floor(Math.random() * Q.length)];
+  catChip($("factCat"), q.cat);
+  $("factQ").innerHTML = esc(q.q) + " <b>" + esc(q.a[0]) + "</b>";
+  $("factText").textContent = q.f;
+}
+$("factNext").onclick = newFact;
+newFact();
+
+const quickSel = (() => { const v = getJSON("trivium.quickCats", null); return Array.isArray(v) && v.length ? v.filter(id => CBY[id]) : CAT_IDS.slice(); })();
+let quickDiff = store.get("trivium.quickDiff") || "mix", quickLen = store.get("trivium.quickLen") || "10", quickTime = store.get("trivium.quickTime") || "20";
+catChips($("quickCats"), quickSel, sel => { store.set("trivium.quickCats", JSON.stringify(sel)); $("quickMsg").textContent = ""; });
+seg($("quickDiff"), quickDiff, v => { quickDiff = v; store.set("trivium.quickDiff", v); });
+seg($("quickLen"), quickLen, v => { quickLen = v; store.set("trivium.quickLen", v); });
+seg($("quickTime"), quickTime, v => { quickTime = v; store.set("trivium.quickTime", v); });
+
+function todayStr(){ const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+const DAY0 = Date.UTC(2026, 9, 13);
+function dayNum(s){ const [y, m, d] = s.split("-").map(Number); return Math.round((Date.UTC(y, m - 1, d) - DAY0) / 864e5) + 1; }
+function seeded(str){ let h = 1779033703 ^ str.length; for (let i = 0; i < str.length; i++){ h = Math.imul(h ^ str.charCodeAt(i), 3432918353); h = h << 13 | h >>> 19; } return () => { h = Math.imul(h ^ h >>> 16, 2246822507); h = Math.imul(h ^ h >>> 13, 3266489909); h ^= h >>> 16; let t = (h >>> 0) + 0x6D2B79F5; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+/* The daily ten: three Easy, four Medium, three Hard, each from a different category. */
+function dailyItems(s){
+  const r = seeded("trivium:" + s), cats = shuffled(CATS.length, r).map(i => CAT_IDS[i]), plan = [1, 1, 1, 2, 2, 2, 2, 3, 3, 3], used = new Set();
+  return plan.map((d, i) => {
+    let q = pick([cats[i % cats.length]], [d], used, r) || pick(CAT_IDS, [d], used, r);
+    used.add(q.id);
+    return {id: q.id, order: shuffled(4, r)};
+  });
+}
+function dailyRec(s){ return getJSON("trivium.daily." + s, null); }
+function streakInfo(){ return getJSON("trivium.streak", {cur: 0, best: 0, last: null}); }
+function renderLanding(){
+  const s = todayStr(), rec = dailyRec(s), st = streakInfo();
+  const done = rec && rec.done;
+  $("dailyGo").textContent = done ? "See today's results" : rec && rec.results && rec.results.length ? "▶ Finish today's ten" : "▶ Play today's ten";
+  $("dailyStatus").textContent = "Daily #" + dayNum(s) + " · same ten for everyone today" + (st.cur ? " · streak " + st.cur : "") + (done ? " · you scored " + fmt(rec.pts) : "");
+  const sb = getJSON("trivium.best.survival", 0), bb = getJSON("trivium.best.blitz", 0);
+  $("survBest").textContent = sb ? "Your best: " + sb + " right" : "";
+  $("blitzBest").textContent = bb ? "Your best: " + bb + " right" : "";
+}
+
+/* =====================================================================
+   SOLO GAMES
+   ===================================================================== */
+let solo = null, soloTimer = null;
+const MODE_NAME = {daily: "Daily", quick: "Quick play", survival: "Survival", blitz: "Blitz"};
+
+function startSolo(mode){
+  if (mode === "daily"){
+    const s = todayStr(), rec = dailyRec(s) || {results: []};
+    if (rec.done){ solo = {mode, date: s, results: rec.results}; return showResults(); }
+    const items = dailyItems(s);
+    solo = {mode, date: s, items, i: rec.results.length, results: rec.results, score: rec.results.reduce((a, r) => a + (r.pts || 0), 0), streak: 0, secs: 20, speed: true};
+    let st = 0; rec.results.forEach(r => st = r.ok ? st + 1 : 0); solo.streak = st;
+  } else if (mode === "quick"){
+    if (!quickSel.length){ $("quickMsg").textContent = "Pick at least one category."; $("quickMsg").className = "msg err"; return; }
+    const diffs = diffsFor(quickDiff), n = +quickLen, used = new Set(), items = [];
+    for (let i = 0; i < n; i++){
+      const ex = new Set([...seen, ...used]);
+      const q = pick(quickSel, diffs, ex) || pick(quickSel, diffs, used); if (!q) break;
+      used.add(q.id); items.push({id: q.id, order: shuffled(4)});
+    }
+    if (!items.length){ $("quickMsg").textContent = "No questions match those choices."; $("quickMsg").className = "msg err"; return; }
+    solo = {mode, items, i: 0, results: [], score: 0, streak: 0, secs: +quickTime, speed: +quickTime > 0};
+  } else if (mode === "survival"){
+    solo = {mode, i: 0, results: [], score: 0, streak: 0, lives: 3, right: 0, secs: 20, speed: false, used: new Set()};
+  } else if (mode === "blitz"){
+    solo = {mode, i: 0, results: [], score: 0, streak: 0, right: 0, secs: 0, used: new Set(), endsAt: 0};
+  }
+  show("solo");
+  $("soloMode").textContent = MODE_NAME[mode] + (mode === "daily" ? " #" + dayNum(solo.date) : "");
+  $("soloLives").hidden = mode !== "survival";
+  $("soloBarWrap").hidden = mode !== "blitz" && !solo.secs;
+  SFX.start();
+  if (mode === "blitz") solo.endsAt = Date.now() + 60000;
+  nextSolo();
+}
+function survivalDiffs(){ const lvl = Math.floor(solo.right / 5); return [[1], [1, 2], [2], [2, 3], [3]][Math.min(lvl, 4)]; }
+function nextSolo(){
+  clearInterval(soloTimer);
+  const m = solo.mode;
+  if ((m === "daily" || m === "quick") && solo.i >= solo.items.length) return finishSolo();
+  if (m === "survival" && solo.lives <= 0) return finishSolo();
+  if (m === "blitz" && Date.now() >= solo.endsAt) return finishSolo();
+  let item;
+  if (m === "daily" || m === "quick") item = solo.items[solo.i];
+  else {
+    const diffs = m === "survival" ? survivalDiffs() : [1, 2, 2, 3];
+    const ex = new Set([...seen, ...solo.used]);
+    const q = pick(CAT_IDS, [diffs[Math.floor(Math.random() * diffs.length)]], ex) || pick(CAT_IDS, [1, 2, 3], solo.used);
+    solo.used.add(q.id);
+    item = {id: q.id, order: shuffled(4)};
+  }
+  const q = QBY[item.id];
+  solo.cur = {q, order: item.order, opts: item.order.map(i => q.a[i]), right: item.order.indexOf(0)};
+  solo.answered = false; solo.qStart = Date.now();
+  catChip($("soloCat"), q.cat);
+  $("soloDiff").innerHTML = diffHTML(q.d);
+  $("soloQ").textContent = q.q;
+  const box = $("soloAns"); box.className = "answers"; box.innerHTML = answersHTML(solo.cur.opts, true);
+  box.onclick = e => { const b = e.target.closest(".ans"); if (b && !b.disabled) answerSolo(+b.dataset.i); };
+  $("soloAfter").hidden = true;
+  renderSoloHud();
+  soloTimer = setInterval(soloTick, 100); soloTick();
+}
+function renderSoloHud(){
+  const m = solo.mode;
+  $("soloProg").textContent = m === "daily" || m === "quick" ? "Question " + Math.min(solo.answered ? solo.i : solo.i + 1, solo.items.length) + " of " + solo.items.length : m === "survival" ? solo.right + " right" : solo.right + " right";
+  $("soloScore").textContent = m === "survival" || m === "blitz" ? solo.right : fmt(solo.score);
+  $("soloLives").innerHTML = m === "survival" ? [0, 1, 2].map(i => '<i class="' + (i < solo.lives ? "" : "lost") + '"></i>').join("") : "";
+  $("soloStreak").textContent = solo.streak >= 2 ? "🔥 " + solo.streak + " in a row" : "";
+}
+let lastTickSec = -1;
+function soloTick(){
+  if (!solo || $("solo").hidden) return clearInterval(soloTimer);
+  const now = Date.now();
+  if (solo.mode === "blitz"){
+    const left = Math.max(0, solo.endsAt - now), s = Math.ceil(left / 1000);
+    $("soloTimer").textContent = "0:" + String(s).padStart(2, "0");
+    $("soloTimer").classList.toggle("low", s <= 10);
+    $("soloBar").style.width = (100 * left / 60000) + "%";
+    $("soloBarWrap").classList.toggle("low", s <= 10);
+    if (s <= 5 && s !== lastTickSec && s > 0){ lastTickSec = s; SFX.tick(); }
+    if (left <= 0){ clearInterval(soloTimer); finishSolo(); }
+    return;
+  }
+  if (!solo.secs){ $("soloTimer").textContent = ""; return; }
+  if (solo.answered) return;
+  const lim = solo.secs * 1000, left = Math.max(0, lim - (now - solo.qStart)), s = Math.ceil(left / 1000);
+  $("soloTimer").textContent = s + "s";
+  $("soloTimer").classList.toggle("low", s <= 5);
+  $("soloBar").style.width = (100 * left / lim) + "%";
+  $("soloBarWrap").classList.toggle("low", s <= 5);
+  if (s <= 3 && s !== lastTickSec && s > 0){ lastTickSec = s; SFX.tick(); }
+  if (left <= 0) answerSolo(-1);
+}
+function answerSolo(v){
+  if (!solo || solo.answered) return;
+  solo.answered = true;
+  const m = solo.mode, cur = solo.cur, ok = v === cur.right, el = Date.now() - solo.qStart;
+  let pts = 0;
+  if (ok){ solo.streak++; solo.right = (solo.right || 0) + 1; }
+  else solo.streak = 0;
+  if (m === "daily" || m === "quick"){ if (ok) pts = pointsFor(cur.q.d, el, solo.secs * 1000, solo.speed) + streakBonus(solo.streak); solo.score += pts; }
+  if (m === "survival" && !ok) solo.lives--;
+  if (m === "blitz" && !ok) solo.endsAt -= 3000;
+  solo.results.push({id: cur.q.id, pick: v >= 0 ? cur.order[v] : -1, ok, pts, ms: el});
+  solo.i++;
+  markSeen(cur.q.id);
+  if (m === "daily"){ store.set("trivium.daily." + solo.date, JSON.stringify({results: solo.results, done: false, pts: solo.score})); }
+  ok ? SFX.right() : SFX.wrong();
+  const box = $("soloAns");
+  box.classList.add("done");
+  box.querySelectorAll(".ans").forEach((b, i) => {
+    b.disabled = true;
+    if (i === cur.right){ b.classList.add("right"); b.insertAdjacentHTML("beforeend", '<span class="mark" aria-label="right answer">✓</span>'); }
+    if (i === v){ b.classList.add("picked"); if (!ok){ b.classList.add("wrong"); b.insertAdjacentHTML("beforeend", '<span class="mark" aria-label="your answer">✗</span>'); } }
+  });
+  renderSoloHud();
+  if (m === "blitz"){
+    const fl = $("flash"); fl.className = "blitz-flash " + (ok ? "r" : "w");
+    setTimeout(() => { fl.className = "blitz-flash"; }, 220);
+    setTimeout(() => { if (solo && solo.mode === "blitz" && !$("solo").hidden) nextSolo(); }, ok ? 380 : 900);
+    return;
+  }
+  clearInterval(soloTimer);
+  const vd = $("soloVerdict");
+  vd.className = "verdict " + (ok ? "r" : "w");
+  vd.innerHTML = ok ? "Right!" + (pts ? " +" + fmt(pts) : "") + (solo.streak >= 2 ? "<small>🔥 " + solo.streak + " in a row" + (streakBonus(solo.streak) ? ", +" + streakBonus(solo.streak) + " streak bonus" : "") + "</small>" : "")
+    : (v < 0 ? "Time's up." : "Not quite.") + "<small>The answer is " + esc(cur.q.a[0]) + ".</small>";
+  $("soloFact").innerHTML = "<b>The fact</b>" + esc(cur.q.f);
+  const last = (m === "daily" || m === "quick") ? solo.i >= solo.items.length : m === "survival" && solo.lives <= 0;
+  $("soloNext").textContent = last ? "See results ›" : "Next ›";
+  $("soloAfter").hidden = false;
+  $("soloNext").focus({preventScroll: true});
+}
+$("soloNext").onclick = () => { if (solo && solo.answered) nextSolo(); };
+$("soloQuit").onclick = () => { clearInterval(soloTimer); if (solo && solo.mode !== "daily" && solo.results.length) finishSolo(); else { solo = null; show("landing"); } };
+
+function finishSolo(){
+  clearInterval(soloTimer);
+  const m = solo.mode;
+  if (m === "daily"){
+    const st = streakInfo(), s = solo.date;
+    store.set("trivium.daily." + s, JSON.stringify({results: solo.results, done: true, pts: solo.score}));
+    if (st.last !== s){
+      const y = new Date(); y.setDate(y.getDate() - 1);
+      const ys = y.getFullYear() + "-" + String(y.getMonth() + 1).padStart(2, "0") + "-" + String(y.getDate()).padStart(2, "0");
+      st.cur = st.last === ys ? st.cur + 1 : 1; st.best = Math.max(st.best || 0, st.cur); st.last = s;
+      store.set("trivium.streak", JSON.stringify(st));
+    }
+  }
+  if (m === "survival" || m === "blitz"){
+    const k = "trivium.best." + m, prev = getJSON(k, 0);
+    solo.newBest = solo.right > prev;
+    if (solo.newBest) store.set(k, JSON.stringify(solo.right));
+    solo.prevBest = prev;
+  }
+  SFX.win();
+  showResults();
+}
+function showResults(){
+  const m = solo.mode, res = solo.results, right = res.filter(r => r.ok).length;
+  const pts = res.reduce((a, r) => a + (r.pts || 0), 0);
+  let head = "", stats = "", share = "";
+  if (m === "daily"){
+    const st = streakInfo(), grid = res.map(r => r.ok ? "🟩" : "🟥").join("");
+    head = "<p class='label'>Daily #" + dayNum(solo.date) + "</p><h2>" + (right >= 9 ? "Brilliant." : right >= 7 ? "Sharp work." : right >= 5 ? "Not bad at all." : "Tomorrow's a new ten.") + "</h2><p class='grid-emoji' aria-label='" + right + " of 10 right'>" + grid + "</p>";
+    stats = '<div><b class="big">' + fmt(pts) + '</b><span>points</span></div><div><b>' + right + '/10</b><span>right</span></div><div><b>' + (st.cur || 0) + '</b><span>day streak</span></div><div><b>' + (st.best || 0) + '</b><span>best streak</span></div>';
+    share = "Trivium Daily #" + dayNum(solo.date) + " · " + right + "/10 · " + fmt(pts) + " pts\n" + grid + "\n" + location.origin + location.pathname.replace(/index\.html$/, "");
+  } else if (m === "quick"){
+    head = "<p class='label'>Quick play</p><h2>" + right + " of " + res.length + " right</h2>";
+    stats = '<div><b class="big">' + fmt(pts) + '</b><span>points</span></div><div><b>' + right + '/' + res.length + '</b><span>right</span></div><div><b>' + Math.max(0, ...streaks(res)) + '</b><span>longest streak</span></div>';
+  } else {
+    head = "<p class='label'>" + MODE_NAME[m] + "</p><h2>" + right + " right" + (solo.newBest ? " — a new best!" : "") + "</h2>";
+    stats = '<div><b class="big">' + right + '</b><span>right answers</span></div><div><b>' + res.length + '</b><span>questions seen</span></div><div><b>' + Math.max(right, solo.prevBest || 0) + '</b><span>your best</span></div><div><b>' + Math.max(0, ...streaks(res)) + '</b><span>longest streak</span></div>';
+  }
+  const recap = res.map((r, i) => {
+    const q = QBY[r.id]; if (!q) return "";
+    const yours = r.pick >= 0 ? q.a[r.pick] : "no answer";
+    return '<details><summary><span class="m ' + (r.ok ? "r" : "w") + '">' + (r.ok ? "✓" : "✗") + '</span><span class="t">' + esc(q.q) + '</span><span class="p">' + (r.pts ? "+" + fmt(r.pts) : "") + '</span></summary><div class="body"><p><b style="color:var(--ink)">' + esc(q.a[0]) + '</b>' + (r.ok ? "" : " · you said " + esc(yours)) + '</p><p>' + esc(q.f) + '</p></div></details>';
+  }).join("");
+  $("resBox").innerHTML = head + '<div class="stats">' + stats + '</div>' +
+    '<div class="row-actions">' + (share ? '<button class="btn primary" id="shareBtn" type="button">Share result</button>' : '') +
+    (m !== "daily" ? '<button class="btn primary" id="againBtn" type="button">Play again</button>' : '') +
+    '<button class="btn" id="menuBtn" type="button">Back to menu</button></div><p class="msg" id="shareMsg"></p>' +
+    '<p class="label" style="margin-top:22px">Every question, with its fact</p><div class="recap">' + recap + '</div>';
+  show("results");
+  $("menuBtn").onclick = () => { solo = null; show("landing"); };
+  if ($("againBtn")) $("againBtn").onclick = () => startSolo(m);
+  if ($("shareBtn")) $("shareBtn").onclick = async () => {
+    try {
+      if (navigator.share && matchMedia("(pointer:coarse)").matches) await navigator.share({text: share});
+      else { await navigator.clipboard.writeText(share); $("shareMsg").textContent = "Copied. Paste it anywhere."; $("shareMsg").className = "msg ok"; }
+    } catch(e){ if (e && e.name !== "AbortError"){ $("shareMsg").textContent = share; } }
+  };
+}
+function streaks(res){ const out = []; let s = 0; res.forEach(r => { s = r.ok ? s + 1 : 0; out.push(s); }); return out; }
+
+$("dailyGo").onclick = () => startSolo("daily");
+$("quickGo").onclick = () => startSolo("quick");
+$("survGo").onclick = () => startSolo("survival");
+$("blitzGo").onclick = () => startSolo("blitz");
+
+/* =====================================================================
+   LIVE CONTESTS (Firebase). Same Firestore rules as Hype Cycle Exchange
+   and Boxed: only the host writes the game document (question, timer,
+   scores); each player only writes their own answers.
+   ===================================================================== */
+const fbOK = !!window.firebase;
+if (!fbOK) showNotice("Live contests couldn't load (Firebase was blocked). The solo games still work.");
+let auth, fs, FV;
+if (fbOK){ firebase.initializeApp(FIREBASE_CONFIG); auth = firebase.auth(); fs = firebase.firestore(); FV = firebase.firestore.FieldValue; }
+
+let uid = null, code = null, isHost = false, state = null, players = [], unsubs = [], busy = false;
+let pendingPick = null, gradingK = null, advancingK = null, stageKey = "";
+const gameRef = () => fs.collection("games").doc(code);
+const ms = ts => ts && ts.toMillis ? ts.toMillis() : (typeof ts === "number" ? ts : 0);
+function say(id, t, kind){ const el = $(id); if (!el) return; el.textContent = t || ""; el.className = "msg" + (kind ? " " + kind : ""); }
+function newCode(){ const A = "ABCDEFGHJKMNPQRSTUVWXYZ"; let s = ""; for (let i = 0; i < 5; i++) s += A[Math.floor(Math.random() * A.length)]; return s; }
+function randKey(){ return Math.random().toString(36).slice(2, 10); }
+function myPlayer(){ return players.find(p => p.id === uid); }
+function joinURL(){ return location.origin + location.pathname.replace(/index\.html$/, ""); }
+async function whenSignedIn(){
+  if (uid) return uid;
+  if (!fbOK) throw new Error("no firebase");
+  const c = await auth.signInAnonymously(); uid = c.user.uid; return uid;
+}
+
+$("hostPlays").onchange = () => { $("hostNameWrap").hidden = !$("hostPlays").checked; if ($("hostPlays").checked) $("hostName").focus(); };
+$("joinForm").addEventListener("submit", async e => {
+  e.preventDefault(); if (busy) return;
+  const c = $("joinCode").value.trim().toUpperCase(), name = $("joinName").value.trim().slice(0, 24);
+  if (c.length !== 5 || !name) return say("joinMsg", "Enter the 5-letter code and a name.", "err");
+  busy = true; say("joinMsg", "Joining…");
+  try {
+    await whenSignedIn();
+    const g = await fs.collection("games").doc(c).get();
+    if (!g.exists || g.data().kind !== "trivia"){ busy = false; return say("joinMsg", "There's no Trivium contest with that code. Check the code on the host's screen.", "err"); }
+    const pref = fs.collection("games").doc(c).collection("players").doc(uid);
+    const ex = await pref.get();
+    if (ex.exists) await pref.set({name}, {merge: true});
+    else await pref.set({name, joinedAt: Date.now(), ans: {}});
+    store.set("trivium.code", c); store.set("trivium.name", name); say("joinMsg", "");
+    enterGame(c);
+  } catch(err){ say("joinMsg", "Couldn't join. Check your connection and try again.", "err"); }
+  busy = false;
+});
+$("hostForm").addEventListener("submit", async e => {
+  e.preventDefault(); if (busy) return;
+  const plays = $("hostPlays").checked, name = $("hostName").value.trim().slice(0, 24);
+  if (plays && !name) return say("hostMsg", "Enter the name you'll play under.", "err");
+  busy = true; say("hostMsg", "Creating the contest…");
+  try {
+    await whenSignedIn();
+    let c = newCode();
+    for (let i = 0; i < 5 && (await fs.collection("games").doc(c).get()).exists; i++) c = newCode();
+    const saved = getJSON("trivium.hostCfg", {});
+    await fs.collection("games").doc(c).set({
+      kind: "trivia", hostUid: uid, createdAt: Date.now(), phase: "lobby", round: 0,
+      total: saved.total || 10, cats: Array.isArray(saved.cats) && saved.cats.length ? saved.cats.filter(id => CBY[id]) : CAT_IDS.slice(),
+      diff: saved.diff || "mix", secs: saved.secs || 20, speed: saved.speed !== false, auto: !!saved.auto, hostPlays: plays,
+      current: null, used: [], scores: {}, reveal: null, endsAt: 0, limit: 0
+    });
+    if (plays){ await fs.collection("games").doc(c).collection("players").doc(uid).set({name, joinedAt: Date.now(), ans: {}}); store.set("trivium.name", name); }
+    store.set("trivium.code", c); say("hostMsg", "");
+    enterGame(c);
+  } catch(err){ say("hostMsg", "Couldn't create the contest. Check your connection and try again.", "err"); }
+  busy = false;
+});
+
+function enterGame(c){
+  unsubs.forEach(u => u()); unsubs = [];
+  code = c; state = null; players = []; stageKey = ""; pendingPick = null;
+  $("codeLbl").textContent = c;
+  show("game");
+  unsubs.push(gameRef().onSnapshot(s => {
+    if (!s.exists){ leave("This contest was deleted."); return; }
+    state = s.data({serverTimestamps: "estimate"});
+    isHost = state.hostUid === uid;
+    render();
+  }, () => leave("Lost access to this contest.")));
+  unsubs.push(gameRef().collection("players").onSnapshot(q => {
+    players = q.docs.map(d => ({id: d.id, ...d.data({serverTimestamps: "estimate"})}));
+    render();
+  }));
+}
+function leave(msg){
+  unsubs.forEach(u => u()); unsubs = []; code = null; state = null; players = []; isHost = false;
+  store.del("trivium.code");
+  show("landing");
+  if (msg) showNotice(msg);
+}
+let leaveArmed = false;
+$("leaveBtn").onclick = () => {
+  if (isHost && state && state.phase !== "done" && !leaveArmed){ leaveArmed = true; $("leaveBtn").textContent = "Tap again to leave"; setTimeout(() => { leaveArmed = false; $("leaveBtn").textContent = "Leave"; }, 3000); return; }
+  leaveArmed = false; $("leaveBtn").textContent = "Leave"; leave("");
+};
+
+/* ---- host actions ---- */
+async function hostUpdate(patch, okText){
+  if (busy) return false; busy = true;
+  let ok = true;
+  try { await gameRef().update(patch); say("hostCtlMsg", okText || "", okText ? "ok" : ""); }
+  catch(e){ ok = false; say("hostCtlMsg", "That didn't save. Check your connection and try again.", "err"); }
+  busy = false;
+  return ok;
+}
+function saveHostCfg(){ if (state) store.set("trivium.hostCfg", JSON.stringify({total: state.total, cats: state.cats, diff: state.diff, secs: state.secs, speed: state.speed, auto: state.auto})); }
+function nextQuestion(){
+  if (state.phase === "reveal" && state.round >= state.total) return hostUpdate({phase: "done"});
+  const cats = (state.cats || []).filter(id => CBY[id]);
+  if (!cats.length) return say("hostCtlMsg", "Turn on at least one category.", "err");
+  const q = pick(cats, diffsFor(state.diff), new Set(state.used || []));
+  if (!q) return say("hostCtlMsg", "No questions match those settings. Turn on more categories.", "err");
+  const order = shuffled(4), limit = +state.secs || 20;
+  const swapping = state.phase === "question";
+  hostUpdate({
+    phase: "question", round: swapping ? state.round : state.round + 1,
+    current: {k: randKey(), id: q.id, cat: q.cat, d: q.d, q: q.q, opts: order.map(i => q.a[i])},
+    used: FV.arrayUnion(q.id), openedAt: FV.serverTimestamp(), limit, endsAt: Date.now() + limit * 1000, reveal: null
+  });
+}
+function rightIndex(cur){ const q = QBY[cur.id]; return q ? cur.opts.indexOf(q.a[0]) : -1; }
+function grade(){
+  const cur = state.current; if (!cur || gradingK === cur.k) return;
+  gradingK = cur.k;
+  const opened = ms(state.openedAt), limit = (state.limit || 20) * 1000, cutoff = opened + limit + 1500, right = rightIndex(cur);
+  const counts = [0, 0, 0, 0], gains = {}, scores = {...(state.scores || {})};
+  let fastest = null, answered = 0;
+  players.forEach(p => {
+    const a = p.ans && p.ans[cur.k], s = scores[p.id] || {pts: 0, right: 0, streak: 0, best: 0};
+    let ok = false, g = 0;
+    if (a && a.v != null){
+      const ta = ms(a.t);
+      if (ta && ta <= cutoff){
+        answered++; counts[a.v] = (counts[a.v] || 0) + 1;
+        if (a.v === right){
+          ok = true;
+          const el = Math.max(0, ta - opened);
+          const streak = (s.streak || 0) + 1;
+          g = pointsFor(cur.d, el, limit, state.speed) + streakBonus(streak);
+          if (!fastest || el < fastest.ms) fastest = {id: p.id, name: p.name, ms: el};
+        }
+      }
+    }
+    const streak = ok ? (s.streak || 0) + 1 : 0;
+    scores[p.id] = {name: p.name, pts: (s.pts || 0) + g, right: (s.right || 0) + (ok ? 1 : 0), streak, best: Math.max(s.best || 0, streak)};
+    if (g) gains[p.id] = g;
+  });
+  hostUpdate({phase: "reveal", reveal: {k: cur.k, right, counts, gains, fastest, answered, of: players.length, at: Date.now(), f: (QBY[cur.id] || {}).f || ""}, scores})
+    .then(ok => { if (!ok) gradingK = null; });
+}
+function resetGame(){ gradingK = null; hostUpdate({phase: "lobby", round: 0, current: null, used: [], scores: {}, reveal: null, endsAt: 0}, "Reset. Everyone is back in the lobby."); }
+function renderHostButtons(){
+  const el = $("hostButtons"); el.innerHTML = "";
+  const add = (txt, cls, fn) => { const b = document.createElement("button"); b.type = "button"; b.className = "btn" + (cls ? " " + cls : ""); b.textContent = txt; b.onclick = fn; el.appendChild(b); return b; };
+  const ph = state.phase, last = state.round >= state.total;
+  if (ph === "lobby"){ const b = add("Start question 1", "primary", nextQuestion); b.disabled = !players.length; if (!players.length) say("hostCtlMsg", "Start once someone has joined."); else if ($("hostCtlMsg").textContent.startsWith("Start once")) say("hostCtlMsg", ""); }
+  if (ph === "question"){ add("Reveal the answer now", "primary", grade); add("+10 seconds", "", () => hostUpdate({endsAt: Math.max(state.endsAt, Date.now()) + 10000, limit: (state.limit || 0) + 10})); add("Skip this question", "", nextQuestion); }
+  if (ph === "reveal"){ if (last) add("Show the podium", "primary", () => hostUpdate({phase: "done"})); else add("Next question (" + (state.round + 1) + " of " + state.total + ")", "primary", nextQuestion); if (!last) add("End the contest now", "", () => hostUpdate({phase: "done"})); }
+  if (ph === "done") add("Play again with everyone", "primary", resetGame);
+  if (ph !== "lobby"){
+    const r = add(resetArmed ? "Tap again to reset" : "Reset contest", "danger", () => { if (!resetArmed){ resetArmed = true; renderHostButtons(); setTimeout(() => { resetArmed = false; if (state && isHost) renderHostButtons(); }, 3000); } else { resetArmed = false; resetGame(); } });
+  }
+}
+let resetArmed = false;
+const hostCatSel = [];
+function renderHostSettings(){
+  hostCatSel.length = 0; (state.cats || []).forEach(id => { if (CBY[id]) hostCatSel.push(id); });
+  catChips($("hostCats"), hostCatSel, sel => { hostUpdate({cats: sel.slice()}).then(saveHostCfg); });
+  seg($("hostDiff"), state.diff || "mix", v => hostUpdate({diff: v}).then(saveHostCfg));
+  seg($("hostLen"), state.total || 10, v => hostUpdate({total: Math.max(+v, state.round)}).then(saveHostCfg));
+  seg($("hostSecs"), state.secs || 20, v => hostUpdate({secs: +v}).then(saveHostCfg));
+  $("optSpeed").checked = state.speed !== false;
+  $("optAuto").checked = !!state.auto;
+}
+$("optSpeed").onchange = () => hostUpdate({speed: $("optSpeed").checked}).then(saveHostCfg);
+$("optAuto").onchange = () => hostUpdate({auto: $("optAuto").checked}).then(saveHostCfg);
+
+/* ---- player actions ---- */
+function myAnswer(k){ const me = myPlayer(), a = me && me.ans && me.ans[k]; if (a && a.v != null) return a.v; return pendingPick && pendingPick.k === k ? pendingPick.v : null; }
+async function liveAnswer(v){
+  if (!state || state.phase !== "question" || !myPlayer()) return;
+  const k = state.current.k;
+  if (myAnswer(k) != null || Date.now() > state.endsAt + 1500) return;
+  pendingPick = {k, v}; stageKey = ""; renderStage();
+  try { await gameRef().collection("players").doc(uid).set({ans: {[k]: {v, t: FV.serverTimestamp()}}}, {merge: true}); }
+  catch(e){ pendingPick = null; stageKey = ""; renderStage(); showNotice("Your answer didn't save. Try again."); }
+}
+
+/* ---- rendering ---- */
+function board(){
+  const sc = state.scores || {};
+  return players.map(p => { const s = sc[p.id] || {}; return {id: p.id, name: p.name, pts: s.pts || 0, right: s.right || 0, streak: s.streak || 0}; })
+    .sort((a, b) => b.pts - a.pts || b.right - a.right || a.name.localeCompare(b.name));
+}
+function renderBoard(){
+  const rows = board(), gains = state.phase === "reveal" && state.reveal ? state.reveal.gains || {} : {};
+  const meI = rows.findIndex(r => r.id === uid);
+  let shown = rows.slice(0, 10);
+  if (meI >= 10) shown = shown.concat([rows[meI]]);
+  $("board").innerHTML = shown.length ? shown.map(r => {
+    const i = rows.indexOf(r);
+    return '<div class="row' + (r.id === uid ? " me" : "") + '"><span class="rank">' + (i + 1) + '</span><span class="nm">' + esc(r.name) + (r.streak >= 3 ? '<span class="fire" title="' + r.streak + ' in a row">🔥' + r.streak + '</span>' : '') + '</span><span class="pts">' + fmt(r.pts) + (gains[r.id] ? '<span class="gain">+' + fmt(gains[r.id]) + '</span>' : '') + '</span></div>';
+  }).join("") + (rows.length > shown.length ? '<p class="muted" style="font-size:13px;margin:8px 0 0">+' + (rows.length - shown.length) + ' more</p>' : '') : '<p class="muted" style="font-size:14px;margin:0">No players yet.</p>';
+}
+let lastPhase = null;
+const PHASE = {lobby: "Lobby", question: "Answering", reveal: "Answer", done: "Final results"};
+function render(){
+  if (!state) return;
+  $("phaseChip").textContent = PHASE[state.phase] || state.phase;
+  $("roundLbl").textContent = state.phase === "done" ? state.round + " question" + (state.round === 1 ? "" : "s") + " played" : state.round ? "Question " + state.round + " of " + state.total : state.total + " questions";
+  $("hostSettings").hidden = !isHost || state.phase === "done";
+  if (state.phase !== lastPhase){ if (state.phase === "lobby") $("setDetails").open = true; else if (lastPhase === "lobby" || lastPhase === null) $("setDetails").open = false; lastPhase = state.phase; }
+  $("hostPanel").hidden = !isHost;
+  if (isHost){ renderHostButtons(); renderHostSettings(); }
+  renderBoard();
+  renderStage();
+  liveTick();
+}
+function qHeader(cur){ const c = CBY[cur.cat] || {name: "", color: "#999"}; return '<div class="qmeta"><span class="chip cat" style="--c:' + c.color + '">' + esc(c.name) + '</span><span class="diff">' + diffHTML(cur.d) + '</span></div>'; }
+function renderStage(){
+  const ph = state.phase, cur = state.current, me = myPlayer(), playing = !!me;
+  const myV = cur ? myAnswer(cur.k) : null;
+  const answeredN = cur ? players.filter(p => p.ans && p.ans[cur.k] && p.ans[cur.k].v != null).length : 0;
+  const key = [ph, cur && cur.k, myV, state.reveal && state.reveal.k, isHost, playing, ph === "lobby" || ph === "done" ? players.map(p => p.id + p.name).join() + JSON.stringify(state.scores || {}) : ""].join("|");
+  // live bits that change without a full redraw
+  if (key === stageKey){
+    const an = $("answeredN"); if (an) an.textContent = answeredN + " of " + players.length + " answered";
+    const dots = $("ansDots"); if (dots && cur) dots.innerHTML = players.map(p => '<span class="' + (p.ans && p.ans[cur.k] && p.ans[cur.k].v != null ? "in" : "") + '">' + esc(p.name) + '</span>').join("");
+    return;
+  }
+  stageKey = key;
+  const st = $("stage");
+  if (ph === "lobby"){
+    if (isHost){
+      st.innerHTML = '<section class="panel pop"><div class="lobby"><div><p class="label">Join at</p><div class="joinurl"><b>' + esc(joinURL().replace(/^https?:\/\//, "")) + '</b></div><p class="label" style="margin-top:16px">with the code</p><div class="bigcode">' + esc(code) + '</div><div class="row-actions" style="margin:14px 0 0"><button class="btn" id="copyInvite" type="button">Copy invite link</button></div></div><div class="qr" id="qrBox" aria-label="QR code to join"></div></div>' +
+        '<p class="state-big" style="margin-top:18px">' + (players.length ? players.length + " player" + (players.length === 1 ? "" : "s") + " in" : "Waiting for players…") + '</p><div class="dots">' + players.map(p => '<span>' + esc(p.name) + '</span>').join("") + '</div></section>';
+      $("copyInvite").onclick = async () => { try { await navigator.clipboard.writeText(joinURL() + "?code=" + code); say("hostCtlMsg", "Invite link copied.", "ok"); } catch(e){ say("hostCtlMsg", joinURL() + "?code=" + code); } };
+      drawQR($("qrBox"), joinURL() + "?code=" + code);
+    } else {
+      st.innerHTML = '<section class="panel pop"><div class="state-big">You\'re in, ' + esc((me || {}).name || "") + '.</div><p class="muted" style="margin:6px 0 0">Waiting for the host to start. ' + players.length + ' player' + (players.length === 1 ? "" : "s") + ' here.</p><div class="dots">' + players.map(p => '<span>' + esc(p.name) + '</span>').join("") + '</div></section>';
+    }
+    return;
+  }
+  if (ph === "question" && cur){
+    const canAnswer = playing && myV == null;
+    st.innerHTML = '<section class="pop">' + qHeader(cur) + '<h2 class="qtext">' + esc(cur.q) + '</h2><div class="answers' + (myV != null ? " locked" : "") + '" id="liveAns">' + answersHTML(cur.opts, canAnswer) + '</div>' +
+      (myV != null ? '<p class="answered" style="color:var(--ink)">Locked in ' + KEYS[myV] + '. Waiting for the reveal…</p>' : '') +
+      (isHost ? '<p class="answered" id="answeredN">' + answeredN + ' of ' + players.length + ' answered</p><div class="dots" id="ansDots"></div>' : '') + '</section>';
+    if (myV != null){ const b = st.querySelector('.ans[data-i="' + myV + '"]'); if (b) b.classList.add("picked"); }
+    $("liveAns").onclick = e => { const b = e.target.closest(".ans"); if (b && !b.disabled) liveAnswer(+b.dataset.i); };
+    if (isHost){ $("ansDots").innerHTML = players.map(p => '<span class="' + (p.ans && p.ans[cur.k] && p.ans[cur.k].v != null ? "in" : "") + '">' + esc(p.name) + '</span>').join(""); }
+    return;
+  }
+  if (ph === "reveal" && cur && state.reveal && state.reveal.k === cur.k){
+    const r = state.reveal, max = Math.max(1, ...(r.counts || [0]));
+    let tiles = cur.opts.map((t, i) => '<div class="ans a' + i + (i === r.right ? " right" : "") + (i === myV ? " picked" + (i !== r.right ? " wrong" : "") : "") + '"><span class="key">' + KEYS[i] + '</span><span class="txt">' + esc(t) + '</span>' + (i === r.right ? '<span class="mark">✓</span>' : '') + '<span class="cnt">' + ((r.counts || [])[i] || 0) + '</span><span class="bar" style="width:' + (100 * ((r.counts || [])[i] || 0) / max) + '%"></span></div>').join("");
+    let you = "";
+    if (playing){
+      const g = (r.gains || {})[uid], rows = board(), rank = rows.findIndex(x => x.id === uid) + 1, s = (state.scores || {})[uid] || {};
+      you = '<div class="youbox ' + (g ? "r" : "w") + ' pop"><b>' + (g ? "Right! +" + fmt(g) : myV != null ? "Not this time" : "No answer") + '</b><span>' + (g && r.fastest && r.fastest.id === uid ? "Fastest right answer in the room. " : "") + (s.streak >= 2 ? "🔥 " + s.streak + " in a row. " : "") + "You're " + ordinal(rank) + " of " + rows.length + " with " + fmt(s.pts || 0) + " points.</span></div>";
+    }
+    const nRight = Object.keys(r.gains || {}).length;
+    st.innerHTML = '<section class="pop">' + qHeader(cur) + '<h2 class="qtext">' + esc(cur.q) + '</h2><div class="answers done">' + tiles + '</div>' + you +
+      '<div class="factbox pop" style="margin-top:16px"><b>The fact</b>' + esc(r.f || "") + '</div>' +
+      '<p class="answered">' + nRight + ' of ' + (r.of || 0) + ' got it right' + (r.fastest ? ' · fastest: <b style="color:var(--ink)">' + esc(r.fastest.name) + '</b> in ' + (r.fastest.ms / 1000).toFixed(1) + ' s' : '') + '<span id="autoNote"></span></p></section>';
+    return;
+  }
+  if (ph === "done"){
+    const rows = board(), top = rows.slice(0, 3), meI = rows.findIndex(x => x.id === uid);
+    const order = [top[1], top[0], top[2]], h = [110, 160, 80], place = [2, 1, 3];
+    st.innerHTML = '<section class="panel pop"><h2 style="font:700 32px var(--serif)">Final results</h2><div class="podium">' + order.map((r, i) => r ? '<div class="step"><div class="name">' + esc(r.name) + '</div><div class="p">' + fmt(r.pts) + ' pts · ' + r.right + ' right</div><div class="block" style="height:' + h[i] + 'px">' + place[i] + '</div></div>' : '<div class="step"></div>').join("") + '</div>' +
+      (meI >= 0 ? '<p class="state-big" style="margin-top:14px">You finished ' + ordinal(meI + 1) + ' of ' + rows.length + '.</p>' : '') + '</section>';
+    if (meI === 0 || isHost) SFX.win();
+    return;
+  }
+  st.innerHTML = '<section class="panel"><p class="muted" style="margin:0">Waiting for the host…</p></section>';
+}
+function ordinal(n){ const s = ["th", "st", "nd", "rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+let qrLoading = null;
+function drawQR(el, text){
+  if (!el) return;
+  const go = () => { try { el.innerHTML = ""; new QRCode(el, {text, width: 160, height: 160, colorDark: "#0D0F2B", colorLight: "#F6F2E7", correctLevel: QRCode.CorrectLevel.M}); } catch(e){ el.hidden = true; } };
+  if (window.QRCode) return go();
+  if (!qrLoading){ qrLoading = new Promise((res, rej) => { const s = document.createElement("script"); s.src = "https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"; s.onload = res; s.onerror = rej; document.head.appendChild(s); }); }
+  qrLoading.then(go, () => { el.hidden = true; });
+}
+
+let liveLastSec = -1;
+function liveTick(){
+  if (!state || !code) return;
+  const live = state.phase === "question";
+  const left = live ? Math.max(0, state.endsAt - Date.now()) : 0, s = Math.ceil(left / 1000);
+  $("liveTimer").textContent = live ? s + "s" : "";
+  $("liveTimer").classList.toggle("low", live && s <= 5);
+  $("liveBar").style.width = live && state.limit ? (100 * left / (state.limit * 1000)) + "%" : "0%";
+  $("liveBarWrap").classList.toggle("low", live && s <= 5);
+  if (live && s <= 3 && s > 0 && s !== liveLastSec && (isHost || myAnswer(state.current.k) == null)){ liveLastSec = s; SFX.tick(); }
+  if (live && left <= 0 && !isHost){ const box = $("liveAns"); if (box) box.querySelectorAll(".ans").forEach(b => b.disabled = true); }
+  if (!isHost || busy) return;
+  // the host's screen runs the clock: reveal when time is up or everyone has answered
+  if (live && state.current){
+    const k = state.current.k, all = players.length && players.every(p => p.ans && p.ans[k] && p.ans[k].v != null);
+    if (left <= 0 || (all && Date.now() - ms(state.openedAt) > 1500)) grade();
+  }
+  if (state.phase === "reveal" && state.auto && state.reveal){
+    const wait = 10000, rem = Math.max(0, state.reveal.at + wait - Date.now());
+    const n = $("autoNote"); if (n) n.textContent = " · next in " + Math.ceil(rem / 1000) + " s";
+    if (rem <= 0 && advancingK !== state.reveal.k){ advancingK = state.reveal.k; nextQuestion(); }
+  }
+}
+setInterval(liveTick, 250);
+
+/* ---- keyboard ---- */
+document.addEventListener("keydown", e => {
+  if (e.target.matches("input,textarea,select") || e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key.toLowerCase(), idx = "1234".indexOf(k) >= 0 ? "1234".indexOf(k) : "abcd".indexOf(k);
+  if (!$("solo").hidden && solo){
+    if (!solo.answered && idx >= 0){ e.preventDefault(); answerSolo(idx); }
+    else if (solo.answered && (k === "enter" || k === " ") && !$("soloAfter").hidden){ e.preventDefault(); if (!e.repeat) nextSolo(); }
+  } else if (!$("game").hidden && state && state.phase === "question" && idx >= 0){ e.preventDefault(); liveAnswer(idx); }
+});
+
+/* ---- start up ---- */
+const params = new URLSearchParams(location.search);
+if (params.get("code")) $("joinCode").value = params.get("code").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 5);
+if (store.get("trivium.name")) $("joinName").value = $("hostName").value = store.get("trivium.name");
+show("landing");
+const mode = params.get("mode");
+if (mode === "daily") startSolo("daily");
+else if (mode === "survival" || mode === "blitz") startSolo(mode);
+else if (params.get("code") || location.hash === "#mp") setTimeout(() => { $("mp").scrollIntoView({block: "start"}); (params.get("code") ? $("joinName") : $("joinCode")).focus({preventScroll: true}); }, 60);
+$("mpJump").onclick = e => { e.preventDefault(); $("mp").scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start"}); $("joinCode").focus({preventScroll: true}); };
+
+if (fbOK){
+  auth.onAuthStateChanged(async u => {
+    if (!u) return;
+    uid = u.uid;
+    const saved = store.get("trivium.code");
+    if (saved && !code){
+      try {
+        const g = await fs.collection("games").doc(saved).get();
+        if (g.exists && g.data().kind === "trivia" && g.data().phase !== "done" && (g.data().hostUid === uid || (await g.ref.collection("players").doc(uid).get()).exists)) enterGame(saved);
+        else store.del("trivium.code");
+      } catch(e){}
+    }
+  });
+  if (store.get("trivium.code")) auth.signInAnonymously().catch(() => {});
+}
+})();
+</script>
+<aside class="rail l" aria-label="Advertisement"><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></aside>
+<aside class="rail r" aria-label="Advertisement"><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></aside>
+<script>
+// Side-rail ads. Uses RAIL_SLOT (a vertical 160x600 unit works best), else falls back to AD_SLOT.
+// Only on screens 1180px+ wide; the rails fold away if Google sends no ad.
+const RAIL_SLOT='';
+(function(){
+  const wide=matchMedia('(min-width:1180px) and (min-height:640px)');let state='';
+  const relayout=()=>dispatchEvent(new Event('resize'));
+  function setup(){
+    let slot=RAIL_SLOT;try{slot=slot||AD_SLOT}catch(e){}
+    if(!slot||state||!wide.matches)return;
+    state='asked';
+    if(!document.querySelector('script[src*="adsbygoogle.js"]')){const s=document.createElement('script');s.async=true;s.crossOrigin='anonymous';s.src='https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js';document.head.appendChild(s)}
+    document.documentElement.classList.add('rails');relayout();
+    const ins=[...document.querySelectorAll('.rail ins')];
+    ins.forEach(el=>{el.setAttribute('data-ad-client','ca-pub-1712937102765568');el.setAttribute('data-ad-slot',slot)});
+    requestAnimationFrame(()=>{
+      ins.forEach(()=>{try{(window.adsbygoogle=window.adsbygoogle||[]).push({})}catch(e){}});
+      setTimeout(()=>{if(!ins.some(el=>el.getAttribute('data-ad-status')==='filled')){document.documentElement.classList.remove('rails');state='empty';relayout()}},6000);
+    });
+  }
+  wide.addEventListener('change',()=>{setup();relayout()});
+  setup();
+})();
+</script>
+<script src="/analytics/tracker.js" data-site="trivium" defer></script>
+</body>
+</html>
