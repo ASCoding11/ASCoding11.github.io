@@ -395,24 +395,65 @@ const DIFF={
 };
 
 // ---------- collision world ----------
-// Planes (n points into the arena, inside when n·p >= d) and solid boxes the ball and cars stay out of.
-const PLANES=[],BOXES=[];
-(function(){
-  const P=(x,y,z,d)=>{const n=new V3(x,y,z).normalize();PLANES.push({n,d})};
-  P(0,1,0,0);P(0,-1,0,-AH);P(-1,0,0,-AW);P(1,0,0,-AW);
-  const s=Math.SQRT1_2,dc=-(AW+AL-CUT)*s;
-  for(const sx of [-1,1])for(const sz of [-1,1])PLANES.push({n:new V3(-sx*s,0,-sz*s),d:dc});
-  const B=(x0,x1,y0,y1,z0,z1)=>BOXES.push({x0,x1,y0,y1,z0,z1});
-  for(const sz of [-1,1]){
-    const za=sz>0?AL:-AL-GD-3,zb=sz>0?AL+GD+3:-AL;
-    B(-AW-4,-GW,-3,AH+3,za,zb);B(GW,AW+4,-3,AH+3,za,zb);   // end wall beside the goal
-    B(-GW-1,GW+1,GH,AH+3,za,zb);                        // above the crossbar
-    const bz0=sz>0?AL+GD:-AL-GD-3,bz1=sz>0?AL+GD+3:-AL-GD;
-    B(-GW-1,GW+1,-3,GH+1,bz0,bz1);                       // back of the net
+// The arena is a rounded box: floor, ceiling, side walls, back walls and 45° corners, with every inside edge
+// rounded by RAMP (Rocket League's quarter-pipes), so balls roll and cars drive from the floor up the walls.
+// Each goal is a box cut through its back wall. sdf(p,n) returns the distance from p to the nearest surface
+// (positive inside the arena) and writes that surface's normal, pointing into the arena, into n.
+const RAMP=256*UU,GOAL_R=.6,GOAL_FRONT=6;
+const IXW=AW-RAMP,IZW=AL-RAMP,IC=AW+AL-CUT-RAMP*Math.SQRT2;   // the arena shrunk by RAMP: an octagonal prism
+const OAX=IXW,OAZ=IC-IXW,OBX=IC-IZW,OBZ=IZW;                    // its corners in the +x,+z quadrant
+const OSEG=[[IXW,0,OAX,OAZ],[OAX,OAZ,OBX,OBZ],[OBX,OBZ,0,IZW]];
+let _snx=0,_snz=0;
+// Signed distance from (X,Z), X,Z >= 0, to the inner octagon; outward normal left in _snx,_snz.
+function octa(X,Z){
+  const ds=X-IXW,de=Z-IZW,dc=(X+Z-IC)*Math.SQRT1_2;
+  if(ds<=0&&de<=0&&dc<=0){
+    if(ds>=de&&ds>=dc){_snx=1;_snz=0;return ds}
+    if(de>=dc){_snx=0;_snz=1;return de}
+    _snx=_snz=Math.SQRT1_2;return dc;
   }
-})();
-const _cp=new V3(),_cn=new V3(),_ct=new V3();
-// Push a sphere out of the walls and bounce its velocity. Returns the hardest normal impact speed.
+  let best=1e18,px=0,pz=0;
+  for(let i=0;i<3;i++){
+    const g=OSEG[i],ex=g[2]-g[0],ez=g[3]-g[1];
+    let t=((X-g[0])*ex+(Z-g[1])*ez)/(ex*ex+ez*ez);t=t<0?0:t>1?1:t;
+    const qx=g[0]+ex*t,qz=g[1]+ez*t,d=(X-qx)*(X-qx)+(Z-qz)*(Z-qz);
+    if(d<best){best=d;px=qx;pz=qz}
+  }
+  const d=Math.sqrt(best);
+  if(d>1e-9){_snx=(X-px)/d;_snz=(Z-pz)/d}else{_snx=0;_snz=1}
+  return d;
+}
+function sdf(p,n){
+  const sx=p.x<0?-1:1,sz=p.z<0?-1:1;
+  const dxz=octa(p.x*sx,p.z*sz),nx=_snx*sx,nz=_snz*sz;
+  const dlo=RAMP-p.y,dhi=p.y-(AH-RAMP),dy=dlo>dhi?dlo:dhi,ny=dlo>dhi?-1:1;
+  let s;
+  if(dxz<=0&&dy<=0){
+    if(dxz>dy){s=RAMP-dxz;n.set(-nx,0,-nz)}else{s=RAMP-dy;n.set(0,-ny,0)}
+  }else{
+    const ox=dxz>0?dxz:0,oy=dy>0?dy:0,d=Math.sqrt(ox*ox+oy*oy);
+    s=RAMP-d;n.set(-nx*ox/d,-ny*oy/d,-nz*ox/d);
+  }
+  // the goal on this end: a box with slightly rounded inside edges, open toward the field
+  const gz=p.z*sz;
+  if(gz>AL-GOAL_FRONT-2&&s<4){
+    const ax=Math.abs(p.x),sxg=p.x<0?-1:1;
+    const ex=ax-(GW-GOAL_R);
+    const ey0=GOAL_R-p.y,ey1=p.y-(GH-GOAL_R),ey=ey0>ey1?ey0:ey1,syg=ey0>ey1?-1:1;
+    const ez0=(AL-GOAL_FRONT+GOAL_R)-gz,ez1=gz-(AL+GD-GOAL_R),ez=ez0>ez1?ez0:ez1,szg=(ez0>ez1?-1:1)*sz;
+    let g,gx=0,gy=0,gzn=0;
+    if(ex<=0&&ey<=0&&ez<=0){
+      if(ex>=ey&&ex>=ez){g=GOAL_R-ex;gx=-sxg}else if(ey>=ez){g=GOAL_R-ey;gy=-syg}else{g=GOAL_R-ez;gzn=-szg}
+    }else{
+      const ox=ex>0?ex:0,oy=ey>0?ey:0,oz=ez>0?ez:0,d=Math.sqrt(ox*ox+oy*oy+oz*oz);
+      g=GOAL_R-d;gx=-sxg*ox/d;gy=-syg*oy/d;gzn=-szg*oz/d;
+    }
+    if(g>s){s=g;n.set(gx,gy,gzn)}
+  }
+  return s;
+}
+const _cn=new V3(),_ct=new V3();
+// Bounce a velocity off a surface with normal n. Returns the normal impact speed.
 function bounce(v,n,e,mu){
   const vn=v.dot(n);if(vn>=0)return 0;
   const hard=-vn>2.2,ee=hard?e:0,m=hard?mu:.035;
@@ -422,19 +463,12 @@ function bounce(v,n,e,mu){
   if(tl>1e-5){const dv=Math.min(tl,m*(1+ee)*-vn);v.addScaledVector(_ct,-dv/tl)}
   return -vn;
 }
-function collideSphere(p,v,r,e,mu,skipFloor){
+// Push a sphere out of the arena's surfaces and bounce it. Returns the hardest normal impact speed.
+function collideArena(p,v,r,e,mu){
   let hit=0;
-  for(let i=skipFloor?1:0;i<PLANES.length;i++){const pl=PLANES[i];const d=pl.n.dot(p)-pl.d;if(d<r){p.addScaledVector(pl.n,r-d);hit=Math.max(hit,bounce(v,pl.n,e,mu))}}
-  for(const b of BOXES){
-    if(p.x<b.x0-r||p.x>b.x1+r||p.y<b.y0-r||p.y>b.y1+r||p.z<b.z0-r||p.z>b.z1+r)continue;
-    _cp.set(clamp(p.x,b.x0,b.x1),clamp(p.y,b.y0,b.y1),clamp(p.z,b.z0,b.z1));
-    _cn.subVectors(p,_cp);let d=_cn.length();
-    if(d>=r)continue;
-    if(d<1e-6){
-      const pen=[p.x-b.x0,b.x1-p.x,p.y-b.y0,b.y1-p.y,p.z-b.z0,b.z1-p.z];let k=0;for(let j=1;j<6;j++)if(pen[j]<pen[k])k=j;
-      _cn.set(0,0,0);_cn.setComponent(k>>1,k&1?1:-1);d=-pen[k];
-    }else _cn.multiplyScalar(1/d);
-    p.addScaledVector(_cn,r-d);hit=Math.max(hit,bounce(v,_cn,e,mu));
+  for(let k=0;k<3;k++){
+    const s=sdf(p,_cn);if(s>=r)break;
+    p.addScaledVector(_cn,r-s);hit=Math.max(hit,bounce(v,_cn,e,mu));
   }
   return hit;
 }
@@ -445,7 +479,7 @@ function stepBall(b,dt){
   b.vel.y-=GRAV*dt;
   b.vel.multiplyScalar(1-.03*dt);
   b.pos.addScaledVector(b.vel,dt);
-  const hit=collideSphere(b.pos,b.vel,BR,.6,.35);
+  const hit=collideArena(b.pos,b.vel,BR,.6,.35);
   const sp=b.vel.length();if(sp>BALL_MAX)b.vel.multiplyScalar(BALL_MAX/sp);
   return hit;
 }
@@ -460,18 +494,20 @@ function predictGoal(pos,vel,secs){
 
 // ---------- cars ----------
 // The car model follows RocketSim's car update tick for tick (jump, double jump, dodge, air control,
-// auto-flip, auto-roll), with the suspension replaced by a simple "on its wheels / resting on its body" contact.
+// auto-flip, auto-roll, the sticky force that holds you to walls), with the suspension replaced by a simple
+// "on its wheels on some surface / resting on its body" contact.
 const _f=new V3(),_u=new V3(),_rt=new V3(),_qa=new QT(),_qi=new QT(),_v1=new V3(),_v2=new V3(),_v3=new V3(),_v4=new V3(),_v5=new V3();
 function piece(T,x){if(x<=T[0][0])return T[0][1];for(let i=1;i<T.length;i++)if(x<=T[i][0]){const a=T[i-1],b=T[i];return lerp(a[1],b[1],(x-a[0])/(b[0]-a[0]))}return T[T.length-1][1]}
 const CURV=[[0,.0069],[500,.00398],[1000,.00235],[1500,.001375],[1750,.0011],[2500,.00088]];
 function curv(v){return piece(CURV,v/UU)/UU} // turning curvature (1/unit) at speed v
 const DRIVE_CURVE=[[0,1],[1400,.1],[1410,0]];
+const NONSTICKY=[[0,.1],[.7075,.5],[1,1]]; // grip with no throttle, by how much the surface faces up
 function newInput(){return{thr:0,steer:0,pitch:0,roll:0,jump:false,boost:false,slide:false}}
 function makeCar(o){
   return Object.assign({id:'',name:'',team:0,body:0,accent:0,isBot:false,isMe:false,remote:false,
     pos:new V3(0,CAR_Y,0),vel:new V3(),q:new QT(),ang:new V3(),yaw:0,boost:KICK_BOOST,onGround:true,
     jumping:false,hasJumped:false,jumpT:0,airT:0,airSinceJump:0,hasDbl:false,hasFlipped:false,flipping:false,flipT:0,flipF:0,flipS:0,
-    autoFlipT:0,autoFlipS:1,contact:false,prevJump:false,boosting:false,landQ:new QT(),landT:0,
+    autoFlipT:0,autoFlipS:1,contact:false,gN:new V3(0,1,0),cN:new V3(0,1,0),noLandT:0,prevJump:false,boosting:false,landQ:new QT(),landT:0,
     demo:0,lastHit:0,lastTouchEv:0,inp:newInput(),stats:{g:0,a:0,sv:0,sh:0,dm:0},
     // remote smoothing
     tpos:new V3(0,CAR_Y,0),tvel:new V3(),tq:new QT(),tts:0,seen:0,
@@ -484,7 +520,11 @@ function carAxes(c){_f.set(0,0,1).applyQuaternion(c.q);_u.set(0,1,0).applyQuater
 function setYaw(c,y){c.yaw=y;c.q.setFromAxisAngle(Y_AXIS,y)}
 function speedOf(c){return c.vel.length()}
 // How far the car's lowest point sits below its centre in its current orientation (the wheels count when upright).
-function supportH(){return CAR_HX*Math.abs(_rt.y)+CAR_HY*Math.abs(_u.y)+CAR_HZ*Math.abs(_f.y)+(_u.y>0?(CAR_Y-CAR_HY)*_u.y:0)}
+function supportH(N){const un=_u.dot(N);return CAR_HX*Math.abs(_rt.dot(N))+CAR_HY*Math.abs(un)+CAR_HZ*Math.abs(_f.dot(N))+(un>0?(CAR_Y-CAR_HY)*un:0)}
+const _qs=new QT(),_gn=new V3(),_gn2=new V3(),_wp=new V3();
+// Turn the car the least amount that puts its wheels flat on a surface with normal N.
+function alignUp(c,N){carAxes(c);_qs.setFromUnitVectors(_u,N);c.q.premultiply(_qs).normalize();carAxes(c)}
+function syncYaw(c){if(Math.abs(_f.y)<.97)c.yaw=Math.atan2(_f.x,_f.z)}
 const UPSIDE_DOWN=Math.cos(2.8);
 
 // Air rotation: dodge torque, air control (pitch / yaw / roll with Rocket League's damping), auto-flip, the 5.5 rad/s cap.
@@ -530,25 +570,33 @@ function stepCar(c,dt,frozen){
   const pi=clamp(inp.pitch,-1,1),yi=inp.slide?0:clamp(inp.steer,-1,1),ri=clamp(inp.slide?inp.steer+inp.roll:inp.roll,-1,1);
   const fwdSpeed=c.vel.dot(_f);
 
-  // ---- driving on the wheels ----
+  // ---- driving on the wheels, on the floor, a wall or the ceiling ----
   if(c.onGround){
+    const N=c.gN,ny=N.y,sticky=Math.abs(thr)>.001;
+    const fs=sticky?1:piece(NONSTICKY,ny); // with no throttle, walls barely grip
     let vf=fwdSpeed,lat=c.vel.dot(_rt),a=0;
     if(canBoost)a+=BOOST_GROUND;
-    if(Math.abs(thr)>.001){
-      if(thr*vf<0&&Math.abs(vf)>.2)a+=Math.sign(thr)*BRAKE_ACC;
+    if(sticky){
+      if(thr*vf<0&&Math.abs(vf)>25*UU)a+=Math.sign(thr)*BRAKE_ACC;
       else a+=thr*DRIVE_ACC*piece(DRIVE_CURVE,Math.abs(vf)/UU);
     }else{
-      const dec=(Math.abs(vf)<25*UU?BRAKE_ACC:COAST_ACC)*dt;
+      const dec=(Math.abs(vf)<25*UU?BRAKE_ACC:COAST_ACC)*fs*dt;
       vf=Math.abs(vf)<=dec?0:vf-Math.sign(vf)*dec;
     }
-    vf+=a*dt;vf=clamp(vf,-MAXD,MAXB);
+    // gravity along the surface: what slows you climbing a wall and pulls you back down it
+    _v1.set(0,-GRAV,0).addScaledVector(N,GRAV*ny);
+    vf+=(a+_v1.dot(_f))*dt;lat+=_v1.dot(_rt)*dt;
+    vf=clamp(vf,-MAXD,MAXB);
     let yr=-inp.steer*vf*curv(Math.abs(vf));
     if(inp.slide)yr*=1+1.5*clamp(Math.abs(vf)/30,0,1);
-    c.yaw+=yr*dt;
-    lat*=Math.exp(-(inp.slide?1.4:16)*dt);
-    c.q.setFromAxisAngle(Y_AXIS,c.yaw);carAxes(c);
-    c.vel.copy(_f).multiplyScalar(vf).addScaledVector(_rt,lat);c.vel.y=0;
-    c.ang.set(0,1,0).multiplyScalar(yr);
+    _qs.setFromAxisAngle(N,yr*dt);c.q.premultiply(_qs).normalize();carAxes(c);
+    lat*=Math.exp(-(inp.slide?1.4:16)*fs*dt);
+    c.vel.copy(_f).multiplyScalar(vf).addScaledVector(_rt,lat);
+    c.ang.copy(N).multiplyScalar(yr);
+    // The sticky force (half gravity, plus more on walls while you're driving) against gravity pulling you off:
+    // it holds you to walls but not to the ceiling.
+    const full=sticky||Math.abs(vf)>25*UU;
+    if(-GRAV*ny-GRAV*(.5+(full?1-Math.abs(ny):0))>0){c.onGround=false;c.noLandT=.25}
   }
 
   // ---- first jump: an instant kick plus extra lift while held (min 0.025 s, max 0.2 s) ----
@@ -565,9 +613,9 @@ function stepCar(c,dt,frozen){
     c.airT+=dt;
     if(c.hasJumped&&!c.jumping)c.airSinceJump+=dt;else c.airSinceJump=0;
     // ---- auto-flip: jump while lying on the roof to roll back over ----
-    if(jp&&c.contact&&_u.y<UPSIDE_DOWN+.06&&c.autoFlipT<=0){
-      const roll=Math.acos(clamp(_u.y,-1,1));
-      c.autoFlipT=AUTOFLIP_TIME*(roll/Math.PI);c.autoFlipS=_rt.y>=0?1:-1;
+    if(jp&&c.contact&&c.cN.y>Math.SQRT1_2&&_u.dot(c.cN)<UPSIDE_DOWN+.06&&c.autoFlipT<=0){
+      const roll=Math.acos(clamp(_u.dot(c.cN),-1,1));
+      c.autoFlipT=AUTOFLIP_TIME*(roll/Math.PI);c.autoFlipS=_rt.dot(c.cN)>=0?1:-1;
       c.vel.addScaledVector(_u,-AUTOFLIP_IMP);ev='jump';
     }
     // ---- second jump or dodge, within 1.25 s of the first jump ending (any time if you never jumped) ----
@@ -591,10 +639,10 @@ function stepCar(c,dt,frozen){
     }
     airRotate(c,dt,pi,yi,ri);
     // ---- auto-roll: holding throttle while on your side rolls you back onto your wheels ----
-    if(c.contact&&Math.abs(thr)>.001&&_u.y>UPSIDE_DOWN+.06){
-      _v4.crossVectors(_u,Y_AXIS);const s=_v4.length();
-      if(s>1e-3)c.ang.addScaledVector(_v4,AUTOROLL_TORQUE*Math.min(1,1-_u.y)*dt/s);
-      c.vel.y-=AUTOROLL_FORCE*dt;
+    if(c.contact&&Math.abs(thr)>.001&&_u.dot(c.cN)>UPSIDE_DOWN+.06){
+      _v4.crossVectors(_u,c.cN);const s=_v4.length();
+      if(s>1e-3)c.ang.addScaledVector(_v4,AUTOROLL_TORQUE*Math.min(1,1-_u.dot(c.cN))*dt/s);
+      c.vel.addScaledVector(c.cN,-AUTOROLL_FORCE*dt);
     }
     clampSpin(c);
     // ---- flip: vertical speed is damped so dodges stay low ----
@@ -610,38 +658,58 @@ function stepCar(c,dt,frozen){
   }
   if(canBoost){c.boost=Math.max(0,c.boost-BOOST_USE*dt);c.boosting=true}else c.boosting=false;
   c.pos.addScaledVector(c.vel,dt);
-  // walls and ceiling (the car is a sphere here; the floor is handled below)
-  const wh=collideSphere(c.pos,c.vel,CAR_R,.15,.1,true);
-  if(wh>14&&!ev)ev='bonk';
-  if(c.onGround){c.pos.y=CAR_Y;c.vel.y=0;return ev}
-  // ---- the floor ----
-  carAxes(c);
-  const sup=supportH();
-  const wasContact=c.contact;c.contact=false;
-  if(c.pos.y<=sup+.01){
-    const imp=-c.vel.y;
-    if(_u.y>.55&&!c.jumping&&c.vel.y<=.5&&c.autoFlipT<=0){
-      // Down on the wheels: the suspension takes it, so snap level and blend the model over.
-      c.landQ.copy(c.q);c.landT=.14;
-      c.onGround=true;c.pos.y=CAR_Y;c.vel.y=0;
-      _v1.set(_f.x,0,_f.z);if(_v1.lengthSq()<.01)_v1.set(-_u.x,0,-_u.z);
-      setYaw(c,Math.atan2(_v1.x,_v1.z));
-      c.ang.set(0,0,0);resetAir(c);
-      if(imp>6)ev='land';
+  if(c.noLandT>0)c.noLandT-=dt;
+  if(c.onGround){
+    // A sharp wall just above the wheels (inside the goals): bump off it instead of climbing it.
+    _wp.copy(c.pos).addScaledVector(c.gN,.6);
+    const sw=sdf(_wp,_gn2);
+    if(sw<CAR_R&&_gn2.dot(c.gN)<.8){
+      c.pos.addScaledVector(_gn2,CAR_R-sw);const vn=c.vel.dot(_gn2);
+      if(vn<0){c.vel.addScaledVector(_gn2,-vn);if(-vn>14&&!ev)ev='bonk'}
+    }
+    // Follow the surface: stay at ride height, turn the velocity along the curve without losing speed.
+    const s1=sdf(c.pos,_gn2);
+    if(_gn2.dot(c.gN)<.8){
+      if(s1>CAR_Y+.05){c.onGround=false;c.noLandT=.15} // drove off an edge
     }else{
-      // Resting on its body: slide and tip toward whichever side it's nearer to.
-      c.contact=true;c.pos.y=sup;
-      if(c.vel.y<0)c.vel.y=imp>3?imp*.1:0;
-      const fr=Math.exp(-2.2*dt);c.vel.x*=fr;c.vel.z*=fr;
-      if(!wasContact&&imp>6)ev='land';
-      if(c.autoFlipT<=0){
-        c.ang.multiplyScalar(Math.exp(-4*dt));
-        const uyp=_u.y+_v4.crossVectors(c.ang,_u).y*.35; // where it's rolling toward, not just where it is
-        const tgt=uyp>-.1?1:-1; // the wheels stick out past the body, so anything short of the roof falls onto them
-        if(tgt){_v4.crossVectors(_u,tgt>0?Y_AXIS:_v3.set(0,-1,0));const s=_v4.length();if(s>1e-3)c.ang.addScaledVector(_v4,14*dt/s*Math.min(1,s*2))}
-      }
+      c.pos.addScaledVector(_gn2,CAR_Y-s1);
+      const sp=c.vel.length();c.vel.addScaledVector(_gn2,-c.vel.dot(_gn2));
+      const l=c.vel.length();if(l>1e-6)c.vel.multiplyScalar(sp/l);
+      c.gN.copy(_gn2);alignUp(c,_gn2);
+    }
+    syncYaw(c);
+    if(c.onGround)return ev;
+  }
+  // ---- touching a surface while airborne: land on the wheels, or rest on the body ----
+  carAxes(c);
+  const s1=sdf(c.pos,_gn2),N=_gn2,sup=supportH(N);
+  const wasContact=c.contact;c.contact=false;
+  if(s1<=sup+.01){
+    const vn=c.vel.dot(N),imp=-vn,un=_u.dot(N);
+    if(un>.55&&!c.jumping&&vn<=.5&&c.autoFlipT<=0&&c.noLandT<=0){
+      // Down on the wheels: the suspension takes it, so snap flat to the surface and blend the model over.
+      c.landQ.copy(c.q);c.landT=.14;
+      c.onGround=true;c.gN.copy(N);alignUp(c,N);
+      c.pos.addScaledVector(N,CAR_Y-s1);c.vel.addScaledVector(N,-vn);
+      c.ang.set(0,0,0);resetAir(c);syncYaw(c);
+      if(imp>6)ev='land';
+      return ev;
+    }
+    // Resting on its body: slide and tip toward whichever side it's nearer to.
+    c.contact=true;c.cN.copy(N);
+    c.pos.addScaledVector(N,sup-s1);
+    if(vn<0)c.vel.addScaledVector(N,-vn*(imp>3?1.25:1));
+    _v1.copy(c.vel).addScaledVector(N,-c.vel.dot(N));c.vel.addScaledVector(_v1,-(1-Math.exp(-2.2*dt)));
+    if(!wasContact&&imp>6&&!ev)ev=imp>14?'bonk':'land';
+    if(c.autoFlipT<=0){
+      c.ang.multiplyScalar(Math.exp(-4*dt));
+      const unp=un+_v4.crossVectors(c.ang,_u).dot(N)*.35; // where it's rolling toward, not just where it is
+      _v3.copy(N);if(unp<=-.1)_v3.negate(); // the wheels stick out past the body, so anything short of the roof falls onto them
+      _v4.crossVectors(_u,_v3);const sn=_v4.length();
+      if(sn>1e-3)c.ang.addScaledVector(_v4,14*dt/sn*Math.min(1,sn*2));
     }
   }
+  syncYaw(c);
   return ev;
 }
 const FROZEN_INPUT=newInput();
@@ -693,7 +761,7 @@ const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'h
 renderer.setClearColor(0x060a18);
 const scene=new THREE.Scene();
 scene.fog=new THREE.Fog(0x0b1433,240,640);
-const camera=new THREE.PerspectiveCamera(74,1,.1,1600);
+const camera=new THREE.PerspectiveCamera(74,1,.25,1600);
 camera.position.set(0,30,-70);
 scene.add(new THREE.HemisphereLight(0xcfe0ff,0x1a2a22,.82));
 const sun=new THREE.DirectionalLight(0xffffff,.62);sun.position.set(30,80,-20);scene.add(sun);
@@ -729,8 +797,10 @@ const fieldTex=canvasTex(AW*2*PX,AL*2*PX,(g,w,h)=>{
   g.fillStyle=gr;g.fillRect(0,0,w,h);
   g.restore();
   g.strokeStyle='rgba(255,255,255,.85)';g.lineWidth=4;g.lineJoin='round';
-  g.beginPath();poly.forEach(([x,z],i)=>i?g.lineTo(fx(x),fz(z)):g.moveTo(fx(x),fz(z)));g.closePath();g.stroke();
-  g.beginPath();g.moveTo(fx(-AW),fz(0));g.lineTo(fx(AW),fz(0));g.stroke();
+  // the edge of the flat floor, where the ramps start
+  const inner=[[IXW,-OAZ],[IXW,OAZ],[OBX,OBZ],[-OBX,OBZ],[-IXW,OAZ],[-IXW,-OAZ],[-OBX,-OBZ],[OBX,-OBZ]];
+  g.beginPath();inner.forEach(([x,z],i)=>i?g.lineTo(fx(x),fz(z)):g.moveTo(fx(x),fz(z)));g.closePath();g.stroke();
+  g.beginPath();g.moveTo(fx(-IXW),fz(0));g.lineTo(fx(IXW),fz(0));g.stroke();
   g.beginPath();g.arc(fx(0),fz(0),15*PX,0,7);g.stroke();
   g.fillStyle='rgba(255,255,255,.85)';g.beginPath();g.arc(fx(0),fz(0),.6*PX,0,7);g.fill();
   for(const s of [-1,1]){
@@ -745,35 +815,80 @@ floor.rotation.x=-Math.PI/2;scene.add(floor);
 
 const netTex=canvasTex(128,128,(g,w,h)=>{g.clearRect(0,0,w,h);g.strokeStyle='rgba(255,255,255,.75)';g.lineWidth=3;for(let i=0;i<=w;i+=16){g.beginPath();g.moveTo(i,0);g.lineTo(i,h);g.stroke();g.beginPath();g.moveTo(0,i);g.lineTo(w,i);g.stroke()}},[1,1]);
 const wallTex=canvasTex(256,256,(g,w,h)=>{
-  g.fillStyle='rgba(120,160,255,.1)';g.fillRect(0,0,w,h);
-  g.strokeStyle='rgba(200,220,255,.36)';g.lineWidth=2;
+  g.fillStyle='rgba(70,100,170,.34)';g.fillRect(0,0,w,h);
+  g.strokeStyle='rgba(200,220,255,.5)';g.lineWidth=2;
   for(let y=0;y<=h;y+=32){for(let x=(y/32)%2?16:0;x<w;x+=32){g.beginPath();g.moveTo(x,y+16);g.lineTo(x+8,y+2);g.lineTo(x+24,y+2);g.lineTo(x+32,y+16);g.stroke()}}
 },[1,1]);
 
 const arena=new THREE.Group();scene.add(arena);
-function wallQuad(x1,z1,x2,z2,y0,y1,color,opacity){
-  const len=Math.hypot(x2-x1,z2-z1),hgt=y1-y0;
-  const t=wallTex.clone();t.needsUpdate=true;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(len/12,hgt/12);
-  const m=new THREE.Mesh(new THREE.PlaneGeometry(len,hgt),new THREE.MeshBasicMaterial({map:t,color,transparent:true,opacity,side:THREE.DoubleSide,depthWrite:false}));
-  m.position.set((x1+x2)/2,(y0+y1)/2,(z1+z2)/2);m.rotation.y=Math.atan2(x2-x1,z2-z1)-Math.PI/2;
-  arena.add(m);
-  // neon strip along the bottom and top edge
-  const pts=[new V3(x1,.04,z1),new V3(x2,.04,z2)];
-  arena.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color})));
-  if(y1>=AH-.1)arena.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new V3(x1,y1,z1),new V3(x2,y1,z2)]),new THREE.LineBasicMaterial({color,transparent:true,opacity:.55})));
-  return m;
-}
-(function buildArena(){
-  const B=0x6fb2ff,O=0xffa45a,N=0xc8d4ff;
-  wallQuad(-AW,-AL+CUT,-AW,0,0,AH,B,.9);wallQuad(-AW,0,-AW,AL-CUT,0,AH,O,.9);
-  wallQuad(AW,-AL+CUT,AW,0,0,AH,B,.9);wallQuad(AW,0,AW,AL-CUT,0,AH,O,.9);
-  wallQuad(-AW,AL-CUT,-AW+CUT,AL,0,AH,O,.9);wallQuad(AW-CUT,AL,AW,AL-CUT,0,AH,O,.9);
-  wallQuad(-AW,-AL+CUT,-AW+CUT,-AL,0,AH,B,.9);wallQuad(AW-CUT,-AL,AW,-AL+CUT,0,AH,B,.9);
-  for(const s of [-1,1]){
-    const c=s<0?B:O,z=s*AL;
-    wallQuad(-AW+CUT,z,-GW,z,0,AH,c,.95);wallQuad(GW,z,AW-CUT,z,0,AH,c,.95);wallQuad(-GW,z,GW,z,GH,AH,c,.95);
+// The arena shell: quarter-pipe ramps up from the floor (turf), walls and the curve into the ceiling (glass),
+// swept around the inner octagon so it matches the collision shape exactly. The goal mouths are cut out.
+(function buildShell(){
+  const P=[[IXW,-OAZ],[IXW,OAZ],[OBX,OBZ],[-OBX,OBZ],[-IXW,OAZ],[-IXW,-OAZ],[-OBX,-OBZ],[OBX,-OBZ]];
+  const outl=[];let arc=0,last=null;
+  const push=(x,z,nx,nz,end)=>{if(last)arc+=Math.hypot(x-last[0],z-last[1])+.6*Math.hypot(nx-last[2],nz-last[3]);last=[x,z,nx,nz];outl.push({x,z,nx,nz,end,s:arc})};
+  for(let i=0;i<8;i++){
+    const a=P[i],b=P[(i+1)%8],c=P[(i+2)%8];
+    const dx=b[0]-a[0],dz=b[1]-a[1],l=Math.hypot(dx,dz),nx=dz/l,nz=-dx/l;
+    const isEnd=Math.abs(nz)>.99;
+    const ts=new Set();const n=Math.max(2,Math.ceil(l/4));for(let k=0;k<=n;k++)ts.add(k/n);
+    if(isEnd)for(const gx of [-GW,GW]){const t=(gx-a[0])/dx;if(t>0&&t<1)ts.add(t)}
+    for(const t of [...ts].sort((p,q)=>p-q))push(a[0]+dx*t,a[1]+dz*t,nx,nz,isEnd);
+    const ex=c[0]-b[0],ez=c[1]-b[1],el=Math.hypot(ex,ez),mx=ez/el,mz=-ex/el;
+    const a0=Math.atan2(nz,nx);let a1=Math.atan2(mz,mx);let da=a1-a0;while(da>Math.PI)da-=2*Math.PI;while(da<-Math.PI)da+=2*Math.PI;
+    for(let k=1;k<4;k++){const an=a0+da*k/4;push(b[0],b[1],Math.cos(an),Math.sin(an),false)}
   }
-  void N;
+  const first=outl[0];arc+=Math.hypot(first.x-last[0],first.z-last[1]);outl.push(Object.assign({},first,{s:arc}));
+  // cross-section: ramp up from the floor, the wall, then the curve into the ceiling
+  const prof=[];
+  for(let k=0;k<=8;k++){const t=k/8*Math.PI/2;prof.push({r:RAMP*Math.sin(t),y:RAMP*(1-Math.cos(t)),nr:-Math.sin(t),ny:Math.cos(t),low:true})}
+  for(const y of [GH,(GH+AH-RAMP)/2,AH-RAMP])prof.push({r:RAMP,y,nr:-1,ny:0,low:false});
+  for(let k=1;k<=6;k++){const t=Math.PI/2-k/6*Math.PI/2;prof.push({r:RAMP*Math.sin(t),y:AH-RAMP+RAMP*Math.cos(t),nr:-Math.sin(t),ny:-Math.cos(t),low:false})}
+  let pv=0;prof.forEach((p,i)=>{if(i)pv+=Math.hypot(p.r-prof[i-1].r,p.y-prof[i-1].y);p.v=pv});
+  const B=new THREE.Color(0x6fb2ff),O=new THREE.Color(0xffa45a),tmp=new THREE.Color();
+  const build=low=>{
+    const pos=[],nor=[],uv=[],col=[],idx=[];const rows=prof.map((p,i)=>i).filter(i=>low?prof[i].low:(i>=8));
+    const vid=new Map();
+    const vert=(oi,pi)=>{const k=oi*100+pi;if(vid.has(k))return vid.get(k);const o=outl[oi],p=prof[pi];
+      const x=o.x+o.nx*p.r,z=o.z+o.nz*p.r;pos.push(x,p.y,z);nor.push(o.nx*p.nr,p.ny,o.nz*p.nr);
+      if(low)uv.push((x+AW)/(2*AW),(AL-z)/(2*AL));else uv.push(o.s/14,p.v/14);
+      tmp.copy(B).lerp(O,clamp(z/24+.5,0,1));col.push(tmp.r,tmp.g,tmp.b);
+      vid.set(k,pos.length/3-1);return pos.length/3-1};
+    for(let oi=0;oi<outl.length-1;oi++){
+      const o0=outl[oi],o1=outl[oi+1];
+      const mouth=o0.end&&o1.end&&Math.abs(o0.x)<=GW+1e-6&&Math.abs(o1.x)<=GW+1e-6;
+      for(let j=0;j<rows.length-1;j++){
+        const pa=rows[j],pb=rows[j+1];
+        if(mouth&&prof[pb].y<=GH+1e-6)continue;
+        const a=vert(oi,pa),b=vert(oi+1,pa),c=vert(oi+1,pb),d=vert(oi,pb);
+        idx.push(a,c,b,a,d,c);
+      }
+    }
+    const g=new THREE.BufferGeometry();
+    g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('normal',new THREE.Float32BufferAttribute(nor,3));
+    g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));g.setAttribute('color',new THREE.Float32BufferAttribute(col,3));g.setIndex(idx);
+    return g;
+  };
+  const ramps=new THREE.Mesh(build(true),new THREE.MeshLambertMaterial({map:fieldTex,emissive:0xffffff,emissiveMap:fieldTex,emissiveIntensity:.5,side:THREE.DoubleSide}));arena.add(ramps);
+  const wt=wallTex.clone();wt.needsUpdate=true;wt.wrapS=wt.wrapT=THREE.RepeatWrapping;
+  const walls=new THREE.Mesh(build(false),new THREE.MeshBasicMaterial({map:wt,vertexColors:true,transparent:true,opacity:.95,side:THREE.DoubleSide,depthWrite:false}));arena.add(walls);
+  // the ends of the ramps beside each goal mouth
+  const capPos=[];
+  for(const s of [-1,1])for(const x of [-GW,GW]){
+    for(let k=0;k<8;k++){const p0=prof[k],p1=prof[k+1];capPos.push(x,0,s*AL, x,p0.y,s*(IZW+p0.r), x,p1.y,s*(IZW+p1.r))}
+  }
+  const cg=new THREE.BufferGeometry();cg.setAttribute('position',new THREE.Float32BufferAttribute(capPos,3));cg.computeVertexNormals();
+  arena.add(new THREE.Mesh(cg,new THREE.MeshLambertMaterial({color:0x1d6a37,emissive:0x0d3a1c,side:THREE.DoubleSide})));
+  // neon strips where the ramps meet the walls, and along the top
+  const lp=[],lc=[];
+  const strip=(r,y,skipMouth,op)=>{for(let oi=0;oi<outl.length-1;oi++){const o0=outl[oi],o1=outl[oi+1];
+    if(skipMouth&&o0.end&&o1.end&&Math.abs(o0.x)<=GW+1e-6&&Math.abs(o1.x)<=GW+1e-6)continue;
+    for(const o of [o0,o1]){const z=o.z+o.nz*r;lp.push(o.x+o.nx*r,y,z);tmp.copy(B).lerp(O,clamp(z/24+.5,0,1)).multiplyScalar(op);lc.push(tmp.r,tmp.g,tmp.b)}}};
+  strip(RAMP,RAMP,true,1);strip(0,AH,false,.6);
+  const lg=new THREE.BufferGeometry();lg.setAttribute('position',new THREE.Float32BufferAttribute(lp,3));lg.setAttribute('color',new THREE.Float32BufferAttribute(lc,3));
+  arena.add(new THREE.LineSegments(lg,new THREE.LineBasicMaterial({vertexColors:true})));
+})();
+(function buildArena(){
   // goals: glowing frame, net and a back glow
   for(const s of [-1,1]){
     const t=s<0?0:1,col=TEAM[t].col,z=s*AL,zb=s*(AL+GD);
@@ -791,7 +906,7 @@ function wallQuad(x1,z1,x2,z2,y0,y1,color,opacity){
     arena.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new V3(-GW,.05,z),new V3(GW,.05,z)]),new THREE.LineBasicMaterial({color:0xffffff})));
   }
   // outside: ground, stands with a crowd, light towers, sky
-  const ground=new THREE.Mesh(new THREE.PlaneGeometry(2400,2400),new THREE.MeshLambertMaterial({color:0x0a1226}));ground.rotation.x=-Math.PI/2;ground.position.y=-.05;scene.add(ground);
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(2400,2400),new THREE.MeshLambertMaterial({color:0x0a1226}));ground.rotation.x=-Math.PI/2;ground.position.y=-3;scene.add(ground);
   const crowd=canvasTex(512,128,(g,w,h)=>{g.fillStyle='#0d1530';g.fillRect(0,0,w,h);const cols=['#2f8cff','#ff8a1f','#e8ecf8','#ffd34a','#8b95b8','#46e39a','#ff4d6d'];for(let i=0;i<1100;i++){g.fillStyle=pick(cols);g.globalAlpha=rand(.12,.5);g.fillRect(Math.random()*w,Math.random()*h,rand(2,4),rand(3,6))}g.globalAlpha=1;g.fillStyle='rgba(0,0,0,.35)';for(let y=0;y<h;y+=8)g.fillRect(0,y,w,2)},[1,1]);
   const stand=(w,x,z,ry)=>{const t=crowd.clone();t.needsUpdate=true;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(w/50,5);
     const m=new THREE.Mesh(new THREE.PlaneGeometry(w,110),new THREE.MeshLambertMaterial({map:t,side:THREE.DoubleSide}));m.position.set(x,37,z);m.rotation.set(0,ry,0);m.rotateX(-.62);scene.add(m)};
@@ -1083,7 +1198,7 @@ function newMatch(){
 const KICK=[[-2048,-2560],[2048,-2560],[-256,-3840],[256,-3840],[0,-4608]].map(([x,z])=>[x*UU,z*UU]);
 const RESP=[[-2304,-4608],[2304,-4608],[-2688,-4608],[2688,-4608],[0,-4608],[-256,-3840],[256,-3840]].map(([x,z])=>[x*UU,z*UU]);
 function placeCar(c,x,z,yaw){
-  c.pos.set(x,CAR_Y,z);c.vel.set(0,0,0);c.ang.set(0,0,0);setYaw(c,yaw);c.onGround=true;resetAir(c);c.landT=0;
+  c.pos.set(x,CAR_Y,z);c.vel.set(0,0,0);c.ang.set(0,0,0);setYaw(c,yaw);c.onGround=true;resetAir(c);c.landT=0;c.gN.set(0,1,0);c.noLandT=0;
   c.demo=0;c.placed=true;c.brain.plan=null;c.brain.jp=null;
 }
 function kickoffSpot(c){
@@ -1305,7 +1420,13 @@ function botThink(c,dt,now,ph){
   inp.thr=0;inp.steer=0;inp.pitch=0;inp.roll=0;inp.boost=false;inp.slide=false;
   if(c.demo>0||ph==='countdown'||ph==='over'||!c.placed){inp.jump=false;return}
   // Stuck on the roof: jump to auto-flip back over. On a side or nose: throttle auto-rolls onto the wheels.
-  if(c.contact){carAxes(c);inp.thr=1;inp.jump=_u.y<-.5&&!c.prevJump;b.jp=null;return}
+  if(c.contact){carAxes(c);inp.thr=1;inp.jump=_u.dot(c.cN)<-.5&&!c.prevJump;b.jp=null;return}
+  // Bots don't play off the walls: if one ends up driving up a wall, it turns back down to the floor.
+  if(c.onGround&&c.gN.y<.75){
+    carAxes(c);_t1.set(0,-1,0).addScaledVector(c.gN,c.gN.y);
+    const side=_t1.dot(_rt),down=_t1.dot(_f);
+    inp.thr=1;inp.jump=false;b.jp=null;inp.steer=down>0?clamp(side*3,-1,1):(side>=0?1:-1);return;
+  }
   const T=TEAM[c.team],dir=T.dir;
   const bv=ballHidden?_bv.pos.set(0,BR,0)&&_bv:botView(D.react,now);
   if(ballHidden)_bv.vel.set(0,0,0);
@@ -1494,7 +1615,7 @@ function freeReset(){
 //  Camera
 // =====================================================================
 const camPos=new V3(0,30,-70),camLook=new V3(),camV=new V3();
-let shakeT=0,shakeA=0,camHead=0,orbitA=0,camElev=0,camSnap=false;
+let shakeT=0,shakeA=0,camHead=0,orbitA=0,camElev=0,camSnap=false;const camUp=new V3(0,1,0);
 const CAM_DIST=270*UU,CAM_HGT=100*UU;
 function baseFov(){const a=camera.aspect||1.6;return Math.min(100,2*Math.atan(Math.tan(55*Math.PI/180)/a)*180/Math.PI)}
 function shake(a){shakeA=Math.max(shakeA,a*shakeAmt);shakeT=.5}
@@ -1530,17 +1651,26 @@ function updateCamera(dt){
     camElev+=(elev-camElev)*(camSnap?1:1-Math.exp(-dt*8));
     hx=Math.sin(camHead);hz=Math.cos(camHead);
     const back=DIST*Math.cos(camElev),up=HGT-DIST*Math.sin(camElev)*.9;
-    const des=_t2.set(p.x-hx*back,p.y+Math.max(up,.5),p.z-hz*back);
+    // On a ramp or wall the camera rides the surface with the car instead of staying level.
+    const wantUp=me.onGround&&me.gN.y<.97?_ga.copy(Y_AXIS).lerp(me.gN,clamp((1-me.gN.y)*1.6,0,1)).normalize():_ga.copy(Y_AXIS);
+    camUp.lerp(wantUp,camSnap?1:1-Math.exp(-dt*6)).normalize();
+    const hb=_v1.set(hx,0,hz);hb.addScaledVector(camUp,-hb.dot(camUp));
+    if(hb.lengthSq()<1e-4)hb.set(_f.x,_f.y,_f.z).addScaledVector(camUp,-_f.dot(camUp));
+    hb.normalize();
+    const des=_t2.copy(p).addScaledVector(hb,-back).addScaledVector(camUp,Math.max(up,.5));
     if(camSnap)camPos.copy(des);else camPos.lerp(des,1-Math.exp(-dt*16));
-    camV.set(0,0,0);collideSphere(camPos,camV,.5,0,0);
+    camV.set(0,0,0);collideArena(camPos,camV,.5,0,0);
     if(camPos.y<.55)camPos.y=.55;
     let look;
-    if(ballCam&&!ballHidden){look=_t3.copy(p).add(_ga.set(0,1.1,0));const d=look.distanceTo(bvis);look.lerp(bvis,clamp(9/Math.max(d,9),0,1)*.5)}
-    else look=_t3.set(p.x+hx*6,p.y+1.25,p.z+hz*6);
+    if(ballCam&&!ballHidden){look=_t3.copy(p).addScaledVector(camUp,1.1);const d=look.distanceTo(bvis);look.lerp(bvis,clamp(9/Math.max(d,9),0,1)*.5)}
+    else look=_t3.copy(p).addScaledVector(hb,6).addScaledVector(camUp,1.25);
     if(camSnap){camLook.copy(look);camSnap=false}else camLook.lerp(look,1-Math.exp(-dt*20));
   }
   camera.position.copy(camPos);
   if(shakeT>0){shakeT-=dt;const s=shakeA*Math.max(0,shakeT/.5);camera.position.x+=rand(-s,s);camera.position.y+=rand(-s,s)*.6;camera.position.z+=rand(-s,s)}
+  // tilt the camera's up a little toward the wall you're on, so looking straight up a wall never flips the view
+  const onWall=me&&state==='playing'&&mode!=='attract'&&me.demo<=0;
+  camera.up.copy(Y_AXIS);if(onWall)camera.up.lerp(camUp,.6).normalize();
   camera.lookAt(camLook);
   const sup=me&&state==='playing'&&me.vel.length()>SUPER?6:0;
   const base=baseFov();
@@ -1729,13 +1859,13 @@ const Net={
       o.x=r2(c.pos.x);o.z=r2(c.pos.z);o.y=r2(c.pos.y);o.h=r3(c.yaw);
       o.q=[r3(c.q.x),r3(c.q.y),r3(c.q.z),r3(c.q.w)].join(',');
       o.v=[r2(c.vel.x),r2(c.vel.y),r2(c.vel.z)].join(',');
-      o.bo=c.boosting?1:0;o.bs=Math.round(c.boost);o.dm=c.demo>0?1:0;o.pl=c.placed?1:0;
+      o.bo=c.boosting?1:0;o.bs=Math.round(c.boost);o.dm=c.demo>0?1:0;o.pl=c.placed?1:0;o.g=c.onGround?1:0;
       o.st=[c.stats.g,c.stats.a,c.stats.sv,c.stats.sh,c.stats.dm].join(',');
     }
     if(owner===this.uid&&!ballHidden)o.b=lastTouchBt+'|'+Math.round(this.now())+'|'+packBall(ball);
     if(this.isHost()){
       const bots=cars.filter(b=>b.isBot&&!b.remote);
-      if(bots.length)o.bh=bots.map(b=>[b.id,b.team,r2(b.pos.x),r2(b.pos.y),r2(b.pos.z),r3(b.q.x),r3(b.q.y),r3(b.q.z),r3(b.q.w),r2(b.vel.x),r2(b.vel.y),r2(b.vel.z),b.boosting?1:0,Math.round(b.boost),b.demo>0?1:0,b.body,b.accent,b.stats.g,b.stats.a,b.stats.sv,b.stats.sh,b.stats.dm,BOT_NAMES.indexOf(b.name),b.placed?1:0].join(',')).join('|');
+      if(bots.length)o.bh=bots.map(b=>[b.id,b.team,r2(b.pos.x),r2(b.pos.y),r2(b.pos.z),r3(b.q.x),r3(b.q.y),r3(b.q.z),r3(b.q.w),r2(b.vel.x),r2(b.vel.y),r2(b.vel.z),b.boosting?1:0,Math.round(b.boost),b.demo>0?1:0,b.body,b.accent,b.stats.g,b.stats.a,b.stats.sv,b.stats.sh,b.stats.dm,BOT_NAMES.indexOf(b.name),b.placed?1:0,b.onGround?1:0].join(',')).join('|');
     }
     return o;
   },
@@ -1846,6 +1976,7 @@ function onRemoteState(uid,v){
   }
   c.name=cleanName(v.n)||c.name;c.team=team;c.body=clamp(v.bd|0,0,2);c.accent=clamp(v.ac|0,0,ACCENTS.length-1);
   setRemoteKin(c,+v.x,+v.y||CAR_Y,+v.z,parseVec(v.q,4),parseVec(v.v,3),ts);
+  c.netGround=v.g===undefined?(+v.y||CAR_Y)<CAR_Y+.1:!!v.g;
   c.boosting=!!v.bo;c.boost=clamp(+v.bs||0,0,100);c.placed=v.pl!==0;
   remoteDemo(c,!!v.dm);
   const st=parseVec(v.st,5);if(st)c.stats={g:st[0]|0,a:st[1]|0,sv:st[2]|0,sh:st[3]|0,dm:st[4]|0};
@@ -1868,7 +1999,7 @@ function onRemoteState(uid,v){
       b.team=n[0]?1:0;b.name=BOT_NAMES[n[21]]||b.name;
       setRemoteKin(b,n[1],n[2],n[3],[n[4],n[5],n[6],n[7]],[n[8],n[9],n[10]],ts);
       b.boosting=!!n[11];b.boost=clamp(n[12],0,100);remoteDemo(b,!!n[13]);
-      b.stats={g:n[16]|0,a:n[17]|0,sv:n[18]|0,sh:n[19]|0,dm:n[20]|0};b.placed=!!n[22];
+      b.stats={g:n[16]|0,a:n[17]|0,sv:n[18]|0,sh:n[19]|0,dm:n[20]|0};b.placed=!!n[22];b.netGround=n.length>23?!!n[23]:b.pos.y<CAR_Y+.1;
     }
     for(const b of cars.slice())if(b.isBot&&b.remote&&!ids.has(b.id))removeCar(b);
   }
@@ -1903,7 +2034,7 @@ function hostDuties(now){
   if(host!==wasHost){
     wasHost=host;
     for(const b of cars)if(b.isBot){
-      if(host&&b.remote){b.remote=false;b.pos.copy(b.tpos);b.vel.copy(b.tvel);b.q.copy(b.tq);carAxes(b);b.yaw=Math.atan2(_f.x,_f.z);b.onGround=b.pos.y<CAR_Y+.08;b.diff='normal';b.inp=newInput()}
+      if(host&&b.remote){b.remote=false;b.pos.copy(b.tpos);b.vel.copy(b.tvel);b.q.copy(b.tq);carAxes(b);b.yaw=Math.atan2(_f.x,_f.z);b.onGround=!!b.netGround;if(b.onGround){sdf(b.pos,b.gN);b.contact=false}b.diff='normal';b.inp=newInput()}
       else if(!host&&!b.remote)b.remote=true;
     }
   }
@@ -1929,7 +2060,7 @@ function updateRemotes(dt){
     if(!c.remote)continue;
     const age=clamp((now-c.tts)/1000,0,.22);
     _rp.copy(c.tpos).addScaledVector(c.tvel,age);
-    if(c.tpos.y>CAR_Y+.1)_rp.y-=.5*GRAV*age*age;
+    if(!c.netGround)_rp.y-=.5*GRAV*age*age;
     if(_rp.y<CAR_Y)_rp.y=CAR_Y;
     if(c.pos.distanceTo(_rp)>9)c.pos.copy(_rp);else c.pos.lerp(_rp,k);
     c.q.slerp(c.tq,k);c.vel.copy(c.tvel);
@@ -2164,7 +2295,7 @@ function step(dt){
   ballMesh.visible=!ballHidden;ballShadow.visible=!ballHidden;ballRing.visible=!ballHidden;
   if(!ballHidden){
     ballMesh.position.copy(ball.pos).add(ballVisOff);
-    if(ball.pos.y<BR+.08)ball.ang.set(ball.vel.z/BR,0,-ball.vel.x/BR);else ball.ang.multiplyScalar(Math.exp(-dt*.3));
+    if(sdf(ball.pos,_v4)<BR+.08)ball.ang.crossVectors(_v4,ball.vel).multiplyScalar(1/BR);else ball.ang.multiplyScalar(Math.exp(-dt*.3));
     const w=ball.ang.length();if(w>1e-4&&!freeze){_qa.setFromAxisAngle(_v5.copy(ball.ang).multiplyScalar(1/w),w*dt);ballMesh.quaternion.premultiply(_qa)}
     const hgt=ballMesh.position.y-BR;const k=clamp(1-hgt/20,.25,1);
     ballShadow.position.set(ballMesh.position.x,.04,ballMesh.position.z);ballShadow.scale.set(k,k,k);ballShadow.material.opacity=k;
