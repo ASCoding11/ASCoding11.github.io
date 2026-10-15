@@ -220,11 +220,7 @@ function admitProb(s,plan,round){
   return Math.min(p,.92);
 }
 function decide(s,plan,round){
-  const p=admitProb(s,plan,round), r=Math.random();
-  if(r<p) return 'admit';
-  const rest=(r-p)/(1-p);
-  if(round==='early') return rest<DEFER_SHARE[plan]?'defer':'deny';
-  return rest<WAIT_SHARE?'waitlist':'deny';
+  return 'deny'; // every letter is a rejection
 }
 
 /* ---------- setup ---------- */
@@ -248,11 +244,8 @@ function renderSetup(){
       <input type="text" id="nm" value="${esc(state.name)}" maxlength="40" autocomplete="off">
     </div>
     <div>
-      <span class="lbl" id="pl">Applicant profile</span>
-      <div class="seg" role="group" aria-labelledby="pl">
-        ${Object.entries(PROFILES).map(([k,v])=>`<button type="button" data-prof="${k}" aria-pressed="${state.profile===k}">${v.label}</button>`).join('')}
-      </div>
-      <div class="hint">${PROFILES[state.profile].hint} Early rounds add a boost; deferred applicants face longer odds in March.</div>
+      <span class="lbl">How this works</span>
+      <p style="margin:0;max-width:60ch">Every letter in this game is a rejection. Most applicants to these schools hear no, including students with excellent records, so the first rejection you read shouldn\u2019t be on the real decision day.</p>
     </div>
   </section>
 
@@ -268,7 +261,7 @@ function renderSetup(){
     </div>
     <div class="tablewrap">
     <table>
-      <thead><tr><th style="width:36px"><span class="sr" hidden>Apply</span></th><th class="num">Rank</th><th>University</th><th class="num">Admit rate</th><th>Round</th><th class="num">Your odds</th></tr></thead>
+      <thead><tr><th style="width:36px"><span class="sr" hidden>Apply</span></th><th class="num">Rank</th><th>University</th><th class="num">Admit rate</th><th>Round</th></tr></thead>
       <tbody>
       ${SCHOOLS.map(s=>{const a=state.apps[s.id];const round=a.plan==='RD'?'rd':'early';return `
         <tr class="${a.on?'':'off'}">
@@ -277,7 +270,6 @@ function renderSetup(){
           <td><label for="on-${s.id}"><span class="swatch" style="background:${s.color}"></span>${esc(s.name)}</label></td>
           <td class="num">~${s.rate}%</td>
           <td><select id="plan-${s.id}" data-plan="${s.id}" ${a.on?'':'disabled'} aria-label="Round for ${esc(s.short)}">${s.plans.map(p=>`<option value="${p}" ${p===a.plan?'selected':''}>${PLAN_LABEL[p]}</option>`).join('')}</select></td>
-          <td class="num">${pct(admitProb(s,a.plan,round))}</td>
         </tr>`}).join('')}
       </tbody>
     </table>
@@ -288,7 +280,7 @@ function renderSetup(){
     <div>${err?`<div class="err" role="alert">${err}</div>`:`<span class="muted">${on} application${on===1?'':'s'}${rc?` · 1 restrictive early`:''}</span>`}</div>
     <button class="primary" id="submit" ${err?'disabled':''}>Submit applications</button>
   </div>
-  <p class="disclaim">A game. Odds are rough estimates built from recent overall admit rates, not real admissions predictions. Every letter is invented and stamped as a simulation; none of these universities are involved.</p>`;
+  <p class="disclaim">A game. Every letter is invented and stamped as a simulation; none of these universities are involved.</p>`;
 
   document.getElementById('nm').addEventListener('input',e=>{state.name=e.target.value});
   $app.querySelectorAll('[data-prof]').forEach(b=>b.onclick=()=>{state.profile=b.dataset.prof;renderSetup()});
@@ -357,8 +349,8 @@ function renderPortal(){
   </div>
 
   ${finished?`<section class="panel summary">
-    <h2>${admits.length?`Admitted to ${admits.length} of ${list.length}`:'No admits this cycle'}</h2>
-    <p class="muted" style="margin:0">${admits.length?(state.edCommit?`Your Early Decision acceptance at ${esc(byId(state.edCommit).short)} is binding, so the rest of your applications were withdrawn.`:`Choose wisely. Your reply is due May 1, 2027.`):'Real applicants with strong records hear this too. Try a different profile or a different list.'}</p>
+    <h2>${admits.length?`Admitted to ${admits.length} of ${list.length}`:`Every school said no`}</h2>
+    <p class="muted" style="margin:0">${admits.length?(state.edCommit?`Your Early Decision acceptance at ${esc(byId(state.edCommit).short)} is binding, so the rest of your applications were withdrawn.`:`Choose wisely. Your reply is due May 1, 2027.`):`With admit rates between about 3 and 16 percent, this is the most common result at these schools, even for students with excellent records. Thousands of strong applicants hear no every year and go on to great colleges and great lives. If a real decision day hits hard, step away from it for a night and talk to someone you trust. You can also call or text 988 any time.`}</p>
     <ul>${states.map(([s,st])=>`<li><span>${esc(s.short)}</span><span class="badge c-${st.kind==='withdrawn'?'withdrawn':st.outcome}">${OUT_LABEL[st.kind==='withdrawn'?'withdrawn':st.outcome]}</span></li>`).join('')}</ul>
   </section>`:''}
 
@@ -377,7 +369,7 @@ function renderPortal(){
   <div class="grid">
     ${states.map(([s,st])=>tileHTML(s,st)).join('')}
   </div>
-  <p class="disclaim">Simulation only. Odds come from recent overall admit rates scaled by your profile; letters are invented and are not from any university.</p>`;
+  <p class="disclaim">Simulation only. Letters are invented and are not from any university.</p>`;
 
   $app.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openLetter(b.dataset.open,b.dataset.round));
   document.getElementById('advance')?.addEventListener('click',()=>{state.phase='regular';render();window.scrollTo({top:0})});
