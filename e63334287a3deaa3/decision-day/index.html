@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<title>Decision Day Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Young+Serif&display=swap">
+<style>
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+[hidden]{display:none!important}
+/* Layout: an applicant's desk — application list first, then a mailbox of postmarked envelopes that open into full letters */
+:root{
+  --bg:#e7ebf0; --surface:#f8fafc; --ink:#141a24; --muted:#586377; --line:#cdd5df;
+  --accent:#2747a8; --stamp:#b8322a;
+  --letter-bg:#fdfdfb; --letter-ink:#1b1f27; --letter-muted:#5d6372; --letter-line:#e2e4e8;
+  --ok:#1d7647; --warn:#9a6400; --bad:#a3302a; --info:#3b58ad;
+  --f-display:"Young Serif", Georgia, "Times New Roman", serif;
+  --f-body:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0d1219; --surface:#151c27; --ink:#e4e9f1; --muted:#93a0b4; --line:#283244;
+  --accent:#8ea8ff; --stamp:#ff7d6e; --ok:#5fd39a; --warn:#f0b54a; --bad:#ff8a80; --info:#8ea8ff;
+  --letter-bg:#f6f5f1; --letter-ink:#1b1f27; --letter-muted:#5d6372; --letter-line:#dcdde1;
+  color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0d1219; --surface:#151c27; --ink:#e4e9f1; --muted:#93a0b4; --line:#283244;
+  --accent:#8ea8ff; --stamp:#ff7d6e; --ok:#5fd39a; --warn:#f0b54a; --bad:#ff8a80; --info:#8ea8ff;
+  --letter-bg:#f6f5f1; --letter-ink:#1b1f27; --letter-muted:#5d6372; --letter-line:#dcdde1;
+  color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));padding-block:28px 64px}
+.wrap{max-width:1040px;margin:0 auto;display:flex;flex-direction:column;gap:28px}
+h1,h2,h3{font-family:var(--f-display);font-weight:400;text-wrap:balance;margin:0}
+button{font:inherit;cursor:pointer}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--f-mono)}
+.muted{color:var(--muted)}
+
+/* masthead */
+.mast{display:flex;gap:24px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.mast h1{font-size:clamp(2.2rem,6vw,3.4rem);line-height:1}
+.mast p{margin:8px 0 0;max-width:60ch;color:var(--muted)}
+.postmark{flex:none;width:118px;height:118px;border-radius:50%;border:2px dashed var(--stamp);color:var(--stamp);
+  display:grid;place-items:center;text-align:center;transform:rotate(-9deg);font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;line-height:1.35;text-transform:uppercase}
+.postmark b{display:block;font-size:20px;font-weight:500;letter-spacing:.02em}
+
+/* panels */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px}
+.controls{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:20px}
+@media (max-width:720px){.controls{grid-template-columns:1fr}}
+label.lbl{display:block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;font-weight:500}
+input[type=text]{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font:inherit}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:8px 12px;border-radius:6px;font-size:14px}
+.seg button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.hint{font-size:13px;color:var(--muted);margin-top:6px}
+
+.listhead{display:flex;align-items:end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.listhead h2{font-size:1.5rem}
+.quick{display:flex;gap:6px;flex-wrap:wrap}
+.ghost{border:1px solid var(--line);background:transparent;color:var(--ink);padding:6px 10px;border-radius:6px;font-size:13px}
+.ghost:hover{border-color:var(--accent)}
+
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px;min-width:620px}
+th{text-align:left;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500;padding:8px 10px;border-bottom:1px solid var(--line)}
+td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr.off td:not(:first-child){opacity:.42}
+td.num,th.num{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.swatch{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:8px;vertical-align:baseline}
+select{font:inherit;font-size:13px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);max-width:100%}
+input[type=checkbox]{width:17px;height:17px;accent-color:var(--accent)}
+
+.submitbar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.primary{background:var(--accent);color:var(--surface);border:0;padding:12px 20px;border-radius:8px;font-weight:600;font-size:15px}
+.primary:disabled{opacity:.4;cursor:not-allowed}
+.err{color:var(--bad);font-size:14px}
+
+/* portal */
+.phasebar{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+.phase{padding:14px 18px;display:flex;flex-direction:column;gap:2px}
+.phase+.phase{border-left:1px solid var(--line)}
+.phase .k{font-family:var(--f-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.phase .v{font-family:var(--f-display);font-size:1.15rem}
+.phase.now{background:color-mix(in srgb, var(--accent) 12%, var(--surface))}
+.phase.now .k{color:var(--accent)}
+.toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.tally{display:flex;gap:8px;flex-wrap:wrap}
+.chip{font-size:13px;padding:4px 10px;border-radius:999px;border:1px solid currentColor;font-variant-numeric:tabular-nums}
+.c-admit{color:var(--ok)} .c-waitlist{color:var(--warn)} .c-defer{color:var(--info)} .c-deny{color:var(--bad)} .c-withdrawn{color:var(--muted)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.env{position:relative;background:var(--surface);border:1px solid var(--line);border-top:6px solid var(--sc);border-radius:8px;padding:16px 16px 14px;display:flex;flex-direction:column;gap:10px;min-height:168px;text-align:left;color:var(--ink);min-width:0}
+button.env{cursor:pointer;transition:transform .15s ease, box-shadow .15s ease}
+button.env:hover{transform:translateY(-2px);box-shadow:0 6px 18px color-mix(in srgb, var(--ink) 12%, transparent)}
+.env .rk{font-family:var(--f-mono);font-size:11px;color:var(--muted);letter-spacing:.06em}
+.env h3{font-size:1.08rem;line-height:1.25;padding-right:64px}
+.env .meta{font-size:13px;color:var(--muted)}
+.env .foot{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.env .pm{position:absolute;top:12px;right:12px;width:54px;height:54px;border-radius:50%;border:1.5px dashed var(--muted);color:var(--muted);display:grid;place-items:center;text-align:center;font-family:var(--f-mono);font-size:8.5px;line-height:1.2;letter-spacing:.06em;transform:rotate(-10deg);text-transform:uppercase}
+.env.ready .pm{border-color:var(--stamp);color:var(--stamp)}
+.status{font-size:13px;font-weight:600}
+.badge{font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;background:color-mix(in srgb, currentColor 14%, transparent)}
+.env.locked,.env.withdrawn{opacity:.6}
+.cta{font-size:13px;font-weight:600;color:var(--accent)}
+
+.summary{display:flex;flex-direction:column;gap:12px}
+.summary h2{font-size:1.6rem}
+.summary ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px 18px}
+.summary li{display:flex;justify-content:space-between;gap:10px;border-bottom:1px dotted var(--line);padding:4px 0;font-size:14px}
+
+/* overlay + letter */
+.overlay{position:fixed;inset:0;z-index:20;background:color-mix(in srgb, #05080d 72%, transparent);overflow-y:auto;
+  padding:calc(24px + env(safe-area-inset-top,0px)) max(16px, env(safe-area-inset-right,0px)) calc(40px + env(safe-area-inset-bottom,0px)) max(16px, env(safe-area-inset-left,0px))}
+.loader{min-height:70vh;display:grid;place-items:center;text-align:center;color:#eef1f6;gap:18px}
+.envicon{width:120px;height:80px;position:relative;margin:0 auto;border-radius:6px;background:var(--letter-bg);box-shadow:0 10px 30px #0006}
+.envicon::before{content:"";position:absolute;inset:0;background:linear-gradient(to bottom right,transparent 49.5%,var(--letter-line) 50%,transparent 51%),linear-gradient(to bottom left,transparent 49.5%,var(--letter-line) 50%,transparent 51%);border-radius:6px}
+.envicon::after{content:"";position:absolute;left:0;right:0;top:0;height:50%;background:var(--sc);clip-path:polygon(0 0,100% 0,50% 100%);transform-origin:top;animation:flap 1.4s ease-in-out infinite;border-radius:6px 6px 0 0}
+@keyframes flap{0%,100%{transform:scaleY(1)}50%{transform:scaleY(-1)}}
+.loader p{font-family:var(--f-mono);font-size:13px;letter-spacing:.06em;margin:0}
+
+.letter{position:relative;max-width:720px;margin:0 auto;background:var(--letter-bg);color:var(--letter-ink);border-radius:4px;box-shadow:0 24px 60px #0008;overflow:hidden;animation:rise .5s ease-out both}
+@keyframes rise{from{transform:translateY(24px);opacity:.3}to{transform:none;opacity:1}}
+.lhead{background:var(--sc);color:#fff;padding:26px 36px 22px;display:flex;flex-direction:column;gap:4px}
+.lhead .sn{font-family:var(--f-display);font-size:clamp(1.5rem,4.4vw,2.1rem);line-height:1.15}
+.lhead .off{font-size:12px;letter-spacing:.14em;text-transform:uppercase;opacity:.85}
+.lbody{padding:30px 36px 34px;font-size:16px;line-height:1.65;display:flex;flex-direction:column;gap:14px}
+.lbody p{margin:0;max-width:62ch}
+.lbody .date{font-family:var(--f-mono);font-size:13px;color:var(--letter-muted)}
+.lbody .big{font-family:var(--f-display);font-size:1.5rem;line-height:1.25}
+.sig{margin-top:8px;color:var(--letter-muted);font-size:15px}
+.sig b{display:block;color:var(--letter-ink);font-weight:500;font-family:var(--f-display);font-size:1.15rem}
+.lfoot{border-top:1px solid var(--letter-line);padding:12px 36px;font-size:12px;color:var(--letter-muted);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.stamp{position:absolute;right:22px;top:118px;transform:rotate(-12deg);border:2.5px solid var(--stamp);color:var(--stamp);padding:6px 12px;text-align:center;font-family:var(--f-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;opacity:.72;pointer-events:none;line-height:1.3;background:color-mix(in srgb, var(--letter-bg) 70%, transparent)}
+.stamp b{display:block;font-size:17px;letter-spacing:.2em}
+@media (max-width:560px){.lhead,.lbody,.lfoot{padding-left:22px;padding-right:22px}.stamp{top:auto;bottom:58px;right:14px}}
+.lnav{max-width:720px;margin:16px auto 0;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.lnav button{background:#f4f6fa;color:#141a24;border:0;padding:10px 16px;border-radius:8px;font-weight:600}
+.lnav button.alt{background:transparent;color:#eef1f6;border:1px solid #ffffff55}
+
+canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:30}
+.disclaim{font-size:12.5px;color:var(--muted);max-width:75ch}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="wrap" id="app"></div>
+<canvas id="confetti" hidden></canvas>
+
+<script>
+// Top 25 national universities: U.S. News 2027 list with Princeton placed at #1. Admit rates are approximate recent overall figures.
+const SCHOOLS = [
+  {id:'princeton',name:'Princeton University',short:'Princeton',rank:1,rate:4.6,plans:['SCEA','RD'],color:'#D16400',city:'Princeton, NJ',flavor:'Orange and black looks good on you. Your residential college is already saving you a seat.'},
+  {id:'mit',name:'Massachusetts Institute of Technology',short:'MIT',rank:2,rate:4.5,plans:['EA','RD'],color:'#A31F34',city:'Cambridge, MA',flavor:'Start bracing yourself for your first problem set, and for the Infinite Corridor at sunset.'},
+  {id:'harvard',name:'Harvard University',short:'Harvard',rank:3,rate:3.6,plans:['REA','RD'],color:'#A51C30',city:'Cambridge, MA',flavor:'Your first year will begin in the Yard, a short walk from the Charles.'},
+  {id:'yale',name:'Yale University',short:'Yale',rank:4,rate:4.6,plans:['SCEA','RD'],color:'#00356B',city:'New Haven, CT',flavor:'Soon you will be sorted into a residential college you will defend loyally for life.'},
+  {id:'caltech',name:'California Institute of Technology',short:'Caltech',rank:5,rate:2.6,plans:['REA','RD'],color:'#E35A00',city:'Pasadena, CA',flavor:'Small classes, big questions, and a house system with traditions you will have to see to believe.'},
+  {id:'stanford',name:'Stanford University',short:'Stanford',rank:5,rate:3.6,plans:['REA','RD'],color:'#8C1515',city:'Stanford, CA',flavor:'Pack sunglasses. The Main Quad gets bright in the spring.'},
+  {id:'penn',name:'University of Pennsylvania',short:'Penn',rank:7,rate:4.9,plans:['ED','RD'],color:'#011F5B',city:'Philadelphia, PA',flavor:'Locust Walk is waiting, and so is the rest of Philadelphia.'},
+  {id:'duke',name:'Duke University',short:'Duke',rank:8,rate:5.1,plans:['ED','RD'],color:'#012169',city:'Durham, NC',flavor:'Your first year starts on East Campus. Tenting season comes sooner than you think.'},
+  {id:'jhu',name:'Johns Hopkins University',short:'Johns Hopkins',rank:9,rate:5.4,plans:['ED','RD'],color:'#002D72',city:'Baltimore, MD',flavor:'The Homewood campus has a lab, a library carrel, and a crab cake with your name on it.'},
+  {id:'northwestern',name:'Northwestern University',short:'Northwestern',rank:9,rate:7.5,plans:['ED','RD'],color:'#4E2A84',city:'Evanston, IL',flavor:'Get ready for Lake Michigan sunrises and a lot of purple.'},
+  {id:'uchicago',name:'University of Chicago',short:'UChicago',rank:9,rate:4.5,plans:['ED','EA','RD'],color:'#800000',city:'Chicago, IL',flavor:'Bring your strangest questions. Hyde Park has been waiting for them.'},
+  {id:'columbia',name:'Columbia University',short:'Columbia',rank:12,rate:3.9,plans:['ED','RD'],color:'#1D4F91',city:'New York, NY',flavor:'You will read the great books of the Core, then argue about them on the Low Steps.'},
+  {id:'dartmouth',name:'Dartmouth College',short:'Dartmouth',rank:12,rate:5.4,plans:['ED','RD'],color:'#00693E',city:'Hanover, NH',flavor:'Your first-year trip into the New Hampshire woods is the start of something.'},
+  {id:'cmu',name:'Carnegie Mellon University',short:'Carnegie Mellon',rank:14,rate:11.7,plans:['ED','RD'],color:'#C41230',city:'Pittsburgh, PA',flavor:'Grab a paintbrush. The Fence will need a fresh coat by midnight.'},
+  {id:'cornell',name:'Cornell University',short:'Cornell',rank:14,rate:8.4,plans:['ED','RD'],color:'#B31B1B',city:'Ithaca, NY',flavor:'The gorges are beautiful, the hills are steep, and you will climb Libe Slope more times than you can count.'},
+  {id:'brown',name:'Brown University',short:'Brown',rank:16,rate:5.7,plans:['ED','RD'],color:'#4E3629',city:'Providence, RI',flavor:'The Open Curriculum means the next four years are yours to design.'},
+  {id:'rice',name:'Rice University',short:'Rice',rank:16,rate:7.8,plans:['ED','RD'],color:'#00205B',city:'Houston, TX',flavor:'O-Week will place you in a residential college that becomes your family.'},
+  {id:'vanderbilt',name:'Vanderbilt University',short:'Vanderbilt',rank:16,rate:5.1,plans:['ED','RD'],color:'#7A6239',city:'Nashville, TN',flavor:'A first year on The Commons, with Music City a short walk away.'},
+  {id:'washu',name:'Washington University in St. Louis',short:'WashU',rank:16,rate:12.0,plans:['ED','RD'],color:'#A51417',city:'St. Louis, MO',flavor:'Forest Park sits right next door, and it is bigger than you expect.'},
+  {id:'berkeley',name:'University of California, Berkeley',short:'UC Berkeley',rank:20,rate:11.0,plans:['RD'],color:'#003262',city:'Berkeley, CA',uc:true,flavor:'Sather Gate, the Campanile, and some of the best views of the Bay are now part of your daily walk.'},
+  {id:'ucla',name:'University of California, Los Angeles',short:'UCLA',rank:20,rate:9.0,plans:['RD'],color:'#2774AE',city:'Los Angeles, CA',uc:true,flavor:'Royce Hall, Westwood, and a lot of sunshine are waiting for you.'},
+  {id:'notredame',name:'University of Notre Dame',short:'Notre Dame',rank:20,rate:11.0,plans:['REA','RD'],color:'#0C2340',city:'Notre Dame, IN',flavor:'The Golden Dome will be the first thing you see on move-in day.'},
+  {id:'emory',name:'Emory University',short:'Emory',rank:23,rate:11.0,plans:['ED','RD'],color:'#012169',city:'Atlanta, GA',flavor:'Atlanta and a campus full of trees are ready for you.'},
+  {id:'georgetown',name:'Georgetown University',short:'Georgetown',rank:23,rate:12.0,plans:['EA','RD'],color:'#041E42',city:'Washington, DC',flavor:'Healy Hall, the Potomac, and the whole of Washington are now your classroom.'},
+  {id:'michigan',name:'University of Michigan – Ann Arbor',short:'Michigan',rank:25,rate:15.6,plans:['EA','RD'],color:'#00274C',city:'Ann Arbor, MI',flavor:'Get ready for fall Saturdays in a stadium that holds over 100,000 people.'},
+];
+const IVIES=['princeton','harvard','yale','penn','columbia','dartmouth','cornell','brown'];
+const PLAN_LABEL={ED:'Early Decision (binding)',REA:'Restrictive Early Action',SCEA:'Single-Choice Early Action',EA:'Early Action',RD:'Regular Decision'};
+const RESTRICTIVE=['ED','REA','SCEA'];
+const PLAN_MULT={ED:1.8,REA:1.35,SCEA:1.35,EA:1.15,RD:1};
+const DEFER_SHARE={ED:.3,REA:.7,SCEA:.7,EA:.5};
+const WAIT_SHARE=.1;
+const PROFILES={
+  underdog:{label:'Long shot',mult:.4,hint:'Below the typical admit range.'},
+  solid:{label:'In range',mult:1,hint:'Odds match each school’s overall admit rate.'},
+  strong:{label:'Strong',mult:2,hint:'Twice the overall admit rate.'},
+  standout:{label:'Standout',mult:3.5,hint:'National-level awards and top scores.'},
+  hooked:{label:'Hooked',mult:6,hint:'Recruited athlete, legacy plus top stats, and the like.'},
+};
+const OUT_LABEL={admit:'Admitted',waitlist:'Waitlisted',defer:'Deferred',deny:'Not admitted',withdrawn:'Withdrawn'};
+const EARLY_DATE='December 15, 2026', RD_DATE='March 26, 2027', UC_DATE='March 20, 2027';
+
+function freshState(){
+  const apps={};
+  SCHOOLS.forEach(s=>apps[s.id]={on:true,plan:['mit','georgetown','michigan'].includes(s.id)?'EA':'RD'});
+  return {phase:'setup',name:'Jordan Rivera',profile:'strong',apps,results:{},edCommit:null};
+}
+let state;
+const $app=document.getElementById('app');
+const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const byId=id=>SCHOOLS.find(s=>s.id===id);
+const pct=p=>(p*100<10?(p*100).toFixed(1):Math.round(p*100))+'%';
+
+function admitProb(s,plan,round){
+  let p=s.rate/100*PROFILES[state.profile].mult;
+  if(round==='early') p*=PLAN_MULT[plan];
+  if(round==='rd' && plan!=='RD') p*=.6; // deferred applicants
+  return Math.min(p,.92);
+}
+function decide(s,plan,round){
+  const p=admitProb(s,plan,round), r=Math.random();
+  if(r<p) return 'admit';
+  const rest=(r-p)/(1-p);
+  if(round==='early') return rest<DEFER_SHARE[plan]?'defer':'deny';
+  return rest<WAIT_SHARE?'waitlist':'deny';
+}
+
+/* ---------- setup ---------- */
+function restrictiveCount(){return SCHOOLS.filter(s=>state.apps[s.id].on && RESTRICTIVE.includes(state.apps[s.id].plan)).length}
+function renderSetup(){
+  const on=SCHOOLS.filter(s=>state.apps[s.id].on).length;
+  const rc=restrictiveCount();
+  const err = on===0 ? 'Choose at least one school.' : rc>1 ? 'You can only apply to one Early Decision, REA, or SCEA school. Switch the others to EA or Regular.' : '';
+  $app.innerHTML=`
+  <header class="mast">
+    <div>
+      <h1>Decision Day</h1>
+      <p>Apply to any of the top 25 national universities, pick your rounds, then open your letters one envelope at a time.</p>
+    </div>
+    <div class="postmark" aria-hidden="true"><span>Class of<b>2031</b>Admissions</span></div>
+  </header>
+
+  <section class="panel controls" aria-label="Applicant">
+    <div>
+      <label class="lbl" for="nm">Name on the letters</label>
+      <input type="text" id="nm" value="${esc(state.name)}" maxlength="40" autocomplete="off">
+    </div>
+    <div>
+      <span class="lbl" id="pl">Applicant profile</span>
+      <div class="seg" role="group" aria-labelledby="pl">
+        ${Object.entries(PROFILES).map(([k,v])=>`<button type="button" data-prof="${k}" aria-pressed="${state.profile===k}">${v.label}</button>`).join('')}
+      </div>
+      <div class="hint">${PROFILES[state.profile].hint} Early rounds add a boost; deferred applicants face longer odds in March.</div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="listhead">
+      <h2>Your college list</h2>
+      <div class="quick">
+        <button class="ghost" data-q="all">Select all</button>
+        <button class="ghost" data-q="ivies">Ivies only</button>
+        <button class="ghost" data-q="top10">Top 10</button>
+        <button class="ghost" data-q="none">Clear</button>
+      </div>
+    </div>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th style="width:36px"><span class="sr" hidden>Apply</span></th><th class="num">Rank</th><th>University</th><th class="num">Admit rate</th><th>Round</th><th class="num">Your odds</th></tr></thead>
+      <tbody>
+      ${SCHOOLS.map(s=>{const a=state.apps[s.id];const round=a.plan==='RD'?'rd':'early';return `
+        <tr class="${a.on?'':'off'}">
+          <td><input type="checkbox" id="on-${s.id}" data-on="${s.id}" ${a.on?'checked':''} aria-label="Apply to ${esc(s.name)}"></td>
+          <td class="num">${s.rank}</td>
+          <td><label for="on-${s.id}"><span class="swatch" style="background:${s.color}"></span>${esc(s.name)}</label></td>
+          <td class="num">~${s.rate}%</td>
+          <td><select id="plan-${s.id}" data-plan="${s.id}" ${a.on?'':'disabled'} aria-label="Round for ${esc(s.short)}">${s.plans.map(p=>`<option value="${p}" ${p===a.plan?'selected':''}>${PLAN_LABEL[p]}</option>`).join('')}</select></td>
+          <td class="num">${pct(admitProb(s,a.plan,round))}</td>
+        </tr>`}).join('')}
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <div class="submitbar">
+    <div>${err?`<div class="err" role="alert">${err}</div>`:`<span class="muted">${on} application${on===1?'':'s'}${rc?` · 1 restrictive early`:''}</span>`}</div>
+    <button class="primary" id="submit" ${err?'disabled':''}>Submit applications</button>
+  </div>
+  <p class="disclaim">A game. Odds are rough estimates built from recent overall admit rates, not real admissions predictions. Every letter is invented and stamped as a simulation; none of these universities are involved.</p>`;
+
+  document.getElementById('nm').addEventListener('input',e=>{state.name=e.target.value});
+  $app.querySelectorAll('[data-prof]').forEach(b=>b.onclick=()=>{state.profile=b.dataset.prof;renderSetup()});
+  $app.querySelectorAll('[data-on]').forEach(c=>c.onchange=()=>{state.apps[c.dataset.on].on=c.checked;renderSetup();document.getElementById('on-'+c.dataset.on)?.focus()});
+  $app.querySelectorAll('[data-plan]').forEach(c=>c.onchange=()=>{state.apps[c.dataset.plan].plan=c.value;renderSetup();document.getElementById('plan-'+c.dataset.plan)?.focus()});
+  $app.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{
+    const q=b.dataset.q;
+    SCHOOLS.forEach(s=>state.apps[s.id].on = q==='all' ? true : q==='none' ? false : q==='ivies' ? IVIES.includes(s.id) : s.rank<=10);
+    renderSetup();
+  });
+  document.getElementById('submit').onclick=()=>{
+    state.results={};state.edCommit=null;
+    const anyEarly=SCHOOLS.some(s=>state.apps[s.id].on && state.apps[s.id].plan!=='RD');
+    state.phase=anyEarly?'early':'regular';
+    render();window.scrollTo({top:0});
+  };
+}
+
+/* ---------- portal ---------- */
+function tileState(s){
+  const a=state.apps[s.id], r=state.results[s.id]||{};
+  if(state.phase==='early'){
+    if(a.plan==='RD') return {kind:'locked'};
+    return r.early?{kind:'done',outcome:r.early,round:'early'}:{kind:'ready',round:'early'};
+  }
+  if(a.plan!=='RD'){
+    if(!r.early) return {kind:'ready',round:'early'};
+    if(r.early!=='defer') return {kind:'done',outcome:r.early,round:'early'};
+  }
+  if(r.rd) return {kind:'done',outcome:r.rd,round:'rd'};
+  if(state.edCommit && state.edCommit!==s.id) return {kind:'withdrawn'};
+  return {kind:'ready',round:'rd'};
+}
+function myList(){return SCHOOLS.filter(s=>state.apps[s.id].on)}
+function tally(){
+  const t={admit:0,waitlist:0,defer:0,deny:0,withdrawn:0};
+  myList().forEach(s=>{const st=tileState(s);
+    if(st.kind==='done') t[st.outcome]++;
+    else if(st.kind==='withdrawn') t.withdrawn++;
+    else if(state.phase==='regular' && state.results[s.id]?.early==='defer') t.defer++;
+  });
+  return t;
+}
+function dateFor(s,round){return round==='early'?EARLY_DATE:(s.uc?UC_DATE:RD_DATE)}
+function pmText(s,round){const d=dateFor(s,round).replace(',','').split(' ');return `${d[0].slice(0,3)}<br>${d[1]}<br>${d[2]}`}
+
+function renderPortal(){
+  const list=myList(), t=tally();
+  const states=list.map(s=>[s,tileState(s)]);
+  const ready=states.filter(([,st])=>st.kind==='ready').length;
+  const locked=states.filter(([,st])=>st.kind==='locked').length;
+  const finished=state.phase==='regular' && ready===0;
+  const admits=states.filter(([,st])=>st.outcome==='admit').map(([s])=>s);
+  $app.innerHTML=`
+  <header class="mast">
+    <div>
+      <h1>${esc(firstName())}’s mailbox</h1>
+      <p>${state.phase==='early'?`Early results are out. ${locked?`${locked} regular-round letter${locked===1?'':'s'} will arrive in March.`:''}`:'Regular decisions are out. Open each envelope when you are ready.'}</p>
+    </div>
+    <div class="postmark" aria-hidden="true"><span>${state.phase==='early'?'Dec<b>15</b>2026':'Mar<b>26</b>2027'}</span></div>
+  </header>
+
+  <div class="phasebar">
+    <div class="phase ${state.phase==='early'?'now':''}"><span class="k">Early round</span><span class="v">${EARLY_DATE}</span></div>
+    <div class="phase ${state.phase==='regular'?'now':''}"><span class="k">Regular round</span><span class="v">${RD_DATE}</span></div>
+  </div>
+
+  ${finished?`<section class="panel summary">
+    <h2>${admits.length?`Admitted to ${admits.length} of ${list.length}`:'No admits this cycle'}</h2>
+    <p class="muted" style="margin:0">${admits.length?(state.edCommit?`Your Early Decision acceptance at ${esc(byId(state.edCommit).short)} is binding, so the rest of your applications were withdrawn.`:`Choose wisely. Your reply is due May 1, 2027.`):'Real applicants with strong records hear this too. Try a different profile or a different list.'}</p>
+    <ul>${states.map(([s,st])=>`<li><span>${esc(s.short)}</span><span class="badge c-${st.kind==='withdrawn'?'withdrawn':st.outcome}">${OUT_LABEL[st.kind==='withdrawn'?'withdrawn':st.outcome]}</span></li>`).join('')}</ul>
+  </section>`:''}
+
+  <div class="toolbar">
+    <div class="tally" aria-label="Results so far">
+      ${['admit','waitlist','defer','deny','withdrawn'].filter(k=>t[k]).map(k=>`<span class="chip c-${k}">${t[k]} ${OUT_LABEL[k].toLowerCase()}</span>`).join('') || '<span class="muted">No letters opened yet.</span>'}
+    </div>
+    <div class="actions">
+      ${ready>1?`<button class="ghost" id="openall">Open all ${ready}</button>`:''}
+      ${state.phase==='early'?`<button class="primary" id="advance" ${ready?'title="You still have unopened early letters"':''}>Skip ahead to March</button>`:''}
+      <button class="ghost" id="reroll">Reapply</button>
+      <button class="ghost" id="restart">Edit list</button>
+    </div>
+  </div>
+
+  <div class="grid">
+    ${states.map(([s,st])=>tileHTML(s,st)).join('')}
+  </div>
+  <p class="disclaim">Simulation only. Odds come from recent overall admit rates scaled by your profile; letters are invented and are not from any university.</p>`;
+
+  $app.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openLetter(b.dataset.open,b.dataset.round));
+  document.getElementById('advance')?.addEventListener('click',()=>{state.phase='regular';render();window.scrollTo({top:0})});
+  document.getElementById('reroll').onclick=()=>{state.results={};state.edCommit=null;state.phase=SCHOOLS.some(s=>state.apps[s.id].on&&state.apps[s.id].plan!=='RD')?'early':'regular';render()};
+  document.getElementById('restart').onclick=()=>{state.phase='setup';render();window.scrollTo({top:0})};
+  document.getElementById('openall')?.addEventListener('click',openAll);
+}
+function tileHTML(s,st){
+  const a=state.apps[s.id];
+  const round = st.round || (a.plan==='RD'?'rd':'early');
+  const roundLabel = st.kind==='locked' ? PLAN_LABEL.RD : (round==='rd' && a.plan!=='RD') ? 'Deferred to Regular' : PLAN_LABEL[a.plan];
+  const head=`<span class="rk">#${s.rank} · ${esc(s.city)}</span><h3>${esc(s.name)}</h3><span class="meta">${roundLabel}</span>`;
+  const pm=`<span class="pm" aria-hidden="true">${st.kind==='withdrawn'?'—':pmText(s,round)}</span>`;
+  if(st.kind==='ready') return `<button class="env ready" style="--sc:${s.color}" data-open="${s.id}" data-round="${round}" aria-label="Open your letter from ${esc(s.name)}">${pm}${head}<span class="foot"><span class="status">Decision available</span><span class="cta">Open letter →</span></span></button>`;
+  if(st.kind==='locked') return `<div class="env locked" style="--sc:${s.color}">${pm}${head}<span class="foot"><span class="status muted">Arrives ${s.uc?'Mar 20':'Mar 26'}</span></span></div>`;
+  if(st.kind==='withdrawn') return `<div class="env withdrawn" style="--sc:${s.color}">${pm}${head}<span class="foot"><span class="badge c-withdrawn">Withdrawn</span><span class="meta">ED commitment</span></span></div>`;
+  return `<button class="env" style="--sc:${s.color}" data-open="${s.id}" data-round="${st.round}" aria-label="Reread your letter from ${esc(s.name)}">${pm}${head}<span class="foot"><span class="badge c-${st.outcome}">${OUT_LABEL[st.outcome]}</span><span class="cta">Reread</span></span></button>`;
+}
+
+/* ---------- letters ---------- */
+function firstName(){const n=state.name.trim();return n?n.split(/\s+/)[0]:'Applicant'}
+function letterBody(s,outcome,round){
+  const plan=state.apps[s.id].plan, n=esc(firstName()), full=esc(state.name.trim()||'Applicant');
+  const second = round==='rd' && plan!=='RD';
+  if(outcome==='admit') return `
+    <p class="big">Congratulations, ${n}!</p>
+    <p>It is my great pleasure to offer you admission to ${esc(s.name)} as a member of the Class of 2031.${second?' When we deferred your application in December, we told you we would read it again with fresh eyes. We did, and we are delighted we did.':''}</p>
+    <p>We received more applications this year than ever before, and the committee kept returning to yours. Your curiosity, your persistence, and the care you bring to the things you love came through on every page. We believe you will make ${esc(s.short)} a better place, and that it will do the same for you.</p>
+    <p>${esc(s.flavor)}</p>
+    <p>${plan==='ED'&&round==='early'?'Because you applied Early Decision, please withdraw your applications to other colleges and confirm your enrollment by January 2027.':'You will receive information soon about financial aid and admitted student events. Please let us know your decision by May 1, 2027.'}</p>
+    <p>Welcome to ${esc(s.short)}.</p>`;
+  if(outcome==='defer') return `
+    <p>Dear ${n},</p>
+    <p>Thank you for applying to ${esc(s.name)} through ${PLAN_LABEL[plan]}. After careful review, the committee has decided to defer your application to our Regular Decision round.</p>
+    <p>A deferral is not a denial. Your application will be read again alongside the full regular pool, and you will receive a final decision by late March. If you have significant new information, such as midyear grades or a major achievement, you may send it to us before February.</p>
+    <p>We know waiting is hard. We appreciate your patience and your continued interest in ${esc(s.short)}.</p>`;
+  if(outcome==='waitlist') return `
+    <p>Dear ${n},</p>
+    <p>Thank you for applying to ${esc(s.name)}. The committee is not able to offer you admission to the Class of 2031 at this time, but we would like to offer you a place on our waiting list.</p>
+    <p>We will not know whether we can admit students from the waiting list until after May 1, 2027, when we see how many admitted students have accepted their offers. In some years we admit a number of students from the list; in others, very few.</p>
+    <p>If you would like to remain under consideration, please accept your place on the waiting list. In the meantime, we encourage you to commit to another school where you would be happy.</p>`;
+  return `
+    <p>Dear ${n},</p>
+    <p>Thank you for your application to ${esc(s.name)}. I am sorry to let you know that we are not able to offer you admission to the Class of 2031${second?' after reviewing your application again with the regular pool':''}.</p>
+    <p>We received many more applications from talented students than we have places in the class, and we had to say no to a great many applicants whose records were as strong as those we admitted. This decision is not a judgment of your abilities or of what you will accomplish.</p>
+    <p>We are grateful that you considered ${esc(s.short)}, and we wish you every success in college and beyond.</p>`;
+}
+function letterHTML(s,outcome,round){
+  return `<article class="letter" style="--sc:${s.color}" aria-label="Decision letter from ${esc(s.name)}">
+    <div class="lhead"><span class="off">Office of Undergraduate Admission · ${esc(s.city)}</span><span class="sn">${esc(s.name)}</span></div>
+    <div class="stamp" aria-label="Simulation">Simulation<b>Not real</b>Game letter</div>
+    <div class="lbody">
+      <span class="date">${dateFor(s,round)}</span>
+      ${letterBody(s,outcome,round)}
+      <div class="sig"><b>The Committee on Admission</b>${esc(s.short)} (simulated)</div>
+    </div>
+    <div class="lfoot"><span>Decision Day simulator · not affiliated with ${esc(s.name)}</span><span>${OUT_LABEL[outcome]}</span></div>
+  </article>`;
+}
+
+let overlay=null, lastFocus=null;
+function closeOverlay(){if(overlay){overlay.remove();overlay=null;document.body.style.overflow='';render();lastFocus&&document.querySelector(`[data-open="${lastFocus}"]`)?.focus()}}
+function ensureOutcome(id,round){
+  const s=byId(id), plan=state.apps[id].plan;
+  state.results[id]=state.results[id]||{};
+  const key=round==='early'?'early':'rd';
+  if(!state.results[id][key]){
+    state.results[id][key]=decide(s,plan,round);
+    if(state.results[id][key]==='admit' && plan==='ED' && round==='early') state.edCommit=id;
+    return true;
+  }
+  return false;
+}
+function nextReady(after){
+  const ids=myList().map(s=>[s,tileState(s)]).filter(([,st])=>st.kind==='ready');
+  return ids.length?ids[0]:null;
+}
+function openLetter(id,round){
+  const s=byId(id); lastFocus=id;
+  const isNew=ensureOutcome(id,round);
+  const outcome=state.results[id][round==='early'?'early':'rd'];
+  if(!overlay){overlay=document.createElement('div');overlay.className='overlay';overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');document.body.appendChild(overlay);document.body.style.overflow='hidden';
+    overlay.addEventListener('click',e=>{if(e.target===overlay)closeOverlay()});}
+  overlay.scrollTop=0;
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const show=()=>{
+    const nxt=nextReady();
+    overlay.innerHTML=letterHTML(s,outcome,round)+`<div class="lnav"><button class="alt" id="back">Back to mailbox</button>${nxt?`<button id="next">Next envelope: ${esc(nxt[0].short)} →</button>`:''}</div>`;
+    overlay.querySelector('#back').onclick=closeOverlay;
+    overlay.querySelector('#next')?.addEventListener('click',()=>openLetter(nxt[0].id,nxt[1].round));
+    (overlay.querySelector('#next')||overlay.querySelector('#back')).focus();
+    if(isNew && outcome==='admit' && !reduce) confetti(s.color);
+  };
+  if(!isNew){show();return}
+  overlay.innerHTML=`<div class="loader" style="--sc:${s.color}"><div><div class="envicon"></div><p style="margin-top:22px">Opening your letter from ${esc(s.short)}…</p></div></div>`;
+  setTimeout(show, reduce?250:1300+Math.random()*900);
+}
+function openAll(){
+  myList().forEach(s=>{const st=tileState(s);if(st.kind==='ready')ensureOutcome(s.id,st.round)});
+  // a second pass handles withdrawals created by an ED admit
+  render();
+}
+
+/* ---------- confetti ---------- */
+function confetti(color){
+  const c=document.getElementById('confetti'),x=c.getContext('2d');c.hidden=false;
+  const W=c.width=innerWidth*devicePixelRatio,H=c.height=innerHeight*devicePixelRatio;
+  const cols=[color,'#ffffff','#f2c14e',color];
+  const P=Array.from({length:180},()=>({x:W/2+(Math.random()-.5)*W*.3,y:H*.35,vx:(Math.random()-.5)*26*devicePixelRatio,vy:(-Math.random()*22-6)*devicePixelRatio,r:Math.random()*Math.PI,vr:(Math.random()-.5)*.4,s:(5+Math.random()*7)*devicePixelRatio,c:cols[Math.floor(Math.random()*cols.length)]}));
+  const t0=performance.now();
+  (function f(t){x.clearRect(0,0,W,H);
+    P.forEach(p=>{p.vy+=.55*devicePixelRatio;p.vx*=.985;p.x+=p.vx;p.y+=p.vy;p.r+=p.vr;x.save();x.translate(p.x,p.y);x.rotate(p.r);x.fillStyle=p.c;x.fillRect(-p.s/2,-p.s/4,p.s,p.s/2);x.restore()});
+    if(t-t0<3200)requestAnimationFrame(f);else{x.clearRect(0,0,W,H);c.hidden=true}})(t0);
+}
+
+addEventListener('keydown',e=>{if(e.key==='Escape'&&overlay)closeOverlay()});
+function render(){state.phase==='setup'?renderSetup():renderPortal()}
+function start(data){
+  state = data && data.apps ? data : freshState();
+  render();
+}
+window.claude?.hot?.snapshot?.(()=>state);
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+</script>
+
+<script src="/analytics/tracker.js" data-site="decision-day" defer></script>
+</body>
+</html>
