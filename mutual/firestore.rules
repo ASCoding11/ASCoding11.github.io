@@ -1,0 +1,42 @@
+// Mutual (/mutual/): paste this block into your Firestore rules, inside
+//   match /databases/{database}/documents { … }
+// next to the existing blocks (Firebase console → Firestore Database → Rules → Publish).
+//
+// One document per sealed name: mutual/{me}_{1|2|3} = { to: <their fingerprint>, at: <server time> }
+// A fingerprint is the lowercase hex SHA-256 of "mutual:" + a Google account email, lowercased.
+// You can read your own three slots. You can read someone else's slot only if it points at you
+// AND one of yours points at them, so the only thing anyone can ever learn is a mutual match.
+// Slots can't be listed or edited, and can only be withdrawn seven days after sealing.
+
+match /mutual/{slot} {
+  function verified() {
+    return request.auth != null
+      && request.auth.token.email_verified == true
+      && request.auth.token.firebase.sign_in_provider == 'google.com';
+  }
+  function me() {
+    return hashing.sha256('mutual:' + request.auth.token.email.lower()).toHexString().lower();
+  }
+  function owner() { return slot.split('_')[0]; }
+  function pointsAt(s, who) {
+    return exists(/databases/$(database)/documents/mutual/$(s))
+      && get(/databases/$(database)/documents/mutual/$(s)).data.to == who;
+  }
+  function iNamed(who) {
+    return pointsAt(me() + '_1', who) || pointsAt(me() + '_2', who) || pointsAt(me() + '_3', who);
+  }
+
+  allow get: if verified()
+    && (owner() == me() || (resource.data.to == me() && iNamed(owner())));
+  allow list, update: if false;
+  allow create: if verified()
+    && slot in [me() + '_1', me() + '_2', me() + '_3']
+    && request.resource.data.keys().hasOnly(['to', 'at'])
+    && request.resource.data.to is string
+    && request.resource.data.to.matches('[0-9a-f]{64}')
+    && request.resource.data.to != me()
+    && request.resource.data.at == request.time;
+  allow delete: if verified()
+    && owner() == me()
+    && request.time > resource.data.at + duration.value(7, 'd');
+}

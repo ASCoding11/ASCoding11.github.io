@@ -111,7 +111,7 @@
   // Show the hidden page's games right here, without changing the address.
   function reveal(html,dir){
     var d=new DOMParser().parseFromString(html,'text/html');
-    var hd=document.querySelector('header'),sec=document.querySelector('.wrap > section');
+    var hd=document.querySelector('header'),sec=document.querySelector('section[aria-label="Sections"]');
     hd.replaceWith(document.importNode(d.querySelector('header'),true));
     sec.replaceWith(document.importNode(d.querySelector('section'),true));
     document.querySelectorAll('.nav a[aria-current]').forEach(function(a){a.removeAttribute('aria-current')});
@@ -171,7 +171,7 @@
 
   c.addEventListener('click',function(){
     var n=Date.now();t=t.filter(function(x){return n-x<1500});t.push(n);
-    if(t.length<3||box||ov)return;t=[];
+    if(t.length<3||box||shown)return;t=[];
     box=document.createElement('input');box.type='password';box.autocomplete='off';box.spellcheck=false;box.setAttribute('aria-label','Code');
     box.style.cssText='margin-left:10px;width:11ch;font:inherit;color:inherit;background:transparent;border:0;border-bottom:1px solid var(--line);outline:0;padding:0 2px;transition:transform .08s';
     f.appendChild(box);box.focus();
@@ -180,14 +180,8 @@
       if(e.key==='Escape')return close();
       if(e.key!=='Enter')return;
       var v=box.value.toLowerCase().replace(/\s+/g,'');if(!v)return;
-      var p=await h(v),r=await fetch('/'+p+'/',{cache:'no-store'}).catch(function(){return{ok:false}});
-      if(r.ok){
-        var html=await r.text();
-        // A folder with <meta name="room"> is a second code for another room: open that room instead.
-        var to=/<meta name="room" content="([0-9a-f]{16})">/.exec(html);
-        if(to){p=to[1];r=await fetch('/'+p+'/',{cache:'no-store'}).catch(function(){return{ok:false}});html=r.ok?await r.text():''}
-        if(html){close();reveal(html,'/'+p+'/');return}
-      }
+      var p=await h(v),r=await fetch(p+'/',{cache:'no-store'}).catch(function(){return{ok:false}});
+      if(r.ok){var html=await r.text();close();reveal(html,'/'+p+'/');return}
       box.value='';box.style.transform='translateX(6px)';setTimeout(function(){if(box)box.style.transform=''},90);
       if(++miss>=3)close();
     });
