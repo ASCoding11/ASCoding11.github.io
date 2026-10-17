@@ -8,6 +8,23 @@ This is Arjun's personal site (ascoding11.github.io). Contributors work in a for
 - `site.css` styles the home, Web Development Projects and Productivity pages. `account/account.js` adds the shared top bar and Google sign-in.
 - Games and tools that sync between players use the existing Firebase project from the browser. Don't create a new Firebase project, and don't change the paths existing pages read and write (`games`, `members`, `rooms/...`), because the security rules are shared across games.
 
+## Games
+
+There are two places a game can live:
+
+- **Public games** (Hype Cycle Exchange, Boxed) have their own folder at the site root, a full card in `projects/index.html`, and an entry in `sitemap.xml`.
+- **Back Room games** live in `e63334287a3deaa3/<game>/` and get a card in `e63334287a3deaa3/index.html`. The Back Room is kept out of search engines: every page there has `<meta name="robots" content="noindex,nofollow,noarchive">`, isn't in the sitemap, and isn't linked from the public pages. Keep it that way. New games go in the Back Room unless Arjun says otherwise.
+
+When editing a game, read its section in `README.md` first and keep its existing storage paths, room prefixes and saved-data formats working, so players' saved progress and ratings carry over.
+
+When adding a game:
+
+- Give it its own folder with a self-contained `index.html` and a `preview.jpg` screenshot (1920 × 1200) for its card. Copy the card markup and the page `<head>` (fonts, `site.css`, robots tag) from an existing Back Room game.
+- Multiplayer games use the existing Firebase Realtime Database under `rooms/<prefix>-<code>`, with a new two-letter prefix not already used (see the list in the invite-link code in `index.html`). Add the prefix there and a matching `data-invite` on the game's Play button, so invite links like `ascoding11.github.io/#xx-1234` open the game.
+- Don't change Firebase security rules or the Firebase config. If a game needs storage the current rules don't allow, say so in the pull request instead.
+- If the game shows ads, follow the existing `AD_SLOT` pattern and leave `AD_SLOT` empty; Arjun fills it in.
+- Add a section for the game to `README.md`, in the same style as the others: what it is, how it stores data, and anything a later editor needs to know.
+
 ## Rules
 
 - Keep each pull request to one feature or fix, and leave unrelated code alone.
@@ -16,7 +33,7 @@ This is Arjun's personal site (ascoding11.github.io). Contributors work in a for
 - Don't add outside scripts, trackers or ads unless the pull request is specifically about that.
 - Write all game text, trivia questions and college prompt summaries in your own words; don't paste copyrighted text.
 - When you add, rename or remove a page or game, update `README.md` and the cards on the home, `projects/` or `productivity/` pages to match.
-- Open the changed pages in a browser and check that they work on both desktop and phone widths before opening the pull request.
+- Test by serving the repo folder locally (for example `python3 -m http.server`) and opening the changed pages; that they work at desktop and phone widths, and for multiplayer games, with two browser windows in the same room, before opening the pull request.
 
 ## Pull request description
 
