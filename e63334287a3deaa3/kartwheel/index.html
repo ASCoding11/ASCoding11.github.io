@@ -156,6 +156,12 @@ hr.sep{border:0;border-top:1px solid var(--line);margin:16px 0 4px}
 .adbox{margin-top:14px;text-align:center}
 .ad-lbl{display:block;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin-bottom:4px}
 .adbox ins{display:block;min-height:90px}
+/* Controls panel (../keybinds.js) */
+:root{--kb-bg:var(--panel-2);--kb-fg:var(--ink);--kb-muted:var(--ink-2);--kb-line:var(--line);--kb-accent:var(--yellow);--kb-accent-ink:#2a1b00;--kb-warn:#ff9db8;
+  --kb-border:1px solid var(--line);--kb-radius:22px;--kb-key-radius:9px;--kb-key-border:1px solid rgba(255,255,255,.16);--kb-key-bg:rgba(255,255,255,.1);--kb-key-shadow:0 3px 0 rgba(0,0,0,.35);
+  --kb-font:var(--f);--kb-title-size:36px;--kb-title-weight:700;--kb-backdrop:rgba(11,13,30,.6);--kb-pad:22px 22px 18px;--kb-width:500px}
+.kb-panel .kb-title{background:linear-gradient(90deg,var(--yellow),var(--pink));-webkit-background-clip:text;background-clip:text;color:transparent}
+.kb-panel .kb-label{font-weight:500}
 /* racer picker */
 .chars{display:grid;grid-template-columns:repeat(8,1fr);gap:5px}
 .chars button{position:relative;border:2px solid transparent;background:rgba(255,255,255,.06);border-radius:12px;padding:2px 0 3px;cursor:pointer;display:flex;flex-direction:column;align-items:center;font-size:11px;font-weight:600;color:var(--ink-2)}
@@ -273,11 +279,12 @@ hr.sep{border:0;border-top:1px solid var(--line);margin:16px 0 4px}
       <div class="row"><input class="t" id="room" maxlength="17" placeholder="Room code, e.g. turbo-42" autocomplete="off" spellcheck="false" style="flex:2"><button class="ghost" id="joinRoom" type="button">Play in room</button></div>
       <p class="msg" id="netMsg">Make up a room code and send friends the invite link once you're in. Bots fill empty karts.</p>
       <dl class="keys">
-        <dt>W / ↑</dt><dd>Accelerate</dd><dt>S / ↓</dt><dd>Brake, reverse</dd><dt>A D / ← →</dt><dd>Steer</dd>
-        <dt>Space</dt><dd>Hop into a power slide. While sliding, wiggle A D: the smoke turns yellow, then red. Let go on red for a mini-turbo</dd>
-        <dt>E / Shift</dt><dd>Use item (hold S / ↓ to throw it backward)</dd>
-        <dt>C</dt><dd>Look behind</dd><dt>R</dt><dd>Back onto the track</dd><dt>Esc</dt><dd>Pause, invite link</dd>
+        <dt data-kb="up">W / ↑</dt><dd>Accelerate</dd><dt data-kb="down">S / ↓</dt><dd>Brake, reverse</dd><dt data-kb="left right">A D / ← →</dt><dd>Steer</dd>
+        <dt data-kb="hop">Space</dt><dd>Hop into a power slide. While sliding, wiggle <span data-kb="left right" data-kb-short>A D</span>: the smoke turns yellow, then red. Let go on red for a mini-turbo</dd>
+        <dt data-kb="item" data-kb-max="2">E / Shift</dt><dd>Use item (hold <span data-kb="down">S / ↓</span> to throw it backward)</dd>
+        <dt data-kb="look">C</dt><dd>Look behind</dd><dt data-kb="reset">R</dt><dd>Back onto the track</dd><dt>Esc</dt><dd>Pause, invite link</dd>
       </dl>
+      <div class="row"><button class="ghost" id="keysMenu" type="button">Change keys</button></div>
       <div class="adbox" id="adMenu" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
       <p class="foot">Racers, items and tracks are all original. <a href="/privacy.html">Privacy</a></p>
     </div>
@@ -305,11 +312,11 @@ hr.sep{border:0;border-top:1px solid var(--line);margin:16px 0 4px}
       <h2 class="logo" style="font-size:36px">PAUSED</h2>
       <p class="kick" id="pauseRoom"></p>
       <p class="msg" id="pauseMsg" style="margin-top:0"></p>
-      <div class="row"><button class="cta" id="resume" type="button">Resume</button><button class="ghost" id="copyInvite" type="button" hidden>Copy invite link</button><button class="ghost" id="restart" type="button" hidden>Restart</button><button class="ghost" id="leave" type="button">Quit</button></div>
+      <div class="row"><button class="cta" id="resume" type="button">Resume</button><button class="ghost" id="copyInvite" type="button" hidden>Copy invite link</button><button class="ghost" id="restart" type="button" hidden>Restart</button><button class="ghost" id="keysPause" type="button">Controls</button><button class="ghost" id="leave" type="button">Quit</button></div>
       <p class="msg" id="inviteMsg"></p>
       <dl class="keys">
-        <dt>W / ↑</dt><dd>Accelerate</dd><dt>S / ↓</dt><dd>Brake, reverse</dd><dt>A D / ← →</dt><dd>Steer</dd>
-        <dt>Space</dt><dd>Hop and drift</dd><dt>E / Shift</dt><dd>Use item</dd><dt>C</dt><dd>Look behind</dd><dt>R</dt><dd>Back onto the track</dd><dt>M</dt><dd>Mute</dd>
+        <dt data-kb="up">W / ↑</dt><dd>Accelerate</dd><dt data-kb="down">S / ↓</dt><dd>Brake, reverse</dd><dt data-kb="left right">A D / ← →</dt><dd>Steer</dd>
+        <dt data-kb="hop">Space</dt><dd>Hop and drift</dd><dt data-kb="item" data-kb-max="2">E / Shift</dt><dd>Use item</dd><dt data-kb="look">C</dt><dd>Look behind</dd><dt data-kb="reset">R</dt><dd>Back onto the track</dd><dt data-kb="mute">M</dt><dd>Mute</dd>
       </dl>
     </div>
   </section>
@@ -327,6 +334,7 @@ hr.sep{border:0;border-top:1px solid var(--line);margin:16px 0 4px}
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../keybinds.js"></script>
 <script>
 (function(){
 'use strict';
@@ -753,7 +761,7 @@ function releaseDrift(c){
   if(red&&c.spinT<=0&&c.tumbleT<=0)giveBoost(c,MT_TIME,MT_POW);
 }
 let driftTips=0;
-function driftTip(){if(driftTips++<3)hint(touchUI?'Sliding! Tap ◀ ▶ back and forth: smoke goes yellow, then red. Let go of DRIFT on red':'Sliding! Wiggle A D back and forth: smoke goes yellow, then red. Let go of Space on red',4200)}
+function driftTip(){if(driftTips++<3)hint(touchUI?'Sliding! Tap ◀ ▶ back and forth: smoke goes yellow, then red. Let go of DRIFT on red':'Sliding! Wiggle '+KB.short('left')+' '+KB.short('right')+' back and forth: smoke goes yellow, then red. Let go of '+KB.short('hop')+' on red',4200)}
 
 // ---------- items ----------
 function rollItem(c){
@@ -2192,31 +2200,42 @@ function humanInput(c,dt){
   c.inSteer=cur+clamp(st-cur,-rate*dt,rate*dt);
   return {thr,brk,steer:c.inSteer,raw:st,hop,hopPress,item,back}; // raw: the stick itself, so quick taps count as power-slide tilts
 }
-function keyName(k){
-  if(k==='w'||k==='W'||k==='ArrowUp')return 'up';
-  if(k==='s'||k==='S'||k==='ArrowDown')return 'down';
-  if(k==='a'||k==='A'||k==='ArrowLeft')return 'left';
-  if(k==='d'||k==='D'||k==='ArrowRight')return 'right';
-  if(k===' ')return 'hop';
-  if(k==='e'||k==='E'||k==='Shift'||k==='x'||k==='X'||k==='Enter')return 'item';
-  if(k==='c'||k==='C')return 'look';
-  return '';
-}
+// Keys can be changed in the Controls panel (../keybinds.js); saved in this browser as keybinds:kartwheel.
+const KB=Keybinds.create({
+  game:'kartwheel',
+  actions:[
+    {id:'up',label:'Accelerate',group:'Drive',keys:['KeyW','ArrowUp']},
+    {id:'down',label:'Brake, reverse',note:'Hold it to throw items backward',group:'Drive',keys:['KeyS','ArrowDown']},
+    {id:'left',label:'Steer left',group:'Drive',keys:['KeyA','ArrowLeft']},
+    {id:'right',label:'Steer right',group:'Drive',keys:['KeyD','ArrowRight']},
+    {id:'hop',label:'Hop, power slide',group:'Drive',keys:['Space']},
+    {id:'item',label:'Use item',group:'Race',keys:['KeyE','ShiftLeft','KeyX','Enter']},
+    {id:'look',label:'Look behind',group:'Race',keys:['KeyC']},
+    {id:'reset',label:'Back onto the track',group:'Race',keys:['KeyR']},
+    {id:'mute',label:'Mute',group:'Race',keys:['KeyM']},
+    {id:'pause',label:'Pause, invite link',group:'Race',keys:['Escape'],fixed:true}
+  ],
+  classes:{button:'ghost',primary:'cta'}
+});
+const DRIVE=new Set(['up','down','left','right','hop','item','look']);
+const driveActions=code=>KB.actionsFor(code).filter(n=>DRIVE.has(n));
 addEventListener('keydown',e=>{
   if(e.target&&e.target.tagName==='INPUT'){if(e.key==='Enter'&&e.target.id==='room'){e.preventDefault();joinPrivate()}return}
-  const k=e.key,n=keyName(k);
+  const k=e.key,c=e.code,ns=driveActions(c);
   if(k==='Escape'){if(state==='race'){if($('pause').hidden)openPause();else closePause()}return}
-  if(k==='m'||k==='M'){setMuted(!muted);return}
+  if(KB.is('mute',c)){setMuted(!muted);return}
   if(state!=='race'||!$('pause').hidden)return;
   initAudio();
-  if((k==='r'||k==='R')&&race&&race.me&&!race.me.fin&&raceT()>0&&performance.now()-lastReset>3000&&race.me.fallT<=0){lastReset=performance.now();race.me.safeP=race.me.P;respawn(race.me);return}
+  if(KB.is('reset',c)&&race&&race.me&&!race.me.fin&&raceT()>0&&performance.now()-lastReset>3000&&race.me.fallT<=0){lastReset=performance.now();race.me.safeP=race.me.P;respawn(race.me);return}
   if(!race||!race.me||race.me.fin){
-    if(n==='left'||n==='right'){e.preventDefault();watchStep(n==='left'?-1:1)}
+    if(ns.includes('left')||ns.includes('right')){e.preventDefault();watchStep(ns.includes('left')?-1:1)}
     return;
   }
-  if(n){if(!e.repeat){if(n==='hop')press.hop=true;if(n==='item')press.item=true}keys.add(n);e.preventDefault()}
+  if(ns.length){if(!e.repeat){if(ns.includes('hop'))press.hop=true;if(ns.includes('item'))press.item=true}for(const n of ns)keys.add(n);e.preventDefault()}
 });
-addEventListener('keyup',e=>{const n=keyName(e.key);if(n)keys.delete(n)});
+addEventListener('keyup',e=>{for(const n of driveActions(e.code))keys.delete(n)});
+$('keysMenu').addEventListener('click',()=>KB.open());
+$('keysPause').addEventListener('click',()=>KB.open());
 addEventListener('blur',()=>{keys.clear();for(const k in tch)tch[k]=false});
 function bindTouch(id,key){
   const el=$(id);
@@ -2369,7 +2388,7 @@ function updateHud(dt){
     if(sig!==slotSig){slotSig=sig;const slot=$('slot');
       if(sig[0]==='r'){$('itemIcon').innerHTML=ICON[ITEM_KEYS[roulIcon]];slot.className='slot roul';$('itemN').hidden=true}
       else{$('itemIcon').innerHTML=local&&c.item?ICON[c.item]:'';slot.className='slot'+(local&&c.item?' ready':'');$('itemN').hidden=!(local&&c.item==='pepper3'&&c.itemN>1);$('itemN').textContent='×'+c.itemN}
-      $('itemKey').textContent=local&&c.item&&c===me?(touchUI?'Tap ITEM':'E / Shift'):'';
+      $('itemKey').textContent=local&&c.item&&c===me?(touchUI?'Tap ITEM':KB.label('item',' / ',' ',2)):'';
     }
     // drift charge
     const lv=dStage(c),nt=c.drift?Math.min(TILT_RED,c.tilts):0;
@@ -2379,7 +2398,7 @@ function updateHud(dt){
   if(me&&!me.fin&&t>0){
     const T=track,dot=Math.cos(me.h)*T.TX[me.idx]+Math.sin(me.h)*T.TZ[me.idx];
     if(me.v>4&&dot<-.3){wrongT+=dt;if(wrongT>1)banner('WRONG WAY',600)}else wrongT=0;
-    if(me.stuck>2.5)hint(touchUI?'Stuck? Hold BRAKE to back up':'Stuck? Hold S to back up, or press R',1500);
+    if(me.stuck>2.5)hint(touchUI?'Stuck? Hold BRAKE to back up':'Stuck? Hold '+KB.short('down')+' to back up, or press '+KB.short('reset'),1500);
   }
   const sp=$('spec');
   if(!me&&c&&state==='race'){sp.hidden=false;sp.innerHTML='Watching <b>'+esc(c.name)+'</b> · '+(race.place.get(c)||'–')+ordinal(race.place.get(c)||4)+(touchUI?'':'<br><small>← → to switch kart</small>')}
@@ -2511,7 +2530,7 @@ function beginRaceView(){
   $('count').classList.remove('show');$('banner').classList.remove('show');
   Music.stop();
   if(race.me){
-    hint(touchUI?'Steer with ◀ ▶ · hold DRIFT to power slide · tap ITEM':'W accelerate · A D steer · hold Space to power slide · E for items',6500);
+    hint(touchUI?'Steer with ◀ ▶ · hold DRIFT to power slide · tap ITEM':KB.short('up')+' accelerate · '+KB.short('left')+' '+KB.short('right')+' steer · hold '+KB.short('hop')+' to power slide · '+KB.short('item')+' for items',6500);
     if(!race.online||raceT()<-3)setTimeout(()=>{if(state==='race'&&raceT()<-2)hint('Tip: hold accelerate right after the 2 for a rocket start',2600)},2400);
   }
 }

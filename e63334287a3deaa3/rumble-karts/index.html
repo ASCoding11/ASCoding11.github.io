@@ -66,6 +66,17 @@ body.touch .touch-keys{display:block}
 .keys{font-size:14px;font-weight:600;color:var(--muted);line-height:1.9}
 kbd{font:700 12px var(--f-ui);display:inline-block;min-width:20px;text-align:center;padding:1px 6px;margin-right:2px;border:2px solid var(--ink);border-bottom-width:3.5px;border-radius:6px;color:var(--ink);background:var(--paper)}
 
+/* Controls panel (../keybinds.js): a sticker like the menu card */
+:root{--kb-bg:var(--paper);--kb-fg:var(--ink);--kb-muted:var(--muted);--kb-line:#d9d5ea;--kb-accent:var(--sun);--kb-accent-ink:var(--ink);--kb-warn:#c3183b;
+  --kb-border:3px solid var(--ink);--kb-shadow:6px 6px 0 var(--ink);--kb-radius:14px;--kb-key-radius:7px;--kb-key-border:2px solid var(--ink);--kb-key-bg:var(--paper);--kb-key-shadow:0 3px 0 var(--ink);
+  --kb-font:var(--f-ui);--kb-font-display:var(--f-display);--kb-title-size:36px;--kb-title-weight:400;--kb-title:var(--sun);--kb-backdrop:rgba(27,23,51,.45);--kb-blur:2px;--kb-label-size:17px;--kb-width:460px}
+.kb-panel .kb-title{-webkit-text-stroke:2px var(--ink);paint-order:stroke fill;text-shadow:3px 3px 0 var(--ink);transform:rotate(-2deg);transform-origin:left center}
+.kb-panel .kb-label{font-weight:700}
+.kb-panel .kb-group{color:var(--muted)}
+.kb-panel .kb-msg{font-weight:600}
+.kb-panel .btn{font-size:18px;padding:10px 16px}
+.kb-panel .kb-x{border:2.5px solid var(--ink);box-shadow:0 3px 0 var(--ink);border-radius:999px}
+
 /* ---------- HUD ---------- */
 #hud{position:absolute;inset:0;pointer-events:none}
 #hud .chip,#hud button{pointer-events:auto}
@@ -250,7 +261,7 @@ body.touch #hint,body.touch #itemTip{bottom:calc(210px + var(--sab))}
     <div id="alone" hidden>Just you so far · share the invite link</div>
     <div id="side"><canvas id="mini" class="sticker" width="264" height="264"></canvas><div id="feed" aria-live="polite"></div></div>
     <div id="dock">
-      <div id="slot" class="sticker"><div id="slotIcon"></div><span id="slotName">Empty</span><span class="key" id="slotKey">SPACE</span></div>
+      <div id="slot" class="sticker"><div id="slotIcon"></div><span id="slotName">Empty</span><span class="key" id="slotKey" data-kb="fire" data-kb-short data-kb-case="upper">SPACE</span></div>
       <div id="hpWrap"><span class="lbl">Armor</span><div id="hp"><div id="hpFill"></div></div></div>
     </div>
     <div id="itemTip" hidden></div>
@@ -260,6 +271,7 @@ body.touch #hint,body.touch #itemTip{bottom:calc(210px + var(--sab))}
       <button id="bLeave" class="chip" type="button">Leave</button>
       <button id="bInvite" class="chip" type="button" hidden>Copy invite link</button>
       <button id="bMute" class="chip" type="button">Sound on</button>
+      <button id="bKeys" class="chip" type="button">Controls</button>
     </div>
   </div>
 
@@ -292,7 +304,7 @@ body.touch #hint,body.touch #itemTip{bottom:calc(210px + var(--sab))}
         <div class="btns"><button id="bOnline" class="btn" type="button">Play online</button><button id="bBots" class="btn alt" type="button">Practice vs bots</button></div>
         <p id="netMsg" class="msg"></p>
         <div class="items" id="itemLegend"></div>
-        <div class="keys" id="keysRow"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or arrows to drive &nbsp;·&nbsp; <kbd>Space</kbd> use item &nbsp;·&nbsp; <kbd>M</kbd> mute &nbsp;·&nbsp; <kbd>Esc</kbd> leave</div>
+        <div class="keys" id="keysRow"><kbd data-kb="forward" data-kb-short>W</kbd><kbd data-kb="left" data-kb-short>A</kbd><kbd data-kb="back" data-kb-short>S</kbd><kbd data-kb="right" data-kb-short>D</kbd> or arrows to drive &nbsp;·&nbsp; <kbd data-kb="fire" data-kb-short>Space</kbd> use item &nbsp;·&nbsp; <kbd data-kb="mute" data-kb-short>M</kbd> mute &nbsp;·&nbsp; <kbd>Esc</kbd> leave &nbsp;·&nbsp; <button id="bKeysMenu" class="chip" type="button" style="font-size:13px;padding:2px 10px">Change keys</button></div>
         <div class="touch-keys">Left stick drives · Fire uses your item</div>
       </div>
       <div class="adbox" id="adMenu" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
@@ -304,6 +316,7 @@ body.touch #hint,body.touch #itemTip{bottom:calc(210px + var(--sab))}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="../keybinds.js"></script>
 <script>
 (() => {
 'use strict';
@@ -2615,18 +2628,34 @@ function updateRound() {
 // =====================================================================
 //  Input
 // =====================================================================
+// Keys can be changed in the Controls panel (../keybinds.js); saved in this browser as keybinds:rumble-karts.
+const KB = Keybinds.create({
+  game: 'rumble-karts',
+  actions: [
+    { id: 'forward', label: 'Drive forward', group: 'Drive', keys: ['KeyW', 'ArrowUp'] },
+    { id: 'back', label: 'Reverse', group: 'Drive', keys: ['KeyS', 'ArrowDown'] },
+    { id: 'left', label: 'Steer left', group: 'Drive', keys: ['KeyA', 'ArrowLeft'] },
+    { id: 'right', label: 'Steer right', group: 'Drive', keys: ['KeyD', 'ArrowRight'] },
+    { id: 'fire', label: 'Use item', group: 'Drive', keys: ['Space', 'KeyJ', 'Enter'] },
+    { id: 'mute', label: 'Sound on / off', group: 'Game', keys: ['KeyM'] },
+    { id: 'leave', label: 'Leave the match', group: 'Game', keys: ['Escape'], fixed: true },
+  ],
+  classes: { button: 'btn alt', primary: 'btn' },
+});
 const keys = new Set();
 let fireQueued = false;
 const isField = t => t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA');
 addEventListener('keydown', e => {
   if (isField(e.target)) return;
   const k = e.code;
-  if (S.mode !== 'attract' && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(k)) e.preventDefault();
+  if (S.mode !== 'attract' && (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(k) || KB.actionsFor(k).length)) e.preventDefault();
   keys.add(k);
-  if ((k === 'Space' || k === 'KeyJ' || k === 'Enter') && !e.repeat && S.mode !== 'attract') { fireQueued = true; e.preventDefault(); }
-  if (k === 'KeyM') toggleMute();
+  if (KB.is('fire', k) && !e.repeat && S.mode !== 'attract') { fireQueued = true; e.preventDefault(); }
+  if (KB.is('mute', k)) toggleMute();
   if (k === 'Escape' && S.mode !== 'attract') leaveToMenu();
 });
+$('#bKeys').addEventListener('click', () => KB.open());
+$('#bKeysMenu').addEventListener('click', () => KB.open());
 addEventListener('keyup', e => keys.delete(e.code));
 addEventListener('blur', () => keys.clear());
 
@@ -2651,10 +2680,10 @@ const touch = { active: false, id: null, th: 0, st: 0 };
 })();
 function humanInput() {
   let th = 0, st = 0;
-  if (keys.has('KeyW') || keys.has('ArrowUp')) th += 1;
-  if (keys.has('KeyS') || keys.has('ArrowDown')) th -= 1;
-  if (keys.has('KeyA') || keys.has('ArrowLeft')) st -= 1;
-  if (keys.has('KeyD') || keys.has('ArrowRight')) st += 1;
+  if (KB.held('forward', keys)) th += 1;
+  if (KB.held('back', keys)) th -= 1;
+  if (KB.held('left', keys)) st -= 1;
+  if (KB.held('right', keys)) st += 1;
   if (touch.active) { th = touch.th; st = touch.st; }
   const fire = fireQueued; fireQueued = false;
   return { throttle: th, steer: st, fire };

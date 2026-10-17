@@ -69,6 +69,16 @@ h1{font-family:var(--f-d);font-weight:400;font-size:clamp(40px,6vw,56px);line-he
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--cream)}
 .msg{min-height:1.4em;margin:12px 0 0;font-weight:800;color:var(--ink-2)}
 .msg.err{color:var(--tomato)}
+/* Controls panel (../keybinds.js): a chunky cream card like the menus */
+:root{--kb-bg:var(--cream);--kb-fg:var(--ink);--kb-muted:var(--ink-2);--kb-line:rgba(43,26,16,.18);--kb-accent:var(--yolk);--kb-accent-ink:var(--ink);--kb-warn:var(--tomato);
+  --kb-border:3px solid var(--ink);--kb-shadow:0 6px 0 var(--ink);--kb-radius:20px;--kb-key-radius:8px;--kb-key-border:2.5px solid var(--ink);--kb-key-bg:var(--shell);--kb-key-shadow:0 3px 0 var(--ink);
+  --kb-font:var(--f-b);--kb-font-display:var(--f-d);--kb-key-weight:900;--kb-title-size:36px;--kb-title-weight:400;--kb-backdrop:rgba(43,26,16,.45);--kb-blur:2px;--kb-pad:22px;--kb-width:540px}
+.kb-panel .kb-label{font-weight:800}
+.kb-panel .kb-label small{font-weight:700}
+.kb-panel .kb-group{color:var(--ink-2);font-weight:900}
+.kb-panel .kb-msg{font-weight:700}
+.kb-panel .btn{font-size:19px;padding:9px 18px}
+.kb-panel .kb-x{border:3px solid var(--ink);box-shadow:0 3px 0 var(--ink);border-radius:12px;background:var(--shell)}
 details{margin-top:14px;border-top:2px dashed rgba(43,26,16,.25);padding-top:10px}
 summary{cursor:pointer;font-family:var(--f-d);font-size:16px;letter-spacing:.04em;list-style:none}
 summary::-webkit-details-marker{display:none}
@@ -293,19 +303,19 @@ details[open] summary::before{content:'－ '}
         <details>
           <summary>Controls</summary>
           <dl class="keys">
-            <div><dt>WASD</dt><dd>Move</dd></div>
-            <div><dt>SPACE</dt><dd>Jump</dd></div>
-            <div><dt>L-CLICK</dt><dd>Shoot</dd></div>
-            <div><dt>SHIFT</dt><dd>Hold to aim / scope</dd></div>
-            <div><dt>R-CLICK</dt><dd>Also aims</dd></div>
-            <div><dt>1 · 2</dt><dd>Main gun · pistol</dd></div>
-            <div><dt>G or E</dt><dd>Throw a yolk bomb</dd></div>
-            <div><dt>V</dt><dd>Melee whack</dd></div>
-            <div><dt>R</dt><dd>Reload</dd></div>
-            <div><dt>TAB</dt><dd>Scoreboard</dd></div>
+            <div><dt data-kb="forward left back right" data-kb-short data-kb-join="" data-kb-case="upper">WASD</dt><dd>Move</dd></div>
+            <div><dt data-kb="jump" data-kb-short data-kb-case="upper">SPACE</dt><dd>Jump</dd></div>
+            <div><dt data-kb="fire" data-kb-short data-kb-case="upper">L-CLICK</dt><dd>Shoot</dd></div>
+            <div><dt data-kb="aim" data-kb-sep=" · " data-kb-case="upper">SHIFT · R-CLICK</dt><dd>Hold to aim / scope</dd></div>
+            <div><dt data-kb="main pistol" data-kb-short data-kb-join=" · " data-kb-case="upper">1 · 2</dt><dd>Main gun · pistol</dd></div>
+            <div><dt data-kb="nade" data-kb-sep=" or " data-kb-case="upper">G or E</dt><dd>Throw a yolk bomb</dd></div>
+            <div><dt data-kb="melee" data-kb-short data-kb-case="upper">V</dt><dd>Melee whack</dd></div>
+            <div><dt data-kb="reload" data-kb-short data-kb-case="upper">R</dt><dd>Reload</dd></div>
+            <div><dt data-kb="board" data-kb-short data-kb-case="upper">TAB</dt><dd>Scoreboard</dd></div>
             <div><dt>ESC</dt><dd>Pause, loadout, invite</dd></div>
             <div><dt>1–5</dt><dd>Pick a weapon while cracked</dd></div>
           </dl>
+          <button class="btn alt" id="keysMenu" type="button" style="margin-top:10px;font-size:18px">Change keys</button>
         </details>
         <details>
           <summary>Settings</summary>
@@ -343,6 +353,7 @@ details[open] summary::before{content:'－ '}
       <div class="row" style="margin-top:18px">
         <button class="btn" id="resume" type="button">Resume</button>
         <button class="btn alt" id="copyInvite" type="button" hidden>Copy invite link</button>
+        <button class="btn alt" id="keysPause" type="button">Controls</button>
         <button class="btn red" id="leave" type="button">Leave match</button>
       </div>
       <p class="msg" id="inviteMsg"></p>
@@ -366,6 +377,7 @@ details[open] summary::before{content:'－ '}
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../keybinds.js"></script>
 <script>
 (function(){
 'use strict';
@@ -1619,7 +1631,33 @@ function updateViewmodel(dt){
 let state='menu',mode='attract',online=false,clock=0,matchEnds=0,target=TARGET_PRACTICE,paused=false;
 let deathRise=2.2,camPitchKick=0,hurtFlash=0,shake=0,hudDirty=true,killerRef=null,deadAt=0,endTimer=0,endShownFor=-1;
 const deathPos=new V3();
-const keys={};let lmb=false,rmb=false,clickQueued=0;
+// Keys and mouse buttons can be changed in the Controls panel (../keybinds.js); saved in this browser
+// as keybinds:shell-crackers. Mouse buttons are kept in keys{} as Mouse0 (left), Mouse1 (middle), Mouse2 (right).
+const KB=Keybinds.create({
+  game:'shell-crackers',
+  mouse:true,
+  actions:[
+    {id:'forward',label:'Move forward',group:'Move',keys:['KeyW','ArrowUp']},
+    {id:'back',label:'Move back',group:'Move',keys:['KeyS','ArrowDown']},
+    {id:'left',label:'Move left',group:'Move',keys:['KeyA','ArrowLeft']},
+    {id:'right',label:'Move right',group:'Move',keys:['KeyD','ArrowRight']},
+    {id:'jump',label:'Jump',group:'Move',keys:['Space']},
+    {id:'fire',label:'Shoot',group:'Fight',keys:['Mouse0']},
+    {id:'aim',label:'Aim / scope',note:'Hold',group:'Fight',keys:['ShiftLeft','Mouse2']},
+    {id:'main',label:'Main gun',group:'Fight',keys:['Digit1']},
+    {id:'pistol',label:'Pistol',group:'Fight',keys:['Digit2']},
+    {id:'swap',label:'Swap weapons',note:'The mouse wheel swaps too',group:'Fight',keys:['KeyQ']},
+    {id:'nade',label:'Throw a yolk bomb',group:'Fight',keys:['KeyG','KeyE']},
+    {id:'melee',label:'Melee whack',group:'Fight',keys:['KeyV','KeyF']},
+    {id:'reload',label:'Reload',group:'Fight',keys:['KeyR']},
+    {id:'board',label:'Scoreboard',note:'Hold',group:'Match',keys:['Tab']},
+    {id:'loadout',label:'Pick a weapon while cracked',group:'Match',text:'1 – 5'},
+    {id:'pause',label:'Pause, loadout, invite',group:'Match',keys:['Escape'],fixed:true}
+  ],
+  classes:{button:'btn alt',primary:'btn'}
+});
+const keys={};let clickQueued=0;
+const held=id=>KB.held(id,keys);
 
 function nowMs(){return online?Net.now():Date.now()}
 function clearBots(){for(const e of ents.slice())if(e.isBot)removeEntity(e)}
@@ -1874,7 +1912,7 @@ function updateHud(dt){
   setT('netline',nl);
   $('lockHint').hidden=!!document.pointerLockElement||paused;
   // scoreboard
-  const showBoard=!!keys.Tab;$('board').hidden=!showBoard;
+  const showBoard=held('board');$('board').hidden=!showBoard;
   if(showBoard){fillTable($('boardTable'),standings());$('boardTitle').textContent=MAPS[mapIdx].name+' · first to '+target+' · '+liveRankInfo()}
 }
 
@@ -1885,8 +1923,8 @@ function requestLock(){
   try{const r=view.requestPointerLock();if(r&&r.catch)r.catch(()=>{})}catch(e){}
 }
 document.addEventListener('pointerlockchange',()=>{
-  if(document.pointerLockElement===view){paused=false;$('pause').hidden=true;keys.Tab=false;lockedAt=performance.now();return}
-  lmb=rmb=false;for(const k in keys)keys[k]=false;
+  if(document.pointerLockElement===view){paused=false;$('pause').hidden=true;for(const k in keys)if(KB.is('board',k))keys[k]=false;lockedAt=performance.now();return}
+  for(const k in keys)keys[k]=false;
   if(state==='playing')showPause();
 });
 function showPause(){
@@ -1906,29 +1944,38 @@ document.addEventListener('mousemove',e=>{
   player.yaw-=e.movementX*s;player.pitch=clamp(player.pitch-e.movementY*s,-1.48,1.48);
   swayX=clamp(swayX-e.movementX*.00012,-.03,.03);swayY=clamp(swayY+e.movementY*.00012,-.03,.03);
 });
+// one-shot actions, from a key or a mouse button
+function pressAction(c){
+  if(KB.is('fire',c))clickQueued=.15;
+  if(KB.is('reload',c))startReload(player);
+  else if(KB.is('main',c))switchSlot(player,0);
+  else if(KB.is('pistol',c))switchSlot(player,1);
+  else if(KB.is('swap',c))switchSlot(player,player.slot?0:1);
+  else if(KB.is('nade',c))throwNade(player);
+  else if(KB.is('melee',c))melee(player);
+  else if(KB.is('jump',c)&&player.onGround){player.vel.y=JUMP;player.onGround=false;sfx('jump')}
+}
 document.addEventListener('mousedown',e=>{
   if(document.pointerLockElement!==view)return;
-  if(e.button===0){lmb=true;clickQueued=.15}else if(e.button===2)rmb=true;
+  const c='Mouse'+e.button;keys[c]=true;
+  if(player.alive)pressAction(c);
 });
-document.addEventListener('mouseup',e=>{if(e.button===0)lmb=false;else if(e.button===2)rmb=false});
+document.addEventListener('mouseup',e=>{keys['Mouse'+e.button]=false});
 document.addEventListener('contextmenu',e=>{if(state==='playing')e.preventDefault()});
 document.addEventListener('wheel',e=>{if(document.pointerLockElement===view&&player.alive)switchSlot(player,player.slot?0:1)},{passive:true});
 document.addEventListener('keydown',e=>{
   if(state!=='playing'){return}
-  if(e.code==='Tab'||e.code==='Space')e.preventDefault();
-  if(!document.pointerLockElement&&e.code!=='Tab')return;
-  keys[e.code]=true;if(e.repeat)return;
+  const c=e.code,board=KB.is('board',c);
+  if(c==='Tab'||c==='Space'||board||(document.pointerLockElement&&KB.actionsFor(c).length))e.preventDefault();
+  if(!document.pointerLockElement&&!board)return;
+  keys[c]=true;if(e.repeat)return;
   if(!player.alive){const n=+e.key;if(n>=1&&n<=5){setLoadout(PRIMARIES[n-1]);hudDirty=true}return}
-  if(e.code==='KeyR')startReload(player);
-  else if(e.code==='Digit1')switchSlot(player,0);
-  else if(e.code==='Digit2')switchSlot(player,1);
-  else if(e.code==='KeyQ')switchSlot(player,player.slot?0:1);
-  else if(e.code==='KeyG'||e.code==='KeyE')throwNade(player);
-  else if(e.code==='KeyV'||e.code==='KeyF')melee(player);
-  else if(e.code==='Space'&&player.onGround){player.vel.y=JUMP;player.onGround=false;sfx('jump')}
+  pressAction(c);
 });
 document.addEventListener('keyup',e=>{keys[e.code]=false});
-addEventListener('blur',()=>{for(const k in keys)keys[k]=false;lmb=rmb=false});
+addEventListener('blur',()=>{for(const k in keys)keys[k]=false});
+$('keysMenu').addEventListener('click',()=>KB.open());
+$('keysPause').addEventListener('click',()=>KB.open());
 
 function setLoadout(k){
   if(!PRIMARIES.includes(k))return;myLoadout=k;store.set('loadout',k);player.loadout=k;
@@ -1940,15 +1987,15 @@ function setLoadout(k){
 let stepT=0,lockedAt=0;
 function playerControl(dt){
   const p=player,w=WEAPONS[p.wkey];
-  let f=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0),r=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);
+  let f=(held('forward')?1:0)-(held('back')?1:0),r=(held('right')?1:0)-(held('left')?1:0);
   const fx=-Math.sin(p.yaw),fz=-Math.cos(p.yaw),rx=Math.cos(p.yaw),rz=-Math.sin(p.yaw);
   let wx=fx*f+rx*r,wz=fz*f+rz*r;const l=Math.hypot(wx,wz);if(l>0){wx/=l;wz/=l}
-  if(keys.Space&&p.onGround&&document.pointerLockElement){p.vel.y=JUMP;p.onGround=false;sfx('jump')}
-  p.ads=(rmb||keys.ShiftLeft||keys.ShiftRight)&&p.reloadT<=0&&p.switchT<=0&&vmMelee<=0;
+  if(held('jump')&&p.onGround&&document.pointerLockElement){p.vel.y=JUMP;p.onGround=false;sfx('jump')}
+  p.ads=held('aim')&&p.reloadT<=0&&p.switchT<=0&&vmMelee<=0;
   steer(p,wx,wz,dt,speedOf(p));
   if(p.onGround&&l>0){stepT-=dt;if(stepT<=0){stepT=.34/WEAPONS[p.wkey].speed;sfx('step')}}
   clickQueued-=dt;
-  if(w.auto?lmb:clickQueued>0){if(tryFire(p)){clickQueued=0;const fl=vmGun&&vmGun.userData.flash;if(fl){fl.visible=true;fl.userData.t=.045;fl.material.rotation=Math.random()*6}}}
+  if(w.auto?held('fire'):clickQueued>0){if(tryFire(p)){clickQueued=0;const fl=vmGun&&vmGun.userData.flash;if(fl){fl.visible=true;fl.userData.t=.045;fl.material.rotation=Math.random()*6}}}
 }
 
 // =====================================================================
