@@ -108,8 +108,20 @@
   async function h(s){var b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('ascoding11:'+s));return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,'0')}).join('').slice(0,16)}
   function close(){if(box){box.remove();box=null;miss=0}}
 
+  // On a phone, the code opens the phone version of the hidden page instead, also without changing the address.
+  function revealPhone(dir){
+    var box=document.createElement('div');
+    box.style.cssText='position:fixed;inset:0;z-index:1000;background:#15122a;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)';
+    var fr=document.createElement('iframe');fr.src=dir+'m/'+(room?'#'+room:'');fr.title='Games';room='';
+    fr.setAttribute('allow','fullscreen; autoplay; gamepad; clipboard-write');fr.setAttribute('allowfullscreen','');
+    fr.style.cssText='display:block;width:100%;height:100%;border:0;background:#15122a';
+    box.appendChild(fr);document.body.appendChild(box);document.body.style.overflow='hidden';
+    shown=true;base=dir;history.pushState({br:1},'',location.href);
+  }
+
   // Show the hidden page's games right here, without changing the address.
   function reveal(html,dir){
+    if(matchMedia('(pointer: coarse)').matches&&!matchMedia('(any-pointer: fine)').matches)return revealPhone(dir);
     var d=new DOMParser().parseFromString(html,'text/html');
     var hd=document.querySelector('header'),sec=document.querySelector('section[aria-label="Sections"]');
     hd.replaceWith(document.importNode(d.querySelector('header'),true));

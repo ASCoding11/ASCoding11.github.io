@@ -81,7 +81,7 @@ body.playing{overflow:hidden}
       <h1>Arjun's <span>games</span></h1>
       <p class="count" id="count"></p>
     </div>
-    <a class="full" href="/">Main site</a>
+    <a class="full" href="/" target="_top">Main site</a>
   </header>
   <div class="tip" id="tip" hidden><span id="tipText"></span><button type="button" id="tipX" aria-label="Hide tip">×</button></div>
   <button class="cont" id="cont" type="button" hidden></button>
@@ -158,8 +158,10 @@ body.playing{overflow:hidden}
   showContinue();
 
   // On a phone that isn't running this as a home-screen app yet, say how to add it.
+  // Opened from the home page's code it runs inside that page, where adding to the home screen would save the home page instead.
+  var framed=window.top!==window;
   var standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
-  if(!standalone&&store.get('m:tipHidden')!=='1'&&matchMedia('(pointer: coarse)').matches){
+  if(!standalone&&!framed&&store.get('m:tipHidden')!=='1'&&matchMedia('(pointer: coarse)').matches){
     var ios=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
     $('tipText').innerHTML=ios?'<b>Add this to your home screen</b> to open the games like an app: tap Share, then <b>Add to Home Screen</b>.':'<b>Add this to your home screen</b> to open the games like an app: open the browser menu, then <b>Add to Home screen</b> or <b>Install app</b>.';
     $('tip').hidden=false;
@@ -171,7 +173,7 @@ body.playing{overflow:hidden}
   function openGame(g){
     if(cur)return;cur=g;store.set('m:last',g.id);
     $('name').textContent=g.name;$('turn').hidden=!g.land;
-    $('frame').src=g.url;$('play').hidden=false;document.body.classList.add('playing');
+    $('frame').src=g.url+(g.hash||'');$('play').hidden=false;document.body.classList.add('playing');
     history.pushState({g:g.id},'',location.href);
     var el=document.documentElement;
     if(!standalone&&el.requestFullscreen&&!/iPhone|iPad|iPod/.test(navigator.userAgent)&&matchMedia('(pointer: coarse)').matches){
@@ -188,6 +190,15 @@ body.playing{overflow:hidden}
     showContinue();
   }
   $('back').onclick=function(){history.back()};
+
+  // An invite link (#<room>) opens its game straight away. Room codes start with the game's prefix; any other code is a Rumble Karts room.
+  var PREFIX={tv:'trivium',br:'backrooms-1v1',sc:'shell-crackers',hm:'hail-mary',cl:'coil',ss:'slipstream',bb:'boostball',qy:'quarry',kw:'kartwheel',sd:'showdown'};
+  var inv=/^#([a-z0-9-]{1,20})$/.exec(location.hash);
+  if(inv){
+    history.replaceState(null,'',location.pathname);
+    var pre=/^([a-z]{2})-/.exec(inv[1]),g=byId[pre&&PREFIX[pre[1]]||'rumble-karts'];
+    if(g)openGame({id:g.id,name:g.name,land:g.land,url:g.url,hash:'#'+inv[1]});
+  }
   addEventListener('popstate',function(){closeGame()});
 
   // Links that leave the game (back to the main site, other pages) close the game instead of loading inside it.
