@@ -33,7 +33,7 @@ When adding a game:
 - Don't add outside scripts, trackers or ads unless the pull request is specifically about that.
 - Write all game text, trivia questions and college prompt summaries in your own words; don't paste copyrighted text.
 - When you add, rename or remove a page or game, update `README.md` and the cards on the home, `projects/` or `productivity/` pages to match.
-- Test by serving the repo folder locally (for example `python3 -m http.server`) and opening the changed pages; that they work at desktop and phone widths, and for multiplayer games, with two browser windows in the same room, before opening the pull request.
+- Test by serving the repo folder locally (for example `python3 -m http.server`) and opening the changed pages; check that they work at desktop and phone widths, and for multiplayer games, with two browser windows in the same room, before opening the pull request.
 
 ## Pull request description
 
