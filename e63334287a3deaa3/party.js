@@ -302,7 +302,7 @@
     if (L && lastLeader && L.uid !== lastLeader) say(L.uid === uid ? 'You’re the party leader now. Pick a game.' : L.n + ' is the party leader now.');
     lastLeader = L ? L.uid : '';
     // A new launch from the leader that happened while we were in the party: go there too.
-    if (L && L.uid !== uid && L.go && typeof L.go.r === 'string') {
+    if (L && L.uid !== uid && L.go && okRoom(L.go.r)) {
       var key = L.uid + ':' + L.go.id + ':' + L.go.t;
       if (!handled[key] && (+L.go.t || 0) >= myJ - 2000 && now() - (+L.go.t || 0) < 120000) {
         handled[key] = 1;
@@ -327,6 +327,8 @@
     say('Starting ' + g.n + ' in room ' + r + '…');
     launch(g, r);
   }
+  // Room codes come from another member's node, so only accept the characters the games' invite links allow.
+  function okRoom(r) { return typeof r === 'string' && /^[a-z0-9]{1,17}$/.test(r); }
   function hashFor(g, r) { return '#' + (g.pre != null ? g.pre : g.k + '-') + r; }
   function launch(g, r) {
     var path = BASE + g.d + '/' + hashFor(g, r);
@@ -448,7 +450,7 @@
       box.setAttribute('data-mode', 'member');
       var g = L && byKey(L.pk), go = L && L.go, gg = go && byKey(go.g);
       var html = '<p class="pty-wait">' + (L ? esc(L.n) + (g ? ' has picked <b>' + esc(g.n) + '</b>.' : ' hasn’t picked a game yet.') : '') + '</p>';
-      if (gg && typeof go.r === 'string' && now() - (+go.t || 0) < 3 * 3600000)
+      if (gg && okRoom(go.r) && now() - (+go.t || 0) < 3 * 3600000)
         html += '<div class="pty-go"><button type="button" class="btn" data-a="rejoin">Join them in ' + esc(gg.n) + '</button><span class="pty-wait">Room ' + esc(go.r) + '</span></div>';
       box.innerHTML = html;
     }
@@ -476,7 +478,7 @@
     } else if (a === 'play') playTogether();
     else if (a === 'rejoin') {
       var L = leader(), g = L && L.go && byKey(L.go.g);
-      if (g) launch(g, L.go.r);
+      if (g && okRoom(L.go.r)) launch(g, L.go.r);
     } else if (gk) {
       picked = gk;
       if (refs) refs.me.update({ pk: picked, ts: Math.round(now()) }).catch(function () {});
