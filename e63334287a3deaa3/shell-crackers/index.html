@@ -38,7 +38,8 @@ button:disabled{opacity:.5;cursor:default}
 
 /* ---------- menus ---------- */
 .overlay{position:absolute;inset:0;overflow:auto;padding:max(22px,env(safe-area-inset-top)) 18px 28px}
-.overlay.center{display:flex;align-items:center;justify-content:center;background:rgba(43,26,16,.4)}
+.overlay.center{display:flex;background:rgba(43,26,16,.4)}
+.overlay.center>*{margin:auto}
 .card{background:var(--cream);border:3px solid var(--ink);border-radius:20px;box-shadow:0 6px 0 var(--ink);padding:22px}
 .menu-grid{display:grid;grid-template-columns:minmax(0,430px) minmax(0,470px);gap:22px;justify-content:center;align-items:start;max-width:940px;margin:0 auto}
 @media (max-width:900px){.menu-grid{grid-template-columns:minmax(0,520px)}}
@@ -178,7 +179,7 @@ details[open] summary::before{content:'－ '}
 #board{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(560px,92vw);font-family:var(--f-b);color:var(--ink)}
 #board h3{font-family:var(--f-d);font-weight:400;margin:0;font-size:26px}
 #lockHint{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:30px;background:rgba(43,26,16,.6);padding:10px 22px;border-radius:14px}
-#touchNote{color:var(--tomato)}
+#touchNote{color:var(--ink-2)}
 .rank{margin-top:16px;border:3px solid var(--ink);border-radius:14px;background:#fff;padding:10px 12px 11px;box-shadow:0 4px 0 var(--ink)}
 .rank-top{display:flex;align-items:center;gap:12px}
 .rank-top svg{flex:0 0 auto;width:38px;height:46px}
@@ -206,7 +207,64 @@ details[open] summary::before{content:'－ '}
 #trainHud{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:8px;width:max-content;max-width:calc(100% - 24px)}
 .trow{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
 .tkeys{font-family:var(--f-b);font-weight:900;font-size:13px;text-align:center}
+#trainHud .tbox small{max-width:none}
 #tsLast{position:absolute;left:50%;top:calc(50% + 64px);transform:translateX(-50%);font-size:22px;white-space:nowrap}
+/* Touch controls: a move stick on the left, buttons on the right, and dragging anywhere else turns the view.
+   Only shown on touch screens, where the health and ammo readouts move up to the top corners. */
+#touch{display:none;position:absolute;inset:0;pointer-events:none;font-family:var(--f-d)}
+body.touch #touch{display:block}
+#tLook{position:absolute;inset:0;pointer-events:auto;touch-action:none}
+#tStick{position:absolute;left:calc(26px + env(safe-area-inset-left,0px));bottom:calc(26px + env(safe-area-inset-bottom,0px));width:132px;height:132px;border-radius:50%;background:rgba(43,26,16,.28);border:3px solid rgba(255,253,248,.75);pointer-events:auto;touch-action:none}
+#tStick i{position:absolute;left:50%;top:50%;width:58px;height:58px;margin:-29px 0 0 -29px;border-radius:50%;background:var(--cream);border:3px solid var(--ink);box-shadow:0 3px 0 var(--ink)}
+.tb{position:absolute;pointer-events:auto;touch-action:none;width:58px;height:58px;border-radius:50%;border:3px solid var(--ink);background:rgba(255,248,232,.88);color:var(--ink);font:400 14px var(--f-d);letter-spacing:.02em;box-shadow:0 4px 0 var(--ink);padding:0;-webkit-user-select:none;user-select:none}
+.tb.on{background:var(--yolk);transform:translateY(2px);box-shadow:0 2px 0 var(--ink)}
+#tFire{right:calc(30px + env(safe-area-inset-right,0px));bottom:calc(40px + env(safe-area-inset-bottom,0px));width:92px;height:92px;background:rgba(239,83,56,.92);color:#fff;font-size:20px}
+#tFire.on{background:var(--tomato)}
+#tJump{right:calc(134px + env(safe-area-inset-right,0px));bottom:calc(22px + env(safe-area-inset-bottom,0px))}
+#tAim{right:calc(130px + env(safe-area-inset-right,0px));bottom:calc(92px + env(safe-area-inset-bottom,0px))}
+#tReload{right:calc(84px + env(safe-area-inset-right,0px));bottom:calc(146px + env(safe-area-inset-bottom,0px))}
+#tNade{right:calc(18px + env(safe-area-inset-right,0px));bottom:calc(150px + env(safe-area-inset-bottom,0px))}
+#tSwap{right:calc(196px + env(safe-area-inset-right,0px));bottom:calc(30px + env(safe-area-inset-bottom,0px));width:50px;height:50px;font-size:12px}
+#tMelee{right:calc(190px + env(safe-area-inset-right,0px));bottom:calc(90px + env(safe-area-inset-bottom,0px));width:50px;height:50px;font-size:12px}
+#tPause,#tBoard{top:calc(10px + env(safe-area-inset-top,0px));width:44px;height:44px;font-size:13px}
+#tPause{left:calc(10px + env(safe-area-inset-left,0px))}
+#tBoard{left:calc(60px + env(safe-area-inset-left,0px))}
+body.touch #hpw{left:calc(112px + env(safe-area-inset-left,0px));bottom:auto;top:calc(12px + env(safe-area-inset-top,0px));transform:scale(.62);transform-origin:left top}
+body.touch #ammo{right:calc(12px + env(safe-area-inset-right,0px));bottom:auto;top:calc(8px + env(safe-area-inset-top,0px));transform:scale(.62);transform-origin:right top}
+body.touch #hpbar{width:100px}
+body.touch #top{transform:translateX(-50%) scale(.72);transform-origin:center top}
+body.touch #feed{top:calc(96px + env(safe-area-inset-top,0px))}
+body.touch #dead{top:auto;bottom:calc(190px + env(safe-area-inset-bottom,0px));min-width:0}
+body.touch #lockHint{display:none}
+@media (orientation:portrait){body.touch #top{top:calc(84px + env(safe-area-inset-top,0px))}body.touch #netline{top:calc(150px + env(safe-area-inset-top,0px))}body.touch #feed{top:calc(150px + env(safe-area-inset-top,0px))}}
+/* Upright phones: Swap and Bonk sit above Reload and Bomb so they stay clear of the move stick, and the
+   "cracked" card sits above the buttons. */
+@media (orientation:portrait){
+  #tSwap{right:calc(22px + env(safe-area-inset-right,0px));bottom:calc(220px + env(safe-area-inset-bottom,0px))}
+  #tMelee{right:calc(88px + env(safe-area-inset-right,0px));bottom:calc(216px + env(safe-area-inset-bottom,0px))}
+  body.touch #dead{bottom:calc(300px + env(safe-area-inset-bottom,0px))}
+}
+/* Training range on a touch screen: a button for each gun and one that resets the stats. They form a row under
+   the pause button with the phone sideways, and a column above the move stick when it's upright. The stats move
+   between the health and ammo readouts (below them when upright), and the keyboard hints are hidden. */
+#tTrain{display:none;position:absolute;left:calc(10px + env(safe-area-inset-left,0px));top:calc(64px + env(safe-area-inset-top,0px));gap:6px}
+body.touch #hud.training #tTrain{display:flex}
+#tTrain .tb{position:static;flex:0 0 auto;width:62px;height:40px;border-radius:14px;font-size:12px;letter-spacing:0;white-space:nowrap;overflow:hidden}
+#tTrain .tb.cur{background:var(--yolk)}
+#tReset{margin-left:8px}
+body.touch #trainHud{left:max(50%,calc(258px + 150px + env(safe-area-inset-left,0px)));max-width:none;transform:translateX(-50%) scale(.62);transform-origin:center top}
+body.touch #trainHud .trow{flex-wrap:nowrap}
+body.touch #trainHud .tbox{min-width:66px;padding:3px 9px}
+body.touch #trainHud .tbox span{font-size:24px}
+body.touch .tkeys{display:none}
+body.touch #hud.training #banner{top:calc(114px + env(safe-area-inset-top,0px))}
+@media (orientation:portrait){
+  #tTrain{top:auto;left:calc(26px + env(safe-area-inset-left,0px));bottom:calc(172px + env(safe-area-inset-bottom,0px));flex-direction:column}
+  #tReset{order:-1;margin:0 0 8px}
+  body.touch #trainHud{left:50%;top:calc(84px + env(safe-area-inset-top,0px))}
+  body.touch #hud.training #banner{top:22%}
+}
+@media (orientation:landscape) and (max-width:720px){body.touch #trainHud{left:max(50%,calc(258px + 140px + env(safe-area-inset-left,0px)));transform:translateX(-50%) scale(.55)}}
 @media (max-width:640px){#hpbar{width:120px}#mag{font-size:44px}.tbox{min-width:60px;padding:3px 9px}.tbox span{font-size:22px}}
 
 /* Side rails: two tall ads beside the game on wide screens (1180px+). The game area shrinks to sit
@@ -269,10 +327,32 @@ details[open] summary::before{content:'－ '}
       <h3>CRACKED!</h3>
       <p id="deadBy"></p>
       <p id="deadT"></p>
-      <div class="pick">Next weapon: <b id="nextW">Beater</b> · press 1–5 to change</div>
+      <div class="pick">Next weapon: <b id="nextW">Beater</b> · <span id="pickHow">press 1–5 to change</span></div>
     </div>
     <div id="board" class="card" hidden><h3 id="boardTitle">Scoreboard</h3><table class="standings" id="boardTable"></table></div>
     <div id="lockHint" class="out" hidden>Click to play</div>
+    <div id="touch" aria-hidden="true">
+      <div id="tLook"></div>
+      <div id="tStick"><i></i></div>
+      <button class="tb" id="tFire" type="button">FIRE</button>
+      <button class="tb" id="tJump" type="button">JUMP</button>
+      <button class="tb" id="tAim" type="button">AIM</button>
+      <button class="tb" id="tReload" type="button">RELOAD</button>
+      <button class="tb" id="tNade" type="button">BOMB</button>
+      <button class="tb" id="tSwap" type="button">SWAP</button>
+      <button class="tb" id="tMelee" type="button">BONK</button>
+      <button class="tb" id="tPause" type="button" aria-label="Pause">❚❚</button>
+      <button class="tb" id="tBoard" type="button" aria-label="Scoreboard">TAB</button>
+      <div id="tTrain">
+        <button class="tb" id="tG1" type="button" data-g="1">BEATER</button>
+        <button class="tb" id="tG2" type="button" data-g="2">SKILLET</button>
+        <button class="tb" id="tG3" type="button" data-g="3">SUNNY</button>
+        <button class="tb" id="tG4" type="button" data-g="4">WHISK</button>
+        <button class="tb" id="tG5" type="button" data-g="5">POACHER</button>
+        <button class="tb" id="tG6" type="button" data-g="6">CRACKER</button>
+        <button class="tb" id="tReset" type="button" aria-label="Reset training stats">RESET</button>
+      </div>
+    </div>
   </div>
 
   <section id="menu" class="overlay">
@@ -296,7 +376,7 @@ details[open] summary::before{content:'－ '}
           <button id="training" class="btn alt" type="button" title="Targets, balloons and dummies that don't shoot back. Every gun, no rating.">Training range</button>
         </div>
         <p id="netMsg" class="msg" role="status"></p>
-        <p id="touchNote" class="note" hidden>This game needs a keyboard and mouse.</p>
+        <p id="touchNote" class="note" hidden>Playing on a phone? Turn it sideways for the best view.</p>
         <div class="rank" id="rankBox">
           <div class="rank-top">
             <svg viewBox="0 0 38 46" aria-hidden="true"><path id="rankEgg" d="M19 2C9 2 2 19 2 29c0 9 7 15 17 15s17-6 17-15C36 19 29 2 19 2z" fill="#fbf6ea" stroke="#2b1a10" stroke-width="3"/><path id="rankShine" d="M11 14q3-6 7-7" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".8"/></svg>
@@ -1866,10 +1946,10 @@ function startTraining(){
   player.id='me';player.name=myName;player.color=myColor;player.loadout=myLoadout;player.active=true;player.kills=0;player.deaths=0;
   Range.resetStats();respawn(player);sfx('spawn');
   matchEnds=Date.now()+1e9;
-  showHud();requestLock();banner('TRAINING RANGE','No clock, no rating · every gun on keys 1–5',2.6);
+  showHud();requestLock();banner('TRAINING RANGE','No clock, no rating · every gun on '+(touchUI?'the buttons':'keys 1–5'),2.6);
 }
 function showHud(){
-  const tr=mode==='training';$('top').hidden=tr;$('trainHud').hidden=!tr;$('tsLast').textContent='';
+  const tr=mode==='training';$('top').hidden=tr;$('trainHud').hidden=!tr;$('tsLast').textContent='';$('hud').classList.toggle('training',tr);
   $('menu').hidden=true;$('pause').hidden=true;$('end').hidden=true;$('hud').hidden=false;$('dead').hidden=true;hudDirty=true;
 }
 // Leaving an online match partway through counts as finishing last against the real players there.
@@ -2092,6 +2172,11 @@ function updateHud(dt){
   if(online){const others=ents.filter(e=>e.remote).length;if(Net.matchId==null&&Net.roundErr)nl='The database wouldn\'t start this room\'s match ('+(Net.roundErr.code||Net.roundErr.message)+')';else if(!others)nl=Net.isPublic?'Waiting for other eggs to join this lobby…':'Waiting for friends · Esc for the invite link'}
   setT('netline',nl);
   $('lockHint').hidden=!!document.pointerLockElement||paused;
+  if(touchUI)$('tAim').classList.toggle('on',rmb);
+  if(touchUI&&mode==='training'){
+    $('tTrain').style.visibility=player.alive?'':'hidden';
+    for(let n=1;n<=6;n++)$('tG'+n).classList.toggle('cur',n===6?player.slot===1:player.slot===0&&player.wkey===PRIMARIES[n-1]);
+  }
   // scoreboard
   const showBoard=!!keys.Tab;$('board').hidden=!showBoard;
   if(showBoard){fillTable($('boardTable'),standings());$('boardTitle').textContent=mode==='training'?mapInfo().name+' · unranked, nothing is saved':mapInfo().name+' · first to '+target+' · '+liveRankInfo()}
@@ -2101,6 +2186,7 @@ function updateHud(dt){
 //  Input
 // =====================================================================
 function requestLock(){
+  if(touchUI)return;
   try{const r=view.requestPointerLock();if(r&&r.catch)r.catch(()=>{})}catch(e){}
 }
 document.addEventListener('pointerlockchange',()=>{
@@ -2112,7 +2198,7 @@ function showPause(){
   paused=true;$('pause').hidden=false;
   const tr=mode==='training';
   $('pauseWLabel').textContent=tr?'Weapon (switches right away)':'Weapon for your next hatch';$('leave').textContent=tr?'Back to menu':'Leave match';
-  if(tr)$('pauseSub').textContent='Training range · unranked, nothing is saved. Keys 1–5 also switch guns.';
+  if(tr)$('pauseSub').textContent='Training range · unranked, nothing is saved. '+(touchUI?'The gun buttons':'Keys 1–5')+' also switch guns.';
   else{
   $('pauseSub').textContent=online?(Net.isPublic?'Public lobby '+Net.room.replace(/^sc-/,'')+' · the match keeps going':'Room '+Net.room+' · the match keeps going'):'Practice on '+MAPS[mapIdx].name+' ('+diffKey+' bots)';
   $('pauseSub').textContent+=' · '+liveRankInfo()+(mode==='online'?'. Leaving now counts as last place.':'.');
@@ -2146,8 +2232,8 @@ document.addEventListener('keydown',e=>{
   if(mode==='training'){
     // any gun at any time: 1-5 the main guns, 6 the pistol; T clears the stats
     const m=/^Digit([1-6])$/.exec(e.code);
-    if(m){const n=+m[1];if(n===6)switchSlot(player,1);else if(PRIMARIES[n-1]!==player.wkey){setLoadout(PRIMARIES[n-1]);switchSlot(player,0)}return}
-    if(e.code==='KeyT'){Range.resetStats();infoFeed('Training stats reset');return}
+    if(m){trainGun(+m[1]);return}
+    if(e.code==='KeyT'){resetTraining();return}
   }
   if(e.code==='KeyR')startReload(player);
   else if(e.code==='Digit1')switchSlot(player,0);
@@ -2157,8 +2243,63 @@ document.addEventListener('keydown',e=>{
   else if(e.code==='KeyV'||e.code==='KeyF')melee(player);
   else if(e.code==='Space'&&player.onGround){player.vel.y=JUMP;player.onGround=false;sfx('jump')}
 });
+// Training range: gun n right away (1-5 the main guns, 6 the pistol), and clearing the stats.
+function trainGun(n){if(n===6)switchSlot(player,1);else if(PRIMARIES[n-1]!==player.wkey){setLoadout(PRIMARIES[n-1]);switchSlot(player,0)}}
+function resetTraining(){Range.resetStats();infoFeed('Training stats reset')}
 document.addEventListener('keyup',e=>{keys[e.code]=false});
 addEventListener('blur',()=>{for(const k in keys)keys[k]=false;lmb=rmb=false});
+
+// Touch controls. On a touch screen there's no pointer lock: the stick moves, dragging turns the view
+// (including while holding Fire), and each button does what its key does.
+let touchUI=matchMedia('(pointer: coarse)').matches&&!matchMedia('(any-pointer: fine)').matches;
+const tMove={on:false,x:0,y:0};
+function setTouchUI(on){touchUI=on;document.body.classList.toggle('touch',on);$('touchNote').hidden=!on;$('pickHow').textContent=on?'pause to change':'press 1–5 to change'}
+addEventListener('pointerdown',e=>{if(e.pointerType==='touch'&&!touchUI)setTouchUI(true)},true);
+const canAct=()=>state==='playing'&&!paused&&player.alive;
+function touchLook(dx,dy){
+  if(!canAct())return;
+  const z=player.ads?Math.pow(WEAPONS[player.wkey].zoom,.85):1,s=sens*.0042/z;
+  player.yaw-=dx*s;player.pitch=clamp(player.pitch-dy*s,-1.48,1.48);
+  swayX=clamp(swayX-dx*.0002,-.03,.03);swayY=clamp(swayY+dy*.0002,-.03,.03);
+}
+// Drags on the look layer and the Fire button turn the view; each finger is tracked on its own.
+function dragLook(el){
+  const pts=new Map();
+  el.addEventListener('pointerdown',e=>{e.preventDefault();pts.set(e.pointerId,[e.clientX,e.clientY]);try{el.setPointerCapture(e.pointerId)}catch(_){}});
+  el.addEventListener('pointermove',e=>{const q=pts.get(e.pointerId);if(!q)return;touchLook(e.clientX-q[0],e.clientY-q[1]);q[0]=e.clientX;q[1]=e.clientY});
+  const end=e=>pts.delete(e.pointerId);
+  el.addEventListener('pointerup',end);el.addEventListener('pointercancel',end);
+}
+dragLook($('tLook'));dragLook($('tFire'));
+{
+  const stick=$('tStick'),knob=stick.firstElementChild;let sid=null;
+  const move=e=>{const r=stick.getBoundingClientRect(),R=r.width/2;let x=(e.clientX-r.left-R)/R,y=(e.clientY-r.top-R)/R;const m=Math.hypot(x,y);if(m>1){x/=m;y/=m}
+    tMove.x=Math.abs(x)<.12?0:x;tMove.y=Math.abs(y)<.12?0:y;knob.style.transform='translate('+(x*R*.6)+'px,'+(y*R*.6)+'px)'};
+  stick.addEventListener('pointerdown',e=>{e.preventDefault();sid=e.pointerId;tMove.on=true;try{stick.setPointerCapture(sid)}catch(_){}move(e)});
+  stick.addEventListener('pointermove',e=>{if(e.pointerId===sid)move(e)});
+  const end=e=>{if(e.pointerId!==sid)return;sid=null;tMove.on=false;tMove.x=tMove.y=0;knob.style.transform=''};
+  stick.addEventListener('pointerup',end);stick.addEventListener('pointercancel',end);
+}
+// A button that does something once when pressed, or (with up) while it's held.
+function tButton(id,down,up){
+  const el=$(id);
+  el.addEventListener('pointerdown',e=>{e.preventDefault();initAudio();el.classList.add('on');down()});
+  const end=()=>{el.classList.remove('on');if(up)up()};
+  el.addEventListener('pointerup',end);el.addEventListener('pointercancel',end);el.addEventListener('lostpointercapture',end);
+  el.addEventListener('contextmenu',e=>e.preventDefault());
+}
+tButton('tFire',()=>{if(canAct()){lmb=true;clickQueued=.15}},()=>{lmb=false});
+tButton('tJump',()=>{if(canAct())keys.Space=true},()=>{keys.Space=false});
+tButton('tAim',()=>{if(canAct())rmb=!rmb},()=>{$('tAim').classList.toggle('on',rmb)});
+tButton('tReload',()=>{if(canAct())startReload(player)});
+tButton('tNade',()=>{if(canAct())throwNade(player)});
+tButton('tSwap',()=>{if(canAct())switchSlot(player,player.slot?0:1)});
+tButton('tMelee',()=>{if(canAct())melee(player)});
+tButton('tBoard',()=>{keys.Tab=true},()=>{keys.Tab=false});
+tButton('tPause',()=>{if(state==='playing'&&!paused){lmb=rmb=false;for(const k in keys)keys[k]=false;showPause()}});
+// Training range only: a button for each gun (what keys 1-6 do) and one for T (reset the stats).
+for(let n=1;n<=6;n++)tButton('tG'+n,()=>{if(canAct()&&mode==='training')trainGun(n)});
+tButton('tReset',()=>{if(state==='playing'&&!paused&&mode==='training')resetTraining()});
 
 function setLoadout(k){
   if(!PRIMARIES.includes(k))return;myLoadout=k;store.set('loadout',k);player.loadout=k;
@@ -2174,10 +2315,11 @@ function playerControl(dt){
   const p=player,w=WEAPONS[p.wkey];
   let f=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0),r=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);
   const fx=-Math.sin(p.yaw),fz=-Math.cos(p.yaw),rx=Math.cos(p.yaw),rz=-Math.sin(p.yaw);
+  let mag=1;if(tMove.on){f=-tMove.y;r=tMove.x;mag=Math.min(1,Math.hypot(f,r))}
   let wx=fx*f+rx*r,wz=fz*f+rz*r;const l=Math.hypot(wx,wz);if(l>0){wx/=l;wz/=l}
-  if(keys.Space&&p.onGround&&document.pointerLockElement){p.vel.y=JUMP;p.onGround=false;sfx('jump')}
+  if(keys.Space&&p.onGround&&(document.pointerLockElement||touchUI)){p.vel.y=JUMP;p.onGround=false;sfx('jump')}
   p.ads=(rmb||keys.ShiftLeft||keys.ShiftRight)&&p.reloadT<=0&&p.switchT<=0&&vmMelee<=0;
-  steer(p,wx,wz,dt,speedOf(p));
+  steer(p,wx,wz,dt,speedOf(p)*mag);
   if(p.onGround&&l>0){stepT-=dt;if(stepT<=0){stepT=.34/WEAPONS[p.wkey].speed;sfx('step')}}
   clickQueued-=dt;
   if(w.auto?lmb:clickQueued>0){if(tryFire(p)){clickQueued=0;const fl=vmGun&&vmGun.userData.flash;if(fl){fl.visible=true;fl.userData.t=.045;fl.material.rotation=Math.random()*6}}}
@@ -2534,7 +2676,7 @@ $('copyInvite').addEventListener('click',()=>{
   try{navigator.clipboard.writeText(url).then(()=>done(true),()=>done(false))}catch(e){done(false)}
 });
 document.addEventListener('pointerdown',()=>initAudio(),{once:true});
-if(matchMedia('(pointer: coarse)').matches&&!matchMedia('(any-pointer: fine)').matches)$('touchNote').hidden=false;
+if(touchUI)setTouchUI(true);
 addEventListener('pagehide',()=>{leaveCheck();Net.leave()});
 
 // An invite opens this page with #sc-<code>: fill in the room and point at the join button.
