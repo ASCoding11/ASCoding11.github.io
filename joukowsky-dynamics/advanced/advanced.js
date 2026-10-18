@@ -123,7 +123,16 @@ function resize() {
   if (!w || !h) return;
   renderer.setSize(w, h, false);
   composer.setSize(w, h);
-  v.camera.aspect = w / h; v.camera.updateProjectionMatrix();
+  v.camera.aspect = w / h; applyViewOffset(current);
+}
+// while the tab 05 briefing is open, shift the projection so the model centres in the space left of the panel
+function applyViewOffset(view) {
+  const v = views[view]; if (!v) return;
+  const w = v.el.clientWidth, h = v.el.clientHeight;
+  const ui = REGION_UI[view];
+  const panel = view === 'sequence' && FOCUS.region === null ? 0 : (view === 'sequence' && ui && !ui.brief.hidden && w > 700 ? ui.brief.offsetWidth + 16 : 0);
+  if (panel) v.camera.setViewOffset(w, h, panel / 2, 0, w, h); else v.camera.clearViewOffset();
+  v.camera.updateProjectionMatrix();
 }
 const clock = new THREE.Clock();
 function loop() {
@@ -727,6 +736,7 @@ function renderSheet(pi) {
       ${p.step_lh ? `<a href="${REPO}cad/rev08/step/${p.step_lh}" target="_blank" rel="noopener">STEP (LH) ↗</a>` : ''}
     </div>
     <p class="sheet-note">Mass is computed from the B-rep volume (or laminate area × ply thickness for skins) and the material density. Concept geometry only: no tolerances, fits or qualified loads.</p>`;
+  const rb = REGION_UI.advanced?.brief; if (rb) $('adv-sheet').prepend(rb);   // keep the region briefing above the datasheet
   $('sheet-frame').onclick = () => { setAdvView('3d'); frameOverlays(); };
   $('sheet-region').onclick = () => { const rec = OBJS.find((r) => r.pi === pi); if (rec) { setAdvView('3d'); focusRegion('advanced', rec.region, rec); } };
   $('sheet-iso').onclick = () => { adv.isolate = !adv.isolate; refreshIsolation(); renderSheet(pi); if (adv.isolate) frameOverlays(); };
@@ -1162,6 +1172,8 @@ function focusRegion(view, id, pickedRec = null) {
   if (view === 'sequence') { seq.autoCam = false; }
   renderBrief(true);
   const ui = REGION_UI[view]; ui.brief.hidden = false; ui.back.hidden = false; views[view].el.classList.add('focused');
+  if (view === 'advanced') $('adv-sheet').scrollTop = 0;
+  applyViewOffset(view);
   ui.chips.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b.dataset.region === id));
 }
 const rad2 = (d) => d * Math.PI / 180;
@@ -1176,7 +1188,7 @@ function finishExit() {
   resetOffsets();
   FOCUS.region = null; FOCUS.labels.forEach((l) => l.el.remove()); FOCUS.labels = []; FOCUS.f = 0;
   views[view]?.el.classList.remove('focused');
-  const ui = REGION_UI[view]; if (ui) { ui.brief.hidden = true; ui.back.hidden = true; ui.svg.innerHTML = ''; ui.chips.querySelectorAll('button').forEach((b) => b.classList.remove('active')); }
+  const ui = REGION_UI[view]; if (ui) { ui.brief.hidden = true; setTimeout(() => applyViewOffset(view)); ui.back.hidden = true; ui.svg.innerHTML = ''; ui.chips.querySelectorAll('button').forEach((b) => b.classList.remove('active')); }
   if (view === 'sequence') seq.autoCam = true;
   if (view === 'advanced') refreshIsolation(); else applyStyle(styleNow);
 }
@@ -1226,7 +1238,7 @@ function drawRegionLabels(view) {
   for (const q of pts) {
     if (!q.vis) { q.l.el.style.opacity = 0; continue; }
     const right = q.x >= cx;
-    const maxX = w - (w > 900 ? 380 : 0) - 110;     // keep clear of the briefing panel
+    const maxX = w - (view === 'sequence' && w > 700 ? ui.brief.offsetWidth + 24 : 0) - 110;     // keep clear of the briefing panel
     let lx = clamp(q.x + (right ? 150 : -150), 110, maxX), ly = clamp(q.y - 30, 70, h - 70);
     for (const u of used) if (Math.abs(u.x - lx) < 190 && Math.abs(u.y - ly) < 40) ly = u.y + 42;
     used.push({ x: lx, y: ly });
@@ -1323,7 +1335,9 @@ function initRegionUI(view) {
   chips.innerHTML = '<span>EXPLORE A REGION</span>' + REGIONS.map((r) => `<button data-region="${r.id}">${esc(r.name)}</button>`).join('');
   host.appendChild(chips);
   const back = document.createElement('button'); back.className = 'region-back'; back.textContent = '← Back to full vehicle'; back.hidden = true; host.appendChild(back);
-  const brief = document.createElement('aside'); brief.className = 'region-brief'; brief.hidden = true; host.appendChild(brief);
+  // tab 06 shows the briefing in the datasheet column; tab 05 overlays it at the right edge and shifts the model left
+  const brief = document.createElement('aside'); brief.className = 'region-brief' + (view === 'advanced' ? ' in-sheet' : ''); brief.hidden = true;
+  if (view === 'advanced') $('adv-sheet').prepend(brief); else host.appendChild(brief);
   const tip = document.createElement('div'); tip.className = 'region-tip'; tip.hidden = true; host.appendChild(tip);
   REGION_UI[view] = { svg, layer, chips, back, brief, tip };
   for (const el of [chips, back, brief]) for (const ev of ['pointerdown', 'pointerup', 'wheel', 'dblclick', 'contextmenu']) el.addEventListener(ev, (e) => e.stopPropagation());
