@@ -38,7 +38,8 @@ button:disabled{opacity:.5;cursor:default}
 
 /* ---------- menus ---------- */
 .overlay{position:absolute;inset:0;overflow:auto;padding:max(22px,env(safe-area-inset-top)) 18px 28px}
-.overlay.center{display:flex;align-items:center;justify-content:center;background:rgba(43,26,16,.4)}
+.overlay.center{display:flex;background:rgba(43,26,16,.4)}
+.overlay.center>*{margin:auto}
 .card{background:var(--cream);border:3px solid var(--ink);border-radius:20px;box-shadow:0 6px 0 var(--ink);padding:22px}
 .menu-grid{display:grid;grid-template-columns:minmax(0,430px) minmax(0,470px);gap:22px;justify-content:center;align-items:start;max-width:940px;margin:0 auto}
 @media (max-width:900px){.menu-grid{grid-template-columns:minmax(0,520px)}}
@@ -174,7 +175,7 @@ details[open] summary::before{content:'－ '}
 #board{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(560px,92vw);font-family:var(--f-b);color:var(--ink)}
 #board h3{font-family:var(--f-d);font-weight:400;margin:0;font-size:26px}
 #lockHint{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:30px;background:rgba(43,26,16,.6);padding:10px 22px;border-radius:14px}
-#touchNote{color:var(--tomato)}
+#touchNote{color:var(--ink-2)}
 .rank{margin-top:16px;border:3px solid var(--ink);border-radius:14px;background:#fff;padding:10px 12px 11px;box-shadow:0 4px 0 var(--ink)}
 .rank-top{display:flex;align-items:center;gap:12px}
 .rank-top svg{flex:0 0 auto;width:38px;height:46px}
@@ -199,6 +200,34 @@ details[open] summary::before{content:'－ '}
 .rankline .up{color:var(--mint)}.rankline .down{color:var(--tomato)}
 .rankline small{font-size:12.5px;color:var(--ink-2);flex-basis:100%}
 .standings .rt{font-size:11px;font-weight:900;color:var(--ink-2);margin-left:6px}
+/* Touch controls: a move stick on the left, buttons on the right, and dragging anywhere else turns the view.
+   Only shown on touch screens, where the health and ammo readouts move up to the top corners. */
+#touch{display:none;position:absolute;inset:0;pointer-events:none;font-family:var(--f-d)}
+body.touch #touch{display:block}
+#tLook{position:absolute;inset:0;pointer-events:auto;touch-action:none}
+#tStick{position:absolute;left:calc(26px + env(safe-area-inset-left,0px));bottom:calc(26px + env(safe-area-inset-bottom,0px));width:132px;height:132px;border-radius:50%;background:rgba(43,26,16,.28);border:3px solid rgba(255,253,248,.75);pointer-events:auto;touch-action:none}
+#tStick i{position:absolute;left:50%;top:50%;width:58px;height:58px;margin:-29px 0 0 -29px;border-radius:50%;background:var(--cream);border:3px solid var(--ink);box-shadow:0 3px 0 var(--ink)}
+.tb{position:absolute;pointer-events:auto;touch-action:none;width:58px;height:58px;border-radius:50%;border:3px solid var(--ink);background:rgba(255,248,232,.88);color:var(--ink);font:400 14px var(--f-d);letter-spacing:.02em;box-shadow:0 4px 0 var(--ink);padding:0;-webkit-user-select:none;user-select:none}
+.tb.on{background:var(--yolk);transform:translateY(2px);box-shadow:0 2px 0 var(--ink)}
+#tFire{right:calc(30px + env(safe-area-inset-right,0px));bottom:calc(40px + env(safe-area-inset-bottom,0px));width:92px;height:92px;background:rgba(239,83,56,.92);color:#fff;font-size:20px}
+#tFire.on{background:var(--tomato)}
+#tJump{right:calc(134px + env(safe-area-inset-right,0px));bottom:calc(22px + env(safe-area-inset-bottom,0px))}
+#tAim{right:calc(130px + env(safe-area-inset-right,0px));bottom:calc(92px + env(safe-area-inset-bottom,0px))}
+#tReload{right:calc(84px + env(safe-area-inset-right,0px));bottom:calc(146px + env(safe-area-inset-bottom,0px))}
+#tNade{right:calc(18px + env(safe-area-inset-right,0px));bottom:calc(150px + env(safe-area-inset-bottom,0px))}
+#tSwap{right:calc(196px + env(safe-area-inset-right,0px));bottom:calc(30px + env(safe-area-inset-bottom,0px));width:50px;height:50px;font-size:12px}
+#tMelee{right:calc(190px + env(safe-area-inset-right,0px));bottom:calc(90px + env(safe-area-inset-bottom,0px));width:50px;height:50px;font-size:12px}
+#tPause,#tBoard{top:calc(10px + env(safe-area-inset-top,0px));width:44px;height:44px;font-size:13px}
+#tPause{left:calc(10px + env(safe-area-inset-left,0px))}
+#tBoard{left:calc(60px + env(safe-area-inset-left,0px))}
+body.touch #hpw{left:calc(112px + env(safe-area-inset-left,0px));bottom:auto;top:calc(12px + env(safe-area-inset-top,0px));transform:scale(.62);transform-origin:left top}
+body.touch #ammo{right:calc(12px + env(safe-area-inset-right,0px));bottom:auto;top:calc(8px + env(safe-area-inset-top,0px));transform:scale(.62);transform-origin:right top}
+body.touch #hpbar{width:100px}
+body.touch #top{transform:translateX(-50%) scale(.72);transform-origin:center top}
+body.touch #feed{top:calc(96px + env(safe-area-inset-top,0px))}
+body.touch #dead{top:auto;bottom:calc(190px + env(safe-area-inset-bottom,0px));min-width:0}
+body.touch #lockHint{display:none}
+@media (orientation:portrait){body.touch #top{top:calc(76px + env(safe-area-inset-top,0px))}body.touch #netline{top:calc(150px + env(safe-area-inset-top,0px))}body.touch #feed{top:calc(150px + env(safe-area-inset-top,0px))}}
 @media (max-width:640px){#hpbar{width:120px}#mag{font-size:44px}.tbox{min-width:60px;padding:3px 9px}.tbox span{font-size:22px}}
 
 /* Side rails: two tall ads beside the game on wide screens (1180px+). The game area shrinks to sit
@@ -250,10 +279,23 @@ details[open] summary::before{content:'－ '}
       <h3>CRACKED!</h3>
       <p id="deadBy"></p>
       <p id="deadT"></p>
-      <div class="pick">Next weapon: <b id="nextW">Beater</b> · press 1–5 to change</div>
+      <div class="pick">Next weapon: <b id="nextW">Beater</b> · <span id="pickHow">press 1–5 to change</span></div>
     </div>
     <div id="board" class="card" hidden><h3 id="boardTitle">Scoreboard</h3><table class="standings" id="boardTable"></table></div>
     <div id="lockHint" class="out" hidden>Click to play</div>
+    <div id="touch" aria-hidden="true">
+      <div id="tLook"></div>
+      <div id="tStick"><i></i></div>
+      <button class="tb" id="tFire" type="button">FIRE</button>
+      <button class="tb" id="tJump" type="button">JUMP</button>
+      <button class="tb" id="tAim" type="button">AIM</button>
+      <button class="tb" id="tReload" type="button">RELOAD</button>
+      <button class="tb" id="tNade" type="button">BOMB</button>
+      <button class="tb" id="tSwap" type="button">SWAP</button>
+      <button class="tb" id="tMelee" type="button">BONK</button>
+      <button class="tb" id="tPause" type="button" aria-label="Pause">❚❚</button>
+      <button class="tb" id="tBoard" type="button" aria-label="Scoreboard">TAB</button>
+    </div>
   </div>
 
   <section id="menu" class="overlay">
@@ -276,7 +318,7 @@ details[open] summary::before{content:'－ '}
           </div>
         </div>
         <p id="netMsg" class="msg" role="status"></p>
-        <p id="touchNote" class="note" hidden>This game needs a keyboard and mouse.</p>
+        <p id="touchNote" class="note" hidden>Playing on a phone? Turn it sideways for the best view.</p>
         <div class="rank" id="rankBox">
           <div class="rank-top">
             <svg viewBox="0 0 38 46" aria-hidden="true"><path id="rankEgg" d="M19 2C9 2 2 19 2 29c0 9 7 15 17 15s17-6 17-15C36 19 29 2 19 2z" fill="#fbf6ea" stroke="#2b1a10" stroke-width="3"/><path id="rankShine" d="M11 14q3-6 7-7" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".8"/></svg>
@@ -1873,6 +1915,7 @@ function updateHud(dt){
   if(online){const others=ents.filter(e=>e.remote).length;if(Net.matchId==null&&Net.roundErr)nl='The database wouldn\'t start this room\'s match ('+(Net.roundErr.code||Net.roundErr.message)+')';else if(!others)nl=Net.isPublic?'Waiting for other eggs to join this lobby…':'Waiting for friends · Esc for the invite link'}
   setT('netline',nl);
   $('lockHint').hidden=!!document.pointerLockElement||paused;
+  if(touchUI)$('tAim').classList.toggle('on',rmb);
   // scoreboard
   const showBoard=!!keys.Tab;$('board').hidden=!showBoard;
   if(showBoard){fillTable($('boardTable'),standings());$('boardTitle').textContent=MAPS[mapIdx].name+' · first to '+target+' · '+liveRankInfo()}
@@ -1882,6 +1925,7 @@ function updateHud(dt){
 //  Input
 // =====================================================================
 function requestLock(){
+  if(touchUI)return;
   try{const r=view.requestPointerLock();if(r&&r.catch)r.catch(()=>{})}catch(e){}
 }
 document.addEventListener('pointerlockchange',()=>{
@@ -1930,6 +1974,55 @@ document.addEventListener('keydown',e=>{
 document.addEventListener('keyup',e=>{keys[e.code]=false});
 addEventListener('blur',()=>{for(const k in keys)keys[k]=false;lmb=rmb=false});
 
+// Touch controls. On a touch screen there's no pointer lock: the stick moves, dragging turns the view
+// (including while holding Fire), and each button does what its key does.
+let touchUI=matchMedia('(pointer: coarse)').matches&&!matchMedia('(any-pointer: fine)').matches;
+const tMove={on:false,x:0,y:0};
+function setTouchUI(on){touchUI=on;document.body.classList.toggle('touch',on);$('touchNote').hidden=!on;$('pickHow').textContent=on?'pause to change':'press 1–5 to change'}
+addEventListener('pointerdown',e=>{if(e.pointerType==='touch'&&!touchUI)setTouchUI(true)},true);
+const canAct=()=>state==='playing'&&!paused&&player.alive;
+function touchLook(dx,dy){
+  if(!canAct())return;
+  const z=player.ads?Math.pow(WEAPONS[player.wkey].zoom,.85):1,s=sens*.0042/z;
+  player.yaw-=dx*s;player.pitch=clamp(player.pitch-dy*s,-1.48,1.48);
+  swayX=clamp(swayX-dx*.0002,-.03,.03);swayY=clamp(swayY+dy*.0002,-.03,.03);
+}
+// Drags on the look layer and the Fire button turn the view; each finger is tracked on its own.
+function dragLook(el){
+  const pts=new Map();
+  el.addEventListener('pointerdown',e=>{e.preventDefault();pts.set(e.pointerId,[e.clientX,e.clientY]);try{el.setPointerCapture(e.pointerId)}catch(_){}});
+  el.addEventListener('pointermove',e=>{const q=pts.get(e.pointerId);if(!q)return;touchLook(e.clientX-q[0],e.clientY-q[1]);q[0]=e.clientX;q[1]=e.clientY});
+  const end=e=>pts.delete(e.pointerId);
+  el.addEventListener('pointerup',end);el.addEventListener('pointercancel',end);
+}
+dragLook($('tLook'));dragLook($('tFire'));
+{
+  const stick=$('tStick'),knob=stick.firstElementChild;let sid=null;
+  const move=e=>{const r=stick.getBoundingClientRect(),R=r.width/2;let x=(e.clientX-r.left-R)/R,y=(e.clientY-r.top-R)/R;const m=Math.hypot(x,y);if(m>1){x/=m;y/=m}
+    tMove.x=Math.abs(x)<.12?0:x;tMove.y=Math.abs(y)<.12?0:y;knob.style.transform='translate('+(x*R*.6)+'px,'+(y*R*.6)+'px)'};
+  stick.addEventListener('pointerdown',e=>{e.preventDefault();sid=e.pointerId;tMove.on=true;try{stick.setPointerCapture(sid)}catch(_){}move(e)});
+  stick.addEventListener('pointermove',e=>{if(e.pointerId===sid)move(e)});
+  const end=e=>{if(e.pointerId!==sid)return;sid=null;tMove.on=false;tMove.x=tMove.y=0;knob.style.transform=''};
+  stick.addEventListener('pointerup',end);stick.addEventListener('pointercancel',end);
+}
+// A button that does something once when pressed, or (with up) while it's held.
+function tButton(id,down,up){
+  const el=$(id);
+  el.addEventListener('pointerdown',e=>{e.preventDefault();initAudio();el.classList.add('on');down()});
+  const end=()=>{el.classList.remove('on');if(up)up()};
+  el.addEventListener('pointerup',end);el.addEventListener('pointercancel',end);el.addEventListener('lostpointercapture',end);
+  el.addEventListener('contextmenu',e=>e.preventDefault());
+}
+tButton('tFire',()=>{if(canAct()){lmb=true;clickQueued=.15}},()=>{lmb=false});
+tButton('tJump',()=>{if(canAct())keys.Space=true},()=>{keys.Space=false});
+tButton('tAim',()=>{if(canAct())rmb=!rmb},()=>{$('tAim').classList.toggle('on',rmb)});
+tButton('tReload',()=>{if(canAct())startReload(player)});
+tButton('tNade',()=>{if(canAct())throwNade(player)});
+tButton('tSwap',()=>{if(canAct())switchSlot(player,player.slot?0:1)});
+tButton('tMelee',()=>{if(canAct())melee(player)});
+tButton('tBoard',()=>{keys.Tab=true},()=>{keys.Tab=false});
+tButton('tPause',()=>{if(state==='playing'&&!paused){lmb=rmb=false;for(const k in keys)keys[k]=false;showPause()}});
+
 function setLoadout(k){
   if(!PRIMARIES.includes(k))return;myLoadout=k;store.set('loadout',k);player.loadout=k;
   // still in spawn protection and holding the main gun: swap right away
@@ -1942,10 +2035,11 @@ function playerControl(dt){
   const p=player,w=WEAPONS[p.wkey];
   let f=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0),r=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);
   const fx=-Math.sin(p.yaw),fz=-Math.cos(p.yaw),rx=Math.cos(p.yaw),rz=-Math.sin(p.yaw);
+  let mag=1;if(tMove.on){f=-tMove.y;r=tMove.x;mag=Math.min(1,Math.hypot(f,r))}
   let wx=fx*f+rx*r,wz=fz*f+rz*r;const l=Math.hypot(wx,wz);if(l>0){wx/=l;wz/=l}
-  if(keys.Space&&p.onGround&&document.pointerLockElement){p.vel.y=JUMP;p.onGround=false;sfx('jump')}
+  if(keys.Space&&p.onGround&&(document.pointerLockElement||touchUI)){p.vel.y=JUMP;p.onGround=false;sfx('jump')}
   p.ads=(rmb||keys.ShiftLeft||keys.ShiftRight)&&p.reloadT<=0&&p.switchT<=0&&vmMelee<=0;
-  steer(p,wx,wz,dt,speedOf(p));
+  steer(p,wx,wz,dt,speedOf(p)*mag);
   if(p.onGround&&l>0){stepT-=dt;if(stepT<=0){stepT=.34/WEAPONS[p.wkey].speed;sfx('step')}}
   clickQueued-=dt;
   if(w.auto?lmb:clickQueued>0){if(tryFire(p)){clickQueued=0;const fl=vmGun&&vmGun.userData.flash;if(fl){fl.visible=true;fl.userData.t=.045;fl.material.rotation=Math.random()*6}}}
@@ -2298,7 +2392,7 @@ $('copyInvite').addEventListener('click',()=>{
   try{navigator.clipboard.writeText(url).then(()=>done(true),()=>done(false))}catch(e){done(false)}
 });
 document.addEventListener('pointerdown',()=>initAudio(),{once:true});
-if(matchMedia('(pointer: coarse)').matches&&!matchMedia('(any-pointer: fine)').matches)$('touchNote').hidden=false;
+if(touchUI)setTouchUI(true);
 addEventListener('pagehide',()=>{leaveCheck();Net.leave()});
 
 // An invite opens this page with #sc-<code>: fill in the room and point at the join button.
