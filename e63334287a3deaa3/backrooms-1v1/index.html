@@ -196,6 +196,50 @@ details.ctrl[open] .keys{margin-top:10px}
   .osd{font-size:20px}
   .slot{width:52px;height:50px}
 }
+/* Touch controls: a move stick on the left, buttons on the right, and dragging anywhere else turns the view.
+   Only shown on touch screens, where the weapon and build slots become buttons along the top. */
+#touch{display:none;position:absolute;inset:0;pointer-events:none}
+body.touch #touch{display:block}
+#tLook{position:absolute;inset:0;pointer-events:auto;touch-action:none}
+#tStick{position:absolute;left:calc(26px + env(safe-area-inset-left,0px));bottom:calc(26px + env(safe-area-inset-bottom,0px));width:128px;height:128px;border-radius:50%;background:rgba(0,0,0,.3);border:2px solid rgba(240,232,200,.6);pointer-events:auto;touch-action:none}
+#tStick i{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:rgba(240,232,200,.85);border:2px solid var(--mustard)}
+.tb{position:absolute;pointer-events:auto;touch-action:none;width:58px;height:58px;border-radius:50%;border:2px solid var(--line);background:var(--panel);color:var(--ink);font:700 13px var(--f-hud);letter-spacing:.08em;padding:0;-webkit-user-select:none;user-select:none}
+.tb.on{border-color:var(--mustard);background:rgba(60,48,14,.9);color:var(--mustard)}
+#tFire{right:calc(28px + env(safe-area-inset-right,0px));bottom:calc(36px + env(safe-area-inset-bottom,0px));width:88px;height:88px;background:rgba(180,30,20,.75);border-color:var(--rec);font-size:15px}
+#tFire.on{background:var(--rec);color:#fff}
+#tJump{right:calc(130px + env(safe-area-inset-right,0px));bottom:calc(20px + env(safe-area-inset-bottom,0px))}
+#tAim{right:calc(126px + env(safe-area-inset-right,0px));bottom:calc(88px + env(safe-area-inset-bottom,0px))}
+#tReload{right:calc(52px + env(safe-area-inset-right,0px));bottom:calc(138px + env(safe-area-inset-bottom,0px))}
+#tPause{left:calc(10px + env(safe-area-inset-left,0px));top:calc(10px + env(safe-area-inset-top,0px));width:42px;height:42px;font-size:13px}
+/* Out of the round (or watching a match): only look, pause and Next (watch the next player) stay. */
+#tNext{right:calc(28px + env(safe-area-inset-right,0px));bottom:calc(40px + env(safe-area-inset-bottom,0px));width:104px;height:56px;border-radius:28px;font-size:15px}
+#hud.spec #tStick,#hud.spec #tFire,#hud.spec #tJump,#hud.spec #tAim,#hud.spec #tReload{display:none}
+/* With the lobby panel open over a match in progress, the match HUD and banners step aside so they don't overlap it on a small screen. */
+body.touch.inlobby #hud,body.touch.inlobby #banner,body.touch.inlobby #dmg{visibility:hidden}
+body.touch.inlobby #touch{display:none}
+body.touch #vitals{left:calc(60px + env(safe-area-inset-left,0px));bottom:auto;top:calc(12px + env(safe-area-inset-top,0px));width:130px;gap:3px}
+body.touch .bar .num{font-size:15px;width:30px}
+body.touch .bar .track{height:9px}
+body.touch #slots{pointer-events:auto;z-index:1;right:calc(10px + env(safe-area-inset-right,0px));bottom:auto;top:calc(10px + env(safe-area-inset-top,0px));max-width:none;flex-wrap:nowrap;gap:4px}
+body.touch .slot{width:44px;height:42px;padding:3px 4px}
+body.touch .slot .k{display:none}
+body.touch .slot .nm{font-size:10px}
+body.touch .slot .am{font-size:10px}
+body.touch .slot.gap{margin-left:6px}
+body.touch .osd{display:none}
+body.touch #feed{top:calc(64px + env(safe-area-inset-top,0px))}
+body.touch #hint{bottom:auto;top:calc(110px + env(safe-area-inset-top,0px));font-size:12px}
+body.touch #score{left:calc(200px + env(safe-area-inset-left,0px));transform:scale(.8);transform-origin:left top}
+body.touch #net{left:calc(200px + env(safe-area-inset-left,0px));transform:none;white-space:normal;width:max-content;max-width:calc(100vw - 220px);text-align:left}
+body.touch #pips{left:calc(200px + env(safe-area-inset-left,0px));transform:none;top:calc(56px + env(safe-area-inset-top,0px))}
+@media (orientation:portrait){
+  body.touch #slots{right:50%;transform:translateX(50%);top:calc(120px + env(safe-area-inset-top,0px))}
+  body.touch #score{left:50%;transform:translateX(-50%) scale(.8);transform-origin:center top;top:calc(58px + env(safe-area-inset-top,0px))}
+  body.touch #pips{left:50%;transform:translateX(-50%);top:calc(98px + env(safe-area-inset-top,0px))}
+  body.touch #net{left:50%;transform:translateX(-50%);top:calc(170px + env(safe-area-inset-top,0px));max-width:calc(100vw - 32px);text-align:center}
+  body.touch #hint{top:calc(198px + env(safe-area-inset-top,0px))}
+  body.touch #feed{top:calc(232px + env(safe-area-inset-top,0px))}
+}
 @media (prefers-reduced-motion:reduce){.blink{animation:none}#banner.show{animation:none}}
 </style>
 </head>
@@ -233,6 +277,16 @@ details.ctrl[open] .keys{margin-top:10px}
       <div class="slot build gap" id="slotwall"><span class="k">Q</span><span class="nm">Wall</span><span class="am">∞</span></div>
       <div class="slot build" id="slotfloor"><span class="k">F</span><span class="nm">Floor</span><span class="am">∞</span></div>
       <div class="slot build" id="slotramp"><span class="k">C</span><span class="nm">Ramp</span><span class="am">∞</span></div>
+    </div>
+    <div id="touch" aria-hidden="true">
+      <div id="tLook"></div>
+      <div id="tStick"><i></i></div>
+      <button class="tb" id="tFire" type="button">FIRE</button>
+      <button class="tb" id="tJump" type="button">JUMP</button>
+      <button class="tb" id="tAim" type="button">AIM</button>
+      <button class="tb" id="tReload" type="button">RELOAD</button>
+      <button class="tb" id="tPause" type="button" aria-label="Pause">❚❚</button>
+      <button class="tb" id="tNext" type="button" hidden>NEXT ▸</button>
     </div>
   </div>
   <div id="dmg"></div>
@@ -294,7 +348,7 @@ details.ctrl[open] .keys{margin-top:10px}
           </dl>
         </details>
       </div>
-      <p id="touchNote" class="note" hidden>This game needs a keyboard and mouse.</p>
+      <p id="touchNote" class="note" hidden>Playing on a phone? Turn it sideways for the best view. Tap the slots at the top to switch weapons or build.</p>
       <div class="adbox" id="adMenu" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
     </div>
   </section>
@@ -966,8 +1020,9 @@ function updatePlayer(dt){
   const f=fwdOf(p.yaw,0),r=rightOf(p.yaw);
   let ix=0,iz=0;
   if(input){
-    const fw=(keys.has('KeyW')?1:0)-(keys.has('KeyS')?1:0),st=(keys.has('KeyD')?1:0)-(keys.has('KeyA')?1:0);
-    ix=f.x*fw+r.x*st;iz=f.z*fw+r.z*st;const il=Math.hypot(ix,iz);if(il>0){ix/=il;iz/=il}
+    let fw=(keys.has('KeyW')?1:0)-(keys.has('KeyS')?1:0),st=(keys.has('KeyD')?1:0)-(keys.has('KeyA')?1:0),mag=1;
+    if(tMove.on){fw=-tMove.y;st=tMove.x;mag=Math.min(1,Math.hypot(fw,st))}
+    ix=f.x*fw+r.x*st;iz=f.z*fw+r.z*st;const il=Math.hypot(ix,iz);if(il>0){ix*=mag/il;iz*=mag/il}
     if(fallback){if(keys.has('ArrowLeft'))p.yaw+=dt*2.2;if(keys.has('ArrowRight'))p.yaw-=dt*2.2;if(keys.has('ArrowUp'))p.pitch=clamp(p.pitch+dt*1.6,-1.45,1.45);if(keys.has('ArrowDown'))p.pitch=clamp(p.pitch-dt*1.6,-1.45,1.45)}
   }
   const spd=SPEED*(isADS()?.7:1);
@@ -1215,7 +1270,7 @@ function onlineDeath(shooter,head){
   Net.send({type:'kill',v:Net.uid,k,w:wi,hd:head?1:0,r:curRound});
   killFeed(k,Net.uid,wi,head);
   if(Net.amHost)hostDead.add(curMatch+':'+curRound+':'+Net.uid);
-  banner('ELIMINATED',(k?nameOf(k)+' got you':'You went down')+' · click to watch a teammate',2.4);
+  banner('ELIMINATED',(k?nameOf(k)+' got you':'You went down')+(touchUI?'':' · click to watch a teammate'),2.4);
   Net.publishSoon();
 }
 function killFeed(k,v,wi,head){
@@ -1425,8 +1480,9 @@ function onlineTick(){
   const t=performance.now(),gap=t-(Net.lastTick||t);Net.lastTick=t;
   if(gap>1500)Net.settleUntil=t+1500;
   const settled=t>=(Net.settleUntil||0);
-  // wait a moment after joining so we see who's already here before picking a host
-  if(settled&&t-Net.joinedAt>1500){
+  // wait until the room's players and round have loaded (a slow phone can take a while) and a moment more,
+  // so we see who's already here before picking a host
+  if(settled&&Net.loaded&&t-Net.joinedAt>1500){
     const h=Net.elect();
     if(h!==Net.hostUid){const was=Net.hostUid;Net.hostUid=h;Net.amHost=h===Net.uid;lobbyDirty=true;if(was)feed(Net.amHost?'You\'re the host now':esc(nameOf(h))+' is the host now','info')}
     if(Net.amHost)hostDuties();
@@ -1446,7 +1502,7 @@ function onlineTick(){
 /* ---------- networking (Firebase Realtime Database) ---------- */
 function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('Could not load '+src));document.head.appendChild(s)})}
 const Net={
-  ready:false,uid:null,db:null,offset:0,room:null,refs:null,quick:false,j:0,joinT:0,joinedAt:0,others:new Map(),amHost:false,hostUid:null,
+  ready:false,uid:null,db:null,offset:0,room:null,refs:null,loaded:false,quick:false,j:0,joinT:0,joinedAt:0,others:new Map(),amHost:false,hostUid:null,
   pubTimer:0,tickTimer:0,lastPub:0,soon:false,txBusy:false,roundErr:'',seen:new Set(),queueRef:null,queueTimer:0,searchTick:0,aloneT:0,hadMate:false,
   now(){return Date.now()+this.offset},
   async init(){
@@ -1499,6 +1555,7 @@ const Net={
     r.players.on('child_removed',s=>{if(s.key!==this.uid)onNodeGone(s.key)});
     r.events.on('child_added',s=>{const e=s.val();if(!e||typeof e.t!=='number'||e.t<this.joinT-1500||e.by===this.uid||this.seen.has(s.key))return;this.seen.add(s.key);if(this.seen.size>1500)this.seen.delete(this.seen.values().next().value);handleEvent(e)});
     r.round.on('value',s=>onRound(s.val()));
+    this.loaded=false;Promise.all([r.players.once('value'),r.round.once('value')]).then(()=>{if(this.refs===r)this.loaded=true},()=>{});
     clearInterval(this.pubTimer);this.pubTimer=setInterval(()=>this.pubTick(),25);
     clearInterval(this.tickTimer);this.tickTimer=setInterval(onlineTick,250);
     try{if(!quick)history.replaceState(null,'','#'+room)}catch(e){}
@@ -1555,7 +1612,7 @@ const Net={
   leave(){
     clearInterval(this.searchTick);this.leaveQueue();clearInterval(this.pubTimer);clearInterval(this.tickTimer);
     if(this.refs){const r=this.refs;try{r.players.off();r.events.off();r.round.off();r.me.onDisconnect().cancel();r.me.remove()}catch(e){}}
-    this.refs=null;this.room=null;this.others.clear();this.amHost=false;this.hostUid=null;online=false;
+    this.refs=null;this.room=null;this.others.clear();this.amHost=false;this.hostUid=null;this.loaded=false;online=false;
     RD=null;curMatch=null;curRound=0;roster=new Map();clearRemotes();
   }
 };
@@ -1644,13 +1701,14 @@ function updateCamera(dt){
 let lastHud='';
 function updateHud(dt){
   const p=player,w=WEAPONS[p.wi];
+  if(touchUI){$('tFire').textContent=mode==='build'?'PLACE':'FIRE';$('tAim').classList.toggle('on',rmb)}
   const key=[Math.ceil(p.hp),Math.ceil(p.shield),p.wi,mode,buildType,p.ammo.join(','),p.reloadT>0].join('|');
   if(key!==lastHud){lastHud=key;
     hud.hpN.textContent=Math.max(0,Math.ceil(p.hp));hud.hpF.style.width=Math.max(0,p.hp)+'%';
     hud.shN.textContent=Math.ceil(p.shield);hud.shF.style.width=(p.shield/50*100)+'%';
     for(let i=0;i<3;i++){$('slot'+i).classList.toggle('on',mode==='combat'&&p.wi===i);$('am'+i).textContent=(p.wi===i&&p.reloadT>0)?'reload':p.ammo[i]+' / '+WEAPONS[i].mag}
     for(const t of ['wall','floor','ramp'])$('slot'+t).classList.toggle('on',mode==='build'&&buildType===t);
-    hud.hint.hidden=mode!=='build';if(mode==='build')hud.hint.textContent='Build · '+buildType+' · click to place · Shift or 1 for your gun';
+    hud.hint.hidden=mode!=='build';if(mode==='build')hud.hint.textContent='Build · '+buildType+(touchUI?' · tap Place · tap a gun to fight':' · click to place · Shift or 1 for your gun');
   }
   hud.reload.hidden=!(p.reloadT>0);if(p.reloadT>0)hud.reloadF.style.width=(100*(1-p.reloadT/w.reload))+'%';
   const ads=isADS();const scoped=ads&&w.id==='sr';hud.scope.hidden=!scoped;
@@ -1678,12 +1736,14 @@ function updateHud(dt){
   for(let i=ti;i<tagEls.length;i++)tagEls[i].hidden=true;
   const spec=online&&!(activeOnline()&&player.alive);
   hud.root.classList.toggle('spec',spec);
+  // touch: Next appears while there's someone else to watch
+  if(touchUI)$('tNext').hidden=!(spec&&inPlay()&&specCandidates().length>1);
   let netTxt='';
   if(online&&inPlay()){
     const tgt=camTarget();
-    if(tgt&&tgt!==player)netTxt='Watching '+tgt.name+(specCandidates().length>1?' · click for the next one':'');
+    if(tgt&&tgt!==player)netTxt='Watching '+tgt.name+(specCandidates().length>1?(touchUI?' · tap Next for the next one':' · click for the next one'):'');
     else if(RD.ph==='cd'&&activeOnline())netTxt='Starting in '+Math.max(1,Math.ceil((+RD.pt-Net.now())/1000));
-    else if(activeOnline()&&player.alive&&!locked&&!fallback)netTxt='Click to play';
+    else if(activeOnline()&&player.alive&&!locked&&!fallback&&!touchUI)netTxt='Click to play';
   }
   hud.net.hidden=!netTxt;if(netTxt)hud.net.textContent=netTxt;
 }
@@ -1761,6 +1821,7 @@ function frame(now){
   if(!(state==='playing'&&paused&&!online)){for(const e of ents)animModel(e,dt);updateFx(dt);updateLights(dt)}
   updateCamera(dt);
   if(state==='playing')updateHud(dt);
+  if(touchUI)document.body.classList.toggle('inlobby',lobbyShown);
   updateDnums(running?dt:0);
   if(bannerTimer>0){bannerTimer-=dt;if(bannerTimer<=0)hud.banner.hidden=true}
   clockT+=dt;if(clockT>.25){clockT=0;hud.clock.textContent=fmtClock(state==='menu'?now/1000:matchTime)}
@@ -1773,7 +1834,7 @@ const view=renderer.domElement;
 // Pointer lock only switches to drag-to-look when a request made straight from a click fails.
 let lockFromClick=false;
 function requestLock(fromClick){
-  if(fallback||locked)return;
+  if(fallback||locked||touchUI)return;
   lockFromClick=!!fromClick;
   try{const r=view.requestPointerLock();if(r&&r.catch)r.catch(onLockError)}catch(e){onLockError()}
 }
@@ -1820,6 +1881,61 @@ addEventListener('keydown',e=>{
 addEventListener('keyup',e=>keys.delete(e.code));
 addEventListener('blur',()=>{keys.clear();lmb=rmb=false});
 
+// Touch controls. On a touch screen there's no pointer lock: the stick moves, dragging turns the view
+// (including while holding Fire), the slots along the top switch weapons or build pieces, and each button does what its key does.
+let touchUI=matchMedia('(pointer: coarse)').matches&&!matchMedia('(any-pointer: fine)').matches;
+const tMove={on:false,x:0,y:0};
+function setTouchUI(on){touchUI=on;document.body.classList.toggle('touch',on);$('touchNote').hidden=!on}
+addEventListener('pointerdown',e=>{if(e.pointerType==='touch'&&!touchUI)setTouchUI(true)},true);
+// online, only while you're in the current match (not in the lobby panel, watching, or out of the round)
+const canAct=()=>state==='playing'&&!paused&&!lobbyShown&&player.alive&&(!online||activeOnline());
+function touchLook(dx,dy){
+  if(!canAct())return;
+  const k=.0042*sens*(camera.fov/72);
+  player.yaw-=dx*k;player.pitch=clamp(player.pitch-dy*k,-1.45,1.45);
+}
+// Drags on the look layer and the Fire button turn the view; each finger is tracked on its own.
+function dragLook(el){
+  const pts=new Map();
+  el.addEventListener('pointerdown',e=>{e.preventDefault();pts.set(e.pointerId,[e.clientX,e.clientY]);try{el.setPointerCapture(e.pointerId)}catch(_){}});
+  el.addEventListener('pointermove',e=>{const q=pts.get(e.pointerId);if(!q)return;touchLook(e.clientX-q[0],e.clientY-q[1]);q[0]=e.clientX;q[1]=e.clientY});
+  const end=e=>pts.delete(e.pointerId);
+  el.addEventListener('pointerup',end);el.addEventListener('pointercancel',end);
+}
+dragLook($('tLook'));dragLook($('tFire'));
+{
+  const stick=$('tStick'),knob=stick.firstElementChild;let sid=null;
+  const move=e=>{const r=stick.getBoundingClientRect(),R=r.width/2;let x=(e.clientX-r.left-R)/R,y=(e.clientY-r.top-R)/R;const m=Math.hypot(x,y);if(m>1){x/=m;y/=m}
+    tMove.x=Math.abs(x)<.12?0:x;tMove.y=Math.abs(y)<.12?0:y;knob.style.transform='translate('+(x*R*.6)+'px,'+(y*R*.6)+'px)'};
+  stick.addEventListener('pointerdown',e=>{e.preventDefault();sid=e.pointerId;tMove.on=true;try{stick.setPointerCapture(sid)}catch(_){}move(e)});
+  stick.addEventListener('pointermove',e=>{if(e.pointerId===sid)move(e)});
+  const end=e=>{if(e.pointerId!==sid)return;sid=null;tMove.on=false;tMove.x=tMove.y=0;knob.style.transform=''};
+  stick.addEventListener('pointerup',end);stick.addEventListener('pointercancel',end);
+}
+// A button that does something once when pressed, or (with up) while it's held.
+function tButton(el,down,up){
+  el.addEventListener('pointerdown',e=>{e.preventDefault();initAudio();el.classList.add('on');down()});
+  const end=()=>{el.classList.remove('on');if(up)up()};
+  el.addEventListener('pointerup',end);el.addEventListener('pointercancel',end);el.addEventListener('lostpointercapture',end);
+  el.addEventListener('contextmenu',e=>e.preventDefault());
+}
+tButton($('tFire'),()=>{if(canAct())lmb=true},()=>{lmb=false});
+tButton($('tJump'),()=>{if(canAct())keys.add('Space')},()=>{keys.delete('Space')});
+tButton($('tAim'),()=>{if(canAct()){rmb=!rmb;if(rmb)mode='combat'}},()=>{$('tAim').classList.toggle('on',rmb)});
+tButton($('tReload'),()=>{if(canAct()&&mode==='combat')startReload(player)});
+tButton($('tPause'),()=>{rmb=false;pauseGame()});
+// Out of the round: Next, or a tap on the view (like a click with a mouse), watches the next living player.
+tButton($('tNext'),()=>{if(isSpectating())cycleSpectate()});
+{
+  const look=$('tLook'),taps=new Map();
+  look.addEventListener('pointerdown',e=>taps.set(e.pointerId,[e.clientX,e.clientY,performance.now()]));
+  look.addEventListener('pointerup',e=>{const q=taps.get(e.pointerId);taps.delete(e.pointerId);
+    if(q&&Math.hypot(e.clientX-q[0],e.clientY-q[1])<12&&performance.now()-q[2]<400&&isSpectating())cycleSpectate()});
+  look.addEventListener('pointercancel',e=>taps.delete(e.pointerId));
+}
+[0,1,2].forEach(i=>tButton($('slot'+i),()=>{if(canAct()){switchWeapon(player,i);mode='combat'}}));
+['wall','floor','ramp'].forEach(t=>tButton($('slot'+t),()=>{if(!canAct())return;if(mode==='build'&&buildType===t)mode='combat';else{mode='build';buildType=t;player.reloadT=0;rmb=false}}));
+
 /* ---------- menu wiring ---------- */
 function setDiff(d){diffKey=d;for(const b of $('diffSeg').querySelectorAll('button'))b.setAttribute('aria-checked',String(b.dataset.d===d));store.set('diff',d)}
 $('diffSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setDiff(b.dataset.d)});
@@ -1852,7 +1968,7 @@ $('startMatch').addEventListener('click',()=>{initAudio();hostStart()});
 $('randTeams').addEventListener('click',hostRandomize);
 $('toSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(b)hostSetTarget(+b.dataset.n)});
 $('lbWatch').addEventListener('click',()=>{watchMode=true;hideLobby()});
-if(matchMedia('(pointer: coarse)').matches&&!matchMedia('(any-pointer: fine)').matches)$('touchNote').hidden=false;
+if(touchUI)setTouchUI(true);
 addEventListener('pagehide',()=>Net.leave());
 
 // An invite opens this page with #br-<code>: fill in the room and point at the join button.

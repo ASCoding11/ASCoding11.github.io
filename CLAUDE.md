@@ -15,7 +15,7 @@ There are two places a game can live:
 - **Public games** (Hype Cycle Exchange, Boxed) have their own folder at the site root, a full card in `projects/index.html`, and an entry in `sitemap.xml`.
 - **Back Room games** live in `e63334287a3deaa3/<game>/` and get a card in `e63334287a3deaa3/index.html`. The Back Room is kept out of search engines: every page there has `<meta name="robots" content="noindex,nofollow,noarchive">`, isn't in the sitemap, and isn't linked from the public pages. Keep it that way. New games go in the Back Room unless Arjun says otherwise.
 
-When editing a game, read its section in `README.md` first and keep its existing storage paths, room prefixes and saved-data formats working, so players' saved progress and ratings carry over.
+When editing a game, read its section in `README.md` first and keep its existing storage paths, room prefixes and saved-data formats working, so players' saved progress and ratings carry over. Keep its touch controls working too, and keep the keyboard-and-mouse version unchanged on computers.
 
 When adding a game:
 
@@ -24,6 +24,7 @@ When adding a game:
 - Don't change Firebase security rules or the Firebase config. If a game needs storage the current rules don't allow, say so in the pull request instead.
 - If the game shows ads, follow the existing `AD_SLOT` pattern and leave `AD_SLOT` empty; Arjun fills it in.
 - Add a section for the game to `README.md`, in the same style as the others: what it is, how it stores data, and anything a later editor needs to know.
+- Make it playable on a phone: on-screen touch controls shown only on touch screens (see how Shell Crackers or Kartwheel do it), with nothing overlapping in portrait or with the phone sideways. Then add it to the phone page: a row in `GROUPS` in `e63334287a3deaa3/m/index.html` and a 560 × 350 thumbnail in `e63334287a3deaa3/m/thumbs/`.
 
 ## Rules
 
