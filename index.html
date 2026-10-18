@@ -32,7 +32,9 @@
   { "@type": "VideoGame", "name": "Hype Cycle Exchange", "url": "https://ascoding11.github.io/hype-cycle-exchange/" },
   { "@type": "VideoGame", "name": "Boxed", "url": "https://ascoding11.github.io/boxed/" },
   { "@type": "CollectionPage", "name": "Productivity", "url": "https://ascoding11.github.io/productivity/" },
-  { "@type": "WebApplication", "name": "Docket", "url": "https://ascoding11.github.io/docket/" }
+  { "@type": "WebApplication", "name": "Docket", "url": "https://ascoding11.github.io/docket/" },
+  { "@type": "CollectionPage", "name": "Engineering Projects", "url": "https://ascoding11.github.io/engineering/" },
+  { "@type": "WebApplication", "name": "Joukowsky Dynamics", "url": "https://ascoding11.github.io/Joukowsky-Dynamics/" }
  ]
 }
 </script>
@@ -48,12 +50,12 @@
 <div class="wrap">
   <div class="topbar">
     <a class="wordmark" href="./">Arjun</a>
-    <nav class="nav" aria-label="Site"><a href="./" aria-current="page">Home</a><a href="projects/">Web Development Projects</a><a href="productivity/">Productivity</a></nav>
+    <nav class="nav" aria-label="Site"><a href="./" aria-current="page">Home</a><a href="projects/">Web Development Projects</a><a href="productivity/">Productivity</a><a href="engineering/">Engineering Projects</a></nav>
   </div>
   <header>
     <p class="kicker">Hi, I'm</p>
     <h1>Arjun</h1>
-    <p class="intro">I build things that run in the browser: games you can play with your class, and tools that make work faster.</p>
+    <p class="intro">I build things that run in the browser: games you can play with your class, tools that make work faster, and engineering projects you can take apart in 3D.</p>
   </header>
 
   <!-- When you add a project, add it to the matching list below and put its full card on projects/ or productivity/. -->
@@ -90,6 +92,20 @@
           <div class="actions"><a class="btn primary" href="productivity/">See productivity</a></div>
         </div>
       </article>
+      <article class="cat">
+        <a class="cat-art" href="engineering/" aria-label="See engineering projects" style="grid-template-columns:minmax(0,1fr)">
+          <img src="joukowsky-dynamics/preview.jpg" alt="" loading="lazy" style="object-position:62% 45%">
+        </a>
+        <div class="body">
+          <span class="count">1 project · 3D workbench</span>
+          <h3>Engineering Projects</h3>
+          <p>Vehicles I design end to end, with every part in CAD and the physics worked out. A road car whose wheels swing up into ducted rotors so it can fly.</p>
+          <ul class="cat-list">
+            <li><a href="https://ascoding11.github.io/Joukowsky-Dynamics/"><b>Joukowsky Dynamics</b><span>Wheel-to-rotor flying car</span></a></li>
+          </ul>
+          <div class="actions"><a class="btn primary" href="engineering/">See engineering</a></div>
+        </div>
+      </article>
     </div>
   </section>
 
@@ -109,8 +125,20 @@
   async function h(s){var b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('ascoding11:'+s));return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,'0')}).join('').slice(0,16)}
   function close(){if(box){box.remove();box=null;miss=0}}
 
+  // On a phone, the code opens the phone version of the hidden page instead, also without changing the address.
+  function revealPhone(dir){
+    var box=document.createElement('div');
+    box.style.cssText='position:fixed;inset:0;z-index:1000;background:#15122a;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)';
+    var fr=document.createElement('iframe');fr.src=dir+'m/'+(room?'#'+room:'');fr.title='Games';room='';
+    fr.setAttribute('allow','fullscreen; autoplay; gamepad; clipboard-write');fr.setAttribute('allowfullscreen','');
+    fr.style.cssText='display:block;width:100%;height:100%;border:0;background:#15122a';
+    box.appendChild(fr);document.body.appendChild(box);document.body.style.overflow='hidden';
+    shown=true;base=dir;history.pushState({br:1},'',location.href);
+  }
+
   // Show the hidden page's games right here, without changing the address.
   function reveal(html,dir){
+    if(matchMedia('(pointer: coarse)').matches&&!matchMedia('(any-pointer: fine)').matches)return revealPhone(dir);
     var d=new DOMParser().parseFromString(html,'text/html');
     var hd=document.querySelector('header'),sec=document.querySelector('section[aria-label="Sections"]');
     hd.replaceWith(document.importNode(d.querySelector('header'),true));
@@ -167,7 +195,7 @@
   });
   document.addEventListener('click',function(e){
     if(!shown||e.defaultPrevented||e.button||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;
-    var a=e.target.closest&&e.target.closest('a[href]');if(!a)return;
+    var a=e.target.closest&&e.target.closest('a[href]');if(!a||a.hasAttribute('data-direct'))return;
     var u=new URL(a.href,location.href);
     if(u.origin!==location.origin||u.pathname.indexOf(base)!==0||u.pathname===base)return;
     e.preventDefault();
