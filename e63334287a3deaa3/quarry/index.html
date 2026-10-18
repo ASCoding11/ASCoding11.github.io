@@ -237,6 +237,52 @@ details.fold[open] summary::before{content:'– '}
   .book{display:none}
 }
 
+/* Touch controls: a move stick on the left, Mine/Use/Jump/Sneak on the right, and dragging anywhere else looks around.
+   Only shown on touch screens, where the hotbar slots become buttons and the inventory gets a close button. */
+#touch{display:none;position:absolute;inset:0;pointer-events:none}
+body.touch #touch{display:block}
+#tLook{position:absolute;inset:0;pointer-events:auto;touch-action:none}
+#tStick{position:absolute;left:calc(24px + env(safe-area-inset-left,0px));bottom:calc(24px + env(safe-area-inset-bottom,0px));width:124px;height:124px;border-radius:50%;background:rgba(0,0,0,.28);border:2px solid rgba(255,255,255,.35);pointer-events:auto;touch-action:none}
+#tStick i{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:50%;background:rgba(255,255,255,.55);border:2px solid rgba(255,255,255,.8)}
+.tb{position:absolute;pointer-events:auto;touch-action:none;width:58px;height:58px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:600 13px var(--f-d);letter-spacing:.04em;padding:0;-webkit-user-select:none;user-select:none}
+.tb.on{background:rgba(255,255,255,.3);border-color:var(--ink)}
+#tMine{right:calc(24px + env(safe-area-inset-right,0px));bottom:calc(30px + env(safe-area-inset-bottom,0px));width:80px;height:80px;border-radius:50%;background:rgba(150,60,40,.7);font-size:15px}
+#tUse{right:calc(116px + env(safe-area-inset-right,0px));bottom:calc(74px + env(safe-area-inset-bottom,0px));width:66px;height:66px;border-radius:50%;background:rgba(60,110,60,.7)}
+#tJump{right:calc(36px + env(safe-area-inset-right,0px));bottom:calc(126px + env(safe-area-inset-bottom,0px))}
+#tSneak{right:calc(124px + env(safe-area-inset-right,0px));bottom:calc(8px + env(safe-area-inset-bottom,0px));width:58px;height:50px}
+#tPause,#tInv{top:calc(12px + env(safe-area-inset-top,0px));width:42px;height:38px;font-size:14px}
+#tPause{left:calc(12px + env(safe-area-inset-left,0px))}
+#tInv{left:calc(60px + env(safe-area-inset-left,0px));width:54px}
+body.touch #hotbar .slot{pointer-events:auto}
+body.touch #hotbar .slot .k{display:none}
+body.touch:has(#inv:not([hidden])) #touch{display:none}
+body.touch #lookMsg{display:none}
+/* Rebinding keys is for keyboards: the touch layout leaves those buttons out. */
+body.touch #keysMenu,body.touch #keysMenu2,body.touch #keysPause{display:none}
+body.touch #chatLog{bottom:auto;top:calc(60px + env(safe-area-inset-top,0px))}
+#invClose{display:none;position:absolute;right:8px;top:8px;width:34px;height:34px;padding:0;border:2px solid;border-color:#f4f1ea #6d6960 #6d6960 #f4f1ea;background:#a8473a;color:#fff;font:600 16px var(--f-d);z-index:2}
+body.touch #invClose{display:block}
+@media (max-height:500px){
+  body.touch #hotbar{padding:3px;gap:2px}
+  body.touch #hotbar .slot{width:38px;height:38px}
+  body.touch #hotbar .slot img{width:26px;height:26px}
+  body.touch #itemName{display:none}
+  body.touch .win .slot{width:30px;height:30px}
+  body.touch .win .slot img{width:22px;height:22px}
+  body.touch .win .slot .n{font-size:11px}
+  body.touch .win .slot.big{width:40px;height:40px}
+  body.touch .g9{grid-template-columns:repeat(9,30px)}
+  body.touch .cgrid.s2{grid-template-columns:repeat(2,30px)} body.touch .cgrid.s3{grid-template-columns:repeat(3,30px)}
+  body.touch .wtitle{font-size:13px;margin:2px 0 3px}
+}
+@media (orientation:portrait){
+  body.touch #tStick{bottom:calc(120px + env(safe-area-inset-bottom,0px))}
+  body.touch #tMine{bottom:calc(126px + env(safe-area-inset-bottom,0px))}
+  body.touch #tUse{bottom:calc(170px + env(safe-area-inset-bottom,0px))}
+  body.touch #tJump{bottom:calc(222px + env(safe-area-inset-bottom,0px))}
+  body.touch #tSneak{bottom:calc(112px + env(safe-area-inset-bottom,0px))}
+}
+
 /* Side rails: two tall ads beside the game on wide screens (1180px+). Off until a slot is set. */
 :root{--rail:184px}
 .rail{display:none;box-sizing:border-box;position:fixed;top:0;bottom:0;width:var(--rail);background:#101318;flex-direction:column;align-items:center;justify-content:center;gap:6px;z-index:2147483000}
@@ -268,6 +314,16 @@ details.fold[open] summary::before{content:'– '}
     <div id="chatLog"></div>
     <div id="toast"></div>
     <div id="lookMsg" hidden>Click to look around</div>
+    <div id="touch" aria-hidden="true">
+      <div id="tLook"></div>
+      <div id="tStick"><i></i></div>
+      <button class="tb" id="tMine" type="button">MINE</button>
+      <button class="tb" id="tUse" type="button">USE</button>
+      <button class="tb" id="tJump" type="button">JUMP</button>
+      <button class="tb" id="tSneak" type="button">SNEAK</button>
+      <button class="tb" id="tPause" type="button" aria-label="Pause">❚❚</button>
+      <button class="tb" id="tInv" type="button" aria-label="Inventory">BAG</button>
+    </div>
     <input id="chatIn" maxlength="120" autocomplete="off" spellcheck="false" hidden aria-label="Chat">
     <div id="bottom">
       <div id="itemName"></div>
@@ -407,7 +463,7 @@ details.fold[open] summary::before{content:'– '}
   <section id="inv" class="overlay" hidden>
     <div class="invwrap">
       <div class="book" id="book" hidden><div class="wtitle">Recipe book</div><div id="bookList"></div><p id="bookNote"></p></div>
-      <div class="win"><button id="bookBtn" type="button" title="Recipe book" aria-label="Recipe book">≡</button><div id="invWin"></div></div>
+      <div class="win"><button id="bookBtn" type="button" title="Recipe book" aria-label="Recipe book">≡</button><button id="invClose" type="button" aria-label="Close">✕</button><div id="invWin"></div></div>
     </div>
   </section>
   <div id="tip" hidden></div>
@@ -2939,6 +2995,12 @@ function moveBody(e,dx,dy,dz,hw,h,edgeStop,step){
   return landed;
 }
 const keys={};
+// touch screens use on-screen controls instead of pointer lock (see the touch section by the input code)
+let touchUI=matchMedia('(pointer: coarse)').matches&&!matchMedia('(any-pointer: fine)').matches;
+const tMove={on:false,x:0,y:0};
+// actions held by the touch buttons (Jump, Sneak), by action id, so they work whatever keys are bound
+const tAct={};
+const heldAct=id=>!!tAct[id]||KB.held(id,keys);
 let lastW=0,lastSpace=0,mouseL=false,mouseR=false,clickL=false,breakP=0,breakKey='',useT=0,hitT=0;
 function exhaust(v){
   if(mode!=='survival')return;
@@ -2955,11 +3017,13 @@ function physics(dt){
   pl.inLava=lf===2||lu===2;
   pl.head=le===1?WATER:le===2?LAVA:0;
   if(pl.inWater&&!wasWater&&pl.vy<-4)Snd.splash();
-  pl.sneak=KB.held('sneak',keys)&&!pl.fly;
-  const fwd=KB.held('forward',keys);
+  pl.sneak=heldAct('sneak')&&!pl.fly;
+  const fwd=heldAct('forward')||(tMove.on&&tMove.y<-.3);
   if(!fwd||pl.sneak||pl.eatT>0||(mode==='survival'&&pl.food<=6))pl.sprint=false;
-  if(KB.held('sprint',keys)&&fwd&&!pl.sneak&&(mode!=='survival'||pl.food>6))pl.sprint=true;
-  const f=(fwd?1:0)-(KB.held('back',keys)?1:0),s=(KB.held('right',keys)?1:0)-(KB.held('left',keys)?1:0);
+  // on the touch stick, pushing all the way forward sprints
+  if((heldAct('sprint')||(tMove.on&&tMove.y<-.92))&&fwd&&!pl.sneak&&(mode!=='survival'||pl.food>6))pl.sprint=true;
+  let f=(fwd?1:0)-(heldAct('back')?1:0),s=(heldAct('right')?1:0)-(heldAct('left')?1:0);
+  if(tMove.on){f=-tMove.y;s=tMove.x}
   const sy=Math.sin(pl.yaw),cy=Math.cos(pl.yaw);
   let wx=-sy*f+cy*s,wz=-cy*f-sy*s;const wl=Math.hypot(wx,wz);if(wl>1){wx/=wl;wz/=wl}
   const liquid=pl.inWater||pl.inLava;
@@ -2970,7 +3034,7 @@ function physics(dt){
   pl.vx+=(wx*sp-pl.vx)*k;pl.vz+=(wz*sp-pl.vz)*k;
   // flowing water carries you along
   if(pl.inWater&&!pl.fly){const [cx,cz]=currentAt(pl.x,pl.y+.3,pl.z);pl.vx+=cx*dt*28;pl.vz+=cz*dt*28}
-  const up=KB.held('jump',keys),down=KB.held('sneak',keys);
+  const up=heldAct('jump'),down=heldAct('sneak');
   if(pl.fly){
     pl.vy+=((up?8:0)-(down?8:0)-pl.vy)*(1-Math.exp(-dt*12));
   }else if(liquid){
@@ -6705,7 +6769,7 @@ function quit(){
 // =====================================================================
 function openChat(prefix){
   if(state!=='play')return;
-  state='chat';mouseL=mouseR=false;for(const k in keys)keys[k]=false;
+  state='chat';mouseL=mouseR=false;for(const k in keys)keys[k]=false;for(const k in tAct)tAct[k]=false;
   const c=$('chatIn');c.hidden=false;c.value=prefix||'';
   try{document.exitPointerLock()}catch(e){}
   setTimeout(()=>{c.focus();c.setSelectionRange(c.value.length,c.value.length)},0);
@@ -6843,15 +6907,16 @@ function hotbarKey(c){for(let i=0;i<9;i++)if(KB.is('hot'+(i+1),c))return i;retur
 let locked=false,camMode=0,hideHud=false,showDebug=false,selfAv=null;
 let rawOK=true;
 function lockPointer(){
+  if(touchUI)return;
   try{
     const p=rawOK?canvas.requestPointerLock({unadjustedMovement:true}):canvas.requestPointerLock();
     if(p&&p.catch)p.catch(err=>{if(rawOK&&err&&err.name==='NotSupportedError'){rawOK=false;lockPointer()}});
   }catch(e){try{canvas.requestPointerLock()}catch(e2){}}
 }
-function updateLook(){$('lookMsg').hidden=!(state==='play'&&!locked)}
+function updateLook(){$('lookMsg').hidden=!(state==='play'&&!locked)||touchUI}
 document.addEventListener('pointerlockchange',()=>{
   locked=document.pointerLockElement===canvas;
-  if(!locked){mouseL=mouseR=false;for(const k in keys)keys[k]=false;if(state==='play')openPause()}
+  if(!locked){mouseL=mouseR=false;for(const k in keys)keys[k]=false;for(const k in tAct)tAct[k]=false;if(state==='play')openPause()}
   updateLook();
 });
 document.addEventListener('pointerlockerror',updateLook);
@@ -6890,7 +6955,7 @@ addEventListener('keydown',e=>{
 });
 addEventListener('keyup',e=>{keys[e.code]=false;if(KB.is('players',e.code))$('tablist').hidden=true});
 for(const id of ['keysMenu','keysMenu2','keysPause'])$(id).addEventListener('click',()=>KB.open());
-addEventListener('blur',()=>{for(const k in keys)keys[k]=false;mouseL=mouseR=false;$('tablist').hidden=true});
+addEventListener('blur',()=>{for(const k in keys)keys[k]=false;for(const k in tAct)tAct[k]=false;mouseL=mouseR=false;$('tablist').hidden=true});
 canvas.addEventListener('mousedown',e=>{
   if(state!=='play')return;
   Snd.init();
@@ -6915,6 +6980,59 @@ addEventListener('mousemove',e=>{
   }
 });
 addEventListener('wheel',e=>{if(state==='play'&&locked&&e.deltaY)selectSlot((inv.sel+(e.deltaY>0?1:8))%9)},{passive:true});
+
+// Touch controls. On a touch screen there's no pointer lock: the stick walks, dragging looks around (also while holding Mine),
+// Mine and Use do what the mouse buttons do, the hotbar slots are buttons, and the inventory is tapped like it's clicked.
+function setTouchUI(on){touchUI=on;document.body.classList.toggle('touch',on);const sm=$('sleepFade').querySelector('small');if(on)sm.textContent='Tap Sneak to leave the bed';else sm.innerHTML='Press <span data-kb="sneak" data-kb-short>'+KB.short('sneak')+'</span> to leave the bed'}
+addEventListener('pointerdown',e=>{if(e.pointerType==='touch'&&!touchUI)setTouchUI(true)},true);
+function touchLook(dx,dy){
+  if(state!=='play')return;
+  const k=.0042*SET.sens/100;
+  pl.yaw-=dx*k;pl.pitch=clamp(pl.pitch-dy*k,-1.55,1.55);
+}
+// Drags on the look layer and the Mine button turn the view; each finger is tracked on its own.
+function dragLook(el){
+  const pts=new Map();
+  el.addEventListener('pointerdown',e=>{e.preventDefault();pts.set(e.pointerId,[e.clientX,e.clientY]);try{el.setPointerCapture(e.pointerId)}catch(_){}});
+  el.addEventListener('pointermove',e=>{const q=pts.get(e.pointerId);if(!q)return;touchLook(e.clientX-q[0],e.clientY-q[1]);q[0]=e.clientX;q[1]=e.clientY});
+  const end=e=>pts.delete(e.pointerId);
+  el.addEventListener('pointerup',end);el.addEventListener('pointercancel',end);
+}
+dragLook($('tLook'));dragLook($('tMine'));
+{
+  const stick=$('tStick'),knob=stick.firstElementChild;let sid=null;
+  const move=e=>{const r=stick.getBoundingClientRect(),R=r.width/2;let x=(e.clientX-r.left-R)/R,y=(e.clientY-r.top-R)/R;const m=Math.hypot(x,y);if(m>1){x/=m;y/=m}
+    tMove.x=Math.abs(x)<.12?0:x;tMove.y=Math.abs(y)<.12?0:y;knob.style.transform='translate('+(x*R*.6)+'px,'+(y*R*.6)+'px)'};
+  stick.addEventListener('pointerdown',e=>{e.preventDefault();sid=e.pointerId;tMove.on=true;try{stick.setPointerCapture(sid)}catch(_){}move(e)});
+  stick.addEventListener('pointermove',e=>{if(e.pointerId===sid)move(e)});
+  const end=e=>{if(e.pointerId!==sid)return;sid=null;tMove.on=false;tMove.x=tMove.y=0;knob.style.transform=''};
+  stick.addEventListener('pointerup',end);stick.addEventListener('pointercancel',end);
+}
+// A button that does something once when pressed, or (with up) while it's held.
+function tButton(el,down,up){
+  el.addEventListener('pointerdown',e=>{e.preventDefault();Snd.init();el.classList.add('on');down()});
+  const end=()=>{el.classList.remove('on');if(up)up()};
+  el.addEventListener('pointerup',end);el.addEventListener('pointercancel',end);el.addEventListener('lostpointercapture',end);
+  el.addEventListener('contextmenu',e=>e.preventDefault());
+}
+tButton($('tMine'),()=>{if(state==='play'){mouseL=true;clickL=true;hitT=0}},()=>{mouseL=false});
+tButton($('tUse'),()=>{if(state==='play'){mouseR=true;useT=0}},()=>{mouseR=false});
+// Jump is held like Space; two quick taps in creative switch flying on or off.
+tButton($('tJump'),()=>{if(state!=='play')return;const n=performance.now();if(mode==='creative'&&n-lastSpace<300){pl.fly=!pl.fly;pl.vy=0}lastSpace=n;tAct.jump=true},()=>{tAct.jump=false});
+// Sneak stays on until it's tapped again, and gets you out of bed.
+tButton($('tSneak'),()=>{if(state!=='play')return;if(pl.sleep){wakeUp();return}tAct.sneak=!tAct.sneak},()=>{$('tSneak').classList.toggle('on',!!tAct.sneak)});
+tButton($('tPause'),()=>{for(const k in keys)keys[k]=false;for(const k in tAct)tAct[k]=false;$('tSneak').classList.remove('on');openPause()});
+tButton($('tInv'),()=>openInv());
+$('invClose').onclick=()=>closeInv();
+// Taps in the inventory, crafting and furnace screens go straight to the same code as mouse clicks.
+$('inv').addEventListener('pointerdown',e=>{
+  if(e.pointerType!=='touch'||e.target.closest('input,button,textarea,select'))return;
+  e.preventDefault();mx=e.clientX;my=e.clientY;
+  invMouseOver(e);invMouseDown(e);drawHeld();
+});
+$('inv').addEventListener('pointerup',e=>{if(e.pointerType==='touch'&&state==='inv'&&drag)finishDrag()});
+$('hotbar').addEventListener('pointerdown',e=>{const d=e.target.closest('.slot');if(!d||state!=='play')return;e.preventDefault();e.stopPropagation();selectSlot([...d.parentNode.children].indexOf(d))});
+if(touchUI)setTouchUI(true);
 function setMuted(m){Snd.muted=m;store.set('muted',m);const b=$('mute');b.classList.toggle('off',m);b.setAttribute('aria-label',m?'Sound off':'Sound on')}
 $('mute').onclick=()=>{Snd.init();setMuted(!Snd.muted)};
 $('create').onclick=createWorld;
