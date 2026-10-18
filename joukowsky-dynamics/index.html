@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <link rel="stylesheet" href="../site.css">
-<style>
+<style id="gate-style">
   .gate { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); background: var(--panel); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
   .gate img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 62% 45%; background: var(--tape); min-height: 260px; }
   .gate form { padding: 28px; display: flex; flex-direction: column; gap: 14px; justify-content: center; }
@@ -57,41 +57,72 @@
   <footer>© 2026 Arjun · <a href="../privacy.html">Privacy policy</a></footer>
 </div>
 <script src="/analytics/tracker.js" data-site="joukowsky-dynamics" defer></script>
-<script src="/account/account.js" defer></script>
 <script>
-// The workbench lives in a folder named after a hash of the password, so this page never holds its address.
+// The workbench is stored encrypted (vault.bin, AES-256-GCM, key from the password via PBKDF2).
+// Nothing readable is served until the right password decrypts it here; it then loads in place on this page.
 (function () {
-  var KEY = 'jd-unlock';
+  var KEY = 'jd-key', ITER = 310000;
   var form = document.getElementById('gate'), pw = document.getElementById('pw'), msg = document.getElementById('msg');
-  async function folder(p) {
-    var b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('joukowsky:' + p.trim().toLowerCase()));
-    return Array.from(new Uint8Array(b)).map(function (x) { return x.toString(16).padStart(2, '0'); }).join('').slice(0, 16);
+  var vault = null;
+  function getVault() {
+    if (!vault) vault = fetch('vault.bin', { cache: 'no-cache' }).then(function (r) { if (!r.ok) throw new Error('vault ' + r.status); return r.arrayBuffer(); });
+    return vault;
   }
-  async function exists(dir) {
-    var r = await fetch('/' + dir + '/', { cache: 'no-store' }).catch(function () { return { ok: false }; });
-    return r.ok;
+  async function keyFrom(password, salt) {
+    var base = await crypto.subtle.importKey('raw', new TextEncoder().encode(password.trim().toLowerCase()), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey({ name: 'PBKDF2', salt: salt, iterations: ITER, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, true, ['decrypt']);
   }
-  function open(dir) { location.href = '/' + dir + '/' + location.hash; }
-  var saved = null;
-  try { saved = localStorage.getItem(KEY); } catch (e) {}
-  if (saved && /^[0-9a-f]{16}$/.test(saved)) {
-    msg.textContent = 'Opening…';
-    exists(saved).then(function (ok) {
-      if (ok) open(saved);
-      else { msg.textContent = ''; try { localStorage.removeItem(KEY); } catch (e) {} }
+  async function open(buf, key) {
+    var plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: new Uint8Array(buf, 16, 12) }, key, new Uint8Array(buf, 28));
+    var hl = new DataView(plain).getUint32(0, true);
+    var head = JSON.parse(new TextDecoder().decode(new Uint8Array(plain, 4, hl))), files = {};
+    for (var n in head) files[n] = plain.slice(4 + hl + head[n][0], 4 + hl + head[n][0] + head[n][1]);
+    return files;
+  }
+  function mount(files) {
+    var td = new TextDecoder(), text = function (n) { return td.decode(files[n]); };
+    window.__JD_DATA = { parts: JSON.parse(text('advanced/data/parts.json')), meshes: files['advanced/data/meshes.bin'] };
+    var doc = new DOMParser().parseFromString(text('index.html'), 'text/html');
+    document.querySelectorAll('link[href$="site.css"], #gate-style').forEach(function (e) { e.remove(); });
+    document.title = doc.title;
+    doc.querySelectorAll('link[rel="stylesheet"][href^="https://fonts"]').forEach(function (l) { document.head.appendChild(l.cloneNode()); });
+    ['base.css', 'style.css', 'revision.css', 'design.css', 'advanced/advanced.css'].forEach(function (n) {
+      var st = document.createElement('style'); st.textContent = text(n); document.head.appendChild(st);
     });
+    var map = doc.querySelector('script[type="importmap"]');
+    doc.querySelectorAll('script').forEach(function (sc) { sc.remove(); });
+    document.body.className = ''; document.body.innerHTML = doc.body.innerHTML;
+    if (map) { var im = document.createElement('script'); im.type = 'importmap'; im.textContent = map.textContent; document.head.appendChild(im); }
+    ['app.js', 'advanced/advanced.js'].forEach(function (n) {
+      var sc = document.createElement('script'); sc.type = 'module'; sc.async = false;
+      sc.src = URL.createObjectURL(new Blob([files[n]], { type: 'text/javascript' }));
+      document.body.appendChild(sc);
+    });
+  }
+  async function unlockWith(key, buf) { mount(await open(buf, key)); }
+  // same tab, already unlocked this session: skip the prompt
+  var saved = null;
+  try { saved = sessionStorage.getItem(KEY); } catch (e) {}
+  if (saved) {
+    msg.textContent = 'Opening…';
+    Promise.all([getVault(), crypto.subtle.importKey('raw', Uint8Array.from(atob(saved), function (c) { return c.charCodeAt(0); }), 'AES-GCM', false, ['decrypt'])])
+      .then(function (r) { return unlockWith(r[1], r[0]); })
+      .catch(function () { msg.textContent = ''; try { sessionStorage.removeItem(KEY); } catch (e) {} });
   }
   form.addEventListener('submit', async function (e) {
     e.preventDefault();
     if (!pw.value.trim()) return;
     msg.className = 'msg'; msg.textContent = 'Checking…';
-    var dir = await folder(pw.value);
-    if (await exists(dir)) {
-      try { localStorage.setItem(KEY, dir); } catch (e) {}
+    try {
+      var buf = await getVault();
+      var key = await keyFrom(pw.value, new Uint8Array(buf, 0, 16));
+      var files = await open(buf, key);
+      try { sessionStorage.setItem(KEY, btoa(String.fromCharCode.apply(null, new Uint8Array(await crypto.subtle.exportKey('raw', key))))); } catch (e) {}
       msg.textContent = 'Opening…';
-      open(dir);
-    } else {
-      msg.className = 'msg bad'; msg.textContent = 'That password isn’t right. Try again.';
+      mount(files);
+    } catch (err) {
+      msg.className = 'msg bad';
+      msg.textContent = /vault/.test(err && err.message) ? 'The workbench could not be loaded. Check your connection and try again.' : 'That password isn’t right. Try again.';
       pw.select();
     }
   });
