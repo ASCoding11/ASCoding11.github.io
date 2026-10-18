@@ -579,15 +579,16 @@ function drawCallouts() {
 // ------------------------------------------------------------------ 06 ADVANCED BLUEPRINT
 const adv = { sel: -1, selInst: -1, holo: false, config: 0, explode: 0, view: '3d', hidden: new Set(), overlays: [], sort: ['pn', 1], isolate: false };
 function configState(c) {
-  const a = clamp(c), b = clamp(c - 1);
-  return { ...STATE0, legs: ramp(a, 0, .35) * (1 - b), lift: .12 * ramp(a, 0, .35) + 2.4 * b, petals: ramp(a, .3, .6), pitch: 90 - 64 * ramp(a, .4, .7) + 4 * b,
+  // 0 road → 1 converted on the legs → 1.3 airborne hover (legs up) → 2 cruise tilt
+  const a = clamp(c), up = ramp(c, 1, 1.3), b = ramp(c, 1.3, 2);
+  return { ...STATE0, legs: ramp(a, 0, .35) * (1 - up), lift: .12 * ramp(a, 0, .35) + 1.1 * up, petals: ramp(a, .3, .6), pitch: 90 - 64 * ramp(a, .4, .7) + 4 * b,
     yoke: ramp(a, .55, 1), tilt: 25 * b, rotorLocked: c < .35, spin: 0, explode: adv.explode, sub: adv.explode };
 }
 function applyAdvState() {
   applyState(configState(adv.config));
   setReveal(99); groundMat.uniforms.uOffset.value = 0; groundMat.uniforms.uRing.value = -1;
   const c = adv.config;
-  $('adv-config-label').textContent = c < .05 ? 'Road' : c < .95 ? 'Converting' : c < 1.05 ? 'Hover' : 'Cruise tilt';
+  $('adv-config-label').textContent = c < .05 ? 'Road' : c < .98 ? 'Converting' : c < 1.3 ? 'Lift-off' : c < 1.4 ? 'Hover' : 'Cruise tilt';
 }
 function initAdvanced() {
   const v = makeView('advanced', 'adv-viewport', [7.5, 3.6, 7.5], [0, .5, 0]);
@@ -596,7 +597,13 @@ function initAdvanced() {
   buildTree();
   $('adv-search').addEventListener('input', () => { buildTree(); if (adv.view === 'bom') renderBom(); });
   $('adv-filter').addEventListener('change', () => { buildTree(); if (adv.view === 'bom') renderBom(); });
-  $('adv-config').addEventListener('input', (e) => { adv.config = +e.target.value; applyAdvState(); });
+  $('adv-config').addEventListener('input', (e) => {
+    const lift0 = configState(adv.config).lift;
+    adv.config = +e.target.value; applyAdvState();
+    const dy = configState(adv.config).lift - lift0;          // keep the car in frame as it lifts off
+    v.controls.target.y += dy; v.camera.position.y += dy;
+    if (FOCUS.region && FOCUS.view === 'advanced') { clearTimeout(adv.refocus); adv.refocus = setTimeout(() => focusRegion('advanced', FOCUS.region), 220); }
+  });
   $('adv-explode').addEventListener('input', (e) => { adv.explode = +e.target.value; applyAdvState(); });
   $('adv-section').addEventListener('change', (e) => { renderer.clippingPlanes = e.target.checked ? [new THREE.Plane(new THREE.Vector3(0, 0, -1), 0)] : []; });
   $('adv-holo').addEventListener('change', (e) => { adv.holo = e.target.checked; applyStyle(adv.holo ? 'holo' : 'cad'); refreshIsolation(); });
@@ -1138,7 +1145,8 @@ function focusRegion(view, id, pickedRec = null) {
     r.focusOff = p1.sub(p0);
     box.expandByPoint(c); box.expandByPoint(c.clone().add(off));
   }
-  FOCUS.region = id; FOCUS.view = view; FOCUS.f = 0; FOCUS.target = 1; FOCUS.recs = recs; FOCUS.hover = null;
+  const refocus = FOCUS.region === id && FOCUS.view === view;
+  FOCUS.region = id; FOCUS.view = view; FOCUS.f = refocus ? 1 : 0; FOCUS.target = 1; FOCUS.recs = recs; FOCUS.hover = null;
   // camera: frame the exploded envelope from the current viewing direction
   const v = views[view], ctr = box.getCenter(new THREE.Vector3()), radius = Math.max(.6, box.getSize(new THREE.Vector3()).length() * .5);
   const dir = v.camera.position.clone().sub(v.controls.target).normalize();
@@ -1234,7 +1242,7 @@ function currentPhase(view) {
     return t < 14 ? 'assembly' : t < 20 ? 'road' : t < 27 ? 'prepare' : t < 31 ? 'unlock' : t < 37 ? 'convert' : t < 41 ? 'spinup' : t < 47 ? 'hover' : 'cruise';
   }
   const c = adv.config;
-  return c < .05 ? 'road' : c < .35 ? 'prepare' : c < .55 ? 'unlock' : c < .98 ? 'convert' : c < 1.05 ? 'hover' : 'cruise';
+  return c < .05 ? 'road' : c < .35 ? 'prepare' : c < .55 ? 'unlock' : c < .98 ? 'convert' : c < 1.4 ? 'hover' : 'cruise';
 }
 function currentState(view) { return view === 'sequence' ? seqState(seq.t) : configState(adv.config); }
 function regionBrief(id, view) {
@@ -1318,6 +1326,7 @@ function initRegionUI(view) {
   const brief = document.createElement('aside'); brief.className = 'region-brief'; brief.hidden = true; host.appendChild(brief);
   const tip = document.createElement('div'); tip.className = 'region-tip'; tip.hidden = true; host.appendChild(tip);
   REGION_UI[view] = { svg, layer, chips, back, brief, tip };
+  for (const el of [chips, back, brief]) for (const ev of ['pointerdown', 'pointerup', 'wheel', 'dblclick', 'contextmenu']) el.addEventListener(ev, (e) => e.stopPropagation());
   chips.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => (FOCUS.region === b.dataset.region ? exitFocus() : focusRegion(view, b.dataset.region))));
   back.addEventListener('click', () => exitFocus());
   host.addEventListener('keydown', (e) => { if (e.key === 'Escape') exitFocus(); });
