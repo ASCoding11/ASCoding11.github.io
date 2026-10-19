@@ -64,6 +64,10 @@ h1{font-family:var(--f-d);font-weight:400;font-size:clamp(40px,6vw,56px);line-he
 .practice{display:flex;gap:10px;margin-top:14px;align-items:stretch}
 .practice .btn{flex:1;min-width:0;padding:11px 12px;font-size:19px}
 .practice .seg{flex:0 0 auto}
+.practice{flex-wrap:wrap}
+.practice #training{flex:1 1 100%}
+/* phones: Practice keeps its full label and the difficulty switch drops below it */
+@media (max-width:520px){.practice #practice{flex:1 1 auto;min-width:max-content}.practice .seg{flex:1 0 auto}.practice .seg button{flex:1;padding:10px 11px}}
 .seg{display:flex;border:3px solid var(--ink);border-radius:14px;overflow:hidden;background:#fff}
 .seg button{border:0;background:transparent;padding:0 11px;font-weight:900;font-size:14px;letter-spacing:.02em}
 .seg button+button{border-left:2px solid var(--ink)}
@@ -210,6 +214,11 @@ details[open] summary::before{content:'－ '}
 .rankline .up{color:var(--mint)}.rankline .down{color:var(--tomato)}
 .rankline small{font-size:12.5px;color:var(--ink-2);flex-basis:100%}
 .standings .rt{font-size:11px;font-weight:900;color:var(--ink-2);margin-left:6px}
+#trainHud{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:8px;width:max-content;max-width:calc(100% - 24px)}
+.trow{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+.tkeys{font-family:var(--f-b);font-weight:900;font-size:13px;text-align:center}
+#trainHud .tbox small{max-width:none}
+#tsLast{position:absolute;left:50%;top:calc(50% + 64px);transform:translateX(-50%);font-size:22px;white-space:nowrap}
 /* Touch controls: a move stick on the left, buttons on the right, and dragging anywhere else turns the view.
    Only shown on touch screens, where the health and ammo readouts move up to the top corners. */
 #touch{display:none;position:absolute;inset:0;pointer-events:none;font-family:var(--f-d)}
@@ -239,7 +248,35 @@ body.touch #dead{top:auto;bottom:calc(190px + env(safe-area-inset-bottom,0px));m
 body.touch #lockHint{display:none}
 /* Rebinding keys is for keyboards: the touch layout leaves those buttons out. */
 body.touch #keysMenu,body.touch #keysPause{display:none}
-@media (orientation:portrait){body.touch #top{top:calc(76px + env(safe-area-inset-top,0px))}body.touch #netline{top:calc(150px + env(safe-area-inset-top,0px))}body.touch #feed{top:calc(150px + env(safe-area-inset-top,0px))}}
+@media (orientation:portrait){body.touch #top{top:calc(84px + env(safe-area-inset-top,0px))}body.touch #netline{top:calc(150px + env(safe-area-inset-top,0px))}body.touch #feed{top:calc(150px + env(safe-area-inset-top,0px))}}
+/* Upright phones: Swap and Bonk sit above Reload and Bomb so they stay clear of the move stick, and the
+   "cracked" card sits above the buttons. */
+@media (orientation:portrait){
+  #tSwap{right:calc(22px + env(safe-area-inset-right,0px));bottom:calc(220px + env(safe-area-inset-bottom,0px))}
+  #tMelee{right:calc(88px + env(safe-area-inset-right,0px));bottom:calc(216px + env(safe-area-inset-bottom,0px))}
+  body.touch #dead{bottom:calc(300px + env(safe-area-inset-bottom,0px))}
+}
+/* Training range on a touch screen: a button for each gun and one that resets the stats. They form a row under
+   the pause button with the phone sideways, and a column above the move stick when it's upright. The stats move
+   between the health and ammo readouts (below them when upright), and the keyboard hints are hidden. */
+#tTrain{display:none;position:absolute;left:calc(10px + env(safe-area-inset-left,0px));top:calc(64px + env(safe-area-inset-top,0px));gap:6px}
+body.touch #hud.training #tTrain{display:flex}
+#tTrain .tb{position:static;flex:0 0 auto;width:62px;height:40px;border-radius:14px;font-size:12px;letter-spacing:0;white-space:nowrap;overflow:hidden}
+#tTrain .tb.cur{background:var(--yolk)}
+#tReset{margin-left:8px}
+body.touch #trainHud{left:max(50%,calc(258px + 150px + env(safe-area-inset-left,0px)));max-width:none;transform:translateX(-50%) scale(.62);transform-origin:center top}
+body.touch #trainHud .trow{flex-wrap:nowrap}
+body.touch #trainHud .tbox{min-width:66px;padding:3px 9px}
+body.touch #trainHud .tbox span{font-size:24px}
+body.touch .tkeys{display:none}
+body.touch #hud.training #banner{top:calc(114px + env(safe-area-inset-top,0px))}
+@media (orientation:portrait){
+  #tTrain{top:auto;left:calc(26px + env(safe-area-inset-left,0px));bottom:calc(172px + env(safe-area-inset-bottom,0px));flex-direction:column}
+  #tReset{order:-1;margin:0 0 8px}
+  body.touch #trainHud{left:50%;top:calc(84px + env(safe-area-inset-top,0px))}
+  body.touch #hud.training #banner{top:22%}
+}
+@media (orientation:landscape) and (max-width:720px){body.touch #trainHud{left:max(50%,calc(258px + 140px + env(safe-area-inset-left,0px)));transform:translateX(-50%) scale(.55)}}
 @media (max-width:640px){#hpbar{width:120px}#mag{font-size:44px}.tbox{min-width:60px;padding:3px 9px}.tbox span{font-size:22px}}
 
 /* Side rails: two tall ads beside the game on wide screens (1180px+). The game area shrinks to sit
@@ -273,6 +310,17 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
       <div class="tbox you"><span id="myK">0</span><small>Your cracks</small></div>
       <div class="tbox"><span id="leadK">0</span><small id="leadN">Top rival</small></div>
     </div>
+    <div id="trainHud" hidden>
+      <div class="trow">
+        <div class="tbox you"><span id="tsAcc">–</span><small>Accuracy</small></div>
+        <div class="tbox"><span id="tsHits">0/0</span><small>Hits / shots</small></div>
+        <div class="tbox"><span id="tsHead">0</span><small>Headshots</small></div>
+        <div class="tbox"><span id="tsCrack">0</span><small>Cracks</small></div>
+        <div class="tbox"><span id="tsPop">0</span><small>Pops</small></div>
+      </div>
+      <div class="tkeys out" id="tKeys">1–5 any gun · 6 or Q pistol · R reload · T reset stats · Esc menu</div>
+    </div>
+    <div id="tsLast" class="out"></div>
     <div id="netline" class="out"></div>
     <div id="feed"></div>
     <div id="banner"><b></b><span class="out"></span></div>
@@ -307,6 +355,15 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
       <button class="tb" id="tMelee" type="button">BONK</button>
       <button class="tb" id="tPause" type="button" aria-label="Pause">❚❚</button>
       <button class="tb" id="tBoard" type="button" aria-label="Scoreboard">TAB</button>
+      <div id="tTrain">
+        <button class="tb" id="tG1" type="button" data-g="1">BEATER</button>
+        <button class="tb" id="tG2" type="button" data-g="2">SKILLET</button>
+        <button class="tb" id="tG3" type="button" data-g="3">SUNNY</button>
+        <button class="tb" id="tG4" type="button" data-g="4">WHISK</button>
+        <button class="tb" id="tG5" type="button" data-g="5">POACHER</button>
+        <button class="tb" id="tG6" type="button" data-g="6">CRACKER</button>
+        <button class="tb" id="tReset" type="button" aria-label="Reset training stats">RESET</button>
+      </div>
     </div>
   </div>
 
@@ -328,6 +385,7 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
           <div class="seg" id="diffSeg" role="group" aria-label="Bot difficulty">
             <button type="button" data-d="easy">Easy</button><button type="button" data-d="normal">Normal</button><button type="button" data-d="hard">Hard</button>
           </div>
+          <button id="training" class="btn alt" type="button" title="Targets, balloons and dummies that don't shoot back. Every gun, no rating.">Training range</button>
         </div>
         <p id="netMsg" class="msg" role="status"></p>
         <p id="touchNote" class="note" hidden>Playing on a phone? Turn it sideways for the best view.</p>
@@ -392,7 +450,7 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
     <div class="card mini">
       <h2>Paused</h2>
       <p class="sub" id="pauseSub"></p>
-      <div class="label">Weapon for your next hatch</div>
+      <div class="label" id="pauseWLabel">Weapon for your next hatch</div>
       <div class="weapons" id="weapons2" role="group" aria-label="Weapon"></div>
       <div class="row" style="margin-top:18px">
         <button class="btn" id="resume" type="button">Resume</button>
@@ -1036,6 +1094,35 @@ const MAPS=[
 ];
 let mapIdx=-1;
 
+// The training range is its own map, kept out of MAPS so it never comes up in practice or online rotation.
+// Not mirrored: you stand on the concrete pad at the south end (z 62-70) and shoot north. Distance lines
+// sit at 10, 20, 30 and 45 m from the front of the pad; balloons float on the west side, bullseye boards
+// stand in the middle lanes, and unarmed dummies walk on the east side and along the raised platform at the back.
+const RANGE_IDX=-2,RANGE_LINE=62;
+function buildRange(){
+  mirrorOn=false;
+  ground(M_.GRASS,M_.DIRT);
+  fill(0,G,0,W-1,G+11,0,M_.STONE);                                     // tall backstop behind the targets
+  fill(0,G,0,0,G+7,W-1,M_.DARKWOOD);fill(W-1,G,0,W-1,G+7,W-1,M_.DARKWOOD);fill(0,G,W-1,W-1,G+7,W-1,M_.DARKWOOD);
+  fill(1,G-1,RANGE_LINE,W-2,G-1,W-2,M_.CONCRETE);                      // the firing pad
+  fill(2,G,RANGE_LINE-1,20,G,RANGE_LINE-1,M_.TRIM);fill(24,G,RANGE_LINE-1,44,G,RANGE_LINE-1,M_.TRIM);fill(48,G,RANGE_LINE-1,56,G,RANGE_LINE-1,M_.TRIM);  // low rail along the line
+  for(const d of [10,20,30,45])fill(1,G-1,RANGE_LINE-d,W-2,G-1,RANGE_LINE-d,M_.PLASTER);   // distance lines
+  fill(22,G-1,1,22,G-1,RANGE_LINE-1,M_.SIDEWALK);fill(45,G-1,1,45,G-1,RANGE_LINE-1,M_.SIDEWALK);  // lane dividers
+  // cover
+  for(const [x,z] of [[9,46],[15,35],[7,25],[40,47],[29,24],[51,42],[61,42],[55,27]])fill(x,G,z,x+1,G+2,z,M_.CONCRETE);
+  crate(17,46);crate(18,46,4);crate(4,38);crate(33,36);crate(66,46);crate(66,47,4);
+  // raised platform at the back (about 55 m out), with stairs up its east end
+  fill(26,G,5,40,G+4,10,M_.CONCRETE);fill(26,G+5,5,40,G+5,5,M_.TRIM);
+  stairs(45,7,-1,0,G,5,2,M_.METAL);
+  // raised shooting deck on the east end of the firing pad
+  fill(63,G,RANGE_LINE,69,G+4,68,M_.CONCRETE);fill(63,G+5,RANGE_LINE,69,G+5,RANGE_LINE,M_.TRIM);
+  stairs(58,66,1,0,G,5,2,M_.METAL);
+  for(const x of [28,32,36,40,44])mapSpawns.push({x,z:66,y:G});
+}
+const RANGE_MAP={name:'Training Range',build:buildRange,skyTop:'#4a9df0',skyHor:'#e2f2ff',fog:0xe2f2ff,fogFar:190,sunC:0xfff4dc,sunI:.85,sunPos:[30,72,48],hemiS:0xffffff,hemiG:0x7a8a50,
+  outer:['#79c254','#88cf5f','#6aae47','#80c45a'],hills:0x74b44e,trees:0x3f8f3a,cloud:0xffffff};
+function mapInfo(){return mapIdx===RANGE_IDX?RANGE_MAP:MAPS[mapIdx]}
+
 // ---------- textures used by the blocks ----------
 const stoneTex=canvasTex(256,256,(g,w,h)=>{
   g.fillStyle='#d8d8d8';g.fillRect(0,0,w,h);
@@ -1073,7 +1160,8 @@ function disposeGroup(gr){while(gr.children.length){const o=gr.children.pop();o.
 
 let spawns=[],perches=[];
 function buildMap(idx){
-  mapIdx=idx;const M=MAPS[idx];
+  mapIdx=idx;const M=idx===RANGE_IDX?RANGE_MAP:MAPS[idx];
+  Range.clear();
   vox.fill(0);mapSpawns=[];mirrorOn=true;
   M.build();
   buildNav();
@@ -1105,6 +1193,7 @@ function buildMap(idx){
   matFloor.map=grassTex(M.outer);matFloor.map.repeat.set(225,225);matFloor.needsUpdate=true;
   sun.color.setHex(M.sunC);sun.intensity=M.sunI;sun.position.set(SPAN/2+M.sunPos[0],M.sunPos[1],SPAN/2+M.sunPos[2]);sun.target.position.set(SPAN/2,0,SPAN/2);
   hemi.color.setHex(M.hemiS);hemi.groundColor.setHex(M.hemiG);
+  if(idx===RANGE_IDX)Range.build();
 }
 let navReach=null;
 
@@ -1232,7 +1321,8 @@ function respawn(e,at){
   e.yaw=Math.atan2(-(SPAN/2-s.x),-(SPAN/2-s.z));e.pitch=0;
   e.hp=100;e.alive=true;e.slot=0;e.wkey=e.loadout;fillAmmo(e);e.reloadT=0;e.switchT=0;e.fireCD=0;e.burstLeft=0;e.bloom=0;
   e.grenades=2;e.spawnShield=2;e.lastHurt=-99;e.streak=0;e.perch=null;e.holdT=0;e.onGround=true;e.path=null;e.target=null;e.stuckT=0;e.lastP.copy(e.pos);
-  if(e===player){camPitchKick=0;hurtFlash=0;dmgDirs.length=0;$('dirs').textContent='';setVmGun(e.wkey);vmSwitch=1;hudDirty=true}
+  if(e.dummy){e.spawnShield=0;e.grenades=0}
+  if(e===player){if(mode==='training')e.grenades=TRAIN_NADES;camPitchKick=0;hurtFlash=0;dmgDirs.length=0;$('dirs').textContent='';setVmGun(e.wkey);vmSwitch=1;hudDirty=true}
 }
 
 // =====================================================================
@@ -1312,8 +1402,8 @@ function spawnNade(x,y,z,vx,vy,vz,owner){
   m.position.set(x,y,z);scene.add(m);nades.push({m,v:new V3(vx,vy,vz),t:2.1,owner});
 }
 function throwNade(e){
-  if(!e.alive||e.grenades<=0||e.switchT>0)return;
-  e.grenades--;e.spawnShield=0;
+  if(e.dummy||!e.alive||e.grenades<=0||e.switchT>0)return;
+  e.grenades--;e.spawnShield=0;if(e===player)Range.nadeT=0;
   const d=dirOf(e.yaw,e.pitch+(e.isBot?.22:.08));const eye=eyeOf(e);
   const p=eye.addScaledVector(d,.45);
   const v=d.multiplyScalar(15.5);v.y+=3;v.x+=e.vel.x*.5;v.z+=e.vel.z*.5;
@@ -1337,6 +1427,7 @@ function updateNades(dt){
 const R_BLAST=7;
 function explode(n){
   const p=n.m.position.clone();spawnBoom(p);sfx('boom',p);
+  if(mode==='training')Range.blast(p);
   const dp=camera.position.distanceTo(p);shake=Math.max(shake,clamp(1-dp/30,0,1)*.9);
   const att=entById(n.owner)||{id:n.owner,pos:p,name:'?'};
   const o=p.clone();o.y+=.4;
@@ -1381,15 +1472,18 @@ function fireShot(e){
   eyeOf(e,_o);const base=dirOf(e.yaw,e.pitch);const sp=spreadNow(e,w);
   muzzleWorld(e,_mz);
   const hits=new Map();
-  const pel=w.pellets||1;
+  const pel=w.pellets||1,rng=mode==='training'&&e===player;let anyHit=false,anyHead=false;
   for(let i=0;i<pel;i++){
     const a=Math.random()*Math.PI*2,r=Math.sqrt(Math.random())*sp;
     _d.copy(base);const right=_tmp.set(Math.cos(e.yaw),0,-Math.sin(e.yaw));const up=new V3().crossVectors(right,_d).normalize();
     _d.addScaledVector(right,Math.cos(a)*r).addScaledVector(up,Math.sin(a)*r).normalize();
     const maxT=w.range*3+40;const tw=rayWorld(_o,_d,maxT);const he=rayEnts(_o,_d,tw,e);
-    const t=he?he.t:tw;_hp.copy(_o).addScaledVector(_d,t);
+    // on the range, boards and balloons can be in front of whatever else the ray reaches
+    const rp=rng?Range.ray(_o,_d,he?he.t:tw):null;
+    const t=rp?rp.t:he?he.t:tw;_hp.copy(_o).addScaledVector(_d,t);
     if(pel===1||i%2===0)tracer(_mz.clone(),_hp.clone(),e===player?.02:.03);
-    if(he){
+    if(rp){Range.hitProp(rp,_hp);anyHit=true}
+    else if(he){if(rng){anyHit=true;anyHead=anyHead||he.head}
       const prev=hits.get(he.e)||{dmg:0,head:false};
       let dmg=w.dmg*(he.head?w.head:1)*falloff(w,t);if(e.isBot)dmg*=DIFF[diffKey].dmg;
       prev.dmg+=dmg;prev.head=prev.head||he.head;hits.set(he.e,prev);
@@ -1397,6 +1491,7 @@ function fireShot(e){
     }else if(t<maxT-.1){emit(_hp,0xd9cbb0,3,2.5,.05,.5,8,.4)}
   }
   for(const [t,h] of hits)hitTarget(e,t,h.dmg,h.head,e.wkey);
+  if(rng)Range.shot(anyHit,anyHead);
   // feel
   if(e===player){
     const k=e.ads?.6:1;camPitchKick+=w.recoil*k;player.yaw+=(Math.random()-.5)*w.recoil*.6*k;vmKick=1;
@@ -1406,6 +1501,7 @@ function fireShot(e){
 }
 function tryFire(e){
   const w=WEAPONS[e.wkey];
+  if(e.dummy)return false;   // training dummies are unarmed
   if(!e.alive||e.reloadT>0||e.switchT>0||e.fireCD>0||e.burstLeft>0)return false;
   if(e.ammo[e.wkey]<=0){startReload(e);if(e===player)sfx('empty');return false}
   fireShot(e);e.fireCD=w.cd;
@@ -1421,7 +1517,7 @@ function switchSlot(e,s){
   if(e===player){setVmGun(e.wkey);vmSwitch=1;sfx('switch');hudDirty=true}
 }
 function melee(e){
-  if(!e.alive||e.meleeCD>0)return;e.meleeCD=.6;e.spawnShield=0;
+  if(e.dummy||!e.alive||e.meleeCD>0)return;e.meleeCD=.6;e.spawnShield=0;
   eyeOf(e,_o);dirOf(e.yaw,e.pitch,_d);const he=rayEnts(_o,_d,1.9,e);
   if(e===player){vmMelee=1;sfx('whoosh')}
   if(he&&rayWorld(_o,_d,he.t)>=he.t-.05){hitTarget(e,he.e,e.isBot?55*DIFF[diffKey].dmg:55,false,'melee');emit(_hp.copy(_o).addScaledVector(_d,he.t),0xffc93c,6,4,.06,.5,12)}
@@ -1586,6 +1682,150 @@ function botThink(e,dt){
 }
 
 // =====================================================================
+//  Training range (RANGE_MAP): bullseye boards, balloons and unarmed dummies.
+//  No clock, no score target, no rating, nothing sent to the database; the stats live only in this tab.
+// =====================================================================
+const TRAIN_NADES=3,BOARD_R=.5;
+// archery-style face: ten rings, outer pair white, then black, blue, red and a yellow centre
+const bullTex=canvasTex(256,256,(g,w)=>{
+  const c=w/2,cols=['#fffdf8','#fffdf8','#2b1a10','#2b1a10','#58b4ff','#58b4ff','#ef5338','#ef5338','#ffc93c','#ffc93c'];
+  for(let i=0;i<10;i++){g.fillStyle=cols[i];g.beginPath();g.arc(c,c,c*(1-i/10)-1,0,7);g.fill();g.strokeStyle=i===3?'#fffdf8':'#2b1a10';g.lineWidth=2;g.stroke()}
+  g.fillStyle='#2b1a10';g.beginPath();g.arc(c,c,3,0,7);g.fill();
+},false);
+function signTex(text){
+  return canvasTex(256,128,(g,w,h)=>{
+    g.fillStyle='#2b1a10';g.fillRect(0,0,w,h);g.fillStyle='#fff8e8';g.fillRect(8,8,w-16,h-16);
+    let fs=70;g.font=fs+"px 'Lilita One','Arial Rounded MT Bold',sans-serif";const tw=g.measureText(text).width;if(tw>w-36){fs=Math.floor(fs*(w-36)/tw);g.font=fs+"px 'Lilita One','Arial Rounded MT Bold',sans-serif"}
+    g.textAlign='center';g.textBaseline='middle';g.fillStyle='#2b1a10';g.fillText(text,w/2,h/2+4);
+  },false);
+}
+// Dummy routes, in world metres. Two-point routes are strafes (with random turn-backs); longer ones are patrols.
+const DUMMY_ROUTES=[
+  {name:'Strafer',color:'#ff9a4a',speed:3.6,flip:.6,pause:.35,pts:[[48.5,50.5],[58.5,50.5]]},
+  {name:'Runner',color:'#8fd3d0',speed:6.3,flip:.35,pause:.15,hop:.5,pts:[[47.5,38.5],[67.5,38.5]]},
+  {name:'Patroller',color:'#ffadc0',speed:4.4,flip:0,pause:.25,pts:[[48.5,30.5],[64.5,30.5],[64.5,21.5],[48.5,21.5]]},
+  {name:'Lookout',color:'#9be3b0',speed:3,flip:.3,pause:.5,up:2.5,pts:[[31.5,8.5],[39.5,8.5]]}
+];
+const BALLOON_SPOTS=[[6,54,2.2],[12,50,3.5],[18,47,1.8],[8,42,4.5],[15,38,2.6],[5,33,3.2],[19,30,5],[11,25,2],[16,19,3.8],[7,14,2.8],[13,9,4.6],[20,12,2.4]];
+const BALLOON_COLS=[0xef5338,0x58b4ff,0xffc93c,0x36b37e,0xb46cff,0xff8ac0];
+const Range={
+  group:null,targets:[],balloons:[],dummies:[],owned:[],nadeT:0,dingAt:-1,
+  stats:{shots:0,hits:0,heads:0,pops:0,last:'',lastT:0},
+  own(x){this.owned.push(x);return x},
+  clear(){
+    for(const d of this.dummies)removeEntity(d);
+    this.dummies.length=0;this.targets.length=0;this.balloons.length=0;
+    if(this.group){scene.remove(this.group);this.group=null}
+    for(const x of this.owned)x.dispose();this.owned.length=0;
+  },
+  build(){
+    this.clear();
+    const gr=this.group=new THREE.Group();scene.add(gr);
+    const own=x=>this.own(x);
+    const postMat=own(new THREE.MeshLambertMaterial({color:0x8a5a35})),postGeo=own(new THREE.BoxGeometry(.12,1,.12));
+    // signs: distances on both lane dividers, and a label over each zone
+    const sign=(text,x,y,z,s,post)=>{
+      const sp=new THREE.Sprite(own(new THREE.SpriteMaterial({map:own(signTex(text))})));sp.scale.set(1.5*s,.75*s,1);sp.position.set(x,y,z);gr.add(sp);
+      if(post){const p=new THREE.Mesh(postGeo,postMat);p.scale.y=y-.3*s-post;p.position.set(x,post+p.scale.y/2,z);p.castShadow=true;gr.add(p)}
+    };
+    for(const d of [10,20,30,45])for(const x of [22.5,45.5])sign(d+' m',x,GROUND_Y+1.9,RANGE_LINE-d+.5,1,GROUND_Y);
+    sign('55 m',41.5,GROUND_Y+2.5+1.9,6.5,1,GROUND_Y+2.5);
+    sign('BALLOONS',11.5,GROUND_Y+4.4,RANGE_LINE-2,1.15);sign('BULLSEYES',34,GROUND_Y+4.4,RANGE_LINE-2,1.15);sign('MOVERS',57,GROUND_Y+4.4,RANGE_LINE-2,1.15);
+    // bullseye boards, facing the firing pad
+    this.markGeo=own(new THREE.CircleGeometry(.035,10));this.markMat=own(new THREE.MeshBasicMaterial({color:0x2b1a10}));
+    const faceGeo=own(new THREE.CircleGeometry(BOARD_R,48)),backGeo=own(new THREE.CylinderGeometry(BOARD_R+.05,BOARD_R+.05,.06,40)),backMat=own(new THREE.MeshLambertMaterial({color:0x5b4636}));
+    backGeo.rotateX(Math.PI/2);
+    for(const [x,z,y,dist] of [[27.5,RANGE_LINE-10,GROUND_Y,10],[32.5,RANGE_LINE-20,GROUND_Y,20],[37.5,RANGE_LINE-30,GROUND_Y,30],[42.5,RANGE_LINE-45,GROUND_Y,45],[28.5,7.5,GROUND_Y+2.5,55]]){
+      const g=new THREE.Group();g.position.set(x,y,z);gr.add(g);const cy=1.15;
+      const post=new THREE.Mesh(postGeo,postMat);post.scale.y=cy-BOARD_R+.1;post.position.set(0,post.scale.y/2,-.07);post.castShadow=true;g.add(post);
+      const foot=new THREE.Mesh(postGeo,postMat);foot.scale.set(5,.08,3);foot.position.y=.04;g.add(foot);
+      const board=new THREE.Group();board.position.y=cy;g.add(board);
+      const back=new THREE.Mesh(backGeo,backMat);back.castShadow=true;board.add(back);
+      const faceMat=own(new THREE.MeshLambertMaterial({map:bullTex}));
+      const face=new THREE.Mesh(faceGeo,faceMat);face.position.z=.031;board.add(face);
+      this.targets.push({board,faceMat,x,y:y+cy,z,dist,marks:[],resetT:0,wob:0,flash:0});
+    }
+    // balloons
+    const balGeo=own(new THREE.SphereGeometry(.3,16,12));balGeo.scale(1,1.2,1);
+    const knotGeo=own(new THREE.ConeGeometry(.05,.08,8)),strGeo=own(new THREE.BufferGeometry().setFromPoints([new V3(0,-.38,0),new V3(.04,-.8,0),new V3(-.03,-1.3,0)])),strMat=own(new THREE.LineBasicMaterial({color:0x6b5442}));
+    BALLOON_SPOTS.forEach(([x,z,h],i)=>{
+      const col=BALLOON_COLS[i%BALLOON_COLS.length],m=own(new THREE.MeshLambertMaterial({color:col,emissive:col,emissiveIntensity:.18}));
+      const g=new THREE.Group();const s=new THREE.Mesh(balGeo,m);s.castShadow=true;g.add(s);
+      const k=new THREE.Mesh(knotGeo,m);k.position.y=-.38;k.rotation.x=Math.PI;g.add(k);g.add(new THREE.Line(strGeo,strMat));
+      g.position.set(x,GROUND_Y+h,z);gr.add(g);this.balloons.push({g,col,bx:x,by:GROUND_Y+h,bz:z,ph:i*1.7,up:true,t:0,grow:1});
+    });
+    // dummies: ordinary eggs with no gun, which only walk their routes
+    for(const R of DUMMY_ROUTES){
+      const e=makeEntity({id:'dummy-'+R.name.toLowerCase(),name:R.name,color:R.color,loadout:'beater'});
+      e.dummy=true;e.route=R;ents.push(e);this.dummies.push(e);this.respawnDummy(e);
+    }
+    this.nadeT=0;
+  },
+  respawnDummy(e){
+    const R=e.route,p=R.pts[0];
+    respawn(e,{x:p[0],y:GROUND_Y+(R.up||0),z:p[1]});e.ri=1;e.waitT=.4;
+    emit(new V3(p[0],GROUND_Y+(R.up||0)+.8,p[1]),0xfffbef,8,3,.06,.5,6,.4);
+  },
+  dummyThink(e,dt){
+    const R=e.route;
+    // always turned toward the firing line, so the head is a fair target
+    const fy=Math.atan2(-(player.pos.x-e.pos.x),-(player.pos.z-e.pos.z));e.yaw+=clamp(angDiff(fy,e.yaw),-5*dt,5*dt);e.pitch=0;e.ads=false;
+    if(e.waitT>0){e.waitT-=dt;steer(e,0,0,dt,0);return}
+    if(R.flip&&R.pts.length===2&&Math.random()<dt*R.flip)e.ri=1-e.ri;
+    const p=R.pts[e.ri],dx=p[0]-e.pos.x,dz=p[1]-e.pos.z,d=Math.hypot(dx,dz);
+    if(d<.35){e.ri=(e.ri+1)%R.pts.length;if(Math.random()<R.pause)e.waitT=rand(.25,1);steer(e,0,0,dt,0);return}
+    if(R.hop&&e.onGround&&Math.random()<dt*R.hop)e.vel.y=JUMP;
+    steer(e,dx/d,dz/d,dt,R.speed);
+  },
+  // nearest board or balloon along a ray, closer than maxT
+  ray(o,d,maxT){
+    let best=null,bt=maxT;
+    if(Math.abs(d.z)>1e-6)for(const T of this.targets){
+      const t=(T.z-o.z)/d.z;if(t<=0||t>=bt)continue;
+      const lx=o.x+d.x*t-T.x,ly=o.y+d.y*t-T.y,r=Math.hypot(lx,ly);
+      if(r<=BOARD_R+.05){bt=t;best={kind:'t',T,t,lx,ly,r}}
+    }
+    for(const B of this.balloons){if(!B.up)continue;const p=B.g.position,t=raySphere(o,d,p.x,p.y,p.z,.36*B.g.scale.x);if(t<bt){bt=t;best={kind:'b',B,t}}}
+    return best;
+  },
+  hitProp(rp,hp){
+    if(rp.kind==='b'){this.pop(rp.B,true);return}
+    const T=rp.T,score=rp.r<=BOARD_R?Math.max(1,10-Math.floor(rp.r/BOARD_R*10)):0;
+    const m=new THREE.Mesh(this.markGeo,this.markMat);m.position.set(rp.lx,rp.ly,.036);T.board.add(m);T.marks.push(m);
+    if(T.marks.length>40)T.board.remove(T.marks.shift());
+    T.resetT=2.5;T.wob=1;if(score===10)T.flash=1;
+    emit(hp,0xd9b07a,3,2,.04,.4,8,.3);
+    hitMarker(score===10);
+    if(clock-this.dingAt>.05){sfx(score===10?'bull':'ding');this.dingAt=clock}
+    this.stats.last=(score===10?'Bullseye!':score?score+' ring':'Edge')+' · '+T.dist+' m board';this.stats.lastT=3;
+  },
+  pop(B,shot){
+    if(!B.up)return;B.up=false;B.g.visible=false;B.t=rand(3,5);
+    const p=B.g.position;emit(p,B.col,16,5,.06,.55,6,.2);emit(p,0xffffff,6,3,.04,.35,4,.2);
+    sfx('pop',p);this.stats.pops++;
+    if(shot){hitMarker(false);this.stats.last='Balloon popped';this.stats.lastT=2}
+  },
+  blast(p){for(const B of this.balloons)if(B.up&&B.g.position.distanceTo(p)<4.5)this.pop(B,false)},
+  shot(hit,head){const S=this.stats;S.shots++;if(hit)S.hits++;if(head)S.heads++},
+  resetStats(){Object.assign(this.stats,{shots:0,hits:0,heads:0,pops:0,last:'',lastT:0});player.kills=0;hudDirty=true},
+  update(dt){
+    for(const B of this.balloons){
+      if(!B.up){B.t-=dt;if(B.t<=0){B.up=true;B.g.visible=true;B.grow=0}continue}
+      B.grow=Math.min(1,B.grow+dt*2.5);B.g.scale.setScalar(.15+.85*B.grow);
+      const a=clock*1.2+B.ph;B.g.position.set(B.bx+Math.sin(a*.6)*.35,B.by+Math.sin(a)*.3,B.bz+Math.cos(a*.45)*.25);B.g.rotation.z=Math.sin(a*.6)*.12;
+    }
+    for(const T of this.targets){
+      if(T.resetT>0){T.resetT-=dt;if(T.resetT<=0){for(const m of T.marks)T.board.remove(m);T.marks.length=0}}
+      T.wob=Math.max(0,T.wob-dt*3);T.board.rotation.x=-Math.sin(T.wob*14)*T.wob*.22;
+      T.flash=Math.max(0,T.flash-dt*2);T.faceMat.emissive.setRGB(T.flash*.5,T.flash*.4,0);
+    }
+    // yolk bombs come back one at a time
+    if(player.alive&&player.grenades<TRAIN_NADES){this.nadeT+=dt;if(this.nadeT>=2.5){this.nadeT=0;player.grenades++;hudDirty=true}}else this.nadeT=0;
+    if(this.stats.lastT>0)this.stats.lastT-=dt;
+  }
+};
+
+// =====================================================================
 //  Audio (all synthesised)
 // =====================================================================
 let actx=null,master=null,noiseBuf=null;
@@ -1616,7 +1856,7 @@ function tone(out,t0,dur,type,f0,f1,vol){
 }
 function sfx(name,pos){
   if(!actx)return;const t=actx.currentTime;
-  const loud={beater:.5,skillet:.75,sunny:.8,whisk:.4,poacher:.5,cracker:.45,boom:1.2,crack:.7}[name]||.5;
+  const loud={beater:.5,skillet:.75,sunny:.8,whisk:.4,poacher:.5,cracker:.45,boom:1.2,crack:.7,pop:.8}[name]||.5;
   const out=voice(pos,loud);if(!out)return;
   switch(name){
     case'beater':noise(out,t,.09,'bandpass',1600,.8,1);tone(out,t,.08,'sine',150,55,.8);break;
@@ -1642,6 +1882,9 @@ function sfx(name,pos){
     case'step':tone(out,t,.035,'triangle',rand(380,460),200,.07);break;
     case'streak':[523,659,784,1047].forEach((f,i)=>tone(out,t+i*.07,.18,'triangle',f,f,.25));break;
     case'spawn':tone(out,t,.15,'sine',400,800,.2);break;
+    case'pop':noise(out,t,.07,'highpass',2600,.7,1);tone(out,t,.06,'square',1100,240,.25);break;
+    case'ding':tone(out,t,.3,'triangle',1180,1170,.3);tone(out,t,.2,'sine',2360,2340,.1);break;
+    case'bull':tone(out,t,.3,'triangle',1180,1170,.3);tone(out,t+.09,.35,'triangle',1770,1760,.3);break;
   }
 }
 
@@ -1696,7 +1939,11 @@ const KB=Keybinds.create({
     {id:'reload',label:'Reload',group:'Fight',keys:['KeyR']},
     {id:'board',label:'Scoreboard',note:'Hold',group:'Match',keys:['Tab']},
     {id:'loadout',label:'Pick a weapon while cracked',group:'Match',text:'1 – 5'},
-    {id:'pause',label:'Pause, loadout, invite',group:'Match',keys:['Escape'],fixed:true}
+    {id:'pause',label:'Pause, loadout, invite',group:'Match',keys:['Escape'],fixed:true},
+    // On the training range the number keys always pick guns (like the weapon pick while cracked), so those
+    // stay fixed; Reset can be moved, and the Main gun, Pistol and Swap keys work there too.
+    {id:'trainGuns',label:'Pick any gun',note:'1–5 the main guns, 6 the pistol',group:'Training range',text:'1 – 6'},
+    {id:'trainReset',label:'Reset training stats',group:'Training range',keys:['KeyT']}
   ],
   classes:{button:'btn alt',primary:'btn'}
 });
@@ -1734,9 +1981,20 @@ function startPractice(){
   player.id='me';player.name=myName;player.color=myColor;player.loadout=myLoadout;player.active=true;player.kills=0;player.deaths=0;
   respawn(player);sfx('spawn');startRatedMatch();
   matchEnds=Date.now()+MATCH_MS;$('goal').textContent='First to '+target;
-  showHud();requestLock();banner(MAPS[mapIdx].name.toUpperCase(),'Practice · first to '+target+' cracks',2.4);
+  showHud();requestLock();banner(mapInfo().name.toUpperCase(),'Practice · first to '+target+' cracks',2.4);
+}
+function startTraining(){
+  initAudio();Net.leave();
+  state='playing';mode='training';online=false;paused=false;
+  clearBots();clearRemotes();resetFx();
+  buildMap(RANGE_IDX);
+  player.id='me';player.name=myName;player.color=myColor;player.loadout=myLoadout;player.active=true;player.kills=0;player.deaths=0;
+  Range.resetStats();respawn(player);sfx('spawn');
+  matchEnds=Date.now()+1e9;
+  showHud();requestLock();banner('TRAINING RANGE','No clock, no rating · every gun on '+(touchUI?'the buttons':'keys 1–5'),2.6);
 }
 function showHud(){
+  const tr=mode==='training';$('top').hidden=tr;$('trainHud').hidden=!tr;if(tr)setT('tKeys',trainKeysText());$('tsLast').textContent='';$('hud').classList.toggle('training',tr);
   $('menu').hidden=true;$('pause').hidden=true;$('end').hidden=true;$('hud').hidden=false;$('dead').hidden=true;hudDirty=true;
 }
 // Leaving an online match partway through counts as finishing last against the real players there.
@@ -1750,12 +2008,12 @@ function toMenu(){
   if($('lbBox').open)loadLeaderboard();
 }
 function endMatch(){
-  if(state!=='playing')return;
+  if(state!=='playing'||mode==='training')return;
   state='end';paused=false;if(document.pointerLockElement)document.exitPointerLock();
   const list=standings();const myRank=list.findIndex(x=>x.me)+1;
   $('endTitle').textContent=myRank===1?'Champion egg!':ordinal(myRank)+' place';
   const lead=list[0];
-  $('endSub').textContent=(myRank===1?'Most cracks in ':lead.name+' won ')+MAPS[mapIdx].name+' with '+lead.k+'.';
+  $('endSub').textContent=(myRank===1?'Most cracks in ':lead.name+' won ')+mapInfo().name+' with '+lead.k+'.';
   fillTable($('endTable'),list);
   showEndRank(applyRating(list,false));
   $('hud').hidden=true;$('pause').hidden=true;$('end').hidden=false;
@@ -1766,7 +2024,7 @@ function endMatch(){
 function ordinal(n){const s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0])}
 function standings(){
   const out=[];
-  for(const e of ents){if(!e.active&&e!==player)continue;if(e===player&&!player.active)continue;
+  for(const e of ents){if(e.dummy||!e.active&&e!==player)continue;if(e===player&&!player.active)continue;
     let k=e.kills,d=e.deaths;if(e.remote){const ok=e.net&&e.net.m===Net.matchId;if(!ok)continue;k=+e.net.k||0;d=+e.net.dt||0}
     const r=e===player?rank.r:e.isBot?BOT_R[diffKey]:clamp(+(e.net&&e.net.r)||RATING_START,100,3000);
     out.push({name:e.name,k,d,color:e.color,me:e===player,human:!e.isBot,r})}
@@ -1825,7 +2083,7 @@ function ratingChange(list,leftEarly){
   return{delta:Math.round(K*w*sum/opp.length),humans,w,place:myPos+1,of:list.length};
 }
 function applyRating(list,leftEarly){
-  if(ratedThis)return null;
+  if(ratedThis||mode==='training')return null;   // the training range never touches the rating
   const online_=mode==='online',played=clock-matchJoinClock;
   const {humans}=rankedField(list);
   if(online_&&humans<1)return null;                 // alone in a room: nothing to rate
@@ -1841,6 +2099,7 @@ function applyRating(list,leftEarly){
 }
 function startRatedMatch(){matchJoinClock=clock;ratedThis=false}
 function liveRankInfo(){
+  if(mode==='training')return 'Unranked';
   const list=standings();const {humans}=rankedField(list);
   if(mode==='online'&&humans<1)return 'Unranked until another real player joins';
   return 'Ranked '+fmtMult(HUMAN_W(humans))+' · '+(humans?humans+' real player'+(humans>1?'s':''):'bots only');
@@ -1930,10 +2189,13 @@ function updateHud(dt){
   if(hudDirty){hudDirty=false;
     $('wName').textContent=w.name;$('magMax').textContent=w.mag;
     const n=$('nades');if(+n.dataset.n!==player.grenades){n.dataset.n=player.grenades;n.textContent='';for(let i=0;i<player.grenades;i++)n.appendChild(document.createElement('i'))}
-    $('sl1').textContent='1 '+WEAPONS[player.loadout].name;$('sl1').className=player.slot===0?'on':'';$('sl2').className=player.slot===1?'on':'';
+    const tr=mode==='training';
+    const sk=id=>{const k=KB.keys(id)[0];return k?KB.name(k)+' ':''};
+    $('sl1').textContent=(tr?PRIMARIES.indexOf(player.loadout)+1+' ':sk('main'))+WEAPONS[player.loadout].name;$('sl2').textContent=(tr?'6 ':sk('pistol'))+'Cracker';$('sl1').className=player.slot===0?'on':'';$('sl2').className=player.slot===1?'on':'';
     $('nextW').textContent=WEAPONS[player.loadout].name;
   }
   setT('magN',player.reloadT>0?'…':String(player.ammo[player.wkey]));
+  if(mode==='training'){const S=Range.stats;setT('tsAcc',S.shots?Math.round(100*S.hits/S.shots)+'%':'–');setT('tsHits',S.hits+'/'+S.shots);setT('tsHead',String(S.heads));setT('tsCrack',String(player.kills));setT('tsPop',String(S.pops));setT('tsLast',S.lastT>0?S.last:'')}
   const rel=$('rel');if(player.reloadT>0&&player.alive){rel.hidden=false;rel.firstChild.style.width=(100*(1-player.reloadT/w.reload))+'%'}else rel.hidden=true;
   // crosshair
   const sp=spreadNow(player,w),gap=clamp(sp/Math.tan(camera.fov*Math.PI/360)*(document.body.clientHeight||innerHeight)/2,3,90);
@@ -1957,9 +2219,13 @@ function updateHud(dt){
   setT('netline',nl);
   $('lockHint').hidden=!!document.pointerLockElement||paused;
   if(touchUI)$('tAim').classList.toggle('on',!!tAct.aim);
+  if(touchUI&&mode==='training'){
+    $('tTrain').style.visibility=player.alive?'':'hidden';
+    for(let n=1;n<=6;n++)$('tG'+n).classList.toggle('cur',n===6?player.slot===1:player.slot===0&&player.wkey===PRIMARIES[n-1]);
+  }
   // scoreboard
   const showBoard=held('board');$('board').hidden=!showBoard;
-  if(showBoard){fillTable($('boardTable'),standings());$('boardTitle').textContent=MAPS[mapIdx].name+' · first to '+target+' · '+liveRankInfo()}
+  if(showBoard){fillTable($('boardTable'),standings());$('boardTitle').textContent=mode==='training'?mapInfo().name+' · unranked, nothing is saved':mapInfo().name+' · first to '+target+' · '+liveRankInfo()}
 }
 
 // =====================================================================
@@ -1976,8 +2242,13 @@ document.addEventListener('pointerlockchange',()=>{
 });
 function showPause(){
   paused=true;$('pause').hidden=false;
+  const tr=mode==='training';
+  $('pauseWLabel').textContent=tr?'Weapon (switches right away)':'Weapon for your next hatch';$('leave').textContent=tr?'Back to menu':'Leave match';
+  if(tr)$('pauseSub').textContent='Training range · unranked, nothing is saved. '+(touchUI?'The gun buttons':'Keys 1–5')+' also switch guns.';
+  else{
   $('pauseSub').textContent=online?(Net.isPublic?'Public lobby '+Net.room.replace(/^sc-/,'')+' · the match keeps going':'Room '+Net.room+' · the match keeps going'):'Practice on '+MAPS[mapIdx].name+' ('+diffKey+' bots)';
   $('pauseSub').textContent+=' · '+liveRankInfo()+(mode==='online'?'. Leaving now counts as last place.':'.');
+  }
   $('copyInvite').hidden=!online;$('inviteMsg').textContent='';renderWeapons($('weapons2'));
 }
 function resumeGame(){initAudio();$('pause').hidden=true;paused=false;requestLock()}
@@ -1993,6 +2264,12 @@ document.addEventListener('mousemove',e=>{
 });
 // one-shot actions, from a key or a mouse button
 function pressAction(c){
+  if(mode==='training'){
+    // any gun at any time: 1-5 the main guns, 6 the pistol (fixed keys); Reset training stats is T by default
+    const m=/^Digit([1-6])$/.exec(c);
+    if(m){trainGun(+m[1]);return}
+    if(KB.is('trainReset',c)){resetTraining();return}
+  }
   if(KB.is('fire',c))clickQueued=.15;
   if(KB.is('reload',c))startReload(player);
   else if(KB.is('main',c))switchSlot(player,0);
@@ -2019,6 +2296,18 @@ document.addEventListener('keydown',e=>{
   if(!player.alive){const n=+e.key;if(n>=1&&n<=5){setLoadout(PRIMARIES[n-1]);hudDirty=true}return}
   pressAction(c);
 });
+// Training range: gun n right away (1-5 the main guns, 6 the pistol), and clearing the stats.
+function trainGun(n){if(n===6)switchSlot(player,1);else if(PRIMARIES[n-1]!==player.wkey){setLoadout(PRIMARIES[n-1]);switchSlot(player,0)}}
+function resetTraining(){Range.resetStats();infoFeed('Training stats reset')}
+// The training key line, from the current bindings: "1–5 any gun · 6 or Q pistol · R reload · T reset stats · Esc menu"
+// with the default keys. The number keys are fixed on the range, so a Pistol key on 1-6 isn't listed again.
+function orList(l){l=[...new Set(l)];return l.length<2?l.join(''):l.slice(0,-1).join(', ')+' or '+l[l.length-1]}
+function trainKeysText(){
+  const names=ids=>ids.flatMap(id=>KB.keys(id)).filter(c=>!/^Digit[1-6]$/.test(c)).map(KB.name);
+  const rl=orList(names(['reload'])),rs=orList(names(['trainReset']));
+  return ['1–5 any gun',orList(['6'].concat(names(['pistol','swap'])))+' pistol',rl&&rl+' reload',rs&&rs+' reset stats','Esc menu'].filter(Boolean).join(' · ');
+}
+KB.onChange(()=>{setT('tKeys',trainKeysText());hudDirty=true});
 document.addEventListener('keyup',e=>{keys[e.code]=false});
 addEventListener('blur',()=>{for(const k in keys)keys[k]=false;for(const k in tAct)tAct[k]=false});
 $('keysMenu').addEventListener('click',()=>KB.open());
@@ -2072,11 +2361,17 @@ tButton('tSwap',()=>{if(canAct())switchSlot(player,player.slot?0:1)});
 tButton('tMelee',()=>{if(canAct())melee(player)});
 tButton('tBoard',()=>{tAct.board=true},()=>{tAct.board=false});
 tButton('tPause',()=>{if(state==='playing'&&!paused){for(const k in tAct)tAct[k]=false;for(const k in keys)keys[k]=false;showPause()}});
+// Training range only: a button for each gun (what keys 1-6 do) and one for Reset training stats (T by default).
+// They call trainGun / resetTraining directly, so they work whatever keys are bound.
+for(let n=1;n<=6;n++)tButton('tG'+n,()=>{if(canAct()&&mode==='training')trainGun(n)});
+tButton('tReset',()=>{if(state==='playing'&&!paused&&mode==='training')resetTraining()});
 
 function setLoadout(k){
   if(!PRIMARIES.includes(k))return;myLoadout=k;store.set('loadout',k);player.loadout=k;
   // still in spawn protection and holding the main gun: swap right away
-  if(player.alive&&player.spawnShield>0&&player.slot===0){player.wkey=k;player.ammo[k]=WEAPONS[k].mag;player.reloadT=0;setVmGun(k);vmSwitch=1}
+  // (on the training range: always, keeping that gun's magazine as it was)
+  if(mode==='training'&&player.alive){if(player.slot===1)switchSlot(player,0);else if(player.wkey!==k){player.wkey=k;player.switchT=.32;player.reloadT=0;player.burstLeft=0;setVmGun(k);vmSwitch=1;sfx('switch')}}
+  else if(player.alive&&player.spawnShield>0&&player.slot===0){player.wkey=k;player.ammo[k]=WEAPONS[k].mag;player.reloadT=0;setVmGun(k);vmSwitch=1}
   renderWeapons($('weapons'));if(!$('pause').hidden)renderWeapons($('weapons2'));hudDirty=true;
 }
 
@@ -2260,7 +2555,7 @@ function updateRemotes(dt){
 function setMsg(t,err){const m=$('netMsg');m.textContent=t;m.classList.toggle('err',!!err)}
 function sanitizeRoom(s){return String(s||'').toLowerCase().replace(/^sc-/,'').replace(/[^a-z0-9-]/g,'').slice(0,17)}
 function randomRoom(){return pick(['yolk','shell','omelet','scramble','sunny','poach','coop','brunch'])+'-'+Math.floor(100+Math.random()*900)}
-function busy(on){for(const id of ['quick','joinRoom','practice'])$(id).disabled=on}
+function busy(on){for(const id of ['quick','joinRoom','practice','training'])$(id).disabled=on}
 function prepOnline(){
   initAudio();clearBots();clearRemotes();resetFx();
   player.id='me';player.name=myName;player.color=myColor;player.loadout=myLoadout;player.active=true;player.alive=false;player.kills=0;player.deaths=0;
@@ -2314,24 +2609,27 @@ function frame(t){
   requestAnimationFrame(frame);
 }
 function step(dt){
-  const frozen=(mode==='practice'&&paused)||state==='end';
+  const frozen=((mode==='practice'||mode==='training')&&paused)||state==='end';
   if(!frozen){
     clock+=dt;
     for(const e of ents){
       if(!e.active||e.remote)continue;
       if(!e.alive){
-        if(e.isBot||e===player){e.respawnT-=dt;if(e.respawnT<=0&&(e.isBot||state==='playing'))respawn(e)}
+        if(e.dummy){e.respawnT-=dt;if(e.respawnT<=0)Range.respawnDummy(e)}
+        else if(e.isBot||e===player){e.respawnT-=dt;if(e.respawnT<=0&&(e.isBot||state==='playing'))respawn(e)}
         continue;
       }
       tickWeapon(e,dt);
       if(e===player){if(state==='playing'&&!paused)playerControl(dt);else{steer(e,0,0,dt,0);e.ads=false}}
       else if(e.isBot)botThink(e,dt);
+      else if(e.dummy)Range.dummyThink(e,dt);
       moveEntity(e,dt);
     }
     if(online)updateRemotes(dt);
     updateNades(dt);
-    // match end
-    if(state==='playing'){
+    if(mode==='training')Range.update(dt);
+    // match end (the training range has none)
+    if(state==='playing'&&mode!=='training'){
       let top=0;for(const r of standings())top=Math.max(top,r.k);
       if(top>=target||nowMs()>=matchEnds)endMatch();
     }
@@ -2357,7 +2655,7 @@ function updateModel(e,dt){
   m.body.rotation.x=-Math.min(.16,spd*.022);
   m.gp.rotation.x=e.pitch;m.face.rotation.x=e.pitch*.25;
   const st=e.hp>66?0:e.hp>33?1:2;if(st!==m.stage){m.stage=st;m.mat.map=eggTex(e.color,st)}
-  if(m.gunKey!==e.wkey)setEggGun(m,e.wkey);
+  if(!e.dummy&&m.gunKey!==e.wkey)setEggGun(m,e.wkey);
   if(e.spawnShield>0){const p=.25+.25*Math.sin(clock*14);m.mat.emissive.setRGB(p*.6,p*.8,p)}else m.mat.emissive.setRGB(0,0,0);
   if(m.flashT>0){m.flashT-=dt;if(m.flashT<=0&&m.flash)m.flash.visible=false}
   m.tag.visible=camera.position.distanceTo(e.pos)<45;
@@ -2429,6 +2727,7 @@ $('vol').value=volume;$('volOut').textContent=Math.round(volume*100);
 $('vol').addEventListener('input',()=>{volume=+$('vol').value;store.set('vol',volume);$('volOut').textContent=Math.round(volume*100);if(master)master.gain.value=volume});
 $('room').value=store.get('room','');
 $('practice').addEventListener('click',startPractice);
+$('training').addEventListener('click',startTraining);
 $('quick').addEventListener('click',quickMatch);
 $('joinRoom').addEventListener('click',joinPrivate);
 $('room').addEventListener('keydown',e=>{if(e.key==='Enter')joinPrivate()});
@@ -2449,7 +2748,7 @@ addEventListener('pagehide',()=>{leaveCheck();Net.leave()});
 const inv=/^#sc-([a-z0-9-]{1,17})$/.exec(location.hash);
 if(inv){$('room').value=inv[1];setMsg('You were invited to room sc-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.remove('alt');$('quick').classList.add('alt')}
 
-if(navigator.webdriver)window.__sc={get state(){return state},get mode(){return mode},player,get ents(){return ents},get map(){return mapIdx},findPath,rayWorld,floorBelow,buildMap,MAPS,W,HY,VY,G,GROUND_Y,vox,vget,standV,nodeFor,entHits,get navN(){return navN},get navReach(){return navReach},navAt,get navY(){return navY},get perches(){return perches},spawns:()=>spawns,Net,onRemoteState,handleEvent,onMatch,endMatch,standings,DIFF,WEAPONS,fireShot,damage,throwNade,nades,addFeed,respawn,spawnSplat,keys,setPaused:v=>{paused=v},get rank(){return rank},HUMAN_W,ratingChange,applyRating,get lastRated(){return lastRated},get clock(){return clock},toMenu,loadLeaderboard,renderer,scene,camera,vmScene,vmCam,advance:s=>{noRender=true;try{for(let t=0;t<s;t+=1/30)step(1/30)}finally{noRender=false}},get matchEnds(){return matchEnds},set matchEnds(v){matchEnds=v},get remotes(){return remotes}};
+if(navigator.webdriver)window.__sc={get state(){return state},get mode(){return mode},player,get ents(){return ents},get map(){return mapIdx},findPath,rayWorld,floorBelow,buildMap,MAPS,W,HY,VY,G,GROUND_Y,vox,vget,standV,nodeFor,entHits,get navN(){return navN},get navReach(){return navReach},navAt,get navY(){return navY},get perches(){return perches},spawns:()=>spawns,Net,onRemoteState,handleEvent,onMatch,endMatch,standings,DIFF,WEAPONS,fireShot,damage,throwNade,nades,addFeed,respawn,spawnSplat,keys,setPaused:v=>{paused=v},get rank(){return rank},HUMAN_W,ratingChange,applyRating,get lastRated(){return lastRated},get clock(){return clock},toMenu,loadLeaderboard,renderer,scene,camera,vmScene,vmCam,advance:s=>{noRender=true;try{for(let t=0;t<s;t+=1/30)step(1/30)}finally{noRender=false}},get matchEnds(){return matchEnds},set matchEnds(v){matchEnds=v},get remotes(){return remotes},get range(){return Range},startTraining,tryFire,startReload,setLoadout,switchSlot,mapInfo,RANGE_IDX,get paused(){return paused},get hudDirty(){return hudDirty}};
 
 renderSwatches();renderWeapons($('weapons'));renderDiff();renderGfx();renderRank();
 setupAttract();showAd('adMenu');
