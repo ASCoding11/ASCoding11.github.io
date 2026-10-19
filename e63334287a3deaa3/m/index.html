@@ -72,6 +72,12 @@ footer a{color:var(--ink-2)}
 @media (orientation:landscape){#turn{display:none}}
 #frame{flex:1;width:100%;border:0;display:block;background:#000}
 body.playing{overflow:hidden}
+/* Party panel (party.js): the colours and button styles it borrows from site.css on the computer version. */
+:root{--panel-2:#2a2550;--accent-ink:#15122a;--down:#ff8a7a;--mono:var(--f-m);--body:var(--f-b)}
+body #party{padding-top:0;margin-bottom:18px}
+body .pty h2{font-family:var(--f-d);font-weight:800;font-size:30px;letter-spacing:.01em;text-transform:uppercase;color:var(--ink)}
+.pty .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 18px;border-radius:10px;border:1px solid var(--line);background:var(--panel-2);font-family:var(--f-b);font-size:15px}
+.pty .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 </style>
 </head>
 <body>
@@ -194,13 +200,26 @@ body.playing{overflow:hidden}
 
   // An invite link (#<room>) opens its game straight away. Room codes start with the game's prefix; any other code is a Rumble Karts room.
   var PREFIX={tv:'trivium',br:'backrooms-1v1',sc:'shell-crackers',hm:'hail-mary',cl:'coil',ss:'slipstream',bb:'boostball',qy:'quarry',kw:'kartwheel',sd:'showdown',cf:'chromaflage'};
-  var inv=/^#([a-z0-9-]{1,20})$/.exec(location.hash);
+  // Party invites (#pt-<code>) don't open a game: they join the party in the Party panel below.
+  var inv=/^#([a-z0-9-]{1,20})$/.exec(location.hash),party='';
   if(inv){
     history.replaceState(null,'',location.pathname);
     var pre=/^([a-z]{2})-/.exec(inv[1]),g=byId[pre&&PREFIX[pre[1]]||'rumble-karts'];
-    if(g)openGame({id:g.id,name:g.name,land:g.land,url:g.url,hash:'#'+inv[1]});
+    if(pre&&pre[1]==='pt')party=inv[1].slice(3);
+    else if(g)openGame({id:g.id,name:g.name,land:g.land,url:g.url,hash:'#'+inv[1]});
   }
   addEventListener('popstate',function(){closeGame()});
+
+  // Parties: the same party.js as the computer version, opening games through openGame here.
+  window.BackRoom={
+    openGame:function(path,name){
+      var m=/\/([a-z0-9-]+)\/(#[a-z0-9-]*)?$/.exec(path),g=m&&byId[m[1]];if(!g||cur)return null;
+      openGame({id:g.id,name:g.name,land:g.land,url:g.url,hash:m[2]||''});return $('frame');
+    },
+    isOpen:function(){return !!cur},
+    invite:party
+  };
+  var ps=document.createElement('script');ps.src=B+'party.js';document.body.appendChild(ps);
 
   // Links that leave the game (back to the main site, other pages) close the game instead of loading inside it.
   $('frame').addEventListener('load',function(){

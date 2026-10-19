@@ -58,17 +58,12 @@ button,input{font:inherit;color:inherit}
 #lap b{color:var(--ink);font-size:20px}
 #times{display:grid;grid-template-columns:auto auto;gap:0 12px;margin-top:6px;font-size:14px;font-weight:600}
 #times span:nth-child(odd){color:var(--ink-3);text-align:left;font-size:11px;letter-spacing:.12em;text-transform:uppercase;align-self:center}
-#times .pb{color:var(--green)} #times .fl{color:var(--purple)} #times .del{color:#ff6b6b;text-decoration:line-through}
+#times .pb{color:var(--green)} #times .fl{color:var(--purple)}
 #stew{display:flex;gap:5px;justify-content:flex-end;margin-top:6px;min-height:0}
 #stew span{font-size:11px;font-weight:900;letter-spacing:.08em;padding:1px 6px;border-radius:4px}
-#stew .w{background:rgba(255,210,31,.16);color:var(--yellow)}
-#stew .bw{background:#111;color:#fff;border:1px solid #fff;padding-left:18px;position:relative}
-#stew .bw::before{content:'';position:absolute;left:4px;top:3px;width:10px;height:8px;background:linear-gradient(135deg,#fff 50%,#111 50%);border:1px solid #fff}
 #stew .p{background:var(--red);color:#fff}
 #tower li .pn{font-size:10px;font-weight:900;color:#111;background:var(--yellow);border-radius:3px;padding:0 3px;margin-left:4px;vertical-align:1px}
-#toasts div.warn{border-color:var(--yellow);color:#ffe9a3}
 #toasts div.pen{border-color:var(--red);color:#ffb3b8}
-.bwflag{display:inline-block;width:.8em;height:.55em;margin-right:.3em;vertical-align:.05em;background:linear-gradient(135deg,#fff 50%,#111 50%);border:2px solid #fff;border-radius:2px}
 #resTable td.pen{color:#ff8a8f;font-weight:700}
 #dash{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);background:var(--panel);border-radius:14px;padding:8px 16px 10px;border:1px solid var(--line);display:grid;grid-template-columns:auto auto auto;align-items:end;gap:16px;min-width:300px}
 #leds{grid-column:1/-1;display:flex;gap:4px;justify-content:center}
@@ -314,7 +309,7 @@ hr.sep{border:0;border-top:1px solid var(--line);margin:16px 0 4px}
         <dt>🎮</dt><dd>Gamepad: left stick steer, RT/LT throttle/brake, A boost, X or RB DRS, Y camera</dd>
         <dt>C</dt><dd>Change camera</dd><dt>R</dt><dd>Back onto the track</dd><dt>Esc</dt><dd>Pause, invite link</dd>
       </dl>
-      <p class="foot" style="margin-top:10px">Track limits: keep at least one wheel inside the white lines. Going off deletes the lap time; three strikes is the black-and-white flag, then it's +5 s each time. Cutting a corner to gain time is +5 s straight away.</p>
+      <p class="foot" style="margin-top:10px">Track limits: keep at least one wheel inside the white lines. Running wide costs you nothing but time, so just get back on the track. Cutting a corner to gain time adds 1 s to your race time.</p>
       <dl class="keys" hidden>
       </dl>
       <div class="adbox" id="adMenu" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
@@ -600,6 +595,12 @@ function buildTrack(def){
   const KR=curv(RX,RZ);
   // Target speeds along the racing line, with a braking pass backwards round the lap.
   const VT=new Float32Array(N);for(let i=0;i<N;i++)VT[i]=Math.min(VMAX*1.4,cornerSpeed(Math.max(Math.abs(KR[i]),Math.abs(K[i])*.55)));
+  // Corner speeds for the bots, from curvature averaged over a few samples: the map data puts short kinks in
+  // some corners that a car simply drives through, and slowing for each one cost the bots seconds a lap.
+  // Hairpins (tighter than AI.rTight m) keep their full curvature: those really are that slow.
+  const VC=new Float32Array(N),aK=smooth(KR.map(Math.abs),AI.kw),aC=smooth(K.map(Math.abs),AI.kw);
+  const tk=k=>{k=Math.abs(k);return k>1/AI.rTight?k:0};
+  for(let i=0;i<N;i++)VC[i]=Math.min(VMAX*1.4,cornerSpeed(Math.max(aK[i],aC[i]*.55,tk(KR[i]),tk(K[i])*.55)));
   for(let pass=0;pass<3;pass++)for(let i=N-1;i>=0;i--){const nx=VT[(i+1)%N];VT[i]=Math.min(VT[i],Math.sqrt(nx*nx+2*30*ds))}
   // Where kerbs and gravel go
   const KB=new Uint8Array(N),GR=new Int8Array(N);
@@ -634,7 +635,7 @@ function buildTrack(def){
     for(let k=0;k<=N;k++){const i=s0+k;if(flat(i)){if(st<0)st=i}else if(st>=0){runs.push([st,i-1]);st=-1}}}
   const drs=runs.map(([a,b])=>({a:a*ds+60,b:b*ds-25,len:(b-a)*ds})).filter(z=>z.b-z.a>=320).sort((x,y)=>y.len-x.len).slice(0,L>5600?3:2)
     .map(z=>({a:((z.a%L)+L)%L,b:((z.b%L)+L)%L,det:((z.a-140)%L+L)%L,len:z.b-z.a})).sort((x,y)=>x.a-y.a);
-  return {def,N,L,ds,X,Z,TX,TZ,NX,NZ,K,RL:RLs,KR,VT,KB,GR,WP:WPs,WN:WNs,hw:HALF_W,wall:WALL,turns,drs,box:[mnx,mxx,mnz,mxz]};
+  return {def,N,L,ds,X,Z,TX,TZ,NX,NZ,K,RL:RLs,KR,VT,VC,KB,GR,WP:WPs,WN:WNs,hw:HALF_W,wall:WALL,turns,drs,box:[mnx,mxx,mnz,mxz]};
 }
 let track=null;
 // nearest centre-line sample; searches near `hint` first
@@ -658,7 +659,10 @@ let state='menu';      // menu | lobby | race | results
 let race=null,paused=false,localClock=0;
 let myName=store.get('name','');
 const prefs={track:Math.max(0,TRACKS.findIndex(t=>t.id===store.get('trackId',TRACKS[DEFAULT_TRACK].id))),laps:store.get('laps',5),diff:store.get('diff','normal')};
-const DIFF={easy:.86,normal:.935,hard:.985};
+// Bot skill scales corner speed (and, below 1, braking). Measured in 22-car bot races against a near-ideal lap
+// (Monza, Silverstone, Monaco, Spa, Singapore, Lakeside): Hard's fastest cars within 0-2 s a lap and the
+// field 1.5-3.5 s off; Normal 3-6 s off; Easy 8-14 s off. Online races use Hard.
+const DIFF={easy:.85,normal:.97,hard:1.15};
 function nowMs(){return mode==='online'?Net.now():localClock}
 function raceT(){return race?(nowMs()-race.go)/1000:0}
 
@@ -813,6 +817,12 @@ function slipstream(c){
 }
 
 // ---------- bots ----------
+// Bot driving constants: braking (dec m/s² at skill 1, scaled by skill^decPow below 1; the car can do ~44,
+// and followDec of it with a car within followGap m ahead), how far ahead to plan (samples) and the lead (m)
+// given to braking; the slow-down when off the racing line (offK per metre, up to offMax); skill above 1 only
+// speeds up corners quicker than skLo m/s, fully from skLo+skW; boost rules; and for the corner speeds VC,
+// kw (curvature smoothing, samples each side) and rTight (bends tighter than this many metres aren't smoothed).
+const AI={dec:38,decPow:3,ahead:60,lead:2,offK:.035,offMax:.2,skLo:30,skW:30,boostRes:.15,boostLook:1,boostRoom:2,boostSteer:.35,boostGap:25,kw:3,followGap:40,followDec:.65,rTight:20};
 function botInput(c,dt,t){
   const T=track,N=T.N,ai=c.ai,inp={thr:0,brk:0,steer:0,boost:false};
   if(t<ai.react){ai.off=ai.tgt=c.lat-track.RL[Math.max(0,c.idx)];ai.hold=5;return inp}
@@ -823,8 +833,20 @@ function botInput(c,dt,t){
     if(dp>1.5&&dp<42&&Math.abs(o.lat-c.lat)<3.1&&dp<bdp){bdp=dp;blk=o}
   }
   const i=c.idx;
-  const vt0=Math.min(T.VT[(i+2)%N],T.VT[(i+3+Math.round(Math.max(0,c.v)*.05))%N])*c.skill*(c.fin?.72:1);
-  let vt=vt0*(1-Math.min(.07,Math.abs(ai.off)*.011));
+  // Target speed: the slowest of (corner speed ahead, plus what braking at D can shed before it), so bots brake
+  // late and hard like a player instead of easing off early. `vb` looks a second further on, to decide whether
+  // there's room to boost. Skill scales corner speed; above 1 it only adds speed in quicker corners, where the
+  // map's kinks make VC cautious. With a car close in front, brake earlier so a queue into a hairpin doesn't
+  // concertina.
+  const close=blk&&bdp<AI.followGap&&Math.abs(blk.lat-c.lat)<2.5;
+  const sk=c.skill,D=AI.dec*Math.pow(Math.min(1,sk),AI.decPow)*(close?AI.followDec:1),lb=Math.max(0,c.v)*AI.boostLook;
+  const vcs=v=>v*(sk<=1?sk:1+(sk-1)*clamp((v-AI.skLo)/AI.skW,0,1));
+  let vt0=vcs(T.VC[i]),vb=vt0;
+  for(let k=1;k<=AI.ahead;k++){const vc=vcs(T.VC[(i+k)%N]),d=k*T.ds-AI.lead;
+    const w=Math.sqrt(vc*vc+2*D*Math.max(0,d));if(w<vt0)vt0=w;
+    const wb=Math.sqrt(vc*vc+2*D*Math.max(0,d-lb));if(wb<vb)vb=wb}
+  if(c.fin)vt0*=.72;
+  let vt=vt0*(1-Math.min(AI.offMax,Math.abs(ai.off)*AI.offK));
   ai.hold-=dt;
   if(blk&&(blk.v<c.v+1.5||bdp<14)){
     if(ai.hold<=0){
@@ -863,8 +885,10 @@ function botInput(c,dt,t){
   if(c.v>vt+.3)inp.brk=clamp((c.v-vt)/2,.45,1);
   // still at full lock (or asking for more): don't add speed until the wheel unwinds
   if(Math.abs(steerAsk)>1&&c.v>12){inp.thr=Math.min(inp.thr,Math.abs(steerAsk)>1.6?0:.25);if(Math.abs(steerAsk)>2.2)inp.brk=Math.max(inp.brk,.35)}
-  const straight=T.VT[i]>VMAX*.97&&T.VT[(i+8)%N]>VMAX*.97&&T.VT[(i+18)%N]>VMAX*.98&&T.VT[(i+30)%N]>VMAX*.98&&Math.abs(c.steer)<.25&&Math.abs(c.lat-T.RL[i])<2.5;
-  inp.boost=straight&&c.ers>(blk?.25:.55+ai.mood*.3)&&!c.fin&&!inp.brk&&inp.thr>=1;
+  // boost out of corners and down straights like a player would, keeping a little ERS in hand (less when
+  // chasing), but not with a car right in front in our lane, and not into a braking zone
+  inp.boost=c.ers>(blk?AI.boostRes*.5:AI.boostRes+ai.mood*.15)&&vb>c.v+AI.boostRoom&&Math.abs(c.steer)<AI.boostSteer
+    &&!(blk&&bdp<AI.boostGap&&Math.abs(blk.lat-c.lat)<2.2)&&!c.fin&&!inp.brk&&inp.thr>=1;
   if(c.drsAvail&&!inp.brk&&Math.abs(c.steer)<.3)c.drsOpen=true;
   return inp;
 }
@@ -876,9 +900,8 @@ function lapCheck(c,t){
   c.k=k;
   if(k>=1&&!c.fin){
     const lt=t-c.lastCross;c.lastCross=t;c.lastLap=lt;
-    const del=!!c.lapBad;c.lapBad=false;c.lastDel=del;
-    const pb=!del&&(!c.best||lt<c.best);if(pb)c.best=lt;
-    if(c.ctrl==='me')onMyLap(c,lt,pb,del);
+    const pb=!c.best||lt<c.best;if(pb)c.best=lt;
+    if(c.ctrl==='me')onMyLap(c,lt,pb);
   }
   if(!c.fin&&k>=1&&(k>=race.laps||race.anyFin)){c.fin=t;onFinish(c)}
 }
@@ -895,11 +918,11 @@ function resetCar(c){
   trackUpdate(c);
 }
 // =====================================================================
-//  Track limits and stewards, like F1: a car is off the track when all four wheels are past the white line
-//  (kerbs don't count as track). Each time off deletes that lap's time and counts as a track-limits strike:
-//  warnings at 1 and 2, the black-and-white flag at 3, then a 5 s time penalty for every strike after that.
-//  Cutting a corner to gain time (covering more of the lap than the car actually drove) is a 5 s penalty
-//  straight away. Time penalties are added to the race time at the finish.
+//  Track limits: a car is off the track when all four wheels are past the white line (kerbs don't count as
+//  track). Going off costs nothing by itself: lap times stand, and there are no strikes or flags; the driver
+//  just sees a small "Return to the track" hint while off. Cutting a corner to gain time (covering more of
+//  the lap than the car actually drove) adds a 1 s penalty (CUT_PEN) to the race time at the finish.
+//  Online, each car's total penalty seconds travel in `pn`, as before.
 // =====================================================================
 // =====================================================================
 //  DRS, like F1: from lap 2, a car within 1.0 s of the car ahead at a detection point may open its rear-wing
@@ -930,23 +953,13 @@ function drsUpdate(c,t){
   c.drsAvail=ok;
   if(!ok||c.brk>.05||c.fin)c.drsOpen=false;
 }
-const PEN_S=5;
+const CUT_PEN=1;
 function turnAt(idx){const T=track;if(!T.turns.length)return '';let best=0,bd=1e9;
   T.turns.forEach((ti,k)=>{let d=Math.abs(ti-idx);d=Math.min(d,T.N-d);if(d<bd){bd=d;best=k}});
   return bd*T.ds<220?'Turn '+(best+1):''}
-function stewardMsg(c,kind,where){
-  const me=c===race.me;
-  if(kind==='pen'){
-    if(me){banner('+5 SEC PENALTY<small>'+where.toUpperCase()+'</small>',2600);beep(300,.25,.18)}
-    toast('⚑ '+PEN_S+' s time penalty · '+(me?'you':c.name)+' · '+where,'pen');
-  }else if(me){
-    if(kind==='bw'){banner('<span class="bwflag"></span>BLACK &amp; WHITE FLAG<small>NEXT TRACK LIMITS = 5 SEC PENALTY</small>',2600)}
-    toast(kind==='bw'?'Black and white flag · one more and it\'s a penalty':'Track limits'+where+' · lap time deleted · warning '+c.warn+' of 3','warn');
-  }
-}
 function trackLimits(c,dt,t){
   if(race.attract||t<1||c.fin)return;
-  const off=Math.abs(c.lat)>HALF_W+1.1; // centre more than half a car past the white line: all four wheels out
+  const off=c.offTrack=Math.abs(c.lat)>HALF_W+1.1; // centre more than half a car past the white line: all four wheels out
   let ex=c.ex;
   if(off){
     if(!ex||ex.done){if(ex&&ex.done&&ex.onT<1){ex.done=false}else ex=c.ex={P0:c.P,path:0,dur:0,idx:c.idx,v0:Math.abs(c.v),done:false,forced:t-(c.lastContact??-9)<1.5}}
@@ -960,12 +973,10 @@ function trackLimits(c,dt,t){
       if(ex.dur<.12||(ex.v0<12&&ex.dP<8))return; // a brush with the line, or a crawl after a spin
       if(ex.forced&&ex.dP-ex.path<6)return;     // pushed off by another car (and no time gained): no offence
       const gain=(ex.dP-ex.path)/Math.max(12,Math.abs(c.v)),where=turnAt(ex.idx);
-      c.lapBad=true;
-      if(gain>.25&&ex.dP-ex.path>6){c.pen=(c.pen||0)+PEN_S;c.pens=(c.pens||0)+1;stewardMsg(c,'pen','Leaving the track and gaining an advantage'+(where?' at '+where:''));return}
-      c.warn=(c.warn||0)+1;
-      if(c.warn<3)stewardMsg(c,'warn',where?' at '+where:'');
-      else if(c.warn===3)stewardMsg(c,'bw','');
-      else{c.pen=(c.pen||0)+PEN_S;c.pens=(c.pens||0)+1;stewardMsg(c,'pen','Track limits'+(where?' at '+where:''))}
+      if(gain>.25&&ex.dP-ex.path>6){ // a clear cut that gained time
+        c.pen=(c.pen||0)+CUT_PEN;c.pens=(c.pens||0)+1;
+        toast('+'+CUT_PEN+' s · '+(c===race.me?'you':c.name)+' cut the track'+(where?' at '+where:''),'pen');
+      }
     }
   }
 }
@@ -1598,7 +1609,7 @@ function applySnap(c,s){
   c.snap=s;
   if(s.f&&!c.fin)c.fin=s.f;
   if(s.bl)c.best=s.bl;
-  if(s.pn>(c.pen||0)&&race&&!race.attract){c.pen=s.pn;toast('⚑ '+PEN_S+' s time penalty · '+c.name,'pen')}
+  if(s.pn>(c.pen||0)&&race&&!race.attract){toast('+'+(+(s.pn-(c.pen||0)).toFixed(1))+' s · '+c.name+' cut the track','pen');c.pen=s.pn}
   c.boost=!!(s.b&1);c.brk=s.b&2?1:0;c.drsOpen=!!(s.b&4);
   // lane and heading relative to the track, so the car can be carried round corners between updates
   const T=track,i=nearest(s.x,s.z,c.snapIdx!=null?c.snapIdx:c.idx);c.snapIdx=i;
@@ -1708,7 +1719,7 @@ function startOnlineRace(r){
     uidSeat.set(uid,seat);
   }
   Net.elect();
-  newRace({track:r.tr|0,laps:clamp(r.laps|0,1,20),go:+r.go,grid,humans,runBots:Net.amHost,online:true,id:r.id,skill:DIFF.normal});
+  newRace({track:r.tr|0,laps:clamp(r.laps|0,1,20),go:+r.go,grid,humans,runBots:Net.amHost,online:true,id:r.id,skill:DIFF.hard});
   race.uidSeat=uidSeat;
   for(const c of race.cars)if(c.ctrl==='remote'&&c.bot)c.owner='';
   beginRaceView();
@@ -2023,7 +2034,7 @@ function updateCamera(dt){
 // =====================================================================
 const ledBox=$('leds');for(let i=0;i<15;i++){const l=document.createElement('i');l.className=i<5?'g':i<10?'r':'b';ledBox.appendChild(l)}
 const leds=[...ledBox.children];
-let towerT=0,posMap=new Map(),lastLit=-1,goDone=false,wrongT=0;
+let towerT=0,posMap=new Map(),lastLit=-1,goDone=false,wrongT=0,offHintAt=0;
 function gapText(c,o,i){
   const lead=o[0];
   if(i===0)return lead.fin?'Winner':'Leader';
@@ -2065,9 +2076,11 @@ function updateHud(dt){
     $('lapN').textContent=me.fin?race.laps:ln;$('lapT').textContent=race.laps;
     $('posN').textContent=posMap.get(me)||'–';
     $('tCur').textContent=me.fin?'–':fmtTime(Math.max(0,t-me.lastCross)).replace(/^–$/,'0:00.000');
-    const tl=$('tLast');tl.textContent=fmtTime(me.lastLap);tl.className=me.lastDel?'del':'';
-    const sw=(me.warn||0),sig=sw+'|'+(me.pen||0)+'|'+(me.lapBad?1:0);
-    if(sig!==me.stewSig){me.stewSig=sig;$('stew').innerHTML=(me.lapBad?'<span class="w">LAP DELETED</span>':'')+(sw>=3?'<span class="bw">B/W FLAG</span>':sw?'<span class="w">LIMITS '+sw+'/3</span>':'')+(me.pen?'<span class="p">+'+me.pen+'s PEN</span>':'')}
+    $('tLast').textContent=fmtTime(me.lastLap);
+    const sig=me.pen||0;
+    if(sig!==me.stewSig){me.stewSig=sig;$('stew').innerHTML=me.pen?'<span class="p">+'+me.pen+'s PEN</span>':''}
+    // off the track: a small reminder (not a penalty) that stays up while off and fades once back on
+    if(me.offTrack&&!me.fin&&!(me.stuck>2)&&t>=1){const n=performance.now();if(n-offHintAt>400){offHintAt=n;hint('Return to the track',1200)}}
     const tb=$('tBest');tb.textContent=fmtTime(me.best);tb.className=me.best&&race.fastSeat===me.seat?'fl':me.best?'pb':'';
     if(me.stuck>2&&!me.fin)hint(touchUI?'Stuck? Hold BRAKE to reverse, or wait':'Stuck? Press R to get back on track',1500);
     if(touchUI&&me.stuck>4&&!me.fin){resetCar(me)}
@@ -2155,8 +2168,8 @@ function drawTags(){
 // =====================================================================
 //  Race events
 // =====================================================================
-function onMyLap(c,lt,pb,del){
-  toast('Lap '+c.k+' · '+fmtTime(lt)+(del?' · deleted (track limits)':pb&&c.k>1?' · personal best':''),del?'warn':'');
+function onMyLap(c,lt,pb){
+  toast('Lap '+c.k+' · '+fmtTime(lt)+(pb&&c.k>1?' · personal best':''));
   if(c.k===race.laps-1&&!race.anyFin)banner('FINAL LAP',1800);
 }
 function onFinish(c){
@@ -2474,6 +2487,10 @@ showAd('adMenu');
 // An invite opens this page with #ss-<code>: fill in the room and point at the join button.
 const inv=/^#ss-([a-z0-9-]{1,17})$/.exec(location.hash);
 if(inv&&!/^pub-/.test(inv[1])){$('room').value=inv[1];setMsg('You were invited to room ss-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.replace('ghost','cta');$('quick').classList.replace('cta','ghost')}
+// test hook for automated browsers only (bots-only races, lap-time checks)
+if(navigator.webdriver)window.__ss={get race(){return race},get track(){return track},get state(){return state},get mode(){return mode},
+  get clock(){return localClock},set clock(v){localClock=v},set paused(v){paused=v},
+  TRACKS,DIFF,PACE,AI,SEATS,HALF_W:()=>HALF_W,newRace,stepRace,setupAttract,startPractice,prefs,raceTime,order};
 requestAnimationFrame(frame);
 })();
 </script>
