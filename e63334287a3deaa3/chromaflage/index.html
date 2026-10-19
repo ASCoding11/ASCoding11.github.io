@@ -2271,6 +2271,7 @@ const Net={
     return n;
   },
   async join(room,isPublic){
+    this.loaded=false;
     const others=await withTimeout(this.count(room),10000,NET_BLOCKED);
     if(others>=MAX_ROOM)throw new Error('That room is full ('+MAX_ROOM+' players). Try another code.');
     const roomRef=this.db.ref('rooms/'+room);
@@ -2285,6 +2286,8 @@ const Net={
     const up=s=>{if(s.key!==this.uid)onNode(s.key,s.val())};
     this.refs.players.on('child_added',up);this.refs.players.on('child_changed',up);
     this.refs.players.on('child_removed',s=>{if(s.key!==this.uid)onNodeGone(s.key)});
+    // Pick a host only once everyone already in the room has arrived; a slow phone could otherwise think it's alone.
+    const players=this.refs.players;players.once('value',()=>{if(this.refs&&this.refs.players===players)this.loaded=true});
     try{if(!isPublic)history.replaceState(null,'','#'+room)}catch(e){}
   },
   upd(o){if(!this.refs)return;o.ts=Math.round(this.now());this.hbT=performance.now();this.refs.me.update(o).catch(()=>{})},
@@ -2307,7 +2310,7 @@ const Net={
   tmOf(uid,rid){const o=this.others.get(uid);if(!o||!o.ta)return 0;const f=o.ta.split(':');return +f[2]===rid?(+f[1]||0):0},
   leave(){
     if(this.refs){const r=this.refs;try{r.players.off();r.me.onDisconnect().cancel();r.me.remove()}catch(e){}}
-    this.refs=null;this.room=null;this.others.clear();this.rsStr='';
+    this.refs=null;this.room=null;this.others.clear();this.rsStr='';this.loaded=false;
   }
 };
 function validRS(p){return p&&typeof p.id==='number'&&['lobby','hide','seek','end'].indexOf(p.ph)>=0&&Array.isArray(p.sk)&&Array.isArray(p.pl)&&p.set&&typeof p.t0==='number'&&typeof p.map==='number'}
@@ -2367,7 +2370,7 @@ function updateRemotes(dt){
 }
 function onlineTick(){
   if(!Net.refs)return;
-  if(performance.now()-G.joinedAt<1800)return;
+  if(!Net.loaded||performance.now()-G.joinedAt<1800)return;
   const h=Net.elect();
   if(h!==G.hostUid){G.hostUid=h;if(h===Net.uid)becomeHost();else if(G.host)stopHost();renderLobby()}
   if(G.host)hostTick();
