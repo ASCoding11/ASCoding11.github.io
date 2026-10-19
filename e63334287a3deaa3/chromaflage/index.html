@@ -43,6 +43,7 @@ button:disabled{opacity:.45;cursor:default}
 /* ---------- shared cards and controls ---------- */
 .overlay{position:absolute;inset:0;overflow:auto;padding:max(20px,env(safe-area-inset-top)) 16px 28px}
 .overlay.center{display:flex;align-items:center;justify-content:center;background:rgba(31,27,51,.5)}
+.overlay.center>.card{margin:auto} /* centred, but a card taller than the screen scrolls from its top instead of being cut off */
 .card{background:var(--paper);border:2.5px solid var(--ink);border-radius:22px;box-shadow:0 6px 0 var(--ink);padding:20px}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:var(--f-d);font-weight:600;font-size:19px;letter-spacing:.01em;padding:10px 18px;border:2.5px solid var(--ink);border-radius:14px;background:var(--sun);box-shadow:0 4px 0 var(--ink);transition:transform .06s,box-shadow .06s,background .15s;white-space:nowrap;color:var(--ink)}
 .btn:hover:not(:disabled){filter:brightness(1.05)}
@@ -138,6 +139,7 @@ h1 span{display:inline-block}
 #hint span.on{background:var(--teal)}
 #tauntRing{position:absolute;left:14px;bottom:calc(64px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:8px;font-family:var(--f-b);font-weight:900;font-size:13px}
 #tauntRing svg{width:34px;height:34px}
+#readyBtn{position:absolute;left:50%;bottom:calc(64px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);pointer-events:auto}
 #spec{position:absolute;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);font-family:var(--f-b);font-weight:900;font-size:15px;background:rgba(31,27,51,.78);padding:7px 14px;border-radius:12px;white-space:nowrap}
 #lockHint{position:absolute;left:50%;top:64%;transform:translate(-50%,-50%);font-size:24px;background:rgba(31,27,51,.66);padding:8px 20px;border-radius:14px;white-space:nowrap}
 #blind{position:absolute;inset:0;background:radial-gradient(ellipse at center,#2b2547 0,#120f1f 75%);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px;padding:20px}
@@ -148,7 +150,11 @@ h1 span{display:inline-block}
 #vig{position:absolute;inset:0;opacity:0;transition:opacity .3s;background:radial-gradient(ellipse at center,transparent 45%,rgba(255,79,139,.55) 100%)}
 
 /* ---------- lobby ---------- */
-#lobby{position:absolute;left:14px;top:calc(14px + env(safe-area-inset-top,0px));width:min(340px,calc(100vw - 28px));max-height:calc(100% - 28px);overflow:auto;pointer-events:auto;padding:16px}
+/* The lobby card and the paint studio scroll an inner box, not the card itself: Chrome can leave a blank patch
+   in the 3D view below a scrolling box that has a solid background. */
+#lobby{position:absolute;left:14px;top:calc(14px + env(safe-area-inset-top,0px));width:min(340px,calc(100vw - 28px));max-height:calc(100% - 28px);overflow:hidden;pointer-events:auto;padding:16px;display:flex;flex-direction:column}
+#lobby>.row{flex-shrink:0}
+.lb-body{flex:0 1 auto;min-height:0;overflow:auto;margin:0 -16px -16px;padding:0 16px 16px}
 #lobby h2{font-family:var(--f-d);font-weight:700;font-size:24px;margin:0;line-height:1.05}
 #lobby .code{font-weight:900;color:var(--ink-2);font-size:13px;margin:3px 0 0}
 #plist{list-style:none;margin:10px 0 0;padding:0;font-weight:800;font-size:14.5px}
@@ -163,8 +169,9 @@ h1 span{display:inline-block}
 #lobbyMin{display:none}
 
 /* ---------- paint studio ---------- */
-#studio{position:absolute;right:14px;top:calc(14px + env(safe-area-inset-top,0px));bottom:14px;width:300px;overflow:auto;pointer-events:auto;padding:14px 14px 16px;display:flex;flex-direction:column;gap:2px}
-#studio>*{flex-shrink:0}
+#studio{position:absolute;right:14px;top:calc(14px + env(safe-area-inset-top,0px));bottom:14px;width:300px;overflow:hidden;pointer-events:auto;padding:0;display:flex;flex-direction:column}
+.st-body{flex:1 1 auto;min-height:0;overflow:auto;padding:14px 14px 16px;display:flex;flex-direction:column;gap:2px}
+.st-body>*{flex-shrink:0}
 #studio h2{font-family:var(--f-d);font-weight:700;font-size:22px;margin:0;display:flex;align-items:center;gap:8px}
 #studio h2 .sw{width:22px;height:22px;border-radius:7px;border:2.5px solid var(--ink);margin-left:auto}
 #studio .label{margin:12px 0 6px}
@@ -238,6 +245,53 @@ h1 span{display:inline-block}
   .standings{font-size:12.5px}
   .standings th:nth-child(4),.standings td:nth-child(4){display:none}
 }
+/* ---------- phones and tablets (body.touch: the only pointer is a finger) ----------
+   Upright: the pills along the top, Paint and Menu in a column under them on the right, messages on the left,
+   the lobby card under those and above the stick and buttons, the paint studio as a bottom sheet.
+   Sideways: Paint and Menu in the top right corner, the lobby card on the left (the stick moves over beside it)
+   and the paint studio on the right, both under the pills. */
+body.touch #hint{display:none}
+body.touch #lobbyMin{display:inline-flex}
+body.touch #lobby.min .lb-body{display:none}
+body.touch .pill{padding:2px 8px 3px}
+body.touch #top{top:calc(8px + env(safe-area-inset-top,0px))}
+body.touch #top small{white-space:nowrap;letter-spacing:.06em}
+body.touch #top b{white-space:nowrap}
+body.touch #phaseBox{min-width:84px}
+body.touch #phaseBox span{font-size:22px}
+body.touch #roleBox b,body.touch #leftBox b{font-size:15px}
+body.touch #roleBox,body.touch #leftBox{min-width:74px}
+body.touch #tTop{top:calc(62px + env(safe-area-inset-top,0px));right:12px}
+body.touch #feed{top:calc(62px + env(safe-area-inset-top,0px));left:12px;right:82px;max-width:none;align-items:flex-start;font-size:12px}
+body.touch #feed div{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.touch #feed div:nth-last-child(n+4){display:none}
+body.touch #eyeMeter{top:calc(62px + env(safe-area-inset-top,0px));left:12px;transform:none}
+body.touch #eyeMeter .bar{width:90px}
+body.touch #eyeMeter:not([hidden])~#feed{top:calc(96px + env(safe-area-inset-top,0px))}
+body.touch #tauntRing{bottom:calc(164px + env(safe-area-inset-bottom,0px))}
+body.touch #ink{bottom:calc(92px + env(safe-area-inset-bottom,0px))}
+body.touch #spec{bottom:calc(164px + env(safe-area-inset-bottom,0px));width:max-content;max-width:calc(100% - 24px);white-space:normal;text-align:center}
+body.touch #readyBtn{bottom:calc(200px + env(safe-area-inset-bottom,0px))}
+body.touch #lobby{top:calc(150px + env(safe-area-inset-top,0px));left:12px;right:12px;width:auto;max-height:calc(100% - 314px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))}
+@media (orientation:portrait){
+  body.touch #studio{left:0;right:0;top:auto;bottom:0;width:auto;max-height:52%;border-radius:20px 20px 0 0;border-bottom:0;box-shadow:0 -3px 0 var(--ink)}
+}
+@media (orientation:landscape){
+  body.touch #tTop{top:calc(8px + env(safe-area-inset-top,0px));right:calc(12px + env(safe-area-inset-right,0px))}
+  body.touch #feed,body.touch #eyeMeter:not([hidden])~#feed{left:auto;right:calc(12px + env(safe-area-inset-right,0px));top:calc(86px + env(safe-area-inset-top,0px));max-width:30vw;align-items:flex-end}
+  body.touch #app.studio-open #feed{right:auto;left:calc(12px + env(safe-area-inset-left,0px));top:calc(62px + env(safe-area-inset-top,0px));align-items:flex-start}
+  body.touch #app.studio-open #eyeMeter:not([hidden])~#feed{top:calc(96px + env(safe-area-inset-top,0px))}
+  body.touch #eyeMeter{left:calc(12px + env(safe-area-inset-left,0px))}
+  body.touch #lobby{top:calc(62px + env(safe-area-inset-top,0px));left:calc(12px + env(safe-area-inset-left,0px));right:auto;width:min(300px,40vw);max-height:calc(100% - 72px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))}
+  body.touch #lobby:not([hidden])~#touch #stick{left:calc(min(300px,40vw) + 24px + env(safe-area-inset-left,0px))}
+  body.touch #studio{left:auto;right:calc(12px + env(safe-area-inset-right,0px));top:calc(62px + env(safe-area-inset-top,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));width:min(300px,45vw);max-height:none;border-radius:22px;border-bottom:2.5px solid var(--ink);box-shadow:0 6px 0 var(--ink)}
+  body.touch #studio:not([hidden])~#touch #tTop{top:auto;bottom:calc(12px + env(safe-area-inset-bottom,0px));left:calc(12px + env(safe-area-inset-left,0px));right:auto;flex-direction:row}
+  body.touch #spec{bottom:calc(92px + env(safe-area-inset-bottom,0px));max-width:calc(100% - 340px)}
+  body.touch #readyBtn{top:calc(62px + env(safe-area-inset-top,0px));bottom:auto}
+  body.touch #blind{padding:56px 160px 110px}
+  body.touch #blind b{font-size:min(14vw,20vh)}
+  body.touch #blind p{font-size:15px}
+}
 </style>
 </head>
 <body>
@@ -300,7 +354,7 @@ h1 span{display:inline-block}
     </div>
   </section>
 
-  <section id="studio" class="card" hidden>
+  <section id="studio" class="card" hidden><div class="st-body">
     <h2>Paint studio <span class="sw" id="curSw"></span></h2>
     <div class="label">Colour</div>
     <div class="sv" id="sv"><canvas id="svCanvas" width="256" height="128"></canvas><i id="svKnob"></i></div>
@@ -336,7 +390,7 @@ h1 span{display:inline-block}
       <button class="btn teal" id="studioDone" type="button">Done</button>
       <button class="btn sm alt" id="resetPaint" type="button">Wipe white</button>
     </div>
-  </section>
+  </div></section>
   <div id="studioTip" class="out" hidden>Drag on your body to paint · drag elsewhere to orbit · scroll to zoom</div>
 
   <div id="touch" hidden>
@@ -1895,12 +1949,12 @@ const SC={yaw:0,pitch:-.12,dist:2.6,tool:'brush',size:+store.get('bsize',9)||9,d
 const PC={h:0,s:0,v:.95,rgb:BASE_WHITE.slice(),recent:store.get('recent',['#2f6f6a','#d9b45a','#f1ede4','#26232e','#c99a63','#f7c6d4'])};
 function openStudio(){
   if(!canPaint()||G.studio)return;
-  G.studio=true;SC.yaw=me.yaw+Math.PI;SC.pitch=-.12;SC.dist=(2.4*SIZES[me.size].s[1]+(me.pose===2?.6:0))*(innerWidth<=760?2.1:1);
+  G.studio=true;SC.yaw=me.yaw+Math.PI;SC.pitch=-.12;SC.dist=(2.4*SIZES[me.size].s[1]+(me.pose===2?.6:0))*((isTouch?innerHeight>innerWidth:innerWidth<=760)?2.1:1); // zoomed out when the studio is a bottom sheet
   G.intentUnlock=true;if(document.pointerLockElement)document.exitPointerLock();setTimeout(()=>G.intentUnlock=false,300);
-  me.vel.set(0,0,0);$('studio').hidden=false;$('studioTip').hidden=isTouch;syncStudio();drawSV();sfx('ui');
+  me.vel.set(0,0,0);$('studio').hidden=false;$('app').classList.add('studio-open');$('studioTip').hidden=isTouch;syncStudio();drawSV();sfx('ui');
 }
 function closeStudio(){
-  if(!G.studio)return;G.studio=false;$('studio').hidden=true;$('studioTip').hidden=true;$('brushRing').hidden=true;SC.drag=null;
+  if(!G.studio)return;G.studio=false;$('studio').hidden=true;$('app').classList.remove('studio-open');$('studioTip').hidden=true;$('brushRing').hidden=true;SC.drag=null;
   if(me){G.savedPaint={kind:me.shape,d:new Uint8ClampedArray(me.av.paint.d)};camYaw=me.yaw;}
   flushPaint(true);
   if(me){try{store.set('paint',{k:me.shape,u:me.av.paint.encode()})}catch(e){}}
@@ -2366,7 +2420,7 @@ function updateHud(){
   if(hudCache.hint!==hint){hudCache.hint=hint;$('hint').innerHTML=hint}
   // spectating
   const watching=(role==='out'||role==='spec')&&ph!=='end';
-  setHidden('spec',!watching);if(watching){const t=specTarget();setText('spec',t?'Watching '+t.name+' ('+(roleOf(t.id)==='seeker'?'seeker':'hider')+') · ← → to switch':'Watching')}
+  setHidden('spec',!watching);if(watching){const t=specTarget();setText('spec',t?'Watching '+t.name+' ('+(roleOf(t.id)==='seeker'?'seeker':'hider')+') · '+(isTouch?'tap to switch':'← → to switch'):'Watching')}
   // squeak timer
   const tn=rs&&rs.set?rs.set.tn|0:0,tOn=role==='hider'&&ph==='seek'&&tn>0&&G.nextTaunt>0;
   setHidden('tauntRing',!tOn);if(tOn){const s=Math.max(0,(G.nextTaunt-now())/1000);setText('tauntTxt','Squeak in '+Math.ceil(s));$('tauntArc').setAttribute('stroke-dashoffset',String(88*(1-s/tn)))}
@@ -2504,7 +2558,7 @@ function setupAttract(){
   for(let i=0;i<3;i++){const e=makeEnt({id:'a'+i,name:'',shape:i===2?1:0,size:[1,2,1][i],bot:{kind:'hider'}});placeBot(e,11+i)}
   G.diff=d;
   const w=makeEnt({id:'aw',name:'',shape:0,size:1});w.pos.set(6.4,0,5.6);w.yaw=2.4;
-  $('menu').hidden=false;$('hud').hidden=true;$('touch').hidden=true;$('lobby').hidden=true;$('studio').hidden=true;$('pause').hidden=true;$('end').hidden=true;$('studioTip').hidden=true;
+  $('menu').hidden=false;$('hud').hidden=true;$('touch').hidden=true;$('lobby').hidden=true;$('studio').hidden=true;$('app').classList.remove('studio-open');$('pause').hidden=true;$('end').hidden=true;$('studioTip').hidden=true;
 }
 function restoreMyPaint(){
   const sp=store.get('paint',null);
@@ -2749,10 +2803,10 @@ $('sens').oninput=()=>setSens($('sens').value);$('sens2').oninput=()=>setSens($(
 const renderGfx=()=>{for(const b of $('gfxSeg').children)b.setAttribute('aria-pressed',String(b.dataset.q===gfx))};
 $('gfxSeg').onclick=ev=>{const q=ev.target.dataset&&ev.target.dataset.q;if(!q)return;gfx=q;store.set('gfx',q);renderGfx();renderer.shadowMap.enabled=gfx==='high';sun.castShadow=gfx==='high';scene.traverse(o=>{if(o.material){const ms=Array.isArray(o.material)?o.material:[o.material];ms.forEach(m=>m.needsUpdate=true)}});resize()};
 // HUD extras made here: the practice "I'm ready" button and the lobby players label
-(function(){const b=document.createElement('button');b.id='readyBtn';b.type='button';b.className='btn teal sm';b.textContent='I\'m hidden, start the search';b.hidden=true;b.style.cssText='position:absolute;left:50%;bottom:calc('+(isTouch?'200px':'64px')+' + env(safe-area-inset-bottom,0px));transform:translateX(-50%);pointer-events:auto';b.onclick=practiceReady;$('hud').appendChild(b);
+(function(){const b=document.createElement('button');b.id='readyBtn';b.type='button';b.className='btn teal sm';b.textContent='I\'m hidden, start the search';b.hidden=true;b.onclick=practiceReady;$('hud').appendChild(b);
   const lb=$('leftBox').querySelector('small');lb.id='leftLbl'})();
 document.addEventListener('pointerdown',()=>initAudio(),{once:true});
-if(isTouch)$('touchNote').hidden=false;
+if(isTouch){$('touchNote').hidden=false;document.body.classList.add('touch')}
 addEventListener('pagehide',()=>{if(Net.refs)Net.leave()});
 
 // An invite opens this page with #cf-<code>: fill in the room and point at the join button.
