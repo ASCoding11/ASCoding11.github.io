@@ -172,6 +172,7 @@ h1 span{color:var(--coral)}
 #specBar{position:absolute;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;align-items:center;gap:8px;pointer-events:auto;background:rgba(24,22,58,.8);border-radius:16px;padding:6px 8px 6px 14px;font-weight:900;font-size:14px;white-space:nowrap;max-width:calc(100% - 24px)}
 #specBar span{overflow:hidden;text-overflow:ellipsis}
 #reticle{position:absolute;left:50%;top:50%;width:16px;height:16px;margin:-8px 0 0 -8px;border:2.5px solid #fff;border-radius:50%;box-shadow:0 0 0 1.5px rgba(24,22,58,.8)}
+#reticle.dot{width:8px;height:8px;margin:-4px 0 0 -4px;border-width:0;background:#fff}
 #vig{position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(255,60,80,0) 45%,rgba(255,60,80,.55));opacity:0;transition:opacity .35s}
 #lockHint{position:absolute;left:50%;top:58%;transform:translateX(-50%);font-family:var(--f-d);font-size:22px;background:rgba(24,22,58,.75);padding:6px 16px;border-radius:14px}
 #tags{position:absolute;inset:0;pointer-events:none;overflow:hidden}
@@ -206,6 +207,8 @@ body.touch.playing #touch{display:block}
 .tb.on{background:var(--sun);transform:translateY(2px);box-shadow:0 2px 0 var(--ink)}
 #tJump{right:calc(28px + env(safe-area-inset-right,0px));bottom:calc(36px + env(safe-area-inset-bottom,0px));width:96px;height:96px;font-size:21px;background:rgba(255,207,61,.95)}
 #tPause{left:calc(10px + env(safe-area-inset-left,0px));top:calc(10px + env(safe-area-inset-top,0px));width:44px;height:44px;font-size:14px}
+#tView{right:calc(47px + env(safe-area-inset-right,0px));bottom:calc(148px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;justify-content:center}
+#tView svg{width:30px;height:30px;display:block}
 body.touch #hint,body.touch #lockHint,body.touch #reticle{display:none}
 body.touch #keysMenu,body.touch #keysPause,body.touch .kbonly{display:none}
 body.touch #top{top:calc(8px + env(safe-area-inset-top,0px));left:calc(50% + 10px)}
@@ -256,13 +259,14 @@ body.touch #banner b{font-size:clamp(28px,9vw,46px)}
     <div id="count" hidden></div>
     <div id="reticle" hidden></div>
     <div id="lockHint" class="out" hidden>Click to play</div>
-    <div id="hint" class="kbonly"><span><kbd data-kb="forward left back right" data-kb-short data-kb-join="" data-kb-sep="">WASD</kbd> move</span><span><kbd data-kb="jump" data-kb-short>Space</kbd> jump</span><span>Mouse camera · wheel zoom</span><span id="hintShift"><kbd data-kb="shiftLock" data-kb-short>Shift</kbd> shift lock</span><span><kbd data-kb="reset" data-kb-short>R</kbd> reset</span><span><kbd>Esc</kbd> menu</span></div>
+    <div id="hint" class="kbonly"><span><kbd data-kb="forward left back right" data-kb-short data-kb-join="" data-kb-sep="">WASD</kbd> move</span><span><kbd data-kb="jump" data-kb-short>Space</kbd> jump</span><span>Mouse camera · wheel zoom</span><span id="hintShift"><kbd data-kb="shiftLock" data-kb-short>Shift</kbd> shift lock</span><span id="hintView"><kbd data-kb="view" data-kb-short>V</kbd> first person</span><span><kbd data-kb="reset" data-kb-short>R</kbd> reset</span><span><kbd>Esc</kbd> menu</span></div>
   </div>
   <div id="touch" aria-hidden="true">
     <div id="tLook"></div>
     <div id="tStick"><i></i></div>
     <button class="tb" id="tJump" type="button">JUMP</button>
     <button class="tb" id="tPause" type="button" aria-label="Pause">❚❚</button>
+    <button class="tb" id="tView" type="button" aria-label="First person"></button>
   </div>
 
   <section id="menu" class="overlay">
@@ -319,8 +323,8 @@ body.touch #banner b{font-size:clamp(28px,9vw,46px)}
             <li><b>Tower</b>: a stack of random sections. Climb the truss between sections to reach the next one. The clock runs twice as fast once someone reaches the top.</li>
             <li><b>Glowing red</b> means lethal. Falling isn't: you just land lower down.</li>
             <li><b>Obby</b>: 49 stages over seven worlds. Every stage starts on a checkpoint, and your furthest stage is saved.</li>
-            <li class="kbonly"><b>Controls</b>: WASD moves (relative to the camera), Space jumps (hold to keep jumping), the mouse turns the camera, the wheel zooms, Shift locks the camera behind you.</li>
-            <li id="touchNote" hidden><b>Touch</b>: the stick moves, drag anywhere else to turn the camera, pinch to zoom.</li>
+            <li class="kbonly"><b>Controls</b>: WASD moves (relative to the camera), Space jumps (hold to keep jumping), the mouse turns the camera, the wheel zooms, Shift locks the camera behind you, V switches between first and third person (scrolling all the way in does too).</li>
+            <li id="touchNote" hidden><b>Touch</b>: the stick moves, drag anywhere else to turn the camera, pinch to zoom, and the eye button switches to first person.</li>
           </ul>
         </details>
       </div>
@@ -1506,7 +1510,7 @@ const G={mode:'menu',W:null,t:0,tBase:0,paused:false,me:null,av:null,startT:0,de
   rs:null,lastRS:null,roundId:-1,worldKey:'',host:false,he:0,maxHe:0,hostUid:null,joinedAt:0,myFinMs:null,finRound:-1,awarded:-1,
   jumpQ:false,shiftLock:!!store.get('slock',false),zoom:savedNum('zoom',11,2.5,24),camYaw:0,camPitch:.38,camDist:11,
   hostSet:Object.assign({len:8,n:8,ez:0},store.get('hostSet',{})),respawnAt:0,auto:null,attract:null,pracId:'',pracD:+store.get('pracD',.5),
-  lastStage:0,countLast:99,noRender:false,stageT:0,lastCpT:0};
+  lastStage:0,countLast:99,noRender:false,stageT:0,lastCpT:0,view:store.get('view','tp')==='fp'?'fp':'tp',fpDip:0};
 G.hostSet.len=[2,4,6,8].indexOf(+G.hostSet.len)>=0?+G.hostSet.len:8;G.hostSet.n=[6,7,8].indexOf(+G.hostSet.n)>=0?+G.hostSet.n:8;G.hostSet.ez=G.hostSet.ez?1:0;
 if([0,.5,1].indexOf(G.pracD)<0)G.pracD=.5;
 let me=null;
@@ -1523,6 +1527,7 @@ const KB=Keybinds.create({
     {id:'right',label:'Move right',group:'Move',keys:['KeyD','ArrowRight']},
     {id:'jump',label:'Jump',note:'Hold to keep jumping',group:'Move',keys:['Space']},
     {id:'shiftLock',label:'Shift lock',note:'Keeps you facing where the camera looks',group:'Camera',keys:['ShiftLeft']},
+    {id:'view',label:'First / third person',note:'Zooming all the way in or out switches too',group:'Camera',keys:['KeyV']},
     {id:'zoomIn',label:'Zoom in',note:'The mouse wheel zooms too',group:'Camera',keys:['KeyI']},
     {id:'zoomOut',label:'Zoom out',group:'Camera',keys:['KeyO']},
     {id:'reset',label:'Back to the start',note:'Your last checkpoint in the obby',group:'Game',keys:['KeyR']},
@@ -1533,6 +1538,23 @@ const KB=Keybinds.create({
 });
 const held=id=>!!tAct[id]||KB.held(id,keys);
 const playing=()=>G.mode==='solo'||G.mode==='obby'||G.mode==='practice'||G.mode==='online';
+// First person: the camera at your eyes, your body hidden (its shadow stays), always facing where you look.
+// Spectating always uses the third-person camera. The choice is saved as spire:view.
+const fpOn=()=>G.view==='fp'&&playing()&&!G.spec;
+const pitchLim=()=>G.view==='fp'?[-1.45,1.45]:[-.5,1.35];
+function lookBy(dx,dy){const l=pitchLim();G.camYaw-=dx;G.camPitch=clamp(G.camPitch+dy,l[0],l[1])}
+const ICON_EYE='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.8-6.5 10-6.5S22 12 22 12s-3.8 6.5-10 6.5S2 12 2 12z" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/><circle cx="12" cy="12" r="3.4" fill="currentColor"/></svg>';
+const ICON_BODY='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="6.5" r="3.8" fill="currentColor"/><path d="M4.5 21.5c0-5 3.3-8 7.5-8s7.5 3 7.5 8z" fill="currentColor"/></svg>';
+function renderView(){const b=$('tView'),fp=G.view==='fp';b.innerHTML=fp?ICON_BODY:ICON_EYE;b.setAttribute('aria-label',fp?'Third person':'First person');
+  const h=$('hintView');if(h)h.lastChild.textContent=fp?' third person':' first person'}
+function setView(v,quiet){
+  if(v===G.view)return;
+  G.view=v;store.set('view',v);G.effPitch=null;G.fpDip=0;
+  if(v==='fp')G.camPitch=clamp(G.camPitch-.2,-1.45,1.45);
+  else{G.camPitch=clamp(G.camPitch+.2,-.5,1.35);G.camDist=Math.min(G.camDist,2.5)}
+  renderView();if(!quiet)feed(v==='fp'?'First person':'Third person');
+}
+const toggleView=()=>setView(G.view==='fp'?'tp':'fp');
 
 function makeMe(){
   if(G.av)G.av.dispose();
@@ -1633,7 +1655,7 @@ function tick(){
     else inp=readInput();
     simStep(W,me,inp,t);
     // facing: toward the move direction, or the camera's way with shift lock
-    if(G.shiftLock&&!G.attract&&!G.auto)me.yaw=G.camYaw;
+    if((G.shiftLock||fpOn())&&!G.attract&&!G.auto)me.yaw=G.camYaw;
     else if(Math.hypot(inp.x,inp.z)>.1&&!me.climb){const ty=Math.atan2(-inp.x,-inp.z);me.yaw+=angDiff(ty,me.yaw)*Math.min(1,PHYS.DT*14)}
     handleEvents(t);
     if(!G.attract&&!G.auto)trussTip();
@@ -1653,8 +1675,8 @@ function trussTip(){
 function handleEvents(t){
   for(const e of me.ev){
     if(e==='jump')sfx('jump');
-    else if(e==='land')sfx('land');
-    else if(e==='landHard')sfx('landHard');
+    else if(e==='land'){sfx('land');G.fpDip=Math.max(G.fpDip,.08)}
+    else if(e==='landHard'){sfx('landHard');G.fpDip=Math.max(G.fpDip,.24)}
     else if(e==='bounce')sfx('bounce');
     else if(e==='crumble')sfx('crumble');
     else if(e==='cp')onCheckpoint(me.cp);
@@ -1778,7 +1800,16 @@ function updateCamera(dt,rt,tx,ty,tz){
   camera.position.copy(camP);camera.lookAt(camT);
   return d;
 }
-function zoomBy(k){G.zoom=clamp(G.zoom*Math.pow(1.18,k),2.5,24);store.set('zoom',r2(G.zoom))}
+// Zooming out of first person goes back to third; zooming in past the closest third-person view goes to first.
+function zoomBy(k){
+  if(playing()&&!G.spec){if(G.view==='fp'){if(k>0){G.zoom=2.5;setView('tp')}return}if(k<0&&G.zoom<=2.5+1e-6){setView('fp');return}}
+  G.zoom=clamp(G.zoom*Math.pow(1.18,k),2.5,24);store.set('zoom',r2(G.zoom))}
+// The first-person camera: at the eyes, with a small dip when you land.
+function updateFp(dt,x,y,z){
+  G.fpDip*=Math.exp(-dt*10);
+  const eye=y+1.7-G.fpDip,cp=Math.cos(G.camPitch),dx=Math.sin(G.camYaw)*cp,dy=Math.sin(G.camPitch),dz=Math.cos(G.camYaw)*cp;
+  camera.position.set(x,eye,z);camT.set(x-dx,eye-dy,z-dz);camera.lookAt(camT);
+}
 
 // =====================================================================
 //  Effects
@@ -1927,7 +1958,7 @@ function updateRemotes(dt,rt){
     if(e.pos.distanceTo(e.tpos)>6)e.pos.copy(e.tpos);else e.pos.lerp(e.tpos,k);
     e.yaw+=angDiff(e.tyaw,e.yaw)*k;
     e.spd+=(Math.hypot(e.pos.x-bx,e.pos.z-bz)/Math.max(dt,1e-3)-e.spd)*.25;
-    const vis=e.a!==5&&camera.position.distanceTo(e.pos)>2.6;e.av.root.visible=vis; // hide anyone right in front of the camera
+    const vis=e.a!==5&&camera.position.distanceTo(e.pos)>(fpOn()?.9:2.6);e.av.root.visible=vis; // hide anyone right in front of the camera
     e.av.root.position.copy(e.pos);e.av.root.rotation.y=e.yaw;animate(e.av,e.a===5?0:e.a,e.spd,dt);
     if(vis)placeBlob(e.av,e.pos.x,e.pos.y,e.pos.z,rt);else e.av.blob.visible=false;
   }
@@ -2054,7 +2085,7 @@ function updateHud(){
     for(const {d,q} of order){const f=clamp(q.y/top,0,1);d.style.bottom=(f*100)+'%';d.style.background=q.c;const s=d.firstChild;const nm=q.id==='me'?'You':q.n;if(s.textContent!==nm)s.textContent=nm;
       const py=f*hpx,free=placed.every(v=>Math.abs(v-py)>15);s.style.visibility=free?'visible':'hidden';if(free)placed.push(py)}
   }
-  $('reticle').hidden=!(G.shiftLock&&playing()&&!touchUI);
+  const fp=fpOn();$('reticle').hidden=!((G.shiftLock||fp)&&playing()&&!touchUI&&!G.spec);$('reticle').classList.toggle('dot',fp);
   $('hintShift').classList.toggle('on',G.shiftLock);
   const lk=playing()&&!touchUI&&!G.paused&&!G.overlay&&document.pointerLockElement!==canvas&&lockWanted()&&!G.spec;$('lockHint').hidden=!lk;
 }
@@ -2116,8 +2147,8 @@ document.addEventListener('mousemove',e=>{
   if(!playing())return;
   if(document.pointerLockElement===canvas){
     if(Math.abs(e.movementX)>300||Math.abs(e.movementY)>300)return;
-    G.camYaw-=e.movementX*.0026*sens;G.camPitch=clamp(G.camPitch+e.movementY*.0026*sens,-.5,1.35);
-  }else if(G.drag&&!touchUI){G.camYaw-=(e.clientX-G.drag[0])*.006*sens;G.camPitch=clamp(G.camPitch+(e.clientY-G.drag[1])*.006*sens,-.5,1.35);G.drag=[e.clientX,e.clientY]}
+    lookBy(e.movementX*.0026*sens,e.movementY*.0026*sens);
+  }else if(G.drag&&!touchUI){lookBy((e.clientX-G.drag[0])*.006*sens,(e.clientY-G.drag[1])*.006*sens);G.drag=[e.clientX,e.clientY]}
 });
 canvas.addEventListener('mousedown',e=>{initAudio();if(!playing()||touchUI)return;if(document.pointerLockElement!==canvas&&!G.pauseOpen){if(lockWanted())requestLock();G.drag=[e.clientX,e.clientY]}});
 addEventListener('mouseup',()=>{G.drag=null});
@@ -2139,6 +2170,7 @@ addEventListener('keydown',e=>{
   if(KB.is('zoomIn',c))zoomBy(-1);
   if(KB.is('zoomOut',c))zoomBy(1);
   if(KB.is('spec',c))cycleSpec();
+  if(KB.is('view',c))toggleView();
 });
 addEventListener('keyup',e=>{keys[e.code]=false});
 addEventListener('blur',()=>{for(const k in keys)keys[k]=false;for(const k in tAct)tAct[k]=false;tMove.on=false;tMove.x=tMove.y=0});
@@ -2153,7 +2185,7 @@ addEventListener('pointerdown',e=>{if(e.pointerType==='touch'&&!touchUI)setTouch
   look.addEventListener('pointerdown',e=>{e.preventDefault();initAudio();pts.set(e.pointerId,[e.clientX,e.clientY]);try{look.setPointerCapture(e.pointerId)}catch(_){}if(pts.size===2){const a=[...pts.values()];pinch=Math.hypot(a[0][0]-a[1][0],a[0][1]-a[1][1])}});
   look.addEventListener('pointermove',e=>{const q=pts.get(e.pointerId);if(!q)return;
     if(pts.size>=2){q[0]=e.clientX;q[1]=e.clientY;const a=[...pts.values()],d=Math.hypot(a[0][0]-a[1][0],a[0][1]-a[1][1]);if(pinch>0&&Math.abs(d-pinch)>18){zoomBy(d<pinch?1:-1);pinch=d}return}
-    if(playing()&&!G.pauseOpen){G.camYaw-=(e.clientX-q[0])*.0068*sens;G.camPitch=clamp(G.camPitch+(e.clientY-q[1])*.0068*sens,-.5,1.35)}q[0]=e.clientX;q[1]=e.clientY});
+    if(playing()&&!G.pauseOpen)lookBy((e.clientX-q[0])*.0068*sens,(e.clientY-q[1])*.0068*sens);q[0]=e.clientX;q[1]=e.clientY});
   const end=e=>{pts.delete(e.pointerId);if(pts.size<2)pinch=0};look.addEventListener('pointerup',end);look.addEventListener('pointercancel',end);
   const stick=$('tStick'),knob=stick.firstElementChild;let sid=null;
   const move=e=>{const r=stick.getBoundingClientRect(),R=r.width/2;let x=(e.clientX-r.left-R)/R,y=(e.clientY-r.top-R)/R;const m=Math.hypot(x,y);if(m>1){x/=m;y/=m}
@@ -2166,6 +2198,7 @@ addEventListener('pointerdown',e=>{if(e.pointerType==='touch'&&!touchUI)setTouch
     const fin=()=>{el.classList.remove('on');if(up)up()};el.addEventListener('pointerup',fin);el.addEventListener('pointercancel',fin);el.addEventListener('lostpointercapture',fin);el.addEventListener('contextmenu',e=>e.preventDefault())};
   btn('tJump',()=>{if(playing()&&!G.pauseOpen){G.jumpQ=true;tAct.jump=true}},()=>{tAct.jump=false});
   btn('tPause',()=>{if(playing()&&!G.pauseOpen)showPause()});
+  btn('tView',()=>{if(playing()&&!G.pauseOpen)toggleView()});
 }
 
 // =====================================================================
@@ -2336,6 +2369,7 @@ function update(dt){
     // aim to the left of the climber so it shows beside the menu cards on wide screens
     const k=innerWidth>1000?9:0;camT.set((G.attract?x:0)+sa*k,fy,(G.attract?z:0)-ca*k);camera.lookAt(camT);
   }else if(G.spec&&G.spec!=='none'&&ents.get(G.spec)){const e=ents.get(G.spec);updateCamera(dt,rt,e.pos.x,e.pos.y+1.6,e.pos.z)}
+  else if(fpOn()){updateFp(dt,x,y,z);av.root.visible=false}
   else{const d=updateCamera(dt,rt,x,y+1.6,z);av.root.visible=av.root.visible&&d>1.1}
   if(G.mode==='obby'&&G.W){cloudSea.position.set(camera.position.x,G.W.cps[G.cp].y-48,camera.position.z)}
   sun.position.set(camera.position.x+30,camera.position.y+60,camera.position.z+22);sun.target.position.copy(camera.position);
@@ -2356,6 +2390,7 @@ if(navigator.webdriver)window.__tw={G,PHYS,MODS,WORLDS,OBBY_STAGES,get me(){retu
   advance(s){G.noRender=true;try{const n=Math.round(s/PHYS.DT);for(let i=0;i<n;i++){tick();if(G.respawnAt&&performance.now()>=G.respawnAt)respawnMe()}if(G.mode!=='online')G.tBase=performance.now()/1000-G.t}finally{G.noRender=false}},
   respawnNow(){if(G.respawnAt)respawnMe()},
   verifyModule,runBot,buildTower,buildObby,buildSingle,towerPlan,makeBot,startSolo,startObby,startPractice,toMenu,goOnline,setRS,newRound,hostTick,remaining,showPause,resume,
+  setView,toggleView,fpOn,
   autopilot(on,from){G.auto=on?makeBot(G.W.route):null;if(G.auto&&from)G.auto.i=from},
   get camDist(){return camera.position.distanceTo(camT)},
   // stand-in climbers for screenshots: [{x,y,z,yaw,c,n,a}]
@@ -2363,7 +2398,7 @@ if(navigator.webdriver)window.__tw={G,PHYS,MODS,WORLDS,OBBY_STAGES,get me(){retu
   // settle the camera and render once, without moving the simulation on
   frame(n){G.freeze=true;try{n=n||1;for(let i=0;i<n;i++){G.noRender=i<n-1;update(1/60)}}finally{G.freeze=false;G.noRender=false;if(G.mode!=='online')G.tBase=performance.now()/1000-G.t}}};
 
-renderSwatches();renderProfile();renderGfx();
+renderSwatches();renderProfile();renderGfx();renderView();
 // signs are drawn with the display font: redraw the menu tower once it has loaded
 try{document.fonts.ready.then(()=>{if(G.mode==='menu'&&G.W)loadWorld(G.W)})}catch(e){}
 setupAttract();showAd('adMenu');
