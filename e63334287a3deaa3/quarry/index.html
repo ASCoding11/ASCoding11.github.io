@@ -219,6 +219,13 @@ details.fold[open] summary::before{content:'– '}
 #heldStack .n{position:absolute;right:0;bottom:-2px;font:700 14px var(--f-d);text-shadow:1px 1px 0 #000}
 #heldStack .dur{position:absolute;left:6px;right:6px;bottom:4px;height:3px;background:#000}#heldStack .dur i{display:block;height:100%}
 
+/* Controls panel (../keybinds.js) */
+:root{--kb-bg:var(--panel-2);--kb-fg:var(--ink);--kb-muted:var(--ink-2);--kb-line:var(--line);--kb-accent:var(--moss);--kb-accent-ink:#16200c;--kb-warn:var(--red);
+  --kb-border:1px solid var(--line);--kb-radius:16px;--kb-key-radius:5px;--kb-key-border:1px solid var(--line);--kb-key-bg:rgba(255,255,255,.08);--kb-key-shadow:0 2px 0 rgba(0,0,0,.4);
+  --kb-font:var(--f-u);--kb-font-display:var(--f-d);--kb-font-key:var(--f-d);--kb-key-size:14px;--kb-key-weight:600;--kb-title-size:32px;--kb-title-weight:700;--kb-title:var(--moss);
+  --kb-backdrop:rgba(12,15,20,.6);--kb-blur:4px;--kb-width:520px}
+.kb-panel .kb-label{font-weight:700}
+.kb-panel .kb-group{color:var(--ink-3);font-weight:800}
 @media (max-width:760px){
   .menu{background:rgba(12,15,20,.88)}
   .inner{margin:0 auto}
@@ -250,6 +257,8 @@ body.touch #hotbar .slot{pointer-events:auto}
 body.touch #hotbar .slot .k{display:none}
 body.touch:has(#inv:not([hidden])) #touch{display:none}
 body.touch #lookMsg{display:none}
+/* Rebinding keys is for keyboards: the touch layout leaves those buttons out. */
+body.touch #keysMenu,body.touch #keysMenu2,body.touch #keysPause{display:none}
 body.touch #chatLog{bottom:auto;top:calc(60px + env(safe-area-inset-top,0px))}
 #invClose{display:none;position:absolute;right:8px;top:8px;width:34px;height:34px;padding:0;border:2px solid;border-color:#f4f1ea #6d6960 #6d6960 #f4f1ea;background:#a8473a;color:#fff;font:600 16px var(--f-d);z-index:2}
 body.touch #invClose{display:block}
@@ -296,7 +305,7 @@ body.touch #invClose{display:block}
     <div id="portalFx"></div>
     <div id="boss" hidden><b>Void Wyrm</b><div class="bar"><span id="bossFill"></span></div></div>
     <div id="hurt"></div>
-    <div id="sleepFade" hidden><span id="sleepTxt">Sleeping…</span><small>Press Shift to leave the bed</small></div>
+    <div id="sleepFade" hidden><span id="sleepTxt">Sleeping…</span><small>Press <span data-kb="sneak" data-kb-short>Shift</span> to leave the bed</small></div>
     <div id="cross"></div>
     <div id="atkBar"><i id="atkFill"></i></div>
     <svg id="breakRing" viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="18" fill="none" stroke="rgba(255,255,255,.85)" stroke-width="3" stroke-dasharray="113.1" stroke-dashoffset="113.1" id="breakArc"/></svg>
@@ -380,20 +389,21 @@ body.touch #invClose{display:block}
         <details class="fold">
           <summary>How to play</summary>
           <dl class="keys">
-            <dt>WASD</dt><dd>Walk · double-tap W or hold R to sprint</dd>
-            <dt>SPACE</dt><dd>Jump, swim up · Creative: double-tap to fly</dd>
-            <dt>SHIFT</dt><dd>Sneak (won't walk off edges) · fly down</dd>
+            <dt data-kb="forward left back right" data-kb-short data-kb-join="" data-kb-case="upper">WASD</dt><dd>Walk · double-tap <span data-kb="forward" data-kb-short>W</span> or hold <span data-kb="sprint" data-kb-short>R</span> to sprint</dd>
+            <dt data-kb="jump" data-kb-short data-kb-case="upper">SPACE</dt><dd>Jump, swim up · Creative: double-tap to fly</dd>
+            <dt data-kb="sneak" data-kb-short data-kb-case="upper">SHIFT</dt><dd>Sneak (won't walk off edges) · fly down</dd>
             <dt>LEFT CLICK</dt><dd>Hold to dig · click to attack (wait for the sword to recharge for full damage)</dd>
             <dt>RIGHT CLICK</dt><dd>Place a block · use crafting tables, furnaces, chests, doors, levers, buttons and beds · till soil with a hoe · hold to eat or draw a bow · feed, shear and milk animals · throw eggs</dd>
             <dt>1–9 · WHEEL</dt><dd>Pick a hotbar slot</dd>
-            <dt>E</dt><dd>Inventory and 2×2 crafting</dd>
-            <dt>Q</dt><dd>Drop the held item (Ctrl+Q: the whole stack)</dd>
+            <dt data-kb="inventory" data-kb-short data-kb-case="upper">E</dt><dd>Inventory and 2×2 crafting</dd>
+            <dt data-kb="drop" data-kb-short data-kb-case="upper">Q</dt><dd>Drop the held item (Ctrl+<span data-kb="drop" data-kb-short>Q</span>: the whole stack)</dd>
             <dt>MIDDLE CLICK</dt><dd>Creative: pick the block you're looking at</dd>
-            <dt>T · /</dt><dd>Chat in friends' worlds, commands in your own</dd>
-            <dt>TAB</dt><dd>Players in the world</dd>
-            <dt>F1 · F3 · F5</dt><dd>Hide the HUD · debug info · switch camera</dd>
+            <dt data-kb="chat command" data-kb-short data-kb-join=" · " data-kb-case="upper">T · /</dt><dd>Chat in friends' worlds, commands in your own</dd>
+            <dt data-kb="players" data-kb-short data-kb-case="upper">TAB</dt><dd>Players in the world</dd>
+            <dt data-kb="hud debug camera" data-kb-short data-kb-join=" · " data-kb-case="upper">F1 · F3 · F5</dt><dd>Hide the HUD · debug info · switch camera</dd>
             <dt>ESC</dt><dd>Pause, settings, invite link</dd>
           </dl>
+          <div class="row" style="margin-top:12px"><button class="ghost" id="keysMenu" type="button">Change keys</button></div>
           <p class="msg">Survival: punch a tree for logs, turn them into planks, make a crafting table and lay out a wooden pickaxe in its 3×3 grid. Stone tools mine iron, iron tools mine gold and diamonds. Smelt ore and cook meat in a furnace with coal or wood. Eat to keep your hunger bar up, and get somewhere bright before night, when zombies come out, or sleep through it in a bed.</p>
           <p class="msg">The Nether: build an obsidian frame (4 wide, 5 tall) and light it with flint and steel. Inside are nether fortresses, where flares drop ember rods. The End: combine ember powder with a void pearl (from voidwalkers) to make Seeker eyes, follow them to a stronghold, fill its portal frames, then beat the Void Wyrm.</p>
           <p class="msg">Farming: hoe grass into farmland near water and plant seeds, carrots, potatoes, and pumpkin or melon seeds; sugar cane grows by water. Hold an animal's food to lead it, and feed two of them to breed a baby: wheat for cows and sheep, carrots or potatoes for pigs, seeds for hens. Shear sheep, milk cows with a bucket, and bake a cake.</p>
@@ -405,6 +415,7 @@ body.touch #invClose{display:block}
         <details class="fold">
           <summary>Settings</summary>
           <div class="set" id="setMenu"></div>
+          <div class="row" style="margin-top:12px"><button class="ghost" id="keysMenu2" type="button">Controls</button></div>
         </details>
       </div>
       <div class="adbox" id="adMenu" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
@@ -425,7 +436,7 @@ body.touch #invClose{display:block}
     <div class="inner">
       <div class="kicker"><span><b>❚❚</b> Paused</span><span id="pauseSub"></span></div>
       <p class="lede" id="pauseMsg" style="margin-top:10px"></p>
-      <div class="row"><button class="cta" id="resume" type="button">Resume</button><button class="ghost" id="copyInvite" type="button" hidden>Copy invite link</button><button class="ghost" id="leave" type="button">Save &amp; quit</button></div>
+      <div class="row"><button class="cta" id="resume" type="button">Resume</button><button class="ghost" id="copyInvite" type="button" hidden>Copy invite link</button><button class="ghost" id="keysPause" type="button">Controls</button><button class="ghost" id="leave" type="button">Save &amp; quit</button></div>
       <p class="msg" id="inviteMsg"></p>
       <details class="fold" style="margin-top:8px"><summary>Settings</summary><div class="set" id="setPause"></div></details>
     </div>
@@ -459,6 +470,7 @@ body.touch #invClose{display:block}
   <div id="heldStack" hidden></div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../keybinds.js"></script>
 <script>
 (function(){
 'use strict';
@@ -2986,6 +2998,9 @@ const keys={};
 // touch screens use on-screen controls instead of pointer lock (see the touch section by the input code)
 let touchUI=matchMedia('(pointer: coarse)').matches&&!matchMedia('(any-pointer: fine)').matches;
 const tMove={on:false,x:0,y:0};
+// actions held by the touch buttons (Jump, Sneak), by action id, so they work whatever keys are bound
+const tAct={};
+const heldAct=id=>!!tAct[id]||KB.held(id,keys);
 let lastW=0,lastSpace=0,mouseL=false,mouseR=false,clickL=false,breakP=0,breakKey='',useT=0,hitT=0;
 function exhaust(v){
   if(mode!=='survival')return;
@@ -3002,12 +3017,12 @@ function physics(dt){
   pl.inLava=lf===2||lu===2;
   pl.head=le===1?WATER:le===2?LAVA:0;
   if(pl.inWater&&!wasWater&&pl.vy<-4)Snd.splash();
-  pl.sneak=!!(keys.ShiftLeft||keys.ShiftRight)&&!pl.fly;
-  const fwd=keys.KeyW||keys.ArrowUp||(tMove.on&&tMove.y<-.3);
+  pl.sneak=heldAct('sneak')&&!pl.fly;
+  const fwd=heldAct('forward')||(tMove.on&&tMove.y<-.3);
   if(!fwd||pl.sneak||pl.eatT>0||(mode==='survival'&&pl.food<=6))pl.sprint=false;
   // on the touch stick, pushing all the way forward sprints
-  if((keys.KeyR||(tMove.on&&tMove.y<-.92))&&fwd&&!pl.sneak&&(mode!=='survival'||pl.food>6))pl.sprint=true;
-  let f=(fwd?1:0)-(keys.KeyS||keys.ArrowDown?1:0),s=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);
+  if((heldAct('sprint')||(tMove.on&&tMove.y<-.92))&&fwd&&!pl.sneak&&(mode!=='survival'||pl.food>6))pl.sprint=true;
+  let f=(fwd?1:0)-(heldAct('back')?1:0),s=(heldAct('right')?1:0)-(heldAct('left')?1:0);
   if(tMove.on){f=-tMove.y;s=tMove.x}
   const sy=Math.sin(pl.yaw),cy=Math.cos(pl.yaw);
   let wx=-sy*f+cy*s,wz=-cy*f-sy*s;const wl=Math.hypot(wx,wz);if(wl>1){wx/=wl;wz/=wl}
@@ -3019,7 +3034,7 @@ function physics(dt){
   pl.vx+=(wx*sp-pl.vx)*k;pl.vz+=(wz*sp-pl.vz)*k;
   // flowing water carries you along
   if(pl.inWater&&!pl.fly){const [cx,cz]=currentAt(pl.x,pl.y+.3,pl.z);pl.vx+=cx*dt*28;pl.vz+=cz*dt*28}
-  const up=!!keys.Space,down=!!(keys.ShiftLeft||keys.ShiftRight);
+  const up=heldAct('jump'),down=heldAct('sneak');
   if(pl.fly){
     pl.vy+=((up?8:0)-(down?8:0)-pl.vy)*(1-Math.exp(-dt*12));
   }else if(liquid){
@@ -6503,15 +6518,15 @@ function updateTip(){
 function invKey(e){
   // number keys swap the hovered slot with that hotbar slot; Q throws from it
   if(!hoverRef||hoverRef[0]==='p'||hoverRef==='t')return false;
-  const d=/^Digit([1-9])$/.exec(e.code);
-  if(d){
-    const k=+d[1]-1,hr='i:'+k;if(hoverRef===hr)return true;
+  const k=hotbarKey(e.code);
+  if(k>=0){
+    const hr='i:'+k;if(hoverRef===hr)return true;
     if(hoverRef==='o'){const r=craftMatch();if(r&&!inv.slots[k]){inv.slots[k]=mkStack(r.o,r.n);consumeGrid();uiDirty=invDirty=true}return true}
     const a=slotGet(hoverRef),b=inv.slots[k];
     if(b&&!accepts(hoverRef,b))return true;
     inv.slots[k]=a;slotSet(hoverRef,b);uiDirty=true;return true;
   }
-  if(e.code==='KeyQ'){
+  if(KB.is('drop',e.code)){
     if(hoverRef==='o')return true;
     const s=slotGet(hoverRef);if(!s)return true;
     if(e.ctrlKey||e.metaKey){throwStack(s);slotSet(hoverRef,null)}
@@ -6712,7 +6727,7 @@ function loadingStep(){
   selectSlot(inv.sel);
   if(dimOfX(pl.x)===0)trySpawnAnimals(14);
   if(session.kind==='local')ajStart(session.ajs);
-  if(session.kind==='online')addChat(others.size?others.size+' other player'+(others.size>1?'s are':' is')+' here. '+(Net.isPublic?'':'Press T to chat.'):'You’re the first one here.',null,'sys');
+  if(session.kind==='online')addChat(others.size?others.size+' other player'+(others.size>1?'s are':' is')+' here. '+(Net.isPublic?'':'Press '+KB.short('chat')+' to chat.'):'You’re the first one here.',null,'sys');
   else toast(mode==='creative'?'Creative mode':'Punch a tree to get started');
   updateLook();
 }
@@ -6754,7 +6769,7 @@ function quit(){
 // =====================================================================
 function openChat(prefix){
   if(state!=='play')return;
-  state='chat';mouseL=mouseR=false;for(const k in keys)keys[k]=false;
+  state='chat';mouseL=mouseR=false;for(const k in keys)keys[k]=false;for(const k in tAct)tAct[k]=false;
   const c=$('chatIn');c.hidden=false;c.value=prefix||'';
   try{document.exitPointerLock()}catch(e){}
   setTimeout(()=>{c.focus();c.setSelectionRange(c.value.length,c.value.length)},0);
@@ -6850,6 +6865,45 @@ function attract(dt){
 // =====================================================================
 //  Input
 // =====================================================================
+// Keys can be changed in the Controls panel (../keybinds.js); saved in this browser as keybinds:quarry.
+// The mouse buttons stay as they are (listed in the panel for reference).
+const KB=Keybinds.create({
+  game:'quarry',
+  actions:[
+    {id:'forward',label:'Walk forward',note:'Double-tap to sprint',group:'Move',keys:['KeyW','ArrowUp']},
+    {id:'back',label:'Walk back',group:'Move',keys:['KeyS','ArrowDown']},
+    {id:'left',label:'Walk left',group:'Move',keys:['KeyA','ArrowLeft']},
+    {id:'right',label:'Walk right',group:'Move',keys:['KeyD','ArrowRight']},
+    {id:'jump',label:'Jump, swim up',note:'Creative: double-tap to fly',group:'Move',keys:['Space']},
+    {id:'sneak',label:'Sneak, fly down',note:'Also leaves a bed',group:'Move',keys:['ShiftLeft']},
+    {id:'sprint',label:'Sprint',note:'Hold while walking forward',group:'Move',keys:['KeyR']},
+    {id:'dig',label:'Dig, attack',group:'Mouse',text:'Left click'},
+    {id:'use',label:'Place, use, eat',group:'Mouse',text:'Right click'},
+    {id:'pick',label:'Creative: pick block',group:'Mouse',text:'Middle click'},
+    {id:'inventory',label:'Inventory',group:'Items',keys:['KeyE']},
+    {id:'drop',label:'Drop held item',note:'With Ctrl: the whole stack',group:'Items',keys:['KeyQ']},
+    {id:'hot1',label:'Hotbar slot 1',group:'Hotbar',keys:['Digit1']},
+    {id:'hot2',label:'Hotbar slot 2',group:'Hotbar',keys:['Digit2']},
+    {id:'hot3',label:'Hotbar slot 3',group:'Hotbar',keys:['Digit3']},
+    {id:'hot4',label:'Hotbar slot 4',group:'Hotbar',keys:['Digit4']},
+    {id:'hot5',label:'Hotbar slot 5',group:'Hotbar',keys:['Digit5']},
+    {id:'hot6',label:'Hotbar slot 6',group:'Hotbar',keys:['Digit6']},
+    {id:'hot7',label:'Hotbar slot 7',group:'Hotbar',keys:['Digit7']},
+    {id:'hot8',label:'Hotbar slot 8',group:'Hotbar',keys:['Digit8']},
+    {id:'hot9',label:'Hotbar slot 9',group:'Hotbar',keys:['Digit9']},
+    {id:'chat',label:'Chat',group:'World',keys:['KeyT']},
+    {id:'command',label:'Command',group:'World',keys:['Slash']},
+    {id:'players',label:'Players in the world',note:'Hold',group:'World',keys:['Tab']},
+    {id:'hud',label:'Hide the HUD',group:'World',keys:['F1']},
+    {id:'debug',label:'Debug info',group:'World',keys:['F3']},
+    {id:'camera',label:'Switch camera',group:'World',keys:['F5']},
+    {id:'mute',label:'Sound on / off',group:'World',keys:['KeyM']},
+    {id:'pause',label:'Pause, settings, invite link',group:'World',keys:['Escape'],fixed:true}
+  ],
+  classes:{button:'ghost',primary:'cta'}
+});
+// hotbar slot (0-8) for a key, or -1
+function hotbarKey(c){for(let i=0;i<9;i++)if(KB.is('hot'+(i+1),c))return i;return -1}
 let locked=false,camMode=0,hideHud=false,showDebug=false,selfAv=null;
 let rawOK=true;
 function lockPointer(){
@@ -6862,7 +6916,7 @@ function lockPointer(){
 function updateLook(){$('lookMsg').hidden=!(state==='play'&&!locked)||touchUI}
 document.addEventListener('pointerlockchange',()=>{
   locked=document.pointerLockElement===canvas;
-  if(!locked){mouseL=mouseR=false;for(const k in keys)keys[k]=false;if(state==='play')openPause()}
+  if(!locked){mouseL=mouseR=false;for(const k in keys)keys[k]=false;for(const k in tAct)tAct[k]=false;if(state==='play')openPause()}
   updateLook();
 });
 document.addEventListener('pointerlockerror',updateLook);
@@ -6875,32 +6929,33 @@ addEventListener('keydown',e=>{
   }
   if(e.target&&e.target.id==='pSearch'&&c==='Escape'){e.preventDefault();e.target.blur();closeInv();return}
   if(e.target&&(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'))return;
-  if(state==='play'||state==='inv'){if(c==='Space'||c==='Tab'||c.startsWith('Arrow')||c.startsWith('Digit')||/^F[1-9]$/.test(c))e.preventDefault()}
-  if(c==='KeyM'&&!e.repeat&&state!=='inv'){setMuted(!Snd.muted);return}
+  if(state==='play'||state==='inv'){if(c==='Space'||c==='Tab'||c.startsWith('Arrow')||c.startsWith('Digit')||/^F[1-9]$/.test(c)||KB.actionsFor(c).length)e.preventDefault()}
+  if(KB.is('mute',c)&&!e.repeat&&state!=='inv'){setMuted(!Snd.muted);return}
   if(state==='inv'){
     if(invKey(e)){e.preventDefault();return}
-    if(c==='KeyE'||c==='Escape'){e.preventDefault();closeInv()}
+    if(KB.is('inventory',c)||c==='Escape'){e.preventDefault();closeInv()}
     return;
   }
   if(state==='pause'&&c==='Escape'){resume();return}
   if(state!=='play')return;
   Snd.init();
-  if(pl.sleep&&(c==='ShiftLeft'||c==='ShiftRight')){wakeUp();return}
-  if(c==='KeyW'&&!e.repeat){const n=performance.now();if(n-lastW<280&&(mode!=='survival'||pl.food>6))pl.sprint=true;lastW=n}
-  if(c==='Space'&&!e.repeat){const n=performance.now();if(mode==='creative'&&n-lastSpace<300){pl.fly=!pl.fly;pl.vy=0}lastSpace=n}
-  if(c.startsWith('Digit')){const d=+c.slice(5);if(d>=1&&d<=9)selectSlot(d-1)}
-  if(c==='KeyE'&&!e.repeat){openInv();return}
-  if(c==='KeyT'&&!e.repeat){e.preventDefault();openChat('');return}
-  if(c==='Slash'&&!e.repeat){e.preventDefault();openChat('/');return}
-  if(c==='KeyQ'&&!e.repeat){const s=inv.cur();if(s){if(e.ctrlKey||e.metaKey){throwStack(s);inv.slots[inv.sel]=null}else{throwStack(mkStack(s.id,1,s.d,s.e));s.n--;if(!s.n)inv.slots[inv.sel]=null}uiDirty=true;swingT=.2}return}
-  if(c==='F1'){hideHud=!hideHud;$('hud').classList.toggle('bare',hideHud);return}
-  if(c==='F3'){showDebug=!showDebug;$('debug').hidden=!showDebug;return}
-  if(c==='F5'){camMode=(camMode+1)%3;return}
-  if(c==='Tab'){$('tablist').hidden=false;drawTab()}
+  if(pl.sleep&&KB.is('sneak',c)){wakeUp();return}
+  if(KB.is('forward',c)&&!e.repeat){const n=performance.now();if(n-lastW<280&&(mode!=='survival'||pl.food>6))pl.sprint=true;lastW=n}
+  if(KB.is('jump',c)&&!e.repeat){const n=performance.now();if(mode==='creative'&&n-lastSpace<300){pl.fly=!pl.fly;pl.vy=0}lastSpace=n}
+  const hb=hotbarKey(c);if(hb>=0)selectSlot(hb);
+  if(KB.is('inventory',c)&&!e.repeat){openInv();return}
+  if(KB.is('chat',c)&&!e.repeat){e.preventDefault();openChat('');return}
+  if(KB.is('command',c)&&!e.repeat){e.preventDefault();openChat('/');return}
+  if(KB.is('drop',c)&&!e.repeat){const s=inv.cur();if(s){if(e.ctrlKey||e.metaKey){throwStack(s);inv.slots[inv.sel]=null}else{throwStack(mkStack(s.id,1,s.d,s.e));s.n--;if(!s.n)inv.slots[inv.sel]=null}uiDirty=true;swingT=.2}return}
+  if(KB.is('hud',c)){hideHud=!hideHud;$('hud').classList.toggle('bare',hideHud);return}
+  if(KB.is('debug',c)){showDebug=!showDebug;$('debug').hidden=!showDebug;return}
+  if(KB.is('camera',c)){camMode=(camMode+1)%3;return}
+  if(KB.is('players',c)){$('tablist').hidden=false;drawTab()}
   keys[c]=true;
 });
-addEventListener('keyup',e=>{keys[e.code]=false;if(e.code==='Tab')$('tablist').hidden=true});
-addEventListener('blur',()=>{for(const k in keys)keys[k]=false;mouseL=mouseR=false;$('tablist').hidden=true});
+addEventListener('keyup',e=>{keys[e.code]=false;if(KB.is('players',e.code))$('tablist').hidden=true});
+for(const id of ['keysMenu','keysMenu2','keysPause'])$(id).addEventListener('click',()=>KB.open());
+addEventListener('blur',()=>{for(const k in keys)keys[k]=false;for(const k in tAct)tAct[k]=false;mouseL=mouseR=false;$('tablist').hidden=true});
 canvas.addEventListener('mousedown',e=>{
   if(state!=='play')return;
   Snd.init();
@@ -6928,7 +6983,7 @@ addEventListener('wheel',e=>{if(state==='play'&&locked&&e.deltaY)selectSlot((inv
 
 // Touch controls. On a touch screen there's no pointer lock: the stick walks, dragging looks around (also while holding Mine),
 // Mine and Use do what the mouse buttons do, the hotbar slots are buttons, and the inventory is tapped like it's clicked.
-function setTouchUI(on){touchUI=on;document.body.classList.toggle('touch',on);$('sleepFade').querySelector('small').textContent=on?'Tap Sneak to leave the bed':'Press Shift to leave the bed'}
+function setTouchUI(on){touchUI=on;document.body.classList.toggle('touch',on);const sm=$('sleepFade').querySelector('small');if(on)sm.textContent='Tap Sneak to leave the bed';else sm.innerHTML='Press <span data-kb="sneak" data-kb-short>'+KB.short('sneak')+'</span> to leave the bed'}
 addEventListener('pointerdown',e=>{if(e.pointerType==='touch'&&!touchUI)setTouchUI(true)},true);
 function touchLook(dx,dy){
   if(state!=='play')return;
@@ -6963,10 +7018,10 @@ function tButton(el,down,up){
 tButton($('tMine'),()=>{if(state==='play'){mouseL=true;clickL=true;hitT=0}},()=>{mouseL=false});
 tButton($('tUse'),()=>{if(state==='play'){mouseR=true;useT=0}},()=>{mouseR=false});
 // Jump is held like Space; two quick taps in creative switch flying on or off.
-tButton($('tJump'),()=>{if(state!=='play')return;const n=performance.now();if(mode==='creative'&&n-lastSpace<300){pl.fly=!pl.fly;pl.vy=0}lastSpace=n;keys.Space=true},()=>{keys.Space=false});
+tButton($('tJump'),()=>{if(state!=='play')return;const n=performance.now();if(mode==='creative'&&n-lastSpace<300){pl.fly=!pl.fly;pl.vy=0}lastSpace=n;tAct.jump=true},()=>{tAct.jump=false});
 // Sneak stays on until it's tapped again, and gets you out of bed.
-tButton($('tSneak'),()=>{if(state!=='play')return;if(pl.sleep){wakeUp();return}keys.ShiftLeft=!keys.ShiftLeft},()=>{$('tSneak').classList.toggle('on',!!keys.ShiftLeft)});
-tButton($('tPause'),()=>{for(const k in keys)keys[k]=false;$('tSneak').classList.remove('on');openPause()});
+tButton($('tSneak'),()=>{if(state!=='play')return;if(pl.sleep){wakeUp();return}tAct.sneak=!tAct.sneak},()=>{$('tSneak').classList.toggle('on',!!tAct.sneak)});
+tButton($('tPause'),()=>{for(const k in keys)keys[k]=false;for(const k in tAct)tAct[k]=false;$('tSneak').classList.remove('on');openPause()});
 tButton($('tInv'),()=>openInv());
 $('invClose').onclick=()=>closeInv();
 // Taps in the inventory, crafting and furnace screens go straight to the same code as mouse clicks.

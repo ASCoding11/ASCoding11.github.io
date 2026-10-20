@@ -125,6 +125,13 @@ details.how[open] summary::before{content:'– '}
 .grid4 small{font:800 11px var(--f-u);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
 .grid4 .pb b{color:var(--gold)}
 
+/* Controls panel (../keybinds.js) */
+:root{--kb-bg:var(--panel-2);--kb-fg:var(--ink);--kb-muted:var(--ink-2);--kb-line:var(--line);--kb-accent:var(--mint);--kb-accent-ink:#05261a;--kb-warn:#ff8fa3;
+  --kb-border:1px solid var(--line);--kb-radius:20px;--kb-key-radius:10px;--kb-key-border:1px solid var(--line);--kb-key-bg:rgba(255,255,255,.08);
+  --kb-font:var(--f-u);--kb-font-display:var(--f-d);--kb-font-key:var(--f-u);--kb-key-weight:800;--kb-title-size:34px;--kb-title-track:-.01em;--kb-title:var(--mint);
+  --kb-backdrop:rgba(6,9,18,.62);--kb-blur:6px;--kb-pad:22px 24px 20px;--kb-width:480px}
+.kb-panel .kb-label{font-weight:700}
+.kb-panel .cta,.kb-panel .ghost{font-size:16px}
 @media (max-width:760px){
   .menu{background:rgba(6,9,18,.86)}
   .inner{margin:0 auto}
@@ -223,12 +230,13 @@ details.how[open] summary::before{content:'– '}
           <summary>How to play</summary>
           <dl class="keys">
             <dt>MOUSE</dt><dd>Your snake follows the pointer</dd>
-            <dt>CLICK / SPACE</dt><dd>Hold to boost (costs length)</dd>
-            <dt>A / D · ← →</dt><dd>Steer with the keyboard</dd>
+            <dt>CLICK / <span data-kb="boost" data-kb-short data-kb-case="upper">SPACE</span></dt><dd>Hold to boost (costs length)</dd>
+            <dt data-kb="left right" data-kb-sep=" · " data-kb-join=" / " data-kb-case="upper">A / D · ← →</dt><dd>Steer with the keyboard</dd>
             <dt>TOUCH</dt><dd>Drag to steer, hold Boost to speed up</dd>
             <dt>ESC</dt><dd>Pause, invite link</dd>
-            <dt>M</dt><dd>Sound on / off</dd>
+            <dt data-kb="mute" data-kb-case="upper">M</dt><dd>Sound on / off</dd>
           </dl>
+          <div class="row" style="margin-top:12px"><button class="ghost" id="keysMenu" type="button">Change keys</button></div>
           <p class="msg">Run your head into another snake's body and you're out. Get a snake to run into yours and its whole length spills out as food. Stay inside the red ring.</p>
         </details>
       </div>
@@ -241,7 +249,7 @@ details.how[open] summary::before{content:'– '}
     <div class="inner">
       <div class="kicker"><span><b>❚❚</b> Paused</span><span id="pauseRoom"></span></div>
       <p class="lede" id="pauseMsg"></p>
-      <div class="row"><button class="cta" id="resume" type="button">Resume</button><button class="ghost" id="copyInvite" type="button" hidden>Copy invite link</button><button class="ghost" id="leave" type="button">Leave</button></div>
+      <div class="row"><button class="cta" id="resume" type="button">Resume</button><button class="ghost" id="copyInvite" type="button" hidden>Copy invite link</button><button class="ghost" id="keysPause" type="button">Controls</button><button class="ghost" id="leave" type="button">Leave</button></div>
       <p class="msg" id="inviteMsg"></p>
     </div>
   </section>
@@ -264,6 +272,7 @@ details.how[open] summary::before{content:'– '}
   </section>
 </div>
 
+<script src="../keybinds.js"></script>
 <script>
 (function(){
 'use strict';
@@ -1099,7 +1108,7 @@ function beginOnline(){
   clearWorld(strHash(Net.room));
   mode='online';
   saveProfile();hideMenus();showHud();spawnPlayer();
-  hint('Steer with the pointer · hold click or Space to boost');
+  hint('Steer with the pointer · hold click or '+KB.short('boost')+' to boost');
 }
 async function joinPrivate(){
   initAudio();
@@ -1162,7 +1171,7 @@ function startPractice(){
   clearWorld((Math.random()*4294967296)>>>0);
   const d=DIFFS[diffKey];for(let i=0;i<d.bots;i++)spawnBot(d);
   hideMenus();showHud();spawnPlayer();
-  hint('Steer with the pointer · hold click or Space to boost · Esc to pause');
+  hint('Steer with the pointer · hold click or '+KB.short('boost')+' to boost · Esc to pause');
 }
 function again(){
   $('end').hidden=true;
@@ -1219,26 +1228,40 @@ cv.addEventListener('contextmenu',e=>e.preventDefault());
 const bb=$('boostBtn');
 bb.addEventListener('pointerdown',e=>{e.preventDefault();input.boost=true;bb.classList.add('on');try{bb.setPointerCapture(e.pointerId)}catch(_){}});
 for(const ev of ['pointerup','pointercancel','lostpointercapture'])bb.addEventListener(ev,()=>{input.boost=false;bb.classList.remove('on')});
+// Keys can be changed in the Controls panel (../keybinds.js); saved in this browser as keybinds:coil.
+const KB=Keybinds.create({
+  game:'coil',
+  actions:[
+    {id:'boost',label:'Boost',note:'Hold. Left click works too',keys:['Space','ShiftLeft','KeyW','ArrowUp']},
+    {id:'left',label:'Turn left',keys:['KeyA','ArrowLeft']},
+    {id:'right',label:'Turn right',keys:['KeyD','ArrowRight']},
+    {id:'mute',label:'Sound on / off',keys:['KeyM']},
+    {id:'pause',label:'Pause, invite link',keys:['Escape'],fixed:true}
+  ],
+  classes:{button:'ghost',primary:'cta'}
+});
 const held=new Set();
 function keyTurn(){input.keys=(held.has('r')?1:0)-(held.has('l')?1:0)}
 addEventListener('keydown',e=>{
   if(e.target&&e.target.tagName==='INPUT'){if(e.key==='Enter'&&e.target.id==='room'){e.preventDefault();joinPrivate()}return}
-  const k=e.key;
+  const k=e.key,c=e.code;
   if(k==='Escape'){if(state!=='menu'){if(!$('pause').hidden)closePause();else openPause()}return}
-  if(k==='m'||k==='M'){setMuted(!muted);return}
+  if(KB.is('mute',c)){setMuted(!muted);return}
   if(state==='dead'&&!$('end').hidden&&(k==='Enter'||k===' ')){e.preventDefault();again();return}
   if(state!=='playing')return;
-  if(k===' '||k==='Shift'||k==='w'||k==='W'||k==='ArrowUp'){e.preventDefault();input.boost=true}
-  if(k==='a'||k==='A'||k==='ArrowLeft'){held.add('l');keyTurn();e.preventDefault()}
-  if(k==='d'||k==='D'||k==='ArrowRight'){held.add('r');keyTurn();e.preventDefault()}
+  if(KB.is('boost',c)){e.preventDefault();input.boost=true}
+  if(KB.is('left',c)){held.add('l');keyTurn();e.preventDefault()}
+  if(KB.is('right',c)){held.add('r');keyTurn();e.preventDefault()}
 });
 addEventListener('keyup',e=>{
-  const k=e.key;
-  if(k===' '||k==='Shift'||k==='w'||k==='W'||k==='ArrowUp')input.boost=false;
-  if(k==='a'||k==='A'||k==='ArrowLeft')held.delete('l');
-  if(k==='d'||k==='D'||k==='ArrowRight')held.delete('r');
+  const c=e.code;
+  if(KB.is('boost',c))input.boost=false;
+  if(KB.is('left',c))held.delete('l');
+  if(KB.is('right',c))held.delete('r');
   keyTurn();
 });
+$('keysMenu').onclick=()=>KB.open();
+$('keysPause').onclick=()=>KB.open();
 $('quick').onclick=quickMatch;
 $('joinRoom').onclick=joinPrivate;
 $('practice').onclick=startPractice;

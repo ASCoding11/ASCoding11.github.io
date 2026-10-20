@@ -159,6 +159,14 @@ details.ctrl[open] .keys{margin-top:10px}
 .rail{display:none;position:fixed;top:0;bottom:0;width:var(--rail);background:#070a1c;flex-direction:column;align-items:center;justify-content:center;gap:6px}
 .rail.l{left:0;border-right:2px solid var(--line)} .rail.r{right:0;border-left:2px solid var(--line)}
 .rail ins{display:block;width:160px;height:600px}
+/* Controls panel (../keybinds.js): pixel scoreboard look */
+:root{--kb-bg:#0a0e22;--kb-fg:var(--ink);--kb-muted:var(--ink-dim);--kb-line:rgba(246,240,219,.12);--kb-accent:var(--amber);--kb-accent-ink:#1a1300;--kb-warn:var(--red);
+  --kb-border:3px solid #000;--kb-shadow:0 0 0 2px #2a3258,6px 6px 0 #000;--kb-radius:0;--kb-key-radius:0;--kb-key-border:2px solid #000;--kb-key-bg:#1b2246;--kb-key-fg:var(--amber);--kb-key-shadow:2px 2px 0 #000;
+  --kb-font:var(--f-ui);--kb-font-display:var(--f-px);--kb-font-key:var(--f-px);--kb-key-size:9px;--kb-key-weight:400;--kb-font-group:var(--f-px);
+  --kb-title-size:20px;--kb-title-weight:400;--kb-title:var(--amber);--kb-backdrop:rgba(9,13,34,.8);--kb-blur:0px;--kb-label-size:17px;--kb-help-size:15px;--kb-width:520px}
+.kb-panel .kb-group{font-size:9px;color:var(--ink)}
+.kb-panel .kb-title{text-shadow:3px 3px 0 #c01e2a}
+.kb-panel .kb-msg{font-size:15px}
 @media (min-width:1180px) and (min-height:640px){
   body.rails #app{left:var(--rail);right:var(--rail)}
   body.rails .rail{display:flex}
@@ -217,7 +225,7 @@ details.ctrl[open] .keys{margin-top:10px}
   <section id="kick" hidden aria-label="Kick">
     <div id="kickLbl">FIELD GOAL · 40 YDS</div>
     <div class="kbar" id="kbar"><i id="kZone"></i><i id="kNeedle"></i></div>
-    <div id="kickHint">Press Space, click or tap when the arrow is in the green</div>
+    <div id="kickHint">Press <span data-kb="dive" data-kb-short>Space</span>, click or tap when the arrow is in the green</div>
   </section>
 
   <section id="menu" class="overlay menu">
@@ -266,20 +274,21 @@ details.ctrl[open] .keys{margin-top:10px}
             <h4>Offense</h4>
             <div><dt>1 – 6</dt><dd>Call a play</dd></div>
             <div><dt>HOLD CLICK</dt><dd>Aim a pass, let go to throw</dd></div>
-            <div><dt>WASD</dt><dd>Scramble with the QB</dd></div>
-            <div><dt>W / S</dt><dd>Steer the ball carrier</dd></div>
-            <div><dt>A</dt><dd>Slow down to set up blocks</dd></div>
-            <div><dt>SHIFT</dt><dd>Juke (or tap)</dd></div>
-            <div><dt>SPACE</dt><dd>Dive for extra yards</dd></div>
+            <div><dt data-kb="up left down right" data-kb-short data-kb-join="" data-kb-case="upper">WASD</dt><dd>Scramble with the QB</dd></div>
+            <div><dt data-kb="up down" data-kb-short data-kb-join=" / " data-kb-case="upper">W / S</dt><dd>Steer the ball carrier</dd></div>
+            <div><dt data-kb="left" data-kb-short data-kb-case="upper">A</dt><dd>Slow down to set up blocks</dd></div>
+            <div><dt data-kb="juke" data-kb-short data-kb-case="upper">SHIFT</dt><dd>Juke (or tap)</dd></div>
+            <div><dt data-kb="dive" data-kb-short data-kb-case="upper">SPACE</dt><dd>Dive for extra yards</dd></div>
             <h4>Defense</h4>
             <div><dt>1 – 4</dt><dd>Call a coverage</dd></div>
-            <div><dt>WASD</dt><dd>Move your player (or hold click)</dd></div>
-            <div><dt>SPACE</dt><dd>Dive tackle</dd></div>
-            <div><dt>E</dt><dd>Switch to the player nearest the ball</dd></div>
+            <div><dt data-kb="up left down right" data-kb-short data-kb-join="" data-kb-case="upper">WASD</dt><dd>Move your player (or hold click)</dd></div>
+            <div><dt data-kb="dive" data-kb-short data-kb-case="upper">SPACE</dt><dd>Dive tackle</dd></div>
+            <div><dt data-kb="switch" data-kb-short data-kb-case="upper">E</dt><dd>Switch to the player nearest the ball</dd></div>
             <h4>Game</h4>
             <div><dt>ESC</dt><dd>Pause, invite link</dd></div>
-            <div><dt>M</dt><dd>Sound on / off</dd></div>
+            <div><dt data-kb="mute" data-kb-short data-kb-case="upper">M</dt><dd>Sound on / off</dd></div>
           </dl>
+          <div class="row" style="margin-top:12px"><button class="ghost-btn" id="keysMenu" type="button">Change keys</button></div>
           <p class="msg" style="margin-top:10px">Four 3-minute quarters. Let go of the controls on defense and your player plays his assignment on his own.</p>
         </details>
       </div>
@@ -291,7 +300,7 @@ details.ctrl[open] .keys{margin-top:10px}
     <div class="menu-inner">
       <div class="kicker"><span>❚❚ TIMEOUT</span><span id="pauseRoom"></span></div>
       <p class="lede" id="pauseMsg">The band is playing. Take your time.</p>
-      <div class="row"><button class="cta" id="resume" type="button">Resume</button><button class="ghost-btn" id="copyInvite" type="button" hidden>Copy invite link</button><button class="ghost-btn" id="leave" type="button">Leave game</button></div>
+      <div class="row"><button class="cta" id="resume" type="button">Resume</button><button class="ghost-btn" id="copyInvite" type="button" hidden>Copy invite link</button><button class="ghost-btn" id="keysPause" type="button">Controls</button><button class="ghost-btn" id="leave" type="button">Leave game</button></div>
       <p class="msg" id="inviteMsg"></p>
     </div>
   </section>
@@ -309,6 +318,7 @@ details.ctrl[open] .keys{margin-top:10px}
   </section>
 </div>
 
+<script src="../keybinds.js"></script>
 <script>
 (function(){
 'use strict';
@@ -1097,16 +1107,36 @@ function endPlay(type,car){
 }
 
 /* ---------- controllers ---------- */
+// Keys can be changed in the Controls panel (../keybinds.js); saved in this browser as keybinds:hail-mary.
+const KB=Keybinds.create({
+  game:'hail-mary',
+  actions:[
+    {id:'up',label:'Up',note:'Steer the ball carrier',group:'Move',keys:['KeyW','ArrowUp']},
+    {id:'down',label:'Down',group:'Move',keys:['KeyS','ArrowDown']},
+    {id:'left',label:'Left',note:'Slow down to set up blocks',group:'Move',keys:['KeyA','ArrowLeft']},
+    {id:'right',label:'Right',group:'Move',keys:['KeyD','ArrowRight']},
+    {id:'dive',label:'Dive',note:'Dive tackle on defense; also kicks',group:'Play',keys:['Space']},
+    {id:'juke',label:'Juke',group:'Play',keys:['ShiftLeft']},
+    {id:'switch',label:'Switch player',note:'To the one nearest the ball',group:'Play',keys:['KeyE','KeyQ','Tab']},
+    {id:'calls',label:'Call a play or coverage',group:'Play',text:'1 – 8'},
+    {id:'mute',label:'Sound on / off',group:'Game',keys:['KeyM']},
+    {id:'pause',label:'Pause, invite link',group:'Game',keys:['Escape'],fixed:true}
+  ],
+  reserved:['Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8','Numpad1','Numpad2','Numpad3','Numpad4','Numpad5','Numpad6','Numpad7','Numpad8'],
+  reservedWhy:'calls plays, so it can\'t be bound.',
+  classes:{button:'ghost-btn',primary:'cta'}
+});
+const moveKeys=()=>['up','left','down','right'].map(KB.short).join('');
 const keys=new Set();
 const ptr={down:false,id:null,px:0,py:0,x0:0,y0:0,t0:0,moved:false,aim:false};
 const edge={juke:0,act:0,sw:0};
 let aimPt=null;
 function axisView(){
   let x=0,y=0;
-  if(keys.has('KeyW')||keys.has('ArrowUp'))y-=1;
-  if(keys.has('KeyS')||keys.has('ArrowDown'))y+=1;
-  if(keys.has('KeyA')||keys.has('ArrowLeft'))x-=1;
-  if(keys.has('KeyD')||keys.has('ArrowRight'))x+=1;
+  if(KB.held('up',keys))y-=1;
+  if(KB.held('down',keys))y+=1;
+  if(KB.held('left',keys))x-=1;
+  if(KB.held('right',keys))x+=1;
   return{x,y};
 }
 function ptrWorld(){return toWorld(ptr.px,ptr.py)}
@@ -1449,7 +1479,7 @@ function drawCovDiagram(c,i){
 function showKick(kind,dist,human){
   $('kickLbl').textContent=(kind==='xp'?'EXTRA POINT':'FIELD GOAL')+' · '+dist+' YDS';
   $('kZone').style.left=((.5-kickSt.zone/2)*100)+'%';$('kZone').style.width=(kickSt.zone*100)+'%';
-  $('kickHint').textContent=human?'Press Space, click or tap when the arrow is in the green':(mode==='online'?teams[G.poss].name+' is kicking…':'The CPU is kicking…');
+  $('kickHint').textContent=human?'Press '+KB.short('dive')+', click or tap when the arrow is in the green':(mode==='online'?teams[G.poss].name+' is kicking…':'The CPU is kicking…');
   $('kick').hidden=mode==='attract';
 }
 
@@ -1684,11 +1714,11 @@ function hudTick(){
   if(stage==='live'&&play&&mode!=='attract'){
     const pl=play,b=pl.ball,me=myIndex();
     if(pl.O===myTeam&&!pl.follow){
-      if(b.st==='held'&&b.who===0&&pl.kind==='pass'&&!pl.thrown&&!pl.qbRun)h=coarse?'Hold to aim · let go to throw':'Hold click to aim · let go to throw · WASD to scramble';
-      else if(me>=0)h=coarse?'Hold above or below to steer · JUKE · DIVE':'W/S steer · A slow down · Shift juke · Space dive';
+      if(b.st==='held'&&b.who===0&&pl.kind==='pass'&&!pl.thrown&&!pl.qbRun)h=coarse?'Hold to aim · let go to throw':'Hold click to aim · let go to throw · '+moveKeys()+' to scramble';
+      else if(me>=0)h=coarse?'Hold above or below to steer · JUKE · DIVE':KB.short('up')+'/'+KB.short('down')+' steer · '+KB.short('left')+' slow down · '+KB.short('juke')+' juke · '+KB.short('dive')+' dive';
     }else if(me>=0){
-      if(b.st==='held'&&!pl.P[b.who].o)h=coarse?'Hold above or below to steer · JUKE · DIVE':'Pick! W/S steer · Shift juke · Space dive';
-      else h=coarse?'Hold to move · DIVE to tackle · SWITCH':'WASD move · Space dive tackle · E switch';
+      if(b.st==='held'&&!pl.P[b.who].o)h=coarse?'Hold above or below to steer · JUKE · DIVE':'Pick! '+KB.short('up')+'/'+KB.short('down')+' steer · '+KB.short('juke')+' juke · '+KB.short('dive')+' dive';
+      else h=coarse?'Hold to move · DIVE to tackle · SWITCH':moveKeys()+' move · '+KB.short('dive')+' dive tackle · '+KB.short('switch')+' switch';
     }
   }
   if(h!==lastHint){$('hint').textContent=h;lastHint=h}
@@ -2052,10 +2082,11 @@ addEventListener('keydown',e=>{
   if(mode==='attract')return;
   initAudio();
   if(e.code==='Escape'){if(!$('pause').hidden)resumeGame();else if($('end').hidden)pauseGame();if(mode==='online'&&!G&&Net.queueRef){toMenu()}return}
-  if(e.code==='KeyM'){setMute(!muted);return}
+  const c=e.code;
+  if(KB.is('mute',c)){setMute(!muted);return}
   if(paused)return;
-  keys.add(e.code);
-  if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Tab'].includes(e.code))e.preventDefault();
+  keys.add(c);
+  if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Tab'].includes(c)||KB.actionsFor(c).length)e.preventDefault();
   if(e.repeat)return;
   if(stage==='call'){
     const n=+e.key;
@@ -2064,11 +2095,13 @@ addEventListener('keydown',e=>{
     else if(callSide==='pat'){if(n===1)pick('kick');else if(n===2)pick('two')}
     return;
   }
-  if(stage==='kick'&&kickSt&&kickSt.human&&!kickSt.done&&(e.code==='Space'||e.code==='Enter')){kickNow(needlePos());return}
-  if(e.code==='Space')edge.act++;
-  else if(e.code==='ShiftLeft'||e.code==='ShiftRight')edge.juke++;
-  else if(e.code==='KeyE'||e.code==='KeyQ'||e.code==='Tab')edge.sw++;
+  if(stage==='kick'&&kickSt&&kickSt.human&&!kickSt.done&&(KB.is('dive',c)||c==='Enter')){kickNow(needlePos());return}
+  if(KB.is('dive',c))edge.act++;
+  else if(KB.is('juke',c))edge.juke++;
+  else if(KB.is('switch',c))edge.sw++;
 });
+$('keysMenu').addEventListener('click',()=>KB.open());
+$('keysPause').addEventListener('click',()=>KB.open());
 addEventListener('keyup',e=>keys.delete(e.code));
 addEventListener('blur',()=>{keys.clear();ptr.down=false;ptr.aim=false});
 const touchBtn=(id,fn)=>{$(id).addEventListener('pointerdown',e=>{e.preventDefault();initAudio();fn()})};
