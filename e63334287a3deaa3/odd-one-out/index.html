@@ -1106,6 +1106,20 @@ function rayOBB(o,d,t,x,y,z,yaw,best){
   const N=FACE_N[slab.f];rayOBB.n.set(N[0]*c+N[2]*s,N[1],-N[0]*s+N[2]*c);return tt;
 }
 rayOBB.n=new V3();
+// the same ray against the type's real triangles (so shots and aim go through the gaps under a chair
+// or between table legs, exactly the same for a placed object and a disguised player)
+const _rc=new THREE.Raycaster(),_lo=new V3(),_ldir=new V3(),rayMat=new THREE.MeshBasicMaterial({side:THREE.DoubleSide});
+function rayMesh(o,d,t,x,y,z,yaw,best){
+  if(rayOBB(o,d,t,x,y,z,yaw,best)<0&&!(rayOBB.inside(o,t,x,y,z,yaw)))return -1;
+  const c=Math.cos(yaw),s=Math.sin(yaw),px=o.x-x,pz=o.z-z;
+  _lo.set(px*c-pz*s,o.y-y,px*s+pz*c);_ldir.set(d.x*c-d.z*s,d.y,d.x*s+d.z*c);
+  _rc.ray.origin.copy(_lo);_rc.ray.direction.copy(_ldir);_rc.near=0;_rc.far=best;
+  if(!t.rayMeshes)t.rayMeshes=t.geos.map(gi=>{const m=new THREE.Mesh(gi.g,rayMat);m.updateMatrixWorld(true);return m});
+  const hs=_rc.intersectObjects(t.rayMeshes,false);if(!hs.length)return -1;
+  const h=hs[0],n=h.face?h.face.normal:_ldir.clone().negate();let nx=n.x,ny=n.y,nz=n.z;if(nx*_ldir.x+ny*_ldir.y+nz*_ldir.z>0){nx=-nx;ny=-ny;nz=-nz}
+  rayOBB.n.set(nx*c+nz*s,ny,-nx*s+nz*c);return h.distance;
+}
+rayOBB.inside=(o,t,x,y,z,yaw)=>{const c=Math.cos(yaw),s=Math.sin(yaw),px=o.x-x,pz=o.z-z,lx=px*c-pz*s,lz=px*s+pz*c,ly=o.y-y;return lx>t.bb.min.x&&lx<t.bb.max.x&&lz>t.bb.min.z&&lz<t.bb.max.z&&ly>0&&ly<t.h};
 function rayWorld(o,d,maxT,opts){
   opts=opts||{};if(!MAP)return null;
   const ix=1/(d.x||1e-9),iy=1/(d.y||1e-9),iz=1/(d.z||1e-9);let best=maxT,hit=null;
@@ -1113,7 +1127,7 @@ function rayWorld(o,d,maxT,opts){
     if(bx.prop){
       if(opts.props===false)continue;const p=bx.prop;if(opts.cam&&p.t.vol<.3)continue;
       if(slab(o.x,o.y,o.z,ix,iy,iz,bx.x0,bx.y0,bx.z0,bx.x1,bx.y1,bx.z1,best)<0&&!(o.x>bx.x0&&o.x<bx.x1&&o.z>bx.z0&&o.z<bx.z1&&o.y>bx.y0&&o.y<bx.y1))continue;
-      const t=rayOBB(o,d,p.t,p.x,p.y,p.z,p.yaw,best);if(t>=0){best=t;hit={t,n:rayOBB.n.clone(),prop:p,box:bx,ent:null}}
+      const t=opts.cam?rayOBB(o,d,p.t,p.x,p.y,p.z,p.yaw,best):rayMesh(o,d,p.t,p.x,p.y,p.z,p.yaw,best);if(t>=0){best=t;hit={t,n:rayOBB.n.clone(),prop:p,box:bx,ent:null}}
       continue;
     }
     if(!bx.ray)continue;
@@ -1122,7 +1136,7 @@ function rayWorld(o,d,maxT,opts){
   }
   if(opts.ents!==false)for(const e of ents.values()){
     if(e===opts.skip||!e.alive||!e.visible)continue;
-    if(e.form){if(opts.cam&&e.form.vol<.3)continue;const t=rayOBB(o,d,e.form,e.pos.x,e.pos.y,e.pos.z,e.yaw,best);if(t>=0){best=t;hit={t,n:rayOBB.n.clone(),ent:e,prop:null,box:null}}}
+    if(e.form){if(opts.cam&&e.form.vol<.3)continue;const t=opts.cam?rayOBB(o,d,e.form,e.pos.x,e.pos.y,e.pos.z,e.yaw,best):rayMesh(o,d,e.form,e.pos.x,e.pos.y,e.pos.z,e.yaw,best);if(t>=0){best=t;hit={t,n:rayOBB.n.clone(),ent:e,prop:null,box:null}}}
     else if(!opts.cam){const t=slab(o.x,o.y,o.z,ix,iy,iz,e.pos.x-.3,e.pos.y,e.pos.z-.3,e.pos.x+.3,e.pos.y+1.8,e.pos.z+.3,best);if(t>=0){best=t;hit={t,n:new V3(0,1,0),ent:e,prop:null,box:null}}}
   }
   return hit;
@@ -1506,7 +1520,7 @@ function buildOffice(){
   // ---- manager's office ----
   B.box(4,0,31,7,.75,32.2,'woodDark');B.place('monitor',5.5,31.4,0,.75);B.place('books',4.5,31.6,.3,.75);B.place('plantS',6.6,31.6,0,.75);B.place('chairO',5.5,32.9,Math.PI);
   B.place('chairC',4.8,30.2,0);B.place('chairC',6.2,30.2,0);B.box(8,0,35.4,12,2.2,35.9,{all:'woodDark','-z':'shelfBook'},{fit:'-z'});
-  B.place('armchair',12.8,28.5,-Math.PI/2);B.place('plantT',.6,35.4,0);B.place('lampF',1,29.5,0);B.place('boxM',13.3,35.3,0);B.place('boxS',13.3,35.3,.3,.46);B.place('books',12.5,35.2,0);B.place('trash',2.2,26.6,0);
+  B.place('armchair',12.8,28.5,-Math.PI/2);B.place('fridgeMini',13.4,32.6,-Math.PI/2);B.place('cup',13.4,32.6,0,.85);B.place('plantT',.6,35.4,0);B.place('lampF',1,29.5,0);B.place('boxM',13.3,35.3,0);B.place('boxS',13.3,35.3,.3,.46);B.place('books',12.5,35.2,0);B.place('trash',2.2,26.6,0);
   // ---- break room ----
   B.place('vending',14.55,22.5,Math.PI/2);B.place('vending2',14.55,23.5,Math.PI/2);B.place('vending',14.55,24.5,Math.PI/2);
   B.box(16,0,35.25,24,.92,35.9,{all:'cabinet','+y':'counterTop'});B.box(24.2,0,35.1,25.1,1.9,35.9,{all:'fridge'},{fit:'all'});
@@ -2069,9 +2083,12 @@ function planHide(e,near,maxD){
   const D=DIFF[G.diff],taken=[...ents.values()].filter(o=>o!==e&&o.bot&&o.bot.goal).map(o=>o.bot.goal);
   let cands=MAP.props.filter(p=>p.t.elig&&p.y<.05&&p.t.vol<1.8&&inMap(p.x,p.z)&&(p.near>=1||!D.exact)&&!taken.some(g=>Math.hypot(g.x-p.x,g.z-p.z)<3));
   if(near)cands=cands.filter(p=>{const d=Math.hypot(p.x-near.x,p.z-near.z);return d>4&&d<maxD});
+  else{const close=cands.filter(p=>Math.hypot(p.x-e.pos.x,p.z-e.pos.z)<22);if(close.length>=6)cands=close}
   const old={form:e.form,pos:e.pos.clone(),yaw:e.yaw};
   for(let tries=0;tries<30&&cands.length;tries++){
-    const p=cands.splice(Math.floor(Math.random()*cands.length),1)[0],t=p.t,rad=Math.max(t.w,t.d)*.5+Math.max(t.w,t.d)*.5+.12;
+    // pick a kind of object first, then one of them, so the bots don't all turn into chairs
+    const kinds=[...new Set(cands.map(q=>q.t))],kind=kinds[Math.floor(Math.random()*kinds.length)],of=cands.filter(q=>q.t===kind);
+    const p=of[Math.floor(Math.random()*of.length)];cands.splice(cands.indexOf(p),1);const t=p.t,rad=Math.max(t.w,t.d)*.5+Math.max(t.w,t.d)*.5+.12;
     const yaw=D.exact?p.yaw:p.yaw+rand(-.5,.5);
     for(let k=0;k<10;k++){
       const a=Math.random()*TAU,x=p.x+Math.sin(a)*rad,z=p.z+Math.cos(a)*rad;if(!inMap(x,z))continue;
