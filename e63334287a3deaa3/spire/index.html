@@ -433,7 +433,7 @@ function mkPart(o){
     hx:(o.w||0)/2,hy:o.h/2,hz:(o.d||0)/2,r:o.r||0,
     solid:o.solid!==false,kill:!!o.kill,bounce:o.bounce||0,conv:o.conv||null,truss:!!o.truss,crumble:!!o.crumble,
     timed:o.timed||null,move:o.move||null,zone:o.zone||'',cp:o.cp==null?-1:o.cp,finish:!!o.finish,
-    cam:o.cam!=null?o.cam:(o.solid!==false&&!o.kill&&o.mat!=='glass'),
+    cam:o.cam!=null?o.cam:(o.solid!==false&&!o.kill&&!o.truss&&o.mat!=='glass'), // trusses are see-through lattices
     col:o.col||'#cccccc',col2:o.col2||'',mat:o.mat||'plastic',touch:-1,sec:o.sec==null?-1:o.sec,deco:!!o.deco,label:o.label||'',
     _ct:NaN,c:{x:0,y:0,z:0,yaw:0},_ot:NaN,o:{x:0,y:0,z:0,yaw:0},_st:0};
   if(p.shape==='cyl'){p.hx=p.hz=p.r}
@@ -1277,7 +1277,7 @@ function sharedMat(kind,col){
   const k=kind+col;let m=matCache.get(k);if(m)return m;
   const c=new THREE.Color(col);
   if(kind==='neon')m=new THREE.MeshBasicMaterial({color:c});
-  else if(kind==='glow')m=new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:.28,blending:THREE.AdditiveBlending,depthWrite:false});
+  else if(kind==='glow')m=new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:.35,blending:THREE.AdditiveBlending,depthWrite:false});
   else if(kind==='lava')m=new THREE.MeshBasicMaterial({map:TEX.lava});
   else if(kind==='truss')m=new THREE.MeshLambertMaterial({color:c,map:TEX.truss,transparent:true,alphaTest:.4,side:THREE.DoubleSide});
   else if(kind==='bounce')m=new THREE.MeshLambertMaterial({map:TEX.bounce,emissive:new THREE.Color('#5a0030')});
@@ -1353,7 +1353,7 @@ function partMesh(p){
   const geo=p.shape==='cyl'?cylGeo(p.r,p.hy*2):boxGeo(p.hx*2,p.hy*2,p.hz*2);
   const m=new THREE.Mesh(geo,mat);
   if(p.kill&&p.mat!=='lava'){
-    const glow=new THREE.Mesh(geo,sharedMat('glow','#ff3355'));glow.scale.set(1+.35/Math.max(.2,p.hx),1+.35/Math.max(.2,p.hy),1+.35/Math.max(.2,p.hz));m.add(glow);m.userData.glow=glow;
+    const glow=new THREE.Mesh(geo,sharedMat('glow','#ff3355'));glow.scale.set(1+.13/Math.max(.1,p.hx),1+.13/Math.max(.1,p.hy),1+.13/Math.max(.1,p.hz));m.add(glow);m.userData.glow=glow;
     if(p.mat==='laser'&&p.timed){m.material=new THREE.MeshBasicMaterial({color:'#ff2a4a',transparent:true});glow.material=sharedMat('glow','#ff3355').clone()}
   }
   if(p.label){ // section number painted on the landing
@@ -1729,7 +1729,7 @@ function updateCamera(dt,rt,tx,ty,tz){
   // In a cramped spot (a landing right overhead), drop the camera lower where there's more room.
   let want=G.camPitch;const room=Math.min(G.camDist,4.5);
   let h=ray(want);
-  if(h<room){let bh=h;for(const p of [G.camPitch-.3,G.camPitch-.6,G.camPitch-.9,0,-.3]){if(p>=G.camPitch)continue;const hh=ray(p);if(hh>bh+.4){bh=hh;want=p}if(hh>=room)break}}
+  if(h<room){let bh=h;for(const p of [G.camPitch-.25,G.camPitch-.5,.05]){if(p>=G.camPitch||p<.05)continue;const hh=ray(p);if(hh>bh+.4){bh=hh;want=p}if(hh>=room)break}}
   if(G.effPitch==null)G.effPitch=want;
   G.effPitch+=(want-G.effPitch)*(1-Math.exp(-dt*(want<G.effPitch?14:4)));
   const cp=Math.cos(G.effPitch),dx=Math.sin(G.camYaw)*cp,dy=Math.sin(G.effPitch),dz=Math.cos(G.camYaw)*cp;
@@ -1897,6 +1897,10 @@ function applyRS(rs){
     if(Net.now()<rs.t0)banner(G.W.name,rs.n+' sections · '+Math.round(rs.dur/60000)+' minutes',3);
     else feed('Joined '+esc(G.W.name)+' · climb!');
   }
+  // others reaching the top
+  if(G.finSeenRound!==rs.id){G.finSeenRound=rs.id;G.finSeen=rs.fin.length}
+  for(let k=G.finSeen;k<rs.fin.length;k++){const f=rs.fin[k];if(f[0]!==Net.uid){feed('<span class="hl">'+esc(f[2]||'Someone')+'</span> reached the top · '+(k+1)+ordinal(k+1));sfx('cp')}if(k===0&&f[0]!==Net.uid)banner('Clock at double speed!',(f[2]||'Someone')+' made it to the top',2.2)}
+  G.finSeen=rs.fin.length;
   if(rs.ph==='inter'&&G.shownInter!==rs.id){G.shownInter=rs.id;showOnlineResults()}
   const i=rs.fin.findIndex(f=>f[0]===Net.uid);
   if(i>=0&&G.awarded!==rs.id){
@@ -1966,7 +1970,7 @@ function updateHud(){
   if(G.mode==='online'&&G.rs){
     const now=Net.now(),rs=G.rs;
     if(rs.ph==='climb'&&now<rs.t0){setText('timerLbl','Starts in');setText('timer',fmtClock((rs.t0-now)/1000))}
-    else if(rs.ph==='climb'){setText('timerLbl',rs.ff?'Time left · 2×':'Time left');setText('timer',fmtClock(remaining(rs,now)/1000))}
+    else if(rs.ph==='climb'){const left=remaining(rs,now)/1000;setText('timerLbl',rs.ff?'Time left · 2×':'Time left');setText('timer',fmtClock(left));const sec=Math.ceil(left);if(sec<=5&&sec>0&&sec!==G.lastTickSec){G.lastTickSec=sec;sfx('tick')}}
     else{setText('timerLbl','Next tower');setText('timer',fmtClock((rs.ne-now)/1000))}
     tb.classList.toggle('fast',!!rs.ff&&rs.ph==='climb');
   }else if(G.mode==='online'){setText('timerLbl','Joining');setText('timer','…');tb.classList.remove('fast')}
