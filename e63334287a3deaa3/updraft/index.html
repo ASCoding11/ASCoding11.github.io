@@ -159,6 +159,7 @@ body.touch #touch{display:block}
 #tMenu{right:calc(14px + env(safe-area-inset-right,0px));top:calc(12px + env(safe-area-inset-top,0px));width:44px;height:44px;border-radius:12px;font-size:18px}
 body.touch #hint,body.touch #lockHint{display:none}
 body.touch #keysMenu,body.touch #keysPause{display:none}
+body.touch .menu-btns{grid-template-columns:1fr}
 body.touch #alt{font-size:38px}
 body.touch #alt small{font-size:18px}
 body.touch #zoneName{font-size:10.5px;margin-top:4px}
@@ -241,7 +242,7 @@ body.touch #spec{bottom:calc(160px + env(safe-area-inset-bottom,0px))}
     <div id="restartHold" class="sh" hidden><svg class="ring" viewBox="0 0 64 64"><circle cx="32" cy="32" r="27" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="6"/><circle id="holdArc" cx="32" cy="32" r="27" fill="none" stroke="#ffb347" stroke-width="6" stroke-linecap="round" stroke-dasharray="170" stroke-dashoffset="170" transform="rotate(-90 32 32)"/></svg>Hold to restart from the bottom</div>
   </div>
 
-  <div id="touch" aria-hidden="true">
+  <div id="touch" aria-hidden="true" hidden>
     <div id="tLook"></div>
     <div id="tStick"><i></i></div>
     <button class="tb" id="tSprint" type="button">Sprint</button>
@@ -712,7 +713,7 @@ function build(seed){
   NID=0;
   const rnd=mulberry(seed||20261020);
   const rr=(a,b)=>a+(b-a)*rnd(),pick=a=>a[Math.floor(rnd()*a.length)];
-  const cols=[],deco=[],path=[],fans=[],signs=[],extras=[];
+  const cols=[],deco=[],path=[],fans=[],signs=[];
   const K={last:null,h:0,flow:true};
   function add(o){const c=mk(o);c.zone=zoneAt(c.y1);cols.push(c);return c}
   function dec(o){deco.push(o);return o}
@@ -749,7 +750,6 @@ function build(seed){
   }
   // a jump sized for this zone: dh in [dh0, dh1], gap a fraction f0..f1 of the sprint reach at that dh
   function jump(o,f0,f1,dh0,dh1,turn){const dh=rr(dh0,dh1);return go(o,rr(f0,f1)*reach(dh),dh,turn==null?rr(-.35,.35):turn)}
-  function rest(o,label){const c=put(o);c.rest=1;if(label)signs.push({x:c.x,y:c.y1,z:c.z,yaw:K.h,text:label});return c}
 
   // ===================== Zone 1: Scrapyard Streets (0 – 168 m) =====================
   // The tower in the middle: three blocks, with terraces at 56 and 112 m and the roof at 168 m.
@@ -764,6 +764,11 @@ function build(seed){
     const a=rnd()*Math.PI*2,r=rr(64,200),w=rr(12,26),d=rr(12,26),hgt=rr(8,i<12?64:40);
     add({t:'box',x:Math.sin(a)*r,z:Math.cos(a)*r,top:hgt,h:hgt,w,d,yaw:Math.round(a/(Math.PI/2))*Math.PI/2,v:'facade',col:pick(['#8a7f74','#7a8691','#9a8f80','#6f7a70','#8f7c6c','#7c7f8f','#86766a']),tv:'roof',surf:'stone',deco:true});
   }
+  // street furniture round the plaza (scenery only)
+  // (scenery has its own random numbers, so changing it never moves the route)
+  const sr=mulberry(77),sp=a=>a[Math.floor(sr()*a.length)];
+  for(let i=0;i<16;i++){const a=i/16*Math.PI*2+(sr()-.5)*.2,r=52+sr()*6;dec({s:'car',x:Math.sin(a)*r,z:Math.cos(a)*r,yaw:a+Math.PI/2+(sr()<.5?0:Math.PI),col:sp(['#c8462f','#2f6fb3','#e0b028','#3f8f5a','#ecebe6','#2b2f38'])})}
+  for(let i=0;i<20;i++){const a=i/20*Math.PI*2+.08,r=49;dec({s:'lamp',x:Math.sin(a)*r,z:Math.cos(a)*r,yaw:a})}
   // start pad on the street, south of the tower
   put({t:'cyl',x:0,z:36,top:.14,h:.14,r:2.6,v:'pad',col:'#ffcf3d',surf:'metal'});
   K.h=Math.PI/2;
@@ -1134,7 +1139,8 @@ function build(seed){
   // Far scenery: things floating well away from the route, drawn only (no collision).
   {
     const kinds=[null,['fbook','fbook','fpencil','fball','fmug','fclock'],['fisle','fisle','fisle','fcloud'],['fballoon','fsat','fcrystal','fballoon'],['frock','frock','frock','fcrystal']];
-    for(let z=1;z<5;z++){const Z=ZONES[z];for(let i=0;i<34;i++){const a=rnd()*Math.PI*2,r=rr(75,190),y=rr(Z.y0+5,Z.y1+(z===4?120:0));dec({s:'far',k:pick(kinds[z]),x:Math.sin(a)*r,y,z:Math.cos(a)*r,sc:rr(.7,1.6)*(r/110),yaw:rr(0,6.3),tilt:rr(-.5,.5),col:pick(z===1?BOOKS:['#ffffff'])})}}
+    const fr=mulberry(91),fp=a=>a[Math.floor(fr()*a.length)],fq=(a,b)=>a+(b-a)*fr();
+    for(let z=1;z<5;z++){const Z=ZONES[z];for(let i=0;i<34;i++){const a=fr()*Math.PI*2,r=fq(75,190),y=fq(Z.y0+5,Z.y1+(z===4?120:0));dec({s:'far',k:fp(kinds[z]),x:Math.sin(a)*r,y,z:Math.cos(a)*r,sc:fq(.7,1.6)*(r/110),yaw:fq(0,6.3),tilt:fq(-.5,.5),col:fp(z===1?BOOKS:['#ffffff'])})}}
   }
   // Scenery that ended up in the way of a jump (or right over a platform) is taken out.
   {
@@ -1142,7 +1148,7 @@ function build(seed){
     for(const is of ck.issues)if(is[0]==='blocked'||is[0]==='headroom'){const c=cols.find(q=>q.id===is[2]);if(c&&c.deco&&c.path<0)bad.add(c)}
     for(let i=cols.length-1;i>=0;i--)if(bad.has(cols[i]))cols.splice(i,1);
   }
-  return{cols,deco,path,fans,signs,extras,shortcuts,K,go,put,add,dec,jump,rr,pick,rnd,onPath,rest,rhoT,top};
+  return{cols,deco,path,fans,signs,shortcuts};
 }
 
 // ---------------------------------------------------------------------
@@ -1560,6 +1566,8 @@ const T={};
   // cloud puffs for sprites and the sea of clouds
   c=cnv(128,128);x=c.getContext('2d');{const g=x.createRadialGradient(64,64,4,64,64,62);g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.55,'rgba(255,255,255,.75)');g.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=g;x.fillRect(0,0,128,128)}T.puff=tex(c,false);
   c=cnv(512,512);x=c.getContext('2d');x.fillStyle='#d9e2ee';x.fillRect(0,0,512,512);{const R=rng(21);for(let i=0;i<260;i++){const px=R()*512,py=R()*512,r=20+R()*70,w=R()<.75;for(const dx of [-512,0,512])for(const dy of [-512,0,512]){const g=x.createRadialGradient(px+dx,py+dy,0,px+dx,py+dy,r);g.addColorStop(0,w?'rgba(255,255,255,.7)':'rgba(170,186,212,.35)');g.addColorStop(1,w?'rgba(255,255,255,0)':'rgba(170,186,212,0)');x.fillStyle=g;x.beginPath();x.arc(px+dx,py+dy,r,0,7);x.fill()}}}T.cloudsea=tex(c);
+  // paving slabs for the plaza
+  c=cnv(128,128);x=c.getContext('2d');x.fillStyle='#b9b4ab';x.fillRect(0,0,128,128);speckle(x,128,128,2500,.18,2,23);x.strokeStyle='rgba(60,55,50,.35)';x.lineWidth=2;for(let i=0;i<=4;i++){x.beginPath();x.moveTo(i*32,0);x.lineTo(i*32,128);x.stroke();x.beginPath();x.moveTo(0,i*32);x.lineTo(128,i*32);x.stroke()}T.paving=tex(c);
   // the street: asphalt with lane markings
   c=cnv(512,512);x=c.getContext('2d');x.fillStyle='#5d5f63';x.fillRect(0,0,512,512);{const R=rng(22);for(let i=0;i<4;i++)for(let j=0;j<4;j++){const g=Math.floor(110+R()*60);x.fillStyle=`rgb(${g},${g-4},${g-10})`;x.fillRect(i*128+14,j*128+14,100,100);for(let k=0;k<5;k++){const v=Math.floor(90+R()*90);x.fillStyle=`rgb(${v},${v-3},${v-8})`;x.fillRect(i*128+18+R()*60,j*128+18+R()*60,14+R()*30,14+R()*30)}}}speckle(x,512,512,9000,.18,2,22);T.street=tex(c);
 })();
@@ -1649,7 +1657,11 @@ function drawCollider(c,get,local){
     case 'facade':box({top:'roof',side:'facade'},col,c.deco?6:6,'#b5afa6');break;
     case 'pad':cylinder('plain','#3a3f4a',28,1,1,'stripes','#ffffff');break;
     case 'crate':box({top:'crate',side:'crate'},col,Math.min(2*c.hx,1.8));break;
-    case 'container':box({top:'container',side:'container'},col,2.6,shade(col,.95));break;
+    case 'container':box({top:'container',side:'container'},col,2.6,shade(col,.95));
+      // a stack reads as several containers: a dark seam every 2.6 m, and doors on the end
+      if(!local)for(let k=1;k*2.6<h-.3;k++)addGeo(get('plain'),GEO.box,M(c.x,c.y1-k*2.6,c.z,c.yaw,c.hx*2+.04,.1,c.hz*2+.04),shade(col,.45));
+      if(!local)for(const sg of [-1,1]){const p=toW(c,0,sg*(c.hz+.01));addGeo(get('plain'),GEO.box,M(p[0],c.y1-1.3,p[1],c.yaw,c.hx*1.7,2.3,.04),shade(col,.8))}
+      break;
     case 'plank':case 'bridge':box({top:'wood',side:'wood'},col,1.2);break;
     case 'pipe':{const m=M(X,Y-c.hx,Z,yaw,c.hx,2*c.hz,c.hx,Math.PI/2-Math.atan(c.sl));addGeo(get('metal'),cylG(14),m,col,3,c.hz);
       for(const s of [-1,1]){const p=[X+Math.sin(yaw)*c.hz*s*.98,Y-c.hx+c.sl*c.hz*s,Z+Math.cos(yaw)*c.hz*s*.98];addGeo(get('metal'),cylG(14),M(p[0],p[1],p[2],yaw,c.hx*1.25,.25,c.hx*1.25,Math.PI/2),shade(col,.8))}break}
@@ -1769,6 +1781,7 @@ function buildWorld(){
   chunks.clear();
   if(TEST)console.log('world built in',Math.round(performance.now()-t0),'ms');
 }
+function toW(c,lx,lz){return U.toWorld(c,lx,lz)}
 function drawStrut(c){
   const y=c.y0;const blk=y<56?20:y<112?15:10;const ax=Math.abs(c.x),az=Math.abs(c.z);
   let tx,tz;if(ax>az){tx=Math.sign(c.x)*blk;tz=clamp(c.z,-blk+.5,blk-.5)}else{tz=Math.sign(c.z)*blk;tx=clamp(c.x,-blk+.5,blk-.5)}
@@ -1786,6 +1799,9 @@ function drawDeco(d){
     for(const r of [0,Math.PI/2])addGeo(sb('chain',a.y),pl,M(a.x,(a.y+b.y)/2,a.z,r),'#9aa1aa');
     addGeo(sb('metal',a.y),GEO.sph,M(a.x,a.y+.05,a.z,0,.1,.1,.1),'#9aa1aa');return}
   if(d.s==='far'){drawFar(d);return}
+  if(d.s==='car'){const g=get;addBox(g,M(d.x,.95,d.z,d.yaw),.95,2.1,.6,0,{top:'plain',side:'plain'},d.col,2,null,.85);addBox(g,M(d.x,1.55,d.z,d.yaw),.85,1.1,.6,0,{top:'plain',side:'plain'},'#2b3340',2,shade(d.col,.9),.9);
+    for(const q of [[1,1],[1,-1],[-1,1],[-1,-1]]){const cs=Math.cos(d.yaw),sn=Math.sin(d.yaw),lx=q[0]*.9,lz=q[1]*1.35;addGeo(g('plain'),cylG(10),M(d.x+lx*cs+lz*sn,.36,d.z-lx*sn+lz*cs,d.yaw,.36,.25,.36,0,Math.PI/2),'#1d1f24')}return}
+  if(d.s==='lamp'){addGeo(get('metal'),cylG(6),M(d.x,3,d.z,0,.08,6,.08),'#4a4f57');addGeo(get('glow'),GEO.sph,M(d.x,6.1,d.z,0,.22,.16,.22),'#ffe7a8');return}
   if(d.s==='spire'){}
   if(d.s==='tree'){if(d.tid!=null&&!liveIds.has(d.tid))return;const R2=rng(Math.floor(d.x*13+d.z*7));for(let i=0;i<4;i++){const s=d.r*(.6+R2()*.4);addGeo(sb('plain',d.y),GEO.sph,M(d.x+(R2()-.5)*d.r*.8,d.y+(R2()-.2)*d.r*.6,d.z+(R2()-.5)*d.r*.8,R2()*3,s,s*.9,s),pick(['#4f9d4a','#5fae55','#3f8a43']))}return}
   if(d.s==='scaffold'){const hw=d.w/2,get2=y=>sb('metal',y);const cs=Math.cos(d.yaw),sn=Math.sin(d.yaw);const P=(lx,lz)=>[d.x+lx*cs+lz*sn,d.z-lx*sn+lz*cs];
@@ -1836,7 +1852,7 @@ let hills=null;
 function buildScenery(){
   const g=new THREE.Mesh(new THREE.PlaneGeometry(6000,6000),new THREE.MeshLambertMaterial({map:T.street,color:0xb0b0b0}));T.street.repeat.set(60,60);g.rotation.x=-Math.PI/2;scene.add(g);
   // a plaza round the tower's base
-  const pz=new THREE.Mesh(new THREE.PlaneGeometry(110,110),new THREE.MeshLambertMaterial({map:T.concrete,color:0x9a948b}));T.concrete.repeat.set(1,1);pz.rotation.x=-Math.PI/2;pz.position.y=.02;scene.add(pz);
+  const pz=new THREE.Mesh(new THREE.PlaneGeometry(110,110),new THREE.MeshLambertMaterial({map:T.paving,color:0x9d978e}));T.paving.repeat.set(28,28);pz.rotation.x=-Math.PI/2;pz.position.y=.02;scene.add(pz);
   // hills on the horizon (no fog on them, they're tinted like the haze instead)
   const hm=new THREE.MeshLambertMaterial({color:0x8fa7c2,fog:false,flatShading:true});hills=hm;const R2=rng(77);
   for(let i=0;i<46;i++){const a=i/46*Math.PI*2+R2()*.1,r=2300+R2()*700,h=90+R2()*210,w=320+R2()*420;const m=new THREE.Mesh(new THREE.ConeGeometry(1,1,7),hm);m.scale.set(w,h,w*.8);m.position.set(Math.sin(a)*r,h/2-20,Math.cos(a)*r);m.rotation.y=R2()*3;scene.add(m)}
@@ -2127,7 +2143,7 @@ function stepOnce(){
   wt+=C.DT;U.setTime(W,wt);W.ev.length=0;
   const wasGnd=!!me.gnd;
   U.step(W,me,i,C.DT);
-  if(G.mode==='play'&&!run.fin&&!(G.paused&&!G.net))run.t+=C.DT;
+  if(G.mode==='play'&&!run.fin&&!G.paused)run.t+=C.DT;
   if(me.y>run.maxY)run.maxY=me.y;
   for(const e of W.ev)onEvent(e);
   // footsteps
