@@ -1756,7 +1756,8 @@ function aliveHunters(rs){return rs.hu.filter(u=>!(rs.el&&rs.el[u])&&present(u))
 function phaseLeft(){const rs=G.rs;if(!rs||!rs.dur)return 0;return(rs.t0+rs.dur-now())/1000}
 function maxHpOf(id,rs){rs=rs||G.rs;if(rs&&rs.hu.indexOf(id)>=0)return 100;const e=ents.get(id);const t=e&&e.form||PT[DEFAULT_FORM];return rs&&rs.set&&rs.set.hps===0?100:t.hp}
 function hpOf(id,rs){rs=rs||G.rs;const f=rs&&rs.hf?rs.hf[id]||0:0;return Math.max(0,Math.round((1-f)*maxHpOf(id,rs)))}
-function defaultSet(){return Object.assign({map:-1,rounds:5,hide:30,hunt:240,ratio:0,ping:15,pen:3,hps:1},store.get('hostset',{}))}
+const DEF_SET={map:-1,rounds:5,hide:30,hunt:240,ratio:0,ping:15,pen:3,hps:1};
+function defaultSet(){return cleanSet(Object.assign({},DEF_SET,store.get('hostset',{})))}
 function lobbyRS(prev,set){return{id:prev?prev.id:0,mid:prev?prev.mid||0:0,rn:0,ph:'lobby',t0:now(),dur:0,map:prev?prev.map:mapIdx<0?0:mapIdx,set:set||(prev&&prev.set)||defaultSet(),hu:[],pr:[],hf:{},el:{},k:{},sc:prev&&prev.ph!=='over'?prev.sc||{}:{},hn:{},as:0}}
 function liveIds(){if(G.mode==='practice')return[...ents.keys()];const a=[Net.uid];for(const k of Net.others.keys())if(Net.live(k))a.push(k);return a}
 function huntersFor(n,set){const want=set.ratio|0?set.ratio|0:n<=3?1:n<=6?2:n<=10?3:4;return clamp(want,1,Math.max(1,n-1))}
@@ -2290,6 +2291,30 @@ const Net={
   }
 };
 function validRS(p){return p&&typeof p.id==='number'&&['lobby','hide','hunt','end','over'].indexOf(p.ph)>=0&&Array.isArray(p.hu)&&Array.isArray(p.pr)&&p.set&&typeof p.t0==='number'&&typeof p.map==='number'}
+// Values from other players' nodes are untrusted: a broken or hostile copy of the page can write anything there.
+// A round state is rebuilt from the fields this page uses, as plain numbers, player ids and known prop ids, so it
+// can't put markup in the scoreboard, crash the page or stall it (a ping every 0 s, a 10-year hunt).
+const finN=v=>typeof v==='number'&&isFinite(v);
+const numIn=(v,a,b,d)=>finN(v)?clamp(v,a,b):d;
+const isObj=o=>!!o&&typeof o==='object'&&!Array.isArray(o);
+const ID_RE=/^[A-Za-z0-9][\w-]{0,63}$/;
+const ptOf=id=>typeof id==='string'&&Object.prototype.hasOwnProperty.call(PT,id)?PT[id]:null;
+function cleanSet(s){
+  s=isObj(s)?s:{};const n=(k,a,b)=>Math.round(numIn(s[k],a,b,DEF_SET[k]));
+  return{map:n('map',-1,MAPS.length-1),rounds:n('rounds',1,20),hide:n('hide',5,120),hunt:n('hunt',30,900),ratio:n('ratio',0,8),ping:n('ping',5,60),pen:n('pen',0,20),hps:s.hps===0?0:1};
+}
+function idList(a){const out=[];if(Array.isArray(a))for(const u of a)if(typeof u==='string'&&ID_RE.test(u)&&out.indexOf(u)<0&&out.length<64)out.push(u);return out}
+function idMap(o,f){const out={};if(isObj(o))for(const k of Object.keys(o).slice(0,256)){if(!ID_RE.test(k))continue;const v=f(o[k]);if(v!==undefined)out[k]=v}return out}
+const intMap=o=>idMap(o,v=>finN(v)?Math.round(clamp(v,-1e7,1e7)):undefined);
+function sanitizeRS(p){
+  if(!validRS(p)||!finN(p.id)||!finN(p.t0))return null;
+  const hu=idList(p.hu),res=p.res;
+  return{id:p.id,mid:Math.round(numIn(p.mid,0,1e9,0)),rn:Math.round(numIn(p.rn,0,1000,0)),ph:p.ph,t0:p.t0,dur:numIn(p.dur,0,3600000,0),map:clamp(p.map|0,0,MAPS.length-1),
+    set:cleanSet(p.set),hu,pr:idList(p.pr).filter(u=>hu.indexOf(u)<0),hf:idMap(p.hf,v=>finN(v)?clamp(v,0,1):undefined),
+    el:idMap(p.el,v=>Array.isArray(v)?[typeof v[0]==='string'&&(v[0]===''||ID_RE.test(v[0]))?v[0]:'',numIn(v[1],0,3600,0)]:undefined),
+    k:intMap(p.k),sc:intMap(p.sc),hn:intMap(p.hn),as:numIn(p.as,0,1e15,0),
+    res:isObj(res)?{win:res.win==='hunters'?'hunters':'props',pts:intMap(res.pts),names:idMap(res.names,v=>typeof v==='string'&&cleanName(v)||undefined),surv:intMap(res.surv),forms:idMap(res.forms,v=>ptOf(v)?v:undefined)}:null};
+}
 function onNode(uid,v){
   if(!v||typeof v!=='object')return;
   const o={n:cleanName(v.n)||'Player',c:/^#[0-9a-f]{6}$/i.test(v.c)?v.c:'#ff7a1a',j:+v.j||+v.ts||0,ts:+v.ts||0,rs:typeof v.rs==='string'?v.rs:'',he:+v.he||0,hd:typeof v.hd==='string'?v.hd:''};
@@ -2297,22 +2322,22 @@ function onNode(uid,v){
   if(o.rs&&o.he>G.maxHe)G.maxHe=o.he;
   let e=ents.get(uid);
   if(!e){
-    if(Net.now()-o.ts>LIVE_MS||!isFinite(+v.x)||!isFinite(+v.z))return;
+    if(Net.now()-o.ts>LIVE_MS||!finN(+v.x)||!finN(+v.z)||!MAP)return;
     e=makeEnt({id:uid,name:o.n,color:o.c,remote:true});
-    e.pos.set(+v.x,+v.y||0,+v.z);e.tpos.copy(e.pos);e.yaw=e.tyaw=+v.h||0;e.shSeen=typeof v.sh==='string'?v.sh:'';e.dSeen=v.d;
-    if(PT[v.d]&&PT[v.d].elig)setForm(e,PT[v.d]);
+    const bd=MAP.ext;e.pos.set(clamp(+v.x,bd[0],bd[2]),numIn(+v.y,-1,12,0),clamp(+v.z,bd[1],bd[3]));e.tpos.copy(e.pos);e.yaw=e.tyaw=wrapA(numIn(+v.h,-1e3,1e3,0));e.shSeen=typeof v.sh==='string'?v.sh:'';e.dSeen=v.d;
+    const t0=ptOf(v.d);if(t0&&t0.elig)setForm(e,t0);
     if(performance.now()-G.joinedAt>2500)feed(esc(o.n)+' joined');
     refreshRoles();
   }
   e.seen=performance.now();e.name=o.n;e.color=o.c;
-  if(isFinite(+v.x)&&isFinite(+v.z)&&MAP){const bd=MAP.ext;e.tpos.set(clamp(+v.x,bd[0],bd[2]),clamp(+v.y||0,-1,12),clamp(+v.z,bd[1],bd[3]))}
-  e.tyaw=+v.h||0;e.aimPitch=+v.p||0;
-  if(v.d!==e.dSeen){e.dSeen=v.d;const t=PT[v.d];if(t&&t.elig&&t!==e.form){setForm(e,t);if(e.look==='prop'&&e.alive){const c=e.pos.clone();c.y+=t.h/2;puff(c,clamp(Math.max(t.w,t.h),.4,1.4));sfx('transform',c)}}}
+  if(finN(+v.x)&&finN(+v.z)&&MAP){const bd=MAP.ext;e.tpos.set(clamp(+v.x,bd[0],bd[2]),numIn(+v.y,-1,12,0),clamp(+v.z,bd[1],bd[3]))}
+  e.tyaw=wrapA(numIn(+v.h,-1e3,1e3,e.tyaw));e.aimPitch=numIn(+v.p,-1.5,1.5,0);
+  if(v.d!==e.dSeen){e.dSeen=v.d;const t=ptOf(v.d);if(t&&t.elig&&t!==e.form){setForm(e,t);if(e.look==='prop'&&e.alive){const c=e.pos.clone();c.y+=t.h/2;puff(c,clamp(Math.max(t.w,t.h),.4,1.4));sfx('transform',c)}}}
   if(typeof v.sh==='string'&&v.sh!==e.shSeen){e.shSeen=v.sh;remoteShot(e,v.sh)}
   // round state from the host
   if(o.rs&&!G.host&&(uid===G.hostUid||!G.hostUid)&&o.rs!==G.rsSeen){
     G.rsSeen=o.rs;let p=null;try{p=JSON.parse(o.rs)}catch(err){}
-    if(validRS(p)){p.map=clamp(p.map|0,0,MAPS.length-1);G.lastRS=p;G.rs=p;applyRS(p);renderLobby()}
+    p=sanitizeRS(p);if(p){G.lastRS=p;G.rs=p;applyRS(p);renderLobby()}
   }
   if(G.host&&o.hd)hostHits(uid,o.hd);
 }
@@ -2331,6 +2356,7 @@ function updateRemotes(dt){
   for(const e of ents.values()){
     if(!e.remote)continue;
     if(t-e.seen>LIVE_MS){removeEnt(e);continue}
+    if(!finN(e.yaw))e.yaw=e.tyaw;
     const bx=e.pos.x,bz=e.pos.z;
     if(e.pos.distanceTo(e.tpos)>6)e.pos.copy(e.tpos);else if(e.pos.distanceToSquared(e.tpos)<1e-6)e.pos.copy(e.tpos);else e.pos.lerp(e.tpos,k);
     const d=angDiff(e.tyaw,e.yaw);e.yaw=Math.abs(d)<1e-3?e.tyaw:wrapA(e.yaw+d*k);
@@ -2450,7 +2476,7 @@ function renderBoard(){
   for(const u of ids){const r=roleOf(u,rs),tr=document.createElement('tr');if(u===myId())tr.className='me';
     const col=u===myId()?myColor:(ents.get(u)||{}).color||'#ccc';
     const st=r==='out'||r==='dead'?'<span class="bad">Out</span>':r==='spec'?'Next round':r==='free'?'In lobby':'<span class="ok">'+(r==='prop'?(teamOf(G.role)==='p'||G.role==='spec'&&false?'Hiding':'Hiding'):'Hunting')+'</span>';
-    tr.innerHTML='<td><span class="nm"><span class="dot" style="background:'+col+'"></span>'+esc(nameOf(u))+(u===myId()?' (you)':'')+'</span></td><td class="'+(teamOf(r)==='h'?'rh':'rp')+'">'+(teamOf(r)==='h'?'Hunter':r==='spec'?'–':'Prop')+'</td><td>'+st+'</td><td>'+((rs.k||{})[u]||0)+'</td><td>'+((rs.sc||{})[u]||0)+'</td>';tb.appendChild(tr)}
+    tr.innerHTML='<td><span class="nm"><span class="dot" style="background:'+col+'"></span>'+esc(nameOf(u))+(u===myId()?' (you)':'')+'</span></td><td class="'+(teamOf(r)==='h'?'rh':'rp')+'">'+(teamOf(r)==='h'?'Hunter':r==='spec'?'–':'Prop')+'</td><td>'+st+'</td><td>'+(+(rs.k||{})[u]||0)+'</td><td>'+(+(rs.sc||{})[u]||0)+'</td>';tb.appendChild(tr)}
 }
 // ---------- lobby panel ----------
 function segSet(box,v){for(const b2 of box.children)b2.setAttribute('aria-pressed',String(String(b2.dataset.v)===String(v)))}
@@ -2485,13 +2511,13 @@ function showResults(rs){
   if(over){tb.innerHTML='<tr><th>#</th><th>Player</th><th></th><th>Total</th><th></th></tr>';
     const all=[...new Set(ids.concat(Object.keys(rs.sc||{})))].sort((a,b)=>((rs.sc[b]||0)-(rs.sc[a]||0)));
     all.forEach((u,i)=>{const tr=document.createElement('tr');if(u===mine)tr.className='me';const e=ents.get(u),col=u===mine?myColor:e?e.color:'#ccc';
-      tr.innerHTML='<td>'+(i+1)+'</td><td><span class="nm"><span class="dot" style="background:'+col+'"></span>'+esc(nameOf(u))+(u===mine?' (you)':'')+'</span></td><td></td><td>'+(rs.sc[u]||0)+'</td><td></td>';tb.appendChild(tr)})}
+      tr.innerHTML='<td>'+(i+1)+'</td><td><span class="nm"><span class="dot" style="background:'+col+'"></span>'+esc(nameOf(u))+(u===mine?' (you)':'')+'</span></td><td></td><td>'+(+rs.sc[u]||0)+'</td><td></td>';tb.appendChild(tr)})}
   else{tb.innerHTML='<tr><th>Player</th><th>Team</th><th>Result</th><th>Round</th><th>Total</th></tr>';
     ids.sort((a,b)=>((res.pts[b]||0)-(res.pts[a]||0)));
     for(const u of ids){const tr=document.createElement('tr');if(u===mine)tr.className='me';const e=ents.get(u),col=u===mine?myColor:e?e.color:'#ccc',nm=(res.names&&res.names[u])||nameOf(u),isH=rs.hu.indexOf(u)>=0,el=rs.el&&rs.el[u];
-      let result;if(isH){const n=(rs.k||{})[u]||0;result=(n?'Found '+n:'Found none')+(el?' · <span class="bad">out of health</span>':'')}
-      else if(el)result='<span class="bad">Found by '+esc(nameOf(el[0]))+' at '+fmtT(el[1])+'</span>';else result='<span class="ok">Survived as '+esc(PT[(res.forms||{})[u]]?PT[res.forms[u]].name.toLowerCase():'a prop')+'</span>';
-      tr.innerHTML='<td><span class="nm"><span class="dot" style="background:'+col+'"></span>'+esc(nm)+(u===mine?' (you)':'')+'</span></td><td class="'+(isH?'rh':'rp')+'">'+(isH?'Hunter':'Prop')+'</td><td>'+result+'</td><td>+'+((res.pts||{})[u]||0)+'</td><td>'+((rs.sc||{})[u]||0)+'</td>';tb.appendChild(tr)}}
+      let result;if(isH){const n=+(rs.k||{})[u]||0;result=(n?'Found '+n:'Found none')+(el?' · <span class="bad">out of health</span>':'')}
+      else if(el)result='<span class="bad">Found by '+esc(nameOf(el[0]))+' at '+fmtT(el[1])+'</span>';else{const ft=ptOf((res.forms||{})[u]);result='<span class="ok">Survived as '+esc(ft?ft.name.toLowerCase():'a prop')+'</span>'}
+      tr.innerHTML='<td><span class="nm"><span class="dot" style="background:'+col+'"></span>'+esc(nm)+(u===mine?' (you)':'')+'</span></td><td class="'+(isH?'rh':'rp')+'">'+(isH?'Hunter':'Prop')+'</td><td>'+result+'</td><td>+'+(+(res.pts||{})[u]||0)+'</td><td>'+(+(rs.sc||{})[u]||0)+'</td>';tb.appendChild(tr)}}
   $('again').hidden=G.mode==='online';$('toMenu').textContent=G.mode==='online'?'Leave room':'Menu';
   hudCache.endMsg=null;$('endMsg').textContent='';$('end').hidden=false;
   const myTeam=rs.hu.indexOf(mine)>=0?'hunters':rs.pr.indexOf(mine)>=0?'props':'';
