@@ -1260,7 +1260,7 @@ function buildMall(){
   for(const [a,b2] of [[.6,3.6],[11.4,14.5],[15.5,18.6],[26.4,29.5],[30.5,33.6],[41.4,44.5],[45.5,48.1],[56.9,59.4]])B.box(a,.5,28.86,b2,2.6,28.9,{all:'black','-z':'glass'},{fit:'-z',ghost:true,ns:true});
   // south: the clothes shop and the stockroom have walls; the food court is open to the concourse
   K.wallX(15,26,60,{all:'wallWhite','+z':'wallWhite'},[[30,36],[52,54.4]]);K.wallZ(26,0,15,{all:'wallWhite','-x':'wallTeal','+x':'wallPink'},[[6,8]]);K.wallZ(40,0,15,{all:'wallWhite','-x':'wallPink','+x':'block'},[[10,11.6]]);
-  K.deco(30,3.3,15.1,36,4.5,15.14,'sThread','+z');K.deco(51.6,2.7,15.1,54.8,3.4,15.14,'sStock','+z');K.deco(6,3.6,14.6,20,4.8,14.64,'sFood','+z');
+  K.deco(30,3.3,15.1,36,4.5,15.14,'sThread','+z');K.deco(51.6,2.7,15.1,54.8,3.4,15.14,'sStock','+z');B.box(6,3.6,14.6,20,4.8,14.64,'sFood',{fit:'+z-z',solid:false,ghost:true,ns:true});
   K.deco(22,3.6,43.86,38,4.8,43.9,'sMall','-z');
   // ---- concourse: planters, benches, bins, kiosks, a fountain ----
   B.mesh(new THREE.CylinderGeometry(2.4,2.5,.6,32),'stone',30,.3,22);B.mesh(new THREE.CylinderGeometry(2.2,2.2,.04,32),'water',30,.62,22,{ns:true});B.mesh(new THREE.CylinderGeometry(.35,.5,1.6,16),'stone',30,1.2,22);
@@ -1563,8 +1563,8 @@ const HUNTER_MATS={
 const HG={
   leg:new THREE.BoxGeometry(.16,.5,.18).translate(0,-.25,0),boot:new THREE.BoxGeometry(.18,.12,.26).translate(0,-.5,.04),
   torso:new THREE.BoxGeometry(.46,.56,.28),vest:new THREE.BoxGeometry(.5,.36,.32),head:new THREE.SphereGeometry(.17,16,12),helmet:new THREE.SphereGeometry(.19,16,10,0,TAU,0,Math.PI/2),
-  visor:new THREE.BoxGeometry(.26,.08,.06),arm:new THREE.BoxGeometry(.12,.46,.13).translate(0,-.2,0),
-  gunBody:new THREE.BoxGeometry(.08,.12,.62),gunMag:new THREE.BoxGeometry(.06,.18,.08),gunStock:new THREE.BoxGeometry(.07,.1,.2),gunBarrel:new THREE.CylinderGeometry(.018,.018,.3,8).rotateX(Math.PI/2),
+  visor:new THREE.BoxGeometry(.26,.07,.06),face:new THREE.BoxGeometry(.2,.13,.1),arm:new THREE.BoxGeometry(.12,.46,.13).translate(0,-.2,0),
+  gunBody:new THREE.BoxGeometry(.07,.11,.55),gunMag:new THREE.BoxGeometry(.05,.16,.07),gunStock:new THREE.BoxGeometry(.06,.11,.22),gunSight:new THREE.BoxGeometry(.03,.05,.1),gunBarrel:new THREE.CylinderGeometry(.018,.018,.3,8).rotateX(Math.PI/2),
 };
 function hunterModel(color){
   const g=new THREE.Group(),M=HUNTER_MATS,mk=(geo,mat,x,y,z)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.castShadow=true;g.add(m);return m};
@@ -1572,13 +1572,13 @@ function hunterModel(color){
   const bL=new THREE.Mesh(HG.boot,M.boot);legL.add(bL);const bR=new THREE.Mesh(HG.boot,M.boot);legR.add(bR);
   const torso=mk(HG.torso,M.suit,0,1.2,0);const vest=mk(HG.vest,M.vest,0,1.26,0);
   if(color){vest.material=new THREE.MeshStandardMaterial({color:new THREE.Color(color).convertSRGBToLinear(),roughness:.6})}
-  const head=mk(HG.head,M.skin,0,1.66,0);mk(HG.helmet,M.suit,0,1.68,0);mk(HG.visor,M.visor,0,1.67,.15);
+  const head=mk(HG.head,M.boot,0,1.66,0);mk(HG.face,M.skin,0,1.62,.1);mk(HG.helmet,M.suit,0,1.68,0);mk(HG.visor,M.visor,0,1.69,.15);
   const arms=new THREE.Group();arms.position.set(0,1.42,0);g.add(arms);
-  const armL=new THREE.Mesh(HG.arm,M.suit);armL.position.set(-.27,0,0);armL.rotation.x=-1.2;armL.rotation.z=.25;arms.add(armL);
-  const armR=new THREE.Mesh(HG.arm,M.suit);armR.position.set(.27,0,0);armR.rotation.x=-1.35;arms.add(armR);
-  const gun=new THREE.Group();gun.position.set(.12,-.12,.36);arms.add(gun);
-  for(const [geo,x,y,z] of [[HG.gunBody,0,0,0],[HG.gunMag,0,-.12,.05],[HG.gunStock,0,-.02,-.36],[HG.gunBarrel,0,.01,.45]]){const m=new THREE.Mesh(geo,M.gun);m.position.set(x,y,z);m.castShadow=true;gun.add(m)}
-  const muzzle=new THREE.Object3D();muzzle.position.set(0,.01,.62);gun.add(muzzle);
+  const armL=new THREE.Mesh(HG.arm,M.suit);armL.position.set(-.26,0,0);armL.rotation.order='YXZ';armL.rotation.x=-1.25;armL.rotation.y=.8;armL.scale.y=1.3;arms.add(armL);
+  const armR=new THREE.Mesh(HG.arm,M.suit);armR.position.set(.27,0,0);armR.rotation.x=-.75;arms.add(armR);
+  const gun=new THREE.Group();gun.position.set(.26,-.06,.14);arms.add(gun);
+  for(const [geo,x,y,z] of [[HG.gunBody,0,0,.2],[HG.gunMag,0,-.12,.24],[HG.gunStock,0,-.02,-.16],[HG.gunBarrel,0,.01,.62],[HG.gunSight,0,.08,.1]]){const m=new THREE.Mesh(geo,M.gun);m.position.set(x,y,z);m.castShadow=true;gun.add(m)}
+  const muzzle=new THREE.Object3D();muzzle.position.set(0,.01,.78);gun.add(muzzle);
   g.userData={legL,legR,arms,gun,muzzle,head};
   return g;
 }
@@ -1609,7 +1609,7 @@ function hunterStep(e,dt){
   const u=e.model&&e.model.userData;if(!u||!u.legL)return;
   e.walkT+=dt*clamp(e.spd,0,6)*1.8;const sw=Math.sin(e.walkT)*clamp(e.spd/4,0,1)*.7;
   u.legL.rotation.x=sw;u.legR.rotation.x=-sw;u.arms.rotation.x=-clamp(e.aimPitch||0,-1.2,1.2);
-  u.gun.position.z=.36-e.flash*.06;e.flash=Math.max(0,e.flash-dt*10);
+  u.gun.position.z=.14-e.flash*.05;e.flash=Math.max(0,e.flash-dt*10);
 }
 
 // =====================================================================
@@ -2764,7 +2764,7 @@ const inv=/^#ph-([a-z0-9-]{1,17})$/.exec(location.hash);
 if(inv){$('room').value=inv[1];setMsg('You were invited to room ph-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.remove('alt');$('joinRoom').classList.add('orange');$('quick').classList.remove('orange');$('quick').classList.add('alt')}
 
 // In automated browsers only: a handle for tests (advance runs the game without drawing).
-if(navigator.webdriver)window.__ph={hostSet,setTouchUI,G,PT,PT_LIST,MAPS,ents,Net,get me(){return me},get MAP(){return MAP},get mapIdx(){return mapIdx},loadMap,startPractice,practiceReady,goOnline,toMenu,setRS,newRound,lobbyRS,hostTick,hostHits,roleOf,hpOf,maxHpOf,
+if(navigator.webdriver)window.__ph={hostSet,setTouchUI,setForm,G,PT,PT_LIST,MAPS,ents,Net,get me(){return me},get MAP(){return MAP},get mapIdx(){return mapIdx},loadMap,startPractice,practiceReady,goOnline,toMenu,setRS,newRound,lobbyRS,hostTick,hostHits,roleOf,hpOf,maxHpOf,
   doTransform,toggleLock,alignMe,fire,startReload,findTarget,rayWorld,camRay,cycleSpec,specTarget,showPause,resume,overlapping,keys,tAct,KB,renderer,scene,camera,step,
   get camYaw(){return camYaw},set camYaw(v){camYaw=v},get camPitch(){return camPitch},set camPitch(v){camPitch=v},propModel,
   advance(sec,dt){dt=dt||1/30;G.noRender=true;try{for(let t=0;t<sec-1e-9;t+=dt){if(G.mode!=='online'&&!G.paused)G.tOff=(G.tOff||0)+dt*1000;step(dt)}}finally{G.noRender=false}renderer.render(scene,camera)},
