@@ -1189,7 +1189,7 @@ function walkLine(a,b2){const d=Math.hypot(b2[0]-a[0],b2[1]-a[1]),n=Math.ceil(d/
 // ---------- shared building helpers ----------
 function sign(key,text,bg,fg,accent){MAT[key]={draw:(x,w,h)=>P.sign(x,w,h,bg,fg,text,accent),w:512,h:128,tile:0,glow:'#ffffff',gi:.3,f:1}}
 addMats({
-  ceil:{draw:(x,w,h)=>P.ceiling(x,w,h),tile:1.2,rough:.95},lightPanel:{hex:'#ffffff',glow:'#fff6e0',gi:1.1},
+  ceil:{draw:(x,w,h)=>P.ceiling(x,w,h),tile:1.2,rough:.95},roof:{draw:(x,w,h)=>P.concrete(x,w,h,'#8d8a84',13),tile:3,rough:.95},lightPanel:{hex:'#ffffff',glow:'#fff6e0',gi:1.1},
   wallWhite:{draw:(x,w,h)=>P.noise(x,w,h,'#f1eee7',3,.025),tile:2},wallCream:{draw:(x,w,h)=>P.noise(x,w,h,'#efe2c8',4,.03),tile:2},
   wallTeal:{draw:(x,w,h)=>P.noise(x,w,h,'#7cc5b8',5,.03),tile:2},wallBlue:{draw:(x,w,h)=>P.noise(x,w,h,'#9ab8d8',6,.03),tile:2},wallPink:{draw:(x,w,h)=>P.wallpaper(x,w,h,'#f6d2d6','#efb9c0'),tile:1.2},
   wallGreen:{draw:(x,w,h)=>P.wallpaper(x,w,h,'#d4e6c4','#bed6a8'),tile:1.2},wallGrey:{draw:(x,w,h)=>P.noise(x,w,h,'#c9ccd1',7,.03),tile:2},wallYellow:{draw:(x,w,h)=>P.noise(x,w,h,'#f6dd8c',8,.03),tile:2},
@@ -1240,7 +1240,9 @@ function kit(B,H){
     for(const s of segs)if(s[1]-s[0]>.01)B.box(x-T,0,s[0],x+T,h,s[1],m);
     if(h>dh)for(const d of doors||[])B.box(x-T,dh,d[0],x+T,h,d[1],m)};
   const floor=(x0,z0,x1,z1,m)=>B.box(x0,-.2,z0,x1,0,z1,m,{skip:'-y',ns:true});
-  const ceil=(x0,z0,x1,z1,h)=>B.box(x0,h||H,z0,x1,(h||H)+.15,z1,'ceil',{skip:'+y',ns:true});
+  // ceilings have a drawn top (a plain roof): outdoors the camera can rise above the walls, and an open top let a
+  // hunter in the yard look straight down into the rooms
+  const ceil=(x0,z0,x1,z1,h)=>B.box(x0,h||H,z0,x1,(h||H)+.15,z1,{all:'ceil','+y':'roof'},{ns:true});
   const lights=(x0,z0,x1,z1,sx,sz,h)=>{for(let x=x0;x<=x1+.01;x+=sx)for(let z=z0;z<=z1+.01;z+=sz)B.box(x-.6,(h||H)-.03,z-.3,x+.6,(h||H)-.005,z+.3,'lightPanel',{ghost:true,ns:true})};
   const deco=(x0,y0,z0,x1,y1,z1,k,face)=>B.box(x0,y0,z0,x1,y1,z1,{all:'black',[face]:k},{fit:face,solid:false,ghost:true,ns:true});
   return{wallX,wallZ,floor,ceil,lights,deco};
