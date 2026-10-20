@@ -2001,7 +2001,7 @@ function sanitizeRS(p){
 function onNode(uid,v){
   if(!v||typeof v!=='object')return;
   const s=k=>typeof v[k]==='string'?v[k]:'';
-  const o={n:cleanName(v.n)||'Player',c:validColor(v.c)?v.c:'#ff4f9a',lk:s('lk'),j:+v.j||+v.ts||0,ts:+v.ts||0,rs:s('rs'),he:+v.he||0,rd:+v.rd||0,k:s('k'),m:s('m'),fin:s('fin'),out:s('out'),tt:s('tt'),gr:s('gr'),fr:s('fr'),bt:s('bt'),sw:s('sw'),hx:s('hx'),
+  const o={n:cleanName(v.n)||'Player',c:validColor(v.c)?v.c:'#ff4f9a',lk:s('lk'),j:+v.j||+v.ts||0,ts:Math.min(+v.ts||0,Net.now()+5000),rs:s('rs'),he:Math.min(Math.max(+v.he||0,0),1e9),rd:+v.rd||0,k:s('k'),m:s('m'),fin:s('fin'),out:s('out'),tt:s('tt'),gr:s('gr'),fr:s('fr'),bt:s('bt'),sw:s('sw'),hx:s('hx'),
     x:clamp(+v.x,-400,400),y:clamp(+v.y||0,-60,80),z:clamp(+v.z,-400,400),h:Number.isFinite(+v.h)?+v.h:0,rt:performance.now()};
   const prev=Net.others.get(uid);o.hr=prev&&prev.ts===o.ts?prev.hr:performance.now();o.fresh=Net.now()-o.ts<60000;Net.others.set(uid,o);
   if(uid===G.hostUid&&!G.host&&o.ts&&(!prev||prev.ts!==o.ts))noteSkew(o.ts-Net.now());
