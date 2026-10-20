@@ -1862,7 +1862,10 @@ function drawLanterns(){
 // ground, far hills and the sea of clouds
 let hills=null;
 function buildScenery(){
-  const g=new THREE.Mesh(new THREE.PlaneGeometry(6000,6000),new THREE.MeshLambertMaterial({map:T.street,color:0xb0b0b0}));T.street.repeat.set(60,60);g.rotation.x=-Math.PI/2;scene.add(g);
+  // the street is cut into 100 m squares and drawn slightly behind its own depth: one 6 km triangle pair
+  // loses depth precision once it's clipped, and then hides the plaza, the start pad and shadows on it
+  // (seen with a phone held sideways at its usual pixel ratio)
+  const g=new THREE.Mesh(new THREE.PlaneGeometry(6000,6000,60,60),new THREE.MeshLambertMaterial({map:T.street,color:0xb0b0b0,polygonOffset:true,polygonOffsetFactor:2,polygonOffsetUnits:2}));T.street.repeat.set(60,60);g.rotation.x=-Math.PI/2;scene.add(g);
   // a plaza round the tower's base
   const pz=new THREE.Mesh(new THREE.PlaneGeometry(110,110),new THREE.MeshLambertMaterial({map:T.paving,color:0x9d978e}));T.paving.repeat.set(28,28);pz.rotation.x=-Math.PI/2;pz.position.y=.02;scene.add(pz);
   // hills on the horizon (no fog on them, they're tinted like the haze instead)
