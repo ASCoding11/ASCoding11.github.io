@@ -399,27 +399,30 @@ const lerp=(a,b,t)=>a+(b-a)*t;
 function rng(seed){let s=seed>>>0;return function(){s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 
 // ---------- movement constants (the module checker uses these same numbers) ----------
-// Jump height = JUMP_V^2 / (2 G) = 2.54. A full-speed jump on the flat stays up 0.70 s and carries 5.0.
+// Jump height = JUMP_V^2 / (2 G) = 3.37. A full-speed jump on the flat stays up 0.77 s and carries 6.6.
+// Falling past a ledge also pops you up onto it from LEDGE below its top, so the highest step you can reach
+// is about 3.67: sections keep the step from one route part to the one after next above that, so a big jump
+// can't skip a part.
 const PHYS={
   DT:1/120,        // fixed physics step
-  G:42,            // gravity
-  JUMP_V:14.6,     // take-off speed
-  WALK:7.2,        // top running speed
-  ACC:95,          // ground acceleration toward the stick direction
-  DEC:80,          // ground braking with no input
-  AIR_ACC:40,      // air control
-  AIR_DRAG:1.5,    // slow-down in the air with no input (keeps running-jump momentum)
-  MAX_FALL:50,
-  COYOTE:.11,      // a jump still works this long after running off an edge
+  G:46,            // gravity
+  JUMP_V:17.6,     // take-off speed
+  WALK:8.6,        // top running speed
+  ACC:115,         // ground acceleration toward the stick direction
+  DEC:95,          // ground braking with no input
+  AIR_ACC:48,      // air control
+  AIR_DRAG:1.8,    // slow-down in the air with no input (keeps running-jump momentum)
+  MAX_FALL:55,
+  COYOTE:.1,       // a jump still works this long after running off an edge
   BUFFER:.13,      // a jump pressed this early before landing still happens
   R:.42,           // body radius
   H:2,             // body height
   STEP:.45,        // walk up lips this high without jumping
   LEDGE:.3,        // falling past a ledge this close to its top pops you onto it
   SUPPORT:.9,      // fraction of the radius that must overlap a surface to stand on it
-  CLIMB:6.5,       // truss climbing speed
-  LOWG:.42,        // gravity scale inside low-gravity zones
-  BOUNCE:25,       // bounce pad launch speed (7.4 high)
+  CLIMB:7.2,       // truss climbing speed
+  LOWG:.5,         // gravity scale inside low-gravity zones (a jump there reaches 6.7)
+  BOUNCE:27,       // bounce pad launch speed (7.9 high)
   CRUMBLE:.75,     // a crumbling tile gives way this long after you touch it
   CRUMBLE_BACK:3   // and comes back after this long
 };
@@ -673,38 +676,41 @@ const MODS=[];
 function M(def){MODS.push(def)}
 
 M({id:'hops',name:'Step Stones',diff:1,pal:['#4ade80','#15803d','#bbf7d0'],build(B,d,r){
-  const n=6,rise=lerp(1.35,1.9,d),s=lerp(2.6,1.5,d);
+  const n=6,rise=lerp(1.9,2.5,d),s=lerp(2.5,1.4,d);
   for(let i=0;i<n;i++){const a=90+180*(i+1)/(n+1)+(r()-.5)*4,q=pol(8.4,a),top=(i+1)*rise;
     B.plat(q[0],top,q[1],s,s,{yaw:-a*D2R,col:i%2?B.pal[0]:B.pal[2]});B.j(q[0],top,q[1])}
   const H=B.exit((n+1)*rise);B.j(0,H,-8);return H}});
 
+// Two long beams on two floors. Each beam is longer than a running jump, and the upper floor is out of reach
+// from the lower one, so the only way up is the pair of steps at the far end of the first beam.
 M({id:'beams',name:'Tightrope',diff:2,pal:['#fb923c','#c2410c','#fed7aa'],build(B,d){
-  const bw=lerp(1.6,.6,d);
-  B.plat(0,1.5,3.5,3,3);B.j(0,1.5,3.5);
-  B.w(-1.2,1.5,3.5);
-  if(d>.55){B.box(-2.7,1.25,3.5,2.4,.5,bw,{col:B.pal[2]});B.box(-6.3,1.25,3.5,2.4,.5,bw,{col:B.pal[2]});B.w(-3.6,1.5,3.5);B.j(-5.7,1.5,3.5)}
-  else B.box(-4.5,1.25,3.5,6,.5,bw,{col:B.pal[2]});
-  B.plat(-9,1.5,3.5,3,3);B.w(-8.8,1.5,3.5);
-  B.plat(-9,3.5,-.5,3,3);B.j(-9,3.5,-.5);
-  B.box(-3,3.25,-.5,9,.5,bw,{col:B.pal[2]});
-  B.w(-7,3.5,-.5);
-  if(d>.4)B.kill(-3,3.85,-.5,.5,.7,bw+.1);
-  B.plat(3,3.5,-.5,3,3);B.w(3,3.5,-.5);
-  B.plat(3,5.5,-4.5,2.5,2.5);B.j(3,5.5,-4.5);
-  const H=B.exit(7.5);B.j(0,H,-8);return H}});
+  const bw=lerp(1.6,.6,d),L1=2.2,L2=L1+3.9,z1=0,z2=-5.5;
+  B.plat(2.5,L1,z1,3,3);B.j(2.5,L1,z1);
+  B.w(.7,L1,z1);
+  if(d>.55){B.box(-.825,L1-.25,z1,3.65,.5,bw,{col:B.pal[2]});B.box(-5.675,L1-.25,z1,3.65,.5,bw,{col:B.pal[2]});B.w(-2.3,L1,z1);B.j(-4.6,L1,z1)}
+  else B.box(-3.25,L1-.25,z1,8.5,.5,bw,{col:B.pal[2]});
+  B.plat(-9,L1,z1,3,3);B.w(-8.8,L1,z1);
+  B.plat(-10.5,L1+1.95,-2.9,2.2,2.2);B.j(-10.5,L1+1.95,-2.9);
+  B.plat(-7.5,L2,z2,3,3);B.j(-7.5,L2,z2);
+  B.box(-1.75,L2-.25,z2,8.5,.5,bw,{col:B.pal[2]});
+  B.w(-5.6,L2,z2);
+  if(d>.4)B.kill(-1.75,L2+.45,z2,.5,.9,bw+.1);
+  B.plat(4,L2,z2,3,3);B.w(4,L2,z2);
+  B.plat(5.5,L2+1.95,-9,2.5,2.5);B.j(5.5,L2+1.95,-9);
+  const H=B.exit(L2+3.9);B.j(0,H,-8);return H}});
 
 M({id:'truss',name:'Truss Tower',diff:2,pal:['#60a5fa','#1d4ed8','#dbeafe'],build(B,d){
   B.truss(0,0,5.5,6);
   B.plat(0,6,3,4,4);B.w(0,6,2.5);
   const bw=d>.35?2.2:3;
   B.plat(-6,7.5,0,bw,5);B.j(-5.6,7.5,1.5);
-  if(d>.35)B.kill(-6,7.85,0,bw+.1,.7,.5);
+  if(d>.35)B.kill(-6,7.95,0,bw+.1,.9,.5);
   B.truss(-6,7.5,-3,6);
   B.plat(-6,13.5,-5.5,4,4);B.w(-6,7.5,-1.9);B.w(-6,13.5,-6);
   const H=B.exit(15);B.j(0,H,-8);return H}});
 
 M({id:'spinner',name:'Spin Cycle',diff:3,pal:['#a78bfa','#6d28d9','#ede9fe'],build(B,d,r){
-  const w=lerp(1.2,2.3,d),D=[[-4,2,2.5],[4,4,-2.5]],R=4;
+  const w=lerp(1.4,2.7,d),D=[[-4,2,2.5],[4,4,-2.5]],R=4;
   D.forEach((q,i)=>{
     B.cyl(q[0],q[1],q[2],R,{col:i?B.pal[0]:B.pal[2]});
     B.cyl(q[0],q[1]+1.6,q[2],.55,{t:1.6,col:B.pal[1]});
@@ -712,12 +718,13 @@ M({id:'spinner',name:'Spin Cycle',diff:3,pal:['#a78bfa','#6d28d9','#ede9fe'],bui
     B.kill(q[0],q[1]+.55,q[2],2*R-.5,.5,.45,{yaw:ph,move:{type:'spin',w:i?-w:w}});
     if(i===1&&d>.6)B.kill(q[0],q[1]+.55,q[2],2*R-.5,.5,.45,{yaw:ph+Math.PI/2,move:{type:'spin',w:-w}});
   });
-  B.j(-3,2,4.6);B.j(2.6,4,-1.2);
+  // the hub on each disc stands above the bars: a safe spot to wait for a gap
+  B.j(-3,2,4.6);B.j(-4,3.6,2.5);B.j(2.6,4,-1.2,{wait:true});B.j(4,5.6,-2.5);
   const H=B.exit(6);B.j(0,H,-8);return H}});
 
 M({id:'turnstile',name:'Turnstiles',diff:3,pal:['#2dd4bf','#0f766e','#ccfbf1'],build(B,d){
-  const bw=lerp(2,1.1,d),w=lerp(.55,.95,d),R=4;
-  const C1=[-4.5,1.5,1],C2=[4,3.5,-2],phi=Math.atan2(C2[2]-C1[2],C2[0]-C1[0]);
+  const bw=lerp(2,1.1,d),w=lerp(.65,1.1,d),R=4;
+  const C1=[-4.5,1.5,1],C2=[4,3.7,-2],phi=Math.atan2(C2[2]-C1[2],C2[0]-C1[0]);
   [[C1,w,'t1'],[C2,-w,'t2']].forEach(([C,ww,nm])=>{
     B.cyl(C[0],C[1]-.5,C[2],.9,{t:C[1]-.5,col:B.pal[1]});
     B.box(C[0],C[1]-.25,C[2],2*R,.5,bw,{yaw:-phi,move:{type:'spin',w:ww},name:nm,col:B.pal[0]});
@@ -725,130 +732,132 @@ M({id:'turnstile',name:'Turnstiles',diff:3,pal:['#2dd4bf','#0f766e','#ccfbf1'],b
   B.w(-1.5,0,6.6);
   B.jon('t1',3.2,{wait:true,sym:true});
   B.jon('t2',3.2,{wait:true,sym:true});
-  const H=B.exit(5.5);B.j(0,H,-8,{wait:true});return H}});
+  const H=B.exit(5.9);B.j(0,H,-8,{wait:true});return H}});
 
 M({id:'crumble',name:'Crumble Path',diff:2,pal:['#e7c88a','#a16207','#fde68a'],build(B,d){
-  const n=7,rise=lerp(.8,1.4,d),s=lerp(2.3,1.45,d);
+  const n=6,rise=lerp(1.8,2,d),s=lerp(2.1,1.45,d);
   for(let i=0;i<n;i++){const a=90-180*(i+1)/(n+1),q=pol(8.5,a),top=(i+1)*rise;
     B.plat(q[0],top,q[1],s,s,{crumble:true,t:.6,yaw:-a*D2R,col:i%2?B.pal[0]:B.pal[2],mat:'crumble'});B.j(q[0],top,q[1])}
   const H=B.exit((n+1)*rise);B.j(0,H,-8);return H}});
 
 M({id:'blink',name:'Blink Blocks',diff:3,pal:['#22d3ee','#0e7490','#f472b6'],build(B,d){
-  const per=lerp(3.6,2.6,d),s=lerp(3,2.2,d),rise=1.5;
+  const per=lerp(3.3,2.4,d),s=lerp(3,2.2,d),rise=2;
   const Q=[[-2.5,3.2],[2.5,1],[-2.5,-1.2],[2.5,-3.4]];
   Q.forEach((q,i)=>{const top=(i+1)*rise;
     B.plat(q[0],top,q[1],s,s,{timed:{per,on:.55,ph:i%2?.55:0},mat:'blink',col:i%2?B.pal[2]:B.pal[0]});B.j(q[0],top,q[1],{wait:true})});
   const H=B.exit(5*rise);B.j(0,H,-8,{wait:true});return H}});
 
 M({id:'lifts',name:'Elevator Shaft',diff:2,pal:['#facc15','#a16207','#fef08a'],build(B,d,r){
-  const p1=lerp(5,3.6,d),p2=lerp(5.5,3.8,d),p3=lerp(5,3.6,d);
+  const p1=lerp(4.6,3.3,d),p2=lerp(5,3.5,d),p3=lerp(4.6,3.3,d),T=8.2;
   B.plat(-4,.5,4,3,3,{t:.5,move:{type:'line',ay:6,per:p1,ph:r()},name:'l1',mat:'metal',col:B.pal[2]});
-  B.plat(-5,7.5,-1,3,3);
-  B.plat(-1.5,7.5,-1,3,3,{move:{type:'line',ax:6,per:p2,ph:r()},name:'m1',mat:'metal',col:B.pal[2]});
-  B.plat(4.5,7.5,-5,3,3,{move:{type:'line',ay:6,per:p3,ph:r()},name:'l2',mat:'metal',col:B.pal[2]});
-  B.w(-1.5,0,6.6);B.jon('l1',0,{wait:true});B.j(-5,7.5,-1,{wait:true});B.w(-4,7.5,-1);
+  B.plat(-6.5,T,-1,3,3);
+  B.plat(-2.5,T,-1,3,3,{move:{type:'line',ax:7,per:p2,ph:r()},name:'m1',mat:'metal',col:B.pal[2]});
+  B.plat(4.5,T,-5,3,3,{move:{type:'line',ay:6,per:p3,ph:r()},name:'l2',mat:'metal',col:B.pal[2]});
+  B.w(-1.5,0,6.6);B.jon('l1',0,{wait:true});B.j(-6.5,T,-1,{wait:true});B.w(-5.4,T,-1);
   B.jon('m1',0,{wait:true});B.jon('l2',0,{wait:true});
-  const H=B.exit(15);B.j(0,H,-8,{wait:true});return H}});
+  const H=B.exit(T+7.8);B.j(0,H,-8,{wait:true});return H}});
 
+// Each floor is two above the last, so a big jump can't skip one.
 M({id:'conveyor',name:'Conveyor Climb',diff:3,pal:['#9ca3af','#4b5563','#f97316'],build(B,d){
-  const s=lerp(2.5,5,d),o={mat:'conv',t:.5,col:'#3f3f46'};
+  const s=lerp(3,6,d),o={mat:'conv',t:.5,col:'#3f3f46'};
   B.plat(0,1,1,3,8,Object.assign({conv:[0,s]},o));
-  B.plat(-5,2.5,-4.5,8,3,Object.assign({conv:[s,0]},o));
-  B.plat(-7.5,4,.5,3,3);
-  B.plat(1,5.5,-2.5,8,3,Object.assign({conv:[-s,0]},o));
-  if(d>.45)B.kill(1,5.85,-2.5,.5,.7,3.1);
-  B.plat(4,7,-7,3,3);
-  B.j(0,1,4);B.w(0,1,-2.4);B.j(-2.2,2.5,-4.5);B.w(-8.2,2.5,-4.5);B.j(-7.5,4,.5);B.j(-2.2,5.5,-2.5);B.w(4.2,5.5,-2.5);B.j(4,7,-7);
-  const H=B.exit(8.5);B.j(0,H,-8);return H}});
+  B.plat(-5,3,-4.5,8,3,Object.assign({conv:[s,0]},o));
+  B.plat(-7.5,5,.5,3,3);
+  B.plat(1,7,-2.5,8,3,Object.assign({conv:[-s,0]},o));
+  if(d>.45)B.kill(1,7.45,-2.5,.5,.9,3.1);
+  B.plat(4,9,-7,3,3);
+  B.j(0,1,4);B.w(0,1,-2.4);B.j(-2.2,3,-4.5);B.w(-8.2,3,-4.5);B.j(-7.5,5,.5);B.j(-2.2,7,-2.5);B.w(4.2,7,-2.5);B.j(4,9,-7);
+  const H=B.exit(11);B.j(0,H,-8);return H}});
 
 M({id:'bounce',name:'Bounce House',diff:2,pal:['#f9a8d4','#be185d','#fbcfe8'],build(B,d){
   const s=d>.4?2.4:3,ps=d>.4?1.9:2.4,bo={bounce:PHYS.BOUNCE,mat:'bounce',t:.4,col:'#ff4fa3'};
   B.plat(-4.5,.4,2.5,ps,ps,bo);
-  B.plat(-6.5,6,-1.5,s,s);
-  B.plat(-2.2,6.4,-4,ps,ps,bo);
-  B.plat(2.5,12,-2.5,s,s);
-  B.j(-4.5,.4,2.5);B.j(-6.5,6,-1.5);B.j(-2.2,6.4,-4);B.j(2.5,12,-2.5);
-  const H=B.exit(13.5);B.j(0,H,-8);return H}});
+  B.plat(-6.5,6.5,-1.5,s,s);
+  B.plat(-2.2,6.9,-4,ps,ps,bo);
+  B.plat(2.5,13,-2.5,s,s);
+  B.j(-4.5,.4,2.5);B.j(-6.5,6.5,-1.5);B.j(-2.2,6.9,-4);B.j(2.5,13,-2.5);
+  const H=B.exit(15.5);B.j(0,H,-8);return H}});
 
 M({id:'lasers',name:'Laser Hall',diff:4,pal:['#475569','#1e293b','#94a3b8'],build(B,d){
-  const per=lerp(2.4,1.8,d),on=lerp(.4,.55,d),lo={mat:'laser',solid:false};
+  const per=lerp(2.3,1.65,d),on=lerp(.4,.55,d),lo={mat:'laser',solid:false};
   B.plat(0,1,.5,3,10);
-  [[3,0],[-.5,.33],[-3.4,.66]].forEach(([z,ph])=>B.kill(0,2.1,z,3.2,2.2,.15,Object.assign({timed:{per,on,ph}},lo)));
+  [[3,0],[-.5,.33],[-3.4,.66]].forEach(([z,ph])=>B.kill(0,2.45,z,3.2,2.9,.15,Object.assign({timed:{per,on,ph}},lo)));
   if(d>.5)B.kill(0,1.3,1.25,3.2,.3,.15,lo);
   B.plat(5,2.5,-5.75,6,2.5);
-  [[4,.2],[6,.55]].forEach(([x,ph])=>B.kill(x,3.6,-5.75,.15,2.2,2.7,Object.assign({timed:{per,on,ph}},lo)));
-  B.plat(6,4,-9.2,3.5,2);
-  B.j(0,1,4.6);B.w(0,1,-4);B.j(2.6,2.5,-5.75);B.w(7.4,2.5,-5.75);B.j(6,4,-9.2);
-  const H=B.exit(5.5);B.j(0,H,-8);return H}});
+  [[4,.2],[6,.55]].forEach(([x,ph])=>B.kill(x,3.95,-5.75,.15,2.9,2.7,Object.assign({timed:{per,on,ph}},lo)));
+  B.plat(6,5,-9.2,3.5,2);
+  B.j(0,1,4.6);B.w(0,1,-4);B.j(2.6,2.5,-5.75);B.w(7.4,2.5,-5.75);B.j(6,5,-9.2);
+  const H=B.exit(7);B.j(0,H,-8);return H}});
 
 M({id:'lava',name:'Lava Floor',diff:3,pal:['#57534e','#292524','#a8a29e'],build(B,d){
   B.box(0,.2,-.5,20,.4,11,{kill:true,mat:'lava',col:'#ff5a1f',solid:true});
-  const rad=lerp(1.2,.75,d);
-  const S=[[-2,1.5,3.5],[-5.5,2.5,2],[-6,3.5,-1.5],[-2.5,4.2,-2.5],[1,5,-1],[4.5,6,-2.5],[4,7,-6]];
-  S.forEach((q,i)=>{B.cyl(q[0],q[1],q[2],rad,{t:q[1],col:i%2?B.pal[0]:B.pal[2],crumble:d>.6&&i===4,mat:d>.6&&i===4?'crumble':'plastic'});B.j(q[0],q[1],q[2])});
-  const H=B.exit(8.5);B.j(0,H,-8);return H}});
+  const rad=lerp(1.2,.75,d),rise=1.9;
+  const S=[[-2,3.5],[-5.5,2],[-6,-1.5],[-2.5,-2.5],[1,-1],[4.5,-2.5],[4,-6]];
+  S.forEach((q,i)=>{const top=2+i*rise;B.cyl(q[0],top,q[1],rad,{t:top,col:i%2?B.pal[0]:B.pal[2],crumble:d>.6&&i===4,mat:d>.6&&i===4?'crumble':'plastic'});B.j(q[0],top,q[1])});
+  const H=B.exit(2+S.length*rise);B.j(0,H,-8);return H}});
 
 M({id:'pillars',name:'Pillar Spiral',diff:2,pal:['#5eead4','#0f766e','#d6d3d1'],build(B,d){
-  const n=11,rise=lerp(1,1.6,d),rad=lerp(1.3,.78,d),H=(n+1)*rise;
-  B.cyl(0,H-1.5,0,2.2,{t:H-1.5,col:B.pal[2]});
-  for(let i=0;i<n;i++){const a=45-45*i,q=pol(5,a),top=(i+1)*rise;
+  const n=11,rise=lerp(1.55,1.9,d),rad=lerp(1.15,.78,d),H=(n+1)*rise;
+  B.cyl(0,H-.5,0,2.2,{t:H-.5,col:B.pal[2]});
+  for(let i=0;i<n;i++){const a=45-45*i,q=pol(6,a),top=(i+1)*rise;
     B.cyl(q[0],top,q[1],rad,{t:Math.min(1.2,top),col:i%2?B.pal[0]:B.pal[1]});B.j(q[0],top,q[1])}
   B.exit(H);B.j(0,H,-8);return H}});
 
 M({id:'ledges',name:'Wall Ledges',diff:3,pal:['#e0e7ff','#4338ca','#a5b4fc'],build(B,d){
-  const n=9,rise=lerp(1.1,1.5,d),L=lerp(2.2,1.3,d),Dp=lerp(1.4,.8,d);
+  const n=9,rise=lerp(1.85,2.05,d),L=lerp(1.8,1.3,d),Dp=lerp(1.4,.8,d);
   for(let i=0;i<n;i++){const a=70-17.5*i,q=pol(11.2,a),top=(i+1)*rise,cr=d>.5&&i%3===2;
     B.plat(q[0],top,q[1],L,Dp,{yaw:-a*D2R-Math.PI/2,t:.6,col:cr?'#fbbf24':i%2?B.pal[0]:B.pal[2],crumble:cr,mat:cr?'crumble':'plastic'});B.j(q[0],top,q[1])}
   const H=B.exit((n+1)*rise);B.j(0,H,-8);return H}});
 
+// Floors two apart; the bars are too tall to jump over easily, so time the gaps.
 M({id:'sweepers',name:'Sweeper Bridges',diff:3,pal:['#a3e635','#4d7c0f','#ecfccb'],build(B,d,r){
-  const per=lerp(3.2,2.2,d);
-  const bar=(cx,z,ph)=>B.kill(cx-3.2,1.9,z,2.2,1.8,.45,{move:{type:'line',ax:6.4,per,ph}});
-  B.plat(0,1,1,3,9);bar(0,2.5,r());bar(0,-1,r());
-  B.plat(-3.5,2.5,-4.5,2.5,2.5);
-  B.plat(-7,4,0,3,9);B.kill(-7-3.2,4.9,-1.5,2.2,1.8,.45,{move:{type:'line',ax:6.4,per,ph:r()}});B.kill(-7-3.2,4.9,1.8,2.2,1.8,.45,{move:{type:'line',ax:6.4,per,ph:r()}});
-  B.plat(-1.5,5.5,6,2.5,2.5);
-  B.plat(3.5,7,1,3,9);
-  if(d>.5){B.kill(3.5-3.2,7.9,2,2.2,1.8,.45,{move:{type:'line',ax:6.4,per,ph:r()}});B.kill(3.5-3.2,7.9,-1.5,2.2,1.8,.45,{move:{type:'line',ax:6.4,per,ph:r()}})}
-  B.j(0,1,4.6);B.w(0,1,-3);B.j(-3.5,2.5,-4.5);B.j(-7,4,-3.6);B.w(-7,4,4);B.j(-1.5,5.5,6);B.j(3.5,7,4.6);B.w(3.5,7,-3);
-  const H=B.exit(8.5);B.j(0,H,-8);return H}});
+  const per=lerp(2.8,1.9,d);
+  const bar=(cx,top,z)=>B.kill(cx-3.2,top+1.2,z,2.2,2.4,.45,{move:{type:'line',ax:6.4,per,ph:r()}});
+  B.plat(0,1,1,3,9);bar(0,1,2.5);bar(0,1,-1);
+  B.plat(-3.5,3,-4.5,2.5,2.5);
+  B.plat(-7,5,0,3,9);bar(-7,5,-1.5);bar(-7,5,1.8);
+  B.plat(-1.5,7,6,2.5,2.5);
+  B.plat(3.5,9,1,3,9);
+  if(d>.5){bar(3.5,9,2);bar(3.5,9,-1.5)}
+  B.j(0,1,4.6);B.w(0,1,-3);B.j(-3.5,3,-4.5);B.j(-7,5,-3.6);B.w(-7,5,4);B.j(-1.5,7,6);B.j(3.5,9,4.6);B.w(3.5,9,-3);
+  const H=B.exit(11);B.j(0,H,-8);return H}});
 
 M({id:'moon',name:'Low Gravity',diff:2,pal:['#c4b5fd','#5b21b6','#ddd6fe'],build(B,d){
-  const H=16,s=d>.5?2.2:3;
+  const H=18,s=d>.5?2.2:3;
   B.box(0,H/2,0,24,H-1,24,{solid:false,zone:'lowg',mat:'zone',col:'#a78bfa',cam:false});
-  B.plat(-5,4.5,3.5,s,s);B.plat(-4,9,-4,s,s);B.plat(4.5,12.5,-3,s,s);
-  B.j(-5,4.5,3.5);B.j(-4,9,-4);B.j(4.5,12.5,-3);
+  B.plat(-5,5,3.5,s,s);B.plat(-4,10,-4,s,s);B.plat(4.5,14,-3,s,s);
+  B.j(-5,5,3.5);B.j(-4,10,-4);B.j(4.5,14,-3);
   B.exit(H);B.j(0,H,-8);return H}});
 
 M({id:'carousel',name:'Carousel',diff:3,pal:['#fbbf24','#b91c1c','#fef3c7'],build(B,d){
-  const s=lerp(2.6,2,d),w=lerp(.6,1,d);
-  B.cyl(0,3.5,0,2,{t:3.5,col:B.pal[1]});
+  const s=lerp(2.6,2,d),w=lerp(.7,1.15,d);
+  B.cyl(0,4,0,2,{t:4,col:B.pal[1]});
   for(let i=0;i<3;i++){
     B.plat(0,2,0,s,s,{t:.5,move:{type:'orbit',cx:0,cz:0,rad:4.6,w,a0:i*TAU/3},name:'c'+i,col:B.pal[0]});
-    B.plat(0,5.5,0,s,s,{t:.5,move:{type:'orbit',cx:0,cz:0,rad:4.6,w:-w,a0:i*TAU/3+1},name:'u'+i,col:B.pal[2]});
+    B.plat(0,6,0,s,s,{t:.5,move:{type:'orbit',cx:0,cz:0,rad:4.6,w:-w,a0:i*TAU/3+1},name:'u'+i,col:B.pal[2]});
   }
-  B.w(0,0,6.6);B.jon(['c0','c1','c2'],0,{wait:true});B.j(0,3.5,1,{wait:true});B.jon(['u0','u1','u2'],0,{wait:true});
-  const H=B.exit(7.5);B.j(0,H,-8,{wait:true});return H}});
+  B.w(0,0,6.6);B.jon(['c0','c1','c2'],0,{wait:true});B.j(0,4,1,{wait:true});B.jon(['u0','u1','u2'],0,{wait:true});
+  const H=B.exit(8);B.j(0,H,-8,{wait:true});return H}});
 
 M({id:'pistons',name:'Piston Stairs',diff:3,pal:['#94a3b8','#334155','#fb923c'],build(B,d){
-  const n=6,amp=2.5,per=lerp(3.4,2.4,d),s=lerp(2.6,2,d);
-  for(let i=0;i<n;i++){const a=90-180*(i+1)/(n+1),q=pol(8.5,a),base=1+i*1.6;
+  const n=6,amp=2.5,per=lerp(3.1,2.2,d),s=lerp(2.6,2,d),step=2;
+  for(let i=0;i<n;i++){const a=90-180*(i+1)/(n+1),q=pol(8.5,a),base=1+i*step;
     B.plat(q[0],base,q[1],s,s,{yaw:-a*D2R,move:{type:'line',ay:amp,per,ph:i*.18},name:'p'+i,mat:'metal',col:i%2?B.pal[0]:B.pal[2]});
     B.jon('p'+i,0,{wait:true})}
-  const H=B.exit(1+(n-1)*1.6+amp+1);B.j(0,H,-8,{wait:true});return H}});
+  const H=B.exit(1+(n-1)*step+amp+1);B.j(0,H,-8,{wait:true});return H}});
 
 M({id:'zigzag',name:'Zigzag Beams',diff:4,pal:['#f5f5f4','#18181b','#a1a1aa'],build(B,d){
-  const bw=lerp(1.1,.55,d),rise=1.3;
+  const bw=lerp(1.1,.55,d),rise=1.9;
   const Q=[[0,5.4],[-7,3.5],[6,1],[-7,-1.5],[6,-4],[0,-5.3]];
   for(let j=0;j<5;j++){
     const a=Q[j],b=Q[j+1],dx=b[0]-a[0],dz=b[1]-a[1],L=Math.hypot(dx,dz),ux=dx/L,uz=dz/L;
-    const s0=j?1:0,s1=j<4?L+.3:L,top=1+j*rise;
+    const s0=j?1:0,s1=j<4?L+.3:L,top=1.8+j*rise;
     const cx=a[0]+ux*(s0+s1)/2,cz=a[1]+uz*(s0+s1)/2;
     B.box(cx,top-.25,cz,s1-s0,.5,bw,{yaw:-Math.atan2(dz,dx),col:j%2?B.pal[0]:B.pal[2]});
     if(j===0)B.j(a[0]+ux*.6,top,a[1]+uz*.6);else B.j(a[0]+ux*(s0+.5),top,a[1]+uz*(s0+.5));
     B.w(a[0]+ux*(j<4?L:L-.4),top,a[1]+uz*(j<4?L:L-.4));
   }
-  const H=B.exit(1+5*rise);B.j(0,H,-8);return H}});
+  const H=B.exit(1.8+5*rise);B.j(0,H,-8);return H}});
 
 // The top of the tower: two steps up from the last exit pad to a round platform with the finish zone.
 function buildSummit(B){
@@ -862,7 +871,7 @@ function buildSummit(B){
 // ---------- towers, obbies, practice ----------
 const ADJ=['Crimson','Dizzy','Frosted','Wobbly','Neon','Rusty','Sunlit','Gilded','Stormy','Mossy','Velvet','Cobalt','Jade','Amber','Twisted','Breezy','Cinder','Lucky'];
 const NOUN=['Spire','Stack','Steeple','Needle','Column','Beacon','Pinnacle','Lighthouse','Obelisk','Chimney','Belfry','Turret'];
-const WALL_R=14,RISE=4.5,BRIDGE=6;
+const WALL_R=14,RISE=5.5,BRIDGE=6; // RISE is more than a jump (2 + 3.37), so nothing on one section reaches the next
 function towerName(seed){const r=rng(seed^0x51ed);return 'The '+ADJ[Math.floor(r()*ADJ.length)]+' '+NOUN[Math.floor(r()*NOUN.length)]}
 // Pick n modules for a seed: no repeats, gentler ones lower down. Easy towers use the gentle modules only.
 function towerPlan(seed,n,easy){
