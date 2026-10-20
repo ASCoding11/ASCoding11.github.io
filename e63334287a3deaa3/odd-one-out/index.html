@@ -2231,6 +2231,9 @@ function botShot(e,target,err,rs){
 // =====================================================================
 const NET_BLOCKED='Couldn\'t reach the game database. If you\'re on a school or work network it may be blocking it; try another network, or play a practice mode.';
 const LIVE_MS=12000;
+// A player whose node has gone quiet (a phone that went to sleep) stops counting for the round after LIVE_MS, but stays
+// drawn where it was until its node is removed (or a minute passes), so a hiding prop doesn't vanish from its spot.
+const GONE_MS=60000;
 function withTimeout(p,ms,msg){let t;return Promise.race([p,new Promise((_,rej)=>{t=setTimeout(()=>rej(new Error(msg)),ms)})]).finally(()=>clearTimeout(t))}
 function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('Could not load '+src));document.head.appendChild(s)})}
 const Net={
@@ -2358,7 +2361,7 @@ function updateRemotes(dt){
   const k=1-Math.exp(-dt*12),t=performance.now();
   for(const e of ents.values()){
     if(!e.remote)continue;
-    if(t-e.seen>LIVE_MS){removeEnt(e);continue}
+    if(t-e.seen>GONE_MS){removeEnt(e);continue}
     if(!finN(e.yaw))e.yaw=e.tyaw;
     const bx=e.pos.x,bz=e.pos.z;
     if(e.pos.distanceTo(e.tpos)>6)e.pos.copy(e.tpos);else if(e.pos.distanceToSquared(e.tpos)<1e-6)e.pos.copy(e.tpos);else e.pos.lerp(e.tpos,k);
@@ -2806,6 +2809,10 @@ tButton('tReady',practiceReady);
 document.addEventListener('pointerdown',()=>initAudio(),{once:true});
 if(touchUI)setTouchUI(true);
 addEventListener('pagehide',()=>{if(Net.refs)Net.leave()});
+// A tab in the background gets no animation frames, so the main loop stops. Keep this player in the room with a slow
+// timer instead (browsers still run it about once a second) and, if it's the host, keep the round moving and the hits
+// counted; otherwise after LIVE_MS everyone else would count it as gone and the round would stall until a new host took over.
+setInterval(()=>{if(!document.hidden||G.mode!=='online'||!Net.refs)return;try{onlineTick();if(performance.now()-Net.hbT>2000)Net.upd({})}catch(err){console.error(err)}},1000);
 
 // An invite opens this page with #ph-<code>: fill in the room and point at the join button.
 const inv=/^#ph-([a-z0-9-]{1,17})$/.exec(location.hash);
