@@ -574,6 +574,9 @@ function sfx(kind,pos,vol){
     }
   }catch(e){}
 }
+// Sounds a hiding prop makes (shuffling about, turning into something). Hunters locked in the waiting room don't
+// hear them: the room is outside the map, and hearing where the props settle would give their spots away.
+function propSfx(kind,pos,vol){if(G.role==='hunter'&&G.rs&&G.rs.ph==='hide')return;sfx(kind,pos,vol)}
 // ---------- music: a quiet loop, calmer in the lobby and hide phase, busier while hunting ----------
 const Music={on:false,next:0,step:0,mood:'calm',timer:0,
   start(){if(!actx||this.on)return;this.on=true;this.next=actx.currentTime+.1;this.step=0;this.timer=setInterval(()=>this.tick(),200)},
@@ -1186,7 +1189,7 @@ function walkLine(a,b2){const d=Math.hypot(b2[0]-a[0],b2[1]-a[1]),n=Math.ceil(d/
 // ---------- shared building helpers ----------
 function sign(key,text,bg,fg,accent){MAT[key]={draw:(x,w,h)=>P.sign(x,w,h,bg,fg,text,accent),w:512,h:128,tile:0,glow:'#ffffff',gi:.3,f:1}}
 addMats({
-  ceil:{draw:(x,w,h)=>P.ceiling(x,w,h),tile:1.2,rough:.95},lightPanel:{hex:'#ffffff',glow:'#fff6e0',gi:1.1},
+  ceil:{draw:(x,w,h)=>P.ceiling(x,w,h),tile:1.2,rough:.95},roof:{draw:(x,w,h)=>P.concrete(x,w,h,'#8d8a84',13),tile:3,rough:.95},lightPanel:{hex:'#ffffff',glow:'#fff6e0',gi:1.1},
   wallWhite:{draw:(x,w,h)=>P.noise(x,w,h,'#f1eee7',3,.025),tile:2},wallCream:{draw:(x,w,h)=>P.noise(x,w,h,'#efe2c8',4,.03),tile:2},
   wallTeal:{draw:(x,w,h)=>P.noise(x,w,h,'#7cc5b8',5,.03),tile:2},wallBlue:{draw:(x,w,h)=>P.noise(x,w,h,'#9ab8d8',6,.03),tile:2},wallPink:{draw:(x,w,h)=>P.wallpaper(x,w,h,'#f6d2d6','#efb9c0'),tile:1.2},
   wallGreen:{draw:(x,w,h)=>P.wallpaper(x,w,h,'#d4e6c4','#bed6a8'),tile:1.2},wallGrey:{draw:(x,w,h)=>P.noise(x,w,h,'#c9ccd1',7,.03),tile:2},wallYellow:{draw:(x,w,h)=>P.noise(x,w,h,'#f6dd8c',8,.03),tile:2},
@@ -1237,7 +1240,9 @@ function kit(B,H){
     for(const s of segs)if(s[1]-s[0]>.01)B.box(x-T,0,s[0],x+T,h,s[1],m);
     if(h>dh)for(const d of doors||[])B.box(x-T,dh,d[0],x+T,h,d[1],m)};
   const floor=(x0,z0,x1,z1,m)=>B.box(x0,-.2,z0,x1,0,z1,m,{skip:'-y',ns:true});
-  const ceil=(x0,z0,x1,z1,h)=>B.box(x0,h||H,z0,x1,(h||H)+.15,z1,'ceil',{skip:'+y',ns:true});
+  // ceilings have a drawn top (a plain roof): outdoors the camera can rise above the walls, and an open top let a
+  // hunter in the yard look straight down into the rooms
+  const ceil=(x0,z0,x1,z1,h)=>B.box(x0,h||H,z0,x1,(h||H)+.15,z1,{all:'ceil','+y':'roof'},{ns:true});
   const lights=(x0,z0,x1,z1,sx,sz,h)=>{for(let x=x0;x<=x1+.01;x+=sx)for(let z=z0;z<=z1+.01;z+=sz)B.box(x-.6,(h||H)-.03,z-.3,x+.6,(h||H)-.005,z+.3,'lightPanel',{ghost:true,ns:true})};
   const deco=(x0,y0,z0,x1,y1,z1,k,face)=>B.box(x0,y0,z0,x1,y1,z1,{all:'black',[face]:k},{fit:face,solid:false,ghost:true,ns:true});
   return{wallX,wallZ,floor,ceil,lights,deco};
@@ -1609,7 +1614,7 @@ function makeEnt(o){
     root:new THREE.Group(),model:null,tpos:new V3(),tyaw:0,seen:performance.now(),spd:0,stepT:0,moveT:-99,aimPitch:0,walkT:0,flash:0};
   scene.add(e.root);ents.set(e.id,e);setLook(e,'prop');return e;
 }
-function removeEnt(e){if(!e)return;scene.remove(e.root);if(e.tag)e.tag.material.map.dispose();ents.delete(e.id);if(e===me)me=null}
+function removeEnt(e){if(!e)return;scene.remove(e.root);if(e.tag){e.tag.material.map.dispose();e.tag.material.dispose()}ents.delete(e.id);if(e===me)me=null}
 function clearEnts(){for(const e of [...ents.values()])removeEnt(e)}
 function nameOf(id){const e=ents.get(id);return e?e.name:(G.nm.get(id)||'Someone')}
 // how an entity is drawn: 'hunter' or 'prop' (as e.form)
@@ -1672,7 +1677,10 @@ function moveEnt(e,dt){
   e.pos.x+=e.vel.x*dt;e.pos.z+=e.vel.z*dt;
   let f=shapeOf(e,e.yaw,_cs);const r=f.r,h=f.h;
   if(e.vel.x||e.vel.z)pushOut(e,_cs,r,h);
-  const bd=MAP.ext;e.pos.x=clamp(e.pos.x,bd[0]+.2,bd[2]-.2);e.pos.z=clamp(e.pos.z,bd[1]+.2,bd[3]-.2);
+  // keep to the map, or to the hunters' waiting room for whoever is in it (the space between them has no floor: on
+  // Willow Lane a prop could climb the yard fence and drop off the outside, below the map where nobody can reach it)
+  const wb=MAP.waitBox,bd=e.pos.x>wb[0]-.5&&e.pos.x<wb[2]+.5&&e.pos.z>wb[1]-.5&&e.pos.z<wb[3]+.5?wb:MAP.bounds;
+  e.pos.x=clamp(e.pos.x,bd[0]+.2,bd[2]-.2);e.pos.z=clamp(e.pos.z,bd[1]+.2,bd[3]-.2);
   shapeOf(e,e.yaw,_cs);
   if(!e.onGround||e.vel.y>0){
     e.vel.y-=GRAV*dt;e.pos.y+=e.vel.y*dt;
@@ -1756,7 +1764,8 @@ function aliveHunters(rs){return rs.hu.filter(u=>!(rs.el&&rs.el[u])&&present(u))
 function phaseLeft(){const rs=G.rs;if(!rs||!rs.dur)return 0;return(rs.t0+rs.dur-now())/1000}
 function maxHpOf(id,rs){rs=rs||G.rs;if(rs&&rs.hu.indexOf(id)>=0)return 100;const e=ents.get(id);const t=e&&e.form||PT[DEFAULT_FORM];return rs&&rs.set&&rs.set.hps===0?100:t.hp}
 function hpOf(id,rs){rs=rs||G.rs;const f=rs&&rs.hf?rs.hf[id]||0:0;return Math.max(0,Math.round((1-f)*maxHpOf(id,rs)))}
-function defaultSet(){return Object.assign({map:-1,rounds:5,hide:30,hunt:240,ratio:0,ping:15,pen:3,hps:1},store.get('hostset',{}))}
+const DEF_SET={map:-1,rounds:5,hide:30,hunt:240,ratio:0,ping:15,pen:3,hps:1};
+function defaultSet(){return cleanSet(Object.assign({},DEF_SET,store.get('hostset',{})))}
 function lobbyRS(prev,set){return{id:prev?prev.id:0,mid:prev?prev.mid||0:0,rn:0,ph:'lobby',t0:now(),dur:0,map:prev?prev.map:mapIdx<0?0:mapIdx,set:set||(prev&&prev.set)||defaultSet(),hu:[],pr:[],hf:{},el:{},k:{},sc:prev&&prev.ph!=='over'?prev.sc||{}:{},hn:{},as:0}}
 function liveIds(){if(G.mode==='practice')return[...ents.keys()];const a=[Net.uid];for(const k of Net.others.keys())if(Net.live(k))a.push(k);return a}
 function huntersFor(n,set){const want=set.ratio|0?set.ratio|0:n<=3?1:n<=6?2:n<=10?3:4;return clamp(want,1,Math.max(1,n-1))}
@@ -1806,7 +1815,7 @@ function endRound(rs,win){
 function hostHits(by,str){
   const rs=G.rs;if(!rs||rs.ph!=='hunt'||typeof str!=='string')return;
   const f=str.split('|');if(+f[0]!==rs.id)return;
-  const seen=G.hitSeen.get(by)||{rid:rs.id,t:{},w:0};if(seen.rid!==rs.id){seen.rid=rs.id;seen.t={};seen.w=0}G.hitSeen.set(by,seen);
+  const seen=G.hitSeen.get(by)||{rid:rs.id,t:{},w:0,s:f[3]};if(seen.rid!==rs.id||seen.s!==f[3]){seen.rid=rs.id;seen.s=f[3];seen.t={};seen.w=0}G.hitSeen.set(by,seen);
   if(roleOf(by,rs)!=='hunter')return;
   const hf=Object.assign({},rs.hf),el=Object.assign({},rs.el),k=Object.assign({},rs.k);let changed=false;
   const elapsed=(now()-rs.t0)/1000,cap=elapsed*10+MAG+5;let total=0;
@@ -1953,9 +1962,11 @@ const _o=new V3(),_d=new V3();
 function camRay(spread){
   camera.getWorldPosition(_o);camera.getWorldDirection(_d);
   if(spread){_d.x+=rand(-spread,spread);_d.y+=rand(-spread,spread);_d.z+=rand(-spread,spread);_d.normalize()}
-  // start the ray level with your own body, so things between the camera and you don't count
-  const t=me?me.root.position.clone().sub(_o).dot(_d):0;
-  return{o:_o.clone().addScaledVector(_d,Math.max(0,t-.6)),d:_d.clone()};
+  // start the ray level with your own body, so things between the camera and you don't count; but never past a wall
+  // or fixed furniture the view line meets first (looking down beside a wall, that point can be behind the wall)
+  let t=me?me.root.position.clone().sub(_o).dot(_d)-.6:0;
+  if(t>0){const w=rayWorld(_o,_d,t,{props:false,ents:false});if(w)t=w.t-.02}
+  return{o:_o.clone().addScaledVector(_d,Math.max(0,t)),d:_d.clone()};
 }
 function findTarget(){
   G.target=null;if(!me||!me.alive||!isProp()||G.paused||!MAP)return;
@@ -2024,7 +2035,8 @@ function fire(){
   if(G.ammo<=0)setTimeout(startReload,250);
   hudDirty();
 }
-function hitString(){return G.rs.id+'|'+Object.keys(G.hits).map(u=>u+':'+G.hits[u]).join(',')+'|'+G.wrong}
+// round|target:hits,...|wrong shots|session (when you joined: a reload starts the totals again from zero)
+function hitString(){return G.rs.id+'|'+Object.keys(G.hits).map(u=>u+':'+G.hits[u]).join(',')+'|'+G.wrong+'|'+(G.mode==='online'?Net.j:0)}
 function reportHits(){
   const s=hitString();
   if(G.mode==='practice'||G.host)hostHits(myId(),s);
@@ -2130,7 +2142,7 @@ function botsTick(dt){
     if(e.bot.kind==='prop')botProp(e,dt,rs);else if(e.bot.kind==='hunter')botHunter(e,dt,rs);
     const before=e.pos.clone();if(e.vel.x||e.vel.z||!e.onGround)moveEnt(e,dt);
     e.spd=Math.hypot(e.pos.x-before.x,e.pos.z-before.z)/Math.max(dt,1e-3);if(e.spd>.3)e.moveT=clock;
-    if(e.onGround&&e.spd>.6){e.stepT-=dt;if(e.stepT<=0){e.stepT=e.look==='hunter'?.36:.3;sfx(e.look==='hunter'?'step':'scoot',e.pos,.7)}}
+    if(e.onGround&&e.spd>.6){e.stepT-=dt;if(e.stepT<=0){e.stepT=e.look==='hunter'?.36:.3;if(e.look==='hunter')sfx('step',e.pos,.7);else propSfx('scoot',e.pos,.7)}}
   }
 }
 function botProp(e,dt,rs){
@@ -2140,7 +2152,7 @@ function botProp(e,dt,rs){
   const hf=(rs.hf||{})[e.id]||0;
   if(hf>b2.hfSeen){b2.hfSeen=hf;if(rs.ph==='hunt'&&b2.state==='hide'&&Math.random()<DIFF[G.diff].flee){const g=planHide(e,e.pos,22);if(g){botGo(e,g,true);b2.fled=true}}}
   if(b2.state==='go'){
-    if(b2.goal&&e.form!==b2.goal.t&&Math.hypot(b2.goal.x-e.pos.x,b2.goal.z-e.pos.z)<3.5){const ok=tryForm(e,b2.goal.t,e.yaw);if(ok){const c=e.pos.clone();c.y+=e.form.h/2;puff(c,.8);sfx('transform',c,.8)}}
+    if(b2.goal&&e.form!==b2.goal.t&&Math.hypot(b2.goal.x-e.pos.x,b2.goal.z-e.pos.z)<3.5){const ok=tryForm(e,b2.goal.t,e.yaw);if(ok){const c=e.pos.clone();c.y+=e.form.h/2;puff(c,.8);propSfx('transform',c,.8)}}
     const done=walkPath(e,dt,(b2.run?1.15:1)*(e.form?e.form.speed:4));
     if(b2.path&&b2.path.length&&!b2.run)turnTo(e,lerpAng(e.yaw,b2.face+Math.PI,dt*6));
     if(done||(b2.stuck||0)>3){
@@ -2227,6 +2239,9 @@ function botShot(e,target,err,rs){
 // =====================================================================
 const NET_BLOCKED='Couldn\'t reach the game database. If you\'re on a school or work network it may be blocking it; try another network, or play a practice mode.';
 const LIVE_MS=12000;
+// A player whose node has gone quiet (a phone that went to sleep) stops counting for the round after LIVE_MS, but stays
+// drawn where it was until its node is removed (or a minute passes), so a hiding prop doesn't vanish from its spot.
+const GONE_MS=60000;
 function withTimeout(p,ms,msg){let t;return Promise.race([p,new Promise((_,rej)=>{t=setTimeout(()=>rej(new Error(msg)),ms)})]).finally(()=>clearTimeout(t))}
 function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('Could not load '+src));document.head.appendChild(s)})}
 const Net={
@@ -2290,6 +2305,30 @@ const Net={
   }
 };
 function validRS(p){return p&&typeof p.id==='number'&&['lobby','hide','hunt','end','over'].indexOf(p.ph)>=0&&Array.isArray(p.hu)&&Array.isArray(p.pr)&&p.set&&typeof p.t0==='number'&&typeof p.map==='number'}
+// Values from other players' nodes are untrusted: a broken or hostile copy of the page can write anything there.
+// A round state is rebuilt from the fields this page uses, as plain numbers, player ids and known prop ids, so it
+// can't put markup in the scoreboard, crash the page or stall it (a ping every 0 s, a 10-year hunt).
+const finN=v=>typeof v==='number'&&isFinite(v);
+const numIn=(v,a,b,d)=>finN(v)?clamp(v,a,b):d;
+const isObj=o=>!!o&&typeof o==='object'&&!Array.isArray(o);
+const ID_RE=/^[A-Za-z0-9][\w-]{0,63}$/;
+const ptOf=id=>typeof id==='string'&&Object.prototype.hasOwnProperty.call(PT,id)?PT[id]:null;
+function cleanSet(s){
+  s=isObj(s)?s:{};const n=(k,a,b)=>Math.round(numIn(s[k],a,b,DEF_SET[k]));
+  return{map:n('map',-1,MAPS.length-1),rounds:n('rounds',1,20),hide:n('hide',5,120),hunt:n('hunt',30,900),ratio:n('ratio',0,8),ping:n('ping',5,60),pen:n('pen',0,20),hps:s.hps===0?0:1};
+}
+function idList(a){const out=[];if(Array.isArray(a))for(const u of a)if(typeof u==='string'&&ID_RE.test(u)&&out.indexOf(u)<0&&out.length<64)out.push(u);return out}
+function idMap(o,f){const out={};if(isObj(o))for(const k of Object.keys(o).slice(0,256)){if(!ID_RE.test(k))continue;const v=f(o[k]);if(v!==undefined)out[k]=v}return out}
+const intMap=o=>idMap(o,v=>finN(v)?Math.round(clamp(v,-1e7,1e7)):undefined);
+function sanitizeRS(p){
+  if(!validRS(p)||!finN(p.id)||!finN(p.t0))return null;
+  const hu=idList(p.hu),res=p.res;
+  return{id:p.id,mid:Math.round(numIn(p.mid,0,1e9,0)),rn:Math.round(numIn(p.rn,0,1000,0)),ph:p.ph,t0:p.t0,dur:numIn(p.dur,0,3600000,0),map:clamp(p.map|0,0,MAPS.length-1),
+    set:cleanSet(p.set),hu,pr:idList(p.pr).filter(u=>hu.indexOf(u)<0),hf:idMap(p.hf,v=>finN(v)?clamp(v,0,1):undefined),
+    el:idMap(p.el,v=>Array.isArray(v)?[typeof v[0]==='string'&&(v[0]===''||ID_RE.test(v[0]))?v[0]:'',numIn(v[1],0,3600,0)]:undefined),
+    k:intMap(p.k),sc:intMap(p.sc),hn:intMap(p.hn),as:numIn(p.as,0,1e15,0),
+    res:isObj(res)?{win:res.win==='hunters'?'hunters':'props',pts:intMap(res.pts),names:idMap(res.names,v=>typeof v==='string'&&cleanName(v)||undefined),surv:intMap(res.surv),forms:idMap(res.forms,v=>ptOf(v)?v:undefined)}:null};
+}
 function onNode(uid,v){
   if(!v||typeof v!=='object')return;
   const o={n:cleanName(v.n)||'Player',c:/^#[0-9a-f]{6}$/i.test(v.c)?v.c:'#ff7a1a',j:+v.j||+v.ts||0,ts:+v.ts||0,rs:typeof v.rs==='string'?v.rs:'',he:+v.he||0,hd:typeof v.hd==='string'?v.hd:''};
@@ -2297,22 +2336,22 @@ function onNode(uid,v){
   if(o.rs&&o.he>G.maxHe)G.maxHe=o.he;
   let e=ents.get(uid);
   if(!e){
-    if(Net.now()-o.ts>LIVE_MS||!isFinite(+v.x)||!isFinite(+v.z))return;
+    if(Net.now()-o.ts>LIVE_MS||!finN(+v.x)||!finN(+v.z)||!MAP)return;
     e=makeEnt({id:uid,name:o.n,color:o.c,remote:true});
-    e.pos.set(+v.x,+v.y||0,+v.z);e.tpos.copy(e.pos);e.yaw=e.tyaw=+v.h||0;e.shSeen=typeof v.sh==='string'?v.sh:'';e.dSeen=v.d;
-    if(PT[v.d]&&PT[v.d].elig)setForm(e,PT[v.d]);
+    const bd=MAP.ext;e.pos.set(clamp(+v.x,bd[0],bd[2]),numIn(+v.y,-1,12,0),clamp(+v.z,bd[1],bd[3]));e.tpos.copy(e.pos);e.yaw=e.tyaw=wrapA(numIn(+v.h,-1e3,1e3,0));e.shSeen=typeof v.sh==='string'?v.sh:'';e.dSeen=v.d;
+    const t0=ptOf(v.d);if(t0&&t0.elig)setForm(e,t0);
     if(performance.now()-G.joinedAt>2500)feed(esc(o.n)+' joined');
     refreshRoles();
   }
   e.seen=performance.now();e.name=o.n;e.color=o.c;
-  if(isFinite(+v.x)&&isFinite(+v.z)&&MAP){const bd=MAP.ext;e.tpos.set(clamp(+v.x,bd[0],bd[2]),clamp(+v.y||0,-1,12),clamp(+v.z,bd[1],bd[3]))}
-  e.tyaw=+v.h||0;e.aimPitch=+v.p||0;
-  if(v.d!==e.dSeen){e.dSeen=v.d;const t=PT[v.d];if(t&&t.elig&&t!==e.form){setForm(e,t);if(e.look==='prop'&&e.alive){const c=e.pos.clone();c.y+=t.h/2;puff(c,clamp(Math.max(t.w,t.h),.4,1.4));sfx('transform',c)}}}
+  if(finN(+v.x)&&finN(+v.z)&&MAP){const bd=MAP.ext;e.tpos.set(clamp(+v.x,bd[0],bd[2]),numIn(+v.y,-1,12,0),clamp(+v.z,bd[1],bd[3]))}
+  e.tyaw=wrapA(numIn(+v.h,-1e3,1e3,e.tyaw));e.aimPitch=numIn(+v.p,-1.5,1.5,0);
+  if(v.d!==e.dSeen){e.dSeen=v.d;const t=ptOf(v.d);if(t&&t.elig&&t!==e.form){setForm(e,t);if(e.look==='prop'&&e.alive){const c=e.pos.clone();c.y+=t.h/2;puff(c,clamp(Math.max(t.w,t.h),.4,1.4));propSfx('transform',c)}}}
   if(typeof v.sh==='string'&&v.sh!==e.shSeen){e.shSeen=v.sh;remoteShot(e,v.sh)}
   // round state from the host
   if(o.rs&&!G.host&&(uid===G.hostUid||!G.hostUid)&&o.rs!==G.rsSeen){
     G.rsSeen=o.rs;let p=null;try{p=JSON.parse(o.rs)}catch(err){}
-    if(validRS(p)){p.map=clamp(p.map|0,0,MAPS.length-1);G.lastRS=p;G.rs=p;applyRS(p);renderLobby()}
+    p=sanitizeRS(p);if(p){G.lastRS=p;G.rs=p;applyRS(p);renderLobby()}
   }
   if(G.host&&o.hd)hostHits(uid,o.hd);
 }
@@ -2330,13 +2369,14 @@ function updateRemotes(dt){
   const k=1-Math.exp(-dt*12),t=performance.now();
   for(const e of ents.values()){
     if(!e.remote)continue;
-    if(t-e.seen>LIVE_MS){removeEnt(e);continue}
+    if(t-e.seen>GONE_MS){removeEnt(e);continue}
+    if(!finN(e.yaw))e.yaw=e.tyaw;
     const bx=e.pos.x,bz=e.pos.z;
     if(e.pos.distanceTo(e.tpos)>6)e.pos.copy(e.tpos);else if(e.pos.distanceToSquared(e.tpos)<1e-6)e.pos.copy(e.tpos);else e.pos.lerp(e.tpos,k);
     const d=angDiff(e.tyaw,e.yaw);e.yaw=Math.abs(d)<1e-3?e.tyaw:wrapA(e.yaw+d*k);
     e.spd=lerp(e.spd,Math.hypot(e.pos.x-bx,e.pos.z-bz)/Math.max(dt,1e-3),.25);
     if(e.spd>.3)e.moveT=clock;
-    if(e.alive&&e.spd>.8){e.stepT-=dt;if(e.stepT<=0){e.stepT=e.look==='hunter'?.36:.3;sfx(e.look==='hunter'?'step':'scoot',e.pos,.8)}}
+    if(e.alive&&e.spd>.8){e.stepT-=dt;if(e.stepT<=0){e.stepT=e.look==='hunter'?.36:.3;if(e.look==='hunter')sfx('step',e.pos,.8);else propSfx('scoot',e.pos,.8)}}
   }
 }
 function onlineTick(){
@@ -2350,8 +2390,8 @@ function becomeHost(){
   G.host=true;G.he=G.maxHe+1;G.maxHe=G.he;
   // treat every hit already reported as counted, so taking over doesn't count them twice
   G.hitSeen=new Map();
-  for(const [k,o] of Net.others){if(!o.hd)continue;const f=o.hd.split('|'),t={};for(const p of (f[1]||'').split(',').filter(Boolean)){const q=p.split(':');t[q[0]]=+q[1]||0}G.hitSeen.set(k,{rid:+f[0],t,w:+f[2]||0})}
-  if(G.hdStr){const f=G.hdStr.split('|'),t={};for(const p of (f[1]||'').split(',').filter(Boolean)){const q=p.split(':');t[q[0]]=+q[1]||0}G.hitSeen.set(Net.uid,{rid:+f[0],t,w:+f[2]||0})}
+  for(const [k,o] of Net.others){if(!o.hd)continue;const f=o.hd.split('|'),t={};for(const p of (f[1]||'').split(',').filter(Boolean)){const q=p.split(':');t[q[0]]=+q[1]||0}G.hitSeen.set(k,{rid:+f[0],t,w:+f[2]||0,s:f[3]})}
+  if(G.hdStr){const f=G.hdStr.split('|'),t={};for(const p of (f[1]||'').split(',').filter(Boolean)){const q=p.split(':');t[q[0]]=+q[1]||0}G.hitSeen.set(Net.uid,{rid:+f[0],t,w:+f[2]||0,s:f[3]})}
   const base=validRS(G.lastRS)?Object.assign({},G.lastRS):lobbyRS(null,defaultSet());
   if(!G.lastRS)base.map=mapIdx<0?0:mapIdx;
   if(G.lastRS&&G.rs&&G.rs.id===base.id)feed('You\'re the host now');
@@ -2450,7 +2490,7 @@ function renderBoard(){
   for(const u of ids){const r=roleOf(u,rs),tr=document.createElement('tr');if(u===myId())tr.className='me';
     const col=u===myId()?myColor:(ents.get(u)||{}).color||'#ccc';
     const st=r==='out'||r==='dead'?'<span class="bad">Out</span>':r==='spec'?'Next round':r==='free'?'In lobby':'<span class="ok">'+(r==='prop'?(teamOf(G.role)==='p'||G.role==='spec'&&false?'Hiding':'Hiding'):'Hunting')+'</span>';
-    tr.innerHTML='<td><span class="nm"><span class="dot" style="background:'+col+'"></span>'+esc(nameOf(u))+(u===myId()?' (you)':'')+'</span></td><td class="'+(teamOf(r)==='h'?'rh':'rp')+'">'+(teamOf(r)==='h'?'Hunter':r==='spec'?'–':'Prop')+'</td><td>'+st+'</td><td>'+((rs.k||{})[u]||0)+'</td><td>'+((rs.sc||{})[u]||0)+'</td>';tb.appendChild(tr)}
+    tr.innerHTML='<td><span class="nm"><span class="dot" style="background:'+col+'"></span>'+esc(nameOf(u))+(u===myId()?' (you)':'')+'</span></td><td class="'+(teamOf(r)==='h'?'rh':'rp')+'">'+(teamOf(r)==='h'?'Hunter':r==='spec'?'–':'Prop')+'</td><td>'+st+'</td><td>'+(+(rs.k||{})[u]||0)+'</td><td>'+(+(rs.sc||{})[u]||0)+'</td>';tb.appendChild(tr)}
 }
 // ---------- lobby panel ----------
 function segSet(box,v){for(const b2 of box.children)b2.setAttribute('aria-pressed',String(String(b2.dataset.v)===String(v)))}
@@ -2485,13 +2525,13 @@ function showResults(rs){
   if(over){tb.innerHTML='<tr><th>#</th><th>Player</th><th></th><th>Total</th><th></th></tr>';
     const all=[...new Set(ids.concat(Object.keys(rs.sc||{})))].sort((a,b)=>((rs.sc[b]||0)-(rs.sc[a]||0)));
     all.forEach((u,i)=>{const tr=document.createElement('tr');if(u===mine)tr.className='me';const e=ents.get(u),col=u===mine?myColor:e?e.color:'#ccc';
-      tr.innerHTML='<td>'+(i+1)+'</td><td><span class="nm"><span class="dot" style="background:'+col+'"></span>'+esc(nameOf(u))+(u===mine?' (you)':'')+'</span></td><td></td><td>'+(rs.sc[u]||0)+'</td><td></td>';tb.appendChild(tr)})}
+      tr.innerHTML='<td>'+(i+1)+'</td><td><span class="nm"><span class="dot" style="background:'+col+'"></span>'+esc(nameOf(u))+(u===mine?' (you)':'')+'</span></td><td></td><td>'+(+rs.sc[u]||0)+'</td><td></td>';tb.appendChild(tr)})}
   else{tb.innerHTML='<tr><th>Player</th><th>Team</th><th>Result</th><th>Round</th><th>Total</th></tr>';
     ids.sort((a,b)=>((res.pts[b]||0)-(res.pts[a]||0)));
     for(const u of ids){const tr=document.createElement('tr');if(u===mine)tr.className='me';const e=ents.get(u),col=u===mine?myColor:e?e.color:'#ccc',nm=(res.names&&res.names[u])||nameOf(u),isH=rs.hu.indexOf(u)>=0,el=rs.el&&rs.el[u];
-      let result;if(isH){const n=(rs.k||{})[u]||0;result=(n?'Found '+n:'Found none')+(el?' · <span class="bad">out of health</span>':'')}
-      else if(el)result='<span class="bad">Found by '+esc(nameOf(el[0]))+' at '+fmtT(el[1])+'</span>';else result='<span class="ok">Survived as '+esc(PT[(res.forms||{})[u]]?PT[res.forms[u]].name.toLowerCase():'a prop')+'</span>';
-      tr.innerHTML='<td><span class="nm"><span class="dot" style="background:'+col+'"></span>'+esc(nm)+(u===mine?' (you)':'')+'</span></td><td class="'+(isH?'rh':'rp')+'">'+(isH?'Hunter':'Prop')+'</td><td>'+result+'</td><td>+'+((res.pts||{})[u]||0)+'</td><td>'+((rs.sc||{})[u]||0)+'</td>';tb.appendChild(tr)}}
+      let result;if(isH){const n=+(rs.k||{})[u]||0;result=(n?'Found '+n:'Found none')+(el?' · <span class="bad">out of health</span>':'')}
+      else if(el)result='<span class="bad">Found by '+esc(nameOf(el[0]))+' at '+fmtT(el[1])+'</span>';else{const ft=ptOf((res.forms||{})[u]);result='<span class="ok">Survived as '+esc(ft?ft.name.toLowerCase():'a prop')+'</span>'}
+      tr.innerHTML='<td><span class="nm"><span class="dot" style="background:'+col+'"></span>'+esc(nm)+(u===mine?' (you)':'')+'</span></td><td class="'+(isH?'rh':'rp')+'">'+(isH?'Hunter':'Prop')+'</td><td>'+result+'</td><td>+'+(+(res.pts||{})[u]||0)+'</td><td>'+(+(rs.sc||{})[u]||0)+'</td>';tb.appendChild(tr)}}
   $('again').hidden=G.mode==='online';$('toMenu').textContent=G.mode==='online'?'Leave room':'Menu';
   hudCache.endMsg=null;$('endMsg').textContent='';$('end').hidden=false;
   const myTeam=rs.hu.indexOf(mine)>=0?'hunters':rs.pr.indexOf(mine)>=0?'props':'';
@@ -2777,6 +2817,10 @@ tButton('tReady',practiceReady);
 document.addEventListener('pointerdown',()=>initAudio(),{once:true});
 if(touchUI)setTouchUI(true);
 addEventListener('pagehide',()=>{if(Net.refs)Net.leave()});
+// A tab in the background gets no animation frames, so the main loop stops. Keep this player in the room with a slow
+// timer instead (browsers still run it about once a second) and, if it's the host, keep the round moving and the hits
+// counted; otherwise after LIVE_MS everyone else would count it as gone and the round would stall until a new host took over.
+setInterval(()=>{if(!document.hidden||G.mode!=='online'||!Net.refs)return;try{onlineTick();if(performance.now()-Net.hbT>2000)Net.upd({})}catch(err){console.error(err)}},1000);
 
 // An invite opens this page with #ph-<code>: fill in the room and point at the join button.
 const inv=/^#ph-([a-z0-9-]{1,17})$/.exec(location.hash);
