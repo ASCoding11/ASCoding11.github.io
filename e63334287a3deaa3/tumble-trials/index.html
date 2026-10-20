@@ -1968,19 +1968,49 @@ function botString(){
   return rs.id+':'+rs.rn+'|'+a.join(';')+'|'+rep.join(',');
 }
 function validRS(p){return p&&typeof p.id==='number'&&['lobby','round','results','podium'].includes(p.ph)&&Array.isArray(p.ro)&&Array.isArray(p.pl)&&Array.isArray(p.q)&&Array.isArray(p.x)&&p.set&&typeof p.go==='number'&&p.bm&&typeof p.bm==='object'&&Array.isArray(p.plan)&&(p.ph==='lobby'||p.ph==='podium'||LEVELS[p.lv])}
+// The host's round state comes from someone else's browser: rebuild it field by field, keeping only
+// known phases and levels, finite numbers in range, ids of a safe shape, and short lists.
+const RS_MAX_CHARS=24000,RO_MAX=32,ID_RE=/^[A-Za-z0-9_-]{1,40}$/;
+function sanitizeRS(p){
+  if(!p||typeof p!=='object'||Array.isArray(p))return null;
+  const num=(v,a,b,d)=>{v=Number(v);return Number.isFinite(v)?clamp(v,a,b):d},int=(v,a,b,d)=>Math.round(num(v,a,b,d));
+  const ph=['lobby','round','results','podium'].includes(p.ph)?p.ph:null;if(!ph)return null;
+  const T=1e14,s=p.set&&typeof p.set==='object'?p.set:{};
+  const out={v:1,id:int(p.id,0,2e9,0),ph,
+    set:{mx:[4,8,12,16].includes(+s.mx)?+s.mx:16,len:int(s.len,0,2,1),bots:s.bots?1:0,col:s.col===0?0:1},
+    ro:[],bm:{},plan:[],rn:0,lv:-1,seed:int(p.seed,0,2e9,0),go:num(p.go,0,T,0),qn:int(p.qn,1,RO_MAX,1),
+    pl:[],q:[],x:[],te:num(p.te,0,T,0),win:[],t0:num(p.t0,0,T,0),as:num(p.as,0,T,0),end:num(p.end,0,T,0)};
+  if(Array.isArray(p.ro))for(const id of p.ro.slice(0,RO_MAX)){if(typeof id==='string'&&ID_RE.test(id)&&!out.ro.includes(id))out.ro.push(id)}
+  if(p.bm&&typeof p.bm==='object')for(const id of out.ro){
+    if(!/^b\d{1,2}$/.test(id))continue;const m=Array.isArray(p.bm[id])?p.bm[id]:null;if(!m)return null;
+    const lk=parseLook(m[1],m[2]);out.bm[id]=[cleanName(m[0])||'Bot',lk.c,lookStr(lk),int(m[3],0,100,75)];
+  }
+  // every bot in the roster needs its entry
+  for(const id of out.ro)if(id[0]==='b'&&/^b\d{1,2}$/.test(id)&&!out.bm[id])return null;
+  if(Array.isArray(p.plan))for(const it of p.plan.slice(0,6)){if(!it||typeof it!=='object')return null;const lv=Number(it.lv);if(!Number.isInteger(lv)||lv<0||lv>=LEVELS.length)return null;out.plan.push({lv,kind:LEVELS[lv].kind,q:int(it.q,1,RO_MAX,1)})}
+  const idx=a=>{const r=[];if(Array.isArray(a))for(const i of a.slice(0,RO_MAX)){const n=Number(i);if(Number.isInteger(n)&&n>=0&&n<out.ro.length&&!r.includes(n))r.push(n)}return r};
+  out.pl=idx(p.pl);out.q=idx(p.q).filter(i=>out.pl.includes(i));out.x=idx(p.x).filter(i=>out.pl.includes(i)&&!out.q.includes(i));out.win=idx(p.win);
+  if(ph==='round'||ph==='results'){
+    if(!out.plan.length)return null;
+    out.rn=int(p.rn,0,out.plan.length-1,0);
+    // the level always comes from the plan, so a stray lv can't point anywhere else
+    if(Number(p.lv)!==out.plan[out.rn].lv)return null;out.lv=out.plan[out.rn].lv;
+  }
+  return out;
+}
 function onNode(uid,v){
   if(!v||typeof v!=='object')return;
   const s=k=>typeof v[k]==='string'?v[k]:'';
   const o={n:cleanName(v.n)||'Player',c:validColor(v.c)?v.c:'#ff4f9a',lk:s('lk'),j:+v.j||+v.ts||0,ts:+v.ts||0,rs:s('rs'),he:+v.he||0,rd:+v.rd||0,k:s('k'),m:s('m'),fin:s('fin'),out:s('out'),tt:s('tt'),gr:s('gr'),fr:s('fr'),bt:s('bt'),sw:s('sw'),hx:s('hx'),
-    x:+v.x,y:+v.y||0,z:+v.z,h:+v.h||0,rt:performance.now()};
+    x:clamp(+v.x,-400,400),y:clamp(+v.y||0,-60,80),z:clamp(+v.z,-400,400),h:Number.isFinite(+v.h)?+v.h:0,rt:performance.now()};
   const prev=Net.others.get(uid);o.hr=prev&&prev.ts===o.ts?prev.hr:performance.now();o.fresh=Net.now()-o.ts<60000;Net.others.set(uid,o);
   if(uid===G.hostUid&&!G.host&&o.ts&&(!prev||prev.ts!==o.ts))noteSkew(o.ts-Net.now());
   if(o.rs&&o.he>G.maxHe)G.maxHe=o.he;
   if(!prev&&performance.now()-G.joinedAt>2500&&Net.now()-o.ts<LIVE_MS)feed(esc(o.n)+' joined');
   // round state from the host
   if(o.rs&&!G.host&&(uid===G.hostUid||!G.hostUid)&&o.rs!==G.rsSeen){
-    G.rsSeen=o.rs;let p=null;try{p=JSON.parse(o.rs)}catch(err){}
-    if(validRS(p)){G.lastRS=p;G.rs=p;applyRS(p)}
+    G.rsSeen=o.rs;let p=null;if(o.rs.length<=RS_MAX_CHARS){try{p=sanitizeRS(JSON.parse(o.rs))}catch(err){p=null}}
+    if(p&&validRS(p)){G.lastRS=p;G.rs=p;applyRS(p)}
   }
   if(uid===G.hostUid&&!G.host){if(o.bt){G.lastBt=o.bt;applyBots(o.bt)}if(o.sw&&G.L&&G.L.swSet)G.L.swSet(o.sw);if(o.hx)mergeHx(o.hx)}
   if(o.tt)mergeTT(o.tt);
@@ -2380,7 +2410,7 @@ function showResults(rs){
   const L=G.L;if(!L||L.def.kind==='final')return;
   const myI=rs.ro.indexOf(myId()),list=$('resList');list.innerHTML='';
   const row=(i,cls,pos,tag)=>{const re=rosterEntry(rs,idOf(rs,i)),li=document.createElement('li');li.className=cls+(i===myI?' me':'');
-    li.innerHTML='<span class="pos">'+pos+'</span><span class="dot" style="background:'+re.look.c+'"></span><span class="nm">'+esc(re.name)+(i===myI?' (you)':'')+'</span><span class="t">'+tag+'</span>';list.appendChild(li)};
+    li.innerHTML='<span class="pos">'+esc(String(pos))+'</span><span class="dot" style="background:'+(validColor(re.look.c)?re.look.c:'#cccccc')+'"></span><span class="nm">'+esc(re.name)+(i===myI?' (you)':'')+'</span><span class="t">'+esc(tag)+'</span>';list.appendChild(li)};
   rs.q.forEach((i,k)=>row(i,'q',k+1,'Qualified'));
   rs.x.slice().reverse().forEach(i=>row(i,'x','–','Out'));
   setText('resTitle',L.def.name+' is over');setText('resSub',rs.q.length+' of '+rs.pl.length+' go through to the '+(rs.rn+1>=rs.plan.length-1?'final':'next round'));
@@ -2405,7 +2435,7 @@ function renderLobby(){
   const ids=humansHere(),pl=$('plist');pl.innerHTML='';
   for(const id of ids){const isMe=id===Net.uid,o=Net.others.get(id),li=document.createElement('li');
     const c=isMe?myLook.c:(o?o.c:'#ccc'),rd=isMe?G.ready:o&&o.rd;
-    li.innerHTML='<span class="dot" style="background:'+c+'"></span><span class="nm">'+esc(isMe?(myName||'Bean')+' (you)':o?o.n:'Player')+'</span><span class="t'+(rd?' rd':'')+'">'+(id===G.hostUid?'Host · ':'')+(rd?'Ready':'Not ready')+'</span>';pl.appendChild(li)}
+    li.innerHTML='<span class="dot" style="background:'+(validColor(c)?c:'#cccccc')+'"></span><span class="nm">'+esc(isMe?(myName||'Bean')+' (you)':o?o.n:'Player')+'</span><span class="t'+(rd?' rd':'')+'">'+(id===G.hostUid?'Host · ':'')+(rd?'Ready':'Not ready')+'</span>';pl.appendChild(li)}
   const set=rs.set||defaultSet();
   segSet($('setMx'),set.mx);segSet($('setLen'),set.len);segSet($('setBots'),set.bots);segSet($('setCol'),set.col);
   $('hostNote').textContent=G.host?'(you pick)':'(the host picks)';
@@ -2518,6 +2548,9 @@ let last=performance.now(),lastFrame=performance.now();
 function frame(t){lastFrame=performance.now();const dt=Math.min(.1,Math.max(0,(t-last)/1000));last=t;try{if(!G.hold)step(dt)}catch(err){console.error(err)}requestAnimationFrame(frame)}
 // keep the host's show moving while its tab is in the background
 setInterval(()=>{const p=performance.now();if(p-lastFrame>400&&G.mode!=='menu'&&!G.hold){const dt=Math.min(.5,(p-last)/1000);last=p;lastFrame=p;try{step(dt,true)}catch(e){console.error(e)}}},250);
+// A background tab gets few or no animation frames: keep this player's node fresh once a second regardless,
+// so a host who switches tabs isn't taken for gone.
+setInterval(()=>{if(Net.refs&&performance.now()-Net.hbT>900)Net.upd({})},1000);
 function step(dt,bg){
   if(G.mode!=='online'&&!G.paused)G.vt+=dt*1000;
   const L=G.L;
@@ -2631,7 +2664,7 @@ syncTouchUI();
 const inv=/^#ko-([a-z0-9-]{1,17})$/.exec(location.hash);
 if(inv){$('room').value=inv[1];setMsg('You were invited to room ko-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.remove('alt');$('joinRoom').classList.add('pink');$('quick').classList.remove('pink');$('quick').classList.add('alt')}
 
-if(navigator.webdriver)window.__ko={DBG,G,Net,ents,LEVELS,World,KB,held,press,touch,get me(){return me},get L(){return G.L},get camYaw(){return camYaw},set camYaw(v){camYaw=v},get camPitch(){return camPitch},set camPitch(v){camPitch=v},get camDist(){return camDist},set camDist(v){camDist=v},
+if(navigator.webdriver)window.__ko={sanitizeRS,DBG,G,Net,ents,LEVELS,World,KB,held,press,touch,get me(){return me},get L(){return G.L},get camYaw(){return camYaw},set camYaw(v){camYaw=v},get camPitch(){return camPitch},set camPitch(v){camPitch=v},get camDist(){return camDist},set camDist(v){camDist=v},
   advance(s){G.noRender=true;try{for(let i=0;i<Math.round(s*60);i++)step(1/60)}finally{G.noRender=false}},
   setAuto(v){G.auto=!!v;if(me&&v)me.ai=newAI(.95)},startSolo,startPractice,toMenu,goOnline,setRS,newShow,lobbyRS,nextRound,planShow,hostTick,now,roundT,renderer,scene,camera,render(){renderer.render(scene,camera)},showPause,resume,sfx,banner};
 if(navigator.webdriver&&window.__noRender)G.noRender=true;
