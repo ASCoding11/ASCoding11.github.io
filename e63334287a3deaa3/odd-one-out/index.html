@@ -1677,7 +1677,10 @@ function moveEnt(e,dt){
   e.pos.x+=e.vel.x*dt;e.pos.z+=e.vel.z*dt;
   let f=shapeOf(e,e.yaw,_cs);const r=f.r,h=f.h;
   if(e.vel.x||e.vel.z)pushOut(e,_cs,r,h);
-  const bd=MAP.ext;e.pos.x=clamp(e.pos.x,bd[0]+.2,bd[2]-.2);e.pos.z=clamp(e.pos.z,bd[1]+.2,bd[3]-.2);
+  // keep to the map, or to the hunters' waiting room for whoever is in it (the space between them has no floor: on
+  // Willow Lane a prop could climb the yard fence and drop off the outside, below the map where nobody can reach it)
+  const wb=MAP.waitBox,bd=e.pos.x>wb[0]-.5&&e.pos.x<wb[2]+.5&&e.pos.z>wb[1]-.5&&e.pos.z<wb[3]+.5?wb:MAP.bounds;
+  e.pos.x=clamp(e.pos.x,bd[0]+.2,bd[2]-.2);e.pos.z=clamp(e.pos.z,bd[1]+.2,bd[3]-.2);
   shapeOf(e,e.yaw,_cs);
   if(!e.onGround||e.vel.y>0){
     e.vel.y-=GRAV*dt;e.pos.y+=e.vel.y*dt;
