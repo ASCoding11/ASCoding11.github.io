@@ -1810,7 +1810,7 @@ function endRound(rs,win){
 function hostHits(by,str){
   const rs=G.rs;if(!rs||rs.ph!=='hunt'||typeof str!=='string')return;
   const f=str.split('|');if(+f[0]!==rs.id)return;
-  const seen=G.hitSeen.get(by)||{rid:rs.id,t:{},w:0};if(seen.rid!==rs.id){seen.rid=rs.id;seen.t={};seen.w=0}G.hitSeen.set(by,seen);
+  const seen=G.hitSeen.get(by)||{rid:rs.id,t:{},w:0,s:f[3]};if(seen.rid!==rs.id||seen.s!==f[3]){seen.rid=rs.id;seen.s=f[3];seen.t={};seen.w=0}G.hitSeen.set(by,seen);
   if(roleOf(by,rs)!=='hunter')return;
   const hf=Object.assign({},rs.hf),el=Object.assign({},rs.el),k=Object.assign({},rs.k);let changed=false;
   const elapsed=(now()-rs.t0)/1000,cap=elapsed*10+MAG+5;let total=0;
@@ -2028,7 +2028,8 @@ function fire(){
   if(G.ammo<=0)setTimeout(startReload,250);
   hudDirty();
 }
-function hitString(){return G.rs.id+'|'+Object.keys(G.hits).map(u=>u+':'+G.hits[u]).join(',')+'|'+G.wrong}
+// round|target:hits,...|wrong shots|session (when you joined: a reload starts the totals again from zero)
+function hitString(){return G.rs.id+'|'+Object.keys(G.hits).map(u=>u+':'+G.hits[u]).join(',')+'|'+G.wrong+'|'+(G.mode==='online'?Net.j:0)}
 function reportHits(){
   const s=hitString();
   if(G.mode==='practice'||G.host)hostHits(myId(),s);
@@ -2382,8 +2383,8 @@ function becomeHost(){
   G.host=true;G.he=G.maxHe+1;G.maxHe=G.he;
   // treat every hit already reported as counted, so taking over doesn't count them twice
   G.hitSeen=new Map();
-  for(const [k,o] of Net.others){if(!o.hd)continue;const f=o.hd.split('|'),t={};for(const p of (f[1]||'').split(',').filter(Boolean)){const q=p.split(':');t[q[0]]=+q[1]||0}G.hitSeen.set(k,{rid:+f[0],t,w:+f[2]||0})}
-  if(G.hdStr){const f=G.hdStr.split('|'),t={};for(const p of (f[1]||'').split(',').filter(Boolean)){const q=p.split(':');t[q[0]]=+q[1]||0}G.hitSeen.set(Net.uid,{rid:+f[0],t,w:+f[2]||0})}
+  for(const [k,o] of Net.others){if(!o.hd)continue;const f=o.hd.split('|'),t={};for(const p of (f[1]||'').split(',').filter(Boolean)){const q=p.split(':');t[q[0]]=+q[1]||0}G.hitSeen.set(k,{rid:+f[0],t,w:+f[2]||0,s:f[3]})}
+  if(G.hdStr){const f=G.hdStr.split('|'),t={};for(const p of (f[1]||'').split(',').filter(Boolean)){const q=p.split(':');t[q[0]]=+q[1]||0}G.hitSeen.set(Net.uid,{rid:+f[0],t,w:+f[2]||0,s:f[3]})}
   const base=validRS(G.lastRS)?Object.assign({},G.lastRS):lobbyRS(null,defaultSet());
   if(!G.lastRS)base.map=mapIdx<0?0:mapIdx;
   if(G.lastRS&&G.rs&&G.rs.id===base.id)feed('You\'re the host now');
