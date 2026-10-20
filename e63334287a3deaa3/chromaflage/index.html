@@ -561,6 +561,10 @@ const r2=v=>Math.round(v*100)/100,r3=v=>Math.round(v*1000)/1000;
 const angDiff=(a,b)=>{let d=(a-b)%(Math.PI*2);if(d>Math.PI)d-=Math.PI*2;if(d<-Math.PI)d+=Math.PI*2;return d};
 const fmtT=s=>{s=Math.max(0,Math.ceil(s));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
 const store={get(k,d){try{const v=localStorage.getItem('chroma-'+k);return v===null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('chroma-'+k,JSON.stringify(v))}catch(e){}}};
+const finN=v=>typeof v==='number'&&isFinite(v);
+const numIn=(v,a,b,d)=>finN(v)?clamp(v,a,b):d;
+// saved settings can be anything after an old version or a hand edit: fall back to the default when they don't fit
+const storeNum=(k,d,a,b)=>numIn(store.get(k,d),a,b,d),storeStr=(k,d)=>{const v=store.get(k,d);return typeof v==='string'?v:d};
 function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 function hashStr(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0}
 const isTouch=matchMedia('(pointer: coarse)').matches&&!matchMedia('(any-pointer: fine)').matches;
@@ -583,7 +587,7 @@ function shade(hex,k){const c=hexToRgb(hex);return rgbToHex(...c.map(v=>clamp(Ma
 //  Sound: small synthesized effects (Web Audio), placed left/right and
 //  quieter with distance when they come from somewhere in the world.
 // =====================================================================
-let actx=null,master=null,volume=+store.get('vol',.7);
+let actx=null,master=null,volume=storeNum('vol',.7,0,1);
 function initAudio(){
   if(actx){if(actx.state==='suspended')actx.resume().catch(()=>{});return}
   try{actx=new (window.AudioContext||window.webkitAudioContext)();master=actx.createGain();master.gain.value=volume;master.connect(actx.destination)}catch(e){actx=null}
@@ -638,7 +642,7 @@ function sfx(kind,pos){
 // =====================================================================
 //  Renderer, scene, lights
 // =====================================================================
-let gfx=store.get('gfx',isTouch?'fast':'high');
+let gfx=store.get('gfx','');if(gfx!=='high'&&gfx!=='fast')gfx=isTouch?'fast':'high';
 const canvas=$('view');
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
 renderer.outputEncoding=THREE.sRGBEncoding;
@@ -1855,7 +1859,7 @@ class Avatar{
   }
   setKind(k){
     k=k?1:0;if(k===this.kind)return;
-    if(this.hips){this.pose.remove(this.hips)}
+    if(this.hips){this.pose.remove(this.hips);this.freeGear();this.paint.tex.dispose()}
     this.kind=k;const A=atlasOf(k);this.paint=new Paint(k);this.mat.map=this.paint.tex;this.mat.needsUpdate=true;
     this.hips=new THREE.Object3D();this.hips.position.y=HIPS[k];this.pose.add(this.hips);this.parts=[];this.limbs=[];
     A.parts.forEach((sp,pi)=>{
@@ -1878,13 +1882,18 @@ class Avatar{
     this.gear.visible=this.seeker;if(this.gun)this.gun.visible=this.seeker;
     this.gear.traverse(o=>{if(o.isMesh){o.castShadow=true}});
   }
+  // the visor and blaster are made for each body; the shared materials stay
+  freeGear(){
+    const free=o=>{if(!o.isMesh)return;o.geometry.dispose();if(o.material!==visorMat&&o.material!==gunMat&&o.material!==gunMat2)o.material.dispose()};
+    if(this.gear)this.gear.traverse(free);if(this.gun&&this.gun.parent!==this.gear)this.gun.traverse(free);this.gear=null;this.gun=null;
+  }
   setSeeker(on){
     on=!!on;if(on===this.seeker)return;this.seeker=on;
     for(const m of this.parts)m.material=on?getSeekerMat():this.mat;
     this.gear.visible=on;if(this.gun)this.gun.visible=on;
   }
   setRough(r){this.mat.roughness=clamp(r,.08,1)}
-  setTag(name,color){if(this.tag&&this.tagName===name+color)return;if(this.tag){this.root.remove(this.tag);this.tag.material.map.dispose()}this.tag=makeTag(name,color);this.tagName=name+color;this.root.add(this.tag)}
+  setTag(name,color){if(this.tag&&this.tagName===name+color)return;if(this.tag){this.root.remove(this.tag);this.tag.material.map.dispose();this.tag.material.dispose()}this.tag=makeTag(name,color);this.tagName=name+color;this.root.add(this.tag)}
   update(dt){
     const e=this.e,k=1-Math.exp(-dt*11),P0=e.wall&&(e.pose|0)===2?WALLPOSE[this.kind]:POSES[this.kind][e.pose|0],c=this.cur;
     for(const key in P0)c[key]=lerp(c[key],P0[key],k);
@@ -1905,7 +1914,7 @@ class Avatar{
     if(this.glow>0||this.glowOn){this.glow=this.glowOn?1:Math.max(0,this.glow-dt);const p=this.glow*(.35+.35*Math.sin(clock*8));this.mat.emissive.setRGB(p,p*.3,p*.55)}
   }
   setLayer(n,on){for(const m of this.parts){if(on)m.layers.enable(n);else m.layers.disable(n)}}
-  dispose(){scene.remove(this.root);if(this.tag)this.tag.material.map.dispose();this.paint.tex.dispose();this.mat.dispose()}
+  dispose(){scene.remove(this.root);if(this.tag){this.tag.material.map.dispose();this.tag.material.dispose()}this.freeGear();this.paint.tex.dispose();this.mat.dispose()}
 }
 // rest-pose position of the texel under a ray hit on a body
 function restAt(av,hit,outP,outN){
@@ -1980,13 +1989,13 @@ let clock=0;
 const ents=new Map();
 let me=null;
 function cleanName(n){return String(n||'').replace(/[^\w \-.'!?]/g,'').trim().slice(0,14)}
-let myName=cleanName(store.get('name',''));
-let myShape=(+store.get('shape',0))?1:0,mySize=clamp(+store.get('size',1)|0,0,2),myRough=clamp(+store.get('rough',85),0,100)/100,myColor=store.get('color','');
+let myName=cleanName(storeStr('name',''));
+let myShape=(+store.get('shape',0))?1:0,mySize=storeNum('size',1,0,2)|0,myRough=storeNum('rough',85,0,100)/100,myColor=storeStr('color','');
 if(!/^#[0-9a-f]{6}$/i.test(myColor)){myColor=pick(ACCENTS);store.set('color',myColor)}
-let sens=+store.get('sens',1)||1;
+let sens=storeNum('sens',1,.2,3);
 const G={
   mode:'menu',pmode:null,rs:null,role:'free',rid:-1,ph:'',studio:false,paused:false,blind:false,
-  diff:clamp(+store.get('diff',2)|0,1,3),pracMap:clamp(+store.get('pmap',0)|0,0,MAPS.length-1),
+  diff:storeNum('diff',2,1,3)|0,pracMap:storeNum('pmap',0,0,MAPS.length-1)|0,
   ink:5,inkT:0,shootCd:0,shotSeq:0,tgSeq:0,taSeq:0,tm:0,nextTaunt:0,tauntCd:0,specId:null,host:false,
   nm:new Map(),seenTg:new Map(),hostT:0,endShown:-1,seenFd:{},savedPaint:null,intentUnlock:false,paintDirty:false,paintSentT:0,stroking:false,
 };
@@ -2170,7 +2179,13 @@ function present(id){if(G.mode==='practice')return ents.has(id);if(id===Net.uid)
 function hidersLeft(rs){return rs.pl.filter(u=>roleOf(u,rs)==='hider'&&present(u))}
 function seekersLeft(rs){return rs.pl.concat(rs.sk).filter((u,i,a)=>a.indexOf(u)===i&&roleOf(u,rs)==='seeker'&&present(u))}
 
-function defaultSet(){return Object.assign({mode:'classic',map:-1,hide:60,seek:180,sk:0,tn:30},store.get('hostset',{}))}
+const SET_DEF={mode:'classic',map:-1,hide:60,seek:180,sk:0,tn:30};
+// round settings rebuilt from known fields as plain numbers in sane ranges (they come from saved settings or the host)
+function cleanSet(s){
+  s=isObj(s)?s:{};const n=(k,a,b)=>Math.round(numIn(s[k],a,b,SET_DEF[k])),tn=n('tn',0,120);
+  return{mode:s.mode==='infect'?'infect':'classic',map:n('map',-1,MAPS.length-1),hide:n('hide',5,300),seek:n('seek',30,900),sk:n('sk',0,MAX_ROOM-1),tn:tn&&tn<10?10:tn};
+}
+function defaultSet(){return cleanSet(store.get('hostset',null))}
 function lobbyRS(prev,set){return{id:prev?prev.id:0,ph:'lobby',t0:now(),dur:0,map:prev?prev.map:0,set:set||(prev&&prev.set)||defaultSet(),sk:[],pl:[],fd:{},sc:prev?prev.sc||{}:{},tn:prev?prev.tn||{}:{},as:0}}
 function liveIds(){if(G.mode==='practice')return[...ents.keys()];const a=[Net.uid];for(const k of Net.others.keys())if(Net.live(k))a.push(k);return a}
 function newRound(prev){
@@ -2387,8 +2402,8 @@ function claimTag(target){
 //  Paint studio: orbit your own body, paint with the brush, pick colours
 //  from anything in the room with the eyedropper.
 // =====================================================================
-const SC={yaw:0,pitch:-.12,dist:2.6,tool:'brush',size:+store.get('bsize',9)||9,drag:null,lastP:null,lastN:null,ptrs:new Map(),pinch:0};
-const PC={h:0,s:0,v:.95,rgb:BASE_WHITE.slice(),recent:store.get('recent',['#2f6f6a','#d9b45a','#f1ede4','#26232e','#c99a63','#f7c6d4'])};
+const SC={yaw:0,pitch:-.12,dist:2.6,tool:'brush',size:Math.round(storeNum('bsize',9,2,40)),drag:null,lastP:null,lastN:null,ptrs:new Map(),pinch:0};
+const PC={h:0,s:0,v:.95,rgb:BASE_WHITE.slice(),recent:(a=>Array.isArray(a)?a.filter(c=>typeof c==='string'&&/^#[0-9a-f]{6}$/i.test(c)).slice(0,12):[])(store.get('recent',['#2f6f6a','#d9b45a','#f1ede4','#26232e','#c99a63','#f7c6d4']))};
 function openStudio(){
   if(!canPaint()||G.studio)return;
   G.studio=true;SC.yaw=me.yaw+Math.PI;SC.pitch=-.12;SC.dist=(2.4+(me.pose===2?.6:0))*SIZES[me.size].s[1]*((isTouch?innerHeight>innerWidth:innerWidth<=760)?2.1:1); // zoomed out when the studio is a bottom sheet
@@ -2774,53 +2789,80 @@ const Net={
     }
     return best;
   },
-  tmOf(uid,rid){const o=this.others.get(uid);if(!o||!o.ta)return 0;const f=o.ta.split(':');return +f[2]===rid?(+f[1]||0):0},
+  tmOf(uid,rid){const o=this.others.get(uid);if(!o||!o.ta)return 0;const f=o.ta.split(':');return +f[2]===rid?clamp(Math.floor(+f[1]||0),0,99):0},
   leave(){
     if(this.refs){const r=this.refs;try{r.players.off();r.me.onDisconnect().cancel();r.me.remove()}catch(e){}}
     this.refs=null;this.room=null;this.others.clear();this.rsStr='';this.loaded=false;
   }
 };
-function validRS(p){return p&&typeof p.id==='number'&&['lobby','hide','seek','end'].indexOf(p.ph)>=0&&Array.isArray(p.sk)&&Array.isArray(p.pl)&&p.set&&typeof p.t0==='number'&&typeof p.map==='number'}
+// Everything in other players' nodes is untrusted: a broken or hostile copy of the page can write anything there,
+// including a round state and a high host number that make it the host. So a round state is rebuilt field by field
+// from what this page uses: plain numbers in sane ranges, player ids that can't be object keys like __proto__,
+// short lists and known settings. Markup can't reach the scoreboard and odd values can't crash or stall the page.
+const RS_MAX=32768,HE_MAX=1e9,DAY_MS=864e5;
+function isObj(o){return !!o&&typeof o==='object'&&!Array.isArray(o)}
+function validId(u){return typeof u==='string'&&/^[A-Za-z0-9][\w-]{0,63}$/.test(u)&&!(u in Object.prototype)}
+function idList(a){const out=[];if(Array.isArray(a))for(const u of a.slice(0,256))if(validId(u)&&out.indexOf(u)<0&&out.length<32)out.push(u);return out}
+function idMap(o,f){const out={};if(isObj(o))for(const k of Object.keys(o).slice(0,256)){if(!validId(k))continue;const v=f(o[k]);if(v!==undefined)out[k]=v}return out}
+const intMap=o=>idMap(o,v=>finN(v)?Math.round(clamp(v,-1e6,1e6)):undefined);
+function sanitizeRS(p){
+  if(!isObj(p)||['lobby','hide','seek','end'].indexOf(p.ph)<0||!finN(p.id)||!finN(p.t0))return null;
+  const t=now(),res=p.res;
+  return{id:Math.round(clamp(p.id,0,HE_MAX)),ph:p.ph,t0:clamp(p.t0,t-DAY_MS,t+DAY_MS),dur:numIn(p.dur,0,36e5,0),map:Math.round(numIn(p.map,0,MAPS.length-1,0)),set:cleanSet(p.set),
+    sk:idList(p.sk),pl:idList(p.pl),fd:idMap(p.fd,v=>Array.isArray(v)&&validId(v[0])?[v[0],Math.round(numIn(v[1],0,3600,0))]:undefined),sc:intMap(p.sc),tn:intMap(p.tn),
+    as:finN(p.as)&&p.as>0?clamp(p.as,t-DAY_MS,t+DAY_MS):0,
+    res:isObj(res)?{win:res.win==='seekers'?'seekers':'hiders',pts:intMap(res.pts),names:idMap(res.names,v=>cleanName(typeof v==='string'?v:'')||undefined),at:numIn(res.at,0,3600,0)}:null};
+}
 function onNode(uid,v){
   if(!v||typeof v!=='object')return;
-  const o={n:cleanName(v.n)||'Player',c:/^#[0-9a-f]{6}$/i.test(v.c)?v.c:'#ff4f8b',j:+v.j||+v.ts||0,ts:+v.ts||0,rs:typeof v.rs==='string'?v.rs:'',he:+v.he||0,ta:typeof v.ta==='string'?v.ta:'',tg:typeof v.tg==='string'?v.tg:''};
+  const str=(x,n)=>typeof x==='string'&&x.length<=n?x:'',he=+v.he;
+  // a heartbeat from the future would keep a vanished player "live" for ever, so it counts as now at most
+  const ts=numIn(+v.ts,0,Net.now()+5000,0);
+  const o={n:cleanName(typeof v.n==='string'?v.n:'')||'Player',c:/^#[0-9a-f]{6}$/i.test(v.c)?v.c:'#ff4f8b',j:numIn(+v.j,1,1e15,0)||ts,ts,rs:str(v.rs,RS_MAX),he:he>0?Math.round(Math.min(he,HE_MAX)):0,ta:str(v.ta,64),tg:str(v.tg,160)};
   Net.others.set(uid,o);G.nm.set(uid,o.n);
   if(o.rs&&o.he>G.maxHe)G.maxHe=o.he;
   let e=ents.get(uid);
   if(!e){
-    if(Net.now()-o.ts>LIVE_MS||!isFinite(+v.x)||!isFinite(+v.z))return;
-    e=makeEnt({id:uid,name:o.n,color:/^#[0-9a-f]{6}$/i.test(o.c)?o.c:undefined,remote:true,shape:v.s,size:v.sz,rough:clamp((+v.rf||85)/100,0,1)});
-    e.pos.set(+v.x,+v.y||0,+v.z);e.tpos.copy(e.pos);e.yaw=e.tyaw=+v.h||0;
+    if(Net.now()-o.ts>LIVE_MS||!finN(+v.x)||!finN(+v.z)||!MAP)return;
+    e=makeEnt({id:uid,name:o.n,color:o.c,remote:true,shape:v.s,size:v.sz,rough:numIn(+v.rf,0,100,85)/100});
+    remoteTarget(e,v);e.pos.copy(e.tpos);e.yaw=e.tyaw;
     if(performance.now()-G.joinedAt>2500)feed(esc(o.n)+' joined');
     refreshRoles();
   }
   e.seen=performance.now();
   const oc=/^#[0-9a-f]{6}$/i.test(o.c)?o.c:e.color;if(e.name!==o.n||e.color!==oc){e.name=o.n;e.color=oc}
-  if(isFinite(+v.x)&&isFinite(+v.z)&&MAP){const bd=MAP.bounds;e.tpos.set(clamp(+v.x,bd[0],bd[2]),clamp(+v.y||0,-1,MAP.height+1),clamp(+v.z,bd[1],bd[3]))}
-  e.tyaw=+v.h||0;
+  remoteTarget(e,v);
   const po=clamp(v.po|0,0,2),fl=v.fl?1:0,wl=clamp(v.wl|0,0,4);if(po!==e.pose||fl!==e.flat||wl!==e.wall){e.pose=po;e.flat=fl;e.wall=wl;e.moveT=clock}
   const s=v.s?1:0;if(s!==e.shape){e.shape=s;e.av.setKind(s);e.av.setRough(e.rough);e.paintVer=-1}
   const sz=clamp(v.sz|0,0,2);if(sz!==e.size){e.size=sz;e.moveT=clock}
-  const rf=clamp((+v.rf||0)/100,0,1);if(rf!==e.rough){e.rough=rf;e.av.setRough(rf)}
-  e.aimPitch=typeof v.p==='number'?v.p:null;
+  const rf=numIn(+v.rf,0,100,0)/100;if(rf!==e.rough){e.rough=rf;e.av.setRough(rf)}
+  e.aimPitch=finN(v.p)?clamp(v.p,-1.6,1.6):null;
   if(typeof v.pv==='number'&&v.pv!==e.paintVer&&typeof v.pd==='string'){e.paintVer=v.pv;e.av.paint.load(v.pd)}
-  if(typeof v.sh==='string'&&v.sh!==e.shotSeen){const first=!e.shotSeen;e.shotSeen=v.sh;if(!first)remoteShot(e,v.sh)}
-  if(o.ta!==e.taSeen){const first=e.taSeen==null;e.taSeen=o.ta;if(!first&&o.ta)doTauntFx(e)}
+  if(typeof v.sh==='string'&&v.sh.length<=200&&v.sh!==e.shotSeen){const first=!e.shotSeen;e.shotSeen=v.sh;if(!first&&clock-(e.shotFxT||-9)>.2){e.shotFxT=clock;remoteShot(e,v.sh)}}
+  if(o.ta!==e.taSeen){const first=e.taSeen==null;e.taSeen=o.ta;if(!first&&o.ta&&clock-(e.taFxT||-9)>.5){e.taFxT=clock;doTauntFx(e)}}
   // round state from the host
   if(o.rs&&!G.host&&(uid===G.hostUid||!G.hostUid)&&o.rs!==G.rsSeen){
     G.rsSeen=o.rs;let p=null;try{p=JSON.parse(o.rs)}catch(err){}
-    if(validRS(p)){p.map=clamp(p.map|0,0,MAPS.length-1);G.lastRS=p;G.rs=p;applyRS(p);renderLobby()}
+    p=sanitizeRS(p);if(p){G.lastRS=p;G.rs=p;applyRS(p);renderLobby()}
   }
   // the host checks seekers' tag claims
-  if(G.host&&G.rs&&o.tg&&o.tg!==G.seenTg.get(uid)){G.seenTg.set(uid,o.tg);const f=o.tg.split(':');if(+f[0]===G.rs.id&&f[2])hostTag(uid,f[2])}
+  if(G.host&&G.rs&&o.tg&&o.tg!==G.seenTg.get(uid)){G.seenTg.set(uid,o.tg);const f=o.tg.split(':');if(+f[0]===G.rs.id&&validId(f[2]))hostTag(uid,f[2])}
+}
+// where a remote player says it is, kept inside the map, facing a real angle
+function remoteTarget(e,v){
+  const x=+v.x,z=+v.z,y=+v.y,h=+v.h;
+  if(finN(x)&&finN(z)&&MAP){const bd=MAP.bounds;e.tpos.set(clamp(x,bd[0],bd[2]),numIn(y,-1,MAP.height+1,0),clamp(z,bd[1],bd[3]))}
+  e.tyaw=finN(h)?angDiff(h,0):finN(e.tyaw)?e.tyaw:0;
 }
 function onNodeGone(uid){
   const e=ents.get(uid);if(e){feed(esc(e.name)+' left');removeEnt(e)}
   Net.others.delete(uid);if(uid===G.hostUid)G.hostUid=null;renderLobby();
 }
 function remoteShot(e,sh){
-  const f=sh.split(',').map(Number);if(f.length<10||f.some(n=>!isFinite(n)))return;
-  const from=new V3(f[1],f[2],f[3]),to=new V3(f[4],f[5],f[6]),n=new V3(f[7],f[8],f[9]);if(from.distanceTo(to)>120)return;
+  const f=sh.split(',').slice(0,10).map(Number);if(f.length<10||f.some(n=>!isFinite(n))||!MAP)return;
+  const bd=MAP.bounds,inside=(x,y,z)=>x>=bd[0]-5&&x<=bd[2]+5&&z>=bd[1]-5&&z<=bd[3]+5&&y>=-5&&y<=MAP.height+10;
+  if(!inside(f[1],f[2],f[3])||!inside(f[4],f[5],f[6]))return;
+  const from=new V3(f[1],f[2],f[3]),to=new V3(f[4],f[5],f[6]),n=new V3(clamp(f[7],-1,1),clamp(f[8],-1,1),clamp(f[9],-1,1));if(from.distanceTo(to)>120)return;
   sfx('shot',from);pellet(from,to,'#ff4f8b',()=>{splat(to,n.lengthSq()>.5?n.normalize():new V3(0,1,0),'#ff4f8b');sfx('splat',to)});
 }
 function updateRemotes(dt){
@@ -2843,8 +2885,8 @@ function onlineTick(){
   if(G.host)hostTick();
 }
 function becomeHost(){
-  G.host=true;G.he=G.maxHe+1;G.maxHe=G.he;
-  const base=validRS(G.lastRS)?Object.assign({},G.lastRS):lobbyRS(null,defaultSet());
+  G.host=true;G.he=Math.min(HE_MAX,G.maxHe+1);G.maxHe=G.he;
+  const base=G.lastRS?Object.assign({},G.lastRS):lobbyRS(null,defaultSet());
   if(!G.lastRS)base.map=mapIdx<0?0:mapIdx;
   if(G.lastRS&&G.rs&&G.rs.id===base.id)feed('You\'re the host now');
   setRS(base);
@@ -2946,11 +2988,12 @@ function renderLobby(){
   const sb=$('startRound');sb.hidden=Net.isPublic;sb.disabled=!G.host||ids.length<2;sb.textContent=G.host?'Start round':'Host starts';
 }
 function hostSet(key,val){
-  if(!G.host||!G.rs||G.rs.ph!=='lobby')return;const set=Object.assign({},G.rs.set,{[key]:val});store.set('hostset',set);
+  if(!G.host||!G.rs||G.rs.ph!=='lobby')return;const set=cleanSet(Object.assign({},G.rs.set,{[key]:val}));store.set('hostset',set);
   const rs=Object.assign({},G.rs,{set});if(key==='map'&&val>=0)rs.map=val;setRS(rs);renderLobby();sfx('ui');
 }
 
 // ---------- results ----------
+const intTxt=v=>{v=Number(v);return finN(v)?String(Math.round(v)):'0'};
 function showResults(rs){
   const res=rs.res||{win:'hiders',pts:{}},rows=[],mine=myId();
   const ids=rs.pl.slice();for(const u of rs.sk)if(ids.indexOf(u)<0)ids.push(u);
@@ -2963,12 +3006,12 @@ function showResults(rs){
   ids.sort((a,b)=>((rs.sc[b]||0)-(rs.sc[a]||0)));
   for(const u of ids){
     const tr=document.createElement('tr');if(u===mine)tr.className='me';
-    const e=ents.get(u),col=e?e.color:'#ccc',nm=(res.names&&res.names[u])||nameOf(u);
+    const e=ents.get(u),col=e&&/^#[0-9a-f]{6}$/i.test(e.color)?e.color:'#ccc',nm=(res.names&&res.names[u])||nameOf(u);
     const wasSeeker=rs.sk.indexOf(u)>=0,fd=rs.fd&&rs.fd[u];
     const role=wasSeeker?'Seeker':fd&&rs.set.mode==='infect'?'Hider → seeker':'Hider';
     let result;if(wasSeeker){const n=Object.values(rs.fd||{}).filter(f=>f[0]===u).length;result='Found '+n}
-    else if(fd)result='<span class="bad">Found by '+esc(nameOf(fd[0]))+' at '+fmtT(fd[1])+'</span>';else result='<span class="ok">Stayed hidden</span>';
-    tr.innerHTML='<td><span class="nm"><span class="dot" style="background:'+col+'"></span>'+esc(nm)+(u===mine&&nm!=='You'?' (you)':'')+'</span></td><td>'+role+'</td><td>'+result+'</td><td>+'+((res.pts||{})[u]||0)+'</td><td>'+((rs.sc||{})[u]||0)+'</td>';
+    else if(fd)result='<span class="bad">Found by '+esc(nameOf(fd[0]))+' at '+esc(fmtT(Number(fd[1])))+'</span>';else result='<span class="ok">Stayed hidden</span>';
+    tr.innerHTML='<td><span class="nm"><span class="dot" style="background:'+col+'"></span>'+esc(nm)+(u===mine&&nm!=='You'?' (you)':'')+'</span></td><td>'+role+'</td><td>'+result+'</td><td>+'+intTxt((res.pts||{})[u])+'</td><td>'+intTxt((rs.sc||{})[u])+'</td>';
     tb.appendChild(tr);
   }
   const ai=ents.get('ai');
@@ -3264,7 +3307,7 @@ segSet($('shapeSeg'),myShape);segSet($('sizeSeg'),mySize);
 $('shapeSeg').onclick=ev=>{const b=ev.target.closest('button');if(b){setMyShape(+b.dataset.v);segSet($('shapeSeg'),myShape);sfx('ui')}};
 $('sizeSeg').onclick=ev=>{const b=ev.target.closest('button');if(b){setMySize(+b.dataset.v);segSet($('sizeSeg'),mySize);sfx('ui')}};
 $('name').value=myName;$('name').addEventListener('input',()=>{myName=cleanName($('name').value);store.set('name',myName)});
-$('room').value=store.get('room','');
+$('room').value=sanitizeRoom(storeStr('room',''));
 $('pracHide').onclick=()=>startPractice('hide');$('pracSeek').onclick=()=>startPractice('seek');
 $('quick').onclick=quickMatch;$('joinRoom').onclick=joinPrivate;$('room').addEventListener('keydown',ev=>{if(ev.key==='Enter')joinPrivate()});
 $('resume').onclick=resume;$('leave').onclick=toMenu;$('toMenu').onclick=toMenu;
@@ -3282,6 +3325,10 @@ $('gfxSeg').onclick=ev=>{const q=ev.target.dataset&&ev.target.dataset.q;if(!q)re
 document.addEventListener('pointerdown',()=>initAudio(),{once:true});
 if(isTouch){$('touchNote').hidden=false;document.body.classList.add('touch')}
 addEventListener('pagehide',()=>{if(Net.refs)Net.leave()});
+// A tab in the background gets no animation frames, so the main loop stops. Keep this player in the room with a slow
+// timer instead (browsers still run it about once a second) and, if it's the host, keep the round moving and the tag
+// claims checked; otherwise after LIVE_MS everyone else would count it as gone and the round would stall.
+setInterval(()=>{if(!document.hidden||G.mode!=='online'||!Net.refs)return;try{onlineTick();if(performance.now()-Net.hbT>2000)Net.upd({})}catch(err){console.error(err)}},1000);
 
 // An invite opens this page with #cf-<code>: fill in the room and point at the join button.
 const inv=/^#cf-([a-z0-9-]{1,17})$/.exec(location.hash);
