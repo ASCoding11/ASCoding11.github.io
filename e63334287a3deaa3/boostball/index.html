@@ -127,6 +127,8 @@ details[open] summary::before{content:"– "}
 #clock{font-family:var(--f-d);font-size:28px;min-width:104px;text-align:center;background:rgba(8,12,30,.88);padding:5px 10px 0;color:#fff;font-variant-numeric:tabular-nums;letter-spacing:.02em}
 #clock.ot{color:#ffd34a}
 #tnames{position:absolute;top:calc(max(10px,env(safe-area-inset-top)) + 46px);left:50%;transform:translateX(-50%);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.7);white-space:nowrap}
+#tnames.bip{color:#ffd34a;font-weight:700;background:rgba(8,12,30,.78);padding:2px 10px;border-radius:4px;animation:bip 1s ease-in-out infinite alternate}
+@keyframes bip{to{color:#fff}}
 #feed{position:absolute;top:max(12px,env(safe-area-inset-top));right:14px;display:flex;flex-direction:column;align-items:flex-end;gap:5px;max-width:46vw}
 #feed div{background:rgba(8,12,30,.8);border-radius:6px;padding:4px 10px;font-size:15px;font-weight:700;transition:opacity .5s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 #feed .t0{color:var(--blue-2)} #feed .t1{color:var(--orange-2)}
@@ -291,6 +293,7 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
           <label class="setting"><span>Volume</span><input type="range" id="vol" min="0" max="1" step="0.05"><output id="volOut"></output></label>
           <label class="setting"><span>Camera shake</span><input type="range" id="shake" min="0" max="1" step="0.05"><output id="shakeOut"></output></label>
           <div class="setting"><span>Graphics</span><div class="seg" id="gfxSeg" role="group" aria-label="Graphics quality"><button type="button" data-q="high">Pretty</button><button type="button" data-q="fast">Fast</button></div></div>
+          <div class="setting"><span>Landing marker</span><div class="seg" id="markSeg" role="group" aria-label="Show where the ball will land"><button type="button" data-m="1">On</button><button type="button" data-m="0">Off</button></div></div>
         </details>
       </div>
 
@@ -386,8 +389,9 @@ const CAR_HX=.84,CAR_HY=.36,CAR_HZ=1.2,CAR_Y=.62,CAR_R=1.08;
 const MAXD=1410*UU,MAXB=2300*UU,SUPER=2200*UU,BOOST_USE=100/3,KICK_BOOST=100/3;
 const BOOST_GROUND=(2975/3)*UU,BOOST_AIR=(3175/3)*UU,THROTTLE_AIR=(200/3)*UU;
 // Braking and coasting are stronger than Rocket League's (3500 and 525 uu/s²) so the car stops quicker,
-// and speed above the top driving speed bleeds off when you stop boosting.
-const DRIVE_ACC=1600*UU,BRAKE_ACC=5000*UU,COAST_ACC=1300*UU,OVERSPEED_DEC=500*UU;
+// and speed above the top driving speed bleeds off when you stop boosting. Both were eased 25% (from 5000 and
+// 1300) because stopping felt too easy: braking from top speed now takes about 5.3 units instead of 4.
+const DRIVE_ACC=1600*UU,BRAKE_ACC=3750*UU,COAST_ACC=975*UU,OVERSPEED_DEC=500*UU;
 // Jumps
 const JUMP_IMM=(875/3)*UU,JUMP_ACC=(4375/3)*UU,JUMP_MIN=.025,JUMP_MAX=.2,DJ_DELAY=1.25,DODGE_DEADZONE=.5;
 // Dodges (flips)
@@ -477,9 +481,10 @@ function sdf(p,n){
 }
 const _cn=new V3(),_ct=new V3();
 // Bounce a velocity off a surface with normal n. Returns the normal impact speed.
-function bounce(v,n,e,mu){
+// Impacts slower than 2.2 (plus `soft`, see stepBall) don't bounce, so things settle instead of buzzing.
+function bounce(v,n,e,mu,soft){
   const vn=v.dot(n);if(vn>=0)return 0;
-  const hard=-vn>2.2,ee=hard?e:0,m=hard?mu:.035;
+  const hard=-vn>2.2+(soft||0),ee=hard?e:0,m=hard?mu:.035;
   v.addScaledVector(n,-vn*(1+ee));
   _ct.copy(v).addScaledVector(n,-v.dot(n));
   const tl=_ct.length();
@@ -497,19 +502,37 @@ function collideArena(p,v,r,e,mu){
 }
 
 // ---------- ball ----------
-function makeBallState(){return{pos:new V3(0,BR,0),vel:new V3(),spin:new QT(),ang:new V3()}}
+// roll: the ball touched a surface last tick, rn: that surface's normal.
+function makeBallState(){return{pos:new V3(0,BR,0),vel:new V3(),spin:new QT(),ang:new V3(),roll:false,rn:new V3(0,1,0)}}
+const RAMP_BALL=RAMP-BR; // radius of the path the ball's centre takes around a ramp
+const _rn=new V3();
 function stepBall(b,dt){
   b.vel.y-=GRAV*dt;
   b.vel.multiplyScalar(1-.03*dt);
   b.pos.addScaledVector(b.vel,dt);
-  const hit=collideArena(b.pos,b.vel,BR,.6,.35);
+  let hit=0;
+  for(let k=0;k<3;k++){
+    const s=sdf(b.pos,_cn);if(s>=BR)break;
+    b.pos.addScaledVector(_cn,BR-s);
+    // Rolling along a ramp or a rounded corner, the surface turns under the ball a little every tick, which pushes
+    // against it like a small impact. That's the curve, not a bounce: if the ball was already touching and the
+    // surface turned about as much as the curve explains, only a knock harder than that bounces it. (Before, a fast
+    // ball "bounced" with full friction on every tick around the ramp, losing most of its speed and hopping off.)
+    let soft=0;
+    if(b.roll){
+      const sp=b.vel.length(),turn=Math.acos(clamp(_cn.dot(b.rn),-1,1));
+      if(turn<1.5*sp*dt/RAMP_BALL+.03)soft=sp*Math.sin(turn)*1.3;
+    }
+    hit=Math.max(hit,bounce(b.vel,_cn,.6,.35,soft)-soft);
+  }
+  b.roll=sdf(b.pos,_rn)<BR+.05;if(b.roll)b.rn.copy(_rn);
   const sp=b.vel.length();if(sp>BALL_MAX)b.vel.multiplyScalar(BALL_MAX/sp);
   return hit;
 }
 // Where the ball goes with no one touching it: used for shot / save detection and by the bots.
 const _pb=makeBallState();
 function predictGoal(pos,vel,secs){
-  _pb.pos.copy(pos);_pb.vel.copy(vel);
+  _pb.pos.copy(pos);_pb.vel.copy(vel);_pb.roll=false;
   const dt=1/40;
   for(let t=0;t<secs;t+=dt){stepBall(_pb,dt);if(_pb.pos.z>AL+BR)return 1;if(_pb.pos.z<-AL-BR)return -1}
   return 0;
@@ -531,6 +554,7 @@ function makeCar(o){
     pos:new V3(0,CAR_Y,0),vel:new V3(),q:new QT(),ang:new V3(),yaw:0,boost:KICK_BOOST,onGround:true,
     jumping:false,hasJumped:false,jumpT:0,airT:0,airSinceJump:0,hasDbl:false,hasFlipped:false,flipping:false,flipT:0,flipF:0,flipS:0,
     autoFlipT:0,autoFlipS:1,contact:false,hb:0,slideAmt:0,gN:new V3(0,1,0),cN:new V3(0,1,0),noLandT:0,prevJump:false,boosting:false,landQ:new QT(),landT:0,
+    bl0:new V3(),blOk:false, // where the ball was in this car's frame last tick, for the swept ball check
     demo:0,lastHit:0,lastTouchEv:0,inp:newInput(),stats:{g:0,a:0,sv:0,sh:0,dm:0},
     // remote smoothing
     tpos:new V3(0,CAR_Y,0),tvel:new V3(),tq:new QT(),tts:0,seen:0,
@@ -718,22 +742,36 @@ function stepCar(c,dt,frozen){
   const wasContact=c.contact;c.contact=false;
   if(s1<=sup+.01){
     const vn=c.vel.dot(N),imp=-vn,un=_u.dot(N);
+    // Wheels against a surface too far overhead to drive on (the same test as the sticky force uses): the ceiling,
+    // or the curve into it just after driving off the top of a wall. Glance along it and get your jump back
+    // (Rocket League's flip reset) instead of snapping onto it for one tick and dropping off again.
+    const overhead=-N.y>.5+(Math.abs(thr)>.001?1-Math.abs(N.y):0);
+    if(un>.55&&overhead&&!c.jumping&&c.autoFlipT<=0){
+      c.pos.addScaledVector(N,sup-s1);if(vn<0)c.vel.addScaledVector(N,-vn);
+      if(c.noLandT<=0&&!c.flipping&&(c.hasJumped||c.hasDbl||c.hasFlipped))resetAir(c);
+      syncYaw(c);return ev;
+    }
     if(un>.55&&!c.jumping&&vn<=.5&&c.autoFlipT<=0&&c.noLandT<=0){
-      // Down on the wheels: the suspension takes it, so snap flat to the surface and blend the model over.
-      c.landQ.copy(c.q);c.landT=.14;
+      // Down on the wheels: the suspension takes it, so snap flat to the surface and blend the model over,
+      // longer for a bigger turn (up to 0.22 s for the steepest 57° landing), from wherever the model is now.
+      c.landQ.copy(c.landT>0&&c.mesh?c.mesh.g.quaternion:c.q);c.landDur=c.landT=clamp(.06+.16*Math.acos(clamp(un,-1,1)),.06,.22);
       c.onGround=true;c.gN.copy(N);alignUp(c,N);
       c.pos.addScaledVector(N,CAR_Y-s1);c.vel.addScaledVector(N,-vn);
       c.ang.set(0,0,0);resetAir(c);syncYaw(c);
       if(imp>6)ev='land';
       return ev;
     }
-    // Resting on its body: slide and tip toward whichever side it's nearer to.
+    // Resting on its body: slide and tip toward whichever side it's nearer to. Only on surfaces gravity presses the
+    // car into (the floor and the lower ramps): against a wall or overhead the body just bounces and slides off,
+    // instead of grinding to a halt and being turned onto its wheels against the wall (it used to stick there).
+    // Holding throttle still auto-rolls you onto your wheels on a wall, as in Rocket League.
+    const rest=N.y>.3;
     c.contact=true;c.cN.copy(N);
     c.pos.addScaledVector(N,sup-s1);
     if(vn<0)c.vel.addScaledVector(N,-vn*(imp>3?1.25:1));
-    _v1.copy(c.vel).addScaledVector(N,-c.vel.dot(N));c.vel.addScaledVector(_v1,-(1-Math.exp(-2.2*dt)));
+    _v1.copy(c.vel).addScaledVector(N,-c.vel.dot(N));c.vel.addScaledVector(_v1,-(1-Math.exp(-(rest?2.2:.4)*dt)));
     if(!wasContact&&imp>6&&!ev)ev=imp>14?'bonk':'land';
-    if(c.autoFlipT<=0){
+    if(c.autoFlipT<=0&&rest){
       c.ang.multiplyScalar(Math.exp(-4*dt));
       const unp=un+_v4.crossVectors(c.ang,_u).dot(N)*.35; // where it's rolling toward, not just where it is
       _v3.copy(N);if(unp<=-.1)_v3.negate(); // the wheels stick out past the body, so anything short of the roof falls onto them
@@ -746,20 +784,61 @@ function stepCar(c,dt,frozen){
 }
 const FROZEN_INPUT=newInput();
 
-// Car vs ball for a car this client controls. Returns true on contact.
+// Car vs ball. Every client runs it for every car: the cars it controls move and score touches, and other players'
+// cars (and bots someone else runs) are solid but immovable here, so the ball can't fly through a car just because
+// that car's player is on another computer. Returns the hit power on contact, else 0.
 const _bl=new V3(),_bc=new V3(),_bd=new V3(),_bw=new V3(),_bn=new V3(),_bp=new V3(),_br=new V3(),_be=new V3();
 const CAR_MASS=180,BALL_MASS=30,HIT_CURVE=[[0,.65],[500,.65],[2300,.55],[4600,.3]];
-function carBall(c,b,now){
-  if(c.demo>0)return 0;
+const CAR_H={x:CAR_HX,y:CAR_HY,z:CAR_HZ};
+// Did the ball's centre, moving from a to b in the car's frame, pass through the car's hitbox? (slab test)
+function crossesBox(a,b){
+  let t0=0,t1=1;
+  for(const k of ['x','y','z']){
+    const h=CAR_H[k],d=b[k]-a[k];
+    if(Math.abs(d)<1e-9){if(Math.abs(a[k])>h)return false;continue}
+    let ta=(-h-a[k])/d,tb=(h-a[k])/d;if(ta>tb){const t=ta;ta=tb;tb=t}
+    if(ta>t0)t0=ta;if(tb<t1)t1=tb;if(t0>t1)return false;
+  }
+  return true;
+}
+// The ball's centre in car c's frame, written to _bl. Swept: if the centre went into the car's hitbox since the last
+// tick (a very fast hit, or the ball squeezed between two cars), it is put back out on the side it came in from.
+function ballLocal(c,b){
   _qi.copy(c.q).invert();
   _bl.copy(b.pos).sub(c.pos).applyQuaternion(_qi);
-  if(_bl.lengthSq()>(BR+1.6)*(BR+1.6))return 0;
+  const p0=c.bl0;
+  if(c.blOk&&_bl.distanceToSquared(p0)<64&&crossesBox(p0,_bl)){
+    const ox=Math.abs(p0.x)-CAR_HX,oy=Math.abs(p0.y)-CAR_HY,oz=Math.abs(p0.z)-CAR_HZ;
+    const k=ox>=oy&&ox>=oz?'x':oy>=oz?'y':'z';
+    if(Math.max(ox,oy,oz)>-.05){
+      _bl[k]=(p0[k]>=0?1:-1)*(CAR_H[k]+BR-.01);
+      b.pos.copy(_bl).applyQuaternion(c.q).add(c.pos);
+    }
+  }
+}
+// How far the ball overlaps car c, with the push-out direction (world) in _bn and the contact point in _bw.
+function overlapCar(c,b){
   _bc.set(clamp(_bl.x,-CAR_HX,CAR_HX),clamp(_bl.y,-CAR_HY,CAR_HY),clamp(_bl.z,-CAR_HZ,CAR_HZ));
   _bd.subVectors(_bl,_bc);const dist=_bd.length();
   if(dist>=BR)return 0;
   _bw.copy(_bc).applyQuaternion(c.q).add(c.pos);
-  if(dist<1e-4)_bn.subVectors(b.pos,c.pos).normalize();else _bn.copy(_bd).applyQuaternion(c.q).multiplyScalar(1/dist);
-  b.pos.addScaledVector(_bn,BR-dist+.005);
+  if(dist<1e-4){
+    // centre inside the box (only if the car itself jumped onto the ball): out through the nearest face
+    const fx=CAR_HX-Math.abs(_bl.x),fy=CAR_HY-Math.abs(_bl.y),fz=CAR_HZ-Math.abs(_bl.z);
+    const k=fx<=fy&&fx<=fz?'x':fy<=fz?'y':'z';
+    _bn.set(0,0,0);_bn[k]=_bl[k]>=0?1:-1;_bn.applyQuaternion(c.q);
+    return BR+(k==='x'?fx:k==='y'?fy:fz);
+  }
+  _bn.copy(_bd).applyQuaternion(c.q).multiplyScalar(1/dist);
+  return BR-dist;
+}
+function carBall(c,b,now){
+  if(c.demo>0)return 0;
+  ballLocal(c,b);
+  if(_bl.lengthSq()>(BR+1.6)*(BR+1.6))return 0;
+  const pen=overlapCar(c,b);
+  if(pen<=0)return 0;
+  b.pos.addScaledVector(_bn,pen+.005);
   _br.subVectors(_bw,c.pos);_bp.crossVectors(c.ang,_br).add(c.vel);
   _be.subVectors(b.vel,_bp);
   const relSp=Math.min(4600*UU,_be.length());
@@ -768,7 +847,7 @@ function carBall(c,b,now){
   if(vn<0){
     const k=-vn*1.04;
     b.vel.addScaledVector(_bn,k*CAR_MASS/(CAR_MASS+BALL_MASS));
-    c.vel.addScaledVector(_bn,-k*BALL_MASS/(CAR_MASS+BALL_MASS)*.7);
+    if(!c.remote)c.vel.addScaledVector(_bn,-k*BALL_MASS/(CAR_MASS+BALL_MASS)*.7);
     power=-vn;
   }
   if(now-c.lastHit>110&&relSp>.5){
@@ -783,6 +862,57 @@ function carBall(c,b,now){
   }
   const sp=b.vel.length();if(sp>BALL_MAX)b.vel.multiplyScalar(BALL_MAX/sp);
   return Math.max(power,.01);
+}
+// The ball against every car in one tick. After each car has pushed it out, it may still overlap another car (two
+// cars meeting at a kickoff with the ball between them) or a wall: then it is solved again a few times, the cars
+// it's squeezed between are slowed against each other, and if the gap is still narrower than the ball the cars
+// this client runs are moved back, so the ball never sits inside a car or comes out through one.
+const _near=[];
+function nearBall(c){return c.demo<=0&&c.active!==false&&c.placed!==false&&c.pos.distanceToSquared(ball.pos)<(BR+3.2)*(BR+3.2)}
+function ballVsCars(now,touch){
+  const list=_near;list.length=0;
+  for(const c of cars){if(nearBall(c))list.push(c);else c.blOk=false}
+  // the cars this client can move first, so the ball ends up clear of the ones it can't
+  list.sort((a,b)=>(a.remote?1:0)-(b.remote?1:0));
+  let hits=0;
+  for(const c of list){
+    _pre.pos.copy(ball.pos);_pre.vel.copy(ball.vel);
+    const pw=carBall(c,ball,now);
+    if(pw){hits++;if(touch&&!c.remote)onLocalTouch(c,pw,now)}
+  }
+  if(hits)unpinch(list);
+  for(const c of list){_qi.copy(c.q).invert();c.bl0.copy(ball.pos).sub(c.pos).applyQuaternion(_qi);c.blOk=true}
+  return hits;
+}
+function unpinch(list){
+  let worst=0;
+  for(let it=0;it<6;it++){
+    worst=0;
+    for(const c of list){
+      ballLocal(c,ball);const d=overlapCar(c,ball);if(d<=.003)continue;
+      worst=Math.max(worst,d);
+      ball.pos.addScaledVector(_bn,d+.002);
+      // the ball and car stop closing on each other (mass-weighted; other players' cars don't give)
+      _br.subVectors(_bw,c.pos);_bp.crossVectors(c.ang,_br).add(c.vel);
+      const vn=_be.subVectors(ball.vel,_bp).dot(_bn);
+      if(vn<0){
+        if(c.remote)ball.vel.addScaledVector(_bn,-vn);
+        else{ball.vel.addScaledVector(_bn,-vn*CAR_MASS/(CAR_MASS+BALL_MASS));c.vel.addScaledVector(_bn,vn*BALL_MASS/(CAR_MASS+BALL_MASS))}
+      }
+    }
+    // pressed into a wall or the floor: the wall wins, the same bounce the next tick would give
+    if(sdf(ball.pos,_cn)<BR-.003){collideArena(ball.pos,ball.vel,BR,.6,.35);worst=1}
+    if(worst<=.003)return;
+  }
+  // Still squeezed: the gap is narrower than the ball, so the cars give way instead.
+  for(const c of list){
+    if(c.remote)continue;
+    ballLocal(c,ball);const d=overlapCar(c,ball);if(d<=.003)continue;
+    _v1.copy(_bn);if(c.onGround){_v1.addScaledVector(c.gN,-_v1.dot(c.gN));if(_v1.lengthSq()<.04)continue;_v1.normalize()}
+    const dd=d/Math.max(.2,_v1.dot(_bn));
+    c.pos.addScaledVector(_v1,-dd-.002);
+    const rv=_v2.subVectors(c.vel,ball.vel).dot(_v1);if(rv>0)c.vel.addScaledVector(_v1,-rv);
+  }
 }
 
 // =====================================================================
@@ -970,6 +1100,87 @@ const ballShadow=makeShadow(BR*2.4,BR*2.4);
 const ballRing=new THREE.Mesh(new THREE.RingGeometry(BR*.95,BR*1.12,40),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.35,side:THREE.DoubleSide,depthWrite:false}));
 ballRing.rotation.x=-Math.PI/2;scene.add(ballRing);
 
+// ---------- landing marker ----------
+// While the ball is in the air: a ring where it will next come down on the floor (it shrinks to the ball's size as the
+// ball arrives), small rings where it will bounce off a wall or the ceiling on the way, and a faint dotted path. It
+// runs the ball's own physics ahead (stepBall, the same 1/120 s ticks the game uses) every frame from the ball as this
+// client has it, so it's exact until someone touches the ball. Settings → Landing marker turns it off.
+let markerOn=store.get('marker','1')!=='0';
+const LAND_SECS=4,LAND_STEP=1/120,ARC_MAX=64,DEC_RINGS=5,DEC_SEGS=40;
+const land={on:false,t:0,p:new V3(),n:new V3(),nw:0,w:[{p:new V3(),n:new V3()},{p:new V3(),n:new V3()}],arcN:0};
+const markTex=canvasTex(256,256,(g,w,h)=>{
+  g.clearRect(0,0,w,h);const c=w/2;
+  g.lineCap='round';
+  g.strokeStyle='rgba(0,0,0,.5)';g.lineWidth=30;g.beginPath();g.arc(c,c,c-16,0,7);g.stroke();
+  g.strokeStyle='#fff';g.lineWidth=16;g.beginPath();g.arc(c,c,c-16,0,7);g.stroke();
+  g.lineWidth=5;g.globalAlpha=.6;g.setLineDash([14,12]);g.beginPath();g.arc(c,c,c*.62,0,7);g.stroke();g.setLineDash([]);
+  g.globalAlpha=1;g.lineWidth=10;
+  for(let k=0;k<4;k++){const a=k*Math.PI/2;g.beginPath();g.moveTo(c+Math.cos(a)*(c-40),c+Math.sin(a)*(c-40));g.lineTo(c+Math.cos(a)*(c-80),c+Math.sin(a)*(c-80));g.stroke()}
+  const gr=g.createRadialGradient(c,c,0,c,c,c*.3);gr.addColorStop(0,'rgba(255,255,255,.55)');gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.beginPath();g.arc(c,c,c*.3,0,7);g.fill();
+});
+function makeDecal(color){
+  const nv=(DEC_RINGS+1)*(DEC_SEGS+1),pos=new Float32Array(nv*3),uv=new Float32Array(nv*2),idx=[];
+  for(let j=0;j<=DEC_RINGS;j++)for(let i=0;i<=DEC_SEGS;i++){const r=j/DEC_RINGS,a=i/DEC_SEGS*Math.PI*2,k=j*(DEC_SEGS+1)+i;uv[k*2]=.5+.5*r*Math.cos(a);uv[k*2+1]=.5+.5*r*Math.sin(a)}
+  for(let j=0;j<DEC_RINGS;j++)for(let i=0;i<DEC_SEGS;i++){const a=j*(DEC_SEGS+1)+i,b=a+1,c=a+DEC_SEGS+1,d=c+1;idx.push(a,c,b,b,c,d)}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));g.setAttribute('uv',new THREE.BufferAttribute(uv,2));g.setIndex(idx);
+  const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({map:markTex,color,transparent:true,depthWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4}));
+  m.frustumCulled=false;m.renderOrder=3;m.visible=false;scene.add(m);return m;
+}
+const landDecal=makeDecal(0xffd34a),wallDecals=[makeDecal(0xbfe0ff),makeDecal(0xbfe0ff)];
+// a short glowing band rising from the landing ring, so it still reads from the low camera at a distance
+const bandGeo=new THREE.CylinderGeometry(1,1,1,40,1,true);bandGeo.translate(0,.5,0);
+const landBand=new THREE.Mesh(bandGeo,new THREE.MeshBasicMaterial({color:0xffd34a,transparent:true,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,
+  map:canvasTex(4,64,(g,w,h)=>{const gr=g.createLinearGradient(0,0,0,h);gr.addColorStop(0,'rgba(255,255,255,0)');gr.addColorStop(1,'rgba(255,255,255,.8)');g.fillStyle=gr;g.fillRect(0,0,w,h)})}));
+landBand.renderOrder=3;landBand.visible=false;scene.add(landBand);
+const dotTex=canvasTex(32,32,(g,w,h)=>{const gr=g.createRadialGradient(16,16,0,16,16,16);gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(.5,'rgba(255,255,255,.8)');gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.fillRect(0,0,w,h)});
+const arcGeo=new THREE.BufferGeometry();arcGeo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(ARC_MAX*3),3));
+const arcPts=new THREE.Points(arcGeo,new THREE.PointsMaterial({map:dotTex,color:0xffe6a0,size:.5,sizeAttenuation:true,transparent:true,opacity:.6,depthWrite:false}));
+arcPts.frustumCulled=false;arcPts.visible=false;scene.add(arcPts);
+const _lb=makeBallState(),_ln=new V3(),_lt1=new V3(),_lt2=new V3(),_lq=new V3(),_lqn=new V3();
+// Simulate the ball ahead; fills land (floor landing, wall/ceiling bounces on the way, dotted path).
+function predictLanding(){
+  land.on=false;land.nw=0;land.arcN=0;
+  if(sdf(ball.pos,_ln)<BR+.35)return false; // rolling or resting on something: not in the air
+  _lb.pos.copy(ball.pos);_lb.vel.copy(ball.vel);_lb.roll=ball.roll;_lb.rn.copy(ball.rn);
+  const arr=arcGeo.attributes.position.array;let touching=false;
+  const n=Math.round(LAND_SECS/LAND_STEP);
+  for(let i=1;i<=n;i++){
+    stepBall(_lb,LAND_STEP);
+    if(i%6===0&&land.arcN<ARC_MAX){const k=land.arcN++*3;arr[k]=_lb.pos.x;arr[k+1]=_lb.pos.y;arr[k+2]=_lb.pos.z}
+    const s=sdf(_lb.pos,_ln),c=s<BR+.01;
+    if(c&&!touching){
+      if(_ln.y>.7){land.on=true;land.t=i*LAND_STEP;land.p.copy(_lb.pos).addScaledVector(_ln,-s);land.n.copy(_ln);return true}
+      if(land.nw<2){const w=land.w[land.nw++];w.p.copy(_lb.pos).addScaledVector(_ln,-s);w.n.copy(_ln)}
+    }
+    touching=c;
+  }
+  return false;
+}
+// Lay a decal flat on the arena around point P (normal N): each vertex is pushed onto the curved surface with sdf.
+function placeDecal(m,P,N,rad,op){
+  _lt1.crossVectors(N,Math.abs(N.y)<.9?Y_AXIS:_lq.set(1,0,0)).normalize();_lt2.crossVectors(N,_lt1);
+  const arr=m.geometry.attributes.position.array;
+  for(let j=0;j<=DEC_RINGS;j++)for(let i=0;i<=DEC_SEGS;i++){
+    const r=j/DEC_RINGS*rad,a=i/DEC_SEGS*Math.PI*2,k=(j*(DEC_SEGS+1)+i)*3;
+    _lq.copy(P).addScaledVector(_lt1,Math.cos(a)*r).addScaledVector(_lt2,Math.sin(a)*r);
+    for(let it=0;it<2;it++){const s=sdf(_lq,_lqn);_lq.addScaledVector(_lqn,-s)}
+    sdf(_lq,_lqn);_lq.addScaledVector(_lqn,.05);
+    arr[k]=_lq.x;arr[k+1]=_lq.y;arr[k+2]=_lq.z;
+  }
+  m.geometry.attributes.position.needsUpdate=true;m.material.opacity=op;m.visible=true;
+}
+function updateLanding(show){
+  const ok=show&&markerOn&&!ballHidden&&predictLanding();
+  landDecal.visible=false;wallDecals[0].visible=wallDecals[1].visible=false;arcPts.visible=false;landBand.visible=false;
+  if(!ok)return;
+  const t=Math.min(land.t,3),rad=BR*(.85+.75*t);
+  placeDecal(landDecal,land.p,land.n,rad,1-.08*t);
+  landBand.position.copy(land.p);landBand.quaternion.setFromUnitVectors(Y_AXIS,land.n);landBand.scale.set(rad*.93,.9+.25*t,rad*.93);
+  landBand.material.opacity=.55-.08*t;landBand.visible=true;
+  for(let i=0;i<land.nw;i++)placeDecal(wallDecals[i],land.w[i].p,land.w[i].n,BR*1.05,.55);
+  arcGeo.setDrawRange(0,land.arcN);arcGeo.attributes.position.needsUpdate=true;arcPts.visible=land.arcN>1;
+}
+
 // ---------- boost pads ----------
 const PADS=[];
 (function(){
@@ -1065,7 +1276,7 @@ function updateCarMesh(c,dt,time){
   const m=c.mesh;const vis=c.demo<=0&&c.active!==false;
   m.g.visible=vis;m.shadow.visible=vis;if(!vis)return;
   m.g.position.copy(c.pos);m.g.quaternion.copy(c.q);
-  if(c.landT>0){c.landT-=dt;if(c.landT>0)m.g.quaternion.copy(c.landQ).slerp(c.q,1-c.landT/.14)}
+  if(c.landT>0){c.landT-=dt;if(c.landT>0)m.g.quaternion.copy(c.landQ).slerp(c.q,1-c.landT/(c.landDur||.14))}
   const fwdSp=_v1.set(0,0,1).applyQuaternion(c.q).dot(c.vel);
   c.wheelSpin+=fwdSp*dt/.36;
   const steerT=(c.remote?0:-c.inp.steer)*.45;c.steerVis=lerp(c.steerVis,steerT,1-Math.exp(-dt*12));
@@ -1254,10 +1465,16 @@ function addBot(team,diff,name){
 
 // ---------- match flow ----------
 function remainingAt(now){if(!R)return MATCH_MS;return R.rem-Math.max(0,now-R.ko)}
+// Time up with the ball in the air: play goes on until the ball next touches the floor (a goal in that time counts),
+// then the match ends; R.fin is when that happened. R.rem>0 means the clock ran out during this stretch of play
+// (not after a goal scored at 0:00). A tie at 0:00 still goes straight to overtime.
+const BIP_MAX=20000; // safety net: never wait more than 20 s for the ball to come down
+function ballInPlay(now){return !!R&&mode!=='attract'&&mode!=='free'&&R.rem>0&&!R.fin&&now>=R.ko&&remainingAt(now)<=0&&R.sb!==R.so}
 function phaseOf(now){
   if(!R)return 'wait';
   if(mode==='free')return 'play';
   const rem=remainingAt(now);
+  if(ballInPlay(now))return 'play';
   if(mode!=='attract'&&rem<=0&&R.sb!==R.so)return R.g>0&&now<R.ko-COUNT_MS-900?'celebrate':'over';
   if(now<R.ko-COUNT_MS)return R.g>0?'celebrate':'countdown';
   if(now<R.ko)return 'countdown';
@@ -1266,7 +1483,16 @@ function phaseOf(now){
 function newRoundObj(prev,now,sz,bo){
   return{id:(prev&&+prev.id||0)+1,ends:now,len:MATCH_MS,sz,bo:bo?1:0,sb:0,so:0,g:0,ko:now+COUNT_MS+700,rem:MATCH_MS,sd:Math.floor(Math.random()*1e9)};
 }
-let lastPhase='',kickKey='',cdShown=-1,otShown=false,endShown=false;
+let lastPhase='',kickKey='',cdShown=-1,otShown=false,endShown=false,bipShown=false;
+// Time is up and the ball has touched the floor: end the match. The ball's owner decides (it runs the ball);
+// whoever hosts the room steps in if nothing has ended it 20 s after time ran out.
+function ballDown(now){
+  if(!ballInPlay(now)||goalPending||ballHidden)return;
+  const late=now-(R.ko+R.rem)>BIP_MAX;
+  if(!late&&!(sdf(ball.pos,_cn)<BR+.03&&_cn.y>.7))return;
+  if(online){if(owner===Net.uid||late&&Net.isHost())Net.finish()}
+  else applyRound(Object.assign({},R,{fin:Math.round(now)}));
+}
 function applyRound(v){
   const prev=R;R=v;
   if(!prev||prev.id!==v.id){newMatch();return}
@@ -1274,7 +1500,7 @@ function applyRound(v){
 }
 function newMatch(){
   for(const c of cars){if(!c.remote)c.stats={g:0,a:0,sv:0,sh:0,dm:0}}
-  touches=[];kickKey='';cdShown=-1;otShown=false;endShown=false;goalPending=false;
+  touches=[];kickKey='';cdShown=-1;otShown=false;endShown=false;goalPending=false;bipShown=false;
   $('end').hidden=true;
   if(me)me.placed=false;
   if(state==='end'){state='playing';showHud()}
@@ -1323,6 +1549,7 @@ function updateMatch(now){
   if(ph==='play'&&lastPhase==='countdown'&&state==='playing'){banner('GO!','',.6);sfx('go');cdShown=-1}
   if((ph==='play'||ph==='celebrate')&&me&&!me.placed&&me.active!==false)respawnCar(me);
   if(ph==='play'&&mode!=='free'&&mode!=='attract'&&!otShown&&remainingAt(now)<=0&&R.sb===R.so){otShown=true;banner('OVERTIME','Next goal wins',2.2);sfx('whistle')}
+  if(!bipShown&&ballInPlay(now)&&state==='playing'){bipShown=true;setHint('<b>Time!</b> The match ends when the ball lands',4)}
   if(ph==='over'&&state==='playing')endMatch();
   lastPhase=ph;
 }
@@ -1336,7 +1563,8 @@ function scoreGoal(team){
     for(let j=i-1;j>=0;j--){const t=touches[j];if(t.team!==team)break;if(t.id!==scorer&&touches[i].t-t.t<7000){assist=t.id;break}}
     break;
   }
-  const nr=Object.assign({},R,{sb:R.sb+(team===0?1:0),so:R.so+(team===1?1:0),g:(R.g|0)+1,ko:now+CELEBRATE_MS+COUNT_MS,rem:Math.round(remainingAt(now)),sc:scorer,as:assist,gt:team,gs:Math.round(ball.vel.length()*3.6),gx:r2(ball.pos.x),gy:r2(ball.pos.y),gz:r2(ball.pos.z)});
+  const nr=Object.assign({},R,{sb:R.sb+(team===0?1:0),so:R.so+(team===1?1:0),g:(R.g|0)+1,ko:now+CELEBRATE_MS+COUNT_MS,rem:Math.round(remainingAt(now)),sc:scorer,as:assist,gt:team,gs:Math.round(ball.vel.length()*3.6),gx:r2(ball.pos.x),gy:r2(ball.pos.y),gz:r2(ball.pos.z),
+    bz:ballInPlay(now)?1:0}); // bz: scored after time ran out, while the ball was still in play
   if(mode==='free'){freeGoal(team);return}
   if(online)Net.goal(nr);else applyRound(nr);
 }
@@ -1362,7 +1590,7 @@ function onGoal(v){
   if(sc&&!sc.remote)sc.stats.g++;
   if(as&&!as.remote)as.stats.a++;
   const name=sc?sc.name:'';
-  const sub=v.sc?(name||'Someone')+(v.as&&as?' · assist '+as.name:'')+' · '+(v.gs|0)+' km/h':'Own goal';
+  const sub=(v.bz?'At the buzzer · ':'')+(v.sc?(name||'Someone')+(v.as&&as?' · assist '+as.name:'')+' · '+(v.gs|0)+' km/h':'Own goal');
   banner('GOAL!',sub,3,t);
   addFeed((v.sc?(name||'Someone')+' scored':'Own goal')+' for '+TEAM[t].name,'t'+t);
 }
@@ -1371,7 +1599,7 @@ function endMatch(){
   const win=R.sb>R.so?0:1,mine=me?me.team:0;
   $('endTitle').textContent=mode==='online'||mode==='practice'?(win===mine?'Victory!':'Defeat'):TEAM[win].name+' wins';
   $('endTitle').style.color=TEAM[win].lite;
-  $('endSub').textContent=TEAM[0].name+' '+R.sb+' – '+R.so+' '+TEAM[1].name+(R.rem<=0&&R.g>0?' · won in overtime':'');
+  $('endSub').textContent=TEAM[0].name+' '+R.sb+' – '+R.so+' '+TEAM[1].name+(R.rem<=0&&R.g>0&&!R.bz?' · won in overtime':'');
   renderTeams($('endTeams'),true);
   $('again').hidden=false;$('again').disabled=false;
   $('endMsg').textContent=mode==='online'&&Net.isPublic?'The next match starts in a few seconds.':'';
@@ -1402,7 +1630,7 @@ function unpackBall(s){const a=String(s||'').split(',').map(Number);if(a.length!
 const _sb=makeBallState();
 function applyBallSnap(a,st,hard){
   if(ballHidden||!a)return;
-  _sb.pos.set(clamp(a[0],-AW,AW),clamp(a[1],0,AH),clamp(a[2],-AL-GD,AL+GD));_sb.vel.set(a[3],a[4],a[5]);
+  _sb.pos.set(clamp(a[0],-AW,AW),clamp(a[1],0,AH),clamp(a[2],-AL-GD,AL+GD));_sb.vel.set(a[3],a[4],a[5]);_sb.roll=false;
   let age=clamp((nowMs()-st)/1000,0,.45);
   while(age>1e-4){const d=Math.min(1/120,age);stepBall(_sb,d);age-=d}
   const e=_v1.subVectors(_sb.pos,ball.pos).length();
@@ -1476,7 +1704,7 @@ function botView(react,now){
   return _bv;
 }
 function buildPath(b){
-  _pb.pos.copy(b.pos);_pb.vel.copy(b.vel);PATH[0].copy(_pb.pos);
+  _pb.pos.copy(b.pos);_pb.vel.copy(b.vel);_pb.roll=false;PATH[0].copy(_pb.pos);
   for(let i=1;i<=40;i++){for(let k=0;k<3;k++)stepBall(_pb,1/30);PATH[i].copy(_pb.pos)}
 }
 const _t1=new V3(),_t2=new V3(),_t3=new V3(),_ga=new V3(),_gb=new V3();
@@ -1733,7 +1961,7 @@ function freeReset(){
 //  Camera
 // =====================================================================
 const camPos=new V3(0,30,-70),camLook=new V3(),camV=new V3();
-let shakeT=0,shakeA=0,camHead=0,orbitA=0,camElev=0,camSnap=false;const camUp=new V3(0,1,0);
+let shakeT=0,shakeA=0,orbitA=0,camElev=0,camSnap=false;const camUp=new V3(0,1,0),camFwd=new V3(0,0,1),_cu0=new V3();
 const CAM_DIST=270*UU,CAM_HGT=100*UU;
 function baseFov(){const a=camera.aspect||1.6;return Math.min(100,2*Math.atan(Math.tan(55*Math.PI/180)/a)*180/Math.PI)}
 function shake(a){shakeA=Math.max(shakeA,a*shakeAmt);shakeT=.5}
@@ -1751,30 +1979,46 @@ function updateCamera(dt){
     // Rocket League's default camera: 270 uu behind, 100 uu up, 110° horizontal field of view.
     const p=me.pos,DIST=CAM_DIST,HGT=CAM_HGT;
     carAxes(me);
-    let hx,hz,elev=0;
-    if(ballCam&&!ballHidden){
-      hx=bvis.x-p.x;hz=bvis.z-p.z;const l=Math.hypot(hx,hz);
-      if(l<.5){hx=_f.x;hz=_f.z}
-      // swing down behind the car when the ball is above it, like the real ball cam
-      elev=clamp(Math.atan2(bvis.y-p.y-1,Math.max(l,1))*.55,-.15,.75);
-      const a=Math.atan2(hx,hz);
-      camHead+=Math.atan2(Math.sin(a-camHead),Math.cos(a-camHead))*(camSnap?1:1-Math.exp(-dt*12));
-    }else{
-      let fx=_f.x,fz=_f.z;
-      if(!me.onGround&&Math.hypot(me.vel.x,me.vel.z)>6){fx=me.vel.x;fz=me.vel.z}
-      if(Math.hypot(fx,fz)<.2){fx=-_u.x;fz=-_u.z}
-      const a=Math.atan2(fx,fz);
-      camHead+=Math.atan2(Math.sin(a-camHead),Math.cos(a-camHead))*(camSnap?1:1-Math.exp(-dt*7));
-    }
-    camElev+=(elev-camElev)*(camSnap?1:1-Math.exp(-dt*8));
-    hx=Math.sin(camHead);hz=Math.cos(camHead);
-    const back=DIST*Math.cos(camElev),up=HGT-DIST*Math.sin(camElev)*.9;
     // On a ramp or wall the camera rides the surface with the car instead of staying level.
     const wantUp=me.onGround&&me.gN.y<.97?_ga.copy(Y_AXIS).lerp(me.gN,clamp((1-me.gN.y)*1.6,0,1)).normalize():_ga.copy(Y_AXIS);
-    camUp.lerp(wantUp,camSnap?1:1-Math.exp(-dt*6)).normalize();
-    const hb=_v1.set(hx,0,hz);hb.addScaledVector(camUp,-hb.dot(camUp));
-    if(hb.lengthSq()<1e-4)hb.set(_f.x,_f.y,_f.z).addScaledVector(camUp,-_f.dot(camUp));
-    hb.normalize();
+    _cu0.copy(camUp);camUp.lerp(wantUp,camSnap?1:1-Math.exp(-dt*6)).normalize();
+    _qa.setFromUnitVectors(_cu0,camUp);camFwd.applyQuaternion(_qa); // the heading tilts with camUp
+    // Which way the camera faces, as a direction along the plane it rides (camUp), turned toward smoothly. It used
+    // to be a compass heading from the car's level forward direction, which vanishes when the car points up or down
+    // a wall: the heading then jumped to a fallback and the view swung sideways at the top of every wall drive.
+    let elev=0;const want=_v2;
+    if(ballCam&&!ballHidden){
+      want.subVectors(bvis,p);const above=want.dot(camUp);want.addScaledVector(camUp,-above);
+      const l=want.length();
+      if(l<.5)want.copy(_f).addScaledVector(camUp,-_f.dot(camUp));
+      // swing down behind the car when the ball is above it, like the real ball cam
+      elev=clamp(Math.atan2(above-1,Math.max(l,1))*.55,-.15,.75);
+    }else{
+      if(!me.onGround&&Math.hypot(me.vel.x,me.vel.z)>6)want.set(me.vel.x,0,me.vel.z);else want.copy(_f);
+      const raw=want.length();
+      want.addScaledVector(camUp,-want.dot(camUp));
+      if(raw<.2&&!me.onGround)want.copy(_u).negate().addScaledVector(camUp,_u.dot(camUp));
+      // pointing mostly along camUp (camUp still catching up after leaving a wall): no clear heading, hold it
+      else if(want.length()<.5*raw)want.set(0,0,0);
+    }
+    camFwd.addScaledVector(camUp,-camFwd.dot(camUp));
+    if(camFwd.lengthSq()<1e-4)camFwd.copy(want);
+    if(camFwd.lengthSq()>1e-8)camFwd.normalize();
+    if(want.lengthSq()>1e-4){
+      want.normalize();
+      if(camSnap||camFwd.lengthSq()<.5)camFwd.copy(want);
+      else{
+        // turn about camUp only; car cam turns at most 6 rad/s, so a sudden change (jumping off a wall) is a quick pan
+        const ang=Math.atan2(_v3.crossVectors(camFwd,want).dot(camUp),camFwd.dot(want)),a=Math.abs(ang);
+        if(a>1e-4){
+          const k=ballCam&&!ballHidden?1-Math.exp(-dt*12):Math.min(1-Math.exp(-dt*7),6*dt/a);
+          _qa.setFromAxisAngle(camUp,ang*k);camFwd.applyQuaternion(_qa).normalize();
+        }
+      }
+    }
+    camElev+=(elev-camElev)*(camSnap?1:1-Math.exp(-dt*8));
+    const back=DIST*Math.cos(camElev),up=HGT-DIST*Math.sin(camElev)*.9;
+    const hb=_v1.copy(camFwd);
     const des=_t2.copy(p).addScaledVector(hb,-back).addScaledVector(camUp,Math.max(up,.5));
     if(camSnap)camPos.copy(des);else camPos.lerp(des,1-Math.exp(-dt*16));
     camV.set(0,0,0);collideArena(camPos,camV,.5,0,0);
@@ -1821,8 +2065,11 @@ function updateHud(dt,now){
     if(mode==='free'){setT('clock',(R.sb|0)+(R.sb===1?' GOAL':' GOALS'));ck.classList.remove('ot')}
     else{
       const ph=phaseOf(now);
-      let rem=ph==='play'?remainingAt(now):R.rem;
+      let rem=ph==='play'?remainingAt(now):ph==='over'?Math.min(0,R.rem):R.rem;
       if(rem<=0&&R.sb===R.so){setT('clock','+'+fmtClock(-rem));ck.classList.add('ot')}else{setT('clock',fmtClock(rem));ck.classList.remove('ot')}
+      // 0:00 with the ball still in the air: say so under the clock until it lands
+      const bip=ballInPlay(now);
+      if(bip!==hudCache.bip){hudCache.bip=bip;$('tnames').classList.toggle('bip',bip);$('tnames').textContent=bip?'0:00 · ball in play':TEAM[0].name+' · '+TEAM[1].name}
     }
   }
   if(me){
@@ -2045,7 +2292,15 @@ const Net={
   goal(nr){
     if(!online||!this.refs)return;
     const id=R.id,g=R.g|0;
-    this.refs.round.transaction(cur=>(cur&&cur.id===id&&(cur.g|0)===g)?nr:undefined).then(res=>{if(!res.committed)goalPending=false}).catch(()=>{goalPending=false});
+    this.refs.round.transaction(cur=>(cur&&cur.id===id&&(cur.g|0)===g&&!cur.fin)?nr:undefined).then(res=>{if(!res.committed)goalPending=false}).catch(()=>{goalPending=false});
+  },
+  // Time ran out with the ball in the air and it has now landed: mark the match finished (unless a goal got in first).
+  finT:0,
+  finish(){
+    if(!online||!this.refs||!R||performance.now()-this.finT<1000)return;
+    this.finT=performance.now();
+    const id=R.id,g=R.g|0,at=Math.round(this.now());
+    this.refs.round.transaction(cur=>(cur&&cur.id===id&&(cur.g|0)===g&&!cur.fin)?Object.assign({},cur,{fin:at}):undefined).catch(()=>{});
   },
   rematch(){
     if(!online||!this.refs||!R)return;const id=R.id,sz=R.sz,bo=R.bo;
@@ -2063,13 +2318,14 @@ function roundStale(c,now){
   const ko=+c.ko||0,rem=+c.rem||0;
   if(!isFinite(ko))return true;
   const endAt=ko+Math.max(0,rem);
-  if(c.sb!==c.so&&now>endAt+20000)return true;
+  if(c.sb!==c.so&&now>(+c.fin||endAt+(rem>0?BIP_MAX:0))+20000)return true;
   return now>ko+Math.max(0,rem)+10*60*1000;
 }
 function sanitizeRound(v){
   const n=x=>isFinite(+x)?+x:0;
   return{id:v.id|0,ends:n(v.ends),len:n(v.len)||MATCH_MS,sz:clamp(v.sz|0,1,3),bo:v.bo?1:0,sb:Math.max(0,v.sb|0),so:Math.max(0,v.so|0),g:Math.max(0,v.g|0),ko:n(v.ko),rem:clamp(n(v.rem),-3600000,MATCH_MS),sd:v.sd|0,
-    sc:String(v.sc||'').slice(0,40),as:String(v.as||'').slice(0,40),gt:v.gt?1:0,gs:clamp(v.gs|0,0,999),gx:n(v.gx),gy:n(v.gy),gz:n(v.gz)};
+    sc:String(v.sc||'').slice(0,40),as:String(v.as||'').slice(0,40),gt:v.gt?1:0,gs:clamp(v.gs|0,0,999),gx:n(v.gx),gy:n(v.gy),gz:n(v.gz),
+    fin:n(v.fin),bz:v.bz?1:0};
 }
 function parseVec(s,n){const a=String(s||'').split(',').map(Number);return a.length===n&&a.every(isFinite)?a:null}
 function remoteCar(id,o){
@@ -2319,6 +2575,7 @@ segBind('sizeSeg','s',()=>teamSize,v=>{teamSize=+v;store.set('size',teamSize)});
 segBind('botSeg','b',()=>botsOn?1:0,v=>{botsOn=v==='1';store.set('bots',botsOn?1:0)});
 segBind('diffSeg','d',()=>practiceDiff,v=>{practiceDiff=v;store.set('diff',v)});
 segBind('gfxSeg','q',()=>gfx,v=>{gfx=v;store.set('gfx',v);resize()});
+segBind('markSeg','m',()=>markerOn?1:0,v=>{markerOn=v==='1';store.set('marker',markerOn?1:0)});
 (function settings(){
   const vol=$('vol'),sh=$('shake');vol.value=volume;sh.value=shakeAmt;
   const paint=()=>{$('volOut').textContent=Math.round(volume*100)+'%';$('shakeOut').textContent=Math.round(shakeAmt*100)+'%'};
@@ -2356,9 +2613,13 @@ function showAd(id){
 // =====================================================================
 let last=performance.now(),acc=0;
 const H_STEP=1/120;
+// test hook only (navigator.webdriver): manual = the test drives time with advance(); noRender skips drawing;
+// testInput(inp, now, car) replaces your controls.
+let manual=false,noRender=false,testInput=null;
 function frame(t){
   const dt=Math.min(.1,Math.max(0,(t-last)/1000));last=t;
-  try{step(dt)}catch(err){console.error(err)}
+  if(manual){if(!noRender)renderer.render(scene,camera)}
+  else try{step(dt)}catch(err){console.error(err)}
   requestAnimationFrame(frame);
 }
 function physStep(h,now,ph){
@@ -2374,17 +2635,12 @@ function physStep(h,now,ph){
   if(!ballHidden){
     const hit=stepBall(ball,h);
     if(hit>3)sfx('bounce',ball.pos,hit/25);
-    if(ph!=='countdown')for(const c of locals){
-      if(c.demo>0)continue;
-      if(c.pos.distanceToSquared(ball.pos)>(BR+2.2)*(BR+2.2))continue;
-      _pre.pos.copy(ball.pos);_pre.vel.copy(ball.vel);
-      const pw=carBall(c,ball,now);
-      if(pw)onLocalTouch(c,pw,now);
-    }
+    if(ph!=='countdown')ballVsCars(now,true);else for(const c of cars)c.blOk=false;
     const mine=!online||owner===Net.uid;
     if(mine&&!goalPending&&(ph==='play')){
       if(ball.pos.z>AL+BR)scoreGoal(0);else if(ball.pos.z<-AL-BR)scoreGoal(1);
     }
+    if(ph==='play')ballDown(now);
   }
 }
 function simulate(dt,freeze){
@@ -2392,12 +2648,13 @@ function simulate(dt,freeze){
   if(!freeze){
     if(R)updateMatch(now);
     const ph=R?phaseOf(now):'play';
-    if(me){if(state==='playing'&&!paused)readInput(me.inp);else Object.assign(me.inp,newInput())}
+    if(me){if(testInput)testInput(me.inp,now,me);else if(state==='playing'&&!paused)readInput(me.inp);else Object.assign(me.inp,newInput())}
     for(const c of localCars())if(c.isBot)botThink(c,dt,now,ph);
+    // other players' cars move first, so the ball is checked against where they are drawn this frame
+    if(online)updateRemotes(dt);
     acc+=dt;let n=0;
     while(acc>=H_STEP&&n<13){acc-=H_STEP;n++;physStep(H_STEP,nowMs(),ph)}
     if(n>=13)acc=0;
-    if(online)updateRemotes(dt);
     for(const c of localCars()){
       if(c.demo>0){c.demo-=dt;if(c.demo<=0){c.demo=0;if(ph!=='countdown')respawnCar(c);else{const [x,z]=kickoffSpot(c);placeCar(c,x,z,Math.atan2(-x,-z))}}}
       else padPickups(c,now);
@@ -2423,6 +2680,7 @@ function step(dt){
     ballShadow.position.set(ballMesh.position.x,.04,ballMesh.position.z);ballShadow.scale.set(k,k,k);ballShadow.material.opacity=k;
     ballRing.position.set(ballMesh.position.x,.05,ballMesh.position.z);ballRing.material.opacity=hgt>3?.4:0;
   }
+  updateLanding(state==='playing');
   for(const c of cars){
     updateCarMesh(c,dt,clock);
     if(c.boosting&&c.demo<=0&&!freeze)boostTrail(c);
@@ -2439,7 +2697,7 @@ function step(dt){
     wn.hidden=others>0;if(others===0)wn.textContent='Waiting for players · share the invite link from the pause menu';
   }
   audioTick(dt);
-  renderer.render(scene,camera);
+  if(!noRender)renderer.render(scene,camera);
   if(state==='menu'&&!$('menu').hidden)renderGarage(dt);
 }
 
@@ -2450,7 +2708,13 @@ $('name').value=myName;
 if(inv){setMsg('You were invited to room bb-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.remove('alt');$('quick').classList.add('alt')}
 
 if(navigator.webdriver)window.__bb={get state(){return state},get mode(){return mode},get me(){return me},get cars(){return cars},ball,get R(){return R},set R(v){R=v},PADS,Net,stepCar,makeCar,newInput,stepBall,carBall,predictGoal,applyRound,onRemoteState,handleEvent,applyBallSnap,startLocal,setupAttract,keys,phaseOf,nowMs,
-  get owner(){return owner},fast(sec){for(let i=0;i<sec*60;i++){warp+=1000/60;simulate(1/60,false)}},get lastTouchBt(){return lastTouchBt},setPaused:v=>{paused=v},camera,renderer,scene,toggleBallCam,touches:()=>touches,scoreGoal,remainingAt,demolish,botThink};
+  get owner(){return owner},fast(sec){for(let i=0;i<sec*60;i++){warp+=1000/60;simulate(1/60,false)}},get lastTouchBt(){return lastTouchBt},setPaused:v=>{paused=v},camera,renderer,scene,toggleBallCam,touches:()=>touches,scoreGoal,remainingAt,demolish,botThink,
+  // fixed-step driving for tests: manual(true) stops the real-time loop; advance() runs whole frames (physics, camera,
+  // HUD, landing marker) at 60 Hz without drawing; render() draws one frame.
+  manual(v){manual=!!v},set noRender(v){noRender=!!v},set testInput(f){testInput=f},
+  advance(sec,fps){const f=fps||60,n=Math.round(sec*f);const nr=noRender;noRender=true;try{for(let i=0;i<n;i++){if(!online)warp+=1000/f;step(1/f)}}finally{noRender=nr}},
+  render(){renderer.render(scene,camera)},physStep,carCar,ballVsCars,sdf,land,predictLanding,ballInPlay,get camUp(){return camUp},camFwd,camPos,camLook,get ballVisOff(){return ballVisOff},
+  get ballHidden(){return ballHidden},set ballHidden(v){ballHidden=!!v},updateCamera,setupKickoff,landDecal,arcPts};
 
 resize();renderGarageUI();initGarage();
 setupAttract();showAd('adMenu');
