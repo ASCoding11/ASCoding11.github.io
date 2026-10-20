@@ -1049,8 +1049,16 @@ class Bean{
     const s=this.shadow;if(!vis||gy===-Infinity||gy<World.killY){s.visible=false;return}
     s.visible=true;s.position.set(this.root.position.x,gy+.03,this.root.position.z);const h=clamp(1-(this.root.position.y-gy)/8,.35,1);s.scale.set(h,1,h);s.material.opacity=h;
   }
+  // the winner's crown: a gold band with five points and a jewel
+  addCrown(){
+    if(this.crown)return;const g=new THREE.Group(),gold=new THREE.MeshLambertMaterial({color:'#ffcf3d',emissive:0x6a4a00,emissiveIntensity:.35,side:THREE.DoubleSide});this.crownMat=gold;
+    const band=new THREE.Mesh(new THREE.CylinderGeometry(.27,.3,.16,16,1,true),gold);g.add(band);
+    for(let i=0;i<5;i++){const a=i/5*Math.PI*2,c=new THREE.Mesh(new THREE.ConeGeometry(.07,.17,6),gold);c.position.set(Math.sin(a)*.27,.16,Math.cos(a)*.27);g.add(c)}
+    const gem=new THREE.Mesh(new THREE.SphereGeometry(.05,10,8),new THREE.MeshLambertMaterial({color:'#ff4f9a'}));gem.position.set(0,0,.3);g.add(gem);
+    g.position.y=.84;g.rotation.x=-.12;this.tilt.add(g);this.crown=g;
+  }
   set visible(v){this.root.visible=v;if(!v)this.shadow.visible=false}
-  dispose(){scene.remove(this.root);scene.remove(this.shadow);this.shadow.material.dispose();this.tex.dispose();this.mat.dispose();this.limbMat.dispose();this.footMat.dispose();if(this.tag){this.tag.material.map.dispose();this.tag.material.dispose()}}
+  dispose(){if(this.crown)this.crown.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material)o.material.dispose()});scene.remove(this.root);scene.remove(this.shadow);this.shadow.material.dispose();this.tex.dispose();this.mat.dispose();this.limbMat.dispose();this.footMat.dispose();if(this.tag){this.tag.material.map.dispose();this.tag.material.dispose()}}
 }
 const _tmpV=new V3();
 
@@ -1830,7 +1838,7 @@ function enterPhase(rs){
     const win=(rs.win||[]).map(i=>idOf(rs,i)).filter(Boolean),others=rs.ro.filter(id=>!win.includes(id));
     const order=win.concat(others);let k=0;
     for(const id of order){const re=rosterEntry(rs,id);if(id!==myIdNow&&id[0]!=='b'&&!(G.mode==='online'&&Net.live(id)))continue;
-      const e=makeEnt({id,name:re.name,look:re.look,bot:false,local:false,isMe:id===myIdNow});placeAt(e,G.L.spawns[Math.min(k,G.L.spawns.length-1)],0);e.b.onGround=true;e.podium=true;e.winner=win.includes(id);e.cheer=e.winner;k++;if(e.isMe)me=e}
+      const e=makeEnt({id,name:re.name,look:re.look,bot:false,local:false,isMe:id===myIdNow});placeAt(e,G.L.spawns[Math.min(k,G.L.spawns.length-1)],0);e.b.onGround=true;e.podium=true;e.winner=win.includes(id);e.cheer=e.winner;if(e.winner)e.bean.addCrown();k++;if(e.isMe)me=e}
     showPodium(rs,win);camSnap();return;
   }
   // a round
@@ -2270,7 +2278,7 @@ function updateCamera(dt){
   const rs=G.rs,L=G.L;if(!L)return;
   const t=now();
   if(G.mode==='menu'){const a=t/1000*.07;camera.position.set(Math.sin(a)*24,11,Math.cos(a)*24+2);camera.lookAt(0,0,0);moveSun(0,0,0);return}
-  if(L.podium){camera.position.set(0,4.2,10.5);camera.lookAt(0,1.9,-1.5);moveSun(0,0,0);return}
+  if(L.podium){const port=camera.aspect<1;camera.position.set(0,port?4.6:3.7,port?12.5:8.6);camera.lookAt(0,port?1.6:2,-1.5);moveSun(0,0,0);return}
   if(rs&&rs.ph==='round'){const rt=(t-rs.go)/1000;if(rt<-3.2&&rt>-9){flyCam(L,rt);return}if(rt<-3.2+.05&&me)camYaw=me.b.yaw+Math.PI}
   const f=focusEnt();if(!f){camera.position.set(0,20,25);camera.lookAt(0,0,0);return}
   _tg.set(f.b.pos.x,f.b.pos.y+1.25,f.b.pos.z);
@@ -2533,7 +2541,7 @@ function step(dt,bg){
     e.bean.visible=!gone;if(gone)continue;
     const turn=angDiff(b.yaw,e.lastYaw||b.yaw)/Math.max(dt,1e-3);e.lastYaw=b.yaw;
     e.bean.update(b,dt,{turn,grab:e.isMe?!!b.grabbing:false,grabbed:e.isMe&&!!G.grabbedBy,cheer:e.cheer||(e.fin&&L&&L.def.kind==='race')});
-    if(e.bean.tag){const d=camera.position.distanceTo(b.pos),k=clamp(d*.03,.26,.62);e.bean.tag.visible=!e.isMe&&G.mode!=='menu'&&d<40&&d>1.5;e.bean.tag.scale.set(k*4,k,1);e.bean.tag.position.y=1.55+k*.4}
+    if(e.bean.tag){const d=camera.position.distanceTo(b.pos),k=clamp(d*.03,.26,.62);e.bean.tag.visible=!e.isMe&&G.mode!=='menu'&&d<40&&d>1.5;e.bean.tag.scale.set(k*4,k,1);e.bean.tag.position.y=1.55+k*.4+(e.bean.crown?.35:0)}
     if(gfx!=='high'||!e.bean.body.castShadow)e.bean.place(groundBelow(b.pos.x,b.pos.y+.5,b.pos.z,30),true);else e.bean.shadow.visible=false;
   }
   whooshes(dt);
