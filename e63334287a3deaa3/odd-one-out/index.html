@@ -1127,7 +1127,7 @@ function rayWorld(o,d,maxT,opts){
     if(bx.prop){
       if(opts.props===false)continue;const p=bx.prop;if(opts.cam&&p.t.vol<.3)continue;
       if(slab(o.x,o.y,o.z,ix,iy,iz,bx.x0,bx.y0,bx.z0,bx.x1,bx.y1,bx.z1,best)<0&&!(o.x>bx.x0&&o.x<bx.x1&&o.z>bx.z0&&o.z<bx.z1&&o.y>bx.y0&&o.y<bx.y1))continue;
-      const t=opts.cam?rayOBB(o,d,p.t,p.x,p.y,p.z,p.yaw,best):rayMesh(o,d,p.t,p.x,p.y,p.z,p.yaw,best);if(t>=0){best=t;hit={t,n:rayOBB.n.clone(),prop:p,box:bx,ent:null}}
+      const t=opts.cam||opts.obb?rayOBB(o,d,p.t,p.x,p.y,p.z,p.yaw,best):rayMesh(o,d,p.t,p.x,p.y,p.z,p.yaw,best);if(t>=0){best=t;hit={t,n:rayOBB.n.clone(),prop:p,box:bx,ent:null}}
       continue;
     }
     if(!bx.ray)continue;
@@ -1136,7 +1136,7 @@ function rayWorld(o,d,maxT,opts){
   }
   if(opts.ents!==false)for(const e of ents.values()){
     if(e===opts.skip||!e.alive||!e.visible)continue;
-    if(e.form){if(opts.cam&&e.form.vol<.3)continue;const t=opts.cam?rayOBB(o,d,e.form,e.pos.x,e.pos.y,e.pos.z,e.yaw,best):rayMesh(o,d,e.form,e.pos.x,e.pos.y,e.pos.z,e.yaw,best);if(t>=0){best=t;hit={t,n:rayOBB.n.clone(),ent:e,prop:null,box:null}}}
+    if(e.form){if(opts.cam&&e.form.vol<.3)continue;const t=opts.cam||opts.obb?rayOBB(o,d,e.form,e.pos.x,e.pos.y,e.pos.z,e.yaw,best):rayMesh(o,d,e.form,e.pos.x,e.pos.y,e.pos.z,e.yaw,best);if(t>=0){best=t;hit={t,n:rayOBB.n.clone(),ent:e,prop:null,box:null}}}
     else if(!opts.cam){const t=slab(o.x,o.y,o.z,ix,iy,iz,e.pos.x-.3,e.pos.y,e.pos.z-.3,e.pos.x+.3,e.pos.y+1.8,e.pos.z+.3,best);if(t>=0){best=t;hit={t,n:new V3(0,1,0),ent:e,prop:null,box:null}}}
   }
   return hit;
@@ -1960,7 +1960,9 @@ function camRay(spread){
 function findTarget(){
   G.target=null;if(!me||!me.alive||!isProp()||G.paused||!MAP)return;
   if(G.rs&&(G.rs.ph==='end'||G.rs.ph==='over'))return;
-  const ray=camRay(0),h=rayWorld(ray.o,ray.d,TF_RANGE+3,{skip:me});
+  const ray=camRay(0);let h=rayWorld(ray.o,ray.d,TF_RANGE+3,{skip:me});
+  // aiming between a chair's legs still counts: fall back to the objects' boxes
+  if(!h||!(h.prop||h.ent)){const h2=rayWorld(ray.o,ray.d,h?h.t+.01:TF_RANGE+3,{skip:me,obb:true});if(h2&&(h2.prop||h2.ent))h=h2}
   if(!h)return;const p=ray.o.clone().addScaledVector(ray.d,h.t);
   const c=me.pos.clone();c.y+=me.form?me.form.h/2:.5;if(p.distanceTo(c)>TF_RANGE)return;
   if(h.prop&&h.prop.t.elig)G.target={t:h.prop.t,x:h.prop.x,y:h.prop.y,z:h.prop.z,yaw:h.prop.yaw};
