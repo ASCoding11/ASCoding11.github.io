@@ -1859,7 +1859,7 @@ class Avatar{
   }
   setKind(k){
     k=k?1:0;if(k===this.kind)return;
-    if(this.hips){this.pose.remove(this.hips)}
+    if(this.hips){this.pose.remove(this.hips);this.freeGear();this.paint.tex.dispose()}
     this.kind=k;const A=atlasOf(k);this.paint=new Paint(k);this.mat.map=this.paint.tex;this.mat.needsUpdate=true;
     this.hips=new THREE.Object3D();this.hips.position.y=HIPS[k];this.pose.add(this.hips);this.parts=[];this.limbs=[];
     A.parts.forEach((sp,pi)=>{
@@ -1882,13 +1882,18 @@ class Avatar{
     this.gear.visible=this.seeker;if(this.gun)this.gun.visible=this.seeker;
     this.gear.traverse(o=>{if(o.isMesh){o.castShadow=true}});
   }
+  // the visor and blaster are made for each body; the shared materials stay
+  freeGear(){
+    const free=o=>{if(!o.isMesh)return;o.geometry.dispose();if(o.material!==visorMat&&o.material!==gunMat&&o.material!==gunMat2)o.material.dispose()};
+    if(this.gear)this.gear.traverse(free);if(this.gun&&this.gun.parent!==this.gear)this.gun.traverse(free);this.gear=null;this.gun=null;
+  }
   setSeeker(on){
     on=!!on;if(on===this.seeker)return;this.seeker=on;
     for(const m of this.parts)m.material=on?getSeekerMat():this.mat;
     this.gear.visible=on;if(this.gun)this.gun.visible=on;
   }
   setRough(r){this.mat.roughness=clamp(r,.08,1)}
-  setTag(name,color){if(this.tag&&this.tagName===name+color)return;if(this.tag){this.root.remove(this.tag);this.tag.material.map.dispose()}this.tag=makeTag(name,color);this.tagName=name+color;this.root.add(this.tag)}
+  setTag(name,color){if(this.tag&&this.tagName===name+color)return;if(this.tag){this.root.remove(this.tag);this.tag.material.map.dispose();this.tag.material.dispose()}this.tag=makeTag(name,color);this.tagName=name+color;this.root.add(this.tag)}
   update(dt){
     const e=this.e,k=1-Math.exp(-dt*11),P0=e.wall&&(e.pose|0)===2?WALLPOSE[this.kind]:POSES[this.kind][e.pose|0],c=this.cur;
     for(const key in P0)c[key]=lerp(c[key],P0[key],k);
@@ -1909,7 +1914,7 @@ class Avatar{
     if(this.glow>0||this.glowOn){this.glow=this.glowOn?1:Math.max(0,this.glow-dt);const p=this.glow*(.35+.35*Math.sin(clock*8));this.mat.emissive.setRGB(p,p*.3,p*.55)}
   }
   setLayer(n,on){for(const m of this.parts){if(on)m.layers.enable(n);else m.layers.disable(n)}}
-  dispose(){scene.remove(this.root);if(this.tag)this.tag.material.map.dispose();this.paint.tex.dispose();this.mat.dispose()}
+  dispose(){scene.remove(this.root);if(this.tag){this.tag.material.map.dispose();this.tag.material.dispose()}this.freeGear();this.paint.tex.dispose();this.mat.dispose()}
 }
 // rest-pose position of the texel under a ray hit on a body
 function restAt(av,hit,outP,outN){
