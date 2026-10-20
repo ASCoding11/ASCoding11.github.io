@@ -45,7 +45,6 @@
   var GAMES = [
     { k: 'sc', n: 'Shell Crackers', d: 'shell-crackers', max: 8, nk: 'shellcr-name' },
     { k: 'rk', n: 'Rumble Karts', d: 'rumble-karts', max: 8, pre: '', nk: 'rk_name', ids: { name: 'inName', room: 'inRoom', join: 'bOnline' } },
-    { k: 'kw', n: 'Kartwheel', d: 'kartwheel', max: 8, nk: 'kw:name' },
     { k: 'ss', n: 'Slipstream', d: 'slipstream', max: 8, nk: 'ss:name' },
     { k: 'bb', n: 'Boostball', d: 'boostball', max: 6, nk: 'boostball-name', prep: function (doc, n) {
       // Room size comes from whoever opens the room first, so everyone picks the size that fits the party.
@@ -53,9 +52,7 @@
     } },
     { k: 'cl', n: 'Coil', d: 'coil', max: 8, nk: 'coil:name' },
     { k: 'sd', n: 'Showdown', d: 'showdown', max: 8, nk: 'sd:name' },
-    { k: 'qy', n: 'Quarry', d: 'quarry', max: 8, nk: 'quarry:name' },
     { k: 'br', n: 'Backrooms 1v1–4v4', d: 'backrooms-1v1', max: 8, nk: 'br1v1-name' },
-    { k: 'hm', n: 'Hail Mary', d: 'hail-mary', max: 2, nk: 'hm:team' },
     { k: 'cf', n: 'Chromaflage', d: 'chromaflage', max: 8, nk: 'chroma-name' }
   ];
   var COLORS = ['#1D6A4B', '#C0562F', '#3E5BA9', '#9A3F8F', '#B07A12', '#2A8A8A', '#B42318', '#5B6B2E'];
