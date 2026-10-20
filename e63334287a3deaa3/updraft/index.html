@@ -1403,10 +1403,13 @@ const store={
 };
 let isTouch=matchMedia('(pointer: coarse)').matches&&!matchMedia('(any-pointer: fine)').matches;
 const TEST=!!navigator.webdriver;
-let sens=+store.get('sens',1),volume=+store.get('vol',.8),music=+store.get('mus',.5),invY=!!store.get('inv',0);
-let gfx=store.get('gfx',isTouch?'low':'high');
+// a saved number, or the default if it's missing or broken (a NaN look speed or zoom would wreck the camera for good)
+const num=(v,d,lo,hi)=>{v=+v;return isFinite(v)?clamp(v,lo,hi):d};
+const isColor=c=>typeof c==='string'&&/^#[0-9a-f]{6}$/i.test(c);
+let sens=num(store.get('sens',1),1,.3,2.5),volume=num(store.get('vol',.8),.8,0,1),music=num(store.get('mus',.5),.5,0,1),invY=!!store.get('inv',0);
+let gfx=store.get('gfx',isTouch?'low':'high');if(gfx!=='low'&&gfx!=='high')gfx=isTouch?'low':'high';
 const COLORS=['#ff7a3d','#5ec2ff','#5be0a8','#ffd23f','#ff5d8f','#a98bff','#3dd6d0','#ff9f1c','#9be15d','#f15bb5','#00bbf9','#e9c46a'];
-let myName=String(store.get('name','')).slice(0,14),myColor=store.get('color',pick(COLORS));store.set('color',myColor);
+let myName=cleanName(store.get('name','')),myColor=store.get('color','');if(!isColor(myColor))myColor=pick(COLORS);store.set('color',myColor);
 
 // =====================================================================
 //  Sound: everything is made with Web Audio, nothing is loaded.
@@ -1918,9 +1921,12 @@ function makeAvatar(color){
   const leg=s=>{const hp=new THREE.Group();hp.position.set(s*.1,-.03,0);hips.add(hp);hp.add(limb(.078,.4,pants));const kn=new THREE.Group();kn.position.y=-.4;hp.add(kn);kn.add(limb(.066,.39,pants));const ft=new THREE.Mesh(GEO.box,shoe);ft.scale.set(.12,.075,.25);ft.position.set(0,-.42,.05);kn.add(ft);return[hp,kn]};
   const [aL,eL]=arm(1),[aR,eR]=arm(-1),[lL,kL]=leg(1),[lR,kR]=leg(-1);
   root.traverse(o=>{if(o.isMesh)o.castShadow=false});
-  const A={root,body,hips,spine,neck,aL,eL,aR,eR,lL,kL,lR,kR,ph:0,cur:{},color,mats:[shirt,bag]};
+  const A={root,body,hips,spine,neck,aL,eL,aR,eR,lL,kL,lR,kR,ph:0,cur:{},color,mats:[shirt,bag],own:[shirt,pants,skin,shoe,bag,dark,roll.material,cap.geometry]};
   return A;
 }
+// free what one climber's figure, shadow or name tag made (the shared geometries stay)
+function freeAvatar(A){for(const o of A.own)o.dispose()}
+function freeMesh(m){if(!m)return;if(m.material.map&&m.material.map!==shadowTex)m.material.map.dispose();m.material.dispose();if(m.geometry&&!m.isSprite)m.geometry.dispose()}
 function setAvatarColor(A,color){A.color=color;A.mats[0].color.set(color);A.mats[1].color.set(shade(color,.5))}
 const POSE_KEYS=['hy','sp','sz','nk','aLx','aLz','eL','aRx','aRz','eR','lLx','kL','lRx','kR','lLz','lRz'];
 // st: {spd, gnd, vy, landT, impact, stun, mantle, slide, sprint, t}
@@ -1964,7 +1970,7 @@ const G={mode:'menu',paused:false,winShown:false,spec:null,hold:0,lastSave:0,sha
 const START=PATH[0];
 let me=U.Body(START.x,START.y1,START.z);me.gnd=START;me.yaw=Math.PI/2;
 const run={t:0,falls:0,jumps:0,maxY:0,fin:0,zone:0};
-const best=Object.assign({h:0,time:0,wins:0},store.get('best',{}));
+const best=(b=>({h:num(b.h,0,0,SUMMIT+5),time:num(b.time,0,0,1e7),wins:num(b.wins,0,0,1e6)|0}))(Object(store.get('best',{})));
 const myAv=makeAvatar(myColor);scene.add(myAv.root);const myShadow=makeShadow();
 function loadRun(){
   const s=store.get('run',null);
@@ -1986,7 +1992,7 @@ if(!hadRun){me.gnd=START}
 // =====================================================================
 //  Camera: orbits the climber, smooth, and pulls in so it never ends up inside anything.
 // =====================================================================
-let camYaw=me.yaw,camPitch=.32,camDist=6.2,camDistWant=+store.get('zoom',6.2);
+let camYaw=me.yaw,camPitch=.32,camDist=6.2,camDistWant=num(store.get('zoom',6.2),6.2,2.2,13);
 const camPivot=new V3(me.x,me.y+1.45,me.z);
 const _rq=[];
 function rayHit(ox,oy,oz,dx,dy,dz,maxT){
@@ -2321,21 +2327,24 @@ function animCode(){if(me.mantle)return 6;if(me.slide)return 7;if(!me.gnd)return
 function onNode(uid,v){
   if(!v||typeof v!=='object')return;
   let o=others.get(uid);
-  const n=cleanName(v.n)||'Climber',c=/^#[0-9a-f]{6}$/i.test(v.c)?v.c:'#9aa3ad',ts=+v.ts||0;
+  // everything here was written by another browser: names are cleaned, colours checked, numbers kept finite and in range
+  const fin=(x,lo,hi)=>{x=+x;return isFinite(x)?clamp(x,lo,hi):0};
+  const n=cleanName(v.n)||'Climber',c=isColor(v.c)?v.c:'#9aa3ad',ts=fin(v.ts,0,9e15);
   if(!o){
     if(Net.now()-ts>LIVE_MS||!isFinite(+v.x)||!isFinite(+v.z))return;
-    o={n,c,ts,ent:{x:+v.x,y:+v.y||0,z:+v.z,yaw:+v.h||0,tx:+v.x,ty:+v.y||0,tz:+v.z,tyaw:+v.h||0,a:0,spd:0,vy:0,landT:9},av:makeAvatar(c),seen:performance.now(),f:0,
+    const x0=fin(v.x,-3000,3000),y0=fin(v.y,-5,1100),z0=fin(v.z,-3000,3000),h0=fin(v.h,-100,100);
+    o={n,c,ts,ent:{x:x0,y:y0,z:z0,yaw:h0,tx:x0,ty:y0,tz:z0,tyaw:h0,a:0,spd:0,vy:0,landT:9},av:makeAvatar(c),seen:performance.now(),f:0,
       live(){return Net.now()-this.ts<LIVE_MS&&performance.now()-this.seen<LIVE_MS}};
     o.sh=makeShadow();scene.add(o.av.root);o.tag=makeTag(n,c);scene.add(o.tag);others.set(uid,o);
     if(performance.now()-(G.joinedAt||0)>2500){feed(n+' joined');sfx('join')}
   }
-  if(o.n!==n||o.c!==c){o.n=n;if(o.c!==c){o.c=c;setAvatarColor(o.av,c)}scene.remove(o.tag);o.tag=makeTag(n,c);scene.add(o.tag)}
+  if(o.n!==n||o.c!==c){o.n=n;if(o.c!==c){o.c=c;setAvatarColor(o.av,c)}scene.remove(o.tag);freeMesh(o.tag);o.tag=makeTag(n,c);scene.add(o.tag)}
   o.ts=ts;o.seen=performance.now();
   const e=o.ent;if(isFinite(+v.x)&&isFinite(+v.z)){e.tx=clamp(+v.x,-3000,3000);e.ty=clamp(+v.y||0,-5,1100);e.tz=clamp(+v.z,-3000,3000)}
-  e.tyaw=+v.h||0;e.a=v.a|0;o.m=+v.m||0;o.t=+v.t||0;const f=+v.f||0;if(f&&!o.f&&performance.now()-(G.joinedAt||0)>2500){feed(n+' reached the top in '+fmtT(f)+'!');sfx('best')}o.f=f;
+  e.tyaw=fin(v.h,-100,100);e.a=v.a|0;o.m=fin(v.m,0,SUMMIT+5);o.t=fin(v.t,0,1e7);const f=fin(v.f,0,1e7);if(f&&!o.f&&performance.now()-(G.joinedAt||0)>2500){feed(n+' reached the top in '+fmtT(f)+'!');sfx('best')}o.f=f;
 }
 function onGone(uid){const o=others.get(uid);if(!o)return;feed(o.n+' left');dropOther(uid)}
-function dropOther(uid){const o=others.get(uid);if(!o)return;scene.remove(o.av.root);scene.remove(o.tag);scene.remove(o.sh);if(o.dot)o.dot.remove();others.delete(uid);if(G.spec===uid)stopSpectate()}
+function dropOther(uid){const o=others.get(uid);if(!o)return;scene.remove(o.av.root);scene.remove(o.tag);scene.remove(o.sh);freeAvatar(o.av);freeMesh(o.tag);freeMesh(o.sh);if(o.dot)o.dot.remove();others.delete(uid);if(G.spec===uid)stopSpectate()}
 function clearOthers(){for(const k of [...others.keys()])dropOther(k)}
 const ANIM=[{gnd:1,spd:0},{gnd:1,spd:2.5},{gnd:1,spd:7,sprint:1},{gnd:0,vy:5},{gnd:0,vy:-3},{gnd:0,vy:-20},{mantle:1},{slide:1},{gnd:1,stun:.5}];
 function updateOthers(dt){
@@ -2504,7 +2513,7 @@ function tick(dt){
   for(const f of fanFx){f.g.rotation.y+=dt*14;const p=f.pts.geometry.attributes.position;for(let i=0;i<p.count;i++){let y=p.getY(i)+dt*7;if(y>f.f.y1)y=f.f.y0;p.setY(i,y)}p.needsUpdate=true}
   scenery.flag.rotation.y=Math.sin(clock*2)*.15;
   updateFx(dt);updateStreaks(dt);updateHud(dt);
-  if(ac){musicTick();const wv=G.mode==='play'&&!me.gnd?clamp((-me.vy-6)/34,0,1):0;windG.g.gain.setTargetAtTime(wv*.35+(me.y>600?.03:0),ac.currentTime,.12);windG.f.frequency.setTargetAtTime(400+wv*900,ac.currentTime,.2);
+  if(ac&&windG){musicTick();const wv=G.mode==='play'&&!me.gnd?clamp((-me.vy-6)/34,0,1):0;windG.g.gain.setTargetAtTime(wv*.35+(me.y>600?.03:0),ac.currentTime,.12);windG.f.frequency.setTargetAtTime(400+wv*900,ac.currentTime,.2);
     let fd=99;for(const f of course.fans)fd=Math.min(fd,Math.hypot(me.x-f.x,me.z-f.z,(me.y-f.y0)*.5));fanG.g.gain.setTargetAtTime(clamp(1-fd/16,0,1)*.12,ac.currentTime,.2)}
 }
 function frame(t){
@@ -2530,7 +2539,7 @@ if(TEST)window.__up={U,C,course,W,PATH,G,run,best,keys,tAct,tMove,KB,Net,others,
   bot(on,from){G.bot=on?U.Bot(course):null;if(G.bot){G.bot.i=(from==null?0:from)+1;G.bot.lastT=wt}return G.bot},
   newRun,enterGame,toMenu,showPause,resume2:resume,startSpectate,cycleSpec,stopSpectate,joinPrivate,quickMatch,
   render(){updateCamera(.1);atmosphere();updateChunks(scene.fog.far);updateMovers();renderer.render(scene,camera)},
-  stepOnce,afterSteps,saveRun,loadRun,others,onSummit,
+  stepOnce,afterSteps,saveRun,loadRun,others,onSummit,onNode,
   // fake climbers for layout tests (no network)
   fake(n){G.fakeNet=true;Net.offset=0;for(let i=0;i<n;i++){const c=PATH[Math.min(PATH.length-1,40+i*60)];onNode('fake'+i,{n:['Ava','Bo','Cyrus','Dee','Eli','Fay','Gus','Hana','Ivo','Jun','Kit'][i%11],c:COLORS[(i+3)%COLORS.length],x:c.x,y:c.y1,z:c.z,h:0,ts:Date.now(),a:i%5,m:Math.floor(c.y1),t:100+i,f:i===0?1234:0})}},
   unfake(){G.fakeNet=false;clearOthers()}
