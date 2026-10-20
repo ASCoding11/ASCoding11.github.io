@@ -115,6 +115,12 @@ h1{font-family:var(--display);font-weight:800;font-size:clamp(64px,19vw,112px);l
 .skin.afford{border-color:rgba(255,210,75,.45)}
 .skin.shake{animation:shake .3s}
 @keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+/* Controls panel (../keybinds.js) in Starhop's colours */
+:root{--kb-bg:rgba(12,17,38,.96);--kb-fg:var(--ink);--kb-muted:var(--muted);--kb-line:var(--line);--kb-accent:var(--accent);--kb-accent-ink:var(--accent-ink);
+  --kb-border:1px solid var(--line);--kb-radius:14px;--kb-key-radius:10px;--kb-key-border:1px solid var(--line);--kb-key-bg:rgba(255,255,255,.05);
+  --kb-font:var(--body);--kb-font-display:var(--display);--kb-font-key:var(--mono);--kb-font-group:var(--mono);--kb-title-size:40px;--kb-title-weight:800;--kb-title-case:uppercase;--kb-title-track:.03em;
+  --kb-backdrop:rgba(5,8,22,.7);--kb-warn:var(--danger);--kb-width:440px}
+.kb-panel .btn{min-height:46px;font-size:19px}
 @media (prefers-reduced-motion: reduce){#score.pop,#banner.show,.newbest{animation:none}#banner.show{opacity:1}}
 
 /* Side rails: two tall ads beside the game on wide screens (1180px+). The game area shrinks to sit
@@ -130,6 +136,7 @@ h1{font-family:var(--display);font-weight:800;font-size:clamp(64px,19vw,112px);l
   html.rails .rail{display:flex}
 }
 </style>
+<script src="../keybinds.js"></script>
 </head>
 <body>
 <canvas id="c" aria-label="Starhop game area"></canvas>
@@ -167,11 +174,11 @@ h1{font-family:var(--display);font-weight:800;font-size:clamp(64px,19vw,112px);l
       <h2><span>Missions</span><span id="mMissionsNote"></span></h2>
       <ul class="missions" id="mMissions"></ul>
     </div>
-    <p class="keys">Tap, click or press <b>Space</b> to launch</p>
+    <p class="keys">Tap, click or press <b data-kb="launch" data-kb-short>Space</b> to launch</p>
     <div class="adbox" id="adMenu" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
     <div class="foot">
       <a href="/projects/">← More projects by Arjun</a>
-      <span><button class="iconbtn" id="btnSound" aria-label="Sound on" style="width:36px;height:36px;font-size:17px"></button></span>
+      <span style="display:flex;gap:8px"><button class="iconbtn" id="btnKeys" aria-label="Controls" title="Controls" style="width:36px;height:36px;font-size:17px"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg></button><button class="iconbtn" id="btnSound" aria-label="Sound on" style="width:36px;height:36px;font-size:17px"></button></span>
     </div>
     <div class="foot"><span></span><a href="/privacy.html">Privacy</a></div>
   </div>
@@ -196,7 +203,7 @@ h1{font-family:var(--display);font-weight:800;font-size:clamp(64px,19vw,112px);l
       <button class="btn" id="btnShare">Share</button>
       <button class="btn" id="btnMenu">Menu</button>
     </div>
-    <p class="keys">Press <b>Space</b> to play again</p>
+    <p class="keys">Press <b data-kb="launch" data-kb-short>Space</b> to play again</p>
     <div class="adbox" id="adOver" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
   </div>
 </section>
@@ -223,6 +230,7 @@ h1{font-family:var(--display);font-weight:800;font-size:clamp(64px,19vw,112px);l
     <p class="kicker">Paused</p>
     <div class="bigscore" id="pScore" style="font-size:96px">0</div>
     <button class="btn primary" id="btnResume">Resume</button>
+    <button class="btn" id="btnPauseKeys">Controls</button>
     <button class="btn" id="btnQuit">End run</button>
   </div>
 </section>
@@ -934,15 +942,25 @@ function onTap() {
   if (G.state === 'play') { ac(); launch(); if (G.hint === 1) setHint(''); }
 }
 cv.addEventListener('pointerdown', e => { e.preventDefault(); onTap(); });
+// Keys can be changed in the Controls panel (../keybinds.js); saved in this browser as keybinds:starhop.
+const KB = Keybinds.create({
+  game: 'starhop',
+  actions: [
+    { id: 'launch', label: 'Launch', note: 'Also starts a run from the menu', keys: ['Space', 'ArrowUp', 'KeyW', 'Enter'] },
+    { id: 'pause', label: 'Pause', keys: ['KeyP'], lock: ['Escape'] },
+  ],
+  classes: { button: 'btn', primary: 'btn primary' },
+});
 addEventListener('keydown', e => {
   if (e.repeat) return;
-  const k = e.key;
-  if (k === ' ' || k === 'Enter' || k === 'ArrowUp' || k === 'w' || k === 'W') {
+  const c = e.code;
+  if (KB.is('launch', c)) {
+    // Enter on a focused menu button should press that button, so it doesn't start a run there.
     if (G.state === 'play') { e.preventDefault(); onTap(); }
     else if (G.state === 'over' && performance.now() - G.overAt > 450) { e.preventDefault(); rollMissions(); startRun(G.mode); }
-    else if (G.state === 'menu' && !$('#menu').hidden && k === ' ') { e.preventDefault(); startRun('normal'); }
-    else if (G.state === 'paused' && k === ' ') { e.preventDefault(); resume(); }
-  } else if (k === 'Escape' || k === 'p' || k === 'P') {
+    else if (G.state === 'menu' && !$('#menu').hidden && c !== 'Enter') { e.preventDefault(); startRun('normal'); }
+    else if (G.state === 'paused' && c !== 'Enter') { e.preventDefault(); resume(); }
+  } else if (KB.is('pause', c)) {
     if (G.state === 'play') pause(); else if (G.state === 'paused') resume();
   }
 });
@@ -957,6 +975,8 @@ click('#btnMenu', () => { rollMissions(); run = null; G.state = 'idle'; showMenu
 click('#btnRevive', revive);
 click('#btnShare', share);
 click('#btnPause', pause);
+click('#btnKeys', () => { sfx.click(); KB.open(); });
+click('#btnPauseKeys', () => { sfx.click(); KB.open(); });
 click('#btnResume', resume);
 click('#btnQuit', quitRun);
 document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });

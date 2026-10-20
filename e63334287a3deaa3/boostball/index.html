@@ -185,6 +185,16 @@ body.touch #hint{bottom:auto;top:calc(max(10px,env(safe-area-inset-top)) + 70px)
 body.free #scorebar .sc{display:none}
 @media (max-width:640px){#scorebar .sc{font-size:26px;min-width:48px}#clock{font-size:22px;min-width:82px;padding-top:4px}#tnames{top:calc(max(10px,env(safe-area-inset-top)) + 36px)}}
 
+/* Controls panel (../keybinds.js): dark glass card with the angled buttons */
+:root{--kb-bg:var(--glass-2);--kb-fg:var(--ink);--kb-muted:var(--ink-2);--kb-line:var(--line);--kb-accent:var(--blue);--kb-accent-ink:#fff;--kb-warn:var(--bad);
+  --kb-border:1px solid var(--line);--kb-radius:14px;--kb-key-radius:4px;--kb-key-border:1px solid var(--line);--kb-key-bg:rgba(255,255,255,.08);
+  --kb-font:var(--f-b);--kb-font-display:var(--f-d);--kb-font-key:var(--f-d);--kb-key-size:12px;--kb-key-weight:400;--kb-title-size:34px;--kb-title-weight:400;
+  --kb-backdrop:rgba(4,7,18,.62);--kb-blur:8px;--kb-label-size:16px;--kb-width:560px}
+.kb-panel .kb-title{font-style:italic}
+.kb-panel .kb-label{font-weight:600}
+.kb-panel .kb-key{text-transform:uppercase;letter-spacing:.05em}
+/* Rebinding keys is for keyboards: the touch layout leaves those buttons out. */
+body.touch #keysMenu,body.touch #keysPause{display:none}
 /* Side rails: two tall ads beside the game on wide screens (1180px+). The game area shrinks to sit
    between them (body becomes the game's frame), so nothing overlaps play. Off until a slot is set. */
 :root{--rail:184px}
@@ -216,7 +226,7 @@ body.free #scorebar .sc{display:none}
       <b id="boostNum">33</b><span>BOOST</span>
     </div>
     <div id="speed">0 KM/H</div>
-    <div id="camTag">BALL CAM · Y</div>
+    <div id="camTag">BALL CAM · <span data-kb="ballcam" data-kb-short data-kb-case="upper">Y</span></div>
     <div id="hint"></div>
     <div id="flash"></div>
     <button id="pauseBtn" type="button" aria-label="Pause">II</button>
@@ -260,19 +270,20 @@ body.free #scorebar .sc{display:none}
         <details>
           <summary>Controls</summary>
           <dl class="keys">
-            <div><dt>W · S</dt><dd>Drive · reverse (pitch in air)</dd></div>
-            <div><dt>A · D</dt><dd>Steer (turn in air)</dd></div>
-            <div><dt>SPACE</dt><dd>Jump, again to double jump</dd></div>
-            <div><dt>SPACE + DIR</dt><dd>Flip into the ball</dd></div>
-            <div><dt>SHIFT · L-CLICK</dt><dd>Boost</dd></div>
-            <div><dt>C · X</dt><dd>Drift; in the air, air roll with A/D</dd></div>
-            <div><dt>Q · E</dt><dd>Air roll left · right</dd></div>
-            <div><dt>Y · M-CLICK</dt><dd>Ball cam on/off</dd></div>
-            <div><dt>1 – 4</dt><dd>Quick chat</dd></div>
-            <div><dt>TAB</dt><dd>Scoreboard</dd></div>
-            <div><dt>R</dt><dd>Free play: reset ball</dd></div>
+            <div><dt data-kb="forward back" data-kb-short data-kb-join=" · " data-kb-case="upper">W · S</dt><dd>Drive · reverse (pitch in air)</dd></div>
+            <div><dt data-kb="left right" data-kb-short data-kb-join=" · " data-kb-case="upper">A · D</dt><dd>Steer (turn in air)</dd></div>
+            <div><dt data-kb="jump" data-kb-short data-kb-case="upper">SPACE</dt><dd>Jump, again to double jump</dd></div>
+            <div><dt><span data-kb="jump" data-kb-short data-kb-case="upper">SPACE</span> + DIR</dt><dd>Flip into the ball</dd></div>
+            <div><dt data-kb="boost" data-kb-sep=" · " data-kb-case="upper">SHIFT · L-CLICK</dt><dd>Boost</dd></div>
+            <div><dt data-kb="slide" data-kb-sep=" · " data-kb-case="upper">C · X</dt><dd>Drift; in the air, air roll with <span data-kb="left right" data-kb-short data-kb-join="/">A/D</span></dd></div>
+            <div><dt data-kb="rollLeft rollRight" data-kb-short data-kb-join=" · " data-kb-case="upper">Q · E</dt><dd>Air roll left · right</dd></div>
+            <div><dt data-kb="ballcam" data-kb-sep=" · " data-kb-case="upper">Y · M-CLICK</dt><dd>Ball cam on/off</dd></div>
+            <div><dt data-kb="chat1 chat2 chat3 chat4" data-kb-short data-kb-case="upper">1 – 4</dt><dd>Quick chat</dd></div>
+            <div><dt data-kb="board" data-kb-case="upper">TAB</dt><dd>Scoreboard</dd></div>
+            <div><dt data-kb="reset" data-kb-case="upper">R</dt><dd>Free play: reset ball</dd></div>
             <div><dt>ESC</dt><dd>Pause, switch team, invite</dd></div>
           </dl>
+          <button class="btn alt" id="keysMenu" type="button" style="margin-top:8px">Change keys</button>
           <p class="note" style="margin:6px 0 0">Gamepads work too: RT/LT drive, A jump, B boost, X powerslide, Y ball cam.</p>
         </details>
         <details>
@@ -305,6 +316,7 @@ body.free #scorebar .sc{display:none}
         <button class="btn" id="resume" type="button">Resume</button>
         <button class="btn alt" id="switchTeam" type="button" hidden>Switch team</button>
         <button class="btn alt" id="copyInvite" type="button" hidden>Copy invite link</button>
+        <button class="btn alt" id="keysPause" type="button">Controls</button>
         <button class="btn red" id="leave" type="button">Leave match</button>
       </div>
       <p class="msg" id="inviteMsg"></p>
@@ -327,6 +339,7 @@ body.free #scorebar .sc{display:none}
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../keybinds.js"></script>
 <script>
 (function(){
 'use strict';
@@ -1605,34 +1618,67 @@ function botThink(c,dt,now,ph){
 // =====================================================================
 //  Input
 // =====================================================================
-const keys={};let mouseL=false,mouseR=false,boardKey=false;
+// Keys and mouse buttons can be changed in the Controls panel (../keybinds.js); saved in this browser
+// as keybinds:boostball. Mouse buttons are kept in keys{} as Mouse0 (left), Mouse1 (middle), Mouse2 (right).
+const KB=Keybinds.create({
+  game:'boostball',
+  mouse:true,
+  actions:[
+    {id:'forward',label:'Drive',note:'Pitch nose down in the air',group:'Drive',keys:['KeyW','ArrowUp']},
+    {id:'back',label:'Reverse',note:'Pitch nose up in the air',group:'Drive',keys:['KeyS','ArrowDown']},
+    {id:'left',label:'Steer left',group:'Drive',keys:['KeyA','ArrowLeft']},
+    {id:'right',label:'Steer right',group:'Drive',keys:['KeyD','ArrowRight']},
+    {id:'jump',label:'Jump',note:'Again with a direction to flip',group:'Drive',keys:['Space','Mouse2']},
+    {id:'boost',label:'Boost',group:'Drive',keys:['ShiftLeft','Mouse0']},
+    {id:'slide',label:'Drift',note:'In the air: air roll while steering',group:'Drive',keys:['KeyC','KeyX']},
+    {id:'rollLeft',label:'Air roll left',group:'Drive',keys:['KeyQ']},
+    {id:'rollRight',label:'Air roll right',group:'Drive',keys:['KeyE']},
+    {id:'ballcam',label:'Ball cam on/off',group:'Match',keys:['KeyY','Mouse1']},
+    {id:'board',label:'Scoreboard',note:'Hold',group:'Match',keys:['Tab']},
+    {id:'chat1',label:'Quick chat 1',group:'Match',keys:['Digit1']},
+    {id:'chat2',label:'Quick chat 2',group:'Match',keys:['Digit2']},
+    {id:'chat3',label:'Quick chat 3',group:'Match',keys:['Digit3']},
+    {id:'chat4',label:'Quick chat 4',group:'Match',keys:['Digit4']},
+    {id:'reset',label:'Free play: reset ball',group:'Match',keys:['KeyR']},
+    {id:'pause',label:'Pause, switch team, invite',group:'Match',keys:['Escape'],fixed:true}
+  ],
+  classes:{button:'btn alt',primary:'btn'}
+});
+const keys={};let boardKey=false;
 const touchIn={x:0,y:0,jump:false,boost:false,slide:false,active:false};
 let padPrev={};
 function typing(e){const t=e.target;return t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA')}
+// one-shot actions, from a key or a mouse button
+function pressAction(c){
+  if(KB.is('ballcam',c))toggleBallCam();
+  if(KB.is('reset',c)&&mode==='free')freeReset();
+  for(let i=0;i<4;i++)if(KB.is('chat'+(i+1),c))quickChat(i);
+}
 addEventListener('keydown',e=>{
   if(typing(e))return;
-  if(e.code==='Tab'&&state==='playing'){e.preventDefault();boardKey=true;return}
+  const c=e.code;
+  if(KB.is('board',c)&&state==='playing'){e.preventDefault();boardKey=true;return}
   if(state!=='playing')return;
-  if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();
-  if(e.repeat){keys[e.code]=true;return}
-  keys[e.code]=true;
+  if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(c)||KB.actionsFor(c).length)e.preventDefault();
+  if(e.repeat){keys[c]=true;return}
+  keys[c]=true;
   initAudio();
-  if(e.code==='Escape'){paused?resumeGame():showPause();return}
-  if(e.code==='KeyY')toggleBallCam();
-  if(e.code==='KeyR'&&mode==='free')freeReset();
-  if(/^Digit[1-4]$/.test(e.code))quickChat(+e.code.slice(5)-1);
+  if(c==='Escape'){paused?resumeGame():showPause();return}
+  pressAction(c);
 });
-addEventListener('keyup',e=>{keys[e.code]=false;if(e.code==='Tab')boardKey=false});
-addEventListener('blur',()=>{for(const k in keys)keys[k]=false;mouseL=mouseR=false;boardKey=false});
-canvas.addEventListener('mousedown',e=>{if(state!=='playing')return;initAudio();if(e.button===0)mouseL=true;if(e.button===2)mouseR=true;if(e.button===1){e.preventDefault();toggleBallCam()}});
-addEventListener('mouseup',e=>{if(e.button===0)mouseL=false;if(e.button===2)mouseR=false});
+addEventListener('keyup',e=>{keys[e.code]=false;if(KB.is('board',e.code))boardKey=false});
+addEventListener('blur',()=>{for(const k in keys)keys[k]=false;boardKey=false});
+canvas.addEventListener('mousedown',e=>{if(state!=='playing')return;initAudio();const c='Mouse'+e.button;if(e.button===1)e.preventDefault();keys[c]=true;if(KB.is('board',c))boardKey=true;pressAction(c)});
+addEventListener('mouseup',e=>{const c='Mouse'+e.button;keys[c]=false;if(KB.is('board',c))boardKey=false});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
+$('keysMenu').addEventListener('click',()=>KB.open());
+$('keysPause').addEventListener('click',()=>KB.open());
 function readInput(inp){
-  const k=keys;
-  let thr=(k.KeyW||k.ArrowUp?1:0)-(k.KeyS||k.ArrowDown?1:0);
-  let steer=(k.KeyD||k.ArrowRight?1:0)-(k.KeyA||k.ArrowLeft?1:0);
-  let pitch=thr,roll=(k.KeyE?1:0)-(k.KeyQ?1:0);
-  let jump=!!(k.Space||mouseR),boost=!!(k.ShiftLeft||k.ShiftRight||mouseL),slide=!!(k.KeyC||k.KeyX);
+  const k=keys,h=id=>KB.held(id,k);
+  let thr=(h('forward')?1:0)-(h('back')?1:0);
+  let steer=(h('right')?1:0)-(h('left')?1:0);
+  let pitch=thr,roll=(h('rollRight')?1:0)-(h('rollLeft')?1:0);
+  let jump=h('jump'),boost=h('boost'),slide=h('slide');
   const pads=navigator.getGamepads?navigator.getGamepads():[];
   for(const gp of pads){
     if(!gp||!gp.connected)continue;
@@ -1784,7 +1830,7 @@ function updateHud(dt,now){
     const arc=$('boostArc');const off=(235.6*(1-me.boost/100)).toFixed(1);if(hudCache.arc!==off){hudCache.arc=off;arc.setAttribute('stroke-dashoffset',off)}
     const kmh=Math.round(me.vel.length()*3.6);setT('speed',kmh+' KM/H');$('speed').classList.toggle('ss',me.vel.length()>=SUPER);
   }
-  $('camTag').classList.toggle('on',ballCam);setT('camTag',ballCam?'BALL CAM · Y':'CAR CAM · Y');
+  $('camTag').classList.toggle('on',ballCam);setT('camTag',(ballCam?'BALL CAM · ':'CAR CAM · ')+KB.short('ballcam').toUpperCase());
   if(bannerT>0){bannerT-=dt;if(bannerT<=0)$('banner').style.opacity=0}
   if(flashT>0){flashT-=dt;if(flashT<=0){$('flash').style.transition='opacity .6s';$('flash').style.opacity=0}}
   if(hintT>0){hintT-=dt;if(hintT<=0)$('hint').style.opacity=0}
@@ -2178,8 +2224,8 @@ function startLocal(m){
   $('scorebar').hidden=false;$('waitNote').hidden=true;
   document.body.classList.toggle('free',m==='free');
   const tch=touchIn.active;
-  setHint(m==='free'?(tch?'Boost is unlimited in free play · <b>CAM</b> switches ball cam':'<b>R</b> resets the ball · <b>Y</b> ball cam · <b>Esc</b> menu · Boost is unlimited in free play')
-    :(tch?'Push the stick up to drive · <b>JUMP</b> twice with the stick tilted to flip · hold <b>BOOST</b> · hold <b>DRIFT</b> and steer':'<b>W/S</b> drive · <b>Space</b> jump, again with a direction to flip · <b>Shift</b> boost · hold <b>C</b> and steer to drift · <b>Y</b> ball cam'),7);
+  setHint(m==='free'?(tch?'Boost is unlimited in free play · <b>CAM</b> switches ball cam':'<b>'+KB.short('reset')+'</b> resets the ball · <b>'+KB.short('ballcam')+'</b> ball cam · <b>Esc</b> menu · Boost is unlimited in free play')
+    :(tch?'Push the stick up to drive · <b>JUMP</b> twice with the stick tilted to flip · hold <b>BOOST</b> · hold <b>DRIFT</b> and steer':'<b>'+KB.short('forward')+'/'+KB.short('back')+'</b> drive · <b>'+KB.short('jump')+'</b> jump, again with a direction to flip · <b>'+KB.short('boost')+'</b> boost · hold <b>'+KB.short('slide')+'</b> and steer to drift · <b>'+KB.short('ballcam')+'</b> ball cam'),7);
 }
 function setupAttract(){
   document.body.classList.remove('free');Net.leave();clearCars(false);mode='attract';state='menu';paused=false;R=null;me=null;
@@ -2227,7 +2273,7 @@ function showPause(){
   if(state!=='playing')return;
   if(!paused)pauseAt=nowMs();
   paused=true;$('pause').hidden=false;
-  for(const k in keys)keys[k]=false;mouseL=mouseR=false;
+  for(const k in keys)keys[k]=false;
   const on=mode==='online';
   $('pauseSub').textContent=on?(Net.isPublic?'Public lobby · the match keeps going':'Room '+Net.room.replace(/^bb-/,'')+' · the match keeps going'):mode==='free'?'Free play':'Practice vs '+DIFF[practiceDiff].name+' bots · '+teamSize+'v'+teamSize;
   $('copyInvite').hidden=!on||Net.isPublic;
