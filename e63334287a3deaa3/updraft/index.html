@@ -402,7 +402,7 @@ let NID=0;
 function mk(o){
   const c={id:NID++,t:o.t==='cyl'?1:0,x:o.x,z:o.z,y1:o.top,y0:o.ground?0:o.top-(o.h==null?.5:o.h),hx:(o.w||1)/2,hz:(o.d||1)/2,r:o.r||0,
     yaw:o.yaw||0,sl:o.sl||0,surf:o.surf||'stone',kind:o.kind||'',v:o.v||'plain',col:o.col||'#9a9a9a',tv:o.tv||'',tc:o.tc||'',
-    path:-1,dyn:o.dyn||null,zone:0,gone:false,touchT:-1,deco:!!o.deco,cue:!!o.cue,strut:!!o.strut,extra:o.extra||null};
+    path:-1,dyn:o.dyn||null,zone:0,gone:false,touchT:-1,deco:!!o.deco,strut:!!o.strut,extra:o.extra||null};
   c.cs=Math.cos(c.yaw);c.sn=Math.sin(c.yaw);
   if(c.dyn){c.bx=c.x;c.bz=c.z;c.by=c.y1;c.byaw=c.yaw;c.px=c.x;c.pz=c.z;c.py=c.y1;c.pyaw=c.yaw}
   return c;
@@ -1136,6 +1136,20 @@ function build(seed){
     const s=put({t:'cyl',x:0,z:0,top:SUMMIT,h:1.4,r:7.6,v:'summit',col:'#f5f0ff',surf:'stone'});s.summit=1;s.big=1;
     signs.push({x:0,y:SUMMIT,z:-3.5,yaw:0,text:'The Top',sub:'1000 m'});
   }
+  // Steep slabs under parts of the route (tilted books, sheets of ice): fall onto one and you slide off.
+  {
+    const Wt=World({cols,fans}),q=[],sr=mulberry(123);
+    const clear=(x,z,y0,y1,r)=>{Wt.query(x-r-1,y0,z-r-1,x+r+1,y1,z+r+1,q);for(const c of q)if(footHit(c,x,z,r+1)&&c.y1>y0&&c.y0<y1)return false;return true};
+    for(const [z,n,v,col] of [[1,9,'book',null],[3,7,'ice','#cfeaff']]){
+      let made=0;
+      for(let k=0;k<400&&made<n;k++){
+        const A=path[Math.floor(sr()*path.length)];if(zoneAt(A.y1)!==z||A.dyn)continue;
+        const a=sr()*Math.PI*2,dd=3+sr()*3,x=A.x+Math.sin(a)*dd,zz=A.z+Math.cos(a)*dd,top=A.y1-7-sr()*6;
+        if(!clear(x,zz,top-4,top+9,3.2))continue;
+        add({t:'box',x,z:zz,top,h:.5,w:3.2,d:4.4,yaw:sr()*Math.PI*2,sl:1.15+sr()*.4,v,col:col||BOOKS[Math.floor(sr()*BOOKS.length)],surf:v==='ice'?'ice':'paper',deco:true});made++;
+      }
+    }
+  }
   // Far scenery: things floating well away from the route, drawn only (no collision).
   {
     const kinds=[null,['fbook','fbook','fpencil','fball','fmug','fclock'],['fisle','fisle','fisle','fcloud'],['fballoon','fsat','fcrystal','fballoon'],['frock','frock','frock','fcrystal']];
@@ -1673,7 +1687,7 @@ function drawCollider(c,get,local){
     case 'lattice':case 'jib':box({top:'lattice',side:'lattice'},col,1.1);if(v==='jib')box({top:'metal',side:'metal'},shade(col,.8),1);break;
     case 'cradle':case 'cage':box({top:'grate',side:'stripes'},col,1);break;
     case 'antenna':cylinder('metal',col,10,1,8);break;
-    case 'book':box({top:'plain',side:'pages'},'#ffffff',Math.min(c.hz*2,1),col);{ // cover top and bottom, spine
+    case 'book':box({top:'plain',side:'pages'},'#ffffff',Math.min(c.hz*2,1),col);if(!c.sl){ // cover top and bottom, spine
       const sp=local?[0,0]:[c.x,c.z],m=M(X+Math.cos(yaw)*(-c.hx),Y-h/2,Z-Math.sin(yaw)*(-c.hx),yaw,.08,h+.04,c.hz*2+.04);addGeo(get('plain'),GEO.box,m,col);
       addGeo(get('plain'),GEO.box,M(X,Y-h-.01,Z,yaw,c.hx*2+.04,.04,c.hz*2+.04),shade(col,.85))}break;
     case 'pencil':{const len=c.hz*2,w=c.hx;const ang=Math.atan(c.sl);
@@ -1750,7 +1764,6 @@ function matFor(key){
 const chunkMeshes=[];
 const liveIds=new Set(course.cols.map(c=>c.id));
 function buildWorld(){
-  const t0=performance.now();
   for(const c of course.cols){
     if(c.dyn||c.kind==='fragile'){
       const map=new Map(),get=k=>{let b=map.get(k);if(!b)map.set(k,b=Bucket());return b};
@@ -1779,7 +1792,6 @@ function buildWorld(){
   for(const [k,B] of chunks){const ch=+k.split('|')[1];let m=per.get(ch);if(!m)per.set(ch,m=new Map());m.set(k,B)}
   for(const [ch,map] of per){const g=new THREE.Group();bucketsToMesh(map,g);scene.add(g);const box=new THREE.Box3().setFromObject(g);chunkMeshes.push({g,box,ch})}
   chunks.clear();
-  if(TEST)console.log('world built in',Math.round(performance.now()-t0),'ms');
 }
 function toW(c,lx,lz){return U.toWorld(c,lx,lz)}
 function drawStrut(c){
