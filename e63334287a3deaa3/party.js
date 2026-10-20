@@ -54,7 +54,8 @@
     { k: 'sd', n: 'Showdown', d: 'showdown', max: 8, nk: 'sd:name' },
     { k: 'br', n: 'Backrooms 1v1–4v4', d: 'backrooms-1v1', max: 8, nk: 'br1v1-name' },
     { k: 'cf', n: 'Chromaflage', d: 'chromaflage', max: 8, nk: 'chroma-name' },
-    { k: 'tw', n: 'Spire', d: 'spire', max: 12, nk: 'spire:name' }
+    { k: 'tw', n: 'Spire', d: 'spire', max: 12, nk: 'spire:name' },
+    { k: 'up', n: 'Updraft', d: 'updraft', max: 12, nk: 'updraft:name' }
   ];
   var COLORS = ['#1D6A4B', '#C0562F', '#3E5BA9', '#9A3F8F', '#B07A12', '#2A8A8A', '#B42318', '#5B6B2E'];
 
