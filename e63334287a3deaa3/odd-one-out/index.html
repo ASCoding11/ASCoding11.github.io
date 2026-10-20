@@ -1957,9 +1957,11 @@ const _o=new V3(),_d=new V3();
 function camRay(spread){
   camera.getWorldPosition(_o);camera.getWorldDirection(_d);
   if(spread){_d.x+=rand(-spread,spread);_d.y+=rand(-spread,spread);_d.z+=rand(-spread,spread);_d.normalize()}
-  // start the ray level with your own body, so things between the camera and you don't count
-  const t=me?me.root.position.clone().sub(_o).dot(_d):0;
-  return{o:_o.clone().addScaledVector(_d,Math.max(0,t-.6)),d:_d.clone()};
+  // start the ray level with your own body, so things between the camera and you don't count; but never past a wall
+  // or fixed furniture the view line meets first (looking down beside a wall, that point can be behind the wall)
+  let t=me?me.root.position.clone().sub(_o).dot(_d)-.6:0;
+  if(t>0){const w=rayWorld(_o,_d,t,{props:false,ents:false});if(w)t=w.t-.02}
+  return{o:_o.clone().addScaledVector(_d,Math.max(0,t)),d:_d.clone()};
 }
 function findTarget(){
   G.target=null;if(!me||!me.alive||!isProp()||G.paused||!MAP)return;
