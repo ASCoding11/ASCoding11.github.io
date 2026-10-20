@@ -1151,7 +1151,9 @@ const store={get(k,d){try{const v=localStorage.getItem('spire:'+k);return v===nu
 const COLORS=['#ff5e6c','#ff9f1c','#ffcf3d','#2fd39a','#2ec4b6','#4c8dff','#7c5cff','#f15bb5','#ffffff','#2b2d42'];
 let myName=cleanName(store.get('name',''));
 let myColor=COLORS.indexOf(store.get('color',''))>=0?store.get('color',''):pick(COLORS);
-let sens=clamp(+store.get('sens',1)||1,.3,2.5),volume=clamp(+store.get('vol',.7)||0,0,1),musVol=clamp(+store.get('mus',.4)||0,0,1); // (NaN would silence all sound)
+// a saved number, or the default if what's saved isn't one (a NaN volume would silence all sound)
+const savedNum=(k,d,a,b)=>{const v=+store.get(k,d);return isFinite(v)?clamp(v,a,b):d};
+let sens=savedNum('sens',1,.3,2.5),volume=savedNum('vol',.7,0,1),musVol=savedNum('mus',.4,0,1);
 let touchUI=matchMedia('(pointer: coarse)').matches&&!matchMedia('(any-pointer: fine)').matches;
 let gfx=store.get('gfx',touchUI?'low':'high');
 const profile=Object.assign({coins:0,xp:0,towers:0,deaths:0,best:{},obbyBest:0,obbyCp:0,prac:{}},store.get('profile',{}));
@@ -1493,7 +1495,7 @@ function placeBlob(av,x,y,z,rt){
 // =====================================================================
 const G={mode:'menu',W:null,t:0,tBase:0,paused:false,me:null,av:null,startT:0,deaths:0,finished:false,cp:0,spec:null,
   rs:null,lastRS:null,roundId:-1,worldKey:'',host:false,he:0,maxHe:0,hostUid:null,joinedAt:0,myFinMs:null,finRound:-1,awarded:-1,
-  jumpQ:false,shiftLock:!!store.get('slock',false),zoom:clamp(+store.get('zoom',11)||11,2.5,24),camYaw:0,camPitch:.38,camDist:11,
+  jumpQ:false,shiftLock:!!store.get('slock',false),zoom:savedNum('zoom',11,2.5,24),camYaw:0,camPitch:.38,camDist:11,
   hostSet:Object.assign({len:8,n:8,ez:0},store.get('hostSet',{})),respawnAt:0,auto:null,attract:null,pracId:'',pracD:+store.get('pracD',.5),
   lastStage:0,countLast:99,noRender:false,stageT:0,lastCpT:0};
 G.hostSet.len=[2,4,6,8].indexOf(+G.hostSet.len)>=0?+G.hostSet.len:8;G.hostSet.n=[6,7,8].indexOf(+G.hostSet.n)>=0?+G.hostSet.n:8;G.hostSet.ez=G.hostSet.ez?1:0;
