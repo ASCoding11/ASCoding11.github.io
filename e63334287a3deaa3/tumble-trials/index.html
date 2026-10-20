@@ -853,6 +853,8 @@ function stepBody(b,inp,dt,opt){
   // contacts can slow a body or carry it along, never fling it faster than what touched it
   const hv=Math.hypot(b.vel.x,b.vel.z),cap=Math.max(hv0,b.cvMax*1.25+1.5);
   if(hv>cap){b.vel.x*=cap/hv;b.vel.z*=cap/hv}
+  // still buried in something after the solver: count it up, and after a moment lift the body clear
+  if(b.deep){b.crushT+=dt;if(b.crushT>.7){b.pos.y+=1.3;b.vel.set(0,2,0);b.crushT=0}}else b.crushT=Math.max(0,b.crushT-dt);
   // squeezed between two moving things pushing opposite ways: pop up and out
   if(b.pinch&&b.st!=='tumble'){b.vel.y=Math.max(b.vel.y,6);b.onGround=false;tumble(b,6)}
   // stay glued to the floor going down slopes and off the top of moving platforms
@@ -867,7 +869,7 @@ function stepBody(b,inp,dt,opt){
   }else b.airT+=dt;
 }
 function resolve(b,dt){
-  const cnt=spheres(b);
+  const cnt=spheres(b);b.deep=0;
   for(let it=0;it<3;it++){
     let any=false;
     const cs=nearCols(b.pos.x,b.pos.z,1.4);
@@ -876,7 +878,7 @@ function resolve(b,dt){
       for(let s=0;s<cnt;s++){
         const o=_s[s],cx=b.pos.x+o[0],cy=b.pos.y+o[1],cz=b.pos.z+o[2];
         let d=sphereHit(c,cx,cy,cz,RAD,_n);if(d<=1e-5)continue;
-        any=true;
+        any=true;if(it===2&&d>.12)b.deep=1;
         // a little slope is still floor; a wall is a wall
         let nx=_n.x,ny=_n.y,nz=_n.z;
         _p.set(cx-nx*RAD,cy-ny*RAD,cz-nz*RAD);colVel(c,_p,dt,_v);
@@ -1841,7 +1843,7 @@ function enterPhase(rs){
     if(isMe)me=e;
     if(e.bot&&e.local){G.botRep.set(id,{k:rs.id+':'+rs.rn,fin:null,out:null})}
   });
-  if(!me||!rs.pl.some(i=>idOf(rs,i)===myIdNow)){me=null}
+  if(!me||!rs.pl.some(i=>idOf(rs,i)===myIdNow)){me=null;if(G.mode==='online'&&!rs.ro.includes(myIdNow))feed('<span class="hl">Show in progress.</span> You\'ll play in the next one')}
   if(G.mode==='online')Net.upd({fin:'',out:'',tt:'',gr:'',k:rs.id+':'+rs.rn});
   G.introKey=rsKey(rs);camYaw=L.yaw===Math.PI?0:camYaw;
   if(me)camYaw=me.b.yaw+Math.PI;
