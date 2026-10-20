@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Backrooms 1v1</title>
+<title>Backrooms 1v1–4v4</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -22,6 +22,8 @@
   --hp:#93d66c;
   --sh:#63b8ff;
   --rec:#ff4a3d;
+  --red:#ff6b5b;
+  --blue:#62b0ff;
   --f-osd:'VT323',ui-monospace,'Courier New',monospace;
   --f-hud:'Saira Condensed','Arial Narrow',system-ui,sans-serif;
   color-scheme:dark;
@@ -46,6 +48,7 @@ button:disabled{opacity:.5;cursor:default}
 @keyframes blink{50%{opacity:0}}
 
 #hud{position:absolute;inset:0;pointer-events:none}
+#hud.spec #vitals,#hud.spec #slots,#hud.spec #cross,#hud.spec #reload,#hud.spec #hint,#hud.spec #scope{display:none}
 #score{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:14px;background:var(--panel);padding:6px 16px;border:1px solid var(--line)}
 #score .who{font-size:14px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-dim);font-weight:600;max-width:12ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #score .n{font-size:34px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
@@ -54,7 +57,11 @@ button:disabled{opacity:.5;cursor:default}
 #score .mid{display:flex;flex-direction:column;align-items:center;font-size:12px;letter-spacing:.16em;color:var(--ink-dim);text-transform:uppercase}
 #score .mid b{font-family:var(--f-osd);font-size:20px;font-weight:400;color:var(--ink);letter-spacing:.06em}
 #score .side{display:flex;align-items:baseline;gap:8px}
-#net{position:absolute;top:calc(64px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);font-family:var(--f-osd);font-size:18px;color:var(--ink-dim);letter-spacing:.06em;white-space:nowrap}
+#pips{position:absolute;top:calc(60px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);display:flex;gap:18px;font-size:13px;letter-spacing:.2em;white-space:nowrap;text-shadow:0 1px 2px #000}
+#pips .r{color:var(--red)} #pips .b{color:var(--blue)} #pips i{font-style:normal;opacity:.3}
+#score.tmode .you .n,#score.tmode .you .who{color:var(--red)}
+#score.tmode .them .n,#score.tmode .them .who{color:var(--blue)}
+#net{position:absolute;top:calc(82px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);font-family:var(--f-osd);font-size:18px;color:var(--ink-dim);letter-spacing:.06em;white-space:nowrap}
 #feed{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));right:16px;display:flex;flex-direction:column;align-items:flex-end;gap:4px;font-size:15px;font-weight:600}
 #feed div{background:var(--panel);padding:3px 10px;transition:opacity .6s}
 #feed .you{color:var(--sh)} #feed .them{color:var(--rec)} #feed .info{color:var(--ink)}
@@ -91,7 +98,9 @@ button:disabled{opacity:.5;cursor:default}
 #scope::before{left:0;right:0;top:50%;height:1px}
 #scope::after{top:0;bottom:0;left:50%;width:1px}
 #hurt{position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 45%,rgba(190,20,10,.75) 100%);opacity:0}
-#tag{position:absolute;left:0;top:0;font-weight:700;font-size:15px;letter-spacing:.06em;color:#ffb3a8;text-shadow:0 1px 2px #000;white-space:nowrap;pointer-events:none}
+#tags{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.ntag{position:absolute;left:0;top:0;font-weight:700;font-size:15px;letter-spacing:.06em;color:#ffb3a8;text-shadow:0 1px 2px #000;white-space:nowrap;pointer-events:none}
+#feed .r{color:var(--red)} #feed .b{color:var(--blue)}
 
 #banner{position:absolute;left:0;right:0;top:30%;text-align:center;pointer-events:none;padding-inline:16px}
 #banner .big{font-family:var(--f-osd);font-size:clamp(44px,8vw,88px);line-height:.95;letter-spacing:.04em;text-shadow:2px 0 rgba(255,60,60,.6),-2px 0 rgba(60,200,255,.5)}
@@ -147,6 +156,24 @@ details.ctrl[open] .keys{margin-top:10px}
 .center{justify-content:center;background:rgba(18,15,6,.8)}
 .result-score{font-size:56px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
 .result-score .y{color:var(--sh)} .result-score .t{color:var(--rec)}
+.result-score.tmode .y{color:var(--red)} .result-score.tmode .t{color:var(--blue)}
+.teams{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.team{border:1px solid var(--line);background:rgba(0,0,0,.3);padding:10px 12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.team.r{border-top:3px solid var(--red)} .team.b{border-top:3px solid var(--blue)}
+.team .th{display:flex;justify-content:space-between;align-items:baseline;font-size:20px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+.team.r .th{color:var(--red)} .team.b .th{color:var(--blue)}
+.team .th span:last-child{font-family:var(--f-osd);font-weight:400;font-size:20px;color:var(--ink-dim)}
+.team ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;min-height:56px}
+.team li{font-size:16px;font-weight:600;display:flex;gap:6px;align-items:baseline;min-width:0}
+.team li .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.team li .tg{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-dim);flex:none}
+.team li.out{opacity:.45;text-decoration:line-through}
+.team li.empty{color:var(--ink-dim);font-weight:500;font-style:italic}
+.team .ghost-btn{padding:7px 12px;font-size:15px}
+.team .ghost-btn:disabled{opacity:1;border-color:transparent;color:var(--ink-dim);cursor:default}
+.wait{font-size:15px;color:var(--ink-dim);margin:0}
+.endteams{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;max-width:440px}
+.endteams .team li .k{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--ink-dim);flex:none}
 .adbox{display:flex;flex-direction:column;align-items:flex-start;gap:4px}
 .adbox .ad-lbl{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-dim)}
 .adbox ins{display:inline-block;width:320px;max-width:100%;height:100px}
@@ -162,6 +189,9 @@ details.ctrl[open] .keys{margin-top:10px}
 }
 @media (max-width:560px){
   .keys{grid-template-columns:1fr}
+  .team{padding:8px}
+  .team .th{font-size:17px}
+  .team li{font-size:15px}
   #score{gap:8px;padding:4px 10px} #score .n{font-size:26px} #score .who{display:none}
   .osd{font-size:20px}
   .slot{width:52px;height:50px}
@@ -181,6 +211,12 @@ body.touch #touch{display:block}
 #tAim{right:calc(126px + env(safe-area-inset-right,0px));bottom:calc(88px + env(safe-area-inset-bottom,0px))}
 #tReload{right:calc(52px + env(safe-area-inset-right,0px));bottom:calc(138px + env(safe-area-inset-bottom,0px))}
 #tPause{left:calc(10px + env(safe-area-inset-left,0px));top:calc(10px + env(safe-area-inset-top,0px));width:42px;height:42px;font-size:13px}
+/* Out of the round (or watching a match): only look, pause and Next (watch the next player) stay. */
+#tNext{right:calc(28px + env(safe-area-inset-right,0px));bottom:calc(40px + env(safe-area-inset-bottom,0px));width:104px;height:56px;border-radius:28px;font-size:15px}
+#hud.spec #tStick,#hud.spec #tFire,#hud.spec #tJump,#hud.spec #tAim,#hud.spec #tReload{display:none}
+/* With the lobby panel open over a match in progress, the match HUD and banners step aside so they don't overlap it on a small screen. */
+body.touch.inlobby #hud,body.touch.inlobby #banner,body.touch.inlobby #dmg{visibility:hidden}
+body.touch.inlobby #touch{display:none}
 body.touch #vitals{left:calc(60px + env(safe-area-inset-left,0px));bottom:auto;top:calc(12px + env(safe-area-inset-top,0px));width:130px;gap:3px}
 body.touch .bar .num{font-size:15px;width:30px}
 body.touch .bar .track{height:9px}
@@ -194,13 +230,15 @@ body.touch .osd{display:none}
 body.touch #feed{top:calc(64px + env(safe-area-inset-top,0px))}
 body.touch #hint{bottom:auto;top:calc(110px + env(safe-area-inset-top,0px));font-size:12px}
 body.touch #score{left:calc(200px + env(safe-area-inset-left,0px));transform:scale(.8);transform-origin:left top}
-body.touch #net{left:calc(200px + env(safe-area-inset-left,0px));transform:none}
+body.touch #net{left:calc(200px + env(safe-area-inset-left,0px));transform:none;white-space:normal;width:max-content;max-width:calc(100vw - 220px);text-align:left}
+body.touch #pips{left:calc(200px + env(safe-area-inset-left,0px));transform:none;top:calc(56px + env(safe-area-inset-top,0px))}
 @media (orientation:portrait){
-  body.touch #slots{right:50%;transform:translateX(50%);top:calc(112px + env(safe-area-inset-top,0px))}
+  body.touch #slots{right:50%;transform:translateX(50%);top:calc(120px + env(safe-area-inset-top,0px))}
   body.touch #score{left:50%;transform:translateX(-50%) scale(.8);transform-origin:center top;top:calc(58px + env(safe-area-inset-top,0px))}
-  body.touch #net{left:50%;transform:translateX(-50%);top:calc(166px + env(safe-area-inset-top,0px))}
-  body.touch #feed{top:calc(166px + env(safe-area-inset-top,0px))}
-  body.touch #hint{top:calc(200px + env(safe-area-inset-top,0px))}
+  body.touch #pips{left:50%;transform:translateX(-50%);top:calc(98px + env(safe-area-inset-top,0px))}
+  body.touch #net{left:50%;transform:translateX(-50%);top:calc(170px + env(safe-area-inset-top,0px));max-width:calc(100vw - 32px);text-align:center}
+  body.touch #hint{top:calc(198px + env(safe-area-inset-top,0px))}
+  body.touch #feed{top:calc(232px + env(safe-area-inset-top,0px))}
 }
 @media (prefers-reduced-motion:reduce){.blink{animation:none}#banner.show{animation:none}}
 </style>
@@ -215,12 +253,13 @@ body.touch #net{left:calc(200px + env(safe-area-inset-left,0px));transform:none}
   <div id="hud" hidden>
     <div id="score">
       <div class="side you"><span class="who" id="sYouLbl">You</span><span class="n" id="sYou">0</span></div>
-      <div class="mid"><b id="roundLbl">ROUND 1</b>first to 5</div>
+      <div class="mid"><b id="roundLbl">ROUND 1</b><span id="goalLbl">first to 5</span></div>
       <div class="side them"><span class="n" id="sBot">0</span><span class="who" id="sBotLbl">Entity</span></div>
     </div>
+    <div id="pips" hidden><span class="r" id="pipR"></span><span class="b" id="pipB"></span></div>
     <div id="net" hidden></div>
     <div id="feed"></div>
-    <div id="tag" hidden></div>
+    <div id="tags"></div>
     <div id="scope" hidden></div>
     <div id="hurt"></div>
     <div id="cross"><i class="h" id="cl"></i><i class="h" id="cr"></i><i class="v" id="ct"></i><i class="v" id="cb"></i><i class="dot"></i></div>
@@ -247,6 +286,7 @@ body.touch #net{left:calc(200px + env(safe-area-inset-left,0px));transform:none}
       <button class="tb" id="tAim" type="button">AIM</button>
       <button class="tb" id="tReload" type="button">RELOAD</button>
       <button class="tb" id="tPause" type="button" aria-label="Pause">❚❚</button>
+      <button class="tb" id="tNext" type="button" hidden>NEXT ▸</button>
     </div>
   </div>
   <div id="dmg"></div>
@@ -255,24 +295,24 @@ body.touch #net{left:calc(200px + env(safe-area-inset-left,0px));transform:none}
   <section id="menu" class="overlay menu">
     <div class="menu-inner">
       <div class="osd-line"><span class="rec">● REC</span><span>CAM 01</span><span>LEVEL 0</span></div>
-      <h1 class="title">BACKROOMS<br><span>1v1</span></h1>
-      <p class="lede">Two people noclipped into Level 0. Build cover, take height, and eliminate the other one five times before they get you.</p>
+      <h1 class="title">BACKROOMS<br><span>1v1–4v4</span></h1>
+      <p class="lede">Up to eight people noclipped into Level 0, split into Red and Blue. Build cover, take height, and wipe out the other team before they get you.</p>
       <div class="field">
         <label class="label" for="name">Your name</label>
         <input class="text" id="name" maxlength="16" autocomplete="off" spellcheck="false" style="max-width:260px">
       </div>
 
       <div class="group">
-        <span class="label">Online 1v1</span>
+        <span class="label">Online</span>
         <div class="row">
           <button id="quick" class="cta" type="button">Quick match</button>
-          <span style="color:var(--ink-dim);font-size:15px">Face the next person who searches.</span>
+          <span style="color:var(--ink-dim);font-size:15px">A 1v1 against the next person who searches.</span>
         </div>
         <div class="row">
           <div class="prefix"><span>br-</span><input class="text" id="room" maxlength="17" autocomplete="off" spellcheck="false" aria-label="Room code"></div>
           <button id="joinRoom" class="ghost-btn" type="button">Play in room</button>
         </div>
-        <p class="msg" id="netMsg">Pick a room code and send a friend the invite link once you're in.</p>
+        <p class="msg" id="netMsg">Pick a room code and send friends the invite link: up to 8 players, 1v1 to 4v4.</p>
       </div>
 
       <div class="group">
@@ -304,11 +344,38 @@ body.touch #net{left:calc(200px + env(safe-area-inset-left,0px));transform:none}
             <div><dt>Q F C</dt><dd>Wall, floor, ramp</dd></div>
             <div><dt>R</dt><dd>Reload</dd></div>
             <div><dt>ESC</dt><dd>Menu and invite link</dd></div>
+            <div><dt>CLICK</dt><dd>When out: watch the next teammate</dd></div>
           </dl>
         </details>
       </div>
       <p id="touchNote" class="note" hidden>Playing on a phone? Turn it sideways for the best view. Tap the slots at the top to switch weapons or build.</p>
       <div class="adbox" id="adMenu" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
+    </div>
+  </section>
+
+  <section id="lobby" class="overlay menu" hidden>
+    <div class="menu-inner">
+      <div class="osd-line"><span class="rec">● LOBBY</span><span id="lbRoom"></span><span id="lbCount"></span></div>
+      <h2 class="title" style="font-size:clamp(48px,8vw,84px)">PICK A<br><span>SIDE</span></h2>
+      <p class="lede" id="lbStatus">Connecting to the room…</p>
+      <div class="teams">
+        <div class="team r"><div class="th"><span>Red</span><span id="lbRedN">0</span></div><ul id="lbRed"></ul><button class="ghost-btn" id="joinRed" type="button">Join Red</button></div>
+        <div class="team b"><div class="th"><span>Blue</span><span id="lbBlueN">0</span></div><ul id="lbBlue"></ul><button class="ghost-btn" id="joinBlue" type="button">Join Blue</button></div>
+      </div>
+      <p class="wait" id="lbWait" hidden></p>
+      <div class="group" id="lbHost" hidden>
+        <span class="label" id="toLbl">Host · rounds to win the match</span>
+        <div class="row">
+          <div class="seg" role="radiogroup" aria-labelledby="toLbl" id="toSeg">
+            <button type="button" role="radio" data-n="3">3</button>
+            <button type="button" role="radio" data-n="5">5</button>
+            <button type="button" role="radio" data-n="10">10</button>
+          </div>
+        </div>
+        <div class="row"><button class="cta" id="startMatch" type="button">Start match</button><button class="ghost-btn" id="randTeams" type="button">Randomize teams</button></div>
+      </div>
+      <div class="row"><button class="ghost-btn" id="lbWatch" type="button" hidden>Watch the match</button><button class="ghost-btn" id="lbInvite" type="button">Copy invite link</button><button class="ghost-btn" id="lbLeave" type="button">Leave room</button></div>
+      <p class="msg" id="lbMsg"></p>
     </div>
   </section>
 
@@ -327,6 +394,7 @@ body.touch #net{left:calc(200px + env(safe-area-inset-left,0px));transform:none}
       <h2 class="title" id="endTitle" style="font-size:clamp(48px,8vw,92px)">YOU GOT OUT</h2>
       <div class="result-score"><span class="y" id="eYou">5</span> <span style="color:var(--ink-dim)">–</span> <span class="t" id="eBot">0</span></div>
       <p class="lede" id="endMsg"></p>
+      <div class="endteams" id="endTeams" hidden></div>
       <div class="row"><button class="cta" id="again" type="button">Rematch</button><button class="ghost-btn" id="toMenu" type="button">Menu</button></div>
       <div class="adbox" id="adEnd" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
     </div>
@@ -361,12 +429,18 @@ const RAIL_SLOT='';
 
 const $=id=>document.getElementById(id);
 const V3=THREE.Vector3;
-const CELL=4,N=12,CEIL=12,W=N*CELL,FIRST_TO=5;
+const CELL=4,CEIL=12,FIRST_TO=5,MAX_ROOM=8,LIVE_MS=8000;
+// The maze is N x N cells of 4 m. Practice and small rooms use 12; bigger rooms get a bigger maze (see mapSizeFor).
+let N=12,W=N*CELL;
 const G=26,JUMP=9.4,SPEED=6.6,STEP=0.6,R=0.36,H=1.95;
 const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const DV=[[1,0],[0,1],[-1,0],[0,-1]];
 const DIR_YAW=[Math.PI/2,0,-Math.PI/2,Math.PI];
-const SPAWNS=[[1,1],[N-2,N-2]];
+// Teams: Red spawns along the west edge, Blue along the east edge (a 1v1 uses the two far corners, as before).
+const TEAM_NAME={r:'Red',b:'Blue'},TEAM_HEX={r:'#ff6b5b',b:'#62b0ff'};
+const mapSizeFor=n=>n<=4?12:n<=6?14:16;
+function teamCells(n,k,side){const out=[];for(let i=0;i<k;i++){const z=k===1?1:Math.round(1+i*(n-3)/(k-1));out.push(side?[n-2,n-1-z]:[1,z])}return out}
+const soloCell=slot=>slot?[N-2,N-2]:[1,1];
 const WEAPONS=[
   {id:'ar',name:'Rifle',dmg:22,head:1.5,rate:0.11,mag:30,reload:1.8,hip:0.022,ads:0.006,range:140,pellets:1,build:1,fov:50},
   {id:'sg',name:'Shotgun',dmg:11,head:1.5,rate:0.85,mag:5,reload:2.1,hip:0.075,ads:0.06,range:45,pellets:9,build:1.25,fov:62,falloff:true},
@@ -456,15 +530,23 @@ const panelOn=new THREE.MeshBasicMaterial({color:0xfffae6});
 const panelDead=new THREE.MeshBasicMaterial({color:0x6e6851});
 const SHARED=new Set([wallMat,pillarMat,panelOn,panelDead]);
 
-const floor=new THREE.Mesh(new THREE.PlaneGeometry(W,W),new THREE.MeshLambertMaterial({map:carpetTex}));
-floor.rotation.x=-Math.PI/2;floor.position.set(W/2,0,W/2);scene.add(floor);
-const ceil=new THREE.Mesh(new THREE.PlaneGeometry(W,W),new THREE.MeshLambertMaterial({map:ceilTex}));
-ceil.rotation.x=Math.PI/2;ceil.position.set(W/2,CEIL,W/2);scene.add(ceil);
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshLambertMaterial({map:carpetTex}));
+floor.rotation.x=-Math.PI/2;scene.add(floor);
+const ceil=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshLambertMaterial({map:ceilTex}));
+ceil.rotation.x=Math.PI/2;scene.add(ceil);
+function setMapSize(n){
+  N=n;W=N*CELL;carpetTex.repeat.set(N,N);ceilTex.repeat.set(N,N);
+  floor.scale.set(W,W,1);floor.position.set(W/2,0,W/2);ceil.scale.set(W,W,1);ceil.position.set(W/2,CEIL,W/2);
+}
+setMapSize(12);
 
-/* ---------- map (seeded, so both online players get the same rooms) ---------- */
+/* ---------- map (seeded, so every online player gets the same rooms) ---------- */
 let hWall=[],vWall=[],mapSolids=[],solids=[],ramps=[],flickers=[];
 const mapGroup=new THREE.Group();scene.add(mapGroup);
-function generateMap(seed){
+// n: maze size in cells; cells: spawn cells, each cleared to an open 3 x 3 area (defaults to the two 1v1 corners)
+function generateMap(seed,n,cells){
+  setMapSize(n||12);
+  cells=cells&&cells.length?cells:[soloCell(0),soloCell(1)];
   const rnd=mulberry(seed);
   clearPieces();
   while(mapGroup.children.length){const c=mapGroup.children.pop();if(c.dispose)c.dispose();if(c.material&&!SHARED.has(c.material))c.material.dispose()}
@@ -481,7 +563,7 @@ function generateMap(seed){
   }
   for(let z=1;z<N;z++)for(let x=0;x<N;x++)if(hWall[z][x]&&rnd()<.6)hWall[z][x]=false;
   for(let x=1;x<N;x++)for(let z=0;z<N;z++)if(vWall[x][z]&&rnd()<.6)vWall[x][z]=false;
-  for(const [sx,sz] of [[0,0],[N-3,N-3]])for(let x=sx;x<sx+3;x++)for(let z=sz;z<sz+3;z++){if(x<sx+2)vWall[x+1][z]=false;if(z<sz+2)hWall[z+1][x]=false}
+  for(const [cx,cz] of cells){const sx=clamp(cx-1,0,N-3),sz=clamp(cz-1,0,N-3);for(let x=sx;x<sx+3;x++)for(let z=sz;z<sz+3;z++){if(x<sx+2)vWall[x+1][z]=false;if(z<sz+2)hWall[z+1][x]=false}}
   mapSolids=[];
   const m=new THREE.Matrix4();
   const hList=[],vList=[];
@@ -554,7 +636,7 @@ function makePiece(s){
   pieceGroup.add(obj);pieces.set(pc.key,pc);
   return pc;
 }
-// owner: the entity that built it. Your own builds online are sent to the other player.
+// owner: the entity that built it. Your own builds online are sent to everyone else in the room.
 function tryBuild(s,owner){
   if(!specValid(s))return false;
   const pc=makePiece(s);
@@ -643,13 +725,14 @@ function rayRamp(o,d,r,maxT){
   return k;
 }
 function hitboxes(e){const p=e.pos;return[{head:true,min:[p.x-.28,p.y+1.5,p.z-.28],max:[p.x+.28,p.y+2.06,p.z+.28]},{head:false,min:[p.x-.42,p.y,p.z-.42],max:[p.x+.42,p.y+1.5,p.z+.42]}]}
-function raycast(o,d,maxT,ignore,withEnts){
+// skipTeam: shots pass through players on that team (online teammates), so friendly fire can't happen.
+function raycast(o,d,maxT,ignore,withEnts,skipTeam){
   let best=maxT,hit=null;
   for(const s of solids){const t=rayBox(o,d,s.min,s.max,best);if(t>=0&&t<best){best=t;hit=s.piece?{kind:'piece',piece:s.piece}:{kind:'map'}}}
   for(const r of ramps){const t=rayRamp(o,d,r,best);if(t>=0&&t<best){best=t;hit={kind:'piece',piece:r.piece}}}
   if(d[1]<0){const t=-o[1]/d[1];if(t<best){best=t;hit={kind:'map'}}}
   if(d[1]>0){const t=(CEIL-o[1])/d[1];if(t<best){best=t;hit={kind:'map'}}}
-  if(withEnts)for(const e of ents){if(e===ignore||!e.alive||!e.present)continue;for(const hb of hitboxes(e)){const t=rayBox(o,d,hb.min,hb.max,best);if(t>=0&&t<best){best=t;hit={kind:'ent',ent:e,head:hb.head}}}}
+  if(withEnts)for(const e of ents){if(e===ignore||!e.alive||!e.present||(skipTeam&&e.team===skipTeam))continue;for(const hb of hitboxes(e)){const t=rayBox(o,d,hb.min,hb.max,best);if(t>=0&&t<best){best=t;hit={kind:'ent',ent:e,head:hb.head}}}}
   return{t:best,hit};
 }
 
@@ -671,9 +754,12 @@ function makeSuit(suit,trim,visor){
   const aR=box(.17,.17,.62,ms);aR.position.set(.3,-.05,-.22);
   const gun=new THREE.Group();gun.position.set(.16,-.04,-.62);arms.add(aL,aR,gun);
   g.add(torso,belt,tank,head,arms);
-  g.userData={legs,arms,gun,head,gunId:-1};
+  g.userData={legs,arms,gun,head,gunId:-1,ms,mt,mv};
   return g;
 }
+// Suit colours: your practice suit, the Entity, and the two online teams.
+const SUITS={me:[0xe8e9e4,0x34536e,0x7fd3ff],entity:[0x1d1c19,0x3c3a33,0xff3b2e],r:[0xc8402f,0x5e1c14,0xffd2b8],b:[0x2f6ad6,0x15305f,0xbfe8ff]};
+function setSuit(model,key){const c=SUITS[key]||SUITS.me,u=model.userData;u.ms.color.setHex(c[0]);u.mt.color.setHex(c[1]);u.mv.color.setHex(c[2])}
 function setGun(model,wi){
   const u=model.userData;if(u.gunId===wi)return;u.gunId=wi;
   const gun=u.gun;while(gun.children.length){const c=gun.children[0];gun.remove(c);c.geometry.dispose()}
@@ -682,12 +768,14 @@ function setGun(model,wi){
   else{const b=box(.09,.12,1.18,gunMat);b.position.z=-.16;const s=box(.08,.08,.34,gunMat);s.position.set(0,.12,-.05);gun.add(b,s)}
 }
 function newEnt(model){return{pos:new V3(),vel:new V3(),onGround:false,hp:100,shield:50,alive:true,present:true,yaw:0,pitch:0,model,walk:0,wi:0,ammo:WEAPONS.map(w=>w.mag),cd:0,reloadT:0,switchT:0,dieT:0}}
-const player=newEnt(makeSuit(0xe8e9e4,0x34536e,0x7fd3ff));
-const opp=newEnt(makeSuit(0x1d1c19,0x3c3a33,0xff3b2e));
-const ents=[player,opp];
+const player=newEnt(makeSuit(...SUITS.me));
+const opp=newEnt(makeSuit(...SUITS.entity));   // the practice bot
+// ents: everything shots can hit. Practice: you and the Entity. Online: you and every remote player (remotes, by uid).
+let ents=[player,opp];
+const remotes=new Map();
 scene.add(player.model,opp.model);
 setGun(player.model,0);setGun(opp.model,0);
-Object.assign(opp,{seen:0,lastSeen:99,path:null,repath:0,strafeDir:1,strafeT:0,buildCd:0,hurt:false,rampT:0,rampDir:0,stuckClock:0,stuckPos:new V3(),breakT:0,switchCd:0,jumpCd:0,snaps:[],lastRecv:0,remoteWalk:new V3()});
+Object.assign(opp,{seen:0,lastSeen:99,path:null,repath:0,strafeDir:1,strafeT:0,buildCd:0,hurt:false,rampT:0,rampDir:0,stuckClock:0,stuckPos:new V3(),breakT:0,switchCd:0,jumpCd:0});
 
 /* ---------- effects ---------- */
 const fx=[];
@@ -741,106 +829,99 @@ function sfxCrackle(v){burst('highpass',2500,.08*v,.14)}
 function sfxJoin(){tone('triangle',440,660,.12,.18)}
 
 /* ---------- HUD ---------- */
-const hud={sYou:$('sYou'),sBot:$('sBot'),sBotLbl:$('sBotLbl'),round:$('roundLbl'),hpN:$('hpNum'),hpF:$('hpFill'),shN:$('shNum'),shF:$('shFill'),hint:$('hint'),reload:$('reload'),reloadF:$('reloadFill'),scope:$('scope'),hurt:$('hurt'),hitm:$('hitm'),clock:$('clock'),feed:$('feed'),banner:$('banner'),cl:$('cl'),cr:$('cr'),ct:$('ct'),cb:$('cb'),cross:$('cross'),tag:$('tag'),net:$('net')};
+const hud={root:$('hud'),sYou:$('sYou'),sBot:$('sBot'),sYouLbl:$('sYouLbl'),sBotLbl:$('sBotLbl'),round:$('roundLbl'),goal:$('goalLbl'),pips:$('pips'),pipR:$('pipR'),pipB:$('pipB'),hpN:$('hpNum'),hpF:$('hpFill'),shN:$('shNum'),shF:$('shFill'),hint:$('hint'),reload:$('reload'),reloadF:$('reloadFill'),scope:$('scope'),hurt:$('hurt'),hitm:$('hitm'),clock:$('clock'),feed:$('feed'),banner:$('banner'),cl:$('cl'),cr:$('cr'),ct:$('ct'),cb:$('cb'),cross:$('cross'),tags:$('tags'),net:$('net')};
 let hurtA=0,hitT=0;
 function hitmark(head){hitT=.14;hud.hitm.style.color=head?'#ffd84a':'#fff'}
 function feed(html,cls){const d=document.createElement('div');d.className=cls;d.innerHTML=html;hud.feed.prepend(d);while(hud.feed.children.length>5)hud.feed.lastChild.remove();setTimeout(()=>{d.style.opacity='0'},3800);setTimeout(()=>d.remove(),4500)}
 let bannerTimer=0;
 function banner(big,small,dur){hud.banner.innerHTML=`<div class="big">${esc(big)}</div>${small?`<div class="small">${esc(small)}</div>`:''}`;hud.banner.classList.remove('show');void hud.banner.offsetWidth;hud.banner.classList.add('show');hud.banner.hidden=false;bannerTimer=dur||1.6}
 function fmtClock(s){s=Math.floor(s);const h=Math.floor(s/3600),m=Math.floor(s/60)%60,x=s%60;return [h,m,x].map(n=>String(n).padStart(2,'0')).join(':')}
-function setScores(){hud.sYou.textContent=score.you;hud.sBot.textContent=score.opp;hud.round.textContent=phase==='waiting'?'WAITING':'ROUND '+roundNo()}
+// Practice: You vs the Entity. Online: Red vs Blue team scores.
+function setScores(){
+  $('score').classList.toggle('tmode',online);
+  if(online){
+    hud.sYouLbl.textContent='Red';hud.sBotLbl.textContent='Blue';
+    hud.sYou.textContent=RD?RD.sr|0:0;hud.sBot.textContent=RD?RD.sb|0:0;
+    hud.round.textContent=inPlay()?'ROUND '+Math.max(1,RD.rn|0):'LOBBY';hud.goal.textContent='first to '+matchTarget();
+  }else{
+    hud.sYouLbl.textContent='You';hud.sBotLbl.textContent=oppName;
+    hud.sYou.textContent=score.you;hud.sBot.textContent=score.opp;hud.round.textContent='ROUND '+roundNo();hud.goal.textContent='first to '+FIRST_TO;
+  }
+}
 
 /* ---------- game state ---------- */
-let state='menu',paused=false,online=false,phase='fight',phaseT=0,score={you:0,opp:0},matchTime=0,clockT=0,waitT=0;
+let state='menu',paused=false,online=false,phase='fight',phaseT=0,score={you:0,opp:0},matchTime=0,clockT=0;
 let oppName='Entity',mode='combat',buildType='wall',lmb=false,rmb=false,buildCd=0,camDist=3.5,locked=false,fallback=false,everLocked=false;
 const keys=new Set();
-const roundNo=()=>score.you+score.opp+1;
+// Online team play. RD is the room's round node as last seen (only the host writes it, see hostDuties).
+// curMatch / curRound: the match id and round number this browser has set up; roster: uid -> 'r' | 'b' for that match.
+let RD=null,curMatch=null,curRound=0,roster=new Map(),myTeamPref='r',myKills=0,lobbyShown=false,lobbyDirty=false,watchMode=false,specUid=null,lastRz='';
+const names=new Map(),kills=new Map();   // uid -> name / kills this match, kept for players who leave mid-match
+const roundNo=()=>online?curRound:score.you+score.opp+1;
+const matchTarget=()=>RD&&[3,5,10].includes(RD.to)?RD.to:5;
+const inPlay=()=>!!RD&&(RD.ph==='cd'||RD.ph==='fight'||RD.ph==='over');
+const myTeam=()=>online?roster.get(Net.uid)||null:null;
+// online and playing in the current match (alive or not)
+const activeOnline=()=>online&&inPlay()&&curMatch===RD.id&&roster.has(Net.uid);
 
-function spawn(e,slot){
-  const [cx,cz]=SPAWNS[slot];
+function spawn(e,cell){
+  const [cx,cz]=cell;
   e.pos.set(cx*4+2,0,cz*4+2);e.vel.set(0,0,0);e.hp=100;e.shield=50;e.alive=true;e.dieT=0;e.onGround=true;
   e.ammo=WEAPONS.map(w=>w.mag);e.cd=0;e.reloadT=0;e.switchT=0;
   e.yaw=yawTo(W/2-e.pos.x,W/2-e.pos.z);e.pitch=0;e.model.visible=e.present;
 }
-function mySlot(){return online&&Net.oppUid&&Net.uid>Net.oppUid?1:0}
+// Practice rounds (online rounds start in startOnlineRound)
 function newRound(){
   clearPieces();
-  const s=mySlot();
-  spawn(player,s);spawn(opp,1-s);opp.snaps.length=0;
+  spawn(player,soloCell(0));spawn(opp,soloCell(1));
   player.wi=0;setGun(player.model,0);opp.wi=0;setGun(opp.model,0);
   Object.assign(opp,{seen:0,lastSeen:99,path:null,repath:0,buildCd:0,hurt:false,rampT:0,breakT:0,switchCd:0});
   mode='combat';phase='countdown';phaseT=1.5;
   setScores();
-  banner('ROUND '+roundNo(),score.you+' – '+score.opp+(online?' · vs '+oppName:''),1.4);
+  banner('ROUND '+roundNo(),score.you+' – '+score.opp,1.4);
 }
 function resetScores(){score={you:0,opp:0};matchTime=0;hud.feed.innerHTML=''}
-function showHud(){state='playing';paused=false;$('osd').hidden=false;$('menu').hidden=true;$('end').hidden=true;$('pause').hidden=true;$('hud').hidden=false;hud.sBotLbl.textContent=oppName}
+function showHud(){state='playing';paused=false;$('osd').hidden=false;$('menu').hidden=true;$('end').hidden=true;$('pause').hidden=true;$('lobby').hidden=true;lobbyShown=false;$('hud').hidden=false;setScores()}
 
 function startPractice(){
   initAudio();Net.leave();online=false;oppName='Entity';
-  opp.present=true;
+  opp.present=true;player.present=true;player.team=undefined;setSuit(player.model,'me');
   generateMap(randSeed());resetScores();newRound();
   showHud();requestLock(true);
-}
-// Online: the room's seed decides the map; a match starts as soon as two people are in.
-function setWaiting(msg){
-  phase='waiting';waitT=0;clearPieces();
-  opp.present=false;opp.alive=false;opp.model.visible=false;
-  spawn(player,mySlot());
-  setScores();banner('WAITING',msg,3);
-}
-function maybeStart(){
-  if(!online||Net.matchId==null||!Net.oppUid||phase!=='waiting')return;
-  opp.present=true;opp.lastRecv=Date.now();
-  resetScores();newRound();sfxJoin();
-}
-function onMatch(v){
-  const first=Net.matchId==null;
-  Net.matchId=v.id;generateMap(v.seed>>>0);
-  setWaiting(Net.oppUid?'':'Press Esc for the invite link');
-  if(state==='end'){showHud();requestLock(false)}
-  maybeStart();
-  if(!first&&Net.oppUid)banner('REMATCH','Round 1 · vs '+oppName,1.6);
-}
-function onOppJoin(uid,name){
-  Net.oppUid=uid;oppName=name;hud.sBotLbl.textContent=name;
-  feed(esc(name)+' joined','info');
-  maybeStart();
-}
-function onOppLeft(){
-  if(!Net.oppUid)return;
-  const n=oppName;Net.oppUid=null;
-  feed(esc(n)+' left','info');
-  if(state==='end'){$('endMsg').textContent=n+' left the room.';$('again').disabled=true;return}
-  setWaiting(n+' left · waiting for someone new');
-  if(Net.quick)Net.requeueSoon();
 }
 
 function endMatch(){
   state='end';$('hud').hidden=true;hideGhosts();
   const won=score.you>score.opp;
   $('endTitle').textContent=won?'YOU GOT OUT':'NO EXIT';
-  $('eYou').textContent=score.you;$('eBot').textContent=score.opp;
+  $('eYou').textContent=score.you;$('eBot').textContent=score.opp;$('eYou').parentNode.classList.remove('tmode');$('endTeams').hidden=true;
   $('endClock').textContent=fmtClock(matchTime);
-  $('again').disabled=false;
-  if(online)$('endMsg').textContent=won?`You beat ${oppName} ${score.you}–${score.opp}. Either of you can start a rematch on a new map.`:`${oppName} took it ${score.opp}–${score.you}. Either of you can start a rematch on a new map.`;
-  else $('endMsg').textContent=won?`You eliminated the entity ${score.you} times on ${diffKey} difficulty. The hum is quieter now.`:`The entity took ${score.opp} rounds on ${diffKey} difficulty. Try building higher before you push.`;
+  $('again').textContent='Rematch';$('again').disabled=false;$('toMenu').textContent='Menu';
+  $('endMsg').textContent=won?`You eliminated the entity ${score.you} times on ${diffKey} difficulty. The hum is quieter now.`:`The entity took ${score.opp} rounds on ${diffKey} difficulty. Try building higher before you push.`;
   $('end').hidden=false;showAd('adEnd');
   if(document.pointerLockElement)document.exitPointerLock();
 }
-function pauseGame(){if(state!=='playing'||paused)return;paused=true;lmb=rmb=false;keys.clear();
+function pauseGame(){if(state!=='playing'||paused||lobbyShown)return;
+  // online and not playing this match (watching): Esc brings the lobby panel back instead
+  if(online&&!activeOnline()){watchMode=false;showLobby();return}
+  paused=true;lmb=rmb=false;keys.clear();
   $('pauseMsg').textContent=online?'The match keeps running while this menu is open.':'The fluorescent hum keeps going without you.';
   $('copyInvite').hidden=!(online&&!Net.quick);$('pauseRoom').textContent=online?Net.room:'LEVEL 0';$('inviteMsg').textContent='';
   $('pause').hidden=false}
 function resumeGame(fromClick){if(!paused)return;$('pause').hidden=true;paused=false;requestLock(fromClick)}
-function toMenu(){Net.leave();online=false;state='menu';$('osd').hidden=true;paused=false;$('pause').hidden=true;$('end').hidden=true;$('hud').hidden=true;$('menu').hidden=false;hideGhosts();hud.banner.hidden=true;opp.present=true;if(document.pointerLockElement)document.exitPointerLock();showAd('adMenu')}
+function toMenu(){
+  const was=online;
+  Net.leave();online=false;state='menu';$('osd').hidden=true;paused=false;$('pause').hidden=true;$('end').hidden=true;$('hud').hidden=true;$('lobby').hidden=true;lobbyShown=false;$('menu').hidden=false;hideGhosts();hud.banner.hidden=true;
+  opp.present=true;player.present=true;player.team=undefined;setSuit(player.model,'me');
+  if(was){generateMap(randSeed());spawn(player,soloCell(0));spawn(opp,soloCell(1))}
+  if(document.pointerLockElement)document.exitPointerLock();showAd('adMenu')}
 
 function onKill(victim,killer,wi,head){
   if(!victim.alive&&victim===player&&phase==='over')return;
   victim.alive=false;victim.dieT=0;
   const w=WEAPONS[wi]||WEAPONS[0],tail=' · '+w.name+(head?' · head':'');
-  if(victim===opp){score.you++;feed(`You <b>⟶</b> ${esc(oppName)}${tail}`,'you');banner(online?esc(oppName).toUpperCase()+' DOWN':'ENTITY DOWN',head?'Headshot':'Eliminated',2.2)}
-  else{score.opp++;feed(`${esc(oppName)} <b>⟶</b> You${tail}`,'them');banner('ELIMINATED',online?oppName+' got you':'The entity got you',2.2)}
+  if(victim===opp){score.you++;feed(`You <b>⟶</b> ${esc(oppName)}${tail}`,'you');banner('ENTITY DOWN',head?'Headshot':'Eliminated',2.2)}
+  else{score.opp++;feed(`${esc(oppName)} <b>⟶</b> You${tail}`,'them');banner('ELIMINATED','The entity got you',2.2)}
   hud.sYou.textContent=score.you;hud.sBot.textContent=score.opp;
   if(phase!=='over'){phase='over';phaseT=2.6}
 }
@@ -854,14 +935,16 @@ function damageEntity(e,amt,head,shooter,pt){
   if(e===player){hurtA=Math.min(.8,hurtA+.18+amt/250);sfxHurt()}
   if(e===opp)opp.hurt=true;
   if(e.hp<=0){e.hp=0;
-    if(online&&e===player)Net.send({type:'kill',v:Net.uid,o:Net.oppUid||'',w:opp.wi,hd:head?1:0,r:roundNo()});
-    onKill(e,shooter,shooter.wi,head)}
+    if(online){if(e===player)onlineDeath(shooter,head)}
+    else onKill(e,shooter,shooter.wi,head)}
 }
 function muzzleOf(e){return e.pos.clone().add(new V3(0,1.38,0)).addScaledVector(rightOf(e.yaw),.26).addScaledVector(fwdOf(e.yaw,e.pitch),.32)}
+// Online, rays skip the shooter's teammates and only enemies are reported as hits (hs), so there is no friendly fire.
 function resolveShot(shooter,w,rays,color){
+  const skip=online?shooter.team:null;
   const entAcc=new Map(),pcAcc=new Map(),ends=[];
   for(const ry of rays){
-    const res=raycast(arr(ry.o),arr(ry.d),ry.max,shooter,true);
+    const res=raycast(arr(ry.o),arr(ry.d),ry.max,shooter,true,skip);
     const end=ry.o.clone().addScaledVector(ry.d,res.t);ends.push(end);
     addTracer(ry.o,end,color);
     if(!res.hit)continue;
@@ -871,16 +954,20 @@ function resolveShot(shooter,w,rays,color){
   }
   const pd=[];
   for(const [pc,d] of pcAcc){pd.push([pc.key,Math.round(d)]);damagePiece(pc,d)}
-  let hit=null;
+  const hits=[];
   for(const [e,a] of entAcc){
-    if(online&&e===opp){const amt=Math.max(1,Math.round(a.d));dmgNumber(a.pt,amt,a.head,opp.shield>=amt);hitmark(a.head);sfxHit(a.head);hit={d:amt,hd:a.head?1:0,pt:a.pt}}
+    if(online&&e!==player){
+      if(!e.uid||(skip&&e.team===skip))continue;
+      const amt=Math.max(1,Math.round(a.d));dmgNumber(a.pt,amt,a.head,e.shield>=amt);hitmark(a.head);sfxHit(a.head);
+      hits.push([e.uid,amt,a.head?1:0,r2(a.pt.x),r2(a.pt.y),r2(a.pt.z)]);
+    }
     else damageEntity(e,a.d,a.head,shooter,a.pt);
   }
-  return{ends,pd,hit};
+  return{ends,pd,hits};
 }
 // Right-click or hold Shift to aim; with the sniper that brings up the scope.
 const aimHeld=()=>rmb||keys.has('ShiftLeft')||keys.has('ShiftRight');
-function isADS(){return state==='playing'&&!paused&&mode==='combat'&&aimHeld()&&player.alive&&player.reloadT<=0}
+function isADS(){return state==='playing'&&!paused&&mode==='combat'&&aimHeld()&&player.alive&&player.reloadT<=0&&(!online||activeOnline())}
 function curSpread(e,w,ads){const moving=Math.hypot(e.vel.x,e.vel.z)>1.2||!e.onGround;let s=ads?w.ads:w.hip;if(moving&&w.pellets===1)s=s*1.7+.004;return s}
 function playerShoot(){
   const w=WEAPONS[player.wi],ads=isADS();
@@ -890,7 +977,7 @@ function playerShoot(){
   for(let i=0;i<w.pellets;i++){
     const d=jitter(camF,sp);
     const start=cp.clone().addScaledVector(d,camDist);
-    const aim=raycast(arr(start),arr(d),w.range,player,true);
+    const aim=raycast(arr(start),arr(d),w.range,player,true,online?player.team:null);
     const target=start.addScaledVector(d,aim.t);
     const d2=target.clone().sub(mz);const L=d2.length();d2.divideScalar(L||1);
     rays.push({o:mz.clone(),d:d2,max:L+.3});
@@ -900,7 +987,7 @@ function playerShoot(){
   if(online){
     const ev={type:'shot',w:player.wi,o:arr(mz).map(r2),e:res.ends.map(v=>arr(v).map(r2)),r:roundNo()};
     if(res.pd.length)ev.pd=res.pd;
-    if(res.hit){ev.v=Net.oppUid||'';ev.d=res.hit.d;ev.hd=res.hit.hd;ev.p=arr(res.hit.pt).map(r2)}
+    if(res.hits.length)ev.hs=res.hits;
     Net.send(ev);
   }
   player.pitch=clamp(player.pitch+(w.id==='sr'?.035:w.id==='sg'?.03:.007),-1.45,1.45);
@@ -1036,59 +1123,387 @@ function updateBot(dt){
   if(aimT&&b.cd<=0&&b.reloadT<=0&&b.switchT<=0){if(b.ammo[b.wi]>0)botShoot(aimT);else startReload(b)}
 }
 
-/* ---------- online opponent: interpolate their published positions ~110 ms behind ---------- */
-function onOppSnapshot(v){
-  if(typeof v.x!=='number')return;
-  opp.lastRecv=Date.now();
-  if(typeof v.n==='string'&&v.n&&v.n.slice(0,16)!==oppName){oppName=v.n.slice(0,16);hud.sBotLbl.textContent=oppName}
-  if(v.m!==Net.matchId||v.rd!==roundNo()||phase==='waiting')return;
-  const s={t:+v.ts||Net.now(),x:+v.x,y:+v.y||0,z:+v.z,h:+v.h||0,p:+v.p||0};
-  const last=opp.snaps[opp.snaps.length-1];
-  if(last&&s.t<=last.t)return;
-  opp.snaps.push(s);if(opp.snaps.length>30)opp.snaps.shift();
-  opp.hp=+v.hp||0;opp.shield=+v.sh||0;opp.reloadT=v.rl?1:0;
-  if(v.wi>=0&&v.wi<=2&&v.wi!==opp.wi){opp.wi=v.wi;setGun(opp.model,v.wi)}
-  if(!v.d&&!opp.alive&&phase!=='over'){opp.alive=true;opp.dieT=0}
+/* ---------- online team play ---------- */
+// Everything lives under rooms/br-<code> (same project and rules as Rumble Karts):
+//   players/<uid>  each player's own node, written only by that player (about 20 times a second in a round,
+//                  every half second otherwise): n name, c team colour, x y z h p position and view,
+//                  hp sh wi rl d (health, shield, weapon, reloading, dead), m match id and rd round number the
+//                  position belongs to, t team picked in the lobby, k kills this match, j join time, ts server time.
+//   round          the match, written only by the host (the live player who has been in the room longest):
+//                  {id match id, ends (write time), seed, ns maze size, ph lobby|cd|fight|over|end, pt when this phase
+//                  ends, to rounds to win, rn round, sr sb team scores, ro roster "uid:r;uid:b", dd out this round
+//                  "uid;uid", rw round winner, mw match winner, fm 1 if won by forfeit, rz the host's team shuffle "n|uid:t;…"}
+//   events/<push>  shots (with the enemies they hit), builds and deaths; each is deleted after 5 s.
+function cleanName(n){return String(n||'').replace(/[<>]/g,'').trim().slice(0,16)||'Wanderer'}
+function parseRo(s){const m=new Map();if(typeof s==='string'&&s)for(const p of s.split(';')){const i=p.lastIndexOf(':');if(i<1)continue;const t=p.slice(i+1);if(t==='r'||t==='b')m.set(p.slice(0,i),t)}return m}
+const fmtRo=m=>[...m].map(([u,t])=>u+':'+t).join(';');
+function parseDd(s){return new Set(typeof s==='string'&&s?s.split(';').filter(Boolean):[])}
+function nameOf(uid){if(uid===Net.uid)return myName;const o=Net.others.get(uid);return o?cleanName(o.v.n):names.get(uid)||'Someone'}
+// Everyone in the room right now: you plus every player whose node is fresh.
+function liveHumans(){
+  const out=[{uid:Net.uid,n:myName,t:myTeamPref,j:Net.j}],now=Net.now();
+  for(const [u,o] of Net.others)if(now-o.ts<LIVE_MS)out.push({uid:u,n:cleanName(o.v.n),t:o.v.t==='b'?'b':'r',j:+o.v.j||o.ts});
+  return out;
 }
-function updateRemote(dt){
-  if(!opp.present)return;
-  if(Date.now()-opp.lastRecv>10000){onOppLeft();return}
-  const sn=opp.snaps;if(!sn.length)return;
+function setMyTeam(t,quiet){myTeamPref=t==='b'?'b':'r';if(!quiet){Net.publishSoon();lobbyDirty=true;renderLobby()}}
+// Spawn cell of a roster member: teammates sorted by uid take their team's cells in order.
+function cellFor(uid){const t=roster.get(uid);if(!t)return soloCell(0);const mates=[...roster].filter(x=>x[1]===t).map(x=>x[0]).sort();return teamCells(N,mates.length,t==='b'?1:0)[Math.max(0,mates.indexOf(uid))]}
+function allCells(ro,n){const kr=[...ro.values()].filter(t=>t==='r').length;return teamCells(n,kr,0).concat(teamCells(n,ro.size-kr,1))}
+
+/* remote players: one entity each, interpolated ~110 ms behind their published positions */
+function rebuildEnts(){ents=[player,opp,...remotes.values()]}
+function makeRemote(uid){
+  const e=newEnt(makeSuit(...SUITS.r));
+  Object.assign(e,{uid,name:nameOf(uid),team:'r',snaps:[],lastRecv:0,present:false,alive:false});
+  setGun(e.model,0);e.model.visible=false;scene.add(e.model);remotes.set(uid,e);rebuildEnts();return e;
+}
+function clearRemotes(){
+  for(const e of remotes.values()){scene.remove(e.model);e.model.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material&&o.material!==gunMat&&o.material!==pumpMat)o.material.dispose()})}
+  remotes.clear();rebuildEnts();
+}
+// Make sure every roster member has a body in their team colour; anyone else is hidden.
+function syncRoster(){
+  for(const [u,t] of roster){if(u===Net.uid)continue;const e=remotes.get(u)||makeRemote(u);e.team=t;e.name=nameOf(u);setSuit(e.model,t);const o=Net.others.get(u);if(o)applyNode(e,o.v)}
+  for(const e of remotes.values())if(!roster.has(e.uid)){e.present=false;e.alive=false;e.model.visible=false}
+}
+function applyNode(e,v){
+  e.lastRecv=Date.now();
+  if(!inPlay()||v.m!==curMatch||v.rd!==curRound)return;
+  const s={t:+v.ts||Net.now(),x:+v.x,y:+v.y||0,z:+v.z,h:+v.h||0,p:+v.p||0};
+  if(!isFinite(s.x)||!isFinite(s.z))return;
+  const last=e.snaps[e.snaps.length-1];
+  if(!last||s.t>last.t){e.snaps.push(s);if(e.snaps.length>30)e.snaps.shift()}
+  e.hp=+v.hp||0;e.shield=+v.sh||0;e.reloadT=v.rl?1:0;
+  if(v.wi>=0&&v.wi<=2&&v.wi!==e.wi){e.wi=v.wi;setGun(e.model,v.wi)}
+  if(v.d&&e.alive){e.alive=false;e.dieT=0}
+}
+function onNode(uid,v){
+  if(!v||typeof v!=='object'||typeof v.x!=='number')return;
+  const fresh=!Net.others.has(uid);
+  Net.others.set(uid,{v,ts:+v.ts||0});
+  names.set(uid,cleanName(v.n));
+  if(v.m===curMatch&&curMatch!=null)kills.set(uid,v.k|0);
+  if(fresh&&Net.now()-(+v.ts||0)<LIVE_MS&&performance.now()-Net.joinedAt>2500){feed(esc(cleanName(v.n))+' joined','info');sfxJoin()}
+  lobbyDirty=true;
+  const e=remotes.get(uid);if(e){e.name=cleanName(v.n);applyNode(e,v)}
+}
+function onNodeGone(uid){
+  const o=Net.others.get(uid);Net.others.delete(uid);lobbyDirty=true;
+  if(o)feed(esc(cleanName(o.v.n))+' left','info');
+  const e=remotes.get(uid);if(e){e.present=false;e.alive=false;e.model.visible=false}
+}
+function updateRemotes(dt){
   const rt=Net.now()-110;
-  let a=sn[0],b=null;
-  for(let i=sn.length-1;i>=0;i--){if(sn[i].t<=rt){a=sn[i];b=sn[i+1]||null;break}}
-  const prev=opp.pos.clone();
-  if(b){const k=clamp((rt-a.t)/Math.max(1,b.t-a.t),0,1);
-    opp.pos.set(a.x+(b.x-a.x)*k,a.y+(b.y-a.y)*k,a.z+(b.z-a.z)*k);
-    opp.yaw=a.h+wrapAng(b.h-a.h)*k;opp.pitch=a.p+(b.p-a.p)*k}
-  else{const l=sn[sn.length-1];opp.pos.set(l.x,l.y,l.z);opp.yaw=l.h;opp.pitch=l.p}
-  if(dt>0){opp.vel.set((opp.pos.x-prev.x)/dt,(opp.pos.y-prev.y)/dt,(opp.pos.z-prev.z)/dt);if(opp.vel.length()>30)opp.vel.set(0,0,0)}
-  opp.onGround=Math.abs(opp.vel.y)<.5;
+  for(const e of remotes.values()){
+    if(!e.present)continue;
+    const sn=e.snaps;if(!sn.length)continue;
+    let a=sn[0],b=null;
+    for(let i=sn.length-1;i>=0;i--){if(sn[i].t<=rt){a=sn[i];b=sn[i+1]||null;break}}
+    const px=e.pos.x,py=e.pos.y,pz=e.pos.z;
+    if(b){const k=clamp((rt-a.t)/Math.max(1,b.t-a.t),0,1);
+      e.pos.set(a.x+(b.x-a.x)*k,a.y+(b.y-a.y)*k,a.z+(b.z-a.z)*k);
+      e.yaw=a.h+wrapAng(b.h-a.h)*k;e.pitch=a.p+(b.p-a.p)*k}
+    else{const l=sn[sn.length-1];e.pos.set(l.x,l.y,l.z);e.yaw=l.h;e.pitch=l.p}
+    if(dt>0){e.vel.set((e.pos.x-px)/dt,(e.pos.y-py)/dt,(e.pos.z-pz)/dt);if(e.vel.length()>30)e.vel.set(0,0,0)}
+    e.onGround=Math.abs(e.vel.y)<.5;
+  }
+}
+
+/* the round node: every browser follows it; only the host changes it */
+function onRound(r){
+  if(!online)return;
+  if(!r||typeof r.id!=='number'||typeof r.ph!=='string'){RD=null;lobbyDirty=true;return}
+  const prev=RD;RD=r;lobbyDirty=true;
+  // the host's "Randomize teams": everyone moves themself to the side the host drew for them
+  if(typeof r.rz==='string'&&r.rz){const i=r.rz.indexOf('|'),v=r.rz.slice(0,i);if(v!==lastRz){lastRz=v;const t=parseRo(r.rz.slice(i+1)).get(Net.uid);if(t)setMyTeam(t)}}
+  if(r.ph!=='lobby'){
+    if(curMatch!==r.id){
+      curMatch=r.id;curRound=0;myKills=0;kills.clear();roster=parseRo(r.ro);matchTime=0;hud.feed.innerHTML='';watchMode=false;
+      for(const u of roster.keys())names.set(u,nameOf(u));
+      const ns=clamp(r.ns|0,12,16);generateMap(r.seed>>>0,ns,allCells(roster,ns));
+      syncRoster();
+    }
+    if(r.ph!=='end'&&(r.rn|0)!==curRound){curRound=r.rn|0;startOnlineRound()}
+    applyDead(r);
+  }else if(curMatch!=null){
+    // back to the lobby: nobody is in a match until the host starts the next one
+    curMatch=null;curRound=0;roster=new Map();watchMode=false;clearPieces();syncRoster();
+    player.alive=false;player.present=false;player.model.visible=false;
+  }
+  phase=r.ph==='cd'?'countdown':r.ph==='fight'?'fight':r.ph==='over'?'over':'waiting';
+  if(r.ph==='over'&&(!prev||prev.ph!=='over'||prev.rn!==r.rn)){
+    const w=r.rw,my=myTeam();
+    banner(!w?'DRAW':my?(w===my?'ROUND WON':'ROUND LOST'):TEAM_NAME[w].toUpperCase()+' TAKES IT',`Red ${r.sr|0} – ${r.sb|0} Blue`,2.6);
+  }
+  setScores();syncView();
+}
+// a remote roster member is alive this round unless the host has them out or their own node says they're dead
+function remoteAlive(u){
+  if(!inPlay()||parseDd(RD.dd).has(u))return false;
+  const o=Net.others.get(u);return !(o&&o.v.d&&o.v.m===curMatch&&o.v.rd===curRound);
+}
+function applyDead(r){
+  if((r.rn|0)!==curRound)return;
+  for(const u of parseDd(r.dd)){
+    if(u===Net.uid){if(player.alive){player.alive=false;player.dieT=0}}
+    else{const e=remotes.get(u);if(e&&e.alive){e.alive=false;e.dieT=0}}
+  }
+}
+function startOnlineRound(){
+  clearPieces();specUid=null;
+  for(const e of remotes.values()){
+    e.snaps.length=0;
+    // alive unless the host's out-list or their own node says otherwise (applyDead / applyNode); absent players stay hidden
+    if(roster.has(e.uid)){e.present=Net.live(e.uid,10000);spawn(e,cellFor(e.uid));e.wi=0;setGun(e.model,0)}
+  }
+  const t=roster.get(Net.uid);player.team=t;
+  if(t){player.present=true;setSuit(player.model,t);spawn(player,cellFor(Net.uid));player.wi=0;setGun(player.model,0);mode='combat'}
+  else{player.present=false;player.alive=false;player.model.visible=false}
+  banner('ROUND '+curRound,`Red ${RD.sr|0} – ${RD.sb|0} Blue`+(t?` · you're ${TEAM_NAME[t]}`:' · watching'),1.8);
+  Net.publishSoon();
+}
+// You went down: tell everyone who got you. Only the victim reports its own death, so kill credit is
+// whoever landed the last hit, and the host counts you out for the rest of the round.
+function onlineDeath(shooter,head){
+  player.alive=false;player.dieT=0;lmb=false;
+  const k=shooter&&shooter.uid||'',wi=shooter?shooter.wi|0:0;
+  Net.send({type:'kill',v:Net.uid,k,w:wi,hd:head?1:0,r:curRound});
+  killFeed(k,Net.uid,wi,head);
+  if(Net.amHost)hostDead.add(curMatch+':'+curRound+':'+Net.uid);
+  banner('ELIMINATED',(k?nameOf(k)+' got you':'You went down')+(touchUI?'':' · click to watch a teammate'),2.4);
+  Net.publishSoon();
+}
+function killFeed(k,v,wi,head){
+  const w=WEAPONS[wi]||WEAPONS[0],tail=' · '+w.name+(head?' · head':'');
+  const nm=u=>`<span class="${roster.get(u)||''}">${u===Net.uid?'You':esc(nameOf(u))}</span>`;
+  feed((k?nm(k)+' <b>⟶</b> ':'')+nm(v)+tail,k===Net.uid?'you':v===Net.uid?'them':'info');
 }
 function handleEvent(e){
-  if(e.m!==Net.matchId)return;
-  const sameRound=e.r===roundNo()&&phase!=='waiting';
+  if(curMatch==null||e.m!==curMatch)return;
+  const sameRound=e.r===curRound&&inPlay();
   if(e.type==='shot'){
+    const mate=roster.get(e.by)&&roster.get(e.by)===myTeam();
     const o=Array.isArray(e.o)?new V3(e.o[0],e.o[1],e.o[2]):null;const ends=Array.isArray(e.e)?e.e:[];
-    if(o){for(const p of ends)if(Array.isArray(p)){const v=new V3(p[0],p[1],p[2]);addTracer(o,v,0xff8a70);spark(v)}
+    if(o){for(const p of ends)if(Array.isArray(p)){const v=new V3(p[0],p[1],p[2]);addTracer(o,v,mate?0x9fd4ff:0xff8a70);spark(v)}
       const w=WEAPONS[e.w]||WEAPONS[0];sfxShot(w.id,1/(1+camera.position.distanceTo(o)*.06))}
     if(!sameRound)return;
     if(Array.isArray(e.pd))for(const it of e.pd)if(Array.isArray(it))damagePiece(pieces.get(String(it[0])),+it[1]||0);
-    if(e.v===Net.uid&&e.d>0){const pt=Array.isArray(e.p)?new V3(e.p[0],e.p[1],e.p[2]):player.pos.clone();damageEntity(player,Math.min(+e.d,250),!!e.hd,opp,pt)}
+    if(Array.isArray(e.hs)&&RD.ph==='fight'&&player.alive)for(const h of e.hs){
+      if(!Array.isArray(h)||h[0]!==Net.uid)continue;
+      // no friendly fire: a hit only counts from someone on the other team of this match
+      const st=roster.get(e.by),mt=roster.get(Net.uid);
+      if(!st||!mt||st===mt)continue;
+      const pt=[h[3],h[4],h[5]].every(n=>typeof n==='number'&&isFinite(n))?new V3(h[3],h[4],h[5]):player.pos.clone().add(new V3(0,1.2,0));
+      damageEntity(player,clamp(+h[1]||0,0,250),!!h[2],{uid:e.by,wi:e.w|0,team:st},pt);
+    }
   }else if(e.type==='b'){
     if(!sameRound)return;
     const s={kind:e.k,x:e.x|0,z:e.z|0,L:e.L|0};if(e.k==='wall')s.o=e.o;if(e.k==='ramp')s.dir=e.dir|0;
-    tryBuild(s,opp);
+    tryBuild(s,null);
   }else if(e.type==='kill'){
-    if(!sameRound||e.v!==Net.oppUid)return;
-    onKill(opp,player,player.wi,!!e.hd);
+    const v=String(e.v||''),k=String(e.k||'');
+    if(e.r!==curRound||v!==e.by)return;
+    const ent=remotes.get(v);if(ent&&ent.alive){ent.alive=false;ent.dieT=0}
+    killFeed(k,v,e.w|0,!!e.hd);
+    if(k===Net.uid){myKills++;kills.set(Net.uid,myKills);banner(nameOf(v).toUpperCase()+' DOWN',e.hd?'Headshot':'Eliminated',1.8);Net.publishSoon()}
+    if(Net.amHost)hostDead.add(curMatch+':'+curRound+':'+v);
   }
+}
+
+/* host: runs the match from the round node; if the host leaves, the next player in line carries on from it */
+const hostDead=new Set();   // "match:round:uid" deaths the host heard about from kill events
+function lobbyPatch(){return{ph:'lobby',rn:0,dd:'',ro:'',rw:'',mw:'',fm:0,pt:0,sr:0,sb:0}}
+function hostDuties(){
+  const r=RD;if(!r||!Net.amHost||Net.txBusy)return;
+  const now=Net.now();
+  // silent for 10 s: out for the round; disconnected, or silent for 20 s: gone (a team with nobody left forfeits)
+  const quiet=(u,ms)=>!Net.live(u,ms);
+  // change the round node only if it's still the version this decision was based on
+  const upd=fn=>Net.tx(cur=>{if(!cur||cur.id!==r.id||cur.ph!==r.ph||(cur.rn|0)!==(r.rn|0))return;const o=Object.assign({},cur,fn(cur));o.ends=Math.round(Net.now());return o});
+  if(r.ph==='lobby'){
+    if(Net.quick&&liveHumans().length>=2&&performance.now()-Net.joinedAt>2000)hostStart();
+    return;
+  }
+  const ro=parseRo(r.ro);
+  if(r.ph!=='end'){
+    // a team with nobody left in the room forfeits; with nobody from either team left, back to the lobby
+    let lr=0,lb=0;for(const [u,t] of ro)if(!quiet(u,20000)){if(t==='r')lr++;else lb++}
+    if(!lr||!lb){upd(()=>!lr&&!lb?lobbyPatch():{ph:'end',mw:lr?'r':'b',fm:1,pt:Math.round(now+12000)});return}
+  }
+  if(r.ph==='cd'){if(now>=+r.pt)upd(()=>({ph:'fight'}))}
+  else if(r.ph==='fight'){
+    // out this round: reported dead (kill event or their own node), or gone from the room
+    const dd=parseDd(r.dd),add=[];
+    for(const u of ro.keys()){
+      if(dd.has(u))continue;
+      let dead=quiet(u,10000)||hostDead.has(r.id+':'+r.rn+':'+u);
+      if(!dead){if(u===Net.uid)dead=curMatch===r.id&&curRound===(r.rn|0)&&!player.alive;else{const o=Net.others.get(u);dead=!!(o&&o.v.d&&o.v.m===r.id&&o.v.rd===r.rn)}}
+      if(dead)add.push(u);
+    }
+    if(!add.length)return;
+    for(const u of add)dd.add(u);
+    let ar=0,ab=0;for(const [u,t] of ro)if(!dd.has(u)){if(t==='r')ar++;else ab++}
+    const merge=cur=>{const d2=parseDd(cur.dd);for(const u of dd)d2.add(u);return[...d2].join(';')};
+    if(!ar||!ab){const w=ar?'r':ab?'b':'';
+      upd(cur=>({dd:merge(cur),ph:'over',rw:w,sr:(cur.sr|0)+(w==='r'?1:0),sb:(cur.sb|0)+(w==='b'?1:0),pt:Math.round(now+3000)}));
+    }else upd(cur=>({dd:merge(cur)}));
+  }else if(r.ph==='over'){
+    if(now<+r.pt)return;
+    const to=[3,5,10].includes(r.to)?r.to:5;
+    if((r.sr|0)>=to||(r.sb|0)>=to)upd(()=>({ph:'end',mw:(r.sr|0)>=to?'r':'b',fm:0,pt:Math.round(now+12000)}));
+    else upd(cur=>({ph:'cd',rn:(cur.rn|0)+1,dd:'',rw:'',pt:Math.round(now+3000)}));
+  }else if(r.ph==='end'){if(now>=+r.pt)upd(()=>lobbyPatch())}
+}
+// Start a match with everyone in the room on the side they picked (a quick match pairs the two by join order).
+function hostStart(){
+  const r=RD;if(!Net.amHost||!r||r.ph!=='lobby')return;
+  const hs=liveHumans(),ro=new Map();
+  if(Net.quick)hs.sort((a,b)=>a.j-b.j||(a.uid<b.uid?-1:1)).forEach((h,i)=>ro.set(h.uid,i%2?'b':'r'));
+  else for(const h of hs)ro.set(h.uid,h.t);
+  const kr=[...ro.values()].filter(t=>t==='r').length;
+  if(!kr||kr===ro.size){$('lbMsg').textContent='Both teams need at least one player.';return}
+  const now=Math.round(Net.now());
+  Net.tx(cur=>{if(!cur||cur.id!==r.id||cur.ph!=='lobby')return;
+    return{id:cur.id+1,ends:now,seed:randSeed(),ns:mapSizeFor(ro.size),ph:'cd',pt:now+3500,to:[3,5,10].includes(cur.to)?cur.to:5,rn:1,sr:0,sb:0,ro:fmtRo(ro),dd:'',rw:'',mw:'',fm:0,rz:cur.rz||''}});
+}
+function hostRandomize(){
+  const r=RD;if(!Net.amHost||!r||r.ph!=='lobby')return;
+  const us=liveHumans().map(h=>h.uid);
+  for(let i=us.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[us[i],us[j]]=[us[j],us[i]]}
+  const first=Math.random()<.5?'r':'b',other=first==='r'?'b':'r',half=Math.ceil(us.length/2),m=new Map();
+  us.forEach((u,i)=>m.set(u,i<half?first:other));
+  const v=String((parseInt(String(r.rz||'0'),10)||0)+1);
+  Net.tx(cur=>cur&&cur.id===r.id&&cur.ph==='lobby'?Object.assign({},cur,{ends:Math.round(Net.now()),rz:v+'|'+fmtRo(m)}):undefined);
+}
+function hostSetTarget(n){
+  const r=RD;if(!Net.amHost||!r||r.ph!=='lobby'||![3,5,10].includes(n))return;
+  Net.tx(cur=>cur&&cur.id===r.id&&cur.ph==='lobby'?Object.assign({},cur,{ends:Math.round(Net.now()),to:n}):undefined);
+}
+function hostToLobby(){
+  const r=RD;if(!Net.amHost||!r||r.ph!=='end')return;
+  Net.tx(cur=>cur&&cur.id===r.id&&cur.ph==='end'?Object.assign({},cur,lobbyPatch(),{ends:Math.round(Net.now())}):undefined);
+}
+
+/* which screen to show online: the lobby panel, the match HUD, or the results */
+function syncView(){
+  if(!online||state==='menu')return;
+  const ph=RD?RD.ph:'lobby';
+  if(ph==='end'&&curMatch===RD.id){if(state!=='end')showOnlineEnd();else fillOnlineEnd();return}
+  if(state==='end'){$('end').hidden=true;state='playing';$('osd').hidden=false}
+  const want=ph==='lobby'||(!activeOnline()&&!watchMode);
+  if(want&&!lobbyShown)showLobby();else if(!want&&lobbyShown)hideLobby();
+  $('hud').hidden=ph==='lobby';
+}
+function showLobby(){
+  lobbyShown=true;paused=false;$('pause').hidden=true;$('lobby').hidden=false;$('osd').hidden=true;$('lbMsg').textContent='';
+  lmb=rmb=false;keys.clear();hideGhosts();
+  if(document.pointerLockElement)document.exitPointerLock();
+  lobbyDirty=true;renderLobby();
+}
+function hideLobby(){lobbyShown=false;$('lobby').hidden=true;$('osd').hidden=false;if(activeOnline())requestLock(false)}
+function renderLobby(){
+  if(!online||!lobbyShown)return;
+  lobbyDirty=false;
+  const r=RD,hs=liveHumans(),playing=!!r&&r.ph!=='lobby'&&curMatch===r.id;
+  $('lbRoom').textContent=Net.room||'';$('lbCount').textContent=hs.length+'/'+MAX_ROOM;
+  const lists={r:[],b:[]};
+  if(playing){for(const [u,t] of roster){const e=u===Net.uid?player:remotes.get(u);lists[t].push({uid:u,out:!Net.live(u)||!(e&&e.alive)})}}
+  else for(const h of hs)lists[h.t].push({uid:h.uid});
+  for(const t of ['r','b']){
+    const a=lists[t].sort((x,y)=>nameOf(x.uid).localeCompare(nameOf(y.uid)));
+    $(t==='r'?'lbRed':'lbBlue').innerHTML=a.length?a.map(x=>`<li${x.out?' class="out"':''}><span class="nm">${esc(nameOf(x.uid))}</span>${x.uid===Net.uid?'<span class="tg">you</span>':''}${x.uid===Net.hostUid?'<span class="tg">host</span>':''}</li>`).join(''):'<li class="empty">Nobody yet</li>';
+    $(t==='r'?'lbRedN':'lbBlueN').textContent=a.length;
+  }
+  for(const [id,t] of [['joinRed','r'],['joinBlue','b']]){
+    const b=$(id),on=myTeamPref===t;b.hidden=!!Net.quick;b.disabled=on;
+    b.textContent=on?(playing?`Next match: ${TEAM_NAME[t]}`:`You're on ${TEAM_NAME[t]}`):(playing?`Next match: join ${TEAM_NAME[t]}`:`Join ${TEAM_NAME[t]}`);
+  }
+  const waiting=playing?hs.filter(h=>!roster.has(h.uid)):[];
+  $('lbWait').hidden=!waiting.length;$('lbWait').textContent='Waiting for the next match: '+waiting.map(h=>h.n).join(', ');
+  const nr=hs.filter(h=>h.t==='r').length,nb=hs.length-nr;
+  let st;
+  if(!r||!Net.hostUid)st='Connecting to the room…';
+  else if(playing)st=`Match in progress: Red ${r.sr|0} – ${r.sb|0} Blue, round ${Math.max(1,r.rn|0)}, first to ${matchTarget()}. You'll play in the next match.`;
+  else if(Net.quick)st=hs.length<2?'Waiting for your opponent to load in…':'Opponent found. Starting…';
+  else if(Net.amHost)st=nr&&nb?`You're the host. When everyone has picked a side, start the match (first to ${matchTarget()}). Uneven teams are fine.`:'You\'re the host. Both teams need at least one player before you can start. Send the invite link to friends.';
+  else st=`Waiting for ${nameOf(Net.hostUid)} (host) to start the match · first to ${matchTarget()}.`;
+  $('lbStatus').textContent=st;
+  const host=Net.amHost&&!playing&&!Net.quick&&!!r;
+  $('lbHost').hidden=!host;
+  if(host){for(const b of $('toSeg').querySelectorAll('button'))b.setAttribute('aria-checked',String(+b.dataset.n===matchTarget()));$('startMatch').disabled=!(nr&&nb);$('randTeams').disabled=hs.length<2}
+  $('lbWatch').hidden=!playing;$('lbInvite').hidden=!!Net.quick;
+}
+function showOnlineEnd(){
+  state='end';lobbyShown=false;$('lobby').hidden=true;$('osd').hidden=false;$('hud').hidden=true;$('pause').hidden=true;paused=false;hideGhosts();
+  fillOnlineEnd();
+  $('end').hidden=false;showAd('adEnd');
+  if(document.pointerLockElement)document.exitPointerLock();
+}
+function fillOnlineEnd(){
+  const r=RD,my=roster.get(Net.uid),w=r.mw==='b'?'b':'r',sr=r.sr|0,sb=r.sb|0;
+  $('endTitle').textContent=my?(my===w?'YOU GOT OUT':'NO EXIT'):TEAM_NAME[w].toUpperCase()+' WINS';
+  $('eYou').textContent=sr;$('eBot').textContent=sb;$('eYou').parentNode.classList.add('tmode');
+  $('endClock').textContent=fmtClock(matchTime);
+  $('endMsg').textContent=`${TEAM_NAME[w]} team won ${Math.max(sr,sb)}–${Math.min(sr,sb)}`+(r.fm?' after the other team left the room.':'.')+(Net.amHost?' You\'re the host: head back to the lobby when everyone\'s ready.':' Everyone goes back to the lobby in a few seconds.');
+  kills.set(Net.uid,myKills);
+  const col=t=>{const us=[...roster].filter(x=>x[1]===t).map(x=>x[0]).sort((a,b)=>(kills.get(b)||0)-(kills.get(a)||0));
+    return `<div class="team ${t}"><div class="th"><span>${TEAM_NAME[t]}</span><span>${t==='r'?sr:sb}</span></div><ul>${us.map(u=>`<li><span class="nm">${esc(nameOf(u))}</span>${u===Net.uid?'<span class="tg">you</span>':''}<span class="k">${kills.get(u)||0} KO</span></li>`).join('')}</ul></div>`};
+  $('endTeams').innerHTML=col('r')+col('b');$('endTeams').hidden=false;
+  $('again').textContent='Back to lobby';$('again').disabled=!Net.amHost;$('toMenu').textContent='Leave room';
+}
+
+/* spectating: when you're out (or watching a match you're not in), the camera follows a living teammate */
+function specCandidates(){
+  const my=myTeam(),list=[...remotes.values()].filter(e=>e.present&&e.alive&&roster.has(e.uid));
+  const mates=my?list.filter(e=>e.team===my):[];
+  return (mates.length?mates:list).sort((a,b)=>a.uid<b.uid?-1:1);
+}
+function spectateTarget(){
+  const c=specCandidates();if(!c.length)return roster.has(Net.uid)?player:null;
+  let e=c.find(x=>x.uid===specUid);if(!e){e=c[0];specUid=e.uid}
+  return e;
+}
+function cycleSpectate(){const c=specCandidates();if(!c.length)return;const i=c.findIndex(x=>x.uid===specUid);specUid=c[(i+1)%c.length].uid}
+// who the camera follows: you, someone you're watching, or nobody (the slow drift used by the menu and lobby)
+function camTarget(){
+  if(state==='menu')return null;
+  if(!online)return player;
+  if(!inPlay()||curMatch!==RD.id)return null;
+  if(roster.has(Net.uid)&&(player.alive||player.dieT<1.6))return player;
+  return spectateTarget();
+}
+const isSpectating=()=>online&&state==='playing'&&inPlay()&&camTarget()!==player;
+function onlineTick(){
+  if(!online||!Net.refs)return;
+  // If this browser itself froze for a while (busy tab, slow machine), everyone else's last update looks old:
+  // give the queued updates a moment to arrive before judging who has gone quiet.
+  const t=performance.now(),gap=t-(Net.lastTick||t);Net.lastTick=t;
+  if(gap>1500)Net.settleUntil=t+1500;
+  const settled=t>=(Net.settleUntil||0);
+  // wait until the room's players and round have loaded (a slow phone can take a while) and a moment more,
+  // so we see who's already here before picking a host
+  if(settled&&Net.loaded&&t-Net.joinedAt>1500){
+    const h=Net.elect();
+    if(h!==Net.hostUid){const was=Net.hostUid;Net.hostUid=h;Net.amHost=h===Net.uid;lobbyDirty=true;if(was)feed(Net.amHost?'You\'re the host now':esc(nameOf(h))+' is the host now','info')}
+    if(Net.amHost)hostDuties();
+  }
+  // a player whose node stops updating counts as gone (and out for the round)
+  if(settled)for(const e of remotes.values()){const p=roster.has(e.uid)&&Net.live(e.uid,10000);if(p!==e.present){e.present=p;if(!p){e.alive=false;e.model.visible=false}else e.alive=remoteAlive(e.uid)}}
+  // quick match: if your opponent never shows up or leaves, go back to the queue
+  if(Net.quick&&state!=='menu'){
+    if(liveHumans().length>=2){Net.aloneT=0;Net.hadMate=true}
+    else if(!Net.aloneT)Net.aloneT=performance.now();
+    else if(performance.now()-Net.aloneT>(Net.hadMate?5000:12000)){Net.aloneT=0;quickMatch(true);return}
+  }
+  if(lobbyDirty)renderLobby();
+  syncView();
 }
 
 /* ---------- networking (Firebase Realtime Database) ---------- */
 function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('Could not load '+src));document.head.appendChild(s)})}
 const Net={
-  ready:false,uid:null,db:null,offset:0,room:null,refs:null,quick:false,matchId:null,oppUid:null,joinT:0,pubTimer:0,seen:new Set(),queueRef:null,queueTimer:0,requeueTimer:0,
+  ready:false,uid:null,db:null,offset:0,room:null,refs:null,loaded:false,quick:false,j:0,joinT:0,joinedAt:0,others:new Map(),amHost:false,hostUid:null,
+  pubTimer:0,tickTimer:0,lastPub:0,soon:false,txBusy:false,roundErr:'',seen:new Set(),queueRef:null,queueTimer:0,searchTick:0,aloneT:0,hadMate:false,
   now(){return Date.now()+this.offset},
   async init(){
     if(this.ready)return;
@@ -1104,47 +1519,69 @@ const Net={
     this.db.ref('.info/serverTimeOffset').on('value',s=>{this.offset=s.val()||0});
     this.ready=true;
   },
+  live(uid,ms){if(uid===this.uid)return !!this.refs;const o=this.others.get(uid);return !!o&&this.now()-o.ts<(ms||LIVE_MS)},
+  // n, c, x, z, h and ts are always sent: the shared database rules expect that shape
   stateOf(){
-    const p=player;
-    return{n:myName,c:'#e8e9e4',x:r2(p.pos.x),y:r2(p.pos.y),z:r2(p.pos.z),h:r3(p.yaw),p:r3(p.pitch),hp:Math.max(0,Math.round(p.hp)),sh:Math.round(p.shield),wi:p.wi,rl:p.reloadT>0?1:0,d:p.alive?0:1,rd:roundNo(),m:this.matchId==null?-1:this.matchId,ts:Math.round(this.now())};
+    const p=player,act=activeOnline();
+    return{n:myName,c:TEAM_HEX[act?roster.get(this.uid):myTeamPref],x:r2(p.pos.x),y:r2(p.pos.y),z:r2(p.pos.z),h:r3(p.yaw),p:r3(p.pitch),hp:Math.max(0,Math.round(p.hp)),sh:Math.round(p.shield),wi:p.wi,rl:p.reloadT>0?1:0,d:act&&p.alive?0:1,rd:curRound,m:curMatch==null?-1:curMatch,t:myTeamPref,k:myKills,j:this.j,ts:Math.round(this.now())};
+  },
+  async peek(room){
+    const s=await this.db.ref('rooms/'+room+'/players').once('value');let n=0,r=0;
+    s.forEach(c=>{const v=c.val();if(c.key!==this.uid&&v&&this.now()-(+v.ts||0)<LIVE_MS){n++;if(v.t!=='b')r++}});
+    return{n,r,b:n-r};
   },
   async joinRoom(room,quick){
     await this.init();
+    const info=await this.peek(room);
+    if(info.n>=MAX_ROOM)throw new Error('That room is full ('+MAX_ROOM+' players). Pick another code.');
+    this.room=room;this.quick=!!quick;this.seen.clear();this.others.clear();this.amHost=false;this.hostUid=null;this.aloneT=0;this.hadMate=false;
+    setMyTeam(info.r>info.b?'b':'r',true);   // start on the smaller team
     const roomRef=this.db.ref('rooms/'+room);
-    const snap=await roomRef.child('players').once('value');
-    let others=0;snap.forEach(c=>{const v=c.val();if(c.key!==this.uid&&v&&this.now()-(+v.ts||0)<10000)others++});
-    if(others>=2)throw new Error('That room already has two players. Pick another code.');
-    this.room=room;this.quick=!!quick;this.matchId=null;this.oppUid=null;this.seen.clear();
     this.refs={room:roomRef,players:roomRef.child('players'),events:roomRef.child('events'),round:roomRef.child('round'),me:roomRef.child('players/'+this.uid)};
+    this.j=Math.round(this.now());this.joinT=this.now();this.joinedAt=performance.now();
     online=true;
     try{await this.refs.me.set(this.stateOf())}
     catch(e){online=false;this.refs=null;throw new Error('The database rules blocked the game. They need to allow rooms/br-… the same way they allow Rumble Karts rooms.')}
     this.refs.me.onDisconnect().remove();
-    this.joinT=this.now();
-    await this.refs.round.transaction(cur=>(cur&&typeof cur.seed==='number')?undefined:{id:1,ends:this.now(),seed:randSeed()}).catch(()=>{});
+    // an empty room (or one left over from an older version of the game) starts fresh in the lobby
+    const now=Math.round(this.now());
+    await this.refs.round.transaction(cur=>{
+      if(info.n>0&&cur&&typeof cur.id==='number'&&typeof cur.ph==='string')return;
+      return Object.assign({id:(cur&&+cur.id||0)+1,ends:now,seed:randSeed(),ns:12,to:cur&&[3,5,10].includes(cur.to)?cur.to:5,rz:''},lobbyPatch());
+    }).catch(e=>{this.roundErr=e&&(e.code||e.message)||'blocked'});
     const r=this.refs;
-    const up=s=>{if(s.key===this.uid)return;const v=s.val();if(!v||typeof v.x!=='number')return;
-      if(!this.oppUid){if(this.now()-(+v.ts||0)>10000)return;onOppJoin(s.key,String(v.n||'Wanderer').slice(0,16))}
-      if(s.key===this.oppUid)onOppSnapshot(v)};
+    const up=s=>{if(s.key!==this.uid)onNode(s.key,s.val())};
     r.players.on('child_added',up);r.players.on('child_changed',up);
-    r.players.on('child_removed',s=>{if(s.key===this.oppUid)onOppLeft()});
-    r.events.on('child_added',s=>{const e=s.val();if(!e||typeof e.t!=='number'||e.t<this.joinT-1500||e.by===this.uid||this.seen.has(s.key))return;this.seen.add(s.key);if(this.seen.size>800)this.seen.delete(this.seen.values().next().value);handleEvent(e)});
-    r.round.on('value',s=>{const v=s.val();if(v&&typeof v.seed==='number'&&v.id!==this.matchId)onMatch(v)});
-    clearInterval(this.pubTimer);
-    this.pubTimer=setInterval(()=>{if(online&&this.refs)this.refs.me.set(this.stateOf()).catch(()=>{})},50);
+    r.players.on('child_removed',s=>{if(s.key!==this.uid)onNodeGone(s.key)});
+    r.events.on('child_added',s=>{const e=s.val();if(!e||typeof e.t!=='number'||e.t<this.joinT-1500||e.by===this.uid||this.seen.has(s.key))return;this.seen.add(s.key);if(this.seen.size>1500)this.seen.delete(this.seen.values().next().value);handleEvent(e)});
+    r.round.on('value',s=>onRound(s.val()));
+    this.loaded=false;Promise.all([r.players.once('value'),r.round.once('value')]).then(()=>{if(this.refs===r)this.loaded=true},()=>{});
+    clearInterval(this.pubTimer);this.pubTimer=setInterval(()=>this.pubTick(),25);
+    clearInterval(this.tickTimer);this.tickTimer=setInterval(onlineTick,250);
     try{if(!quick)history.replaceState(null,'','#'+room)}catch(e){}
+  },
+  // About 20 updates a second while you're playing a round (15 in rooms of 5+), every half second otherwise.
+  pubTick(){
+    if(!online||!this.refs)return;
+    const t=performance.now(),act=activeOnline()&&(player.alive||player.dieT<1);
+    if(!this.soon&&t-this.lastPub<(act?(this.others.size>3?66:50):500))return;
+    this.soon=false;this.lastPub=t;
+    this.refs.me.set(this.stateOf()).catch(()=>{});
+  },
+  publishSoon(){this.soon=true},
+  // the host is the live player who has been in the room longest
+  elect(){const now=this.now();let best=this.uid,bj=this.j;for(const [k,o] of this.others){if(now-o.ts>LIVE_MS)continue;const j=+o.v.j||o.ts;if(j<bj||(j===bj&&k<best)){best=k;bj=j}}return best},
+  tx(fn){
+    if(!this.refs||this.txBusy)return;
+    this.txBusy=true;
+    this.refs.round.transaction(fn).then(()=>{this.roundErr=''}).catch(e=>{this.roundErr=e&&(e.code||e.message)||'blocked'}).finally(()=>{this.txBusy=false});
   },
   send(e){
     if(!online||!this.refs)return;
     const ref=this.refs.events.push();this.seen.add(ref.key);
-    const data=JSON.parse(JSON.stringify(e));data.by=this.uid;data.m=this.matchId;data.t=firebase.database.ServerValue.TIMESTAMP;
+    const data=JSON.parse(JSON.stringify(e));data.by=this.uid;data.m=curMatch;data.t=firebase.database.ServerValue.TIMESTAMP;
     ref.set(data).catch(()=>{});
     setTimeout(()=>ref.remove().catch(()=>{}),5000);
-  },
-  rematch(){
-    if(!online||!this.refs)return;
-    const id=this.matchId;
-    this.refs.round.transaction(cur=>(cur&&cur.id===id)?{id:id+1,ends:this.now(),seed:randSeed()}:undefined).catch(()=>{});
   },
   // Quick match: everyone searching waits in rooms/br-queue; the two longest-waiting people pair up into a private room.
   async queue(onPaired){
@@ -1172,11 +1609,11 @@ const Net={
     clearInterval(this.queueTimer);
     if(this.queueRef){try{this.db.ref('rooms/br-queue/players').off();this.queueRef.onDisconnect().cancel();this.queueRef.remove()}catch(e){}this.queueRef=null}
   },
-  requeueSoon(){clearTimeout(this.requeueTimer);this.requeueTimer=setTimeout(()=>{if(online&&this.quick&&!this.oppUid&&state==='playing')quickMatch(true)},4000)},
   leave(){
-    clearTimeout(this.requeueTimer);clearInterval(this.searchTick);this.leaveQueue();clearInterval(this.pubTimer);
+    clearInterval(this.searchTick);this.leaveQueue();clearInterval(this.pubTimer);clearInterval(this.tickTimer);
     if(this.refs){const r=this.refs;try{r.players.off();r.events.off();r.round.off();r.me.onDisconnect().cancel();r.me.remove()}catch(e){}}
-    this.refs=null;this.room=null;this.oppUid=null;this.matchId=null;online=false;
+    this.refs=null;this.room=null;this.others.clear();this.amHost=false;this.hostUid=null;this.loaded=false;online=false;
+    RD=null;curMatch=null;curRound=0;roster=new Map();clearRemotes();
   }
 };
 
@@ -1185,17 +1622,20 @@ function sanitizeRoom(s){return String(s||'').toLowerCase().replace(/^br-/,'').r
 function randomRoom(){const w=['yellow','hum','damp','noclip','exit','carpet','fluoro','level'];return w[Math.floor(Math.random()*w.length)]+'-'+Math.floor(100+Math.random()*900)}
 function busy(on){for(const id of ['quick','joinRoom','play'])$(id).disabled=on}
 function prepOnline(){
-  initAudio();opp.present=false;oppName='…';
-  generateMap(1);resetScores();phase='waiting';
+  initAudio();opp.present=false;opp.alive=false;opp.model.visible=false;
+  clearRemotes();RD=null;curMatch=null;curRound=0;roster=new Map();myKills=0;kills.clear();names.clear();hostDead.clear();lastRz='';watchMode=false;specUid=null;
+  player.present=false;player.alive=false;player.model.visible=false;player.team=undefined;
+  generateMap(randSeed());resetScores();phase='waiting';
 }
+// In a room: the lobby panel first; the HUD takes over once the host starts a match.
+function showRoom(){state='playing';paused=false;$('osd').hidden=false;$('menu').hidden=true;$('end').hidden=true;$('pause').hidden=true;$('hud').hidden=true;setScores();showLobby();syncView()}
 async function joinPrivate(){
   const code=sanitizeRoom($('room').value)||randomRoom();$('room').value=code;store.set('room',code);
   busy(true);setMsg('Connecting…');
   try{
     Net.leave();prepOnline();
     await Net.joinRoom('br-'+code,false);
-    setMsg('');showHud();requestLock(false);
-    if(!Net.oppUid&&Net.matchId!=null)banner('WAITING','Room br-'+code+' · press Esc for the invite link',4);
+    setMsg('');showRoom();
   }catch(err){Net.leave();setMsg(err.message||String(err),true)}
   finally{busy(false)}
 }
@@ -1203,17 +1643,16 @@ async function quickMatch(again){
   busy(true);
   try{
     Net.leave();prepOnline();
-    if(again){setWaiting('Back in the queue…')}else setMsg('Looking for an opponent…');
+    if(again){showRoom();$('lbStatus').textContent='Back in the queue…'}else setMsg('Looking for an opponent…');
     let searching=0;
-    const tick=setInterval(()=>{searching++;if(state==='menu')setMsg('Looking for an opponent… '+searching+'s');else banner('SEARCHING','Looking for an opponent · '+searching+'s',1.2)},1000);
+    const tick=setInterval(()=>{searching++;if(state==='menu')setMsg('Looking for an opponent… '+searching+'s');else $('lbStatus').textContent='Looking for an opponent… '+searching+'s'},1000);
+    Net.searchTick=tick;
     await Net.queue(async room=>{
       clearInterval(tick);
-      try{await Net.joinRoom(room,true);setMsg('');if(state!=='playing'){showHud();banner('MATCH FOUND','Click to play',2.5)}
-        clearTimeout(Net.requeueTimer);Net.requeueTimer=setTimeout(()=>{if(online&&Net.quick&&!Net.oppUid)quickMatch(true)},12000)}
+      try{await Net.joinRoom(room,true);setMsg('');showRoom()}
       catch(err){Net.leave();toMenu();setMsg(err.message||String(err),true)}
     });
-    Net.searchTick=tick;
-  }catch(err){Net.leave();setMsg(err.message||String(err),true)}
+  }catch(err){Net.leave();if(state!=='menu')toMenu();setMsg(err.message||String(err),true)}
   finally{busy(false)}
 }
 
@@ -1234,16 +1673,18 @@ function animModel(e,dt){
 /* ---------- camera ---------- */
 let attractYaw=0;
 function updateCamera(dt){
-  if(state==='menu'){
+  const tgt=camTarget();
+  if(!tgt){
     attractYaw+=dt*.06;if(camera.fov!==72){camera.fov=72;camera.updateProjectionMatrix()}
     camera.position.set(W/2+Math.sin(attractYaw*.7)*6,1.75,W/2+Math.cos(attractYaw*.5)*6);
     camera.lookAt(camera.position.x-Math.sin(attractYaw)*10,1.9,camera.position.z-Math.cos(attractYaw)*10);
     return;
   }
-  const ads=isADS(),w=WEAPONS[player.wi];
+  // the same over-the-shoulder view, behind you or behind the player you're watching
+  const self=tgt===player,ads=self&&isADS(),w=WEAPONS[tgt.wi]||WEAPONS[0];
   const tf=ads?w.fov:72;camera.fov+=(tf-camera.fov)*Math.min(1,dt*14);camera.updateProjectionMatrix();
-  const f=fwdOf(player.yaw,player.pitch),r=rightOf(player.yaw);
-  const head=player.pos.clone().add(new V3(0,1.62,0));
+  const f=fwdOf(tgt.yaw,tgt.pitch),r=rightOf(tgt.yaw);
+  const head=tgt.pos.clone().add(new V3(0,1.62,0));
   const side=raycast(arr(head),arr(r),.78,null,false);const so=side.hit?Math.max(0,side.t-.25):.78;
   const pivot=head.clone().addScaledVector(r,so);
   const want=ads?2.2:3.5,back=f.clone().negate();
@@ -1252,7 +1693,8 @@ function updateCamera(dt){
   camDist=d<camDist?d:camDist+(d-camDist)*Math.min(1,dt*8);
   camera.position.copy(pivot).addScaledVector(back,camDist);
   camera.lookAt(pivot.clone().addScaledVector(f,20));
-  player.model.visible=player.alive?camDist>.9&&!(ads&&w.id==='sr'):player.dieT<=2.2;
+  if(self)player.model.visible=player.alive?camDist>.9&&!(ads&&w.id==='sr'):player.dieT<=2.2;
+  else player.model.visible=player.present&&(player.alive||player.dieT<=2.2);
 }
 
 /* ---------- HUD update ---------- */
@@ -1276,17 +1718,37 @@ function updateHud(dt){
   hud.cross.style.opacity=scoped?'0':'1';
   hitT-=dt;hud.hitm.style.opacity=hitT>0?'1':'0';
   hurtA=Math.max(0,hurtA-dt*1.2);hud.hurt.style.opacity=hurtA.toFixed(3);
-  // name tag over the online opponent when you can see them
-  let showTag=false;
-  if(online&&opp.present&&opp.alive){
-    const top=opp.pos.clone().add(new V3(0,2.35,0));const s=toScreen(top);
-    if(s.front){const d=top.clone().sub(camera.position);const L=d.length();d.divideScalar(L);
-      if(!raycast(arr(camera.position),arr(d),L-.3,null,false).hit){showTag=true;hud.tag.textContent=oppName;hud.tag.style.transform=`translate(${s.x}px,${s.y}px) translate(-50%,-100%)`}}
+  // online: name tags in team colours (teammates always, enemies only when in sight), alive pips and status line
+  let ti=0;
+  if(online){
+    const my=myTeam(),tgt=camTarget();
+    for(const e of remotes.values()){
+      if(!e.present||!e.alive||e===tgt)continue;
+      const top=e.pos.clone().add(new V3(0,2.35,0));const s=toScreen(top);if(!s.front)continue;
+      if(e.team!==my){const d=top.clone().sub(camera.position);const L=d.length();d.divideScalar(L);if(raycast(arr(camera.position),arr(d),L-.3,null,false).hit)continue}
+      const el=tagEl(ti++);el.hidden=false;el.textContent=e.name;el.style.color=TEAM_HEX[e.team]||'';el.style.transform=`translate(${s.x}px,${s.y}px) translate(-50%,-100%)`;
+    }
+    const pk=inPlay()?[...roster].map(([u,t])=>u+t+((u===Net.uid?player:remotes.get(u))||{}).alive).join():'';
+    if(pk!==lastPips){lastPips=pk;hud.pips.hidden=!pk;
+      const dots=t=>[...roster].filter(x=>x[1]===t).map(x=>x[0]).sort().map(u=>{const e=u===Net.uid?player:remotes.get(u);return e&&e.alive?'●':'<i>●</i>'}).join('');
+      hud.pipR.innerHTML=dots('r');hud.pipB.innerHTML=dots('b')}
+  }else if(lastPips){lastPips='';hud.pips.hidden=true}
+  for(let i=ti;i<tagEls.length;i++)tagEls[i].hidden=true;
+  const spec=online&&!(activeOnline()&&player.alive);
+  hud.root.classList.toggle('spec',spec);
+  // touch: Next appears while there's someone else to watch
+  if(touchUI)$('tNext').hidden=!(spec&&inPlay()&&specCandidates().length>1);
+  let netTxt='';
+  if(online&&inPlay()){
+    const tgt=camTarget();
+    if(tgt&&tgt!==player)netTxt='Watching '+tgt.name+(specCandidates().length>1?(touchUI?' · tap Next for the next one':' · click for the next one'):'');
+    else if(RD.ph==='cd'&&activeOnline())netTxt='Starting in '+Math.max(1,Math.ceil((+RD.pt-Net.now())/1000));
+    else if(activeOnline()&&player.alive&&!locked&&!fallback&&!touchUI)netTxt='Click to play';
   }
-  hud.tag.hidden=!showTag;
-  const netTxt=online?(Net.oppUid?'':Net.quick?'Waiting for your opponent to load in…':'Room '+Net.room+' · Esc for the invite link'):'';
   hud.net.hidden=!netTxt;if(netTxt)hud.net.textContent=netTxt;
 }
+const tagEls=[];let lastPips='';
+function tagEl(i){while(tagEls.length<=i){const d=document.createElement('div');d.className='ntag';d.hidden=true;hud.tags.appendChild(d);tagEls.push(d)}return tagEls[i]}
 
 /* ---------- lights ---------- */
 let flickClock=0;
@@ -1344,17 +1806,22 @@ let last=performance.now();
 function frame(now){
   const raw=Math.min(1,Math.max(0,(now-last)/1000)),dt=Math.min(.05,raw);last=now;
   const running=state==='playing'&&(!paused||online);
-  if(running){
+  if(running&&!online){
     matchTime+=raw;
-    // Round timers run on the wall clock so both online players change rounds together, even if one is dropping frames.
+    // practice round timers run on the wall clock
     if(phase==='countdown'){phaseT-=raw;if(phaseT<=0)phase='fight'}
     if(phase==='over'){phaseT-=raw;if(phaseT<=0){if(score.you>=FIRST_TO||score.opp>=FIRST_TO)endMatch();else newRound()}}
-    if(phase==='waiting')waitT+=dt;
-    if(state==='playing'){updatePlayer(dt);if(online)updateRemote(dt);else updateBot(dt)}
-  }else if(state==='end'&&online)updateRemote(dt);
-  if(!(state==='playing'&&paused&&!online)){animModel(player,dt);animModel(opp,dt);updateFx(dt);updateLights(dt)}
+    if(state==='playing'){updatePlayer(dt);updateBot(dt)}
+  }else if(running){
+    // online, the host's round node drives the phases (see onRound / hostDuties)
+    if(inPlay())matchTime+=raw;
+    if(activeOnline())updatePlayer(dt);else hideGhosts();
+    updateRemotes(dt);
+  }else if(state==='end'&&online)updateRemotes(dt);
+  if(!(state==='playing'&&paused&&!online)){for(const e of ents)animModel(e,dt);updateFx(dt);updateLights(dt)}
   updateCamera(dt);
   if(state==='playing')updateHud(dt);
+  if(touchUI)document.body.classList.toggle('inlobby',lobbyShown);
   updateDnums(running?dt:0);
   if(bannerTimer>0){bannerTimer-=dt;if(bannerTimer<=0)hud.banner.hidden=true}
   clockT+=dt;if(clockT>.25){clockT=0;hud.clock.textContent=fmtClock(state==='menu'?now/1000:matchTime)}
@@ -1374,7 +1841,7 @@ function requestLock(fromClick){
 function onLockError(){
   if(!everLocked&&lockFromClick){fallback=true;if(paused)resumeGame();return}
   if(paused)$('pauseMsg').textContent='Your browser needs a second before it gives the mouse back. Click Resume again.';
-  else if(state==='playing')banner('CLICK TO PLAY','',2);
+  else if(state==='playing'&&!online)banner('CLICK TO PLAY','',2);   // online, the status line under the score says it
 }
 document.addEventListener('pointerlockerror',onLockError);
 document.addEventListener('pointerlockchange',()=>{
@@ -1383,23 +1850,26 @@ document.addEventListener('pointerlockchange',()=>{
   else if(state==='playing')pauseGame();
 });
 document.addEventListener('mousemove',e=>{
-  if(state!=='playing'||paused||!player.alive)return;
+  if(state!=='playing'||paused||lobbyShown||!player.alive)return;
   if(!locked&&!(fallback&&(lmb||rmb||e.buttons)))return;
   const k=.0022*sens*(camera.fov/72);
   player.yaw-=e.movementX*k;player.pitch=clamp(player.pitch-e.movementY*k,-1.45,1.45);
 });
 view.addEventListener('mousedown',e=>{
   if(state!=='playing'||paused)return;
+  // out of the round (or watching a match you're not in): a click watches the next living player
+  if(isSpectating()){if(e.button===0)cycleSpectate();e.preventDefault();return}
+  if(lobbyShown)return;
   if(!locked&&!fallback){requestLock(true);return}
   if(e.button===0)lmb=true;if(e.button===2)rmb=true;
   e.preventDefault();
 });
 addEventListener('mouseup',e=>{if(e.button===0)lmb=false;if(e.button===2)rmb=false});
 view.addEventListener('contextmenu',e=>e.preventDefault());
-addEventListener('wheel',e=>{if(state!=='playing'||paused)return;const n=(player.wi+(e.deltaY>0?1:2))%3;switchWeapon(player,n);mode='combat'},{passive:true});
+addEventListener('wheel',e=>{if(state!=='playing'||paused||lobbyShown)return;const n=(player.wi+(e.deltaY>0?1:2))%3;switchWeapon(player,n);mode='combat'},{passive:true});
 const BUILD_KEYS={KeyQ:'wall',KeyZ:'wall',KeyF:'floor',KeyX:'floor',KeyC:'ramp',KeyE:'ramp'};
 addEventListener('keydown',e=>{
-  if(state!=='playing'||paused)return;
+  if(state!=='playing'||paused||lobbyShown)return;
   keys.add(e.code);
   if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();
   if(e.code==='Digit1'||e.code==='Digit2'||e.code==='Digit3'){switchWeapon(player,+e.code.slice(5)-1);mode='combat'}
@@ -1417,7 +1887,8 @@ let touchUI=matchMedia('(pointer: coarse)').matches&&!matchMedia('(any-pointer: 
 const tMove={on:false,x:0,y:0};
 function setTouchUI(on){touchUI=on;document.body.classList.toggle('touch',on);$('touchNote').hidden=!on}
 addEventListener('pointerdown',e=>{if(e.pointerType==='touch'&&!touchUI)setTouchUI(true)},true);
-const canAct=()=>state==='playing'&&!paused&&player.alive;
+// online, only while you're in the current match (not in the lobby panel, watching, or out of the round)
+const canAct=()=>state==='playing'&&!paused&&!lobbyShown&&player.alive&&(!online||activeOnline());
 function touchLook(dx,dy){
   if(!canAct())return;
   const k=.0042*sens*(camera.fov/72);
@@ -1453,6 +1924,15 @@ tButton($('tJump'),()=>{if(canAct())keys.add('Space')},()=>{keys.delete('Space')
 tButton($('tAim'),()=>{if(canAct()){rmb=!rmb;if(rmb)mode='combat'}},()=>{$('tAim').classList.toggle('on',rmb)});
 tButton($('tReload'),()=>{if(canAct()&&mode==='combat')startReload(player)});
 tButton($('tPause'),()=>{rmb=false;pauseGame()});
+// Out of the round: Next, or a tap on the view (like a click with a mouse), watches the next living player.
+tButton($('tNext'),()=>{if(isSpectating())cycleSpectate()});
+{
+  const look=$('tLook'),taps=new Map();
+  look.addEventListener('pointerdown',e=>taps.set(e.pointerId,[e.clientX,e.clientY,performance.now()]));
+  look.addEventListener('pointerup',e=>{const q=taps.get(e.pointerId);taps.delete(e.pointerId);
+    if(q&&Math.hypot(e.clientX-q[0],e.clientY-q[1])<12&&performance.now()-q[2]<400&&isSpectating())cycleSpectate()});
+  look.addEventListener('pointercancel',e=>taps.delete(e.pointerId));
+}
 [0,1,2].forEach(i=>tButton($('slot'+i),()=>{if(canAct()){switchWeapon(player,i);mode='combat'}}));
 ['wall','floor','ramp'].forEach(t=>tButton($('slot'+t),()=>{if(!canAct())return;if(mode==='build'&&buildType===t)mode='combat';else{mode='build';buildType=t;player.reloadT=0;rmb=false}}));
 
@@ -1469,15 +1949,25 @@ $('play').addEventListener('click',startPractice);
 $('quick').addEventListener('click',()=>quickMatch(false));
 $('joinRoom').addEventListener('click',joinPrivate);
 $('room').addEventListener('keydown',e=>{if(e.key==='Enter')joinPrivate()});
-$('again').addEventListener('click',()=>{if(online){Net.rematch();$('again').disabled=true;$('endMsg').textContent='Starting a new map…'}else startPractice()});
+$('again').addEventListener('click',()=>{if(online)hostToLobby();else startPractice()});
 $('toMenu').addEventListener('click',toMenu);
 $('resume').addEventListener('click',()=>{initAudio();resumeGame(true)});
 $('leave').addEventListener('click',toMenu);
-$('copyInvite').addEventListener('click',()=>{
-  const url=location.origin+'/#'+Net.room,m=$('inviteMsg');
-  const done=ok=>{m.textContent=ok?'Invite link copied. Your friend opens it and enters the code to join.':url};
+function copyInvite(m){
+  const url=location.origin+'/#'+Net.room;
+  const done=ok=>{m.textContent=ok?'Invite link copied. Friends open it and press Play in room to join.':url};
   try{navigator.clipboard.writeText(url).then(()=>done(true),()=>done(false))}catch(e){done(false)}
-});
+}
+$('copyInvite').addEventListener('click',()=>copyInvite($('inviteMsg')));
+// lobby
+$('lbInvite').addEventListener('click',()=>copyInvite($('lbMsg')));
+$('lbLeave').addEventListener('click',toMenu);
+$('joinRed').addEventListener('click',()=>setMyTeam('r'));
+$('joinBlue').addEventListener('click',()=>setMyTeam('b'));
+$('startMatch').addEventListener('click',()=>{initAudio();hostStart()});
+$('randTeams').addEventListener('click',hostRandomize);
+$('toSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(b)hostSetTarget(+b.dataset.n)});
+$('lbWatch').addEventListener('click',()=>{watchMode=true;hideLobby()});
 if(touchUI)setTouchUI(true);
 addEventListener('pagehide',()=>Net.leave());
 
@@ -1485,9 +1975,19 @@ addEventListener('pagehide',()=>Net.leave());
 const inv=/^#br-([a-z0-9-]{1,17})$/.exec(location.hash);
 if(inv){$('room').value=inv[1];setMsg('You were invited to room br-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.replace('ghost-btn','cta');$('quick').classList.replace('cta','ghost-btn')}
 
+// Test hook for automated browser tests only (navigator.webdriver is set by Playwright and similar tools).
+if(navigator.webdriver)window.__br={get state(){return state},get online(){return online},get phase(){return phase},get R(){return RD},get roster(){return roster},get curMatch(){return curMatch},get curRound(){return curRound},
+  get lobbyShown(){return lobbyShown},get myTeamPref(){return myTeamPref},get myKills(){return myKills},get specUid(){return specUid},get N(){return N},get W(){return W},get ents(){return ents},get score(){return score},get mode(){return mode},
+  Net,player,opp,remotes,names,kills,setMyTeam,hostStart,hostRandomize,hostSetTarget,hostToLobby,cellFor,camTarget,cycleSpectate,isSpectating,handleEvent,damageEntity,raycast,startPractice,toMenu,joinPrivate,liveHumans,
+  hitboxes,solids:()=>solids,keys,renderer,scene,camera,
+  teleport(x,z,y){player.pos.set(x,y||0,z);player.vel.set(0,0,0)},
+  aimAt(e){const t=e.pos.clone().add(new V3(0,1.1,0));for(let i=0;i<4;i++){updateCamera(0);const c=camera.position;player.yaw=yawTo(t.x-c.x,t.z-c.z);player.pitch=Math.atan2(t.y-c.y,Math.hypot(t.x-c.x,t.z-c.z))}},
+  fire(){const w=WEAPONS[player.wi];updateCamera(0);playerShoot();player.ammo[player.wi]=w.mag;player.cd=0},
+  setWeapon(i){switchWeapon(player,i);player.switchT=0;mode='combat'}};
+
 setDiff(diffKey);setSens(sens);
 generateMap(randSeed());
-spawn(player,0);spawn(opp,1);
+spawn(player,soloCell(0));spawn(opp,soloCell(1));
 showAd('adMenu');
 requestAnimationFrame(t=>{last=t;frame(t)});
 })();
