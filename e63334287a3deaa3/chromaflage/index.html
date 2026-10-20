@@ -2105,6 +2105,7 @@ function wallPose(e,p,flat){
 }
 // slide along the wall: up is metres per second up, side along the wall's own sideways direction
 function wallMove(e,dt,up,side){
+  if(!e.wall)return false;
   const n=WALL_N[e.wall],tx=-n[1],tz=n[0],sv=saveBody(e);let moved=false;
   if(up){e.pos.y+=up*WALL_SPEED*dt;const fl=floorBelow(e);if(e.pos.y<fl)e.pos.y=fl;if(bodyBlocked(e)||!wallHeld(e)){e.pos.y=sv.y}else if(Math.abs(e.pos.y-sv.y)>1e-5)moved=true}
   if(side){const x=e.pos.x,z=e.pos.z;e.pos.x+=tx*side*WALL_SPEED*dt;e.pos.z+=tz*side*WALL_SPEED*dt;if(bodyBlocked(e)||!wallHeld(e)){e.pos.x=x;e.pos.z=z}else moved=true}
@@ -2211,7 +2212,7 @@ function endRound(rs,win){
 // a seeker says it hit someone; the host checks it loosely and marks them found
 function hostTag(by,target){
   const rs=G.rs;if(!rs||rs.ph!=='seek'||roleOf(by,rs)!=='seeker'||roleOf(target,rs)!=='hider')return false;
-  const a=ents.get(by),b=ents.get(target);if(a&&b&&a.pos.distanceTo(b.pos)>60)return false;
+  const a=ents.get(by),b=ents.get(target);if(a&&b&&a.pos.distanceTo(b.pos)>90)return false;
   const fd=Object.assign({},rs.fd);fd[target]=[by,Math.round((now()-rs.t0)/1000)];
   setRS(Object.assign({},rs,{fd}));return true;
 }
@@ -2347,7 +2348,7 @@ function shoot(){
   if(G.shootCd>0)return;
   if(G.ink<1){toast('Out of ink. It refills over time.');sfx('miss');return}
   scene.updateMatrixWorld();camera.getWorldPosition(_o);camera.getWorldDirection(_d);
-  const mh=rayMap(_o.x,_o.y,_o.z,_d.x,_d.y,_d.z,70,false);const tMap=mh?mh.t:70;let hitPoint=_o.clone().addScaledVector(_d,tMap),hitN=mh?new V3(...FACE_N[mh.f]):new V3(0,1,0);
+  const mh=rayMap(_o.x,_o.y,_o.z,_d.x,_d.y,_d.z,90,false);const tMap=mh?mh.t:90;let hitPoint=_o.clone().addScaledVector(_d,tMap),hitN=mh?new V3(...FACE_N[mh.f]):new V3(0,1,0);
   const meDist=_o.distanceTo(me.pos)+.2;
   ray.set(_o,_d);ray.near=Math.min(meDist*.6,2.5);ray.far=tMap;
   const targets=[];for(const e of ents.values()){if(e===me||roleOf(e.id)!=='hider'||!e.av.root.visible)continue;targets.push(...e.av.parts)}
@@ -2808,7 +2809,7 @@ function onNodeGone(uid){
 }
 function remoteShot(e,sh){
   const f=sh.split(',').map(Number);if(f.length<10||f.some(n=>!isFinite(n)))return;
-  const from=new V3(f[1],f[2],f[3]),to=new V3(f[4],f[5],f[6]),n=new V3(f[7],f[8],f[9]);if(from.distanceTo(to)>90)return;
+  const from=new V3(f[1],f[2],f[3]),to=new V3(f[4],f[5],f[6]),n=new V3(f[7],f[8],f[9]);if(from.distanceTo(to)>120)return;
   sfx('shot',from);pellet(from,to,'#ff4f8b',()=>{splat(to,n.lengthSq()>.5?n.normalize():new V3(0,1,0),'#ff4f8b');sfx('splat',to)});
 }
 function updateRemotes(dt){
@@ -3121,7 +3122,7 @@ function step(dt){
   for(const e of ents.values())e.av.update(dt);
   if(me&&me.av.paint.dirty)me.av.paint.commit();
   updateTags();updateFx(dt);updateCamera(dt);updateHud();
-  if(!G.noRender)renderer.render(scene,camera);
+  if(!G.noRender)renderer.render(scene,camera);else scene.updateMatrixWorld(); // noRender: test runs on slow software GL
 }
 
 // =====================================================================
@@ -3146,6 +3147,8 @@ addEventListener('keydown',ev=>{
 addEventListener('keyup',ev=>{keys[ev.code]=false});
 addEventListener('blur',()=>{for(const k in keys)keys[k]=false});
 document.addEventListener('pointerlockchange',()=>{
+  // a lock that arrives after the paint studio opened (or after the menu came back) is let go again
+  if(document.pointerLockElement&&(G.studio||G.mode==='menu')){G.intentUnlock=true;document.exitPointerLock();setTimeout(()=>G.intentUnlock=false,300);return}
   if(!document.pointerLockElement&&!G.intentUnlock&&(G.mode==='online'||G.mode==='practice')&&!G.studio&&!G.paused&&$('end').hidden)showPause();
 });
 document.addEventListener('mousemove',ev=>{
@@ -3210,8 +3213,8 @@ canvas.addEventListener('wheel',ev=>{if(G.studio){ev.preventDefault();SC.dist=cl
 function renderMePreview(){
   const s=SIZES[mySize].s,svg=$('mePreview'),w=72,h=96,sx=s[0],sy=s[1];
   const g='<g transform="translate(36 92) scale('+sx+' '+sy+') translate(-36 -92)">';
-  const body=myShape?'<rect x="18" y="38" width="36" height="54" rx="3" fill="#fffaf1" stroke="#1f1b33" stroke-width="3"/><path d="M18 70h36v10H18z" fill="#14b8a6"/><path d="M18 80h36v12H18z" fill="#ff4f8b"/><circle cx="30" cy="52" r="2.6" fill="#1f1b33"/><circle cx="42" cy="52" r="2.6" fill="#1f1b33"/>'
-    :'<path d="M36 6c-9 0-14 6-14 14 0 5 2 8 5 11-7 3-11 9-11 18v17c0 4 3 6 6 6h2v16c0 4 5 4 5 0V73h14v15c0 4 5 4 5 0V72h2c3 0 6-2 6-6V49c0-9-4-15-11-18 3-3 5-6 5-11 0-8-5-14-14-14z" fill="#fffaf1" stroke="#1f1b33" stroke-width="3" stroke-linejoin="round"/><path d="M18 58q18-8 36 0v8q-18-8-36 0z" fill="#14b8a6"/><path d="M19 47q17-8 34 0v6q-17-8-34 0z" fill="#ffc83d"/><circle cx="32" cy="19" r="2.4" fill="#1f1b33"/><circle cx="40" cy="19" r="2.4" fill="#1f1b33"/>';
+  const body=myShape?'<rect x="24" y="30" width="24" height="62" rx="3" fill="#fffaf1" stroke="#1f1b33" stroke-width="3"/><path d="M24 66h24v10H24z" fill="#14b8a6"/><path d="M24 76h24v14H24z" fill="#ff4f8b"/><circle cx="32" cy="44" r="2.2" fill="#1f1b33"/><circle cx="40" cy="44" r="2.2" fill="#1f1b33"/>'
+    :'<path d="M36 6c-6 0-10 4.5-10 10.5 0 4 1.6 7 4.3 8.6-5.3 2-8.3 6.6-8.3 13.4v20c0 3 2 4.5 4.5 4.5h1.5v19c0 3 4.5 3 4.5 0V64h7v18c0 3 4.5 3 4.5 0V63h1.5c2.5 0 4.5-1.5 4.5-4.5v-20c0-6.8-3-11.4-8.3-13.4 2.7-1.6 4.3-4.6 4.3-8.6C46 10.5 42 6 36 6z" fill="#fffaf1" stroke="#1f1b33" stroke-width="3" stroke-linejoin="round"/><path d="M22.5 50q13.5-6 27 0v7q-13.5-6-27 0z" fill="#14b8a6"/><path d="M22.5 40q13.5-6 27 0v5q-13.5-6-27 0z" fill="#ffc83d"/><circle cx="33" cy="16" r="2" fill="#1f1b33"/><circle cx="39" cy="16" r="2" fill="#1f1b33"/>';
   svg.innerHTML=g+body+'</g>';
 }
 function setMsg(t,err){const m=$('netMsg');m.textContent=t;m.classList.toggle('err',!!err)}
@@ -3275,7 +3278,7 @@ if(inv){$('room').value=inv[1];setMsg('You were invited to room cf-'+inv[1]+'. P
 
 if(navigator.webdriver)window.__cf={G,P,buildNav,findPath,get me(){return me},ents,Net,MAPS,get MAP(){return MAP},loadMap,startPractice,goOnline,toMenu,setRS,hostTag,shoot,openStudio,closeStudio,perceive,visibility,camoCheck,placeBot,botPaint,PC,SC,setColor,fillAll,eyedrop,
   get camYaw(){return camYaw},set camYaw(v){camYaw=v},get camPitch(){return camPitch},set camPitch(v){camPitch=v},renderer,scene,camera,step,keys,tryPose,setPose,toggleFlat,taunt,practiceReady,newRound,lobbyRS,roleOf,showPause,resume,rayMap,strokeTo,hitMe,SIZES,atlasOf,hidersLeft,specTarget,cycleSpec,get MAPIDX(){return mapIdx},
-  toggleStick,stickWall,unstick,attachWall,wallMove,bodyBlocked,wallHeld,findWall,jump,heightOf,overlapping,circles,controlMe,aiSeeker,lineClear,navCell,patrolPoints,syncStudio,setMySize,setMyShape,undoPaint,makeEnt,practiceRoundStart,WALL_N};
+  toggleStick,stickWall,unstick,attachWall,wallMove,bodyBlocked,wallHeld,findWall,jump,heightOf,overlapping,circles,controlMe,aiSeeker,lineClear,navCell,patrolPoints,syncStudio,setMySize,setMyShape,undoPaint,makeEnt,practiceRoundStart,WALL_N,moveEnt};
 
 renderMePreview();renderRecent();renderGfx();setColor(BASE_WHITE);
 setupAttract();showAd('adMenu');
