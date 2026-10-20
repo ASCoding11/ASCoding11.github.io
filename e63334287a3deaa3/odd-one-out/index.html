@@ -210,7 +210,7 @@ h1 .o{color:var(--hunt)}h1 .t{color:var(--prop)}
 /* ---------- touch ---------- */
 #touch{position:absolute;inset:0;pointer-events:none;z-index:1}
 #tLook{position:absolute;inset:0;pointer-events:auto;touch-action:none}
-#stick{position:absolute;left:calc(22px + env(safe-area-inset-left,0px));bottom:calc(24px + env(safe-area-inset-bottom,0px));width:124px;height:124px;border-radius:50%;background:rgba(255,255,255,.16);border:2.5px solid rgba(255,255,255,.55);pointer-events:auto;touch-action:none}
+#stick{position:absolute;left:calc(22px + env(safe-area-inset-left,0px));bottom:calc(24px + env(safe-area-inset-bottom,0px));width:124px;height:124px;border-radius:50%;background:rgba(23,26,46,.22);border:2.5px solid rgba(255,255,255,.75);box-shadow:0 0 0 1.5px rgba(23,26,46,.35);pointer-events:auto;touch-action:none}
 #stick i{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:rgba(255,255,255,.78);border:2.5px solid var(--ink)}
 #tbtns{position:absolute;right:calc(14px + env(safe-area-inset-right,0px));bottom:calc(20px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:repeat(3,58px);grid-auto-rows:58px;gap:10px;pointer-events:none;direction:rtl}
 #tbtns button{direction:ltr;width:58px;height:58px;border-radius:50%;border:2.5px solid var(--ink);background:rgba(255,248,236,.9);font-weight:900;font-size:11px;line-height:1.05;box-shadow:0 3px 0 var(--ink);touch-action:none;padding:0;pointer-events:auto}
@@ -287,7 +287,7 @@ body.touch #banner span{font-size:14px}
     <div id="hitm"><i></i><i></i><i></i><i></i></div>
     <div id="pop" class="out"></div>
     <div id="tgt" hidden></div>
-    <div class="pill" id="propsBox"><svg class="tico" viewBox="0 0 26 26" aria-hidden="true"><path d="M3 9l10-5 10 5v10l-10 5-10-5z" fill="#14b89a" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><path d="M3 9l10 5 10-5M13 14v10" fill="none" stroke="#fff" stroke-width="2"/></svg><div><small>Props</small><b id="propsN">0</b></div></div>
+    <div class="pill" id="propsBox"><svg class="tico" viewBox="0 0 26 26" aria-hidden="true"><path d="M3 9l10-5 10 5v10l-10 5-10-5z" fill="#14b89a" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><path d="M3 9l10 5 10-5M13 14v10" fill="none" stroke="#fff" stroke-width="2"/></svg><div><small id="propsLbl">Props</small><b id="propsN">0</b></div></div>
     <div class="pill" id="clockBox"><b id="clock">0:00</b><small id="phaseName">Lobby</small></div>
     <div class="pill" id="huntBox"><svg class="tico" viewBox="0 0 26 26" aria-hidden="true"><circle cx="13" cy="13" r="9" fill="none" stroke="#ff7a1a" stroke-width="3"/><path d="M13 1v7M13 18v7M1 13h7M18 13h7" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg><div><small>Hunters</small><b id="huntN">0</b></div></div>
     <div id="feed"></div>
@@ -1869,7 +1869,7 @@ function refreshRoles(){
   const r=roleOf(myId(),rs);
   if(r!==G.role){const prev=G.role;G.role=r;if(r==='out'||r==='dead'||r==='spec')G.specId=null;if(prev!==r)hudDirty()}
 }
-function resetMine(lobby){G.ammo=MAG;G.reloadT=0;G.shootCd=0;G.hits={};G.wrong=0;G.hdStr='';G.tfCd=0;G.lock=false;G.rotOff=0;G.aim=false;if(me&&!lobby){setForm(me,PT[DEFAULT_FORM])}}
+function resetMine(lobby){G.ammo=MAG;G.reloadT=0;G.shootCd=0;G.hits={};G.wrong=0;G.hdStr='';G.tfCd=0;G.lock=false;G.rotOff=0;G.aim=false;if(me&&!lobby){setForm(me,PT[DEFAULT_FORM]);if(G.mode==='online')Net.upd({d:DEFAULT_FORM})}}
 function placeMe(rs,keep){
   const r=roleOf(myId(),rs);let p;
   if(r==='hunter'){const i=Math.max(0,rs.hu.indexOf(myId()));p=rs.ph==='hide'?MAP.waitSpawns[i%MAP.waitSpawns.length]:MAP.hunterSpawns[i%MAP.hunterSpawns.length]}
@@ -2363,14 +2363,14 @@ function updateHud(){
   else if(ph==='hide'){pn='Hide · round '+rs.rn+'/'+rs.set.rounds;ck=fmtT(left)}else if(ph==='hunt'){pn='Hunt · round '+rs.rn+'/'+rs.set.rounds;ck=fmtT(left)}else{pn=ph==='over'?'Match over':'Round over';ck=G.mode==='online'?fmtT(left):'–'}
   if(G.mode==='practice'&&ph!=='lobby')pn=pn.replace(/ · round.*/,'')+' · practice';
   setText('phaseName',pn);setText('clock',ck);setClass('clockBox','pill'+(ph==='hunt'&&left<30?' hurry':''));
-  if(rs&&ph!=='lobby'){const ap=aliveProps(rs).length,ah=aliveHunters(rs).length;setText('propsN',ap+'/'+rs.pr.length);setText('huntN',ah+'/'+rs.hu.length)}
-  else{setText('propsN',String(G.mode==='online'?liveIds().length:1));setText('huntN','–')}
+  if(rs&&ph!=='lobby'){const ap=aliveProps(rs).length,ah=aliveHunters(rs).length;setText('propsN',ap+'/'+rs.pr.length);setText('huntN',ah+'/'+rs.hu.length);setText('propsLbl','Props')}
+  else{setText('propsN',String(G.mode==='online'?liveIds().length:1));setText('huntN','–');setText('propsLbl','Players')}
   // final countdown
   if(ph==='hunt'){const s=Math.ceil(left);if(s!==G.lastTick){G.lastTick=s;if(s===30)banner('30 SECONDS','Hang on, props!',2,'gold');if(s<=10&&s>0)sfx(s<=3?'tick':'tock',null,.8);if(s===60){Music.mood='hurry';toast('One minute left: pings every 10 seconds')}}}
   else if(ph==='hide'&&role==='hunter'){const s=Math.ceil(left);if(s!==G.lastTick){G.lastTick=s;if(s<=5&&s>0)sfx('tock',null,.7)}}
   // status
   const alive=me&&me.alive&&(role==='prop'||role==='hunter'||role==='free');
-  setHidden('status',!alive);
+  setHidden('status',!alive||(touchUI&&ph==='lobby'&&G.mode==='online'));
   if(alive){
     const hp=rs&&ph!=='lobby'?hpOf(myId()):(role==='hunter'?100:me.form.hp),mx=rs&&ph!=='lobby'?maxHpOf(myId()):(role==='hunter'?100:me.form.hp);
     if(role==='hunter'){setText('stName','Rifle');setText('stSub','Health '+hp+'/100'+(touchUI||!rs||!rs.set.pen?'':' · wrong shots cost '+rs.set.pen+' HP'))}
@@ -2497,7 +2497,7 @@ function startPractice(kind){
   let hu,pr;
   if(kind==='hunt'){hu=['me'];pr=[];for(let i=0;i<D.props;i++){const id='b'+i;makeEnt({id,name:BOTNAMES[i],color:COLORS[(i+1)%COLORS.length],bot:{kind:'prop'}});pr.push(id)}}
   else{pr=['me'];hu=[];for(let i=0;i<D.hunters;i++){const id='h'+i;makeEnt({id,name:'Hunter '+BOTNAMES[i+4],color:COLORS[(i+3)%COLORS.length],bot:{kind:'hunter'}});hu.push(id)}}
-  G.rid=-1;G.ph='';G.role='free';G.seenEl={};G.hfSeen={};G.rs=null;G.lastPingPos=null;G.lastPingClock=-99;
+  G.rid=-1;G.ph='';G.role='free';G.seenEl={};G.hfSeen={};G.hitSeen=new Map();G.rs=null;G.lastPingPos=null;G.lastPingClock=-99;G.tOff=0;
   setRS({id:1,mid:1,rn:1,ph:'hide',t0:now(),dur:set.hide*1000,map:G.pracMap,set,hu,pr,hf:{},el:{},k:{},sc:{},hn:{}});
   enterGame();
 }
