@@ -1151,7 +1151,7 @@ const store={get(k,d){try{const v=localStorage.getItem('spire:'+k);return v===nu
 const COLORS=['#ff5e6c','#ff9f1c','#ffcf3d','#2fd39a','#2ec4b6','#4c8dff','#7c5cff','#f15bb5','#ffffff','#2b2d42'];
 let myName=cleanName(store.get('name',''));
 let myColor=COLORS.indexOf(store.get('color',''))>=0?store.get('color',''):pick(COLORS);
-let sens=clamp(+store.get('sens',1)||1,.3,2.5),volume=clamp(+store.get('vol',.7),0,1),musVol=clamp(+store.get('mus',.4),0,1);
+let sens=clamp(+store.get('sens',1)||1,.3,2.5),volume=clamp(+store.get('vol',.7)||0,0,1),musVol=clamp(+store.get('mus',.4)||0,0,1); // (NaN would silence all sound)
 let touchUI=matchMedia('(pointer: coarse)').matches&&!matchMedia('(any-pointer: fine)').matches;
 let gfx=store.get('gfx',touchUI?'low':'high');
 const profile=Object.assign({coins:0,xp:0,towers:0,deaths:0,best:{},obbyBest:0,obbyCp:0,prac:{}},store.get('profile',{}));
@@ -1331,7 +1331,7 @@ cloudSea.rotation.x=-Math.PI/2;cloudSea.visible=false;scene.add(cloudSea);
 // =====================================================================
 //  Turning a world (from the core) into meshes
 // =====================================================================
-let ribs=[],worldGroup=null,movers=[],timedParts=[],crumbleParts=[],convParts=[],finishFx=[],cpMeshes=new Map();
+let ribs=[],worldGroup=null,movers=[],timedParts=[],crumbleParts=[],convParts=[],finishFx=[],trussParts=[],cpMeshes=new Map();
 const signs=[];
 function signTex(text,bg,fg){
   const c=cvs(512,96,(g,w,h)=>{g.fillStyle=bg;g.beginPath();g.roundRect?g.roundRect(4,4,w-8,h-8,24):g.rect(4,4,w-8,h-8);g.fill();g.lineWidth=6;g.strokeStyle='#18163a';g.stroke();
@@ -1389,12 +1389,12 @@ function loadWorld(W){
   geoForWorld=true;try{buildWorldMeshes(W)}finally{geoForWorld=false}
 }
 function buildWorldMeshes(W){
-  G.W=W;worldGroup=new THREE.Group();movers=[];ribs=[];timedParts=[];crumbleParts=[];convParts=[];finishFx=[];cpMeshes=new Map();
+  G.W=W;worldGroup=new THREE.Group();movers=[];ribs=[];timedParts=[];crumbleParts=[];convParts=[];finishFx=[];trussParts=[];cpMeshes=new Map();
   for(const p of W.parts){
     const m=partMesh(p);if(!m)continue;p.mesh=m;
     const b=cur(p,0);m.position.set(b.x,b.y,b.z);m.rotation.y=b.yaw;
     worldGroup.add(m);
-    if(p.move)movers.push(p);if(p.timed)timedParts.push(p);if(p.crumble)crumbleParts.push(p);if(p.conv)convParts.push(p);
+    if(p.move)movers.push(p);if(p.truss)trussParts.push(p);if(p.timed)timedParts.push(p);if(p.crumble)crumbleParts.push(p);if(p.conv)convParts.push(p);
     if(p.cp>=0)cpMeshes.set(p.cp,m);
   }
   // tower: glass wall with ribs, section rings and signs
@@ -1625,9 +1625,19 @@ function tick(){
     if(G.shiftLock&&!G.attract&&!G.auto)me.yaw=G.camYaw;
     else if(Math.hypot(inp.x,inp.z)>.1&&!me.climb){const ty=Math.atan2(-inp.x,-inp.z);me.yaw+=angDiff(ty,me.yaw)*Math.min(1,PHYS.DT*14)}
     handleEvents(t);
+    if(!G.attract&&!G.auto)trussTip();
     if(G.attract&&(G.attract.done||G.attract.fail)){respawnMe();G.attract=makeBot(W.route)}
   }
   G.t=t;
+}
+// New climbers: a one-off tip at the foot of a truss, until they've climbed one.
+let climbedOnce=!!store.get('climbed',false),trussTipT=-1e9;
+function trussTip(){
+  if(climbedOnce)return;
+  if(me.climb){climbedOnce=true;store.set('climbed',true);return}
+  if(!me.gr||performance.now()-trussTipT<15000)return;
+  for(const p of trussParts)if(Math.abs(me.y-(p.y-p.hy))<.6&&Math.hypot(me.x-p.x,me.z-p.z)<2.4){
+    trussTipT=performance.now();banner('Climb the truss',touchUI?'Push the stick toward it and hold':'Walk into it and keep holding forward',3);break}
 }
 function handleEvents(t){
   for(const e of me.ev){
@@ -1684,7 +1694,7 @@ function onFinish(){
   }else if(G.mode==='practice'){
     const key=G.pracId+':'+G.pracD,pb=profile.prac[key];const nb=!pb||tm<pb;if(nb)profile.prac[key]=r2(tm);addXp(5);saveProfile();
     banner(nb?'New best!':'Cleared!',fmtTime(tm)+(pb&&!nb?' · best '+fmtTime(pb):''),2);
-    setTimeout(()=>{if(G.mode==='practice'){respawnMe();G.finished=false;G.startT=G.t;G.tries=1}},1600);
+    const W=G.W;setTimeout(()=>{if(G.mode==='practice'&&G.W===W){respawnMe();G.finished=false;G.startT=G.t;G.tries=1}},1600);
   }else if(G.mode==='obby'){
     const first=profile.obbyBest<OBBY_STAGES;profile.obbyBest=OBBY_STAGES;saveProfile();
     const coins=first?100:10,xp=first?300:40;addCoins(coins);addXp(xp);
@@ -2035,7 +2045,7 @@ function updateHud(){
   }
   $('reticle').hidden=!(G.shiftLock&&playing()&&!touchUI);
   $('hintShift').classList.toggle('on',G.shiftLock);
-  const lk=playing()&&!touchUI&&!G.paused&&document.pointerLockElement!==canvas&&lockWanted()&&!G.spec;$('lockHint').hidden=!lk;
+  const lk=playing()&&!touchUI&&!G.paused&&!G.overlay&&document.pointerLockElement!==canvas&&lockWanted()&&!G.spec;$('lockHint').hidden=!lk;
 }
 function updateTags(){
   const w=innerWidth,h=innerHeight,v=new V3();
