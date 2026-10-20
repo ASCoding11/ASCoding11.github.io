@@ -74,6 +74,16 @@ h1{font-family:var(--f-d);font-weight:400;font-size:clamp(40px,6vw,56px);line-he
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--cream)}
 .msg{min-height:1.4em;margin:12px 0 0;font-weight:800;color:var(--ink-2)}
 .msg.err{color:var(--tomato)}
+/* Controls panel (../keybinds.js): a chunky cream card like the menus */
+:root{--kb-bg:var(--cream);--kb-fg:var(--ink);--kb-muted:var(--ink-2);--kb-line:rgba(43,26,16,.18);--kb-accent:var(--yolk);--kb-accent-ink:var(--ink);--kb-warn:var(--tomato);
+  --kb-border:3px solid var(--ink);--kb-shadow:0 6px 0 var(--ink);--kb-radius:20px;--kb-key-radius:8px;--kb-key-border:2.5px solid var(--ink);--kb-key-bg:var(--shell);--kb-key-shadow:0 3px 0 var(--ink);
+  --kb-font:var(--f-b);--kb-font-display:var(--f-d);--kb-key-weight:900;--kb-title-size:36px;--kb-title-weight:400;--kb-backdrop:rgba(43,26,16,.45);--kb-blur:2px;--kb-pad:22px;--kb-width:540px}
+.kb-panel .kb-label{font-weight:800}
+.kb-panel .kb-label small{font-weight:700}
+.kb-panel .kb-group{color:var(--ink-2);font-weight:900}
+.kb-panel .kb-msg{font-weight:700}
+.kb-panel .btn{font-size:19px;padding:9px 18px}
+.kb-panel .kb-x{border:3px solid var(--ink);box-shadow:0 3px 0 var(--ink);border-radius:12px;background:var(--shell)}
 details{margin-top:14px;border-top:2px dashed rgba(43,26,16,.25);padding-top:10px}
 summary{cursor:pointer;font-family:var(--f-d);font-size:16px;letter-spacing:.04em;list-style:none}
 summary::-webkit-details-marker{display:none}
@@ -236,6 +246,8 @@ body.touch #top{transform:translateX(-50%) scale(.72);transform-origin:center to
 body.touch #feed{top:calc(96px + env(safe-area-inset-top,0px))}
 body.touch #dead{top:auto;bottom:calc(190px + env(safe-area-inset-bottom,0px));min-width:0}
 body.touch #lockHint{display:none}
+/* Rebinding keys is for keyboards: the touch layout leaves those buttons out. */
+body.touch #keysMenu,body.touch #keysPause{display:none}
 @media (orientation:portrait){body.touch #top{top:calc(84px + env(safe-area-inset-top,0px))}body.touch #netline{top:calc(150px + env(safe-area-inset-top,0px))}body.touch #feed{top:calc(150px + env(safe-area-inset-top,0px))}}
 /* Upright phones: Swap and Bonk sit above Reload and Bomb so they stay clear of the move stick, and the
    "cracked" card sits above the buttons. */
@@ -306,7 +318,7 @@ body.touch #hud.training #banner{top:calc(114px + env(safe-area-inset-top,0px))}
         <div class="tbox"><span id="tsCrack">0</span><small>Cracks</small></div>
         <div class="tbox"><span id="tsPop">0</span><small>Pops</small></div>
       </div>
-      <div class="tkeys out">1–5 any gun · 6 or Q pistol · R reload · T reset stats · Esc menu</div>
+      <div class="tkeys out" id="tKeys">1–5 any gun · 6 or Q pistol · R reload · T reset stats · Esc menu</div>
     </div>
     <div id="tsLast" class="out"></div>
     <div id="netline" class="out"></div>
@@ -393,19 +405,19 @@ body.touch #hud.training #banner{top:calc(114px + env(safe-area-inset-top,0px))}
         <details>
           <summary>Controls</summary>
           <dl class="keys">
-            <div><dt>WASD</dt><dd>Move</dd></div>
-            <div><dt>SPACE</dt><dd>Jump</dd></div>
-            <div><dt>L-CLICK</dt><dd>Shoot</dd></div>
-            <div><dt>SHIFT</dt><dd>Hold to aim / scope</dd></div>
-            <div><dt>R-CLICK</dt><dd>Also aims</dd></div>
-            <div><dt>1 · 2</dt><dd>Main gun · pistol</dd></div>
-            <div><dt>G or E</dt><dd>Throw a yolk bomb</dd></div>
-            <div><dt>V</dt><dd>Melee whack</dd></div>
-            <div><dt>R</dt><dd>Reload</dd></div>
-            <div><dt>TAB</dt><dd>Scoreboard</dd></div>
+            <div><dt data-kb="forward left back right" data-kb-short data-kb-join="" data-kb-case="upper">WASD</dt><dd>Move</dd></div>
+            <div><dt data-kb="jump" data-kb-short data-kb-case="upper">SPACE</dt><dd>Jump</dd></div>
+            <div><dt data-kb="fire" data-kb-short data-kb-case="upper">L-CLICK</dt><dd>Shoot</dd></div>
+            <div><dt data-kb="aim" data-kb-sep=" · " data-kb-case="upper">SHIFT · R-CLICK</dt><dd>Hold to aim / scope</dd></div>
+            <div><dt data-kb="main pistol" data-kb-short data-kb-join=" · " data-kb-case="upper">1 · 2</dt><dd>Main gun · pistol</dd></div>
+            <div><dt data-kb="nade" data-kb-sep=" or " data-kb-case="upper">G or E</dt><dd>Throw a yolk bomb</dd></div>
+            <div><dt data-kb="melee" data-kb-short data-kb-case="upper">V</dt><dd>Melee whack</dd></div>
+            <div><dt data-kb="reload" data-kb-short data-kb-case="upper">R</dt><dd>Reload</dd></div>
+            <div><dt data-kb="board" data-kb-short data-kb-case="upper">TAB</dt><dd>Scoreboard</dd></div>
             <div><dt>ESC</dt><dd>Pause, loadout, invite</dd></div>
             <div><dt>1–5</dt><dd>Pick a weapon while cracked</dd></div>
           </dl>
+          <button class="btn alt" id="keysMenu" type="button" style="margin-top:10px;font-size:18px">Change keys</button>
         </details>
         <details>
           <summary>Settings</summary>
@@ -443,6 +455,7 @@ body.touch #hud.training #banner{top:calc(114px + env(safe-area-inset-top,0px))}
       <div class="row" style="margin-top:18px">
         <button class="btn" id="resume" type="button">Resume</button>
         <button class="btn alt" id="copyInvite" type="button" hidden>Copy invite link</button>
+        <button class="btn alt" id="keysPause" type="button">Controls</button>
         <button class="btn red" id="leave" type="button">Leave match</button>
       </div>
       <p class="msg" id="inviteMsg"></p>
@@ -466,6 +479,7 @@ body.touch #hud.training #banner{top:calc(114px + env(safe-area-inset-top,0px))}
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../keybinds.js"></script>
 <script>
 (function(){
 'use strict';
@@ -1904,7 +1918,38 @@ function updateViewmodel(dt){
 let state='menu',mode='attract',online=false,clock=0,matchEnds=0,target=TARGET_PRACTICE,paused=false;
 let deathRise=2.2,camPitchKick=0,hurtFlash=0,shake=0,hudDirty=true,killerRef=null,deadAt=0,endTimer=0,endShownFor=-1;
 const deathPos=new V3();
-const keys={};let lmb=false,rmb=false,clickQueued=0;
+// Keys and mouse buttons can be changed in the Controls panel (../keybinds.js); saved in this browser
+// as keybinds:shell-crackers. Mouse buttons are kept in keys{} as Mouse0 (left), Mouse1 (middle), Mouse2 (right).
+const KB=Keybinds.create({
+  game:'shell-crackers',
+  mouse:true,
+  actions:[
+    {id:'forward',label:'Move forward',group:'Move',keys:['KeyW','ArrowUp']},
+    {id:'back',label:'Move back',group:'Move',keys:['KeyS','ArrowDown']},
+    {id:'left',label:'Move left',group:'Move',keys:['KeyA','ArrowLeft']},
+    {id:'right',label:'Move right',group:'Move',keys:['KeyD','ArrowRight']},
+    {id:'jump',label:'Jump',group:'Move',keys:['Space']},
+    {id:'fire',label:'Shoot',group:'Fight',keys:['Mouse0']},
+    {id:'aim',label:'Aim / scope',note:'Hold',group:'Fight',keys:['ShiftLeft','Mouse2']},
+    {id:'main',label:'Main gun',group:'Fight',keys:['Digit1']},
+    {id:'pistol',label:'Pistol',group:'Fight',keys:['Digit2']},
+    {id:'swap',label:'Swap weapons',note:'The mouse wheel swaps too',group:'Fight',keys:['KeyQ']},
+    {id:'nade',label:'Throw a yolk bomb',group:'Fight',keys:['KeyG','KeyE']},
+    {id:'melee',label:'Melee whack',group:'Fight',keys:['KeyV','KeyF']},
+    {id:'reload',label:'Reload',group:'Fight',keys:['KeyR']},
+    {id:'board',label:'Scoreboard',note:'Hold',group:'Match',keys:['Tab']},
+    {id:'loadout',label:'Pick a weapon while cracked',group:'Match',text:'1 – 5'},
+    {id:'pause',label:'Pause, loadout, invite',group:'Match',keys:['Escape'],fixed:true},
+    // On the training range the number keys always pick guns (like the weapon pick while cracked), so those
+    // stay fixed; Reset can be moved, and the Main gun, Pistol and Swap keys work there too.
+    {id:'trainGuns',label:'Pick any gun',note:'1–5 the main guns, 6 the pistol',group:'Training range',text:'1 – 6'},
+    {id:'trainReset',label:'Reset training stats',group:'Training range',keys:['KeyT']}
+  ],
+  classes:{button:'btn alt',primary:'btn'}
+});
+// The touch buttons hold actions in tAct (by action id), so they work whatever keys are bound.
+const keys={},tAct={};let clickQueued=0;
+const held=id=>!!tAct[id]||KB.held(id,keys);
 
 function nowMs(){return online?Net.now():Date.now()}
 function clearBots(){for(const e of ents.slice())if(e.isBot)removeEntity(e)}
@@ -1949,7 +1994,7 @@ function startTraining(){
   showHud();requestLock();banner('TRAINING RANGE','No clock, no rating · every gun on '+(touchUI?'the buttons':'keys 1–5'),2.6);
 }
 function showHud(){
-  const tr=mode==='training';$('top').hidden=tr;$('trainHud').hidden=!tr;$('tsLast').textContent='';$('hud').classList.toggle('training',tr);
+  const tr=mode==='training';$('top').hidden=tr;$('trainHud').hidden=!tr;if(tr)setT('tKeys',trainKeysText());$('tsLast').textContent='';$('hud').classList.toggle('training',tr);
   $('menu').hidden=true;$('pause').hidden=true;$('end').hidden=true;$('hud').hidden=false;$('dead').hidden=true;hudDirty=true;
 }
 // Leaving an online match partway through counts as finishing last against the real players there.
@@ -2145,7 +2190,8 @@ function updateHud(dt){
     $('wName').textContent=w.name;$('magMax').textContent=w.mag;
     const n=$('nades');if(+n.dataset.n!==player.grenades){n.dataset.n=player.grenades;n.textContent='';for(let i=0;i<player.grenades;i++)n.appendChild(document.createElement('i'))}
     const tr=mode==='training';
-    $('sl1').textContent=(tr?PRIMARIES.indexOf(player.loadout)+1:1)+' '+WEAPONS[player.loadout].name;$('sl2').textContent=(tr?'6':'2')+' Cracker';$('sl1').className=player.slot===0?'on':'';$('sl2').className=player.slot===1?'on':'';
+    const sk=id=>{const k=KB.keys(id)[0];return k?KB.name(k)+' ':''};
+    $('sl1').textContent=(tr?PRIMARIES.indexOf(player.loadout)+1+' ':sk('main'))+WEAPONS[player.loadout].name;$('sl2').textContent=(tr?'6 ':sk('pistol'))+'Cracker';$('sl1').className=player.slot===0?'on':'';$('sl2').className=player.slot===1?'on':'';
     $('nextW').textContent=WEAPONS[player.loadout].name;
   }
   setT('magN',player.reloadT>0?'…':String(player.ammo[player.wkey]));
@@ -2172,13 +2218,13 @@ function updateHud(dt){
   if(online){const others=ents.filter(e=>e.remote).length;if(Net.matchId==null&&Net.roundErr)nl='The database wouldn\'t start this room\'s match ('+(Net.roundErr.code||Net.roundErr.message)+')';else if(!others)nl=Net.isPublic?'Waiting for other eggs to join this lobby…':'Waiting for friends · Esc for the invite link'}
   setT('netline',nl);
   $('lockHint').hidden=!!document.pointerLockElement||paused;
-  if(touchUI)$('tAim').classList.toggle('on',rmb);
+  if(touchUI)$('tAim').classList.toggle('on',!!tAct.aim);
   if(touchUI&&mode==='training'){
     $('tTrain').style.visibility=player.alive?'':'hidden';
     for(let n=1;n<=6;n++)$('tG'+n).classList.toggle('cur',n===6?player.slot===1:player.slot===0&&player.wkey===PRIMARIES[n-1]);
   }
   // scoreboard
-  const showBoard=!!keys.Tab;$('board').hidden=!showBoard;
+  const showBoard=held('board');$('board').hidden=!showBoard;
   if(showBoard){fillTable($('boardTable'),standings());$('boardTitle').textContent=mode==='training'?mapInfo().name+' · unranked, nothing is saved':mapInfo().name+' · first to '+target+' · '+liveRankInfo()}
 }
 
@@ -2190,8 +2236,8 @@ function requestLock(){
   try{const r=view.requestPointerLock();if(r&&r.catch)r.catch(()=>{})}catch(e){}
 }
 document.addEventListener('pointerlockchange',()=>{
-  if(document.pointerLockElement===view){paused=false;$('pause').hidden=true;keys.Tab=false;lockedAt=performance.now();return}
-  lmb=rmb=false;for(const k in keys)keys[k]=false;
+  if(document.pointerLockElement===view){paused=false;$('pause').hidden=true;for(const k in keys)if(KB.is('board',k))keys[k]=false;lockedAt=performance.now();return}
+  for(const k in keys)keys[k]=false;
   if(state==='playing')showPause();
 });
 function showPause(){
@@ -2216,38 +2262,56 @@ document.addEventListener('mousemove',e=>{
   player.yaw-=e.movementX*s;player.pitch=clamp(player.pitch-e.movementY*s,-1.48,1.48);
   swayX=clamp(swayX-e.movementX*.00012,-.03,.03);swayY=clamp(swayY+e.movementY*.00012,-.03,.03);
 });
+// one-shot actions, from a key or a mouse button
+function pressAction(c){
+  if(mode==='training'){
+    // any gun at any time: 1-5 the main guns, 6 the pistol (fixed keys); Reset training stats is T by default
+    const m=/^Digit([1-6])$/.exec(c);
+    if(m){trainGun(+m[1]);return}
+    if(KB.is('trainReset',c)){resetTraining();return}
+  }
+  if(KB.is('fire',c))clickQueued=.15;
+  if(KB.is('reload',c))startReload(player);
+  else if(KB.is('main',c))switchSlot(player,0);
+  else if(KB.is('pistol',c))switchSlot(player,1);
+  else if(KB.is('swap',c))switchSlot(player,player.slot?0:1);
+  else if(KB.is('nade',c))throwNade(player);
+  else if(KB.is('melee',c))melee(player);
+  else if(KB.is('jump',c)&&player.onGround){player.vel.y=JUMP;player.onGround=false;sfx('jump')}
+}
 document.addEventListener('mousedown',e=>{
   if(document.pointerLockElement!==view)return;
-  if(e.button===0){lmb=true;clickQueued=.15}else if(e.button===2)rmb=true;
+  const c='Mouse'+e.button;keys[c]=true;
+  if(player.alive)pressAction(c);
 });
-document.addEventListener('mouseup',e=>{if(e.button===0)lmb=false;else if(e.button===2)rmb=false});
+document.addEventListener('mouseup',e=>{keys['Mouse'+e.button]=false});
 document.addEventListener('contextmenu',e=>{if(state==='playing')e.preventDefault()});
 document.addEventListener('wheel',e=>{if(document.pointerLockElement===view&&player.alive)switchSlot(player,player.slot?0:1)},{passive:true});
 document.addEventListener('keydown',e=>{
   if(state!=='playing'){return}
-  if(e.code==='Tab'||e.code==='Space')e.preventDefault();
-  if(!document.pointerLockElement&&e.code!=='Tab')return;
-  keys[e.code]=true;if(e.repeat)return;
+  const c=e.code,board=KB.is('board',c);
+  if(c==='Tab'||c==='Space'||board||(document.pointerLockElement&&KB.actionsFor(c).length))e.preventDefault();
+  if(!document.pointerLockElement&&!board)return;
+  keys[c]=true;if(e.repeat)return;
   if(!player.alive){const n=+e.key;if(n>=1&&n<=5){setLoadout(PRIMARIES[n-1]);hudDirty=true}return}
-  if(mode==='training'){
-    // any gun at any time: 1-5 the main guns, 6 the pistol; T clears the stats
-    const m=/^Digit([1-6])$/.exec(e.code);
-    if(m){trainGun(+m[1]);return}
-    if(e.code==='KeyT'){resetTraining();return}
-  }
-  if(e.code==='KeyR')startReload(player);
-  else if(e.code==='Digit1')switchSlot(player,0);
-  else if(e.code==='Digit2')switchSlot(player,1);
-  else if(e.code==='KeyQ')switchSlot(player,player.slot?0:1);
-  else if(e.code==='KeyG'||e.code==='KeyE')throwNade(player);
-  else if(e.code==='KeyV'||e.code==='KeyF')melee(player);
-  else if(e.code==='Space'&&player.onGround){player.vel.y=JUMP;player.onGround=false;sfx('jump')}
+  pressAction(c);
 });
 // Training range: gun n right away (1-5 the main guns, 6 the pistol), and clearing the stats.
 function trainGun(n){if(n===6)switchSlot(player,1);else if(PRIMARIES[n-1]!==player.wkey){setLoadout(PRIMARIES[n-1]);switchSlot(player,0)}}
 function resetTraining(){Range.resetStats();infoFeed('Training stats reset')}
+// The training key line, from the current bindings: "1–5 any gun · 6 or Q pistol · R reload · T reset stats · Esc menu"
+// with the default keys. The number keys are fixed on the range, so a Pistol key on 1-6 isn't listed again.
+function orList(l){l=[...new Set(l)];return l.length<2?l.join(''):l.slice(0,-1).join(', ')+' or '+l[l.length-1]}
+function trainKeysText(){
+  const names=ids=>ids.flatMap(id=>KB.keys(id)).filter(c=>!/^Digit[1-6]$/.test(c)).map(KB.name);
+  const rl=orList(names(['reload'])),rs=orList(names(['trainReset']));
+  return ['1–5 any gun',orList(['6'].concat(names(['pistol','swap'])))+' pistol',rl&&rl+' reload',rs&&rs+' reset stats','Esc menu'].filter(Boolean).join(' · ');
+}
+KB.onChange(()=>{setT('tKeys',trainKeysText());hudDirty=true});
 document.addEventListener('keyup',e=>{keys[e.code]=false});
-addEventListener('blur',()=>{for(const k in keys)keys[k]=false;lmb=rmb=false});
+addEventListener('blur',()=>{for(const k in keys)keys[k]=false;for(const k in tAct)tAct[k]=false});
+$('keysMenu').addEventListener('click',()=>KB.open());
+$('keysPause').addEventListener('click',()=>KB.open());
 
 // Touch controls. On a touch screen there's no pointer lock: the stick moves, dragging turns the view
 // (including while holding Fire), and each button does what its key does.
@@ -2288,16 +2352,17 @@ function tButton(id,down,up){
   el.addEventListener('pointerup',end);el.addEventListener('pointercancel',end);el.addEventListener('lostpointercapture',end);
   el.addEventListener('contextmenu',e=>e.preventDefault());
 }
-tButton('tFire',()=>{if(canAct()){lmb=true;clickQueued=.15}},()=>{lmb=false});
-tButton('tJump',()=>{if(canAct())keys.Space=true},()=>{keys.Space=false});
-tButton('tAim',()=>{if(canAct())rmb=!rmb},()=>{$('tAim').classList.toggle('on',rmb)});
+tButton('tFire',()=>{if(canAct()){tAct.fire=true;clickQueued=.15}},()=>{tAct.fire=false});
+tButton('tJump',()=>{if(canAct())tAct.jump=true},()=>{tAct.jump=false});
+tButton('tAim',()=>{if(canAct())tAct.aim=!tAct.aim},()=>{$('tAim').classList.toggle('on',!!tAct.aim)});
 tButton('tReload',()=>{if(canAct())startReload(player)});
 tButton('tNade',()=>{if(canAct())throwNade(player)});
 tButton('tSwap',()=>{if(canAct())switchSlot(player,player.slot?0:1)});
 tButton('tMelee',()=>{if(canAct())melee(player)});
-tButton('tBoard',()=>{keys.Tab=true},()=>{keys.Tab=false});
-tButton('tPause',()=>{if(state==='playing'&&!paused){lmb=rmb=false;for(const k in keys)keys[k]=false;showPause()}});
-// Training range only: a button for each gun (what keys 1-6 do) and one for T (reset the stats).
+tButton('tBoard',()=>{tAct.board=true},()=>{tAct.board=false});
+tButton('tPause',()=>{if(state==='playing'&&!paused){for(const k in tAct)tAct[k]=false;for(const k in keys)keys[k]=false;showPause()}});
+// Training range only: a button for each gun (what keys 1-6 do) and one for Reset training stats (T by default).
+// They call trainGun / resetTraining directly, so they work whatever keys are bound.
 for(let n=1;n<=6;n++)tButton('tG'+n,()=>{if(canAct()&&mode==='training')trainGun(n)});
 tButton('tReset',()=>{if(state==='playing'&&!paused&&mode==='training')resetTraining()});
 
@@ -2313,16 +2378,16 @@ function setLoadout(k){
 let stepT=0,lockedAt=0;
 function playerControl(dt){
   const p=player,w=WEAPONS[p.wkey];
-  let f=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0),r=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);
+  let f=(held('forward')?1:0)-(held('back')?1:0),r=(held('right')?1:0)-(held('left')?1:0);
   const fx=-Math.sin(p.yaw),fz=-Math.cos(p.yaw),rx=Math.cos(p.yaw),rz=-Math.sin(p.yaw);
   let mag=1;if(tMove.on){f=-tMove.y;r=tMove.x;mag=Math.min(1,Math.hypot(f,r))}
   let wx=fx*f+rx*r,wz=fz*f+rz*r;const l=Math.hypot(wx,wz);if(l>0){wx/=l;wz/=l}
-  if(keys.Space&&p.onGround&&(document.pointerLockElement||touchUI)){p.vel.y=JUMP;p.onGround=false;sfx('jump')}
-  p.ads=(rmb||keys.ShiftLeft||keys.ShiftRight)&&p.reloadT<=0&&p.switchT<=0&&vmMelee<=0;
+  if(held('jump')&&p.onGround&&(document.pointerLockElement||touchUI)){p.vel.y=JUMP;p.onGround=false;sfx('jump')}
+  p.ads=held('aim')&&p.reloadT<=0&&p.switchT<=0&&vmMelee<=0;
   steer(p,wx,wz,dt,speedOf(p)*mag);
   if(p.onGround&&l>0){stepT-=dt;if(stepT<=0){stepT=.34/WEAPONS[p.wkey].speed;sfx('step')}}
   clickQueued-=dt;
-  if(w.auto?lmb:clickQueued>0){if(tryFire(p)){clickQueued=0;const fl=vmGun&&vmGun.userData.flash;if(fl){fl.visible=true;fl.userData.t=.045;fl.material.rotation=Math.random()*6}}}
+  if(w.auto?held('fire'):clickQueued>0){if(tryFire(p)){clickQueued=0;const fl=vmGun&&vmGun.userData.flash;if(fl){fl.visible=true;fl.userData.t=.045;fl.material.rotation=Math.random()*6}}}
 }
 
 // =====================================================================

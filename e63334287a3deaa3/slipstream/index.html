@@ -186,6 +186,16 @@ hr.sep{border:0;border-top:1px solid var(--line);margin:16px 0 4px}
 .ad-lbl{display:block;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin-bottom:4px}
 .adbox ins{display:block;min-height:90px}
 
+/* Controls panel (../keybinds.js): timing-screen look */
+:root{--kb-bg:var(--panel-2);--kb-fg:var(--ink);--kb-muted:var(--ink-2);--kb-line:var(--line);--kb-accent:var(--red);--kb-accent-ink:#fff;--kb-warn:#ff8a8f;
+  --kb-border:1px solid var(--line);--kb-radius:14px;--kb-key-radius:6px;--kb-key-border:1px solid var(--line);--kb-key-bg:rgba(255,255,255,.08);
+  --kb-font:var(--f);--kb-key-weight:900;--kb-title-size:34px;--kb-title-weight:900;--kb-backdrop:rgba(5,7,11,.66);--kb-blur:4px;--kb-width:500px}
+.kb-panel .kb-title{font-style:italic;letter-spacing:-.01em;border-left:4px solid var(--red);padding-left:10px}
+.kb-panel .kb-label{font-weight:600}
+.kb-panel .kb-group{color:var(--ink-3);letter-spacing:.16em}
+/* Rebinding keys is for keyboards: the touch layout leaves those buttons out. */
+body.touch #keysMenu,body.touch #keysPause{display:none}
+
 /* lobby */
 .lbhead{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
 .lbhead h2{margin:0;font-size:28px;font-weight:900;line-height:1.1}
@@ -303,12 +313,13 @@ hr.sep{border:0;border-top:1px solid var(--line);margin:16px 0 4px}
       </div>
       <div class="row"><button class="ghost" id="practice" type="button">Practice vs bots</button></div>
       <dl class="keys">
-        <dt>W / ↑</dt><dd>Throttle</dd><dt>S / ↓</dt><dd>Brake (hold when stopped to reverse)</dd>
-        <dt>A D / ← →</dt><dd>Steer (tap to correct, hold to turn)</dd><dt>Space</dt><dd>Boost (uses ERS; brake to recharge)</dd>
-        <dt>E</dt><dd>DRS: from lap 2, within 1 s of the car ahead at the detection line, open it in the green zone</dd>
+        <dt data-kb="up">W / ↑</dt><dd>Throttle</dd><dt data-kb="down">S / ↓</dt><dd>Brake (hold when stopped to reverse)</dd>
+        <dt data-kb="left right">A D / ← →</dt><dd>Steer (tap to correct, hold to turn)</dd><dt data-kb="boost" data-kb-short>Space</dt><dd>Boost (uses ERS; brake to recharge)</dd>
+        <dt data-kb="drs">E</dt><dd>DRS: from lap 2, within 1 s of the car ahead at the detection line, open it in the green zone</dd>
         <dt>🎮</dt><dd>Gamepad: left stick steer, RT/LT throttle/brake, A boost, X or RB DRS, Y camera</dd>
-        <dt>C</dt><dd>Change camera</dd><dt>R</dt><dd>Back onto the track</dd><dt>Esc</dt><dd>Pause, invite link</dd>
+        <dt data-kb="cam">C</dt><dd>Change camera</dd><dt data-kb="reset">R</dt><dd>Back onto the track</dd><dt>Esc</dt><dd>Pause, invite link</dd>
       </dl>
+      <div class="row"><button class="ghost" id="keysMenu" type="button">Change keys</button></div>
       <p class="foot" style="margin-top:10px">Track limits: keep at least one wheel inside the white lines. Running wide costs you nothing but time, so just get back on the track. Cutting a corner to gain time adds 1 s to your race time.</p>
       <dl class="keys" hidden>
       </dl>
@@ -339,11 +350,11 @@ hr.sep{border:0;border-top:1px solid var(--line);margin:16px 0 4px}
       <h2 class="logo" style="font-size:34px">PAUSED</h2>
       <p class="kick" id="pauseRoom"></p>
       <p class="msg" id="pauseMsg" style="margin-top:0"></p>
-      <div class="row"><button class="cta" id="resume" type="button">Resume</button><button class="ghost" id="copyInvite" type="button" hidden>Copy invite link</button><button class="ghost" id="leave" type="button">Leave</button></div>
+      <div class="row"><button class="cta" id="resume" type="button">Resume</button><button class="ghost" id="copyInvite" type="button" hidden>Copy invite link</button><button class="ghost" id="keysPause" type="button">Controls</button><button class="ghost" id="leave" type="button">Leave</button></div>
       <p class="msg" id="inviteMsg"></p>
       <dl class="keys">
-        <dt>W / ↑</dt><dd>Throttle</dd><dt>S / ↓</dt><dd>Brake / reverse</dd><dt>A D / ← →</dt><dd>Steer</dd>
-        <dt>Space</dt><dd>Boost</dd><dt>E</dt><dd>DRS</dd><dt>C</dt><dd>Camera</dd><dt>R</dt><dd>Back onto the track</dd><dt>M</dt><dd>Mute</dd>
+        <dt data-kb="up">W / ↑</dt><dd>Throttle</dd><dt data-kb="down">S / ↓</dt><dd>Brake / reverse</dd><dt data-kb="left right">A D / ← →</dt><dd>Steer</dd>
+        <dt data-kb="boost" data-kb-short>Space</dt><dd>Boost</dd><dt data-kb="drs">E</dt><dd>DRS</dd><dt data-kb="cam">C</dt><dd>Camera</dd><dt data-kb="reset">R</dt><dd>Back onto the track</dd><dt data-kb="mute">M</dt><dd>Mute</dd>
       </dl>
     </div>
   </section>
@@ -360,6 +371,7 @@ hr.sep{border:0;border-top:1px solid var(--line);margin:16px 0 4px}
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../keybinds.js"></script>
 <script>
 (function(){
 'use strict';
@@ -942,7 +954,7 @@ function drsUpdate(c,t){
       log.push({t,seat:c.seat});if(log.length>30)log.shift();
       const pass=Math.floor((c.P-z.det)/L);
       c.drsOk=c.drsOk||[];c.drsOk[k]=(t-ahead<=DRS_GAP&&c.P>=L&&!race.attract)?pass:-1;
-      if(c.ctrl==='me'&&c.drsOk[k]>=0)toast('DRS available: within '+(t-ahead).toFixed(2)+' s · press '+(touchUI?'DRS':'E')+' in the zone','drs');
+      if(c.ctrl==='me'&&c.drsOk[k]>=0)toast('DRS available: within '+(t-ahead).toFixed(2)+' s · press '+(touchUI?'DRS':KB.short('drs'))+' in the zone','drs');
     }
   });
   if(c.ctrl==='remote')return;
@@ -1931,32 +1943,44 @@ function humanInput(c,dt){
   c.inSteer=cur;
   return {thr,brk,steer:cur,boost};
 }
-function keyName(k){
-  if(k==='w'||k==='W'||k==='ArrowUp')return 'up';
-  if(k==='s'||k==='S'||k==='ArrowDown')return 'down';
-  if(k==='a'||k==='A'||k==='ArrowLeft')return 'left';
-  if(k==='d'||k==='D'||k==='ArrowRight')return 'right';
-  if(k===' '||k==='Shift')return 'boost';
-  if(k==='e'||k==='E')return 'drs';
-  return '';
-}
+// Keys can be changed in the Controls panel (../keybinds.js); saved in this browser as keybinds:slipstream.
+const KB=Keybinds.create({
+  game:'slipstream',
+  actions:[
+    {id:'up',label:'Throttle',group:'Drive',keys:['KeyW','ArrowUp']},
+    {id:'down',label:'Brake',note:'Hold when stopped to reverse',group:'Drive',keys:['KeyS','ArrowDown']},
+    {id:'left',label:'Steer left',group:'Drive',keys:['KeyA','ArrowLeft']},
+    {id:'right',label:'Steer right',group:'Drive',keys:['KeyD','ArrowRight']},
+    {id:'boost',label:'Boost',note:'Uses ERS',group:'Drive',keys:['Space','ShiftLeft']},
+    {id:'drs',label:'DRS',group:'Drive',keys:['KeyE']},
+    {id:'cam',label:'Change camera',group:'Race',keys:['KeyC']},
+    {id:'reset',label:'Back onto the track',group:'Race',keys:['KeyR']},
+    {id:'mute',label:'Mute',group:'Race',keys:['KeyM']},
+    {id:'pause',label:'Pause, invite link',group:'Race',keys:['Escape'],fixed:true}
+  ],
+  classes:{button:'ghost',primary:'cta'}
+});
+const DRIVE=new Set(['up','down','left','right','boost','drs']);
+const driveActions=code=>KB.actionsFor(code).filter(n=>DRIVE.has(n));
 addEventListener('keydown',e=>{
   if(e.target&&e.target.tagName==='INPUT'){if(e.key==='Enter'&&e.target.id==='room'){e.preventDefault();joinPrivate()}return}
-  const k=e.key,n=keyName(k);
+  const k=e.key,c=e.code,ns=driveActions(c);
   if(k==='Escape'){if(state==='race'){if($('pause').hidden)openPause();else closePause()}return}
-  if(k==='m'||k==='M'){setMuted(!muted);return}
+  if(KB.is('mute',c)){setMuted(!muted);return}
   if(state!=='race'||!$('pause').hidden)return;
   initAudio();
-  if(k==='c'||k==='C'){cycleCam();return}
-  if((k==='r'||k==='R')&&race&&race.me&&!race.me.fin&&raceT()>0&&performance.now()-lastReset>3000){lastReset=performance.now();resetCar(race.me);hint('Back on track',1500);return}
+  if(KB.is('cam',c)){cycleCam();return}
+  if(KB.is('reset',c)&&race&&race.me&&!race.me.fin&&raceT()>0&&performance.now()-lastReset>3000){lastReset=performance.now();resetCar(race.me);hint('Back on track',1500);return}
   if(!race||!race.me||race.me.fin){
-    if(n==='left'||n==='right'){e.preventDefault();watchStep(n==='left'?-1:1)}
+    if(ns.includes('left')||ns.includes('right')){e.preventDefault();watchStep(ns.includes('left')?-1:1)}
     return;
   }
-  if(n==='drs'){e.preventDefault();tryDrs();return}
-  if(n){keys.add(n);e.preventDefault()}
+  if(ns.includes('drs')){e.preventDefault();tryDrs();return}
+  if(ns.length){for(const n of ns)keys.add(n);e.preventDefault()}
 });
-addEventListener('keyup',e=>{const n=keyName(e.key);if(n)keys.delete(n)});
+addEventListener('keyup',e=>{for(const n of driveActions(e.code))keys.delete(n)});
+$('keysMenu').addEventListener('click',()=>KB.open());
+$('keysPause').addEventListener('click',()=>KB.open());
 addEventListener('blur',()=>{keys.clear();tch.st=0;tch.on=false;tch.b=tch.bo=false});
 function bindTouch(id,key){
   const el=$(id);
@@ -2082,7 +2106,7 @@ function updateHud(dt){
     // off the track: a small reminder (not a penalty) that stays up while off and fades once back on
     if(me.offTrack&&!me.fin&&!(me.stuck>2)&&t>=1){const n=performance.now();if(n-offHintAt>400){offHintAt=n;hint('Return to the track',1200)}}
     const tb=$('tBest');tb.textContent=fmtTime(me.best);tb.className=me.best&&race.fastSeat===me.seat?'fl':me.best?'pb':'';
-    if(me.stuck>2&&!me.fin)hint(touchUI?'Stuck? Hold BRAKE to reverse, or wait':'Stuck? Press R to get back on track',1500);
+    if(me.stuck>2&&!me.fin)hint(touchUI?'Stuck? Hold BRAKE to reverse, or wait':'Stuck? Press '+KB.short('reset')+' to get back on track',1500);
     if(touchUI&&me.stuck>4&&!me.fin){resetCar(me)}
     // wrong way
     const T=track,dot=Math.cos(me.h)*T.TX[me.idx]+Math.sin(me.h)*T.TZ[me.idx];
@@ -2222,7 +2246,7 @@ function beginRaceView(){
   hideScreens();state='race';showHud(true);keys.clear();
   lastLit=-1;goDone=raceT()>1;towerT=0;cam.watch=-1;cam.ready=false;cam.cut=0;cam.cutT=8;
   $('lights').hidden=true;$('banner').classList.remove('show');
-  if(race.me){const p=race.me.gridPos;hint(touchUI?'Slide your thumb on the steering pad · it accelerates for you · BRAKE to slow':'W/↑ throttle · S/↓ brake · A D steer · Space boost · E DRS · C camera',6000);toast('Starting P'+p+' for '+TEAMS[race.me.team].n)}
+  if(race.me){const p=race.me.gridPos;hint(touchUI?'Slide your thumb on the steering pad · it accelerates for you · BRAKE to slow':KB.label('up','/')+' throttle · '+KB.label('down','/')+' brake · '+KB.short('left')+' '+KB.short('right')+' steer · '+KB.short('boost')+' boost · '+KB.short('drs')+' DRS · '+KB.short('cam')+' camera',6000);toast('Starting P'+p+' for '+TEAMS[race.me.team].n)}
 }
 // ---------- practice ----------
 function practiceLobby(){
