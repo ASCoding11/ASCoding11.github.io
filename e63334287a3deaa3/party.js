@@ -17,9 +17,11 @@
  * The leader is whoever has been in the party longest (smallest j), so when the leader leaves the next
  * person takes over with nothing to hand over. Closing the tab removes your node (onDisconnect).
  *
- * "Play together" writes go, and every member's browser opens that game with #<prefix>-<room>, then fills in
- * the game's room box and presses its own "Play in room" button for them (the game's menu ids are in GAMES).
- * To add a game: add a row to GAMES. If its menu uses other ids than name / room / joinRoom, give them in ids.
+ * "Play together" writes go, and every member's browser opens that game with #<prefix>-<room>, then puts the
+ * party name in the game's name box and the room in its room box, and presses its own "Play in room" button for
+ * them (the game's menu ids are in GAMES). The game's own saved name is put back afterwards (nk in GAMES).
+ * To add a game: add a row to GAMES. If its menu uses other ids than name / room / joinRoom, give them in ids,
+ * and give the localStorage key it saves its name under in nk.
  */
 (function () {
   'use strict';
@@ -39,22 +41,23 @@
 
   // Party-ready games. pre: what goes before the room code in the game's address (default k + '-').
   // max: most people one of its rooms holds. ids: the game's menu fields, if not name / room / joinRoom.
+  // nk: the localStorage key where the game saves its own name (Hail Mary's is a team name), put back after a party launch.
   var GAMES = [
-    { k: 'sc', n: 'Shell Crackers', d: 'shell-crackers', max: 8 },
-    { k: 'rk', n: 'Rumble Karts', d: 'rumble-karts', max: 8, pre: '', ids: { name: 'inName', room: 'inRoom', join: 'bOnline' } },
-    { k: 'kw', n: 'Kartwheel', d: 'kartwheel', max: 8 },
-    { k: 'ss', n: 'Slipstream', d: 'slipstream', max: 8 },
-    { k: 'bb', n: 'Boostball', d: 'boostball', max: 6, prep: function (doc, n) {
+    { k: 'sc', n: 'Shell Crackers', d: 'shell-crackers', max: 8, nk: 'shellcr-name' },
+    { k: 'rk', n: 'Rumble Karts', d: 'rumble-karts', max: 8, pre: '', nk: 'rk_name', ids: { name: 'inName', room: 'inRoom', join: 'bOnline' } },
+    { k: 'ss', n: 'Slipstream', d: 'slipstream', max: 8, nk: 'ss:name' },
+    { k: 'bb', n: 'Boostball', d: 'boostball', max: 6, nk: 'boostball-name', prep: function (doc, n) {
       // Room size comes from whoever opens the room first, so everyone picks the size that fits the party.
       var b = doc.querySelector('#sizeSeg [data-s="' + Math.min(3, Math.max(1, Math.ceil(n / 2))) + '"]'); if (b) b.click();
     } },
-    { k: 'cl', n: 'Coil', d: 'coil', max: 8 },
-    { k: 'sd', n: 'Showdown', d: 'showdown', max: 8 },
-    { k: 'qy', n: 'Quarry', d: 'quarry', max: 8 },
-    { k: 'br', n: 'Backrooms 1v1–4v4', d: 'backrooms-1v1', max: 8 },
-    { k: 'hm', n: 'Hail Mary', d: 'hail-mary', max: 2 },
-    { k: 'cf', n: 'Chromaflage', d: 'chromaflage', max: 8 },
-    { k: 'ko', n: 'Tumble Trials', d: 'tumble-trials', max: 16 }
+    { k: 'cl', n: 'Coil', d: 'coil', max: 8, nk: 'coil:name' },
+    { k: 'sd', n: 'Showdown', d: 'showdown', max: 8, nk: 'sd:name' },
+    { k: 'br', n: 'Backrooms 1v1–4v4', d: 'backrooms-1v1', max: 8, nk: 'br1v1-name' },
+    { k: 'cf', n: 'Chromaflage', d: 'chromaflage', max: 8, nk: 'chroma-name' },
+    { k: 'tw', n: 'Spire', d: 'spire', max: 12, nk: 'spire:name' },
+    { k: 'up', n: 'Updraft', d: 'updraft', max: 12, nk: 'updraft:name' },
+    { k: 'ph', n: 'Odd One Out', d: 'odd-one-out', max: 16, nk: 'oddone-name' },
+    { k: 'ko', n: 'Tumble Trials', d: 'tumble-trials', max: 16, nk: 'tumble-name' }
   ];
   var COLORS = ['#1D6A4B', '#C0562F', '#3E5BA9', '#9A3F8F', '#B07A12', '#2A8A8A', '#B42318', '#5B6B2E'];
 
@@ -357,11 +360,24 @@
       var d; try { d = fr.contentDocument; } catch (e) { return; }
       var btn = d && d.getElementById(ids.join), room = d && d.getElementById(ids.room);
       if (!btn || !room || btn.disabled) { if (++tries < 60) setTimeout(tick, 250); return; }
-      var nm = d.getElementById(ids.name);
-      if (nm && !nm.value.trim()) { nm.value = myName(); fire(nm, 'input'); fire(nm, 'change'); }
+      // Party launches always play under the party name, even over a name the game saved or made up
+      // (Egg123, Driver123, Wanderer123, a random Hail Mary team), so the party sees the names it knows.
+      var nm = d.getElementById(ids.name), before = g.nk ? store(g.nk) : null, set = '';
+      if (nm) { nm.value = set = myName().slice(0, nm.maxLength > 0 ? nm.maxLength : 14); fire(nm, 'input'); fire(nm, 'change'); }
       room.value = r; fire(room, 'input');
       if (g.prep) try { g.prep(d, n); } catch (e) {}
       btn.click();
+      // The game saves whatever is in its name box, so give it back the name it had saved before (if it had one):
+      // now, once its join has gone through, and when the game closes, unless the player has typed another since.
+      if (set && before != null) {
+        var put = function () {
+          var cur = store(g.nk); if (cur == null || cur === before) return;
+          try { if (cur.charAt(0) === '"') cur = JSON.parse(cur); } catch (e) {}
+          if (cleanName(cur) === cleanName(set)) store(g.nk, before);
+        };
+        put(); setTimeout(put, 3000); setTimeout(put, 15000);
+        try { fr.contentWindow.addEventListener('pagehide', put); } catch (e) {}
+      }
     }
     fr.addEventListener('load', function () { setTimeout(tick, 200); }, { once: true });
   }

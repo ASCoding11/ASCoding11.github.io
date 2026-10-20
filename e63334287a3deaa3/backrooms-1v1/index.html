@@ -153,6 +153,13 @@ details.ctrl summary{cursor:pointer;font-size:13px;letter-spacing:.18em;text-tra
 details.ctrl summary::before{content:"▸ "}
 details.ctrl[open] summary::before{content:"▾ "}
 details.ctrl[open] .keys{margin-top:10px}
+#keysMenu{margin-top:12px;padding:8px 14px;font-size:15px}
+.keys div[hidden]{display:none}
+/* Controls panel (../keybinds.js): a dark, square card with the mustard accents of the menus */
+:root{--kb-bg:#1c1809;--kb-fg:var(--ink);--kb-muted:var(--ink-dim);--kb-line:var(--line);--kb-accent:var(--mustard);--kb-accent-ink:var(--char);--kb-warn:#ff8a7a;
+  --kb-border:1px solid rgba(244,234,208,.24);--kb-shadow:6px 6px 0 rgba(0,0,0,.45);--kb-radius:0;--kb-key-radius:0;--kb-key-border:1px solid rgba(244,234,208,.3);--kb-key-bg:rgba(244,234,208,.06);
+  --kb-font:var(--f-hud);--kb-font-display:var(--f-osd);--kb-font-key:var(--f-hud);--kb-font-group:var(--f-hud);--kb-key-size:15px;--kb-key-weight:700;--kb-label-size:16px;--kb-help-size:14px;
+  --kb-title-size:44px;--kb-title-weight:400;--kb-title-track:.02em;--kb-title-case:uppercase;--kb-title:#f6e7a6;--kb-backdrop:rgba(12,10,4,.62);--kb-blur:2px;--kb-width:560px}
 .center{justify-content:center;background:rgba(18,15,6,.8)}
 .result-score{font-size:56px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
 .result-score .y{color:var(--sh)} .result-score .t{color:var(--rec)}
@@ -200,6 +207,7 @@ details.ctrl[open] .keys{margin-top:10px}
    Only shown on touch screens, where the weapon and build slots become buttons along the top. */
 #touch{display:none;position:absolute;inset:0;pointer-events:none}
 body.touch #touch{display:block}
+body.touch #keysMenu,body.touch #keysPause{display:none}
 #tLook{position:absolute;inset:0;pointer-events:auto;touch-action:none}
 #tStick{position:absolute;left:calc(26px + env(safe-area-inset-left,0px));bottom:calc(26px + env(safe-area-inset-bottom,0px));width:128px;height:128px;border-radius:50%;background:rgba(0,0,0,.3);border:2px solid rgba(240,232,200,.6);pointer-events:auto;touch-action:none}
 #tStick i{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:rgba(240,232,200,.85);border:2px solid var(--mustard)}
@@ -271,12 +279,12 @@ body.touch #pips{left:calc(200px + env(safe-area-inset-left,0px));transform:none
       <div class="bar"><span class="num" id="hpNum">100</span><div class="track"><div class="fill" id="hpFill" style="width:100%"></div></div></div>
     </div>
     <div id="slots">
-      <div class="slot" id="slot0"><span class="k">1</span><span class="nm">Rifle</span><span class="am" id="am0">30</span></div>
-      <div class="slot" id="slot1"><span class="k">2</span><span class="nm">Shotgun</span><span class="am" id="am1">5</span></div>
-      <div class="slot" id="slot2"><span class="k">3</span><span class="nm">Sniper</span><span class="am" id="am2">4</span></div>
-      <div class="slot build gap" id="slotwall"><span class="k">Q</span><span class="nm">Wall</span><span class="am">∞</span></div>
-      <div class="slot build" id="slotfloor"><span class="k">F</span><span class="nm">Floor</span><span class="am">∞</span></div>
-      <div class="slot build" id="slotramp"><span class="k">C</span><span class="nm">Ramp</span><span class="am">∞</span></div>
+      <div class="slot" id="slot0"><span class="k" data-kb="rifle" data-kb-short>1</span><span class="nm">Rifle</span><span class="am" id="am0">30</span></div>
+      <div class="slot" id="slot1"><span class="k" data-kb="shotgun" data-kb-short>2</span><span class="nm">Shotgun</span><span class="am" id="am1">5</span></div>
+      <div class="slot" id="slot2"><span class="k" data-kb="sniper" data-kb-short>3</span><span class="nm">Sniper</span><span class="am" id="am2">4</span></div>
+      <div class="slot build gap" id="slotwall"><span class="k" data-kb="wall" data-kb-short>Q</span><span class="nm">Wall</span><span class="am">∞</span></div>
+      <div class="slot build" id="slotfloor"><span class="k" data-kb="floor" data-kb-short>F</span><span class="nm">Floor</span><span class="am">∞</span></div>
+      <div class="slot build" id="slotramp"><span class="k" data-kb="ramp" data-kb-short>C</span><span class="nm">Ramp</span><span class="am">∞</span></div>
     </div>
     <div id="touch" aria-hidden="true">
       <div id="tLook"></div>
@@ -335,17 +343,18 @@ body.touch #pips{left:calc(200px + env(safe-area-inset-left,0px));transform:none
         <details class="ctrl">
           <summary>Controls</summary>
           <dl class="keys">
-            <div><dt>WASD</dt><dd>Move</dd></div>
-            <div><dt>SPACE</dt><dd>Jump</dd></div>
-            <div><dt>L-CLICK</dt><dd>Shoot / place build</dd></div>
-            <div><dt>SHIFT</dt><dd>Hold to aim / scope</dd></div>
-            <div><dt>R-CLICK</dt><dd>Also aims</dd></div>
-            <div><dt>1 2 3</dt><dd>Rifle, shotgun, sniper</dd></div>
-            <div><dt>Q F C</dt><dd>Wall, floor, ramp</dd></div>
-            <div><dt>R</dt><dd>Reload</dd></div>
-            <div><dt>ESC</dt><dd>Menu and invite link</dd></div>
+            <div><dt data-kb="forward left back right" data-kb-short data-kb-join="" data-kb-case="upper">WASD</dt><dd>Move</dd></div>
+            <div><dt data-kb="jump" data-kb-short data-kb-case="upper">SPACE</dt><dd>Jump</dd></div>
+            <div><dt data-kb="fire" data-kb-short data-kb-case="upper">L-CLICK</dt><dd>Shoot / place build</dd></div>
+            <div><dt id="kAim1">SHIFT</dt><dd>Hold to aim / scope</dd></div>
+            <div><dt id="kAim2">R-CLICK</dt><dd>Also aims</dd></div>
+            <div><dt data-kb="rifle shotgun sniper" data-kb-short data-kb-case="upper">1 2 3</dt><dd>Rifle, shotgun, sniper</dd></div>
+            <div><dt data-kb="wall floor ramp" data-kb-short data-kb-case="upper">Q F C</dt><dd>Wall, floor, ramp</dd></div>
+            <div><dt data-kb="reload" data-kb-short data-kb-case="upper">R</dt><dd>Reload</dd></div>
+            <div><dt data-kb="pause" data-kb-sep=" · " data-kb-case="upper">ESC</dt><dd>Menu and invite link</dd></div>
             <div><dt>CLICK</dt><dd>When out: watch the next teammate</dd></div>
           </dl>
+          <button class="ghost-btn" id="keysMenu" type="button">Change keys</button>
         </details>
       </div>
       <p id="touchNote" class="note" hidden>Playing on a phone? Turn it sideways for the best view. Tap the slots at the top to switch weapons or build.</p>
@@ -383,7 +392,7 @@ body.touch #pips{left:calc(200px + env(safe-area-inset-left,0px));transform:none
     <div class="menu-inner">
       <div class="osd-line"><span>❚❚ PAUSE</span><span id="pauseRoom"></span></div>
       <p class="lede" id="pauseMsg">The fluorescent hum keeps going without you.</p>
-      <div class="row"><button class="cta" id="resume" type="button">Resume</button><button class="ghost-btn" id="copyInvite" type="button" hidden>Copy invite link</button><button class="ghost-btn" id="leave" type="button">Leave match</button></div>
+      <div class="row"><button class="cta" id="resume" type="button">Resume</button><button class="ghost-btn" id="copyInvite" type="button" hidden>Copy invite link</button><button class="ghost-btn" id="keysPause" type="button">Controls</button><button class="ghost-btn" id="leave" type="button">Leave match</button></div>
       <p class="msg" id="inviteMsg"></p>
     </div>
   </section>
@@ -402,6 +411,7 @@ body.touch #pips{left:calc(200px + env(safe-area-inset-left,0px));transform:none
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../keybinds.js"></script>
 <script>
 (function(){
 'use strict';
@@ -851,8 +861,43 @@ function setScores(){
 
 /* ---------- game state ---------- */
 let state='menu',paused=false,online=false,phase='fight',phaseT=0,score={you:0,opp:0},matchTime=0,clockT=0;
-let oppName='Entity',mode='combat',buildType='wall',lmb=false,rmb=false,buildCd=0,camDist=3.5,locked=false,fallback=false,everLocked=false;
-const keys=new Set();
+let oppName='Entity',mode='combat',buildType='wall',lmb=false,buildCd=0,camDist=3.5,locked=false,fallback=false,everLocked=false;
+// Keys and mouse buttons can be changed in the Controls panel (../keybinds.js); saved in this browser as
+// keybinds:backrooms-1v1. keys holds the e.codes held down, and mouse buttons as Mouse0 (left) / Mouse2 (right).
+// lmb is "Shoot / place held" from a key or mouse button; the touch buttons hold actions in tAct (by action id),
+// so they work whatever keys are bound.
+const LOOK='Look, if the mouse can\u2019t be locked';
+const KB=Keybinds.create({
+  game:'backrooms-1v1',
+  mouse:true,
+  actions:[
+    {id:'forward',label:'Move forward',group:'Move',keys:['KeyW']},
+    {id:'back',label:'Move back',group:'Move',keys:['KeyS']},
+    {id:'left',label:'Move left',group:'Move',keys:['KeyA']},
+    {id:'right',label:'Move right',group:'Move',keys:['KeyD']},
+    {id:'jump',label:'Jump',group:'Move',keys:['Space']},
+    {id:'fire',label:'Shoot / place build',group:'Fight',keys:['Mouse0']},
+    {id:'aim',label:'Aim / scope',note:'Hold. Aim keys on the keyboard also leave build mode',group:'Fight',keys:['ShiftLeft','Mouse2']},
+    {id:'rifle',label:'Rifle',note:'The mouse wheel switches guns too',group:'Fight',keys:['Digit1']},
+    {id:'shotgun',label:'Shotgun',group:'Fight',keys:['Digit2']},
+    {id:'sniper',label:'Sniper',group:'Fight',keys:['Digit3']},
+    {id:'reload',label:'Reload',group:'Fight',keys:['KeyR']},
+    {id:'wall',label:'Build a wall',group:'Build',keys:['KeyQ','KeyZ']},
+    {id:'floor',label:'Build a floor',group:'Build',keys:['KeyF','KeyX']},
+    {id:'ramp',label:'Build a ramp',group:'Build',keys:['KeyC','KeyE']},
+    {id:'lookUp',label:'Look up',group:LOOK,keys:['ArrowUp']},
+    {id:'lookDown',label:'Look down',group:LOOK,keys:['ArrowDown']},
+    {id:'lookLeft',label:'Look left',group:LOOK,keys:['ArrowLeft']},
+    {id:'lookRight',label:'Look right',group:LOOK,keys:['ArrowRight']},
+    {id:'pause',label:'Pause, menu and invite link',group:'Match',keys:['KeyP'],lock:['Escape']},
+    {id:'watch',label:'When out: watch the next teammate',group:'Match',text:'Click'}
+  ],
+  classes:{button:'ghost-btn',primary:'cta'}
+});
+const keys=new Set(),tAct={};
+const held=id=>!!tAct[id]||KB.held(id,keys);
+const firing=()=>lmb||!!tAct.fire;
+function clearInput(){lmb=false;keys.clear();for(const k in tAct)tAct[k]=false}
 // Online team play. RD is the room's round node as last seen (only the host writes it, see hostDuties).
 // curMatch / curRound: the match id and round number this browser has set up; roster: uid -> 'r' | 'b' for that match.
 let RD=null,curMatch=null,curRound=0,roster=new Map(),myTeamPref='r',myKills=0,lobbyShown=false,lobbyDirty=false,watchMode=false,specUid=null,lastRz='';
@@ -904,7 +949,7 @@ function endMatch(){
 function pauseGame(){if(state!=='playing'||paused||lobbyShown)return;
   // online and not playing this match (watching): Esc brings the lobby panel back instead
   if(online&&!activeOnline()){watchMode=false;showLobby();return}
-  paused=true;lmb=rmb=false;keys.clear();
+  paused=true;clearInput();
   $('pauseMsg').textContent=online?'The match keeps running while this menu is open.':'The fluorescent hum keeps going without you.';
   $('copyInvite').hidden=!(online&&!Net.quick);$('pauseRoom').textContent=online?Net.room:'LEVEL 0';$('inviteMsg').textContent='';
   $('pause').hidden=false}
@@ -965,8 +1010,8 @@ function resolveShot(shooter,w,rays,color){
   }
   return{ends,pd,hits};
 }
-// Right-click or hold Shift to aim; with the sniper that brings up the scope.
-const aimHeld=()=>rmb||keys.has('ShiftLeft')||keys.has('ShiftRight');
+// Right-click or hold Shift to aim (the Aim keys); with the sniper that brings up the scope.
+const aimHeld=()=>held('aim');
 function isADS(){return state==='playing'&&!paused&&mode==='combat'&&aimHeld()&&player.alive&&player.reloadT<=0&&(!online||activeOnline())}
 function curSpread(e,w,ads){const moving=Math.hypot(e.vel.x,e.vel.z)>1.2||!e.onGround;let s=ads?w.ads:w.hip;if(moving&&w.pellets===1)s=s*1.7+.004;return s}
 function playerShoot(){
@@ -1020,18 +1065,18 @@ function updatePlayer(dt){
   const f=fwdOf(p.yaw,0),r=rightOf(p.yaw);
   let ix=0,iz=0;
   if(input){
-    let fw=(keys.has('KeyW')?1:0)-(keys.has('KeyS')?1:0),st=(keys.has('KeyD')?1:0)-(keys.has('KeyA')?1:0),mag=1;
+    let fw=(held('forward')?1:0)-(held('back')?1:0),st=(held('right')?1:0)-(held('left')?1:0),mag=1;
     if(tMove.on){fw=-tMove.y;st=tMove.x;mag=Math.min(1,Math.hypot(fw,st))}
     ix=f.x*fw+r.x*st;iz=f.z*fw+r.z*st;const il=Math.hypot(ix,iz);if(il>0){ix*=mag/il;iz*=mag/il}
-    if(fallback){if(keys.has('ArrowLeft'))p.yaw+=dt*2.2;if(keys.has('ArrowRight'))p.yaw-=dt*2.2;if(keys.has('ArrowUp'))p.pitch=clamp(p.pitch+dt*1.6,-1.45,1.45);if(keys.has('ArrowDown'))p.pitch=clamp(p.pitch-dt*1.6,-1.45,1.45)}
+    if(fallback){if(held('lookLeft'))p.yaw+=dt*2.2;if(held('lookRight'))p.yaw-=dt*2.2;if(held('lookUp'))p.pitch=clamp(p.pitch+dt*1.6,-1.45,1.45);if(held('lookDown'))p.pitch=clamp(p.pitch-dt*1.6,-1.45,1.45)}
   }
   const spd=SPEED*(isADS()?.7:1);
   const k=Math.min(1,(p.onGround?14:3.2)*dt);
   p.vel.x+=(ix*spd-p.vel.x)*k;p.vel.z+=(iz*spd-p.vel.z)*k;
-  if(input&&keys.has('Space')&&p.onGround){p.vel.y=JUMP;p.onGround=false}
+  if(input&&held('jump')&&p.onGround){p.vel.y=JUMP;p.onGround=false}
   moveEntity(p,dt);
   const w=WEAPONS[p.wi];
-  if(input&&mode==='combat'&&lmb&&phase!=='countdown'){
+  if(input&&mode==='combat'&&firing()&&phase!=='countdown'){
     if(p.ammo[p.wi]<=0)startReload(p);
     else if(p.cd<=0&&p.reloadT<=0&&p.switchT<=0){playerShoot();p.ammo[p.wi]--;p.cd=w.rate}
   }
@@ -1041,7 +1086,7 @@ function updatePlayer(dt){
   if(input&&mode==='build'){
     const s=playerBuildSpec(buildType);const ok=specValid(s);const g=ghosts[buildType];
     placeObj(g,s);g.visible=true;ghostMat.color.setHex(ok?0x8fe8ff:0xff6a5a);ghostEdge.color.setHex(ok?0xbff3ff:0xffb0a6);
-    if(lmb&&ok&&buildCd<=0){tryBuild(s,player);buildCd=.09}
+    if(firing()&&ok&&buildCd<=0){tryBuild(s,player);buildCd=.09}
   }
 }
 
@@ -1265,7 +1310,7 @@ function startOnlineRound(){
 // You went down: tell everyone who got you. Only the victim reports its own death, so kill credit is
 // whoever landed the last hit, and the host counts you out for the rest of the round.
 function onlineDeath(shooter,head){
-  player.alive=false;player.dieT=0;lmb=false;
+  player.alive=false;player.dieT=0;lmb=false;tAct.fire=false;
   const k=shooter&&shooter.uid||'',wi=shooter?shooter.wi|0:0;
   Net.send({type:'kill',v:Net.uid,k,w:wi,hd:head?1:0,r:curRound});
   killFeed(k,Net.uid,wi,head);
@@ -1396,7 +1441,7 @@ function syncView(){
 }
 function showLobby(){
   lobbyShown=true;paused=false;$('pause').hidden=true;$('lobby').hidden=false;$('osd').hidden=true;$('lbMsg').textContent='';
-  lmb=rmb=false;keys.clear();hideGhosts();
+  clearInput();hideGhosts();
   if(document.pointerLockElement)document.exitPointerLock();
   lobbyDirty=true;renderLobby();
 }
@@ -1699,16 +1744,22 @@ function updateCamera(dt){
 
 /* ---------- HUD update ---------- */
 let lastHud='';
+// The build hint from the current keys: " · click to place · Shift or 1 for your gun" with the defaults.
+function buildKeysText(){
+  const f=KB.keys('fire')[0],a=KB.keys('aim').find(c=>!/^Mouse/.test(c)),r=KB.keys('rifle')[0];
+  const gun=[a,r].filter(Boolean).map(KB.name).join(' or ');
+  return (f?' · '+(f==='Mouse0'?'click':KB.name(f))+' to place':'')+(gun?' · '+gun+' for your gun':'');
+}
 function updateHud(dt){
   const p=player,w=WEAPONS[p.wi];
-  if(touchUI){$('tFire').textContent=mode==='build'?'PLACE':'FIRE';$('tAim').classList.toggle('on',rmb)}
+  if(touchUI){$('tFire').textContent=mode==='build'?'PLACE':'FIRE';$('tAim').classList.toggle('on',!!tAct.aim)}
   const key=[Math.ceil(p.hp),Math.ceil(p.shield),p.wi,mode,buildType,p.ammo.join(','),p.reloadT>0].join('|');
   if(key!==lastHud){lastHud=key;
     hud.hpN.textContent=Math.max(0,Math.ceil(p.hp));hud.hpF.style.width=Math.max(0,p.hp)+'%';
     hud.shN.textContent=Math.ceil(p.shield);hud.shF.style.width=(p.shield/50*100)+'%';
     for(let i=0;i<3;i++){$('slot'+i).classList.toggle('on',mode==='combat'&&p.wi===i);$('am'+i).textContent=(p.wi===i&&p.reloadT>0)?'reload':p.ammo[i]+' / '+WEAPONS[i].mag}
     for(const t of ['wall','floor','ramp'])$('slot'+t).classList.toggle('on',mode==='build'&&buildType===t);
-    hud.hint.hidden=mode!=='build';if(mode==='build')hud.hint.textContent='Build · '+buildType+(touchUI?' · tap Place · tap a gun to fight':' · click to place · Shift or 1 for your gun');
+    hud.hint.hidden=mode!=='build';if(mode==='build')hud.hint.textContent='Build · '+buildType+(touchUI?' · tap Place · tap a gun to fight':buildKeysText());
   }
   hud.reload.hidden=!(p.reloadT>0);if(p.reloadT>0)hud.reloadF.style.width=(100*(1-p.reloadT/w.reload))+'%';
   const ads=isADS();const scoped=ads&&w.id==='sr';hud.scope.hidden=!scoped;
@@ -1851,7 +1902,7 @@ document.addEventListener('pointerlockchange',()=>{
 });
 document.addEventListener('mousemove',e=>{
   if(state!=='playing'||paused||lobbyShown||!player.alive)return;
-  if(!locked&&!(fallback&&(lmb||rmb||e.buttons)))return;
+  if(!locked&&!(fallback&&(keys.has('Mouse0')||keys.has('Mouse2')||e.buttons)))return;
   const k=.0022*sens*(camera.fov/72);
   player.yaw-=e.movementX*k;player.pitch=clamp(player.pitch-e.movementY*k,-1.45,1.45);
 });
@@ -1861,25 +1912,35 @@ view.addEventListener('mousedown',e=>{
   if(isSpectating()){if(e.button===0)cycleSpectate();e.preventDefault();return}
   if(lobbyShown)return;
   if(!locked&&!fallback){requestLock(true);return}
-  if(e.button===0)lmb=true;if(e.button===2)rmb=true;
+  const c='Mouse'+e.button;keys.add(c);pressCode(c,false,false);
   e.preventDefault();
 });
-addEventListener('mouseup',e=>{if(e.button===0)lmb=false;if(e.button===2)rmb=false});
+addEventListener('mouseup',e=>releaseCode('Mouse'+e.button));
 view.addEventListener('contextmenu',e=>e.preventDefault());
 addEventListener('wheel',e=>{if(state!=='playing'||paused||lobbyShown)return;const n=(player.wi+(e.deltaY>0?1:2))%3;switchWeapon(player,n);mode='combat'},{passive:true});
-const BUILD_KEYS={KeyQ:'wall',KeyZ:'wall',KeyF:'floor',KeyX:'floor',KeyC:'ramp',KeyE:'ramp'};
+// One press of a key (key true) or mouse button: the one-shot actions, by binding.
+const GUNS=['rifle','shotgun','sniper'],BUILDS=['wall','floor','ramp'];
+function pressCode(c,key,repeat){
+  if(KB.is('fire',c))lmb=true;
+  const gi=GUNS.findIndex(a=>KB.is(a,c)),bi=BUILDS.findIndex(a=>KB.is(a,c));
+  if(gi>=0){switchWeapon(player,gi);mode='combat'}
+  else if(bi>=0){mode='build';buildType=BUILDS[bi];player.reloadT=0}
+  else if(key&&KB.is('aim',c)&&mode==='build'&&!repeat)mode='combat';
+  else if(KB.is('reload',c)&&mode==='combat')startReload(player);
+  else if(c==='Escape'){if(!locked)pauseGame()}
+  else if(KB.is('pause',c))pauseGame();
+}
+function releaseCode(c){keys.delete(c);if(KB.is('fire',c)&&!KB.held('fire',keys))lmb=false}
 addEventListener('keydown',e=>{
+  if(e.target&&e.target.closest&&e.target.closest('input,textarea,select,[contenteditable]'))return;
   if(state!=='playing'||paused||lobbyShown)return;
-  keys.add(e.code);
-  if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();
-  if(e.code==='Digit1'||e.code==='Digit2'||e.code==='Digit3'){switchWeapon(player,+e.code.slice(5)-1);mode='combat'}
-  else if(BUILD_KEYS[e.code]){mode='build';buildType=BUILD_KEYS[e.code];player.reloadT=0}
-  else if((e.code==='ShiftLeft'||e.code==='ShiftRight')&&mode==='build'&&!e.repeat)mode='combat';
-  else if(e.code==='KeyR'&&mode==='combat')startReload(player);
-  else if(e.code==='KeyP'||(e.code==='Escape'&&!locked))pauseGame();
+  const c=e.code;
+  keys.add(c);
+  if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(c)||(locked&&c!=='Escape'&&KB.actionsFor(c).length))e.preventDefault();
+  pressCode(c,true,e.repeat);
 });
-addEventListener('keyup',e=>keys.delete(e.code));
-addEventListener('blur',()=>{keys.clear();lmb=rmb=false});
+addEventListener('keyup',e=>releaseCode(e.code));
+addEventListener('blur',clearInput);
 
 // Touch controls. On a touch screen there's no pointer lock: the stick moves, dragging turns the view
 // (including while holding Fire), the slots along the top switch weapons or build pieces, and each button does what its key does.
@@ -1919,11 +1980,11 @@ function tButton(el,down,up){
   el.addEventListener('pointerup',end);el.addEventListener('pointercancel',end);el.addEventListener('lostpointercapture',end);
   el.addEventListener('contextmenu',e=>e.preventDefault());
 }
-tButton($('tFire'),()=>{if(canAct())lmb=true},()=>{lmb=false});
-tButton($('tJump'),()=>{if(canAct())keys.add('Space')},()=>{keys.delete('Space')});
-tButton($('tAim'),()=>{if(canAct()){rmb=!rmb;if(rmb)mode='combat'}},()=>{$('tAim').classList.toggle('on',rmb)});
+tButton($('tFire'),()=>{if(canAct())tAct.fire=true},()=>{tAct.fire=false});
+tButton($('tJump'),()=>{if(canAct())tAct.jump=true},()=>{tAct.jump=false});
+tButton($('tAim'),()=>{if(canAct()){tAct.aim=!tAct.aim;if(tAct.aim)mode='combat'}},()=>{$('tAim').classList.toggle('on',!!tAct.aim)});
 tButton($('tReload'),()=>{if(canAct()&&mode==='combat')startReload(player)});
-tButton($('tPause'),()=>{rmb=false;pauseGame()});
+tButton($('tPause'),()=>{tAct.aim=false;pauseGame()});
 // Out of the round: Next, or a tap on the view (like a click with a mouse), watches the next living player.
 tButton($('tNext'),()=>{if(isSpectating())cycleSpectate()});
 {
@@ -1934,7 +1995,7 @@ tButton($('tNext'),()=>{if(isSpectating())cycleSpectate()});
   look.addEventListener('pointercancel',e=>taps.delete(e.pointerId));
 }
 [0,1,2].forEach(i=>tButton($('slot'+i),()=>{if(canAct()){switchWeapon(player,i);mode='combat'}}));
-['wall','floor','ramp'].forEach(t=>tButton($('slot'+t),()=>{if(!canAct())return;if(mode==='build'&&buildType===t)mode='combat';else{mode='build';buildType=t;player.reloadT=0;rmb=false}}));
+['wall','floor','ramp'].forEach(t=>tButton($('slot'+t),()=>{if(!canAct())return;if(mode==='build'&&buildType===t)mode='combat';else{mode='build';buildType=t;player.reloadT=0;tAct.aim=false}}));
 
 /* ---------- menu wiring ---------- */
 function setDiff(d){diffKey=d;for(const b of $('diffSeg').querySelectorAll('button'))b.setAttribute('aria-checked',String(b.dataset.d===d));store.set('diff',d)}
@@ -1968,6 +2029,11 @@ $('startMatch').addEventListener('click',()=>{initAudio();hostStart()});
 $('randTeams').addEventListener('click',hostRandomize);
 $('toSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(b)hostSetTarget(+b.dataset.n)});
 $('lbWatch').addEventListener('click',()=>{watchMode=true;hideLobby()});
+// Controls panel (hidden on touch screens). The menu's two aim lines show the first Aim key, then the rest.
+function aimRows(){const k=KB.keys('aim').map(c=>KB.name(c).toUpperCase());$('kAim1').textContent=k[0]||'UNBOUND';$('kAim2').textContent=k.slice(1).join(' / ');$('kAim2').parentNode.hidden=k.length<2}
+aimRows();KB.onChange(()=>{aimRows();lastHud=''});
+$('keysMenu').addEventListener('click',()=>KB.open());
+$('keysPause').addEventListener('click',()=>KB.open());
 if(touchUI)setTouchUI(true);
 addEventListener('pagehide',()=>Net.leave());
 
