@@ -1972,14 +1972,54 @@ let me=U.Body(START.x,START.y1,START.z);me.gnd=START;me.yaw=Math.PI/2;
 const run={t:0,falls:0,jumps:0,maxY:0,fin:0,zone:0};
 const best=(b=>({h:num(b.h,0,0,SUMMIT+5),time:num(b.time,0,0,1e7),wins:num(b.wins,0,0,1e6)|0}))(Object(store.get('best',{})));
 const myAv=makeAvatar(myColor);scene.add(myAv.root);const myShadow=makeShadow();
+// Is a body standing at (x, y, z) inside something solid (say, a saved spot after the course changed)?
+const _iq=[];
+function insideAt(x,y,z){
+  W.query(x-1,y,z-1,x+1,y+C.H,z+1,_iq);
+  for(const c of _iq){if(c.gone)continue;const p=U.footHit(c,x,z,C.R*.9);if(!p)continue;if(U.topAt(c,p[0],p[1])>y+C.STEP&&c.y0<y+C.H-.1)return true}
+  return false;
+}
+// Where a saved run puts you back. On a moving platform: back on it, wherever it has got to. Mid-air: in the
+// same fall, at the same speed. Standing: on what's under you. If that spot is now inside something, or
+// over nothing (the course changed since the save), you're put on the nearest path platform below it.
+function placeSaved(s,x,y,z){
+  const on=s.on!=null?PATH[s.on|0]:null;
+  if(on&&on.dyn){
+    const t=Date.now()/1000-EPOCH;U.setTime(W,t);U.setTime(W,t);
+    const w=U.toWorld(on,num(s.lx,0,-9,9),num(s.lz,0,-9,9)),q=U.clampInto(on,w[0],w[1],.25),b=U.Body(q[0],on.y1,q[1]);b.gnd=on;b.lastLand=on;return b;
+  }
+  if(s.v&&!insideAt(x,y,z)){
+    const b=U.Body(x,y,z),v=Array.isArray(s.v)?s.v:[];
+    b.vx=num(v[0],0,-40,40);b.vy=num(v[1],0,-C.MAXFALL,30);b.vz=num(v[2],0,-40,40);
+    b.fallFrom=b.peakY=Math.max(y,num(s.ff,y,0,SUMMIT+5));b.airCap=Math.max(Math.hypot(b.vx,b.vz),C.WALK);b.cut=true;
+    return b;
+  }
+  if(!s.v){
+    const sp=U.support(W,x,z,y-.6,y+.6);
+    if(sp&&!sp[1].dyn&&!insideAt(x,sp[0],z)){const b=U.Body(x,sp[0],z);b.gnd=sp[1];b.lastLand=sp[1];return b}
+  }
+  let bestC=START,bd=1e9;
+  for(const c of PATH){if(c.dyn||c.kind||c.y1>y+.5)continue;const d=Math.hypot(c.x-x,c.z-z,(y-c.y1)*1.5);if(d<bd&&!insideAt(c.x,c.y1,c.z)){bd=d;bestC=c}}
+  const b=U.Body(bestC.x,bestC.y1,bestC.z);b.gnd=bestC;b.lastLand=bestC;return b;
+}
 function loadRun(){
   const s=store.get('run',null);
-  if(!s||!isFinite(s.x)||!isFinite(s.y)||!isFinite(s.z))return false;
-  me=U.Body(s.x,s.y+.05,s.z);me.yaw=s.yaw||0;me.falls=s.falls|0;me.jumps=s.jumps|0;
-  Object.assign(run,{t:+s.t||0,falls:s.falls|0,jumps:s.jumps|0,maxY:+s.maxY||0,fin:+s.fin||0,zone:U.zoneAt(s.y)});
+  if(!s||typeof s!=='object'||!isFinite(s.x)||!isFinite(s.y)||!isFinite(s.z))return false;
+  me=placeSaved(s,clamp(+s.x,-400,400),clamp(+s.y,0,SUMMIT+2)+.02,clamp(+s.z,-400,400));
+  me.yaw=num(s.yaw,0,-1e4,1e4);me.falls=Math.max(0,s.falls|0);me.jumps=Math.max(0,s.jumps|0);
+  Object.assign(run,{t:num(s.t,0,0,1e7),falls:me.falls,jumps:me.jumps,maxY:Math.max(num(s.maxY,0,0,SUMMIT+5),me.y),fin:num(s.fin,0,0,1e7),zone:U.zoneAt(me.y)});
   return true;
 }
-function saveRun(){store.set('run',{x:r2(me.x),y:r2(me.y),z:r2(me.z),yaw:r3(me.yaw),t:Math.round(run.t*10)/10,falls:me.falls,jumps:me.jumps,maxY:Math.round(run.maxY*10)/10,fin:run.fin})}
+// Saved: where you stand; on a moving platform, which one and where on it; in the air, your speed and
+// where the fall started too (so coming back mid-fall carries on with the same fall).
+function saveRun(){
+  const o={x:r2(me.x),y:r2(me.y),z:r2(me.z),yaw:r3(me.yaw),t:Math.round(run.t*10)/10,falls:me.falls,jumps:me.jumps,maxY:Math.round(run.maxY*10)/10,fin:run.fin};
+  const m=me.mantle,g=me.gnd;
+  if(m){o.x=r2(m.tx);o.y=r2(m.ty);o.z=r2(m.tz)}   // halfway up a ledge: the top of it
+  else if(g&&g.dyn&&g.path>=0){const l=U.toLocal(g,me.x,me.z);o.on=g.path;o.lx=r2(l[0]);o.lz=r2(l[1])}
+  else if(!g){o.v=[r2(me.vx),r2(me.vy),r2(me.vz)];o.ff=r2(me.fallFrom)}
+  store.set('run',o);
+}
 function saveBest(){store.set('best',best)}
 function newRun(){
   me=U.Body(START.x,START.y1+.02,START.z);me.gnd=START;me.yaw=Math.PI/2;camYaw=Math.PI/2;camPitch=.3;
@@ -2066,7 +2106,8 @@ const held=id=>!!tAct[id]||KB.held(id,keys);
 const inp={x:0,z:0,sprint:false,jump:false};
 function readInput(){
   inp.x=inp.z=0;inp.sprint=false;inp.jump=false;
-  if(G.mode!=='play'||G.paused||G.spec)return inp;
+  // paused (or in a menu): no input, but a jump that's rising keeps its full height (letting go of Jump cuts it)
+  if(G.mode!=='play'||G.paused||G.spec){inp.jump=!!me.jumpHeld;return inp}
   if(G.bot){const r=U.botInput(W,me,G.bot,inp);
     // test bot only: a missed jump is logged and it's put back where it jumped from
     if(r==='fail'){const b=G.bot,c=PATH[Math.max(0,b.i-1)],q=U.predict(c,wt);b.missed=(b.missed||0)+1;me.x=q.x;me.z=q.z;me.y=q.y1+.01;me.vx=me.vy=me.vz=0;me.gnd=null;me.mantle=null;b.ph='plan';b.lastT=wt;b.fails.length=0}
@@ -2189,7 +2230,13 @@ function physics(dt){
   if(n>=10)acc=0;
   // stay on the shared clock (moving platforms are in the same place for everyone)
   const st=sharedTime(),d=st-wt;
-  if(Math.abs(d)>.6){wt=st;U.setTime(W,wt);U.setTime(W,wt)}else wt+=clamp(d,-.003,.003);
+  if(Math.abs(d)>.6){
+    // a big jump in time (a hidden tab, a long hitch, joining a room): moving platforms jump to where they
+    // are now, so take whoever is standing on one along with it instead of leaving them in the air
+    const g=me.gnd&&me.gnd.dyn&&!me.gnd.gone&&!me.mantle?me.gnd:null,l=g?U.toLocal(g,me.x,me.z):null,dy=g?me.y-g.y1:0,dyaw=g?me.yaw-g.yaw:0;
+    wt=st;U.setTime(W,wt);U.setTime(W,wt);
+    if(g){const w=U.toWorld(g,l[0],l[1]);me.x=w[0];me.z=w[1];me.y=g.y1+dy;me.yaw=g.yaw+dyaw}
+  }else wt+=clamp(d,-.003,.003);
 }
 function afterSteps(dt){
   // the summit
@@ -2522,7 +2569,7 @@ function frame(t){
   requestAnimationFrame(frame);
 }
 addEventListener('pagehide',()=>{saveRun();saveBest();if(Net.refs)Net.leave()});
-document.addEventListener('visibilitychange',()=>{if(document.hidden){saveRun();saveBest()}});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){if(G.mode==='play'&&!G.paused&&$('win').hidden&&!G.spec)showPause();saveRun();saveBest()}});
 document.addEventListener('pointerdown',()=>initAudio(),{once:true});
 if(isTouch)setTouchUI(true);
 // An invite opens this page with #up-<code>: fill in the room and point at the join button.
@@ -2539,7 +2586,7 @@ if(TEST)window.__up={U,C,course,W,PATH,G,run,best,keys,tAct,tMove,KB,Net,others,
   bot(on,from){G.bot=on?U.Bot(course):null;if(G.bot){G.bot.i=(from==null?0:from)+1;G.bot.lastT=wt}return G.bot},
   newRun,enterGame,toMenu,showPause,resume2:resume,startSpectate,cycleSpec,stopSpectate,joinPrivate,quickMatch,
   render(){updateCamera(.1);atmosphere();updateChunks(scene.fog.far);updateMovers();renderer.render(scene,camera)},
-  stepOnce,afterSteps,saveRun,loadRun,others,onSummit,onNode,
+  stepOnce,afterSteps,saveRun,loadRun,others,onSummit,onNode,physics,set wt(v){wt=v},
   // fake climbers for layout tests (no network)
   fake(n){G.fakeNet=true;Net.offset=0;for(let i=0;i<n;i++){const c=PATH[Math.min(PATH.length-1,40+i*60)];onNode('fake'+i,{n:['Ava','Bo','Cyrus','Dee','Eli','Fay','Gus','Hana','Ivo','Jun','Kit'][i%11],c:COLORS[(i+3)%COLORS.length],x:c.x,y:c.y1,z:c.z,h:0,ts:Date.now(),a:i%5,m:Math.floor(c.y1),t:100+i,f:i===0?1234:0})}},
   unfake(){G.fakeNet=false;clearOthers()}
