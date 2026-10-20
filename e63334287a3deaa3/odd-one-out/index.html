@@ -574,6 +574,9 @@ function sfx(kind,pos,vol){
     }
   }catch(e){}
 }
+// Sounds a hiding prop makes (shuffling about, turning into something). Hunters locked in the waiting room don't
+// hear them: the room is outside the map, and hearing where the props settle would give their spots away.
+function propSfx(kind,pos,vol){if(G.role==='hunter'&&G.rs&&G.rs.ph==='hide')return;sfx(kind,pos,vol)}
 // ---------- music: a quiet loop, calmer in the lobby and hide phase, busier while hunting ----------
 const Music={on:false,next:0,step:0,mood:'calm',timer:0,
   start(){if(!actx||this.on)return;this.on=true;this.next=actx.currentTime+.1;this.step=0;this.timer=setInterval(()=>this.tick(),200)},
@@ -2131,7 +2134,7 @@ function botsTick(dt){
     if(e.bot.kind==='prop')botProp(e,dt,rs);else if(e.bot.kind==='hunter')botHunter(e,dt,rs);
     const before=e.pos.clone();if(e.vel.x||e.vel.z||!e.onGround)moveEnt(e,dt);
     e.spd=Math.hypot(e.pos.x-before.x,e.pos.z-before.z)/Math.max(dt,1e-3);if(e.spd>.3)e.moveT=clock;
-    if(e.onGround&&e.spd>.6){e.stepT-=dt;if(e.stepT<=0){e.stepT=e.look==='hunter'?.36:.3;sfx(e.look==='hunter'?'step':'scoot',e.pos,.7)}}
+    if(e.onGround&&e.spd>.6){e.stepT-=dt;if(e.stepT<=0){e.stepT=e.look==='hunter'?.36:.3;if(e.look==='hunter')sfx('step',e.pos,.7);else propSfx('scoot',e.pos,.7)}}
   }
 }
 function botProp(e,dt,rs){
@@ -2141,7 +2144,7 @@ function botProp(e,dt,rs){
   const hf=(rs.hf||{})[e.id]||0;
   if(hf>b2.hfSeen){b2.hfSeen=hf;if(rs.ph==='hunt'&&b2.state==='hide'&&Math.random()<DIFF[G.diff].flee){const g=planHide(e,e.pos,22);if(g){botGo(e,g,true);b2.fled=true}}}
   if(b2.state==='go'){
-    if(b2.goal&&e.form!==b2.goal.t&&Math.hypot(b2.goal.x-e.pos.x,b2.goal.z-e.pos.z)<3.5){const ok=tryForm(e,b2.goal.t,e.yaw);if(ok){const c=e.pos.clone();c.y+=e.form.h/2;puff(c,.8);sfx('transform',c,.8)}}
+    if(b2.goal&&e.form!==b2.goal.t&&Math.hypot(b2.goal.x-e.pos.x,b2.goal.z-e.pos.z)<3.5){const ok=tryForm(e,b2.goal.t,e.yaw);if(ok){const c=e.pos.clone();c.y+=e.form.h/2;puff(c,.8);propSfx('transform',c,.8)}}
     const done=walkPath(e,dt,(b2.run?1.15:1)*(e.form?e.form.speed:4));
     if(b2.path&&b2.path.length&&!b2.run)turnTo(e,lerpAng(e.yaw,b2.face+Math.PI,dt*6));
     if(done||(b2.stuck||0)>3){
@@ -2332,7 +2335,7 @@ function onNode(uid,v){
   e.seen=performance.now();e.name=o.n;e.color=o.c;
   if(finN(+v.x)&&finN(+v.z)&&MAP){const bd=MAP.ext;e.tpos.set(clamp(+v.x,bd[0],bd[2]),numIn(+v.y,-1,12,0),clamp(+v.z,bd[1],bd[3]))}
   e.tyaw=wrapA(numIn(+v.h,-1e3,1e3,e.tyaw));e.aimPitch=numIn(+v.p,-1.5,1.5,0);
-  if(v.d!==e.dSeen){e.dSeen=v.d;const t=ptOf(v.d);if(t&&t.elig&&t!==e.form){setForm(e,t);if(e.look==='prop'&&e.alive){const c=e.pos.clone();c.y+=t.h/2;puff(c,clamp(Math.max(t.w,t.h),.4,1.4));sfx('transform',c)}}}
+  if(v.d!==e.dSeen){e.dSeen=v.d;const t=ptOf(v.d);if(t&&t.elig&&t!==e.form){setForm(e,t);if(e.look==='prop'&&e.alive){const c=e.pos.clone();c.y+=t.h/2;puff(c,clamp(Math.max(t.w,t.h),.4,1.4));propSfx('transform',c)}}}
   if(typeof v.sh==='string'&&v.sh!==e.shSeen){e.shSeen=v.sh;remoteShot(e,v.sh)}
   // round state from the host
   if(o.rs&&!G.host&&(uid===G.hostUid||!G.hostUid)&&o.rs!==G.rsSeen){
@@ -2362,7 +2365,7 @@ function updateRemotes(dt){
     const d=angDiff(e.tyaw,e.yaw);e.yaw=Math.abs(d)<1e-3?e.tyaw:wrapA(e.yaw+d*k);
     e.spd=lerp(e.spd,Math.hypot(e.pos.x-bx,e.pos.z-bz)/Math.max(dt,1e-3),.25);
     if(e.spd>.3)e.moveT=clock;
-    if(e.alive&&e.spd>.8){e.stepT-=dt;if(e.stepT<=0){e.stepT=e.look==='hunter'?.36:.3;sfx(e.look==='hunter'?'step':'scoot',e.pos,.8)}}
+    if(e.alive&&e.spd>.8){e.stepT-=dt;if(e.stepT<=0){e.stepT=e.look==='hunter'?.36:.3;if(e.look==='hunter')sfx('step',e.pos,.8);else propSfx('scoot',e.pos,.8)}}
   }
 }
 function onlineTick(){
