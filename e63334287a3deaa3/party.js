@@ -51,11 +51,9 @@
     { k: 'cl', n: 'Coil', d: 'coil', max: 8 },
     { k: 'sd', n: 'Showdown', d: 'showdown', max: 8 },
     { k: 'qy', n: 'Quarry', d: 'quarry', max: 8 },
-    { k: 'br', n: 'Backrooms 1v1', d: 'backrooms-1v1', max: 2 },
+    { k: 'br', n: 'Backrooms 1v1–4v4', d: 'backrooms-1v1', max: 8 },
     { k: 'hm', n: 'Hail Mary', d: 'hail-mary', max: 2 },
     { k: 'cf', n: 'Chromaflage', d: 'chromaflage', max: 8 }
-    { k: 'br', n: 'Backrooms 1v1–4v4', d: 'backrooms-1v1', max: 8 },
-    { k: 'hm', n: 'Hail Mary', d: 'hail-mary', max: 2 }
   ];
   var COLORS = ['#1D6A4B', '#C0562F', '#3E5BA9', '#9A3F8F', '#B07A12', '#2A8A8A', '#B42318', '#5B6B2E'];
 
