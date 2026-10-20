@@ -958,11 +958,12 @@ class Builder{
   def(k){const d=this.M[k];if(!d)throw new Error('No material '+k);return d}
   // m: a material key, or {all, '+x', '-z', ...}. o: solid (default true), fit ('all' or face names
   // like '+z-x' that stretch the texture once instead of tiling), skip (faces not to draw),
-  // noMesh (collider only; sm = which material to report), ghost (drawn only), ns (no shadow cast)
+  // noMesh (collider only; sm = which material to report), ghost (drawn only), ns (no shadow cast),
+  // soft (cloth or leaves: blocks the view but the blaster's pellets go through)
   box(x0,y0,z0,x1,y1,z1,m,o){
     o=o||{};
     if(x0>x1)[x0,x1]=[x1,x0];if(y0>y1)[y0,y1]=[y1,y0];if(z0>z1)[z0,z1]=[z1,z0];
-    const b={x0,y0,z0,x1,y1,z1,solid:o.solid!==false,face:[],fit:[]};
+    const b={x0,y0,z0,x1,y1,z1,solid:o.solid!==false,soft:!!o.soft,face:[],fit:[]};
     for(let f=0;f<6;f++){
       const k=o.noMesh?o.sm:(typeof m==='string'?m:(m[FACES[f]]||m.all));
       b.face[f]=k||null;b.fit[f]=!!(o.fit&&(o.fit==='all'||o.fit.indexOf(FACES[f])>=0));
@@ -996,7 +997,7 @@ class Builder{
     if(o.rx)d.rotation.x=o.rx;if(o.ry)d.rotation.y=o.ry;if(o.rz)d.rotation.z=o.rz;
     if(o.s)d.scale.set(o.s[0],o.s[1],o.s[2]);
     d.userData={geo,k,ns:!!o.ns};this.objs.push(d);
-    if(o.col){const c=o.col;this.box(c[0],c[1],c[2],c[3],c[4],c[5],null,{noMesh:true,sm:k,solid:o.solid!==false})}
+    if(o.col){const c=o.col;this.box(c[0],c[1],c[2],c[3],c[4],c[5],null,{noMesh:true,sm:k,solid:o.solid!==false,soft:!!o.soft})}
     return d;
   }
   // a ceiling: drawn from below only (so the menu's view from above looks into the rooms), solid, casts no shadow
@@ -1028,7 +1029,8 @@ class Builder{
 }
 
 // ---------- ray against the map's boxes ----------
-// Returns the nearest box hit: {t, b, f (face index)}; filter(b) can skip boxes.
+// Returns the nearest box hit: {t, b, f (face index)}. solidOnly: true = solid boxes only, 'hard' = everything but
+// soft cloth and leaves (what the blaster's pellets stop at), false = everything (line of sight).
 // The boxes are also filed in a 2 m grid over the floor plan, so rays and collision checks only look at
 // the boxes near them (the bigger maps have well over a thousand).
 const GRID=2;
@@ -1052,7 +1054,7 @@ const _hit={t:0,b:null,f:0};
 function rayMap(ox,oy,oz,dx,dy,dz,maxT,solidOnly){
   const M=MAP;if(!M)return null;const g=M.grid;
   const ix=1/(dx||1e-9),iy=1/(dy||1e-9),iz=1/(dz||1e-9);let best=maxT,bb=null,bf=0;
-  const q=++g.rq,cells=solidOnly?g.sol:g.all;
+  const q=++g.rq,cells=solidOnly===true?g.sol:g.all,hard=solidOnly==='hard';
   // walk the grid cells the ray crosses (2D DDA), testing each box once
   const gx1=g.x0+g.nx*GRID,gz1=g.z0+g.nz*GRID;
   let t0=0,t1=maxT;
@@ -1066,7 +1068,7 @@ function rayMap(ox,oy,oz,dx,dy,dz,maxT,solidOnly){
   for(;;){
   const list=cells[cj*g.nx+ci];
   for(let i=0;i<list.length;i++){
-    const b=list[i];if(g.rs[b.id]===q)continue;g.rs[b.id]=q;
+    const b=list[i];if(g.rs[b.id]===q)continue;g.rs[b.id]=q;if(hard&&b.soft)continue;
     let t1=(b.x0-ox)*ix,t2=(b.x1-ox)*ix,tmin,tmax,fa;
     if(t1<t2){tmin=t1;tmax=t2;fa=1}else{tmin=t2;tmax=t1;fa=0}
     let s1=(b.y0-oy)*iy,s2=(b.y1-oy)*iy,smin,smax,fb;
@@ -1103,7 +1105,11 @@ function buildNav(M){
     g[j*nx+i]=ok;
   }
   MAP=pm;
-  M.nav={nx,nz,g,x0:bd[0],z0:bd[1]};
+  // which cells can be walked to from the seekers' start (bots only hide and patrol there)
+  const rr=new Uint8Array(nx*nz),si=Math.floor((M.seek[0]-bd[0])/NAVC),sj=Math.floor((M.seek[1]-bd[1])/NAVC),st=[sj*nx+si];
+  if(g[st[0]]){rr[st[0]]=1;while(st.length){const c=st.pop(),i=c%nx,j=(c-i)/nx;for(const [di,dj] of [[1,0],[-1,0],[0,1],[0,-1]]){const a=i+di,b=j+dj;if(a<0||b<0||a>=nx||b>=nz)continue;const k=b*nx+a;if(g[k]&&!rr[k]){rr[k]=1;st.push(k)}}}}
+  else rr.set(g);
+  M.nav={nx,nz,g,r:rr,x0:bd[0],z0:bd[1]};
 }
 function navCell(x,z){const N=MAP.nav;const i=Math.floor((x-N.x0)/NAVC),j=Math.floor((z-N.z0)/NAVC);if(i<0||j<0||i>=N.nx||j>=N.nz)return -1;return j*N.nx+i}
 function cellPos(c){const N=MAP.nav;return[N.x0+(c%N.nx+.5)*NAVC,N.z0+(Math.floor(c/N.nx)+.5)*NAVC]}
@@ -1197,19 +1203,19 @@ function furn(B){
       B.spot(ox,oz,2,(k%2===0)?0:-Math.PI/2)},
     unit(k,ox,oz,w,h,d,front,body){return B.at(k,ox,oz)(-w/2,0,-d/2,w/2,h,d/2,{all:body||'walnut','+z':front},{fit:'+z'})},
     plant(x,z,s,pot,leaf){s=s||1;const pr=.2*s,ph=.42*s;B.prop(geo('Cylinder',.2,.15,.42,14),pot||'pot',x,ph/2,z,{s:[s,s,s],col:[x-pr,0,z-pr,x+pr,ph,z+pr]});
-      B.prop(geo('Icosahedron',.4,1),leaf||'leaves',x,ph+.32*s,z,{s:[s,s*1.1,s],col:[x-.32*s,ph,z-.32*s,x+.32*s,ph+.72*s,z+.32*s],solid:false});
+      B.prop(geo('Icosahedron',.4,1),leaf||'leaves',x,ph+.32*s,z,{s:[s,s*1.1,s],col:[x-.32*s,ph,z-.32*s,x+.32*s,ph+.72*s,z+.32*s],solid:false,soft:true});
       B.prop(geo('Icosahedron',.28,1),leaf||'leaves',x+.12*s,ph+.72*s,z-.08*s,{s:[s,s,s]})},
     ficus(x,z,s,pot){s=s||1;B.prop(geo('Cylinder',.26,.2,.5,14),pot||'potW',x,.25*s,z,{s:[s,s,s],col:[x-.26*s,0,z-.26*s,x+.26*s,.5*s,z+.26*s]});
       B.prop(geo('Cylinder',.035,.055,1.2,8),'trunk',x,(.5+.6)*s,z,{s:[s,s,s]});
       for(const [dx,dy,dz,r] of [[0,1.35,0,.5],[.22,1.75,-.12,.38],[-.2,1.62,.18,.36],[.05,2.05,.05,.3]])B.prop(geo('Icosahedron',.5,1),'leaves2',x+dx*s,dy*s,z+dz*s,{s:[r*2*s,r*1.8*s,r*2*s]});
-      B.box(x-.5*s,.9*s,z-.5*s,x+.5*s,2.3*s,z+.5*s,null,{noMesh:true,sm:'leaves2',solid:false})},
+      B.box(x-.5*s,.9*s,z-.5*s,x+.5*s,2.3*s,z+.5*s,null,{noMesh:true,sm:'leaves2',solid:false,soft:true})},
     floorLamp(x,z,lit,h){h=h||1.6;B.prop(geo('Cylinder',.18,.2,.04,16),'black',x,.02,z);B.prop(geo('Cylinder',.022,.022,h,8),'black',x,h/2,z,{col:[x-.05,0,z-.05,x+.05,h,z+.05]});B.prop(geo('Cylinder',.17,.26,.32,16),'shade',x,h,z,{ns:true});if(lit)B.lamp(x,h-.1,z,0xffcf8a,.9,7)},
     tableLamp(x,y,z,lit){B.prop(geo('Cylinder',.06,.08,.26,10),'gold',x,y+.13,z);B.prop(geo('Cylinder',.11,.16,.2,14),'shade',x,y+.36,z,{ns:true});if(lit)B.lamp(x,y+.4,z,0xffcf8a,.6,5)},
     ceilLamp(x,z,H,lit,col){B.prop(geo('Cylinder',.012,.012,.7,6),'black',x,H-.35,z);B.prop(geo('Sphere',.17,14,10),'bulb',x,H-.75,z,{ns:true});if(lit!==false)B.lamp(x,H-.9,z,col||0xffd7a0,1.1,10)},
     // stacked cardboard boxes: each [dx, dz, w, d, h, y, material]
     boxes(x,z,list){for(const b of list){const y=b[5]||0;B.box(x+b[0]-b[2]/2,y,z+b[1]-b[3]/2,x+b[0]+b[2]/2,y+b[4],z+b[1]+b[3]/2,b[6]||'box',{fit:'all'})}},
     // hanging cloth (curtains, coats, sheets, rugs on a line): you can walk into it, and it blocks the view
-    curtain(x0,z0,x1,z1,y0,y1,m){B.box(x0,y0,z0,x1,y1,z1,m,{solid:false,fit:'all'})},
+    curtain(x0,z0,x1,z1,y0,y1,m){B.box(x0,y0,z0,x1,y1,z1,m,{solid:false,soft:true,fit:'all'})},
     pic(x0,y0,z0,x1,y1,z1,k,face,frame){B.box(x0,y0,z0,x1,y1,z1,{all:frame||'gold',[face]:k},{fit:face,solid:false})},
     win(x0,y0,z0,x1,y1,z1,face){B.box(x0,y0,z0,x1,y1,z1,{all:'white',[face]:'nightWin'},{fit:face,solid:false})},
     rug(x0,z0,x1,z1,m){B.box(x0,0,z0,x1,.015,z1,m,{fit:'+y',solid:false,ns:true})},
@@ -1398,6 +1404,8 @@ function buildFlat(){
   B.prop(geo('Cylinder',.26,.22,.5,14),'wicker',9.9,.25,16.4,{col:[9.64,0,16.14,10.16,.5,16.66]});
   F.ficus(10.3,27.3,1);F.plant(.7,26.9,1.1);F.pic(7,1.3,15.62,8.4,2.3,15.66,'poster1','+z');F.pic(.12,1.6,21,.16,2.4,22.2,'art4','+x');
   F.boxes(.8,16.6,[[0,0,.8,.7,.5],[0,0,.7,.6,.45,.5,'box2']]);
+  F.armchair(1,.7,25,'velvetP','cushionA');F.floorLamp(.5,24.1,false);
+  F.rug(7,19.6,10.2,22.6,'kilim');F.table(0,8.6,21.1,1,.8,.8,'white','white');F.chair(1,7.85,21.1,'velvetP','white');F.chair(3,9.35,21.1,'velvetP','white');B.prop(geo('Cylinder',.07,.09,.25,10),'potB',8.4,.92,21);
   F.ceilLamp(5.5,21.6,H,true,0xffd0e0);
 
   // --- bathroom and laundry: tub behind a shower curtain, washer and dryer, a drying rack of sheets ---
@@ -1434,7 +1442,7 @@ function buildFlat(){
   F.table(0,31.4,21.8,1.3,.9,.55,'white','pine');for(const [dx,dz,k] of [[0,-.72,0],[0,.72,2],[-.92,0,1],[.92,0,3]])F.chair(k,31.4+dx,21.8+dz,'foamBlock','pine',.7);
   B.box(33.6,0,15.62,33.72,.55,18.4,'foamBlock');B.box(33.6,0,18.28,35.88,.55,18.4,'foamBlock');B.box(33.72,0,15.62,35.88,.15,18.28,'foamBlock');
   {const rr=rng(77);for(let i=0;i<150;i++)B.prop(geo('Sphere',.09,10,8),'ball'+(i%4),33.85+rr()*1.9,.22+rr()*.26,15.75+rr()*2.4,{ns:true})}
-  B.box(33.72,.15,15.62,35.88,.45,18.28,null,{noMesh:true,sm:'ball0',solid:false});
+  B.box(33.72,.15,15.62,35.88,.45,18.28,null,{noMesh:true,sm:'ball0',solid:false,soft:true});
   B.at(3,35.5,21.5)(-.45,0,-.38,.45,1.9,.38,{all:'black','+z':'arcade','+x':'chevron','-x':'chevron'},{fit:'+z+x-x'});B.box(35.08,1.05,21.15,35.12,1.6,21.85,'screen',{fit:'-x',solid:false});
   B.box(29.1,.45,23.45,30.1,.85,23.75,'bean2');B.box(29.85,.85,23.45,30.2,1.25,23.75,'bean2');B.box(28.9,0,23.38,30.3,.1,23.45,'wood');B.box(28.9,0,23.75,30.3,.1,23.82,'wood');
   B.box(29.2,.1,23.5,29.3,.45,23.7,'wood');B.box(29.9,.1,23.5,30,.45,23.7,'wood');
@@ -1522,6 +1530,7 @@ function buildBazaar(){
     f(-hw,SH,-3,hw,H,3.15,{all:face,'-y':'shopCeil'},{ns:true});
     f(-hw+T,2.9,2.95,hw-T,SH,3.15,'aw'+(i%6),{fit:'+z-y'});
     const R=rng(900+i*13),q=(x0,y0,z0,x1,y1,z1,m,o)=>f(x0,y0,z0,x1,y1,z1,m,o);
+    if(theme!=='arcade')q(-hw+.5,0,-2.5,hw-.5,.015,2.3,'r'+(i%3),{fit:'+y',solid:false,ns:true});
     THEMES[theme](f,q,hw,R,i,k);
     if(i%6===1)B.lamp(ox,SH-.6,oz,0xffc98a,.8,8);
   };
@@ -1534,7 +1543,7 @@ function buildBazaar(){
     lamps(f,q,hw,R,i){q(-hw+.3,0,-2.9,hw-.3,1,-2.2,{all:'walnut','+z':'shelfA'},{fit:'+z'});
       for(let s=0;s<14;s++){const lx=-hw+.6+R()*(hw*2-1.2),lz=-2+R()*4.4;lantern(...toW(f,lx,lz,1.4+R()*1.3),'lantern'+(s%3))}
       for(let s=0;s<3;s++){const p=toW(f,-hw+1+s*(hw-1),0,0);F.floorLamp(p[0],p[2],false,1.5)}},
-    textiles(f,q,hw,R,i){for(let row=0;row<3;row++)for(let s=0;s<4;s++){const lx=-hw+.6+s*(hw*2-1.2)/4,lz=-2.3+row*1.6;q(lx,.25+R()*.3,lz,lx+(hw*2-1.6)/4,3.1,lz+.06,['velvetR','velvetB','velvetG','velvetP','k0','k1','k4'][(row*4+s+i)%7],{fit:'+z-z',solid:false})}
+    textiles(f,q,hw,R,i){for(let row=0;row<3;row++)for(let s=0;s<4;s++){const lx=-hw+.6+s*(hw*2-1.2)/4,lz=-2.3+row*1.6;q(lx,.25+R()*.3,lz,lx+(hw*2-1.6)/4,3.1,lz+.06,['velvetR','velvetB','velvetG','velvetP','k0','k1','k4'][(row*4+s+i)%7],{fit:'+z-z',solid:false,soft:true})}
       q(-hw+.3,3.1,-2.4,hw-.3,3.16,1.0,'steel',{solid:false})},
     spices(f,q,hw,R,i){q(-hw+.3,0,-2.9,hw-.3,2.2,-2.4,{all:'walnut','+z':'jars'},{fit:'+z'});
       q(-hw+1.2,0,.6,hw-1.2,.9,1.3,{all:'wood','+z':'k'+(i%5)},{fit:'+z'});
@@ -1545,7 +1554,9 @@ function buildBazaar(){
       for(let s=0;s<8;s++){const p=toW(f,-hw+.6+s*(hw*2-1.2)/8,-2.6,0);B.prop(geo('Cylinder',.8,1,1,14),['potC','potA'][s%2],p[0],1.12,p[2],{s:[.14,.44,.14]})}},
     furniture(f,q,hw,R,i,k){const p=toW(f,-hw+1.6,-1.6,0);F.bed(k,p[0],p[2],1.4,2,'wood','k'+(i%5),'k'+((i+1)%5));
       q(hw-1.5,0,-2.95,hw-.3,2.2,-2.35,{all:'walnut','+z':'tallClock'},{fit:'+z'});const t=toW(f,.8,.6,0);F.table(k,t[0],t[2],1.3,.9,.8,'walnut','walnut');
-      const m=toW(f,hw-.8,1.6,0);F.mannequin(m[0],m[2],R()*6,'mannequin')},
+      const m=toW(f,hw-.8,1.6,0);F.mannequin(m[0],m[2],R()*6,'mannequin');
+      const so=toW(f,-hw+1.6,1.7,0);F.sofa((k+2)%4,so[0],so[2],2.2,'k'+((i+2)%5),'cushionA');const ar=toW(f,hw-2.4,-.4,0);F.armchair((k+3)%4,ar[0],ar[2],'velvet','cushionB');
+      q(hw-3.2,0,-2.95,hw-2,1.1,-2.5,{all:'walnut','+z':'drawersW'},{fit:'+z'});const pl=toW(f,-hw+.5,2.5,0);F.plant(pl[0],pl[2],.9,'potA')},
     tailor(f,q,hw,R,i){for(let s=0;s<5;s++){const m=toW(f,-hw+1+s*(hw*2-2)/4,-1.2+(s%2)*1.6,0);F.mannequin(m[0],m[2],R()*6,s%2?'mannequin2':'mannequin')}
       for(let s=0;s<5;s++)q(-hw+.5+s*.5,0,-2.9,-hw+.9+s*.5,1.9,-2.5,'k'+((i+s)%5),{fit:'all'});q(hw-1.6,0,-2.95,hw-.4,2.2,-2.88,'mirror',{fit:'+z',solid:false})},
     cafe(f,q,hw,R,i,k){q(-hw+.3,0,-2.9,hw-.3,1.05,-2.1,{all:'wood','+z':'k'+(i%5)},{fit:'+z'});q(-hw+.3,1.05,-2.9,hw-.3,1.1,-2.05,'cafeTop');q(-hw+.6,1.4,-2.98,-hw+1.8,2.5,-2.92,'menu',{fit:'+z',solid:false});
@@ -1560,8 +1571,8 @@ function buildBazaar(){
       for(let s=0;s<7;s++){const p=toW(f,-hw+.8+R()*(hw*2-1.6),-1.4+R()*3.6,0);if(s%3===0)F.ficus(p[0],p[2],.9+R()*.4);else F.plant(p[0],p[2],.8+R()*.6,['pot','potA','potC','potW'][s%4],s%2?'leaves':'leaves2')}},
     snacks(f,q,hw,R,i,k){for(let s=0;s<3;s++){const p=toW(f,-hw+.8+s*1.1,-2.45,0);F.vending(k,p[0],p[2],'vend'+((s+i)%3))}
       q(hw-2.6,0,-1,hw-.3,.95,-.4,{all:'wood','+z':'k'+(i%5)},{fit:'+z'});const b=toW(f,hw-1.4,1.6,0);F.boxes(b[0],b[2],[[0,0,.7,.6,.5],[.75,0,.6,.5,.45],[.1,0,.6,.5,.45,.5,'box2']])},
-    books(f,q,hw,R,i){for(let s=0;s<4;s++){const lx=-hw+.4+s*(hw*2-.8)/4;q(lx,0,-2.95,lx+(hw*2-.8)/4-.05,2.7,-2.5,{all:'walnut','+z':['shelf1','shelf2','shelf3','shelfA'][s]},{fit:'+z'})}
-      const t=toW(f,0,.4,0);F.table(0,t[0],t[2],2,1,.8,'walnut','walnut');for(let s=0;s<5;s++)q(-.8+s*.35,.8,.1,-.55+s*.35,.8+.1+R()*.25,.6,['k0','k2','k3','box','k4'][s])},
+    books(f,q,hw,R,i,k){for(let s=0;s<4;s++){const lx=-hw+.4+s*(hw*2-.8)/4;q(lx,0,-2.95,lx+(hw*2-.8)/4-.05,2.7,-2.5,{all:'walnut','+z':['shelf1','shelf2','shelf3','shelfA'][s]},{fit:'+z'})}
+      const t=toW(f,0,.4,0);F.table(k,t[0],t[2],2,1,.8,'walnut','walnut');for(const sx of [-1,1]){const a=toW(f,sx*(hw-1.1),1.7,0);F.armchair((k+2)%4,a[0],a[2],'leather','cushionA')}const fl=toW(f,hw-.5,2.5,0);F.floorLamp(fl[0],fl[2],false,1.5);for(let s=0;s<5;s++)q(-.8+s*.35,.8,.1,-.55+s*.35,.8+.1+R()*.25,.6,['k0','k2','k3','box','k4'][s])},
     toys(f,q,hw,R,i){q(-hw+.3,0,-2.9,hw-.3,1.4,-2.4,{all:'pine','+z':'shelfB'},{fit:'+z'});
       for(let s=0;s<40;s++){const p=toW(f,-hw+.6+R()*(hw*2-1.2),-1.6+R()*3,0);B.prop(geo('Sphere',.16,10,8),'ball'+(s%4),p[0],.16,p[2],{ns:true})}
       const b=toW(f,hw-1,1.6,0);B.prop(geo('Sphere',.4,16,12),'fur',b[0],.4,b[2],{col:[b[0]-.4,0,b[2]-.4,b[0]+.4,.8,b[2]+.4]});B.prop(geo('Sphere',.28,16,12),'fur',b[0],1.02,b[2]);
@@ -1598,7 +1609,7 @@ function buildBazaar(){
     B.prop(geo('Cylinder',.6,.5,.8,16),'potA',px,.4,pz,{col:[px-.6,0,pz-.6,px+.6,.8,pz+.6]});
     B.prop(geo('Cylinder',.12,.18,3.4,10),'trunk',px,2.5,pz);
     for(let k=0;k<7;k++){const a=k/7*Math.PI*2;const m=B.prop(geo('Cone',.35,2.4,6),'palm',px+Math.cos(a)*.85,4.2,pz+Math.sin(a)*.85);m.rotation.set(Math.sin(a)*1.2,0,-Math.cos(a)*1.2)}
-    B.box(px-1.2,3.4,pz-1.2,px+1.2,5,pz+1.2,null,{noMesh:true,sm:'palm',solid:false});
+    B.box(px-1.2,3.4,pz-1.2,px+1.2,5,pz+1.2,null,{noMesh:true,sm:'palm',solid:false,soft:true});
   }
   // market stalls: counter in front, shelf at the back, striped roof and front valance
   const stall=(k,ox,oz,idx)=>{
@@ -1620,7 +1631,7 @@ function buildBazaar(){
   for(const x of [17,37])stall(2,x,44.4,st++);
   // rugs hung on lines between columns: walk in behind them
   for(const [x0,z0,x1,z1,m] of [[14.2,13.45,16.4,13.55,'r0'],[37.6,13.45,39.8,13.55,'r1'],[14.2,40.45,16.4,40.55,'r2'],[37.6,40.45,39.8,40.55,'k1'],[13.45,30.6,13.55,32.8,'k0'],[40.45,21.2,40.55,23.4,'k3']]){
-    B.box(x0,.8,z0,x1,4.4,z1,m,{solid:false,fit:'all'});B.box(Math.min(x0,x1)-.05,4.4,Math.min(z0,z1)-.02,Math.max(x0,x1)+.05,4.46,Math.max(z0,z1)+.02,'black',{solid:false})}
+    B.box(x0,.8,z0,x1,4.4,z1,m,{solid:false,soft:true,fit:'all'});B.box(Math.min(x0,x1)-.05,4.4,Math.min(z0,z1)-.02,Math.max(x0,x1)+.05,4.46,Math.max(z0,z1)+.02,'black',{solid:false})}
   // crates, sacks and pots between the columns
   for(const [cx,cz] of [[13.5,40.5],[40.5,13.5],[13.5,13.5],[40.5,40.5]]){
     const dx=cx<27?1:-1,dz=cz<27?1:-1;
@@ -2348,7 +2359,7 @@ function shoot(){
   if(G.shootCd>0)return;
   if(G.ink<1){toast('Out of ink. It refills over time.');sfx('miss');return}
   scene.updateMatrixWorld();camera.getWorldPosition(_o);camera.getWorldDirection(_d);
-  const mh=rayMap(_o.x,_o.y,_o.z,_d.x,_d.y,_d.z,90,false);const tMap=mh?mh.t:90;let hitPoint=_o.clone().addScaledVector(_d,tMap),hitN=mh?new V3(...FACE_N[mh.f]):new V3(0,1,0);
+  const mh=rayMap(_o.x,_o.y,_o.z,_d.x,_d.y,_d.z,90,'hard');const tMap=mh?mh.t:90;let hitPoint=_o.clone().addScaledVector(_d,tMap),hitN=mh?new V3(...FACE_N[mh.f]):new V3(0,1,0);
   const meDist=_o.distanceTo(me.pos)+.2;
   ray.set(_o,_d);ray.near=Math.min(meDist*.6,2.5);ray.far=tMap;
   const targets=[];for(const e of ents.values()){if(e===me||roleOf(e.id)!=='hider'||!e.av.root.visible)continue;targets.push(...e.av.parts)}
@@ -2514,7 +2525,7 @@ function camoCheck(){
 //  them from a likely viewing spot.
 // =====================================================================
 function patrolPoints(n,seed){
-  const N=MAP.nav,cells=[];for(let i=0;i<N.g.length;i++)if(N.g[i])cells.push(i);if(!cells.length)return[];
+  const N=MAP.nav,cells=[];for(let i=0;i<N.g.length;i++)if(N.r[i])cells.push(i);if(!cells.length)return[];
   const r=rng(seed),pts=[cellPos(cells[Math.floor(r()*cells.length)])];
   while(pts.length<n){let best=null,bd=-1;for(let k=0;k<160;k++){const c=cellPos(cells[Math.floor(r()*cells.length)]);let md=1e9;for(const p of pts)md=Math.min(md,(p[0]-c[0])**2+(p[1]-c[1])**2);if(md>bd){bd=md;best=c}}pts.push(best)}
   return pts;
@@ -2545,7 +2556,7 @@ function aiHider(e,dt){
 }
 const HIDE_OFF=[[.19,.2,.19],[.16,.17,.22]];
 function placeBot(e,seed){
-  const r=rng(hashStr(e.id)+seed*977),N=MAP.nav,cells=[];for(let i=0;i<N.g.length;i++)if(N.g[i])cells.push(i);
+  const r=rng(hashStr(e.id)+seed*977),N=MAP.nav,cells=[];for(let i=0;i<N.g.length;i++)if(N.r[i])cells.push(i);
   const others=[...ents.values()].filter(o=>o!==e&&o.bot&&o.bot.placed);
   for(let attempt=0;attempt<140;attempt++){
     const c=cellPos(cells[Math.floor(r()*cells.length)]);
