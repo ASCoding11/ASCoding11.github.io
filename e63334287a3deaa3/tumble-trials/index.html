@@ -204,7 +204,7 @@ h1 .w span:nth-child(odd){transform:rotate(-3deg)}h1 .w span:nth-child(even){tra
 
 /* ---------- touch ---------- */
 #touch{position:absolute;inset:0;pointer-events:none}
-#stick{position:absolute;left:calc(20px + env(safe-area-inset-left,0px));bottom:calc(22px + env(safe-area-inset-bottom,0px));width:124px;height:124px;border-radius:50%;background:rgba(255,255,255,.18);border:2.5px solid rgba(255,255,255,.6);pointer-events:auto;touch-action:none}
+#stick{position:absolute;left:calc(20px + env(safe-area-inset-left,0px));bottom:calc(22px + env(safe-area-inset-bottom,0px));width:124px;height:124px;border-radius:50%;background:rgba(36,22,63,.22);border:2.5px solid rgba(255,255,255,.85);box-shadow:0 0 0 2px rgba(36,22,63,.35);pointer-events:auto;touch-action:none}
 #stick i{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:rgba(255,255,255,.8);border:2.5px solid var(--ink)}
 #tbtns{position:absolute;right:calc(14px + env(safe-area-inset-right,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px));width:156px;height:146px;pointer-events:none}
 #tbtns button{position:absolute;border-radius:50%;border:2.5px solid var(--ink);background:rgba(255,248,238,.9);font-family:var(--f-b);font-weight:900;font-size:12px;box-shadow:0 3px 0 var(--ink);touch-action:none;padding:0;pointer-events:auto;color:var(--ink)}
@@ -1116,8 +1116,8 @@ function scenery(seed,cx,cz,spread){
   const r=rng(seed);
   for(let i=0;i<14;i++){
     const a=r()*Math.PI*2,d=spread+20+r()*60,x=cx+Math.cos(a)*d,z=cz+Math.sin(a)*d,s=3+r()*7,y=-4+r()*22,col=pick2(r,[C.pink,C.cyan,C.yel,C.lime,C.vio,C.org]);
-    const isl=new THREE.Mesh(new THREE.CylinderGeometry(s,s*.35,s*.9,7),mat(col,TX.foam(col)));isl.position.set(x,y,z);B.add(isl);
-    if(r()<.5){const ball=new THREE.Mesh(new THREE.SphereGeometry(s*.45,14,10),mat(r()<.5?C.white:C.yel));ball.position.set(x,y+s*.75,z);B.add(ball)}
+    const isl=new THREE.Mesh(new THREE.CylinderGeometry(s,s*.35,s*.9,7),mat(shade(col,-.12)));isl.position.set(x,y,z);B.add(isl);const cap=new THREE.Mesh(new THREE.CylinderGeometry(s*1.04,s*1.04,s*.18,7),mat(r()<.5?'#8fe36b':'#fff3c4'));cap.position.set(x,y+s*.5,z);B.add(cap);
+    if(r()<.5){const ball=new THREE.Mesh(new THREE.SphereGeometry(s*.42,14,10),mat(r()<.5?C.pink:C.yel));ball.position.set(x,y+s*.95,z);B.add(ball)}
   }
   for(let i=0;i<6;i++){const a=r()*Math.PI*2,d=spread+30+r()*50,ring=new THREE.Mesh(new THREE.TorusGeometry(5+r()*4,.8,10,28),mat(pick2(r,[C.pink,C.yel,C.cyan])));ring.position.set(cx+Math.cos(a)*d,10+r()*14,cz+Math.sin(a)*d);ring.rotation.set(r()*.6,r()*3,0);B.add(ring);const sp=.2+r()*.3;Lvl.anims.push(t=>{ring.rotation.y+=.004*sp})}
 }
@@ -1288,13 +1288,18 @@ LEVELS.push({id:'spring',name:'Springboard Skyway',kind:'race',time:150,desc:'Bo
   sg.setAttribute('position',new THREE.Float32BufferAttribute(sp,3));
   const pts=new THREE.Points(sg,new THREE.PointsMaterial({color:0xffffff,size:.28,transparent:true,opacity:.7}));pts.userData.own=true;B.add(pts);
   Lvl.anims.push(t=>{const a=sg.attributes.position;for(let i=0;i<a.count;i++){let y=(i*1.37+t*9)%14-4;a.setY(i,y)}a.needsUpdate=true});
-  pad(0,6.5,-73,-86,14,C.cyan);
-  for(const x of [-3.5,3.5])bpad(x,6.5,-81.6,17.5,[0,0,-2.2]);
-  B.box({p:[0,8.5,-86.6],s:[14,4.4,1.2],tex:TX.stripes(C.pink,C.yel),tile:2});
-  const fz=finishPad(-86,-102,10.5,14);
+  pad(0,6.5,-73,-82,14,C.cyan);checkpoint(2,-73,-82,-7,7,6.5,spawnGrid(0,6.5,-79.5,4,2,2.6,1.4));
+  const sdisc=(z,w,pegs,c)=>{const pv=pivot((t,P,Q)=>{P.set(0,6,z);Q.setFromAxisAngle(UP,t*w)});B.cyl({r:4.2,h:1,tex:TX.rings(c,C.white),tile:8.4,dyn:pv([0,0,0]),seg:36});
+    const rim=new THREE.Mesh(new THREE.TorusGeometry(4.2,.16,8,40),mat(C.navy));rim.rotation.x=Math.PI/2;rim.position.set(0,6.5,z);B.add(rim);
+    for(let i=0;i<pegs;i++){const a=i/pegs*Math.PI*2;B.cyl({r:.55,h:1.6,tex:TX.stripes(C.org,C.white),tile:.8,dyn:pv([Math.cos(a)*2.6,1.3,Math.sin(a)*2.6])})}};
+  sdisc(-86.9,.9,0,C.lime);pad(0,6.6,-91.3,-93.7,3.6,C.yel,{th:.6});sdisc(-98.1,-1.1,3,C.pink);
+  pad(0,6.5,-102.4,-112,14,C.cyan);
+  for(const x of [-3.5,3.5])bpad(x,6.5,-107.6,17.5,[0,0,-2.2]);
+  B.box({p:[0,8.5,-112.6],s:[14,4.4,1.2],tex:TX.stripes(C.pink,C.yel),tile:2});
+  const fz=finishPad(-112,-128,10.5,14);
   const path=[N(0,0,1),N(0,0,-2.5,{w:3}),N(0,0,-6,{xs:[-4,0,4]}),N(0,3.5,-14,{w:3}),N(0,3.9,-28,{w:.3,ride:-28,leap:-33.4,edge:-24.5}),
     N(0,3.9,-33.4,{w:.3,ride:-33.4,leap:-38.8}),N(0,3.9,-38.8,{w:.3,ride:-38.8,leap:-44.2}),N(0,3.9,-44.2,{w:.3,ride:-44.2,leap:'pad'}),N(0,3.5,-50,{w:3,cp:1}),
-    N(0,3.5,-56,{w:.6,jumpAt:.6}),N(0,7,-74,{w:2}),N(0,6.5,-79,{w:2}),N(0,6.5,-81.6,{xs:[-3.5,3.5]}),N(0,10.5,-89,{w:2}),N(0,10.5,fz-3,{w:3})];
+    N(0,3.5,-56,{w:.6,jumpAt:.6}),N(0,7,-74,{w:2}),N(0,6.5,-78,{w:2,cp:2}),N(0,6.5,-86.9,{w:1.5}),N(0,6.6,-92.5,{w:.6}),N(0,6.5,-98.1,{w:1.5}),N(0,6.5,-103,{w:2}),N(0,6.5,-107.6,{xs:[-3.5,3.5]}),N(0,10.5,-115,{w:2}),N(0,10.5,fz-3,{w:3})];
   return{spawns,yaw:Math.PI,path,kill:-5,finZ:fz};
 }});
 
@@ -1318,13 +1323,18 @@ LEVELS.push({id:'swing',name:'Swingset Straits',kind:'race',time:150,desc:'Narro
   pend(3,-50.5,8.8,.75,2.4,1.4,C.lime);pend(3,-58.5,8.8,.75,2.5,3.7,C.cyan);
   pad(0,0,-67,-72,12,C.vio);
   // last beam with a low sweeper
-  pad(0,0,-72,-86,1.8,C.yel,{th:.8});
-  const sw=pivot((t,P,Q)=>{P.set(5,0,-79);Q.setFromAxisAngle(UP,t*1.7)});
-  B.cyl({p:[5,1,-79],r:.5,h:2,c:C.navy});
+  pad(0,0,-72,-97,3,C.cyan,{th:.8});
+  for(const s2 of [-1,1])for(const z of [-78,-85,-92])B.box({p:[s2*3.2,8.6,z],s:[.5,17,.5],c:C.white,col:false});
+  pend(0,-78,8.8,.78,2.3,.9,C.pink);pend(0,-85,8.8,.78,2.5,2.9,C.lime);pend(0,-92,8.8,.78,2.2,4.8,C.yel);
+  pad(0,0,-97,-102,12,C.vio);checkpoint(2,-97,-102,-6,6,0,spawnGrid(0,0,-100.5,4,2,2.4,1.2));
+  pad(0,0,-102,-116,1.8,C.yel,{th:.8});
+  const sw=pivot((t,P,Q)=>{P.set(5,0,-109);Q.setFromAxisAngle(UP,t*1.7)});
+  B.cyl({p:[5,1,-109],r:.5,h:2,c:C.navy});
   B.box({s:[7,.45,.5],tex:TX.hazard(),tile:1,hit:.5,dyn:sw([-3.5,.35,0])});
-  const fz=finishPad(-86,-100,0,14);
+  const fz=finishPad(-116,-130,0,14);
   const path=[N(0,0,1),N(0,0,-3.5,{w:.2}),N(0,0,-6,{w:.1,safe:1}),N(0,0,-14,{w:.1,safe:1}),N(0,0,-22,{w:.1,safe:1}),N(0,0,-30,{w:.1}),N(0,0,-36,{w:3,cp:1}),
-    N(-3,0,-40.5,{w:.2}),N(-3,0,-44,{w:.1,safe:1}),N(-3,0,-51,{w:.1,safe:1}),N(-3,0,-58,{w:.1,safe:1}),N(-3,0,-66,{w:.1}),N(0,0,-70,{w:1}),N(0,0,-73,{w:.1,safe:1}),N(0,0,-85,{w:.1}),N(0,0,fz-3,{w:3})];
+    N(-3,0,-40.5,{w:.2}),N(-3,0,-44,{w:.1,safe:1}),N(-3,0,-51,{w:.1,safe:1}),N(-3,0,-58,{w:.1,safe:1}),N(-3,0,-66,{w:.1}),N(0,0,-70,{w:1}),N(0,0,-73,{w:.1}),N(0,0,-74.5,{w:.1,safe:1}),N(0,0,-81.5,{w:.1,safe:1}),N(0,0,-88.5,{w:.1,safe:1}),N(0,0,-96,{w:.1}),N(0,0,-99.5,{w:3,cp:2}),
+    N(0,0,-103,{w:.1,safe:1}),N(0,0,-115,{w:.1}),N(0,0,fz-3,{w:3})];
   return{spawns,yaw:Math.PI,path,kill:-5,finZ:fz};
 }});
 
@@ -1438,7 +1448,7 @@ LEVELS.push(sweeperLevel({id:'spin',name:'Last Spin',kind:'final',time:240,desc:
 // the lobby yard (also the menu backdrop) and the podium
 const YARD={id:'yard',name:'Warm-up Yard',kind:'lobby',time:0,desc:'',build(seed){
   slime(-5);scenery(3,0,0,24);
-  pad(0,0,16,-16,32,C.mint,{tex:TX.checker('#dff9ff','#c9f0ff'),tile:4});
+  pad(0,0,16,-16,32,C.mint,{tex:TX.checker('#bff0ff','#9ee3fb'),tile:4});
   for(const s of [-1,1]){B.box({p:[s*16.3,.4,0],s:[.6,.8,32],tex:TX.stripes(C.pink,C.white),tile:1.2});B.box({p:[0,.4,s*16.3],s:[33.2,.8,.6],tex:TX.stripes(C.pink,C.white),tile:1.2})}
   // bounce pads up to a ledge
   pad(-10,3.5,-6,-15.5,11,C.yel);
@@ -1758,10 +1768,13 @@ function hostTick(){
   const done=i=>q.includes(i)||x.includes(i);
   // finish reports, in the order they happened
   const fins=[];
+  const outs=[];
   for(const i of rs.pl){if(done(i))continue;const r=report(rs,idOf(rs,i));
     if(r.gone){x.push(i);ch=true;continue}
     if(kind==='race'&&r.fin!=null)fins.push([r.fin,i]);
-    if(kind!=='race'&&r.out!=null){x.push(i);ch=true}}
+    if(kind!=='race'&&r.out!=null)outs.push([r.out,i])}
+  // knock-outs in the order they happened, so the last one down is last in x
+  outs.sort((a,b)=>a[0]-b[0]);for(const [,i] of outs){x.push(i);ch=true}
   fins.sort((a,b)=>a[0]-b[0]);
   for(const [,i] of fins){if(q.length<rs.qn){q.push(i);ch=true}}
   const alive=rs.pl.filter(i=>!q.includes(i)&&!x.includes(i));
@@ -1864,7 +1877,7 @@ function onRoundEnd(rs){
 //  ("show:round:ms" when you finish or drop out), tt (honeycomb tiles you
 //  touched), gr (who you're grabbing), fr (grab you broke free of).
 //  The host also writes rs (round state JSON), he (host number), bt (bots),
-//  sw (seesaw angles) and hx (every touched honeycomb tile).
+//  sw (seesaw angles), and in its tt every honeycomb tile anyone has touched.
 //  Host: the newest host number he, else whoever has been in the room
 //  longest, chosen only after the room's players have loaded.
 // =====================================================================
@@ -2440,6 +2453,7 @@ function becomeHost(){
     // carry on: take over the bots from the last positions the old host sent
     const parts=(G.lastBt||'').split('|');
     for(const e of ents.values())if(e.bot){e.local=true;e.ai=newAI(e.ai?e.ai.skill:.75);G.botRep.set(e.id,{k:prev.id+':'+prev.rn,fin:null,out:null});
+      if(e.hidden&&!e.out&&!e.fin){e.netHidden=false;if(G.L&&G.L.def.kind==='race')e.respawnT=.5;else G.botRep.get(e.id).out=Math.max(0,Math.round(now()-prev.go))}
       if(G.L&&G.L.path){let bi=1,bd=1e9;G.L.path.forEach((n,i)=>{const d=n.p.distanceTo(e.b.pos);if(d<bd&&i>0){bd=d;bi=i}});e.ai.node=bi}}
     if(parts[0]===prev.id+':'+prev.rn&&parts[2])for(const it of parts[2].split(',')){const m=/^(b\d+)=([fo])(\d+)$/.exec(it);if(m&&G.botRep.get(m[1])){G.botRep.get(m[1])[m[2]==='f'?'fin':'out']=+m[3]}}
     feed('You\'re the host now');setRS(Object.assign({},prev));
