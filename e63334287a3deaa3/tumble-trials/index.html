@@ -1066,7 +1066,7 @@ const qa=(ax,a)=>new QT().setFromAxisAngle(ax,a);
 const C={pink:'#ff6fae',cyan:'#43c9ff',yel:'#ffd23f',lime:'#7be05a',vio:'#9a6bff',org:'#ff8a3d',white:'#fff7ea',navy:'#3b2f6b',red:'#ff4d6d',teal:'#2fd5c0',sky:'#9fe3ff',mint:'#b9f5d0'};
 const Lvl={group:null,dyn:[],anims:[],L:null};
 function resetLevel(){
-  if(Lvl.group){scene.remove(Lvl.group);Lvl.group.traverse(o=>{if(o.geometry&&!o.geometry.userData.keep)o.geometry.dispose();if(o.material&&o.userData.own)o.material.dispose()})}
+  if(Lvl.group){scene.remove(Lvl.group);Lvl.group.traverse(o=>{if(o.geometry&&!o.geometry.userData.keep)o.geometry.dispose();if(o.material&&o.userData.own){if(o.material.map)o.material.map.dispose();o.material.dispose()}})}
   Lvl.group=new THREE.Group();scene.add(Lvl.group);Lvl.dyn.length=0;Lvl.anims.length=0;clearWorld();
 }
 function pivot(fn){const P=new V3(),Q=new QT();return(lp,lq)=>{const L=new V3(lp[0],lp[1],lp[2]),LQ=lq||new QT();return(t,c)=>{fn(t,P,Q);c.pos.copy(L).applyQuaternion(Q).add(P);c.quat.copy(Q).multiply(LQ)}}}
@@ -2103,6 +2103,8 @@ function fell(e,t){
   splash(e.b.pos);
   e.hidden=true;e.b.vel.set(0,0,0);if(e.isMe&&e.b.grabbing)releaseGrab();
   const knock=rs&&rs.ph==='round'&&t>=0&&(kind==='survival'||kind==='final')&&G.mode!=='practice';
+  // practising a survival or the final: say how long you lasted and start it again
+  if(G.mode==='practice'&&e.isMe&&t>=0&&(kind==='survival'||kind==='final')){banner('SPLASH!','You lasted '+fmtT(t)+'. Again!','bad',2);sfx('elim');const li=L.idx;setTimeout(()=>{if(G.mode==='practice'&&G.L===L)startPractice(li)},2200);return}
   if(!knock){e.respawnT=kind==='race'?1:.8;if(e.isMe&&kind==='race')flash();return}
   e.out=true;const ms=Math.round(t*1000);
   if(e.isMe){G.myOut={k:rs.id+':'+rs.rn,t:ms};if(G.mode==='online')Net.upd({out:G.myOut.k+':'+ms});banner('ELIMINATED','You lasted '+fmtT(t),'bad',2.6);sfx('elim');G.elimSaid=true;flash()}
@@ -2333,7 +2335,8 @@ function updateHud(dt){
   if(!rs)return;
   if(rs.ph==='lobby'){
     setText('rndLbl','Lobby');setText('rndName','Warm-up Yard');setHidden('cntBox',false);setText('cntLbl','Players');setText('cntN',humansHere().length+' / '+((rs.set&&rs.set.mx)||16));$('cntBox').className='pill';
-    setHidden('clkBox',!rs.as);if(rs.as)setText('clk',fmtT((rs.as-t)/1000));setHidden('intro',true);return;
+    setHidden('clkBox',!rs.as);if(rs.as)setText('clk',fmtT((rs.as-t)/1000));setHidden('intro',true);
+    if(G.mode==='online'&&!$('lobby').hidden)setText('lobbyMsg',lobbyMsgText(rs,humansHere(),rs.set||defaultSet()));return;
   }
   if(rs.ph==='podium'){setHidden('cntBox',true);setHidden('clkBox',true);setText('rndLbl','Show over');setText('rndName','The Crown Stage');podiumConfetti(dt);return}
   const rt=(t-rs.go)/1000,kind=L.def.kind,final=kind==='final';
@@ -2391,8 +2394,11 @@ function renderLobby(){
   $('hostNote').textContent=G.host?'(you pick)':'(the host picks)';
   const sb=$('startShow');sb.hidden=!G.host;sb.disabled=!(ids.length>=2||set.bots);
   $('readyBtn').textContent=G.ready?'Not ready':'Ready';$('readyBtn').className='btn '+(G.ready?'alt':'lime');
+  setText('lobbyMsg',lobbyMsgText(rs,ids,set));
+}
+function lobbyMsgText(rs,ids,set){
   const t=now();
-  $('lobbyMsg').textContent=rs.as?'Starting in '+Math.max(0,Math.ceil((rs.as-t)/1000))+'…':Net.isPublic?'Starts by itself once 2 players are here.':ids.length<2&&!set.bots?'Waiting for at least one more player. Send them the invite link, or turn bots on.':G.host?'Press Start show when everyone is in, or it starts once everyone is ready.':'Waiting for the host. Press Ready when you are.';
+  return rs.as?'Starting in '+Math.max(0,Math.ceil((rs.as-t)/1000))+'…':Net.isPublic?'Starts by itself once 2 players are here.':ids.length<2&&!set.bots?'Waiting for at least one more player. Send them the invite link, or turn bots on.':G.host?'Press Start show when everyone is in, or it starts once everyone is ready.':'Waiting for the host. Press Ready when you are.';
 }
 function segSet(box,v){for(const b of box.querySelectorAll('button'))b.setAttribute('aria-pressed',String(String(b.dataset.v)===String(v)))}
 function hostSet(k,v){if(!G.host||!G.rs||G.rs.ph!=='lobby')return;const set=Object.assign({},G.rs.set||defaultSet());set[k]=v;setRS(Object.assign({},G.rs,{set}));sfx('ui')}
