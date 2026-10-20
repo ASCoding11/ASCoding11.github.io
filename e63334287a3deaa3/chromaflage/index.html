@@ -587,7 +587,7 @@ function shade(hex,k){const c=hexToRgb(hex);return rgbToHex(...c.map(v=>clamp(Ma
 //  Sound: small synthesized effects (Web Audio), placed left/right and
 //  quieter with distance when they come from somewhere in the world.
 // =====================================================================
-let actx=null,master=null,volume=+store.get('vol',.7);
+let actx=null,master=null,volume=storeNum('vol',.7,0,1);
 function initAudio(){
   if(actx){if(actx.state==='suspended')actx.resume().catch(()=>{});return}
   try{actx=new (window.AudioContext||window.webkitAudioContext)();master=actx.createGain();master.gain.value=volume;master.connect(actx.destination)}catch(e){actx=null}
@@ -642,7 +642,7 @@ function sfx(kind,pos){
 // =====================================================================
 //  Renderer, scene, lights
 // =====================================================================
-let gfx=store.get('gfx',isTouch?'fast':'high');
+let gfx=store.get('gfx','');if(gfx!=='high'&&gfx!=='fast')gfx=isTouch?'fast':'high';
 const canvas=$('view');
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
 renderer.outputEncoding=THREE.sRGBEncoding;
@@ -1984,13 +1984,13 @@ let clock=0;
 const ents=new Map();
 let me=null;
 function cleanName(n){return String(n||'').replace(/[^\w \-.'!?]/g,'').trim().slice(0,14)}
-let myName=cleanName(store.get('name',''));
-let myShape=(+store.get('shape',0))?1:0,mySize=clamp(+store.get('size',1)|0,0,2),myRough=clamp(+store.get('rough',85),0,100)/100,myColor=store.get('color','');
+let myName=cleanName(storeStr('name',''));
+let myShape=(+store.get('shape',0))?1:0,mySize=storeNum('size',1,0,2)|0,myRough=storeNum('rough',85,0,100)/100,myColor=storeStr('color','');
 if(!/^#[0-9a-f]{6}$/i.test(myColor)){myColor=pick(ACCENTS);store.set('color',myColor)}
-let sens=+store.get('sens',1)||1;
+let sens=storeNum('sens',1,.2,3);
 const G={
   mode:'menu',pmode:null,rs:null,role:'free',rid:-1,ph:'',studio:false,paused:false,blind:false,
-  diff:clamp(+store.get('diff',2)|0,1,3),pracMap:clamp(+store.get('pmap',0)|0,0,MAPS.length-1),
+  diff:storeNum('diff',2,1,3)|0,pracMap:storeNum('pmap',0,0,MAPS.length-1)|0,
   ink:5,inkT:0,shootCd:0,shotSeq:0,tgSeq:0,taSeq:0,tm:0,nextTaunt:0,tauntCd:0,specId:null,host:false,
   nm:new Map(),seenTg:new Map(),hostT:0,endShown:-1,seenFd:{},savedPaint:null,intentUnlock:false,paintDirty:false,paintSentT:0,stroking:false,
 };
@@ -2397,8 +2397,8 @@ function claimTag(target){
 //  Paint studio: orbit your own body, paint with the brush, pick colours
 //  from anything in the room with the eyedropper.
 // =====================================================================
-const SC={yaw:0,pitch:-.12,dist:2.6,tool:'brush',size:+store.get('bsize',9)||9,drag:null,lastP:null,lastN:null,ptrs:new Map(),pinch:0};
-const PC={h:0,s:0,v:.95,rgb:BASE_WHITE.slice(),recent:store.get('recent',['#2f6f6a','#d9b45a','#f1ede4','#26232e','#c99a63','#f7c6d4'])};
+const SC={yaw:0,pitch:-.12,dist:2.6,tool:'brush',size:Math.round(storeNum('bsize',9,2,40)),drag:null,lastP:null,lastN:null,ptrs:new Map(),pinch:0};
+const PC={h:0,s:0,v:.95,rgb:BASE_WHITE.slice(),recent:(a=>Array.isArray(a)?a.filter(c=>typeof c==='string'&&/^#[0-9a-f]{6}$/i.test(c)).slice(0,12):[])(store.get('recent',['#2f6f6a','#d9b45a','#f1ede4','#26232e','#c99a63','#f7c6d4']))};
 function openStudio(){
   if(!canPaint()||G.studio)return;
   G.studio=true;SC.yaw=me.yaw+Math.PI;SC.pitch=-.12;SC.dist=(2.4+(me.pose===2?.6:0))*SIZES[me.size].s[1]*((isTouch?innerHeight>innerWidth:innerWidth<=760)?2.1:1); // zoomed out when the studio is a bottom sheet
@@ -3302,7 +3302,7 @@ segSet($('shapeSeg'),myShape);segSet($('sizeSeg'),mySize);
 $('shapeSeg').onclick=ev=>{const b=ev.target.closest('button');if(b){setMyShape(+b.dataset.v);segSet($('shapeSeg'),myShape);sfx('ui')}};
 $('sizeSeg').onclick=ev=>{const b=ev.target.closest('button');if(b){setMySize(+b.dataset.v);segSet($('sizeSeg'),mySize);sfx('ui')}};
 $('name').value=myName;$('name').addEventListener('input',()=>{myName=cleanName($('name').value);store.set('name',myName)});
-$('room').value=store.get('room','');
+$('room').value=sanitizeRoom(storeStr('room',''));
 $('pracHide').onclick=()=>startPractice('hide');$('pracSeek').onclick=()=>startPractice('seek');
 $('quick').onclick=quickMatch;$('joinRoom').onclick=joinPrivate;$('room').addEventListener('keydown',ev=>{if(ev.key==='Enter')joinPrivate()});
 $('resume').onclick=resume;$('leave').onclick=toMenu;$('toMenu').onclick=toMenu;
