@@ -124,7 +124,7 @@ details[open] summary::before{content:'− '}
 #toast{position:absolute;left:50%;top:30%;transform:translateX(-50%);text-align:center;transition:opacity .35s;opacity:0;width:min(90vw,640px)}
 #toast b{display:block;font-weight:900;font-size:clamp(28px,4.6vw,46px);letter-spacing:-.01em}
 #toast span{display:block;margin-top:6px;font-weight:600;font-size:16px;opacity:.9}
-#feed{position:absolute;left:calc(18px + env(safe-area-inset-left,0px));bottom:calc(64px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:5px;align-items:flex-start;max-width:min(420px,70vw)}
+#feed{position:absolute;left:calc(18px + env(safe-area-inset-left,0px));bottom:calc(76px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:5px;align-items:flex-start;max-width:min(420px,70vw)}
 #feed div{background:rgba(10,16,32,.6);border-radius:9px;padding:4px 10px;font-weight:600;font-size:13.5px;transition:opacity .6s}
 #hint{position:absolute;left:calc(18px + env(safe-area-inset-left,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-wrap:wrap;gap:6px;font-weight:600;font-size:12.5px;max-width:min(640px,64vw)}
 #hint span{background:rgba(10,16,32,.5);border-radius:8px;padding:3px 8px;white-space:nowrap;color:rgba(255,255,255,.85)}
@@ -133,6 +133,8 @@ details[open] summary::before{content:'− '}
 #spec{position:absolute;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:rgba(10,16,32,.7);border:1px solid var(--line);border-radius:12px;padding:8px 14px;font-weight:700;font-size:14px;white-space:nowrap}
 #restartHold{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);text-align:center;font-weight:800}
 #restartHold .ring{width:64px;height:64px;margin:0 auto 6px}
+/* slow motion: darker, cooler edges (opacity set by the game; only drawn while it's on) */
+#slowFx{position:absolute;inset:0;pointer-events:none;opacity:0;background:radial-gradient(ellipse 75% 70% at 50% 50%,rgba(20,32,70,0) 45%,rgba(14,22,52,.5) 85%,rgba(8,12,32,.72) 100%)}
 
 /* ---------- pause, settings, victory ---------- */
 .panel{width:min(460px,100%)}
@@ -157,6 +159,8 @@ body.touch #touch{display:block}
 #tJump{right:calc(22px + env(safe-area-inset-right,0px));bottom:calc(26px + env(safe-area-inset-bottom,0px));width:92px;height:92px;font-size:15px}
 #tSprint{right:calc(124px + env(safe-area-inset-right,0px));bottom:calc(30px + env(safe-area-inset-bottom,0px));width:64px;height:64px;font-size:11px}
 #tMenu{right:calc(14px + env(safe-area-inset-right,0px));top:calc(12px + env(safe-area-inset-top,0px));width:44px;height:44px;border-radius:12px;font-size:18px}
+#tSlow{right:calc(116px + env(safe-area-inset-right,0px));bottom:calc(108px + env(safe-area-inset-bottom,0px));width:64px;height:64px;font-size:11px;transition:opacity .2s}
+#tSlow.idle{opacity:.5}
 body.touch #hint,body.touch #lockHint{display:none}
 body.touch #keysMenu,body.touch #keysPause{display:none}
 body.touch .menu-btns{grid-template-columns:1fr}
@@ -169,7 +173,7 @@ body.touch .chip i{font-size:9.5px}
 body.touch #board{right:calc(66px + env(safe-area-inset-right,0px));top:calc(10px + env(safe-area-inset-top,0px));min-width:150px;max-width:180px;padding:6px 8px;font-size:12px}
 body.touch #bar{top:calc(66px + env(safe-area-inset-top,0px));bottom:auto;height:min(38vh,260px);right:calc(18px + env(safe-area-inset-right,0px))}
 body.touch #bar .tick{display:none}
-body.touch #feed{bottom:calc(166px + env(safe-area-inset-bottom,0px))}
+body.touch #feed{bottom:calc(186px + env(safe-area-inset-bottom,0px))}
 body.touch #toast{top:24%}
 body.touch #spec{bottom:calc(160px + env(safe-area-inset-bottom,0px))}
 @media (orientation:landscape){
@@ -186,6 +190,7 @@ body.touch #spec{bottom:calc(160px + env(safe-area-inset-bottom,0px))}
   body.touch #tStick i{width:48px;height:48px;margin:-24px 0 0 -24px}
   body.touch #tJump{width:80px;height:80px;bottom:calc(16px + env(safe-area-inset-bottom,0px))}
   body.touch #tSprint{width:56px;height:56px;right:calc(110px + env(safe-area-inset-right,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px))}
+  body.touch #tSlow{width:56px;height:56px;right:calc(114px + env(safe-area-inset-right,0px));bottom:calc(86px + env(safe-area-inset-bottom,0px))}
   body.touch #toast{top:18%}
   body.touch #toast b{font-size:26px}
 }
@@ -221,6 +226,7 @@ body.touch #spec{bottom:calc(160px + env(safe-area-inset-bottom,0px))}
 <body>
 <div id="app">
   <canvas id="view" aria-label="Updraft"></canvas>
+  <div id="slowFx" aria-hidden="true"></div>
 
   <div id="hud" hidden>
     <div id="altBox" class="sh">
@@ -247,6 +253,7 @@ body.touch #spec{bottom:calc(160px + env(safe-area-inset-bottom,0px))}
     <div id="tStick"><i></i></div>
     <button class="tb" id="tSprint" type="button">Sprint</button>
     <button class="tb" id="tJump" type="button">Jump</button>
+    <button class="tb idle" id="tSlow" type="button">Slow</button>
     <button class="tb" id="tMenu" type="button" aria-label="Pause">❚❚</button>
   </div>
 
@@ -269,7 +276,7 @@ body.touch #spec{bottom:calc(160px + env(safe-area-inset-bottom,0px))}
             <button class="btn" id="keysMenu" type="button">Controls</button>
             <button class="btn" id="setMenu" type="button">Settings</button>
           </div>
-          <p class="note" id="touchNote" hidden>On a phone: left stick to move, drag anywhere else to look. Turn it sideways for the best view.</p>
+          <p class="note" id="touchNote" hidden>On a phone: left stick to move, drag anywhere else to look. Hold Slow while you're in the air to steer in slow motion. Turn it sideways for the best view.</p>
         </div>
         <div class="card" style="margin-top:14px">
           <div class="label" style="margin-top:0">Climb with friends</div>
@@ -287,11 +294,12 @@ body.touch #spec{bottom:calc(160px + env(safe-area-inset-bottom,0px))}
               <div><dt data-kb="forward left back right" data-kb-short>W A S D</dt><dd>Move</dd></div>
               <div><dt data-kb="jump">Space</dt><dd>Jump</dd></div>
               <div><dt data-kb="sprint">Shift</dt><dd>Sprint (jumps farther)</dd></div>
+              <div><dt data-kb="slowmo" data-kb-short>F</dt><dd>Hold in the air: slow motion</dd></div>
               <div><dt>Mouse</dt><dd>Look, wheel to zoom</dd></div>
               <div><dt data-kb="restart">R</dt><dd>Hold to restart</dd></div>
               <div><dt>Esc</dt><dd>Pause</dd></div>
             </dl>
-            <p class="note">Standing jumps are short, running jumps go farther and sprinting jumps go farthest. Jump just as you run off an edge, or a moment after. No checkpoints: your run is saved where you are, so you can stop and come back.</p>
+            <p class="note">Standing jumps are short, running jumps go farther and sprinting jumps go farthest. Jump just as you run off an edge, or a moment after. Hold slow motion while you're in the air to get more time to steer a landing; the clock keeps running at full speed, so it costs you time. No checkpoints: your run is saved where you are, so you can stop and come back.</p>
           </details>
           <div class="adbox" id="adMenu" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
         </div>
@@ -1469,6 +1477,7 @@ function sfx(kind,a,b){
   else if(kind==='best'){[659,880].forEach((f,i)=>tone(f,.25,.06,'triangle',null,i*.1))}
   else if(kind==='fanfare'){[523,659,784,1047,784,1047,1319].forEach((f,i)=>{tone(f,.5,.11,'triangle',null,i*.13);tone(f/2,.6,.05,'sine',null,i*.13)});noise(1.2,3000,.5,.05,'highpass',.9)}
   else if(kind==='join'){tone(880,.12,.05,'sine',1320)}
+  else if(kind==='slow'){noise(.45,900,.7,.07,'lowpass',0,160);tone(170,.4,.05,'sine',85)}
 }
 // gentle music: a slow pad and a soft plucked tune, chords and brightness change with altitude
 let musT=0,musStep=0;
@@ -1966,7 +1975,7 @@ function makeTag(name,color){
 // =====================================================================
 //  Game state
 // =====================================================================
-const G={mode:'menu',paused:false,winShown:false,spec:null,hold:0,lastSave:0,shake:0,net:false,bot:null,stepDist:0,lastZone:0,pbShown:false};
+const G={mode:'menu',paused:false,winShown:false,spec:null,hold:0,lastSave:0,shake:0,net:false,bot:null,stepDist:0,lastZone:0,pbShown:false,slow:0,timeScale:1};
 const START=PATH[0];
 let me=U.Body(START.x,START.y1,START.z);me.gnd=START;me.yaw=Math.PI/2;
 const run={t:0,falls:0,jumps:0,maxY:0,fin:0,zone:0};
@@ -2057,7 +2066,9 @@ function rayHit(ox,oy,oz,dx,dy,dz,maxT){
   return best;
 }
 function camTarget(){if(G.spec){const r=others.get(G.spec);if(r&&r.ent)return r.ent}return null}
-function updateCamera(dt){
+// fdt: the time step for following the climber (shorter in slow motion, so the framing stays the same)
+function updateCamera(dt,fdt){
+  if(fdt==null)fdt=dt;
   if(G.mode==='menu'){
     // the menu: a slow turn round the climber
     const t=performance.now()/1000*.07;const px=me.x,py=me.y,pz=me.z,r=8.5;
@@ -2066,9 +2077,9 @@ function updateCamera(dt){
     if(d<r){camera.position.set(px+(camera.position.x-px)*(d-.3)/r,py+1.5+(camera.position.y-py-1.5)*(d-.3)/r,pz+(camera.position.z-pz)*(d-.3)/r)}
     return;
   }
-  const tg=camTarget();const tx=tg?tg.x:me.x,ty=tg?tg.y:me.y,tz=tg?tg.z:me.z;
+  const tg=camTarget(),vp=tg?null:viewPos();const tx=tg?tg.x:vp.x,ty=tg?tg.y:vp.y,tz=tg?tg.z:vp.z;
   const want=new V3(tx,ty+1.45,tz);
-  if(camPivot.distanceToSquared(want)>400)camPivot.copy(want);else{camPivot.x+=(want.x-camPivot.x)*(1-Math.exp(-dt*16));camPivot.z+=(want.z-camPivot.z)*(1-Math.exp(-dt*16));camPivot.y+=(want.y-camPivot.y)*(1-Math.exp(-dt*10))}
+  if(camPivot.distanceToSquared(want)>400)camPivot.copy(want);else{camPivot.x+=(want.x-camPivot.x)*(1-Math.exp(-fdt*16));camPivot.z+=(want.z-camPivot.z)*(1-Math.exp(-fdt*16));camPivot.y+=(want.y-camPivot.y)*(1-Math.exp(-fdt*10))}
   camDist+=(camDistWant-camDist)*(1-Math.exp(-dt*8));
   const cp=Math.cos(camPitch),dx=-Math.sin(camYaw)*cp,dy=Math.sin(camPitch),dz=-Math.cos(camYaw)*cp;
   const hit=rayHit(camPivot.x,camPivot.y,camPivot.z,dx,dy,dz,camDist+.3);
@@ -2093,6 +2104,7 @@ const KB=Keybinds.create({
     {id:'jump',label:'Jump',note:'Hold for a full jump',group:'Move',keys:['Space']},
     {id:'sprint',label:'Sprint',note:'Hold',group:'Move',keys:['ShiftLeft']},
     {id:'walk',label:'Walk slowly',note:'Hold, for narrow beams',group:'Move',keys:['KeyC']},
+    {id:'slowmo',label:'Slow motion',note:'Hold',group:'Move',keys:['KeyF']},
     {id:'zoomIn',label:'Camera closer',group:'Camera',keys:['Equal','KeyE']},
     {id:'zoomOut',label:'Camera farther',group:'Camera',keys:['Minus','KeyQ']},
     {id:'restart',label:'Restart from the bottom',note:'Hold',group:'Run',keys:['KeyR']},
@@ -2153,7 +2165,7 @@ canvas.addEventListener('pointerdown',e=>{
 function requestLock(){if(isTouch||document.pointerLockElement||G.mode!=='play'||TEST)return;try{const p=canvas.requestPointerLock();if(p&&p.catch)p.catch(()=>{})}catch(e){}}
 function setTouchUI(on){isTouch=on;document.body.classList.toggle('touch',on);$('touchNote').hidden=!on}
 addEventListener('pointerdown',e=>{if(e.pointerType==='touch'&&!isTouch)setTouchUI(true)},true);
-// touch: a stick, drag anywhere else to look (pinch to zoom), Jump (hold for full height), Sprint (toggle), pause
+// touch: a stick, drag anywhere else to look (pinch to zoom), Jump (hold for full height), Sprint (toggle), Slow (hold), pause
 (function(){
   const lk=$('tLook'),pts=new Map();let pinch=0,tapT=0,tapMoved=0;
   lk.addEventListener('pointerdown',e=>{e.preventDefault();initAudio();pts.set(e.pointerId,[e.clientX,e.clientY]);try{lk.setPointerCapture(e.pointerId)}catch(_){}if(pts.size===1){tapT=performance.now();tapMoved=0}if(pts.size===2){const a=[...pts.values()];pinch=Math.hypot(a[0][0]-a[1][0],a[0][1]-a[1][1])}});
@@ -2172,6 +2184,7 @@ addEventListener('pointerdown',e=>{if(e.pointerType==='touch'&&!isTouch)setTouch
   const btn=(id,down,up)=>{const el=$(id);el.addEventListener('pointerdown',e=>{e.preventDefault();initAudio();try{el.setPointerCapture(e.pointerId)}catch(_){}down(el)});const f=()=>up&&up(el);el.addEventListener('pointerup',f);el.addEventListener('pointercancel',f);el.addEventListener('contextmenu',e=>e.preventDefault())};
   btn('tJump',el=>{tAct.jump=true;el.classList.add('on')},el=>{tAct.jump=false;el.classList.remove('on')});
   btn('tSprint',el=>{tSprint=!tSprint;el.classList.toggle('on',tSprint)});
+  btn('tSlow',el=>{tAct.slowmo=true;el.classList.add('on')},el=>{tAct.slowmo=false;el.classList.remove('on')});
   btn('tMenu',()=>{for(const k in tAct)tAct[k]=false;if(G.spec){stopSpectate();return}if(G.mode==='play'&&!G.paused)showPause()});
 })();
 
@@ -2189,7 +2202,7 @@ const streaks=(()=>{const n=80,p=new Float32Array(n*6),g=new THREE.BufferGeometr
   const seeds=[];for(let i=0;i<n;i++)seeds.push([rand(-6,6),rand(-8,8),rand(-6,6)]);return{m,p,seeds}})();
 function updateStreaks(dt){
   const v=-me.vy,k=clamp((v-14)/26,0,1);streaks.m.material.opacity=k*.5;if(k<=0)return;
-  const p=streaks.p;for(let i=0;i<streaks.seeds.length;i++){const s=streaks.seeds[i];s[1]+=v*dt*.6;if(s[1]>8)s[1]-=16;const x=me.x+s[0],y=me.y+s[1],z=me.z+s[2];p[i*6]=x;p[i*6+1]=y;p[i*6+2]=z;p[i*6+3]=x;p[i*6+4]=y+1.2*k+.3;p[i*6+5]=z}
+  const p=streaks.p,vp=viewPos();for(let i=0;i<streaks.seeds.length;i++){const s=streaks.seeds[i];s[1]+=v*dt*.6;if(s[1]>8)s[1]-=16;const x=vp.x+s[0],y=vp.y+s[1],z=vp.z+s[2];p[i*6]=x;p[i*6+1]=y;p[i*6+2]=z;p[i*6+3]=x;p[i*6+4]=y+1.2*k+.3;p[i*6+5]=z}
   streaks.m.geometry.attributes.position.needsUpdate=true;
 }
 
@@ -2204,6 +2217,7 @@ function stepOnce(){
   const i=readInput();
   wt+=C.DT;U.setTime(W,wt);W.ev.length=0;
   const wasGnd=!!me.gnd;
+  prevP.x=me.x;prevP.y=me.y;prevP.z=me.z;prevP.b=me;
   U.step(W,me,i,C.DT);
   if(G.mode==='play'&&!run.fin&&!G.paused)run.t+=C.DT;
   if(me.y>run.maxY)run.maxY=me.y;
@@ -2223,11 +2237,41 @@ function onEvent(e){
   else if(k==='mantle'){sfx('mantle')}
   else if(k==='bonk'){sfx('bonk')}
 }
+// Slow motion (hold it in the air). Only the climber slows down: the physics still takes the same C.DT
+// steps, just fewer of them each second, so a fall follows exactly the same path and the same air
+// control per step; you only get more time to steer. The world (moving platforms, the shared clock)
+// and the run clock keep going at full speed, so it costs time rather than saving it. It lets go at
+// once when you land or grab a ledge, and eases in and out over SLOW_EASE seconds otherwise.
+const SLOW=.35,SLOW_EASE=.15;
+const prevP={x:0,y:0,z:0,b:null},_vp={x:0,y:0,z:0};
+function slowAmount(){const k=G.slow;return k*k*(3-2*k)}
+function updateSlow(dt){
+  const air=!me.gnd&&!me.mantle,want=air&&G.mode==='play'&&!G.paused&&!G.spec&&!G.bot&&held('slowmo');
+  const was=G.slow;
+  if(!air)G.slow=0;else G.slow=clamp(G.slow+(want?1:-1)*dt/SLOW_EASE,0,1);
+  if(!isFinite(G.slow))G.slow=0;
+  if(was===0&&G.slow>0)sfx('slow');
+  return 1-(1-SLOW)*slowAmount();
+}
+// Where to draw the climber: in slow motion the steps come less often than frames, so draw it between
+// the last two steps instead of jumping from one to the next.
+function viewPos(){
+  const k=slowAmount();
+  if(k<=0||prevP.b!==me){_vp.x=me.x;_vp.y=me.y;_vp.z=me.z;return _vp}
+  const w=(1-clamp(acc/C.DT,0,1))*k;
+  _vp.x=me.x-(me.x-prevP.x)*w;_vp.y=me.y-(me.y-prevP.y)*w;_vp.z=me.z-(me.z-prevP.z)*w;return _vp;
+}
 function physics(dt){
   if(TEST&&G.manual)return;
-  acc+=dt;let n=0;
+  const s=updateSlow(dt);G.timeScale=s;
+  // the part of this frame the climber sits out: the world and the run clock still move on by it.
+  // (Only ever in the air, so nobody is riding a platform that moves here.)
+  const lag=dt*(1-s);
+  if(lag>0){wt+=lag;U.setTime(W,wt);if(G.mode==='play'&&!run.fin&&!G.paused)run.t+=lag}
+  acc+=dt*s;let n=0;
   while(acc>=C.DT&&n<10){acc-=C.DT;n++;stepOnce()}
   if(n>=10)acc=0;
+  if(me.gnd||me.mantle)G.slow=0;   // landed (or caught a ledge) during these steps: back to full speed now
   // stay on the shared clock (moving platforms are in the same place for everyone)
   const st=sharedTime(),d=st-wt;
   if(Math.abs(d)>.6){
@@ -2283,7 +2327,7 @@ function updateHud(dt){
   $('barFill').style.height=clamp(y/SUMMIT*100,0,100)+'%';$('barBest').style.bottom=clamp(run.maxY/SUMMIT*100,0,100)+'%';
   // hints
   let h='';
-  if(!isTouch){h=G.spec?'<span><kbd>'+esc(KB.short('next'))+'</kbd> or click: next climber</span><span><kbd>Esc</kbd> stop watching</span>':'<span><kbd>'+esc(['forward','left','back','right'].map(a=>KB.short(a)).join(' '))+'</kbd> move</span><span><kbd>'+esc(KB.short('jump'))+'</kbd> jump</span><span><kbd>'+esc(KB.short('sprint'))+'</kbd> sprint</span><span><kbd>Wheel</kbd> zoom</span><span><kbd>'+esc(KB.short('restart'))+'</kbd> hold to restart</span><span><kbd>Esc</kbd> pause</span>'}
+  if(!isTouch){h=G.spec?'<span><kbd>'+esc(KB.short('next'))+'</kbd> or click: next climber</span><span><kbd>Esc</kbd> stop watching</span>':'<span><kbd>'+esc(['forward','left','back','right'].map(a=>KB.short(a)).join(' '))+'</kbd> move</span><span><kbd>'+esc(KB.short('jump'))+'</kbd> jump</span><span><kbd>'+esc(KB.short('sprint'))+'</kbd> sprint</span><span><kbd>'+esc(KB.short('slowmo'))+'</kbd> slow-mo in the air</span><span><kbd>Wheel</kbd> zoom</span><span><kbd>'+esc(KB.short('restart'))+'</kbd> hold to restart</span><span><kbd>Esc</kbd> pause</span>'}
   if(hudCache.hint!==h){hudCache.hint=h;$('hint').innerHTML=h}
   setHidden('lockHint',isTouch||TEST||!!document.pointerLockElement||G.paused||!$('win').hidden);
   setHidden('restartHold',G.hold<.15);if(G.hold>=.15){$('holdArc').setAttribute('stroke-dashoffset',String(170*(1-clamp(G.hold/1.2,0,1))))}
@@ -2545,22 +2589,36 @@ function updateChunks(far){
 function updateMovers(){for(const m of movers){const c=m.c;m.g.position.set(c.x,c.y1,c.z);m.g.rotation.y=c.yaw;m.g.visible=!c.gone;
   if(c.kind==='fragile'){const cr=c.touchT>=0&&!c.gone?(W.t-c.touchT):0;m.g.position.x+=cr?Math.sin(W.t*60)*.04*cr:0;m.g.scale.setScalar(cr>.7?1-(cr-.7)*.6:1)}}
 }
-let last=performance.now(),clock=0;
+let last=performance.now(),clock=0,myClock=0;
+const slowFx=$('slowFx'),tSlowEl=$('tSlow');let slowShown=-1,slowIdle=null,slowSpec=null;
+// how slow motion looks: a slightly narrower view and darker edges (and a little less colour on computers)
+function slowLook(){
+  const k=slowAmount(),fov=62-5*k;
+  if(Math.abs(camera.fov-fov)>1e-3){camera.fov=fov;camera.updateProjectionMatrix()}
+  const q=Math.round(k*50)/50;
+  if(q!==slowShown){slowShown=q;slowFx.style.opacity=String(q);canvas.style.filter=q>0&&!isTouch?'saturate('+(1-.4*q).toFixed(2)+')':''}
+  // the touch button is dimmed on the ground (it only works in the air) and hidden while watching someone
+  const idle=!!me.gnd||!!me.mantle;if(idle!==slowIdle){slowIdle=idle;tSlowEl.classList.toggle('idle',idle)}
+  const sp=!!G.spec;if(sp!==slowSpec){slowSpec=sp;tSlowEl.hidden=sp;if(sp){tAct.slowmo=false;tSlowEl.classList.remove('on')}}
+}
 function tick(dt){
   clock+=dt;
   physics(dt);
   afterSteps(dt);
-  // my climber
-  const st={spd:Math.hypot(me.vx,me.vz),gnd:!!me.gnd||!!me.slide&&false,vy:me.vy,landT:me.landT,impact:me.impact,stun:Math.max(0,me.stun),mantle:!!me.mantle,slide:!!me.slide,sprint:inp.sprint,t:clock};
-  myAv.ph+=dt*st.spd*(st.sprint?1.35:1.9);poseAvatar(myAv,st,dt);myAv.root.position.set(me.x,me.y,me.z);myAv.root.rotation.y=me.yaw;
-  placeShadow(myShadow,me.x,me.y,me.z);
+  // my climber (in slow motion its animation and the camera following it slow down with it)
+  const ds=dt*G.timeScale;myClock+=ds;
+  const st={spd:Math.hypot(me.vx,me.vz),gnd:!!me.gnd||!!me.slide&&false,vy:me.vy,landT:me.landT,impact:me.impact,stun:Math.max(0,me.stun),mantle:!!me.mantle,slide:!!me.slide,sprint:inp.sprint,t:myClock};
+  const vp=viewPos();
+  myAv.ph+=ds*st.spd*(st.sprint?1.35:1.9);poseAvatar(myAv,st,ds);myAv.root.position.set(vp.x,vp.y,vp.z);myAv.root.rotation.y=me.yaw;
+  placeShadow(myShadow,vp.x,vp.y,vp.z);
   updateOthers(dt);netTick(dt);
-  updateCamera(dt);
+  slowLook();
+  updateCamera(dt,ds);
   const far=atmosphere();updateChunks(far);updateMovers();
   for(const f of fanFx){f.g.rotation.y+=dt*14;const p=f.pts.geometry.attributes.position;for(let i=0;i<p.count;i++){let y=p.getY(i)+dt*7;if(y>f.f.y1)y=f.f.y0;p.setY(i,y)}p.needsUpdate=true}
   scenery.flag.rotation.y=Math.sin(clock*2)*.15;
-  updateFx(dt);updateStreaks(dt);updateHud(dt);
-  if(ac&&windG){musicTick();const wv=G.mode==='play'&&!me.gnd?clamp((-me.vy-6)/34,0,1):0;windG.g.gain.setTargetAtTime(wv*.35+(me.y>600?.03:0),ac.currentTime,.12);windG.f.frequency.setTargetAtTime(400+wv*900,ac.currentTime,.2);
+  updateFx(dt);updateStreaks(ds);updateHud(dt);
+  if(ac&&windG){musicTick();const wv=G.mode==='play'&&!me.gnd?clamp((-me.vy-6)/34,0,1):0,sk=slowAmount();windG.g.gain.setTargetAtTime(wv*.35*(1-.45*sk)+(me.y>600?.03:0),ac.currentTime,.12);windG.f.frequency.setTargetAtTime((400+wv*900)*(1-.55*sk),ac.currentTime,.2);
     let fd=99;for(const f of course.fans)fd=Math.min(fd,Math.hypot(me.x-f.x,me.z-f.z,(me.y-f.y0)*.5));fanG.g.gain.setTargetAtTime(clamp(1-fd/16,0,1)*.12,ac.currentTime,.2)}
 }
 function frame(t){
