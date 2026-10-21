@@ -171,10 +171,14 @@ h1 span{color:var(--coral)}
 #hint span.on{background:var(--violet)}
 #specBar{position:absolute;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;align-items:center;gap:8px;pointer-events:auto;background:rgba(24,22,58,.8);border-radius:16px;padding:6px 8px 6px 14px;font-weight:900;font-size:14px;white-space:nowrap;max-width:calc(100% - 24px)}
 #specBar span{overflow:hidden;text-overflow:ellipsis}
-#reticle{position:absolute;left:50%;top:50%;width:16px;height:16px;margin:-8px 0 0 -8px;border:2.5px solid #fff;border-radius:50%;box-shadow:0 0 0 1.5px rgba(24,22,58,.8)}
-#reticle.dot{width:8px;height:8px;margin:-4px 0 0 -4px;border-width:0;background:#fff}
+#reticle{position:absolute;left:50%;top:50%;width:22px;height:22px;margin:-11px 0 0 -11px}
+#reticle svg{display:block;width:100%;height:100%;overflow:visible}
+#reticle .rx{stroke:#fff;stroke-width:2.2;stroke-linecap:round;fill:#fff}
+#reticle .ro{stroke:rgba(24,22,58,.8);stroke-width:4.6;stroke-linecap:round;fill:rgba(24,22,58,.8)}
+#reticle .big,#reticle.dot .arm,#reticle.dot .small{display:none}
+#reticle.dot .big{display:inline}
 #vig{position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(255,60,80,0) 45%,rgba(255,60,80,.55));opacity:0;transition:opacity .35s}
-#lockHint{position:absolute;left:50%;top:58%;transform:translateX(-50%);font-family:var(--f-d);font-size:22px;background:rgba(24,22,58,.75);padding:6px 16px;border-radius:14px}
+#lockHint{position:absolute;left:50%;top:63%;transform:translateX(-50%);font-family:var(--f-b);font-weight:900;font-size:14px;background:rgba(24,22,58,.72);padding:4px 12px;border-radius:10px;white-space:nowrap}
 #tags{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 #tags div{position:absolute;left:0;top:0;transform:translate(-50%,-100%);font-weight:900;font-size:13px;color:#fff;white-space:nowrap;background:rgba(24,22,58,.6);padding:1px 7px;border-radius:8px;will-change:transform}
 #tags div i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:1px;border:1.5px solid #fff}
@@ -258,9 +262,9 @@ body.touch #banner b{font-size:clamp(28px,9vw,46px)}
     <div id="feed"></div>
     <div id="banner"><b></b><span></span></div>
     <div id="count" hidden></div>
-    <div id="reticle" hidden></div>
-    <div id="lockHint" class="out" hidden>Click to play</div>
-    <div id="hint" class="kbonly"><span><kbd data-kb="forward left back right" data-kb-short data-kb-join="" data-kb-sep="">WASD</kbd> move</span><span><kbd data-kb="jump" data-kb-short>Space</kbd> jump</span><span>Mouse camera · wheel zoom</span><span id="hintShift"><kbd data-kb="shiftLock" data-kb-short>Shift</kbd> shift lock</span><span id="hintView"><kbd data-kb="view" data-kb-short>V</kbd> first person</span><span><kbd data-kb="reset" data-kb-short>R</kbd> reset</span><span><kbd>Esc</kbd> menu</span></div>
+    <div id="reticle" hidden><svg viewBox="-11 -11 22 22" aria-hidden="true"><g class="ro"><path class="arm" d="M0-9V-4M0 4V9M-9 0H-4M4 0H9"/><circle class="small" r=".9"/><circle class="big" r="2.6"/></g><g class="rx"><path class="arm" d="M0-9V-4M0 4V9M-9 0H-4M4 0H9"/><circle class="small" r=".9"/><circle class="big" r="2.6"/></g></svg></div>
+    <div id="lockHint" class="out" hidden>Click to aim</div>
+    <div id="hint" class="kbonly"><span><kbd data-kb="forward left back right" data-kb-short data-kb-join="" data-kb-sep="">WASD</kbd> move</span><span><kbd data-kb="jump" data-kb-short>Space</kbd> jump</span><span>Mouse aims · wheel zoom</span><span id="hintShift"><kbd data-kb="shiftLock" data-kb-short>Shift</kbd> shift lock</span><span id="hintView"><kbd data-kb="view" data-kb-short>V</kbd> first person</span><span><kbd data-kb="reset" data-kb-short>R</kbd> reset</span><span><kbd>Esc</kbd> menu</span></div>
   </div>
   <div id="touch" aria-hidden="true">
     <div id="tLook"></div>
@@ -313,7 +317,8 @@ body.touch #banner b{font-size:clamp(28px,9vw,46px)}
           <div><b id="stDeaths">0</b><small>Falls</small></div>
         </div>
         <div class="label">Settings</div>
-        <div class="setting"><span>Look speed</span><input id="sens" type="range" min=".3" max="2.5" step=".05"><output id="sensOut">1.00</output></div>
+        <div class="setting"><span>Sensitivity</span><input id="sens" type="range" min=".3" max="2.5" step=".05" aria-label="Camera sensitivity"><output id="sensOut">1.00</output></div>
+        <div class="setting"><span>Invert Y</span><div class="seg" id="invY"><button type="button" data-v="0">Off</button><button type="button" data-v="1">On</button></div></div>
         <div class="setting"><span>Sound</span><input id="vol" type="range" min="0" max="1" step=".05"><output id="volOut">70</output></div>
         <div class="setting"><span>Music</span><input id="mus" type="range" min="0" max="1" step=".05"><output id="musOut">40</output></div>
         <div class="row" style="margin-top:12px"><span style="font-weight:800;font-size:14px;min-width:92px">Graphics</span><div class="seg" id="gfxSeg"><button type="button" data-q="low">Fast</button><button type="button" data-q="high">Pretty</button></div></div>
@@ -324,7 +329,7 @@ body.touch #banner b{font-size:clamp(28px,9vw,46px)}
             <li><b>Tower</b>: a stack of random sections. Climb the truss between sections to reach the next one. The clock runs twice as fast once someone reaches the top.</li>
             <li><b>Glowing red</b> means lethal. Falling isn't: you just land lower down.</li>
             <li><b>Obby</b>: 49 stages over seven worlds. Every stage starts on a checkpoint, and your furthest stage is saved.</li>
-            <li class="kbonly"><b>Controls</b>: WASD moves (relative to the camera), Space jumps (hold to keep jumping), the mouse turns the camera, the wheel zooms, Shift locks the camera behind you, V switches between first and third person (scrolling all the way in does too).</li>
+            <li class="kbonly"><b>Controls</b>: WASD moves (relative to the camera), Space jumps (hold to keep jumping), click the game to aim the camera with the mouse (a crosshair shows in the middle, you face where you aim as you move, and Esc frees the mouse), the wheel zooms, Shift keeps you facing the camera's way even standing still, V switches between first and third person (scrolling all the way in does too).</li>
             <li id="touchNote" hidden><b>Touch</b>: the stick moves, drag anywhere else to turn the camera, pinch to zoom, and the eye button switches to first person.</li>
           </ul>
         </details>
@@ -367,7 +372,8 @@ body.touch #banner b{font-size:clamp(28px,9vw,46px)}
         <div class="row"><span style="min-width:78px">Towers</span><div class="seg" id="setEz"><button type="button" data-v="0">Normal</button><button type="button" data-v="1">Easy</button></div></div>
         <div class="row"><button class="btn sm coral" id="newTower" type="button">New tower now</button></div>
       </div>
-      <div class="setting"><span>Look speed</span><input id="sens2" type="range" min=".3" max="2.5" step=".05"></div>
+      <div class="setting"><span>Sensitivity</span><input id="sens2" type="range" min=".3" max="2.5" step=".05" aria-label="Camera sensitivity"></div>
+      <div class="setting"><span>Invert Y</span><div class="seg" id="invY2"><button type="button" data-v="0">Off</button><button type="button" data-v="1">On</button></div></div>
       <div class="setting"><span>Sound</span><input id="vol2" type="range" min="0" max="1" step=".05"></div>
       <div class="setting"><span>Music</span><input id="mus2" type="range" min="0" max="1" step=".05"></div>
       <div class="row" style="margin-top:12px"><button class="btn sm alt" id="keysPause" type="button">Controls</button></div>
@@ -1168,7 +1174,8 @@ let myName=cleanName(store.get('name',''));
 let myColor=COLORS.indexOf(store.get('color',''))>=0?store.get('color',''):pick(COLORS);
 // a saved number, or the default if what's saved isn't one (a NaN volume would silence all sound)
 const savedNum=(k,d,a,b)=>{const v=+store.get(k,d);return isFinite(v)?clamp(v,a,b):d};
-let sens=savedNum('sens',1,.3,2.5),volume=savedNum('vol',.7,0,1),musVol=savedNum('mus',.4,0,1);
+// sens scales every camera turn (mouse and touch); invY flips up/down. Both are saved as spire:sens / spire:invY.
+let sens=savedNum('sens',1,.3,2.5),invY=store.get('invY',false)===true,volume=savedNum('vol',.7,0,1),musVol=savedNum('mus',.4,0,1);
 let touchUI=matchMedia('(pointer: coarse)').matches&&!matchMedia('(any-pointer: fine)').matches;
 let gfx=store.get('gfx',touchUI?'low':'high');
 const profile=Object.assign({coins:0,xp:0,towers:0,deaths:0,best:{},obbyBest:0,obbyCp:0,prac:{}},store.get('profile',{}));
@@ -1710,7 +1717,12 @@ const playing=()=>G.mode==='solo'||G.mode==='obby'||G.mode==='practice'||G.mode=
 // Spectating always uses the third-person camera. The choice is saved as spire:view.
 const fpOn=()=>G.view==='fp'&&playing()&&!G.spec;
 const pitchLim=()=>G.view==='fp'?[-1.45,1.45]:[-.5,1.35];
-function lookBy(dx,dy){const l=pitchLim();G.camYaw-=dx;G.camPitch=clamp(G.camPitch+dy,l[0],l[1])}
+// pointer lock (mouse aim); see Input below
+const hasLock=!!(canvas.requestPointerLock&&'pointerLockElement' in document);
+const locked=()=>document.pointerLockElement===canvas;
+const lockWanted=()=>hasLock&&!touchUI&&(G.lockFails||0)<3;
+const aimOn=()=>locked()&&playing()&&!G.spec&&!G.pauseOpen&&!G.overlay;
+function lookBy(dx,dy){if(!isFinite(dx)||!isFinite(dy))return;const l=pitchLim();G.camYaw-=dx;G.camPitch=clamp(G.camPitch+(invY?-dy:dy),l[0],l[1])}
 const ICON_EYE='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.8-6.5 10-6.5S22 12 22 12s-3.8 6.5-10 6.5S2 12 2 12z" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/><circle cx="12" cy="12" r="3.4" fill="currentColor"/></svg>';
 const ICON_BODY='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="6.5" r="3.8" fill="currentColor"/><path d="M4.5 21.5c0-5 3.3-8 7.5-8s7.5 3 7.5 8z" fill="currentColor"/></svg>';
 function renderView(){const b=$('tView'),fp=G.view==='fp';b.innerHTML=fp?ICON_BODY:ICON_EYE;b.setAttribute('aria-label',fp?'Third person':'First person');
@@ -1799,7 +1811,7 @@ function targetTime(){
 }
 function readInput(){
   let fx=0,fz=0;
-  const can=playing()&&!G.paused&&!G.overlay&&!KB.busy()&&!G.spec&&(document.pointerLockElement===canvas||touchUI||!lockWanted());
+  const can=playing()&&!G.paused&&!G.overlay&&!KB.busy()&&!G.spec;
   if(can){
     if(held('forward'))fz+=1;if(held('back'))fz-=1;if(held('right'))fx+=1;if(held('left'))fx-=1;
     if(tMove.on){fx+=tMove.x;fz-=tMove.y}
@@ -1822,9 +1834,10 @@ function tick(){
     else if(G.mode==='online'&&(!G.rs||t<0))inp=idleInp;
     else inp=readInput();
     simStep(W,me,inp,t);
-    // facing: toward the move direction, or the camera's way with shift lock
+    // facing: the camera's way with shift lock or in first person; otherwise, while moving, toward where the mouse
+    // aims (pointer lock) or toward the move direction
     if((G.shiftLock||fpOn())&&!G.attract&&!G.auto)me.yaw=G.camYaw;
-    else if(Math.hypot(inp.x,inp.z)>.1&&!me.climb){const ty=Math.atan2(-inp.x,-inp.z);me.yaw+=angDiff(ty,me.yaw)*Math.min(1,PHYS.DT*14)}
+    else if(Math.hypot(inp.x,inp.z)>.1&&!me.climb){const ty=aimOn()&&!G.attract&&!G.auto?G.camYaw:Math.atan2(-inp.x,-inp.z);me.yaw+=angDiff(ty,me.yaw)*Math.min(1,PHYS.DT*14)}
     handleEvents(t);
     if(!G.attract&&!G.auto)trussTip();
     if(G.attract&&(G.attract.done||G.attract.fail)){respawnMe();G.attract=makeBot(W.route)}
@@ -1948,8 +1961,11 @@ function camRay(W,ox,oy,oz,dx,dy,dz,maxD,rt){
 function updateCamera(dt,rt,tx,ty,tz){
   camT.set(tx,ty,tz);
   let ox=tx,oz=tz;
-  if(G.shiftLock&&playing()&&!G.spec){ // over the right shoulder, but not through a wall
-    const c=Math.cos(G.camYaw),s=Math.sin(G.camYaw);let k=1.5;
+  // over the right shoulder with shift lock or mouse aim (so the crosshair isn't on your head), but not through a wall
+  const shW=(G.shiftLock||aimOn())&&playing()&&!G.spec?1.5:0;
+  G.shK=G.shK==null?shW:G.shK+(shW-G.shK)*(1-Math.exp(-dt*12));
+  if(G.shK>.01){
+    const c=Math.cos(G.camYaw),s=Math.sin(G.camYaw);let k=G.shK;
     if(G.W)k=Math.min(k,camRay(G.W,tx,ty,tz,c,0,-s,1.8,rt)-.3);k=Math.max(0,k);
     ox+=c*k;oz-=s*k;camT.x+=c*k;camT.z-=s*k;
   }
@@ -2343,9 +2359,11 @@ function updateHud(){
     for(const {d,q} of order){const f=clamp(q.y/top,0,1);d.style.bottom=(f*100)+'%';d.style.background=q.c;const s=d.firstChild;const nm=q.id==='me'?'You':q.n;if(s.textContent!==nm)s.textContent=nm;
       const py=f*hpx,free=placed.every(v=>Math.abs(v-py)>15);s.style.visibility=free?'visible':'hidden';if(free)placed.push(py)}
   }
-  const fp=fpOn();$('reticle').hidden=!((G.shiftLock||fp)&&playing()&&!touchUI&&!G.spec);$('reticle').classList.toggle('dot',fp);
+  if(locked()&&KB.busy())releaseLock();
+  const fp=fpOn(),free=playing()&&!touchUI&&!G.spec&&!G.pauseOpen&&!G.overlay&&!KB.busy();
+  $('reticle').hidden=!(free&&(G.shiftLock||fp||aimOn()));$('reticle').classList.toggle('dot',fp);
   $('hintShift').classList.toggle('on',G.shiftLock);
-  const lk=playing()&&!touchUI&&!G.paused&&!G.overlay&&document.pointerLockElement!==canvas&&lockWanted()&&!G.spec;$('lockHint').hidden=!lk;
+  $('lockHint').hidden=!(free&&!G.paused&&!locked()&&lockWanted());
 }
 function updateTags(){
   const w=innerWidth,h=innerHeight,v=new V3();
@@ -2365,7 +2383,7 @@ function updateTags(){
 //  Spectating (after you reach the top online)
 // =====================================================================
 function specCandidates(){const fin=G.rs?G.rs.fin.map(f=>f[0]):[];return[...ents.values()].filter(e=>e.av.root.visible&&fin.indexOf(e.id)<0).sort((a,b)=>b.pos.y-a.pos.y)}
-function startSpectate(){const c=specCandidates();if(!c.length){$('specBar').hidden=false;setText('specName','Everyone else is done or gone');G.spec='none';return}G.spec=c[0].id;$('specBar').hidden=false;setText('specName','Watching '+c[0].name)}
+function startSpectate(){releaseLock();G.drag=null;const c=specCandidates();if(!c.length){$('specBar').hidden=false;setText('specName','Everyone else is done or gone');G.spec='none';return}G.spec=c[0].id;$('specBar').hidden=false;setText('specName','Watching '+c[0].name)}
 function cycleSpec(){if(!G.spec)return;const c=specCandidates();if(!c.length)return;const i=c.findIndex(e=>e.id===G.spec);const n=c[(i+1)%c.length];G.spec=n.id;setText('specName','Watching '+n.name)}
 $('specNext').onclick=()=>{cycleSpec();sfx('ui')};
 $('keepClimb').onclick=()=>{G.spec=null;$('specBar').hidden=true;respawnMe();requestLock()};
@@ -2373,13 +2391,19 @@ $('keepClimb').onclick=()=>{G.spec=null;$('specBar').hidden=true;respawnMe();req
 // =====================================================================
 //  Input
 // =====================================================================
-const lockWanted=()=>!G.noLock;
-function requestLock(){if(touchUI||!playing())return;try{const r=canvas.requestPointerLock();if(r&&r.catch)r.catch(()=>{G.noLock=true})}catch(e){G.noLock=true}}
+// Mouse aim: on computers, clicking the game while playing captures the mouse (Pointer Lock), so moving it turns the
+// camera with no button held and a crosshair stands in for the cursor. Esc, the pause menu, results, the Controls panel
+// and spectating all let go of it. A refused request (Chrome refuses one made within about a second of Esc) is only
+// counted: after three in a row the "Click to aim" hint goes and the old drag-to-look carries on, but every click still
+// tries again, and any success starts the count over. Browsers without Pointer Lock just drag.
+function requestLock(){if(touchUI||!hasLock||!playing()||G.spec||G.pauseOpen||G.overlay||KB.busy()||locked())return;try{const r=canvas.requestPointerLock();if(r&&r.catch)r.catch(()=>{})}catch(e){G.lockFails=(G.lockFails||0)+1}}
+// let go of the mouse on purpose (a menu or spectating), without the pause screen that losing it otherwise brings up
+function releaseLock(){if(!document.pointerLockElement)return;G.quietUnlock=true;try{document.exitPointerLock()}catch(e){}}
 let pauseShownAt=0;
 function showPause(){
   if(!playing())return;
   G.paused=G.mode!=='online';G.pauseOpen=true;pauseShownAt=performance.now();
-  if(document.pointerLockElement)try{document.exitPointerLock()}catch(e){}
+  releaseLock();
   for(const k in keys)keys[k]=false;for(const k in tAct)tAct[k]=false;
   showOverlay('pause');
   const sub=G.mode==='online'?(Net.isPublic?'Public tower':'Room '+(Net.room||'').replace(/^tw-/,''))+' · the clock keeps running':G.mode==='obby'?'Obby · stage '+(G.cp+1)+' · the clock is stopped':G.mode==='practice'?'Practice · '+G.W.name:G.W.name+' · the clock is stopped';
@@ -2396,19 +2420,23 @@ function renderHostBox(){
 for(const [id,k] of [['setLen','len'],['setN','n'],['setEz','ez']])$(id).onclick=ev=>{const b=ev.target.closest('button');if(!b)return;G.hostSet[k]=+b.dataset.v;store.set('hostSet',G.hostSet);renderHostBox();sfx('ui');feed('Next tower: '+(G.hostSet.ez?'easy, 5 sections':G.hostSet.n+' sections')+', '+G.hostSet.len+' minutes')};
 $('newTower').onclick=()=>{if(G.host&&G.rs){setRS(newRound(G.rs));resume()}};
 document.addEventListener('pointerlockchange',()=>{
-  if(document.pointerLockElement===canvas){if(G.pauseOpen){G.paused=false;G.pauseOpen=false;showOverlay(null)}return}
+  const quiet=G.quietUnlock;G.quietUnlock=false;
+  if(locked()){G.lockFails=0;G.drag=null;if(G.pauseOpen||G.overlay||KB.busy()||G.spec||!playing())releaseLock();return}
   for(const k in keys)keys[k]=false;
-  if(playing()&&!G.pauseOpen&&$('results').hidden&&!KB.busy())showPause();
+  if(!quiet&&playing()&&!G.pauseOpen&&!G.overlay&&!G.spec&&!KB.busy())showPause();
 });
-document.addEventListener('pointerlockerror',()=>{G.noLock=true});
+document.addEventListener('pointerlockerror',()=>{G.lockFails=(G.lockFails||0)+1});
+// Turning: about 0.15 degrees per pixel of mouse movement at sensitivity 1 (0.3 to 2.5 times that), pitch kept to
+// pitchLim(); a single jump of over 300 pixels is a browser glitch (some send one when the lock starts) and is skipped.
+const AIM_RATE=.0026,DRAG_RATE=.006;
 document.addEventListener('mousemove',e=>{
-  if(!playing())return;
-  if(document.pointerLockElement===canvas){
-    if(Math.abs(e.movementX)>300||Math.abs(e.movementY)>300)return;
-    lookBy(e.movementX*.0026*sens,e.movementY*.0026*sens);
-  }else if(G.drag&&!touchUI){lookBy((e.clientX-G.drag[0])*.006*sens,(e.clientY-G.drag[1])*.006*sens);G.drag=[e.clientX,e.clientY]}
+  if(!playing()||touchUI)return;
+  if(locked()){
+    if(!aimOn()||Math.abs(e.movementX)>300||Math.abs(e.movementY)>300)return;
+    lookBy(e.movementX*AIM_RATE*sens,e.movementY*AIM_RATE*sens);
+  }else if(G.drag&&!G.pauseOpen&&!G.overlay){lookBy((e.clientX-G.drag[0])*DRAG_RATE*sens,(e.clientY-G.drag[1])*DRAG_RATE*sens);G.drag=[e.clientX,e.clientY]}
 });
-canvas.addEventListener('mousedown',e=>{initAudio();if(!playing()||touchUI)return;if(document.pointerLockElement!==canvas&&!G.pauseOpen){if(lockWanted())requestLock();G.drag=[e.clientX,e.clientY]}});
+canvas.addEventListener('mousedown',e=>{initAudio();if(!playing()||touchUI||G.pauseOpen||G.overlay)return;if(!locked()){requestLock();G.drag=[e.clientX,e.clientY]}});
 addEventListener('mouseup',()=>{G.drag=null});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 addEventListener('wheel',e=>{if(!playing()||G.pauseOpen)return;zoomBy(e.deltaY>0?1:-1)},{passive:true});
@@ -2436,7 +2464,7 @@ $('keysMenu').addEventListener('click',()=>KB.open());
 $('keysPause').addEventListener('click',()=>KB.open());
 
 // Touch controls: a move stick, a jump button, drag anywhere else to turn the camera, pinch to zoom.
-function setTouchUI(on){touchUI=on;document.body.classList.toggle('touch',on);$('touchNote').hidden=!on}
+function setTouchUI(on){if(on)releaseLock();touchUI=on;document.body.classList.toggle('touch',on);$('touchNote').hidden=!on}
 addEventListener('pointerdown',e=>{if(e.pointerType==='touch'&&!touchUI)setTouchUI(true)},true);
 {
   const look=$('tLook'),pts=new Map();let pinch=0;
@@ -2462,7 +2490,7 @@ addEventListener('pointerdown',e=>{if(e.pointerType==='touch'&&!touchUI)setTouch
 // =====================================================================
 //  Menus
 // =====================================================================
-function showOverlay(id){for(const s of ['menu','obbyMenu','pracMenu','pause','results'])$(s).hidden=s!==id;if(id!=='pause')G.pauseOpen=false;G.overlay=id||''}
+function showOverlay(id){if(id)releaseLock();for(const s of ['menu','obbyMenu','pracMenu','pause','results'])$(s).hidden=s!==id;if(id!=='pause')G.pauseOpen=false;G.overlay=id||''}
 function setMsg(t,err){const m=$('netMsg');m.textContent=t;m.classList.toggle('err',!!err)}
 function renderProfile(){
   const L=levelOf(profile.xp);setText('lvlN',String(L.l));$('xpFill').style.width=(L.cur/L.need*100)+'%';setText('xpTxt',L.cur+' / '+L.need+' XP to level '+(L.l+1));
@@ -2498,7 +2526,7 @@ function showResults(title,sub,rows,coins,xp,solo,online){
   $('resGain').innerHTML=coins!=null?'<span><i class="coin"></i>+'+coins+'</span><span>+'+xp+' XP</span>':'';
   $('resAgain').hidden=!solo;$('resMenu').textContent=online?'Leave room':'Menu';
   $('resMsg').textContent=online?'Next tower in a few seconds…':'';
-  showOverlay('results');if(document.pointerLockElement)document.exitPointerLock();
+  showOverlay('results');
   showAd('adEnd');
 }
 $('resAgain').onclick=()=>startSolo(G.soloEasy);
@@ -2506,7 +2534,7 @@ $('resMenu').onclick=()=>toMenu();
 function toMenu(){
   if(Net.refs)Net.leave();G.host=false;G.he=0;G.hostUid=null;G.rs=null;G.lastRS=null;G.roundId=-1;G.worldKey='';clearRemotes();
   try{if(location.hash)history.replaceState(null,'',location.pathname+location.search)}catch(e){}
-  if(document.pointerLockElement)document.exitPointerLock();
+  releaseLock();
   setupAttract();
 }
 function sanitizeRoom(s){return String(s||'').toLowerCase().replace(/^tw-/,'').replace(/[^a-z0-9-]/g,'').slice(0,17)}
@@ -2557,10 +2585,12 @@ $('resetBtn').onclick=()=>{resume();selfReset()};
 $('leave').onclick=toMenu;
 $('name').value=myName;$('name').addEventListener('input',()=>{myName=cleanName($('name').value);store.set('name',myName);setText('profName',myName||'Climber');if(Net.refs)Net.upd({n:myName||'Climber'})});
 $('room').value=store.get('room','');
-const setSens=v=>{sens=+v;store.set('sens',sens);$('sensOut').textContent=sens.toFixed(2);$('sens').value=sens;$('sens2').value=sens};
+const setSens=v=>{v=+v;if(!isFinite(v))return;sens=clamp(v,.3,2.5);store.set('sens',sens);$('sensOut').textContent=sens.toFixed(2);$('sens').value=sens;$('sens2').value=sens};
 const setVol=v=>{volume=+v;store.set('vol',volume);$('volOut').textContent=Math.round(volume*100);$('vol').value=volume;$('vol2').value=volume;if(sfxBus)sfxBus.gain.value=volume};
 const setMus=v=>{musVol=+v;store.set('mus',musVol);$('musOut').textContent=Math.round(musVol*100);$('mus').value=musVol;$('mus2').value=musVol;if(musBus)musBus.gain.value=musVol*.55};
-setSens(sens);setVol(volume);setMus(musVol);
+const setInvY=on=>{invY=!!on;store.set('invY',invY);for(const id of ['invY','invY2'])for(const b of $(id).children)b.setAttribute('aria-pressed',String(+b.dataset.v===+invY))};
+for(const id of ['invY','invY2'])$(id).onclick=ev=>{const b=ev.target.closest('button');if(!b)return;setInvY(b.dataset.v==='1');sfx('ui')};
+setSens(sens);setVol(volume);setMus(musVol);setInvY(invY);
 $('sens').oninput=()=>setSens($('sens').value);$('sens2').oninput=()=>setSens($('sens2').value);
 $('vol').oninput=()=>setVol($('vol').value);$('vol2').oninput=()=>setVol($('vol2').value);
 $('mus').oninput=()=>setMus($('mus').value);$('mus2').oninput=()=>setMus($('mus2').value);
@@ -2658,7 +2688,7 @@ if(navigator.webdriver)window.__tw={G,PHYS,MODS,WORLDS,OBBY_STAGES,get me(){retu
   advance(s){G.noRender=true;try{const n=Math.round(s/PHYS.DT);for(let i=0;i<n;i++){tick();if(G.respawnAt&&performance.now()>=G.respawnAt)respawnMe()}if(G.mode!=='online')G.tBase=performance.now()/1000-G.t}finally{G.noRender=false}},
   respawnNow(){if(G.respawnAt)respawnMe()},
   verifyModule,runBot,buildTower,buildObby,buildSingle,towerPlan,makeBot,startSolo,startObby,startPractice,toMenu,goOnline,setRS,newRound,hostTick,remaining,showPause,resume,
-  setView,toggleView,fpOn,
+  setView,toggleView,fpOn,startSpectate,aimOn,
   autopilot(on,from){G.auto=on?makeBot(G.W.route):null;if(G.auto&&from)G.auto.i=from},
   get camDist(){return camera.position.distanceTo(camT)},
   // stand-in climbers for screenshots: [{x,y,z,yaw,c,n,a}]
