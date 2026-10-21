@@ -1,10 +1,12 @@
 /*
  * A second secret door, on the Back Room page itself. It takes three things, in order:
  *   1. a word typed into the Party panel's "Party code" box (party.js) without pressing Join;
- *   2. clicking or tapping the "Y" of the "You found it" line above the title (a <span data-door> with invisible
- *      padding, so it's easy to hit on a phone) three times within 1.5 seconds. Only if the word is in the box at that
- *      moment does this open anything; the box is then cleared. The word is checked by its digest: the first 16 hex
- *      characters of SHA-256('ascoding11-door:' + the box's value, trimmed and lowercased) must be WORD below;
+ *   2. clicking or tapping the "You found it" line above the title (anywhere on it; the "Y" is a <span data-door>
+ *      with extra invisible padding) three times within 2.5 seconds. This only opens anything if the word is in the
+ *      box, or was typed there in the last two minutes (pressing Enter or a party panel redraw can empty the box);
+ *      the box is then cleared. Enter in the box with the word in it doesn't try to join a party. The word is checked
+ *      by its digest: the first 16 hex characters of SHA-256('ascoding11-door:' + the box's value, trimmed and
+ *      lowercased) must be WORD below;
  *   3. a number on the keypad, then the password on the admin page.
  * Without the word, the triple tap does nothing visible. Step 2 opens a small number keypad (big buttons for phones; a computer's number keys, Backspace, Enter and Escape
  * work too). The number is checked the same way the home page checks the Back Room's code: the first 16 hex characters
@@ -25,7 +27,7 @@
   var me = document.currentScript && document.currentScript.src;
   var DIR = (me ? new URL(me, location.href).pathname : '/e63334287a3deaa3/door.js').replace(/[^/]*$/, '');
   var MAX = 12, WORD = '402f416a05bbb78d';
-  var t = [], pad = null, shown = null, val = '', miss = 0, busy = false;
+  var t = [], pad = null, shown = null, val = '', miss = 0, busy = false, armed = 0, ARM_MS = 120000;
 
   var css = document.createElement('style');
   // Dark, with light-blue accents, like the admin page it leads to.
@@ -47,11 +49,27 @@
     return Array.from(new Uint8Array(b)).map(function (x) { return x.toString(16).padStart(2, '0'); }).join('').slice(0, 16);
   }
   // The Y that opens the keypad: <p class="kicker"><span data-door>Y</span>ou found it</p> in the Back Room's header.
+  // Anywhere on that line counts, not just the Y, so it's easy to hit.
   function kicker(e) {
-    var y = e.target && e.target.closest && e.target.closest('header .kicker > [data-door]');
-    var k = y && y.parentNode;
-    return k && y.textContent === 'Y' && k.firstChild === y && k.textContent.trim().indexOf('You found it') === 0 ? k : null;
+    var k = e.target && e.target.closest && e.target.closest('header .kicker');
+    var y = k && k.querySelector(':scope > [data-door]');
+    return y && y.textContent === 'Y' && k.firstChild === y && k.textContent.trim().indexOf('You found it') === 0 ? k : null;
   }
+  // Remembers that the word was typed, so emptying the box afterwards (Enter, a redraw) doesn't undo step 1.
+  function isWord(v) {
+    v = String(v || '').trim().toLowerCase();
+    return v ? h(v, 'ascoding11-door:').then(function (d) { return d === WORD; }) : Promise.resolve(false);
+  }
+  document.addEventListener('input', function (e) {
+    if (!e.target || e.target.id !== 'ptyCode') return;
+    var v = e.target.value;
+    isWord(v).then(function (ok) { if (ok && e.target.value === v) armed = Date.now(); });
+  }, true);
+  // Enter with the word in the box would try to join a party called that; stop it.
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' || !e.target || e.target.id !== 'ptyCode') return;
+    if (armed && Date.now() - armed < ARM_MS) { e.preventDefault(); e.stopPropagation(); }
+  }, true);
   function draw() {
     shown.textContent = '';
     if (!val) { shown.textContent = '…'; return; }
@@ -119,23 +137,32 @@
     e.preventDefault(); e.stopPropagation();
   }, true);
 
-  document.addEventListener('click', function (e) {
+  // pointerup rather than click: iPhone and iPad Safari don't send clicks for taps on plain text.
+  var lastUp = 0;
+  function tap(e) {
+    if (e.type === 'pointerup' && e.button > 0) return;
     if (pad && pad.contains(e.target)) return;
     var k = kicker(e);
-    if (!k) { t = []; if (pad) close(); return; }
+    if (!k) { if (e.type === 'pointerup') { t = []; if (pad) close(); } return; }
+    if (e.type === 'click' && Date.now() - lastUp < 600) return;  // already counted by pointerup
+    if (e.type === 'pointerup') lastUp = Date.now();
     if (pad) return;
-    var n = Date.now(); t = t.filter(function (x) { return n - x < 1500; }); t.push(n);
+    var n = Date.now(); t = t.filter(function (x) { return n - x < 2500; }); t.push(n);
     if (t.length < 3) return;
     t = [];
-    // Step 1: the word has to be in the Party panel's code box right now.
-    var box = document.getElementById('ptyCode'), w = box ? String(box.value || '').trim().toLowerCase() : '';
-    if (!w || busy) return;
+    try { getSelection().removeAllRanges(); } catch (er) {}
+    // Step 1: the word has to be in the Party panel's code box now, or have been typed there in the last two minutes.
+    var box = document.getElementById('ptyCode');
+    if (busy) return;
     busy = true;
-    h(w, 'ascoding11-door:').then(function (d) {
+    isWord(box && box.value).then(function (ok) {
       busy = false;
-      if (d !== WORD || pad || !k.isConnected) return;
-      box.value = '';
+      if (!ok && !(armed && Date.now() - armed < ARM_MS)) return;
+      if (pad || !k.isConnected) return;
+      armed = 0; if (box) box.value = '';
       open(k);
     }, function () { busy = false; });
-  });
+  }
+  document.addEventListener('pointerup', tap);
+  document.addEventListener('click', tap);
 })();
