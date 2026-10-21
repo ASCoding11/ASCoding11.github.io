@@ -21,6 +21,7 @@ When adding a game:
 
 - Give it its own folder with a self-contained `index.html` and a `preview.jpg` screenshot (1920 × 1200) for its card. Copy the card markup and the page `<head>` (fonts, `site.css`, robots tag) from an existing Back Room game.
 - Multiplayer games use the existing Firebase Realtime Database under `rooms/<prefix>-<code>`, with a new two-letter prefix not already used (see the list in the invite-link code in `index.html`). Add the prefix there and a matching `data-invite` on the game's Play button, so invite links like `ascoding11.github.io/#xx-1234` open the game.
+- Draw other players with `../netsmooth.js` (see `README.md` and how Spire or Shell Crackers use it): stamp every position update with the time (`ts`), and show remote players from a short history of updates rather than moving them straight to the newest one, or they'll jump around over school Wi-Fi. Racing and ball games can project cars forward from their speed instead, like Kartwheel.
 - Don't change Firebase security rules or the Firebase config. If a game needs storage the current rules don't allow, say so in the pull request instead.
 - If the game shows ads, follow the existing `AD_SLOT` pattern and leave `AD_SLOT` empty; Arjun fills it in.
 - Add a section for the game to `README.md`, in the same style as the others: what it is, how it stores data, and anything a later editor needs to know.

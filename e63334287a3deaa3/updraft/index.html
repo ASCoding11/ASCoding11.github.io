@@ -369,6 +369,7 @@ body.touch #spec{bottom:calc(160px + env(safe-area-inset-bottom,0px))}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="../keybinds.js"></script>
+<script src="../netsmooth.js"></script>
 <script>
 /*CORE-START*/
 
@@ -2432,20 +2433,29 @@ function onNode(uid,v){
   if(o.n!==n||o.c!==c){o.n=n;if(o.c!==c){o.c=c;setAvatarColor(o.av,c)}scene.remove(o.tag);freeMesh(o.tag);o.tag=makeTag(n,c);scene.add(o.tag)}
   o.ts=ts;o.seen=performance.now();
   const e=o.ent;if(isFinite(+v.x)&&isFinite(+v.z)){e.tx=clamp(+v.x,-3000,3000);e.ty=clamp(+v.y||0,-5,1100);e.tz=clamp(+v.z,-3000,3000)}
-  e.tyaw=fin(v.h,-100,100);e.a=v.a|0;o.m=fin(v.m,0,SUMMIT+5);o.t=fin(v.t,0,1e7);const f=fin(v.f,0,1e7);if(f&&!o.f&&performance.now()-(G.joinedAt||0)>2500){feed(n+' reached the top in '+fmtT(f)+'!');sfx('best')}o.f=f;
+  e.tyaw=fin(v.h,-100,100);e.a=v.a|0;
+  // keep a short history to draw them from (netsmooth.js); a jump of more than 25 m is a respawn, so start afresh there
+  if(!o.lag){o.lag=NetSmooth.lag();o.snaps=[]}
+  if(o.lag.note(ts,Net.now())){const l=o.snaps[o.snaps.length-1];if(l&&Math.hypot(e.tx-l.x,e.ty-l.y,e.tz-l.z)>25)o.snaps.length=0;o.snaps.push({t:ts,x:e.tx,y:e.ty,z:e.tz,h:e.tyaw})}o.m=fin(v.m,0,SUMMIT+5);o.t=fin(v.t,0,1e7);const f=fin(v.f,0,1e7);if(f&&!o.f&&performance.now()-(G.joinedAt||0)>2500){feed(n+' reached the top in '+fmtT(f)+'!');sfx('best')}o.f=f;
 }
 function onGone(uid){const o=others.get(uid);if(!o)return;feed(o.n+' left');dropOther(uid)}
 function dropOther(uid){const o=others.get(uid);if(!o)return;scene.remove(o.av.root);scene.remove(o.tag);scene.remove(o.sh);freeAvatar(o.av);freeMesh(o.tag);freeMesh(o.sh);if(o.dot)o.dot.remove();others.delete(uid);if(G.spec===uid)stopSpectate()}
 function clearOthers(){for(const k of [...others.keys()])dropOther(k)}
 const ANIM=[{gnd:1,spd:0},{gnd:1,spd:2.5},{gnd:1,spd:7,sprint:1},{gnd:0,vy:5},{gnd:0,vy:-3},{gnd:0,vy:-20},{mantle:1},{slide:1},{gnd:1,stun:.5}];
+// Other climbers are drawn a moment in the past, between the updates around that moment; how far back adapts to how
+// late their updates arrive, and a late one is bridged by carrying on their movement (netsmooth.js).
+const _rs={};
 function updateOthers(dt){
   const k=1-Math.exp(-dt*12),now=performance.now(),t=now/1000;
   for(const [id,o] of others){
     if(G.fakeNet){o.seen=now;o.ts=Net.now()}
     if(!o.live()){if(now-o.seen>LIVE_MS*1.5)dropOther(id);else{o.av.root.visible=o.tag.visible=o.sh.visible=false}continue}
     const e=o.ent,bx=e.x,bz=e.z;
-    if(Math.hypot(e.tx-e.x,e.ty-e.y,e.tz-e.z)>25){e.x=e.tx;e.y=e.ty;e.z=e.tz}else{e.x+=(e.tx-e.x)*k;e.y+=(e.ty-e.y)*k;e.z+=(e.tz-e.z)*k}
-    e.yaw+=angDiff(e.tyaw,e.yaw)*k;e.spd=lerp(e.spd,Math.hypot(e.x-bx,e.z-bz)/Math.max(dt,1e-3),.2);
+    if(o.snaps&&o.snaps.length&&!G.fakeNet){NetSmooth.sample(o.snaps,o.lag.time(Net.now()),_rs,['x','y','z'],['h']);e.x=_rs.x;e.y=_rs.y;e.z=_rs.z;e.yaw=_rs.h}
+    else{
+      if(Math.hypot(e.tx-e.x,e.ty-e.y,e.tz-e.z)>25){e.x=e.tx;e.y=e.ty;e.z=e.tz}else{e.x+=(e.tx-e.x)*k;e.y+=(e.ty-e.y)*k;e.z+=(e.tz-e.z)*k}
+      e.yaw+=angDiff(e.tyaw,e.yaw)*k;
+    }e.spd=lerp(e.spd,Math.hypot(e.x-bx,e.z-bz)/Math.max(dt,1e-3),.2);
     const A=ANIM[e.a]||ANIM[0];const st={spd:A.spd!=null?(A.gnd?Math.max(A.spd*.5,e.spd):0):0,gnd:!!A.gnd||A.stun,vy:A.vy||0,landT:9,impact:0,stun:A.stun||0,mantle:!!A.mantle,slide:!!A.slide,sprint:!!A.sprint,t};
     o.av.ph+=dt*e.spd*(st.sprint?1.35:1.9);
     poseAvatar(o.av,st,dt);

@@ -480,6 +480,7 @@ body.touch #hud.training #banner{top:calc(114px + env(safe-area-inset-top,0px))}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="../keybinds.js"></script>
+<script src="../netsmooth.js"></script>
 <script>
 (function(){
 'use strict';
@@ -1280,7 +1281,7 @@ function makeEntity(o){
     loadout:o.loadout||'beater',slot:0,wkey:o.loadout||'beater',ammo:{},reloadT:0,switchT:0,fireCD:0,burstLeft:0,burstT:0,bloom:0,ads:false,adsK:0,
     grenades:2,meleeCD:0,spawnShield:0,lastHurt:-99,kills:0,deaths:0,streak:0,shotCount:0,walkPh:0,mspd:0,
     model:null,target:null,tVis:false,thinkT:0,react:0,path:null,pathI:0,pathT:0,strafe:1,strafeT:0,errT:0,errY:0,errP:0,trackT:0,semiT:0,stuckT:0,lastP:new V3(),wander:null,
-    tpos:new V3(),tyaw:0,tpitch:0,lastSc:-1,net:null,seen:0};
+    tpos:new V3(),tyaw:0,tpitch:0,lastSc:-1,net:null,seen:0,snaps:[],lag:null};
   if(o.model!==false){e.model=makeEgg(e.color,e.name)}
   return e;
 }
@@ -2494,10 +2495,17 @@ function onRemoteState(uid,v){
   }
   e.net=v;e.seen=performance.now();
   e.tpos.set(clamp(+v.x,0,SPAN),clamp(+v.y||0,-1,20),clamp(+v.z,0,SPAN));e.tyaw=+v.h||0;e.tpitch=+v.p||0;e.hp=clamp(+v.hp||0,0,100);
+  // keep a short history to draw them from (netsmooth.js); a jump of more than 6 m is a respawn, so start afresh there
+  if(!e.lag)e.lag=NetSmooth.lag();
+  const ts=+v.ts||Net.now(),ls=e.snaps[e.snaps.length-1];
+  if(e.lag.note(ts,Net.now())){
+    if(ls&&Math.hypot(e.tpos.x-ls.x,e.tpos.y-ls.y,e.tpos.z-ls.z)>6)e.snaps.length=0;
+    e.snaps.push({t:ts,x:e.tpos.x,y:e.tpos.y,z:e.tpos.z,h:e.tyaw,p:e.tpitch});
+  }
   const wk=WKEYS[v.w|0]||'beater';if(e.wkey!==wk){e.wkey=wk;setEggGun(e.model,wk)}
   e.spawnShield=v.sp?1:0;
   if(v.d&&e.alive){e.alive=false;if(e.model&&e.model.g.visible)deathFx(e)}
-  else if(!v.d&&!e.alive){e.alive=true;e.pos.copy(e.tpos);e.yaw=e.tyaw}
+  else if(!v.d&&!e.alive){e.alive=true;e.pos.copy(e.tpos);e.yaw=e.tyaw;e.snaps.length=0;e.snaps.push({t:ts,x:e.tpos.x,y:e.tpos.y,z:e.tpos.z,h:e.tyaw,p:e.tpitch})}
   const sc=+v.sc||0;
   if(sc>e.lastSc&&e.alive){const n=Math.min(sc-e.lastSc,3),w=WEAPONS[e.wkey];for(let i=0;i<n;i++)setTimeout(()=>remoteShotFx(e),i*Math.min(70,w.cd*1000))}
   e.lastSc=sc;
@@ -2542,12 +2550,14 @@ function onMatch(v){
   else{$('end').hidden=true}
   banner(MAPS[mapIdx].name.toUpperCase(),(Net.isPublic?'Public lobby':'Room '+Net.room)+' · first to '+target+' cracks',2.6);
 }
+// Other eggs are drawn a moment in the past, between the updates around that moment (netsmooth.js),
+// so they move evenly however unevenly their updates arrive.
+const _rs={};
 function updateRemotes(dt){
-  const k=1-Math.exp(-dt*14);
+  const now=Net.now();
   for(const e of remotes.values()){
     const before=e.pos.clone();
-    if(e.pos.distanceTo(e.tpos)>6)e.pos.copy(e.tpos);else e.pos.lerp(e.tpos,k);
-    e.yaw+=angDiff(e.tyaw,e.yaw)*k;e.pitch+=(e.tpitch-e.pitch)*k;
+    if(e.snaps.length){NetSmooth.sample(e.snaps,e.lag.time(now),_rs,['x','y','z','p'],['h']);e.pos.set(_rs.x,_rs.y,_rs.z);e.yaw=_rs.h;e.pitch=_rs.p}
     e.mspd=lerp(e.mspd,Math.hypot(e.pos.x-before.x,e.pos.z-before.z)/Math.max(dt,1e-3),.2);
     e.onGround=true;
   }

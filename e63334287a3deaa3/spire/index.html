@@ -391,6 +391,7 @@ body.touch #banner b{font-size:clamp(28px,9vw,46px)}
 </div>
 
 <script src="../keybinds.js"></script>
+<script src="../netsmooth.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 (function(){
@@ -2183,6 +2184,11 @@ function onNode(uid,v){
   if(e.name!==o.n||e.color!==o.c){e.name=o.n;e.color=o.c;e.av.setColor(o.c)}
   if(isFinite(+v.x)&&isFinite(+v.z))e.tpos.set(clamp(+v.x,-400,400),clamp(+v.y||0,-50,2000),clamp(+v.z,-2000,400));
   e.tyaw=+v.h||0;e.a=clamp(v.a|0,0,5);e.r=o.r;
+  // keep a short history to draw them from (netsmooth.js); a jump of more than 6 m is a respawn or checkpoint, so start afresh there.
+  // Updates that only change something else carry the old position with a new time; skip those, or a moving climber would seem to stop.
+  if(!e.lag){e.lag=NetSmooth.lag();e.snaps=[]}
+  const ls=e.snaps[e.snaps.length-1],same=ls&&ls.x===e.tpos.x&&ls.y===e.tpos.y&&ls.z===e.tpos.z&&ls.h===e.tyaw&&(+o.ts||Net.now())-ls.t<200;
+  if(!same&&e.lag.note(+o.ts||Net.now(),Net.now())){const l=e.snaps[e.snaps.length-1];if(l&&Math.hypot(e.tpos.x-l.x,e.tpos.y-l.y,e.tpos.z-l.z)>6)e.snaps.length=0;e.snaps.push({t:+o.ts||Net.now(),x:e.tpos.x,y:e.tpos.y,z:e.tpos.z,h:e.tyaw})}
   // the round, from the host
   if(o.rs&&!G.host&&(uid===G.hostUid||!G.hostUid)&&o.rs!==G.rsSeen){
     G.rsSeen=o.rs;let p=null;try{if(o.rs.length<=RS_MAX_LEN)p=cleanRS(JSON.parse(o.rs))}catch(err){}
@@ -2196,13 +2202,16 @@ function onNodeGone(uid){
 }
 function removeEnt(e){e.av.dispose();if(e.tag)e.tag.remove();ents.delete(e.id)}
 function clearRemotes(){for(const e of [...ents.values()])removeEnt(e)}
+// Other climbers are drawn a moment in the past, between the updates around that moment; how far back adapts to how
+// late their updates arrive, and a late one is bridged by carrying on their movement (netsmooth.js).
+const _rs={};
 function updateRemotes(dt,rt){
   const k=1-Math.exp(-dt*12),t=performance.now();
   for(const e of ents.values()){
     if(t-e.seen>LIVE_MS||!Net.live(e.id)){removeEnt(e);continue}
     const bx=e.pos.x,bz=e.pos.z;
-    if(e.pos.distanceTo(e.tpos)>6)e.pos.copy(e.tpos);else e.pos.lerp(e.tpos,k);
-    e.yaw+=angDiff(e.tyaw,e.yaw)*k;
+    if(e.snaps&&e.snaps.length){NetSmooth.sample(e.snaps,e.lag.time(Net.now()),_rs,['x','y','z'],['h']);e.pos.set(_rs.x,_rs.y,_rs.z);e.yaw=_rs.h}
+    else{if(e.pos.distanceTo(e.tpos)>6)e.pos.copy(e.tpos);else e.pos.lerp(e.tpos,k);e.yaw+=angDiff(e.tyaw,e.yaw)*k}
     e.spd+=(Math.hypot(e.pos.x-bx,e.pos.z-bz)/Math.max(dt,1e-3)-e.spd)*.25;
     const vis=e.a!==5&&camera.position.distanceTo(e.pos)>(fpOn()?.9:2.6);e.av.root.visible=vis; // hide anyone right in front of the camera
     if(e.pa!=null&&e.pa!==e.a&&vis){if(e.a===2&&e.pa!==4)puff(e.pos.x,e.pos.y,e.pos.z,5,'#ffffff',2,.5,.34,.45);else if((e.a===0||e.a===1)&&e.pa===3)puff(e.pos.x,e.pos.y,e.pos.z,7,'#f4efe4',2.4,.4,.38,.5)}
