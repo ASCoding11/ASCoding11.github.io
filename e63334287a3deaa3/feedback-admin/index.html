@@ -51,6 +51,7 @@ button{font:inherit;color:inherit}
 .from b{color:var(--ink);font-weight:600}
 .from a{color:var(--accent)}
 .acts{display:flex;flex-wrap:wrap;gap:8px}
+.from code{font-family:var(--mono);font-size:12px;background:var(--panel-2);border:1px solid var(--line);border-radius:5px;padding:0 5px;color:var(--ink)}
 .empty-l{background:var(--panel);border:1px dashed var(--line);border-radius:12px;padding:22px;color:var(--ink-2);text-align:center}
 @media (max-width:600px){header{padding:28px 0 22px}.filters label{flex:1 1 40%}.filters select{width:100%}.item{padding:12px}}
 </style>
@@ -83,6 +84,7 @@ button{font:inherit;color:inherit}
         <label>Kind<select id="fKind"></select></label>
         <label>Status<select id="fDone"><option value="open">Open</option><option value="done">Done</option><option value="all">All</option></select></label>
         <button class="sm" id="refresh" type="button">Refresh</button>
+        <button class="sm" id="unhide" type="button" hidden></button>
       </div>
       <p class="sum" id="sum"></p>
       <p class="status" id="status" role="status" aria-live="polite"></p>
@@ -103,6 +105,10 @@ button{font:inherit;color:inherit}
   info.games.forEach(function(g){GAME[g[0]]=g[1]});
   info.kinds.forEach(function(k){KIND[k[0]]=k[1]});
   var rows=[],busy=false,stubbed=false;
+  // Senders hidden with "Hide this sender" (by uid), kept only in this browser.
+  var HKEY='fbk-admin:hidden',hidden={};
+  try{(JSON.parse(localStorage.getItem(HKEY)||'[]')||[]).forEach(function(u){if(typeof u==='string')hidden[u]=1})}catch(e){}
+  function saveHidden(){try{var k=Object.keys(hidden);if(k.length)localStorage.setItem(HKEY,JSON.stringify(k));else localStorage.removeItem(HKEY)}catch(e){}}
 
   // A separate named app, so signing in here doesn't replace the account the games use in this browser.
   var app=null,auth=null,db=null;
@@ -119,7 +125,7 @@ button{font:inherit;color:inherit}
   function clean(id,x){
     x=x||{};
     var ts=x.ts&&typeof x.ts.toDate==='function'?x.ts.toDate():x.ts instanceof Date?x.ts:null;
-    return {id:String(id),msg:str(x.msg,5000),game:str(x.game,60)||'other',kind:str(x.kind,20)||'other',name:str(x.name,120),contact:str(x.contact,200),page:str(x.page,200),ts:ts,done:x.done===true};
+    return {id:String(id),msg:str(x.msg,5000),game:str(x.game,60)||'other',kind:str(x.kind,20)||'other',name:str(x.name,120),contact:str(x.contact,200),page:str(x.page,200),uid:str(x.uid,128),ts:ts,done:x.done===true};
   }
   function el(tag,cls,text){var e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e}
   function opt(sel,v,t){var o=el('option',null,t);o.value=v;sel.appendChild(o)}
@@ -147,8 +153,11 @@ button{font:inherit;color:inherit}
     var gv=$('fGame').value,kv=$('fKind').value,dv=$('fDone').value,list=$('list');
     var open=rows.filter(function(r){return !r.done}).length;
     $('sum').textContent=rows.length?(open+' open · '+(rows.length-open)+' done'+(rows.length>=500?' (newest 500)':'')):'';
+    var nh=Object.keys(hidden).length,hiddenRows=rows.filter(function(r){return r.uid&&hidden[r.uid]}).length;
+    if(rows.length&&hiddenRows)$('sum').textContent+=' · '+hiddenRows+' hidden';
+    $('unhide').hidden=!nh;$('unhide').textContent='Show hidden senders ('+nh+')';
     var shown=rows.filter(function(r){
-      return (gv==='all'||r.game===gv)&&(kv==='all'||r.kind===kv)&&(dv==='all'||(dv==='done')===r.done);
+      return !(r.uid&&hidden[r.uid])&&(gv==='all'||r.game===gv)&&(kv==='all'||r.kind===kv)&&(dv==='all'||(dv==='done')===r.done);
     });
     list.textContent='';
     if(!shown.length){list.appendChild(el('li','empty-l',rows.length?'Nothing matches these filters.':'No feedback yet.'));return}
@@ -170,11 +179,14 @@ button{font:inherit;color:inherit}
         from.appendChild(c);
       }
       if(r.page)from.appendChild(el('span',null,'Page: '+r.page));
+      if(r.uid){var sd=el('span');sd.appendChild(document.createTextNode('Sender '));var cd=el('code',null,r.uid.slice(0,6));cd.title=r.uid;sd.appendChild(cd);from.appendChild(sd)}
       li.appendChild(from);
       var acts=el('div','acts');
       var d=el('button','sm',r.done?'Reopen':'Mark done');d.type='button';d.dataset.a='done';
       var x=el('button','sm danger','Delete');x.type='button';x.dataset.a='del';
-      acts.append(d,x);li.appendChild(acts);
+      acts.append(d,x);
+      if(r.uid){var hs=el('button','sm','Hide this sender');hs.type='button';hs.dataset.a='hide';acts.appendChild(hs)}
+      li.appendChild(acts);
       list.appendChild(li);
     });
   }
@@ -194,6 +206,7 @@ button{font:inherit;color:inherit}
     var b=e.target.closest('button[data-a]');if(!b)return;
     var li=b.closest('.item'),id=li&&li.dataset.id,r=rows.filter(function(x){return x.id===id})[0];if(!r)return;
     var a=b.dataset.a;
+    if(a==='hide'){if(r.uid){hidden[r.uid]=1;saveHidden();say('');render()}return}
     if(a==='del'&&!confirm('Delete this feedback for good?'))return;
     li.querySelectorAll('button').forEach(function(x){x.disabled=true});
     var p=a==='done'?api.setDone(id,!r.done).then(function(){r.done=!r.done}):api.remove(id).then(function(){rows=rows.filter(function(x){return x!==r})});
@@ -205,6 +218,7 @@ button{font:inherit;color:inherit}
   });
   ['fGame','fKind','fDone'].forEach(function(id){$(id).addEventListener('change',render)});
   $('refresh').addEventListener('click',load);
+  $('unhide').addEventListener('click',function(){hidden={};saveHidden();render()});
 
   function show(email){
     $('gate').hidden=!!email;$('app').hidden=!email;$('me').hidden=!email;

@@ -8,7 +8,8 @@
  * which game, the message, and an optional name and way to reply.
  *
  * Each note becomes one Firestore document in `feedback` (same `rumblekarts` project as
- * the games): {msg, game, kind, name, contact, page, ts}, with ts set by the server. The
+ * the games): {msg, game, kind, name, contact, page, uid, ts}, with uid the sender's
+ * Firebase account and ts set by the server. The
  * browser signs in first (a Google account from account.js if there is one, otherwise the
  * same anonymous account the games use). Nothing is saved until the `feedback` block from
  * README.md is added to the Firestore rules; until then the box says feedback isn't
@@ -247,6 +248,7 @@
     var token = await timeout(u.getIdToken(), 12000);
     var fields = {};
     Object.keys(doc).forEach(function (k) { fields[k] = { stringValue: doc[k] }; });
+    fields.uid = { stringValue: u.uid };  // the rules require it to be the signed-in account, so a repeat sender can be spotted
     var ctl = window.AbortController ? new AbortController() : null;
     var timer = setTimeout(function () { if (ctl) ctl.abort(); }, 15000);
     var r;
