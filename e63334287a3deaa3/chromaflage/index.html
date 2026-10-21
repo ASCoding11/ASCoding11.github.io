@@ -293,6 +293,7 @@ body.touch #lobby{top:calc(150px + env(safe-area-inset-top,0px));left:12px;right
   body.touch #blind p{font-size:15px}
 }
 </style>
+<script src="/e63334287a3deaa3/stats.js" data-game="chromaflage" defer></script>
 </head>
 <body>
 <div id="app">
@@ -2707,6 +2708,7 @@ function onFound(u,by,rs){
   feed('<span class="hl">'+esc(nameOf(by))+'</span> found '+esc(nameOf(u)));
   if(u===myId()){banner(infect?'TAGGED!':'FOUND!',infect?'You\'ve turned. Now help find the rest.':'By '+nameOf(by)+'. You can watch the rest of the round.',3);flashVig();if(G.studio)closeStudio();if(G.mode==='practice'&&G.pmode==='hide'){}}
   if(by===myId()){showHit(nameOf(u));}
+  if(by===myId()&&window.BackRoomStats)BackRoomStats.add('found',1);
 }
 function myId(){return G.mode==='online'?Net.uid:'me'}
 function onPhase(rs,newId){
@@ -3484,6 +3486,7 @@ function showResults(rs){
   $('again').hidden=G.mode==='online';$('toMenu').textContent=G.mode==='online'?'Leave room':'Menu';
   hudCache.endMsg=null;$('endMsg').textContent='';
   $('end').hidden=false;
+  if(rs.pl.indexOf(mine)>=0&&rs.sk.indexOf(mine)<0&&!(rs.fd&&rs.fd[mine])&&window.BackRoomStats)BackRoomStats.add('hidden',1);
   if(G.mode==='practice'){const won=G.pmode==='hide'?!(rs.fd&&rs.fd.me):Object.keys(rs.fd||{}).length===rs.pl.length-1;sfx(won?'win':'lose')}
   else sfx(roleOf(mine,Object.assign({},rs,{ph:'seek'}))==='hider'||(res.win==='seekers'&&rs.sk.indexOf(mine)>=0)?'win':'lose');
   showAd('adEnd');

@@ -276,6 +276,7 @@ body.touch #banner span{font-size:14px}
   body.touch #status .hpbar{width:140px;margin-left:auto}
 }
 </style>
+<script src="/e63334287a3deaa3/stats.js" data-game="odd-one-out" defer></script>
 </head>
 <body>
 <div id="app">
@@ -1854,6 +1855,7 @@ function onElim(u,by,rs){
   if(isH)feed('<span class="h">'+esc(nameOf(u))+'</span> ran out of health');
   else feed('<span class="h">'+esc(nameOf(by))+'</span> found <span class="p">'+esc(nameOf(u))+'</span>'+fn);
   if(u===myId()){banner(isH?'OUT OF HEALTH':'FOUND!',isH?'Too many wrong shots. Watch your team finish the round.':'By '+nameOf(by)+'. Watch your team finish the round.',3,'hunt');G.specId=null}
+  if(by===myId()&&window.BackRoomStats)BackRoomStats.add('found',1);
   if(by===myId()){popup('+100 · FOUND '+nameOf(u).toUpperCase(),'good');hitMark(true)}
 }
 function onPhase(rs,newId){
@@ -2553,6 +2555,7 @@ function showResults(rs){
   $('again').hidden=G.mode==='online';$('toMenu').textContent=G.mode==='online'?'Leave room':'Menu';
   hudCache.endMsg=null;$('endMsg').textContent='';$('end').hidden=false;
   const myTeam=rs.hu.indexOf(mine)>=0?'hunters':rs.pr.indexOf(mine)>=0?'props':'';
+  if(!over&&myTeam&&myTeam===res.win&&window.BackRoomStats)BackRoomStats.add('wins',1);
   if(!over)sfx(myTeam&&myTeam===res.win?'win':'lose');else sfx('win');
   showAd('adEnd');
 }
