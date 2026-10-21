@@ -21,6 +21,16 @@
  * The key pair is kept in this browser's IndexedDB so the same identity survives reloads.
  * Closing the tab removes the node (onDisconnect), and nodes without a heartbeat for STALE are ignored.
  * Every browser downloads every node, so this suits tens of people, not thousands.
+ *
+ * Safety log, for the Back Room admin page: each cabin-chat message is also saved to Firestore `chatlog` as
+ * { kind: 'cabin', uid, ts (server time), box }, where box is { name, seat, text, t } sealed to the admin public key
+ * (adminkey.js: an ephemeral ECDH key + AES-GCM), so only someone with both admin codes can read it. Private messages
+ * are never logged. The Report button in a conversation saves that conversation as the reporter's browser shows it,
+ * after asking: { kind: 'report', uid, ts, box: { name, seat, about, aboutName, aboutSeat, text } }.
+ * Each browser also keeps one plain `who/<uid>` document { uid, vid, name, seat, ts } (vid is the analytics visitor ID
+ * from localStorage an_vid, if any), so the admin page's stats can put a name to a visitor. Not while hidden.
+ * Writes go through the Firestore REST API with the signed-in account's ID token, like feedback.js; a failed write
+ * (rules not added yet, offline) is silent and never holds up the chat. Rules: see README.md.
  */
 (function () {
   'use strict';
@@ -33,6 +43,7 @@
   var DM_KEEP = 6, DM_PEERS = 6, INV_PEERS = 6, INV_TTL = 10 * 60000;
   var NODE_MAX = 60000, THREAD_KEEP = 80;
   var GAP = 1500, BURST = 5, BURST_MS = 10000;
+  var REPORT_MSGS = 20, REPORT_MAX = 4000, REPORT_BYTES = 8000, REPORT_GAP = 60000;
   var COLORS = ['#1D6A4B', '#C0562F', '#3E5BA9', '#9A3F8F', '#B07A12', '#2A8A8A', '#B42318', '#5B6B2E'];
 
   var me0 = document.currentScript && document.currentScript.src;
@@ -98,6 +109,7 @@
     return ks.sort(function (a, b) { return (+a) - (+b); }).map(function (k) { return v[k]; }).slice(-max);
   }
   function clock(t) { try { return new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); } catch (e) { return ''; } }
+  function stamp(t) { try { return new Date(t).toISOString().slice(0, 16).replace('T', ' ') + ' UTC'; } catch (e) { return ''; } }
 
   // A short list of words to blank out (written in ROT13 so the source doesn't spell them out). Matches the start of a word,
   // also when letters are swapped for look-alike digits or symbols, and keeps the first letter: "f***".
@@ -160,6 +172,7 @@
     '.onl-empty{margin:0;color:var(--ink-2);font-size:14px}' +
     '.onl-msg{margin:0;font-size:14px;color:var(--ink-2);overflow-wrap:anywhere}' +
     '.onl-msg:empty{display:none}.onl-msg.err{color:var(--down)}' +
+    '.onl-fine{margin:0;font-size:12.5px;text-align:right}.onl-fine a{color:var(--ink-2)}' +
     // Slide-in drawer for the lounge, a conversation, or the list while a game is open.
     '.onl-dr{position:fixed;top:0;right:0;bottom:0;z-index:1002;width:min(400px,100%);display:flex;flex-direction:column;background:var(--panel);color:var(--ink);border-left:1px solid var(--line);box-shadow:-12px 0 32px rgba(0,0,0,.25);transform:translateX(105%);transition:transform .2s ease,visibility .2s;visibility:hidden;font-family:var(--body,var(--f-b,sans-serif));font-size:15px;line-height:1.45;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) 0}' +
     '.onl-dr.open{transform:none;visibility:visible}' +
@@ -214,7 +227,9 @@
   meRow.append(nameLbl, $seat, hideLbl);
   var $list = el('ul', 'onl-list'); $list.setAttribute('aria-label', 'People online');
   var $msg = el('p', 'onl-msg'); $msg.setAttribute('role', 'status'); $msg.setAttribute('aria-live', 'polite');
-  box.append(top, meRow, $list, $msg);
+  var fine = el('p', 'onl-fine'), plink = el('a', '', 'Privacy'); plink.href = '/privacy.html'; plink.target = '_blank'; plink.rel = 'noopener';
+  fine.append(plink);
+  box.append(top, meRow, $list, $msg, fine);
   sec.append(box);
   function place() {
     var party = document.getElementById('party'), head = document.querySelector('header');
@@ -231,7 +246,7 @@
   document.body.append(dr, toasts);
 
   // ---------------- State ----------------
-  var P = null, db = null, auth = null, uid = '', meRef = null, listRef = null, connRef = null, wasConnected = false;
+  var P = null, db = null, auth = null, project = 'rumblekarts', uid = '', meRef = null, listRef = null, connRef = null, wasConnected = false;
   var people = {};                         // uid -> parsed node of everyone else
   var mine = { l: [], d: {}, i: {} };      // what's in our own node besides the basics
   var published = false, beat = 0, status = { p: 0, g: '' };
@@ -242,6 +257,7 @@
   var muted = json(store('ol:mute'), {}); if (!muted || typeof muted !== 'object') muted = {};
   var opened = {};                         // sender:id -> 1 once decrypted (or failed)
   var sent = [];                           // our recent send times, for the rate limit
+  var reported = {};                       // uid -> time we last reported them (one report a minute per person)
   var view = null;                         // what the drawer shows: { v: 'people' | 'lounge' | 'dm', u }
   var hidden = store('ol:hidden') === '1';
   var started = Date.now();
@@ -436,6 +452,7 @@
     } catch (e) { published = false; say('The database didn’t accept your Online status (' + (e.code || e.message) + ').', true); return; }
     clearInterval(beat);
     beat = setInterval(heartbeat, BEAT);
+    saveWho();
     schedule();
   }
   function unpublish() {
@@ -494,6 +511,95 @@
     return { g: gf.g.k, r: '' };
   }
 
+  // ---------------- Safety log (Firestore chatlog, sealed) and who (plain) ----------------
+  // Writes one Firestore document with this account's ID token. The rules check every field and that uid is the account
+  // writing it. adminkey.js (the admin public key and BackRoomSeal) is loaded the first time something is sealed.
+  var keyP = null;
+  function sealer() {
+    if (window.BackRoomSeal) return Promise.resolve(window.BackRoomSeal);
+    if (!keyP) {
+      keyP = new Promise(function (res, rej) {
+        var sc = document.createElement('script'); sc.src = BASE + 'adminkey.js';
+        sc.onload = function () { if (window.BackRoomSeal) res(window.BackRoomSeal); else rej(new Error('no key')); };
+        sc.onerror = function () { rej(new Error('no key')); };
+        document.head.appendChild(sc);
+      });
+      keyP.catch(function () { keyP = null; });
+    }
+    return keyP;
+  }
+  function fsWrite(path, fields, mustBeNew) {
+    return (async function () {
+      var u = auth && auth.currentUser;
+      if (!u || !window.fetch) throw new Error('Not signed in.');
+      var token = await u.getIdToken();
+      var docs = 'projects/' + project + '/databases/(default)/documents', f = {};
+      Object.keys(fields).forEach(function (k) { f[k] = { stringValue: String(fields[k]) }; });
+      f.uid = { stringValue: u.uid };
+      var w = { update: { name: docs + '/' + path.replace('{uid}', u.uid), fields: f }, updateTransforms: [{ fieldPath: 'ts', setToServerValue: 'REQUEST_TIME' }] };
+      if (mustBeNew) w.currentDocument = { exists: false };
+      var r = await fetch('https://firestore.googleapis.com/v1/' + docs + ':commit', {
+        method: 'POST', keepalive: true,
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify({ writes: [w] })
+      });
+      if (!r.ok) { var e = new Error('HTTP ' + r.status); e.status = r.status; throw e; }
+    })();
+  }
+  function docId() {
+    var id = '', a = crypto.getRandomValues(new Uint8Array(20)), c = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    for (var i = 0; i < a.length; i++) id += c[a[i] % c.length];
+    return id;
+  }
+  // kind 'cabin' or 'report'; payload goes inside the sealed box (at most 12000 characters, which the rules check too).
+  async function logChat(kind, payload) {
+    var seal = await sealer();
+    var box = await seal(payload);
+    if (box.length > 12000) throw new Error('Too long.');
+    return fsWrite('chatlog/' + docId(), { kind: kind, box: box }, true);
+  }
+  var whoSaved = '';
+  function saveWho() {
+    if (!uid || hidden) return;
+    var vid = String(store('an_vid') || '');
+    if (!/^[a-z0-9]{1,40}$/.test(vid)) vid = '';
+    var key = uid + '|' + myName() + '|' + vid;
+    if (whoSaved === key) return;
+    whoSaved = key;
+    fsWrite('who/{uid}', { vid: vid, name: myName(), seat: seatOf(uid) }, false).catch(function () {});
+  }
+  // The conversation with u as this browser has it (the last REPORT_MSGS messages and invites), as plain text.
+  function transcript(u) {
+    var t = threads[u], p = people[u], msgs = t && Array.isArray(t.m) ? t.m.slice(-REPORT_MSGS) : [];
+    var meL = myName() + ' (' + seatOf(uid) + ')', theirs = (cleanName(p ? p.n : t && t.n) || 'Guest') + ' (' + seatOf(u) + ')';
+    var lines = msgs.map(function (m) {
+      var who = m.from === uid ? meL : theirs, what;
+      if (m.k === 'm') what = ': ' + cleanText(m.x);
+      else if (m.k === 'p') what = ' sent a party invite';
+      else if (m.k === 'r') what = ' sent a room invite (' + (gameOf(m.g) ? gameOf(m.g).n : '?') + ', room ' + String(m.r).slice(0, 17) + ')';
+      else return '';
+      return stamp(m.t) + ' ' + who + what;
+    }).filter(Boolean);
+    var text = lines.join('\n'), bytes = function (x) { return new TextEncoder().encode(x).length; };
+    while ((text.length > REPORT_MAX || bytes(text) > REPORT_BYTES) && lines.length > 1) { lines.shift(); text = '(older messages cut)\n' + lines.join('\n'); }
+    while (text.length > REPORT_MAX || bytes(text) > REPORT_BYTES) text = text.slice(Math.max(1, Math.floor(text.length / 10)));
+    return { text: text || '(no messages in this chat: reporting the person)', n: lines.length };
+  }
+  async function report(u) {
+    if (!uid) throw new Error('Not connected yet.');
+    if (reported[u] && Date.now() - reported[u] < REPORT_GAP) throw new Error('You just reported them. Arjun will see it.');
+    var t = threads[u], p = people[u], who = (p ? label(p) : mask(cleanName(t && t.n) || 'Someone') + ' · ' + seatOf(u));
+    var tr = transcript(u);
+    var ok = confirm('Report ' + who + ' to Arjun?\n\n' +
+      'This sends Arjun ' + (tr.n ? 'a copy of the last ' + tr.n + ' message' + (tr.n === 1 ? '' : 's') + ' in this chat, as they appear on your screen (yours and theirs)' : 'a note that you reported them (there are no messages in this chat)') +
+      ', with both your names, seats and account IDs. Nothing else is sent. Only Arjun and the site\u2019s admins can read reports.\n\n' +
+      'You can also Block them so you stop seeing their messages.');
+    if (!ok) return false;
+    await logChat('report', { name: myName(), seat: seatOf(uid), about: u, aboutName: cleanName(p ? p.n : t && t.n) || 'Guest', aboutSeat: seatOf(u), text: tr.text });
+    reported[u] = Date.now();
+    return true;
+  }
+
   // ---------------- Sending ----------------
   function limited() {
     var t = Date.now();
@@ -548,6 +654,8 @@
     mine.l = mine.l.filter(function (m) { return m.t > t - LOUNGE_TTL; }).concat({ i: rid(), t: t, x: x }).slice(-LOUNGE_KEEP);
     await write({ l: mine.l });
     seen.lounge = t; saveSeen();
+    // A sealed copy for the safety log. Never waits for it, and a refusal (rules not added yet) is ignored.
+    logChat('cabin', { name: myName(), seat: seatOf(uid), text: x, t: t }).catch(function () {});
     schedule();
   }
   async function inviteParty(u) {
@@ -701,7 +809,7 @@
       parts.push(body);
     } else if (view.v === 'lounge') {
       h.textContent = 'Cabin chat';
-      parts.push(Object.assign(el('div', 'onl-dsub'), { textContent: 'One chat for everyone online right now. Messages vanish after 30 minutes, or when their sender leaves. Be kind.' }));
+      parts.push(Object.assign(el('div', 'onl-dsub'), { textContent: 'One chat for everyone online right now. Shows the last 30 minutes from people who are here. Be kind.' }));
       var all = loungeAll();
       if (!all.length) body.append(el('p', 'onl-note', 'It’s quiet in here. Say hello.'));
       all.forEach(function (it) {
@@ -721,7 +829,7 @@
       var dsub = el('div', 'onl-dsub');
       dsub.append(el('span', '', (p && visible(p) ? statusText(p) : 'Not online') + ' · private: only the two of you can read this.'));
       var da = el('div', 'onl-acts');
-      da.append(btn('Invite to party', 'pri', 'invite'), btn('Send room code', '', 'room'), btn(muted[u] ? 'Unmute' : 'Mute', '', 'mute'), btn(blocked[u] ? 'Unblock' : 'Block', 'warn', 'block'));
+      da.append(btn('Invite to party', 'pri', 'invite'), btn('Send room code', '', 'room'), btn(muted[u] ? 'Unmute' : 'Mute', '', 'mute'), btn(blocked[u] ? 'Unblock' : 'Block', 'warn', 'block'), btn('Report', 'warn', 'report'));
       dsub.append(da);
       if (view.room) { if (!view.roomEl) view.roomEl = roomForm(); dsub.append(view.roomEl); } else view.roomEl = null;
       parts.push(dsub);
@@ -857,6 +965,15 @@
       else if (a === 'block') {
         if (blocked[u]) delete blocked[u]; else blocked[u] = 1;
         saveSets(); drawnView = ''; schedule();
+      } else if (a === 'report') {
+        b.disabled = true;
+        report(u).then(function (done) {
+          if (done && err) { err.textContent = 'Reported. Thanks: Arjun will look at it.'; err.classList.remove('err'); }
+        }, function (x) {
+          var why = x && x.status === 403 ? 'Reports aren’t switched on yet, so nothing was sent. Block them for now.'
+            : x && /^(You just|Not connected)/.test(x.message || '') ? x.message : 'Couldn’t send the report. Check your connection and try again.';
+          fail(new Error(why));
+        }).finally(function () { b.disabled = false; });
       }
     }
   }
@@ -869,7 +986,7 @@
     clearTimeout(nameT);
     nameT = setTimeout(function () {
       var n = cleanName($name.value); store('ol:name', n || null);
-      if (published) write({ n: myName() }).catch(function () {});
+      if (published) { write({ n: myName() }).catch(function () {}); saveWho(); }
       schedule();
     }, 500);
   });
@@ -899,7 +1016,7 @@
     if (!document.getElementById('party') || sec.previousElementSibling !== document.getElementById('party')) place();
     say('Connecting…');
     try {
-      var b = await P.boot(); db = b.db; uid = b.uid; auth = b.app.auth();
+      var b = await P.boot(); db = b.db; uid = b.uid; auth = b.app.auth(); project = b.app.options.projectId || project;
     } catch (e) {
       say((e && e.message) || 'Couldn’t connect.', true);
       var r = btn('Try again', '', ''); r.addEventListener('click', function () { r.remove(); start(); }); box.append(r);
@@ -927,5 +1044,5 @@
   start();
 
   // Test hook for the automated checks; harmless in normal play.
-  if (navigator.webdriver) window.__social = { get uid() { return uid; }, get people() { return people; }, get threads() { return threads; }, get mine() { return mine; }, get published() { return published; }, get pub() { return keys.pub; }, seatOf: seatOf, mask: mask, loungeAll: loungeAll, PATH: PATH };
+  if (navigator.webdriver) window.__social = { get uid() { return uid; }, get people() { return people; }, get threads() { return threads; }, get mine() { return mine; }, get published() { return published; }, get pub() { return keys.pub; }, seatOf: seatOf, mask: mask, loungeAll: loungeAll, PATH: PATH, transcript: transcript };
 })();

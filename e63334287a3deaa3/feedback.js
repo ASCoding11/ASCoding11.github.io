@@ -8,17 +8,21 @@
  * which game, the message, and an optional name and way to reply.
  *
  * Each note becomes one Firestore document in `feedback` (same `rumblekarts` project as
- * the games): {msg, game, kind, name, contact, page, uid, ts}, with uid the sender's
- * Firebase account and ts set by the server. The
+ * the games): {uid, ts, game, kind, box}, with uid the sender's Firebase account, ts set by
+ * the server, and box = {msg, name, contact, page} sealed to the admin public key
+ * (adminkey.js, loaded when a note is sent), so only someone with both admin codes can read
+ * the message, on the Feedback tab of the Back Room's admin page. game and kind stay plain
+ * so the list can be filtered. (Notes sent before this change are plain
+ * {msg, game, kind, name, contact, page, uid, ts}; the admin page shows both.) The
  * browser signs in first (a Google account from account.js if there is one, otherwise the
  * same anonymous account the games use). Nothing is saved until the `feedback` block from
  * README.md is added to the Firestore rules; until then the box says feedback isn't
- * switched on yet. Only Arjun's account can read them, on feedback-admin/.
+ * switched on yet.
  *
  * Limits here are only manners (one note a minute, five a day per browser); the rules do
  * the real checking of keys, types and sizes.
  *
- * Loaded with data-list-only (as feedback-admin/ does), it only shares the game list.
+ * Loaded with data-list-only (as the admin page does), it only shares the game list.
  */
 (function () {
   var CFG = { apiKey: 'AIzaSyDZD_Ku8cixteXfwkDYzGv3GKiZFF8sRSM', authDomain: 'rumblekarts.firebaseapp.com', projectId: 'rumblekarts' };
@@ -38,6 +42,7 @@
 
   window.BackRoomFeedback = { games: GAMES.map(function (g) { return g.slice(); }), kinds: KINDS.map(function (k) { return k.slice(); }) };
   var me = document.currentScript;
+  var BASE = (me && me.src ? new URL(me.src, location.href).pathname : '/e63334287a3deaa3/feedback.js').replace(/[^/]*$/, '');
   if (me && me.hasAttribute('data-list-only')) return;
 
   function store(k, v) {
@@ -138,7 +143,7 @@
           '</div>' +
           '<div class="fbk-acts"><button type="submit" class="fbk-send">Send</button><button type="button" class="fbk-x">Close</button>' +
             '<p class="fbk-msg" role="status" aria-live="polite"></p></div>' +
-          '<p class="fbk-fine">Only Arjun reads these. Please don\'t put passwords or anything private in it.</p>' +
+          '<p class="fbk-fine">Only Arjun and the site\'s admins can read these. Please don\'t put passwords or anything private in it.</p>' +
         '</form>' +
         '<div class="fbk-done" hidden><p><b>Thanks!</b> Arjun will read it.</p><div class="fbk-acts"><button type="button" class="fbk-again">Send another</button><button type="button" class="fbk-x">Close</button></div></div>' +
       '</div>';
@@ -243,11 +248,28 @@
     crypto.getRandomValues(a); for (var i = 0; i < a.length; i++) s += c[a[i] % c.length];
     return s;
   }
+  // The admin public key and BackRoomSeal (adminkey.js), loaded the first time a note is sent.
+  var keyP = null;
+  function sealer() {
+    if (window.BackRoomSeal) return Promise.resolve(window.BackRoomSeal);
+    if (!keyP) {
+      keyP = new Promise(function (res, rej) {
+        var s = document.createElement('script'); s.src = BASE + 'adminkey.js';
+        s.onload = function () { if (window.BackRoomSeal) res(window.BackRoomSeal); else rej(fail('net')); };
+        s.onerror = function () { rej(fail('net')); };
+        document.head.appendChild(s);
+      });
+      keyP.catch(function () { keyP = null; });
+    }
+    return keyP;
+  }
   async function submit(doc) {
     var u = await user();
+    var seal = await timeout(sealer(), 12000);
+    var box = await seal({ msg: doc.msg, name: doc.name, contact: doc.contact, page: doc.page });
     var token = await timeout(u.getIdToken(), 12000);
-    var fields = {};
-    Object.keys(doc).forEach(function (k) { fields[k] = { stringValue: doc[k] }; });
+    // Only the game and kind stay readable (for filtering); the message, name, reply field and page are sealed.
+    var fields = { game: { stringValue: doc.game }, kind: { stringValue: doc.kind }, box: { stringValue: box } };
     fields.uid = { stringValue: u.uid };  // the rules require it to be the signed-in account, so a repeat sender can be spotted
     var ctl = window.AbortController ? new AbortController() : null;
     var timer = setTimeout(function () { if (ctl) ctl.abort(); }, 15000);
