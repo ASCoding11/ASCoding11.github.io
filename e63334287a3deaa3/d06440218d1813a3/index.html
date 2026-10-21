@@ -1,0 +1,781 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Admin</title>
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="/site.css">
+<style>
+/* The Back Room admin page (opened through door.js). Not linked from anywhere. The folder name is the digest of the
+   number code; the page then needs the password too. Saved chat and feedback are sealed to the admin key
+   (../adminkey.js), and only the two codes together unwrap its private key, here in the browser. */
+[hidden]{display:none!important}
+/* Theme: near-black with a faint field of light-blue binary (the canvas #bits), white text on dark translucent panels.
+   The same in light and dark mode. Body text #f1f5f9 / #c3cedb on ~#0a1119 is well above WCAG AA. */
+:root,:root:not([data-x]){color-scheme:dark;--ground:#04070b;--panel:rgba(10,17,26,.9);--panel-2:rgba(19,32,46,.92);--ink:#f1f5f9;--ink-2:#c3cedb;--line:rgba(125,211,252,.24);
+  --accent:#7dd3fc;--accent-ink:#04121c;--up:#86efac;--down:#fca5a5}
+body{background:var(--ground)}
+#bits{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;display:block}
+.wrap{position:relative;z-index:1}
+.topbar,header{border-color:var(--line)}
+.wordmark{color:var(--ink)}
+.kicker{color:var(--accent)}
+h1{font-family:var(--mono);font-weight:600;font-size:clamp(40px,7vw,72px);letter-spacing:.04em;color:var(--ink);text-shadow:0 0 24px rgba(56,189,248,.25)}
+.card h2,.notice h2{font-family:var(--mono);font-weight:600;font-size:16px;letter-spacing:.08em;text-transform:uppercase}
+.card h2{color:var(--accent)}
+.kpi .v{font-family:var(--mono);font-weight:600;font-size:30px;color:var(--ink)}
+.btn.primary{background:#38bdf8;border-color:#38bdf8;color:var(--accent-ink)}
+.welcome{margin:14px 0 0;font-family:var(--mono);font-size:15px;color:var(--ink-2)}
+.welcome b{color:var(--accent);font-weight:600}
+.welcome form{display:inline-flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0}
+.welcome input{font:inherit;color:var(--ink);background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:6px 10px;min-height:38px;width:14ch}
+.topbar .me{margin-left:auto;display:flex;align-items:center;gap:10px;min-width:0;font-size:14px;color:var(--ink-2)}
+.topbar .me span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+header{padding:40px 0 26px}
+h1{font-size:clamp(48px,9vw,88px)}
+button,input,select{font:inherit;color:inherit}
+.sm{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 12px;min-height:38px;cursor:pointer;flex:none}
+.sm:hover{color:var(--ink);border-color:var(--ink-2)}
+.sm[disabled]{opacity:.55;cursor:default}
+.sm.danger{color:var(--down)}
+.sm.danger:hover{border-color:var(--down)}
+.gate{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:12px;align-items:flex-start}
+.gate p{margin:0;color:var(--ink-2);max-width:60ch}
+.gate button.btn{cursor:pointer;font-size:16px}
+.gate form{display:flex;flex-direction:column;gap:12px;align-items:flex-start;margin:0;width:100%;max-width:340px}
+.gate label{display:flex;flex-direction:column;gap:4px;width:100%;font-family:var(--mono);font-size:11.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.gate input{font-family:var(--body);font-size:17px;letter-spacing:0;color:var(--ink);background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:9px 12px;min-height:44px;width:100%}
+.gate input:focus{outline:2px solid var(--accent);outline-offset:0;border-color:transparent}
+.gate .status{margin:0}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 18px;border-bottom:1px solid var(--line);padding-bottom:12px}
+.tabs button{font-family:var(--mono);font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);background:none;border:1px solid transparent;border-radius:8px;padding:8px 14px;min-height:40px;cursor:pointer}
+.tabs button:hover{color:var(--ink);border-color:var(--line)}
+.tabs button[aria-selected="true"]{color:var(--accent);border-color:var(--accent);background:rgba(56,189,248,.1)}
+.filters{display:flex;flex-wrap:wrap;gap:10px 12px;align-items:flex-end;margin-bottom:14px}
+.filters label{display:flex;flex-direction:column;gap:4px;font-family:var(--mono);font-size:11.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);min-width:0}
+.filters label.chk{flex-direction:row;align-items:center;gap:8px;min-height:38px}
+.filters select,.filters input[type=search]{font-family:var(--body);font-size:15px;letter-spacing:0;text-transform:none;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-height:38px;max-width:100%}
+.filters input[type=search]{width:16em}
+input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent);margin:0;flex:none}
+.sum{margin:0 0 14px;font-size:14px;color:var(--ink-2)}
+.status{margin:0 0 14px;font-size:14px;color:var(--ink-2);overflow-wrap:anywhere}
+.status:empty{display:none}
+.status.err{color:var(--down)}
+.notice{background:var(--panel);border:1px solid var(--down);border-radius:12px;padding:16px 18px;margin:0 0 16px}
+.notice h2{font-size:22px;margin:0 0 6px;color:var(--down)}
+.notice p{margin:0 0 8px;color:var(--ink-2);max-width:70ch}
+.notice p:last-child{margin-bottom:0}
+code{font-family:var(--mono);font-size:12.5px;background:var(--panel-2);border:1px solid var(--line);border-radius:5px;padding:0 5px;color:var(--ink)}
+.cap{background:var(--panel);border:1px dashed var(--ink-2);border-radius:10px;padding:10px 14px;margin:0 0 14px;font-size:14px;color:var(--ink-2)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:0 0 14px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-width:0}
+.kpi .l{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.kpi .v{font-family:var(--display);font-weight:800;font-size:34px;line-height:1.05;margin-top:4px;font-variant-numeric:tabular-nums}
+.kpi .s{font-size:12.5px;color:var(--ink-2)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin:0 0 14px;min-width:0}
+.card h2{font-size:24px;margin:0 0 4px}
+.hint{margin:0 0 12px;font-size:13.5px;color:var(--ink-2)}
+.bars{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.bars button{display:grid;grid-template-columns:minmax(0,11em) minmax(0,1fr) auto;gap:6px 12px;align-items:center;width:100%;background:none;border:1px solid transparent;border-radius:8px;padding:6px 8px;text-align:left;cursor:pointer}
+.bars button:hover{border-color:var(--line);background:var(--panel-2)}
+.bars button[aria-pressed="true"]{border-color:var(--accent)}
+.bars .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bars .nm small{font-weight:400;color:var(--ink-2)}
+.bars .tr{height:10px;background:var(--panel-2);border:1px solid var(--line);border-radius:6px;overflow:hidden;min-width:40px}
+.bars .tr i{display:block;height:100%;background:var(--accent)}
+.bars .n{font-family:var(--mono);font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+.bars .n small{font-weight:500;color:var(--ink-2)}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:14.5px}
+th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--mono);font-size:11.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);white-space:nowrap}
+th button{background:none;border:0;padding:0;font:inherit;letter-spacing:inherit;text-transform:inherit;color:inherit;cursor:pointer}
+th button[data-dir]::after{content:' \2193'}
+th button[data-dir="asc"]::after{content:' \2191'}
+td.num,th.num{text-align:right;white-space:nowrap}
+tr.prow{cursor:pointer}
+tr.prow:hover td{background:var(--panel-2)}
+tr.prow td:first-child{overflow-wrap:anywhere}
+tr.prow .who{font-weight:600}
+tr.prow .who::before{content:'\25B8 ';color:var(--ink-2)}
+tr.prow.open .who::before{content:'\25BE '}
+tr.prow small{display:block;color:var(--ink-2);font-size:12.5px;font-weight:400}
+tr.pdet td{background:var(--panel-2)}
+tr.pdet .bars button{cursor:default}
+tr.pdet .bars button:hover{background:none;border-color:transparent}
+.more{margin-top:10px}
+.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.item{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.item.report{border-color:var(--down)}
+.item.done{opacity:.62}
+.fb .item{cursor:pointer;flex-direction:row;align-items:flex-start;gap:12px}
+.fb .item:hover{border-color:var(--ink-2)}
+.fb .item > input{margin-top:3px}
+.fb .main{display:flex;flex-direction:column;gap:6px;min-width:0;flex:1}
+.fb .item.busy{opacity:.5;pointer-events:none}
+.meta{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;font-size:13px;color:var(--ink-2)}
+.meta b{color:var(--ink);font-weight:600}
+.badge{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;border-radius:999px;padding:2px 9px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink-2)}
+.badge.bug,.badge.report{color:var(--down);border-color:var(--down)}
+.badge.idea{color:var(--accent);border-color:var(--accent)}
+.badge.ok{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.text{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;font-size:15px;line-height:1.5;max-height:24em;overflow:auto}
+.from{font-size:13px;color:var(--ink-2);overflow-wrap:anywhere;display:flex;flex-wrap:wrap;gap:4px 12px}
+.from b{color:var(--ink);font-weight:600}
+.from a{color:var(--accent)}
+.acts{display:flex;flex-wrap:wrap;gap:8px}
+.acts .sm{min-height:32px;padding:4px 10px}
+.empty-l{background:var(--panel);border:1px dashed var(--line);border-radius:12px;padding:22px;color:var(--ink-2);text-align:center}
+@media (max-width:600px){
+  header{padding:26px 0 18px}
+  .filters label{flex:1 1 40%}
+  .filters select,.filters input[type=search]{width:100%}
+  .kpi .v{font-size:28px}
+  .card{padding:14px 12px}
+  .bars button{grid-template-columns:minmax(0,1fr) auto;padding:6px 4px}
+  .bars .tr{grid-column:1 / -1;grid-row:2}
+  th.opt,td.opt{display:none}
+  th,td{padding:8px 6px}
+  .item{padding:12px}
+}
+</style>
+</head>
+<body>
+<canvas id="bits" aria-hidden="true"></canvas>
+<div class="wrap">
+  <div class="topbar">
+    <a class="wordmark" href="/">Arjun</a>
+    <div class="me" id="me" hidden><span id="who"></span><button class="sm" id="out" type="button">Lock</button></div>
+  </div>
+  <header>
+    <p class="kicker">Back Room</p>
+    <h1>Admin</h1>
+    <p class="welcome" id="welcome" hidden></p>
+  </header>
+  <section style="padding-top:24px">
+    <div class="gate" id="gate">
+      <form id="unlock" autocomplete="off" novalidate>
+        <label id="numL">Number<input id="num" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="12" autocomplete="off"></label>
+        <label>Password<input id="pw" type="password" autocomplete="current-password"></label>
+        <button class="btn primary" id="go" type="submit">Unlock</button>
+        <p class="status err" id="gateMsg" role="status" aria-live="polite"></p>
+      </form>
+    </div>
+
+    <div id="app" hidden>
+      <div class="tabs" role="tablist" aria-label="Admin">
+        <button type="button" role="tab" id="t-stats" aria-controls="p-stats" data-tab="stats">Stats</button>
+        <button type="button" role="tab" id="t-chat" aria-controls="p-chat" data-tab="chat">Chat</button>
+        <button type="button" role="tab" id="t-fb" aria-controls="p-fb" data-tab="fb">Feedback</button>
+      </div>
+
+      <!-- Stats: built only from the analytics that already exist (Firestore pv), named through Firestore who (social.js). -->
+      <div role="tabpanel" id="p-stats" aria-labelledby="t-stats" hidden>
+        <div class="notice" id="sDenied" hidden>
+          <h2>Can't read the analytics</h2>
+          <p>Firestore said <b>permission denied</b> for the page visits (<code>pv</code>). This page reads them with the site's anonymous sign-in, so the analytics rules need the <code>pv</code> read line from the admin page entry in the repo's <code>README.md</code>.</p>
+        </div>
+        <div class="filters">
+          <label>Dates<select id="sRange"><option value="1">Today</option><option value="7" selected>Last 7 days</option><option value="30">Last 30 days</option><option value="all">All time</option></select></label>
+          <label>Game<select id="sGame"></select></label>
+          <label>Device<select id="sDev"><option value="all">All devices</option><option value="desktop">Computers</option><option value="mobile">Phones and tablets</option></select></label>
+          <button class="sm" id="sRefresh" type="button">Refresh</button>
+        </div>
+        <p class="status" id="sStatus" role="status" aria-live="polite"></p>
+        <p class="cap" id="sCap" hidden></p>
+        <div class="kpis" id="sKpis"></div>
+        <div class="card">
+          <h2>Time by game</h2>
+          <p class="hint">Engaged time (tab visible and someone playing) on each Back Room game's page. Tap a game to show only it below.</p>
+          <ul class="bars" id="sGames"></ul>
+        </div>
+        <div class="card">
+          <h2>Time per person</h2>
+          <p class="hint" id="sPeopleHint"></p>
+          <div class="filters"><label>Find<input type="search" id="sFind" placeholder="Name, seat or visitor"></label></div>
+          <div class="scroll"><table id="sPeople"></table></div>
+          <button class="sm more" id="sMore" type="button" hidden>Show more</button>
+        </div>
+      </div>
+
+      <!-- Chat: the safety log (Firestore chatlog) written by social.js. -->
+      <div role="tabpanel" id="p-chat" aria-labelledby="t-chat" hidden>
+        <div class="notice" id="cDenied" hidden>
+          <h2>Can't read the chat log</h2>
+          <p>Firestore said <b>permission denied</b>: the <code>chatlog</code> block hasn't been added to the Firestore rules yet. Copy it from the admin page entry in the repo's <code>README.md</code>, paste it into Firebase console → Firestore Database → Rules and publish. Until it's added, nothing is saved.</p>
+        </div>
+        <div class="filters">
+          <label>Dates<select id="cRange"><option value="1">Today</option><option value="7" selected>Last 7 days</option><option value="30">Last 30 days</option><option value="all">All time</option></select></label>
+          <label>Kind<select id="cKind"><option value="all">Everything</option><option value="cabin">Cabin chat</option><option value="report">Reports</option></select></label>
+          <label>Person<select id="cWho"></select></label>
+          <label>Search<input type="search" id="cFind" placeholder="Words in a message"></label>
+          <button class="sm" id="cRefresh" type="button">Refresh</button>
+        </div>
+        <p class="sum" id="cSum"></p>
+        <p class="status" id="cStatus" role="status" aria-live="polite"></p>
+        <p class="cap" id="cCap" hidden></p>
+        <ol class="list" id="cList"></ol>
+        <button class="sm more" id="cMore" type="button" hidden>Show more</button>
+      </div>
+
+      <!-- Feedback: the feedback box's notes (Firestore feedback) as a to-do list. -->
+      <div role="tabpanel" id="p-fb" aria-labelledby="t-fb" class="fb" hidden>
+        <div class="notice" id="fDenied" hidden>
+          <h2>Can't read feedback</h2>
+          <p>Firestore said <b>permission denied</b>: the new <code>feedback</code> block (it replaces the old one) hasn't been added to the Firestore rules yet. Copy it from the admin page entry in the repo's <code>README.md</code>, paste it into Firebase console → Firestore Database → Rules and publish.</p>
+        </div>
+        <div class="filters">
+          <label>Game<select id="fGame"></select></label>
+          <label>Kind<select id="fKind"></select></label>
+          <label class="chk"><input type="checkbox" id="fDone"> Show done</label>
+          <button class="sm" id="fRefresh" type="button">Refresh</button>
+          <button class="sm" id="fUnhide" type="button" hidden></button>
+        </div>
+        <p class="sum" id="fSum"></p>
+        <p class="status" id="fStatus" role="status" aria-live="polite"></p>
+        <ol class="list" id="fList"></ol>
+      </div>
+    </div>
+  </section>
+</div>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="/e63334287a3deaa3/feedback.js" data-list-only></script>
+<script src="/e63334287a3deaa3/adminkey.js"></script>
+<script>
+(function(){
+  'use strict';
+  var CFG={apiKey:'AIzaSyDZD_Ku8cixteXfwkDYzGv3GKiZFF8sRSM',authDomain:'rumblekarts.firebaseapp.com',projectId:'rumblekarts'};
+  var BR='/e63334287a3deaa3/';
+  var PV_CAP=10000,WHO_CAP=5000,CHAT_CAP=2000,FB_CAP=500,PAGE=100;
+  var $=function(id){return document.getElementById(id)};
+
+  // ---------- Names ----------
+  var info=window.BackRoomFeedback||{games:[],kinds:[]};
+  var GAME={},KIND={};
+  info.games.forEach(function(g){GAME[g[0]]=g[1]});
+  info.kinds.forEach(function(k){KIND[k[0]]=k[1]});
+  // Analytics labels (each game's data-site) are its folder name, so feedback.js's game list names them.
+  // Archived games keep their labels; the two lobby pages are counted apart from the games.
+  var SITE=Object.assign({'starhop':'Starhop','quarry':'Quarry','kartwheel':'Kartwheel','abyssal':'Abyssal','hail-mary':'Hail Mary'},GAME);
+  delete SITE.other;
+  var LOBBY={'back-room':'Back Room page','phone-games':'Phone page'};
+  function siteName(s){return SITE[s]||LOBBY[s]||s}
+  function inBackRoom(r){return !!(SITE[r.site]||LOBBY[r.site])||(r.path.indexOf(BR)===0&&r.path.indexOf(location.pathname)!==0)}
+
+  // ---------- Helpers ----------
+  function el(tag,cls,text){var e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e}
+  function opt(sel,v,t){var o=el('option',null,t);o.value=v;sel.appendChild(o);return o}
+  function str(v,n){return typeof v==='string'?(v.length>n?v.slice(0,n)+'… (cut)':v):''}
+  function toDate(v){if(!v)return null;if(typeof v.toDate==='function')return v.toDate();if(v instanceof Date)return v;var d=new Date(v);return isNaN(d)?null:d}
+  function isDenied(e){return !!e&&(e.code==='permission-denied'||/permission/i.test(e.message||''))}
+  function fmtN(n){return Number(n).toLocaleString()}
+  function fmtDur(s){
+    s=Math.round(s||0);
+    if(s<60)return s+'s';
+    if(s<3600)return Math.floor(s/60)+'m';
+    return Math.floor(s/3600)+'h '+String(Math.floor(s%3600/60)).padStart(2,'0')+'m';
+  }
+  function hours(s){var h=s/3600;return (h>=100?Math.round(h):h.toFixed(1))+' h'}
+  function ago(d){
+    if(!d)return '';
+    var s=Math.round((Date.now()-d.getTime())/1000);
+    if(s<60)return 'just now';if(s<3600)return Math.floor(s/60)+' min ago';if(s<86400)return Math.floor(s/3600)+' h ago';
+    if(s<86400*30)return Math.floor(s/86400)+' d ago';
+    return d.toLocaleDateString();
+  }
+  function timeEl(d){var t=el('time',null,ago(d));if(d){t.dateTime=d.toISOString();t.title=d.toLocaleString()}return t}
+  function since(v){if(v==='all')return null;var d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-(+v-1));return d}
+  function say(id,t,err){var e=$(id);e.textContent=t||'';e.classList.toggle('err',!!err)}
+  function shortId(u){var c=el('code',null,String(u).slice(0,6));c.title=u;return c}
+  function store(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return null}}
+  function unb64(s){var b=atob(s),u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u}
+
+  // ---------- The admin key: both codes unwrap its private key, here, in memory only ----------
+  var PRIV=null;
+  async function digest(n){
+    var b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('ascoding11-admin:'+n));
+    return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,'0')}).join('').slice(0,16);
+  }
+  async function unwrap(num,pw){
+    var K=window.BackRoomAdminKey;if(!K)throw new Error('nokey');
+    var base=await crypto.subtle.importKey('raw',new TextEncoder().encode(num+':'+pw),'PBKDF2',false,['deriveKey']);
+    var wk=await crypto.subtle.deriveKey({name:'PBKDF2',hash:'SHA-256',salt:unb64(K.salt),iterations:600000},base,{name:'AES-GCM',length:256},false,['decrypt']);
+    var raw;
+    try{raw=new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(K.iv)},wk,unb64(K.wrapped)))}catch(e){throw new Error('wrong')}
+    try{return await crypto.subtle.importKey('pkcs8',raw,{name:'ECDH',namedCurve:'P-256'},false,['deriveKey'])}finally{raw.fill(0)}
+  }
+  // Opens a box made by BackRoomSeal (adminkey.js): '1.' + ephemeral public key + '.' + iv + '.' + ciphertext.
+  async function openBox(box){
+    var p=String(box).split('.');
+    if(p.length!==4||p[0]!=='1')throw new Error('format');
+    var eph=await crypto.subtle.importKey('raw',unb64(p[1]),{name:'ECDH',namedCurve:'P-256'},false,[]);
+    var k=await crypto.subtle.deriveKey({name:'ECDH',public:eph},PRIV,{name:'AES-GCM',length:256},false,['decrypt']);
+    var o=JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(p[2])},k,unb64(p[3]))));
+    if(!o||typeof o!=='object')throw new Error('format');
+    return o;
+  }
+  function tryOpen(box){return typeof box==='string'&&box?openBox(box).catch(function(){return null}):Promise.resolve(null)}
+
+  // ---------- Cleaning what Firestore returns (anyone signed in can write pv, who, chatlog and feedback) ----------
+  function cleanPv(id,x){
+    x=x||{};var ts=toDate(x.ts),d=Math.floor(+x.dur);
+    return {site:str(x.site,60)||'(unknown)',path:str(x.path,200)||'/',vid:str(x.vid,64)||String(id),sid:str(x.sid,64)||String(id),
+      dur:d>0?Math.min(d,86400):0,dev:x.dev==='mobile'?'mobile':'desktop',ts:ts,last:toDate(x.last)||ts};
+  }
+  function cleanWho(id,x){x=x||{};return {uid:str(x.uid,128)||String(id),vid:str(x.vid,64),name:str(x.name,40)||'Guest',seat:str(x.seat,4),ts:toDate(x.ts)}}
+  async function openChat(id,x){
+    x=x||{};var o=await tryOpen(x.box)||{};
+    return {id:String(id),kind:x.kind==='report'?'report':'cabin',uid:str(x.uid,128),ts:toDate(x.ts),opened:!!o.text||!!o.name,
+      name:str(o.name,60),seat:str(o.seat,4),text:typeof o.text==='string'?str(o.text,5000):'(couldn\'t open this entry)',
+      about:str(o.about,128),aboutName:str(o.aboutName,60),aboutSeat:str(o.aboutSeat,4)};
+  }
+  async function openFb(id,x){
+    x=x||{};var sealed=typeof x.box==='string',o=sealed?(await tryOpen(x.box)):x;
+    var bad=sealed&&!o;o=o||{};
+    return {id:String(id),sealed:sealed,msg:bad?'(couldn\'t open this note)':str(o.msg,5000),game:str(x.game,60)||'other',kind:str(x.kind,20)||'other',
+      name:str(o.name,120),contact:str(o.contact,200),page:str(o.page,200),uid:str(x.uid,128),ts:toDate(x.ts),done:x.done===true};
+  }
+  function all(docs,fn){return Promise.all(docs.map(function(d){return fn(d.id,d.data())}))}
+
+  // ---------- Firestore, with the same anonymous account the games use in this browser ----------
+  var auth=null,db=null,stubbed=false,booting=null;
+  function boot(){
+    if(booting)return booting;
+    booting=(async function(){
+      if(!window.firebase)throw new Error('Couldn\'t load Firebase. Check your connection and reload.');
+      var app=firebase.apps.filter(function(a){return a.name==='[DEFAULT]'})[0]||firebase.initializeApp(CFG);
+      auth=app.auth();db=app.firestore();
+      await new Promise(function(r){var s=auth.onAuthStateChanged(function(){s();r()})});
+      if(!auth.currentUser)await auth.signInAnonymously();
+      return auth.currentUser.uid;
+    })();
+    booting.catch(function(){booting=null});
+    return booting;
+  }
+  function ts(d){return firebase.firestore.Timestamp.fromDate(d)}
+  function bounded(col,start,cap){var q=db.collection(col);if(start)q=q.where('ts','>=',ts(start));return q.orderBy('ts','desc').limit(cap).get()}
+  var api={
+    pv:function(start,cap){return bounded('pv',start,cap).then(function(s){return s.docs.map(function(d){return cleanPv(d.id,d.data())})})},
+    who:function(){return db.collection('who').orderBy('ts','desc').limit(WHO_CAP).get().then(function(s){return s.docs.map(function(d){return cleanWho(d.id,d.data())})})},
+    chat:function(start,cap){return bounded('chatlog',start,cap).then(function(s){return all(s.docs,openChat)})},
+    fbList:function(){return db.collection('feedback').orderBy('ts','desc').limit(FB_CAP).get().then(function(s){return all(s.docs,openFb)})},
+    fbDone:function(id,v){return db.collection('feedback').doc(id).update({done:v})}
+  };
+
+  // ---------- Tabs ----------
+  var TABS=['stats','chat','fb'],tab=TABS.indexOf(store('bra:tab'))>=0?store('bra:tab'):'stats',loaded={};
+  function showTab(t){
+    tab=t;store('bra:tab',t);
+    TABS.forEach(function(x){var b=$('t-'+x),on=x===t;b.setAttribute('aria-selected',on?'true':'false');b.tabIndex=on?0:-1;$('p-'+x).hidden=!on});
+    if(!loaded[t]){loaded[t]=1;({stats:loadStats,chat:loadChat,fb:loadFb})[t]()}
+  }
+  document.querySelector('.tabs').addEventListener('click',function(e){var b=e.target.closest('[data-tab]');if(b)showTab(b.dataset.tab)});
+  document.querySelector('.tabs').addEventListener('keydown',function(e){
+    if(e.key!=='ArrowRight'&&e.key!=='ArrowLeft')return;
+    var i=(TABS.indexOf(tab)+(e.key==='ArrowRight'?1:TABS.length-1))%TABS.length;showTab(TABS[i]);$('t-'+TABS[i]).focus();
+  });
+
+  // ================= Stats =================
+  var S={rows:[],capped:false,who:null,whoErr:'',sort:'dur',dir:'desc',open:{},show:PAGE,seq:0};
+  async function loadStats(){
+    var seq=++S.seq,range=$('sRange').value;
+    say('sStatus','Loading…');$('sRefresh').disabled=true;
+    var wp=api.who().then(function(w){S.who=w;S.whoErr=''},function(e){S.who=null;S.whoErr=isDenied(e)?'denied':((e&&e.message)||'error')});
+    try{
+      var rows=await api.pv(since(range),PV_CAP);
+      await wp;
+      if(seq!==S.seq)return;
+      S.rows=rows;S.capped=rows.length>=PV_CAP;
+      $('sDenied').hidden=true;say('sStatus','');
+    }catch(e){
+      await wp;
+      if(seq!==S.seq)return;
+      S.rows=[];S.capped=false;
+      if(isDenied(e)){$('sDenied').hidden=false;say('sStatus','')}else say('sStatus','Couldn\'t load the analytics: '+((e&&e.message)||'error'),true);
+    }
+    $('sRefresh').disabled=false;
+    S.open={};S.show=PAGE;renderStats();
+  }
+  function fillGames(rows){
+    var sel=$('sGame'),cur=sel.value||'all',seen={};
+    sel.textContent='';opt(sel,'all','All games');
+    Object.keys(SITE).forEach(function(k){seen[k]=1;opt(sel,k,SITE[k])});
+    Object.keys(LOBBY).forEach(function(k){seen[k]=1;opt(sel,k,LOBBY[k]+' (lobby)')});
+    rows.forEach(function(r){if(!seen[r.site]){seen[r.site]=1;opt(sel,r.site,r.site)}});
+    sel.value=seen[cur]?cur:'all';
+  }
+  // Who each browser (analytics visitor ID) is: the newest who doc with that vid, so all of one account's browsers go together.
+  function personIndex(){
+    var byVid=new Map();
+    (S.who||[]).forEach(function(w){if(w.vid&&!byVid.has(w.vid))byVid.set(w.vid,w)});
+    var named=new Map();(S.who||[]).forEach(function(w){if(!named.has(w.uid))named.set(w.uid,w)});
+    return {vid:byVid,uid:named};
+  }
+  function computeStats(){
+    var gv=$('sGame').value,dv=$('sDev').value;
+    var base=S.rows.filter(inBackRoom);
+    fillGames(base);
+    var rows=base.filter(function(r){return dv==='all'||r.dev===dv});
+    var shown=gv==='all'?rows:rows.filter(function(r){return r.site===gv});
+    var ix=personIndex(),games=new Map(),people=new Map(),sids=new Set(),total=0,inGames=0;
+    shown.forEach(function(r){
+      var w0=ix.vid.get(r.vid),w=w0&&ix.uid.get(w0.uid)||w0,key=w?'u:'+w.uid:'v:'+r.vid,lobby=!!LOBBY[r.site];
+      var p=people.get(key);
+      if(!p){p={key:key,name:w?w.name+(w.seat?' · '+w.seat:''):'Visitor '+r.vid.slice(-6),sub:w?'Account '+w.uid.slice(0,6):'No name · '+r.vid,named:!!w,dur:0,sids:new Set(),games:new Map(),played:false,last:null,n:0};people.set(key,p)}
+      p.dur+=r.dur;p.sids.add(r.sid);p.n++;if(!lobby)p.played=true;
+      var at=r.last||r.ts;if(at&&(!p.last||at>p.last))p.last=at;
+      var pg=p.games.get(r.site);if(!pg){pg={site:r.site,dur:0,sids:new Set()};p.games.set(r.site,pg)}pg.dur+=r.dur;pg.sids.add(r.sid);
+      var g=games.get(r.site);if(!g){g={site:r.site,dur:0,people:new Set(),sids:new Set(),n:0};games.set(r.site,g)}
+      g.dur+=r.dur;g.people.add(key);g.sids.add(r.sid);g.n++;
+      sids.add(r.sid);total+=r.dur;if(!lobby)inGames+=r.dur;
+    });
+    var list=[];people.forEach(function(p){list.push(p)});
+    var players=list.filter(function(p){return p.played}).length;
+    return {rows:shown,games:Array.from(games.values()).sort(function(a,b){return b.dur-a.dur||b.n-a.n}),people:list,players:players,lobbyOnly:list.length-players,sessions:sids.size,total:total,inGames:inGames,named:list.filter(function(p){return p.named}).length};
+  }
+  var last=null;
+  function renderStats(){
+    var st=last=computeStats(),gv=$('sGame').value;
+    var capEl=$('sCap');capEl.hidden=!S.capped;
+    if(S.capped)capEl.textContent='Only the newest '+fmtN(PV_CAP)+' page visits in this date range were loaded (that\'s the cap, counting every page on the site), so older visits are left out of these numbers. Pick a shorter range for complete numbers.';
+    var k=$('sKpis');k.textContent='';
+    function kpi(l,v,s){var d=el('div','kpi');d.append(el('div','l',l),el('div','v',v),el('div','s',s||''));k.appendChild(d)}
+    kpi('Total time',hours(st.total),fmtDur(st.inGames)+' in games');
+    kpi('Players',fmtN(st.players),st.lobbyOnly?fmtN(st.lobbyOnly)+' more only opened the lobby':'opened a game');
+    kpi('Sessions',fmtN(st.sessions),fmtN(st.rows.length)+' page visits');
+    kpi('Named',fmtN(st.named),S.who?'of '+fmtN(st.people.length)+' people':(S.whoErr==='denied'?'who: permission denied':'names not loaded'));
+    var ul=$('sGames');ul.textContent='';
+    var max=st.games.reduce(function(a,g){return Math.max(a,g.dur)},0);
+    if(!st.games.length)ul.appendChild(el('li','empty-l',S.rows.length?'No Back Room visits match these filters.':'No visits loaded.'));
+    st.games.forEach(function(g){
+      var li=el('li'),b=el('button');b.type='button';b.dataset.site=g.site;b.setAttribute('aria-pressed',gv===g.site?'true':'false');
+      var nm=el('span','nm',siteName(g.site));if(LOBBY[g.site])nm.appendChild(el('small',null,' (lobby)'));
+      var tr=el('span','tr'),i=el('i');i.style.width=(max?Math.max(1,100*g.dur/max):0)+'%';tr.appendChild(i);
+      var n=el('span','n',fmtDur(g.dur)+' ');n.appendChild(el('small',null,'· '+g.people.size+(g.people.size===1?' person':' people')));
+      b.append(nm,tr,n);li.appendChild(b);ul.appendChild(li);
+    });
+    $('sPeopleHint').textContent='A person is one Online name and seat (all the browsers that account used) or, if they never opened the Online panel, one browser ("Visitor" and the end of its ID). Tap a row to see their games.'+(S.who?'':(S.whoErr==='denied'?' Names are missing: Firestore refused to read who.':' Names are missing: who didn\'t load.'));
+    renderPeople(st);
+  }
+  function renderPeople(st){
+    var q=$('sFind').value.trim().toLowerCase();
+    var list=st.people.filter(function(p){return !q||(p.name+' '+p.sub).toLowerCase().indexOf(q)>=0});
+    var dir=S.dir==='asc'?1:-1,key=S.sort;
+    list.sort(function(a,b){
+      var x,y;
+      if(key==='name'){x=a.name.toLowerCase();y=b.name.toLowerCase();return x<y?-dir:x>y?dir:0}
+      if(key==='sess'){x=a.sids.size;y=b.sids.size}else if(key==='games'){x=a.games.size;y=b.games.size}else if(key==='last'){x=a.last?+a.last:0;y=b.last?+b.last:0}else{x=a.dur;y=b.dur}
+      return (x-y)*dir||(b.dur-a.dur);
+    });
+    var t=$('sPeople');t.textContent='';
+    var head=el('tr');
+    [['name','Person',''],['dur','Time','num'],['sess','Sessions','num'],['games','Games','num opt'],['last','Last seen','opt']].forEach(function(c){
+      var th=el('th',c[2]),b=el('button',null,c[1]);b.type='button';b.dataset.sort=c[0];if(S.sort===c[0])b.dataset.dir=S.dir;th.appendChild(b);head.appendChild(th);
+    });
+    var thead=el('thead');thead.appendChild(head);t.appendChild(thead);
+    var tb=el('tbody');t.appendChild(tb);
+    if(!list.length){var tr0=el('tr'),td0=el('td',null,st.people.length?'Nobody matches.':'Nobody in this range.');td0.colSpan=5;tr0.appendChild(td0);tb.appendChild(tr0)}
+    list.slice(0,S.show).forEach(function(p){
+      var tr=el('tr','prow'+(S.open[p.key]?' open':''));tr.dataset.k=p.key;tr.tabIndex=0;tr.setAttribute('aria-expanded',S.open[p.key]?'true':'false');
+      var td=el('td');td.appendChild(el('span','who',p.name));if(p.sub)td.appendChild(el('small',null,p.sub));
+      tr.append(td,el('td','num',fmtDur(p.dur)),el('td','num',fmtN(p.sids.size)),el('td','num opt',fmtN(p.games.size)));
+      var tl=el('td','opt');tl.appendChild(timeEl(p.last));tr.appendChild(tl);
+      tb.appendChild(tr);
+      if(S.open[p.key]){
+        var dr=el('tr','pdet'),dd=el('td');dd.colSpan=5;
+        var ul=el('ul','bars'),gs=Array.from(p.games.values()).sort(function(a,b){return b.dur-a.dur}),mx=gs.length?gs[0].dur:0;
+        gs.forEach(function(g){
+          var li=el('li'),b=el('button');b.type='button';b.tabIndex=-1;
+          var tr2=el('span','tr'),i=el('i');i.style.width=(mx?Math.max(1,100*g.dur/mx):0)+'%';tr2.appendChild(i);
+          var n=el('span','n',fmtDur(g.dur)+' ');n.appendChild(el('small',null,'· '+g.sids.size+(g.sids.size===1?' session':' sessions')));
+          b.append(el('span','nm',siteName(g.site)+(LOBBY[g.site]?' (lobby)':'')),tr2,n);li.appendChild(b);ul.appendChild(li);
+        });
+        dd.appendChild(ul);dr.appendChild(dd);tb.appendChild(dr);
+      }
+    });
+    $('sMore').hidden=list.length<=S.show;$('sMore').textContent='Show more ('+fmtN(list.length-S.show)+' left)';
+  }
+  $('sRange').addEventListener('change',loadStats);
+  $('sRefresh').addEventListener('click',loadStats);
+  ['sGame','sDev'].forEach(function(id){$(id).addEventListener('change',function(){S.open={};S.show=PAGE;renderStats()})});
+  $('sFind').addEventListener('input',function(){S.show=PAGE;if(last)renderPeople(last)});
+  $('sMore').addEventListener('click',function(){S.show+=PAGE;if(last)renderPeople(last)});
+  $('sGames').addEventListener('click',function(e){
+    var b=e.target.closest('button[data-site]');if(!b)return;
+    $('sGame').value=$('sGame').value===b.dataset.site?'all':b.dataset.site;S.open={};S.show=PAGE;renderStats();
+  });
+  $('sPeople').addEventListener('click',function(e){
+    var sb=e.target.closest('button[data-sort]');
+    if(sb){var k=sb.dataset.sort;if(S.sort===k)S.dir=S.dir==='asc'?'desc':'asc';else{S.sort=k;S.dir=k==='name'?'asc':'desc'}if(last)renderPeople(last);return}
+    var tr=e.target.closest('tr.prow');if(!tr)return;
+    if(S.open[tr.dataset.k])delete S.open[tr.dataset.k];else S.open[tr.dataset.k]=1;
+    if(last)renderPeople(last);
+    var again=$('sPeople').querySelector('tr.prow[data-k="'+CSS.escape(tr.dataset.k)+'"]');if(again)again.focus({preventScroll:true});
+  });
+  $('sPeople').addEventListener('keydown',function(e){if((e.key==='Enter'||e.key===' ')&&e.target.matches('tr.prow')){e.preventDefault();e.target.click()}});
+
+  // ================= Chat =================
+  var C={rows:[],capped:false,show:PAGE,seq:0};
+  async function loadChat(){
+    var seq=++C.seq;
+    say('cStatus','Loading…');$('cRefresh').disabled=true;
+    try{
+      var rows=await api.chat(since($('cRange').value),CHAT_CAP);
+      if(seq!==C.seq)return;
+      C.rows=rows;C.capped=rows.length>=CHAT_CAP;$('cDenied').hidden=true;
+      var bad=rows.filter(function(r){return !r.opened}).length;
+      say('cStatus',bad?bad+' entr'+(bad===1?'y':'ies')+' couldn\'t be opened (written by something other than this site, or sealed to another key).':'');
+    }catch(e){
+      if(seq!==C.seq)return;
+      C.rows=[];C.capped=false;
+      if(isDenied(e)){$('cDenied').hidden=false;say('cStatus','')}else say('cStatus','Couldn\'t load the chat log: '+((e&&e.message)||'error'),true);
+    }
+    $('cRefresh').disabled=false;C.show=PAGE;fillWho();renderChat();
+  }
+  function fillWho(){
+    var sel=$('cWho'),cur=sel.value||'all',names={};
+    C.rows.forEach(function(r){
+      if(r.uid&&!names[r.uid])names[r.uid]=(r.name||'Guest')+(r.seat?' · '+r.seat:'');
+      if(r.about&&!names[r.about])names[r.about]=(r.aboutName||'Guest')+(r.aboutSeat?' · '+r.aboutSeat:'');
+    });
+    sel.textContent='';opt(sel,'all','Everyone');
+    Object.keys(names).sort(function(a,b){return names[a].localeCompare(names[b])}).forEach(function(u){opt(sel,u,names[u]+' ('+u.slice(0,6)+')')});
+    sel.value=names[cur]?cur:'all';
+  }
+  function chatShown(){
+    var kv=$('cKind').value,wv=$('cWho').value,q=$('cFind').value.trim().toLowerCase();
+    return C.rows.filter(function(r){
+      if(kv!=='all'&&r.kind!==kv)return false;
+      if(wv!=='all'&&r.uid!==wv&&r.about!==wv)return false;
+      if(q&&(r.text+'\n'+r.name+'\n'+r.aboutName).toLowerCase().indexOf(q)<0)return false;
+      return true;
+    });
+  }
+  function renderChat(){
+    var shown=chatShown(),list=$('cList'),reports=C.rows.filter(function(r){return r.kind==='report'}).length;
+    $('cSum').textContent=C.rows.length?(fmtN(C.rows.length-reports)+' cabin messages · '+fmtN(reports)+' reports'+(shown.length!==C.rows.length?' · '+fmtN(shown.length)+' match':'')):'';
+    $('cCap').hidden=!C.capped;
+    if(C.capped)$('cCap').textContent='Only the newest '+fmtN(CHAT_CAP)+' entries in this date range were loaded. Pick a shorter range to see older ones.';
+    list.textContent='';
+    if(!shown.length){list.appendChild(el('li','empty-l',C.rows.length?'Nothing matches these filters.':'Nothing saved in this date range.'))}
+    shown.slice(0,C.show).forEach(function(r){
+      var li=el('li','item'+(r.kind==='report'?' report':''));li.dataset.id=r.id;
+      var meta=el('div','meta');
+      meta.appendChild(el('span','badge '+r.kind,r.kind==='report'?'Report':'Cabin'));
+      var who=el('span');who.appendChild(el('b',null,r.name||'Guest'));if(r.seat)who.appendChild(document.createTextNode(' · '+r.seat));meta.appendChild(who);
+      if(r.kind==='report'){var ab=el('span');ab.appendChild(document.createTextNode('reported '));ab.appendChild(el('b',null,r.aboutName||'Guest'));if(r.aboutSeat)ab.appendChild(document.createTextNode(' · '+r.aboutSeat));meta.appendChild(ab)}
+      meta.appendChild(timeEl(r.ts));
+      li.appendChild(meta);
+      li.appendChild(el('p','text',r.text||'(empty)'));
+      var from=el('div','from');
+      if(r.uid){var s1=el('span');s1.append('Account ',shortId(r.uid));from.appendChild(s1)}
+      if(r.about){var s2=el('span');s2.append('Reported account ',shortId(r.about));from.appendChild(s2)}
+      li.appendChild(from);
+      var acts=el('div','acts');
+      if(r.uid){var o=el('button','sm','Only this person');o.type='button';o.dataset.a='who';o.dataset.u=r.uid;acts.appendChild(o)}
+      if(r.about){var o2=el('button','sm','Only the reported person');o2.type='button';o2.dataset.a='who';o2.dataset.u=r.about;acts.appendChild(o2)}
+      if(acts.firstChild)li.appendChild(acts);
+      list.appendChild(li);
+    });
+    $('cMore').hidden=shown.length<=C.show;$('cMore').textContent='Show more ('+fmtN(shown.length-C.show)+' left)';
+  }
+  $('cRange').addEventListener('change',loadChat);
+  $('cRefresh').addEventListener('click',loadChat);
+  ['cKind','cWho'].forEach(function(id){$(id).addEventListener('change',function(){C.show=PAGE;renderChat()})});
+  $('cFind').addEventListener('input',function(){C.show=PAGE;renderChat()});
+  $('cMore').addEventListener('click',function(){C.show+=PAGE;renderChat()});
+  $('cList').addEventListener('click',function(e){
+    var b=e.target.closest('button[data-a="who"]');if(!b)return;
+    $('cWho').value=b.dataset.u;if($('cWho').value!==b.dataset.u)$('cWho').value='all';C.show=PAGE;renderChat();
+  });
+
+  // ================= Feedback =================
+  var F={rows:[],busy:false};
+  // Senders hidden with "Hide this sender" (by uid), kept only in this browser (same key the old inbox used).
+  var HKEY='fbk-admin:hidden',hiddenSenders={};
+  try{(JSON.parse(store(HKEY)||'[]')||[]).forEach(function(u){if(typeof u==='string')hiddenSenders[u]=1})}catch(e){}
+  function saveHidden(){var k=Object.keys(hiddenSenders);store(HKEY,k.length?JSON.stringify(k):null)}
+  function fillFb(){
+    var g=$('fGame'),k=$('fKind'),gv=g.value||'all',kv=k.value||'all';
+    g.textContent='';k.textContent='';
+    opt(g,'all','All games');
+    var seen={};info.games.forEach(function(x){seen[x[0]]=1;opt(g,x[0],x[1])});
+    F.rows.forEach(function(r){if(!seen[r.game]){seen[r.game]=1;opt(g,r.game,r.game)}});
+    opt(k,'all','All kinds');info.kinds.forEach(function(x){opt(k,x[0],x[1])});
+    g.value=seen[gv]?gv:'all';k.value=KIND[kv]?kv:'all';
+  }
+  function renderFb(){
+    var gv=$('fGame').value,kv=$('fKind').value,showDone=$('fDone').checked,list=$('fList');
+    var open=F.rows.filter(function(r){return !r.done}).length;
+    var nh=Object.keys(hiddenSenders).length,hiddenRows=F.rows.filter(function(r){return r.uid&&hiddenSenders[r.uid]}).length;
+    $('fSum').textContent=F.rows.length?(open+' open · '+(F.rows.length-open)+' done'+(F.rows.length>=FB_CAP?' (newest '+FB_CAP+')':'')+(hiddenRows?' · '+hiddenRows+' hidden':'')):'';
+    $('fUnhide').hidden=!nh;$('fUnhide').textContent='Show hidden senders ('+nh+')';
+    var shown=F.rows.filter(function(r){
+      return !(r.uid&&hiddenSenders[r.uid])&&(gv==='all'||r.game===gv)&&(kv==='all'||r.kind===kv)&&(showDone||!r.done);
+    }).sort(function(a,b){return (a.done-b.done)||((b.ts||0)-(a.ts||0))});
+    list.textContent='';
+    if(!shown.length){list.appendChild(el('li','empty-l',F.rows.length?(open||showDone?'Nothing matches these filters.':'All done. Nothing open.'):'No feedback yet.'));return}
+    shown.forEach(function(r){
+      var li=el('li','item'+(r.done?' done':''));li.dataset.id=r.id;
+      var cb=el('input');cb.type='checkbox';cb.checked=r.done;cb.setAttribute('aria-label',r.done?'Done (click to reopen)':'Mark done');
+      var main=el('div','main');
+      var meta=el('div','meta');
+      meta.appendChild(el('span','badge '+(KIND[r.kind]?r.kind:''),KIND[r.kind]||r.kind));
+      meta.appendChild(el('b',null,GAME[r.game]||SITE[r.game]||r.game));
+      meta.appendChild(timeEl(r.ts));
+      if(r.done)meta.appendChild(el('span','badge ok','Done'));
+      if(!r.sealed){var ns=el('span','badge','Not sealed');ns.title='Sent before notes were sealed: anyone signed in can read this one.';meta.appendChild(ns)}
+      main.appendChild(meta);
+      main.appendChild(el('p','text',r.msg||'(empty)'));
+      var from=el('div','from');
+      var who=el('span');who.appendChild(document.createTextNode('From '));who.appendChild(el('b',null,r.name||'no name'));from.appendChild(who);
+      if(r.contact){
+        var c=el('span');c.appendChild(document.createTextNode('Reply: '));
+        if(/^[^\s@<>"'()\\,;:]+@[^\s@<>"'()\\,;:]+\.[A-Za-z]{2,}$/.test(r.contact)){var a=el('a',null,r.contact);a.href='mailto:'+r.contact;c.appendChild(a)}
+        else c.appendChild(el('b',null,r.contact));
+        from.appendChild(c);
+      }
+      if(r.page)from.appendChild(el('span',null,'Page: '+r.page));
+      if(r.uid){var sd=el('span');sd.append('Sender ',shortId(r.uid));from.appendChild(sd)}
+      main.appendChild(from);
+      if(r.uid){var acts=el('div','acts'),hs=el('button','sm','Hide this sender');hs.type='button';hs.dataset.a='hide';acts.appendChild(hs);main.appendChild(acts)}
+      li.append(cb,main);list.appendChild(li);
+    });
+  }
+  function loadFb(){
+    if(F.busy)return;F.busy=true;say('fStatus','Loading…');$('fRefresh').disabled=true;
+    api.fbList().then(function(r){F.rows=r;$('fDenied').hidden=true;say('fStatus','')},function(e){
+      F.rows=[];
+      if(isDenied(e)){$('fDenied').hidden=false;say('fStatus','')}else say('fStatus','Couldn\'t load feedback: '+((e&&e.message)||'error'),true);
+    }).then(function(){F.busy=false;$('fRefresh').disabled=false;fillFb();renderFb()});
+  }
+  $('fList').addEventListener('click',function(e){
+    var li=e.target.closest('.item');if(!li)return;
+    var id=li.dataset.id,r=F.rows.filter(function(x){return x.id===id})[0];if(!r)return;
+    var b=e.target.closest('button[data-a]');
+    if(b){if(b.dataset.a==='hide'&&r.uid){hiddenSenders[r.uid]=1;saveHidden();say('fStatus','');renderFb()}return}
+    // A click anywhere else on the note (or its checkbox) marks it done or open again; links and selected text don't.
+    if(e.target.closest('a'))return;
+    var sel=window.getSelection&&String(getSelection());if(sel&&e.target.type!=='checkbox')return;
+    if(e.target.type==='checkbox')e.preventDefault();
+    li.classList.add('busy');
+    api.fbDone(id,!r.done).then(function(){r.done=!r.done;say('fStatus','');renderFb()},function(err){
+      li.classList.remove('busy');
+      say('fStatus',isDenied(err)?'Couldn\'t change it: permission denied. The feedback rules block (README) allows changing only the done field.':'Couldn\'t change it: '+((err&&err.message)||'error'),true);
+    });
+  });
+  ['fGame','fKind','fDone'].forEach(function(id){$(id).addEventListener('change',renderFb)});
+  $('fRefresh').addEventListener('click',loadFb);
+  $('fUnhide').addEventListener('click',function(){hiddenSenders={};saveHidden();renderFb()});
+
+  // ---------- Background: a slow, faint field of binary digits on one canvas (static with reduced motion) ----------
+  (function(){
+    var cv=$('bits'),cx=cv.getContext&&cv.getContext('2d');if(!cx)return;
+    var CELL=18,cols=0,rows=0,still=matchMedia('(prefers-reduced-motion: reduce)');
+    function cell(x,y){
+      cx.fillStyle='#04070b';cx.fillRect(x*CELL,y*CELL,CELL,CELL);
+      var a=Math.random();if(a<.35)return;
+      cx.fillStyle='rgba(125,211,252,'+(0.05+0.13*Math.random()).toFixed(3)+')';
+      cx.fillText(Math.random()<.5?'0':'1',x*CELL+CELL/2,y*CELL+CELL/2+1);
+    }
+    function size(){
+      var r=Math.min(window.devicePixelRatio||1,1.5);
+      cv.width=Math.ceil(innerWidth*r);cv.height=Math.ceil(innerHeight*r);cx.setTransform(r,0,0,r,0,0);
+      cols=Math.ceil(innerWidth/CELL);rows=Math.ceil(innerHeight/CELL);
+      cx.font='600 12px "IBM Plex Mono",ui-monospace,monospace';cx.textAlign='center';cx.textBaseline='middle';
+      for(var y=0;y<rows;y++)for(var x=0;x<cols;x++)cell(x,y);
+    }
+    var rt=0;addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(size,150)});
+    size();
+    // About eight frames a second, a few dozen cells each: cheap, and nothing at all while the tab is hidden.
+    setInterval(function(){
+      if(still.matches||document.hidden)return;
+      for(var i=0;i<Math.max(8,cols*rows/60|0);i++)cell(Math.random()*cols|0,Math.random()*rows|0);
+    },125);
+  })();
+
+  // ---------- Welcome: the saved Online name, else a party or game name, else ask once and keep it here ----------
+  function cleanName(v){return String(v==null?'':v).replace(/[<>\u0000-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2066-\u2069]/g,'').replace(/\s+/g,' ').trim().slice(0,30)}
+  function savedName(){
+    var keys=['ol:name','party:name','coil:name','ss:name','sd:name','spire:name','updraft:name','boostball-name','shellcr-name','br1v1-name','rk_name','chroma-name','oddone-name','tumble-name','bra:name'];
+    for(var i=0;i<keys.length;i++){var v=store(keys[i]);if(!v)continue;try{if(v.charAt(0)==='"')v=JSON.parse(v)}catch(e){}v=cleanName(v);if(v)return v}
+    return '';
+  }
+  function welcome(){
+    var w=$('welcome'),n=savedName();w.textContent='';w.hidden=false;
+    if(n){w.append('Welcome, ',el('b',null,n));return}
+    var f=el('form'),i=el('input');i.type='text';i.maxLength=30;i.placeholder='Your name';i.setAttribute('aria-label','Your name');i.autocomplete='nickname';
+    var b=el('button','sm','Save');b.type='submit';
+    f.append('What should we call you? ',i,b);w.appendChild(f);
+    f.addEventListener('submit',function(e){e.preventDefault();var v=cleanName(i.value);if(!v){i.focus();return}store('bra:name',v);welcome()});
+  }
+
+  // ---------- Unlock ----------
+  // The door (door.js) hands over the number it checked, once; a direct visit asks for both codes.
+  var handed='';
+  try{handed=sessionStorage.getItem('bra:n')||'';sessionStorage.removeItem('bra:n')}catch(e){}
+  if(!/^[0-9]{1,12}$/.test(handed))handed='';
+  $('numL').hidden=!!handed;
+  setTimeout(function(){(handed?$('pw'):$('num')).focus()},0);
+  var folder=(/\/([0-9a-f]{16})\/(?:index\.html)?$/.exec(location.pathname)||[])[1]||'';
+  $('unlock').addEventListener('submit',async function(e){
+    e.preventDefault();
+    var num=handed||$('num').value.replace(/\s+/g,''),pw=$('pw').value;
+    if(!num||!/^[0-9]+$/.test(num)){say('gateMsg','Wrong number',true);$('num').value='';$('num').focus();return}
+    if(!pw){$('pw').focus();return}
+    $('go').disabled=true;say('gateMsg','Checking…');$('gateMsg').classList.remove('err');
+    try{
+      if(!handed&&(await digest(num))!==folder){say('gateMsg','Wrong number',true);$('num').value='';$('num').focus();return}
+      PRIV=await unwrap(num,pw);
+    }catch(err){
+      say('gateMsg',err&&err.message==='nokey'?'Couldn\'t load the admin key. Reload the page.':'Wrong password',true);$('pw').value='';$('pw').focus();return;
+    }finally{$('go').disabled=false;num='';pw=''}
+    $('pw').value='';$('num').value='';say('gateMsg','');
+    $('gate').hidden=true;
+    if(!stubbed){
+      try{await boot()}catch(err){$('gate').hidden=false;say('gateMsg',(err&&err.message)||'Couldn\'t connect.',true);PRIV=null;return}
+    }
+    $('app').hidden=false;$('me').hidden=false;$('who').textContent='Unlocked';welcome();
+    loaded={};showTab(tab);
+  });
+  $('out').addEventListener('click',function(){PRIV=null;location.reload()});
+  fillGames([]);fillWho();fillFb();
+
+  // Test hook for automated browsers only: stub() swaps Firestore for documents held in the page (the codes are still
+  // needed to open sealed ones).
+  if(navigator.webdriver){
+    window.__admin={
+      stub:function(data,o){
+        o=o||{};data=data||{};
+        var deny=function(){var e=new Error('Missing or insufficient permissions.');e.code='permission-denied';return Promise.reject(e)};
+        var d=function(x){return Object.assign({},x,{ts:x.ts!=null?new Date(x.ts):null,last:x.last!=null?new Date(x.last):null})};
+        var pv=(data.pv||[]).map(d),chat=(data.chat||[]).map(d),fb=(data.feedback||[]).map(d),who=(data.who||[]).map(d);
+        function range(list,start,cap){return list.filter(function(x){return !start||(x.ts&&x.ts>=start)}).sort(function(a,b){return (b.ts||0)-(a.ts||0)}).slice(0,cap)}
+        function docs(list){return list.map(function(x){return {id:x.id,data:function(){return x}}})}
+        api={
+          pv:function(s,c){return o.denyPv?deny():Promise.resolve(range(pv,s,c).map(function(x){return cleanPv(x.id,x)}))},
+          who:function(){return o.denyWho?deny():Promise.resolve(range(who,null,WHO_CAP).map(function(x){return cleanWho(x.id,x)}))},
+          chat:function(s,c){return o.denyChat?deny():all(docs(range(chat,s,c)),openChat)},
+          fbList:function(){return o.denyFb?deny():all(docs(range(fb,null,FB_CAP)),openFb)},
+          fbDone:function(id,v){if(o.denyWrite)return deny();fb.forEach(function(x){if(x.id===id)x.done=v});return Promise.resolve()}
+        };
+        stubbed=true;
+        if(PRIV){loaded={};showTab(tab)}
+      },
+      get unlocked(){return !!PRIV},
+      get stats(){return last&&{total:last.total,inGames:last.inGames,players:last.players,sessions:last.sessions,people:last.people.length,named:last.named,games:last.games.map(function(g){return [g.site,g.dur]}),capped:S.capped,rows:S.rows.length}},
+      get chat(){return {rows:C.rows.length,shown:chatShown().length,capped:C.capped,unopened:C.rows.filter(function(r){return !r.opened}).length}},
+      get feedback(){return F.rows.map(function(r){return {id:r.id,done:r.done,sealed:r.sealed,msg:r.msg}})}
+    };
+  }
+})();
+</script>
+</body>
+</html>
