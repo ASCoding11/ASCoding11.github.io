@@ -255,6 +255,7 @@ body.touch #hint,body.touch #itemTip{bottom:calc(210px + var(--sab))}
   html.rails .rail{display:flex}
 }
 </style>
+<script src="/e63334287a3deaa3/stats.js" data-game="rumble-karts" defer></script>
 </head>
 <body>
 <div id="app">
@@ -2297,6 +2298,7 @@ function handleEvent(e) {
       addFeed(e);
       const killer = karts.get(e.o);
       if (killer && killer.local && e.o !== e.v) creditKill(killer, e);
+      if (S.me && e.o === S.me.id && e.o !== e.v && window.BackRoomStats) BackRoomStats.add('wrecks', 1);
       if (S.me && e.v === S.me.id) showBanner('Wrecked!', e.on ? (e.w === 'lava' ? 'knocked into the lava by ' : 'by ') + e.on : (e.w === 'lava' ? 'you drove into the lava' : ''), 0, true);
       else if (S.me && e.o === S.me.id && S.gm !== 'gun') { showBanner('Wrecked ' + e.vn, S.gm === 'zone' ? '' : '+1', 1300); Snd.play('ko'); }
       break;
@@ -2760,6 +2762,7 @@ let lbHTML = '';
 function showResults() {
   renderResults(); $('#results').hidden = false; hideBanner(); showAd('adResults');
   const top = standings()[0]; if (top && top === S.me && top.score > 0) Snd.play('win');
+  if (top && top === S.me && top.score > 0 && window.BackRoomStats) BackRoomStats.add('wins', 1);
 }
 function renderResults() {
   const list = standings(), top = list[0], you = top === S.me, nm = top ? (you ? 'You' : top.name) : '';

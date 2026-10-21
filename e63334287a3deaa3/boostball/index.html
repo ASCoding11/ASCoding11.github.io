@@ -217,6 +217,7 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
   html.rails .rail{display:flex}
 }
 </style>
+<script src="/e63334287a3deaa3/stats.js" data-game="boostball" defer></script>
 </head>
 <body>
 <div id="app">
@@ -1775,6 +1776,7 @@ function onGoal(v){
   sfx('goal',null,t);
   const sc=carById(v.sc),as=carById(v.as);
   if(sc&&!sc.remote)sc.stats.g++;
+  if(sc&&sc===me&&mode!=='attract'&&window.BackRoomStats)BackRoomStats.add('goals',1);
   if(as&&!as.remote)as.stats.a++;
   const name=sc?sc.name:'';
   const sub=(v.bz?'At the buzzer · ':'')+(v.sc?(name||'Someone')+(v.as&&as?' · assist '+as.name:'')+' · '+(v.gs|0)+' km/h':'Own goal');
@@ -1784,6 +1786,7 @@ function onGoal(v){
 function endMatch(){
   state='end';endShown=true;$('hud').hidden=true;$('board').hidden=true;$('pause').hidden=true;paused=false;
   const win=R.sb>R.so?0:1,mine=me?me.team:0;
+  if((mode==='online'||mode==='practice')&&me&&win===mine&&window.BackRoomStats)BackRoomStats.add('wins',1);
   $('endTitle').textContent=mode==='online'||mode==='practice'?(win===mine?'Victory!':'Defeat'):TEAM[win].name+' wins';
   $('endTitle').style.color=TEAM[win].lite;
   $('endSub').textContent=TEAM[0].name+' '+R.sb+' – '+R.so+' '+TEAM[1].name+(R.rem<=0&&R.g>0&&!R.bz?' · won in overtime':'');
