@@ -526,6 +526,7 @@ body.touch #lobby{top:calc(150px + env(safe-area-inset-top,0px));left:12px;right
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../netsmooth.js"></script>
 <script>
 (function(){
 'use strict';
@@ -3298,7 +3299,21 @@ function remoteTarget(e,v){
   const x=+v.x,z=+v.z,y=+v.y,h=+v.h;
   if(finN(x)&&finN(z)&&MAP){const bd=MAP.bounds;e.tpos.set(clamp(x,bd[0],bd[2]),numIn(y,-1,MAP.height+1,0),clamp(z,bd[1],bd[3]))}
   e.tyaw=finN(h)?angDiff(h,0):finN(e.tyaw)?e.tyaw:0;
+  pushSnap(e,v.ts,5);
 }
+// Other players are drawn a moment in the past, between the updates around that moment; how far back adapts to how
+// late their updates arrive, and a late one is bridged by carrying on their movement (netsmooth.js). A jump of more
+// than JUMP m is a respawn or teleport, so the history starts afresh there. Updates that only change something else
+// (a shot, a taunt) carry the old position with a new time; skip those, or a moving player would seem to stop for a moment.
+function pushSnap(e,ts,JUMP){
+  if(!e.lag){e.lag=NetSmooth.lag();e.snaps=[]}
+  const l=e.snaps[e.snaps.length-1],t=+ts||Net.now();
+  if(l&&l.x===e.tpos.x&&l.y===e.tpos.y&&l.z===e.tpos.z&&l.h===e.tyaw&&t-l.t<200)return;
+  if(!e.lag.note(t,Net.now()))return;
+  if(l&&Math.hypot(e.tpos.x-l.x,e.tpos.z-l.z)>JUMP)e.snaps.length=0;
+  e.snaps.push({t:+ts||Net.now(),x:e.tpos.x,y:e.tpos.y,z:e.tpos.z,h:e.tyaw});
+}
+const _rs={};
 function onNodeGone(uid){
   const e=ents.get(uid);if(e){feed(esc(e.name)+' left');removeEnt(e)}
   Net.others.delete(uid);if(uid===G.hostUid)G.hostUid=null;renderLobby();
@@ -3316,8 +3331,8 @@ function updateRemotes(dt){
     if(!e.remote)continue;
     if(t-e.seen>LIVE_MS){removeEnt(e);continue}
     const bx=e.pos.x,bz=e.pos.z;
-    if(e.pos.distanceTo(e.tpos)>5)e.pos.copy(e.tpos);else e.pos.lerp(e.tpos,k);
-    e.yaw+=angDiff(e.tyaw,e.yaw)*k;
+    if(e.snaps&&e.snaps.length){NetSmooth.sample(e.snaps,e.lag.time(Net.now()),_rs,['x','y','z'],['h']);e.pos.set(_rs.x,_rs.y,_rs.z);e.yaw=_rs.h}
+    else{if(e.pos.distanceTo(e.tpos)>5)e.pos.copy(e.tpos);else e.pos.lerp(e.tpos,k);e.yaw+=angDiff(e.tyaw,e.yaw)*k}
     e.spd=lerp(e.spd,Math.hypot(e.pos.x-bx,e.pos.z-bz)/Math.max(dt,1e-3),.25);
     if(e.spd>.25)e.moveT=clock;
   }

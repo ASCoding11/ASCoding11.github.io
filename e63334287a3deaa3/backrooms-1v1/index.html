@@ -412,6 +412,7 @@ body.touch #pips{left:calc(200px + env(safe-area-inset-left,0px));transform:none
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="../keybinds.js"></script>
+<script src="../netsmooth.js"></script>
 <script>
 (function(){
 'use strict';
@@ -1199,7 +1200,7 @@ function allCells(ro,n){const kr=[...ro.values()].filter(t=>t==='r').length;retu
 function rebuildEnts(){ents=[player,opp,...remotes.values()]}
 function makeRemote(uid){
   const e=newEnt(makeSuit(...SUITS.r));
-  Object.assign(e,{uid,name:nameOf(uid),team:'r',snaps:[],lastRecv:0,present:false,alive:false});
+  Object.assign(e,{uid,name:nameOf(uid),team:'r',snaps:[],lag:NetSmooth.lag(),lastRecv:0,present:false,alive:false});
   setGun(e.model,0);e.model.visible=false;scene.add(e.model);remotes.set(uid,e);rebuildEnts();return e;
 }
 function clearRemotes(){
@@ -1216,8 +1217,7 @@ function applyNode(e,v){
   if(!inPlay()||v.m!==curMatch||v.rd!==curRound)return;
   const s={t:+v.ts||Net.now(),x:+v.x,y:+v.y||0,z:+v.z,h:+v.h||0,p:+v.p||0};
   if(!isFinite(s.x)||!isFinite(s.z))return;
-  const last=e.snaps[e.snaps.length-1];
-  if(!last||s.t>last.t){e.snaps.push(s);if(e.snaps.length>30)e.snaps.shift()}
+  if(e.lag.note(s.t,Net.now())){e.snaps.push(s);if(e.snaps.length>30)e.snaps.shift()}
   e.hp=+v.hp||0;e.shield=+v.sh||0;e.reloadT=v.rl?1:0;
   if(v.wi>=0&&v.wi<=2&&v.wi!==e.wi){e.wi=v.wi;setGun(e.model,v.wi)}
   if(v.d&&e.alive){e.alive=false;e.dieT=0}
@@ -1237,18 +1237,17 @@ function onNodeGone(uid){
   if(o)feed(esc(cleanName(o.v.n))+' left','info');
   const e=remotes.get(uid);if(e){e.present=false;e.alive=false;e.model.visible=false}
 }
+// Other players are drawn a moment in the past, between the updates around that moment; how far back adapts to how
+// late their updates arrive, and a late one is bridged by carrying on their movement (netsmooth.js).
+const _rs={};
 function updateRemotes(dt){
-  const rt=Net.now()-110;
+  const now=Net.now();
   for(const e of remotes.values()){
     if(!e.present)continue;
     const sn=e.snaps;if(!sn.length)continue;
-    let a=sn[0],b=null;
-    for(let i=sn.length-1;i>=0;i--){if(sn[i].t<=rt){a=sn[i];b=sn[i+1]||null;break}}
     const px=e.pos.x,py=e.pos.y,pz=e.pos.z;
-    if(b){const k=clamp((rt-a.t)/Math.max(1,b.t-a.t),0,1);
-      e.pos.set(a.x+(b.x-a.x)*k,a.y+(b.y-a.y)*k,a.z+(b.z-a.z)*k);
-      e.yaw=a.h+wrapAng(b.h-a.h)*k;e.pitch=a.p+(b.p-a.p)*k}
-    else{const l=sn[sn.length-1];e.pos.set(l.x,l.y,l.z);e.yaw=l.h;e.pitch=l.p}
+    NetSmooth.sample(sn,e.lag.time(now),_rs,['x','y','z','p'],['h']);
+    e.pos.set(_rs.x,_rs.y,_rs.z);e.yaw=_rs.h;e.pitch=_rs.p;
     if(dt>0){e.vel.set((e.pos.x-px)/dt,(e.pos.y-py)/dt,(e.pos.z-pz)/dt);if(e.vel.length()>30)e.vel.set(0,0,0)}
     e.onGround=Math.abs(e.vel.y)<.5;
   }

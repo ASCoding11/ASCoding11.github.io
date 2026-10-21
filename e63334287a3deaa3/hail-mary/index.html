@@ -319,6 +319,7 @@ details.ctrl[open] .keys{margin-top:10px}
 </div>
 
 <script src="../keybinds.js"></script>
+<script src="../netsmooth.js"></script>
 <script>
 (function(){
 'use strict';
@@ -1556,7 +1557,8 @@ function render(view){
 function dotLine(x0,y0,x1,y1){const a=SXp(x0),b=SYp(y0),c=SXp(x1),d=SYp(y1),n=Math.max(1,Math.round(hyp(c-a,d-b)/3));for(let i=0;i<=n;i++)ctx.fillRect(Math.round(lerp(a,c,i/n)),Math.round(lerp(b,d,i/n)),1,1)}
 
 /* ---------- online: follow the other side's live play ---------- */
-const snaps=[];let snapRecv=0,lastSnapT=0;
+// The host's view of the play, drawn a moment in the past; how far back adapts to how late its updates arrive (netsmooth.js).
+const snaps=[],snapLag=NetSmooth.lag();
 let myDef=null; // the defender you steer while the other player runs the play
 const fin={st:0,sl:0,jk:0,dv:0,lg:0,d:9,m:0,pl:0};
 function decodeSnap(s){
@@ -1574,14 +1576,14 @@ function snapStr(){
 function onSnap(s){
   if(!play||!play.follow)return;
   const o=decodeSnap(s);if(!o||o.pl!==play.pl)return;
-  if(snaps.length&&o.T<=snaps[snaps.length-1].T)return;
+  if(!snaps.length)snapLag.reset();
+  if(!snapLag.note(o.T*1000,performance.now()))return;
   snaps.push(o);if(snaps.length>30)snaps.shift();
-  snapRecv=performance.now();lastSnapT=o.T;
 }
 function followView(dt){
   const pl=play,P=pl.P;
   if(!snaps.length){return}
-  const est=lastSnapT+Math.min(.3,(performance.now()-snapRecv)/1000),rt=est-.11;
+  const rt=snapLag.time(performance.now())/1000;
   let a=snaps[0],c=snaps[snaps.length-1];
   for(let i=0;i<snaps.length-1;i++)if(snaps[i].T<=rt&&snaps[i+1].T>=rt){a=snaps[i];c=snaps[i+1];break}
   const s=c.T>a.T?clamp((rt-a.T)/(c.T-a.T),0,1):1;

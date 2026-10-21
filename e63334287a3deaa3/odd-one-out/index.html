@@ -453,6 +453,7 @@ body.touch #banner span{font-size:14px}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="../keybinds.js"></script>
+<script src="../netsmooth.js"></script>
 <script>
 (function(){
 'use strict';
@@ -2346,6 +2347,7 @@ function onNode(uid,v){
   e.seen=performance.now();e.name=o.n;e.color=o.c;
   if(finN(+v.x)&&finN(+v.z)&&MAP){const bd=MAP.ext;e.tpos.set(clamp(+v.x,bd[0],bd[2]),numIn(+v.y,-1,12,0),clamp(+v.z,bd[1],bd[3]))}
   e.tyaw=wrapA(numIn(+v.h,-1e3,1e3,e.tyaw));e.aimPitch=numIn(+v.p,-1.5,1.5,0);
+  pushSnap(e,o.ts,6);
   if(v.d!==e.dSeen){e.dSeen=v.d;const t=ptOf(v.d);if(t&&t.elig&&t!==e.form){setForm(e,t);if(e.look==='prop'&&e.alive){const c=e.pos.clone();c.y+=t.h/2;puff(c,clamp(Math.max(t.w,t.h),.4,1.4));propSfx('transform',c)}}}
   if(typeof v.sh==='string'&&v.sh!==e.shSeen){e.shSeen=v.sh;remoteShot(e,v.sh)}
   // round state from the host
@@ -2365,6 +2367,19 @@ function remoteShot(e,sh){
   e.flash=1;flash(from);tracer(from,to);sfx('shot',from,.8);
   const n=from.clone().sub(to).normalize();impact(to,n,f[7]===1?'#ffd23f':f[7]===2?'#e0dccf':null,f[7]!==1);
 }
+// Other players are drawn a moment in the past, between the updates around that moment; how far back adapts to how
+// late their updates arrive, and a late one is bridged by carrying on their movement (netsmooth.js). A jump of more
+// than JUMP m is a respawn or teleport, so the history starts afresh there. Updates that only change something else
+// (a shot, a taunt) carry the old position with a new time; skip those, or a moving player would seem to stop for a moment.
+function pushSnap(e,ts,JUMP){
+  if(!e.lag){e.lag=NetSmooth.lag();e.snaps=[]}
+  const l=e.snaps[e.snaps.length-1],t=+ts||Net.now();
+  if(l&&l.x===e.tpos.x&&l.y===e.tpos.y&&l.z===e.tpos.z&&l.h===e.tyaw&&t-l.t<200)return;
+  if(!e.lag.note(t,Net.now()))return;
+  if(l&&Math.hypot(e.tpos.x-l.x,e.tpos.z-l.z)>JUMP)e.snaps.length=0;
+  e.snaps.push({t:+ts||Net.now(),x:e.tpos.x,y:e.tpos.y,z:e.tpos.z,h:e.tyaw});
+}
+const _rs={};
 function updateRemotes(dt){
   const k=1-Math.exp(-dt*12),t=performance.now();
   for(const e of ents.values()){
@@ -2372,8 +2387,11 @@ function updateRemotes(dt){
     if(t-e.seen>GONE_MS){removeEnt(e);continue}
     if(!finN(e.yaw))e.yaw=e.tyaw;
     const bx=e.pos.x,bz=e.pos.z;
-    if(e.pos.distanceTo(e.tpos)>6)e.pos.copy(e.tpos);else if(e.pos.distanceToSquared(e.tpos)<1e-6)e.pos.copy(e.tpos);else e.pos.lerp(e.tpos,k);
-    const d=angDiff(e.tyaw,e.yaw);e.yaw=Math.abs(d)<1e-3?e.tyaw:wrapA(e.yaw+d*k);
+    if(e.snaps&&e.snaps.length){NetSmooth.sample(e.snaps,e.lag.time(Net.now()),_rs,['x','y','z'],['h']);e.pos.set(_rs.x,_rs.y,_rs.z);e.yaw=wrapA(_rs.h)}
+    else{
+      if(e.pos.distanceTo(e.tpos)>6)e.pos.copy(e.tpos);else if(e.pos.distanceToSquared(e.tpos)<1e-6)e.pos.copy(e.tpos);else e.pos.lerp(e.tpos,k);
+      const d=angDiff(e.tyaw,e.yaw);e.yaw=Math.abs(d)<1e-3?e.tyaw:wrapA(e.yaw+d*k);
+    }
     e.spd=lerp(e.spd,Math.hypot(e.pos.x-bx,e.pos.z-bz)/Math.max(dt,1e-3),.25);
     if(e.spd>.3)e.moveT=clock;
     if(e.alive&&e.spd>.8){e.stepT-=dt;if(e.stepT<=0){e.stepT=e.look==='hunter'?.36:.3;if(e.look==='hunter')sfx('step',e.pos,.8);else propSfx('scoot',e.pos,.8)}}

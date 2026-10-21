@@ -471,6 +471,7 @@ body.touch #invClose{display:block}
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="../keybinds.js"></script>
+<script src="../netsmooth.js"></script>
 <script>
 (function(){
 'use strict';
@@ -3958,9 +3959,10 @@ function onRemoteMobs(owner,str,ts){
 }
 function dropRemoteMobs(owner){for(const [k,r] of rmobs)if(r.owner===owner){scene.remove(r.model.g);rmobs.delete(k)}}
 function updateRemoteMobs(dt){
-  const rt=Net.now()-160;
+  const now=Net.now();
   for(const r of rmobs.values()){
     const s=r.snaps;if(!s.length)continue;
+    const ow=others.get(r.owner),rt=ow?ow.lag.time(now):now-160;
     let a=s[0],b=s[0];
     for(let i=s.length-1;i>=0;i--){if(s[i].t<=rt){a=s[i];b=s[i+1]||s[i];break}}
     const t=b.t>a.t?clamp((rt-a.t)/(b.t-a.t),0,1):1;
@@ -6164,10 +6166,9 @@ function onPlayerNode(uid,v){
   const ts=+v.ts||0;if(Net.now()-ts>10000)return;
   let o=others.get(uid);
   const name=cleanName(v.n)||'Miner',col=clamp(v.c|0,0,COLORS.length-1);
-  if(!o){o={uid,name,col,snaps:[],a:makeAvatar(col,name),sw:v.sw|0};o.av=o.a.g;others.set(uid,o);uiDirty=true;if(clock>3)addChat(name+' joined the world',null,'sys')}
+  if(!o){o={uid,name,col,snaps:[],lag:NetSmooth.lag(),a:makeAvatar(col,name),sw:v.sw|0};o.av=o.a.g;others.set(uid,o);uiDirty=true;if(clock>3)addChat(name+' joined the world',null,'sys')}
   if(o.name!==name||o.col!==col){scene.remove(o.av);o.name=name;o.col=col;o.a=makeAvatar(col,name);o.av=o.a.g;uiDirty=true}
-  const last=o.snaps[o.snaps.length-1];
-  if(!last||ts>last.t){o.snaps.push({t:ts,x:v.x,y:v.y,z:v.z,yw:+v.yw||0,pt:+v.pt||0});if(o.snaps.length>20)o.snaps.shift()}
+  if(o.lag.note(ts,Net.now())){o.snaps.push({t:ts,x:v.x,y:v.y,z:v.z,yw:+v.yw||0,pt:+v.pt||0});if(o.snaps.length>20)o.snaps.shift()}
   o.ts=ts;o.heldId=IT[v.h|0]?v.h|0:0;o.sn=!!v.sn;o.cr=!!v.cr;o.dead=!!v.dd;o.sl=!!v.sl;o.j=+v.j||0;
   if((v.sw|0)!==o.sw){o.sw=v.sw|0;o.a.swing=.3}
   onRemoteMobs(uid,v.mb,ts);
@@ -6188,13 +6189,16 @@ function poseAvatar(av,x,y,z,yaw,pitch,sp,dt,heldId,sneak){
   if(av.heldMesh)av.heldMesh.material.color.setScalar(k);
 }
 let frozenUntil=0;
+// Other players (and the mobs they run) are drawn a moment in the past; how far back adapts to how late each
+// player's updates arrive (netsmooth.js).
 function updateOthers(dt,gap){
-  const rt=Net.now()-160;
+  const now=Net.now();
   // if this tab was frozen for a while, give everyone's updates a moment to catch up before calling them gone
   if(gap>1500)frozenUntil=performance.now()+3000;
   for(const o of others.values()){
     if(Net.now()-o.ts>12000&&performance.now()>frozenUntil){dropOther(o.uid);continue}
     const s=o.snaps;if(!s.length)continue;
+    const rt=o.lag.time(now);
     let a=s[0],b=s[0];
     for(let i=s.length-1;i>=0;i--){if(s[i].t<=rt){a=s[i];b=s[i+1]||s[i];break}}
     const t=b.t>a.t?clamp((rt-a.t)/(b.t-a.t),0,1):1;
