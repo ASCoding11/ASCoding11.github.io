@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Feedback</title>
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="/site.css">
+<style>
+/* Arjun's inbox for the Back Room feedback box (../feedback.js). Not linked from anywhere. */
+[hidden]{display:none!important}
+.topbar .me{margin-left:auto;display:flex;align-items:center;gap:10px;min-width:0;font-size:14px;color:var(--ink-2)}
+.topbar .me span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+button{font:inherit;color:inherit}
+.sm{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 12px;min-height:36px;cursor:pointer;flex:none}
+.sm:hover{color:var(--ink);border-color:var(--ink-2)}
+.sm[disabled]{opacity:.55;cursor:default}
+.sm.danger{color:var(--down)}
+.sm.danger:hover{border-color:var(--down)}
+.gate{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:12px;align-items:flex-start}
+.gate p{margin:0;color:var(--ink-2);max-width:60ch}
+.gate button.btn{cursor:pointer;font-size:16px}
+.filters{display:flex;flex-wrap:wrap;gap:10px 12px;align-items:flex-end;margin-bottom:14px}
+.filters label{display:flex;flex-direction:column;gap:4px;font-family:var(--mono);font-size:11.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);min-width:0}
+.filters select{font:inherit;font-family:var(--body);font-size:15px;letter-spacing:0;text-transform:none;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-height:38px;max-width:100%}
+.filters .sm{min-height:38px}
+.sum{margin:0 0 14px;font-size:14px;color:var(--ink-2)}
+.status{margin:0 0 14px;font-size:14px;color:var(--ink-2);overflow-wrap:anywhere}
+.status:empty{display:none}
+.status.err{color:var(--down)}
+.notice{background:var(--panel);border:1px solid var(--down);border-radius:12px;padding:16px 18px;margin:0 0 16px}
+.notice h2{font-size:22px;margin:0 0 6px;color:var(--down)}
+.notice p{margin:0 0 8px;color:var(--ink-2);max-width:70ch}
+.notice p:last-child{margin-bottom:0}
+.notice code{font-family:var(--mono);font-size:13px;background:var(--panel-2);border:1px solid var(--line);border-radius:5px;padding:0 5px}
+.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+.item{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.item.done{opacity:.62}
+.meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font-size:13px;color:var(--ink-2)}
+.badge{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;border-radius:999px;padding:2px 9px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink-2)}
+.badge.bug{color:var(--down);border-color:var(--down)}
+.badge.idea{color:var(--accent);border-color:var(--accent)}
+.badge.ok{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.meta .game{font-weight:600;color:var(--ink)}
+.text{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;font-size:15.5px;line-height:1.5;max-height:24em;overflow:auto}
+.from{font-size:13px;color:var(--ink-2);overflow-wrap:anywhere;display:flex;flex-wrap:wrap;gap:4px 12px}
+.from b{color:var(--ink);font-weight:600}
+.from a{color:var(--accent)}
+.acts{display:flex;flex-wrap:wrap;gap:8px}
+.from code{font-family:var(--mono);font-size:12px;background:var(--panel-2);border:1px solid var(--line);border-radius:5px;padding:0 5px;color:var(--ink)}
+.empty-l{background:var(--panel);border:1px dashed var(--line);border-radius:12px;padding:22px;color:var(--ink-2);text-align:center}
+@media (max-width:600px){header{padding:28px 0 22px}.filters label{flex:1 1 40%}.filters select{width:100%}.item{padding:12px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <a class="wordmark" href="/">Arjun</a>
+    <div class="me" id="me" hidden><span id="who"></span><button class="sm" id="out" type="button">Sign out</button></div>
+  </div>
+  <header>
+    <p class="kicker">Back Room</p>
+    <h1>Feedback</h1>
+    <p class="intro">Ideas, change requests and bug reports sent from the feedback box on the Back Room and phone pages, newest first.</p>
+  </header>
+  <section>
+    <div class="gate" id="gate">
+      <p>Sign in with the Google account your Firestore rules allow to read feedback (the same one as the analytics).</p>
+      <button class="btn primary" id="signin" type="button">Sign in with Google</button>
+      <p class="status" id="gateMsg" role="status"></p>
+    </div>
+    <div id="app" hidden>
+      <div class="notice" id="notice" hidden>
+        <h2>Can't read feedback</h2>
+        <p>Firestore said <b>permission denied</b>. Either the <code>feedback</code> block hasn't been added to your Firestore rules yet, or you're signed in with a different Google account from the one in those rules.</p>
+        <p>Copy the rules block from the <code>e63334287a3deaa3/feedback.js</code> entry in the repo's <code>README.md</code>, put your email in it (the same email check as your analytics rules), paste it into Firebase console → Firestore Database → Rules, publish, then press Refresh. Until it's added, nothing players send is saved.</p>
+      </div>
+      <div class="filters">
+        <label>Game<select id="fGame"></select></label>
+        <label>Kind<select id="fKind"></select></label>
+        <label>Status<select id="fDone"><option value="open">Open</option><option value="done">Done</option><option value="all">All</option></select></label>
+        <button class="sm" id="refresh" type="button">Refresh</button>
+        <button class="sm" id="unhide" type="button" hidden></button>
+      </div>
+      <p class="sum" id="sum"></p>
+      <p class="status" id="status" role="status" aria-live="polite"></p>
+      <ol class="list" id="list"></ol>
+    </div>
+  </section>
+</div>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="/e63334287a3deaa3/feedback.js" data-list-only></script>
+<script>
+(function(){
+  var CFG={apiKey:'AIzaSyDZD_Ku8cixteXfwkDYzGv3GKiZFF8sRSM',authDomain:'rumblekarts.firebaseapp.com',projectId:'rumblekarts'};
+  var $=function(id){return document.getElementById(id)};
+  var info=window.BackRoomFeedback||{games:[],kinds:[]};
+  var GAME={},KIND={};
+  info.games.forEach(function(g){GAME[g[0]]=g[1]});
+  info.kinds.forEach(function(k){KIND[k[0]]=k[1]});
+  var rows=[],busy=false,stubbed=false;
+  // Senders hidden with "Hide this sender" (by uid), kept only in this browser.
+  var HKEY='fbk-admin:hidden',hidden={};
+  try{(JSON.parse(localStorage.getItem(HKEY)||'[]')||[]).forEach(function(u){if(typeof u==='string')hidden[u]=1})}catch(e){}
+  function saveHidden(){try{var k=Object.keys(hidden);if(k.length)localStorage.setItem(HKEY,JSON.stringify(k));else localStorage.removeItem(HKEY)}catch(e){}}
+
+  // A separate named app, so signing in here doesn't replace the account the games use in this browser.
+  var app=null,auth=null,db=null;
+  if(window.firebase){
+    app=firebase.initializeApp(CFG,'feedback-admin');auth=app.auth();db=app.firestore();
+  }
+  var api={
+    list:function(){return db.collection('feedback').orderBy('ts','desc').limit(500).get().then(function(s){return s.docs.map(function(d){return clean(d.id,d.data())})})},
+    setDone:function(id,v){return db.collection('feedback').doc(id).update({done:v})},
+    remove:function(id){return db.collection('feedback').doc(id).delete()}
+  };
+
+  function str(v,n){return typeof v==='string'?(v.length>n?v.slice(0,n)+'… (cut)':v):''}
+  function clean(id,x){
+    x=x||{};
+    var ts=x.ts&&typeof x.ts.toDate==='function'?x.ts.toDate():x.ts instanceof Date?x.ts:null;
+    return {id:String(id),msg:str(x.msg,5000),game:str(x.game,60)||'other',kind:str(x.kind,20)||'other',name:str(x.name,120),contact:str(x.contact,200),page:str(x.page,200),uid:str(x.uid,128),ts:ts,done:x.done===true};
+  }
+  function el(tag,cls,text){var e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e}
+  function opt(sel,v,t){var o=el('option',null,t);o.value=v;sel.appendChild(o)}
+  function ago(d){
+    if(!d)return '';
+    var s=Math.round((Date.now()-d.getTime())/1000);
+    if(s<60)return 'just now';if(s<3600)return Math.floor(s/60)+' min ago';if(s<86400)return Math.floor(s/3600)+' h ago';
+    if(s<86400*30)return Math.floor(s/86400)+' d ago';
+    return d.toLocaleDateString();
+  }
+  function isDenied(e){return !!e&&(e.code==='permission-denied'||/permission/i.test(e.message||''))}
+  function say(t,err){$('status').textContent=t||'';$('status').classList.toggle('err',!!err)}
+
+  function fillFilters(){
+    var g=$('fGame'),k=$('fKind'),gv=g.value||'all',kv=k.value||'all';
+    g.textContent='';k.textContent='';
+    opt(g,'all','All games');
+    var seen={};info.games.forEach(function(x){seen[x[0]]=1;opt(g,x[0],x[1])});
+    rows.forEach(function(r){if(!seen[r.game]){seen[r.game]=1;opt(g,r.game,r.game)}});
+    opt(k,'all','All kinds');info.kinds.forEach(function(x){opt(k,x[0],x[1])});
+    g.value=seen[gv]?gv:'all';k.value=KIND[kv]?kv:'all';
+  }
+
+  function render(){
+    var gv=$('fGame').value,kv=$('fKind').value,dv=$('fDone').value,list=$('list');
+    var open=rows.filter(function(r){return !r.done}).length;
+    $('sum').textContent=rows.length?(open+' open · '+(rows.length-open)+' done'+(rows.length>=500?' (newest 500)':'')):'';
+    var nh=Object.keys(hidden).length,hiddenRows=rows.filter(function(r){return r.uid&&hidden[r.uid]}).length;
+    if(rows.length&&hiddenRows)$('sum').textContent+=' · '+hiddenRows+' hidden';
+    $('unhide').hidden=!nh;$('unhide').textContent='Show hidden senders ('+nh+')';
+    var shown=rows.filter(function(r){
+      return !(r.uid&&hidden[r.uid])&&(gv==='all'||r.game===gv)&&(kv==='all'||r.kind===kv)&&(dv==='all'||(dv==='done')===r.done);
+    });
+    list.textContent='';
+    if(!shown.length){list.appendChild(el('li','empty-l',rows.length?'Nothing matches these filters.':'No feedback yet.'));return}
+    shown.forEach(function(r){
+      var li=el('li','item'+(r.done?' done':''));li.dataset.id=r.id;
+      var meta=el('div','meta');
+      meta.appendChild(el('span','badge '+(KIND[r.kind]?r.kind:''),KIND[r.kind]||r.kind));
+      meta.appendChild(el('span','game',GAME[r.game]||r.game));
+      var t=el('time',null,ago(r.ts));if(r.ts){t.dateTime=r.ts.toISOString();t.title=r.ts.toLocaleString()}meta.appendChild(t);
+      if(r.done)meta.appendChild(el('span','badge ok','Done'));
+      li.appendChild(meta);
+      li.appendChild(el('p','text',r.msg||'(empty)'));
+      var from=el('div','from');
+      var who=el('span');who.appendChild(document.createTextNode('From '));who.appendChild(el('b',null,r.name||'no name'));from.appendChild(who);
+      if(r.contact){
+        var c=el('span');c.appendChild(document.createTextNode('Reply: '));
+        if(/^[^\s@<>"'()\\,;:]+@[^\s@<>"'()\\,;:]+\.[A-Za-z]{2,}$/.test(r.contact)){var a=el('a',null,r.contact);a.href='mailto:'+r.contact;c.appendChild(a)}
+        else c.appendChild(el('b',null,r.contact));
+        from.appendChild(c);
+      }
+      if(r.page)from.appendChild(el('span',null,'Page: '+r.page));
+      if(r.uid){var sd=el('span');sd.appendChild(document.createTextNode('Sender '));var cd=el('code',null,r.uid.slice(0,6));cd.title=r.uid;sd.appendChild(cd);from.appendChild(sd)}
+      li.appendChild(from);
+      var acts=el('div','acts');
+      var d=el('button','sm',r.done?'Reopen':'Mark done');d.type='button';d.dataset.a='done';
+      var x=el('button','sm danger','Delete');x.type='button';x.dataset.a='del';
+      acts.append(d,x);
+      if(r.uid){var hs=el('button','sm','Hide this sender');hs.type='button';hs.dataset.a='hide';acts.appendChild(hs)}
+      li.appendChild(acts);
+      list.appendChild(li);
+    });
+  }
+
+  function load(){
+    if(busy)return;busy=true;say('Loading…');$('refresh').disabled=true;
+    api.list().then(function(r){
+      rows=r;$('notice').hidden=true;say('');fillFilters();render();
+    },function(e){
+      rows=[];fillFilters();$('list').textContent='';$('sum').textContent='';
+      if(isDenied(e)){$('notice').hidden=false;say('')}
+      else say('Couldn\'t load feedback: '+((e&&e.message)||'error'),true);
+    }).then(function(){busy=false;$('refresh').disabled=false});
+  }
+
+  $('list').addEventListener('click',function(e){
+    var b=e.target.closest('button[data-a]');if(!b)return;
+    var li=b.closest('.item'),id=li&&li.dataset.id,r=rows.filter(function(x){return x.id===id})[0];if(!r)return;
+    var a=b.dataset.a;
+    if(a==='hide'){if(r.uid){hidden[r.uid]=1;saveHidden();say('');render()}return}
+    if(a==='del'&&!confirm('Delete this feedback for good?'))return;
+    li.querySelectorAll('button').forEach(function(x){x.disabled=true});
+    var p=a==='done'?api.setDone(id,!r.done).then(function(){r.done=!r.done}):api.remove(id).then(function(){rows=rows.filter(function(x){return x!==r})});
+    p.then(function(){say('');render()},function(err){
+      li.querySelectorAll('button').forEach(function(x){x.disabled=false});
+      if(isDenied(err)){$('notice').hidden=false;say(a==='done'?'Couldn\'t change it: permission denied. The rules block\'s update line allows only the done field, for your account.':'Couldn\'t delete it: permission denied.',true)}
+      else say('Couldn\'t '+(a==='done'?'change':'delete')+' it: '+((err&&err.message)||'error'),true);
+    });
+  });
+  ['fGame','fKind','fDone'].forEach(function(id){$(id).addEventListener('change',render)});
+  $('refresh').addEventListener('click',load);
+  $('unhide').addEventListener('click',function(){hidden={};saveHidden();render()});
+
+  function show(email){
+    $('gate').hidden=!!email;$('app').hidden=!email;$('me').hidden=!email;
+    $('who').textContent=email||'';
+    if(email)load();else{rows=[];$('list').textContent=''}
+  }
+  fillFilters();
+  if(auth){
+    auth.onAuthStateChanged(function(u){if(!stubbed)show(u&&!u.isAnonymous?(u.email||'Signed in'):'')});
+    var provider=new firebase.auth.GoogleAuthProvider();provider.setCustomParameters({prompt:'select_account'});
+    $('signin').onclick=function(){
+      $('gateMsg').textContent='';
+      auth.signInWithPopup(provider).catch(function(e){
+        var c=(e&&e.code)||'';
+        if(/popup-closed|cancelled-popup/.test(c))return;
+        $('gateMsg').textContent=/popup-blocked/.test(c)?'Your browser blocked the sign-in window. Allow pop-ups for this site and try again.':'Sign-in didn\'t work: '+((e&&e.message)||c);
+      });
+    };
+    $('out').onclick=function(){auth.signOut()};
+  }else{
+    $('signin').disabled=true;$('gateMsg').textContent='Couldn\'t load Firebase. Check your connection and reload.';
+  }
+
+  // Test hook for automated browsers only: swap Firestore for data held in the page.
+  if(navigator.webdriver){
+    window.__fbAdmin={
+      stub:function(docs,opt){
+        opt=opt||{};var mem=(docs||[]).map(function(d){return Object.assign({},d,{ts:d.ts?new Date(d.ts):null})});
+        var deny=function(){var e=new Error('Missing or insufficient permissions.');e.code='permission-denied';return Promise.reject(e)};
+        api={
+          list:function(){return opt.deny?deny():Promise.resolve(mem.map(function(d){return clean(d.id,d)}).sort(function(a,b){return (b.ts||0)-(a.ts||0)}))},
+          setDone:function(id,v){if(opt.denyWrite)return deny();mem.forEach(function(d){if(d.id===id)d.done=v});return Promise.resolve()},
+          remove:function(id){if(opt.denyWrite)return deny();mem=mem.filter(function(d){return d.id!==id});return Promise.resolve()}
+        };
+        stubbed=true;show(opt.email||'test@example.com');
+      },
+      rows:function(){return rows.map(function(r){return Object.assign({},r)})}
+    };
+  }
+})();
+</script>
+</body>
+</html>
