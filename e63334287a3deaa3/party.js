@@ -335,8 +335,10 @@
   // Room codes come from another member's node, so only accept the characters the games' invite links allow.
   function okRoom(r) { return typeof r === 'string' && /^[a-z0-9]{1,17}$/.test(r); }
   function hashFor(g, r) { return '#' + (g.pre != null ? g.pre : g.k + '-') + r; }
+  var lastRoom = null;
   function launch(g, r) {
     var path = BASE + g.d + '/' + hashFor(g, r);
+    lastRoom = { k: g.k, r: r };
     var go = function () {
       var fr = BR ? BR.openGame(path, g.n) : ownOverlay(path, g.n);
       if (fr) autoJoin(fr, g, r);
@@ -525,6 +527,36 @@
       $main.querySelector('#ptyName').focus();
     } else join(inv, inv === again);
   } else if (again) join(again, true);
+
+  // For social.js (the Online panel under this one): it signs in through boot(), shows whether you're in a party,
+  // and creates, joins or opens games through these, so both panels share one sign-in and one party.
+  function openPath(path, name) {
+    var go = function () { if (BR) BR.openGame(path, name); else ownOverlay(path, name); };
+    if (isOpen()) { var once = function () { removeEventListener('popstate', once); setTimeout(go, 60); }; addEventListener('popstate', once); history.back(); }
+    else go();
+  }
+  window.Party = {
+    boot: function () { return boot().then(function () { return { app: app, db: db, uid: uid }; }); },
+    now: now,
+    get code() { return refs ? code : ''; },
+    get size() { return refs ? members.length : 0; },
+    get room() { return lastRoom; },
+    games: GAMES.map(function (g) { return { k: g.k, n: g.n, d: g.d, pre: g.pre != null ? g.pre : g.k + '-' }; }),
+    create: function () { return (refs || busy ? Promise.resolve() : create()).then(function () { return refs ? code : ''; }); },
+    join: function (c) {
+      c = cleanCode(c);
+      if (!c || busy || (refs && c === code)) return Promise.resolve(refs ? code : '');
+      if (refs) teardown(true);
+      return join(c, false).then(function () { return refs ? code : ''; });
+    },
+    // Open a party game in room r and press its Play in room button, as a party launch does.
+    launch: function (k, r) {
+      var g = byKey(k);
+      if (!g || !(g.pre === '' ? okRoom(r) : /^[a-z0-9][a-z0-9-]{0,16}$/.test(r))) return false;
+      launch(g, r); return true;
+    },
+    open: function (path, name) { if (typeof path === 'string' && path.indexOf(BASE) === 0) openPath(path, name || ''); }
+  };
 
   // Test hook for the automated checks; harmless in normal play.
   if (navigator.webdriver) window.__party = { get code() { return code; }, get uid() { return uid; }, get members() { return members; }, leader: leader, GAMES: GAMES, MAX: MAX, db: function () { return db; } };
