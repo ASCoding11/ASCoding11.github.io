@@ -320,7 +320,7 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
         <dt data-kb="cam">C</dt><dd>Change camera</dd><dt data-kb="reset">R</dt><dd>Back onto the track</dd><dt>Esc</dt><dd>Pause, invite link</dd>
       </dl>
       <div class="row"><button class="ghost" id="keysMenu" type="button">Change keys</button></div>
-      <p class="foot" style="margin-top:10px">Track limits: keep at least one wheel inside the white lines. Running wide costs you nothing but time, so just get back on the track. Cutting a corner to gain time adds 1 s to your race time.</p>
+      <p class="foot" style="margin-top:10px">Track limits: keep at least one wheel inside the white lines. Running wide costs you nothing but time, so just get back on the track. Cutting a corner to gain time adds 2.5 s to your race time.</p>
       <dl class="keys" hidden>
       </dl>
       <div class="adbox" id="adMenu" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
@@ -591,7 +591,7 @@ function buildTrack(def){
   const K=curv(X,Z);
   // Racing line: an elastic band pulled tight inside the track edges (a minimum-curvature line),
   // so the car swings wide before a corner, clips the apex and runs wide on the exit.
-  const RL=new Float32Array(N),lim=HALF_W-1.8;
+  const RL=new Float32Array(N),lim=HALF_W-(def.street?AI.lineStreet:AI.line);
   for(const [k,it] of [[24,60],[12,80],[6,90],[3,60]]){
     for(let n=0;n<it;n++){
       for(let i=0;i<N;i++){
@@ -671,10 +671,11 @@ let state='menu';      // menu | lobby | race | results
 let race=null,paused=false,localClock=0;
 let myName=store.get('name','');
 const prefs={track:Math.max(0,TRACKS.findIndex(t=>t.id===store.get('trackId',TRACKS[DEFAULT_TRACK].id))),laps:store.get('laps',5),diff:store.get('diff','normal')};
-// Bot skill scales corner speed (and, below 1, braking). Measured in 22-car bot races against a near-ideal lap
-// (Monza, Silverstone, Monaco, Spa, Singapore, Lakeside): Hard's fastest cars within 0-2 s a lap and the
-// field 1.5-3.5 s off; Normal 3-6 s off; Easy 8-14 s off. Online races use Hard.
-const DIFF={easy:.85,normal:.97,hard:1.15};
+// Bot skill scales corner speed (and, below 1, braking). Tuned with 3-lap, 22-car bot races on every track so
+// each level is about 2 s a lap quicker than before the clean-air driving in AI below (with the same gaps):
+// average field-median lap over the 26 tracks Easy 91.0 s, Normal 85.1 s, Hard 82.4 s (was 93.1 / 86.8 / 84.7).
+// Online races use Hard.
+const DIFF={easy:.858,normal:.982,hard:1.11};
 function nowMs(){return mode==='online'?Net.now():localClock}
 function raceT(){return race?(nowMs()-race.go)/1000:0}
 
@@ -834,7 +835,14 @@ function slipstream(c){
 // given to braking; the slow-down when off the racing line (offK per metre, up to offMax); skill above 1 only
 // speeds up corners quicker than skLo m/s, fully from skLo+skW; boost rules; and for the corner speeds VC,
 // kw (curvature smoothing, samples each side) and rTight (bends tighter than this many metres aren't smoothed).
-const AI={dec:38,decPow:3,ahead:60,lead:2,offK:.035,offMax:.2,skLo:30,skW:30,boostRes:.15,boostLook:1,boostRoom:2,boostSteer:.35,boostGap:25,kw:3,followGap:40,followDec:.65,rTight:20};
+// In clean air (no car within 42 m ahead in our lane, and within clearOff m of the racing line) bots brake at
+// dec and keep the throttle in while the wheel is nearly at full lock (lockC: lift above the first, cut above the
+// second, dab the brake above the third, as multiples of full lock); in traffic, off line, or running out of road
+// (within edge m of the outside edge) they brake at decTr and lift early (lockT), which keeps packs from
+// piling into each other. The racing line keeps `line` m from the white lines (lineStreet on street circuits,
+// where the walls are right behind the kerbs).
+const AI={dec:44,decTr:38,decPow:3,ahead:60,lead:0,offK:.035,offMax:.2,skLo:20,skW:30,boostRes:.15,boostLook:1,boostRoom:2,boostSteer:.35,boostGap:25,kw:3,followGap:40,followDec:.65,rTight:20,
+  lockC:[2,3,5],lockT:[1,1.6,2.2],clearOff:1.5,edge:2,line:1.2,lineStreet:1.8};
 function botInput(c,dt,t){
   const T=track,N=T.N,ai=c.ai,inp={thr:0,brk:0,steer:0,boost:false};
   if(t<ai.react){ai.off=ai.tgt=c.lat-track.RL[Math.max(0,c.idx)];ai.hold=5;return inp}
@@ -850,8 +858,8 @@ function botInput(c,dt,t){
   // there's room to boost. Skill scales corner speed; above 1 it only adds speed in quicker corners, where the
   // map's kinks make VC cautious. With a car close in front, brake earlier so a queue into a hairpin doesn't
   // concertina.
-  const close=blk&&bdp<AI.followGap&&Math.abs(blk.lat-c.lat)<2.5;
-  const sk=c.skill,D=AI.dec*Math.pow(Math.min(1,sk),AI.decPow)*(close?AI.followDec:1),lb=Math.max(0,c.v)*AI.boostLook;
+  const close=blk&&bdp<AI.followGap&&Math.abs(blk.lat-c.lat)<2.5,clear=!blk&&Math.abs(ai.off)<AI.clearOff;
+  const sk=c.skill,D=(clear?AI.dec:AI.decTr)*Math.pow(Math.min(1,sk),AI.decPow)*(close?AI.followDec:1),lb=Math.max(0,c.v)*AI.boostLook;
   const vcs=v=>v*(sk<=1?sk:1+(sk-1)*clamp((v-AI.skLo)/AI.skW,0,1));
   let vt0=vcs(T.VC[i]),vb=vt0;
   for(let k=1;k<=AI.ahead;k++){const vc=vcs(T.VC[(i+k)%N]),d=k*T.ds-AI.lead;
@@ -895,8 +903,10 @@ function botInput(c,dt,t){
   if(Math.abs(err)>1.6&&c.v<6){inp.steer=Math.sign(err);inp.thr=.5}
   if(c.v<vt-.6)inp.thr=1;else if(c.v<vt-.1)inp.thr=.35;
   if(c.v>vt+.3)inp.brk=clamp((c.v-vt)/2,.45,1);
-  // still at full lock (or asking for more): don't add speed until the wheel unwinds
-  if(Math.abs(steerAsk)>1&&c.v>12){inp.thr=Math.min(inp.thr,Math.abs(steerAsk)>1.6?0:.25);if(Math.abs(steerAsk)>2.2)inp.brk=Math.max(inp.brk,.35)}
+  // still at full lock (or asking for more): don't add speed until the wheel unwinds. Positive steer turns toward
+  // +lat, so lat and steer of opposite signs near the edge means running out of road on the outside of a bend.
+  const lk=clear&&!(Math.abs(c.lat)>HALF_W-AI.edge&&c.lat*steerAsk<0)?AI.lockC:AI.lockT;
+  if(Math.abs(steerAsk)>lk[0]&&c.v>12){inp.thr=Math.min(inp.thr,Math.abs(steerAsk)>lk[1]?0:.25);if(Math.abs(steerAsk)>lk[2])inp.brk=Math.max(inp.brk,.35)}
   // boost out of corners and down straights like a player would, keeping a little ERS in hand (less when
   // chasing), but not with a car right in front in our lane, and not into a braking zone
   inp.boost=c.ers>(blk?AI.boostRes*.5:AI.boostRes+ai.mood*.15)&&vb>c.v+AI.boostRoom&&Math.abs(c.steer)<AI.boostSteer
@@ -933,7 +943,7 @@ function resetCar(c){
 //  Track limits: a car is off the track when all four wheels are past the white line (kerbs don't count as
 //  track). Going off costs nothing by itself: lap times stand, and there are no strikes or flags; the driver
 //  just sees a small "Return to the track" hint while off. Cutting a corner to gain time (covering more of
-//  the lap than the car actually drove) adds a 1 s penalty (CUT_PEN) to the race time at the finish.
+//  the lap than the car actually drove) adds a 2.5 s penalty (CUT_PEN) to the race time at the finish.
 //  Online, each car's total penalty seconds travel in `pn`, as before.
 // =====================================================================
 // =====================================================================
@@ -965,7 +975,7 @@ function drsUpdate(c,t){
   c.drsAvail=ok;
   if(!ok||c.brk>.05||c.fin)c.drsOpen=false;
 }
-const CUT_PEN=1;
+const CUT_PEN=2.5;
 function turnAt(idx){const T=track;if(!T.turns.length)return '';let best=0,bd=1e9;
   T.turns.forEach((ti,k)=>{let d=Math.abs(ti-idx);d=Math.min(d,T.N-d);if(d<bd){bd=d;best=k}});
   return bd*T.ds<220?'Turn '+(best+1):''}
