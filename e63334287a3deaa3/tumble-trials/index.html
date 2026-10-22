@@ -317,7 +317,7 @@ body.touch #banner{top:30%}
     <div id="hint" class="out"></div>
     <div id="grabbed" hidden>Grabbed! Jump to break free</div>
     <div id="spec" hidden><button type="button" id="specPrev" aria-label="Watch previous player">‹</button><span id="specTxt">Watching</span><button type="button" id="specNext" aria-label="Watch next player">›</button></div>
-    <div id="lockHint" class="out" hidden>Click to steer the camera</div>
+    <div id="lockHint" class="out" hidden>Click to look</div>
     <section id="results" class="card" hidden>
       <h2 id="resTitle">Round over</h2><p class="sub" id="resSub"></p>
       <ul class="rlist" id="resList"></ul>
@@ -394,14 +394,15 @@ body.touch #banner{top:30%}
             <li>Each show is a few <b>rounds</b>. In a <b>race</b>, cross the finish before the qualifying spots fill up. In a <b>survival</b>, stay on until the clock runs out.</li>
             <li>Fall in the slime during a race and you pop back at the last checkpoint. In survivals and the final, a fall knocks you out.</li>
             <li>The <b>final</b> is on the honeycomb: tiles vanish a moment after anyone touches them. Keep moving and be the last one up.</li>
-            <li><b>Dive</b> for a burst of speed or to slide under a high sweeper, and <b>grab</b> people to slow them down.</li>
+            <li><b>Dive</b> for a burst of speed, and <b>grab</b> people to slow them down. Jump the low sweepers; you fit under the high ones, so don't jump into them.</li>
           </ol>
         </details>
         <details>
           <summary>Controls</summary>
           <dl class="keys">
             <div><dt data-kb="up down left right" data-kb-short data-kb-join="">WASD</dt><dd>Run</dd></div>
-            <div><dt>MOUSE</dt><dd>Camera</dd></div>
+            <div><dt>MOUSE</dt><dd>Camera (click the game, Esc frees it)</dd></div>
+            <div><dt>SCROLL</dt><dd>Camera with a trackpad</dd></div>
             <div><dt data-kb="jump" data-kb-short>SPACE</dt><dd>Jump</dd></div>
             <div><dt data-kb="dive" data-kb-short>SHIFT</dt><dd>Dive</dd></div>
             <div><dt data-kb="grab" data-kb-short>E</dt><dd>Grab (hold)</dd></div>
@@ -413,7 +414,7 @@ body.touch #banner{top:30%}
         </details>
         <details>
           <summary>Settings</summary>
-          <label class="setting"><span>Camera speed</span><input type="range" id="sens" min="0.2" max="3" step="0.05"><output id="sensOut"></output></label>
+          <label class="setting"><span>Sensitivity</span><input type="range" id="sens" min="0.2" max="3" step="0.05"><output id="sensOut"></output></label>
           <label class="setting"><span>Invert camera Y</span><input type="checkbox" id="invY"></label>
           <label class="setting"><span>Music</span><input type="range" id="mus" min="0" max="1" step="0.05"><output id="musOut"></output></label>
           <label class="setting"><span>Sounds</span><input type="range" id="sfxv" min="0" max="1" step="0.05"><output id="sfxOut"></output></label>
@@ -435,7 +436,7 @@ body.touch #banner{top:30%}
         <button class="btn red" id="leave" type="button">Leave</button>
       </div>
       <p class="msg" id="inviteMsg"></p>
-      <label class="setting"><span>Camera speed</span><input type="range" id="sens2" min="0.2" max="3" step="0.05"></label>
+      <label class="setting"><span>Sensitivity</span><input type="range" id="sens2" min="0.2" max="3" step="0.05"></label>
       <label class="setting"><span>Invert camera Y</span><input type="checkbox" id="invY2"></label>
       <label class="setting"><span>Music</span><input type="range" id="mus2" min="0" max="1" step="0.05"></label>
       <label class="setting"><span>Sounds</span><input type="range" id="sfxv2" min="0" max="1" step="0.05"></label>
@@ -499,7 +500,9 @@ if(!myLook||!validColor(myLook.c)){myLook={c:pick(COLORS),f:0,p:Math.floor(Math.
 myLook.f=clamp(myLook.f|0,0,FACES.length-1);myLook.p=clamp(myLook.p|0,0,PATTERNS.length-1);if(!validColor(myLook.pc))myLook.pc='#fff8ee';
 const lookStr=l=>[l.f|0,l.p|0,l.pc].join(',');
 function parseLook(c,s){const f=String(s||'').split(',');return{c:validColor(c)?c:'#ff4f9a',f:clamp(f[0]|0,0,FACES.length-1),p:clamp(f[1]|0,0,PATTERNS.length-1),pc:validColor(f[2])?f[2]:'#fff8ee'}}
-let sens=+store.get('sens',1)||1,invY=!!store.get('invY',false),musVol=+store.get('mus',.5),sfxVol=+store.get('sfx',.8),gfx=store.get('gfx',isTouch?'fast':'high');
+// camera sensitivity (mouse, trackpad and touch look), saved as tumble-sens; anything odd in storage falls back to 1
+const SENS_MIN=.2,SENS_MAX=3,sensOk=v=>{v=Number(v);return Number.isFinite(v)&&v>0?clamp(v,SENS_MIN,SENS_MAX):1};
+let sens=sensOk(store.get('sens',1)),invY=!!store.get('invY',false),musVol=+store.get('mus',.5),sfxVol=+store.get('sfx',.8),gfx=store.get('gfx',isTouch?'fast':'high');
 if(!isFinite(musVol))musVol=.5;if(!isFinite(sfxVol))sfxVol=.8;if(gfx!=='fast')gfx='high';
 const stats=Object.assign({g:0,w:0,q:0,r:0},store.get('stats',{}));
 function bumpStat(k,n){stats[k]=(stats[k]|0)+(n||1);store.set('stats',stats);renderStats()}
@@ -1359,7 +1362,8 @@ function tileFloor(R,size,y,c1,c2){
   }
   return tiles;
 }
-// 6. Whirlwind Dish: two rotating beams (jump the low one, dive under the high one) while the floor falls away
+// 6. Whirlwind Dish: two rotating beams (jump the low one; run or dive under the high one, but don't jump into it) while the floor falls away
+const HIGH_BEAM_Y=2.2;
 function sweeperLevel(def,isFinal){
   return Object.assign({build(seed){
     const r=rng(seed^0x77),R=isFinal?11.5:13;slime(-5);scenery(seed,0,0,R+6);
@@ -1374,7 +1378,8 @@ function sweeperLevel(def,isFinal){
     const ease=t=>t<2.5?t*t/5:t-1.25,A1=t=>{t=Math.max(0,t);return .75*ease(t)+k1*t*t*.5},A2=t=>{t=Math.max(0,t);return Math.PI/2+.5*ease(t)+k2*t*t*.5};
     const low=pivot((t,P,Q)=>{P.set(0,0,0);Q.setFromAxisAngle(UP,A1(t))}),high=pivot((t,P,Q)=>{P.set(0,0,0);Q.setFromAxisAngle(UP,A2(t))});
     B.box({s:[R*2+1,.5,.7],tex:TX.hazard(),tile:1,hit:.32,kb:1.6,dyn:low([0,.33,0])});
-    B.box({s:[R*2+1,.6,.75],tex:TX.stripes(C.red,C.white),tile:1,hit:.32,kb:1.6,dyn:high([0,1.62,0])});
+    // the high beam's underside is at 1.95, well clear of a standing bean (1.6 tall): run or dive under it, just don't jump into it
+    B.box({s:[R*2+1,.5,.75],tex:TX.stripes(C.red,C.white),tile:1,hit:.32,kb:1.6,dyn:high([0,HIGH_BEAM_Y,0])});
     B.cyl({r:1.45,h:.6,c:C.yel,dyn:low([0,.6,0]),col:false});
     // the drop schedule: every few seconds a handful of tiles shake, then fall
     const order=isFinal?tiles.slice().sort((a,b)=>b.d-a.d+(r()-.5)*1.2):shuffle(tiles.slice(),r);
@@ -1386,13 +1391,13 @@ function sweeperLevel(def,isFinal){
         if(t>=tl.warn&&!tl.redded){tl.redded=1;if(tl.col.mesh)tl.col.mesh.material=mat(C.red,TX.foam(C.red));w=tl}
         if(t>=tl.drop&&!tl.dropped){tl.dropped=1;d=tl}}
         if(w&&t>0)sfx('warn',_tmpV.set(w.x,0,w.z),.8);if(d&&t>0)sfx('drop',_tmpV.set(d.x,0,d.z),.7)},
-      beams:[{fn:A1,y:.33,low:true},{fn:A2,y:1.62,low:false}]};
+      beams:[{fn:A1,y:.33,low:true},{fn:A2,y:HIGH_BEAM_Y,low:false}]};
   }},def);
 }
 function addColGrid(c){const cs=World.cell,ext=c.type===0?Math.abs(c.m[0])*c.hx+Math.abs(c.m[3])*c.hy+Math.abs(c.m[6])*c.hz:c.br,ez=c.type===0?Math.abs(c.m[2])*c.hx+Math.abs(c.m[5])*c.hy+Math.abs(c.m[8])*c.hz:c.br;
   const x0=Math.floor((c.pos.x-ext)/cs),x1=Math.floor((c.pos.x+ext)/cs),z0=Math.floor((c.pos.z-ez)/cs),z1=Math.floor((c.pos.z+ez)/cs);
   for(let i=x0;i<=x1;i++)for(let k=z0;k<=z1;k++){const key=i*100003+k;let a=World.grid.get(key);if(!a){a=[];World.grid.set(key,a)}a.push(c)}}
-LEVELS.push(sweeperLevel({id:'dish',name:'Whirlwind Dish',kind:'survival',time:75,desc:'Jump the low beam, dive under the high one, and stay off the tiles that start to shake.'},false));
+LEVELS.push(sweeperLevel({id:'dish',name:'Whirlwind Dish',kind:'survival',time:75,desc:'Jump the low beam, stay on the ground as the high one swings over, and keep off the tiles that start to shake.'},false));
 
 // 7. Gap Rush: walls with gaps sweep across the platform toward the edge
 LEVELS.push({id:'rush',name:'Gap Rush',kind:'survival',time:80,desc:'Walls slide in from the far side. Find the gap before one shoves you off the back.',build(seed){
@@ -1488,8 +1493,8 @@ const RACES=[0,1,2,3,4],SURVIVALS=[5,6],FINALS=[7,8];
 // =====================================================================
 //  Bots. They follow each race's path of nodes, wait at "safe" nodes until
 //  the hammers and balls ahead will miss them (the obstacles are functions
-//  of time, so the bot can look ahead), hop low sweepers, dive under high
-//  ones, ride the drifting platforms and guess doors. The same brain drives
+//  of time, so the bot can look ahead), hop low sweepers, dive under things
+//  at head height, ride the drifting platforms and guess doors. The same brain drives
 //  the test autopilot that checks every race can be finished.
 // =====================================================================
 const ghosts=new Map();
@@ -1526,7 +1531,8 @@ function aiInput(e,L,t,dt){
   else if(L.hex)hexAI(e,L,t,dt,inp);
   else if(L.sweep)sweepAI(e,L,t,dt,inp);
   else wanderAI(e,L,t,dt,inp);
-  // hop low sweepers, dive under high ones (if the bot notices in time)
+  // hop low sweepers, dive under things at head height such as swinging balls (if the bot notices in time);
+  // the dish's high beam passes over a standing bean, so it never needs a dive
   if(b.onGround&&ai.jcd<=0&&(L.sweep||L.path)){
     _v.set(inp.x*MAXSPD*.7,0,inp.z*MAXSPD*.7);
     const lo=hitterSoon(b.pos,_v,t,.3,.42,.4,5),hi=hitterSoon(b.pos,_v,t,.32,1.3,.36,5);
@@ -1711,12 +1717,21 @@ function loadLevel(i,seed){
 }
 const isRace=L=>L&&L.def.kind==='race';
 // ---------- the show plan ----------
+// How many reach the final: about a third of the starters, at least 2 and at most 6.
+function finalSize(n){return n<=2?2:clamp(Math.round(n/3),2,6)}
+// Every show has an opening race, at least one middle round, then the final: two rounds before the final in a
+// short show or a small lobby, three in a normal show of 10 or more (or a long one), four in a long show of 10 or more.
+// The knock-outs are spread evenly (by ratio) so that finalSize(n) are left for the final. A lobby with fewer spare
+// players than rounds (2 or 3 players) plays its early rounds as races where everyone who finishes goes through.
+// Middle rounds alternate survival and race; a survival needs at least one knock-out, or it would end at GO.
 function planShow(n,len,r){
-  let pre=len===0?1:len===1?(n>=10?2:1):(n>=10?3:2);if(n===2)pre=len+1;
-  const races=shuffle(RACES.slice(),r),survs=shuffle(SURVIVALS.slice(),r),plan=[];let cur=n,ri=0,si=0;
+  const pre=len===0?2:len===1?(n>=10?3:2):(n>=10?4:3),F=Math.min(Math.max(2,n),finalSize(n));
+  const races=shuffle(RACES.slice(),r),survs=shuffle(SURVIVALS.slice(),r),plan=[];let cur=Math.max(2,n),ri=0,si=0,lastSurv=false;
   for(let i=0;i<pre;i++){
-    const surv=i===1&&n>2;let q=n===2?2:Math.max(2,Math.ceil(cur*(surv?.5:.62)));if(q>=cur&&cur>2)q=cur-1;
-    plan.push({lv:surv?survs[si++%survs.length]:races[ri++%races.length],kind:surv?'survival':'race',q});cur=q;
+    const left=pre-i,spare=cur-F;
+    const q=spare<left?cur:clamp(Math.round(cur*Math.pow(F/cur,1/left)),F,cur);
+    const surv=i>0&&!lastSurv&&q<cur&&si<survs.length;lastSurv=surv;
+    plan.push({lv:surv?survs[si++]:races[ri++%races.length],kind:surv?'survival':'race',q});cur=q;
   }
   plan.push({lv:FINALS[Math.floor(r()*FINALS.length)],kind:'final',q:1});
   return plan;
@@ -1742,8 +1757,15 @@ function newShow(prev){
 }
 function nextRound(rs){
   const n=Object.assign({},rs),rn=rs.rn+1,pl=rs.q.slice();
-  const p=rs.plan[rn];n.rn=rn;n.lv=p.lv;n.seed=Math.floor(Math.random()*1e9);n.go=now()+8600;n.pl=pl;n.q=[];n.x=[];n.te=0;
-  n.qn=p.kind==='final'?1:Math.min(p.q,Math.max(1,pl.length-1));if(pl.length===2&&p.kind!=='final')n.qn=2;
+  let p=rs.plan[rn];
+  // fewer came through than planned: a survival needs someone to knock out (it ends as soon as only qn are left),
+  // so with two left it becomes a race neither has played yet; a round before the final never sends fewer than 2 on
+  if(p.kind==='survival'&&pl.length<=2){
+    const used=rs.plan.map(o=>o.lv),free=RACES.filter(i=>!used.includes(i)),lv=(free.length?free:RACES)[Math.floor(Math.random()*(free.length||RACES.length))];
+    p={lv,kind:'race',q:pl.length};n.plan=rs.plan.slice();n.plan[rn]=p;
+  }
+  n.rn=rn;n.lv=p.lv;n.seed=Math.floor(Math.random()*1e9);n.go=now()+8600;n.pl=pl;n.q=[];n.x=[];n.te=0;
+  n.qn=p.kind==='final'?1:p.kind==='survival'?clamp(p.q,2,pl.length-1):clamp(p.q,Math.min(2,pl.length),pl.length);
   n.ph='round';return n;
 }
 function setRS(rs){
@@ -1795,6 +1817,13 @@ function hostTick(){
   else{
     if(alive.length<=1||rt>=L.def.time){end=true;if(alive.length)for(const i of alive)q.push(i);else if(x.length)q.push(x.pop())}
     win=q.slice();
+  }
+  // a round before the final sends at least 2 through, so the final always has a contest: if fewer made it (a race that
+  // ran out of time, or the last few falling together), the last knocked out, or in a race whoever got furthest, go too
+  if(end&&kind!=='final'&&q.length<2){
+    const back=x.filter(i=>!report(rs,idOf(rs,i)).gone);
+    if(kind==='race'){const far=i=>{const e=ents.get(idOf(rs,i));return e?-(e.hidden?e.b.lastSafe.z:e.b.pos.z):-1e9};back.sort((a,b)=>far(b)-far(a))}else back.reverse();
+    for(const i of back){if(q.length>=2)break;q.push(i);x.splice(x.indexOf(i),1)}
   }
   if(end)setRS(Object.assign({},rs,{q,x,ph:'results',te:t+(kind==='final'?3800:7200),win:win||rs.win,end:t}));
   else if(ch)setRS(Object.assign({},rs,{q,x}));
@@ -2232,7 +2261,10 @@ addEventListener('keydown',ev=>{
   if(KB.busy())return;
   const c=ev.code;
   if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Tab'].includes(c)||KB.actionsFor(c).length)ev.preventDefault();
-  if(c==='Escape'){if(G.mode==='menu')return;if(!$('pause').hidden){if(performance.now()-pauseShownAt>300)resume()}else showPause();return}
+  if(c==='Escape'){if(G.mode==='menu')return;
+    // in the online lobby, the Esc that lets go of the mouse only does that (the lobby panel is the menu there)
+    if(inLobby()&&$('pause').hidden&&(locked()||performance.now()-unlockAt<300)){releaseLock();return}
+    if(!$('pause').hidden){if(performance.now()-pauseShownAt>300)resume()}else showPause();return}
   if(KB.is('mute',c)&&!ev.repeat){muted=!muted;store.set('muted',muted);setVolumes();toast(muted?'Music off':'Music on');return}
   if(G.mode==='menu'||!$('pause').hidden)return;
   initAudio();
@@ -2250,31 +2282,63 @@ function readInput(){
   const inp={x:rx*mx+fx*mz,z:rz*mx+fz*mz,jumpP:press.jump,diveP:press.dive};
   press.jump=false;press.dive=false;return inp;
 }
-// mouse: pointer lock to steer the camera, or drag if the lock isn't available
-let camYaw=0,camPitch=.34,camDist=8.4,lockFailed=false,drag=null;
+// Mouse look on computers: clicking the game while playing captures the mouse (Pointer Lock), so moving it turns the
+// camera with no button held; that first click only captures, it doesn't grab. Esc, the pause menu, the main menu,
+// results and podium cards and the Controls panel all let go of it (Esc in the online lobby just frees the mouse for the
+// lobby panel; elsewhere it opens the pause menu, as before). A refused request (Chrome refuses one made within about
+// a second of Esc) is only counted: after three in a row the "Click to look" hint goes and drag-to-look carries on, but
+// every click still tries again, and any success starts the count over. Browsers without Pointer Lock just drag.
+// Trackpads: a two-finger scroll turns (sideways) and tilts (up and down) the camera, as does a mouse wheel; a pinch
+// (a wheel event with ctrlKey) is swallowed so the page doesn't zoom, since the game has no zoom.
+let camYaw=0,camPitch=.34,camDist=8.4,lockFails=0,quietUnlock=false,unlockAt=-1e9,drag=null;
+const hasLock=!!(canvas.requestPointerLock&&'pointerLockElement' in document);
+const locked=()=>document.pointerLockElement===canvas;
+const lockWanted=()=>hasLock&&!isTouch&&lockFails<3;
+const cardUp=()=>!$('results').hidden||!$('podium').hidden;
+// somewhere the camera can be steered: a show, practice or the online lobby, with no menu or card in the way
+const canLook=()=>G.mode!=='menu'&&$('pause').hidden&&!KB.busy()&&!cardUp();
+const inLobby=()=>G.mode==='online'&&!!G.rs&&G.rs.ph==='lobby';
+function requestLock(){if(isTouch||!hasLock||locked()||!canLook())return;try{const p=canvas.requestPointerLock();if(p&&p.catch)p.catch(()=>{})}catch(e){lockFails++}}
+// let go of the mouse on purpose (a menu or a card), without the pause menu that losing it otherwise brings up
+function releaseLock(){if(!document.pointerLockElement)return;quietUnlock=true;try{document.exitPointerLock()}catch(e){}}
 canvas.addEventListener('pointerdown',ev=>{
   initAudio();
-  if(ev.pointerType==='touch'){if(!isTouch){isTouch=true;document.body.classList.add('touch');syncTouchUI()}touch.look={id:ev.pointerId,x:ev.clientX,y:ev.clientY};return}
+  if(ev.pointerType==='touch'){if(!isTouch){isTouch=true;document.body.classList.add('touch');syncTouchUI();releaseLock()}touch.look={id:ev.pointerId,x:ev.clientX,y:ev.clientY};return}
   if(G.mode==='menu')return;
-  if(ev.button===0||ev.button===2){held.add('Mouse'+ev.button)}
-  if(!document.pointerLockElement&&!lockFailed&&!isTouch){try{const p=canvas.requestPointerLock();if(p&&p.catch)p.catch(()=>{lockFailed=true})}catch(e){lockFailed=true}}
   drag={id:ev.pointerId,x:ev.clientX,y:ev.clientY};
+  // the click that captures the mouse is only that (when the capture is expected to work)
+  if(!locked()&&lockWanted()&&canLook()){requestLock();return}
+  if(!locked())requestLock();
+  if(ev.button===0||ev.button===2){held.add('Mouse'+ev.button)}
   if(spectating()&&ev.button===0)cycleSpec(1);
 });
 addEventListener('pointerup',ev=>{held.delete('Mouse'+ev.button);if(drag&&drag.id===ev.pointerId)drag=null;if(touch.look&&touch.look.id===ev.pointerId)touch.look=null});
 addEventListener('pointercancel',ev=>{if(touch.look&&touch.look.id===ev.pointerId)touch.look=null;drag=null});
 canvas.addEventListener('contextmenu',ev=>ev.preventDefault());
-let hadLock=false;
 document.addEventListener('pointerlockchange',()=>{
-  if(document.pointerLockElement===canvas){hadLock=true;return}
-  if(hadLock&&G.mode!=='menu'&&$('pause').hidden&&!KB.busy()){hadLock=false;showPause()}else hadLock=false;
+  const quiet=quietUnlock;quietUnlock=false;
+  if(locked()){lockFails=0;drag=null;if(!canLook())releaseLock();return}
+  held.delete('Mouse0');held.delete('Mouse2');unlockAt=performance.now();
+  if(!quiet&&G.mode!=='menu'&&$('pause').hidden&&!KB.busy()&&!cardUp()&&!inLobby())showPause();
 });
-document.addEventListener('pointerlockerror',()=>{lockFailed=true});
-const look=(dx,dy,k)=>{camYaw-=dx*k*sens;camPitch=clamp(camPitch+(invY?-1:1)*dy*k*sens,-.25,1.2)};
+document.addEventListener('pointerlockerror',()=>{lockFails++});
+const look=(dx,dy,k)=>{if(!isFinite(dx)||!isFinite(dy))return;camYaw-=dx*k*sens;camPitch=clamp(camPitch+(invY?-1:1)*dy*k*sens,-.25,1.2)};
+// about 0.14 degrees per pixel of mouse movement at sensitivity 1; a single jump of over 300 pixels is a browser
+// glitch (some send one when the lock starts) and is skipped
+const AIM_RATE=.0024,DRAG_RATE=.005,SCROLL_RATE=.003;
 document.addEventListener('mousemove',ev=>{
-  if(document.pointerLockElement===canvas){look(ev.movementX,ev.movementY,.0024);return}
-  if(drag&&!isTouch&&(ev.buttons&1)){look(ev.clientX-drag.x,ev.clientY-drag.y,.005);drag.x=ev.clientX;drag.y=ev.clientY}
+  if(isTouch)return;
+  if(locked()){if(canLook()&&Math.abs(ev.movementX)<300&&Math.abs(ev.movementY)<300)look(ev.movementX,ev.movementY,AIM_RATE);return}
+  if(drag&&(ev.buttons&1)&&canLook()){look(ev.clientX-drag.x,ev.clientY-drag.y,DRAG_RATE);drag.x=ev.clientX;drag.y=ev.clientY}
 });
+canvas.addEventListener('wheel',ev=>{
+  if(G.mode==='menu'||!canLook())return;
+  ev.preventDefault();
+  if(ev.ctrlKey)return;
+  const k=ev.deltaMode===1?16:ev.deltaMode===2?Math.max(100,innerHeight*.5):1;
+  const dx=clamp(ev.deltaX*k,-150,150),dy=clamp(ev.deltaY*k,-150,150);
+  look(dx,dy,SCROLL_RATE);
+},{passive:false});
 canvas.addEventListener('pointermove',ev=>{const L=touch.look;if(L&&L.id===ev.pointerId){look(ev.clientX-L.x,ev.clientY-L.y,.0065);L.x=ev.clientX;L.y=ev.clientY}});
 (function(){
   const st=$('stick'),knob=st.querySelector('i');let id=null,cx=0,cy=0;
@@ -2373,7 +2437,8 @@ function updateHud(dt){
   const ctl=!!me&&!me.out&&!me.podium&&!(me.fin&&G.mode!=='practice')&&!!rs&&(rs.ph==='round'||rs.ph==='lobby');
   if(hudCache.ctl!==ctl){hudCache.ctl=ctl;document.body.classList.toggle('noctl',!ctl)}
   const cu=!$('results').hidden||!$('podium').hidden;if(hudCache.cu!==cu){hudCache.cu=cu;document.body.classList.toggle('cardup',cu)}
-  setHidden('lockHint',isTouch||lockFailed||!!document.pointerLockElement||!ctl||cu||!$('intro').hidden||(rs&&rs.ph==='round'&&(t-rs.go)<-3.2));
+  if(locked()&&!canLook())releaseLock();
+  setHidden('lockHint',isTouch||!lockWanted()||locked()||!canLook()||!ctl||!$('intro').hidden||(rs&&rs.ph==='round'&&(t-rs.go)/1000<-3.2));
   const spc=spectating()&&!(rs&&rs.ph==='results');setHidden('spec',!spc);if(spc){const f=focusEnt();setText('specTxt',f&&f!==me?'Watching '+f.name:'Watching')}
   if(G.mode==='practice'){
     setText('rndLbl','Practice');setText('rndName',L.def.name);setHidden('cntBox',true);setHidden('clkBox',false);
@@ -2462,7 +2527,7 @@ function showMenu(){
   document.body.classList.remove('noctl','cardup');hudCache.ctl=hudCache.cu=undefined;
   $('menu').hidden=false;$('hud').hidden=true;$('touch').hidden=true;$('lobby').hidden=true;$('pause').hidden=true;hideCards();
   collectBlockers();renderStats();drawPreview($('pv'),myLook);showAd('adMenu');
-  if(document.pointerLockElement)document.exitPointerLock();
+  releaseLock();
 }
 function enterGame(){
   $('menu').hidden=true;$('hud').hidden=false;$('pause').hidden=true;syncTouchUI();$('touch').hidden=!isTouch;hideCards();
@@ -2520,9 +2585,9 @@ function showPause(){
   if(G.mode!=='online')G.paused=true;
   $('pause').hidden=false;$('copyInvite').hidden=!(G.mode==='online'&&!Net.isPublic);
   $('pauseSub').textContent=G.mode==='practice'?'Practice · '+G.L.def.name+' · the clock is stopped':G.mode==='solo'?'Solo show · the clock is stopped':(Net.isPublic?'Public lobby':'Room '+Net.room)+' · the show keeps going';
-  if(document.pointerLockElement)document.exitPointerLock();held.clear();
+  releaseLock();held.clear();
 }
-function resume(){$('pause').hidden=true;G.paused=false;if(!isTouch&&!lockFailed&&!document.pointerLockElement){try{const p=canvas.requestPointerLock();if(p&&p.catch)p.catch(()=>{})}catch(e){}}}
+function resume(){$('pause').hidden=true;G.paused=false;requestLock()}
 function saveProfile(){myName=cleanName($('name').value);store.set('name',myName)}
 
 // =====================================================================
@@ -2647,7 +2712,7 @@ $('lobbyMin').onclick=()=>{$('lobby').classList.toggle('min');$('lobbyMin').text
 const copyInvite=msgEl=>{const url=location.origin+'/#'+Net.room,m=$(msgEl);const done=ok=>{m.textContent=ok?'Invite link copied. Your friend opens it and enters the code to join.':url};try{navigator.clipboard.writeText(url).then(()=>done(true),()=>done(false))}catch(e){done(false)}};
 $('lobbyInvite').onclick=()=>copyInvite('lobbyMsg');$('copyInvite').onclick=()=>copyInvite('inviteMsg');
 $('keysMenu').onclick=()=>KB.open();$('keysPause').onclick=()=>KB.open();
-const setSens=v=>{sens=+v;store.set('sens',sens);$('sensOut').textContent=sens.toFixed(2);$('sens').value=sens;$('sens2').value=sens};
+const setSens=v=>{if(!Number.isFinite(Number(v)))return;sens=sensOk(v);store.set('sens',sens);$('sensOut').textContent=sens.toFixed(2);$('sens').value=sens;$('sens2').value=sens};
 const setMus=v=>{musVol=+v;store.set('mus',musVol);$('musOut').textContent=Math.round(musVol*100);$('mus').value=musVol;$('mus2').value=musVol;setVolumes()};
 const setSfx=v=>{sfxVol=+v;store.set('sfx',sfxVol);$('sfxOut').textContent=Math.round(sfxVol*100);$('sfxv').value=sfxVol;$('sfxv2').value=sfxVol;setVolumes()};
 const setInv=v=>{invY=!!v;store.set('invY',invY);$('invY').checked=invY;$('invY2').checked=invY};
