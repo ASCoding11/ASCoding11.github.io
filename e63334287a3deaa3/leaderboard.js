@@ -1,5 +1,6 @@
 /*
- * Back Room Leaderboards: hours played across all games, and each game's own boards (Elo, kills, fastest laps…).
+ * Back Room Leaderboards: hours played across all games, and each game's own boards (Elo, kills, best single rounds,
+ * Slipstream course records and fastest laps per track…).
  *
  * Loaded like feedback.js: a <script defer> in the <head> of the Back Room page and the phone page, and by the home
  * page's reveal(). It adds a "Leaderboards" section under the games and reads nothing until that section is near the
@@ -10,39 +11,69 @@
  * Every value is self-reported by the player's own browser, so everything is checked here before it's shown:
  * nodes that are too big, too old, from the future or the wrong shape are skipped, play time can't exceed 24 hours for
  * every day since the boards started (EPOCH), counts can't grow faster than RATE allows for the time played in that game,
- * and each stat has a sane range (Elo 100–3000, a lap no quicker than its track allows, and so on). Names are cleaned and
+ * each stat has a sane range (Elo 100–3000, a lap no quicker than its track allows, and so on), a best single round can't
+ * beat the all-time count it's part of (le), and a course record can't beat that track's fastest lap times the laps. Names are cleaned and
  * always shown as text. It signs in through party.js (window.Party), so "You" is the same person as in the panels above.
  *
- * To add a board for a game: give the game a row in GAMES (folder, name, and its stats: key, label, format, range, and
- * for running counts a RATE per second played), and make sure stats.js publishes that key (README: stats.js).
+ * To add a board for a game: give the game a row in GAMES (folder, name, and its stats: key, label, format, unit, range,
+ * for running counts a RATE per second played, for a best single round the all-time count it can't exceed), and make
+ * sure stats.js publishes that key (README: stats.js).
  */
 (function () {
   'use strict';
   if (document.getElementById('leaderboards')) return;
 
   var PATH = 'rooms/lb-all/players';
-  var TOP = 25, MAX_NODES = 3000, NODE_MAX = 8000, STALE = 365 * 86400000;
+  var TOP = 25, MAX_NODES = 3000, NODE_MAX = 8000, MAX_STATS = 120, STALE = 365 * 86400000;
   var EPOCH = Date.UTC(2026, 9, 21);            // the day stats.js started counting
   var NAME_MAX = 14;
 
-  // Stat formats: n (a count), elo, time (seconds, lower wins), lap (seconds to the millisecond, lower wins), m (metres), days, chips.
-  // lo/hi: the sane range (anything outside is dropped). rate: most per second played in that game (running counts only).
+  // Stat formats: n (a count), elo, time (seconds to the millisecond, lower wins), dur (seconds, higher wins), m (metres), days, chips.
+  // u: the unit a count is shown with ('kill' → '12 kills'). lo/hi: the sane range (anything outside is dropped).
+  // rate: most per second played in that game (running counts only). le: a best single round, which can't be more than
+  // this all-time count (and is dropped without it). Boards show in this order, after Hours.
   var GAMES = [
-    { d: 'rumble-karts', n: 'Rumble Karts', st: [{ k: 'wrecks', l: 'Wrecks (all time)', f: 'n', rate: 0.5 }, { k: 'wins', l: 'Round wins', f: 'n', rate: 1 / 60 }] },
-    { d: 'shell-crackers', n: 'Shell Crackers', st: [{ k: 'elo', l: 'Elo', f: 'elo', lo: 100, hi: 3000 }, { k: 'kills', l: 'Kills (all time)', f: 'n', rate: 0.5 }] },
-    { d: 'backrooms-1v1', n: 'Backrooms 1v1–4v4', st: [{ k: 'kills', l: 'Kills (all time)', f: 'n', rate: 0.5 }, { k: 'wins', l: 'Match wins', f: 'n', rate: 1 / 20 }] },
+    { d: 'rumble-karts', n: 'Rumble Karts', st: [
+      { k: 'rwrecks', l: 'Most wrecks in a round', f: 'n', u: 'wreck', hi: 60, le: 'wrecks' },
+      { k: 'wrecks', l: 'Wrecks (all time)', f: 'n', u: 'wreck', rate: 0.5 },
+      { k: 'wins', l: 'Round wins', f: 'n', u: 'win', rate: 1 / 60 }] },
+    { d: 'shell-crackers', n: 'Shell Crackers', st: [
+      { k: 'elo', l: 'Elo', f: 'elo', lo: 100, hi: 3000 },
+      { k: 'mkills', l: 'Most kills in a match', f: 'n', u: 'kill', hi: 30, le: 'kills' },
+      { k: 'kills', l: 'Kills (all time)', f: 'n', u: 'kill', rate: 0.5 }] },
+    { d: 'backrooms-1v1', n: 'Backrooms 1v1–4v4', st: [
+      { k: 'mkills', l: 'Most kills in a match', f: 'n', u: 'kill', hi: 80, le: 'kills' },
+      { k: 'kills', l: 'Kills (all time)', f: 'n', u: 'kill', rate: 0.5 },
+      { k: 'wins', l: 'Match wins', f: 'n', u: 'win', rate: 1 / 20 }] },
     { d: 'slipstream', n: 'Slipstream', laps: true, st: [] },
-    { d: 'boostball', n: 'Boostball', st: [{ k: 'goals', l: 'Goals (all time)', f: 'n', rate: 0.2 }, { k: 'wins', l: 'Match wins', f: 'n', rate: 1 / 30 }] },
-    { d: 'coil', n: 'Coil', st: [{ k: 'best', l: 'Longest snake', f: 'n', hi: 100000 }, { k: 'kills', l: 'Cut-offs (all time)', f: 'n', rate: 0.5 }] },
-    { d: 'trivium', n: 'Trivium', st: [{ k: 'daily', l: 'Best Daily score', f: 'n', hi: 20000 }, { k: 'streak', l: 'Best Daily streak', f: 'days', hi: 3650 }] },
-    { d: 'showdown', n: 'Showdown', st: [{ k: 'pot', l: 'Biggest pot (practice)', f: 'chips', hi: 1e7 }, { k: 'hands', l: 'Hands played (practice)', f: 'n', hi: 1e7 }] },
-    { d: 'chromaflage', n: 'Chromaflage', st: [{ k: 'found', l: 'Hiders found', f: 'n', rate: 0.2 }, { k: 'hidden', l: 'Rounds stayed hidden', f: 'n', rate: 1 / 20 }] },
-    { d: 'spire', n: 'Spire', st: [{ k: 'tower', l: 'Fastest tower', f: 'time', lo: 20, hi: 36000 }, { k: 'towers', l: 'Towers climbed', f: 'n', hi: 1e6 }] },
-    { d: 'updraft', n: 'Updraft', st: [{ k: 'height', l: 'Best height', f: 'm', hi: 1005 }, { k: 'summit', l: 'Fastest summit', f: 'time', lo: 120, hi: 1e7 }] },
-    { d: 'odd-one-out', n: 'Odd One Out', st: [{ k: 'wins', l: 'Rounds won', f: 'n', rate: 1 / 20 }, { k: 'found', l: 'Props found', f: 'n', rate: 0.5 }] },
-    { d: 'tumble-trials', n: 'Tumble Trials', st: [{ k: 'crowns', l: 'Crowns', f: 'n', hi: 1e5 }, { k: 'shows', l: 'Shows played', f: 'n', hi: 1e6 }] }
+    { d: 'boostball', n: 'Boostball', st: [
+      { k: 'mgoals', l: 'Most goals in a match', f: 'n', u: 'goal', hi: 40, le: 'goals' },
+      { k: 'goals', l: 'Goals (all time)', f: 'n', u: 'goal', rate: 0.2 },
+      { k: 'wins', l: 'Match wins', f: 'n', u: 'win', rate: 1 / 30 }] },
+    { d: 'coil', n: 'Coil', st: [{ k: 'best', l: 'Longest snake', f: 'n', hi: 100000 }, { k: 'kills', l: 'Cut-offs (all time)', f: 'n', u: 'cut-off', rate: 0.5 }] },
+    { d: 'trivium', n: 'Trivium', st: [{ k: 'daily', l: 'Best Daily score', f: 'n', u: 'pt', hi: 20000 }, { k: 'streak', l: 'Best Daily streak', f: 'days', hi: 3650 }] },
+    { d: 'showdown', n: 'Showdown', st: [{ k: 'pot', l: 'Biggest pot (practice)', f: 'chips', hi: 1e7 }, { k: 'hands', l: 'Hands played (practice)', f: 'n', u: 'hand', hi: 1e7 }] },
+    { d: 'chromaflage', n: 'Chromaflage', st: [
+      { k: 'rfound', l: 'Most hiders found in a round', f: 'n', u: 'hider', hi: 7, le: 'found' },
+      { k: 'found', l: 'Hiders found (all time)', f: 'n', u: 'hider', rate: 0.2 },
+      { k: 'hidden', l: 'Rounds stayed hidden', f: 'n', u: 'round', rate: 1 / 20 }] },
+    { d: 'spire', n: 'Spire', st: [
+      { k: 'tower', l: 'Fastest tower', f: 'time', lo: 20, hi: 36000 },
+      { k: 'obby', l: 'Fastest obby (all 49 stages)', chip: 'Fastest obby', f: 'time', lo: 120, hi: 360000 },
+      { k: 'towers', l: 'Towers climbed', f: 'n', u: 'tower', hi: 1e6 }] },
+    { d: 'updraft', n: 'Updraft', st: [{ k: 'summit', l: 'Fastest summit', f: 'time', lo: 120, hi: 1e7 }, { k: 'height', l: 'Best height', f: 'm', hi: 1005 }] },
+    { d: 'odd-one-out', n: 'Odd One Out', st: [
+      { k: 'rfound', l: 'Most props found in a round', f: 'n', u: 'prop', hi: 15, le: 'found' },
+      { k: 'survive', l: 'Longest survival as a prop', f: 'dur', hi: 900 },
+      { k: 'found', l: 'Props found (all time)', f: 'n', u: 'prop', rate: 0.5 },
+      { k: 'wins', l: 'Rounds won', f: 'n', u: 'round', rate: 1 / 20 }] },
+    { d: 'tumble-trials', n: 'Tumble Trials', st: [
+      { k: 'crowns', l: 'Crowns', f: 'n', u: 'crown', hi: 1e5 },
+      { k: 'crownrun', l: 'Most crowns in a row', f: 'n', u: 'crown', hi: 1000, le: 'crowns' },
+      { k: 'shows', l: 'Shows played', f: 'n', u: 'show', hi: 1e6 }] }
   ];
   // Slipstream circuits: short name and the quickest lap we accept (track length / 150 m/s, well above top speed).
+  // A course record (rec:<track>:<laps>) is the full race time of a clean race (no penalties) that ran every lap.
   var TRACKS = {
     'au-1953': ['Melbourne', 35], 'cn-2004': ['Shanghai', 36], 'bh-2002': ['Bahrain', 36], 'sa-2021': ['Jeddah', 41], 'us-2022': ['Miami', 36],
     'ca-1978': ['Montréal', 28], 'mc-1929': ['Monaco', 22], 'es-1991': ['Barcelona', 31], 'at-1969': ['Spielberg', 28], 'gb-1948': ['Silverstone', 39],
@@ -50,6 +81,7 @@
     'az-2016': ['Baku', 39], 'sg-2008': ['Singapore', 32], 'us-2012': ['Austin', 36], 'mx-1962': ['Mexico City', 28], 'br-1940': ['São Paulo', 28],
     'us-2023': ['Las Vegas', 41], 'qa-2004': ['Lusail', 36], 'ae-2009': ['Abu Dhabi', 35], 'lakeside': ['Lakeside', 26], 'harbour': ['Harbour', 23], 'mesa': ['Mesa', 25]
   };
+  var TRACK_IDS = Object.keys(TRACKS), STD_LAPS = [3, 5, 10];   // the race lengths the game offers
   var BY = {}; GAMES.forEach(function (g) { BY[g.d] = g; });
 
   // ---------------- Helpers ----------------
@@ -91,12 +123,14 @@
     if (parseFloat(ss) < 10) ss = '0' + ss;
     return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + ss;
   }
+  function fmtDur(s) { s = Math.round(s); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
   function fmt(st, v) {
-    if (st.f === 'lap') return fmtTime(v, true);
-    if (st.f === 'time') return fmtTime(v, false);
+    if (st.f === 'lap' || st.f === 'time') return fmtTime(v, true);
+    if (st.f === 'dur') return fmtDur(v);
     if (st.f === 'm') return fmtN(v) + ' m';
     if (st.f === 'days') return fmtN(v) + (Math.round(v) === 1 ? ' day' : ' days');
     if (st.f === 'chips') return fmtN(v) + ' chips';
+    if (st.u) return fmtN(v) + ' ' + st.u + (Math.round(v) === 1 ? '' : 's');
     return fmtN(v);
   }
   function low(st) { return st.f === 'time' || st.f === 'lap'; }
@@ -115,7 +149,7 @@
     for (var i = 0; i < keys.length; i++) {
       var meta = BY[keys[i]], src = v.g[keys[i]];
       if (!meta || !src || typeof src !== 'object' || Array.isArray(src)) continue;
-      var sk = Object.keys(src); if (sk.length > 60) return null;
+      var sk = Object.keys(src); if (sk.length > MAX_STATS) return null;
       var s = Math.floor(num(src.s));
       if (!(s > 0)) s = 0;
       if (s > cap) return null;
@@ -124,12 +158,24 @@
         var x = num(src[st.k]);
         if (!(x > 0) || x < (st.lo || 0) || x > (st.hi || 1e6)) return;
         if (st.rate) { x = Math.floor(x); if (x > st.rate * s + 5) x = Math.floor(st.rate * s + 5); if (!(x > 0)) return; }
+        if (st.le || st.f === 'dur') { x = Math.floor(x); if (!(x > 0)) return; }   // whole rounds and seconds, so equal shows as a tie
         o[st.k] = x;
       });
-      if (meta.laps) sk.forEach(function (k) {
-        var m = /^lap:([a-z0-9-]{1,20})$/.exec(k), t = m && TRACKS[m[1]], x = num(src[k]);
-        if (t && x >= t[1] && x <= 900) o[k] = x;
-      });
+      // A best single round can't beat the all-time count it's part of (and needs one).
+      meta.st.forEach(function (st) { if (st.le && o[st.k] != null) { if (o[st.le] > 0) o[st.k] = Math.min(o[st.k], o[st.le]); else delete o[st.k]; } });
+      if (meta.laps) {
+        sk.forEach(function (k) {
+          var m = /^lap:([a-z0-9-]{1,20})$/.exec(k), t = m && TRACKS[m[1]], x = num(src[k]);
+          if (t && x >= t[1] && x <= 900) o[k] = x;
+        });
+        // Course records: 1–20 laps, no quicker than the track allows, and no quicker than this driver's own fastest lap
+        // there times the laps (every lap of a clean race also counts as a lap, so a record with no lap time is dropped).
+        sk.forEach(function (k) {
+          var m = /^rec:([a-z0-9-]{1,20}):([1-9]|1[0-9]|20)$/.exec(k), t = m && TRACKS[m[1]], x = num(src[k]);
+          var n = m ? +m[2] : 0, lap = m ? o['lap:' + m[1]] : 0;
+          if (t && lap > 0 && x >= t[1] * n && x >= (lap - 0.001) * n && x <= 900 * n) o[k] = x;
+        });
+      }
       p.g[keys[i]] = o; p.total += s;
       if (s > p.topS) { p.topS = s; p.top = meta.n; }
     }
@@ -137,17 +183,36 @@
     return p;
   }
 
-  // The boards a game has: its hours, its stats, and (Slipstream) a fastest lap for each track someone has a time on.
-  function boardsFor(d, people) {
-    var meta = BY[d]; if (!meta) return [];
-    var out = [{ k: 's', l: 'Hours played', f: 'hours' }].concat(meta.st);
-    if (meta.laps) {
+  // Slipstream: how many drivers have a time on each track, the tracks in that order (then the game's), and which race
+  // lengths each track has a course record for.
+  function trackStats(people) {
+    var c = {}, laps = {};
+    people.forEach(function (p) {
+      var o = p.g.slipstream; if (!o) return;
       var seen = {};
-      people.forEach(function (p) { var o = p.g[d]; if (o) Object.keys(o).forEach(function (k) { if (k.indexOf('lap:') === 0) seen[k] = (seen[k] || 0) + 1; }); });
-      Object.keys(seen).sort(function (a, b) { return seen[b] - seen[a] || (a < b ? -1 : 1); }).forEach(function (k) {
-        out.push({ k: k, l: 'Fastest lap — ' + TRACKS[k.slice(4)][0], chip: TRACKS[k.slice(4)][0], f: 'lap' });
+      Object.keys(o).forEach(function (k) {
+        var m = /^(?:lap|rec):([a-z0-9-]+)(?::(\d+))?$/.exec(k); if (!m || !TRACKS[m[1]]) return;
+        if (!seen[m[1]]) { seen[m[1]] = 1; c[m[1]] = (c[m[1]] || 0) + 1; }
+        if (m[2]) (laps[m[1]] || (laps[m[1]] = {}))[m[2]] = 1;
       });
-    }
+    });
+    var order = TRACK_IDS.slice().sort(function (a, b) { return (c[b] || 0) - (c[a] || 0) || TRACK_IDS.indexOf(a) - TRACK_IDS.indexOf(b); });
+    return { order: order, count: c, laps: laps };
+  }
+  // The boards a game has: its hours, then its stats. Slipstream: the chosen track's course records (3, 5 and 10 laps,
+  // the lengths the game offers, plus any other length someone has a record for) and its fastest lap.
+  function boardsFor(d, people, track) {
+    var meta = BY[d]; if (!meta) return [];
+    var out = [{ k: 's', l: 'Hours played', chip: 'Hours', f: 'hours' }];
+    if (!meta.laps) return out.concat(meta.st);
+    var ts = trackStats(people), t = TRACKS[track] ? track : ts.order[0], nm = TRACKS[t][0];
+    var laps = STD_LAPS.slice();
+    Object.keys(ts.laps[t] || {}).forEach(function (n) { n = +n; if (laps.indexOf(n) < 0) laps.push(n); });
+    laps.sort(function (a, b) { return a - b; }).forEach(function (n) {
+      var ln = n + (n === 1 ? ' lap' : ' laps');
+      out.push({ k: 'rec:' + t + ':' + n, id: 'rec' + n, l: 'Course record · ' + nm + ' · ' + ln, chip: n + '-lap record', f: 'lap', laps: n, track: nm });
+    });
+    out.push({ k: 'lap:' + t, id: 'lap', l: 'Fastest lap · ' + nm, chip: 'Fastest lap', f: 'lap', track: nm });
     return out;
   }
   // Rows for one board, best first, with shared ranks for ties.
@@ -156,7 +221,7 @@
     people.forEach(function (p) {
       var v, extra = '';
       if (view.g === 'all') { v = p.total; extra = p.top ? 'Most: ' + p.top : ''; }
-      else { var o = p.g[view.g]; v = o ? o[view.b] : NaN; }
+      else { var o = p.g[view.g]; v = o ? o[view.st ? view.st.k : 's'] : NaN; }
       if (v > 0) list.push({ p: p, v: v, extra: extra });
     });
     var st = view.st, asc = st && low(st);
@@ -184,6 +249,8 @@
     '.lbd-chips button{font:inherit;font-family:var(--body,var(--f-b,sans-serif));font-size:14px;font-weight:600;color:var(--ink);background:var(--panel-2);border:1px solid var(--line);border-radius:999px;padding:6px 14px;cursor:pointer;min-height:36px}' +
     '.lbd-chips button:hover{border-color:var(--ink-2)}' +
     '.lbd-chips button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent);color:var(--accent-ink)}' +
+    '.lbd-chips button{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+    '.lbd-ctl label[hidden]{display:none}' +
     '.lbd-h{margin:2px 0 0;font-family:var(--mono,var(--f-m,monospace));font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}' +
     '.lbd-list{list-style:none;margin:0;padding:0;display:grid;gap:6px}' +
     '.lbd-r{display:grid;grid-template-columns:2.6em minmax(0,1fr) auto;align-items:center;gap:10px;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:7px 12px;min-width:0}' +
@@ -200,7 +267,7 @@
     '.lbd-msg,.lbd-note{margin:0;font-size:14px;color:var(--ink-2);overflow-wrap:anywhere}' +
     '.lbd-msg:empty{display:none}.lbd-msg.err{color:var(--down,#B42318)}' +
     '.lbd-note{font-size:13px}' +
-    '@media (max-width:600px){.lbd{padding:14px}.lbd-sub{font-size:14px;order:3;flex-basis:100%}.lbd-top > .lbd-b{margin-left:auto}.lbd-ctl label{max-width:none}.lbd-ctl label span{display:none}.lbd-r{gap:8px;padding:7px 10px;grid-template-columns:2.2em minmax(0,1fr) auto}.lbd-v{font-size:14px}}' +
+    '@media (max-width:600px){.lbd{padding:14px}.lbd-sub{font-size:14px;order:3;flex-basis:100%}.lbd-top > .lbd-b{margin-left:auto}.lbd-ctl label{max-width:none}.lbd-ctl label span{display:none}.lbd-chips{gap:6px}.lbd-chips button{font-size:13px;padding:5px 11px;min-height:34px}.lbd-r{gap:8px;padding:7px 10px;grid-template-columns:2.2em minmax(0,1fr) auto}.lbd-v{font-size:14px}}' +
     '@media (max-width:420px){.lbd h2{font-size:24px}}';
   document.head.appendChild(css);
 
@@ -216,6 +283,10 @@
   $sel.append(new Option('Hours (all games)', 'all'));
   GAMES.forEach(function (g) { $sel.append(new Option(g.n, g.d)); });
   lbl.append($sel); ctl.append(lbl);
+  // Slipstream only: which track's course records and fastest lap to show.
+  var tlbl = el('label'); tlbl.append(el('span', '', 'Track')); tlbl.hidden = true;
+  var $trk = el('select'); $trk.setAttribute('aria-label', 'Track');
+  tlbl.append($trk); ctl.append(tlbl);
   var $chips = el('div', 'lbd-chips'); $chips.setAttribute('role', 'group'); $chips.setAttribute('aria-label', 'Board');
   var $h = el('h3', 'lbd-h');
   var $list = el('ol', 'lbd-list'); $list.setAttribute('aria-label', 'Leaderboard');
@@ -236,8 +307,13 @@
   function say(t, err) { $msg.textContent = t || ''; $msg.classList.toggle('err', !!err); }
 
   // ---------------- State ----------------
-  var view = { g: 'all', b: 's' };
-  try { var sv = JSON.parse(ls('lb:view') || 'null'); if (sv && (sv.g === 'all' || BY[sv.g])) view = { g: sv.g, b: typeof sv.b === 'string' ? sv.b.slice(0, 40) : 's' }; } catch (e) {}
+  // g: 'all' or a game folder. b: the board (its stat key, 's' for hours, or for Slipstream 'rec3', 'rec5'… or 'lap'),
+  // '' for the game's first board that has anyone on it. t: the Slipstream track.
+  var view = { g: 'all', b: 's', t: '' };
+  try {
+    var sv = JSON.parse(ls('lb:view') || 'null');
+    if (sv && (sv.g === 'all' || BY[sv.g])) view = { g: sv.g, b: typeof sv.b === 'string' ? sv.b.slice(0, 40) : 's', t: typeof sv.t === 'string' && TRACKS[sv.t] ? sv.t : '' };
+  } catch (e) {}
   $sel.value = view.g;
   var people = null, myUid = '', loading = false, lastLoad = 0;
 
@@ -270,11 +346,32 @@
   function isMe(uid) { return uid === myUid || uid === ls('lbs:uid'); }
 
   // ---------------- Drawing ----------------
+  function bid(b) { return b.id || b.k; }
   function chip(b) {
-    var c = el('button', '', b.chip || (b.k === 's' ? 'Hours' : b.l)); c.type = 'button';
-    c.setAttribute('data-b', b.k); c.setAttribute('aria-pressed', String(b.k === view.b));
+    var c = el('button', '', b.chip || b.l); c.type = 'button'; c.title = b.l;
+    c.setAttribute('data-b', bid(b)); c.setAttribute('aria-pressed', String(bid(b) === view.b));
     return c;
   }
+  // The track menu: tracks with times first (most drivers first, with the count), then the rest.
+  var trkSig = '';
+  function fillTracks() {
+    var ts = trackStats(people || []), sig = JSON.stringify(ts.count);
+    if (!TRACKS[view.t]) view.t = ts.order[0];
+    if (sig !== trkSig) {
+      trkSig = sig; $trk.textContent = '';
+      var withT = el('optgroup'), without = el('optgroup');
+      withT.label = 'Tracks with times'; without.label = people ? 'No times yet' : 'Tracks';
+      ts.order.forEach(function (id) {
+        var n = ts.count[id] || 0;
+        (n ? withT : without).append(new Option(TRACKS[id][0] + (n ? ' · ' + n + (n === 1 ? ' driver' : ' drivers') : ''), id));
+      });
+      if (withT.children.length) $trk.append(withT);
+      if (without.children.length) $trk.append(without);
+    }
+    $trk.value = view.t;
+  }
+  // Someone is on this board.
+  function filled(b) { return (people || []).some(function (p) { var o = p.g[view.g]; return o && o[b.k] > 0; }); }
   function row(r) {
     var li = el('li', 'lbd-r' + (isMe(r.p.uid) ? ' me' : ''));
     var who = el('span', 'lbd-who'), nm = el('span', 'lbd-nm');
@@ -287,10 +384,17 @@
   }
   function draw() {
     $chips.textContent = '';
-    var boards = view.g === 'all' ? [] : boardsFor(view.g, people || []);
+    var slip = view.g !== 'all' && BY[view.g].laps;
+    tlbl.hidden = !slip;
+    if (slip) fillTracks();
+    var boards = view.g === 'all' ? [] : boardsFor(view.g, people || [], view.t);
     var st = null;
-    for (var i = 0; i < boards.length; i++) if (boards[i].k === view.b) st = boards[i];
-    if (view.g !== 'all' && !st) { st = boards[0]; if (people) view.b = 's'; }
+    for (var i = 0; i < boards.length; i++) if (bid(boards[i]) === view.b) st = boards[i];
+    // No board picked yet (a game was just chosen): the first one with anyone on it, else the first after Hours.
+    if (view.g !== 'all' && !st) {
+      if (!people) st = boards[1] || boards[0];
+      else { st = boards.slice(1).filter(filled)[0] || boards[1] || boards[0]; view.b = bid(st); }
+    }
     boards.forEach(function (b) { $chips.append(chip(b)); });
     view.st = st && st.k !== 's' ? st : null;
     $h.textContent = view.g === 'all' ? 'Hours played · all games' : BY[view.g].n + ' · ' + st.l;
@@ -301,13 +405,17 @@
     var mine = -1; for (var j = 0; j < list.length; j++) if (isMe(list[j].p.uid)) { mine = j; break; }
     list.slice(0, TOP).forEach(function (r) { $list.append(row(r)); });
     if (mine >= TOP) { var gap = el('li', 'lbd-gap', '···'); gap.setAttribute('aria-hidden', 'true'); $list.append(gap, row(list[mine])); }
-    if (!list.length) say(view.g === 'all' ? 'Nobody’s on the board yet. Play any game for a minute to get on it.' : 'Nobody has a score here yet. Play ' + BY[view.g].n + ' to be the first.');
+    if (!list.length) say(view.g === 'all' ? 'Nobody’s on the board yet. Play any game for a minute to get on it.'
+      : view.st && view.st.laps ? 'No course record at ' + view.st.track + ' over ' + view.st.laps + (view.st.laps === 1 ? ' lap' : ' laps') + ' yet. Finish a race of that length there with no penalties to set one.'
+      : view.st && view.st.track ? 'No lap times at ' + view.st.track + ' yet. Race there to set one.'
+      : 'Nobody has a score here yet. Play ' + BY[view.g].n + ' to be the first.');
     else if (mine < 0 && myUid) say(list.length + (list.length === 1 ? ' player' : ' players') + '. You’re not on this board yet.');
     else say(list.length + (list.length === 1 ? ' player' : ' players') + (mine >= 0 ? '. You’re #' + list[mine].rank + '.' : '.'));
   }
-  function save() { ls('lb:view', JSON.stringify({ g: view.g, b: view.b })); }
+  function save() { ls('lb:view', JSON.stringify({ g: view.g, b: view.b, t: view.t || '' })); }
 
-  $sel.addEventListener('change', function () { view.g = $sel.value === 'all' || BY[$sel.value] ? $sel.value : 'all'; view.b = 's'; save(); draw(); if (!people) load(); });
+  $sel.addEventListener('change', function () { view.g = $sel.value === 'all' || BY[$sel.value] ? $sel.value : 'all'; view.b = view.g === 'all' ? 's' : ''; save(); draw(); if (!people) load(); });
+  $trk.addEventListener('change', function () { if (TRACKS[$trk.value]) { view.t = $trk.value; save(); draw(); } });
   $chips.addEventListener('click', function (e) {
     var b = e.target.closest('button[data-b]'); if (!b) return;
     view.b = b.getAttribute('data-b'); save(); draw();
@@ -324,5 +432,5 @@
   } else load();
 
   // Test hook for the automated checks; harmless in normal play.
-  if (navigator.webdriver) window.__lb = { get people() { return people; }, get view() { return view; }, get myUid() { return myUid; }, parse: parse, rows: rows, boardsFor: boardsFor, load: function () { lastLoad = 0; return load(); }, draw: draw, set top(n) { TOP = n; }, PATH: PATH, EPOCH: EPOCH };
+  if (navigator.webdriver) window.__lb = { get people() { return people; }, get view() { return view; }, get myUid() { return myUid; }, parse: parse, rows: rows, boardsFor: boardsFor, fmt: fmt, BY: BY, load: function () { lastLoad = 0; return load(); }, draw: draw, set top(n) { TOP = n; }, PATH: PATH, EPOCH: EPOCH };
 })();
