@@ -446,12 +446,30 @@ const BODIES=[
   {name:'Viper',sub:'Long and low'},
   {name:'Brick',sub:'Tall and boxy'}
 ];
-const BOT_NAMES=['Sprocket','Nitro','Gizmo','Dynamo','Rivet','Blaze','Comet','Bolt','Scrappy','Turbo','Pixel','Piston','Torque','Zippy','Ratchet','Flux'];
+// Bot names. Each match the bots get names picked at random from this list: no two the same, and never the name of
+// a human player in the room. Online, the host's bots send their name as a position in this list (bh), so other
+// players see the host's names: add new names at the end and don't reorder or remove any.
+const BOT_NAMES=[
+  'Sprocket','Rivet','Piston','Torque Wrench','Flux','Axle Grease','Boost Goblin','Turbo Toast','Captain Skid',
+  'Sir Flipsalot','Wheelie Pop','Nozzle','Lugnut','Chassis Kid','Fuel Gauge','Thruster','Afterburn','Tailpipe',
+  'Hubcap','Kickflip','Fender Bender','Muffler','Crankshaft','Spark Plug','Overdrive','Redline','Rev Limiter',
+  'Noodle Rocket','Jetwash','Pinball','Halfpipe','Ball Magnet','Rocket Sauce','Vroom Vroom','Corner Pocket',
+  'Top Shelf','Ceiling Shot','Flip Reset','Dribblebot','Hood Ornament','Cup Holder','Glovebox','Wiper Blade',
+  'Hazard Light','Moonroof','Turbo Turnip','Boost Beagle','Space Pickle','Cosmic Crumb','Ion Drive','Warp Speed',
+  'Liftoff','Booster Seat','Firecracker','Thunderclap','Hailstone','Tumbleweed','Whirlwind','Gale Force','Jet Lag',
+  'Hot Sauce','Meatball','Waffle Iron','Pretzel','Gumdrop','Jellybean','Dumpling','Rocket Llama','Rocket Snail',
+  'Hover Hamster','Boost Moose','Jetpack Yak','Rally Raccoon','Boost Narwhal','Speedy Sloth','Dent Collector',
+  'Bumper Sticker','Fuzzy Dice','Spare Tire','Jumper Cable','Oil Slick','Pit Stop','Photo Finish','Chicane','Hairpin',
+  'Wheelspin','Handbrake','Clutch Kick','Mach Muffin','Captain Kick','Baron Boost','Duke of Drift','Count Dribble',
+  'Major Whiff','Agent Axle','Turbo Tortoise','Goal Goblin','Save Machine','Crossbar','Bounce House','Air Dribble',
+  'Half Volley','Barrel Roll','Corkscrew','Rebound','Pinwheel','Kazoo','Tuba Turbo','Mudflap','Spoiler Alert',
+  'Dune Hopper','Rocket Biscuit'
+];
 const QUICK_CHAT=['Nice shot!','What a save!','Great pass!','Thanks!'];
 const DIFF={
-  easy:{name:'Rookie',react:.32,boost:.35,speed:.8,flip:.35,aerial:0,noise:2.2,keeper:.6},
-  normal:{name:'Pro',react:.16,boost:.75,speed:.95,flip:.75,aerial:.35,noise:1,keeper:.85},
-  hard:{name:'All-Star',react:.07,boost:1,speed:1,flip:1,aerial:.9,noise:.4,keeper:1}
+  easy:{name:'Rookie',react:.42,boost:.38,speed:.8,flip:.38,aerial:0,noise:2.5,keeper:.62,aim:.25,steer:2.6,swing:.35,pads:.5,padsBelow:25},
+  normal:{name:'Pro',react:.15,boost:.78,speed:.95,flip:.78,aerial:.35,noise:1,keeper:.88,aim:.5,steer:3,swing:.35,pads:.8,padsBelow:35},
+  hard:{name:'All-Star',react:.1,boost:1,speed:1,flip:1,aerial:.5,noise:.4,keeper:1,aim:.8,steer:4,swing:.35,pads:1,padsBelow:45}
 };
 
 // ---------- collision world ----------
@@ -1650,9 +1668,20 @@ function addCar(o){const c=makeCar(o);cars.push(c);attachCarMesh(c);return c}
 function removeCar(c){disposeCarMesh(c);const t=tagEls.get(c.id);if(t){t.remove();tagEls.delete(c.id)}cars=cars.filter(x=>x!==c);if(c===me)me=null}
 function clearCars(keepMe){for(const c of cars.slice())if(!(keepMe&&c===me))removeCar(c)}
 let botSeq=0;
+// A random name from BOT_NAMES that no other car in the room is using (any capitalisation).
+function botName(self){
+  const used=new Set();for(const c of cars)if(c!==self)used.add(String(c.name).toLowerCase());
+  const free=BOT_NAMES.filter(n=>!used.has(n.toLowerCase()));
+  return free.length?pick(free):'Bot';
+}
+// New names for the bots this browser runs (practice, or the host online), at the start of every match.
+function renameBots(){
+  const bots=cars.filter(c=>c.isBot&&!c.remote);
+  for(const b of bots)b.name='';
+  for(const b of bots)b.name=botName(b);
+}
 function addBot(team,diff,name){
-  const used=new Set(cars.map(c=>c.name));
-  const nm=name||BOT_NAMES.find(n=>!used.has(n))||'Bot';
+  const nm=name||botName(null);
   return addCar({id:'b'+(++botSeq).toString(36)+Math.random().toString(36).slice(2,5),name:nm,team,isBot:true,diff,body:Math.floor(Math.random()*3),accent:Math.floor(Math.random()*ACCENTS.length)});
 }
 
@@ -1696,6 +1725,7 @@ function applyRound(v){
 }
 function newMatch(){
   for(const c of cars){if(!c.remote)c.stats={g:0,a:0,sv:0,sh:0,dm:0}}
+  renameBots();
   touches=[];kickKey='';cdShown=-1;otShown=false;endShown=false;goalPending=false;bipShown=false;
   $('end').hidden=true;
   if(me)me.placed=false;
@@ -1919,6 +1949,35 @@ function airAim(c,dF,dU){
   c.inp.roll=clamp(_t2.z*5-_t3.z*.8,-1,1);
   c.inp.slide=false;
 }
+// The goal mouth a bot shoots at: off-centre toward the ball's side, and (better bots) toward the post away from
+// a defender standing in that net.
+function shotAim(c,tgt,dir,D,out){
+  let ax=clamp(tgt.x*.25,-GW+2,GW-2),gk=null,gd=14;
+  for(const o of cars){
+    if(o.team===c.team||o.demo>0||o.active===false||o.placed===false)continue;
+    const d=Math.abs(o.pos.z-dir*AL);if(d<gd&&Math.abs(o.pos.x)<GW+5){gd=d;gk=o}
+  }
+  if(gk&&D.aim)ax=lerp(ax,(gk.pos.x>ax?-1:1)*(GW-2.6),D.aim*.6);
+  return out.set(clamp(ax,-GW+2,GW-2),0,dir*(AL+2));
+}
+// Boost pads: a bot short of boost and not going for the ball picks one up on the way, if it isn't far out of its
+// way (a big pad is worth a longer detour), it's on the bot's own side of the ball and it'll be back by then.
+function padStop(c,target,now,D,dir,bz){
+  if(!D.pads||c.boost>=D.padsBelow)return null;
+  const dt=Math.hypot(target.x-c.pos.x,target.z-c.pos.z),fx=_f.x,fz=_f.z,need=1-c.boost/D.padsBelow;
+  let best=null,bs=1e9;
+  for(const p of PADS){
+    const dx=p.x-c.pos.x,dz=p.z-c.pos.z,d1=Math.hypot(dx,dz);
+    if(d1<1.2||p.t>now+d1/MAXD*1000)continue;
+    if((p.z-bz)*dir>4)continue;
+    const turn=(1-(dx*fx+dz*fz)/(d1+1e-6))*4;
+    const extra=d1+Math.hypot(target.x-p.x,target.z-p.z)-dt+turn;
+    if(extra>(p.big?30:9)*D.pads*(.4+.6*need))continue;
+    const s=extra-(p.big?16:0);
+    if(s<bs){bs=s;best=p}
+  }
+  return best;
+}
 function botThink(c,dt,now,ph){
   const inp=c.inp,b=c.brain,D=DIFF[c.diff]||DIFF.normal;
   inp.thr=0;inp.steer=0;inp.pitch=0;inp.roll=0;inp.boost=false;inp.slide=false;
@@ -1929,7 +1988,11 @@ function botThink(c,dt,now,ph){
   if(c.onGround&&c.gN.y<.75){
     carAxes(c);_t1.set(0,-1,0).addScaledVector(c.gN,c.gN.y);
     const side=_t1.dot(_rt),down=_t1.dot(_f);
-    inp.thr=1;inp.jump=false;b.jp=null;inp.steer=down>0?clamp(side*3,-1,1):(side>=0?1:-1);return;
+    // wedged nose-down where a wall meets the floor (the back of a goal): jump off the wall
+    if(c.vel.lengthSq()<2.6){b.stuck+=dt;if(b.stuck>1){b.stuck=0;b.wallJ=.2}}else b.stuck=0;
+    b.jp=null;
+    if(b.wallJ>0){b.wallJ-=dt;inp.jump=true;return}
+    inp.thr=1;inp.jump=false;inp.steer=down>0?clamp(side*3,-1,1):(side>=0?1:-1);return;
   }
   const T=TEAM[c.team],dir=T.dir;
   const bv=ballHidden?_bv.pos.set(0,BR,0)&&_bv:botView(D.react,now);
@@ -1944,31 +2007,63 @@ function botThink(c,dt,now,ph){
   let rank=mates.indexOf(c);if(rank<0)rank=0;
   const kick=R&&now-R.ko<2600&&now>=R.ko&&mode!=='free';
   const threat=predictGoal(bv.pos,bv.vel,2.5)===-dir;
-  // intercept: the first point on the predicted path the car can get to in time
+  // intercept: the first point on the predicted path the car can get to in time. The path starts where the bot last
+  // saw the ball, D.react seconds ago, so that much of it has already happened.
+  const lead=D.react;
   let ti=40,tgt=PATH[40];
-  for(let i=1;i<=40;i++){const p=PATH[i];if(p.y<4.2&&reachTime(c,p)<=i/10+.05){ti=i;tgt=p;break}}
+  for(let i=1;i<=40;i++){const p=PATH[i];if(i/10<lead)continue;if(p.y<4.2&&reachTime(c,p)<=i/10-lead+.05){ti=i;tgt=p;break}}
   const dist=Math.hypot(tgt.x-c.pos.x,tgt.z-c.pos.z);
-  let target=_ga.copy(tgt);target.y=0;let role='chase';
-  if(kick&&rank===0){target.set(bv.pos.x,0,bv.pos.z)}
+  let target=_ga.copy(tgt);target.y=0;let role='chase';b.fin=0;b.offLine=0;
+  const aimAt=_gb;
+  // Circling a ball it can't get behind (in a corner, along a wall): after 3 s close to it without touching it,
+  // just drive into it.
+  if(Math.hypot(bv.pos.x-c.pos.x,bv.pos.z-c.pos.z)<16)b.nearT=(b.nearT||0)+dt;else b.nearT=0;
+  // (but never from the wrong side of a ball in our half: that knocks it toward our own net)
+  const force=b.nearT>3&&now-c.lastTouchEv>3000&&((tgt.z-c.pos.z)*dir>-1||tgt.z*dir>0);
+  if(force&&(rank===0||mates.length===1||Math.abs(c.pos.z+dir*AL)<30)){target.set(tgt.x,0,tgt.z);aimAt.set(0,0,dir*(AL+2))}
+  else if(kick&&rank===0){
+    // kickoff: better bots aim at the back of the ball rather than its middle, so it goes forward more often
+    target.set(bv.pos.x,0,bv.pos.z-dir*BR*.45*D.aim);
+  }
   else if(rank===0||threat&&rank===1||mates.length===1){
     // line up behind the ball, facing the target (their net when attacking, the sideline when clearing)
-    const aimAt=threat&&(c.pos.z-tgt.z)*dir>-2?_gb.set(tgt.x>0?AW:-AW,0,tgt.z+dir*8):_gb.set(clamp(tgt.x*.25,-GW+2,GW-2),0,dir*(AL+2));
+    if(threat&&(c.pos.z-tgt.z)*dir>-2)aimAt.set(tgt.x>0?AW:-AW,0,tgt.z+dir*8);else shotAim(c,tgt,dir,D,aimAt);
     _t1.subVectors(tgt,aimAt);_t1.y=0;_t1.normalize();
-    const ahead=(c.pos.z-tgt.z)*dir>1.5&&!threat;
+    // (no going round a ball sitting so close to our back wall, beside the goal, that there's no room behind it;
+    // in front of the goal there is: the net)
+    const ahead=(c.pos.z-tgt.z)*dir>1.5&&!threat&&(tgt.z*dir>-(AL-14)||Math.abs(tgt.x)<GW+3);
     if(ahead){
       // wrong side of the ball: go around it, back toward our own net
-      const side=c.pos.x>tgt.x?1:-1;
+      let side=c.pos.x>tgt.x?1:-1;if(Math.abs(tgt.x+side*(BR+5))>AW-3)side=-side;
       target.set(clamp(tgt.x+side*7,-AW+4,AW-4),0,clamp(tgt.z-dir*9,-AL+4,AL-4));role='around';
+      // ...without driving through it on the way (which knocks it toward our net): pass beside it first
+      const sx=target.x-c.pos.x,sz=target.z-c.pos.z,u=clamp(((tgt.x-c.pos.x)*sx+(tgt.z-c.pos.z)*sz)/(sx*sx+sz*sz||1),0,1);
+      if(Math.hypot(c.pos.x+sx*u-tgt.x,c.pos.z+sz*u-tgt.z)<BR+3.2)target.set(tgt.x+side*(BR+5),0,tgt.z);
+    }else if(tgt.z*dir<-(AL-25)&&(tgt.z-c.pos.z)*dir>1&&Math.abs(tgt.x)<GW+12){
+      // goal side of a ball in front of our own net: no lining up, just clear it straight up the field
+      target.set(tgt.x,0,tgt.z+dir*2);
     }else{
-      const off=clamp(dist*.32,0,7);
-      target.copy(tgt).addScaledVector(_t1,dist>6?BR+.8+off:0);target.y=0;
+      // line up behind the ball, facing the target, from further back the further away it is
+      const off=dist>6?BR+.8+clamp(dist*.32,0,7):0;
+      target.copy(tgt).addScaledVector(_t1,off);target.y=0;
+      // how far the line from the car to the ball is off the shot line (while it swings round onto it, no boost),
+      // and whether the car is lined up for the last stretch (b.fin)
+      const pb=Math.atan2(tgt.x+_t1.x*BR*.5-c.pos.x,tgt.z+_t1.z*BR*.5-c.pos.z),ps=Math.atan2(-_t1.x,-_t1.z);
+      b.offLine=Math.abs(Math.atan2(Math.sin(pb-ps),Math.cos(pb-ps)));
+      if(dist<25){const fl=Math.hypot(_f.x,_f.z)||1;if(-(_f.x*_t1.x+_f.z*_t1.z)/fl>.62)b.fin=1}
     }
   }else if(rank===1&&mates.length>2||rank===1&&mates.length===2&&(bv.pos.z*dir)<0){
     role='support';target.set(clamp(bv.pos.x*.5+(c.pos.x>0?8:-8),-AW+5,AW-5),0,clamp(bv.pos.z-dir*20,-AL+8,AL-8));
   }else{
     role='keep';target.set(clamp(bv.pos.x*.35,-GW+1.5,GW-1.5),0,-dir*(AL-2.5));
-    if(Math.hypot(bv.pos.x-c.pos.x,bv.pos.z-c.pos.z)<14*D.keeper&&threat){target.copy(tgt);target.y=0;role='chase'}
+    // a shot coming: stand where it will cross the goal line
+    if(threat)for(let i=1;i<=40;i++)if(PATH[i].z*dir<-(AL-3)){target.x=clamp(PATH[i].x,-GW+1.5,GW-1.5);break}
+    // go for it when a shot is coming, or the ball is sitting near our goal
+    const loose=bv.vel.lengthSq()<25&&bv.pos.z*dir<-(AL-25)&&Math.abs(bv.pos.x)<GW+12;
+    if(Math.hypot(bv.pos.x-c.pos.x,bv.pos.z-c.pos.z)<14*D.keeper&&(threat||loose)){target.copy(tgt);target.y=0;role='chase'}
   }
+  // short of boost on the way somewhere (not to the ball, not while our net is in danger): grab a pad
+  if(role!=='chase'&&!threat||kick&&rank>0){const p=padStop(c,target,now,D,dir,bv.pos.z);if(p){target.set(p.x,0,p.z);role='pad'}}
   target.x=clamp(target.x,-AW+1.5,AW-1.5);
   carAxes(c);
   if(Math.abs(target.x)>GW-.5)target.z=clamp(target.z,-AL+1.5,AL-1.5);else target.z=clamp(target.z,-AL-GD+2,AL+GD-2);
@@ -1980,7 +2075,7 @@ function botThink(c,dt,now,ph){
   // ---- on the ground ----
   if(c.onGround){
     if(b.rev>0){b.rev-=dt;inp.thr=-1;inp.steer=ang>0?1:-1;return}
-    inp.steer=clamp(-ang*2.6,-1,1);
+    inp.steer=clamp(-ang*(role==='chase'?D.steer:2.6),-1,1);
     inp.thr=D.speed;
     if(role==='keep'||role==='support'){
       // arrive gently, then turn to face the ball (backing up when it's behind)
@@ -1995,19 +2090,36 @@ function botThink(c,dt,now,ph){
       }
     }
     if(Math.abs(ang)>1.7&&sp>11)inp.slide=true;
+    // going for a ball it has been circling, or a slow ball close by but well off to the side: slow down to turn
+    // tighter instead of circling it
+    if(force&&td<14&&Math.abs(ang)>.7||role==='chase'&&!kick&&td<12&&Math.abs(ang)>1.1&&bv.vel.lengthSq()<100){inp.thr=sp>12?-1:.6;inp.slide=Math.abs(ang)>1.2&&sp>6}
     const aligned=Math.abs(ang)<.32;
-    const wantSpeed=role==='chase'||kick||role==='around'?(td>14||kick||dist<12?MAXB:MAXD):MAXD*.8;
-    if(c.boost>0&&aligned&&sp<wantSpeed-1&&(kick||Math.random()<D.boost)&&(td>10||role==='chase'))inp.boost=true;
+    const fast=role==='chase'||kick||role==='around';
+    const wantSpeed=fast?(td>14||kick||dist<12?MAXB:MAXD):MAXD*.8;
+    // boost: always toward the ball; on the way somewhere else only with plenty left
+    // still swinging round onto the shot line close to the ball: no boost, and ease off at top speed
+    const swing=role==='chase'&&b.offLine>D.swing&&dist<30;
+    if(swing&&sp>MAXD*.85)inp.thr=0;
+    if(c.boost>0&&aligned&&sp<wantSpeed-1&&!swing&&(kick||Math.random()<D.boost)&&(td>10||role==='chase')&&(fast||c.boost>D.padsBelow))inp.boost=true;
+    // a long shot hit at full speed flies over the bar: hit it a bit softer
+    if(b.fin&&Math.hypot(aimAt.x-tgt.x,aimAt.z-tgt.z)>35){inp.boost=false;if(sp>28)inp.thr=0}
     // stuck against something
-    if(inp.thr>0&&sp<1.6){b.stuck+=dt;if(b.stuck>1.1){b.stuck=0;b.rev=.7}}else b.stuck=0;
+    // (still stuck after backing up: wedged on something, so jump out of it)
+    if(inp.thr>0&&sp<1.6){b.stuck+=dt;if(b.stuck>1.1){
+      b.stuck=0;
+      if(b.stuckAt&&now-b.stuckAt<3500&&!b.jp)b.jp={hold:.15,flip:.3,dx:0,dy:-1,t:0};else b.rev=.7;
+      b.stuckAt=now;
+    }}else b.stuck=0;
     // jumps and flips
     const bx=ball.pos.x-c.pos.x,bz=ball.pos.z-c.pos.z,bh=Math.hypot(bx,bz),by=ball.pos.y;
     const toBall=Math.atan2(-(bx*_rt.x+bz*_rt.z),bx*_f.x+bz*_f.z);
     const close=(bx*(ball.vel.x-c.vel.x)+bz*(ball.vel.z-c.vel.z))/(bh||1);
+    // facing roughly where this touch should send the ball (their net, or away from ours)
+    const onLine=role!=='chase'||kick||(_f.x*(aimAt.x-c.pos.x)+_f.z*(aimAt.z-c.pos.z))/(Math.hypot(aimAt.x-c.pos.x,aimAt.z-c.pos.z)+1e-6)>.5-.5*(1-D.aim);
     if(!b.jp&&!ballHidden){
       if(kick&&rank===0&&bh<7.5&&Math.abs(toBall)<.35)b.jp={hold:.06,flip:.1,dx:0,dy:1,t:0};
       else if(role==='chase'&&bh<3.6+BR&&by>2.6&&by<6.2&&Math.abs(toBall)<.7&&close<2&&Math.random()<D.flip*.9)b.jp={hold:.2,flip:by<4.6?.32:9,dx:clamp(-toBall,-.6,.6),dy:1,t:0};
-      else if(role==='chase'&&bh<3+BR&&by<2.6&&Math.abs(toBall)<.28&&sp>9&&Math.random()<D.flip*.06)b.jp={hold:.05,flip:.11,dx:clamp(-toBall*1.5,-.5,.5),dy:1,t:0};
+      else if(role==='chase'&&bh<3+BR&&by<2.6&&Math.abs(toBall)<.28&&sp>9&&onLine&&Math.random()<D.flip*.06)b.jp={hold:.05,flip:.11,dx:clamp(-toBall*1.5,-.5,.5),dy:1,t:0};
       else if(D.aerial&&role==='chase'&&by>7&&by<AH-3&&bh<by*1.5+4&&Math.abs(toBall)<.25&&c.boost>35&&Math.random()<D.aerial*.05)b.jp={hold:.22,flip:9,aerial:1,t:0};
       else if(td>32&&Math.abs(ang)<.08&&sp>14&&sp<30&&c.boost<25&&Math.random()<D.flip*.015)b.jp={hold:.05,flip:.12,dx:0,dy:1,t:0};
     }
@@ -2019,7 +2131,9 @@ function botThink(c,dt,now,ph){
     else if(j.t>=j.flip&&!j.done&&!c.onGround){inp.jump=true;inp.steer=j.dx;inp.pitch=j.dy;j.done=true}
     else inp.jump=false;
     if(j.aerial&&!c.onGround){
-      _t1.subVectors(ball.pos,c.pos).normalize();
+      // aim where the ball will be by the time the car gets there (PATH starts D.react seconds ago)
+      const k=Math.min(40,Math.round((D.react+clamp(c.pos.distanceTo(ball.pos)/Math.max(15,c.vel.length()+6),0,1.5))*10));
+      _t1.subVectors(PATH[k],c.pos).normalize();
       if(j.t>.12){airAim(c,_t1,Y_AXIS);inp.boost=c.boost>0&&_f.dot(_t1)>.8}
       else{inp.pitch=-1}
       if(j.t>2.2||ball.pos.y<3)j.aerial=0;
@@ -2620,6 +2734,8 @@ function hostDuties(now){
   if(!host||!R)return;
   // the host's team colours: put them on a new match during its first countdown (or on a round without any)
   if(R.tc!==teamPref&&(R.tc<0||!(R.g|0)&&phaseOf(now)==='countdown'))Net.setTeams(teamPref);
+  // a player who joins with a bot's name: that bot takes another one
+  for(const b of cars)if(b.isBot&&!b.remote&&cars.some(h=>!h.isBot&&String(h.name).toLowerCase()===b.name.toLowerCase()))b.name=botName(b);
   // keep each team topped up with bots
   const want=R.bo?R.sz:0;
   for(const t of [0,1]){
