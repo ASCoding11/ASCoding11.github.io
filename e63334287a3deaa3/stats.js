@@ -11,8 +11,9 @@
  * Personal bests: some come from what the game already saves (READ below), others from one-line hooks in the game:
  *   window.BackRoomStats && BackRoomStats.add('kills', 1)        a running count (at most 100 at a time)
  *   window.BackRoomStats && BackRoomStats.min('lap:monza', 81.2) a best where lower wins (times)
- *   window.BackRoomStats && BackRoomStats.max('height', 812)     a best where higher wins
- * Stat names are short lowercase words (a-z, 0-9, ':' and '-'); a name starting with 'lap:' or listed in LOWER is a time.
+ *   window.BackRoomStats && BackRoomStats.max('height', 812)     a best where higher wins (e.g. most kills in one match)
+ * Stat names are short lowercase words (a-z, 0-9, ':' and '-'); a name starting with 'lap:' or 'rec:' (Slipstream's
+ * fastest lap and course record per track) or listed in LOWER is a time, where lower wins.
  *
  * Saved in this browser under localStorage 'lbs:v1': { g: { <folder>: { s: seconds, <stat>: number } }, d: day, ds: seconds that day }.
  * Published (at most once a minute while something changed, and when the page closes) to the Firebase Realtime Database,
@@ -37,8 +38,8 @@
 
   var KEY = 'lbs:v1', PATH = 'rooms/lb-all/players';
   var IDLE = 120000, SAVE_MS = 15000, PUB_MS = 60000, DAY_MAX = 86400;
-  var MAX_GAMES = 40, MAX_STATS = 60;
-  var LOWER = { tower: 1, summit: 1 };
+  var MAX_GAMES = 40, MAX_STATS = 120;
+  var LOWER = { tower: 1, summit: 1, obby: 1 };
   var CFG = {
     apiKey: 'AIzaSyDZD_Ku8cixteXfwkDYzGv3GKiZFF8sRSM',
     authDomain: 'rumblekarts.firebaseapp.com',
@@ -61,7 +62,7 @@
   function json(s) { try { return JSON.parse(s); } catch (e) { return null; } }
   function num(v) { var n = Number(v); return isFinite(n) ? n : NaN; }
   function okKey(k) { return typeof k === 'string' && /^[a-z][a-z0-9:-]{0,39}$/.test(k); }
-  function lower(k) { return k.indexOf('lap:') === 0 || LOWER[k] === 1; }
+  function lower(k) { return k.indexOf('lap:') === 0 || k.indexOf('rec:') === 0 || LOWER[k] === 1; }
   function cleanName(s) { return String(s == null ? '' : s).replace(/[<>\u0000-\u001f\u007f​-‏‪-‮⁦-⁩]/g, '').replace(/\s+/g, ' ').trim().slice(0, 14); }
   // The same seat and colour social.js (Online) gives a uid, so a name reads the same everywhere.
   function hash(s) { var h = 2166136261; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h; }

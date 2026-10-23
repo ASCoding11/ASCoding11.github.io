@@ -968,7 +968,7 @@ function onKill(victim,killer,wi,head){
   if(!victim.alive&&victim===player&&phase==='over')return;
   victim.alive=false;victim.dieT=0;
   const w=WEAPONS[wi]||WEAPONS[0],tail=' · '+w.name+(head?' · head':'');
-  if(victim===opp&&window.BackRoomStats)BackRoomStats.add('kills',1);
+  if(victim===opp&&window.BackRoomStats){BackRoomStats.add('kills',1);BackRoomStats.max('mkills',score.you+1)}
   if(victim===opp){score.you++;feed(`You <b>⟶</b> ${esc(oppName)}${tail}`,'you');banner('ENTITY DOWN',head?'Headshot':'Eliminated',2.2)}
   else{score.opp++;feed(`${esc(oppName)} <b>⟶</b> You${tail}`,'them');banner('ELIMINATED','The entity got you',2.2)}
   hud.sYou.textContent=score.you;hud.sBot.textContent=score.opp;
@@ -1352,7 +1352,7 @@ function handleEvent(e){
     if(e.r!==curRound||v!==e.by)return;
     const ent=remotes.get(v);if(ent&&ent.alive){ent.alive=false;ent.dieT=0}
     killFeed(k,v,e.w|0,!!e.hd);
-    if(k===Net.uid&&window.BackRoomStats)BackRoomStats.add('kills',1);
+    if(k===Net.uid&&window.BackRoomStats){BackRoomStats.add('kills',1);BackRoomStats.max('mkills',myKills+1)}
     if(k===Net.uid){myKills++;kills.set(Net.uid,myKills);banner(nameOf(v).toUpperCase()+' DOWN',e.hd?'Headshot':'Eliminated',1.8);Net.publishSoon()}
     if(Net.amHost)hostDead.add(curMatch+':'+curRound+':'+v);
   }
