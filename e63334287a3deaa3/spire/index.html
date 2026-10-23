@@ -412,7 +412,8 @@ const lerp=(a,b,t)=>a+(b-a)*t;
 function rng(seed){let s=seed>>>0;return function(){s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 
 // ---------- movement constants (the module checker uses these same numbers) ----------
-// Jump height = JUMP_V^2 / (2 G) = 3.37. A full-speed jump on the flat stays up 0.77 s and carries 6.6.
+// Jump height = JUMP_V^2 / (2 G) = 3.37. A full-speed jump on the flat stays up 0.75 s and carries 5.7 (holding
+// forward); holding sideways for the whole jump moves you 2.3 to the side, and holding back lands you at 2.8.
 // Falling past a ledge also pops you up onto it from LEDGE below its top, so the highest step you can reach
 // is about 3.67: sections keep the step from one route part to the one after next above that, so a big jump
 // can't skip a part.
@@ -420,10 +421,12 @@ const PHYS={
   DT:1/120,        // fixed physics step
   G:46,            // gravity
   JUMP_V:17.6,     // take-off speed
-  WALK:8.6,        // top running speed
+  WALK:7.5,        // top running speed
   ACC:115,         // ground acceleration toward the stick direction
   DEC:95,          // ground braking with no input
-  AIR_ACC:48,      // air control
+  AIR_ACC:24,      // air control: speeding up toward the stick (all of it from a standing jump)
+  AIR_TURN:9,      // air control across the way you are flying: a nudge of about 2 over a whole jump
+  AIR_BRAKE:10,    // air control against the way you are flying: slows you, never flips you round
   AIR_DRAG:1.8,    // slow-down in the air with no input (keeps running-jump momentum)
   MAX_FALL:55,
   COYOTE:.1,       // a jump still works this long after running off an edge
@@ -515,10 +518,23 @@ function rotY(x,z,yaw,out){const c=Math.cos(yaw),s=Math.sin(yaw);out[0]=x*c+z*s;
 
 // ---------- the player ----------
 function newPlayer(x,y,z,yaw){return{x,y,z,vx:0,vy:0,vz:0,yaw:yaw||0,gr:false,gp:null,coy:0,buf:0,climb:false,dead:false,lowg:false,
-  pvx:0,pvy:0,pvz:0,ev:[],landN:0,lastLand:null,inFinish:false,cp:-1,air:0}}
+  pvx:0,pvy:0,pvz:0,ev:[],landN:0,lastLand:null,inFinish:false,cp:-1,air:0,tko:-1}}
 function resetPlayer(pl,x,y,z,yaw){Object.assign(pl,newPlayer(x,y,z,yaw),{ev:pl.ev})}
 const _a={x:0,y:0,z:0,yaw:0},_b={x:0,y:0,z:0,yaw:0},_h={d:0,nx:0,nz:0},_near=[],_v=[0,0];
 function approach(pl,tx,tz,max){const dx=tx-pl.vx,dz=tz-pl.vz,l=Math.hypot(dx,dz);if(l<=max){pl.vx=tx;pl.vz=tz}else{pl.vx+=dx/l*max;pl.vz+=dz/l*max}}
+// Steering in the air is a nudge, not a second run. Measured against the way you are already flying, the stick
+// speeds you up at AIR_ACC, turns you at AIR_TURN and slows you at AIR_BRAKE (so reversing stops you rather than
+// flipping you round), and it never takes you faster than you left the ground (or WALK, if that was slower).
+// From a standing jump (no direction yet) the stick gets the full AIR_ACC.
+function airControl(pl,ix,iz,dt){
+  const P=PHYS,sp=Math.hypot(pl.vx,pl.vz),cap=Math.max(P.WALK,pl.tko),tx=ix*cap,tz=iz*cap;
+  if(sp<.05){approach(pl,tx,tz,P.AIR_ACC*dt);return}
+  const ux=pl.vx/sp,uz=pl.vz/sp,f=Math.min(1,sp/2), // f: how settled the flight direction is (turning is free when slow)
+    dx=tx-pl.vx,dz=tz-pl.vz,a=clamp(dx*ux+dz*uz,-P.AIR_BRAKE*dt,P.AIR_ACC*dt), // along the flight
+    s=lerp(P.AIR_ACC,P.AIR_TURN,f)*dt,b=clamp(dz*ux-dx*uz,-s,s); // across it
+  pl.vx+=a*ux-b*uz;pl.vz+=a*uz+b*ux;
+  const s2=Math.hypot(pl.vx,pl.vz),lim=Math.max(cap,sp);if(s2>lim){pl.vx*=lim/s2;pl.vz*=lim/s2}
+}
 // One fixed step. inp: {x, z} the wanted direction in world space (length up to 1), jp: jump pressed this step.
 // t is the time at the end of the step; moving parts are placed by t, so everyone sharing t sees the same tower.
 function simStep(W,pl,inp,t){
@@ -549,10 +565,12 @@ function simStep(W,pl,inp,t){
   if(tr){push=im>.01?(ix*tnx+iz*tnz)/im:0;if(push>.3)pl.climb=true;else if(push<-.3||(pl.gr&&push<=.3))pl.climb=false}
   else pl.climb=false;
   // 3) run / air control
-  const tx=ix*P.WALK,tz=iz*P.WALK;
-  if(pl.gr)approach(pl,tx,tz,(im>.01?P.ACC:P.DEC)*dt);
-  else if(im>.01)approach(pl,tx,tz,P.AIR_ACC*dt);
-  else{const sp=Math.hypot(pl.vx,pl.vz);if(sp>0){const k=Math.max(0,sp-P.AIR_DRAG*dt)/sp;pl.vx*=k;pl.vz*=k}}
+  if(pl.gr){pl.tko=-1;approach(pl,ix*P.WALK,iz*P.WALK,(im>.01?P.ACC:P.DEC)*dt)}
+  else{
+    if(pl.tko<0)pl.tko=Math.hypot(pl.vx,pl.vz); // first step off the ground: remember the take-off speed
+    if(im>.01)airControl(pl,ix,iz,dt);
+    else{const sp=Math.hypot(pl.vx,pl.vz);if(sp>0){const k=Math.max(0,sp-P.AIR_DRAG*dt)/sp;pl.vx*=k;pl.vz*=k}}
+  }
   // 4) jump (coyote time + buffer)
   if(inp.jp)pl.buf=P.BUFFER;else pl.buf=Math.max(0,pl.buf-dt);
   if(pl.gr)pl.coy=P.COYOTE;else pl.coy=Math.max(0,pl.coy-dt);
@@ -622,6 +640,7 @@ function simStep(W,pl,inp,t){
   if(W.wallR){const r=Math.hypot(pl.x,pl.z),m=W.wallR-P.R;if(r>m){const nx=pl.x/r,nz=pl.z/r;pl.x=nx*m;pl.z=nz*m;const vn=pl.vx*nx+pl.vz*nz;if(vn>0){pl.vx-=vn*nx;pl.vz-=vn*nz}}}
   pl.pvx=pvx;pl.pvy=pvy;pl.pvz=pvz;
   if(!pl.gr)pl.air+=dt;else pl.air=0;
+  if(pl.climb)pl.tko=-1; // measure again when leaving a truss
   // 8) lethal parts, zones, checkpoints
   pl.inFinish=false;
   for(let i=0;i<_near.length;i++){const p=_near[i];
@@ -772,14 +791,14 @@ M({id:'lifts',name:'Elevator Shaft',diff:2,pal:['#facc15','#a16207','#fef08a'],b
 
 // Each floor is two above the last, so a big jump can't skip one.
 M({id:'conveyor',name:'Conveyor Climb',diff:3,pal:['#9ca3af','#4b5563','#f97316'],build(B,d){
-  const s=lerp(3,6,d),o={mat:'conv',t:.5,col:'#3f3f46'};
+  const s=lerp(2.6,5.2,d),o={mat:'conv',t:.5,col:'#3f3f46'};
   B.plat(0,1,1,3,8,Object.assign({conv:[0,s]},o));
   B.plat(-5,3,-4.5,8,3,Object.assign({conv:[s,0]},o));
   B.plat(-7.5,5,.5,3,3);
   B.plat(1,7,-2.5,8,3,Object.assign({conv:[-s,0]},o));
   if(d>.45)B.kill(1,7.45,-2.5,.5,.9,3.1);
   B.plat(4,9,-7,3,3);
-  B.j(0,1,4);B.w(0,1,-2.4);B.j(-2.2,3,-4.5);B.w(-8.2,3,-4.5);B.j(-7.5,5,.5);B.j(-2.2,7,-2.5);B.w(4.2,7,-2.5);B.j(4,9,-7);
+  B.j(0,1,4);B.w(0,1,-2.4);B.j(-2.2,3,-4.5);B.w(-8.2,3,-4.5);B.j(-7.5,5,.5);B.w(-6.9,5,-.2);B.j(-2.2,7,-2.5);B.w(4.2,7,-2.5);B.j(4,9,-7);
   const H=B.exit(11);B.j(0,H,-8);return H}});
 
 M({id:'bounce',name:'Bounce House',diff:2,pal:['#f9a8d4','#a21caf','#fbcfe8'],build(B,d){
@@ -1003,11 +1022,22 @@ function targetOf(W,n,part,sgn,t){
   if(!n.on)return n.p;
   const b=cur(part,t),o=(n.off||0)*sgn;rotY(o,0,b.yaw,_v);return[b.x+_v[0],b.y+part.hy,b.z+_v[1]];
 }
+// Stick input for a jump toward a route target. Like a player who commits to a jump, it asks for the speed that
+// brings it over the target just as it comes down to the target's height (where a moving target will be by
+// then): air control turns that into speeding up, a nudge or easing off, so it doesn't overshoot small parts.
+function aimAir(W,pl,n,part,sgn,t,jumping){
+  const P=PHYS,g=P.G*(pl.lowg?P.LOWG:1),vy=jumping?P.JUMP_V:pl.vy;
+  const tl=T=>{const d=vy*vy+2*g*(pl.y-T[1]);return clamp(d>=0?(vy+Math.sqrt(d))/g:vy/g,.05,1.5)};
+  let T=targetOf(W,n,part,sgn,t);if(part.move)T=targetOf(W,n,part,sgn,t+tl(T));
+  const dx=T[0]-pl.x,dz=T[2]-pl.z,k=1/(tl(T)*Math.max(P.WALK,pl.tko));
+  let ix=dx*k,iz=dz*k;const m=Math.hypot(ix,iz);if(m>1){ix/=m;iz/=m}
+  return[ix,iz];
+}
 // Simulate jumping now toward a target; true if it lands on the target part and stays alive a moment.
 function jumpWorks(W,pl,t,part,n,sgn){
   const q=cloneP(pl),n0=q.landN;W.predict=true;let tt=t-PHYS.DT,ok=false;
   try{
-    for(let i=0;i<360;i++){tt+=PHYS.DT;const T=targetOf(W,n,part,sgn,tt);const s=steer(q,T[0],T[2],.25);
+    for(let i=0;i<360;i++){tt+=PHYS.DT;const T=targetOf(W,n,part,sgn,tt);const s=aimAir(W,q,n,part,sgn,tt,i===0);
       simStep(W,q,{x:s[0],z:s[1],jp:i===0},tt);
       if(q.dead)return false;
       if(q.landN!==n0&&i>2){
@@ -1017,9 +1047,9 @@ function jumpWorks(W,pl,t,part,n,sgn){
       if(q.y<T[1]-7)return false;
       if(i===359)return false;
     }
-    // stand there a moment: still alive and still on it (or bouncing off it)?
-    const bounce=part.bounce>0;
-    for(let i=0;i<30;i++){tt+=PHYS.DT;const T=targetOf(W,n,part,sgn,tt);const s=bounce?steer(q,T[0],T[2],.25):[0,0];simStep(W,q,{x:s[0],z:s[1],jp:false},tt);if(q.dead)return false}
+    // stand there a moment: still alive and still on it (or bouncing off it)? On a conveyor, keep walking to the target.
+    const bounce=part.bounce>0,keep=bounce||!!part.conv;
+    for(let i=0;i<30;i++){tt+=PHYS.DT;const s=keep?aimAir(W,q,n,part,sgn,tt,false):[0,0];simStep(W,q,{x:s[0],z:s[1],jp:false},tt);if(q.dead)return false}
     ok=bounce||(q.gr&&q.gp===part);
   }finally{W.predict=false}
   return ok;
@@ -1090,7 +1120,7 @@ function botInput(W,pl,bot,t){
   const parts=nodeParts(W,n,t);
   if(!parts.length){bot.fail='no target part at step '+bot.i;return idle}
   if(bot.fly){
-    const T=targetOf(W,n,bot.part,bot.sgn,t),s=steer(pl,T[0],T[2],.25);
+    const T=targetOf(W,n,bot.part,bot.sgn,t),s=aimAir(W,pl,n,bot.part,bot.sgn,t,false);
     if(pl.landN!==bot.n0){
       if(pl.lastLand===bot.part&&(pl.gr||bot.part.bounce))return next();
       bot.fly=false;
@@ -1100,13 +1130,13 @@ function botInput(W,pl,bot,t){
   }
   if(pl.gr&&parts.indexOf(pl.gp)>=0)return next();
   if(!pl.gr&&!pl.climb&&pl.air>.05){ // in the air already (bounced, or falling): aim at the target
-    const p=parts[0],T=targetOf(W,n,p,1,t),s=steer(pl,T[0],T[2],.25);
+    const p=parts[0],s=aimAir(W,pl,n,p,1,t,false);
     bot.part=p;bot.sgn=1;bot.fly=true;bot.n0=pl.landN;bot.y0=pl.y;return{x:s[0],z:s[1],jp:false};
   }
   if(--bot.dec<=0){
     bot.dec=2;
     for(const p of parts)for(const sg of (n.sym?[1,-1]:[1])){
-      if(jumpWorks(W,pl,t,p,n,sg)){bot.fly=true;bot.part=p;bot.sgn=sg;bot.n0=pl.landN;bot.y0=pl.y;const T=targetOf(W,n,p,sg,t),s=steer(pl,T[0],T[2],.25);return{x:s[0],z:s[1],jp:true}}
+      if(jumpWorks(W,pl,t,p,n,sg)){bot.fly=true;bot.part=p;bot.sgn=sg;bot.n0=pl.landN;bot.y0=pl.y;const s=aimAir(W,pl,n,p,sg,t,true);return{x:s[0],z:s[1],jp:true}}
     }
   }
   // not yet: walk toward the target up to the edge of what we stand on, dodging hazards, and wait there
