@@ -125,7 +125,7 @@ button:disabled{opacity:.45;cursor:default}
 .seat.down .tag{top:auto;bottom:calc(100% + 4px)}
 .tag:empty{display:none}
 .tag.hand{background:rgba(255,211,107,.16);color:var(--win);text-transform:none;letter-spacing:.01em;font-size:12px}
-.tag.act-Fold{color:var(--ink-3)}
+.tag.act-Fold,.tag.act-Muck{color:var(--ink-3)}
 .tag.act-Raise,.tag.act-Bet{color:#ffb36b}
 .tag.act-All-in{color:#ff8a8a;background:rgba(120,10,20,.6)}
 .gain{position:absolute;left:calc(100% + 4px);top:50%;transform:translate(0,-50%);font:800 16px var(--f-u);color:var(--win);text-shadow:0 2px 6px rgba(0,0,0,.7);animation:gain 2.4s ease-out both;pointer-events:none;z-index:5;white-space:nowrap}
@@ -569,7 +569,7 @@ class Table{
     this.id=0;this.ph='wait';this.st=0;this.btn=-1;this.sbI=-1;this.bbI=-1;this.board=[];this.deck=[];
     this.pot=0;this.cb=0;this.mr=set.bb;this.turn=-1;this.dl=0;this.q=0;this.log=[];this.win=null;this.pots=null;
     this.bank={};this.job=null;this.v=0;this.msg='';this.ro=0;this.botAt=0;this.queue=[];this.onChange=null;
-    this.bid=Math.floor(Math.random()*1e6);this.agg=-1;this.pfAgg=-1;this.nr=0;this.speed=1;this.stats={};
+    this.bid=Math.floor(Math.random()*1e6);this.agg=-1;this.pfAgg=-1;this.sa=-1;this.nr=0;this.speed=1;this.stats={};
   }
   changed(){this.v++;if(this.onChange)this.onChange(this)}
   addLog(t){this.log.push(t);if(this.log.length>40)this.log.shift()}
@@ -656,7 +656,7 @@ class Table{
       this.changed();return;
     }
     const inEl=i=>el.includes(i);
-    this.id++;this.ph='pre';this.st=0;this.msg='';this.log=[];this.agg=-1;this.pfAgg=-1;this.nr=0;
+    this.id++;this.ph='pre';this.st=0;this.msg='';this.log=[];this.agg=-1;this.pfAgg=-1;this.sa=-1;this.nr=0;
     for(const i of el){this.seats[i].in=1;this.statOf(this.seats[i].u).h++}
     this.btn=this.nextOf(this.btn,inEl);
     if(el.length===2){this.sbI=this.btn;this.bbI=this.nextOf(this.btn,inEl)}
@@ -729,12 +729,14 @@ class Table{
     if(hi>=0&&hv>sec){const s=this.seats[hi],r=hv-sec;s.st+=r;s.bet-=r;s.tot-=r;if(s.st>0)s.ai=0;if(this.liveIdx().length>1)this.addLog('Uncalled '+fmt(r)+' returned to '+s.n)}
     for(const s of this.seats)if(s&&s.in){this.pot+=s.bet;s.bet=0;s.acted=0;s.cr=1}
     if(this.st===0)this.pfAgg=this.agg;
+    this.sa=this.agg; // last bettor of the last betting round shows first
     this.cb=0;this.mr=this.set.bb;this.agg=-1;this.nr=0;
     const live=this.liveIdx(),actors=live.filter(i=>!this.seats[i].ai);
     const at=this.clock();
     if(this.st>=3){this.job={at:at+700/this.speed,fn:'showdown'};return}
     if(actors.length<=1){
-      if(!this.ro){this.ro=1;for(const i of live)this.seats[i].sh=cardsStr(this.holes[i]);this.addLog('All in: cards face up')}
+      // nobody can bet any more: the board runs out with every hand still face down until the showdown
+      if(!this.ro){this.ro=1;this.addLog('All in: the board runs out')}
       this.job={at:at+1100/this.speed,fn:'dealStreet'};return;
     }
     this.job={at:at+650/this.speed,fn:'dealStreet'};
@@ -772,12 +774,21 @@ class Table{
   showdown(){
     this.job=null;this.turn=-1;this.ph='show';
     const live=this.liveIdx(),sc={};
-    for(const i of live){
-      const s=this.seats[i],all=this.holes[i].concat(this.board);
-      sc[i]=evalOf(all);s.sh=cardsStr(this.holes[i]);s.hn=handName(sc[i]);s.best=cardsStr(best5(all));
+    for(const i of live)sc[i]=evalOf(this.holes[i].concat(this.board));
+    const pots=this.computePots(),won=new Array(MAXS).fill(0);
+    // Hands are turned over in order: whoever bet or raised last first (else the first player after the
+    // button), then round the table. A hand that can't win or tie any pot it's in is mucked face down,
+    // so its cards never reach the screen, the log or the public table.
+    const first=live.includes(this.sa)?this.sa:this.nextOf(this.btn,i=>live.includes(i)),shownTop=pots.map(()=>-1);
+    for(let k=0;k<MAXS;k++){
+      const i=(first+k)%MAXS;if(!live.includes(i))continue;
+      const s=this.seats[i];
+      if(!pots.some((p,n)=>p.e.includes(i)&&sc[i]>=shownTop[n])){s.la='Muck';this.addLog(s.n+' mucks');continue}
+      pots.forEach((p,n)=>{if(p.e.includes(i)&&sc[i]>shownTop[n])shownTop[n]=sc[i]});
+      const all=this.holes[i].concat(this.board);
+      s.sh=cardsStr(this.holes[i]);s.hn=handName(sc[i]);s.best=cardsStr(best5(all));
       this.addLog(s.n+' shows '+this.holes[i].map(cTxt).join(' ')+' · '+s.hn);
     }
-    const pots=this.computePots(),won=new Array(MAXS).fill(0);
     pots.forEach((p,k)=>{
       let top=-1;for(const i of p.e)top=Math.max(top,sc[i]);
       const ws=[];for(let d=1;d<=MAXS;d++){const i=(this.btn+d)%MAXS;if(p.e.includes(i)&&sc[i]===top)ws.push(i)}
@@ -1369,7 +1380,8 @@ function renderSeats(){
       continue;
     }
     el.classList.remove('empty');
-    el.classList.toggle('folded',!!(s.i&&s.f));
+    const muck=S.ph==='show'&&s.l==='Muck';
+    el.classList.toggle('folded',!!(s.i&&(s.f||muck)));
     el.classList.toggle('out',!s.i&&S.ph!=='wait'&&!(s.u===G.me));
     el.classList.toggle('turn',S.turn===i);
     const winner=S.ph==='show'&&S.win&&S.win.some(w=>w[0]===i);
@@ -1389,8 +1401,8 @@ function renderSeats(){
     if(s.i){
       if(s.sh){cards=strCards(s.sh);reveal=true}
       else if(me&&G.hole&&G.holeId===S.id)cards=G.hole;
-      else if(!s.f)cards=[-1,-1];
-      if(me&&s.f&&G.hole&&G.holeId===S.id){cards=G.hole;cls='dim'}
+      else if(!s.f&&!muck)cards=[-1,-1];
+      if(me&&(s.f||muck)&&G.hole&&G.holeId===S.id){cards=G.hole;cls='dim'}
     }
     const hsig=cards?S.id+':'+cards.join(',')+':'+cls+':'+(best?best.join(','):''):'';
     if(holeEl.dataset.sig!==hsig){
