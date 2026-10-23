@@ -72,7 +72,8 @@
       { k: 'crownrun', l: 'Most crowns in a row', f: 'n', u: 'crown', hi: 1000, le: 'crowns' },
       { k: 'shows', l: 'Shows played', f: 'n', u: 'show', hi: 1e6 }] },
     { d: 'gridpop', n: 'Gridpop', st: [{ k: 'score', l: 'Best score', f: 'n', u: 'pt', hi: 1e8 }, { k: 'lines', l: 'Lines cleared (all time)', f: 'n', u: 'line', rate: 2 }] },
-    { d: '2048', n: '2048', st: [{ k: 'best', l: 'Best score', f: 'n', u: 'pt', hi: 4000000 }, { k: 'tile', l: 'Biggest tile', f: 'n', hi: 131072 }] }
+    { d: '2048', n: '2048', st: [{ k: 'best', l: 'Best score', f: 'n', u: 'pt', hi: 4000000 }, { k: 'tile', l: 'Biggest tile', f: 'n', hi: 131072 }] },
+    { d: 'stackfall', n: 'Stackfall', st: [{ k: 'classic', l: 'Best score (Classic)', chip: 'Classic', f: 'n', u: 'pt', hi: 1e8 }, { k: 'sand', l: 'Best score (Sand)', chip: 'Sand', f: 'n', u: 'pt', hi: 1e8 }, { k: 'lines', l: 'Most lines in a game (Classic)', chip: 'Most lines', f: 'n', u: 'line', hi: 100000 }] }
   ];
   // Slipstream circuits: short name and the quickest lap we accept (track length / 150 m/s, well above top speed).
   // A course record (rec:<track>:<laps>) is the full race time of a clean race (no penalties) that ran every lap.
