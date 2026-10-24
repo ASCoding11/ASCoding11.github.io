@@ -122,7 +122,18 @@ tr.pdet .bars button:hover{background:none;border-color:transparent}
 .meta b{color:var(--ink);font-weight:600}
 .badge{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;border-radius:999px;padding:2px 9px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink-2)}
 .badge.bug,.badge.report{color:var(--down);border-color:var(--down)}
-.badge.idea{color:var(--accent);border-color:var(--accent)}
+.badge.idea,.badge.google{color:var(--accent);border-color:var(--accent)}
+tr.prow .badge{margin-left:6px;vertical-align:1px;padding:1px 7px;font-size:10px}
+.det{display:grid;gap:12px;padding:2px 0 4px}
+.det h3{margin:0 0 6px;font-family:var(--mono);font-size:11.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.det .bars{gap:2px}
+.bests{margin:0 0 4px 8px;font-size:12.5px;color:var(--ink-2);display:flex;flex-wrap:wrap;gap:2px 14px;overflow-wrap:anywhere}
+.bests b{color:var(--ink);font-weight:500}
+.act{display:flex;gap:2px;align-items:flex-end;height:44px;max-width:480px;padding-top:4px}
+.act i{flex:1 1 0;min-width:0;height:100%;background:var(--accent);border-radius:2px 2px 0 0;opacity:.9}
+.act i.z{background:var(--line);height:2px!important}
+.act i.t{outline:1px solid var(--ink)}
+.actl{display:flex;justify-content:space-between;max-width:480px;font-family:var(--mono);font-size:11px;color:var(--ink-2);margin-top:4px}
 .badge.ok{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .text{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;font-size:15px;line-height:1.5;max-height:24em;overflow:auto}
 .from{font-size:13px;color:var(--ink-2);overflow-wrap:anywhere;display:flex;flex-wrap:wrap;gap:4px 12px}
@@ -140,6 +151,7 @@ tr.pdet .bars button:hover{background:none;border-color:transparent}
   .bars button{grid-template-columns:minmax(0,1fr) auto;padding:6px 4px}
   .bars .tr{grid-column:1 / -1;grid-row:2}
   th.opt,td.opt{display:none}
+  .act{max-width:none}.actl{max-width:none}
   th,td{padding:8px 6px}
   .item{padding:12px}
 }
@@ -174,30 +186,25 @@ tr.pdet .bars button:hover{background:none;border-color:transparent}
         <button type="button" role="tab" id="t-fb" aria-controls="p-fb" data-tab="fb">Feedback</button>
       </div>
 
-      <!-- Stats: built only from the analytics that already exist (Firestore pv), named through Firestore who (social.js). -->
+      <!-- Stats: the Leaderboards' data (rooms/lb-all/players, written by stats.js inside each game), one read, checked like leaderboard.js. -->
       <div role="tabpanel" id="p-stats" aria-labelledby="t-stats" hidden>
-        <div class="notice" id="sDenied" hidden>
-          <h2>Can't read the analytics</h2>
-          <p>Firestore said <b>permission denied</b> for the page visits (<code>pv</code>). This page reads them with the site's anonymous sign-in, so the analytics rules need the <code>pv</code> read line from the admin page entry in the repo's <code>README.md</code>.</p>
-        </div>
         <div class="filters">
           <label>Dates<select id="sRange"><option value="1">Today</option><option value="7" selected>Last 7 days</option><option value="30">Last 30 days</option><option value="all">All time</option></select></label>
           <label>Game<select id="sGame"></select></label>
-          <label>Device<select id="sDev"><option value="all">All devices</option><option value="desktop">Computers</option><option value="mobile">Phones and tablets</option></select></label>
+          <label class="chk"><input type="checkbox" id="sGoogle"> Google accounts only</label>
           <button class="sm" id="sRefresh" type="button">Refresh</button>
         </div>
         <p class="status" id="sStatus" role="status" aria-live="polite"></p>
-        <p class="cap" id="sCap" hidden></p>
         <div class="kpis" id="sKpis"></div>
         <div class="card">
-          <h2>Time by game</h2>
-          <p class="hint">Engaged time (tab visible and someone playing) on each Back Room game's page. Tap a game to show only it below.</p>
+          <h2>Hours by game</h2>
+          <p class="hint">Play time (tab visible and someone playing) in each game, every account together. Tap a game to show only it below.</p>
           <ul class="bars" id="sGames"></ul>
         </div>
         <div class="card">
-          <h2>Time per person</h2>
+          <h2>People</h2>
           <p class="hint" id="sPeopleHint"></p>
-          <div class="filters"><label>Find<input type="search" id="sFind" placeholder="Name, seat or visitor"></label></div>
+          <div class="filters"><label>Find<input type="search" id="sFind" placeholder="Name, seat or account"></label></div>
           <div class="scroll"><table id="sPeople"></table></div>
           <button class="sm more" id="sMore" type="button" hidden>Show more</button>
         </div>
@@ -246,14 +253,15 @@ tr.pdet .bars button:hover{background:none;border-color:transparent}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="/e63334287a3deaa3/feedback.js" data-list-only></script>
+<script src="/e63334287a3deaa3/leaderboard.js" data-lib></script>
 <script src="/e63334287a3deaa3/adminkey.js"></script>
 <script>
 (function(){
   'use strict';
-  var CFG={apiKey:'AIzaSyDZD_Ku8cixteXfwkDYzGv3GKiZFF8sRSM',authDomain:'rumblekarts.firebaseapp.com',projectId:'rumblekarts'};
-  var BR='/e63334287a3deaa3/';
-  var PV_CAP=10000,WHO_CAP=5000,CHAT_CAP=2000,FB_CAP=500,PAGE=100;
+  var CFG={apiKey:'AIzaSyDZD_Ku8cixteXfwkDYzGv3GKiZFF8sRSM',authDomain:'rumblekarts.firebaseapp.com',databaseURL:'https://rumblekarts-default-rtdb.firebaseio.com',projectId:'rumblekarts'};
+  var CHAT_CAP=2000,FB_CAP=500,PAGE=100;
   var $=function(id){return document.getElementById(id)};
 
   // ---------- Names ----------
@@ -261,13 +269,9 @@ tr.pdet .bars button:hover{background:none;border-color:transparent}
   var GAME={},KIND={};
   info.games.forEach(function(g){GAME[g[0]]=g[1]});
   info.kinds.forEach(function(k){KIND[k[0]]=k[1]});
-  // Analytics labels (each game's data-site) are its folder name, so feedback.js's game list names them.
-  // Archived games keep their labels; the two lobby pages are counted apart from the games.
+  // Feedback notes name their game by folder; the archived games keep their names here.
   var SITE=Object.assign({'starhop':'Starhop','quarry':'Quarry','kartwheel':'Kartwheel','abyssal':'Abyssal','hail-mary':'Hail Mary'},GAME);
   delete SITE.other;
-  var LOBBY={'back-room':'Back Room page','phone-games':'Phone page'};
-  function siteName(s){return SITE[s]||LOBBY[s]||s}
-  function inBackRoom(r){return !!(SITE[r.site]||LOBBY[r.site])||(r.path.indexOf(BR)===0&&r.path.indexOf(location.pathname)!==0)}
 
   // ---------- Helpers ----------
   function el(tag,cls,text){var e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e}
@@ -323,13 +327,7 @@ tr.pdet .bars button:hover{background:none;border-color:transparent}
   }
   function tryOpen(box){return typeof box==='string'&&box?openBox(box).catch(function(){return null}):Promise.resolve(null)}
 
-  // ---------- Cleaning what Firestore returns (anyone signed in can write pv, who, chatlog and feedback) ----------
-  function cleanPv(id,x){
-    x=x||{};var ts=toDate(x.ts),d=Math.floor(+x.dur);
-    return {site:str(x.site,60)||'(unknown)',path:str(x.path,200)||'/',vid:str(x.vid,64)||String(id),sid:str(x.sid,64)||String(id),
-      dur:d>0?Math.min(d,86400):0,dev:x.dev==='mobile'?'mobile':'desktop',ts:ts,last:toDate(x.last)||ts};
-  }
-  function cleanWho(id,x){x=x||{};return {uid:str(x.uid,128)||String(id),vid:str(x.vid,64),name:str(x.name,40)||'Guest',seat:str(x.seat,4),ts:toDate(x.ts)}}
+  // ---------- Cleaning what Firestore returns (anyone signed in can write chatlog and feedback) ----------
   async function openChat(id,x){
     x=x||{};var o=await tryOpen(x.box)||{};
     return {id:String(id),kind:x.kind==='report'?'report':'cabin',uid:str(x.uid,128),ts:toDate(x.ts),opened:!!o.text||!!o.name,
@@ -344,14 +342,14 @@ tr.pdet .bars button:hover{background:none;border-color:transparent}
   }
   function all(docs,fn){return Promise.all(docs.map(function(d){return fn(d.id,d.data())}))}
 
-  // ---------- Firestore, with the same anonymous account the games use in this browser ----------
-  var auth=null,db=null,stubbed=false,booting=null;
+  // ---------- Firestore and the Realtime Database, with the same anonymous account the games use in this browser ----------
+  var auth=null,db=null,rtdb=null,stubbed=false,booting=null;
   function boot(){
     if(booting)return booting;
     booting=(async function(){
       if(!window.firebase)throw new Error('Couldn\'t load Firebase. Check your connection and reload.');
       var app=firebase.apps.filter(function(a){return a.name==='[DEFAULT]'})[0]||firebase.initializeApp(CFG);
-      auth=app.auth();db=app.firestore();
+      auth=app.auth();db=app.firestore();rtdb=app.database(CFG.databaseURL);
       await new Promise(function(r){var s=auth.onAuthStateChanged(function(){s();r()})});
       if(!auth.currentUser)await auth.signInAnonymously();
       return auth.currentUser.uid;
@@ -362,8 +360,13 @@ tr.pdet .bars button:hover{background:none;border-color:transparent}
   function ts(d){return firebase.firestore.Timestamp.fromDate(d)}
   function bounded(col,start,cap){var q=db.collection(col);if(start)q=q.where('ts','>=',ts(start));return q.orderBy('ts','desc').limit(cap).get()}
   var api={
-    pv:function(start,cap){return bounded('pv',start,cap).then(function(s){return s.docs.map(function(d){return cleanPv(d.id,d.data())})})},
-    who:function(){return db.collection('who').orderBy('ts','desc').limit(WHO_CAP).get().then(function(s){return s.docs.map(function(d){return cleanWho(d.id,d.data())})})},
+    // The leaderboard nodes and the server's clock (for the staleness checks), or an error after 15 seconds.
+    lb:function(){
+      var t,read=Promise.all([rtdb.ref(LB.PATH).once('value'),rtdb.ref('.info/serverTimeOffset').once('value')])
+        .then(function(r){return {val:r[0].val(),now:Date.now()+(r[1].val()||0)}});
+      var late=new Promise(function(_,rej){t=setTimeout(function(){rej(new Error('The game database didn\'t answer in 15 seconds. A school or work network may be blocking it.'))},15000)});
+      return Promise.race([read,late]).finally(function(){clearTimeout(t)});
+    },
     chat:function(start,cap){return bounded('chatlog',start,cap).then(function(s){return all(s.docs,openChat)})},
     fbList:function(){return db.collection('feedback').orderBy('ts','desc').limit(FB_CAP).get().then(function(s){return all(s.docs,openFb)})},
     fbDone:function(id,v){return db.collection('feedback').doc(id).update({done:v})}
@@ -383,137 +386,180 @@ tr.pdet .bars button:hover{background:none;border-color:transparent}
   });
 
   // ================= Stats =================
-  var S={rows:[],capped:false,who:null,whoErr:'',sort:'dur',dir:'desc',open:{},show:PAGE,seq:0};
-  async function loadStats(){
-    var seq=++S.seq,range=$('sRange').value;
-    say('sStatus','Loading…');$('sRefresh').disabled=true;
-    var wp=api.who().then(function(w){S.who=w;S.whoErr=''},function(e){S.who=null;S.whoErr=isDenied(e)?'denied':((e&&e.message)||'error')});
-    try{
-      var rows=await api.pv(since(range),PV_CAP);
-      await wp;
-      if(seq!==S.seq)return;
-      S.rows=rows;S.capped=rows.length>=PV_CAP;
-      $('sDenied').hidden=true;say('sStatus','');
-    }catch(e){
-      await wp;
-      if(seq!==S.seq)return;
-      S.rows=[];S.capped=false;
-      if(isDenied(e)){$('sDenied').hidden=false;say('sStatus','')}else say('sStatus','Couldn\'t load the analytics: '+((e&&e.message)||'error'),true);
+  // From the Leaderboards' nodes (rooms/lb-all/players, written by stats.js inside each game): read once, checked the way
+  // leaderboard.js checks them (BackRoomBoards, so what's shown here is what the boards would accept), plus the fields the
+  // boards don't show: ga/gn (a Google sign-in and its display name) and d (seconds per day per game for the last 30 days).
+  var LB=window.BackRoomBoards||null,DAYS=30,DAY_GAMES=12;
+  var S={nodes:null,now:0,people:[],skipped:0,sort:'hours',dir:'desc',open:{},show:PAGE,seq:0};
+  function dayKey(d){return String(d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate())}
+  function dayAgo(n){var d=new Date();d.setDate(d.getDate()-n);return dayKey(d)}
+  function dayDate(k){return new Date(+k.slice(0,4),+k.slice(4,6)-1,+k.slice(6,8))}
+  function gameName(d){return LB&&LB.BY[d]?LB.BY[d].n:String(d)}
+  // One account's node. Null for anything the boards would skip (stale, from the future, too big, over the caps, wrong shape).
+  function person(uid,v,now){
+    var p=LB.parse(uid,v,now);if(!p)return null;
+    p.ts=new Date(v.ts);p.ga=v.ga===1||v.ga===true;
+    p.gn=p.ga?LB.mask(cleanName(v.gn,40)):'';
+    p.name=p.gn||p.n;
+    // Seconds per day: the last 30 days (and tomorrow, for another time zone), real dates, games the boards know, whole
+    // seconds, and no more in a day than 24 hours or than that game's all-time total.
+    p.d={};var src=v.d,lo=dayAgo(DAYS-1),hi=dayAgo(-1);
+    if(src&&typeof src==='object'&&!Array.isArray(src)){
+      Object.keys(src).filter(function(k){return /^\d{8}$/.test(k)&&k>=lo&&k<=hi&&dayKey(dayDate(k))===k}).sort().slice(-DAYS).forEach(function(k){
+        var g=src[k],o={},tot=0,m=0;if(!g||typeof g!=='object'||Array.isArray(g))return;
+        Object.keys(g).forEach(function(gk){
+          if(m>=DAY_GAMES||tot>=86400||!p.g[gk])return;
+          var x=typeof g[gk]==='number'&&isFinite(g[gk])?Math.floor(g[gk]):0;
+          x=Math.min(x,p.g[gk].s,86400-tot);if(!(x>0))return;
+          o[gk]=x;tot+=x;m++;
+        });
+        if(m)p.d[k]=o;
+      });
     }
-    $('sRefresh').disabled=false;
-    S.open={};S.show=PAGE;renderStats();
+    return p;
   }
-  function fillGames(rows){
-    var sel=$('sGame'),cur=sel.value||'all',seen={};
+  async function loadStats(){
+    var seq=++S.seq;say('sStatus','Loading…');$('sRefresh').disabled=true;
+    if(!LB){say('sStatus','Couldn\'t load leaderboard.js, which holds the checks for this data. Reload the page.',true);$('sRefresh').disabled=false;return}
+    try{var r=await api.lb();if(seq!==S.seq)return;S.nodes=r.val&&typeof r.val==='object'?r.val:{};S.now=r.now;say('sStatus','')}
+    catch(e){if(seq!==S.seq)return;S.nodes={};S.now=Date.now();say('sStatus','Couldn\'t load the play-time data: '+((e&&e.message)||'error'),true)}
+    var keys=Object.keys(S.nodes),out=[],skip=0;
+    for(var i=0;i<keys.length;i++){if(i>=LB.MAX_NODES){skip++;continue}var p=person(keys[i],S.nodes[keys[i]],S.now);if(p)out.push(p);else skip++}
+    S.people=out;S.skipped=skip;
+    $('sRefresh').disabled=false;S.open={};S.show=PAGE;fillGames();renderStats();
+  }
+  function fillGames(){
+    var sel=$('sGame'),cur=sel.value||'all';
     sel.textContent='';opt(sel,'all','All games');
-    Object.keys(SITE).forEach(function(k){seen[k]=1;opt(sel,k,SITE[k])});
-    Object.keys(LOBBY).forEach(function(k){seen[k]=1;opt(sel,k,LOBBY[k]+' (lobby)')});
-    rows.forEach(function(r){if(!seen[r.site]){seen[r.site]=1;opt(sel,r.site,r.site)}});
-    sel.value=seen[cur]?cur:'all';
+    if(LB)LB.GAMES.forEach(function(g){opt(sel,g.d,g.n)});
+    sel.value=cur==='all'||(LB&&LB.BY[cur])?cur:'all';
   }
-  // Who each browser (analytics visitor ID) is: the newest who doc with that vid, so all of one account's browsers go together.
-  function personIndex(){
-    var byVid=new Map();
-    (S.who||[]).forEach(function(w){if(w.vid&&!byVid.has(w.vid))byVid.set(w.vid,w)});
-    var named=new Map();(S.who||[]).forEach(function(w){if(!named.has(w.uid))named.set(w.uid,w)});
-    return {vid:byVid,uid:named};
+  // The day keys in a range ('1', '7', '30'), or null for all time.
+  function daysIn(range){if(range==='all')return null;var n=Math.max(1,Math.min(DAYS,+range||1)),set={};for(var i=0;i<n;i++)set[dayAgo(i)]=1;return set}
+  // Seconds p spent in game ('all' for every game) within days (null: all time, from the totals). A range's sum for a game
+  // can't be more than that game's all-time total (two devices on one account keep the larger day, not the sum).
+  function secs(p,game,days){
+    if(!days)return game==='all'?p.total:(p.g[game]?p.g[game].s:0);
+    if(game==='all'){var t=0;Object.keys(p.g).forEach(function(d){t+=secs(p,d,days)});return t}
+    if(!p.g[game])return 0;
+    var s=0;Object.keys(p.d).forEach(function(k){if(days[k])s+=p.d[k][game]||0});
+    return Math.min(s,p.g[game].s);
   }
+  function whenText(range){return range==='all'?'all time':range==='1'?'today':'the last '+range+' days'}
   function computeStats(){
-    var gv=$('sGame').value,dv=$('sDev').value;
-    var base=S.rows.filter(inBackRoom);
-    fillGames(base);
-    var rows=base.filter(function(r){return dv==='all'||r.dev===dv});
-    var shown=gv==='all'?rows:rows.filter(function(r){return r.site===gv});
-    var ix=personIndex(),games=new Map(),people=new Map(),sids=new Set(),total=0,inGames=0;
-    shown.forEach(function(r){
-      var w0=ix.vid.get(r.vid),w=w0&&ix.uid.get(w0.uid)||w0,key=w?'u:'+w.uid:'v:'+r.vid,lobby=!!LOBBY[r.site];
-      var p=people.get(key);
-      if(!p){p={key:key,name:w?w.name+(w.seat?' · '+w.seat:''):'Visitor '+r.vid.slice(-6),sub:w?'Account '+w.uid.slice(0,6):'No name · '+r.vid,named:!!w,dur:0,sids:new Set(),games:new Map(),played:false,last:null,n:0};people.set(key,p)}
-      p.dur+=r.dur;p.sids.add(r.sid);p.n++;if(!lobby)p.played=true;
-      var at=r.last||r.ts;if(at&&(!p.last||at>p.last))p.last=at;
-      var pg=p.games.get(r.site);if(!pg){pg={site:r.site,dur:0,sids:new Set()};p.games.set(r.site,pg)}pg.dur+=r.dur;pg.sids.add(r.sid);
-      var g=games.get(r.site);if(!g){g={site:r.site,dur:0,people:new Set(),sids:new Set(),n:0};games.set(r.site,g)}
-      g.dur+=r.dur;g.people.add(key);g.sids.add(r.sid);g.n++;
-      sids.add(r.sid);total+=r.dur;if(!lobby)inGames+=r.dur;
+    var range=$('sRange').value,gv=$('sGame').value,gOnly=$('sGoogle').checked,days=daysIn(range);
+    var gs={},gp={},list=[],total=0,google=0;
+    S.people.forEach(function(p){
+      if(gOnly&&!p.ga)return;
+      var per={},top='',topS=0;
+      LB.GAMES.forEach(function(g){var s=secs(p,g.d,days);if(s>0){per[g.d]=s;gs[g.d]=(gs[g.d]||0)+s;gp[g.d]=(gp[g.d]||0)+1;if(s>topS){topS=s;top=g.n}}});
+      var v=gv==='all'?secs(p,'all',days):(per[gv]||0);
+      if(!(v>0))return;
+      list.push({p:p,v:v,per:per,top:top,n:Object.keys(per).length});total+=v;if(p.ga)google++;
     });
-    var list=[];people.forEach(function(p){list.push(p)});
-    var players=list.filter(function(p){return p.played}).length;
-    return {rows:shown,games:Array.from(games.values()).sort(function(a,b){return b.dur-a.dur||b.n-a.n}),people:list,players:players,lobbyOnly:list.length-players,sessions:sids.size,total:total,inGames:inGames,named:list.filter(function(p){return p.named}).length};
+    var games=LB.GAMES.filter(function(g){return gs[g.d]>0}).map(function(g){return {d:g.d,n:g.n,s:gs[g.d],people:gp[g.d]}}).sort(function(a,b){return b.s-a.s||b.people-a.people});
+    return {range:range,gv:gv,gOnly:gOnly,days:days,list:list,games:games,total:total,google:google};
   }
   var last=null;
   function renderStats(){
-    var st=last=computeStats(),gv=$('sGame').value;
-    var capEl=$('sCap');capEl.hidden=!S.capped;
-    if(S.capped)capEl.textContent='Only the newest '+fmtN(PV_CAP)+' page visits in this date range were loaded (that\'s the cap, counting every page on the site), so older visits are left out of these numbers. Pick a shorter range for complete numbers.';
+    if(!LB)return;
+    var st=last=computeStats(),when=whenText(st.range),where=st.gv==='all'?'all games':gameName(st.gv);
     var k=$('sKpis');k.textContent='';
     function kpi(l,v,s){var d=el('div','kpi');d.append(el('div','l',l),el('div','v',v),el('div','s',s||''));k.appendChild(d)}
-    kpi('Total time',hours(st.total),fmtDur(st.inGames)+' in games');
-    kpi('Players',fmtN(st.players),st.lobbyOnly?fmtN(st.lobbyOnly)+' more only opened the lobby':'opened a game');
-    kpi('Sessions',fmtN(st.sessions),fmtN(st.rows.length)+' page visits');
-    kpi('Named',fmtN(st.named),S.who?'of '+fmtN(st.people.length)+' people':(S.whoErr==='denied'?'who: permission denied':'names not loaded'));
+    kpi('Hours',hours(st.total),where+' · '+when);
+    kpi('Players',fmtN(st.list.length),'with play time '+when+(st.gOnly?' (Google only)':''));
+    kpi('Google accounts',fmtN(st.google),st.list.length?Math.round(100*st.google/st.list.length)+'% of these players':'signed in with Google');
+    kpi('Accounts',fmtN(S.people.length),S.skipped?fmtN(S.skipped)+(S.skipped===1?' node':' nodes')+' skipped (stale or malformed)':'on the leaderboards, all time');
     var ul=$('sGames');ul.textContent='';
-    var max=st.games.reduce(function(a,g){return Math.max(a,g.dur)},0);
-    if(!st.games.length)ul.appendChild(el('li','empty-l',S.rows.length?'No Back Room visits match these filters.':'No visits loaded.'));
+    var max=st.games.reduce(function(a,g){return Math.max(a,g.s)},0);
+    if(!st.games.length)ul.appendChild(el('li','empty-l',S.people.length?'No play time '+when+(st.gOnly?' from Google accounts':'')+'.':'Nobody is on the leaderboards yet.'));
     st.games.forEach(function(g){
-      var li=el('li'),b=el('button');b.type='button';b.dataset.site=g.site;b.setAttribute('aria-pressed',gv===g.site?'true':'false');
-      var nm=el('span','nm',siteName(g.site));if(LOBBY[g.site])nm.appendChild(el('small',null,' (lobby)'));
-      var tr=el('span','tr'),i=el('i');i.style.width=(max?Math.max(1,100*g.dur/max):0)+'%';tr.appendChild(i);
-      var n=el('span','n',fmtDur(g.dur)+' ');n.appendChild(el('small',null,'· '+g.people.size+(g.people.size===1?' person':' people')));
-      b.append(nm,tr,n);li.appendChild(b);ul.appendChild(li);
+      var li=el('li'),b=el('button');b.type='button';b.dataset.game=g.d;b.setAttribute('aria-pressed',st.gv===g.d?'true':'false');
+      var tr=el('span','tr'),i=el('i');i.style.width=(max?Math.max(1,100*g.s/max):0)+'%';tr.appendChild(i);
+      var n=el('span','n',fmtDur(g.s)+' ');n.appendChild(el('small',null,'· '+fmtN(g.people)+(g.people===1?' player':' players')));
+      b.append(el('span','nm',g.n),tr,n);li.appendChild(b);ul.appendChild(li);
     });
-    $('sPeopleHint').textContent='A person is one Online name and seat (all the browsers that account used) or, if they never opened the Online panel, one browser ("Visitor" and the end of its ID). Tap a row to see their games.'+(S.who?'':(S.whoErr==='denied'?' Names are missing: Firestore refused to read who.':' Names are missing: who didn\'t load.'));
+    $('sPeopleHint').textContent='One row per account: the Google name when the account signed in with Google (the badge), else the Online name, with the seat tag the Online panel shows. Hours are '+when+(st.gv==='all'?'':' in '+where)+'. Tap a row for their games, bests and the last 30 days.';
     renderPeople(st);
+  }
+  // Everything a game's stats say about one person, as text: the boards' stats, and for Slipstream the lap and course records.
+  function bestsOf(p,d){
+    var o=p.g[d],meta=LB.BY[d],out=[];if(!o||!meta)return out;
+    meta.st.forEach(function(st){if(o[st.k]!=null)out.push([st.chip||st.l,LB.fmt(st,o[st.k])])});
+    if(meta.laps)Object.keys(o).sort().forEach(function(k){
+      var m=/^(lap|rec):([a-z0-9-]+)(?::(\d+))?$/.exec(k),t=m&&LB.TRACKS[m[2]];if(!t)return;
+      out.push([m[1]==='lap'?'Fastest lap · '+t[0]:t[0]+' · '+m[3]+(m[3]==='1'?' lap':' laps'),LB.fmt({f:'lap'},o[k])]);
+    });
+    return out;
+  }
+  function detail(r,st){
+    var p=r.p,box=el('div','det'),when=whenText(st.range);
+    var sec1=el('div');sec1.appendChild(el('h3',null,'Hours by game · '+when));
+    var ul=el('ul','bars'),ds=Object.keys(r.per).sort(function(a,b){return r.per[b]-r.per[a]}),mx=ds.length?r.per[ds[0]]:0;
+    ds.forEach(function(d){
+      var li=el('li'),b=el('button');b.type='button';b.tabIndex=-1;
+      var tr=el('span','tr'),i=el('i');i.style.width=(mx?Math.max(1,100*r.per[d]/mx):0)+'%';tr.appendChild(i);
+      var n=el('span','n',fmtDur(r.per[d]));
+      if(st.days&&p.g[d])n.appendChild(el('small',null,' · '+fmtDur(p.g[d].s)+' all time'));
+      b.append(el('span','nm',gameName(d)),tr,n);li.appendChild(b);
+      var bests=bestsOf(p,d);
+      if(bests.length){var bl=el('div','bests');bests.forEach(function(x){var s=el('span',null,x[0]+': ');s.appendChild(el('b',null,x[1]));bl.appendChild(s)});li.appendChild(bl)}
+      ul.appendChild(li);
+    });
+    sec1.appendChild(ul);box.appendChild(sec1);
+    // The last 30 days as bars, one a day (the chosen game only when one is picked); today is outlined.
+    var sec2=el('div');sec2.appendChild(el('h3',null,'Last 30 days · '+(st.gv==='all'?'all games':gameName(st.gv))));
+    var act=el('div','act'),vals=[],amax=0,today=dayAgo(0);
+    for(var i=DAYS-1;i>=0;i--){var k=dayAgo(i),g=p.d[k]||{},v=0;if(st.gv==='all')Object.keys(g).forEach(function(x){v+=g[x]});else v=g[st.gv]||0;vals.push([k,v]);amax=Math.max(amax,v)}
+    vals.forEach(function(x){var b=el('i',(x[1]>0?'':'z')+(x[0]===today?' t':''));b.style.height=(x[1]>0?Math.max(6,100*x[1]/amax):2)+'%';b.title=dayDate(x[0]).toLocaleDateString()+': '+(x[1]>0?fmtDur(x[1]):'nothing');act.appendChild(b)});
+    act.setAttribute('role','img');act.setAttribute('aria-label','Play time per day over the last 30 days: '+vals.filter(function(x){return x[1]>0}).length+' active days');
+    var lab=el('div','actl');lab.append(el('span',null,dayDate(vals[0][0]).toLocaleDateString()),el('span',null,'Today'));
+    sec2.append(act,lab);box.appendChild(sec2);
+    return box;
   }
   function renderPeople(st){
     var q=$('sFind').value.trim().toLowerCase();
-    var list=st.people.filter(function(p){return !q||(p.name+' '+p.sub).toLowerCase().indexOf(q)>=0});
+    var list=st.list.filter(function(r){var p=r.p;return !q||(p.name+' '+p.n+' '+p.seat+' '+p.uid).toLowerCase().indexOf(q)>=0});
     var dir=S.dir==='asc'?1:-1,key=S.sort;
     list.sort(function(a,b){
       var x,y;
-      if(key==='name'){x=a.name.toLowerCase();y=b.name.toLowerCase();return x<y?-dir:x>y?dir:0}
-      if(key==='sess'){x=a.sids.size;y=b.sids.size}else if(key==='games'){x=a.games.size;y=b.games.size}else if(key==='last'){x=a.last?+a.last:0;y=b.last?+b.last:0}else{x=a.dur;y=b.dur}
-      return (x-y)*dir||(b.dur-a.dur);
+      if(key==='name'||key==='top'){x=(key==='name'?a.p.name:a.top).toLowerCase();y=(key==='name'?b.p.name:b.top).toLowerCase();return x<y?-dir:x>y?dir:(b.v-a.v)}
+      if(key==='games'){x=a.n;y=b.n}else if(key==='last'){x=+a.p.ts;y=+b.p.ts}else{x=a.v;y=b.v}
+      return (x-y)*dir||(b.v-a.v);
     });
     var t=$('sPeople');t.textContent='';
     var head=el('tr');
-    [['name','Person',''],['dur','Time','num'],['sess','Sessions','num'],['games','Games','num opt'],['last','Last seen','opt']].forEach(function(c){
+    [['name','Person',''],['hours','Hours','num'],['games','Games','num opt'],['top','Top game','opt'],['last','Last seen','']].forEach(function(c){
       var th=el('th',c[2]),b=el('button',null,c[1]);b.type='button';b.dataset.sort=c[0];if(S.sort===c[0])b.dataset.dir=S.dir;th.appendChild(b);head.appendChild(th);
     });
     var thead=el('thead');thead.appendChild(head);t.appendChild(thead);
     var tb=el('tbody');t.appendChild(tb);
-    if(!list.length){var tr0=el('tr'),td0=el('td',null,st.people.length?'Nobody matches.':'Nobody in this range.');td0.colSpan=5;tr0.appendChild(td0);tb.appendChild(tr0)}
-    list.slice(0,S.show).forEach(function(p){
-      var tr=el('tr','prow'+(S.open[p.key]?' open':''));tr.dataset.k=p.key;tr.tabIndex=0;tr.setAttribute('aria-expanded',S.open[p.key]?'true':'false');
-      var td=el('td');td.appendChild(el('span','who',p.name));if(p.sub)td.appendChild(el('small',null,p.sub));
-      tr.append(td,el('td','num',fmtDur(p.dur)),el('td','num',fmtN(p.sids.size)),el('td','num opt',fmtN(p.games.size)));
-      var tl=el('td','opt');tl.appendChild(timeEl(p.last));tr.appendChild(tl);
+    if(!list.length){var tr0=el('tr'),td0=el('td',null,st.list.length?'Nobody matches.':'Nobody in this range.');td0.colSpan=5;tr0.appendChild(td0);tb.appendChild(tr0)}
+    list.slice(0,S.show).forEach(function(r){
+      var p=r.p,tr=el('tr','prow'+(S.open[p.uid]?' open':''));tr.dataset.k=p.uid;tr.tabIndex=0;tr.setAttribute('aria-expanded',S.open[p.uid]?'true':'false');
+      var td=el('td'),who=el('span','who',p.name);
+      if(p.ga){var bd=el('span','badge google','Google');bd.title='Signed in with Google';who.appendChild(bd)}
+      td.appendChild(who);
+      td.appendChild(el('small',null,p.seat+(p.gn&&p.n!==p.gn?' · Online name: '+p.n:'')+' · Account '+p.uid.slice(0,6)));
+      var tt=el('td','opt',r.top);
+      var tl=el('td');tl.appendChild(timeEl(p.ts));
+      tr.append(td,el('td','num',fmtDur(r.v)),el('td','num opt',fmtN(r.n)),tt,tl);
       tb.appendChild(tr);
-      if(S.open[p.key]){
-        var dr=el('tr','pdet'),dd=el('td');dd.colSpan=5;
-        var ul=el('ul','bars'),gs=Array.from(p.games.values()).sort(function(a,b){return b.dur-a.dur}),mx=gs.length?gs[0].dur:0;
-        gs.forEach(function(g){
-          var li=el('li'),b=el('button');b.type='button';b.tabIndex=-1;
-          var tr2=el('span','tr'),i=el('i');i.style.width=(mx?Math.max(1,100*g.dur/mx):0)+'%';tr2.appendChild(i);
-          var n=el('span','n',fmtDur(g.dur)+' ');n.appendChild(el('small',null,'· '+g.sids.size+(g.sids.size===1?' session':' sessions')));
-          b.append(el('span','nm',siteName(g.site)+(LOBBY[g.site]?' (lobby)':'')),tr2,n);li.appendChild(b);ul.appendChild(li);
-        });
-        dd.appendChild(ul);dr.appendChild(dd);tb.appendChild(dr);
-      }
+      if(S.open[p.uid]){var dr=el('tr','pdet'),dd=el('td');dd.colSpan=5;dd.appendChild(detail(r,st));dr.appendChild(dd);tb.appendChild(dr)}
     });
     $('sMore').hidden=list.length<=S.show;$('sMore').textContent='Show more ('+fmtN(list.length-S.show)+' left)';
   }
-  $('sRange').addEventListener('change',loadStats);
   $('sRefresh').addEventListener('click',loadStats);
-  ['sGame','sDev'].forEach(function(id){$(id).addEventListener('change',function(){S.open={};S.show=PAGE;renderStats()})});
+  ['sRange','sGame','sGoogle'].forEach(function(id){$(id).addEventListener('change',function(){S.show=PAGE;renderStats()})});
   $('sFind').addEventListener('input',function(){S.show=PAGE;if(last)renderPeople(last)});
   $('sMore').addEventListener('click',function(){S.show+=PAGE;if(last)renderPeople(last)});
   $('sGames').addEventListener('click',function(e){
-    var b=e.target.closest('button[data-site]');if(!b)return;
-    $('sGame').value=$('sGame').value===b.dataset.site?'all':b.dataset.site;S.open={};S.show=PAGE;renderStats();
+    var b=e.target.closest('button[data-game]');if(!b)return;
+    $('sGame').value=$('sGame').value===b.dataset.game?'all':b.dataset.game;S.show=PAGE;renderStats();
   });
   $('sPeople').addEventListener('click',function(e){
     var sb=e.target.closest('button[data-sort]');
-    if(sb){var k=sb.dataset.sort;if(S.sort===k)S.dir=S.dir==='asc'?'desc':'asc';else{S.sort=k;S.dir=k==='name'?'asc':'desc'}if(last)renderPeople(last);return}
+    if(sb){var k=sb.dataset.sort;if(S.sort===k)S.dir=S.dir==='asc'?'desc':'asc';else{S.sort=k;S.dir=k==='name'||k==='top'?'asc':'desc'}if(last)renderPeople(last);return}
     var tr=e.target.closest('tr.prow');if(!tr)return;
     if(S.open[tr.dataset.k])delete S.open[tr.dataset.k];else S.open[tr.dataset.k]=1;
     if(last)renderPeople(last);
@@ -702,7 +748,7 @@ tr.pdet .bars button:hover{background:none;border-color:transparent}
   })();
 
   // ---------- Welcome: the saved Online name, else a party or game name, else ask once and keep it here ----------
-  function cleanName(v){return String(v==null?'':v).replace(/[<>\u0000-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2066-\u2069]/g,'').replace(/\s+/g,' ').trim().slice(0,30)}
+  function cleanName(v,n){return String(v==null?'':v).replace(/[<>\u0000-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2066-\u2069]/g,'').replace(/\s+/g,' ').trim().slice(0,n||30)}
   function savedName(){
     var keys=['ol:name','party:name','coil:name','ss:name','sd:name','spire:name','updraft:name','boostball-name','shellcr-name','br1v1-name','rk_name','chroma-name','oddone-name','tumble-name','bra:name'];
     for(var i=0;i<keys.length;i++){var v=store(keys[i]);if(!v)continue;try{if(v.charAt(0)==='"')v=JSON.parse(v)}catch(e){}v=cleanName(v);if(v)return v}
@@ -746,22 +792,21 @@ tr.pdet .bars button:hover{background:none;border-color:transparent}
     loaded={};showTab(tab);
   });
   $('out').addEventListener('click',function(){PRIV=null;location.reload()});
-  fillGames([]);fillWho();fillFb();
+  fillGames();fillWho();fillFb();
 
-  // Test hook for automated browsers only: stub() swaps Firestore for documents held in the page (the codes are still
-  // needed to open sealed ones).
+  // Test hook for automated browsers only: stub() swaps Firestore and the leaderboard read for data held in the page (the
+  // codes are still needed to open sealed ones).
   if(navigator.webdriver){
     window.__admin={
       stub:function(data,o){
         o=o||{};data=data||{};
         var deny=function(){var e=new Error('Missing or insufficient permissions.');e.code='permission-denied';return Promise.reject(e)};
         var d=function(x){return Object.assign({},x,{ts:x.ts!=null?new Date(x.ts):null,last:x.last!=null?new Date(x.last):null})};
-        var pv=(data.pv||[]).map(d),chat=(data.chat||[]).map(d),fb=(data.feedback||[]).map(d),who=(data.who||[]).map(d);
+        var chat=(data.chat||[]).map(d),fb=(data.feedback||[]).map(d);
         function range(list,start,cap){return list.filter(function(x){return !start||(x.ts&&x.ts>=start)}).sort(function(a,b){return (b.ts||0)-(a.ts||0)}).slice(0,cap)}
         function docs(list){return list.map(function(x){return {id:x.id,data:function(){return x}}})}
         api={
-          pv:function(s,c){return o.denyPv?deny():Promise.resolve(range(pv,s,c).map(function(x){return cleanPv(x.id,x)}))},
-          who:function(){return o.denyWho?deny():Promise.resolve(range(who,null,WHO_CAP).map(function(x){return cleanWho(x.id,x)}))},
+          lb:function(){return o.denyLb?deny():Promise.resolve({val:data.lb||{},now:data.now||Date.now()})},
           chat:function(s,c){return o.denyChat?deny():all(docs(range(chat,s,c)),openChat)},
           fbList:function(){return o.denyFb?deny():all(docs(range(fb,null,FB_CAP)),openFb)},
           fbDone:function(id,v){if(o.denyWrite)return deny();fb.forEach(function(x){if(x.id===id)x.done=v});return Promise.resolve()}
@@ -770,7 +815,8 @@ tr.pdet .bars button:hover{background:none;border-color:transparent}
         if(PRIV){loaded={};showTab(tab)}
       },
       get unlocked(){return !!PRIV},
-      get stats(){return last&&{total:last.total,inGames:last.inGames,players:last.players,sessions:last.sessions,people:last.people.length,named:last.named,games:last.games.map(function(g){return [g.site,g.dur]}),capped:S.capped,rows:S.rows.length}},
+      get stats(){return last&&{total:last.total,players:last.list.length,google:last.google,accounts:S.people.length,skipped:S.skipped,games:last.games.map(function(g){return [g.d,g.s,g.people]}),
+        people:last.list.map(function(r){return {uid:r.p.uid,name:r.p.name,n:r.p.n,gn:r.p.gn,ga:r.p.ga,seat:r.p.seat,v:r.v,top:r.top,n_games:r.n,days:Object.keys(r.p.d).length}})}},
       get chat(){return {rows:C.rows.length,shown:chatShown().length,capped:C.capped,unopened:C.rows.filter(function(r){return !r.opened}).length}},
       get feedback(){return F.rows.map(function(r){return {id:r.id,done:r.done,sealed:r.sealed,msg:r.msg}})}
     };

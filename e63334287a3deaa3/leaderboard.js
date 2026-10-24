@@ -18,9 +18,13 @@
  * To add a board for a game: give the game a row in GAMES (folder, name, and its stats: key, label, format, unit, range,
  * for running counts a RATE per second played, for a best single round the all-time count it can't exceed), and make
  * sure stats.js publishes that key (README: stats.js).
+ *
+ * The admin page (d06440218d1813a3/) reads the same nodes and loads this file with data-lib: it then only exposes the
+ * checks, the games table and the formatters as window.BackRoomBoards and adds nothing to the page.
  */
 (function () {
   'use strict';
+  var me = document.currentScript;
   if (document.getElementById('leaderboards')) return;
 
   var PATH = 'rooms/lb-all/players';
@@ -233,6 +237,10 @@
     for (var i = 0; i < list.length; i++) list[i].rank = i && list[i].v === list[i - 1].v ? list[i - 1].rank : i + 1;
     return list;
   }
+
+  // For the admin page: the same checks and names, so what it shows is what the boards would show. With data-lib, that's all.
+  window.BackRoomBoards = { parse: parse, GAMES: GAMES, BY: BY, TRACKS: TRACKS, EPOCH: EPOCH, PATH: PATH, MAX_NODES: MAX_NODES, NODE_MAX: NODE_MAX, fmt: fmt, fmtHours: fmtHours, cleanName: cleanName, mask: mask, seatOf: seatOf };
+  if (me && me.hasAttribute('data-lib')) return;
 
   // ---------------- Styles ----------------
   var css = document.createElement('style');
