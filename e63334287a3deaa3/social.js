@@ -17,7 +17,13 @@
  * b is sealed to the recipient like Showdown's hole cards: AES-GCM with a key from ECDH between the sender's
  * private key and the recipient's pk, so only those two browsers can open it. Inside is JSON:
  *   { f: sender uid, to: recipient uid, k: 'm', x: text } | { ..., k: 'p', c: party code } | { ..., k: 'r', g, r }
+ *   and, also in d, the chat-request handshake: k: 'q' (please chat with me), 'a' (yes), 'n' (no), 'e' (I ended our chat).
  * Everyone can see that a message or invite exists, who it's to and when; nobody else can read it.
+ * Private messages need a chat request first: you ask (q), they accept (a), and only then does either side show the
+ * other's messages (k 'm'); an 'm' from someone who hasn't been accepted is dropped. A request runs out after REQ_TTL
+ * if nobody answers. Accepted pairs are remembered in this browser (localStorage ol:chats, uid -> time) so you don't
+ * ask again every visit; End chat forgets the pair here and sends 'e' so the other side forgets it too. Party and room
+ * invites aren't chat, so they don't need a request. The cabin chat is unchanged.
  * The key pair is kept in this browser's IndexedDB so the same identity survives reloads.
  * Closing the tab removes the node (onDisconnect), and nodes without a heartbeat for STALE are ignored.
  * Every browser downloads every node, so this suits tens of people, not thousands.
@@ -44,6 +50,7 @@
   var NODE_MAX = 60000, THREAD_KEEP = 80;
   var GAP = 1500, BURST = 5, BURST_MS = 10000;
   var REPORT_MSGS = 20, REPORT_MAX = 4000, REPORT_BYTES = 8000, REPORT_GAP = 60000;
+  var REQ_TTL = 10 * 60000, REQ_BURST = 10, REQ_BURST_MS = 10 * 60000, CHATS_MAX = 60;
   var COLORS = ['#1D6A4B', '#C0562F', '#3E5BA9', '#9A3F8F', '#B07A12', '#2A8A8A', '#B42318', '#5B6B2E'];
 
   var me0 = document.currentScript && document.currentScript.src;
@@ -215,7 +222,7 @@
   var top = el('div', 'onl-top');
   var live = el('span', 'onl-live'); live.setAttribute('aria-hidden', 'true');
   var $title = el('h2'); $title.append('Online ', el('span'));
-  var $sub = el('p', 'onl-sub', 'Everyone in the Back Room right now. Tap someone to message them or invite them to your party, or say hi to the whole cabin.');
+  var $sub = el('p', 'onl-sub', 'Everyone in the Back Room right now. Tap someone to request a chat, invite them to your party or send them a room code, or say hi to the whole cabin.');
   var $loungeBtn = btn('Cabin chat', '', 'lounge'); $loungeBtn.append(el('span', 'onl-n'));
   top.append(live, $title, $sub, $loungeBtn);
   var meRow = el('div', 'onl-me');
@@ -255,6 +262,10 @@
   var seen = json(store('ol:seen'), {}); if (!seen || typeof seen !== 'object') seen = {};
   var blocked = json(store('ol:block'), {}); if (!blocked || typeof blocked !== 'object') blocked = {};
   var muted = json(store('ol:mute'), {}); if (!muted || typeof muted !== 'object') muted = {};
+  // People who accepted a chat with us (or whose request we accepted): uid -> when. Only what this browser saw.
+  var chats = loadChats();
+  var chains = {};                         // uid -> promise: their sealed items are opened in the order they were sent
+  var reqSent = [];                        // when we sent chat requests, for the rate limit
   var opened = {};                         // sender:id -> 1 once decrypted (or failed)
   var sent = [];                           // our recent send times, for the rate limit
   var reported = {};                       // uid -> time we last reported them (one report a minute per person)
@@ -276,6 +287,17 @@
   }
   function myName() { return cleanName(store('ol:name')) || guessName() || 'Guest'; }
   function saveSets() { store('ol:block', JSON.stringify(blocked)); store('ol:mute', JSON.stringify(muted)); }
+  function loadChats() {
+    var v = json(store('ol:chats'), {}), out = {};
+    if (!v || typeof v !== 'object' || Array.isArray(v)) return out;
+    Object.keys(v).forEach(function (k) { var t = num(v[k]); if (/^[A-Za-z0-9_-]{6,64}$/.test(k) && t > 0) out[k] = t; });
+    return out;
+  }
+  function saveChats() {
+    var ks = Object.keys(chats);
+    if (ks.length > CHATS_MAX) ks.sort(function (a, b) { return chats[a] - chats[b]; }).slice(0, ks.length - CHATS_MAX).forEach(function (k) { delete chats[k]; });
+    store('ol:chats', Object.keys(chats).length ? JSON.stringify(chats) : null);
+  }
   function saveSeen() {
     var ks = Object.keys(seen); if (ks.length > 300) ks.sort(function (a, b) { return seen[a] - seen[b]; }).slice(0, ks.length - 300).forEach(function (k) { delete seen[k]; });
     store('ol:seen', JSON.stringify(seen));
@@ -396,6 +418,7 @@
       var p = people[u];
       t = threads[u] = { n: p ? p.n : 'Guest', c: p ? p.c : colorOf(u), m: [] };
     }
+    ['rq', 'rx', 'rd', 'in', 'nd'].forEach(function (k) { if (!(num(t[k]) > 0)) t[k] = 0; });
     return t;
   }
   function addMsg(u, m) {
@@ -407,25 +430,117 @@
     return true;
   }
 
-  // Open the messages and invite this person sealed to us.
+  // Open the messages and invite this person sealed to us. One person's items are opened in the order they were sent,
+  // so an acceptance is always handled before the message that followed it.
   function openAll(p) {
-    p.dm.forEach(function (m) { openOne(p, m, false); });
-    if (p.inv) openOne(p, p.inv, true);
+    p.dm.forEach(function (m) { queueOpen(p, m, false); });
+    if (p.inv) queueOpen(p, p.inv, true);
   }
-  function openOne(p, m, isInv) {
+  function queueOpen(p, m, isInv) {
     var key = p.uid + ':' + m.i + ':' + p.pk.slice(0, 12);
     if (opened[key]) return; opened[key] = 1;
-    unseal(p.pk, m.b).then(function (o) {
+    chains[p.uid] = (chains[p.uid] || Promise.resolve()).then(function () { return openOne(p, m, isInv); }).catch(function () {});
+  }
+  function openOne(p, m, isInv) {
+    return unseal(p.pk, m.b).then(function (o) {
       if (!o || typeof o !== 'object' || o.f !== p.uid || o.to !== uid) return;
-      var msg = { id: m.i, from: p.uid, t: m.t };
-      if (!isInv && o.k === 'm') { msg.k = 'm'; msg.x = cleanText(o.x); if (!msg.x) return; }
+      var u = p.uid, msg = { id: m.i, from: u, t: m.t }, t = now();
+      if (!isInv && o.k === 'm') {
+        // A message from someone who isn't an accepted chat (an older client, or someone trying their luck) isn't shown.
+        if (!chats[u]) return;
+        msg.k = 'm'; msg.x = cleanText(o.x); if (!msg.x) return;
+      } else if (!isInv && o.k === 'q') {
+        // They'd like to chat. Not from someone blocked, and not once it has run out.
+        if (blocked[u] || m.t < t - REQ_TTL) return;
+        var th = thread(u);
+        // One pending request per pair: a repeat while theirs is still open, or within REQ_TTL of our no, is ignored.
+        if (th.in && (th.in >= m.t || t - th.in < REQ_TTL)) return;
+        if (th.nd && m.t < th.nd + REQ_TTL) return;
+        msg.k = 'q';
+        if (chats[u] || pendingOut(u)) {
+          // Already accepted here (they may have lost that), or we asked them at the same time: that's a yes.
+          if (!addMsg(u, msg)) return;
+          accept(u, true).catch(function () {});
+          schedule(); return;
+        }
+        th.in = m.t;
+      } else if (!isInv && o.k === 'a') {
+        // Yes, from someone we asked (and only then: a stray yes from anyone else opens nothing).
+        var th2 = threads[u];
+        if (!th2 || !th2.rq || th2.rx >= th2.rq || m.t < th2.rq - 60000 || m.t > th2.rq + REQ_TTL + 60000) return;
+        msg.k = 'a';
+        if (!addMsg(u, msg)) return;
+        if (!chats[u]) { chats[u] = m.t; saveChats(); }
+        th2.rx = m.t; th2.rd = 0; saveThreads();
+        if (!muted[u] && m.t > started - 120000) toast(p, msg);
+        schedule(); return;
+      } else if (!isInv && o.k === 'n') {
+        var th3 = threads[u];
+        if (!th3 || !pendingOut(u) || m.t < th3.rq - 60000) return;
+        msg.k = 'n';
+        if (!addMsg(u, msg)) return;
+        th3.rd = m.t; th3.rx = m.t; saveThreads();
+        if (!muted[u] && m.t > started - 120000) toast(p, msg);
+        schedule(); return;
+      } else if (!isInv && o.k === 'e') {
+        if (!chats[u] || m.t < chats[u] - 60000) return;
+        msg.k = 'e';
+        if (!addMsg(u, msg)) return;
+        delete chats[u]; saveChats();
+        var th4 = thread(u); th4.in = 0; if (th4.rq) th4.rx = m.t; saveThreads();
+        if (!blocked[u] && !muted[u] && m.t > started - 120000) toast(p, msg);
+        schedule(); return;
+      }
       else if (isInv && o.k === 'p' && typeof o.c === 'string' && /^[a-z0-9]{1,8}$/.test(o.c)) { msg.k = 'p'; msg.c = o.c; }
       else if (isInv && o.k === 'r' && okRoom(gameOf(o.g), o.r)) { msg.k = 'r'; msg.g = o.g; msg.r = o.r; }
       else return;
-      if (!addMsg(p.uid, msg)) return;
-      if (!blocked[p.uid] && !muted[p.uid] && m.t > started - 120000 && !(view && view.v === 'dm' && view.u === p.uid && dr.classList.contains('open'))) toast(p, msg);
+      if (!addMsg(u, msg)) return;
+      if (!blocked[u] && !muted[u] && m.t > started - 120000 && !(view && view.v === 'dm' && view.u === u && dr.classList.contains('open'))) toast(p, msg);
       schedule();
     }, function () {});
+  }
+  // Chat-request state for a person, from this tab's thread: rq when we last asked them, rx when that was settled (a yes, a no
+  // or the chat ending), rd when they said no, in when they asked us (0 once answered), nd when we said no.
+  function pendingOut(u) { var t = threads[u]; return !!(t && t.rq && !(t.rx >= t.rq) && now() - t.rq < REQ_TTL && !chats[u]); }
+  function pendingIn(u) { var t = threads[u]; return !!(t && t.in && now() - t.in < REQ_TTL && !chats[u] && !blocked[u]); }
+  function declined(u) { var t = threads[u]; return !!(t && t.rq && t.rd >= t.rq && now() - t.rq < REQ_TTL && !chats[u]); }
+  function canRequest(u) {
+    var why = canTalk(u); if (why) return why;
+    if (chats[u]) return 'You already chat with them.';
+    var t = threads[u], n = now();
+    if (t && t.rq && n - t.rq < REQ_TTL) return pendingOut(u) ? 'Waiting for them to accept.' : 'You can ask again in ' + Math.max(1, Math.ceil((REQ_TTL - (n - t.rq)) / 60000)) + ' min.';
+    reqSent = reqSent.filter(function (x) { return n - x < REQ_BURST_MS; });
+    if (reqSent.length >= REQ_BURST) return 'That’s a lot of requests. Try again in a few minutes.';
+    return '';
+  }
+  async function request(u) {
+    var why = canRequest(u); if (why) throw new Error(why);
+    var th = thread(u), t = now();
+    reqSent.push(t);
+    await sendDm(u, { k: 'q' });
+    th.rq = Math.max(t, last(thread(u).m)); th.rx = 0; th.rd = 0; saveThreads();
+    schedule();
+  }
+  async function accept(u, auto) {
+    var th = thread(u);
+    if (!auto && !pendingIn(u)) throw new Error('That request has run out.');
+    await sendDm(u, { k: 'a' }, auto);
+    th.in = 0; if (th.rq) th.rx = now();
+    if (!chats[u]) { chats[u] = now(); saveChats(); }
+    saveThreads(); schedule();
+  }
+  async function decline(u) {
+    var th = thread(u);
+    if (!pendingIn(u)) throw new Error('That request has run out.');
+    await sendDm(u, { k: 'n' });
+    th.in = 0; th.nd = now(); saveThreads(); schedule();
+  }
+  async function endChat(u) {
+    var th = thread(u);
+    delete chats[u]; saveChats();
+    th.in = 0; if (th.rq) th.rx = now(); saveThreads();
+    schedule();
+    await sendDm(u, { k: 'e' }, true);
   }
 
   // ---------------- Our own node ----------------
@@ -577,6 +692,10 @@
       if (m.k === 'm') what = ': ' + cleanText(m.x);
       else if (m.k === 'p') what = ' sent a party invite';
       else if (m.k === 'r') what = ' sent a room invite (' + (gameOf(m.g) ? gameOf(m.g).n : '?') + ', room ' + String(m.r).slice(0, 17) + ')';
+      else if (m.k === 'q') what = ' asked to chat';
+      else if (m.k === 'a') what = ' accepted the chat';
+      else if (m.k === 'n') what = ' declined the chat';
+      else if (m.k === 'e') what = ' ended the chat';
       else return '';
       return stamp(m.t) + ' ' + who + what;
     }).filter(Boolean);
@@ -613,18 +732,23 @@
     if (!published) return 'Not connected yet.';
     if (u) {
       var p = people[u];
+      if (blocked[u]) return 'You blocked this person.';
       if (!visible(p)) return 'They’ve left the Back Room.';
       if (!keys.pair) return 'This browser can’t encrypt private messages.';
       if (!p.pk) return 'Their browser can’t receive private messages.';
     }
     return '';
   }
-  async function sendDm(u, payload) {
-    var why = canTalk(u) || limited(); if (why) throw new Error(why);
+  // The chat-request steps (q, a, n, e) have their own limits (canRequest, one answer per request), so they don't count
+  // against the message rate limit; quiet marks an automatic one (a yes we owe them) all the same.
+  async function sendDm(u, payload, quiet) {
+    var step = quiet || /^[qane]$/.test(payload.k);
+    var why = canTalk(u) || (step ? '' : limited()); if (why) throw new Error(why);
+    if (payload.k === 'm' && !chats[u]) throw new Error(pendingIn(u) ? 'Accept their request to chat.' : 'Request to chat first.');
     var p = people[u], t = Math.round(now()), id = rid();
     var b = await seal(p.pk, Object.assign({ f: uid, to: u }, payload));
-    var patch = {};
-    if (payload.k === 'm') {
+    var patch = {}, isInv = payload.k === 'p' || payload.k === 'r';
+    if (!isInv) {
       mine.d[u] = (mine.d[u] || []).concat({ i: id, t: t, b: b }).slice(-DM_KEEP);
       patch['d/' + u] = mine.d[u];
       var peers = Object.keys(mine.d);
@@ -642,7 +766,7 @@
     }
     await write(patch);
     var m = { id: id, from: uid, t: t, k: payload.k };
-    if (payload.k === 'm') m.x = payload.x; else if (payload.k === 'p') m.c = payload.c; else { m.g = payload.g; m.r = payload.r; }
+    if (payload.k === 'm') m.x = payload.x; else if (payload.k === 'p') m.c = payload.c; else if (payload.k === 'r') { m.g = payload.g; m.r = payload.r; }
     addMsg(u, m);
     seen[u] = Math.max(seen[u] || 0, t); saveSeen();
     schedule();
@@ -723,7 +847,7 @@
   function meEntry() { return { uid: uid, n: myName(), c: uid ? colorOf(uid) : COLORS[0], seat: uid ? seatOf(uid) : '', party: status.p, g: status.g }; }
   function personBtn(p, isMe) {
     var b = el('button', 'onl-p' + (isMe ? ' me' : '')); b.type = 'button';
-    if (!isMe) { b.setAttribute('data-u', p.uid); b.setAttribute('aria-label', 'Open a chat with ' + label(p)); }
+    if (!isMe) { b.setAttribute('data-u', p.uid); b.setAttribute('aria-label', 'Open ' + label(p)); }
     var av = el('span', 'onl-av', mask(p.n).charAt(0).toUpperCase()); av.style.background = p.c; av.setAttribute('aria-hidden', 'true');
     var who = el('span', 'onl-who'), nm = el('span', 'onl-nm');
     nm.append(mask(p.n) + ' ', el('small', '', '· ' + p.seat + (isMe ? ' · you' : '')));
@@ -793,7 +917,7 @@
       var sub = el('div', 'onl-dsub'), acts = el('div', 'onl-acts'), lb = btn('Cabin chat', '', 'lounge');
       var lu = loungeUnread(); lb.append(el('span', 'onl-n', lu ? String(lu) : ''));
       acts.append(lb, btn(hidden ? 'Show me' : 'Hide me', '', 'hide'));
-      sub.append(el('span', '', hidden ? 'You’re hidden. Others can’t see or message you.' : 'Tap someone to chat or invite them.'), acts);
+      sub.append(el('span', '', hidden ? 'You’re hidden. Others can’t see or message you.' : 'Tap someone to request a chat or invite them.'), acts);
       parts.push(sub);
       var ul = el('ul', 'onl-list'); fillList(ul, true); body.append(ul);
       var bl = Object.keys(blocked);
@@ -828,22 +952,40 @@
       h.textContent = nm;
       var dsub = el('div', 'onl-dsub');
       dsub.append(el('span', '', (p && visible(p) ? statusText(p) : 'Not online') + ' · private: only the two of you can read this.'));
-      var da = el('div', 'onl-acts');
+      var da = el('div', 'onl-acts'), why = canTalk(u), theirs = mask(p ? p.n : (t ? cleanName(t.n) : '') || 'them');
+      if (chats[u]) da.append(btn('End chat', '', 'endchat'));
+      else if (!pendingIn(u) && !blocked[u]) {
+        var rq = btn(pendingOut(u) ? 'Request sent' : declined(u) ? 'Declined' : 'Request to chat', 'pri', 'request');
+        var rwhy = canRequest(u); rq.disabled = !!rwhy; if (rwhy) rq.title = rwhy;
+        da.append(rq);
+      }
       da.append(btn('Invite to party', 'pri', 'invite'), btn('Send room code', '', 'room'), btn(muted[u] ? 'Unmute' : 'Mute', '', 'mute'), btn(blocked[u] ? 'Unblock' : 'Block', 'warn', 'block'), btn('Report', 'warn', 'report'));
       dsub.append(da);
       if (view.room) { if (!view.roomEl) view.roomEl = roomForm(); dsub.append(view.roomEl); } else view.roomEl = null;
       parts.push(dsub);
-      var why = canTalk(u);
       da.querySelectorAll('[data-act=invite],[data-act=room]').forEach(function (b2) { b2.disabled = !!why; });
       var msgs = t && Array.isArray(t.m) ? t.m : [];
-      if (blocked[u]) body.append(el('p', 'onl-note', 'You blocked this person. Their messages and invites are hidden.'));
+      if (blocked[u]) body.append(el('p', 'onl-note', 'You blocked this person. Their messages, invites and chat requests are hidden.'));
       else {
-        if (!msgs.length) body.append(el('p', 'onl-note', 'Say hi. Messages are end-to-end encrypted: other people online can see that you sent something, but not what.'));
+        if (chats[u] && !msgs.some(function (m) { return m.k === 'm'; })) body.append(el('p', 'onl-note', 'Say hi. Messages are end-to-end encrypted: other people online can see that you sent something, but not what.'));
         msgs.forEach(function (m) { body.append(msgEl(u, m)); });
+        var mwhy = '';
+        if (pendingIn(u)) {
+          var rc = el('div', 'onl-m onl-card'), ra = el('div', 'onl-acts');
+          rc.append(el('span', '', theirs + ' wants to chat with you. Accept their request to see their messages.'));
+          ra.append(btn('Accept', 'pri', 'accept'), btn('Decline', '', 'decline'), btn('Block', 'warn', 'block'));
+          rc.append(ra); body.append(rc);
+          mwhy = 'Accept their request to chat.';
+        } else if (!chats[u]) {
+          if (pendingOut(u)) { body.append(el('p', 'onl-note', 'Request sent. Waiting for ' + theirs + ' to accept.')); mwhy = 'Waiting for them to accept.'; }
+          else if (declined(u)) { body.append(el('p', 'onl-note', theirs + ' declined your request.')); mwhy = 'They declined your request.'; }
+          else { body.append(el('p', 'onl-note', 'Request to chat with ' + theirs + '. They see your messages once they accept.')); mwhy = 'Request to chat first.'; }
+        }
+        if (!why && mwhy) why = mwhy;
       }
       parts.push(body);
       if (!keep) keep = composer('Message', 'send');
-      var inp = keep.querySelector('input'); if (inp) { inp.disabled = !!why; inp.placeholder = why || 'Message ' + mask(p ? p.n : 'them'); }
+      var inp = keep.querySelector('input'); if (inp) { inp.disabled = !!why; inp.placeholder = why || 'Message ' + theirs; }
       var sb = keep.querySelector('[data-act=send]'); if (sb) sb.disabled = !!why;
       var lm = msgs.length ? msgs[msgs.length - 1].t : 0; if (lm > (seen[u] || 0)) { seen[u] = lm; saveSeen(); }
     }
@@ -856,6 +998,13 @@
     var theirName = mask(p ? p.n : (t ? cleanName(t.n) : 'They'));
     var who = el('span', 'who', (isMine ? 'You' : theirName) + ' · ' + clock(m.t));
     if (m.k === 'm') { var d = el('div', 'onl-m' + (isMine ? ' mine' : '')); d.append(who, el('span', '', mask(m.x))); return d; }
+    if (m.k === 'q' || m.k === 'a' || m.k === 'n' || m.k === 'e') {
+      var said = m.k === 'q' ? (isMine ? 'You asked to chat.' : theirName + ' asked to chat.')
+        : m.k === 'a' ? (isMine ? 'You accepted. You can chat now.' : theirName + ' accepted. You can chat now.')
+        : m.k === 'n' ? (isMine ? 'You declined.' : theirName + ' declined.')
+        : (isMine ? 'You ended the chat.' : theirName + ' ended the chat.');
+      return el('p', 'onl-note', said + ' · ' + clock(m.t));
+    }
     var card = el('div', 'onl-m onl-card' + (isMine ? ' mine' : '')); card.append(who);
     var row = el('div', 'onl-acts');
     if (m.k === 'p') {
@@ -912,6 +1061,18 @@
     if (m.k === 'm') {
       line.append(who, ': ' + mask(m.x).slice(0, 120));
       acts.append(btn('Reply', 'pri', 'reply'), btn('Dismiss', '', 'dismiss'));
+    } else if (m.k === 'q') {
+      line.append(who, ' wants to chat with you.');
+      acts.append(btn('Accept', 'pri', 'accept'), btn('Decline', '', 'decline'), btn('Later', '', 'dismiss')); life = 30000;
+    } else if (m.k === 'a') {
+      line.append(who, ' accepted your chat request.');
+      acts.append(btn('Open chat', 'pri', 'reply'), btn('Dismiss', '', 'dismiss')); life = 15000;
+    } else if (m.k === 'n') {
+      line.append(who, ' declined your chat request.');
+      acts.append(btn('Dismiss', '', 'dismiss'));
+    } else if (m.k === 'e') {
+      line.append(who, ' ended the chat.');
+      acts.append(btn('Dismiss', '', 'dismiss'));
     } else if (m.k === 'p') {
       line.append(who, ' invited you to their party.' + (P && P.code ? ' Joining takes you out of your current one.' : ''));
       var j = btn('Join', 'pri', 'joinp'); j.setAttribute('data-c', m.c);
@@ -950,10 +1111,18 @@
       e.preventDefault(); if (host) host.remove();
       openRoom(b.getAttribute('data-g'), b.getAttribute('data-r'));
     } else if (a === 'unblock') { delete blocked[b.getAttribute('data-u')]; saveSets(); drawnView = ''; schedule(); }
-    else if (view && view.v === 'dm') {
+    else if (host && (a === 'accept' || a === 'decline')) {
+      var hu2 = host.getAttribute('data-u'); host.remove();
+      if (hu2) (a === 'accept' ? accept(hu2) : decline(hu2)).then(function () { if (a === 'accept') openDrawer({ v: 'dm', u: hu2 }); }, function (x) { say(x.message || String(x), true); });
+    } else if (view && view.v === 'dm') {
       var u = view.u, err = dr.querySelector('.onl-df .onl-msg');
       var fail = function (x) { if (err) { err.textContent = x.message || String(x); err.classList.add('err'); } };
-      if (a === 'invite') { b.disabled = true; inviteParty(u).then(function () { if (err) { err.textContent = 'Invite sent.'; err.classList.remove('err'); } }, fail).finally(function () { b.disabled = false; }); }
+      if (a === 'request') { b.disabled = true; request(u).then(function () { drawnView = ''; schedule(); }, fail).finally(function () { b.disabled = false; }); }
+      else if (a === 'accept' || a === 'decline') { b.disabled = true; (a === 'accept' ? accept(u) : decline(u)).then(function () { drawnView = ''; schedule(); }, fail).finally(function () { b.disabled = false; }); }
+      else if (a === 'endchat') {
+        if (!confirm('End this chat? You both stop seeing each other’s messages until one of you requests a chat again.')) return;
+        endChat(u).then(function () { drawnView = ''; schedule(); }, function () { drawnView = ''; schedule(); });
+      } else if (a === 'invite') { b.disabled = true; inviteParty(u).then(function () { if (err) { err.textContent = 'Invite sent.'; err.classList.remove('err'); } }, fail).finally(function () { b.disabled = false; }); }
       else if (a === 'room') { view.room = !view.room; drawnView = ''; drawDrawer(); }
       else if (a === 'noroom') { view.room = false; drawnView = ''; drawDrawer(); }
       else if (a === 'sendroom') {
@@ -1035,7 +1204,7 @@
     // Signing in with Google switches to another uid: show up under the new one.
     auth.onAuthStateChanged(function (u) {
       if (!u || u.uid === uid) return;
-      uid = u.uid; meRef = db.ref(PATH + '/' + uid); delete people[uid]; opened = {}; mine.d = {}; mine.i = {};
+      uid = u.uid; meRef = db.ref(PATH + '/' + uid); delete people[uid]; opened = {}; chains = {}; mine.d = {}; mine.i = {};
       listRef.once('value', function (s) { s.forEach(function (c) { onNode(c); }); });
       if (!hidden) publish();
     });
@@ -1044,5 +1213,5 @@
   start();
 
   // Test hook for the automated checks; harmless in normal play.
-  if (navigator.webdriver) window.__social = { get uid() { return uid; }, get people() { return people; }, get threads() { return threads; }, get mine() { return mine; }, get published() { return published; }, get pub() { return keys.pub; }, seatOf: seatOf, mask: mask, loungeAll: loungeAll, PATH: PATH, transcript: transcript };
+  if (navigator.webdriver) window.__social = { get uid() { return uid; }, get people() { return people; }, get threads() { return threads; }, get mine() { return mine; }, get published() { return published; }, get pub() { return keys.pub; }, get chats() { return chats; }, get sent() { return sent; }, seatOf: seatOf, mask: mask, loungeAll: loungeAll, PATH: PATH, transcript: transcript };
 })();
