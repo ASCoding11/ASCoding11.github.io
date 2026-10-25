@@ -2719,7 +2719,10 @@ const invite=/^#up-([a-z0-9-]{1,17})$/.exec(location.hash);
 if(invite){$('room').value=invite[1];setMsg('You were invited to room '+invite[1]+'. Press Play in room to join.');$('joinRoom').classList.add('go');$('quick').classList.remove('go')}
 refreshMenu();showAd('adMenu');renderView();
 // Test hook (automated browsers only): step the game by hand, and let the climb bot play.
-if(TEST)window.__up={U,C,course,W,PATH,G,run,best,keys,tAct,tMove,KB,Net,others,camera,scene,renderer,store,
+// A tab in the background gets no animation frames, so a timer keeps the node's ts fresh; otherwise the others drop
+// the climber after 12 s and see them join again when they come back.
+setInterval(()=>{if(document.hidden&&Net.refs)Net.pub(false)},1000);
+if(TEST)window.__up={U,C,course,W,PATH,G,run,best,keys,tAct,tMove,KB,Net,onNode,others,camera,scene,renderer,store,
   get me(){return me},set me(v){me=v},get camYaw(){return camYaw},set camYaw(v){camYaw=v},get camPitch(){return camPitch},set camPitch(v){camPitch=v},get wt(){return wt},
   // run the game for `sec` seconds of game time without waiting for frames (rendering skipped)
   advance(sec){G.manual=true;const n=Math.round(sec/C.DT);for(let i=0;i<n;i++){stepOnce();afterSteps(C.DT)}const st={spd:Math.hypot(me.vx,me.vz),gnd:!!me.gnd,vy:me.vy,landT:me.landT,impact:me.impact,stun:me.stun,mantle:!!me.mantle,slide:!!me.slide,sprint:false,t:clock};poseAvatar(myAv,st,.5);myAv.root.position.set(me.x,me.y,me.z);updateView(.5);hudT=0;updateHud(.2);return{x:me.x,y:me.y,z:me.z,gnd:me.gnd?me.gnd.path:null,vy:me.vy}},
