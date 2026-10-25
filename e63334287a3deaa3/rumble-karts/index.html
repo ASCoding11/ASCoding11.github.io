@@ -2230,7 +2230,11 @@ const Net = {
   publish(dt) {
     if (!this.online || !S.me) return;
     this.pubT -= dt; if (this.pubT > 0) return; this.pubT = 1 / 20;
-    this.refs.me.set(this.stateOf(S.me)).catch(() => {});
+    // 20 a second while anything changes; a parked kart sends a heartbeat twice a second instead
+    const s = this.stateOf(S.me), key = JSON.stringify(s, (k, v) => k === 'ts' ? undefined : v), t = performance.now();
+    if (key === this.lastKey && t - (this.lastSent || 0) < 500) return;
+    this.lastKey = key; this.lastSent = t;
+    this.refs.me.set(s).catch(() => {});
   },
   disconnect() {
     if (!this.online) return;
