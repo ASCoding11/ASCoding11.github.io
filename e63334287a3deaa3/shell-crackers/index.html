@@ -2453,7 +2453,16 @@ const Net={
     r.events.on('child_added',s=>{const e=s.val();if(!e||typeof e.t!=='number'||e.t<this.joinT-1500||e.by===this.uid||this.seen.has(s.key))return;this.seen.add(s.key);if(this.seen.size>1500)this.seen.delete(this.seen.values().next().value);handleEvent(e)});
     r.round.on('value',s=>{const v=s.val();if(v&&typeof v.id==='number'&&v.id!==this.matchId)onMatch(v)});
     clearInterval(this.pubTimer);
-    this.pubTimer=setInterval(()=>{if(online&&this.refs)this.refs.me.set(this.stateOf()).catch(()=>{})},80);
+    // About 12 updates a second while something changes (position, aim, health, shots); when nothing has, a
+    // heartbeat a second keeps the node fresh (others drop an egg they haven't heard from for 9 s).
+    this.lastKey='';this.lastSent=0;
+    this.pubTimer=setInterval(()=>{
+      if(!online||!this.refs)return;
+      const s=this.stateOf(),key=JSON.stringify(s,(k,v)=>k==='ts'?undefined:v),t=performance.now();
+      if(key===this.lastKey&&t-this.lastSent<1000)return;
+      this.lastKey=key;this.lastSent=t;
+      this.refs.me.set(s).catch(()=>{});
+    },80);
     clearInterval(this.pruneTimer);
     this.pruneTimer=setInterval(()=>{const t=performance.now();for(const [k,e] of remotes)if(t-e.seen>9000){removeEntity(e);remotes.delete(k)}},2000);
     try{if(!isPublic)history.replaceState(null,'','#'+room)}catch(e){}
@@ -2558,9 +2567,9 @@ const _rs={};
 function updateRemotes(dt){
   const now=Net.now();
   for(const e of remotes.values()){
-    const before=e.pos.clone();
+    const bx=e.pos.x,bz=e.pos.z;
     if(e.snaps.length){NetSmooth.sample(e.snaps,e.lag.time(now),_rs,['x','y','z','p'],['h']);e.pos.set(_rs.x,_rs.y,_rs.z);e.yaw=_rs.h;e.pitch=_rs.p}
-    e.mspd=lerp(e.mspd,Math.hypot(e.pos.x-before.x,e.pos.z-before.z)/Math.max(dt,1e-3),.2);
+    e.mspd=lerp(e.mspd,Math.hypot(e.pos.x-bx,e.pos.z-bz)/Math.max(dt,1e-3),.2);
     e.onGround=true;
   }
 }
@@ -2760,7 +2769,7 @@ addEventListener('pagehide',()=>{leaveCheck();Net.leave()});
 const inv=/^#sc-([a-z0-9-]{1,17})$/.exec(location.hash);
 if(inv){$('room').value=inv[1];setMsg('You were invited to room sc-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.remove('alt');$('quick').classList.add('alt')}
 
-if(navigator.webdriver)window.__sc={get state(){return state},get mode(){return mode},player,get ents(){return ents},get map(){return mapIdx},findPath,rayWorld,floorBelow,buildMap,MAPS,W,HY,VY,G,GROUND_Y,vox,vget,standV,nodeFor,entHits,get navN(){return navN},get navReach(){return navReach},navAt,get navY(){return navY},get perches(){return perches},spawns:()=>spawns,Net,onRemoteState,handleEvent,onMatch,endMatch,standings,DIFF,WEAPONS,fireShot,damage,throwNade,nades,addFeed,respawn,spawnSplat,keys,setPaused:v=>{paused=v},get rank(){return rank},HUMAN_W,ratingChange,applyRating,get lastRated(){return lastRated},get clock(){return clock},toMenu,loadLeaderboard,renderer,scene,camera,vmScene,vmCam,advance:s=>{noRender=true;try{for(let t=0;t<s;t+=1/30)step(1/30)}finally{noRender=false}},get matchEnds(){return matchEnds},set matchEnds(v){matchEnds=v},get remotes(){return remotes},get range(){return Range},startTraining,tryFire,startReload,setLoadout,switchSlot,mapInfo,RANGE_IDX,get paused(){return paused},get hudDirty(){return hudDirty}};
+if(navigator.webdriver)window.__sc={get state(){return state},get mode(){return mode},get noRender(){return noRender},set noRender(v){noRender=!!v},player,get ents(){return ents},get map(){return mapIdx},findPath,rayWorld,floorBelow,buildMap,MAPS,W,HY,VY,G,GROUND_Y,vox,vget,standV,nodeFor,entHits,get navN(){return navN},get navReach(){return navReach},navAt,get navY(){return navY},get perches(){return perches},spawns:()=>spawns,Net,onRemoteState,handleEvent,onMatch,endMatch,standings,DIFF,WEAPONS,fireShot,damage,throwNade,nades,addFeed,respawn,spawnSplat,keys,setPaused:v=>{paused=v},get rank(){return rank},HUMAN_W,ratingChange,applyRating,get lastRated(){return lastRated},get clock(){return clock},toMenu,loadLeaderboard,renderer,scene,camera,vmScene,vmCam,advance:s=>{noRender=true;try{for(let t=0;t<s;t+=1/30)step(1/30)}finally{noRender=false}},get matchEnds(){return matchEnds},set matchEnds(v){matchEnds=v},get remotes(){return remotes},get range(){return Range},startTraining,tryFire,startReload,setLoadout,switchSlot,mapInfo,RANGE_IDX,get paused(){return paused},get hudDirty(){return hudDirty}};
 
 renderSwatches();renderWeapons($('weapons'));renderDiff();renderGfx();renderRank();
 setupAttract();showAd('adMenu');
