@@ -15,14 +15,18 @@
  * Stat names are short lowercase words (a-z, 0-9, ':' and '-'); a name starting with 'lap:' or 'rec:' (Slipstream's
  * fastest lap and course record per track) or listed in LOWER is a time, where lower wins.
  *
- * Saved in this browser under localStorage 'lbs:v1': { g: { <folder>: { s: seconds, <stat>: number } }, d: day, ds: seconds that day }.
+ * Saved in this browser under localStorage 'lbs:v1': { g: { <folder>: { s: seconds, <stat>: number } }, d: day, ds: seconds that day,
+ * dy: { YYYYMMDD: { <folder>: seconds } } (the last 30 days, for the admin page's activity view) }.
  * Published (at most once a minute while something changed, and when the page closes) to the Firebase Realtime Database,
  * same project and rules as the games, at rooms/lb-all/players/<uid>. The shared rules only let a browser write its own node
  * and require n, c, x, z, h and ts, so the node is:
  *   n name (14)  c colour  x, z, h 0  ts last publish (server time)  v 1  st seat tag (1A–40F, as in social.js)  g the same g as above
+ *   d the same dy as above (at most 30 days, 8 games a day, pruned until the node fits in 7,000 characters)
+ *   ga 1 and gn the Google display name (40 characters, no email or photo) when the account is a Google sign-in, else neither
  * The node is never removed on disconnect: it is the player's leaderboard entry. The first publish after each page load
- * reads the node back and keeps the larger total / better best, so clearing this browser doesn't wipe the board entry.
- * Everything is self-reported, so it isn't cheat-proof; leaderboard.js caps and checks every value it shows.
+ * reads the node back and keeps the larger total / better best (and the larger seconds for each day and game), so clearing
+ * this browser doesn't wipe the board entry. Everything is self-reported, so it isn't cheat-proof; leaderboard.js and the
+ * admin page cap and check every value they show.
  * Firebase: when the game is open inside the home, phone or party layer it borrows that page's sign-in (party.js); else it
  * uses the game's own Firebase if the game is online; else it loads the SDK in a hidden same-origin frame (only after a minute
  * of play) and signs in the way party.js does, so it never touches the game's own Firebase.
@@ -39,6 +43,7 @@
   var KEY = 'lbs:v1', PATH = 'rooms/lb-all/players';
   var IDLE = 120000, SAVE_MS = 15000, PUB_MS = 60000, DAY_MAX = 86400;
   var MAX_GAMES = 40, MAX_STATS = 120;
+  var DAYS = 30, DAY_GAMES = 8, NODE_CAP = 7000;   // per-day history: how many days and games a day are kept, and how big the node may get
   var LOWER = { tower: 1, summit: 1, obby: 1 };
   var CFG = {
     apiKey: 'AIzaSyDZD_Ku8cixteXfwkDYzGv3GKiZFF8sRSM',
@@ -63,12 +68,15 @@
   function num(v) { var n = Number(v); return isFinite(n) ? n : NaN; }
   function okKey(k) { return typeof k === 'string' && /^[a-z][a-z0-9:-]{0,39}$/.test(k); }
   function lower(k) { return k.indexOf('lap:') === 0 || k.indexOf('rec:') === 0 || LOWER[k] === 1; }
-  function cleanName(s) { return String(s == null ? '' : s).replace(/[<>\u0000-\u001f\u007f​-‏‪-‮⁦-⁩]/g, '').replace(/\s+/g, ' ').trim().slice(0, 14); }
+  function cleanName(s, n) { return String(s == null ? '' : s).replace(/[<>\u0000-\u001f\u007f​-‏‪-‮⁦-⁩]/g, '').replace(/\s+/g, ' ').trim().slice(0, n || 14); }
   // The same seat and colour social.js (Online) gives a uid, so a name reads the same everywhere.
   function hash(s) { var h = 2166136261; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h; }
   function seatOf(uid) { var h = hash('seat:' + uid); return (1 + h % 40) + 'ABCDEF'.charAt(Math.floor(h / 40) % 6); }
   function colorOf(uid) { var h = 0; for (var i = 0; i < uid.length; i++) h = (h * 31 + uid.charCodeAt(i)) >>> 0; return COLORS[h % COLORS.length]; }
   function today() { var d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+  // The per-day history's keys: this browser's local date as YYYYMMDD (so they sort as text); dayAgo(1) is yesterday.
+  function dayKey(d) { return String(d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate()); }
+  function dayAgo(n) { var d = new Date(); d.setDate(d.getDate() - n); return dayKey(d); }
   // The Online name, else the party name, else any name a game saved (the same order as social.js).
   function myName() {
     var keys = ['ol:name', 'party:name', 'coil:name', 'ss:name', 'sd:name', 'spire:name', 'updraft:name', 'boostball-name', 'shellcr-name', 'br1v1-name', 'rk_name', 'chroma-name', 'oddone-name', 'tumble-name', 'trivium.name'];
@@ -109,6 +117,26 @@
     return out;
   }
 
+  // Rebuild the per-day history field by field: the last 30 days only (tomorrow is allowed, for a device in another time zone),
+  // at most DAY_GAMES games a day, whole seconds, and no more than 24 hours in a day.
+  function cleanDays(src) {
+    var out = {};
+    if (!src || typeof src !== 'object') return out;
+    var lo = dayAgo(DAYS - 1), hi = dayAgo(-1);
+    Object.keys(src).filter(function (k) { return /^\d{8}$/.test(k) && k >= lo && k <= hi; }).sort().slice(-DAYS).forEach(function (k) {
+      var g = src[k], o = {}, m = 0, tot = 0;
+      if (!g || typeof g !== 'object') return;
+      Object.keys(g).slice(0, DAY_GAMES * 2).forEach(function (gk) {
+        if (m >= DAY_GAMES || tot >= DAY_MAX || !/^[a-z0-9-]{1,30}$/.test(gk)) return;
+        var v = Math.floor(num(g[gk]));
+        if (!(v > 0)) return;
+        v = Math.min(v, DAY_MAX - tot); o[gk] = v; tot += v; m++;
+      });
+      if (m) out[k] = o;
+    });
+    return out;
+  }
+
   // ---------------- What the games already save ----------------
   // Each reader returns { stat: value } for its game, from the game's own localStorage keys. Missing or broken keys give nothing.
   function sj(k) { var v = ls(k); return v == null ? null : json(v); }
@@ -135,7 +163,7 @@
   // ---------------- Local store ----------------
   function load() {
     var o = json(ls(KEY)) || {};
-    return { g: cleanG(o.g), d: typeof o.d === 'string' ? o.d.slice(0, 12) : '', ds: Math.max(0, Math.min(DAY_MAX, num(o.ds) || 0)) };
+    return { g: cleanG(o.g), d: typeof o.d === 'string' ? o.d.slice(0, 12) : '', ds: Math.max(0, Math.min(DAY_MAX, num(o.ds) || 0)), dy: cleanDays(o.dy) };
   }
   function save(o) { ls(KEY, JSON.stringify(o)); }
   // Change the stored data in one read-modify-write, so two tabs never undo each other's time.
@@ -150,6 +178,10 @@
       var d = today(); if (o.d !== d) { o.d = d; o.ds = 0; }
       add = Math.min(add, DAY_MAX - o.ds); if (add <= 0) return;
       o.ds += add; var g = mine(o); g.s = (g.s | 0) + add;
+      // The same seconds under today's date, for the admin page's activity view.
+      var day = o.dy[dayAgo(0)] || (o.dy[dayAgo(0)] = {});
+      if (day[GAME] != null || Object.keys(day).length < DAY_GAMES) day[GAME] = Math.min(DAY_MAX, (day[GAME] | 0) + add);
+      o.dy = cleanDays(o.dy);
     });
   }
 
@@ -193,7 +225,8 @@
   addEventListener('pagehide', function () { tick(); flush(); publish(true); });
 
   // ---------------- Firebase ----------------
-  // { db, uid, now(), J } where J is the JSON of the window that owns db (another page's, when we borrow its connection).
+  // { db, uid, now(), J, user() } where J is the JSON of the window that owns db (another page's, when we borrow its connection)
+  // and user() is the Google account behind uid, if it is one (null for the anonymous sign-ins the games make).
   var conn = null, connecting = null, merged = false, lastSent = '';
   function waitFor(test, ms) {
     return new Promise(function (res, rej) {
@@ -212,7 +245,7 @@
         // The same database instance the game uses (asking for it by another URL spelling would start a second one, which Firebase refuses).
         var db = app.database();
         db.ref('.info/serverTimeOffset').on('value', function (s) { offset = s.val() || 0; });
-        return { db: db, uid: u.uid, now: function () { return Date.now() + offset; }, J: J };
+        return { db: db, uid: u.uid, now: function () { return Date.now() + offset; }, J: J, user: function () { return googleUser(auth.currentUser, u.uid); } };
       });
   }
   // A hidden same-origin frame with its own copy of the SDK, so we never touch the game's Firebase globals (it may load its
@@ -241,7 +274,15 @@
     var p, P = null, PW = null, app = ours(window.firebase);
     try { if (window.parent !== window && window.parent.Party && window.parent.Party.boot) { P = window.parent.Party; PW = window.parent; } } catch (e) {}
     // 1. Inside the home, phone or party layer: borrow the hub page's sign-in (party.js), the account its panels show as "You".
-    if (P) p = P.boot().then(function (b) { return { db: b.db, uid: b.uid, now: P.now, J: PW.JSON }; });
+    if (P) p = P.boot().then(function (b) {
+      // The hub page's account: Google when account.js signed it in there (party.js reuses that sign-in), else anonymous.
+      var user = function () {
+        var u = null;
+        try { u = b.app ? b.app.auth().currentUser : null; if (!u && PW.SiteAccount && PW.SiteAccount.user) u = PW.SiteAccount.user(); } catch (e) { u = null; }
+        return googleUser(u, b.uid);
+      };
+      return { db: b.db, uid: b.uid, now: P.now, J: PW.JSON, user: user };
+    });
     // 2. The game already has our project's Firebase running (it's online): use it.
     else if (app) p = fromApp(app, JSON, true);
     // 3. Otherwise a frame of our own.
@@ -249,6 +290,9 @@
     connecting = p.then(function (c) { conn = c; connecting = null; return c; }, function (e) { connecting = null; throw e; });
     return connecting;
   }
+
+  // u, when it is the account we publish under and not one of the games' anonymous sign-ins.
+  function googleUser(u, uid) { return u && u.uid === uid && u.isAnonymous === false ? u : null; }
 
   // Fold in this game's own saved records, then the node as it stands online, once per page load.
   function readGame(o) {
@@ -263,12 +307,27 @@
       var g = o.g[gk] || (o.g[gk] = {});
       Object.keys(rg[gk]).forEach(function (k) { if (g[k] != null || Object.keys(g).length < MAX_STATS) g[k] = better(k, g[k], rg[gk][k]); });
     });
+    // The per-day history the same way: the larger seconds for each day and game (two devices on one account keep the higher, not the sum).
+    var rd = cleanDays(val && val.d);
+    Object.keys(rd).forEach(function (k) {
+      var day = o.dy[k] || (o.dy[k] = {});
+      Object.keys(rd[k]).forEach(function (gk) { if (day[gk] != null || Object.keys(day).length < DAY_GAMES) day[gk] = Math.max(day[gk] | 0, rd[k][gk]); });
+    });
+    o.dy = cleanDays(o.dy);
   }
   function node(c, o) {
-    return { n: myName(), c: colorOf(c.uid), x: 0, z: 0, h: 0, ts: Math.round(c.now()), v: 1, st: seatOf(c.uid), g: o.g };
+    var nd = { n: myName(), c: colorOf(c.uid), x: 0, z: 0, h: 0, ts: Math.round(c.now()), v: 1, st: seatOf(c.uid), g: o.g, d: o.dy };
+    // A Google account: say so, with its display name (never the email or photo), so the admin page can tell accounts apart.
+    var u = null; try { u = c.user ? c.user() : null; } catch (e) { u = null; }
+    if (u) { nd.ga = 1; var gn = cleanName(u.displayName, 40); if (gn) nd.gn = gn; }
+    // Keep the node small enough for leaderboard.js (8,000 characters): drop the oldest days first.
+    var days = Object.keys(nd.d).sort();
+    while (days.length && JSON.stringify(nd).length > NODE_CAP) delete nd.d[days.shift()];
+    if (!days.length) delete nd.d;
+    return nd;
   }
   function send(c, o, force) {
-    var nd = node(c, o), sig = JSON.stringify([nd.n, nd.g]);
+    var nd = node(c, o), sig = JSON.stringify([nd.n, nd.g, nd.d, nd.ga, nd.gn]);
     if (!force && sig === lastSent) return;
     lastSent = sig;
     ls('lbs:uid', c.uid);
@@ -310,6 +369,7 @@
   if (navigator.webdriver) window.__lbs = {
     get pending() { return pending; }, get lastInput() { return lastInput; }, get merged() { return merged; }, get uid() { return conn && conn.uid; },
     load: load, flush: flush, publish: function () { return publish(false); }, engaged: function () { return engaged(Date.now()); },
+    node: function () { return conn ? node(conn, load()) : null; }, cleanDays: cleanDays,
     setIdle: function (ms) { IDLE = ms; }, setPub: function (ms) { PUB_MS = ms; }
   };
 })();
