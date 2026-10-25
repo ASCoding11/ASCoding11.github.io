@@ -2581,7 +2581,12 @@ const Net={
   tick(now){
     if(!online||!this.refs)return;
     const t=performance.now();
-    if(t-this.pubT>=(state==='playing'?55:300)){this.pubT=t;this.refs.me.set(this.stateOf()).catch(()=>{})}
+    if(t-this.pubT>=(state==='playing'?55:300)){
+      this.pubT=t;
+      // skip the write when nothing has changed (a parked car, the lobby); a heartbeat every 300 ms keeps the node fresh
+      const s=this.stateOf(),key=JSON.stringify(s,(k,v)=>k==='ts'?undefined:v);
+      if(key!==this.lastKey||t-(this.lastSent||0)>=300){this.lastKey=key;this.lastSent=t;this.refs.me.set(s).catch(()=>{})}
+    }
     if(t-this.hostT>=700){this.hostT=t;hostDuties(now)}
   },
   hostUid(){
