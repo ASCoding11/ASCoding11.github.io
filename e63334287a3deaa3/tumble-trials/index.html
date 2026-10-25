@@ -2043,8 +2043,14 @@ function onNode(uid,v){
     G.rsSeen=o.rs;let p=null;if(o.rs.length<=RS_MAX_CHARS){try{p=sanitizeRS(JSON.parse(o.rs))}catch(err){p=null}}
     if(p&&validRS(p)){G.lastRS=p;G.rs=p;applyRS(p)}
   }
-  if(uid===G.hostUid&&!G.host){if(o.bt){G.lastBt=o.bt;applyBots(o.bt)}if(o.sw&&G.L&&G.L.swSet)G.L.swSet(o.sw);if(o.hx)mergeHx(o.hx)}
-  if(o.tt)mergeTT(o.tt);
+  // Every position update carries the whole node, so the strings below are parsed again only when they changed
+  // (or the level changed since they were last merged)
+  if(uid===G.hostUid&&!G.host){
+    if(o.bt){if(!prev||prev.bt!==o.bt||prev.btRS!==G.rs){G.lastBt=o.bt;applyBots(o.bt);o.btRS=G.rs}else o.btRS=prev.btRS}
+    if(o.sw&&G.L&&G.L.swSet&&(!prev||prev.sw!==o.sw))G.L.swSet(o.sw);
+    if(o.hx){if(!prev||prev.hx!==o.hx||prev.hxL!==G.L){mergeHx(o.hx);o.hxL=G.L}else o.hxL=prev.hxL}
+  }
+  if(o.tt){if(!prev||prev.tt!==o.tt||prev.ttL!==G.L){mergeTT(o.tt);o.ttL=G.L}else o.ttL=prev.ttL}
   if(G.rs&&G.rs.ph==='lobby'&&(!prev||prev.rd!==o.rd||prev.n!==o.n||prev.c!==o.c))lobbySoon();
   // the remote player's body
   const e=ensureRemote(uid);
@@ -2052,7 +2058,7 @@ function onNode(uid,v){
     const mm=o.m.split(',').map(Number);e.tpos.set(o.x,o.y,o.z);e.tyaw=o.h;if(mm.length>=5&&mm.every(isFinite)){e.tvel.set(mm[0],mm[1],mm[2]);e.stc=ST_CODES[mm[3]]||'move';e.b.onGround=!!(mm[4]&1);e.netHidden=!!(mm[4]&2)}
     e.seen=performance.now();e.rt=performance.now();
     if(e.name!==o.n){e.name=o.n;e.bean.setTag(o.n,o.c)}
-    const lk=parseLook(o.c,o.lk);if(lookStr(lk)+lk.c!==lookStr(e.look)+e.look.c){e.look=lk;e.bean.setLook(lk)}
+    if(!prev||prev.lk!==o.lk||prev.c!==o.c){const lk=parseLook(o.c,o.lk);if(lookStr(lk)+lk.c!==lookStr(e.look)+e.look.c){e.look=lk;e.bean.setLook(lk)}}
   }
 }
 // make (or find) the body for a remote player, if they belong in what we're showing now
@@ -2731,7 +2737,7 @@ syncTouchUI();
 const inv=/^#ko-([a-z0-9-]{1,17})$/.exec(location.hash);
 if(inv){$('room').value=inv[1];setMsg('You were invited to room ko-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.remove('alt');$('joinRoom').classList.add('pink');$('quick').classList.remove('pink');$('quick').classList.add('alt')}
 
-if(navigator.webdriver)window.__ko={sanitizeRS,DBG,G,Net,ents,LEVELS,World,KB,held,press,touch,get me(){return me},get L(){return G.L},get camYaw(){return camYaw},set camYaw(v){camYaw=v},get camPitch(){return camPitch},set camPitch(v){camPitch=v},get camDist(){return camDist},set camDist(v){camDist=v},
+if(navigator.webdriver)window.__ko={sanitizeRS,DBG,G,Net,onNode,ents,LEVELS,World,KB,held,press,touch,get me(){return me},get L(){return G.L},get camYaw(){return camYaw},set camYaw(v){camYaw=v},get camPitch(){return camPitch},set camPitch(v){camPitch=v},get camDist(){return camDist},set camDist(v){camDist=v},
   advance(s){G.noRender=true;try{for(let i=0;i<Math.round(s*60);i++)step(1/60)}finally{G.noRender=false}},
   setAuto(v){G.auto=!!v;if(me&&v)me.ai=newAI(.95)},startSolo,startPractice,toMenu,goOnline,setRS,newShow,lobbyRS,nextRound,planShow,hostTick,now,roundT,renderer,scene,camera,render(){renderer.render(scene,camera)},showPause,resume,sfx,banner};
 if(navigator.webdriver&&window.__noRender)G.noRender=true;

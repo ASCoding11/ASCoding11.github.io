@@ -998,9 +998,14 @@ const Net={
     this.pubTimer=setInterval(()=>this.publish(),SEND_MS);
     try{if(!isPublic)history.replaceState(null,'','#'+room)}catch(e){}
   },
-  publish(){
+  publish(force){
     if(!online||!this.refs)return;
-    this.refs.me.set(this.stateOf()).catch(()=>{});
+    // 10 a second while anything changes (a live snake always does); when nothing has (dead, or in the menu with the
+    // room open), a heartbeat a second keeps the node fresh. Others drop a snake they haven't heard from for 9 s.
+    const s=this.stateOf(),key=JSON.stringify(s,(k,v)=>k==='ts'?undefined:v),t=performance.now();
+    if(!force&&key===this.lastKey&&t-this.lastSent<1000)return;
+    this.lastKey=key;this.lastSent=t;
+    this.refs.me.set(s).catch(()=>{});
   },
   tick(dt){
     this.flushT-=dt;if(this.flushT<=0){this.flushT=.2;this.flush()}

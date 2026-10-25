@@ -1609,13 +1609,17 @@ const Net={
     clearInterval(this.tickTimer);this.tickTimer=setInterval(onlineTick,250);
     try{if(!quick)history.replaceState(null,'','#'+room)}catch(e){}
   },
-  // About 20 updates a second while you're playing a round (15 in rooms of 5+), every half second otherwise.
+  // About 20 updates a second while you're playing a round (15 in rooms of 5+) and something changed (position, aim,
+  // health, weapon...), every half second otherwise or while nothing has.
   pubTick(){
     if(!online||!this.refs)return;
     const t=performance.now(),act=activeOnline()&&(player.alive||player.dieT<1);
     if(!this.soon&&t-this.lastPub<(act?(this.others.size>3?66:50):500))return;
-    this.soon=false;this.lastPub=t;
-    this.refs.me.set(this.stateOf()).catch(()=>{});
+    const force=this.soon;this.soon=false;this.lastPub=t;
+    const s=this.stateOf(),key=JSON.stringify(s,(k,v)=>k==='ts'?undefined:v);
+    if(!force&&key===this.lastKey&&t-(this.lastSent||0)<500)return;
+    this.lastKey=key;this.lastSent=t;
+    this.refs.me.set(s).catch(()=>{});
   },
   publishSoon(){this.soon=true},
   // the host is the live player who has been in the room longest

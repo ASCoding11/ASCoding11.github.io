@@ -2335,6 +2335,7 @@ function sanitizeRS(p){
 function onNode(uid,v){
   if(!v||typeof v!=='object')return;
   const o={n:cleanName(v.n)||'Player',c:/^#[0-9a-f]{6}$/i.test(v.c)?v.c:'#ff7a1a',j:+v.j||+v.ts||0,ts:Math.min(+v.ts||0,Net.now()+5000),rs:typeof v.rs==='string'?v.rs:'',he:Math.min(Math.max(+v.he||0,0),1e9),hd:typeof v.hd==='string'?v.hd:''};
+  const prev=Net.others.get(uid);
   Net.others.set(uid,o);G.nm.set(uid,o.n);
   if(o.rs&&o.he>G.maxHe)G.maxHe=o.he;
   let e=ents.get(uid);
@@ -2357,7 +2358,8 @@ function onNode(uid,v){
     G.rsSeen=o.rs;let p=null;try{p=JSON.parse(o.rs)}catch(err){}
     p=sanitizeRS(p);if(p){G.lastRS=p;G.rs=p;applyRS(p);renderLobby()}
   }
-  if(G.host&&o.hd)hostHits(uid,o.hd);
+  // every position update carries the whole node, so only re-read the hit totals when they actually changed
+  if(G.host&&o.hd&&(!prev||prev.hd!==o.hd))hostHits(uid,o.hd);
 }
 function onNodeGone(uid){
   const e=ents.get(uid);if(e){feed(esc(e.name)+' left');removeEnt(e)}
@@ -2849,7 +2851,7 @@ const inv=/^#ph-([a-z0-9-]{1,17})$/.exec(location.hash);
 if(inv){$('room').value=inv[1];setMsg('You were invited to room ph-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.remove('alt');$('joinRoom').classList.add('orange');$('quick').classList.remove('orange');$('quick').classList.add('alt')}
 
 // In automated browsers only: a handle for tests (advance runs the game without drawing).
-if(navigator.webdriver)window.__ph={hostSet,setTouchUI,setForm,G,PT,PT_LIST,MAPS,ents,Net,get me(){return me},get MAP(){return MAP},get mapIdx(){return mapIdx},loadMap,startPractice,practiceReady,goOnline,toMenu,setRS,newRound,lobbyRS,hostTick,hostHits,roleOf,hpOf,maxHpOf,
+if(navigator.webdriver)window.__ph={hostSet,setTouchUI,setForm,G,PT,PT_LIST,MAPS,ents,Net,onNode,get me(){return me},get MAP(){return MAP},get mapIdx(){return mapIdx},loadMap,startPractice,practiceReady,goOnline,toMenu,setRS,newRound,lobbyRS,hostTick,hostHits,roleOf,hpOf,maxHpOf,
   doTransform,toggleLock,alignMe,fire,startReload,findTarget,rayWorld,camRay,cycleSpec,specTarget,showPause,resume,overlapping,keys,tAct,KB,renderer,scene,camera,step,
   get camYaw(){return camYaw},set camYaw(v){camYaw=v},get camPitch(){return camPitch},set camPitch(v){camPitch=v},propModel,
   advance(sec,dt){dt=dt||1/30;G.noRender=true;try{for(let t=0;t<sec-1e-9;t+=dt){if(G.mode!=='online'&&!G.paused)G.tOff=(G.tOff||0)+dt*1000;step(dt)}}finally{G.noRender=false}renderer.render(scene,camera)},
