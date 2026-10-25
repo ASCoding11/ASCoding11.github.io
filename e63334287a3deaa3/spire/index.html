@@ -2716,7 +2716,7 @@ if(inv){$('room').value=inv[1];setMsg('You were invited to room tw-'+inv[1]+'. P
 if(touchUI)setTouchUI(true);
 
 // Test hook (automated browsers only): step the simulation without waiting for frames, check modules, drive the climber.
-if(navigator.webdriver)window.__tw={G,PHYS,MODS,WORLDS,OBBY_STAGES,get me(){return me},ents,Net,KB,keys,tAct,tMove,
+if(navigator.webdriver)window.__tw={G,PHYS,MODS,WORLDS,OBBY_STAGES,get me(){return me},ents,Net,onNode,KB,keys,tAct,tMove,
   advance(s){G.noRender=true;try{const n=Math.round(s/PHYS.DT);for(let i=0;i<n;i++){tick();if(G.respawnAt&&performance.now()>=G.respawnAt)respawnMe()}if(G.mode!=='online')G.tBase=performance.now()/1000-G.t}finally{G.noRender=false}},
   respawnNow(){if(G.respawnAt)respawnMe()},
   verifyModule,runBot,buildTower,buildObby,buildSingle,towerPlan,makeBot,startSolo,startObby,startPractice,toMenu,goOnline,setRS,newRound,hostTick,remaining,showPause,resume,
@@ -2728,6 +2728,9 @@ if(navigator.webdriver)window.__tw={G,PHYS,MODS,WORLDS,OBBY_STAGES,get me(){retu
   // settle the camera and render once, without moving the simulation on
   frame(n){G.freeze=true;try{n=n||1;for(let i=0;i<n;i++){G.noRender=i<n-1;update(1/60)}}finally{G.freeze=false;G.noRender=false;if(G.mode!=='online')G.tBase=performance.now()/1000-G.t}}};
 
+// A tab in the background gets no animation frames: a timer keeps the node's ts fresh (otherwise the others drop the
+// climber after 12 s) and, for the host, keeps the round ticking, as Chromaflage and Odd One Out do.
+setInterval(()=>{if(!document.hidden||!Net.refs)return;try{onlineTick();if(performance.now()-(Net.hbT||0)>2000)Net.upd({})}catch(err){console.error(err)}},1000);
 renderSwatches();renderProfile();renderGfx();renderView();applyQuality();
 // signs are drawn with the display font: redraw the menu tower once it has loaded
 try{document.fonts.ready.then(()=>{if(G.mode==='menu'&&G.W)loadWorld(G.W)})}catch(e){}
