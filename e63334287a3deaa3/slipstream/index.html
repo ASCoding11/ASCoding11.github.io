@@ -1553,7 +1553,8 @@ const Net={
     r.players.on('child_removed',s=>{if(s.key!==this.uid)onPlayerGone(s.key)});
     r.round.on('value',s=>onRound(s.val()));
     clearInterval(this.pubTimer);
-    this.pubTimer=setInterval(()=>this.publish(),50);
+    this.lastKey='';this.lastSent=0;
+    this.pubTimer=setInterval(()=>this.publish(),66);
     try{if(!isPublic)history.replaceState(null,'','#'+room)}catch(e){}
   },
   publish(force){
@@ -1561,7 +1562,13 @@ const Net={
     const racing=race&&race.online&&!race.attract&&!race.ended;
     if(racing&&document.hidden)return; // a hidden tab stops sending, so someone else takes over its cars
     if(!force&&!racing&&++this.pubT%10)return;
-    this.refs.me.set(this.stateOf()).catch(()=>{});
+    // About 15 updates a second while racing (other cars are carried forward from their speed between updates, so
+    // this is plenty); when nothing has changed (the grid before the start, the results) a heartbeat every half second
+    // keeps the node fresh. Others count a driver as gone after 8 s without one.
+    const s=this.stateOf(),key=JSON.stringify(s,(k,v)=>k==='ts'?undefined:v),t=performance.now();
+    if(!force&&key===this.lastKey&&t-this.lastSent<500)return;
+    this.lastKey=key;this.lastSent=t;
+    this.refs.me.set(s).catch(()=>{});
   },
   tick(){
     if(!this.refs)return;
