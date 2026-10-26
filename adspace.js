@@ -20,7 +20,7 @@
   var wide = matchMedia('(min-width:1180px) and (min-height:640px)');
 
   // The placeholder in each rail. Change the words here.
-  var PLACEHOLDER = '<span>Your</span><span>ad</span><span>here</span><small>160 × 600</small>';
+  var PLACEHOLDER = '<span>Jeff</span><span>Li</span><span>Is</span><span>Single</span><span>And</span><span>Ready</span><span>To</span><span>Mingle</span><small>160 × 600</small>';
 
   var CSS =
     '.adph{position:absolute;inset:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;' +
