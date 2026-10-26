@@ -21,13 +21,20 @@
  *
  * The admin page (d06440218d1813a3/) reads the same nodes and loads this file with data-lib: it then only exposes the
  * checks, the games table and the formatters as window.BackRoomBoards and adds nothing to the page.
+ *
+ * Hours resets: the admin page can set someone's play time back to zero. Totals only ever grow (stats.js keeps the larger
+ * of each device's count), so a reset is a zero point instead: the seconds each game had at that moment, which are
+ * subtracted from then on. Resets live at rooms/lb-rs/players/<the admin's uid> as { n, c, x, z, h, ts, v: 1, r, sig },
+ * where r is the JSON of { <uid>: { t: when, b: { <game folder>: seconds } } } (no b: the reset was undone) and sig is
+ * an ECDSA P-256 / SHA-256 signature of r by the admin key (adminkey.js; the same key pair as the ECDH one there). Anyone
+ * can write a node there, so only nodes whose signature checks out count; for each uid the latest t wins.
  */
 (function () {
   'use strict';
   var me = document.currentScript;
   if (document.getElementById('leaderboards')) return;
 
-  var PATH = 'rooms/lb-all/players';
+  var PATH = 'rooms/lb-all/players', RS_PATH = 'rooms/lb-rs/players', RESETS = {};
   var TOP = 25, MAX_NODES = 3000, NODE_MAX = 8000, MAX_STATS = 120, STALE = 365 * 86400000;
   var EPOCH = Date.UTC(2026, 9, 21);            // the day stats.js started counting
   var NAME_MAX = 14;
@@ -188,7 +195,56 @@
       if (s > p.topS) { p.topS = s; p.top = meta.n; }
     }
     if (p.total > cap) return null;
+    // An hours reset: count from the zero point (personal bests stay; the checks above used the full totals).
+    var rs = RESETS[uid];
+    if (rs && rs.b) {
+      p.reset = rs.t; p.total = 0; p.top = ''; p.topS = 0;
+      Object.keys(p.g).forEach(function (k) {
+        var o = p.g[k]; o.s = Math.max(0, o.s - (rs.b[k] || 0)); p.total += o.s;
+        if (o.s > p.topS) { p.topS = o.s; p.top = BY[k].n; }
+      });
+    }
     return p;
+  }
+
+  // ---------------- Hours resets (signed by the admin key) ----------------
+  function loadKey() {
+    if (window.BackRoomAdminKey) return Promise.resolve(window.BackRoomAdminKey);
+    return new Promise(function (res) {
+      var s = document.createElement('script'); s.src = '/e63334287a3deaa3/adminkey.js';
+      s.onload = function () { res(window.BackRoomAdminKey || null); }; s.onerror = function () { res(null); };
+      document.head.appendChild(s);
+    });
+  }
+  function unb64(t) { var s = atob(t), u = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; }
+  // The reset nodes' value -> { uid: { t, b } } for the resets in force, keeping only nodes signed by the admin key.
+  async function checkResets(val) {
+    var out = {}, K = await loadKey();
+    if (!K || !window.crypto || !crypto.subtle || !val || typeof val !== 'object') return out;
+    var pub = await crypto.subtle.importKey('jwk', { kty: 'EC', crv: 'P-256', x: K.pub.x, y: K.pub.y, ext: true }, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+    var latest = {};
+    var keys = Object.keys(val).slice(0, 20);
+    for (var i = 0; i < keys.length; i++) {
+      var v = val[keys[i]];
+      if (!v || typeof v.r !== 'string' || typeof v.sig !== 'string' || v.r.length > 60000 || v.sig.length > 200) continue;
+      var ok = false;
+      try { ok = await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, pub, unb64(v.sig), new TextEncoder().encode(v.r)); } catch (e) { ok = false; }
+      if (!ok) continue;
+      var m; try { m = JSON.parse(v.r); } catch (e) { continue; }
+      if (!m || typeof m !== 'object' || Array.isArray(m)) continue;
+      Object.keys(m).forEach(function (u) {
+        var e = m[u], t = e && num(e.t);
+        if (!/^[A-Za-z0-9_-]{6,128}$/.test(u) || !(t > 0) || (latest[u] && latest[u].t >= t)) return;
+        var b = null;
+        if (e.b && typeof e.b === 'object' && !Array.isArray(e.b)) { b = {}; Object.keys(e.b).forEach(function (k) { var x = Math.floor(num(e.b[k])); if (BY[k] && x > 0) b[k] = x; }); }
+        latest[u] = { t: t, b: b };
+      });
+    }
+    return latest;
+  }
+  // Read and check the resets with a database connection; on any failure keep the ones we had.
+  function readResets(db) {
+    return db.ref(RS_PATH).once('value').then(function (s) { return checkResets(s.val()); }).then(function (r) { RESETS = r; return r; }, function () { return RESETS; });
   }
 
   // Slipstream: how many drivers have a time on each track, the tracks in that order (then the game's), and which race
@@ -239,7 +295,7 @@
   }
 
   // For the admin page: the same checks and names, so what it shows is what the boards would show. With data-lib, that's all.
-  window.BackRoomBoards = { parse: parse, GAMES: GAMES, BY: BY, TRACKS: TRACKS, EPOCH: EPOCH, PATH: PATH, MAX_NODES: MAX_NODES, NODE_MAX: NODE_MAX, fmt: fmt, fmtHours: fmtHours, cleanName: cleanName, mask: mask, seatOf: seatOf };
+  window.BackRoomBoards = { RS_PATH: RS_PATH, readResets: readResets, get resets() { return RESETS; }, parse: parse, GAMES: GAMES, BY: BY, TRACKS: TRACKS, EPOCH: EPOCH, PATH: PATH, MAX_NODES: MAX_NODES, NODE_MAX: NODE_MAX, fmt: fmt, fmtHours: fmtHours, cleanName: cleanName, mask: mask, seatOf: seatOf };
   if (me && me.hasAttribute('data-lib')) return;
 
   // ---------------- Styles ----------------
@@ -344,7 +400,7 @@
       var P = await waitParty();
       if (!P) throw new Error('The leaderboards need the Party panel, which didn’t load. Reload the page to try again.');
       var b = await P.boot(); myUid = b.uid;
-      var snap = await timeout(b.db.ref(PATH).once('value'), 15000);
+      var snap = (await timeout(Promise.all([b.db.ref(PATH).once('value'), readResets(b.db)]), 15000))[0];
       var val = snap.val() || {}, now = P.now ? P.now() : Date.now(), out = [], keys = Object.keys(val);
       for (var i = 0; i < keys.length && i < MAX_NODES; i++) { var p = parse(keys[i], val[keys[i]], now); if (p) out.push(p); }
       people = out; lastLoad = Date.now();

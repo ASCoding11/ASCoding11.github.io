@@ -302,7 +302,7 @@ tr.prow .badge{margin-left:6px;vertical-align:1px;padding:1px 7px;font-size:10px
   function unb64(s){var b=atob(s),u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u}
 
   // ---------- The admin key: both codes unwrap its private key, here, in memory only ----------
-  var PRIV=null;
+  var PRIV=null,PRIVS=null;   // the admin key for opening boxes (ECDH) and for signing hours resets (ECDSA)
   async function digest(n){
     var b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('ascoding11-admin:'+n));
     return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,'0')}).join('').slice(0,16);
@@ -313,7 +313,7 @@ tr.prow .badge{margin-left:6px;vertical-align:1px;padding:1px 7px;font-size:10px
     var wk=await crypto.subtle.deriveKey({name:'PBKDF2',hash:'SHA-256',salt:unb64(K.salt),iterations:600000},base,{name:'AES-GCM',length:256},false,['decrypt']);
     var raw;
     try{raw=new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(K.iv)},wk,unb64(K.wrapped)))}catch(e){throw new Error('wrong')}
-    try{return await crypto.subtle.importKey('pkcs8',raw,{name:'ECDH',namedCurve:'P-256'},false,['deriveKey'])}finally{raw.fill(0)}
+    try{PRIVS=await crypto.subtle.importKey('pkcs8',raw,{name:'ECDSA',namedCurve:'P-256'},false,['sign']);return await crypto.subtle.importKey('pkcs8',raw,{name:'ECDH',namedCurve:'P-256'},false,['deriveKey'])}finally{raw.fill(0)}
   }
   // Opens a box made by BackRoomSeal (adminkey.js): '1.' + ephemeral public key + '.' + iv + '.' + ciphertext.
   async function openBox(box){
@@ -404,6 +404,7 @@ tr.prow .badge{margin-left:6px;vertical-align:1px;padding:1px 7px;font-size:10px
     // Seconds per day: the last 30 days (and tomorrow, for another time zone), real dates, games the boards know, whole
     // seconds, and no more in a day than 24 hours or than that game's all-time total.
     p.d={};var src=v.d,lo=dayAgo(DAYS-1),hi=dayAgo(-1);
+    if(p.reset){var rd=dayKey(new Date(p.reset));if(rd>lo)lo=rd}   // after an hours reset, only the days from then on
     if(src&&typeof src==='object'&&!Array.isArray(src)){
       Object.keys(src).filter(function(k){return /^\d{8}$/.test(k)&&k>=lo&&k<=hi&&dayKey(dayDate(k))===k}).sort().slice(-DAYS).forEach(function(k){
         var g=src[k],o={},tot=0,m=0;if(!g||typeof g!=='object'||Array.isArray(g))return;
@@ -421,8 +422,8 @@ tr.prow .badge{margin-left:6px;vertical-align:1px;padding:1px 7px;font-size:10px
   async function loadStats(){
     var seq=++S.seq;say('sStatus','Loading…');$('sRefresh').disabled=true;
     if(!LB){say('sStatus','Couldn\'t load leaderboard.js, which holds the checks for this data. Reload the page.',true);$('sRefresh').disabled=false;return}
-    try{var r=await api.lb();if(seq!==S.seq)return;S.nodes=r.val&&typeof r.val==='object'?r.val:{};S.now=r.now;say('sStatus','')}
-    catch(e){if(seq!==S.seq)return;S.nodes={};S.now=Date.now();say('sStatus','Couldn\'t load the play-time data: '+((e&&e.message)||'error'),true)}
+    try{var r=await api.lb();await LB.readResets(rtdb);if(seq!==S.seq)return;S.nodes=r.val&&typeof r.val==='object'?r.val:{};S.now=r.now;S.loadedAt=Date.now();say('sStatus','')}
+    catch(e){if(seq!==S.seq)return;S.nodes={};S.now=Date.now();S.loadedAt=Date.now();say('sStatus','Couldn\'t load the play-time data: '+((e&&e.message)||'error'),true)}
     var keys=Object.keys(S.nodes),out=[],skip=0;
     for(var i=0;i<keys.length;i++){if(i>=LB.MAX_NODES){skip++;continue}var p=person(keys[i],S.nodes[keys[i]],S.now);if(p)out.push(p);else skip++}
     S.people=out;S.skipped=skip;
@@ -454,7 +455,7 @@ tr.prow .badge{margin-left:6px;vertical-align:1px;padding:1px 7px;font-size:10px
       var per={},top='',topS=0;
       LB.GAMES.forEach(function(g){var s=secs(p,g.d,days);if(s>0){per[g.d]=s;gs[g.d]=(gs[g.d]||0)+s;gp[g.d]=(gp[g.d]||0)+1;if(s>topS){topS=s;top=g.n}}});
       var v=gv==='all'?secs(p,'all',days):(per[gv]||0);
-      if(!(v>0))return;
+      if(!(v>0)&&!p.reset)return;
       list.push({p:p,v:v,per:per,top:top,n:Object.keys(per).length});total+=v;if(p.ga)google++;
     });
     var games=LB.GAMES.filter(function(g){return gs[g.d]>0}).map(function(g){return {d:g.d,n:g.n,s:gs[g.d],people:gp[g.d]}}).sort(function(a,b){return b.s-a.s||b.people-a.people});
@@ -515,7 +516,25 @@ tr.prow .badge{margin-left:6px;vertical-align:1px;padding:1px 7px;font-size:10px
     act.setAttribute('role','img');act.setAttribute('aria-label','Play time per day over the last 30 days: '+vals.filter(function(x){return x[1]>0}).length+' active days');
     var lab=el('div','actl');lab.append(el('span',null,dayDate(vals[0][0]).toLocaleDateString()),el('span',null,'Today'));
     sec2.append(act,lab);box.appendChild(sec2);
+    // Hours reset: counts this account's play time from zero from now on (personal bests stay). Signed with the admin key.
+    var sec3=el('div','acts');
+    if(p.reset){sec3.appendChild(el('span',null,'Hours counted from '+new Date(p.reset).toLocaleString()+' '));var u=el('button','sm','Undo hours reset');u.type='button';u.dataset.a='unreset';u.dataset.u=p.uid;sec3.appendChild(u)}
+    else{var rb=el('button','sm','Reset hours to 0');rb.type='button';rb.dataset.a='reset';rb.dataset.u=p.uid;sec3.appendChild(rb)}
+    box.appendChild(sec3);
     return box;
+  }
+  // Save the hours resets: the ones in force (from every admin node) plus this change, signed, in this browser's own node.
+  async function setReset(uid,on){
+    if(!PRIVS)throw new Error('Unlock the page again to change resets.');
+    var all={},cur=LB.resets;Object.keys(cur).forEach(function(u){all[u]=cur[u].b?{t:cur[u].t,b:cur[u].b}:{t:cur[u].t}});
+    var now=Math.round(S.now+(Date.now()-S.loadedAt));
+    if(on){var v=S.nodes[uid],g=v&&v.g,b={};if(g&&typeof g==='object')Object.keys(g).forEach(function(k){var x=g[k]&&Math.floor(+g[k].s);if(LB.BY[k]&&x>0)b[k]=x});all[uid]={t:now,b:b}}
+    else all[uid]={t:now};
+    var r=JSON.stringify(all);
+    var sig=new Uint8Array(await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},PRIVS,new TextEncoder().encode(r)));
+    var s='';for(var i=0;i<sig.length;i++)s+=String.fromCharCode(sig[i]);
+    var me=await boot();
+    await rtdb.ref(LB.RS_PATH+'/'+me).set({n:'Admin',c:'#7dd3fc',x:0,z:0,h:0,ts:now,v:1,r:r,sig:btoa(s)});
   }
   function renderPeople(st){
     var q=$('sFind').value.trim().toLowerCase();
@@ -557,7 +576,16 @@ tr.prow .badge{margin-left:6px;vertical-align:1px;padding:1px 7px;font-size:10px
     var b=e.target.closest('button[data-game]');if(!b)return;
     $('sGame').value=$('sGame').value===b.dataset.game?'all':b.dataset.game;S.show=PAGE;renderStats();
   });
-  $('sPeople').addEventListener('click',function(e){
+  $('sPeople').addEventListener('click',async function(e){
+    var ab=e.target.closest('button[data-a="reset"],button[data-a="unreset"]');
+    if(ab){
+      var on=ab.dataset.a==='reset',r=S.people.filter(function(x){return x.uid===ab.dataset.u})[0];
+      if(on&&!confirm('Reset the hours for '+(r?r.name+' · '+r.seat:'this account')+' to 0? Their personal bests stay, and you can undo this.'))return;
+      ab.disabled=true;say('sStatus',on?'Resetting…':'Undoing…');
+      try{await setReset(ab.dataset.u,on);say('sStatus','');loadStats()}
+      catch(err){ab.disabled=false;say('sStatus','Couldn\'t save the reset: '+((err&&err.message)||'error'),true)}
+      return;
+    }
     var sb=e.target.closest('button[data-sort]');
     if(sb){var k=sb.dataset.sort;if(S.sort===k)S.dir=S.dir==='asc'?'desc':'asc';else{S.sort=k;S.dir=k==='name'||k==='top'?'asc':'desc'}if(last)renderPeople(last);return}
     var tr=e.target.closest('tr.prow');if(!tr)return;
@@ -791,7 +819,7 @@ tr.prow .badge{margin-left:6px;vertical-align:1px;padding:1px 7px;font-size:10px
     $('app').hidden=false;$('me').hidden=false;$('who').textContent='Unlocked';welcome();
     loaded={};showTab(tab);
   });
-  $('out').addEventListener('click',function(){PRIV=null;location.reload()});
+  $('out').addEventListener('click',function(){PRIV=PRIVS=null;location.reload()});
   fillGames();fillWho();fillFb();
 
   // Test hook for automated browsers only: stub() swaps Firestore and the leaderboard read for data held in the page (the
