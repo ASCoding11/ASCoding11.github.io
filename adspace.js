@@ -20,7 +20,7 @@
   var wide = matchMedia('(min-width:1180px) and (min-height:520px)');
 
   // The placeholder in each rail. Change the words here.
-  var PLACEHOLDER = '<span>Cooper</span><span>+</span><span>Insa</span><span>Insa</span><span>Forever</span>';
+  var PLACEHOLDER = '<span>Tarik</span><span>needs</span><span>play</span>';
 
   var CSS =
     '.adph{position:absolute;inset:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;' +
