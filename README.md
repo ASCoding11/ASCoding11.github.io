@@ -1,6 +1,6 @@
 # Arjun's projects
 
-Personal site hosted with GitHub Pages.
+Personal site at **https://ascoding11.com**, served by Cloudflare Pages from this repo's `main` branch (every merge goes live there in a minute or two). GitHub Pages still serves the same files at https://ascoding11.github.io, so old links and anything people saved in their browser there keep working; every page's canonical and share links point at ascoding11.com, so search engines treat that as the main address. `ads.txt` sits at the root of the repo, so both addresses serve it at `/ads.txt`. Google sign-in only works on addresses listed in Firebase (project `rumblekarts`) → Authentication → Settings → Authorized domains, which needs `ascoding11.com` and `www.ascoding11.com` as well as `ascoding11.github.io`. The Joukowsky Dynamics links and Docket's calendar event IDs deliberately keep the github.io address (a separate GitHub project, and IDs that must not change).
 
 - `index.html`: the home page, with links to the Web Development Projects, Productivity and Engineering Projects pages
 - `projects/`: the Web Development Projects page, with a full card for each game
