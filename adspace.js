@@ -3,7 +3,7 @@
  * until a real AdSense ad fills the rail and covers it.
  *
  * Each game page loads it with one line in its <head>: <script src="/adspace.js" defer></script>
- * Only on screens 1180 px wide and 640 px tall or more (phones and small windows get nothing). It:
+ * Only on windows 1180 px wide and 520 px tall or more (phones and small windows get nothing). It:
  *   - reuses the game's own rails (<aside class="rail l"> / <aside class="rail r">, the ones its RAIL_SLOT code fills),
  *     or adds a pair when the game has none;
  *   - turns the rails on the way the game's own rail code does (the class "rails" on <html>, or on <body> for the games
@@ -17,7 +17,7 @@
   'use strict';
   if (window.__adSpace) return;
   window.__adSpace = true;
-  var wide = matchMedia('(min-width:1180px) and (min-height:640px)');
+  var wide = matchMedia('(min-width:1180px) and (min-height:520px)');
 
   // The placeholder in each rail. Change the words here.
   var PLACEHOLDER = '<span>Jeff</span><span>Li</span><span>Is</span><span>Single</span><span>And</span><span>Ready</span><span>To</span><span>Mingle</span><small>160 × 600</small>';
@@ -41,7 +41,7 @@
   var BASE =
     '.adrail{--adrail:184px;display:none;box-sizing:border-box;position:fixed;top:0;bottom:0;width:var(--adrail);background:#101318;flex-direction:column;align-items:center;justify-content:center;gap:6px;z-index:2147483000}' +
     '.adrail.l{left:0;border-right:1px solid rgba(255,255,255,.12)}.adrail.r{right:0;border-left:1px solid rgba(255,255,255,.12)}' +
-    '@media (min-width:1180px) and (min-height:640px){' +
+    '@media (min-width:1180px) and (min-height:520px){' +
       'html.adrails{background:#101318;overflow:hidden}' +
       'html.adrails body{position:fixed;top:0;bottom:0;left:184px;right:184px;width:auto;height:auto;margin:0;transform:translateZ(0);overflow:auto}' +
       'html.adrails .adrail{display:flex}}';
