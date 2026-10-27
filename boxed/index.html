@@ -166,7 +166,10 @@ input.code{text-transform:uppercase;font-family:var(--serif);font-size:24px;lett
 .sheet .loading{color:#6b7078;font-family:var(--sans);font-size:15px}
 .sheet .fail{font-family:var(--sans);font-size:15px;color:#3b3f45}
 .sheet .fail a{color:#9b2449}
-.sheet .fail .live-link{font-weight:600}
+.sheet .fail .live-link,.sheet .loading-alt .live-link{font-weight:600}
+.sheet .loading-alt{font-family:var(--sans);font-size:15px;color:#3b3f45;animation:boxedLate .3s 2s both}
+.sheet .loading-alt a{color:#9b2449}
+@keyframes boxedLate{from{opacity:0;visibility:hidden}to{opacity:1;visibility:visible}}
 .sheet .katex{font-size:1.05em}
 .sheet .katex-display{margin:.6em 0;overflow-x:auto;overflow-y:hidden}
 .sheet .hf-note{font-family:var(--sans);font-size:13px;color:#6b7078;border-top:1px solid #e3e3e3;margin:1em 0 0;padding-top:.6em}
@@ -639,6 +642,8 @@ function extractOne(html){
 const APIS = [WIKI + "api.php", "https://wiki.artofproblemsolving.com/wiki/api.php"];
 let imgBase = "https://artofproblemsolving.com";
 let wikiDown = false;
+try { const t = +localStorage.getItem("boxed.wikiDown"); if (t && Date.now() - t < 30 * 60 * 1000) wikiDown = true; } catch(e){}
+function markWikiDown(){ wikiDown = true; try { localStorage.setItem("boxed.wikiDown", String(Date.now())); } catch(e){} }
 function fetchJSON(url){
   const ctl = window.AbortController ? new AbortController() : null;
   const timer = ctl && setTimeout(() => ctl.abort(), 6000);
@@ -656,10 +661,11 @@ function parseWiki(page){
         const text = j.parse && (typeof j.parse.text === "string" ? j.parse.text : j.parse.text && j.parse.text["*"]);
         if (!text) throw new Error("no page");
         imgBase = new URL(api).origin;
+        try { localStorage.removeItem("boxed.wikiDown"); } catch(e){}
         resolve(text);
       }).catch(e => {
         console.warn("Boxed: AoPS Wiki load failed at " + api + " (" + page + "):", e && e.message || e);
-        if (--left === 0){ if (e instanceof TypeError || e.name === "AbortError" || /^HTTP 403/.test(e.message)) wikiDown = true; reject(e); }
+        if (--left === 0){ if (e instanceof TypeError || e.name === "AbortError" || /^HTTP 403/.test(e.message)) markWikiDown(); reject(e); }
       });
     });
   });
@@ -691,6 +697,9 @@ function loadOne(c, n){
   }).catch(e => { delete loadedOne[key]; throw e; });
   return loadedOne[key];
 }
+/* Rejects if `p` hasn't settled within `ms`, so nothing waits forever on a request that never answers. */
+const within = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("timed out")), ms))]);
+
 /* ---------------- Backup for AIME problems: public Hugging Face datasets ----------------
    When the AoPS Wiki won't answer, AIME problems load from public datasets on Hugging Face through its
    dataset viewer API, which pages on other sites are allowed to call. A dataset's row is only shown if its
@@ -759,7 +768,8 @@ function loadHFContest(c){
     if (!Object.keys(out).length) throw new Error("no matching problems");
     if (Object.keys(out).length >= 5) store.set("boxed.hf1." + c, JSON.stringify(out));
     return out;
-  })().catch(e => { delete hfLoaded[c]; throw e; });
+  })();
+  hfLoaded[c] = within(hfLoaded[c], 12000).catch(e => { delete hfLoaded[c]; throw e; });
   return hfLoaded[c];
 }
 
@@ -774,6 +784,7 @@ function loadKatex(){
     const sc = document.createElement("script"); sc.src = V + "katex.min.js"; sc.onload = res; sc.onerror = () => { katexP = null; rej(new Error("katex")); };
     document.head.appendChild(sc);
   });
+  katexP = within(katexP, 5000).catch(e => { katexP = null; throw e; });
   return katexP;
 }
 /* LaTeX source -> HTML: paragraphs, $…$ / $$…$$ / \(…\) / \[…\] math, \$ as a dollar sign, and a note in place of each [asy] diagram. */
@@ -815,27 +826,30 @@ function showHF(el, c, n, latex){
 }
 
 /* Fill a sheet element with a problem. `token` guards against a slow load landing on a newer problem. */
+function problemLinks(c, n){
+  const live = liveURL(c, n);
+  return live
+    ? '<a class="live-link" href="' + esc(live) + '" target="_blank" rel="noopener">Open the problem on LIVE by Po-Shen Loh</a> (or <a href="' + esc(problemURL(c, n)) + '" target="_blank" rel="noopener">on the AoPS Wiki</a>)'
+    : '<a href="' + esc(problemURL(c, n)) + '" target="_blank" rel="noopener">Open the problem on the AoPS Wiki</a>';
+}
 function showProblem(el, c, n, token){
   el.dataset.token = token;
-  el.innerHTML = '<p class="loading">Loading the problem…</p>';
-  loadContest(c).then(map => {
+  el.innerHTML = '<p class="loading">Loading the problem…</p><p class="loading-alt">Taking a while? ' + problemLinks(c, n) + '.</p>';
+  within(loadContest(c), 8000).then(map => {
     if (!map[n]) throw new Error("missing");
     return map[n];
-  }).catch(() => loadOne(c, n)).then(html => {
+  }).catch(() => within(loadOne(c, n), 8000)).then(html => {
     if (el.dataset.token !== token) return;
     el.innerHTML = html;
   }).catch(e => {
     if (CBYID[c].type !== "i") throw e;
-    return Promise.all([loadHFContest(c), loadKatex().catch(() => {})]).then(([map]) => {
+    return within(Promise.all([loadHFContest(c), loadKatex().catch(() => {})]), 15000).then(([map]) => {
       if (!map[n]) throw new Error("missing");
       if (el.dataset.token === token) showHF(el, c, n, map[n]);
     });
   }).catch(() => {
     if (el.dataset.token !== token) return;
-    const live = liveURL(c, n);
-    el.innerHTML = '<div class="fail"><p>The AoPS Wiki isn\'t letting Boxed load its problems right now.</p><p>' + (live
-      ? '<a class="live-link" href="' + esc(live) + '" target="_blank" rel="noopener">Open the problem on LIVE by Po-Shen Loh</a> (or <a href="' + esc(problemURL(c, n)) + '" target="_blank" rel="noopener">on the AoPS Wiki</a>), then answer below.'
-      : '<a href="' + esc(problemURL(c, n)) + '" target="_blank" rel="noopener">Open the problem on the AoPS Wiki</a>, then answer below.') + '</p></div>';
+    el.innerHTML = '<div class="fail"><p>The AoPS Wiki isn\'t letting Boxed load its problems right now.</p><p>' + problemLinks(c, n) + ', then answer below.</p></div>';
   });
 }
 function preload(c){ loadContest(c).catch(() => {}); }
