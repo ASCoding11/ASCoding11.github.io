@@ -548,7 +548,7 @@ function clean(node){
     if (tag === "IMG"){
       let src = ch.getAttribute("src") || "";
       if (src.startsWith("//")) src = "https:" + src;
-      else if (src.startsWith("/")) src = "https://artofproblemsolving.com" + src;
+      else if (src.startsWith("/")) src = imgBase + src;
       let host = ""; try { host = new URL(src).hostname; } catch(e){}
       if (!/(^|\.)artofproblemsolving\.com$/.test(host)){ ch.remove(); return; }
       keep.src = src; ["alt","width","height"].forEach(a => { if (ch.hasAttribute(a)) keep[a] = ch.getAttribute(a); });
@@ -567,50 +567,120 @@ function headingOf(el){
   if (el.classList && el.classList.contains("mw-heading")) return el.querySelector("h2,h3,h4");
   return null;
 }
-function extractProblems(html){
-  const doc = new DOMParser().parseFromString(html, "text/html");
-  const root = doc.querySelector(".mw-parser-output") || doc.body;
-  const out = {}; let cur = null;
+/* Top-level blocks of a parsed page, in order. Newer MediaWiki versions wrap each section in a
+   <section>, so step inside those (and plain wrapper divs holding headings) rather than skipping them. */
+function blocks(root){
+  const out = [];
   for (const el of [...root.children]){
+    if (headingOf(el)){ out.push(el); continue; }
+    if (el.tagName === "SECTION" || (el.tagName === "DIV" && !el.className && el.querySelector(":scope > section, :scope > h2, :scope > h3, :scope > .mw-heading"))){ out.push(...blocks(el)); continue; }
+    out.push(el);
+  }
+  return out;
+}
+const headText = h => (h.querySelector(".mw-headline") || h).textContent.trim();
+const isSolutionLink = el => el.tagName === "P" && /^\[?\s*(solutions?|solution \d+|video solution.*)\s*\]?$/i.test(el.textContent.replace(/\s+/g, " ").trim());
+function parsePage(html){
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  return {doc, list: blocks(doc.querySelector(".mw-parser-output") || doc.body)};
+}
+/* A contest page ("2019 AMC 10A Problems"): one "Problem N" heading per problem. */
+function extractProblems(html){
+  const {doc, list} = parsePage(html);
+  const out = {}; let cur = null;
+  for (const el of list){
     const h = headingOf(el);
     if (h){
-      const txt = (h.querySelector(".mw-headline") || h).textContent.trim();
-      const m = /^Problem\s*(\d+)\b/i.exec(txt);
+      const m = /^Problem\s*(\d+)\b/i.exec(headText(h));
       if (m){ cur = +m[1]; out[cur] = doc.createElement("div"); }
       else if (h.tagName === "H2") cur = null;
       continue;
     }
-    if (!cur) continue;
-    const t = el.textContent.replace(/\s+/g, " ").trim();
-    if (el.tagName === "P" && /^\[?\s*(solutions?|solution \d+|video solution.*)\s*\]?$/i.test(t)) continue;
+    if (!cur || isSolutionLink(el)) continue;
     out[cur].appendChild(el.cloneNode(true));
   }
   const res = {};
   for (const n in out){ const h = clean(out[n]).innerHTML.trim(); if (h) res[n] = h; }
   return res;
 }
+/* A single problem page ("2019 AMC 10A Problems/Problem 7"): the text under its "Problem" heading,
+   or everything before the first heading if it has none. */
+function extractOne(html){
+  const {doc, list} = parsePage(html);
+  const box = doc.createElement("div");
+  const hasProblemHead = list.some(el => { const h = headingOf(el); return h && /^Problem\b/i.test(headText(h)); });
+  let on = !hasProblemHead;
+  for (const el of list){
+    const h = headingOf(el);
+    if (h){ if (on && box.childNodes.length) break; on = /^Problem\b/i.test(headText(h)); continue; }
+    if (on && !isSolutionLink(el) && !el.matches("table.wikitable, .toc, #toc")) box.appendChild(el.cloneNode(true));
+  }
+  return clean(box).innerHTML.trim();
+}
+
+/* The wiki's API, tried at each address it has answered on. The first one that works is used from then on. */
+const APIS = [WIKI + "api.php", "https://wiki.artofproblemsolving.com/wiki/api.php"];
+let apiOrder = [0, 1];
+let imgBase = "https://artofproblemsolving.com";
+function fetchJSON(url){
+  const ctl = window.AbortController ? new AbortController() : null;
+  const timer = ctl && setTimeout(() => ctl.abort(), 12000);
+  return fetch(url, ctl ? {signal: ctl.signal} : {}).then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+    .finally(() => timer && clearTimeout(timer));
+}
+async function parseWiki(page){
+  const q = "?action=parse&format=json&formatversion=2&prop=text&redirects=1&disableeditsection=1&origin=*&page=" + encodeURIComponent(page);
+  let last;
+  for (const i of apiOrder){
+    try {
+      const j = await fetchJSON(APIS[i] + q);
+      if (j.error) throw new Error(j.error.code || "api error");
+      const text = j.parse && (typeof j.parse.text === "string" ? j.parse.text : j.parse.text && j.parse.text["*"]);
+      if (!text) throw new Error("no page");
+      if (apiOrder[0] !== i){ apiOrder = [i, ...apiOrder.filter(x => x !== i)]; }
+      imgBase = new URL(APIS[i]).origin;
+      return text;
+    } catch(e){ last = e; console.warn("Boxed: AoPS Wiki load failed at " + APIS[i] + " (" + page + "):", e && e.message || e); }
+  }
+  throw last || new Error("unreachable");
+}
 function loadContest(c){
   if (loaded[c]) return loaded[c];
   const cached = store.get("boxed.p2." + c);
   if (cached){ try { const v = JSON.parse(cached); if (v && Object.keys(v).length >= 5) return (loaded[c] = Promise.resolve(v)); } catch(e){} }
-  const url = WIKI + "api.php?action=parse&format=json&formatversion=2&prop=text&redirects=1&disableeditsection=1&origin=*&page=" + encodeURIComponent(c + " Problems");
-  loaded[c] = fetch(url).then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); }).then(j => {
-    if (!j.parse || !j.parse.text) throw new Error("no page");
-    const map = extractProblems(j.parse.text);
+  loaded[c] = parseWiki(c + " Problems").then(html => {
+    const map = extractProblems(html);
     if (Object.keys(map).length < 5) throw new Error("couldn't read problems");
     store.set("boxed.p2." + c, JSON.stringify(map));
     return map;
   }).catch(e => { delete loaded[c]; throw e; });
   return loaded[c];
 }
+/* Backup for one problem when its contest page can't be read: load that problem's own page. */
+const loadedOne = {};
+function loadOne(c, n){
+  const key = c + "|" + n;
+  if (loadedOne[key]) return loadedOne[key];
+  const cached = store.get("boxed.p1." + key);
+  if (cached) return (loadedOne[key] = Promise.resolve(cached));
+  loadedOne[key] = parseWiki(c + " Problems/Problem " + n).then(html => {
+    const h = extractOne(html);
+    if (!h || h.replace(/<[^>]*>/g, "").trim().length < 10 && !/<img/i.test(h)) throw new Error("couldn't read problem");
+    store.set("boxed.p1." + key, h);
+    return h;
+  }).catch(e => { delete loadedOne[key]; throw e; });
+  return loadedOne[key];
+}
 /* Fill a sheet element with a problem. `token` guards against a slow load landing on a newer problem. */
 function showProblem(el, c, n, token){
   el.dataset.token = token;
   el.innerHTML = '<p class="loading">Loading the problem…</p>';
   loadContest(c).then(map => {
-    if (el.dataset.token !== token) return;
     if (!map[n]) throw new Error("missing");
-    el.innerHTML = map[n];
+    return map[n];
+  }).catch(() => loadOne(c, n)).then(html => {
+    if (el.dataset.token !== token) return;
+    el.innerHTML = html;
   }).catch(() => {
     if (el.dataset.token !== token) return;
     el.innerHTML = '<div class="fail"><p>The problem text didn\'t load here (the AoPS Wiki may be blocked on this network).</p><p><a href="' + esc(problemURL(c, n)) + '" target="_blank" rel="noopener">Open the problem on the AoPS Wiki</a>, then answer below.</p></div>';
