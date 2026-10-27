@@ -166,6 +166,7 @@ input.code{text-transform:uppercase;font-family:var(--serif);font-size:24px;lett
 .sheet .loading{color:#6b7078;font-family:var(--sans);font-size:15px}
 .sheet .fail{font-family:var(--sans);font-size:15px;color:#3b3f45}
 .sheet .fail a{color:#9b2449}
+.sheet .fail .live-link{font-weight:600}
 .sheet .katex{font-size:1.05em}
 .sheet .katex-display{margin:.6em 0;overflow-x:auto;overflow-y:hidden}
 .sheet .hf-note{font-family:var(--sans);font-size:13px;color:#6b7078;border-top:1px solid #e3e3e3;margin:1em 0 0;padding-top:.6em}
@@ -539,6 +540,15 @@ function pickProblem(tierIds, used, rand, topics){
 const WIKI = "https://artofproblemsolving.com/wiki/";
 const wikiPath = t => WIKI + "index.php/" + t.replace(/ /g, "_");
 const problemURL = (c, n) => wikiPath(c + " Problems/Problem " + n);
+/* The same problem on LIVE by Po-Shen Loh, which has every AMC 10 and AIME problem Boxed uses. LIVE names the
+   2021 Fall contests 2021C (10A) and 2021D (10B). Only a link: Boxed never loads LIVE's pages itself. */
+function liveURL(c, n){
+  let m = /^(\d{4}) (Fall )?AMC 10([AB])$/.exec(c);
+  if (m) return "https://live.poshenloh.com/past-contests/amc10/" + m[1] + (m[2] ? (m[3] === "A" ? "C" : "D") : m[3]) + "/problem/" + n + "?practice=1";
+  m = /^(\d{4}) AIME (I{1,2})$/.exec(c);
+  if (m) return "https://live.poshenloh.com/past-contests/aime/" + m[1] + m[2] + "/problem/" + n + "?practice=1";
+  return null;
+}
 const loaded = {};
 const OK_TAGS = new Set(["P","BR","IMG","B","I","EM","STRONG","U","SUP","SUB","UL","OL","LI","TABLE","THEAD","TBODY","TR","TD","TH","CENTER","DIV","SPAN","PRE","CODE","HR","DL","DD","DT","BLOCKQUOTE","SMALL"]);
 const DROP_TAGS = new Set(["SCRIPT","STYLE","IFRAME","OBJECT","EMBED","FORM","INPUT","BUTTON","TEXTAREA","SELECT","LINK","META","NOSCRIPT","SVG","MATH","VIDEO","AUDIO"]);
@@ -822,7 +832,10 @@ function showProblem(el, c, n, token){
     });
   }).catch(() => {
     if (el.dataset.token !== token) return;
-    el.innerHTML = '<div class="fail"><p>The AoPS Wiki isn\'t letting Boxed load its problems right now.</p><p><a href="' + esc(problemURL(c, n)) + '" target="_blank" rel="noopener">Open the problem on the AoPS Wiki</a>, then answer below.</p></div>';
+    const live = liveURL(c, n);
+    el.innerHTML = '<div class="fail"><p>The AoPS Wiki isn\'t letting Boxed load its problems right now.</p><p>' + (live
+      ? '<a class="live-link" href="' + esc(live) + '" target="_blank" rel="noopener">Open the problem on LIVE by Po-Shen Loh</a> (or <a href="' + esc(problemURL(c, n)) + '" target="_blank" rel="noopener">on the AoPS Wiki</a>), then answer below.'
+      : '<a href="' + esc(problemURL(c, n)) + '" target="_blank" rel="noopener">Open the problem on the AoPS Wiki</a>, then answer below.') + '</p></div>';
   });
 }
 function preload(c){ loadContest(c).catch(() => {}); }
