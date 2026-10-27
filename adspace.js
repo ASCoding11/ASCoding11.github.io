@@ -33,10 +33,10 @@
     '.adph{position:absolute;inset:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;' +
       'border:2px dashed rgba(255,255,255,.28);border-radius:14px;background:repeating-linear-gradient(135deg,rgba(255,255,255,.035) 0 12px,transparent 12px 24px);' +
       'pointer-events:none;overflow:hidden}' +
-    '.adph span{font:400 34px/1 "Bungee",Impact,"Arial Black",sans-serif;text-transform:uppercase;letter-spacing:.02em;' +
+    '.adph span{font:400 26px/1.05 "Bungee",Impact,"Arial Black",sans-serif;text-transform:uppercase;letter-spacing:.02em;' +
       'background:linear-gradient(180deg,#ffe066,#ff5fa2 55%,#7cf3ff);-webkit-background-clip:text;background-clip:text;color:transparent;' +
       'filter:drop-shadow(0 0 8px rgba(255,95,162,.45))}' +
-    '.adph span:nth-child(2){font-size:44px}' +
+    '.adph span:nth-child(2){font-size:34px}' +
     '.adph small{margin-top:14px;font:700 10px/1 system-ui,sans-serif;letter-spacing:.18em;color:rgba(255,255,255,.45)}' +
     '.rail>*:not(.adph){position:relative;z-index:1}' +
     '.rail:has(ins[data-ad-status="filled"]) .adph{display:none}';
