@@ -618,31 +618,35 @@ function extractOne(html){
   return clean(box).innerHTML.trim();
 }
 
-/* The wiki's API, tried at each address it has answered on. The first one that works is used from then on. */
+/* The wiki's API, tried at both addresses at once. If neither answers, Boxed stops asking for the rest of
+   the visit and shows the link to the problem on AoPS straight away, instead of making players wait. */
 const APIS = [WIKI + "api.php", "https://wiki.artofproblemsolving.com/wiki/api.php"];
-let apiOrder = [0, 1];
 let imgBase = "https://artofproblemsolving.com";
+let wikiDown = false;
 function fetchJSON(url){
   const ctl = window.AbortController ? new AbortController() : null;
-  const timer = ctl && setTimeout(() => ctl.abort(), 12000);
+  const timer = ctl && setTimeout(() => ctl.abort(), 6000);
   return fetch(url, ctl ? {signal: ctl.signal} : {}).then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
     .finally(() => timer && clearTimeout(timer));
 }
-async function parseWiki(page){
+function parseWiki(page){
+  if (wikiDown) return Promise.reject(new Error("wiki unreachable"));
   const q = "?action=parse&format=json&formatversion=2&prop=text&redirects=1&disableeditsection=1&origin=*&page=" + encodeURIComponent(page);
-  let last;
-  for (const i of apiOrder){
-    try {
-      const j = await fetchJSON(APIS[i] + q);
-      if (j.error) throw new Error(j.error.code || "api error");
-      const text = j.parse && (typeof j.parse.text === "string" ? j.parse.text : j.parse.text && j.parse.text["*"]);
-      if (!text) throw new Error("no page");
-      if (apiOrder[0] !== i){ apiOrder = [i, ...apiOrder.filter(x => x !== i)]; }
-      imgBase = new URL(APIS[i]).origin;
-      return text;
-    } catch(e){ last = e; console.warn("Boxed: AoPS Wiki load failed at " + APIS[i] + " (" + page + "):", e && e.message || e); }
-  }
-  throw last || new Error("unreachable");
+  return new Promise((resolve, reject) => {
+    let left = APIS.length;
+    APIS.forEach(api => {
+      fetchJSON(api + q).then(j => {
+        if (j.error) throw new Error(j.error.code || "api error");
+        const text = j.parse && (typeof j.parse.text === "string" ? j.parse.text : j.parse.text && j.parse.text["*"]);
+        if (!text) throw new Error("no page");
+        imgBase = new URL(api).origin;
+        resolve(text);
+      }).catch(e => {
+        console.warn("Boxed: AoPS Wiki load failed at " + api + " (" + page + "):", e && e.message || e);
+        if (--left === 0){ if (e instanceof TypeError || e.name === "AbortError" || /^HTTP 403/.test(e.message)) wikiDown = true; reject(e); }
+      });
+    });
+  });
 }
 function loadContest(c){
   if (loaded[c]) return loaded[c];
@@ -683,7 +687,7 @@ function showProblem(el, c, n, token){
     el.innerHTML = html;
   }).catch(() => {
     if (el.dataset.token !== token) return;
-    el.innerHTML = '<div class="fail"><p>The problem text didn\'t load here (the AoPS Wiki may be blocked on this network).</p><p><a href="' + esc(problemURL(c, n)) + '" target="_blank" rel="noopener">Open the problem on the AoPS Wiki</a>, then answer below.</p></div>';
+    el.innerHTML = '<div class="fail"><p>The AoPS Wiki isn\'t letting Boxed load its problems right now.</p><p><a href="' + esc(problemURL(c, n)) + '" target="_blank" rel="noopener">Open the problem on the AoPS Wiki</a>, then answer below.</p></div>';
   });
 }
 function preload(c){ loadContest(c).catch(() => {}); }
