@@ -14,8 +14,14 @@
  *   ts last heartbeat         j  when they joined (server time)
  *   pk game the leader has picked (leader only)
  *   go { id, g, r, t }        the leader's latest launch: game key, room code, server time
+ *   kick [{ u, t }]           people the leader removed (uid, server time), up to 8, kept for 10 minutes
  * The leader is whoever has been in the party longest (smallest j), so when the leader leaves the next
  * person takes over with nothing to hand over. Closing the tab removes your node (onDisconnect).
+ *
+ * Kicking: the leader can't delete anyone else's node, so it lists them in kick in its own node. Every member
+ * watches the current leader's list (only the leader's counts), and one that finds its own uid there with a
+ * time in the last 10 minutes leaves by removing its own node and says who removed it. Joining checks the
+ * leader's list first, so a kicked person can't come back for 10 minutes (as long as the same leader is there).
  *
  * "Play together" writes go, and every member's browser opens that game with #<prefix>-<room>, then puts the
  * party name in the game's name box and the room in its room box, and presses its own "Play in room" button for
@@ -27,7 +33,7 @@
   'use strict';
   if (document.getElementById('party')) return;
 
-  var MAX = 8, STALE = 120000, BEAT = 15000;
+  var MAX = 8, STALE = 120000, BEAT = 15000, KICK_TTL = 10 * 60000;
   var CFG = {
     apiKey: 'AIzaSyDZD_Ku8cixteXfwkDYzGv3GKiZFF8sRSM',
     authDomain: 'rumblekarts.firebaseapp.com',
@@ -129,6 +135,8 @@
     '.pty-nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}' +
     '.pty-tag{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}' +
     '.pty-tag b{color:var(--accent);font-weight:600}' +
+    '.pty-kick{margin-left:auto;flex:none;width:32px;height:32px;border-radius:8px;border:1px solid var(--line);background:none;color:var(--ink-2);font:inherit;font-size:16px;line-height:1;cursor:pointer;display:grid;place-items:center;padding:0}' +
+    '.pty-kick:hover{color:var(--down);border-color:var(--down)}' +
     '.pty-h{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);margin:0 0 8px}' +
     '.pty-games{display:flex;flex-wrap:wrap;gap:8px}' +
     '.pty-games button{font:inherit;font-size:14px;font-weight:600;color:var(--ink);background:var(--panel-2);border:1px solid var(--line);border-radius:999px;padding:7px 14px;cursor:pointer;min-height:36px}' +
@@ -159,7 +167,7 @@
   // ---------------- State ----------------
   var app = null, auth = null, db = null, uid = null, offset = 0, booting = null;
   var code = '', refs = null, myJ = 0, members = [], picked = '', goId = 0, beat = 0, busy = false;
-  var handled = {}, wasConnected = false, connRef = null, lastLeader = '';
+  var handled = {}, wasConnected = false, connRef = null, lastLeader = '', kicked = [];
   function now() { return Date.now() + offset; }
 
   function load(src) {
@@ -204,15 +212,32 @@
     Object.keys(val || {}).forEach(function (k) {
       var v = val[k];
       if (!v || typeof v !== 'object' || t - (+v.ts || 0) > STALE) return;
-      out.push({ uid: k, n: cleanName(v.n) || 'Player', c: /^#[0-9a-f]{6}$/i.test(v.c) ? v.c : '#4A5751', j: +v.j || +v.ts || 0, pk: typeof v.pk === 'string' ? v.pk : '', go: v.go && typeof v.go === 'object' ? v.go : null });
+      out.push({ uid: k, n: cleanName(v.n) || 'Player', c: /^#[0-9a-f]{6}$/i.test(v.c) ? v.c : '#4A5751', j: +v.j || +v.ts || 0, pk: typeof v.pk === 'string' ? v.pk : '', go: v.go && typeof v.go === 'object' ? v.go : null, kick: kickList(v.kick, t) });
     });
     out.sort(function (a, b) { return a.j - b.j || (a.uid < b.uid ? -1 : 1); });
     return out;
   }
+  // Someone else's kick list: at most MAX entries of { u: uid, t: time } from the last KICK_TTL; anything else is dropped.
+  function kickList(v, t) {
+    var a = Array.isArray(v) ? v : (v && typeof v === 'object' ? Object.keys(v).map(function (k) { return v[k]; }) : []), out = [];
+    for (var i = 0; i < a.length && i < 16 && out.length < MAX; i++) {
+      var e = a[i]; if (!e || typeof e !== 'object' || typeof e.u !== 'string' || !/^[A-Za-z0-9_-]{6,64}$/.test(e.u)) continue;
+      var kt = +e.t || 0; if (kt > t - KICK_TTL && kt < t + 30000) out.push({ u: e.u, t: kt });
+    }
+    return out;
+  }
+  // When the leader L removed u, or 0. Only the current leader's list counts.
+  function kickedBy(L, u) {
+    if (!L || L.uid === u || !L.kick) return 0;
+    for (var i = 0; i < L.kick.length; i++) if (L.kick[i].u === u) return L.kick[i].t;
+    return 0;
+  }
+  function kickMsg(L, kt) { return 'You were removed from the party by ' + L.n + '. You can join it again in ' + Math.max(1, Math.ceil((kt + KICK_TTL - now()) / 60000)) + ' min.'; }
   function myState() {
     var s = { n: myName(), c: colorOf(uid), x: 0, z: 0, h: 0, ts: Math.round(now()), j: myJ };
     if (picked) s.pk = picked;
     if (goId && lastGo) s.go = lastGo;
+    if (kicked.length) s.kick = kicked;
     return s;
   }
   var lastGo = null;
@@ -229,6 +254,7 @@
       var cur = live((await timeout(players.once('value'), 10000, NET)).val()).filter(function (m) { return m.uid !== uid; });
       if (!cur.length && !rejoin) throw new Error('No party is using the code ' + c + ' right now. Check the code, or create a party.');
       if (cur.length >= MAX) throw new Error('That party is full (' + MAX + ' of ' + MAX + '). Ask them to make room, or create your own party.');
+      var kt = kickedBy(cur[0], uid); if (kt) throw new Error(kickMsg(cur[0], kt));
       await enter(c);
       say('');
     } catch (err) {
@@ -274,7 +300,12 @@
     connRef = db.ref('.info/connected'); wasConnected = true;
     connRef.on('value', onConnected);
     clearInterval(beat);
-    beat = setInterval(function () { if (refs) refs.me.update({ ts: Math.round(now()) }).catch(function () {}); }, BEAT);
+    beat = setInterval(function () {
+      if (!refs) return;
+      var patch = { ts: Math.round(now()) }, fresh = kicked.filter(function (e) { return e.t > now() - KICK_TTL; });
+      if (fresh.length !== kicked.length) { kicked = fresh; patch.kick = kicked.length ? kicked : null; }
+      refs.me.update(patch).catch(function () {});
+    }, BEAT);
     drawParty();
   }
   function onConnected(s) {
@@ -286,7 +317,7 @@
     clearInterval(beat);
     if (connRef) { connRef.off('value', onConnected); connRef = null; }
     if (refs) { var r = refs; try { r.players.off('value', onPlayers); r.me.onDisconnect().cancel(); r.me.remove().catch(function () {}); } catch (e) {} }
-    refs = null; code = ''; members = []; picked = ''; lastGo = null; goId = 0; lastLeader = '';
+    refs = null; code = ''; members = []; picked = ''; lastGo = null; goId = 0; lastLeader = ''; kicked = [];
     if (clear) sess('party:code', null);
   }
   function leave() { teardown(true); say('You left the party.'); render(); }
@@ -296,6 +327,8 @@
   function onPlayers(s) {
     if (!refs) return;
     var all = live(s.val());
+    var L0 = all[0], kt = L0 ? kickedBy(L0, uid) : 0;
+    if (kt) { var msg = kickMsg(L0, kt); teardown(true); say(msg, true); render(); return; }
     if (!all.some(function (m) { return m.uid === uid; })) {
       // Our node went missing (a dropped connection removes it); put it back.
       refs.me.set(myState()).catch(function () {});
@@ -331,6 +364,16 @@
     refs.me.update({ go: lastGo, ts: Math.round(now()) }).catch(function (e) { say('Couldn’t tell the party (' + (e.code || e.message) + ').', true); });
     say('Starting ' + g.n + ' in room ' + r + '…');
     launch(g, r);
+  }
+  // The leader removes a member: list them in our own node (we can't delete theirs); their browser leaves when it sees it.
+  function kick(u) {
+    var L = leader(); if (!refs || !L || L.uid !== uid || u === uid) return;
+    var m = members.filter(function (x) { return x.uid === u; })[0]; if (!m) return;
+    if (!confirm('Remove ' + m.n + ' from the party? They can\u2019t join it again for 10 minutes.')) return;
+    var t = Math.round(now());
+    kicked = kicked.filter(function (e) { return e.u !== u && e.t > t - KICK_TTL; }).concat({ u: u, t: t }).slice(-MAX);
+    refs.me.update({ kick: kicked, ts: t }).then(function () { say('Removed ' + m.n + ' from the party.'); }, function (e) { say('Couldn\u2019t remove them (' + (e.code || e.message) + ').', true); });
+    drawParty();
   }
   // Room codes come from another member's node, so only accept the characters the games' invite links allow.
   function okRoom(r) { return typeof r === 'string' && /^[a-z0-9]{1,17}$/.test(r); }
@@ -444,10 +487,13 @@
       $main.querySelector('.pty-code').textContent = code;
     }
     $main.querySelector('.pty-count').textContent = n + ' of ' + MAX;
+    var t0 = now(); kicked = kicked.filter(function (e) { return e.t > t0 - KICK_TTL; });
     $main.querySelector('.pty-mem').innerHTML = members.map(function (m, i) {
+      var going = lead && kicked.some(function (e) { return e.u === m.uid; });
       return '<li><span class="pty-av" style="background:' + esc(m.c) + '" aria-hidden="true">' + esc(m.n.charAt(0).toUpperCase()) + '</span>' +
         '<span class="pty-who"><span class="pty-nm">' + esc(m.n) + '</span><span class="pty-tag">' +
-        [i === 0 ? '<b>Leader</b>' : 'Member', m.uid === uid ? 'You' : ''].filter(Boolean).join(' · ') + '</span></span></li>';
+        [i === 0 ? '<b>Leader</b>' : 'Member', m.uid === uid ? 'You' : '', going ? 'Removing…' : ''].filter(Boolean).join(' · ') + '</span></span>' +
+        (lead && m.uid !== uid && !going ? '<button type="button" class="pty-kick" data-k="' + esc(m.uid) + '" title="Remove from the party" aria-label="Remove ' + esc(m.n) + ' from the party">✕</button>' : '') + '</li>';
     }).join('');
 
     var box = $main.querySelector('.pty-pick');
@@ -479,8 +525,9 @@
   // ---------------- Events ----------------
   sec.addEventListener('click', function (e) {
     var t = e.target.closest('button'); if (!t || t.disabled) return;
-    var a = t.getAttribute('data-a'), gk = t.getAttribute('data-g');
-    if (a === 'create' || a === 'join') {
+    var a = t.getAttribute('data-a'), gk = t.getAttribute('data-g'), ku = t.getAttribute('data-k');
+    if (ku) kick(ku);
+    else if (a === 'create' || a === 'join') {
       var nm = cleanName($main.querySelector('#ptyName').value);
       if (!nm) { say('Type your name first, so your party knows who you are.', true); $main.querySelector('#ptyName').focus(); return; }
       store('party:name', nm);
@@ -540,6 +587,9 @@
     now: now,
     get code() { return refs ? code : ''; },
     get size() { return refs ? members.length : 0; },
+    get leader() { var L = refs && leader(); return L ? { uid: L.uid, n: L.n } : null; },
+    get members() { return refs ? members.map(function (m) { return m.uid; }) : []; },
+    max: MAX,
     get room() { return lastRoom; },
     games: GAMES.map(function (g) { return { k: g.k, n: g.n, d: g.d, pre: g.pre != null ? g.pre : g.k + '-' }; }),
     create: function () { return (refs || busy ? Promise.resolve() : create()).then(function () { return refs ? code : ''; }); },
@@ -559,5 +609,5 @@
   };
 
   // Test hook for the automated checks; harmless in normal play.
-  if (navigator.webdriver) window.__party = { get code() { return code; }, get uid() { return uid; }, get members() { return members; }, leader: leader, GAMES: GAMES, MAX: MAX, db: function () { return db; } };
+  if (navigator.webdriver) window.__party = { get code() { return code; }, get uid() { return uid; }, get members() { return members; }, get kicked() { return kicked; }, leader: leader, GAMES: GAMES, MAX: MAX, db: function () { return db; } };
 })();
