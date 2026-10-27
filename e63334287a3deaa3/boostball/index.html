@@ -611,7 +611,7 @@ function makeCar(o){
     bl0:new V3(),blOk:false, // where the ball was in this car's frame last tick, for the swept ball check
     demo:0,lastHit:0,lastTouchEv:0,inp:newInput(),stats:{g:0,a:0,sv:0,sh:0,dm:0},
     // remote smoothing
-    tpos:new V3(0,CAR_Y,0),tvel:new V3(),tq:new QT(),tts:0,seen:0,
+    tpos:new V3(0,CAR_Y,0),tvel:new V3(),tq:new QT(),tts:0,seen:0,tw:0,
     // bot brain
     brain:{t:0,stuck:0,rev:0,plan:null,jumpPlan:0},
     mesh:null,wheelSpin:0,steerVis:0},o);
@@ -2659,7 +2659,14 @@ function remoteCar(id,o){
 function setRemoteKin(c,x,y,z,q,v,ts){
   c.tpos.set(clamp(x,-AW-2,AW+2),clamp(y,0,AH),clamp(z,-AL-GD-2,AL+GD+2));
   if(q){c.tq.set(q[0],q[1],q[2],q[3]);if(c.tq.lengthSq()<.5)c.tq.set(0,0,0,1);c.tq.normalize()}
-  if(v)c.tvel.set(clamp(v[0],-60,60),clamp(v[1],-60,60),clamp(v[2],-60,60));
+  if(v){
+    // how fast the car is turning (its heading's change since the last update), so updateRemotes can follow the curve
+    const ph=Math.atan2(c.tvel.x,c.tvel.z),ps=Math.hypot(c.tvel.x,c.tvel.z),gap=(ts-c.tts)/1000;
+    c.tvel.set(clamp(v[0],-60,60),clamp(v[1],-60,60),clamp(v[2],-60,60));
+    const s=Math.hypot(c.tvel.x,c.tvel.z);
+    if(ps>4&&s>4&&gap>.02&&gap<.35){let d=Math.atan2(c.tvel.x,c.tvel.z)-ph;d=Math.atan2(Math.sin(d),Math.cos(d));c.tw+=(clamp(d/gap,-4,4)-c.tw)*.6}
+    else c.tw=0;
+  }
   c.tts=ts;c.seen=performance.now();
   if(c.fresh===undefined){c.fresh=false;c.pos.copy(c.tpos);c.q.copy(c.tq);c.vel.copy(c.tvel)}
 }
@@ -2704,6 +2711,8 @@ function onRemoteState(uid,v){
     }
     for(const b of cars.slice())if(b.isBot&&b.remote&&!ids.has(b.id))removeCar(b);
   }
+  // a host running no bots sends no bh: drop any it ran before, or they'd sit frozen on everyone else's field
+  else if(v.bh===undefined&&Net.hostUid()===uid)for(const b of cars.slice())if(b.isBot&&b.remote)removeCar(b);
 }
 function remoteDemo(c,dm){
   if(dm){if(!c.dmFlag&&c.demo<=0)burst(_v2.copy(c.pos),80,18,1,1.4,[0xffb347,0xff6a1a,0xffffff],8);c.demo=Math.max(c.demo,.3)}
@@ -2758,17 +2767,33 @@ function hostDuties(now){
   }
   if(phaseOf(now)==='over'&&Net.isPublic){if(!Net.overT)Net.overT=now;else if(now-Net.overT>9000){Net.overT=0;Net.rematch()}}else Net.overT=0;
 }
-const _rp=new V3(),_rq=new QT();
+const _rp=new V3(),_rq=new QT(),_rv=new V3(),CORR_V=30;
 function updateRemotes(dt){
   const k=1-Math.exp(-dt*16);const now=Net.now();
   for(const c of cars){
     if(!c.remote)continue;
-    const age=clamp((now-c.tts)/1000,0,.22);
-    _rp.copy(c.tpos).addScaledVector(c.tvel,age);
+    // carry the car on from its last update, along the curve it was turning on; a late update (school Wi-Fi) keeps it
+    // moving for up to .4 s rather than freezing it and then snapping it forward
+    const age=clamp((now-c.tts)/1000,0,.4),w=c.tw,s=Math.hypot(c.tvel.x,c.tvel.z),h=Math.atan2(c.tvel.x,c.tvel.z),h2=h+w*age;
+    _rp.copy(c.tpos);
+    if(Math.abs(w)>.05){
+      _rp.x+=s/w*(Math.cos(h)-Math.cos(h2));_rp.z+=s/w*(Math.sin(h2)-Math.sin(h));
+      _rq.setFromAxisAngle(Y_AXIS,w*age).multiply(c.tq);
+    }else{_rp.x+=c.tvel.x*age;_rp.z+=c.tvel.z*age;_rq.copy(c.tq)}
+    _rp.y+=c.tvel.y*age;
     if(!c.netGround)_rp.y-=.5*GRAV*age*age;
-    if(_rp.y<CAR_Y)_rp.y=CAR_Y;
-    if(c.pos.distanceTo(_rp)>9)c.pos.copy(_rp);else c.pos.lerp(_rp,k);
-    c.q.slerp(c.tq,k);c.vel.copy(c.tvel);
+    _rp.set(clamp(_rp.x,-AW+1,AW-1),Math.max(CAR_Y,Math.min(_rp.y,AH-1)),clamp(_rp.z,-AL-GD+1,AL+GD-1));
+    // the drawn car moves on at its own speed, then closes the gap to that estimate: quickly, but never faster than
+    // CORR_V, so a late update makes it glide over rather than jump (far off, e.g. a respawn, it just moves there)
+    const vy=c.tvel.y-(c.netGround?0:GRAV*age);
+    _rv.set(s*Math.sin(h2)*dt,vy*dt,s*Math.cos(h2)*dt);
+    if(c.pos.distanceTo(_rp)>20)c.pos.copy(_rp);
+    else{
+      c.pos.add(_rv);_rv.subVectors(_rp,c.pos).multiplyScalar(k);
+      const m=_rv.length(),cap=CORR_V*dt;if(m>cap)_rv.multiplyScalar(cap/m);
+      c.pos.add(_rv);if(c.pos.y<CAR_Y)c.pos.y=CAR_Y;
+    }
+    c.q.slerp(_rq,k);c.vel.copy(c.tvel);
     carAxes(c);c.yaw=Math.atan2(_f.x,_f.z);
     if(c.demo>0)c.demo-=dt;
   }
