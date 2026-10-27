@@ -390,6 +390,7 @@ tr.prow .badge{margin-left:6px;vertical-align:1px;padding:1px 7px;font-size:10px
   // leaderboard.js checks them (BackRoomBoards, so what's shown here is what the boards would accept), plus the fields the
   // boards don't show: ga/gn (a Google sign-in and its display name) and d (seconds per day per game for the last 30 days).
   var LB=window.BackRoomBoards||null,DAYS=30,DAY_GAMES=12;
+  if(LB&&LB.showHidden)LB.showHidden(true);   // list accounts removed from the boards too (marked), so they can be put back
   var S={nodes:null,now:0,people:[],skipped:0,sort:'hours',dir:'desc',open:{},show:PAGE,seq:0};
   function dayKey(d){return String(d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate())}
   function dayAgo(n){var d=new Date();d.setDate(d.getDate()-n);return dayKey(d)}
@@ -453,10 +454,14 @@ tr.prow .badge{margin-left:6px;vertical-align:1px;padding:1px 7px;font-size:10px
     S.people.forEach(function(p){
       if(gOnly&&!p.ga)return;
       var per={},top='',topS=0;
-      LB.GAMES.forEach(function(g){var s=secs(p,g.d,days);if(s>0){per[g.d]=s;gs[g.d]=(gs[g.d]||0)+s;gp[g.d]=(gp[g.d]||0)+1;if(s>topS){topS=s;top=g.n}}});
+      LB.GAMES.forEach(function(g){var s=secs(p,g.d,days);if(s>0){per[g.d]=s;if(s>topS){topS=s;top=g.n}}});
       var v=gv==='all'?secs(p,'all',days):(per[gv]||0);
-      if(!(v>0)&&!p.reset)return;
-      list.push({p:p,v:v,per:per,top:top,n:Object.keys(per).length});total+=v;if(p.ga)google++;
+      if(!(v>0)&&!p.reset&&!p.hidden)return;
+      list.push({p:p,v:v,per:per,top:top,n:Object.keys(per).length});
+      // accounts removed from the boards are listed (to undo it) but left out of the totals
+      if(p.hidden)return;
+      Object.keys(per).forEach(function(d){gs[d]=(gs[d]||0)+per[d];gp[d]=(gp[d]||0)+1});
+      total+=v;if(p.ga)google++;
     });
     var games=LB.GAMES.filter(function(g){return gs[g.d]>0}).map(function(g){return {d:g.d,n:g.n,s:gs[g.d],people:gp[g.d]}}).sort(function(a,b){return b.s-a.s||b.people-a.people});
     return {range:range,gv:gv,gOnly:gOnly,days:days,list:list,games:games,total:total,google:google};
@@ -521,15 +526,24 @@ tr.prow .badge{margin-left:6px;vertical-align:1px;padding:1px 7px;font-size:10px
     if(p.reset){sec3.appendChild(el('span',null,'Hours counted from '+new Date(p.reset).toLocaleString()+' '));var u=el('button','sm','Undo hours reset');u.type='button';u.dataset.a='unreset';u.dataset.u=p.uid;sec3.appendChild(u)}
     else{var rb=el('button','sm','Reset hours to 0');rb.type='button';rb.dataset.a='reset';rb.dataset.u=p.uid;sec3.appendChild(rb)}
     box.appendChild(sec3);
+    // Remove from the leaderboards (fake or junk accounts): every board skips this account. Also signed with the admin key.
+    var sec4=el('div','acts');
+    if(p.hidden){sec4.appendChild(el('span',null,'Removed from the leaderboards '+new Date(p.hidden).toLocaleString()+' '));var ub=el('button','sm','Put back on the leaderboards');ub.type='button';ub.dataset.a='unhide';ub.dataset.u=p.uid;sec4.appendChild(ub)}
+    else{var hb=el('button','sm','Remove from the leaderboards');hb.type='button';hb.dataset.a='hide';hb.dataset.u=p.uid;sec4.appendChild(hb)}
+    box.appendChild(sec4);
     return box;
   }
   // Save the hours resets: the ones in force (from every admin node) plus this change, signed, in this browser's own node.
-  async function setReset(uid,on){
+  // what: 'reset' / 'unreset' (hours from zero) or 'hide' / 'unhide' (removed from the leaderboards).
+  async function setReset(uid,what){
     if(!PRIVS)throw new Error('Unlock the page again to change resets.');
-    var all={},cur=LB.resets;Object.keys(cur).forEach(function(u){all[u]=cur[u].b?{t:cur[u].t,b:cur[u].b}:{t:cur[u].t}});
-    var now=Math.round(S.now+(Date.now()-S.loadedAt));
-    if(on){var v=S.nodes[uid],g=v&&v.g,b={};if(g&&typeof g==='object')Object.keys(g).forEach(function(k){var x=g[k]&&Math.floor(+g[k].s);if(LB.BY[k]&&x>0)b[k]=x});all[uid]={t:now,b:b}}
-    else all[uid]={t:now};
+    var all={},cur=LB.resets;Object.keys(cur).forEach(function(u){var e={t:cur[u].t};if(cur[u].b)e.b=cur[u].b;if(cur[u].h)e.h=1;all[u]=e});
+    var now=Math.round(S.now+(Date.now()-S.loadedAt)),e=all[uid]?{b:all[uid].b,h:all[uid].h}:{};
+    if(what==='reset'){var v=S.nodes[uid],g=v&&v.g,b={};if(g&&typeof g==='object')Object.keys(g).forEach(function(k){var x=g[k]&&Math.floor(+g[k].s);if(LB.BY[k]&&x>0)b[k]=x});e.b=b}
+    else if(what==='unreset')delete e.b;
+    else if(what==='hide')e.h=1;
+    else delete e.h;
+    e.t=now;if(!e.b)delete e.b;if(!e.h)delete e.h;all[uid]=e;
     var r=JSON.stringify(all);
     var sig=new Uint8Array(await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},PRIVS,new TextEncoder().encode(r)));
     var s='';for(var i=0;i<sig.length;i++)s+=String.fromCharCode(sig[i]);
@@ -557,6 +571,7 @@ tr.prow .badge{margin-left:6px;vertical-align:1px;padding:1px 7px;font-size:10px
     list.slice(0,S.show).forEach(function(r){
       var p=r.p,tr=el('tr','prow'+(S.open[p.uid]?' open':''));tr.dataset.k=p.uid;tr.tabIndex=0;tr.setAttribute('aria-expanded',S.open[p.uid]?'true':'false');
       var td=el('td'),who=el('span','who',p.name);
+      if(p.hidden){var hd=el('span','badge','Removed');hd.title='Removed from the leaderboards: no board shows this account';who.appendChild(hd)}
       if(p.ga){var bd=el('span','badge google','Google');bd.title='Signed in with Google';who.appendChild(bd)}
       td.appendChild(who);
       td.appendChild(el('small',null,p.seat+(p.gn&&p.n!==p.gn?' · Online name: '+p.n:'')+' · Account '+p.uid.slice(0,6)));
@@ -577,13 +592,14 @@ tr.prow .badge{margin-left:6px;vertical-align:1px;padding:1px 7px;font-size:10px
     $('sGame').value=$('sGame').value===b.dataset.game?'all':b.dataset.game;S.show=PAGE;renderStats();
   });
   $('sPeople').addEventListener('click',async function(e){
-    var ab=e.target.closest('button[data-a="reset"],button[data-a="unreset"]');
+    var ab=e.target.closest('button[data-a="reset"],button[data-a="unreset"],button[data-a="hide"],button[data-a="unhide"]');
     if(ab){
-      var on=ab.dataset.a==='reset',r=S.people.filter(function(x){return x.uid===ab.dataset.u})[0];
-      if(on&&!confirm('Reset the hours for '+(r?r.name+' · '+r.seat:'this account')+' to 0? Their personal bests stay, and you can undo this.'))return;
-      ab.disabled=true;say('sStatus',on?'Resetting…':'Undoing…');
-      try{await setReset(ab.dataset.u,on);say('sStatus','');loadStats()}
-      catch(err){ab.disabled=false;say('sStatus','Couldn\'t save the reset: '+((err&&err.message)||'error'),true)}
+      var what=ab.dataset.a,r=S.people.filter(function(x){return x.uid===ab.dataset.u})[0],who=r?r.name+' · '+r.seat:'this account';
+      if(what==='reset'&&!confirm('Reset the hours for '+who+' to 0? Their personal bests stay, and you can undo this.'))return;
+      if(what==='hide'&&!confirm('Remove '+who+' from the leaderboards? Every board will skip this account, and you can put it back.'))return;
+      ab.disabled=true;say('sStatus',{reset:'Resetting…',unreset:'Undoing…',hide:'Removing…',unhide:'Putting back…'}[what]);
+      try{await setReset(ab.dataset.u,what);say('sStatus','');loadStats()}
+      catch(err){ab.disabled=false;say('sStatus','Couldn\'t save the change: '+((err&&err.message)||'error'),true)}
       return;
     }
     var sb=e.target.closest('button[data-sort]');

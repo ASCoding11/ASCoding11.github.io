@@ -25,7 +25,8 @@
  * Hours resets: the admin page can set someone's play time back to zero. Totals only ever grow (stats.js keeps the larger
  * of each device's count), so a reset is a zero point instead: the seconds each game had at that moment, which are
  * subtracted from then on. Resets live at rooms/lb-rs/players/<the admin's uid> as { n, c, x, z, h, ts, v: 1, r, sig },
- * where r is the JSON of { <uid>: { t: when, b: { <game folder>: seconds } } } (no b: the reset was undone) and sig is
+ * where r is the JSON of { <uid>: { t: when, b: { <game folder>: seconds }, h: 1 } } (no b: no reset; h: 1, the account is
+ * removed from the boards altogether, for fake or junk accounts) and sig is
  * an ECDSA P-256 / SHA-256 signature of r by the admin key (adminkey.js; the same key pair as the ECDH one there). Anyone
  * can write a node there, so only nodes whose signature checks out count; for each uid the latest t wins.
  */
@@ -34,7 +35,7 @@
   var me = document.currentScript;
   if (document.getElementById('leaderboards')) return;
 
-  var PATH = 'rooms/lb-all/players', RS_PATH = 'rooms/lb-rs/players', RESETS = {};
+  var PATH = 'rooms/lb-all/players', RS_PATH = 'rooms/lb-rs/players', RESETS = {}, SHOW_HIDDEN = false;
   var TOP = 25, MAX_NODES = 3000, NODE_MAX = 8000, MAX_STATS = 120, STALE = 365 * 86400000;
   var EPOCH = Date.UTC(2026, 9, 21);            // the day stats.js started counting
   var NAME_MAX = 14;
@@ -197,6 +198,8 @@
     if (p.total > cap) return null;
     // An hours reset: count from the zero point (personal bests stay; the checks above used the full totals).
     var rs = RESETS[uid];
+    // Removed from the boards by the admin (fake or junk accounts). The admin page still sees them, marked, to undo it.
+    if (rs && rs.h) { if (!SHOW_HIDDEN) return null; p.hidden = rs.t; }
     if (rs && rs.b) {
       p.reset = rs.t; p.total = 0; p.top = ''; p.topS = 0;
       Object.keys(p.g).forEach(function (k) {
@@ -237,7 +240,7 @@
         if (!/^[A-Za-z0-9_-]{6,128}$/.test(u) || !(t > 0) || (latest[u] && latest[u].t >= t)) return;
         var b = null;
         if (e.b && typeof e.b === 'object' && !Array.isArray(e.b)) { b = {}; Object.keys(e.b).forEach(function (k) { var x = Math.floor(num(e.b[k])); if (BY[k] && x > 0) b[k] = x; }); }
-        latest[u] = { t: t, b: b };
+        latest[u] = { t: t, b: b, h: e.h === 1 };
       });
     }
     return latest;
@@ -295,7 +298,7 @@
   }
 
   // For the admin page: the same checks and names, so what it shows is what the boards would show. With data-lib, that's all.
-  window.BackRoomBoards = { RS_PATH: RS_PATH, readResets: readResets, get resets() { return RESETS; }, parse: parse, GAMES: GAMES, BY: BY, TRACKS: TRACKS, EPOCH: EPOCH, PATH: PATH, MAX_NODES: MAX_NODES, NODE_MAX: NODE_MAX, fmt: fmt, fmtHours: fmtHours, cleanName: cleanName, mask: mask, seatOf: seatOf };
+  window.BackRoomBoards = { RS_PATH: RS_PATH, readResets: readResets, get resets() { return RESETS; }, showHidden: function (v) { SHOW_HIDDEN = !!v; }, parse: parse, GAMES: GAMES, BY: BY, TRACKS: TRACKS, EPOCH: EPOCH, PATH: PATH, MAX_NODES: MAX_NODES, NODE_MAX: NODE_MAX, fmt: fmt, fmtHours: fmtHours, cleanName: cleanName, mask: mask, seatOf: seatOf };
   if (me && me.hasAttribute('data-lib')) return;
 
   // ---------------- Styles ----------------
