@@ -166,6 +166,12 @@ input.code{text-transform:uppercase;font-family:var(--serif);font-size:24px;lett
 .sheet .loading{color:#6b7078;font-family:var(--sans);font-size:15px}
 .sheet .fail{font-family:var(--sans);font-size:15px;color:#3b3f45}
 .sheet .fail a{color:#9b2449}
+.sheet .katex{font-size:1.05em}
+.sheet .katex-display{margin:.6em 0;overflow-x:auto;overflow-y:hidden}
+.sheet .hf-note{font-family:var(--sans);font-size:13px;color:#6b7078;border-top:1px solid #e3e3e3;margin:1em 0 0;padding-top:.6em}
+.sheet .hf-note a{color:#9b2449}
+.sheet .hf-fig{font-family:var(--sans);font-size:14px;background:#f6f4ef;border:1px dashed #cfc9bd;border-radius:4px;padding:8px 10px;margin:.6em 0}
+.sheet .hf-fig a{color:#9b2449}
 .sheet-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:10px}
 .sheet-head h2{font-size:22px}
 .tier-tag{font-size:14px;color:var(--form);font-weight:600}
@@ -327,7 +333,7 @@ input.code{text-transform:uppercase;font-family:var(--serif);font-size:24px;lett
 
     <div class="adbox" id="adMenu" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
 
-    <p class="credit" style="margin-top:28px">Problems are from the American Mathematics Competitions (AMC 10, 2010–2025) and the AIME (2010–2026), © Mathematical Association of America. Boxed stores only the problem numbers and official answers; the problem text loads from the <a href="https://artofproblemsolving.com/wiki/index.php/AMC_Problems_and_Solutions" target="_blank" rel="noopener">AoPS Wiki</a> while you play, and every answer links to the full solutions there.</p>
+    <p class="credit" style="margin-top:28px">Problems are from the American Mathematics Competitions (AMC 10, 2010–2025) and the AIME (2010–2026), © Mathematical Association of America. Boxed stores only the problem numbers and official answers; the problem text loads from the <a href="https://artofproblemsolving.com/wiki/index.php/AMC_Problems_and_Solutions" target="_blank" rel="noopener">AoPS Wiki</a> while you play, and every answer links to the full solutions there. If the AoPS Wiki isn't answering, AIME problems load from public datasets on <a href="https://huggingface.co/datasets" target="_blank" rel="noopener">Hugging Face</a> instead, and only when their answer matches the official key.</p>
   </main>
 
   <!-- ============ Solo (daily + practice) ============ -->
@@ -675,6 +681,129 @@ function loadOne(c, n){
   }).catch(e => { delete loadedOne[key]; throw e; });
   return loadedOne[key];
 }
+/* ---------------- Backup for AIME problems: public Hugging Face datasets ----------------
+   When the AoPS Wiki won't answer, AIME problems load from public datasets on Hugging Face through its
+   dataset viewer API, which pages on other sites are allowed to call. A dataset's row is only shown if its
+   answer matches Boxed's own answer key for that problem, so a mislabeled dataset can never show the
+   wrong problem. The text is LaTeX source, drawn with KaTeX; diagrams aren't included. */
+const HF = "https://datasets-server.huggingface.co/";
+function hfSources(year, part){
+  const P = part === "I" ? "I" : "II", off = part === "I" ? 0 : 15;
+  const src = [];
+  if (year <= 2024){
+    ["gneubig/aime-1983-2024", "di-zhang-fdu/AIME_1983_2024"].forEach(ds => src.push({ds, how: "filter",
+      where: ['"Year"=' + year + ' AND "Part"=\'' + P + "'", '"Year"=\'' + year + '\' AND "Part"=\'' + P + "'"],
+      num: r => +r["Problem Number"], text: r => r.Question, ans: r => r.Answer}));
+  }
+  if (year >= 2022 && year <= 2024){
+    src.push({ds: "AI-MO/aimo-validation-aime", how: "rows",
+      num: r => { const m = new RegExp(year + "_AIME_" + P + "_Problems/Problem_(\\d+)").exec(r.url || ""); return m ? +m[1] : 0; },
+      text: r => r.problem, ans: r => r.answer});
+  }
+  if (year >= 2025){
+    src.push({ds: "MathArena/aime_" + year + "_" + P, how: "rows", num: r => +r.problem_idx, text: r => r.problem, ans: r => r.answer});
+    src.push({ds: "MathArena/aime_" + year, how: "rows", num: r => +r.problem_idx - off, text: r => r.problem, ans: r => r.answer});
+    src.push({ds: "math-ai/aime" + String(year).slice(2), how: "rows", num: (r, i) => i + 1 - off,
+      text: r => r.problem || r.question || r.Problem || r.Question, ans: r => r.answer != null ? r.answer : r.Answer});
+  }
+  return src;
+}
+async function hfRows(src){
+  const base = "dataset=" + encodeURIComponent(src.ds);
+  const sp = await fetchJSON(HF + "splits?" + base);
+  const first = sp && sp.splits && sp.splits[0];
+  if (!first) throw new Error("no splits");
+  const q = base + "&config=" + encodeURIComponent(first.config) + "&split=" + encodeURIComponent(first.split);
+  if (src.how === "filter"){
+    let last;
+    for (const w of src.where){
+      try { const j = await fetchJSON(HF + "filter?" + q + "&where=" + encodeURIComponent(w) + "&offset=0&length=100"); if (j.rows && j.rows.length) return j.rows.map(x => x.row); }
+      catch(e){ last = e; }
+    }
+    throw last || new Error("no rows");
+  }
+  const j = await fetchJSON(HF + "rows?" + q + "&offset=0&length=100");
+  if (!j.rows) throw new Error("no rows");
+  return j.rows.map(x => x.row);
+}
+const hfLoaded = {};
+/* Every problem of one AIME contest that Hugging Face has and whose answer matches the key: {n: latex}. */
+function loadHFContest(c){
+  if (hfLoaded[c]) return hfLoaded[c];
+  const cached = store.get("boxed.hf1." + c);
+  if (cached){ try { const v = JSON.parse(cached); if (v && Object.keys(v).length) return (hfLoaded[c] = Promise.resolve(v)); } catch(e){} }
+  const m = /^(\d{4}) AIME (I{1,2})$/.exec(c);
+  if (!m) return Promise.reject(new Error("not AIME"));
+  hfLoaded[c] = (async () => {
+    const out = {};
+    for (const src of hfSources(+m[1], m[2])){
+      try {
+        const rows = await hfRows(src);
+        rows.forEach((r, i) => {
+          const n = src.num(r, i), t = src.text(r), a = parseInt(String(src.ans(r)).replace(/[^\d-]/g, ""), 10);
+          if (n >= 1 && n <= 15 && !out[n] && typeof t === "string" && t.trim() && CBYID[c].ans[n - 1] === a) out[n] = t;
+        });
+      } catch(e){ console.warn("Boxed: Hugging Face load failed for " + src.ds + " (" + c + "):", e && e.message || e); }
+      if (Object.keys(out).length >= 15) break;
+    }
+    if (!Object.keys(out).length) throw new Error("no matching problems");
+    if (Object.keys(out).length >= 5) store.set("boxed.hf1." + c, JSON.stringify(out));
+    return out;
+  })().catch(e => { delete hfLoaded[c]; throw e; });
+  return hfLoaded[c];
+}
+
+/* KaTeX is loaded only the first time a dataset problem is shown. */
+let katexP = null;
+function loadKatex(){
+  if (window.katex) return Promise.resolve();
+  if (katexP) return katexP;
+  const V = "https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/";
+  katexP = new Promise((res, rej) => {
+    const l = document.createElement("link"); l.rel = "stylesheet"; l.href = V + "katex.min.css"; document.head.appendChild(l);
+    const sc = document.createElement("script"); sc.src = V + "katex.min.js"; sc.onload = res; sc.onerror = () => { katexP = null; rej(new Error("katex")); };
+    document.head.appendChild(sc);
+  });
+  return katexP;
+}
+/* LaTeX source -> HTML: paragraphs, $…$ / $$…$$ / \(…\) / \[…\] math, \$ as a dollar sign, and a note in place of each [asy] diagram. */
+function texToHTML(src, figLink){
+  const fig = '<div class="hf-fig">This problem has a diagram that couldn\'t be shown here. <a href="' + esc(figLink) + '" target="_blank" rel="noopener">See it on the AoPS Wiki</a>.</div>';
+  const hasK = !!window.katex;
+  const math = (t, display) => {
+    if (!hasK) return esc(display ? " " + t + " " : t);
+    try { return katex.renderToString(t, {displayMode: display, throwOnError: false, strict: "ignore"}); } catch(e){ return esc(t); }
+  };
+  const text = s => {
+    let out = "", i = 0;
+    while (i < s.length){
+      const ch = s[i], nx = s[i + 1];
+      if (ch === "\\" && nx === "$"){ out += "$"; i += 2; continue; }
+      let open = null, close = null, display = false;
+      if (ch === "$" && nx === "$"){ open = "$$"; close = "$$"; display = true; }
+      else if (ch === "$"){ open = "$"; close = "$"; }
+      else if (ch === "\\" && nx === "["){ open = "\\["; close = "\\]"; display = true; }
+      else if (ch === "\\" && nx === "("){ open = "\\("; close = "\\)"; }
+      if (open){
+        let j = i + open.length, end = -1;
+        while (j < s.length){
+          if (s.startsWith(close, j) && !(close === "$" && s[j + 1] === "$")){ end = j; break; }
+          if (s[j] === "\\") j += 2; else j++;
+        }
+        if (end > -1){ out += math(s.slice(i + open.length, end), display); i = end + close.length; continue; }
+      }
+      out += esc(ch); i++;
+    }
+    return out;
+  };
+  return String(src).replace(/\r/g, "").split(/\[asy\][\s\S]*?\[\/asy\]/i).map(part =>
+    part.split(/\n\s*\n/).map(x => x.trim()).filter(Boolean).map(x => "<p>" + text(x.replace(/\s*\n\s*/g, " ")) + "</p>").join("")
+  ).join(fig);
+}
+function showHF(el, c, n, latex){
+  el.innerHTML = texToHTML(latex, problemURL(c, n)) + '<p class="hf-note">The AoPS Wiki isn\'t answering, so this text comes from a public dataset on Hugging Face. <a href="' + esc(problemURL(c, n)) + '" target="_blank" rel="noopener">Problem on AoPS</a></p>';
+}
+
 /* Fill a sheet element with a problem. `token` guards against a slow load landing on a newer problem. */
 function showProblem(el, c, n, token){
   el.dataset.token = token;
@@ -685,6 +814,12 @@ function showProblem(el, c, n, token){
   }).catch(() => loadOne(c, n)).then(html => {
     if (el.dataset.token !== token) return;
     el.innerHTML = html;
+  }).catch(e => {
+    if (CBYID[c].type !== "i") throw e;
+    return Promise.all([loadHFContest(c), loadKatex().catch(() => {})]).then(([map]) => {
+      if (!map[n]) throw new Error("missing");
+      if (el.dataset.token === token) showHF(el, c, n, map[n]);
+    });
   }).catch(() => {
     if (el.dataset.token !== token) return;
     el.innerHTML = '<div class="fail"><p>The AoPS Wiki isn\'t letting Boxed load its problems right now.</p><p><a href="' + esc(problemURL(c, n)) + '" target="_blank" rel="noopener">Open the problem on the AoPS Wiki</a>, then answer below.</p></div>';
