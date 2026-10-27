@@ -46,6 +46,9 @@
  * from localStorage an_vid, if any), so the admin page's stats can put a name to a visitor. Not while hidden.
  * Writes go through the Firestore REST API with the signed-in account's ID token, like feedback.js; a failed write
  * (rules not added yet, offline) is silent and never holds up the chat. Rules: see README.md.
+ *
+ * Names come with an avatar (avatar.js, drawn from the uid) and a status tier badge (miles.js, from the person's
+ * leaderboard node, one read per uid, kept 10 minutes). Both are optional: without them a coloured initial and no badge.
  */
 (function () {
   'use strict';
@@ -150,6 +153,16 @@
   // Build elements without ever parsing other people's text as HTML.
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
   function btn(text, cls, act) { var b = el('button', 'onl-b' + (cls ? ' ' + cls : ''), text); b.type = 'button'; if (act) b.setAttribute('data-act', act); return b; }
+  // The person's avatar (avatar.js), or a coloured initial when that script isn't here.
+  function avatarEl(u, name, color, size) {
+    if (window.BackRoomAvatar && u) { try { return BackRoomAvatar.el(u, size); } catch (e) {} }
+    var av = el('span', 'onl-av', mask(name || '?').charAt(0).toUpperCase() || '?');
+    av.style.background = color || colorOf(u || ''); av.style.width = av.style.height = size + 'px'; av.setAttribute('aria-hidden', 'true');
+    return av;
+  }
+  // The person's status tier (miles.js), from the cache; null while it's still being read or when the script isn't here.
+  function tierOf(u) { if (!window.BackRoomMiles || !u) return null; try { return BackRoomMiles.peek(u); } catch (e) { return null; } }
+  function tierBadge(u) { var t = tierOf(u); return t ? BackRoomMiles.badge(t) : null; }
 
   // ---------------- Styles ----------------
   var css = document.createElement('style');
@@ -176,15 +189,21 @@
     '.onl-me input[type=text]{width:13ch}' +
     '.onl-me input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent);margin:0}' +
     '.onl-seat{font-family:var(--mono,monospace);font-size:13px;font-weight:600;color:var(--accent)}' +
-    '.onl-list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;max-height:236px;overflow:auto;overscroll-behavior:contain}' +
+    '.onl-meav{display:inline-flex;flex:none;line-height:0}.onl-meav:empty{display:none}' +
+    '.onl-tier{display:inline-flex;align-items:center;gap:6px;min-width:0;font-size:13px;color:var(--ink-2)}.onl-tier:empty{display:none}' +
+    '.onl-list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;max-height:252px;overflow:auto;overscroll-behavior:contain}' +
     '.onl-p{display:flex;align-items:center;gap:10px;width:100%;min-width:0;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font:inherit;color:inherit;text-align:left;cursor:pointer}' +
     '.onl-p:hover{border-color:var(--ink-2)}' +
     '.onl-p.me{cursor:default}.onl-p.me:hover{border-color:var(--line)}' +
     '.onl-av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:14px;color:#fff;flex:none}' +
-    '.onl-who{display:grid;min-width:0;line-height:1.25;flex:1}' +
+    '.onl-who{display:grid;min-width:0;line-height:1.25;flex:1;gap:2px}' +
     '.onl-nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}' +
     '.onl-nm small{font-family:var(--mono,monospace);font-size:12px;color:var(--accent);font-weight:600}' +
     '.onl-st{font-family:var(--mono,monospace);font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+    '.onl-tl{display:flex;min-width:0;line-height:1}' +
+    '.onl-mi{font-size:12px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+    '.onl-dh h2 .bra-av,.onl-row .onl-who .bra-av,.onl-m .who .bra-av,.onl-t .bra-av{margin-right:6px;vertical-align:-5px}' +
+    '.onl-m .who .bra-av{vertical-align:-4px}' +
     '.onl-empty{margin:0;color:var(--ink-2);font-size:14px}' +
     '.onl-msg{margin:0;font-size:14px;color:var(--ink-2);overflow-wrap:anywhere}' +
     '.onl-msg:empty{display:none}.onl-msg.err{color:var(--down)}' +
@@ -219,7 +238,7 @@
     // The button added to a game's top bar.
     '.onl-bar{font-family:var(--mono,var(--f-m,monospace));font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);background:none;border:1px solid var(--line);border-radius:6px;padding:3px 8px;cursor:pointer;margin-left:auto;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;flex:none}' +
     '.onl-bar + #turn{margin-left:8px}' +
-    '@media (max-width:600px){.onl{padding:14px}.onl-list{grid-template-columns:minmax(0,1fr) minmax(0,1fr);max-height:212px}.onl-sub{font-size:14px;order:3;flex-basis:100%}.onl-top > .onl-b{margin-left:auto}}' +
+    '@media (max-width:600px){.onl{padding:14px}.onl-list{grid-template-columns:minmax(0,1fr) minmax(0,1fr);max-height:252px}.onl-sub{font-size:14px;order:3;flex-basis:100%}.onl-top > .onl-b{margin-left:auto}}' +
     '@media (max-width:420px){.onl-list{grid-template-columns:minmax(0,1fr)}.onl-me .onl-lbl{display:none}.onl-me input[type=text]{width:10ch}}' +
     '@media (max-height:500px){.onl-ts{top:calc(40px + env(safe-area-inset-top,0px))}.onl-dh{padding:8px 12px}.onl-db{padding:8px 12px}.onl-df{padding:8px 12px}}';
   document.head.appendChild(css);
@@ -239,8 +258,10 @@
   var $name = el('input'); $name.type = 'text'; $name.maxLength = NAME_MAX; $name.autocomplete = 'nickname'; $name.spellcheck = false; $name.placeholder = 'Your name'; $name.setAttribute('aria-label', 'Your name in the Online list');
   nameLbl.append($name);
   var $seat = el('span', 'onl-seat'); $seat.title = 'Your seat: a tag that tells people apart when names match';
+  // Your avatar (filled in once we know who you are) and your status tier with your miles.
+  var $meAv = el('span', 'onl-meav'), $tier = el('span', 'onl-tier');
   var hideLbl = el('label'); var $hide = el('input'); $hide.type = 'checkbox'; hideLbl.append($hide, 'Hide me');
-  meRow.append(nameLbl, $seat, hideLbl);
+  meRow.append($meAv, nameLbl, $seat, $tier, hideLbl);
   var $list = el('ul', 'onl-list'); $list.setAttribute('aria-label', 'People online');
   var $msg = el('p', 'onl-msg'); $msg.setAttribute('role', 'status'); $msg.setAttribute('aria-live', 'polite');
   var fine = el('p', 'onl-fine'), plink = el('a', '', 'Privacy'); plink.href = '/privacy.html'; plink.target = '_blank'; plink.rel = 'noopener';
@@ -965,10 +986,15 @@
   function personBtn(p, isMe) {
     var b = el('button', 'onl-p' + (isMe ? ' me' : '')); b.type = 'button';
     if (!isMe) { b.setAttribute('data-u', p.uid); b.setAttribute('aria-label', 'Open ' + label(p)); }
-    var av = el('span', 'onl-av', mask(p.n).charAt(0).toUpperCase()); av.style.background = p.c; av.setAttribute('aria-hidden', 'true');
+    var av = avatarEl(p.uid, p.n, p.c, 34);
     var who = el('span', 'onl-who'), nm = el('span', 'onl-nm');
     nm.append(mask(p.n) + ' ', el('small', '', '· ' + p.seat + (isMe ? ' · you' : '')));
-    who.append(nm, el('span', 'onl-st', (isMe && hidden) ? 'Hidden' : (muted[p.uid] ? 'Muted · ' : '') + statusText(p)));
+    var badge = tierBadge(p.uid);
+    if (badge) { var tl = el('span', 'onl-tl'); tl.append(badge); who.append(nm, tl); } else who.append(nm);
+    who.append(el('span', 'onl-st', (isMe && hidden) ? 'Hidden' : (muted[p.uid] ? 'Muted · ' : '') + statusText(p)));
+    // Your own card says how far along you are: "2,340 miles · 7,660 to First Class".
+    var t = isMe ? tierOf(p.uid) : null;
+    if (t && t.ok) who.append(el('span', 'onl-mi', BackRoomMiles.fmt(t.miles) + ' miles' + (t.next ? ' · ' + BackRoomMiles.fmt(t.next.miles) + ' to ' + t.next.tier.n : ' · the top tier')));
     b.append(av, who);
     var n = isMe ? 0 : unreadOf(p.uid);
     if (n) { var badge = el('span', 'onl-n', String(n)); badge.setAttribute('aria-label', n + ' unread'); b.append(badge); }
@@ -988,6 +1014,12 @@
     $title.lastChild.textContent = uid ? '(' + n + ')' : '';
     if (document.activeElement !== $name) $name.value = myName();
     $seat.textContent = uid ? 'Seat ' + seatOf(uid) + (hidden ? '' : ' · ' + statusText(meEntry())) : '';
+    if (uid && $meAv.getAttribute('data-u') !== uid + (window.BackRoomAvatar ? ':a' : '')) {
+      $meAv.textContent = ''; $meAv.append(avatarEl(uid, myName(), colorOf(uid), 34)); $meAv.setAttribute('data-u', uid + (window.BackRoomAvatar ? ':a' : ''));
+    }
+    var mt = uid ? tierOf(uid) : null;
+    $tier.textContent = '';
+    if (mt) { $tier.append(BackRoomMiles.badge(mt)); if (mt.ok) $tier.append(el('span', '', BackRoomMiles.fmt(mt.miles) + ' miles' + (mt.next ? ' · ' + BackRoomMiles.fmt(mt.next.miles) + ' to ' + mt.next.tier.n : ' · the top tier'))); }
     $hide.checked = hidden;
     var lu = loungeUnread(); $loungeBtn.lastChild.textContent = lu ? String(lu) : '';
     fillList($list);
@@ -1041,8 +1073,10 @@
       if (bl.length) {
         body.append(el('p', 'onl-h', 'Blocked'));
         bl.forEach(function (u) {
-          var t = threads[u], row = el('div', 'onl-row'), p = people[u];
-          row.append(el('span', 'onl-who', (p ? label(p) : (t ? mask(cleanName(t.n)) : 'Someone') + ' · ' + seatOf(u)) + (blocked[u] ? '' : ' (this session)')));
+          var t = threads[u], row = el('div', 'onl-row'), p = people[u], bw = el('span', 'onl-who');
+          bw.style.display = 'block';
+          bw.append(avatarEl(u, p ? p.n : t && t.n, p ? p.c : t && t.c, 22), (p ? label(p) : (t ? mask(cleanName(t.n)) : 'Someone') + ' · ' + seatOf(u)) + (blocked[u] ? '' : ' (this session)'));
+          row.append(bw);
           var ub = btn('Unblock', '', 'unblock'); ub.setAttribute('data-u', u); row.append(ub);
           body.append(row);
         });
@@ -1056,7 +1090,7 @@
       all.forEach(function (it) {
         var mineMsg = it.u === uid, p = it.p || meEntry();
         var m = el('div', 'onl-m' + (mineMsg ? ' mine' : ''));
-        var who = el('span', 'who'); who.append(el('b', '', mask(p.n)), ' · ' + p.seat + ' · ' + clock(it.m.t));
+        var who = el('span', 'who'); who.append(avatarEl(it.u, p.n, p.c, 18), el('b', '', mask(p.n)), ' · ' + p.seat + ' · ' + clock(it.m.t));
         m.append(who, el('span', '', mask(it.m.x)));
         body.append(m);
       });
@@ -1066,9 +1100,11 @@
     } else if (view.v === 'dm') {
       var u = view.u, p = people[u], t = threads[u];
       var nm = p ? label(p) : (t ? mask(cleanName(t.n)) : 'Someone') + ' · ' + seatOf(u);
-      h.textContent = nm;
-      var dsub = el('div', 'onl-dsub');
-      dsub.append(el('span', '', (p && visible(p) ? statusText(p) : 'Not online') + ' · private: only the two of you can read this.'));
+      h.append(avatarEl(u, p ? p.n : t && t.n, p ? p.c : t && t.c, 26), nm);
+      var dsub = el('div', 'onl-dsub'), dline = el('span'), dbadge = tierBadge(u);
+      if (dbadge) dline.append(dbadge, ' ');
+      dline.append((p && visible(p) ? statusText(p) : 'Not online') + ' · private: only the two of you can read this.');
+      dsub.append(dline);
       var da = el('div', 'onl-acts'), why = canTalk(u), theirs = mask(p ? p.n : (t ? cleanName(t.n) : '') || 'them');
       if (chats[u]) da.append(btn('End chat', '', 'endchat'));
       else if (!pendingIn(u) && !isBlocked(u)) {
@@ -1213,6 +1249,7 @@
   function toast(p, m) {
     var t = el('div', 'onl-t'), line = el('div'), who = el('b', '', label(p));
     var acts = el('div', 'onl-acts'), life = 8000;
+    line.append(avatarEl(p.uid, p.n, p.c, 22));
     if (m.k === 'm') {
       line.append(who, ': ' + mask(m.x).slice(0, 120));
       acts.append(btn('Reply', 'pri', 'reply'), btn('Dismiss', '', 'dismiss'));
@@ -1350,6 +1387,10 @@
   }
   addEventListener('pagehide', function () { if (published && meRef) meRef.remove().catch(function () {}); });
   addEventListener('pageshow', function (e) { if (e.persisted && uid && !hidden) publish(); });
+  // avatar.js and miles.js may arrive after the first draw (the home page loads them alongside this file), and each
+  // finished tier read is a redraw too.
+  document.addEventListener('backroom:avatar', function () { drawnView = ''; schedule(); });
+  document.addEventListener('backroom:miles', function () { drawnView = ''; schedule(); });
 
   // ---------------- Start ----------------
   function waitParty() {

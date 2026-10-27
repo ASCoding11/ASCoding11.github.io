@@ -29,6 +29,8 @@
  * removed from the boards altogether, for fake or junk accounts) and sig is
  * an ECDSA P-256 / SHA-256 signature of r by the admin key (adminkey.js; the same key pair as the ECDH one there). Anyone
  * can write a node there, so only nodes whose signature checks out count; for each uid the latest t wins.
+ * Rows show each player's avatar (avatar.js) and status tier badge (miles.js, worked out from the same checked node)
+ * when those scripts are here.
  */
 (function () {
   'use strict';
@@ -325,6 +327,8 @@
     '.lbd-h{margin:2px 0 0;font-family:var(--mono,var(--f-m,monospace));font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}' +
     '.lbd-list{list-style:none;margin:0;padding:0;display:grid;gap:6px}' +
     '.lbd-r{display:grid;grid-template-columns:2.6em minmax(0,1fr) auto;align-items:center;gap:10px;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:7px 12px;min-width:0}' +
+    '.lbd-r.av{grid-template-columns:2.6em 30px minmax(0,1fr) auto}' +
+    '.lbd-ex .bra-tier{margin-right:6px;vertical-align:-1px}' +
     '.lbd-r.me{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--panel))}' +
     '.lbd-rk{font-family:var(--mono,var(--f-m,monospace));font-size:14px;font-weight:600;color:var(--ink-2);text-align:right}' +
     '.lbd-r:nth-child(-n+3) .lbd-rk{color:var(--accent)}' +
@@ -338,7 +342,7 @@
     '.lbd-msg,.lbd-note{margin:0;font-size:14px;color:var(--ink-2);overflow-wrap:anywhere}' +
     '.lbd-msg:empty{display:none}.lbd-msg.err{color:var(--down,#B42318)}' +
     '.lbd-note{font-size:13px}' +
-    '@media (max-width:600px){.lbd{padding:14px}.lbd-sub{font-size:14px;order:3;flex-basis:100%}.lbd-top > .lbd-b{margin-left:auto}.lbd-ctl label{max-width:none}.lbd-ctl label span{display:none}.lbd-chips{gap:6px}.lbd-chips button{font-size:13px;padding:5px 11px;min-height:34px}.lbd-r{gap:8px;padding:7px 10px;grid-template-columns:2.2em minmax(0,1fr) auto}.lbd-v{font-size:14px}}' +
+    '@media (max-width:600px){.lbd{padding:14px}.lbd-sub{font-size:14px;order:3;flex-basis:100%}.lbd-top > .lbd-b{margin-left:auto}.lbd-ctl label{max-width:none}.lbd-ctl label span{display:none}.lbd-chips{gap:6px}.lbd-chips button{font-size:13px;padding:5px 11px;min-height:34px}.lbd-r{gap:8px;padding:7px 10px;grid-template-columns:2.2em minmax(0,1fr) auto}.lbd-r.av{grid-template-columns:2.2em 28px minmax(0,1fr) auto}.lbd-v{font-size:14px}}' +
     '@media (max-width:420px){.lbd h2{font-size:24px}}';
   document.head.appendChild(css);
 
@@ -449,8 +453,15 @@
     nm.append(r.p.n + ' ', el('small', '', '· ' + r.p.seat));
     if (isMe(r.p.uid)) nm.append(el('b', 'lbd-you', 'You'));
     who.append(nm);
-    if (r.extra) who.append(el('span', 'lbd-ex', r.extra));
-    li.append(el('span', 'lbd-rk', String(r.rank)), who, el('span', 'lbd-v', r.fmt));
+    // The status tier (miles.js) from this same checked node, then "Most: <game>" on the Hours board.
+    var ex = el('span', 'lbd-ex'), badge = null;
+    if (window.BackRoomMiles) { try { badge = BackRoomMiles.badge(BackRoomMiles.of(r.p)); } catch (e) { badge = null; } }
+    if (badge) ex.append(badge);
+    if (r.extra) ex.append(r.extra);
+    if (badge || r.extra) who.append(ex);
+    li.append(el('span', 'lbd-rk', String(r.rank)));
+    if (window.BackRoomAvatar) { try { li.append(BackRoomAvatar.el(r.p.uid, 30)); li.classList.add('av'); } catch (e) {} }
+    li.append(who, el('span', 'lbd-v', r.fmt));
     return li;
   }
   function draw() {
@@ -492,6 +503,9 @@
     view.b = b.getAttribute('data-b'); save(); draw();
   });
   $refresh.addEventListener('click', function () { lastLoad = 0; load(); });
+  // avatar.js and miles.js may load after the boards were drawn (the home page loads them alongside this file).
+  document.addEventListener('backroom:avatar', function () { if (people) draw(); });
+  document.addEventListener('backroom:miles', function (e) { if (people && e.detail && !e.detail.uid) draw(); });
 
   // Read nothing until the section is near the screen.
   draw(); say('The boards load when you scroll down to them.');

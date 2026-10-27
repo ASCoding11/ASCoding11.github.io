@@ -31,6 +31,11 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-10-27', version: '1.7', title: 'Avatars and status tiers', kind: 'feature', items: [
+      'Everyone now has an avatar: a little face drawn from your account, the same wherever your name shows (Online, Party, Leaderboards).',
+      'Miles with us: play time and wins add up to a status tier next to your name, from Economy through Business Class and First Class to Private Jet. Your own card says how far you are from the next one.',
+      'Tiers come from the same self-reported numbers as the leaderboards, so they\'re for bragging rights.'
+    ]},
     {date: '2026-10-21', version: '1.6', title: 'Online panel and cabin chat', kind: 'feature', items: [
       'A new Online panel under Party shows who else has the Back Room open, and whether they\'re idle, in a party or in a game.',
       'Tap someone to send a private message, invite them to your party, or invite them into the room you\'re playing in.',

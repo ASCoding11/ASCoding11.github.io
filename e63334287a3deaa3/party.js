@@ -28,6 +28,8 @@
  * them (the game's menu ids are in GAMES). The game's own saved name is put back afterwards (nk in GAMES).
  * To add a game: add a row to GAMES. If its menu uses other ids than name / room / joinRoom, give them in ids,
  * and give the localStorage key it saves its name under in nk.
+ * Members show with their avatar (avatar.js) and status tier badge (miles.js) when those scripts are here; without
+ * them, a coloured initial and no badge.
  */
 (function () {
   'use strict';
@@ -129,11 +131,13 @@
     '.pty-count{font-family:var(--mono);font-size:13px;color:var(--ink-2)}' +
     '.pty-acts{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}' +
     '.pty-mem{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}' +
+    '.pty-mem.pty-lead{grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr))}' +
     '.pty-mem li{display:flex;align-items:center;gap:10px;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0}' +
     '.pty-av{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:14px;color:#fff;flex:none}' +
-    '.pty-who{display:grid;min-width:0;line-height:1.25}' +
+    '.pty-who{display:grid;min-width:0;line-height:1.25;gap:2px}' +
     '.pty-nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}' +
-    '.pty-tag{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}' +
+    '.pty-tag{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+    '.pty-tl{display:flex;min-width:0;line-height:1}' +
     '.pty-tag b{color:var(--accent);font-weight:600}' +
     '.pty-kick{margin-left:auto;flex:none;width:32px;height:32px;border-radius:8px;border:1px solid var(--line);background:none;color:var(--ink-2);font:inherit;font-size:16px;line-height:1;cursor:pointer;display:grid;place-items:center;padding:0}' +
     '.pty-kick:hover{color:var(--down);border-color:var(--down)}' +
@@ -488,13 +492,21 @@
     }
     $main.querySelector('.pty-count').textContent = n + ' of ' + MAX;
     var t0 = now(); kicked = kicked.filter(function (e) { return e.t > t0 - KICK_TTL; });
-    $main.querySelector('.pty-mem').innerHTML = members.map(function (m, i) {
+    var mem = $main.querySelector('.pty-mem');
+    mem.classList.toggle('pty-lead', !!lead);   // wider cards for the leader: the kick button and the tier badge both need room
+    mem.innerHTML = members.map(function (m, i) {
       var going = lead && kicked.some(function (e) { return e.u === m.uid; });
       return '<li><span class="pty-av" style="background:' + esc(m.c) + '" aria-hidden="true">' + esc(m.n.charAt(0).toUpperCase()) + '</span>' +
         '<span class="pty-who"><span class="pty-nm">' + esc(m.n) + '</span><span class="pty-tag">' +
         [i === 0 ? '<b>Leader</b>' : 'Member', m.uid === uid ? 'You' : '', going ? 'Removing…' : ''].filter(Boolean).join(' · ') + '</span></span>' +
         (lead && m.uid !== uid && !going ? '<button type="button" class="pty-kick" data-k="' + esc(m.uid) + '" title="Remove from the party" aria-label="Remove ' + esc(m.n) + ' from the party">✕</button>' : '') + '</li>';
     }).join('');
+    // The avatar (avatar.js) in place of the initial, and the status tier badge (miles.js) on its own line above Leader / Member.
+    Array.prototype.forEach.call(mem.children, function (li, i) {
+      var m = members[i]; if (!m) return;
+      if (window.BackRoomAvatar) { try { li.replaceChild(BackRoomAvatar.el(m.uid, 32), li.firstChild); } catch (e) {} }
+      if (window.BackRoomMiles) { try { var t = BackRoomMiles.peek(m.uid), tag = li.querySelector('.pty-tag'); if (t) { var tl = document.createElement('span'); tl.className = 'pty-tl'; tl.appendChild(BackRoomMiles.badge(t)); tag.parentNode.insertBefore(tl, tag); } } catch (e) {} }
+    });
 
     var box = $main.querySelector('.pty-pick');
     if (lead) {
@@ -558,6 +570,9 @@
     if (b) b.click();
   });
   sec.addEventListener('input', function (e) { if (e.target.id === 'ptyName') store('party:name', cleanName(e.target.value) || null); });
+  // avatar.js and miles.js may load after the list was drawn, and every finished tier read is a redraw.
+  document.addEventListener('backroom:avatar', function () { if (refs) drawParty(); });
+  document.addEventListener('backroom:miles', function () { if (refs) drawParty(); });
   if (window.SiteAccount && SiteAccount.onChange) SiteAccount.onChange(function () { if (!code && !store('party:name')) { drawn = ''; drawIdle(); } });
 
   // ---------------- Start ----------------
