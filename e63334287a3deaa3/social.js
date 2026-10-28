@@ -11,19 +11,28 @@
  *   n  name (14 chars)   c  colour (#rrggbb)   x, z, h  always 0   ts  last heartbeat (server time)
  *   v  format (1)        pk this browser's ECDH P-256 public key (raw, base64)
  *   p  party size (0 = not in a party)        g  game being played (a key from GAMES below), or absent
+ *   pl the party leader's uid while in a party (so a join request can go to the leader), or absent
  *   l  lounge: [{ i, t, x }], the last 20 messages, 200 characters each, dropped after 30 minutes
  *   d  { <recipient uid>: [{ i, t, b }] }  private messages, the last 6 to each of the last 6 people
  *   i  { <recipient uid>: { i, t, b } }    the latest party or room invite to each of the last 6 people
  * b is sealed to the recipient like Showdown's hole cards: AES-GCM with a key from ECDH between the sender's
  * private key and the recipient's pk, so only those two browsers can open it. Inside is JSON:
  *   { f: sender uid, to: recipient uid, k: 'm', x: text } | { ..., k: 'p', c: party code } | { ..., k: 'r', g, r }
- *   and, also in d, the chat-request handshake: k: 'q' (please chat with me), 'a' (yes), 'n' (no), 'e' (I ended our chat).
+ *   and, also in d, the chat-request handshake: k: 'q' (please chat with me), 'a' (yes), 'n' (no), 'e' (I ended our chat),
+ *   and the join-request handshake: k: 'j' (please let me into your party), 'y' (yes, with the party code c) and
+ *   'x' (no, with why in w: 'no', 'full', 'lead' (only the leader can accept; l and ln are the leader's uid and name) or 'gone').
  * Everyone can see that a message or invite exists, who it's to and when; nobody else can read it.
  * Private messages need a chat request first: you ask (q), they accept (a), and only then does either side show the
  * other's messages (k 'm'); an 'm' from someone who hasn't been accepted is dropped. A request runs out after REQ_TTL
  * if nobody answers. Accepted pairs are remembered in this browser (localStorage ol:chats, uid -> time) so you don't
  * ask again every visit; End chat forgets the pair here and sends 'e' so the other side forgets it too. Party and room
  * invites aren't chat, so they don't need a request. The cabin chat is unchanged.
+ * Join requests work the same way: Request to join on the card of someone in a party sends 'j' to that party's leader (or
+ * to them, if their leader isn't online); the leader's browser answers 'y' with the code (Let them in), 'x' (Decline), or
+ * straight away with 'x' when the party is full, it isn't the leader, or it isn't in a party; a 'y' shows a Join button,
+ * and joining goes through party.js. One open request per party, 10 minutes, same rate limit as chat requests.
+ * Block (localStorage ol:block) hides someone for good; Block for this session (sessionStorage ol:sblock) does the same
+ * until the tab closes.
  * The key pair is kept in this browser's IndexedDB so the same identity survives reloads.
  * Closing the tab removes the node (onDisconnect), and nodes without a heartbeat for STALE are ignored.
  * Every browser downloads every node, so this suits tens of people, not thousands.
@@ -37,6 +46,9 @@
  * from localStorage an_vid, if any), so the admin page's stats can put a name to a visitor. Not while hidden.
  * Writes go through the Firestore REST API with the signed-in account's ID token, like feedback.js; a failed write
  * (rules not added yet, offline) is silent and never holds up the chat. Rules: see README.md.
+ *
+ * Names come with an avatar (avatar.js, drawn from the uid) and a status tier badge (miles.js, from the person's
+ * leaderboard node, one read per uid, kept 10 minutes). Both are optional: without them a coloured initial and no badge.
  */
 (function () {
   'use strict';
@@ -141,6 +153,16 @@
   // Build elements without ever parsing other people's text as HTML.
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
   function btn(text, cls, act) { var b = el('button', 'onl-b' + (cls ? ' ' + cls : ''), text); b.type = 'button'; if (act) b.setAttribute('data-act', act); return b; }
+  // The person's avatar (avatar.js), or a coloured initial when that script isn't here.
+  function avatarEl(u, name, color, size) {
+    if (window.BackRoomAvatar && u) { try { return BackRoomAvatar.el(u, size); } catch (e) {} }
+    var av = el('span', 'onl-av', mask(name || '?').charAt(0).toUpperCase() || '?');
+    av.style.background = color || colorOf(u || ''); av.style.width = av.style.height = size + 'px'; av.setAttribute('aria-hidden', 'true');
+    return av;
+  }
+  // The person's status tier (miles.js), from the cache; null while it's still being read or when the script isn't here.
+  function tierOf(u) { if (!window.BackRoomMiles || !u) return null; try { return BackRoomMiles.peek(u); } catch (e) { return null; } }
+  function tierBadge(u) { var t = tierOf(u); return t ? BackRoomMiles.badge(t) : null; }
 
   // ---------------- Styles ----------------
   var css = document.createElement('style');
@@ -167,15 +189,21 @@
     '.onl-me input[type=text]{width:13ch}' +
     '.onl-me input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent);margin:0}' +
     '.onl-seat{font-family:var(--mono,monospace);font-size:13px;font-weight:600;color:var(--accent)}' +
-    '.onl-list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;max-height:236px;overflow:auto;overscroll-behavior:contain}' +
+    '.onl-meav{display:inline-flex;flex:none;line-height:0}.onl-meav:empty{display:none}' +
+    '.onl-tier{display:inline-flex;align-items:center;gap:6px;min-width:0;font-size:13px;color:var(--ink-2)}.onl-tier:empty{display:none}' +
+    '.onl-list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;max-height:252px;overflow:auto;overscroll-behavior:contain}' +
     '.onl-p{display:flex;align-items:center;gap:10px;width:100%;min-width:0;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font:inherit;color:inherit;text-align:left;cursor:pointer}' +
     '.onl-p:hover{border-color:var(--ink-2)}' +
     '.onl-p.me{cursor:default}.onl-p.me:hover{border-color:var(--line)}' +
     '.onl-av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:14px;color:#fff;flex:none}' +
-    '.onl-who{display:grid;min-width:0;line-height:1.25;flex:1}' +
+    '.onl-who{display:grid;min-width:0;line-height:1.25;flex:1;gap:2px}' +
     '.onl-nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}' +
     '.onl-nm small{font-family:var(--mono,monospace);font-size:12px;color:var(--accent);font-weight:600}' +
     '.onl-st{font-family:var(--mono,monospace);font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+    '.onl-tl{display:flex;min-width:0;line-height:1}' +
+    '.onl-mi{font-size:12px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+    '.onl-dh h2 .bra-av,.onl-row .onl-who .bra-av,.onl-m .who .bra-av,.onl-t .bra-av{margin-right:6px;vertical-align:-5px}' +
+    '.onl-m .who .bra-av{vertical-align:-4px}' +
     '.onl-empty{margin:0;color:var(--ink-2);font-size:14px}' +
     '.onl-msg{margin:0;font-size:14px;color:var(--ink-2);overflow-wrap:anywhere}' +
     '.onl-msg:empty{display:none}.onl-msg.err{color:var(--down)}' +
@@ -210,7 +238,7 @@
     // The button added to a game's top bar.
     '.onl-bar{font-family:var(--mono,var(--f-m,monospace));font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);background:none;border:1px solid var(--line);border-radius:6px;padding:3px 8px;cursor:pointer;margin-left:auto;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;flex:none}' +
     '.onl-bar + #turn{margin-left:8px}' +
-    '@media (max-width:600px){.onl{padding:14px}.onl-list{grid-template-columns:minmax(0,1fr) minmax(0,1fr);max-height:212px}.onl-sub{font-size:14px;order:3;flex-basis:100%}.onl-top > .onl-b{margin-left:auto}}' +
+    '@media (max-width:600px){.onl{padding:14px}.onl-list{grid-template-columns:minmax(0,1fr) minmax(0,1fr);max-height:252px}.onl-sub{font-size:14px;order:3;flex-basis:100%}.onl-top > .onl-b{margin-left:auto}}' +
     '@media (max-width:420px){.onl-list{grid-template-columns:minmax(0,1fr)}.onl-me .onl-lbl{display:none}.onl-me input[type=text]{width:10ch}}' +
     '@media (max-height:500px){.onl-ts{top:calc(40px + env(safe-area-inset-top,0px))}.onl-dh{padding:8px 12px}.onl-db{padding:8px 12px}.onl-df{padding:8px 12px}}';
   document.head.appendChild(css);
@@ -230,8 +258,10 @@
   var $name = el('input'); $name.type = 'text'; $name.maxLength = NAME_MAX; $name.autocomplete = 'nickname'; $name.spellcheck = false; $name.placeholder = 'Your name'; $name.setAttribute('aria-label', 'Your name in the Online list');
   nameLbl.append($name);
   var $seat = el('span', 'onl-seat'); $seat.title = 'Your seat: a tag that tells people apart when names match';
+  // Your avatar (filled in once we know who you are) and your status tier with your miles.
+  var $meAv = el('span', 'onl-meav'), $tier = el('span', 'onl-tier');
   var hideLbl = el('label'); var $hide = el('input'); $hide.type = 'checkbox'; hideLbl.append($hide, 'Hide me');
-  meRow.append(nameLbl, $seat, hideLbl);
+  meRow.append($meAv, nameLbl, $seat, $tier, hideLbl);
   var $list = el('ul', 'onl-list'); $list.setAttribute('aria-label', 'People online');
   var $msg = el('p', 'onl-msg'); $msg.setAttribute('role', 'status'); $msg.setAttribute('aria-live', 'polite');
   var fine = el('p', 'onl-fine'), plink = el('a', '', 'Privacy'); plink.href = '/privacy.html'; plink.target = '_blank'; plink.rel = 'noopener';
@@ -256,12 +286,15 @@
   var P = null, db = null, auth = null, project = 'rumblekarts', uid = '', meRef = null, listRef = null, connRef = null, wasConnected = false;
   var people = {};                         // uid -> parsed node of everyone else
   var mine = { l: [], d: {}, i: {} };      // what's in our own node besides the basics
-  var published = false, beat = 0, status = { p: 0, g: '' };
+  var published = false, beat = 0, status = { p: 0, g: '', pl: '' };
   var keys = { pair: null, pub: '', derived: {} };
   var threads = json(sess('ol:threads'), {}); if (!threads || typeof threads !== 'object') threads = {};
   var seen = json(store('ol:seen'), {}); if (!seen || typeof seen !== 'object') seen = {};
   var blocked = json(store('ol:block'), {}); if (!blocked || typeof blocked !== 'object') blocked = {};
   var muted = json(store('ol:mute'), {}); if (!muted || typeof muted !== 'object') muted = {};
+  // Blocked for this tab only (sessionStorage): the same as Block, forgotten when the tab closes.
+  var sblocked = json(sess('ol:sblock'), {}); if (!sblocked || typeof sblocked !== 'object') sblocked = {};
+  function isBlocked(u) { return !!(blocked[u] || sblocked[u]); }
   // People who accepted a chat with us (or whose request we accepted): uid -> when. Only what this browser saw.
   var chats = loadChats();
   var chains = {};                         // uid -> promise: their sealed items are opened in the order they were sent
@@ -286,7 +319,7 @@
     return '';
   }
   function myName() { return cleanName(store('ol:name')) || guessName() || 'Guest'; }
-  function saveSets() { store('ol:block', JSON.stringify(blocked)); store('ol:mute', JSON.stringify(muted)); }
+  function saveSets() { store('ol:block', JSON.stringify(blocked)); store('ol:mute', JSON.stringify(muted)); sess('ol:sblock', Object.keys(sblocked).length ? JSON.stringify(sblocked) : null); }
   function loadChats() {
     var v = json(store('ol:chats'), {}), out = {};
     if (!v || typeof v !== 'object' || Array.isArray(v)) return out;
@@ -366,6 +399,7 @@
       uid: k, n: cleanName(v.n) || 'Guest', c: /^#[0-9a-f]{6}$/i.test(v.c) ? v.c : colorOf(k), ts: ts, seat: seatOf(k),
       pk: typeof v.pk === 'string' && PK_RE.test(v.pk) ? v.pk : '',
       party: Math.max(0, Math.min(99, Math.floor(num(v.p)) || 0)),
+      pl: typeof v.pl === 'string' && /^[A-Za-z0-9_-]{6,64}$/.test(v.pl) ? v.pl : '',
       g: typeof v.g === 'string' && gameOf(v.g) ? v.g : '',
       l: [], dm: [], inv: null
     };
@@ -390,7 +424,7 @@
     return p;
   }
   function alive(p) { return p && now() - p.ts < STALE; }
-  function visible(p) { return alive(p) && !blocked[p.uid]; }
+  function visible(p) { return alive(p) && !isBlocked(p.uid); }
 
   function onNode(s) {
     var k = s.key;
@@ -418,7 +452,7 @@
       var p = people[u];
       t = threads[u] = { n: p ? p.n : 'Guest', c: p ? p.c : colorOf(u), m: [] };
     }
-    ['rq', 'rx', 'rd', 'in', 'nd'].forEach(function (k) { if (!(num(t[k]) > 0)) t[k] = 0; });
+    ['rq', 'rx', 'rd', 'in', 'nd', 'jq', 'jx', 'jin', 'jnd'].forEach(function (k) { if (!(num(t[k]) > 0)) t[k] = 0; });
     return t;
   }
   function addMsg(u, m) {
@@ -451,7 +485,7 @@
         msg.k = 'm'; msg.x = cleanText(o.x); if (!msg.x) return;
       } else if (!isInv && o.k === 'q') {
         // They'd like to chat. Not from someone blocked, and not once it has run out.
-        if (blocked[u] || m.t < t - REQ_TTL) return;
+        if (isBlocked(u) || m.t < t - REQ_TTL) return;
         var th = thread(u);
         // One pending request per pair: a repeat while theirs is still open, or within REQ_TTL of our no, is ignored.
         if (th.in && (th.in >= m.t || t - th.in < REQ_TTL)) return;
@@ -488,21 +522,53 @@
         if (!addMsg(u, msg)) return;
         delete chats[u]; saveChats();
         var th4 = thread(u); th4.in = 0; if (th4.rq) th4.rx = m.t; saveThreads();
-        if (!blocked[u] && !muted[u] && m.t > started - 120000) toast(p, msg);
+        if (!isBlocked(u) && !muted[u] && m.t > started - 120000) toast(p, msg);
+        schedule(); return;
+      } else if (!isInv && o.k === 'j') {
+        // They'd like to join our party. Not from someone blocked, not once it has run out, one open request per person.
+        if (isBlocked(u) || m.t < t - REQ_TTL) return;
+        var th5 = thread(u);
+        if (th5.jin && (th5.jin >= m.t || t - th5.jin < REQ_TTL)) return;
+        if (th5.jnd && m.t < th5.jnd + REQ_TTL) return;
+        msg.k = 'j';
+        if (!addMsg(u, msg)) return;
+        th5.jin = m.t; saveThreads();
+        // Only the leader of a party with room can say yes; anything else is answered straight away.
+        var no = !P || !P.code ? 'gone' : (P.leader && P.leader.uid !== uid) ? 'lead' : P.size >= (P.max || 8) ? 'full' : '';
+        if (no) { answerJoin(u, false, no, true).catch(function () { th5.jin = 0; saveThreads(); schedule(); }); schedule(); return; }
+        if (!muted[u] && m.t > started - 120000) toast(p, msg);
+        schedule(); return;
+      } else if (!isInv && o.k === 'y') {
+        // Yes, from a leader we asked (and only then), with the party code.
+        var th6 = threads[u];
+        if (!th6 || !pendingJoinOut(u) || m.t < th6.jq - 60000 || typeof o.c !== 'string' || !/^[a-z0-9]{1,8}$/.test(o.c)) return;
+        msg.k = 'y'; msg.c = o.c;
+        if (!addMsg(u, msg)) return;
+        th6.jx = Math.max(m.t, th6.jq); th6.jw = 'y'; th6.jc = o.c; saveThreads();
+        if (!muted[u] && m.t > started - 120000) toast(p, msg);
+        schedule(); return;
+      } else if (!isInv && o.k === 'x') {
+        var th7 = threads[u];
+        if (!th7 || !pendingJoinOut(u) || m.t < th7.jq - 60000) return;
+        msg.k = 'x'; msg.w = /^(no|full|lead|gone)$/.test(o.w) ? o.w : 'no';
+        if (msg.w === 'lead') { if (typeof o.l === 'string' && /^[A-Za-z0-9_-]{6,64}$/.test(o.l)) msg.l = o.l; msg.ln = cleanName(o.ln) || 'the leader'; }
+        if (!addMsg(u, msg)) return;
+        th7.jx = Math.max(m.t, th7.jq); th7.jw = msg.w; th7.jl = msg.l || ''; th7.jln = msg.ln || ''; saveThreads();
+        if (!muted[u] && m.t > started - 120000) toast(p, msg);
         schedule(); return;
       }
       else if (isInv && o.k === 'p' && typeof o.c === 'string' && /^[a-z0-9]{1,8}$/.test(o.c)) { msg.k = 'p'; msg.c = o.c; }
       else if (isInv && o.k === 'r' && okRoom(gameOf(o.g), o.r)) { msg.k = 'r'; msg.g = o.g; msg.r = o.r; }
       else return;
       if (!addMsg(u, msg)) return;
-      if (!blocked[u] && !muted[u] && m.t > started - 120000 && !(view && view.v === 'dm' && view.u === u && dr.classList.contains('open'))) toast(p, msg);
+      if (!isBlocked(u) && !muted[u] && m.t > started - 120000 && !(view && view.v === 'dm' && view.u === u && dr.classList.contains('open'))) toast(p, msg);
       schedule();
     }, function () {});
   }
   // Chat-request state for a person, from this tab's thread: rq when we last asked them, rx when that was settled (a yes, a no
   // or the chat ending), rd when they said no, in when they asked us (0 once answered), nd when we said no.
   function pendingOut(u) { var t = threads[u]; return !!(t && t.rq && !(t.rx >= t.rq) && now() - t.rq < REQ_TTL && !chats[u]); }
-  function pendingIn(u) { var t = threads[u]; return !!(t && t.in && now() - t.in < REQ_TTL && !chats[u] && !blocked[u]); }
+  function pendingIn(u) { var t = threads[u]; return !!(t && t.in && now() - t.in < REQ_TTL && !chats[u] && !isBlocked(u)); }
   function declined(u) { var t = threads[u]; return !!(t && t.rq && t.rd >= t.rq && now() - t.rq < REQ_TTL && !chats[u]); }
   function canRequest(u) {
     var why = canTalk(u); if (why) return why;
@@ -543,10 +609,78 @@
     await sendDm(u, { k: 'e' }, true);
   }
 
+  // Join requests, kept in the thread like chat requests: jq when we asked them to let us into their party, jx when that was
+  // answered, jw what they said ('y', or why not: 'no', 'full', 'lead', 'gone'), jc the code a yes came with, jl / jln the leader
+  // a 'lead' pointed us to; jin when they asked us (0 once answered), jnd when we said no.
+  function pendingJoinOut(u) { var t = threads[u]; return !!(t && t.jq && !(t.jx >= t.jq) && now() - t.jq < REQ_TTL); }
+  function pendingJoinIn(u) { var t = threads[u]; return !!(t && t.jin && now() - t.jin < REQ_TTL && !isBlocked(u)); }
+  function joinAnswer(u) { var t = threads[u]; return t && t.jq && t.jx >= t.jq && now() - t.jq < REQ_TTL ? (t.jw || 'no') : ''; }
+  // Where a request to join p's party goes: p when they lead it (or we can't tell), else their leader when that person is online.
+  function joinTarget(p) {
+    if (!p || !p.party) return null;
+    if (!p.pl || p.pl === p.uid) return p;
+    var L = people[p.pl]; return L && visible(L) && L.pk ? L : p;
+  }
+  function inMyParty(u, p) {
+    if (!P || !P.code) return false;
+    if ((P.members || []).indexOf(u) >= 0) return true;
+    return !!(p && p.pl && P.leader && p.pl === P.leader.uid);
+  }
+  function canAskJoin(u) {
+    var why = canTalk(u); if (why) return why;
+    var p = people[u];
+    if (!p.party) return 'They aren’t in a party.';
+    if (inMyParty(u, p)) return 'You’re already in their party.';
+    var t = threads[u], n = now();
+    if (t && t.jq && n - t.jq < REQ_TTL) return pendingJoinOut(u) ? 'Waiting for them to answer.' : 'You can ask again in ' + Math.max(1, Math.ceil((REQ_TTL - (n - t.jq)) / 60000)) + ' min.';
+    reqSent = reqSent.filter(function (x) { return n - x < REQ_BURST_MS; });
+    if (reqSent.length >= REQ_BURST) return 'That’s a lot of requests. Try again in a few minutes.';
+    // One open request per party: not while another member of the same party still has ours.
+    var L = p.pl || u;
+    for (var k in threads) if (k !== u && pendingJoinOut(k) && people[k] && (people[k].pl || k) === L) return 'You already asked ' + mask(people[k].n) + ' to join that party.';
+    return '';
+  }
+  async function askJoin(u) {
+    var why = canAskJoin(u); if (why) throw new Error(why);
+    var th = thread(u), t = now();
+    reqSent.push(t);
+    await sendDm(u, { k: 'j' });
+    th.jq = Math.max(t, last(thread(u).m)); th.jx = 0; th.jw = ''; th.jc = ''; th.jl = ''; th.jln = ''; saveThreads();
+    schedule();
+  }
+  // Answer someone's request to join: yes sends the party code; no says why (w), and for 'lead' who the leader is.
+  async function answerJoin(u, yes, w, auto) {
+    var th = thread(u);
+    if (!auto && !pendingJoinIn(u)) throw new Error('That request has run out.');
+    var payload;
+    if (yes) {
+      if (!P || !P.code) throw new Error('You’re not in a party any more.');
+      if (P.leader && P.leader.uid !== uid) throw new Error('Only the party leader can let people in.');
+      if (P.size >= (P.max || 8)) throw new Error('The party is full.');
+      payload = { k: 'y', c: P.code };
+    } else {
+      payload = { k: 'x', w: w || 'no' };
+      if (w === 'lead' && P && P.leader) { payload.l = P.leader.uid; payload.ln = P.leader.n; }
+    }
+    await sendDm(u, payload, true);
+    th.jin = 0; th.jnd = yes ? 0 : now(); saveThreads(); schedule();
+  }
+  function joinNoText(m) {
+    return m.w === 'full' ? '’s party is full, so your request to join was turned down.'
+      : m.w === 'lead' ? ' isn’t the leader. Only the leader can accept — ask ' + (m.ln || 'the leader') + '.'
+      : m.w === 'gone' ? ' isn’t in a party any more.' : ' declined your request to join.';
+  }
+  // An "Ask <leader>" button for a 'lead' answer, when that leader is online (and isn't us).
+  function askLeaderBtn(m) {
+    if (m.w !== 'lead' || !m.l || m.l === uid || !visible(people[m.l]) || !people[m.l].pk) return null;
+    var b = btn('Ask ' + mask(people[m.l].n), 'pri', 'joinreq'); b.setAttribute('data-u', m.l); return b;
+  }
+
   // ---------------- Our own node ----------------
   function nodeState() {
     var s = { n: myName(), c: colorOf(uid), x: 0, z: 0, h: 0, ts: Math.round(now()), v: 1, p: status.p };
     if (status.g) s.g = status.g;
+    if (status.pl) s.pl = status.pl;
     if (keys.pub) s.pk = keys.pub;
     if (mine.l.length) s.l = mine.l;
     if (Object.keys(mine.d).length) s.d = mine.d;
@@ -605,11 +739,11 @@
     return null;
   }
   function poll() {
-    var gf = gameFrame(), p = P ? P.size : 0, g = gf ? gf.g.k : '';
+    var gf = gameFrame(), p = P ? P.size : 0, g = gf ? gf.g.k : '', pl = p && P.leader ? P.leader.uid : '';
     if (gf) addBarButton(gf.fr);
-    if (p !== status.p || g !== status.g) {
-      status = { p: p, g: g };
-      if (published) write({ p: p, g: g || null }).catch(function () {});
+    if (p !== status.p || g !== status.g || pl !== status.pl) {
+      status = { p: p, g: g, pl: pl };
+      if (published) write({ p: p, g: g || null, pl: pl || null }).catch(function () {});
       schedule();
     }
   }
@@ -696,6 +830,9 @@
       else if (m.k === 'a') what = ' accepted the chat';
       else if (m.k === 'n') what = ' declined the chat';
       else if (m.k === 'e') what = ' ended the chat';
+      else if (m.k === 'j') what = ' asked to join the party';
+      else if (m.k === 'y') what = ' let them into the party';
+      else if (m.k === 'x') what = ' turned down the join request' + (m.w && m.w !== 'no' ? ' (' + m.w + ')' : '');
       else return '';
       return stamp(m.t) + ' ' + who + what;
     }).filter(Boolean);
@@ -732,7 +869,7 @@
     if (!published) return 'Not connected yet.';
     if (u) {
       var p = people[u];
-      if (blocked[u]) return 'You blocked this person.';
+      if (isBlocked(u)) return 'You blocked this person.';
       if (!visible(p)) return 'They’ve left the Back Room.';
       if (!keys.pair) return 'This browser can’t encrypt private messages.';
       if (!p.pk) return 'Their browser can’t receive private messages.';
@@ -742,7 +879,7 @@
   // The chat-request steps (q, a, n, e) have their own limits (canRequest, one answer per request), so they don't count
   // against the message rate limit; quiet marks an automatic one (a yes we owe them) all the same.
   async function sendDm(u, payload, quiet) {
-    var step = quiet || /^[qane]$/.test(payload.k);
+    var step = quiet || /^[qanejyx]$/.test(payload.k);
     var why = canTalk(u) || (step ? '' : limited()); if (why) throw new Error(why);
     if (payload.k === 'm' && !chats[u]) throw new Error(pendingIn(u) ? 'Accept their request to chat.' : 'Request to chat first.');
     var p = people[u], t = Math.round(now()), id = rid();
@@ -766,7 +903,8 @@
     }
     await write(patch);
     var m = { id: id, from: uid, t: t, k: payload.k };
-    if (payload.k === 'm') m.x = payload.x; else if (payload.k === 'p') m.c = payload.c; else if (payload.k === 'r') { m.g = payload.g; m.r = payload.r; }
+    if (payload.k === 'm') m.x = payload.x; else if (payload.k === 'p' || payload.k === 'y') m.c = payload.c; else if (payload.k === 'r') { m.g = payload.g; m.r = payload.r; }
+    else if (payload.k === 'x') { m.w = payload.w; if (payload.ln) m.ln = payload.ln; }
     addMsg(u, m);
     seen[u] = Math.max(seen[u] || 0, t); saveSeen();
     schedule();
@@ -819,11 +957,11 @@
   function statusText(p) {
     var g = p.g && gameOf(p.g), bits = [];
     if (g) bits.push('In ' + g.n);
-    if (p.party) bits.push(p.party > 1 ? 'Party of ' + p.party : 'In a party');
+    if (p.party) bits.push((p.party > 1 ? 'Party of ' + p.party : 'In a party') + (p.pl && p.pl === p.uid ? ' · leader' : ''));
     return bits.join(' · ') || 'Idle';
   }
   function unreadOf(u) {
-    if (blocked[u] || muted[u]) return 0;
+    if (isBlocked(u) || muted[u]) return 0;
     var t = threads[u]; if (!t || !Array.isArray(t.m)) return 0;
     var s = seen[u] || 0, n = 0;
     t.m.forEach(function (m) { if (m.from === u && m.t > s) n++; });
@@ -844,14 +982,19 @@
     return Object.keys(people).map(function (k) { return people[k]; }).filter(visible)
       .sort(function (a, b) { return a.n.localeCompare(b.n) || (a.uid < b.uid ? -1 : 1); });
   }
-  function meEntry() { return { uid: uid, n: myName(), c: uid ? colorOf(uid) : COLORS[0], seat: uid ? seatOf(uid) : '', party: status.p, g: status.g }; }
+  function meEntry() { return { uid: uid, n: myName(), c: uid ? colorOf(uid) : COLORS[0], seat: uid ? seatOf(uid) : '', party: status.p, pl: status.pl, g: status.g }; }
   function personBtn(p, isMe) {
     var b = el('button', 'onl-p' + (isMe ? ' me' : '')); b.type = 'button';
     if (!isMe) { b.setAttribute('data-u', p.uid); b.setAttribute('aria-label', 'Open ' + label(p)); }
-    var av = el('span', 'onl-av', mask(p.n).charAt(0).toUpperCase()); av.style.background = p.c; av.setAttribute('aria-hidden', 'true');
+    var av = avatarEl(p.uid, p.n, p.c, 34);
     var who = el('span', 'onl-who'), nm = el('span', 'onl-nm');
     nm.append(mask(p.n) + ' ', el('small', '', '· ' + p.seat + (isMe ? ' · you' : '')));
-    who.append(nm, el('span', 'onl-st', (isMe && hidden) ? 'Hidden' : (muted[p.uid] ? 'Muted · ' : '') + statusText(p)));
+    var badge = tierBadge(p.uid);
+    if (badge) { var tl = el('span', 'onl-tl'); tl.append(badge); who.append(nm, tl); } else who.append(nm);
+    who.append(el('span', 'onl-st', (isMe && hidden) ? 'Hidden' : (muted[p.uid] ? 'Muted · ' : '') + statusText(p)));
+    // Your own card says how far along you are: "2,340 miles · 7,660 to First Class".
+    var t = isMe ? tierOf(p.uid) : null;
+    if (t && t.ok) who.append(el('span', 'onl-mi', BackRoomMiles.fmt(t.miles) + ' miles' + (t.next ? ' · ' + BackRoomMiles.fmt(t.next.miles) + ' to ' + t.next.tier.n : ' · the top tier')));
     b.append(av, who);
     var n = isMe ? 0 : unreadOf(p.uid);
     if (n) { var badge = el('span', 'onl-n', String(n)); badge.setAttribute('aria-label', n + ' unread'); b.append(badge); }
@@ -871,6 +1014,12 @@
     $title.lastChild.textContent = uid ? '(' + n + ')' : '';
     if (document.activeElement !== $name) $name.value = myName();
     $seat.textContent = uid ? 'Seat ' + seatOf(uid) + (hidden ? '' : ' · ' + statusText(meEntry())) : '';
+    if (uid && $meAv.getAttribute('data-u') !== uid + (window.BackRoomAvatar ? ':a' : '')) {
+      $meAv.textContent = ''; $meAv.append(avatarEl(uid, myName(), colorOf(uid), 34)); $meAv.setAttribute('data-u', uid + (window.BackRoomAvatar ? ':a' : ''));
+    }
+    var mt = uid ? tierOf(uid) : null;
+    $tier.textContent = '';
+    if (mt) { $tier.append(BackRoomMiles.badge(mt)); if (mt.ok) $tier.append(el('span', '', BackRoomMiles.fmt(mt.miles) + ' miles' + (mt.next ? ' · ' + BackRoomMiles.fmt(mt.next.miles) + ' to ' + mt.next.tier.n : ' · the top tier'))); }
     $hide.checked = hidden;
     var lu = loungeUnread(); $loungeBtn.lastChild.textContent = lu ? String(lu) : '';
     fillList($list);
@@ -920,12 +1069,14 @@
       sub.append(el('span', '', hidden ? 'You’re hidden. Others can’t see or message you.' : 'Tap someone to request a chat or invite them.'), acts);
       parts.push(sub);
       var ul = el('ul', 'onl-list'); fillList(ul, true); body.append(ul);
-      var bl = Object.keys(blocked);
+      var bl = Object.keys(blocked).concat(Object.keys(sblocked).filter(function (u) { return !blocked[u]; }));
       if (bl.length) {
         body.append(el('p', 'onl-h', 'Blocked'));
         bl.forEach(function (u) {
-          var t = threads[u], row = el('div', 'onl-row'), p = people[u];
-          row.append(el('span', 'onl-who', (p ? label(p) : (t ? mask(cleanName(t.n)) : 'Someone') + ' · ' + seatOf(u))));
+          var t = threads[u], row = el('div', 'onl-row'), p = people[u], bw = el('span', 'onl-who');
+          bw.style.display = 'block';
+          bw.append(avatarEl(u, p ? p.n : t && t.n, p ? p.c : t && t.c, 22), (p ? label(p) : (t ? mask(cleanName(t.n)) : 'Someone') + ' · ' + seatOf(u)) + (blocked[u] ? '' : ' (this session)'));
+          row.append(bw);
           var ub = btn('Unblock', '', 'unblock'); ub.setAttribute('data-u', u); row.append(ub);
           body.append(row);
         });
@@ -939,7 +1090,7 @@
       all.forEach(function (it) {
         var mineMsg = it.u === uid, p = it.p || meEntry();
         var m = el('div', 'onl-m' + (mineMsg ? ' mine' : ''));
-        var who = el('span', 'who'); who.append(el('b', '', mask(p.n)), ' · ' + p.seat + ' · ' + clock(it.m.t));
+        var who = el('span', 'who'); who.append(avatarEl(it.u, p.n, p.c, 18), el('b', '', mask(p.n)), ' · ' + p.seat + ' · ' + clock(it.m.t));
         m.append(who, el('span', '', mask(it.m.x)));
         body.append(m);
       });
@@ -949,26 +1100,55 @@
     } else if (view.v === 'dm') {
       var u = view.u, p = people[u], t = threads[u];
       var nm = p ? label(p) : (t ? mask(cleanName(t.n)) : 'Someone') + ' · ' + seatOf(u);
-      h.textContent = nm;
-      var dsub = el('div', 'onl-dsub');
-      dsub.append(el('span', '', (p && visible(p) ? statusText(p) : 'Not online') + ' · private: only the two of you can read this.'));
+      h.append(avatarEl(u, p ? p.n : t && t.n, p ? p.c : t && t.c, 26), nm);
+      var dsub = el('div', 'onl-dsub'), dline = el('span'), dbadge = tierBadge(u);
+      if (dbadge) dline.append(dbadge, ' ');
+      dline.append((p && visible(p) ? statusText(p) : 'Not online') + ' · private: only the two of you can read this.');
+      dsub.append(dline);
       var da = el('div', 'onl-acts'), why = canTalk(u), theirs = mask(p ? p.n : (t ? cleanName(t.n) : '') || 'them');
       if (chats[u]) da.append(btn('End chat', '', 'endchat'));
-      else if (!pendingIn(u) && !blocked[u]) {
+      else if (!pendingIn(u) && !isBlocked(u)) {
         var rq = btn(pendingOut(u) ? 'Request sent' : declined(u) ? 'Declined' : 'Request to chat', 'pri', 'request');
         var rwhy = canRequest(u); rq.disabled = !!rwhy; if (rwhy) rq.title = rwhy;
         da.append(rq);
       }
-      da.append(btn('Invite to party', 'pri', 'invite'), btn('Send room code', '', 'room'), btn(muted[u] ? 'Unmute' : 'Mute', '', 'mute'), btn(blocked[u] ? 'Unblock' : 'Block', 'warn', 'block'), btn('Report', 'warn', 'report'));
+      da.append(btn('Invite to party', 'pri', 'invite'));
+      // Request to join their party: goes to its leader (them, or their leader when that person is online).
+      var jt = p && visible(p) && p.party && !isBlocked(u) && !inMyParty(u, p) ? joinTarget(p) : null;
+      if (jt) {
+        var ja = joinAnswer(jt.uid), jwhy = canAskJoin(jt.uid);
+        var jb = btn(pendingJoinOut(jt.uid) ? 'Join request sent' : ja === 'y' ? 'Let in' : ja && ja !== 'lead' ? 'Join declined' : 'Request to join', 'pri', 'joinreq');
+        jb.setAttribute('data-u', jt.uid); jb.disabled = !!jwhy; if (jwhy) jb.title = jwhy;
+        da.append(jb);
+      }
+      da.append(btn('Send room code', '', 'room'), btn(muted[u] ? 'Unmute' : 'Mute', '', 'mute'));
+      if (isBlocked(u)) { var ub2 = btn('Unblock', 'warn', 'unblock'); ub2.setAttribute('data-u', u); da.append(ub2); }
+      else da.append(btn('Block', 'warn', 'block'), btn('Block for this session', 'warn', 'sblock'));
+      da.append(btn('Report', 'warn', 'report'));
       dsub.append(da);
       if (view.room) { if (!view.roomEl) view.roomEl = roomForm(); dsub.append(view.roomEl); } else view.roomEl = null;
       parts.push(dsub);
       da.querySelectorAll('[data-act=invite],[data-act=room]').forEach(function (b2) { b2.disabled = !!why; });
       var msgs = t && Array.isArray(t.m) ? t.m : [];
-      if (blocked[u]) body.append(el('p', 'onl-note', 'You blocked this person. Their messages, invites and chat requests are hidden.'));
+      if (isBlocked(u)) body.append(el('p', 'onl-note', 'You blocked this person' + (blocked[u] ? '' : ' for this session') + '. Their messages, invites and chat requests are hidden.'));
       else {
         if (chats[u] && !msgs.some(function (m) { return m.k === 'm'; })) body.append(el('p', 'onl-note', 'Say hi. Messages are end-to-end encrypted: other people online can see that you sent something, but not what.'));
         msgs.forEach(function (m) { body.append(msgEl(u, m)); });
+        if (jt && jt.uid !== u) {
+          // Their leader is someone else: say where the request goes, and how that is going.
+          var jn = el('div', 'onl-m onl-card'), jr = el('div', 'onl-acts'), jtn = mask(jt.n), jth = threads[jt.uid];
+          var jtx = pendingJoinOut(jt.uid) ? ' You asked ' + jtn + '. Waiting for an answer.' : ja === 'y' ? ' ' + jtn + ' let you in.' : ja ? ' ' + jtn + joinNoText({ w: ja, ln: jth && jth.jln }) : '';
+          jn.append(el('span', '', 'Only the leader can let people in, so requests to join this party go to ' + jtn + '.' + jtx));
+          if (ja === 'y' && jth && jth.jc && !(P && P.code === jth.jc)) { var jj = btn('Join party', 'pri', 'joinp'); jj.setAttribute('data-c', jth.jc); jj.setAttribute('data-u', jt.uid); jr.append(jj); }
+          var od = btn('Open chat with ' + jtn, '', 'opendm'); od.setAttribute('data-u', jt.uid); jr.append(od);
+          jn.append(jr); body.append(jn);
+        }
+        if (pendingJoinIn(u)) {
+          var jc = el('div', 'onl-m onl-card'), jca = el('div', 'onl-acts');
+          jc.append(el('span', '', theirs + ' wants to join your party' + (P && P.code ? ' (' + P.code + ')' : '') + '.'));
+          jca.append(btn('Let them in', 'pri', 'jaccept'), btn('Decline', '', 'jdecline'));
+          jc.append(jca); body.append(jc);
+        }
         var mwhy = '';
         if (pendingIn(u)) {
           var rc = el('div', 'onl-m onl-card'), ra = el('div', 'onl-acts');
@@ -1005,9 +1185,20 @@
         : (isMine ? 'You ended the chat.' : theirName + ' ended the chat.');
       return el('p', 'onl-note', said + ' · ' + clock(m.t));
     }
+    if (m.k === 'j') return el('p', 'onl-note', (isMine ? 'You asked to join their party.' : theirName + ' asked to join your party.') + ' · ' + clock(m.t));
+    if (m.k === 'x' && isMine) return el('p', 'onl-note', 'You turned down their request to join' + (m.w === 'full' ? ' (the party is full)' : m.w === 'lead' ? ' (you aren’t the leader)' : m.w === 'gone' ? ' (you aren’t in a party)' : '') + '. · ' + clock(m.t));
     var card = el('div', 'onl-m onl-card' + (isMine ? ' mine' : '')); card.append(who);
     var row = el('div', 'onl-acts');
-    if (m.k === 'p') {
+    if (m.k === 'y') {
+      card.append(el('span', '', isMine ? 'You let them into the party (' + m.c + ').' : theirName + ' let you into their party.'));
+      if (!isMine) {
+        if (P && P.code === m.c) row.append(el('span', 'onl-st', 'You’re in this party'));
+        else { var jy = btn('Join party', 'pri', 'joinp'); jy.setAttribute('data-c', m.c); row.append(jy); }
+      }
+    } else if (m.k === 'x') {
+      card.append(el('span', '', theirName + joinNoText(m)));
+      var al = askLeaderBtn(m); if (al) row.append(al);
+    } else if (m.k === 'p') {
       card.append(el('span', '', isMine ? 'You invited them to your party (' + m.c + ').' : theirName + ' invited you to their party.'));
       if (!isMine) {
         if (P && P.code === m.c) row.append(el('span', 'onl-st', 'You’re in this party'));
@@ -1058,6 +1249,7 @@
   function toast(p, m) {
     var t = el('div', 'onl-t'), line = el('div'), who = el('b', '', label(p));
     var acts = el('div', 'onl-acts'), life = 8000;
+    line.append(avatarEl(p.uid, p.n, p.c, 22));
     if (m.k === 'm') {
       line.append(who, ': ' + mask(m.x).slice(0, 120));
       acts.append(btn('Reply', 'pri', 'reply'), btn('Dismiss', '', 'dismiss'));
@@ -1072,6 +1264,17 @@
       acts.append(btn('Dismiss', '', 'dismiss'));
     } else if (m.k === 'e') {
       line.append(who, ' ended the chat.');
+      acts.append(btn('Dismiss', '', 'dismiss'));
+    } else if (m.k === 'j') {
+      line.append(who, ' wants to join your party.');
+      acts.append(btn('Let them in', 'pri', 'jaccept'), btn('Decline', '', 'jdecline'), btn('Later', '', 'dismiss')); life = 30000;
+    } else if (m.k === 'y') {
+      line.append(who, ' let you into their party.' + (P && P.code && P.code !== m.c ? ' Joining takes you out of your current one.' : ''));
+      var jy = btn('Join party', 'pri', 'joinp'); jy.setAttribute('data-c', m.c);
+      acts.append(jy, btn('Not now', '', 'dismiss')); life = 30000;
+    } else if (m.k === 'x') {
+      line.append(who, joinNoText(m));
+      var al = askLeaderBtn(m); if (al) { acts.append(al); life = 20000; }
       acts.append(btn('Dismiss', '', 'dismiss'));
     } else if (m.k === 'p') {
       line.append(who, ' invited you to their party.' + (P && P.code ? ' Joining takes you out of your current one.' : ''));
@@ -1110,15 +1313,30 @@
       if (e.button || e.metaKey || e.ctrlKey || e.shiftKey) return;
       e.preventDefault(); if (host) host.remove();
       openRoom(b.getAttribute('data-g'), b.getAttribute('data-r'));
-    } else if (a === 'unblock') { delete blocked[b.getAttribute('data-u')]; saveSets(); drawnView = ''; schedule(); }
+    } else if (a === 'unblock') { var bu = b.getAttribute('data-u'); delete blocked[bu]; delete sblocked[bu]; saveSets(); drawnView = ''; schedule(); }
+    else if (a === 'opendm') { var ou = b.getAttribute('data-u'); if (ou) openDrawer({ v: 'dm', u: ou }); }
     else if (host && (a === 'accept' || a === 'decline')) {
       var hu2 = host.getAttribute('data-u'); host.remove();
       if (hu2) (a === 'accept' ? accept(hu2) : decline(hu2)).then(function () { if (a === 'accept') openDrawer({ v: 'dm', u: hu2 }); }, function (x) { say(x.message || String(x), true); });
+    } else if (host && (a === 'jaccept' || a === 'jdecline')) {
+      var hu3 = host.getAttribute('data-u'); host.remove();
+      if (hu3) answerJoin(hu3, a === 'jaccept', 'no').then(function () { say(a === 'jaccept' ? 'Sent them the party code. They join when they press Join.' : ''); }, function (x) { say(x.message || String(x), true); });
+    } else if (host && a === 'joinreq') {
+      var hu4 = b.getAttribute('data-u'); host.remove();
+      if (hu4) askJoin(hu4).then(function () { say('Asked ' + (people[hu4] ? mask(people[hu4].n) : 'the leader') + ' to let you into the party.'); }, function (x) { say(x.message || String(x), true); });
     } else if (view && view.v === 'dm') {
       var u = view.u, err = dr.querySelector('.onl-df .onl-msg');
       var fail = function (x) { if (err) { err.textContent = x.message || String(x); err.classList.add('err'); } };
       if (a === 'request') { b.disabled = true; request(u).then(function () { drawnView = ''; schedule(); }, fail).finally(function () { b.disabled = false; }); }
       else if (a === 'accept' || a === 'decline') { b.disabled = true; (a === 'accept' ? accept(u) : decline(u)).then(function () { drawnView = ''; schedule(); }, fail).finally(function () { b.disabled = false; }); }
+      else if (a === 'jaccept' || a === 'jdecline') { b.disabled = true; answerJoin(u, a === 'jaccept', 'no').then(function () { drawnView = ''; schedule(); }, fail).finally(function () { b.disabled = false; }); }
+      else if (a === 'joinreq') {
+        var ju = b.getAttribute('data-u') || u; b.disabled = true;
+        askJoin(ju).then(function () {
+          if (err && ju !== u && people[ju]) { err.textContent = 'Only the leader can let you in, so your request went to ' + mask(people[ju].n) + '.'; err.classList.remove('err'); }
+          schedule();
+        }, fail).finally(function () { b.disabled = false; });
+      }
       else if (a === 'endchat') {
         if (!confirm('End this chat? You both stop seeing each other’s messages until one of you requests a chat again.')) return;
         endChat(u).then(function () { drawnView = ''; schedule(); }, function () { drawnView = ''; schedule(); });
@@ -1131,10 +1349,9 @@
         if (!okRoom(g, r)) return fail(new Error(g.k === 'tv' ? 'Trivium codes are five letters.' : 'Room codes are letters, numbers and dashes (up to 17).'));
         sendDm(u, { k: 'r', g: g.k, r: r }).then(function () { view.room = false; drawnView = ''; drawDrawer(); }, fail);
       } else if (a === 'mute') { if (muted[u]) delete muted[u]; else muted[u] = 1; saveSets(); drawnView = ''; schedule(); }
-      else if (a === 'block') {
-        if (blocked[u]) delete blocked[u]; else blocked[u] = 1;
-        saveSets(); drawnView = ''; schedule();
-      } else if (a === 'report') {
+      else if (a === 'block') { blocked[u] = 1; saveSets(); drawnView = ''; schedule(); }
+      else if (a === 'sblock') { sblocked[u] = 1; saveSets(); drawnView = ''; schedule(); }
+      else if (a === 'report') {
         b.disabled = true;
         report(u).then(function (done) {
           if (done && err) { err.textContent = 'Reported. Thanks: Arjun will look at it.'; err.classList.remove('err'); }
@@ -1170,6 +1387,10 @@
   }
   addEventListener('pagehide', function () { if (published && meRef) meRef.remove().catch(function () {}); });
   addEventListener('pageshow', function (e) { if (e.persisted && uid && !hidden) publish(); });
+  // avatar.js and miles.js may arrive after the first draw (the home page loads them alongside this file), and each
+  // finished tier read is a redraw too.
+  document.addEventListener('backroom:avatar', function () { drawnView = ''; schedule(); });
+  document.addEventListener('backroom:miles', function () { drawnView = ''; schedule(); });
 
   // ---------------- Start ----------------
   function waitParty() {
@@ -1197,7 +1418,7 @@
     listRef = db.ref(PATH);
     listRef.on('child_added', onNode); listRef.on('child_changed', onNode); listRef.on('child_removed', onGone);
     connRef = db.ref('.info/connected'); connRef.on('value', onConnected);
-    status = { p: P.size, g: (gameFrame() || { g: { k: '' } }).g.k };
+    status = { p: P.size, g: (gameFrame() || { g: { k: '' } }).g.k, pl: P.size && P.leader ? P.leader.uid : '' };
     setInterval(poll, POLL);
     setInterval(schedule, 30000);
     if (!hidden) publish(); else say('You’re hidden. Nobody can see you online, and you can’t chat until you turn this off.');
@@ -1213,5 +1434,5 @@
   start();
 
   // Test hook for the automated checks; harmless in normal play.
-  if (navigator.webdriver) window.__social = { get uid() { return uid; }, get people() { return people; }, get threads() { return threads; }, get mine() { return mine; }, get published() { return published; }, get pub() { return keys.pub; }, get chats() { return chats; }, get sent() { return sent; }, seatOf: seatOf, mask: mask, loungeAll: loungeAll, PATH: PATH, transcript: transcript };
+  if (navigator.webdriver) window.__social = { get uid() { return uid; }, get people() { return people; }, get threads() { return threads; }, get mine() { return mine; }, get published() { return published; }, get pub() { return keys.pub; }, get chats() { return chats; }, get sent() { return sent; }, get sblocked() { return sblocked; }, get status() { return status; }, seatOf: seatOf, mask: mask, loungeAll: loungeAll, PATH: PATH, transcript: transcript };
 })();
