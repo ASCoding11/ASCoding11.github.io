@@ -2410,6 +2410,10 @@ function updateWhips(dt) {
 //  Networking — offline loopback or Firebase Realtime Database
 // =====================================================================
 let evSeq = 0;
+// Rooms hold up to 12 karts: enough for a class, and 11 other karts is about as much as a phone can draw and download
+// (each is ~380 B up to 20 times a second). A typed code that is full says so; the default "lobby" code spreads to
+// lobby-2 … lobby-6, the way the other games' Quick match moves to the next public room.
+const MAX_ROOM = 12;
 const Net = {
   online: false, offset: 0, uid: null, db: null, room: null, refs: null, pubT: 0, joinT: 0, roundT: 0,
   now() { return Date.now() + (this.online ? this.offset : 0); },
@@ -2439,6 +2443,7 @@ const Net = {
     this.db = firebase.database();
     await new Promise(res => this.db.ref('.info/serverTimeOffset').once('value', s => { this.offset = s.val() || 0; res(); }));
     this.db.ref('.info/serverTimeOffset').on('value', s => { this.offset = s.val() || 0; });
+    room = await this.pickRoom(room);
     const roomRef = this.db.ref('rooms/' + room);
     this.refs = { room: roomRef, players: roomRef.child('players'), events: roomRef.child('events'), round: roomRef.child('round'), me: roomRef.child('players/' + this.uid) };
     this.online = true; this.room = room;
@@ -2451,6 +2456,20 @@ const Net = {
     this.refs.me.onDisconnect().remove();
     this.joinT = this.now();
     return this.uid;
+  },
+  // Karts heard from in the last 10 s, not counting this one (a node left behind by a crash stops counting).
+  async count(room) {
+    const s = await this.db.ref('rooms/' + room + '/players').once('value');
+    let n = 0; s.forEach(c => { const v = c.val(); if (c.key !== this.uid && v && this.now() - (+v.ts || 0) < 10000) n++; });
+    return n;
+  },
+  async pickRoom(room) {
+    if (room !== 'lobby') {
+      if (await this.count(room) >= MAX_ROOM) throw new Error('Room is full (' + MAX_ROOM + ' karts). Try another code.');
+      return room;
+    }
+    for (let i = 1; i <= 6; i++) { const r = i === 1 ? 'lobby' : 'lobby-' + i; if (await this.count(r) < MAX_ROOM) return r; }
+    throw new Error('Every lobby is full right now. Try a room code.');
   },
   listen() {
     const r = this.refs;
@@ -2873,7 +2892,7 @@ async function startOnline() {
     S.me = new Kart(uid, player.name, player.color, { local: true, me: true });
     Net.listen();
     setTimeout(() => { if (S.mode === 'online') Net.adoptMode(); }, 1600);
-    try { history.replaceState(null, '', '#' + room); } catch (_) {}
+    try { history.replaceState(null, '', '#' + Net.room); } catch (_) {}
     setMsg(''); enterHud();
   } catch (err) {
     Net.disconnect();
