@@ -29,6 +29,8 @@
  * removed from the boards altogether, for fake or junk accounts) and sig is
  * an ECDSA P-256 / SHA-256 signature of r by the admin key (adminkey.js; the same key pair as the ECDH one there). Anyone
  * can write a node there, so only nodes whose signature checks out count; for each uid the latest t wins.
+ * Rows show each player's avatar (avatar.js) and status tier badge (miles.js, worked out from the same checked node)
+ * when those scripts are here.
  */
 (function () {
   'use strict';
@@ -36,26 +38,42 @@
   if (document.getElementById('leaderboards')) return;
 
   var PATH = 'rooms/lb-all/players', RS_PATH = 'rooms/lb-rs/players', RESETS = {}, SHOW_HIDDEN = false;
-  var TOP = 25, MAX_NODES = 3000, NODE_MAX = 8000, MAX_STATS = 120, STALE = 365 * 86400000;
+  // STALE: an entry nobody has updated for 180 days is skipped before anything else is read from it (entries are never
+  // removed from the database, so this is what keeps old ones cheap to parse: a timestamp check, no JSON.stringify or
+  // stats; they are still downloaded).
+  var TOP = 25, MAX_NODES = 3000, NODE_MAX = 8000, MAX_STATS = 120, STALE = 180 * 86400000;
   var EPOCH = Date.UTC(2026, 9, 21);            // the day stats.js started counting
   var NAME_MAX = 14;
 
   // Stat formats: n (a count), elo, time (seconds to the millisecond, lower wins), dur (seconds, higher wins), m (metres), days, chips.
   // u: the unit a count is shown with ('kill' → '12 kills'). lo/hi: the sane range (anything outside is dropped).
   // rate: most per second played in that game (running counts only). le: a best single round, which can't be more than
-  // this all-time count (and is dropped without it). Boards show in this order, after Hours.
+  // this all-time count (and is dropped without it). hide: checked and kept (the admin page shows it) but not a board.
+  // kd: a ratio worked out here from two checked counts, kills / max(1, deaths) to 2 decimals and at most `hi`, ranked
+  // only with at least `min` kills; the node's own kd is never read. Its kills are `kdkills`, counted from the same
+  // moment as deaths (so kills from before deaths were counted can't inflate it), and no more than the all-time count.
+  // Boards show in this order, after Hours.
   var GAMES = [
     { d: 'rumble-karts', n: 'Rumble Karts', st: [
       { k: 'rwrecks', l: 'Most wrecks in a round', f: 'n', u: 'wreck', hi: 60, le: 'wrecks' },
       { k: 'wrecks', l: 'Wrecks (all time)', f: 'n', u: 'wreck', rate: 0.5 },
+      { k: 'kdkills', l: 'Wrecks counted for K/D', f: 'n', u: 'wreck', rate: 0.5, le: 'wrecks', hide: true },
+      { k: 'deaths', l: 'Times wrecked', f: 'n', u: 'time', rate: 0.5, hide: true },
+      { k: 'kd', l: 'K/D (all time)', chip: 'K/D', f: 'kd', kd: ['kdkills', 'deaths'], min: 20, hi: 100 },
       { k: 'wins', l: 'Round wins', f: 'n', u: 'win', rate: 1 / 60 }] },
     { d: 'shell-crackers', n: 'Shell Crackers', st: [
       { k: 'elo', l: 'Elo', f: 'elo', lo: 100, hi: 3000 },
       { k: 'mkills', l: 'Most kills in a match', f: 'n', u: 'kill', hi: 30, le: 'kills' },
-      { k: 'kills', l: 'Kills (all time)', f: 'n', u: 'kill', rate: 0.5 }] },
+      { k: 'kills', l: 'Kills (all time)', f: 'n', u: 'kill', rate: 0.5 },
+      { k: 'kdkills', l: 'Kills counted for K/D', f: 'n', u: 'kill', rate: 0.5, le: 'kills', hide: true },
+      { k: 'deaths', l: 'Deaths', f: 'n', u: 'death', rate: 0.5, hide: true },
+      { k: 'kd', l: 'K/D (all time)', chip: 'K/D', f: 'kd', kd: ['kdkills', 'deaths'], min: 20, hi: 100 }] },
     { d: 'backrooms-1v1', n: 'Backrooms 1v1–4v4', st: [
       { k: 'mkills', l: 'Most kills in a match', f: 'n', u: 'kill', hi: 80, le: 'kills' },
       { k: 'kills', l: 'Kills (all time)', f: 'n', u: 'kill', rate: 0.5 },
+      { k: 'kdkills', l: 'Kills counted for K/D', f: 'n', u: 'kill', rate: 0.5, le: 'kills', hide: true },
+      { k: 'deaths', l: 'Deaths', f: 'n', u: 'death', rate: 0.5, hide: true },
+      { k: 'kd', l: 'K/D (all time)', chip: 'K/D', f: 'kd', kd: ['kdkills', 'deaths'], min: 20, hi: 100 },
       { k: 'wins', l: 'Match wins', f: 'n', u: 'win', rate: 1 / 20 }] },
     { d: 'slipstream', n: 'Slipstream', laps: true, st: [] },
     { d: 'boostball', n: 'Boostball', st: [
@@ -83,19 +101,27 @@
       { k: 'crowns', l: 'Crowns', f: 'n', u: 'crown', hi: 1e5 },
       { k: 'crownrun', l: 'Most crowns in a row', f: 'n', u: 'crown', hi: 1000, le: 'crowns' },
       { k: 'shows', l: 'Shows played', f: 'n', u: 'show', hi: 1e6 }] },
+    { d: 'deepword', n: 'Deepword', st: [
+      { k: 'depth', l: 'Deepest daily dive', f: 'm', hi: 10935 },
+      { k: 'dives', l: 'Daily dives', f: 'n', u: 'dive', rate: 1 / 30 },
+      { k: 'brawlwins', l: 'Blowfish Brawl wins', f: 'n', u: 'win', rate: 1 / 30 }] },
     { d: 'gridpop', n: 'Gridpop', st: [{ k: 'score', l: 'Best score', f: 'n', u: 'pt', hi: 1e8 }, { k: 'lines', l: 'Lines cleared (all time)', f: 'n', u: 'line', rate: 2 }] },
-    { d: '2048', n: '2048', st: [{ k: 'best', l: 'Best score', f: 'n', u: 'pt', hi: 4000000 }, { k: 'tile', l: 'Biggest tile', f: 'n', hi: 131072 }] },
+    { d: '2048', n: '2048', st: [{ k: 'best', l: 'Best score (Classic)', chip: 'Classic', f: 'n', u: 'pt', hi: 4000000 }, { k: 'tile', l: 'Biggest tile (Classic)', chip: 'Biggest tile', f: 'n', hi: 131072 },
+      { k: 'best-mega', l: 'Best score (Mega 6 × 6)', chip: 'Mega', f: 'n', u: 'pt', hi: 1e10 }, { k: 'best-college', l: 'Best score (College)', chip: 'College', f: 'n', u: 'pt', hi: 4000000 },
+      { k: 'best-dessert', l: 'Best score (Dessert)', chip: 'Dessert', f: 'n', u: 'pt', hi: 4000000 }] },
     { d: 'stackfall', n: 'Stackfall', st: [{ k: 'classic', l: 'Best score (Classic)', chip: 'Classic', f: 'n', u: 'pt', hi: 1e8 }, { k: 'sand', l: 'Best score (Sand)', chip: 'Sand', f: 'n', u: 'pt', hi: 1e8 }, { k: 'lines', l: 'Most lines in a game (Classic)', chip: 'Most lines', f: 'n', u: 'line', hi: 100000 }] },
     { d: 'melon-merge', n: 'Melon Merge', st: [{ k: 'score', l: 'Best score', f: 'n', u: 'pt', hi: 1e7 }, { k: 'melons', l: 'Watermelons grown (all time)', chip: 'Watermelons', f: 'n', u: 'watermelon', rate: 0.05 }] }
   ];
-  // Slipstream circuits: short name and the quickest lap we accept (track length / 150 m/s, well above top speed).
-  // A course record (rec:<track>:<laps>) is the full race time of a clean race (no penalties) that ran every lap.
+  // Slipstream circuits: short name and the quickest lap we accept, the track's length (as the game builds it) at 120 m/s,
+  // the game's hard speed cap (VMAX 92 m/s × 1.3, which boost and DRS can't pass), so no real lap can be that quick: the
+  // best real laps average 60–80 m/s. A course record (rec:<track>:<laps>) is the full race time of a clean race (no
+  // penalties) that ran every lap.
   var TRACKS = {
-    'au-1953': ['Melbourne', 35], 'cn-2004': ['Shanghai', 36], 'bh-2002': ['Bahrain', 36], 'sa-2021': ['Jeddah', 41], 'us-2022': ['Miami', 36],
-    'ca-1978': ['Montréal', 28], 'mc-1929': ['Monaco', 22], 'es-1991': ['Barcelona', 31], 'at-1969': ['Spielberg', 28], 'gb-1948': ['Silverstone', 39],
-    'be-1925': ['Spa', 46], 'hu-1986': ['Budapest', 29], 'nl-1948': ['Zandvoort', 28], 'it-1922': ['Monza', 38], 'es-2026': ['Madrid', 36],
-    'az-2016': ['Baku', 39], 'sg-2008': ['Singapore', 32], 'us-2012': ['Austin', 36], 'mx-1962': ['Mexico City', 28], 'br-1940': ['São Paulo', 28],
-    'us-2023': ['Las Vegas', 41], 'qa-2004': ['Lusail', 36], 'ae-2009': ['Abu Dhabi', 35], 'lakeside': ['Lakeside', 26], 'harbour': ['Harbour', 23], 'mesa': ['Mesa', 25]
+    'au-1953': ['Melbourne', 43], 'cn-2004': ['Shanghai', 45], 'bh-2002': ['Bahrain', 45], 'sa-2021': ['Jeddah', 51], 'us-2022': ['Miami', 45],
+    'ca-1978': ['Montréal', 36], 'mc-1929': ['Monaco', 27], 'es-1991': ['Barcelona', 38], 'at-1969': ['Spielberg', 35], 'gb-1948': ['Silverstone', 48],
+    'be-1925': ['Spa', 58], 'hu-1986': ['Budapest', 36], 'nl-1948': ['Zandvoort', 35], 'it-1922': ['Monza', 48], 'es-2026': ['Madrid', 45],
+    'az-2016': ['Baku', 49], 'sg-2008': ['Singapore', 41], 'us-2012': ['Austin', 45], 'mx-1962': ['Mexico City', 35], 'br-1940': ['São Paulo', 35],
+    'us-2023': ['Las Vegas', 51], 'qa-2004': ['Lusail', 45], 'ae-2009': ['Abu Dhabi', 44], 'lakeside': ['Lakeside', 33], 'harbour': ['Harbour', 29], 'mesa': ['Mesa', 32]
   };
   var TRACK_IDS = Object.keys(TRACKS), STD_LAPS = [3, 5, 10];   // the race lengths the game offers
   var BY = {}; GAMES.forEach(function (g) { BY[g.d] = g; });
@@ -142,6 +168,7 @@
   function fmtDur(s) { s = Math.round(s); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
   function fmt(st, v) {
     if (st.f === 'lap' || st.f === 'time') return fmtTime(v, true);
+    if (st.f === 'kd') return v.toFixed(2);
     if (st.f === 'dur') return fmtDur(v);
     if (st.f === 'm') return fmtN(v) + ' m';
     if (st.f === 'days') return fmtN(v) + (Math.round(v) === 1 ? ' day' : ' days');
@@ -179,6 +206,13 @@
       });
       // A best single round can't beat the all-time count it's part of (and needs one).
       meta.st.forEach(function (st) { if (st.le && o[st.k] != null) { if (o[st.le] > 0) o[st.k] = Math.min(o[st.k], o[st.le]); else delete o[st.k]; } });
+      // K/D from the checked counts (never from the node itself), with enough kills, capped at hi.
+      meta.st.forEach(function (st) {
+        if (!st.kd) return;
+        var k = o[st.kd[0]] || 0, d = o[st.kd[1]] || 0;
+        delete o[st.k];
+        if (k >= st.min) o[st.k] = Math.min(st.hi, Math.round(k / Math.max(1, d) * 100) / 100);
+      });
       if (meta.laps) {
         sk.forEach(function (k) {
           var m = /^lap:([a-z0-9-]{1,20})$/.exec(k), t = m && TRACKS[m[1]], x = num(src[k]);
@@ -266,13 +300,16 @@
     var order = TRACK_IDS.slice().sort(function (a, b) { return (c[b] || 0) - (c[a] || 0) || TRACK_IDS.indexOf(a) - TRACK_IDS.indexOf(b); });
     return { order: order, count: c, laps: laps };
   }
-  // The boards a game has: its hours, then its stats. Slipstream: the chosen track's course records (3, 5 and 10 laps,
-  // the lengths the game offers, plus any other length someone has a record for) and its fastest lap.
+  // The boards a game has: its hours, then its stats. Slipstream: every track's fastest lap at a glance, then the chosen
+  // track's course records (3, 5 and 10 laps, the lengths the game offers, plus any other length someone has a record for)
+  // and its fastest lap.
   function boardsFor(d, people, track) {
     var meta = BY[d]; if (!meta) return [];
     var out = [{ k: 's', l: 'Hours played', chip: 'Hours', f: 'hours' }];
-    if (!meta.laps) return out.concat(meta.st);
+    if (!meta.laps) return out.concat(meta.st.filter(function (st) { return !st.hide; }));
     var ts = trackStats(people), t = TRACKS[track] ? track : ts.order[0], nm = TRACKS[t][0];
+    // Every track at once: the fastest lap on each (and who set it), "no times yet" where nobody has one.
+    out.push({ k: 'laps', id: 'laps', l: 'Fastest lap · every track', chip: 'All tracks', f: 'lap', all: true });
     var laps = STD_LAPS.slice();
     Object.keys(ts.laps[t] || {}).forEach(function (n) { n = +n; if (laps.indexOf(n) < 0) laps.push(n); });
     laps.sort(function (a, b) { return a - b; }).forEach(function (n) {
@@ -281,6 +318,19 @@
     });
     out.push({ k: 'lap:' + t, id: 'lap', l: 'Fastest lap · ' + nm, chip: 'Fastest lap', f: 'lap', track: nm });
     return out;
+  }
+  // Slipstream's every-track board: one row per track, tracks with times first (most drivers first, as in the Track menu),
+  // each with its fastest lap and who set it; a track nobody has lapped yet is kept, with no time.
+  function trackRows(people) {
+    var ts = trackStats(people);
+    return ts.order.map(function (id) {
+      var best = null, v = 0;
+      people.forEach(function (p) {
+        var o = p.g.slipstream, x = o ? o['lap:' + id] : 0;
+        if (x > 0 && (!best || x < v || (x === v && (p.n < best.n || (p.n === best.n && p.uid < best.uid))))) { best = p; v = x; }
+      });
+      return { t: id, name: TRACKS[id][0], p: best, v: v, n: ts.count[id] || 0 };
+    });
   }
   // Rows for one board, best first, with shared ranks for ties.
   function rows(view, people) {
@@ -298,7 +348,7 @@
   }
 
   // For the admin page: the same checks and names, so what it shows is what the boards would show. With data-lib, that's all.
-  window.BackRoomBoards = { RS_PATH: RS_PATH, readResets: readResets, get resets() { return RESETS; }, showHidden: function (v) { SHOW_HIDDEN = !!v; }, parse: parse, GAMES: GAMES, BY: BY, TRACKS: TRACKS, EPOCH: EPOCH, PATH: PATH, MAX_NODES: MAX_NODES, NODE_MAX: NODE_MAX, fmt: fmt, fmtHours: fmtHours, cleanName: cleanName, mask: mask, seatOf: seatOf };
+  window.BackRoomBoards = { RS_PATH: RS_PATH, readResets: readResets, get resets() { return RESETS; }, showHidden: function (v) { SHOW_HIDDEN = !!v; }, parse: parse, GAMES: GAMES, BY: BY, TRACKS: TRACKS, trackRows: trackRows, EPOCH: EPOCH, PATH: PATH, MAX_NODES: MAX_NODES, NODE_MAX: NODE_MAX, fmt: fmt, fmtHours: fmtHours, cleanName: cleanName, mask: mask, seatOf: seatOf };
   if (me && me.hasAttribute('data-lib')) return;
 
   // ---------------- Styles ----------------
@@ -325,6 +375,8 @@
     '.lbd-h{margin:2px 0 0;font-family:var(--mono,var(--f-m,monospace));font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}' +
     '.lbd-list{list-style:none;margin:0;padding:0;display:grid;gap:6px}' +
     '.lbd-r{display:grid;grid-template-columns:2.6em minmax(0,1fr) auto;align-items:center;gap:10px;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:7px 12px;min-width:0}' +
+    '.lbd-r.av{grid-template-columns:2.6em 30px minmax(0,1fr) auto}' +
+    '.lbd-ex .bra-tier{margin-right:6px;vertical-align:-1px}' +
     '.lbd-r.me{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--panel))}' +
     '.lbd-rk{font-family:var(--mono,var(--f-m,monospace));font-size:14px;font-weight:600;color:var(--ink-2);text-align:right}' +
     '.lbd-r:nth-child(-n+3) .lbd-rk{color:var(--accent)}' +
@@ -335,10 +387,13 @@
     '.lbd-ex{font-family:var(--mono,var(--f-m,monospace));font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
     '.lbd-v{font-family:var(--mono,var(--f-m,monospace));font-size:15px;font-weight:600;text-align:right;white-space:nowrap}' +
     '.lbd-gap{text-align:center;color:var(--ink-2);font-size:14px;line-height:1;padding:2px 0;letter-spacing:.3em}' +
+    '.lbd-r.trk{grid-template-columns:minmax(0,1fr) auto;cursor:pointer}.lbd-r.trk:hover{border-color:var(--ink-2)}' +
+    '.lbd-r.trk .lbd-nm{font-weight:700}.lbd-r.trk .lbd-ex{text-transform:none;letter-spacing:0;font-size:12px}' +
+    '.lbd-r.none .lbd-v{color:var(--ink-2);font-weight:400;font-size:13px}' +
     '.lbd-msg,.lbd-note{margin:0;font-size:14px;color:var(--ink-2);overflow-wrap:anywhere}' +
     '.lbd-msg:empty{display:none}.lbd-msg.err{color:var(--down,#B42318)}' +
     '.lbd-note{font-size:13px}' +
-    '@media (max-width:600px){.lbd{padding:14px}.lbd-sub{font-size:14px;order:3;flex-basis:100%}.lbd-top > .lbd-b{margin-left:auto}.lbd-ctl label{max-width:none}.lbd-ctl label span{display:none}.lbd-chips{gap:6px}.lbd-chips button{font-size:13px;padding:5px 11px;min-height:34px}.lbd-r{gap:8px;padding:7px 10px;grid-template-columns:2.2em minmax(0,1fr) auto}.lbd-v{font-size:14px}}' +
+    '@media (max-width:600px){.lbd{padding:14px}.lbd-sub{font-size:14px;order:3;flex-basis:100%}.lbd-top > .lbd-b{margin-left:auto}.lbd-ctl label{max-width:none}.lbd-ctl label span{display:none}.lbd-chips{gap:6px}.lbd-chips button{font-size:13px;padding:5px 11px;min-height:34px}.lbd-r{gap:8px;padding:7px 10px;grid-template-columns:2.2em minmax(0,1fr) auto}.lbd-r.av{grid-template-columns:2.2em 28px minmax(0,1fr) auto}.lbd-v{font-size:14px}}' +
     '@media (max-width:420px){.lbd h2{font-size:24px}}';
   document.head.appendChild(css);
 
@@ -378,7 +433,7 @@
   function say(t, err) { $msg.textContent = t || ''; $msg.classList.toggle('err', !!err); }
 
   // ---------------- State ----------------
-  // g: 'all' or a game folder. b: the board (its stat key, 's' for hours, or for Slipstream 'rec3', 'rec5'… or 'lap'),
+  // g: 'all' or a game folder. b: the board (its stat key, 's' for hours, or for Slipstream 'laps' (every track), 'rec3', 'rec5'… or 'lap'),
   // '' for the game's first board that has anyone on it. t: the Slipstream track.
   var view = { g: 'all', b: 's', t: '' };
   try {
@@ -405,7 +460,9 @@
       var b = await P.boot(); myUid = b.uid;
       var snap = (await timeout(Promise.all([b.db.ref(PATH).once('value'), readResets(b.db)]), 15000))[0];
       var val = snap.val() || {}, now = P.now ? P.now() : Date.now(), out = [], keys = Object.keys(val);
-      for (var i = 0; i < keys.length && i < MAX_NODES; i++) { var p = parse(keys[i], val[keys[i]], now); if (p) out.push(p); }
+      // MAX_NODES counts players shown, not nodes read: stale nodes (which pile up, as nothing removes them) cost one
+      // comparison each in parse and mustn't crowd out current players further down the list.
+      for (var i = 0; i < keys.length && out.length < MAX_NODES; i++) { var p = parse(keys[i], val[keys[i]], now); if (p) out.push(p); }
       people = out; lastLoad = Date.now();
       say('');
     } catch (e) {
@@ -427,7 +484,9 @@
   var trkSig = '';
   function fillTracks() {
     var ts = trackStats(people || []), sig = JSON.stringify(ts.count);
-    if (!TRACKS[view.t]) view.t = ts.order[0];
+    // The first pick is the track most people have a time on, so it waits for the data (before that, the first track
+    // in the list would be chosen and kept, even once the boards had loaded).
+    if (!TRACKS[view.t] && people) view.t = ts.order[0];
     if (sig !== trkSig) {
       trkSig = sig; $trk.textContent = '';
       var withT = el('optgroup'), without = el('optgroup');
@@ -442,17 +501,42 @@
     $trk.value = view.t;
   }
   // Someone is on this board.
-  function filled(b) { return (people || []).some(function (p) { var o = p.g[view.g]; return o && o[b.k] > 0; }); }
+  function filled(b) { return !!b.all || (people || []).some(function (p) { var o = p.g[view.g]; return o && o[b.k] > 0; }); }
   function row(r) {
     var li = el('li', 'lbd-r' + (isMe(r.p.uid) ? ' me' : ''));
     var who = el('span', 'lbd-who'), nm = el('span', 'lbd-nm');
     nm.append(r.p.n + ' ', el('small', '', '· ' + r.p.seat));
     if (isMe(r.p.uid)) nm.append(el('b', 'lbd-you', 'You'));
     who.append(nm);
-    if (r.extra) who.append(el('span', 'lbd-ex', r.extra));
-    li.append(el('span', 'lbd-rk', String(r.rank)), who, el('span', 'lbd-v', r.fmt));
+    // The status tier (miles.js) from this same checked node, then "Most: <game>" on the Hours board.
+    var ex = el('span', 'lbd-ex'), badge = null;
+    if (window.BackRoomMiles) { try { badge = BackRoomMiles.badge(BackRoomMiles.of(r.p)); } catch (e) { badge = null; } }
+    if (badge) ex.append(badge);
+    if (r.extra) ex.append(r.extra);
+    if (badge || r.extra) who.append(ex);
+    li.append(el('span', 'lbd-rk', String(r.rank)));
+    if (window.BackRoomAvatar) { try { li.append(BackRoomAvatar.el(r.p.uid, 30)); li.classList.add('av'); } catch (e) {} }
+    li.append(who, el('span', 'lbd-v', r.fmt));
     return li;
   }
+  function trackRow(r) {
+    var me = r.p && isMe(r.p.uid);
+    var li = el('li', 'lbd-r trk' + (me ? ' me' : '') + (r.p ? '' : ' none'));
+    li.setAttribute('data-t', r.t); li.title = 'Show ' + r.name;
+    var who = el('span', 'lbd-who'), nm = el('span', 'lbd-nm', r.name);
+    who.append(nm);
+    if (r.p) {
+      var ex = el('span', 'lbd-ex'); ex.append(r.p.n + ' ', el('small', '', '· ' + r.p.seat));
+      if (me) ex.append(el('b', 'lbd-you', 'You'));
+      ex.append(' · ' + r.n + (r.n === 1 ? ' driver' : ' drivers'));
+      who.append(ex);
+    }
+    li.append(who, el('span', 'lbd-v', r.p ? fmtTime(r.v, true) : 'no times yet'));
+    return li;
+  }
+  // picked: a board was chosen on this page by hand, so an empty one is left alone; a remembered or default board with
+  // nobody on it gives way to the game's first board that has someone.
+  var picked = false;
   function draw() {
     $chips.textContent = '';
     var slip = view.g !== 'all' && BY[view.g].laps;
@@ -461,7 +545,9 @@
     var boards = view.g === 'all' ? [] : boardsFor(view.g, people || [], view.t);
     var st = null;
     for (var i = 0; i < boards.length; i++) if (bid(boards[i]) === view.b) st = boards[i];
-    // No board picked yet (a game was just chosen): the first one with anyone on it, else the first after Hours.
+    if (st && people && !picked && st.k !== 's' && !filled(st)) st = null;
+    // No board picked yet (a game was just chosen, or the remembered one is empty): the first one with anyone on it
+    // (Slipstream: every track's fastest lap), else the first after Hours.
     if (view.g !== 'all' && !st) {
       if (!people) st = boards[1] || boards[0];
       else { st = boards.slice(1).filter(filled)[0] || boards[1] || boards[0]; view.b = bid(st); }
@@ -471,6 +557,12 @@
     $h.textContent = view.g === 'all' ? 'Hours played · all games' : BY[view.g].n + ' · ' + st.l;
     $list.textContent = '';
     if (!people) return;
+    if (view.st && view.st.all) {
+      var trs = trackRows(people), have = trs.filter(function (r) { return r.p; }).length;
+      trs.forEach(function (r) { $list.append(trackRow(r)); });
+      say(have ? 'Fastest lap on ' + have + ' of ' + trs.length + ' tracks so far. Pick a track for its full board.' : 'No lap times on any track yet. Race to set one.');
+      return;
+    }
     var list = rows(view, people), hours = !view.st;
     list.forEach(function (r) { r.fmt = hours ? fmtHours(r.v) : fmt(view.st, r.v); });
     var mine = -1; for (var j = 0; j < list.length; j++) if (isMe(list[j].p.uid)) { mine = j; break; }
@@ -486,12 +578,20 @@
   function save() { ls('lb:view', JSON.stringify({ g: view.g, b: view.b, t: view.t || '' })); }
 
   $sel.addEventListener('change', function () { view.g = $sel.value === 'all' || BY[$sel.value] ? $sel.value : 'all'; view.b = view.g === 'all' ? 's' : ''; save(); draw(); if (!people) load(); });
-  $trk.addEventListener('change', function () { if (TRACKS[$trk.value]) { view.t = $trk.value; save(); draw(); } });
+  $trk.addEventListener('change', function () { if (TRACKS[$trk.value]) { view.t = $trk.value; if (view.b === 'laps') view.b = 'lap'; picked = true; save(); draw(); } });
   $chips.addEventListener('click', function (e) {
     var b = e.target.closest('button[data-b]'); if (!b) return;
-    view.b = b.getAttribute('data-b'); save(); draw();
+    view.b = b.getAttribute('data-b'); picked = true; save(); draw();
+  });
+  // A track on the every-track board opens that track's fastest-lap board.
+  $list.addEventListener('click', function (e) {
+    var li = e.target.closest('li[data-t]'); if (!li || !TRACKS[li.getAttribute('data-t')]) return;
+    view.t = li.getAttribute('data-t'); view.b = 'lap'; picked = true; save(); draw();
   });
   $refresh.addEventListener('click', function () { lastLoad = 0; load(); });
+  // avatar.js and miles.js may load after the boards were drawn (the home page loads them alongside this file).
+  document.addEventListener('backroom:avatar', function () { if (people) draw(); });
+  document.addEventListener('backroom:miles', function (e) { if (people && e.detail && !e.detail.uid) draw(); });
 
   // Read nothing until the section is near the screen.
   draw(); say('The boards load when you scroll down to them.');
@@ -503,5 +603,5 @@
   } else load();
 
   // Test hook for the automated checks; harmless in normal play.
-  if (navigator.webdriver) window.__lb = { get people() { return people; }, get view() { return view; }, get myUid() { return myUid; }, parse: parse, rows: rows, boardsFor: boardsFor, fmt: fmt, BY: BY, load: function () { lastLoad = 0; return load(); }, draw: draw, set top(n) { TOP = n; }, PATH: PATH, EPOCH: EPOCH };
+  if (navigator.webdriver) window.__lb = { get people() { return people; }, get view() { return view; }, get myUid() { return myUid; }, parse: parse, rows: rows, trackRows: trackRows, boardsFor: boardsFor, fmt: fmt, BY: BY, load: function () { lastLoad = 0; return load(); }, draw: draw, set top(n) { TOP = n; }, PATH: PATH, EPOCH: EPOCH };
 })();

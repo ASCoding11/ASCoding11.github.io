@@ -22,6 +22,10 @@
  * Limits here are only manners (one note a minute, five a day per browser); the rules do
  * the real checking of keys, types and sizes.
  *
+ * Anything with a data-feedback-open attribute (the "Want more games?" button under the games
+ * on the Back Room and phone pages) scrolls to the bar and opens it; so does
+ * window.BackRoomFeedback.open().
+ *
  * Loaded with data-list-only (as the admin page does), it only shares the game list.
  */
 (function () {
@@ -33,7 +37,7 @@
   var GAMES = [
     ['rumble-karts', 'Rumble Karts'], ['shell-crackers', 'Shell Crackers'], ['backrooms-1v1', 'Backrooms 1v1–4v4'],
     ['slipstream', 'Slipstream'], ['boostball', 'Boostball'], ['coil', 'Coil'], ['trivium', 'Trivium'],
-    ['showdown', 'Showdown'], ['chromaflage', 'Chromaflage'], ['spire', 'Spire'], ['updraft', 'Updraft'],
+    ['showdown', 'Showdown'], ['chromaflage', 'Chromaflage'], ['updraft', 'Updraft'],
     ['odd-one-out', 'Odd One Out'], ['tumble-trials', 'Tumble Trials'], ['other', 'Something else (the site, parties…)']
   ];
   var KINDS = [['idea', 'Idea or change'], ['bug', 'Bug'], ['other', 'Something else']];
@@ -179,6 +183,17 @@
       else bar.focus({ preventScroll: true });
     }
     bar.addEventListener('click', function () { setOpen(body.hidden); });
+    // "Tell Arjun" buttons elsewhere on the page (data-feedback-open) bring the bar into view and open it.
+    function openHere() {
+      var still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+      box.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'start' });
+      if (body.hidden) setOpen(true);
+    }
+    window.BackRoomFeedback.open = openHere;
+    document.addEventListener('click', function (e) {
+      var t = e.target && e.target.closest && e.target.closest('[data-feedback-open]');
+      if (t) { e.preventDefault(); openHere(); }
+    });
     box.addEventListener('click', function (e) { if (e.target.closest('.fbk-x')) setOpen(false); });
     box.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !body.hidden) { e.stopPropagation(); setOpen(false); } });
     form.addEventListener('change', function (e) { if (e.target.name === 'kind') hint(); });
@@ -235,9 +250,10 @@
       var app = firebase.apps.filter(function (a) { return a.options.apiKey === CFG.apiKey; })[0] ||
         firebase.initializeApp(CFG, firebase.apps.length ? 'feedback' : undefined);
       var auth = app.auth();
-      await timeout(new Promise(function (r) { var s = auth.onAuthStateChanged(function () { s(); r(); }); }), 12000);
+      // Signing in can take 10-20 s on a slow phone on school Wi-Fi: give it 25 s, like the games.
+      await timeout(new Promise(function (r) { var s = auth.onAuthStateChanged(function () { s(); r(); }); }), 25000);
       if (auth.currentUser) return auth.currentUser;
-      try { return (await timeout(auth.signInAnonymously(), 12000)).user; }
+      try { return (await timeout(auth.signInAnonymously(), 25000)).user; }
       catch (e) { throw fail(/too-many|quota/.test(e && e.code || '') ? 'busy' : /network/.test(e && e.code || '') || e.code === 'net' ? 'net' : 'auth'); }
     })();
     booting.catch(function () { booting = null; });

@@ -1939,8 +1939,12 @@ const Net={
       catch(e){throw new Error('Could not reach the game server. Check your connection, or play a solo show.')}
     }
     if(!firebase.apps.length)firebase.initializeApp(FIREBASE_CONFIG);
-    try{await withTimeout((a=>new Promise(r=>{const s=a.onAuthStateChanged(()=>{s();r()})}).then(()=>a.currentUser||a.signInAnonymously()))(firebase.auth()),12000,'Signing in to the game server timed out. Check your connection, or play a solo show.')}
+    // A slow phone on school Wi-Fi can take 10-20 s to sign in: say so after 8 s (on the menu's connecting message, if
+    // one is showing, and put that message back once signed in), and only give up after 25 s.
+    const m0=$('netMsg').textContent,slow=setTimeout(()=>{const m=$('netMsg');if(m.textContent&&!m.classList.contains('err'))setMsg('Still signing in…')},8000);
+    try{await withTimeout((a=>new Promise(r=>{const s=a.onAuthStateChanged(()=>{s();r()})}).then(()=>a.currentUser||a.signInAnonymously()))(firebase.auth()),25000,'Signing in to the game server timed out. Check your connection, or play a solo show.')}
     catch(err){const c=err&&err.code||'';if(/timed out/.test(err&&err.message||''))throw err;throw new Error(/operation-not-allowed|admin-restricted|configuration-not-found/.test(c)?'Anonymous sign-in is off in the Firebase console (Authentication → Sign-in method → Anonymous).':'Sign-in failed: '+(err.message||c))}
+    finally{clearTimeout(slow);if($('netMsg').textContent==='Still signing in…')setMsg(m0)}
     this.uid=firebase.auth().currentUser.uid;this.db=firebase.database();
     await new Promise(res=>{setTimeout(res,3000);this.db.ref('.info/serverTimeOffset').once('value',s=>{this.offset=s.val()||0;res()})});
     this.db.ref('.info/serverTimeOffset').on('value',s=>{this.offset=s.val()||0});
@@ -1980,7 +1984,18 @@ const Net={
     if(G.host&&G.L&&G.L.swGet)o.sw=G.L.swGet();
     this.updDiff(o);
   },
-  pubRS(rs){const s=JSON.stringify(rs);if(s===this.rsStr)return;this.rsStr=s;this.upd({rs:s,he:G.he})},
+  // The show state goes out whole every time (plan, roster, who's through and who's out: 0.5-1.5 KB), so changes
+  // within a round (finishes, knock-outs, lobby settings) are coalesced to at most 4 publishes a second: a change that
+  // comes too soon waits in rsPend and flushRS sends the latest one (from step, and from the background heartbeat when
+  // the tab is hidden). A new phase or round goes straight away.
+  rsT:0,rsKey:'',rsPend:null,
+  pubRS(rs){
+    const k=rs.id+':'+rs.ph+':'+rs.rn;
+    if(k===this.rsKey&&performance.now()-this.rsT<250){this.rsPend=rs;return}
+    this.rsPend=null;const s=JSON.stringify(rs);if(s===this.rsStr)return;
+    this.rsStr=s;this.rsKey=k;this.rsT=performance.now();this.upd({rs:s,he:G.he});
+  },
+  flushRS(){if(this.rsPend&&this.refs&&G.host&&G.mode==='online'&&performance.now()-this.rsT>=250)this.pubRS(this.rsPend)},
   // live: heard from in the last few seconds by this browser's own clock (browsers' server-time estimates can disagree),
   // and not a leftover node from long ago
   live(uid){const o=this.others.get(uid);return !!o&&o.fresh&&performance.now()-o.hr<LIVE_MS},
@@ -1991,7 +2006,7 @@ const Net={
   },
   leave(){
     if(this.refs){const r=this.refs;try{r.players.off();r.me.onDisconnect().cancel();r.me.remove()}catch(e){}}
-    this.refs=null;this.room=null;this.others.clear();this.rsStr='';this.loaded=false;this.last={};
+    this.refs=null;this.room=null;this.others.clear();this.rsStr='';this.rsKey='';this.rsPend=null;this.loaded=false;this.last={};
   }
 };
 function botString(){
@@ -2587,7 +2602,7 @@ function becomeHost(){
     feed('You\'re the host now');setRS(Object.assign({},prev));
   }else setRS(prev?Object.assign({},prev):lobbyRS(null,defaultSet()));
 }
-function stopHost(){G.host=false;G.he=0;Net.rsStr='';Net.upd({rs:'',he:0,bt:'',sw:''});for(const e of ents.values())if(e.bot)e.local=false}
+function stopHost(){G.host=false;G.he=0;Net.rsStr='';Net.rsKey='';Net.rsPend=null;Net.upd({rs:'',he:0,bt:'',sw:''});for(const e of ents.values())if(e.bot)e.local=false}
 function toMenu(){if(Net.refs)Net.leave();try{if(location.hash)history.replaceState(null,'',location.pathname+location.search)}catch(e){}showMenu()}
 function showPause(){
   if(G.mode==='menu')return;pauseShownAt=performance.now();
@@ -2625,11 +2640,11 @@ function frame(t){lastFrame=performance.now();const dt=Math.min(.1,Math.max(0,(t
 setInterval(()=>{const p=performance.now();if(p-lastFrame>400&&G.mode!=='menu'&&!G.hold){const dt=Math.min(.5,(p-last)/1000);last=p;lastFrame=p;try{step(dt,true)}catch(e){console.error(e)}}},250);
 // A background tab gets few or no animation frames: keep this player's node fresh once a second regardless,
 // so a host who switches tabs isn't taken for gone.
-setInterval(()=>{if(Net.refs&&performance.now()-Net.hbT>900)Net.upd({})},1000);
+setInterval(()=>{if(!Net.refs)return;Net.flushRS();if(performance.now()-Net.hbT>900)Net.upd({})},1000);
 function step(dt,bg){
   if(G.mode!=='online'&&!G.paused)G.vt+=dt*1000;
   const L=G.L;
-  if(G.mode==='online'){updateRemotes(dt);G.hostT-=dt;if(G.hostT<=0){G.hostT=.2;onlineTick()}G.netT-=dt;if(G.netT<=0){G.netT=ents.size>9?.12:.1;Net.pubPos()}}
+  if(G.mode==='online'){Net.flushRS();updateRemotes(dt);G.hostT-=dt;if(G.hostT<=0){G.hostT=.2;onlineTick()}G.netT-=dt;if(G.netT<=0){G.netT=ents.size>9?.12:.1;Net.pubPos()}}
   else if((G.mode==='solo')&&!G.paused){G.hostT-=dt;if(G.hostT<=0){G.hostT=.2;hostTick()}}
   if(L&&!G.paused){
     const rt=roundT();

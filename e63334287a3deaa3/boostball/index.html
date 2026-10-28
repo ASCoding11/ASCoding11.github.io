@@ -2521,8 +2521,12 @@ const Net={
       catch(e){throw new Error('Could not reach the game server. Check your connection, or play Practice.')}
     }
     if(!firebase.apps.length)firebase.initializeApp(FIREBASE_CONFIG);
-    try{await withTimeout((a=>new Promise(r=>{const s=a.onAuthStateChanged(()=>{s();r()})}).then(()=>a.currentUser||a.signInAnonymously()))(firebase.auth()),12000,'Signing in to the game server timed out. Check your connection, or play Practice.')}
+    // A slow phone on school Wi-Fi can take 10-20 s to sign in: say so after 8 s (on the menu's connecting message, if
+    // one is showing, and put that message back once signed in), and only give up after 25 s.
+    const m0=$('netMsg').textContent,slow=setTimeout(()=>{const m=$('netMsg');if(m.textContent&&!m.classList.contains('err'))setMsg('Still signing in…')},8000);
+    try{await withTimeout((a=>new Promise(r=>{const s=a.onAuthStateChanged(()=>{s();r()})}).then(()=>a.currentUser||a.signInAnonymously()))(firebase.auth()),25000,'Signing in to the game server timed out. Check your connection, or play Practice.')}
     catch(err){const c=err&&err.code||'';if(/timed out/.test(err&&err.message||''))throw err;throw new Error(/operation-not-allowed|admin-restricted|configuration-not-found/.test(c)?'Anonymous sign-in is off in the Firebase console (Authentication → Sign-in method → Anonymous).':'Sign-in failed: '+(err.message||c))}
+    finally{clearTimeout(slow);if($('netMsg').textContent==='Still signing in…')setMsg(m0)}
     this.uid=firebase.auth().currentUser.uid;this.db=firebase.database();
     await new Promise(res=>{setTimeout(res,3000);this.db.ref('.info/serverTimeOffset').once('value',s=>{this.offset=s.val()||0;res()})});
     this.db.ref('.info/serverTimeOffset').on('value',s=>{this.offset=s.val()||0});
@@ -2968,17 +2972,26 @@ function showAd(id){
 // =====================================================================
 //  Main loop
 // =====================================================================
-let last=performance.now(),acc=0;
+let last=performance.now(),lastFrame=performance.now(),acc=0;
 const H_STEP=1/120;
 // test hook only (navigator.webdriver): manual = the test drives time with advance(); noRender skips drawing;
 // testInput(inp, now, car) replaces your controls.
 let manual=false,noRender=false,testInput=null;
 function frame(t){
-  const dt=Math.min(.1,Math.max(0,(t-last)/1000));last=t;
+  lastFrame=performance.now();const dt=Math.min(.1,Math.max(0,(t-last)/1000));last=t;
   if(manual){if(!noRender)renderer.render(scene,camera)}
   else try{step(dt)}catch(err){console.error(err)}
   requestAnimationFrame(frame);
 }
+// A background tab gets no animation frames, so a hidden host's bots (and the ball, if it ran it) used to freeze for
+// everyone until its node went stale and the room picked a new host 8-9 s later. While frames stall, keep ticking from
+// a timer instead, in 100 ms slices and without drawing (browsers run the timer about once a second in a hidden tab,
+// so the host's node, bots and ball then reach others once a second, projected from their speed in between).
+setInterval(()=>{
+  const p=performance.now();if(p-lastFrame<400||!online||manual)return;
+  let r=Math.min(1,(p-last)/1000);last=p;
+  try{while(r>0){const d=Math.min(.1,r);r-=d;step(d,true)}}catch(err){console.error(err)}
+},250);
 function physStep(h,now,ph){
   const frozen=ph==='countdown'||ph==='over'||state==='end';
   const locals=localCars();
@@ -3020,7 +3033,7 @@ function simulate(dt,freeze){
     recordBall(now);
   }
 }
-function step(dt){
+function step(dt,bg){
   clock+=dt;
   const now=nowMs();
   if(online)Net.tick(now);
@@ -3054,7 +3067,7 @@ function step(dt){
     wn.hidden=others>0;if(others===0)wn.textContent='Waiting for players · share the invite link from the pause menu';
   }
   audioTick(dt);
-  if(!noRender)renderer.render(scene,camera);
+  if(!noRender&&!bg)renderer.render(scene,camera);
   if(state==='menu'&&!$('menu').hidden)renderGarage(dt);
 }
 

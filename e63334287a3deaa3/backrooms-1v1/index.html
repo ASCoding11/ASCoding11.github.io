@@ -404,6 +404,7 @@ body.touch #pips{left:calc(200px + env(safe-area-inset-left,0px));transform:none
       <div class="osd-line"><span>■ STOP</span><span id="endClock">00:00:00</span></div>
       <h2 class="title" id="endTitle" style="font-size:clamp(48px,8vw,92px)">YOU GOT OUT</h2>
       <div class="result-score"><span class="y" id="eYou">5</span> <span style="color:var(--ink-dim)">–</span> <span class="t" id="eBot">0</span></div>
+      <p class="lede" id="endKd" style="font-size:15px;color:var(--ink-dim)"></p>
       <p class="lede" id="endMsg"></p>
       <div class="endteams" id="endTeams" hidden></div>
       <div class="row"><button class="cta" id="again" type="button">Rematch</button><button class="ghost-btn" id="toMenu" type="button">Menu</button></div>
@@ -654,6 +655,8 @@ function makePiece(s){
 function tryBuild(s,owner){
   if(!specValid(s))return false;
   const pc=makePiece(s);
+  // a wall or floor that lands on you (or the Entity) shoves you out of it rather than trapping you inside
+  if(pc.solid)for(const e of [player,opp])if(e.alive&&e.present&&overlap(e.pos.x,e.pos.y,e.pos.z,pc.solid))pushOut(e);
   sfxBuild(owner===player?1:1/(1+camera.position.distanceTo(pc.obj.position)*.08));
   if(online&&owner===player)Net.send({type:'b',k:s.kind,x:s.x,z:s.z,L:s.L,o:s.o||'',dir:s.dir||0,r:roundNo()});
   return true;
@@ -682,28 +685,69 @@ for(const k in ghosts){ghosts[k].visible=false;scene.add(ghosts[k])}
 function hideGhosts(){for(const k in ghosts)ghosts[k].visible=false}
 
 /* ---------- collision & rays ---------- */
+// Players are boxes R wide either way and H tall. Walls, posts, pillars and build walls/floors are solid boxes; ramps are
+// walkable surfaces (see groundAt), not solids. Movement never enters a solid, so the only way to end up inside one is a
+// build landing on you, and pushOut moves you back out the shortest way instead of letting you walk through it.
 function overlap(x,y,z,s){return x+R>s.min[0]&&x-R<s.max[0]&&z+R>s.min[2]&&z-R<s.max[2]&&y+H>s.min[1]+.01&&y<s.max[1]-.01}
 function blockedAt(nx,y,nz,ox,oz){for(const s of solids)if(overlap(nx,y,nz,s)&&!overlap(ox,y,oz,s))return s;return null}
+function solidAt(x,y,z){for(const s of solids)if(overlap(x,y,z,s))return s;return null}
+function clampToMap(p){p.x=clamp(p.x,R+.15,W-R-.15);p.z=clamp(p.z,R+.15,W-R-.15);p.y=clamp(p.y,0,CEIL-H)}
+// If the box overlaps a solid, move it out along the axis that needs the smallest shove (sideways out of a wall, up onto
+// or down from under a floor), taking the shortest shove that ends inside the map and doesn't pass through any other
+// solid on the way (so being pushed out of a floor can't carry you through the wall beside you). Repeats a few times in
+// case nothing was clear. Returns true if anything moved.
+function shoveClear(p,d,ax,skip){
+  const n=Math.max(1,Math.ceil(Math.abs(d)/.1));
+  for(let j=1;j<=n;j++){
+    const f=d*j/n,x=p.x+(ax===0?f:0),y=p.y+(ax===1?f:0),z=p.z+(ax===2?f:0);
+    if(x<R+.15||x>W-R-.15||z<R+.15||z>W-R-.15||y<0||y>CEIL-H)return false;
+    for(const q of solids)if(!skip.includes(q)&&overlap(x,y,z,q))return false;
+  }
+  return true;
+}
+function pushOut(e){
+  const p=e.pos;let moved=false;
+  for(let i=0;i<4;i++){
+    const s=solidAt(p.x,p.y,p.z);if(!s)break;
+    const skip=solids.filter(q=>overlap(p.x,p.y,p.z,q));
+    const c=[[(s.max[0]+R+.002)-p.x,0],[(s.min[0]-R-.002)-p.x,0],[(s.max[2]+R+.002)-p.z,2],[(s.min[2]-R-.002)-p.z,2],[s.max[1]-p.y,1],[(s.min[1]-H)-p.y,1]]
+      .sort((a,b)=>Math.abs(a[0])-Math.abs(b[0]));
+    const [d,ax]=c.find(k=>shoveClear(p,k[0],k[1],skip))||c[0];
+    if(ax===0){p.x+=d;e.vel.x=0}
+    else if(ax===2){p.z+=d;e.vel.z=0}
+    else{p.y+=d;if(d>0){e.vel.y=0;e.onGround=true}else if(e.vel.y>0)e.vel.y=0}
+    clampToMap(p);moved=true;
+  }
+  return moved;
+}
 function rampH(r,x,z){
   if(x<r.x0||x>r.x0+4||z<r.z0||z>r.z0+4)return -1;
   let t;switch(r.dir){case 0:t=(x-r.x0)/4;break;case 1:t=(z-r.z0)/4;break;case 2:t=(r.x0+4-x)/4;break;default:t=(r.z0+4-z)/4}
   return r.base+.15+4*clamp(t,0,1);
 }
+// The highest surface under the box (same footprint as the collision box, so you stand on anything your box overlaps
+// and fall only once you're clear of it) up to maxY: the floor, solid tops and ramp surfaces.
 function groundAt(x,z,maxY){
-  let g=0;const rr=R*.85;
-  for(const s of solids){if(x+rr>s.min[0]&&x-rr<s.max[0]&&z+rr>s.min[2]&&z-rr<s.max[2]&&s.max[1]<=maxY&&s.max[1]>g)g=s.max[1]}
+  let g=0;
+  for(const s of solids){if(x+R>s.min[0]&&x-R<s.max[0]&&z+R>s.min[2]&&z-R<s.max[2]&&s.max[1]<=maxY&&s.max[1]>g)g=s.max[1]}
   for(const r of ramps){const h=rampH(r,x,z);if(h>=0&&h<=maxY&&h>g)g=h}
   return g;
 }
+// One axis at a time (x, then z), so you slide along walls; a move that would enter a solid is dropped unless it's a
+// step of up to STEP onto something with head room. Long moves (a slow frame) are split into steps of at most 0.25 m,
+// shorter than the thinnest wall, so nothing can be skipped over; at normal frame rates that's the one step as before.
 function moveEntity(e,dt){
   const p=e.pos;e.blocked=false;
-  for(const ax of [0,2]){
-    const delta=(ax===0?e.vel.x:e.vel.z)*dt;if(!delta)continue;
+  pushOut(e);
+  const sx=p.x,sz=p.z;
+  const n=Math.min(16,Math.max(1,Math.ceil(Math.hypot(e.vel.x,e.vel.z)*dt/.25)));
+  for(let i=0;i<n;i++)for(const ax of [0,2]){
+    const delta=(ax===0?e.vel.x:e.vel.z)*dt/n;if(!delta)continue;
     const nx=ax===0?p.x+delta:p.x,nz=ax===2?p.z+delta:p.z;
     const s=blockedAt(nx,p.y,nz,p.x,p.z);
     if(!s){p.x=nx;p.z=nz;continue}
     const up=s.max[1]-p.y;
-    if(up>0&&up<=STEP&&e.onGround&&!blockedAt(nx,s.max[1]+.001,nz,p.x,p.z)){p.x=nx;p.z=nz;p.y=s.max[1]+.001;continue}
+    if(up>0&&up<=STEP&&e.onGround&&!solidAt(nx,s.max[1]+.001,nz)){p.x=nx;p.z=nz;p.y=s.max[1]+.001;continue}
     if(ax===0)e.vel.x=0;else e.vel.z=0;e.blocked=true;
   }
   p.x=clamp(p.x,R+.15,W-R-.15);p.z=clamp(p.z,R+.15,W-R-.15);
@@ -711,8 +755,15 @@ function moveEntity(e,dt){
   let ny=p.y+e.vel.y*dt;
   if(e.vel.y<=0){
     const ground=groundAt(p.x,p.z,p.y+STEP);
-    if(ny<=ground){ny=ground;e.vel.y=0;e.onGround=true}
-    else if(e.onGround&&ground>p.y-STEP&&e.vel.y>-5){ny=ground;e.vel.y=0;e.onGround=true}
+    if(ny<=ground||(e.onGround&&ground>p.y-STEP&&e.vel.y>-5)){
+      // a ramp or step rising into something overhead (a floor built over a ramp): don't go up into it. Walking further
+      // up is stopped; if a floor dropped on you already pushed you down below the ramp, you can still walk downhill out
+      if(ground>p.y&&solidAt(p.x,ground,p.z)){
+        if(groundAt(sx,sz,p.y+H)<ground){p.x=sx;p.z=sz;e.vel.x=e.vel.z=0;e.blocked=true}
+        ny=p.y;
+      }else ny=ground;
+      e.vel.y=0;e.onGround=true;
+    }
     else e.onGround=false;
   }else{
     e.onGround=false;let lim=CEIL-H;
@@ -720,6 +771,7 @@ function moveEntity(e,dt){
     if(ny>lim){ny=lim;e.vel.y=0}
   }
   p.y=ny;
+  pushOut(e);
 }
 function rayBox(o,d,mn,mx,maxT){
   let t0=0,t1=maxT;
@@ -918,6 +970,7 @@ function spawn(e,cell){
   e.pos.set(cx*4+2,0,cz*4+2);e.vel.set(0,0,0);e.hp=100;e.shield=50;e.alive=true;e.dieT=0;e.onGround=true;
   e.ammo=WEAPONS.map(w=>w.mag);e.cd=0;e.reloadT=0;e.switchT=0;
   e.yaw=yawTo(W/2-e.pos.x,W/2-e.pos.z);e.pitch=0;e.model.visible=e.present;
+  pushOut(e);
 }
 // Practice rounds (online rounds start in startOnlineRound)
 function newRound(){
@@ -945,6 +998,7 @@ function endMatch(){
   if(won&&window.BackRoomStats)BackRoomStats.add('wins',1);
   $('endTitle').textContent=won?'YOU GOT OUT':'NO EXIT';
   $('eYou').textContent=score.you;$('eBot').textContent=score.opp;$('eYou').parentNode.classList.remove('tmode');$('endTeams').hidden=true;
+  $('endKd').textContent=`${score.you} kill${score.you===1?'':'s'} · ${score.opp} death${score.opp===1?'':'s'} · K/D ${kdStr(score.you,score.opp)}`;
   $('endClock').textContent=fmtClock(matchTime);
   $('again').textContent='Rematch';$('again').disabled=false;$('toMenu').textContent='Menu';
   $('endMsg').textContent=won?`You eliminated the entity ${score.you} times on ${diffKey} difficulty. The hum is quieter now.`:`The entity took ${score.opp} rounds on ${diffKey} difficulty. Try building higher before you push.`;
@@ -970,7 +1024,8 @@ function onKill(victim,killer,wi,head){
   if(!victim.alive&&victim===player&&phase==='over')return;
   victim.alive=false;victim.dieT=0;
   const w=WEAPONS[wi]||WEAPONS[0],tail=' · '+w.name+(head?' · head':'');
-  if(victim===opp&&window.BackRoomStats){BackRoomStats.add('kills',1);BackRoomStats.max('mkills',score.you+1)}
+  if(victim===opp&&window.BackRoomStats){BackRoomStats.add('kills',1);BackRoomStats.add('kdkills',1);BackRoomStats.max('mkills',score.you+1)}
+  if(victim===player&&window.BackRoomStats)BackRoomStats.add('deaths',1);
   if(victim===opp){score.you++;feed(`You <b>⟶</b> ${esc(oppName)}${tail}`,'you');banner('ENTITY DOWN',head?'Headshot':'Eliminated',2.2)}
   else{score.opp++;feed(`${esc(oppName)} <b>⟶</b> You${tail}`,'them');banner('ELIMINATED','The entity got you',2.2)}
   hud.sYou.textContent=score.you;hud.sBot.textContent=score.opp;
@@ -1253,6 +1308,9 @@ function updateRemotes(dt){
     const px=e.pos.x,py=e.pos.y,pz=e.pos.z;
     NetSmooth.sample(sn,e.lag.time(now),_rs,['x','y','z','p'],['h']);
     e.pos.set(_rs.x,_rs.y,_rs.z);e.yaw=_rs.h;e.pitch=_rs.p;
+    // the straight line between two updates can cut a corner, and a late update carries them on: keep them in the map
+    // and out of walls so nobody is ever drawn (or shot) inside one
+    clampToMap(e.pos);pushOut(e);
     if(dt>0){e.vel.set((e.pos.x-px)/dt,(e.pos.y-py)/dt,(e.pos.z-pz)/dt);if(e.vel.length()>30)e.vel.set(0,0,0)}
     e.onGround=Math.abs(e.vel.y)<.5;
   }
@@ -1315,6 +1373,7 @@ function startOnlineRound(){
 // whoever landed the last hit, and the host counts you out for the rest of the round.
 function onlineDeath(shooter,head){
   player.alive=false;player.dieT=0;lmb=false;tAct.fire=false;
+  if(kdm.m!==curMatch){kdm.m=curMatch;kdm.d=0}kdm.d++;if(window.BackRoomStats)BackRoomStats.add('deaths',1);
   const k=shooter&&shooter.uid||'',wi=shooter?shooter.wi|0:0;
   Net.send({type:'kill',v:Net.uid,k,w:wi,hd:head?1:0,r:curRound});
   killFeed(k,Net.uid,wi,head);
@@ -1354,12 +1413,15 @@ function handleEvent(e){
     if(e.r!==curRound||v!==e.by)return;
     const ent=remotes.get(v);if(ent&&ent.alive){ent.alive=false;ent.dieT=0}
     killFeed(k,v,e.w|0,!!e.hd);
-    if(k===Net.uid&&window.BackRoomStats){BackRoomStats.add('kills',1);BackRoomStats.max('mkills',myKills+1)}
+    if(k===Net.uid&&window.BackRoomStats){BackRoomStats.add('kills',1);BackRoomStats.add('kdkills',1);BackRoomStats.max('mkills',myKills+1)}
     if(k===Net.uid){myKills++;kills.set(Net.uid,myKills);banner(nameOf(v).toUpperCase()+' DOWN',e.hd?'Headshot':'Eliminated',1.8);Net.publishSoon()}
     if(Net.amHost)hostDead.add(curMatch+':'+curRound+':'+v);
   }
 }
 
+// This match's deaths online (m: the match they belong to), for the K/D on the results screen; kills are myKills.
+const kdm={m:null,d:0};
+function kdStr(k,d){return (k/Math.max(1,d)).toFixed(2)}
 /* host: runs the match from the round node; if the host leaves, the next player in line carries on from it */
 const hostDead=new Set();   // "match:round:uid" deaths the host heard about from kill events
 function lobbyPatch(){return{ph:'lobby',rn:0,dd:'',ro:'',rw:'',mw:'',fm:0,pt:0,sr:0,sb:0}}
@@ -1497,8 +1559,10 @@ function fillOnlineEnd(){
   $('endClock').textContent=fmtClock(matchTime);
   $('endMsg').textContent=`${TEAM_NAME[w]} team won ${Math.max(sr,sb)}–${Math.min(sr,sb)}`+(r.fm?' after the other team left the room.':'.')+(Net.amHost?' You\'re the host: head back to the lobby when everyone\'s ready.':' Everyone goes back to the lobby in a few seconds.');
   kills.set(Net.uid,myKills);
+  const myD=kdm.m===curMatch?kdm.d:0;
+  $('endKd').textContent=my?`${myKills} kill${myKills===1?'':'s'} · ${myD} death${myD===1?'':'s'} · K/D ${kdStr(myKills,myD)}`:'';
   const col=t=>{const us=[...roster].filter(x=>x[1]===t).map(x=>x[0]).sort((a,b)=>(kills.get(b)||0)-(kills.get(a)||0));
-    return `<div class="team ${t}"><div class="th"><span>${TEAM_NAME[t]}</span><span>${t==='r'?sr:sb}</span></div><ul>${us.map(u=>`<li><span class="nm">${esc(nameOf(u))}</span>${u===Net.uid?'<span class="tg">you</span>':''}<span class="k">${kills.get(u)||0} KO</span></li>`).join('')}</ul></div>`};
+    return `<div class="team ${t}"><div class="th"><span>${TEAM_NAME[t]}</span><span>${t==='r'?sr:sb}</span></div><ul>${us.map(u=>`<li><span class="nm">${esc(nameOf(u))}</span>${u===Net.uid?'<span class="tg">you</span>':''}<span class="k">${kills.get(u)||0} KO${u===Net.uid?' · K/D '+kdStr(myKills,myD):''}</span></li>`).join('')}</ul></div>`};
   $('endTeams').innerHTML=col('r')+col('b');$('endTeams').hidden=false;
   $('again').textContent='Back to lobby';$('again').disabled=!Net.amHost;$('toMenu').textContent='Leave room';
 }
@@ -2055,7 +2119,10 @@ if(inv){$('room').value=inv[1];setMsg('You were invited to room br-'+inv[1]+'. P
 if(navigator.webdriver)window.__br={get state(){return state},get online(){return online},get phase(){return phase},get R(){return RD},get roster(){return roster},get curMatch(){return curMatch},get curRound(){return curRound},
   get lobbyShown(){return lobbyShown},get myTeamPref(){return myTeamPref},get myKills(){return myKills},get specUid(){return specUid},get N(){return N},get W(){return W},get ents(){return ents},get score(){return score},get mode(){return mode},
   Net,player,opp,remotes,names,kills,setMyTeam,hostStart,hostRandomize,hostSetTarget,hostToLobby,cellFor,camTarget,cycleSpectate,isSpectating,handleEvent,damageEntity,raycast,startPractice,toMenu,joinPrivate,liveHumans,
-  hitboxes,solids:()=>solids,keys,renderer,scene,camera,
+  hitboxes,solids:()=>solids,ramps:()=>ramps,pieces,walls:()=>({h:hWall,v:vWall}),keys,renderer,scene,camera,
+  // collision audit: the real movement, building and interpolation code, driven step by step
+  moveEntity,tryBuild,specValid,damagePiece,generateMap,spawn,soloCell,teamCells,wallSpec,playerBuildSpec,updateRemotes,makeRemote,updateBot,
+  consts:{R,H,STEP,CELL,CEIL,SPEED,JUMP},
   teleport(x,z,y){player.pos.set(x,y||0,z);player.vel.set(0,0,0)},
   aimAt(e){const t=e.pos.clone().add(new V3(0,1.1,0));for(let i=0;i<4;i++){updateCamera(0);const c=camera.position;player.yaw=yawTo(t.x-c.x,t.z-c.z);player.pitch=Math.atan2(t.y-c.y,Math.hypot(t.x-c.x,t.z-c.z))}},
   fire(){const w=WEAPONS[player.wi];updateCamera(0);playerShoot();player.ammo[player.wi]=w.mag;player.cd=0},

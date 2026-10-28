@@ -109,7 +109,7 @@
     'stackfall:mute', 'stackfall:sandColours',
     'melon-merge:best', 'melon-merge:mute', 'melon-merge:faces'
   ];
-  var PREFIXES = ['keybinds:', 'tumble-best-', 'trivium.daily.', 'stackfall:best:'];
+  var PREFIXES = ['keybinds:', 'tumble-best-', 'trivium.daily.', 'stackfall:best:', 'g48:best:'];
   var KEYSET = Object.create(null); KEYS.forEach(function (k) { KEYSET[k] = 1; });
   var has = function (o, k) { return Object.prototype.hasOwnProperty.call(o, k); };
   // Own keys only: a node could name 'constructor' or 'toString', which every plain object "has".

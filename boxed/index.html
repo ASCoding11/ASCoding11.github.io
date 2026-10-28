@@ -166,6 +166,16 @@ input.code{text-transform:uppercase;font-family:var(--serif);font-size:24px;lett
 .sheet .loading{color:#6b7078;font-family:var(--sans);font-size:15px}
 .sheet .fail{font-family:var(--sans);font-size:15px;color:#3b3f45}
 .sheet .fail a{color:#9b2449}
+.sheet .fail .live-link,.sheet .loading-alt .live-link{font-weight:600}
+.sheet .loading-alt{font-family:var(--sans);font-size:15px;color:#3b3f45;animation:boxedLate .3s 2s both}
+.sheet .loading-alt a{color:#9b2449}
+@keyframes boxedLate{from{opacity:0;visibility:hidden}to{opacity:1;visibility:visible}}
+.sheet .katex{font-size:1.05em}
+.sheet .katex-display{margin:.6em 0;overflow-x:auto;overflow-y:hidden}
+.sheet .hf-note{font-family:var(--sans);font-size:13px;color:#6b7078;border-top:1px solid #e3e3e3;margin:1em 0 0;padding-top:.6em}
+.sheet .hf-note a{color:#9b2449}
+.sheet .hf-fig{font-family:var(--sans);font-size:14px;background:#f6f4ef;border:1px dashed #cfc9bd;border-radius:4px;padding:8px 10px;margin:.6em 0}
+.sheet .hf-fig a{color:#9b2449}
 .sheet-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:10px}
 .sheet-head h2{font-size:22px}
 .tier-tag{font-size:14px;color:var(--form);font-weight:600}
@@ -327,7 +337,7 @@ input.code{text-transform:uppercase;font-family:var(--serif);font-size:24px;lett
 
     <div class="adbox" id="adMenu" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
 
-    <p class="credit" style="margin-top:28px">Problems are from the American Mathematics Competitions (AMC 10, 2010–2025) and the AIME (2010–2026), © Mathematical Association of America. Boxed stores only the problem numbers and official answers; the problem text loads from the <a href="https://artofproblemsolving.com/wiki/index.php/AMC_Problems_and_Solutions" target="_blank" rel="noopener">AoPS Wiki</a> while you play, and every answer links to the full solutions there.</p>
+    <p class="credit" style="margin-top:28px">Problems are from the American Mathematics Competitions (AMC 10, 2010–2025) and the AIME (2010–2026), © Mathematical Association of America. Boxed stores only the problem numbers and official answers; the problem text loads from the <a href="https://artofproblemsolving.com/wiki/index.php/AMC_Problems_and_Solutions" target="_blank" rel="noopener">AoPS Wiki</a> while you play, and every answer links to the full solutions there. If the AoPS Wiki isn't answering, AIME problems load from public datasets on <a href="https://huggingface.co/datasets" target="_blank" rel="noopener">Hugging Face</a> instead, and only when their answer matches the official key.</p>
   </main>
 
   <!-- ============ Solo (daily + practice) ============ -->
@@ -533,6 +543,15 @@ function pickProblem(tierIds, used, rand, topics){
 const WIKI = "https://artofproblemsolving.com/wiki/";
 const wikiPath = t => WIKI + "index.php/" + t.replace(/ /g, "_");
 const problemURL = (c, n) => wikiPath(c + " Problems/Problem " + n);
+/* The same problem on LIVE by Po-Shen Loh, which has every AMC 10 and AIME problem Boxed uses. LIVE names the
+   2021 Fall contests 2021C (10A) and 2021D (10B). Only a link: Boxed never loads LIVE's pages itself. */
+function liveURL(c, n){
+  let m = /^(\d{4}) (Fall )?AMC 10([AB])$/.exec(c);
+  if (m) return "https://live.poshenloh.com/past-contests/amc10/" + m[1] + (m[2] ? (m[3] === "A" ? "C" : "D") : m[3]) + "/problem/" + n + "?practice=1";
+  m = /^(\d{4}) AIME (I{1,2})$/.exec(c);
+  if (m) return "https://live.poshenloh.com/past-contests/aime/" + m[1] + m[2] + "/problem/" + n + "?practice=1";
+  return null;
+}
 const loaded = {};
 const OK_TAGS = new Set(["P","BR","IMG","B","I","EM","STRONG","U","SUP","SUB","UL","OL","LI","TABLE","THEAD","TBODY","TR","TD","TH","CENTER","DIV","SPAN","PRE","CODE","HR","DL","DD","DT","BLOCKQUOTE","SMALL"]);
 const DROP_TAGS = new Set(["SCRIPT","STYLE","IFRAME","OBJECT","EMBED","FORM","INPUT","BUTTON","TEXTAREA","SELECT","LINK","META","NOSCRIPT","SVG","MATH","VIDEO","AUDIO"]);
@@ -548,7 +567,7 @@ function clean(node){
     if (tag === "IMG"){
       let src = ch.getAttribute("src") || "";
       if (src.startsWith("//")) src = "https:" + src;
-      else if (src.startsWith("/")) src = "https://artofproblemsolving.com" + src;
+      else if (src.startsWith("/")) src = imgBase + src;
       let host = ""; try { host = new URL(src).hostname; } catch(e){}
       if (!/(^|\.)artofproblemsolving\.com$/.test(host)){ ch.remove(); return; }
       keep.src = src; ["alt","width","height"].forEach(a => { if (ch.hasAttribute(a)) keep[a] = ch.getAttribute(a); });
@@ -567,53 +586,270 @@ function headingOf(el){
   if (el.classList && el.classList.contains("mw-heading")) return el.querySelector("h2,h3,h4");
   return null;
 }
-function extractProblems(html){
-  const doc = new DOMParser().parseFromString(html, "text/html");
-  const root = doc.querySelector(".mw-parser-output") || doc.body;
-  const out = {}; let cur = null;
+/* Top-level blocks of a parsed page, in order. Newer MediaWiki versions wrap each section in a
+   <section>, so step inside those (and plain wrapper divs holding headings) rather than skipping them. */
+function blocks(root){
+  const out = [];
   for (const el of [...root.children]){
+    if (headingOf(el)){ out.push(el); continue; }
+    if (el.tagName === "SECTION" || (el.tagName === "DIV" && !el.className && el.querySelector(":scope > section, :scope > h2, :scope > h3, :scope > .mw-heading"))){ out.push(...blocks(el)); continue; }
+    out.push(el);
+  }
+  return out;
+}
+const headText = h => (h.querySelector(".mw-headline") || h).textContent.trim();
+const isSolutionLink = el => el.tagName === "P" && /^\[?\s*(solutions?|solution \d+|video solution.*)\s*\]?$/i.test(el.textContent.replace(/\s+/g, " ").trim());
+function parsePage(html){
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  return {doc, list: blocks(doc.querySelector(".mw-parser-output") || doc.body)};
+}
+/* A contest page ("2019 AMC 10A Problems"): one "Problem N" heading per problem. */
+function extractProblems(html){
+  const {doc, list} = parsePage(html);
+  const out = {}; let cur = null;
+  for (const el of list){
     const h = headingOf(el);
     if (h){
-      const txt = (h.querySelector(".mw-headline") || h).textContent.trim();
-      const m = /^Problem\s*(\d+)\b/i.exec(txt);
+      const m = /^Problem\s*(\d+)\b/i.exec(headText(h));
       if (m){ cur = +m[1]; out[cur] = doc.createElement("div"); }
       else if (h.tagName === "H2") cur = null;
       continue;
     }
-    if (!cur) continue;
-    const t = el.textContent.replace(/\s+/g, " ").trim();
-    if (el.tagName === "P" && /^\[?\s*(solutions?|solution \d+|video solution.*)\s*\]?$/i.test(t)) continue;
+    if (!cur || isSolutionLink(el)) continue;
     out[cur].appendChild(el.cloneNode(true));
   }
   const res = {};
   for (const n in out){ const h = clean(out[n]).innerHTML.trim(); if (h) res[n] = h; }
   return res;
 }
+/* A single problem page ("2019 AMC 10A Problems/Problem 7"): the text under its "Problem" heading,
+   or everything before the first heading if it has none. */
+function extractOne(html){
+  const {doc, list} = parsePage(html);
+  const box = doc.createElement("div");
+  const hasProblemHead = list.some(el => { const h = headingOf(el); return h && /^Problem\b/i.test(headText(h)); });
+  let on = !hasProblemHead;
+  for (const el of list){
+    const h = headingOf(el);
+    if (h){ if (on && box.childNodes.length) break; on = /^Problem\b/i.test(headText(h)); continue; }
+    if (on && !isSolutionLink(el) && !el.matches("table.wikitable, .toc, #toc")) box.appendChild(el.cloneNode(true));
+  }
+  return clean(box).innerHTML.trim();
+}
+
+/* The wiki's API, tried at both addresses at once. If neither answers, Boxed stops asking for the rest of
+   the visit and shows the link to the problem on AoPS straight away, instead of making players wait. */
+const APIS = [WIKI + "api.php", "https://wiki.artofproblemsolving.com/wiki/api.php"];
+let imgBase = "https://artofproblemsolving.com";
+let wikiDown = false;
+try { const t = +localStorage.getItem("boxed.wikiDown"); if (t && Date.now() - t < 30 * 60 * 1000) wikiDown = true; } catch(e){}
+function markWikiDown(){ wikiDown = true; try { localStorage.setItem("boxed.wikiDown", String(Date.now())); } catch(e){} }
+function fetchJSON(url){
+  const ctl = window.AbortController ? new AbortController() : null;
+  const timer = ctl && setTimeout(() => ctl.abort(), 6000);
+  return fetch(url, ctl ? {signal: ctl.signal} : {}).then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+    .finally(() => timer && clearTimeout(timer));
+}
+function parseWiki(page){
+  if (wikiDown) return Promise.reject(new Error("wiki unreachable"));
+  const q = "?action=parse&format=json&formatversion=2&prop=text&redirects=1&disableeditsection=1&origin=*&page=" + encodeURIComponent(page);
+  return new Promise((resolve, reject) => {
+    let left = APIS.length;
+    APIS.forEach(api => {
+      fetchJSON(api + q).then(j => {
+        if (j.error) throw new Error(j.error.code || "api error");
+        const text = j.parse && (typeof j.parse.text === "string" ? j.parse.text : j.parse.text && j.parse.text["*"]);
+        if (!text) throw new Error("no page");
+        imgBase = new URL(api).origin;
+        try { localStorage.removeItem("boxed.wikiDown"); } catch(e){}
+        resolve(text);
+      }).catch(e => {
+        console.warn("Boxed: AoPS Wiki load failed at " + api + " (" + page + "):", e && e.message || e);
+        if (--left === 0){ if (e instanceof TypeError || e.name === "AbortError" || /^HTTP 403/.test(e.message)) markWikiDown(); reject(e); }
+      });
+    });
+  });
+}
 function loadContest(c){
   if (loaded[c]) return loaded[c];
   const cached = store.get("boxed.p2." + c);
   if (cached){ try { const v = JSON.parse(cached); if (v && Object.keys(v).length >= 5) return (loaded[c] = Promise.resolve(v)); } catch(e){} }
-  const url = WIKI + "api.php?action=parse&format=json&formatversion=2&prop=text&redirects=1&disableeditsection=1&origin=*&page=" + encodeURIComponent(c + " Problems");
-  loaded[c] = fetch(url).then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); }).then(j => {
-    if (!j.parse || !j.parse.text) throw new Error("no page");
-    const map = extractProblems(j.parse.text);
+  loaded[c] = parseWiki(c + " Problems").then(html => {
+    const map = extractProblems(html);
     if (Object.keys(map).length < 5) throw new Error("couldn't read problems");
     store.set("boxed.p2." + c, JSON.stringify(map));
     return map;
   }).catch(e => { delete loaded[c]; throw e; });
   return loaded[c];
 }
+/* Backup for one problem when its contest page can't be read: load that problem's own page. */
+const loadedOne = {};
+function loadOne(c, n){
+  const key = c + "|" + n;
+  if (loadedOne[key]) return loadedOne[key];
+  const cached = store.get("boxed.p1." + key);
+  if (cached) return (loadedOne[key] = Promise.resolve(cached));
+  loadedOne[key] = parseWiki(c + " Problems/Problem " + n).then(html => {
+    const h = extractOne(html);
+    if (!h || h.replace(/<[^>]*>/g, "").trim().length < 10 && !/<img/i.test(h)) throw new Error("couldn't read problem");
+    store.set("boxed.p1." + key, h);
+    return h;
+  }).catch(e => { delete loadedOne[key]; throw e; });
+  return loadedOne[key];
+}
+/* Rejects if `p` hasn't settled within `ms`, so nothing waits forever on a request that never answers. */
+const within = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("timed out")), ms))]);
+
+/* ---------------- Backup for AIME problems: public Hugging Face datasets ----------------
+   When the AoPS Wiki won't answer, AIME problems load from public datasets on Hugging Face through its
+   dataset viewer API, which pages on other sites are allowed to call. A dataset's row is only shown if its
+   answer matches Boxed's own answer key for that problem, so a mislabeled dataset can never show the
+   wrong problem. The text is LaTeX source, drawn with KaTeX; diagrams aren't included. */
+const HF = "https://datasets-server.huggingface.co/";
+function hfSources(year, part){
+  const P = part === "I" ? "I" : "II", off = part === "I" ? 0 : 15;
+  const src = [];
+  if (year <= 2024){
+    ["gneubig/aime-1983-2024", "di-zhang-fdu/AIME_1983_2024"].forEach(ds => src.push({ds, how: "filter",
+      where: ['"Year"=' + year + ' AND "Part"=\'' + P + "'", '"Year"=\'' + year + '\' AND "Part"=\'' + P + "'"],
+      num: r => +r["Problem Number"], text: r => r.Question, ans: r => r.Answer}));
+  }
+  if (year >= 2022 && year <= 2024){
+    src.push({ds: "AI-MO/aimo-validation-aime", how: "rows",
+      num: r => { const m = new RegExp(year + "_AIME_" + P + "_Problems/Problem_(\\d+)").exec(r.url || ""); return m ? +m[1] : 0; },
+      text: r => r.problem, ans: r => r.answer});
+  }
+  if (year >= 2025){
+    src.push({ds: "MathArena/aime_" + year + "_" + P, how: "rows", num: r => +r.problem_idx, text: r => r.problem, ans: r => r.answer});
+    src.push({ds: "MathArena/aime_" + year, how: "rows", num: r => +r.problem_idx - off, text: r => r.problem, ans: r => r.answer});
+    src.push({ds: "math-ai/aime" + String(year).slice(2), how: "rows", num: (r, i) => i + 1 - off,
+      text: r => r.problem || r.question || r.Problem || r.Question, ans: r => r.answer != null ? r.answer : r.Answer});
+  }
+  return src;
+}
+async function hfRows(src){
+  const base = "dataset=" + encodeURIComponent(src.ds);
+  const sp = await fetchJSON(HF + "splits?" + base);
+  const first = sp && sp.splits && sp.splits[0];
+  if (!first) throw new Error("no splits");
+  const q = base + "&config=" + encodeURIComponent(first.config) + "&split=" + encodeURIComponent(first.split);
+  if (src.how === "filter"){
+    let last;
+    for (const w of src.where){
+      try { const j = await fetchJSON(HF + "filter?" + q + "&where=" + encodeURIComponent(w) + "&offset=0&length=100"); if (j.rows && j.rows.length) return j.rows.map(x => x.row); }
+      catch(e){ last = e; }
+    }
+    throw last || new Error("no rows");
+  }
+  const j = await fetchJSON(HF + "rows?" + q + "&offset=0&length=100");
+  if (!j.rows) throw new Error("no rows");
+  return j.rows.map(x => x.row);
+}
+const hfLoaded = {};
+/* Every problem of one AIME contest that Hugging Face has and whose answer matches the key: {n: latex}. */
+function loadHFContest(c){
+  if (hfLoaded[c]) return hfLoaded[c];
+  const cached = store.get("boxed.hf1." + c);
+  if (cached){ try { const v = JSON.parse(cached); if (v && Object.keys(v).length) return (hfLoaded[c] = Promise.resolve(v)); } catch(e){} }
+  const m = /^(\d{4}) AIME (I{1,2})$/.exec(c);
+  if (!m) return Promise.reject(new Error("not AIME"));
+  hfLoaded[c] = (async () => {
+    const out = {};
+    for (const src of hfSources(+m[1], m[2])){
+      try {
+        const rows = await hfRows(src);
+        rows.forEach((r, i) => {
+          const n = src.num(r, i), t = src.text(r), a = parseInt(String(src.ans(r)).replace(/[^\d-]/g, ""), 10);
+          if (n >= 1 && n <= 15 && !out[n] && typeof t === "string" && t.trim() && CBYID[c].ans[n - 1] === a) out[n] = t;
+        });
+      } catch(e){ console.warn("Boxed: Hugging Face load failed for " + src.ds + " (" + c + "):", e && e.message || e); }
+      if (Object.keys(out).length >= 15) break;
+    }
+    if (!Object.keys(out).length) throw new Error("no matching problems");
+    if (Object.keys(out).length >= 5) store.set("boxed.hf1." + c, JSON.stringify(out));
+    return out;
+  })();
+  hfLoaded[c] = within(hfLoaded[c], 12000).catch(e => { delete hfLoaded[c]; throw e; });
+  return hfLoaded[c];
+}
+
+/* KaTeX is loaded only the first time a dataset problem is shown. */
+let katexP = null;
+function loadKatex(){
+  if (window.katex) return Promise.resolve();
+  if (katexP) return katexP;
+  const V = "https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/";
+  katexP = new Promise((res, rej) => {
+    const l = document.createElement("link"); l.rel = "stylesheet"; l.href = V + "katex.min.css"; document.head.appendChild(l);
+    const sc = document.createElement("script"); sc.src = V + "katex.min.js"; sc.onload = res; sc.onerror = () => { katexP = null; rej(new Error("katex")); };
+    document.head.appendChild(sc);
+  });
+  katexP = within(katexP, 5000).catch(e => { katexP = null; throw e; });
+  return katexP;
+}
+/* LaTeX source -> HTML: paragraphs, $…$ / $$…$$ / \(…\) / \[…\] math, \$ as a dollar sign, and a note in place of each [asy] diagram. */
+function texToHTML(src, figLink){
+  const fig = '<div class="hf-fig">This problem has a diagram that couldn\'t be shown here. <a href="' + esc(figLink) + '" target="_blank" rel="noopener">See it on the AoPS Wiki</a>.</div>';
+  const hasK = !!window.katex;
+  const math = (t, display) => {
+    if (!hasK) return esc(display ? " " + t + " " : t);
+    try { return katex.renderToString(t, {displayMode: display, throwOnError: false, strict: "ignore"}); } catch(e){ return esc(t); }
+  };
+  const text = s => {
+    let out = "", i = 0;
+    while (i < s.length){
+      const ch = s[i], nx = s[i + 1];
+      if (ch === "\\" && nx === "$"){ out += "$"; i += 2; continue; }
+      let open = null, close = null, display = false;
+      if (ch === "$" && nx === "$"){ open = "$$"; close = "$$"; display = true; }
+      else if (ch === "$"){ open = "$"; close = "$"; }
+      else if (ch === "\\" && nx === "["){ open = "\\["; close = "\\]"; display = true; }
+      else if (ch === "\\" && nx === "("){ open = "\\("; close = "\\)"; }
+      if (open){
+        let j = i + open.length, end = -1;
+        while (j < s.length){
+          if (s.startsWith(close, j) && !(close === "$" && s[j + 1] === "$")){ end = j; break; }
+          if (s[j] === "\\") j += 2; else j++;
+        }
+        if (end > -1){ out += math(s.slice(i + open.length, end), display); i = end + close.length; continue; }
+      }
+      out += esc(ch); i++;
+    }
+    return out;
+  };
+  return String(src).replace(/\r/g, "").split(/\[asy\][\s\S]*?\[\/asy\]/i).map(part =>
+    part.split(/\n\s*\n/).map(x => x.trim()).filter(Boolean).map(x => "<p>" + text(x.replace(/\s*\n\s*/g, " ")) + "</p>").join("")
+  ).join(fig);
+}
+function showHF(el, c, n, latex){
+  el.innerHTML = texToHTML(latex, problemURL(c, n)) + '<p class="hf-note">The AoPS Wiki isn\'t answering, so this text comes from a public dataset on Hugging Face. <a href="' + esc(problemURL(c, n)) + '" target="_blank" rel="noopener">Problem on AoPS</a></p>';
+}
+
 /* Fill a sheet element with a problem. `token` guards against a slow load landing on a newer problem. */
+function problemLinks(c, n){
+  const live = liveURL(c, n);
+  return live
+    ? '<a class="live-link" href="' + esc(live) + '" target="_blank" rel="noopener">Open the problem on LIVE by Po-Shen Loh</a> (or <a href="' + esc(problemURL(c, n)) + '" target="_blank" rel="noopener">on the AoPS Wiki</a>)'
+    : '<a href="' + esc(problemURL(c, n)) + '" target="_blank" rel="noopener">Open the problem on the AoPS Wiki</a>';
+}
 function showProblem(el, c, n, token){
   el.dataset.token = token;
-  el.innerHTML = '<p class="loading">Loading the problem…</p>';
-  loadContest(c).then(map => {
-    if (el.dataset.token !== token) return;
+  el.innerHTML = '<p class="loading">Loading the problem…</p><p class="loading-alt">Taking a while? ' + problemLinks(c, n) + '.</p>';
+  within(loadContest(c), 8000).then(map => {
     if (!map[n]) throw new Error("missing");
-    el.innerHTML = map[n];
+    return map[n];
+  }).catch(() => within(loadOne(c, n), 8000)).then(html => {
+    if (el.dataset.token !== token) return;
+    el.innerHTML = html;
+  }).catch(e => {
+    if (CBYID[c].type !== "i") throw e;
+    return within(Promise.all([loadHFContest(c), loadKatex().catch(() => {})]), 15000).then(([map]) => {
+      if (!map[n]) throw new Error("missing");
+      if (el.dataset.token === token) showHF(el, c, n, map[n]);
+    });
   }).catch(() => {
     if (el.dataset.token !== token) return;
-    el.innerHTML = '<div class="fail"><p>The problem text didn\'t load here (the AoPS Wiki may be blocked on this network).</p><p><a href="' + esc(problemURL(c, n)) + '" target="_blank" rel="noopener">Open the problem on the AoPS Wiki</a>, then answer below.</p></div>';
+    el.innerHTML = '<div class="fail"><p>The AoPS Wiki isn\'t letting Boxed load its problems right now.</p><p>' + problemLinks(c, n) + ', then answer below.</p></div>';
   });
 }
 function preload(c){ loadContest(c).catch(() => {}); }

@@ -14,20 +14,28 @@
  *   ts last heartbeat         j  when they joined (server time)
  *   pk game the leader has picked (leader only)
  *   go { id, g, r, t }        the leader's latest launch: game key, room code, server time
+ *   kick [{ u, t }]           people the leader removed (uid, server time), up to 8, kept for 10 minutes
  * The leader is whoever has been in the party longest (smallest j), so when the leader leaves the next
  * person takes over with nothing to hand over. Closing the tab removes your node (onDisconnect).
+ *
+ * Kicking: the leader can't delete anyone else's node, so it lists them in kick in its own node. Every member
+ * watches the current leader's list (only the leader's counts), and one that finds its own uid there with a
+ * time in the last 10 minutes leaves by removing its own node and says who removed it. Joining checks the
+ * leader's list first, so a kicked person can't come back for 10 minutes (as long as the same leader is there).
  *
  * "Play together" writes go, and every member's browser opens that game with #<prefix>-<room>, then puts the
  * party name in the game's name box and the room in its room box, and presses its own "Play in room" button for
  * them (the game's menu ids are in GAMES). The game's own saved name is put back afterwards (nk in GAMES).
  * To add a game: add a row to GAMES. If its menu uses other ids than name / room / joinRoom, give them in ids,
  * and give the localStorage key it saves its name under in nk.
+ * Members show with their avatar (avatar.js) and status tier badge (miles.js) when those scripts are here; without
+ * them, a coloured initial and no badge.
  */
 (function () {
   'use strict';
   if (document.getElementById('party')) return;
 
-  var MAX = 8, STALE = 120000, BEAT = 15000;
+  var MAX = 8, STALE = 120000, BEAT = 15000, KICK_TTL = 10 * 60000;
   var CFG = {
     apiKey: 'AIzaSyDZD_Ku8cixteXfwkDYzGv3GKiZFF8sRSM',
     authDomain: 'rumblekarts.firebaseapp.com',
@@ -54,10 +62,10 @@
     { k: 'sd', n: 'Showdown', d: 'showdown', max: 8, nk: 'sd:name' },
     { k: 'br', n: 'Backrooms 1v1–4v4', d: 'backrooms-1v1', max: 8, nk: 'br1v1-name' },
     { k: 'cf', n: 'Chromaflage', d: 'chromaflage', max: 8, nk: 'chroma-name' },
-    { k: 'tw', n: 'Spire', d: 'spire', max: 12, nk: 'spire:name' },
     { k: 'up', n: 'Updraft', d: 'updraft', max: 12, nk: 'updraft:name' },
     { k: 'ph', n: 'Odd One Out', d: 'odd-one-out', max: 16, nk: 'oddone-name' },
-    { k: 'ko', n: 'Tumble Trials', d: 'tumble-trials', max: 16, nk: 'tumble-name' }
+    { k: 'ko', n: 'Tumble Trials', d: 'tumble-trials', max: 16, nk: 'tumble-name' },
+    { k: 'dw', n: 'Deepword', d: 'deepword', max: 12, nk: 'deepword-name' }
   ];
   var COLORS = ['#1D6A4B', '#C0562F', '#3E5BA9', '#9A3F8F', '#B07A12', '#2A8A8A', '#B42318', '#5B6B2E'];
 
@@ -123,12 +131,16 @@
     '.pty-count{font-family:var(--mono);font-size:13px;color:var(--ink-2)}' +
     '.pty-acts{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}' +
     '.pty-mem{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}' +
+    '.pty-mem.pty-lead{grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr))}' +
     '.pty-mem li{display:flex;align-items:center;gap:10px;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0}' +
     '.pty-av{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:14px;color:#fff;flex:none}' +
-    '.pty-who{display:grid;min-width:0;line-height:1.25}' +
+    '.pty-who{display:grid;min-width:0;line-height:1.25;gap:2px}' +
     '.pty-nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}' +
-    '.pty-tag{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}' +
+    '.pty-tag{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+    '.pty-tl{display:flex;min-width:0;line-height:1}' +
     '.pty-tag b{color:var(--accent);font-weight:600}' +
+    '.pty-kick{margin-left:auto;flex:none;width:32px;height:32px;border-radius:8px;border:1px solid var(--line);background:none;color:var(--ink-2);font:inherit;font-size:16px;line-height:1;cursor:pointer;display:grid;place-items:center;padding:0}' +
+    '.pty-kick:hover{color:var(--down);border-color:var(--down)}' +
     '.pty-h{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);margin:0 0 8px}' +
     '.pty-games{display:flex;flex-wrap:wrap;gap:8px}' +
     '.pty-games button{font:inherit;font-size:14px;font-weight:600;color:var(--ink);background:var(--panel-2);border:1px solid var(--line);border-radius:999px;padding:7px 14px;cursor:pointer;min-height:36px}' +
@@ -159,7 +171,7 @@
   // ---------------- State ----------------
   var app = null, auth = null, db = null, uid = null, offset = 0, booting = null;
   var code = '', refs = null, myJ = 0, members = [], picked = '', goId = 0, beat = 0, busy = false;
-  var handled = {}, wasConnected = false, connRef = null, lastLeader = '';
+  var handled = {}, wasConnected = false, connRef = null, lastLeader = '', kicked = [];
   function now() { return Date.now() + offset; }
 
   function load(src) {
@@ -179,9 +191,10 @@
       app = firebase.apps.filter(function (a) { return a.options.apiKey === CFG.apiKey; })[0] ||
         firebase.initializeApp(CFG, firebase.apps.length ? 'party' : undefined);
       auth = app.auth();
-      await timeout(new Promise(function (r) { var s = auth.onAuthStateChanged(function () { s(); r(); }); }), 12000, NET);
+      // Signing in can take 10-20 s on a slow phone on school Wi-Fi: give it 25 s, like the games.
+      await timeout(new Promise(function (r) { var s = auth.onAuthStateChanged(function () { s(); r(); }); }), 25000, NET);
       if (!auth.currentUser) {
-        try { await timeout(auth.signInAnonymously(), 12000, NET); }
+        try { await timeout(auth.signInAnonymously(), 25000, NET); }
         catch (err) { if (err.message === NET) throw err; throw new Error('Sign-in failed: ' + (err.message || err.code)); }
       }
       uid = auth.currentUser.uid;
@@ -204,15 +217,32 @@
     Object.keys(val || {}).forEach(function (k) {
       var v = val[k];
       if (!v || typeof v !== 'object' || t - (+v.ts || 0) > STALE) return;
-      out.push({ uid: k, n: cleanName(v.n) || 'Player', c: /^#[0-9a-f]{6}$/i.test(v.c) ? v.c : '#4A5751', j: +v.j || +v.ts || 0, pk: typeof v.pk === 'string' ? v.pk : '', go: v.go && typeof v.go === 'object' ? v.go : null });
+      out.push({ uid: k, n: cleanName(v.n) || 'Player', c: /^#[0-9a-f]{6}$/i.test(v.c) ? v.c : '#4A5751', j: +v.j || +v.ts || 0, pk: typeof v.pk === 'string' ? v.pk : '', go: v.go && typeof v.go === 'object' ? v.go : null, kick: kickList(v.kick, t) });
     });
     out.sort(function (a, b) { return a.j - b.j || (a.uid < b.uid ? -1 : 1); });
     return out;
   }
+  // Someone else's kick list: at most MAX entries of { u: uid, t: time } from the last KICK_TTL; anything else is dropped.
+  function kickList(v, t) {
+    var a = Array.isArray(v) ? v : (v && typeof v === 'object' ? Object.keys(v).map(function (k) { return v[k]; }) : []), out = [];
+    for (var i = 0; i < a.length && i < 16 && out.length < MAX; i++) {
+      var e = a[i]; if (!e || typeof e !== 'object' || typeof e.u !== 'string' || !/^[A-Za-z0-9_-]{6,64}$/.test(e.u)) continue;
+      var kt = +e.t || 0; if (kt > t - KICK_TTL && kt < t + 30000) out.push({ u: e.u, t: kt });
+    }
+    return out;
+  }
+  // When the leader L removed u, or 0. Only the current leader's list counts.
+  function kickedBy(L, u) {
+    if (!L || L.uid === u || !L.kick) return 0;
+    for (var i = 0; i < L.kick.length; i++) if (L.kick[i].u === u) return L.kick[i].t;
+    return 0;
+  }
+  function kickMsg(L, kt) { return 'You were removed from the party by ' + L.n + '. You can join it again in ' + Math.max(1, Math.ceil((kt + KICK_TTL - now()) / 60000)) + ' min.'; }
   function myState() {
     var s = { n: myName(), c: colorOf(uid), x: 0, z: 0, h: 0, ts: Math.round(now()), j: myJ };
     if (picked) s.pk = picked;
     if (goId && lastGo) s.go = lastGo;
+    if (kicked.length) s.kick = kicked;
     return s;
   }
   var lastGo = null;
@@ -229,6 +259,7 @@
       var cur = live((await timeout(players.once('value'), 10000, NET)).val()).filter(function (m) { return m.uid !== uid; });
       if (!cur.length && !rejoin) throw new Error('No party is using the code ' + c + ' right now. Check the code, or create a party.');
       if (cur.length >= MAX) throw new Error('That party is full (' + MAX + ' of ' + MAX + '). Ask them to make room, or create your own party.');
+      var kt = kickedBy(cur[0], uid); if (kt) throw new Error(kickMsg(cur[0], kt));
       await enter(c);
       say('');
     } catch (err) {
@@ -274,7 +305,12 @@
     connRef = db.ref('.info/connected'); wasConnected = true;
     connRef.on('value', onConnected);
     clearInterval(beat);
-    beat = setInterval(function () { if (refs) refs.me.update({ ts: Math.round(now()) }).catch(function () {}); }, BEAT);
+    beat = setInterval(function () {
+      if (!refs) return;
+      var patch = { ts: Math.round(now()) }, fresh = kicked.filter(function (e) { return e.t > now() - KICK_TTL; });
+      if (fresh.length !== kicked.length) { kicked = fresh; patch.kick = kicked.length ? kicked : null; }
+      refs.me.update(patch).catch(function () {});
+    }, BEAT);
     drawParty();
   }
   function onConnected(s) {
@@ -286,7 +322,7 @@
     clearInterval(beat);
     if (connRef) { connRef.off('value', onConnected); connRef = null; }
     if (refs) { var r = refs; try { r.players.off('value', onPlayers); r.me.onDisconnect().cancel(); r.me.remove().catch(function () {}); } catch (e) {} }
-    refs = null; code = ''; members = []; picked = ''; lastGo = null; goId = 0; lastLeader = '';
+    refs = null; code = ''; members = []; picked = ''; lastGo = null; goId = 0; lastLeader = ''; kicked = [];
     if (clear) sess('party:code', null);
   }
   function leave() { teardown(true); say('You left the party.'); render(); }
@@ -296,6 +332,8 @@
   function onPlayers(s) {
     if (!refs) return;
     var all = live(s.val());
+    var L0 = all[0], kt = L0 ? kickedBy(L0, uid) : 0;
+    if (kt) { var msg = kickMsg(L0, kt); teardown(true); say(msg, true); render(); return; }
     if (!all.some(function (m) { return m.uid === uid; })) {
       // Our node went missing (a dropped connection removes it); put it back.
       refs.me.set(myState()).catch(function () {});
@@ -331,6 +369,16 @@
     refs.me.update({ go: lastGo, ts: Math.round(now()) }).catch(function (e) { say('Couldn’t tell the party (' + (e.code || e.message) + ').', true); });
     say('Starting ' + g.n + ' in room ' + r + '…');
     launch(g, r);
+  }
+  // The leader removes a member: list them in our own node (we can't delete theirs); their browser leaves when it sees it.
+  function kick(u) {
+    var L = leader(); if (!refs || !L || L.uid !== uid || u === uid) return;
+    var m = members.filter(function (x) { return x.uid === u; })[0]; if (!m) return;
+    if (!confirm('Remove ' + m.n + ' from the party? They can\u2019t join it again for 10 minutes.')) return;
+    var t = Math.round(now());
+    kicked = kicked.filter(function (e) { return e.u !== u && e.t > t - KICK_TTL; }).concat({ u: u, t: t }).slice(-MAX);
+    refs.me.update({ kick: kicked, ts: t }).then(function () { say('Removed ' + m.n + ' from the party.'); }, function (e) { say('Couldn\u2019t remove them (' + (e.code || e.message) + ').', true); });
+    drawParty();
   }
   // Room codes come from another member's node, so only accept the characters the games' invite links allow.
   function okRoom(r) { return typeof r === 'string' && /^[a-z0-9]{1,17}$/.test(r); }
@@ -444,11 +492,22 @@
       $main.querySelector('.pty-code').textContent = code;
     }
     $main.querySelector('.pty-count').textContent = n + ' of ' + MAX;
-    $main.querySelector('.pty-mem').innerHTML = members.map(function (m, i) {
+    var t0 = now(); kicked = kicked.filter(function (e) { return e.t > t0 - KICK_TTL; });
+    var mem = $main.querySelector('.pty-mem');
+    mem.classList.toggle('pty-lead', !!lead);   // wider cards for the leader: the kick button and the tier badge both need room
+    mem.innerHTML = members.map(function (m, i) {
+      var going = lead && kicked.some(function (e) { return e.u === m.uid; });
       return '<li><span class="pty-av" style="background:' + esc(m.c) + '" aria-hidden="true">' + esc(m.n.charAt(0).toUpperCase()) + '</span>' +
         '<span class="pty-who"><span class="pty-nm">' + esc(m.n) + '</span><span class="pty-tag">' +
-        [i === 0 ? '<b>Leader</b>' : 'Member', m.uid === uid ? 'You' : ''].filter(Boolean).join(' · ') + '</span></span></li>';
+        [i === 0 ? '<b>Leader</b>' : 'Member', m.uid === uid ? 'You' : '', going ? 'Removing…' : ''].filter(Boolean).join(' · ') + '</span></span>' +
+        (lead && m.uid !== uid && !going ? '<button type="button" class="pty-kick" data-k="' + esc(m.uid) + '" title="Remove from the party" aria-label="Remove ' + esc(m.n) + ' from the party">✕</button>' : '') + '</li>';
     }).join('');
+    // The avatar (avatar.js) in place of the initial, and the status tier badge (miles.js) on its own line above Leader / Member.
+    Array.prototype.forEach.call(mem.children, function (li, i) {
+      var m = members[i]; if (!m) return;
+      if (window.BackRoomAvatar) { try { li.replaceChild(BackRoomAvatar.el(m.uid, 32), li.firstChild); } catch (e) {} }
+      if (window.BackRoomMiles) { try { var t = BackRoomMiles.peek(m.uid), tag = li.querySelector('.pty-tag'); if (t) { var tl = document.createElement('span'); tl.className = 'pty-tl'; tl.appendChild(BackRoomMiles.badge(t)); tag.parentNode.insertBefore(tl, tag); } } catch (e) {} }
+    });
 
     var box = $main.querySelector('.pty-pick');
     if (lead) {
@@ -479,8 +538,9 @@
   // ---------------- Events ----------------
   sec.addEventListener('click', function (e) {
     var t = e.target.closest('button'); if (!t || t.disabled) return;
-    var a = t.getAttribute('data-a'), gk = t.getAttribute('data-g');
-    if (a === 'create' || a === 'join') {
+    var a = t.getAttribute('data-a'), gk = t.getAttribute('data-g'), ku = t.getAttribute('data-k');
+    if (ku) kick(ku);
+    else if (a === 'create' || a === 'join') {
       var nm = cleanName($main.querySelector('#ptyName').value);
       if (!nm) { say('Type your name first, so your party knows who you are.', true); $main.querySelector('#ptyName').focus(); return; }
       store('party:name', nm);
@@ -511,6 +571,9 @@
     if (b) b.click();
   });
   sec.addEventListener('input', function (e) { if (e.target.id === 'ptyName') store('party:name', cleanName(e.target.value) || null); });
+  // avatar.js and miles.js may load after the list was drawn, and every finished tier read is a redraw.
+  document.addEventListener('backroom:avatar', function () { if (refs) drawParty(); });
+  document.addEventListener('backroom:miles', function () { if (refs) drawParty(); });
   if (window.SiteAccount && SiteAccount.onChange) SiteAccount.onChange(function () { if (!code && !store('party:name')) { drawn = ''; drawIdle(); } });
 
   // ---------------- Start ----------------
@@ -540,6 +603,9 @@
     now: now,
     get code() { return refs ? code : ''; },
     get size() { return refs ? members.length : 0; },
+    get leader() { var L = refs && leader(); return L ? { uid: L.uid, n: L.n } : null; },
+    get members() { return refs ? members.map(function (m) { return m.uid; }) : []; },
+    max: MAX,
     get room() { return lastRoom; },
     games: GAMES.map(function (g) { return { k: g.k, n: g.n, d: g.d, pre: g.pre != null ? g.pre : g.k + '-' }; }),
     create: function () { return (refs || busy ? Promise.resolve() : create()).then(function () { return refs ? code : ''; }); },
@@ -559,5 +625,5 @@
   };
 
   // Test hook for the automated checks; harmless in normal play.
-  if (navigator.webdriver) window.__party = { get code() { return code; }, get uid() { return uid; }, get members() { return members; }, leader: leader, GAMES: GAMES, MAX: MAX, db: function () { return db; } };
+  if (navigator.webdriver) window.__party = { get code() { return code; }, get uid() { return uid; }, get members() { return members; }, get kicked() { return kicked; }, leader: leader, GAMES: GAMES, MAX: MAX, db: function () { return db; } };
 })();
