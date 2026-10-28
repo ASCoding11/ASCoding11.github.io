@@ -404,6 +404,7 @@ body.touch #pips{left:calc(200px + env(safe-area-inset-left,0px));transform:none
       <div class="osd-line"><span>■ STOP</span><span id="endClock">00:00:00</span></div>
       <h2 class="title" id="endTitle" style="font-size:clamp(48px,8vw,92px)">YOU GOT OUT</h2>
       <div class="result-score"><span class="y" id="eYou">5</span> <span style="color:var(--ink-dim)">–</span> <span class="t" id="eBot">0</span></div>
+      <p class="lede" id="endKd" style="font-size:15px;color:var(--ink-dim)"></p>
       <p class="lede" id="endMsg"></p>
       <div class="endteams" id="endTeams" hidden></div>
       <div class="row"><button class="cta" id="again" type="button">Rematch</button><button class="ghost-btn" id="toMenu" type="button">Menu</button></div>
@@ -945,6 +946,7 @@ function endMatch(){
   if(won&&window.BackRoomStats)BackRoomStats.add('wins',1);
   $('endTitle').textContent=won?'YOU GOT OUT':'NO EXIT';
   $('eYou').textContent=score.you;$('eBot').textContent=score.opp;$('eYou').parentNode.classList.remove('tmode');$('endTeams').hidden=true;
+  $('endKd').textContent=`${score.you} kill${score.you===1?'':'s'} · ${score.opp} death${score.opp===1?'':'s'} · K/D ${kdStr(score.you,score.opp)}`;
   $('endClock').textContent=fmtClock(matchTime);
   $('again').textContent='Rematch';$('again').disabled=false;$('toMenu').textContent='Menu';
   $('endMsg').textContent=won?`You eliminated the entity ${score.you} times on ${diffKey} difficulty. The hum is quieter now.`:`The entity took ${score.opp} rounds on ${diffKey} difficulty. Try building higher before you push.`;
@@ -970,7 +972,8 @@ function onKill(victim,killer,wi,head){
   if(!victim.alive&&victim===player&&phase==='over')return;
   victim.alive=false;victim.dieT=0;
   const w=WEAPONS[wi]||WEAPONS[0],tail=' · '+w.name+(head?' · head':'');
-  if(victim===opp&&window.BackRoomStats){BackRoomStats.add('kills',1);BackRoomStats.max('mkills',score.you+1)}
+  if(victim===opp&&window.BackRoomStats){BackRoomStats.add('kills',1);BackRoomStats.add('kdkills',1);BackRoomStats.max('mkills',score.you+1)}
+  if(victim===player&&window.BackRoomStats)BackRoomStats.add('deaths',1);
   if(victim===opp){score.you++;feed(`You <b>⟶</b> ${esc(oppName)}${tail}`,'you');banner('ENTITY DOWN',head?'Headshot':'Eliminated',2.2)}
   else{score.opp++;feed(`${esc(oppName)} <b>⟶</b> You${tail}`,'them');banner('ELIMINATED','The entity got you',2.2)}
   hud.sYou.textContent=score.you;hud.sBot.textContent=score.opp;
@@ -1315,6 +1318,7 @@ function startOnlineRound(){
 // whoever landed the last hit, and the host counts you out for the rest of the round.
 function onlineDeath(shooter,head){
   player.alive=false;player.dieT=0;lmb=false;tAct.fire=false;
+  if(kdm.m!==curMatch){kdm.m=curMatch;kdm.d=0}kdm.d++;if(window.BackRoomStats)BackRoomStats.add('deaths',1);
   const k=shooter&&shooter.uid||'',wi=shooter?shooter.wi|0:0;
   Net.send({type:'kill',v:Net.uid,k,w:wi,hd:head?1:0,r:curRound});
   killFeed(k,Net.uid,wi,head);
@@ -1354,12 +1358,15 @@ function handleEvent(e){
     if(e.r!==curRound||v!==e.by)return;
     const ent=remotes.get(v);if(ent&&ent.alive){ent.alive=false;ent.dieT=0}
     killFeed(k,v,e.w|0,!!e.hd);
-    if(k===Net.uid&&window.BackRoomStats){BackRoomStats.add('kills',1);BackRoomStats.max('mkills',myKills+1)}
+    if(k===Net.uid&&window.BackRoomStats){BackRoomStats.add('kills',1);BackRoomStats.add('kdkills',1);BackRoomStats.max('mkills',myKills+1)}
     if(k===Net.uid){myKills++;kills.set(Net.uid,myKills);banner(nameOf(v).toUpperCase()+' DOWN',e.hd?'Headshot':'Eliminated',1.8);Net.publishSoon()}
     if(Net.amHost)hostDead.add(curMatch+':'+curRound+':'+v);
   }
 }
 
+// This match's deaths online (m: the match they belong to), for the K/D on the results screen; kills are myKills.
+const kdm={m:null,d:0};
+function kdStr(k,d){return (k/Math.max(1,d)).toFixed(2)}
 /* host: runs the match from the round node; if the host leaves, the next player in line carries on from it */
 const hostDead=new Set();   // "match:round:uid" deaths the host heard about from kill events
 function lobbyPatch(){return{ph:'lobby',rn:0,dd:'',ro:'',rw:'',mw:'',fm:0,pt:0,sr:0,sb:0}}
@@ -1497,8 +1504,10 @@ function fillOnlineEnd(){
   $('endClock').textContent=fmtClock(matchTime);
   $('endMsg').textContent=`${TEAM_NAME[w]} team won ${Math.max(sr,sb)}–${Math.min(sr,sb)}`+(r.fm?' after the other team left the room.':'.')+(Net.amHost?' You\'re the host: head back to the lobby when everyone\'s ready.':' Everyone goes back to the lobby in a few seconds.');
   kills.set(Net.uid,myKills);
+  const myD=kdm.m===curMatch?kdm.d:0;
+  $('endKd').textContent=my?`${myKills} kill${myKills===1?'':'s'} · ${myD} death${myD===1?'':'s'} · K/D ${kdStr(myKills,myD)}`:'';
   const col=t=>{const us=[...roster].filter(x=>x[1]===t).map(x=>x[0]).sort((a,b)=>(kills.get(b)||0)-(kills.get(a)||0));
-    return `<div class="team ${t}"><div class="th"><span>${TEAM_NAME[t]}</span><span>${t==='r'?sr:sb}</span></div><ul>${us.map(u=>`<li><span class="nm">${esc(nameOf(u))}</span>${u===Net.uid?'<span class="tg">you</span>':''}<span class="k">${kills.get(u)||0} KO</span></li>`).join('')}</ul></div>`};
+    return `<div class="team ${t}"><div class="th"><span>${TEAM_NAME[t]}</span><span>${t==='r'?sr:sb}</span></div><ul>${us.map(u=>`<li><span class="nm">${esc(nameOf(u))}</span>${u===Net.uid?'<span class="tg">you</span>':''}<span class="k">${kills.get(u)||0} KO${u===Net.uid?' · K/D '+kdStr(myKills,myD):''}</span></li>`).join('')}</ul></div>`};
   $('endTeams').innerHTML=col('r')+col('b');$('endTeams').hidden=false;
   $('again').textContent='Back to lobby';$('again').disabled=!Net.amHost;$('toMenu').textContent='Leave room';
 }
