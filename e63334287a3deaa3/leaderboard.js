@@ -83,6 +83,10 @@
       { k: 'crowns', l: 'Crowns', f: 'n', u: 'crown', hi: 1e5 },
       { k: 'crownrun', l: 'Most crowns in a row', f: 'n', u: 'crown', hi: 1000, le: 'crowns' },
       { k: 'shows', l: 'Shows played', f: 'n', u: 'show', hi: 1e6 }] },
+    { d: 'deepword', n: 'Deepword', st: [
+      { k: 'depth', l: 'Deepest daily dive', f: 'm', hi: 10935 },
+      { k: 'dives', l: 'Daily dives', f: 'n', u: 'dive', rate: 1 / 30 },
+      { k: 'brawlwins', l: 'Blowfish Brawl wins', f: 'n', u: 'win', rate: 1 / 30 }] },
     { d: 'gridpop', n: 'Gridpop', st: [{ k: 'score', l: 'Best score', f: 'n', u: 'pt', hi: 1e8 }, { k: 'lines', l: 'Lines cleared (all time)', f: 'n', u: 'line', rate: 2 }] },
     { d: '2048', n: '2048', st: [{ k: 'best', l: 'Best score', f: 'n', u: 'pt', hi: 4000000 }, { k: 'tile', l: 'Biggest tile', f: 'n', hi: 131072 }] },
     { d: 'stackfall', n: 'Stackfall', st: [{ k: 'classic', l: 'Best score (Classic)', chip: 'Classic', f: 'n', u: 'pt', hi: 1e8 }, { k: 'sand', l: 'Best score (Sand)', chip: 'Sand', f: 'n', u: 'pt', hi: 1e8 }, { k: 'lines', l: 'Most lines in a game (Classic)', chip: 'Most lines', f: 'n', u: 'line', hi: 100000 }] },
