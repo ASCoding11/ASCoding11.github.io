@@ -22,6 +22,10 @@
  * Limits here are only manners (one note a minute, five a day per browser); the rules do
  * the real checking of keys, types and sizes.
  *
+ * Anything with a data-feedback-open attribute (the "Want more games?" button under the games
+ * on the Back Room and phone pages) scrolls to the bar and opens it; so does
+ * window.BackRoomFeedback.open().
+ *
  * Loaded with data-list-only (as the admin page does), it only shares the game list.
  */
 (function () {
@@ -179,6 +183,17 @@
       else bar.focus({ preventScroll: true });
     }
     bar.addEventListener('click', function () { setOpen(body.hidden); });
+    // "Tell Arjun" buttons elsewhere on the page (data-feedback-open) bring the bar into view and open it.
+    function openHere() {
+      var still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+      box.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'start' });
+      if (body.hidden) setOpen(true);
+    }
+    window.BackRoomFeedback.open = openHere;
+    document.addEventListener('click', function (e) {
+      var t = e.target && e.target.closest && e.target.closest('[data-feedback-open]');
+      if (t) { e.preventDefault(); openHere(); }
+    });
     box.addEventListener('click', function (e) { if (e.target.closest('.fbk-x')) setOpen(false); });
     box.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !body.hidden) { e.stopPropagation(); setOpen(false); } });
     form.addEventListener('change', function (e) { if (e.target.name === 'kind') hint(); });
