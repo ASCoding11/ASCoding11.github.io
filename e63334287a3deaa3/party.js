@@ -179,9 +179,10 @@
       app = firebase.apps.filter(function (a) { return a.options.apiKey === CFG.apiKey; })[0] ||
         firebase.initializeApp(CFG, firebase.apps.length ? 'party' : undefined);
       auth = app.auth();
-      await timeout(new Promise(function (r) { var s = auth.onAuthStateChanged(function () { s(); r(); }); }), 12000, NET);
+      // Signing in can take 10-20 s on a slow phone on school Wi-Fi: give it 25 s, like the games.
+      await timeout(new Promise(function (r) { var s = auth.onAuthStateChanged(function () { s(); r(); }); }), 25000, NET);
       if (!auth.currentUser) {
-        try { await timeout(auth.signInAnonymously(), 12000, NET); }
+        try { await timeout(auth.signInAnonymously(), 25000, NET); }
         catch (err) { if (err.message === NET) throw err; throw new Error('Sign-in failed: ' + (err.message || err.code)); }
       }
       uid = auth.currentUser.uid;

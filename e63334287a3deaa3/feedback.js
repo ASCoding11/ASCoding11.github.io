@@ -235,9 +235,10 @@
       var app = firebase.apps.filter(function (a) { return a.options.apiKey === CFG.apiKey; })[0] ||
         firebase.initializeApp(CFG, firebase.apps.length ? 'feedback' : undefined);
       var auth = app.auth();
-      await timeout(new Promise(function (r) { var s = auth.onAuthStateChanged(function () { s(); r(); }); }), 12000);
+      // Signing in can take 10-20 s on a slow phone on school Wi-Fi: give it 25 s, like the games.
+      await timeout(new Promise(function (r) { var s = auth.onAuthStateChanged(function () { s(); r(); }); }), 25000);
       if (auth.currentUser) return auth.currentUser;
-      try { return (await timeout(auth.signInAnonymously(), 12000)).user; }
+      try { return (await timeout(auth.signInAnonymously(), 25000)).user; }
       catch (e) { throw fail(/too-many|quota/.test(e && e.code || '') ? 'busy' : /network/.test(e && e.code || '') || e.code === 'net' ? 'net' : 'auth'); }
     })();
     booting.catch(function () { booting = null; });
