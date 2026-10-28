@@ -36,7 +36,10 @@
   if (document.getElementById('leaderboards')) return;
 
   var PATH = 'rooms/lb-all/players', RS_PATH = 'rooms/lb-rs/players', RESETS = {}, SHOW_HIDDEN = false;
-  var TOP = 25, MAX_NODES = 3000, NODE_MAX = 8000, MAX_STATS = 120, STALE = 365 * 86400000;
+  // STALE: an entry nobody has updated for 180 days is skipped before anything else is read from it (entries are never
+  // removed from the database, so this is what keeps old ones cheap to parse: a timestamp check, no JSON.stringify or
+  // stats; they are still downloaded).
+  var TOP = 25, MAX_NODES = 3000, NODE_MAX = 8000, MAX_STATS = 120, STALE = 180 * 86400000;
   var EPOCH = Date.UTC(2026, 9, 21);            // the day stats.js started counting
   var NAME_MAX = 14;
 
@@ -453,7 +456,9 @@
       var b = await P.boot(); myUid = b.uid;
       var snap = (await timeout(Promise.all([b.db.ref(PATH).once('value'), readResets(b.db)]), 15000))[0];
       var val = snap.val() || {}, now = P.now ? P.now() : Date.now(), out = [], keys = Object.keys(val);
-      for (var i = 0; i < keys.length && i < MAX_NODES; i++) { var p = parse(keys[i], val[keys[i]], now); if (p) out.push(p); }
+      // MAX_NODES counts players shown, not nodes read: stale nodes (which pile up, as nothing removes them) cost one
+      // comparison each in parse and mustn't crowd out current players further down the list.
+      for (var i = 0; i < keys.length && out.length < MAX_NODES; i++) { var p = parse(keys[i], val[keys[i]], now); if (p) out.push(p); }
       people = out; lastLoad = Date.now();
       say('');
     } catch (e) {
