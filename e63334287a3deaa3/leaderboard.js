@@ -100,7 +100,9 @@
       { k: 'crownrun', l: 'Most crowns in a row', f: 'n', u: 'crown', hi: 1000, le: 'crowns' },
       { k: 'shows', l: 'Shows played', f: 'n', u: 'show', hi: 1e6 }] },
     { d: 'gridpop', n: 'Gridpop', st: [{ k: 'score', l: 'Best score', f: 'n', u: 'pt', hi: 1e8 }, { k: 'lines', l: 'Lines cleared (all time)', f: 'n', u: 'line', rate: 2 }] },
-    { d: '2048', n: '2048', st: [{ k: 'best', l: 'Best score', f: 'n', u: 'pt', hi: 4000000 }, { k: 'tile', l: 'Biggest tile', f: 'n', hi: 131072 }] },
+    { d: '2048', n: '2048', st: [{ k: 'best', l: 'Best score (Classic)', chip: 'Classic', f: 'n', u: 'pt', hi: 4000000 }, { k: 'tile', l: 'Biggest tile (Classic)', chip: 'Biggest tile', f: 'n', hi: 131072 },
+      { k: 'best-mega', l: 'Best score (Mega 6 × 6)', chip: 'Mega', f: 'n', u: 'pt', hi: 1e10 }, { k: 'best-college', l: 'Best score (College)', chip: 'College', f: 'n', u: 'pt', hi: 4000000 },
+      { k: 'best-dessert', l: 'Best score (Dessert)', chip: 'Dessert', f: 'n', u: 'pt', hi: 4000000 }] },
     { d: 'stackfall', n: 'Stackfall', st: [{ k: 'classic', l: 'Best score (Classic)', chip: 'Classic', f: 'n', u: 'pt', hi: 1e8 }, { k: 'sand', l: 'Best score (Sand)', chip: 'Sand', f: 'n', u: 'pt', hi: 1e8 }, { k: 'lines', l: 'Most lines in a game (Classic)', chip: 'Most lines', f: 'n', u: 'line', hi: 100000 }] },
     { d: 'melon-merge', n: 'Melon Merge', st: [{ k: 'score', l: 'Best score', f: 'n', u: 'pt', hi: 1e7 }, { k: 'melons', l: 'Watermelons grown (all time)', chip: 'Watermelons', f: 'n', u: 'watermelon', rate: 0.05 }] }
   ];

@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
 <style>
-/* Layout: a header (back link, title, score, best, buttons) above a square board drawn on a canvas.
+/* Layout: a header (back link, title, score, best, buttons, mode picker) above a square board drawn on a canvas.
    With a short, wide screen (a phone held sideways) the header becomes a column left of the board.
    Overlays (win, game over, new-game check) sit on the board; the How to play menu covers the page. */
 :root{
@@ -80,6 +80,14 @@ body.framed #back{display:none}
 .th{display:none}
 body.touch .kh{display:none} body.touch .th{display:inline}
 
+/* Mode picker: a row of four choices, on the main screen and in the menu */
+.modes{display:flex;flex-wrap:wrap;gap:4px;padding:4px;border-radius:14px;background:rgba(92,70,54,.08)}
+.mode{flex:1 1 0;min-height:36px;padding:4px 8px;border:0;border-radius:10px;background:none;color:var(--ink-2);font:800 13px var(--f-u);white-space:nowrap}
+.mode:hover{color:var(--ink)}
+.mode[aria-checked="true"]{background:var(--panel);color:var(--ink);box-shadow:0 1px 3px rgba(60,40,20,.18)}
+.mode[aria-checked="true"]::before{content:"";display:inline-block;width:8px;height:8px;margin-right:6px;border-radius:50%;background:var(--orange);vertical-align:0}
+#modeDesc{margin:6px 2px 0;font:700 13px/1.4 var(--f-u);color:var(--ink-2)}
+
 /* Board overlays: sized from --s (the board's width) so they fit any board */
 .ov{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;border-radius:calc(var(--s)*.03);background:rgba(246,237,223,.8);
   -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);animation:fade .25s ease-out;padding:calc(var(--s)*.05);text-align:center;z-index:2}
@@ -108,6 +116,8 @@ body.touch .kh{display:none} body.touch .th{display:inline}
 .panel ul{margin:8px 0 4px;padding-left:20px;font:700 15px/1.45 var(--f-u)}
 .panel li{margin:4px 0}
 .panel h3{margin:14px 0 6px;font:800 12px var(--f-u);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2)}
+.panel .modes{background:rgba(92,70,54,.07)}
+.panel .mode[aria-checked="true"]{background:#fff}
 .setrow{display:flex;align-items:center;gap:12px;width:100%;padding:10px 0;border:0;border-bottom:1px solid var(--line);background:none;text-align:left;font:700 15px var(--f-u)}
 .setrow span.t{flex:1}
 .setrow small{display:block;font:700 13px/1.35 var(--f-u);color:var(--ink-2)}
@@ -136,6 +146,7 @@ body.touch .kh{display:none} body.touch .th{display:inline}
   .btn{min-height:40px;padding:6px 12px}
   #topbar{min-height:36px}
   #hint{font-size:13px}
+  #modes .mode{flex:1 1 40%;min-height:32px;font-size:12px}
 }
 @media (orientation:landscape) and (max-height:380px){
   #hint{display:none}
@@ -146,6 +157,7 @@ body.touch .kh{display:none} body.touch .th{display:inline}
   .sbox{min-width:70px;padding:6px 8px}
   .sbox b{font-size:22px}
   .btn{padding:8px 12px}
+  .mode{padding:4px 4px;font-size:12px}
 }
 @media (orientation:portrait) and (max-height:600px){ #hint{display:none} }
 @media (prefers-reduced-motion:reduce){.plus,.ov{animation:none}}
@@ -173,17 +185,23 @@ body.touch .kh{display:none} body.touch .th{display:inline}
     <div id="actions">
       <button id="newBtn" class="btn primary" type="button">New game</button>
       <button id="undoBtn" class="btn" type="button" title="Undo one move (Z)">Undo</button>
-      <button id="classicBtn" class="chip" type="button" role="switch" aria-checked="true" title="Classic: the strict game, no Undo"><span class="sw"></span>Classic</button>
+      <button id="classicBtn" class="chip" type="button" role="switch" aria-checked="true" title="Strict: the game as it should be played, no Undo"><span class="sw"></span>Strict</button>
     </div>
-    <p id="hint">Join matching tiles to reach <b>2048</b>. <span class="kh">Move with <b data-kb="up left down right" data-kb-short data-kb-sep=" ">↑ ← ↓ →</b>.</span><span class="th">Swipe to move.</span></p>
+    <div id="modes" class="modes" role="radiogroup" aria-label="Mode">
+      <button class="mode" type="button" role="radio" aria-checked="true" data-mode="classic">Classic</button>
+      <button class="mode" type="button" role="radio" aria-checked="false" data-mode="mega">Mega</button>
+      <button class="mode" type="button" role="radio" aria-checked="false" data-mode="college">College</button>
+      <button class="mode" type="button" role="radio" aria-checked="false" data-mode="dessert">Dessert</button>
+    </div>
+    <p id="hint"><span id="hintGoal">Join matching tiles to reach <b>2048</b>.</span> <span class="kh">Move with <b data-kb="up left down right" data-kb-short data-kb-sep=" ">↑ ← ↓ →</b>.</span><span class="th">Swipe to move.</span></p>
   </div>
   <div id="wrap">
     <div id="board">
       <canvas id="cv" role="img" aria-label="Game board"></canvas>
       <div class="ov win" id="winOv" hidden>
         <div class="ov-card">
-          <div class="big">You reached 2048!</div>
-          <p>Keep sliding for 4096 and up, or start a fresh board.</p>
+          <div class="big" id="winTitle">You reached 2048!</div>
+          <p id="winMsg">Keep sliding for 4096 and up, or start a fresh board.</p>
           <div class="row"><button id="keepBtn" class="btn primary" type="button">Keep going</button><button id="winNewBtn" class="btn" type="button">New game</button></div>
         </div>
       </div>
@@ -216,10 +234,19 @@ body.touch .kh{display:none} body.touch .th{display:inline}
       <li>After each move that changes the board, a new 2 (sometimes a 4) drops into an empty square.</li>
       <li>Build a 2048 tile to win, then keep going for 4096 and beyond if you like.</li>
       <li>The game ends when the board is full and no two touching tiles match.</li>
-      <li>Your game saves in this browser, so you can close the tab and finish later.</li>
+      <li>Four modes, each with its own board, best score and leaderboard: Classic is the 4 × 4 game, Mega is 6 × 6, and College and Dessert play exactly the same as Classic but the tiles climb a ladder of colleges or desserts instead of showing numbers (the number is still in the corner).</li>
+      <li>Your games save in this browser, one per mode, so you can close the tab and finish later.</li>
     </ul>
+    <h3>Mode</h3>
+    <div id="menuModes" class="modes" role="radiogroup" aria-label="Mode">
+      <button class="mode" type="button" role="radio" aria-checked="true" data-mode="classic">Classic</button>
+      <button class="mode" type="button" role="radio" aria-checked="false" data-mode="mega">Mega</button>
+      <button class="mode" type="button" role="radio" aria-checked="false" data-mode="college">College</button>
+      <button class="mode" type="button" role="radio" aria-checked="false" data-mode="dessert">Dessert</button>
+    </div>
+    <p id="modeDesc">The 4 × 4 game, as always.</p>
     <h3>Settings</h3>
-    <button id="classicRow" class="setrow" type="button" role="switch" aria-checked="true"><span class="t">Classic mode<small>The strict game: no Undo. Turn it off for a one-step Undo button. Leaderboard bests only count games where Undo was never used.</small></span><span class="sw"></span></button>
+    <button id="classicRow" class="setrow" type="button" role="switch" aria-checked="true"><span class="t">Strict mode<small>The game as it should be played: no Undo. Turn it off for a one-step Undo button. Leaderboard bests only count games where Undo was never used.</small></span><span class="sw"></span></button>
     <button id="soundRow" class="setrow" type="button" role="switch" aria-checked="true"><span class="t">Sound</span><span class="sw"></span></button>
     <button id="keysRow" class="setrow" type="button"><span class="t">Controls<small>Change the keys for moving, Undo, New game and Sound.</small></span><span class="val">Edit ›</span></button>
     <div class="pfoot"><button id="resumeBtn" class="btn primary" type="button">Resume</button></div>
@@ -234,25 +261,30 @@ body.touch .kh{display:none} body.touch .th{display:inline}
 const $=id=>document.getElementById(id);
 
 /* =====================================================================
-   Rules (pure functions, no DOM). A board is an array of 16 numbers, row by row, 0 = empty.
+   Rules (pure functions, no DOM). A board is an array of n*n numbers, row by row, 0 = empty.
+   Every function takes the board size from the board's length (4 x 4 = 16, Mega's 6 x 6 = 36).
    ===================================================================== */
 const WIN=2048;
-// For each direction, the 4 lines of cell indexes, each listed starting from the wall being moved toward.
-const LINES=(()=>{
+// For each direction, the n lines of cell indexes, each listed starting from the wall being moved toward.
+const linesCache={};
+function linesFor(n){
+  if(linesCache[n])return linesCache[n];
   const L={left:[],right:[],up:[],down:[]};
-  for(let k=0;k<4;k++){
+  for(let k=0;k<n;k++){
     const l=[],r=[],u=[],d=[];
-    for(let j=0;j<4;j++){l.push(k*4+j);r.push(k*4+3-j);u.push(j*4+k);d.push((3-j)*4+k)}
+    for(let j=0;j<n;j++){l.push(k*n+j);r.push(k*n+(n-1-j));u.push(j*n+k);d.push((n-1-j)*n+k)}
     L.left.push(l);L.right.push(r);L.up.push(u);L.down.push(d);
   }
-  return L;
-})();
+  return linesCache[n]=L;
+}
+const LINES=linesFor(4);
 const DIRS=['up','down','left','right'];
+function sizeOf(board){const n=Math.round(Math.sqrt(board.length));if(n*n!==board.length)throw new Error('bad board size');return n}
 
 // Slide one line toward index 0. Each tile joins at most once, and a tile made by a join can't join again this move.
 // steps: where each tile went ({from, to, merge}); merge marks the second tile of a pair.
 function slideLine(vals){
-  const out=[0,0,0,0],steps=[];
+  const out=new Array(vals.length).fill(0),steps=[];
   let w=0,gained=0,open=false; // open: out[w-1] can still take a join
   for(let i=0;i<vals.length;i++){
     const v=vals[i];
@@ -268,14 +300,15 @@ function slideLine(vals){
 // Move a whole board. Returns the new board (a copy), the points made, whether anything changed,
 // and what the animation needs: slides (cell to cell with the old value) and the cells where joins happened.
 function moveBoard(board,dir){
-  const lines=LINES[dir];
+  const n=sizeOf(board),lines=linesFor(n)[dir];
   if(!lines)throw new Error('bad direction '+dir);
   const next=board.slice(),slides=[],merged=[];
   let gained=0,moved=false,maxMerge=0;
   for(const line of lines){
-    const vals=[board[line[0]],board[line[1]],board[line[2]],board[line[3]]];
+    const vals=new Array(n);
+    for(let j=0;j<n;j++)vals[j]=board[line[j]];
     const r=slideLine(vals);
-    for(let j=0;j<4;j++)next[line[j]]=r.out[j];
+    for(let j=0;j<n;j++)next[line[j]]=r.out[j];
     for(const s of r.steps){
       slides.push({from:line[s.from],to:line[s.to],v:vals[s.from]});
       if(s.merge){merged.push(line[s.to]);if(r.out[s.to]>maxMerge)maxMerge=r.out[s.to]}
@@ -289,12 +322,13 @@ function moveBoard(board,dir){
 // Drop a 2 (90%) or a 4 (10%) into a random empty cell. Changes the board in place; returns the cell or -1 when full.
 function spawnTile(board,rand){
   rand=rand||Math.random;
+  const N=board.length;
   let n=0;
-  for(let i=0;i<16;i++)if(!board[i])n++;
+  for(let i=0;i<N;i++)if(!board[i])n++;
   if(!n)return -1;
   let pick=Math.min(n-1,Math.floor(rand()*n));
   const v=rand()<0.9?2:4;
-  for(let i=0;i<16;i++){
+  for(let i=0;i<N;i++){
     if(board[i])continue;
     if(pick--===0){board[i]=v;return i}
   }
@@ -303,24 +337,54 @@ function spawnTile(board,rand){
 
 // Over only when the board is full and no two side-by-side or stacked tiles match.
 function isOver(board){
-  for(let i=0;i<16;i++){
+  const n=sizeOf(board),N=n*n;
+  for(let i=0;i<N;i++){
     const v=board[i];
     if(!v)return false;
-    if((i&3)<3&&board[i+1]===v)return false;
-    if(i<12&&board[i+4]===v)return false;
+    if(i%n<n-1&&board[i+1]===v)return false;
+    if(i<N-n&&board[i+n]===v)return false;
   }
   return true;
 }
 function canMove(board,dir){return moveBoard(board,dir).moved}
-function maxTile(board){let m=0;for(let i=0;i<16;i++)if(board[i]>m)m=board[i];return m}
-function newBoard(rand){const b=new Array(16).fill(0);spawnTile(b,rand);spawnTile(b,rand);return b}
-function validTile(v){return v===0||(Number.isInteger(v)&&v>=2&&v<=131072&&(v&(v-1))===0)}
-function validBoard(b){return Array.isArray(b)&&b.length===16&&b.every(validTile)}
+function maxTile(board){let m=0;for(let i=0;i<board.length;i++)if(board[i]>m)m=board[i];return m}
+function newBoard(rand,n){n=n||4;const b=new Array(n*n).fill(0);spawnTile(b,rand);spawnTile(b,rand);return b}
+function validTile(v){return v===0||(Number.isInteger(v)&&v>=2&&v<=1073741824&&(v&(v-1))===0)}
+function validBoard(b,n){return Array.isArray(b)&&b.length===(n||4)*(n||4)&&b.every(validTile)}
+
+/* =====================================================================
+   Modes. The rules above are shared; a mode only sets the board size and how tiles look.
+   classic  4 x 4, numbers         mega     6 x 6, numbers
+   college  4 x 4, a ladder of colleges   dessert  4 x 4, a ladder of desserts
+   Saves: Classic keeps the original keys (g48:game, g48:best); the others use g48:game:<mode> and g48:best:<mode>.
+   Leaderboard stats: Classic reports best and tile; the others best-<mode> and tile-<mode>.
+   ===================================================================== */
+const MODES={
+  classic:{id:'classic',n:4,label:'Classic',skin:null,
+    desc:'The 4 × 4 game, as always.',
+    hint:'Join matching tiles to reach <b>2048</b>.',
+    winTitle:'You reached 2048!',winMsg:'Keep sliding for 4096 and up, or start a fresh board.'},
+  mega:{id:'mega',n:6,label:'Mega',skin:null,
+    desc:'A roomy 6 × 6 board with the same rules: more space to plan, and the biggest tiles get much bigger.',
+    hint:'Join matching tiles to reach <b>2048</b> on the big 6 × 6 board.',
+    winTitle:'You reached 2048!',winMsg:'Keep sliding for 4096 and up, or start a fresh board.'},
+  college:{id:'college',n:4,label:'College',skin:'college',
+    desc:'Same rules, but every tile is a college and each join climbs the ladder: from ASU all the way up to UChicago, then Princeton. The ladder is a joke ranking.',
+    hint:'Join matching colleges to climb to <b>UChicago</b>.',
+    winTitle:'You made UChicago!',winMsg:'Keep sliding for Princeton, or start a fresh board.'},
+  dessert:{id:'dessert',n:4,label:'Dessert',skin:'dessert',
+    desc:'Same rules with desserts: start from a plain cracker and bake your way up to a wedding cake, then a croquembouche.',
+    hint:'Join matching desserts to bake a <b>wedding cake</b>.',
+    winTitle:'You baked a wedding cake!',winMsg:'Keep sliding for a croquembouche, or start a fresh board.'}
+};
+const MODE_IDS=['classic','mega','college','dessert'];
+function keysFor(id){return id==='classic'?{game:'g48:game',best:'g48:best'}:{game:'g48:game:'+id,best:'g48:best:'+id}}
+function statsFor(id){return id==='classic'?{best:'best',tile:'tile'}:{best:'best-'+id,tile:'tile-'+id}}
 
 /* =====================================================================
    Storage: every read and write is wrapped, and numbers are checked for NaN.
-   g48:game  the game in progress {v:1, b, s, w, wp, u:{b,s,w}|null, a, m}
-   g48:best  best score (number)     g48:opts {classic, mute}     keybinds:2048 (keybinds.js)
+   g48:game[:<mode>]  the game in progress {v:1, b, s, w, wp, u:{b,s,w}|null, a, m}
+   g48:best[:<mode>]  best score (number)     g48:opts {classic, mute, mode}     keybinds:2048 (keybinds.js)
    ===================================================================== */
 const KEY_GAME='g48:game',KEY_BEST='g48:best',KEY_OPTS='g48:opts';
 const store={
@@ -330,9 +394,11 @@ const store={
 };
 const cnt=v=>{v=Number(v);return Number.isFinite(v)&&v>0?Math.floor(v):0};
 
-const opts={classic:true,mute:false};
-(function(){const o=store.get(KEY_OPTS);if(o&&typeof o==='object'){if(typeof o.classic==='boolean')opts.classic=o.classic;if(typeof o.mute==='boolean')opts.mute=o.mute}})();
-function saveOpts(){store.set(KEY_OPTS,{classic:opts.classic,mute:opts.mute})}
+const opts={classic:true,mute:false,mode:'classic'};
+(function(){const o=store.get(KEY_OPTS);if(o&&typeof o==='object'){if(typeof o.classic==='boolean')opts.classic=o.classic;if(typeof o.mute==='boolean')opts.mute=o.mute;if(MODES[o.mode])opts.mode=o.mode}})();
+function saveOpts(){store.set(KEY_OPTS,{classic:opts.classic,mute:opts.mute,mode:opts.mode})}
+let mode=MODES[opts.mode];
+let keys=keysFor(mode.id);
 
 /* =====================================================================
    Game state. state is one of:
@@ -343,39 +409,70 @@ function saveOpts(){store.set(KEY_OPTS,{classic:opts.classic,mute:opts.mute})}
 const G={board:new Array(16).fill(0),score:0,best:0,won:false,winPending:false,undo:null,assisted:false,moves:0,state:'ready',pending:null,paused:null};
 let rand=Math.random;
 let lbSent=0;
+const lbTile={};
 
 function save(){
-  store.set(KEY_GAME,{v:1,b:G.board,s:G.score,w:G.won?1:0,wp:G.winPending?1:0,
+  store.set(keys.game,{v:1,b:G.board,s:G.score,w:G.won?1:0,wp:G.winPending?1:0,
     u:G.undo?{b:G.undo.b,s:G.undo.s,w:G.undo.w?1:0}:null,a:G.assisted?1:0,m:G.moves});
 }
 function load(){
-  const d=store.get(KEY_GAME);
-  if(!d||typeof d!=='object'||d.v!==1||!validBoard(d.b)||!d.b.some(Boolean))return false;
+  const d=store.get(keys.game);
+  if(!d||typeof d!=='object'||d.v!==1||!validBoard(d.b,mode.n)||!d.b.some(Boolean))return false;
   G.board=d.b.slice();
   G.score=cnt(d.s);
   G.won=!!d.w;
   G.winPending=G.won&&!!d.wp;
-  G.undo=d.u&&typeof d.u==='object'&&validBoard(d.u.b)?{b:d.u.b.slice(),s:cnt(d.u.s),w:!!d.u.w}:null;
+  G.undo=d.u&&typeof d.u==='object'&&validBoard(d.u.b,mode.n)?{b:d.u.b.slice(),s:cnt(d.u.s),w:!!d.u.w}:null;
   G.assisted=!!d.a;
   G.moves=cnt(d.m);
   G.pending=null;G.paused=null;
   G.state=G.moves?'active':'ready';
   return true;
 }
-function loadBest(){G.best=cnt(store.get(KEY_BEST))}
-function bumpBest(){if(G.score>G.best){G.best=G.score;store.set(KEY_BEST,G.best)}}
+function loadBest(){G.best=cnt(store.get(keys.best))}
+function bumpBest(){if(G.score>G.best){G.best=G.score;store.set(keys.best,G.best)}}
 
 function newGame(){
   closeConfirm(true);
   finishAnim();
   stopFx();
   hideOverlays();
-  G.board=newBoard(rand);
+  G.board=newBoard(rand,mode.n);
   G.score=0;G.won=false;G.winPending=false;G.undo=null;G.assisted=false;G.moves=0;G.pending=null;
   G.state='ready';lbSent=0;
   save();renderHud();
-  const sp=[];for(let i=0;i<16;i++)if(G.board[i])sp.push(i);
+  const sp=[];for(let i=0;i<G.board.length;i++)if(G.board[i])sp.push(i);
   startAnim(null,null,sp,0);
+}
+
+// Restore the current mode's saved game, or deal a new one. Used at start and when the mode changes.
+function enterMode(){
+  if(load()){
+    if(G.score>G.best){G.best=G.score;store.set(keys.best,G.best)}
+    lbSent=0;
+    renderHud();redraw();
+    if(G.winPending)showWin(false);
+    else if(isOver(G.board))showOver(false);
+  }else newGame();
+  renderHud();
+}
+
+// Switch modes. The current game is already saved under its own key; the other mode's game comes back as it was.
+function setMode(id){
+  if(!MODES[id]||id===mode.id)return false;
+  if(menuOpen)closeMenu();
+  closeConfirm(true);
+  finishAnim();
+  stopFx();
+  hideOverlays();
+  save();
+  opts.mode=id;saveOpts();
+  mode=MODES[id];keys=keysFor(id);
+  G.pending=null;G.paused=null;G.state='ready';
+  loadBest();
+  layout();
+  enterMode();
+  return true;
 }
 
 // One move. Ignored outside play; during an animation the animation is finished first, then the move runs.
@@ -438,6 +535,8 @@ function keepGoing(){
 
 function showWin(celebrate){
   G.state='won';
+  $('winTitle').textContent=mode.winTitle;
+  $('winMsg').textContent=mode.winMsg;
   $('winOv').hidden=false;
   focusSoon('keepBtn');
   if(celebrate){sfxWin();confetti()}
@@ -489,14 +588,15 @@ function closeMenu(){
   focusSoon('helpBtn');
 }
 
-// Leaderboard bests (stats.js) only from games where Undo was never used.
+// Leaderboard bests (stats.js) only from games where Undo was never used. Each mode has its own stat names.
 function report(){
   const S=window.BackRoomStats;
   if(!S||G.assisted)return;
   try{
-    if(G.score>lbSent){lbSent=G.score;S.max('best',G.score)}
+    const st=statsFor(mode.id);
+    if(G.score>lbSent){lbSent=G.score;S.max(st.best,G.score)}
     const m=maxTile(G.board);
-    if(m>=128&&m>(report.tile||0)){report.tile=m;S.max('tile',m)}
+    if(m>=128&&m>(lbTile[mode.id]||0)){lbTile[mode.id]=m;S.max(st.tile,m)}
   }catch(e){}
 }
 
@@ -516,6 +616,10 @@ function renderHud(){
   $('cross').style.display=opts.mute?'':'none';
   $('muteBtn').setAttribute('aria-label',opts.mute?'Sound off':'Sound on');
   if(G.state==='over')$('ovUndoBtn').hidden=opts.classic||!G.undo;
+  document.querySelectorAll('.mode').forEach(b=>b.setAttribute('aria-checked',String(b.dataset.mode===mode.id)));
+  $('hintGoal').innerHTML=mode.hint;      // fixed text from MODES above, never user text
+  $('modeDesc').textContent=mode.desc;
+  document.body.dataset.mode=mode.id;
 }
 function floatPlus(n){
   const box=$('scoreBox');
@@ -543,8 +647,9 @@ const cv=$('cv'),ctx=cv.getContext('2d');
 const boardEl=$('board'),app=$('app'),sideEl=$('side');
 const REDUCED=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const SLIDE_MS=110,POP_MS=150,SPAWN_DELAY=50,SPAWN_MS=140;
+const MAXN=36;
 let S=300,DPR=1,GAP=8,CELL=64,RB=10,RC=6;
-const posX=new Float32Array(16),posY=new Float32Array(16);
+const posX=new Float32Array(MAXN),posY=new Float32Array(MAXN);
 const FONT_FAM='"Fredoka","Nunito",ui-rounded,system-ui,sans-serif';
 const COL_BOARD='#bca68a',COL_CELL='#d6c4aa',COL_CELL_IN='rgba(92,70,54,.06)';
 
@@ -556,23 +661,56 @@ const PAL={
   2048:['#e6a81a','#4f2f02'],4096:['#d98f17','#fffaf0'],8192:['#c77814','#fffaf0'],16384:['#a8601a','#fff3d6'],
   32768:['#86491d','#ffe7a8'],65536:['#5f3a20','#ffd970'],131072:['#3f2a1c','#ffcf4a']
 };
+
+/* The College and Dessert ladders: 12 steps from 2 to 4096. Each step is [background, text colour, label, icon].
+   Past the top of a ladder (8192 and up) tiles fall back to plain numbers in the golden palette.
+   The College ladder is a joke ranking, roughly by how hard each school is to get into. */
+const COLLEGE={
+  2:['#8c1d40','#ffc627','ASU'],4:['#bb0000','#ffffff','Ohio St'],8:['#041e42','#ffffff','Penn St'],16:['#00274c','#ffcb05','Michigan'],
+  32:['#7bafd4','#13294b','UNC'],64:['#2774ae','#ffd100','UCLA'],128:['#003262','#fdb515','Berkeley'],256:['#00539b','#ffffff','Duke'],
+  512:['#b9d9eb','#1d4f91','Columbia'],1024:['#8c1515','#ffffff','Stanford'],2048:['#800000','#ffffff','UChicago'],4096:['#e77500','#231f20','Princeton']
+};
+const DESSERT={
+  2:['#f3e3c3','#6b5644','Cracker','cracker'],4:['#e9c89a','#5a3a1e','Cookie','cookie'],8:['#f6c5d6','#7a2c4e','Cupcake','cupcake'],16:['#d9c6f0','#4b2e7a','Donut','donut'],
+  32:['#d8b595','#4b2a14','Brownie','brownie'],64:['#f2b8a2','#7a2a1a','Pie','pie'],128:['#fde6a8','#6b4a0c','Cake','cake'],256:['#bfe8d8','#15503c','Sundae','sundae'],
+  512:['#c7e6f6','#1f4e6e','Macarons','macarons'],1024:['#f5d58a','#5a3a08','Soufflé','souffle'],2048:['#fff4f7','#7a2c4e','Wedding cake','wedding'],4096:['#f0c35a','#4f2f02','Croquembouche','croquembouche']
+};
+const SKINS={college:COLLEGE,dessert:DESSERT};
+
 function shade(hex,f){
   const n=parseInt(hex.slice(1),16);let r=n>>16,g=(n>>8)&255,b=n&255;
   r=Math.round(r*f);g=Math.round(g*f);b=Math.round(b*f);
   return 'rgb('+r+','+g+','+b+')';
 }
+function isLight(hex){const n=parseInt(hex.slice(1),16);return (0.299*(n>>16)+0.587*((n>>8)&255)+0.114*(n&255))>150}
+// Shrink a font size until the text fits in maxW.
+function fitFont(txt,weight,fs,maxW){
+  ctx.font=weight+' '+fs+'px '+FONT_FAM;
+  const w=ctx.measureText(txt).width;
+  if(w>maxW)fs*=maxW/w;
+  return fs;
+}
 const styles=new Map();
 function styleOf(v){
   let st=styles.get(v);
   if(st)return st;
-  const p=PAL[v]||PAL[131072];
+  const skin=mode.skin&&SKINS[mode.skin],sk=skin&&skin[v];
   const txt=String(v),d=txt.length;
+  if(sk){
+    const light=isLight(sk[0]);
+    const label=sk[2],icon=sk[3]?ICONS[sk[3]]:null;
+    const lfs=fitFont(label,'800',CELL*(icon?0.2:0.3),CELL*0.86);
+    st={bg:sk[0],edge:shade(sk[0],0.84),ink:sk[1],txt,font:'800 '+(CELL*0.17).toFixed(1)+'px '+FONT_FAM,
+      label,lfont:'800 '+lfs.toFixed(1)+'px '+FONT_FAM,icon,tsh:light?null:shade(sk[0],0.6),
+      glow:v>=4096?0.9:v>=2048?0.6:0,glowCol:'rgba(255,200,60,.9)'};
+    styles.set(v,st);
+    return st;
+  }
+  const p=PAL[v]||PAL[131072];
   let fs=CELL*(d<=2?0.5:d===3?0.42:d===4?0.34:d===5?0.28:0.235);
-  ctx.font='700 '+fs+'px '+FONT_FAM;
-  const w=ctx.measureText(txt).width;
-  if(w>CELL*0.84)fs*=CELL*0.84/w;
+  fs=fitFont(txt,'700',fs,CELL*0.84);
   const light=p[1]!=='#6b5644'&&p[1].charAt(1)==='f';
-  st={bg:p[0],edge:shade(p[0],0.86),ink:p[1],txt,font:'700 '+fs.toFixed(1)+'px '+FONT_FAM,
+  st={bg:p[0],edge:shade(p[0],0.86),ink:p[1],txt,font:'700 '+fs.toFixed(1)+'px '+FONT_FAM,label:null,icon:null,
     tsh:light?shade(p[0],0.72):null,
     glow:v>=4096?Math.min(1,0.75+0.1*(Math.log2(v)-12)):v>=2048?0.6:0,
     glowCol:v>=8192?'rgba(255,190,40,.95)':'rgba(255,200,60,.9)'};
@@ -599,19 +737,116 @@ function drawTile(v,x,y,sc){
   ctx.fillStyle=st.edge;rr(-h,-h,c,c,RC);ctx.fill();
   ctx.shadowBlur=0;ctx.shadowColor='rgba(0,0,0,0)';
   ctx.fillStyle=st.bg;rr(-h,-h,c,c*0.945,RC);ctx.fill();
+  if(st.label){
+    // Ladder tile: the number small in the top-left corner, an icon (desserts) and the name.
+    ctx.font=st.font;ctx.textAlign='left';ctx.textBaseline='top';
+    ctx.globalAlpha=0.8;ctx.fillStyle=st.ink;ctx.fillText(st.txt,-h+c*0.08,-h+c*0.07);ctx.globalAlpha=1;
+    if(st.icon){
+      ctx.save();ctx.translate(0,-c*0.07);st.icon(c*0.5,st.bg);ctx.restore();
+    }
+    ctx.font=st.lfont;ctx.textAlign='center';ctx.textBaseline='middle';
+    const ly=st.icon?c*0.33:c*0.08;
+    if(st.tsh){ctx.fillStyle=st.tsh;ctx.fillText(st.label,0,ly+Math.max(1,c*0.02))}
+    ctx.fillStyle=st.ink;ctx.fillText(st.label,0,ly);
+    ctx.restore();
+    return;
+  }
   ctx.font=st.font;ctx.textAlign='center';ctx.textBaseline='middle';
   if(st.tsh){ctx.fillStyle=st.tsh;ctx.fillText(st.txt,0,c*0.01+Math.max(1,c*0.022))}
   ctx.fillStyle=st.ink;ctx.fillText(st.txt,0,c*0.01);
   ctx.restore();
 }
+
+/* Dessert icons: simple shapes drawn with the canvas, centred on the origin, in a box s wide. bg is the tile colour. */
+function circ(x,y,r,fill){ctx.beginPath();ctx.arc(x,y,r,0,6.2832);ctx.fillStyle=fill;ctx.fill()}
+function ell(x,y,rx,ry,fill){ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,6.2832);ctx.fillStyle=fill;ctx.fill()}
+function box(x,y,w,h,r,fill){rr(x,y,w,h,r);ctx.fillStyle=fill;ctx.fill()}
+function seg(x0,y0,x1,y1,w,col){ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.lineWidth=w;ctx.strokeStyle=col;ctx.lineCap='round';ctx.stroke()}
+const ICONS={
+  cracker(s){
+    box(-s*0.42,-s*0.42,s*0.84,s*0.84,s*0.14,'#e6c17e');
+    box(-s*0.36,-s*0.36,s*0.72,s*0.72,s*0.1,'#f0cf92');
+    for(const [x,y] of [[-0.18,-0.18],[0.18,-0.18],[-0.18,0.18],[0.18,0.18],[0,0]])circ(x*s,y*s,s*0.045,'#c69a52');
+  },
+  cookie(s){
+    circ(0,0,s*0.44,'#b8773a');circ(0,-s*0.02,s*0.4,'#d19550');
+    for(const [x,y] of [[-0.2,-0.14],[0.14,-0.22],[0.22,0.1],[-0.08,0.2],[-0.02,-0.02],[-0.26,0.08]])circ(x*s,y*s,s*0.06,'#5a3320');
+  },
+  cupcake(s){
+    ctx.beginPath();ctx.moveTo(-s*0.36,-s*0.02);ctx.lineTo(s*0.36,-s*0.02);ctx.lineTo(s*0.26,s*0.42);ctx.lineTo(-s*0.26,s*0.42);ctx.closePath();ctx.fillStyle='#e35d8f';ctx.fill();
+    for(let i=-2;i<=2;i++)seg(i*s*0.13,s*0.02,i*s*0.09,s*0.38,s*0.03,'rgba(255,255,255,.35)');
+    circ(-s*0.2,-s*0.1,s*0.2,'#fff2da');circ(s*0.2,-s*0.1,s*0.2,'#fff2da');circ(0,-s*0.2,s*0.22,'#fff2da');circ(0,-s*0.36,s*0.13,'#fff2da');
+    circ(0,-s*0.46,s*0.07,'#d8303a');
+  },
+  donut(s,bg){
+    circ(0,0,s*0.44,'#e2b273');circ(0,-s*0.01,s*0.4,'#f08cb0');circ(0,0,s*0.15,bg);
+    const sp=['#fff0a0','#8fd3b4','#ffffff','#7fb0e8','#ffd1e8'];
+    [[-0.26,-0.14,0.6],[0.1,-0.3,-0.4],[0.3,-0.02,1.2],[0.18,0.26,0.3],[-0.22,0.22,-1],[-0.3,0.06,1.8]].forEach((p,i)=>{
+      ctx.save();ctx.translate(p[0]*s,p[1]*s);ctx.rotate(p[2]);seg(-s*0.05,0,s*0.05,0,s*0.035,sp[i%sp.length]);ctx.restore();
+    });
+  },
+  brownie(s){
+    box(-s*0.38,-s*0.3,s*0.76,s*0.66,s*0.06,'#4a2816');
+    box(-s*0.38,-s*0.36,s*0.76,s*0.3,s*0.06,'#6e3f28');
+    box(-s*0.26,-s*0.24,s*0.1,s*0.07,s*0.02,'#8a5a3c');box(s*0.08,-s*0.3,s*0.12,s*0.07,s*0.02,'#8a5a3c');box(-s*0.06,-s*0.18,s*0.08,s*0.06,s*0.02,'#8a5a3c');
+  },
+  pie(s){
+    circ(0,0,s*0.44,'#d99a4e');circ(0,0,s*0.34,'#c13a45');
+    ctx.save();ctx.beginPath();ctx.arc(0,0,s*0.34,0,6.2832);ctx.clip();
+    for(let i=-1;i<=1;i++){seg(i*s*0.2,-s*0.4,i*s*0.2,s*0.4,s*0.07,'#e9b86a');seg(-s*0.4,i*s*0.2,s*0.4,i*s*0.2,s*0.07,'#e9b86a')}
+    ctx.restore();
+  },
+  cake(s){
+    box(-s*0.36,-s*0.22,s*0.72,s*0.62,s*0.05,'#fff0d2');
+    box(-s*0.36,-s*0.02,s*0.72,s*0.14,0,'#7a4a2e');box(-s*0.36,s*0.24,s*0.72,s*0.12,0,'#7a4a2e');
+    box(-s*0.38,-s*0.3,s*0.76,s*0.16,s*0.06,'#f08cb0');
+    for(const x of [-0.24,-0.04,0.18])ell(x*s,-s*0.14,s*0.06,s*0.08,'#f08cb0');
+    circ(0,-s*0.38,s*0.09,'#d8303a');
+  },
+  sundae(s){
+    ctx.beginPath();ctx.moveTo(-s*0.32,-s*0.08);ctx.lineTo(s*0.32,-s*0.08);ctx.lineTo(s*0.14,s*0.28);ctx.lineTo(-s*0.14,s*0.28);ctx.closePath();ctx.fillStyle='rgba(255,255,255,.6)';ctx.fill();ctx.lineWidth=s*0.03;ctx.strokeStyle='#8fbcd8';ctx.stroke();
+    seg(0,s*0.28,0,s*0.42,s*0.05,'#8fbcd8');ell(0,s*0.43,s*0.16,s*0.04,'#8fbcd8');
+    circ(-s*0.18,-s*0.14,s*0.16,'#f29bbd');circ(s*0.18,-s*0.14,s*0.16,'#8a5a3c');circ(0,-s*0.28,s*0.17,'#fff3dc');
+    circ(0,-s*0.45,s*0.06,'#d8303a');
+  },
+  macarons(s){
+    const cols=['#f5a3c2','#b8e3c0','#f7d98a'];
+    cols.forEach((c,i)=>{
+      const y=s*0.3-i*s*0.3;
+      box(-s*0.32,y-s*0.08,s*0.64,s*0.1,s*0.05,c);
+      box(-s*0.3,y+s*0.01,s*0.6,s*0.05,s*0.02,'#fff8f0');
+      box(-s*0.32,y+s*0.05,s*0.64,s*0.1,s*0.05,shade(c,0.9));
+    });
+  },
+  souffle(s){
+    ell(0,-s*0.12,s*0.3,s*0.24,'#e9a94a');ell(-s*0.08,-s*0.22,s*0.12,s*0.07,'rgba(255,240,200,.55)');
+    box(-s*0.32,-s*0.06,s*0.64,s*0.44,s*0.06,'#fff6ea');
+    box(-s*0.34,-s*0.08,s*0.68,s*0.08,s*0.03,'#e7d9c8');
+    for(let i=-2;i<=2;i++)seg(i*s*0.12,s*0.04,i*s*0.12,s*0.32,s*0.025,'#e7d9c8');
+  },
+  wedding(s){
+    ell(0,s*0.42,s*0.46,s*0.06,'#e8dcd0');
+    box(-s*0.42,s*0.14,s*0.84,s*0.28,s*0.05,'#fff8f3');box(-s*0.3,-s*0.1,s*0.6,s*0.26,s*0.05,'#fff8f3');box(-s*0.18,-s*0.33,s*0.36,s*0.24,s*0.05,'#fff8f3');
+    box(-s*0.42,s*0.32,s*0.84,s*0.05,0,'#f08cb0');box(-s*0.3,s*0.08,s*0.6,s*0.05,0,'#f08cb0');box(-s*0.18,-s*0.15,s*0.36,s*0.05,0,'#f08cb0');
+    for(const x of [-0.3,-0.1,0.1,0.3])circ(x*s,s*0.2,s*0.03,'#f08cb0');
+    circ(-s*0.04,-s*0.42,s*0.05,'#d8303a');circ(s*0.04,-s*0.42,s*0.05,'#d8303a');
+  },
+  croquembouche(s){
+    ell(0,s*0.42,s*0.46,s*0.06,'#e8dcd0');
+    const rows=[[4,0.34],[3,0.14],[2,-0.06],[1,-0.26]];
+    for(const [n,y] of rows)for(let i=0;i<n;i++){const x=(i-(n-1)/2)*s*0.2;circ(x*1,y*s,s*0.1,'#dba15a');circ(x-s*0.03,y*s-s*0.03,s*0.04,'rgba(255,235,190,.6)')}
+    seg(-s*0.3,-s*0.3,s*0.34,s*0.3,s*0.02,'rgba(184,115,28,.8)');seg(s*0.26,-s*0.34,-s*0.3,s*0.26,s*0.02,'rgba(184,115,28,.8)');
+    circ(0,-s*0.4,s*0.04,'#fff');
+  }
+};
 function easeOut(t){t=1-t;return 1-t*t*t}
 function backOut(t){const s=1.7;t-=1;return t*t*((s+1)*t+s)+1}
 
-const anim={on:false,t0:0,slideMs:0,slides:null,mergeMask:0,spawnMask:0};
+const anim={on:false,t0:0,slideMs:0,slides:null,merge:new Uint8Array(MAXN),spawn:new Uint8Array(MAXN),any:0};
 function startAnim(slides,merged,spawns,slideMs){
-  anim.slides=slides||[];anim.slideMs=slideMs;anim.mergeMask=0;anim.spawnMask=0;
-  if(merged)for(const m of merged)anim.mergeMask|=1<<m;
-  if(spawns)for(const s of spawns)anim.spawnMask|=1<<s;
+  anim.slides=slides||[];anim.slideMs=slideMs;anim.merge.fill(0);anim.spawn.fill(0);anim.any=0;
+  if(merged)for(const m of merged){anim.merge[m]=1;anim.any|=1}
+  if(spawns)for(const s of spawns){anim.spawn[s]=1;anim.any|=2}
   anim.t0=performance.now();anim.on=true;
   if(REDUCED||document.hidden){finishAnim();return}
   kick();
@@ -624,16 +859,17 @@ function finishAnim(){
 }
 
 function drawBoard(now){
+  const N=mode.n*mode.n;
   ctx.setTransform(DPR,0,0,DPR,0,0);
   ctx.clearRect(0,0,S,S);
   ctx.fillStyle=COL_BOARD;rr(0,0,S,S,RB);ctx.fill();
-  for(let i=0;i<16;i++){
+  for(let i=0;i<N;i++){
     ctx.fillStyle=COL_CELL;rr(posX[i],posY[i],CELL,CELL,RC);ctx.fill();
     ctx.fillStyle=COL_CELL_IN;rr(posX[i],posY[i],CELL,CELL*0.1,RC);ctx.fill();
   }
   const b=G.board;
   if(!anim.on){
-    for(let i=0;i<16;i++)if(b[i])drawTile(b[i],posX[i],posY[i],1);
+    for(let i=0;i<N;i++)if(b[i])drawTile(b[i],posX[i],posY[i],1);
     return false;
   }
   const t=now-anim.t0;
@@ -645,20 +881,19 @@ function drawBoard(now){
     }
     return true;
   }
-  const tp=t-anim.slideMs,mm=anim.mergeMask,sm=anim.spawnMask;
-  for(let i=0;i<16;i++){
+  const tp=t-anim.slideMs,mm=anim.merge,sm=anim.spawn;
+  for(let i=0;i<N;i++){
     if(!b[i])continue;
-    const bit=1<<i;
-    if((mm|sm)&bit)continue;
+    if(mm[i]||sm[i])continue;
     drawTile(b[i],posX[i],posY[i],1);
   }
-  if(mm){
+  if(anim.any&1){
     const k=tp/POP_MS,sc=k<1?1+0.17*Math.sin(Math.PI*k):1;
-    for(let i=0;i<16;i++)if(mm&(1<<i)&&b[i])drawTile(b[i],posX[i],posY[i],sc);
+    for(let i=0;i<N;i++)if(mm[i]&&b[i])drawTile(b[i],posX[i],posY[i],sc);
   }
-  if(sm){
+  if(anim.any&2){
     const k=(tp-(anim.slideMs?SPAWN_DELAY:0))/SPAWN_MS;
-    if(k>0){const sc=k<1?Math.max(0.05,backOut(k)):1;for(let i=0;i<16;i++)if(sm&(1<<i)&&b[i])drawTile(b[i],posX[i],posY[i],sc)}
+    if(k>0){const sc=k<1?Math.max(0.05,backOut(k)):1;for(let i=0;i<N;i++)if(sm[i]&&b[i])drawTile(b[i],posX[i],posY[i],sc)}
   }
   if(tp>=Math.max(POP_MS,(anim.slideMs?SPAWN_DELAY:0)+SPAWN_MS)){
     anim.on=false;dirty=true;
@@ -692,10 +927,11 @@ function layout(){
   DPR=Math.min(window.devicePixelRatio||1,3);
   const px=Math.round(s*DPR);
   if(cv.width!==px){cv.width=px;cv.height=px}
-  GAP=Math.max(6,s*0.028);
-  CELL=(s-5*GAP)/4;
-  RB=Math.max(8,s*0.03);RC=Math.max(5,CELL*0.1);
-  for(let i=0;i<16;i++){posX[i]=GAP+(i&3)*(CELL+GAP);posY[i]=GAP+(i>>2)*(CELL+GAP)}
+  const n=mode.n;
+  GAP=n>4?Math.max(4,s*0.019):Math.max(6,s*0.028);   // tighter gaps on the 6 x 6 board so the tiles stay readable
+  CELL=(s-(n+1)*GAP)/n;
+  RB=Math.max(8,s*0.03);RC=Math.max(4,CELL*0.1);
+  for(let i=0;i<n*n;i++){posX[i]=GAP+(i%n)*(CELL+GAP);posY[i]=GAP+Math.floor(i/n)*(CELL+GAP)}
   styles.clear();
   dirty=true;
   if(!anim.on){raf&&cancelAnimationFrame(raf);raf=0;frame(performance.now())}else kick();
@@ -820,7 +1056,7 @@ const KB=Keybinds.create({
     {id:'down',label:'Move down',keys:['ArrowDown','KeyS']},
     {id:'left',label:'Move left',keys:['ArrowLeft','KeyA']},
     {id:'right',label:'Move right',keys:['ArrowRight','KeyD']},
-    {id:'undo',label:'Undo',note:'Only with Classic mode off',keys:['KeyZ','KeyU']},
+    {id:'undo',label:'Undo',note:'Only with Strict mode off',keys:['KeyZ','KeyU']},
     {id:'newgame',label:'New game',keys:['KeyN']},
     {id:'mute',label:'Sound on / off',keys:['KeyM']},
     {id:'pause',label:'Menu, how to play',keys:['Escape'],fixed:true}
@@ -897,6 +1133,7 @@ $('winNewBtn').onclick=()=>{audio();newGame()};
 $('restartBtn').onclick=()=>{audio();newGame()};
 $('yesNewBtn').onclick=()=>{audio();newGame()};
 $('noNewBtn').onclick=()=>closeConfirm();
+document.querySelectorAll('.mode').forEach(b=>{b.onclick=()=>{audio();setMode(b.dataset.mode)}});
 
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden){
@@ -915,30 +1152,26 @@ if(document.fonts&&document.fonts.load){
 try{if(window.top!==window)document.body.classList.add('framed')}catch(e){document.body.classList.add('framed')}
 
 /* =====================================================================
-   Start: restore the saved game, or deal a new one
+   Start: restore the saved game of the last mode played, or deal a new one
    ===================================================================== */
 loadBest();
-layout();
-if(load()){
-  if(G.score>G.best){G.best=G.score;store.set(KEY_BEST,G.best)}
-  renderHud();redraw();
-  if(G.winPending)showWin(false);
-  else if(isOver(G.board))showOver(false);
-}else newGame();
 renderHud();
+layout();
+enterMode();
 
 // Test hook for the automated rule checks (only under WebDriver/Playwright).
 if(navigator.webdriver)window.__g48={
-  slideLine,moveBoard,spawnTile,isOver,canMove,newBoard,maxTile,validBoard,LINES,
-  KEY_GAME,KEY_BEST,KEY_OPTS,
+  slideLine,moveBoard,spawnTile,isOver,canMove,newBoard,maxTile,validBoard,LINES,linesFor,
+  KEY_GAME,KEY_BEST,KEY_OPTS,MODE_IDS,keysFor,statsFor,
   get state(){return G.state},get board(){return G.board.slice()},get score(){return G.score},get best(){return G.best},
   get won(){return G.won},get winPending(){return G.winPending},get undoState(){return G.undo?{b:G.undo.b.slice(),s:G.undo.s,w:G.undo.w}:null},
   get assisted(){return G.assisted},get moves(){return G.moves},get animating(){return anim.on},get classic(){return opts.classic},
-  get muted(){return opts.mute},get menuOpen(){return menuOpen},
-  input,undo,keepGoing,newGame,askNew,finishAnim,openMenu,closeMenu,setClassic,setMute,save,load,
+  get muted(){return opts.mute},get menuOpen(){return menuOpen},get mode(){return mode.id},get size(){return mode.n},
+  get cell(){return CELL},get skin(){return mode.skin},
+  input,undo,keepGoing,newGame,askNew,finishAnim,openMenu,closeMenu,setClassic,setMute,setMode,save,load,
   setRand(f){rand=f||Math.random},
   setBoard(b,score,won){
-    if(!validBoard(b))throw new Error('bad board');
+    if(!validBoard(b,mode.n))throw new Error('bad board');
     finishAnim();hideOverlays();closeConfirm(true);
     G.board=b.slice();G.score=score|0;G.won=!!won;G.winPending=false;G.undo=null;G.pending=null;G.moves=Math.max(1,G.moves);
     G.state=isOver(G.board)?'over':'active';
