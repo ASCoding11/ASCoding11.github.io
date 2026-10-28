@@ -1784,7 +1784,7 @@ function setRS(rs){G.rs=rs;if(G.mode==='online'&&G.host)G.rsDirty=true;applyRS(r
 // The host's clock: phases, who is left, points.
 function hostTick(){
   const rs=G.rs;if(!rs)return;const t=now();
-  if(G.mode==='online'&&G.rsDirty){G.rsDirty=false;Net.pubRS(rs)}
+  if(G.mode==='online'&&G.rsDirty&&Net.rsDue(rs)){G.rsDirty=false;Net.pubRS(rs)}
   if(rs.ph==='lobby'){
     if(G.mode==='online'&&Net.isPublic){const n=liveIds().length;if(n>=2){if(!rs.as)setRS(Object.assign({},rs,{as:t+20000}));else if(t>=rs.as)setRS(newRound(rs,true))}else if(rs.as)setRS(Object.assign({},rs,{as:0}))}
     return;
@@ -2301,7 +2301,12 @@ const Net={
     const sh=G.lastShot||'';
     if(s!==this.lastPos||sh!==this.lastSh||performance.now()-this.hbT>2000){this.lastPos=s;const o={x:r2(e.pos.x),y:r2(e.pos.y),z:r2(e.pos.z),h:r3(e.yaw),p:r2(e.aimPitch||0)};if(sh!==this.lastSh){o.sh=sh;this.lastSh=sh}this.upd(o)}
   },
-  pubRS(rs){const s=JSON.stringify(rs);if(s===this.rsStr)return;this.rsStr=s;this.upd({rs:s,he:G.he})},
+  // The round state goes out whole every time (1-2 KB with 16 players), and during a hunt it changes with every hit
+  // (health, eliminations), several times a second. Hit-driven changes are coalesced to at most 4 publishes a second
+  // (hostTick keeps G.rsDirty set until one is due); a new phase or round goes straight away.
+  rsT:0,rsKey:'',
+  rsDue(rs){return rs.id+':'+rs.ph!==this.rsKey||performance.now()-this.rsT>=250},
+  pubRS(rs){const s=JSON.stringify(rs);if(s===this.rsStr)return;this.rsStr=s;this.rsKey=rs.id+':'+rs.ph;this.rsT=performance.now();this.upd({rs:s,he:G.he})},
   live(uid){const o=this.others.get(uid);return !!o&&this.now()-o.ts<LIVE_MS},
   elect(){
     let best=this.uid,bh=G.host?G.he:0,bj=this.j;
@@ -2425,7 +2430,7 @@ function becomeHost(){
   if(G.lastRS&&G.rs&&G.rs.id===base.id)feed('You\'re the host now');
   setRS(base);G.rsDirty=true;
 }
-function stopHost(){G.host=false;G.he=0;Net.rsStr='';Net.upd({rs:'',he:0})}
+function stopHost(){G.host=false;G.he=0;Net.rsStr='';Net.rsKey='';Net.upd({rs:'',he:0})}
 
 // =====================================================================
 //  HUD
