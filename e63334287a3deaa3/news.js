@@ -42,6 +42,11 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-10-29', version: '1.9', title: 'Avatars and status tiers', kind: 'feature', items: [
+      'Everyone now has an avatar: a little face drawn from your account, the same wherever your name shows (Online, Party, Leaderboards).',
+      'Miles with us: play time and wins add up to a status tier next to your name, from Economy through Business Class and First Class to Private Jet. Your own card says how far you are from the next one.',
+      'Tiers come from the same self-reported numbers as the leaderboards, so they\'re for bragging rights.'
+    ]},
     {date: '2026-10-28', version: '1.8.1', title: 'Fixes for walls, laps and online play', kind: 'fix', items: [
       'Backrooms: building a wall or floor on someone, standing on an edge or walking up a ramp under a floor can no longer put you inside a wall, and other players are never drawn inside one.',
       'Chromaflage: no more slipping between wall pieces or squeezing under chairs and low furniture.',

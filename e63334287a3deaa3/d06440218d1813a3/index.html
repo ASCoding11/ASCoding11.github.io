@@ -124,6 +124,8 @@ tr.pdet .bars button:hover{background:none;border-color:transparent}
 .badge.bug,.badge.report{color:var(--down);border-color:var(--down)}
 .badge.idea,.badge.google{color:var(--accent);border-color:var(--accent)}
 tr.prow .badge{margin-left:6px;vertical-align:1px;padding:1px 7px;font-size:10px}
+tr.prow .who .bra-av{margin-right:7px;vertical-align:-7px}
+tr.prow .bra-tier{margin-left:6px;vertical-align:1px}
 .det{display:grid;gap:12px;padding:2px 0 4px}
 .det h3{margin:0 0 6px;font-family:var(--mono);font-size:11.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
 .det .bars{gap:2px}
@@ -256,6 +258,8 @@ tr.prow .badge{margin-left:6px;vertical-align:1px;padding:1px 7px;font-size:10px
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="/e63334287a3deaa3/feedback.js" data-list-only></script>
 <script src="/e63334287a3deaa3/leaderboard.js" data-lib></script>
+<script src="/e63334287a3deaa3/avatar.js"></script>
+<script src="/e63334287a3deaa3/miles.js"></script>
 <script src="/e63334287a3deaa3/adminkey.js"></script>
 <script>
 (function(){
@@ -457,7 +461,9 @@ tr.prow .badge{margin-left:6px;vertical-align:1px;padding:1px 7px;font-size:10px
       LB.GAMES.forEach(function(g){var s=secs(p,g.d,days);if(s>0){per[g.d]=s;if(s>topS){topS=s;top=g.n}}});
       var v=gv==='all'?secs(p,'all',days):(per[gv]||0);
       if(!(v>0)&&!p.reset&&!p.hidden)return;
-      list.push({p:p,v:v,per:per,top:top,n:Object.keys(per).length});
+      // The status tier ("miles with us", miles.js) from this same checked node.
+      var mi=null;if(window.BackRoomMiles){try{mi=BackRoomMiles.of(p)}catch(e){mi=null}}
+      list.push({p:p,v:v,per:per,top:top,n:Object.keys(per).length,mi:mi,miles:mi?mi.miles:0});
       // accounts removed from the boards are listed (to undo it) but left out of the totals
       if(p.hidden)return;
       Object.keys(per).forEach(function(d){gs[d]=(gs[d]||0)+per[d];gp[d]=(gp[d]||0)+1});
@@ -485,7 +491,7 @@ tr.prow .badge{margin-left:6px;vertical-align:1px;padding:1px 7px;font-size:10px
       var n=el('span','n',fmtDur(g.s)+' ');n.appendChild(el('small',null,'· '+fmtN(g.people)+(g.people===1?' player':' players')));
       b.append(el('span','nm',g.n),tr,n);li.appendChild(b);ul.appendChild(li);
     });
-    $('sPeopleHint').textContent='One row per account: the Google name when the account signed in with Google (the badge), else the Online name, with the seat tag the Online panel shows. Hours are '+when+(st.gv==='all'?'':' in '+where)+'. Tap a row for their games, bests and the last 30 days.';
+    $('sPeopleHint').textContent='One row per account: the Google name when the account signed in with Google (the badge), else the Online name, with the seat tag the Online panel shows, and the status tier with its miles (all time, self-reported like everything here). Hours are '+when+(st.gv==='all'?'':' in '+where)+'. Tap a row for their games, bests and the last 30 days.';
     renderPeople(st);
   }
   // Everything a game's stats say about one person, as text: the boards' stats, and for Slipstream the lap and course records.
@@ -557,29 +563,33 @@ tr.prow .badge{margin-left:6px;vertical-align:1px;padding:1px 7px;font-size:10px
     list.sort(function(a,b){
       var x,y;
       if(key==='name'||key==='top'){x=(key==='name'?a.p.name:a.top).toLowerCase();y=(key==='name'?b.p.name:b.top).toLowerCase();return x<y?-dir:x>y?dir:(b.v-a.v)}
-      if(key==='games'){x=a.n;y=b.n}else if(key==='last'){x=+a.p.ts;y=+b.p.ts}else{x=a.v;y=b.v}
+      if(key==='games'){x=a.n;y=b.n}else if(key==='last'){x=+a.p.ts;y=+b.p.ts}else if(key==='miles'){x=a.miles;y=b.miles}else{x=a.v;y=b.v}
       return (x-y)*dir||(b.v-a.v);
     });
     var t=$('sPeople');t.textContent='';
     var head=el('tr');
-    [['name','Person',''],['hours','Hours','num'],['games','Games','num opt'],['top','Top game','opt'],['last','Last seen','']].forEach(function(c){
+    [['name','Person',''],['hours','Hours','num'],['miles','Miles','num opt'],['games','Games','num opt'],['top','Top game','opt'],['last','Last seen','']].forEach(function(c){
       var th=el('th',c[2]),b=el('button',null,c[1]);b.type='button';b.dataset.sort=c[0];if(S.sort===c[0])b.dataset.dir=S.dir;th.appendChild(b);head.appendChild(th);
     });
     var thead=el('thead');thead.appendChild(head);t.appendChild(thead);
     var tb=el('tbody');t.appendChild(tb);
-    if(!list.length){var tr0=el('tr'),td0=el('td',null,st.list.length?'Nobody matches.':'Nobody in this range.');td0.colSpan=5;tr0.appendChild(td0);tb.appendChild(tr0)}
+    if(!list.length){var tr0=el('tr'),td0=el('td',null,st.list.length?'Nobody matches.':'Nobody in this range.');td0.colSpan=6;tr0.appendChild(td0);tb.appendChild(tr0)}
     list.slice(0,S.show).forEach(function(r){
       var p=r.p,tr=el('tr','prow'+(S.open[p.uid]?' open':''));tr.dataset.k=p.uid;tr.tabIndex=0;tr.setAttribute('aria-expanded',S.open[p.uid]?'true':'false');
-      var td=el('td'),who=el('span','who',p.name);
+      var td=el('td'),who=el('span','who');
+      // The avatar (avatar.js, from the uid), the name, then the Google badge and the status tier with its miles (miles.js).
+      if(window.BackRoomAvatar){try{who.appendChild(BackRoomAvatar.el(p.uid,26))}catch(e){}}
+      who.appendChild(document.createTextNode(p.name));
       if(p.hidden){var hd=el('span','badge','Removed');hd.title='Removed from the leaderboards: no board shows this account';who.appendChild(hd)}
       if(p.ga){var bd=el('span','badge google','Google');bd.title='Signed in with Google';who.appendChild(bd)}
+      if(r.mi){try{who.appendChild(BackRoomMiles.badge(r.mi,{miles:true}))}catch(e){}}
       td.appendChild(who);
       td.appendChild(el('small',null,p.seat+(p.gn&&p.n!==p.gn?' · Online name: '+p.n:'')+' · Account '+p.uid.slice(0,6)));
       var tt=el('td','opt',r.top);
       var tl=el('td');tl.appendChild(timeEl(p.ts));
-      tr.append(td,el('td','num',fmtDur(r.v)),el('td','num opt',fmtN(r.n)),tt,tl);
+      tr.append(td,el('td','num',fmtDur(r.v)),el('td','num opt',r.mi?fmtN(r.miles):'–'),el('td','num opt',fmtN(r.n)),tt,tl);
       tb.appendChild(tr);
-      if(S.open[p.uid]){var dr=el('tr','pdet'),dd=el('td');dd.colSpan=5;dd.appendChild(detail(r,st));dr.appendChild(dd);tb.appendChild(dr)}
+      if(S.open[p.uid]){var dr=el('tr','pdet'),dd=el('td');dd.colSpan=6;dd.appendChild(detail(r,st));dr.appendChild(dd);tb.appendChild(dr)}
     });
     $('sMore').hidden=list.length<=S.show;$('sMore').textContent='Show more ('+fmtN(list.length-S.show)+' left)';
   }
@@ -860,7 +870,7 @@ tr.prow .badge{margin-left:6px;vertical-align:1px;padding:1px 7px;font-size:10px
       },
       get unlocked(){return !!PRIV},
       get stats(){return last&&{total:last.total,players:last.list.length,google:last.google,accounts:S.people.length,skipped:S.skipped,games:last.games.map(function(g){return [g.d,g.s,g.people]}),
-        people:last.list.map(function(r){return {uid:r.p.uid,name:r.p.name,n:r.p.n,gn:r.p.gn,ga:r.p.ga,seat:r.p.seat,v:r.v,top:r.top,n_games:r.n,days:Object.keys(r.p.d).length}})}},
+        people:last.list.map(function(r){return {uid:r.p.uid,name:r.p.name,n:r.p.n,gn:r.p.gn,ga:r.p.ga,seat:r.p.seat,v:r.v,top:r.top,n_games:r.n,days:Object.keys(r.p.d).length,miles:r.miles,tier:r.mi?r.mi.tier.k:''}})}},
       get chat(){return {rows:C.rows.length,shown:chatShown().length,capped:C.capped,unopened:C.rows.filter(function(r){return !r.opened}).length}},
       get feedback(){return F.rows.map(function(r){return {id:r.id,done:r.done,sealed:r.sealed,msg:r.msg}})}
     };
