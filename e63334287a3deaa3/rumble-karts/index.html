@@ -168,6 +168,7 @@ body.touch #bKeys{display:none}
 #rList li.me{border-color:var(--ink);background:#fff3cc}
 #rList .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #rList .sc{font-family:var(--f-display);font-variant-numeric:tabular-nums}
+#rList .kd{font-size:12px;font-weight:700;color:#6a6690;margin-left:8px;font-variant-numeric:tabular-nums}
 .res-next{margin-top:14px;font-weight:700;color:var(--muted)}
 .res-next b{font-family:var(--f-display);font-weight:400;color:var(--ink);font-size:20px}
 
@@ -2591,9 +2592,11 @@ function handleEvent(e) {
     case 'kill': {
       explodeFX(e.x, e.z, 1.35);
       addFeed(e);
+      if (S.me && e.v === S.me.id && window.BackRoomStats) BackRoomStats.add('deaths', 1);
+      if (S.me && e.v === S.me.id && S.round) S.me.rdK === S.round.id ? S.me.rdN++ : (S.me.rdK = S.round.id, S.me.rdN = 1);   // this round's deaths, for the results' K/D
       const killer = karts.get(e.o);
       if (killer && killer.local && e.o !== e.v) creditKill(killer, e);
-      if (S.me && e.o === S.me.id && e.o !== e.v && window.BackRoomStats) BackRoomStats.add('wrecks', 1);
+      if (S.me && e.o === S.me.id && e.o !== e.v && window.BackRoomStats) { BackRoomStats.add('wrecks', 1); BackRoomStats.add('kdkills', 1); }
       if (S.me && e.o === S.me.id && e.o !== e.v && S.round && window.BackRoomStats) { S.me.rwK === S.round.id ? S.me.rwN++ : (S.me.rwK = S.round.id, S.me.rwN = 1); BackRoomStats.max('rwrecks', S.me.rwN); }
       if (S.me && e.v === S.me.id) showBanner('Wrecked!', e.on ? (e.w === 'lava' ? 'knocked into the lava by ' : e.w === 'cream' ? 'creamed by ' : e.w === 'whip' ? 'whipped by ' : 'by ') + e.on : (e.w === 'lava' ? 'you drove into the lava' : ''), 0, true);
       else if (S.me && e.o === S.me.id && S.gm !== 'gun') { showBanner('Wrecked ' + e.vn, S.gm === 'zone' ? '' : '+1', 1300); Snd.play('ko'); }
@@ -3070,7 +3073,9 @@ function renderResults() {
   else if (S.gm === 'zone') msg = !top || top.score === 0 ? 'Nobody held the zone' : `${nm} win${you ? '' : 's'} with ${top.score} zone point${top.score === 1 ? '' : 's'}`;
   else msg = !top || top.score === 0 ? 'Nobody scored a wreck' : `${nm} win${you ? '' : 's'} with ${top.score} wreck${top.score === 1 ? '' : 's'}`;
   $('#rWinner').textContent = msg;
-  $('#rList').innerHTML = list.slice(0, 8).map((k, i) => `<li class="${k === S.me ? 'me' : ''}"><span class="rk">${i + 1}</span><span class="nm">${esc(k.name)}</span><span class="sc">${scoreCell(k)}</span></li>`).join('');
+  // my row also shows this round's K/D: wrecks I scored (rwN, kept by the stats hook) over times I was wrecked (rdN)
+  const kd = k => { const rid = S.round ? S.round.id : 0, w = k.rwK === rid ? k.rwN : 0, d = k.rdK === rid ? k.rdN : 0; return `<small class="kd">K/D ${(w / Math.max(1, d)).toFixed(2)}</small>`; };
+  $('#rList').innerHTML = list.slice(0, 8).map((k, i) => `<li class="${k === S.me ? 'me' : ''}"><span class="rk">${i + 1}</span><span class="nm">${esc(k.name)}${k === S.me ? kd(k) : ''}</span><span class="sc">${scoreCell(k)}</span></li>`).join('');
 }
 function updateHud(dt) {
   if (S.mode === 'attract') return;
