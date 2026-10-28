@@ -31,6 +31,23 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-10-28', version: '1.9.1', title: 'Fixes for walls, laps and online play', kind: 'fix', items: [
+      'Backrooms: building a wall or floor on someone, standing on an edge or walking up a ramp under a floor can no longer put you inside a wall, and other players are never drawn inside one.',
+      'Chromaflage: no more slipping between wall pieces or squeezing under chairs and low furniture.',
+      'Slipstream: the fastest-lap board works again, and opens on a new All tracks view with the record for every track.',
+      'Shell Crackers, Backrooms and Rumble Karts now count your deaths, and have a K/D board (you need 20 kills to show up).',
+      'Online games wait longer for a slow sign-in and say so, Rumble Karts rooms hold up to 12 karts, and Coil and Boostball bots keep moving when the host switches tabs.'
+    ]},
+    {date: '2026-10-28', version: '1.9', title: 'New maps, modes and weapons', kind: 'feature', items: [
+      'Chromaflage: six new maps (a school, an office, a supermarket, a hotel, a leisure centre and a block of flats). Online rooms play three of the nine each day and switch map every 15 minutes.',
+      'Rumble Karts: two new weapons, Nico\'s Cream Cannon (slows and splats whoever it hits) and the rare Angry Whip.',
+      '2048: new Mega (6 × 6), College and Dessert modes, each with its own best score and leaderboard.',
+      'Parties: ask to join someone\'s party from their card, and the leader can remove people. You can also block someone just until you close the tab.'
+    ]},
+    {date: '2026-10-28', version: '1.8', title: 'Deepword', kind: 'game', items: [
+      'A daily word dive: eight prompts a day, the same for everyone, and the rarer your answer, the deeper you sink.',
+      'Blowfish Brawl: up to 12 players get the same prompt, and an answer someone already sent puffs you up. Three puffs and you pop.'
+    ]},
     {date: '2026-10-27', version: '1.7', title: 'Avatars and status tiers', kind: 'feature', items: [
       'Everyone now has an avatar: a little face drawn from your account, the same wherever your name shows (Online, Party, Leaderboards).',
       'Miles with us: play time and wins add up to a status tier next to your name, from Economy through Business Class and First Class to Private Jet. Your own card says how far you are from the next one.',
