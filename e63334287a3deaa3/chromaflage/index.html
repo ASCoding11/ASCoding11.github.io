@@ -1097,6 +1097,12 @@ class Builder{
   // a ceiling or table lamp that really lights the room around it
   lamp(x,y,z,color,power,dist){this.lamps.push([x,y,z,color||0xffd9a0,power==null?1:power,dist||9])}
   finish(info){
+    // Low furniture is solid down to the floor unless the gap under it is at least as tall as the smallest lying
+    // body (MIN_GAP): an invisible collider (a "skirt") fills a narrower gap, so nothing can wedge itself under a
+    // sofa on short legs or a trolley, and the bots, rays and the eyedropper see the same thing the bodies bump into.
+    const gap=minGap();
+    for(const b of this.boxes.slice()){if(!b.solid||b.wall||b.y0<=.001||b.y0>=gap)continue;
+      this.box(b.x0,0,b.z0,b.x1,b.y0,b.z1,null,{noMesh:true,sm:b.face[0]||b.face[2]||'white'})}
     const group=new THREE.Group(),meshes=[];
     // round props are baked into the same per-material meshes as the boxes (one draw call per material)
     const _v=new V3(),_n=new THREE.Matrix3();
@@ -1381,7 +1387,8 @@ function kit(B,o){
     const h=s.h||o.H,lh=s.lo?(s.lh||o.LH||1.1):0,base=s.base===undefined?o.base:s.base,crown=s.crown===undefined?o.crown:s.crown,cas=s.casing===undefined?(o.casing||base):s.casing;
     const ds=(doors||[]).map(d=>({a:d[0],b:d[1],h:d[2]||o.DH||2.4})).sort((p,q)=>p.a-q.a);
     const segs=[];let a=p0;for(const d of ds){if(d.a>a)segs.push([a,d.a]);a=Math.max(a,d.b)}if(p1>a)segs.push([a,p1]);
-    const wall=(q0,q1,y0,y1,m)=>{if(y1-y0<.001||q1-q0<.001)return;slab(ax,c,dir,q0,q1,y0,y1,0,T,m).wall=1};
+    // each side's slab reaches .01 past the centre line, so the two halves overlap and there is no seam between them
+    const wall=(q0,q1,y0,y1,m)=>{if(y1-y0<.001||q1-q0<.001)return;slab(ax,c,dir,q0,q1,y0,y1,-.01,T,m).wall=1};
     for(const g of segs){if(lh){wall(g[0],g[1],0,lh,s.lo);wall(g[0],g[1],lh,h,s.w)}else wall(g[0],g[1],0,h,s.w)}
     for(const d of ds){if(lh&&d.h<lh){wall(d.a,d.b,d.h,lh,s.lo);wall(d.a,d.b,lh,h,s.w)}else wall(d.a,d.b,d.h,h,s.w)}
     if(base)for(const g of segs)slab(ax,c,dir,g[0],g[1],0,.16,T,T+.022,base,trim);
@@ -1566,7 +1573,7 @@ function buildManor(){
   for(const [x,z] of [[2.2,15],[11.2,21]]){F.roundTable(x,z,.4,.7,'wicker','brass');F.chair(1,x-.85,z,'wicker','wicker');F.chair(3,x+.85,z,'wicker','wicker')}
   F.palm(1.2,12.9,1.1,'pot');F.palm(12.8,23,1.15,'pot');F.palm(1.2,23,1,'pot');F.ficus(12.9,13,1.1,'pot');
   for(let i=0;i<5;i++)F.plant(.7,13.6+i*1.75+(i>1?.6:0),.75+(i%2)*.25,'pot',i%2?'leaves':'leaves2');
-  {const a=K.ag('x',24,-1,5,.7);F.table(a.k,a.x,a.z,2.4,.7,.9,'pine','pine');for(let i=0;i<5;i++)B.prop(geo('Cylinder',.13,.1,.2,12),'pot',4+i*.5,1.0,a.z);F.boxes(4.4,a.z,[[0,0,.6,.45,.4,0,'crate'],[.9,0,.5,.45,.4,0,'crate']])}
+  {const a=K.ag('x',24,-1,5,.7);F.table(a.k,a.x,a.z,2.4,.7,.9,'pine','pine',{spot:false});for(let i=0;i<5;i++)B.prop(geo('Cylinder',.13,.1,.2,12),'pot',4+i*.5,1.0,a.z);F.boxes(4.4,a.z,[[0,0,.6,.45,.4,0,'crate'],[.9,0,.5,.45,.4,0,'crate']])}
   B.prop(geo('Cylinder',.03,.03,1.3,8),'brass',11.5,.65,16);B.prop(geo('Cylinder',.25,.25,.45,16,1,true),'brass',11.5,1.5,16);B.prop(geo('Sphere',.26,14,8,0,Math.PI*2,0,Math.PI/2),'brass',11.5,1.72,16);
   B.box(11.25,0,15.75,11.75,1.95,16.25,null,{noMesh:true,sm:'brass'});
   for(const [x,z] of [[4.5,21.5],[9.5,14]])F.plant(x,z,1.3,'potB','leaves2');F.ceilLamp(7,18,H,true,0xe8f0ff);
@@ -2472,38 +2479,118 @@ function circles(e,pose,flat,yaw,out){
   return{r:f.r*Math.max(s[0],s[2]),h:f.h*s[1]};
 }
 function heightOf(e){return footOf(e,e.pose,e.flat).h*SIZES[e.size].s[1]}
-function pushOut(e,cs,r,h){
-  let moved=false;const list=near(cs,r+.35);
-  for(let it=0;it<4;it++){let any=false;
+// the height of the smallest lying body (the Petite Block, about .15 m): a gap under furniture lower than this is
+// filled in when the map is built (Builder.finish)
+function minGap(){let g=9;for(const f of FOOT)for(const s of SIZES)g=Math.min(g,f[2].h*s.s[1]);return g}
+// How high a body can step: a standing body climbs stairs and low furniture (STEP), a crouching one less, a lying one
+// only a rug or a sill. Anything taller is a wall to it.
+function stepOf(h){return Math.min(STEP,h*.5)}
+// Can the body stand on top of box b (feet at b.y1) without any other solid cutting through it?
+function roomAbove(e,cs,r,h,b,list){
+  const y0=b.y1+.02,y1=b.y1+h-.02;
+  for(const o of list){if(o===b||o.y0>=y1||o.y1<=y0)continue;for(const c of cs){const cx=clamp(c[0],o.x0,o.x1),cz=clamp(c[1],o.z0,o.z1);if((c[0]-cx)**2+(c[1]-cz)**2<r*r)return false}}
+  return true;
+}
+// Does box b block a body whose feet are at e.pos.y? Boxes below the feet or above the head don't; a low box is a step
+// the body walks onto, unless there is no room to stand on it (a chair seat over its legs, a bed frame under its
+// quilt), when it is solid down to the floor.
+function blocks(e,cs,r,h,b,list){
+  if(b.y0>=e.pos.y+h-.01||b.y1<=e.pos.y+.001)return false; // a centimetre's give overhead, so a body that just fits under a table isn't stuck in its top
+  if(b.y1<=e.pos.y+stepOf(h))return !roomAbove(e,cs,r,h,b,list);
+  return true;
+}
+// Push the body's circles out of every box they overlap. sx, sz: where the body stood before this move (its circles
+// were outside everything there), so a circle that has gone right through a thin wall is pushed back out the face it
+// came in through, never out the far side. Returns true if something still overlaps after the passes (wedged).
+function pushOut(e,cs,r,h,sx,sz){
+  const list=near(cs,r+.35);let any=false;
+  if(sx==null){sx=e.pos.x;sz=e.pos.z}
+  for(let it=0;it<6;it++){any=false;
     for(const b of list){
-      if(b.y1<=e.pos.y+STEP||b.y0>=e.pos.y+h)continue;
+      if(!blocks(e,cs,r,h,b,list))continue;
       for(const c of cs){
         const cx=clamp(c[0],b.x0,b.x1),cz=clamp(c[1],b.z0,b.z1),dx=c[0]-cx,dz=c[1]-cz,d2=dx*dx+dz*dz;if(d2>=r*r)continue;
         let px=0,pz=0;
-        if(d2>1e-9){const d=Math.sqrt(d2);px=dx/d*(r-d);pz=dz/d*(r-d)}
+        const ox=c[0]-(e.pos.x-sx),oz=c[1]-(e.pos.z-sz);
+        const outX=ox<=b.x0-r+.002||ox>=b.x1+r-.002,outZ=oz<=b.z0-r+.002||oz>=b.z1+r-.002;
+        const toX=ox<(b.x0+b.x1)/2?b.x0-r-c[0]:b.x1+r-c[0],toZ=oz<(b.z0+b.z1)/2?b.z0-r-c[1]:b.z1+r-c[1];
+        if(outX&&outZ){if(Math.abs(toX)<=Math.abs(toZ))px=toX;else pz=toZ}
+        else if(outX)px=toX;else if(outZ)pz=toZ;
+        else if(d2>1e-9){const d=Math.sqrt(d2);px=dx/d*(r-d);pz=dz/d*(r-d)}
         else{const l=c[0]-b.x0+r,ri=b.x1-c[0]+r,f=c[1]-b.z0+r,bk=b.z1-c[1]+r,m=Math.min(l,ri,f,bk);if(m===l)px=-l;else if(m===ri)px=ri;else if(m===f)pz=-f;else pz=bk}
-        e.pos.x+=px;e.pos.z+=pz;for(const o of cs){o[0]+=px;o[1]+=pz}any=moved=true;
+        e.pos.x+=px;e.pos.z+=pz;for(const o of cs){o[0]+=px;o[1]+=pz}any=true;
       }
     }
     if(!any)break;
   }
-  return moved;
+  return any;
 }
-function groundAt(e,cs,r){let g=-20;for(const b of near(cs,r)){if(b.y1>e.pos.y+STEP+.02||b.y1<=g)continue;for(const c of cs){const cx=clamp(c[0],b.x0,b.x1),cz=clamp(c[1],b.z0,b.z1);if((c[0]-cx)**2+(c[1]-cz)**2<(r*.7)**2){g=b.y1;break}}}return g}
-function overlapping(e){const cs=[],f=circles(e,e.pose,e.flat,e.yaw,cs);for(const b of near(cs,f.r)){if(b.y1<=e.pos.y+STEP||b.y0>=e.pos.y+f.h)continue;for(const c of cs){const cx=clamp(c[0],b.x0,b.x1),cz=clamp(c[1],b.z0,b.z1);if((c[0]-cx)**2+(c[1]-cz)**2<(f.r-.03)**2)return true}}return false}
+// does anything solid block the body where it stands (tolerance tol metres)
+function blockedAt(e,cs,r,h,tol){const rr=(r-(tol||0))**2,list=near(cs,r);for(const b of list){if(!blocks(e,cs,r,h,b,list))continue;for(const c of cs){const cx=clamp(c[0],b.x0,b.x1),cz=clamp(c[1],b.z0,b.z1);if((c[0]-cx)**2+(c[1]-cz)**2<rr)return true}}return false}
+// the floor under the body: the highest top within reach (a step up, or anything passed on the way down from oy) that
+// the body can stand on
+function groundAt(e,cs,r,h,oy){
+  if(h==null)h=heightOf(e);if(oy==null)oy=e.pos.y;
+  const list=near(cs,r+.35),top=Math.max(oy,e.pos.y)+stepOf(h)+.02;let g=-20; // tops a step above where the feet were count too: the sideways move treated them as steps
+  for(const b of list){
+    if(b.y1>top||b.y1<=g)continue;let on=false;
+    for(const c of cs){const cx=clamp(c[0],b.x0,b.x1),cz=clamp(c[1],b.z0,b.z1);if((c[0]-cx)**2+(c[1]-cz)**2<(r*.7)**2){on=true;break}}
+    if(!on)continue;
+    if(b.y1>oy+.001&&!roomAbove(e,cs,r,h,b,list))continue; // a step up needs room to stand on it; the floor under us always counts
+    g=b.y1;
+  }
+  return g;
+}
+// is the body's footprint inside a box it stands in (feet in a step it would be lifted onto): a pose change or turn
+// mustn't leave it there
+function insideLow(e,cs,h){for(const b of near(cs,.05)){if(b.y0>=e.pos.y+h-.01||b.y1<=e.pos.y+.05)continue;for(const c of cs){if(c[0]>b.x0&&c[0]<b.x1&&c[1]>b.z0&&c[1]<b.z1)return true}}return false}
+function overlapping(e){const cs=[],f=circles(e,e.pose,e.flat,e.yaw,cs);return blockedAt(e,cs,f.r,f.h,.01)||insideLow(e,cs,f.h)}
 const _cs=[];
+// A body that finds itself inside something (it grew, or was put there) moves to the nearest free spot that isn't
+// across a wall from it, instead of being shoved about by pushOut, which could leave it on the far side of a wall.
+function wallBetween(ax,az,bx,bz,y0,y1){
+  const dx=bx-ax,dz=bz-az;
+  for(const b of solidsIn(Math.min(ax,bx),Math.min(az,bz),Math.max(ax,bx),Math.max(az,bz))){if(!b.wall||b.y0>=y1||b.y1<=y0)continue;
+    let t0=0,t1=1;const sl=(p,d,lo,hi)=>{if(Math.abs(d)<1e-9)return p>lo&&p<hi;let u=(lo-p)/d,v=(hi-p)/d;if(u>v){const q=u;u=v;v=q}t0=Math.max(t0,u);t1=Math.min(t1,v);return t0<t1};
+    if(sl(ax,dx,b.x0,b.x1)&&sl(az,dz,b.z0,b.z1))return true}
+  return false;
+}
+function freeSpot(e,h){
+  const x0=e.pos.x,z0=e.pos.z,cs=[];
+  for(let rad=.05;rad<=3;rad+=rad<1?.05:.1)for(let k=0;k<16;k++){const a=k/16*Math.PI*2;e.pos.x=x0+Math.sin(a)*rad;e.pos.z=z0+Math.cos(a)*rad;
+    const f=circles(e,e.pose,e.flat,e.yaw,cs);if(blockedAt(e,cs,f.r,f.h,.005)||wallBetween(x0,z0,e.pos.x,e.pos.z,e.pos.y+.02,e.pos.y+h))continue;return true}
+  e.pos.x=x0;e.pos.z=z0;return false;
+}
 function moveEnt(e,dt){
   if(!MAP)return;
   if(e.wall){e.vel.set(0,0,0);return}
   const oy=e.pos.y;
-  e.pos.x+=e.vel.x*dt;e.pos.z+=e.vel.z*dt;
-  let f=circles(e,e.pose,e.flat,e.yaw,_cs);pushOut(e,_cs,f.r,f.h);
-  if(e.isMe&&G.role==='seeker'){for(const o of ents.values()){if(o===e||!o.av.root.visible||roleOf(o.id)!=='hider')continue;const dx=e.pos.x-o.pos.x,dz=e.pos.z-o.pos.z,d=Math.hypot(dx,dz),rr=f.r+.25;if(d<rr&&d>1e-4&&Math.abs(e.pos.y-o.pos.y)<1.5){e.pos.x+=dx/d*(rr-d);e.pos.z+=dz/d*(rr-d)}}}
-  const bd=MAP.bounds;e.pos.x=clamp(e.pos.x,bd[0]+.25,bd[2]-.25);e.pos.z=clamp(e.pos.z,bd[1]+.25,bd[3]-.25);
+  let f=circles(e,e.pose,e.flat,e.yaw,_cs);
+  // the move is cut into steps shorter than the body's radius, so a fast body can't jump a thin wall in one go; a step
+  // that can't be resolved (wedged between two things) is taken along one axis only, or not at all
+  const dx=e.vel.x*dt,dz=e.vel.z*dt,dist=Math.hypot(dx,dz),n=Math.min(8,Math.max(1,Math.ceil(dist/Math.min(.06,f.r*.9))));
+  let startOk=!blockedAt(e,_cs,f.r,f.h,.005);const bd=MAP.bounds;
+  if(!startOk&&freeSpot(e,f.h)){startOk=true;f=circles(e,e.pose,e.flat,e.yaw,_cs)}
+  const x0=e.pos.x,z0=e.pos.z,h0=f.h;
+  for(let i=0;i<n;i++){
+    const sx=e.pos.x,sz=e.pos.z;
+    e.pos.x=clamp(e.pos.x+dx/n,bd[0]+.25,bd[2]-.25);e.pos.z=clamp(e.pos.z+dz/n,bd[1]+.25,bd[3]-.25);f=circles(e,e.pose,e.flat,e.yaw,_cs);
+    let wedged=pushOut(e,_cs,f.r,f.h,sx,sz);
+    if(wedged&&startOk){
+      e.pos.x=sx+dx/n;e.pos.z=sz;f=circles(e,e.pose,e.flat,e.yaw,_cs);wedged=pushOut(e,_cs,f.r,f.h,sx,sz);
+      if(wedged){e.pos.x=sx;e.pos.z=sz+dz/n;f=circles(e,e.pose,e.flat,e.yaw,_cs);wedged=pushOut(e,_cs,f.r,f.h,sx,sz);
+        if(wedged){e.pos.x=sx;e.pos.z=sz;f=circles(e,e.pose,e.flat,e.yaw,_cs);break}}
+    }
+  }
+  if(e.isMe&&G.role==='seeker'){let pushed=false;for(const o of ents.values()){if(o===e||!o.av.root.visible||roleOf(o.id)!=='hider')continue;const dx=e.pos.x-o.pos.x,dz=e.pos.z-o.pos.z,d=Math.hypot(dx,dz),rr=f.r+.25;if(d<rr&&d>1e-4&&Math.abs(e.pos.y-o.pos.y)<1.5){e.pos.x+=dx/d*(rr-d);e.pos.z+=dz/d*(rr-d);pushed=true}}
+    if(pushed){f=circles(e,e.pose,e.flat,e.yaw,_cs);pushOut(e,_cs,f.r,f.h)}}
+  e.pos.x=clamp(e.pos.x,bd[0]+.25,bd[2]-.25);e.pos.z=clamp(e.pos.z,bd[1]+.25,bd[3]-.25);
+  // never end a move on the far side of a wall (only possible when a stuck body was shoved about)
+  if(!startOk&&wallBetween(x0,z0,e.pos.x,e.pos.z,e.pos.y+.02,e.pos.y+h0)){e.pos.x=x0;e.pos.z=z0}
   f=circles(e,e.pose,e.flat,e.yaw,_cs);
   e.vel.y-=GRAV*dt;e.pos.y+=e.vel.y*dt;
   if(e.vel.y>0){for(const b of near(_cs,f.r)){if(b.y0<oy+f.h-.05||b.y0>e.pos.y+f.h)continue;for(const c of _cs){const cx=clamp(c[0],b.x0,b.x1),cz=clamp(c[1],b.z0,b.z1);if((c[0]-cx)**2+(c[1]-cz)**2<(f.r*.7)**2){e.pos.y=b.y0-f.h;e.vel.y=0;break}}}}
-  const g=groundAt(e,_cs,f.r);
+  const g=groundAt(e,_cs,f.r,f.h,oy);
   if(e.pos.y<=g||(e.onGround&&e.vel.y<=0&&e.pos.y-g<.3)){e.pos.y=g;e.vel.y=0;e.onGround=true}else e.onGround=false;
   if(e.pos.y<-5){e.pos.y=1;e.vel.y=0}
 }
