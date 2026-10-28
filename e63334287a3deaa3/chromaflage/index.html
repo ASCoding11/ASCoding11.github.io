@@ -165,7 +165,10 @@ h1 span{display:inline-block}
 .hset{display:grid;grid-template-columns:auto 1fr;gap:7px 10px;align-items:center;margin-top:8px;font-weight:800;font-size:13px}
 .hset .seg button{padding:5px 8px;font-size:12px}
 .hset .seg{justify-self:start}
-#lobby.guest .hset .seg{pointer-events:none;opacity:.75}
+#lobby.guest .hset .seg,#lobby.guest .hset .sel{pointer-events:none;opacity:.75}
+.sel{border:2.5px solid var(--ink);border-radius:13px;background:#fff;color:var(--ink);font:inherit;font-weight:900;font-size:13px;padding:6px 8px;max-width:100%;min-width:0}
+.hset .sel{justify-self:start;font-size:12px;padding:4px 6px}
+#rotNote{margin:8px 0 0;font-weight:800}#rotNote b{color:var(--ink)}
 #lobbyMin{display:none}
 
 /* ---------- paint studio ---------- */
@@ -338,10 +341,11 @@ body.touch #lobby{top:calc(150px + env(safe-area-inset-top,0px));left:12px;right
     </div>
     <div class="lb-body">
       <ul id="plist"></ul>
+      <p class="note" id="rotNote"></p>
       <div class="label">Round settings <span id="hostNote" style="text-transform:none;letter-spacing:0;font-family:var(--f-b);font-weight:800"></span></div>
       <div class="hset">
         <span>Mode</span><div class="seg" id="setMode"><button type="button" data-v="classic">Classic</button><button type="button" data-v="infect">Infection</button></div>
-        <span>Map</span><div class="seg" id="setMap"></div>
+        <span>Map</span><select class="sel" id="setMap" aria-label="Map"></select>
         <span>Hide time</span><div class="seg" id="setHide"><button type="button" data-v="45">45s</button><button type="button" data-v="60">60s</button><button type="button" data-v="90">90s</button></div>
         <span>Seek time</span><div class="seg" id="setSeek"><button type="button" data-v="150">2:30</button><button type="button" data-v="180">3:00</button><button type="button" data-v="240">4:00</button></div>
         <span>Seekers</span><div class="seg" id="setSk"><button type="button" data-v="0">Auto</button><button type="button" data-v="1">1</button><button type="button" data-v="2">2</button></div>
@@ -424,9 +428,10 @@ body.touch #lobby{top:calc(150px + env(safe-area-inset-top,0px));left:12px;right
           <button id="pracSeek" class="btn alt" type="button">Seek practice<small>Find bots that paint themselves</small></button>
         </div>
         <div class="optrow">
-          <span>Map</span><div class="seg" id="pracMap"></div>
+          <span>Map</span><select class="sel" id="pracMap" aria-label="Practice map"></select>
           <span>Bots</span><div class="seg" id="pracDiff"><button type="button" data-v="1">Easy</button><button type="button" data-v="2">Normal</button><button type="button" data-v="3">Hard</button></div>
         </div>
+        <p id="rotToday" class="note" style="margin:8px 0 0"></p>
         <p id="netMsg" class="msg" role="status"></p>
         <p id="touchNote" class="note" hidden>On a phone you get a joystick and buttons, and you paint with your finger. A keyboard and mouse is easier.</p>
       </div>
@@ -1097,6 +1102,12 @@ class Builder{
   // a ceiling or table lamp that really lights the room around it
   lamp(x,y,z,color,power,dist){this.lamps.push([x,y,z,color||0xffd9a0,power==null?1:power,dist||9])}
   finish(info){
+    // Low furniture is solid down to the floor unless the gap under it is at least as tall as the smallest lying
+    // body (MIN_GAP): an invisible collider (a "skirt") fills a narrower gap, so nothing can wedge itself under a
+    // sofa on short legs or a trolley, and the bots, rays and the eyedropper see the same thing the bodies bump into.
+    const gap=minGap();
+    for(const b of this.boxes.slice()){if(!b.solid||b.wall||b.y0<=.001||b.y0>=gap)continue;
+      this.box(b.x0,0,b.z0,b.x1,b.y0,b.z1,null,{noMesh:true,sm:b.face[0]||b.face[2]||'white'})}
     const group=new THREE.Group(),meshes=[];
     // round props are baked into the same per-material meshes as the boxes (one draw call per material)
     const _v=new V3(),_n=new THREE.Matrix3();
@@ -1381,7 +1392,8 @@ function kit(B,o){
     const h=s.h||o.H,lh=s.lo?(s.lh||o.LH||1.1):0,base=s.base===undefined?o.base:s.base,crown=s.crown===undefined?o.crown:s.crown,cas=s.casing===undefined?(o.casing||base):s.casing;
     const ds=(doors||[]).map(d=>({a:d[0],b:d[1],h:d[2]||o.DH||2.4})).sort((p,q)=>p.a-q.a);
     const segs=[];let a=p0;for(const d of ds){if(d.a>a)segs.push([a,d.a]);a=Math.max(a,d.b)}if(p1>a)segs.push([a,p1]);
-    const wall=(q0,q1,y0,y1,m)=>{if(y1-y0<.001||q1-q0<.001)return;slab(ax,c,dir,q0,q1,y0,y1,0,T,m).wall=1};
+    // each side's slab reaches .01 past the centre line, so the two halves overlap and there is no seam between them
+    const wall=(q0,q1,y0,y1,m)=>{if(y1-y0<.001||q1-q0<.001)return;slab(ax,c,dir,q0,q1,y0,y1,-.01,T,m).wall=1};
     for(const g of segs){if(lh){wall(g[0],g[1],0,lh,s.lo);wall(g[0],g[1],lh,h,s.w)}else wall(g[0],g[1],0,h,s.w)}
     for(const d of ds){if(lh&&d.h<lh){wall(d.a,d.b,d.h,lh,s.lo);wall(d.a,d.b,lh,h,s.w)}else wall(d.a,d.b,d.h,h,s.w)}
     if(base)for(const g of segs)slab(ax,c,dir,g[0],g[1],0,.16,T,T+.022,base,trim);
@@ -1566,7 +1578,7 @@ function buildManor(){
   for(const [x,z] of [[2.2,15],[11.2,21]]){F.roundTable(x,z,.4,.7,'wicker','brass');F.chair(1,x-.85,z,'wicker','wicker');F.chair(3,x+.85,z,'wicker','wicker')}
   F.palm(1.2,12.9,1.1,'pot');F.palm(12.8,23,1.15,'pot');F.palm(1.2,23,1,'pot');F.ficus(12.9,13,1.1,'pot');
   for(let i=0;i<5;i++)F.plant(.7,13.6+i*1.75+(i>1?.6:0),.75+(i%2)*.25,'pot',i%2?'leaves':'leaves2');
-  {const a=K.ag('x',24,-1,5,.7);F.table(a.k,a.x,a.z,2.4,.7,.9,'pine','pine');for(let i=0;i<5;i++)B.prop(geo('Cylinder',.13,.1,.2,12),'pot',4+i*.5,1.0,a.z);F.boxes(4.4,a.z,[[0,0,.6,.45,.4,0,'crate'],[.9,0,.5,.45,.4,0,'crate']])}
+  {const a=K.ag('x',24,-1,5,.7);F.table(a.k,a.x,a.z,2.4,.7,.9,'pine','pine',{spot:false});for(let i=0;i<5;i++)B.prop(geo('Cylinder',.13,.1,.2,12),'pot',4+i*.5,1.0,a.z);F.boxes(4.4,a.z,[[0,0,.6,.45,.4,0,'crate'],[.9,0,.5,.45,.4,0,'crate']])}
   B.prop(geo('Cylinder',.03,.03,1.3,8),'brass',11.5,.65,16);B.prop(geo('Cylinder',.25,.25,.45,16,1,true),'brass',11.5,1.5,16);B.prop(geo('Sphere',.26,14,8,0,Math.PI*2,0,Math.PI/2),'brass',11.5,1.72,16);
   B.box(11.25,0,15.75,11.75,1.95,16.25,null,{noMesh:true,sm:'brass'});
   for(const [x,z] of [[4.5,21.5],[9.5,14]])F.plant(x,z,1.3,'potB','leaves2');F.ceilLamp(7,18,H,true,0xe8f0ff);
@@ -2084,7 +2096,818 @@ function buildRyokan(){
     seek:[25,27],attract:[25,30.6,3.1],
   });
 }
-const MAPS=[{name:'Hollyhock Manor',short:'Manor',build:buildManor},{name:'Marlowe Museum',short:'Museum',build:buildMuseum},{name:'Kirinoya Inn',short:'Inn',build:buildRyokan}];
+// ===NEWMAPS-START===
+// ---- painters for the everyday places: school, office, supermarket, hotel, gym, flats ----
+// a row of n metal locker doors with vents and a handle
+P.lockers=function(x,w,h,c,n){x.fillStyle=shade(c,-.3);x.fillRect(0,0,w,h);const dw=w/n;for(let i=0;i<n;i++){const px=i*dw;x.fillStyle=jit(c,rng(i+3),.05);x.fillRect(px+2,2,dw-4,h-4);x.fillStyle='rgba(255,255,255,.12)';x.fillRect(px+2,2,dw-4,h*.5);
+  x.fillStyle=shade(c,-.45);for(let k=0;k<3;k++)x.fillRect(px+dw*.25,h*(.08+k*.04),dw*.5,h*.012);for(let k=0;k<3;k++)x.fillRect(px+dw*.25,h*(.78+k*.04),dw*.5,h*.012);
+  x.fillStyle='#d9dde3';x.fillRect(px+dw*.72,h*.42,dw*.08,h*.07);x.fillStyle='#fff';x.fillRect(px+dw*.3,h*.3,dw*.4,h*.05)}};
+// a whiteboard with marker scribbles and a pen tray
+P.whiteboard=function(x,w,h,seed){const r=rng(seed);x.fillStyle='#b8bec6';x.fillRect(0,0,w,h);x.fillStyle='#f8f9f7';x.fillRect(w*.02,h*.03,w*.96,h*.9);x.lineCap='round';
+  for(let i=0;i<6;i++){x.strokeStyle=pick2(r,['#2a5db0','#c0392b','#1e8449','#1d1d1d']);x.lineWidth=h*.012;x.beginPath();const y=h*(.12+i*.13),x0=w*(.06+r()*.2);x.moveTo(x0,y);for(let k=0;k<6;k++)x.lineTo(x0+w*(.08+k*.08)*(.8+r()*.4),y+(r()-.5)*h*.05);x.stroke()}
+  x.strokeStyle='#c0392b';x.lineWidth=h*.015;x.beginPath();x.arc(w*.78,h*.4,w*.09,0,7);x.stroke();x.fillStyle='#8d99ae';x.fillRect(0,h*.93,w,h*.07);x.fillStyle=['#2a5db0','#c0392b','#1e8449'][seed%3];x.fillRect(w*.1,h*.94,w*.12,h*.04)};
+// a computer screen: a window of text lines, a chart, a taskbar
+P.monitor=function(x,w,h,seed){const r=rng(seed),k=seed%3;x.fillStyle=k===0?'#1e2130':k===1?'#f2f4f7':'#2b4a7a';x.fillRect(0,0,w,h);x.fillStyle=k===1?'#ffffff':'rgba(255,255,255,.08)';x.fillRect(w*.06,h*.1,w*.88,h*.78);
+  for(let i=0;i<9;i++){x.fillStyle=k===1?'#3b4252':pick2(r,['#7cd1ff','#ffd27a','#b5e07a','#f7a1c4','#e6e6e6']);x.fillRect(w*.1,h*(.15+i*.08),w*(.2+r()*.5),h*.03)}
+  x.fillStyle=k===1?'#2a5db0':'#3ef0ff';for(let i=0;i<5;i++)x.fillRect(w*(.62+i*.06),h*(.6-r()*.3),w*.04,h*.3-(h*(.6-r()*.3)-h*.3));x.fillStyle='#14121f';x.fillRect(0,h*.92,w,h*.08);x.fillStyle='#fff';x.fillRect(w*.02,h*.94,w*.03,h*.04)};
+// a suspended ceiling of acoustic tiles
+P.acoustic=function(x,w,h){P.speckle(x,w,h,'#ece9e2',['#e4e1da','#f2f0ea','#dcd9d2'],41,2200);x.strokeStyle='#cfccc4';x.lineWidth=3;x.strokeRect(0,0,w,h);x.beginPath();x.moveTo(w/2,0);x.lineTo(w/2,h);x.moveTo(0,h/2);x.lineTo(w,h/2);x.stroke()};
+// speckled vinyl flooring
+P.lino=function(x,w,h,bg,cols,seed){P.speckle(x,w,h,bg,cols,seed,3000);x.fillStyle='rgba(0,0,0,.06)';x.fillRect(0,0,w,1.5);x.fillRect(0,0,1.5,h)};
+// carpet tiles: squares of two close shades, each a little different
+P.carpetTiles=function(x,w,h,a,b,seed){const r=rng(seed);for(let j=0;j<2;j++)for(let i=0;i<2;i++){x.fillStyle=jit((i+j)%2?a:b,r,.05);x.fillRect(i*w/2,j*h/2,w/2,h/2);x.fillStyle='rgba(0,0,0,.08)';x.fillRect(i*w/2,j*h/2,w/2,1);x.fillRect(i*w/2,j*h/2,1,h/2)}
+  x.globalAlpha=.25;P.speckle(x,w,h,'rgba(0,0,0,0)',[shade(a,-.15),shade(b,.1)],seed+1,1800);x.globalAlpha=1};
+// a sports hall floor: maple boards with painted court lines (one repeat is a quarter of the court)
+P.court=function(x,w,h){P.planks(x,w,h,['#d8b682','#cfab76','#e0bf8c'],10,61);x.lineWidth=w*.015;x.strokeStyle='#c0392b';x.beginPath();x.moveTo(w*.02,0);x.lineTo(w*.02,h);x.stroke();x.strokeStyle='#1d4e9e';x.beginPath();x.arc(w,h*.5,w*.35,Math.PI/2,Math.PI*1.5);x.stroke();x.strokeStyle='#1e8449';x.beginPath();x.moveTo(0,h*.02);x.lineTo(w,h*.02);x.stroke()};
+// rubber gym flooring with coloured flecks
+P.rubber=function(x,w,h){P.speckle(x,w,h,'#2b2d33',['#3a3d45','#6b7280','#c0392b','#1d4e9e','#f1c453'],71,2600)};
+// a glass-fronted chiller full of drinks and tubs
+P.chiller=function(x,w,h,seed){const r=rng(seed);x.fillStyle='#d9dde3';x.fillRect(0,0,w,h);x.fillStyle='#1f2a33';x.fillRect(w*.05,h*.06,w*.9,h*.86);const rows=4,rh=h*.86/rows,cols=['#ef476f','#06d6a0','#118ab2','#ffd166','#f4f1ea','#8338ec','#fb5607'];
+  for(let j=0;j<rows;j++){x.fillStyle='#9aa5b1';x.fillRect(w*.05,h*.06+(j+1)*rh-3,w*.9,3);let px=w*.08;while(px<w*.9){const bw=w*(.04+r()*.04),bh=rh*(.5+r()*.35);x.fillStyle=pick2(r,cols);x.fillRect(px,h*.06+(j+1)*rh-3-bh,bw,bh);x.fillStyle='rgba(255,255,255,.35)';x.fillRect(px+bw*.2,h*.06+(j+1)*rh-3-bh*.9,bw*.15,bh*.6);px+=bw+w*.012}}
+  x.fillStyle='rgba(200,230,255,.18)';x.fillRect(w*.05,h*.06,w*.9,h*.86);x.fillStyle='rgba(255,255,255,.35)';x.beginPath();x.moveTo(w*.08,h*.06);x.lineTo(w*.3,h*.06);x.lineTo(w*.08,h*.6);x.fill();x.fillStyle='#ffe066';x.fillRect(w*.05,h*.93,w*.9,h*.03)};
+// a wall of products in colourful boxes and cans (supermarket shelving, drawn as one tall face)
+P.aisle=function(x,w,h,seed,body){const r=rng(seed);x.fillStyle=body;x.fillRect(0,0,w,h);const rows=5,rh=h/rows,cols=['#e63946','#f1c453','#2a9d8f','#264653','#f4a261','#5a4fcf','#ffffff','#06d6a0','#118ab2','#fb5607'];
+  for(let j=0;j<rows;j++){x.fillStyle=shade(body,-.35);x.fillRect(0,j*rh,w,rh*.9);let px=w*.01;const kind=Math.floor(r()*3);while(px<w*.98){const bw=w*(.03+r()*.03),bh=rh*(.45+r()*.4),c=pick2(r,cols);x.fillStyle=c;
+      if(kind===0)x.fillRect(px,j*rh+rh*.9-bh,bw,bh);else if(kind===1){x.beginPath();x.ellipse(px+bw/2,j*rh+rh*.9-bh/2,bw/2,bh/2,0,0,7);x.fill()}else{x.fillRect(px,j*rh+rh*.9-bh,bw,bh);x.fillStyle='#f4f1ea';x.fillRect(px+bw*.15,j*rh+rh*.9-bh*.7,bw*.7,bh*.3)}
+      x.fillStyle='rgba(255,255,255,.3)';x.fillRect(px+bw*.1,j*rh+rh*.9-bh*.95,bw*.15,bh*.6);px+=bw+w*.006}
+    x.fillStyle=shade(body,.15);x.fillRect(0,j*rh+rh*.9,w,rh*.1);x.fillStyle='#f1c453';for(let i=0;i<6;i++)x.fillRect(w*(.05+i*.16),j*rh+rh*.92,w*.06,rh*.05)}};
+// a school poster: alphabet, a map, numbers or a cheerful slogan
+P.poster=function(x,w,h,kind,seed){const r=rng(seed),bg=['#fff3c4','#dff3ff','#ffe3ec','#e5f8e0'][kind%4];x.fillStyle=bg;x.fillRect(0,0,w,h);x.textAlign='center';x.textBaseline='middle';
+  if(kind===0){const cols=['#e63946','#2a5db0','#1e8449','#f4a261','#8338ec'];for(let i=0;i<12;i++){x.fillStyle=cols[i%5];x.font='900 '+Math.round(h*.16)+'px Nunito,sans-serif';x.fillText(String.fromCharCode(65+i),w*(.17+(i%4)*.22),h*(.2+Math.floor(i/4)*.28))}}
+  else if(kind===1){x.save();x.translate(w*.08,h*.15);P.worldMap(x,w*.84,h*.7);x.restore();x.fillStyle='#2a2730';x.font='900 '+Math.round(h*.1)+'px Nunito,sans-serif';x.fillText('OUR WORLD',w/2,h*.08)}
+  else if(kind===2){for(let i=0;i<9;i++){x.fillStyle=pick2(r,['#e63946','#2a5db0','#1e8449','#f4a261']);x.beginPath();x.arc(w*(.2+(i%3)*.3),h*(.22+Math.floor(i/3)*.28),w*.1,0,7);x.fill();x.fillStyle='#fff';x.font='900 '+Math.round(h*.12)+'px Nunito,sans-serif';x.fillText(String(i+1),w*(.2+(i%3)*.3),h*(.22+Math.floor(i/3)*.28))}}
+  else{x.fillStyle='#2a2730';x.font='900 '+Math.round(h*.13)+'px Nunito,sans-serif';['READ','EVERY','DAY'].forEach((t,i)=>x.fillText(t,w/2,h*(.3+i*.2)));x.fillStyle='#e63946';x.beginPath();x.arc(w*.5,h*.82,w*.08,0,7);x.fill()}
+  x.strokeStyle='rgba(0,0,0,.25)';x.lineWidth=3;x.strokeRect(1,1,w-2,h-2)};
+// a sign with big letters
+P.sign=function(x,w,h,bg,fg,text){P.card(x,w,h,bg,fg,text)};
+// a mini-bar / vending window of snacks
+P.snacks=function(x,w,h,seed){P.goods(x,w,h,seed,'#4a4a52',3)};
+// a bookshelf full of binders and box files
+P.binders=function(x,w,h,seed){const r=rng(seed);x.fillStyle='#d9d4ca';x.fillRect(0,0,w,h);const rows=4,rh=h/rows,cols=['#2a5db0','#c0392b','#1e8449','#f1c453','#2a2730','#f4f1ea'];
+  for(let j=0;j<rows;j++){x.fillStyle='#b8b2a6';x.fillRect(0,j*rh+rh*.92,w,rh*.08);let px=w*.03;while(px<w*.95){const bw=w*(.06+r()*.03),c=pick2(r,cols);x.fillStyle=c;x.fillRect(px,j*rh+rh*.12,bw,rh*.8);x.fillStyle='#fff';x.fillRect(px+bw*.2,j*rh+rh*.3,bw*.6,rh*.25);x.fillStyle='rgba(0,0,0,.25)';x.fillRect(px+bw*.2,j*rh+rh*.36,bw*.6,rh*.03);px+=bw+2}}};
+// hotel corridor carpet: a bold repeating medallion on a dark ground
+P.hotelCarpet=function(x,w,h,bg,fg,fg2){x.fillStyle=bg;x.fillRect(0,0,w,h);const s=w/2;for(let j=0;j<2;j++)for(let i=0;i<2;i++){const cx=(i+.5)*s,cy=(j+.5)*s;x.fillStyle=fg;x.beginPath();for(let k=0;k<8;k++){const a=k*Math.PI/4,rr=k%2?s*.18:s*.36;x.lineTo(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr)}x.fill();x.fillStyle=fg2;x.beginPath();x.arc(cx,cy,s*.08,0,7);x.fill();x.strokeStyle=fg;x.lineWidth=2;x.strokeRect(i*s+s*.04,j*s+s*.04,s*.92,s*.92)}};
+// a trolley bay / cage of wire
+P.wire=function(x,w,h,c){x.clearRect(0,0,w,h);x.fillStyle='#8d99ae';x.fillRect(0,0,w,h);x.strokeStyle=c||'#dee2e6';x.lineWidth=2;for(let i=0;i<=8;i++){x.beginPath();x.moveTo(i*w/8,0);x.lineTo(i*w/8,h);x.moveTo(0,i*h/8);x.lineTo(w,i*h/8);x.stroke()}};
+// a periodic-table style chart
+P.chart=function(x,w,h){x.fillStyle='#f4f1ea';x.fillRect(0,0,w,h);const cols=['#ef476f','#ffd166','#06d6a0','#118ab2','#8338ec','#f78c6b'];const r=rng(3);for(let j=0;j<5;j++)for(let i=0;i<9;i++){if(j<2&&i>1&&i<6)continue;x.fillStyle=pick2(r,cols);x.fillRect(w*(.04+i*.102),h*(.12+j*.17),w*.09,h*.15)}x.fillStyle='#2a2730';x.font='900 '+Math.round(h*.08)+'px Nunito,sans-serif';x.textAlign='center';x.fillText('ELEMENTS',w/2,h*.08)};
+// a round clock on a wall / a scoreboard
+P.scoreboard=function(x,w,h){x.fillStyle='#1d1d22';x.fillRect(0,0,w,h);x.fillStyle='#f4f1ea';x.font='900 '+Math.round(h*.16)+'px Nunito,sans-serif';x.textAlign='center';x.fillText('HOME',w*.25,h*.25);x.fillText('GUEST',w*.75,h*.25);x.fillStyle='#ff3b30';x.font='900 '+Math.round(h*.42)+'px Nunito,sans-serif';x.fillText('42',w*.25,h*.65);x.fillText('39',w*.75,h*.65);x.fillStyle='#ffd166';x.font='900 '+Math.round(h*.18)+'px Nunito,sans-serif';x.fillText('4:12',w*.5,h*.9)};
+// a kids' wall: stars and rockets on a colour
+P.kids=function(x,w,h,bg){const r=rng(17);x.fillStyle=bg;x.fillRect(0,0,w,h);for(let i=0;i<14;i++){const cx=r()*w,cy=r()*h,s=w*(.03+r()*.03);x.fillStyle=pick2(r,['#ffd166','#ffffff','#ef476f','#06d6a0']);x.beginPath();for(let k=0;k<10;k++){const a=k*Math.PI/5,rr=k%2?s*.45:s;x.lineTo(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr)}x.fill()}};
+
+// shared materials for the everyday maps (added to commonMats by the builders that need them)
+function everydayMats(){
+  return{
+    lockerBody:{hex:'#5c6773',rough:.4},lockersB:{draw:(x,w,h)=>P.lockers(x,w,h,'#2f6fb0',6),w:512,h:384,tile:0,rough:.4},lockersG:{draw:(x,w,h)=>P.lockers(x,w,h,'#5f8d5a',6),w:512,h:384,tile:0,rough:.4},
+    lockersR:{draw:(x,w,h)=>P.lockers(x,w,h,'#c0392b',6),w:512,h:384,tile:0,rough:.4},lockersY:{draw:(x,w,h)=>P.lockers(x,w,h,'#d9a441',4),w:384,h:384,tile:0,rough:.4},lockersW:{draw:(x,w,h)=>P.lockers(x,w,h,'#e9ecef',6),w:512,h:384,tile:0,rough:.4},
+    whiteboard:{draw:(x,w,h)=>P.whiteboard(x,w,h,1),w:512,h:256,tile:0,rough:.25},whiteboard2:{draw:(x,w,h)=>P.whiteboard(x,w,h,2),w:512,h:256,tile:0,rough:.25},
+    monitor0:{draw:(x,w,h)=>P.monitor(x,w,h,0),w:256,h:160,tile:0,glow:'#ffffff',gi:.45},monitor1:{draw:(x,w,h)=>P.monitor(x,w,h,1),w:256,h:160,tile:0,glow:'#ffffff',gi:.45},monitor2:{draw:(x,w,h)=>P.monitor(x,w,h,2),w:256,h:160,tile:0,glow:'#ffffff',gi:.45},
+    acoustic:{draw:P.acoustic,tile:1.2},fluoro:{hex:'#f4fbff',glow:'#e8f4ff',gi:1.2},
+    linoG:{draw:(x,w,h)=>P.lino(x,w,h,'#c9d3c4',['#bfc9ba','#d3dccf','#b4bfb0'],5),tile:1,rough:.5},linoB:{draw:(x,w,h)=>P.lino(x,w,h,'#c4cfd8',['#b9c5cf','#cfd9e1','#aebbc6'],6),tile:1,rough:.5},
+    linoY:{draw:(x,w,h)=>P.lino(x,w,h,'#e3d6b6',['#d9cba8','#ebe0c4','#cfc09c'],7),tile:1,rough:.5},terraG:{draw:(x,w,h)=>P.terrazzo(x,w,h,'#d8d4cc',['#8a8578','#5a6a5a','#b56a4a','#2a2730','#f4f1ea'],12,160),tile:1.6,rough:.35},
+    carpetB:{draw:(x,w,h)=>P.carpetTiles(x,w,h,'#3d4f6b','#44587a',21),tile:1,rough:1},carpetG:{draw:(x,w,h)=>P.carpetTiles(x,w,h,'#6b6f66','#747870',22),tile:1,rough:1},carpetR:{draw:(x,w,h)=>P.carpetTiles(x,w,h,'#7a3b3b','#854444',23),tile:1,rough:1},
+    court:{draw:P.court,w:512,tile:5,rough:.35},rubber:{draw:P.rubber,tile:1.4,rough:.9},
+    chiller0:{draw:(x,w,h)=>P.chiller(x,w,h,1),w:256,h:512,tile:0,rough:.15,glow:'#ffffff',gi:.25},chiller1:{draw:(x,w,h)=>P.chiller(x,w,h,2),w:256,h:512,tile:0,rough:.15,glow:'#ffffff',gi:.25},
+    aisle0:{draw:(x,w,h)=>P.aisle(x,w,h,1,'#9aa3ad'),w:512,h:384,tile:0},aisle1:{draw:(x,w,h)=>P.aisle(x,w,h,2,'#9aa3ad'),w:512,h:384,tile:0},aisle2:{draw:(x,w,h)=>P.aisle(x,w,h,3,'#9aa3ad'),w:512,h:384,tile:0},aisle3:{draw:(x,w,h)=>P.aisle(x,w,h,4,'#9aa3ad'),w:512,h:384,tile:0},
+    poster0:{draw:(x,w,h)=>P.poster(x,w,h,0,1),w:192,h:256,tile:0},poster1:{draw:(x,w,h)=>P.poster(x,w,h,1,2),w:256,h:192,tile:0},poster2:{draw:(x,w,h)=>P.poster(x,w,h,2,3),w:192,h:256,tile:0},poster3:{draw:(x,w,h)=>P.poster(x,w,h,3,4),w:192,h:256,tile:0},
+    chart:{draw:P.chart,w:384,h:256,tile:0},binders:{draw:(x,w,h)=>P.binders(x,w,h,8),h:512,tile:0},scoreboard:{draw:P.scoreboard,w:512,h:256,tile:0,glow:'#ffffff',gi:.3},
+    drawersG:{draw:(x,w,h)=>P.drawers(x,w,h,'#9aa3ad',3,1,'#dee2e6'),tile:0,rough:.4},deskTop:{hex:'#e9e4d8',rough:.5},deskBody:{hex:'#b8bec6',rough:.5},
+    plasticB:{hex:'#2a5db0',rough:.6},plasticR:{hex:'#d64545',rough:.6},plasticG:{hex:'#2a9d6f',rough:.6},plasticY:{hex:'#f1c453',rough:.6},plasticO:{hex:'#f4a261',rough:.6},
+    paintW:{draw:(x,w,h)=>P.speckle(x,w,h,'#eeeae2',['#e8e4dc','#f3f0e8'],51,700),tile:2},paintB:{draw:(x,w,h)=>P.speckle(x,w,h,'#bcd4e6',['#b6cee0','#c2daec'],52,700),tile:2},
+    paintY:{draw:(x,w,h)=>P.speckle(x,w,h,'#f1dc9a',['#ebd694','#f7e2a0'],53,700),tile:2},paintG:{draw:(x,w,h)=>P.speckle(x,w,h,'#c7dcc0',['#c1d6ba','#cde2c6'],54,700),tile:2},paintP:{draw:(x,w,h)=>P.speckle(x,w,h,'#e6cfe0',['#e0c9da','#ecd5e6'],55,700),tile:2},
+    paintT:{draw:(x,w,h)=>P.speckle(x,w,h,'#2a7f86',['#26797f','#2e858c'],56,700),tile:2},paintD:{draw:(x,w,h)=>P.speckle(x,w,h,'#3c4252',['#383e4e','#404656'],57,700),tile:2},paintN:{draw:(x,w,h)=>P.speckle(x,w,h,'#1d3557',['#1a3152','#20395c'],58,700),tile:2},
+    tileW:{draw:(x,w,h)=>P.tiles(x,w,h,'#c8cfd2',['#eef2f2','#e6ecec','#f4f6f6'],8,61,2),tile:1,rough:.3},tileB:{draw:(x,w,h)=>P.tiles(x,w,h,'#b8c8d4',['#5aa0c8','#4e94bc','#66aad0'],6,62,3),tile:1,rough:.3},
+    tileFloor:{draw:(x,w,h)=>P.tiles(x,w,h,'#9aa0a6',['#d6d9dc','#cfd3d6','#dcdfe2'],4,63,3),tile:1.2,rough:.4},
+    blockWall:{draw:(x,w,h)=>P.tiles(x,w,h,'#9a978f',['#b3afa6','#aca89f','#b8b4ab'],3,88,3,true),tile:1.2,rough:.9},concrete:{draw:(x,w,h)=>P.speckle(x,w,h,'#9c9a96',['#94928e','#a4a29e','#8c8a86'],91,2600),tile:3,rough:.35},
+    ceilConc:{draw:(x,w,h)=>P.speckle(x,w,h,'#77746e',['#706d67','#7e7b75'],93,1200),tile:2},ceilWhite:{draw:(x,w,h)=>P.speckle(x,w,h,'#e9e4da',['#e1dbcf','#f1ede5'],13,900),tile:2},
+    nightB:{draw:(x,w,h)=>P.dusk(x,w,h,13,'city'),tile:0,glow:'#a58bd0',gi:.4},nightA:{draw:(x,w,h)=>P.dusk(x,w,h,7),tile:0,glow:'#a58bd0',gi:.4},nightC:{draw:(x,w,h)=>P.dusk(x,w,h,41,'city'),w:512,tile:0,glow:'#a58bd0',gi:.4},
+    wire:{draw:(x,w,h)=>P.wire(x,w,h),tile:.5,rough:.4},hotelCarpet:{draw:(x,w,h)=>P.hotelCarpet(x,w,h,'#2d2a4a','#c9a24a','#7a2430'),tile:1.6,rough:1},hotelCarpet2:{draw:(x,w,h)=>P.hotelCarpet(x,w,h,'#4a2d2d','#d9b45a','#2d4a3a'),tile:1.6,rough:1},
+    kidsB:{draw:(x,w,h)=>P.kids(x,w,h,'#5aa0c8'),tile:1.4},kidsP:{draw:(x,w,h)=>P.kids(x,w,h,'#e07a9a'),tile:1.4},snacks:{draw:(x,w,h)=>P.snacks(x,w,h,9),tile:0},
+    produce:{draw:(x,w,h)=>P.fruit(x,w,h,['#e8732a','#c81d25','#7cb518','#f6d743'],6,'#7a5232'),tile:.8},produce2:{draw:(x,w,h)=>P.fruit(x,w,h,['#4a7a2a','#7cb518','#2a9d6f','#f6d743'],9,'#5a4a32'),tile:.8},
+    trimG:{hex:'#4a4650',rough:.5},trimW:{hex:'#eee8da',rough:.5},trimD:{hex:'#3b2315',rough:.45},belt:{hex:'#1d1d22',rough:.5},
+    goods0:{draw:(x,w,h)=>P.goods(x,w,h,61,'#e9e4d8',5),h:512,tile:0},goods1:{draw:(x,w,h)=>P.goods(x,w,h,62,'#2a7f86',5),h:512,tile:0},goods2:{draw:(x,w,h)=>P.shelf(x,w,h,63,'#e9e4d8',5),h:512,tile:0},
+    wardrobe:{draw:(x,w,h)=>P.wardrobe(x,w,h,'#f1ebe0'),tile:0},shower:{draw:(x,w,h)=>P.folds(x,w,h,'#dfe9ef',10),tile:0,rough:1,opacity:.9},
+    mat0:{hex:'#5a4fcf',rough:1},mat1:{hex:'#2a9d8f',rough:1},mat2:{hex:'#e76f51',rough:1},
+  };
+}
+// furniture for the everyday maps: desks, lockers, shelving, beds for hotels and flats, bathroom pieces, gym kit
+function everyday(B,F,K){
+  const E={
+    // an office or school desk: a top on two side boards with a modesty panel; lie underneath (or crouch, when it's tall)
+    desk(k,ox,oz,w,d,top,body,o){o=o||{};const f=B.at(k,ox,oz),h=o.h||.74;f(-w/2,h-.03,-d/2,w/2,h,d/2,top);for(const s of [-1,1])f(s*(w/2-.015)-.015,0,-d/2+.02,s*(w/2-.015)+.015,h-.03,d/2,body);f(-w/2+.03,.3,-d/2+.02,w/2-.03,h-.03,-d/2+.045,body);
+      if(o.ped)f(w/2-.43,0,-d/2+.06,w/2-.03,h-.03,d/2-.04,{all:body,'+z':'drawersG'},{fit:'+z'});
+      if(o.spot!==false&&w>=1.1&&!o.ped)B.spot(ox,oz,h-.03>=.78?1:2,(k%2===0)?-Math.PI/2:0)},
+    // a monitor on a stand at the back of a desk, facing local +z
+    monitor(k,x,y,z,m){const f=B.at(k,x,z);f(-.07,y,-.05,.07,y+.025,.07,'black',{solid:false});f(-.015,y,-.01,.015,y+.14,.01,'black',{solid:false});f(-.27,y+.12,-.012,.27,y+.45,.012,{all:'black','+z':m||'monitor0'},{fit:'+z',solid:false})},
+    // a swivel chair: a round seat on a column and star base, a back
+    officeChair(k,ox,oz,m){const f=B.at(k,ox,oz);B.prop(geo('Cylinder',.24,.24,.07,14),m||'black',ox,.47,oz,{col:[ox-.24,.44,oz-.24,ox+.24,.51,oz+.24]});B.prop(geo('Cylinder',.03,.03,.4,8),'steel',ox,.24,oz,{col:[ox-.05,0,oz-.05,ox+.05,.44,oz+.05]});B.prop(geo('Cylinder',.28,.3,.03,5),'black',ox,.03,oz);f(-.22,.51,-.26,.22,.95,-.2,m||'black')},
+    // a school chair: a plastic seat and back on four thin legs
+    schoolChair(k,ox,oz,m){const f=B.at(k,ox,oz);f(-.19,.4,-.19,.19,.44,.19,m);f(-.19,.44,-.2,.19,.78,-.16,m);F.legs(f,.38,.38,.4,.025,.01,'steel')},
+    // a run of n lockers against a wall (k, x, z from K.ag)
+    lockers(k,ox,oz,n,m,h){const w=n*.38;B.at(k,ox,oz)(-w/2,0,-.25,w/2,h||1.9,.25,{all:'lockerBody','+z':m},{fit:'+z'})},
+    // a tall shelf unit with goods on both long sides (supermarket gondola, stockroom rack)
+    gondola(k,ox,oz,len,h,mA,mB,body){body=body||'steel';const f=B.at(k,ox,oz);f(-len/2,0,-.5,len/2,.14,.5,body);f(-len/2,.14,-.5,len/2,h,-.04,{all:body,'-z':mA},{fit:'-z'});f(-len/2,.14,.04,len/2,h,.5,{all:body,'+z':mB},{fit:'+z'});f(-len/2,.14,-.04,len/2,h,.04,body);f(-len/2-.02,h,-.52,len/2+.02,h+.05,.52,body)},
+    // a long low counter you can crouch behind (shop checkout, reception, bar)
+    counter(k,ox,oz,w,d,h,top,front,o){o=o||{};const f=B.at(k,ox,oz);f(-w/2,0,-d/2,w/2,h-.04,d/2,{all:front,'-y':front},{fit:o.fit||'+z-z'});f(-w/2-.03,h-.04,-d/2,w/2+.03,h,d/2+.03,top)},
+    // a double bed on a base with a headboard: no legs, so it's solid to the floor (hide beside it, not under)
+    divan(k,ox,oz,w,l,base,quilt,pillow,head){const f=B.at(k,ox,oz);f(-w/2,0,-l/2,w/2,.42,l/2,base);f(-w/2+.02,.42,-l/2+.1,w/2-.02,.62,l/2-.02,quilt,{fit:'all'});f(-w/2-.1,0,-l/2-.08,w/2+.1,1.1,-l/2,head||base);
+      for(const s of [-1,1])f(s<0?-w/2+.1:.05,.62,-l/2+.14,s<0?-.05:w/2-.1,.76,-l/2+.52,pillow,{fit:'all'});f(-w/2+.02,.5,l/2-.6,w/2-.02,.68,l/2+.02,quilt,{fit:'all',solid:false})},
+    // bunk beds: a bed on legs below (lie under it) and a second bunk with a ladder above
+    bunk(k,ox,oz,frame,q1,q2){const f=B.at(k,ox,oz),w=1,l=2;F.legs(f,w,l,1.55,.07,.02,frame);f(-w/2,.34,-l/2,w/2,.42,l/2,frame);f(-w/2+.03,.42,-l/2+.1,w/2-.03,.6,l/2-.02,q1,{fit:'all'});f(-w/2,1.3,-l/2,w/2,1.38,l/2,frame);f(-w/2+.03,1.38,-l/2+.1,w/2-.03,1.55,l/2-.02,q2,{fit:'all'});
+      f(-w/2,1.38,-l/2,w/2,1.7,-l/2+.04,frame,{solid:false});f(-w/2,1.38,l/2-.04,w/2,1.7,l/2,frame,{solid:false});for(let i=0;i<4;i++)f(w/2+.02,.3+i*.3,l/2-.7,w/2+.3,.33+i*.3,l/2-.66,frame,{solid:false});for(const s of [0,.28])f(w/2+s,0,l/2-.72,w/2+s+.03,1.6,l/2-.64,frame);B.spot(ox,oz,2,(k%2===0)?0:-Math.PI/2)},
+    // a bathroom: a basin on a cabinet with a mirror above, a toilet, a shower cubicle with a curtain
+    basin(ax,c,dir,p){const a=K.ag(ax,c,dir,p,.5);B.at(a.k,a.x,a.z)(-.45,0,-.25,.45,.85,.25,'white');B.prop(geo('Cylinder',.2,.15,.1,14),'porcelain',a.x,.9,a.z);K.flat(ax,c,dir,p,1.6,.7,.7,'mirror',.02);K.sconce(ax,c,dir,p,2.1,false,'bulb')},
+    toilet(k,ox,oz){const f=B.at(k,ox,oz);f(-.19,0,-.25,.19,.42,.25,'porcelain');f(-.19,.42,-.25,.19,.8,-.1,'porcelain');B.prop(geo('Cylinder',.19,.17,.05,14),'porcelain',ox,.44,oz,{ns:true})},
+    shower(k,ox,oz,m){const f=B.at(k,ox,oz);f(-.45,0,-.45,.45,.06,.45,'porcelain');f(-.45,1.95,-.45,.45,2.0,.45,'steel',{solid:false,ns:true});f(-.43,.1,.4,.43,1.95,.44,m||'shower',{solid:false,soft:true,fit:'+z-z'});f(-.02,1.7,-.3,.02,2.0,-.26,'steel',{solid:false});B.prop(geo('Cylinder',.1,.1,.02,12),'steel',ox,1.95,oz-.3,{ns:true})},
+    // a wardrobe, a chest of drawers, a bedside table
+    wardrobe(k,ox,oz,w,m){B.at(k,ox,oz)(-w/2,0,-.3,w/2,2.1,.3,{all:'white','+z':m||'wardrobe'},{fit:'+z'})},
+    // gym kit: a treadmill, an exercise bike, a weights rack with bars, a bench, a dumbbell rack, a big ball
+    treadmill(k,ox,oz){const f=B.at(k,ox,oz);f(-.4,0,-1,.4,.18,.95,'black');f(-.3,.18,-.9,.3,.2,.7,'rubber',{fit:'+y',solid:false});for(const s of [-1,1])f(s*.38-.02,.18,.65,s*.38+.02,1.15,.69,'steel');f(-.4,1.1,.6,.4,1.4,.7,{all:'black','-z':'monitor2'},{fit:'-z'});f(-.4,.95,.62,.4,1.0,.95,'steel',{solid:false})},
+    bike(k,ox,oz,m){const f=B.at(k,ox,oz);f(-.25,0,-.5,.25,.1,.5,m||'black');f(-.05,.1,-.3,.05,.9,.3,m||'black');f(-.18,.9,-.35,.18,.96,-.15,'leatherB');f(-.3,.95,.2,.3,1.1,.32,'steel',{solid:false});B.prop(geo('Cylinder',.3,.3,.08,16),'black',ox,.45,oz,{rz:Math.PI/2,ry:k*Math.PI/2,ns:true})},
+    rack(k,ox,oz,w){const f=B.at(k,ox,oz);for(const s of [-1,1]){f(s*(w/2-.05)-.05,0,-.3,s*(w/2-.05)+.05,2,-.2,'steel');f(s*(w/2-.05)-.05,0,.2,s*(w/2-.05)+.05,2,.3,'steel')}f(-w/2,1.95,-.3,w/2,2,.3,'steel',{solid:false});for(const y of [1.0,1.4])f(-w/2+.1,y,-.02,w/2-.1,y+.03,.02,'steel',{solid:false});
+      for(let i=0;i<6;i++)B.prop(geo('Cylinder',.18-(i%3)*.03,.18-(i%3)*.03,.04,16),['black','plasticR','plasticB'][i%3],ox+(k%2?0:(-w/2+.3+i*.22)),.4,oz+(k%2?(-w/2+.3+i*.22):0),{rz:k%2?0:Math.PI/2,rx:k%2?Math.PI/2:0,ns:true});f(-w/2,0,-.3,w/2,.5,.3,null,{noMesh:true,sm:'black'})},
+    gymBench(k,ox,oz,m){const f=B.at(k,ox,oz);f(-.16,.4,-.6,.16,.48,.6,m||'leatherB');f(-.04,0,-.5,.04,.4,-.42,'steel');f(-.04,0,.42,.04,.4,.5,'steel');f(-.3,0,-.55,.3,.04,-.4,'steel');f(-.3,0,.4,.3,.04,.55,'steel')},
+    dumbbells(k,ox,oz,w){const f=B.at(k,ox,oz);for(const y of [.35,.75])f(-w/2,y,-.2,w/2,y+.04,.2,'steel');for(const s of [-1,1])f(s*(w/2-.03)-.03,0,-.2,s*(w/2-.03)+.03,.8,.2,'steel');
+      for(let i=0;i<Math.floor(w/.3);i++)for(const y of [.4,.8]){const px=-w/2+.2+i*.3;const [x,z]=k===0?[ox+px,oz]:k===1?[ox,oz-px]:k===2?[ox-px,oz]:[ox,oz+px];B.prop(geo('Cylinder',.05,.05,.22,8),'black',x,y+.05,z,{rz:k%2?0:Math.PI/2,rx:k%2?Math.PI/2:0,ns:true})}f(-w/2,0,-.2,w/2,.85,.2,null,{noMesh:true,sm:'steel'})},
+    ball(x,z,r,m){B.prop(geo('Sphere',r,16,12),m,x,r,z,{col:[x-r*.8,0,z-r*.8,x+r*.8,r*2,z+r*.8]})},
+    // bleachers: rows of bench seats on a frame, open underneath (lie under them), facing local +z
+    bleachers(k,ox,oz,w,rows,m,frame){const f=B.at(k,ox,oz);for(let i=0;i<rows;i++){const y=.42+i*.4,z0=-i*.85;f(-w/2,y-.07,z0-.85,w/2,y,z0,m);f(-w/2,y,z0-.85,w/2,y+.02,z0-.82,m,{solid:false});for(const s of [-1,1])f(s*(w/2-.06)-.05,0,z0-.85,s*(w/2-.06)+.05,y-.07,z0-.75,frame)}
+      f(-w/2,0,-rows*.85,w/2,.42+(rows-1)*.4,-rows*.85+.04,frame);B.spot(ox,oz-.45,2,(k%2===0)?-Math.PI/2:0)},
+    // a vending machine for snacks, a water cooler, a printer on a cabinet, a photocopier
+    cooler(x,z){B.box(x-.18,0,z-.18,x+.18,1,z+.18,'white');B.prop(geo('Cylinder',.17,.14,.45,14),'water',x,1.22,z,{col:[x-.18,1,z-.18,x+.18,1.45,z+.18]})},
+    copier(k,ox,oz){const f=B.at(k,ox,oz);f(-.5,0,-.35,.5,.95,.35,'white');f(-.45,.95,-.3,.45,1.05,.3,'black');f(-.5,.5,.35,.5,.6,.55,'white',{solid:false});f(-.3,1.05,-.15,.3,1.08,.1,'screen',{solid:false,fit:'+y'})},
+    // a trolley: a wire basket on a frame
+    trolley(k,ox,oz){const f=B.at(k,ox,oz);f(-.3,.35,-.5,.3,1,.45,'wire',{fit:'all'});f(-.3,.02,-.5,.3,.3,.45,null,{noMesh:true,sm:'steel'});f(-.32,.95,-.52,.32,1,-.48,'steel',{solid:false});for(const [a,b] of [[-1,-1],[1,-1],[-1,1],[1,1]])B.prop(geo('Cylinder',.05,.05,.03,8),'black',ox+a*.25*(k%2?0:1)+b*.4*(k%2?1:0),.05,oz+b*.4*(k%2?0:1)+a*.25*(k%2?1:0),{rx:Math.PI/2,ns:true})},
+    // a cardboard box tower and a pallet
+    pallet(x,z,w,d){B.box(x-w/2,0,z-d/2,x+w/2,.12,z+d/2,'pine');B.box(x-w/2,.12,z-d/2,x+w/2,.14,z+d/2,'pine',{solid:false})},
+  };
+  return E;
+}
+// ---------- map 4: Birchwood High ----------
+// A school wing at night, 44 × 32 m: a locker-lined corridor between two classrooms and a science lab on one side,
+// and a library, an art room, the staff room, the toilets and a PE store on the other. 3.2 m acoustic ceilings.
+function buildSchool(){
+  const M=Object.assign({},commonMats(),everydayMats(),{
+    ext:{draw:(x,w,h)=>P.brick(x,w,h,['#9a6b4a','#8f6243','#a47351'],'#d9cdb8',71),tile:1.6},
+    artA:{draw:(x,w,h)=>P.strokes(x,w,h,81),tile:0},artB:{draw:(x,w,h)=>P.grid(x,w,h,82),tile:0},artC:{draw:(x,w,h)=>P.art(x,w,h,2,83),tile:0},artD:{draw:(x,w,h)=>P.art(x,w,h,1,84),w:384,h:256,tile:0},
+    cork:{draw:(x,w,h)=>P.cork(x,w,h,5),tile:0},schoolSign:{draw:(x,w,h)=>P.card(x,w,h,'#2a5db0','#f4f1ea','BIRCHWOOD HIGH'),w:1024,h:128,tile:0},
+    labTop:{hex:'#2a2730',rough:.3},cab:{draw:(x,w,h)=>P.panel(x,w,h,'#7a9e95','#5c8077'),tile:.6,rough:.5},cabW:{draw:(x,w,h)=>P.panel(x,w,h,'#e9e4d8','#c9c2b4'),tile:.6,rough:.5},
+    glassW:{hex:'#cfe6ee',rough:.05,opacity:.28},matBlue:{hex:'#2a5db0',rough:1},matRed:{hex:'#d64545',rough:1},cone:{hex:'#f4a261',rough:.6},
+    beanA:{draw:(x,w,h)=>P.dots(x,w,h,'#ef476f','#ffd166',3,.18,true),tile:0,rough:1},beanB:{draw:(x,w,h)=>P.stripes(x,w,h,['#118ab2','#f4f1ea'],true),tile:0,rough:1},
+    kidsRug:{draw:(x,w,h)=>{P.checker(x,w,h,'#ef476f','#ffd166',6);x.fillStyle='#118ab2';x.beginPath();x.arc(w/2,h/2,w*.2,0,7);x.fill()},tile:0,rough:1},
+    books:{draw:(x,w,h)=>P.books(x,w,h,91,'#e8e1d3'),tile:0},rugL:{draw:(x,w,h)=>P.persian(x,w,h,['#264656','#6e2a2a','#d6b06a','#8a3a2a','#ecdcc0'],19),w:512,h:384,tile:0,rough:1},
+  });
+  const B=new Builder(606,M),F=furn(B),H=3.2,K=kit(B,{H,base:'trimG',casing:'trimW',DH:2.2}),E=everyday(B,F,K),W=K.wallX,Z=K.wallZ,T=K.T,trim={solid:false,ns:true};
+  const ext=h=>({w:'ext',base:null,crown:null,casing:null,h:h||H});
+  const c1={w:'paintB',lo:'paintW',lh:1.1},c2={w:'paintG',lo:'paintW',lh:1.1},lab={w:'paintW',lo:'tileW',lh:1.3},cor={w:'paintY',lo:'paintD',lh:1.2,h:3},lib={w:'paintP',lo:'paintW',lh:1.1},art={w:'paintW'},
+    staff={w:'paintG'},wc={w:'tileW',base:null},store={w:'blockWall',base:null,casing:'steel'};
+  // ---- shell and rooms ----
+  W(0,0,14,ext(),c1);W(0,14,28,ext(),c2);W(0,28,44,ext(),lab);
+  W(32,0,16,lib,ext());W(32,16,28,art,ext());W(32,28,36,staff,ext());W(32,36,44,store,ext());
+  Z(0,0,12,ext(),c1);Z(0,12,16,ext(3),cor);Z(0,16,32,ext(),lib);
+  Z(44,0,12,lab,ext());Z(44,12,16,cor,ext(3));Z(44,16,22,wc,ext());Z(44,22,32,store,ext());
+  W(12,0,14,c1,cor,[[6,7.2]]);W(12,14,28,c2,cor,[[20,21.2]]);W(12,28,44,lab,cor,[[35,36.2]]);
+  W(16,0,16,cor,lib,[[4,5.2]]);W(16,16,28,cor,art,[[22,23.2]]);W(16,28,36,cor,staff,[[31,32.2]]);W(16,36,44,cor,wc,[[39,40.2]]);
+  Z(14,0,12,c1,c2);Z(28,0,12,c2,lab);Z(16,16,32,lib,art);Z(28,16,32,art,staff);Z(36,16,22,staff,wc);Z(36,22,32,staff,store,[[26,27.2]]);W(22,36,44,wc,store);
+  const fl=K.floor,cl=K.ceil;
+  fl(0,0,14,12,'linoB');fl(14,0,28,12,'linoG');fl(28,0,44,12,'linoY');fl(0,12,44,16,'terraG');fl(0,16,16,32,'carpetB');fl(16,16,28,32,'linoG');fl(28,16,36,32,'carpetG');fl(36,16,44,22,'tileFloor');fl(36,22,44,32,'concrete');
+  cl(0,0,14,12,H,'acoustic');cl(14,0,28,12,H,'acoustic');cl(28,0,44,12,H,'acoustic');cl(0,12,44,16,3,'acoustic');cl(0,16,16,32,H,'acoustic');cl(16,16,28,32,H,'acoustic');cl(28,16,36,32,H,'acoustic');cl(36,16,44,22,H,'ceilWhite');cl(36,22,44,32,H,'ceilConc');
+  const lights=(x0,z0,x1,z1,h,nx,nz)=>{for(let i=0;i<nx;i++)for(let j=0;j<nz;j++){const x=x0+(x1-x0)*(i+.5)/nx,z=z0+(z1-z0)*(j+.5)/nz;B.box(x-.6,h-.08,z-.15,x+.6,h-.03,z+.15,'fluoro',trim)}};
+  lights(0,0,14,12,H,2,2);lights(14,0,28,12,H,2,2);lights(28,0,44,12,H,2,2);lights(0,12,44,16,3,6,1);lights(0,16,16,32,H,2,2);lights(16,16,28,32,H,2,2);lights(28,16,36,32,H,1,2);lights(36,16,44,32,H,1,2);
+  B.lamp(7,2.6,6,0xf4f8ff,.9,10);B.lamp(21,2.6,6,0xf4f8ff,.9,10);B.lamp(36,2.6,6,0xf4f8ff,.9,10);B.lamp(22,2.4,14,0xfff4e0,.9,12);B.lamp(8,2.6,24,0xfff4e0,.9,10);B.lamp(22,2.6,24,0xf4f8ff,.9,10);B.lamp(32,2.6,24,0xfff4e0,.8,8);
+  // ---- classroom 1: desks in pairs facing the whiteboard, teacher's desk, bookshelf, posters ----
+  K.flat('z',0,1,6,1.5,4,1.2,'whiteboard',.03);K.win('x',0,1,2,6,1,2.6,'nightA','trimW',{panes:3});K.win('x',0,1,8,12,1,2.6,'nightA','trimW',{panes:3});
+  {const a=K.ag('z',0,1,9.8,.7);E.desk(a.k,a.x,a.z,1.6,.7,'deskTop','deskBody',{ped:1});E.officeChair(1,a.x+.95,a.z,'black');E.monitor(1,a.x-.1,.74,a.z-.4,'monitor1');B.prop(geo('Cylinder',.1,.1,.12,10),'plasticB',a.x+.2,.8,a.z+.2)}
+  for(const x of [3.6,7.2,10.8])for(const z of [2.4,4.8,7.2,9.6]){F.table(3,x,z,1.2,.5,.74,'deskTop','steel',{spot:false});E.schoolChair(3,x+.55,z-.3,'plasticB');E.schoolChair(3,x+.55,z+.3,'plasticB')}
+  {const a=K.ag('x',0,1,12.9,.35);F.unit(a.k,a.x,a.z,1.6,2,.35,'shelf2','white')}{const a=K.ag('x',12,-1,2,.5);F.unit(a.k,a.x,a.z,1.2,1.9,.5,'drawersW','white')}
+  K.flat('x',12,-1,5,2,.6,.8,'poster0',.01);K.flat('x',12,-1,9,2,.8,.6,'poster1',.01);K.flat('z',14,-1,3,2,.6,.8,'poster2',.01);K.flat('z',14,-1,9,2.2,1.2,.9,'worldMap',.02);
+  F.plant(13.3,.9,1,'potW');B.prop(geo('Cylinder',.18,.15,.5,12),'plasticG',.5,.25,11.4,{col:[.32,0,11.22,.68,.5,11.58]});K.pic('z',14,-1,6,2.6,.5,.5,'clock','trimW',.02);
+  // ---- classroom 2: group tables, a reading corner with beanbags, posters ----
+  K.flat('z',28,-1,6,1.5,4,1.2,'whiteboard2',.03);K.win('x',0,1,16,20,1,2.6,'nightA','trimW',{panes:3});K.win('x',0,1,22,26,1,2.6,'nightA','trimW',{panes:3});
+  for(const [x,z] of [[18,3.4],[18,8.4],[23,3.4],[23,8.4]]){F.table(0,x,z,1.3,1.3,.74,'deskTop','steel');for(const [dx,dz,k] of [[0,-1,0],[0,1,2],[-1,0,1],[1,0,3]])E.schoolChair(k,x+dx*1,z+dz*1,['plasticR','plasticY','plasticG','plasticO'][k])}
+  {const a=K.ag('z',28,-1,9.8,.7);E.desk(a.k,a.x,a.z,1.6,.7,'deskTop','deskBody',{ped:1});E.officeChair(3,a.x-.95,a.z,'black');E.monitor(3,a.x+.1,.74,a.z+.4,'monitor0')}
+  F.rug(14.6,.6,17.6,2.6,'kidsRug');for(const [x,z,m] of [[15.3,1.4,'beanA'],[16.9,1.9,'beanB'],[15.8,2.3,'beanA']])B.prop(geo('Sphere',.42,14,10),m,x,.3,z,{s:[1,.7,1],col:[x-.38,0,z-.38,x+.38,.6,z+.38]});
+  {const a=K.ag('z',14,1,4.2,.35);F.unit(a.k,a.x,a.z,1.6,1.1,.35,'books','white')}{const a=K.ag('x',12,-1,16.5,.4);F.unit(a.k,a.x,a.z,1.4,1.9,.4,'shelf3','white')}
+  K.flat('x',12,-1,20,2,.6,.8,'poster3',.01);K.flat('x',12,-1,24.5,2.1,.8,.6,'poster1',.01);K.flat('z',14,1,8.5,2.1,.6,.8,'poster0',.01);K.flat('z',28,-1,2,2,.6,.8,'poster2',.01);F.plant(27.2,11.2,1,'potW');
+  // ---- science lab: long benches with stools and sinks, a fume cupboard, wall cabinets, the elements chart ----
+  K.flat('z',44,-1,6,1.5,4,1.2,'whiteboard',.03);K.flat('x',0,1,34,2.3,2.6,1.6,'chart',.02);K.win('x',0,1,38,43,1.2,2.6,'nightA','trimW',{panes:3});
+  for(const z of [3,6.4,9.8]){F.table(0,36,z,6,1.2,.9,'labTop','cab',{th:.06,leg:.08,apron:1});for(let i=0;i<5;i++){F.stool(33.8+i*1.1,z-.9,.62,'steel','plasticB');F.stool(33.8+i*1.1,z+.9,.62,'steel','plasticB')}B.box(35.6,.9,z-.3,36.4,.93,z+.3,'steel');B.prop(geo('Cylinder',.012,.012,.28,6),'steel',36.3,1.04,z,{ns:true})}
+  {const a=K.ag('x',12,-1,30,.8);B.at(a.k,a.x,a.z)(-.9,0,-.4,.9,.9,.4,'cabW');B.at(a.k,a.x,a.z)(-.9,.9,-.4,.9,2.4,.4,{all:'cabW','+z':'glassW'},{fit:'+z'})}
+  {const z0=12-T;B.box(28+T,0,z0-.6,31.5,.9,z0,{all:'cab','+y':'labTop'});B.box(28+T,.9,z0-.62,31.5,.93,z0,'labTop');B.box(28+T,1.9,z0-.35,31.5,2.6,z0,'cabW');for(let i=0;i<5;i++)B.prop(geo('Cylinder',.05,.04,.16,10),['glassW','plasticB','plasticY','glassW','plasticR'][i],28.8+i*.55,1.01,z0-.3)}
+  {const a=K.ag('z',28,1,2,.4);F.unit(a.k,a.x,a.z,1.6,2,.4,'shelf3','white')}B.prop(geo('Sphere',.2,12,8),'globe',30.2,1.2,11.3);B.box(29.9,0,11.05,30.5,1,11.6,'cabW');
+  F.plant(43.2,.8,1,'potW');K.pic('z',44,-1,10,2.4,.5,.5,'clock','trimW',.02);
+  // ---- corridor: lockers, a noticeboard, a trophy case, a bench, a water cooler, a vending machine ----
+  for(const [x,n,m] of [[2.6,6,'lockersB'],[10.3,6,'lockersG'],[15,4,'lockersR'],[24.5,6,'lockersB'],[31,6,'lockersG'],[40.5,6,'lockersR']]){const a=K.ag('x',12,1,x,.5);E.lockers(a.k,a.x,a.z,n,m)}
+  for(const [x,n,m] of [[9,6,'lockersY'],[27,6,'lockersB'],[36,6,'lockersG']]){const a=K.ag('x',16,-1,x,.5);E.lockers(a.k,a.x,a.z,n,m)}
+  K.flat('x',16,-1,16,1.7,2.4,1.2,'cork',.03);K.flat('x',16,-1,42,1.7,1.4,1,'poster3',.01);K.flat('z',0,1,14,2.3,2.8,.5,'schoolSign',.03);
+  {B.box(18,0,16-T-.5,20.6,.9,16-T,'walnut');B.box(18,.9,16-T-.5,20.6,2.1,16-T,'glassW',{ns:true,clear:true});B.box(18,2.1,16-T-.52,20.6,2.15,16-T,'walnut',trim);for(let i=0;i<4;i++)B.prop(geo('Cylinder',.07,.1,.3,10),'gold',18.4+i*.65,1.25,15.6)}
+  F.bench(0,7,15.3,1.8,.4,'pine','steel');F.bench(0,30,15.3,1.8,.4,'pine','steel');E.cooler(.6,15.3);F.vending(2,42.8,15.3,'vend1');F.vending(2,42.6-.9,15.3,'vend0');
+  for(const x of [13.5,34.5])B.prop(geo('Cylinder',.2,.18,.6,12),'steel',x,.3,15.4,{col:[x-.2,0,15.2,x+.2,.6,15.6]});B.prop(geo('Cylinder',.06,.06,.5,8),'plasticR',.2+T,1,12.6,{ns:true});
+  K.win('z',44,-1,12.7,15.3,1,2.6,'nightC','steel',{panes:1,bar:0});
+  // ---- library: wall shelves, free-standing stacks, reading tables, a desk, computers, beanbags ----
+  for(let i=0;i<4;i++){const a=K.ag('z',0,1,19+i*3.6,.35);F.unit(a.k,a.x,a.z,3.4,2.2,.35,i%2?'shelf1':'shelf2','white')}
+  for(const x of [2.8,7.2,11.6]){const a=K.ag('x',32,-1,x,.35);F.unit(a.k,a.x,a.z,3.4,2.2,.35,'shelf3','white')}
+  for(const x of [4.5,8.5])for(const z of [19.5,23.5]){F.unit(0,x,z+.16,2.6,1.9,.3,'shelf2','white');F.unit(2,x,z-.16,2.6,1.9,.3,'shelf1','white')}
+  F.rug(2,26,14,31,'rugL');for(const x of [5,10]){F.table(0,x,28.6,1.8,.9,.74,'pine','steel');for(const [dx,dz,k] of [[-.5,-.8,0],[.5,-.8,0],[-.5,.8,2],[.5,.8,2]])E.schoolChair(k,x+dx,28.6+dz,'plasticG')}
+  {E.counter(0,8,17.7,2.4,.7,1.05,'deskTop','deskBody');B.box(7.4,1.05,17.5,8,1.1,17.9,'screen',{fit:'+y',solid:false});E.officeChair(0,8,16.75,'black')}
+  {const a=K.ag('z',16,-1,24,.6);E.desk(a.k,a.x,a.z,3,.6,'deskTop','deskBody',{spot:false});for(let i=0;i<3;i++){E.monitor(a.k,a.x,.74,a.z-.9+i*.9,'monitor'+(i%3));E.officeChair(3,a.x-.7,a.z-.9+i*.9,'black')}}
+  for(const [x,z,m] of [[13.2,21,'beanA'],[14.3,22.6,'beanB'],[12.6,23,'beanB']])B.prop(geo('Sphere',.42,14,10),m,x,.3,z,{s:[1,.7,1],col:[x-.38,0,z-.38,x+.38,.6,z+.38]});
+  B.box(12.4,0,18.6,13.6,.5,19.8,'white');for(let i=0;i<8;i++)B.box(12.5+(i%4)*.27,.5,18.7+Math.floor(i/4)*.55,12.74+(i%4)*.27,.72,19.2+Math.floor(i/4)*.55,['plasticR','plasticB','plasticY','plasticG'][i%4],{solid:false});
+  K.flat('x',16,-1,3,2.1,.6,.8,'poster3',.01);K.flat('x',16,-1,13,2.1,.8,.6,'poster1',.01);F.plant(15.2,31.2,1.1,'potW','leaves2');F.plant(.8,31.2,1,'potW');
+  // ---- art room: big tables with stools, easels, a sink counter, supply shelves, pupils' paintings ----
+  for(const [x,z] of [[19.5,20],[25,20],[22,26.5]]){F.table(0,x,z,2.2,1.1,.9,'butcher','steel',{th:.06,leg:.07});for(let i=0;i<3;i++){F.stool(x-.7+i*.7,z-.85,.62,'steel','plasticY');F.stool(x-.7+i*.7,z+.85,.62,'steel','plasticY')}}
+  const easel=(x,z,m)=>{B.prop(geo('Cylinder',.02,.02,1.7,6),'pine',x,.85,z,{rx:.12});B.prop(geo('Cylinder',.02,.02,1.7,6),'pine',x,.85,z+.5,{rx:-.3});B.box(x-.3,.6,z+.08,x+.3,1.4,z+.11,m,{fit:'+z-z',solid:false});B.box(x-.1,0,z-.1,x+.1,1.5,z+.5,null,{noMesh:true,sm:'pine'})};
+  easel(17.5,29.5,'artA');easel(19.5,30,'artC');easel(26.6,29.5,'artB');
+  {const x0=28-T;B.box(x0-.6,0,17,x0,.9,21,{all:'cabW','+y':'steel'});B.box(x0-.62,.9,17,x0,.93,21,'steel');B.box(x0-.4,.93,18.5,x0-.1,.96,19.5,'black',trim);B.prop(geo('Cylinder',.012,.012,.3,6),'steel',x0-.25,1.08,19,{ns:true})}
+  {const a=K.ag('x',32,-1,22,.4);F.unit(a.k,a.x,a.z,2.6,2,.4,'goods0','white')}{const a=K.ag('x',32,-1,25,.4);F.unit(a.k,a.x,a.z,2.6,2,.4,'goods2','white')}
+  for(const [p,m] of [[18,'artA'],[20,'artB'],[22,'artC'],[24,'artD'],[26,'artA']])K.pic('x',16,1,p,2.2,.9,.7,m,'black',.03);K.pic('z',16,1,20,2.2,1.2,.9,'artD','black',.03);K.pic('z',28,-1,30,2,.9,.7,'artC','black',.03);
+  F.boxes(17,17.2,[[0,0,.6,.5,.4,0,'box'],[.1,0,.5,.45,.35,.4,'box2']]);B.prop(geo('Cylinder',.15,.12,.7,12),'plasticO',27,.35,31,{col:[26.85,0,30.85,27.15,.7,31.15]});
+  // ---- staff room: sofas, a kitchenette, a table, pigeonholes, a fridge ----
+  {const a=K.ag('x',32,-1,32,.9);F.sofa(a.k,a.x,a.z,2.2,'velvet','cushionB')}F.armchair(1,29.2,28,'velvet','cushionA');F.table(0,32,28.6,1,.5,.42,'walnut','walnut',{spot:false});F.rug(29,26.6,35,31,'rugB');
+  {const x0=36-T;B.box(x0-.6,0,17,x0,.9,21.5,{all:'cab','+y':'butcher'});B.box(x0-.62,.9,17,x0,.93,21.5,'butcher');B.box(x0-.36,1.7,17,x0,2.4,19,'cab');B.box(x0-.4,.93,19.4,x0-.05,1.25,19.9,'steel');B.prop(geo('Cylinder',.1,.08,.2,12),'steel',x0-.3,1.03,20.6);B.box(x0-.85,0,22,x0,1.8,22.9,{all:'fridge','-x':'fridgeF'},{fit:'-x'})}
+  F.roundTable(31,22,.55,.74,'pine','steel');for(const [dx,dz,k] of [[0,-.9,0],[0,.9,2],[-.9,0,1],[.9,0,3]])E.schoolChair(k,31+dx,22+dz,'plasticG');
+  {const a=K.ag('z',28,1,18.5,.35);F.unit(a.k,a.x,a.z,2,1.9,.35,'binders','white')}K.flat('z',28,1,24,1.7,1.6,1,'cork',.03);K.win('x',32,-1,30,34,1,2.6,'nightB','trimW',{panes:2});
+  B.prop(geo('Cylinder',.025,.03,1.8,8),'walnut',35.3,.9,30.8,{col:[35.2,0,30.7,35.4,1.8,30.9]});F.plant(28.8,31.2,1,'potB');
+  // ---- toilets: cubicles, basins, a hand dryer ----
+  for(let i=0;i<3;i++){const z=17+i*1.6;B.box(36+T,0,z+1.45,38.6,2,z+1.5,'cabW');E.toilet(1,37,z+.75);B.box(38.6,0,z,38.65,2,z+.12,'cabW');B.box(38.6,0,z+1.02,38.65,2,z+1.45,'cabW');B.box(38.62,.1,z+1.02,39.4,2,z+1.05,'cabW',{solid:false})}B.box(36+T,0,17-.05,38.6,2,17,'cabW');
+  for(const p of [18,20])E.basin('z',44,-1,p);B.box(44-T-.25,1.1,21.2,44-T,1.4,21.6,'steel');K.flat('x',22,-1,42,1.8,.5,.6,'mirror',.02);
+  // ---- PE store: stacked chairs, crash mats, cones, balls, benches, a vaulting box ----
+  for(let i=0;i<2;i++)for(let j=0;j<6;j++){const x=37.2+i*.7,y=j*.14;B.box(x-.25,y+.4,30.6,x+.25,y+.44,31.1,'plasticB',{fit:'all'});if(j===0){F.legs(B.at(0,x,30.85),.5,.5,.4,.03,.01,'steel');B.box(x-.25,0,30.6,x+.25,.44,31.1,null,{noMesh:true,sm:'plasticB'})}}
+  for(let i=0;i<4;i++)B.box(40,i*.22,28.5,42,i*.22+.22,30.6,i%2?'matBlue':'matRed',{fit:'all'});B.box(42.4,0,30.2,43.6,1,31.6,'matBlue');B.box(42.3,1,30.1,43.7,1.1,31.7,'leatherB');
+  for(let i=0;i<5;i++)B.prop(geo('Cone',.2,.4,10),'cone',37+i*.45,.2,23,{col:[36.8+i*.45,0,22.8,37.2+i*.45,.4,23.2]});
+  for(const [x,z,m] of [[42.6,23.5,'ball0'],[43.2,24.3,'ball3'],[42.2,24.6,'ball1'],[43.1,23.3,'ball2']])E.ball(x,z,.2,m);F.bench(1,39.5,25.5,2,.35,'pine','steel');
+  {const a=K.ag('z',44,-1,27,.5);F.unit(a.k,a.x,a.z,2,2,.5,'goods1','white')}B.box(36.4,0,26.6,37.4,.1,28.6,'pine');B.box(36.4,.1,26.6,37.4,.14,28.6,'leatherB',{solid:false});
+  B.box(40,0,31.2,43.5,.15,31.85,'pine');for(let i=0;i<4;i++)B.box(40.3+i*.85,.15,31.25,40.9+i*.85,.9,31.8,'crate',{fit:'all'});
+  return B.finish({
+    name:'Birchwood High',short:'School',bounds:[0,0,44,32],height:H,sky:'#141026',
+    light:{sky:0xe8f0ff,ground:0x6a6a70,hemi:.48,sun:.22,sunColor:0xfff2e0,dir:[.3,1,.2],amb:.1},
+    spawns:[[22,14],[6,14],[38,14],[5.4,6],[21,5.6],[36,8],[2,25],[12,25],[22,23],[32,25],[40,19],[40,27],[13,1.6],[25.5,6]],
+    seek:[22,14],attract:[7.5,6,.6],
+  });
+}
+// ---------- map 5: Larkspur & Co ----------
+// An office floor after hours, 48 × 34 m: a reception, an open-plan floor of desk pods, a meeting room, the manager's
+// office, a kitchenette, the server room, a store, a breakout lounge and the toilets, under 3 m acoustic ceilings.
+function buildOffice(){
+  const M=Object.assign({},commonMats(),everydayMats(),{
+    ext:{draw:(x,w,h)=>P.tiles(x,w,h,'#3a3540',['#4a4452','#504a58','#46404e'],2,72,4,true),tile:2.4},
+    fabric:{draw:(x,w,h)=>P.speckle(x,w,h,'#6f8a9a',['#688394','#7691a1'],31,2400),tile:1,rough:1},fabric2:{draw:(x,w,h)=>P.speckle(x,w,h,'#8a7f6f',['#837868','#918676'],32,2400),tile:1,rough:1},
+    logo:{draw:(x,w,h)=>P.card(x,w,h,'#f4f1ea','#1d3557','LARKSPUR & CO'),w:1024,h:160,tile:0},lift:{draw:(x,w,h)=>{x.fillStyle='#b8bec6';x.fillRect(0,0,w,h);x.fillStyle='#8d99ae';x.fillRect(w*.49,0,w*.02,h);x.fillStyle='#ffd166';x.fillRect(w*.45,h*.05,w*.1,h*.04)},tile:0,rough:.2},
+    server:{draw:(x,w,h)=>{x.fillStyle='#1d1d22';x.fillRect(0,0,w,h);const r=rng(4);for(let j=0;j<12;j++){x.fillStyle='#2b2d33';x.fillRect(w*.05,h*(.03+j*.08),w*.9,h*.07);for(let i=0;i<6;i++){x.fillStyle=r()<.7?'#06d6a0':'#ffd166';x.fillRect(w*(.1+i*.05),h*(.05+j*.08),w*.02,h*.02)}}},h:512,tile:0,glow:'#ffffff',gi:.25},
+    tv:{draw:(x,w,h)=>P.landscape(x,w,h,27),w:384,h:256,tile:0,glow:'#ffffff',gi:.5},artM:{draw:(x,w,h)=>P.strokes(x,w,h,85),tile:0},artN:{draw:(x,w,h)=>P.grid(x,w,h,86),tile:0},
+    glassW:{hex:'#cfe6ee',rough:.05,opacity:.28},menu:{draw:(x,w,h)=>P.card(x,w,h,'#2a2730','#f4f1ea','KITCHEN RULES',3),w:256,h:192,tile:0},cabW:{draw:(x,w,h)=>P.panel(x,w,h,'#e9e4d8','#c9c2b4'),tile:.6,rough:.5},
+    foos:{draw:(x,w,h)=>{x.fillStyle='#2a9d6f';x.fillRect(0,0,w,h);x.strokeStyle='#f4f1ea';x.lineWidth=3;x.strokeRect(w*.03,h*.05,w*.94,h*.9);x.beginPath();x.moveTo(w/2,0);x.lineTo(w/2,h);x.stroke();x.beginPath();x.arc(w/2,h/2,h*.15,0,7);x.stroke()},tile:0,rough:.4},
+    rugO:{draw:(x,w,h)=>P.kilim(x,w,h,['#efe3c8','#2a5db0','#f4a261','#2a9d8f']),tile:0,rough:1},cork:{draw:(x,w,h)=>P.cork(x,w,h,5),tile:0},
+  });
+  const B=new Builder(707,M),F=furn(B),H=3,K=kit(B,{H,base:'trimG',casing:'trimW',DH:2.2}),E=everyday(B,F,K),W=K.wallX,Z=K.wallZ,T=K.T,trim={solid:false,ns:true};
+  const ext=h=>({w:'ext',base:null,crown:null,casing:null,h:h||H});
+  const rec={w:'paintN',lo:'paintW',lh:1},open={w:'paintW'},meet={w:'paintT'},mgr={w:'paintD',lo:'walnut',lh:1},kit_={w:'paintW',lo:'tileB',lh:1.2},srv={w:'blockWall',base:null,casing:'steel'},sto={w:'paintW',base:null},lounge={w:'paintY'},wc={w:'tileW',base:null};
+  // ---- shell and rooms ----
+  W(0,0,12,ext(),rec);W(0,12,36,ext(),open);W(0,36,48,ext(),meet);
+  W(34,0,10,srv,ext());W(34,10,20,sto,ext());W(34,20,36,lounge,ext());W(34,36,48,wc,ext());
+  Z(0,0,12,ext(),rec);Z(0,12,22,ext(),kit_);Z(0,22,34,ext(),srv);
+  Z(48,0,12,meet,ext());Z(48,12,22,mgr,ext());Z(48,22,34,wc,ext());
+  W(12,0,12,rec,kit_,[[7,8.2]]);W(12,36,48,meet,mgr,[[44,45.2]]);
+  W(22,0,10,kit_,srv,[[5,6.2]]);W(22,10,12,kit_,sto);W(22,12,20,open,sto,[[15,16.2]]);W(22,20,36,open,lounge,[[24,25.2],[31,32.2]]);W(22,36,48,mgr,wc,[[45,46.2]]);
+  Z(12,0,12,rec,open,[[3.5,6]]);Z(12,12,22,kit_,open,[[16,18]]);Z(36,0,12,open,meet,[[8,9.2]]);Z(36,12,22,open,mgr,[[17,18.2]]);
+  Z(10,22,34,srv,sto);Z(20,22,34,sto,lounge);Z(36,22,34,lounge,wc);
+  const fl=K.floor,cl=K.ceil;
+  fl(0,0,12,12,'tileFloor');fl(12,0,36,22,'carpetB');fl(36,0,48,12,'carpetG');fl(36,12,48,22,'walnut');fl(0,12,12,22,'tileFloor');fl(0,22,10,34,'concrete');fl(10,22,20,34,'concrete');fl(20,22,36,34,'carpetR');fl(36,22,48,34,'tileFloor');
+  for(const [a,b,c,d,m] of [[0,0,12,12,'acoustic'],[12,0,36,22,'acoustic'],[36,0,48,12,'acoustic'],[36,12,48,22,'acoustic'],[0,12,12,22,'acoustic'],[0,22,10,34,'ceilConc'],[10,22,20,34,'ceilConc'],[20,22,36,34,'acoustic'],[36,22,48,34,'ceilWhite']])cl(a,b,c,d,H,m);
+  const panel=(x,z)=>B.box(x-.6,H-.07,z-.3,x+.6,H-.03,z+.3,'fluoro',trim);
+  for(let i=0;i<4;i++)for(let j=0;j<3;j++)panel(15+i*6,3.5+j*7.5);panel(6,6);panel(42,6);panel(42,17);panel(6,17);panel(5,28);panel(15,28);panel(24,28);panel(32,28);panel(42,28);
+  B.lamp(24,2.4,11,0xf4f8ff,1,14);B.lamp(6,2.4,6,0xfff4e0,.9,9);B.lamp(42,2.4,6,0xf4f8ff,.9,9);B.lamp(28,2.4,28,0xfff4e0,.9,10);B.lamp(6,2.4,17,0xf4f8ff,.8,8);B.lamp(42,2.4,17,0xfff4e0,.8,8);
+  // ---- reception: a desk, the company name, lifts, sofas and a coffee table, plants ----
+  K.flat('z',0,1,6,2.4,4.6,.7,'logo',.03);for(const p of [2.2,4.2])K.flat('z',0,1,p,1.1,1.5,2.2,'lift',.03);K.flat('z',0,1,9.6,1.6,1.2,1.4,'artM',.02);
+  {E.counter(0,7.5,3.2,3.2,.9,1.1,'walnut','paintN',{fit:'+z-z'});E.officeChair(2,7,4.4,'black');E.monitor(2,7.6,.74,4.05,'monitor1');B.box(6.3,.74,3.5,8.7,.76,4.3,'deskTop',{solid:false})}
+  {const a=K.ag('x',12,-1,4,.9);F.sofa(a.k,a.x,a.z,2.4,'leatherB','leatherB')}F.armchair(3,10.4,8,'leatherB','leatherB');F.table(0,7,8.8,1,.6,.42,'walnut','steel',{spot:false});F.rug(3,7,11,11,'rugO');
+  F.ficus(1,11,1,'potW');F.plant(11,1,1.2,'potW','leaves2');B.box(1.6,.42,8.6,2.2,.44,9.2,'screen',{solid:false,fit:'+y'});B.prop(geo('Cylinder',.1,.1,.42,10),'black',1.9,.21,8.9,{col:[1.8,0,8.8,2,.42,9]});
+  // ---- open plan: nine desk pods with partitions, monitors and chairs; printers, pillars, a plant here and there ----
+  const pod=(x,z,m)=>{B.box(x-1.5,0,z-.03,x+1.5,1.3,z+.03,m);B.box(x-.03,0,z-.85,x+.03,1.3,z+.85,m);B.box(x-1.52,1.3,z-.05,x+1.52,1.34,z+.05,'steel',trim);
+    for(const [k,sx,sz] of [[0,-.75,.41],[0,.75,.41],[2,-.75,-.41],[2,.75,-.41]]){E.desk(k,x+sx,z+sz,1.4,.7,'deskTop','deskBody',{ped:sx>0,spot:false});E.monitor(k,x+sx-.1,.74,z+sz-(k?-.22:.22),'monitor'+((sx>0?1:0)+(k?1:0)));E.officeChair(k,x+sx,z+sz+(k?-.75:.75),'black');
+      B.prop(geo('Cylinder',.05,.05,.12,8),['plasticB','plasticR','plasticY','plasticG'][(k+(sx>0?1:0))%4],x+sx+(sx>0?-.5:.5),.8,z+sz+(k?.1:-.1))}
+    B.spot(x-.75,z+.41,2,-Math.PI/2);B.spot(x-.75,z-.41,2,-Math.PI/2)};
+  for(let i=0;i<3;i++)for(let j=0;j<3;j++)pod(16.5+i*7,3.6+j*6.6,(i+j)%2?'fabric':'fabric2');
+  F.column(13.2,11,.25,H,'paintW','trimG');F.column(34.8,11,.25,H,'paintW','trimG');
+  E.copier(2,30.5,21.2);E.copier(2,13.4,21.2);{const a=K.ag('x',22,-1,19,.4);F.unit(a.k,a.x,a.z,1.6,1.9,.4,'binders','white')}{const a=K.ag('x',22,-1,34,.4);F.unit(a.k,a.x,a.z,1.6,1.9,.4,'binders','white')}
+  for(let i=0;i<4;i++)K.win('x',0,1,13.5+i*5.6,17.5+i*5.6,1,2.5,'nightC','steel',{panes:2,bar:.5});F.plant(12.6,.7,1,'potW');F.plant(35.4,.7,1.1,'potW','leaves2');F.plant(35.4,21.3,1,'potW');E.cooler(12.6,20.8);
+  for(let i=0;i<3;i++)B.box(14+i*.35,0,.9,14.3+i*.35,.5,1.3,['box','box2','box'][i],{fit:'all'});
+  // ---- meeting room: a long table, chairs, a screen, a whiteboard, a glass wall to the floor ----
+  F.table(0,42,6,4.4,1.3,.74,'walnut','steel',{th:.05,leg:.08});for(let i=0;i<4;i++){E.officeChair(0,39.8+i*1.45,4.9,'black');E.officeChair(2,39.8+i*1.45,7.1,'black')}E.officeChair(1,39.3,6,'black');E.officeChair(3,44.7,6,'black');
+  K.flat('x',0,1,42,1.75,2.4,1.4,'tv',.04);K.flat('z',48,-1,6,1.5,3,1.2,'whiteboard',.03);K.win('z',36,-1,2,7.5,.9,2.4,'glassW','steel',{panes:3,bar:0});K.win('z',36,-1,9.6,11.5,.9,2.4,'glassW','steel',{panes:1,bar:0});
+  for(let i=0;i<6;i++)B.prop(geo('Cylinder',.045,.04,.1,10),'glassW',40+i*.8,.79,6+(i%2?.3:-.3));B.prop(geo('Cylinder',.08,.07,.25,10),'glassW',42,.86,6.6);F.plant(47.2,11,1,'potW');
+  // ---- manager's office: a big desk, a bookcase, a sofa, a rug, awards ----
+  {const a=K.ag('z',48,-1,17,1);E.desk(a.k,a.x,a.z,2,1,'walnut','walnut',{ped:1});E.officeChair(3,a.x-1.2,a.z,'leatherB');E.monitor(3,a.x+.2,.74,a.z+.5,'monitor1');F.deskLamp(a.x+.1,.74,a.z-.6);E.officeChair(1,a.x-2.3,a.z-.6,'black');E.officeChair(1,a.x-2.3,a.z+.6,'black')}
+  {const a=K.ag('x',12,1,43,.4);F.unit(a.k,a.x,a.z,2.4,2.2,.4,'shelf1','walnut')}{const a=K.ag('x',22,-1,40,.9);F.sofa(a.k,a.x,a.z,2.2,'leatherB','leatherB')}F.rug(37.5,13.5,45,20.5,'rugB');
+  K.pic('x',22,-1,40,1.9,.9,.7,'artN','black',.03);K.win('z',48,-1,13,16,1,2.5,'nightC','steel',{panes:2});K.win('z',48,-1,18,21,1,2.5,'nightC','steel',{panes:2});F.plant(37,21.2,1.1,'potW','leaves2');
+  for(let i=0;i<3;i++)B.prop(geo('Cylinder',.05,.07,.22,10),'gold',43.6+i*.6,2.31,12.35,{ns:true});F.floorLamp(37,13,true);
+  // ---- kitchenette: counters, a fridge, a vending machine, high tables and stools, a bin ----
+  {const x0=T;B.box(x0,0,13,x0+.6,.9,19,{all:'cabW','+y':'butcher'});B.box(x0,.9,13,x0+.62,.93,19,'butcher');B.box(x0,1.7,13,x0+.36,2.4,19,'cabW');B.box(x0+.1,.93,14.2,x0+.5,.96,15.2,'steel',trim);B.box(x0+.1,.93,16.4,x0+.5,1.3,17,'steel');B.prop(geo('Cylinder',.1,.08,.2,12),'steel',x0+.35,1.03,18,{ns:true})}
+  B.box(T,0,19.6,.85+T,1.8,20.5,{all:'fridge','+x':'fridgeF'},{fit:'+x'});F.vending(1,.5+T,21.3,'vend2');
+  for(const [x,z] of [[5,15],[8.5,15],[5,19.5],[8.5,19.5]]){F.roundTable(x,z,.4,1.05,'deskTop','steel');for(const [dx,dz] of [[-.7,0],[.7,0]])F.stool(x+dx,z,.75,'steel','plasticB')}
+  K.flat('x',12,-1,3,1.8,1,.8,'menu',.02);K.flat('x',12,-1,9,1.9,1.4,.9,'cork',.03);B.prop(geo('Cylinder',.2,.18,.7,12),'steel',11.3,.35,21.3,{col:[11.1,0,21.1,11.5,.7,21.5]});F.plant(11.3,12.8,1,'potW');
+  // ---- server room: racks with blinking lights, a workbench, cable trays, a cold aisle ----
+  for(const z of [24.5,27,29.5,32]){B.box(1,0,z-.5,4.6,2.1,z+.5,{all:'black','+z':'server','-z':'server'},{fit:'+z-z'});B.box(5.6,0,z-.5,9.2,2.1,z+.5,{all:'black','+z':'server','-z':'server'},{fit:'+z-z'})}
+  B.box(.3,2.5,22.5,9.7,2.56,22.7,'steel',trim);for(let i=0;i<3;i++)B.box(.5+i*3,2.5,22.5,.55+i*3,2.56,33.8,'steel',trim);B.lamp(5,2.2,28,0xaad4ff,.9,10);
+  {const a=K.ag('x',34,-1,5,.7);F.table(a.k,a.x,a.z,2.4,.7,.9,'butcher','steel');E.monitor(a.k,a.x,.9,a.z-.1,'monitor0');for(let i=0;i<3;i++)B.box(a.x-1+i*.5,.9,a.z-.15,a.x-.7+i*.5,1.05,a.z+.15,['box','box2','box'][i],{fit:'all'})}
+  // ---- store: shelves of binders and boxes, a copier, stacked chairs, a ladder ----
+  for(const z of [24,28,32]){const a=K.ag('z',10,1,z,.45);F.unit(a.k,a.x,a.z,3,2.2,.45,z===28?'goods0':'binders','white')}
+  for(const z of [25,30]){const a=K.ag('z',20,-1,z,.45);F.unit(a.k,a.x,a.z,3.6,2.2,.45,z===25?'binders':'box','white')}
+  F.boxes(15,25,[[0,0,.8,.6,.6,0,'box'],[.9,.1,.7,.6,.5,0,'box2'],[.1,0,.7,.5,.5,.6,'box'],[0,1,.8,.6,.5,0,'box2']]);E.copier(0,15,32.5);
+  for(let j=0;j<5;j++){B.box(11.3,j*.13+.4,22.6,11.8,j*.13+.44,23.1,'plasticB',{fit:'all'});if(!j)B.box(11.3,0,22.6,11.8,.4,23.1,null,{noMesh:true,sm:'plasticB'})}
+  for(const s of [-1,1])B.box(17.6+s*.22-.025,0,33.6,17.6+s*.22+.025,2.4,33.66,'steel',{solid:false});for(let i=0;i<7;i++)B.box(17.35,.3+i*.32,33.6,17.85,.33+i*.32,33.66,'steel',{solid:false});B.lamp(15,2.2,28,0xf4f8ff,.8,9);
+  // ---- lounge: sofas, armchairs, coffee tables, a TV wall, a table-football game, a bookshelf, beanbags ----
+  F.rug(22,24,34,32,'rugO');{const a=K.ag('x',34,-1,27,.9);F.sofa(a.k,a.x,a.z,2.6,'velvetB','cushionB')}F.sofa(1,21.5,28,2.4,'velvetY','cushionA');F.armchair(3,30,25,'velvetG','cushionB');F.armchair(0,25,24.2,'velvetG','cushionA');
+  F.table(0,27,28,1.2,.7,.42,'walnut','steel',{spot:false});F.table(0,31.5,30.5,.8,.8,.42,'walnut','steel',{spot:false});
+  K.flat('z',20,1,28,1.7,2.2,1.3,'tv',.04);B.box(20+T,0,26.8,20+T+.4,.5,29.2,'walnut');B.box(20+T+.05,.5,27.2,20+T+.35,.6,28.8,'black',{solid:false});
+  {const x=30,z=23.4;B.box(x-.7,.7,z-.6,x+.7,.95,z+.6,{all:'walnut','+y':'foos'},{fit:'+y'});F.legs(B.at(0,x,z),1.4,1.2,.7,.08,.05,'black');for(let i=0;i<4;i++){B.prop(geo('Cylinder',.012,.012,1.6,6),'steel',x-.45+i*.3,.85,z,{rx:Math.PI/2});for(let k=0;k<3;k++)B.prop(geo('Sphere',.035,6,5),k%2?'plasticR':'plasticB',x-.45+i*.3,.82,z-.3+k*.3)}B.spot(x,z,2,-Math.PI/2)}
+  {const a=K.ag('x',22,1,23.5,.35);F.unit(a.k,a.x,a.z,1.6,1.4,.35,'shelf2','white')}for(const [x,z,m] of [[33.5,32.8,'cushionA'],[32.2,33,'cushionB']])B.prop(geo('Sphere',.42,14,10),m,x,.3,z,{s:[1,.7,1],col:[x-.38,0,z-.38,x+.38,.6,z+.38]});
+  K.pic('x',34,-1,23,1.9,1,.8,'artM','black',.03);K.pic('x',34,-1,31,1.9,1,.8,'artN','black',.03);F.plant(21,33,1.1,'potW','leaves2');F.plant(35,33,1,'potW');F.floorLamp(22.4,25.2,true);
+  // ---- toilets: cubicles, basins, a hand dryer ----
+  for(let i=0;i<3;i++){const x=38+i*1.6;B.box(x+1.45,0,22+T,x+1.5,2,24.6,'cabW');E.toilet(2,x+.75,23.1);B.box(x,0,24.6,x+.12,2,24.65,'cabW');B.box(x+1.02,0,24.6,x+1.45,2,24.65,'cabW');B.box(x+1.02,.1,24.62,x+1.05,2,25.4,'cabW',{solid:false})}B.box(38-.05,0,22+T,38,2,24.6,'cabW');
+  for(const p of [27,29,31])E.basin('z',48,-1,p);B.box(43.7,1.1,33.6,44,1.4,33.88,'steel');F.plant(37,33,1,'potW');
+  return B.finish({
+    name:'Larkspur & Co',short:'Office',bounds:[0,0,48,34],height:H,sky:'#141026',
+    light:{sky:0xe8f0ff,ground:0x6a6a70,hemi:.48,sun:.22,sunColor:0xfff2e0,dir:[-.3,1,.25],amb:.1},
+    spawns:[[20,13.5],[6,6],[42,3],[42,19],[6,16],[5,23],[15,29],[28,30],[42,30],[20,1.5],[30,1.5],[13,15],[34,8],[24,20]],
+    seek:[20,13.5],attract:[6,6.5,.4],
+  });
+}
+// ---------- map 6: Greenleaf Market ----------
+// A supermarket after closing, 50 × 36 m: a 4.2 m sales floor of aisles, fresh produce, chillers, freezer islands,
+// a bakery and a deli counter and six checkouts; a café beside it; behind, the bakery kitchen, the stockroom with
+// pallet racking and a forklift, the staff room, the manager's office, the toilets and the cold room.
+function buildMarket(){
+  const M=Object.assign({},commonMats(),everydayMats(),{
+    ext:{draw:(x,w,h)=>P.brick(x,w,h,['#6b6f66','#62665d','#73776e'],'#3a3c38',73),tile:1.6},
+    storeFloor:{draw:(x,w,h)=>P.tiles(x,w,h,'#b9b8b0',['#ecebe5','#e4e3dc','#f1f0ea'],4,74,2),tile:1.2,rough:.35},
+    cafeFloor:{draw:(x,w,h)=>P.herring(x,w,h,['#a8774a','#9b6b40','#b48252'],75),tile:1.2,rough:.55},
+    storeSign:{draw:(x,w,h)=>P.card(x,w,h,'#2a9d6f','#f4f1ea','GREENLEAF MARKET'),w:1024,h:128,tile:0},
+    sProduce:{draw:(x,w,h)=>P.card(x,w,h,'#7cb518','#ffffff','FRESH PRODUCE'),w:512,h:96,tile:0},sBakery:{draw:(x,w,h)=>P.card(x,w,h,'#c8803a','#fff3c4','BAKERY'),w:384,h:96,tile:0},
+    sDeli:{draw:(x,w,h)=>P.card(x,w,h,'#c0392b','#ffffff','DELI'),w:384,h:96,tile:0},sFrozen:{draw:(x,w,h)=>P.card(x,w,h,'#2a5db0','#ffffff','FROZEN'),w:384,h:96,tile:0},
+    sTill:{draw:(x,w,h)=>P.card(x,w,h,'#f1c453','#2a2730','PAY HERE'),w:384,h:96,tile:0},sDairy:{draw:(x,w,h)=>P.card(x,w,h,'#5aa0c8','#ffffff','DAIRY & DRINKS'),w:512,h:96,tile:0},
+    frozen:{draw:(x,w,h)=>P.goods(x,w,h,71,'#cfe0ea',3),tile:0},bread:{draw:(x,w,h)=>P.goods(x,w,h,72,'#c89a62',4),h:512,tile:0},
+    deliFront:{draw:(x,w,h)=>P.chiller(x,w,h,7),w:512,h:256,tile:0,rough:.15,glow:'#ffffff',gi:.2},
+    roller:{draw:(x,w,h)=>{P.stripes(x,w,h,['#9aa3ad','#8a939d','#a4adb7','#8a939d'],false);x.fillStyle='#f1c453';x.fillRect(0,h*.94,w,h*.06)},tile:0,rough:.4},
+    menuB:{draw:(x,w,h)=>P.card(x,w,h,'#2a2730','#f4f1ea','CAFE MENU',5),w:384,h:256,tile:0},
+    cake:{draw:(x,w,h)=>P.goods(x,w,h,76,'#f4f1ea',2),tile:0,glow:'#ffffff',gi:.15},
+    forklift:{hex:'#f1a33c',rough:.5},cabW:{draw:(x,w,h)=>P.panel(x,w,h,'#e9e4d8','#c9c2b4'),tile:.6,rough:.5},
+    glassW:{hex:'#cfe6ee',rough:.05,opacity:.28},strips:{draw:(x,w,h)=>P.folds(x,w,h,'#dfeaf0',14),tile:0,rough:.3,opacity:.8},
+    artM:{draw:(x,w,h)=>P.landscape(x,w,h,77),w:384,h:256,tile:0},cork:{draw:(x,w,h)=>P.cork(x,w,h,5),tile:0},
+  });
+  const B=new Builder(808,M),F=furn(B),H=4.2,K=kit(B,{H,base:'trimG',casing:'steel',DH:2.4}),E=everyday(B,F,K),W=K.wallX,Z=K.wallZ,T=K.T,trim={solid:false,ns:true};
+  const ext=h=>({w:'ext',base:null,crown:null,casing:null,h:h||H});
+  const sales={w:'paintW',lo:'paintT',lh:1.2},cafe={w:'paintY',lo:'walnut',lh:1,h:3.2},kit_={w:'tileW',base:null},stock={w:'blockWall',base:null},
+    staff={w:'paintG',h:3},off={w:'paintB',h:3},wc={w:'tileW',base:null,h:3},cold={w:'tileW',base:null,h:3},stockLo={w:'blockWall',base:null,h:H};
+  // ---- shell and rooms ----
+  W(0,0,38,ext(),sales);W(0,38,50,ext(3.2),cafe);
+  W(36,0,24,stock,ext());W(36,24,32,staff,ext(3));W(36,32,38,off,ext(3));W(36,38,44,wc,ext(3));W(36,44,50,cold,ext(3));
+  Z(0,0,26,ext(),sales);Z(0,26,36,ext(),stock);
+  Z(50,0,12,cafe,ext(3.2));Z(50,12,26,kit_,ext());Z(50,26,36,cold,ext(3));
+  W(26,0,24,sales,stock,[[10,12.4,2.8]]);W(26,24,32,sales,{w:'paintG',h:3});W(26,32,38,sales,{w:'paintB',h:3});W(26,38,44,kit_,wc,[[40,41.2,2.2]]);W(26,44,50,kit_,cold,[[46,47.4,2.2]]);
+  Z(38,0,12,sales,cafe,[[2.5,6.5,2.6]]);Z(38,12,26,sales,kit_,[[22.4,23.8,2.4]]);W(12,38,50,cafe,kit_,[[48,49.2,2.2]]);
+  Z(24,26,36,stockLo,staff,[[28,29.2,2.2]]);Z(32,26,36,staff,off,[[33,34.2,2.2]]);Z(38,26,36,off,wc);Z(44,26,36,wc,cold);
+  const fl=K.floor,cl=K.ceil;
+  fl(0,0,38,26,'storeFloor');fl(38,0,50,12,'cafeFloor');fl(38,12,50,26,'tileFloor');fl(0,26,24,36,'concrete');fl(24,26,32,36,'carpetG');fl(32,26,38,36,'carpetB');fl(38,26,44,36,'tileFloor');fl(44,26,50,36,'concrete');
+  cl(0,0,38,26,H,'acoustic');cl(38,0,50,12,3.2,'ceilWhite');cl(38,12,50,26,H,'ceilWhite');cl(0,26,24,36,H,'ceilConc');cl(24,26,32,36,3,'acoustic');cl(32,26,38,36,3,'acoustic');cl(38,26,44,36,3,'ceilWhite');cl(44,26,50,36,3,'ceilWhite');
+  const tube=(x,z,h,along)=>along?B.box(x-.08,h-.08,z-1,x+.08,h-.02,z+1,'fluoro',trim):B.box(x-1,h-.08,z-.08,x+1,h-.02,z+.08,'fluoro',trim);
+  for(const x of [9,13,17,21,25,29])for(const z of [12,18])tube(x,z,H,true);for(const x of [6,14,22,30])tube(x,4,H);for(const x of [3,35])tube(x,15,H,true);tube(18,23.5,H);
+  for(const x of [6,12,18])tube(x,31,H);tube(28,31,3);tube(35,31,3);tube(41,31,3);tube(47,31,3);tube(44,19,H);
+  B.lamp(8,3.6,7,0xf4f8ff,1,12);B.lamp(20,3.6,15,0xf4f8ff,1,13);B.lamp(32,3.6,7,0xf4f8ff,.9,12);B.lamp(44,2.7,6,0xffd29a,1,9);B.lamp(44,3.4,19,0xf4f8ff,.9,10);B.lamp(12,3.4,31,0xfff4e0,.9,11);B.lamp(28,2.6,31,0xfff4e0,.8,8);B.lamp(47,2.6,31,0xaad4ff,.8,7);
+  // hanging signs over the floor
+  const hang=(x,z,w,m,along)=>{const h=.5;if(along)B.box(x-.02,H-1.3,z-w/2,x+.02,H-1.3+h,z+w/2,m,{fit:'+x-x',solid:false,ns:true});else B.box(x-w/2,H-1.3,z-.02,x+w/2,H-1.3+h,z+.02,m,{fit:'+z-z',solid:false,ns:true});
+    for(const s of [-1,1])B.box(along?x-.01:x+s*w*.4-.01,H-.8,along?z+s*w*.4-.01:z-.01,along?x+.01:x+s*w*.4+.01,H,along?z+s*w*.4+.01:z+.01,'steel',trim)};
+  hang(2.8,15,2.6,'sProduce',true);hang(18,23.6,2,'sFrozen');hang(23.5,6.6,2,'sTill');hang(13.5,6.6,2,'sTill');
+  // ---- front: entrance doors, windows, trolleys, the service desk ----
+  K.win('x',0,1,2.6,7.4,.05,2.7,'nightB','steel',{panes:2,bar:0});for(const p of [9,15,21,27,33])K.win('x',0,1,p,p+3.6,1,2.8,'nightB','steel',{panes:2,bar:0});
+  K.flat('x',0,1,5,3.4,5,.6,'storeSign',.04);
+  for(let i=0;i<3;i++)E.trolley(2,8.9+i*.75,1.6);for(let i=0;i<2;i++)E.trolley(0,8.9+i*.75,3.2);
+  {const a=K.ag('z',0,1,5.6,.8);E.counter(a.k,a.x,a.z,2.8,.8,1.05,'deskTop','plasticG');E.monitor(a.k,a.x-.05,1.05,a.z-.5,'monitor1');E.officeChair(a.k,a.x+.05,a.z,'black')}
+  F.plant(.8,.8,1.1,'potW','leaves2');F.plant(11.4,.8,1,'potW');E.cooler(.6,8.5);
+  // ---- checkouts: six lanes with belts, tills, a stool and a rack of sweets ----
+  for(let i=0;i<6;i++){const x=13+i*4;E.counter(1,x,4.3,2.8,.7,.9,'steel','plasticG',{fit:'+z-z'});B.box(x-.25,.9,3.1,x+.25,.925,5.5,'belt',{solid:false});
+    B.box(x-.3,.9,5.2,x+.05,1.12,5.62,'black');B.box(x-.28,1.12,5.25,x+.03,1.14,5.55,'screen',{fit:'+y',solid:false});F.stool(x+.85,4.8,.62,'steel','black');
+    B.box(x+1.6,0,3.3,x+1.95,1.35,5.3,{all:'steel','+x':'snacks','-x':'snacks'},{fit:'+x-x'});B.box(x-.32,1.7,5.55,x-.28,2.3,5.6,'steel',trim);B.box(x-.45,2.3,5.5,x-.15,2.6,5.65,'plasticY',{fit:'all',solid:false})}
+  // ---- aisles: seven gondolas of goods with display stacks at their ends ----
+  for(let i=0;i<7;i++){const x=7+i*4;E.gondola(1,x,15.5,11,1.85,'aisle'+(i%4),'aisle'+((i+1)%4));
+    if(i%2===0)F.boxes(x,9.45,[[0,0,.9,.6,.45,0,'box'],[0,0,.8,.55,.4,.45,'box2'],[0,0,.7,.5,.35,.85,'box']]);else B.box(x-.5,0,21.15,x+.5,1.1,21.75,{all:'steel','-z':'snacks','+z':'snacks'},{fit:'+z-z'})}
+  // ---- fresh produce along the west wall: tables of fruit and veg (lie under them), crates, a scale ----
+  for(const z of [10.5,14,17.5]){F.table(1,2.8,z,2.6,1.3,.85,'produce','pine',{th:.12,leg:.08});B.box(2.2,.85,z-1.2,3.4,1,z+1.2,'produce2',{fit:'+y',solid:false})}
+  {const a=K.ag('z',0,1,21.6,.6);for(let j=0;j<3;j++)B.at(a.k,a.x,a.z)(-.9,j*.32,-.3,.9,j*.32+.3,.3,j%2?'produce':'crate',{fit:'all'})}
+  {const a=K.ag('z',0,1,8.6,.5);B.at(a.k,a.x,a.z)(-.5,0,-.25,.5,.95,.25,'steel');B.box(a.x-.15,.95,a.z-.15,a.x+.15,1.05,a.z+.15,'black')}
+  // ---- chillers along the back wall and two freezer islands ----
+  for(const [p,m] of [[3.6,'chiller0'],[5.6,'chiller1'],[7.6,'chiller0'],[14.4,'chiller1'],[16.4,'chiller0'],[18.4,'chiller1'],[20.4,'chiller0'],[22.4,'chiller1'],[26.4,'chiller0'],[28.4,'chiller1'],[30.4,'chiller0'],[32.4,'chiller1']]){const a=K.ag('x',26,-1,p,.9);B.at(a.k,a.x,a.z)(-1,0,-.45,1,2.1,.45,{all:'steel','+z':m},{fit:'+z'});B.at(a.k,a.x,a.z)(-1,2.1,-.45,1,2.4,.45,'paintT',{solid:false})}
+  K.flat('x',26,-1,18.4,3.1,3,.55,'sDairy',.03);
+  for(const x0 of [8.5,21.5]){B.box(x0,0,22.7,x0+5,.82,23.5,{all:'white','+y':'frozen'},{fit:'+y'});B.box(x0-.03,.82,22.67,x0+5.03,.86,23.53,'steel',{solid:false})}
+  // ---- bakery racks and the deli counter on the east side ----
+  for(const z of [9.4,11.8]){const a=K.ag('z',38,-1,z,.5);F.unit(a.k,a.x,a.z,2.2,1.9,.5,'bread','pine')}K.flat('z',38,-1,10.6,3.1,2.2,.55,'sBakery',.03);
+  F.table(0,35,14.6,1.6,.9,.8,'pine','pine');for(let i=0;i<3;i++)B.prop(geo('Cylinder',.25,.2,.2,12),'wicker',34.5+i*.5,.9,14.6);
+  E.counter(3,35.2,18.6,4.4,.8,1.1,'steel','deliFront',{fit:'-z'});B.box(34.85,1.1,16.5,35.55,1.55,20.7,'glassW',{clear:true,ns:true});
+  {const a=K.ag('z',38,-1,18.6,.55);F.unit(a.k,a.x,a.z,3,1.8,.55,'goods2','white')}K.flat('z',38,-1,18.6,3.1,1.8,.55,'sDeli',.03);B.box(36.5,1.1,17.2,36.9,1.35,17.6,'steel');B.spot(36.3,20.3,1,0);
+  F.plant(37.3,8,1,'potW');
+  // ---- café: tables and chairs, a counter with a cake cabinet, a booth, a menu board ----
+  {const a=K.ag('z',50,-1,4.6,.8);E.counter(a.k,a.x,a.z,4.4,.8,1.05,'butcher','walnut');B.box(a.x-.3,1.05,3,a.x+.3,1.45,4.4,{all:'glassW','-x':'cake','+x':'cake'},{fit:'+x-x',clear:true});B.box(a.x-.25,1.05,5.6,a.x+.25,1.5,6.1,'black');B.box(a.x-.2,1.05,6.4,a.x+.2,1.3,6.8,'steel')}
+  K.flat('z',50,-1,4.6,2.4,1.8,1.2,'menuB',.03);
+  for(const [x,z] of [[41,3],[41,7.4],[45,9.6]]){F.roundTable(x,z,.45,.75,'deskTop','steel');F.chair(0,x,z-.8,'pine','steel');F.chair(2,x,z+.8,'pine','steel');F.chair(1,x-.8,z,'pine','steel')}
+  {const a=K.ag('x',12,-1,42.5,.9);F.sofa(a.k,a.x,a.z,2.6,'leather','cushionA')}F.table(0,42.5,10,1.6,.6,.72,'walnut','steel',{spot:false});
+  for(const p of [40,44])K.win('x',0,1,p,p+2.6,1,2.6,'nightB','trimW',{panes:2});K.pic('x',12,-1,46.5,1.9,1.1,.75,'artM','black',.03);F.plant(38.8,11.2,1,'potB');F.floorLamp(49.2,11.2,false);
+  // ---- bakery kitchen: steel tables (lie under), ovens, racks of trays, a mixer, flour sacks, a sink ----
+  for(const z of [16,20]){F.table(0,44,z,2.6,.9,.9,'steel','steel',{leg:.05});B.box(43,.9,z-.2,43.8,.98,z+.25,'bread',{fit:'+y',solid:false})}
+  for(const z of [14,16.2,18.4]){const a=K.ag('z',50,-1,z,.8);B.at(a.k,a.x,a.z)(-1,0,-.4,1,1.5,.4,{all:'steel','+z':'oven'},{fit:'+z'})}
+  for(const z of [21.5,23.6]){const a=K.ag('z',50,-1,z,.6);F.unit(a.k,a.x,a.z,1.8,1.9,.6,'goods0','steel')}
+  B.prop(geo('Cylinder',.3,.25,1.1,14),'steel',42.6,.55,24.8,{col:[42.3,0,24.5,42.9,1.1,25.1]});F.boxes(43.6,24.9,[[0,0,.6,.4,.35,0,'linenW'],[.62,0,.6,.4,.35,0,'linenW'],[.3,0,.6,.4,.3,.35,'linenW']]);
+  {const a=K.ag('x',12,1,40.5,.7);B.at(a.k,a.x,a.z)(-1.2,0,-.35,1.2,.9,.35,'steel');B.box(a.x-.4,.9,a.z-.2,a.x+.4,.92,a.z+.2,'black',trim)}
+  // ---- stockroom: pallet racking (crouch under the shelves, climb onto them), pallets, a forklift, a roller door ----
+  const rack=(x,z0,z1)=>{const n=Math.round((z1-z0)/2.5);for(let i=0;i<=n;i++){const z=z0+(z1-z0)*i/n;B.box(x-.55,0,z-.05,x-.45,3.2,z+.05,'plasticB');B.box(x+.45,0,z-.05,x+.55,3.2,z+.05,'plasticB')}
+    for(const y of [1.55,2.95])B.box(x-.55,y,z0,x+.55,y+.1,z1,'forklift');
+    for(let i=0;i<n;i++){const zc=z0+(z1-z0)*(i+.5)/n,r=B.r();if(r>=.65)B.spot(x,zc,1,0);if(r<.65){E.pallet(x,zc,1,1.2);B.box(x-.45,.14,zc-.55,x+.45,.14+(r<.3?1.1:.7),zc+.55,r<.3?'box':'box2',{fit:'all'})}
+      if(B.r()<.6)B.box(x-.45,1.65,zc-.6,x+.45,1.65+.5+B.r()*.5,zc+.6,B.r()<.5?'box':'crate',{fit:'all'});if(B.r()<.5)B.box(x-.45,3.05,zc-.5,x+.45,3.5,zc+.5,'box2',{fit:'all'})}};
+  rack(.12+.62,28.2,35.7);rack(6,28.2,35.7);rack(10,28.2,35.7);rack(14.4,28.2,35.7);
+  K.flat('x',36,-1,20,1.6,3.6,3.2,'roller',.06);for(const s of [-1,1])B.box(20+s*1.9-.06,0,36-T-.15,20+s*1.9+.06,3.3,36-T,'steel');
+  {const x=19.5,z=29.5,f=B.at(1,x,z);f(-.55,0,-.9,.55,1.1,.7,'forklift');f(-.5,1.1,-.2,.5,1.15,.6,'black',{solid:false});f(-.45,1.15,.1,.45,2.1,.15,'black',{solid:false});for(const s of [-1,1])f(s*.45-.04,1.1,-.2,s*.45+.04,2.1,-.15,'black');
+    f(-.5,0,-1.15,.5,2.6,-.95,'steel');f(-.35,.05,-2.1,-.2,.1,-1.15,'steel');f(.2,.05,-2.1,.35,.1,-1.15,'steel');f(-.45,.6,.45,.45,1.05,.7,'leatherB');
+    for(const [a,b] of [[-1,-.6],[1,-.6],[-1,.45],[1,.45]])B.prop(geo('Cylinder',.25,.25,.2,12),'black',x+b,.25,z-a*.55,{rz:Math.PI/2,ry:Math.PI/2,ns:true})}
+  for(const [x,z] of [[17.5,33.6],[22.6,31.5]]){E.pallet(x,z,1.2,1);F.boxes(x,z,[[-.3,-.2,.55,.5,.5,.14,'box'],[.3,-.2,.55,.5,.5,.14,'box2'],[0,.25,1,.45,.45,.14,'box'],[0,0,.8,.8,.45,.64,'box2']])}
+  for(const [x,z] of [[22.8,27.2],[21.6,27.2]]){B.box(x-.4,0,z-.5,x+.4,1.7,z+.5,'wire',{fit:'all'})}B.box(16.8,0,27,18.4,1.9,28.2,{all:'steel','+x':'monitor2'},{fit:'+x'});
+  // ---- staff room: lockers, a table, a sofa, a kitchenette, a noticeboard ----
+  {const a=K.ag('z',24,1,32.5,.5);E.lockers(a.k,a.x,a.z,8,'lockersG')}F.table(0,28.8,31,1.6,.9,.74,'deskTop','steel');for(const [dx,dz,k] of [[-.45,-.8,0],[.45,-.8,0],[-.45,.8,2],[.45,.8,2]])E.schoolChair(k,28.8+dx,31+dz,'plasticR');
+  {const a=K.ag('x',36,-1,28.6,.9);F.sofa(a.k,a.x,a.z,2.2,'velvetG','cushionB')}
+  {const z0=26+T;B.box(25,0,z0,29,.9,z0+.6,{all:'cabW','+y':'butcher'});B.box(25,.9,z0,29,.93,z0+.62,'butcher');B.box(26.8,.93,z0+.1,27.6,1.25,z0+.45,'black');B.box(29.1,0,z0,30,1.8,z0+.8,{all:'fridge','+z':'fridgeF'},{fit:'+z'})}
+  K.flat('z',32,-1,30,1.7,1.4,1,'cork',.03);K.pic('z',32,-1,27.4,1.8,.5,.5,'clock','trimW',.02);F.plant(31.3,35.3,1,'potW');
+  // ---- office: a desk with CCTV, a safe, filing cabinets ----
+  {const a=K.ag('z',38,-1,30,.75);E.desk(a.k,a.x,a.z,1.6,.75,'deskTop','deskBody',{ped:1});E.officeChair(3,a.x-.9,a.z,'black');E.monitor(3,a.x+.1,.74,a.z+.4,'monitor0')}
+  for(const z of [28.5,31.5])K.flat('z',38,-1,z,2.2,1,.6,'monitor'+(z>30?1:2),.03);
+  {const a=K.ag('x',36,-1,34.8,.6);B.at(a.k,a.x,a.z)(-.4,0,-.3,.4,.9,.3,'steel')}{const a=K.ag('x',36,-1,36.8,.5);F.unit(a.k,a.x,a.z,.9,1.3,.5,'filing','steel')}
+  {const a=K.ag('x',26,1,35,.4);F.unit(a.k,a.x,a.z,1.6,2,.4,'binders','white')}
+  // ---- toilets: cubicles with doorways, basins ----
+  for(let i=0;i<3;i++){const x=38.2+i*1.85;B.box(x+1.75,0,33.6,x+1.8,2,36-T,'cabW');E.toilet(2,x+.9,35.4);B.box(x,0,33.55,x+.1,2,33.6,'cabW');B.box(x+1.15,0,33.55,x+1.75,2,33.6,'cabW');B.box(x+1.12,.1,32.8,x+1.15,2,33.55,'cabW',{solid:false})}
+  B.box(38+T,0,33.6,38.2,2,36-T,'cabW');for(const p of [28,30])E.basin('z',44,-1,p);
+  // ---- cold room: shelving of milk and frozen goods, crates, strip curtains at the door ----
+  B.box(46,0,26+T,47.4,2.2,26+T+.05,'strips',{solid:false,soft:true,fit:'+z-z'});
+  for(const z of [29,32.5]){const a=K.ag('z',50,-1,z,.6);F.unit(a.k,a.x,a.z,3,2.1,.6,z<30?'goods1':'frozen','steel')}
+  {const a=K.ag('z',44,1,32,.6);F.unit(a.k,a.x,a.z,3.2,2.1,.6,'goods0','steel')}
+  for(let j=0;j<4;j++)B.box(46.3,j*.3,34.6,47.1,j*.3+.28,35.4,'plasticB',{fit:'all'});for(let j=0;j<3;j++)B.box(47.3,j*.3,34.6,48.1,j*.3+.28,35.4,'plasticG',{fit:'all'});
+  return B.finish({
+    name:'Greenleaf Market',short:'Market',bounds:[0,0,50,36],height:H,sky:'#141026',
+    light:{sky:0xeef4ff,ground:0x6a6a70,hemi:.5,sun:.2,sunColor:0xfff2e0,dir:[.25,1,.3],amb:.1},
+    spawns:[[20,7.6],[9,13],[13,18],[17,13],[21,18],[25,13],[29,18],[33.2,12],[4.8,7.4],[42.5,5.2],[46.5,19],[12,29.2],[28,28.6],[35.2,32.5],[41,29.5],[47,30.5]],
+    seek:[20,7.6],attract:[9,15.5,3.1],
+  });
+}
+// ---------- map 7: Hotel Bellamy ----------
+// A city hotel late at night, 48 × 36 m: a 4.5 m marble lobby with columns, a reception desk, sofas and a grand
+// piano; a bar with a pool table; a restaurant of clothed tables and a buffet; and along a carpeted corridor five
+// guest rooms (each with its own bathroom and a bath to lie in), a housekeeping store and the laundry.
+function buildHotel(){
+  const M=Object.assign({},commonMats(),everydayMats(),{
+    ext:{draw:(x,w,h)=>P.brick(x,w,h,['#c9b79a','#bfad90','#d3c1a4'],'#8a7a62',79),tile:1.6},
+    lobbyFloor:{draw:(x,w,h)=>P.marbleTiles(x,w,h,'#ece4d4','#a89a84','#2a2420',9),w:512,tile:1.8,rough:.2},
+    damaskL:{draw:(x,w,h)=>P.damask(x,w,h,'#e3d5b8','#cdb98e','#bfa874'),tile:1.1},panelW:{draw:(x,w,h)=>P.panels(x,w,h,'#5a3620',5),tile:1.2,rough:.5},
+    barPaper:{draw:(x,w,h)=>P.stripes(x,w,h,['#1f3e2b','#2a4f37','#1f3e2b','#b8913f'],true,[3,3,3,.3]),tile:.7},barFloor:{draw:(x,w,h)=>P.herring(x,w,h,['#6b4024','#5a3620','#7a4b2a'],81),tile:1.2,rough:.5},
+    restPaper:{draw:(x,w,h)=>P.damask(x,w,h,'#5a1c26','#74283a','#86303f'),tile:1},corPaper:{draw:(x,w,h)=>P.stripes(x,w,h,['#e8dcc0','#efe4cb'],true),tile:.6},
+    paperA:{draw:(x,w,h)=>P.floral(x,w,h,'#eadfcf',['#c98a95','#d9b070','#a593bf'],30,82,'#94ab84'),tile:.6},paperB:{draw:(x,w,h)=>P.stripes(x,w,h,['#cfdbe6','#e6edf3'],true),tile:.5},
+    paperC:{draw:(x,w,h)=>P.damask(x,w,h,'#2c3e5a','#40577a','#566d91'),tile:1},paperD:{draw:(x,w,h)=>P.floral(x,w,h,'#e3eedf',['#6a994e','#e07a5f','#f2cc8f'],26,83,'#a7c957'),tile:.6},
+    paperE:{draw:(x,w,h)=>P.stripes(x,w,h,['#f1e3c6','#e6cfa2','#f1e3c6','#b5651d'],true,[3,2,3,.4]),tile:.7},
+    carpetA:{draw:(x,w,h)=>P.carpet(x,w,h,'#6b5a7a','#c9a24a','#3a2f48'),tile:1.2,rough:1},carpetC:{draw:(x,w,h)=>P.carpet(x,w,h,'#3a4f6b','#c9a24a','#24324a'),tile:1.2,rough:1},
+    carpetD:{draw:(x,w,h)=>P.carpet(x,w,h,'#5a6b4a','#e0c070','#38452c'),tile:1.2,rough:1},
+    coffer:{draw:(x,w,h)=>P.coffer(x,w,h,'#ece6da','#cfc4ae'),tile:2.4},cofferD:{draw:(x,w,h)=>P.coffer(x,w,h,'#5a3a24','#3a2416'),tile:1.6},
+    hotelSign:{draw:(x,w,h)=>P.card(x,w,h,'#1d1d22','#c9a24a','HOTEL BELLAMY'),w:1024,h:128,tile:0},
+    keys:{draw:(x,w,h)=>P.drawers(x,w,h,'#5a3620',4,8,'#c9a24a'),w:512,h:256,tile:0},lift:{draw:(x,w,h)=>{x.fillStyle='#c9a24a';x.fillRect(0,0,w,h);x.fillStyle='#a8823e';x.fillRect(w*.49,0,w*.02,h);x.fillStyle='#fff3c4';x.fillRect(w*.45,h*.05,w*.1,h*.04)},tile:0,rough:.25},
+    bottles:{draw:(x,w,h)=>P.goods(x,w,h,5,'#3a2416',4),tile:0},barFront:{draw:(x,w,h)=>P.panels(x,w,h,'#4a2a18',8),tile:.9},felt:{draw:(x,w,h)=>P.felt(x,w,h,'#1f6b45'),tile:0,rough:.9},
+    dart:{draw:P.target,tile:0},towels:{draw:P.towels,tile:0},portraitA:{draw:(x,w,h)=>P.portrait(x,w,h,84),w:256,h:320,tile:0},
+    landA:{draw:(x,w,h)=>P.landscape(x,w,h,85),w:384,h:256,tile:0},landB:{draw:(x,w,h)=>P.landscape(x,w,h,86),w:384,h:256,tile:0},artH:{draw:(x,w,h)=>P.strokes(x,w,h,87),tile:0},artI:{draw:(x,w,h)=>P.art(x,w,h,1,88),w:384,h:256,tile:0},
+    tv:{draw:(x,w,h)=>P.landscape(x,w,h,89),w:384,h:256,tile:0,glow:'#ffffff',gi:.45},cloth:{draw:(x,w,h)=>P.folds(x,w,h,'#f4efe4',12),tile:0,rough:1},clothR:{draw:(x,w,h)=>P.folds(x,w,h,'#7c1a30',12),tile:0,rough:1},
+    plate:{draw:(x,w,h)=>P.card(x,w,h,'#c9a24a','#2a2730','ROOM'),w:128,h:64,tile:0},cabW:{draw:(x,w,h)=>P.panel(x,w,h,'#e9e4d8','#c9c2b4'),tile:.6,rough:.5},
+    quiltA:{draw:(x,w,h)=>P.quilt(x,w,h,['#f4efe4','#e8dcc0','#c9a24a'],6,90),tile:0,rough:1},quiltB:{draw:(x,w,h)=>P.plaid(x,w,h,'#2c3e5a',['#c0392b','#f4efe4']),tile:0,rough:1},
+  });
+  const B=new Builder(909,M),F=furn(B),H=3,K=kit(B,{H,base:'walnut',crown:'trimW',casing:'walnut',DH:2.3}),E=everyday(B,F,K),W=K.wallX,Z=K.wallZ,T=K.T,trim={solid:false,ns:true};
+  const ext=h=>({w:'ext',base:null,crown:null,casing:null,h:h||H});
+  const lob={w:'damaskL',lo:'panelW',lh:1.2,h:4.5},bar={w:'barPaper',lo:'barFront',lh:1.1,h:3.4},rest={w:'restPaper',lo:'panelW',lh:1,h:3.4},cor={w:'corPaper',lo:'panelW',lh:1,h:2.8},
+    bath={w:'tileW',base:null,crown:null,casing:'trimW'},svc={w:'paintW',crown:null},
+    rooms=[{x0:0,x1:8,dx:5.5,w:'paperA',fl:'carpetA',q:'quiltA',art:'landA',cur:'velvetR'},{x0:8,x1:16,dx:13.5,w:'paperB',fl:'carpetC',q:'linenB',art:'artH',cur:'velvetB'},
+      {x0:16,x1:26,dx:23.5,w:'paperC',fl:'hotelCarpet2',q:'quiltB',art:'portraitA',cur:'velvetY',suite:1},{x0:26,x1:33,dx:30.5,w:'paperD',fl:'carpetD',q:'linenG',art:'landB',cur:'velvetG'},
+      {x0:33,x1:40,dx:37.5,w:'paperE',fl:'carpetA',q:'linenY',art:'artI',cur:'velvetP'}];
+  for(const r of rooms)r.s={w:r.w};
+  // ---- shell and rooms ----
+  W(0,0,20,ext(4.5),lob);W(0,20,32,ext(3.4),bar);W(0,32,48,ext(3.4),rest);
+  for(const r of rooms)W(36,r.x0,r.x1,r.s,ext());W(36,40,48,svc,ext());
+  Z(0,0,16,ext(4.5),lob);Z(0,16,19,ext(2.8),cor);Z(0,19,36,ext(),rooms[0].s);
+  Z(48,0,16,rest,ext(3.4));Z(48,16,19,cor,ext(2.8));Z(48,19,36,svc,ext());
+  W(16,0,20,lob,cor,[[8,10.4,2.6]]);W(16,20,32,bar,cor,[[25,26.4]]);W(16,32,48,rest,cor,[[42,43.4]]);
+  Z(20,0,16,lob,bar,[[5,8,2.7]]);Z(32,0,16,bar,rest,[[6,8,2.6]]);
+  for(const r of rooms)W(19,r.x0,r.x1,cor,r.s,[[r.dx,r.dx+1]]);W(19,40,48,cor,svc,[[41,42.5]]);
+  for(let i=0;i<rooms.length-1;i++)Z(rooms[i].x1,19,36,rooms[i].s,rooms[i+1].s);Z(40,19,36,rooms[4].s,svc);W(27,40,48,svc,svc,[[44,45.5]]);
+  const fl=K.floor,cl=K.ceil;
+  fl(0,0,20,16,'lobbyFloor');fl(20,0,32,16,'barFloor');fl(32,0,48,16,'hotelCarpet2');fl(0,16,48,19,'hotelCarpet');fl(40,19,48,27,'linoB');fl(40,27,48,36,'tileFloor');
+  cl(0,0,20,16,4.5,'coffer');cl(20,0,32,16,3.4,'cofferD');cl(32,0,48,16,3.4,'coffer');cl(0,16,48,19,2.8,'ceilWhite');cl(40,19,48,36,H,'acoustic');
+  B.lamp(10,3,8.2,0xffd29a,1.2,14);B.lamp(26,2.7,8,0xffb070,1,11);B.lamp(40,2.7,6.5,0xffd29a,1,11);B.lamp(12,2.4,17.5,0xffc98a,.8,10);B.lamp(36,2.4,17.5,0xffc98a,.8,10);
+  B.lamp(44,2.6,23,0xf4f8ff,.8,8);B.lamp(44,2.6,31,0xf4f8ff,.8,8);
+  // ---- guest rooms: a bathroom by the door (a bath to lie in, a toilet, a basin), a bed on legs (lie under it),
+  // a wardrobe, a desk, a dresser and TV, an armchair by a curtained window ----
+  for(const r of rooms){const x0=r.x0,x1=r.x1,bx=x0+3.2,cx=(bx+x1)/2,s=r.s;
+    Z(bx,19,23.4,bath,s,[[20.4,21.4,2.2]]);W(23.4,x0,bx,bath,s);
+    fl(x0,19,bx,23.4,'tileFloor');fl(bx,19,x1,23.4,r.fl);fl(x0,23.4,x1,36,r.fl);cl(x0,19,x1,36,H,'ceilWhite');
+    // bathroom: the bath has rims and a floor, so you can climb in and lie down behind the shower curtain
+    const tx=x0+T,tz=19+T;B.box(tx,0,tz,tx+.8,.12,tz+1.75,'porcelain');for(const b of [[tx,tz,tx+.08,tz+1.75],[tx+.72,tz,tx+.8,tz+1.75],[tx,tz,tx+.8,tz+.08],[tx,tz+1.67,tx+.8,tz+1.75]])B.box(b[0],.12,b[1],b[2],.56,b[3],'porcelain');
+    F.curtain(tx+.82,tz,tx+.86,tz+1.7,.62,2.1,'shower');B.box(tx+.8,2.1,tz,tx+.84,2.13,tz+1.75,'steel',trim);B.prop(geo('Cylinder',.08,.08,.02,10),'steel',tx+.3,2.05,tz+.3,{ns:true});
+    {const a=K.ag('x',23.4,-1,x0+.85,.5);E.toilet(a.k,a.x,a.z)}E.basin('x',23.4,-1,x0+2.25);K.flat('z',bx,-1,22.5,1.3,.6,.5,'towels',.06);B.box(x0+1.5,0,19.6+T,x0+2.4,.01,20.2+T,'linenW',{solid:false,ns:true});
+    // bedroom
+    {const a=K.ag('x',36,-1,cx,2.1);F.bed(a.k,a.x,a.z,1.7,2.1,'walnut',r.q,'linenW',{head:1.4})}
+    for(const sx of [-1.18,1.18]){const a=K.ag('x',36,-1,cx+sx,.45);F.unit(a.k,a.x,a.z,.5,.55,.45,'drawersD','walnut');F.tableLamp(a.x,.55,a.z,false)}
+    K.pic('x',36,-1,cx,2.05,1.1,.65,r.art,'gold');F.bench(0,cx,33.2,1.3,.45,'velvetR','walnut');F.rug(cx-1.4,30.3,cx+1.4,33.6,'rugA');
+    K.win('x',36,-1,x0+.9,x0+2.3,.9,2.4,'nightC','trimW',{panes:2,cur:r.cur,cw:.4});F.armchair(2,x0+1.6,34.6,'velvet','cushionB');F.roundTable(x0+1.6,33.1,.3,.55,'walnut','brass');
+    {const a=K.ag('z',x0,1,25.2,.6);E.wardrobe(a.k,a.x,a.z,1.2)}B.box(x0+T+.05,0,26.2,x0+T+.4,.7,26.75,'plasticR',{fit:'all'});
+    {const a=K.ag('z',x0,1,28.6,.6);E.desk(a.k,a.x,a.z,1.2,.6,'walnut','walnut');F.chair((a.k+2)%4,a.x+.75,a.z,'walnut','walnut');F.deskLamp(a.x-.1,.74,a.z-.4)}
+    {const a=K.ag('z',x1,-1,r.suite?30.6:28.2,.5);F.unit(a.k,a.x,a.z,1.4,.8,.5,'drawersD','walnut');K.flat('z',x1,-1,r.suite?30.6:28.2,1.55,1.1,.65,'tv',.04)}
+    F.ceilLamp(cx,28.5,H,false);K.flat('x',19,-1,r.dx-.35,1.55,.22,.12,'plate',.02);K.sconce('x',19,-1,r.dx+1.6>x1-.3?r.dx-1.2:r.dx+1.6,1.8,false);
+    if(r.suite){{const a=K.ag('z',x1,-1,24.8,.9);F.sofa(a.k,a.x,a.z,2.2,'velvetY','cushionA')}F.table(1,23.6,24.8,1.2,.6,.42,'walnut','brass',{spot:false});F.armchair(1,22.2,24.8,'velvetY','cushionB');F.plant(25.3,22.8,1,'potB');K.pic('z',x1,-1,24.8,1.9,1,.7,'landB','gold')}}
+  B.lamp(5.6,2.6,29,0xffcf8a,.7,8);B.lamp(22.6,2.6,29,0xffcf8a,.7,8);B.lamp(37,2.6,29,0xffcf8a,.7,8);
+  // ---- lobby: entrance doors, a reception desk, columns, sofas round a coffee table, a piano, palms, the lifts ----
+  K.win('x',0,1,8,12,.05,2.9,'nightB','brass',{panes:2,bar:0});K.win('x',0,1,2,6,1,3.6,'nightB','brass',{panes:2});K.win('x',0,1,14,18,1,3.6,'nightB','brass',{panes:2});
+  E.counter(1,2.8,8,5,.8,1.1,'marbleW','barFront');for(const z of [7,9]){E.officeChair(1,1.4,z,'leatherB');E.monitor(3,2.9,1.1,z,'monitor1')}B.prop(geo('Sphere',.05,10,6),'brass',3,1.14,10.2,{ns:true});
+  K.flat('z',0,1,8,1.9,2,1,'keys',.04);K.pic('z',0,1,3.4,2.4,.9,1.1,'portraitA','gold');K.pic('z',0,1,12.6,2.4,.9,1.1,'portraitA','gold');
+  for(const [x,z] of [[6.5,3.5],[13.5,3.5],[6.5,12.5],[13.5,12.5]])F.column(x,z,.3,4.5,'marbleW','gold');
+  F.rug(7.2,5.2,12.8,11.2,'rugA');F.sofa(0,10,6.2,2.4,'velvetR','cushionA');F.sofa(2,10,10.2,2.4,'velvetR','cushionA');F.armchair(1,7.9,8.2,'velvet','cushionB');F.armchair(3,12.1,8.2,'velvet','cushionB');
+  F.table(0,10,8.2,1.4,.7,.45,'walnut','brass',{spot:false});F.vase(10,.45,8.2,1,'potB');F.chandelier(10,8.2,4.5,3.3,.9,false);
+  F.piano(0,16.8,11.6);F.palm(1.2,1.2,1,'potW');F.palm(18.8,1.2,1,'potW');F.palm(18.7,14.7,1,'potW');F.plant(1,14.9,1.1,'potB','leaves2');
+  for(const p of [2.6,4.4])K.flat('x',16,-1,p,1.1,1.2,2.2,'lift',.03);K.flat('x',16,-1,14.6,3.7,4,.6,'hotelSign',.04);
+  B.box(15.9,0,3.4,17.1,.22,4.4,'brass');for(const [dx,dz] of [[-.55,-.45],[.55,-.45],[-.55,.45],[.55,.45]])B.box(16.5+dx-.02,.22,3.9+dz-.02,16.5+dx+.02,1.9,3.9+dz+.02,'brass',trim);B.box(15.9,1.88,3.4,17.1,1.92,4.4,'brass',trim);
+  B.box(16,.22,3.5,16.9,.92,3.9,'plasticR',{fit:'all'});B.box(16.1,.22,3.95,16.8,.62,4.3,'leatherB',{fit:'all'});B.box(16.15,.92,3.55,16.75,1.22,3.85,'plasticB',{fit:'all'});
+  // ---- bar: a long bar with stools (crouch behind it), shelves of bottles, a pool table (lie under it), armchairs ----
+  for(const p of [22.9,28.8]){const a=K.ag('x',16,-1,p,.45);F.unit(a.k,a.x,a.z,3.6,2.3,.45,'bottles','walnut')}
+  E.counter(2,25.5,13.2,8,.7,1.1,'walnut','barFront');for(let i=0;i<8;i++)F.stool(22+i,12.3,.75,'brass','leather');
+  F.table(0,26,6.5,2.5,1.4,.82,'felt','walnut',{th:.12,leg:.1,fit:1});B.box(24.75,.82,5.8,27.25,.9,5.88,'walnut',{solid:false});B.box(24.75,.82,7.12,27.25,.9,7.2,'walnut',{solid:false});
+  for(let i=0;i<6;i++)B.prop(geo('Sphere',.03,8,6),'ball'+(i%5),25.3+i*.25,.85,6.3+(i%2)*.4,{ns:true});
+  K.pic('z',20,1,12.6,1.7,.5,.5,'dart','black',.02);
+  for(const x of [22.5,29.5]){F.roundTable(x,3,.4,.6,'walnut','brass');F.armchair(0,x,1.4,'leather','leather');F.armchair(2,x,4.6,'leather','leather')}
+  {const a=K.ag('z',32,-1,11.4,.9);F.sofa(a.k,a.x,a.z,2.4,'velvetG','cushionB')}F.table(1,29.9,11.4,1.2,.6,.42,'walnut','brass',{spot:false});
+  for(const p of [21,27])K.win('x',0,1,p,p+3.6,1,2.8,'nightB','brass',{panes:2,cur:'velvetG',cw:.45});K.sconce('z',20,1,9.5,1.9,false);K.sconce('z',32,-1,3,1.9,false);
+  // ---- restaurant: round tables with cloths to the floor, chairs, a buffet, a host stand ----
+  for(const [x,z] of [[35.4,3.6],[40,3.6],[44.6,3.6],[35.4,9.6],[40,9.6],[44.4,10]]){F.roundTable(x,z,.6,.76,null,null,(x+z)%2<1?'cloth':'clothR');B.prop(geo('Cylinder',.05,.05,.25,8),'brass',x,.88,z,{ns:true});
+    F.chair(0,x,z-1.05,'walnut');F.chair(2,x,z+1.05,'walnut');F.chair(1,x-1.05,z,'walnut');F.chair(3,x+1.05,z,'walnut')}
+  {const a=K.ag('z',48,-1,9,.8);E.counter(a.k,a.x,a.z,5,.8,.9,'marbleW','barFront');for(let i=0;i<4;i++)B.box(a.x-.25,.9,6.8+i*1.15,a.x+.25,1.05,7.6+i*1.15,'steel')}
+  B.box(44.4,0,14.4,45,1.15,15,'walnut');B.box(44.35,1.15,14.35,45.05,1.18,15.05,'brass',trim);
+  for(const p of [33.6,41.6])K.win('x',0,1,p,p+3.6,1,2.8,'nightB','brass',{panes:2,cur:'velvetR',cw:.45});F.chandelier(40,6.6,3.4,2.6,.6,false);F.plant(47.2,.9,1,'potB','leaves2');F.plant(33,15.2,1,'potB');
+  K.pic('x',16,-1,36,2,1.4,.9,'landA','gold');K.pic('z',48,-1,2.4,2,.8,1,'portraitA','gold');
+  // ---- corridor: console tables with vases, sconces, pictures, an ice machine, a housekeeping trolley ----
+  for(const p of [3,11,19.5,35.4]){const a=K.ag('x',16,1,p,.4);F.table(a.k,a.x,a.z,1.2,.4,.8,'walnut','walnut',{spot:false});F.vase(a.x,.8,a.z,.8,'potC')}
+  for(const p of [6.5,15,28.5,39.5,46])K.pic('x',16,1,p,1.75,.8,.6,p%2?'landA':'artH','gold');
+  {const a=K.ag('z',48,-1,17.5,.7);B.at(a.k,a.x,a.z)(-.4,0,-.35,.4,1.5,.35,{all:'steel','+z':'vend2'},{fit:'+z'})}
+  B.box(30.6,.15,16.2,32,1,16.8,{all:'steel','+z':'linenW','-z':'linenW'},{fit:'+z-z'});B.box(30.62,1,16.25,31.3,1.2,16.75,'linenB',{fit:'all',solid:false});
+  // ---- housekeeping: shelves of towels, trolleys, laundry bags, a sink ----
+  for(const z of [21,24.6]){const a=K.ag('z',48,-1,z,.5);F.unit(a.k,a.x,a.z,2.2,2.1,.5,'towels','white')}
+  for(const x of [42.6,44.6]){B.box(x-.6,.15,22.2,x+.6,1,22.8,{all:'steel','+z':'linenW','-z':'linenW'},{fit:'+z-z'});B.box(x-.55,1,22.25,x+.55,1.15,22.75,'linenG',{fit:'all',solid:false})}
+  for(const [x,z,m] of [[41,25.8,'linenW'],[41.8,26.2,'linenB'],[42.6,25.9,'linenW']])B.prop(geo('Sphere',.42,12,8),m,x,.36,z,{s:[1,.85,1],col:[x-.36,0,z-.36,x+.36,.7,z+.36],soft:true});
+  {const a=K.ag('x',19,1,46.5,.6);B.at(a.k,a.x,a.z)(-.8,0,-.3,.8,.9,.3,'cabW');B.box(a.x-.3,.9,a.z-.2,a.x+.3,.95,a.z+.2,'steel',trim)}
+  // ---- laundry: washers and dryers, a folding table (lie under it), baskets, a line of sheets ----
+  for(let i=0;i<5;i++){const a=K.ag('x',36,-1,41+i*.8,.7);B.at(a.k,a.x,a.z)(-.38,0,-.35,.38,.9,.35,{all:'white','+z':'washer'},{fit:'+z'});B.at(a.k,a.x,a.z)(-.38,.9,-.35,.38,1.8,.35,{all:'white','+z':'washer'},{fit:'+z'})}
+  F.table(0,44,31,2.4,1,.9,'butcher','steel');B.box(43,.9,30.7,43.8,1.05,31.2,'linenW',{fit:'all',solid:false});
+  for(const [x,z] of [[47,28],[47.2,29.2]])B.prop(geo('Cylinder',.28,.24,.5,12),'wicker',x,.25,z,{col:[x-.28,0,z-.28,x+.28,.5,z+.28]});
+  F.line(40.6,28.2,40.6,33,2,[['linenW',1.4],['linenB',1.2],['linenW',1.5],['linenY',1.1]]);
+  return B.finish({
+    name:'Hotel Bellamy',short:'Hotel',bounds:[0,0,48,36],height:4.5,sky:'#141026',
+    light:{sky:0xfff0dc,ground:0x6a5a50,hemi:.45,sun:.2,sunColor:0xffe2c0,dir:[.3,1,-.2],amb:.1},
+    spawns:[[10,14.2],[6,17.5],[24,17.5],[40,17.5],[4.5,4.5],[16,7.5],[24,9.5],[30,8],[37.7,6.6],[42.3,12.6],[6,27],[13.2,28],[21,27.5],[30,27],[37,27.5],[44,25],[44,33]],
+    seek:[10,14.2],attract:[10,13.4,3.1],
+  });
+}
+// ---------- map 8: Riverside Leisure Centre ----------
+// A sports centre after the last class, 50 × 38 m: a 7 m sports hall with a court, bleachers (lie under them),
+// basketball hoops, a climbing wall and a badminton net; a gym of treadmills, bikes and weights; a dance studio;
+// the reception and café; and off the back corridor two changing rooms with lockers, showers and toilets,
+// the first aid room, the equipment store, the office and the plant room.
+function buildLeisure(){
+  const M=Object.assign({},commonMats(),everydayMats(),{
+    ext:{draw:(x,w,h)=>P.brick(x,w,h,['#8a5a44','#7f523d','#94634b'],'#c9bfae',91),tile:1.6},
+    hallPaint:{draw:(x,w,h)=>P.speckle(x,w,h,'#d9dde3',['#d3d7dd','#dfe3e9'],92,700),tile:2},
+    climb:{draw:(x,w,h)=>{P.speckle(x,w,h,'#8d99ae',['#8593a6','#95a1b6','#7d8a9e'],93,1500);const r=rng(94),c=['#ef476f','#ffd166','#06d6a0','#118ab2','#f4a261','#8338ec'];for(let i=0;i<46;i++){x.fillStyle=pick2(r,c);x.beginPath();x.ellipse(r()*w,r()*h,w*(.012+r()*.018),h*(.01+r()*.016),r()*3,0,7);x.fill()}},tile:2.5,rough:.8},
+    backboard:{draw:(x,w,h)=>{x.fillStyle='#f4f4f0';x.fillRect(0,0,w,h);x.strokeStyle='#c0392b';x.lineWidth=w*.03;x.strokeRect(w*.03,h*.04,w*.94,h*.92);x.strokeRect(w*.35,h*.45,w*.3,h*.38)},w:256,h:160,tile:0,rough:.3},
+    centreSign:{draw:(x,w,h)=>P.card(x,w,h,'#1d4e9e','#f4f1ea','RIVERSIDE LEISURE CENTRE'),w:1024,h:128,tile:0},
+    timetable:{draw:(x,w,h)=>P.card(x,w,h,'#f4f1ea','#1d3557','CLASSES',6),w:256,h:320,tile:0},
+    studioFloor:{draw:(x,w,h)=>P.planks(x,w,h,['#c99c66','#bf9260','#d3a670'],8,95),tile:1.2,rough:.45},
+    hazardY:{draw:(x,w,h)=>P.hazard(x,w,h,'#f1c453','#2a2730'),tile:.6},cabW:{draw:(x,w,h)=>P.panel(x,w,h,'#e9e4d8','#c9c2b4'),tile:.6,rough:.5},
+    glassW:{hex:'#cfe6ee',rough:.05,opacity:.28},net:{draw:(x,w,h)=>P.lattice(x,w,h,'rgba(0,0,0,0)','#f4f4f0'),tile:.4,rough:1,opacity:.75},
+    boiler:{hex:'#b23a3a',rough:.45},tank:{hex:'#5a7a8c',rough:.4},kitBag:{hex:'#2a5db0',rough:.8},kitBag2:{hex:'#d64545',rough:.8},
+    trophies:{draw:(x,w,h)=>P.goods(x,w,h,96,'#3b2315',3),tile:0},artS:{draw:(x,w,h)=>P.strokes(x,w,h,97),tile:0},
+  });
+  const B=new Builder(1010,M),F=furn(B),H=3.4,K=kit(B,{H,base:'trimG',casing:'trimW',DH:2.3}),E=everyday(B,F,K),W=K.wallX,Z=K.wallZ,T=K.T,trim={solid:false,ns:true};
+  const ext=h=>({w:'ext',base:null,crown:null,casing:null,h:h||H});
+  const hall={w:'hallPaint',lo:'paintN',lh:1.6,h:7,base:'paintN'},gym={w:'paintD'},stud={w:'paintP'},rec={w:'paintY',lo:'walnut',lh:1},cor={w:'paintB',lo:'paintN',lh:1.1,h:3},
+    chA={w:'tileB',lo:'tileW',lh:1.4,h:3,base:null},chB={w:'tileW',lo:'tileB',lh:1.4,h:3,base:null},aid={w:'paintW',h:3},sto={w:'blockWall',base:null,h:3},off={w:'paintG',h:3},plant={w:'blockWall',base:null,h:3,casing:'steel'};
+  // ---- shell and rooms ----
+  W(0,0,26,ext(7),hall);W(0,26,50,ext(),gym);
+  W(38,0,12,chA,ext(3));W(38,12,24,chB,ext(3));W(38,24,30,aid,ext(3));W(38,30,38,sto,ext(3));W(38,38,44,off,ext(3));W(38,44,50,plant,ext(3));
+  Z(0,0,24,ext(7),hall);Z(0,24,27,ext(3),cor);Z(0,27,38,ext(3),chA);
+  Z(50,0,13,gym,ext());Z(50,13,24,rec,ext());Z(50,24,27,cor,ext(3));Z(50,27,38,plant,ext(3));
+  Z(26,0,13,hall,gym,[[9,11]]);Z(26,13,24,hall,stud);W(24,0,26,hall,cor,[[4,6.4,2.6],[18,20.4,2.6]]);
+  W(13,26,38,gym,stud,[[31,32.4]]);W(13,38,50,gym,rec,[[43,45]]);Z(38,13,24,stud,rec,[[18,19.4]]);W(24,26,38,stud,cor,[[35,36.2]]);W(24,38,50,rec,cor,[[40,43,2.6]]);
+  W(27,0,12,cor,chA,[[9.5,10.5]]);W(27,12,24,cor,chB,[[21.5,22.5]]);W(27,24,30,cor,aid,[[25.5,26.5]]);W(27,30,38,cor,sto,[[33,35]]);W(27,38,44,cor,off,[[42,43]]);W(27,44,50,cor,plant,[[47,48]]);
+  Z(12,27,38,chA,chB);Z(24,27,38,chB,aid);Z(30,27,38,aid,sto);Z(38,27,38,sto,off);Z(44,27,38,off,plant);
+  const fl=K.floor,cl=K.ceil;
+  fl(0,0,26,24,'court');fl(26,0,50,13,'rubber');fl(26,13,38,24,'studioFloor');fl(38,13,50,24,'terraG');fl(0,24,50,27,'linoB');fl(0,27,24,38,'tileFloor');fl(24,27,30,38,'linoG');fl(30,27,38,38,'concrete');fl(38,27,44,38,'carpetG');fl(44,27,50,38,'concrete');
+  cl(0,0,26,24,7,'ceilConc');cl(26,0,50,13,H,'acoustic');cl(26,13,38,24,H,'acoustic');cl(38,13,50,24,H,'acoustic');cl(0,24,50,27,3,'acoustic');cl(0,27,24,38,3,'ceilWhite');cl(24,27,44,38,3,'acoustic');cl(44,27,50,38,3,'ceilConc');
+  // hall roof trusses and high-bay lights
+  for(const x of [4,9,13,17,22])B.box(x-.08,6.4,.12,x+.08,6.6,23.88,'steel',trim);for(const x of [6.5,13,19.5])for(const z of [6,18]){B.box(x-.3,6.2,z-.3,x+.3,6.4,z+.3,'steel',trim);B.box(x-.25,6.15,z-.25,x+.25,6.2,z+.25,'fluoro',trim)}
+  const panel=(x,z,h)=>B.box(x-.6,h-.07,z-.3,x+.6,h-.03,z+.3,'fluoro',trim);
+  for(const x of [30,36,42,47])for(const z of [4,9.5])panel(x,z,H);for(const [x,z] of [[29,18.5],[35,18.5],[41,16],[47,16],[44,21.5]])panel(x,z,H);for(const x of [4,12,20,28,36,44])panel(x,25.5,3);
+  for(const [x,z] of [[6,30],[6,35],[18,30],[18,35],[27,32.5],[34,32.5],[41,32.5],[47,32.5]])panel(x,z,3);
+  B.lamp(13,6,12,0xf4f8ff,1.4,20);B.lamp(38,2.9,6.5,0xf4f8ff,1,12);B.lamp(32,2.9,18.5,0xffd6e8,.9,9);B.lamp(44,2.9,18.5,0xfff4e0,.9,9);B.lamp(25,2.5,25.5,0xf4f8ff,.8,12);
+  B.lamp(6,2.5,32,0xf4f8ff,.8,8);B.lamp(18,2.5,32,0xf4f8ff,.8,8);B.lamp(34,2.5,32,0xfff4e0,.7,8);B.lamp(47,2.5,32,0xffb070,.7,7);
+  // ---- sports hall: bleachers, hoops, a climbing wall with crash mats, a badminton net, mats, a ball trolley ----
+  E.bleachers(1,3.6,12,12,4,'pine','steel');B.spot(2.2,8.5,2,0);B.spot(2.2,15.5,2,0);B.spot(47.5,23,1,0);B.spot(33.5,35.9,1,0);B.spot(45.2,33.8,1,0);
+  const hoop=(ax,c,dir,p)=>{K.slab(ax,c,dir,p-.9,p+.9,2.9,3.95,T+1,T+1.04,'backboard',{fit:K.faceOf(ax,dir),solid:false});K.slab(ax,c,dir,p-.1,p+.1,3.3,3.4,T,T+1,'steel',trim);K.slab(ax,c,dir,p-.4,p+.4,3.1,3.2,T,T+.04,'steel',trim);
+    const q=K.off(ax,c,dir,p,1.3);B.prop(geo('Torus',.23,.015,6,20),'plasticO',q[0],3.05,q[1],{rx:Math.PI/2,ns:true});B.prop(geo('Cylinder',.23,.15,.42,12,1,true),'net',q[0],2.84,q[1],{ns:true})};
+  hoop('x',0,1,13);hoop('x',24,-1,13);
+  K.flat('z',26,-1,18.5,3.6,9,7,'climb',.08);B.box(26-T-1.6,0,14.2,26-T,.3,22.8,'mat0',{fit:'+y'});B.box(26-T-1.6,.3,14.2,26-T,.32,22.8,'mat1',{solid:false,ns:true});
+  for(const [z,y] of [[15,1.2],[16.4,2.3],[17.7,3.4],[19.2,1.8],[20.6,2.9],[21.8,4.2],[18.1,5.1],[15.6,4.6]])B.prop(geo('Icosahedron',.11,0),['plasticR','plasticY','plasticG','plasticB'][Math.round(z+y)%4],26-T-.05,y,z,{s:[.6,1,1.2],ns:true});
+  K.flat('z',26,-1,6,5.3,3.2,1.6,'scoreboard',.06);K.flat('x',24,-1,8.5,4.6,6,.75,'centreSign',.04);
+  for(const x of [4.6,21.4]){B.prop(geo('Cylinder',.04,.04,1.55,8),'steel',x,.78,12,{col:[x-.05,0,11.95,x+.05,1.55,12.05]});B.box(x-.2,0,11.8,x+.2,.06,12.2,'steel')}B.box(4.6,.8,11.99,21.4,1.55,12.01,'net',{fit:'+z-z',solid:false,soft:true});
+  for(let i=0;i<5;i++)B.box(19.5,i*.18,1,22.5,i*.18+.18,2.6,'mat'+(i%3),{fit:'all'});for(let i=0;i<4;i++)B.box(23,i*.2,.6,24.8,i*.2+.2,3.4,'mat'+((i+1)%3),{fit:'all'});
+  {const x=21,z=21.2;B.box(x-.5,.15,z-.4,x+.5,1,z+.4,'wire',{fit:'all'});for(let i=0;i<6;i++)E.ball(x-.3+(i%3)*.3,z-.15+Math.floor(i/3)*.3,.12,'ball'+(i%5));B.box(x-.5,0,z-.4,x+.5,.15,z+.4,null,{noMesh:true,sm:'steel'})}
+  {const x=16.5,z=21.6;B.box(x-.6,0,z-.4,x+.6,1.1,z+.4,{all:'leatherB','+y':'leather'});B.box(x-.6,1.1,z-.4,x+.6,1.2,z+.4,'leather');B.box(x-.4,0,z-1.3,x+.4,.18,z-.7,'pine')}
+  for(let j=0;j<6;j++){B.box(1,.4+j*.14,22.6,1.5,.44+j*.14,23.1,'plasticB',{fit:'all'});B.box(1.7,.4+j*.14,22.6,2.2,.44+j*.14,23.1,'plasticR',{fit:'all'})}B.box(1,0,22.6,2.2,.44,23.1,null,{noMesh:true,sm:'plasticB'});
+  for(let i=0;i<5;i++)B.box(.2+T,.1,1+i*.12,.6+T,1.8,1.05+i*.12,'deskTop');for(const p of [8,18])K.win('x',0,1,p-2,p+2,4,6,'nightA','steel',{panes:3,bar:0});
+  // ---- gym: treadmills and bikes facing the windows, weights racks, dumbbells, benches (lie under), a mirror wall ----
+  for(let i=0;i<4;i++)E.treadmill(2,28.5+i*2,2.5);for(let i=0;i<3;i++)E.bike(2,37+i*1.5,2.5,'black');
+  for(const p of [28,33,38,43,47.5])K.win('x',0,1,p-1.8,p+1.8,1,2.7,'nightC','steel',{panes:2,bar:.5});
+  K.flat('z',50,-1,6.5,1.5,10.4,2.2,'mirror',.02);{const a=K.ag('z',50,-1,3.4,.6);E.rack(a.k,a.x,a.z,2.2)}{const a=K.ag('z',50,-1,8.4,.4);E.dumbbells(a.k,a.x,a.z,2.4)}{const a=K.ag('z',50,-1,11.4,.6);E.rack(a.k,a.x,a.z,1.8)}
+  E.gymBench(1,45.5,6.2,'leatherB');E.gymBench(1,45.5,9.6,'plasticR');for(const [x,z] of [[30,7.2],[32.2,7.2]]){B.at(1,x,z)(-1.1,0,-.25,1.1,.3,.25,'black');B.at(1,x,z)(.6,.3,-.2,1.05,.6,.2,'steel',{solid:false})}
+  B.box(27,0,9.6,33,.02,12.7,'mat2',{solid:false,ns:true});for(const [x,z,m] of [[34.2,11.4,'ball3'],[35,12,'ball1']])E.ball(x,z,.33,m);
+  B.prop(geo('Cylinder',.012,.012,.7,6),'steel',37,3.05,10.5,{ns:true});B.prop(geo('Cylinder',.2,.2,1.1,14),'leatherB',37,2.1,10.5,{col:[36.8,1.55,10.3,37.2,2.65,10.7]});
+  E.cooler(26.6,12.4);K.flat('x',13,-1,28.5,1.7,.9,.6,'poster2',.01);
+  // ---- dance studio: mirrors and a barre, an upright piano, a stereo, mats, balls, steps, stacked chairs ----
+  K.flat('z',26,1,18.5,1.5,9.6,2.2,'mirror',.02);B.box(26+T+.08,1.02,13.6,26+T+.12,1.06,23.4,'pine',trim);for(const z of [14.5,18.5,22.5])B.box(26+T,1,z-.02,26+T+.12,1.06,z+.02,'steel',trim);
+  {const a=K.ag('z',38,-1,15,.6);B.at(a.k,a.x,a.z)(-.75,0,-.3,.75,1.3,.3,'gloss');B.at(a.k,a.x,a.z)(-.72,.72,.3,.72,.78,.5,'pianoKeys',{fit:'+y',solid:false});B.at(a.k,a.x,a.z)(-.72,.4,.3,.72,.72,.34,'gloss',{solid:false});F.stool(a.x-.9,a.z,.5,'gloss','leatherB')}
+  {const a=K.ag('x',24,-1,29,.5);B.at(a.k,a.x,a.z)(-.6,0,-.25,.6,.8,.25,'walnut');for(const s of [-1,1])B.at(a.k,a.x,a.z)(s*.45-.15,.8,-.15,s*.45+.15,1.3,.15,'black')}
+  for(let i=0;i<6;i++)B.box(36.6,i*.05,21.6+i*.003,37.8,i*.05+.05,23.6,'mat'+(i%3),{fit:'all'});for(const [x,z,m] of [[36.9,20.5,'ball2'],[37.3,19.7,'ball4'],[36.6,19.4,'ball0']])E.ball(x,z,.33,m);
+  for(const [x,z] of [[30,17],[31.6,17],[33.2,17]])B.box(x-.45,0,z-.2,x+.45,.2,z+.2,'plasticB',{fit:'all'});for(let j=0;j<5;j++){B.box(27.2,.4+j*.14,22.8,27.7,.44+j*.14,23.3,'plasticG',{fit:'all'})}B.box(27.2,0,22.8,27.7,.44,23.3,null,{noMesh:true,sm:'plasticG'});
+  K.pic('x',13,1,35,1.9,1,.75,'artS','black',.03);F.plant(37.3,13.8,1,'potW');
+  // ---- reception and café: a desk, the entrance, vending machines, tables, a trophy cabinet, a noticeboard ----
+  K.win('z',50,-1,16,19,.05,2.7,'nightB','steel',{panes:2,bar:0});K.flat('x',24,-1,47.5,2.6,2.8,.45,'centreSign',.03);
+  E.counter(2,45,21.6,4,.8,1.1,'deskTop','paintT');E.officeChair(0,45,22.9,'black');E.monitor(0,45.3,1.1,21.3,'monitor1');B.box(43.4,1.1,21.3,43.9,1.4,21.7,'plasticB',{fit:'all',solid:false});
+  for(const x of [39.2,40.2])F.vending(0,x,13.55,x<40?'vend0':'vend1');
+  for(const z of [16.3,20.6]){F.roundTable(40.6,z,.45,.75,'deskTop','steel');E.schoolChair(1,39.8,z,'plasticY');E.schoolChair(3,41.4,z,'plasticY');E.schoolChair(0,40.6,z-.8,'plasticY')}
+  {const a=K.ag('z',50,-1,14.6,.5);B.at(a.k,a.x,a.z)(-.8,0,-.25,.8,.9,.25,'walnut');B.at(a.k,a.x,a.z)(-.8,.9,-.25,.8,2,.25,{all:'walnut','+z':'trophies'},{fit:'+z',clear:true})}
+  K.flat('z',38,1,22,1.7,1,1.2,'timetable',.02);F.plant(49.2,20,1.1,'potW','leaves2');F.plant(46.6,13.7,1,'potW');
+  // ---- corridor: benches, noticeboards, a water fountain, kit bags left behind ----
+  F.bench(0,15.5,24.5,1.6,.35,'pine','steel');F.bench(0,30.5,24.5,1.6,.35,'pine','steel');for(const p of [8,28])K.flat('x',24,1,p,1.7,1.4,1,'cork',.03);B.box(37.2,0,26.5,37.7,1,26.88,'steel');
+  for(const [x,z,m] of [[2,26.4,'kitBag'],[44.5,24.6,'kitBag2']])B.box(x-.35,0,z-.2,x+.35,.35,z+.2,m,{fit:'all'});E.cooler(.6,25.5);
+  // ---- changing rooms: lockers, a bench island with coat hooks, showers with curtains, basins, toilet cubicles ----
+  const changing=(x0,lk,bag)=>{
+    for(const p of [x0+2.4,x0+6]){const a=K.ag('x',38,-1,p,.5);E.lockers(a.k,a.x,a.z,8,lk)}
+    B.box(x0+3,.4,32.2,x0+8,.46,32.8,'pine');F.legs(B.at(0,x0+5.5,32.5),5,.6,.4,.06,.1,'steel');B.box(x0+3,.46,32.47,x0+8,1.9,32.53,'pine');for(let i=0;i<8;i++)B.box(x0+3.3+i*.62,1.6,32.2,x0+3.34+i*.62,1.64,32.8,'steel',trim);
+    B.spot(x0+5.5,32.5,2,-Math.PI/2);B.box(x0+3.6,.46,32.6,x0+4.2,.75,32.8,bag,{fit:'all'});
+    for(let i=0;i<4;i++){const z=28.2+i*1.05;E.shower(1,x0+T+.46,z,'shower');B.box(x0+T,0,z+.5,x0+1.05,2,z+.53,'tileW')}B.box(x0+T,0,27.64,x0+1.05,2,27.67,'tileW');
+    for(const p of [x0+3.1,x0+4.3])E.basin('x',27,1,p);
+    for(let i=0;i<2;i++){const z=34.3+i*1.8,x=x0+12-T-1.7;B.box(x,0,z,x0+12-T,2,z+.05,'cabW');E.toilet(3,x0+12-T-.35,z+.9);B.box(x,0,z+.05,x+.05,2,z+.15,'cabW');B.box(x,0,z+1.15,x+.05,2,z+1.75,'cabW');B.box(x-.75,.1,z+1.12,x,2,z+1.15,'cabW',{solid:false})}
+    B.box(x0+12-T-1.7,0,37.88-.05,x0+12-T,2,37.88,'cabW',{solid:false})};
+  changing(0,'lockersB','kitBag');changing(12,'lockersR','kitBag2');
+  // ---- first aid room: a couch on legs (lie under it), a cabinet, a screen, a chair ----
+  {const a=K.ag('z',30,-1,31,.7);F.table(a.k,a.x,a.z,1.9,.7,.7,'linenW','steel');B.box(a.x-.3,.7,a.z-.95,a.x+.3,.82,a.z-.6,'linenW',{fit:'all',solid:false})}
+  {const a=K.ag('x',38,-1,27,.45);F.unit(a.k,a.x,a.z,1.4,1.9,.45,'shelf2','white')}F.curtain(26.6,33.4,29.88,33.45,.15,2,'linenG');E.schoolChair(0,25.2,30.2,'plasticB');K.flat('z',24,1,31,1.7,.7,.5,'poster1',.01);
+  // ---- equipment store: mats, cages of balls, hurdles, cones, a folded trampoline ----
+  for(let i=0;i<6;i++)B.box(30.4,i*.2,33.4,32.4,i*.2+.2,37.6,'mat'+(i%3),{fit:'all'});
+  for(const [x,z] of [[36.8,28.2],[36.8,30]]){B.box(x-.5,0,z-.6,x+.5,1.3,z+.6,'wire',{fit:'all'});for(let i=0;i<4;i++)E.ball(x-.2+(i%2)*.4,z-.25+Math.floor(i/2)*.5,.12,'ball'+(i+1))}
+  for(let i=0;i<4;i++)B.box(35+i*.15,0,35.6,35.05+i*.15,.8,36.6,'plasticR',{solid:i===0});B.box(35,0,35.6,35.5,.8,36.6,null,{noMesh:true,sm:'plasticR'});
+  for(let i=0;i<5;i++)B.prop(geo('Cone',.15,.32,10),'plasticO',33+i*.35,.16,37.4,{col:[32.85+i*.35,0,37.25,33.15+i*.35,.32,37.55]});B.box(34.4,0,32,37.6,.2,33.6,'black');B.box(34.4,.2,32,37.6,.25,33.6,'plasticB',{solid:false});
+  // ---- office: a desk, a filing cabinet, a noticeboard, a kettle ----
+  {const a=K.ag('x',38,-1,40.5,.7);E.desk(a.k,a.x,a.z,1.6,.7,'deskTop','deskBody',{ped:1});E.officeChair((a.k+2)%4,a.x,a.z-.8,'black');E.monitor(a.k,a.x+.1,.74,a.z+.2,'monitor2')}
+  {const a=K.ag('z',44,-1,30,.5);F.unit(a.k,a.x,a.z,.9,1.3,.5,'filing','steel')}K.flat('z',38,1,31,1.7,1.4,1,'cork',.03);{const a=K.ag('z',38,1,35,.6);F.table(a.k,a.x,a.z,1.2,.6,.9,'deskTop','steel',{spot:false});B.box(a.x-.1,.9,a.z-.1,a.x+.1,1.15,a.z+.1,'steel')}F.plant(43.3,27.8,1,'potW');
+  // ---- plant room: a boiler, water tanks, pipes along the walls, a control panel ----
+  B.prop(geo('Cylinder',.75,.75,2.2,20),'boiler',47.6,1.1,34.8,{col:[46.95,0,34.15,48.25,2.2,35.45]});B.prop(geo('Cylinder',.55,.55,1.8,18),'tank',45.5,.9,36.6,{col:[44.95,0,36.05,46.05,1.8,37.15]});
+  B.prop(geo('Cylinder',.55,.55,1.8,18),'tank',48.9,.9,30.6,{col:[48.35,0,30.05,49.45,1.8,31.15]});for(const y of [2.4,2.6])B.box(44+T,y,37.7,50-T,y+.1,37.8,'steel',trim);for(const y of [2.3,2.55])B.box(49.7,y,27+T,49.8,y+.1,38-T,'boiler',trim);
+  {const a=K.ag('z',44,1,32,.4);B.at(a.k,a.x,a.z)(-.6,0,-.2,.6,1.9,.2,{all:'steel','+z':'monitor2'},{fit:'+z'})}K.flat('x',27,1,45.5,1.7,.7,.4,'hazardY',.01);
+  return B.finish({
+    name:'Riverside Leisure Centre',short:'Leisure',bounds:[0,0,50,38],height:7,sky:'#141026',
+    light:{sky:0xeef4ff,ground:0x6a6a70,hemi:.5,sun:.2,sunColor:0xfff2e0,dir:[.3,1,.25],amb:.1},
+    spawns:[[13,8],[8,4],[18,8],[11,18],[22,17],[31,5.2],[42,11.5],[32,20],[44,17.5],[5,25.5],[25,25.5],[45,25.5],[6,30],[18,30],[27,30.5],[33.5,30.5],[41,32.5],[46,30]],
+    seek:[13,8],attract:[13,16,3.1],
+  });
+}
+// ---------- map 9: Maple Court ----------
+// One floor of a block of flats at night, 46 × 31 m: four flats off a central landing (each with an open-plan
+// living room and kitchen, a bedroom, a children's room with bunk beds, a study, a hall and a bathroom with a
+// bath to lie in), the residents' laundry and the bike and bin store. The flats on the north side are mirror
+// images of the ones on the south, built from the same plan by flat().
+function buildFlats(){
+  const M=Object.assign({},commonMats(),everydayMats(),{
+    ext:{draw:(x,w,h)=>P.brick(x,w,h,['#a0522d','#954a28','#ab5a33'],'#d8cbb8',99),tile:1.6},
+    oak:{draw:(x,w,h)=>P.planks(x,w,h,['#b98a5a','#ad7f50','#c49464'],7,101),tile:1.2,rough:.55},
+    herrB:{draw:(x,w,h)=>P.herring(x,w,h,['#8a5a36','#7a4e2e','#966440'],102),tile:1.2,rough:.55},
+    corFloor:{draw:(x,w,h)=>P.carpet(x,w,h,'#4a3f5a','#c9a24a','#2f2840'),tile:1.2,rough:1},corPaper:{draw:(x,w,h)=>P.stripes(x,w,h,['#e8dcc0','#e0d2b2'],true),tile:.7},
+    wallA:{draw:(x,w,h)=>P.floral(x,w,h,'#e9efe6',['#8fbf9f','#e9c46a','#f4a261'],22,103,'#6a994e'),tile:.6},wallB:{draw:(x,w,h)=>P.stripes(x,w,h,['#f2e4d4','#e9d3bd'],true),tile:.5},
+    wallC:{draw:(x,w,h)=>P.dots(x,w,h,'#dfe8f1','#b8c9da',5,.12,true),tile:.5},wallD:{draw:(x,w,h)=>P.damask(x,w,h,'#3c4a3e','#4f6152','#5d7360'),tile:1},
+    tileK:{draw:(x,w,h)=>P.tiles(x,w,h,'#c8cfd2',['#f4f1ea','#ece8df'],6,104,2,true),tile:.6,rough:.3},tileK2:{draw:(x,w,h)=>P.tiles(x,w,h,'#b8c8d4',['#2a7f86','#24767d','#308a91'],6,105,2,true),tile:.6,rough:.3},
+    mail:{draw:(x,w,h)=>P.drawers(x,w,h,'#8d99ae',3,6,'#2a2730'),w:384,h:192,tile:0,rough:.35},lift:{draw:(x,w,h)=>{x.fillStyle='#b8bec6';x.fillRect(0,0,w,h);x.fillStyle='#8d99ae';x.fillRect(w*.49,0,w*.02,h)},tile:0,rough:.2},
+    stairs:{draw:(x,w,h)=>P.card(x,w,h,'#1e8449','#ffffff','STAIRS'),w:256,h:96,tile:0},flatSign:{draw:(x,w,h)=>P.card(x,w,h,'#2a2730','#f4f1ea','MAPLE COURT'),w:768,h:128,tile:0},
+    door:{draw:(x,w,h)=>P.panel(x,w,h,'#5a3620','#3b2315'),tile:0,rough:.5},tv:{draw:(x,w,h)=>P.landscape(x,w,h,106),w:384,h:256,tile:0,glow:'#ffffff',gi:.45},
+    artF:{draw:(x,w,h)=>P.art(x,w,h,2,107),tile:0},artG:{draw:(x,w,h)=>P.strokes(x,w,h,108),tile:0},landF:{draw:(x,w,h)=>P.landscape(x,w,h,109),w:384,h:256,tile:0},
+    kidsRug:{draw:(x,w,h)=>{P.checker(x,w,h,'#ef476f','#ffd166',6);x.fillStyle='#118ab2';x.beginPath();x.arc(w/2,h/2,w*.2,0,7);x.fill()},tile:0,rough:1},
+    quiltK:{draw:(x,w,h)=>P.quilt(x,w,h,['#ef476f','#ffd166','#06d6a0','#118ab2'],5,110),tile:0,rough:1},quiltD:{draw:(x,w,h)=>P.quilt(x,w,h,['#f4efe4','#9aa39a','#6b7d6b'],6,111),tile:0,rough:1},
+    cabW:{draw:(x,w,h)=>P.panel(x,w,h,'#e9e4d8','#c9c2b4'),tile:.6,rough:.5},cabG:{draw:(x,w,h)=>P.panel(x,w,h,'#5f7a68','#4a6352'),tile:.6,rough:.5},
+    plate:{draw:(x,w,h)=>P.card(x,w,h,'#c9a24a','#2a2730','FLAT'),w:128,h:64,tile:0},books:{draw:(x,w,h)=>P.books(x,w,h,112,'#e8e1d3'),tile:0},
+    beanA:{draw:(x,w,h)=>P.dots(x,w,h,'#ef476f','#ffd166',3,.18,true),tile:0,rough:1},beanB:{draw:(x,w,h)=>P.stripes(x,w,h,['#118ab2','#f4f1ea'],true),tile:0,rough:1},
+    bin:{hex:'#2f5a3f',rough:.6},bin2:{hex:'#2a4f7c',rough:.6},bikeF:{hex:'#c0392b',rough:.4},bikeF2:{hex:'#1d6fb8',rough:.4},
+  });
+  const B=new Builder(1111,M),F=furn(B),H=2.7,K=kit(B,{H,base:'trimW',casing:'trimW',DH:2.1}),E=everyday(B,F,K),W=K.wallX,Z=K.wallZ,T=K.T,trim={solid:false,ns:true};
+  const ext={w:'ext',base:null,crown:null,casing:null},cor={w:'corPaper',lo:'paintN',lh:1},laun={w:'tileW',base:null},bike={w:'blockWall',base:null};
+  const D=31; // north flats mirror z -> D - z
+  const sw=s=>s.replace(/[+-]z/g,f=>f==='+z'?'-z':'+z');
+  // A flat at x offset xo, mirrored when flip. Local plan (x 0..18, z 0..14; outside wall at z 0, the landing at z 14):
+  // living room and kitchen x 0..11 z 0..8, bedroom x 11..18 z 0..8, bathroom x 0..4.5 z 8..14, children's room
+  // x 4.5..9.5, hall x 9.5..13, study x 13..18.
+  const flat=(xo,flip,v,west)=>{
+    const X=x=>xo+x,Zz=z=>flip?D-z:z,zr=(a,b)=>[Math.min(Zz(a),Zz(b)),Math.max(Zz(a),Zz(b))],kk=k=>flip&&k%2===0?2-k:k;
+    const mDoors=ds=>ds&&ds.map(d=>[X(d[0]),X(d[1]),d[2]]),zDoors=ds=>ds&&ds.map(d=>{const r=zr(d[0],d[1]);return[r[0],r[1],d[2]]});
+    const wX=(z,x0,x1,lo,hi,ds)=>W(Zz(z),X(x0),X(x1),flip?hi:lo,flip?lo:hi,mDoors(ds)),wZ=(x,z0,z1,a,b,ds)=>{const r=zr(z0,z1);Z(X(x),r[0],r[1],a,b,zDoors(ds))};
+    const box=(x0,y0,z0,x1,y1,z1,m,o)=>{if(flip){if(m&&typeof m!=='string'){const mm={};for(const f in m)mm[sw(f)]=m[f];m=mm}if(o){o=Object.assign({},o);if(o.fit&&o.fit!=='all')o.fit=sw(o.fit);if(o.skip)o.skip=sw(o.skip)}}return B.box(X(x0),y0,Zz(z0),X(x1),y1,Zz(z1),m,o)};
+    const ag=(ax,c,dir,p,d)=>ax==='x'?K.ag('x',Zz(c),flip?-dir:dir,X(p),d):K.ag('z',X(c),dir,Zz(p),d);
+    const onW=(fn,ax,c,dir,p,...a)=>ax==='x'?fn('x',Zz(c),flip?-dir:dir,X(p),...a):fn('z',X(c),dir,Zz(p),...a);
+    const win=(c,dir,p0,p1,...a)=>K.win('x',Zz(c),flip?-dir:dir,X(p0),X(p1),...a);
+    const spot=(x,z,pose,yaw)=>B.spot(X(x),Zz(z),pose,flip?Math.PI-yaw:yaw),pt=(x,z)=>[X(x),Zz(z)];
+    const pal=[{L:'wallA',R:'wallB',S:'paintG',fl:'oak',rug:'rugA',q:'quiltD',sofa:'velvet',cush:'cushionA',kit:'tileK',cab:'cabW',art:'artF'},
+      {L:'wallC',R:'paintP',S:'wallD',fl:'herrB',rug:'kilim',q:'linenB',sofa:'mustard',cush:'cushionB',kit:'tileK2',cab:'cabG',art:'landF'},
+      {L:'paintY',R:'wallA',S:'paintB',fl:'herrB',rug:'rugC',q:'quiltD',sofa:'velvetG',cush:'cushionB',kit:'tileK',cab:'cabG',art:'artG'},
+      {L:'wallB',R:'wallC',S:'paintT',fl:'oak',rug:'rugB',q:'linenY',sofa:'leather',cush:'cushionA',kit:'tileK2',cab:'cabW',art:'artF'}][v];
+    const L={w:pal.L,lo:null},R={w:pal.R},bath={w:'tileW',base:null},kids={w:v%2?'kidsP':'kidsB'},hall={w:pal.L},st={w:pal.S};
+    // walls
+    wX(0,0,11,ext,L);wX(0,11,18,ext,R);
+    wX(8,0,4.5,L,bath,[[2,3]]);wX(8,4.5,9.5,L,kids);wX(8,9.5,11,L,hall,[[9.65,10.95]]);wX(8,11,13,R,hall,[[11.4,12.6]]);wX(8,13,18,R,st);
+    wZ(11,0,8,L,R);wZ(4.5,8,14,bath,kids);wZ(9.5,8,14,kids,hall,[[11,12]]);wZ(13,8,14,hall,st,[[10,11]]);
+    wX(14,0,4.5,bath,cor);wX(14,4.5,9.5,kids,cor);wX(14,9.5,13,hall,cor,[[10.6,11.8]]);wX(14,13,18,st,cor);
+    wZ(0,0,8,west[0],L);wZ(0,8,14,west[1],bath);
+    // floors and a ceiling
+    const fl=(x0,z0,x1,z1,m)=>{const r=zr(z0,z1);K.floor(X(x0),r[0],X(x1),r[1],m)};
+    fl(0,0,11,8,pal.fl);fl(11,0,18,8,'carpetG');fl(0,8,4.5,14,'tileFloor');fl(4.5,8,9.5,14,'carpetB');fl(9.5,8,13,14,pal.fl);fl(13,8,18,14,'carpetR');
+    {const r=zr(0,14);K.ceil(X(0),r[0],X(18),r[1],H,'ceilWhite')}
+    {const c=pt(5.5,4);B.prop(geo('Cylinder',.25,.3,.12,16),'shade',c[0],H-.1,c[1],{ns:true});B.lamp(c[0],H-.4,c[1],0xffd29a,.9,10)}
+    for(const [x,z] of [[14.5,4],[7,11],[11.2,11],[15.5,11],[2.2,11]]){const c=pt(x,z);B.prop(geo('Sphere',.16,12,8),'bulb',c[0],H-.18,c[1],{ns:true})}
+    // ---- living room: kitchen along the west wall, a dining table (lie under it), a sofa, a TV, a bookcase ----
+    box(T,0,1,T+.6,.9,6,{all:pal.cab,'+y':'butcher'},{fit:'+x'});box(T,.9,1,T+.62,.93,6,'butcher');box(T,1.5,1,T+.35,2.2,6,pal.cab);box(T,.93,1,T+.02,1.5,6,pal.kit,{solid:false});
+    box(T+.05,.93,2.2,T+.55,.96,2.9,'steel',trim);box(T+.6,.1,4,T+.62,.85,4.6,'oven',{solid:false});box(T+.1,.93,4.1,T+.5,.95,4.6,'black',trim);box(T,0,6.2,T+.75,1.85,7,{all:'fridge','+x':'fridgeF'},{fit:'+x'});
+    {const c=pt(3.4,3.6);F.table(kk(0),c[0],c[1],1.4,.9,.75,'walnut','walnut');for(const [dx,dz,k] of [[-.4,-.75,0],[.4,-.75,0],[-.4,.75,2],[.4,.75,2]]){const p=pt(3.4+dx,3.6+dz);F.chair(kk(k),p[0],p[1],'walnut','walnut',.9)}}
+    {const a=ag('x',8,-1,6.5,.9);F.sofa(a.k,a.x,a.z,2.3,pal.sofa,pal.cush)}{const c=pt(6.5,5.5);F.table(kk(0),c[0],c[1],1.1,.55,.42,'walnut','walnut',{spot:false})}
+    {const c=pt(6.5,4.5);F.rug(c[0]-1.6,Math.min(c[1]-1.4,c[1]+2.3),c[0]+1.6,Math.max(c[1]-1.4,c[1]+2.3),pal.rug)}
+    {const a=ag('x',0,1,6.5,.45);F.unit(a.k,a.x,a.z,1.8,.5,.45,'drawersD','walnut');onW(K.flat,'x',0,1,6.5,1.25,1.3,.75,'tv',.04)}
+    {const c=pt(9.6,4.6);F.armchair(kk(3),c[0],c[1],pal.sofa,pal.cush)}{const a=ag('z',11,-1,2.4,.35);F.unit(a.k,a.x,a.z,1.6,2,.35,v%2?'shelf1':'shelf2','walnut')}
+    {const c=pt(10.3,.75);F.plant(c[0],c[1],1,'potW')}{const c=pt(9,7.4);F.floorLamp(c[0],c[1],false)}onW(K.pic,'x',8,-1,6.5,1.75,1,.65,pal.art,'black',.03);
+    win(0,1,1.6,4.2,.9,2.2,'nightC','trimW',{panes:2,cur:'velvet'+['B','R','Y','G'][v],cw:.35});win(0,1,8.6,10.4,.9,2.2,'nightC','trimW',{panes:2});
+    // ---- bedroom: a bed on legs (lie under it), bedside tables, a wardrobe, a chest of drawers, a curtained window ----
+    {const a=ag('z',18,-1,4,2.1);F.bed(a.k,a.x,a.z,1.6,2.1,'walnut',pal.q,'linenW')}
+    for(const dz of [-1.15,1.15]){const a=ag('z',18,-1,4+dz,.45);F.unit(a.k,a.x,a.z,.45,.55,.45,'drawersD','walnut');F.tableLamp(a.x,.55,a.z,false)}
+    {const a=ag('x',8,-1,15.6,.6);E.wardrobe(a.k,a.x,a.z,1.6)}{const a=ag('x',0,1,12.6,.5);F.unit(a.k,a.x,a.z,1.1,.9,.5,'drawersW','white')}
+    win(0,1,14.3,16.6,.9,2.2,'nightC','trimW',{panes:2,cur:'linenW',cw:.35});onW(K.pic,'z',18,-1,4,1.8,.9,.6,'landF','gold',.04);
+    {const c=pt(12,6.6);B.prop(geo('Cylinder',.22,.18,.45,12),'wicker',c[0],.225,c[1],{col:[c[0]-.22,0,c[1]-.22,c[0]+.22,.45,c[1]+.22]})}
+    // ---- bathroom: a bath with rims (climb in and lie down), a toilet, a basin, a washing machine ----
+    {const z1=14-T,z0=z1-.8,x0=T,x1=T+1.75;box(x0,0,z0,x1,.12,z1,'porcelain');for(const b of [[x0,z0,x0+.08,z1],[x1-.08,z0,x1,z1],[x0,z0,x1,z0+.08],[x0,z1-.08,x1,z1]])box(b[0],.12,b[1],b[2],.56,b[3],'porcelain');
+      box(x0,.62,z0-.04,x1,2.05,z0-.01,'shower',{solid:false,soft:true,fit:'+z-z'})}
+    {const a=ag('z',0,1,10.2,.5);E.toilet(a.k,a.x,a.z)}onW(E.basin,'z',4.5,-1,10.6);{const a=ag('x',14,-1,3.6,.6);B.at(a.k,a.x,a.z)(-.3,0,-.3,.3,.85,.3,{all:'white','+z':'washer'},{fit:'+z'})}
+    // ---- children's room: bunk beds (lie under the bottom bunk, or climb up), a toy box, beanbags, a shelf ----
+    {const a=ag('z',4.5,1,12.6,2);E.bunk(a.k,a.x,a.z,'pine','quiltK',v%2?'linenY':'linenB')}{const c=pt(7,11);F.rug(c[0]-1.1,Math.min(c[1]-.8,c[1]+.8),c[0]+1.1,Math.max(c[1]-.8,c[1]+.8),'kidsRug')}
+    {const a=ag('x',8,1,8.6,.45);B.at(a.k,a.x,a.z)(-.4,0,-.22,.4,.45,.22,'plasticY');for(let i=0;i<3;i++){const c=pt(8.3+i*.25,8.7);B.prop(geo('Sphere',.09,10,6),'ball'+i,c[0],.54,c[1],{ns:true})}}
+    {const a=ag('x',8,1,6,.35);F.unit(a.k,a.x,a.z,1.2,1.2,.35,'shelf3','white')}{const c=pt(8.6,12.8);B.prop(geo('Sphere',.4,14,10),v%2?'beanA':'beanB',c[0],.28,c[1],{s:[1,.7,1],col:[c[0]-.36,0,c[1]-.36,c[0]+.36,.56,c[1]+.36]})}
+    // ---- hall: coats you can stand in, a shoe cabinet, a mirror ----
+    for(let i=0;i<4;i++){const r=zr(11.5+i*.55,11.9+i*.55);F.curtain(X(13-T-.42),r[0],X(13-T-.06),r[1],.55+(i%2)*.25,1.75,['linenG','velvetB','mustard','velvetR'][(i+v)%4])}B.box(X(13-T-.3),1.75,zr(11.4,13.7)[0],X(13-T-.26),1.79,zr(11.4,13.7)[1],'walnut',trim);{const a=ag('z',9.5,1,9,.35);F.unit(a.k,a.x,a.z,.9,.9,.35,'drawersW','white')}onW(K.flat,'z',9.5,1,9,1.6,.5,.7,'mirror',.02);
+    // ---- study: a desk with a computer, bookshelves, a sofa bed or a guest bed, moving boxes ----
+    {const a=ag('z',18,-1,11.4,.7);E.desk(a.k,a.x,a.z,1.4,.7,'deskTop','deskBody',{ped:1});E.monitor(a.k,a.x,.74,a.z,'monitor'+(v%3));const c=pt(16.4,11.4);E.officeChair(kk(1),c[0],c[1],'black')}
+    {const a=ag('x',14,-1,14.8,.35);F.unit(a.k,a.x,a.z,2.6,2.1,.35,'books','walnut')}
+    if(v%2){const a=ag('x',8,1,15.5,2);F.bed(a.k,a.x,a.z,.9,2,'pine','linenG','linenW')}else{const a=ag('x',8,1,15.5,.9);F.sofa(a.k,a.x,a.z,2,'velvetB','cushionB')}
+    {const c=pt(13.9,9.1);F.boxes(c[0],c[1],[[0,0,.5,.4,.4,0,'box'],[0,0,.45,.35,.35,.4,'box2']])}
+    // landing outside: the flat's door number, a doormat
+    onW(K.flat,'x',14,1,10.2,1.5,.2,.14,'plate',.02);{const r=zr(14+T,14+T+.6);B.box(X(10.6),0,r[0],X(11.8),.012,r[1],'rubber',{solid:false,ns:true})}
+    return{east:[R,st]};
+  };
+  // ---- shell: the landing, the laundry, the bike store ----
+  const a=flat(0,false,0,[ext,ext]),b=flat(18,false,1,[a.east[0],a.east[1]]),c=flat(0,true,2,[ext,ext]),d=flat(18,true,3,[c.east[0],c.east[1]]);
+  Z(36,0,8,b.east[0],laun);Z(36,8,14,b.east[1],laun);Z(36,23,31,d.east[0],bike);Z(36,17,23,d.east[1],bike);
+  W(0,36,46,ext,laun);W(14,36,46,laun,cor,[[40,41.5]]);W(17,36,46,cor,bike,[[38.5,40]]);W(31,36,46,bike,ext);Z(46,0,14,laun,ext);Z(46,14,17,cor,ext);Z(46,17,31,bike,ext);Z(0,14,17,ext,cor);
+  K.floor(0,14,46,17,'corFloor');K.floor(36,0,46,14,'linoB');K.floor(36,17,46,31,'concrete');K.ceil(0,14,46,17,H,'ceilWhite');K.ceil(36,0,46,14,H,'acoustic');K.ceil(36,17,46,31,H,'ceilConc');
+  for(const x of [5,13,21,29,37,43])B.box(x-.25,H-.05,15.25,x+.25,H-.02,15.75,'fluoro',trim);
+  B.lamp(12,2.3,15.5,0xfff4e0,.8,11);B.lamp(32,2.3,15.5,0xfff4e0,.8,11);B.lamp(41,2.3,7,0xf4f8ff,.8,9);B.lamp(41,2.3,24,0xf4f8ff,.7,9);
+  // landing: lifts, the stairs door, letterboxes, a pram and a bike left out, plants, a bench
+  for(const p of [15,16.1])K.flat('z',46,-1,p,1.05,.9,2.1,'lift',.03);K.flat('x',17,-1,44.2,1.05,1,2.1,'door',.04);K.flat('x',17,-1,44.2,2.35,.7,.26,'stairs',.02);
+  K.flat('x',14,1,34.2,1.3,1.5,.75,'mail',.06);K.flat('x',17,-1,9,1.9,1.2,.25,'flatSign',.02);F.plant(.7,16.3,1,'potW');F.plant(35.4,14.7,.9,'potB');F.bench(0,24,16.6,1.4,.35,'walnut','black');
+  {const x=33.4,z=16.4;B.box(x-.3,.25,z-.3,x+.3,.85,z+.25,'velvetB',{fit:'all'});B.box(x-.3,0,z-.3,x+.3,.25,z+.25,null,{noMesh:true,sm:'black'});B.prop(geo('Torus',.12,.02,6,14),'black',x-.28,.12,z,{ry:Math.PI/2,ns:true});B.prop(geo('Torus',.12,.02,6,14),'black',x+.28,.12,z,{ry:Math.PI/2,ns:true})}
+  K.pic('x',14,1,6,1.6,.8,.6,'landF','gold',.03);K.pic('x',17,-1,22,1.6,.8,.6,'artG','gold',.03);K.pic('x',14,1,27,1.6,.8,.6,'artF','gold',.03);
+  // laundry: washers and dryers, a folding table (lie under it), chairs, a drying line, baskets
+  for(let i=0;i<5;i++){const a=K.ag('z',46,-1,2+i*.8,.7);B.at(a.k,a.x,a.z)(-.38,0,-.35,.38,.9,.35,{all:'white','+z':'washer'},{fit:'+z'});B.at(a.k,a.x,a.z)(-.38,.9,-.35,.38,1.8,.35,{all:'white','+z':'washer'},{fit:'+z'})}
+  F.table(0,41,8,2.2,1,.85,'butcher','steel');for(const x of [38,39])E.schoolChair(0,x,4,'plasticB');F.line(37,11.8,44,11.8,1.9,[['linenW',1.2],['linenB',1],['linenY',1.3],null,['linenG',1.1]]);
+  for(const [x,z] of [[37,1],[37.7,1.2]])B.prop(geo('Cylinder',.26,.22,.45,12),'wicker',x,.225,z,{col:[x-.26,0,z-.26,x+.26,.45,z+.26]});{const a=K.ag('x',0,1,42.5,.6);B.at(a.k,a.x,a.z)(-.6,0,-.3,.6,.9,.3,'cabW');B.box(a.x-.25,.9,a.z-.2,a.x+.25,.95,a.z+.2,'steel',trim)}K.flat('z',36,1,7,1.6,1.2,.9,'cork',.03);
+  // bike and bin store: bikes on racks, wheelie bins, storage cages, stacked garden chairs
+  for(let i=0;i<5;i++){const z=18.4+i*.9,x=37.4,m=i%2?'bikeF':'bikeF2';for(const dx of [-.45,.45])B.prop(geo('Torus',.33,.03,6,18),'black',x+dx,.35,z,{ns:true});B.box(x-.45,.35,z-.02,x+.45,.75,z+.02,m,trim);B.box(x-.05,.75,z-.12,x+.05,.82,z+.12,'leatherB',trim);B.box(x-.75,0,z-.15,x+.75,.85,z+.15,null,{noMesh:true,sm:m})}
+  for(let i=0;i<4;i++){const x=40.2+i*1,z=30.3;B.box(x-.35,0,z-.4,x+.35,1.05,z+.35,i%2?'bin':'bin2');B.box(x-.38,1.05,z-.45,x+.38,1.12,z+.38,i%2?'bin':'bin2',{solid:false})}
+  for(const z of [21,24.2]){B.box(43.6,0,z-1.6,45.88,2.2,z+1.6,'wire',{fit:'all',solid:false});B.box(44,0,z-1.2,45.5,.9,z+.6,'box',{fit:'all'});B.box(44.2,.9,z-.9,45.2,1.3,z,'box2',{fit:'all'});B.box(43.6,0,z-1.6,43.65,2.2,z+1.6,null,{noMesh:true,sm:'wire'})}
+  for(let j=0;j<5;j++)B.box(40,.4+j*.12,26.6,40.6,.44+j*.12,27.2,'plasticG',{fit:'all'});B.box(40,0,26.6,40.6,.44,27.2,null,{noMesh:true,sm:'plasticG'});
+  return B.finish({
+    name:'Maple Court',short:'Flats',bounds:[0,0,46,31],height:H,sky:'#141026',
+    light:{sky:0xfff0dc,ground:0x6a5a50,hemi:.5,sun:.2,sunColor:0xffe2c0,dir:[.3,1,.2],amb:.1},
+    spawns:[[24,15.5],[6,15.5],[16,15.5],[30,15.5],[42,15.5],[4.8,6.3],[22.8,6.3],[4.8,24.7],[22.8,24.7],[14,5.6],[32,5.6],[14,25.4],[32,25.4],[11.2,11.5],[29.2,19.5],[41,4],[40,22]],
+    seek:[24,15.5],attract:[6.5,7,3.1],
+  });
+}
+// ===NEWMAPS-END===
+const MAPS=[{name:'Hollyhock Manor',short:'Manor',build:buildManor},{name:'Marlowe Museum',short:'Museum',build:buildMuseum},{name:'Kirinoya Inn',short:'Inn',build:buildRyokan},{name:'Birchwood High',short:'School',build:buildSchool},{name:'Larkspur & Co',short:'Office',build:buildOffice},{name:'Greenleaf Market',short:'Market',build:buildMarket},{name:'Hotel Bellamy',short:'Hotel',build:buildHotel},{name:'Riverside Leisure Centre',short:'Leisure',build:buildLeisure},{name:'Maple Court',short:'Flats',build:buildFlats}];
 
 const lampLights=[];
 function loadMap(i){
@@ -2472,38 +3295,118 @@ function circles(e,pose,flat,yaw,out){
   return{r:f.r*Math.max(s[0],s[2]),h:f.h*s[1]};
 }
 function heightOf(e){return footOf(e,e.pose,e.flat).h*SIZES[e.size].s[1]}
-function pushOut(e,cs,r,h){
-  let moved=false;const list=near(cs,r+.35);
-  for(let it=0;it<4;it++){let any=false;
+// the height of the smallest lying body (the Petite Block, about .15 m): a gap under furniture lower than this is
+// filled in when the map is built (Builder.finish)
+function minGap(){let g=9;for(const f of FOOT)for(const s of SIZES)g=Math.min(g,f[2].h*s.s[1]);return g}
+// How high a body can step: a standing body climbs stairs and low furniture (STEP), a crouching one less, a lying one
+// only a rug or a sill. Anything taller is a wall to it.
+function stepOf(h){return Math.min(STEP,h*.5)}
+// Can the body stand on top of box b (feet at b.y1) without any other solid cutting through it?
+function roomAbove(e,cs,r,h,b,list){
+  const y0=b.y1+.02,y1=b.y1+h-.02;
+  for(const o of list){if(o===b||o.y0>=y1||o.y1<=y0)continue;for(const c of cs){const cx=clamp(c[0],o.x0,o.x1),cz=clamp(c[1],o.z0,o.z1);if((c[0]-cx)**2+(c[1]-cz)**2<r*r)return false}}
+  return true;
+}
+// Does box b block a body whose feet are at e.pos.y? Boxes below the feet or above the head don't; a low box is a step
+// the body walks onto, unless there is no room to stand on it (a chair seat over its legs, a bed frame under its
+// quilt), when it is solid down to the floor.
+function blocks(e,cs,r,h,b,list){
+  if(b.y0>=e.pos.y+h-.01||b.y1<=e.pos.y+.001)return false; // a centimetre's give overhead, so a body that just fits under a table isn't stuck in its top
+  if(b.y1<=e.pos.y+stepOf(h))return !roomAbove(e,cs,r,h,b,list);
+  return true;
+}
+// Push the body's circles out of every box they overlap. sx, sz: where the body stood before this move (its circles
+// were outside everything there), so a circle that has gone right through a thin wall is pushed back out the face it
+// came in through, never out the far side. Returns true if something still overlaps after the passes (wedged).
+function pushOut(e,cs,r,h,sx,sz){
+  const list=near(cs,r+.35);let any=false;
+  if(sx==null){sx=e.pos.x;sz=e.pos.z}
+  for(let it=0;it<6;it++){any=false;
     for(const b of list){
-      if(b.y1<=e.pos.y+STEP||b.y0>=e.pos.y+h)continue;
+      if(!blocks(e,cs,r,h,b,list))continue;
       for(const c of cs){
         const cx=clamp(c[0],b.x0,b.x1),cz=clamp(c[1],b.z0,b.z1),dx=c[0]-cx,dz=c[1]-cz,d2=dx*dx+dz*dz;if(d2>=r*r)continue;
         let px=0,pz=0;
-        if(d2>1e-9){const d=Math.sqrt(d2);px=dx/d*(r-d);pz=dz/d*(r-d)}
+        const ox=c[0]-(e.pos.x-sx),oz=c[1]-(e.pos.z-sz);
+        const outX=ox<=b.x0-r+.002||ox>=b.x1+r-.002,outZ=oz<=b.z0-r+.002||oz>=b.z1+r-.002;
+        const toX=ox<(b.x0+b.x1)/2?b.x0-r-c[0]:b.x1+r-c[0],toZ=oz<(b.z0+b.z1)/2?b.z0-r-c[1]:b.z1+r-c[1];
+        if(outX&&outZ){if(Math.abs(toX)<=Math.abs(toZ))px=toX;else pz=toZ}
+        else if(outX)px=toX;else if(outZ)pz=toZ;
+        else if(d2>1e-9){const d=Math.sqrt(d2);px=dx/d*(r-d);pz=dz/d*(r-d)}
         else{const l=c[0]-b.x0+r,ri=b.x1-c[0]+r,f=c[1]-b.z0+r,bk=b.z1-c[1]+r,m=Math.min(l,ri,f,bk);if(m===l)px=-l;else if(m===ri)px=ri;else if(m===f)pz=-f;else pz=bk}
-        e.pos.x+=px;e.pos.z+=pz;for(const o of cs){o[0]+=px;o[1]+=pz}any=moved=true;
+        e.pos.x+=px;e.pos.z+=pz;for(const o of cs){o[0]+=px;o[1]+=pz}any=true;
       }
     }
     if(!any)break;
   }
-  return moved;
+  return any;
 }
-function groundAt(e,cs,r){let g=-20;for(const b of near(cs,r)){if(b.y1>e.pos.y+STEP+.02||b.y1<=g)continue;for(const c of cs){const cx=clamp(c[0],b.x0,b.x1),cz=clamp(c[1],b.z0,b.z1);if((c[0]-cx)**2+(c[1]-cz)**2<(r*.7)**2){g=b.y1;break}}}return g}
-function overlapping(e){const cs=[],f=circles(e,e.pose,e.flat,e.yaw,cs);for(const b of near(cs,f.r)){if(b.y1<=e.pos.y+STEP||b.y0>=e.pos.y+f.h)continue;for(const c of cs){const cx=clamp(c[0],b.x0,b.x1),cz=clamp(c[1],b.z0,b.z1);if((c[0]-cx)**2+(c[1]-cz)**2<(f.r-.03)**2)return true}}return false}
+// does anything solid block the body where it stands (tolerance tol metres)
+function blockedAt(e,cs,r,h,tol){const rr=(r-(tol||0))**2,list=near(cs,r);for(const b of list){if(!blocks(e,cs,r,h,b,list))continue;for(const c of cs){const cx=clamp(c[0],b.x0,b.x1),cz=clamp(c[1],b.z0,b.z1);if((c[0]-cx)**2+(c[1]-cz)**2<rr)return true}}return false}
+// the floor under the body: the highest top within reach (a step up, or anything passed on the way down from oy) that
+// the body can stand on
+function groundAt(e,cs,r,h,oy){
+  if(h==null)h=heightOf(e);if(oy==null)oy=e.pos.y;
+  const list=near(cs,r+.35),top=Math.max(oy,e.pos.y)+stepOf(h)+.02;let g=-20; // tops a step above where the feet were count too: the sideways move treated them as steps
+  for(const b of list){
+    if(b.y1>top||b.y1<=g)continue;let on=false;
+    for(const c of cs){const cx=clamp(c[0],b.x0,b.x1),cz=clamp(c[1],b.z0,b.z1);if((c[0]-cx)**2+(c[1]-cz)**2<(r*.7)**2){on=true;break}}
+    if(!on)continue;
+    if(b.y1>oy+.001&&!roomAbove(e,cs,r,h,b,list))continue; // a step up needs room to stand on it; the floor under us always counts
+    g=b.y1;
+  }
+  return g;
+}
+// is the body's footprint inside a box it stands in (feet in a step it would be lifted onto): a pose change or turn
+// mustn't leave it there
+function insideLow(e,cs,h){for(const b of near(cs,.05)){if(b.y0>=e.pos.y+h-.01||b.y1<=e.pos.y+.05)continue;for(const c of cs){if(c[0]>b.x0&&c[0]<b.x1&&c[1]>b.z0&&c[1]<b.z1)return true}}return false}
+function overlapping(e){const cs=[],f=circles(e,e.pose,e.flat,e.yaw,cs);return blockedAt(e,cs,f.r,f.h,.01)||insideLow(e,cs,f.h)}
 const _cs=[];
+// A body that finds itself inside something (it grew, or was put there) moves to the nearest free spot that isn't
+// across a wall from it, instead of being shoved about by pushOut, which could leave it on the far side of a wall.
+function wallBetween(ax,az,bx,bz,y0,y1){
+  const dx=bx-ax,dz=bz-az;
+  for(const b of solidsIn(Math.min(ax,bx),Math.min(az,bz),Math.max(ax,bx),Math.max(az,bz))){if(!b.wall||b.y0>=y1||b.y1<=y0)continue;
+    let t0=0,t1=1;const sl=(p,d,lo,hi)=>{if(Math.abs(d)<1e-9)return p>lo&&p<hi;let u=(lo-p)/d,v=(hi-p)/d;if(u>v){const q=u;u=v;v=q}t0=Math.max(t0,u);t1=Math.min(t1,v);return t0<t1};
+    if(sl(ax,dx,b.x0,b.x1)&&sl(az,dz,b.z0,b.z1))return true}
+  return false;
+}
+function freeSpot(e,h){
+  const x0=e.pos.x,z0=e.pos.z,cs=[];
+  for(let rad=.05;rad<=3;rad+=rad<1?.05:.1)for(let k=0;k<16;k++){const a=k/16*Math.PI*2;e.pos.x=x0+Math.sin(a)*rad;e.pos.z=z0+Math.cos(a)*rad;
+    const f=circles(e,e.pose,e.flat,e.yaw,cs);if(blockedAt(e,cs,f.r,f.h,.005)||wallBetween(x0,z0,e.pos.x,e.pos.z,e.pos.y+.02,e.pos.y+h))continue;return true}
+  e.pos.x=x0;e.pos.z=z0;return false;
+}
 function moveEnt(e,dt){
   if(!MAP)return;
   if(e.wall){e.vel.set(0,0,0);return}
   const oy=e.pos.y;
-  e.pos.x+=e.vel.x*dt;e.pos.z+=e.vel.z*dt;
-  let f=circles(e,e.pose,e.flat,e.yaw,_cs);pushOut(e,_cs,f.r,f.h);
-  if(e.isMe&&G.role==='seeker'){for(const o of ents.values()){if(o===e||!o.av.root.visible||roleOf(o.id)!=='hider')continue;const dx=e.pos.x-o.pos.x,dz=e.pos.z-o.pos.z,d=Math.hypot(dx,dz),rr=f.r+.25;if(d<rr&&d>1e-4&&Math.abs(e.pos.y-o.pos.y)<1.5){e.pos.x+=dx/d*(rr-d);e.pos.z+=dz/d*(rr-d)}}}
-  const bd=MAP.bounds;e.pos.x=clamp(e.pos.x,bd[0]+.25,bd[2]-.25);e.pos.z=clamp(e.pos.z,bd[1]+.25,bd[3]-.25);
+  let f=circles(e,e.pose,e.flat,e.yaw,_cs);
+  // the move is cut into steps shorter than the body's radius, so a fast body can't jump a thin wall in one go; a step
+  // that can't be resolved (wedged between two things) is taken along one axis only, or not at all
+  const dx=e.vel.x*dt,dz=e.vel.z*dt,dist=Math.hypot(dx,dz),n=Math.min(8,Math.max(1,Math.ceil(dist/Math.min(.06,f.r*.9))));
+  let startOk=!blockedAt(e,_cs,f.r,f.h,.005);const bd=MAP.bounds;
+  if(!startOk&&freeSpot(e,f.h)){startOk=true;f=circles(e,e.pose,e.flat,e.yaw,_cs)}
+  const x0=e.pos.x,z0=e.pos.z,h0=f.h;
+  for(let i=0;i<n;i++){
+    const sx=e.pos.x,sz=e.pos.z;
+    e.pos.x=clamp(e.pos.x+dx/n,bd[0]+.25,bd[2]-.25);e.pos.z=clamp(e.pos.z+dz/n,bd[1]+.25,bd[3]-.25);f=circles(e,e.pose,e.flat,e.yaw,_cs);
+    let wedged=pushOut(e,_cs,f.r,f.h,sx,sz);
+    if(wedged&&startOk){
+      e.pos.x=sx+dx/n;e.pos.z=sz;f=circles(e,e.pose,e.flat,e.yaw,_cs);wedged=pushOut(e,_cs,f.r,f.h,sx,sz);
+      if(wedged){e.pos.x=sx;e.pos.z=sz+dz/n;f=circles(e,e.pose,e.flat,e.yaw,_cs);wedged=pushOut(e,_cs,f.r,f.h,sx,sz);
+        if(wedged){e.pos.x=sx;e.pos.z=sz;f=circles(e,e.pose,e.flat,e.yaw,_cs);break}}
+    }
+  }
+  if(e.isMe&&G.role==='seeker'){let pushed=false;for(const o of ents.values()){if(o===e||!o.av.root.visible||roleOf(o.id)!=='hider')continue;const dx=e.pos.x-o.pos.x,dz=e.pos.z-o.pos.z,d=Math.hypot(dx,dz),rr=f.r+.25;if(d<rr&&d>1e-4&&Math.abs(e.pos.y-o.pos.y)<1.5){e.pos.x+=dx/d*(rr-d);e.pos.z+=dz/d*(rr-d);pushed=true}}
+    if(pushed){f=circles(e,e.pose,e.flat,e.yaw,_cs);pushOut(e,_cs,f.r,f.h)}}
+  e.pos.x=clamp(e.pos.x,bd[0]+.25,bd[2]-.25);e.pos.z=clamp(e.pos.z,bd[1]+.25,bd[3]-.25);
+  // never end a move on the far side of a wall (only possible when a stuck body was shoved about)
+  if(!startOk&&wallBetween(x0,z0,e.pos.x,e.pos.z,e.pos.y+.02,e.pos.y+h0)){e.pos.x=x0;e.pos.z=z0}
   f=circles(e,e.pose,e.flat,e.yaw,_cs);
   e.vel.y-=GRAV*dt;e.pos.y+=e.vel.y*dt;
   if(e.vel.y>0){for(const b of near(_cs,f.r)){if(b.y0<oy+f.h-.05||b.y0>e.pos.y+f.h)continue;for(const c of _cs){const cx=clamp(c[0],b.x0,b.x1),cz=clamp(c[1],b.z0,b.z1);if((c[0]-cx)**2+(c[1]-cz)**2<(f.r*.7)**2){e.pos.y=b.y0-f.h;e.vel.y=0;break}}}}
-  const g=groundAt(e,_cs,f.r);
+  const g=groundAt(e,_cs,f.r,f.h,oy);
   if(e.pos.y<=g||(e.onGround&&e.vel.y<=0&&e.pos.y-g<.3)){e.pos.y=g;e.vel.y=0;e.onGround=true}else e.onGround=false;
   if(e.pos.y<-5){e.pos.y=1;e.vel.y=0}
 }
@@ -2629,6 +3532,16 @@ function hidersLeft(rs){return rs.pl.filter(u=>roleOf(u,rs)==='hider'&&present(u
 function seekersLeft(rs){return rs.pl.concat(rs.sk).filter((u,i,a)=>a.indexOf(u)===i&&roleOf(u,rs)==='seeker'&&present(u))}
 
 const SET_DEF={mode:'classic',map:-1,hide:60,seek:180,sk:0,tn:30};
+// ---------- daily map rotation ----------
+// Online rooms play three maps a day, picked from the date (the day number, counted from midnight US Eastern standard time, seeds a shuffle of every map and the
+// first three are kept), and take turns every 15 minutes: slot = floor(now / 15 min) % 3. Everyone works it out
+// from the shared server clock (Net.now), and the host publishes the result as rs.map; a round that has started
+// finishes on its map and the next round (or the lobby) picks up the new one.
+const ROT_MS=15*60*1000,ROT_DAY=864e5,DAY_SHIFT=5*36e5;   // days start at midnight US Eastern (standard time; 1 am in summer)
+function dayMaps(t){const d=Math.floor((t-DAY_SHIFT)/ROT_DAY),r=rng(d*7919+104729),a=MAPS.map((m,i)=>i);for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));const q=a[i];a[i]=a[j];a[j]=q}return a.slice(0,3)}
+function rotMap(t){return dayMaps(t)[Math.floor(t/ROT_MS)%3]}
+function rotNext(t){const at=(Math.floor(t/ROT_MS)+1)*ROT_MS;return{at,map:rotMap(at)}}
+function mmss(sec){sec=Math.max(0,Math.ceil(sec));return Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0')}
 // round settings rebuilt from known fields as plain numbers in sane ranges (they come from saved settings or the host)
 function cleanSet(s){
   s=isObj(s)?s:{};const n=(k,a,b)=>Math.round(numIn(s[k],a,b,SET_DEF[k])),tn=n('tn',0,120);
@@ -2642,7 +3555,7 @@ function newRound(prev){
   const n=set.sk|0?Math.min(set.sk|0,ids.length-1):(ids.length>=5?2:1);
   const order=ids.slice().sort((a,b)=>((tn[a]||0)-(tn[b]||0))||((hashStr(a+prev.id)%997)-(hashStr(b+prev.id)%997)));
   const sk=order.slice(0,Math.max(1,n));for(const u of sk)tn[u]=(tn[u]||0)+1;
-  const map=set.map>=0?set.map:(prev.ph==='lobby'&&prev.id===0?prev.map:((prev.map|0)+1)%MAPS.length);
+  const map=set.map>=0?set.map:rotMap(now());
   return{id:(prev.id|0)+1,ph:'hide',t0:now(),dur:set.hide*1000,map,set,sk,pl:ids,fd:{},sc:prev.sc||{},tn,res:null,as:0};
 }
 function setRS(rs){
@@ -2654,6 +3567,8 @@ function setRS(rs){
 function hostTick(){
   const rs=G.rs;if(!rs)return;const t=now();
   if(rs.ph==='lobby'){
+    // between rounds the lobby shows the map the rotation is on now
+    if(G.mode==='online'&&rs.set&&rs.set.map<0){const m=rotMap(t);if(rs.map!==m){setRS(Object.assign({},rs,{map:m}));return}}
     if(G.mode==='online'&&Net.isPublic){const n=liveIds().length;if(n>=2){if(!rs.as){setRS(Object.assign({},rs,{as:t+20000}))}else if(t>=rs.as)setRS(newRound(rs))}else if(rs.as)setRS(Object.assign({},rs,{as:0}))}
     return;
   }
@@ -3355,7 +4270,7 @@ function onlineTick(){
 function becomeHost(){
   G.host=true;G.he=Math.min(HE_MAX,G.maxHe+1);G.maxHe=G.he;
   const base=G.lastRS?Object.assign({},G.lastRS):lobbyRS(null,defaultSet());
-  if(!G.lastRS)base.map=mapIdx<0?0:mapIdx;
+  if(!G.lastRS)base.map=base.set.map>=0?base.set.map:rotMap(now());
   if(G.lastRS&&G.rs&&G.rs.id===base.id)feed('You\'re the host now');
   setRS(base);
 }
@@ -3417,7 +4332,7 @@ function updateHud(){
   setHidden('readyBtn',!(G.mode==='practice'&&ph==='hide'&&role==='hider'&&!G.studio));
   // lobby panel
   setHidden('lobby',!(G.mode==='online'&&rs&&ph==='lobby'&&!G.studio));
-  if(G.mode==='online'&&rs&&ph==='lobby'){const lm=rs.as?'Starting in '+Math.max(0,Math.ceil((rs.as-now())/1000))+'…':Net.isPublic?'Starts by itself once 2 players are here.':liveIds().length<2?'Waiting for at least one more player. Send them the invite link.':G.host?'Press Start when everyone is in.':'Waiting for the host to start.';setText('lobbyMsg',lm);
+  if(G.mode==='online'&&rs&&ph==='lobby'){const lm=rs.as?'Starting in '+Math.max(0,Math.ceil((rs.as-now())/1000))+'…':Net.isPublic?'Starts by itself once 2 players are here.':liveIds().length<2?'Waiting for at least one more player. Send them the invite link.':G.host?'Press Start when everyone is in.':'Waiting for the host to start.';setText('lobbyMsg',lm);setText('rotNote',rotText(rs));
     const pk=[...Net.others.keys()].filter(k=>Net.live(k)).join()+G.hostUid+JSON.stringify(rs.set)+G.host;if(hudCache.lobby!==pk){hudCache.lobby=pk;renderLobby()}}
   if(G.mode==='online'&&ph==='end'&&!$('end').hidden)setText('endMsg',(liveIds().length>=2?'Next round in ':'Back to the lobby in ')+Math.max(0,Math.ceil(left))+'…');
   // touch buttons
@@ -3441,6 +4356,11 @@ function cycleSpec(d){const list=[...ents.values()].filter(e=>e!==me&&e.av.root.
 
 // ---------- lobby panel ----------
 function segSet(box,v){for(const b of box.children)b.setAttribute('aria-pressed',String(String(b.dataset.v)===String(v)))}
+function rotText(rs){
+  const set=rs.set||defaultSet(),cur=MAPS[clamp(rs.map|0,0,MAPS.length-1)].name;
+  if(set.map>=0)return'Map: '+cur+' (picked by the host)';
+  const t=now(),nx=rotNext(t);return'Map now: '+cur+' · Next map in '+mmss((nx.at-t)/1000)+': '+MAPS[nx.map].name;
+}
 function renderLobby(){
   const rs=G.rs;if(G.mode!=='online'||!rs)return;
   $('lobbyTitle').textContent=Net.isPublic?'Public lobby':'Room '+(Net.room||'').replace(/^cf-/,'');
@@ -3451,7 +4371,7 @@ function renderLobby(){
   for(const id of ids){const li=document.createElement('li'),dot=document.createElement('span'),nm=document.createElement('span'),t=document.createElement('span');
     const e=ents.get(id);dot.className='dot';dot.style.background=id===Net.uid?myColor:(e?e.color:'#ccc');nm.className='nm';nm.textContent=id===Net.uid?(myName||'You')+' (you)':nameOf(id);t.className='t';
     t.textContent=[id===G.hostUid?'host':'',(rs.sc&&rs.sc[id])?rs.sc[id]+' pts':''].filter(Boolean).join(' · ');li.append(dot,nm,t);ul.appendChild(li)}
-  const set=rs.set||defaultSet();segSet($('setMode'),set.mode);segSet($('setMap'),set.map);segSet($('setHide'),set.hide);segSet($('setSeek'),set.seek);segSet($('setSk'),set.sk);segSet($('setTn'),set.tn);
+  const set=rs.set||defaultSet();segSet($('setMode'),set.mode);$('setMap').value=String(set.map);$('setMap').disabled=!G.host;segSet($('setHide'),set.hide);segSet($('setSeek'),set.seek);segSet($('setSk'),set.sk);segSet($('setTn'),set.tn);
   $('lobby').classList.toggle('guest',!G.host);$('hostNote').textContent=G.host?'(you\'re the host)':'(host picks)';
   const sb=$('startRound');sb.hidden=Net.isPublic;sb.disabled=!G.host||ids.length<2;sb.textContent=G.host?'Start round':'Host starts';
 }
@@ -3765,10 +4685,14 @@ async function quickMatch(){
   }catch(err){if(Net.refs)Net.leave();setupAttract();setMsg(err.message||String(err),true)}
   finally{busy(false)}
 }
+function fillSel(sel,items,cur,fn){sel.textContent='';for(const [v,label] of items){const o=document.createElement('option');o.value=String(v);o.textContent=label;sel.appendChild(o)}sel.value=String(cur);sel.onchange=()=>fn(sel.value)}
 function buildSeg(box,items,cur,fn){box.textContent='';for(const [v,label] of items){const b=document.createElement('button');b.type='button';b.dataset.v=v;b.textContent=label;box.appendChild(b)}segSet(box,cur);box.onclick=ev=>{const b=ev.target.closest('button');if(b)fn(b.dataset.v)}}
-buildSeg($('pracMap'),MAPS.map((m,i)=>[i,m.short]),G.pracMap,v=>{G.pracMap=+v;store.set('pmap',G.pracMap);segSet($('pracMap'),v);sfx('ui')});
+fillSel($('pracMap'),MAPS.map((m,i)=>[i,m.name]),G.pracMap,v=>{G.pracMap=+v;store.set('pmap',G.pracMap);sfx('ui')});
 segSet($('pracDiff'),G.diff);$('pracDiff').onclick=ev=>{const b=ev.target.closest('button');if(!b)return;G.diff=+b.dataset.v;store.set('diff',G.diff);segSet($('pracDiff'),G.diff);sfx('ui')};
-buildSeg($('setMap'),[[-1,'Rotate'],...MAPS.map((m,i)=>[i,m.short])],-1,v=>hostSet('map',+v));
+fillSel($('setMap'),[[-1,'Daily rotation'],...MAPS.map((m,i)=>[i,m.name])],-1,v=>hostSet('map',+v));
+// the menu names today's online maps
+function showRotToday(){const n=dayMaps(Date.now()).map(i=>MAPS[i].name);$('rotToday').textContent='Online maps today: '+n[0]+', '+n[1]+' and '+n[2]+'. The map changes every 15 minutes.'}
+showRotToday();setInterval(showRotToday,60000);
 for(const [id,key,num] of [['setMode','mode',false],['setHide','hide',true],['setSeek','seek',true],['setSk','sk',true],['setTn','tn',true]])$(id).onclick=ev=>{const b=ev.target.closest('button');if(b)hostSet(key,num?+b.dataset.v:b.dataset.v)};
 $('startRound').onclick=()=>{if(G.host&&G.rs&&G.rs.ph==='lobby'&&liveIds().length>=2)setRS(newRound(G.rs))};
 $('lobbyMin').onclick=()=>{$('lobby').classList.toggle('min');$('lobbyMin').textContent=$('lobby').classList.contains('min')?'Show':'Hide'};
