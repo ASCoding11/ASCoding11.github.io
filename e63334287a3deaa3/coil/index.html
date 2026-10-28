@@ -749,26 +749,28 @@ function eatFor(s){
   if(gained){s.score+=gained;if(mine)sfx(gained>=3?'big':'eat',gained)}
 }
 let foodFirst=true,pruneT=0;
-function step(dt){
+// bg: stepped from the background timer below (no animation frames): the bots and the world move on, but this player's
+// own snake stays where it was, as it always did in a hidden tab.
+function step(dt,bg){
   clock+=dt;
   const T=worldNow();
   for(const s of snakes.values()){
     if(!s.alive)continue;
-    if(s.local){if(s.bot)botThink(s,dt);moveLocal(s,dt)}
+    if(s.local){if(bg&&!s.bot)continue;if(s.bot)botThink(s,dt);moveLocal(s,dt)}
     else updateRemote(s,dt);
   }
   for(const s of snakes.values())if(s.alive)buildSegs(s);
   buildGrid();
   // collisions: each client only judges its own snakes (you and, as host, the bots)
   for(const s of list){
-    if(!s.local||!s.alive)continue;
+    if(!s.local||!s.alive||(bg&&!s.bot))continue;
     if(clock-s.born<1.2)continue;
     if(s.x*s.x+s.y*s.y>(ARENA-s.r*.5)*(ARENA-s.r*.5)){killLocal(s,null);continue}
     const o=touching(s.x,s.y,s.r*.62,s.k);
     if(o)killLocal(s,o);
   }
   updateFood(T,foodFirst);foodFirst=false;
-  for(const s of list)if(s.local&&s.alive)eatFor(s);
+  for(const s of list)if(s.local&&s.alive&&!(bg&&!s.bot))eatFor(s);
   const now=performance.now();
   for(const [k,p] of extra){
     if(now-p.born>p.life){extra.delete(k);continue}
@@ -1291,9 +1293,9 @@ $('name').addEventListener('change',saveProfile);
 // =====================================================================
 //  Main loop
 // =====================================================================
-let last=performance.now();
+let last=performance.now(),lastFrame=performance.now();
 function frame(t){
-  const raw=Math.max(0,(t-last)/1000);last=t;
+  lastFrame=performance.now();const raw=Math.max(0,(t-last)/1000);last=t;
   const dt=Math.min(.05,raw);
   try{
     if(!paused){
@@ -1307,6 +1309,14 @@ function frame(t){
   }catch(err){console.error(err)}
   requestAnimationFrame(frame);
 }
+// A background tab gets no animation frames, so a hidden host used to freeze its bots for everyone (its heartbeat kept
+// it host). While frames stall, step the world from a timer instead, in 50 ms slices (browsers run the timer about once
+// a second in a hidden tab, so the bots then reach others once a second, smoothed by netsmooth).
+setInterval(()=>{
+  const p=performance.now();if(p-lastFrame<400||!online||paused)return;
+  let r=Math.min(1,(p-last)/1000);last=p;
+  try{while(r>0){const d=Math.min(.05,r);r-=d;step(d,true)}}catch(err){console.error(err)}
+},250);
 
 // boot
 resize();
