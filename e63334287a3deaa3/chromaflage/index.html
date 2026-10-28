@@ -165,7 +165,10 @@ h1 span{display:inline-block}
 .hset{display:grid;grid-template-columns:auto 1fr;gap:7px 10px;align-items:center;margin-top:8px;font-weight:800;font-size:13px}
 .hset .seg button{padding:5px 8px;font-size:12px}
 .hset .seg{justify-self:start}
-#lobby.guest .hset .seg{pointer-events:none;opacity:.75}
+#lobby.guest .hset .seg,#lobby.guest .hset .sel{pointer-events:none;opacity:.75}
+.sel{border:2.5px solid var(--ink);border-radius:13px;background:#fff;color:var(--ink);font:inherit;font-weight:900;font-size:13px;padding:6px 8px;max-width:100%;min-width:0}
+.hset .sel{justify-self:start;font-size:12px;padding:4px 6px}
+#rotNote{margin:8px 0 0;font-weight:800}#rotNote b{color:var(--ink)}
 #lobbyMin{display:none}
 
 /* ---------- paint studio ---------- */
@@ -338,10 +341,11 @@ body.touch #lobby{top:calc(150px + env(safe-area-inset-top,0px));left:12px;right
     </div>
     <div class="lb-body">
       <ul id="plist"></ul>
+      <p class="note" id="rotNote"></p>
       <div class="label">Round settings <span id="hostNote" style="text-transform:none;letter-spacing:0;font-family:var(--f-b);font-weight:800"></span></div>
       <div class="hset">
         <span>Mode</span><div class="seg" id="setMode"><button type="button" data-v="classic">Classic</button><button type="button" data-v="infect">Infection</button></div>
-        <span>Map</span><div class="seg" id="setMap"></div>
+        <span>Map</span><select class="sel" id="setMap" aria-label="Map"></select>
         <span>Hide time</span><div class="seg" id="setHide"><button type="button" data-v="45">45s</button><button type="button" data-v="60">60s</button><button type="button" data-v="90">90s</button></div>
         <span>Seek time</span><div class="seg" id="setSeek"><button type="button" data-v="150">2:30</button><button type="button" data-v="180">3:00</button><button type="button" data-v="240">4:00</button></div>
         <span>Seekers</span><div class="seg" id="setSk"><button type="button" data-v="0">Auto</button><button type="button" data-v="1">1</button><button type="button" data-v="2">2</button></div>
@@ -424,9 +428,10 @@ body.touch #lobby{top:calc(150px + env(safe-area-inset-top,0px));left:12px;right
           <button id="pracSeek" class="btn alt" type="button">Seek practice<small>Find bots that paint themselves</small></button>
         </div>
         <div class="optrow">
-          <span>Map</span><div class="seg" id="pracMap"></div>
+          <span>Map</span><select class="sel" id="pracMap" aria-label="Practice map"></select>
           <span>Bots</span><div class="seg" id="pracDiff"><button type="button" data-v="1">Easy</button><button type="button" data-v="2">Normal</button><button type="button" data-v="3">Hard</button></div>
         </div>
+        <p id="rotToday" class="note" style="margin:8px 0 0"></p>
         <p id="netMsg" class="msg" role="status"></p>
         <p id="touchNote" class="note" hidden>On a phone you get a joystick and buttons, and you paint with your finger. A keyboard and mouse is easier.</p>
       </div>
@@ -3527,6 +3532,16 @@ function hidersLeft(rs){return rs.pl.filter(u=>roleOf(u,rs)==='hider'&&present(u
 function seekersLeft(rs){return rs.pl.concat(rs.sk).filter((u,i,a)=>a.indexOf(u)===i&&roleOf(u,rs)==='seeker'&&present(u))}
 
 const SET_DEF={mode:'classic',map:-1,hide:60,seek:180,sk:0,tn:30};
+// ---------- daily map rotation ----------
+// Online rooms play three maps a day, picked from the date (the day number, counted from midnight US Eastern standard time, seeds a shuffle of every map and the
+// first three are kept), and take turns every 15 minutes: slot = floor(now / 15 min) % 3. Everyone works it out
+// from the shared server clock (Net.now), and the host publishes the result as rs.map; a round that has started
+// finishes on its map and the next round (or the lobby) picks up the new one.
+const ROT_MS=15*60*1000,ROT_DAY=864e5,DAY_SHIFT=5*36e5;   // days start at midnight US Eastern (standard time; 1 am in summer)
+function dayMaps(t){const d=Math.floor((t-DAY_SHIFT)/ROT_DAY),r=rng(d*7919+104729),a=MAPS.map((m,i)=>i);for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));const q=a[i];a[i]=a[j];a[j]=q}return a.slice(0,3)}
+function rotMap(t){return dayMaps(t)[Math.floor(t/ROT_MS)%3]}
+function rotNext(t){const at=(Math.floor(t/ROT_MS)+1)*ROT_MS;return{at,map:rotMap(at)}}
+function mmss(sec){sec=Math.max(0,Math.ceil(sec));return Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0')}
 // round settings rebuilt from known fields as plain numbers in sane ranges (they come from saved settings or the host)
 function cleanSet(s){
   s=isObj(s)?s:{};const n=(k,a,b)=>Math.round(numIn(s[k],a,b,SET_DEF[k])),tn=n('tn',0,120);
@@ -3540,7 +3555,7 @@ function newRound(prev){
   const n=set.sk|0?Math.min(set.sk|0,ids.length-1):(ids.length>=5?2:1);
   const order=ids.slice().sort((a,b)=>((tn[a]||0)-(tn[b]||0))||((hashStr(a+prev.id)%997)-(hashStr(b+prev.id)%997)));
   const sk=order.slice(0,Math.max(1,n));for(const u of sk)tn[u]=(tn[u]||0)+1;
-  const map=set.map>=0?set.map:(prev.ph==='lobby'&&prev.id===0?prev.map:((prev.map|0)+1)%MAPS.length);
+  const map=set.map>=0?set.map:rotMap(now());
   return{id:(prev.id|0)+1,ph:'hide',t0:now(),dur:set.hide*1000,map,set,sk,pl:ids,fd:{},sc:prev.sc||{},tn,res:null,as:0};
 }
 function setRS(rs){
@@ -3552,6 +3567,8 @@ function setRS(rs){
 function hostTick(){
   const rs=G.rs;if(!rs)return;const t=now();
   if(rs.ph==='lobby'){
+    // between rounds the lobby shows the map the rotation is on now
+    if(G.mode==='online'&&rs.set&&rs.set.map<0){const m=rotMap(t);if(rs.map!==m){setRS(Object.assign({},rs,{map:m}));return}}
     if(G.mode==='online'&&Net.isPublic){const n=liveIds().length;if(n>=2){if(!rs.as){setRS(Object.assign({},rs,{as:t+20000}))}else if(t>=rs.as)setRS(newRound(rs))}else if(rs.as)setRS(Object.assign({},rs,{as:0}))}
     return;
   }
@@ -4249,7 +4266,7 @@ function onlineTick(){
 function becomeHost(){
   G.host=true;G.he=Math.min(HE_MAX,G.maxHe+1);G.maxHe=G.he;
   const base=G.lastRS?Object.assign({},G.lastRS):lobbyRS(null,defaultSet());
-  if(!G.lastRS)base.map=mapIdx<0?0:mapIdx;
+  if(!G.lastRS)base.map=base.set.map>=0?base.set.map:rotMap(now());
   if(G.lastRS&&G.rs&&G.rs.id===base.id)feed('You\'re the host now');
   setRS(base);
 }
@@ -4311,7 +4328,7 @@ function updateHud(){
   setHidden('readyBtn',!(G.mode==='practice'&&ph==='hide'&&role==='hider'&&!G.studio));
   // lobby panel
   setHidden('lobby',!(G.mode==='online'&&rs&&ph==='lobby'&&!G.studio));
-  if(G.mode==='online'&&rs&&ph==='lobby'){const lm=rs.as?'Starting in '+Math.max(0,Math.ceil((rs.as-now())/1000))+'…':Net.isPublic?'Starts by itself once 2 players are here.':liveIds().length<2?'Waiting for at least one more player. Send them the invite link.':G.host?'Press Start when everyone is in.':'Waiting for the host to start.';setText('lobbyMsg',lm);
+  if(G.mode==='online'&&rs&&ph==='lobby'){const lm=rs.as?'Starting in '+Math.max(0,Math.ceil((rs.as-now())/1000))+'…':Net.isPublic?'Starts by itself once 2 players are here.':liveIds().length<2?'Waiting for at least one more player. Send them the invite link.':G.host?'Press Start when everyone is in.':'Waiting for the host to start.';setText('lobbyMsg',lm);setText('rotNote',rotText(rs));
     const pk=[...Net.others.keys()].filter(k=>Net.live(k)).join()+G.hostUid+JSON.stringify(rs.set)+G.host;if(hudCache.lobby!==pk){hudCache.lobby=pk;renderLobby()}}
   if(G.mode==='online'&&ph==='end'&&!$('end').hidden)setText('endMsg',(liveIds().length>=2?'Next round in ':'Back to the lobby in ')+Math.max(0,Math.ceil(left))+'…');
   // touch buttons
@@ -4335,6 +4352,11 @@ function cycleSpec(d){const list=[...ents.values()].filter(e=>e!==me&&e.av.root.
 
 // ---------- lobby panel ----------
 function segSet(box,v){for(const b of box.children)b.setAttribute('aria-pressed',String(String(b.dataset.v)===String(v)))}
+function rotText(rs){
+  const set=rs.set||defaultSet(),cur=MAPS[clamp(rs.map|0,0,MAPS.length-1)].name;
+  if(set.map>=0)return'Map: '+cur+' (picked by the host)';
+  const t=now(),nx=rotNext(t);return'Map now: '+cur+' · Next map in '+mmss((nx.at-t)/1000)+': '+MAPS[nx.map].name;
+}
 function renderLobby(){
   const rs=G.rs;if(G.mode!=='online'||!rs)return;
   $('lobbyTitle').textContent=Net.isPublic?'Public lobby':'Room '+(Net.room||'').replace(/^cf-/,'');
@@ -4345,7 +4367,7 @@ function renderLobby(){
   for(const id of ids){const li=document.createElement('li'),dot=document.createElement('span'),nm=document.createElement('span'),t=document.createElement('span');
     const e=ents.get(id);dot.className='dot';dot.style.background=id===Net.uid?myColor:(e?e.color:'#ccc');nm.className='nm';nm.textContent=id===Net.uid?(myName||'You')+' (you)':nameOf(id);t.className='t';
     t.textContent=[id===G.hostUid?'host':'',(rs.sc&&rs.sc[id])?rs.sc[id]+' pts':''].filter(Boolean).join(' · ');li.append(dot,nm,t);ul.appendChild(li)}
-  const set=rs.set||defaultSet();segSet($('setMode'),set.mode);segSet($('setMap'),set.map);segSet($('setHide'),set.hide);segSet($('setSeek'),set.seek);segSet($('setSk'),set.sk);segSet($('setTn'),set.tn);
+  const set=rs.set||defaultSet();segSet($('setMode'),set.mode);$('setMap').value=String(set.map);$('setMap').disabled=!G.host;segSet($('setHide'),set.hide);segSet($('setSeek'),set.seek);segSet($('setSk'),set.sk);segSet($('setTn'),set.tn);
   $('lobby').classList.toggle('guest',!G.host);$('hostNote').textContent=G.host?'(you\'re the host)':'(host picks)';
   const sb=$('startRound');sb.hidden=Net.isPublic;sb.disabled=!G.host||ids.length<2;sb.textContent=G.host?'Start round':'Host starts';
 }
@@ -4659,10 +4681,14 @@ async function quickMatch(){
   }catch(err){if(Net.refs)Net.leave();setupAttract();setMsg(err.message||String(err),true)}
   finally{busy(false)}
 }
+function fillSel(sel,items,cur,fn){sel.textContent='';for(const [v,label] of items){const o=document.createElement('option');o.value=String(v);o.textContent=label;sel.appendChild(o)}sel.value=String(cur);sel.onchange=()=>fn(sel.value)}
 function buildSeg(box,items,cur,fn){box.textContent='';for(const [v,label] of items){const b=document.createElement('button');b.type='button';b.dataset.v=v;b.textContent=label;box.appendChild(b)}segSet(box,cur);box.onclick=ev=>{const b=ev.target.closest('button');if(b)fn(b.dataset.v)}}
-buildSeg($('pracMap'),MAPS.map((m,i)=>[i,m.short]),G.pracMap,v=>{G.pracMap=+v;store.set('pmap',G.pracMap);segSet($('pracMap'),v);sfx('ui')});
+fillSel($('pracMap'),MAPS.map((m,i)=>[i,m.name]),G.pracMap,v=>{G.pracMap=+v;store.set('pmap',G.pracMap);sfx('ui')});
 segSet($('pracDiff'),G.diff);$('pracDiff').onclick=ev=>{const b=ev.target.closest('button');if(!b)return;G.diff=+b.dataset.v;store.set('diff',G.diff);segSet($('pracDiff'),G.diff);sfx('ui')};
-buildSeg($('setMap'),[[-1,'Rotate'],...MAPS.map((m,i)=>[i,m.short])],-1,v=>hostSet('map',+v));
+fillSel($('setMap'),[[-1,'Daily rotation'],...MAPS.map((m,i)=>[i,m.name])],-1,v=>hostSet('map',+v));
+// the menu names today's online maps
+function showRotToday(){const n=dayMaps(Date.now()).map(i=>MAPS[i].name);$('rotToday').textContent='Online maps today: '+n[0]+', '+n[1]+' and '+n[2]+'. The map changes every 15 minutes.'}
+showRotToday();setInterval(showRotToday,60000);
 for(const [id,key,num] of [['setMode','mode',false],['setHide','hide',true],['setSeek','seek',true],['setSk','sk',true],['setTn','tn',true]])$(id).onclick=ev=>{const b=ev.target.closest('button');if(b)hostSet(key,num?+b.dataset.v:b.dataset.v)};
 $('startRound').onclick=()=>{if(G.host&&G.rs&&G.rs.ph==='lobby'&&liveIds().length>=2)setRS(newRound(G.rs))};
 $('lobbyMin').onclick=()=>{$('lobby').classList.toggle('min');$('lobbyMin').textContent=$('lobby').classList.contains('min')?'Show':'Hide'};
