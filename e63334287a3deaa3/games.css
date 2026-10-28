@@ -1,0 +1,142 @@
+/*
+ * Back Room games launcher: the Multiplayer and Single player sections and their game cards.
+ *
+ * Linked from inside <section aria-label="Games"> in e63334287a3deaa3/index.html (not from <head>), because the
+ * home page's reveal() copies that section into the home page and the link comes along with it. Builds on site.css
+ * (its colour variables, fonts, .btn), so it follows light and dark mode; everything is scoped to .br-games so the
+ * home, Web Development Projects and Productivity pages are untouched.
+ */
+.br-games{
+  --gc-r:16px;
+  --gc-shadow:0 1px 2px rgba(16,38,28,.06),0 6px 18px -8px rgba(16,38,28,.18);
+  --gc-shadow-hi:0 3px 6px rgba(16,38,28,.08),0 22px 40px -14px rgba(16,38,28,.34);
+  --solo:#B4532A;--solo-ink:#FFFFFF;
+  padding-top:34px;
+}
+@media (prefers-color-scheme: dark){
+  .br-games{
+    --gc-shadow:0 1px 2px rgba(0,0,0,.4),0 8px 22px -10px rgba(0,0,0,.7);
+    --gc-shadow-hi:0 3px 8px rgba(0,0,0,.5),0 24px 44px -14px rgba(0,0,0,.9);
+    --solo:#F0905F;--solo-ink:#1A0D06;
+  }
+}
+
+/* ---------- section headings ---------- */
+.br-games .gs{padding-top:0}
+.br-games .gs + .gs{margin-top:48px}
+.gs-multi{--gs-c:var(--accent);--gs-ink:var(--accent-ink)}
+.gs-solo{--gs-c:var(--solo);--gs-ink:var(--solo-ink)}
+.gs-head{display:flex;align-items:center;gap:14px;margin:0 0 18px}
+.gs-ic{flex:none;display:grid;place-items:center;width:48px;height:48px;border-radius:15px;background:var(--gs-c);color:var(--gs-ink);box-shadow:0 8px 18px -8px var(--gs-c)}
+.gs-tt{flex:1;min-width:0}
+.br-games .gs-tt h2{margin:0;font-size:36px;line-height:.95;letter-spacing:.02em}
+.gs-tt p{margin:5px 0 0;color:var(--ink-2);font-size:15px;line-height:1.4}
+.gs-n{flex:none;align-self:center;font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;color:var(--gs-c);background:color-mix(in srgb,var(--gs-c) 13%,transparent);border-radius:999px;padding:5px 12px}
+
+/* ---------- the grid: 4 across on computers, 3 on small laptops, 2 on tablets and phones ---------- */
+.gc-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:1fr;gap:18px}
+@media (max-width:959px){.gc-grid{grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:auto}}
+@media (max-width:879px){.gc-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}}
+@media (max-width:330px){.gc-grid{grid-template-columns:minmax(0,1fr)}}
+
+/* ---------- a game card ---------- */
+.br-games .gc{position:relative;display:flex;flex-direction:column;min-width:0;background:var(--panel);border:1px solid color-mix(in srgb,var(--line) 80%,transparent);border-radius:var(--gc-r);overflow:hidden;box-shadow:var(--gc-shadow);transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}
+.br-games .gc .shot{position:relative;display:block;min-height:0;aspect-ratio:16/10;margin:7px 7px 0;border-radius:11px;overflow:hidden;background:var(--tape);isolation:isolate}
+.br-games .gc .shot img{display:block;width:100%;height:100%;object-fit:cover;object-position:center;transition:transform .45s cubic-bezier(.2,.7,.2,1),filter .3s ease}
+.br-games .gc .shot::after{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);background:linear-gradient(180deg,rgba(0,0,0,.28) 0%,transparent 32%);pointer-events:none}
+.gc-genre{position:absolute;left:8px;top:8px;z-index:1;max-width:calc(100% - 52px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--mono);font-size:10.5px;font-weight:600;line-height:1.2;letter-spacing:.08em;text-transform:uppercase;color:#fff;background:rgba(8,16,12,.6);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);border-radius:999px;padding:4px 9px}
+
+.br-games .gc .body{flex:1;display:flex;flex-direction:column;gap:7px;padding:12px 14px 14px}
+.br-games .gc h3{font-size:25px;line-height:1;letter-spacing:.02em;margin:0;overflow-wrap:break-word}
+.gc-nw{white-space:nowrap}
+.br-games .gc .gc-blurb{margin:0;font-size:14px;line-height:1.4;color:var(--ink-2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.8em}
+.gc-chips{display:flex;flex-wrap:wrap;gap:5px;margin:2px 0 0;padding:0;list-style:none}
+.gc-chips li{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;line-height:1.1;white-space:nowrap;padding:4px 9px;border-radius:999px;background:var(--panel-2);color:var(--ink-2);border:1px solid var(--line)}
+.gc-chips li.on,.gs-solo .gc-chips li:first-child{color:var(--gs-c);background:color-mix(in srgb,var(--gs-c) 11%,var(--panel));border-color:color-mix(in srgb,var(--gs-c) 32%,transparent)}
+.gc-chips li.on::before{content:"";flex:none;width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 0 3px color-mix(in srgb,currentColor 22%,transparent);animation:gc-live 2.4s ease-in-out infinite}
+@keyframes gc-live{50%{box-shadow:0 0 0 5px color-mix(in srgb,currentColor 0%,transparent)}}
+.br-games .gc .actions{margin-top:auto;padding-top:5px}
+.br-games .gc .btn.primary{width:100%;justify-content:center;min-height:42px;border-radius:11px;font-size:15px;background:var(--gs-c);border-color:var(--gs-c);color:var(--gs-ink);box-shadow:0 6px 14px -8px var(--gs-c);transition:filter .15s ease,transform .15s ease}
+.br-games .gc .btn.primary:active{transform:scale(.97)}
+
+/* The first three (the most played) are wide on computers and tablets: picture on the left, the rest on the right.
+   With 13 multiplayer games that fills four rows of four exactly; between 560 and 960 px they take a whole row of two. */
+@media (min-width:960px), (min-width:561px) and (max-width:879px){
+  .br-games .gc.wide{grid-column:span 2;flex-direction:row}
+  .br-games .gc.wide .shot{flex:0 0 52%;aspect-ratio:auto;min-height:220px;margin:7px 0 7px 7px}
+  .br-games .gc.wide .shot img{position:absolute;inset:0}
+  .br-games .gc.wide .body{padding:16px 18px 16px;gap:9px}
+  .br-games .gc.wide h3{font-size:31px}
+  .br-games .gc.wide .gc-blurb{font-size:15px;-webkit-line-clamp:4;min-height:0}
+  .br-games .gc.wide .gc-more summary{right:auto;left:calc(52% - 31px)}
+}
+/* Hover and keyboard focus: lift the card, zoom and brighten the picture. */
+@media (hover: hover){
+  .br-games .gc:hover{transform:translateY(-4px);box-shadow:var(--gc-shadow-hi);border-color:color-mix(in srgb,var(--gs-c) 40%,var(--line))}
+  .br-games .gc:hover .shot img{transform:scale(1.07);filter:brightness(1.08) saturate(1.12)}
+  .br-games .gc:hover .btn.primary{filter:brightness(1.1)}
+}
+.br-games .gc:focus-within{border-color:color-mix(in srgb,var(--gs-c) 55%,var(--line))}
+.br-games .gc .btn.primary:focus-visible{outline:3px solid var(--gs-c);outline-offset:3px}
+
+/* "i" opens everything the game has (the longer description and feature list) over the card, so cards stay short. */
+.gc-more summary{position:absolute;top:15px;right:15px;z-index:3;display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:rgba(8,16,12,.6);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);color:#fff;cursor:pointer;list-style:none;font:600 15px/1 var(--mono);transition:background .15s ease,transform .15s ease}
+.gc-more summary::-webkit-details-marker{display:none}
+.gc-more summary span::before{content:"i"}
+.gc-more[open] summary span::before{content:"×";font-size:19px}
+.gc-more summary:hover{background:rgba(8,16,12,.85);transform:scale(1.08)}
+.gc-more summary:focus-visible{outline:2px solid #fff;outline-offset:1px;box-shadow:0 0 0 5px var(--gs-c)}
+.gc-more[open] summary{background:var(--panel-2);color:var(--ink);border:1px solid var(--line)}
+.gc-info{position:absolute;inset:0;z-index:2;overflow:auto;overscroll-behavior:contain;padding:16px 16px 18px;background:var(--panel);font-size:14px;line-height:1.45;color:var(--ink-2)}
+.br-games .gc-info .gc-long{margin:0 34px 10px 0;color:var(--ink);font-size:14px;line-height:1.45;display:block;min-height:0}
+.br-games .gc-info .feats{margin:0;padding-left:18px;gap:4px;font-size:13.5px}
+.gc-info .feats li::marker{color:var(--gs-c)}
+.br-games .gc-info .note{margin:10px 0 0;font-size:13px}
+
+/* ---------- "Want more games?" ---------- */
+.gs-ask{display:flex;align-items:center;gap:14px;margin-top:40px;padding:16px 18px;border-radius:var(--gc-r);border:1px dashed color-mix(in srgb,var(--accent) 45%,transparent);background:linear-gradient(115deg,color-mix(in srgb,var(--accent) 12%,var(--panel)),color-mix(in srgb,var(--solo) 10%,var(--panel)))}
+.gs-ask-ic{flex:none;display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:var(--panel);border:1px solid var(--line);color:var(--accent);font:800 26px/1 var(--display)}
+.gs-ask p{margin:0;flex:1;min-width:0;color:var(--ink-2);font-size:15px;line-height:1.45}
+.gs-ask b{color:var(--ink)}
+.gs-ask-btn{flex:none;display:inline-flex;align-items:center;gap:8px;min-height:42px;padding:8px 18px;border-radius:999px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);font:inherit;font-weight:600;font-size:15px;cursor:pointer;transition:filter .15s ease,transform .15s ease}
+.gs-ask-btn:hover{filter:brightness(1.1)}
+.gs-ask-btn:active{transform:scale(.97)}
+
+/* ---------- smaller screens ---------- */
+@media (max-width:879px){
+  .br-games .gs-tt h2{font-size:32px}
+}
+@media (max-width:560px){
+  .br-games{padding-top:28px}
+  .gs-head{gap:11px;flex-wrap:wrap}
+  .gs-ic{width:40px;height:40px;border-radius:12px}
+  .gs-ic svg{width:19px;height:19px}
+  .br-games .gs-tt h2{font-size:28px}
+  .gs-tt p{font-size:13.5px}
+  .gs-n{font-size:11px;padding:4px 10px}
+  .br-games .gs + .gs{margin-top:38px}
+  .br-games .gc{border-radius:14px}
+  .br-games .gc .shot{margin:5px 5px 0;border-radius:10px}
+  .gc-genre{left:6px;top:6px;font-size:9.5px;padding:3px 7px;letter-spacing:.06em}
+  .gc-more summary{top:10px;right:10px;width:26px;height:26px;font-size:13px}
+  .br-games .gc .body{padding:9px 10px 10px;gap:6px}
+  .br-games .gc h3{font-size:20px}
+  .br-games .gc .gc-blurb{font-size:12.5px;line-height:1.35;-webkit-line-clamp:3;min-height:2.7em}
+  .gc-chips{gap:4px}
+  .gc-chips li{font-size:10.5px;padding:3px 7px;gap:5px}
+  .gc:not(.wide) .gc-chips li:nth-child(n+2){display:none}
+  .br-games .gc.wide{grid-column:1 / -1}
+  .br-games .gc.wide h3{font-size:26px}
+  .br-games .gc.wide .gc-blurb{font-size:14px;min-height:0}
+  .gc-chips li.on::before{width:6px;height:6px}
+  .br-games .gc .btn.primary{min-height:38px;font-size:14px;border-radius:9px;padding:6px 10px}
+  .gc-info{padding:12px 12px 14px;font-size:13px}
+  .br-games .gc-info .feats{font-size:12.5px;padding-left:16px}
+  .gs-ask{flex-wrap:wrap;padding:14px}
+  .gs-ask-btn{width:100%;justify-content:center}
+}
+@media (prefers-reduced-motion: reduce){
+  .br-games .gc,.br-games .gc .shot img,.gc-more summary,.gs-ask-btn{transition:none}
+  .br-games .gc:hover,.br-games .gc:hover .shot img{transform:none}
+  .gc-chips li.on::before{animation:none}
+}
