@@ -128,9 +128,10 @@ h1 span{display:inline-block}
 #xh::after{content:'';position:absolute;left:50%;top:50%;width:4px;height:4px;margin:-2px 0 0 -2px;border-radius:50%;background:#fff;box-shadow:0 0 0 1.5px rgba(31,27,51,.8)}
 #xh.cool{border-color:var(--pink);opacity:.6}
 #ink{position:absolute;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));text-align:right}
-#ink .pips{display:flex;gap:5px;justify-content:flex-end;margin-top:4px}
-#ink .pips i{width:16px;height:22px;border-radius:50% 50% 50% 50%/62% 62% 38% 38%;border:2.5px solid var(--ink);background:var(--pink);box-shadow:0 2px 0 var(--ink)}
-#ink .pips i.off{background:rgba(255,255,255,.35)}
+#ink .bar{position:relative;width:170px;height:16px;margin:5px 0 4px auto;border:2.5px solid var(--ink);border-radius:9px;background:rgba(255,255,255,.35);box-shadow:0 2px 0 var(--ink);overflow:hidden}
+#ink .bar i{position:absolute;left:0;top:0;bottom:0;width:100%;background:var(--pink)}
+#ink .bar::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 calc(10% - 2px),rgba(31,27,51,.5) calc(10% - 2px) 10%)}
+#ink.dry .bar{border-color:var(--pink)}
 #ink .lbl{font-size:18px}
 #ink .sub{font-family:var(--f-b);font-weight:900;font-size:12px}
 #hint{position:absolute;left:14px;bottom:calc(14px + env(safe-area-inset-bottom,0px));font-family:var(--f-b);font-weight:800;font-size:13px;display:flex;flex-wrap:wrap;gap:5px;max-width:min(560px,60vw)}
@@ -324,7 +325,7 @@ body.touch #lobby{top:calc(150px + env(safe-area-inset-top,0px));left:12px;right
       <span id="tauntTxt">Squeak in 30</span>
     </div>
     <div id="hint" class="out"></div>
-    <div id="ink" class="out" hidden><div class="lbl">Tag blaster</div><div class="pips" id="pips"></div><div class="sub" id="inkSub">Misses cost ink</div></div>
+    <div id="ink" class="out" hidden><div class="lbl">Tag blaster</div><div class="bar"><i id="inkFill"></i></div><div class="sub" id="inkSub">Misses cost ink</div></div>
     <div id="spec" hidden></div>
     <div id="lockHint" class="out" hidden>Click to look around</div>
     <div id="blind" hidden>
@@ -455,7 +456,7 @@ body.touch #lobby{top:calc(150px + env(safe-area-inset-top,0px));left:12px;right
           <ol class="how">
             <li><b>Hiders</b> get a head start. Open the paint studio, pick colours straight off the walls with the eyedropper, and paint yourself to match a spot.</li>
             <li>Strike a pose (crouch under a table, lie flat, squash against a wall) or <b>stick yourself to a wall</b> up high like a poster, then <b>keep still</b>. Moving is the easiest way to get spotted.</li>
-            <li><b>Seekers</b> tag hiders with the blaster. Misses cost ink and a short reload, so look before you shoot.</li>
+            <li><b>Seekers</b> tag hiders with the blaster. Hold it down to keep firing, about five shots a second. Hits are free, but every miss costs ink and ink only trickles back, so spraying the room soon runs you dry.</li>
             <li><b>Classic:</b> tagged hiders are out. <b>Infection:</b> tagged hiders join the seekers.</li>
           </ol>
         </details>
@@ -472,7 +473,7 @@ body.touch #lobby{top:calc(150px + env(safe-area-inset-top,0px));left:12px;right
             <div><dt>G</dt><dd>Stick to a wall</dd></div>
             <div><dt>Q · E</dt><dd>Turn your body</dd></div>
             <div><dt>T</dt><dd>Squeak (bonus point)</dd></div>
-            <div><dt>CLICK</dt><dd>Tag (seekers)</dd></div>
+            <div><dt>CLICK</dt><dd>Tag (seekers; hold to keep firing)</dd></div>
             <div><dt>I · B</dt><dd>Eyedropper · brush</dd></div>
             <div><dt>CTRL+Z</dt><dd>Undo paint</dd></div>
             <div><dt>← →</dt><dd>Switch who you watch</dd></div>
@@ -510,7 +511,7 @@ body.touch #lobby{top:calc(150px + env(safe-area-inset-top,0px));left:12px;right
           <div><dt>P / TAB</dt><dd>Paint studio</dd></div><div><dt>C · Z · F</dt><dd>Crouch · lie · flatten</dd></div>
           <div><dt>G</dt><dd>Stick to a wall</dd></div><div><dt>SPACE</dt><dd>Let go of the wall</dd></div>
           <div><dt>Q · E</dt><dd>Turn your body</dd></div><div><dt>T</dt><dd>Squeak</dd></div>
-          <div><dt>CLICK</dt><dd>Tag (seekers)</dd></div><div><dt>← →</dt><dd>Switch who you watch</dd></div>
+          <div><dt>CLICK</dt><dd>Tag (seekers; hold to keep firing)</dd></div><div><dt>← →</dt><dd>Switch who you watch</dd></div>
         </dl>
       </details>
     </div>
@@ -3268,12 +3269,15 @@ let sens=storeNum('sens',1,.2,3);
 const G={
   mode:'menu',pmode:null,rs:null,role:'free',rid:-1,ph:'',studio:false,paused:false,blind:false,
   diff:storeNum('diff',2,1,3)|0,pracMap:storeNum('pmap',0,0,MAPS.length-1)|0,
-  ink:5,inkT:0,shootCd:0,shotSeq:0,tgSeq:0,taSeq:0,tm:0,nextTaunt:0,tauntCd:0,specId:null,host:false,
+  ink:10,shootCd:0,trig:false,trigT:false,dryToast:0,shotSeq:0,tgSeq:0,taSeq:0,tm:0,nextTaunt:0,tauntCd:0,specId:null,host:false,
   nm:new Map(),seenTg:new Map(),hostT:0,endShown:-1,seenFd:{},savedPaint:null,intentUnlock:false,paintDirty:false,paintSentT:0,stroking:false,
 };
 function now(){return G.mode==='online'?Net.now():Date.now()}
 const DIFFS={1:{k:1.1,motion:.75,speed:2.6,range:18,hear:12,name:'Easy'},2:{k:1.5,motion:1.15,speed:3.1,range:25,hear:18,name:'Normal'},3:{k:2.6,motion:1.7,speed:3.6,range:34,hear:26,name:'Hard'}};
-const INK_MAX=5,INK_REGEN=7,MISS_CD=1.4;
+// the blaster: one shot every FIRE_GAP seconds, hit or miss; a miss costs one ink, a hit costs nothing; ink trickles
+// back at one shot every INK_REGEN seconds all the time (no reload pause), so a seeker can keep shooting at a hider
+// who's jumping about, but spraying blind runs the tank dry and then only gives a shot every couple of seconds
+const INK_MAX=10,INK_REGEN=2.5,FIRE_GAP=.18;
 
 function makeEnt(o){
   const e={id:o.id,name:o.name||'Player',color:o.color||'#ff4f8b',shape:o.shape?1:0,size:o.size==null?1:clamp(o.size|0,0,2),rough:o.rough==null?.85:o.rough,pose:0,flat:0,
@@ -3633,7 +3637,7 @@ function onPhase(rs,newId){
   if(rs.ph==='lobby'){banner('LOBBY','Walk around and try the paint studio while you wait',2.4);for(const e of ents.values())e.av.root.visible=true}
   else if(rs.ph==='hide'){
     if(newId){
-      clearFx();G.ink=INK_MAX;G.inkT=0;G.shootCd=0;G.tm=0;G.tauntCd=0;
+      clearFx();G.ink=INK_MAX;G.shootCd=0;G.tm=0;G.tauntCd=0;
       for(const e of ents.values()){e.av.root.visible=true;e.av.glowOn=false}
       if(me)spawnMe(rs,false);
       if(G.mode==='practice')practiceRoundStart(rs);
@@ -3734,10 +3738,11 @@ function doTauntFx(e){const p=e.pos.clone();p.y+=heightOf(e)*.6;puff(p,'#ffffff'
 
 // ---------- seeker blaster ----------
 const ray=new THREE.Raycaster(),_o=new V3(),_d=new V3();
-function shoot(){
-  if(!me||G.role!=='seeker'||!G.rs||G.rs.ph!=='seek'||G.paused||G.blind)return;
+// auto: a repeat while the button is held down (the first shot of a press isn't)
+function shoot(auto){
+  if(!me||G.role!=='seeker'||!G.rs||G.rs.ph!=='seek'||G.paused||G.blind||G.studio)return;
   if(G.shootCd>0)return;
-  if(G.ink<1){toast('Out of ink. It refills over time.');sfx('miss');return}
+  if(G.ink<1){if(!auto&&clock>G.dryToast){G.dryToast=clock+2;toast('Out of ink. It trickles back, one shot every '+INK_REGEN+' s.');sfx('miss')}return}
   scene.updateMatrixWorld();camera.getWorldPosition(_o);camera.getWorldDirection(_d);
   const mh=rayMap(_o.x,_o.y,_o.z,_d.x,_d.y,_d.z,90,'hard');const tMap=mh?mh.t:90;let hitPoint=_o.clone().addScaledVector(_d,tMap),hitN=mh?new V3(...FACE_N[mh.f]):new V3(0,1,0);
   const meDist=_o.distanceTo(me.pos)+.2;
@@ -3749,11 +3754,10 @@ function shoot(){
   if(hits.length){
     const h=hits[0],tgt=h.object.userData.av.e;hitPoint=h.point;
     pellet(muzzle,hitPoint,'#ff4f8b',()=>{splatBody(tgt,h)});
-    G.shootCd=.35;claimTag(tgt.id);
+    G.shootCd=FIRE_GAP;claimTag(tgt.id);
   }else{
-    G.ink--;G.shootCd=MISS_CD;if(G.ink<INK_MAX&&G.inkT<=0)G.inkT=INK_REGEN;
+    G.ink=Math.max(0,G.ink-1);G.shootCd=FIRE_GAP;
     pellet(muzzle,hitPoint,'#ff4f8b',()=>{splat(hitPoint,hitN,'#ff4f8b');sfx('splat',hitPoint)});
-    toast('Missed! −1 ink');
   }
   if(G.mode==='online')Net.upd({sh:[G.shotSeq,r2(muzzle.x),r2(muzzle.y),r2(muzzle.z),r2(hitPoint.x),r2(hitPoint.y),r2(hitPoint.z),hitN.x,hitN.y,hitN.z].join(',')});
 }
@@ -4207,7 +4211,7 @@ function onNode(uid,v){
   const rf=numIn(+v.rf,0,100,0)/100;if(rf!==e.rough){e.rough=rf;e.av.setRough(rf)}
   e.aimPitch=finN(v.p)?clamp(v.p,-1.6,1.6):null;
   if(typeof v.pv==='number'&&v.pv!==e.paintVer&&typeof v.pd==='string'){e.paintVer=v.pv;e.av.paint.load(v.pd)}
-  if(typeof v.sh==='string'&&v.sh.length<=200&&v.sh!==e.shotSeen){const first=!e.shotSeen;e.shotSeen=v.sh;if(!first&&clock-(e.shotFxT||-9)>.2){e.shotFxT=clock;remoteShot(e,v.sh)}}
+  if(typeof v.sh==='string'&&v.sh.length<=200&&v.sh!==e.shotSeen){const first=!e.shotSeen;e.shotSeen=v.sh;if(!first&&clock-(e.shotFxT||-9)>.1){e.shotFxT=clock;remoteShot(e,v.sh)}}
   if(o.ta!==e.taSeen){const first=e.taSeen==null;e.taSeen=o.ta;if(!first&&o.ta&&clock-(e.taFxT||-9)>.5){e.taFxT=clock;doTauntFx(e)}}
   // round state from the host
   if(o.rs&&!G.host&&(uid===G.hostUid||!G.hostUid)&&o.rs!==G.rsSeen){
@@ -4304,12 +4308,13 @@ function updateHud(){
   setHidden('blind',!G.blind);if(G.blind){setText('blindN',String(Math.max(0,Math.ceil(left))));if(Math.ceil(left)!==G.lastTick&&left<=5&&left>0){G.lastTick=Math.ceil(left);sfx('tick')}}
   const seekNow=role==='seeker'&&ph==='seek';
   setHidden('ink',!seekNow);setHidden('xh',!(seekNow&&!G.studio));
-  if(seekNow){const pk=G.ink+'|'+(G.shootCd>0);if(hudCache.pips!==pk){hudCache.pips=pk;const box=$('pips');box.textContent='';for(let i=0;i<INK_MAX;i++){const p=document.createElement('i');if(i>=G.ink)p.className='off';box.appendChild(p)}$('xh').classList.toggle('cool',G.shootCd>.4)}
-    setText('inkSub',G.ink<INK_MAX?'Refill in '+Math.ceil(G.inkT)+'s · misses cost ink':'Misses cost ink and a reload')}
+  if(seekNow){const pk=Math.round(G.ink/INK_MAX*200);if(hudCache.ink!==pk){hudCache.ink=pk;$('inkFill').style.width=(pk/2)+'%'}
+    const dry=G.ink<1;if(hudCache.dry!==dry){hudCache.dry=dry;$('ink').classList.toggle('dry',dry);$('xh').classList.toggle('cool',dry)}
+    setText('inkSub',dry?'Out of ink · refilling':G.ink<INK_MAX?Math.floor(G.ink)+' shots · refilling':(isTouch?'Hold Tag to keep firing':'Hold to keep firing')+' · misses cost ink')}
   // hints
   let hint='';
   if(G.studio)hint='';
-  else if(role==='seeker')hint=ph==='seek'?'<span><kbd>Click</kbd> tag</span><span><kbd>Space</kbd> jump</span><span><kbd>Esc</kbd> menu</span>':'';
+  else if(role==='seeker')hint=ph==='seek'?'<span><kbd>Click</kbd> tag (hold to keep firing)</span><span><kbd>Space</kbd> jump</span><span><kbd>Esc</kbd> menu</span>':'';
   else if(role==='hider'||role==='free'){const p=me?me.pose:0,fl=me&&me.flat,wl=me&&me.wall;
     hint='<span><kbd>P</kbd> paint</span>'+(wl?'<span class="on"><kbd>G</kbd> stuck to the wall</span><span><kbd>W A S D</kbd> slide</span><span class="'+(p===2?'on':'')+'"><kbd>Z</kbd> sideways</span><span class="'+(fl&&p===0?'on':'')+'"><kbd>F</kbd> flatten</span><span><kbd>Space</kbd> let go</span>'
       :'<span class="'+(p===1?'on':'')+'"><kbd>C</kbd> crouch</span><span class="'+(p===2?'on':'')+'"><kbd>Z</kbd> lie</span><span class="'+(fl?'on':'')+'"><kbd>F</kbd> flatten</span><span><kbd>G</kbd> stick to wall</span><span><kbd>Q E</kbd> turn</span>')+(ph==='seek'?'<span><kbd>T</kbd> squeak +1</span>':'')+(G.mode==='practice'&&ph==='hide'?'<span><kbd>Enter</kbd> I\'m ready</span>':'')}
@@ -4336,7 +4341,7 @@ function updateHud(){
     const pk=[...Net.others.keys()].filter(k=>Net.live(k)).join()+G.hostUid+JSON.stringify(rs.set)+G.host;if(hudCache.lobby!==pk){hudCache.lobby=pk;renderLobby()}}
   if(G.mode==='online'&&ph==='end'&&!$('end').hidden)setText('endMsg',(liveIds().length>=2?'Next round in ':'Back to the lobby in ')+Math.max(0,Math.ceil(left))+'…');
   // touch buttons
-  if(isTouch){setHidden('stick',G.studio);setHidden('tbtns',G.studio);setHidden('tShoot',role!=='seeker');setHidden('tTaunt',!(role==='hider'&&ph==='seek'));setHidden('tPaint',!canPaint());setText('tPaint',G.studio?'Done':'Paint');for(const id of ['tPose1','tPose2','tFlat','tStick'])setHidden(id,!(role==='hider'||role==='free'));if(me){setText('tStick',me.wall?'Let go':'Stick');setText('tPose2',me.wall?'Side':'Lie');setHidden('tPose1',!(role==='hider'||role==='free')||!!me.wall)}}
+  if(isTouch){setHidden('stick',G.studio);setHidden('tbtns',G.studio);setHidden('tShoot',role!=='seeker');if(role!=='seeker')G.trigT=false;setHidden('tTaunt',!(role==='hider'&&ph==='seek'));setHidden('tPaint',!canPaint());setText('tPaint',G.studio?'Done':'Paint');for(const id of ['tPose1','tPose2','tFlat','tStick'])setHidden(id,!(role==='hider'||role==='free'));if(me){setText('tStick',me.wall?'Let go':'Stick');setText('tPose2',me.wall?'Side':'Lie');setHidden('tPose1',!(role==='hider'||role==='free')||!!me.wall)}}
 }
 function updateTags(){
   const r=G.role;
@@ -4548,7 +4553,7 @@ let last=performance.now();
 function frame(t){const dt=Math.min(.05,Math.max(0,(t-last)/1000));last=t;try{step(dt)}catch(err){console.error(err)}requestAnimationFrame(frame)}
 function roundTimers(dt){
   G.shootCd=Math.max(0,G.shootCd-dt);G.tauntCd=Math.max(0,G.tauntCd-dt);
-  if(G.ink<INK_MAX){G.inkT-=dt;if(G.inkT<=0){G.ink++;G.inkT=G.ink<INK_MAX?INK_REGEN:0;if(G.role==='seeker')sfx('reload')}}
+  if(G.ink<INK_MAX){const was=G.ink;G.ink=Math.min(INK_MAX,G.ink+dt/INK_REGEN);if(G.role==='seeker'&&(was<1&&G.ink>=1||G.ink>=INK_MAX))sfx('reload')}
   const rs=G.rs;
   if(rs&&rs.ph==='seek'&&G.role==='hider'&&G.nextTaunt&&now()>=G.nextTaunt){G.nextTaunt+=(rs.set.tn|0)*1000;taunt(false)}
 }
@@ -4564,7 +4569,9 @@ function step(dt){
   if(G.mode==='menu'){const w=ents.get('aw');if(w){w.spd=0}}
   for(const e of ents.values())e.av.update(dt);
   if(me&&me.av.paint.dirty)me.av.paint.commit();
-  updateTags();updateFx(dt);updateCamera(dt);updateHud();
+  updateTags();updateFx(dt);updateCamera(dt);
+  if((G.trig||G.trigT)&&!frozen)shoot(true);
+  updateHud();
   if(!G.noRender)renderer.render(scene,camera);else scene.updateMatrixWorld(); // noRender: test runs on slow software GL
 }
 
@@ -4588,8 +4595,11 @@ addEventListener('keydown',ev=>{
   else if(c==='Enter')practiceReady();
 });
 addEventListener('keyup',ev=>{keys[ev.code]=false});
-addEventListener('blur',()=>{for(const k in keys)keys[k]=false});
+addEventListener('blur',()=>{for(const k in keys)keys[k]=false;G.trig=G.trigT=false});
+// holding the mouse button keeps the blaster firing; let go anywhere to stop
+addEventListener('pointerup',ev=>{if(ev.pointerType==='mouse'&&!(ev.buttons&1))G.trig=false});
 document.addEventListener('pointerlockchange',()=>{
+  if(!document.pointerLockElement)G.trig=false;
   // a lock that arrives after the paint studio opened (or after the menu came back) is let go again
   if(document.pointerLockElement&&(G.studio||G.mode==='menu')){G.intentUnlock=true;document.exitPointerLock();setTimeout(()=>G.intentUnlock=false,300);return}
   if(!document.pointerLockElement&&!G.intentUnlock&&(G.mode==='online'||G.mode==='practice')&&!G.studio&&!G.paused&&$('end').hidden)showPause();
@@ -4606,7 +4616,7 @@ canvas.addEventListener('pointerdown',ev=>{
   if(isTouch||ev.pointerType==='touch'){touch.look={id:ev.pointerId,x:ev.clientX,y:ev.clientY,t:performance.now()};return}
   if(G.role==='out'||G.role==='spec'){cycleSpec(1);return}
   if(!document.pointerLockElement){requestLock();return}
-  if(ev.button===0)shoot();
+  if(ev.button===0){G.trig=true;shoot()}
 });
 canvas.addEventListener('pointermove',ev=>{
   if(G.studio){studioPointerMove(ev);return}
@@ -4624,7 +4634,10 @@ canvas.addEventListener('wheel',ev=>{if(G.studio){ev.preventDefault();SC.dist=cl
   st.addEventListener('pointermove',mv);
   const up=ev=>{if(ev.pointerId!==id)return;id=null;touch.x=touch.y=0;touch.active=false;knob.style.transform=''};st.addEventListener('pointerup',up);st.addEventListener('pointercancel',up);
   const tap=(bid,fn)=>$(bid).addEventListener('pointerdown',ev=>{ev.preventDefault();initAudio();fn()});
-  tap('tJump',jump);tap('tShoot',shoot);tap('tStick',toggleStick);tap('tPose1',()=>setPose(1));tap('tPose2',()=>setPose(2));tap('tFlat',toggleFlat);tap('tTaunt',()=>taunt(true));
+  // the Tag button keeps firing while it's held down
+  const ts=$('tShoot');ts.addEventListener('pointerdown',ev=>{ev.preventDefault();initAudio();try{ts.setPointerCapture(ev.pointerId)}catch(e){}G.trigT=true;shoot()});
+  for(const k of ['pointerup','pointercancel','lostpointercapture'])ts.addEventListener(k,()=>{G.trigT=false});
+  tap('tJump',jump);tap('tStick',toggleStick);tap('tPose1',()=>setPose(1));tap('tPose2',()=>setPose(2));tap('tFlat',toggleFlat);tap('tTaunt',()=>taunt(true));
   tap('tPaint',()=>{if(G.studio)closeStudio();else openStudio()});tap('tMenu',()=>{if(G.studio)closeStudio();showPause()});
 })();
 
