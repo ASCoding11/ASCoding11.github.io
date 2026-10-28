@@ -2484,11 +2484,17 @@ const Net={
   },
   rematch(){
     if(!online||!this.refs)return;const id=this.matchId;
-    this.refs.round.transaction(cur=>(cur&&cur.id===id)?{id:id+1,ends:this.now(),len:MATCH_MS,map:((+cur.map||0)+1)%MAPS.length}:undefined).catch(()=>{});
+    // a missing match (the last egg out took it, see dropRound) starts a fresh one too, always numbered past this
+    // browser's own match so its listener (which ignores the match it already has) picks it up
+    this.refs.round.transaction(cur=>(!cur||cur.id===id)?{id:(+id||0)+1,ends:this.now(),len:MATCH_MS,map:((+(cur&&cur.map)||0)+1)%MAPS.length}:undefined).catch(()=>{});
   },
+  // The last egg out takes the room's match with it, so a code nobody uses again doesn't keep a stale node. Only when
+  // no other egg is here, and only the match this browser saw; an egg that was mid-join re-creates one (its own join
+  // transaction, or rematch).
+  dropRound(r){const id=this.matchId;if(id==null||remotes.size)return;r.round.transaction(cur=>cur==null||cur.id===id?null:undefined).catch(()=>{})},
   leave(){
     clearInterval(this.pubTimer);clearInterval(this.pruneTimer);
-    if(this.refs){const r=this.refs;try{r.players.off();r.events.off();r.round.off();r.me.onDisconnect().cancel();r.me.remove()}catch(e){}}
+    if(this.refs){const r=this.refs;try{r.players.off();r.events.off();r.round.off();r.me.onDisconnect().cancel();r.me.remove();this.dropRound(r)}catch(e){}}
     this.refs=null;this.room=null;this.matchId=null;online=false;player.id='me';
     clearRemotes();
   }
