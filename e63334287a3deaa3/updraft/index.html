@@ -166,6 +166,11 @@ body.touch #touch{display:block}
 /* first / third person: above Jump, clear of Slow and Sprint */
 #tView{right:calc(42px + env(safe-area-inset-right,0px));bottom:calc(132px + env(safe-area-inset-bottom,0px));width:52px;height:52px}
 #tView svg{width:26px;height:26px;display:block}
+/* the Enter button for a secret door (shown only at one): sideways at the top in the middle, upright under the height chips (below), clear of everything else */
+#tEnter{left:50%;top:calc(14px + env(safe-area-inset-top,0px));transform:translateX(-50%);width:auto;height:44px;padding:0 22px;border-radius:999px;font-size:14px;background:rgba(255,179,71,.92);color:#2a1405;border-color:#fff}
+@media (orientation:portrait){#tEnter{left:calc(18px + env(safe-area-inset-left,0px));top:calc(156px + env(safe-area-inset-top,0px));transform:none}}   /* upright: under the height and run chips, clear of the board and the bar */
+#doorHint{position:absolute;left:50%;top:60%;transform:translateX(-50%);background:rgba(10,16,32,.7);border:1px solid var(--line);border-radius:12px;padding:8px 14px;font-weight:700;font-size:14px;white-space:nowrap}
+#doorHint kbd{font:inherit;font-weight:800;color:var(--sun);margin-right:4px}
 body.touch #hint,body.touch #lockHint,body.touch #fpDot{display:none}
 body.touch #keysMenu,body.touch #keysPause{display:none}
 body.touch .menu-btns{grid-template-columns:1fr}
@@ -253,6 +258,7 @@ body.touch #spec{bottom:calc(160px + env(safe-area-inset-bottom,0px))}
     <div id="feed"></div>
     <div id="hint"></div>
     <div id="lockHint" hidden>Click to look around</div>
+    <div id="doorHint" hidden></div>
     <div id="fpDot" hidden></div>
     <div id="spec" hidden></div>
     <div id="restartHold" class="sh" hidden><svg class="ring" viewBox="0 0 64 64"><circle cx="32" cy="32" r="27" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="6"/><circle id="holdArc" cx="32" cy="32" r="27" fill="none" stroke="#ffb347" stroke-width="6" stroke-linecap="round" stroke-dasharray="170" stroke-dashoffset="170" transform="rotate(-90 32 32)"/></svg>Hold to restart from the bottom</div>
@@ -266,6 +272,7 @@ body.touch #spec{bottom:calc(160px + env(safe-area-inset-bottom,0px))}
     <button class="tb idle" id="tSlow" type="button">Slow</button>
     <button class="tb" id="tView" type="button" aria-label="First person"></button>
     <button class="tb" id="tMenu" type="button" aria-label="Pause">❚❚</button>
+    <button class="tb" id="tEnter" type="button" hidden>Enter</button>
   </div>
 
   <section id="menu" class="overlay">
@@ -735,7 +742,7 @@ function build(seed){
   NID=0;
   const rnd=mulberry(seed||20261020);
   const rr=(a,b)=>a+(b-a)*rnd(),pick=a=>a[Math.floor(rnd()*a.length)];
-  const cols=[],deco=[],path=[],fans=[],signs=[];
+  const cols=[],deco=[],path=[],fans=[],signs=[],secrets={};   // secrets: the staff lift and the back stairs (see the page script)
   const K={last:null,h:0,flow:true,maxFrac:.62};   // the first zone teaches: no jump past 62% of a sprint jump (zone 2 on allows 80%)
   function add(o){const c=mk(o);c.zone=zoneAt(c.y1);cols.push(c);return c}
   function dec(o){deco.push(o);return o}
@@ -791,8 +798,9 @@ function build(seed){
   const sr=mulberry(77),sp=a=>a[Math.floor(sr()*a.length)];
   for(let i=0;i<16;i++){const a=i/16*Math.PI*2+(sr()-.5)*.2,r=52+sr()*6;dec({s:'car',x:Math.sin(a)*r,z:Math.cos(a)*r,yaw:a+Math.PI/2+(sr()<.5?0:Math.PI),col:sp(['#c8462f','#2f6fb3','#e0b028','#3f8f5a','#ecebe6','#2b2f38'])})}
   for(let i=0;i<20;i++){const a=i/20*Math.PI*2+.08,r=49;dec({s:'lamp',x:Math.sin(a)*r,z:Math.cos(a)*r,yaw:a})}
-  // start pad on the street, south of the tower
+  // start pad on the street, south of the tower (with a shabby poster beside it: the one hint to the staff lift)
   put({t:'cyl',x:0,z:36,top:.14,h:.14,r:2.6,v:'pad',col:'#ffcf3d',surf:'metal'});
+  dec({s:'poster',x:-4.6,z:38.4,yaw:Math.PI/2+.55,text:'Staff lift: ask the crane'});
   K.h=Math.PI/2;
   for(let i=0;i<6;i++){const s=rr(1.25,1.8);go({t:'box',w:s,d:s,h:0,v:'crate',col:'#b8915f',surf:'wood',ground:1},rr(.4,1.3),rr(.55,.95),rr(-.4,.4))}
   for(let i=0;i<7;i++){const L=pick([6.1,6.1,12.2]);go({t:'box',w:2.44,d:L,h:0,v:'container',col:pick(CONT),surf:'metal',ground:1},rr(.6,1.8),rr(.7,1.1),rr(-.45,.45),rr(-.5,.5))}
@@ -898,6 +906,12 @@ function build(seed){
     dec({s:'box',x:mx,y:G+3.5,z:mz,w:.5,h:7,d:.5,v:'lattice',col:'#e7b416'});
     const hc=go({t:'box',w:6.1,d:2.44,h:2.6,v:'container',col:'#2f6fb3',surf:'metal'},.6,-.8,0);
     dec({s:'tube',a:[hc.x,hc.y1,hc.z],b:[hc.x,G-1.2,hc.z],r:.06,col:'#2b2b2b'});
+    // The staff lift (a secret, drawn and run by the page script): a door in the mast's +x face at the foot of
+    // the spiral, reached over a grate landing between the mast and the first step (4 cm lower than the step,
+    // so the bot's jump still counts as landing on the step), and a cab that rides inside the mast up to the
+    // top grate, where the route carries on along the jib. It skips the spiral and nothing else.
+    add({t:'box',x:mx+1.9,z:mz+.3,top:y0+.76,h:.18,w:1.6,d:2,v:'grate',col:'#e7b416',surf:'metal'});
+    secrets.lift={mx,mz,y0:y0+.8,y1:G,door:[mx+1.1,mz],exit:[mx+1.6,mz]};
   }
   {
     const hc=K.last;onPath(tower[1]);K.flow=true;
@@ -914,6 +928,20 @@ function build(seed){
     onPath(tower[2]);tower[2].rest=1;
     signs.push({x:0,y:168,z:7.5,yaw:0,text:'Lost and Found',sub:'next stop'});
     K.h=sq(st.s,10,0)[2];
+    // The back stairs (a secret, drawn and run by the page script): an unmarked panel in the top block's wall
+    // beside the ledge about 12 m below the roof opens on a ladder shaft inside the block, which comes out of
+    // a stair bulkhead on the roof. The bulkhead is the only collider: it sits on the roof edge over the door,
+    // away from where the route lands on the roof and leaves it.
+    {
+      const B=tower[2],half=B.hx;let L=null,bd=1e9;
+      for(const c of path){if(c.v!=='ledge'||c.hz<1||c.y1<B.y0+20||c.y1>B.y1-6)continue;const d=Math.abs(c.y1-(B.y1-12));if(d<bd){bd=d;L=c}}
+      if(L){
+        const ax=Math.abs(L.x)>Math.abs(L.z),n=[ax?Math.sign(L.x):0,ax?0:Math.sign(L.z)],tg=[-n[1],n[0]],s=L.x*tg[0]+L.z*tg[1];
+        const cx=n[0]*(half-1.4)+tg[0]*s,cz=n[1]*(half-1.4)+tg[1]*s,yaw=Math.atan2(n[0],n[1]);
+        add({t:'box',x:cx,z:cz,top:B.y1+2.6,h:2.6,w:3,d:2.8,yaw,v:'concrete',col:'#a39a8e',surf:'stone'});
+        secrets.roof={n,tg,s,half,y0:L.y1,y1:B.y1,door:[n[0]*half+tg[0]*s,n[1]*half+tg[1]*s],shaft:{x:cx,z:cz,yaw,w:3,d:2.8,h:2.6},ledge:L.path};
+      }
+    }
   }
   for(const b of tower)b.big=1;
   // helpers shared by the floating zones
@@ -1184,7 +1212,7 @@ function build(seed){
     for(const is of ck.issues)if(is[0]==='blocked'||is[0]==='headroom'){const c=cols.find(q=>q.id===is[2]);if(c&&c.deco&&c.path<0)bad.add(c)}
     for(let i=cols.length-1;i>=0;i--)if(bad.has(cols[i]))cols.splice(i,1);
   }
-  return{cols,deco,path,fans,signs,shortcuts};
+  return{cols,deco,path,fans,signs,shortcuts,secrets};
 }
 
 // ---------------------------------------------------------------------
@@ -1436,7 +1464,7 @@ let myName=cleanName(store.get('name','')),myColor=store.get('color','');if(!isC
 // =====================================================================
 //  Sound: everything is made with Web Audio, nothing is loaded.
 // =====================================================================
-let ac=null,master=null,sfxBus=null,musBus=null,windG=null,fanG=null,noiseBuf=null;
+let ac=null,master=null,sfxBus=null,musBus=null,windG=null,fanG=null,humG=null,noiseBuf=null;
 function initAudio(){
   if(ac){if(ac.state==='suspended')ac.resume();return}
   try{ac=new(window.AudioContext||window.webkitAudioContext)()}catch(e){return}
@@ -1447,8 +1475,11 @@ function initAudio(){
   // wind while falling, and the hum of a fan: looping noise through filters, faded in and out
   const loop=(freq,q)=>{const s=ac.createBufferSource();s.buffer=noiseBuf;s.loop=true;const f=ac.createBiquadFilter();f.type='bandpass';f.frequency.value=freq;f.Q.value=q;const g=ac.createGain();g.gain.value=0;s.connect(f);f.connect(g);g.connect(sfxBus);s.start();return{g,f}};
   windG=loop(600,.6);fanG=loop(180,1.4);
+  // the staff lift's hum: a low buzz, faded in and out (setHum)
+  {const o=ac.createOscillator(),o2=ac.createOscillator(),f=ac.createBiquadFilter(),g=ac.createGain();o.type='sawtooth';o.frequency.value=55;o2.type='triangle';o2.frequency.value=110.6;f.type='lowpass';f.frequency.value=240;g.gain.value=0;o.connect(f);o2.connect(f);f.connect(g);g.connect(sfxBus);o.start();o2.start();humG=g}
   startMusic();
 }
+function setHum(on){if(humG)humG.gain.setTargetAtTime(on?.08:0,ac.currentTime,.3)}
 function env(g,t,a,peak,dec){g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(peak,t+a);g.gain.exponentialRampToValueAtTime(.0001,t+a+dec)}
 function tone(f,dur,vol,type,f2,when,bus){
   if(!ac)return;const t=ac.currentTime+(when||0),o=ac.createOscillator(),g=ac.createGain();
@@ -1492,6 +1523,10 @@ function sfx(kind,a,b){
   else if(kind==='fanfare'){[523,659,784,1047,784,1047,1319].forEach((f,i)=>{tone(f,.5,.11,'triangle',null,i*.13);tone(f/2,.6,.05,'sine',null,i*.13)});noise(1.2,3000,.5,.05,'highpass',.9)}
   else if(kind==='join'){tone(880,.12,.05,'sine',1320)}
   else if(kind==='slow'){noise(.45,900,.7,.07,'lowpass',0,160);tone(170,.4,.05,'sine',85)}
+  // the secrets: a door sliding or swinging, the lift's bell, a rung of the ladder
+  else if(kind==='door'){noise(.45,700,.8,.09,'lowpass',0,250);tone(110,.25,.03,'triangle')}
+  else if(kind==='ding'){tone(1318,.9,.07,'sine');tone(1047,1.2,.06,'sine',null,.22)}
+  else if(kind==='rung'){SURF.metal(.5)}
 }
 // gentle music: a slow pad and a soft plucked tune, chords and brightness change with altitude
 let musT=0,musStep=0;
@@ -1846,6 +1881,8 @@ function drawDeco(d){
     for(const q of [[1,1],[1,-1],[-1,1],[-1,-1]]){const p=P(q[0]*hw,q[1]*hw);addGeo(get2(d.y1/2),cylG(6),M(p[0],(d.y0+d.y1)/2,p[1],0,.06,d.y1-d.y0,.06),'#9aa3ad')}
     for(let y=d.y0+2;y<d.y1;y+=2){for(let s=0;s<4;s++){const a=d.yaw+s*Math.PI/2,c2=P(Math.sin(s*Math.PI/2)*hw,Math.cos(s*Math.PI/2)*hw);addGeo(get2(y),cylG(5),M(c2[0],y,c2[1],a+Math.PI/2,.045,d.w,.045,0,Math.PI/2),'#9aa3ad')}}
     return}
+  if(d.s==='poster'){const t=signTex(d.text,'',1024,192,'#e9dfc4','#3b3540');const m=new THREE.Mesh(new THREE.PlaneGeometry(2,.375),new THREE.MeshLambertMaterial({map:t,side:THREE.DoubleSide}));
+    m.position.set(d.x,1.72,d.z);m.rotation.y=d.yaw;m.rotation.z=.03;scene.add(m);addGeo(sb('metal',0),cylG(6),M(d.x,.76,d.z,0,.035,1.52,.035),'#55595f');return}
   if(d.s==='billboard'){const t=signTex(d.text,'',1024,384,'#f7f2e8','#2b2b33');const m=new THREE.Mesh(new THREE.PlaneGeometry(d.w,d.h),new THREE.MeshLambertMaterial({map:t,side:THREE.DoubleSide}));
     const ux=Math.cos(d.yaw),uz=-Math.sin(d.yaw);m.position.set(d.x-ux*.6,d.y+d.h/2+.6,d.z-uz*.6);m.rotation.y=d.yaw+Math.PI/2;scene.add(m);
     addBox(k=>sb(k,d.y),M(d.x-ux*.65,d.y+d.h/2+.6,d.z-uz*.65,d.yaw),.08,d.w/2+.1,d.h+.2,0,{top:'metal',side:'metal'},'#444',1);return}
@@ -1956,7 +1993,8 @@ const POSE_KEYS=['hy','sp','sz','nk','aLx','aLz','eL','aRx','aRz','eR','lLx','kL
 function poseAvatar(A,st,dt){
   const T={hy:0,sp:0,sz:0,nk:0,aLx:0,aLz:.12,eL:-.25,aRx:0,aRz:-.12,eR:-.25,lLx:0,kL:.05,lRx:0,kR:.05,lLz:0,lRz:0};
   const t=st.t,spd=st.spd;
-  if(st.mantle){T.aLx=T.aRx=-2.7;T.eL=T.eR=-.5;T.lLx=-1.1;T.kL=1.4;T.lRx=-.4;T.kR=.9;T.sp=.35;T.hy=-.05}
+  if(st.climb){const s=Math.sin(t*7);T.aLx=-2.6+s*.4;T.aRx=-2.6-s*.4;T.eL=T.eR=-.55;T.lLx=-.9+s*.45;T.lRx=-.9-s*.45;T.kL=1.5-s*.35;T.kR=1.5+s*.35;T.sp=.12;T.nk=-.35;T.hy=-.04}   // up a ladder
+  else if(st.mantle){T.aLx=T.aRx=-2.7;T.eL=T.eR=-.5;T.lLx=-1.1;T.kL=1.4;T.lRx=-.4;T.kR=.9;T.sp=.35;T.hy=-.05}
   else if(st.slide){T.hy=-.3;T.sp=-.25;T.lLx=-.9;T.kL=1.5;T.lRx=.3;T.kR=1;T.aLz=1.1;T.aRz=-1.1;T.aLx=-.4;T.aRx=-.4}
   else if(!st.gnd){
     if(st.vy>.5){const k=clamp(st.vy/C.JUMP,0,1);T.lLx=-1*k-.2;T.kL=1.3*k+.2;T.lRx=.35;T.kR=.6;T.aLx=-1.4-.8*k;T.aRx=-1.1;T.eL=T.eR=-.4;T.sp=.08}
@@ -2038,7 +2076,8 @@ function loadRun(){
 function saveRun(){
   const o={x:r2(me.x),y:r2(me.y),z:r2(me.z),yaw:r3(me.yaw),t:Math.round(run.t*10)/10,falls:me.falls,jumps:me.jumps,maxY:Math.round(run.maxY*10)/10,fin:run.fin};
   const m=me.mantle,g=me.gnd;
-  if(m){o.x=r2(m.tx);o.y=r2(m.ty);o.z=r2(m.tz)}   // halfway up a ledge: the top of it
+  if(ride){const e=ride.ph[ride.ph.length-1].b;o.x=r2(e[0]);o.y=r2(e[1]);o.z=r2(e[2])}   // in the lift or on the stairs: where they come out
+  else if(m){o.x=r2(m.tx);o.y=r2(m.ty);o.z=r2(m.tz)}   // halfway up a ledge: the top of it
   else if(g&&g.dyn&&g.path>=0){const l=U.toLocal(g,me.x,me.z);o.on=g.path;o.lx=r2(l[0]);o.lz=r2(l[1])}
   else if(!g){o.v=[r2(me.vx),r2(me.vy),r2(me.vz)];o.ff=r2(me.fallFrom)}
   store.set('run',o);
@@ -2046,6 +2085,7 @@ function saveRun(){
 function saveBest(){store.set('best',best)}
 function newRun(){
   me=U.Body(START.x,START.y1+.02,START.z);me.gnd=START;me.yaw=Math.PI/2;camYaw=Math.PI/2;camPitch=.3;
+  if(ride){ride=null;setHum(false);for(const k in doorWant)doorWant[k]=0;if(myAv.root.parent!==scene)scene.add(myAv.root)}
   Object.assign(run,{t:0,falls:0,jumps:0,maxY:0,fin:0,zone:0});G.winShown=false;G.spec=null;G.pbShown=false;G.lastZone=0;
   saveRun();for(const k in hudCache)delete hudCache[k];
 }
@@ -2127,7 +2167,7 @@ function updateFp(dt){
   myAv.root.visible=false;
 }
 // the camera for this frame: first person, or the orbiting one
-function updateView(dt,fdt){if(fpOn())updateFp(dt);else updateCamera(dt,fdt)}
+function updateView(dt,fdt){if(fpOn())updateFp(dt);else if(ride&&G.mode!=='menu'&&!G.spec)rideCamera(dt);else updateCamera(dt,fdt)}
 // fdt: the time step for following the climber (shorter in slow motion, so the framing stays the same)
 function updateCamera(dt,fdt){
   if(fdt==null)fdt=dt;
@@ -2147,10 +2187,230 @@ function updateCamera(dt,fdt){
   const hit=rayHit(camPivot.x,camPivot.y,camPivot.z,dx,dy,dz,camDist+.3);
   let d=Math.min(camDist,hit-.32);if(d<.35)d=.35;
   camera.position.set(camPivot.x+dx*d,camPivot.y+dy*d,camPivot.z+dz*d);
+  // just off a ride: glide from where the ride's camera left off instead of cutting
+  if(rideCamEnd){const k=clamp((performance.now()-rideCamEnd.t)/700,0,1);if(k>=1)rideCamEnd=null;else camera.position.lerp(rideCamEnd.p,1-k*k*(3-2*k))}
   if(G.shake>0){G.shake=Math.max(0,G.shake-dt*2.2);const s=G.shake*.12;camera.position.x+=rand(-s,s);camera.position.y+=rand(-s,s);camera.position.z+=rand(-s,s)}
   camera.lookAt(camPivot);
   // the climber fades when the camera is right on top of them
   const near=d<1.1;myAv.root.visible=!near||!!tg;
+}
+
+// =====================================================================
+//  Secrets: the crane's staff lift and the tower's back stairs. Each is a door you walk up to and open
+//  with the interact key (E; an Enter button on touch screens). The climber then follows a short scripted
+//  path (`ride`: walk in, ride or climb, walk out) with the physics switched off, so there is nothing to
+//  fall off and slow motion never starts (you count as standing). The lift skips the spiral round the
+//  mast and comes out on the top grate; the stairs skip the last ledges and come out on the roof; both
+//  exits are on the normal route, no higher than it. Positions are published during a ride like any
+//  other movement, so the others see the ride (and a cab round anyone riding the lift). The course
+//  (`course.secrets`) says where the doors are; the colliders (the landing and the roof bulkhead) are in
+//  the course, so the checker and the climb bot see them. Found once per browser: updraft:secrets, and a
+//  'secrets' stat for the leaderboards' records (stats.js).
+// =====================================================================
+const SEC=course.secrets||{};
+const secretsFound=Object(store.get('secrets',{}));
+let ride=null,rideCamEnd=null,cabY=SEC.lift?SEC.lift.y0:0,cabWant=cabY,cabBackT=0;
+const doorWant={lift:0,cab:0,roof:0,exit:0},doorK={lift:0,cab:0,roof:0,exit:0};
+const inScene=new THREE.Scene();inScene.add(new THREE.HemisphereLight(0xfff4e0,0x3a3630,1.05));
+const inSun=new THREE.DirectionalLight(0xffffff,.35);inSun.position.set(.3,1,.5);inScene.add(inSun);
+const LM=(c,map)=>new THREE.MeshLambertMaterial({color:c,map:map||null});
+const LMB=c=>new THREE.MeshBasicMaterial({color:c});
+const bx=(mat,w,h,d,x,y,z)=>{const m=new THREE.Mesh(GEO.box,mat);m.scale.set(w,h,d);m.position.set(x,y,z);return m};
+// a wall piece in a group's own frame: w×h, centred at (x, y, z), turned by ry (0: faces +z)
+function wallPiece(mat,w,h,x,y,z,ry,rx){const g=new THREE.PlaneGeometry(w,h);const uv=g.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*w/2,uv.getY(i)*h/2);const m=new THREE.Mesh(g,mat);m.position.set(x,y,z);m.rotation.set(rx||0,ry||0,0,'YXZ');return m}
+const secretMesh={};
+(function buildSecrets(){
+  const L=SEC.lift;
+  if(L){
+    const Y='#e7b416',yel=LM(Y),yelD=LM(shade(Y,.7)),dark=LM('#3a3a3f'),glow=LMB('#fff3cf');
+    // the door in the mast's +x face: a frame, two leaves that slide apart, and a small sign over it
+    const dg=new THREE.Group();dg.position.set(L.door[0]+.03,L.y0,L.door[1]);
+    dg.add(bx(yelD,.1,.14,1.3,0,2.33,0));dg.add(bx(yelD,.1,2.4,.12,0,1.2,-.59));dg.add(bx(yelD,.1,2.4,.12,0,1.2,.59));
+    const l1=bx(yel,.05,2.15,.52,.06,1.075,-.26),l2=bx(yel,.05,2.15,.52,.06,1.075,.26);dg.add(l1);dg.add(l2);
+    const sc=cnv(256,80),sx=sc.getContext('2d');sx.fillStyle='#2b2b30';sx.fillRect(0,0,256,80);sx.fillStyle='#f3d87a';sx.font='800 34px Outfit, Arial, sans-serif';sx.textAlign='center';sx.textBaseline='middle';sx.fillText('STAFF LIFT',128,42);
+    const sign=new THREE.Mesh(new THREE.PlaneGeometry(.7,.22),new THREE.MeshBasicMaterial({map:tex(sc,false)}));sign.position.set(.1,2.62,0);sign.rotation.y=Math.PI/2;dg.add(sign);
+    scene.add(dg);secretMesh.liftDoor={g:dg,l1,l2};
+    // the cab: a cage with a floor, a roof, posts, waist panels and its own gate (two sliding leaves) on the +x side
+    const makeCab=()=>{const g=new THREE.Group();const st=new THREE.MeshLambertMaterial({map:T.stripes});
+      g.add(bx(st,1.2,.06,1.2,0,.03,0));g.add(bx(yelD,1.2,.05,1.2,0,2.2,0));
+      for(const q of [[1,1],[1,-1],[-1,1],[-1,-1]])g.add(bx(yelD,.07,2.2,.07,q[0]*.565,1.1,q[1]*.565));
+      g.add(bx(yel,.04,.95,1.2,-.58,.52,0));g.add(bx(yel,1.2,.95,.04,0,.52,.58));g.add(bx(yel,1.2,.95,.04,0,.52,-.58));
+      g.add(bx(glow,.3,.02,.3,0,2.17,0));
+      // the gate: two leaves, each a waist panel, a top rail and an edge post (open above, so you can see out on the way up)
+      const leaf=z=>{const q=new THREE.Group();q.position.set(.58,0,z);q.add(bx(yel,.04,.95,.56,0,.52,0));q.add(bx(yelD,.05,.06,.56,0,2.06,0));q.add(bx(yelD,.05,2.12,.05,0,1.06,z<0?.255:-.255));g.add(q);return q};
+      g.leaves=[leaf(-.28),leaf(.28)];
+      g.position.set(L.mx,cabY,L.mz);scene.add(g);return g};
+    secretMesh.cab=makeCab();secretMesh.cab2=makeCab();secretMesh.cab2.visible=false;
+  }
+  const R=SEC.roof;
+  if(R){
+    const n=R.n,tg=R.tg,H=R.y1-R.y0,sh=R.shaft,wall=LM('#8f8a83',T.concrete),floorM=LM('#6e6a64',T.concrete),rail=LM('#c9b16a'),blk=LMB('#17161a');
+    // the hidden panel: the wall's own facade texture, mapped exactly like the wall behind it, with a faint seam.
+    // It hangs on a hinge at one side and swings in.
+    // (the group's own x axis runs along the face against `tg`, so the hinge sits at +tg and the panel hangs at local +x)
+    const hg=new THREE.Group();hg.position.set(R.door[0]+n[0]*.012+tg[0]*.5,R.y0,R.door[1]+n[1]*.012+tg[1]*.5);hg.rotation.y=Math.atan2(n[0],n[1]);
+    const pg=new THREE.PlaneGeometry(1,2.1),uv=pg.attributes.uv;
+    // the block's faces map u along the face from its start corner (addBox: +x starts at +z, -x at -z, +z at -x, -z at +x,
+    // which is `half - s` on every face) and v up from the block's foot, 6 m per repeat
+    {const B=course.cols.find(c=>c.v==='facade'&&!c.deco&&c.hx===R.half);const t=6;
+      for(let i=0;i<uv.count;i++){const px=uv.getX(i)-.5,py=uv.getY(i);uv.setXY(i,(R.half-R.s+px)/t,(R.y0-B.y0+py*2.1)/t)}
+      const pm=new THREE.MeshLambertMaterial({map:T.facade,color:B.col});const panel=new THREE.Mesh(pg,pm);panel.position.set(.5,1.05,0);hg.add(panel);
+      const seam=LM('#5a554f');for(const q of [[.5,2.11,1.01,.015],[.5,0,1.01,.015]])hg.add(bx(seam,q[2],q[3],.02,q[0],q[1],.01));
+      hg.add(bx(seam,.015,2.12,.02,-.005,1.05,.01));hg.add(bx(seam,.015,2.12,.02,1.005,1.05,.01));}
+    // a dark doorway behind the panel (the wall itself is solid; this is what you see when the panel is open)
+    const dw=new THREE.Mesh(new THREE.PlaneGeometry(1,2.1),blk);dw.position.set(R.door[0]+n[0]*.006,R.y0+1.05,R.door[1]+n[1]*.006);dw.rotation.y=Math.atan2(n[0],n[1]);scene.add(dw);
+    scene.add(hg);secretMesh.roofDoor=hg;
+    // the bulkhead's door on the roof, on the face toward the middle, opening out
+    const ex=[sh.x-n[0]*1.4,sh.z-n[1]*1.4];
+    const eg=new THREE.Group();eg.position.set(ex[0]-n[0]*.012+tg[0]*-.5,R.y1,ex[1]-n[1]*.012+tg[1]*-.5);eg.rotation.y=Math.atan2(-n[0],-n[1]);
+    const ed=bx(LM('#6b6660'),1,2.1,.05,.5,1.05,0);eg.add(ed);eg.add(bx(LM('#3a3836'),.08,.08,.08,.85,1,-.05));
+    const dw2=new THREE.Mesh(new THREE.PlaneGeometry(1,2.1),blk);dw2.position.set(ex[0]-n[0]*.006,R.y1+1.05,ex[1]-n[1]*.006);dw2.rotation.y=Math.atan2(-n[0],-n[1]);scene.add(dw2);
+    scene.add(eg);secretMesh.exitDoor=eg;
+    // the shaft inside the block, drawn only while the camera is in it (over everything else, see renderAll):
+    // walls, a floor, the bulkhead's floor with a hatch round the ladder, the ladder, a few lamps
+    const g=new THREE.Group();g.position.set(sh.x,R.y0,sh.z);g.rotation.y=sh.yaw;   // local z: toward the outside face; local x: along the face
+    const top=H+sh.h,P=(w,h,x,y,z,ry,rx,m)=>g.add(wallPiece(m||wall,w,h,x,y,z,ry,rx));
+    P(3,2.8,0,0,0,0,-Math.PI/2,floorM);P(3,2.8,0,top,0,0,Math.PI/2);
+    P(2.8,top,-1.5,top/2,0,Math.PI/2);P(2.8,top,1.5,top/2,0,-Math.PI/2);
+    P(3,top-2.1,0,2.1+(top-2.1)/2,1.4,Math.PI);P(1,2.1,-1,1.05,1.4,Math.PI);P(1,2.1,1,1.05,1.4,Math.PI);   // outer wall round the way in
+    P(3,H,0,H/2,-1.4,0);P(3,sh.h-2.1,0,H+2.1+(sh.h-2.1)/2,-1.4,0);P(1,2.1,-1,H+1.05,-1.4,0);P(1,2.1,1,H+1.05,-1.4,0);   // inner wall round the way out
+    P(3,.6,0,H,-1.1,0,-Math.PI/2,floorM);P(3,.6,0,H,1.1,0,-Math.PI/2,floorM);P(1.7,1.6,.65,H,0,0,-Math.PI/2,floorM);   // the bulkhead floor, with a hatch at x<-.2
+    P(3,.6,0,H-.02,-1.1,0,Math.PI/2);P(3,.6,0,H-.02,1.1,0,Math.PI/2);P(1.7,1.6,.65,H-.02,0,0,Math.PI/2);   // ...and its underside
+    for(const z of [-.3,.3])g.add(bx(rail,.05,H+.9,.05,-1.4,(H+.9)/2,z));
+    for(let y=.3;y<H+.6;y+=.3)g.add(bx(rail,.05,.04,.64,-1.4,y,0));
+    for(let y=2.3;y<top;y+=3.2){g.add(bx(LMB('#fff1c4'),.04,.12,.5,1.47,y,0));}
+    inScene.add(g);g.updateMatrixWorld(true);secretMesh.shaft=g;   // (its scene is only drawn once the camera is inside, so set its matrix now)
+  }
+})();
+// where the player goes on each ride, in order: name, seconds, from, to (x, y, z), facing from/to, eased or steady
+function ridePlan(kind){
+  const ph=[],P=(n,dur,a,b,ya,yb,ease)=>ph.push({n,dur,a,b,ya,yb:yb==null?ya:yb,ease:!!ease});
+  const here=[me.x,me.y,me.z];
+  if(kind==='lift'){
+    const L=SEC.lift,c=[L.mx,L.y0,L.mz],out=[L.exit[0],L.y1,L.mz];
+    P('open',.55,here,here,me.yaw,-Math.PI/2);P('in',.75,here,c,-Math.PI/2);P('turn',.4,c,c,-Math.PI/2,Math.PI/2);
+    P('close',.55,c,c,Math.PI/2);P('ride',5.6,c,[L.mx,L.y1,L.mz],Math.PI/2,null,true);
+    P('ding',.7,[L.mx,L.y1,L.mz],[L.mx,L.y1,L.mz],Math.PI/2);P('out',.7,[L.mx,L.y1,L.mz],out,Math.PI/2);
+    // then turn to face along the jib, where the route carries on
+    const g=PATH.find(c=>c.v==='grate'&&c.hx===1.7&&Math.abs(c.y1-L.y1)<.01),nx=g&&PATH[g.path+1];
+    if(nx)P('face',.45,out,out,Math.PI/2,Math.atan2(nx.x-out[0],nx.z-out[2]));
+  }else{
+    const R=SEC.roof,n=R.n,tg=R.tg,sh=R.shaft,H=R.y1-R.y0;
+    const W=(lx,ly,lz)=>[sh.x+n[0]*lz-tg[0]*lx,R.y0+ly,sh.z+n[1]*lz-tg[1]*lx];   // the shaft's own frame (see buildSecrets)
+    const yin=Math.atan2(-n[0],-n[1]),ylad=Math.atan2(tg[0],tg[1]);
+    const foot=W(-.9,0,0),topL=W(-.9,H,0),back=W(-.9,H,-1),dr=W(0,H,-1.45),out=W(0,H,-4);
+    P('open',.55,here,here,me.yaw,yin);P('in',.9,here,foot,yin,ylad);P('climb',5.2,foot,topL,ylad);
+    P('top',.7,topL,back,ylad,yin);P('exit',.6,back,dr,yin);P('out',.95,dr,out,yin);
+  }
+  return ph;
+}
+function foundSecret(kind,name){
+  if(secretsFound[kind])return;secretsFound[kind]=1;store.set('secrets',secretsFound);
+  try{if(window.BackRoomStats)BackRoomStats.add('secrets',1)}catch(e){}
+  feed('Secret found: '+name);
+}
+// Which door you are standing at, if any (standing still enough to use it; never for the bot or a watcher)
+function doorNear(){
+  if(ride||G.mode!=='play'||G.paused||G.spec||G.bot||!me.gnd||me.mantle||me.slide)return null;
+  const L=SEC.lift;if(L&&Math.abs(me.y-L.y0)<.7&&Math.hypot(me.x-(L.door[0]+.5),me.z-L.door[1])<1.2)return 'lift';
+  const R=SEC.roof;if(R&&Math.abs(me.y-R.y0)<.7&&Math.hypot(me.x-(R.door[0]+R.n[0]*.5),me.z-(R.door[1]+R.n[1]*.5))<1.1)return 'roof';
+  return null;
+}
+function startRide(kind){
+  if(ride||!SEC[kind])return false;
+  ride={kind,ph:ridePlan(kind),i:-1,t:0,gnd:me.gnd};
+  me.vx=me.vy=me.vz=0;me.mantle=null;me.slide=null;me.buf=0;me.coy=0;
+  if(kind==='lift'){cabY=cabWant=SEC.lift.y0;cabBackT=0}   // the cab is waiting at the bottom (even if someone just rode it up)
+  foundSecret(kind,kind==='lift'?'the staff lift':'the back stairs');
+  enterPhase();
+  if(!fpOn()){rideCamEnd=null;ride.cam=camera.position.clone()}
+  return true;
+}
+function enterPhase(){
+  const r=ride;r.i++;r.t=0;
+  if(r.i>=r.ph.length){endRide();return}
+  const n=r.ph[r.i].n;
+  if(n==='open'){sfx('door');if(r.kind==='lift'){doorWant.lift=doorWant.cab=1}else doorWant.roof=1}
+  else if(n==='turn'||n==='climb'){if(r.kind==='roof')doorWant.roof=0}
+  else if(n==='close'){doorWant.lift=doorWant.cab=0;sfx('door');setHum(true)}
+  else if(n==='ding'){setHum(false);sfx('ding');doorWant.cab=1}
+  else if(n==='top'){doorWant.exit=1;sfx('door')}
+}
+function endRide(){
+  const r=ride,L=SEC.lift,R=SEC.roof;ride=null;
+  let g=null;
+  if(r.kind==='lift'){g=PATH.find(c=>c.v==='grate'&&c.hx===1.7&&Math.abs(c.y1-L.y1)<.01)||null;doorWant.cab=0;cabBackT=performance.now()+6000}
+  else{g=course.cols.find(c=>c.v==='facade'&&!c.deco&&c.hx===R.half)||null;doorWant.exit=0}
+  const s=U.support(W,me.x,me.z,me.y-.5,me.y+.5);if(s)me.y=s[0];
+  me.gnd=(s&&s[1])||g||r.gnd;me.lastLand=me.gnd;me.vx=me.vy=me.vz=0;me.landT=0;me.impact=0;me.peakY=me.fallFrom=me.y;me.yawWant=me.yaw;
+  if(!fpOn()){camYaw=clearYaw(me.yaw);camPitch=.3;camPivot.set(me.x,me.y+1.45,me.z);rideCamEnd={p:camera.position.clone(),t:performance.now()}}
+  if(myAv.root.parent!==scene)scene.add(myAv.root);
+  saveRun();
+}
+// a camera direction near `y` with a clear view of the climber (the mast or the bulkhead is right behind
+// them as they step out, and the camera would otherwise start squashed against it)
+function clearYaw(y){
+  const px=me.x,py=me.y+1.45,pz=me.z,cp=Math.cos(.3),sp=Math.sin(.3),need=Math.min(camDistWant,4)+.3;let best=y,bd=-1;
+  for(let i=0;i<14;i++){const a=y+(i%2?1:-1)*Math.ceil(i/2)*.45,h=rayHit(px,py,pz,-Math.sin(a)*cp,sp,-Math.cos(a)*cp,need);if(h>=need)return a;if(h>bd){bd=h;best=a}}
+  return best;
+}
+// one physics step of a ride (in place of U.step): the body follows the plan
+function rideStep(dt){
+  const r=ride,ph=r.ph[r.i];r.t+=dt;
+  const k=clamp(r.t/ph.dur,0,1),e=ph.ease?k*k*(3-2*k):k;
+  const walk=ph.n==='in'||ph.n==='out'||ph.n==='top'||ph.n==='exit';
+  me.x=ph.a[0]+(ph.b[0]-ph.a[0])*e;me.y=ph.a[1]+(ph.b[1]-ph.a[1])*e;me.z=ph.a[2]+(ph.b[2]-ph.a[2])*e;
+  me.vx=walk?(ph.b[0]-ph.a[0])/ph.dur:0;me.vz=walk?(ph.b[2]-ph.a[2])/ph.dur:0;me.vy=0;
+  me.yaw=ph.ya+angDiff(ph.yb,ph.ya)*clamp(k*2.2,0,1);me.yawWant=me.yaw;
+  if(ph.n==='ride')cabY=cabWant=me.y;
+  if(ph.n==='climb'){const st=Math.floor(me.y/.3);if(st!==r.rung){r.rung=st;sfx('rung')}}
+  if(r.t>=ph.dur)enterPhase();
+}
+const climbing=()=>!!ride&&ride.ph[ride.i].n==='climb';
+// doors, the cab and the Enter prompt, every frame
+function updateSecrets(dt){
+  const k=1-Math.exp(-dt*7);
+  for(const key in doorK)doorK[key]+=(doorWant[key]-doorK[key])*k;
+  const M=secretMesh;
+  if(M.liftDoor){M.liftDoor.l1.position.z=-.26-doorK.lift*.5;M.liftDoor.l2.position.z=.26+doorK.lift*.5;
+    M.cab.leaves[0].position.z=-.28-doorK.cab*.55;M.cab.leaves[1].position.z=.28+doorK.cab*.55;
+    if(!ride||ride.kind!=='lift'){if(cabBackT&&performance.now()>cabBackT){cabBackT=0;cabWant=SEC.lift.y0}const d=cabWant-cabY,s=Math.min(Math.abs(d),3.5*dt);cabY+=Math.sign(d)*s}
+    M.cab.position.y=cabY;
+    // a cab round anyone else who is riding the lift (their position is inside the mast)
+    const L=SEC.lift;let rider=null;for(const [,o] of others){if(!o.live())continue;const e=o.ent;if(Math.abs(e.x-L.mx)<1&&Math.abs(e.z-L.mz)<1&&e.y>L.y0-.5&&e.y<L.y1+.5){rider=e;break}}
+    M.cab2.visible=!!rider;if(rider)M.cab2.position.y=rider.y;
+  }
+  if(M.roofDoor){M.roofDoor.rotation.y=Math.atan2(SEC.roof.n[0],SEC.roof.n[1])+doorK.roof*1.5;M.exitDoor.rotation.y=Math.atan2(-SEC.roof.n[0],-SEC.roof.n[1])-doorK.exit*1.5}
+  // prompt
+  const d=doorNear();
+  if(d!==secretMesh.prompt){secretMesh.prompt=d;$('tEnter').hidden=!d||!isTouch;
+    $('doorHint').hidden=!d||isTouch;if(d&&!isTouch)$('doorHint').innerHTML='<kbd>'+esc(KB.short('interact'))+'</kbd> '+(d==='lift'?'Staff lift':'Open')}
+}
+// the interior of the shaft is drawn over everything once the camera is inside it (the block's own walls
+// face outward, so from inside you would otherwise see the city through them, and the roof over you)
+const _lv=new V3();
+function insideShaft(){
+  const g=secretMesh.shaft;if(!g||!ride||ride.kind!=='roof')return false;
+  _lv.copy(camera.position);g.worldToLocal(_lv);const R=SEC.roof;
+  return Math.abs(_lv.x)<1.6&&Math.abs(_lv.z)<1.5&&_lv.y>-.2&&_lv.y<R.y1-R.y0+R.shaft.h+.2;
+}
+function renderAll(){
+  const inside=insideShaft();
+  if(inside&&myAv.root.parent!==inScene)inScene.add(myAv.root);else if(!inside&&myAv.root.parent!==scene)scene.add(myAv.root);
+  renderer.render(scene,camera);
+  if(inside){renderer.autoClear=false;renderer.clearDepth();renderer.render(inScene,camera);renderer.autoClear=true}
+}
+// the third-person camera during a ride: outside the mast, following the cab up; in the shaft, just behind you
+const _rc=new V3(),_rt=new V3();
+function rideCamera(dt){
+  const r=ride;
+  if(r.kind==='lift'){const L=SEC.lift;_rc.set(L.mx+3.2,cabY+2.4,L.mz+5);_rt.set(L.mx,cabY+1.1,L.mz);   // off to the side, so you show over the cab's waist panel
+    // pulled in if a step of the spiral is in the way (from just outside the mast's face, never from inside it)
+    const ox=L.mx+.9,oy=cabY+1.2,oz=L.mz+1.25,dx=_rc.x-ox,dy=_rc.y-oy,dz=_rc.z-oz,len=Math.hypot(dx,dy,dz);
+    const t=rayHit(ox,oy,oz,dx/len,dy/len,dz/len,len);if(t<len){const f=Math.max(1.2,t-.3)/len;_rc.set(ox+dx*f,oy+dy*f,oz+dz*f)}}
+  else{const tg=SEC.roof.tg;_rc.set(me.x-tg[0]*1.35,me.y+1.85,me.z-tg[1]*1.35);_rt.set(me.x,me.y+1.1,me.z)}
+  if(r.cam){r.cam.lerp(_rc,1-Math.exp(-dt*7));camera.position.copy(r.cam)}else camera.position.copy(_rc);
+  camera.lookAt(_rt);myAv.root.visible=true;
 }
 
 // =====================================================================
@@ -2167,6 +2427,7 @@ const KB=Keybinds.create({
     {id:'sprint',label:'Sprint',note:'Hold',group:'Move',keys:['ShiftLeft']},
     {id:'walk',label:'Walk slowly',note:'Hold, for narrow beams',group:'Move',keys:['KeyC']},
     {id:'slowmo',label:'Slow motion',note:'Hold',group:'Move',keys:['KeyF']},
+    {id:'interact',label:'Use a door',note:'When you find one',group:'Move',ctx:'door',keys:['KeyE']},   // its own context: E stays on Camera closer too (a door takes it first)
     {id:'view',label:'First / third person',note:'Zooming all the way in switches too',group:'Camera',keys:['KeyV']},
     {id:'zoomIn',label:'Camera closer',group:'Camera',keys:['Equal','KeyE']},
     {id:'zoomOut',label:'Camera farther',group:'Camera',keys:['Minus','KeyQ']},
@@ -2182,7 +2443,7 @@ const inp={x:0,z:0,sprint:false,jump:false};
 function readInput(){
   inp.x=inp.z=0;inp.sprint=false;inp.jump=false;
   // paused (or in a menu): no input, but a jump that's rising keeps its full height (letting go of Jump cuts it)
-  if(G.mode!=='play'||G.paused||G.spec){inp.jump=!!me.jumpHeld;return inp}
+  if(G.mode!=='play'||G.paused||G.spec||ride){inp.jump=!!me.jumpHeld;return inp}
   if(G.bot){const r=U.botInput(W,me,G.bot,inp);
     // test bot only: a missed jump is logged and it's put back where it jumped from
     if(r==='fail'){const b=G.bot,c=PATH[Math.max(0,b.i-1)],q=U.predict(c,wt);b.missed=(b.missed||0)+1;me.x=q.x;me.z=q.z;me.y=q.y1+.01;me.vx=me.vy=me.vz=0;me.gnd=null;me.mantle=null;b.ph='plan';b.lastT=wt;b.fails.length=0}
@@ -2206,6 +2467,8 @@ addEventListener('keydown',e=>{
   if(G.paused)return;
   if(KB.is('next',c)&&G.spec)cycleSpec(1);
   if(KB.is('view',c)&&!G.spec&&!e.repeat)toggleView();
+  // at a secret door, the interact key opens it and does nothing else (its default E also zooms, elsewhere)
+  if(KB.is('interact',c)&&!e.repeat){const d=doorNear();if(d){startRide(d);return}}
   if(KB.is('zoomIn',c))zoom(-1);else if(KB.is('zoomOut',c))zoom(1);
 });
 addEventListener('keyup',e=>{keys[e.code]=false});
@@ -2257,6 +2520,7 @@ addEventListener('pointerdown',e=>{if(e.pointerType==='touch'&&!isTouch)setTouch
   btn('tSprint',el=>{tSprint=!tSprint;el.classList.toggle('on',tSprint)});
   btn('tSlow',el=>{tAct.slowmo=true;el.classList.add('on')},el=>{tAct.slowmo=false;el.classList.remove('on')});
   btn('tView',()=>{if(G.mode==='play'&&!G.paused&&!G.spec)toggleView()});
+  btn('tEnter',()=>{const d=doorNear();if(d)startRide(d)});
   btn('tMenu',()=>{for(const k in tAct)tAct[k]=false;if(G.spec){stopSpectate();return}if(G.mode==='play'&&!G.paused)showPause()});
 })();
 
@@ -2290,13 +2554,14 @@ function stepOnce(){
   wt+=C.DT;U.setTime(W,wt);W.ev.length=0;
   const wasGnd=!!me.gnd;
   prevP.x=me.x;prevP.y=me.y;prevP.z=me.z;prevP.b=me;
-  U.step(W,me,i,C.DT);
+  if(ride)rideStep(C.DT);else U.step(W,me,i,C.DT);
   if(G.mode==='play'&&!run.fin&&!G.paused)run.t+=C.DT;
   if(me.y>run.maxY)run.maxY=me.y;
   for(const e of W.ev)onEvent(e);
   // footsteps
   if(me.gnd&&!me.mantle){const s=Math.hypot(me.vx,me.vz)*C.DT;G.stepDist+=s;const stride=inp.sprint&&Math.hypot(me.vx,me.vz)>C.WALK+.2?1.05:.78;if(G.stepDist>stride){G.stepDist=0;sfx('step',me.gnd.surf,clamp(Math.hypot(me.vx,me.vz)/6,.4,1))}}
-  if(fpOn()&&!me.mantle&&!G.bot){me.yaw=camYaw;me.yawWant=camYaw}   // first person: you face where you look
+  if(ride){}   // on a ride the plan says which way you face (in first person you can still look around)
+  else if(fpOn()&&!me.mantle&&!G.bot){me.yaw=camYaw;me.yawWant=camYaw}   // first person: you face where you look
   else if(me.yawWant!=null&&!me.mantle&&(me.gnd||Math.hypot(me.vx,me.vz)>.5)){me.yaw+=angDiff(me.yawWant,me.yaw)*(1-Math.exp(-C.DT*(me.gnd?14:5)))}
 }
 function onEvent(e){
@@ -2495,7 +2760,7 @@ const Net={
     this.refs=null;this.room=null;clearOthers();
   }
 };
-function animCode(){if(me.mantle)return 6;if(me.slide)return 7;if(!me.gnd)return me.vy>.5?3:me.vy<-10?5:4;if(me.stun>0)return 8;const s=Math.hypot(me.vx,me.vz);return s>C.WALK+.3?2:s>.35?1:0}
+function animCode(){if(climbing())return 9;if(me.mantle)return 6;if(me.slide)return 7;if(!me.gnd)return me.vy>.5?3:me.vy<-10?5:4;if(me.stun>0)return 8;const s=Math.hypot(me.vx,me.vz);return s>C.WALK+.3?2:s>.35?1:0}
 function onNode(uid,v){
   if(!v||typeof v!=='object')return;
   let o=others.get(uid);
@@ -2521,7 +2786,7 @@ function onNode(uid,v){
 function onGone(uid){const o=others.get(uid);if(!o)return;feed(o.n+' left');dropOther(uid)}
 function dropOther(uid){const o=others.get(uid);if(!o)return;scene.remove(o.av.root);scene.remove(o.tag);scene.remove(o.sh);freeAvatar(o.av);freeMesh(o.tag);freeMesh(o.sh);if(o.dot)o.dot.remove();others.delete(uid);if(G.spec===uid)stopSpectate()}
 function clearOthers(){for(const k of [...others.keys()])dropOther(k)}
-const ANIM=[{gnd:1,spd:0},{gnd:1,spd:2.5},{gnd:1,spd:7,sprint:1},{gnd:0,vy:5},{gnd:0,vy:-3},{gnd:0,vy:-20},{mantle:1},{slide:1},{gnd:1,stun:.5}];
+const ANIM=[{gnd:1,spd:0},{gnd:1,spd:2.5},{gnd:1,spd:7,sprint:1},{gnd:0,vy:5},{gnd:0,vy:-3},{gnd:0,vy:-20},{mantle:1},{slide:1},{gnd:1,stun:.5},{gnd:1,climb:1}];
 // Other climbers are drawn a moment in the past, between the updates around that moment; how far back adapts to how
 // late their updates arrive, and a late one is bridged by carrying on their movement (netsmooth.js).
 const _rs={};
@@ -2536,7 +2801,7 @@ function updateOthers(dt){
       if(Math.hypot(e.tx-e.x,e.ty-e.y,e.tz-e.z)>25){e.x=e.tx;e.y=e.ty;e.z=e.tz}else{e.x+=(e.tx-e.x)*k;e.y+=(e.ty-e.y)*k;e.z+=(e.tz-e.z)*k}
       e.yaw+=angDiff(e.tyaw,e.yaw)*k;
     }e.spd=lerp(e.spd,Math.hypot(e.x-bx,e.z-bz)/Math.max(dt,1e-3),.2);
-    const A=ANIM[e.a]||ANIM[0];const st={spd:A.spd!=null?(A.gnd?Math.max(A.spd*.5,e.spd):0):0,gnd:!!A.gnd||A.stun,vy:A.vy||0,landT:9,impact:0,stun:A.stun||0,mantle:!!A.mantle,slide:!!A.slide,sprint:!!A.sprint,t};
+    const A=ANIM[e.a]||ANIM[0];const st={spd:A.spd!=null?(A.gnd?Math.max(A.spd*.5,e.spd):0):0,gnd:!!A.gnd||A.stun,vy:A.vy||0,landT:9,impact:0,stun:A.stun||0,mantle:!!A.mantle,slide:!!A.slide,sprint:!!A.sprint,climb:!!A.climb,t};
     o.av.ph+=dt*e.spd*(st.sprint?1.35:1.9);
     poseAvatar(o.av,st,dt);
     o.av.root.position.set(e.x,e.y,e.z);o.av.root.rotation.y=e.yaw;o.av.root.visible=true;
@@ -2697,11 +2962,11 @@ function tick(dt){
   afterSteps(dt);
   // my climber (in slow motion its animation and the camera following it slow down with it)
   const ds=dt*G.timeScale;myClock+=ds;
-  const st={spd:Math.hypot(me.vx,me.vz),gnd:!!me.gnd||!!me.slide&&false,vy:me.vy,landT:me.landT,impact:me.impact,stun:Math.max(0,me.stun),mantle:!!me.mantle,slide:!!me.slide,sprint:inp.sprint,t:myClock};
+  const st={spd:Math.hypot(me.vx,me.vz),gnd:!!me.gnd||!!me.slide&&false,vy:me.vy,landT:me.landT,impact:me.impact,stun:Math.max(0,me.stun),mantle:!!me.mantle,slide:!!me.slide,sprint:inp.sprint,t:myClock,climb:climbing()};
   const vp=viewPos();
   myAv.ph+=ds*st.spd*(st.sprint?1.35:1.9);poseAvatar(myAv,st,ds);myAv.root.position.set(vp.x,vp.y,vp.z);myAv.root.rotation.y=me.yaw;
-  placeShadow(myShadow,vp.x,vp.y,vp.z);
-  updateOthers(dt);netTick(dt);
+  placeShadow(myShadow,vp.x,vp.y,vp.z);if(ride)myShadow.visible=false;
+  updateOthers(dt);netTick(dt);updateSecrets(dt);
   slowLook();
   updateView(dt,ds);
   const far=atmosphere();updateChunks(far);updateMovers();
@@ -2713,7 +2978,7 @@ function tick(dt){
 }
 function frame(t){
   const dt=Math.min(.05,Math.max(0,(t-last)/1000));last=t;
-  try{tick(dt);if(!G.noRender)renderer.render(scene,camera)}catch(err){console.error(err)}
+  try{tick(dt);if(!G.noRender)renderAll()}catch(err){console.error(err)}
   requestAnimationFrame(frame);
 }
 addEventListener('pagehide',()=>{saveRun();saveBest();if(Net.refs)Net.leave()});
@@ -2733,11 +2998,13 @@ if(TEST)window.__up={U,C,course,W,PATH,G,run,best,keys,tAct,tMove,KB,Net,onNode,
   // run the game for `sec` seconds of game time without waiting for frames (rendering skipped)
   advance(sec){G.manual=true;const n=Math.round(sec/C.DT);for(let i=0;i<n;i++){stepOnce();afterSteps(C.DT)}const st={spd:Math.hypot(me.vx,me.vz),gnd:!!me.gnd,vy:me.vy,landT:me.landT,impact:me.impact,stun:me.stun,mantle:!!me.mantle,slide:!!me.slide,sprint:false,t:clock};poseAvatar(myAv,st,.5);myAv.root.position.set(me.x,me.y,me.z);updateView(.5);hudT=0;updateHud(.2);return{x:me.x,y:me.y,z:me.z,gnd:me.gnd?me.gnd.path:null,vy:me.vy}},
   resume(){G.manual=false;last=performance.now()},
-  teleport(i,dy){const c=PATH[i];me=U.Body(c.x,c.y1+(dy||0)+.01,c.z);me.gnd=dy?null:c;camPivot.set(me.x,me.y+1.45,me.z);return me},
+  teleport(i,dy){const c=PATH[i];ride=null;me=U.Body(c.x,c.y1+(dy||0)+.01,c.z);me.gnd=dy?null:c;camPivot.set(me.x,me.y+1.45,me.z);return me},
   bot(on,from){G.bot=on?U.Bot(course):null;if(G.bot){G.bot.i=(from==null?0:from)+1;G.bot.lastT=wt}return G.bot},
   setView,toggleView,fpOn,get view(){return view},eyeBase,rayHit,myAv,myShadow,zoom,look,updateView,
   newRun,enterGame,toMenu,showPause,resume2:resume,startSpectate,cycleSpec,stopSpectate,joinPrivate,quickMatch,
-  render(){updateView(.1);atmosphere();updateChunks(scene.fog.far);updateMovers();renderer.render(scene,camera)},
+  render(){updateView(.1);atmosphere();updateChunks(scene.fog.far);updateMovers();updateSecrets(.1);renderAll()},
+  // the secrets: start a ride by hand, see which door is near, follow the ride
+  SEC,startRide,doorNear,get ride(){return ride},get cabY(){return cabY},secretMesh,doorK,insideShaft,
   stepOnce,afterSteps,saveRun,loadRun,others,onSummit,onNode,physics,set wt(v){wt=v},
   // fake climbers for layout tests (no network)
   fake(n){G.fakeNet=true;Net.offset=0;for(let i=0;i<n;i++){const c=PATH[Math.min(PATH.length-1,40+i*60)];onNode('fake'+i,{n:['Ava','Bo','Cyrus','Dee','Eli','Fay','Gus','Hana','Ivo','Jun','Kit'][i%11],c:COLORS[(i+3)%COLORS.length],x:c.x,y:c.y1,z:c.z,h:0,ts:Date.now(),a:i%5,m:Math.floor(c.y1),t:100+i,f:i===0?1234:0})}},
