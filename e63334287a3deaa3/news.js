@@ -36,7 +36,8 @@
       'Chromaflage: no more slipping between wall pieces or squeezing under chairs and low furniture.',
       'Slipstream: the fastest-lap board works again, and opens on a new All tracks view with the record for every track.',
       'Shell Crackers, Backrooms and Rumble Karts now count your deaths, and have a K/D board (you need 20 kills to show up).',
-      'Online games wait longer for a slow sign-in and say so, Rumble Karts rooms hold up to 12 karts, and Coil and Boostball bots keep moving when the host switches tabs.'
+      'Online games wait longer for a slow sign-in and say so, Rumble Karts rooms hold up to 12 karts, and Coil and Boostball bots keep moving when the host switches tabs.',
+      'Spire has been archived, so it\'s no longer on the games list or in Parties. Your Spire bests stay on the Leaderboards.'
     ]},
     {date: '2026-10-28', version: '1.8', title: 'New maps, modes and weapons', kind: 'feature', items: [
       'Chromaflage: six new maps (a school, an office, a supermarket, a hotel, a leisure centre and a block of flats). Online rooms play three of the nine each day and switch map every 15 minutes.',
