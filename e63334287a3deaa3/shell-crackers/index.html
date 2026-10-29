@@ -2596,17 +2596,23 @@ const Net={
     clearInterval(this.pubTimer);
     // About 12 updates a second while something changes (position, aim, health, shots); when nothing has, a
     // heartbeat a second keeps the node fresh (others drop an egg they haven't heard from for 9 s).
-    this.lastKey='';this.lastSent=0;
+    this.lastKey='';this.lastSent=0;this.settle=0;
     this.pubTimer=setInterval(()=>{
       if(!online||!this.refs)return;
-      const s=this.stateOf(),key=JSON.stringify(s,(k,v)=>k==='ts'?undefined:v),t=performance.now();
-      if(key===this.lastKey&&t-this.lastSent<1000)return;
-      this.lastKey=key;this.lastSent=t;
-      this.refs.me.set(s).catch(()=>{});
+      const s=this.stateOf(),key=JSON.stringify(s,(k,v)=>k==='ts'?undefined:v);
+      if(this.wantSend(key,performance.now()))this.refs.me.set(s).catch(()=>{});
     },80);
     clearInterval(this.pruneTimer);
     this.pruneTimer=setInterval(()=>{const t=performance.now();for(const [k,e] of remotes)if(t-e.seen>9000){removeEntity(e);remotes.delete(k)}},2000);
     try{if(!isPublic)history.replaceState(null,'','#'+room)}catch(e){}
+  },
+  // After the last change, the same state goes out twice more at the usual rate: others then know at once that this egg
+  // has stopped, instead of carrying it on (into the wall it stopped at, or through the floor it landed on) until the
+  // next heartbeat.
+  wantSend(key,t){
+    if(key!==this.lastKey){this.lastKey=key;this.lastSent=t;this.settle=2;return true}
+    if(this.settle>0||t-this.lastSent>=1000){this.settle=Math.max(0,this.settle-1);this.lastSent=t;return true}
+    return false;
   },
   send(e){
     if(!online||!this.refs)return;
@@ -2709,16 +2715,32 @@ function onMatch(v){
   banner(MAPS[mapIdx].name.toUpperCase(),(Net.isPublic?'Public lobby':'Room '+Net.room)+' · first to '+target+' cracks',2.6);
 }
 // Other eggs are drawn a moment in the past, between the updates around that moment (netsmooth.js),
-// so they move evenly however unevenly their updates arrive.
-const _rs={};
+// so they move evenly however unevenly their updates arrive. If an update is late they're carried on for at most
+// REMOTE_AHEAD ms. Every update is a spot their own game kept clear, but the straight line between two can cut a corner
+// or a stair edge, and carrying them on can run them into a wall or a floor; drawClamp keeps them in the map and out of
+// blocks, so nobody is drawn (or shot at) inside a wall, sunk into a floor or hanging in the air above one.
+const _rs={},REMOTE_AHEAD=200;
 function updateRemotes(dt){
   const now=Net.now();
   for(const e of remotes.values()){
-    const bx=e.pos.x,bz=e.pos.z;
-    if(e.snaps.length){NetSmooth.sample(e.snaps,e.lag.time(now),_rs,['x','y','z','p'],['h']);e.pos.set(_rs.x,_rs.y,_rs.z);e.yaw=_rs.h;e.pitch=_rs.p}
+    const bx=e.pos.x,by=e.pos.y,bz=e.pos.z;
+    if(e.snaps.length){
+      const how=NetSmooth.sample(e.snaps,e.lag.time(now),_rs,['x','y','z','p'],['h'],REMOTE_AHEAD);
+      e.pos.set(_rs.x,_rs.y,_rs.z);e.yaw=_rs.h;e.pitch=_rs.p;
+      if(e.alive)drawClamp(e,how,bx,by,bz);
+    }
     e.mspd=lerp(e.mspd,Math.hypot(e.pos.x-bx,e.pos.z-bz)/Math.max(dt,1e-3),.2);
     e.onGround=true;
   }
+}
+function drawClamp(e,how,bx,by,bz){
+  const p=e.pos,n=e.snaps.length,b=e.snaps[n-1];
+  // carried on past the newest update: no more than half a metre lower or a quarter higher than they were going
+  if(how==='ahead'&&n>1){const a=e.snaps[n-2];p.y=clamp(p.y,Math.min(a.y,b.y)-.5,Math.max(a.y,b.y)+.25)}
+  p.x=clamp(p.x,PR+.01,SPAN-PR-.01);p.z=clamp(p.z,PR+.01,SPAN-PR-.01);p.y=clamp(p.y,VY,HY*VY-PH);
+  if(pushOutPos(p))return;
+  // no clear spot nearby: where they were last drawn, or else their newest update (always clear in their own game)
+  if(!entHits(bx,by,bz))p.set(bx,by,bz);else p.set(b.x,b.y,b.z);
 }
 function setMsg(t,err){const m=$('netMsg');m.textContent=t;m.classList.toggle('err',!!err)}
 function sanitizeRoom(s){return String(s||'').toLowerCase().replace(/^sc-/,'').replace(/[^a-z0-9-]/g,'').slice(0,17)}
@@ -2939,8 +2961,8 @@ const inv=/^#sc-([a-z0-9-]{1,17})$/.exec(location.hash);
 if(inv){$('room').value=inv[1];setMsg('You were invited to room sc-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.remove('alt');$('quick').classList.add('alt')}
 
 if(navigator.webdriver)window.__sc={get state(){return state},get mode(){return mode},get noRender(){return noRender},set noRender(v){noRender=!!v},player,get ents(){return ents},get map(){return mapIdx},findPath,rayWorld,floorBelow,buildMap,MAPS,W,HY,VY,G,GROUND_Y,vox,vget,standV,nodeFor,entHits,get navN(){return navN},get navReach(){return navReach},navAt,get navY(){return navY},get perches(){return perches},spawns:()=>spawns,Net,onRemoteState,handleEvent,onMatch,endMatch,standings,DIFF,WEAPONS,fireShot,damage,throwNade,nades,addFeed,respawn,spawnSplat,keys,setPaused:v=>{paused=v},get rank(){return rank},HUMAN_W,ratingChange,applyRating,get lastRated(){return lastRated},get clock(){return clock},toMenu,loadLeaderboard,renderer,scene,camera,vmScene,vmCam,advance:s=>{noRender=true;try{for(let t=0;t<s;t+=1/30)step(1/30)}finally{noRender=false}},get matchEnds(){return matchEnds},set matchEnds(v){matchEnds=v},get remotes(){return remotes},get range(){return Range},startTraining,tryFire,startReload,setLoadout,switchSlot,mapInfo,RANGE_IDX,get paused(){return paused},get hudDirty(){return hudDirty},
-  // collision audit: the real movement and push-out code, driven step by step
-  moveEntity,steer,pushOutPos,rescue,boxSolid,updateRemotes,simulate,simSteps,FRAME_CAP,consts:{PR,PH,STEP,JUMP,GRAV,MAX_FALL},mapSpawns:()=>mapSpawns,los};
+  // collision audit: the real movement, push-out and remote-drawing code, driven step by step
+  moveEntity,steer,pushOutPos,rescue,boxSolid,updateRemotes,drawClamp,simulate,simSteps,FRAME_CAP,consts:{PR,PH,STEP,JUMP,GRAV,MAX_FALL},mapSpawns:()=>mapSpawns,los};
 
 renderSwatches();renderWeapons($('weapons'));renderDiff();renderGfx();renderRank();
 setupAttract();showAd('adMenu');
