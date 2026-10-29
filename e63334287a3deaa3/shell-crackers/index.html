@@ -1630,12 +1630,76 @@ function creditKill(k,v,head,wkey){
 //  Movement
 // =====================================================================
 const AX_XZ=['x','z'],AX_XYZ=['x','y','z'];
-// Box collision against the blocks. Walking into a half-metre ledge steps up onto it (stairs),
-// and walking off one steps down onto the next instead of hopping.
+// Box collision against the blocks. Eggs are boxes PR either side of their centre and PH tall. Movement goes one axis at a
+// time in steps of at most 0.2 m (less than a block), so nothing is skipped over at any frame rate; walking into a
+// half-metre ledge with head room above steps up onto it (stairs), and walking off one steps down onto the next instead
+// of hopping. Normal movement never ends inside a block. If something does put an egg inside one, pushOut moves it out
+// the shortest way that ends clear and passes through no other block: sideways, down out from under a ceiling, or up only
+// onto a top within STEP (so it stands on it). It is never popped up through a building. If there's no such way within
+// 1.5 m, rescue puts it on the nearest spot an egg can stand. Falling is capped at MAX_FALL m/s.
+const MAX_FALL=30,MAX_RISE=12;
+const _skip=new Set();
+// Does the box at x,y,z overlap a block that isn't in _skip (the blocks it started in)? Outside the map always counts.
+function boxHitsOther(x,y,z){
+  const ix0=Math.floor((x-PR)/VX),ix1=Math.floor((x+PR-1e-6)/VX),iy0=Math.floor(y/VY),iy1=Math.floor((y+PH-1e-6)/VY),iz0=Math.floor((z-PR)/VX),iz1=Math.floor((z+PR-1e-6)/VX);
+  for(let iy=iy0;iy<=iy1;iy++)for(let iz=iz0;iz<=iz1;iz++)for(let ix=ix0;ix<=ix1;ix++){const m=vget(ix,iy,iz);if(m===255||m!==0&&!_skip.has(vIdx(ix,iy,iz)))return true}
+  return false;
+}
+// The way from one box position to another: every box along it may overlap only the blocks it started in, and the egg's
+// middle may not pass through any block (so a box that's half into a wall comes back out on its own side).
+function pathClear(x0,y0,z0,x1,y1,z1){
+  const n=Math.max(1,Math.ceil(Math.max(Math.abs(x1-x0),Math.abs(y1-y0),Math.abs(z1-z0))/.05));
+  const c0=vIdx(Math.floor(x0/VX),Math.floor((y0+.75)/VY),Math.floor(z0/VX));
+  for(let j=1;j<=n;j++){const f=j/n,x=x0+(x1-x0)*f,y=y0+(y1-y0)*f,z=z0+(z1-z0)*f;
+    if(boxHitsOther(x,y,z))return false;
+    const cx=Math.floor(x/VX),cy=Math.floor((y+.75)/VY),cz=Math.floor(z/VX);if(vget(cx,cy,cz)!==0&&vIdx(cx,cy,cz)!==c0)return false}
+  return true;
+}
+const PUSH_DIRS=[];for(let i=0;i<8;i++)PUSH_DIRS.push([Math.cos(i*Math.PI/4),Math.sin(i*Math.PI/4)]);
+// Moves the point p (an egg's feet) out of any block its box overlaps. Returns false if it found no clear way out.
+function pushOutPos(p){
+  if(!entHits(p.x,p.y,p.z))return true;
+  _skip.clear();
+  const ix0=Math.floor((p.x-PR)/VX),ix1=Math.floor((p.x+PR-1e-6)/VX),iy0=Math.floor(p.y/VY),iy1=Math.floor((p.y+PH-1e-6)/VY),iz0=Math.floor((p.z-PR)/VX),iz1=Math.floor((p.z+PR-1e-6)/VX);
+  for(let iy=iy0;iy<=iy1;iy++)for(let iz=iz0;iz<=iz1;iz++)for(let ix=ix0;ix<=ix1;ix++){const m=vget(ix,iy,iz);if(m!==0&&m!==255)_skip.add(vIdx(ix,iy,iz))}
+  let bx=0,by=0,bz=0,bd=1e9;
+  const tryAt=(x,y,z,d)=>{if(d<bd&&!entHits(x,y,z)&&pathClear(p.x,p.y,p.z,x,y,z)){bd=d;bx=x;by=y;bz=z;return true}return false};
+  // up onto the top of what the feet are in, if that's within a step
+  for(let k=1;k<=2;k++){const ny=(Math.floor(p.y/VY+1e-4)+k)*VY+.001;if(ny-p.y>STEP+.01)break;if(tryAt(p.x,ny,p.z,ny-p.y))break}
+  // sideways in eight directions, at the same height or lower (out from under a ceiling): the nearest clear spot each way
+  for(let dy=0;dy>=-1.5&&-dy<bd;dy-=.25){
+    if(dy<0)tryAt(p.x,p.y+dy,p.z,-dy);
+    for(const [dx,dz] of PUSH_DIRS)for(let d=.02;d<=1.5+1e-6;d+=.02){const dd=Math.hypot(d,dy);if(dd>=bd)break;
+      const x=p.x+dx*d,z=p.z+dz*d;if(!entHits(x,p.y+dy,z)){tryAt(x,p.y+dy,z,dd);break}}
+  }
+  if(bd>1e8)return false;
+  p.x=bx;p.y=by;p.z=bz;return true;
+}
+function pushOut(e){
+  const y=e.pos.y;if(!pushOutPos(e.pos))return false;
+  if(e.pos.y>y+1e-4){e.vel.y=Math.max(0,e.vel.y);e.onGround=true}else if(e.pos.y<y-1e-4)e.vel.y=Math.min(0,e.vel.y);
+  return true;
+}
+// Last resort: the nearest spot an egg can stand (preferring ones it can see), or else a spawn.
+function rescue(e){
+  const p=e.pos,cx=Math.floor(p.x/VX),cz=Math.floor(p.z/VX),cy=Math.round(p.y/VY);let best=null,bd=1e9;
+  const from=_lo.set(p.x,p.y+.75,p.z),to=new V3();
+  for(let r=0;r<=6;r++){
+    for(let dz=-r;dz<=r;dz++)for(let dx=-r;dx<=r;dx++){if(Math.max(Math.abs(dx),Math.abs(dz))!==r)continue;
+      for(let dy=-4;dy<=4;dy++){const x=cx+dx,y=cy+dy,z=cz+dz;if(!standV(x,y,z))continue;
+        let d=Math.hypot(x*VX+.5-p.x,z*VX+.5-p.z)+Math.abs(y*VY-p.y)*2;if(d>=bd)continue;
+        if(!los(from,to.set(x*VX+.5,y*VY+.75,z*VX+.5)))d+=4;
+        if(d<bd){bd=d;best=[x*VX+.5,y*VY,z*VX+.5]}}}
+    if(best&&bd<r)break;
+  }
+  if(!best){const s=pickSpawn(e);best=[s.x,s.y==null?GROUND_Y:s.y,s.z]}
+  p.set(best[0],best[1],best[2]);e.vel.set(0,0,0);e.onGround=true;
+}
 function moveEntity(e,dt){
+  if(entHits(e.pos.x,e.pos.y,e.pos.z)&&!pushOut(e))rescue(e);
+  e.vel.y=clamp(e.vel.y,-MAX_FALL,MAX_RISE);
   const n=Math.max(1,Math.ceil(Math.max(Math.abs(e.vel.x),Math.abs(e.vel.z),Math.abs(e.vel.y))*dt/.2)),h=dt/n;
   const wasGround=e.onGround,fallV=e.vel.y;let landed=false;
-  if(entHits(e.pos.x,e.pos.y,e.pos.z)){for(let k=0;k<12&&entHits(e.pos.x,e.pos.y,e.pos.z);k++)e.pos.y=(Math.floor(e.pos.y/VY+1e-4)+1)*VY+.001}
   for(let s=0;s<n;s++){
     e.vel.y-=GRAV*h;
     for(const ax of AX_XZ){const d=e.vel[ax]*h;if(!d)continue;
@@ -1653,7 +1717,8 @@ function moveEntity(e,dt){
   if(!e.onGround&&wasGround&&e.vel.y<=0&&e.vel.y>-4){const ny=floorBelow(e.pos.x,e.pos.y,e.pos.z);
     if(e.pos.y-ny<=STEP+.01&&!entHits(e.pos.x,ny,e.pos.z)){e.pos.y=ny;e.vel.y=0;e.onGround=true}}
   if(landed&&!wasGround&&fallV<-6&&e===player)sfx('land');
-  if(e.pos.y<-2){const s=spawns[0];if(s)e.pos.set(s.x,s.y,s.z)}
+  // can't happen with the blocks as they are, but never leave an egg inside one or under the map
+  if(e.pos.y<VY-.01||entHits(e.pos.x,e.pos.y,e.pos.z)){if(!pushOut(e))rescue(e)}
 }
 function steer(e,wx,wz,dt,speed){
   const k=e.onGround?1-Math.exp(-14*dt):1-Math.exp(-2.6*dt);
@@ -2862,7 +2927,9 @@ addEventListener('pagehide',()=>{leaveCheck();Net.leave()});
 const inv=/^#sc-([a-z0-9-]{1,17})$/.exec(location.hash);
 if(inv){$('room').value=inv[1];setMsg('You were invited to room sc-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.remove('alt');$('quick').classList.add('alt')}
 
-if(navigator.webdriver)window.__sc={get state(){return state},get mode(){return mode},get noRender(){return noRender},set noRender(v){noRender=!!v},player,get ents(){return ents},get map(){return mapIdx},findPath,rayWorld,floorBelow,buildMap,MAPS,W,HY,VY,G,GROUND_Y,vox,vget,standV,nodeFor,entHits,get navN(){return navN},get navReach(){return navReach},navAt,get navY(){return navY},get perches(){return perches},spawns:()=>spawns,Net,onRemoteState,handleEvent,onMatch,endMatch,standings,DIFF,WEAPONS,fireShot,damage,throwNade,nades,addFeed,respawn,spawnSplat,keys,setPaused:v=>{paused=v},get rank(){return rank},HUMAN_W,ratingChange,applyRating,get lastRated(){return lastRated},get clock(){return clock},toMenu,loadLeaderboard,renderer,scene,camera,vmScene,vmCam,advance:s=>{noRender=true;try{for(let t=0;t<s;t+=1/30)step(1/30)}finally{noRender=false}},get matchEnds(){return matchEnds},set matchEnds(v){matchEnds=v},get remotes(){return remotes},get range(){return Range},startTraining,tryFire,startReload,setLoadout,switchSlot,mapInfo,RANGE_IDX,get paused(){return paused},get hudDirty(){return hudDirty}};
+if(navigator.webdriver)window.__sc={get state(){return state},get mode(){return mode},get noRender(){return noRender},set noRender(v){noRender=!!v},player,get ents(){return ents},get map(){return mapIdx},findPath,rayWorld,floorBelow,buildMap,MAPS,W,HY,VY,G,GROUND_Y,vox,vget,standV,nodeFor,entHits,get navN(){return navN},get navReach(){return navReach},navAt,get navY(){return navY},get perches(){return perches},spawns:()=>spawns,Net,onRemoteState,handleEvent,onMatch,endMatch,standings,DIFF,WEAPONS,fireShot,damage,throwNade,nades,addFeed,respawn,spawnSplat,keys,setPaused:v=>{paused=v},get rank(){return rank},HUMAN_W,ratingChange,applyRating,get lastRated(){return lastRated},get clock(){return clock},toMenu,loadLeaderboard,renderer,scene,camera,vmScene,vmCam,advance:s=>{noRender=true;try{for(let t=0;t<s;t+=1/30)step(1/30)}finally{noRender=false}},get matchEnds(){return matchEnds},set matchEnds(v){matchEnds=v},get remotes(){return remotes},get range(){return Range},startTraining,tryFire,startReload,setLoadout,switchSlot,mapInfo,RANGE_IDX,get paused(){return paused},get hudDirty(){return hudDirty},
+  // collision audit: the real movement and push-out code, driven step by step
+  moveEntity,steer,pushOutPos,rescue,boxSolid,updateRemotes,simulate,simSteps,FRAME_CAP,consts:{PR,PH,STEP,JUMP,GRAV,MAX_FALL},mapSpawns:()=>mapSpawns,los};
 
 renderSwatches();renderWeapons($('weapons'));renderDiff();renderGfx();renderRank();
 setupAttract();showAd('adMenu');
