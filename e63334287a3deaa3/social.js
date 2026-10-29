@@ -86,6 +86,7 @@
     { k: 'sd', n: 'Showdown', d: 'showdown', room: ROOM },
     { k: 'br', n: 'Backrooms 1v1–4v4', d: 'backrooms-1v1', room: ROOM },
     { k: 'cf', n: 'Chromaflage', d: 'chromaflage', room: ROOM },
+    { k: 'tw', n: 'Spire', d: 'spire', room: ROOM },
     { k: 'up', n: 'Updraft', d: 'updraft', room: ROOM },
     { k: 'ph', n: 'Odd One Out', d: 'odd-one-out', room: ROOM },
     { k: 'ko', n: 'Tumble Trials', d: 'tumble-trials', room: ROOM },
@@ -95,7 +96,6 @@
     { k: 'kw', n: 'Kartwheel', d: 'kartwheel' },
     { k: 'st', n: 'Starhop', d: 'starhop' },
     { k: 'ab', n: 'Abyssal', d: 'abyssal' },
-    { k: 'tw', n: 'Spire', d: 'spire' },
     { k: 'bx', n: 'Boxed', abs: '/boxed/' },
     { k: 'hc', n: 'Hype Cycle Exchange', abs: '/hype-cycle-exchange/' }
   ];
