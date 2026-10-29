@@ -94,6 +94,11 @@
       { k: 'tower', l: 'Fastest tower', f: 'time', lo: 20, hi: 36000 },
       { k: 'obby', l: 'Fastest obby (all 49 stages)', chip: 'Fastest obby', f: 'time', lo: 120, hi: 360000 },
       { k: 'towers', l: 'Towers climbed', f: 'n', u: 'tower', hi: 1e6 }] },
+    { d: 'turbo-trail', n: 'Turbo Trail', st: [
+      { k: 'obby', l: 'Fastest full run (all 25 levels)', chip: 'Fastest full run', f: 'time', lo: 150, hi: 360000 },
+      { k: 'stars', l: 'Most stars', f: 'n', u: 'star', hi: 75 },
+      { k: 'levels', l: 'Levels cleared (all time)', chip: 'Levels cleared', f: 'n', u: 'level', rate: 1 / 4 },
+      { k: 'wins', l: 'Races won', f: 'n', u: 'win', rate: 1 / 30 }] },
     { d: 'updraft', n: 'Updraft', st: [{ k: 'summit', l: 'Fastest summit', f: 'time', lo: 120, hi: 1e7 }, { k: 'height', l: 'Best height', f: 'm', hi: 1005 }] },
     { d: 'odd-one-out', n: 'Odd One Out', st: [
       { k: 'rfound', l: 'Most props found in a round', f: 'n', u: 'prop', hi: 15, le: 'found' },

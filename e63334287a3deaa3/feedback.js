@@ -37,8 +37,8 @@
   var GAMES = [
     ['rumble-karts', 'Rumble Karts'], ['shell-crackers', 'Shell Crackers'], ['backrooms-1v1', 'Backrooms 1v1–4v4'],
     ['slipstream', 'Slipstream'], ['boostball', 'Boostball'], ['coil', 'Coil'], ['trivium', 'Trivium'],
-    ['showdown', 'Showdown'], ['chromaflage', 'Chromaflage'], ['spire', 'Spire'], ['updraft', 'Updraft'],
-    ['odd-one-out', 'Odd One Out'], ['tumble-trials', 'Tumble Trials'], ['other', 'Something else (the site, parties…)']
+    ['showdown', 'Showdown'], ['chromaflage', 'Chromaflage'], ['spire', 'Spire'], ['turbo-trail', 'Turbo Trail'],
+    ['updraft', 'Updraft'], ['odd-one-out', 'Odd One Out'], ['tumble-trials', 'Tumble Trials'], ['other', 'Something else (the site, parties…)']
   ];
   var KINDS = [['idea', 'Idea or change'], ['bug', 'Bug'], ['other', 'Something else']];
   var MAX = { msg: 1000, name: 40, contact: 80, page: 200 };
