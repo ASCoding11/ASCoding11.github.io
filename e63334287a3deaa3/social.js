@@ -163,6 +163,11 @@
   // The person's status tier (miles.js), from the cache; null while it's still being read or when the script isn't here.
   function tierOf(u) { if (!window.BackRoomMiles || !u) return null; try { return BackRoomMiles.peek(u); } catch (e) { return null; } }
   function tierBadge(u) { var t = tierOf(u); return t ? BackRoomMiles.badge(t) : null; }
+  function milesLine(t) {
+    if (!t) return '';
+    if (BackRoomMiles.line) return BackRoomMiles.line(t);
+    return t.ok ? BackRoomMiles.fmt(t.miles) + ' miles' + (t.next ? ' · ' + BackRoomMiles.fmt(t.next.miles) + ' to ' + t.next.tier.n : ' · the top tier') : '';
+  }
 
   // ---------------- Styles ----------------
   var css = document.createElement('style');
@@ -992,9 +997,9 @@
     var badge = tierBadge(p.uid);
     if (badge) { var tl = el('span', 'onl-tl'); tl.append(badge); who.append(nm, tl); } else who.append(nm);
     who.append(el('span', 'onl-st', (isMe && hidden) ? 'Hidden' : (muted[p.uid] ? 'Muted · ' : '') + statusText(p)));
-    // Your own card says how far along you are: "2,340 miles · 7,660 to First Class".
-    var t = isMe ? tierOf(p.uid) : null;
-    if (t && t.ok) who.append(el('span', 'onl-mi', BackRoomMiles.fmt(t.miles) + ' miles' + (t.next ? ' · ' + BackRoomMiles.fmt(t.next.miles) + ' to ' + t.next.tier.n : ' · the top tier')));
+    // Your own card says how far along you are: "2,340 miles · 7,660 to First Class" (owners: "12,000 miles · flies the plane", next to their Captain badge).
+    var t = isMe ? tierOf(p.uid) : null, tl2 = milesLine(t);
+    if (tl2) who.append(el('span', 'onl-mi', tl2));
     b.append(av, who);
     var n = isMe ? 0 : unreadOf(p.uid);
     if (n) { var badge = el('span', 'onl-n', String(n)); badge.setAttribute('aria-label', n + ' unread'); b.append(badge); }
@@ -1019,7 +1024,7 @@
     }
     var mt = uid ? tierOf(uid) : null;
     $tier.textContent = '';
-    if (mt) { $tier.append(BackRoomMiles.badge(mt)); if (mt.ok) $tier.append(el('span', '', BackRoomMiles.fmt(mt.miles) + ' miles' + (mt.next ? ' · ' + BackRoomMiles.fmt(mt.next.miles) + ' to ' + mt.next.tier.n : ' · the top tier'))); }
+    if (mt) { $tier.append(BackRoomMiles.badge(mt)); var ml = milesLine(mt); if (ml) $tier.append(el('span', '', ml)); }
     $hide.checked = hidden;
     var lu = loungeUnread(); $loungeBtn.lastChild.textContent = lu ? String(lu) : '';
     fillList($list);
