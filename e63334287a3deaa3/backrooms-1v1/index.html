@@ -97,6 +97,9 @@ button:disabled{opacity:.5;cursor:default}
 #scope::before,#scope::after{content:"";position:absolute;background:rgba(0,0,0,.85)}
 #scope::before{left:0;right:0;top:50%;height:1px}
 #scope::after{top:0;bottom:0;left:50%;width:1px}
+#shift{position:absolute;inset:0;background:#0b0a06;opacity:0;pointer-events:none}
+#shift.on{animation:shift .9s ease-out}
+@keyframes shift{0%,25%{opacity:.96}100%{opacity:0}}
 #hurt{position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 45%,rgba(190,20,10,.75) 100%);opacity:0}
 #tags{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .ntag{position:absolute;left:0;top:0;font-weight:700;font-size:15px;letter-spacing:.06em;color:#ffb3a8;text-shadow:0 1px 2px #000;white-space:nowrap;pointer-events:none}
@@ -258,6 +261,7 @@ body.touch #pips{left:calc(200px + env(safe-area-inset-left,0px));transform:none
 <aside class="rail r" aria-label="Advertisement"><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></aside>
 <div id="app">
   <div class="vhs"></div>
+  <div id="shift"></div>
   <div class="osd" id="osd" hidden><span><span class="rec blink">●</span> REC</span><span id="clock">00:00:00</span><span>LEVEL 0</span></div>
 
   <div id="hud" hidden>
@@ -532,42 +536,81 @@ const plyTex=canvasTex(128,128,(g,w,h)=>{
   noise(g,w,h,10);
 },1,1);
 
+// office partitions: grey-blue felt with a darker trim along the top
+const fabricTex=canvasTex(128,64,(g,w,h)=>{
+  g.fillStyle='#8c93a0';g.fillRect(0,0,w,h);noise(g,w,h,26);
+  for(let i=0;i<500;i++){g.fillStyle=Math.random()<.5?'rgba(170,176,186,.35)':'rgba(60,64,72,.3)';g.fillRect(Math.random()*w,Math.random()*h,1,1)}
+  g.fillStyle='#5d5a50';g.fillRect(0,0,w,5);g.fillRect(0,0,3,h);g.fillRect(w-3,0,3,h);
+  blot(g,w,h,2,'rgba(90,75,40,.18)');
+},3,1);
+
 /* ---------- materials & shared geometry ---------- */
 function gradBox(w,h,d){const geo=new THREE.BoxGeometry(w,h,d);const p=geo.attributes.position;const c=new Float32Array(p.count*3);for(let i=0;i<p.count;i++){const k=.64+.36*((p.getY(i)+h/2)/h);c[i*3]=k;c[i*3+1]=k;c[i*3+2]=k*.97}geo.setAttribute('color',new THREE.BufferAttribute(c,3));return geo}
 const wallMat=new THREE.MeshLambertMaterial({map:wallTex,vertexColors:true});
 const pillarTex=wallTex.clone();pillarTex.needsUpdate=true;pillarTex.repeat.set(.5,6);
 const pillarMat=new THREE.MeshLambertMaterial({map:pillarTex,vertexColors:true});
-const geoWallH=gradBox(4,CEIL,.3),geoWallV=gradBox(.3,CEIL,4),geoPost=gradBox(.36,CEIL,.36),geoPillar=gradBox(.9,CEIL,.9);
+const geoWallH=gradBox(4,CEIL,.3),geoWallV=gradBox(.3,CEIL,4),geoPost=gradBox(.36,CEIL,.36),geoPillar=gradBox(.9,CEIL,.9),geoBigPillar=gradBox(1.5,CEIL,1.5);
+const lowMat=new THREE.MeshLambertMaterial({map:fabricTex,vertexColors:true});
+const geoLowH=gradBox(4,1.25,.12),geoLowV=gradBox(.12,1.25,4);
 const plyMat=new THREE.MeshLambertMaterial({map:plyTex});
 const geoPWall=new THREE.BoxGeometry(4,4,.25),geoPFloor=new THREE.BoxGeometry(4,.25,4),geoPRamp=new THREE.BoxGeometry(4,.25,Math.SQRT2*4);
 const panelGeo=new THREE.BoxGeometry(1.1,.06,2.2);
 const panelOn=new THREE.MeshBasicMaterial({color:0xfffae6});
 const panelDead=new THREE.MeshBasicMaterial({color:0x6e6851});
-const SHARED=new Set([wallMat,pillarMat,panelOn,panelDead]);
+const SHARED=new Set([wallMat,pillarMat,lowMat,panelOn,panelDead]);
 
-const floor=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshLambertMaterial({map:carpetTex}));
+// floor and ceiling have a corner on every cell corner, coloured by the light of the cells around it (applyLight)
+function cellPlane(n){const g=new THREE.PlaneGeometry(1,1,n,n);g.setAttribute('color',new THREE.BufferAttribute(new Float32Array((n+1)*(n+1)*3).fill(1),3));return g}
+const floor=new THREE.Mesh(cellPlane(12),new THREE.MeshLambertMaterial({map:carpetTex,vertexColors:true}));
 floor.rotation.x=-Math.PI/2;scene.add(floor);
-const ceil=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshLambertMaterial({map:ceilTex}));
+const ceil=new THREE.Mesh(cellPlane(12),new THREE.MeshLambertMaterial({map:ceilTex,vertexColors:true}));
 ceil.rotation.x=Math.PI/2;scene.add(ceil);
 function setMapSize(n){
   N=n;W=N*CELL;carpetTex.repeat.set(N,N);ceilTex.repeat.set(N,N);
+  if(floor.geometry.attributes.color.count!==(N+1)*(N+1)){floor.geometry.dispose();ceil.geometry.dispose();floor.geometry=cellPlane(N);ceil.geometry=cellPlane(N)}
   floor.scale.set(W,W,1);floor.position.set(W/2,0,W/2);ceil.scale.set(W,W,1);ceil.position.set(W/2,CEIL,W/2);
 }
 setMapSize(12);
 
 /* ---------- map (seeded, so every online player gets the same rooms) ---------- */
-let hWall=[],vWall=[],mapSolids=[],solids=[],ramps=[],flickers=[];
+// Two layouts, both built on the same grid of 4 m cells (walls on cell edges, pillars on cell corners):
+//  - layoutV2 (MAP_V 2): a new Level 0 every round: the floor is split into areas of different sizes and shapes, each
+//    furnished its own way (twisty corridors, small rooms, open halls, pillar fields, office cubicles behind low
+//    partitions, long straight corridors, the odd solid block of wall), joined by doorways (sometimes several, so there
+//    are loops), with its own lighting (dim and dark patches, banks of lights that flicker together) and now and then a
+//    slightly different wallpaper or carpet, or a special room. Then every spawn area is cleared, any part that can't be
+//    reached is opened up, and the layout is checked for fairness (see fairV2) and redrawn if it fails.
+//  - layoutV1: the original maze (one per match). Online it's still used whenever someone in the room is on an older
+//    copy of the page, which only knows this one, so everyone in a room always builds the same walls.
+const MAP_V=2,LOW_H=1.25;
+let hWall=[],vWall=[],lowH=[],lowV=[],voidC=[],mapSolids=[],solids=[],ramps=[],flickers=[],mapInfo=null,litList=[];
 const mapGroup=new THREE.Group();scene.add(mapGroup);
-// n: maze size in cells; cells: spawn cells, each cleared to an open 3 x 3 area (defaults to the two 1v1 corners)
-function generateMap(seed,n,cells){
+const grid=(w,h,v)=>Array.from({length:w},()=>Array(h).fill(v));
+// A v2 map's size: a little random, and bigger for more players (1v1 11-13 cells across, up to 15-16 for 4v4).
+function mapSizeV2(players,seed){const r=mulberry((seed^0x2c1b3c6d)>>>0)();const o=players<=2?[11,12,12,13]:players<=4?[12,13,14]:players<=6?[14,15]:[15,16];return o[Math.floor(r*o.length)]}
+// Each online round's layout comes from the match seed and the round number, which every player already has.
+function roundSeed(seed,rn){let h=(seed>>>0)^Math.imul((rn|0)+1,0x9E3779B1);h=Math.imul(h^h>>>16,0x85ebca6b);h=Math.imul(h^h>>>13,0xc2b2ae35);return(h^h>>>16)>>>0}
+// n: maze size in cells; cells: spawn cells, each cleared to an open 3 x 3 area (defaults to the two 1v1 corners);
+// legacy: build the original v1 maze from this seed instead
+function generateMap(seed,n,cells,legacy){
   setMapSize(n||12);
   cells=cells&&cells.length?cells:[soloCell(0),soloCell(1)];
-  const rnd=mulberry(seed);
   clearPieces();
   while(mapGroup.children.length){const c=mapGroup.children.pop();if(c.dispose)c.dispose();if(c.material&&!SHARED.has(c.material))c.material.dispose()}
-  hWall=Array.from({length:N+1},()=>Array(N).fill(true));
-  vWall=Array.from({length:N+1},()=>Array(N).fill(true));
-  const seen=Array.from({length:N},()=>Array(N).fill(false));
+  const L=legacy?layoutV1(seed>>>0,cells):layoutV2(seed>>>0,cells);
+  L.spawns=cells.map(c=>[c,c[0]<N/2?TEAM_HEX.r:TEAM_HEX.b]);
+  buildMap(L);
+}
+function openEdge(x,z,i){if(i===0)vWall[x+1][z]=false;else if(i===2)vWall[x][z]=false;else if(i===1)hWall[z+1][x]=false;else hWall[z][x]=false}
+function spawnArea(c){return[clamp(c[0]-1,0,N-3),clamp(c[1]-1,0,N-3)]}
+// is there a full-height wall touching this corner (it then gets a post)
+function hasPost(x,z){return(x>0&&hWall[z][x-1])||(x<N&&hWall[z][x])||(z>0&&vWall[x][z-1])||(z<N&&vWall[x][z])}
+
+// The original maze; the random numbers are drawn in exactly the old order, so old and new pages agree.
+function layoutV1(seed,cells){
+  const rnd=mulberry(seed);
+  hWall=grid(N+1,N,true);vWall=grid(N+1,N,true);lowH=grid(N+1,N,false);lowV=grid(N+1,N,false);voidC=grid(N,N,false);
+  const seen=grid(N,N,false);
   const stack=[[0,0]];seen[0][0]=true;
   while(stack.length){
     const [x,z]=stack[stack.length-1];
@@ -578,39 +621,257 @@ function generateMap(seed,n,cells){
   }
   for(let z=1;z<N;z++)for(let x=0;x<N;x++)if(hWall[z][x]&&rnd()<.6)hWall[z][x]=false;
   for(let x=1;x<N;x++)for(let z=0;z<N;z++)if(vWall[x][z]&&rnd()<.6)vWall[x][z]=false;
-  for(const [cx,cz] of cells){const sx=clamp(cx-1,0,N-3),sz=clamp(cz-1,0,N-3);for(let x=sx;x<sx+3;x++)for(let z=sz;z<sz+3;z++){if(x<sx+2)vWall[x+1][z]=false;if(z<sz+2)hWall[z+1][x]=false}}
-  mapSolids=[];
-  const m=new THREE.Matrix4();
-  const hList=[],vList=[];
-  for(let z=0;z<=N;z++)for(let x=0;x<N;x++)if(hWall[z][x])hList.push([x,z]);
-  for(let x=0;x<=N;x++)for(let z=0;z<N;z++)if(vWall[x][z])vList.push([x,z]);
-  const ih=new THREE.InstancedMesh(geoWallH,wallMat,hList.length);
-  hList.forEach(([x,z],i)=>{m.makeTranslation(x*4+2,CEIL/2,z*4);ih.setMatrixAt(i,m);mapSolids.push({min:[x*4,0,z*4-.15],max:[x*4+4,CEIL,z*4+.15]})});
-  const iv=new THREE.InstancedMesh(geoWallV,wallMat,vList.length);
-  vList.forEach(([x,z],i)=>{m.makeTranslation(x*4,CEIL/2,z*4+2);iv.setMatrixAt(i,m);mapSolids.push({min:[x*4-.15,0,z*4],max:[x*4+.15,CEIL,z*4+4]})});
-  mapGroup.add(ih,iv);
-  const posts=[],pillars=[];
-  for(let x=0;x<=N;x++)for(let z=0;z<=N;z++){
-    const t=(x>0&&hWall[z][x-1])||(x<N&&hWall[z][x])||(z>0&&vWall[x][z-1])||(z<N&&vWall[x][z]);
-    if(t)posts.push([x,z]);else if(rnd()<.2)pillars.push([x,z]);
-  }
-  const ip=new THREE.InstancedMesh(geoPost,wallMat,posts.length);
-  posts.forEach(([x,z],i)=>{m.makeTranslation(x*4,CEIL/2,z*4);ip.setMatrixAt(i,m);mapSolids.push({min:[x*4-.18,0,z*4-.18],max:[x*4+.18,CEIL,z*4+.18]})});
-  mapGroup.add(ip);
-  if(pillars.length){const ipl=new THREE.InstancedMesh(geoPillar,pillarMat,pillars.length);
-    pillars.forEach(([x,z],i)=>{m.makeTranslation(x*4,CEIL/2,z*4);ipl.setMatrixAt(i,m);mapSolids.push({min:[x*4-.45,0,z*4-.45],max:[x*4+.45,CEIL,z*4+.45]})});
-    mapGroup.add(ipl)}
-  const on=[],dead=[];flickers=[];
-  for(let x=0;x<N;x++)for(let z=0;z<N;z++){
-    const r=rnd();
-    if(r<.08){const mat=new THREE.MeshBasicMaterial({color:0xfffae6});const mesh=new THREE.Mesh(panelGeo,mat);mesh.position.set(x*4+2,CEIL-.03,z*4+2);mapGroup.add(mesh);flickers.push({mat,pos:mesh.position,next:1+rnd()*7,until:0,tick:0})}
-    else if(r<.2)dead.push([x,z]);else if(r<.9)on.push([x,z]);
-  }
-  const ion=new THREE.InstancedMesh(panelGeo,panelOn,on.length);on.forEach(([x,z],i)=>{m.makeTranslation(x*4+2,CEIL-.03,z*4+2);ion.setMatrixAt(i,m)});mapGroup.add(ion);
-  if(dead.length){const idd=new THREE.InstancedMesh(panelGeo,panelDead,dead.length);dead.forEach(([x,z],i)=>{m.makeTranslation(x*4+2,CEIL-.03,z*4+2);idd.setMatrixAt(i,m)});mapGroup.add(idd)}
-  solids=mapSolids.slice();
+  for(const c of cells){const [sx,sz]=spawnArea(c);for(let x=sx;x<sx+3;x++)for(let z=sz;z<sz+3;z++){if(x<sx+2)vWall[x+1][z]=false;if(z<sz+2)hWall[z+1][x]=false}}
+  const pillars=new Map();
+  for(let x=0;x<=N;x++)for(let z=0;z<=N;z++)if(!hasPost(x,z)&&rnd()<.2)pillars.set(x*64+z,.9);
+  const panel=grid(N,N,0),next=grid(N,N,0);
+  for(let x=0;x<N;x++)for(let z=0;z<N;z++){const r=rnd();if(r<.08){panel[x][z]=3;next[x][z]=1+rnd()*7}else if(r<.2)panel[x][z]=2;else if(r<.9)panel[x][z]=1}
+  return{v:1,lit:false,pillars,panel,next,group:grid(N,N,-1),groups:0,light:grid(N,N,1),tint:grid(N,N,null),ftint:grid(N,N,null),styles:null,special:null};
 }
-function openEdge(x,z,i){if(i===0)vWall[x+1][z]=false;else if(i===2)vWall[x][z]=false;else if(i===1)hWall[z+1][x]=false;else hWall[z][x]=false}
+
+const TINTS=[[1.05,1.03,.9],[.93,.98,.8],[.97,.89,.77],[1.06,.97,.84]];
+function layoutV2(seed,cells){
+  const rnd=mulberry(seed);
+  let best=null;
+  for(let a=0;a<8;a++){
+    const L=attemptV2(rnd,cells),f=fairV2(cells);
+    if(f.ok){L.tries=a+1;return L}
+    if(!best||f.bad<best.f.bad)best={L,f,g:[hWall,vWall,lowH,lowV,voidC].map(q=>q.map(r=>r.slice()))};
+  }
+  // nothing passed: take the closest and make it the same both ways round (turned 180 degrees about the middle, which
+  // maps Red's spawns onto Blue's), so it's fair by construction
+  [hWall,vWall,lowH,lowV,voidC]=best.g;
+  mirrorV2(best.L);clearSpawns(best.L,cells);connectV2(rnd,cells);
+  best.L.mirrored=true;return best.L;
+}
+function attemptV2(rnd,cells){
+  const ri=n=>Math.floor(rnd()*n),chance=p=>rnd()<p;
+  const pickW=o=>{let s=0;for(const k in o)s+=o[k];let r=rnd()*s;for(const k in o){r-=o[k];if(r<0)return k}return Object.keys(o)[0]};
+  const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=ri(i+1);[a[i],a[j]]=[a[j],a[i]]}return a};
+  hWall=grid(N+1,N,false);vWall=grid(N+1,N,false);lowH=grid(N+1,N,false);lowV=grid(N+1,N,false);voidC=grid(N,N,false);
+  for(let i=0;i<N;i++){hWall[0][i]=hWall[N][i]=true;vWall[0][i]=vWall[N][i]=true}
+  const L={v:2,lit:true,pillars:new Map(),panel:grid(N,N,1),next:grid(N,N,0),group:grid(N,N,-1),groups:0,light:grid(N,N,1),tint:grid(N,N,null),ftint:grid(N,N,null),styles:[],special:null};
+  const near=(x,z,m)=>cells.some(c=>{const [sx,sz]=spawnArea(c);return x>=sx-m&&x<sx+3+m&&z>=sz-m&&z<sz+3+m});
+  const pil=(x,z,s)=>{if(x>0&&z>0&&x<N&&z<N)L.pillars.set(x*64+z,s)};
+  // 1. split the floor into areas: big and small, square and long, with the odd one-cell-wide corridor between two
+  const regs=[],reg=grid(N,N,-1);
+  (function split(x,z,w,d,depth){
+    if((w<4&&d<4)||(depth>0&&w*d<=6+ri(22))){regs.push({x,z,w,d});return}
+    let ax=w>d*1.3?0:d>w*1.3?1:ri(2),len=ax?d:w;
+    if(len<4){ax=1-ax;len=ax?d:w}
+    if(len>=7&&depth<3&&chance(.35)){const p=2+ri(len-4);
+      if(!ax){split(x,z,p,d,depth+1);regs.push({x:x+p,z,w:1,d,corr:1});split(x+p+1,z,w-p-1,d,depth+1)}
+      else{split(x,z,w,p,depth+1);regs.push({x,z:z+p,w,d:1,corr:1});split(x,z+p+1,w,d-p-1,depth+1)}
+    }else{const p=2+ri(len-3);
+      if(!ax){split(x,z,p,d,depth+1);split(x+p,z,w-p,d,depth+1)}else{split(x,z,w,p,depth+1);split(x,z+p,w,d-p,depth+1)}}
+  })(0,0,N,N,0);
+  regs.forEach((r,i)=>{r.i=i;r.cells=[];for(let x=r.x;x<r.x+r.w;x++)for(let z=r.z;z<r.z+r.d;z++){reg[x][z]=i;r.cells.push([x,z])}});
+  // 2. what each area is
+  let voids=0;
+  for(const r of regs){
+    const area=r.w*r.d;
+    if(r.corr)r.style='corridor';
+    else if(voids<2&&r.w<=3&&r.d<=3&&area>=4&&!r.cells.some(([x,z])=>near(x,z,1))&&chance(.3)){r.style='void';voids++}
+    else r.style=pickW(area<=6?{rooms:3,hall:2,office:2,maze:1,pillars:1}:area<=16?{maze:3,office:3,pillars:2,hall:2,rooms:3}:{maze:3,pillars:3,office:2,rooms:2,hall:1});
+  }
+  // one special room now and then (never where anyone spawns)
+  if(chance(.45)){const c=regs.filter(r=>!r.corr&&r.style!=='void'&&r.w*r.d>=4&&r.w*r.d<=20&&!r.cells.some(([x,z])=>near(x,z,0)));
+    if(c.length){const r=c[ri(c.length)];r.special=['blackout','columns','damp','buzz'][ri(4)];if(r.special==='columns')r.style='columns';L.special={kind:r.special,r:[r.x,r.z,r.x+r.w,r.z+r.d]}}}
+  for(const r of regs)if(r.style==='void')for(const [x,z] of r.cells)voidC[x][z]=true;
+  // 3. walls between areas, then doorways through them (at most one into a corridor from each area beside it, so it runs
+  //    long; longer walls get two or three, which makes loops)
+  const pairs=new Map();
+  const edge=(o,x,z,a,b)=>{if(a===b)return;if(o==='V')vWall[x][z]=true;else hWall[z][x]=true;const k=Math.min(a,b)+','+Math.max(a,b);if(!pairs.has(k))pairs.set(k,[]);pairs.get(k).push([o,x,z])};
+  for(let x=1;x<N;x++)for(let z=0;z<N;z++)edge('V',x,z,reg[x-1][z],reg[x][z]);
+  for(let z=1;z<N;z++)for(let x=0;x<N;x++)edge('H',x,z,reg[x][z-1],reg[x][z]);
+  const setE=(e,v)=>{if(e[0]==='V')vWall[e[1]][e[2]]=v;else hWall[e[2]][e[1]]=v};
+  for(const [k,es] of pairs){
+    const [A,B]=k.split(',').map(i=>regs[+i]);
+    if(A.style==='void'||B.style==='void')continue;
+    if(!A.corr&&!B.corr&&es.length>=2&&chance(.14)){
+      // no wall at all: two areas run into one bigger hall, sometimes with a row of pillars where the wall would be
+      const ends=new Map();for(const e of es){setE(e,false);const v=e[0]==='V'?[[e[1],e[2]],[e[1],e[2]+1]]:[[e[1],e[2]],[e[1]+1,e[2]]];for(const [vx,vz] of v){const q=vx*64+vz;ends.set(q,(ends.get(q)||0)+1)}}
+      if(chance(.6))for(const [q,n] of ends)if(n===2)pil(Math.floor(q/64),q%64,.9);
+      continue;
+    }
+    const n=A.corr||B.corr?(es.length<=2&&chance(.4)?0:1):es.length<=3?1:es.length<=6?1+ri(2):2+ri(2);
+    shuffle(es.slice()).slice(0,n).forEach(e=>setE(e,false));
+  }
+  // 4. furnish each area
+  const inner=(r,fn)=>{for(let x=r.x+1;x<r.x+r.w;x++)for(let z=r.z;z<r.z+r.d;z++)fn('V',x,z);for(let z=r.z+1;z<r.z+r.d;z++)for(let x=r.x;x<r.x+r.w;x++)fn('H',x,z)};
+  const corners=(r,fn)=>{for(let x=r.x+1;x<r.x+r.w;x++)for(let z=r.z+1;z<r.z+r.d;z++)fn(x,z)};
+  for(const r of regs){
+    const area=r.w*r.d;
+    if(r.style==='hall'||r.style==='rooms'&&area<=2){
+      let n=0;corners(r,(x,z)=>{if(chance(.18)){pil(x,z,.9);n++}});
+      // a few stray slabs of wall standing on their own
+      for(let k=Math.floor(area/7);k>0;k--)if(chance(.7)){const es=[];inner(r,(o,x,z)=>es.push([o,x,z]));if(es.length){setE(es[ri(es.length)],true);n++}}
+      if(!n&&area>=6)for(let k=0;k<2;k++)pil(r.x+1+ri(r.w-1),r.z+1+ri(r.d-1),.9);
+    }else if(r.style==='pillars'){
+      const big=chance(.4);corners(r,(x,z)=>{if(big?(x+z)%2===0:chance(.85))pil(x,z,big?1.5:.9)});
+    }else if(r.style==='columns'){
+      corners(r,(x,z)=>pil(x,z,1.5));
+    }else if(r.style==='maze'){
+      inner(r,(o,x,z)=>setE([o,x,z],true));
+      const seen=new Set(),k=(x,z)=>x*64+z,st=[[r.x+ri(r.w),r.z+ri(r.d)]];seen.add(k(...st[0]));
+      while(st.length){const [x,z]=st[st.length-1];
+        const o=DV.map((d,i)=>[x+d[0],z+d[1],i]).filter(([a,b])=>a>=r.x&&b>=r.z&&a<r.x+r.w&&b<r.z+r.d&&!seen.has(k(a,b)));
+        if(!o.length){st.pop();continue}const [a,b,i]=o[ri(o.length)];openEdge(x,z,i);seen.add(k(a,b));st.push([a,b])}
+      // knock a few walls out so there are loops as well as dead ends
+      const q=.12+rnd()*.25;inner(r,(o,x,z)=>{if(chance(q))setE([o,x,z],false)});
+    }else if(r.style==='rooms'){
+      (function sub(x,z,w,d){
+        if(w*d<=2+ri(3)||(w<2&&d<2))return;
+        let ax=w>d?0:d>w?1:ri(2);if((ax?d:w)<2)ax=1-ax;
+        const len=ax?d:w,p=1+ri(len-1),span=ax?w:d,door=ri(span),door2=span>=4&&chance(.5)?ri(span):-1;
+        for(let s=0;s<span;s++){if(s===door||s===door2)continue;if(!ax)vWall[x+p][z+s]=true;else hWall[z+p][x+s]=true}
+        if(!ax){sub(x,z,p,d);sub(x+p,z,w-p,d)}else{sub(x,z,w,p);sub(x,z+p,w,d-p)}
+      })(r.x,r.z,r.w,r.d);
+    }else if(r.style==='office'){
+      // rows of cubicles: pairs of rows back to back behind low partitions, with an open aisle between pairs
+      const ax=r.w>=r.d?0:1,U=ax?r.d:r.w,Vn=ax?r.w:r.d,ph=ri(3);
+      const at=(u,v)=>ax?[r.x+v,r.z+u]:[r.x+u,r.z+v];
+      for(let v=0;v<Vn;v++){
+        const band=(v+ph)%3;if(band===2)continue;
+        if(band===0&&v+1<Vn){const gap=U>3?ri(U):-1;for(let u=0;u<U;u++){if(u===gap)continue;const [x,z]=at(u,v+1);if(ax)lowV[x][z]=true;else lowH[z][x]=true}}
+        for(let u=1;u<U;u++)if(chance(.8)){const [x,z]=at(u,v);if(ax)lowH[z][x]=true;else lowV[x][z]=true}
+      }
+    }
+  }
+  // 5. lights: each area normal, bright, dim or dark, with its own mix of working, dead and flickering panels
+  for(const r of regs){
+    if(r.style==='void'){for(const [x,z] of r.cells)L.panel[x][z]=0;continue}
+    let lk=r.style==='office'?pickW({normal:5,bright:3,dim:1}):pickW({normal:11,dim:5,dark:1.3,bright:1.5});
+    if(r.special==='blackout')lk='blackout';else if(r.special==='columns')lk='bright';
+    const base={normal:1,bright:1.1,dim:.68,dark:.46,blackout:.3}[lk],on={normal:.86,bright:.97,dim:.4,dark:.1,blackout:0}[lk];
+    const tint=r.special==='damp'?[.92,.97,.84]:chance(.22)?TINTS[ri(TINTS.length)]:null;
+    const ftint=r.special==='damp'?[.66,.7,.62]:tint||(chance(.1)?[.8,.82,.74]:null);
+    let g=-1;if(r.special==='buzz'||(lk!=='dark'&&lk!=='blackout'&&L.groups<5&&chance(r.style==='corridor'?.4:.2)))g=L.groups++;
+    for(const [x,z] of r.cells){
+      L.light[x][z]=base*(.94+rnd()*.1);L.tint[x][z]=tint;L.ftint[x][z]=ftint;
+      const p=rnd();L.panel[x][z]=r.special==='buzz'?4+g:p<on?(g>=0?4+g:p<on*.05?3:1):2;
+      if(L.panel[x][z]>=4)L.group[x][z]=g;
+      if(L.panel[x][z]===3)L.next[x][z]=1+rnd()*7;
+    }
+  }
+  // at most a few lone flickering panels (each one costs a draw call)
+  let lone=0;for(let x=0;x<N;x++)for(let z=0;z<N;z++)if(L.panel[x][z]===3&&++lone>3)L.panel[x][z]=1;
+  L.styles=regs.map(r=>r.style+(r.special?':'+r.special:''));L.regs=regs.map(r=>[r.x,r.z,r.w,r.d,r.style]);
+  clearSpawns(L,cells);connectV2(rnd,cells);
+  return L;
+}
+// Every spawn gets an open, lit 3 x 3 area: no walls, partitions or pillars inside it.
+function clearSpawns(L,cells){
+  for(const c of cells){const [sx,sz]=spawnArea(c);
+    for(let x=sx;x<sx+3;x++)for(let z=sz;z<sz+3;z++){
+      if(x<sx+2){vWall[x+1][z]=false;lowV[x+1][z]=false}if(z<sz+2){hWall[z+1][x]=false;lowH[z+1][x]=false}
+      voidC[x][z]=false;L.light[x][z]=Math.max(L.light[x][z],.92);if(!L.panel[x][z]||L.panel[x][z]===2)L.panel[x][z]=1;
+    }
+    for(let x=sx+1;x<sx+3;x++)for(let z=sz+1;z<sz+3;z++)L.pillars.delete(x*64+z);
+  }
+}
+// Can you walk from one cell to the next (no wall, partition or solid block in the way)?
+function passV2(x,z,i){const a=x+DV[i][0],b=z+DV[i][1];if(a<0||b<0||a>=N||b>=N||voidC[a][b])return false;
+  return i===0?!vWall[x+1][z]&&!lowV[x+1][z]:i===2?!vWall[x][z]&&!lowV[x][z]:i===1?!hWall[z+1][x]&&!lowH[z+1][x]:!hWall[z][x]&&!lowH[z][x]}
+function distFrom(src){const d=grid(N,N,-1),q=[];for(const [x,z] of src)if(!voidC[x][z]&&d[x][z]<0){d[x][z]=0;q.push([x,z])}
+  for(let h=0;h<q.length;h++){const [x,z]=q[h];for(let i=0;i<4;i++)if(passV2(x,z,i)){const a=x+DV[i][0],b=z+DV[i][1];if(d[a][b]<0){d[a][b]=d[x][z]+1;q.push([a,b])}}}return d}
+// No sealed areas: keep opening a wall between the part reachable from the first spawn and the rest until it's all one.
+function connectV2(rnd,cells){
+  for(let guard=0;guard<500;guard++){
+    const d=distFrom([cells[0]]),cand=[];let missing=false;
+    for(let x=0;x<N;x++)for(let z=0;z<N;z++){if(voidC[x][z]||d[x][z]>=0)continue;missing=true;
+      for(let i=0;i<4;i++){const a=x+DV[i][0],b=z+DV[i][1];if(a>=0&&b>=0&&a<N&&b<N&&!voidC[a][b]&&d[a][b]>=0)cand.push([x,z,i])}}
+    if(!missing)return;
+    if(!cand.length){voidC=grid(N,N,false);continue}
+    const [x,z,i]=cand[Math.floor(rnd()*cand.length)];openEdge(x,z,i);
+    if(i===0)lowV[x+1][z]=false;else if(i===2)lowV[x][z]=false;else if(i===1)lowH[z+1][x]=false;else lowH[z][x]=false;
+  }
+}
+// Fair enough to play? Both teams about as far from the middle, about as much cover on each half, no huge detour.
+function fairV2(cells){
+  const red=cells.filter(c=>c[0]<N/2),blue=cells.filter(c=>c[0]>=N/2);
+  const mid=[];for(let x=0;x<N;x++)for(let z=0;z<N;z++)if(Math.abs(x+.5-N/2)<=1&&Math.abs(z+.5-N/2)<=1&&!voidC[x][z])mid.push([x,z]);
+  if(!mid.length)return{ok:false,bad:99};
+  const d=distFrom(mid),mean=s=>s.reduce((a,[x,z])=>a+d[x][z],0)/s.length;
+  const dr=mean(red),db=mean(blue),tol=1+.15*Math.max(dr,db);
+  let cw=0,ce=0;const cover=(cx,k)=>{if(cx<N*2)cw+=k;else if(cx>N*2)ce+=k};
+  for(let x=1;x<N;x++)for(let z=0;z<N;z++){if(vWall[x][z]||lowV[x][z])cover(x*4,1)}
+  for(let z=1;z<N;z++)for(let x=0;x<N;x++){if(hWall[z][x]||lowH[z][x])cover(x*4+2,1)}
+  const ratio=Math.min(cw,ce)/Math.max(1,cw,ce);
+  const path=distFrom([red[0]||cells[0]])[(blue[0]||cells[1])[0]][(blue[0]||cells[1])[1]];
+  const ok=Math.abs(dr-db)<=tol&&ratio>=.65&&path>0&&path<=2.2*N;
+  return{ok,bad:Math.abs(dr-db)/tol+Math.max(0,.65-ratio)*5+(path>2.2*N?1:0),dr,db,ratio,path};
+}
+// Copy the west half onto the east half, turned 180 degrees about the middle of the map.
+function mirrorV2(L){
+  const wc=(x,z)=>2*x+1<N||(2*x+1===N&&2*z+1<N);
+  for(let x=0;x<N;x++)for(let z=0;z<N;z++){if(wc(x,z)||(2*x+1===N&&2*z+1===N))continue;const a=N-1-x,b=N-1-z;
+    voidC[x][z]=voidC[a][b];for(const k of ['light','tint','ftint','panel','group','next'])L[k][x][z]=L[k][a][b]}
+  for(let x=0;x<=N;x++)for(let z=0;z<N;z++)if(!(2*x<N||(2*x===N&&2*z+1<N))){vWall[x][z]=vWall[N-x][N-1-z];lowV[x][z]=lowV[N-x][N-1-z]}
+  for(let z=0;z<=N;z++)for(let x=0;x<N;x++)if(!(2*x+1<N||(2*x+1===N&&2*z<N))){hWall[z][x]=hWall[N-z][N-1-x];lowH[z][x]=lowH[N-z][N-1-x]}
+  const p=new Map();for(const [q,s] of L.pillars){const x=Math.floor(q/64),z=q%64;if(2*x<N||(2*x===N&&2*z<=N)){p.set(q,s);p.set((N-x)*64+(N-z),s)}}L.pillars=p;
+}
+
+/* building the meshes: every kind of piece is one instanced mesh (one draw call), coloured per piece by the light
+   of the cells beside it, so dim and dark areas darken their walls, floor and ceiling too */
+const flickOn=[];
+function buildMap(L){
+  mapInfo=L;mapSolids=[];litList=[];flickers=[];
+  const m=new THREE.Matrix4();
+  function inst(geo,mat,list,place,box,near){
+    if(!list.length)return;
+    const im=new THREE.InstancedMesh(geo,mat,list.length);
+    list.forEach((it,i)=>{place(m,it);im.setMatrixAt(i,m);mapSolids.push(box(it))});
+    litList.push({im,cells:list.map(near)});   // always coloured (white on a v1 map): three.js r128 keeps a material's first shader
+    mapGroup.add(im);
+  }
+  const hList=[],vList=[],lhList=[],lvList=[];
+  for(let z=0;z<=N;z++)for(let x=0;x<N;x++){if(hWall[z][x])hList.push([x,z]);else if(lowH[z][x])lhList.push([x,z])}
+  for(let x=0;x<=N;x++)for(let z=0;z<N;z++){if(vWall[x][z])vList.push([x,z]);else if(lowV[x][z])lvList.push([x,z])}
+  inst(geoWallH,wallMat,hList,(m,[x,z])=>m.makeTranslation(x*4+2,CEIL/2,z*4),([x,z])=>({min:[x*4,0,z*4-.15],max:[x*4+4,CEIL,z*4+.15]}),([x,z])=>[[x,z-1],[x,z]]);
+  inst(geoWallV,wallMat,vList,(m,[x,z])=>m.makeTranslation(x*4,CEIL/2,z*4+2),([x,z])=>({min:[x*4-.15,0,z*4],max:[x*4+.15,CEIL,z*4+4]}),([x,z])=>[[x-1,z],[x,z]]);
+  inst(geoLowH,lowMat,lhList,(m,[x,z])=>m.makeTranslation(x*4+2,LOW_H/2,z*4),([x,z])=>({min:[x*4,0,z*4-.06],max:[x*4+4,LOW_H,z*4+.06]}),([x,z])=>[[x,z-1],[x,z]]);
+  inst(geoLowV,lowMat,lvList,(m,[x,z])=>m.makeTranslation(x*4,LOW_H/2,z*4+2),([x,z])=>({min:[x*4-.06,0,z*4],max:[x*4+.06,LOW_H,z*4+4]}),([x,z])=>[[x-1,z],[x,z]]);
+  const posts=[],pillars=[],bigs=[];
+  for(let x=0;x<=N;x++)for(let z=0;z<=N;z++){
+    if(hasPost(x,z))posts.push([x,z]);
+    else{const s=L.pillars.get(x*64+z);if(s)(s>1?bigs:pillars).push([x,z])}
+  }
+  const vc=([x,z])=>[[x-1,z-1],[x,z-1],[x-1,z],[x,z]];
+  inst(geoPost,wallMat,posts,(m,[x,z])=>m.makeTranslation(x*4,CEIL/2,z*4),([x,z])=>({min:[x*4-.18,0,z*4-.18],max:[x*4+.18,CEIL,z*4+.18]}),vc);
+  inst(geoPillar,pillarMat,pillars,(m,[x,z])=>m.makeTranslation(x*4,CEIL/2,z*4),([x,z])=>({min:[x*4-.45,0,z*4-.45],max:[x*4+.45,CEIL,z*4+.45]}),vc);
+  inst(geoBigPillar,pillarMat,bigs,(m,[x,z])=>m.makeTranslation(x*4,CEIL/2,z*4),([x,z])=>({min:[x*4-.75,0,z*4-.75],max:[x*4+.75,CEIL,z*4+.75]}),vc);
+  // ceiling panels: working ones, dead ones, banks that flicker together (one material each) and a few lone flickers
+  const on=[],dead=[],banks=[];
+  for(let x=0;x<N;x++)for(let z=0;z<N;z++){const p=L.panel[x][z];
+    if(p===1)on.push([x,z]);else if(p===2)dead.push([x,z]);
+    else if(p===3){const mat=new THREE.MeshBasicMaterial({color:0xfffae6});const mesh=new THREE.Mesh(panelGeo,mat);mesh.position.set(x*4+2,CEIL-.03,z*4+2);mapGroup.add(mesh);flickers.push({mat,pos:mesh.position,next:L.next[x][z],until:0,tick:0,g:-1})}
+    else if(p>=4)(banks[p-4]=banks[p-4]||[]).push([x,z]);
+  }
+  const panels=(list,mat)=>{if(!list.length)return;const im=new THREE.InstancedMesh(panelGeo,mat,list.length);list.forEach(([x,z],i)=>{m.makeTranslation(x*4+2,CEIL-.03,z*4+2);im.setMatrixAt(i,m)});mapGroup.add(im)};
+  panels(on,panelOn);panels(dead,panelDead);
+  flickOn.length=0;
+  banks.forEach((list,g)=>{flickOn[g]=1;if(!list)return;const mat=new THREE.MeshBasicMaterial({color:0xfffae6});panels(list,mat);
+    const pos=new V3();for(const [x,z] of list)pos.x+=x*4+2,pos.z+=z*4+2;pos.divideScalar(list.length);pos.y=CEIL-.03;
+    flickers.push({mat,pos,next:1+(g*1.7)%6,until:0,tick:0,g})});
+  solids=mapSolids.slice();
+  applyLight();
+}
+// colours of the floor and ceiling corners and of every wall, post and pillar from the light of the cells around them
+function applyLight(){
+  const L=mapInfo,fc=floor.geometry.attributes.color,cc=ceil.geometry.attributes.color;
+  const lc=(x,z)=>L.light[x][z]*(L.group[x][z]>=0?flickOn[L.group[x][z]]:1);
+  const mix=(list,tk,out)=>{if(!L.lit){out[0]=out[1]=out[2]=1;return out}let r=0,g=0,b=0,k=0;for(const [x,z] of list){if(x<0||z<0||x>=N||z>=N||voidC[x][z])continue;const l=lc(x,z),t=L[tk][x][z];r+=l*(t?t[0]:1);g+=l*(t?t[1]:1);b+=l*(t?t[2]:1);k++}
+    if(k){out[0]=r/k;out[1]=g/k;out[2]=b/k}else out[0]=out[1]=out[2]=1;return out};
+  const c=[0,0,0],col=new THREE.Color();
+  for(let iy=0;iy<=N;iy++)for(let ix=0;ix<=N;ix++){
+    const i=iy*(N+1)+ix;
+    mix([[ix-1,iy-1],[ix,iy-1],[ix-1,iy],[ix,iy]],'ftint',c);fc.setXYZ(i,c[0],c[1],c[2]);
+    const z=N-iy;mix([[ix-1,z-1],[ix,z-1],[ix-1,z],[ix,z]],'tint',c);cc.setXYZ(i,c[0],c[1],c[2]);
+  }
+  fc.needsUpdate=cc.needsUpdate=true;
+  for(const {im,cells} of litList){cells.forEach((cs,i)=>{mix(cs,'tint',c);im.setColorAt(i,col.setRGB(c[0],c[1],c[2]))});im.instanceColor.needsUpdate=true}
+}
 
 /* ---------- builds ---------- */
 const pieces=new Map();const pieceGroup=new THREE.Group();scene.add(pieceGroup);
@@ -621,11 +882,11 @@ function specValid(s){
   if(!s||!hWall.length)return false;
   if(s.kind==='wall'){
     if(s.L<0||s.L>2)return false;
-    if(s.o==='V'){if(s.x<1||s.x>N-1||s.z<0||s.z>N-1||vWall[s.x][s.z])return false}
-    else if(s.o==='H'){if(s.z<1||s.z>N-1||s.x<0||s.x>N-1||hWall[s.z][s.x])return false}
+    if(s.o==='V'){if(s.x<1||s.x>N-1||s.z<0||s.z>N-1||vWall[s.x][s.z]||voidC[s.x-1][s.z]||voidC[s.x][s.z])return false}
+    else if(s.o==='H'){if(s.z<1||s.z>N-1||s.x<0||s.x>N-1||hWall[s.z][s.x]||voidC[s.x][s.z-1]||voidC[s.x][s.z])return false}
     else return false;
   }else if(s.kind==='floor'||s.kind==='ramp'){
-    if(s.x<0||s.z<0||s.x>N-1||s.z>N-1)return false;
+    if(s.x<0||s.z<0||s.x>N-1||s.z>N-1||voidC[s.x][s.z])return false;
     if(s.kind==='floor'&&(s.L<1||s.L>2))return false;
     if(s.kind==='ramp'&&(s.L<0||s.L>1||!(s.dir>=0&&s.dir<=3)))return false;
   }else return false;
@@ -956,6 +1217,7 @@ const firing=()=>lmb||!!tAct.fire;
 function clearInput(){lmb=false;keys.clear();for(const k in tAct)tAct[k]=false}
 // Online team play. RD is the room's round node as last seen (only the host writes it, see hostDuties).
 // curMatch / curRound: the match id and round number this browser has set up; roster: uid -> 'r' | 'b' for that match.
+let mapKey='';   // which match:round the current layout belongs to
 let RD=null,curMatch=null,curRound=0,roster=new Map(),myTeamPref='r',myKills=0,lobbyShown=false,lobbyDirty=false,watchMode=false,specUid=null,lastRz='';
 const names=new Map(),kills=new Map();   // uid -> name / kills this match, kept for players who leave mid-match
 const roundNo=()=>online?curRound:score.you+score.opp+1;
@@ -972,9 +1234,12 @@ function spawn(e,cell){
   e.yaw=yawTo(W/2-e.pos.x,W/2-e.pos.z);e.pitch=0;e.model.visible=e.present;
   pushOut(e);
 }
-// Practice rounds (online rounds start in startOnlineRound)
+// A fresh v2 layout for practice (and the menu backdrop); round > 1 shows the lights going out as the rooms change.
+function practiceMap(){const sd=randSeed();generateMap(sd,mapSizeV2(2,sd))}
+function shiftFx(){if(RM)return;const el=$('shift');el.classList.remove('on');void el.offsetWidth;el.classList.add('on');sfxCrackle(.7)}
+// Practice rounds (online rounds start in startOnlineRound): every round is a new layout
 function newRound(){
-  clearPieces();
+  practiceMap();if(roundNo()>1)shiftFx();
   spawn(player,soloCell(0));spawn(opp,soloCell(1));
   player.wi=0;setGun(player.model,0);opp.wi=0;setGun(opp.model,0);
   Object.assign(opp,{seen:0,lastSeen:99,path:null,repath:0,buildCd:0,hurt:false,rampT:0,breakT:0,switchCd:0});
@@ -988,7 +1253,7 @@ function showHud(){state='playing';paused=false;$('osd').hidden=false;$('menu').
 function startPractice(){
   initAudio();Net.leave();online=false;oppName='Entity';
   opp.present=true;player.present=true;player.team=undefined;setSuit(player.model,'me');
-  generateMap(randSeed());resetScores();newRound();
+  resetScores();newRound();
   showHud();requestLock(true);
 }
 
@@ -1017,7 +1282,7 @@ function toMenu(){
   const was=online;
   Net.leave();online=false;state='menu';$('osd').hidden=true;paused=false;$('pause').hidden=true;$('end').hidden=true;$('hud').hidden=true;$('lobby').hidden=true;lobbyShown=false;$('menu').hidden=false;hideGhosts();hud.banner.hidden=true;
   opp.present=true;player.present=true;player.team=undefined;setSuit(player.model,'me');
-  if(was){generateMap(randSeed());spawn(player,soloCell(0));spawn(opp,soloCell(1))}
+  if(was){practiceMap();spawn(player,soloCell(0));spawn(opp,soloCell(1))}
   if(document.pointerLockElement)document.exitPointerLock();showAd('adMenu')}
 
 function onKill(victim,killer,wi,head){
@@ -1157,7 +1422,7 @@ function bfs(a,b){
   if(a[0]===b[0]&&a[1]===b[1])return[];
   const prev=new Map(),q=[a],k=c=>c[0]*64+c[1];prev.set(k(a),null);
   while(q.length){const c=q.shift();const [x,z]=c;
-    const nb=[];if(x<N-1&&!vWall[x+1][z])nb.push([x+1,z]);if(x>0&&!vWall[x][z])nb.push([x-1,z]);if(z<N-1&&!hWall[z+1][x])nb.push([x,z+1]);if(z>0&&!hWall[z][x])nb.push([x,z-1]);
+    const nb=[];for(let i=0;i<4;i++)if(passV2(x,z,i))nb.push([x+DV[i][0],z+DV[i][1]]);
     for(const n of nb){if(prev.has(k(n)))continue;prev.set(k(n),c);if(n[0]===b[0]&&n[1]===b[1]){const path=[n];let cur=c;while(cur&&!(cur[0]===a[0]&&cur[1]===a[1])){path.unshift(cur);cur=prev.get(k(cur))}return path}q.push(n)}
   }
   return null;
@@ -1247,8 +1512,8 @@ function parseDd(s){return new Set(typeof s==='string'&&s?s.split(';').filter(Bo
 function nameOf(uid){if(uid===Net.uid)return myName;const o=Net.others.get(uid);return o?cleanName(o.v.n):names.get(uid)||'Someone'}
 // Everyone in the room right now: you plus every player whose node is fresh.
 function liveHumans(){
-  const out=[{uid:Net.uid,n:myName,t:myTeamPref,j:Net.j}],now=Net.now();
-  for(const [u,o] of Net.others)if(now-o.ts<LIVE_MS)out.push({uid:u,n:cleanName(o.v.n),t:o.v.t==='b'?'b':'r',j:+o.v.j||o.ts});
+  const out=[{uid:Net.uid,n:myName,t:myTeamPref,j:Net.j,mv:MAP_V}],now=Net.now();
+  for(const [u,o] of Net.others)if(now-o.ts<LIVE_MS)out.push({uid:u,n:cleanName(o.v.n),t:o.v.t==='b'?'b':'r',j:+o.v.j||o.ts,mv:+o.v.mv||1});
   return out;
 }
 function setMyTeam(t,quiet){myTeamPref=t==='b'?'b':'r';if(!quiet){Net.publishSoon();lobbyDirty=true;renderLobby()}}
@@ -1327,14 +1592,21 @@ function onRound(r){
     if(curMatch!==r.id){
       curMatch=r.id;curRound=0;myKills=0;kills.clear();roster=parseRo(r.ro);matchTime=0;hud.feed.innerHTML='';watchMode=false;
       for(const u of roster.keys())names.set(u,nameOf(u));
-      const ns=clamp(r.ns|0,12,16);generateMap(r.seed>>>0,ns,allCells(roster,ns));
       syncRoster();
+    }
+    // the layout: mv 2, a new one each round from the match seed and round number; otherwise one v1 maze per match
+    const v2=r.mv===2,key=r.id+':'+(v2?r.rn|0:0);
+    if(key!==mapKey){
+      if(mapKey&&curRound)shiftFx();
+      mapKey=key;
+      if(v2){const sd=roundSeed(r.seed,r.rn),ns=mapSizeV2(roster.size,sd);generateMap(sd,ns,allCells(roster,ns))}
+      else{const ns=clamp(r.ns|0,12,16);generateMap(r.seed>>>0,ns,allCells(roster,ns),true)}
     }
     if(r.ph!=='end'&&(r.rn|0)!==curRound){curRound=r.rn|0;startOnlineRound()}
     applyDead(r);
   }else if(curMatch!=null){
     // back to the lobby: nobody is in a match until the host starts the next one
-    curMatch=null;curRound=0;roster=new Map();watchMode=false;clearPieces();syncRoster();
+    curMatch=null;curRound=0;roster=new Map();watchMode=false;mapKey='';clearPieces();syncRoster();
     player.alive=false;player.present=false;player.model.visible=false;
   }
   phase=r.ph==='cd'?'countdown':r.ph==='fight'?'fight':r.ph==='over'?'over':'waiting';
@@ -1475,8 +1747,10 @@ function hostStart(){
   const kr=[...ro.values()].filter(t=>t==='r').length;
   if(!kr||kr===ro.size){$('lbMsg').textContent='Both teams need at least one player.';return}
   const now=Math.round(Net.now());
+  // a new layout every round only if everyone in the room has a page that can build it; otherwise the original maze
+  const mv=hs.every(h=>h.mv>=2)?{mv:2}:{};
   Net.tx(cur=>{if(!cur||cur.id!==r.id||cur.ph!=='lobby')return;
-    return{id:cur.id+1,ends:now,seed:randSeed(),ns:mapSizeFor(ro.size),ph:'cd',pt:now+3500,to:[3,5,10].includes(cur.to)?cur.to:5,rn:1,sr:0,sb:0,ro:fmtRo(ro),dd:'',rw:'',mw:'',fm:0,rz:cur.rz||''}});
+    return Object.assign({id:cur.id+1,ends:now,seed:randSeed(),ns:mapSizeFor(ro.size),ph:'cd',pt:now+3500,to:[3,5,10].includes(cur.to)?cur.to:5,rn:1,sr:0,sb:0,ro:fmtRo(ro),dd:'',rw:'',mw:'',fm:0,rz:cur.rz||''},mv)});
 }
 function hostRandomize(){
   const r=RD;if(!Net.amHost||!r||r.ph!=='lobby')return;
@@ -1638,7 +1912,7 @@ const Net={
   // n, c, x, z, h and ts are always sent: the shared database rules expect that shape
   stateOf(){
     const p=player,act=activeOnline();
-    return{n:myName,c:TEAM_HEX[act?roster.get(this.uid):myTeamPref],x:r2(p.pos.x),y:r2(p.pos.y),z:r2(p.pos.z),h:r3(p.yaw),p:r3(p.pitch),hp:Math.max(0,Math.round(p.hp)),sh:Math.round(p.shield),wi:p.wi,rl:p.reloadT>0?1:0,d:act&&p.alive?0:1,rd:curRound,m:curMatch==null?-1:curMatch,t:myTeamPref,k:myKills,j:this.j,ts:Math.round(this.now())};
+    return{n:myName,c:TEAM_HEX[act?roster.get(this.uid):myTeamPref],x:r2(p.pos.x),y:r2(p.pos.y),z:r2(p.pos.z),h:r3(p.yaw),p:r3(p.pitch),hp:Math.max(0,Math.round(p.hp)),sh:Math.round(p.shield),wi:p.wi,rl:p.reloadT>0?1:0,d:act&&p.alive?0:1,rd:curRound,m:curMatch==null?-1:curMatch,t:myTeamPref,k:myKills,j:this.j,mv:MAP_V,ts:Math.round(this.now())};
   },
   async peek(room){
     const s=await this.db.ref('rooms/'+room+'/players').once('value');let n=0,r=0;
@@ -1744,7 +2018,7 @@ function prepOnline(){
   initAudio();opp.present=false;opp.alive=false;opp.model.visible=false;
   clearRemotes();RD=null;curMatch=null;curRound=0;roster=new Map();myKills=0;kills.clear();names.clear();hostDead.clear();lastRz='';watchMode=false;specUid=null;
   player.present=false;player.alive=false;player.model.visible=false;player.team=undefined;
-  generateMap(randSeed());resetScores();phase='waiting';
+  practiceMap();resetScores();phase='waiting';mapKey='';
 }
 // In a room: the lobby panel first; the HUD takes over once the host starts a match.
 function showRoom(){state='playing';paused=false;$('osd').hidden=false;$('menu').hidden=true;$('end').hidden=true;$('pause').hidden=true;$('hud').hidden=true;setScores();showLobby();syncView()}
@@ -1880,12 +2154,17 @@ let flickClock=0;
 function updateLights(dt){
   if(RM)return;
   flickClock+=dt;
+  let dirty=false;
   for(const f of flickers){
     f.next-=dt;
-    if(f.next<=0){f.until=.25+Math.random()*.6;f.next=3+Math.random()*9;const fd=camera.position.distanceTo(f.pos);if(fd<16)sfxCrackle(1-fd/16)}
-    if(f.until>0){f.until-=dt;f.tick-=dt;if(f.tick<=0){f.tick=.04+Math.random()*.07;f.mat.color.setHex(Math.random()<.5?0x5c5644:0xfffae6)}}
-    else f.mat.color.setHex(0xfffae6);
+    if(f.next<=0){f.until=.25+Math.random()*.6;f.next=3+Math.random()*9;const fd=camera.position.distanceTo(f.pos);if(fd<(f.g>=0?22:16))sfxCrackle(1-fd/(f.g>=0?22:16))}
+    let lit=true;
+    if(f.until>0){f.until-=dt;f.tick-=dt;if(f.tick<=0){f.tick=.04+Math.random()*.07;f.off=Math.random()<.5}lit=!f.off}
+    f.mat.color.setHex(lit?0xfffae6:0x5c5644);
+    // a bank of panels that flickers also dims the floor, ceiling and walls of its area
+    if(f.g>=0&&flickOn[f.g]!==(lit?1:.5)){flickOn[f.g]=lit?1:.5;dirty=true}
   }
+  if(dirty)applyLight();
   amb.intensity=.55+Math.sin(flickClock*37)*.004;
 }
 
@@ -2122,6 +2401,9 @@ if(navigator.webdriver)window.__br={get state(){return state},get online(){retur
   hitboxes,solids:()=>solids,ramps:()=>ramps,pieces,walls:()=>({h:hWall,v:vWall}),keys,renderer,scene,camera,
   // collision audit: the real movement, building and interpolation code, driven step by step
   moveEntity,tryBuild,specValid,damagePiece,generateMap,spawn,soloCell,teamCells,wallSpec,playerBuildSpec,updateRemotes,makeRemote,updateBot,
+  mapSizeV2,roundSeed,fairV2,MAP_V,get mapKey(){return mapKey},
+  mapInfo(){const L=mapInfo;if(!L)return null;const fl=[];for(let x=0;x<N;x++)for(let z=0;z<N;z++)if(L.group[x][z]>=0)(fl[L.group[x][z]]=fl[L.group[x][z]]||[]).push([x,z]);
+    return{v:L.v,light:L.light,tint:L.tint.map((c,x)=>c.map((t,z)=>L.ftint[x][z]||t)),voids:voidC,flick:fl.filter(Boolean),special:L.special,spawns:L.spawns,styles:L.styles,regs:L.regs,mirrored:!!L.mirrored,tries:L.tries,low:{h:lowH,v:lowV}}},
   consts:{R,H,STEP,CELL,CEIL,SPEED,JUMP},
   teleport(x,z,y){player.pos.set(x,y||0,z);player.vel.set(0,0,0)},
   aimAt(e){const t=e.pos.clone().add(new V3(0,1.1,0));for(let i=0;i<4;i++){updateCamera(0);const c=camera.position;player.yaw=yawTo(t.x-c.x,t.z-c.z);player.pitch=Math.atan2(t.y-c.y,Math.hypot(t.x-c.x,t.z-c.z))}},
@@ -2129,7 +2411,7 @@ if(navigator.webdriver)window.__br={get state(){return state},get online(){retur
   setWeapon(i){switchWeapon(player,i);player.switchT=0;mode='combat'}};
 
 setDiff(diffKey);setSens(sens);
-generateMap(randSeed());
+practiceMap();
 spawn(player,soloCell(0));spawn(opp,soloCell(1));
 showAd('adMenu');
 requestAnimationFrame(t=>{last=t;frame(t)});
