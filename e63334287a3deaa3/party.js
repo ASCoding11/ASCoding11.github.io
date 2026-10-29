@@ -28,6 +28,11 @@
  * them (the game's menu ids are in GAMES). The game's own saved name is put back afterwards (nk in GAMES).
  * To add a game: add a row to GAMES. If its menu uses other ids than name / room / joinRoom, give them in ids,
  * and give the localStorage key it saves its name under in nk.
+ * Names: one name everywhere. The Online name (localStorage ol:name, social.js) is the player's name, then the signed-in
+ * account's first name, then the party name (party:name), then any name a game saved: the same order social.js uses, so
+ * both panels and the leaderboard say the same thing. Typing in the name box here saves ol:name and party:name and tells
+ * social.js (a `backroom:name` event with from: 'party'); a rename there or in another tab (`backroom:name` / storage)
+ * is written to our party node at once, so the rest of the party sees it within a second or so.
  * Members show with their avatar (avatar.js) and status tier badge (miles.js) when those scripts are here; without
  * them, a coloured initial and no badge.
  */
@@ -94,12 +99,13 @@
   function timeout(p, ms, msg) { var t; return Promise.race([p, new Promise(function (_, rej) { t = setTimeout(function () { rej(new Error(msg)); }, ms); })]).finally(function () { clearTimeout(t); }); }
   var NET = 'Couldn’t reach the game database. If you’re on a school or work network it may be blocking it; try another network.';
 
-  // A name to start from: the signed-in account, then the one used for parties before, then any name a game saved.
+  // A name to start from (after the Online name): the signed-in account, then the one used for parties before, then any
+  // name a game saved. The same order as social.js's guessName.
   function guessName() {
     var u = window.SiteAccount && SiteAccount.user && SiteAccount.user();
     if (u && (u.displayName || u.email)) return cleanName((u.displayName || u.email).split(/[\s@]/)[0]);
     var s = store('party:name'); if (s) return cleanName(s);
-    var keys = ['coil:name', 'ss:name', 'kw:name', 'sd:name', 'quarry:name', 'boostball-name', 'shellcr-name', 'br1v1-name', 'rk_name'];
+    var keys = ['coil:name', 'ss:name', 'sd:name', 'spire:name', 'updraft:name', 'boostball-name', 'shellcr-name', 'br1v1-name', 'rk_name', 'chroma-name', 'oddone-name', 'tumble-name', 'kw:name', 'quarry:name'];
     for (var i = 0; i < keys.length; i++) {
       var v = store(keys[i]); if (!v) continue;
       try { if (v.charAt(0) === '"') v = JSON.parse(v); } catch (e) {}
@@ -246,7 +252,26 @@
     return s;
   }
   var lastGo = null;
-  function myName() { return cleanName(store('party:name')) || guessName() || 'Player'; }
+  function typedName() { return cleanName(store('ol:name')) || guessName(); }
+  function myName() { return typedName() || 'Player'; }
+  // Our name changed somewhere else (the Online panel, another tab): put it in our node and the name box now.
+  function nameChanged() {
+    var n = myName();
+    if (refs && code) {
+      members.forEach(function (m) { if (m.uid === uid) m.n = n; });
+      refs.me.update({ n: n, ts: Math.round(now()) }).catch(function () {});
+      drawParty();
+    } else {
+      var box = $main.querySelector('#ptyName');
+      if (box && document.activeElement !== box) box.value = typedName();
+    }
+  }
+  // Typed in our own name box: save it as the one name and tell the Online panel.
+  function setName(n) {
+    store('party:name', n || null);
+    if (n) store('ol:name', n);
+    try { document.dispatchEvent(new CustomEvent('backroom:name', { detail: { uid: uid, n: myName(), mine: true, from: 'party' } })); } catch (e) {}
+  }
 
   // ---------------- Join / leave ----------------
   async function join(c, rejoin) {
@@ -471,7 +496,7 @@
           '<label>Party code<input id="ptyCode" maxlength="20" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="e.g. k7m2q"></label>' +
           '<button type="button" class="btn" data-a="join">Join party</button>' +
         '</div>';
-      $main.querySelector('#ptyName').value = cleanName(store('party:name')) || guessName();
+      $main.querySelector('#ptyName').value = typedName();
     }
     $main.querySelectorAll('button').forEach(function (b) { b.disabled = busy; });
   }
@@ -543,7 +568,7 @@
     else if (a === 'create' || a === 'join') {
       var nm = cleanName($main.querySelector('#ptyName').value);
       if (!nm) { say('Type your name first, so your party knows who you are.', true); $main.querySelector('#ptyName').focus(); return; }
-      store('party:name', nm);
+      if (nm !== typedName()) setName(nm); else store('party:name', nm);
       if (a === 'create') create();
       else {
         var c = cleanCode($main.querySelector('#ptyCode').value);
@@ -570,11 +595,18 @@
     var b = $main.querySelector(e.target.id === 'ptyCode' ? '[data-a="join"]' : '[data-a="create"]');
     if (b) b.click();
   });
-  sec.addEventListener('input', function (e) { if (e.target.id === 'ptyName') store('party:name', cleanName(e.target.value) || null); });
+  var nameT = 0;
+  sec.addEventListener('input', function (e) {
+    if (e.target.id !== 'ptyName') return;
+    clearTimeout(nameT); var v = cleanName(e.target.value);
+    nameT = setTimeout(function () { setName(v); }, 400);
+  });
+  document.addEventListener('backroom:name', function (e) { if (e.detail && e.detail.mine && e.detail.from !== 'party') nameChanged(); });
+  addEventListener('storage', function (e) { if (e.key === 'ol:name' || e.key === 'party:name') nameChanged(); });
   // avatar.js and miles.js may load after the list was drawn, and every finished tier read is a redraw.
   document.addEventListener('backroom:avatar', function () { if (refs) drawParty(); });
   document.addEventListener('backroom:miles', function () { if (refs) drawParty(); });
-  if (window.SiteAccount && SiteAccount.onChange) SiteAccount.onChange(function () { if (!code && !store('party:name')) { drawn = ''; drawIdle(); } });
+  if (window.SiteAccount && SiteAccount.onChange) SiteAccount.onChange(function () { if (!code && !store('party:name') && !store('ol:name')) { drawn = ''; drawIdle(); } });
 
   // ---------------- Start ----------------
   drawIdle();
@@ -584,7 +616,7 @@
   inv = cleanCode(inv);
   var again = cleanCode(sess('party:code'));
   if (inv) {
-    if (!store('party:name') && !guessName()) {
+    if (!typedName()) {
       $main.querySelector('#ptyCode').value = inv;
       say('You were invited to party ' + inv + '. Type your name and press Join party.');
       $main.querySelector('#ptyName').focus();

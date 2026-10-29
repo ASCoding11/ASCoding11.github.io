@@ -23,6 +23,10 @@
  *   n name (14)  c colour  x, z, h 0  ts last publish (server time)  v 1  st seat tag (1A–40F, as in social.js)  g the same g as above
  *   d the same dy as above (at most 30 days, 8 games a day, pruned until the node fits in 7,000 characters)
  *   ga 1 and gn the Google display name (40 characters, no email or photo) when the account is a Google sign-in, else neither
+ * The name n is the player's one name, in the order social.js uses: the Online name (ol:name), else the signed-in Google
+ * account's first name, else the party name, else a name a game saved. A rename on the Back Room page (Online or Party
+ * panel, which also fix n on the node straight away) reaches an open game as a storage event, and the game republishes
+ * a few seconds later (at most once every NAME_GAP, and only once it is already connected, so it never starts a sign-in early).
  * The node is never removed on disconnect: it is the player's leaderboard entry. The first publish after each page load
  * reads the node back and keeps the larger total / better best (and the larger seconds for each day and game), so clearing
  * this browser doesn't wipe the board entry. Everything is self-reported, so it isn't cheat-proof; leaderboard.js and the
@@ -43,7 +47,8 @@
   var KEY = 'lbs:v1', PATH = 'rooms/lb-all/players';
   var IDLE = 120000, SAVE_MS = 15000, PUB_MS = 60000, DAY_MAX = 86400;
   var MAX_GAMES = 40, MAX_STATS = 120;
-  var DAYS = 30, DAY_GAMES = 8, NODE_CAP = 7000;   // per-day history: how many days and games a day are kept, and how big the node may get
+  var DAYS = 30, DAY_GAMES = 8, NODE_CAP = 7000;
+  var NAME_WAIT = 1500, NAME_GAP = 10000;            // a rename republishes after NAME_WAIT, at most once every NAME_GAP   // per-day history: how many days and games a day are kept, and how big the node may get
   var LOWER = { tower: 1, summit: 1, obby: 1 };
   var CFG = {
     apiKey: 'AIzaSyDZD_Ku8cixteXfwkDYzGv3GKiZFF8sRSM',
@@ -77,15 +82,20 @@
   // The per-day history's keys: this browser's local date as YYYYMMDD (so they sort as text); dayAgo(1) is yesterday.
   function dayKey(d) { return String(d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate()); }
   function dayAgo(n) { var d = new Date(); d.setDate(d.getDate() - n); return dayKey(d); }
-  // The Online name, else the party name, else any name a game saved (the same order as social.js).
-  function myName() {
-    var keys = ['ol:name', 'party:name', 'coil:name', 'ss:name', 'sd:name', 'spire:name', 'updraft:name', 'boostball-name', 'shellcr-name', 'br1v1-name', 'rk_name', 'chroma-name', 'oddone-name', 'tumble-name', 'trivium.name'];
-    for (var i = 0; i < keys.length; i++) {
-      var v = ls(keys[i]); if (!v) continue;
-      if (v.charAt(0) === '"') { var j = json(v); if (typeof j === 'string') v = j; }
-      v = cleanName(v); if (v) return v;
-    }
+  // The Online name, else the Google account's first name (u: the Google user we publish as, if any), else the party name,
+  // else any name a game saved: the same order as social.js, so the board says what the Online panel says.
+  function myName(u) {
+    var v0 = cleanName(lsName('ol:name'));
+    if (v0) return v0;
+    if (u && (u.displayName || u.email)) { var g = cleanName(String(u.displayName || u.email).split(/[\s@]/)[0]); if (g) return g; }
+    var keys = ['party:name', 'coil:name', 'ss:name', 'sd:name', 'spire:name', 'updraft:name', 'boostball-name', 'shellcr-name', 'br1v1-name', 'rk_name', 'chroma-name', 'oddone-name', 'tumble-name', 'trivium.name'];
+    for (var i = 0; i < keys.length; i++) { var v = cleanName(lsName(keys[i])); if (v) return v; }
     return 'Player';
+  }
+  function lsName(k) {
+    var v = ls(k); if (!v) return '';
+    if (v.charAt(0) === '"') { var j = json(v); if (typeof j === 'string') v = j; }
+    return v;
   }
 
   // A stat value worth keeping: a finite number in a sane range, rounded (times to the millisecond).
@@ -223,6 +233,16 @@
   setInterval(tick, 1000);
   document.addEventListener('visibilitychange', function () { tick(); if (document.visibilityState === 'hidden') { flush(); publish(true); } });
   addEventListener('pagehide', function () { tick(); flush(); publish(true); });
+  // A rename on the Back Room page (another document, so it arrives as a storage event): republish soon, if connected.
+  var nameT = 0, lastNamePub = 0;
+  addEventListener('storage', function (e) {
+    if (e.key !== 'ol:name' && e.key !== 'party:name') return;
+    clearTimeout(nameT);
+    nameT = setTimeout(function () {
+      if (!conn || !merged) return;                   // not connected yet: the next regular publish carries the name
+      lastNamePub = Date.now(); publish(false);
+    }, Math.max(NAME_WAIT, lastNamePub + NAME_GAP - Date.now()));
+  });
 
   // ---------------- Firebase ----------------
   // { db, uid, now(), J, user() } where J is the JSON of the window that owns db (another page's, when we borrow its connection)
@@ -316,9 +336,9 @@
     o.dy = cleanDays(o.dy);
   }
   function node(c, o) {
-    var nd = { n: myName(), c: colorOf(c.uid), x: 0, z: 0, h: 0, ts: Math.round(c.now()), v: 1, st: seatOf(c.uid), g: o.g, d: o.dy };
-    // A Google account: say so, with its display name (never the email or photo), so the admin page can tell accounts apart.
     var u = null; try { u = c.user ? c.user() : null; } catch (e) { u = null; }
+    var nd = { n: myName(u), c: colorOf(c.uid), x: 0, z: 0, h: 0, ts: Math.round(c.now()), v: 1, st: seatOf(c.uid), g: o.g, d: o.dy };
+    // A Google account: say so, with its display name (never the email or photo), so the admin page can tell accounts apart.
     if (u) { nd.ga = 1; var gn = cleanName(u.displayName, 40); if (gn) nd.gn = gn; }
     // Keep the node small enough for leaderboard.js (8,000 characters): drop the oldest days first.
     var days = Object.keys(nd.d).sort();
