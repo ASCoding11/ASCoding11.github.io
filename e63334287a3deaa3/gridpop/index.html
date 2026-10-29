@@ -448,7 +448,7 @@ function setMuted(m){
 //  Layout and sprites
 // ---------------------------------------------------------------------
 const app=$('app'),cv=$('cv'),ctx=cv.getContext('2d');
-const L={mode:'v',W:0,H:0,dpr:1,bx:0,by:0,bs:0,gx:0,gy:0,pitch:0,cell:0,gap:0,tc:0,tp:0,tg:0,slots:[{x:0,y:0,w:0,h:0},{x:0,y:0,w:0,h:0},{x:0,y:0,w:0,h:0}],rad:0};
+const L={mode:'v',W:0,H:0,dpr:1,bx:0,by:0,bs:0,gx:0,gy:0,pitch:0,cell:0,gap:0,tc:0,tp:0,tg:0,slots:[{x:0,y:0,w:0,h:0},{x:0,y:0,w:0,h:0},{x:0,y:0,w:0,h:0}],hit:[{x:0,y:0,w:0,h:0},{x:0,y:0,w:0,h:0},{x:0,y:0,w:0,h:0}],rad:0,ox:0,oy:0};
 let touchUI=matchMedia('(pointer:coarse)').matches;
 if(touchUI)document.documentElement.classList.add('touch');
 const spr=[],sprT=[];let sprRed=null,sprWhite=null,sprGrey=null,sprShadow=null,boardBg=null,glowSpr=null;const GLOW=36;
@@ -542,6 +542,14 @@ function layout(){
   }
   if(L.mode==='v')kh.style.bottom='auto';
   L.gx=L.bx+bp;L.gy=L.by+bp;
+  // Where a press picks up each tray piece: the whole strip beside the board, split three ways,
+  // so a small piece is as easy to grab as a big one.
+  for(let i=0;i<3;i++){
+    const s=L.slots[i],h=L.hit[i];
+    if(L.mode==='v'){const y0=L.by+bs+2,x0=i?s.x:0,x1=i<2?s.x+s.w:W;h.x=x0;h.y=y0;h.w=x1-x0;h.h=H-y0}
+    else{const x0=L.bx+bs+2,y0=i?s.y:0,y1=i<2?s.y+s.h:H;h.x=x0;h.y=y0;h.w=W-x0;h.h=y1-y0}
+  }
+  const cr=cv.getBoundingClientRect();L.ox=cr.left;L.oy=cr.top;
   const s0=L.slots[0];
   L.tc=Math.max(8,Math.floor(Math.min(L.cell*0.56,s0.w/5.5,(s0.h-8)/5.4)));
   L.tg=Math.max(1,Math.round(L.tc*0.09));L.tp=L.tc+L.tg;
@@ -733,33 +741,80 @@ function askRestart(){
 //  Dragging
 // ---------------------------------------------------------------------
 let drag=null;
-const D={slot:-1,pid:-1,touch:false,px:0,py:0,t0:0,x:0,y:0,r:0,c:0,show:false,valid:false,lr:0,lc:-99};
+const D={slot:-1,pid:-1,touch:false,px:0,py:0,t0:0,x:0,y:0,r:0,c:0,show:false,valid:false,key:-2};
 const prevRows=new Uint8Array(N),prevCols=new Uint8Array(N),tmpBoard=new Uint8Array(N*N);
-function slotAt(x,y){for(let i=0;i<3;i++){const s=L.slots[i];if(x>=s.x&&x<s.x+s.w&&y>=s.y&&y<s.y+s.h)return i}return -1}
+const hitPos={x:0,y:0};
+// Which tray piece a press at (x, y) picks up: anywhere in its third of the strip beside the board
+// (L.hit). A press in an empty slot's third takes the nearest piece still in the tray, if it's close.
+function slotAt(x,y){
+  let s=-1;
+  for(let i=0;i<3;i++){const h=L.hit[i];if(x>=h.x&&x<h.x+h.w&&y>=h.y&&y<h.y+h.h){s=i;break}}
+  if(s<0||!st||st.tray[s])return s;
+  let bi=-1,bd=Infinity;
+  for(let i=0;i<3;i++){
+    const p=st.tray[i];if(!p)continue;
+    const sh=BY_ID[p.s];trayPos(i,sh,hitPos);
+    const d=Math.hypot(x-(hitPos.x+(sh.w*L.tp-L.tg)/2),y-(hitPos.y+(sh.h*L.tp-L.tg)/2));
+    if(d<bd){bd=d;bi=i}
+  }
+  return bi>=0&&bd<0.75*Math.max(L.slots[0].w,L.slots[0].h)?bi:s;
+}
 function trayPos(i,sh,out){const s=L.slots[i];out.x=s.x+(s.w-(sh.w*L.tp-L.tg))/2;out.y=s.y+(s.h-(sh.h*L.tp-L.tg))/2;return out}
 const tmpPos={x:0,y:0};
-// On touch the piece rides about 1.5 squares above the finger, a little less near the bottom edge
-// so the bottom rows stay reachable when the board fills the screen.
-function liftFor(py){return 1.5*L.pitch*Math.max(0.15,Math.min(1,(L.H-py)/(2.5*L.pitch)))}
+// On touch the piece rides well above the finger (LIFT squares from the touch to the piece's bottom
+// edge), the same everywhere, so it is never under the finger and always moves with it. Only when the
+// board reaches almost to the bottom of the screen (phones sideways) does the lift shrink, over the
+// last 2.5 squares before the edge, just enough that the bottom row can be reached with the finger
+// still on the screen; there the piece moves a little faster than the finger.
+const LIFT=1.75;
+function liftFor(py){
+  const P=L.pitch,full=Math.max(LIFT*P,56),ymax=L.H-10;
+  const need=Math.max(0,ymax-(L.gy+N*P-L.gap-0.25*P)); // the lift that puts a piece on the bottom row with the finger at ymax
+  if(need>=full)return full;
+  const zone=2.5*P,k=Math.max(0,Math.min(1,(py-(ymax-zone))/zone));
+  return full+(need-full)*k;
+}
+// Top-left of the piece in your hand, drawn at board size: centred on the cursor, or centred above the finger.
 function dragTopLeft(sh,px,py,touch,out){
   const pw=sh.w*L.pitch-L.gap,ph=sh.h*L.pitch-L.gap;
   out.x=px-pw/2;out.y=touch?py-liftFor(py)-ph:py-ph/2;return out;
 }
 function startDrag(slot,pid,touch,x,y){
-  drag=D;D.slot=slot;D.pid=pid;D.touch=touch;D.px=x;D.py=y;D.t0=performance.now();D.lc=-99;D.show=false;D.valid=false;
+  drag=D;D.slot=slot;D.pid=pid;D.touch=touch;D.px=x;D.py=y;D.t0=performance.now();D.key=-2;D.show=false;D.valid=false;
   kb.sel=-1;ret[slot].on=false;cv.style.cursor='grabbing';
   sfx.select();
   updateSnap();bump(200);
 }
+// Snapping, in board squares. The piece is drawn at board size, so rounding its top-left square is the
+// same as snapping by its centre. If that spot is blocked, the nearest free spot within about half a
+// square more (REACH) is used instead; a piece hanging off the edge by up to EDGE counts as at the edge.
+// Once a spot is chosen it stays until the piece is clearly nearer another one (STICK), so the shadow
+// doesn't flicker on a boundary and a finger's wobble as it lifts off doesn't move it.
+// The shadow (D.r, D.c when D.valid) is always exactly where the piece will drop.
+const STICK=0.62,REACH=0.85,EDGE=0.35;
 function updateSnap(){
   const p=st.tray[D.slot];if(!p)return;
   const sh=BY_ID[p.s];
   dragTopLeft(sh,D.px,D.py,D.touch,tmpPos);D.x=tmpPos.x;D.y=tmpPos.y;
-  const r=Math.round((D.y-L.gy)/L.pitch),c=Math.round((D.x-L.gx)/L.pitch);
-  const cr=r+sh.h/2,cc=c+sh.w/2;
-  D.r=r;D.c=c;D.show=cr>=0&&cr<=N&&cc>=0&&cc<=N;
-  D.valid=D.show&&canPlace(st.board,sh,r,c);
-  if(r!==D.lr||c!==D.lc){D.lr=r;D.lc=c;previewLines(sh,r,c,D.valid,p.c)}
+  const r1=(D.y-L.gy)/L.pitch,c1=(D.x-L.gx)/L.pitch,mr=N-sh.h,mc=N-sh.w;
+  D.show=r1+sh.h/2>=0&&r1+sh.h/2<=N&&c1+sh.w/2>=0&&c1+sh.w/2<=N; // over the board (for the "no room" sound)
+  const fr=r1<0?Math.min(0,r1+EDGE):r1>mr?Math.max(mr,r1-EDGE):r1;
+  const fc=c1<0?Math.min(0,c1+EDGE):c1>mc?Math.max(mc,c1-EDGE):c1;
+  let best=-1,br=0,bc=0;
+  // the board never changes during a drag, so a spot that was free still is
+  if(D.valid&&Math.abs(fr-D.r)<=STICK&&Math.abs(fc-D.c)<=STICK){best=0;br=D.r;bc=D.c}
+  else{
+    const r0=Math.round(fr),c0=Math.round(fc);
+    for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+      const r=r0+dr,c=c0+dc,er=Math.abs(fr-r),ec=Math.abs(fc-c),d=er*er+ec*ec;
+      if(er>REACH||ec>REACH||d>1||(best>=0&&d>=best))continue;
+      if(canPlace(st.board,sh,r,c)){best=d;br=r;bc=c}
+    }
+  }
+  D.valid=best>=0;
+  if(D.valid){D.r=br;D.c=bc}
+  const key=D.valid?br*N+bc:-1;
+  if(key!==D.key){D.key=key;previewLines(sh,br,bc,D.valid,p.c)}
 }
 // Which rows and columns this placement would fill (shown as a glow before you let go).
 let prevColor=0,prevAny=false;
@@ -773,6 +828,7 @@ function previewLines(sh,r,c,valid,col){
     prevRows[k]=fr;prevCols[k]=fc;if(fr||fc)prevAny=true;
   }
 }
+// Letting go drops the piece where its shadow is; with no shadow it goes back to the tray.
 function endDrag(){
   if(!drag)return;
   const slot=D.slot,p=st.tray[slot];
@@ -791,22 +847,31 @@ function sendBack(slot){
 }
 function cancelDrag(instant){if(!drag)return;const slot=D.slot;drag=null;if(!instant)sendBack(slot);dirty=true;cv.style.cursor='default'}
 
+// Pointer positions in canvas pixels (CSS pixels from the canvas's top-left; the canvas fills the page).
 cv.addEventListener('pointerdown',e=>{
   ensureAudio();
   if(e.pointerType!=='mouse'&&!touchUI){touchUI=true;document.documentElement.classList.add('touch');layout()}
   if(drag||!playing()||anyOverlay())return;
   if(e.pointerType==='mouse'&&e.button!==0)return;
-  const x=e.clientX,y=e.clientY,s=slotAt(x,y);
+  const x=e.clientX-L.ox,y=e.clientY-L.oy,s=slotAt(x,y);
   if(s<0||!st.tray[s])return;
   e.preventDefault();
   startDrag(s,e.pointerId,e.pointerType!=='mouse',x,y);
   try{cv.setPointerCapture(e.pointerId)}catch(_){}
 });
 cv.addEventListener('pointermove',e=>{
-  if(drag&&e.pointerId===D.pid){D.px=e.clientX;D.py=e.clientY;updateSnap();dirty=true;return}
-  if(e.pointerType==='mouse'&&!drag){const s=slotAt(e.clientX,e.clientY);cv.style.cursor=(s>=0&&st&&st.tray[s]&&playing())?'grab':'default'}
+  const x=e.clientX-L.ox,y=e.clientY-L.oy;
+  if(drag&&e.pointerId===D.pid){D.px=x;D.py=y;updateSnap();dirty=true;return}
+  if(e.pointerType==='mouse'&&!drag){const s=slotAt(x,y);cv.style.cursor=(s>=0&&st&&st.tray[s]&&playing())?'grab':'default'}
 });
-cv.addEventListener('pointerup',e=>{if(drag&&e.pointerId===D.pid){D.px=e.clientX;D.py=e.clientY;updateSnap();endDrag()}});
+// The release point only counts if it jumped well away from the last move; otherwise the piece drops
+// exactly where the shadow was shown.
+cv.addEventListener('pointerup',e=>{
+  if(!drag||e.pointerId!==D.pid)return;
+  const x=e.clientX-L.ox,y=e.clientY-L.oy;
+  if(Math.hypot(x-D.px,y-D.py)>0.35*L.pitch){D.px=x;D.py=y;updateSnap()}
+  endDrag();
+});
 cv.addEventListener('pointercancel',e=>{if(drag&&e.pointerId===D.pid)cancelDrag()});
 cv.addEventListener('lostpointercapture',e=>{if(drag&&e.pointerId===D.pid)cancelDrag()});
 cv.addEventListener('contextmenu',e=>e.preventDefault());
@@ -947,7 +1012,7 @@ function draw(now){
   }
   // where the piece would land
   let gsh=null,gr=0,gc=0,gvalid=false,gcol=0,gshow=false,kbMode=false;
-  if(drag&&st.tray[D.slot]){gsh=BY_ID[st.tray[D.slot].s];gr=D.r;gc=D.c;gvalid=D.valid;gcol=st.tray[D.slot].c;gshow=D.show}
+  if(drag&&st.tray[D.slot]){gsh=BY_ID[st.tray[D.slot].s];gr=D.r;gc=D.c;gvalid=D.valid;gcol=st.tray[D.slot].c;gshow=D.valid}
   else if(kb.sel>=0&&st.tray[kb.sel]&&playing()){gsh=BY_ID[st.tray[kb.sel].s];gr=kb.r;gc=kb.c;gvalid=kb.valid;gcol=st.tray[kb.sel].c;gshow=true;kbMode=true}
   if(gsh&&gshow){
     if(gvalid){
@@ -959,7 +1024,7 @@ function draw(now){
         for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(prevRows[r]||prevCols[c])ctx.drawImage(sprWhite,cellX(c),cellY(r),cs,cs);
         ctx.globalAlpha=1;
       }
-      drawShape(gsh,cellX(gc),cellY(gr),P,cs,spr,gcol,kbMode?0.72:0.45);
+      drawShape(gsh,cellX(gc),cellY(gr),P,cs,spr,gcol,kbMode?0.72:0.5);
     }else{
       const k=gsh.cells;
       for(let i=0;i<k.length;i+=2){
@@ -1025,6 +1090,14 @@ function draw(now){
     const x=ax-(ax-D.x)*(w/fw),y=ay-(ay-D.y)*(h/fh);
     ctx.globalAlpha=0.9;const kk=sh.cells;for(let i=0;i<kk.length;i+=2)ctx.drawImage(sprShadow,x+kk[i+1]*pp+3,y+kk[i]*pp+6,sz,sz);ctx.globalAlpha=1;
     drawShape(sh,x,y,pp,sz,spr,p.c,1);
+    // the shadow's outline on top, so where it will drop is never hidden under the piece
+    if(D.valid){
+      ctx.translate(ox,oy);
+      ctx.lineWidth=Math.max(2,cs*0.05);ctx.strokeStyle='rgba(255,255,255,0.92)';
+      const lw=ctx.lineWidth/2;
+      for(let i=0;i<kk.length;i+=2){rr(ctx,cellX(D.c+kk[i+1])+lw,cellY(D.r+kk[i])+lw,cs-2*lw,cs-2*lw,cs*0.2);ctx.stroke()}
+      ctx.setTransform(d,0,0,d,0,0);
+    }
   }
   // particles
   for(let i=0;i<pN;i++){
@@ -1148,8 +1221,10 @@ if(navigator.webdriver){
       const sh=BY_ID[st.tray[slot].s],pw=sh.w*L.pitch-L.gap,ph=sh.h*L.pitch-L.gap;
       const x=L.gx+c*L.pitch+pw/2;
       if(!touch)return {x,y:L.gy+r*L.pitch+ph/2};
-      const ty=L.gy+r*L.pitch;let py=ty+ph+1.5*L.pitch;
-      for(let i=0;i<40;i++)py=ty+ph+liftFor(py);
+      const solve=ty=>{let py=ty+ph+LIFT*L.pitch;for(let i=0;i<60;i++)py=ty+ph+liftFor(py);return py};
+      let py=solve(L.gy+r*L.pitch);
+      // at the bottom edge of a sideways phone, aim a quarter square high (it snaps to the same row)
+      if(py>L.H-10)py=solve(L.gy+(r-0.25)*L.pitch);
       return {x,y:py};
     }
   };
