@@ -69,6 +69,7 @@
     { k: 'cf', n: 'Chromaflage', d: 'chromaflage', max: 8, nk: 'chroma-name' },
     { k: 'tw', n: 'Spire', d: 'spire', max: 12, nk: 'spire:name' },
     { k: 'sr', n: 'Turbo Trail', d: 'turbo-trail', max: 12, nk: 'turbotrail:name' },
+    { k: 'er', n: 'Escapade', d: 'escapade', max: 12, nk: 'escapade:name' },
     { k: 'up', n: 'Updraft', d: 'updraft', max: 12, nk: 'updraft:name' },
     { k: 'ph', n: 'Odd One Out', d: 'odd-one-out', max: 16, nk: 'oddone-name' },
     { k: 'ko', n: 'Tumble Trials', d: 'tumble-trials', max: 16, nk: 'tumble-name' },
