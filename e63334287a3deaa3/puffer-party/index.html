@@ -11,6 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
 <script src="/e63334287a3deaa3/stats.js" data-game="puffer-party" defer></script>
+<script src="/e63334287a3deaa3/gamechat.js" defer></script>
 <style>
 /* Layout: the sea and the pufferfish are drawn on one canvas behind everything; the player ring, the category bar
    and the answer box are plain elements on top. Same dark navy look as Deepword (its colours, fonts and pills). */
@@ -434,6 +435,15 @@ function norm(s){
   return s;
 }
 const BANK=window.DW_BANK||{lists:{},prompts:[],words:{},labels:{}};
+// Deepword's bank has a few entries a school wouldn't want a bot to say (a rude-sounding band, pudding or bird, dating
+// apps, alcohol, bars and casinos, underwear). They're left out here at load time, so bots never say them, they never
+// count toward a category's MIN_ANSWERS and they aren't shown as answers (typing one just "doesn't fit"); prompts.js is
+// untouched, so Deepword keeps them. An entry is dropped when any of its spellings (normalised) is in BLOCK.
+// WORD_BLOCK only applies to "Words starting with" rounds (so "knife" stays in Things in a kitchen).
+const BLOCK=new Set(['sex pistols','nwa','spotted dick','tit','penduline tit','booby','butt','buttocks','bra','hooters',
+  'tinder','bumble','hinge','omegle','ome tv','kik','sangria','casino','nightclub','bar','pub','brewery','winery','distillery',
+  'brewing','wine tasting','wine shop','bartender','sommelier']);
+const WORD_BLOCK=new Set(['kill','gun','pistol','knife','weed','blunt','hate']);
 // "name|alias|alias:w;..." -> [{n, al, w, raw}]; a repeated answer (merged lists) keeps the first copy and gains the aliases.
 function parseList(str){
   const out=[],seen=new Map();
@@ -442,14 +452,14 @@ function parseList(str){
     const i=t.lastIndexOf(':');let w=3,names=t;
     if(i>0&&/^[1-5]$/.test(t.slice(i+1))){w=+t.slice(i+1);names=t.slice(0,i)}
     const raws=names.split('|').map(x=>x.trim()).filter(Boolean);
-    const al=raws.map(norm).filter(Boolean);if(!al.length)continue;
+    const al=raws.map(norm).filter(Boolean);if(!al.length||al.some(a=>BLOCK.has(a)))continue;
     const had=seen.get(al[0]);
     if(had){for(const a of al)if(had.al.indexOf(a)<0)had.al.push(a);continue}
     const e={n:al[0],al,w,raw:raws[0]};seen.set(al[0],e);out.push(e);
   }
   return out;
 }
-function wordEntries(){const e=[],seen=new Set();for(const w of [5,4,3,2,1]){for(const x of String(BANK.words&&BANK.words[w]||'').split(/\s+/)){const n=norm(x);if(n&&!seen.has(n)){seen.add(n);e.push({n,al:[n],w,raw:x})}}}return e}
+function wordEntries(){const e=[],seen=new Set();for(const w of [5,4,3,2,1]){for(const x of String(BANK.words&&BANK.words[w]||'').split(/\s+/)){const n=norm(x);if(n&&!seen.has(n)&&!BLOCK.has(n)&&!WORD_BLOCK.has(n)){seen.add(n);e.push({n,al:[n],w,raw:x})}}}return e}
 const has=(o,k)=>Object.prototype.hasOwnProperty.call(o,k);
 // Categories: [key, name, what to name, Deepword list(s) joined by +, easy enough to open a match].
 const FOODS='produce+desserts+breads+cheeses+pasta+italian+mexican+asianfood+breakfast+sandwiches+candy+nuts+pizza+spices';

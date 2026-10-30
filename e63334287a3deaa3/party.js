@@ -73,7 +73,8 @@
     { k: 'up', n: 'Updraft', d: 'updraft', max: 12, nk: 'updraft:name' },
     { k: 'ph', n: 'Odd One Out', d: 'odd-one-out', max: 16, nk: 'oddone-name' },
     { k: 'ko', n: 'Tumble Trials', d: 'tumble-trials', max: 16, nk: 'tumble-name' },
-    { k: 'dw', n: 'Deepword', d: 'deepword', max: 12, nk: 'deepword-name' }
+    { k: 'dw', n: 'Deepword', d: 'deepword', max: 12, nk: 'deepword-name' },
+    { k: 'pf', n: 'Puffer Party', d: 'puffer-party', max: 12, nk: 'pufferparty:name' }
   ];
   var COLORS = ['#1D6A4B', '#C0562F', '#3E5BA9', '#9A3F8F', '#B07A12', '#2A8A8A', '#B42318', '#5B6B2E'];
 
