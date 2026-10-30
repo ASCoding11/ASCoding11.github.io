@@ -928,7 +928,11 @@ function lapCheck(c,t){
     const pb=!c.best||lt<c.best;if(pb)c.best=lt;
     if(c.ctrl==='me')onMyLap(c,lt,pb);
   }
-  if(!c.fin&&k>=1&&(k>=race.laps||race.anyFin)){c.fin=t;onFinish(c)}
+  if(!c.fin&&k>=1&&(k>=race.laps||race.anyFin)){
+    c.fin=t;
+    if(c.ex)judgeEx(c,c.ex); // off the track (or just back on) at the flag: judged now, so a late cut still costs 2.5 s
+    onFinish(c);
+  }
 }
 function timing(c,t){
   const fr=race.fr,b=Math.floor(c.P/20)+20;
@@ -946,7 +950,8 @@ function resetCar(c){
 //  Track limits: a car is off the track when all four wheels are past the white line (kerbs don't count as
 //  track). Going off costs nothing by itself: lap times stand, and there are no strikes or flags; the driver
 //  just sees a small "Return to the track" hint while off. Cutting a corner to gain time (covering more of
-//  the lap than the car actually drove) adds a 2.5 s penalty (CUT_PEN) to the race time at the finish.
+//  the lap than the car actually drove) adds a 2.5 s penalty (CUT_PEN) to the race time at the finish (and to a
+//  course record); lap times, Best and the leaderboard's fastest lap aren't affected.
 //  Online, each car's total penalty seconds travel in `pn`, as before.
 // =====================================================================
 // =====================================================================
@@ -993,16 +998,18 @@ function trackLimits(c,dt,t){
   }else if(ex){
     if(!ex.done){ex.done=true;ex.dP=c.P-ex.P0;ex.onT=0}
     ex.onT+=dt;
-    if(ex.onT>=1){
-      c.ex=null;
-      if(ex.dur<.12||(ex.v0<12&&ex.dP<8))return; // a brush with the line, or a crawl after a spin
-      if(ex.forced&&ex.dP-ex.path<6)return;     // pushed off by another car (and no time gained): no offence
-      const gain=(ex.dP-ex.path)/Math.max(12,Math.abs(c.v)),where=turnAt(ex.idx);
-      if(gain>.25&&ex.dP-ex.path>6){ // a clear cut that gained time
-        c.pen=(c.pen||0)+CUT_PEN;c.pens=(c.pens||0)+1;
-        toast('+'+CUT_PEN+' s · '+(c===race.me?'you':c.name)+' cut the track'+(where?' at '+where:''),'pen');
-      }
-    }
+    if(ex.onT>=1)judgeEx(c,ex);
+  }
+}
+function judgeEx(c,ex){
+  c.ex=null;
+  if(!ex.done)ex.dP=c.P-ex.P0; // still off the track (at the flag): judged as it stands
+  if(ex.dur<.12||(ex.v0<12&&ex.dP<8))return; // a brush with the line, or a crawl after a spin
+  if(ex.forced&&ex.dP-ex.path<6)return;     // pushed off by another car (and no time gained): no offence
+  const gain=(ex.dP-ex.path)/Math.max(12,Math.abs(c.v)),where=turnAt(ex.idx);
+  if(gain>.25&&ex.dP-ex.path>6){ // a clear cut that gained time
+    c.pen=(c.pen||0)+CUT_PEN;c.pens=(c.pens||0)+1;
+    toast('+'+CUT_PEN+' s · '+(c===race.me?'you':c.name)+' cut the track'+(where?' at '+where:''),'pen');
   }
 }
 function raceTime(c){return c.fin?c.fin+(c.pen||0):0}
@@ -2217,13 +2224,15 @@ function drawTags(){
 //  Race events
 // =====================================================================
 function onMyLap(c,lt,pb){
-  if(window.BackRoomStats&&!race.attract&&(c.pen||0)===(c.lapPen||0))BackRoomStats.min('lap:'+TRACKS[race.track].id,lt);c.lapPen=c.pen||0;
+  // every lap counts for the leaderboard, cut or not, as it does for Best in the game; penalties are for the race time
+  if(window.BackRoomStats&&!race.attract)BackRoomStats.min('lap:'+TRACKS[race.track].id,lt);
   toast('Lap '+c.k+' · '+fmtTime(lt)+(pb&&c.k>1?' · personal best':''));
   if(c.k===race.laps-1&&!race.anyFin)banner('FINAL LAP',1800);
 }
 function onFinish(c){
   if(c.ctrl!=='me')return;
-  if(window.BackRoomStats&&!race.attract&&c.k>=race.laps&&!c.pen)BackRoomStats.min('rec:'+TRACKS[race.track].id+':'+race.laps,c.fin);
+  // the course record is the race time with any track-cut penalties added (raceTime), as in the results
+  if(window.BackRoomStats&&!race.attract&&c.k>=race.laps)BackRoomStats.min('rec:'+TRACKS[race.track].id+':'+race.laps,raceTime(c));
   const p=order().indexOf(c)+1;
   banner((p===1?'YOU WIN!':'P'+p)+'<small>CHEQUERED FLAG</small>',3500);
   beep(660,.2,.2);setTimeout(()=>beep(990,.4,.2),180);

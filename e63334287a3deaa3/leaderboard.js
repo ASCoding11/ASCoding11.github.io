@@ -114,8 +114,8 @@
   ];
   // Slipstream circuits: short name and the quickest lap we accept, the track's length (as the game builds it) at 120 m/s,
   // the game's hard speed cap (VMAX 92 m/s × 1.3, which boost and DRS can't pass), so no real lap can be that quick: the
-  // best real laps average 60–80 m/s. A course record (rec:<track>:<laps>) is the full race time of a clean race (no
-  // penalties) that ran every lap.
+  // best real laps average 60–80 m/s. A course record (rec:<track>:<laps>) is the full race time, track-cut penalties
+  // included, of a race that ran every lap.
   var TRACKS = {
     'au-1953': ['Melbourne', 43], 'cn-2004': ['Shanghai', 45], 'bh-2002': ['Bahrain', 45], 'sa-2021': ['Jeddah', 51], 'us-2022': ['Miami', 45],
     'ca-1978': ['Montréal', 36], 'mc-1929': ['Monaco', 27], 'es-1991': ['Barcelona', 38], 'at-1969': ['Spielberg', 35], 'gb-1948': ['Silverstone', 48],
@@ -219,7 +219,7 @@
           if (t && x >= t[1] && x <= 900) o[k] = x;
         });
         // Course records: 1–20 laps, no quicker than the track allows, and no quicker than this driver's own fastest lap
-        // there times the laps (every lap of a clean race also counts as a lap, so a record with no lap time is dropped).
+        // there times the laps (every lap of a race also counts as a lap, so a record with no lap time is dropped).
         sk.forEach(function (k) {
           var m = /^rec:([a-z0-9-]{1,20}):([1-9]|1[0-9]|20)$/.exec(k), t = m && TRACKS[m[1]], x = num(src[k]);
           var n = m ? +m[2] : 0, lap = m ? o['lap:' + m[1]] : 0;
@@ -418,7 +418,9 @@
   var $list = el('ol', 'lbd-list'); $list.setAttribute('aria-label', 'Leaderboard');
   var $msg = el('p', 'lbd-msg'); $msg.setAttribute('role', 'status'); $msg.setAttribute('aria-live', 'polite');
   var $note = el('p', 'lbd-note', 'Play time counts while a game is open and you’re playing. Scores are reported by each player’s own browser, so they’re for bragging rights, not prizes.');
-  box.append(top, ctl, $chips, $h, $list, $msg, $note);
+  // Slipstream's course-record boards only: what the time includes.
+  var $rule = el('p', 'lbd-note', 'Race times include any track-cut penalties (+2.5 s each).'); $rule.hidden = true;
+  box.append(top, ctl, $chips, $h, $list, $msg, $rule, $note);
   sec.append(box);
 
   function place() {
@@ -554,6 +556,7 @@
     }
     boards.forEach(function (b) { $chips.append(chip(b)); });
     view.st = st && st.k !== 's' ? st : null;
+    $rule.hidden = !(view.st && view.st.laps);
     $h.textContent = view.g === 'all' ? 'Hours played · all games' : BY[view.g].n + ' · ' + st.l;
     $list.textContent = '';
     if (!people) return;
@@ -569,7 +572,7 @@
     list.slice(0, TOP).forEach(function (r) { $list.append(row(r)); });
     if (mine >= TOP) { var gap = el('li', 'lbd-gap', '···'); gap.setAttribute('aria-hidden', 'true'); $list.append(gap, row(list[mine])); }
     if (!list.length) say(view.g === 'all' ? 'Nobody’s on the board yet. Play any game for a minute to get on it.'
-      : view.st && view.st.laps ? 'No course record at ' + view.st.track + ' over ' + view.st.laps + (view.st.laps === 1 ? ' lap' : ' laps') + ' yet. Finish a race of that length there with no penalties to set one.'
+      : view.st && view.st.laps ? 'No course record at ' + view.st.track + ' over ' + view.st.laps + (view.st.laps === 1 ? ' lap' : ' laps') + ' yet. Finish a race of that length there to set one.'
       : view.st && view.st.track ? 'No lap times at ' + view.st.track + ' yet. Race there to set one.'
       : 'Nobody has a score here yet. Play ' + BY[view.g].n + ' to be the first.');
     else if (mine < 0 && myUid) say(list.length + (list.length === 1 ? ' player' : ' players') + '. You’re not on this board yet.');
