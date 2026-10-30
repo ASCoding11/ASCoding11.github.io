@@ -68,6 +68,7 @@
     { k: 'br', n: 'Backrooms 1v1–4v4', d: 'backrooms-1v1', max: 8, nk: 'br1v1-name' },
     { k: 'cf', n: 'Chromaflage', d: 'chromaflage', max: 8, nk: 'chroma-name' },
     { k: 'tw', n: 'Spire', d: 'spire', max: 12, nk: 'spire:name' },
+    { k: 'sr', n: 'Turbo Trail', d: 'turbo-trail', max: 12, nk: 'turbotrail:name' },
     { k: 'up', n: 'Updraft', d: 'updraft', max: 12, nk: 'updraft:name' },
     { k: 'ph', n: 'Odd One Out', d: 'odd-one-out', max: 16, nk: 'oddone-name' },
     { k: 'ko', n: 'Tumble Trials', d: 'tumble-trials', max: 16, nk: 'tumble-name' },
