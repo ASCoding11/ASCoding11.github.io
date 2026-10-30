@@ -99,6 +99,7 @@ h1{margin:4px 0 6px;font:700 clamp(40px,8vw,64px)/.95 var(--f-d);letter-spacing:
 .chip.fire{background:rgba(255,160,70,.14);color:#ffb366}
 .tile.is-done{background:linear-gradient(120deg,color-mix(in srgb,var(--c) 10%,var(--panel)),var(--panel))}
 .tile.is-done .ic::after{content:"✓";position:absolute;transform:translate(19px,-19px);width:20px;height:20px;border-radius:50%;background:var(--green);color:#042a14;font:800 12px/20px var(--f-u);text-align:center;box-shadow:0 0 0 3px var(--night)}
+.tile.is-miss .ic::after{content:none}
 .tile .ic{position:relative}
 .tile .ic::after{display:block}
 .soon{display:flex;align-items:center;gap:13px;padding:13px 14px;border-radius:18px;border:1px dashed color-mix(in srgb,var(--c) 40%,var(--line));color:var(--ink-3);font:700 14px/1.4 var(--f-u)}
@@ -180,14 +181,15 @@ h1{margin:4px 0 6px;font:700 clamp(40px,8vw,64px)/.95 var(--f-d);letter-spacing:
 //  ready:false hides the tile (it counts toward "coming soon" only). read:'deepword' reads Deepword's own keys.
 //  show: how a win reads on the tile, when "Solved in <tries>" would be wrong for the game: {tries}, {score} and {time}
 //  are today's numbers from its record ({time} as m:ss); if one is missing the tile falls back to the default.
+//  {score|hint} adds the word after the number, plural unless it's 1 ("1 hint", "2 hints"); zero: the text when a number is 0.
 // =====================================================================
 const DAILY_GAMES=[
   // Word
   {slug:'hunch',      name:'Hunch',        icon:'🟩', cat:'word',   blurb:'Guess the five-letter word in six tries.', ready:true},            // like Wordle
   {slug:'fourcast',   name:'Fourcast',     icon:'🔲', cat:'word',   blurb:'Four words at once, nine guesses.', ready:true},                   // like Quordle
-  {slug:'quartets',   name:'Quartets',     icon:'🟪', cat:'word',   blurb:'Sort sixteen words into four secret groups of four.', ready:true, show:'Solved in {tries}'}, // like Connections
+  {slug:'quartets',   name:'Quartets',     icon:'🟪', cat:'word',   blurb:'Sort sixteen words into four secret groups of four.', ready:true, show:'Solved · {score|mistake}', zero:'Perfect'}, // like Connections
   {slug:'crosslet',   name:'Crosslet',     icon:'✏️', cat:'word',   blurb:'A pocket-sized crossword to fill in a minute or two.', ready:true, show:'Solved in {time}'}, // like the NYT Mini
-  {slug:'sleight',    name:'Sleight',      icon:'🎩', cat:'word',   blurb:'One cryptic crossword clue a day, with hints if you need them.', ready:true, show:'Solved · {score} hints'}, // like Minute Cryptic
+  {slug:'sleight',    name:'Sleight',      icon:'🎩', cat:'word',   blurb:'One cryptic crossword clue a day, with hints if you need them.', ready:true, show:'Solved · {score|hint}'}, // like Minute Cryptic
   {slug:'nearword',   name:'Nearword',     icon:'🧲', cat:'word',   blurb:'Find the secret word: every guess is ranked by meaning.', ready:true}, // like Contexto
   {slug:'warmer',     name:'Warmer',       icon:'🌡️', cat:'word',   blurb:'Find the secret word by getting warmer.', ready:true},            // like Semantle
   {slug:'deepword',   name:'Deepword',     icon:'🐡', cat:'word',   blurb:'Eight prompts. The rarer your answer, the deeper you dive.', ready:true, read:'deepword'}, // the Back Room's own daily dive
@@ -205,7 +207,7 @@ const DAILY_GAMES=[
   {slug:'scout-report',name:'Scout Report',icon:'🕵️', cat:'soccer', blurb:'Find the mystery player in eight guesses.', ready:true},           // like Who Are Ya?
   {slug:'crossbar',   name:'Crossbar',     icon:'#️⃣', cat:'soccer', blurb:'Name a player for every square of the grid.', ready:true, show:'{score} of 9 squares'}, // football grid
   {slug:'teamsheet',  name:'Teamsheet',    icon:'📋', cat:'soccer', blurb:'A famous starting XI with one name missing.', ready:true},          // missing XI
-  {slug:'back-four',  name:'Back Four',    icon:'🧩', cat:'soccer', blurb:'Sixteen players, four hidden links.', ready:true},                  // football connections
+  {slug:'back-four',  name:'Back Four',    icon:'🛡️', cat:'soccer', blurb:'Sixteen players, four hidden links.', ready:true},                  // football connections
   {slug:'stat-duel',  name:'Stat Duel',    icon:'⚖️', cat:'soccer', blurb:'Caps or goals: is the next player higher or lower?', ready:true, show:'{score} of 10 right'}, // higher or lower
   {slug:'top-bins',   name:'Top Bins',     icon:'🎯', cat:'soccer', blurb:'Name the whole list before the clock runs out.', ready:true, show:'Found {score}'} // name the top 10
 ];
@@ -217,7 +219,7 @@ const CATS={
 };
 // Link cards under the categories (not counted in today's total).
 const EXTRA=[
-  {slug:'puffer-party',name:'Puffer Party',icon:'🐡',blurb:'Name something in the category before the pufferfish pops.',ready:true,chip:'Online · 2 to 12, or bots'}
+  {slug:'puffer-party',name:'Puffer Party',icon:'🎈',blurb:'Name something in the category before the pufferfish pops.',ready:true,chip:'Online · 2 to 12, or bots'}
 ];
 
 const B='/e63334287a3deaa3/';
@@ -259,8 +261,8 @@ function status(g,rec){
   if(g.read==='deepword')return ['win','Dived '+(r.depth||0).toLocaleString('en-US')+' m'];
   if(!r.win)return ['miss','Missed'];
   if(g.show){
-    let ok=true;const txt=g.show.replace(/\{(tries|score|time)\}/g,(m,k)=>{const v=r[k];if(v==null||v<0){ok=false;return ''}return k==='time'?fmtTime(v):String(Math.round(v))});
-    if(ok)return ['win',txt];
+    let ok=true,zero=false;const txt=g.show.replace(/\{(tries|score|time)(?:\|([a-z]+))?\}/g,(m,k,w)=>{const v=r[k];if(v==null||v<0){ok=false;return ''}const n=Math.round(v);if(n===0)zero=true;return k==='time'?fmtTime(v):n+(w?' '+w+(n===1?'':'s'):'')});
+    if(ok)return ['win',zero&&g.zero?g.zero:txt];
   }
   if(r.tries!=null&&r.tries>0)return ['win','Solved in '+r.tries];
   if(r.time!=null&&r.time>0)return ['win','Solved in '+fmtTime(r.time)];
@@ -299,6 +301,7 @@ function tile(g,rec,c){
   const a=el('a','tile');a.href=B+g.slug+'/';a.style.setProperty('--c',c);
   const [cls,txt]=g.chip?['part',g.chip]:status(g,rec);
   if(cls==='win'||cls==='miss')a.classList.add('is-done');
+  if(cls==='miss')a.classList.add('is-miss'); // finished, but the ✓ badge is for solved puzzles only
   const ic=el('span','ic',g.icon);ic.setAttribute('aria-hidden','true');
   const tx=el('span','tx');tx.append(el('b',null,g.name),el('span','bl',g.blurb));
   const st=el('span','st');st.append(el('span','chip '+cls,txt));

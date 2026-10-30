@@ -42,7 +42,7 @@
  */
 (function () {
   var NEWS = [
-    {date: '2026-11-01', version: '1.13', title: 'Daily Puzzles', kind: 'game', games: ['Daily Puzzles:daily', 'Puffer Party', 'Hunch', 'Quartets', 'Hotspot', 'Deadline Day', 'Ninefold', 'Poopdle'], items: [
+    {date: '2026-10-30', version: '1.13', title: 'Daily Puzzles', kind: 'game', games: ['Daily Puzzles:daily', 'Puffer Party', 'Hunch', 'Quartets', 'Hotspot', 'Deadline Day', 'Ninefold', 'Poopdle'], items: [
       'Daily Puzzles: a new page with 21 new puzzles every day, plus Deepword\'s daily dive, the same for everyone and fresh at midnight. It shows what you\'ve done today and keeps your streak going.',
       'Word: Hunch (guess the five-letter word), Fourcast (four words at once), Quartets (sort sixteen words into four groups), Crosslet (a mini crossword), Sleight (one cryptic clue), and Nearword and Warmer (find the secret word by its meaning).',
       'Logic: Ninefold, three new sudokus a day from Easy to Hard, and Poopdle, a word ladder where every path ends at POOP.',
@@ -51,7 +51,7 @@
       'Every puzzle has a share card with no spoilers, an Unlimited mode for practice, and its own Leaderboards.',
       'Puffer Party: a new hot-potato word game for 2 to 12. Name something in the category before the pufferfish pops on you, with friends online or against bots.'
     ]},
-    {date: '2026-11-01', version: '1.12', title: 'Party chat and Back Room sections', kind: 'feature', items: [
+    {date: '2026-10-30', version: '1.12', title: 'Party chat and Back Room sections', kind: 'feature', items: [
       'Party chat: message your party straight away, with no chat request first, in its own Party chat channel.',
       'Chat inside the games: when you\'re in a party, press T in an online game to send a message, and your party\'s messages show at the side of the screen. On a phone, tap Chat in the top bar.',
       'The Back Room is now in sections, Puzzles, Parkour, Shooter / Action, Multiplayer and Single player, on the computer and on the phone version.',
