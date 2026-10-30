@@ -50,6 +50,7 @@
   var DAYS = 30, DAY_GAMES = 8, NODE_CAP = 7000;    // per-day history: how many days and games a day are kept, and how big the node may get
   var NAME_WAIT = 1500, NAME_GAP = 10000;            // a rename republishes after NAME_WAIT, at most once every NAME_GAP
   var LOWER = { tower: 1, summit: 1, obby: 1 };
+  LOWER.total = 1;   // Escapade's fastest total of all eight levels (min('total', seconds)) is a time too
   var CFG = {
     apiKey: 'AIzaSyDZD_Ku8cixteXfwkDYzGv3GKiZFF8sRSM',
     authDomain: 'rumblekarts.firebaseapp.com',

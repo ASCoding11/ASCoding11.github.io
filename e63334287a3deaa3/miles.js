@@ -70,6 +70,8 @@
     'showdown': { hands: [2, 1000], pot: { div: 200, cap: 500 } },
     'chromaflage': { found: [10, 2000], hidden: [20, 2000] },
     'spire': { towers: [20, 2000], tower: { under: 600, per: 3, cap: 1500 }, obby: { under: 3600, per: 0.4, cap: 1200 } },
+    'turbo-trail': { obby: { under: 600, per: 2, cap: 1500 }, stars: [10, 750], levels: [1, 1500], wins: [40, 4000] },
+    'escapade': { escapes: [10, 1500], stars: [40, 960], total: { under: 1200, per: 1.5, cap: 1500 } },
     'updraft': { summit: { under: 3600, per: 0.5, cap: 1500 }, height: { div: 2, cap: 500 } },
     'odd-one-out': { wins: [20, 2000], found: [5, 2000] },
     'tumble-trials': { crowns: [50, 4000], shows: [5, 1000] },

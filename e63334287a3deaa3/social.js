@@ -87,6 +87,8 @@
     { k: 'br', n: 'Backrooms 1v1–4v4', d: 'backrooms-1v1', room: ROOM },
     { k: 'cf', n: 'Chromaflage', d: 'chromaflage', room: ROOM },
     { k: 'tw', n: 'Spire', d: 'spire', room: ROOM },
+    { k: 'sr', n: 'Turbo Trail', d: 'turbo-trail', room: ROOM },
+    { k: 'er', n: 'Escapade', d: 'escapade', room: ROOM },
     { k: 'up', n: 'Updraft', d: 'updraft', room: ROOM },
     { k: 'ph', n: 'Odd One Out', d: 'odd-one-out', room: ROOM },
     { k: 'ko', n: 'Tumble Trials', d: 'tumble-trials', room: ROOM },
