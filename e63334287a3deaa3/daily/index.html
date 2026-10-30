@@ -163,7 +163,7 @@ h1{margin:4px 0 6px;font:700 clamp(40px,8vw,64px)/.95 var(--f-d);letter-spacing:
   <div id="cats"></div>
 
   <section class="cat" style="--c:#b48bff" aria-labelledby="more-h">
-    <div class="cat-h"><span class="cat-ic" aria-hidden="true">🫧</span><div><h2 id="more-h">Play together</h2><p>Daily puzzles with friends, live.</p></div></div>
+    <div class="cat-h"><span class="cat-ic" aria-hidden="true">🫧</span><div><h2 id="more-h">Play together</h2><p>Word games with friends, live.</p></div></div>
     <div class="more" id="more"></div>
   </section>
 
@@ -178,44 +178,46 @@ h1{margin:4px 0 6px;font:700 clamp(40px,8vw,64px)/.95 var(--f-d);letter-spacing:
 //  slug = the folder in e63334287a3deaa3/ and the storage key daily:<slug> the game writes when a daily ends:
 //  { v:1, days:{ YYYYMMDD:{ done, win, score, tries, time } }, played, wins, streak, maxStreak, last, dist }.
 //  ready:false hides the tile (it counts toward "coming soon" only). read:'deepword' reads Deepword's own keys.
+//  show: how a win reads on the tile, when "Solved in <tries>" would be wrong for the game: {tries}, {score} and {time}
+//  are today's numbers from its record ({time} as m:ss); if one is missing the tile falls back to the default.
 // =====================================================================
 const DAILY_GAMES=[
   // Word
-  {slug:'hunch',      name:'Hunch',        icon:'🟩', cat:'word',   blurb:'Guess the five-letter word in six tries.', ready:true},           // like Wordle
-  {slug:'fourcast',   name:'Fourcast',     icon:'🔲', cat:'word',   blurb:'Four words at once, nine guesses.', ready:true},                  // like Quordle
-  {slug:'mini-cross', name:'Mini Cross',   icon:'✏️', cat:'word',   blurb:'A five-by-five crossword. Beat the clock.', ready:false},          // like the NYT Mini
-  {slug:'cryptic',    name:'One Clue',     icon:'🕵️', cat:'word',   blurb:'One cryptic clue a day, with hints if you need them.', ready:false}, // like Minute Cryptic
-  {slug:'poopdle',    name:'Poopdle',      icon:'💩', cat:'word',   blurb:'Change one letter at a time until you reach POOP.', ready:false},  // a word ladder to POOP
-  {slug:'nearword',   name:'Nearword',     icon:'🧭', cat:'word',   blurb:'Find the secret word: every guess shows how close it is.', ready:false}, // like Contexto
-  {slug:'warmword',   name:'Warmword',     icon:'🌡️', cat:'word',   blurb:'Hot or cold: home in on the word by meaning.', ready:false},      // like Semantle
+  {slug:'hunch',      name:'Hunch',        icon:'🟩', cat:'word',   blurb:'Guess the five-letter word in six tries.', ready:true},            // like Wordle
+  {slug:'fourcast',   name:'Fourcast',     icon:'🔲', cat:'word',   blurb:'Four words at once, nine guesses.', ready:true},                   // like Quordle
+  {slug:'quartets',   name:'Quartets',     icon:'🟪', cat:'word',   blurb:'Sort sixteen words into four secret groups of four.', ready:true, show:'Solved in {tries}'}, // like Connections
+  {slug:'crosslet',   name:'Crosslet',     icon:'✏️', cat:'word',   blurb:'A pocket-sized crossword to fill in a minute or two.', ready:true, show:'Solved in {time}'}, // like the NYT Mini
+  {slug:'sleight',    name:'Sleight',      icon:'🎩', cat:'word',   blurb:'One cryptic crossword clue a day, with hints if you need them.', ready:true, show:'Solved · {score} hints'}, // like Minute Cryptic
+  {slug:'nearword',   name:'Nearword',     icon:'🧲', cat:'word',   blurb:'Find the secret word: every guess is ranked by meaning.', ready:true}, // like Contexto
+  {slug:'warmer',     name:'Warmer',       icon:'🌡️', cat:'word',   blurb:'Find the secret word by getting warmer.', ready:true},            // like Semantle
   {slug:'deepword',   name:'Deepword',     icon:'🐡', cat:'word',   blurb:'Eight prompts. The rarer your answer, the deeper you dive.', ready:true, read:'deepword'}, // the Back Room's own daily dive
   // Geography
-  {slug:'globe-hunt', name:'Globe Hunt',   icon:'🌍', cat:'geo',    blurb:'Find the mystery country. Closer guesses glow hotter.', ready:false}, // like Globle
-  {slug:'shapeguess', name:'Outline',      icon:'🗺️', cat:'geo',    blurb:'Name the country from its shape.', ready:false},                  // like Worldle
-  {slug:'flagdle',    name:'Flag Reveal',  icon:'🏳️', cat:'geo',    blurb:'Guess the flag as it’s revealed piece by piece.', ready:false},   // like Flagle
-  {slug:'border-hop', name:'Border Hop',   icon:'🚗', cat:'geo',    blurb:'Get from one country to another, border by border.', ready:false}, // like Travle
+  {slug:'hotspot',    name:'Hotspot',      icon:'🌍', cat:'geo',    blurb:'Find the mystery country on a globe that glows hotter the closer you get.', ready:true}, // like Globle
+  {slug:'outline',    name:'Outline',      icon:'🗺️', cat:'geo',    blurb:'Name the country from its outline in six guesses.', ready:true},  // like Worldle
+  {slug:'unfurl',     name:'Unfurl',       icon:'🏳️', cat:'geo',    blurb:'Name the country from its flag, uncovered tile by tile.', ready:true}, // like Flagle
+  {slug:'overland',   name:'Overland',     icon:'🧭', cat:'geo',    blurb:'Get from one country to another through the countries in between.', ready:true}, // like Travle
   // Logic
-  {slug:'linkup',     name:'Linkup',       icon:'🔗', cat:'logic',  blurb:'Sort sixteen words into four hidden groups.', ready:false},       // like Connections
-  {slug:'sudoku',     name:'Sudoku',       icon:'🔢', cat:'logic',  blurb:'One grid a day, easy on Monday, tough by Sunday.', ready:false},   // Sudoku
+  {slug:'ninefold',   name:'Ninefold',     icon:'🔢', cat:'logic',  blurb:'Three new sudokus every day: Easy, Medium and Hard.', ready:true, show:'{score} of 3 solved'}, // sudoku
+  {slug:'poopdle',    name:'Poopdle',      icon:'💩', cat:'logic',  blurb:'Turn today\u2019s word into POOP, one letter at a time.', ready:true, show:'Solved in {tries} moves'}, // a word ladder to POOP (like Weaver)
   // Soccer
-  {slug:'transfer-trail',name:'Transfer Trail',icon:'💸',cat:'soccer',blurb:'Guess the player from a big-money move.', ready:false},        // transfer guess
-  {slug:'career-path',name:'Career Path',  icon:'🧳', cat:'soccer', blurb:'Name the player from the clubs he played for.', ready:false},     // career path
-  {slug:'who-is-he',  name:'Mystery Player',icon:'🕵️',cat:'soccer', blurb:'Guess the player from nation, club, position and age.', ready:false}, // like Who Are Ya
-  {slug:'pitch-grid', name:'Pitch Grid',   icon:'#️⃣', cat:'soccer', blurb:'Fill the grid with players who fit both clues.', ready:false},  // football grid
-  {slug:'missing-xi', name:'Missing XI',   icon:'👕', cat:'soccer', blurb:'Fill in a famous starting line-up.', ready:false},                // missing XI
-  {slug:'soccer-links',name:'Football Links',icon:'⚽',cat:'soccer',blurb:'Four groups of four football names.', ready:false},             // football connections
-  {slug:'higher-lower',name:'Higher or Lower',icon:'↕️',cat:'soccer',blurb:'More goals or fewer? Keep the run going.', ready:false},       // higher or lower
-  {slug:'top-ten',    name:'Top 10',       icon:'🔟', cat:'soccer', blurb:'Name all ten in today’s football list.', ready:false}             // top 10
+  {slug:'deadline-day',name:'Deadline Day',icon:'💸', cat:'soccer', blurb:'Name the player from a famous transfer.', ready:true},              // transfer guess
+  {slug:'journeyman', name:'Journeyman',   icon:'🧳', cat:'soccer', blurb:'Follow a career club by club and name the player.', ready:true},   // career path
+  {slug:'scout-report',name:'Scout Report',icon:'🕵️', cat:'soccer', blurb:'Find the mystery player in eight guesses.', ready:true},           // like Who Are Ya?
+  {slug:'crossbar',   name:'Crossbar',     icon:'#️⃣', cat:'soccer', blurb:'Name a player for every square of the grid.', ready:true, show:'{score} of 9 squares'}, // football grid
+  {slug:'teamsheet',  name:'Teamsheet',    icon:'📋', cat:'soccer', blurb:'A famous starting XI with one name missing.', ready:true},          // missing XI
+  {slug:'back-four',  name:'Back Four',    icon:'🧩', cat:'soccer', blurb:'Sixteen players, four hidden links.', ready:true},                  // football connections
+  {slug:'stat-duel',  name:'Stat Duel',    icon:'⚖️', cat:'soccer', blurb:'Caps or goals: is the next player higher or lower?', ready:true, show:'{score} of 10 right'}, // higher or lower
+  {slug:'top-bins',   name:'Top Bins',     icon:'🎯', cat:'soccer', blurb:'Name the whole list before the clock runs out.', ready:true, show:'Found {score}'} // name the top 10
 ];
 const CATS={
   word:{name:'Word',sub:'Letters, clues and lucky guesses.',icon:'🔤',c:'#4fe3c1'},
   geo:{name:'Geography',sub:'Countries, shapes, flags and borders.',icon:'🌎',c:'#5aa9ff'},
-  logic:{name:'Logic',sub:'Groups and grids.',icon:'🧩',c:'#ffd166'},
+  logic:{name:'Logic',sub:'Grids and ladders.',icon:'🧩',c:'#ffd166'},
   soccer:{name:'Soccer',sub:'Players, clubs and line-ups.',icon:'⚽',c:'#5ef08f'}
 };
 // Link cards under the categories (not counted in today's total).
 const EXTRA=[
-  {slug:'puffer-party',name:'Puffer Party',icon:'🐡',blurb:'Race your friends through today’s puzzles, live. Coming soon.',ready:false}
+  {slug:'puffer-party',name:'Puffer Party',icon:'🐡',blurb:'Name something in the category before the pufferfish pops.',ready:true,chip:'Online · 2 to 12, or bots'}
 ];
 
 const B='/e63334287a3deaa3/';
@@ -256,6 +258,10 @@ function status(g,rec){
   if(!r.done)return ['part','In progress'];
   if(g.read==='deepword')return ['win','Dived '+(r.depth||0).toLocaleString('en-US')+' m'];
   if(!r.win)return ['miss','Missed'];
+  if(g.show){
+    let ok=true;const txt=g.show.replace(/\{(tries|score|time)\}/g,(m,k)=>{const v=r[k];if(v==null||v<0){ok=false;return ''}return k==='time'?fmtTime(v):String(Math.round(v))});
+    if(ok)return ['win',txt];
+  }
   if(r.tries!=null&&r.tries>0)return ['win','Solved in '+r.tries];
   if(r.time!=null&&r.time>0)return ['win','Solved in '+fmtTime(r.time)];
   if(r.score!=null)return ['win','Score '+r.score];
@@ -291,7 +297,7 @@ function report(doneSlugs,overall){
 function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e}
 function tile(g,rec,c){
   const a=el('a','tile');a.href=B+g.slug+'/';a.style.setProperty('--c',c);
-  const [cls,txt]=status(g,rec);
+  const [cls,txt]=g.chip?['part',g.chip]:status(g,rec);
   if(cls==='win'||cls==='miss')a.classList.add('is-done');
   const ic=el('span','ic',g.icon);ic.setAttribute('aria-hidden','true');
   const tx=el('span','tx');tx.append(el('b',null,g.name),el('span','bl',g.blurb));
