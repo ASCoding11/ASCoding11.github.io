@@ -47,6 +47,12 @@
  * Writes go through the Firestore REST API with the signed-in account's ID token, like feedback.js; a failed write
  * (rules not added yet, offline) is silent and never holds up the chat. Rules: see README.md.
  *
+ * One name everywhere: the Online name (localStorage ol:name) is the player's name. Typing it here also saves it as the
+ * party name (party:name), puts it in the Party node straight away (party.js listens), and fixes the name on the player's
+ * leaderboard entry (rooms/lb-all/players/<uid>/n, only that field, only if the entry exists; checked again once after
+ * each page load, so an entry left with an old name catches up). Each change fires `backroom:name` on document
+ * ({ uid, n, mine }), as does someone else's Online node changing name, so the Leaderboards can rename a row live.
+ *
  * Names come with an avatar (avatar.js, drawn from the uid) and a status tier badge (miles.js, from the person's
  * leaderboard node, one read per uid, kept 10 minutes). Both are optional: without them a coloured initial and no badge.
  */
@@ -163,6 +169,11 @@
   // The person's status tier (miles.js), from the cache; null while it's still being read or when the script isn't here.
   function tierOf(u) { if (!window.BackRoomMiles || !u) return null; try { return BackRoomMiles.peek(u); } catch (e) { return null; } }
   function tierBadge(u) { var t = tierOf(u); return t ? BackRoomMiles.badge(t) : null; }
+  function milesLine(t) {
+    if (!t) return '';
+    if (BackRoomMiles.line) return BackRoomMiles.line(t);
+    return t.ok ? BackRoomMiles.fmt(t.miles) + ' miles' + (t.next ? ' · ' + BackRoomMiles.fmt(t.next.miles) + ' to ' + t.next.tier.n : ' · the top tier') : '';
+  }
 
   // ---------------- Styles ----------------
   var css = document.createElement('style');
@@ -431,7 +442,9 @@
     if (k === uid) return;
     var p = parse(k, s.val());
     if (!p) { delete people[k]; schedule(); return; }
+    var was = people[k];
     people[k] = p;
+    if (was && was.n !== p.n) nameEvent(k, p.n, false);
     remember(p);
     if (keys.pair && p.pk) openAll(p);
     schedule();
@@ -702,6 +715,7 @@
     clearInterval(beat);
     beat = setInterval(heartbeat, BEAT);
     saveWho();
+    syncBoardName();
     schedule();
   }
   function unpublish() {
@@ -808,6 +822,37 @@
     return fsWrite('chatlog/' + docId(), { kind: kind, box: box }, true);
   }
   var whoSaved = '';
+  // ---------------- One name everywhere ----------------
+  function nameEvent(u, n, isMine) { try { document.dispatchEvent(new CustomEvent('backroom:name', { detail: { uid: u, n: n, mine: !!isMine } })); } catch (e) {} }
+  // The leaderboard entry's name (stats.js writes the whole entry from inside the games, about once a minute while one is
+  // open; this fixes just n from here). Only an entry that exists is touched, at most every BOARD_GAP, the last name wins.
+  var BOARD_GAP = 4000, boardT = 0, boardLast = 0, boardSent = '', boardBusy = false;
+  function syncBoardName(soon) {
+    clearTimeout(boardT);
+    if (!db || !uid) return;
+    boardT = setTimeout(function () {
+      if (boardBusy) return syncBoardName();
+      var wait = boardLast + BOARD_GAP - Date.now(); if (wait > 0) { boardT = setTimeout(function () { syncBoardName(true); }, wait); return; }
+      var n = myName(), u = uid, ref = db.ref('rooms/lb-all/players/' + u);
+      if (boardSent === u + '|' + n) return;
+      boardBusy = true; boardLast = Date.now();
+      ref.child('n').once('value').then(function (s) {
+        if (!s.exists() || u !== uid) return;            // no entry yet: the first game played makes one, with this name
+        if (s.val() === n) { boardSent = u + '|' + n; return; }
+        return ref.update({ n: n }).then(function () { boardSent = u + '|' + n; });
+      }).catch(function () {}).then(function () { boardBusy = false; });
+    }, soon ? 0 : 300);
+  }
+  // Our name changed (typed here, in the Party panel, or in another tab): show it and send it everywhere at once.
+  function nameChanged() {
+    if (document.activeElement !== $name) $name.value = myName();
+    if (published) { write({ n: myName() }).catch(function () {}); saveWho(); }
+    if (uid) nameEvent(uid, myName(), true);
+    syncBoardName();
+    schedule();
+  }
+  document.addEventListener('backroom:name', function (e) { if (e.detail && e.detail.from === 'party') nameChanged(); });
+  addEventListener('storage', function (e) { if (e.key === 'ol:name' || e.key === 'party:name') nameChanged(); });
   function saveWho() {
     if (!uid || hidden) return;
     var vid = String(store('an_vid') || '');
@@ -992,9 +1037,9 @@
     var badge = tierBadge(p.uid);
     if (badge) { var tl = el('span', 'onl-tl'); tl.append(badge); who.append(nm, tl); } else who.append(nm);
     who.append(el('span', 'onl-st', (isMe && hidden) ? 'Hidden' : (muted[p.uid] ? 'Muted · ' : '') + statusText(p)));
-    // Your own card says how far along you are: "2,340 miles · 7,660 to First Class".
-    var t = isMe ? tierOf(p.uid) : null;
-    if (t && t.ok) who.append(el('span', 'onl-mi', BackRoomMiles.fmt(t.miles) + ' miles' + (t.next ? ' · ' + BackRoomMiles.fmt(t.next.miles) + ' to ' + t.next.tier.n : ' · the top tier')));
+    // Your own card says how far along you are: "2,340 miles · 7,660 to First Class" (owners: "12,000 miles · flies the plane", next to their Captain badge).
+    var t = isMe ? tierOf(p.uid) : null, tl2 = milesLine(t);
+    if (tl2) who.append(el('span', 'onl-mi', tl2));
     b.append(av, who);
     var n = isMe ? 0 : unreadOf(p.uid);
     if (n) { var badge = el('span', 'onl-n', String(n)); badge.setAttribute('aria-label', n + ' unread'); b.append(badge); }
@@ -1019,7 +1064,7 @@
     }
     var mt = uid ? tierOf(uid) : null;
     $tier.textContent = '';
-    if (mt) { $tier.append(BackRoomMiles.badge(mt)); if (mt.ok) $tier.append(el('span', '', BackRoomMiles.fmt(mt.miles) + ' miles' + (mt.next ? ' · ' + BackRoomMiles.fmt(mt.next.miles) + ' to ' + mt.next.tier.n : ' · the top tier'))); }
+    if (mt) { $tier.append(BackRoomMiles.badge(mt)); var ml = milesLine(mt); if (ml) $tier.append(el('span', '', ml)); }
     $hide.checked = hidden;
     var lu = loungeUnread(); $loungeBtn.lastChild.textContent = lu ? String(lu) : '';
     fillList($list);
@@ -1372,9 +1417,9 @@
     clearTimeout(nameT);
     nameT = setTimeout(function () {
       var n = cleanName($name.value); store('ol:name', n || null);
-      if (published) { write({ n: myName() }).catch(function () {}); saveWho(); }
-      schedule();
-    }, 500);
+      if (n) store('party:name', n);              // one name: the Party panel uses it too
+      nameChanged();
+    }, 400);
   });
   $name.addEventListener('blur', function () { $name.value = myName(); });
   $hide.addEventListener('change', function () { setHidden($hide.checked); });

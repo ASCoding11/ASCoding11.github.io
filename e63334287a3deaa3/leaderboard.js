@@ -29,6 +29,9 @@
  * removed from the boards altogether, for fake or junk accounts) and sig is
  * an ECDSA P-256 / SHA-256 signature of r by the admin key (adminkey.js; the same key pair as the ECDH one there). Anyone
  * can write a node there, so only nodes whose signature checks out count; for each uid the latest t wins.
+ * Renames show live: social.js and party.js fire `backroom:name` ({ uid, n, mine }) when you rename yourself or when
+ * someone's Online name changes, and the row for that uid takes the new name (cleaned and masked like any other) without
+ * a new read. Your own rename also fixes n on your entry (social.js), so the next read has it too.
  * Rows show each player's avatar (avatar.js) and status tier badge (miles.js, worked out from the same checked node)
  * when those scripts are here.
  */
@@ -595,6 +598,15 @@
   // avatar.js and miles.js may load after the boards were drawn (the home page loads them alongside this file).
   document.addEventListener('backroom:avatar', function () { if (people) draw(); });
   document.addEventListener('backroom:miles', function (e) { if (people && e.detail && !e.detail.uid) draw(); });
+
+  // A rename (ours, or someone's Online name changing): rename their row now rather than at the next read.
+  var nameT = 0;
+  document.addEventListener('backroom:name', function (e) {
+    var d = e.detail; if (!people || !d || typeof d.uid !== 'string' || !d.uid) return;
+    var n = mask(cleanName(d.n)) || 'Player', hit = false;
+    people.forEach(function (p) { if ((p.uid === d.uid || (d.mine && isMe(p.uid))) && p.n !== n) { p.n = n; hit = true; } });
+    if (hit) { clearTimeout(nameT); nameT = setTimeout(draw, 50); }
+  });
 
   // Read nothing until the section is near the screen.
   draw(); say('The boards load when you scroll down to them.');
