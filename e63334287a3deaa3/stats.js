@@ -85,12 +85,16 @@
 
   var KEY = 'lbs:v2', OLD_KEY = 'lbs:v1', DEV_KEY = 'lbs:dev', TAB_KEY = 'lbs:tab', PATH = 'rooms/lb-all/players';
   var IDLE = 120000, GRACE = 30000, SAVE_MS = 15000, PUB_MS = 60000, DAY_MAX = 86400, TAB_FRESH = 3500;
-  var MAX_GAMES = 40, MAX_STATS = 120;
+  var MAX_GAMES = 80, MAX_STATS = 120;   // 80 games: the Back Room has 21, plus 21 daily puzzles and their hub (was 40)
   var DAYS = 30, DAY_GAMES = 8, NODE_CAP = 7000;    // per-day history: how many days and games a day are kept, and how big the node may get
   var MAX_DEV = 12, MAX_AL = 8, MAX_HW = 4, MAX_LK = 8;
   var NAME_WAIT = 1500, NAME_GAP = 10000;            // a rename republishes after NAME_WAIT, at most once every NAME_GAP
   var LOWER = { tower: 1, summit: 1, obby: 1 };
   LOWER.total = 1;   // Escapade's fastest total of all eight levels (min('total', seconds)) is a time too
+  // The daily puzzles' fewest-guess and fastest bests (LOWER is one list for every game, so these names stay lower-wins everywhere):
+  // fewest (Hunch, Fourcast), guesses (Hotspot, Nearword, Warmer), tries (Outline, Unfurl), fastest (Crosslet), fast-<level> (Ninefold).
+  LOWER.fewest = 1; LOWER.guesses = 1; LOWER.tries = 1; LOWER.fastest = 1;
+  LOWER['fast-easy'] = 1; LOWER['fast-medium'] = 1; LOWER['fast-hard'] = 1;
   var CFG = {
     apiKey: 'AIzaSyDZD_Ku8cixteXfwkDYzGv3GKiZFF8sRSM',
     authDomain: 'rumblekarts.firebaseapp.com',

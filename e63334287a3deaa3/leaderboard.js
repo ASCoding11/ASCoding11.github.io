@@ -55,8 +55,10 @@
   var NAME_MAX = 14;
 
   // Stat formats: n (a count), elo, time (seconds to the millisecond, lower wins), dur (seconds, higher wins), m (metres), days, chips.
+  // low: 1 ranks a count lowest first (fewest guesses); the key must be in stats.js's LOWER too, so devices merge to the smaller.
   // u: the unit a count is shown with ('kill' → '12 kills'). lo/hi: the sane range (anything outside is dropped).
-  // rate: most per second played in that game (running counts only). le: a best single round, which can't be more than
+  // rate: most per second played in that game (running counts only; rateOf: 'daily' uses the seconds of every game in the
+  // Daily Puzzles group together). le: a best single round, which can't be more than
   // this all-time count (and is dropped without it). hide: checked and kept (the admin page shows it) but not a board.
   // kd: a ratio worked out here from two checked counts, kills / max(1, deaths) to 2 decimals and at most `hi`, ranked
   // only with at least `min` kills; the node's own kd is never read. Its kills are `kdkills`, counted from the same
@@ -123,12 +125,109 @@
       { k: 'depth', l: 'Deepest daily dive', f: 'm', hi: 10935 },
       { k: 'dives', l: 'Daily dives', f: 'n', u: 'dive', rate: 1 / 30 },
       { k: 'brawlwins', l: 'Blowfish Brawl wins', f: 'n', u: 'win', rate: 1 / 30 }] },
+    { d: 'puffer-party', n: 'Puffer Party', st: [
+      { k: 'wins', l: 'Online wins', f: 'n', u: 'win', rate: 1 / 45 },
+      { k: 'answers', l: 'Answers given (all time)', chip: 'Answers', f: 'n', u: 'answer', rate: 1 / 2 },
+      { k: 'streak', l: 'Longest answer streak', chip: 'Best streak', f: 'n', u: 'answer', hi: 1000, le: 'answers' }] },
     { d: 'gridpop', n: 'Gridpop', st: [{ k: 'score', l: 'Best score', f: 'n', u: 'pt', hi: 1e8 }, { k: 'lines', l: 'Lines cleared (all time)', f: 'n', u: 'line', rate: 2 }] },
     { d: '2048', n: '2048', st: [{ k: 'best', l: 'Best score (Classic)', chip: 'Classic', f: 'n', u: 'pt', hi: 4000000 }, { k: 'tile', l: 'Biggest tile (Classic)', chip: 'Biggest tile', f: 'n', hi: 131072 },
       { k: 'best-mega', l: 'Best score (Mega 6 × 6)', chip: 'Mega', f: 'n', u: 'pt', hi: 1e10 }, { k: 'best-college', l: 'Best score (College)', chip: 'College', f: 'n', u: 'pt', hi: 4000000 },
       { k: 'best-dessert', l: 'Best score (Dessert)', chip: 'Dessert', f: 'n', u: 'pt', hi: 4000000 }] },
     { d: 'stackfall', n: 'Stackfall', st: [{ k: 'classic', l: 'Best score (Classic)', chip: 'Classic', f: 'n', u: 'pt', hi: 1e8 }, { k: 'sand', l: 'Best score (Sand)', chip: 'Sand', f: 'n', u: 'pt', hi: 1e8 }, { k: 'lines', l: 'Most lines in a game (Classic)', chip: 'Most lines', f: 'n', u: 'line', hi: 100000 }] },
-    { d: 'melon-merge', n: 'Melon Merge', st: [{ k: 'score', l: 'Best score', f: 'n', u: 'pt', hi: 1e7 }, { k: 'melons', l: 'Watermelons grown (all time)', chip: 'Watermelons', f: 'n', u: 'watermelon', rate: 0.05 }] }
+    { d: 'melon-merge', n: 'Melon Merge', st: [{ k: 'score', l: 'Best score', f: 'n', u: 'pt', hi: 1e7 }, { k: 'melons', l: 'Watermelons grown (all time)', chip: 'Watermelons', f: 'n', u: 'watermelon', rate: 0.05 }] },
+    // Daily Puzzles: grp puts them in their own group in the Board menu. The hub's `done` (one per puzzle finished, counted
+    // on the hub page) is checked against the time played in every daily game together (rateOf), as the hub itself is only
+    // open for a few seconds between puzzles.
+    { d: 'daily', n: 'Daily Puzzles', grp: 'Daily Puzzles', st: [
+      { k: 'streak', l: 'Best daily streak (any puzzle)', chip: 'Streak', f: 'days', hi: 3660 },
+      { k: 'done', l: 'Daily puzzles finished', chip: 'Finished', f: 'n', u: 'puzzle', rate: 1 / 10, rateOf: 'daily' }] },
+    { d: 'hunch', n: 'Hunch', grp: 'Daily Puzzles', st: [
+      { k: 'wins', l: 'Daily wins', f: 'n', u: 'win', rate: 1 / 10 },
+      { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 },
+      { k: 'fewest', l: 'Fewest guesses in a daily win', chip: 'Fewest guesses', f: 'n', u: 'guess', lo: 1, hi: 6, low: 1 }] },
+    { d: 'fourcast', n: 'Fourcast', grp: 'Daily Puzzles', st: [
+      { k: 'wins', l: 'Daily wins', f: 'n', u: 'win', rate: 1 / 10 },
+      { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 },
+      { k: 'fewest', l: 'Fewest guesses in a daily win', chip: 'Fewest guesses', f: 'n', u: 'guess', lo: 4, hi: 9, low: 1 }] },
+    { d: 'quartets', n: 'Quartets', grp: 'Daily Puzzles', st: [
+      { k: 'wins', l: 'Daily wins', f: 'n', u: 'win', rate: 1 / 10 },
+      { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 },
+      { k: 'perfect', l: 'Perfect days (no mistakes)', chip: 'Perfect days', f: 'n', u: 'day', rate: 1 / 10 }] },
+    { d: 'crosslet', n: 'Crosslet', grp: 'Daily Puzzles', st: [
+      { k: 'wins', l: 'Clean daily solves', f: 'n', u: 'solve', rate: 1 / 10 },
+      { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 },
+      { k: 'fastest', l: 'Fastest clean daily solve', chip: 'Fastest', f: 'time', lo: 5, hi: 36000 }] },
+    { d: 'sleight', n: 'Sleight', grp: 'Daily Puzzles', st: [
+      { k: 'wins', l: 'Daily clues solved', f: 'n', u: 'clue', rate: 1 / 10 },
+      { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 },
+      { k: 'clean', l: 'Solved with no hints', chip: 'No hints', f: 'n', u: 'clue', rate: 1 / 10 }] },
+    { d: 'nearword', n: 'Nearword', grp: 'Daily Puzzles', st: [
+      { k: 'wins', l: 'Daily wins', f: 'n', u: 'win', rate: 1 / 10 },
+      { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 },
+      { k: 'guesses', l: 'Fewest guesses (daily)', chip: 'Fewest guesses', f: 'n', u: 'guess', lo: 1, hi: 2000, low: 1 }] },
+    { d: 'warmer', n: 'Warmer', grp: 'Daily Puzzles', st: [
+      { k: 'wins', l: 'Daily wins', f: 'n', u: 'win', rate: 1 / 10 },
+      { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 },
+      { k: 'guesses', l: 'Fewest guesses (daily)', chip: 'Fewest guesses', f: 'n', u: 'guess', lo: 1, hi: 2000, low: 1 }] },
+    { d: 'hotspot', n: 'Hotspot', grp: 'Daily Puzzles', st: [
+      { k: 'wins', l: 'Daily wins', f: 'n', u: 'win', rate: 1 / 10 },
+      { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 },
+      { k: 'guesses', l: 'Fewest guesses (daily)', chip: 'Fewest guesses', f: 'n', u: 'guess', lo: 1, hi: 230, low: 1 }] },
+    { d: 'outline', n: 'Outline', grp: 'Daily Puzzles', st: [
+      { k: 'wins', l: 'Daily wins', f: 'n', u: 'win', rate: 1 / 10 },
+      { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 },
+      { k: 'tries', l: 'Fewest guesses (daily)', chip: 'Fewest guesses', f: 'n', u: 'guess', lo: 1, hi: 6, low: 1 }] },
+    { d: 'unfurl', n: 'Unfurl', grp: 'Daily Puzzles', st: [
+      { k: 'wins', l: 'Daily wins', f: 'n', u: 'win', rate: 1 / 10 },
+      { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 },
+      { k: 'tries', l: 'Fewest guesses (daily)', chip: 'Fewest guesses', f: 'n', u: 'guess', lo: 1, hi: 6, low: 1 }] },
+    { d: 'overland', n: 'Overland', grp: 'Daily Puzzles', st: [
+      { k: 'wins', l: 'Daily wins', f: 'n', u: 'win', rate: 1 / 10 },
+      { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 },
+      { k: 'perfect', l: 'Perfect routes', chip: 'Perfect routes', f: 'n', u: 'route', rate: 1 / 10 }] },
+    { d: 'ninefold', n: 'Ninefold', grp: 'Daily Puzzles', st: [
+      { k: 'wins', l: 'Daily puzzles solved', f: 'n', u: 'puzzle', rate: 1 / 5 },
+      { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 },
+      { k: 'fast-easy', l: 'Fastest Easy (no hints)', chip: 'Fastest Easy', f: 'time', lo: 30, hi: 36000 },
+      { k: 'fast-medium', l: 'Fastest Medium (no hints)', chip: 'Fastest Medium', f: 'time', lo: 60, hi: 36000 },
+      { k: 'fast-hard', l: 'Fastest Hard (no hints)', chip: 'Fastest Hard', f: 'time', lo: 90, hi: 36000 }] },
+    { d: 'poopdle', n: 'Poopdle', grp: 'Daily Puzzles', st: [
+      { k: 'wins', l: 'Daily wins', f: 'n', u: 'win', rate: 1 / 10 },
+      { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 },
+      { k: 'perfect', l: 'Par days (no hints)', chip: 'Par days', f: 'n', u: 'day', rate: 1 / 10 }] },
+    { d: 'deadline-day', n: 'Deadline Day', grp: 'Daily Puzzles', st: [
+      { k: 'spare', l: 'Most guesses to spare (of 6)', chip: 'Guesses to spare', f: 'n', hi: 6 },
+      { k: 'wins', l: 'Daily wins', f: 'n', u: 'win', rate: 1 / 10 },
+      { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 }] },
+    { d: 'journeyman', n: 'Journeyman', grp: 'Daily Puzzles', st: [
+      { k: 'spare', l: 'Most guesses to spare (of 6)', chip: 'Guesses to spare', f: 'n', hi: 6 },
+      { k: 'wins', l: 'Daily wins', f: 'n', u: 'win', rate: 1 / 10 },
+      { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 }] },
+    { d: 'scout-report', n: 'Scout Report', grp: 'Daily Puzzles', st: [
+      { k: 'spare', l: 'Most guesses to spare (of 8)', chip: 'Guesses to spare', f: 'n', hi: 8 },
+      { k: 'wins', l: 'Daily wins', f: 'n', u: 'win', rate: 1 / 10 },
+      { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 }] },
+    { d: 'crossbar', n: 'Crossbar', grp: 'Daily Puzzles', st: [
+      { k: 'cells', l: 'Most squares filled (of 9)', chip: 'Squares', f: 'n', hi: 9 },
+      { k: 'wins', l: 'Daily wins (6+ squares)', f: 'n', u: 'win', rate: 1 / 10 },
+      { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 }] },
+    { d: 'teamsheet', n: 'Teamsheet', grp: 'Daily Puzzles', st: [
+      { k: 'spare', l: 'Most guesses to spare (of 5)', chip: 'Guesses to spare', f: 'n', hi: 5 },
+      { k: 'wins', l: 'Daily wins', f: 'n', u: 'win', rate: 1 / 10 },
+      { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 }] },
+    { d: 'back-four', n: 'Back Four', grp: 'Daily Puzzles', st: [
+      { k: 'clean', l: 'Most mistakes to spare (of 4)', chip: 'Mistakes to spare', f: 'n', hi: 4 },
+      { k: 'wins', l: 'Daily wins', f: 'n', u: 'win', rate: 1 / 10 },
+      { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 }] },
+    { d: 'stat-duel', n: 'Stat Duel', grp: 'Daily Puzzles', st: [
+      { k: 'run', l: 'Best daily run (of 10)', chip: 'Daily run', f: 'n', hi: 10 },
+      { k: 'streakbest', l: 'Best unlimited streak', chip: 'Unlimited streak', f: 'n', hi: 500 },
+      { k: 'wins', l: 'Daily wins (5+)', f: 'n', u: 'win', rate: 1 / 10 },
+      { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 }] },
+    { d: 'top-bins', n: 'Top Bins', grp: 'Daily Puzzles', st: [
+      { k: 'found', l: 'Most entries found', chip: 'Found', f: 'n', hi: 10 },
+      { k: 'wins', l: 'Daily wins (half or more)', f: 'n', u: 'win', rate: 1 / 10 },
+      { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 }] }
   ];
   // Slipstream circuits: short name and the quickest lap we accept, the track's length (as the game builds it) at 120 m/s,
   // the game's hard speed cap (VMAX 92 m/s × 1.3, which boost and DRS can't pass), so no real lap can be that quick: the
@@ -191,14 +290,20 @@
     if (st.f === 'm') return fmtN(v) + ' m';
     if (st.f === 'days') return fmtN(v) + (Math.round(v) === 1 ? ' day' : ' days');
     if (st.f === 'chips') return fmtN(v) + ' chips';
-    if (st.u) return fmtN(v) + ' ' + st.u + (Math.round(v) === 1 ? '' : 's');
+    if (st.u) return fmtN(v) + ' ' + st.u + (Math.round(v) === 1 ? '' : /(s|sh|ch|x)$/.test(st.u) ? 'es' : 's');   // 2 guesses
     return fmtN(v);
   }
-  function low(st) { return st.f === 'time' || st.f === 'lap'; }
+  function low(st) { return st.f === 'time' || st.f === 'lap' || st.low === 1; }
 
   // ---------------- Reading the boards ----------------
   // One player's node, checked field by field. Returns null for anything stale or malformed.
   function okUid(u) { return typeof u === 'string' && /^[A-Za-z0-9_-]{6,128}$/.test(u); }
+  // Seconds played in all the Daily Puzzles games together (each capped like any game's hours), for rateOf: 'daily'.
+  function dailySecs(g, cap) {
+    var t = 0;
+    GAMES.forEach(function (m) { if (m.grp !== 'Daily Puzzles') return; var o = g[m.d], x = o && typeof o === 'object' ? Math.floor(num(o.s)) : 0; if (x > 0 && x <= cap) t += x; });
+    return t;
+  }
   function parse(uid, v, now) {
     if (!okUid(uid) || !v || typeof v !== 'object' || Array.isArray(v)) return null;
     var ts = num(v.ts);
@@ -213,7 +318,7 @@
       var al = Object.keys(v.al).filter(function (u) { return okUid(u) && u !== uid && num(v.al[u]) > 0; }).slice(0, 8);
       if (al.length) { p.al = {}; al.forEach(function (u) { p.al[u] = 1; }); }
     }
-    var keys = Object.keys(v.g); if (keys.length > 40) return null;
+    var keys = Object.keys(v.g); if (keys.length > 80) return null;   // stats.js keeps at most 80 games (MAX_GAMES)
     for (var i = 0; i < keys.length; i++) {
       var meta = BY[keys[i]], src = v.g[keys[i]];
       if (!meta || !src || typeof src !== 'object' || Array.isArray(src)) continue;
@@ -225,7 +330,7 @@
       meta.st.forEach(function (st) {
         var x = num(src[st.k]);
         if (!(x > 0) || x < (st.lo || 0) || x > (st.hi || 1e6)) return;
-        if (st.rate) { x = Math.floor(x); if (x > st.rate * s + 5) x = Math.floor(st.rate * s + 5); if (!(x > 0)) return; }
+        if (st.rate) { var rs = st.rateOf ? dailySecs(v.g, cap) : s; x = Math.floor(x); if (x > st.rate * rs + 5) x = Math.floor(st.rate * rs + 5); if (!(x > 0)) return; }
         if (st.le || st.f === 'dur') { x = Math.floor(x); if (!(x > 0)) return; }   // whole rounds and seconds, so equal shows as a tie
         o[st.k] = x;
       });
@@ -469,7 +574,10 @@
   var lbl = el('label'); lbl.append(el('span', '', 'Board'));
   var $sel = el('select'); $sel.setAttribute('aria-label', 'Leaderboard');
   $sel.append(new Option('Hours (all games)', 'all'));
-  GAMES.forEach(function (g) { $sel.append(new Option(g.n, g.d)); });
+  // Games without a grp first, under "Games", then each group (Daily Puzzles) as its own optgroup, in GAMES order.
+  var groups = {}, gorder = [];
+  GAMES.forEach(function (g) { var k = g.grp || 'Games'; if (!groups[k]) { groups[k] = el('optgroup'); groups[k].label = k; gorder.push(k); } groups[k].append(new Option(g.n, g.d)); });
+  gorder.forEach(function (k) { $sel.append(groups[k]); });
   lbl.append($sel); ctl.append(lbl);
   // Slipstream only: which track's course records and fastest lap to show.
   var tlbl = el('label'); tlbl.append(el('span', '', 'Track')); tlbl.hidden = true;
