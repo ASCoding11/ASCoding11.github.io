@@ -109,6 +109,7 @@ tr.vrow:hover td{background:rgba(var(--cell),.07)}
         <option value="90">Last 90 days</option>
       </select>
       <button id="refresh">Refresh</button>
+      <button id="showcase" title="Copy totals for the public showcase page (no names, emails or visitor IDs)">Copy showcase numbers</button>
       <button id="signout" title="Sign out">Sign out</button>
     </div>
   </header>
@@ -726,6 +727,30 @@ function visitorsOf(R){
   }
   return m;
 }
+
+// ---- Showcase: totals for every site over the chosen range, with no names, emails or visitor IDs ----
+function showcaseNumbers(){
+  const days = +$('range').value, s = statsFor(rows), today = dayStart(new Date());
+  const daily = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(today); d.setDate(d.getDate() - i); const k = dayKey(d);
+    daily.push(new Set(rows.filter(r => dayKey(r.ts) === k).map(r => r.vid)).size);
+  }
+  const sites = allSites().map(k => {
+    const R = rows.filter(r => r.site === k);
+    return { name: siteLabel(k), visitors: new Set(R.map(r => r.vid)).size, hours: Math.round(R.reduce((a, r) => a + r.dur, 0) / 360) / 10 };
+  }).filter(x => x.visitors).sort((a, b) => b.visitors - a.visitors).slice(0, 8);
+  const mobile = new Set(rows.filter(r => r.dev === 'mobile').map(r => r.vid)).size;
+  return { updated: dayKey(today), days, visitors: s.visitors, pageviews: s.pv, sessions: s.sessions,
+    avgEngagedSec: Math.round(s.avg), engagedHours: Math.round(s.dur / 3600), returning: s.returning,
+    d1: s.d1, w1: s.w1, mobile, daily, sites };
+}
+$('showcase').onclick = () => {
+  if (!rows.length) { $('status').textContent = 'Nothing loaded yet. Refresh first.'; return; }
+  const text = JSON.stringify(showcaseNumbers());
+  navigator.clipboard.writeText(text).then(() => { $('status').textContent = 'Showcase numbers copied (all sites, ' + $('range').value + ' days).'; },
+    () => { $('status').textContent = text; });
+};
 
 // ---- Render ----
 function render(){
