@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="description" content="Avenue &amp; Me: a privacy-first mutual-matching site for Avenues high school students.">
+<title>Avenue &amp; Me</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one narrow reading column in the product's own brand; a live two-sided demo is the centerpiece. */
+:root{
+  --bg:#ffffff; --soft:#f5f7fa; --ink:#18202e; --ink-2:#4f5868; --muted:#7d8595; --line:#e4e8ee;
+  --red:#d6283f; --red-soft:#fdeef0; --blue:#2f6fae; --blue-soft:#eaf3fc; --ok:#1f7a4d; --ok-soft:#e7f4ed;
+  --sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --serif:'Instrument Serif',Georgia,'Times New Roman',serif;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11151d; --soft:#1a202b; --ink:#eef1f6; --ink-2:#b6bdca; --muted:#8a93a3; --line:#2a3240;
+  --red:#ff5a6e; --red-soft:#3a1a21; --blue:#7fb3e6; --blue-soft:#172636; --ok:#5fcf95; --ok-soft:#14301f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11151d; --soft:#1a202b; --ink:#eef1f6; --ink-2:#b6bdca; --muted:#8a93a3; --line:#2a3240;
+  --red:#ff5a6e; --red-soft:#3a1a21; --blue:#7fb3e6; --blue-soft:#172636; --ok:#5fcf95; --ok-soft:#14301f; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0}
+.wrap{max-width:720px;margin:0 auto;padding-block:48px 72px;display:grid;gap:64px}
+a{color:var(--blue)}
+a:focus-visible,button:focus-visible{outline:2px solid var(--blue);outline-offset:3px;border-radius:6px}
+.eyebrow{font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--red)}
+h1,h2{font-family:var(--serif);font-weight:400;letter-spacing:-.02em;text-wrap:balance;margin:0}
+h1{font-size:clamp(44px,9vw,76px);line-height:1}
+h1 i,h2 i{color:var(--red)}
+h2{font-size:clamp(30px,5.5vw,40px);line-height:1.1}
+p{margin:0;max-width:62ch;color:var(--ink-2)}
+.hero{display:grid;gap:18px}
+.lede{font-size:19px}
+.ctas{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:6px}
+.btn{display:inline-flex;align-items:center;gap:8px;background:var(--red);color:#fff;text-decoration:none;font-weight:600;padding:12px 20px;border-radius:999px}
+.btn:hover{filter:brightness(.95)}
+.url{font-family:var(--mono);font-size:13px;color:var(--muted)}
+.meta{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:14px;color:var(--muted);border-top:1px solid var(--line);padding-top:16px}
+.meta b{color:var(--ink);font-weight:600}
+section{display:grid;gap:18px}
+
+/* demo */
+.demo{background:var(--soft);border:1px solid var(--line);border-radius:20px;padding:24px;display:grid;gap:18px}
+.people{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:520px){.people{grid-template-columns:1fr}}
+.person{background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:16px;display:grid;gap:12px;min-width:0}
+.person h3{margin:0;font-size:15px;font-weight:600}
+.person h3 span{font-weight:400;color:var(--muted)}
+.picks{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font:inherit;font-size:14px;border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:6px 12px;border-radius:999px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--blue-soft);border-color:var(--blue);color:var(--blue);font-weight:600}
+.sees{font-size:14px;color:var(--muted);min-height:1.6em}
+.sees.match{color:var(--ok);font-weight:600}
+.verdict{border-radius:12px;padding:12px 16px;font-size:15px;background:var(--bg);border:1px solid var(--line);color:var(--ink-2)}
+.verdict.match{background:var(--ok-soft);border-color:var(--ok);color:var(--ink)}
+.hint{font-size:13px;color:var(--muted)}
+
+/* steps & design */
+.steps{list-style:none;margin:0;padding:0;display:grid;gap:14px;counter-reset:s}
+.steps li{display:grid;grid-template-columns:32px 1fr;gap:14px;align-items:start;color:var(--ink-2)}
+.steps li::before{counter-increment:s;content:counter(s);font-family:var(--serif);font-size:24px;line-height:1.1;color:var(--red)}
+.steps b{color:var(--ink);font-weight:600}
+.rules{display:grid;gap:0;border-top:1px solid var(--line)}
+.rule{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:20px;padding:18px 0;border-bottom:1px solid var(--line)}
+@media (max-width:560px){.rule{grid-template-columns:1fr;gap:6px}}
+.rule h3{margin:0;font-size:16px;font-weight:600}
+.rule p{font-size:15px}
+code{font-family:var(--mono);font-size:.88em;background:var(--soft);border:1px solid var(--line);border-radius:5px;padding:1px 5px;color:var(--ink)}
+.stack{display:flex;flex-wrap:wrap;gap:8px;list-style:none;margin:0;padding:0}
+.stack li{font-size:14px;border:1px solid var(--line);border-radius:8px;padding:6px 12px;color:var(--ink-2)}
+.stack b{color:var(--ink);font-weight:600}
+.tradeoff{border-left:3px solid var(--red);padding:4px 0 4px 16px}
+/* reviewer demo */
+.persona{display:grid;grid-template-columns:auto minmax(0,1fr);gap:20px;align-items:center;background:var(--soft);border:1px solid var(--line);border-radius:20px;padding:24px}
+@media (max-width:560px){.persona{grid-template-columns:1fr}}
+.avatar{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;background:var(--red);color:#fff;font-family:var(--serif);font-size:28px}
+.persona h3{margin:0;font-size:18px;font-weight:600}
+.persona p{font-size:15px}
+.codebox{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:10px}
+.code{font-family:var(--mono);font-size:20px;font-weight:500;letter-spacing:.18em;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:6px 12px;color:var(--ink);user-select:all}
+.copy{font:inherit;font-size:14px;border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:7px 14px;border-radius:999px;cursor:pointer}
+.seeing{margin:0;padding-left:20px;color:var(--ink-2);font-size:15px;display:grid;gap:4px}
+
+/* dashboard */
+.dash{border:1px solid var(--line);border-radius:20px;padding:24px;display:grid;gap:24px}
+.dhead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:8px}
+.badge{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border-radius:999px;padding:4px 10px;background:var(--blue-soft);color:var(--blue)}
+.badge.live{background:var(--ok-soft);color:var(--ok)}
+.asof{font-size:13px;color:var(--muted)}
+.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:520px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.tile{background:var(--soft);border-radius:12px;padding:14px;display:grid;gap:2px}
+.tile b{font-size:28px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.1}
+.tile span{font-size:13px;color:var(--muted)}
+.tile small{font-size:12px;color:var(--ok);font-weight:600}
+.empty .tile b{color:var(--muted)}
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+@media (max-width:620px){.charts{grid-template-columns:1fr}}
+.chart h3{margin:0 0 10px;font-size:14px;font-weight:600}
+.bars{display:grid;gap:8px}
+.bar{display:grid;grid-template-columns:64px minmax(0,1fr) 72px;gap:10px;align-items:center;font-size:13px;color:var(--ink-2)}
+.track{height:10px;border-radius:999px;background:var(--soft);overflow:hidden}
+.fill{height:100%;border-radius:999px;background:var(--red)}
+.chart.recv .fill{background:var(--blue)}
+.bar .v{text-align:right;font-variant-numeric:tabular-nums;color:var(--ink)}
+.empty .track{background:repeating-linear-gradient(90deg,var(--soft) 0 8px,var(--line) 8px 10px)}
+.cap{font-size:13px;color:var(--muted)}
+footer{font-size:14px;color:var(--muted);border-top:1px solid var(--line);padding-top:20px}
+@media (prefers-reduced-motion:no-preference){.verdict,.chip{transition:background .2s,border-color .2s,color .2s}}
+</style>
+<style>.crumb a{font-size:14px;text-decoration:none}.crumb a:hover{text-decoration:underline}</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb" aria-label="Portfolio"><a href="../">← Arjun’s portfolio</a></nav>
+    <header class="hero">
+    <span class="eyebrow">Built by Arjun Sarma · Avenues high school</span>
+    <h1>Avenue &amp; Me. Find out if it’s <i>mutual</i>.</h1>
+    <p class="lede">A matching site for the Avenues high school, grades 9–12. Each student privately picks up to three people they’d like to connect with. A match appears only when two people pick each other. A one-sided pick is never shown to anyone.</p>
+    <div class="ctas">
+      <a class="btn" href="https://avenyou-and-me.pages.dev/" target="_blank" rel="noopener">Visit the live site ↗</a>
+      <span class="url">avenyou-and-me.pages.dev</span>
+    </div>
+    <div class="meta">
+      <span><b>Role</b> Design &amp; engineering</span>
+      <span><b>Users</b> Avenues students, grades 9–12</span>
+      <span><b>Try it</b> <a href="#reviewer">Demo login for reviewers</a></span>
+    </div>
+  </header>
+
+  <section aria-labelledby="try">
+    <h2 id="try">Try the core idea</h2>
+    <p>Two students pick independently. Neither can see the other’s picks. Toggle the picks and watch what each of them sees.</p>
+    <div class="demo">
+      <div class="people">
+        <div class="person">
+          <h3>Maya <span>· grade 11</span></h3>
+          <div class="picks" data-who="maya">
+            <button class="chip" type="button" id="m-leo" data-target="leo" aria-pressed="true">Leo</button>
+            <button class="chip" type="button" id="m-sam" data-target="sam" aria-pressed="false">Sam</button>
+            <button class="chip" type="button" id="m-ana" data-target="ana" aria-pressed="false">Ana</button>
+          </div>
+          <div class="sees" id="mayaSees"></div>
+        </div>
+        <div class="person">
+          <h3>Leo <span>· grade 11</span></h3>
+          <div class="picks" data-who="leo">
+            <button class="chip" type="button" id="l-maya" data-target="maya" aria-pressed="false">Maya</button>
+            <button class="chip" type="button" id="l-jon" data-target="jon" aria-pressed="true">Jon</button>
+            <button class="chip" type="button" id="l-ria" data-target="ria" aria-pressed="false">Ria</button>
+          </div>
+          <div class="sees" id="leoSees"></div>
+        </div>
+      </div>
+      <div class="verdict" id="verdict" role="status"></div>
+      <p class="hint">Example students. Up to three picks each, as on the real site.</p>
+    </div>
+  </section>
+
+  <section aria-labelledby="reviewerTitle" id="reviewer">
+    <h2 id="reviewerTitle">Log in as a demo student</h2>
+    <p>The real site is only for Avenues students, so it has a demo login. You get the full student view with made-up classmates. It runs in your browser and never connects to the real database, so you can’t see or change any student’s data.</p>
+    <div class="persona">
+      <div class="avatar" aria-hidden="true">J</div>
+      <div>
+        <h3>Jordan Lee · grade 11 <span class="asof">(fictional)</span></h3>
+        <p>Open the site and enter this code, or use the direct link.</p>
+        <div class="codebox">
+          <span class="code" id="demoCode">DEMO2026</span>
+          <button class="copy" type="button" id="copyCode">Copy code</button>
+          <a class="btn" href="https://avenyou-and-me.pages.dev/#demo" target="_blank" rel="noopener">Open as Jordan ↗</a>
+        </div>
+      </div>
+    </div>
+    <ul class="seeing">
+      <li>A match with Leo Martins, with a note from each of them</li>
+      <li>A pending pick that stays private and is locked for 7 days</li>
+      <li>One open pick. Pick <b>Ana Ruiz</b> to see a new match appear, along with the note she left</li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="launch">
+    <h2 id="launch">Launch dashboard</h2>
+    <p>Live totals the site publishes from its admin dashboard. They’re only numbers, with no names, codes or pairs. They fill in after rollout.</p>
+    <div class="dash" id="dash">
+      <div class="dhead"><span class="badge" id="dashBadge">Pre-launch</span><span class="asof" id="dashAsof">Numbers appear here after rollout</span></div>
+      <div class="tiles" id="tiles"></div>
+      <div class="charts">
+        <div class="chart"><h3>Made a pick, by grade</h3><div class="bars" id="gradeBars"></div></div>
+        <div class="chart recv"><h3>How many times each student was picked</h3><div class="bars" id="recvBars"></div></div>
+      </div>
+      <p class="cap">A match is two people who picked each other. “Picks in a match” is the share of all picks that turned out to be mutual.</p>
+    </div>
+  </section>
+
+  <section aria-labelledby="how">
+    <h2 id="how">How it works</h2>
+    <ol class="steps">
+      <li><span><b>Each student gets a private code by email.</b> A mail-merge script I wrote in Google Apps Script sends every student their 8-character code and a one-tap login link.</span></li>
+      <li><span><b>They log in and pick up to three people</b> from a searchable list of the high school, optionally with a note of up to 140 characters.</span></li>
+      <li><span><b>Mutual picks become matches.</b> Both people get an email saying they have a new match, without naming who. The note is revealed only to the person picked, and only once it’s mutual.</span></li>
+    </ol>
+  </section>
+
+  <section aria-labelledby="privacy">
+    <h2 id="privacy">Privacy enforced by the database, <i>not the page</i></h2>
+    <p>A site like this only works if students trust that a one-sided pick stays secret. So the guarantees live in Firestore security rules on the server, where no one can get around them by editing the page.</p>
+    <div class="rules">
+      <div class="rule"><h3>No one can read who picked whom</h3><p>A match is detected by asking to read a single document that the rules only open when <em>both</em> picks exist. A one-sided pick returns the same “denied” as no pick at all.</p></div>
+      <div class="rule"><h3>Nothing can be listed</h3><p>A student’s picks live at a path containing their own code, and no collection students can reach is listable. You can only read what you can already name.</p></div>
+      <div class="rule"><h3>No fishing</h3><p>Picks can’t be edited and can only be removed seven days after they’re made, so no one can pick and unpick repeatedly to test whether someone picked them.</p></div>
+      <div class="rule"><h3>Notes stay sealed</h3><p>A note is copied to <code>notes/{them}_{you}</code>, readable only by the person picked and only after a match. To prove who is reading, the browser links an anonymous sign-in to the student’s code.</p></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="stack">
+    <h2 id="stack">Built with</h2>
+    <ul class="stack">
+      <li><b>Frontend</b> plain HTML/CSS/JS, no build step</li>
+      <li><b>Hosting</b> Cloudflare Pages, deploys on every push</li>
+      <li><b>Data</b> Firebase Firestore + security rules</li>
+      <li><b>Auth</b> Firebase Auth: code, username/password, anonymous</li>
+      <li><b>Email</b> Google Apps Script mail merge</li>
+      <li><b>Admin</b> private dashboard: stats, roster upload, moderation</li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="learned">
+    <h2 id="learned">What I’d improve next</h2>
+    <p class="tradeoff">Login codes are currently each student’s school ID, which made rollout easy because every student already has one. The trade-off is that anyone who knows someone’s ID could log in as them. The next step is issuing random codes and moving everyone to username-and-password accounts.</p>
+  </section>
+
+  <footer>Avenue &amp; Me · built and maintained by Arjun Sarma · <a href="https://avenyou-and-me.pages.dev/" target="_blank" rel="noopener">avenyou-and-me.pages.dev</a></footer>
+</div>
+
+<!-- Launch numbers, pasted from the admin page's "Copy showcase numbers". null until rollout. -->
+<script type="application/json" id="launchData">null</script>
+<script>
+function drawLaunch(d){
+  ['tiles','gradeBars','recvBars'].forEach(id=>{document.getElementById(id).innerHTML=''});
+  const dash=document.getElementById('dash');
+  const pct=(n,t)=>t?Math.round(100*n/t)+'%':'';
+  const fmt=n=>d?n.toLocaleString('en-US'):'—';
+  const tiles=[
+    ['Students',d&&d.students,''],
+    ['Logged in',d&&d.loggedIn,d&&pct(d.loggedIn,d.students)],
+    ['Made a pick',d&&d.picked,d&&pct(d.picked,d.students)],
+    ['Picks',d&&d.picks,''],
+    ['Matches',d&&d.matches,''],
+    ['Picks in a match',d&&(d.picks?Math.round(200*d.matches/d.picks)+'%':'0%'),'']
+  ];
+  const t=document.getElementById('tiles');
+  tiles.forEach(([lab,v,sub])=>{
+    const el=document.createElement('div');el.className='tile';
+    const b=document.createElement('b');b.textContent=d?(typeof v==='number'?fmt(v):v):'—';
+    const s=document.createElement('span');s.textContent=lab;el.append(b,s);
+    if(sub){const sm=document.createElement('small');sm.textContent=sub+' of students';el.append(sm)}
+    t.append(el);
+  });
+  function bars(box,rows){
+    const max=Math.max(1,...rows.map(r=>r.max??r.v));
+    rows.forEach(r=>{
+      const row=document.createElement('div');row.className='bar';
+      const l=document.createElement('span');l.textContent=r.label;
+      const tr=document.createElement('div');tr.className='track';
+      const f=document.createElement('div');f.className='fill';f.style.width=d?(100*r.v/(r.max??max))+'%':'0';tr.append(f);
+      const v=document.createElement('span');v.className='v';v.textContent=d?r.text:'—';
+      row.append(l,tr,v);box.append(row);
+    });
+  }
+  const grades=d?d.grades:[9,10,11,12].map(g=>({g,total:0,picked:0}));
+  bars(document.getElementById('gradeBars'),grades.map(x=>({label:'Grade '+x.g,v:x.picked,max:Math.max(1,x.total),text:x.picked+'/'+x.total})));
+  const recv=d?d.received:[0,0,0,0,0,0];
+  bars(document.getElementById('recvBars'),recv.map((n,i)=>({label:i===5?'5+':i+(i===1?' time':' times'),v:n,text:String(n)})));
+  if(d){
+    dash.classList.remove('empty');
+    const b=document.getElementById('dashBadge');b.textContent='Live';b.classList.add('live');
+    document.getElementById('dashAsof').textContent='Updated '+new Date(d.updated+'T12:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  } else dash.classList.add('empty');
+}
+(function(){
+  let d=null;try{d=JSON.parse(document.getElementById('launchData').textContent)}catch(e){}
+  drawLaunch(d);
+  // Live totals: Avenue & Me's admin page keeps stats/public up to date (no names or codes; anyone can read it).
+  const val=v=>'integerValue' in v?+v.integerValue:'doubleValue' in v?+v.doubleValue:'stringValue' in v?v.stringValue
+    :'arrayValue' in v?(v.arrayValue.values||[]).map(val):'mapValue' in v?obj(v.mapValue.fields||{}):null;
+  const obj=f=>Object.fromEntries(Object.entries(f).map(([k,v])=>[k,val(v)]));
+  fetch('https://firestore.googleapis.com/v1/projects/avenyou-and-me-d3a2d/databases/(default)/documents/stats/public')
+    .then(r=>r.ok?r.json():null).then(j=>{if(j&&j.fields){const s=obj(j.fields);if(s.students)drawLaunch(s)}}).catch(()=>{});
+
+  document.getElementById('copyCode').addEventListener('click',e=>{
+    const btn=e.currentTarget;
+    navigator.clipboard.writeText('DEMO2026').then(()=>{btn.textContent='Copied'},()=>{
+      const r=document.createRange();r.selectNodeContents(document.getElementById('demoCode'));
+      const s=getSelection();s.removeAllRanges();s.addRange(r);btn.textContent='Selected, press Ctrl+C';
+    });
+  });
+})();
+</script>
+<script>
+const picks={maya:new Set(['leo']),leo:new Set(['jon'])};
+const names={maya:'Maya',leo:'Leo'};
+function render(){
+  const mutual=picks.maya.has('leo')&&picks.leo.has('maya');
+  for(const who of ['maya','leo']){
+    const other=who==='maya'?'leo':'maya';
+    const el=document.getElementById(who+'Sees');
+    const n=picks[who].size;
+    el.className='sees'+(mutual?' match':'');
+    el.textContent=mutual?`Sees: “You and ${names[other]} matched.”`:`Sees: ${n} pick${n===1?'':'s'}, no matches yet.`;
+  }
+  const v=document.getElementById('verdict');
+  const m=picks.maya.has('leo'),l=picks.leo.has('maya');
+  v.className='verdict'+(mutual?' match':'');
+  v.textContent=mutual?'It’s mutual, so both of them see the match.'
+    :m||l?`${m?'Maya':'Leo'} picked ${m?'Leo':'Maya'}, but it isn’t mutual. ${m?'Leo':'Maya'} will never know.`
+    :'Neither picked the other. Nothing is shown.';
+}
+document.querySelectorAll('.picks').forEach(group=>{
+  group.addEventListener('click',e=>{
+    const b=e.target.closest('.chip');if(!b)return;
+    const set=picks[group.dataset.who],t=b.dataset.target;
+    if(set.has(t))set.delete(t);else if(set.size<3)set.add(t);
+    b.setAttribute('aria-pressed',set.has(t));render();
+  });
+});
+render();
+</script>
+<script src="/analytics/tracker.js" data-site="portfolio-avenue" defer></script>
+</body>
+</html>
