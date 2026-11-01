@@ -1451,6 +1451,11 @@ async function boot(){
   S.events = S.events.filter(e => e.rr || e.e > cut);
   S.tasks = S.tasks.filter(t => !(t.complete && t.due < cut - 30 * DAY));
   save(); render();
+  // A shared …/docket/#sample link opens the sample week, but never over someone's own work.
+  if (location.hash === '#sample') {
+    history.replaceState(null, '', location.pathname + location.search);
+    if (S.sample || !(S.tasks.length || S.events.length || S.calendars.length || S.activities.length)) loadSample();
+  }
   if (S.lastCanvas) { const m = $('#canvasMsg'); if (!m.textContent) m.textContent = `Last Canvas import: ${fmtDay(S.lastCanvas.at)} at ${fmtTime(S.lastCanvas.at)} from ${S.lastCanvas.host}. Click the bookmark on Canvas again to refresh.`; }
   setInterval(() => { if (!document.hidden && !$('.pop') && !document.activeElement.matches('input,select,textarea')) render(); }, 5 * MIN);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
