@@ -10,7 +10,7 @@ E.world({n:4,needs:3,levels:[
 // 1. A toy factory. Two belts cross a lava trench, always running opposite ways: one goes to the island with the red
 // keycard, the other to the red door. A lever (one at the start, one on each far side) turns both round. Then the
 // stamping line: a slow belt under three presses, and a keypad whose code is split between the two rooms.
-{id:'beltway',name:'Assembly Line',sub:'The toy factory',par:100,sky:['#8ec5ff','#fff1d6'],pal:{floor:'#d8d2c4',wall:'#f2b134',prop:'#3d7ab8',trim:'#26303d'},
+{id:'beltway',name:'Assembly Line',sub:'The toy factory',par:90,sky:['#8ec5ff','#fff1d6'],pal:{floor:'#d8d2c4',wall:'#f2b134',prop:'#3d7ab8',trim:'#26303d'},
 msgs:{door_cardR:'The red door slides open','belts:on':'Clunk! The belts turn round','belts:off':'Clunk! The belts turn round','beltA:on':'The blue belts turn round','beltA:off':'The blue belts turn round','beltB:on':'The green belt turns round','beltB:off':'The green belt turns round',line:'Code accepted. The way out is open'},unlock:['line'],
 build(B,r){
   const W=B.W;
@@ -79,7 +79,7 @@ build(B,r){
 // far from the shutter to run: push the bale onto it (the plate by the other door only opens a cupboard). Then a
 // corridor of piston walls, a window out onto a sorting belt that carries you toward a press (the green keycard is on
 // the ledge beside it), and the baler: its door needs both of its plates held down at once.
-{id:'sorter',name:'Sorting Day',sub:'The recycling plant',par:120,sky:['#a8d8b9','#f4f9e8'],pal:{floor:'#c9d6c3',wall:'#6aa57a',prop:'#8d6e4f',trim:'#24382b'},
+{id:'sorter',name:'Sorting Day',sub:'The recycling plant',par:110,sky:['#a8d8b9','#f4f9e8'],pal:{floor:'#c9d6c3',wall:'#6aa57a',prop:'#8d6e4f',trim:'#24382b'},
 msgs:{shutA:'The shutter rolls up',hatch:'The cupboard hatch lifts',door_cardG:'The green door slides open',baler:'Both plates down! The baler door opens'},unlock:['baler'],
 build(B,r){
   const W=B.W,BALE={push:true,mat:'crate',col:'#b5894f'},BIN={col:'#4f7cac',mat:'metal'};
@@ -119,8 +119,9 @@ build(B,r){
   // route
   B.w(6.4,0,-14);B.push('bale','x',-9);B.w(-6.6,0,-15.4);B.w(-6.6,0,-16.6);B.w(-9,0,-16.6);B.push('bale','z',-6);
   B.w(5,0,-20);B.w(8,0,-26);B.w(8.6,0,-30.8);
-  B.w(6.6,0,-40);B.w(6.6,0,-43);B.w(4.2,.25,-43);B.w(-3.4,.25,-42);B.j(-4.4,.9,-38.8,{wait:true});B.w(-4.4,.9,-38.8);
-  B.j(-1,.25,-42.6,{wait:true});B.w(4.2,.25,-43);B.w(6.6,0,-43);B.w(6.6,0,-46);B.w(6.6,0,-58);B.w(8.5,0,-58.4);B.w(8.5,0,-62.6);
+  const clear=ph=>t=>{const u=(t/3.2+ph)%1;return u>.7&&u<.8}; // a piston has just started back into the wall
+  B.w(6.6,0,-33.6);B.u(clear(0));B.w(6.6,0,-40);B.w(6.6,0,-43);B.w(4.2,.25,-43);B.w(-3.4,.25,-42);B.j(-4.4,.9,-38.8,{wait:true});B.w(-4.4,.9,-38.8);
+  B.j(-1,.25,-42.6,{wait:true});B.w(4.2,.25,-43);B.w(6.6,0,-43);B.w(6.6,0,-45.4);B.u(clear(.36));B.w(6.6,0,-51.6);B.u(clear(.7));B.w(6.6,0,-58);B.w(8.5,0,-58.4);B.w(8.5,0,-62.6);
   B.w(0,0,-67.6);B.push('bale2','z',-78);B.w(1.8,0,-76);B.w(1.8,0,-78);B.push('bale2','x',-8);
   B.w(8,0,-80);B.u((t,W)=>flagOn(W,'baler',t));B.w(8,0,-85.6);B.w(8,0,-87.4);
   W.spawn={x:0,y:0,z:3.4,yaw:0};
@@ -129,7 +130,7 @@ build(B,r){
 // the wind behind you, and a lever on each side turns the fan round. The fuse powers the door to the piston corridor;
 // the control room's way out is up on a balcony, reached by steps that only come out while their plate is held (and a
 // few seconds after). The exit code is four digits on four slips around the level; the big board is the locker's code.
-{id:'turbine',name:'Spin Cycle',sub:'The power station',par:130,sky:['#7aa6d6','#e9f1fa'],pal:{floor:'#cdd3db',wall:'#5d7fa3',prop:'#e07a3f',trim:'#1e2a38'},
+{id:'turbine',name:'Spin Cycle',sub:'The power station',par:90,sky:['#7aa6d6','#e9f1fa'],pal:{floor:'#cdd3db',wall:'#5d7fa3',prop:'#e07a3f',trim:'#1e2a38'},
 msgs:{power:'The fuse is in. The door hums open','fan:on':'The fan turns round: the wind blows east','fan:off':'The fan turns round: the wind blows west',steps:'Steps slide out of the wall',locker:'The locker opens',ctrl:'Code accepted. The way out is open'},unlock:['power','ctrl'],
 build(B,r){
   const W=B.W,STEEL={col:'#8f9bab',mat:'metal'},TURB={col:'#d7dde5',mat:'gear'};
@@ -150,7 +151,7 @@ build(B,r){
   B.item('fuse','fuse',8.6,1.9,-16);slip(0,6.6,1.03,-16,0,{flat:true});
   fanLever('fanL1',3,1,0,[3,2.2]);fanLever('fanL2',8.8,-12.8,1,[7.4,-12.8]);
   const fan=B.wind(-12,-2.4,12,-30,-2,10,[-4.5,0],{name:'fanwind'});B.rev(fan,'fan');
-  for(const s of [-1,1]){B.dcyl(s*11.4,4.2,-15,2.6,.5,{col:'#1e2a38',mat:'metal'});B.deco(s*11.6,4.2,-15,.3,5.6,.6,{col:'#e07a3f',mat:'plastic'});B.deco(s*11.6,4.2,-15,.3,.6,5.6,{col:'#e07a3f',mat:'plastic'})}
+  for(const s of [-1,1]){B.deco(s*11.4,4.2,-15,.3,5.4,5.4,{col:'#1e2a38',mat:'metal'});B.deco(s*11.2,4.2,-15,.2,4.8,.5,{col:'#e07a3f',mat:'plastic'});B.deco(s*11.2,4.2,-15,.2,.5,4.8,{col:'#e07a3f',mat:'plastic'})}
   B.cp(1,1,-31.8,{d:2.6});
   B.panel('fusebox',4,1.6,-33.35,0,{need:'fuse',then:'power'},{icon:'fuse',col:'#ffd23f',stand:[4,-32.2]});
   B.door('x',-34,0,'power',{col:'#1e2a38'});
@@ -191,7 +192,7 @@ build(B,r){
 // the orchid house door must be set to the orchid's temperature (the cactus and fern cards are true, but they aren't
 // for this door). In the orchid house: a cart over the pond, sprinklers, and two vines; only the west one's walkway
 // has the yellow keycard for the way out.
-{id:'hothouse',name:'Growing Pains',sub:'The greenhouse',par:120,sky:['#9fe0c8','#fbfbe6'],pal:{floor:'#d6cfb8',wall:'#9ccfb0',prop:'#7c5a3a',trim:'#2d4a35'},
+{id:'hothouse',name:'Growing Pains',sub:'The greenhouse',par:85,sky:['#9fe0c8','#fbfbe6'],pal:{floor:'#d6cfb8',wall:'#9ccfb0',prop:'#7c5a3a',trim:'#2d4a35'},
 msgs:{hatch:'The hatch lifts','flow:on':'The belt turns round: it runs east','flow:off':'The belt turns round: it runs west',heat:'Just right! The orchid house door opens',door_cardY:'The yellow door slides open'},unlock:['heat','door_cardY'],
 build(B,r){
   const W=B.W,POT={col:'#a0603a',mat:'wood'},LEAF={col:'#3f9d4a',mat:'plastic'},STEEL={col:'#8f9bab',mat:'metal'},GLASS={col:'#d9fbe8',mat:'glass'};
@@ -255,7 +256,7 @@ build(B,r){
 // its only way in is from the cold aisle at the far end. Red, then green, then yellow: the red card is behind two rows
 // of racks that slide shut; the green one is on a battery stack, up a lift that only runs while its plate is held down
 // (push a spare battery onto it); the cold aisle freezes you away from the heaters, under presses and over the lava.
-{id:'servers',name:'Hot Swap',sub:'The data centre',par:150,snow:true,sky:['#5b7db8','#dfe9f7'],pal:{floor:'#d5dbe4',wall:'#7f8ea6',prop:'#3b4556',trim:'#151b26'},
+{id:'servers',name:'Hot Swap',sub:'The data centre',par:120,snow:true,sky:['#5b7db8','#dfe9f7'],pal:{floor:'#d5dbe4',wall:'#7f8ea6',prop:'#3b4556',trim:'#151b26'},
 msgs:{door_cardR:'The red door slides open',door_cardG:'The green door slides open',door_cardY:'The yellow door slides open',lift:'The lift starts up'},unlock:['door_cardY'],
 build(B,r){
   const W=B.W,RACK={col:'#2b3445',mat:'metal'},GLASS={col:'#cfe8ff',mat:'glass'},BATT={col:'#4ade80',mat:'metal'},STEEL={col:'#8f9bab',mat:'metal'};
@@ -289,7 +290,7 @@ build(B,r){
   B.zone('cold',-36,-30,12,-56,-2,12,{name:'cold'});
   B.cp(2,-24,-32.6,{d:2.6});
   heater(-28,-34,2.6);heater(-9,-34,2.6);heater(10.6,-34,2.6);heater(-7,-54.4,2.6);
-  [[-17,0],[-3,.5]].forEach(([x,ph],i)=>B.press('press'+i,x,-32.7,3,5.4,{up:4.6,h:4.2,drop:4.45,per:2.6,ph}));
+  [[-17,0],[-3,.5]].forEach(([x,ph],i)=>B.press('press'+i,x,-32.7,3,5.4,{up:4.6,h:5,drop:4.45,per:2.6,ph}));
   B.lava(-36,-35.4,12,-52);
   B.plat(2,.8,-38.6,2.4,2.4,Object.assign({name:'q1'},STEEL));B.plat(-1.4,.8,-43,2.4,2.4,Object.assign({name:'q2'},STEEL));B.plat(1.6,.8,-47.4,2.4,2.4,Object.assign({name:'q3'},STEEL));
   B.wind(-12,-35.4,12,-52,-2,8,[4,0],{timed:{per:4,on:.4},name:'fans'});
@@ -311,7 +312,7 @@ build(B,r){
 // tonight (the first entry is from an earlier night) and the dome opens. In the laser lab, turn three mirrors so the
 // beam reaches the sensor: its light makes the bridge to the far side. Then the planetarium: ride the planets round the
 // sun to the way out, keeping clear of the comet.
-{id:'stargaze',name:'Night Shift',sub:'The observatory',par:120,night:true,sky:['#0d1333','#3b3f7a'],pal:{floor:'#8b93a8',wall:'#4b4f7a',prop:'#c9a24a',trim:'#151833'},
+{id:'stargaze',name:'Night Shift',sub:'The observatory',par:110,night:true,sky:['#0d1333','#3b3f7a'],pal:{floor:'#8b93a8',wall:'#4b4f7a',prop:'#c9a24a',trim:'#151833'},
 msgs:{scope:'Comet in sight! The dome door opens',laser:'The sensor lights up. A bridge of light appears'},unlock:['scope','laser'],
 build(B,r){
   const W=B.W,STEEL={col:'#9aa3b5',mat:'metal'},BRASS={col:'#c9a24a',mat:'metal'},ISLE={col:'#6b7189',mat:'stone'};
@@ -368,11 +369,11 @@ build(B,r){
   B.w(0,0,-95.2);
   W.spawn={x:0,y:0,z:3.4,yaw:0};
 }},
-// 7. A robot lab: the robot in the hall needs arms, legs and a head, from three workshops in any order. The arm shop
+// 7. A robot lab: the robot in the hall needs its arms, legs and head fitted, from three workshops in any order. The arm shop
 // is a belt under presses (a lever at each end turns it); the leg shop needs the torso pushed past two pistons onto
 // the far plate while you stand on the near one; the head shop's keypad wants a code whose four digits are on the walls
 // of the other two shops. With all three on, the robot opens the way out.
-{id:'robolab',name:'Spare Parts',sub:'The robot lab',par:170,sky:['#c3b6f0','#fdf0f6'],pal:{floor:'#dcd6ea',wall:'#8e7cc3',prop:'#f2a541',trim:'#2c2347'},
+{id:'robolab',name:'Spare Parts',sub:'The robot lab',par:160,sky:['#c3b6f0','#fdf0f6'],pal:{floor:'#dcd6ea',wall:'#8e7cc3',prop:'#f2a541',trim:'#2c2347'},
 msgs:{arms:'Arms fitted. One of three',legs:'Legs fitted. One of three',head:'Head fitted. One of three',robot:'The robot wakes up and opens the way out!','armBelt:on':'The belt runs west','armBelt:off':'The belt runs east'},unlock:['robot'],
 build(B,r){
   const W=B.W,STEEL={col:'#9aa3b5',mat:'metal'},BOT={col:'#cbd5e1',mat:'metal'};
@@ -386,8 +387,8 @@ build(B,r){
   B.wallX(-18,-12.5,12.5,[{c:-6,w:DW,h:DH},{c:7,w:DW,h:DH}]);
   B.cp(0,0,3.4);
   B.blk(0,-8,3,3,1,{col:'#2c2347',mat:'metal',name:'stand'});B.cp(1,0,-13.4,{d:2.6});B.deco(0,2.4,-8,1.6,1.8,1,BOT);
-  B.deco(0,3.9,-8,1.1,1,1,Object.assign({onIf:'head',name:'rHead'},BOT));
-  for(const s of [-1,1]){B.deco(s*1.15,2.4,-8,.5,1.6,.5,Object.assign({onIf:'arms',name:'rArm'+s},BOT));B.deco(s*.45,1.3,-8,.5,.6,.5,Object.assign({onIf:'legs',name:'rLeg'+s},BOT))}
+  B.deco(0,3.9,-8,1.1,1,1,BOT);for(const s of [-1,1]){B.deco(s*1.15,2.4,-8,.5,1.6,.5,BOT);B.deco(s*.45,1.3,-8,.5,.6,.5,BOT)}
+  for(const s of [-1,1])B.deco(s*.25,4,-8.52,.22,.22,.06,{onIf:'robot',col:'#22d3ee',mat:'glass',name:'eye'+s});
   B.door('x',-18,7,'robot',{col:'#2c2347',part:{mat:'vaultdoor'}});
   B.sign(-11.45,6,-3,Math.PI/2,5,1.2,{title:'Arm shop'});B.sign(11.45,6,-3,-Math.PI/2,5,1.2,{title:'Leg shop'});B.sign(-6,6.4,-17.45,0,4,1.2,{title:'Head shop'});
   B.sign(0,7.4,6.45,Math.PI,8,1.6,{title:'Spare Parts',sub:'Arms, legs and a head'});
@@ -395,7 +396,7 @@ build(B,r){
   B.floor(-42,0,-12,-18);B.wallX(0,-42.5,-11.5);B.wallX(-18,-42.5,-11.5);B.wallZ(-42,0,-18);
   B.lava(-36.5,0,-15.5,-18);
   B.belt(-37,-7.4,-15,-10.6,[5,0],{rev:'armBelt',name:'armBelt'});
-  [[-21,0],[-26.5,.33],[-32,.66]].forEach(([x,ph],i)=>B.press('apress'+i,x,-9,3,3.8,{up:4.6,h:4.2,drop:4.4,per:2.4,ph,base:.25}));
+  [[-21,0],[-26.5,.33],[-32,.66]].forEach(([x,ph],i)=>B.press('apress'+i,x,-9,3,3.8,{up:4.6,h:5,drop:4.4,per:2.4,ph,base:.25}));
   lever('leverW1',-13.6,-15,[-13.6,-13.8]);lever('leverW2',-39.6,-15,[-39.6,-13.8]);
   B.btn('armBtn',-40,-4,{set:'arms'},{top:1.2,icon:'bolt',col:'#22d3ee',stand:[-38.8,-4]});
   slip(0,-41.45,3.6,-9,Math.PI/2);slip(1,-27,5.4,-17.45,0);
@@ -436,7 +437,7 @@ build(B,r){
 // stays up while its plate is held (push the drum onto it, between strokes of a piston), then in the rod hall fit the
 // fuse and type the control-rod code: its four digits are on slips, one in each of the first three halls and one in
 // the rod hall. Coolant, generator and rods all on opens the core, and the way out is through it.
-{id:'reactor',name:'Meltdown',sub:'The power plant',par:200,sea:true,sky:['#3a2b4d','#f29e6b'],pal:{floor:'#cfc9bf',wall:'#7a6f86',prop:'#e8b923',trim:'#1f1a29'},
+{id:'reactor',name:'Meltdown',sub:'The power plant',par:140,sea:true,sky:['#3a2b4d','#f29e6b'],pal:{floor:'#cfc9bf',wall:'#7a6f86',prop:'#e8b923',trim:'#1f1a29'},
 msgs:{coolant:'Coolant pumps on. One of three',gen:'The generator roars. One of three',rods:'Control rods in. One of three',core:'Full power! The core door opens',shut:'The shutter rolls up',door_cardR:'The red door slides open',
   'cA:on':'The blue belts turn round','cA:off':'The blue belts turn round','cB:on':'The green belt turns round','cB:off':'The green belt turns round'},unlock:['core'],
 build(B,r){
@@ -455,7 +456,7 @@ build(B,r){
   B.belt(-9.6,0,-6.4,-9,[0,-12.5],{rev:'cA',name:'belt1'});
   B.belt(-5.5,-9.9,5.5,-13.1,[-12.5,0],{rev:'cB',name:'belt2'});
   B.belt(6.4,-14,9.6,-23,[0,12.5],{rev:'cA',name:'belt3'});
-  B.press('cpress',8,-18.6,3.6,3,{up:4.6,h:4.2,drop:4.4,per:2.4,base:.25});
+  B.press('cpress',8,-18.6,3.6,3,{up:4.6,h:5,drop:4.4,per:2.4,base:.25});
   B.wallX(-18.5,-12.5,4);
   for(const x of [-9.75,-6.25])rail(x,-.5,x,-8.5,'#3b82f6');for(const x of [6.25,9.75])rail(x,-14.5,x,-22.5,'#3b82f6');for(const z of [-9.75,-13.25])rail(-5,z,5,z,'#2fa35a');
   lv('lvA1','cA','#3b82f6',-2,2.4,[-2,3.6]);lv('lvB1','cB','#2fa35a',-10.2,-13.6,[-9,-13.6],.25);
