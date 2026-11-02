@@ -2104,7 +2104,11 @@ Object.assign(ITEM_NAME,{cardR:'the red keycard',cardG:'the green keycard',cardY
 const W4_SVG={};
 for(const k of ['cardR','cardG','cardY'])W4_SVG[k]='<svg viewBox="0 0 32 32"><rect x="3" y="7" width="26" height="18" rx="3" fill="'+W4CARD[k]+'" stroke="#1b1840" stroke-width="2.4"/><rect x="3" y="11" width="26" height="3.5" fill="#1b1840"/><rect x="7" y="18" width="7" height="4" fill="#fff7d6"/></svg>';
 // a keycard in its colour; returns true if it drew kind
-function w4Icon(g,kind,P){const c=W4CARD[kind];if(!c||kind==='card')return false;
+const W4_USE={thermo:'Turn the thermostat'};
+const W4_TEMPS=[14,16,18,20,22,24,26,28]; // the greenhouse thermostat's eight settings (degrees)
+function w4Icon(g,kind,P){
+  if(kind==='thermo'){P(()=>{rr(g,-12,-40,24,62,12)},'#f8fafc');P(()=>{g.beginPath();g.arc(0,26,18,0,TAU)},'#ef4444');g.fillStyle='#ef4444';g.fillRect(-5,-24,10,40);return true}
+  const c=W4CARD[kind];if(!c||kind==='card')return false;
   P(()=>{rr(g,-40,-26,80,52,8)},c);g.fillStyle='#1b1840';g.fillRect(-40,-14,80,10);g.fillStyle='#fff7d6';g.fillRect(-30,6,22,14);return true}
 function w4ItemMesh(p){const c=W4CARD[p.item];if(!c||p.item==='card')return null;
   const g=new THREE.Group(),L=new THREE.MeshLambertMaterial({color:c,emissive:new THREE.Color(c).multiplyScalar(.35)}),face=new THREE.MeshLambertMaterial({map:iconTexture(p.item,c)});
@@ -2135,6 +2139,20 @@ function w4Sign(g,sg,W,w,h,font,ink){
     const cells=[0,1,2,3].map(i=>i===sg.k?code[i]:'·');g.fillStyle='#1d4ed8';g.font=font(h*.42);
     cells.forEach((c,i)=>{g.fillStyle=i===sg.k?'#1d4ed8':'#94a3b8';g.fillText(c,w*(.2+i*.2),h*.62)});
     g.fillStyle='#475569';g.font=font(h*.1);g.fillText(['1st','2nd','3rd','4th'][sg.k]+' digit',w/2,h*.89);return true}
+  // the thermostat's face (its hand is a {hand, dial, n: 8} sign on top) and a plant's care card
+  if(sg.w4==='gauge'){const R=Math.min(w,h)*.47;g.fillStyle='#334155';rr(g,0,0,w,h,w*.12);g.fill();g.save();g.translate(w/2,h/2);g.fillStyle='#fff7ed';g.beginPath();g.arc(0,0,R,0,TAU);g.fill();g.lineWidth=R*.06;g.strokeStyle=ink;g.stroke();
+    g.fillStyle=ink;g.font=font(R*.2);W4_TEMPS.forEach((v,i)=>{const a=i/8*TAU;g.fillText(v+'°',Math.sin(a)*R*.72,-Math.cos(a)*R*.72)});g.restore();return true}
+  if(sg.w4==='care'){const P=W.w4care[sg.plant];g.fillStyle='#f0fdf4';g.fillRect(0,0,w,h);g.strokeStyle='#166534';g.lineWidth=10;g.strokeRect(5,5,w-10,h-10);
+    g.fillStyle='#166534';g.font=font(h*.15);g.fillText(P.name,w/2,h*.16);
+    g.save();g.translate(w*.28,h*.6);const k=h*.0035;g.fillStyle='#b45309';g.fillRect(-26*k,10*k,52*k,40*k);g.fillStyle=P.col;
+    if(sg.plant==='cactus'){g.fillRect(-8*k,-60*k,16*k,72*k);g.fillRect(-26*k,-34*k,12*k,30*k);g.fillRect(14*k,-44*k,12*k,26*k)}
+    else for(let i=0;i<5;i++){g.beginPath();g.ellipse((i-2)*12*k,-26*k,8*k,34*k,(i-2)*.35,0,TAU);g.fill()}
+    if(sg.plant==='orchid'){g.fillStyle='#e879f9';for(const [x,y] of [[-18,-58],[6,-66],[22,-48]]){g.beginPath();g.arc(x*k,y*k,10*k,0,TAU);g.fill()}}
+    g.restore();g.fillStyle=ink;g.font=font(h*.11);g.fillText('Keep at',w*.68,h*.45);g.fillStyle='#dc2626';g.font=font(h*.28);g.fillText(P.temp+'°',w*.68,h*.7);return true}
+  // a page of notes: {w4: 'notes', title, lines} (lines worked out by the level's build, so they can hold its clues)
+  if(sg.w4==='notes'){g.fillStyle='#fffbeb';g.fillRect(0,0,w,h);g.strokeStyle='#a16207';g.lineWidth=10;g.strokeRect(5,5,w-10,h-10);g.fillStyle='rgba(30,64,175,.12)';
+    for(let y=h*.32;y<h*.95;y+=h*.13)g.fillRect(w*.06,y,w*.88,2);g.fillStyle=ink;g.font=font(h*.13);g.fillText(sg.title,w/2,h*.15);
+    const L=sg.lines;g.font=font(Math.min(h*.1,w*1.5/Math.max(...L.map(l=>l.length))));L.forEach((l,i)=>{g.fillStyle='#1e3a8a';g.fillText(l,w/2,h*(.36+i*.6/Math.max(1,L.length)))});return true}
   if(sg.w4==='panel'){const col=sg.col||'#22d3ee';g.fillStyle='#0f172a';rr(g,4,4,w-8,h-8,18);g.fill();g.strokeStyle=col;g.lineWidth=6;g.stroke();
     const L=sg.lines;L.forEach((l,i)=>{g.fillStyle=i?'#e2e8f0':col;g.font=font(i?h*.6/(L.length+1):h*.75/(L.length+1));g.fillText(l,w/2,h*(i+.75)/(L.length+.5))});return true}
   return false;
@@ -3168,6 +3186,7 @@ function renderInv(){
 }
 const USE_TXT={pad:'Use the keypad',valve:'Turn the valve',clock:'Press: opens the gate for a few seconds',fuse:'Put the fuse in',bolt:'Flip the switch',bell:'Ring the bell',
   hour:'Turn the hour hand',minute:'Turn the minute hand',mirror:'Turn the mirror',lever:'Pull the lever',compass:'Turn the lens'};
+Object.assign(USE_TXT,W4_USE); // W4 hook
 function updateHud(){
   const pl=playing()&&!G.pauseOpen&&!G.overlay&&!G.kp;if(hudCache.playing!==pl){hudCache.playing=pl;document.body.classList.toggle('playing',pl)}
   if($('hud').hidden)return;
