@@ -422,7 +422,7 @@ build(B,r){
 // 7. The long climb, outside over a molten sea. Ice floes round a vent that sends out rings of fire; up the rocks and a
 // ladder; a cart carries the fuse between two towers (ride it to pick it up); planks in the gusts and a spinning bar;
 // the fuse box powers the bridge to the last stretch, where your shadow chases you up to the summit.
-{id:'gauntlet',name:'The Long Climb',sub:'The tower of trials',par:90,sea:true,sky:['#3a2340','#f0a36b'],pal:{floor:'#6f6a5e',wall:'#6f6a5e',prop:'#9a948a',trim:'#2d2335'},
+{id:'gauntlet',name:'Long Climb',sub:'The tower of trials',par:90,sea:true,sky:['#3a2340','#f0a36b'],pal:{floor:'#6f6a5e',wall:'#6f6a5e',prop:'#9a948a',trim:'#2d2335'},
 msgs:{power:'The fuse is in. The bridge lights up'},unlock:['power'],
 build(B,r){
   const W=B.W,ROCK={col:'#6f6a5e',mat:'stone'},ICE={ice:true,mat:'ice',col:'#cfeeff'},WOOD={col:'#9a7a52',mat:'wood'};
@@ -467,7 +467,7 @@ build(B,r){
   B.blk(0,-90,7,6,11,Object.assign({name:'summit'},ROCK));
   B.finish(0,-90.4,{top:11});B.deco(0,13.6,-92.8,3.2,2.2,.3,{col:'#2d2335'});B.sign(0,13.6,-92.6,0,2.6,.8,{exit:true});
   B.shadow(-14,-65.4,14,-100,{delay:2.4});
-  B.sign(0,2.6,5.6,PI,6,1.5,{title:'The Long Climb',sub:'All the way to the top'},{deco:true});B.deco(0,1.2,5.7,.3,1.6,.3,{col:'#2d2335'});
+  B.sign(0,2.6,5.6,PI,6,1.5,{title:'Long Climb',sub:'All the way to the top'},{deco:true});B.deco(0,1.2,5.7,.3,1.6,.3,{col:'#2d2335'});
   // route
   const cart=W.byName.get('cart');
   B.w(0,.6,1.4);B.j(-3.4,.6,-3.6,{wait:true});B.j(3.4,.6,-7.4,{wait:true});B.jon('f3',0,{wait:true});B.j(2,.6,-17.4,{wait:true});B.j(0,1.12,-22,{wait:true});
