@@ -4,16 +4,17 @@
 // rails, water and lava that rise, and dark rooms you need the lantern for.
 (function(E){
 'use strict';
-const {DW,DH,WH,cur,flagOn,makeCode,shuffle,exitHall}=E;
+const {DW,DH,cur,flagOn,makeCode,shuffle,exitHall}=E;
 const ROCK={col:'#7a6650',mat:'stone'},WOOD={mat:'wood',col:'#9a7048'};
 // a mine's timber frame on a wall: two posts and a beam (decoration)
 function props(B,x,z,yaw,h,w){const c=Math.cos(yaw),s=Math.sin(yaw);w=w||4;h=h||6;
   for(const o of [-w/2,w/2])B.deco(x+c*o,h/2,z-s*o,.5,h,.5,{col:'#6b4a2f',mat:'wood'});B.deco(x,h+.25,z,(Math.abs(c)>.5?w+.5:.5),.5,(Math.abs(c)>.5?.5:w+.5),{col:'#6b4a2f',mat:'wood'})}
 // a lamp hung on a wall (decoration that glows)
 function wallLamp(B,x,y,z){B.deco(x,y,z,.36,.46,.36,{col:'#ffd56b',mat:'glass'})}
-// a pit in the floor, bottom at `bot`, lined (like walls, 1 thick, centred on its edges) under the floor (so nobody swims out under a wall); gaps in the
-// lining: [{side: 'n'|'s'|'e'|'w', c, w, h}] (an opening from the bottom up to h)
-function pit(B,x0,z0,x1,z1,bot,o,gaps){o=o||{};gaps=gaps||[];const cx=(x0+x1)/2,cz=(z0+z1)/2,w=Math.abs(x1-x0),d=Math.abs(z1-z0),h=-1-(bot-1),y=(bot-1-1)/2;
+// a pit in the floor, bottom at `bot`, lined under the floor like walls (1 thick, centred on its edges, from bot - 1 up
+// to -1, where walls start), so nobody swims out under a wall. gaps: [{side: 'n'|'s'|'e'|'w', c, w, h}] are openings in
+// the lining from the bottom up to bot + h (a way through to the next pit)
+function pit(B,x0,z0,x1,z1,bot,o,gaps){o=o||{};gaps=gaps||[];const cx=(x0+x1)/2,cz=(z0+z1)/2,w=Math.abs(x1-x0),d=Math.abs(z1-z0);
   B.box(cx,bot-.5,cz,w,1,d,Object.assign({},o,{name:o.name||''}));
   const side=(k,ax,at,a0,a1)=>{const gs=gaps.filter(g=>g.side===k).sort((p,q)=>p.c-q.c);let s=a0;
     const seg=(s0,s1,y0,y1)=>{if(s1-s0<.01||y1-y0<.01)return;const c=(s0+s1)/2,L=s1-s0;B.box(ax==='x'?c:at,(y0+y1)/2,ax==='x'?at:c,ax==='x'?L:1,y1-y0,ax==='x'?1:L,o)};
@@ -29,7 +30,7 @@ E.world({n:3,needs:3,levels:[
 // 1. An old mine. Ride the minecart over the lava chasm to the lamp store and take a lantern: the workings beyond are
 // pitch dark, and the miners chalked the lift's code on the walls in there (numbered 1 to 4), which only shows by
 // lantern light. A second cart and a bucket on a cable carry you across, then the code opens the lift.
-{id:'ddmine',name:'Cave-In',sub:'The old mine',par:80,cave:true,night:true,sky:['#1d1712','#4a3a2a'],pal:{floor:'#8a7560',wall:'#6e5a46',prop:'#9a7a52',trim:'#2e241a'},
+{id:'ddmine',name:'Cave-In',sub:'The old mine',par:95,cave:true,night:true,sky:['#1d1712','#4a3a2a'],pal:{floor:'#8a7560',wall:'#6e5a46',prop:'#9a7a52',trim:'#2e241a'},
 msgs:{cage:'Code accepted. The lift gate rattles open'},unlock:['cage'],
 build(B,r){
   const W=B.W;
@@ -92,7 +93,7 @@ build(B,r){
 // 2. A flooded cave. Swim the grotto's lake and dive under the wall into the sump, where a valve opens the grate at the
 // bottom for a few seconds: race it, through the drowned tunnel to the key grotto. A second valve lets you back out;
 // carry the key all the way back to the door by the shore. Come up for air before the bar runs out.
-{id:'ddflood',name:'Deep End',sub:'The flooded cave',par:95,cave:true,sky:['#0f2b33','#2f6f73'],pal:{floor:'#5f7f7a',wall:'#4f6b66',prop:'#7a9a8a',trim:'#1c3330'},
+{id:'ddflood',name:'Deep End',sub:'The flooded cave',par:115,cave:true,sky:['#0f2b33','#2f6f73'],pal:{floor:'#5f7f7a',wall:'#4f6b66',prop:'#7a9a8a',trim:'#1c3330'},
 msgs:{keydoor:'The key turns. The way out is open'},unlock:['keydoor'],
 build(B,r){
   const W=B.W,RK={col:'#6f8a82',mat:'stone'},T={top:13};
@@ -144,7 +145,7 @@ build(B,r){
 // the next cart either to the stores (the staff pass is there) or to the signal box (whose door needs the pass): ride
 // one, come back and switch the points for the other. On the platforms, trains run through both tracks: the emergency
 // exit opens for a few seconds, so cross when the trains have gone, waiting between the tracks if you need to.
-{id:'ddrail',name:'Off the Rails',sub:'The underground railway',par:95,cave:true,sky:['#1c1a24','#4a4458'],pal:{floor:'#d8cdb8',wall:'#e8e2d0',prop:'#b84a3a',trim:'#1e3a8a'},
+{id:'ddrail',name:'Off the Rails',sub:'The underground railway',par:165,cave:true,sky:['#1c1a24','#4a4458'],pal:{floor:'#d8cdb8',wall:'#e8e2d0',prop:'#b84a3a',trim:'#1e3a8a'},
 msgs:{sbox:'The pass opens the signal box','points:on':'Points switched: the cart now goes to the signal box','points:off':'Points switched: the cart now goes to the stores',exitdoor:'The emergency exit is open. Hurry!'},unlock:['sbox'],
 build(B,r){
   const W=B.W,TILE={col:'#efe9d8',mat:'floor'},PLAT={col:'#c9bda4',mat:'stone'},RED={col:'#b84a3a',mat:'plastic'};
@@ -259,12 +260,18 @@ build(B,r){
 // 5. An aquarium after closing time. The feeding chart is up in the keeper's office: feed the crab, the turtle, the fish
 // and the squid in its order. The crab's button is at the bottom of its tank among the jellyfish, the turtle's on a rock
 // in hers, the fish's at the top of the stairs and the squid's at the bottom of the shark tank. Once everyone's fed, the
-// grille at the bottom of the shark tank opens: dive past the shark and swim out through the pipe.
-{id:'ddtank',name:'Fish Tank',sub:'The aquarium',par:150,deep:true,sky:['#0b3a5c','#2a8fb8'],pal:{floor:'#dfe9ee',wall:'#7fb3c8',prop:'#f2c14e',trim:'#123247'},
+// grille at the bottom of the shark tank opens: dive past the shark and swim out through the pipe. Feeding out of order
+// unfeeds everyone; going back to a checkpoint doesn't.
+{id:'ddtank',name:'Fish Tank',sub:'The aquarium',par:175,deep:true,sky:['#0b3a5c','#2a8fb8'],pal:{floor:'#9fbcc6',wall:'#6fa3b8',prop:'#f2c14e',trim:'#123247'},
 msgs:{fed:'Everyone is fed. The grille in the shark tank opens!'},unlock:['fed'],
 build(B,r){
   const W=B.W,T12={top:14},GL={mat:'tank',col:'#d6f3ff'},ROCK={col:'#8a9aa6',mat:'stone'},WD={mat:'wood',col:'#9a7048'};
-  W.seqs.feed={order:shuffle(['crab','turtle','fish','squid'],r),set:'fed'};
+  // the feeding order (the chart shows W.seqs.feed). Each button sets its own flag, so going back to a checkpoint keeps
+  // who's been fed; feeding out of order unfeeds everyone (start again from the first)
+  const order=shuffle(['crab','turtle','fish','squid'],r);W.seqs.feed={order,set:'fed'};
+  W.tick=(W,pl)=>{const f=W.st.f;if(f.fed)return;let n=0;while(n<order.length&&f['fed_'+order[n]])n++;
+    for(let k=n+1;k<order.length;k++)if(f['fed_'+order[k]]){for(const a of order){f['fed_'+a]=false;W.st.used['feed_'+a]=0}pl.ev.push('buzz');return}
+    if(n===order.length){f.fed=true;pl.ev.push('open:fed')}};
   // the hall, the keeper's office over the entrance (a ladder up), two small tanks
   B.floor(-14,7,14,-30);B.wallX(7,-14.5,14.5,[],T12);B.wallZ(-14,7,-30,[],T12);B.wallZ(14,7,-30,[],T12);B.wallX(-30,-14.5,14.5,[{c:0,w:DW,h:2.6}],T12);
   B.cp(0,1,3.6);
@@ -276,22 +283,22 @@ build(B,r){
   // the crab's tank (west): its button at the bottom, two jellyfish
   B.box(-11,1.3,-1,6,4.6,1,GL);B.box(-8,1.3,-6,1,4.6,10,GL);B.box(-11,1.3,-11,6,4.6,1,GL);
   B.water(-13.5,-1.5,-8.5,-10.5,3.2);B.blk(-6.6,-6,1.6,1.6,1.8,WD);
-  B.btn('feed_crab',-11.6,-7,{seq:'feed',sym:'crab'},{top:1.2,icon:'crab',col:'#ef6b4a',stand:[-11.6,-5.4]});
+  B.btn('feed_crab',-11.6,-7,{set:'fed_crab'},{top:1.2,icon:'crab',col:'#ef6b4a',stand:[-11.6,-5.4]});
   const jelly=(name,x,z,ph)=>B.add({shape:'cyl',x,y:1.4,z,r:.5,h:1.2,kill:true,solid:false,mat:'jelly',col:'#ff3355',cam:false,name,move:{type:'line',ay:1.4,per:3.2,ph}});
   jelly('jelly1',-9.8,-8.6,0);jelly('jelly2',-12.8,-3.2,.5);
   // the turtle's tank (east): her button on a rock, the gem at the bottom
   B.box(11,1.3,-1,6,4.6,1,GL);B.box(8,1.3,-6,1,4.6,10,GL);B.box(11,1.3,-11,6,4.6,1,GL);
   B.water(8.5,-1.5,13.5,-10.5,3.2);B.blk(6.6,-6,1.6,1.6,1.8,WD);
   B.blk(11.8,-6,2.6,2.6,3.8,Object.assign({name:'turtleRock'},ROCK));
-  B.btn('feed_turtle',12.6,-6.6,{seq:'feed',sym:'turtle'},{top:4.9,icon:'turtle',col:'#34d399',stand:[11.4,-5.6]});
+  B.btn('feed_turtle',12.6,-6.6,{set:'fed_turtle'},{top:4.9,icon:'turtle',col:'#34d399',stand:[11.4,-5.6]});
   B.item('gem','gem',13,.7,-9.8);
   // the shark tank: stairs up the east side (the fish's button at the top), the squid's button at the bottom, the grille
   B.box(0,3.2,-14,20,8.4,1,GL);B.box(-10,3.2,-22,1,8.4,16,GL);B.box(10,3.2,-22,1,8.4,16,GL);
   B.water(-9.5,-14.5,9.5,-30,7);
   [[1.6,-16],[3.2,-19],[4.8,-22],[6.4,-25]].forEach(([top,z],i)=>B.blk(12.25,z,3.5,3,top,Object.assign({name:'stair'+i},ROCK)));
   B.blk(12.25,-28.25,3.5,3.5,7.6,Object.assign({name:'stairTop'},ROCK));B.cp(2,12.6,-27.3,{top:7.6,w:1.8,d:1.2});
-  B.btn('feed_fish',13.3,-29.3,{seq:'feed',sym:'fish'},{top:8.7,icon:'fish',col:'#fbbf24',stand:[12.1,-29]});
-  B.panel('feed_squid',-6,1.6,-29.45,0,{seq:'feed',sym:'squid'},{icon:'squid',col:'#c084fc',stand:[-6,-28.2]});
+  B.btn('feed_fish',13.3,-29.3,{set:'fed_fish'},{top:8.7,icon:'fish',col:'#fbbf24',stand:[12.1,-29]});
+  B.panel('feed_squid',-6,1.6,-29.45,0,{set:'fed_squid'},{icon:'squid',col:'#c084fc',stand:[-6,-28.2]});
   B.add({shape:'cyl',x:6,y:3.2,z:-22,r:.9,h:1.4,kill:true,solid:false,mat:'shark',col:'#ff2a4a',cam:false,name:'shark',move:{type:'orbit',cx:0,cz:-22,rad:6,w:.8,a0:0}});
   for(const [n,rad,w,a0,y,c] of [['fishA',3,-1.1,1,5.4,'#fbbf24'],['fishB',4.4,.9,3,1.6,'#60a5fa']])B.add({x:rad,y,z:-22,w:.9,h:.5,d:.3,deco:true,mat:'fish3',col:c,cam:false,name:n,move:{type:'orbit',cx:0,cz:-22,rad,w,a0}});
   B.door('x',-30,0,'fed',{h:2.6,col:'#5b6b70',part:{mat:'gate'}});
@@ -322,7 +329,7 @@ build(B,r){
 // the sunbeam from the crack in the east wall reaches the great crystal, which grows a crystal bridge to the far shore.
 // Four coloured crystals in the dark show one digit each, by lantern light only; the card in the geode beyond says in
 // which order. Ride the cart round the geode's lava lake to the door.
-{id:'ddcrystal',name:'Crystal Clear',sub:'The crystal cavern',par:120,cave:true,night:true,sky:['#160f24','#3b2a55'],pal:{floor:'#6e6280',wall:'#4a3f5c',prop:'#8b7aa8',trim:'#1a1226'},
+{id:'ddcrystal',name:'Crystal Clear',sub:'The crystal cavern',par:110,cave:true,night:true,sky:['#160f24','#3b2a55'],pal:{floor:'#6e6280',wall:'#4a3f5c',prop:'#8b7aa8',trim:'#1a1226'},
 msgs:{lit:'The great crystal blazes. A bridge of crystal grows!',cavedoor:'Code accepted. The door grinds open'},unlock:['lit','cavedoor'],
 build(B,r){
   const W=B.W,RK={col:'#6e6280',mat:'stone'},CR={mat:'glass',col:'#d8b4fe'},cols=['purple','blue','green','gold'];
@@ -350,11 +357,11 @@ build(B,r){
   B.cp(2,4.2,-41.3,{top:.6,w:1.4,d:1.4});
   isle('gemIsle',-8,-28.6,2.4);B.plat(-8,.6,-24.6,2.2,2.2,{crumble:true,mat:'crumble',col:'#b9a6d6',name:'gemStep'});B.item('gem','gem',-8,1.5,-28.6);
   const MIR=[['m1',3,-26],['m2',3,-40],['m3',-6,-40]];
-  W.beams.sun={x:11.4,z:-26,dir:[-1,0],y:1.8,set:'lit',mirrors:MIR.map(m=>m[0]),target:{x:-6,z:-50,name:'crystal'},stops:[[-13,-57,-11.5,-19],[11.5,-57,13,-19],[-13,-20.5,13,-19],[-13,-57,13,-55.5]]};
+  W.beams.sun={x:11.4,z:-26,dir:[-1,0],y:1.8,set:'lit',mirrors:MIR.map(m=>m[0]),target:{x:-6,z:-54.4,name:'crystal'},stops:[[-13,-57,-11.5,-19],[11.5,-57,13,-19],[-13,-20.5,13,-19],[-13,-57,13,-55.5]]};
   for(const [n,x,z] of MIR){B.cyl(x,1.1,z,.45,{col:'#3b3355',mat:'metal'});B.add({x,y:1.85,z,w:1.7,h:1.5,d:.16,solid:false,btn:{mirror:'sun'},name:n,mat:'mirror',col:'#dfe7ff',icon:'mirror',cam:false,stand:[x,z+1.1]})}
   do{for(const [n] of MIR)W.st.mir[n]=r()<.5?1:0}while(MIR.every(([n])=>!W.st.mir[n]));
   B.deco(11.45,1.8,-26,.12,1.6,1.6,{col:'#fff7c2',mat:'glass'});B.deco(11.5,6,-26,.1,8,.6,{col:'#fff7c2',mat:'glass'});
-  B.blk(-6,-50,1.4,1.4,1.2,RK);B.add({x:-6,y:2.1,z:-50,w:.9,h:1.6,d:.9,deco:true,mat:'crystal',col:'#e9d5ff',name:'crystal'});
+  B.blk(-6,-54.4,1.4,1.4,1.2,RK);B.add({x:-6,y:2.1,z:-54.4,w:.9,h:1.6,d:.9,deco:true,mat:'crystal',col:'#e9d5ff',name:'crystal'});
   B.plat(3,.6,-44.6,2.6,2.6,{onIf:'lit',mat:'glass',col:'#e9d5ff',name:'bridge1'});B.plat(3,.6,-48.8,2.6,2.6,{onIf:'lit',mat:'glass',col:'#e9d5ff',name:'bridge2'});
   B.sign(-3,6.4,-55.45,0,7,1.6,{title:'The great crystal',sub:'Light it with the sunbeam'});
   // the four coloured crystals (by lantern light)
@@ -387,7 +394,7 @@ build(B,r){
 // lie the captain's key and the ship's log with the escape hatch's code, but the floor creaks as you reach them and the
 // sea pours in: get back up through the trapdoor before the hold fills. The key opens the captain's cabin at the stern,
 // where the code opens the escape hatch.
-{id:'ddwreck',name:'Hull Breach',sub:'The sunken ship',par:120,deep:true,sky:['#06223a','#1f5f86'],pal:{floor:'#a07a52',wall:'#7a5a3e',prop:'#c9a24a',trim:'#2b1a10'},
+{id:'ddwreck',name:'Hull Breach',sub:'The sunken ship',par:85,deep:true,sky:['#06223a','#1f5f86'],pal:{floor:'#a07a52',wall:'#7a5a3e',prop:'#c9a24a',trim:'#2b1a10'},
 msgs:{hatch:'The crate is on the plate. The trapdoor opens','rise:flood':'The hull groans. The sea is pouring in!',cabin:'The captain\'s cabin unlocks',shipdoor:'Code accepted. The escape hatch opens'},unlock:['hatch','shipdoor'],
 build(B,r){
   const W=B.W,DECK={mat:'wood',col:'#a07a52'},PLANK={mat:'wood',col:'#7a5a3e'},CRATE={mat:'wood',col:'#8a6a42'},IRON={col:'#4b5563',mat:'metal'};
@@ -439,7 +446,7 @@ build(B,r){
 // tubes (west, pitch dark: take the lantern), the valve past the drowned passage in the hot springs (east, through a
 // steam geyser), and the button on the island in the lava lake, where the ore cart stops halfway. Beyond the vault is
 // the way up: the moment you step into the shaft the lava starts rising. Climb!
-{id:'ddcore',name:'Hot Core',sub:'The heart of the volcano',par:200,cave:true,sky:['#1a0b08','#5a2414'],pal:{floor:'#4a3a36',wall:'#3a2c28',prop:'#7a5040',trim:'#140a08'},
+{id:'ddcore',name:'Hot Core',sub:'The heart of the volcano',par:185,cave:true,sky:['#1a0b08','#5a2414'],pal:{floor:'#4a3a36',wall:'#3a2c28',prop:'#7a5040',trim:'#140a08'},
 msgs:{tubes:'The lava tubes\' lever is down. One relic of three',spring:'The spring valve turns. One relic of three',ore:'The ore button glows. One relic of three',
   vault:'All three relics awake! The vault opens','rise:magma':'The lava is rising! Climb!'},unlock:['vault'],
 build(B,r){
@@ -449,7 +456,7 @@ build(B,r){
   const crust=(name,x,top,z)=>B.plat(x,top,z,2.2,2.2,{crumble:true,mat:'crumble',col:'#8a5a40',name});
   // the hub: the lantern by the west door, the ore cart over the lava lake (it stops by the island), the vault door
   B.floor(-12,7,12,-26,BAS);B.wallX(7,-12.5,12.5);B.wallZ(-12,7,-26,[{c:0,w:DW,h:DH}]);B.wallZ(12,7,-26,[{c:0,w:DW,h:DH}]);
-  B.wallX(-26,-12.5,12.5,[{c:0,w:DW,h:DH}]);
+  B.wallX(-26,-12.5,12.5,[{c:0,w:DW,h:DH}],T30);
   B.cp(0,0,3.6);
   B.cyl(-9,1,3,.7,{col:'#5b4636',mat:'stone',name:'lampRock'});B.item('lamp','lamp',-9,1.6,3);
   B.lava(-12,-6,12,-22);
