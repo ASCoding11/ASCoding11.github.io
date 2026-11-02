@@ -195,7 +195,7 @@ build(B,r){
   B.blk(16.45,-54,.9,.6,11,CG);B.blk(20.55,-54,.9,.6,11,CG);B.box(18.5,9.8,-54,3.2,2.4,.6,CG);
   B.blk(16.3,-56.5,.6,5,11,CG);B.blk(20.7,-56.5,.6,5,11,CG);B.blk(18.5,-58.7,4.8,.6,11,CG);
   B.door('x',-54,18.5,'cagedoor',{col:'#3b82f6',w:3.2,part:{y:6.3,lock:'card'}});
-  B.btn('lever',19.2,-57.2,{toggle:'rod'},{top:5.1,icon:'lever',stand:[18.4,-55.9]});
+  B.btn('lever',19.2,-56.2,{toggle:'rod'},{top:5.1,icon:'lever',stand:[18.2,-55.4]});
   B.deco(17.4,8,-57.8,.25,8,.25,STEEL);B.deco(17.4,14.5,-57.8,.18,5,.18,{onIf:'rod',col:'#fde047',mat:'metal'});
   B.bolt('rodbolt',17.4,-57.8,.7,{per:4.6,on:.12,ph:.3},{y0:17,charge:{flag:'bridge',dur:7,need:'rod'}});
   // the bridge (lit for seven seconds by each strike on the rod), lightning between its tiles, the gusts
@@ -220,7 +220,7 @@ build(B,r){
   B.jon('hook',0,{wait:true});B.ladder('hook',(t)=>{const h=cur(hook,t);return h.z<-45.6?'done':'wait'});B.j(12.8,4,-50.4,{wait:true});B.w(14,4,-51);
   B.w(11.6,4,-53);B.u((t)=>cur(cr,t).y>3.3);B.jon('cradle',0,{wait:true});
   B.ladder('cradle',(t,W,pl)=>W.st.got.card&&cur(cr,t).y>3.4?'done':'wait');B.j(12.4,4,-53,{wait:true});
-  B.w(18.5,4,-52.6);B.w(18.5,4,-55);B.w(18.4,4,-55.9);B.use('lever',18.4,4,-55.9);B.w(18.5,4,-53);B.w(14.6,4,-53);B.w(14.6,4,-58.2);
+  B.w(18.5,4,-52.6);B.w(18.5,4,-55);B.w(18.2,4,-55.4);B.use('lever',18.2,4,-55.4);B.w(18.5,4,-53);B.w(14.6,4,-53);B.w(14.6,4,-58.2);
   B.u((t,W)=>{const v=W.st.f.bridge;return typeof v==='number'&&v-t>6.2});
   B.j(15,4,-61.4,{wait:true});B.j(17,4,-65.2,{wait:true});B.j(15,4,-68.6,{wait:true});B.w(18,4,-69.4);
   B.w(14.2,4,-72.3);B.use('pad',14.2,4,-72.3);B.code('heli');
@@ -455,6 +455,149 @@ build(B,r){
   B.w(0,0,-29);B.w(0,0,-41);B.w(0,0,-44.4);B.w(0,0,-46.4);
   B.drive((t,W,pl)=>pl.y>13.6?go(pl,0,-53):go(pl,0,-48.6));
   W.spawn={x:0,y:0,z:3,yaw:0};
+}},
+// 7. A satellite in orbit. The fuse floats in the zero-gravity lab; with it the hub's thrusters (cannons) work. Each
+// one fires you to a module with a solar panel on a mast and a button, but every button turns the panel of the colour
+// on it, which stands on another module. The sun sensor in the hub says where the sun is: turn all three panels to
+// face it, then the escape pod's thruster fires you to the return capsule.
+{id:'orbiter',name:'Orbiter',sub:'The satellite',par:160,space:true,sky:['#05060f','#1b2350'],pal:{floor:'#c9ced8',wall:'#9aa3b5',prop:'#e9b949',trim:'#2d3142'},
+msgs:{power:'The fuse is in. The thrusters have power',sunlit:'All three panels face the sun! The escape pod is ready'},unlock:['sunlit'],
+build(B,r){
+  B.sky();const W=B.W,HULL={col:'#c9ced8',mat:'metal'},GOLD={col:'#e9b949',mat:'metal'},DARK={col:'#2d3142',mat:'metal'};
+  W.killY=-12;
+  const ks=Math.floor(r()*8),PANEL={pW:'#ef4444',pE:'#22c55e',pN:'#3b82f6'},keys=Object.keys(PANEL);
+  const start={};for(const k of keys)start[k]=(ks+1+Math.floor(r()*7))%8;
+  // the dock (start) and the zero-gravity lab with the fuse
+  B.plat(0,0,0,10,8,Object.assign({name:'dock',t:2},HULL));B.cp(0,0,1.6);
+  B.sign(2.6,2.4,-3.9,0,4.6,1.3,{title:'Orbiter',sub:'Mind the gap: it is a long way down'});B.deco(.6,1,-3.95,.2,2,.2,DARK);B.deco(4.6,1,-3.95,.2,2,.2,DARK);
+  B.plat(-8.5,0,0,7,2.4,Object.assign({name:'labwalk'},HULL));
+  B.plat(-17,0,-4,10,12,Object.assign({name:'lab',t:1},HULL));
+  B.zone('lowg',-22,2,-12,-10,0,24,{name:'lowg'});
+  B.plat(-19,3,-1,2.6,2.6,{move:{type:'line',ay:2.4,per:5},name:'f1',col:'#94a3b8',mat:'metal'});
+  B.plat(-15,7.6,-6,2.6,2.6,{move:{type:'line',ay:2.4,per:6,ph:.3},name:'f2',col:'#94a3b8',mat:'metal'});
+  B.plat(-20,12,-8,2.6,2.6,{move:{type:'line',ay:2,per:5.5,ph:.6},name:'f3',col:'#94a3b8',mat:'metal'});
+  B.plat(-14.6,15.4,-9,2.6,2.6,Object.assign({name:'shelf'},GOLD));B.item('fuse','fuse',-14.6,16.3,-9);
+  B.plat(-21,19.4,-.8,1.6,1.6,Object.assign({name:'gemshelf'},GOLD));B.item('gem','gem',-21,20.2,-.8);
+  // the walkway to the hub, a laser sweeping across it
+  B.plat(0,0,-9,2.4,10,Object.assign({name:'walk'},HULL));
+  B.laser(-4,1.5,-9.4,.3,3,.3,{move:{type:'line',ax:8,per:3.2},name:'sweep'});B.deco(0,3.3,-9.4,10,.25,.25,DARK);
+  // the hub: the fuse box, the sun sensor, three thrusters to the modules and the escape pod's
+  B.plat(0,0,-20,12,12,Object.assign({name:'hub',t:2},HULL));B.cp(1,0,-15.6);
+  B.btn('fusebox',4.4,-15.4,{need:'fuse',then:'power'},{top:1.1,icon:'fuse',stand:[3.2,-15.6]});
+  B.sign(0,2.6,-25.9,0,3,3,{w5:'vane',to:ks,n:8,title:'Sun sensor: the sun is'});B.deco(0,1,-26,.2,2,.2,DARK);
+  B.sign(0,.03,-20,0,2.4,2.4,{rose:true},{flat:true});
+  B.cannon('cW',-4.4,1.2,-20,{to:[-25.5,0,-20],vy:18,pow:'power'});
+  B.cannon('cE',4.4,1.2,-20,{to:[25.5,0,-20],vy:18,pow:'power'});
+  B.cannon('cN',0,1.2,-23.6,{to:[0,0,-45.5],vy:18,pow:'power'});
+  B.cannon('cX',-4.2,1.2,-24.2,{to:[-21,3,-44],vy:22,pow:'sunlit',col:'#c0392b'});
+  // the three modules: a panel on a mast (it turns round its mast), a button for another module's panel, a way back
+  const MOD={pW:[-26,-20],pE:[26,-20],pN:[0,-46]},BTN={pW:'pE',pE:'pN',pN:'pW'};
+  for(const k of keys){const [mx,mz]=MOD[k],col=PANEL[k],bk=BTN[k];
+    B.plat(mx,0,mz,9,9,Object.assign({name:'mod_'+k},HULL));
+    B.deco(mx,3,mz,.4,6,.4,DARK);
+    B.turning(k,mx,mz,8,()=>{B.deco(mx,6.4,mz-.5,6,3.4,.2,{col,mat:'glass'});B.deco(mx,6.4,mz-.36,6.2,3.6,.12,{col:'#1e293b',mat:'metal'})},{start:start[k]});
+    const dx=Math.sign(mx)||0,bx=mx+(dx?dx*2.4:2.6),bz=mz+(dx?2.6:2.4);
+    B.turnBtn('btn_'+bk,bx,bz,bk,{top:1.1,col:PANEL[bk],stand:[bx-(dx?dx*1.2:0),bz-(dx?0:-1.2)]});
+    const rx=mx+(dx?-dx*2.6:-2.6),rz=mz+(dx?-2.6:2.4);
+    B.cannon('r_'+k,rx,1.2,rz,{to:[dx?dx*-2.2:2.6,0,dx?-18:-20],vy:18,col:'#475569'});
+    B.sign(mx,.03,mz,0,2.2,2.2,{rose:true},{flat:true})}
+  B.align({pW:ks,pE:ks,pN:ks},'sunlit');
+  B.laser(-26,1.5,-14.4,9,3,.3,{timed:{per:3,on:.4,ph:0},name:'curtW'});B.laser(26,1.5,-14.4,9,3,.3,{timed:{per:3,on:.4,ph:.5},name:'curtE'});
+  B.kill(0,1.1,-50.2,4.6,.4,.4,{move:{type:'spin',w:1.1},name:'spinN'});B.cyl(0,1.5,-50.2,.4,{t:1.5,col:'#2d3142',name:'spinhub'});
+  // the return capsule (the way out)
+  B.plat(-21,3,-44,5,5,Object.assign({name:'capsule'},GOLD));B.finish(-21,-44,{top:3,w:3.6,d:3.6});
+  B.deco(-21,6.4,-46.4,4,2,.4,DARK);B.sign(-21,6.4,-46.15,0,2.4,.75,{exit:true});
+  // route: the lab, the fuse box, each module (turn the panel its button names), back to the hub, then the pod
+  B.w(-5.4,0,0);B.w(-13.2,0,-1);B.jon('f1',0,{wait:true});B.jon('f2',0,{wait:true});B.jon('f3',0,{wait:true});B.j(-14.6,15.4,-9,{wait:true});
+  B.j(-13,0,-2,{wait:true});B.w(-5.4,0,0);B.w(0,0,-3.6);B.w(0,0,-14.6);B.w(0,0,-15.6);B.w(3.2,0,-15.6);B.use('fusebox',3.2,0,-15.6);
+  const hubBack=[];
+  for(const [k,cn] of [['pW','cW'],['pE','cE'],['pN','cN']]){const c=W.byName.get(cn),[mx,mz]=MOD[k],dx=Math.sign(mx)||0;
+    B.w(c.x+(dx?-dx*1.8:1.8),0,c.z+(dx?0:.2));B.j(c.x,1.2,c.z,{wait:true});B.fire(cn,['mod_'+k]);
+    const bk=BTN[k],b=W.byName.get('btn_'+bk);B.w(b.stand[0],0,b.stand[1]);B.turnTo('btn_'+bk,bk,ks);
+    const rc=W.byName.get('r_'+k);B.w(rc.x+(dx?dx*1.6:0),0,rc.z+(dx?0:1.6));B.j(rc.x,1.2,rc.z,{wait:true});B.fire('r_'+k,['hub','cp1'])}
+  B.u((t,W)=>flagOn(W,'sunlit',t));B.w(-2.4,0,-24.2);B.j(-4.2,1.2,-24.2,{wait:true});B.fire('cX',['capsule']);B.w(-21,3,-44);
+  W.spawn={x:0,y:0,z:1.6,yaw:0};
+}},
+// 8. The finale: a weather station in the eye of a hurricane. A bridge on a turntable joins the hub to one island at a
+// time (its button is in the hub). Three storm engines must be switched off: east, behind a door that only a strike
+// on the raised lightning rod opens, for a few seconds; west, on one of the high nests round a cannon you aim
+// yourself; north, at the top of a tower of updrafts with lightning on top. The two halves of the tower's code are in
+// the east engine room and on the other west nest. Calm the storm, open the tower, ride its updraft to the top.
+{id:'stormeye',name:'Eye of the Storm',sub:'The weather station',par:220,clouds:'#4f5873',night:true,sky:['#141a2e','#5d5a7a'],pal:{floor:'#7d8597',wall:'#c9ced8',prop:'#e0a33a',trim:'#1b1f2b'},
+msgs:{'rodE:on':'The lightning rod goes up','rodE:off':'The lightning rod goes down',capE:'Lightning hits the rod! The engine room opens',
+  engE:'The east engine stops. One of three',engW:'The west engine stops. One of three',engN:'The north engine stops. One of three',calm:'All three engines are off: the storm calms',
+  code:'Code accepted',eyedoor:'The storm is calm and the code is right: the tower opens'},unlock:['calm','eyedoor'],
+build(B,r){
+  B.sky();const W=B.W,ROCK={col:'#7d8597',mat:'stone'},STEEL={col:'#5b6475',mat:'metal'},GOLD={col:'#e0a33a',mat:'metal'},WL={col:'#c9ced8',mat:'stone'};
+  W.killY=-10;W.codes.eye=makeCode(r);W.pads.eye={set:'code'};
+  const CX=0,CZ=-40;
+  const D8=k=>[-Math.sin(k*Math.PI/4),-Math.cos(k*Math.PI/4)];
+  const cand=shuffle([0,1,2,3,4,5,7],r),ka=cand[0],kb=cand[1];
+  // the south island (start) and the hub, with its turntable bridge and the bridge's button
+  B.plat(0,0,-19,10,10,Object.assign({name:'S',t:3},ROCK));B.cp(0,0,-16.5);
+  B.sign(-2.6,2.6,-23.85,0,4.8,1.4,{title:'Eye of the Storm',sub:'Switch the storm off'});B.deco(-4.6,1,-23.9,.2,2,.2,STEEL);B.deco(-.6,1,-23.9,.2,2,.2,STEEL);
+  B.cyl(CX,0,CZ,7,Object.assign({t:3,name:'hub'},ROCK));B.cp(1,0,-34.4,{w:2.4,d:2.4});
+  B.turning('br',CX,CZ,4,()=>{B.plat(CX,0,CZ+11.6,3,8.8,{name:'bridge',col:'#a0785a',mat:'wood'});B.deco(CX-1.4,.5,CZ+11.6,.15,1,8.8,STEEL);B.deco(CX+1.4,.5,CZ+11.6,.15,1,8.8,STEEL)},{start:0});
+  B.turnBtn('brBtn',3.8,-36.2,'br',{top:1.1,col:'#e0a33a',stand:[4.6,-35.2]});
+  // the storm: gusts across each bridge, round the hub
+  B.wind(-12,-28,12,-24.2,-2,12,[5,0],{timed:{per:4.6,on:.3,ph:0},name:'gS'});B.wind(-12,-55.8,12,-52,-2,12,[-5,0],{timed:{per:4.6,on:.3,ph:.5},name:'gN'});
+  B.wind(7.4,-52,15.8,-28,-2,12,[0,-5],{timed:{per:4.6,on:.3,ph:.25},name:'gE'});B.wind(-15.8,-52,-7.4,-28,-2,12,[0,5],{timed:{per:4.6,on:.3,ph:.75},name:'gW'});
+  // the central tower: keypad door (calm and code), an updraft inside, the way out on top
+  B.blk(-2.75,-40,.5,5.5,10,WL);B.blk(2.75,-40,.5,5.5,10,WL);B.blk(0,-42.75,6,.5,10,WL);B.blk(-2.05,-37.25,1.9,.5,10,WL);B.blk(2.05,-37.25,1.9,.5,10,WL);B.box(0,7.3,-37.25,2.2,5.4,.5,WL);
+  B.door('x',-37.25,0,'eyedoor',{w:2.2,col:'#e0a33a',part:{mat:'vaultdoor'}});B.all(['calm','code'],'eyedoor');
+  B.panel('pad',-1.8,2.8,-36.9,0,{pad:'eye'},{icon:'pad',stand:[-1.8,-35.6]});
+  B.lift(-2.2,-37.8,2.2,-42.2,0,23,{name:'eyelift'});
+  B.plat(0,20,-45.2,5,4,Object.assign({name:'top'},GOLD));B.finish(0,-45.2,{top:20,w:3.6,d:3});B.sign(0,22.6,-47.15,0,2.4,.75,{exit:true});B.deco(0,21.4,-47.2,.3,2.8,.3,STEEL);
+  B.all(['engE','engW','engN'],'calm');
+  // east: the engine room opens for a few seconds when lightning hits the raised rod; lightning on the way
+  B.plat(21,0,-40,10,10,Object.assign({name:'E',t:3},ROCK));
+  B.blk(24,-35.7,4.6,.6,8,WL);B.blk(24,-44.3,4.6,.6,8,WL);B.blk(26.3,-40,.6,9,8,WL);B.blk(21.7,-36.8,.6,2.6,8,WL);B.blk(21.7,-43.2,.6,2.6,8,WL);B.box(21.7,6.3,-40,.6,3.4,3.8,WL);
+  B.door('z',21.7,-40,'capE',{w:3.6,col:'#3b82f6'});
+  B.btn('engEBtn',24.6,-40,{set:'engE'},{top:1.1,icon:'bolt',col:'#ef4444',stand:[23.4,-40]});
+  B.sign(25.95,2.6,-38.4,-Math.PI/2,2.6,1.4,{code:'eye',half:0,label:'Tower code, 1st half'});
+  B.btn('rodLever',18,-36.4,{toggle:'rodE'},{top:1.1,icon:'lever',stand:[18.6,-37.4]});
+  B.deco(17.4,6,-44,.25,12,.25,STEEL);B.deco(17.4,13.6,-44,.18,3.2,.18,{onIf:'rodE',col:'#fde047',mat:'metal'});
+  B.bolt('rodbolt',17.4,-44,.6,{per:5,on:.12,ph:.2},{y0:15.4,charge:{flag:'capE',dur:5,need:'rodE'}});
+  B.bolt('boltE1',19.6,-40,1,{per:3.4,on:.14,ph:.6});
+  // west: a cannon you aim (its button beside it); two high nests: the west engine, and the code's second half
+  B.cyl(-27,0,-40,11,Object.assign({t:3,name:'Wi'},ROCK));
+  const AW=-27,AZ=-40,T=(22+Math.sqrt(22*22-2*46*6))/46,SP=8/T;
+  B.turning('aim',AW,AZ,8,()=>B.cannon('aimW',AW,1.2,AZ,{sp:SP,vy:22,yaw:0,r:.95,col:'#7c2d12'}),{start:6});
+  B.turnBtn('aimBtn',AW+2.4,AZ+2.4,'aim',{top:1.1,col:'#e0a33a',stand:[AW+3.4,AZ+3.4]});
+  for(const [k,nm] of [[ka,'nestA'],[kb,'nestB']]){const [ux,uz]=D8(k);B.plat(AW+ux*8,6,AZ+uz*8,4,4,Object.assign({name:nm},GOLD))}
+  {const [ux,uz]=D8(ka);B.btn('engWBtn',AW+ux*9.2,AZ+uz*9.2,{set:'engW'},{top:7.1,icon:'bolt',col:'#ef4444',stand:[AW+ux*8,AZ+uz*8]})}
+  {const [ux,uz]=D8(kb);B.sign(AW+ux*8,6.03,AZ+uz*8,0,2.6,1.6,{code:'eye',half:1,label:'Tower code, 2nd half',flat:true},{flat:true})}
+  // north: a tower of updrafts (the top one comes and goes), the engine on a ledge over the top, lightning there
+  B.plat(0,0,-61,10,10,Object.assign({name:'N',t:3},ROCK));
+  B.blk(-3.25,-60,.5,7,9,WL);B.blk(3.25,-60,.5,7,9,WL);B.blk(0,-63.25,6,.5,9,WL);B.blk(-2.25,-56.75,1.5,.5,9,WL);B.blk(2.25,-56.75,1.5,.5,9,WL);
+  B.lift(-3,-57,3,-59.4,0,9.6,{name:'nlift1'});
+  B.plat(0,7,-60.6,6,2.4,Object.assign({name:'nledge'},STEEL));
+  B.lift(-3,-61.8,3,-63,6,17.4,{timed:{per:4,on:.65,ph:.3},name:'nlift2'});
+  B.plat(0,14,-65.4,5,3.6,Object.assign({name:'ntop'},GOLD));
+  B.btn('engNBtn',1.6,-66.4,{set:'engN'},{top:15.1,icon:'bolt',col:'#ef4444',stand:[1.4,-65.2]});
+  B.bolt('boltN',-1.2,-65.6,.8,{per:4,on:.14,ph:.1},{y0:14});
+  B.plat(-6.6,3.4,-68,1.6,1.6,Object.assign({name:'gemrock'},ROCK));B.item('gem','gem',-6.6,4.2,-68);
+  // route: east (rod, strike, engine), west (aim, nests), north (updrafts), back to the tower
+  const nl2=W.byName.get('nlift2'),bN=W.byName.get('boltN');
+  B.w(0,0,-16.5);B.w(0,0,-26);B.w(0,0,-34.4);B.w(4.6,0,-35.2);B.turnTo('brBtn','br',1);
+  B.w(6.6,0,-40);B.w(15,0,-40);B.w(18.6,0,-37.4);B.use('rodLever',18.6,0,-37.4);B.w(18.4,0,-42);
+  B.u((t,W)=>{const v=W.st.f.capE;return typeof v==='number'&&v-t>4.2});B.w(20.4,0,-40.6);B.w(23.4,0,-40);B.use('engEBtn',23.4,0,-40);
+  B.u((t,W)=>{const v=W.st.f.capE;return typeof v==='number'&&v-t>3.4});B.w(19.6,0,-42.4);B.w(15,0,-40);B.w(6.6,0,-40);
+  B.w(4.6,0,-35.2);B.turnTo('brBtn','br',3);B.w(-4.6,0,-35.2);B.w(-6.6,0,-40);B.w(-16.6,0,-40);
+  for(const [k,nm] of [[ka,'nestA'],[kb,'nestB']]){const [ux,uz]=D8(k);
+    B.w(AW+3.4,0,AZ+3.4);B.turnTo('aimBtn','aim',k);B.w(AW+1.6,0,AZ-1.6);B.j(AW,1.2,AZ,{wait:true});B.fire('aimW',[nm]);
+    if(nm==='nestA')B.use('engWBtn',AW+ux*8,6,AZ+uz*8);
+    B.j(AW+ux*3.4-uz*3,0,AZ+uz*3.4+ux*3,{wait:true})}
+  B.w(-16.6,0,-40);B.w(-6.6,0,-40);B.w(-4.6,0,-35.2);B.w(4.6,0,-35.2);B.turnTo('brBtn','br',2);
+  B.w(5.4,0,-41);B.w(0,0,-48);B.w(0,0,-54.4);B.w(0,0,-56.4);
+  B.drive((t,W,pl)=>{if(on(pl,'ntop'))return'done';if(pl.y>15.6)return go(pl,1.4,-65.2);
+    if(on(pl,'nledge'))return phaseOn(nl2.timed,t)&&E.phaseLeft(nl2.timed,t)>2.1&&!phaseOn(bN.timed,t+.6)&&!phaseOn(bN.timed,t+1.6)?go(pl,0,-62.4):go(pl,0,-60.4);
+    if(pl.y>8.2||pl.z<-60)return go(pl,0,pl.z<-61.6?-62.4:-60.6);const g=go(pl,0,-58.2);if(pl.gr){g.x*=.35;g.z*=.35}return g});
+  B.u((t)=>!phaseOn(bN.timed,t)&&E.phaseLeft(bN.timed,t)>1.4);B.w(1.4,14,-65.2);B.use('engNBtn',1.4,14,-65.2);B.j(4.2,0,-64.4,{wait:true});
+  B.w(4.2,0,-56.4);B.w(0,0,-55);B.w(0,0,-48.4);B.w(-5.4,0,-41);B.w(-4.4,0,-35.4);B.w(-1.8,0,-35.6);B.use('pad',-1.8,0,-35.6);B.code('eye');
+  B.u((t,W)=>flagOn(W,'eyedoor',t));B.w(0,0,-36.2);
+  B.drive((t,W,pl)=>{if(pl.y>21.4)return go(pl,0,-45.2);const g=go(pl,0,-40);if(pl.gr){g.x*=.35;g.z*=.35}return g});
+  W.spawn={x:0,y:0,z:-16.5,yaw:0};
 }}
 ]});
 })(Escapade);
