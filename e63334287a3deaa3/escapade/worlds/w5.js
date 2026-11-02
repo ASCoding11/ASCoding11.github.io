@@ -394,7 +394,7 @@ build(B,r){
   // the outer bailey (start), the curtain wall and its gate, the fountain and the bell tower
   B.plat(0,0,-12,28,36,{t:3,name:'bailey',col:'#f3efe6',mat:'floor'});
   B.cp(0,0,3);
-  B.wallX(-7,-14,14,[{c:0,w:DW,h:DH}],{top:16,col:'#e7e1f0'});
+  B.wallX(-7,-17.5,17.5,[{c:0,w:DW,h:DH}],{top:16,col:'#e7e1f0'});
   B.door('x',-7,0,'gate',{col:'#5b4b8a',part:{mat:'gate'}});
   B.cyl(-9,.35,-2.7,1.6,{t:.35,col:'#bfe6ff',mat:'glass',name:'fountain'});
   B.lift(-10.3,-1.4,-7.7,-4,0,14.5,{timed:{per:4,on:.7,ph:0},name:'spout'});
