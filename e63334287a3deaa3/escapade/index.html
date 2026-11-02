@@ -2148,9 +2148,14 @@ function w6Event(e){
   else if(e==='w6:caught')banner(dragon?'The dragon caught you!':'Your shadow caught you!','Keep moving, and never turn back into it',2.2);
 }
 // World 6's clue signs: {w6: 'maze'} the labyrinth's plan (walls, flaps drawn as pink gaps, bells as gold dots);
-// {w6: 'order', g, title, sub} the symbols of W.seqs[g] in order (a tapestry)
+// {w6: 'order', g, title, sub} the symbols of W.seqs[g] in order (a tapestry); {w6: 'doors'} the colours in W.w6doors
+// in order (which portal to take in each round)
 function w6Sign(g,sg,W,w,h,font){
   const ink='#1b1840';
+  if(sg.w6==='doors'){const L=W.w6doors,n=L.length;g.fillStyle='#1b1240';g.fillRect(0,0,w,h);g.strokeStyle='#c4b5fd';g.lineWidth=12;g.strokeRect(6,6,w-12,h-12);
+    g.fillStyle='#e9e3ff';g.font=font(h*.12);g.fillText(sg.title||'The dream goes',w/2,h*.16);
+    L.forEach((c,i)=>{const x=w*(i+.5)/n,y=h*.6,aw=w/n*.42,ah=h*.5;g.fillStyle=c;rr(g,x-aw/2,y-ah/2,aw,ah,aw/2);g.fill();g.lineWidth=6;g.strokeStyle='#ffffff';g.stroke();
+      g.fillStyle='#ffffff';g.font=font(h*.14);g.fillText(String(i+1),x,y+h*.04);if(i<n-1){g.fillStyle='#c4b5fd';g.beginPath();g.moveTo(x+aw*.75,y-h*.05);g.lineTo(x+aw*.95,y);g.lineTo(x+aw*.75,y+h*.05);g.fill()}});return}
   if(sg.w6==='order'){const order=W.seqs[sg.g].order,n=order.length;g.fillStyle=sg.bg||'#7a1f2b';g.fillRect(0,0,w,h);g.strokeStyle='#e8b923';g.lineWidth=14;g.strokeRect(9,9,w-18,h-18);
     g.fillStyle='#ffe9a8';g.font=font(h*.13);g.fillText(sg.title||'In this order',w/2,h*.17);if(sg.sub){g.font=font(h*.075);g.fillStyle='#f4d7c0';g.fillText(sg.sub,w/2,h*.3)}
     order.forEach((s,i)=>{const x=w*(i+.5)/n,y=h*.62;g.fillStyle='rgba(255,250,235,.9)';g.beginPath();g.arc(x,y,h*.17,0,TAU);g.fill();drawIcon(g,s,x,y,h*.26);

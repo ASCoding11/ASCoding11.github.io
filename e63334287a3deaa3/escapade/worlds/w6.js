@@ -3,7 +3,7 @@
 // CORE): one-way flaps (B.oneway), rings of fire (B.ring) and your shadow (B.shadow), plus a boss with three phases.
 (function(E){
 'use strict';
-const {DW,DH,WH,cur,flagOn,makeCode,shuffle,exitHall,GLYPHS}=E;
+const {DW,DH,WH,cur,flagOn,makeCode,shuffle,exitHall,GLYPHS,ROSES}=E;
 const PI=Math.PI;
 
 // A labyrinth on a grid of cells (n x n, size s, south-west corner at x0, z0; row 0 is the south row). open: edges
@@ -302,6 +302,121 @@ build(B,r){
   B.w(0,0,-59.6);B.j(-2,.8,-63.4);B.j(2,1.2,-66.8);B.j(0,1.6,-70.6);B.w(0,1.6,-70.6);B.j(-3,1.2,-74.4,{wait:true});B.j(-2.6,.8,-77.8);B.j(1.4,1.2,-81);B.j(0,0,-86,{wait:true});
   B.w(0,0,-95);B.w(0,0,-95.4);
   W.spawn={x:0,y:0,z:3.6,yaw:0};
+}},
+
+// 5. A vault of clocks. Ride the gears and a pendulum over the lava; the pocket watch hangs on the wall here. In the
+// Hall of Echoes your shadow follows your path four seconds behind, so you can't stand still: set the great clock to
+// the watch's time from the hour tower and the minute tower (step away and come back if it gets close). Then the sand
+// stair: a belt that drags you back under falling sand.
+{id:'hourglass',name:'Borrowed Time',sub:'The time vault',par:140,sky:['#1f2a44','#d9bf8c'],pal:{floor:'#d6c7a1',wall:'#5e6b80',prop:'#c9a24a',trim:'#1d2433'},
+msgs:{clk:'The great clock chimes. The vault door opens'},unlock:['clk'],
+build(B,r){
+  const W=B.W,BR={col:'#c9a24a',mat:'metal'},GEAR={col:'#b8893a',mat:'gear'},SAND={col:'#e3c58f',mat:'stone'};
+  const th=1+Math.floor(r()*11),tm=Math.floor(r()*4);
+  W.dials.clk={set:'clk',keys:['h','m'],target:{h:th,m:tm}};
+  W.st.dial.h=(th+3+Math.floor(r()*6))%12;W.st.dial.m=(tm+1+Math.floor(r()*3))%4;
+  const gear=(name,x,z,rad,top,w)=>{B.cyl(x,top,z,rad,Object.assign({move:{type:'spin',w},name},GEAR));B.dcyl(x,top+.06,z,.5,.14,{col:'#4a3423',mat:'metal'})};
+  // the gear gallery
+  B.floor(-12,6.5,12,-28,{col:'#cbbd98',mat:'floor'});B.wallZ(-12,7,-28);B.wallZ(12,7,-28);B.wallX(7,-12.5,12.5);
+  B.wallX(-28,-14.5,14.5,[{c:0,w:DW,h:DH}]);
+  B.cp(0,0,3.6);
+  B.lava(-12,1,12,-24);
+  gear('g1',-3.6,-3.6,2.3,1,1);gear('g2',2.2,-8.4,2.2,1.8,-1.2);
+  B.plat(-.6,1.6,-13.6,2.6,2.4,{move:{type:'swing',dx:1,len:8.6,amp:.42,per:4.2},mat:'metal',col:'#d7b56a',name:'pend'});
+  B.deco(0,10.4,-13.6,24,.5,.5,BR);
+  gear('g3',-2.6,-19,2.3,1.2,.9);
+  gear('g4',6.8,-9.6,1.5,2.8,1.3);
+  B.blk(8.8,-14.6,3,3,4.2,Object.assign({name:'watchtower'},SAND));B.item('gem','gem',8.8,5.1,-14.6);
+  B.sign(11.45,6.4,-14.6,-PI/2,3.4,3.4,{watch:'clk'});
+  B.cp(1,0,-26,{w:3,d:2.4});
+  // the Hall of Echoes: the shadow follows you; the hour and minute towers; the great clock over the door
+  B.floor(-14,-28,14,-60,{col:'#d6c7a1',mat:'floor'});B.wallZ(-14,-28,-60);B.wallZ(14,-28,-60);
+  B.wallX(-60,-14.5,14.5,[{c:0,w:DW,h:DH}]);
+  B.lava(-14,-31,14,-54.4);
+  B.plat(-5,.8,-34.4,2.4,2.4,{timed:{per:2.4,on:.62,ph:0},mat:'blink',col:'#c4b5fd',name:'bt1'});
+  for(const s of [-1,1])B.blk(s*9,-39.5,4,4,2.4,Object.assign({name:s<0?'hourT':'minT'},SAND));
+  B.btn('hourBtn',-9,-39.5,{dial:'clk',key:'h',n:12},{top:3.5,icon:'hour',col:'#ffd23f',stand:[-7.8,-39.5]});
+  B.btn('minBtn',9,-39.5,{dial:'clk',key:'m',n:4},{top:3.5,icon:'minute',col:'#7dd3fc',stand:[7.8,-39.5]});
+  B.plat(-3,1.6,-39.5,2.4,2.4,Object.assign({name:'s1'},SAND));
+  B.plat(2.6,1.6,-40,2.2,2.2,{crumble:true,mat:'crumble',col:'#efd9a8',name:'s2'});
+  B.plat(6,1.2,-47.4,2.4,2.4,{timed:{per:2.4,on:.62,ph:.5},mat:'blink',col:'#c4b5fd',name:'bt2'});
+  B.plat(1.6,.8,-51.2,2.4,2.4,{crumble:true,mat:'crumble',col:'#efd9a8',name:'s3'});
+  B.sign(0,7.6,-59.45,0,4.4,4.4,{clockface:'clk'});
+  B.sign(0,7.6,-59.36,0,4.4,4.4,{hand:'h',dial:'clk'},{deco:true});B.sign(0,7.6,-59.3,0,4.4,4.4,{hand:'m',dial:'clk'});
+  B.door('x',-60,0,'clk',{col:'#5e6b80',part:{mat:'vaultdoor'}});
+  B.cp(2,0,-29.6,{w:3,d:2.2});B.cp(3,0,-57,{w:3,d:2.4});
+  B.shadow(-14,-31.2,14,-60,{delay:4});
+  for(const s of [-1,1])B.dcyl(s*9,4.9,-39.5,.12,1.4,BR);
+  // the sand stair: a belt running back toward you, sand falling across it, the way out at the top
+  B.floor(-8,-60,8,-92,{col:'#cbbd98',mat:'floor'});B.wallZ(-8,-60,-92);B.wallZ(8,-60,-92);B.wallX(-92,-8.5,8.5,[{c:0,w:DW,h:DH}]);
+  B.lava(-8,-62,8,-82);
+  B.add({x:0,y:.2,z:-72,w:4,h:1.6,d:20,conv:[0,3.2],mat:'stripe',col:'#c9a24a',name:'belt'});
+  [[-66,0],[-71.6,.41],[-77.2,.82]].forEach(([z,ph],i)=>{B.laser(0,2.5,z,4.4,5,.5,{timed:{per:2.2,on:.4,ph},name:'sand'+i});B.deco(0,9.6,z,5,.6,1.2,{col:'#8a7a5a',mat:'stone'})});
+  exitHall(B,0,-92);
+  B.sign(-4,6.6,-91.45,0,5,1.4,{title:'Borrowed Time',sub:'Almost out'},{deco:true});
+  // decor: big gears on the walls, an hourglass
+  for(const [x,z,yaw] of [[-11.45,-8,PI/2],[11.45,-4,-PI/2],[-13.45,-46,PI/2],[13.45,-50,-PI/2]])B.dcyl(x,6.6,z,2.4,.3,{col:'#9a7a3a',mat:'gear',yaw});
+  B.deco(0,8.2,-31.2,1.6,.3,1.6,BR);
+  // route
+  B.w(-2.4,0,2.2);B.jon('g1',0,{wait:true});B.jon('g2',0,{wait:true});B.jon('pend',0,{wait:true});B.jon('g3',0,{wait:true});B.j(-1.6,0,-24.8,{wait:true});B.w(0,0,-26);
+  B.w(0,0,-29.6);B.j(-5,.8,-34.4,{wait:true});B.j(-7.8,2.4,-39.5,{wait:true});B.dial('hourBtn','clk','h',-7.8,2.4,-39.5);
+  B.j(-3,1.6,-39.5,{wait:true});B.j(2.6,1.6,-40);B.j(7.8,2.4,-39.5,{wait:true});B.dial('minBtn','clk','m',7.8,2.4,-39.5);
+  B.j(6,1.2,-47.4,{wait:true});B.j(1.6,.8,-51.2);B.j(-2.2,0,-56.6,{wait:true});B.w(0,0,-57);B.w(0,0,-60.6);
+  B.w(0,1,-64);B.w(0,1,-80);B.w(0,0,-84);B.w(0,0,-95.2);
+  W.spawn={x:0,y:0,z:3.6,yaw:0};
+}},
+
+// 6. A dream, floating in the stars. Low gravity carries you over the first islands. Then three rounds of three doors:
+// the right door each round is the colour the dream picture on the first stage shows for that round; any wrong door
+// wakes you back on the first stage. Last, a dark hall where your shadow follows you: cross the red steps to a lever,
+// pull it so the blue steps appear (and the red ones go), then pull the next lever to bring the red ones back.
+{id:'dreamwalk',name:'Upside Dream',sub:'The dream',par:120,space:true,sky:['#120a2e','#5a3a8a'],pal:{floor:'#c7b8ff',wall:'#5b4aa8',prop:'#ff9ad5',trim:'#2a1f5c'},
+msgs:{'dream:on':'The dream shifts: blue steps appear','dream:off':'The dream shifts: red steps appear'},unlock:[],
+build(B,r){
+  const W=B.W,CLOUD={col:'#e9e3ff',mat:'floor'},MOON={col:'#c7b8ff',mat:'stone'},RED={col:'#ff5a7a',mat:'plastic'},BLUE={col:'#5a8aff',mat:'plastic'};
+  const COLS=Object.keys(ROSES);W.w6doors=[0,1,2].map(()=>ROSES[COLS[Math.floor(r()*3)]]);const pick=W.w6doors.map(c=>COLS.find(k=>ROSES[k]===c));
+  W.killY=-10;
+  // floating islands in low gravity
+  B.zone('lowg',-16,6,16,-29,-9,20,{name:'lowg'});
+  B.plat(0,0,2,8,7,Object.assign({name:'i0',t:2},CLOUD));B.cp(0,0,3.4);
+  B.plat(0,2,-10,5,5,Object.assign({name:'i1',t:2},MOON));
+  B.plat(-6,3.6,-19.5,4.5,4.5,Object.assign({name:'i2',t:2},MOON));
+  B.plat(2.4,2.4,-25.6,3,3,{timed:{per:2.6,on:.62,ph:0},mat:'blink',col:'#c4b5fd',name:'i3'});
+  B.plat(-13,6,-9,2,2,Object.assign({name:'gemisle',t:1.4},MOON));B.item('gem','gem',-13,6.9,-9);
+  // the three stages of doors: the right colour sends you on, any other back to the first stage
+  const stage=(k,x)=>{B.plat(x,0,-34,14,6,Object.assign({name:'stage'+k,t:2},CLOUD));
+    COLS.forEach((c,i)=>{const px=x-4.5+i*4.5,ok=c===pick[k],to=ok?(k<2?[[34,-34][k],.4,-32,0]:[0,.4,-46.4,0]):[0,.4,-32,0];
+      B.portal('door'+k+'_'+c,px,-36.6,0,to,{top:0,col:ROSES[c]});B.deco(px,1.9,-36.85,3,4,.12,{col:ROSES[c],mat:'plastic'})})};
+  stage(0,0);stage(1,34);stage(2,-34);
+  B.cp(1,0,-32.2);
+  B.sign(0,2.6,-31.1,PI,4.2,2.4,{w6:'doors',title:'The dream goes'});B.deco(0,1.2,-31.05,.2,2.4,.2,{col:'#2a1f5c'});
+  // the dark hall: the shadow follows you; red steps to the lever, then blue steps to the way out
+  B.wallZ(-6,-43,-96);B.wallZ(6,-43,-96);B.wallX(-96,-6.5,6.5);
+  B.plat(0,0,-46.2,8,4.4,Object.assign({name:'h0',t:2},CLOUD));B.cp(2,0,-45.6,{w:3,d:2});
+  B.plat(-2.4,.8,-51.6,2.4,2.4,Object.assign({name:'r1',offIf:'dream'},RED));
+  B.plat(2,1.4,-55.6,2.4,2.4,Object.assign({name:'r2',offIf:'dream'},RED));
+  B.plat(0,2,-60,5,4,Object.assign({name:'p3',t:1.4},MOON));B.cp(3,0,-60,{top:2,w:5,d:4});
+  B.btn('lever',1.4,-61,{toggle:'dream'},{top:3.1,icon:'lever',col:'#ffd23f',stand:[1.4,-59.8]});
+  B.plat(-2.6,2.6,-64.4,2.4,2.4,Object.assign({name:'b1',onIf:'dream'},BLUE));
+  B.plat(1.8,3,-68.4,2.4,2.4,Object.assign({name:'b2',onIf:'dream'},BLUE));
+  B.plat(0,3.4,-72.6,5,4,Object.assign({name:'p4',t:1.4},MOON));B.cp(4,0,-72.6,{top:3.4,w:5,d:4});
+  B.btn('lever2',-1.4,-73.6,{toggle:'dream'},{top:4.5,icon:'lever',col:'#ffd23f',stand:[-1.4,-72.4]});
+  B.plat(2.4,3.8,-76.8,2.4,2.4,Object.assign({name:'r3',offIf:'dream'},RED));
+  B.plat(-1.8,4.2,-80.6,2.4,2.4,{timed:{per:2.4,on:.65,ph:.3},mat:'blink',col:'#c4b5fd',name:'b3'});
+  B.plat(1.6,4.6,-84.4,2.4,2.4,Object.assign({name:'r4',offIf:'dream'},RED));
+  B.plat(0,4.6,-91,8,6,Object.assign({name:'out',t:1.4},CLOUD));
+  B.finish(0,-92,{top:4.6});B.deco(0,7.8,-94.6,3.2,1.2,.3,{col:'#2a1f5c'});B.sign(0,7.8,-94.4,0,2.6,.8,{exit:true});
+  B.shadow(-6,-48.6,6,-96,{delay:2.8});
+  // decor: floating stars and crescent moons
+  for(const [x,y,z] of [[-10,8,-2],[11,10,-16],[-12,12,-30],[14,7,-44],[-14,9,-60]])B.deco(x,y,z,.8,.8,.8,{col:'#fff3b0',mat:'glass',yaw:.7});
+  B.dcyl(9,9,-6,1.6,.4,{col:'#fff3b0',mat:'glass'});
+  // route
+  B.w(0,0,-.6);B.j(0,2,-10,{wait:true});B.j(-6,3.6,-19.5,{wait:true});B.j(2.4,2.4,-25.6,{wait:true});B.j(2.6,0,-33,{wait:true});B.w(0,0,-32.2);
+  for(let k=0;k<3;k++){const x=[0,34,-34][k],px=x-4.5+COLS.indexOf(pick[k])*4.5;B.w(px,0,-35);B.tp(px,0,-36.6)}
+  B.w(0,0,-47);B.j(-2.4,.8,-51.6,{wait:true});B.j(2,1.4,-55.6,{wait:true});B.j(1.4,2.12,-59,{wait:true});B.use('lever',1.4,2,-59.8);
+  B.j(-2.6,2.6,-64.4,{wait:true});B.j(1.8,3,-68.4,{wait:true});B.j(-1,3.52,-71.6,{wait:true});B.use('lever2',-1.4,3.4,-72.4);
+  B.j(2.4,3.8,-76.8,{wait:true});B.j(-1.8,4.2,-80.6,{wait:true});B.j(1.6,4.6,-84.4,{wait:true});B.j(0,4.6,-89,{wait:true});B.w(0,4.6,-92);
+  W.spawn={x:0,y:0,z:3.4,yaw:0};
 }}
 ]});
 })(Escapade);
