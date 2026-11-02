@@ -519,6 +519,7 @@ function poseAt(p,t,o){
   else if(m.type==='swing'){const th=m.amp*Math.sin(TAU*(t/m.per+m.ph)),s=Math.sin(th)*m.len;o.x+=m.dx*s;o.z+=m.dz*s;o.y+=m.len*(1-Math.cos(th))}
   // one way at a steady speed, then back to the start (out of one hole and into another: boulders)
   else if(m.type==='roll'){const u=t/m.per+m.ph,f=u-Math.floor(u);o.x+=m.ax*f;o.y+=m.ay*f;o.z+=m.az*f}
+  if(m.type==='rail'||m.type==='rise')w3pose(p,m,t,o); // W3 hook
   return o;
 }
 function cur(p,t){if(!p.move)return p;if(p._ct!==t){poseAt(p,t,p.c);p._ct=t}return p.c}
@@ -556,6 +557,7 @@ function xzBox(p){
   if(m&&(m.type==='line'||m.type==='roll')){x0=Math.min(x0,x0+m.ax);x1=Math.max(x1,x1+m.ax);z0=Math.min(z0,z0+m.az);z1=Math.max(z1,z1+m.az)}
   else if(m&&m.type==='orbit'){const R=m.rad+r;x0=m.cx-R;x1=m.cx+R;z0=m.cz-R;z1=m.cz+R}
   else if(m&&m.type==='swing'){const s=Math.sin(m.amp)*m.len;x0-=Math.abs(m.dx)*s;x1+=Math.abs(m.dx)*s;z0-=Math.abs(m.dz)*s;z1+=Math.abs(m.dz)*s}
+  if(m&&m.type==='rail')[x0,z0,x1,z1]=w3box(p,r); // W3 hook
 
   return[x0,z0,x1,z1];
 }
@@ -563,6 +565,7 @@ const cellKey=(i,k)=>(i+4096)*8192+(k+4096);
 function addPart(W,p){
   W.parts.push(p);if(p.name)W.byName.set(p.name,p);
   const yr=yRange(p);p.y0=yr[0];p.y1=yr[1];
+  if(p.move&&(p.move.type==='rail'||p.move.type==='rise'))w3range(p); // W3 hook
   if(p.deco)return p;
   if(p.btn)W.btns.push(p);if(p.item)W.items.push(p);if(p.lock)W.locks.push(p);if(p.plate)W.plates.push(p);if(p.step)W.steps.push(p);
   if(p.push){W.crates.push(p);W.always.push(p);return p}
@@ -645,6 +648,7 @@ function simStep(W,pl,inp,t){
   }
   const ix=inp.x||0,iz=inp.z||0,im=Math.hypot(ix,iz);
   nearBox(W,pl.x-2.5,pl.z-2.5,pl.x+2.5,pl.z+2.5,pl.y-2.5,pl.y+P.H+2.5,_near);
+  if(W.w3w)w3wet(W,pl,t); // W3 hook
   // 2) trusses (ladders): push into one to climb it
   let tr=null,tnx=0,tnz=0;
   for(let i=0;i<_near.length;i++){const p=_near[i];if(!p.truss||!present(W,p,t))continue;const b=cur(p,t);
@@ -664,10 +668,12 @@ function simStep(W,pl,inp,t){
     if(im>.01)airControl(pl,ix,iz,dt);
     else{const sp=Math.hypot(pl.vx,pl.vz);if(sp>0){const k=Math.max(0,sp-P.AIR_DRAG*dt)/sp;pl.vx*=k;pl.vz*=k}}
   }
+  if(W.w3w&&pl.wet&&!pl.climb)w3swimXZ(pl); // W3 hook
   // 4) jump (coyote time + buffer)
   if(inp.jp)pl.buf=P.BUFFER;else pl.buf=Math.max(0,pl.buf-dt);
   if(pl.gr)pl.coy=P.COYOTE;else pl.coy=Math.max(0,pl.coy-dt);
   let jumped=false;
+  if(W.w3w&&pl.wet&&!pl.climb&&pl.buf>0){w3stroke(pl,t,ev);jumped=true} // W3 hook
   if(pl.buf>0&&(pl.gr||pl.coy>0||pl.climb)){
     if(pl.climb){pl.vx=-tnx*5+lvx;pl.vz=-tnz*5+lvz;pl.vy=P.JUMP_V*.85;pl.climb=false}
     else{pl.vy=P.JUMP_V+Math.max(0,pvy);if(pl.gr){pl.vx+=pvx;pl.vz+=pvz}}
@@ -681,6 +687,7 @@ function simStep(W,pl,inp,t){
   if(!pl.climb)for(let i=0;i<_near.length;i++){const p=_near[i];if(p.zone!=='wind'||(p.timed&&!phaseOn(p.timed,t))||!present(W,p,t))continue;const cy=pl.y+1;if(cy<p.y-p.hy||cy>p.y+p.hy)continue;if(xzDist(p,p,pl.x,pl.z,_h)<0){wx+=p.wind[0];wz+=p.wind[1]}}
   if(pl.climb&&!jumped)pl.vy=push>.3?P.CLIMB:0;
   else{pl.vy-=P.G*(pl.lowg?P.LOWG:1)*dt;if(pl.vy<-P.MAX_FALL)pl.vy=-P.MAX_FALL}
+  if(W.w3w&&pl.wet&&!pl.climb)w3sink(pl,dt); // W3 hook
   // 6) vertical move: land on the highest surface we cross, or bump our head
   const wasGr=pl.gr&&!jumped,oy=pl.y;let ny=oy+pl.vy*dt,land=null,top=-Infinity;
   const SR=P.R*P.SUPPORT;
@@ -770,6 +777,7 @@ function simStep(W,pl,inp,t){
     else if(cold){pl.cold+=dt;if(pl.cold>=P.COLD){pl.dead=true;ev.push('frozen');ev.push('die');return}}
     else pl.cold=Math.max(0,pl.cold-dt);
   }
+  if(W.w3w&&w3air(pl,dt,ev))return; // W3 hook
   // a portal sends you to its exit, facing its way, still moving
   if(tpd){const d=tpd.tp,yaw=d[3]||0,sp=Math.min(P.WALK,Math.hypot(pl.vx,pl.vz));
     pl.x=d[0];pl.y=d[1];pl.z=d[2];pl.vx=-Math.sin(yaw)*sp;pl.vz=-Math.cos(yaw)*sp;pl.yaw=yaw;pl.gr=false;pl.gp=null;pl.climb=false;pl.tpN++;pl.tpFrom=tpd.name;ev.push('tp')}
@@ -823,6 +831,7 @@ function logicStep(W,pl,t){
   }
   // a flag that comes on once all of its flags are on (a vault that needs three relics)
   for(const a of W.alls)if(!flagOn(W,a.set,t)&&a.need.every(f=>flagOn(W,f,t))){st.f[a.set]=true;ev.push('open:'+a.set)}
+  if(W.w3)w3logic(W,pl,t); // W3 hook
   if(W.tick)W.tick(W,pl,t);
 }
 // The nearest thing you can use from where you stand, or null.
@@ -893,6 +902,7 @@ function softReset(W){
   for(const p of W.parts)if(p.crumble)p.touch=-1;
   for(const k in W.st.f)if(typeof W.st.f[k]==='number')delete W.st.f[k];
   W.st.seq={};W.st.lastStep='';
+  if(W.w3)w3reset(W); // W3 hook
 
 }
 
@@ -968,6 +978,7 @@ function Builder(W,pal){
     portal(name,x,z,yaw,to,o){o=o||{};const w=o.w||2.4,h=o.h||3.6,top=o.top||0,ax=Math.abs(Math.sin(yaw))<.5;
       return B.add(Object.assign({x,y:top+h/2,z,w:ax?w:.5,h,d:ax?.5:w,solid:false,tp:to,mat:'portal',col:o.col||'#a78bfa',cam:false,name,yaw:0},o.part))}
   };
+  w3builder(B,W); // W3 hook
 
   return B;
 }
@@ -1371,6 +1382,98 @@ build(B,r){
 
 // ---------- additions for Worlds 3 to 6 (CORE) ----------
 // ---- World 3 core additions (only World 3's builder edits between these two lines) ----
+// World 3 (Deep Down) adds four things. None of them does anything unless a level uses it (w3post marks the levels
+// that do with W.w3), so Worlds 1 and 2 play exactly as before.
+//  - Water you swim in: B.water(x0, z0, x1, z1, top, o), a zone. With your chest under the surface you sink slowly
+//    (PHYS3.SINK), the stick moves you at PHYS3.SWIM and jump is a stroke (PHYS3.STROKE; at the surface a bigger one,
+//    PHYS3.LEAP, to climb out onto a ledge up to ~0.75 above the water). Holding jump keeps stroking. With your head
+//    under you hold your breath for PHYS3.AIR seconds (the Air bar), then drown; any surface gives you air at once.
+//  - Minecarts: move type 'rail', {type: 'rail', pts: [[x, top, z, stop]...], v, dwell, ph}: a cart whose floor runs
+//    through the points and back on the shared clock, easing in and out, waiting dwell s at each end (and stop s at a
+//    point that has one). B.rail(name, pts, o) makes one; the track is drawn along the points.
+//  - Rising water or lava: move type 'rise', {type: 'rise', ay, dur, when | trig}: still until the flag `when` comes on
+//    (or you step into the 'trig' zone named `trig`, B.trig), then it rises ay over dur s and stays up. Back to a
+//    checkpoint lowers it again (and stepping in the zone again starts it again).
+//  - Dark rooms: B.dark(x0, z0, x1, z1), a zone that is pitch dark a few steps out unless you carry the lantern (item
+//    'lamp'); signs with lamp: true (chalk marks) only show while you carry it. Drawing only: no rule changes.
+const PHYS3={SWIM:4.6,SINK:2.6,WG:.2,STROKE:6.6,LEAP:12.6,AIR:10,REPEAT:.3};
+// which levels use any of it (run once a level is built)
+function w3post(W){
+  let any=false;
+  for(const p of W.parts){const m=p.move;
+    if(p.zone==='water')W.w3w=any=true;
+    else if(p.zone==='dark'||p.zone==='trig'||p.mat==='cart')any=true;
+    if(m&&m.type==='rise'){(W.w3r||(W.w3r=[])).push(p);any=true}
+    if(m&&m.type==='rail')any=true}
+  if(any)W.w3=true;
+}
+// the poses of the new move types
+function w3railPlan(m){
+  const P=m.pts,n=P.length,len=[0];let L=0;
+  for(let i=1;i<n;i++){L+=Math.hypot(P[i][0]-P[i-1][0],P[i][1]-P[i-1][1],P[i][2]-P[i-1][2]);len.push(L)}
+  const stops=[0];for(let i=1;i<n-1;i++)if(P[i][3]>0)stops.push(i);stops.push(n-1);
+  const tl=[];let T=0;
+  const wait=i=>{const d=i===0||i===n-1?m.dwell:P[i][3];if(d>0){tl.push([T,T+d,len[i],len[i]]);T+=d}};
+  const go=(a,b)=>{const d=Math.abs(len[b]-len[a])/m.v;if(d>0){tl.push([T,T+d,len[a],len[b]]);T+=d}};
+  for(let k=0;k<stops.length-1;k++){wait(stops[k]);go(stops[k],stops[k+1])}
+  for(let k=stops.length-1;k>0;k--){wait(stops[k]);go(stops[k],stops[k-1])}
+  return m.plan={tl,T,len};
+}
+function w3pose(p,m,t,o){
+  if(m.type==='rise'){if(m.t0!=null)o.y+=m.ay*clamp((t-m.t0)/m.dur,0,1);return}
+  const R=m.plan||w3railPlan(m);let u=(t/R.T+m.ph)%1;if(u<0)u+=1;u*=R.T;
+  let s=0;for(const e of R.tl)if(u<=e[1]){const f=e[1]>e[0]?(u-e[0])/(e[1]-e[0]):1;s=e[2]+(e[3]-e[2])*(.5-.5*Math.cos(Math.PI*f));break}
+  const P=m.pts,len=R.len;let i=1;while(i<P.length-1&&len[i]<s)i++;
+  const a=P[i-1],b=P[i],k=len[i]>len[i-1]?clamp((s-len[i-1])/(len[i]-len[i-1]),0,1):0;
+  o.x=a[0]+(b[0]-a[0])*k;o.y=a[1]+(b[1]-a[1])*k-p.hy;o.z=a[2]+(b[2]-a[2])*k;
+}
+// where they can be (for the collision grid and the height filter)
+function w3box(p,r){let x0=1e9,z0=1e9,x1=-1e9,z1=-1e9;for(const q of p.move.pts){x0=Math.min(x0,q[0]-r);x1=Math.max(x1,q[0]+r);z0=Math.min(z0,q[2]-r);z1=Math.max(z1,q[2]+r)}return[x0,z0,x1,z1]}
+function w3range(p){const m=p.move;
+  if(m.type==='rise'){p.y0=Math.min(p.y0,p.y0+m.ay);p.y1=Math.max(p.y1,p.y1+m.ay)}
+  else if(m.type==='rail'){let a=1e9,b=-1e9;for(const q of m.pts){a=Math.min(a,q[1]);b=Math.max(b,q[1])}p.y0=a-p.hy*2;p.y1=b}}
+// swimming: how wet you are (0 dry, 1 chest under, 2 head under) and the surface above you
+function w3wet(W,pl,t){
+  let top=-1e9;
+  for(let i=0;i<_near.length;i++){const p=_near[i];if(p.zone!=='water'||!present(W,p,t))continue;const b=cur(p,t),tp=b.y+p.hy;
+    if(pl.y+1.2<p.y-p.hy||pl.y>tp||tp<=top)continue;if(xzDist(p,b,pl.x,pl.z,_h2)<0)top=tp} // rising water keeps its floor
+  pl.wtop=top;pl.wet=pl.y+1.2<top?(pl.y+1.75<top?2:1):0;
+}
+function w3swimXZ(pl){const s=Math.hypot(pl.vx,pl.vz);if(s>PHYS3.SWIM){const k=PHYS3.SWIM/s;pl.vx*=k;pl.vz*=k}}
+function w3stroke(pl,t,ev){pl.vy=pl.wet>1?PHYS3.STROKE:PHYS3.LEAP;pl.gr=false;pl.gp=null;pl.coy=0;pl.buf=0;pl.swT=t;ev.push('swim')}
+function w3sink(pl,dt){pl.vy+=PHYS.G*(1-PHYS3.WG)*dt;if(pl.vy<-PHYS3.SINK)pl.vy+=(-PHYS3.SINK-pl.vy)*Math.min(1,dt*10)}
+function w3air(pl,dt,ev){if(pl.wet>1){pl.br=(pl.br||0)+dt;if(pl.br>=PHYS3.AIR){pl.dead=true;ev.push('drown');ev.push('die');return true}}else pl.br=0;return false}
+// rising water and lava: start when their flag comes on or you step into their trigger zone
+function w3logic(W,pl,t){
+  if(!W.w3r)return;
+  for(const p of W.w3r){const m=p.move;if(m.t0!=null)continue;let go=false;
+    if(m.when)go=flagOn(W,m.when,t);
+    else if(m.trig){const z=W.byName.get(m.trig);go=!!z&&pl.y+1>=z.y-z.hy&&pl.y+1<=z.y+z.hy&&xzDist(z,z,pl.x,pl.z,_h2)<0}
+    if(go){m.t0=t;p._ct=p._ot=NaN;pl.ev.push('rise:'+p.name)}}
+}
+function w3reset(W){if(W.w3r)for(const p of W.w3r){p.move.t0=null;p._ct=p._ot=NaN}}
+// the Builder's new helpers and the bot's new route step
+function w3builder(B,W){
+  // water: top at `top`, from o.y0 (default -1, the floor slab's underside); o.move {type: 'rise', ...} makes it rise
+  B.water=(x0,z0,x1,z1,top,o)=>{o=o||{};const y0=o.y0!=null?o.y0:-1;
+    return B.add(Object.assign({x:(x0+x1)/2,y:(y0+top)/2,z:(z0+z1)/2,w:Math.abs(x1-x0),h:top-y0,d:Math.abs(z1-z0),solid:false,zone:'water',mat:'water3',col:'#2f8fd8',cam:false},o))};
+  // a minecart: pts are where its floor is ([x, top, z] or [x, top, z, stop]); o: v (average speed), dwell, ph, w, d, col
+  B.rail=(name,pts,o)=>{o=o||{};const th=o.t||.5,P=pts[0];
+    return B.add(Object.assign({x:P[0],y:P[1]-th/2,z:P[2],w:o.w||2.4,h:th,d:o.d||2.4,mat:'cart',col:o.col||'#7a5a3a',name,
+      move:{type:'rail',pts:pts.map(q=>q.slice()),v:o.v||4,dwell:o.dwell==null?2.5:o.dwell,ph:o.ph||0}},o.part))};
+  B.dark=(x0,z0,x1,z1,o)=>B.zone('dark',x0,z0,x1,z1,-10,40,o);
+  B.trig=(name,x0,z0,x1,z1,y0,y1)=>B.zone('trig',x0,z0,x1,z1,y0,y1,{name});
+  // route: swim to a point (strokes while below it); q.ground: reached only once standing; q.until(t, W, pl): and
+  // then keep treading water there until it's true
+  B.swim=(x,y,z,q)=>B.route.push(Object.assign({t:'swim',p:[x,y,z]},q));
+}
+function w3botSwim(W,pl,bot,n,t,next){
+  const T=n.p,d=Math.hypot(T[0]-pl.x,T[2]-pl.z);
+  if(d<(n.r||.6)&&Math.abs(pl.y-T[1])<(n.tol||.9)&&(!n.ground||pl.gr)&&(!n.until||n.until(t,W,pl)))return next();
+  const s=steer(pl,T[0],T[2],.6);let jp=false;
+  if((pl.wet||pl.gr)&&pl.y<T[1]-.25&&pl.vy<1.5&&!(t<bot.swc)){jp=true;bot.swc=t+PHYS3.REPEAT}
+  return{x:s[0],z:s[1],jp};
+}
 // ---- end of World 3 core additions ----
 
 // ---- World 4 core additions (only World 4's builder edits between these two lines) ----
@@ -1394,13 +1497,13 @@ build(B,r){
 const WPL=8,NWORLDS=6,NLV=WPL*NWORLDS;
 // CORE_VER goes up whenever a change here adds something a world file can use; a world file says which one it needs
 // (needs: n), so a page that's older than the file shows "update needed" instead of breaking.
-const CORE_VER=2;
+const CORE_VER=3;
 const WORLDS=[
   {n:1,name:'Breakout',col:'#ff6b6b',blurb:'Detention, the lab, the kitchen and the vault, all the way to the Warden.',ids:['class','lab','kitchen','toys','sewer','vault','space','warden']},
   // ---
   {n:2,name:'Lost and Found',col:'#7c5cff',blurb:'Old places that keep their secrets: books, clocks, ice, stones and mirrors.',ids:['library','clock','ice','temple','manor','theatre','gale','museum']},
   // ---
-  {n:3,name:'Coming soon',col:'#2ec4b6',blurb:'Eight new escape rooms are on their way.',ids:[]},
+  {n:3,name:'Deep Down',col:'#2ec4b6',blurb:'Mines, flooded caves and a sunken wreck: swim, ride the rails, light the dark.',ids:['ddmine','ddflood','ddrail','ddpump','ddtank','ddcrystal','ddwreck','ddcore']},
   // ---
   {n:4,name:'Coming soon',col:'#ff9f1c',blurb:'Eight new escape rooms are on their way.',ids:[]},
   // ---
@@ -1441,6 +1544,7 @@ function buildLevel(i,seed){
   W.route=B.route;
   if(W.derive)W.tick=wardenTick;
   W.cold=W.parts.some(p=>p.zone==='cold');W.winds=W.parts.filter(p=>p.zone==='wind');
+  w3post(W); // W3 hook
   if(W.cps[0])W.spawn=Object.assign({},W.cps[0]);else W.cps[0]=W.spawn;
   return W;
 }
@@ -1549,6 +1653,7 @@ function botInput0(W,pl,bot,t){
   const next=()=>{bot.i++;bot.nt=0;bot.fly=false;bot.part=null;bot.dec=0;bot.hop=null;bot.k=0;bot.tp0=null;bot.sub=null;return idle};
   let done=next;
   if(n.t==='u'){if(n.until(t,W,pl))return next();return idle}
+  if(n.t==='swim')return w3botSwim(W,pl,bot,n,t,next); // W3 hook
   // a ladder on rails: plan says 'wait' (stand still), 'climb' or 'grab' (stick into it), 'hang' (stick off) or 'done'
   if(n.t==='ladder'){
     const L=W.byName.get(n.name),act=n.plan(t,W,pl);
@@ -2039,6 +2144,170 @@ const colOf=p=>p.mat==='bounce'?'#ffffff':p.col;
 
 // ---------- additions for Worlds 3 to 6 (drawing) ----------
 // ---- World 3 drawing additions (only World 3's builder edits between these two lines) ----
+// World 3 (Deep Down): water (a see-through volume with a rippling surface, a blue haze while the camera is under it,
+// bubbles and the Air bar), minecarts and their tracks, the lantern and dark rooms (the haze closes in a few steps out
+// unless you carry the lantern; signs with lamp: true only show with it), World 3's signs and icons, and two sceneries
+// (level options cave: rock ground, stalagmites and a rock ceiling; deep: the seabed). Only World 3's levels use it.
+ITEM_NAME.lamp='the lantern';
+const W3_LAMP_SVG='<svg viewBox="0 0 32 32"><path d="M11 9a5 5 0 0 1 10 0" fill="none" stroke="#1b1840" stroke-width="2.4"/><rect x="9" y="9" width="14" height="4" rx="1.5" fill="#64748b" stroke="#1b1840" stroke-width="2.2"/><rect x="10" y="13" width="12" height="11" rx="2" fill="#ffd56b" stroke="#1b1840" stroke-width="2.2"/><rect x="9" y="24" width="14" height="4" rx="1.5" fill="#64748b" stroke="#1b1840" stroke-width="2.2"/><path d="M16 15c2 2.5 2 4.5 0 6.5c-2-2-2-4 0-6.5z" fill="#ff8a1c"/></svg>';
+const W3_USE={lamp:'Light the lantern'};
+const W3={fog:{near:140,far:900,col:new THREE.Color()},cave:null,deep:null,track:null,glow:null,air:null,bub:0,ripple:null,mats:null};
+function w3mats(){
+  if(W3.mats)return W3.mats;
+  const t=texFrom(cvs(128,128,(g,w,h)=>{g.fillStyle='#2a76a0';g.fillRect(0,0,w,h);
+    for(let i=0;i<14;i++){const y=(i+.5)*h/14;g.strokeStyle='rgba(255,255,255,'+(.08+.14*(i%3===0))+')';g.lineWidth=2+(i%2)*2;g.beginPath();for(let x=0;x<=w;x+=8)g.lineTo(x,y+Math.sin(x/w*TAU*2+i)*4);g.stroke()}
+    speckle(g,w,h,160,.05,.35)}));
+  t.repeat.set(1,1);
+  W3.mats={tex:t,side:new THREE.MeshLambertMaterial({color:'#1f6f9f',transparent:true,opacity:.3,depthWrite:false}),
+    top:new THREE.MeshLambertMaterial({color:'#b8e2f4',map:t,transparent:true,opacity:.48,depthWrite:false,side:THREE.DoubleSide,emissive:new THREE.Color('#06283c')}),
+    cart:bevel(new THREE.MeshLambertMaterial({vertexColors:true,map:TEX.metal}))};
+  for(const k of ['side','top','cart'])matCache.set('w3'+k,W3.mats[k]);
+  return W3.mats;
+}
+function w3mesh(W,p){
+  if(p.zone==='dark'||p.zone==='trig')return null;
+  const M=w3mats();
+  if(p.zone==='water'){const g=new THREE.Group(),w=p.hx*2,d=p.hz*2,h=p.hy*2;
+    const box=new THREE.Mesh(boxGeo(w,h-.06,d),M.side);box.position.y=-.03;g.add(box);
+    const top=new THREE.Mesh(new THREE.PlaneGeometry(w,d),M.top);top.rotation.x=-Math.PI/2;top.position.y=p.hy;top.renderOrder=2;g.add(top);
+    top.geometry.attributes.uv.array.forEach((v,i,a)=>{a[i]=v*(i%2?d:w)/6});return g}
+  // a minecart: a tub with rims, a wooden floor you stand on, wheels under it
+  const w=p.hx*2,d=p.hz*2,t=p.hy*2,c=p.col,rim=shade(c,-.3),items=[],R=.55;
+  items.push({geo:boxGeo(w,t,d),y:0,col:c});items.push({geo:boxGeo(w-.3,.04,d-.3),y:p.hy+.01,col:'#b08a5a'});
+  for(const s of [-1,1]){items.push({geo:boxGeo(w,R,.16),y:p.hy+R/2,z:s*(d/2-.08),col:rim});items.push({geo:boxGeo(.16,R,d-.32),x:s*(w/2-.08),y:p.hy+R/2,col:rim})}
+  for(const sx of [-1,1])for(const sz of [-1,1])items.push({geo:boxGeo(.22,.42,.42),x:sx*(w/2-.15),y:-p.hy-.12,z:sz*(d/2-.45),col:'#2b2b33'});
+  const m=new THREE.Mesh(mergeInto(items),M.cart);m.castShadow=true;m.receiveShadow=true;return m;
+}
+function w3lampMesh(p){
+  const g=new THREE.Group(),frame=new THREE.MeshLambertMaterial({color:'#475569'}),glass=new THREE.MeshLambertMaterial({color:'#ffd56b',emissive:new THREE.Color('#c27a10')});
+  const b=new THREE.Mesh(new THREE.BoxGeometry(.4,.42,.4),glass);g.add(b);
+  for(const y of [-.25,.25]){const c=new THREE.Mesh(new THREE.BoxGeometry(.5,.08,.5),frame);c.position.y=y;g.add(c)}
+  const h=new THREE.Mesh(new THREE.TorusGeometry(.17,.035,6,16,Math.PI),frame);h.position.y=.29;g.add(h);
+  const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:TEX.glow,color:'#ffcf6b',transparent:true,opacity:.8,depthWrite:false,blending:THREE.AdditiveBlending}));halo.scale.set(2.2,2.2,1);
+  const root=new THREE.Group();root.add(g);root.add(halo);root.userData.spin=g;return root;
+}
+// icons for World 3's buttons (the aquarium's sea creatures, the pump)
+function w3icon(g,kind,P){
+  if(kind==='crab'){P(()=>{g.beginPath();g.ellipse(0,8,32,20,0,0,TAU)},'#ef6b4a');for(const s of [-1,1]){P(()=>{g.beginPath();g.arc(s*34,-20,11,0,TAU)},'#ef6b4a');g.beginPath();g.moveTo(s*24,-2);g.lineTo(s*32,-12);g.stroke()}
+    g.fillStyle='#1b1840';for(const s of [-1,1]){g.beginPath();g.arc(s*9,-6,4,0,TAU);g.fill()}}
+  else if(kind==='squid'){P(()=>{g.beginPath();g.moveTo(0,-42);g.lineTo(24,-6);g.lineTo(18,10);g.lineTo(-18,10);g.lineTo(-24,-6);g.closePath()},'#c084fc');for(let i=-2;i<=2;i++){g.beginPath();g.moveTo(i*8,10);g.quadraticCurveTo(i*12,26,i*9,40);g.stroke()}g.fillStyle='#1b1840';for(const s of [-1,1]){g.beginPath();g.arc(s*8,-4,4,0,TAU);g.fill()}}
+  else if(kind==='fish'){P(()=>{g.beginPath();g.moveTo(-36,0);g.quadraticCurveTo(0,-30,30,0);g.quadraticCurveTo(0,30,-36,0);g.closePath()},'#fbbf24');P(()=>{g.beginPath();g.moveTo(26,0);g.lineTo(44,-18);g.lineTo(44,18);g.closePath()},'#fbbf24');g.fillStyle='#1b1840';g.beginPath();g.arc(-20,-4,4,0,TAU);g.fill()}
+  else if(kind==='turtle'){P(()=>{g.beginPath();g.ellipse(0,4,30,24,0,0,TAU)},'#34d399');P(()=>{g.beginPath();g.arc(36,0,10,0,TAU)},'#a7f3d0');for(const [x,y] of [[-20,-22],[20,-22],[-20,28],[20,28]]){P(()=>{g.beginPath();g.arc(x,y,7,0,TAU)},'#a7f3d0')}g.lineWidth=3;g.beginPath();g.moveTo(-14,-8);g.lineTo(14,16);g.moveTo(14,-8);g.lineTo(-14,16);g.stroke()}
+  else if(kind==='pump'){P(()=>{g.beginPath();g.arc(0,0,34,0,TAU)},'#38bdf8');g.lineWidth=8;for(let i=0;i<3;i++){const a=i*TAU/3;g.beginPath();g.moveTo(0,0);g.quadraticCurveTo(Math.cos(a+.8)*24,Math.sin(a+.8)*24,Math.cos(a)*30,Math.sin(a)*30);g.stroke()}P(()=>{g.beginPath();g.arc(0,0,8,0,TAU)},'#e0f2fe')}
+}
+// World 3's signs: chalk marks (a digit and its place, on a slate scrap), the railway's line map, the feeding chart
+function w3sign(sg,W,g,w,h,font,ink){
+  if(sg.w3==='chalk'){g.fillStyle='#24211e';rr(g,3,3,w-6,h-6,18);g.fill();speckle(g,w,h,500,.25,.12);
+    g.strokeStyle='rgba(255,255,255,.85)';g.lineWidth=h*.03;g.beginPath();g.arc(w*.2,h*.22,h*.13,0,TAU);g.stroke();
+    g.fillStyle='rgba(255,255,255,.9)';g.font=font(h*.17);g.fillText(String(sg.n),w*.2,h*.23);
+    g.font=font(h*.56);for(const [dx,dy,a] of [[0,0,.95],[2,1,.35],[-1,2,.25]]){g.fillStyle='rgba(255,255,255,'+a+')';g.fillText(String(sg.text!=null?sg.text:(W.codes[sg.code]||'????')[sg.n-1]),w*.58+dx,h*.57+dy)}
+    g.font=font(h*.11);g.fillStyle='rgba(255,255,255,.6)';g.fillText(sg.label||'',w/2,h*.9);return true}
+  if(sg.w3==='chart'){const order=W.seqs[sg.seq].order;g.fillStyle='#f0f9ff';g.fillRect(0,0,w,h);g.strokeStyle='#0369a1';g.lineWidth=12;g.strokeRect(6,6,w-12,h-12);
+    g.fillStyle=ink;g.font=font(h*.12);g.fillText(sg.title||'Feeding time',w/2,h*.15);
+    order.forEach((s,i)=>{const x=w*(.14+i*.24),y=h*.56;g.fillStyle='rgba(56,189,248,.25)';g.beginPath();g.arc(x,y,h*.22,0,TAU);g.fill();drawIcon(g,s,x,y,h*.34);
+      g.fillStyle=ink;g.font=font(h*.1);g.fillText(String(i+1),x,h*.88)});return true}
+  if(sg.w3==='lines'){ // the railway's map: the lines out of the junction and where each one goes
+    g.fillStyle='#f8fafc';g.fillRect(0,0,w,h);g.strokeStyle='#1e293b';g.lineWidth=10;g.strokeRect(5,5,w-10,h-10);
+    g.fillStyle=ink;g.font=font(h*.1);g.fillText(sg.title||'Line map',w/2,h*.12);
+    const L=sg.lines||[];L.forEach((l,i)=>{const y=h*(.32+i*.2);g.strokeStyle=l.col;g.lineWidth=h*.06;g.beginPath();g.moveTo(w*.12,y);g.lineTo(w*.62,y);g.stroke();
+      g.fillStyle='#fff';g.strokeStyle=ink;g.lineWidth=4;for(const x of [.12,.62]){g.beginPath();g.arc(w*x,y,h*.045,0,TAU);g.fill();g.stroke()}
+      g.fillStyle=ink;g.font=font(h*.075);g.textAlign='left';g.fillText(l.to,w*.67,y+h*.005);g.textAlign='center'});
+    if(sg.note){g.fillStyle='#575377';g.font=font(h*.065);g.fillText(sg.note,w/2,h*.92)}return true}
+  // a pressure gauge's face (eight marks, numbered; a {hand, dial, n} sign turns over it) and the engineer's note
+  if(sg.w3==='gauge'||sg.w3==='gauges'){
+    const face=(cx,cy,R,k,lbl)=>{g.fillStyle='#fffaf0';g.beginPath();g.arc(cx,cy,R,0,TAU);g.fill();g.lineWidth=R*.08;g.strokeStyle=ink;g.stroke();
+      g.fillStyle=ink;g.font=font(R*.26);for(let i=0;i<8;i++){const a=i/8*TAU;g.fillText(String(i+1),cx+Math.sin(a)*R*.72,cy-Math.cos(a)*R*.72)}
+      if(k!=null){g.save();g.translate(cx,cy);g.rotate(k/8*TAU);g.fillStyle='#ef4444';g.beginPath();g.moveTo(0,-R*.56);g.lineTo(R*.11,0);g.lineTo(-R*.11,0);g.closePath();g.fill();g.restore()}
+      g.beginPath();g.arc(cx,cy,R*.07,0,TAU);g.fillStyle=ink;g.fill();if(lbl){g.font=font(R*.24);g.fillText(lbl,cx,cy+R*1.22)}};
+    if(sg.w3==='gauge'){g.fillStyle='#3f4652';g.fillRect(0,0,w,h);g.fillStyle='#5b6475';rr(g,8,8,w-16,h-16,20);g.fill();face(w/2,h*.46,Math.min(w,h)*.38,null,sg.label);return true}
+    const d=W.dials[sg.dial];g.fillStyle='#f4e8c8';g.fillRect(0,0,w,h);g.strokeStyle='#6b4f2a';g.lineWidth=12;g.strokeRect(6,6,w-12,h-12);
+    g.fillStyle=ink;g.font=font(h*.1);g.fillText(sg.title||'Engineer\'s note',w/2,h*.13);g.fillStyle='#575377';g.font=font(h*.065);g.fillText(sg.sub||'Pump pressure: set both gauges like this',w/2,h*.24);
+    d.keys.forEach((k,i)=>face(w*(.3+i*.4),h*.56,h*.22,d.target[k],(sg.labels||['Left','Right'])[i]));return true}
+  return false;
+}
+// scenery and haze when a level is shown (runs for every level: puts things back for the others)
+function w3cave(){
+  if(W3.cave)return W3.cave;const grp=new THREE.Group(),r=rng(33),items=[];
+  const t=TEX.stone.clone();t.needsUpdate=true;t.repeat.set(220,220);
+  const gnd=new THREE.Mesh(new THREE.CircleGeometry(1300,48),new THREE.MeshLambertMaterial({color:'#5b4a3a',map:t}));gnd.rotation.x=-Math.PI/2;gnd.position.y=-1.02;gnd.receiveShadow=true;grp.add(gnd);
+  const cone=new THREE.ConeGeometry(1,1,6,1);
+  for(let i=0;i<90;i++){const a=r()*TAU,d=40+r()*170,h=4+r()*16,rad=1+r()*3.5,x=Math.cos(a)*d,z=Math.sin(a)*d*1.3;items.push({geo:cone,x,y:h/2-1,z,yaw:r()*TAU,sx:rad,sy:h,sz:rad,colFn:k=>mix3('#4a3a2c','#9a8468',k)});
+    if(r()<.5)items.push({geo:cone,x:x+3,y:17-h/4,z:z+2,yaw:r()*TAU,sx:rad*.8,sy:-h*.6,sz:rad*.8,colFn:k=>mix3('#6b5844','#3f3226',k)})}
+  for(let i=0;i<30;i++){const a=i/30*TAU,d=230+r()*60,w=60+r()*40,h=24+r()*20;items.push({geo:boxGeo(w,h,30),x:Math.cos(a)*d,y:h/2-1,z:Math.sin(a)*d,yaw:-a+Math.PI/2,colFn:k=>mix3('#3a2e24','#6e5b47',k)})}
+  for(let i=0;i<26;i++){const a=r()*TAU,d=30+r()*190;items.push({geo:new THREE.OctahedronGeometry(1,0),x:Math.cos(a)*d,y:.2,z:Math.sin(a)*d*1.3,yaw:r()*TAU,sx:.8,sy:1.8+r()*2,sz:.8,col:pick(['#7dd3fc','#c4b5fd','#f0abfc'])})}
+  grp.add(new THREE.Mesh(mergeInto(items),new THREE.MeshLambertMaterial({vertexColors:true})));
+  const ceil=new THREE.Mesh(new THREE.CircleGeometry(1300,48),new THREE.MeshLambertMaterial({color:'#3b2f25',map:t}));ceil.rotation.x=Math.PI/2;ceil.position.y=17;grp.add(ceil);grp.userData.ceil=ceil;
+  grp.visible=false;scene.add(grp);return W3.cave=grp;
+}
+function w3deep(){
+  if(W3.deep)return W3.deep;const grp=new THREE.Group(),r=rng(55),items=[];
+  const gnd=new THREE.Mesh(new THREE.CircleGeometry(1300,48),new THREE.MeshLambertMaterial({color:'#d8c79a',map:TEX.grass}));gnd.rotation.x=-Math.PI/2;gnd.position.y=-1.02;gnd.receiveShadow=true;grp.add(gnd);
+  for(let i=0;i<120;i++){const a=r()*TAU,d=36+r()*190,x=Math.cos(a)*d,z=Math.sin(a)*d*1.3,h=3+r()*12;
+    if(r()<.55)items.push({geo:boxGeo(.5,h,.5),x,y:h/2-1,z,yaw:r()*TAU,colFn:k=>mix3('#1f6b46','#5fbf74',k)});
+    else items.push({geo:new THREE.SphereGeometry(1,7,5),x,y:-.6,z,sx:1.5+r()*3,sy:1+r()*2,sz:1.5+r()*3,colFn:k=>mix3('#5b6b7a','#9fb0bf',k)})}
+  for(let i=0;i<40;i++){const a=r()*TAU,d=30+r()*150;items.push({geo:new THREE.ConeGeometry(1,1,5,1),x:Math.cos(a)*d,y:.6,z:Math.sin(a)*d*1.3,yaw:r()*TAU,sx:.9,sy:3.2,sz:.9,col:pick(['#fb7185','#f97316','#facc15','#c084fc'])})}
+  grp.add(new THREE.Mesh(mergeInto(items),new THREE.MeshLambertMaterial({vertexColors:true})));
+  grp.visible=false;scene.add(grp);return W3.deep=grp;
+}
+function w3scene(W){
+  const d=W.def,F=W3.fog;
+  if(W3.cave)W3.cave.visible=false;if(W3.deep)W3.deep.visible=false;
+  if(W3.glow&&W3.glow.parent)W3.glow.parent.remove(W3.glow);
+  scene.fog.far=900;
+  if(!W.w3&&!d.cave&&!d.deep){F.near=scene.fog.near;F.far=900;F.col.copy(scene.fog.color);return}
+  const set=d.cave?w3cave():d.deep?w3deep():null;
+  if(set){land.visible=false;set.visible=true;set.position.copy(land.position)}
+  F.col.copy(scene.fog.color);F.near=d.cave?26:d.deep?22:scene.fog.near;F.far=d.cave?190:d.deep?210:900;
+  scene.fog.near=F.near;scene.fog.far=F.far;
+  W._w3water=W.parts.filter(p=>p.zone==='water');W._w3dark=W.parts.filter(p=>p.zone==='dark');
+  // the tracks under every minecart: two rails on sleepers, with posts down to the floor (one mesh)
+  const items=[];
+  for(const p of W.parts){if(p.mat!=='cart')continue;const P=p.move.pts;
+    for(let i=1;i<P.length;i++){const a=P[i-1],b=P[i],dx=b[0]-a[0],dz=b[2]-a[2],L=Math.hypot(dx,dz);if(L<.01)continue;
+      const yaw=Math.atan2(dx,dz),y=(a[1]+b[1])/2-p.hy*2-.32,cx=(a[0]+b[0])/2,cz=(a[2]+b[2])/2,c=Math.cos(yaw),s=Math.sin(yaw);
+      for(const o of [-.75,.75])items.push({geo:boxGeo(.14,.14,L+.3),x:cx+c*o,y,z:cz-s*o,yaw,col:'#9aa3ad'});
+      const n=Math.max(1,Math.round(L/1.4));for(let k=0;k<=n;k++){const f=k/n;items.push({geo:boxGeo(2,.12,.34),x:a[0]+dx*f,y:y-.13,z:a[2]+dz*f,yaw,col:'#6b4a2f'})}
+      if(y>1.2)for(let k=0;k<=Math.floor(L/4);k++){const f=(k+.5)/(Math.floor(L/4)+1),hh=y+1;items.push({geo:boxGeo(.3,hh,.3),x:a[0]+dx*f,y:y-.19-hh/2,z:a[2]+dz*f,yaw,col:'#5a3f28'})}}}
+  if(items.length){const m=new THREE.Mesh(mergeInto(items),sharedMat('metal','#ffffff',true));m.receiveShadow=true;worldGroup.add(m)}
+  W._w3bub=0;
+}
+// every frame on World 3's levels: ripples, the haze (under water, in the dark), lantern-only signs, bubbles
+const _w3c=new THREE.Color();
+function w3update(W,rt,dt){
+  const M=W3.mats;if(M){M.tex.offset.x=(rt*.03)%1;M.tex.offset.y=(rt*.05)%1}
+  const cp=camera.position,F=W3.fog;let near=F.near,far=F.far,col=F.col;
+  for(const p of W._w3water||[]){const b=cur(p,rt),top=b.y+p.hy,bot=p.y-p.hy;
+    if(p.move&&p.mesh){p.mesh.position.y=(top+bot)/2;p.mesh.scale.y=Math.max(.02,(top-bot)/(2*p.hy))} // rising water grows from its floor
+    if(cp.y<top&&cp.y>bot&&Math.abs(cp.x-b.x)<p.hx&&Math.abs(cp.z-b.z)<p.hz){near=.5;far=26;col=_w3c.set('#125a86')}}
+  const lamp=!!W.st.inv.lamp;
+  if(far===F.far&&me&&W._w3dark&&W._w3dark.length)for(const z of W._w3dark)if(Math.abs(me.x-z.x)<z.hx&&Math.abs(me.z-z.z)<z.hz){near=lamp?3:.5;far=lamp?24:7;col=_w3c.set(lamp?'#120c06':'#040405');break}
+  const f=scene.fog,k=Math.min(1,dt*4);f.near+=(near-f.near)*k;f.far+=(far-f.far)*k;f.color.lerp(col,k);
+  if(W.w3signs)for(const m of W.w3signs)m.visible=lamp;
+  // the lantern in your hand
+  if(lamp&&G.av&&W._w3dark&&W._w3dark.length){if(!W3.glow){W3.glow=new THREE.Sprite(new THREE.SpriteMaterial({map:TEX.glow,color:'#ffc66b',transparent:true,opacity:.75,depthWrite:false,blending:THREE.AdditiveBlending}));W3.glow.scale.set(2.4,2.4,1);W3.glow.position.set(.75,1.1,.2)}
+    if(W3.glow.parent!==G.av.root)G.av.root.add(W3.glow);W3.glow.material.opacity=.6+.15*Math.sin(rt*9)}
+  // bubbles while your head is under
+  if(me&&me.wet>1&&!G.noRender){W._w3bub+=dt;while(W._w3bub>.12){W._w3bub-=.12;_fc.set('#e0f7ff');emit(FXG,me.x+(Math.random()-.5)*.3,me.y+1.8,me.z+(Math.random()-.5)*.3,(Math.random()-.5)*.3,1.6+Math.random(),(Math.random()-.5)*.3,1,.14,.2,_fc,.8,-.5,.4,0)}}
+}
+// World 3's events: the lantern, drowning, strokes, rising water and lava
+function w3ev(e,demo,t){
+  const W=G.W;if(!W||!W.w3)return false;
+  if(e.startsWith('pick:')){const p=W.byName.get(e.slice(5));if(!p||p.item!=='lamp')return false;const b=cur(p,t);sfx('pick');banner('Got the lantern','It lights up the dark',2.4);glowBurst(b.x,b.y,b.z,'#ffd56b',30,5,2.5);renderInv();return true}
+  if(e==='drown'){if(!demo){sfx('buzz');banner('Out of air!','Come up for air before the bar runs out',2.2)}return true}
+  if(e==='swim'){if(!demo)noise(.14,.07,700);puff(me.x,me.y+1.2,me.z,4,'#e0f7ff',1.2,.6,.22,.4);return true}
+  if(e.startsWith('rise:')){if(!demo){const msg=flagMsg(e);if(msg){sfx('open');banner(msg,'',2.2)}}return true}
+  return false;
+}
+// the Air bar (only on levels with water, while you're holding your breath)
+function w3hud(W){
+  if(!W.w3w&&!W3.air)return;
+  if(!W3.air){const st=document.createElement('style');st.textContent='#w3air{position:absolute;top:calc(64px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:3px 10px 4px}'+
+      '#w3air small{letter-spacing:.08em}#w3air i{display:block;width:110px;height:10px;border-radius:6px;background:#dbeafe;border:2px solid var(--ink);overflow:hidden}#w3air b{display:block;height:100%;width:100%;background:linear-gradient(90deg,#38bdf8,#a5f3fc);transition:width .15s}'+
+      '#w3air.low b{background:#f87171}#w3air.low{animation:coldPulse .5s ease-in-out infinite alternate}body.touch #w3air{top:auto;bottom:calc(168px + env(safe-area-inset-bottom,0px));left:calc(24px + env(safe-area-inset-left,0px));transform:none}body.touch #w3air i{width:80px}';
+    document.head.appendChild(st);const d=document.createElement('div');d.id='w3air';d.className='pill';d.hidden=true;d.innerHTML='<small>Air</small><i><b></b></i>';$('hud').appendChild(d);W3.air=d}
+  const br=W.w3w&&!G.finished&&!me.dead?(me.br||0):0,on=br>.15;if(W3.air.hidden===on)W3.air.hidden=!on;
+  if(on){const k=clamp(br/PHYS3.AIR,0,1),pc=Math.round(k*100);if(hudCache.w3air!==pc){hudCache.w3air=pc;W3.air.querySelector('b').style.width=(100-pc)+'%';W3.air.classList.toggle('low',k>.65)}}
+}
 // ---- end of World 3 drawing additions ----
 
 // ---- World 4 drawing additions (only World 4's builder edits between these two lines) ----
@@ -2162,6 +2431,7 @@ function drawIcon(g,kind,x,y,s){
   else if(kind==='lever'){P(()=>{rr(g,-34,18,68,20,6)},'#64748b');g.lineWidth=12;g.beginPath();g.moveTo(0,26);g.lineTo(22,-26);g.stroke();g.strokeStyle='#ffd23f';g.lineWidth=5;g.beginPath();g.moveTo(0,26);g.lineTo(22,-26);g.stroke();g.strokeStyle='#1b1840';g.lineWidth=7;P(()=>{g.beginPath();g.arc(24,-30,12,0,TAU)},'#ef4444')}
   else if(kind==='compass'){P(()=>{g.beginPath();g.arc(0,0,38,0,TAU)},'#fff7e0');P(()=>{g.beginPath();g.moveTo(0,-30);g.lineTo(10,0);g.lineTo(-10,0);g.closePath()},'#ef4444');P(()=>{g.beginPath();g.moveTo(0,30);g.lineTo(10,0);g.lineTo(-10,0);g.closePath()},'#e2e8f0')}
   else if(kind==='mirror'){P(()=>{g.beginPath();g.ellipse(0,0,28,38,0,0,TAU)},'#dbeafe');g.strokeStyle='#ffffff';g.lineWidth=6;g.beginPath();g.moveTo(-12,-14);g.lineTo(8,-26);g.stroke()}
+  else w3icon(g,kind,P); // W3 hook
   g.restore();
 }
 // a clock face (the hour hand short, the minute hand long); hands: false draws the face only
@@ -2185,10 +2455,12 @@ const ICON_SVG={
   fuse:'<svg viewBox="0 0 32 32"><rect x="11" y="5" width="10" height="22" rx="3" fill="#fde68a" stroke="#1b1840" stroke-width="2.4"/><rect x="9.5" y="3.5" width="13" height="5" rx="1.5" fill="#94a3b8" stroke="#1b1840" stroke-width="2"/><rect x="9.5" y="23.5" width="13" height="5" rx="1.5" fill="#94a3b8" stroke="#1b1840" stroke-width="2"/><path d="M16 10l-3 5 6 2-3 5" fill="none" stroke="#ef4444" stroke-width="2"/></svg>',
   gem:'<svg viewBox="0 0 32 32"><path d="M5 12l5-7h12l5 7-11 16z" fill="#38bdf8" stroke="#1b1840" stroke-width="2.4" stroke-linejoin="round"/><path d="M5 12h22M13 5l3 23 3-23" fill="none" stroke="#1b1840" stroke-width="1.6"/></svg>'
 };
+ICON_SVG.lamp=W3_LAMP_SVG; // W3 hook
 function signTex(sg,W,wpx,hpx){
   return new THREE.CanvasTexture(cvs(wpx,hpx,(g,w,h)=>{
     const ink='#1b1840';g.textAlign='center';g.textBaseline='middle';
     const font=(px,f)=>(f||'')+px+'px "Lilita One", "Arial Rounded MT Bold", sans-serif';
+    if(sg.w3&&w3sign(sg,W,g,w,h,font,ink))return; // W3 hook
     if(sg.exit){g.fillStyle='#16a34a';rr(g,4,4,w-8,h-8,18);g.fill();g.lineWidth=8;g.strokeStyle='#e8fff1';g.stroke();g.fillStyle='#fff';g.font=font(h*.62);g.fillText('EXIT',w*.44,h*.54);
       g.beginPath();g.moveTo(w*.78,h*.3);g.lineTo(w*.9,h*.5);g.lineTo(w*.78,h*.7);g.lineWidth=h*.1;g.strokeStyle='#fff';g.stroke();return}
     if(sg.board){g.fillStyle='#8b5e3c';g.fillRect(0,0,w,h);g.fillStyle='#2f5d46';g.fillRect(12,12,w-24,h-24);g.fillStyle='rgba(255,255,255,.92)';
@@ -2263,6 +2535,7 @@ function disposeWorld(){
 function loadWorld(W){disposeWorld();geoForWorld=true;try{buildWorldMeshes(W)}finally{geoForWorld=false}try{renderer.compile(scene,camera)}catch(e){}}
 const isDyn=p=>!!(p.move||p.timed||p.crumble||p.conv||p.cp>=0||p.finish||p.zone||p.door||p.onIf||p.offIf||p.item||p.btn||p.plate||p.push||p.tp||p.step||p.mat==='crystal');
 function itemMesh(p){
+  if(p.item==='lamp')return w3lampMesh(p); // W3 hook
   const g=new THREE.Group(),k=p.item,L=c=>new THREE.MeshLambertMaterial({color:c,emissive:new THREE.Color(c).multiplyScalar(.35)});
   if(k==='key'){const m=L('#ffcf3d');const ring=new THREE.Mesh(new THREE.TorusGeometry(.22,.08,8,20),m);ring.position.x=-.25;g.add(ring);const sh=new THREE.Mesh(new THREE.BoxGeometry(.55,.12,.12),m);sh.position.x=.15;g.add(sh);const t=new THREE.Mesh(new THREE.BoxGeometry(.1,.2,.12),m);t.position.set(.34,-.12,0);g.add(t)}
   else if(k==='card'){const c=new THREE.Mesh(new THREE.BoxGeometry(.7,.45,.05),[L('#3b82f6'),L('#3b82f6'),L('#3b82f6'),L('#3b82f6'),new THREE.MeshLambertMaterial({map:iconTexture('card','#3b82f6')}),new THREE.MeshLambertMaterial({map:iconTexture('card','#3b82f6')})]);g.add(c)}
@@ -2272,6 +2545,7 @@ function itemMesh(p){
   const root=new THREE.Group();root.add(g);root.add(halo);root.userData.spin=g;return root;
 }
 function partMesh(W,p){
+  if(p.zone==='water'||p.zone==='dark'||p.zone==='trig'||p.mat==='cart')return w3mesh(W,p); // W3 hook
   if(p.zone==='lowg')return new THREE.Mesh(boxGeo(p.hx*2,p.hy*2,p.hz*2),sharedMat('zone','#a78bfa'));
   if(p.zone==='cold'||p.zone==='warm'||p.zone==='wind')return null;
   // levels 9-13: a boulder, a ghost, a portal, a turning mirror, the moon crystal
@@ -2348,6 +2622,7 @@ function buildWorldMeshes(W){
       pl.position.set(p.x,p.y,p.z);pl.rotation.y=p.yaw;
       if(sg.flat){pl.rotation.set(-Math.PI/2,0,0);pl.position.y=p.y+.02}
       if(sg.hand)hands.push({mesh:pl,p});
+      if(sg.lamp)(W.w3signs||(W.w3signs=[])).push(pl); // W3 hook
       worldGroup.add(pl);continue;
     }
     if(!isDyn(p)&&!p.lock){
@@ -2380,6 +2655,7 @@ function buildWorldMeshes(W){
   setSky(W.def.sky[0],W.def.sky[1],sp);
   // the haunted manor is at night: dimmer light
   hemi.intensity=W.def.night?.62:sp?.95:.86;sun.intensity=W.def.night?.32:.56;
+  w3scene(W); // W3 hook
   scene.add(worldGroup);
 }
 // per-frame look of everything that moves, blinks, opens or can be picked up, at render time rt
@@ -2450,6 +2726,7 @@ function updateParts(rt,dt){
   beamGlow.opacity=.28+.1*Math.sin(rt*4);
   glowStatic.opacity=.24+.1*Math.sin(U.time.value*5);
   TEX.lava.offset.x=(U.time.value*.03)%1;TEX.lava.offset.y=(U.time.value*.05)%1;
+  if(W.w3)w3update(W,rt,dt); // W3 hook
 }
 
 // =====================================================================
@@ -2617,6 +2894,7 @@ function readInput(){
   const x=-s*fz+c*fx,z=-c*fz-s*fx;
   let jp=can&&G.jumpQ;G.jumpQ=false;
   if(can&&!jp&&held('jump')&&me.gr)jp=true;
+  if(can&&!jp&&held('jump')&&G.W.w3w&&me.wet&&G.t-(me.swT||0)>PHYS3.REPEAT)jp=true; // W3 hook
   return{x,z,jp};
 }
 const idleInp={x:0,z:0,jp:false};
@@ -2650,6 +2928,7 @@ const bigUnlock=f=>UNLOCK_BANNER.has(f)||!!(G.W&&G.W.def.unlock&&G.W.def.unlock.
 function handleEvents(t){
   const demo=!!G.attract;
   for(const e of me.ev){
+    if(w3ev(e,demo,t))continue; // W3 hook
     if(e==='jump'){if(!demo)sfx('jump');puff(me.x,me.y,me.z,7,'#ffffff',2.2,.5,.34,.45)}
     else if(e==='land'){if(!demo)sfx('land');G.fpDip=Math.max(G.fpDip,.08);puff(me.x,me.y,me.z,8,'#f4efe4',2.4,.4,.38,.5)}
     else if(e==='landHard'){if(!demo)sfx('landHard');G.fpDip=Math.max(G.fpDip,.24);puff(me.x,me.y,me.z,16,'#f4efe4',4,.7,.5,.65)}
@@ -3064,6 +3343,7 @@ function renderInv(){
 }
 const USE_TXT={pad:'Use the keypad',valve:'Turn the valve',clock:'Press: opens the gate for a few seconds',fuse:'Put the fuse in',bolt:'Flip the switch',bell:'Ring the bell',
   hour:'Turn the hour hand',minute:'Turn the minute hand',mirror:'Turn the mirror',lever:'Pull the lever',compass:'Turn the lens'};
+Object.assign(USE_TXT,W3_USE); // W3 hook
 function updateHud(){
   const pl=playing()&&!G.pauseOpen&&!G.overlay&&!G.kp;if(hudCache.playing!==pl){hudCache.playing=pl;document.body.classList.toggle('playing',pl)}
   if($('hud').hidden)return;
@@ -3080,6 +3360,7 @@ function updateHud(){
   // the cold (the ice cave): a meter under the clock, frost round the edges as it builds
   const cw=!!W.cold;$('cold').hidden=!cw||G.finished;if(cw){const k=clamp(me.cold/PHYS.COLD,0,1),pc=Math.round(k*100);if(hudCache.cold!==pc){hudCache.cold=pc;$('coldBar').style.width=(100-pc)+'%';$('cold').classList.toggle('low',k>.6);$('frost').style.opacity=String(clamp((k-.35)/.65,0,1))}}
   else if(hudCache.cold!==-1){hudCache.cold=-1;$('frost').style.opacity='0'}
+  w3hud(W); // W3 hook
   $('prompt').hidden=!txt;if(txt)setText('promptTxt',txt);
   $('tUse').classList.toggle('ready',!!p&&txt!=='Done');
   if(locked()&&(KB.busy()||G.kp))releaseLock();
