@@ -507,6 +507,7 @@ function mkPart(o){
   if(p.move){const m=p.move=Object.assign({ph:0},p.move);if(m.type==='line'||m.type==='roll'){m.ax=m.ax||0;m.ay=m.ay||0;m.az=m.az||0}if(m.type==='orbit'){m.a0=m.a0||0}
     if(m.type==='swing'){m.dx=m.dx||0;m.dz=m.dz||0}}
   if(p.push){p.home=[p.x,p.z];p.locked=false}
+  if(o.w6){p.w6=o.w6;p.oneway=o.oneway||null;p.th=o.th||0} // W6 hook
   return p;
 }
 function poseAt(p,t,o){
@@ -519,6 +520,7 @@ function poseAt(p,t,o){
   else if(m.type==='swing'){const th=m.amp*Math.sin(TAU*(t/m.per+m.ph)),s=Math.sin(th)*m.len;o.x+=m.dx*s;o.z+=m.dz*s;o.y+=m.len*(1-Math.cos(th))}
   // one way at a steady speed, then back to the start (out of one hole and into another: boulders)
   else if(m.type==='roll'){const u=t/m.per+m.ph,f=u-Math.floor(u);o.x+=m.ax*f;o.y+=m.ay*f;o.z+=m.az*f}
+  else if(m.type==='pulse')w6Pulse(m,t,o); // W6 hook
   return o;
 }
 function cur(p,t){if(!p.move)return p;if(p._ct!==t){poseAt(p,t,p.c);p._ct=t}return p.c}
@@ -584,6 +586,7 @@ function nearBox(W,x0,z0,x1,z1,y0,y1,out){
 // Signed distance in the ground plane from (px,pz) to a part's footprint (negative inside), with the outward
 // direction in h.nx/h.nz.
 function xzDist(p,ps,px,pz,h){
+  if(p.shape==='ring')return w6RingDist(p,ps,px,pz,h); // W6 hook
   if(p.shape==='cyl'){const dx=px-ps.x,dz=pz-ps.z,d=Math.hypot(dx,dz);h.nx=d>1e-6?dx/d:1;h.nz=d>1e-6?dz/d:0;h.d=d-p.r;return h.d}
   const c=Math.cos(ps.yaw),s=Math.sin(ps.yaw),dx=px-ps.x,dz=pz-ps.z;
   const lx=dx*c-dz*s,lz=dx*s+dz*c;
@@ -717,6 +720,7 @@ function simStep(W,pl,inp,t){
   for(let it=0;it<4;it++){
     let moved=false;
     for(let i=0;i<_near.length;i++){const p=_near[i];if(!p.solid||!solidNow(W,p,t))continue;
+      if(p.oneway&&w6Pass(p,pl))continue; // W6 hook
       const b=cur(p,t),bot=b.y-p.hy,tp=b.y+p.hy;
       if(tp<=pl.y+.02||bot>=pl.y+P.H-.02)continue;
       const d=xzDist(p,b,pl.x,pl.z,_h);if(d>=P.R)continue;
@@ -824,6 +828,7 @@ function logicStep(W,pl,t){
   // a flag that comes on once all of its flags are on (a vault that needs three relics)
   for(const a of W.alls)if(!flagOn(W,a.set,t)&&a.need.every(f=>flagOn(W,f,t))){st.f[a.set]=true;ev.push('open:'+a.set)}
   if(W.tick)W.tick(W,pl,t);
+  if(W.shadows)w6Logic(W,pl,t); // W6 hook
 }
 // The nearest thing you can use from where you stand, or null.
 function usable(W,pl,t){
@@ -893,6 +898,7 @@ function softReset(W){
   for(const p of W.parts)if(p.crumble)p.touch=-1;
   for(const k in W.st.f)if(typeof W.st.f[k]==='number')delete W.st.f[k];
   W.st.seq={};W.st.lastStep='';
+  w6Reset(W); // W6 hook
 
 }
 
@@ -968,6 +974,7 @@ function Builder(W,pal){
     portal(name,x,z,yaw,to,o){o=o||{};const w=o.w||2.4,h=o.h||3.6,top=o.top||0,ax=Math.abs(Math.sin(yaw))<.5;
       return B.add(Object.assign({x,y:top+h/2,z,w:ax?w:.5,h,d:ax?.5:w,solid:false,tp:to,mat:'portal',col:o.col||'#a78bfa',cam:false,name,yaw:0},o.part))}
   };
+  w6Builder(B); // W6 hook
 
   return B;
 }
@@ -1380,6 +1387,50 @@ build(B,r){
 // ---- end of World 5 core additions ----
 
 // ---- World 6 core additions (only World 6's builder edits between these two lines) ----
+// World 6 (The Last Door) adds three things. None of them does anything in a level that doesn't use it.
+//  - One-way doors (part option oneway: [nx, nz], built with B.oneway): a flap you can walk through going along
+//    (nx, nz) but never back. pl.ow remembers the flap you're halfway through, so turning round inside it is fine.
+//  - Shockwave rings (shape 'ring', move {type: 'pulse', rad, per, on, ph}, built with B.ring): a low ring of fire
+//    that grows from its centre out to rad over the first `on` part of every per seconds. Jump it as it passes.
+//  - The shadow (B.shadow zones): while you're in one, a shadow of you walks the path you took `delay` seconds behind
+//    you. Stand still too long, or turn back into it, and it catches you. Every player has their own; it starts again
+//    when you go back to a checkpoint or leave the zone.
+function w6Pass(p,pl){const o=p.oneway,s=(pl.x-p.x)*o[0]+(pl.z-p.z)*o[1];
+  if(pl.ow===p.id){if(Math.abs(s)<PHYS.R+.7)return true;pl.ow=-1}
+  if(s<0){pl.ow=p.id;return true}
+  return false}
+function w6Pulse(m,t,o){const u=t/m.per+m.ph,f=u-Math.floor(u),on=m.on||1;o.rad=f<on?f/on*m.rad:-1e4}
+function w6RingDist(p,ps,px,pz,h){const dx=px-ps.x,dz=pz-ps.z,d=Math.hypot(dx,dz),r=ps.rad==null?-1e4:ps.rad;
+  h.nx=d>1e-6?dx/d:1;h.nz=d>1e-6?dz/d:0;if(d<r){h.nx=-h.nx;h.nz=-h.nz}h.d=Math.abs(d-r)-p.th;return h.d}
+// the shadow: every step in a zone is remembered; the shadow stands where you were `delay` seconds ago
+function w6Logic(W,pl,t){
+  const S=W.w6s||(W.w6s={on:false,vis:false,buf:[],h:0,x:0,y:0,z:0,yaw:0,t0:0,seen:false});
+  let zn=null;for(const z of W.shadows)if(pl.x>z.x0&&pl.x<z.x1&&pl.z>z.z0&&pl.z<z.z1&&pl.y>z.y0&&pl.y<z.y1&&(!z.item||W.st.inv[z.item])&&(!z.flag||flagOn(W,z.flag,t))){zn=z;break}
+  if(!zn){S.on=false;S.vis=false;return}
+  if(!S.on){S.on=true;S.vis=false;S.buf.length=0;S.h=0;S.t0=t;S.d=zn.delay;if(!S.seen){S.seen=true;pl.ev.push('w6:shadow')}}
+  S.buf.push(t,pl.x,pl.y,pl.z,pl.yaw);
+  const b=S.buf,tc=t-S.d;if(tc<S.t0)return;
+  while(S.h+5<b.length&&b[S.h+5]<=tc)S.h+=5;
+  if(S.h>3000){b.splice(0,S.h);S.h=0}
+  S.vis=true;S.x=b[S.h+1];S.y=b[S.h+2];S.z=b[S.h+3];S.yaw=b[S.h+4];
+  if(Math.hypot(S.x-pl.x,S.z-pl.z)<.75&&Math.abs(S.y-pl.y)<1.6){pl.dead=true;pl.ev.push('w6:caught');pl.ev.push('die')}
+}
+function w6Reset(W){if(W.w6s){W.w6s.on=false;W.w6s.vis=false}}
+// Builder helpers (added onto B)
+function w6Builder(B){const W=B.W;
+  // a one-way flap filling the door gap at c in wall axis ('x' or 'z') at `at`; dir +1 / -1: the way you may go
+  // (along +z / -z for a wall along x, +x / -x for a wall along z)
+  B.oneway=(ax,at,c,dir,o)=>{o=o||{};const w=o.w||DW,h=o.h||DH,ox=ax==='x';
+    return B.add(Object.assign(ox?{x:c,y:h/2,z:at,w,h,d:.4,oneway:[0,dir]}:{x:at,y:h/2,z:c,w:.4,h,d:w,oneway:[dir,0]},{mat:'oneway',col:o.col||'#f15bb5',name:o.name||'ow'+W.parts.length,cam:false,w6:'oneway'}))};
+  // a ring of fire growing from (x, z) out to rad every per seconds (for the first `on` of it), ph its phase
+  B.ring=(x,z,rad,per,o)=>{o=o||{};const h=o.h||.7;
+    return B.add({shape:'ring',x,y:(o.y||0)+h/2,z,w:rad*2,h,d:rad*2,th:o.th||.25,kill:true,solid:false,mat:'ring',col:o.col||'#ff4a1c',cam:false,
+      move:{type:'pulse',rad,per,on:o.on||1,ph:o.ph||0},name:o.name||'ring'+W.parts.length,w6:'ring',onIf:o.onIf||'',offIf:o.offIf||''})};
+  // a shadow zone x0..x1, z0..z1 (y0..y1 high): your shadow follows `delay` seconds behind you while you're in it
+  // (o.item / o.flag: only once you carry that item / while that flag is on)
+  B.shadow=(x0,z0,x1,z1,o)=>{o=o||{};if(!W.shadows){W.shadows=[];B.add({x:0,y:-50,z:0,w:1,h:1,d:1,deco:true,mat:'shadow',col:'#14102a',name:'shadow',w6:'shadow'})}
+    const z={x0:Math.min(x0,x1),z0:Math.min(z0,z1),x1:Math.max(x0,x1),z1:Math.max(z0,z1),y0:o.y0==null?-2:o.y0,y1:o.y1==null?30:o.y1,delay:o.delay||3,item:o.item||'',flag:o.flag||''};W.shadows.push(z);return z};
+}
 // ---- end of World 6 core additions ----
 
 // ---------- worlds ----------
@@ -1394,7 +1445,7 @@ build(B,r){
 const WPL=8,NWORLDS=6,NLV=WPL*NWORLDS;
 // CORE_VER goes up whenever a change here adds something a world file can use; a world file says which one it needs
 // (needs: n), so a page that's older than the file shows "update needed" instead of breaking.
-const CORE_VER=2;
+const CORE_VER=3;
 const WORLDS=[
   {n:1,name:'Breakout',col:'#ff6b6b',blurb:'Detention, the lab, the kitchen and the vault, all the way to the Warden.',ids:['class','lab','kitchen','toys','sewer','vault','space','warden']},
   // ---
@@ -1406,7 +1457,7 @@ const WORLDS=[
   // ---
   {n:5,name:'Coming soon',col:'#4c8dff',blurb:'Eight new escape rooms are on their way.',ids:[]},
   // ---
-  {n:6,name:'Coming soon',col:'#f15bb5',blurb:'Eight new escape rooms are on their way.',ids:[]}
+  {n:6,name:'The Last Door',col:'#f15bb5',blurb:'Labyrinths, tombs, dragons and dreams, all the way to the last door of all.',ids:['labyrinth','sandtomb','citadel','dragonkeep','hourglass','dreamwalk','gauntlet','lastdoor']}
 ];
 for(let k=0;k<WPL;k++)Object.assign(LEVELS[k],{world:1,k});WORLDS[0].loaded=true;
 // A world file registers itself here. Levels land at LEVELS[(n - 1) * 8 + k]. Returns false (and says why on
@@ -2048,6 +2099,78 @@ const colOf=p=>p.mat==='bounce'?'#ffffff':p.col;
 // ---- end of World 5 drawing additions ----
 
 // ---- World 6 drawing additions (only World 6's builder edits between these two lines) ----
+// One-way flaps (a chevron on the side you may come from, a bar on the other; they swing as you pass), rings of fire,
+// your shadow, World 6's clue signs, its banners and the end-of-the-game results.
+function w6Tex(k,draw){let t=iconTex.get('w6:'+k);if(!t){t=new THREE.CanvasTexture(cvs(128,128,draw));t.anisotropy=4;iconTex.set('w6:'+k,t)}return t}
+function w6Add(W,p,group,list){
+  let m=null;
+  if(p.w6==='oneway'){
+    const go=w6Tex('go',(g,w,h)=>{g.clearRect(0,0,w,h);g.fillStyle='rgba(255,255,255,.18)';g.fillRect(0,0,w,h);g.strokeStyle='#ffffff';g.lineWidth=16;g.lineCap='round';g.lineJoin='round';
+        for(const y of [40,78]){g.beginPath();g.moveTo(30,y+18);g.lineTo(64,y-14);g.lineTo(98,y+18);g.stroke()}}),
+      no=w6Tex('no',(g,w,h)=>{g.clearRect(0,0,w,h);g.fillStyle='rgba(0,0,0,.25)';g.fillRect(0,0,w,h);g.fillStyle='#ffffff';g.beginPath();g.arc(64,64,40,0,TAU);g.fill();g.fillStyle='#e0453a';g.beginPath();g.arc(64,64,33,0,TAU);g.fill();g.fillStyle='#ffffff';g.fillRect(36,56,56,16)});
+    const ox=Math.abs(p.oneway[1])>.5,dir=ox?p.oneway[1]:p.oneway[0],W2=(ox?p.hx:p.hz)*2,H=p.hy*2;
+    m=new THREE.Group();m.rotation.y=ox?0:Math.PI/2;
+    const pv=new THREE.Group();pv.position.y=p.hy;m.add(pv);
+    const body=new THREE.Mesh(new THREE.BoxGeometry(W2-.1,H-.05,.12),new THREE.MeshLambertMaterial({color:p.col,transparent:true,opacity:.55,emissive:new THREE.Color(p.col).multiplyScalar(.25)}));body.position.y=-p.hy;pv.add(body);
+    for(const s of [-1,1]){const f=new THREE.Mesh(new THREE.PlaneGeometry(Math.min(W2,H)*.8,Math.min(W2,H)*.8),new THREE.MeshBasicMaterial({map:s===-dir?go:no,transparent:true,depthWrite:false}));
+      f.position.set(0,-p.hy,s*.08);if(s<0)f.rotation.y=Math.PI;pv.add(f)}
+    m.userData.pv=pv;m.userData.dir=dir;m.userData.ox=ox;
+  }else if(p.w6==='ring'){
+    m=new THREE.Group();const h=p.hy*2;
+    const core=new THREE.Mesh(new THREE.CylinderGeometry(1,1,h,56,1,true),new THREE.MeshBasicMaterial({color:'#ffb347',side:THREE.DoubleSide,transparent:true,opacity:.9}));m.add(core);
+    const glow=new THREE.Mesh(new THREE.CylinderGeometry(1,1,h*1.8,56,1,true),new THREE.MeshBasicMaterial({color:p.col,side:THREE.DoubleSide,transparent:true,opacity:.35,blending:THREE.AdditiveBlending,depthWrite:false}));m.add(glow);
+    m.userData.ring=[core,glow];
+  }else if(p.w6==='shadow'){
+    m=new THREE.Group();const dragon=W.def.chaser==='dragon',body=W.def.chaserCol||'#1a1033',items=[];
+    const bx=(w,h,d,x,y,z,col)=>items.push({geo:boxGeo(w,h,d),x,y,z:z||0,yaw:0,col:col||body});
+    if(dragon){bx(1.3,1.1,2,0,1.3,0);bx(1,.5,1.3,0,1,-1.5);bx(.9,.25,1.1,0,.62,-1.4,'#3b0d0d');for(const s of [-1,1]){bx(.22,.22,.1,s*.4,1.62,-.98,'#ffd23f');bx(.2,.7,.2,s*.42,2.05,.5,'#e8e0c8')}}
+    else{for(const [w,h,d,x,y] of [[.42,.8,.44,-.22,.4],[.42,.8,.44,.22,.4],[.92,.74,.46,0,1.17],[.34,.72,.4,-.64,1.2],[.34,.72,.4,.64,1.2],[.54,.48,.5,0,1.79]])bx(w,h,d,x,y);
+      for(const s of [-1,1])bx(.1,.08,.04,s*.12,1.84,-.26,'#ff2a4a')}
+    m.add(new THREE.Mesh(mergeInto(items),new THREE.MeshBasicMaterial({vertexColors:true,transparent:true,opacity:.86})));
+    const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:TEX.glow,color:dragon?'#ff6a2a':'#a855f7',transparent:true,opacity:.55,depthWrite:false,blending:THREE.AdditiveBlending}));halo.scale.set(3,3.4,1);halo.position.y=1.1;m.add(halo);
+    m.visible=false;
+  }
+  if(!m)return false;
+  const b=cur(p,0);m.position.set(b.x,b.y,b.z);if(p.w6==='ring')m.rotation.y=0;
+  group.add(m);list.push({p,mesh:m});p.mesh=m;return true;
+}
+function w6Update(W,p,m,rt,dt){
+  if(p.w6==='oneway'){const u=m.userData,s=(me.x-p.x)*p.oneway[0]+(me.z-p.z)*p.oneway[1],near=me.ow===p.id&&Math.abs(s)<PHYS.R+.7;
+    const k=near?clamp(1-Math.abs(s)/(PHYS.R+.7)+.35,0,1):0;u.o=(u.o||0)+(k-(u.o||0))*Math.min(1,dt*10);u.pv.rotation.x=-u.dir*u.o*1.1}
+  else if(p.w6==='ring'){const b=cur(p,rt),r=b.rad,on=r>.05&&present(W,p,rt);m.visible=on;
+    if(on){for(const c of m.userData.ring)c.scale.set(r,1,r);m.userData.ring[1].material.opacity=.25+.12*Math.sin(rt*14)}}
+  else if(p.w6==='shadow'){const S=W.w6s,v=!!(S&&S.vis)&&!me.dead;m.visible=v;
+    if(v){m.position.set(S.x,S.y+Math.sin(rt*3)*.05,S.z);m.rotation.y=S.yaw;if(Math.random()<dt*20)sparkle(S.x+(Math.random()-.5)*.8,S.y+Math.random()*2,S.z+(Math.random()-.5)*.8,'#a855f7',.2)}}
+}
+function w6Event(e){
+  const dragon=G.W&&G.W.def.chaser==='dragon';
+  if(e==='w6:shadow'){sfx('buzz');banner(dragon?'The dragon wakes up!':'Your shadow is following you',dragon?'It follows your trail a few seconds behind. Run!':'Keep moving. It walks your path a few seconds behind',3)}
+  else if(e==='w6:caught')banner(dragon?'The dragon caught you!':'Your shadow caught you!','Keep moving, and never turn back into it',2.2);
+}
+// World 6's clue signs: {w6: 'maze'} the labyrinth's plan (walls, flaps drawn as pink gaps, bells as gold dots);
+// {w6: 'order', g, title, sub} the symbols of W.seqs[g] in order (a tapestry)
+function w6Sign(g,sg,W,w,h,font){
+  const ink='#1b1840';
+  if(sg.w6==='order'){const order=W.seqs[sg.g].order,n=order.length;g.fillStyle=sg.bg||'#7a1f2b';g.fillRect(0,0,w,h);g.strokeStyle='#e8b923';g.lineWidth=14;g.strokeRect(9,9,w-18,h-18);
+    g.fillStyle='#ffe9a8';g.font=font(h*.13);g.fillText(sg.title||'In this order',w/2,h*.17);if(sg.sub){g.font=font(h*.075);g.fillStyle='#f4d7c0';g.fillText(sg.sub,w/2,h*.3)}
+    order.forEach((s,i)=>{const x=w*(i+.5)/n,y=h*.62;g.fillStyle='rgba(255,250,235,.9)';g.beginPath();g.arc(x,y,h*.17,0,TAU);g.fill();drawIcon(g,s,x,y,h*.26);
+      g.fillStyle='#ffe9a8';g.font=font(h*.1);g.fillText(String(i+1),x,h*.9)});return}
+  if(sg.w6==='maze'){const M=W.w6maze,n=M.cols,k=Math.min(w,h)*.74/n,ox=(w-k*n)/2,oy=h*.13;
+    g.fillStyle='#e9dcc0';g.fillRect(0,0,w,h);speckle(g,w,h,900,.12,.2);g.strokeStyle='#6b5536';g.lineWidth=12;g.strokeRect(6,6,w-12,h-12);
+    g.fillStyle=ink;g.font=font(h*.07);g.fillText(sg.title||'The labyrinth',w/2,h*.08);
+    const X=c=>ox+c*k,Y=r=>oy+(n-r)*k; // row 0 at the bottom (south)
+    g.fillStyle='rgba(107,85,54,.12)';g.fillRect(X(0),Y(n),k*n,k*n);
+    g.lineCap='round';
+    for(const [x0,y0,x1,y1,kind] of M.lines){g.strokeStyle=kind==='ow'?'#f15bb5':kind==='gate'?'#e0453a':ink;g.lineWidth=kind==='ow'?k*.16:k*.1;g.beginPath();g.moveTo(X(x0),Y(y0));g.lineTo(X(x1),Y(y1));g.stroke()}
+    for(const [c,r,col] of M.dots){g.fillStyle=col;g.beginPath();g.arc(X(c+.5),Y(r+.5),k*.2,0,TAU);g.fill();g.lineWidth=k*.05;g.strokeStyle=ink;g.stroke()}
+    g.fillStyle=ink;g.font=font(h*.05);g.fillText(sg.foot||'You are here',X(M.you[0]+.5),Y(M.you[1])+h*.05);return}
+}
+// The last level of all: the results say the whole game is beaten
+function w6Ending(online){
+  $('resTitle').textContent='You beat Escapade!';
+  if(!online)$('resMsg').textContent='That was the Last Door: all '+NLV+' rooms in '+NWORLDS+' worlds, escaped. Thank you for playing! Go back for every star and gem, or race your best times.';
+  confetti(me.x,me.y+3,me.z,260);
+}
 // ---- end of World 6 drawing additions ----
 
 // ---------- sky, ground and scenery ----------
@@ -2189,6 +2312,7 @@ function signTex(sg,W,wpx,hpx){
   return new THREE.CanvasTexture(cvs(wpx,hpx,(g,w,h)=>{
     const ink='#1b1840';g.textAlign='center';g.textBaseline='middle';
     const font=(px,f)=>(f||'')+px+'px "Lilita One", "Arial Rounded MT Bold", sans-serif';
+    if(sg.w6){w6Sign(g,sg,W,w,h,font);return} // W6 hook
     if(sg.exit){g.fillStyle='#16a34a';rr(g,4,4,w-8,h-8,18);g.fill();g.lineWidth=8;g.strokeStyle='#e8fff1';g.stroke();g.fillStyle='#fff';g.font=font(h*.62);g.fillText('EXIT',w*.44,h*.54);
       g.beginPath();g.moveTo(w*.78,h*.3);g.lineTo(w*.9,h*.5);g.lineTo(w*.78,h*.7);g.lineWidth=h*.1;g.strokeStyle='#fff';g.stroke();return}
     if(sg.board){g.fillStyle='#8b5e3c';g.fillRect(0,0,w,h);g.fillStyle='#2f5d46';g.fillRect(12,12,w-24,h-24);g.fillStyle='rgba(255,255,255,.92)';
@@ -2350,6 +2474,7 @@ function buildWorldMeshes(W){
       if(sg.hand)hands.push({mesh:pl,p});
       worldGroup.add(pl);continue;
     }
+    if(p.w6&&w6Add(W,p,worldGroup,dyn))continue; // W6 hook
     if(!isDyn(p)&&!p.lock){
       const kind=kindOf(p),key=kind+'|'+Math.floor(p.z/24);
       let b=buckets.get(key);if(!b)buckets.set(key,b={kind,items:[]});
@@ -2430,6 +2555,7 @@ function updateParts(rt,dt){
     if(m.userData.portal){m.userData.portal.material.opacity=.75+.17*Math.sin(rt*3+p.id)}
     if(m.userData.mirror){const ty=st.mir[p.name]?Math.PI/4:-Math.PI/4;m.rotation.y+=(ty-m.rotation.y)*Math.min(1,dt*10)}
     if(m.userData.crystal){const B=Object.values(W.beams)[0],on=B&&flagOn(W,B.set,rt);m.material.emissive.set(on?'#ffe9a0':'#1b3550');m.userData.halo.material.opacity=on?.55+.25*Math.sin(rt*5):0;m.rotation.y=rt*.8}
+    if(p.w6)w6Update(W,p,m,rt,dt); // W6 hook
     if(p.step){const g=W.seqs[p.step.seq],on=flagOn(W,g.set,rt)||(st.seq[p.step.seq]||[]).indexOf(p.step.sym)>=0;m.material.emissive.setRGB(on?.18:0,on?.42:0,on?.2:0)}
     if(d.rods){const mv=p.move,o=mv.dx?p.hz*.7:p.hx*.7;
       d.rods.forEach((rod,k)=>{const s=k?1:-1,ox=mv.dx?0:s*o,oz=mv.dx?s*o:0;_ra.set(p.x+ox,p.y+mv.len,p.z+oz);const b=cur(p,rt);_rb.set(b.x+ox,b.y+p.hy,b.z+oz);
@@ -2662,6 +2788,7 @@ function handleEvents(t){
     else if(e==='thud'){if(!demo)sfx('thud')}
     else if(e==='frozen'){if(!demo){sfx('freeze');banner('Frozen!','Stay close to the fires',2)}}
     else if(e==='die')onDeath();
+    else if(e.startsWith('w6:')){if(!demo)w6Event(e)} // W6 hook
     else if(demo)continue;
     else if(e==='cp'){sfx('cp');const c=G.W.cps[me.cp];if(c)glowBurst(me.x,c.y+.3,me.z,'#7ef0b4',30,6,3);banner('Checkpoint','',1.2)}
     else if(e.startsWith('pick:')){const p=G.W.byName.get(e.slice(5));if(!p)continue;const b=cur(p,t);
@@ -3284,6 +3411,7 @@ function showResults(d,tm,nb,pb,earn,newStars){
     newWorld?'World '+wn+' done! World '+worldOf(nx)+', '+WORLDS[worldOf(nx)-1].name+', is open.':
     nx<0&&last?(wn<NWORLDS?'World '+wn+' done! World '+(wn+1)+' is coming soon. Go back for stars meanwhile.':'That was the last room of all. Go back for stars.'):
     nx<0?'More levels are coming soon to this world.':'';
+  if(G.lv===NLV-1)w6Ending(online); // W6 hook
   showOverlay('results');showAd('adEnd');
 }
 $('resNext').onclick=()=>{const nx=nextLevel(G.lv);if(nx>=0)startLevel(nx)};
