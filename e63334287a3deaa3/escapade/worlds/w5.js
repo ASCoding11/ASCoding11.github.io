@@ -243,8 +243,8 @@ build(B,r){
   B.cyl(CX,0,CZ,11.3,Object.assign({t:3,name:'deck'},FL));
   const ring=(R,door,col)=>{const L=2*R*Math.tan(Math.PI/8)+.6;
     for(let k=0;k<8;k++){const [x,z]=P(k,R),yaw=k*Math.PI/4,tx=Math.cos(yaw),tz=-Math.sin(yaw);
-      if(k)B.box(x,4.5,z,L,11,.6,{yaw,col,mat:'wall'});
-      else if(door<L-1)for(const s of [-1,1]){const c=(door/2+L/2)/2;B.box(x+tx*c*s,4.5,z+tz*c*s,L/2-door/2,11,.6,{yaw,col,mat:'wall'})}}};
+      if(k)B.box(x,8,z,L,18,.6,{yaw,col,mat:'wall'});
+      else if(door<L-1)for(const s of [-1,1]){const c=(door/2+L/2)/2;B.box(x+tx*c*s,8,z+tz*c*s,L/2-door/2,18,.6,{yaw,col,mat:'wall'})}}};
   B.turning('inner',CX,CZ,8,()=>ring(5,99,'#c9b79c'),{start:kin});
   B.turning('outer',CX,CZ,8,()=>{ring(11,3.6,'#e8e2d4');const [x,z]=P(0,11.25);B.deco(x,6.4,z,3.8,.5,.4,{col:'#3a3f58'})},{start:4});
   // the kitchen: the two turn buttons and the fuse box round the middle, a compass on the floor, the lift up to the roof
@@ -257,8 +257,8 @@ build(B,r){
   B.align({inner:k1,outer:k2},'view');B.all(['view','power'],'up');
   B.cp(1,cx1,cz1,{w:2,d:2});
   B.lift(CX-1.6,CZ-1.6,CX+1.6,CZ+1.6,0,15,{onIf:'up',name:'up'});
-  B.plat(CX,12,CZ-3.4,6,3.6,{name:'roof',col:'#3a3f58',mat:'metal'});B.deco(CX+2.4,16,CZ-4.6,.3,8,.3,STEEL);B.dcyl(CX+2.4,20.2,CZ-4.6,.4,.4,{col:'#ef4444',mat:'glass'});
-  B.finish(CX-.6,CZ-3.4,{top:12,w:3.4,d:3});B.sign(CX,13.4,CZ-5.15,0,2.4,.75,{exit:true});
+  B.plat(CX,12,CZ-2.8,4,2.8,{name:'roof',col:'#3a3f58',mat:'metal'});B.deco(CX+1.7,16,CZ-3.9,.3,8,.3,STEEL);B.dcyl(CX+1.7,20.2,CZ-3.9,.4,.4,{col:'#ef4444',mat:'glass'});
+  B.finish(CX-.4,CZ-2.8,{top:12,w:3,d:2.6});B.sign(CX-.4,13.4,CZ-4.15,0,2.4,.75,{exit:true});
   // the south terrace (the start) and its bridge
   B.plat(0,0,-16,12,12,Object.assign({name:'S'},WOOD));B.cp(0,0,-13);
   B.plat(0,0,-25.35,3.2,6.7,Object.assign({name:'bridgeS'},WOOD));
@@ -308,7 +308,7 @@ build(B,r){
   B.j(0,.3,-56.4,{wait:true});B.j(0,.3,-53.4,{wait:true});B.j(0,0,-50.6,{wait:true});arc(0,kin,8);inK();
   stand(7);B.use('fusebox',...P(7,3.4).slice(0,1),0,P(7,3.4)[1]);
   turn('outerBtn','outer',k2);turn('innerBtn','inner',k1);B.u((t,W)=>flagOn(W,'up',t));
-  to(4);{const [x,z]=P(4,2.6);B.w(x,0,z)}B.drive((t,W,pl)=>{if(pl.y>13.2)return go(pl,CX-.6,CZ-3.4);const g=go(pl,CX,CZ);if(pl.gr){g.x*=.35;g.z*=.35}return g});
+  to(4);{const [x,z]=P(4,2.6);B.w(x,0,z)}B.drive((t,W,pl)=>{if(pl.y>13.2)return go(pl,CX-.4,CZ-2.8);const g=go(pl,CX,CZ);if(pl.gr){g.x*=.35;g.z*=.35}return g});
   W.spawn={x:0,y:0,z:-13,yaw:0};
 }},
 // 5. An airship. A cannon on the mooring mast fires you aboard through the crosswind. Along each side of the gas bag
@@ -470,14 +470,14 @@ build(B,r){
   // the dock (start) and the zero-gravity lab with the fuse
   B.plat(0,0,0,10,8,Object.assign({name:'dock',t:2},HULL));B.cp(0,0,1.6);
   B.sign(2.6,2.4,-3.9,0,4.6,1.3,{title:'Orbiter',sub:'Mind the gap: it is a long way down'});B.deco(.6,1,-3.95,.2,2,.2,DARK);B.deco(4.6,1,-3.95,.2,2,.2,DARK);
-  B.plat(-8.5,0,0,7,2.4,Object.assign({name:'labwalk'},HULL));
-  B.plat(-17,0,-4,10,12,Object.assign({name:'lab',t:1},HULL));
-  B.zone('lowg',-22,2,-12,-10,0,24,{name:'lowg'});
-  B.plat(-19,3,-1,2.6,2.6,{move:{type:'line',ay:2.4,per:5},name:'f1',col:'#94a3b8',mat:'metal'});
-  B.plat(-15,7.6,-6,2.6,2.6,{move:{type:'line',ay:2.4,per:6,ph:.3},name:'f2',col:'#94a3b8',mat:'metal'});
-  B.plat(-20,12,-8,2.6,2.6,{move:{type:'line',ay:2,per:5.5,ph:.6},name:'f3',col:'#94a3b8',mat:'metal'});
-  B.plat(-14.6,15.4,-9,2.6,2.6,Object.assign({name:'shelf'},GOLD));B.item('fuse','fuse',-14.6,16.3,-9);
-  B.plat(-21,19.4,-.8,1.6,1.6,Object.assign({name:'gemshelf'},GOLD));B.item('gem','gem',-21,20.2,-.8);
+  B.plat(-8.5,0,3,7,2.4,Object.assign({name:'labwalk'},HULL));
+  B.plat(-17,0,8,10,12,Object.assign({name:'lab',t:1},HULL));
+  B.zone('lowg',-22,14,-12,2,0,24,{name:'lowg'});
+  B.plat(-19,3,11,2.6,2.6,{move:{type:'line',ay:2.4,per:5},name:'f1',col:'#94a3b8',mat:'metal'});
+  B.plat(-15,7.6,6,2.6,2.6,{move:{type:'line',ay:2.4,per:6,ph:.3},name:'f2',col:'#94a3b8',mat:'metal'});
+  B.plat(-20,12,4,2.6,2.6,{move:{type:'line',ay:2,per:5.5,ph:.6},name:'f3',col:'#94a3b8',mat:'metal'});
+  B.plat(-14.6,15.4,3,2.6,2.6,Object.assign({name:'shelf'},GOLD));B.item('fuse','fuse',-14.6,16.3,3);
+  B.plat(-21,19.4,11.2,1.6,1.6,Object.assign({name:'gemshelf'},GOLD));B.item('gem','gem',-21,20.2,11.2);
   // the walkway to the hub, a laser sweeping across it
   B.plat(0,0,-9,2.4,10,Object.assign({name:'walk'},HULL));
   B.laser(-4,1.5,-9.4,.3,3,.3,{move:{type:'line',ax:8,per:3.2},name:'sweep'});B.deco(0,3.3,-9.4,10,.25,.25,DARK);
@@ -508,8 +508,8 @@ build(B,r){
   B.plat(-21,3,-44,5,5,Object.assign({name:'capsule'},GOLD));B.finish(-21,-44,{top:3,w:3.6,d:3.6});
   B.deco(-21,6.4,-46.4,4,2,.4,DARK);B.sign(-21,6.4,-46.15,0,2.4,.75,{exit:true});
   // route: the lab, the fuse box, each module (turn the panel its button names), back to the hub, then the pod
-  B.w(-5.4,0,0);B.w(-13.2,0,-1);B.jon('f1',0,{wait:true});B.jon('f2',0,{wait:true});B.jon('f3',0,{wait:true});B.j(-14.6,15.4,-9,{wait:true});
-  B.j(-13,0,-2,{wait:true});B.w(-5.4,0,0);B.w(0,0,-3.6);B.w(0,0,-14.6);B.w(0,0,-15.6);B.w(3.2,0,-15.6);B.use('fusebox',3.2,0,-15.6);
+  B.w(-5.4,0,3);B.w(-12.8,0,3);B.w(-13.2,0,11);B.jon('f1',0,{wait:true});B.jon('f2',0,{wait:true});B.jon('f3',0,{wait:true});B.j(-14.6,15.4,3,{wait:true});
+  B.j(-13,0,10,{wait:true});B.w(-12.6,0,3);B.w(-5.4,0,3);B.w(0,0,-3.6);B.w(0,0,-14.6);B.w(0,0,-15.6);B.w(3.2,0,-15.6);B.use('fusebox',3.2,0,-15.6);
   const hubBack=[];
   for(const [k,cn] of [['pW','cW'],['pE','cE'],['pN','cN']]){const c=W.byName.get(cn),[mx,mz]=MOD[k],dx=Math.sign(mx)||0;
     B.w(c.x+(dx?-dx*1.8:1.8),0,c.z+(dx?0:.2));B.j(c.x,1.2,c.z,{wait:true});B.fire(cn,['mod_'+k]);
