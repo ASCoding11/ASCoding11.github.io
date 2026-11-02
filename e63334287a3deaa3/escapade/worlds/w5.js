@@ -21,7 +21,7 @@ E.world({n:5,needs:3,levels:[
 {id:'balloonfest',name:'Hot Air',sub:'The balloon festival',par:125,clouds:true,sky:['#7cc4ff','#fff1d6'],pal:{floor:'#9fd38a',wall:'#e9e2d0',prop:'#e07a5f',trim:'#3d405b'},
 msgs:{burn:'The burner roars for',power:'The fuse is in. The cable car runs',towerdoor:'Code accepted. The tower door opens'},unlock:['power','towerdoor'],
 build(B,r){
-  const W=B.W,GRASS={mat:'floor',col:'#9fd38a',t:3},ROCK={col:'#a89f91',mat:'stone'},WICK={mat:'wood',col:'#c8955c'};
+  B.sky();const W=B.W,GRASS={mat:'floor',col:'#9fd38a',t:3},ROCK={col:'#a89f91',mat:'stone'},WICK={mat:'wood',col:'#c8955c'};
   W.killY=-10;W.codes.sky=makeCode(r);W.pads.sky={set:'towerdoor'};
   // the festival field (start)
   B.plat(0,0,-1,18,14,Object.assign({name:'isleA'},GRASS));
@@ -96,7 +96,7 @@ build(B,r){
 {id:'bigtop',name:'Big Top',sub:'The flying circus',par:190,clouds:true,sky:['#5aa9e6','#ffe3c2'],pal:{floor:'#e9c46a',wall:'#c0392b',prop:'#f4a261',trim:'#264653'},
 msgs:{powder:'The big cannon is loaded',show:'What an act! The cage at the back opens'},unlock:['show'],
 build(B,r){
-  const W=B.W,RED={col:'#c0392b',mat:'plastic'},CREAM={col:'#f6ecd8',mat:'plastic'},WOOD={col:'#8a5a36',mat:'wood'};
+  B.sky();const W=B.W,RED={col:'#c0392b',mat:'plastic'},CREAM={col:'#f6ecd8',mat:'plastic'},WOOD={col:'#8a5a36',mat:'wood'};
   W.killY=-10;
   const COLS={red:'#e63946',yellow:'#ffd166',green:'#2a9d8f',blue:'#457b9d'},names=Object.keys(COLS);
   const order=shuffle(names.slice(),r),ks=shuffle([1,2,6,7],r);
@@ -116,7 +116,7 @@ build(B,r){
   B.plat(0,6,-45.8,2.4,2.4,{move:{type:'swing',dx:1,len:8,amp:.42,per:4.2,ph:.5},mat:'metal',col:'#e9c46a',name:'trap2'});
   B.deco(0,15.2,-43.7,18,.3,.3,WOOD);
   // the ring: the big cannon on its turntable, its turn button, the powder store's cannon
-  B.cyl(0,0,RC,15,{t:3,mat:'floor',col:'#e9c46a',name:'ring'});B.dcyl(0,.05,RC,15.1,.3,{col:'#c0392b'});
+  B.cyl(0,0,RC,15,{t:3,mat:'floor',col:'#e9c46a',name:'ring'});B.dcyl(0,-.12,RC,15.1,.3,{col:'#c0392b'});
   B.cp(2,0,-51.4);
   const T=(20+20)/46,SP=D/T;
   B.turning('aim',0,RC,8,()=>{B.cannon('aim',0,1.6,RC,{sp:SP,vy:20,yaw:0,r:.95,pow:'powder',col:'#7c2d12'})});
@@ -164,7 +164,7 @@ build(B,r){
 {id:'thunderclap',name:'Thunderclap',sub:'The skyscraper in a storm',par:140,clouds:'#59617a',night:true,sky:['#1d2333','#5d6680'],pal:{floor:'#8b93a7',wall:'#c9ced8',prop:'#5b6475',trim:'#1b1f2b'},
 msgs:{'rod:on':'The lightning rod goes up','rod:off':'The lightning rod goes down',bridge:'Lightning hits the rod! The bridge lights up',cagedoor:'The keycard opens the cage',helidoor:'Code accepted. The vent door opens'},unlock:['helidoor'],
 build(B,r){
-  const W=B.W,ROOF={col:'#8b93a7',mat:'floor'},STEEL={col:'#5b6475',mat:'metal'},GIRD={col:'#e0a33a',mat:'metal'},CON={col:'#9aa1b3',mat:'stone'};
+  B.sky();const W=B.W,ROOF={col:'#8b93a7',mat:'floor'},STEEL={col:'#5b6475',mat:'metal'},GIRD={col:'#e0a33a',mat:'metal'},CON={col:'#9aa1b3',mat:'stone'};
   W.killY=-10;W.codes.heli=makeCode(r);W.pads.heli={set:'helidoor'};
   const tower=(x,z,w,d,top,name)=>{B.blk(x,z,w,d,top,Object.assign({name},ROOF));B.deco(x,top-14,z,w-.4,26,d-.4,{col:'#4b5263',mat:'wall'})};
   // the first roof and the girder, with lightning striking along it
@@ -226,6 +226,90 @@ build(B,r){
   B.w(14.2,4,-72.3);B.use('pad',14.2,4,-72.3);B.code('heli');
   B.w(12.85,4,-73.2);B.drive((t,W,pl)=>pl.y>12||pl.z<-79?go(pl,16,-83):go(pl,12.85,-76.2));
   W.spawn={x:0,y:0,z:4,yaw:0};
+}},
+// 4. A revolving restaurant at the top of a tower. Two rings of wall turn round its kitchen in the middle, each with
+// one door, and each turns an eighth at a press of its button in the kitchen. Turn the outer door to face a terrace
+// to go out to it: the east and west terraces hold one card each, saying which way each ring's door must face; the
+// north one holds the fuse for the kitchen's lift. Line both doors up as the cards say, put the fuse in, and the lift
+// takes you to the roof.
+{id:'skydeck',name:'Sky Deck',sub:'The revolving restaurant',par:250,clouds:true,sky:['#6fa8dc','#fde2c8'],pal:{floor:'#d8d2c4',wall:'#e8e2d4',prop:'#b08968',trim:'#3a3f58'},
+msgs:{power:'The fuse is in. The kitchen lift has power',view:'Both doors line up: the lift unlocks',up:'The lift is running: up to the roof!'},unlock:['up'],
+build(B,r){
+  B.sky();const W=B.W,CX=0,CZ=-40,FL={col:'#d8d2c4',mat:'floor'},GL={col:'#bfe6ff',mat:'glass'},WOOD={col:'#b08968',mat:'wood'},STEEL={col:'#5b6475',mat:'metal'};
+  W.killY=-10;
+  const P=(k,R)=>[CX-Math.sin(k*Math.PI/4)*R,CZ-Math.cos(k*Math.PI/4)*R];
+  const k1=Math.floor(r()*8),k2=Math.floor(r()*8),kin=(k1+2+Math.floor(r()*5))%8;
+  // the restaurant floor and its two turning rings (each built with its door to the north, then turned to its start)
+  B.cyl(CX,0,CZ,11.3,Object.assign({t:3,name:'deck'},FL));
+  const ring=(R,door,col)=>{const L=2*R*Math.tan(Math.PI/8)+.6;
+    for(let k=0;k<8;k++){const [x,z]=P(k,R),yaw=k*Math.PI/4,tx=Math.cos(yaw),tz=-Math.sin(yaw);
+      if(k)B.box(x,4.5,z,L,11,.6,{yaw,col,mat:'wall'});
+      else if(door<L-1)for(const s of [-1,1]){const c=(door/2+L/2)/2;B.box(x+tx*c*s,4.5,z+tz*c*s,L/2-door/2,11,.6,{yaw,col,mat:'wall'})}}};
+  B.turning('inner',CX,CZ,8,()=>ring(5,99,'#c9b79c'),{start:kin});
+  B.turning('outer',CX,CZ,8,()=>{ring(11,3.6,'#e8e2d4');const [x,z]=P(0,11.25);B.deco(x,6.4,z,3.8,.5,.4,{col:'#3a3f58'})},{start:4});
+  // the kitchen: the two turn buttons and the fuse box round the middle, a compass on the floor, the lift up to the roof
+  const [ix,iz]=P(3,2.2),[ox,oz]=P(5,2.2),[fx,fz]=P(7,2.2),[cx1,cz1]=P(1,3.1);
+  B.turnBtn('innerBtn',ix,iz,'inner',{top:1.2,col:'#7dd3fc',stand:P(3,3.4)});
+  B.turnBtn('outerBtn',ox,oz,'outer',{top:1.2,col:'#f9a8d4',stand:P(5,3.4)});
+  B.btn('fusebox',fx,fz,{need:'fuse',then:'power'},{top:1.2,icon:'fuse',stand:P(7,3.4)});
+  {const [x,z]=P(3,1.2);B.sign(x,.03,z,0,1.5,.55,{title:'Inner'},{flat:true});const [x2,z2]=P(5,1.2);B.sign(x2,.03,z2,0,1.5,.55,{title:'Outer'},{flat:true})}
+  B.sign(CX,.03,CZ,0,2.2,2.2,{rose:true},{flat:true});
+  B.align({inner:k1,outer:k2},'view');B.all(['view','power'],'up');
+  B.cp(1,cx1,cz1,{w:2,d:2});
+  B.lift(CX-1.6,CZ-1.6,CX+1.6,CZ+1.6,0,15,{onIf:'up',name:'up'});
+  B.plat(CX,12,CZ-3.4,6,3.6,{name:'roof',col:'#3a3f58',mat:'metal'});B.deco(CX+2.4,16,CZ-4.6,.3,8,.3,STEEL);B.dcyl(CX+2.4,20.2,CZ-4.6,.4,.4,{col:'#ef4444',mat:'glass'});
+  B.finish(CX-.6,CZ-3.4,{top:12,w:3.4,d:3});B.sign(CX,13.4,CZ-5.15,0,2.4,.75,{exit:true});
+  // the south terrace (the start) and its bridge
+  B.plat(0,0,-16,12,12,Object.assign({name:'S'},WOOD));B.cp(0,0,-13);
+  B.plat(0,0,-25.35,3.2,6.7,Object.assign({name:'bridgeS'},WOOD));
+  B.sign(-3.6,2.6,-21.6,0,5,1.4,{title:'Sky Deck',sub:'The revolving restaurant'});for(const x of [-5.6,-1.6])B.deco(x,1,-21.65,.2,2,.2,STEEL);
+  for(const [x,z] of [[-4,-13],[4,-13]]){B.blk(x,z,1.6,1.6,.9,WOOD);B.dcyl(x,1.6,z,.9,.15,{col:'#f4f1ea'})}
+  // east: crumbling tiles with a swinging blade between them; the inner ring's card
+  B.plat(13.6,.3,-40,2.2,2.2,{crumble:true,mat:'crumble',col:'#e8d3a8',name:'e1'});
+  B.plat(17.4,.3,-40,2.2,2.2,{crumble:true,mat:'crumble',col:'#e8d3a8',name:'e2'});
+  B.kill(15.5,1.4,-40,.5,1,2.6,{move:{type:'swing',dz:1,len:7,amp:.55,per:3},name:'blade'});B.deco(15.5,8.6,-40,.3,.3,10,STEEL);
+  B.plat(24,0,-40,8,8,Object.assign({name:'E'},WOOD));
+  B.sign(27.9,2.6,-40,-Math.PI/2,3,3,{w5:'vane',to:k1,n:8,title:'Inner door faces'});B.deco(28,1,-40,.2,2,.2,STEEL);
+  B.wind(11.5,-34,21,-46,-3,10,[0,-3.5],{timed:{per:4.4,on:.3,ph:.2},name:'gustE'});
+  // west: a shuttle in the gusts; the outer ring's card; crates up to the gem
+  B.plat(-13.3,0,-40,2.6,2.6,{move:{type:'line',ax:-5,per:5},mat:'metal',col:'#e9b949',name:'shuttle'});
+  B.plat(-24,0,-40,8,8,Object.assign({name:'Wt'},WOOD));
+  B.sign(-27.9,2.6,-40,Math.PI/2,3,3,{w5:'vane',to:k2,n:8,title:'Outer door faces'});B.deco(-28,1,-40,.2,2,.2,STEEL);
+  B.wind(-21,-33,-11.5,-47,-3,10,[0,4],{timed:{per:3.6,on:.36,ph:.6},name:'gustW'});
+  B.blk(-22,-37,1.6,1.6,1.4,WOOD);B.blk(-24.4,-37,1.6,1.6,2.8,WOOD);B.blk(-26.4,-38.6,1.4,1.4,4.2,WOOD);B.item('gem','gem',-26.4,5,-38.6);
+  // north: blinking glass tiles, the fuse behind a turning bar
+  B.plat(0,.3,-53.4,2.4,2.4,{timed:{per:3,on:.6,ph:0},mat:'blink',col:'#bfe6ff',name:'n1'});
+  B.plat(0,.3,-56.4,2.4,2.4,{timed:{per:3,on:.6,ph:.45},mat:'blink',col:'#bfe6ff',name:'n2'});
+  B.plat(0,0,-62.5,8,8,Object.assign({name:'Nt'},WOOD));
+  B.kill(0,1.1,-62.5,6.4,.5,.4,{move:{type:'spin',w:1.2},name:'bar'});B.cyl(0,1.6,-62.5,.45,{t:1.6,col:'#3a3f58',name:'barhub'});
+  B.item('fuse','fuse',-2.4,1,-65.2);
+  B.wind(-8,-51.3,8,-58.5,-3,10,[3.6,0],{timed:{per:4,on:.3,ph:.4},name:'gustN'});
+  // decor: tables and chairs in the corridor (no collision), lamps
+  for(let k=0;k<8;k+=2){const [x,z]=P(k+1,8);B.dcyl(x,.8,z,.7,.1,{col:'#f4f1ea'});B.dcyl(x,.4,z,.12,.8,STEEL)}
+  // route: in to the kitchen, out east, west and north, then line the doors up, the fuse, the lift
+  const arc=(a,b,R)=>{let d=((b-a)%8+8)%8;if(d>4)d-=8;const st=Math.sign(d);for(let i=1;i<=Math.abs(d)*2;i++){const [x,z]=P(a+st*i/2,R);B.w(x,0,z)}};
+  let at=kin; // where in the kitchen we are (on the circle of radius 3.6)
+  const to=k=>{arc(at,k,3.6);at=k};
+  const inK=()=>{const [x,z]=P(kin,8),[x2,z2]=P(kin,3.6);B.w(x,0,z);B.w(x2,0,z2);at=kin};
+  const outK=()=>{to(kin);const [x,z]=P(kin,8);B.w(x,0,z)};
+  const stand=k=>{to(k);const [x,z]=P(k,3.4);B.w(x,0,z)};
+  const turn=(btn,key,k)=>{stand(btn==='innerBtn'?3:5);B.turnTo(btn,key,k)};
+  B.w(0,0,-27.6);{const [x,z]=P(4,8);B.w(x,0,z)}arc(4,kin,8);inK();to(1);B.w(cx1,0,cz1);B.w(...[P(1,3.6)[0],0,P(1,3.6)[1]]);
+  // east
+  turn('outerBtn','outer',6);outK();arc(kin,6,8);B.w(10.4,0,-40);B.j(13.6,.3,-40,{wait:true});B.j(17.4,.3,-40,{wait:true});B.j(21,0,-40,{wait:true});B.w(26.6,0,-40);
+  B.w(20.6,0,-40);B.j(17.4,.3,-40,{wait:true});B.j(13.6,.3,-40,{wait:true});B.j(10,0,-40,{wait:true});arc(6,kin,8);inK();
+  // west
+  turn('outerBtn','outer',2);outK();arc(kin,2,8);B.w(-10.4,0,-40);B.jon('shuttle',0,{wait:true});B.ladder('shuttle',(t,W)=>cur(W.byName.get('shuttle'),t).x<-17.9?'done':'wait');
+  B.j(-21.2,0,-40,{wait:true});B.w(-26.6,0,-40);B.w(-20.4,0,-40);B.jon('shuttle',0,{wait:true});B.ladder('shuttle',(t,W)=>cur(W.byName.get('shuttle'),t).x>-13.7?'done':'wait');
+  B.j(-10,0,-40,{wait:true});arc(2,kin,8);inK();
+  // north
+  turn('outerBtn','outer',0);outK();arc(kin,0,8);B.w(0,0,-51);B.j(0,.3,-53.4,{wait:true});B.j(0,.3,-56.4,{wait:true});B.j(0,0,-59.4,{wait:true});
+  B.u((t,W)=>{const a=cur(W.byName.get('bar'),t).yaw%Math.PI;return Math.abs(a-Math.PI/2)<.5});B.w(-2.4,0,-64.6);B.w(0,0,-59.2);
+  B.j(0,.3,-56.4,{wait:true});B.j(0,.3,-53.4,{wait:true});B.j(0,0,-50.6,{wait:true});arc(0,kin,8);inK();
+  stand(7);B.use('fusebox',...P(7,3.4).slice(0,1),0,P(7,3.4)[1]);
+  turn('outerBtn','outer',k2);turn('innerBtn','inner',k1);B.u((t,W)=>flagOn(W,'up',t));
+  to(4);{const [x,z]=P(4,2.6);B.w(x,0,z)}B.drive((t,W,pl)=>{if(pl.y>13.2)return go(pl,CX-.6,CZ-3.4);const g=go(pl,CX,CZ);if(pl.gr){g.x*=.35;g.z*=.35}return g});
+  W.spawn={x:0,y:0,z:-13,yaw:0};
 }}
 ]});
 })(Escapade);

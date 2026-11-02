@@ -1497,6 +1497,8 @@ function w5Builder(B,W){
   // a flag that comes on once every turning group in want ({key: k}) faces its way k (and has stopped turning)
   B.align=(want,set)=>{(W.aligns||(W.aligns=[])).push({want,set});W.w5l=true};
   B.turnBtn=(name,x,z,key,o)=>{o=o||{};return B.btn(name,x,z,{w5:'turn',key},Object.assign({icon:'w5-turn',col:'#7dd3fc'},o))};
+  // World 5's look: its buttons and wall panels drawn with two draw calls instead of six (call at the start of a build)
+  B.sky=()=>{const b0=B.btn,p0=B.panel;B.btn=(...a)=>mark(b0(...a),'btn');B.panel=(...a)=>mark(p0(...a),'panel')};
   B.fire=(name,land,when)=>B.route.push({t:'w5',k:'fire',name,land:[].concat(land),when});
   B.turnTo=(name,key,to)=>B.route.push({t:'w5',k:'turn',name,key,to});
   B.drive=fn=>B.route.push({t:'w5',k:'drive',fn});
@@ -2203,13 +2205,13 @@ function w5Sign(g,sg,W,w,h,font){
   if(sg.w5==='chart'){g.fillStyle='#e8f1fb';g.fillRect(0,0,w,h);g.strokeStyle='#2c5f8a';g.lineWidth=12;g.strokeRect(6,6,w-12,h-12);
     g.fillStyle=ink;g.font=font(h*.16);g.fillText(sg.title||'',w/2,h*.2);g.fillStyle='#2c5f8a';(sg.lines||[]).forEach((l,i)=>{g.font=font(h*.12);g.fillText(l,w/2,h*(.45+i*.2))});return}
 }
-const W5_CLOUD=(function(){const g=new THREE.SphereGeometry(1,10,7);return g})();
+const W5_CLOUD=new THREE.SphereGeometry(1,9,5);
 let w5Clouds=null;
 function w5Scene(W){
   const on=!!W.def.clouds;
   if(on&&!w5Clouds){
     w5Clouds=new THREE.Group();const r=rng(55),items=[];
-    for(let i=0;i<120;i++){const a=r()*TAU,d=40+r()*420,s=10+r()*26,x=Math.cos(a)*d,z=Math.sin(a)*d;
+    for(let i=0;i<70;i++){const a=r()*TAU,d=40+r()*420,s=12+r()*28,x=Math.cos(a)*d,z=Math.sin(a)*d;
       for(let k=0;k<3;k++)items.push({geo:W5_CLOUD,x:x+(r()-.5)*s,y:-26+r()*6+k*2,z:z+(r()-.5)*s,yaw:r()*TAU,sx:s*(.7+r()*.5),sy:s*.32,sz:s*(.6+r()*.5),colFn:t=>mix3('#c9d6e8','#ffffff',t)})}
     for(let i=0;i<26;i++){const a=i/26*TAU+r()*.1,d=520+r()*300,s=60+r()*90;items.push({geo:W5_CLOUD,x:Math.cos(a)*d,y:-10+r()*40,z:Math.sin(a)*d,yaw:r()*TAU,sx:s,sy:s*.45,sz:s*.8,colFn:t=>mix3('#d3deec','#ffffff',t)})}
     w5Clouds.add(new THREE.Mesh(mergeInto(items),new THREE.MeshLambertMaterial({vertexColors:true})));
@@ -2231,15 +2233,22 @@ function w5Zigzag(len,seed){
 }
 function w5Mesh(W,p){
   if(p.w5m==='lift'){const m=new THREE.Mesh(boxGeo(p.hx*2,p.hy*2,p.hz*2),new THREE.MeshBasicMaterial({color:p.col,transparent:true,opacity:.14,depthWrite:false,side:THREE.DoubleSide}));m.userData.w5='lift';return m}
-  if(p.w5m==='cannon'){
-    const g=new THREE.Group(),metal=new THREE.MeshLambertMaterial({color:p.col,emissive:new THREE.Color('#000000')}),dark=new THREE.MeshBasicMaterial({color:'#11131a'});
-    const ring=new THREE.Mesh(cylGeo(p.r,p.hy*2),metal);ring.castShadow=true;g.add(ring);
-    const hole=new THREE.Mesh(new THREE.CircleGeometry(p.r*.78,20),dark);hole.rotation.x=-Math.PI/2;hole.position.y=p.hy+.015;g.add(hole);
-    const a=p.btn,el=Math.atan2(a.vy,a.sp),L=2.8,bar=new THREE.Mesh(new THREE.CylinderGeometry(p.r*.92,p.r*1.05,L,18),metal);
-    bar.rotation.x=-(Math.PI/2-el);bar.position.set(0,p.hy-Math.sin(el)*L/2-.15,Math.cos(el)*L/2+.1);bar.castShadow=true;g.add(bar);
-    const wood=new THREE.MeshLambertMaterial({color:'#8a5a36'});for(const s of [-1,1]){const wh=new THREE.Mesh(new THREE.CylinderGeometry(.75,.75,.25,14),wood);wh.rotation.z=Math.PI/2;wh.position.set(s*(p.r+.2),-p.hy+.75,Math.cos(el)*L*.55);g.add(wh)}
-    const band=new THREE.Mesh(new THREE.TorusGeometry(p.r*1.02,.1,6,20),new THREE.MeshLambertMaterial({color:'#e9b949'}));band.rotation.x=Math.PI/2;band.position.y=p.hy-.08;g.add(band);
-    g.userData.top=metal;g.userData.w5='cannon';return g;
+  if(p.w5m==='btn'||p.w5m==='panel'){ // a button or panel in two draw calls: the box, and its icon on the top (front)
+    const col=p.col==='#ffffff'?'#e2e8f0':p.col,box=new THREE.Mesh(boxGeo(p.hx*2,p.hy*2,p.hz*2),p.w5m==='btn'?sharedMat('plastic',shade(col,-.15)):sharedMat('metal','#1f2937'));
+    const top=new THREE.MeshLambertMaterial({map:iconTexture(p.icon||'pad',p.col),color:'#ffffff',emissive:new THREE.Color('#000000')}),face=new THREE.Mesh(new THREE.PlaneGeometry(p.hx*2,p.w5m==='btn'?p.hz*2:p.hy*2),top);
+    if(p.w5m==='btn'){face.rotation.x=-Math.PI/2;face.position.y=p.hy+.004}else face.position.z=p.hz+.004;
+    box.add(face);box.castShadow=true;box.userData.top=top;box.userData.w5='btn';return box;
+  }
+  if(p.w5m==='cannon'){ // one mesh (vertex colours): the mouth you stand in, the barrel tilted the way it fires, wheels
+    const a=p.btn,el=Math.atan2(a.vy,a.sp),L=2.8,items=[],M=new THREE.Matrix4(),col=p.col;
+    const geo=(g,m)=>{g.applyMatrix4(m);return g};
+    items.push({geo:cylGeo(p.r,p.hy*2),col});
+    items.push({geo:geo(new THREE.CircleGeometry(p.r*.78,20),M.makeRotationX(-Math.PI/2).setPosition(0,p.hy+.015,0)),col:'#11131a'});
+    items.push({geo:geo(new THREE.CylinderGeometry(p.r*.92,p.r*1.05,L,16),new THREE.Matrix4().makeRotationX(-(Math.PI/2-el)).setPosition(0,p.hy-Math.sin(el)*L/2-.15,Math.cos(el)*L/2+.1)),col});
+    for(const s of [-1,1])items.push({geo:geo(new THREE.CylinderGeometry(.75,.75,.25,14),new THREE.Matrix4().makeRotationZ(Math.PI/2).setPosition(s*(p.r+.2),-p.hy+.75,Math.cos(el)*L*.55)),col:'#8a5a36'});
+    items.push({geo:geo(new THREE.TorusGeometry(p.r*1.02,.1,6,20),new THREE.Matrix4().makeRotationX(Math.PI/2).setPosition(0,p.hy-.08,0)),col:'#e9b949'});
+    const metal=new THREE.MeshLambertMaterial({vertexColors:true,emissive:new THREE.Color('#000000')});
+    const m=new THREE.Mesh(mergeInto(items),metal);m.castShadow=true;m.userData.top=metal;m.userData.w5='cannon';return m;
   }
   if(p.w5m==='bolt'){
     const gy=p.by0,h=16,cy=p.y,cloudMat=new THREE.MeshLambertMaterial({color:'#5b6273',transparent:true,opacity:.9,depthWrite:false});
@@ -2268,6 +2277,7 @@ function w5Part(d,W,rt,dt){
     if(on){u.core.rotation.y=Math.floor(rt*14)*1.7}
     if(on&&!u.on&&!G.noRender){const dd=Math.hypot(p.x-me.x,p.z-me.z);if(dd<45){W5D.flash=Math.max(W5D.flash,1-dd/45);if(G.mode!=='menu')w5Sfx('thunder',dd)}}
     u.on=on;
+  }else if(u.w5==='btn'){const a=p.btn;if(a.w5==='timer'&&flagOn(W,a.flag,rt)){const l=.5+.5*Math.sin(rt*10);u.top.emissive.setRGB(l*.35,l*.45,l*.2)}
   }else if(u.w5==='lift'){const on=(!p.timed||phaseOn(p.timed,rt))&&present(W,p,rt),warn=on&&p.timed&&phaseLeft(p.timed,rt)<.6;m.material.opacity=on?(warn?(Math.floor(rt*10)%2?.06:.16):.16):.03}
   if(W5D.ft!==rt){W5D.ft=rt;if(W5D.flash>0){W5D.flash=Math.max(0,W5D.flash-dt*4)}hemi.intensity=W5D.base+W5D.flash*.9}
 }
