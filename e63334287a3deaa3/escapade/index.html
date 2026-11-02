@@ -2171,6 +2171,14 @@ function w3mesh(W,p){
     const box=new THREE.Mesh(boxGeo(w,h-.06,d),M.side);box.position.y=-.03;g.add(box);
     const top=new THREE.Mesh(new THREE.PlaneGeometry(w,d),M.top);top.rotation.x=-Math.PI/2;top.position.y=p.hy;top.renderOrder=2;g.add(top);
     top.geometry.attributes.uv.array.forEach((v,i,a)=>{a[i]=v*(i%2?d:w)/6});return g}
+  // the aquarium's creatures: a shark and jellyfish (red and glowing: they hurt), harmless yellow fish
+  if(p.mat==='shark'||p.mat==='jelly'||p.mat==='fish3'){const g=new THREE.Group(),bad=p.mat!=='fish3',mt=bad?(M.neon||(M.neon=neonMat({color:'#ff2a4a'}))):new THREE.MeshLambertMaterial({color:p.col||'#fbbf24'});
+    const add=(w,h,d,x,y,z,ry)=>{const m=new THREE.Mesh(boxGeo(w,h,d),mt);m.position.set(x,y,z);if(ry)m.rotation.y=ry;g.add(m);return m};
+    if(p.mat==='shark'){add(2.4,.9,.9,0,0,0);add(.7,.62,.62,1.45,-.05,0);add(.5,.7,.16,-.1,.72,0);add(.3,.5,.7,-1.3,0,0);add(.2,1.1,.12,-1.55,.1,0)}
+    else if(p.mat==='jelly'){const d=new THREE.Mesh(new THREE.SphereGeometry(p.hx,12,8,0,TAU,0,Math.PI/2),mt);d.position.y=p.hy-p.hx;g.add(d);for(let i=0;i<5;i++){const a=i/5*TAU;add(.08,p.hy*2-p.hx,.08,Math.cos(a)*p.hx*.55,-p.hx*.5,Math.sin(a)*p.hx*.55)}}
+    else{add(.9,.5,.3,0,0,0);add(.2,.4,.08,-.55,0,0)}
+    if(bad){const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:TEX.glow,color:'#ff3355',transparent:true,opacity:.55,depthWrite:false,blending:THREE.AdditiveBlending}));halo.scale.set(p.mat==='shark'?3.6:2.2,2.2,1);g.add(halo)}
+    g.userData.w3swim=p.move&&p.move.type==='orbit';return g}
   // a minecart: a tub with rims, a wooden floor you stand on, wheels under it
   const w=p.hx*2,d=p.hz*2,t=p.hy*2,c=p.col,rim=shade(c,-.3),items=[],R=.55;
   items.push({geo:boxGeo(w,t,d),y:0,col:c});items.push({geo:boxGeo(w-.3,.04,d-.3),y:p.hy+.01,col:'#b08a5a'});
@@ -2223,8 +2231,19 @@ function w3sign(sg,W,g,w,h,font,ink){
     const d=W.dials[sg.dial];g.fillStyle='#f4e8c8';g.fillRect(0,0,w,h);g.strokeStyle='#6b4f2a';g.lineWidth=12;g.strokeRect(6,6,w-12,h-12);
     g.fillStyle=ink;g.font=font(h*.1);g.fillText(sg.title||'Engineer\'s note',w/2,h*.13);g.fillStyle='#575377';g.font=font(h*.065);g.fillText(sg.sub||'Pump pressure: set both gauges like this',w/2,h*.24);
     d.keys.forEach((k,i)=>face(w*(.3+i*.4),h*.56,h*.22,d.target[k],(sg.labels||['Left','Right'])[i]));return true}
+  // the crystal cavern: a coloured crystal with one digit of a code (W.codes[key] in the colour order W.books[key]), and
+  // the card that gives the order
+  if(sg.w3==='crystal'||sg.w3==='order'){const gem=(cx,cy,R,c)=>{g.fillStyle=W3_CRYS[c];g.beginPath();g.moveTo(cx,cy-R);g.lineTo(cx+R*.62,cy-R*.3);g.lineTo(cx+R*.45,cy+R);g.lineTo(cx-R*.45,cy+R);g.lineTo(cx-R*.62,cy-R*.3);g.closePath();g.fill();
+      g.lineWidth=R*.08;g.strokeStyle='rgba(255,255,255,.8)';g.stroke();g.strokeStyle='rgba(0,0,0,.25)';g.beginPath();g.moveTo(cx,cy-R);g.lineTo(cx,cy+R);g.stroke()};
+    const order=W.books[sg.key]||[];
+    if(sg.w3==='crystal'){g.fillStyle='#1c1426';g.fillRect(0,0,w,h);gem(w/2,h*.5,h*.42,sg.col);const k=order.indexOf(sg.col);
+      g.fillStyle='#fff';g.strokeStyle='#1b1840';g.lineWidth=h*.03;g.font=font(h*.36);g.strokeText((W.codes[sg.key]||'????')[k],w/2,h*.55);g.fillText((W.codes[sg.key]||'????')[k],w/2,h*.55);return true}
+    g.fillStyle='#f5efe0';g.fillRect(0,0,w,h);g.strokeStyle='#5b4a6b';g.lineWidth=12;g.strokeRect(6,6,w-12,h-12);g.fillStyle=ink;g.font=font(h*.12);g.fillText(sg.title||'Door code',w/2,h*.15);
+    g.fillStyle='#575377';g.font=font(h*.075);g.fillText(sg.sub||'The glowing crystals\' digits, in this order',w/2,h*.28);
+    order.forEach((c,i)=>{const x=w*(.16+i*.227);gem(x,h*.6,h*.2,c);g.fillStyle=ink;g.font=font(h*.1);g.fillText(String(i+1),x,h*.9)});return true}
   return false;
 }
+const W3_CRYS={purple:'#c084fc',blue:'#60a5fa',green:'#4ade80',gold:'#facc15'};
 // scenery and haze when a level is shown (runs for every level: puts things back for the others)
 function w3cave(){
   if(W3.cave)return W3.cave;const grp=new THREE.Group(),r=rng(33),items=[];
@@ -2269,6 +2288,10 @@ function w3scene(W){
       const n=Math.max(1,Math.round(L/1.4));for(let k=0;k<=n;k++){const f=k/n;items.push({geo:boxGeo(2,.12,.34),x:a[0]+dx*f,y:y-.13,z:a[2]+dz*f,yaw,col:'#6b4a2f'})}
       if(y>1.2)for(let k=0;k<=Math.floor(L/4);k++){const f=(k+.5)/(Math.floor(L/4)+1),hh=y+1;items.push({geo:boxGeo(.3,hh,.3),x:a[0]+dx*f,y:y-.19-hh/2,z:a[2]+dz*f,yaw,col:'#5a3f28'})}}}
   if(items.length){const m=new THREE.Mesh(mergeInto(items),sharedMat('metal','#ffffff',true));m.receiveShadow=true;worldGroup.add(m)}
+  // the aquarium's glass (one see-through mesh)
+  if(W._w3tank){const gl=W3.glass||(W3.glass=new THREE.MeshLambertMaterial({color:'#d6f3ff',transparent:true,opacity:.2,depthWrite:false,emissive:new THREE.Color('#0d3b52')}));matCache.set('w3glass',gl);
+    const m=new THREE.Mesh(mergeInto(W._w3tank.map(p=>({geo:boxGeo(p.hx*2,p.hy*2,p.hz*2),x:p.x,y:p.y,z:p.z,yaw:p.yaw,col:'#ffffff'}))),gl);m.renderOrder=1;worldGroup.add(m)}
+  W._w3fish=W.parts.filter(p=>p.mesh&&p.mesh.userData.w3swim);
   W._w3bub=0;
 }
 // every frame on World 3's levels: ripples, the haze (under water, in the dark), lantern-only signs, bubbles
@@ -2283,6 +2306,7 @@ function w3update(W,rt,dt){
   if(far===F.far&&me&&W._w3dark&&W._w3dark.length)for(const z of W._w3dark)if(Math.abs(me.x-z.x)<z.hx&&Math.abs(me.z-z.z)<z.hz){near=lamp?3:.5;far=lamp?24:7;col=_w3c.set(lamp?'#120c06':'#040405');break}
   const f=scene.fog,k=Math.min(1,dt*4);f.near+=(near-f.near)*k;f.far+=(far-f.far)*k;f.color.lerp(col,k);
   if(W.w3signs)for(const m of W.w3signs)m.visible=lamp;
+  for(const p of W._w3fish||[]){const m=p.move,a=m.a0+m.w*rt;p.mesh.rotation.y=Math.atan2(-Math.cos(a)*m.w,-Math.sin(a)*m.w);p.mesh.position.y+=Math.sin(rt*2+p.id)*.12}
   // the lantern in your hand
   if(lamp&&G.av&&W._w3dark&&W._w3dark.length){if(!W3.glow){W3.glow=new THREE.Sprite(new THREE.SpriteMaterial({map:TEX.glow,color:'#ffc66b',transparent:true,opacity:.75,depthWrite:false,blending:THREE.AdditiveBlending}));W3.glow.scale.set(2.4,2.4,1);W3.glow.position.set(.75,1.1,.2)}
     if(W3.glow.parent!==G.av.root)G.av.root.add(W3.glow);W3.glow.material.opacity=.6+.15*Math.sin(rt*9)}
@@ -2545,7 +2569,7 @@ function itemMesh(p){
   const root=new THREE.Group();root.add(g);root.add(halo);root.userData.spin=g;return root;
 }
 function partMesh(W,p){
-  if(p.zone==='water'||p.zone==='dark'||p.zone==='trig'||p.mat==='cart')return w3mesh(W,p); // W3 hook
+  if(p.zone==='water'||p.zone==='dark'||p.zone==='trig'||p.mat==='cart'||p.mat==='shark'||p.mat==='jelly'||p.mat==='fish3')return w3mesh(W,p); // W3 hook
   if(p.zone==='lowg')return new THREE.Mesh(boxGeo(p.hx*2,p.hy*2,p.hz*2),sharedMat('zone','#a78bfa'));
   if(p.zone==='cold'||p.zone==='warm'||p.zone==='wind')return null;
   // levels 9-13: a boulder, a ghost, a portal, a turning mirror, the moon crystal
@@ -2615,6 +2639,7 @@ function buildWorldMeshes(W){
 
   const buckets=new Map(),glows=[];
   for(const p of W.parts){
+    if(p.mat==='tank'){(W._w3tank||(W._w3tank=[])).push(p);continue} // W3 hook
     if(p.sign){
       const pw=p.hx*2,ph=p.hy*2,res=Math.min(1024,Math.round(256*pw/ph)*2),tex=signTex(p.sign,W,Math.max(128,res),Math.max(96,Math.round(res*ph/pw)));tex.anisotropy=4;
       const sg=p.sign,see=!!(sg.exit||sg.clockface||sg.hand||sg.rose);
