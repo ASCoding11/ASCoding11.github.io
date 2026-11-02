@@ -32,7 +32,9 @@
  *                    wrecks 2 (2,000), goals 10 (2,000), Coil cut-offs 5 (2,000), Chromaflage hiders found 10 (2,000) and rounds
  *                    hidden 20 (2,000), Odd One Out props found 5 (2,000) and rounds won 20 (2,000), Tumble crowns 50 (4,000) and
  *                    shows 5 (1,000), Spire towers 20 (2,000), Trivium streak 30 a day (1,500), Showdown hands 2 (1,000),
- *                    Gridpop lines 2 (1,000), Stackfall lines 5 (1,000), watermelons 50 (1,500)
+ *                    Gridpop lines 2 (1,000), Stackfall lines 5 (1,000), watermelons 50 (1,500),
+ *                    Puffer Party online wins 20 (2,000) and answers 1 (1,000), daily puzzles finished 5 each (2,000) and
+ *                    the best daily streak 10 a day (1,000)
  *   personal bests:  Elo above 1,200: 4 a point (3,000 at 1,950 Elo); fastest Spire tower under 10 min: 3 a second (1,500 at 100 s);
  *                    fastest obby under 60 min: 0.4 a second (1,200 at 10 min); fastest summit under 60 min: 0.5 a second (1,500
  *                    at 10 min); Updraft height ÷ 2 (500 at the summit); a Slipstream lap within 2.5× the track's quickest possible
@@ -78,7 +80,9 @@
     'gridpop': { score: { div: 50, cap: 1000 }, lines: [2, 1000] },
     '2048': { tile: { log2: true, base: 2048, per: 500, cap: 1500 }, best: { div: 100, cap: 500 } },
     'stackfall': { classic: { div: 200, cap: 1000 }, sand: { div: 200, cap: 1000 }, lines: [5, 1000] },
-    'melon-merge': { score: { div: 10, cap: 1500 }, melons: [50, 1500] }
+    'melon-merge': { score: { div: 10, cap: 1500 }, melons: [50, 1500] },
+    'puffer-party': { wins: [20, 2000], answers: [1, 1000] },
+    'daily': { done: [5, 2000], streak: [10, 1000] }   // every daily puzzle at once, through the Daily Puzzles page's counts
   };
   // The site's two owners, by account uid (public ids: the key of each person's leaderboard node and Online node),
   // always shown as Captain. To add someone, add their uid as a string with a comment saying whose it is; to remove
