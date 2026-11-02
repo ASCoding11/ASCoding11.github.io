@@ -192,12 +192,12 @@ build(B,r){
   B.item('card','card',9.5,-1.4,-53);
   B.wind(4,-48,11,-58,-6,10,[-3.6,0],{timed:{per:4.6,on:.34,ph:.15},name:'gust1'});
   const CG={col:'#4b5263',mat:'metal'};
-  B.blk(16.45,-54,.9,.6,11,CG);B.blk(20.55,-54,.9,.6,11,CG);B.box(18.5,9.8,-54,3.2,2.4,.6,CG);
-  B.blk(16.3,-56.5,.6,5,11,CG);B.blk(20.7,-56.5,.6,5,11,CG);B.blk(18.5,-58.7,4.8,.6,11,CG);
+  B.blk(15.95,-54,1.9,.6,11,CG);B.blk(20.55,-54,.9,.6,11,CG);B.box(18.5,9.8,-54,3.2,2.4,.6,CG);
+  B.blk(15.3,-56.5,.6,5,11,CG);B.blk(20.7,-56.5,.6,5,11,CG);B.blk(18,-58.7,6,.6,11,CG);
   B.door('x',-54,18.5,'cagedoor',{col:'#3b82f6',w:3.2,part:{y:6.3,lock:'card'}});
-  B.btn('lever',19.2,-56.2,{toggle:'rod'},{top:5.1,icon:'lever',stand:[18.2,-55.4]});
-  B.deco(17.4,8,-57.8,.25,8,.25,STEEL);B.deco(17.4,14.5,-57.8,.18,5,.18,{onIf:'rod',col:'#fde047',mat:'metal'});
-  B.bolt('rodbolt',17.4,-57.8,.7,{per:4.6,on:.12,ph:.3},{y0:17,charge:{flag:'bridge',dur:7,need:'rod'}});
+  B.btn('lever',18,-56.7,{toggle:'rod'},{top:5.1,icon:'lever',stand:[18.4,-55.5]});
+  B.deco(16.2,8,-57.8,.25,8,.25,STEEL);B.deco(16.2,14.5,-57.8,.18,5,.18,{onIf:'rod',col:'#fde047',mat:'metal'});
+  B.bolt('rodbolt',16.2,-57.8,.7,{per:4.6,on:.12,ph:.3},{y0:17,charge:{flag:'bridge',dur:7,need:'rod'}});
   // the bridge (lit for seven seconds by each strike on the rod), lightning between its tiles, the gusts
   B.plat(15,4,-61.4,2.6,2.6,{onIf:'bridge',mat:'glass',col:'#fde68a',name:'tile1'});
   B.plat(17,4,-65.2,2.6,2.6,{onIf:'bridge',mat:'glass',col:'#fde68a',name:'tile2'});
@@ -220,7 +220,7 @@ build(B,r){
   B.jon('hook',0,{wait:true});B.ladder('hook',(t)=>{const h=cur(hook,t);return h.z<-45.6?'done':'wait'});B.j(12.8,4,-50.4,{wait:true});B.w(14,4,-51);
   B.w(11.6,4,-53);B.u((t)=>cur(cr,t).y>3.3);B.jon('cradle',0,{wait:true});
   B.ladder('cradle',(t,W,pl)=>W.st.got.card&&cur(cr,t).y>3.4?'done':'wait');B.j(12.4,4,-53,{wait:true});
-  B.w(18.5,4,-52.6);B.w(18.5,4,-55);B.w(18.2,4,-55.4);B.use('lever',18.2,4,-55.4);B.w(18.5,4,-53);B.w(14.6,4,-53);B.w(14.6,4,-58.2);
+  B.w(18.5,4,-52.6);B.w(18.5,4,-55);B.w(18.4,4,-55.5);B.use('lever',18.4,4,-55.5);B.w(18.5,4,-53);B.w(14.6,4,-53);B.w(14.6,4,-58.2);
   B.u((t,W)=>{const v=W.st.f.bridge;return typeof v==='number'&&v-t>6.2});
   B.j(15,4,-61.4,{wait:true});B.j(17,4,-65.2,{wait:true});B.j(15,4,-68.6,{wait:true});B.w(18,4,-69.4);
   B.w(14.2,4,-72.3);B.use('pad',14.2,4,-72.3);B.code('heli');
@@ -359,7 +359,7 @@ build(B,r){
   const CK={col:'#2d3142',mat:'metal'};
   B.box(-2.6,7,-71.2,2.8,10,.6,CK);B.box(2.6,7,-71.2,2.8,10,.6,CK);B.box(0,10.8,-71.2,2.4,2.4,.6,CK);
   B.box(-3.7,7,-73.2,.6,10,4.6,CK);B.box(3.7,7,-73.2,.6,10,4.6,CK);B.box(0,7,-75.2,8,10,.6,CK);B.box(0,12.2,-73.2,8,.6,4.6,CK);
-  B.door('x',-71.2,0,'cockpit',{w:2.4,col:'#c9a24a',part:{y:4.3}});
+  B.door('x',-71.2,0,'cockpit',{w:2.4,h:7.6,col:'#c9a24a',part:{y:5.8}});
   B.all(['power','code'],'cockpit');
   B.btn('fusebox',-2.4,-70.2,{need:'fuse',then:'power'},{top:3.1,icon:'fuse',stand:[-2.4,-69]});
   B.panel('pad',2.6,3.6,-70.85,0,{pad:'ship'},{icon:'pad',stand:[2.6,-69.6]});
