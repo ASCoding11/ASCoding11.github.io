@@ -161,7 +161,7 @@ build(B,r){
 // of swinging blades. In the courtyard a steward's note gives a code, but it's for the cellar, not the keep: the keep's
 // code is half on the west tower and half down in the cellar. Climb the west tower, cross the battlement bridge in the
 // gusts, and go on from the east tower over the moat to the keep door.
-{id:'citadel',name:'Siege Works',sub:'The fortress',par:150,night:true,sky:['#1d2240','#7d86a8'],pal:{floor:'#8d8a83',wall:'#6b6e7a',prop:'#8a6a4a',trim:'#1f2233'},
+{id:'citadel',name:'Siege Works',sub:'The fortress',par:100,night:true,sky:['#1d2240','#7d86a8'],pal:{floor:'#8d8a83',wall:'#6b6e7a',prop:'#8a6a4a',trim:'#1f2233'},
 msgs:{gate:'The portcullis grinds up. Run!',cellardoor:'Code accepted. The cellar door opens',keepdoor:'Code accepted. The keep door swings open'},unlock:['keepdoor'],
 build(B,r){
   const W=B.W,STONE={col:'#8f8c86',mat:'stone'},WOOD={col:'#8a6a4a',mat:'wood'},IRON={col:'#4b5060',mat:'metal'};
@@ -237,7 +237,7 @@ build(B,r){
 // fire. The tapestry by the bridge shows the dragon's lullaby: strike the four gongs on the gold piles in that order
 // and the cage round its key opens. Take the key and the dragon wakes: it follows your trail a few seconds behind, so
 // don't stop until the key has opened the door at the end of the run.
-{id:'dragonkeep',name:'Dragon\'s Wake',sub:'The dragon\'s keep',par:150,chaser:'dragon',chaserCol:'#7a1d1d',sea:true,sky:['#2b0f14','#ff9a62'],pal:{floor:'#6e5a4a',wall:'#7a4b3a',prop:'#c9a24a',trim:'#2a1410'},
+{id:'dragonkeep',name:'Dragon\'s Wake',sub:'The dragon\'s keep',par:120,chaser:'dragon',chaserCol:'#7a1d1d',sea:true,sky:['#2b0f14','#ff9a62'],pal:{floor:'#6e5a4a',wall:'#7a4b3a',prop:'#c9a24a',trim:'#2a1410'},
 msgs:{cage:'The lullaby plays. The cage opens'},unlock:['cage'],
 build(B,r){
   const W=B.W,ROCK={col:'#5a4a40',mat:'stone'},GOLD={col:'#e8b923',mat:'metal'},RED={col:'#8e2a2a',mat:'plastic'};
@@ -308,7 +308,7 @@ build(B,r){
 // Hall of Echoes your shadow follows your path four seconds behind, so you can't stand still: set the great clock to
 // the watch's time from the hour tower and the minute tower (step away and come back if it gets close). Then the sand
 // stair: a belt that drags you back under falling sand.
-{id:'hourglass',name:'Borrowed Time',sub:'The time vault',par:140,sky:['#1f2a44','#d9bf8c'],pal:{floor:'#d6c7a1',wall:'#5e6b80',prop:'#c9a24a',trim:'#1d2433'},
+{id:'hourglass',name:'Borrowed Time',sub:'The time vault',par:80,sky:['#1f2a44','#d9bf8c'],pal:{floor:'#d6c7a1',wall:'#5e6b80',prop:'#c9a24a',trim:'#1d2433'},
 msgs:{clk:'The great clock chimes. The vault door opens'},unlock:['clk'],
 build(B,r){
   const W=B.W,BR={col:'#c9a24a',mat:'metal'},GEAR={col:'#b8893a',mat:'gear'},SAND={col:'#e3c58f',mat:'stone'};
@@ -370,7 +370,7 @@ build(B,r){
 // the right door each round is the colour the dream picture on the first stage shows for that round; any wrong door
 // wakes you back on the first stage. Last, a dark hall where your shadow follows you: cross the red steps to a lever,
 // pull it so the blue steps appear (and the red ones go), then pull the next lever to bring the red ones back.
-{id:'dreamwalk',name:'Upside Dream',sub:'The dream',par:120,space:true,sky:['#120a2e','#5a3a8a'],pal:{floor:'#c7b8ff',wall:'#5b4aa8',prop:'#ff9ad5',trim:'#2a1f5c'},
+{id:'dreamwalk',name:'Upside Dream',sub:'The dream',par:75,space:true,sky:['#120a2e','#5a3a8a'],pal:{floor:'#c7b8ff',wall:'#5b4aa8',prop:'#ff9ad5',trim:'#2a1f5c'},
 msgs:{'dream:on':'The dream shifts: blue steps appear','dream:off':'The dream shifts: red steps appear'},unlock:[],
 build(B,r){
   const W=B.W,CLOUD={col:'#e9e3ff',mat:'floor'},MOON={col:'#c7b8ff',mat:'stone'},RED={col:'#ff5a7a',mat:'plastic'},BLUE={col:'#5a8aff',mat:'plastic'};
@@ -385,14 +385,14 @@ build(B,r){
   B.plat(-13,6,-9,2,2,Object.assign({name:'gemisle',t:1.4},MOON));B.item('gem','gem',-13,6.9,-9);
   // the three stages of doors: the right colour sends you on, any other back to the first stage
   const stage=(k,x)=>{B.plat(x,0,-34,14,6,Object.assign({name:'stage'+k,t:2},CLOUD));
-    COLS.forEach((c,i)=>{const px=x-4.5+i*4.5,ok=c===pick[k],to=ok?(k<2?[[34,-34][k],.4,-32,0]:[0,.4,-46.4,0]):[0,.4,-32,0];
+    COLS.forEach((c,i)=>{const px=x-4.5+i*4.5,ok=c===pick[k],to=ok?(k<2?[[34,-34][k],.4,-32,0]:[0,.4,-47,0]):[0,.4,-32,0];
       B.portal('door'+k+'_'+c,px,-36.6,0,to,{top:0,col:ROSES[c]});B.deco(px,1.9,-36.85,3,4,.12,{col:ROSES[c],mat:'plastic'})})};
   stage(0,0);stage(1,34);stage(2,-34);
   B.cp(1,0,-32.2);
   B.sign(0,2.6,-31.1,PI,4.2,2.4,{w6:'doors',title:'The dream goes'});B.deco(0,1.2,-31.05,.2,2.4,.2,{col:'#2a1f5c'});
   // the dark hall: the shadow follows you; red steps to the lever, then blue steps to the way out
   B.wallZ(-6,-43,-96);B.wallZ(6,-43,-96);B.wallX(-96,-6.5,6.5);
-  B.plat(0,0,-46.2,8,4.4,Object.assign({name:'h0',t:2},CLOUD));B.cp(2,0,-45.6,{w:3,d:2});
+  B.plat(0,0,-47,8,3,Object.assign({name:'h0',t:2},CLOUD));B.cp(2,0,-47,{w:3,d:2});
   B.plat(-2.4,.8,-51.6,2.4,2.4,Object.assign({name:'r1',offIf:'dream'},RED));
   B.plat(2,1.4,-55.6,2.4,2.4,Object.assign({name:'r2',offIf:'dream'},RED));
   B.plat(0,2,-60,5,4,Object.assign({name:'p3',t:1.4},MOON));B.cp(3,0,-60,{top:2,w:5,d:4});
@@ -422,7 +422,7 @@ build(B,r){
 // 7. The long climb, outside over a molten sea. Ice floes round a vent that sends out rings of fire; up the rocks and a
 // ladder; a cart carries the fuse between two towers (ride it to pick it up); planks in the gusts and a spinning bar;
 // the fuse box powers the bridge to the last stretch, where your shadow chases you up to the summit.
-{id:'gauntlet',name:'The Long Climb',sub:'The tower of trials',par:120,sea:true,sky:['#3a2340','#f0a36b'],pal:{floor:'#6f6a5e',wall:'#6f6a5e',prop:'#9a948a',trim:'#2d2335'},
+{id:'gauntlet',name:'The Long Climb',sub:'The tower of trials',par:90,sea:true,sky:['#3a2340','#f0a36b'],pal:{floor:'#6f6a5e',wall:'#6f6a5e',prop:'#9a948a',trim:'#2d2335'},
 msgs:{power:'The fuse is in. The bridge lights up'},unlock:['power'],
 build(B,r){
   const W=B.W,ROCK={col:'#6f6a5e',mat:'stone'},ICE={ice:true,mat:'ice',col:'#cfeeff'},WOOD={col:'#9a7a52',mat:'wood'};
@@ -486,7 +486,7 @@ build(B,r){
 // the circling stones to the three floating islands and break their crystals while rings sweep over them. Phase 3: the
 // Keeper falls silent and its shadow chases you over the new steps to the Last Door. The Keeper's shutters lift after
 // each phase to show half of the door's code.
-{id:'lastdoor',name:'The Last Door',sub:'The Keeper',par:150,boss:true,sky:['#16081f','#e0577a'],pal:{floor:'#3a2f4a',wall:'#4b3a66',prop:'#9b7bd8',trim:'#f15bb5'},
+{id:'lastdoor',name:'The Last Door',sub:'The Keeper',par:130,boss:true,sky:['#16081f','#e0577a'],pal:{floor:'#3a2f4a',wall:'#4b3a66',prop:'#9b7bd8',trim:'#f15bb5'},
 msgs:{k1:'A crystal shatters',k2:'A crystal shatters',k3:'A crystal shatters',k4:'A crystal shatters',k5:'A crystal shatters',k6:'A crystal shatters',
   p1:'The Keeper stirs. A second arm wakes',p2:'The Keeper is angry. The arms speed up',ph2:'The Keeper roars! The floor turns to lava',ph3:'The Keeper falls silent. Run for the Last Door!',
   lastcode:'The code is right',lastdoor:'The Last Door opens'},unlock:['ph2','ph3','lastdoor'],
