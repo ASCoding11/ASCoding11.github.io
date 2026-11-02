@@ -339,7 +339,7 @@ build(B,r){
   B.plat(0,9,-63,16,6,Object.assign({name:'bow'},DECK));B.cp(2,3.6,-63,{top:9});
   // the propellers: a lever on the stern turns them round, so one catwalk or the other is in a gale (and gusts on both)
   B.btn('lever',0,-22.2,{toggle:'props'},{top:10.1,icon:'lever',stand:[0,-23.4]});
-  B.wind(-10,-27,-5.7,-60,8,13,[-9,0],{offIf:'props',name:'galeP'});B.wind(5.7,-27,10,-60,8,13,[9,0],{onIf:'props',name:'galeS'});
+  B.wind(-10,-27,-5.7,-60,8,13,[-14,0],{offIf:'props',name:'galeP'});B.wind(5.7,-27,10,-60,8,13,[14,0],{onIf:'props',name:'galeS'});
   B.wind(-10,-27,-5.7,-60,8,13,[-2.6,0],{timed:{per:4.2,on:.3,ph:0},name:'gustP'});B.wind(5.7,-27,10,-60,8,13,[2.6,0],{timed:{per:4.2,on:.3,ph:.5},name:'gustS'});
   for(const s of [-1,1]){B.deco(s*4,11,-20.4,.6,.6,1.2,STEEL);B.deco(s*4,11,-19.7,4.4,.4,.2,Object.assign({move:{type:'spin',w:8*s}},STEEL))}
   B.sign(0,11.4,-20.95,Math.PI,3.4,1,{title:'Propellers'},{deco:true});
