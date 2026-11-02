@@ -1414,6 +1414,10 @@ function w4Logic(W,pl,t){
     if(!on)for(const c of W.crates)if(Math.abs(c.x-p.x)<p.hx&&Math.abs(c.z-p.z)<p.hz&&Math.abs(c.y-c.hy-top)<.3){on=true;break}
     if(on&&st.f[p.hold]!==true){const was=flagOn(W,p.hold,t);st.f[p.hold]=t+p.linger;if(!was)pl.ev.push('open:'+p.hold)}
   }
+  // a crate caught by a crusher is squashed too: a new one appears where it started
+  for(const c of W.crates){if(c.locked)continue;
+    for(const p of W.w4.crush){const b=cur(p,t);if(b.y-p.hy>=c.y+c.hy-.05||b.y+p.hy<=c.y-c.hy+.05)continue;
+      if(Math.abs(b.x-c.x)<p.hx+c.hx-.05&&Math.abs(b.z-c.z)<p.hz+c.hz-.05){c.x=c.home[0];c.z=c.home[1];c.sv=null;pl.ev.push('thud');break}}}
 }
 function w4Builder(B){
   const W=B.W;
