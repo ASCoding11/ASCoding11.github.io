@@ -636,6 +636,7 @@ function simStep(W,pl,inp,t){
   const P=PHYS,dt=P.DT,t0=t-dt;
   if(pl.dead)return;
   const ev=pl.ev;
+  if(W.w4&&w4Pre(W,pl,t))return; // W4 hook
   // 1) ride whatever we stand on (moving, turning, conveyor)
   let pvx=0,pvy=0,pvz=0;
   const g=pl.gr?pl.gp:null;
@@ -836,6 +837,7 @@ function logicStep(W,pl,t){
   // a flag that comes on once all of its flags are on (a vault that needs three relics)
   for(const a of W.alls)if(!flagOn(W,a.set,t)&&a.need.every(f=>flagOn(W,f,t))){st.f[a.set]=true;ev.push('open:'+a.set)}
   if(W.w3)w3logic(W,pl,t); // W3 hook
+  if(W.w4)w4Logic(W,pl,t); // W4 hook
   if(W.tick)W.tick(W,pl,t);
   if(W.shadows)w6Logic(W,pl,t); // W6 hook
 }
@@ -987,6 +989,7 @@ function Builder(W,pal){
   w3builder(B,W); // W3 hook
   w6Builder(B); // W6 hook
 
+  w4Builder(B); // W4 hook
   return B;
 }
 // An exit: a short corridor north of the gap in wall z = zw at x, with the finish zone and an EXIT sign over the door.
@@ -1484,6 +1487,63 @@ function w3botSwim(W,pl,bot,n,t,next){
 // ---- end of World 3 core additions ----
 
 // ---- World 4 core additions (only World 4's builder edits between these two lines) ----
+// World 4 (Full Power) adds four things. None of them does anything unless a level uses it: W.w4 only exists once one
+// of the helpers below has been called, and every hook checks it first.
+//  - rev: a flag on a conveyor (conv) or a wind zone (a fan): while the flag is on it runs the other way, so a lever
+//    turns belts and fans round. B.belt(x0, z0, x1, z1, [vx, vz], {top, rev}), B.rev(part, flag).
+//  - hold: a pressure plate you stand on yourself. While you (or a crate) are on it its flag is on, and it stays on
+//    for linger seconds after you step off (a number flag, so back to a checkpoint shuts it).
+//    B.hold(name, x, z, flag, {top, w, d, linger}).
+//  - crush: a moving solid block in yellow and black stripes (a press or a piston wall). Being right under it, or
+//    squeezed between it and anything else, squashes you (back to your checkpoint). B.press, B.crusher.
+//  - coloured keycards: items cardR, cardG, cardY (red, green, yellow; World 1's card is the blue one) and doors that
+//    open when you come close carrying the matching one: B.cardDoor(axis, at, c, kind, {flag}).
+const W4CARD={cardR:'#e0453a',cardG:'#2fa35a',cardY:'#e8b923',card:'#3b82f6'};
+const _w4n=[],_w4h={d:0,nx:0,nz:0};
+function w4Of(W){return W.w4||(W.w4={revs:[],holds:[],crush:[]})}
+// At the start of every step: belts and fans run the way their flag says, and crushers squash you.
+function w4Pre(W,pl,t){
+  const X=W.w4,P=PHYS;
+  for(const p of X.revs){const on=flagOn(W,p.rev,t),v=p.conv||p.wind,v0=p.rev0;v[0]=on?-v0[0]:v0[0];v[1]=on?-v0[1]:v0[1]}
+  if(!X.crush.length)return false;
+  nearBox(W,pl.x-3,pl.z-3,pl.x+3,pl.z+3,pl.y-1,pl.y+P.H+1,_w4n);
+  let touch=false,stuck=false;
+  for(const p of _w4n){if(!p.solid||!solidNow(W,p,t))continue;const b=cur(p,t);
+    if(b.y-p.hy>=pl.y+P.H-.08||b.y+p.hy<=pl.y+.15)continue;
+    const d=xzDist(p,b,pl.x,pl.z,_w4h);
+    if(p.crush){if(d<P.R-.3)touch=stuck=true;else if(d<P.R+.03)touch=true}
+    else if(d<P.R-.06)stuck=true}
+  if(touch&&stuck){pl.dead=true;pl.ev.push('crushed');pl.ev.push('die');return true}
+  return false;
+}
+// After every step: pressure plates (you standing on one, or a crate sitting on it, keeps its flag on).
+function w4Logic(W,pl,t){
+  const st=W.st;
+  for(const p of W.w4.holds){
+    const top=p.y+p.hy;let on=pl.gr&&Math.abs(pl.y-top)<.25&&xzDist(p,p,pl.x,pl.z,_w4h)<0;
+    if(!on)for(const c of W.crates)if(Math.abs(c.x-p.x)<p.hx&&Math.abs(c.z-p.z)<p.hz&&Math.abs(c.y-c.hy-top)<.3){on=true;break}
+    if(on&&st.f[p.hold]!==true){const was=flagOn(W,p.hold,t);st.f[p.hold]=t+p.linger;if(!was)pl.ev.push('open:'+p.hold)}
+  }
+  // a crate caught by a crusher is squashed too: a new one appears where it started
+  for(const c of W.crates){if(c.locked)continue;
+    for(const p of W.w4.crush){const b=cur(p,t);if(b.y-p.hy>=c.y+c.hy-.05||b.y+p.hy<=c.y-c.hy+.05)continue;
+      if(Math.abs(b.x-c.x)<p.hx+c.hx-.05&&Math.abs(b.z-c.z)<p.hz+c.hz-.05){c.x=c.home[0];c.z=c.home[1];c.sv=null;pl.ev.push('thud');break}}}
+}
+function w4Builder(B){
+  const W=B.W;
+  // a conveyor belt slab from (x0, z0) to (x1, z1), its top at top (default .25, so lava under it is harmless), carrying you at v = [vx, vz]
+  B.belt=(x0,z0,x1,z1,v,o)=>{o=o||{};const top=o.top!=null?o.top:.25,th=o.t||.4,alongZ=Math.abs(v[1])>Math.abs(v[0]),w=Math.abs(x1-x0),d=Math.abs(z1-z0);
+    const p=B.add(Object.assign({x:(x0+x1)/2,y:top-th/2,z:(z0+z1)/2,w:alongZ?d:w,h:th,d:alongZ?w:d,yaw:alongZ?Math.PI/2:0,conv:v.slice(),mat:'conv',col:'#3f3f46',cam:false},o));
+    if(o.rev)B.rev(p,o.rev);return p};
+  B.rev=(p,flag)=>{p.rev=flag;p.rev0=(p.conv||p.wind).slice();p.w4=true;w4Of(W).revs.push(p);return p};
+  B.hold=(name,x,z,flag,o)=>{o=o||{};const top=o.top||0;
+    const p=B.add({x,y:top+.03,z,w:o.w||2.4,h:.06,d:o.d||2.4,solid:false,zone:'w4hold',mat:'holdplate',col:o.col||'#ef4444',cam:false,name});
+    p.hold=flag;p.linger=o.linger!=null?o.linger:2.5;p.w4=true;w4Of(W).holds.push(p);return p};
+  // any moving solid block that crushes (give it a move); a press is one that comes down `drop` from `up` above the floor
+  B.crusher=(name,x,y,z,w,h,d,move,o)=>{const p=B.add(Object.assign({x,y,z,w,h,d,move,mat:'crusher',col:'#facc15',cam:false,name},o));p.crush=true;w4Of(W).crush.push(p);return p};
+  B.press=(name,x,z,w,d,o)=>{const up=o.up||4.6,h=o.h||3,base=o.base||0;return B.crusher(name,x,base+up+h/2,z,w,h,d,{type:'line',ay:-o.drop,per:o.per,ph:o.ph||0},o.part)};
+  B.cardDoor=(ax,at,c,kind,o)=>{o=o||{};return B.door(ax,at,c,o.flag||'door_'+kind,{col:W4CARD[kind],name:o.name,part:Object.assign({lock:kind,col:W4CARD[kind]},o.part)})};
+}
 // ---- end of World 4 core additions ----
 
 // ---- World 5 core additions (only World 5's builder edits between these two lines) ----
@@ -1556,7 +1616,7 @@ const WORLDS=[
   // ---
   {n:3,name:'Deep Down',col:'#2ec4b6',blurb:'Mines, flooded caves and a sunken wreck: swim, ride the rails, light the dark.',ids:['ddmine','ddflood','ddrail','ddpump','ddtank','ddcrystal','ddwreck','ddcore']},
   // ---
-  {n:4,name:'Coming soon',col:'#ff9f1c',blurb:'Eight new escape rooms are on their way.',ids:[]},
+  {n:4,name:'Full Power',col:'#ff9f1c',blurb:'Factories, power stations and labs: flip the switches, dodge the presses and switch it all back on.',ids:['beltway','sorter','turbine','hothouse','servers','stargaze','robolab','reactor']},
   // ---
   {n:5,name:'Coming soon',col:'#4c8dff',blurb:'Eight new escape rooms are on their way.',ids:[]},
   // ---
@@ -2386,6 +2446,68 @@ function w3hud(W){
 // ---- end of World 3 drawing additions ----
 
 // ---- World 4 drawing additions (only World 4's builder edits between these two lines) ----
+// Coloured keycards (icons, the inventory, the card itself), crushers in yellow and black, pressure plates that light
+// up while held, belts whose arrows turn round with them, and World 4's signs (sign: {w4: kind, ...}, see w4Sign).
+Object.assign(ITEM_NAME,{cardR:'the red keycard',cardG:'the green keycard',cardY:'the yellow keycard'});
+const W4_SVG={};
+for(const k of ['cardR','cardG','cardY'])W4_SVG[k]='<svg viewBox="0 0 32 32"><rect x="3" y="7" width="26" height="18" rx="3" fill="'+W4CARD[k]+'" stroke="#1b1840" stroke-width="2.4"/><rect x="3" y="11" width="26" height="3.5" fill="#1b1840"/><rect x="7" y="18" width="7" height="4" fill="#fff7d6"/></svg>';
+// a keycard in its colour; returns true if it drew kind
+const W4_USE={thermo:'Turn the thermostat'};
+const W4_TEMPS=[14,16,18,20,22,24,26,28]; // the greenhouse thermostat's eight settings (degrees)
+function w4Icon(g,kind,P){
+  if(kind==='thermo'){P(()=>{rr(g,-12,-40,24,62,12)},'#f8fafc');P(()=>{g.beginPath();g.arc(0,26,18,0,TAU)},'#ef4444');g.fillStyle='#ef4444';g.fillRect(-5,-24,10,40);return true}
+  const c=W4CARD[kind];if(!c||kind==='card')return false;
+  P(()=>{rr(g,-40,-26,80,52,8)},c);g.fillStyle='#1b1840';g.fillRect(-40,-14,80,10);g.fillStyle='#fff7d6';g.fillRect(-30,6,22,14);return true}
+function w4ItemMesh(p){const c=W4CARD[p.item];if(!c||p.item==='card')return null;
+  const g=new THREE.Group(),L=new THREE.MeshLambertMaterial({color:c,emissive:new THREE.Color(c).multiplyScalar(.35)}),face=new THREE.MeshLambertMaterial({map:iconTexture(p.item,c)});
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(.7,.45,.05),[L,L,L,L,face,face]));
+  const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:TEX.glow,color:c,transparent:true,opacity:.7,depthWrite:false,blending:THREE.AdditiveBlending}));halo.scale.set(1.6,1.6,1);
+  const root=new THREE.Group();root.add(g);root.add(halo);root.userData.spin=g;return root}
+TEX.w4plate=new THREE.CanvasTexture(cvs(128,128,(g,w,h)=>{g.fillStyle='#fff';g.fillRect(0,0,w,h);g.strokeStyle='rgba(0,0,0,.35)';g.lineWidth=8;g.strokeRect(4,4,w-8,h-8);
+  g.fillStyle='rgba(0,0,0,.18)';g.beginPath();g.arc(w/2,h/2,40,0,TAU);g.fill();g.fillStyle='rgba(255,255,255,.9)';g.beginPath();g.moveTo(w/2-20,h/2-10);g.lineTo(w/2+20,h/2-10);g.lineTo(w/2,h/2+16);g.closePath();g.fill()}));
+// World 4 carries up to four things (three keycards and the gem): on a narrow upright phone that row would run into
+// the clock and the level name, so with three or more it moves just under them (and the feed below it).
+document.head.appendChild(Object.assign(document.createElement('style'),{textContent:'@media (max-width:520px){body.touch #inv:has(.it:nth-child(3)){top:calc(60px + env(safe-area-inset-top,0px))}body.touch:has(#inv .it:nth-child(3)) #feed{top:calc(104px + env(safe-area-inset-top,0px))}}'}));
+const W4_CONV_L=cvs(128,128,g=>{g.translate(128,0);g.scale(-1,1);g.drawImage(TEX.conv.image,0,0)});
+function w4PartMesh(W,p){
+  if(p.crush){const m=new THREE.Mesh(boxGeo(p.hx*2,p.hy*2,p.hz*2),sharedMat('hazard',p.col));m.castShadow=true;m.receiveShadow=true;return m}
+  if(p.hold){const m=new THREE.Mesh(boxGeo(p.hx*2,p.hy*2,p.hz*2),new THREE.MeshLambertMaterial({color:p.col,map:TEX.w4plate,emissive:new THREE.Color('#000000')}));m.receiveShadow=true;return m}
+  return null;
+}
+function w4Update(W,p,m,rt,dt){
+  if(p.hold){const on=flagOn(W,p.hold,rt);if(m.userData.on!==on){m.userData.on=on;m.material.color.set(on?'#4ade80':p.col)}
+    m.material.emissive.setRGB(0,on?.25+.15*Math.sin(rt*8):0,0)}
+  if(p.rev&&p.conv&&m.material.map){const t=m.material.map,back=p.conv[0]!==p.rev0[0]||p.conv[1]!==p.rev0[1];
+    if(m.userData.img0==null)m.userData.img0=t.image;
+    if(m.userData.back!==back){m.userData.back=back;t.image=back?W4_CONV_L:m.userData.img0;t.needsUpdate=true}}
+}
+// World 4's signs: {w4: 'slip', key, k, label, col} one digit of keypad key's code (the k-th, the others blank);
+// {w4: 'panel', lines, col} a control-room notice (first line big)
+function w4Sign(g,sg,W,w,h,font,ink){
+  if(sg.w4==='slip'){const code=W.codes[sg.key]||'????',col=sg.col||'#facc15';
+    g.fillStyle='#f8fafc';g.fillRect(0,0,w,h);g.fillStyle=col;g.fillRect(0,0,w,h*.24);g.strokeStyle=ink;g.lineWidth=10;g.strokeRect(5,5,w-10,h-10);
+    g.fillStyle=ink;g.font=font(h*.13);g.fillText(sg.label||'Code',w/2,h*.13);
+    const cells=[0,1,2,3].map(i=>i===sg.k?code[i]:'·');g.fillStyle='#1d4ed8';g.font=font(h*.42);
+    cells.forEach((c,i)=>{g.fillStyle=i===sg.k?'#1d4ed8':'#94a3b8';g.fillText(c,w*(.2+i*.2),h*.62)});
+    g.fillStyle='#475569';g.font=font(h*.1);g.fillText(['1st','2nd','3rd','4th'][sg.k]+' digit',w/2,h*.89);return true}
+  // the thermostat's face (its hand is a {hand, dial, n: 8} sign on top) and a plant's care card
+  if(sg.w4==='gauge'){const R=Math.min(w,h)*.47;g.fillStyle='#334155';rr(g,0,0,w,h,w*.12);g.fill();g.save();g.translate(w/2,h/2);g.fillStyle='#fff7ed';g.beginPath();g.arc(0,0,R,0,TAU);g.fill();g.lineWidth=R*.06;g.strokeStyle=ink;g.stroke();
+    g.fillStyle=ink;g.font=font(R*.2);W4_TEMPS.forEach((v,i)=>{const a=i/8*TAU;g.fillText(v+'°',Math.sin(a)*R*.72,-Math.cos(a)*R*.72)});g.restore();return true}
+  if(sg.w4==='care'){const P=W.w4care[sg.plant];g.fillStyle='#f0fdf4';g.fillRect(0,0,w,h);g.strokeStyle='#166534';g.lineWidth=10;g.strokeRect(5,5,w-10,h-10);
+    g.fillStyle='#166534';g.font=font(h*.15);g.fillText(P.name,w/2,h*.16);
+    g.save();g.translate(w*.28,h*.6);const k=h*.0035;g.fillStyle='#b45309';g.fillRect(-26*k,10*k,52*k,40*k);g.fillStyle=P.col;
+    if(sg.plant==='cactus'){g.fillRect(-8*k,-60*k,16*k,72*k);g.fillRect(-26*k,-34*k,12*k,30*k);g.fillRect(14*k,-44*k,12*k,26*k)}
+    else for(let i=0;i<5;i++){g.beginPath();g.ellipse((i-2)*12*k,-26*k,8*k,34*k,(i-2)*.35,0,TAU);g.fill()}
+    if(sg.plant==='orchid'){g.fillStyle='#e879f9';for(const [x,y] of [[-18,-58],[6,-66],[22,-48]]){g.beginPath();g.arc(x*k,y*k,10*k,0,TAU);g.fill()}}
+    g.restore();g.fillStyle=ink;g.font=font(h*.11);g.fillText('Keep at',w*.68,h*.45);g.fillStyle='#dc2626';g.font=font(h*.28);g.fillText(P.temp+'°',w*.68,h*.7);return true}
+  // a page of notes: {w4: 'notes', title, lines} (lines worked out by the level's build, so they can hold its clues)
+  if(sg.w4==='notes'){g.fillStyle='#fffbeb';g.fillRect(0,0,w,h);g.strokeStyle='#a16207';g.lineWidth=10;g.strokeRect(5,5,w-10,h-10);g.fillStyle='rgba(30,64,175,.12)';
+    for(let y=h*.32;y<h*.95;y+=h*.13)g.fillRect(w*.06,y,w*.88,2);g.fillStyle=ink;g.font=font(h*.13);g.fillText(sg.title,w/2,h*.15);
+    const L=sg.lines;g.font=font(Math.min(h*.1,w*1.5/Math.max(...L.map(l=>l.length))));L.forEach((l,i)=>{g.fillStyle='#1e3a8a';g.fillText(l,w/2,h*(.36+i*.6/Math.max(1,L.length)))});return true}
+  if(sg.w4==='panel'){const col=sg.col||'#22d3ee';g.fillStyle='#0f172a';rr(g,4,4,w-8,h-8,18);g.fill();g.strokeStyle=col;g.lineWidth=6;g.stroke();
+    const L=sg.lines;L.forEach((l,i)=>{g.fillStyle=i?'#e2e8f0':col;g.font=font(i?h*.6/(L.length+1):h*.75/(L.length+1));g.fillText(l,w/2,h*(i+.75)/(L.length+.5))});return true}
+  return false;
+}
 // ---- end of World 4 drawing additions ----
 
 // ---- World 5 drawing additions (only World 5's builder edits between these two lines) ----
@@ -2555,6 +2677,7 @@ const seaSet=new THREE.Group();seaSet.visible=false;scene.add(seaSet);
 function drawIcon(g,kind,x,y,s){
   g.save();g.translate(x,y);g.scale(s/100,s/100);g.lineJoin='round';g.lineCap='round';g.lineWidth=7;g.strokeStyle='#1b1840';
   const P=(f,c)=>{g.fillStyle=c;f();g.fill();g.stroke()};
+  if(w4Icon(g,kind,P)){g.restore();return} // W4 hook
   if(kind==='tomato'){P(()=>{g.beginPath();g.arc(0,8,38,0,TAU)},'#ef4444');P(()=>{g.beginPath();for(let i=0;i<5;i++){const a=-Math.PI/2+i*TAU/5;g.lineTo(Math.cos(a)*22,-28+Math.sin(a)*10);g.lineTo(Math.cos(a+.6)*6,-30+Math.sin(a+.6)*4)}g.closePath()},'#22c55e')}
   else if(kind==='cheese'){P(()=>{g.beginPath();g.moveTo(-42,30);g.lineTo(42,30);g.lineTo(42,-6);g.lineTo(-42,-30);g.closePath()},'#facc15');g.fillStyle='#d4a017';for(const [cx,cy,r] of [[-14,8,7],[16,14,9],[24,-2,5]]){g.beginPath();g.arc(cx,cy,r,0,TAU);g.fill()}}
   else if(kind==='mushroom'){P(()=>{g.beginPath();g.rect(-12,0,24,36)},'#fde7c8');P(()=>{g.beginPath();g.arc(0,4,40,Math.PI,0);g.closePath()},'#b45309');g.fillStyle='#fff';for(const [cx,cy] of [[-18,-14],[10,-22],[20,-6]]){g.beginPath();g.arc(cx,cy,6,0,TAU);g.fill()}}
@@ -2608,12 +2731,14 @@ const ICON_SVG={
   gem:'<svg viewBox="0 0 32 32"><path d="M5 12l5-7h12l5 7-11 16z" fill="#38bdf8" stroke="#1b1840" stroke-width="2.4" stroke-linejoin="round"/><path d="M5 12h22M13 5l3 23 3-23" fill="none" stroke="#1b1840" stroke-width="1.6"/></svg>'
 };
 ICON_SVG.lamp=W3_LAMP_SVG; // W3 hook
+Object.assign(ICON_SVG,W4_SVG); // W4 hook
 function signTex(sg,W,wpx,hpx){
   return new THREE.CanvasTexture(cvs(wpx,hpx,(g,w,h)=>{
     const ink='#1b1840';g.textAlign='center';g.textBaseline='middle';
     const font=(px,f)=>(f||'')+px+'px "Lilita One", "Arial Rounded MT Bold", sans-serif';
     if(sg.w3&&w3sign(sg,W,g,w,h,font,ink))return; // W3 hook
     if(sg.w6){w6Sign(g,sg,W,w,h,font);return} // W6 hook
+    if(sg.w4&&w4Sign(g,sg,W,w,h,font,ink))return; // W4 hook
     if(sg.exit){g.fillStyle='#16a34a';rr(g,4,4,w-8,h-8,18);g.fill();g.lineWidth=8;g.strokeStyle='#e8fff1';g.stroke();g.fillStyle='#fff';g.font=font(h*.62);g.fillText('EXIT',w*.44,h*.54);
       g.beginPath();g.moveTo(w*.78,h*.3);g.lineTo(w*.9,h*.5);g.lineTo(w*.78,h*.7);g.lineWidth=h*.1;g.strokeStyle='#fff';g.stroke();return}
     if(sg.board){g.fillStyle='#8b5e3c';g.fillRect(0,0,w,h);g.fillStyle='#2f5d46';g.fillRect(12,12,w-24,h-24);g.fillStyle='rgba(255,255,255,.92)';
@@ -2689,6 +2814,7 @@ function loadWorld(W){disposeWorld();geoForWorld=true;try{buildWorldMeshes(W)}fi
 const isDyn=p=>!!(p.move||p.timed||p.crumble||p.conv||p.cp>=0||p.finish||p.zone||p.door||p.onIf||p.offIf||p.item||p.btn||p.plate||p.push||p.tp||p.step||p.mat==='crystal');
 function itemMesh(p){
   if(p.item==='lamp')return w3lampMesh(p); // W3 hook
+  {const m=w4ItemMesh(p);if(m)return m} // W4 hook
   const g=new THREE.Group(),k=p.item,L=c=>new THREE.MeshLambertMaterial({color:c,emissive:new THREE.Color(c).multiplyScalar(.35)});
   if(k==='key'){const m=L('#ffcf3d');const ring=new THREE.Mesh(new THREE.TorusGeometry(.22,.08,8,20),m);ring.position.x=-.25;g.add(ring);const sh=new THREE.Mesh(new THREE.BoxGeometry(.55,.12,.12),m);sh.position.x=.15;g.add(sh);const t=new THREE.Mesh(new THREE.BoxGeometry(.1,.2,.12),m);t.position.set(.34,-.12,0);g.add(t)}
   else if(k==='card'){const c=new THREE.Mesh(new THREE.BoxGeometry(.7,.45,.05),[L('#3b82f6'),L('#3b82f6'),L('#3b82f6'),L('#3b82f6'),new THREE.MeshLambertMaterial({map:iconTexture('card','#3b82f6')}),new THREE.MeshLambertMaterial({map:iconTexture('card','#3b82f6')})]);g.add(c)}
@@ -2699,6 +2825,7 @@ function itemMesh(p){
 }
 function partMesh(W,p){
   if(p.zone==='water'||p.zone==='dark'||p.zone==='trig'||p.mat==='cart'||p.mat==='shark'||p.mat==='jelly'||p.mat==='fish3')return w3mesh(W,p); // W3 hook
+  {const m=w4PartMesh(W,p);if(m)return m} // W4 hook
   if(p.zone==='lowg')return new THREE.Mesh(boxGeo(p.hx*2,p.hy*2,p.hz*2),sharedMat('zone','#a78bfa'));
   if(p.zone==='cold'||p.zone==='warm'||p.zone==='wind')return null;
   // levels 9-13: a boulder, a ghost, a portal, a turning mirror, the moon crystal
@@ -2840,6 +2967,7 @@ function updateParts(rt,dt){
         else{const k=(e-PHYS.CRUMBLE)/PHYS.CRUMBLE_BACK;m.visible=k>.85;m.material.opacity=Math.max(.15,(k-.85)/.15)}}
     }
     if(p.conv){const t=m.material.map;if(t){const c=Math.cos(p.yaw),s=Math.sin(p.yaw),lx=p.conv[0]*c-p.conv[1]*s,lz=p.conv[0]*s+p.conv[1]*c;t.offset.x-=lx*dt/2;t.offset.y+=lz*dt/2}}
+    if(p.w4)w4Update(W,p,m,rt,dt); // W4 hook
     if(p.cp>=0&&p.cp<=me.cp&&p.cp>0&&!m.userData.tint){m.userData.tint=1;m.material.color.set('#7ef0b4')}
     if(p.finish){m.userData.fx.material.opacity=.2+.1*Math.sin(rt*4)}
     if(p.door){const open=flagOn(W,p.door,rt)?1:0;let o=m.userData.open+(open-m.userData.open)*Math.min(1,dt*(open?3.2:9));if(Math.abs(o-open)<.002)o=open;m.userData.open=o;
@@ -3096,6 +3224,7 @@ function handleEvents(t){
     else if(e==='kick'){if(!demo)sfx('kick')}
     else if(e==='thud'){if(!demo)sfx('thud')}
     else if(e==='frozen'){if(!demo){sfx('freeze');banner('Frozen!','Stay close to the fires',2)}}
+    else if(e==='crushed'){if(!demo){sfx('landHard');banner('Squashed!','Keep out from under the yellow and black stripes',1.8)}} // W4 hook
     else if(e==='die')onDeath();
     else if(e.startsWith('w6:')){if(!demo)w6Event(e)} // W6 hook
     else if(demo)continue;
@@ -3501,6 +3630,7 @@ function renderInv(){
 const USE_TXT={pad:'Use the keypad',valve:'Turn the valve',clock:'Press: opens the gate for a few seconds',fuse:'Put the fuse in',bolt:'Flip the switch',bell:'Ring the bell',
   hour:'Turn the hour hand',minute:'Turn the minute hand',mirror:'Turn the mirror',lever:'Pull the lever',compass:'Turn the lens'};
 Object.assign(USE_TXT,W3_USE); // W3 hook
+Object.assign(USE_TXT,W4_USE); // W4 hook
 function updateHud(){
   const pl=playing()&&!G.pauseOpen&&!G.overlay&&!G.kp;if(hudCache.playing!==pl){hudCache.playing=pl;document.body.classList.toggle('playing',pl)}
   if($('hud').hidden)return;
