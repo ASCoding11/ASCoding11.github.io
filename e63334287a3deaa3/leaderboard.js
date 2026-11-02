@@ -1,6 +1,7 @@
 /*
- * Back Room Leaderboards: hours played across all games, and each game's own boards (Elo, kills, best single rounds,
- * Slipstream course records and fastest laps per track…).
+ * Back Room Leaderboards: miles across all games (the "miles with us" of miles.js: play time plus points for wins and
+ * bests), and each game's own boards (hours played, Elo, kills, best single rounds, Slipstream course records and fastest
+ * laps per track…).
  *
  * Loaded like feedback.js: a <script defer> in the <head> of the Back Room page and the phone page, and by the home
  * page's reveal(). It adds a "Leaderboards" section under the games and reads nothing until that section is near the
@@ -40,6 +41,17 @@
  * a new read. Your own rename also fixes n on your entry (social.js), so the next read has it too.
  * Rows show each player's avatar (avatar.js) and status tier badge (miles.js, worked out from the same checked node)
  * when those scripts are here.
+ *
+ * Miles board (the first board, 'all'): This week or All time (a toggle, This week unless this browser picked All time:
+ * localStorage 'lb:span'; it also switches each game's Hours board). All time ranks by BackRoomMiles.of(node).miles, the
+ * number behind the tier badge. This week is miles from play time only (miles.js's HOUR per hour), from the per-day history
+ * d that stats.js keeps (seconds per game per local day, YYYYMMDD by the player's own browser): the 7 dates from 6 days ago
+ * to today, by the viewer's clock, plus tomorrow for someone in a time zone ahead. Wins and bests have no date, so they
+ * only count in All time. Each day is checked like the hours (24 hours a day at most, games the boards know, at most
+ * DAY_GAMES of them, plus d's '_': that day's time in games past stats.js's first eight, all together), each game's week
+ * is no more than its all-time hours, and after an hours reset only the days from the reset's date count (and still no
+ * more than the hours since the reset, so a reset zeroes the week too). The week is parse's wk ({ <game>: seconds, _ }),
+ * week (seconds) and wtop (the game played most this week).
  */
 (function () {
   'use strict';
@@ -52,6 +64,7 @@
   // stats; they are still downloaded).
   var TOP = 25, MAX_NODES = 3000, NODE_MAX = 8000, MAX_STATS = 120, STALE = 180 * 86400000;
   var EPOCH = Date.UTC(2026, 9, 21);            // the day stats.js started counting
+  var WEEK_DAYS = 7, DAY_GAMES = 12, DAY_REST = '_';   // This week: how many dates; games a day accepted (stats.js keeps 8); d's other-games key
   var NAME_MAX = 14;
 
   // Stat formats: n (a count), elo, time (seconds to the millisecond, lower wins), dur (seconds, higher wins), m (metres), days, chips.
@@ -306,6 +319,34 @@
     GAMES.forEach(function (m) { if (m.grp !== 'Daily Puzzles') return; var o = g[m.d], x = o && typeof o === 'object' ? Math.floor(num(o.s)) : 0; if (x > 0 && x <= cap) t += x; });
     return t;
   }
+  // This week, from the node's per-day history (see the top of this file). since: an hours reset's time, or 0.
+  function dayKey(d) { return String(d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate()); }
+  function dayAgo(now, n) { var d = new Date(now); d.setDate(d.getDate() - n); return dayKey(d); }
+  function realDay(k) { return dayKey(new Date(+k.slice(0, 4), +k.slice(4, 6) - 1, +k.slice(6, 8))) === k; }
+  function weekOf(p, src, now, since) {
+    var wk = {}, lo = dayAgo(now, WEEK_DAYS - 1), hi = dayAgo(now, -1);
+    if (since > 0) { var sd = dayKey(new Date(since)); if (sd > lo) lo = sd; }
+    if (src && typeof src === 'object' && !Array.isArray(src)) Object.keys(src).slice(0, 40).forEach(function (k) {
+      var g = src[k], tot = 0, m = 0;
+      if (!/^\d{8}$/.test(k) || k < lo || k > hi || !realDay(k) || !g || typeof g !== 'object' || Array.isArray(g)) return;
+      Object.keys(g).slice(0, 40).forEach(function (gk) {
+        var r = gk === DAY_REST;
+        if (tot >= 86400 || (!r && (!p.g[gk] || m >= DAY_GAMES))) return;
+        var x = Math.min(Math.floor(num(g[gk])), 86400 - tot); if (!(x > 0)) return;
+        wk[gk] = (wk[gk] || 0) + x; tot += x; if (!r) m++;
+      });
+    });
+    weekSum(p, wk);
+  }
+  // The week's caps and totals: a game's week no more than its hours, the whole week no more than all the hours.
+  function weekSum(p, wk) {
+    var t = 0; p.wtop = ''; var topS = 0;
+    Object.keys(wk).forEach(function (gk) {
+      if (gk !== DAY_REST) { wk[gk] = Math.min(wk[gk], p.g[gk] ? p.g[gk].s : 0); if (wk[gk] > topS) { topS = wk[gk]; p.wtop = BY[gk].n; } }
+      if (wk[gk] > 0) t += wk[gk]; else delete wk[gk];
+    });
+    p.wk = wk; p.week = Math.min(t, p.total);
+  }
   function parse(uid, v, now) {
     if (!okUid(uid) || !v || typeof v !== 'object' || Array.isArray(v)) return null;
     var ts = num(v.ts);
@@ -373,6 +414,7 @@
         if (o.s > p.topS) { p.topS = o.s; p.top = BY[k].n; }
       });
     }
+    weekOf(p, v.d, now, rs && rs.b ? rs.t : 0);
     return p;
   }
 
@@ -393,6 +435,10 @@
     });
     t.total = 0; t.top = ''; t.topS = 0;
     Object.keys(t.g).forEach(function (k) { var s = t.g[k].s; t.total += s; if (s > t.topS) { t.topS = s; t.top = BY[k].n; } });
+    // This week the same way: per game (and for the other-games time) the larger.
+    var wk = t.wk || {};
+    Object.keys(p.wk || {}).forEach(function (k) { wk[k] = Math.max(wk[k] || 0, p.wk[k]); });
+    weekSum(t, wk);
   }
   function collapse(list) {
     var by = {};
@@ -501,14 +547,23 @@
       return { t: id, name: TRACKS[id][0], p: best, v: v, n: ts.count[id] || 0 };
     });
   }
-  // Rows for one board, best first, with shared ranks for ties.
+  // Miles for the Miles board: this week's from play time (miles.js's HOUR an hour), all time the same number as the tier
+  // badge (BackRoomMiles.of). Without miles.js (it can load after this file) all time is play time only until it arrives.
+  function milesOf(p, span) {
+    var M = window.BackRoomMiles, per = (M && M.HOUR) || 100;
+    if (span === 'week') return Math.floor((p.week || 0) / 3600 * per);
+    if (M) { try { var r = M.of(p); if (r && r.ok) return r.miles; } catch (e) {} }
+    return Math.floor(p.total / 3600 * per);
+  }
+  // Rows for one board, best first, with shared ranks for ties. view.span: 'week' or 'all', for Miles and Hours boards.
   function rows(view, people) {
-    var list = [];
+    var list = [], wk = view.span === 'week';
     people.forEach(function (p) {
-      var v, extra = '';
-      if (view.g === 'all') { v = p.total; extra = p.top ? 'Most: ' + p.top : ''; }
+      var v, extra = '', h = 0;
+      if (view.g === 'all') { v = milesOf(p, view.span); h = wk ? p.week : p.total; var tp = wk ? p.wtop : p.top; extra = tp ? 'Most: ' + tp : ''; }
+      else if (!view.st && wk) v = p.wk ? p.wk[view.g] : NaN;
       else { var o = p.g[view.g]; v = o ? o[view.st ? view.st.k : 's'] : NaN; }
-      if (v > 0) list.push({ p: p, v: v, extra: extra });
+      if (v > 0) list.push({ p: p, v: v, extra: extra, h: h });
     });
     var st = view.st, asc = st && low(st);
     list.sort(function (a, b) { return (asc ? a.v - b.v : b.v - a.v) || (a.p.n < b.p.n ? -1 : a.p.n > b.p.n ? 1 : (a.p.uid < b.p.uid ? -1 : 1)); });
@@ -555,6 +610,11 @@
     '.lbd-you{display:inline-block;margin-left:6px;font-family:var(--mono,var(--f-m,monospace));font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-ink);background:var(--accent);border-radius:4px;padding:1px 5px;vertical-align:2px}' +
     '.lbd-ex{font-family:var(--mono,var(--f-m,monospace));font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
     '.lbd-v{font-family:var(--mono,var(--f-m,monospace));font-size:15px;font-weight:600;text-align:right;white-space:nowrap}' +
+    '.lbd-v small{display:block;font-size:11px;font-weight:500;color:var(--ink-2);margin-top:1px}' +
+    // This week / All time: one pill split in two.
+    '.lbd-span{display:inline-flex;flex:none;gap:2px;padding:2px;border:1px solid var(--line);border-radius:999px;background:var(--panel-2)}.lbd-span[hidden]{display:none}' +
+    '.lbd-span button{font:inherit;font-family:var(--body,var(--f-b,sans-serif));font-size:14px;font-weight:600;color:var(--ink-2);background:transparent;border:0;border-radius:999px;padding:5px 14px;min-height:32px;cursor:pointer;white-space:nowrap}' +
+    '.lbd-span button:hover{color:var(--ink)}.lbd-span button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}' +
     '.lbd-gap{text-align:center;color:var(--ink-2);font-size:14px;line-height:1;padding:2px 0;letter-spacing:.3em}' +
     '.lbd-r.trk{grid-template-columns:minmax(0,1fr) auto;cursor:pointer}.lbd-r.trk:hover{border-color:var(--ink-2)}' +
     '.lbd-r.trk .lbd-nm{font-weight:700}.lbd-r.trk .lbd-ex{text-transform:none;letter-spacing:0;font-size:12px}' +
@@ -562,7 +622,7 @@
     '.lbd-msg,.lbd-note{margin:0;font-size:14px;color:var(--ink-2);overflow-wrap:anywhere}' +
     '.lbd-msg:empty{display:none}.lbd-msg.err{color:var(--down,#B42318)}' +
     '.lbd-note{font-size:13px}' +
-    '@media (max-width:600px){.lbd{padding:14px}.lbd-sub{font-size:14px;order:3;flex-basis:100%}.lbd-top > .lbd-b{margin-left:auto}.lbd-ctl label{max-width:none}.lbd-ctl label span{display:none}.lbd-chips{gap:6px}.lbd-chips button{font-size:13px;padding:5px 11px;min-height:34px}.lbd-r{gap:8px;padding:7px 10px;grid-template-columns:2.2em minmax(0,1fr) auto}.lbd-r.av{grid-template-columns:2.2em 28px minmax(0,1fr) auto}.lbd-v{font-size:14px}}' +
+    '@media (max-width:600px){.lbd{padding:14px}.lbd-sub{font-size:14px;order:3;flex-basis:100%}.lbd-top > .lbd-b{margin-left:auto}.lbd-ctl label{max-width:none}.lbd-ctl label span{display:none}.lbd-chips{gap:6px}.lbd-chips button{font-size:13px;padding:5px 11px;min-height:34px}.lbd-r{gap:8px;padding:7px 10px;grid-template-columns:2.2em minmax(0,1fr) auto}.lbd-r.av{grid-template-columns:2.2em 28px minmax(0,1fr) auto}.lbd-v{font-size:14px}.lbd-span button{font-size:13px;padding:5px 12px}}' +
     '@media (max-width:420px){.lbd h2{font-size:24px}}';
   document.head.appendChild(css);
 
@@ -571,11 +631,11 @@
   var box = el('div', 'lbd');
   var top = el('div', 'lbd-top');
   var $refresh = el('button', 'lbd-b', 'Refresh'); $refresh.type = 'button';
-  top.append(el('h2', '', 'Leaderboards'), el('p', 'lbd-sub', 'Most hours played across the Back Room, and the best in each game.'), $refresh);
+  top.append(el('h2', '', 'Leaderboards'), el('p', 'lbd-sub', 'Most miles flown across the Back Room, and the best in each game.'), $refresh);
   var ctl = el('div', 'lbd-ctl');
   var lbl = el('label'); lbl.append(el('span', '', 'Board'));
   var $sel = el('select'); $sel.setAttribute('aria-label', 'Leaderboard');
-  $sel.append(new Option('Hours (all games)', 'all'));
+  $sel.append(new Option('Miles (all games)', 'all'));
   // Games without a grp first, under "Games", then each group (Daily Puzzles) as its own optgroup, in GAMES order.
   var groups = {}, gorder = [];
   GAMES.forEach(function (g) { var k = g.grp || 'Games'; if (!groups[k]) { groups[k] = el('optgroup'); groups[k].label = k; gorder.push(k); } groups[k].append(new Option(g.n, g.d)); });
@@ -585,6 +645,10 @@
   var tlbl = el('label'); tlbl.append(el('span', '', 'Track')); tlbl.hidden = true;
   var $trk = el('select'); $trk.setAttribute('aria-label', 'Track');
   tlbl.append($trk); ctl.append(tlbl);
+  // The Miles board and each game's Hours board: this week or all time.
+  var $span = el('div', 'lbd-span'); $span.setAttribute('role', 'group'); $span.setAttribute('aria-label', 'Time span');
+  [['week', 'This week'], ['all', 'All time']].forEach(function (x) { var b = el('button', '', x[1]); b.type = 'button'; b.setAttribute('data-s', x[0]); $span.append(b); });
+  ctl.append($span);
   var $chips = el('div', 'lbd-chips'); $chips.setAttribute('role', 'group'); $chips.setAttribute('aria-label', 'Board');
   var $h = el('h3', 'lbd-h');
   var $list = el('ol', 'lbd-list'); $list.setAttribute('aria-label', 'Leaderboard');
@@ -592,7 +656,9 @@
   var $note = el('p', 'lbd-note', 'Play time counts while a game is open and you’re playing. Scores are reported by each player’s own browser, so they’re for bragging rights, not prizes.');
   // Slipstream's course-record boards only: what the time includes.
   var $rule = el('p', 'lbd-note', 'Race times include any track-cut penalties (+2.5 s each).'); $rule.hidden = true;
-  box.append(top, ctl, $chips, $h, $list, $msg, $rule, $note);
+  // What This week / All time counts, on the boards with the toggle.
+  var $spanNote = el('p', 'lbd-note'); $spanNote.hidden = true;
+  box.append(top, ctl, $chips, $h, $list, $msg, $rule, $spanNote, $note);
   sec.append(box);
 
   function place() {
@@ -615,6 +681,7 @@
     if (sv && (sv.g === 'all' || BY[sv.g])) view = { g: sv.g, b: typeof sv.b === 'string' ? sv.b.slice(0, 40) : 's', t: typeof sv.t === 'string' && TRACKS[sv.t] ? sv.t : '' };
   } catch (e) {}
   $sel.value = view.g;
+  view.span = ls('lb:span') === 'all' ? 'all' : 'week';   // This week unless this browser picked All time
   var people = null, myUid = '', loading = false, lastLoad = 0;
 
   function waitParty() {
@@ -682,7 +749,7 @@
     nm.append(r.p.n + ' ', el('small', '', '· ' + r.p.seat));
     if (isMe(r.p.uid)) nm.append(el('b', 'lbd-you', 'You'));
     who.append(nm);
-    // The status tier (miles.js) from this same checked node, then "Most: <game>" on the Hours board.
+    // The status tier (miles.js) from this same checked node, then "Most: <game>" on the Miles board.
     var ex = el('span', 'lbd-ex'), badge = null;
     if (window.BackRoomMiles) { try { badge = BackRoomMiles.badge(BackRoomMiles.of(r.p)); } catch (e) { badge = null; } }
     if (badge) ex.append(badge);
@@ -690,7 +757,9 @@
     if (badge || r.extra) who.append(ex);
     li.append(el('span', 'lbd-rk', String(r.rank)));
     if (window.BackRoomAvatar) { try { li.append(BackRoomAvatar.el(r.p.uid, 30)); li.classList.add('av'); } catch (e) {} }
-    li.append(who, el('span', 'lbd-v', r.fmt));
+    var val = el('span', 'lbd-v', r.fmt);
+    if (r.sub) val.append(el('small', '', r.sub));   // the Miles board: hours played under the miles
+    li.append(who, val);
     return li;
   }
   function trackRow(r) {
@@ -729,7 +798,16 @@
     boards.forEach(function (b) { $chips.append(chip(b)); });
     view.st = st && st.k !== 's' ? st : null;
     $rule.hidden = !(view.st && view.st.laps);
-    $h.textContent = view.g === 'all' ? 'Hours played · all games' : BY[view.g].n + ' · ' + st.l;
+    var miles = view.g === 'all', spans = miles || !view.st, wk = spans && view.span === 'week';
+    $span.hidden = !spans;
+    [].forEach.call($span.children, function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-s') === view.span)); });
+    $spanNote.hidden = !spans;
+    $spanNote.textContent = !spans ? '' : miles
+      ? (wk ? 'This week counts miles from play time in the last 7 days (today and the 6 before), ' + fmtN((window.BackRoomMiles && BackRoomMiles.HOUR) || 100) + ' an hour. Wins and bests count in All time.'
+        : 'All time: miles for every hour played plus points for wins and bests, the same miles as each player’s status tier.')
+      : (wk ? 'This week counts time played in the last 7 days (today and the 6 before).' : '');
+    if (!$spanNote.textContent) $spanNote.hidden = true;
+    $h.textContent = (miles ? 'Miles · all games' : BY[view.g].n + ' · ' + st.l) + (spans ? (wk ? ' · this week' : ' · all time') : '');
     $list.textContent = '';
     if (!people) return;
     if (view.st && view.st.all) {
@@ -739,11 +817,15 @@
       return;
     }
     var list = rows(view, people), hours = !view.st;
-    list.forEach(function (r) { r.fmt = hours ? fmtHours(r.v) : fmt(view.st, r.v); });
+    list.forEach(function (r) {
+      if (miles) { r.fmt = fmtN(r.v) + ' mi'; r.sub = r.h > 0 ? fmtHours(r.h) : ''; }
+      else r.fmt = hours ? fmtHours(r.v) : fmt(view.st, r.v);
+    });
     var mine = -1; for (var j = 0; j < list.length; j++) if (isMe(list[j].p.uid)) { mine = j; break; }
     list.slice(0, TOP).forEach(function (r) { $list.append(row(r)); });
     if (mine >= TOP) { var gap = el('li', 'lbd-gap', '···'); gap.setAttribute('aria-hidden', 'true'); $list.append(gap, row(list[mine])); }
-    if (!list.length) say(view.g === 'all' ? 'Nobody’s on the board yet. Play any game for a minute to get on it.'
+    if (!list.length) say(miles ? (wk ? 'Nobody has played this week yet. Play any game for a minute to get on it.' : 'Nobody’s on the board yet. Play any game for a minute to get on it.')
+      : wk ? 'Nobody has played ' + BY[view.g].n + ' this week yet. Pick All time to see everyone.'
       : view.st && view.st.laps ? 'No course record at ' + view.st.track + ' over ' + view.st.laps + (view.st.laps === 1 ? ' lap' : ' laps') + ' yet. Finish a race of that length there to set one.'
       : view.st && view.st.track ? 'No lap times at ' + view.st.track + ' yet. Race there to set one.'
       : 'Nobody has a score here yet. Play ' + BY[view.g].n + ' to be the first.');
@@ -754,6 +836,10 @@
 
   $sel.addEventListener('change', function () { view.g = $sel.value === 'all' || BY[$sel.value] ? $sel.value : 'all'; view.b = view.g === 'all' ? 's' : ''; save(); draw(); if (!people) load(); });
   $trk.addEventListener('change', function () { if (TRACKS[$trk.value]) { view.t = $trk.value; if (view.b === 'laps') view.b = 'lap'; picked = true; save(); draw(); } });
+  $span.addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-s]'); if (!b) return;
+    view.span = b.getAttribute('data-s') === 'all' ? 'all' : 'week'; ls('lb:span', view.span); draw();
+  });
   $chips.addEventListener('click', function (e) {
     var b = e.target.closest('button[data-b]'); if (!b) return;
     view.b = b.getAttribute('data-b'); picked = true; save(); draw();
@@ -787,5 +873,5 @@
   } else load();
 
   // Test hook for the automated checks; harmless in normal play.
-  if (navigator.webdriver) window.__lb = { get people() { return people; }, get view() { return view; }, get myUid() { return myUid; }, parse: parse, collapse: collapse, rows: rows, trackRows: trackRows, boardsFor: boardsFor, fmt: fmt, BY: BY, load: function () { lastLoad = 0; return load(); }, draw: draw, set top(n) { TOP = n; }, PATH: PATH, EPOCH: EPOCH };
+  if (navigator.webdriver) window.__lb = { get people() { return people; }, get view() { return view; }, get myUid() { return myUid; }, parse: parse, collapse: collapse, rows: rows, milesOf: milesOf, $span: $span, trackRows: trackRows, boardsFor: boardsFor, fmt: fmt, BY: BY, load: function () { lastLoad = 0; return load(); }, draw: draw, set top(n) { TOP = n; }, setResets: function (r) { RESETS = r || {}; }, PATH: PATH, EPOCH: EPOCH };
 })();
