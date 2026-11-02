@@ -108,8 +108,8 @@
       { k: 'levels', l: 'Levels cleared (all time)', chip: 'Levels cleared', f: 'n', u: 'level', rate: 1 / 4 },
       { k: 'wins', l: 'Races won', f: 'n', u: 'win', rate: 1 / 30 }] },
     { d: 'escapade', n: 'Escapade', st: [
-      { k: 'stars', l: 'Stars (of 24)', f: 'n', u: 'star', hi: 24 },
-      { k: 'total', l: 'Fastest total (all 8 levels)', chip: 'Fastest total', f: 'time', lo: 60, hi: 36000 },
+      { k: 'stars', l: 'Stars (of 39)', f: 'n', u: 'star', hi: 39 },
+      { k: 'total', l: 'Fastest total (levels 1–8)', chip: 'Fastest total', f: 'time', lo: 60, hi: 36000 },
       { k: 'escapes', l: 'Escapes', f: 'n', u: 'escape', rate: 1 / 8 }] },
     { d: 'updraft', n: 'Updraft', st: [{ k: 'summit', l: 'Fastest summit', f: 'time', lo: 120, hi: 1e7 }, { k: 'height', l: 'Best height', f: 'm', hi: 1005 }] },
     { d: 'odd-one-out', n: 'Odd One Out', st: [

@@ -168,6 +168,14 @@ h1 span{color:var(--exit)}
 #reticle .big,#reticle.dot .arm,#reticle.dot .small{display:none}
 #reticle.dot .big{display:inline}
 #vig{position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(255,60,80,0) 45%,rgba(255,60,80,.55));opacity:0;transition:opacity .35s}
+#frost{position:absolute;inset:0;opacity:0;transition:opacity .3s;background:radial-gradient(ellipse at center,rgba(200,235,255,0) 50%,rgba(200,235,255,.55) 80%,rgba(255,255,255,.85));box-shadow:inset 0 0 60px rgba(150,210,255,.8)}
+#cold{position:absolute;top:calc(64px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:3px 10px 4px}
+#cold small{letter-spacing:.08em}
+#cold i{display:block;width:110px;height:10px;border-radius:6px;background:#dbeafe;border:2px solid var(--ink);overflow:hidden}
+#cold b{display:block;height:100%;width:100%;background:linear-gradient(90deg,#fb923c,#fde047);transition:width .15s}
+#cold.low b{background:#60a5fa}
+#cold.low{animation:coldPulse .5s ease-in-out infinite alternate}
+@keyframes coldPulse{to{background:#dbeafe}}
 #lockHint{position:absolute;left:50%;top:76%;transform:translateX(-50%);font-weight:900;font-size:14px;background:rgba(27,24,64,.72);padding:4px 12px;border-radius:10px;white-space:nowrap}
 #tags{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 #tags div{position:absolute;left:0;top:0;transform:translate(-50%,-100%);font-weight:900;font-size:13px;color:#fff;white-space:nowrap;background:rgba(27,24,64,.6);padding:1px 7px;border-radius:8px;will-change:transform}
@@ -231,6 +239,10 @@ body.touch #inv .it{width:34px;height:34px;border-radius:10px}
 body.touch #inv .it svg{width:22px;height:22px}
 body.touch #inv{top:calc(10px + env(safe-area-inset-top,0px))}
 body.touch #feed{top:calc(58px + env(safe-area-inset-top,0px));font-size:12px;max-width:60vw}
+body.touch #cold{top:auto;bottom:calc(168px + env(safe-area-inset-bottom,0px));left:calc(24px + env(safe-area-inset-left,0px));transform:none}
+
+body.touch #cold i{width:80px}
+
 body.touch #feed div:nth-last-child(n+4){display:none}
 body.touch #banner{width:calc(100% - 40px);top:24%}
 body.touch #banner b{font-size:clamp(28px,9vw,46px)}
@@ -264,10 +276,12 @@ body.touch #banner span{font-size:15px}
   <div id="tags"></div>
   <div id="hud" hidden>
     <div id="vig"></div>
+    <div id="frost"></div>
     <div id="top">
       <div class="pill" id="timerBox"><small id="timerLbl">Time</small><span id="timer">0:00.0</span></div>
-      <div class="pill" id="nameBox"><small id="lvLbl">Level 1 of 8</small><b id="lvName">Detention</b></div>
+      <div class="pill" id="nameBox"><small id="lvLbl">Level 1 of 13</small><b id="lvName">Detention</b></div>
     </div>
+    <div id="cold" class="pill" hidden><small>Warmth</small><i><b id="coldBar"></b></i></div>
     <div id="inv"></div>
     <div id="prompt" hidden><kbd data-kb="use" data-kb-short>E</kbd><span id="promptTxt">Use</span></div>
     <div id="feed"></div>
@@ -292,7 +306,7 @@ body.touch #banner span{font-size:15px}
           <svg viewBox="0 0 58 70" aria-hidden="true"><rect x="4" y="4" width="50" height="62" rx="5" fill="#ffcf3d" stroke="#1b1840" stroke-width="3"/><path d="M12 64V14h26l8 6v44z" fill="#22c55e" stroke="#1b1840" stroke-width="3" stroke-linejoin="round"/><circle cx="38" cy="40" r="3" fill="#1b1840"/><path d="M48 30l8 8-8 8" fill="none" stroke="#1b1840" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <div><h1>Escap<span>ade</span></h1></div>
         </div>
-        <p class="tag">Eight levels, one way out of each. Parkour past the lava and lasers, find the keys and codes, and make it to the EXIT. Red and glowing means it gets you.</p>
+        <p class="tag">Thirteen levels, one way out of each. Parkour past the lava and lasers, find the keys and codes, and make it to the EXIT. Red and glowing means it gets you.</p>
         <div class="me-row">
           <label class="field"><span>Name</span><input id="name" maxlength="14" autocomplete="nickname" spellcheck="false" placeholder="Escaper"></label>
           <div class="swatches" id="swatches" role="group" aria-label="Your colour"></div>
@@ -313,9 +327,9 @@ body.touch #banner span{font-size:15px}
       </div>
       <div class="card">
         <div class="prog">
-          <div><b id="pgStars">0</b><small>Stars of 24</small></div>
+          <div><b id="pgStars">0</b><small id="pgStarsLbl">Stars of 39</small></div>
           <div><b id="pgCleared">0</b><small>Escaped</small></div>
-          <div><b id="pgTotal">–</b><small>Best total</small></div>
+          <div><b id="pgTotal">–</b><small>Total 1–8</small></div>
         </div>
         <div class="label">Settings</div>
         <div class="setting"><span>Sensitivity</span><input id="sens" type="range" min=".3" max="2.5" step=".05" aria-label="Camera sensitivity"><output id="sensOut">1.00</output></div>
@@ -327,7 +341,8 @@ body.touch #banner span{font-size:15px}
         <details>
           <summary>How to play</summary>
           <ul class="how">
-            <li><b>Escape</b> each room by reaching the green EXIT. The doors in the way open with a key, a keycard, a keypad code, buttons pressed in the right order, a block pushed onto a plate, or a fuse.</li>
+            <li><b>Escape</b> each room by reaching the green EXIT. The doors in the way open with a key, a keycard, a keypad code, buttons pressed in the right order, a block pushed onto a plate, a fuse, a clock set to the right time, stepping stones or mirrors.</li>
+            <li><b>Ladders</b>: walk into one to climb, let go of the stick to hang on (ladders on rails carry you). <b>Ice</b> is slippery, and in the ice cave the cold gets you away from a fire.</li>
             <li><b>Red and glowing</b> (lava, lasers, hot burners, spinning bars) sends you back to your last checkpoint. Keys, codes and opened doors stay done.</li>
             <li><b>Stars</b>: one for escaping, one for beating the target time, one for finding the level's hidden gem.</li>
             <li class="kbonly"><b>Keys</b>: WASD moves, Space jumps, E uses buttons and keypads, R goes back to your checkpoint, click to aim with the mouse (Esc frees it), the wheel zooms, Shift locks the camera, V switches to first person.</li>
@@ -421,7 +436,11 @@ const PHYS={
   COYOTE:.1,BUFFER:.13,R:.42,H:2,STEP:.45,LEDGE:.3,SUPPORT:.9,CLIMB:7.2,LOWG:.45,BOUNCE:27,CRUMBLE:.7,CRUMBLE_BACK:3,
   PUSH:3.2,     // the most a crate moves a second when you push it
   USE_R:2.3,    // how close (to its footprint) you must be to use a button
-  PICK_R:1.25   // how close you must be to pick something up
+  PICK_R:1.25,  // how close you must be to pick something up
+  // levels 9-13: ice (how fast you speed up and slow down on it), a sliding block's speed, the cold (seconds you
+  // last in it before you freeze, and how many times faster a fire thaws you)
+  ICE_ACC:15,ICE_DEC:2.4,SLIDE:7,COLD:14,WARM:5
+
 };
 const WH=10,DW=3.2,DH=4.6; // wall height, door width and door height
 
@@ -433,6 +452,11 @@ const WH=10,DW=3.2,DH=4.6; // wall height, door width and door height
 //   lock: an item; the part is a door that opens (sets its door flag) when you come close carrying the item
 //   item: a pickup (key, keycard, fuse, gem); btn: something you use (see useBtn); plate: a floor plate a crate
 //   latches onto; push: a crate you can push along one axis at a time, kept inside lim [x0, z0, x1, z1].
+// Added with levels 9-13 (none of them change the first eight): ice (slippery to stand on), slide (a crate that keeps
+// sliding until it hits something), step (a stone to land on in a set order: {seq, sym}), tp (a portal: [x, y, z, yaw]
+// where it sends you), zones 'cold' (you freeze after PHYS.COLD seconds in it) and 'warm' (a fire that thaws you), the
+// move types swing (a pendulum) and roll (one way, then round again: boulders), ladders (trusses) that move and carry
+// you, and the buttons {dial} (turns a clock hand) and {mirror} (turns a mirror in a beam of light).
 let PID=0;
 function mkPart(o){
   const p={id:PID++,name:o.name||'',shape:o.shape||'box',x:o.x,y:o.y,z:o.z,yaw:o.yaw||0,
@@ -443,9 +467,11 @@ function mkPart(o){
     col:o.col||'#cccccc',mat:o.mat||'plastic',touch:-1,deco:!!o.deco,
     door:o.door||'',onIf:o.onIf||'',offIf:o.offIf||'',lock:o.lock||'',item:o.item||'',btn:o.btn||null,plate:o.plate||'',
     push:!!o.push,lim:o.lim||null,sign:o.sign||null,icon:o.icon||'',stand:o.stand||null,room:o.room||0,
+    ice:!!o.ice,slide:!!o.slide,step:o.step||null,tp:o.tp||null,sv:null,
     _ct:NaN,c:{x:0,y:0,z:0,yaw:0},_ot:NaN,o:{x:0,y:0,z:0,yaw:0},_st:0,y0:0,y1:0};
   if(p.shape==='cyl'){p.hx=p.hz=p.r}
-  if(p.move){const m=p.move=Object.assign({ph:0},p.move);if(m.type==='line'){m.ax=m.ax||0;m.ay=m.ay||0;m.az=m.az||0}if(m.type==='orbit'){m.a0=m.a0||0}}
+  if(p.move){const m=p.move=Object.assign({ph:0},p.move);if(m.type==='line'||m.type==='roll'){m.ax=m.ax||0;m.ay=m.ay||0;m.az=m.az||0}if(m.type==='orbit'){m.a0=m.a0||0}
+    if(m.type==='swing'){m.dx=m.dx||0;m.dz=m.dz||0}}
   if(p.push){p.home=[p.x,p.z];p.locked=false}
   return p;
 }
@@ -455,6 +481,10 @@ function poseAt(p,t,o){
   if(m.type==='line'){const u=t/m.per+m.ph,f=.5-.5*Math.cos(TAU*u);o.x+=m.ax*f;o.y+=m.ay*f;o.z+=m.az*f}
   else if(m.type==='spin')o.yaw+=m.w*t;
   else if(m.type==='orbit'){const a=m.a0+m.w*t;o.x=m.cx+Math.cos(a)*m.rad;o.z=m.cz+Math.sin(a)*m.rad}
+  // a pendulum: (p.x, p.y, p.z) is where it hangs at rest, len below its pivot; it swings amp radians along (dx, dz)
+  else if(m.type==='swing'){const th=m.amp*Math.sin(TAU*(t/m.per+m.ph)),s=Math.sin(th)*m.len;o.x+=m.dx*s;o.z+=m.dz*s;o.y+=m.len*(1-Math.cos(th))}
+  // one way at a steady speed, then back to the start (out of one hole and into another: boulders)
+  else if(m.type==='roll'){const u=t/m.per+m.ph,f=u-Math.floor(u);o.x+=m.ax*f;o.y+=m.ay*f;o.z+=m.az*f}
   return o;
 }
 function cur(p,t){if(!p.move)return p;if(p._ct!==t){poseAt(p,t,p.c);p._ct=t}return p.c}
@@ -482,14 +512,17 @@ function killNow(W,p,t){return p.kill&&(!p.timed||phaseOn(p.timed,t))&&((!p.onIf
 // Levels lie flat, so parts are filed in 6 x 6 cells by their footprint (the whole path for moving parts).
 const CELL=6;
 function newWorld(){return{parts:[],grid:new Map(),always:[],byName:new Map(),stamp:0,killY:-8,predict:false,
-  spawn:{x:0,y:0,z:0,yaw:0},cps:[],btns:[],items:[],locks:[],plates:[],crates:[],seqs:{},pads:{},codes:{},
+  spawn:{x:0,y:0,z:0,yaw:0},cps:[],btns:[],items:[],locks:[],plates:[],crates:[],seqs:{},pads:{},codes:{},steps:[],dials:{},beams:{},
   st:null,name:'',seed:0,lv:0,finish:null,route:[],box:[0,0,0,0]}}
-function newState(){return{f:{},inv:{},got:{},seq:{},used:{}}}
-function yRange(p){let y0=p.y-p.hy,y1=p.y+p.hy;const m=p.move;if(m&&m.type==='line'){y0=Math.min(y0,y0+m.ay);y1=Math.max(y1,y1+m.ay)}return[y0,y1]}
+function newState(){return{f:{},inv:{},got:{},seq:{},used:{},dial:{},mir:{},lastStep:''}}
+function yRange(p){let y0=p.y-p.hy,y1=p.y+p.hy;const m=p.move;if(m&&(m.type==='line'||m.type==='roll')){y0=Math.min(y0,y0+m.ay);y1=Math.max(y1,y1+m.ay)}
+  if(m&&m.type==='swing')y1+=m.len*(1-Math.cos(m.amp));return[y0,y1]}
 function xzBox(p){
   const r=p.shape==='cyl'?p.r:Math.hypot(p.hx,p.hz),m=p.move;let x0=p.x-r,x1=p.x+r,z0=p.z-r,z1=p.z+r;
-  if(m&&m.type==='line'){x0=Math.min(x0,x0+m.ax);x1=Math.max(x1,x1+m.ax);z0=Math.min(z0,z0+m.az);z1=Math.max(z1,z1+m.az)}
+  if(m&&(m.type==='line'||m.type==='roll')){x0=Math.min(x0,x0+m.ax);x1=Math.max(x1,x1+m.ax);z0=Math.min(z0,z0+m.az);z1=Math.max(z1,z1+m.az)}
   else if(m&&m.type==='orbit'){const R=m.rad+r;x0=m.cx-R;x1=m.cx+R;z0=m.cz-R;z1=m.cz+R}
+  else if(m&&m.type==='swing'){const s=Math.sin(m.amp)*m.len;x0-=Math.abs(m.dx)*s;x1+=Math.abs(m.dx)*s;z0-=Math.abs(m.dz)*s;z1+=Math.abs(m.dz)*s}
+
   return[x0,z0,x1,z1];
 }
 const cellKey=(i,k)=>(i+4096)*8192+(k+4096);
@@ -497,7 +530,7 @@ function addPart(W,p){
   W.parts.push(p);if(p.name)W.byName.set(p.name,p);
   const yr=yRange(p);p.y0=yr[0];p.y1=yr[1];
   if(p.deco)return p;
-  if(p.btn)W.btns.push(p);if(p.item)W.items.push(p);if(p.lock)W.locks.push(p);if(p.plate)W.plates.push(p);
+  if(p.btn)W.btns.push(p);if(p.item)W.items.push(p);if(p.lock)W.locks.push(p);if(p.plate)W.plates.push(p);if(p.step)W.steps.push(p);
   if(p.push){W.crates.push(p);W.always.push(p);return p}
   const b=xzBox(p);
   for(let i=Math.floor(b[0]/CELL);i<=Math.floor(b[2]/CELL);i++)for(let k=Math.floor(b[1]/CELL);k<=Math.floor(b[3]/CELL);k++){
@@ -530,7 +563,7 @@ function rotY(x,z,yaw,out){const c=Math.cos(yaw),s=Math.sin(yaw);out[0]=x*c+z*s;
 
 // ---------- the player ----------
 function newPlayer(x,y,z,yaw){return{x,y,z,vx:0,vy:0,vz:0,yaw:yaw||0,gr:false,gp:null,coy:0,buf:0,climb:false,dead:false,lowg:false,
-  pvx:0,pvy:0,pvz:0,ev:[],landN:0,lastLand:null,inFinish:false,cp:0,air:0,tko:-1,pushing:0}}
+  pvx:0,pvy:0,pvz:0,ev:[],landN:0,lastLand:null,inFinish:false,cp:0,air:0,tko:-1,pushing:0,cold:0,tpN:0}}
 function resetPlayer(pl,x,y,z,yaw){const cp=pl.cp;Object.assign(pl,newPlayer(x,y,z,yaw),{ev:pl.ev,cp})}
 const _a={x:0,y:0,z:0,yaw:0},_h={d:0,nx:0,nz:0},_h2={d:0,nx:0,nz:0},_near=[],_nc=[],_nl=[],_v=[0,0];
 function approach(pl,tx,tz,max){const dx=tx-pl.vx,dz=tz-pl.vz,l=Math.hypot(dx,dz);if(l<=max){pl.vx=tx;pl.vz=tz}else{pl.vx+=dx/l*max;pl.vz+=dz/l*max}}
@@ -586,9 +619,12 @@ function simStep(W,pl,inp,t){
   let push=0;
   if(tr){push=im>.01?(ix*tnx+iz*tnz)/im:0;if(push>.3)pl.climb=true;else if(push<-.3||(pl.gr&&push<=.3))pl.climb=false}
   else pl.climb=false;
-  // 3) run / air control (on a ladder you hold on: no sliding off sideways)
+  // a ladder on rails carries you along while you hold on
+  let lvx=0,lvz=0;
+  if(tr&&tr.move&&pl.climb){const a=prv(tr,t0),b=cur(tr,t);lvx=(b.x-a.x)/dt;lvz=(b.z-a.z)/dt;pl.x+=b.x-a.x;pl.z+=b.z-a.z}
+  // 3) run / air control (on a ladder you hold on: no sliding off sideways; on ice you speed up and stop slowly)
   if(pl.climb){pl.vx=tnx*.6;pl.vz=tnz*.6;pl.tko=-1}
-  else if(pl.gr){pl.tko=-1;approach(pl,ix*P.WALK,iz*P.WALK,(im>.01?P.ACC:P.DEC)*dt)}
+  else if(pl.gr){pl.tko=-1;const ice=!!(pl.gp&&pl.gp.ice);approach(pl,ix*P.WALK,iz*P.WALK,(im>.01?(ice?P.ICE_ACC:P.ACC):(ice?P.ICE_DEC:P.DEC))*dt)}
   else{
     if(pl.tko<0)pl.tko=Math.hypot(pl.vx,pl.vz);
     if(im>.01)airControl(pl,ix,iz,dt);
@@ -599,7 +635,7 @@ function simStep(W,pl,inp,t){
   if(pl.gr)pl.coy=P.COYOTE;else pl.coy=Math.max(0,pl.coy-dt);
   let jumped=false;
   if(pl.buf>0&&(pl.gr||pl.coy>0||pl.climb)){
-    if(pl.climb){pl.vx=-tnx*5;pl.vz=-tnz*5;pl.vy=P.JUMP_V*.85;pl.climb=false}
+    if(pl.climb){pl.vx=-tnx*5+lvx;pl.vz=-tnz*5+lvz;pl.vy=P.JUMP_V*.85;pl.climb=false}
     else{pl.vy=P.JUMP_V+Math.max(0,pvy);if(pl.gr){pl.vx+=pvx;pl.vz+=pvz}}
     pl.gr=false;pl.gp=null;pl.coy=0;pl.buf=0;jumped=true;ev.push('jump');
   }
@@ -659,11 +695,15 @@ function simStep(W,pl,inp,t){
         const nx=-_h.nx,nz=-_h.nz;let ax=0,az=0;if(Math.abs(nx)>=Math.abs(nz))ax=nx>0?1:-1;else az=nz>0?1:-1;
         const along=pl.vx*ax+pl.vz*az;
         if(along>.3&&(Math.abs(nx)>.55||Math.abs(nz)>.55)){
+          if(p.slide){ // a block on ice: one shove and it slides until it hits something (logicStep moves it)
+            if(!p.sv&&crateFree(W,p,p.x+ax*.06,p.z+az*.06,t)){p.sv=[ax*P.SLIDE,az*P.SLIDE];pushing=1;ev.push('kick')}
+          }else{
           const k=Math.min(P.R-d+1e-4,.12),tx=p.x+ax*k,tz=p.z+az*k;
           if(crateFree(W,p,tx,tz,t)){
             p.x=tx;p.z=tz;pushing=1;
             if(along>P.PUSH){const ex=along-P.PUSH;pl.vx-=ax*ex;pl.vz-=az*ex}
             moved=true;continue;
+          }
           }
         }
       }
@@ -678,13 +718,24 @@ function simStep(W,pl,inp,t){
   pl.pvx=pvx;pl.pvy=pvy;pl.pvz=pvz;
   if(!pl.gr)pl.air+=dt;else pl.air=0;
   if(pl.climb)pl.tko=-1;
-  // 8) lethal parts, zones, checkpoints
-  pl.inFinish=false;
+  // 8) lethal parts, zones, portals, checkpoints
+  pl.inFinish=false;let tpd=null,cold=false,warm=false;
   for(let i=0;i<_near.length;i++){const p=_near[i];
     if(p.kill){if(!killNow(W,p,t))continue;const b=cur(p,t);if(b.y-p.hy>pl.y+P.H||b.y+p.hy<pl.y-.06)continue;
       if(xzDist(p,b,pl.x,pl.z,_h)<P.R+.04){pl.dead=true;ev.push('die');return}}
     else if(p.finish){const b=cur(p,t);if(pl.y+.5<b.y-p.hy||pl.y>b.y+p.hy)continue;if(xzDist(p,b,pl.x,pl.z,_h)<0)pl.inFinish=true}
+    else if(p.tp){if(tpd||!present(W,p,t))continue;const b=cur(p,t);if(pl.y+.5<b.y-p.hy||pl.y>b.y+p.hy)continue;if(xzDist(p,b,pl.x,pl.z,_h)<0)tpd=p}
+    else if(p.zone==='cold'||p.zone==='warm'){const cy=pl.y+1;if(cy<p.y-p.hy||cy>p.y+p.hy)continue;if(xzDist(p,p,pl.x,pl.z,_h)<0){if(p.zone==='cold')cold=true;else warm=true}}
   }
+  // the cold: it builds up while you're in it and away from a fire, and a fire thaws you fast
+  if(cold||warm||pl.cold>0){
+    if(warm)pl.cold=Math.max(0,pl.cold-P.WARM*dt);
+    else if(cold){pl.cold+=dt;if(pl.cold>=P.COLD){pl.dead=true;ev.push('frozen');ev.push('die');return}}
+    else pl.cold=Math.max(0,pl.cold-dt);
+  }
+  // a portal sends you to its exit, facing its way, still moving
+  if(tpd){const d=tpd.tp,yaw=d[3]||0,sp=Math.min(P.WALK,Math.hypot(pl.vx,pl.vz));
+    pl.x=d[0];pl.y=d[1];pl.z=d[2];pl.vx=-Math.sin(yaw)*sp;pl.vz=-Math.cos(yaw)*sp;pl.yaw=yaw;pl.gr=false;pl.gp=null;pl.climb=false;pl.tpN++;pl.tpFrom=tpd.name;ev.push('tp')}
   if(pl.gr&&pl.gp&&pl.gp.cp>=0&&pl.gp.cp>pl.cp){pl.cp=pl.gp.cp;ev.push('cp')}
   if(pl.y<W.killY){pl.dead=true;ev.push('die')}
 }
@@ -710,11 +761,27 @@ function logicStep(W,pl,t){
     if(flagOn(W,p.door,t)||!st.inv[p.lock])continue;const b=cur(p,t);
     if(xzDist(p,b,pl.x,pl.z,_h)<2.2&&pl.y<b.y+p.hy&&pl.y+P.H>b.y-p.hy){st.f[p.door]=true;ev.push('open:'+p.door)}
   }
+  // sliding blocks keep going until something (or you) is in the way
+  for(const c of W.crates){
+    if(!c.sv)continue;const nx=c.x+c.sv[0]*P.DT,nz=c.z+c.sv[1]*P.DT;
+    const meAhead=Math.abs(nx-pl.x)<c.hx+P.R&&Math.abs(nz-pl.z)<c.hz+P.R&&pl.y<c.y+c.hy&&pl.y+P.H>c.y-c.hy&&(c.sv[0]*(pl.x-c.x)+c.sv[1]*(pl.z-c.z))>0;
+    if(meAhead||!crateFree(W,c,nx,nz,t)){c.sv=null;ev.push('thud')}else{c.x=nx;c.z=nz}
+  }
   for(const pt of W.plates){
     if(flagOn(W,pt.plate,t))continue;
     for(const c of W.crates){
       if(c.locked)continue;
-      if(Math.abs(c.x-pt.x)<pt.hx*.8&&Math.abs(c.z-pt.z)<pt.hz*.8){c.locked=true;c.x=pt.x;c.z=pt.z;st.f[pt.plate]=true;ev.push('open:'+pt.plate);break}
+      if(Math.abs(c.x-pt.x)<pt.hx*.8&&Math.abs(c.z-pt.z)<pt.hz*.8){c.locked=true;c.x=pt.x;c.z=pt.z;c.sv=null;st.f[pt.plate]=true;ev.push('open:'+pt.plate);break}
+    }
+  }
+  // stepping stones: land on them in the order the clue shows (landing on the same one twice in a row counts once)
+  if(W.steps.length&&pl.gr&&pl.gp&&pl.gp.step&&st.lastStep!==pl.gp.name){
+    const p=pl.gp,a=p.step,g=W.seqs[a.seq];st.lastStep=p.name;
+    if(!flagOn(W,g.set,t)){
+      const s=st.seq[a.seq]||(st.seq[a.seq]=[]);s.push(a.sym);
+      if(!s.every((v,i)=>v===g.order[i])){st.seq[a.seq]=a.sym===g.order[0]?[a.sym]:[];ev.push('buzz')}
+      else if(s.length===g.order.length){st.f[g.set]=true;ev.push('open:'+g.set)}
+      else ev.push('step');
     }
   }
   if(W.tick)W.tick(W,pl,t);
@@ -744,7 +811,34 @@ function useBtn(W,pl,p,t){
   }
   if(a.pad){if(flagOn(W,W.pads[a.pad].set,t))return'done';ev.push('pad:'+a.pad);return'pad'}
   if(a.need){if(flagOn(W,a.then,t))return'done';if(!st.inv[a.need]){ev.push('need:'+a.need);return'bad'}st.f[a.then]=true;st.used[p.name]=1;ev.push('open:'+a.then);return'ok'}
+  // a dial (a clock hand): each press moves it on one step; all of a group's dials on their targets opens the door
+  if(a.dial){const d=W.dials[a.dial];if(flagOn(W,d.set,t))return'done';st.dial[a.key]=((st.dial[a.key]||0)+1)%a.n;ev.push('dial');
+    if(d.keys.every(k=>st.dial[k]===d.target[k])){st.f[d.set]=true;ev.push('open:'+d.set)}return'ok'}
+  // a mirror in a beam of light: each press turns it a quarter; the beam reaching its target opens the door
+  if(a.mirror){const g=W.beams[a.mirror];if(flagOn(W,g.set,t))return'done';st.mir[p.name]=(st.mir[p.name]|0)^1;ev.push('turn');
+    if(beamTrace(W,a.mirror).hit){st.f[g.set]=true;ev.push('open:'+g.set)}return'ok'}
   return'';
+}
+// The path of a beam of light across the floor, from its source along x or z. Mirrors (points; state 0 lies along
+// x = z, 1 along x = -z) turn it a quarter; it stops at a stop box [x0, z0, x1, z1], at its
+// target (hit) or after 120 units. Returns {segs: [[x0, z0, x1, z1]...], hit}.
+function beamTrace(W,g){
+  const B=W.beams[g],st=W.st,segs=[];let x=B.x,z=B.z,dx=B.dir[0],dz=B.dir[1],len=0,hit=false;
+  for(let bounce=0;bounce<16&&len<120;bounce++){
+    let best=120-len,what=null;
+    const pts=B.mirrors.map(n=>W.byName.get(n)).concat([B.target]);
+    for(const q of pts){const ox=q.x-x,oz=q.z-z,along=ox*dx+oz*dz,off=Math.abs(ox*dz-oz*dx);if(along>.3&&off<.45&&along<best){best=along;what=q}}
+    for(const s of B.stops){ // ray against an axis-aligned box
+      let t0=-1e9,t1=1e9;
+      for(const [o,d,a0,a1] of [[x,dx,s[0],s[2]],[z,dz,s[1],s[3]]]){if(Math.abs(d)<1e-9){if(o<a0||o>a1){t0=1e9;break}}else{let u0=(a0-o)/d,u1=(a1-o)/d;if(u0>u1)[u0,u1]=[u1,u0];t0=Math.max(t0,u0);t1=Math.min(t1,u1)}}
+      if(t0<=t1&&t0>.01&&t0<best){best=t0;what=null}
+    }
+    const nx=x+dx*best,nz=z+dz*best;segs.push([x,z,nx,nz]);len+=best;x=nx;z=nz;
+    if(!what)break;
+    if(what===B.target){hit=true;break}
+    if(st.mir[what.name]){const k=dx;dx=-dz;dz=-k}else{const k=dx;dx=dz;dz=k}
+  }
+  return{segs,hit};
 }
 function tryCode(W,pl,k,code){
   const pd=W.pads[k];if(!pd)return false;
@@ -754,10 +848,11 @@ function tryCode(W,pl,k,code){
 // Back to a checkpoint: what you've found and opened stays, but crates that aren't on their plate go home,
 // crumbled tiles come back and timed doors shut.
 function softReset(W){
-  for(const c of W.crates)if(!c.locked){c.x=c.home[0];c.z=c.home[1]}
+  for(const c of W.crates)if(!c.locked){c.x=c.home[0];c.z=c.home[1];c.sv=null}
   for(const p of W.parts)if(p.crumble)p.touch=-1;
   for(const k in W.st.f)if(typeof W.st.f[k]==='number')delete W.st.f[k];
-  W.st.seq={};
+  W.st.seq={};W.st.lastStep='';
+
 }
 
 // ---------- building levels ----------
@@ -816,8 +911,20 @@ function Builder(W,pal){
     use(name,x,y,z){B.route.push({t:'use',name,p:[x,y,z]})},
     code(k){B.route.push({t:'code',pad:k})},
     seq(g){B.route.push({t:'seq',g,k:0})},
-    push(name,axis,to,q){B.route.push(Object.assign({t:'push',name,axis,to},q))}
+    push(name,axis,to,q){B.route.push(Object.assign({t:'push',name,axis,to},q))},
+    // levels 9-13: a ladder plan, a dial, a portal, a kick, stepping stones (see botInput)
+    ladder(name,plan){B.route.push({t:'ladder',name,plan})},
+    dial(name,g,key,x,y,z){B.route.push({t:'dial',name,g,key,p:[x,y,z]})},
+    tp(x,y,z){B.route.push({t:'tp',p:[x,y,z]})},
+    kick(name,dir){B.route.push({t:'kick',name,dir})},
+    steps(g,hub){B.route.push({t:'steps',g,hub})},
+
+    // a box-shaped zone ('cold' or 'warm') and a portal (a glowing doorway that sends you to `to`)
+    zone(kind,x0,z0,x1,z1,y0,y1,o){return B.add(Object.assign({x:(x0+x1)/2,y:(y0+y1)/2,z:(z0+z1)/2,w:Math.abs(x1-x0),h:y1-y0,d:Math.abs(z1-z0),solid:false,zone:kind,mat:'zone',cam:false,name:o&&o.name||''},o))},
+    portal(name,x,z,yaw,to,o){o=o||{};const w=o.w||2.4,h=o.h||3.6,top=o.top||0,ax=Math.abs(Math.sin(yaw))<.5;
+      return B.add(Object.assign({x,y:top+h/2,z,w:ax?w:.5,h,d:ax?.5:w,solid:false,tp:to,mat:'portal',col:o.col||'#a78bfa',cam:false,name,yaw:0},o.part))}
   };
+
   return B;
 }
 // An exit: a short corridor north of the gap in wall z = zw at x, with the finish zone and an EXIT sign over the door.
@@ -1172,7 +1279,7 @@ build(B,r){
 
 // 8. The Warden: a round arena around a robot core. Two sweeping arms circle it; climb the three switch towers (any
 // order) and press each switch. Every switch makes the arms fiercer; all three shut the Warden down and open the exit.
-L({id:'warden',name:'The Warden',sub:'The final room',par:65,boss:true,sky:['#3a1f5c','#ffb38a'],pal:{floor:'#3f3a52',wall:'#5b4b7a',prop:'#8b7bd8',trim:'#ff5e6c'},
+L({id:'warden',name:'The Warden',sub:'The boss room',par:65,boss:true,sky:['#3a1f5c','#ffb38a'],pal:{floor:'#3f3a52',wall:'#5b4b7a',prop:'#8b7bd8',trim:'#ff5e6c'},
 build(B,r){
   const W=B.W,C=-22;
   B.floor(-18,6.5,18,-44,{col:'#4a4560'});B.wallZ(-18,7,-44);B.wallZ(18,7,-44);B.wallX(7,-18.5,18.5);
@@ -1212,6 +1319,336 @@ build(B,r){
   W.spawn={x:0,y:0,z:-2.5,yaw:0};
 }});
 
+// ---------- levels 9-13 ----------
+// The second floor of the building: five more rooms, each with something new (see the part list at the top).
+
+// 9. A library: a ladder on rails up to the balcony, a long ride on a rolling ladder over the lava past hot lamps (hang
+// low, then climb), and sliding drawers in the archive. Four coloured books around the level each show one digit of
+// the door code; the card says which colour comes first.
+const BOOKS={red:'#e0453a',gold:'#e8b923',green:'#2fa35a',blue:'#3a6fe0'};
+L({id:'library',name:'Overdue',sub:'The library',par:75,sky:['#9db4e6','#fbf3e4'],pal:{floor:'#c8955c',wall:'#86ad92',prop:'#a8703f',trim:'#3d2b1f'},
+build(B,r){
+  const W=B.W,P=B.pal,WD={mat:'wood',col:'#b27a45'},CASE={mat:'books',col:'#7a4e2c'};
+  W.codes.lib=makeCode(r);W.pads.lib={set:'libdoor'};W.books={lib:shuffle(Object.keys(BOOKS),r)};
+  // a giant book standing on a shelf, its spine facing yaw, with its digit on the spine
+  const book=(c,x,y,z,yaw)=>{const sx=Math.sin(yaw),sz=Math.cos(yaw);B.deco(x,y,z,1.1,2.3,1.5,{yaw,col:BOOKS[c],mat:'plastic'});
+    B.sign(x+sx*.78,y,z+sz*.78,yaw,1.0,2.2,{book:'lib',col:c})};
+  // reading room
+  B.floor(-12,6.5,12,-24,{mat:'wood',col:'#c8955c'});B.wallZ(-12,7,-24);B.wallZ(12,7,-24);B.wallX(7,-12.5,12.5);
+  B.wallX(-24,-12.5,12.5,[{c:-4,w:DW,h:5+DH}]);
+  B.cp(0,0,-2.5);
+  for(const [x,z] of [[-6,-6],[6,-6],[-6,-11.5],[6,-11.5]]){B.blk(x,z,4.6,2.2,1.2,WD);for(const s of [-1,1])B.blk(x+s*1.3,z+1.6,.9,.9,.6,{col:'#7a4e2c',mat:'wood'})}
+  B.blk(0,-9,1.4,1.4,1.4,{col:'#7a4e2c',mat:'wood',name:'lectern'});book('red',0,2.55,-9,0);
+  for(const s of [-1,1])B.blk(s*11,-3,2,13,3.5,CASE);
+  // the balcony and its rolling ladder
+  B.blk(-5,-21,14,6,5,{col:'#a8703f',mat:'wood',name:'balcony'});
+  B.box(-9,2.5,-17.55,1.2,5,.9,{truss:true,mat:'truss',col:'#e9cfa0',move:{type:'line',ax:9,per:7},name:'ladA'});
+  B.deco(-5,4.85,-17.9,14,.3,.2,{col:'#3d2b1f',mat:'metal'});
+  book('gold',-8.4,6.15,-19.4,0);
+  B.blk(5,-21.3,2,4.4,6,CASE);B.item('gem','gem',5,6.8,-21.3);
+  B.sign(7.3,5.2,-23.45,0,6.8,3,{riddle:'lib'});
+  B.sign(-5,7.6,-23.45,0,5,1.3,{title:'Quiet please',sub:'Find the four coloured books'});
+  // the stacks: lava below, a ladder on rails along the west shelves, hot lamps sticking out of them
+  B.floor(-8,-24,8,-62,{mat:'wood',col:'#b9874f'});B.wallZ(-8,-24,-62);B.wallZ(8,-24,-62);
+  B.lava(-8,-28,8,-58.5);
+  B.blk(-4,-26,3.2,4,5,{col:'#a8703f',mat:'wood',name:'L0'});
+  B.blk(-4,-30.2,3.2,4.4,1.5,{col:'#a8703f',mat:'wood',name:'L1'});
+  B.cp(1,-4,-30.4,{top:1.5,w:2.6,d:2.6});
+  B.blk(-7,-42,1,24,WH,CASE);B.blk(-7,-27.1,1,2.2,5,CASE);
+  B.box(-6.05,3.25,-30.5,.9,5.5,1.2,{truss:true,mat:'truss',col:'#e9cfa0',move:{type:'line',az:-24,per:11},name:'ladB'});
+  B.deco(-6.05,.35,-42.5,.5,.2,26,{col:'#3d2b1f',mat:'metal'});B.deco(-6.05,6.15,-42.5,.5,.2,26,{col:'#3d2b1f',mat:'metal'});
+  B.kill(-5.05,5.5,-37.5,1.1,2.2,.45,{name:'lamp1'});B.deco(-6.3,5.5,-37.5,.4,.3,.3,{col:'#c9a24a',mat:'metal'});
+  B.kill(-5.05,2.3,-47,1.1,3.4,.45,{name:'lamp2'});B.deco(-6.3,2.3,-47,.4,.3,.3,{col:'#c9a24a',mat:'metal'});
+  B.blk(-5.2,-56.9,3.6,3.2,6,{col:'#a8703f',mat:'wood',name:'L2'});
+  B.blk(7,-42,1,24,WH,CASE);book('green',6.05,3.6,-43,-Math.PI/2);
+  B.sign(2,7.4,-24.55,Math.PI,6,1.5,{title:'Ride the ladder',sub:'Hang low past the first lamp, then climb'});
+  B.cp(2,2,-60.2);
+  B.wallX(-62,-8.5,8.5,[{c:4,w:DW,h:DH}]);
+  // the archive: drawers slide out of the card catalogue over the lava, then piles of old books
+  B.floor(-12,-62,12,-86,{mat:'wood',col:'#c8955c'});B.wallZ(-12,-62,-86);B.wallZ(12,-62,-86);
+  B.wallX(-86,-12.5,12.5,[{c:-6,w:DW,h:DH}]);
+  B.lava(-12,-65.4,12,-80.6);
+  B.blk(10.5,-73,3,16,6,{col:'#8a5a34',mat:'wood',name:'catalogue'});
+  [[-67.4,0],[-71.2,.33],[-75,.66]].forEach(([z,ph],i)=>B.plat(7.4,1.6,z,2.6,2.4,{move:{type:'line',ax:-4.4,per:3.6,ph},mat:'wood',col:'#d9a066',name:'drawer'+i}));
+  B.plat(1.4,1.6,-77.6,2.2,2.2,{crumble:true,mat:'crumble',col:'#e8d3a8',name:'pile0'});
+  B.plat(-1.8,2.2,-79.2,2.2,2.2,{crumble:true,mat:'crumble',col:'#e8d3a8',name:'pile1'});
+  B.blk(-11,-74,2,12,6,CASE);book('blue',-9.95,3.6,-73,Math.PI/2);
+  B.panel('pad',-2.2,1.6,-85.35,0,{pad:'lib'},{icon:'pad'});
+  B.door('x',-86,-6,'libdoor',{col:'#8a5a34'});
+  B.sign(5,5.6,-85.45,0,6.6,2.8,{riddle:'lib'});
+  B.cp(3,-2,-83.4);
+  exitHall(B,-6,-86);
+  // decor: windows and chandeliers
+  for(const z of [2,-6,-14]){B.win(-11.5,z,Math.PI/2,{y:6.4,glass:'#ffe9b8',frame:'#3d2b1f'});B.win(11.5,z,-Math.PI/2,{y:6.4,glass:'#ffe9b8',frame:'#3d2b1f'})}
+  for(const z of [-68,-78])B.win(-11.5,z,Math.PI/2,{y:7.6,glass:'#ffe9b8',frame:'#3d2b1f'});
+  for(const [x,z] of [[0,-4],[0,-13]]){B.dcyl(x,8.6,z,1.4,.25,{col:'#c9a24a',mat:'metal'});B.dcyl(x,9.4,z,.08,1.6,{col:'#3d2b1f'});B.dcyl(x,8.9,z,.9,.3,{col:'#fff3c4',mat:'glass'})}
+  // route
+  const ladA=W.byName.get('ladA'),ladB=W.byName.get('ladB');
+  B.w(-4.5,0,-14.2);B.w(-4.5,0,-16.5);
+  B.ladder('ladA',(t,W,pl)=>pl.gr&&pl.y>4.5?'done':pl.climb?'climb':Math.abs(cur(ladA,t).x-pl.x)<.25?'grab':'wait');
+  B.w(-4,5,-21.6);B.w(-4,5,-26.5);B.w(-4.4,1.5,-30.4);B.w(-5.05,1.5,-30.5);
+  B.ladder('ladB',(t,W,pl)=>{const z=cur(ladB,t).z;
+    if(!pl.climb)return pl.gr&&pl.y<2&&pl.z>-34?(z>-30.6&&Math.abs(pl.z-z)<.3?'grab':'wait'):pl.gr&&pl.y>5.5?'done':'wait';
+    if(pl.z>-38.4)return pl.y<1.8?'climb':'hang';
+    if(z>-53.6)return pl.y<4.4?'climb':'hang';
+    return'climb'});
+  B.w(-5.2,6,-56.8);B.w(-2,0,-59.4);B.w(4,0,-63.6);
+  B.jon('drawer0',0,{wait:true});B.jon('drawer1',0,{wait:true});B.jon('drawer2',0,{wait:true});
+  B.j(1.4,1.6,-77.6,{wait:true});B.j(-1.8,2.2,-79.2);B.j(-2,0,-83);
+  B.use('pad',-2.2,0,-84.2);B.code('lib');B.w(-6,0,-87.6);B.w(-6,0,-89.4);
+  W.spawn={x:0,y:0,z:-2.5,yaw:0};
+}});
+
+// 10. A clock tower: hop the turning gears and ride a swinging pendulum over the lava, run the hall of pendulum blades,
+// then set the big clock to the time on the pocket watch: one button turns the hour hand, the other the minutes.
+L({id:'clock',name:'Clockwork',sub:'The clock tower',par:70,sky:['#4f5fa8','#ffd2a0'],pal:{floor:'#dcc8a4',wall:'#c39a6e',prop:'#c9a24a',trim:'#4a3423'},
+build(B,r){
+  const W=B.W,BR={col:'#c9a24a',mat:'metal'},GEAR={col:'#b8893a',mat:'gear'};
+  const th=1+Math.floor(r()*11),tm=Math.floor(r()*4);
+  W.dials.clock={set:'clockdoor',keys:['h','m'],target:{h:th,m:tm}};
+  W.st.dial.h=(th+3+Math.floor(r()*6))%12;W.st.dial.m=(tm+1+Math.floor(r()*3))%4;
+  const gear=(name,x,z,rad,top,w)=>{B.cyl(x,top,z,rad,Object.assign({move:{type:'spin',w},name},GEAR));B.dcyl(x,top+.06,z,.55,.14,{col:'#4a3423',mat:'metal'})};
+  // the gear room
+  B.floor(-12,6.5,12,-30);B.wallZ(-12,7,-30);B.wallZ(12,7,-30);B.wallX(7,-12.5,12.5);
+  B.wallX(-30,-12.5,12.5,[{c:0,w:DW,h:DH}]);
+  B.cp(0,0,-1.5);
+  B.lava(-12,-4,12,-27);
+  gear('g1',-4,-7.5,2.6,1,.9);gear('g2',3,-10.6,2.4,1.8,-1.1);gear('g3',-1.5,-14.5,2.4,1,.8);
+  gear('g4',7.6,-15,2,2.8,-1.2);B.item('gem','gem',7.6,3.9,-15);
+  B.plat(-1.5,1,-22,2.6,2.4,{move:{type:'swing',dz:1,len:9.5,amp:.36,per:4.4},mat:'metal',col:'#d7b56a',name:'swingP'});
+  B.deco(0,10.4,-22,24,.5,.5,BR);
+  B.sign(0,7.2,-29.45,0,7,1.6,{title:'Clockwork',sub:'Ride the pendulum to the door'});
+  // the hall of pendulum blades
+  B.floor(-5,-30,5,-58);B.wallZ(-5,-30,-58);B.wallZ(5,-30,-58);
+  B.cp(1,0,-32.2);
+  [[-34.5,0],[-41.2,.33],[-48,.66]].forEach(([z,ph],i)=>{B.kill(0,1.2,z,2.4,1,.5,{move:{type:'swing',dx:1,len:8.4,amp:.39,per:2.8,ph},name:'blade'+i});B.deco(0,9.75,z,10,.4,.4,BR)});
+  B.lava(-5,-37.4,5,-38.8);B.lava(-5,-44,5,-45.4);
+  B.cp(2,0,-54.6);
+  B.wallX(-58,-12.5,12.5,[{c:0,w:DW,h:DH}]);
+  B.sign(0,7.3,-57.45,0,3.6,3.6,{watch:'clock'});
+  B.sign(0,6.15,-30.55,Math.PI,6,1.3,{title:'Mind the blades',sub:'Run when they swing away'});
+  // the clock room: the hour button on the west tower, the minutes on the east, a pendulum between them
+  B.floor(-12,-58,12,-84);B.wallZ(-12,-58,-84);B.wallZ(12,-58,-84);
+  B.wallX(-84,-12.5,12.5,[{c:0,w:DW,h:DH}]);
+  B.lava(-12,-61.5,12,-78.5);
+  gear('gW',-5.5,-64.8,2,1.4,1);gear('gE',6,-75.4,2,1.6,-1);
+  for(const s of [-1,1]){B.blk(s*8,-70,3,3,3,{col:'#c39a6e',name:'tower'+(s<0?'W':'E')})}
+  B.cp(3,-8,-69.2,{top:3,w:2.4,d:1.4});B.cp(4,8,-69.2,{top:3,w:2.4,d:1.4});
+  B.btn('hourBtn',-8,-70.7,{dial:'clock',key:'h',n:12},{top:4.1,icon:'hour',col:'#ffd23f',stand:[-8,-69.2]});
+  B.btn('minBtn',8,-70.7,{dial:'clock',key:'m',n:4},{top:4.1,icon:'minute',col:'#7dd3fc',stand:[8,-69.2]});
+  B.plat(0,2.4,-70,2.6,2.6,{move:{type:'swing',dx:1,len:8,amp:.52,per:4.8},mat:'metal',col:'#d7b56a',name:'swing2'});
+  B.deco(0,10.4,-70,24,.5,.5,BR);
+  B.sign(0,7.4,-83.45,0,4.8,4.8,{clockface:'clock'});
+  B.sign(0,7.4,-83.36,0,4.8,4.8,{hand:'h',dial:'clock'},{deco:true});B.sign(0,7.4,-83.3,0,4.8,4.8,{hand:'m',dial:'clock'});
+  B.sign(-7.5,7,-83.45,0,6,1.6,{title:'Set the clock',sub:'To the time on the pocket watch'});
+  B.door('x',-84,0,'clockdoor',{col:'#8a6a4a',part:{mat:'vaultdoor'}});
+  exitHall(B,0,-84);
+  // decor: brass pipes, round windows
+  for(const x of [-11.25,11.25])B.deco(x,7.6,-12,.6,.6,36,BR);
+  for(const z of [-8,-20]){B.win(-11.5,z,Math.PI/2,{y:6.6,w:2.6,h:2.6,glass:'#ffe2b0',frame:'#4a3423'});B.win(11.5,z,-Math.PI/2,{y:6.6,w:2.6,h:2.6,glass:'#ffe2b0',frame:'#4a3423'})}
+  for(const z of [-64,-76])B.win(-11.5,z,Math.PI/2,{y:7.4,w:2.6,h:2.6,glass:'#ffe2b0',frame:'#4a3423'});
+  // route
+  B.w(-2.4,0,-3.4);B.jon('g1',0,{wait:true});B.jon('g2',0,{wait:true});B.jon('g3',0,{wait:true});B.jon('swingP',0,{wait:true});B.j(-1.5,0,-28.4,{wait:true});
+  B.w(0,0,-32.2);B.w(0,0,-36.6);B.j(0,0,-40.1,{wait:true});B.w(0,0,-42.8);B.j(0,0,-46.6,{wait:true});B.w(0,0,-52);B.w(0,0,-56.5);
+  B.w(-5.5,0,-60.6);B.jon('gW',0,{wait:true});B.j(-8,3.12,-69.2,{wait:true});B.dial('hourBtn','clock','h',-8,3.12,-69.2);
+  B.w(-7,3,-70);B.jon('swing2',0,{wait:true});B.j(8,3.12,-69.2,{wait:true});B.dial('minBtn','clock','m',8,3.12,-69.2);
+  B.w(7,3.12,-69.4);B.jon('gE',0,{wait:true});B.j(4,0,-80.2,{wait:true});B.w(0,0,-82.4);B.w(0,0,-87.4);
+  W.spawn={x:0,y:0,z:-1.5,yaw:0};
+}});
+
+// 11. An ice cave over hot springs: slippery ice floes on the lava (land, then brake), a tunnel of steam vents and a
+// crumbling ice bridge, all in a cold that freezes you if you stay away from a fire too long, then a cave where an
+// ice block slides until it hits something: get it onto the star.
+L({id:'ice',name:'Cold Feet',sub:'The ice cave',par:85,snow:true,sky:['#7fb2d9','#eef6fb'],pal:{floor:'#dfe9f2',wall:'#9cc3df',prop:'#bfe3fa',trim:'#2c5f8a'},
+build(B,r){
+  const W=B.W,ICE={ice:true,mat:'ice',col:'#cfeeff'},ROCK={col:'#8ea3b5',mat:'stone'};
+  // a fire in a stone bowl, warming the box rad around (zx, zz) (default: round the fire)
+  const fire=(x,z,top,rad,zx,zz)=>{B.cyl(x,top+.7,z,.7,{t:.7,col:'#5b6475',mat:'stone',name:'brazier'});B.dcyl(x,top+.75,z,.55,.12,{col:'#ffb347',mat:'glass'});
+    zx=zx==null?x:zx;zz=zz==null?z:zz;B.zone('warm',zx-rad,zz-rad,zx+rad,zz+rad,top-1,top+4,{fire:[x,top+.9,z]})};
+  // the frozen lake: floes of ice on the lava, a rock island with a fire in the middle
+  B.floor(-12,6.5,12,-30,ROCK);B.wallZ(-12,7,-30);B.wallZ(12,7,-30);B.wallX(7,-12.5,12.5);
+  B.wallX(-30,-12.5,12.5,[{c:0,w:DW,h:DH}]);
+  B.cp(0,0,3.6);
+  fire(-6,4,0,3.4);
+  B.zone('cold',-12,1.4,12,-62,-2,12,{name:'cold'});
+  B.lava(-12,1,12,-26);
+  B.plat(-3,.6,-4,3.6,3.6,Object.assign({name:'f1'},ICE));
+  B.plat(2.5,.6,-8.6,3.6,3.6,Object.assign({name:'f2'},ICE));
+  B.plat(-8,.6,-9.5,3.2,3.2,Object.assign({name:'f5'},ICE));B.item('gem','gem',-8,1.5,-9.5);
+  B.plat(7.5,.8,-13.5,4,4,Object.assign({name:'isle'},ROCK));fire(8.6,-14.6,.8,2.9,7.5,-13.5);
+  B.plat(3,.6,-18.4,3.6,3.6,Object.assign({name:'f3',move:{type:'line',ax:-3,per:5}},ICE));
+  B.plat(-3.5,.6,-22.4,3.6,3.6,Object.assign({name:'f4'},ICE));
+  fire(8,-28,0,3);
+  B.sign(0,6.6,-29.45,0,7,1.6,{title:'Keep warm!',sub:'The cold gets you away from a fire'});
+  // the tunnel: steam vents, a fire, a crumbling ice bridge
+  B.floor(-4,-30,4,-62,ROCK);B.wallZ(-4,-30,-62);B.wallZ(4,-30,-62);
+  B.cp(1,0,-31.6);
+  [[-36,0],[-40.4,.5]].forEach(([z,ph],i)=>{B.laser(0,2.5,z,7.6,5,.3,{timed:{per:2.6,on:.5,ph},name:'vent'+i});B.deco(0,.1,z,7.6,.2,1.4,{col:'#4b5563',mat:'metal'})});
+  fire(2.6,-45.2,0,2.4);
+  B.lava(-4,-48.6,4,-57.2);
+  [[0,-50.2],[-1.6,-53],[.8,-55.8]].forEach(([x,z],i)=>B.plat(x,.5,z,2.4,2.4,{ice:true,crumble:true,mat:'crumble',col:'#d6f1ff',name:'bridge'+i}));
+  fire(-2.6,-59.6,0,2.4);B.cp(2,1.2,-59.4);
+  B.wallX(-62,-12.5,12.5,[{c:0,w:DW,h:DH}]);
+  // the block cave (warm: the springs heat it): slide the ice block onto the star
+  B.floor(-12,-62,12,-86,Object.assign({},ICE,{mat:'ice',col:'#e3f4ff'}));B.wallZ(-12,-62,-86);B.wallZ(12,-62,-86);
+  B.wallX(-86,-12.5,12.5,[{c:6,w:DW,h:DH}]);
+  B.blk(8,-74,2,2,2,Object.assign({name:'rock2'},ROCK));B.blk(-6,-72.1,2,2,2,Object.assign({name:'rock1'},ROCK));
+  B.blk(-9.5,-66,2.4,2.4,1.4,ROCK);B.blk(1,-80,2.2,2.2,1.2,ROCK);
+  B.add({x:-4,y:.03,z:-82,w:2.4,h:.06,d:2.4,solid:false,plate:'iceblock',mat:'plate',col:'#ffd23f',name:'star',cam:false});
+  B.add({x:8,y:.9,z:-65,w:1.8,h:1.8,d:1.8,push:true,slide:true,mat:'iceblock',col:'#9fdcff',name:'block'});
+  B.door('x',-86,6,'iceblock',{col:'#7aa7c7'});
+  B.sign(-3,6.2,-85.45,0,7,1.6,{title:'Block on the star',sub:'It slides until it hits something'});
+  B.sign(-8,5.8,-62.55,Math.PI,6.4,1.4,{title:'Stuck?',sub:'Back to the checkpoint resets the block'});
+  exitHall(B,6,-86);
+  // decor: icicles on the walls, crystals
+  for(const [x,z] of [[-11,-4],[11,-10],[-11,-18],[11,-24]])for(let k=0;k<3;k++)B.deco(x,8.6-k*.2,z+k*1.2,.5,1.4+k*.5,.5,{col:'#e0f2fe',mat:'glass'});
+  for(const [x,z,h] of [[-10.5,-80,2.4],[10.6,-82,3],[-10.8,-70,1.8]])B.deco(x,h/2,z,.9,h,.9,{col:'#a5f3fc',mat:'glass',yaw:.6});
+  // route
+  const block=W.byName.get('block');
+  B.w(-3,0,1.6);B.j(-3,.6,-4,{wait:true});B.j(2.5,.6,-8.6,{wait:true});B.j(7.2,.8,-13,{wait:true});B.u((t,W,pl)=>pl.cold<.1);
+  B.jon('f3',0,{wait:true});B.j(-3.5,.6,-22.4,{wait:true});B.j(-2,0,-27.6,{wait:true});B.w(6.6,0,-27.8);B.u((t,W,pl)=>pl.cold<.1);
+  B.w(0,0,-31.6);B.w(0,0,-34.6);B.w(0,0,-42);B.w(2.2,0,-44.6);B.u((t,W,pl)=>pl.cold<.1);B.w(0,0,-47.6);
+  B.j(0,.5,-50.2,{wait:true});B.j(-1.6,.5,-53,{wait:true});B.j(.8,.5,-55.8,{wait:true});B.j(0,0,-58.6,{wait:true});B.w(0,0,-63.6);
+  B.w(8,0,-63.2);B.kick('block',[0,-1]);B.u(()=>!block.sv);
+  B.w(10.2,0,-66);B.w(9.9,0,-72);B.kick('block',[-1,0]);B.u(()=>!block.sv);
+  B.w(3,0,-70);B.w(-4,0,-70.2);B.kick('block',[0,-1]);B.u((t,W)=>flagOn(W,'iceblock',t));
+  B.w(4,0,-78);B.w(6,0,-84);B.w(6,0,-89.4);
+  W.spawn={x:0,y:0,z:3.6,yaw:0};
+}});
+
+// 12. A jungle temple: a corridor where a boulder rolls at you (wait in the side niches), a ring of stepping stones
+// round a turning stone over the lava, to land on in the order the mural shows, then a swinging log and a vine up
+// to the door at the top.
+const GLYPHS=['sun','moon','leaf','wave','eye','star'];
+L({id:'temple',name:'Lost Temple',sub:'The jungle temple',par:80,sky:['#7ec8a0','#f4f7df'],pal:{floor:'#d2c08e',wall:'#93a872',prop:'#b8875a',trim:'#3f5a2a'},
+build(B,r){
+  const W=B.W,ST={col:'#c2ad7a',mat:'stone'},MOSS={col:'#93a872',mat:'wall'};
+  W.seqs.glyph={order:shuffle(GLYPHS.slice(),r).slice(0,4),set:'mural'};
+  // the boulder corridor: niches in its sides, a trench at the near end where the boulder drops away
+  B.floor(-7,6.5,7,-46,ST);B.wallX(7,-7.5,7.5);B.wallZ(-7,7,-46,[{c:-36.5,w:3,h:DH}]);B.wallZ(7,7,-46);B.wallX(-46,-7.5,7.5);
+  B.cp(0,0,3.4);
+  for(const [z0,z1] of [[-1.4,-7.5],[-10.5,-14.5],[-17.5,-46]])B.blk(5.5,(z0+z1)/2,3,Math.abs(z1-z0),WH,MOSS);
+  for(const [z0,z1] of [[-1.4,-21.5],[-24.5,-28.5],[-31.5,-35],[-38,-46]])B.blk(-5.5,(z0+z1)/2,3,Math.abs(z1-z0),WH,MOSS);
+  B.wallX(-39.5,-4.5,4.5,[{c:0,w:7,h:6.4}],{col:'#7f9663'});
+  B.lava(-4,-1.6,4,-4.6);
+  const BOULDER_PER=4.4;
+  B.add({shape:'cyl',x:0,y:2.9,z:-43,r:2.9,h:5.8,kill:true,solid:false,mat:'boulder',col:'#a08d68',move:{type:'roll',az:38.4,per:BOULDER_PER},name:'boulder',cam:false});
+  B.sign(0,7.4,-39.95,0,6,1.5,{title:'Run!',sub:'Hide in the niches'});
+  // the stone ring: land on the stones in the mural's order, by way of the turning stone in the middle
+  B.floor(-27,-24,-7,-50,ST);B.wallZ(-27,-24,-70);B.wallX(-24,-27.5,-6.5);B.wallZ(-7,-46,-70);
+  B.wallX(-50,-27.5,-6.5,[{c:-17,w:DW,h:DH}]);
+  B.lava(-27,-24,-9.6,-46.6);
+  const CX=-17,CZ=-37;
+  B.cyl(CX,.8,CZ,2.4,{col:'#c2ad7a',mat:'stone',name:'hub',move:{type:'spin',w:.6}});B.dcyl(CX,.86,CZ,1.2,.12,{col:'#3f5a2a',mat:'stone'});
+  B.blk(-12,CZ,4.8,1.6,.3,{col:'#b8875a',mat:'wood',name:'walk'});
+  GLYPHS.forEach((g,i)=>{const a=(30+i*60)*Math.PI/180,x=CX+Math.cos(a)*5.4,z=CZ+Math.sin(a)*5.4;
+    B.blk(x,z,2.2,2.2,1.4,{col:'#d9c79a',mat:'stone',step:{seq:'glyph',sym:g},name:'stone_'+g});B.sign(x,1.42,z,0,1.7,1.7,{icon:g,flat:true,glyph:true})});
+  B.sign(-26.45,6,CZ,Math.PI/2,8.6,2.8,{mural:'glyph'});
+  B.cp(1,-8.4,-36.5,{w:1.8,d:2.6});
+  B.blk(-17,-48.3,20,3.4,.3,{col:'#b8875a',mat:'stone',name:'northLedge'});
+  B.door('x',-50,-17,'mural',{col:'#7f9663',part:{mat:'gate'}});
+  // the vine room: crumbling stones, a swinging log to ride, a vine up the pillar to the door at the top
+  B.floor(-27,-50,-7,-70,ST);
+  B.lava(-27,-53.2,-7,-70);
+  B.cp(2,-17,-51.6);
+  B.plat(-17,.8,-55.4,2.2,2.2,{crumble:true,mat:'crumble',col:'#d9c79a',name:'c1'});
+  B.plat(-14.4,1.2,-58,2.2,2.2,{crumble:true,mat:'crumble',col:'#d9c79a',name:'c2'});
+  B.plat(-17,1.2,-61.6,3,2.4,{move:{type:'swing',dx:1,len:8,amp:.58,per:5},mat:'wood',col:'#8b6a3e',name:'swingLog'});
+  B.deco(-17,9.4,-61.6,19.6,.5,.5,{col:'#6b4f2a',mat:'wood'});
+  B.plat(-9.2,3.2,-60.4,2.4,2.4,ST);B.item('gem','gem',-9.2,4,-60.4);
+  B.blk(-23,-65.6,2.6,2.6,5,{col:'#93a872',mat:'stone',name:'pillar'});
+  B.box(-23,2.9,-63.85,1.4,4.2,.9,{truss:true,mat:'vine',col:'#4f9a3a',name:'vine'});
+  B.wallX(-70,-27.5,-6.5,[{c:-23,w:DW,h:5+DH}]);
+  B.blk(-23,-71.45,6,9.1,5,{col:'#e8fff1',mat:'floor',name:'exitfloor'});B.wallZ(-26,-70,-76);B.wallZ(-20,-70,-76);B.wallX(-76,-26.5,-19.5);
+  B.finish(-23,-73.4,{top:5});B.sign(-23,5+DH+.75,-69.47,0,2.6,.8,{exit:true});
+  B.sign(-13,6.4,-69.45,0,7,1.6,{title:'Climb the vine',sub:'The way out is at the top'});
+  // decor: vines and statues
+  for(const [x,z] of [[-26.5,-28],[-26.5,-46],[-7.5,-58]])B.deco(x,6,z,.15,6,1.4,{col:'#4f9a3a',mat:'plastic'});
+  for(const s of [-1,1])B.blk(s*4.6,4.4,1.6,1.6,3,{col:'#b8875a',mat:'stone'});
+  // route: wait in each niche until the boulder has passed (or is far away)
+  const bd=W.byName.get('boulder');
+  const go=(need)=>(t,W,pl)=>{const z=cur(bd,t).z;return z-2.9>pl.z+.6||pl.z-(z+2.9)>need};
+  B.w(0,0,.4);B.u(go(30));B.j(0,0,-6.6,{wait:true});B.w(3.4,0,-8.4);B.w(5.3,0,-9);
+  B.u(go(25));B.w(3.4,0,-10.2);B.w(3.4,0,-15);B.w(5.3,0,-16);
+  B.u(go(27));B.w(3,0,-17.4);B.w(-3.2,0,-22);B.w(-5.3,0,-23);
+  B.u(go(25));B.w(-3.4,0,-24.2);B.w(-3.4,0,-29);B.w(-5.3,0,-30);
+  B.u(go(23));B.w(-3.4,0,-31.2);B.w(-3.6,0,-36.5);B.w(-8.4,0,-36.5);
+  B.steps('glyph','hub');B.jon('hub',0,{stay:true});B.jon('stone_eye',0,{stay:true});B.j(-17,.3,-48.4,{wait:true});B.w(-17,0,-51.6);
+  B.j(-17,.8,-55.4);B.j(-14.4,1.2,-58);B.jon('swingLog',0,{wait:true});
+  B.ladder('vine',(t,W,pl)=>pl.gr&&pl.y>4.9?'done':pl.climb||cur(W.byName.get('swingLog'),t).x<-20.6?'climb':'wait');
+  B.w(-23,5,-66.6);B.w(-23,5,-73.4);
+  W.spawn={x:0,y:0,z:3.4,yaw:0};
+}});
+
+// 13. A haunted manor: fading steps up to three mirrors, and only the one framed in the colour of the rose in the
+// portrait takes you on (the others send you back to the door); then turn the mirrors so the moonbeam reaches the
+// crystal, past red ghosts; then ride the chandeliers to the last mirror.
+const ROSES={red:'#e0453a',green:'#2fa35a',purple:'#9b5de5'};
+L({id:'manor',name:'Mirror Manor',sub:'The haunted house',par:80,night:true,sky:['#141a3a','#5b4f8a'],pal:{floor:'#8a6a52',wall:'#7d6e96',prop:'#a38c6a',trim:'#2b1f3a'},
+build(B,r){
+  const W=B.W,DARK={col:'#5a4636',mat:'wood'},STONE={col:'#8f8aa3',mat:'stone'};
+  const rose=Object.keys(ROSES)[Math.floor(r()*3)];W.rose=rose;
+  const ghost=(name,cx,cz,rad,w,a0,y)=>B.add({shape:'cyl',x:cx+rad,y:y||1.6,z:cz,r:.55,h:1.4,kill:true,solid:false,mat:'ghost',col:'#ff3355',cam:false,name,move:{type:'orbit',cx,cz,rad,w,a0}});
+  // the foyer: fading steps up to the balcony and its three mirrors
+  B.floor(-12,6.5,12,-20,DARK);B.wallZ(-12,7,-50);B.wallZ(12,7,-50);B.wallX(7,-12.5,12.5);B.wallX(-20,-12.5,12.5);
+  B.cp(0,0,3.2);
+  B.lava(-12,-1.6,12,-14);
+  B.plat(0,.8,-4.2,2.6,2.6,{timed:{per:3,on:.62,ph:0},mat:'blink',col:'#c4b5fd',name:'fade0'});
+  B.plat(-3.4,1.6,-7.2,2.6,2.6,{col:'#a38c6a',mat:'wood',name:'step1'});
+  B.plat(0,2.4,-10.2,2.6,2.6,{timed:{per:3,on:.62,ph:.5},mat:'blink',col:'#c4b5fd',name:'fade2'});
+  B.blk(0,-17,24,6,3.2,{col:'#6b5444',mat:'wood',name:'balcony'});
+  B.cp(1,-8.6,-15.6,{top:3.2,w:2.4,d:2.4});
+  Object.keys(ROSES).forEach((c,i)=>{const x=-6+i*6,to=c===rose?[0,.4,-22.8,0]:[0,.4,3.2,0];
+    B.portal('mirror_'+c,x,-19.25,0,to,{top:3.2,col:ROSES[c]});B.deco(x,5,-19.45,3,4.2,.12,{col:ROSES[c],mat:'plastic'})});
+  B.sign(0,8.4,-19.45,0,2.8,2.8,{portrait:'rose'});
+  B.sign(-7.5,8.6,-19.45,0,4.6,1.2,{title:'Which mirror?',sub:'Ask the lady in the portrait'});
+  B.blk(10.8,-11.6,1.6,1.6,4.6,{col:'#5a4636',mat:'wood',name:'clock'});B.item('gem','gem',10.8,5.4,-11.6);
+  // the gallery (no way in but the mirror): turn the mirrors so the moonbeam reaches the crystal
+  B.floor(-12,-20,12,-50,DARK);B.wallX(-50,-12.5,12.5,[{c:6,w:DW,h:DH}]);
+  B.lava(-12,-24.6,12,-46);
+  B.cp(2,0,-22.6);
+  const isle=(name,x,z,w)=>B.plat(x,.6,z,w,w,Object.assign({name},STONE));
+  isle('i1',3,-27.5,3.4);isle('i2',3,-39,3.4);isle('i3',-6,-39,3.4);
+  B.plat(3,.6,-31.7,2.2,2.2,{timed:{per:2.8,on:.6,ph:0},mat:'blink',col:'#c4b5fd',name:'t1'});
+  B.plat(3,.6,-34.7,2.2,2.2,{timed:{per:2.8,on:.6,ph:.45},mat:'blink',col:'#c4b5fd',name:'t2'});
+  isle('s1',-1.5,-39,1.8);ghost('ghost1',-1.5,-39,2.6,1.3,0);
+  isle('s2',-3.2,-43.4,1.8);
+  B.blk(-6,-47.6,1.2,1.2,1.2,STONE);B.add({x:-6,y:1.9,z:-47.6,w:.7,h:1.2,d:.7,deco:true,mat:'crystal',col:'#bfe9ff',name:'crystal'});
+  const MIR=[['m1',3,-27.5],['m2',3,-39],['m3',-6,-39]];
+  W.beams.moon={x:11.4,z:-27.5,dir:[-1,0],y:1.8,set:'moondoor',mirrors:MIR.map(m=>m[0]),target:{x:-6,z:-47.6,name:'crystal'},stops:[[-13,-51,-11.5,-19],[11.5,-51,13,-19],[-13,-20.5,13,-19],[-13,-51,13,-49.5]]};
+  for(const [n,x,z] of MIR){B.cyl(x,1.1,z,.45,{col:'#3b3355',mat:'metal'});B.add({x,y:1.85,z,w:1.7,h:1.5,d:.16,solid:false,btn:{mirror:'moon'},name:n,mat:'mirror',col:'#dfe7ff',icon:'mirror',cam:false,stand:[x,z+1.1]})}
+  // a starting setting that isn't the answer (the answer is every mirror at 0)
+  do{for(const [n] of MIR)W.st.mir[n]=r()<.5?1:0}while(MIR.every(([n])=>!W.st.mir[n]));
+  B.deco(11.45,1.8,-27.5,.12,1.6,1.6,{col:'#fff7c2',mat:'glass'});
+  B.door('x',-50,6,'moondoor',{col:'#5a4636'});
+  B.sign(-3,6.4,-49.45,0,7,1.6,{title:'Catch the moonlight',sub:'Turn the mirrors to light the crystal'});
+  B.blk(6,-48,6,4,.3,{col:'#6b5444',mat:'wood',name:'northStrip'});
+  // the ballroom: chandeliers circle over the lava to the last mirror, which takes you out
+  B.floor(-12,-50,12,-72,DARK);B.wallZ(-12,-50,-72);B.wallZ(12,-50,-72);B.wallX(-72,-12.5,12.5);
+  B.lava(-12,-53.4,12,-72);
+  B.cp(3,6,-51.6);
+  for(let i=0;i<2;i++)B.plat(0,1.6,-61,3,3,{t:.5,move:{type:'orbit',cx:0,cz:-61,rad:4.6,w:.6,a0:i*Math.PI},name:'chand'+i,mat:'metal',col:'#d9b45a'});
+  B.cyl(0,2.6,-61,1.6,{t:3.6,col:'#3b3355',mat:'metal',name:'column'});ghost('ghost2',0,-61,7.4,-.7,1,2.4);
+  B.blk(-8.4,-67.6,4,4,1.2,{col:'#6b5444',mat:'wood',name:'dais'});
+  B.portal('mirror_out',-8.4,-69.35,0,[0,.4,-75.2,0],{top:1.2,col:'#7ef0b4'});B.deco(-8.4,3,-69.5,3,4.2,.12,{col:'#7ef0b4',mat:'plastic'});
+  B.sign(-8.4,6.6,-71.45,0,3.4,1,{exit:true});
+  B.floor(-3,-72,3,-80,{col:'#e8fff1'});B.wallZ(-3,-72,-80);B.wallZ(3,-72,-80);B.wallX(-80,-3.5,3.5);B.finish(0,-76.6);
+  // decor: candles, portraits, moonlit windows
+  for(const z of [0,-8])for(const s of [-1,1])B.win(s*11.5,z,-s*Math.PI/2,{y:6,glass:'#9fb3ff',frame:'#2b1f3a'});
+  for(const z of [-30,-42])B.win(-11.5,z,Math.PI/2,{y:6.4,glass:'#9fb3ff',frame:'#2b1f3a'});
+  for(const [x,z] of [[-11.5,-58],[11.5,-64]])B.poster(x,z,x<0?Math.PI/2:-Math.PI/2,'#5a4636',{y:6,w:2.2,h:2.8});
+  // route
+  const right=-6+Object.keys(ROSES).indexOf(rose)*6;
+  B.w(0,0,-.8);B.j(0,.8,-4.2,{wait:true});B.j(-3.4,1.6,-7.2,{wait:true});B.j(0,2.4,-10.2,{wait:true});B.j(0,3.2,-15,{wait:true});
+  B.w(right,3.2,-17);B.tp(right,3.2,-19.25);B.w(0,0,-22.6);
+  B.j(3.8,.6,-26.5);if(W.st.mir.m1)B.use('m1',3,.6,-26.4);
+  B.j(3,.6,-31.7,{wait:true});B.j(3,.6,-34.7,{wait:true});B.j(3.6,.6,-37.8,{wait:true});if(W.st.mir.m2)B.use('m2',3,.6,-37.9);
+  B.j(-1.5,.6,-39,{wait:true,stay:true});B.j(-4.9,.6,-39.9,{wait:true,stay:true});if(W.st.mir.m3)B.use('m3',-6,.6,-37.9);
+  B.j(-3.2,.6,-43.4,{wait:true,stay:true});B.j(-1.6,0,-47.6,{wait:true});B.u((t,W)=>flagOn(W,'moondoor',t));B.w(5,.3,-48.4);B.w(6,0,-51.6);
+  B.jon(['chand0','chand1'],0,{wait:true});B.j(-8.4,1.2,-66.4,{wait:true});B.tp(-8.4,1.2,-69.35);B.w(0,0,-76.6);
+  W.spawn={x:0,y:0,z:3.2,yaw:0};
+}});
+
 // The Warden's arms answer to how many switches are on (p1, p2, p3).
 function wardenTick(W,pl,t){
   const st=W.st.f,n=(st.s1?1:0)+(st.s2?1:0)+(st.s3?1:0);
@@ -1224,6 +1661,7 @@ function buildLevel(i,seed){
   def.build(B,rng(W.seed^0x5eed));
   W.route=B.route;
   if(W.derive)W.tick=wardenTick;
+  W.cold=W.parts.some(p=>p.zone==='cold');
   if(W.cps[0])W.spawn=Object.assign({},W.cps[0]);else W.cps[0]=W.spawn;
   return W;
 }
@@ -1233,7 +1671,7 @@ function buildLevel(i,seed){
 // jumps when that lands on the target; while walking it looks ahead and waits or hops when a hazard would hit it. It
 // also uses buttons, types codes, presses recipes in order and pushes crates. Used to prove every level can be
 // finished, and by the test hook.
-function steer(pl,tx,tz,slow){const dx=tx-pl.x,dz=tz-pl.z,d=Math.hypot(dx,dz);if(d<.04)return[0,0];const k=Math.min(1,d/slow)/d;return[dx*k,dz*k]}
+function steer(pl,tx,tz,slow){const dx=tx-pl.x,dz=tz-pl.z,d=Math.hypot(dx,dz);if(d<.04)return[0,0];if(pl.gr&&pl.gp&&pl.gp.ice)slow=Math.max(slow,3.4);const k=Math.min(1,d/slow)/d;return[dx*k,dz*k]}
 function cloneP(pl){const q=Object.assign({},pl);q.ev=[];return q}
 function nodeParts(W,n,t){
   if(n.on)return n.on.map(k=>W.byName.get(k)).filter(Boolean);
@@ -1266,6 +1704,8 @@ function jumpWorks(W,pl,t,part,n,sgn){
       if(i===479)return false;
     }
     const bounce=part.bounce>0,keep=bounce||!!part.conv;
+    // on ice you keep sliding after you land: brake toward the target and check you stay on
+    if(part.ice){for(let i=0;i<90;i++){tt+=PHYS.DT;const T=targetOf(W,n,part,sgn,tt),s=steer(q,T[0],T[2],.45);simStep(W,q,{x:s[0],z:s[1],jp:false},tt);if(q.dead)return false}return q.gr&&q.gp===part}
     for(let i=0;i<30;i++){tt+=PHYS.DT;const s=keep?aimAir(W,q,n,part,sgn,tt,false):[0,0];simStep(W,q,{x:s[0],z:s[1],jp:false},tt);if(q.dead)return false}
     ok=bounce||(q.gr&&q.gp===part);
   }finally{W.predict=false}
@@ -1313,15 +1753,56 @@ function makeBot(route){return{route,i:0,nt:0,fly:false,part:null,sgn:1,dec:0,fa
 function botInput(W,pl,bot,t){
   const idle={x:0,z:0,jp:false};
   if(bot.done||bot.fail||pl.dead)return idle;
-  const n=bot.route[bot.i];
+  let n=bot.route[bot.i];
   if(!n){bot.done=true;return idle}
   bot.nt+=PHYS.DT;bot.steps++;
   if(bot.nt>45){bot.fail='stuck at step '+bot.i+' ('+n.t+')';return idle}
-  const next=()=>{bot.i++;bot.nt=0;bot.fly=false;bot.part=null;bot.dec=0;bot.hop=null;bot.k=0;return idle};
-  if(n.t==='u'){if(n.until(t,W))return next();return idle}
+  const next=()=>{bot.i++;bot.nt=0;bot.fly=false;bot.part=null;bot.dec=0;bot.hop=null;bot.k=0;bot.tp0=null;bot.sub=null;return idle};
+  let done=next;
+  if(n.t==='u'){if(n.until(t,W,pl))return next();return idle}
+  // a ladder on rails: plan says 'wait' (stand still), 'climb' or 'grab' (stick into it), 'hang' (stick off) or 'done'
+  if(n.t==='ladder'){
+    const L=W.byName.get(n.name),act=n.plan(t,W,pl);
+    if(act==='done')return next();
+    if(act==='wait'&&pl.gr&&pl.gp&&pl.gp.move){const c=cur(pl.gp,t),s=steer(pl,c.x,c.z,.45);return{x:s[0],z:s[1],jp:false}} // ride in the middle
+    if(act==='wait'||act==='hang')return idle;
+
+    xzDist(L,cur(L,t),pl.x,pl.z,_h);return{x:-_h.nx,z:-_h.nz,jp:false};
+  }
+  // through a portal: done once it has sent you somewhere
+  if(n.t==='tp'){if(bot.tp0==null)bot.tp0=pl.tpN;if(pl.tpN!==bot.tp0)return next()}
+  // a sliding block: walk into it along dir until it slides
+  if(n.t==='kick'){
+    const c=W.byName.get(n.name);if(c.sv||c.locked)return next();
+    const ax=n.dir[0]!==0,lat=ax?c.z-pl.z:c.x-pl.x,fx=ax?n.dir[0]:clamp(lat*3,-.6,.6),fz=ax?clamp(lat*3,-.6,.6):n.dir[1],m=Math.hypot(fx,fz);
+    return{x:fx/m,z:fz/m,jp:false};
+  }
+  // stepping stones in order: jump to the next one the clue wants (by way of the hub if it's too far to jump)
+  if(n.t==='steps'){
+    const g=W.seqs[n.g];if(flagOn(W,g.set,t))return next();
+    const sym=g.order[(W.st.seq[n.g]||[]).length],p=W.steps.find(q=>q.step.seq===n.g&&q.step.sym===sym),hub=W.byName.get(n.hub);
+    const tgt=(bot.fly||!pl.gr)&&bot.sub?bot.sub.on[0]:hub&&pl.gp!==hub&&pl.gp!==p&&Math.hypot(p.x-pl.x,p.z-pl.z)>6.2?n.hub:p.name;
+    if(!bot.sub||bot.sub.on[0]!==tgt){bot.sub={t:'j',on:[tgt],off:0,stay:!!hub&&pl.gr&&!!pl.gp&&(pl.gp===hub||!!pl.gp.step)};bot.fly=false;bot.part=null;bot.dec=0}
+
+    n=bot.sub;done=()=>{bot.fly=false;bot.part=null;bot.dec=0;bot.hop=null;return idle};
+  }
+  // a dial: press it until it shows its target
+  if(n.t==='dial'){
+    const d=W.dials[n.g];if(flagOn(W,d.set,t)||W.st.dial[n.key]===d.target[n.key])return next();
+    const p=W.byName.get(n.name),T=n.p;
+    if(pl.gr&&Math.hypot(T[0]-pl.x,T[2]-pl.z)<.4){
+      if(usable(W,pl,t)===p){if(!(t<bot.cool)){bot.cool=t+.2;useBtn(W,pl,p,t)}return idle}
+      bot.fail='cannot use '+n.name+' from its stand point';return idle;
+    }
+    if(!pl.gr&&!pl.climb){const s=steer(pl,T[0],T[2],.45);return{x:s[0],z:s[1],jp:false}}
+  }
+
   if(n.t==='code'){tryCode(W,pl,n.pad,W.codes[n.pad]);return next()}
   if(bot.hop){if(pl.gr||pl.climb||pl.dead)bot.hop=null;else{const s=steer(pl,bot.hop[0],bot.hop[1],.45);return{x:s[0],z:s[1],jp:false}}}
   const sm=(tx,tz,kg)=>{const m=safeMove(W,pl,t,tx,tz,kg);if(m.jp)bot.hop=[m.hx,m.hz];return m};
+  if(n.t==='dial')return sm(n.p[0],n.p[2],false);
+  if(n.t==='tp'){if(!pl.gr&&!pl.climb){const s=steer(pl,n.p[0],n.p[2],.45);return{x:s[0],z:s[1],jp:false}}return sm(n.p[0],n.p[2],false)}
+
   if(n.t==='use'||n.t==='seq'){
     let name=n.name,T=n.p;
     if(n.t==='seq'){const g=W.seqs[n.g];if(flagOn(W,g.set,t))return next();const sym=g.order[(W.st.seq[n.g]||[]).length];const p=W.parts.find(q=>q.btn&&q.btn.seq===n.g&&q.btn.sym===sym);name=p.name;T=[p.stand[0],pl.y,p.stand[1]]}
@@ -1352,13 +1833,13 @@ function botInput(W,pl,bot,t){
   if(bot.fly){
     const T=targetOf(W,n,bot.part,bot.sgn,t),s=aimAir(W,pl,n,bot.part,bot.sgn,t,false);
     if(pl.landN!==bot.n0){
-      if(pl.lastLand===bot.part&&(pl.gr||bot.part.bounce))return next();
+      if(pl.lastLand===bot.part&&(pl.gr||bot.part.bounce))return done();
       bot.fly=false;
       if(pl.y<Math.min(bot.y0,T[1])-4){bot.fail='fell at step '+bot.i;return idle}
     }
     return{x:s[0],z:s[1],jp:false};
   }
-  if(pl.gr&&parts.indexOf(pl.gp)>=0)return next();
+  if(pl.gr&&parts.indexOf(pl.gp)>=0)return done();
   if(!pl.gr&&!pl.climb&&pl.air>.05){
     const p=parts[0],s=aimAir(W,pl,n,p,1,t,false);
     bot.part=p;bot.sgn=1;bot.fly=true;bot.n0=pl.landN;bot.y0=pl.y;return{x:s[0],z:s[1],jp:false};
@@ -1370,6 +1851,8 @@ function botInput(W,pl,bot,t){
     }
   }
   const p=parts[0],T=targetOf(W,n,p,1,t);
+  if(n.stay){const g=pl.gr&&pl.gp,c=g&&cur(g,t);return c?sm(c.x,c.z,true):sm(pl.x,pl.z,true)} // wait in the middle of what you stand on (dodging) until the jump works
+
   return sm(T[0],T[2],true);
 }
 // Play a level start to finish with the bot; returns how it went.
@@ -1389,7 +1872,8 @@ function runBot(W,t0,maxT){
   return{ok:false,why:'timeout at step '+bot.i,t:t-t0,i:bot.i,pl,log};
 }
 const CORE={PHYS,LEVELS,WH,rng,clamp,lerp,mkPart,poseAt,cur,phaseOn,phaseLeft,flagOn,present,solidNow,killNow,newWorld,newState,addPart,nearBox,xzDist,rotY,
-  newPlayer,resetPlayer,simStep,logicStep,usable,useBtn,tryCode,softReset,buildLevel,makeBot,botInput,runBot,steer,crateFree};
+  newPlayer,resetPlayer,simStep,logicStep,usable,useBtn,tryCode,softReset,buildLevel,makeBot,botInput,runBot,steer,crateFree,beamTrace};
+
 // ==/CORE==
 
 
@@ -1448,7 +1932,10 @@ const totalStars=()=>LEVELS.reduce((n,d)=>n+nStars(starsOf(d.id)),0);
 const clearedCount=()=>LEVELS.filter(d=>starsOf(d.id)&1).length;
 const unlocked=i=>i===0||!!(starsOf(LEVELS[i-1].id)&1)||!!(starsOf(LEVELS[i].id)&1);
 const firstOpen=()=>{for(let i=0;i<NLV;i++)if(!(starsOf(LEVELS[i].id)&1))return i;return 0};
-const bestTotal=()=>LEVELS.every(d=>prof.best[d.id]>0)?LEVELS.reduce((s,d)=>s+prof.best[d.id],0):0;
+// The best total (and the leaderboard's 'total') is the first eight levels, as before levels 9-13 came, so totals
+// already on the leaderboard stay comparable.
+const TOTAL_LV=LEVELS.slice(0,8);
+const bestTotal=()=>TOTAL_LV.every(d=>prof.best[d.id]>0)?TOTAL_LV.reduce((s,d)=>s+prof.best[d.id],0):0;
 const ITEM_NAME={key:'the gold key',card:'the blue keycard',fuse:'the fuse',gem:'the gem'};
 
 // =====================================================================
@@ -1497,6 +1984,11 @@ const SFX={
   key(){tone(1046,.05,.12,'square')},
   buzz(){tone(120,.35,.22,'sawtooth');tone(127,.35,.12,'square')},
   push(){noise(.25,.14,420)},
+  portal(){tone(300,.5,.12,'sine',900);tone(450,.6,.08,'triangle',1350,.05);noise(.4,.06,3000)},
+  kick(){noise(.18,.18,700);tone(180,.2,.12,'triangle',120)},
+  thud(){noise(.16,.22,300);tone(90,.18,.18,'sine',60)},
+  freeze(){tone(1600,.5,.1,'sine',400);noise(.5,.12,6000)},
+  turn(){tone(520,.08,.12,'triangle',780);noise(.12,.06,2400)},
   star(){tone(1319,.25,.16,'triangle');tone(1760,.35,.12,'sine',null,.08)}
 };
 function sfx(n){if(actx&&SFX[n])try{SFX[n]()}catch(e){}}
@@ -1591,6 +2083,25 @@ TEX.barrel=texFrom(cvs(128,128,(g,w,h)=>{g.fillStyle='#fff';g.fillRect(0,0,w,h);
 TEX.plate=texFrom(cvs(128,128,(g,w,h)=>{g.fillStyle='#fff';g.fillRect(0,0,w,h);g.strokeStyle='rgba(0,0,0,.25)';g.lineWidth=6;g.setLineDash([12,8]);g.strokeRect(6,6,w-12,h-12);g.setLineDash([]);
   g.fillStyle='rgba(0,0,0,.28)';g.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,r=i%2?20:46;g.lineTo(w/2+Math.cos(a)*r,h/2+Math.sin(a)*r)}g.closePath();g.fill()}));
 TEX.hazard=texFrom(cvs(128,128,(g,w,h)=>{g.fillStyle='#fff';g.fillRect(0,0,w,h);g.fillStyle='rgba(20,20,20,.75)';for(let i=-128;i<256;i+=40){g.beginPath();g.moveTo(i,0);g.lineTo(i+20,0);g.lineTo(i-108,128);g.lineTo(i-128,128);g.fill()}}));
+// levels 9-13: shelves of books, stone blocks, ice, gear teeth, an ice block, a portal's swirl
+TEX.books=texFrom(cvs(128,128,(g,w,h)=>{g.fillStyle='#5a3a22';g.fillRect(0,0,w,h);const cols=['#c0392b','#2e6fbf','#2f9e5a','#d4a017','#8e44ad','#e67e22','#16a085','#7f8c8d','#b03a5b','#f2e6d0'];
+  for(const y0 of [6,70]){let x=3;while(x<w-3){const bw=6+Math.floor(Math.random()*9),bh=40+Math.floor(Math.random()*16);g.fillStyle=cols[Math.floor(Math.random()*cols.length)];g.fillRect(x,y0+52-bh,bw-1,bh);
+    g.fillStyle='rgba(255,255,255,.35)';g.fillRect(x+1,y0+52-bh+6,bw-3,2);g.fillRect(x+1,y0+52-12,bw-3,2);g.fillStyle='rgba(0,0,0,.18)';g.fillRect(x+bw-2,y0+52-bh,1,bh);x+=bw}
+    g.fillStyle='#3d2614';g.fillRect(0,y0+52,w,10)}g.strokeStyle='rgba(0,0,0,.25)';g.lineWidth=3;g.strokeRect(1.5,1.5,w-3,h-3)}));
+TEX.stone=texFrom(cvs(128,128,(g,w,h)=>{g.fillStyle='#fff';g.fillRect(0,0,w,h);speckle(g,w,h,900,.07,.25);g.strokeStyle='rgba(60,45,20,.28)';g.lineWidth=4;
+  for(const [y,o] of [[0,0],[64,32]]){g.beginPath();g.moveTo(0,y+2);g.lineTo(w,y+2);g.stroke();for(let x=o;x<=w;x+=64){g.beginPath();g.moveTo(x,y);g.lineTo(x,y+64);g.stroke()}}}));
+TEX.ice=texFrom(cvs(128,128,(g,w,h)=>{const gr=g.createLinearGradient(0,0,w,h);gr.addColorStop(0,'#ffffff');gr.addColorStop(1,'#d8f0ff');g.fillStyle=gr;g.fillRect(0,0,w,h);
+  g.strokeStyle='rgba(255,255,255,.9)';g.lineWidth=3;for(let k=0;k<4;k++){const x=Math.random()*w;g.beginPath();g.moveTo(x,0);g.lineTo(x+40,h);g.stroke()}
+  g.strokeStyle='rgba(40,110,160,.25)';g.lineWidth=1.6;for(let k=0;k<4;k++){let x=Math.random()*w,y=Math.random()*h;g.beginPath();g.moveTo(x,y);for(let i=0;i<5;i++){x+=(Math.random()-.5)*40;y+=(Math.random()-.5)*40;g.lineTo(x,y)}g.stroke()}
+  g.strokeStyle='rgba(40,110,160,.18)';g.lineWidth=3;g.strokeRect(1.5,1.5,w-3,h-3)}));
+TEX.gear=texFrom(cvs(128,128,(g,w,h)=>{g.fillStyle='#fff';g.fillRect(0,0,w,h);speckle(g,w,h,300,.06,.25);g.fillStyle='rgba(60,40,10,.3)';for(let x=0;x<w;x+=32)g.fillRect(x,0,12,h);g.fillStyle='rgba(255,255,255,.5)';for(let x=0;x<w;x+=32)g.fillRect(x+12,0,3,h)}));
+TEX.iceblock=texFrom(cvs(128,128,(g,w,h)=>{g.fillStyle='#e9f8ff';g.fillRect(0,0,w,h);g.strokeStyle='rgba(255,255,255,.95)';g.lineWidth=10;g.strokeRect(5,5,w-10,h-10);g.strokeStyle='rgba(50,130,190,.35)';g.lineWidth=3;
+  g.beginPath();g.moveTo(20,30);g.lineTo(60,64);g.lineTo(44,100);g.moveTo(60,64);g.lineTo(104,52);g.stroke()}));
+TEX.mirror=new THREE.CanvasTexture(cvs(64,64,(g,w,h)=>{const gr=g.createLinearGradient(0,0,w,h);gr.addColorStop(0,'#eef4ff');gr.addColorStop(.5,'#9fb0d6');gr.addColorStop(1,'#dfe8ff');g.fillStyle=gr;g.fillRect(0,0,w,h);
+  g.fillStyle='rgba(255,255,255,.75)';g.beginPath();g.moveTo(8,40);g.lineTo(30,6);g.lineTo(38,6);g.lineTo(16,40);g.fill();g.fillRect(36,30,4,24)}));
+TEX.swirl=(function(){const t=new THREE.CanvasTexture(cvs(128,128,(g,w,h)=>{g.fillStyle='#000';g.fillRect(0,0,w,h);g.translate(w/2,h/2);
+  for(let i=0;i<220;i++){const a=i*.21,r=i*.28;g.fillStyle='rgba(255,255,255,'+(.15+.6*(1-i/220))+')';g.beginPath();g.arc(Math.cos(a)*r,Math.sin(a)*r,3+i*.04,0,TAU);g.fill()}
+  const gr=g.createRadialGradient(0,0,0,0,0,64);gr.addColorStop(0,'rgba(255,255,255,.9)');gr.addColorStop(.5,'rgba(255,255,255,.25)');gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.fillRect(-64,-64,128,128)}));t.center.set(.5,.5);return t})();
 // The sky: a gradient, the sun and its glow, and drifting clouds from a tiling noise texture (as in Spire).
 TEX.clouds=(function(){
   const N=128,r=rng(5),grid=(n)=>{const a=[];for(let i=0;i<n*n;i++)a.push(r());return a},oct=[[4,.5],[8,.25],[16,.14],[32,.07]].map(([n,a])=>({n,a,g:grid(n)}));
@@ -1689,12 +2200,15 @@ function sharedMat(kind,col,vc){
   else if(kind==='truss')m=new THREE.MeshLambertMaterial(Object.assign(o,{map:TEX.truss,transparent:true,alphaTest:.4,side:THREE.DoubleSide}));
   else if(kind==='zone')m=new THREE.MeshBasicMaterial(Object.assign(o,{transparent:true,opacity:.07,depthWrite:false,side:THREE.DoubleSide}));
   else if(kind==='lit')m=bevel(new THREE.MeshBasicMaterial(Object.assign(o,{map:TEX.grid})));
-  else m=bevel(new THREE.MeshLambertMaterial(Object.assign(o,{map:{bounce:TEX.bounce,stripe:TEX.stripe,cp:TEX.cp,metal:TEX.metal,crumble:TEX.crumble,floor:TEX.tile,wall:TEX.wall,wood:TEX.wood,barrel:TEX.barrel,crate:TEX.crate,hazard:TEX.hazard}[kind]||TEX.grid},
-    kind==='bounce'?{emissive:new THREE.Color('#2a0640')}:{})));
+  else m=bevel(new THREE.MeshLambertMaterial(Object.assign(o,{map:{bounce:TEX.bounce,stripe:TEX.stripe,cp:TEX.cp,metal:TEX.metal,crumble:TEX.crumble,floor:TEX.tile,wall:TEX.wall,wood:TEX.wood,barrel:TEX.barrel,crate:TEX.crate,hazard:TEX.hazard,
+      books:TEX.books,stone:TEX.stone,ice:TEX.ice,gear:TEX.gear,iceblock:TEX.iceblock}[kind]||TEX.grid},
+    kind==='bounce'?{emissive:new THREE.Color('#2a0640')}:kind==='ice'||kind==='iceblock'?{emissive:new THREE.Color('#16384d')}:{})));
   matCache.set(k,m);return m;
 }
 const kindOf=p=>p.kill?(p.mat==='lava'?'lava':'neon'):p.truss?'truss':p.zone?'zone':
-  ({bounce:'bounce',cp:'cp',floor:'floor',wall:'wall',metal:'metal',crumble:'crumble',blink:'plastic',barrel:'barrel',crate:'crate',glow:'lit',glass:'lit',fence:'plastic'})[p.mat]||'plastic';
+  ({bounce:'bounce',cp:'cp',floor:'floor',wall:'wall',metal:'metal',crumble:'crumble',blink:'plastic',barrel:'barrel',crate:'crate',glow:'lit',glass:'lit',fence:'plastic',
+    wood:'wood',books:'books',stone:'stone',ice:'ice',gear:'gear',iceblock:'iceblock'})[p.mat]||'plastic';
+
 const colOf=p=>p.mat==='bounce'?'#ffffff':p.col;
 
 // ---------- sky, ground and scenery ----------
@@ -1743,6 +2257,19 @@ const land=new THREE.Group();scene.add(land);
     items.push({geo:peak,x:Math.cos(a)*d,y:h/2-6,z:Math.sin(a)*d,yaw:r()*TAU,sx:rad,sy:h,sz:rad*(.7+r()*.5),colFn:t=>t>snow?'#f4f7fb':mix3(shade(rock,-.12),shade(rock,.12),t/snow)})}
   const m=new THREE.Mesh(mergeInto(items),new THREE.MeshLambertMaterial({vertexColors:true}));m.receiveShadow=true;land.add(m);
 })();
+// snow (the ice cave): white ground, icy hills and snowy pines instead of the lawn
+const snowSet=new THREE.Group();snowSet.visible=false;scene.add(snowSet);
+(function(){
+  const r=rng(77),items=[];
+  const ground=new THREE.Mesh(new THREE.CircleGeometry(1300,64),new THREE.MeshLambertMaterial({color:'#eef6fb',map:TEX.grass}));ground.rotation.x=-Math.PI/2;ground.position.y=-1.02;ground.receiveShadow=true;snowSet.add(ground);
+  for(let i=0;i<40;i++){const a=r()*TAU,d=150+r()*330,w=26+r()*60,h=5+r()*18,yaw=r()*TAU,dd=w*(.6+r()*.7);items.push({geo:boxGeo(w,h,dd),x:Math.cos(a)*d,y:h/2-1,z:Math.sin(a)*d,yaw,colFn:t=>mix3('#b9d3e6','#ffffff',t)})}
+  const cone=new THREE.ConeGeometry(1,1,6,1);
+  for(let i=0;i<60;i++){const a=r()*TAU,d=52+r()*150,w=5+r()*7,x=Math.cos(a)*d,z=Math.sin(a)*d*1.2,yaw=r()*TAU;
+    items.push({geo:boxGeo(1.1,4,1.1),x,y:1,z,yaw,col:'#6b4f3a'});items.push({geo:cone,x,y:3+w*.45,z,yaw,sx:w*.42,sy:w*.9,sz:w*.42,colFn:t=>t>.55?'#ffffff':mix3('#2f6f5a','#4f8f74',t/.55)})}
+  const peak=new THREE.ConeGeometry(1,1,7,1);
+  for(let i=0;i<46;i++){const a=i/46*TAU+r()*.08,d=580+r()*280,h=55+r()*125,rad=60+r()*80;items.push({geo:peak,x:Math.cos(a)*d,y:h/2-6,z:Math.sin(a)*d,yaw:r()*TAU,sx:rad,sy:h,sz:rad*(.7+r()*.5),colFn:t=>t>.35?'#ffffff':mix3('#9db7cf','#cfe0ee',t/.35)})}
+  const m=new THREE.Mesh(mergeInto(items),new THREE.MeshLambertMaterial({vertexColors:true}));m.receiveShadow=true;snowSet.add(m);
+})();
 // space: a planet and a ring of floating rocks instead of the grounds
 const spaceSet=new THREE.Group();spaceSet.visible=false;scene.add(spaceSet);
 (function(){
@@ -1774,7 +2301,30 @@ function drawIcon(g,kind,x,y,s){
   else if(kind==='key'){P(()=>{g.beginPath();g.arc(-18,0,20,0,TAU)},'#ffcf3d');P(()=>{g.beginPath();g.rect(0,-7,42,14)},'#ffcf3d');P(()=>{g.beginPath();g.rect(26,7,8,12)},'#ffcf3d');g.fillStyle='#1b1840';g.beginPath();g.arc(-18,0,7,0,TAU);g.fill()}
   else if(kind==='card'){P(()=>{rr(g,-40,-26,80,52,8)},'#3b82f6');g.fillStyle='#1b1840';g.fillRect(-40,-14,80,10);g.fillStyle='#fde68a';g.fillRect(-30,6,22,14)}
   else if(kind==='gem'){P(()=>{g.beginPath();g.moveTo(-34,-12);g.lineTo(-18,-34);g.lineTo(18,-34);g.lineTo(34,-12);g.lineTo(0,38);g.closePath()},'#38bdf8');g.lineWidth=4;g.beginPath();g.moveTo(-34,-12);g.lineTo(34,-12);g.moveTo(-10,-34);g.lineTo(0,38);g.lineTo(10,-34);g.stroke()}
+  // levels 9-13: the temple's glyphs, the clock's two buttons, a mirror
+  else if(kind==='sun'){for(let i=0;i<8;i++){const a=i*TAU/8;g.beginPath();g.moveTo(Math.cos(a)*26,Math.sin(a)*26);g.lineTo(Math.cos(a)*42,Math.sin(a)*42);g.stroke()}P(()=>{g.beginPath();g.arc(0,0,22,0,TAU)},'#f59e0b')}
+  else if(kind==='moon'){P(()=>{g.beginPath();g.arc(0,0,36,.35*Math.PI,1.65*Math.PI);g.arc(14,-4,28,1.55*Math.PI,.45*Math.PI,true);g.closePath()},'#c4b5fd')}
+  else if(kind==='leaf'){P(()=>{g.beginPath();g.moveTo(-32,32);g.quadraticCurveTo(-34,-30,34,-34);g.quadraticCurveTo(30,30,-32,32);g.closePath()},'#22c55e');g.beginPath();g.moveTo(-28,28);g.lineTo(22,-22);g.stroke()}
+  else if(kind==='wave'){g.lineWidth=9;g.strokeStyle='#1b1840';for(const y of [-16,4,24]){g.beginPath();g.moveTo(-40,y);g.bezierCurveTo(-26,y-16,-14,y+16,0,y);g.bezierCurveTo(14,y-16,26,y+16,40,y);g.stroke()}
+    g.lineWidth=4;g.strokeStyle='#38bdf8';for(const y of [-16,4,24]){g.beginPath();g.moveTo(-40,y);g.bezierCurveTo(-26,y-16,-14,y+16,0,y);g.bezierCurveTo(14,y-16,26,y+16,40,y);g.stroke()}}
+  else if(kind==='eye'){P(()=>{g.beginPath();g.moveTo(-42,0);g.quadraticCurveTo(0,-36,42,0);g.quadraticCurveTo(0,36,-42,0);g.closePath()},'#ffffff');P(()=>{g.beginPath();g.arc(0,0,14,0,TAU)},'#0ea5e9');g.fillStyle='#1b1840';g.beginPath();g.arc(0,0,6,0,TAU);g.fill()}
+  else if(kind==='star'){P(()=>{g.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,r=i%2?17:40;g.lineTo(Math.cos(a)*r,Math.sin(a)*r)}g.closePath()},'#facc15')}
+  else if(kind==='hour'||kind==='minute'){P(()=>{g.beginPath();g.arc(0,0,38,0,TAU)},'#fff7e0');g.lineWidth=kind==='hour'?11:6;g.beginPath();g.moveTo(0,0);g.lineTo(0,kind==='hour'?-20:-32);g.stroke();
+    g.fillStyle='#1b1840';g.beginPath();g.arc(0,0,6,0,TAU);g.fill();g.font='900 22px Nunito, sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(kind==='hour'?'H':'M',0,20)}
+  else if(kind==='mirror'){P(()=>{g.beginPath();g.ellipse(0,0,28,38,0,0,TAU)},'#dbeafe');g.strokeStyle='#ffffff';g.lineWidth=6;g.beginPath();g.moveTo(-12,-14);g.lineTo(8,-26);g.stroke()}
   g.restore();
+}
+// a clock face (the hour hand short, the minute hand long); hands: false draws the face only
+function drawClock(g,R,h,m,hands,watch){
+  const ink='#1b1840';g.save();
+  g.fillStyle=watch?'#fff8e6':'#fffdf5';g.beginPath();g.arc(0,0,R,0,TAU);g.fill();g.lineWidth=R*.07;g.strokeStyle=watch?'#c9a24a':'#4a3423';g.stroke();
+  g.fillStyle=ink;g.textAlign='center';g.textBaseline='middle';g.font=Math.round(R*.2)+'px "Lilita One", sans-serif';
+  for(let i=1;i<=12;i++){const a=i/12*TAU-Math.PI/2;g.fillText(String(i),Math.cos(a)*R*.78,Math.sin(a)*R*.78+R*.015)}
+  for(let i=0;i<60;i++){const a=i/60*TAU,l=i%5?.04:.09;g.lineWidth=i%5?R*.012:R*.03;g.beginPath();g.moveTo(Math.cos(a)*R*(.94-l),Math.sin(a)*R*(.94-l));g.lineTo(Math.cos(a)*R*.94,Math.sin(a)*R*.94);g.stroke()}
+  if(hands){g.lineCap='round';const ha=((h%12)+m/60)/12*TAU-Math.PI/2,ma=m/60*TAU-Math.PI/2;
+    g.lineWidth=R*.09;g.beginPath();g.moveTo(0,0);g.lineTo(Math.cos(ha)*R*.45,Math.sin(ha)*R*.45);g.stroke();
+    g.lineWidth=R*.05;g.beginPath();g.moveTo(0,0);g.lineTo(Math.cos(ma)*R*.7,Math.sin(ma)*R*.7);g.stroke()}
+  g.beginPath();g.arc(0,0,R*.06,0,TAU);g.fill();g.restore();
 }
 const iconTex=new Map();
 function iconTexture(kind,bg){const k=kind+'|'+(bg||'');let t=iconTex.get(k);if(t)return t;
@@ -1799,7 +2349,30 @@ function signTex(sg,W,wpx,hpx){
       g.fillStyle=sg.flat?'#fff7b0':'#f8fafc';g.fillRect(0,0,w,h);g.strokeStyle=sg.flat?'#e2c44c':'#94a3b8';g.lineWidth=12;g.strokeRect(6,6,w-12,h-12);
       g.fillStyle='#475569';g.font=font(h*.13);g.fillText(half===0?'Vault code, first half':half===1?'Vault code, second half':'Door code',w/2,h*.2);
       g.fillStyle='#1d4ed8';g.font=font(h*.42);g.fillText(shown.join(' '),w/2,h*.6);return}
+    // levels 9-13: a book's spine with its digit, the library card, the pocket watch, the big clock face, the clock's
+    // hands, the portrait, the temple mural
+    if(sg.book){const order=W.books[sg.book],k=order.indexOf(sg.col),d=(W.codes[sg.book]||'????')[k];g.fillStyle=BOOKS[sg.col];g.fillRect(0,0,w,h);
+      g.fillStyle='rgba(0,0,0,.18)';g.fillRect(0,0,w*.12,h);g.fillRect(w*.88,0,w*.12,h);g.fillStyle='#ffe9a8';for(const y of [.07,.12,.88,.93])g.fillRect(w*.08,h*y,w*.84,h*.02);
+      g.fillStyle='#fffdf5';rr(g,w*.16,h*.36,w*.68,h*.28,w*.1);g.fill();g.fillStyle=ink;g.font=font(h*.22);g.fillText(d,w/2,h*.505);return}
+    if(sg.riddle){const order=W.books[sg.riddle];g.fillStyle='#fffaf0';g.fillRect(0,0,w,h);g.strokeStyle='#8a5a34';g.lineWidth=12;g.strokeRect(6,6,w-12,h-12);
+      g.fillStyle=ink;g.font=font(h*.13);g.fillText('Door code: read the spines',w/2,h*.17);g.fillStyle='#575377';g.font=font(h*.08);g.fillText('of the four big books, in this order',w/2,h*.29);
+      order.forEach((c,i)=>{const x=w*(.16+i*.227),y=h*.62;g.fillStyle=BOOKS[c];rr(g,x-w*.07,y-h*.2,w*.14,h*.4,10);g.fill();g.lineWidth=5;g.strokeStyle=ink;g.stroke();
+        g.fillStyle='#fff';g.font=font(h*.15);g.fillText(String(i+1),x,y);g.fillStyle=ink;g.font=font(h*.085);g.fillText(c,x,h*.9)});return}
+    if(sg.watch){const d=W.dials[sg.watch],R=Math.min(w,h)*.4;g.fillStyle='#3d2b1f';g.fillRect(0,0,w,h);g.save();g.translate(w/2,h*.54);
+      g.fillStyle='#c9a24a';g.beginPath();g.arc(0,-R*1.08,R*.16,0,TAU);g.fill();g.beginPath();g.arc(0,0,R*1.06,0,TAU);g.fill();drawClock(g,R,d.target.h||12,d.target.m*15,true,true);g.restore();
+      g.fillStyle='#ffe9a8';g.font=font(h*.07);g.fillText('The tower stopped at…',w/2,h*.07);return}
+    if(sg.clockface){const R=Math.min(w,h)*.48;g.clearRect(0,0,w,h);g.save();g.translate(w/2,h/2);drawClock(g,R,0,0,false);g.restore();return}
+    if(sg.hand){g.clearRect(0,0,w,h);g.fillStyle=ink;g.lineCap='round';const L=sg.hand==='h'?.24:.38,th=sg.hand==='h'?.05:.028;rr(g,w*(.5-th/2),h*(.5-L),w*th,h*(L+.04),w*th/2);g.fill();return}
+    if(sg.portrait){const c=ROSES[W.rose];g.fillStyle='#c9a24a';g.fillRect(0,0,w,h);g.fillStyle='#2b1f3a';g.fillRect(w*.08,h*.08,w*.84,h*.84);
+      g.fillStyle='#5b4f8a';g.beginPath();g.ellipse(w/2,h*.98,w*.32,h*.36,0,0,TAU);g.fill();g.fillStyle='#f1d3b3';g.beginPath();g.ellipse(w/2,h*.4,w*.15,h*.18,0,0,TAU);g.fill();
+      g.fillStyle='#3d2b1f';g.beginPath();g.ellipse(w/2,h*.3,w*.19,h*.12,0,Math.PI,0);g.fill();g.fillStyle='#1b1840';for(const s of [-1,1]){g.beginPath();g.arc(w/2+s*w*.055,h*.4,w*.018,0,TAU);g.fill()}
+      g.strokeStyle='#2f6b2a';g.lineWidth=w*.025;g.beginPath();g.moveTo(w*.44,h*.92);g.lineTo(w*.62,h*.62);g.stroke();g.fillStyle=c;g.beginPath();g.arc(w*.63,h*.6,w*.07,0,TAU);g.fill();g.strokeStyle='rgba(0,0,0,.35)';g.lineWidth=w*.012;g.stroke();return}
+    if(sg.mural){const order=W.seqs[sg.mural].order;g.fillStyle='#b8a174';g.fillRect(0,0,w,h);speckle(g,w,h,1400,.12,.2);g.strokeStyle='#5c4a2a';g.lineWidth=14;g.strokeRect(7,7,w-14,h-14);
+      g.fillStyle='#3f2e14';g.font=font(h*.12);g.fillText('Step on the stones in this order',w/2,h*.15);
+      order.forEach((s,i)=>{const x=w*(.14+i*.24),y=h*.58;g.fillStyle='rgba(255,250,235,.85)';g.beginPath();g.arc(x,y,h*.24,0,TAU);g.fill();drawIcon(g,s,x,y,h*.36);
+        g.fillStyle='#3f2e14';g.font=font(h*.1);g.fillText(String(i+1),x,h*.92);if(i<3){g.beginPath();g.moveTo(x+h*.3,y-h*.06);g.lineTo(x+h*.4,y);g.lineTo(x+h*.3,y+h*.06);g.fill()}});return}
     if(sg.recipe){const order=W.seqs[sg.recipe].order;g.fillStyle='#fffdf5';g.fillRect(0,0,w,h);g.strokeStyle='#e7a96b';g.lineWidth=10;g.strokeRect(5,5,w-10,h-10);
+
       g.fillStyle=ink;g.font=font(h*.11);g.fillText('Today\'s recipe',w/2,h*.12);
       order.forEach((f,i)=>{const y=h*(.32+i*.24);g.fillStyle=ink;g.font=font(h*.12);g.fillText(String(i+1),w*.22,y);drawIcon(g,f,w*.6,y,h*.2)});return}
     // a title sign
@@ -1825,7 +2398,7 @@ function disposeWorld(){
   worldGroup=null;
 }
 function loadWorld(W){disposeWorld();geoForWorld=true;try{buildWorldMeshes(W)}finally{geoForWorld=false}try{renderer.compile(scene,camera)}catch(e){}}
-const isDyn=p=>!!(p.move||p.timed||p.crumble||p.conv||p.cp>=0||p.finish||p.zone||p.door||p.onIf||p.offIf||p.item||p.btn||p.plate||p.push);
+const isDyn=p=>!!(p.move||p.timed||p.crumble||p.conv||p.cp>=0||p.finish||p.zone||p.door||p.onIf||p.offIf||p.item||p.btn||p.plate||p.push||p.tp||p.step||p.mat==='crystal');
 function itemMesh(p){
   const g=new THREE.Group(),k=p.item,L=c=>new THREE.MeshLambertMaterial({color:c,emissive:new THREE.Color(c).multiplyScalar(.35)});
   if(k==='key'){const m=L('#ffcf3d');const ring=new THREE.Mesh(new THREE.TorusGeometry(.22,.08,8,20),m);ring.position.x=-.25;g.add(ring);const sh=new THREE.Mesh(new THREE.BoxGeometry(.55,.12,.12),m);sh.position.x=.15;g.add(sh);const t=new THREE.Mesh(new THREE.BoxGeometry(.1,.2,.12),m);t.position.set(.34,-.12,0);g.add(t)}
@@ -1837,6 +2410,27 @@ function itemMesh(p){
 }
 function partMesh(W,p){
   if(p.zone==='lowg')return new THREE.Mesh(boxGeo(p.hx*2,p.hy*2,p.hz*2),sharedMat('zone','#a78bfa'));
+  if(p.zone==='cold'||p.zone==='warm')return null;
+  // levels 9-13: a boulder, a ghost, a portal, a turning mirror, the moon crystal
+  if(p.mat==='boulder'){const m=new THREE.Mesh(new THREE.SphereGeometry(p.r,28,18),new THREE.MeshLambertMaterial({color:p.col,map:TEX.stone}));m.castShadow=true;m.userData.roll=true;return m}
+  if(p.mat==='ghost'){const g=new THREE.Group(),mt=new THREE.MeshBasicMaterial({color:'#ff2a4a'});
+
+    const head=new THREE.Mesh(new THREE.SphereGeometry(p.r,16,12),mt);head.position.y=p.hy-p.r;g.add(head);
+    const body=new THREE.Mesh(new THREE.ConeGeometry(p.r,p.hy*2-p.r,14,1,true),mt);body.position.y=-p.r*.5;body.rotation.x=Math.PI;g.add(body);
+    for(const s of [-1,1]){const e=new THREE.Mesh(new THREE.SphereGeometry(.09,8,6),new THREE.MeshBasicMaterial({color:'#2b0a12'}));e.position.set(s*.18,p.hy-p.r+.08,.46);g.add(e)}
+    const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:TEX.glow,color:'#ff3355',transparent:true,opacity:.6,depthWrite:false,blending:THREE.AdditiveBlending}));halo.scale.set(2.6,2.6,1);g.add(halo);
+    g.userData.ghost=true;return g}
+  if(p.tp){const ax=p.hx>=p.hz,g=new THREE.Group();
+    const face=new THREE.Mesh(new THREE.PlaneGeometry(ax?p.hx*2:p.hz*2,p.hy*2),new THREE.MeshBasicMaterial({color:p.col,map:TEX.swirl,transparent:true,opacity:.92,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending}));
+    if(!ax)face.rotation.y=Math.PI/2;g.add(face);
+    const back=new THREE.Mesh(new THREE.PlaneGeometry((ax?p.hx*2:p.hz*2)*.98,p.hy*2*.98),new THREE.MeshBasicMaterial({color:'#120d24',side:THREE.DoubleSide}));if(!ax)back.rotation.y=Math.PI/2;back.position[ax?'z':'x']=-.12;g.add(back);
+    g.userData.portal=face;return g}
+  if(p.btn&&p.mat==='mirror'){const g=new THREE.Group(),frame=new THREE.MeshLambertMaterial({color:'#5a4636',emissive:new THREE.Color('#000000')});
+    g.add(new THREE.Mesh(boxGeo(p.hx*2+.2,p.hy*2+.2,p.hz*2),frame));
+    const glass=new THREE.MeshBasicMaterial({map:TEX.mirror});for(const s of [-1,1]){const f=new THREE.Mesh(new THREE.PlaneGeometry(p.hx*2,p.hy*2),glass);f.position.z=s*(p.hz+.01);if(s<0)f.rotation.y=Math.PI;g.add(f)}
+    g.userData.top=frame;g.userData.mirror=true;return g}
+  if(p.mat==='crystal'){const m=new THREE.Mesh(new THREE.OctahedronGeometry(p.hx*.9,0),new THREE.MeshLambertMaterial({color:p.col,emissive:new THREE.Color('#1b3550')}));m.scale.y=1.5;
+    const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:TEX.glow,color:'#fff3b0',transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending}));halo.scale.set(3,3,1);m.add(halo);m.userData.halo=halo;m.userData.crystal=true;return m}
   if(p.finish){
     const g=new THREE.Group();
     const col=new THREE.Mesh(boxGeo(p.hx*2,p.hy*2,p.hz*2),new THREE.MeshBasicMaterial({color:'#4ade80',transparent:true,opacity:.25,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}));
@@ -1867,7 +2461,7 @@ function partMesh(W,p){
   if(p.plate){const m=new THREE.MeshLambertMaterial({color:p.col,map:TEX.plate});return new THREE.Mesh(geo,m)}
   const kind=kindOf(p);let mat;
   if(p.conv){const t=(p.mat==='water'?TEX.water:TEX.conv).clone();t.needsUpdate=true;mat=bevel(new THREE.MeshLambertMaterial({map:t}))}
-  else if(p.timed||p.crumble||p.cp>=0||p.onIf||p.offIf)mat=cloneMat(sharedMat(kind,colOf(p)));
+  else if(p.timed||p.crumble||p.cp>=0||p.onIf||p.offIf||p.step)mat=cloneMat(sharedMat(kind,colOf(p)));
   else mat=sharedMat(kind,colOf(p));
   if(p.timed&&!p.kill)mat.transparent=true;
   if(p.crumble||p.onIf)mat.transparent=true;
@@ -1878,15 +2472,19 @@ function partMesh(W,p){
   }
   return m;
 }
+let hands=[],beamFx=null;
 function buildWorldMeshes(W){
-  G.W=W;worldGroup=new THREE.Group();dyn=[];
+  G.W=W;worldGroup=new THREE.Group();dyn=[];hands=[];beamFx=null;
+
   const buckets=new Map(),glows=[];
   for(const p of W.parts){
     if(p.sign){
       const pw=p.hx*2,ph=p.hy*2,res=Math.min(1024,Math.round(256*pw/ph)*2),tex=signTex(p.sign,W,Math.max(128,res),Math.max(96,Math.round(res*ph/pw)));tex.anisotropy=4;
-      const pl=new THREE.Mesh(new THREE.PlaneGeometry(pw,ph),new THREE.MeshBasicMaterial({map:tex,transparent:!!p.sign.exit}));
+      const sg=p.sign,see=!!(sg.exit||sg.clockface||sg.hand);
+      const pl=new THREE.Mesh(new THREE.PlaneGeometry(pw,ph),new THREE.MeshBasicMaterial({map:tex,transparent:see,depthWrite:!sg.hand}));
       pl.position.set(p.x,p.y,p.z);pl.rotation.y=p.yaw;
-      if(p.sign.flat){pl.rotation.set(-Math.PI/2,0,0);pl.position.y=p.y+.02}
+      if(sg.flat){pl.rotation.set(-Math.PI/2,0,0);pl.position.y=p.y+.02}
+      if(sg.hand)hands.push({mesh:pl,p});
       worldGroup.add(pl);continue;
     }
     if(!isDyn(p)&&!p.lock){
@@ -1907,17 +2505,25 @@ function buildWorldMeshes(W){
     }
     const m=partMesh(W,p);if(!m)continue;p.mesh=m;
     const b=cur(p,0);m.position.set(b.x,b.y,b.z);m.rotation.y=b.yaw;
-    worldGroup.add(m);dyn.push({p,mesh:m});
+    const d={p,mesh:m};
+    if(p.move&&p.move.type==='swing'){d.rods=[];for(let k=0;k<2;k++){const rod=new THREE.Mesh(boxGeo(1,1,1),sharedMat('metal','#8a6a3a'));rod.castShadow=true;worldGroup.add(rod);d.rods.push(rod)}}
+    worldGroup.add(m);dyn.push(d);
   }
   for(const b of buckets.values()){const m=new THREE.Mesh(mergeInto(b.items),sharedMat(b.kind,'#ffffff',true));m.castShadow=b.kind!=='truss'&&b.kind!=='lava'&&b.kind!=='floor';m.receiveShadow=true;worldGroup.add(m)}
   if(glows.length)worldGroup.add(new THREE.Mesh(mergeInto(glows),glowStatic));
-  const sp=!!W.def.space;land.visible=!sp;spaceSet.visible=sp;
+  const sp=!!W.def.space,sn=!!W.def.snow;land.visible=!sp&&!sn;spaceSet.visible=sp;snowSet.visible=sn;
   if(sp){land.position.set(0,0,0)}else land.position.set(0,0,(W.box[1]+W.box[3])/2);
+  snowSet.position.copy(land.position);
   setSky(W.def.sky[0],W.def.sky[1],sp);
+  // the haunted manor is at night: dimmer light
+  hemi.intensity=W.def.night?.62:sp?.95:.86;sun.intensity=W.def.night?.32:.56;
   scene.add(worldGroup);
 }
 // per-frame look of everything that moves, blinks, opens or can be picked up, at render time rt
 const _fc=new THREE.Color();
+const _ra=new V3(),_rb=new V3(),_rd=new V3(),_up=new V3(0,1,0);
+const beamCore=new THREE.MeshBasicMaterial({color:'#fff6c8'}),beamGlow=new THREE.MeshBasicMaterial({color:'#ffd46a',transparent:true,opacity:.3,blending:THREE.AdditiveBlending,depthWrite:false});
+matCache.set('beamCore',beamCore);matCache.set('beamGlow',beamGlow);
 function updateParts(rt,dt){
   const W=G.W,st=W.st;
   for(const d of dyn){
@@ -1949,13 +2555,36 @@ function updateParts(rt,dt){
     if(p.btn){const used=st.used[p.name],a=p.btn,top=m.userData.top;let lit=0;
       if(a.timed&&flagOn(W,a.timed,rt))lit=.5+.5*Math.sin(rt*10);
       if(a.seq){const s=st.seq[a.seq]||[];if(s.indexOf(a.sym)>=0||flagOn(W,W.seqs[a.seq].set,rt))lit=.6}
-      if(a.set&&flagOn(W,a.set,rt)||a.then&&flagOn(W,a.then,rt))lit=.6;
+      if(a.set&&flagOn(W,a.set,rt)||a.then&&flagOn(W,a.then,rt)||a.dial&&flagOn(W,W.dials[a.dial].set,rt)||a.mirror&&flagOn(W,W.beams[a.mirror].set,rt))lit=.6;
       if(G.useTarget===p&&!lit)lit=.25+.2*Math.sin(rt*6);
       top.emissive.setRGB(lit*.35,lit*.45,lit*.2);
       if(p.mat==='btn'){const down=(a.set&&used)||(a.seq&&lit>.5)?.08:0;m.position.y=p.y-down}}
     if(p.push){m.position.set(p.x,p.y,p.z)}
     if(p.plate&&flagOn(W,p.plate,rt)&&!m.userData.done){m.userData.done=1;m.material.color.set('#4ade80')}
+    // levels 9-13
+    if(m.userData.roll){const mv=p.move,u=rt/mv.per+mv.ph,f=u-Math.floor(u),L=Math.hypot(mv.ax,mv.az);m.rotation.set(L*f/p.r,Math.atan2(mv.ax,mv.az),0,'YXZ');if(f>.9)m.position.y-=(f-.9)/.1*p.r*1.4}
+    if(m.userData.ghost){const mv=p.move,a=mv.a0+mv.w*rt;m.position.y+=Math.sin(rt*3+p.id)*.14;m.rotation.y=Math.atan2(-Math.sin(a)*mv.w,Math.cos(a)*mv.w)}
+    if(m.userData.portal){m.userData.portal.material.opacity=.75+.17*Math.sin(rt*3+p.id)}
+    if(m.userData.mirror){const ty=st.mir[p.name]?Math.PI/4:-Math.PI/4;m.rotation.y+=(ty-m.rotation.y)*Math.min(1,dt*10)}
+    if(m.userData.crystal){const B=Object.values(W.beams)[0],on=B&&flagOn(W,B.set,rt);m.material.emissive.set(on?'#ffe9a0':'#1b3550');m.userData.halo.material.opacity=on?.55+.25*Math.sin(rt*5):0;m.rotation.y=rt*.8}
+    if(p.step){const g=W.seqs[p.step.seq],on=flagOn(W,g.set,rt)||(st.seq[p.step.seq]||[]).indexOf(p.step.sym)>=0;m.material.emissive.setRGB(on?.18:0,on?.42:0,on?.2:0)}
+    if(d.rods){const mv=p.move,o=mv.dx?p.hz*.7:p.hx*.7;
+      d.rods.forEach((rod,k)=>{const s=k?1:-1,ox=mv.dx?0:s*o,oz=mv.dx?s*o:0;_ra.set(p.x+ox,p.y+mv.len,p.z+oz);const b=cur(p,rt);_rb.set(b.x+ox,b.y+p.hy,b.z+oz);
+        _rd.subVectors(_rb,_ra);const L=_rd.length();rod.position.addVectors(_ra,_rb).multiplyScalar(.5);rod.scale.set(.12,L,.12);rod.quaternion.setFromUnitVectors(_up,_rd.normalize())})}
   }
+  TEX.swirl.rotation=-rt*1.4;
+  for(const h of hands){const s=st.dial,hh=s.h|0,mm=(s.m|0)*15,a=h.p.sign.hand==='h'?((hh%12)+mm/60)/12*TAU:mm/60*TAU;
+    const u=h.mesh.userData;u.a=u.a==null?a:u.a+angDiff(a,u.a)*Math.min(1,dt*8);h.mesh.rotation.set(0,h.p.yaw,-u.a)}
+  // the moonbeam: rebuilt whenever a mirror turns
+  for(const g in W.beams){const B=W.beams[g],key=B.mirrors.map(n=>st.mir[n]|0).join('')+(flagOn(W,B.set,rt)?'!':'');
+    if(!beamFx||beamFx.key!==key){
+      if(beamFx)for(const o of beamFx.objs){worldGroup.remove(o)}
+      beamFx={key,objs:[]};
+      for(const s of beamTrace(W,g).segs){const L=Math.hypot(s[2]-s[0],s[3]-s[1]),along=Math.abs(s[2]-s[0])>Math.abs(s[3]-s[1]),cx=(s[0]+s[2])/2,cz=(s[1]+s[3])/2;
+        for(const [th,mt] of [[.14,beamCore],[.55,beamGlow]]){const o=new THREE.Mesh(boxGeo(along?L:th,th,along?th:L),mt);o.position.set(cx,B.y,cz);worldGroup.add(o);beamFx.objs.push(o)}}
+    }
+  }
+  beamGlow.opacity=.28+.1*Math.sin(rt*4);
   glowStatic.opacity=.24+.1*Math.sin(U.time.value*5);
   TEX.lava.offset.x=(U.time.value*.03)%1;TEX.lava.offset.y=(U.time.value*.05)%1;
 }
@@ -2140,7 +2769,10 @@ function tick(){
 }
 function setupAttractNext(){if(G.mode!=='menu')return;const n=(G.lv+1)%NLV;loadLevel(n,(Math.random()*1e9)|0);G.attract=touchUI?null:Object.assign(makeBot(G.W.route),{every:5});G.tBase=performance.now()/1000;G.t=0}
 const FLAG_MSG={d1:'The door unlocked',bell:'The bell rang. The exit is open!',labdoor:'Code accepted. The door slides open',pantry:'Recipe cooked! The pantry is open',
-  block:'The block clicked into place. The gate is open',vaultdoor:'Code accepted. The vault door swings open',power:'Power on! The bridge is up',p3:'The Warden shuts down. The exit is open!'};
+  block:'The block clicked into place. The gate is open',vaultdoor:'Code accepted. The vault door swings open',power:'Power on! The bridge is up',p3:'The Warden shuts down. The exit is open!',
+  libdoor:'Code accepted. The archive door opens',clockdoor:'The clock strikes! The door swings open',iceblock:'The block slid onto the star. The door is open',
+  mural:'The stones glow. The temple door slides open',moondoor:'The crystal lights up. The door creaks open'};
+const UNLOCK_BANNER=new Set(['block','pantry','labdoor','vaultdoor','power','bell','libdoor','clockdoor','iceblock','mural','moondoor']);
 function handleEvents(t){
   const demo=!!G.attract;
   for(const e of me.ev){
@@ -2150,6 +2782,11 @@ function handleEvents(t){
     else if(e==='bounce'){if(!demo)sfx('bounce');glowBurst(me.x,me.y+.1,me.z,'#c084fc',16,5,1.5)}
     else if(e==='crumble'){if(!demo)sfx('crumble')}
     else if(e==='push'){if(!demo)sfx('push')}
+    else if(e==='tp'){if(!demo)sfx('portal');me.px=me.x;me.py=me.y;me.pz=me.z;G.camYaw=me.yaw;G.effPitch=null;glowBurst(me.x,me.y+1,me.z,'#c4b5fd',30,5,2);
+      const f=me.tpFrom||'';if(!demo&&/^mirror_/.test(f)&&f!=='mirror_'+G.W.rose&&f!=='mirror_out')banner('Wrong mirror!','It sent you back to the door',2.2)}
+    else if(e==='kick'){if(!demo)sfx('kick')}
+    else if(e==='thud'){if(!demo)sfx('thud')}
+    else if(e==='frozen'){if(!demo){sfx('freeze');banner('Frozen!','Stay close to the fires',2)}}
     else if(e==='die')onDeath();
     else if(demo)continue;
     else if(e==='cp'){sfx('cp');const c=G.W.cps[me.cp];if(c)glowBurst(me.x,c.y+.3,me.z,'#7ef0b4',30,6,3);banner('Checkpoint','',1.2)}
@@ -2157,11 +2794,13 @@ function handleEvents(t){
       if(p.item==='gem'){G.gemRun=true;sfx('gem');banner('Gem found!','A star for finding it, once you escape',2.4);glowBurst(b.x,b.y,b.z,'#7dd3fc',40,6,3)}
       else{sfx('pick');banner('Got '+ITEM_NAME[p.item],p.item==='fuse'?'Find the fuse box':'Find the door it opens',2.2);glowBurst(b.x,b.y,b.z,'#fde68a',30,5,2.5)}
       renderInv()}
-    else if(e.startsWith('open:')){const f=e.slice(5);sfx('open');const msg=FLAG_MSG[f];if(msg)feed('<span class="hl">'+esc(msg)+'</span>');if(f==='block'||f==='pantry'||f==='labdoor'||f==='vaultdoor'||f==='power'||f==='bell')banner('Unlocked!','',1.4);
+    else if(e.startsWith('open:')){const f=e.slice(5);sfx('open');const msg=FLAG_MSG[f];if(msg)feed('<span class="hl">'+esc(msg)+'</span>');if(UNLOCK_BANNER.has(f))banner('Unlocked!','',1.4);
       if(G.kp&&G.kp.ok==null){kpResult(true)}}
     else if(e.startsWith('timer:')){sfx('tick');const dur=Math.round(G.W.st.f[e.slice(6)]-t);banner('Go go go!','The gate is open for '+dur+' seconds',1.8)}
     else if(e==='buzz'){sfx('buzz');if(G.kp)kpResult(false);else feed('Wrong order. Start again from the first one')}
-    else if(e==='click'){sfx('click')}
+    else if(e==='click'||e==='step'){sfx('click')}
+    else if(e==='dial'){sfx('tick')}
+    else if(e==='turn'){sfx('turn')}
     else if(e.startsWith('need:')){sfx('buzz');banner('Something\'s missing','You need '+ITEM_NAME[e.slice(5)]+' for this',2)}
     else if(e.startsWith('pad:')){if(!G.auto)openKeypad(e.slice(4))}
     else if(e.startsWith('phase:')){const n=+e.slice(6);sfx('open');banner(n<3?'Switch '+n+' of 3':'Warden down!',n<3?'The Warden gets angrier…':'The exit is open',2.2)}
@@ -2340,7 +2979,11 @@ function ambientFx(dt){
     const f=W.finish;if(f&&Math.hypot(f.x-cp.x,f.z-cp.z)<60){const x=f.x+(Math.random()-.5)*f.hx*2,z=f.z+(Math.random()-.5)*f.hz*2;sparkle(x,f.y-f.hy+.2+Math.random()*f.hy,z,Math.random()<.7?'#4ade80':'#ffffff',.26)}
     for(const p of W.items){if(W.st.got[p.name]||Math.random()<.6)continue;const b=cur(p,G.t);if(Math.hypot(b.x-cp.x,b.z-cp.z)>40)continue;sparkle(b.x+(Math.random()-.5)*.6,b.y-.3,b.z+(Math.random()-.5)*.6,p.item==='gem'?'#7dd3fc':'#fde68a',.18)}
     const nc=W.cps[me.cp+1];if(nc&&Math.random()<.5&&Math.hypot(nc.x-cp.x,nc.z-cp.z)<50)sparkle(nc.x+(Math.random()-.5)*2.6,nc.y+.1,nc.z+(Math.random()-.5)*2.6,'#7ef0b4',.2);
-    const z=W.byName.get('lowg');if(z&&Math.random()<.6){const x=z.x+(Math.random()-.5)*z.hx*1.6,y=z.y+(Math.random()-.5)*z.hy*1.8,zz=z.z+(Math.random()-.5)*z.hz*1.6;if(Math.hypot(x-cp.x,zz-cp.z)<30){_fc.set('#c4b5fd');emit(FXG,x,y,zz,(Math.random()-.5)*.4,.25,(Math.random()-.5)*.4,2.5,.18,.12,_fc,.6,-.05,.2,2)}}
+    if(!W._fires)W._fires=W.parts.filter(p=>p.name==='brazier');
+    for(const f of W._fires){if(Math.hypot(f.x-cp.x,f.z-cp.z)>45)continue;_fc.set(Math.random()<.5?'#ffb347':'#ff6a2a');emit(FXG,f.x+(Math.random()-.5)*.6,f.y+f.hy+.05,f.z+(Math.random()-.5)*.6,(Math.random()-.5)*.4,1.6+Math.random()*1.2,(Math.random()-.5)*.4,.55+Math.random()*.3,.42,.06,_fc,.95,-1.2,.6,2)}
+    if(W.cold&&Math.random()<.5){const x=cp.x+(Math.random()-.5)*30,zz=cp.z+(Math.random()-.5)*30;_fc.set('#ffffff');emit(FXG,x,cp.y+4+Math.random()*4,zz,(Math.random()-.5)*.3,-1.1,(Math.random()-.5)*.3,4,.16,.12,_fc,.8,.05,.1,2)}
+    const z=W.byName.get('lowg');if(z&&Math.random()<.6){
+const x=z.x+(Math.random()-.5)*z.hx*1.6,y=z.y+(Math.random()-.5)*z.hy*1.8,zz=z.z+(Math.random()-.5)*z.hz*1.6;if(Math.hypot(x-cp.x,zz-cp.z)<30){_fc.set('#c4b5fd');emit(FXG,x,y,zz,(Math.random()-.5)*.4,.25,(Math.random()-.5)*.4,2.5,.18,.12,_fc,.6,-.05,.2,2)}}
   }
 }
 
@@ -2519,7 +3162,8 @@ function renderInv(){
   const html=kinds.map(k=>'<div class="it'+(k==='gem'?' gem':'')+(W.st.inv[k]?'':' off')+'" title="'+esc(ITEM_NAME[k]||k)+'">'+ICON_SVG[k]+'</div>').join('');
   if(box._h!==html){box._h=html;box.innerHTML=html}
 }
-const USE_TXT={pad:'Use the keypad',valve:'Turn the valve',clock:'Press: opens the gate for a few seconds',fuse:'Put the fuse in',bolt:'Flip the switch',bell:'Ring the bell'};
+const USE_TXT={pad:'Use the keypad',valve:'Turn the valve',clock:'Press: opens the gate for a few seconds',fuse:'Put the fuse in',bolt:'Flip the switch',bell:'Ring the bell',
+  hour:'Turn the hour hand',minute:'Turn the minute hand',mirror:'Turn the mirror'};
 function updateHud(){
   const pl=playing()&&!G.pauseOpen&&!G.overlay&&!G.kp;if(hudCache.playing!==pl){hudCache.playing=pl;document.body.classList.toggle('playing',pl)}
   if($('hud').hidden)return;
@@ -2531,7 +3175,11 @@ function updateHud(){
   // the prompt for whatever you can use from here
   const p=G.finished||me.dead||G.kp?null:usable(W,me,G.t);G.useTarget=p;
   let txt='';
-  if(p){const a=p.btn;txt=a.seq?'Press the '+a.sym:a.pad?USE_TXT.pad:USE_TXT[p.icon]||'Press the button';if(a.need&&!W.st.inv[a.need])txt='Needs '+ITEM_NAME[a.need];if(a.set&&flagOn(W,a.set,G.t)||a.then&&flagOn(W,a.then,G.t))txt='Done'}
+  if(p){const a=p.btn;txt=a.seq?'Press the '+a.sym:a.pad?USE_TXT.pad:USE_TXT[p.icon]||'Press the button';if(a.need&&!W.st.inv[a.need])txt='Needs '+ITEM_NAME[a.need];
+    if(a.set&&flagOn(W,a.set,G.t)||a.then&&flagOn(W,a.then,G.t)||a.dial&&flagOn(W,W.dials[a.dial].set,G.t)||a.mirror&&flagOn(W,W.beams[a.mirror].set,G.t))txt='Done'}
+  // the cold (the ice cave): a meter under the clock, frost round the edges as it builds
+  const cw=!!W.cold;$('cold').hidden=!cw||G.finished;if(cw){const k=clamp(me.cold/PHYS.COLD,0,1),pc=Math.round(k*100);if(hudCache.cold!==pc){hudCache.cold=pc;$('coldBar').style.width=(100-pc)+'%';$('cold').classList.toggle('low',k>.6);$('frost').style.opacity=String(clamp((k-.35)/.65,0,1))}}
+  else if(hudCache.cold!==-1){hudCache.cold=-1;$('frost').style.opacity='0'}
   $('prompt').hidden=!txt;if(txt)setText('promptTxt',txt);
   $('tUse').classList.toggle('ready',!!p&&txt!=='Done');
   if(locked()&&(KB.busy()||G.kp))releaseLock();
@@ -2676,7 +3324,7 @@ function showOverlay(id){if(id)releaseLock();for(const s of ['menu','levels','pa
 function setMsg(t,err){const m=$('netMsg');m.textContent=t;m.classList.toggle('err',!!err)}
 const starHtml=m=>'<span class="stars">'+[1,2,4].map(b=>'<i class="star'+(m&b?' on':'')+'"></i>').join('')+'</span>';
 function renderMenu(){
-  setText('pgStars',String(totalStars()));setText('pgCleared',clearedCount()+'/'+NLV);const bt=bestTotal();setText('pgTotal',bt?fmtTime(bt):'–');
+  setText('pgStars',String(totalStars()));setText('pgStarsLbl','Stars of '+NLV*3);setText('pgCleared',clearedCount()+'/'+NLV);const bt=bestTotal();setText('pgTotal',bt?fmtTime(bt):'–');
   const n=firstOpen();setText('playSub','Level '+(n+1)+' · '+LEVELS[n].name);
 }
 // The level picker; online, the room leader uses it to pick the room's level.
@@ -2721,7 +3369,7 @@ function toMenu(){
 }
 function renderSwatches(){const box=$('swatches');box.innerHTML='';for(const c of COLORS){const b=document.createElement('button');b.type='button';b.style.background=c;b.setAttribute('aria-label','Colour '+c);b.setAttribute('aria-pressed',String(c===myColor));b.onclick=()=>{myColor=c;store.set('color',c);if(G.av)G.av.setColor(c);if(Net.refs)Net.upd({c});renderSwatches();sfx('ui')};box.appendChild(b)}}
 function sanitizeRoom(s){return String(s||'').toLowerCase().replace(/^er-/,'').replace(/[^a-z0-9-]/g,'').slice(0,17)}
-function randomRoom(){return pick(['escape','vault','lab','toybox','drain','orbit','warden','exit','keypad'])+'-'+Math.floor(100+Math.random()*900)}
+function randomRoom(){return pick(['escape','vault','lab','toybox','drain','orbit','warden','exit','keypad','library','clock','igloo','temple','manor'])+'-'+Math.floor(100+Math.random()*900)}
 function busy(on){for(const id of ['quick','joinRoom','playBtn','levelsBtn'])$(id).disabled=on}
 async function goOnline(room,isPublic){
   initAudio();
