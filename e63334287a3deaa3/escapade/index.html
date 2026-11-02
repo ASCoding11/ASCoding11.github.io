@@ -131,6 +131,29 @@ h1 span{color:var(--exit)}
 .lvls button.locked{background:#eceaf2}
 .lvls button.locked .sw{filter:grayscale(.85) brightness(.85)}
 .lvls button.room{outline:4px solid var(--exit);outline-offset:1px}
+.lvls button.soon{background:#f4f2f8;border-style:dashed;box-shadow:none}
+/* world picker: one card per world (name, blurb, stars, how far you've got) */
+.wlds{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:12px;margin-top:12px}
+.wlds button{text-align:left;border:2.5px solid var(--ink);border-radius:18px;background:#fff;padding:0 0 10px;box-shadow:0 4px 0 var(--ink);display:flex;flex-direction:column;gap:3px;overflow:hidden}
+.wlds .band{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;min-height:64px;padding:8px 12px;border-bottom:2.5px solid var(--ink);color:#fff;text-shadow:0 2px 0 rgba(27,24,64,.55)}
+.wlds .band span{font-weight:900;font-size:12px;letter-spacing:.12em;text-transform:uppercase}
+.wlds .band b{display:block;font-family:var(--f-d);font-weight:400;font-size:25px;line-height:1}
+.wlds .band em{font-style:normal;font-family:var(--f-d);font-size:19px;white-space:nowrap}
+.wlds .band em .star{color:#ffe27a}
+.wlds p{margin:6px 12px 0;font-weight:700;font-size:13px;line-height:1.35;color:var(--ink-2)}
+.wlds small{font-weight:900;font-size:12px;padding:0 12px;color:var(--ink)}
+.wlds .bar{height:7px;margin:4px 12px 0;border-radius:4px;background:#e6e2f0;overflow:hidden}
+.wlds .bar i{display:block;height:100%;background:var(--exit)}
+.wlds button.locked{background:#eceaf2}
+.wlds button.locked .band{filter:grayscale(.8) brightness(.85)}
+.wlds button.soon{background:#f4f2f8;border-style:dashed;box-shadow:none}
+.wlds button.soon .band{filter:grayscale(.6) brightness(.95)}
+.wlds button.room{outline:4px solid var(--exit);outline-offset:1px}
+/* a newer world or room level than this copy of the page knows: ask for a reload */
+#upd{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:60;width:min(460px,calc(100% - 32px));background:var(--paper);border:3px solid var(--ink);border-radius:18px;box-shadow:0 6px 0 var(--ink);padding:14px 16px;text-align:center}
+#upd b{display:block;font-family:var(--f-d);font-weight:400;font-size:24px}
+#upd p{margin:6px 0 10px;font-weight:700;font-size:14px;color:var(--ink-2);line-height:1.4}
+#upd .row{justify-content:center}
 
 /* ---------- HUD ---------- */
 #hud{position:absolute;inset:0;pointer-events:none;color:#fff}
@@ -306,7 +329,7 @@ body.touch #banner span{font-size:15px}
           <svg viewBox="0 0 58 70" aria-hidden="true"><rect x="4" y="4" width="50" height="62" rx="5" fill="#ffcf3d" stroke="#1b1840" stroke-width="3"/><path d="M12 64V14h26l8 6v44z" fill="#22c55e" stroke="#1b1840" stroke-width="3" stroke-linejoin="round"/><circle cx="38" cy="40" r="3" fill="#1b1840"/><path d="M48 30l8 8-8 8" fill="none" stroke="#1b1840" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           <div><h1>Escap<span>ade</span></h1></div>
         </div>
-        <p class="tag">Thirteen levels, one way out of each. Parkour past the lava and lasers, find the keys and codes, and make it to the EXIT. Red and glowing means it gets you.</p>
+        <p class="tag">World after world of escape rooms, one way out of each. Parkour past the lava and lasers, find the keys and codes, and make it to the EXIT. Red and glowing means it gets you.</p>
         <div class="me-row">
           <label class="field"><span>Name</span><input id="name" maxlength="14" autocomplete="nickname" spellcheck="false" placeholder="Escaper"></label>
           <div class="swatches" id="swatches" role="group" aria-label="Your colour"></div>
@@ -321,15 +344,15 @@ body.touch #banner span{font-size:15px}
         <div class="label">On your own</div>
         <div class="solo">
           <button class="btn exit" id="playBtn" type="button">Play<small id="playSub">Level 1 · Detention</small></button>
-          <button class="btn alt" id="levelsBtn" type="button">Levels<small id="levelsSub">times and stars</small></button>
+          <button class="btn alt" id="levelsBtn" type="button">Worlds<small id="levelsSub">levels, times and stars</small></button>
         </div>
         <div class="adbox" id="adMenu" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
       </div>
       <div class="card">
         <div class="prog">
-          <div><b id="pgStars">0</b><small id="pgStarsLbl">Stars of 39</small></div>
+          <div><b id="pgStars">0</b><small id="pgStarsLbl">Stars of 144</small></div>
           <div><b id="pgCleared">0</b><small>Escaped</small></div>
-          <div><b id="pgTotal">–</b><small>Total 1–8</small></div>
+          <div><b id="pgTotal">–</b><small>World 1 total</small></div>
         </div>
         <div class="label">Settings</div>
         <div class="setting"><span>Sensitivity</span><input id="sens" type="range" min=".3" max="2.5" step=".05" aria-label="Camera sensitivity"><output id="sensOut">1.00</output></div>
@@ -341,13 +364,14 @@ body.touch #banner span{font-size:15px}
         <details>
           <summary>How to play</summary>
           <ul class="how">
-            <li><b>Escape</b> each room by reaching the green EXIT. The doors in the way open with a key, a keycard, a keypad code, buttons pressed in the right order, a block pushed onto a plate, a fuse, a clock set to the right time, stepping stones or mirrors.</li>
+            <li><b>Escape</b> each room by reaching the green EXIT. The doors in the way open with a key, a keycard, a keypad code, buttons pressed in the right order, a block pushed onto a plate, a fuse, a clock set to the right time, stepping stones, mirrors or levers.</li>
+            <li><b>Worlds</b> of eight levels: escape a level to open the next, and a world's last level to open the next world.</li>
             <li><b>Ladders</b>: walk into one to climb, let go of the stick to hang on (ladders on rails carry you). <b>Ice</b> is slippery, and in the ice cave the cold gets you away from a fire.</li>
             <li><b>Red and glowing</b> (lava, lasers, hot burners, spinning bars) sends you back to your last checkpoint. Keys, codes and opened doors stay done.</li>
             <li><b>Stars</b>: one for escaping, one for beating the target time, one for finding the level's hidden gem.</li>
             <li class="kbonly"><b>Keys</b>: WASD moves, Space jumps, E uses buttons and keypads, R goes back to your checkpoint, click to aim with the mouse (Esc frees it), the wheel zooms, Shift locks the camera, V switches to first person.</li>
             <li id="touchNote" hidden><b>Touch</b>: the stick moves, drag anywhere else to look, pinch to zoom. USE lights up green when you're next to something you can use.</li>
-            <li><b>Online</b>: everyone plays the same level at the same time, each with their own copy of the puzzles. The first person in the room picks the level; when everyone's out, the next one starts.</li>
+            <li><b>Online</b>: everyone plays the same level at the same time, each with their own copy of the puzzles. The first person in the room picks the level (from the worlds they've opened); when everyone's out, the next one starts.</li>
           </ul>
         </details>
       </div>
@@ -358,6 +382,7 @@ body.touch #banner span{font-size:15px}
     <div class="card wide">
       <div class="pick-head"><h2 id="lvTitle">Levels</h2><div class="row"><button class="btn sm alt" id="levelsBack" type="button">Back</button></div></div>
       <p class="sub" id="lvInfo">Escape a level to open the next. Stars: escape, beat the target time, find the gem.</p>
+      <div class="wlds" id="wlds"></div>
       <div class="lvls" id="lvls"></div>
     </div>
   </section>
@@ -401,6 +426,12 @@ body.touch #banner span{font-size:15px}
       <div class="adbox" id="adEnd" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
     </div>
   </section>
+
+  <div id="upd" role="alertdialog" aria-labelledby="updT" hidden>
+    <b id="updT">Update needed</b>
+    <p id="updMsg">This room is playing a level your copy of Escapade doesn't have yet. Reload the page to get it.</p>
+    <div class="row"><button class="btn sm exit" id="updReload" type="button">Reload</button><button class="btn sm alt" id="updClose" type="button">Not now</button></div>
+  </div>
 
   <section id="keypad" class="overlay center" hidden>
     <div class="card" role="dialog" aria-label="Keypad">
@@ -457,6 +488,9 @@ const WH=10,DW=3.2,DH=4.6; // wall height, door width and door height
 // where it sends you), zones 'cold' (you freeze after PHYS.COLD seconds in it) and 'warm' (a fire that thaws you), the
 // move types swing (a pendulum) and roll (one way, then round again: boulders), ladders (trusses) that move and carry
 // you, and the buttons {dial} (turns a clock hand) and {mirror} (turns a mirror in a beam of light).
+// Added with World 2's last three levels: zone 'wind' (wind: [vx, vz], blows you along while you're in it, on the
+// ground or in the air; with timed it comes in gusts), the button {toggle} (a lever: flips a flag on and off, for
+// scenery that swaps with onIf / offIf), and W.alls (a flag that comes on once all of a list of flags are on).
 let PID=0;
 function mkPart(o){
   const p={id:PID++,name:o.name||'',shape:o.shape||'box',x:o.x,y:o.y,z:o.z,yaw:o.yaw||0,
@@ -467,7 +501,7 @@ function mkPart(o){
     col:o.col||'#cccccc',mat:o.mat||'plastic',touch:-1,deco:!!o.deco,
     door:o.door||'',onIf:o.onIf||'',offIf:o.offIf||'',lock:o.lock||'',item:o.item||'',btn:o.btn||null,plate:o.plate||'',
     push:!!o.push,lim:o.lim||null,sign:o.sign||null,icon:o.icon||'',stand:o.stand||null,room:o.room||0,
-    ice:!!o.ice,slide:!!o.slide,step:o.step||null,tp:o.tp||null,sv:null,
+    ice:!!o.ice,slide:!!o.slide,step:o.step||null,tp:o.tp||null,sv:null,wind:o.wind||null,
     _ct:NaN,c:{x:0,y:0,z:0,yaw:0},_ot:NaN,o:{x:0,y:0,z:0,yaw:0},_st:0,y0:0,y1:0};
   if(p.shape==='cyl'){p.hx=p.hz=p.r}
   if(p.move){const m=p.move=Object.assign({ph:0},p.move);if(m.type==='line'||m.type==='roll'){m.ax=m.ax||0;m.ay=m.ay||0;m.az=m.az||0}if(m.type==='orbit'){m.a0=m.a0||0}
@@ -512,7 +546,7 @@ function killNow(W,p,t){return p.kill&&(!p.timed||phaseOn(p.timed,t))&&((!p.onIf
 // Levels lie flat, so parts are filed in 6 x 6 cells by their footprint (the whole path for moving parts).
 const CELL=6;
 function newWorld(){return{parts:[],grid:new Map(),always:[],byName:new Map(),stamp:0,killY:-8,predict:false,
-  spawn:{x:0,y:0,z:0,yaw:0},cps:[],btns:[],items:[],locks:[],plates:[],crates:[],seqs:{},pads:{},codes:{},steps:[],dials:{},beams:{},
+  spawn:{x:0,y:0,z:0,yaw:0},cps:[],btns:[],items:[],locks:[],plates:[],crates:[],seqs:{},pads:{},codes:{},steps:[],dials:{},beams:{},alls:[],
   st:null,name:'',seed:0,lv:0,finish:null,route:[],box:[0,0,0,0]}}
 function newState(){return{f:{},inv:{},got:{},seq:{},used:{},dial:{},mir:{},lastStep:''}}
 function yRange(p){let y0=p.y-p.hy,y1=p.y+p.hy;const m=p.move;if(m&&(m.type==='line'||m.type==='roll')){y0=Math.min(y0,y0+m.ay);y1=Math.max(y1,y1+m.ay)}
@@ -642,6 +676,9 @@ function simStep(W,pl,inp,t){
   // 5) gravity (or climbing)
   pl.lowg=false;
   for(let i=0;i<_near.length;i++){const p=_near[i];if(p.zone!=='lowg')continue;const b=cur(p,t);const cy=pl.y+1;if(cy<b.y-p.hy||cy>b.y+p.hy)continue;if(xzDist(p,b,pl.x,pl.z,_h)<0){pl.lowg=true;break}}
+  // wind: zones that blow you along (gusts when timed); not while you hold on to a ladder
+  let wx=0,wz=0;
+  if(!pl.climb)for(let i=0;i<_near.length;i++){const p=_near[i];if(p.zone!=='wind'||(p.timed&&!phaseOn(p.timed,t))||!present(W,p,t))continue;const cy=pl.y+1;if(cy<p.y-p.hy||cy>p.y+p.hy)continue;if(xzDist(p,p,pl.x,pl.z,_h)<0){wx+=p.wind[0];wz+=p.wind[1]}}
   if(pl.climb&&!jumped)pl.vy=push>.3?P.CLIMB:0;
   else{pl.vy-=P.G*(pl.lowg?P.LOWG:1)*dt;if(pl.vy<-P.MAX_FALL)pl.vy=-P.MAX_FALL}
   // 6) vertical move: land on the highest surface we cross, or bump our head
@@ -675,7 +712,7 @@ function simStep(W,pl,inp,t){
   }
   if(wasGr&&!pl.gr&&!(land&&land.bounce)){pl.vx+=pvx;pl.vz+=pvz}
   // 7) horizontal move and push-out (with step-up onto low lips, and crates that slide when you walk into them)
-  pl.x+=pl.vx*dt;pl.z+=pl.vz*dt;
+  pl.x+=pl.vx*dt;pl.z+=pl.vz*dt;if(wx||wz){pl.x+=wx*dt;pl.z+=wz*dt}
   let pushing=0;
   for(let it=0;it<4;it++){
     let moved=false;
@@ -784,6 +821,8 @@ function logicStep(W,pl,t){
       else ev.push('step');
     }
   }
+  // a flag that comes on once all of its flags are on (a vault that needs three relics)
+  for(const a of W.alls)if(!flagOn(W,a.set,t)&&a.need.every(f=>flagOn(W,f,t))){st.f[a.set]=true;ev.push('open:'+a.set)}
   if(W.tick)W.tick(W,pl,t);
 }
 // The nearest thing you can use from where you stand, or null.
@@ -801,6 +840,8 @@ function usable(W,pl,t){
 function useBtn(W,pl,p,t){
   const a=p.btn,st=W.st,ev=pl.ev;
   if(a.set){if(flagOn(W,a.set,t))return'done';st.f[a.set]=true;st.used[p.name]=1;ev.push('open:'+a.set);return'ok'}
+  // a lever: flips its flag (scenery with onIf / offIf on that flag swaps over)
+  if(a.toggle){st.f[a.toggle]=!flagOn(W,a.toggle,t);st.used[p.name]=1;ev.push('toggle:'+a.toggle);return'ok'}
   if(a.timed){st.f[a.timed]=t+a.dur;st.used[p.name]=1;ev.push('timer:'+a.timed);return'ok'}
   if(a.seq){
     const g=W.seqs[a.seq];if(flagOn(W,g.set,t))return'done';
@@ -918,6 +959,9 @@ function Builder(W,pal){
     tp(x,y,z){B.route.push({t:'tp',p:[x,y,z]})},
     kick(name,dir){B.route.push({t:'kick',name,dir})},
     steps(g,hub){B.route.push({t:'steps',g,hub})},
+    // World 2's last three: set comes on once every flag in need is on; a wind zone blowing [vx, vz]
+    all(need,set){W.alls.push({need:need.slice(),set})},
+    wind(x0,z0,x1,z1,y0,y1,v,o){return B.zone('wind',x0,z0,x1,z1,y0,y1,Object.assign({wind:v},o))},
 
     // a box-shaped zone ('cold' or 'warm') and a portal (a glowing doorway that sends you to `to`)
     zone(kind,x0,z0,x1,z1,y0,y1,o){return B.add(Object.assign({x:(x0+x1)/2,y:(y0+y1)/2,z:(z0+z1)/2,w:Math.abs(x1-x0),h:y1-y0,d:Math.abs(z1-z0),solid:false,zone:kind,mat:'zone',cam:false,name:o&&o.name||''},o))},
@@ -938,6 +982,12 @@ function exitHall(B,x,zw,o){
 // The code a keypad wants: four digits from the level's seed (a new one every attempt on your own, the same for
 // everyone in the room online).
 function makeCode(r){let s='';for(let i=0;i<4;i++)s+=String(1+Math.floor(r()*9));return s}
+// Clue colours and symbols shared with the drawing code (signs read them): the library's books, the temple's glyphs,
+// the manor's roses, the lighthouse's compass.
+const BOOKS={red:'#e0453a',gold:'#e8b923',green:'#2fa35a',blue:'#3a6fe0'};
+const GLYPHS=['sun','moon','leaf','wave','eye','star'];
+const ROSES={red:'#e0453a',green:'#2fa35a',purple:'#9b5de5'};
+const COMPASS=['north','north-east','east','south-east','south','south-west','west','north-west']; // the lighthouse lens's eight settings
 function shuffle(a,r){for(let i=a.length-1;i>0;i--){const k=Math.floor(r()*(i+1));[a[i],a[k]]=[a[k],a[i]]}return a}
 
 // ---------- the levels ----------
@@ -1319,335 +1369,50 @@ build(B,r){
   W.spawn={x:0,y:0,z:-2.5,yaw:0};
 }});
 
-// ---------- levels 9-13 ----------
-// The second floor of the building: five more rooms, each with something new (see the part list at the top).
-
-// 9. A library: a ladder on rails up to the balcony, a long ride on a rolling ladder over the lava past hot lamps (hang
-// low, then climb), and sliding drawers in the archive. Four coloured books around the level each show one digit of
-// the door code; the card says which colour comes first.
-const BOOKS={red:'#e0453a',gold:'#e8b923',green:'#2fa35a',blue:'#3a6fe0'};
-L({id:'library',name:'Overdue',sub:'The library',par:75,sky:['#9db4e6','#fbf3e4'],pal:{floor:'#c8955c',wall:'#86ad92',prop:'#a8703f',trim:'#3d2b1f'},
-build(B,r){
-  const W=B.W,P=B.pal,WD={mat:'wood',col:'#b27a45'},CASE={mat:'books',col:'#7a4e2c'};
-  W.codes.lib=makeCode(r);W.pads.lib={set:'libdoor'};W.books={lib:shuffle(Object.keys(BOOKS),r)};
-  // a giant book standing on a shelf, its spine facing yaw, with its digit on the spine
-  const book=(c,x,y,z,yaw)=>{const sx=Math.sin(yaw),sz=Math.cos(yaw);B.deco(x,y,z,1.1,2.3,1.5,{yaw,col:BOOKS[c],mat:'plastic'});
-    B.sign(x+sx*.78,y,z+sz*.78,yaw,1.0,2.2,{book:'lib',col:c})};
-  // reading room
-  B.floor(-12,6.5,12,-24,{mat:'wood',col:'#c8955c'});B.wallZ(-12,7,-24);B.wallZ(12,7,-24);B.wallX(7,-12.5,12.5);
-  B.wallX(-24,-12.5,12.5,[{c:-4,w:DW,h:5+DH}]);
-  B.cp(0,0,-2.5);
-  for(const [x,z] of [[-6,-6],[6,-6],[-6,-11.5],[6,-11.5]]){B.blk(x,z,4.6,2.2,1.2,WD);for(const s of [-1,1])B.blk(x+s*1.3,z+1.6,.9,.9,.6,{col:'#7a4e2c',mat:'wood'})}
-  B.blk(0,-9,1.4,1.4,1.4,{col:'#7a4e2c',mat:'wood',name:'lectern'});book('red',0,2.55,-9,0);
-  for(const s of [-1,1])B.blk(s*11,-3,2,13,3.5,CASE);
-  // the balcony and its rolling ladder
-  B.blk(-5,-21,14,6,5,{col:'#a8703f',mat:'wood',name:'balcony'});
-  B.box(-9,2.5,-17.55,1.2,5,.9,{truss:true,mat:'truss',col:'#e9cfa0',move:{type:'line',ax:9,per:7},name:'ladA'});
-  B.deco(-5,4.85,-17.9,14,.3,.2,{col:'#3d2b1f',mat:'metal'});
-  book('gold',-8.4,6.15,-19.4,0);
-  B.blk(5,-21.3,2,4.4,6,CASE);B.item('gem','gem',5,6.8,-21.3);
-  B.sign(7.3,5.2,-23.45,0,6.8,3,{riddle:'lib'});
-  B.sign(-5,7.6,-23.45,0,5,1.3,{title:'Quiet please',sub:'Find the four coloured books'});
-  // the stacks: lava below, a ladder on rails along the west shelves, hot lamps sticking out of them
-  B.floor(-8,-24,8,-62,{mat:'wood',col:'#b9874f'});B.wallZ(-8,-24,-62);B.wallZ(8,-24,-62);
-  B.lava(-8,-28,8,-58.5);
-  B.blk(-4,-26,3.2,4,5,{col:'#a8703f',mat:'wood',name:'L0'});
-  B.blk(-4,-30.2,3.2,4.4,1.5,{col:'#a8703f',mat:'wood',name:'L1'});
-  B.cp(1,-4,-30.4,{top:1.5,w:2.6,d:2.6});
-  B.blk(-7,-42,1,24,WH,CASE);B.blk(-7,-27.1,1,2.2,5,CASE);
-  B.box(-6.05,3.25,-30.5,.9,5.5,1.2,{truss:true,mat:'truss',col:'#e9cfa0',move:{type:'line',az:-24,per:11},name:'ladB'});
-  B.deco(-6.05,.35,-42.5,.5,.2,26,{col:'#3d2b1f',mat:'metal'});B.deco(-6.05,6.15,-42.5,.5,.2,26,{col:'#3d2b1f',mat:'metal'});
-  B.kill(-5.05,5.5,-37.5,1.1,2.2,.45,{name:'lamp1'});B.deco(-6.3,5.5,-37.5,.4,.3,.3,{col:'#c9a24a',mat:'metal'});
-  B.kill(-5.05,2.3,-47,1.1,3.4,.45,{name:'lamp2'});B.deco(-6.3,2.3,-47,.4,.3,.3,{col:'#c9a24a',mat:'metal'});
-  B.blk(-5.2,-56.9,3.6,3.2,6,{col:'#a8703f',mat:'wood',name:'L2'});
-  B.blk(7,-42,1,24,WH,CASE);book('green',6.05,3.6,-43,-Math.PI/2);
-  B.sign(2,7.4,-24.55,Math.PI,6,1.5,{title:'Ride the ladder',sub:'Hang low past the first lamp, then climb'});
-  B.cp(2,2,-60.2);
-  B.wallX(-62,-8.5,8.5,[{c:4,w:DW,h:DH}]);
-  // the archive: drawers slide out of the card catalogue over the lava, then piles of old books
-  B.floor(-12,-62,12,-86,{mat:'wood',col:'#c8955c'});B.wallZ(-12,-62,-86);B.wallZ(12,-62,-86);
-  B.wallX(-86,-12.5,12.5,[{c:-6,w:DW,h:DH}]);
-  B.lava(-12,-65.4,12,-80.6);
-  B.blk(10.5,-73,3,16,6,{col:'#8a5a34',mat:'wood',name:'catalogue'});
-  [[-67.4,0],[-71.2,.33],[-75,.66]].forEach(([z,ph],i)=>B.plat(7.4,1.6,z,2.6,2.4,{move:{type:'line',ax:-4.4,per:3.6,ph},mat:'wood',col:'#d9a066',name:'drawer'+i}));
-  B.plat(1.4,1.6,-77.6,2.2,2.2,{crumble:true,mat:'crumble',col:'#e8d3a8',name:'pile0'});
-  B.plat(-1.8,2.2,-79.2,2.2,2.2,{crumble:true,mat:'crumble',col:'#e8d3a8',name:'pile1'});
-  B.blk(-11,-74,2,12,6,CASE);book('blue',-9.95,3.6,-73,Math.PI/2);
-  B.panel('pad',-2.2,1.6,-85.35,0,{pad:'lib'},{icon:'pad'});
-  B.door('x',-86,-6,'libdoor',{col:'#8a5a34'});
-  B.sign(5,5.6,-85.45,0,6.6,2.8,{riddle:'lib'});
-  B.cp(3,-2,-83.4);
-  exitHall(B,-6,-86);
-  // decor: windows and chandeliers
-  for(const z of [2,-6,-14]){B.win(-11.5,z,Math.PI/2,{y:6.4,glass:'#ffe9b8',frame:'#3d2b1f'});B.win(11.5,z,-Math.PI/2,{y:6.4,glass:'#ffe9b8',frame:'#3d2b1f'})}
-  for(const z of [-68,-78])B.win(-11.5,z,Math.PI/2,{y:7.6,glass:'#ffe9b8',frame:'#3d2b1f'});
-  for(const [x,z] of [[0,-4],[0,-13]]){B.dcyl(x,8.6,z,1.4,.25,{col:'#c9a24a',mat:'metal'});B.dcyl(x,9.4,z,.08,1.6,{col:'#3d2b1f'});B.dcyl(x,8.9,z,.9,.3,{col:'#fff3c4',mat:'glass'})}
-  // route
-  const ladA=W.byName.get('ladA'),ladB=W.byName.get('ladB');
-  B.w(-4.5,0,-14.2);B.w(-4.5,0,-16.5);
-  B.ladder('ladA',(t,W,pl)=>pl.gr&&pl.y>4.5?'done':pl.climb?'climb':Math.abs(cur(ladA,t).x-pl.x)<.25?'grab':'wait');
-  B.w(-4,5,-21.6);B.w(-4,5,-26.5);B.w(-4.4,1.5,-30.4);B.w(-5.05,1.5,-30.5);
-  B.ladder('ladB',(t,W,pl)=>{const z=cur(ladB,t).z;
-    if(!pl.climb)return pl.gr&&pl.y<2&&pl.z>-34?(z>-30.6&&Math.abs(pl.z-z)<.3?'grab':'wait'):pl.gr&&pl.y>5.5?'done':'wait';
-    if(pl.z>-38.4)return pl.y<1.8?'climb':'hang';
-    if(z>-53.6)return pl.y<4.4?'climb':'hang';
-    return'climb'});
-  B.w(-5.2,6,-56.8);B.w(-2,0,-59.4);B.w(4,0,-63.6);
-  B.jon('drawer0',0,{wait:true});B.jon('drawer1',0,{wait:true});B.jon('drawer2',0,{wait:true});
-  B.j(1.4,1.6,-77.6,{wait:true});B.j(-1.8,2.2,-79.2);B.j(-2,0,-83);
-  B.use('pad',-2.2,0,-84.2);B.code('lib');B.w(-6,0,-87.6);B.w(-6,0,-89.4);
-  W.spawn={x:0,y:0,z:-2.5,yaw:0};
-}});
-
-// 10. A clock tower: hop the turning gears and ride a swinging pendulum over the lava, run the hall of pendulum blades,
-// then set the big clock to the time on the pocket watch: one button turns the hour hand, the other the minutes.
-L({id:'clock',name:'Clockwork',sub:'The clock tower',par:70,sky:['#4f5fa8','#ffd2a0'],pal:{floor:'#dcc8a4',wall:'#c39a6e',prop:'#c9a24a',trim:'#4a3423'},
-build(B,r){
-  const W=B.W,BR={col:'#c9a24a',mat:'metal'},GEAR={col:'#b8893a',mat:'gear'};
-  const th=1+Math.floor(r()*11),tm=Math.floor(r()*4);
-  W.dials.clock={set:'clockdoor',keys:['h','m'],target:{h:th,m:tm}};
-  W.st.dial.h=(th+3+Math.floor(r()*6))%12;W.st.dial.m=(tm+1+Math.floor(r()*3))%4;
-  const gear=(name,x,z,rad,top,w)=>{B.cyl(x,top,z,rad,Object.assign({move:{type:'spin',w},name},GEAR));B.dcyl(x,top+.06,z,.55,.14,{col:'#4a3423',mat:'metal'})};
-  // the gear room
-  B.floor(-12,6.5,12,-30);B.wallZ(-12,7,-30);B.wallZ(12,7,-30);B.wallX(7,-12.5,12.5);
-  B.wallX(-30,-12.5,12.5,[{c:0,w:DW,h:DH}]);
-  B.cp(0,0,-1.5);
-  B.lava(-12,-4,12,-27);
-  gear('g1',-4,-7.5,2.6,1,.9);gear('g2',3,-10.6,2.4,1.8,-1.1);gear('g3',-1.5,-14.5,2.4,1,.8);
-  gear('g4',7.6,-15,2,2.8,-1.2);B.item('gem','gem',7.6,3.9,-15);
-  B.plat(-1.5,1,-22,2.6,2.4,{move:{type:'swing',dz:1,len:9.5,amp:.36,per:4.4},mat:'metal',col:'#d7b56a',name:'swingP'});
-  B.deco(0,10.4,-22,24,.5,.5,BR);
-  B.sign(0,7.2,-29.45,0,7,1.6,{title:'Clockwork',sub:'Ride the pendulum to the door'});
-  // the hall of pendulum blades
-  B.floor(-5,-30,5,-58);B.wallZ(-5,-30,-58);B.wallZ(5,-30,-58);
-  B.cp(1,0,-32.2);
-  [[-34.5,0],[-41.2,.33],[-48,.66]].forEach(([z,ph],i)=>{B.kill(0,1.2,z,2.4,1,.5,{move:{type:'swing',dx:1,len:8.4,amp:.39,per:2.8,ph},name:'blade'+i});B.deco(0,9.75,z,10,.4,.4,BR)});
-  B.lava(-5,-37.4,5,-38.8);B.lava(-5,-44,5,-45.4);
-  B.cp(2,0,-54.6);
-  B.wallX(-58,-12.5,12.5,[{c:0,w:DW,h:DH}]);
-  B.sign(0,7.3,-57.45,0,3.6,3.6,{watch:'clock'});
-  B.sign(0,6.15,-30.55,Math.PI,6,1.3,{title:'Mind the blades',sub:'Run when they swing away'});
-  // the clock room: the hour button on the west tower, the minutes on the east, a pendulum between them
-  B.floor(-12,-58,12,-84);B.wallZ(-12,-58,-84);B.wallZ(12,-58,-84);
-  B.wallX(-84,-12.5,12.5,[{c:0,w:DW,h:DH}]);
-  B.lava(-12,-61.5,12,-78.5);
-  gear('gW',-5.5,-64.8,2,1.4,1);gear('gE',6,-75.4,2,1.6,-1);
-  for(const s of [-1,1]){B.blk(s*8,-70,3,3,3,{col:'#c39a6e',name:'tower'+(s<0?'W':'E')})}
-  B.cp(3,-8,-69.2,{top:3,w:2.4,d:1.4});B.cp(4,8,-69.2,{top:3,w:2.4,d:1.4});
-  B.btn('hourBtn',-8,-70.7,{dial:'clock',key:'h',n:12},{top:4.1,icon:'hour',col:'#ffd23f',stand:[-8,-69.2]});
-  B.btn('minBtn',8,-70.7,{dial:'clock',key:'m',n:4},{top:4.1,icon:'minute',col:'#7dd3fc',stand:[8,-69.2]});
-  B.plat(0,2.4,-70,2.6,2.6,{move:{type:'swing',dx:1,len:8,amp:.52,per:4.8},mat:'metal',col:'#d7b56a',name:'swing2'});
-  B.deco(0,10.4,-70,24,.5,.5,BR);
-  B.sign(0,7.4,-83.45,0,4.8,4.8,{clockface:'clock'});
-  B.sign(0,7.4,-83.36,0,4.8,4.8,{hand:'h',dial:'clock'},{deco:true});B.sign(0,7.4,-83.3,0,4.8,4.8,{hand:'m',dial:'clock'});
-  B.sign(-7.5,7,-83.45,0,6,1.6,{title:'Set the clock',sub:'To the time on the pocket watch'});
-  B.door('x',-84,0,'clockdoor',{col:'#8a6a4a',part:{mat:'vaultdoor'}});
-  exitHall(B,0,-84);
-  // decor: brass pipes, round windows
-  for(const x of [-11.25,11.25])B.deco(x,7.6,-12,.6,.6,36,BR);
-  for(const z of [-8,-20]){B.win(-11.5,z,Math.PI/2,{y:6.6,w:2.6,h:2.6,glass:'#ffe2b0',frame:'#4a3423'});B.win(11.5,z,-Math.PI/2,{y:6.6,w:2.6,h:2.6,glass:'#ffe2b0',frame:'#4a3423'})}
-  for(const z of [-64,-76])B.win(-11.5,z,Math.PI/2,{y:7.4,w:2.6,h:2.6,glass:'#ffe2b0',frame:'#4a3423'});
-  // route
-  B.w(-2.4,0,-3.4);B.jon('g1',0,{wait:true});B.jon('g2',0,{wait:true});B.jon('g3',0,{wait:true});B.jon('swingP',0,{wait:true});B.j(-1.5,0,-28.4,{wait:true});
-  B.w(0,0,-32.2);B.w(0,0,-36.6);B.j(0,0,-40.1,{wait:true});B.w(0,0,-42.8);B.j(0,0,-46.6,{wait:true});B.w(0,0,-52);B.w(0,0,-56.5);
-  B.w(-5.5,0,-60.6);B.jon('gW',0,{wait:true});B.j(-8,3.12,-69.2,{wait:true});B.dial('hourBtn','clock','h',-8,3.12,-69.2);
-  B.w(-7,3,-70);B.jon('swing2',0,{wait:true});B.j(8,3.12,-69.2,{wait:true});B.dial('minBtn','clock','m',8,3.12,-69.2);
-  B.w(7,3.12,-69.4);B.jon('gE',0,{wait:true});B.j(4,0,-80.2,{wait:true});B.w(0,0,-82.4);B.w(0,0,-87.4);
-  W.spawn={x:0,y:0,z:-1.5,yaw:0};
-}});
-
-// 11. An ice cave over hot springs: slippery ice floes on the lava (land, then brake), a tunnel of steam vents and a
-// crumbling ice bridge, all in a cold that freezes you if you stay away from a fire too long, then a cave where an
-// ice block slides until it hits something: get it onto the star.
-L({id:'ice',name:'Cold Feet',sub:'The ice cave',par:85,snow:true,sky:['#7fb2d9','#eef6fb'],pal:{floor:'#dfe9f2',wall:'#9cc3df',prop:'#bfe3fa',trim:'#2c5f8a'},
-build(B,r){
-  const W=B.W,ICE={ice:true,mat:'ice',col:'#cfeeff'},ROCK={col:'#8ea3b5',mat:'stone'};
-  // a fire in a stone bowl, warming the box rad around (zx, zz) (default: round the fire)
-  const fire=(x,z,top,rad,zx,zz)=>{B.cyl(x,top+.7,z,.7,{t:.7,col:'#5b6475',mat:'stone',name:'brazier'});B.dcyl(x,top+.75,z,.55,.12,{col:'#ffb347',mat:'glass'});
-    zx=zx==null?x:zx;zz=zz==null?z:zz;B.zone('warm',zx-rad,zz-rad,zx+rad,zz+rad,top-1,top+4,{fire:[x,top+.9,z]})};
-  // the frozen lake: floes of ice on the lava, a rock island with a fire in the middle
-  B.floor(-12,6.5,12,-30,ROCK);B.wallZ(-12,7,-30);B.wallZ(12,7,-30);B.wallX(7,-12.5,12.5);
-  B.wallX(-30,-12.5,12.5,[{c:0,w:DW,h:DH}]);
-  B.cp(0,0,3.6);
-  fire(-6,4,0,3.4);
-  B.zone('cold',-12,1.4,12,-62,-2,12,{name:'cold'});
-  B.lava(-12,1,12,-26);
-  B.plat(-3,.6,-4,3.6,3.6,Object.assign({name:'f1'},ICE));
-  B.plat(2.5,.6,-8.6,3.6,3.6,Object.assign({name:'f2'},ICE));
-  B.plat(-8,.6,-9.5,3.2,3.2,Object.assign({name:'f5'},ICE));B.item('gem','gem',-8,1.5,-9.5);
-  B.plat(7.5,.8,-13.5,4,4,Object.assign({name:'isle'},ROCK));fire(8.6,-14.6,.8,2.9,7.5,-13.5);
-  B.plat(3,.6,-18.4,3.6,3.6,Object.assign({name:'f3',move:{type:'line',ax:-3,per:5}},ICE));
-  B.plat(-3.5,.6,-22.4,3.6,3.6,Object.assign({name:'f4'},ICE));
-  fire(8,-28,0,3);
-  B.sign(0,6.6,-29.45,0,7,1.6,{title:'Keep warm!',sub:'The cold gets you away from a fire'});
-  // the tunnel: steam vents, a fire, a crumbling ice bridge
-  B.floor(-4,-30,4,-62,ROCK);B.wallZ(-4,-30,-62);B.wallZ(4,-30,-62);
-  B.cp(1,0,-31.6);
-  [[-36,0],[-40.4,.5]].forEach(([z,ph],i)=>{B.laser(0,2.5,z,7.6,5,.3,{timed:{per:2.6,on:.5,ph},name:'vent'+i});B.deco(0,.1,z,7.6,.2,1.4,{col:'#4b5563',mat:'metal'})});
-  fire(2.6,-45.2,0,2.4);
-  B.lava(-4,-48.6,4,-57.2);
-  [[0,-50.2],[-1.6,-53],[.8,-55.8]].forEach(([x,z],i)=>B.plat(x,.5,z,2.4,2.4,{ice:true,crumble:true,mat:'crumble',col:'#d6f1ff',name:'bridge'+i}));
-  fire(-2.6,-59.6,0,2.4);B.cp(2,1.2,-59.4);
-  B.wallX(-62,-12.5,12.5,[{c:0,w:DW,h:DH}]);
-  // the block cave (warm: the springs heat it): slide the ice block onto the star
-  B.floor(-12,-62,12,-86,Object.assign({},ICE,{mat:'ice',col:'#e3f4ff'}));B.wallZ(-12,-62,-86);B.wallZ(12,-62,-86);
-  B.wallX(-86,-12.5,12.5,[{c:6,w:DW,h:DH}]);
-  B.blk(8,-74,2,2,2,Object.assign({name:'rock2'},ROCK));B.blk(-6,-72.1,2,2,2,Object.assign({name:'rock1'},ROCK));
-  B.blk(-9.5,-66,2.4,2.4,1.4,ROCK);B.blk(1,-80,2.2,2.2,1.2,ROCK);
-  B.add({x:-4,y:.03,z:-82,w:2.4,h:.06,d:2.4,solid:false,plate:'iceblock',mat:'plate',col:'#ffd23f',name:'star',cam:false});
-  B.add({x:8,y:.9,z:-65,w:1.8,h:1.8,d:1.8,push:true,slide:true,mat:'iceblock',col:'#9fdcff',name:'block'});
-  B.door('x',-86,6,'iceblock',{col:'#7aa7c7'});
-  B.sign(-3,6.2,-85.45,0,7,1.6,{title:'Block on the star',sub:'It slides until it hits something'});
-  B.sign(-8,5.8,-62.55,Math.PI,6.4,1.4,{title:'Stuck?',sub:'Back to the checkpoint resets the block'});
-  exitHall(B,6,-86);
-  // decor: icicles on the walls, crystals
-  for(const [x,z] of [[-11,-4],[11,-10],[-11,-18],[11,-24]])for(let k=0;k<3;k++)B.deco(x,8.6-k*.2,z+k*1.2,.5,1.4+k*.5,.5,{col:'#e0f2fe',mat:'glass'});
-  for(const [x,z,h] of [[-10.5,-80,2.4],[10.6,-82,3],[-10.8,-70,1.8]])B.deco(x,h/2,z,.9,h,.9,{col:'#a5f3fc',mat:'glass',yaw:.6});
-  // route
-  const block=W.byName.get('block');
-  B.w(-3,0,1.6);B.j(-3,.6,-4,{wait:true});B.j(2.5,.6,-8.6,{wait:true});B.j(7.2,.8,-13,{wait:true});B.u((t,W,pl)=>pl.cold<.1);
-  B.jon('f3',0,{wait:true});B.j(-3.5,.6,-22.4,{wait:true});B.j(-2,0,-27.6,{wait:true});B.w(6.6,0,-27.8);B.u((t,W,pl)=>pl.cold<.1);
-  B.w(0,0,-31.6);B.w(0,0,-34.6);B.w(0,0,-42);B.w(2.2,0,-44.6);B.u((t,W,pl)=>pl.cold<.1);B.w(0,0,-47.6);
-  B.j(0,.5,-50.2,{wait:true});B.j(-1.6,.5,-53,{wait:true});B.j(.8,.5,-55.8,{wait:true});B.j(0,0,-58.6,{wait:true});B.w(0,0,-63.6);
-  B.w(8,0,-63.2);B.kick('block',[0,-1]);B.u(()=>!block.sv);
-  B.w(10.2,0,-66);B.w(9.9,0,-72);B.kick('block',[-1,0]);B.u(()=>!block.sv);
-  B.w(3,0,-70);B.w(-4,0,-70.2);B.kick('block',[0,-1]);B.u((t,W)=>flagOn(W,'iceblock',t));
-  B.w(4,0,-78);B.w(6,0,-84);B.w(6,0,-89.4);
-  W.spawn={x:0,y:0,z:3.6,yaw:0};
-}});
-
-// 12. A jungle temple: a corridor where a boulder rolls at you (wait in the side niches), a ring of stepping stones
-// round a turning stone over the lava, to land on in the order the mural shows, then a swinging log and a vine up
-// to the door at the top.
-const GLYPHS=['sun','moon','leaf','wave','eye','star'];
-L({id:'temple',name:'Lost Temple',sub:'The jungle temple',par:80,sky:['#7ec8a0','#f4f7df'],pal:{floor:'#d2c08e',wall:'#93a872',prop:'#b8875a',trim:'#3f5a2a'},
-build(B,r){
-  const W=B.W,ST={col:'#c2ad7a',mat:'stone'},MOSS={col:'#93a872',mat:'wall'};
-  W.seqs.glyph={order:shuffle(GLYPHS.slice(),r).slice(0,4),set:'mural'};
-  // the boulder corridor: niches in its sides, a trench at the near end where the boulder drops away
-  B.floor(-7,6.5,7,-46,ST);B.wallX(7,-7.5,7.5);B.wallZ(-7,7,-46,[{c:-36.5,w:3,h:DH}]);B.wallZ(7,7,-46);B.wallX(-46,-7.5,7.5);
-  B.cp(0,0,3.4);
-  for(const [z0,z1] of [[-1.4,-7.5],[-10.5,-14.5],[-17.5,-46]])B.blk(5.5,(z0+z1)/2,3,Math.abs(z1-z0),WH,MOSS);
-  for(const [z0,z1] of [[-1.4,-21.5],[-24.5,-28.5],[-31.5,-35],[-38,-46]])B.blk(-5.5,(z0+z1)/2,3,Math.abs(z1-z0),WH,MOSS);
-  B.wallX(-39.5,-4.5,4.5,[{c:0,w:7,h:6.4}],{col:'#7f9663'});
-  B.lava(-4,-1.6,4,-4.6);
-  const BOULDER_PER=4.4;
-  B.add({shape:'cyl',x:0,y:2.9,z:-43,r:2.9,h:5.8,kill:true,solid:false,mat:'boulder',col:'#a08d68',move:{type:'roll',az:38.4,per:BOULDER_PER},name:'boulder',cam:false});
-  B.sign(0,7.4,-39.95,0,6,1.5,{title:'Run!',sub:'Hide in the niches'});
-  // the stone ring: land on the stones in the mural's order, by way of the turning stone in the middle
-  B.floor(-27,-24,-7,-50,ST);B.wallZ(-27,-24,-70);B.wallX(-24,-27.5,-6.5);B.wallZ(-7,-46,-70);
-  B.wallX(-50,-27.5,-6.5,[{c:-17,w:DW,h:DH}]);
-  B.lava(-27,-24,-9.6,-46.6);
-  const CX=-17,CZ=-37;
-  B.cyl(CX,.8,CZ,2.4,{col:'#c2ad7a',mat:'stone',name:'hub',move:{type:'spin',w:.6}});B.dcyl(CX,.86,CZ,1.2,.12,{col:'#3f5a2a',mat:'stone'});
-  B.blk(-12,CZ,4.8,1.6,.3,{col:'#b8875a',mat:'wood',name:'walk'});
-  GLYPHS.forEach((g,i)=>{const a=(30+i*60)*Math.PI/180,x=CX+Math.cos(a)*5.4,z=CZ+Math.sin(a)*5.4;
-    B.blk(x,z,2.2,2.2,1.4,{col:'#d9c79a',mat:'stone',step:{seq:'glyph',sym:g},name:'stone_'+g});B.sign(x,1.42,z,0,1.7,1.7,{icon:g,flat:true,glyph:true})});
-  B.sign(-26.45,6,CZ,Math.PI/2,8.6,2.8,{mural:'glyph'});
-  B.cp(1,-8.4,-36.5,{w:1.8,d:2.6});
-  B.blk(-17,-48.3,20,3.4,.3,{col:'#b8875a',mat:'stone',name:'northLedge'});
-  B.door('x',-50,-17,'mural',{col:'#7f9663',part:{mat:'gate'}});
-  // the vine room: crumbling stones, a swinging log to ride, a vine up the pillar to the door at the top
-  B.floor(-27,-50,-7,-70,ST);
-  B.lava(-27,-53.2,-7,-70);
-  B.cp(2,-17,-51.6);
-  B.plat(-17,.8,-55.4,2.2,2.2,{crumble:true,mat:'crumble',col:'#d9c79a',name:'c1'});
-  B.plat(-14.4,1.2,-58,2.2,2.2,{crumble:true,mat:'crumble',col:'#d9c79a',name:'c2'});
-  B.plat(-17,1.2,-61.6,3,2.4,{move:{type:'swing',dx:1,len:8,amp:.58,per:5},mat:'wood',col:'#8b6a3e',name:'swingLog'});
-  B.deco(-17,9.4,-61.6,19.6,.5,.5,{col:'#6b4f2a',mat:'wood'});
-  B.plat(-9.2,3.2,-60.4,2.4,2.4,ST);B.item('gem','gem',-9.2,4,-60.4);
-  B.blk(-23,-65.6,2.6,2.6,5,{col:'#93a872',mat:'stone',name:'pillar'});
-  B.box(-23,2.9,-63.85,1.4,4.2,.9,{truss:true,mat:'vine',col:'#4f9a3a',name:'vine'});
-  B.wallX(-70,-27.5,-6.5,[{c:-23,w:DW,h:5+DH}]);
-  B.blk(-23,-71.45,6,9.1,5,{col:'#e8fff1',mat:'floor',name:'exitfloor'});B.wallZ(-26,-70,-76);B.wallZ(-20,-70,-76);B.wallX(-76,-26.5,-19.5);
-  B.finish(-23,-73.4,{top:5});B.sign(-23,5+DH+.75,-69.47,0,2.6,.8,{exit:true});
-  B.sign(-13,6.4,-69.45,0,7,1.6,{title:'Climb the vine',sub:'The way out is at the top'});
-  // decor: vines and statues
-  for(const [x,z] of [[-26.5,-28],[-26.5,-46],[-7.5,-58]])B.deco(x,6,z,.15,6,1.4,{col:'#4f9a3a',mat:'plastic'});
-  for(const s of [-1,1])B.blk(s*4.6,4.4,1.6,1.6,3,{col:'#b8875a',mat:'stone'});
-  // route: wait in each niche until the boulder has passed (or is far away)
-  const bd=W.byName.get('boulder');
-  const go=(need)=>(t,W,pl)=>{const z=cur(bd,t).z;return z-2.9>pl.z+.6||pl.z-(z+2.9)>need};
-  B.w(0,0,.4);B.u(go(30));B.j(0,0,-6.6,{wait:true});B.w(3.4,0,-8.4);B.w(5.3,0,-9);
-  B.u(go(25));B.w(3.4,0,-10.2);B.w(3.4,0,-15);B.w(5.3,0,-16);
-  B.u(go(27));B.w(3,0,-17.4);B.w(-3.2,0,-22);B.w(-5.3,0,-23);
-  B.u(go(25));B.w(-3.4,0,-24.2);B.w(-3.4,0,-29);B.w(-5.3,0,-30);
-  B.u(go(23));B.w(-3.4,0,-31.2);B.w(-3.6,0,-36.5);B.w(-8.4,0,-36.5);
-  B.steps('glyph','hub');B.jon('hub',0,{stay:true});B.jon('stone_eye',0,{stay:true});B.j(-17,.3,-48.4,{wait:true});B.w(-17,0,-51.6);
-  B.j(-17,.8,-55.4);B.j(-14.4,1.2,-58);B.jon('swingLog',0,{wait:true});
-  B.ladder('vine',(t,W,pl)=>pl.gr&&pl.y>4.9?'done':pl.climb||cur(W.byName.get('swingLog'),t).x<-20.6?'climb':'wait');
-  B.w(-23,5,-66.6);B.w(-23,5,-73.4);
-  W.spawn={x:0,y:0,z:3.4,yaw:0};
-}});
-
-// 13. A haunted manor: fading steps up to three mirrors, and only the one framed in the colour of the rose in the
-// portrait takes you on (the others send you back to the door); then turn the mirrors so the moonbeam reaches the
-// crystal, past red ghosts; then ride the chandeliers to the last mirror.
-const ROSES={red:'#e0453a',green:'#2fa35a',purple:'#9b5de5'};
-L({id:'manor',name:'Mirror Manor',sub:'The haunted house',par:80,night:true,sky:['#141a3a','#5b4f8a'],pal:{floor:'#8a6a52',wall:'#7d6e96',prop:'#a38c6a',trim:'#2b1f3a'},
-build(B,r){
-  const W=B.W,DARK={col:'#5a4636',mat:'wood'},STONE={col:'#8f8aa3',mat:'stone'};
-  const rose=Object.keys(ROSES)[Math.floor(r()*3)];W.rose=rose;
-  const ghost=(name,cx,cz,rad,w,a0,y)=>B.add({shape:'cyl',x:cx+rad,y:y||1.6,z:cz,r:.55,h:1.4,kill:true,solid:false,mat:'ghost',col:'#ff3355',cam:false,name,move:{type:'orbit',cx,cz,rad,w,a0}});
-  // the foyer: fading steps up to the balcony and its three mirrors
-  B.floor(-12,6.5,12,-20,DARK);B.wallZ(-12,7,-50);B.wallZ(12,7,-50);B.wallX(7,-12.5,12.5);B.wallX(-20,-12.5,12.5);
-  B.cp(0,0,3.2);
-  B.lava(-12,-1.6,12,-14);
-  B.plat(0,.8,-4.2,2.6,2.6,{timed:{per:3,on:.62,ph:0},mat:'blink',col:'#c4b5fd',name:'fade0'});
-  B.plat(-3.4,1.6,-7.2,2.6,2.6,{col:'#a38c6a',mat:'wood',name:'step1'});
-  B.plat(0,2.4,-10.2,2.6,2.6,{timed:{per:3,on:.62,ph:.5},mat:'blink',col:'#c4b5fd',name:'fade2'});
-  B.blk(0,-17,24,6,3.2,{col:'#6b5444',mat:'wood',name:'balcony'});
-  B.cp(1,-8.6,-15.6,{top:3.2,w:2.4,d:2.4});
-  Object.keys(ROSES).forEach((c,i)=>{const x=-6+i*6,to=c===rose?[0,.4,-22.8,0]:[0,.4,3.2,0];
-    B.portal('mirror_'+c,x,-19.25,0,to,{top:3.2,col:ROSES[c]});B.deco(x,5,-19.45,3,4.2,.12,{col:ROSES[c],mat:'plastic'})});
-  B.sign(0,8.4,-19.45,0,2.8,2.8,{portrait:'rose'});
-  B.sign(-7.5,8.6,-19.45,0,4.6,1.2,{title:'Which mirror?',sub:'Ask the lady in the portrait'});
-  B.blk(10.8,-11.6,1.6,1.6,4.6,{col:'#5a4636',mat:'wood',name:'clock'});B.item('gem','gem',10.8,5.4,-11.6);
-  // the gallery (no way in but the mirror): turn the mirrors so the moonbeam reaches the crystal
-  B.floor(-12,-20,12,-50,DARK);B.wallX(-50,-12.5,12.5,[{c:6,w:DW,h:DH}]);
-  B.lava(-12,-24.6,12,-46);
-  B.cp(2,0,-22.6);
-  const isle=(name,x,z,w)=>B.plat(x,.6,z,w,w,Object.assign({name},STONE));
-  isle('i1',3,-27.5,3.4);isle('i2',3,-39,3.4);isle('i3',-6,-39,3.4);
-  B.plat(3,.6,-31.7,2.2,2.2,{timed:{per:2.8,on:.6,ph:0},mat:'blink',col:'#c4b5fd',name:'t1'});
-  B.plat(3,.6,-34.7,2.2,2.2,{timed:{per:2.8,on:.6,ph:.45},mat:'blink',col:'#c4b5fd',name:'t2'});
-  isle('s1',-1.5,-39,1.8);ghost('ghost1',-1.5,-39,2.6,1.3,0);
-  isle('s2',-3.2,-43.4,1.8);
-  B.blk(-6,-47.6,1.2,1.2,1.2,STONE);B.add({x:-6,y:1.9,z:-47.6,w:.7,h:1.2,d:.7,deco:true,mat:'crystal',col:'#bfe9ff',name:'crystal'});
-  const MIR=[['m1',3,-27.5],['m2',3,-39],['m3',-6,-39]];
-  W.beams.moon={x:11.4,z:-27.5,dir:[-1,0],y:1.8,set:'moondoor',mirrors:MIR.map(m=>m[0]),target:{x:-6,z:-47.6,name:'crystal'},stops:[[-13,-51,-11.5,-19],[11.5,-51,13,-19],[-13,-20.5,13,-19],[-13,-51,13,-49.5]]};
-  for(const [n,x,z] of MIR){B.cyl(x,1.1,z,.45,{col:'#3b3355',mat:'metal'});B.add({x,y:1.85,z,w:1.7,h:1.5,d:.16,solid:false,btn:{mirror:'moon'},name:n,mat:'mirror',col:'#dfe7ff',icon:'mirror',cam:false,stand:[x,z+1.1]})}
-  // a starting setting that isn't the answer (the answer is every mirror at 0)
-  do{for(const [n] of MIR)W.st.mir[n]=r()<.5?1:0}while(MIR.every(([n])=>!W.st.mir[n]));
-  B.deco(11.45,1.8,-27.5,.12,1.6,1.6,{col:'#fff7c2',mat:'glass'});
-  B.door('x',-50,6,'moondoor',{col:'#5a4636'});
-  B.sign(-3,6.4,-49.45,0,7,1.6,{title:'Catch the moonlight',sub:'Turn the mirrors to light the crystal'});
-  B.blk(6,-48,6,4,.3,{col:'#6b5444',mat:'wood',name:'northStrip'});
-  // the ballroom: chandeliers circle over the lava to the last mirror, which takes you out
-  B.floor(-12,-50,12,-72,DARK);B.wallZ(-12,-50,-72);B.wallZ(12,-50,-72);B.wallX(-72,-12.5,12.5);
-  B.lava(-12,-53.4,12,-72);
-  B.cp(3,6,-51.6);
-  for(let i=0;i<2;i++)B.plat(0,1.6,-61,3,3,{t:.5,move:{type:'orbit',cx:0,cz:-61,rad:4.6,w:.6,a0:i*Math.PI},name:'chand'+i,mat:'metal',col:'#d9b45a'});
-  B.cyl(0,2.6,-61,1.6,{t:3.6,col:'#3b3355',mat:'metal',name:'column'});ghost('ghost2',0,-61,7.4,-.7,1,2.4);
-  B.blk(-8.4,-67.6,4,4,1.2,{col:'#6b5444',mat:'wood',name:'dais'});
-  B.portal('mirror_out',-8.4,-69.35,0,[0,.4,-75.2,0],{top:1.2,col:'#7ef0b4'});B.deco(-8.4,3,-69.5,3,4.2,.12,{col:'#7ef0b4',mat:'plastic'});
-  B.sign(-8.4,6.6,-71.45,0,3.4,1,{exit:true});
-  B.floor(-3,-72,3,-80,{col:'#e8fff1'});B.wallZ(-3,-72,-80);B.wallZ(3,-72,-80);B.wallX(-80,-3.5,3.5);B.finish(0,-76.6);
-  // decor: candles, portraits, moonlit windows
-  for(const z of [0,-8])for(const s of [-1,1])B.win(s*11.5,z,-s*Math.PI/2,{y:6,glass:'#9fb3ff',frame:'#2b1f3a'});
-  for(const z of [-30,-42])B.win(-11.5,z,Math.PI/2,{y:6.4,glass:'#9fb3ff',frame:'#2b1f3a'});
-  for(const [x,z] of [[-11.5,-58],[11.5,-64]])B.poster(x,z,x<0?Math.PI/2:-Math.PI/2,'#5a4636',{y:6,w:2.2,h:2.8});
-  // route
-  const right=-6+Object.keys(ROSES).indexOf(rose)*6;
-  B.w(0,0,-.8);B.j(0,.8,-4.2,{wait:true});B.j(-3.4,1.6,-7.2,{wait:true});B.j(0,2.4,-10.2,{wait:true});B.j(0,3.2,-15,{wait:true});
-  B.w(right,3.2,-17);B.tp(right,3.2,-19.25);B.w(0,0,-22.6);
-  B.j(3.8,.6,-26.5);if(W.st.mir.m1)B.use('m1',3,.6,-26.4);
-  B.j(3,.6,-31.7,{wait:true});B.j(3,.6,-34.7,{wait:true});B.j(3.6,.6,-37.8,{wait:true});if(W.st.mir.m2)B.use('m2',3,.6,-37.9);
-  B.j(-1.5,.6,-39,{wait:true,stay:true});B.j(-4.9,.6,-39.9,{wait:true,stay:true});if(W.st.mir.m3)B.use('m3',-6,.6,-37.9);
-  B.j(-3.2,.6,-43.4,{wait:true,stay:true});B.j(-1.6,0,-47.6,{wait:true});B.u((t,W)=>flagOn(W,'moondoor',t));B.w(5,.3,-48.4);B.w(6,0,-51.6);
-  B.jon(['chand0','chand1'],0,{wait:true});B.j(-8.4,1.2,-66.4,{wait:true});B.tp(-8.4,1.2,-69.35);B.w(0,0,-76.6);
-  W.spawn={x:0,y:0,z:3.2,yaw:0};
-}});
+// ---------- worlds ----------
+// Six worlds of eight levels (48 in all). World 1 is the eight levels above, built into this page. Every other world
+// is its own file, worlds/w<n>.js, loaded only when it's needed (opened in the menus, or picked by an online room), so
+// the page stays small. A world file only describes levels: it calls Escapade.world({n, needs, levels: [...]}) with
+// eight level definitions shaped like the ones above. Every shared helper (the Builder, the puzzle parts, the bot)
+// lives here. worlds/README.md is the guide for writing one.
+// WORLDS is the manifest: what the menus show before a world's file has loaded (its name, colour, blurb) and its eight
+// level ids in order, which saved progress, unlocks and star counts go by. A world with no ids is "Coming soon".
+// Keep one line per world (a world's builder edits only its own line).
+const WPL=8,NWORLDS=6,NLV=WPL*NWORLDS;
+// CORE_VER goes up whenever a change here adds something a world file can use; a world file says which one it needs
+// (needs: n), so a page that's older than the file shows "update needed" instead of breaking.
+const CORE_VER=2;
+const WORLDS=[
+  {n:1,name:'Breakout',col:'#ff6b6b',blurb:'Detention, the lab, the kitchen and the vault, all the way to the Warden.',ids:['class','lab','kitchen','toys','sewer','vault','space','warden']},
+  // ---
+  {n:2,name:'Lost and Found',col:'#7c5cff',blurb:'Old places that keep their secrets: books, clocks, ice, stones and mirrors.',ids:['library','clock','ice','temple','manor','theatre','gale','museum']},
+  // ---
+  {n:3,name:'Coming soon',col:'#2ec4b6',blurb:'Eight new escape rooms are on their way.',ids:[]},
+  // ---
+  {n:4,name:'Coming soon',col:'#ff9f1c',blurb:'Eight new escape rooms are on their way.',ids:[]},
+  // ---
+  {n:5,name:'Coming soon',col:'#4c8dff',blurb:'Eight new escape rooms are on their way.',ids:[]},
+  // ---
+  {n:6,name:'Coming soon',col:'#f15bb5',blurb:'Eight new escape rooms are on their way.',ids:[]}
+];
+for(let k=0;k<WPL;k++)Object.assign(LEVELS[k],{world:1,k});WORLDS[0].loaded=true;
+// A world file registers itself here. Levels land at LEVELS[(n - 1) * 8 + k]. Returns false (and says why on
+// WORLDS[n - 1].err) when the file can't be used by this copy of the page.
+function registerWorld(def){
+  const w=def&&WORLDS[(def.n|0)-1];
+  if(!w||def.n<2)throw new Error('Escapade.world: n must be 2-'+NWORLDS);
+  if((def.needs|0)>CORE_VER){w.err='update';return false}
+  const lv=def.levels||[];
+  // a world being built can have fewer than eight levels for now (the rest show as coming soon)
+  if(!lv.length||lv.length>WPL||lv.some((d,k)=>!d||d.id!==w.ids[k]||typeof d.build!=='function'))throw new Error('Escapade.world '+def.n+': up to '+WPL+' levels whose ids match WORLDS['+(def.n-1)+'].ids, in order');
+  lv.forEach((d,k)=>{LEVELS[(def.n-1)*WPL+k]=Object.assign({},d,{world:def.n,k})});
+  w.loaded=true;w.err='';
+  return true;
+}
+// What a world file gets: the registration call and every shared helper and constant its builds may use (the Builder
+// itself comes in as B). Add to this list rather than copying a helper into a world file.
+const Escapade={CORE_VER,WPL,world:registerWorld,PHYS,WH,DW,DH,TAU,clamp,lerp,rng,cur,flagOn,present,makeCode,shuffle,exitHall,
+  BOOKS,GLYPHS,ROSES,FOOD,COMPASS};
 
 // The Warden's arms answer to how many switches are on (p1, p2, p3).
 function wardenTick(W,pl,t){
@@ -1655,13 +1420,14 @@ function wardenTick(W,pl,t){
   for(const [k,v] of [['p1',n>=1],['p2',n>=2],['p3',n>=3]])if(v&&!st[k]){st[k]=true;pl.ev.push('phase:'+n)}
 }
 function buildLevel(i,seed){
-  const def=LEVELS[i],W=newWorld();W.lv=i;W.seed=seed>>>0;W.name=def.name;W.st=newState();W.def=def;
+  const def=LEVELS[i];if(!def)throw new Error('Level '+i+' is not loaded (its world file comes first)');
+  const W=newWorld();W.lv=i;W.seed=seed>>>0;W.name=def.name;W.st=newState();W.def=def;
   PID=0;
   const B=Builder(W,def.pal);
   def.build(B,rng(W.seed^0x5eed));
   W.route=B.route;
   if(W.derive)W.tick=wardenTick;
-  W.cold=W.parts.some(p=>p.zone==='cold');
+  W.cold=W.parts.some(p=>p.zone==='cold');W.winds=W.parts.filter(p=>p.zone==='wind');
   if(W.cps[0])W.spawn=Object.assign({},W.cps[0]);else W.cps[0]=W.spawn;
   return W;
 }
@@ -1673,6 +1439,15 @@ function buildLevel(i,seed){
 // finished, and by the test hook.
 function steer(pl,tx,tz,slow){const dx=tx-pl.x,dz=tz-pl.z,d=Math.hypot(dx,dz);if(d<.04)return[0,0];if(pl.gr&&pl.gp&&pl.gp.ice)slow=Math.max(slow,3.4);const k=Math.min(1,d/slow)/d;return[dx*k,dz*k]}
 function cloneP(pl){const q=Object.assign({},pl);q.ev=[];return q}
+// In the wind the bot leans into it: the stick also pushes against the wind (on the ground and in the air), so it
+// stands still in a gust and flies straight. Levels without wind are untouched.
+function windAt(W,pl,t,out){out[0]=out[1]=0;for(const p of W.winds){if(p.timed&&!phaseOn(p.timed,t)||!present(W,p,t))continue;const cy=pl.y+1;if(cy<p.y-p.hy||cy>p.y+p.hy)continue;if(xzDist(p,p,pl.x,pl.z,_h2)<0){out[0]+=p.wind[0];out[1]+=p.wind[1]}}return out}
+const _wv=[0,0];
+function lean(W,pl,inp,t){
+  if(!W.winds.length||pl.climb)return inp;windAt(W,pl,t,_wv);if(!_wv[0]&&!_wv[1])return inp;
+  const cap=Math.max(PHYS.WALK,pl.gr?0:pl.tko);let x=inp.x-_wv[0]/cap,z=inp.z-_wv[1]/cap;const m=Math.hypot(x,z);if(m>1){x/=m;z/=m}
+  return Object.assign({},inp,{x,z});
+}
 function nodeParts(W,n,t){
   if(n.on)return n.on.map(k=>W.byName.get(k)).filter(Boolean);
   let best=null,bd=1e9;
@@ -1697,7 +1472,7 @@ function jumpWorks(W,pl,t,part,n,sgn){
   const q=cloneP(pl),n0=q.landN;W.predict=true;let tt=t-PHYS.DT,ok=false;
   try{
     for(let i=0;i<480;i++){tt+=PHYS.DT;const T=targetOf(W,n,part,sgn,tt);const s=aimAir(W,q,n,part,sgn,tt,i===0);
-      simStep(W,q,{x:s[0],z:s[1],jp:i===0},tt);
+      simStep(W,q,lean(W,q,{x:s[0],z:s[1],jp:i===0},tt),tt);
       if(q.dead)return false;
       if(q.landN!==n0&&i>2){if(q.lastLand!==part)return false;break}
       if(q.y<T[1]-7)return false;
@@ -1706,14 +1481,14 @@ function jumpWorks(W,pl,t,part,n,sgn){
     const bounce=part.bounce>0,keep=bounce||!!part.conv;
     // on ice you keep sliding after you land: brake toward the target and check you stay on
     if(part.ice){for(let i=0;i<90;i++){tt+=PHYS.DT;const T=targetOf(W,n,part,sgn,tt),s=steer(q,T[0],T[2],.45);simStep(W,q,{x:s[0],z:s[1],jp:false},tt);if(q.dead)return false}return q.gr&&q.gp===part}
-    for(let i=0;i<30;i++){tt+=PHYS.DT;const s=keep?aimAir(W,q,n,part,sgn,tt,false):[0,0];simStep(W,q,{x:s[0],z:s[1],jp:false},tt);if(q.dead)return false}
+    for(let i=0;i<30;i++){tt+=PHYS.DT;const s=keep?aimAir(W,q,n,part,sgn,tt,false):[0,0];simStep(W,q,lean(W,q,{x:s[0],z:s[1],jp:false},tt),tt);if(q.dead)return false}
     ok=bounce||(q.gr&&q.gp===part);
   }finally{W.predict=false}
   return ok;
 }
 function lookAhead(W,pl,t,steps,fn){
   const q=cloneP(pl);W.predict=true;let tt=t-PHYS.DT;
-  try{for(let i=0;i<steps;i++){tt+=PHYS.DT;const inp=fn(q,tt,i);simStep(W,q,inp,tt);if(q.dead){q.deadAt=i;break}}}finally{W.predict=false}
+  try{for(let i=0;i<steps;i++){tt+=PHYS.DT;const inp=lean(W,q,fn(q,tt,i),tt);simStep(W,q,inp,tt);if(q.dead){q.deadAt=i;break}}}finally{W.predict=false}
   q.tEnd=tt;return q;
 }
 function firm(q){if(q.climb)return true;if(!q.gr||!q.gp)return false;return xzDist(q.gp,cur(q.gp,q.tEnd),q.x,q.z,_h)<PHYS.R*PHYS.SUPPORT-.15}
@@ -1721,9 +1496,9 @@ function hopSafe(W,pl,t,tx,tz){
   const q=cloneP(pl),n0=q.landN,y0=pl.y;W.predict=true;let tt=t-PHYS.DT;
   try{
     let i=0;
-    for(;i<150;i++){tt+=PHYS.DT;const k=steer(q,tx,tz,.45);simStep(W,q,{x:k[0],z:k[1],jp:i===0},tt);if(q.dead)return false;if(i>2&&q.landN!==n0)break}
+    for(;i<150;i++){tt+=PHYS.DT;const k=steer(q,tx,tz,.45);simStep(W,q,lean(W,q,{x:k[0],z:k[1],jp:i===0},tt),tt);if(q.dead)return false;if(i>2&&q.landN!==n0)break}
     if(i>=150||!q.gr||q.y<y0-.2)return false;
-    for(i=0;i<30;i++){tt+=PHYS.DT;simStep(W,q,{x:0,z:0,jp:false},tt);if(q.dead)return false}
+    for(i=0;i<30;i++){tt+=PHYS.DT;simStep(W,q,lean(W,q,{x:0,z:0,jp:false},tt),tt);if(q.dead)return false}
     return q.gr&&q.y>y0-.2;
   }finally{W.predict=false}
 }
@@ -1750,7 +1525,8 @@ function safeMove(W,pl,t,tx,tz,keepGround){
 }
 function makeBot(route){return{route,i:0,nt:0,fly:false,part:null,sgn:1,dec:0,fail:'',done:false,n0:0,steps:0,use:null}}
 // Returns the stick input for this step; actions (using a button, typing a code) go in bot.act for the game to do.
-function botInput(W,pl,bot,t){
+function botInput(W,pl,bot,t){return lean(W,pl,botInput0(W,pl,bot,t),t)}
+function botInput0(W,pl,bot,t){
   const idle={x:0,z:0,jp:false};
   if(bot.done||bot.fail||pl.dead)return idle;
   let n=bot.route[bot.i];
@@ -1872,9 +1648,11 @@ function runBot(W,t0,maxT){
   return{ok:false,why:'timeout at step '+bot.i,t:t-t0,i:bot.i,pl,log};
 }
 const CORE={PHYS,LEVELS,WH,rng,clamp,lerp,mkPart,poseAt,cur,phaseOn,phaseLeft,flagOn,present,solidNow,killNow,newWorld,newState,addPart,nearBox,xzDist,rotY,
-  newPlayer,resetPlayer,simStep,logicStep,usable,useBtn,tryCode,softReset,buildLevel,makeBot,botInput,runBot,steer,crateFree,beamTrace};
+  newPlayer,resetPlayer,simStep,logicStep,usable,useBtn,tryCode,softReset,buildLevel,makeBot,botInput,runBot,steer,crateFree,beamTrace,
+  WORLDS,WPL,NWORLDS,NLV,CORE_VER,registerWorld,Escapade};
 
 // ==/CORE==
+window.Escapade=Escapade; // world files (worlds/w<n>.js) register their levels through this
 
 
 // =====================================================================
@@ -1899,7 +1677,6 @@ const AD_SLOT='';
 
 const PREFIX='er';
 const MAX_ROOM=12;
-const NLV=LEVELS.length;
 const V3=THREE.Vector3;
 const $=id=>document.getElementById(id);
 const rand=(a,b)=>a+Math.random()*(b-a);
@@ -1928,14 +1705,50 @@ prof.esc=Math.max(0,+prof.esc|0);prof.deaths=Math.max(0,+prof.deaths|0);
 function saveProf(){store.set('prof',prof)}
 const starsOf=id=>prof.st[id]|0;
 const nStars=m=>(m&1)+(m>>1&1)+(m>>2&1);
-const totalStars=()=>LEVELS.reduce((n,d)=>n+nStars(starsOf(d.id)),0);
-const clearedCount=()=>LEVELS.filter(d=>starsOf(d.id)&1).length;
-const unlocked=i=>i===0||!!(starsOf(LEVELS[i-1].id)&1)||!!(starsOf(LEVELS[i].id)&1);
-const firstOpen=()=>{for(let i=0;i<NLV;i++)if(!(starsOf(LEVELS[i].id)&1))return i;return 0};
-// The best total (and the leaderboard's 'total') is the first eight levels, as before levels 9-13 came, so totals
-// already on the leaderboard stay comparable.
-const TOTAL_LV=LEVELS.slice(0,8);
-const bestTotal=()=>TOTAL_LV.every(d=>prof.best[d.id]>0)?TOTAL_LV.reduce((s,d)=>s+prof.best[d.id],0):0;
+const escaped=id=>!!id&&!!(starsOf(id)&1);
+// Progress goes by level id (as saved since the first version), counted over the WORLDS manifest, so a save from
+// before worlds came (8 or 13 levels) shows World 1 done and World 2 as far as it got.
+const ALL_IDS=()=>WORLDS.reduce((a,w)=>a.concat(w.ids),[]);
+const lvId=i=>{const w=WORLDS[Math.floor(i/WPL)];return w?w.ids[i%WPL]:undefined};
+const worldOf=i=>Math.floor(i/WPL)+1;
+const lvTag=i=>worldOf(i)+'-'+(i%WPL+1);              // "2-3": world 2, level 3
+const totalStars=()=>ALL_IDS().reduce((n,id)=>n+nStars(starsOf(id)),0);
+const clearedCount=()=>ALL_IDS().filter(escaped).length;
+const worldStars=n=>WORLDS[n-1].ids.reduce((s,id)=>s+nStars(starsOf(id)),0);
+const worldCleared=n=>WORLDS[n-1].ids.filter(escaped).length;
+const worldSoon=n=>WORLDS[n-1].ids.length<WPL;      // not all eight levels exist yet
+// A world opens once you've escaped the last level of the one before it (or any of its own levels, say online).
+const worldOpen=n=>n===1||(WORLDS[n-1].ids.length>0&&(escaped(WORLDS[n-2].ids[WPL-1])||WORLDS[n-1].ids.some(escaped)));
+// A level opens once you've escaped the one before it in its world (or itself).
+const exists=i=>!!lvId(i);
+const unlocked=i=>exists(i)&&worldOpen(worldOf(i))&&(i%WPL===0||escaped(lvId(i-1))||escaped(lvId(i)));
+const firstOpen=()=>{for(let i=0;i<NLV;i++)if(unlocked(i)&&!escaped(lvId(i)))return i;let last=0;for(let i=0;i<NLV;i++)if(unlocked(i))last=i;return last};
+// The best total of a world: the sum of its eight best times once they all have one. World 1's is the leaderboard's
+// 'total' (as before worlds came, so totals already there stay comparable); World n's is 'total-w<n>'.
+const worldTotal=n=>{const ids=WORLDS[n-1].ids;return ids.length===WPL&&ids.every(id=>prof.best[id]>0)?r2(ids.reduce((s,id)=>s+prof.best[id],0)):0};
+const bestTotal=()=>worldTotal(1);
+// Loading worlds: World 1 is built in; world n's levels come from worlds/w<n>.js the first time they're needed (the
+// world picked in the menus, the level an online room is playing, the next world when you finish a world). A file
+// written for a newer page (needs > CORE_VER) or one that won't load gives a rejected promise: 'soon' (no levels
+// yet), 'update' (this page is too old for it) or 'net' (it didn't load; trying again may work).
+const worldLoads={};
+const levelReady=i=>!!LEVELS[i];
+function ensureWorld(n){
+  const w=WORLDS[n-1];
+  if(!w||!w.ids.length)return Promise.reject(new Error('soon'));
+  if(w.loaded)return Promise.resolve(w);
+  if(w.err==='update')return Promise.reject(new Error('update'));
+  if(!worldLoads[n])worldLoads[n]=loadScript('worlds/w'+n+'.js?v='+CORE_VER).then(()=>{if(w.loaded)return w;throw new Error(w.err==='update'?'update':'net')},()=>{throw new Error('net')})
+    .catch(e=>{if(e.message!=='update')delete worldLoads[n];throw e});
+  return worldLoads[n];
+}
+const ensureLevel=i=>exists(i)?ensureWorld(worldOf(i)).then(()=>{if(!levelReady(i))throw new Error('soon')}):Promise.reject(new Error('soon'));
+// A level or world this page can't play: say so, and offer a reload (a newer copy of the page has it).
+function needUpdate(why){
+  $('updMsg').textContent=why==='room'?'This room is playing a level your copy of Escapade doesn\'t have yet. Reload the page to get it, then join again.':
+    why==='net'?'Couldn\'t load that world. Check your connection and try again, or reload the page.':'That world was made for a newer version of Escapade. Reload the page to play it.';
+  $('upd').hidden=false;
+}
 const ITEM_NAME={key:'the gold key',card:'the blue keycard',fuse:'the fuse',gem:'the gem'};
 
 // =====================================================================
@@ -2278,6 +2091,15 @@ const spaceSet=new THREE.Group();spaceSet.visible=false;scene.add(spaceSet);
   const r=rng(9),items=[];for(let i=0;i<70;i++){const a=r()*TAU,d=70+r()*220,s=2+r()*7;items.push({geo:boxGeo(s,s*.7,s*.9),x:Math.cos(a)*d,y:-40+r()*60,z:Math.sin(a)*d-30,yaw:r()*TAU,colFn:t=>mix3('#4b4f6b','#8b90b0',t)})}
   spaceSet.add(new THREE.Mesh(mergeInto(items),new THREE.MeshLambertMaterial({vertexColors:true})));
 })();
+// a molten sea to the horizon with dark sea stacks (level def sea: true; the level's own lava is what hurts)
+const seaSet=new THREE.Group();seaSet.visible=false;scene.add(seaSet);
+(function(){
+  const t=TEX.lava.clone();t.needsUpdate=true;t.repeat.set(160,160);
+  const g=new THREE.Mesh(new THREE.CircleGeometry(1300,64),new THREE.MeshBasicMaterial({map:t,color:'#d9d0c8'}));g.rotation.x=-Math.PI/2;g.position.y=-.2;seaSet.add(g);
+  const r=rng(7),items=[];for(let i=0;i<34;i++){const a=r()*TAU,d=90+r()*420,w=8+r()*26,h=6+r()*40;items.push({geo:boxGeo(w,h,w*(.6+r()*.6)),x:Math.cos(a)*d,y:h/2-1,z:Math.sin(a)*d,yaw:r()*TAU,colFn:k=>mix3('#3b3530','#6f6a5e',k)})}
+  for(let i=0;i<24;i++){const a=i/24*TAU+r()*.1,d=620+r()*260,h=50+r()*110,rad=50+r()*70;items.push({geo:new THREE.ConeGeometry(1,1,7,1),x:Math.cos(a)*d,y:h/2-6,z:Math.sin(a)*d,yaw:r()*TAU,sx:rad,sy:h,sz:rad,colFn:k=>k>.82?'#ff7a3d':mix3('#2f2a27','#5a524a',k)})}
+  seaSet.add(new THREE.Mesh(mergeInto(items),new THREE.MeshLambertMaterial({vertexColors:true})));
+})();
 
 // =====================================================================
 //  Signs, icons and pickups (drawn on canvases)
@@ -2311,6 +2133,8 @@ function drawIcon(g,kind,x,y,s){
   else if(kind==='star'){P(()=>{g.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,r=i%2?17:40;g.lineTo(Math.cos(a)*r,Math.sin(a)*r)}g.closePath()},'#facc15')}
   else if(kind==='hour'||kind==='minute'){P(()=>{g.beginPath();g.arc(0,0,38,0,TAU)},'#fff7e0');g.lineWidth=kind==='hour'?11:6;g.beginPath();g.moveTo(0,0);g.lineTo(0,kind==='hour'?-20:-32);g.stroke();
     g.fillStyle='#1b1840';g.beginPath();g.arc(0,0,6,0,TAU);g.fill();g.font='900 22px Nunito, sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(kind==='hour'?'H':'M',0,20)}
+  else if(kind==='lever'){P(()=>{rr(g,-34,18,68,20,6)},'#64748b');g.lineWidth=12;g.beginPath();g.moveTo(0,26);g.lineTo(22,-26);g.stroke();g.strokeStyle='#ffd23f';g.lineWidth=5;g.beginPath();g.moveTo(0,26);g.lineTo(22,-26);g.stroke();g.strokeStyle='#1b1840';g.lineWidth=7;P(()=>{g.beginPath();g.arc(24,-30,12,0,TAU)},'#ef4444')}
+  else if(kind==='compass'){P(()=>{g.beginPath();g.arc(0,0,38,0,TAU)},'#fff7e0');P(()=>{g.beginPath();g.moveTo(0,-30);g.lineTo(10,0);g.lineTo(-10,0);g.closePath()},'#ef4444');P(()=>{g.beginPath();g.moveTo(0,30);g.lineTo(10,0);g.lineTo(-10,0);g.closePath()},'#e2e8f0')}
   else if(kind==='mirror'){P(()=>{g.beginPath();g.ellipse(0,0,28,38,0,0,TAU)},'#dbeafe');g.strokeStyle='#ffffff';g.lineWidth=6;g.beginPath();g.moveTo(-12,-14);g.lineTo(8,-26);g.stroke()}
   g.restore();
 }
@@ -2347,7 +2171,7 @@ function signTex(sg,W,wpx,hpx){
     if(sg.code){const code=W.codes[sg.code]||'????';const half=sg.half;let shown=code.split('');
       if(half===0)shown=[shown[0],shown[1],'_','_'];if(half===1)shown=['_','_',shown[2],shown[3]];
       g.fillStyle=sg.flat?'#fff7b0':'#f8fafc';g.fillRect(0,0,w,h);g.strokeStyle=sg.flat?'#e2c44c':'#94a3b8';g.lineWidth=12;g.strokeRect(6,6,w-12,h-12);
-      g.fillStyle='#475569';g.font=font(h*.13);g.fillText(half===0?'Vault code, first half':half===1?'Vault code, second half':'Door code',w/2,h*.2);
+      g.fillStyle='#475569';g.font=font(h*.13);g.fillText(sg.label||(half===0?'Vault code, first half':half===1?'Vault code, second half':'Door code'),w/2,h*.2);
       g.fillStyle='#1d4ed8';g.font=font(h*.42);g.fillText(shown.join(' '),w/2,h*.6);return}
     // levels 9-13: a book's spine with its digit, the library card, the pocket watch, the big clock face, the clock's
     // hands, the portrait, the temple mural
@@ -2362,6 +2186,8 @@ function signTex(sg,W,wpx,hpx){
       g.fillStyle='#c9a24a';g.beginPath();g.arc(0,-R*1.08,R*.16,0,TAU);g.fill();g.beginPath();g.arc(0,0,R*1.06,0,TAU);g.fill();drawClock(g,R,d.target.h||12,d.target.m*15,true,true);g.restore();
       g.fillStyle='#ffe9a8';g.font=font(h*.07);g.fillText('The tower stopped at…',w/2,h*.07);return}
     if(sg.clockface){const R=Math.min(w,h)*.48;g.clearRect(0,0,w,h);g.save();g.translate(w/2,h/2);drawClock(g,R,0,0,false);g.restore();return}
+    if(sg.hand&&sg.n){g.clearRect(0,0,w,h);g.fillStyle='#ef4444';g.strokeStyle=ink;g.lineWidth=w*.012;g.beginPath();g.moveTo(w/2,h*.14);g.lineTo(w*.56,h*.5);g.lineTo(w*.44,h*.5);g.closePath();g.fill();g.stroke();
+      g.fillStyle=ink;g.beginPath();g.arc(w/2,h/2,w*.04,0,TAU);g.fill();return}
     if(sg.hand){g.clearRect(0,0,w,h);g.fillStyle=ink;g.lineCap='round';const L=sg.hand==='h'?.24:.38,th=sg.hand==='h'?.05:.028;rr(g,w*(.5-th/2),h*(.5-L),w*th,h*(L+.04),w*th/2);g.fill();return}
     if(sg.portrait){const c=ROSES[W.rose];g.fillStyle='#c9a24a';g.fillRect(0,0,w,h);g.fillStyle='#2b1f3a';g.fillRect(w*.08,h*.08,w*.84,h*.84);
       g.fillStyle='#5b4f8a';g.beginPath();g.ellipse(w/2,h*.98,w*.32,h*.36,0,0,TAU);g.fill();g.fillStyle='#f1d3b3';g.beginPath();g.ellipse(w/2,h*.4,w*.15,h*.18,0,0,TAU);g.fill();
@@ -2375,6 +2201,17 @@ function signTex(sg,W,wpx,hpx){
 
       g.fillStyle=ink;g.font=font(h*.11);g.fillText('Today\'s recipe',w/2,h*.12);
       order.forEach((f,i)=>{const y=h*(.32+i*.24);g.fillStyle=ink;g.font=font(h*.12);g.fillText(String(i+1),w*.22,y);drawIcon(g,f,w*.6,y,h*.2)});return}
+    // World 2's last three: the ship's log (the bearing the lens must point), a compass rose with N E S W (a hand sign
+    // turns over it, like the clock's)
+    if(sg.log){const d=W.dials[sg.log],k=d.target[d.keys[0]],R=Math.min(w,h)*.3;g.fillStyle='#f4e8c8';g.fillRect(0,0,w,h);g.strokeStyle='#6b4f2a';g.lineWidth=12;g.strokeRect(6,6,w-12,h-12);
+      g.fillStyle=ink;g.font=font(h*.1);g.fillText('Keeper\'s log',w/2,h*.12);g.fillStyle='#575377';g.font=font(h*.065);g.fillText('Ship sighted! Point the lamp\'s lens to the '+COMPASS[k],w/2,h*.23);
+      g.save();g.translate(w/2,h*.6);g.fillStyle='#fffaf0';g.beginPath();g.arc(0,0,R,0,TAU);g.fill();g.lineWidth=5;g.strokeStyle=ink;g.stroke();g.fillStyle=ink;g.font=font(R*.3);
+      ['N','E','S','W'].forEach((c,i)=>{const a=i*Math.PI/2;g.fillText(c,Math.sin(a)*R*.75,-Math.cos(a)*R*.75)});
+      g.rotate(k/8*TAU);g.fillStyle='#ef4444';g.beginPath();g.moveTo(0,-R*.55);g.lineTo(R*.13,0);g.lineTo(-R*.13,0);g.closePath();g.fill();g.restore();
+      g.save();g.translate(w*.86,h*.86);g.font=font(h*.07);g.fillStyle='#6b4f2a';g.fillText('⚓',0,0);g.restore();return}
+    if(sg.rose){const R=Math.min(w,h)*.47;g.clearRect(0,0,w,h);g.save();g.translate(w/2,h/2);g.fillStyle='#fff7e0';g.beginPath();g.arc(0,0,R,0,TAU);g.fill();g.lineWidth=R*.06;g.strokeStyle=ink;g.stroke();
+      g.fillStyle=ink;g.font=font(R*.26);['N','E','S','W'].forEach((c,i)=>{const a=i*Math.PI/2;g.fillText(c,Math.sin(a)*R*.74,-Math.cos(a)*R*.74)});
+      for(let i=0;i<8;i++){if(i%2===0)continue;const a=i*TAU/8;g.beginPath();g.arc(Math.sin(a)*R*.78,-Math.cos(a)*R*.78,R*.05,0,TAU);g.fill()}g.restore();return}
     // a title sign
     g.fillStyle=ink;rr(g,4,4,w-8,h-8,22);g.fill();g.fillStyle='#ffcf3d';g.font=font(h*(sg.sub?.36:.5));g.fillText(sg.title,w/2,h*(sg.sub?.36:.52));
     if(sg.sub){g.fillStyle='#fff';g.font=font(h*.22);g.fillText(sg.sub,w/2,h*.73)}
@@ -2410,7 +2247,7 @@ function itemMesh(p){
 }
 function partMesh(W,p){
   if(p.zone==='lowg')return new THREE.Mesh(boxGeo(p.hx*2,p.hy*2,p.hz*2),sharedMat('zone','#a78bfa'));
-  if(p.zone==='cold'||p.zone==='warm')return null;
+  if(p.zone==='cold'||p.zone==='warm'||p.zone==='wind')return null;
   // levels 9-13: a boulder, a ghost, a portal, a turning mirror, the moon crystal
   if(p.mat==='boulder'){const m=new THREE.Mesh(new THREE.SphereGeometry(p.r,28,18),new THREE.MeshLambertMaterial({color:p.col,map:TEX.stone}));m.castShadow=true;m.userData.roll=true;return m}
   if(p.mat==='ghost'){const g=new THREE.Group(),mt=new THREE.MeshBasicMaterial({color:'#ff2a4a'});
@@ -2480,7 +2317,7 @@ function buildWorldMeshes(W){
   for(const p of W.parts){
     if(p.sign){
       const pw=p.hx*2,ph=p.hy*2,res=Math.min(1024,Math.round(256*pw/ph)*2),tex=signTex(p.sign,W,Math.max(128,res),Math.max(96,Math.round(res*ph/pw)));tex.anisotropy=4;
-      const sg=p.sign,see=!!(sg.exit||sg.clockface||sg.hand);
+      const sg=p.sign,see=!!(sg.exit||sg.clockface||sg.hand||sg.rose);
       const pl=new THREE.Mesh(new THREE.PlaneGeometry(pw,ph),new THREE.MeshBasicMaterial({map:tex,transparent:see,depthWrite:!sg.hand}));
       pl.position.set(p.x,p.y,p.z);pl.rotation.y=p.yaw;
       if(sg.flat){pl.rotation.set(-Math.PI/2,0,0);pl.position.y=p.y+.02}
@@ -2511,9 +2348,9 @@ function buildWorldMeshes(W){
   }
   for(const b of buckets.values()){const m=new THREE.Mesh(mergeInto(b.items),sharedMat(b.kind,'#ffffff',true));m.castShadow=b.kind!=='truss'&&b.kind!=='lava'&&b.kind!=='floor';m.receiveShadow=true;worldGroup.add(m)}
   if(glows.length)worldGroup.add(new THREE.Mesh(mergeInto(glows),glowStatic));
-  const sp=!!W.def.space,sn=!!W.def.snow;land.visible=!sp&&!sn;spaceSet.visible=sp;snowSet.visible=sn;
+  const sp=!!W.def.space,sn=!!W.def.snow,se=!!W.def.sea;land.visible=!sp&&!sn&&!se;spaceSet.visible=sp;snowSet.visible=sn;seaSet.visible=se;
   if(sp){land.position.set(0,0,0)}else land.position.set(0,0,(W.box[1]+W.box[3])/2);
-  snowSet.position.copy(land.position);
+  snowSet.position.copy(land.position);seaSet.position.copy(land.position);
   setSky(W.def.sky[0],W.def.sky[1],sp);
   // the haunted manor is at night: dimmer light
   hemi.intensity=W.def.night?.62:sp?.95:.86;sun.intensity=W.def.night?.32:.56;
@@ -2573,7 +2410,7 @@ function updateParts(rt,dt){
         _rd.subVectors(_rb,_ra);const L=_rd.length();rod.position.addVectors(_ra,_rb).multiplyScalar(.5);rod.scale.set(.12,L,.12);rod.quaternion.setFromUnitVectors(_up,_rd.normalize())})}
   }
   TEX.swirl.rotation=-rt*1.4;
-  for(const h of hands){const s=st.dial,hh=s.h|0,mm=(s.m|0)*15,a=h.p.sign.hand==='h'?((hh%12)+mm/60)/12*TAU:mm/60*TAU;
+  for(const h of hands){const s=st.dial,sg=h.p.sign,hh=s.h|0,mm=(s.m|0)*15,a=sg.n?(s[sg.hand]|0)/sg.n*TAU:sg.hand==='h'?((hh%12)+mm/60)/12*TAU:mm/60*TAU;
     const u=h.mesh.userData;u.a=u.a==null?a:u.a+angDiff(a,u.a)*Math.min(1,dt*8);h.mesh.rotation.set(0,h.p.yaw,-u.a)}
   // the moonbeam: rebuilt whenever a mirror turns
   for(const g in W.beams){const B=W.beams[g],key=B.mirrors.map(n=>st.mir[n]|0).join('')+(flagOn(W,B.set,rt)?'!':'');
@@ -2694,7 +2531,9 @@ function respawnMe(full){
 }
 // Builds a level and shows it. seed decides the codes and recipe (online: the same for the whole room).
 function loadLevel(i,seed){
-  const W=buildLevel(i,seed);loadWorld(W);G.lv=i;
+  let W;
+  try{W=buildLevel(i,seed)}catch(err){console.error(err);needUpdate('update');i=0;W=buildLevel(0,seed)} // a world file this page is too old for
+  loadWorld(W);G.lv=i;
   if(!me)makeMe();me.cp=0;respawnMe(true);
   G.finished=false;G.gemRun=false;G.deaths=0;G.useTarget=null;closeKeypad(true);
   return W;
@@ -2707,13 +2546,18 @@ let attractCamA=0;
 // Behind the menu the demo runner escapes a level on its own (computers only: phones save the battery).
 function setupAttract(lv){
   G.mode='menu';G.paused=false;G.finished=false;G.room=null;
-  const i=lv!=null?lv:Math.floor(Math.random()*NLV);
+  const i=lv!=null&&levelReady(lv)?lv:0;
   loadLevel(i,(Math.random()*1e9)|0);
   G.attract=touchUI?null:Object.assign(makeBot(G.W.route),{every:5});
   G.tBase=performance.now()/1000;G.t=0;
   $('hud').hidden=true;showOverlay('menu');renderMenu();
 }
 function startLevel(i){
+  if(!levelReady(i)){ // its world file first
+    const n=worldOf(i);if(G.loadingW)return;G.loadingW=n;busyMsg('Loading World '+n+'…');
+    ensureLevel(i).then(()=>{G.loadingW=0;busyMsg('');if(G.mode!=='online')startLevel(i)},e=>{G.loadingW=0;busyMsg('');needUpdate(e.message)});
+    return;
+  }
   initAudio();
   if(Net.refs)Net.leave();clearRemotes();
   G.mode='solo';G.paused=false;G.attract=null;G.room=null;
@@ -2721,7 +2565,8 @@ function startLevel(i){
   G.t=0;G.tBase=performance.now()/1000;G.startT=0;
   showOverlay(null);$('hud').hidden=false;$('count').hidden=true;
   renderInv();requestLock();
-  const d=LEVELS[i];banner((i+1)+' · '+d.name,'Find the way out · target '+fmtPar(d.par),2.6);sfx('go');
+  const d=LEVELS[i];banner(lvTag(i)+' · '+d.name,'Find the way out · target '+fmtPar(d.par),2.6);sfx('go');
+  if(i%WPL===WPL-1&&worldOf(i)<NWORLDS)ensureWorld(worldOf(i)+1).catch(()=>{}); // the next world, ready for when this one's done
 }
 
 // =====================================================================
@@ -2767,12 +2612,15 @@ function tick(){
   }
   G.t=t;
 }
-function setupAttractNext(){if(G.mode!=='menu')return;const n=(G.lv+1)%NLV;loadLevel(n,(Math.random()*1e9)|0);G.attract=touchUI?null:Object.assign(makeBot(G.W.route),{every:5});G.tBase=performance.now()/1000;G.t=0}
+// the demo runner goes on through the levels that are loaded
+function setupAttractNext(){if(G.mode!=='menu')return;let n=(G.lv+1)%NLV;while(!levelReady(n))n=(n+1)%NLV;loadLevel(n,(Math.random()*1e9)|0);G.attract=touchUI?null:Object.assign(makeBot(G.W.route),{every:5});G.tBase=performance.now()/1000;G.t=0}
+// What the feed says when a flag comes on, and which flags get the big "Unlocked!" banner: World 1's here; other
+// worlds' levels bring their own (msgs: {flag: text}, with flag:on / flag:off for levers, and unlock: [flags]).
 const FLAG_MSG={d1:'The door unlocked',bell:'The bell rang. The exit is open!',labdoor:'Code accepted. The door slides open',pantry:'Recipe cooked! The pantry is open',
-  block:'The block clicked into place. The gate is open',vaultdoor:'Code accepted. The vault door swings open',power:'Power on! The bridge is up',p3:'The Warden shuts down. The exit is open!',
-  libdoor:'Code accepted. The archive door opens',clockdoor:'The clock strikes! The door swings open',iceblock:'The block slid onto the star. The door is open',
-  mural:'The stones glow. The temple door slides open',moondoor:'The crystal lights up. The door creaks open'};
-const UNLOCK_BANNER=new Set(['block','pantry','labdoor','vaultdoor','power','bell','libdoor','clockdoor','iceblock','mural','moondoor']);
+  block:'The block clicked into place. The gate is open',vaultdoor:'Code accepted. The vault door swings open',power:'Power on! The bridge is up',p3:'The Warden shuts down. The exit is open!'};
+const UNLOCK_BANNER=new Set(['block','pantry','labdoor','vaultdoor','power','bell']);
+const flagMsg=f=>{const m=G.W&&G.W.def.msgs;return m&&m[f]||FLAG_MSG[f]||''};
+const bigUnlock=f=>UNLOCK_BANNER.has(f)||!!(G.W&&G.W.def.unlock&&G.W.def.unlock.indexOf(f)>=0);
 function handleEvents(t){
   const demo=!!G.attract;
   for(const e of me.ev){
@@ -2794,13 +2642,14 @@ function handleEvents(t){
       if(p.item==='gem'){G.gemRun=true;sfx('gem');banner('Gem found!','A star for finding it, once you escape',2.4);glowBurst(b.x,b.y,b.z,'#7dd3fc',40,6,3)}
       else{sfx('pick');banner('Got '+ITEM_NAME[p.item],p.item==='fuse'?'Find the fuse box':'Find the door it opens',2.2);glowBurst(b.x,b.y,b.z,'#fde68a',30,5,2.5)}
       renderInv()}
-    else if(e.startsWith('open:')){const f=e.slice(5);sfx('open');const msg=FLAG_MSG[f];if(msg)feed('<span class="hl">'+esc(msg)+'</span>');if(UNLOCK_BANNER.has(f))banner('Unlocked!','',1.4);
+    else if(e.startsWith('open:')){const f=e.slice(5);sfx('open');const msg=flagMsg(f);if(msg)feed('<span class="hl">'+esc(msg)+'</span>');if(bigUnlock(f))banner('Unlocked!','',1.4);
       if(G.kp&&G.kp.ok==null){kpResult(true)}}
     else if(e.startsWith('timer:')){sfx('tick');const dur=Math.round(G.W.st.f[e.slice(6)]-t);banner('Go go go!','The gate is open for '+dur+' seconds',1.8)}
     else if(e==='buzz'){sfx('buzz');if(G.kp)kpResult(false);else feed('Wrong order. Start again from the first one')}
     else if(e==='click'||e==='step'){sfx('click')}
     else if(e==='dial'){sfx('tick')}
     else if(e==='turn'){sfx('turn')}
+    else if(e.startsWith('toggle:')){const f=e.slice(7),on=flagOn(G.W,f,t);sfx('turn');const msg=flagMsg(f+(on?':on':':off'));if(msg)feed(esc(msg))}
     else if(e.startsWith('need:')){sfx('buzz');banner('Something\'s missing','You need '+ITEM_NAME[e.slice(5)]+' for this',2)}
     else if(e.startsWith('pad:')){if(!G.auto)openKeypad(e.slice(4))}
     else if(e.startsWith('phase:')){const n=+e.slice(6);sfx('open');banner(n<3?'Switch '+n+' of 3':'Warden down!',n<3?'The Warden gets angrier…':'The exit is open',2.2)}
@@ -2829,7 +2678,8 @@ function onFinish(){
   const mask=old|1|(tm<=d.par?2:0)|(G.gemRun?4:0);
   const nb=!pb||tm<pb;if(nb)prof.best[d.id]=r2(tm);
   prof.st[d.id]=mask;prof.esc++;saveProf();
-  if(window.BackRoomStats){try{BackRoomStats.add('escapes',1);BackRoomStats.max('cleared',clearedCount());BackRoomStats.max('stars',totalStars());const bt=bestTotal();if(bt>0)BackRoomStats.min('total',bt)}catch(e){}}
+  if(window.BackRoomStats){try{BackRoomStats.add('escapes',1);BackRoomStats.max('cleared',clearedCount());BackRoomStats.max('stars',totalStars());const bt=bestTotal();if(bt>0)BackRoomStats.min('total',bt);
+    const wn=worldOf(G.lv),wt=wn>1?worldTotal(wn):0;if(wt>0)BackRoomStats.min('total-w'+wn,wt)}catch(e){}}
   if(G.mode==='online'&&G.room){Net.upd({f:G.room.rr+':'+Math.round(tm*1000)+':'+Math.round(Net.now())});feed('<span class="hl">You escaped</span> in '+fmtTime(tm))}
   const earn=[['Escaped',true,''],['Under '+fmtPar(d.par),tm<=d.par,fmtTime(tm)],['Found the gem',gem,G.gemRun?'this run':gem?'found before':'']];
   const newStars=nStars(mask)-nStars(old);
@@ -2984,6 +2834,11 @@ function ambientFx(dt){
     if(W.cold&&Math.random()<.5){const x=cp.x+(Math.random()-.5)*30,zz=cp.z+(Math.random()-.5)*30;_fc.set('#ffffff');emit(FXG,x,cp.y+4+Math.random()*4,zz,(Math.random()-.5)*.3,-1.1,(Math.random()-.5)*.3,4,.16,.12,_fc,.8,.05,.1,2)}
     const z=W.byName.get('lowg');if(z&&Math.random()<.6){
 const x=z.x+(Math.random()-.5)*z.hx*1.6,y=z.y+(Math.random()-.5)*z.hy*1.8,zz=z.z+(Math.random()-.5)*z.hz*1.6;if(Math.hypot(x-cp.x,zz-cp.z)<30){_fc.set('#c4b5fd');emit(FXG,x,y,zz,(Math.random()-.5)*.4,.25,(Math.random()-.5)*.4,2.5,.18,.12,_fc,.6,-.05,.2,2)}}
+    // wind: white streaks blowing along it near the camera (fainter just before a gust, so you can see it coming)
+    if(!W._winds)W._winds=W.parts.filter(p=>p.zone==='wind');
+    for(const z of W._winds){const on=!z.timed||phaseOn(z.timed,G.t),warn=!on&&phaseLeft(z.timed,G.t)<.7;if(!on&&!warn)continue;
+      const x0=Math.max(z.x-z.hx,cp.x-22),x1=Math.min(z.x+z.hx,cp.x+22),z0=Math.max(z.z-z.hz,cp.z-22),z1=Math.min(z.z+z.hz,cp.z+22);if(x0>=x1||z0>=z1)continue;
+      _fc.set('#ffffff');for(let j=0;j<(on?3:1);j++)emit(FXG,x0+Math.random()*(x1-x0),z.y-z.hy+Math.random()*z.hy*2,z0+Math.random()*(z1-z0),z.wind[0]*2.2,(Math.random()-.5)*.3,z.wind[1]*2.2,.8,.3,.22,_fc,on?.45:.2,0,0,1)}
   }
 }
 
@@ -3017,7 +2872,7 @@ const Net={
     this.db.ref('.info/serverTimeOffset').on('value',s=>{this.offset=s.val()||0});
     this.ready=true;
   },
-  base(){return{n:myName||'Escaper',c:myColor,x:r2(me.x),z:r2(me.z),h:r3(me.yaw),ts:Math.round(this.now()),y:r2(me.y),a:animCode(me),j:this.j,rr:G.room?G.room.rr:0,f:'',lr:0,ll:0,lt:0}},
+  base(){return{n:myName||'Escaper',c:myColor,x:r2(me.x),z:r2(me.z),h:r3(me.yaw),ts:Math.round(this.now()),y:r2(me.y),a:animCode(me),j:this.j,rr:G.room?G.room.rr:0,f:'',lr:0,ll:0,lt:0,v:CORE_VER}},
   async count(room){
     const s=await this.db.ref('rooms/'+room+'/players').once('value');let n=0;
     s.forEach(c=>{const v=c.val();if(c.key!==this.uid&&v&&this.now()-(+v.ts||0)<LIVE_MS)n++});
@@ -3060,7 +2915,7 @@ function onNode(uid,v){
   if(!v||typeof v!=='object')return;
   const now=Net.now();
   const o={n:cleanName(v.n)||'Escaper',c:/^#[0-9a-f]{6}$/i.test(v.c)?v.c:'#ff6b6b',j:num(+v.j)?+v.j:+v.ts||0,ts:Math.min(+v.ts||0,now+5000),
-    rr:Number.isInteger(v.rr)&&v.rr>=0&&v.rr<1e9?v.rr:0,f:'',lr:0,ll:0,lt:0};
+    rr:Number.isInteger(v.rr)&&v.rr>=0&&v.rr<1e9?v.rr:0,f:'',lr:0,ll:0,lt:0,v:Number.isInteger(v.v)&&v.v>0&&v.v<1e4?v.v:0}; // v: their page's CORE_VER (0: a page from before worlds)
   if(typeof v.f==='string'&&/^\d{1,9}:\d{1,8}:\d{1,15}$/.test(v.f)){const q=v.f.split(':').map(Number);if(q[1]>=3000&&q[1]<=36e5)o.f={rr:q[0],ms:q[1],at:q[2]}}
   if(Number.isInteger(v.lr)&&v.lr>0&&v.lr<1e9&&Number.isInteger(v.ll)&&v.ll>=0&&v.ll<NLV&&num(v.lt)&&Math.abs(v.lt-now)<DAY_MS){o.lr=v.lr;o.ll=v.ll;o.lt=v.lt}
   const was=Net.others.get(uid);Net.others.set(uid,o);
@@ -3117,17 +2972,36 @@ function applyRoom(rs){
   Net.upd({rr:rs.rr,f:''});
   if(G.overlay==='results'||G.overlay==='levels')showOverlay(G.pauseOpen?'pause':null);
   renderInv();
-  const d=LEVELS[rs.rl];banner((rs.rl+1)+' · '+d.name,now<rs.rt?'Get ready…':'Joined late: your clock starts now',3);
+  const d=LEVELS[rs.rl];banner(lvTag(rs.rl)+' · '+d.name,now<rs.rt?'Get ready…':'Joined late: your clock starts now',3);
+  $('upd').hidden=true;
 }
 function startRoomRound(lv){
   const prev=G.room,rs={rr:(prev?prev.rr:Math.floor(Net.now()/1000)%1e6)+1,rl:clamp(lv|0,0,NLV-1),rt:Math.round(Net.now()+4500)};
   Net.upd({lr:rs.rr,ll:rs.rl,lt:rs.rt});applyRoom(rs);
+  // a page from before worlds came only knows levels 1-8: say who needs to reload
+  if(rs.rl>=WPL){const old=liveIds().filter(u=>u!==Net.uid&&!(Net.others.get(u)||{}).v).map(u=>Net.others.get(u).n);if(old.length)feed(esc(old.join(', '))+(old.length>1?' have':' has')+' an older copy of Escapade and need'+(old.length>1?'':'s')+' to reload to play this level')}
+}
+// The leader starts a round once the level's world has loaded; everyone else loads it when they see the round.
+function leaderStart(lv){
+  if(!exists(lv))lv=0;
+  if(levelReady(lv)){startRoomRound(lv);return}
+  if(G.loadingRoom===lv)return;G.loadingRoom=lv;
+  ensureLevel(lv).then(()=>{G.loadingRoom=-1;if(G.mode==='online'&&G.isLead)startRoomRound(lv)},
+    ()=>{G.loadingRoom=-1;if(G.mode==='online'&&G.isLead){feed('Couldn\'t load World '+worldOf(lv)+': playing World 1');startRoomRound(0)}});
+}
+// the room's next level: the next one that exists (back to World 1 after the last)
+function nextRoomLevel(i){for(let k=1;k<=NLV;k++){const j=(i+k)%NLV;if(exists(j)&&(!WORLDS[worldOf(j)-1].loaded||levelReady(j)))return j}return 0}
+function followRound(rs){
+  if(levelReady(rs.rl)){applyRoom(rs);return}
+  const key=rs.rr+':'+rs.rt;if(G.follow===key)return;G.follow=key;
+  ensureLevel(rs.rl).then(()=>{const o=Net.others.get(Net.leader());if(G.mode==='online'&&o&&o.lr===rs.rr&&o.lt===rs.rt)applyRoom(rs)},
+    e=>{if(G.mode==='online'&&G.follow===key)needUpdate(e.message==='net'?'net':'room')});
 }
 function onlineTick(){
   if(!Net.refs||!Net.loaded||performance.now()-G.joinedAt<1500)return;
   const lead=Net.leader(),wasLead=G.isLead;G.isLead=lead===Net.uid;
   if(G.isLead){
-    if(!G.room){startRoomRound(G.pickLv);return}
+    if(!G.room){leaderStart(G.pickLv);return}
     if(!wasLead)Net.upd({lr:G.room.rr,ll:G.room.rl,lt:G.room.rt}); // taking over: carry on with the same round
     // next level once everyone here is out (6 s to cheer), or two minutes after the first one escaped
     const now=Net.now(),live=liveIds(),done=live.filter(u=>finOf(u));
@@ -3135,16 +3009,16 @@ function onlineTick(){
     const allOut=done.length>0&&done.length===live.length,late=done.length>0&&now-first>120000;
     if(!G.adv&&(allOut||late))G.adv=now+(allOut?6000:3000);
     if(G.adv&&!allOut&&!late)G.adv=0; // someone new arrived: wait for them too
-    if(G.adv&&now>=G.adv){G.adv=0;startRoomRound((G.room.rl+1)%NLV)}
+    if(G.adv&&now>=G.adv){G.adv=0;leaderStart(nextRoomLevel(G.room.rl))}
   }else{
     const o=Net.others.get(lead);
-    if(o&&o.lr>0&&(!G.room||o.lr!==G.room.rr||o.lt!==G.room.rt))applyRoom({rr:o.lr,rl:o.ll,rt:o.lt});
+    if(o&&o.lr>0&&(!G.room||o.lr!==G.room.rr||o.lt!==G.room.rt))followRound({rr:o.lr,rl:o.ll,rt:o.lt});
   }
 }
 function renderRoomList(ol){
-  ol.innerHTML='';const rows=liveIds().map(u=>{const f=finOf(u),e=ents.get(u),mine=u===Net.uid;return{n:mine?(myName||'You')+' (you)':e?e.name:(Net.others.get(u)||{}).n||'Escaper',c:mine?myColor:e?e.color:'#ccc',f,mine}});
+  ol.innerHTML='';const rows=liveIds().map(u=>{const f=finOf(u),e=ents.get(u),mine=u===Net.uid,o=Net.others.get(u)||{};return{n:mine?(myName||'You')+' (you)':e?e.name:o.n||'Escaper',c:mine?myColor:e?e.color:'#ccc',f,mine,old:!mine&&!o.v}});
   rows.sort((a,b)=>(a.f?a.f.ms:1e12)-(b.f?b.f.ms:1e12));
-  rows.forEach((r,i)=>{const li=document.createElement('li');if(r.mine)li.className='me';li.innerHTML='<span class="pl">'+(r.f?i+1:'·')+'</span><i style="background:'+r.c+'"></i><span class="nm"></span><span class="tm">'+(r.f?fmtTime(r.f.ms/1000):'still escaping')+'</span>';li.querySelector('.nm').textContent=r.n;ol.appendChild(li)});
+  rows.forEach((r,i)=>{const li=document.createElement('li');if(r.mine)li.className='me';li.innerHTML='<span class="pl">'+(r.f?i+1:'·')+'</span><i style="background:'+r.c+'"></i><span class="nm"></span><span class="tm">'+(r.f?fmtTime(r.f.ms/1000):r.old&&G.room&&G.room.rl>=WPL?'needs to reload':'still escaping')+'</span>';li.querySelector('.nm').textContent=r.n;ol.appendChild(li)});
   ol.hidden=!rows.length;
 }
 
@@ -3163,7 +3037,7 @@ function renderInv(){
   if(box._h!==html){box._h=html;box.innerHTML=html}
 }
 const USE_TXT={pad:'Use the keypad',valve:'Turn the valve',clock:'Press: opens the gate for a few seconds',fuse:'Put the fuse in',bolt:'Flip the switch',bell:'Ring the bell',
-  hour:'Turn the hour hand',minute:'Turn the minute hand',mirror:'Turn the mirror'};
+  hour:'Turn the hour hand',minute:'Turn the minute hand',mirror:'Turn the mirror',lever:'Pull the lever',compass:'Turn the lens'};
 function updateHud(){
   const pl=playing()&&!G.pauseOpen&&!G.overlay&&!G.kp;if(hudCache.playing!==pl){hudCache.playing=pl;document.body.classList.toggle('playing',pl)}
   if($('hud').hidden)return;
@@ -3171,7 +3045,7 @@ function updateHud(){
   const d=LEVELS[G.lv];
   if(G.mode==='online'&&G.room&&G.t<0){setText('timerLbl','Starts in');setText('timer',String(Math.ceil(-G.t)))}
   else{const tm=G.finished?G.finT:Math.max(0,myTime());setText('timerLbl',G.finished?'Escaped':'Target '+fmtPar(d.par));setText('timer',fmtTime(tm));$('timerBox').classList.toggle('over',!G.finished&&tm>d.par)}
-  setText('lvLbl','Level '+(G.lv+1)+' of '+NLV+(G.mode==='online'?' · online':''));setText('lvName',d.name);
+  setText('lvLbl','Level '+lvTag(G.lv)+(G.mode==='online'?' · online':''));setText('lvName',d.name);
   // the prompt for whatever you can use from here
   const p=G.finished||me.dead||G.kp?null:usable(W,me,G.t);G.useTarget=p;
   let txt='';
@@ -3239,7 +3113,7 @@ function showPause(){
   for(const k in keys)keys[k]=false;for(const k in tAct)tAct[k]=false;
   showOverlay('pause');
   const d=LEVELS[G.lv];
-  $('pauseSub').textContent=G.mode==='online'?(Net.isPublic?'Public room':'Room '+(Net.room||'').replace(/^er-/,''))+' · level '+(G.lv+1)+' · the clock keeps running':'Level '+(G.lv+1)+' · '+d.name+' · the clock is stopped';
+  $('pauseSub').textContent=G.mode==='online'?(Net.isPublic?'Public room':'Room '+(Net.room||'').replace(/^er-/,''))+' · level '+lvTag(G.lv)+' · the clock keeps running':'Level '+lvTag(G.lv)+' · '+d.name+' · the clock is stopped';
   $('inviteMsg').textContent='';
   $('restartBtn').hidden=G.mode==='online';$('pickBtn').hidden=!(G.mode==='online'&&G.isLead);$('copyInvite').hidden=!(G.mode==='online'&&!Net.isPublic);
   $('leave').textContent=G.mode==='online'?'Leave room':'Quit to menu';
@@ -3325,41 +3199,70 @@ function setMsg(t,err){const m=$('netMsg');m.textContent=t;m.classList.toggle('e
 const starHtml=m=>'<span class="stars">'+[1,2,4].map(b=>'<i class="star'+(m&b?' on':'')+'"></i>').join('')+'</span>';
 function renderMenu(){
   setText('pgStars',String(totalStars()));setText('pgStarsLbl','Stars of '+NLV*3);setText('pgCleared',clearedCount()+'/'+NLV);const bt=bestTotal();setText('pgTotal',bt?fmtTime(bt):'–');
-  const n=firstOpen();setText('playSub','Level '+(n+1)+' · '+LEVELS[n].name);
+  const n=firstOpen(),d=LEVELS[n];setText('playSub','World '+worldOf(n)+' · level '+(n%WPL+1)+(d?' · '+d.name:''));
+  if(!d)ensureLevel(n).then(()=>{if(G.overlay==='menu')renderMenu()},()=>{});
 }
-// The level picker; online, the room leader uses it to pick the room's level.
-let pickForRoom=false;
-function renderLevels(forRoom){
-  pickForRoom=!!forRoom;
-  $('lvTitle').textContent=forRoom?'Pick the room\'s level':'Levels';
-  $('lvInfo').textContent=forRoom?'Everyone in the room starts it together. Every level is open online.':'Escape a level to open the next. Stars: escape, beat the target time, find the gem.';
-  const box=$('lvls');box.innerHTML='';
-  LEVELS.forEach((d,i)=>{
-    const b=document.createElement('button');b.type='button';const m=starsOf(d.id),open=forRoom||unlocked(i),best=prof.best[d.id];
-    if(!open)b.className='locked';if(forRoom&&G.room&&G.room.rl===i)b.classList.add('room');
-    b.innerHTML='<span class="sw" style="background:linear-gradient(120deg,'+d.pal.trim+','+d.pal.prop+')"><span>'+(i+1)+'</span>'+starHtml(m)+'</span><b>'+esc(d.name)+'</b><small>'+esc(d.sub)+'</small><small>'+(open?(best?'Best '+fmtTime(best):'Not escaped yet')+' · target '+fmtPar(d.par):'Escape level '+i+' to open')+'</small>';
-    b.disabled=!open;b.onclick=()=>{sfx('ui');if(pickForRoom){if(G.mode==='online'&&G.isLead){startRoomRound(i);showOverlay(null);G.pauseOpen=false;G.paused=false;requestLock()}}else startLevel(i)};
+const busyMsg=t=>{setMsg(t);$('resMsg').textContent=t};
+// The world picker, then a world's levels. Online, the room leader uses them to pick the room's level (from the worlds
+// and levels they've opened themselves).
+let pickForRoom=false,pickWorld=0;
+function renderWorlds(forRoom){
+  pickForRoom=!!forRoom;pickWorld=0;
+  $('lvTitle').textContent=forRoom?'Pick the room\'s level':'Worlds';
+  $('lvInfo').textContent=(forRoom?'Everyone in the room starts it together. ':'')+clearedCount()+' of '+NLV+' levels escaped · '+totalStars()+' of '+NLV*3+' stars. Escape a world\'s last level to open the next world.';
+  const box=$('wlds');box.innerHTML='';box.hidden=false;$('lvls').hidden=true;$('lvls').innerHTML='';
+  const roomW=forRoom&&G.room?worldOf(G.room.rl):0;
+  for(const w of WORLDS){
+    const n=w.n,soon=!w.ids.length,open=!soon&&worldOpen(n),cl=worldCleared(n),st=worldStars(n),b=document.createElement('button');b.type='button';
+    b.className=soon?'soon':open?'':'locked';if(roomW===n)b.classList.add('room');
+    const status=soon?'Coming soon':!open?'Locked · escape '+lvTag((n-1)*WPL-1)+' to open':cl===WPL?'All escaped'+(worldTotal(n)?' · total '+fmtTime(worldTotal(n)):''):worldSoon(n)?cl+' of '+w.ids.length+' escaped · more coming soon':cl+' of '+WPL+' escaped';
+    b.innerHTML='<span class="band" style="background:linear-gradient(120deg,'+w.col+','+shade(w.col,-.35)+')"><span><span>World '+n+'</span><b></b></span><em><i class="star"></i> '+st+'/'+WPL*3+'</em></span><p></p><div class="bar"><i style="width:'+Math.round(cl/WPL*100)+'%"></i></div><small></small>';
+    b.querySelector('.band b').textContent=w.name;b.querySelector('p').textContent=w.blurb;b.querySelector('small').textContent=status;
+    b.disabled=soon||!open;b.setAttribute('aria-label','World '+n+': '+w.name+'. '+status+'. '+st+' of '+WPL*3+' stars');
+    b.onclick=()=>{sfx('ui');b.disabled=true;$('lvInfo').textContent='Loading World '+n+'…';ensureWorld(n).then(()=>{if(G.overlay==='levels')renderLevels(n,pickForRoom)},e=>{b.disabled=false;$('lvInfo').textContent='';needUpdate(e.message)})};
     box.appendChild(b);
-  });
+  }
   showOverlay('levels');
 }
+function renderLevels(n,forRoom){
+  pickForRoom=!!forRoom;pickWorld=n;const w=WORLDS[n-1];
+  $('lvTitle').textContent='World '+n+' · '+w.name;
+  $('lvInfo').textContent=forRoom?'Pick the room\'s level: everyone in the room starts it together.':'Escape a level to open the next. Stars: escape, beat the target time, find the gem.';
+  $('wlds').hidden=true;const box=$('lvls');box.innerHTML='';box.hidden=false;
+  for(let k=0;k<WPL;k++){
+    const i=(n-1)*WPL+k,d=LEVELS[i],b=document.createElement('button');b.type='button';
+    if(!d){b.className='soon';b.disabled=true;b.innerHTML='<span class="sw" style="background:linear-gradient(120deg,#9b97b5,#c9c5dc)"><span>'+(k+1)+'</span></span><b>Coming soon</b><small>A new level is on its way</small>';box.appendChild(b);continue}
+    const m=starsOf(d.id),open=unlocked(i),best=prof.best[d.id];
+    if(!open)b.className='locked';if(forRoom&&G.room&&G.room.rl===i)b.classList.add('room');
+    b.innerHTML='<span class="sw" style="background:linear-gradient(120deg,'+d.pal.trim+','+d.pal.prop+')"><span>'+(k+1)+'</span>'+starHtml(m)+'</span><b>'+esc(d.name)+'</b><small>'+esc(d.sub)+'</small><small>'+(open?(best?'Best '+fmtTime(best):'Not escaped yet')+' · target '+fmtPar(d.par):'Escape '+lvTag(i-1)+' to open')+'</small>';
+    b.disabled=!open;b.onclick=()=>{sfx('ui');if(pickForRoom){if(G.mode==='online'&&G.isLead){leaderStart(i);showOverlay(null);G.pauseOpen=false;G.paused=false;requestLock()}}else startLevel(i)};
+    box.appendChild(b);
+  }
+  showOverlay('levels');
+}
+// After a level: the next one in the world, or the next world's first (its file loads in the background meanwhile).
+function nextLevel(i){const j=i+1;return j<NLV&&exists(j)&&(j%WPL!==0||worldOpen(worldOf(j)))?j:-1}
 function showResults(d,tm,nb,pb,earn,newStars){
   if(G.mode==='online')releaseLock();
   $('resTitle').textContent='You escaped!';
-  $('resSub').textContent=(G.lv+1)+' · '+d.name+(G.deaths?' · '+G.deaths+(G.deaths===1?' fall':' falls'):' · no falls');
+  $('resSub').textContent=lvTag(G.lv)+' · '+d.name+(G.deaths?' · '+G.deaths+(G.deaths===1?' fall':' falls'):' · no falls');
   $('resTime').innerHTML=esc(fmtTime(tm))+'<small>'+(nb?(pb?'New best! (was '+fmtTime(pb)+')':'Your first escape'):'Best '+fmtTime(pb))+'</small>';
   $('resStars').innerHTML=earn.map(([l,on,why])=>'<div class="'+(on?'on':'')+'"><i class="star"></i><span>'+esc(l)+'</span><em>'+esc(why||'')+'</em></div>').join('');
   if(newStars>0)setTimeout(()=>sfx('star'),300);
-  const online=G.mode==='online';
-  $('resNext').hidden=online||G.lv>=NLV-1;$('resAgain').parentElement.hidden=online;
+  const online=G.mode==='online',nx=nextLevel(G.lv),newWorld=nx>=0&&nx%WPL===0;
+  $('resNext').hidden=online||nx<0;$('resNext').textContent=newWorld?'World '+worldOf(nx)+'!':'Next level';$('resAgain').parentElement.hidden=online;
   $('resStay').hidden=!online;$('resMenu').hidden=!online;
   if(online)renderRoomList($('resList'));else $('resList').hidden=true;
-  $('resMsg').textContent=online?'The next level starts when everyone\'s out (or two minutes after the first escape).':G.lv>=NLV-1?'That was the last room. Every level is open: go back for stars.':'';
+  const wn=worldOf(G.lv),last=G.lv%WPL===WPL-1;
+  $('resMsg').textContent=online?'The next level starts when everyone\'s out (or two minutes after the first escape).':
+    newWorld?'World '+wn+' done! World '+worldOf(nx)+', '+WORLDS[worldOf(nx)-1].name+', is open.':
+    nx<0&&last?(wn<NWORLDS?'World '+wn+' done! World '+(wn+1)+' is coming soon. Go back for stars meanwhile.':'That was the last room of all. Go back for stars.'):
+    nx<0?'More levels are coming soon to this world.':'';
   showOverlay('results');showAd('adEnd');
 }
-$('resNext').onclick=()=>startLevel(Math.min(NLV-1,G.lv+1));
+$('resNext').onclick=()=>{const nx=nextLevel(G.lv);if(nx>=0)startLevel(nx)};
 $('resAgain').onclick=()=>startLevel(G.lv);
-$('resLevels').onclick=()=>renderLevels(false);
+$('resLevels').onclick=()=>{if(levelReady(G.lv))renderLevels(worldOf(G.lv),false);else renderWorlds(false)};
 $('resStay').onclick=()=>{showOverlay(null);requestLock()};
 $('resMenu').onclick=()=>toMenu();
 function toMenu(){
@@ -3375,7 +3278,7 @@ async function goOnline(room,isPublic){
   initAudio();
   await Net.init();
   if(Net.refs)Net.leave();clearRemotes();
-  G.mode='online';G.paused=false;G.finished=false;G.attract=null;G.room=null;G.isLead=false;G.adv=0;G.pickLv=firstOpen();
+  G.mode='online';G.paused=false;G.finished=false;G.attract=null;G.room=null;G.isLead=false;G.adv=0;G.pickLv=firstOpen();G.follow='';G.loadingRoom=-1;
   G.joinedAt=performance.now();
   respawnMe(true);
   try{await Net.join(room,isPublic)}catch(err){G.mode='menu';throw err}
@@ -3406,12 +3309,14 @@ const copyInvite=()=>{const url=location.origin+'/#'+Net.room,m=$('inviteMsg');c
 $('copyInvite').onclick=copyInvite;
 $('quick').onclick=quickMatch;$('joinRoom').onclick=joinPrivate;$('room').addEventListener('keydown',ev=>{if(ev.key==='Enter')joinPrivate()});
 $('playBtn').onclick=()=>startLevel(firstOpen());
-$('levelsBtn').onclick=()=>renderLevels(false);
-$('levelsBack').onclick=()=>{sfx('ui');if(pickForRoom&&playing()){showPause()}else if(playing()&&G.finished&&G.mode==='solo'){showOverlay('results')}else{showOverlay('menu');renderMenu()}};
+$('levelsBtn').onclick=()=>renderWorlds(false);
+$('levelsBack').onclick=()=>{sfx('ui');if(pickWorld){renderWorlds(pickForRoom);return}
+  if(pickForRoom&&playing()){showPause()}else if(playing()&&G.finished&&G.mode==='solo'){showOverlay('results')}else{showOverlay('menu');renderMenu()}};
+$('updReload').onclick=()=>location.reload();$('updClose').onclick=()=>{$('upd').hidden=true};
 $('resume').onclick=resume;
 $('cpBtn').onclick=()=>{resume();selfReset()};
 $('restartBtn').onclick=()=>startLevel(G.lv);
-$('pickBtn').onclick=()=>{if(G.isLead)renderLevels(true)};
+$('pickBtn').onclick=()=>{if(G.isLead)renderWorlds(true)};
 $('leave').onclick=toMenu;
 $('name').value=myName;$('name').addEventListener('input',()=>{myName=cleanName($('name').value);store.set('name',myName);if(Net.refs)Net.upd({n:myName||'Escaper'})});
 $('room').value=store.get('room','');
@@ -3499,7 +3404,8 @@ if(touchUI)setTouchUI(true);
 
 // Test hook (automated browsers only): step the simulation without waiting for frames, play levels with the bot.
 if(navigator.webdriver)window.__er={G,PHYS,LEVELS,get me(){return me},ents,Net,onNode,KB,keys,tAct,tMove,buildLevel,runBot,makeBot,startLevel,toMenu,goOnline,applyRoom,startRoomRound,onlineTick,showPause,resume,setView,
-  usable,useBtn,tryCode,flagOn,softReset,renderer,scene,camera,camRay,openKeypad,kpPress,renderLevels,
+  usable,useBtn,tryCode,flagOn,softReset,renderer,scene,camera,camRay,openKeypad,kpPress,renderLevels,renderWorlds,renderMenu,
+  WORLDS,ensureWorld,ensureLevel,levelReady,unlocked,worldOpen,firstOpen,nextLevel,clearedCount,totalStars,worldTotal,prof,leaderStart,followRound,
   advance(s){G.noRender=true;try{const n=Math.round(s/PHYS.DT);for(let i=0;i<n;i++){tick();if(G.respawnAt&&performance.now()>=G.respawnAt)doRespawn()}if(G.mode!=='online')G.tBase=performance.now()/1000-G.t}finally{G.noRender=false}},
   respawnNow(){if(G.respawnAt)doRespawn()},
   autopilot(on){G.auto=on?makeBot(G.W.route):null},
