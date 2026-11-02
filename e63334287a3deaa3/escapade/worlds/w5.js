@@ -310,6 +310,151 @@ build(B,r){
   turn('outerBtn','outer',k2);turn('innerBtn','inner',k1);B.u((t,W)=>flagOn(W,'up',t));
   to(4);{const [x,z]=P(4,2.6);B.w(x,0,z)}B.drive((t,W,pl)=>{if(pl.y>13.2)return go(pl,CX-.6,CZ-3.4);const g=go(pl,CX,CZ);if(pl.gr){g.x*=.35;g.z*=.35}return g});
   W.spawn={x:0,y:0,z:-13,yaw:0};
+}},
+// 5. An airship. A cannon on the mooring mast fires you aboard through the crosswind. Along each side of the gas bag
+// runs a catwalk; the propellers blow one of them clear and the other into a gale (a lever on the stern swaps them).
+// Starboard leads to the map room (half the code), port to the engine, whose exhaust lifts you to the top of the gas
+// bag (the fuse, the other half). Down at the bow, drop to the gondola: the cockpit needs both the fuse and the code.
+{id:'zeppelin',name:'Zeppelin',sub:'The airship',par:120,clouds:true,sky:['#8ec5ff','#fff4e0'],pal:{floor:'#a0785a',wall:'#d6d9e0',prop:'#c9a24a',trim:'#2d3142'},
+msgs:{'props:on':'The propellers turn round: now the starboard side is in the gale','props:off':'The propellers turn round: now the port side is in the gale',
+  power:'The fuse is in',code:'Code accepted',cockpit:'Power and code: the cockpit door opens'},unlock:['cockpit'],
+build(B,r){
+  B.sky();const W=B.W,DECK={col:'#a0785a',mat:'wood'},STEEL={col:'#6b7280',mat:'metal'},BAG={col:'#d6d9e0',mat:'plastic'},RED={col:'#c0392b',mat:'plastic'};
+  W.killY=-10;W.codes.ship=makeCode(r);W.pads.ship={set:'code'};
+  // the mooring mast and its cannon; a crosswind blows across the gap in gusts
+  B.plat(0,0,0,8,8,Object.assign({name:'mast',t:2},STEEL));B.deco(0,-10,0,1.6,18,1.6,STEEL);
+  B.cp(0,0,2);
+  B.cannon('c1',0,1.2,-1.6,{to:[-3,9,-24],vy:30});
+  B.sign(-2.4,2.4,3.85,Math.PI,4.6,1.3,{title:'Zeppelin',sub:'All aboard!'},{deco:true});
+  B.wind(-16,-4.5,16,-21,-2,26,[5,0],{timed:{per:4.8,on:.35,ph:.1},name:'cross'});
+  // the airship: stern deck, the gas bag (solid), a catwalk down each side, the bow deck
+  B.plat(0,9,-24,16,6,Object.assign({name:'stern'},DECK));B.cp(1,-4,-24,{top:9});
+  B.box(0,13.8,-43.5,11.2,8.4,33,Object.assign({name:'bag'},BAG));
+  for(const [y,h,w,z0,z1] of [[13.8,6.4,8.4,-60,-64],[13.8,4,5,-64,-67],[14.6,6,8.4,-23,-27]])B.deco(0,y,(z0+z1)/2,w,h,Math.abs(z1-z0),BAG);
+  B.deco(0,19.2,-24.6,.4,4,3,RED);B.deco(0,14,-21.6,9,.4,2,RED);
+  B.plat(-6.75,9,-43.5,1.8,33,Object.assign({name:'port'},DECK));
+  B.plat(6.75,9,-36.5,1.8,19,Object.assign({name:'star'},DECK));B.plat(6.75,9,-56,1.8,8,Object.assign({name:'star2'},DECK));
+  B.plat(6.75,9,-47.6,1.8,2,{crumble:true,mat:'crumble',col:'#d9b98a',name:'plank1'});B.plat(6.75,9,-50.6,1.8,2,{crumble:true,mat:'crumble',col:'#d9b98a',name:'plank2'});
+  B.kill(-8,10.2,-35,1.2,1.4,1.2,{move:{type:'swing',dx:1,len:5.5,amp:.62,per:4},name:'sandbag'});B.deco(-8,15.6,-35,9,.3,.3,STEEL);
+  B.plat(0,9,-63,16,6,Object.assign({name:'bow'},DECK));B.cp(2,3.6,-63,{top:9});
+  // the propellers: a lever on the stern turns them round, so one catwalk or the other is in a gale (and gusts on both)
+  B.btn('lever',0,-22.2,{toggle:'props'},{top:10.1,icon:'lever',stand:[0,-23.4]});
+  B.wind(-10,-27,-5.7,-60,8,13,[-9,0],{offIf:'props',name:'galeP'});B.wind(5.7,-27,10,-60,8,13,[9,0],{onIf:'props',name:'galeS'});
+  B.wind(-10,-27,-5.7,-60,8,13,[-2.6,0],{timed:{per:4.2,on:.3,ph:0},name:'gustP'});B.wind(5.7,-27,10,-60,8,13,[2.6,0],{timed:{per:4.2,on:.3,ph:.5},name:'gustS'});
+  for(const s of [-1,1]){B.deco(s*4,11,-20.4,.6,.6,1.2,STEEL);B.deco(s*4,11,-19.7,4.4,.4,.2,Object.assign({move:{type:'spin',w:8*s}},STEEL))}
+  B.sign(0,11.4,-20.95,Math.PI,3.4,1,{title:'Propellers'},{deco:true});
+  // starboard: the map room with the first half of the code
+  B.plat(10.2,9,-38,4.6,4.4,Object.assign({name:'maproom'},DECK));B.blk(12,-38,.6,4.4,13,STEEL);
+  B.sign(11.65,11.2,-38,-Math.PI/2,3,1.6,{code:'ship',half:0,label:'Cockpit code, 1st half'});
+  // port: the engine (its exhaust lifts you, now and then, to the top of the gas bag), the fuse and the other half
+  B.plat(-10,9,-44,4.6,4.4,Object.assign({name:'engine'},STEEL));B.deco(-10.6,10.6,-46.8,2.6,2.6,1.4,{col:'#4b5563',mat:'metal'});
+  B.lift(-12,-42.6,-9.4,-45.6,9,22,{timed:{per:3.6,on:.7,ph:0},name:'exhaust'});
+  B.plat(-7.4,18,-44,3.4,3,Object.assign({name:'fin'},RED));
+  B.item('fuse','fuse',0,18.9,-52);B.sign(0,19.6,-59.9,0,2.8,1.5,{code:'ship',half:1,label:'Cockpit code, 2nd half'},{deco:true});B.deco(0,18.6,-60,.2,1.2,.2,STEEL);
+  B.plat(0,18.6,-31,1.8,1.8,{name:'tailfin',col:'#c0392b'});B.item('gem','gem',0,19.4,-31);
+  B.wind(-5.6,-27,5.6,-60,17,22,[0,3.2],{timed:{per:5,on:.3,ph:.3},name:'gustTop'});
+  // the gondola under the bow: a ladder back up; the cockpit needs the fuse and the code
+  B.plat(0,2,-70,8,10,Object.assign({name:'gondola'},DECK));
+  B.box(-3,5.5,-65.6,1.4,7,.8,{truss:true,mat:'truss',col:'#e2e8f0',name:'ladder'});
+  const CK={col:'#2d3142',mat:'metal'};
+  B.box(-2.6,7,-71.2,2.8,10,.6,CK);B.box(2.6,7,-71.2,2.8,10,.6,CK);B.box(0,10.8,-71.2,2.4,2.4,.6,CK);
+  B.box(-3.7,7,-73.2,.6,10,4.6,CK);B.box(3.7,7,-73.2,.6,10,4.6,CK);B.box(0,7,-75.2,8,10,.6,CK);B.box(0,12.2,-73.2,8,.6,4.6,CK);
+  B.door('x',-71.2,0,'cockpit',{w:2.4,col:'#c9a24a',part:{y:4.3}});
+  B.all(['power','code'],'cockpit');
+  B.btn('fusebox',-2.4,-70.2,{need:'fuse',then:'power'},{top:3.1,icon:'fuse',stand:[-2.4,-69]});
+  B.panel('pad',2.6,3.6,-70.85,0,{pad:'ship'},{icon:'pad',stand:[2.6,-69.6]});
+  B.finish(0,-73.2,{top:2,w:3,d:3});B.sign(0,7.2,-70.86,0,2.4,.75,{exit:true});
+  B.win(0,-75.5,Math.PI,{y:5,w:4,h:2,glass:'#bfe6ff',frame:'#2d3142'});
+  // route: starboard (the map room) to the bow and back, the lever, port: the engine, the top, the bow, the gondola
+  B.w(0,0,-.2);B.j(0,1.2,-1.6,{wait:true});B.fire('c1',['stern','cp1']);B.w(-4,9,-24);
+  const bag=W.byName.get('sandbag');
+  B.w(6.75,9,-26);B.w(6.75,9,-38);B.w(9.6,9,-38);B.w(6.75,9,-40);B.w(6.75,9,-45.6);B.j(6.75,9,-47.6,{wait:true});B.j(6.75,9,-50.6,{wait:true});B.j(6.75,9,-53,{wait:true});
+  B.w(6.75,9,-59);B.w(3.6,9,-63);
+  B.w(6.75,9,-59);B.w(6.75,9,-53.2);B.j(6.75,9,-50.6,{wait:true});B.j(6.75,9,-47.6,{wait:true});B.j(6.75,9,-45,{wait:true});B.w(6.75,9,-27);B.w(0,9,-23.4);B.use('lever',0,9,-23.4);
+  B.w(-6.75,9,-27);B.w(-6.75,9,-32.2);B.u((t)=>{const x=cur(bag,t).x;return x<-9.6&&cur(bag,t+.05).x<x});B.w(-6.75,9,-38);B.w(-6.75,9,-44);B.w(-9,9,-44);
+  B.u((t,W)=>{const e=W.byName.get('exhaust');return phaseOn(e.timed,t)&&E.phaseLeft(e.timed,t)>2});
+  B.drive((t,W,pl)=>on(pl,'fin')||on(pl,'bag')?'done':pl.y>19.6?go(pl,-7.4,-44):go(pl,-10.7,-44.1));
+  B.w(0,18,-44);B.w(0,18,-52);B.w(0,18,-59);B.j(0,9,-62,{wait:true});B.w(0,9,-65.4);B.j(0,2,-68.4,{wait:true});
+  B.w(-2.4,2,-69);B.use('fusebox',-2.4,2,-69);B.w(2.6,2,-69.6);B.use('pad',2.6,2,-69.6);B.code('ship');B.w(0,2,-70);B.w(0,2,-73.2);
+  W.spawn={x:0,y:0,z:2,yaw:0};
+}},
+// 6. A castle on the clouds. Ride the fountain's updraft to the bell tower and ring the bell to open the gate. In the
+// courtyard a lever turns day into night: by day golden clouds lead west, by night blue ones lead east. The west
+// tower's door turns round (press its button, outside or in) to reach the crest on its far side; the east tower's
+// chimney only blows by night, up past the lightning to its crest. With both crests lit the drawbridge comes down,
+// and the keep's fountain lifts you to the throne.
+{id:'cloudkeep',name:'Cloud Keep',sub:'The castle in the clouds',par:160,clouds:true,sky:['#a5c8ff','#ffe9f3'],pal:{floor:'#f3efe6',wall:'#e7e1f0',prop:'#d4af37',trim:'#5b4b8a'},
+msgs:{gate:'The bell rings out. The gate rises','day:on':'The sun comes out: golden clouds to the west','day:off':'Night falls: blue clouds to the east',
+  wcrest:'The west crest shines. One of two',ecrest:'The east crest shines. One of two',drawbridge:'Both crests shine! The drawbridge comes down'},unlock:['gate','drawbridge'],
+build(B,r){
+  B.sky();const W=B.W,ST={col:'#f3efe6',mat:'stone'},GOLD={col:'#ffd166',mat:'plastic'},BLUE={col:'#8fb8ff',mat:'plastic'},WALLC={col:'#e7e1f0',mat:'wall'},TRIM={col:'#5b4b8a',mat:'stone'};
+  W.killY=-10;
+  const day=(name,x,top,z,w,d)=>B.plat(x,top,z,w,d||w,Object.assign({name,onIf:'day'},GOLD));
+  const night=(name,x,top,z,w,d)=>B.plat(x,top,z,w,d||w,Object.assign({name,offIf:'day'},BLUE));
+  // the outer bailey (start), the curtain wall and its gate, the fountain and the bell tower
+  B.plat(0,0,-12,28,36,{t:3,name:'bailey',col:'#f3efe6',mat:'floor'});
+  B.cp(0,0,3);
+  B.wallX(-7,-14,14,[{c:0,w:DW,h:DH}],{top:16,col:'#e7e1f0'});
+  B.door('x',-7,0,'gate',{col:'#5b4b8a',part:{mat:'gate'}});
+  B.cyl(-9,.35,-2.7,1.6,{t:.35,col:'#bfe6ff',mat:'glass',name:'fountain'});
+  B.lift(-10.3,-1.4,-7.7,-4,0,14.5,{timed:{per:4,on:.7,ph:0},name:'spout'});
+  B.plat(-9,11,1.6,3.6,3.6,Object.assign({name:'belfry'},ST));B.deco(-9,13.6,1.6,3.6,.3,3.6,TRIM);for(const [x,z] of [[-10.6,3.2],[-7.4,3.2]])B.deco(x,12.3,z,.3,2.6,.3,TRIM);
+  B.btn('bell',-9,2.6,{set:'gate'},{top:12.1,icon:'bell',col:'#ffd166',stand:[-9,1.2]});
+  B.sign(4.6,2.6,-6.45,Math.PI,5,1.4,{title:'Cloud Keep',sub:'Ring for the gate'},{deco:true});
+  // the courtyard: the day and night lever
+  B.cp(1,0,-10);
+  B.btn('lever',0,-15,{toggle:'day'},{top:1.1,icon:'lever',col:'#ffd166',stand:[0,-13.8]});
+  B.sign(0,.03,-17.6,0,2.4,2.4,{icon:'sun'},{flat:true});
+  // the west tower: golden clouds by day; its door turns a quarter at each press (outside or in); its crest out back
+  day('d1',-16.4,0,-25.6,2.6);day('d2',-19.4,.6,-28.8,2.6);day('d3',-22.2,.6,-31.8,2.6);
+  B.plat(-23.4,0,-35.7,4.4,2.6,Object.assign({name:'wland'},ST));
+  B.cyl(-24,0,-42,5.3,{t:3,name:'wtower',col:'#f3efe6',mat:'stone'});
+  B.turning('wt',-24,-42,4,()=>{const R=4.6,L=2*R*Math.tan(Math.PI/8)+.6;for(let k=1;k<8;k++){const a=k*Math.PI/4,x=-24-Math.sin(a)*R,z=-42-Math.cos(a)*R;B.box(x,4.5,z,L,11,.6,{yaw:a,col:'#e7e1f0',mat:'wall'})}},{start:1});
+  B.turnBtn('wtOut',-25.1,-35.5,'wt',{top:1.1,col:'#ffd166',stand:[-23.8,-35.5]});
+  B.turnBtn('wtIn',-24,-42,'wt',{top:1.1,col:'#ffd166',stand:[-24,-40.8]});
+  B.plat(-24,0,-50,4,3,Object.assign({name:'wbalc'},ST));
+  B.btn('wcrestBtn',-24,-51,{set:'wcrest'},{top:1.1,icon:'sun',col:'#ffd166',stand:[-24,-49.8]});
+  day('d4',-29.4,1.4,-50.6,2.2);day('d5',-31.6,2.8,-46.6,2);B.item('gem','gem',-31.6,3.6,-46.6);
+  // the east tower: blue clouds by night; its chimney blows only by night, past the lightning, to the crest on top
+  night('n1',16.4,0,-25.6,2.6);night('n2',19.4,.6,-28.8,2.6);night('n3',22.2,.6,-31.8,2.6);
+  B.plat(23.4,0,-35.7,4.4,2.6,Object.assign({name:'eland'},ST));
+  B.cyl(24,0,-42,5.3,{t:3,name:'etower',col:'#f3efe6',mat:'stone'});
+  B.cyl(24,10,-43.4,2.6,{t:11,name:'etop',col:'#e7e1f0',mat:'stone'});
+  B.lift(22.6,-38.4,25.4,-40.6,0,13.2,{offIf:'day',timed:{per:3.4,on:.72,ph:.2},name:'chimney'});
+  B.btn('ecrestBtn',25.7,-44.2,{set:'ecrest'},{top:11.1,icon:'moon',col:'#8fb8ff',stand:[24.9,-43.2]});
+  B.bolt('ebolt',22.7,-43.8,.9,{per:4.4,on:.14,ph:.5},{y0:10});
+  // the keep: the drawbridge comes down with both crests; the fountain inside lifts you to the throne
+  B.all(['wcrest','ecrest'],'drawbridge');
+  B.plat(0,0,-36.2,4,12.4,{onIf:'drawbridge',name:'drawbridge',col:'#8a5a36',mat:'wood'});
+  B.plat(0,0,-48,12,12,{t:3,name:'keep',col:'#f3efe6',mat:'floor'});
+  B.blk(-5.7,-48,.6,12,9,WALLC);B.blk(5.7,-48,.6,12,9,WALLC);B.blk(0,-53.7,12,.6,9,WALLC);B.blk(-3.9,-42.3,4.2,.6,9,WALLC);B.blk(3.9,-42.3,4.2,.6,9,WALLC);
+  B.cp(2,0,-44.4);
+  B.cyl(0,.35,-48.6,1.6,{t:.35,col:'#bfe6ff',mat:'glass',name:'fountain2'});B.lift(-1.4,-47.2,1.4,-50,0,15.5,{name:'keeplift'});
+  B.plat(0,12,-53.6,7,4.4,Object.assign({name:'throne'},GOLD));B.deco(0,13.4,-55.2,2,2.8,.6,{col:'#5b4b8a'});B.deco(0,12.7,-54.4,1.6,1.4,1.4,{col:'#c0392b'});
+  B.finish(0,-53,{top:12,w:3.4,d:3});B.sign(0,15.4,-55.55,0,2.4,.75,{exit:true});
+  // pennants
+  for(const [x,z,c] of [[-13.5,-7.6,'#ffd166'],[13.5,-7.6,'#8fb8ff'],[-5.6,-42.4,'#ffd166'],[5.6,-42.4,'#8fb8ff']]){B.deco(x,13,z,.2,4,.2,TRIM);B.deco(x+.7*Math.sign(x),14.4,z,1.4,.9,.08,{col:c})}
+  // route: bell, gate, by day to the west crest, by night to the east crest, the drawbridge, the throne
+  const sp=W.byName.get('spout'),ch=W.byName.get('chimney');
+  B.w(-9,0,-.8);B.u((t)=>phaseOn(sp.timed,t)&&E.phaseLeft(sp.timed,t)>2);
+  B.drive((t,W,pl)=>on(pl,'belfry')?'done':pl.y>12.6?go(pl,-9,1.4):go(pl,-9,-2.7));
+  B.w(-9,11,1.2);B.use('bell',-9,11,1.2);B.j(-6,0,-2,{wait:true});B.w(0,0,-5);B.w(0,0,-10);
+  B.w(0,0,-13.8);B.use('lever',0,0,-13.8);
+  B.w(-12.6,0,-23);B.j(-16.4,0,-25.6,{wait:true});B.j(-19.4,.6,-28.8,{wait:true});B.j(-22.2,.6,-31.8,{wait:true});B.j(-22.4,0,-35.6,{wait:true});
+  B.w(-23.8,0,-35.5);B.turnTo('wtOut','wt',2);B.w(-24,0,-38.6);B.w(-24,0,-40.8);B.turnTo('wtIn','wt',0);
+  B.w(-25.8,0,-41.4);B.w(-25.6,0,-43.4);B.w(-24,0,-45);B.w(-24,0,-49.8);B.use('wcrestBtn',-24,0,-49.8);
+  B.w(-24,0,-44.6);B.w(-25.6,0,-43.4);B.w(-25.8,0,-41.4);B.w(-24,0,-40.8);B.turnTo('wtIn','wt',2);B.w(-24,0,-38.6);B.w(-22.4,0,-35.6);
+  B.j(-22.2,.6,-31.8,{wait:true});B.j(-19.4,.6,-28.8,{wait:true});B.j(-16.4,0,-25.6,{wait:true});B.j(-12.6,0,-23,{wait:true});
+  B.w(0,0,-13.8);B.use('lever',0,0,-13.8);
+  B.w(12.6,0,-23);B.j(16.4,0,-25.6,{wait:true});B.j(19.4,.6,-28.8,{wait:true});B.j(22.2,.6,-31.8,{wait:true});B.j(23.4,0,-35.6,{wait:true});B.w(24,0,-37.6);
+  B.u((t)=>phaseOn(ch.timed,t)&&E.phaseLeft(ch.timed,t)>2);
+  const eb=W.byName.get('ebolt'),safe=t=>!phaseOn(eb.timed,t)&&E.phaseLeft(eb.timed,t)>1.6;
+  B.drive((t,W,pl)=>on(pl,'etop')?'done':pl.y>11.6&&(safe(t)||pl.z<-41)?go(pl,24.9,-43.2):go(pl,24,-39.5));
+  B.w(24.9,10,-43.2);B.use('ecrestBtn',24.9,10,-43.2);
+  B.j(24,0,-37.6,{wait:true});B.w(22.6,0,-35.6);B.j(22.2,.6,-31.8,{wait:true});B.j(19.4,.6,-28.8,{wait:true});B.j(16.4,0,-25.6,{wait:true});B.j(12.6,0,-23,{wait:true});
+  B.w(0,0,-29);B.w(0,0,-41);B.w(0,0,-44.4);B.w(0,0,-46.4);
+  B.drive((t,W,pl)=>pl.y>13.6?go(pl,0,-53):go(pl,0,-48.6));
+  W.spawn={x:0,y:0,z:3,yaw:0};
 }}
 ]});
 })(Escapade);

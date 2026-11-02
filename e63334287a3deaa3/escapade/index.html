@@ -1390,7 +1390,8 @@ build(B,r){
 //    (the stick can't steer it, but wind still blows you) to o.to = [x, y, z] (or along o.yaw at o.sp with o.vy).
 //    o.pow: a flag it needs first (no powder, no shot). Inside B.turning the barrel turns with the room: aim it.
 //  - Updrafts: B.lift(x0, z0, x1, z1, y0, y1, o) a zone that pushes you up (o.acc, up to o.vmax a second; falling
-//    into one slows you hard), timed like gusts (o.timed) and onIf / offIf like any part.
+//    into one slows you hard, and you drift to a stop in it unless you steer), timed like gusts (o.timed) and onIf /
+//    offIf like any part.
 //  - Lightning: B.bolt(name, x, z, r, timed, o) a strike from the sky down to o.y0, on for timed.on of every
 //    timed.per seconds; a dark cloud and a flickering ring on the ground show it coming. o.charge = {flag, dur, need}:
 //    each strike turns flag on for dur seconds while need is on (a lightning rod that powers a gate).
@@ -1422,6 +1423,7 @@ function w5Lift(W,pl,t){
     if(cy<z.y-z.hy||cy>z.y+z.hy||xzDist(z,z,pl.x,pl.z,W5.h)>=0)continue;
     const L=z.lift;if(pl.vy<0)pl.vy=Math.min(0,pl.vy+L[0]*1.6*dt);
     pl.vy=Math.min(L[1],pl.vy+L[0]*dt);
+    if(!pl.gr){const k=1-2.5*dt;pl.vx*=k;pl.vz*=k} // the updraft holds you: you drift to a stop in it unless you steer
   }
 }
 // lightning rods: a strike (the moment a bolt comes on) powers its flag for dur seconds
@@ -1483,7 +1485,8 @@ function w5Bot(W,pl,bot,n,t,next){
 function w5Builder(B,W){
   const mark=(p,k)=>{p.w5m=k;W.w5fx=true;return p};
   B.cannon=(name,x,top,z,o)=>{o=o||{};let yaw=o.yaw||0,sp=o.sp||16,vy=o.vy||17;
-    if(o.to){const dx=o.to[0]-x,dz=o.to[2]-z,D=vy*vy-2*PHYS.G*(o.to[1]-top),T=(vy+Math.sqrt(Math.max(0,D)))/PHYS.G;sp=Math.hypot(dx,dz)/T;yaw=Math.atan2(-dx,-dz)}
+    if(o.to){const dx=o.to[0]-x,dz=o.to[2]-z,D=vy*vy-2*PHYS.G*(o.to[1]-top);if(D<0)throw new Error('cannon '+name+': o.vy too low to reach o.to');
+      const T=(vy+Math.sqrt(D))/PHYS.G;sp=Math.hypot(dx,dz)/T;yaw=Math.atan2(-dx,-dz)}
     const h=o.t||1.2;
     return mark(B.add(Object.assign({shape:'cyl',x,y:top-h/2,z,r:o.r||1.1,h,yaw,mat:'cannon',col:o.col||'#3b4252',icon:'w5-cannon',btn:{w5:'cannon',sp,vy,pow:o.pow||''},name,stand:[x,z]},o.part)),'cannon')};
   B.lift=(x0,z0,x1,z1,y0,y1,o)=>{o=o||{};const p=B.zone('lift',x0,z0,x1,z1,y0,y1,Object.assign({col:'#d8f3ff'},o));p.lift=[o.acc||80,o.vmax||9];(W.lifts||(W.lifts=[])).push(p);return mark(p,'lift')};
