@@ -417,6 +417,138 @@ build(B,r){
   B.j(-2.6,2.6,-64.4,{wait:true});B.j(1.8,3,-68.4,{wait:true});B.j(-1,3.52,-71.6,{wait:true});B.use('lever2',-1.4,3.4,-72.4);
   B.j(2.4,3.8,-76.8,{wait:true});B.j(-1.8,4.2,-80.6,{wait:true});B.j(1.6,4.6,-84.4,{wait:true});B.j(0,4.6,-89,{wait:true});B.w(0,4.6,-92);
   W.spawn={x:0,y:0,z:3.4,yaw:0};
+}},
+
+// 7. The long climb, outside over a molten sea. Ice floes round a vent that sends out rings of fire; up the rocks and a
+// ladder; a cart carries the fuse between two towers (ride it to pick it up); planks in the gusts and a spinning bar;
+// the fuse box powers the bridge to the last stretch, where your shadow chases you up to the summit.
+{id:'gauntlet',name:'The Long Climb',sub:'The tower of trials',par:120,sea:true,sky:['#3a2340','#f0a36b'],pal:{floor:'#6f6a5e',wall:'#6f6a5e',prop:'#9a948a',trim:'#2d2335'},
+msgs:{power:'The fuse is in. The bridge lights up'},unlock:['power'],
+build(B,r){
+  const W=B.W,ROCK={col:'#6f6a5e',mat:'stone'},ICE={ice:true,mat:'ice',col:'#cfeeff'},WOOD={col:'#9a7a52',mat:'wood'};
+  B.lava(-34,10,34,-100);
+  // the floes round the vent
+  B.blk(0,3,8,6,.6,Object.assign({name:'jetty'},ROCK));B.cp(0,0,3.4,{top:.6});
+  B.cyl(0,1.4,-9,1.6,Object.assign({name:'vent'},ROCK));B.dcyl(0,1.46,-9,1,.1,{col:'#ff7a3d',mat:'glass'});
+  B.ring(0,-9,10,3,{on:.7,name:'ventring'});
+  B.plat(-3.4,.6,-3.6,3,3,Object.assign({name:'f1',t:1.6},ICE));
+  B.plat(3.4,.6,-7.4,3,3,Object.assign({name:'f2',t:1.6},ICE));
+  B.plat(-1.8,.6,-12.6,3,3,Object.assign({name:'f3',t:1.6,move:{type:'line',az:-1.6,per:4}},ICE));
+  B.plat(2,.6,-17.4,3,3,Object.assign({name:'f4',t:1.6},ICE));
+  B.blk(0,-22.4,4.4,3,1,Object.assign({name:'s0'},ROCK));B.cp(1,0,-22.4,{top:1,w:4.4,d:3});
+  // up the rocks and the ladder; the cart between the towers carries the fuse
+  B.blk(-2.4,-26.4,2.4,2.4,2.2,Object.assign({name:'c1'},ROCK));
+  B.blk(2.6,-29.6,2.4,2.4,3,Object.assign({name:'c2'},ROCK));
+  B.blk(5.5,-33.4,2.4,2,3.8,Object.assign({name:'c3'},ROCK));
+  for(const [x,n] of [[5.5,'t1'],[-6.5,'t2']])B.blk(x,-37,3,3,7.6,Object.assign({name:n},ROCK));
+  B.box(5.5,5.7,-35.05,1.4,3.8,.9,{truss:true,mat:'truss',col:'#e2e8f0',name:'ladder'});
+  B.cp(2,5.5,-37,{top:7.6,w:3,d:3});
+  B.plat(1.8,7.6,-37,2.4,2.4,{move:{type:'line',ax:-4.6,per:5},mat:'barrel',col:'#c9583e',name:'cart'});
+  B.item('fuse','fuse',1.8,8.5,-37,{move:{type:'line',ax:-4.6,per:5}});
+  B.blk(10.4,-40.2,1.6,1.6,8.4,Object.assign({name:'gemrock'},ROCK));B.item('gem','gem',10.4,9.3,-40.2);
+  // planks in the gusts, a spinning bar, the fuse box and the bridge
+  B.plat(-6.5,7.6,-41.4,2,2.4,Object.assign({name:'q1'},WOOD));
+  B.blk(-3,-44.8,3,3,8,Object.assign({name:'q2'},ROCK));
+  B.kill(-3,8.45,-44.8,3.8,.4,.4,{move:{type:'spin',w:1.5},name:'bar'});B.cyl(-3,8.8,-44.8,.35,{t:.8,col:'#2d2335',name:'barhub'});
+  B.plat(.8,8.4,-48.2,2.4,2.4,{crumble:true,mat:'crumble',col:'#c9a77a',name:'q3'});
+  B.blk(4.2,-51.8,3.4,3.4,8.8,Object.assign({name:'q4'},ROCK));B.cp(3,4.2,-51.8,{top:8.8,w:3.4,d:3.4});
+  B.box(6.4,9.9,-51.8,.8,2.2,1.6,Object.assign({},ROCK));
+  B.panel('fusebox',5.88,9.8,-51.8,-PI/2,{need:'fuse',then:'power'},{icon:'fuse',col:'#ffd23f',stand:[4.8,-51.8]});
+  B.plat(4.2,8.8,-57.7,2,8.4,{onIf:'power',mat:'glow',col:'#22d3ee',name:'bridge'});
+  B.wind(-14,-39,14,-56,6,16,[1.4,0],{name:'breeze'});
+  B.wind(-14,-39,14,-56,6,16,[3.6,0],{timed:{per:4.2,on:.35,ph:.3},name:'gust'});
+  // the last stretch, with the shadow behind you, to the summit
+  B.blk(4.2,-63.4,3,3,8.8,Object.assign({name:'r0'},ROCK));B.cp(4,4.2,-63.4,{top:8.8,w:3,d:3});
+  B.plat(1,9.2,-67.6,2.4,2.4,{timed:{per:2.4,on:.62,ph:0},mat:'blink',col:'#c4b5fd',name:'r1'});
+  B.plat(-2.6,9.6,-71.2,2.4,2.4,{crumble:true,mat:'crumble',col:'#c9a77a',name:'r2'});
+  B.plat(.8,10,-75.4,2.6,2.6,Object.assign({name:'r3',t:1.2},ROCK));
+  B.plat(2.6,10.4,-79.6,2.4,2.4,{timed:{per:2.4,on:.62,ph:.5},mat:'blink',col:'#c4b5fd',name:'r4'});
+  B.plat(-.8,10.8,-83.6,2.4,2.4,{crumble:true,mat:'crumble',col:'#c9a77a',name:'r5'});
+  B.blk(0,-90,7,6,11,Object.assign({name:'summit'},ROCK));
+  B.finish(0,-90.4,{top:11});B.deco(0,13.6,-92.8,3.2,2.2,.3,{col:'#2d2335'});B.sign(0,13.6,-92.6,0,2.6,.8,{exit:true});
+  B.shadow(-14,-65.4,14,-100,{delay:2.4});
+  B.sign(0,2.6,5.6,PI,6,1.5,{title:'The Long Climb',sub:'All the way to the top'},{deco:true});B.deco(0,1.2,5.7,.3,1.6,.3,{col:'#2d2335'});
+  // route
+  const cart=W.byName.get('cart');
+  B.w(0,.6,1.4);B.j(-3.4,.6,-3.6,{wait:true});B.j(3.4,.6,-7.4,{wait:true});B.jon('f3',0,{wait:true});B.j(2,.6,-17.4,{wait:true});B.j(0,1.12,-22,{wait:true});
+  B.j(-2.4,2.2,-26.4,{wait:true});B.j(2.6,3,-29.6,{wait:true});B.j(5.5,3.8,-33.2,{wait:true});
+  B.ladder('ladder',(t,W,pl)=>pl.gr&&pl.y>7.5?'done':'climb');B.w(5.5,7.6,-37);
+  B.jon('cart',0,{wait:true});B.ladder('cart',(t,W)=>W.st.got.fuse&&cur(cart,t).x<-2.3?'done':'wait');B.j(-6.5,7.6,-37,{wait:true});
+  B.j(-6.5,7.6,-41.4,{wait:true});B.j(-3,8,-44.8,{wait:true});B.j(.8,8.4,-48.2,{wait:true});B.j(4.2,8.92,-51.4,{wait:true});
+  B.w(4.8,8.8,-51.8);B.use('fusebox',4.8,8.8,-51.8);
+  B.w(4.2,8.8,-55);B.w(4.2,8.8,-60.6);B.w(4.2,8.92,-63.4);
+  B.j(1,9.2,-67.6,{wait:true});B.j(-2.6,9.6,-71.2);B.j(.8,10,-75.4);B.j(2.6,10.4,-79.6,{wait:true});B.j(-.8,10.8,-83.6);B.j(0,11,-88,{wait:true});B.w(0,11,-90.4);
+  W.spawn={x:0,y:.6,z:3.4,yaw:0};
+}},
+
+// 8. The Last Door: the Keeper, in three phases. Phase 1: rings of fire and sweeping arms on the floor; climb the three
+// pillars and break the crystal on each (every crystal makes the arms fiercer). Phase 2: the floor turns to lava; ride
+// the circling stones to the three floating islands and break their crystals while rings sweep over them. Phase 3: the
+// Keeper falls silent and its shadow chases you over the new steps to the Last Door. The Keeper's shutters lift after
+// each phase to show half of the door's code.
+{id:'lastdoor',name:'The Last Door',sub:'The Keeper',par:150,boss:true,sky:['#16081f','#e0577a'],pal:{floor:'#3a2f4a',wall:'#4b3a66',prop:'#9b7bd8',trim:'#f15bb5'},
+msgs:{k1:'A crystal shatters',k2:'A crystal shatters',k3:'A crystal shatters',k4:'A crystal shatters',k5:'A crystal shatters',k6:'A crystal shatters',
+  p1:'The Keeper stirs. A second arm wakes',p2:'The Keeper is angry. The arms speed up',ph2:'The Keeper roars! The floor turns to lava',ph3:'The Keeper falls silent. Run for the Last Door!',
+  lastcode:'The code is right',lastdoor:'The Last Door opens'},unlock:['ph2','ph3','lastdoor'],
+build(B,r){
+  const W=B.W,C=-26,DARK={col:'#2a2238',mat:'metal'},PIL={col:'#9b7bd8',mat:'stone'},ISLE={col:'#c4b5fd',mat:'stone'},STEP={col:'#f15bb5',mat:'plastic'};
+  W.codes.last=makeCode(r);W.pads.last={set:'lastcode'};
+  B.all(['lastcode','ph3'],'lastdoor');
+  W.tick=(W,pl,t)=>{const f=W.st.f,a=(f.k1?1:0)+(f.k2?1:0)+(f.k3?1:0),b=(f.k4?1:0)+(f.k5?1:0)+(f.k6?1:0);
+    for(const [k,v] of [['p1',a>=1],['p2',a>=2],['ph2',a>=3],['ph3',a>=3&&b>=3]])if(v&&!f[k]){f[k]=true;pl.ev.push('open:'+k)}};
+  // the arena
+  B.floor(-24,6,24,-56,{col:'#3a2f4a',mat:'floor'});B.wallX(6,-24.5,24.5);B.wallZ(-24,6,-56);B.wallZ(24,6,-56);
+  B.wallX(-56,-24.5,24.5,[{c:0,w:DW,h:DH}]);
+  B.cp(0,0,2);
+  B.lava(-24,-2,24,-50,{onIf:'ph2',name:'lavafloor'});
+  // the Keeper: a tower with a burning eye; shutters on its south and north faces hide the two halves of the code
+  B.cyl(0,7,C,3.2,Object.assign({name:'keeper'},DARK));
+  for(const y of [2.2,4.6])B.dcyl(0,y,C,3.28,.3,{col:'#f15bb5',mat:'glass'});
+  B.add({shape:'cyl',x:0,y:7.6,z:C,r:1.2,h:1.2,deco:true,mat:'glass',col:'#ff3355',offIf:'ph3',name:'eye'});
+  B.add({shape:'cyl',x:0,y:7.6,z:C,r:1.2,h:1.2,deco:true,mat:'stone',col:'#4b3a66',onIf:'ph3',name:'eyeshut'});
+  B.sign(0,5.6,C+3.3,0,3.6,2.4,{code:'last',half:0,label:'The Last Door, 1st half'});
+  B.add({x:0,y:5.6,z:C+3.55,w:3.9,h:2.6,d:.3,door:'ph2',mat:'door',col:'#2a2238',name:'shutterS',cam:true});
+  B.sign(0,5.6,C-3.3,PI,3.6,2.4,{code:'last',half:1,label:'The Last Door, 2nd half'});
+  B.add({x:0,y:5.6,z:C-3.55,w:3.9,h:2.6,d:.3,door:'ph3',mat:'door',col:'#2a2238',name:'shutterN',cam:true});
+  // phase 1: rings and arms on the floor, a crystal on each of three pillars
+  B.ring(0,C,22,3.4,{on:.7,offIf:'ph2',name:'ring1'});
+  B.kill(0,.75,C,34,.5,.5,{move:{type:'spin',w:.55},offIf:'p2',name:'armA'});
+  B.kill(0,.75,C,34,.5,.5,{move:{type:'spin',w:.85},onIf:'p2',offIf:'ph2',name:'armA2'});
+  B.kill(0,.75,C,26,.5,.5,{yaw:PI/2,move:{type:'spin',w:-.7},onIf:'p1',offIf:'ph2',name:'armB'});
+  const PILLARS=[['k1',-15,-14,1],['k2',15,-14,2],['k3',0,-44,3]];
+  for(const [k,x,z,i] of PILLARS){B.blk(x,z,3,3,2.4,Object.assign({name:'pillar'+i},PIL));B.cp(i,x,z,{top:2.4,w:3,d:3});
+    B.btn(k,x,z,{set:k},{top:3.5,icon:'bolt',col:'#22d3ee',baseCol:'#2a2238',stand:[x+(x?-Math.sign(x)*1.1:0),z+(x?0:1.1)]})}
+  // phase 2: the floor is lava; stones circle the Keeper; three floating islands with crystals; rings over the islands
+  B.plat(0,1.2,-4.8,2.6,2.6,Object.assign({name:'s1',onIf:'ph2'},ISLE));
+  for(let i=0;i<3;i++)B.plat(15,2.4,C,3,3,{t:.6,move:{type:'orbit',cx:0,cz:C,rad:15,w:.45,a0:i*2*PI/3+PI/2},onIf:'ph2',name:'orb'+i,mat:'metal',col:'#d9b45a'});
+  const ISLES=[['k4',-10.5,C],['k5',10.5,C],['k6',0,C-10.5]];
+  for(const [k,x,z] of ISLES){B.plat(x,3.2,z,3,3,Object.assign({name:'isle_'+k,onIf:'ph2',t:1.2},ISLE));
+    B.box(x,3.66,z,.9,.92,.9,{col:'#2a2238',mat:'metal',onIf:'ph2',name:'ped_'+k});
+    B.btn(k,x,z,{set:k},{top:4.3,icon:'bolt',col:'#f15bb5',noBase:true,stand:[x+(x?-Math.sign(x)*1.1:0),z+(x?0:-1.1)]}).onIf='ph2'}
+  B.ring(0,C,11.6,3,{y:3.2,on:.7,onIf:'ph2',offIf:'ph3',name:'ring2'});
+  // phase 3: steps from the side islands to the north one, the shadow on your heels; the Last Door
+  for(const s of [-1,1]){B.plat(s*7.2,3.2,-30.4,2.4,2.4,Object.assign({name:'j1'+(s<0?'w':'e'),onIf:'ph3'},STEP));B.plat(s*3.8,3.2,-33.6,2.4,2.4,Object.assign({name:'j2'+(s<0?'w':'e'),onIf:'ph3'},STEP))}
+  B.shadow(-24,-2,24,-49.4,{delay:2.4,flag:'ph3'});
+  B.cp(4,0,-52.4,{w:3,d:2.4});
+  B.panel('pad',-4,1.6,-55.35,0,{pad:'last'},{icon:'pad'});
+  B.door('x',-56,0,'lastdoor',{col:'#f15bb5',part:{mat:'vaultdoor'}});
+  exitHall(B,0,-56);
+  B.sign(0,8.2,-55.45,0,8,1.7,{title:'The Last Door',sub:'Beat the Keeper to learn its code'});
+  // the gem: on a column in the south-east corner
+  B.blk(17.6,-1.6,2.2,2.2,2.2,Object.assign({name:'gemstep'},PIL));B.blk(21,-4,2,2,4.4,Object.assign({name:'gemcol'},PIL));B.item('gem','gem',21,5.3,-4);
+  // decor: glowing stripes, banners
+  for(const x of [-23.45,23.45])B.deco(x,7.4,-25,.1,.3,62,{col:'#f15bb5',mat:'glass'});
+  for(const [x,z,yaw] of [[-23.5,-12,PI/2],[23.5,-12,-PI/2],[-23.5,-40,PI/2],[23.5,-40,-PI/2]])B.poster(x,z,yaw,'#f15bb5',{y:6,w:2.2,h:3.6});
+  // route: the pillars (west, east, north), the islands (north, west, east), the steps, the door
+  B.w(-6,0,-2);B.w(-11,0,-10.6);B.j(-13.9,2.52,-14,{wait:true});B.use('k1',-13.9,2.4,-14);
+  B.j(-10,0,-12,{wait:true});B.w(0,0,-8);B.w(10,0,-11);B.j(13.9,2.52,-14,{wait:true});B.use('k2',13.9,2.4,-14);
+  B.j(10,0,-17,{wait:true});B.w(9,0,-32);B.w(5.6,0,-38);B.j(0,2.52,-42.9,{wait:true});B.use('k3',0,2.4,-42.9);
+  B.j(0,3.2,-37.4,{wait:true});B.use('k6',0,3.2,-37.6);
+  B.jon(['orb0','orb1','orb2'],0,{wait:true});B.j(11.2,3.2,C,{wait:true});B.use('k5',9.4,3.2,C);B.w(10.5,3.2,C-1.1);B.w(11.4,3.2,C-.8);
+  B.jon(['orb0','orb1','orb2'],0,{wait:true});B.u((t,W,pl)=>pl.z>-18);B.j(-11.2,3.2,C,{wait:true});B.use('k4',-9.4,3.2,C);
+  B.j(-7.2,3.2,-30.4,{wait:true});B.j(-3.8,3.2,-33.6);B.j(-.9,3.2,-35.5);B.j(0,2.52,-43.6,{wait:true});B.j(-2,0,-51.4,{wait:true});B.w(0,0,-52.4);
+  B.w(-4,0,-54.2);B.use('pad',-4,0,-54.2);B.code('last');B.w(0,0,-59);B.w(0,0,-59.4);
+  W.spawn={x:0,y:0,z:2,yaw:0};
 }}
 ]});
 })(Escapade);
