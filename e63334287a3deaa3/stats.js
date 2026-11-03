@@ -44,7 +44,9 @@
  * a browser write its own node and require n, c, x, z, h and ts, so the node is:
  *   n name (14)  c colour  x, z, h 0  ts last publish (server time)  v 2  st seat tag (1A–40F, as in social.js)
  *   g { <folder>: { s: seconds, <stat>: best } } (s is the account's total, every device together)
- *   d { YYYYMMDD: { <folder>: seconds } } the last 30 days, 8 games a day, pruned until the node fits in 7,000 characters
+ *   d { YYYYMMDD: { <folder>: seconds, _: seconds } } the last 30 days, 8 games a day, pruned until the node fits in 7,000
+ *      characters; _ is that day's time in any further games (a ninth game and on, all together), so the day's total is
+ *      still all there for the Leaderboards' This week board, just not split by game past the first eight
  *   q { <device id>: id of the last batch added from it } (the 12 most recent devices)
  *   lg { <folder>: seconds } the totals as they stood when this version first wrote the node ("legacy" time, from before
  *      batches; it may overlap between accounts used in one browser, so a merge keeps the larger of it instead of adding)
@@ -87,6 +89,7 @@
   var IDLE = 120000, GRACE = 30000, SAVE_MS = 15000, PUB_MS = 60000, DAY_MAX = 86400, TAB_FRESH = 3500;
   var MAX_GAMES = 80, MAX_STATS = 120;   // 80 games: the Back Room has 21, plus 21 daily puzzles and their hub (was 40)
   var DAYS = 30, DAY_GAMES = 8, NODE_CAP = 7000;    // per-day history: how many days and games a day are kept, and how big the node may get
+  var DAY_REST = '_';                                 // a day's seconds in games past its first DAY_GAMES, all together
   var MAX_DEV = 12, MAX_AL = 8, MAX_HW = 4, MAX_LK = 8;
   var NAME_WAIT = 1500, NAME_GAP = 10000;            // a rename republishes after NAME_WAIT, at most once every NAME_GAP
   var LOWER = { tower: 1, summit: 1, obby: 1 };
@@ -201,31 +204,37 @@
   function okDev(k) { return typeof k === 'string' && /^[a-z0-9]{6,16}$/.test(k); }
 
   // Rebuild the per-day history field by field: the last 30 days only (tomorrow is allowed, for a device in another time zone),
-  // at most DAY_GAMES games a day, whole seconds, and no more than 24 hours in a day.
+  // at most DAY_GAMES games a day (time in any more goes to DAY_REST), whole seconds, and no more than 24 hours in a day.
   function cleanDays(src) {
     var out = {};
     if (!obj(src)) return out;
     var lo = dayAgo(DAYS - 1), hi = dayAgo(-1);
     Object.keys(src).filter(function (k) { return /^\d{8}$/.test(k) && k >= lo && k <= hi; }).sort().slice(-DAYS).forEach(function (k) {
-      var g = src[k], o = {}, m = 0, tot = 0;
+      var g = src[k], o = {}, m = 0, tot = 0, rest = 0;
       if (!obj(g)) return;
-      Object.keys(g).slice(0, DAY_GAMES * 2).forEach(function (gk) {
-        if (m >= DAY_GAMES || tot >= DAY_MAX || !okGame(gk)) return;
+      Object.keys(g).slice(0, DAY_GAMES * 2 + 1).forEach(function (gk) {
+        var r = gk === DAY_REST;
+        if (tot >= DAY_MAX || (!r && !okGame(gk))) return;
         var v = Math.floor(num(g[gk]));
         if (!(v > 0)) return;
-        v = Math.min(v, DAY_MAX - tot); o[gk] = v; tot += v; m++;
+        v = Math.min(v, DAY_MAX - tot); tot += v;
+        if (r || m >= DAY_GAMES) rest += v; else { o[gk] = v; m++; }
       });
-      if (m) out[k] = o;
+      if (rest) o[DAY_REST] = rest;
+      if (m || rest) out[k] = o;
     });
     return out;
   }
+  // The games a day has its own entries for (not counting DAY_REST), and where a game's seconds that day go.
+  function dayGames(day) { return Object.keys(day).filter(function (gk) { return gk !== DAY_REST; }).length; }
+  function daySlot(day, gk) { return gk === DAY_REST || day[gk] != null || dayGames(day) < DAY_GAMES ? gk : DAY_REST; }
   // Add one day history into another (how: 'add' for this browser's new seconds, 'max' for an account being merged in).
   function addDays(into, src, how) {
     Object.keys(src).forEach(function (k) {
       var day = into[k] || (into[k] = {});
       Object.keys(src[k]).forEach(function (gk) {
-        if (day[gk] == null && Object.keys(day).length >= DAY_GAMES) return;
-        day[gk] = how === 'max' ? Math.max(day[gk] | 0, src[k][gk]) : (day[gk] | 0) + src[k][gk];
+        var to = daySlot(day, gk);
+        day[to] = how === 'max' ? Math.max(day[to] | 0, src[k][gk]) : (day[to] | 0) + src[k][gk];
       });
     });
     return cleanDays(into);
@@ -311,9 +320,9 @@
       if (o.un[GAME] == null && Object.keys(o.un).length >= MAX_GAMES) return;
       o.ds += add; o.un[GAME] = (o.un[GAME] || 0) + add;
       if (o.tc[GAME] != null || Object.keys(o.tc).length < MAX_GAMES) o.tc[GAME] = (o.tc[GAME] || 0) + add;
-      // The same seconds under today's date, for the admin page's activity view.
-      var day = o.ud[dayAgo(0)] || (o.ud[dayAgo(0)] = {});
-      if (day[GAME] != null || Object.keys(day).length < DAY_GAMES) day[GAME] = Math.min(DAY_MAX, (day[GAME] | 0) + add);
+      // The same seconds under today's date, for the admin page's activity view and the Leaderboards' This week.
+      var day = o.ud[dayAgo(0)] || (o.ud[dayAgo(0)] = {}), slot = daySlot(day, GAME);
+      day[slot] = Math.min(DAY_MAX, (day[slot] | 0) + add);
       o.ud = cleanDays(o.ud);
     });
   }

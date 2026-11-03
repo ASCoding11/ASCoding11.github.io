@@ -22,6 +22,7 @@
  *   load(uid)           a promise of the result, read through party.js's sign-in; one read per uid, kept for 10 minutes
  *   fmt(n)              1,234
  *   TIERS, RULES        the tiers and the points table; CAPTAIN, the owners' tier; OWNERS, a copy of the list
+ *   HOUR                miles per hour played (100); the Leaderboards' This week board uses it for the week's play time
  * }
  * A finished load fires `backroom:miles` on document (detail.uid), so panels can redraw; so does this file when it loads.
  *
@@ -216,7 +217,7 @@
     return c ? c.r : null;
   }
 
-  window.BackRoomMiles = { of: of, tierOf: tierOf, isOwner: isOwner, badge: badge, line: line, peek: peek, load: load, fmt: fmt, TIERS: TIERS, RULES: RULES, PATH: PATH,
+  window.BackRoomMiles = { of: of, tierOf: tierOf, isOwner: isOwner, badge: badge, line: line, peek: peek, load: load, fmt: fmt, TIERS: TIERS, RULES: RULES, PATH: PATH, HOUR: HOUR,
     CAPTAIN: CAPTAIN, OWNERS: OWNERS.slice(), forget: function (uid) { if (uid) delete cache[uid]; else cache = {}; } };
   try { document.dispatchEvent(new CustomEvent('backroom:miles', { detail: { uid: '' } })); } catch (e) {}
 })();
