@@ -117,6 +117,13 @@ if(/^(www\.)?ascoding11\.com$/.test(location.hostname)&&!location.hash&&!locatio
     </div>
   </section>
 
+  <!-- The Back Room button: opens the Back Room here without the code (the script below), like the code does.
+       The code (triple-click the © in the footer) still works too. -->
+  <div class="br-door" style="margin-top:48px;display:flex;flex-wrap:wrap;align-items:center;gap:12px 16px">
+    <p style="margin:0;color:var(--ink-2)">Want more games? The Back Room has over 20 more, most of them multiplayer.</p>
+    <button type="button" class="btn" id="brOpen" style="font:inherit;font-weight:600;cursor:pointer">Open the Back Room →</button>
+  </div>
+
   <footer><span>©</span> 2026 Arjun · <a href="about/">About</a> · <a href="privacy.html">Privacy policy</a></footer>
 </div>
 <script src="/analytics/tracker.js" data-site="home" defer></script>
@@ -171,6 +178,17 @@ if(/^(www\.)?ascoding11\.com$/.test(location.hostname)&&!location.hash&&!locatio
     // visitors can send a note before opening the games. reveal() loads it again later; it only draws the bar once.
     var fbs=document.createElement('script');fbs.src='/e63334287a3deaa3/feedback.js';document.body.appendChild(fbs);
   }
+  // The Back Room button above the footer opens the hidden page without the code (on a phone, the phone version).
+  var brBtn=document.getElementById('brOpen');
+  if(brBtn)brBtn.addEventListener('click',function(){
+    if(shown)return;
+    brBtn.disabled=true;
+    var dir='/e63334287a3deaa3/';
+    fetch(dir,{cache:'no-store'}).then(function(r){return r.ok?r.text():null}).then(function(html){
+      brBtn.disabled=false;
+      if(html&&!shown)reveal(html,dir);
+    }).catch(function(){brBtn.disabled=false});
+  });
   async function h(s){var b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('ascoding11:'+s));return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,'0')}).join('').slice(0,16)}
   function close(){if(box){box.remove();box=null;miss=0}}
 
@@ -195,6 +213,7 @@ if(/^(www\.)?ascoding11\.com$/.test(location.hostname)&&!location.hash&&!locatio
     sec.replaceWith(document.importNode(d.querySelector('section'),true));
     document.querySelectorAll('.nav a[aria-current]').forEach(function(a){a.removeAttribute('aria-current')});
     shown=true;base=dir;history.pushState({br:1},'',location.href);window.scrollTo(0,0);
+    var door=document.querySelector('.br-door');if(door)door.style.display='none';
     var av=document.createElement('script');av.src=dir+'avatar.js';document.body.appendChild(av); // avatars and status tiers by names (avatar.js, miles.js)
     var mi=document.createElement('script');mi.src=dir+'miles.js';document.body.appendChild(mi);
     // The feedback box (a <script> in the Back Room page's <head>, which this page doesn't run) also lives in the Back Room folder.
