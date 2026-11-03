@@ -151,9 +151,6 @@ input.code{text-transform:uppercase;font-family:var(--serif);font-size:24px;lett
 .topic-stats div{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid var(--line);padding-bottom:6px}
 .chip[aria-pressed="true"]{background:var(--lead);border-color:var(--lead);color:var(--lead-ink)}
 .credit{font-size:13px;color:var(--ink-2);max-width:80ch;border-top:1px solid var(--line);padding-top:14px}
-.adbox{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px}
-.adbox .ad-lbl{font-size:12px;color:var(--ink-2)}
-.adbox ins{display:inline-block;width:320px;max-width:100%;height:100px}
 
 /* problem sheet: always white paper so the AoPS math images stay readable */
 .sheet{background:#fff;color:#1d1f23;border:1px solid var(--line);border-radius:4px;padding:22px 24px 26px;font-family:var(--serif);font-size:18px;line-height:1.6;box-shadow:0 1px 0 var(--line);overflow-x:auto}
@@ -250,18 +247,7 @@ input.code{text-transform:uppercase;font-family:var(--serif);font-size:24px;lett
   @keyframes pop{from{transform:scale(.92);opacity:.3}to{transform:none;opacity:1}}
 }
 
-/* Side rails: two tall ads fixed to the screen edges on wide screens (1180px+); the page gets side padding so nothing sits under them. */
-:root{--rail:184px}
-.rail{display:none;box-sizing:border-box;position:fixed;top:0;bottom:0;width:var(--rail);background:var(--paper);flex-direction:column;align-items:center;justify-content:center;gap:6px;z-index:50}
-.rail.l{left:0;border-right:1px solid rgba(0,0,0,.1)} .rail.r{right:0;border-left:1px solid rgba(0,0,0,.1)}
-.rail .ad-lbl{font:700 11px/1 system-ui,sans-serif;letter-spacing:.12em;text-transform:uppercase;opacity:.55}
-.rail ins{display:block;width:160px;height:600px}
-@media (min-width:1180px) and (min-height:640px){
-  html.rails body{padding-left:calc(var(--rail) + 16px);padding-right:calc(var(--rail) + 16px)}
-  html.rails .rail{display:flex}
-}
 </style>
-<script src="/adrefresh.js" defer></script>
 </head>
 <body>
 <div class="wrap">
@@ -336,7 +322,6 @@ input.code{text-transform:uppercase;font-family:var(--serif);font-size:24px;lett
       </section>
     </div>
 
-    <div class="adbox" id="adMenu" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
 
     <p class="credit" style="margin-top:28px">Problems are from the American Mathematics Competitions (AMC 10, 2010–2025) and the AIME (2010–2026), © Mathematical Association of America. Boxed stores only the problem numbers and official answers; the problem text loads from the <a href="https://artofproblemsolving.com/wiki/index.php/AMC_Problems_and_Solutions" target="_blank" rel="noopener">AoPS Wiki</a> while you play, and every answer links to the full solutions there. If the AoPS Wiki isn't answering, AIME problems load from public datasets on <a href="https://huggingface.co/datasets" target="_blank" rel="noopener">Hugging Face</a> instead, and only when their answer matches the official key.</p>
   </main>
@@ -434,27 +419,6 @@ input.code{text-transform:uppercase;font-family:var(--serif);font-size:24px;lett
   </main>
 </div>
 
-<script>
-/* =====================================================================
-   Ads (Google AdSense): only on the menu, never on a problem screen.
-   To turn them on, paste a display ad unit's "data-ad-slot" into AD_SLOT.
-   ===================================================================== */
-const AD_CLIENT = 'ca-pub-1712937102765568';
-const AD_SLOT = '';
-function showAd(id){
-  if (!AD_SLOT) return;
-  const box = document.getElementById(id); if (!box || box.dataset.state) return;
-  const ins = box.querySelector('ins');
-  const s = document.createElement('script'); s.async = true; s.crossOrigin = 'anonymous';
-  s.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js'; document.head.appendChild(s);
-  box.hidden = false; box.dataset.state = 'asked';
-  ins.setAttribute('data-ad-client', AD_CLIENT); ins.setAttribute('data-ad-slot', AD_SLOT);
-  requestAnimationFrame(() => {
-    try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch (_) { box.hidden = true; return; }
-    setTimeout(() => { if (ins.getAttribute('data-ad-status') !== 'filled') { box.hidden = true; box.dataset.state = ''; } }, 5000);
-  });
-}
-</script>
 <script>
 /* =====================================================================
    The problem bank: contest name, type (a = AMC multiple choice,
@@ -932,7 +896,7 @@ function chipRow(el, items, selected, onChange, order){
 }
 
 /* ---------------- Screens ---------------- */
-function show(id){ ["landing","solo","dailyDone","game"].forEach(s => $(s).hidden = s !== id); window.scrollTo(0, 0); if (id === "landing"){ renderDailyStatus(); showAd("adMenu"); } }
+function show(id){ ["landing","solo","dailyDone","game"].forEach(s => $(s).hidden = s !== id); window.scrollTo(0, 0); if (id === "landing"){ renderDailyStatus(); } }
 
 /* =====================================================================
    SOLO: daily five + practice
@@ -1394,32 +1358,6 @@ if (fbOK){
   if (store.get("boxed.code")) auth.signInAnonymously().catch(() => {});
 }
 $("mpJump").onclick = e => { e.preventDefault(); $("mp").scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start"}); $("joinCode").focus({preventScroll: true}); };
-})();
-</script>
-<aside class="rail l" aria-label="Advertisement"><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></aside>
-<aside class="rail r" aria-label="Advertisement"><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></aside>
-<script>
-// Side-rail ads. Uses RAIL_SLOT (a vertical 160x600 unit works best), else falls back to AD_SLOT.
-// Only on screens 1180px+ wide; the rails fold away if Google sends no ad.
-const RAIL_SLOT='';
-(function(){
-  const wide=matchMedia('(min-width:1180px) and (min-height:640px)');let state='';
-  const relayout=()=>dispatchEvent(new Event('resize'));
-  function setup(){
-    let slot=RAIL_SLOT;try{slot=slot||AD_SLOT}catch(e){}
-    if(!slot||state||!wide.matches)return;
-    state='asked';
-    if(!document.querySelector('script[src*="adsbygoogle.js"]')){const s=document.createElement('script');s.async=true;s.crossOrigin='anonymous';s.src='https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js';document.head.appendChild(s)}
-    document.documentElement.classList.add('rails');relayout();
-    const ins=[...document.querySelectorAll('.rail ins')];
-    ins.forEach(el=>{el.setAttribute('data-ad-client','ca-pub-1712937102765568');el.setAttribute('data-ad-slot',slot)});
-    requestAnimationFrame(()=>{
-      ins.forEach(()=>{try{(window.adsbygoogle=window.adsbygoogle||[]).push({})}catch(e){}});
-      setTimeout(()=>{if(!ins.some(el=>el.getAttribute('data-ad-status')==='filled')){document.documentElement.classList.remove('rails');state='empty';relayout()}},6000);
-    });
-  }
-  wide.addEventListener('change',()=>{setup();relayout()});
-  setup();
 })();
 </script>
 <script src="/analytics/tracker.js" data-site="boxed" defer></script>
