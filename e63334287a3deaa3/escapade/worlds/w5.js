@@ -532,7 +532,8 @@ build(B,r){
   W.killY=-10;W.codes.eye=makeCode(r);W.pads.eye={set:'code'};
   const CX=0,CZ=-40;
   const D8=k=>[-Math.sin(k*Math.PI/4),-Math.cos(k*Math.PI/4)];
-  const cand=shuffle([0,1,2,3,4,5,7],r),ka=cand[0],kb=cand[1];
+  // two nests at least a quarter turn apart (nearer ones are a jump from each other)
+  const cand=shuffle([0,1,2,3,4,5,7],r),ka=cand[0],kb=cand.find(k=>{const d=Math.abs(k-ka)%8;return Math.min(d,8-d)>=2});
   // the south island (start) and the hub, with its turntable bridge and the bridge's button
   B.plat(0,0,-19,10,10,Object.assign({name:'S',t:3},ROCK));B.cp(0,0,-16.5);
   B.sign(-2.6,2.6,-23.85,0,4.8,1.4,{title:'Eye of the Storm',sub:'Switch the storm off'});B.deco(-4.6,1,-23.9,.2,2,.2,STEEL);B.deco(-.6,1,-23.9,.2,2,.2,STEEL);
