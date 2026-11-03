@@ -408,12 +408,12 @@ build(B,r){
   // the west tower: golden clouds by day; its door turns a quarter at each press (outside or in); its crest out back
   day('d1',-16.4,0,-25.6,2.6);day('d2',-19.4,.6,-28.8,2.6);day('d3',-22.2,.6,-31.8,2.6);
   B.plat(-23.4,0,-35.7,4.4,2.6,Object.assign({name:'wland'},ST));
-  B.cyl(-24,0,-42,5.3,{t:3,name:'wtower',col:'#f3efe6',mat:'stone'});
+  B.cyl(-24,0,-42,4.9,{t:3,name:'wtower',col:'#f3efe6',mat:'stone'});
   B.turning('wt',-24,-42,4,()=>{const R=4.6,L=2*R*Math.tan(Math.PI/8)+.6;for(let k=1;k<8;k++){const a=k*Math.PI/4,x=-24-Math.sin(a)*R,z=-42-Math.cos(a)*R;B.box(x,4.5,z,L,11,.6,{yaw:a,col:'#e7e1f0',mat:'wall'})}},{start:1});
   B.turnBtn('wtOut',-25.1,-35.5,'wt',{top:1.1,col:'#ffd166',stand:[-23.8,-35.5]});
   B.turnBtn('wtIn',-24,-42,'wt',{top:1.1,col:'#ffd166',stand:[-24,-40.8]});
-  B.plat(-24,0,-50,4,3,Object.assign({name:'wbalc'},ST));
-  B.btn('wcrestBtn',-24,-51,{set:'wcrest'},{top:1.1,icon:'sun',col:'#ffd166',stand:[-24,-49.8]});
+  B.plat(-24,0,-48.4,4,2.8,Object.assign({name:'wbalc'},ST));
+  B.btn('wcrestBtn',-24,-49.3,{set:'wcrest'},{top:1.1,icon:'sun',col:'#ffd166',stand:[-24,-48.1]});
   day('d4',-29.4,1.4,-50.6,2.2);day('d5',-31.6,2.8,-46.6,2);B.item('gem','gem',-31.6,3.6,-46.6);
   // the east tower: blue clouds by night; its chimney blows only by night, past the lightning, to the crest on top
   night('n1',16.4,0,-25.6,2.6);night('n2',19.4,.6,-28.8,2.6);night('n3',22.2,.6,-31.8,2.6);
@@ -442,7 +442,7 @@ build(B,r){
   B.w(0,0,-13.8);B.use('lever',0,0,-13.8);
   B.w(-12.6,0,-23);B.j(-16.4,0,-25.6,{wait:true});B.j(-19.4,.6,-28.8,{wait:true});B.j(-22.2,.6,-31.8,{wait:true});B.j(-22.4,0,-35.6,{wait:true});
   B.w(-23.8,0,-35.5);B.turnTo('wtOut','wt',2);B.w(-24,0,-38.6);B.w(-24,0,-40.8);B.turnTo('wtIn','wt',0);
-  B.w(-25.8,0,-41.4);B.w(-25.6,0,-43.4);B.w(-24,0,-45);B.w(-24,0,-49.8);B.use('wcrestBtn',-24,0,-49.8);
+  B.w(-25.8,0,-41.4);B.w(-25.6,0,-43.4);B.w(-24,0,-45);B.w(-24,0,-48.1);B.use('wcrestBtn',-24,0,-48.1);
   B.w(-24,0,-44.6);B.w(-25.6,0,-43.4);B.w(-25.8,0,-41.4);B.w(-24,0,-40.8);B.turnTo('wtIn','wt',2);B.w(-24,0,-38.6);B.w(-22.4,0,-35.6);
   B.j(-22.2,.6,-31.8,{wait:true});B.j(-19.4,.6,-28.8,{wait:true});B.j(-16.4,0,-25.6,{wait:true});B.j(-12.6,0,-23,{wait:true});
   B.w(0,0,-13.8);B.use('lever',0,0,-13.8);
@@ -532,7 +532,8 @@ build(B,r){
   W.killY=-10;W.codes.eye=makeCode(r);W.pads.eye={set:'code'};
   const CX=0,CZ=-40;
   const D8=k=>[-Math.sin(k*Math.PI/4),-Math.cos(k*Math.PI/4)];
-  const cand=shuffle([0,1,2,3,4,5,7],r),ka=cand[0],kb=cand[1];
+  // two nests at least a quarter turn apart (nearer ones are a jump from each other)
+  const cand=shuffle([0,1,2,3,4,5,7],r),ka=cand[0],kb=cand.find(k=>{const d=Math.abs(k-ka)%8;return Math.min(d,8-d)>=2});
   // the south island (start) and the hub, with its turntable bridge and the bridge's button
   B.plat(0,0,-19,10,10,Object.assign({name:'S',t:3},ROCK));B.cp(0,0,-16.5);
   B.sign(-2.6,2.6,-23.85,0,4.8,1.4,{title:'Eye of the Storm',sub:'Switch the storm off'});B.deco(-4.6,1,-23.9,.2,2,.2,STEEL);B.deco(-.6,1,-23.9,.2,2,.2,STEEL);
