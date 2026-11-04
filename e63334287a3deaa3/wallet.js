@@ -360,7 +360,7 @@
     balance: balance, inEmeralds: inEmeralds, format: format, earn: earn, spend: spend,
     log: function () { return readLog(); }, on: on, sync: sync,
     // The welcome gift (once per browser), given by the shop page the first time it opens.
-    welcome: function () { if (!on()) return false; var w = load(); if (w.gift) return false; w.gift = 1; save(w); return change(WELCOME, 'welcome gift'); },
+    welcome: function () { if (!on()) return false; var w = load(); if (w.gift) return false; w.gift = 1; save(w); return change(WELCOME, 'Welcome gift'); },
     MANGOS_PER_EMERALD: MANGOS_PER_EMERALD, MANGOS_PER_DOLLAR: MANGOS_PER_DOLLAR, EARN: EARN, PAYMENTS: PAYMENTS
   };
   if (navigator.webdriver) window.__wallet = {

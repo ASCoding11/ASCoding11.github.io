@@ -62,13 +62,13 @@ button{font:inherit;color:inherit}
 .topbar .wallet + #acct{margin-left:0}
 
 main{max-width:1120px;margin:0 auto;padding:18px max(16px,env(safe-area-inset-left)) 60px max(16px,env(safe-area-inset-right))}
-.hero{display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:center;background:linear-gradient(135deg,rgba(124,140,255,.22),rgba(47,191,113,.12));border:1px solid var(--line);border-radius:20px;padding:18px 20px}
-.hero .capsule{width:120px;height:120px}
+.hero{display:grid;grid-template-columns:auto 1fr;gap:4px 20px;align-items:center;background:linear-gradient(135deg,rgba(124,140,255,.22),rgba(47,191,113,.12));border:1px solid var(--line);border-radius:20px;padding:18px 20px}
+.hero .capsule{width:120px;height:120px;grid-row:span 2}
 .hero h2{font-family:var(--f-d);font-weight:600;font-size:26px;margin:0 0 4px}
 .hero p{margin:0 0 10px;color:var(--ink-2);font-size:14.5px}
 .odds{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px;padding:0;list-style:none}
 .odds li{font-size:12.5px;font-weight:800;border-radius:999px;padding:3px 9px;background:rgba(0,0,0,.25);border:1px solid currentColor}
-.drawbtns{display:flex;flex-wrap:wrap;gap:8px}
+.drawbtns{display:flex;flex-wrap:wrap;gap:8px;grid-column:2}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:42px;padding:8px 14px;border-radius:12px;border:1px solid var(--line);background:var(--panel-2);font-weight:800;font-size:14.5px;cursor:pointer;touch-action:manipulation}
 .btn:hover:not([disabled]){border-color:var(--ink-2)}
 .btn.go{background:var(--em);color:#04210f;border-color:transparent}
@@ -116,7 +116,7 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
 .item.locked .in{color:var(--ink-3)}
 .item.on{border-color:var(--em);box-shadow:0 0 0 2px rgba(47,191,113,.35)}
 .item .tick{position:absolute;top:6px;right:6px;width:20px;height:20px;border-radius:50%;background:var(--em);color:#04210f;font-weight:900;font-size:12px;display:grid;place-items:center}
-.item .lock{position:absolute;top:6px;right:6px;font-size:11px;color:var(--ink-3);font-weight:800}
+.item .lock{font-size:11px;color:var(--ink-3);font-weight:700;line-height:1.1}
 
 .log{list-style:none;margin:0;padding:0;border:1px solid var(--line);border-radius:14px;overflow:hidden}
 .log li{display:grid;grid-template-columns:1fr auto auto;gap:12px;padding:9px 12px;border-top:1px solid var(--line);font-size:14px;align-items:center}
@@ -157,15 +157,21 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
   .stage .big{width:110px;height:110px;margin:0}
   .wearing{justify-content:flex-start}
 }
+@media (max-width:760px),(max-height:500px){
+  body.tab-locker .hero,body.tab-history .hero{display:none}
+}
 @media (max-width:520px){
-  .topbar{gap:6px;flex-wrap:wrap}
-  .topbar h1{font-size:18px}
-  .wallet{padding:4px 10px 4px 6px}
+  .topbar{gap:6px}
+  .topbar h1{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .topbar .back{font-size:13.5px}
+  .wallet{padding:4px 10px 4px 6px;gap:6px}
   .wallet .big{font-size:16px}
-  .hero{grid-template-columns:1fr;text-align:center;padding:16px 14px}
-  .hero .capsule{width:84px;height:84px;margin:0 auto}
-  .odds,.drawbtns{justify-content:center}
-  .drawbtns .btn{flex:1 1 30%;padding:8px 6px;font-size:13.5px}
+  .hero{grid-template-columns:64px 1fr;gap:12px;padding:14px 12px}
+  .hero .capsule{width:64px;height:64px;grid-row:auto;align-self:start}
+  .hero h2{font-size:22px}
+  .hero p{font-size:13.5px}
+  .drawbtns{grid-column:1 / -1;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .drawbtns .btn{padding:8px 4px;font-size:13.5px;white-space:nowrap;gap:4px}
   .grid{grid-template-columns:1fr}
   .items{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
   .item{min-height:128px;padding:8px 4px}
@@ -239,7 +245,7 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
       '<section class="hero"><div class="capsule">' + GEM + '</div><div>' +
         '<h2>Skin draw</h2><p>Each draw gives one skin. A skin you already have gives back ' + Math.round(C.DUP_REFUND / 13 * 10) / 10 + ' emeralds (' + C.DUP_REFUND + ' mangos).</p>' +
         '<ul class="odds" aria-label="Odds">' + C.RARITY.slice().reverse().map(function (r) { return '<li style="color:' + r.color + '">' + r.name + ' ' + (r.w * 100 / C.RARITY_TOTAL) + '%</li>'; }).join('') + '</ul>' +
-        '<div class="drawbtns" id="drawbtns"></div></div></section>' +
+        '</div><div class="drawbtns" id="drawbtns"></div></section>' +
       '<nav class="tabs" role="tablist"><button role="tab" data-tab="packs" aria-selected="true">Packs</button><button role="tab" data-tab="locker" aria-selected="false">Locker</button><button role="tab" data-tab="history" aria-selected="false">Wallet</button></nav>' +
       '<section id="t-packs"></section><section id="t-locker" hidden></section><section id="t-history" hidden></section>';
     document.body.appendChild(main);
@@ -252,7 +258,7 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
       var b = e.target.closest('button[data-tab]'); if (!b) return;
       tab = b.getAttribute('data-tab');
       main.querySelectorAll('.tabs button').forEach(function (x) { x.setAttribute('aria-selected', x === b ? 'true' : 'false'); });
-      ['packs', 'locker', 'history'].forEach(function (k) { document.getElementById('t-' + k).hidden = k !== tab; });
+      ['packs', 'locker', 'history'].forEach(function (k) { document.getElementById('t-' + k).hidden = k !== tab; document.body.classList.toggle('tab-' + k, k === tab); });
       draw();
     });
 
@@ -347,7 +353,7 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
         if (!isSkin) look.accessories[it.slot] = it.id;
         html += '<div class="item' + (has ? '' : ' locked') + (worn ? ' on' : '') + '" role="button" tabindex="' + (has ? 0 : -1) + '" data-item="' + it.id + '" aria-pressed="' + worn + '" title="' + esc(it.desc) + '">' +
           C.avatarSvg(uid, 72, { look: look }) + '<span class="in">' + esc(it.name) + '</span><span class="ir" style="color:' + r.color + '">' + r.name + '</span>' +
-          (worn ? '<span class="tick" aria-hidden="true">&#10003;</span>' : '') + (has ? '' : '<span class="lock">' + esc(sourceOf(it.id)) + '</span>') + '</div>';
+          (worn ? '<span class="tick" aria-hidden="true">&#10003;</span>' : '') + (has ? '' : '<span class="lock">' + (sourceOf(it.id) === 'Draws' ? 'From draws' : 'In ' + esc(sourceOf(it.id))) + '</span>') + '</div>';
       });
       html += '</div></div></div>';
       t.innerHTML = html;
@@ -413,12 +419,12 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
         var done = el('button', 'btn go done', draws.length > 1 ? 'Nice!' : 'Wear it'); done.type = 'button';
         done.addEventListener('click', function (e) {
           e.stopPropagation();
-          if (draws.length === 1 && !draws[0].dup) C.equip(draws[0].skin);
+          if (draws.length === 1) C.equip(draws[0].skin);
           close();
         });
         var keep = el('button', 'btn done', 'Close'); keep.type = 'button'; keep.style.marginLeft = '8px';
         keep.addEventListener('click', function (e) { e.stopPropagation(); close(); });
-        var row = el('div'); row.appendChild(done); if (draws.length === 1 && !draws[0].dup) row.appendChild(keep); rv.querySelector('.box').appendChild(row);
+        var row = el('div'); row.appendChild(done); if (draws.length === 1) row.appendChild(keep); rv.querySelector('.box').appendChild(row);
         done.focus();
       }
       function close() { if (rv) { rv.remove(); rv = null; } draw(); }

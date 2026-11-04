@@ -397,7 +397,7 @@
     if (pv.all) return { ok: false, reason: 'owned' };
     var w = W(); if (!w) return { ok: false, reason: 'wallet' };
     if (w.balance() < p.price * MPE) return { ok: false, reason: 'funds', need: p.price * MPE - w.balance() };
-    if (w.spend(p.price, 'bought ' + p.name) === false) return { ok: false, reason: 'funds' };
+    if (w.spend(p.price, 'Bought ' + p.name) === false) return { ok: false, reason: 'funds' };
     var L = load(), got = { skins: [], acc: [], draws: [] }, dups = 0, next = opts && opts.next;
     (p.contents.skins || []).forEach(function (id) { if (L.s.indexOf(id) < 0) { L.s.push(id); got.skins.push(id); } else dups++; });
     (p.contents.acc || []).forEach(function (id) { if (L.a.indexOf(id) < 0) { L.a.push(id); got.acc.push(id); } else dups++; });
@@ -409,7 +409,7 @@
     if (!L.e.skin && L.s.length) L.e.skin = (got.skins[0] || (got.draws[0] && got.draws[0].skin) || L.s[0]);
     save(L);
     var refund = dups * DUP_REFUND;
-    if (refund) w.earn(refund, dups === 1 ? 'duplicate refund' : dups + ' duplicates refund');
+    if (refund) w.earn(refund, dups === 1 ? 'Back for a duplicate' : 'Back for ' + dups + ' duplicates');
     return { ok: true, pack: p.id, spent: p.price, got: got, refund: refund, balance: w.balance() };
   }
 
