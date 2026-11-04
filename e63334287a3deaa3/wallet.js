@@ -27,7 +27,9 @@
  * Saved in this browser:
  *   localStorage 'wallet:v1'  { v: 1, base: mangos the account node had at the last sync, pend: mangos earned (+) or
  *                               spent (-) since then, su: the uid it syncs with, day: 'YYYYMMDD', dc: { <game>: mangos
- *                               earned from it today }, gift: 1 once the welcome gift was given }
+ *                               earned from it today }, gift: 1 once the welcome gift was given, dv: the browser
+ *                               that wrote it ('wallet:dev'; a copy restored from another browser ignores its pend) }
+ *   localStorage 'wallet:dev'  this browser's id (12 letters and digits; never put in a cloud save)
  *                               The balance is base + pend.
  *   localStorage 'wallet:log' [[time ms, change in mangos, balance after, why], …] the last 200, newest last. Grants from
  *                               the same reason within a minute are added into one line.
@@ -69,7 +71,7 @@
   if (window.BackRoomWallet) return;
 
   var MANGOS_PER_EMERALD = 13, MANGOS_PER_DOLLAR = 7321;
-  var KEY = 'wallet:v1', LOG_KEY = 'wallet:log', LOG_MAX = 200, MERGE_MS = 60000;
+  var KEY = 'wallet:v1', LOG_KEY = 'wallet:log', DEV_KEY = 'wallet:dev', LOG_MAX = 200, MERGE_MS = 60000;
   var MAX_GRANT = 13 * 2000;                 // the most one earn() can add (a pack refund or a gift; games pay far less)
   var MAX_BAL = 1e12;                        // far above anything real, still a safe integer
   var WELCOME = 20 * MANGOS_PER_EMERALD;     // a one-time gift the first time the shop opens, so a new player can try a draw
@@ -163,13 +165,27 @@
   function load() {
     var o = json(ls(KEY));
     o = obj(o) && o.v === 1 ? o : {};
-    var w = { v: 1, base: int(o.base) && o.base >= 0 ? o.base : 0, pend: int(o.pend) ? o.pend : 0, su: okUid(o.su) ? o.su : '', day: typeof o.day === 'string' ? o.day : '', dc: {}, gift: o.gift === 1 ? 1 : 0 };
+    var w = { v: 1, base: int(o.base) && o.base >= 0 ? o.base : 0, pend: int(o.pend) ? o.pend : 0, su: okUid(o.su) ? o.su : '', day: typeof o.day === 'string' ? o.day : '', dc: {}, gift: o.gift === 1 ? 1 : 0, dv: dev() };
+    // A copy made in another browser (a cloud save restored here): its unsynced mangos belong to that browser, which
+    // will add them itself, so they're not added again from here; the synced balance (base) still counts.
+    if (o.dv && o.dv !== w.dv) w.pend = 0;
     if (w.base + w.pend < 0) w.pend = -w.base;
     if (obj(o.dc)) Object.keys(o.dc).forEach(function (g) { if (okGame(g) && int(o.dc[g]) && o.dc[g] > 0) w.dc[g] = o.dc[g]; });
     if (w.day !== today()) { w.day = today(); w.dc = {}; }
     return w;
   }
-  function save(w) { ls(KEY, JSON.stringify(w)); }
+  function save(w) { w.dv = dev(); ls(KEY, JSON.stringify(w)); }
+  // This browser's id (never copied between devices), so a restored copy of wallet:v1 can't count the same mangos twice.
+  var devId = '';
+  function dev() {
+    if (devId) return devId;
+    var d = ls(DEV_KEY);
+    if (!/^[a-z0-9]{12}$/.test(d || '')) {
+      d = ''; try { var a = new Uint8Array(12); crypto.getRandomValues(a); for (var i = 0; i < 12; i++) d += 'abcdefghijklmnopqrstuvwxyz0123456789'.charAt(a[i] % 36); } catch (e) { d = (Math.random().toString(36) + '000000000000').slice(2, 14); }
+      if (on()) ls(DEV_KEY, d);
+    }
+    return (devId = d);
+  }
   function bal(w) { return Math.max(0, w.base + w.pend); }
   function readLog() {
     var a = json(ls(LOG_KEY));
@@ -323,13 +339,17 @@
       if (w0.su && w0.su !== u.uid) return false;                 // this browser's wallet belongs to another account
       var pend = w0.pend, mine = locker(), used = null;
       watch(c, u.uid);
-      return c.db.ref(PATH + '/' + u.uid + '/w').transaction(function (cur) {
-        var r = cleanW(cur);
-        var start = r ? r.b : (w0.su === u.uid ? w0.base : 0);
-        var m = mine && window.BackRoomCosmetics._join ? window.BackRoomCosmetics._join(mine, r) : { s: '', a: '', e: '' };
-        used = { b: Math.max(0, Math.min(MAX_BAL, start + pend)), s: m.s, a: m.a, e: m.e, r: r };
-        return { v: 1, b: used.b, s: m.s, a: m.a, e: m.e, lh: hash(JSON.stringify(readLog())), t: Date.now() };
-      }, null, false).then(function (res) {
+      // No node yet (never on the Leaderboards): the rules refuse w on its own, so wait for stats.js to make the node.
+      return c.db.ref(PATH + '/' + u.uid + '/ts').once('value').then(function (ts) {
+        if (ts.val() == null) return null;
+        return c.db.ref(PATH + '/' + u.uid + '/w').transaction(function (cur) {
+          var r = cleanW(cur);
+          var start = r ? r.b : (w0.su === u.uid ? w0.base : 0);
+          var m = mine && window.BackRoomCosmetics._join ? window.BackRoomCosmetics._join(mine, r) : { s: '', a: '', e: '' };
+          used = { b: Math.max(0, Math.min(MAX_BAL, start + pend)), s: m.s, a: m.a, e: m.e, r: r };
+          return { v: 1, b: used.b, s: m.s, a: m.a, e: m.e, lh: hash(JSON.stringify(readLog())), t: Date.now() };
+        }, null, false);
+      }).then(function (res) {
         if (!res || !res.committed || !used) return false;
         var w = load(), before = bal(w);
         w.base = used.b; w.pend -= pend; w.su = u.uid;            // anything earned while the sync ran stays pending
