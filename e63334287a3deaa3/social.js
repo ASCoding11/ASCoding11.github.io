@@ -79,7 +79,7 @@
   var NODE_MAX = 60000, THREAD_KEEP = 80;
   var GAP = 1500, BURST = 5, BURST_MS = 10000;
   var REPORT_MSGS = 20, REPORT_MAX = 4000, REPORT_BYTES = 8000, REPORT_GAP = 60000;
-  var REQ_TTL = 10 * 60000, REQ_BURST = 10, REQ_BURST_MS = 10 * 60000, CHATS_MAX = 60;
+  var REQ_TTL = 10 * 60000, REQ_BURST = 10, REQ_BURST_MS = 2000, REQ_COOL = 10000, CHATS_MAX = 60;   // only a real flood (10 chat or join requests in 2 s) waits, and only 10 s
   var PC_KEEP = 6, NODE_SOFT = 50000;
   var COLORS = ['#1D6A4B', '#C0562F', '#3E5BA9', '#9A3F8F', '#B07A12', '#2A8A8A', '#B42318', '#5B6B2E'];
 
@@ -336,6 +336,7 @@
   if (!pchat || typeof pchat !== 'object' || typeof pchat.c !== 'string' || !Array.isArray(pchat.m)) pchat = { c: '', m: [] };
   var chains = {};                         // uid -> promise: their sealed items are opened in the order they were sent
   var reqSent = [];                        // when we sent chat requests, for the rate limit
+  var reqCool = 0;                         // after a flood of requests: no more until then
   var opened = {};                         // sender:id -> 1 once decrypted (or failed)
   var sent = [];                           // our recent send times, for the rate limit
   var reported = {};                       // uid -> time we last reported them (one report a minute per person)
@@ -647,14 +648,21 @@
     if (chats[u]) return 'You already chat with them.';
     var t = threads[u], n = now();
     if (t && t.rq && n - t.rq < REQ_TTL) return pendingOut(u) ? 'Waiting for them to accept.' : 'You can ask again in ' + Math.max(1, Math.ceil((REQ_TTL - (n - t.rq)) / 60000)) + ' min.';
-    reqSent = reqSent.filter(function (x) { return n - x < REQ_BURST_MS; });
-    if (reqSent.length >= REQ_BURST) return 'That’s a lot of requests. Try again in a few minutes.';
+    if (n < reqCool) return reqWait(n);
     return '';
+  }
+  // Chat and join requests share one flood limit: the REQ_BURST-th request inside REQ_BURST_MS isn't sent, and
+  // requests wait REQ_COOL from then. (Checked when one is sent, not when buttons are drawn.)
+  function reqWait(n) { return 'That’s a lot of requests at once. Try again in ' + Math.max(1, Math.ceil((reqCool - n) / 1000)) + ' s.'; }
+  function reqFlood(t) {
+    reqSent = reqSent.filter(function (x) { return t - x < REQ_BURST_MS; });
+    if (reqSent.length + 1 >= REQ_BURST) { reqSent = []; reqCool = t + REQ_COOL; schedule(); setTimeout(schedule, REQ_COOL + 50); throw new Error(reqWait(t)); }
+    reqSent.push(t);
   }
   async function request(u) {
     var why = canRequest(u); if (why) throw new Error(why);
     var th = thread(u), t = now();
-    reqSent.push(t);
+    reqFlood(t);
     await sendDm(u, { k: 'q' });
     th.rq = Math.max(t, last(thread(u).m)); th.rx = 0; th.rd = 0; saveThreads();
     schedule();
@@ -794,8 +802,7 @@
     if (inMyParty(u, p)) return 'You’re already in their party.';
     var t = threads[u], n = now();
     if (t && t.jq && n - t.jq < REQ_TTL) return pendingJoinOut(u) ? 'Waiting for them to answer.' : 'You can ask again in ' + Math.max(1, Math.ceil((REQ_TTL - (n - t.jq)) / 60000)) + ' min.';
-    reqSent = reqSent.filter(function (x) { return n - x < REQ_BURST_MS; });
-    if (reqSent.length >= REQ_BURST) return 'That’s a lot of requests. Try again in a few minutes.';
+    if (n < reqCool) return reqWait(n);
     // One open request per party: not while another member of the same party still has ours.
     var L = p.pl || u;
     for (var k in threads) if (k !== u && pendingJoinOut(k) && people[k] && (people[k].pl || k) === L) return 'You already asked ' + mask(people[k].n) + ' to join that party.';
@@ -804,7 +811,7 @@
   async function askJoin(u) {
     var why = canAskJoin(u); if (why) throw new Error(why);
     var th = thread(u), t = now();
-    reqSent.push(t);
+    reqFlood(t);
     await sendDm(u, { k: 'j' });
     th.jq = Math.max(t, last(thread(u).m)); th.jx = 0; th.jw = ''; th.jc = ''; th.jl = ''; th.jln = ''; saveThreads();
     schedule();
