@@ -88,6 +88,7 @@
   var KEYS = [
     // shared
     'party:name', 'ol:name', 'ol:block', 'ol:mute',
+    'layout:v1',   // Edit layout (layout.js): the order of the Back Room's blocks
     // Rumble Karts
     'rk_name', 'rk_color', 'rk_mode', 'rk_sound',
     // Shell Crackers
