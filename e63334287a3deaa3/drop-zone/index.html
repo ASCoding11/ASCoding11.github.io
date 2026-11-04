@@ -1209,7 +1209,9 @@ let ents=[player];
 function rebuildEnts(){ents=[player,...remotes.values(),...bots.values()]}
 const myId=()=>online?Net.uid:'me';
 function entById(id){if(id===myId())return player;return bots.get(id)||remotes.get(id)||null}
-const nowMs=()=>online?Net.now():Date.now();
+// Practice runs on its own clock, which stops while it's paused (online matches run on the server's clock)
+let pClock=Date.now();
+const nowMs=()=>online?Net.now():pClock;
 const matchT=()=>MS&&MS.t0?(nowMs()-MS.t0)/1000:0;
 const amHost=()=>!online||Net.amHost;
 const inPlay=()=>!!MS&&(MS.ph==='play'||MS.ph==='end')&&curMatch===MS.id;
@@ -1778,7 +1780,7 @@ function onNodeGone(uid){
 function validMS(m){return !!m&&typeof m==='object'&&typeof m.id==='number'&&['lobby','play','end'].includes(m.ph)&&(m.ph==='lobby'||(typeof m.sd==='number'&&typeof m.t0==='number'&&typeof m.ro==='string'))}
 const _rs={};
 function updateRemotes(dt){
-  const now=online?Net.now():Date.now();
+  const now=nowMs();
   for(const e of ents){
     if(e.local||!e.snaps)continue;
     if(!e.present||!e.snaps.length)continue;
@@ -1825,7 +1827,7 @@ function onMatchEnd(ms){
   endShown=ms.id;const wn=String(ms.wn||'');
   if(wn&&wn===myId()&&player.alive){myResult={place:1,kills:myKills,dmg:Math.round(player.dmg),time:Math.max(0,matchT()),win:true};player.place=1;recordStats(1,true);banner('VICTORY','Last one standing',4)}
   else banner(wn?nameOf(wn).toUpperCase()+' WINS':'MATCH OVER',wn?'Last one standing':'Nobody made it',3.2);
-  setTimeout(()=>{if(curMatch===ms.id&&(!watchMode||!inMatch||!$('end').hidden||player.alive))showEnd(true)},2800);
+  setTimeout(()=>{if(curMatch===ms.id&&state!=='menu')showEnd(true)},2800);
 }
 let practiceT=0;
 function practiceTick(dt){practiceT-=dt;if(practiceT>0)return;practiceT=.25;hostDuties();followMS()}
@@ -2186,7 +2188,7 @@ function frame(now){
   const raw=Math.min(1,Math.max(0,(now-last)/1000)),dt=Math.min(.05,raw);last=now;
   const running=state!=='menu'&&(!paused||online);
   if(running){
-    if(practice)practiceTick(raw);
+    if(practice){pClock+=raw*1000;practiceTick(raw)}
     // a slow frame is played in steps of at most 1/20 s (up to a quarter of a second), so a slow computer doesn't
     // play in slow motion against the storm and the Drifter, which run on the clock
     if(inPlay()){const sim=Math.min(raw,.25),n=Math.max(1,Math.ceil(sim/.05));for(let i=0;i<n;i++){updatePlayer(sim/n);updateBots(sim/n)}updateRemotes(dt)}else hideGhosts();
@@ -2424,7 +2426,7 @@ if(navigator.webdriver)window.__dz={get state(){return state},get online(){retur
   Net,player,remotes,bots,items,itemList,chests,pieces,places,statics,ramps,renderer,scene,camera,tAct,keys,STORM,WEAP,HEALS,
   matchT,stormAt,busPos,aliveIds,hostStart,hostDuties,startPractice,toMenu,goOnline,joinPrivate,quickMatch,interact,selectSlot,takeItem,playerShoot,useHeld,tryBuild,specValid,playerBuildSpec,
   damageEntity,die,raycast,groundAt,moveEntity,openChest,addItem,nearestChest,nearestItem,canTake,dropFromBus,updateCamera,camTarget,cycleSpectate,rankRows,lineClear,stepAir,
-  start(){startWanted=true;hostDuties()},
+  start(){startWanted=true;hostDuties()},now:()=>nowMs(),
   teleport(x,z,y){player.pos.set(x,y==null?groundAt(x,z,200):y,z);player.vel.set(0,0,0);player.st='ground';player.float=false;player.glide=false;player.onGround=true},
   aimAt(e){const t=e.pos.clone().add(new V3(0,1.1,0));for(let i=0;i<4;i++){updateCamera(0);const c=camera.position;player.yaw=yawTo(t.x-c.x,t.z-c.z);player.pitch=Math.atan2(t.y-c.y,Math.hypot(t.x-c.x,t.z-c.z))}},
   give(t,r){takeItem(player,{t,r:r|0,n:WEAP[t]?WEAP[t].mag:HEALS[t]?1:t==='mt'?100:60})},
