@@ -1951,7 +1951,7 @@ function onlineTick(){
 const hud={root:$('hud'),feed:$('feed'),banner:$('banner'),hint:$('hint'),cross:$('cross'),cl:$('cl'),cr:$('cr'),ct:$('ct'),cb:$('cb'),hitm:$('hitm'),hurt:$('hurt'),scope:$('scope'),
   reload:$('reload'),reloadF:$('reloadFill'),hpN:$('hpNum'),hpF:$('hpFill'),shN:$('shNum'),shF:$('shFill'),tags:$('tags'),net:$('net'),mats:$('mats'),ammo:$('ammo'),prompt:$('prompt'),
   useBar:$('useBar'),useLbl:$('useLbl'),useFill:$('useFill'),alive:$('aliveN'),kills:$('killN'),stormT:$('stormT'),tint:$('stormTint'),place:$('placeLbl')};
-let hurtA=0,hitT=0,lastHud='',bannerTimer=0,placeT=0;
+let hurtA=0,hitT=0,lastHud='',bannerTimer=0,placeT=0,stormSeen='';
 function hitmark(head){hitT=.14;hud.hitm.style.color=head?'#ffd84a':'#fff'}
 function feed(html,cls){const d=document.createElement('div');d.className=cls;d.innerHTML=html;hud.feed.prepend(d);while(hud.feed.children.length>(touchUI?4:6))hud.feed.lastChild.remove();setTimeout(()=>{d.style.opacity='0';setTimeout(()=>d.remove(),700)},6000)}
 function hint2(t,col){const d=document.createElement('div');d.className='info';d.textContent=t;if(col)d.style.color=col;hud.feed.prepend(d);while(hud.feed.children.length>(touchUI?4:6))hud.feed.lastChild.remove();setTimeout(()=>{d.style.opacity='0';setTimeout(()=>d.remove(),700)},2600)}
@@ -2004,6 +2004,8 @@ function updateHud(dt){
   else if(S.phase<STORM.length)stx=(S.showNext?'Storm moves in ':'Storm in ')+fmtT(S.left);
   else stx='Final storm';
   hud.stormT.textContent=stx;hud.stormT.classList.toggle('closing',closing);
+  // a word when the storm starts to close (once a phase)
+  const sk=inPlay()&&closing?MS.id+':'+S.phase:'';if(sk&&sk!==stormSeen){stormSeen=sk;if(inMatch&&p.alive&&p.st==='ground'){banner('STORM CLOSING',outsideStorm(p,S)||Math.hypot(p.pos.x-S.nx,p.pos.z-S.nz)>S.nr?'Head for the dashed circle on the map':'You\'re inside the next circle',2.4);sfxStorm()}}
   const out=inPlay()&&p.alive&&inMatch&&p.st!=='bus'&&outsideStorm(p,S);hud.tint.style.opacity=out?'1':'0';
   // name tags for players in sight (checked a few times a second)
   tagClock-=dt;const check=tagClock<=0;if(check)tagClock=.2;
@@ -2082,7 +2084,7 @@ function renderLobby(){
   else st=Net.amHost?'Waiting for one more person (the countdown starts at 2), or start now with bots.':'Waiting for one more person; the host can also start now.';
   $('lbStatus').textContent=st;
   $('lbHost').hidden=!(Net.amHost&&MS&&MS.ph==='lobby');
-  $('lbWatch').hidden=!(MS&&MS.ph==='play'&&curMatch===MS.id&&!inMatch);
+  $('lbWatch').hidden=!(MS&&MS.ph==='play'&&curMatch===MS.id&&(!inMatch||!player.alive));
 }
 setInterval(()=>{if(lobbyShown&&online)renderLobby()},1000);
 function specCandidates(){return ents.filter(e=>e!==player&&e.present&&e.alive&&e.st!=='bus')}
@@ -2392,7 +2394,8 @@ $('play').addEventListener('click',startPractice);
 $('quick').addEventListener('click',quickMatch);
 $('joinRoom').addEventListener('click',joinPrivate);
 $('room').addEventListener('keydown',e=>{if(e.key==='Enter')joinPrivate()});
-$('again').addEventListener('click',()=>{$('end').hidden=true;if(practice){startPractice();return}if(MS&&MS.ph==='lobby'||!inPlay())showLobby();else{showLobby()}});
+// online, Next match waits in the lobby panel (watching stays one tap away while the match is still on)
+$('again').addEventListener('click',()=>{$('end').hidden=true;if(practice){startPractice();return}showLobby()});
 $('eWatch').addEventListener('click',()=>{$('end').hidden=true;watchMode=true});
 $('toMenu').addEventListener('click',toMenu);
 $('resume').addEventListener('click',()=>{initAudio();resumeGame(true)});
