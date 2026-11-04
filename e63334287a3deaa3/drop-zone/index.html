@@ -525,7 +525,7 @@ function near(H_,x0,z0,x1,z1,out){
   for(let i=i0;i<=i1;i++)for(let j=j0;j<=j1;j++){const a=H_.get(hk(i,j));if(!a)continue;for(const s of a)if(s.q!==st){s.q=st;out.push(s)}}
   return out;
 }
-const statics=[],ramps=[],places=[],footprints=[],chestSpots=[],floorSpots=[],paints=[],roads=[];
+const statics=[],ramps=[],places=[],footprints=[],buildings=[],chestSpots=[],floorSpots=[],paints=[],roads=[];
 function solid(x0,y0,z0,x1,y1,z1,hv){const s={min:[Math.min(x0,x1),Math.min(y0,y1),Math.min(z0,z1)],max:[Math.max(x0,x1),Math.max(y0,y1),Math.max(z0,z1)],hv:hv||0};hashIn(hash,s);statics.push(s);return s}
 // a visible box, solid unless ghost
 function sbox(x0,y0,z0,x1,y1,z1,hex,hv,ghost){
@@ -599,6 +599,11 @@ function house(cx,cz,w,d,o){
     sbox(x0,top,z0+.25,x0+.25,top+.9,z1-.25,trim,hv);sbox(x1-.25,top,z0+.25,x1,top+.9,z1-.25,trim,hv);
   }
   footprints.push({x0,z0,x1,z1,col:roof});
+  // ground-floor doors, for the bots' way in and out: a point just outside and just inside each one
+  const dl=[];for(const d of doors)if(!(d[2]|0)){const i=d[1],side=d[0];let cx_,cz_,ox,oz;
+    if(side==='n'){cx_=x0+i*4+2;cz_=z0;ox=0;oz=-1}else if(side==='s'){cx_=x0+i*4+2;cz_=z1;ox=0;oz=1}else if(side==='w'){cx_=x0;cz_=z0+i*4+2;ox=-1;oz=0}else{cx_=x1;cz_=z0+i*4+2;ox=1;oz=0}
+    dl.push({out:{x:cx_+ox*1.6,z:cz_+oz*1.6},in:{x:cx_-ox*1.6,z:cz_-oz*1.6}})}
+  buildings.push({x0,z0,x1,z1,doors:dl});
   return{
     x0,z0,x1,z1,top,
     chest(ix,iz,lv,yaw){chestSpots.push({x:x0+ix*4+2,y:(lv|0)*4,z:z0+iz*4+2,yaw:yaw||0})},
@@ -1304,7 +1309,7 @@ function selectSlot(e,i){
   e.sel=i;e.reloadT=0;e.useT=0;e.switchT=.25;setHeldModel(e.model,heldKey(e));
   if(e===player){mode='combat';lastHud=''}
 }
-function nearestChest(e,maxD){let best=null,bd=maxD;for(const c of chests){if(!c.present||c.open||Math.abs(c.y-e.pos.y)>2.2)continue;const d=Math.hypot(c.x-e.pos.x,c.z-e.pos.z);if(d<bd){bd=d;best=c}}return best}
+function nearestChest(e,maxD,filter){let best=null,bd=maxD;for(const c of chests){if(!c.present||c.open||Math.abs(c.y-e.pos.y)>2.2||(filter&&!filter(c)))continue;const d=Math.hypot(c.x-e.pos.x,c.z-e.pos.z);if(d<bd){bd=d;best=c}}return best}
 function nearestItem(e,maxD,filter){let best=null,bd=maxD;for(const it of itemList){if(Math.abs(it.y-e.pos.y)>1.8)continue;const d=Math.hypot(it.x-e.pos.x,it.z-e.pos.z);if(d<bd&&(!filter||filter(it))){bd=d;best=it}}return best}
 function doOpen(e,c){if(openChest(c)){if(e===player||(e.bot&&amHost()))Net.oc.push(c.id);sendEv({k:'o',c:c.id},e);return true}return false}
 // G (or the touch button): open the nearest chest, else pick up (or swap for) the nearest item
@@ -1533,7 +1538,7 @@ function botBrain(b,rnd){
   const r=rnd||Math.random;
   const c=chests.filter(c=>c.present)[Math.floor(r()*chests.filter(c=>c.present).length)]||{x:MAP/2,z:MAP/2};
   b.ai={jumpAt:busLine.tIn+.5+r()*Math.max(1,busLine.tOut-busLine.tIn-1.5),land:{x:c.x+(r()-.5)*8,z:c.z+(r()-.5)*8},goal:null,think:0,target:null,seenT:0,react:.35+r()*.35,
-    aimErr:.03+r()*.035,strafe:1,strafeT:0,stuck:0,jumpCd:0,buildCd:0,hurt:0,threat:null,lastPos:new V3(),wander:0,healCd:0};
+    aimErr:.03+r()*.035,strafe:1,strafeT:0,stuck:0,jumpCd:0,buildCd:0,hurt:0,threat:null,lastPos:new V3(),wander:0,healCd:0,path:[],bad:new Map()};
 }
 // a bot's local brain; becomes local when this browser is (or becomes) the host
 function botLocal(b){
@@ -1554,6 +1559,18 @@ function botPickWeapon(b,d){
   if(bi>=0&&b.sel!==bi)selectSlot(b,bi);
   return bi>=0;
 }
+// Bots walk straight at things, so a goal inside a building goes by way of its nearest door (and out again by the
+// door nearest the bot); a goal they get stuck on is left alone for a while.
+function bldAt(x,z){for(const B of buildings)if(x>B.x0+.2&&x<B.x1-.2&&z>B.z0+.2&&z<B.z1-.2)return B;return null}
+function nearDoor(B,x,z,key){let best=null,bd=1e9;for(const d of B.doors){const q=d[key],dd=Math.hypot(q.x-x,q.z-z);if(dd<bd){bd=dd;best=d}}return best}
+function routeTo(p,g){
+  const pts=[],A=bldAt(p.x,p.z),B=bldAt(g.x,g.z);
+  if(A&&A!==B&&A.doors.length){const d=nearDoor(A,p.x,p.z,'in');pts.push(d.in,d.out)}
+  if(B&&B!==A&&B.doors.length){const d=nearDoor(B,g.x,g.z,'in');pts.push(d.out,d.in)}
+  return pts;
+}
+function setGoal(b,g){b.ai.goal=g;b.ai.path=g?routeTo(b.pos,g):[];b.ai.goalT=0}
+const goalKey=g=>g&&(g.chest?'c'+g.chest.id:g.item?'i'+g.item.id:'');
 function botThink(b,t){
   const ai=b.ai,S=stormAt(t);
   const hasGun=b.inv.some(s=>s&&WEAP[s.t]&&(s.n>0||b.ammo[WEAP[s.t].am]>0));
@@ -1562,14 +1579,16 @@ function botThink(b,t){
   if(en&&en.d<(hasGun?95:12)){const a=b.pos.clone().add(new V3(0,1.6,0)),c=en.e.pos.clone().add(new V3(0,1.2,0));if(lineClear(a,c)){ai.target=en.e;ai.tDist=en.d;ai.seenT+=.4}else ai.seenT=0}else ai.seenT=0;
   // the storm comes first
   const dS=Math.hypot(b.pos.x-S.x,b.pos.z-S.z),dN=Math.hypot(b.pos.x-S.nx,b.pos.z-S.nz);
-  if(dS>S.r-6||(S.showNext&&dN>S.nr-4&&S.left<35)){const a=Math.atan2(S.nz-b.pos.z,S.nx-b.pos.x),rr=Math.max(2,S.nr*.4);ai.goal={x:S.nx-Math.cos(a)*rr*.5,z:S.nz-Math.sin(a)*rr*.5,storm:true};return}
-  if(ai.target&&hasGun){ai.goal=null;return}
+  if(dS>S.r-6||(S.showNext&&dN>S.nr-4&&S.left<35)){if(!ai.goal||!ai.goal.storm){const a=Math.atan2(S.nz-b.pos.z,S.nx-b.pos.x),rr=Math.max(2,S.nr*.4);setGoal(b,{x:S.nx-Math.cos(a)*rr*.5,z:S.nz-Math.sin(a)*rr*.5,storm:true})}return}
+  if(hasGun&&!heldW(b))botPickWeapon(b,30);
+  if(ai.target&&hasGun){setGoal(b,null);return}
+  const now=performance.now(),bad=k=>(ai.bad.get(k)||0)>now;
   // loot nearby
-  const it=nearestItem(b,hasGun?40:90,it=>canTake(b,it)&&(WEAP[it.t]||HEALS[it.t]||isAmmo(it.t)||it.t==='mt'));
-  const c=nearestChest(b,hasGun?50:120);
+  const it=nearestItem(b,hasGun?40:90,it=>canTake(b,it)&&!bad('i'+it.id)&&(WEAP[it.t]||HEALS[it.t]||isAmmo(it.t)||it.t==='mt'));
+  const c=nearestChest(b,hasGun?50:120,c=>!bad('c'+c.id));
   const pick=c&&(!it||Math.hypot(c.x-b.pos.x,c.z-b.pos.z)<Math.hypot(it.x-b.pos.x,it.z-b.pos.z))?{x:c.x,z:c.z,chest:c}:it?{x:it.x,z:it.z,item:it}:null;
-  if(pick){ai.goal=pick;return}
-  if(!ai.goal||Math.hypot(ai.goal.x-b.pos.x,ai.goal.z-b.pos.z)<3||(ai.wander-=.4)<0){const a=Math.random()*Math.PI*2,d=Math.random()*Math.max(8,S.nr*.7);ai.goal={x:clamp(S.nx+Math.cos(a)*d,10,MAP-10),z:clamp(S.nz+Math.sin(a)*d,10,MAP-10)};ai.wander=8+Math.random()*8}
+  if(pick){if(goalKey(pick)!==goalKey(ai.goal))setGoal(b,pick);return}
+  if(!ai.goal||ai.goal.chest||ai.goal.item||Math.hypot(ai.goal.x-b.pos.x,ai.goal.z-b.pos.z)<3||(ai.wander-=.4)<0){const a=Math.random()*Math.PI*2,d=Math.random()*Math.max(8,S.nr*.7);setGoal(b,{x:clamp(S.nx+Math.cos(a)*d,10,MAP-10),z:clamp(S.nz+Math.sin(a)*d,10,MAP-10)});ai.wander=8+Math.random()*8}
 }
 function updateBot(b,dt,t){
   if(!b.alive)return;
@@ -1600,10 +1619,11 @@ function updateBot(b,dt,t){
     // heal when it's quiet
     if(b.useT<=0&&ai.healCd<=0&&(b.hp<70||b.sh<50)){const i=b.inv.findIndex(s=>s&&HEALS[s.t]&&canHeal(b,HEALS[s.t]));if(i>=0){selectSlot(b,i);b.useT=HEALS[b.inv[i].t].use;b.useSlot=i;ai.healCd=1}}
     if(b.useT>0)spd*=.45;
-    if(ai.goal){const dx=ai.goal.x-b.pos.x,dz=ai.goal.z-b.pos.z,L=Math.hypot(dx,dz);
-      if(L>1.2){mx=dx/L;mz=dz/L;b.yaw=wrapAng(b.yaw+wrapAng(yawTo(dx,dz)-b.yaw)*Math.min(1,dt*6));b.pitch*=.9}
-      if(ai.goal.chest&&L<2.6){doOpen(b,ai.goal.chest);ai.goal=null;ai.think=.2}
-      else if(ai.goal.item&&L<1.6){const it=items.get(ai.goal.item.id);if(it&&canTake(b,it))pickUp(b,it);ai.goal=null;ai.think=.1}}
+    if(ai.goal){while(ai.path.length&&Math.hypot(ai.path[0].x-b.pos.x,ai.path[0].z-b.pos.z)<1.3)ai.path.shift();
+      const wp=ai.path.length?ai.path[0]:ai.goal,dx=wp.x-b.pos.x,dz=wp.z-b.pos.z,D_=Math.hypot(dx,dz),L=ai.path.length?99:D_;
+      if(D_>1.2||ai.path.length){mx=dx/(D_||1);mz=dz/(D_||1);b.yaw=wrapAng(b.yaw+wrapAng(yawTo(dx,dz)-b.yaw)*Math.min(1,dt*6));b.pitch*=.9}
+      if(ai.goal.chest&&L<2.6){doOpen(b,ai.goal.chest);setGoal(b,null);ai.think=.2}
+      else if(ai.goal.item&&L<1.6){const it=items.get(ai.goal.item.id);if(it&&canTake(b,it))pickUp(b,it);setGoal(b,null);ai.think=.1}}
     // reload while it's quiet
     const w=heldW(b),s=heldItem(b);if(w&&s.n<w.mag*.5&&b.ammo[w.am]>0)startReload(b);
   }
@@ -1613,7 +1633,7 @@ function updateBot(b,dt,t){
   moveEntity(b,dt);
   // stuck: jump, then try another way
   const moved=Math.hypot(b.pos.x-ai.lastPos.x,b.pos.z-ai.lastPos.z);ai.lastPos.copy(b.pos);
-  if((mx||mz)&&moved<spd*dt*.3){ai.stuck+=dt;if(ai.stuck>.35&&b.onGround&&ai.jumpCd<=0){b.vel.y=JUMP;b.onGround=false;ai.jumpCd=.8}if(ai.stuck>2.2){ai.stuck=0;const a=Math.random()*Math.PI*2;ai.goal={x:clamp(b.pos.x+Math.cos(a)*14,10,MAP-10),z:clamp(b.pos.z+Math.sin(a)*14,10,MAP-10)};ai.wander=3}}
+  if((mx||mz)&&moved<spd*dt*.3){ai.stuck+=dt;if(ai.stuck>.35&&b.onGround&&ai.jumpCd<=0){b.vel.y=JUMP;b.onGround=false;ai.jumpCd=.8}if(ai.stuck>2.2){ai.stuck=0;const k=goalKey(ai.goal);if(k)ai.bad.set(k,performance.now()+25000);const a=Math.random()*Math.PI*2;setGoal(b,{x:clamp(b.pos.x+Math.cos(a)*14,10,MAP-10),z:clamp(b.pos.z+Math.sin(a)*14,10,MAP-10)});ai.wander=3}}
   else ai.stuck=Math.max(0,ai.stuck-dt);
   stormDamage(b,dt,t);
 }
