@@ -116,10 +116,10 @@ button:disabled{opacity:.5;cursor:default}
 .dn.head{color:#ffd84a;font-size:30px}
 .dn.sh{color:#9fd4ff}
 
-#bigmap{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(5,16,26,.6);pointer-events:auto}
+#bigmap{position:absolute;inset:0;z-index:4;display:flex;align-items:center;justify-content:center;background:rgba(5,16,26,.6);pointer-events:auto}
 #bigc{width:min(86vmin,720px);height:min(86vmin,720px);border:2px solid rgba(255,248,234,.6);border-radius:8px;background:#164a63}
 
-.overlay{position:absolute;inset:0;display:flex;align-items:center;overflow-y:auto}
+.overlay{position:absolute;inset:0;display:flex;align-items:center;overflow-y:auto;z-index:5}
 .menu{background:linear-gradient(90deg,rgba(8,24,37,.95) 0%,rgba(8,24,37,.84) 42%,rgba(8,24,37,.2) 80%,transparent 100%)}
 .menu-inner{width:min(580px,100%);padding-inline:clamp(16px,6vw,72px);padding-block:calc(48px + env(safe-area-inset-top,0px)) 32px;display:flex;flex-direction:column;gap:16px;margin-block:auto}
 .kicker{font-size:15px;letter-spacing:.24em;text-transform:uppercase;color:var(--sun);font-weight:700}
@@ -915,10 +915,13 @@ function pieceBox(s){
   return{min:[x+.5,y+.7,z+.5],max:[x+3.5,y+3.3,z+3.5]};
 }
 const NBV=[];
+// Does a build's box run into the map? It's shrunk a little on each side (never past its middle, so a thin wall still counts),
+// so a build may touch a map wall or floor but not pass into it.
 function hitsStatic(b,sh){
-  near(hash,b.min[0]+sh,b.min[2]+sh,b.max[0]-sh,b.max[2]-sh,NBV);
+  const mn=[0,1,2].map(i=>b.min[i]+Math.min(sh,(b.max[i]-b.min[i])/2-.02)),mx=[0,1,2].map(i=>b.max[i]-Math.min(sh,(b.max[i]-b.min[i])/2-.02));
+  near(hash,mn[0],mn[2],mx[0],mx[2],NBV);
   for(const s of NBV){if(s.piece)continue;
-    if(b.min[0]+sh<s.max[0]&&b.max[0]-sh>s.min[0]&&b.min[1]+sh<s.max[1]&&b.max[1]-sh>s.min[1]&&b.min[2]+sh<s.max[2]&&b.max[2]-sh>s.min[2])return true}
+    if(mn[0]<s.max[0]&&mx[0]>s.min[0]&&mn[1]<s.max[1]&&mx[1]>s.min[1]&&mn[2]<s.max[2]&&mx[2]>s.min[2])return true}
   return false;
 }
 function specValid(s){
