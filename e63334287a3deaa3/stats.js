@@ -532,6 +532,7 @@
     var nd = { n: x.n, c: colorOf(x.uid), x: 0, z: 0, h: 0, ts: Math.round(x.now), v: 2, st: seatOf(x.uid), g: g, d: d, lg: lg, q: q };
     if (has(al)) nd.al = al;
     if (okUid(cur.to) && cur.to !== x.uid) nd.to = cur.to;     // this account was merged into another (its owner said so)
+    if (obj(cur.w)) nd.w = cur.w;                               // the wallet's mirror (wallet.js), kept as it is
     // A Google account: say so, with its display name (never the email or photo), so the admin page can tell accounts apart.
     if (x.u) { nd.ga = 1; var gn = cleanName(x.u.displayName, 40); if (gn) nd.gn = gn; }
     // Keep the node small enough for leaderboard.js (8,000 characters): drop the oldest days first.
