@@ -443,7 +443,8 @@ const wDmg=(w,r)=>w.dmg*(1+.07*(r|0));
 const wReload=(w,r)=>w.reload*(1-.05*(r|0));
 // the most one shot of a weapon can do (every pellet a headshot at full damage): the victim's sanity check
 const maxShot=(w,r)=>wDmg(w,r)*w.head*w.pellets+1;
-function itemName(t){return WEAP[t]?WEAP[t].name:HEALS[t]?HEALS[t].name:t==='mt'?'Scrap':t&&t[0]==='a'&&AMMO[t[1]]?AMMO[t[1]].name:'Item'}
+const isAmmo=t=>t==='aL'||t==='aM'||t==='aS'||t==='aH';
+function itemName(t){return WEAP[t]?WEAP[t].name:HEALS[t]?HEALS[t].name:t==='mt'?'Scrap':isAmmo(t)?AMMO[t[1]].name:'Item'}
 
 const store={get(k,d){try{const v=localStorage.getItem('driftfall:'+k);return v===null?d:v}catch(e){return d}},set(k,v){try{localStorage.setItem('driftfall:'+k,String(v))}catch(e){}}};
 let sens=parseFloat(store.get('sens','1'))||1;
@@ -844,7 +845,7 @@ function drawItems(dt){
   for(const it of itemList){
     const bob=RM?0:Math.sin(itemClock*2.2+it.ph)*.08;
     _o.position.set(it.x,it.y+.42+bob,it.z);_o.rotation.set(0,RM?it.ph:itemClock*.9+it.ph,WEAP[it.t]?0:.0);
-    _o.scale.setScalar(WEAP[it.t]?1.1:it.t[0]==='a'||it.t==='mt'?.7:.8);_o.updateMatrix();itemMesh.setMatrixAt(it.ix,_o.matrix);
+    _o.scale.setScalar(WEAP[it.t]?1.1:isAmmo(it.t)||it.t==='mt'?.7:.8);_o.updateMatrix();itemMesh.setMatrixAt(it.ix,_o.matrix);
   }
   itemMesh.instanceMatrix.needsUpdate=true;
 }
@@ -1209,7 +1210,8 @@ const amHost=()=>!online||Net.amHost;
 const inPlay=()=>!!MS&&(MS.ph==='play'||MS.ph==='end')&&curMatch===MS.id;
 const playing=()=>inPlay()&&MS.ph==='play';
 const BOT_NAMES=['Pebble','Marlow','Juniper','Tinker','Biscuit','Rook','Sprocket','Clover','Nimbus','Bramble','Dune','Pickle','Wren','Cobalt','Taffy','Quill','Mossy','Ember','Pippin','Gizmo','Sorrel','Fennel','Basalt','Kestrel','Mango','Puddle','Thistle','Zephyr','Cinder','Noodle'];
-function botName(id){const i=parseInt(String(id).slice(1),10)|0;const r=mulberry((seed^hashStr('n'+i))>>>0);return BOT_NAMES[Math.floor(r()*BOT_NAMES.length+i*7)%BOT_NAMES.length]}
+// bot names: a different set each match, never two the same
+function botName(id){const i=parseInt(String(id).slice(1),10)|0;const off=Math.floor(mulberry((seed^0x6e616d65)>>>0)()*BOT_NAMES.length);return BOT_NAMES[(off+i*7)%BOT_NAMES.length]}
 const isBotId=id=>/^b\d{1,2}$/.test(String(id));
 function nameOf(id){if(id===myId())return myName;const e=entById(id);if(e&&e.name)return e.name;if(isBotId(id))return botName(id);const o=online&&Net.others.get(id);return o?cleanName(o.v.n):'Someone'}
 function cleanName(n){const s=String(n||'').replace(/[<>]/g,'').trim().slice(0,16)||'Glider';return window.NameFilter&&NameFilter.clean?NameFilter.clean(s):s}
@@ -1256,14 +1258,14 @@ const busMesh=(()=>{const B=Bag();
 /* ---------- inventory ---------- */
 function canTake(e,it){
   if(it.t==='mt')return e.mats<MAX_MATS;
-  if(it.t[0]==='a')return AMMO[it.t[1]]&&e.ammo[it.t[1]]<AMMO_CAP;
+  if(isAmmo(it.t))return AMMO[it.t[1]]&&e.ammo[it.t[1]]<AMMO_CAP;
   if(HEALS[it.t])return e.inv.some(s=>s&&s.t===it.t&&s.n<HEALS[it.t].stack)||e.inv.some(s=>!s);
   if(WEAP[it.t])return e.inv.some(s=>!s);
   return false;
 }
 function takeItem(e,it,slot){
   if(it.t==='mt'){e.mats=Math.min(MAX_MATS,e.mats+(it.n|0));return}
-  if(it.t[0]==='a'){const k=it.t[1];e.ammo[k]=Math.min(AMMO_CAP,e.ammo[k]+(it.n|0));return}
+  if(isAmmo(it.t)){const k=it.t[1];e.ammo[k]=Math.min(AMMO_CAP,e.ammo[k]+(it.n|0));return}
   if(HEALS[it.t]){const H_=HEALS[it.t];let n=Math.max(1,it.n|0);
     for(const s of e.inv)if(s&&s.t===it.t&&s.n<H_.stack){const k=Math.min(n,H_.stack-s.n);s.n+=k;n-=k;if(!n)return}
     const i=slot!=null&&!e.inv[slot]?slot:e.inv.findIndex(s=>!s);if(i>=0)e.inv[i]={t:it.t,r:0,n:Math.min(n,H_.stack)};return}
@@ -1285,7 +1287,7 @@ function swapPick(e,it){
   if(e===player){sfxPick();feedItem(it)}
   sendEv({k:'u',id:it.id},e);
 }
-function feedItem(it){const nm=itemName(it.t),r=WEAP[it.t]?RAR[it.r|0]+' ':'';hint2(`+ ${r}${nm}${it.t==='mt'||it.t[0]==='a'?' ×'+(it.n|0):''}`,WEAP[it.t]?RARH[it.r|0]:'')}
+function feedItem(it){const nm=itemName(it.t),r=WEAP[it.t]?RAR[it.r|0]+' ':'';hint2(`+ ${r}${nm}${it.t==='mt'||isAmmo(it.t)?' ×'+(it.n|0):''}`,WEAP[it.t]?RARH[it.r|0]:'')}
 function selectSlot(e,i){
   if(i>=0&&!e.inv[i])i=-1;   // an empty slot holds the crowbar
   if(e.sel===i)return;
@@ -1305,7 +1307,7 @@ function interact(e){
 let autoT=0;
 function autoPickup(e,dt){
   e.autoT=(e.autoT||0)-dt;if(e.autoT>0)return;e.autoT=.15;
-  const it=nearestItem(e,1.5,it=>(it.t==='mt'||it.t[0]==='a'||HEALS[it.t]||WEAP[it.t])&&canTake(e,it));
+  const it=nearestItem(e,1.5,it=>(it.t==='mt'||isAmmo(it.t)||HEALS[it.t]||WEAP[it.t])&&canTake(e,it));
   if(it)pickUp(e,it);
 }
 // what's in reach, for the prompt
@@ -1553,7 +1555,7 @@ function botThink(b,t){
   if(dS>S.r-6||(S.showNext&&dN>S.nr-4&&S.left<35)){const a=Math.atan2(S.nz-b.pos.z,S.nx-b.pos.x),rr=Math.max(2,S.nr*.4);ai.goal={x:S.nx-Math.cos(a)*rr*.5,z:S.nz-Math.sin(a)*rr*.5,storm:true};return}
   if(ai.target&&hasGun){ai.goal=null;return}
   // loot nearby
-  const it=nearestItem(b,hasGun?40:90,it=>canTake(b,it)&&(WEAP[it.t]||HEALS[it.t]||it.t[0]==='a'||it.t==='mt'));
+  const it=nearestItem(b,hasGun?40:90,it=>canTake(b,it)&&(WEAP[it.t]||HEALS[it.t]||isAmmo(it.t)||it.t==='mt'));
   const c=nearestChest(b,hasGun?50:120);
   const pick=c&&(!it||Math.hypot(c.x-b.pos.x,c.z-b.pos.z)<Math.hypot(it.x-b.pos.x,it.z-b.pos.z))?{x:c.x,z:c.z,chest:c}:it?{x:it.x,z:it.z,item:it}:null;
   if(pick){ai.goal=pick;return}
@@ -1635,6 +1637,7 @@ function setupMatch(ms){
   rebuildEnts();
   hideLobby();$('end').hidden=true;showHud();
   if(inMatch)banner('ALL ABOARD',`${roster.length} players · ${roster.filter(isBotId).length} bots · jump when you like`,3);
+  else if(online){watchMode=false;showLobby()}
   else{watchMode=true;banner('WATCHING','You\'ll drop in the next match',3)}
 }
 function endMatchView(){
@@ -1927,7 +1930,7 @@ function onlineTick(){
     }
     if(Net.amHost)hostDuties();
   }
-  if(!Net.amHost&&validMS(Net.lastMS))MS=Net.lastMS;
+  if(!Net.amHost){const ho=Net.others.get(Net.hostUid);if(ho&&validMS(ho.v.ms))Net.lastMS=ho.v.ms;if(validMS(Net.lastMS))MS=Net.lastMS}
   followMS();
   // a player whose node stops updating counts as gone
   if(settled&&curMatch)for(const e of remotes.values())if(roster.includes(e.id)&&e.alive&&!Net.live(e.id,12000)&&performance.now()-matchStartAt>12000){e.alive=false;e.present=false;e.st='dead'}
@@ -2097,7 +2100,7 @@ function showEnd(final){
   $('eRank').innerHTML=final?rankRows().slice(0,30).map(x=>`<li class="${x.me?'me':''}"><b>${x.place||'–'}</b><span class="nm">${esc(x.name)}${x.bot?' · BOT':''}</span><span class="k">${x.kills} KO</span></li>`).join(''):'';
   $('eWatch').hidden=final||!specCandidates().length;
   $('again').textContent=practice?'Play again':'Next match';
-  $('end').hidden=false;watchMode=false;
+  $('end').hidden=false;watchMode=false;hud.banner.hidden=true;bannerTimer=0;
   if(document.pointerLockElement)document.exitPointerLock();
 }
 function pauseGame(){if(state!=='playing'||paused||lobbyShown||!$('end').hidden)return;
@@ -2177,7 +2180,9 @@ function frame(now){
   const running=state!=='menu'&&(!paused||online);
   if(running){
     if(practice)practiceTick(raw);
-    if(inPlay()){updatePlayer(dt);updateBots(dt);updateRemotes(dt)}else hideGhosts();
+    // a slow frame is played in steps of at most 1/20 s (up to a quarter of a second), so a slow computer doesn't
+    // play in slow motion against the storm and the Drifter, which run on the clock
+    if(inPlay()){const sim=Math.min(raw,.25),n=Math.max(1,Math.ceil(sim/.05));for(let i=0;i<n;i++){updatePlayer(sim/n);updateBots(sim/n)}updateRemotes(dt)}else hideGhosts();
   }
   if(running||state==='menu'){for(const e of ents)animModel(e,dt);updateFx(dt);drawItems(dt)}
   updateWorldFx();updateCamera(dt);
