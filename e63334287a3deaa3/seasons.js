@@ -55,8 +55,8 @@
     return c[3]<1?'rgba('+r.join(',')+','+c[3]+')':'rgb('+r.join(',')+')';
   }
   // How far each variable moves towards the season's colour. Backgrounds the most, cards very little.
-  var VARS={'--ground':.45,'--bg':.4,'--night':.45,'--panel-2':.28,'--line':.3,'--panel':.12};
-  var TINT={fall:{light:[243,214,178],dark:[64,32,12]},winter:{light:[203,224,244],dark:[14,40,70]}};
+  var VARS={'--ground':.62,'--bg':.5,'--night':.5,'--panel-2':.45,'--line':.45,'--panel':.25};
+  var TINT={fall:{light:[250,190,120],dark:[110,50,8]},winter:{light:[165,208,246],dark:[20,60,110]}};
 
   var styleEl=null;
   function tint(season){
@@ -77,13 +77,20 @@
   /* ---------- shapes ---------- */
   // Leaves in a 100 x 100 box around 0,0, tip up. Drawn once into small sprites, then stamped with drawImage.
   var LEAVES=[
-    'M0,-46C26,-30 28,20 0,42C-28,20 -26,-30 0,-46Z',
-    'M0,-48L8,-26L22,-34L18,-12L40,-18L30,0L44,8L22,14L26,30L6,22L2,40L-2,40L-6,22L-26,30L-22,14L-44,8L-30,0L-40,-18L-18,-12L-22,-34L-8,-26Z',
-    'M0,-46Q14,-44 12,-32Q26,-30 20,-16Q34,-10 22,2Q34,12 18,20Q24,34 6,34L2,40L-2,40L-6,34Q-24,34 -18,20Q-34,12 -22,2Q-34,-10 -20,-16Q-26,-30 -12,-32Q-14,-44 0,-46Z',
+    'M0,-46C26,-30 28,20 0,40C-28,20 -26,-30 0,-46Z',
+    'M0,-48L6,-34L14,-38L12,-22L24,-28L22,-18L38,-24L32,-10L44,-6L30,4L34,12L20,12L24,24L10,18L4,26L2,40L-2,40L-4,26L-10,18L-24,24L-20,12L-34,12L-30,4L-44,-6L-32,-10L-38,-24L-22,-18L-24,-28L-12,-22L-14,-38L-6,-34Z',
+    'M0,-46C10,-46 14,-38 8,-32C20,-36 28,-26 18,-18C32,-20 36,-6 22,-2C34,2 34,16 20,14C26,24 18,32 6,28L2,40L-2,40L-6,28C-18,32 -26,24 -20,14C-34,16 -34,2 -22,-2C-36,-6 -32,-20 -18,-18C-28,-26 -20,-36 -8,-32C-14,-38 -10,-46 0,-46Z',
     'M0,-42C20,-40 36,-14 30,8C26,24 10,34 0,38C-10,34 -26,24 -30,8C-36,-14 -20,-40 0,-42Z'
   ];
+  var VEINS=[
+    'M0,-38L0,46M0,-14L16,-26M0,-14L-16,-26M0,6L18,-6M0,6L-18,-6',
+    'M0,-40L0,46M0,22L34,-18M0,22L-34,-18M0,22L30,8M0,22L-30,8',
+    'M0,-40L0,46M0,-20L18,-18M0,-20L-18,-18M0,0L22,-2M0,0L-22,-2M0,16L20,14M0,16L-20,14',
+    'M0,-36L0,46M0,-12L18,-22M0,-12L-18,-22M0,8L22,0M0,8L-22,0'
+  ];
+  var PICK=[1,1,1,2,2,2,0,3]; // mostly maple and oak
   var COLORS=['#D9652B','#E8892E','#EFA73A','#C2412D','#A3301F','#8B5A2B','#A96B31'];
-  var SPR=56,spriteCache={},dpr=1;
+  var SPR=96,spriteCache={},dpr=1;
   function shade(hex,k){var c=parse(hex);return 'rgb('+[0,1,2].map(function(i){return Math.round(c[i]*k)}).join(',')+')'}
   function leafSprite(s,ci){
     var key=s+':'+ci;if(spriteCache[key])return spriteCache[key];
@@ -92,24 +99,23 @@
     var p=new Path2D(LEAVES[s]),gr=g.createLinearGradient(-30,-40,30,40);
     gr.addColorStop(0,shade(COLORS[ci],1.08));gr.addColorStop(1,shade(COLORS[ci],.8));
     g.fillStyle=gr;g.fill(p);
-    g.strokeStyle='rgba(70,30,10,.38)';g.lineWidth=2.4;g.lineCap='round';
-    g.beginPath();g.moveTo(0,-36);g.lineTo(0,50);g.stroke();
-    if(s===1){g.beginPath();g.moveTo(0,6);g.lineTo(-28,-14);g.moveTo(0,6);g.lineTo(28,-14);g.stroke()}
+    g.strokeStyle='rgba(80,32,8,.5)';g.lineWidth=1.4;g.lineJoin='round';g.stroke(p);
+    g.save();g.clip(p);g.strokeStyle='rgba(70,28,8,.4)';g.lineWidth=2;g.lineCap='round';g.stroke(new Path2D(VEINS[s]));g.restore();
+    g.strokeStyle='rgba(70,28,8,.6)';g.lineWidth=2.6;g.lineCap='round';g.beginPath();g.moveTo(0,36);g.lineTo(0,52);g.stroke();
     return spriteCache[key]=cv;
   }
   function dotSprite(light){
     var key='dot'+light;if(spriteCache[key])return spriteCache[key];
     var n=Math.ceil(16*dpr),cv=document.createElement('canvas');cv.width=cv.height=n;
     var g=cv.getContext('2d'),gr=g.createRadialGradient(n/2,n/2,0,n/2,n/2,n/2);
-    gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(.5,'rgba(255,255,255,.95)');
-    if(light){gr.addColorStop(.62,'rgba(104,140,184,.6)');gr.addColorStop(1,'rgba(104,140,184,0)')}
-    else gr.addColorStop(1,'rgba(255,255,255,0)');
+    gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(.35,'rgba(255,255,255,.95)');
+    gr.addColorStop(.7,'rgba(255,255,255,.4)');gr.addColorStop(1,'rgba(255,255,255,0)');
     g.fillStyle=gr;g.fillRect(0,0,n,n);
     return spriteCache[key]=cv;
   }
   function flakeSprite(light){
     var key='flake'+light;if(spriteCache[key])return spriteCache[key];
-    var n=Math.ceil(40*dpr),cv=document.createElement('canvas');cv.width=cv.height=n;
+    var n=Math.ceil(64*dpr),cv=document.createElement('canvas');cv.width=cv.height=n;
     var g=cv.getContext('2d'),k=n/40;g.setTransform(k,0,0,k,n/2,n/2);g.lineCap='round';
     var arms=new Path2D();
     for(var i=0;i<6;i++){
@@ -125,7 +131,7 @@
   }
 
   /* ---------- the effect ---------- */
-  var cv=null,ctx=null,W=0,H=0,parts=[],season='none',light=true,raf=0,last=0,t0=0,clock=0,still=false,ground=null,btn=null,covered=false;
+  var cv=null,ctx=null,W=0,H=0,parts=[],rest=[],season='none',light=true,raf=0,last=0,t0=0,clock=0,still=false,ground=null,btn=null,covered=false;
   function rnd(a,b){return a+Math.random()*(b-a)}
 
   function size(){
@@ -143,27 +149,33 @@
 
   function counts(){
     var a=W*H/1024000;
-    if(season==='fall')return {n:Math.round(Math.max(8,Math.min(phone?12:28,a*25)))*(still?.3:1)|0};
-    return {n:Math.round(Math.max(22,Math.min(phone?38:80,a*70)))*(still?.3:1)|0,f:(phone?4:7)-(still?2:0)};
+    if(season==='fall')return {n:Math.round(Math.max(10,Math.min(phone?14:36,a*35)))*(still?.25:1)|0,r:phone?5:10};
+    return {n:Math.round(Math.max(18,Math.min(phone?28:56,a*50)))*(still?.3:1)|0,f:(phone?7:14)-(still?(phone?4:8):0)};
   }
 
   function spawnLeaf(p,top){
-    p.kind='leaf';p.s=Math.random()*LEAVES.length|0;p.ci=Math.random()*COLORS.length|0;
-    p.size=rnd(14,26)*(phone?.9:1);p.bx=rnd(0,W);p.x=p.bx;p.y=top?rnd(-60,-20):rnd(-20,H);
-    p.vy=rnd(16,34);p.amp=rnd(14,40);p.fr=rnd(.25,.6);p.ph=rnd(0,6.3);
-    p.rot=rnd(0,6.3);p.vr=rnd(-.9,.9);p.tf=rnd(.6,1.6);p.tp=rnd(0,6.3);p.a=rnd(.78,.95);
+    p.kind='leaf';p.s=PICK[Math.random()*PICK.length|0];p.ci=Math.random()*COLORS.length|0;
+    p.size=rnd(30,50)*(phone?.8:1);p.bx=rnd(0,W);p.x=p.bx;p.y=top?rnd(-90,-40):rnd(-40,H);
+    p.vy=rnd(14,28);p.amp=rnd(20,50);p.fr=rnd(.15,.35);p.ph=rnd(0,6.3);
+    p.rot=rnd(0,6.3);p.vr=rnd(-.5,.5);p.tf=rnd(.25,.7);p.tp=rnd(0,6.3);p.a=rnd(.85,.97);
     return p;
   }
   function spawnSnow(p,top,flake){
     p.kind=flake?'flake':'dot';
-    p.size=flake?rnd(13,22):rnd(3.2,9.5);p.bx=rnd(0,W);p.x=p.bx;p.y=top?rnd(-30,-6):rnd(-10,H);
-    p.vy=flake?rnd(22,34):10+p.size*3.4+rnd(0,8);p.amp=rnd(4,flake?18:12);p.fr=rnd(.2,.5);p.ph=rnd(0,6.3);
-    p.rot=rnd(0,1.05);p.vr=rnd(-.35,.35);p.a=flake?rnd(.8,1):rnd(.6,1);
+    p.size=flake?rnd(26,46)*(phone?.8:1):rnd(5,13);p.bx=rnd(0,W);p.x=p.bx;p.y=top?rnd(-50,-10):rnd(-10,H);
+    p.vy=flake?rnd(12,20):8+p.size*1.8+rnd(0,6);p.amp=rnd(6,flake?22:14);p.fr=rnd(.12,.3);p.ph=rnd(0,6.3);
+    p.rot=rnd(0,1.05);p.vr=rnd(-.25,.25);p.a=flake?rnd(.85,1):rnd(.65,1);
     return p;
   }
   function populate(){
     parts=[];var c=counts(),i;
-    if(season==='fall')for(i=0;i<c.n;i++)parts.push(spawnLeaf({},false));
+    rest=[];
+    if(season==='fall'){
+      for(i=0;i<c.n;i++)parts.push(spawnLeaf({},false));
+      // a few leaves lying along the bottom edge, partly off screen
+      for(i=0;i<c.r;i++)rest.push({s:PICK[Math.random()*PICK.length|0],ci:Math.random()*COLORS.length|0,xr:(i+rnd(.1,.9))/c.r,
+        size:rnd(28,44)*(phone?.8:1),sink:rnd(.08,.32),rot:(Math.random()<.5?-1:1)*rnd(1.1,2.0),flip:(Math.random()<.5?-1:1)*rnd(.55,1)});
+    }
     else{for(i=0;i<c.n;i++)parts.push(spawnSnow({},false,false));for(i=0;i<c.f;i++)parts.push(spawnSnow({},false,true))}
   }
 
@@ -204,9 +216,15 @@
         var flip=Math.cos(p.tp+clock*p.tf*3.1416);flip=flip<0?Math.min(-.12,flip):Math.max(.12,flip);
         spr=leafSprite(p.s,p.ci);k=k/(SPR*.82*dpr);
         g.globalAlpha=p.a;g.setTransform(c*flip*k,s*flip*k,-s*k,c*k,p.x*dpr,p.y*dpr);
-      }else if(p.kind==='flake'){spr=fl;k=k/(40*dpr);g.globalAlpha=p.a;g.setTransform(c*k,s*k,-s*k,c*k,p.x*dpr,p.y*dpr)}
+      }else if(p.kind==='flake'){spr=fl;k=k/(64*dpr);g.globalAlpha=p.a;g.setTransform(c*k,s*k,-s*k,c*k,p.x*dpr,p.y*dpr)}
       else{spr=dot;k=k/(16*dpr);g.globalAlpha=p.a;g.setTransform(k,0,0,k,p.x*dpr,p.y*dpr)}
       half=spr.width/2;g.drawImage(spr,-half,-half);
+    }
+    g.globalAlpha=1;
+    for(i=0;i<rest.length;i++){
+      var r=rest[i],rc=Math.cos(r.rot),rs=Math.sin(r.rot),rk=r.size*dpr/(SPR*.82*dpr);
+      g.setTransform(rc*r.flip*rk,rs*r.flip*rk,-rs*rk,rc*rk,r.xr*W*dpr,(H-r.size*(.5-r.sink))*dpr);
+      spr=leafSprite(r.s,r.ci);g.drawImage(spr,-spr.width/2,-spr.width/2);
     }
     g.setTransform(dpr,0,0,dpr,0,0);drawGround(g);g.globalAlpha=1;
   }
@@ -225,7 +243,7 @@
 
   function stop(){
     pause();if(cv){cv.remove();cv=null;ctx=null}
-    parts=[];W=H=0;ground=null;tint('none');
+    parts=[];rest=[];W=H=0;ground=null;tint('none');
   }
   function start(s){
     stop();season=s;updateButton();
