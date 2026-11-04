@@ -43,9 +43,10 @@ A world file **only describes levels**. Movement, puzzles, drawing, the bot and 
 
    A world being built can register fewer than eight levels; the missing ones show as Coming soon. Ship all eight.
 
-**`needs` and `CORE_VER`.** `needs` is the oldest page that can play your file. Set `needs` to your world number, and
-set `CORE_VER` in `index.html` to at least your world number (when two worlds are merged, keep the larger). A page
-older than the file then shows "Update needed, reload" instead of failing. World 2 is `needs: 2`.
+**`needs` and `CORE_VER`.** `needs` is the oldest page that can play your file. `CORE_VER` is now 3: World 2 is
+`needs: 2` and Worlds 3–6 are `needs: 3`. If you add something to the CORE that a world file uses, raise `CORE_VER`
+by one and set that world's `needs` to it. A page older than the file then shows "Update needed, reload" instead of
+failing.
 
 Everything else (world select, unlocks, online, stats, the Back Room card) works from these two places. Also add your
 levels to the Escapade section of the site's `README.md`, and a leaderboard row for your world total (section 9).
@@ -255,10 +256,10 @@ a frame in about 1 ms of CPU (`renderer.info.render.calls` in the test hook). Ph
 | --- | --- |
 | 1 Breakout | gentle: one puzzle per level, clues next to their door, 35–65 s par |
 | 2 Lost and Found | medium: clues elsewhere in the level (books, a watch, a log), two-part puzzles, a finale needing three exhibits |
-| 3 | medium-hard: 2–3 puzzles a level that depend on each other; clues a room or two away from what they open; first real timing (gates you must reach in a few seconds) |
-| 4 | hard: codes split across rooms, misdirection (a clue that's true but for a different door, a decoy route that's a dead end), longer levels (2–3 min), fewer signs saying what to do |
-| 5 | very hard: multi-step chains (A opens B's clue, B powers C), puzzles under pressure (timers, rising hazards, wind), backtracking with the layout changed (levers, `onIf`) |
-| 6 | hardest: 3–4 min levels, almost no signposts, tight timing and precise jumps, everything combined; a final boss level like the Warden |
+| 3 Deep Down | medium-hard: 2–3 puzzles a level that depend on each other; clues a room or two away from what they open; first real timing (gates you must reach in a few seconds) |
+| 4 Full Power | hard: codes split across rooms, misdirection (a clue that's true but for a different door, a decoy route that's a dead end), longer levels (2–3 min), fewer signs saying what to do |
+| 5 Sky High | very hard: multi-step chains (A opens B's clue, B powers C), puzzles under pressure (timers, rising hazards, wind), backtracking with the layout changed (levers, `onIf`) |
+| 6 The Last Door | hardest: 3–4 min levels, almost no signposts, tight timing and precise jumps, everything combined; a final boss level like the Warden |
 
 Keep levels fair: every clue is in the level, every death puts you at a nearby checkpoint, and a stuck player can
 always reset a puzzle (back to checkpoint) rather than being soft-locked.
@@ -278,11 +279,42 @@ always reset a puzzle (back to checkpoint) rather than being soft-locked.
   on the back of a backdrop, wind with gusts, a moving buoy carrying the fuse, a spiral climb round a tower, a compass
   lens set to a bearing in a log, a beacon lighting a path (`B.all`), a hub with wings in any order and a vault that
   needs three puzzles.
+- **World 3**: water you swim in (`B.water`; jump is a stroke, a bigger one at the surface to climb out; an Air bar
+  while your head is under, drowning after `PHYS3.AIR` s), minecarts on rails (`B.rail`, move type `rail`, with stops),
+  levers that switch which cart runs (points, with `onIf`/`offIf`), trains (long `roll` kill parts) to cross between,
+  water and lava that rise once a flag comes on or you step into a trigger zone (move type `rise`, `B.trig`), water that
+  floods a shaft to lift you, dark rooms and the lantern (`B.dark`, item `lamp`; signs with `lamp: true` only show while
+  you carry it), chalk-mark and coloured-crystal codes, a pump's two gauges (dials) from an engineer's note, feeding
+  buttons pressed in a chart's order (some under water), a shark and jellyfish, see-through tanks (`mat: 'tank'`), a
+  hold that floods behind you once you take the key, three relics behind a vault (`B.all`) and a climb ahead of rising
+  lava.
+- **World 4**: belts that a lever turns round (`rev` on a conveyor; several belts on two coloured levers), fans that a
+  lever turns round (`rev` on a wind zone), belts fast enough to stop you walking against them (12.5), pressure
+  plates you stand on yourself that hold a door, steps or a lift only while held (and `linger` seconds after), crates
+  holding plates down (and two plates needed at once with `B.all`), presses and piston walls that crush (yellow and
+  black stripes; they also squash a crate, which goes back to its start), red / green / yellow keycards with their
+  doors, a thermostat dial set from the right one of three plant care cards, a telescope set from a night log whose
+  first entry is out of date, codes split into one-digit slips across three or four rooms (and a decoy board that is
+  the code for a different, gem-only locker), a laser steered by mirrors that lights a bridge, planets orbiting a
+  sun, a hub of three workshops feeding a robot (`B.all`).
+- **World 5**: updrafts that carry you up (burners, fountains, chimneys, engine exhausts; some come and go), cannons
+  you stand in and fire yourself from (fixed, or on a turntable you aim with a button; some need powder or power
+  first), lightning on a timer with a warning ring on the ground, lightning rods that power a gate for a few seconds
+  after each strike (raised with a lever), rooms and bridges that turn round an eighth or a quarter at a press
+  (a revolving restaurant with two rings, a turnstile tower, a turntable bridge, solar panels, a cannon's aim),
+  `B.align` (a flag once turning things face given ways), a cloud sea under the sky levels, plus wind gusts across
+  cannon shots and catwalks, levers that move the gale from one catwalk to the other, and a satellite in low gravity.
+- **World 6**: one-way flaps in a labyrinth that's a loop (`B.oneway`), rings of fire that grow from a centre and must
+  be jumped (`B.ring`, also at a height, `o.y`, to sweep over raised islands), a true code for the wrong door (the
+  fortress's cellar), the shadow: a chaser that walks your own path a few seconds behind you (`B.shadow`, drawn as a
+  dark figure, or as a dragon with `chaser: 'dragon'` on the level), switched on by carrying an item or by a flag,
+  gongs struck in the order of a tapestry (`{w6: 'order'}` sign), a clock set while your shadow follows you, three
+  rounds of coloured portals (`{w6: 'doors'}` sign), levers that must be pulled twice with the shadow behind you, a
+  cart carrying the fuse, and a three-phase boss (the Keeper: `W.tick` counts crystals and sets phase flags; the floor
+  turns to lava with `onIf` lava; shutters, `door` parts on its sides, lift after each phase to show half of the code).
 
-Ideas not used yet: water you swim in, keys that must be carried back through a level, pressure plates you stand on
-yourself, moving walls that crush, rising lava or water on a timer, switches that reverse conveyors, colour-coded
-doors and keys, light and dark rooms, crates stacked to climb, magnets, cannons, rotating rooms, mazes with one-way
-doors, a chase, a boss per world.
+Ideas not used yet: magnets, mazes that change as you walk them, mirrored or upside-down rooms, a co-op puzzle
+that needs two players (online rooms keep every puzzle per player today, so it would need shared doors).
 
 ## 12. Adding a mechanic
 
@@ -292,3 +324,110 @@ doors, a chase, a boss per world.
 3. Export anything a world file needs on `Escapade` (the object after `registerWorld`).
 4. Raise `CORE_VER` (section 1), re-run the fingerprint on Worlds 1 and 2, and list the mechanic in section 11 and in
    the site README's Escapade section.
+
+## 13. Helpers added by Worlds 3–6
+
+Each world's additions live in `index.html` between its own marker lines (`// ---- World <n> core additions ----`
+inside the CORE, `// ---- World <n> drawing additions ----` outside it), with one-line hooks into the shared
+functions, each ending `// W<n> hook`. Every one of them does nothing unless a level uses it.
+
+### World 3, Deep Down
+
+- `B.water(x0, z0, x1, z1, top, o)`: a water zone, top at `top`, bottom at `o.y0` (default -1, the floor slab's
+  underside). With `o.move = {type: 'rise', ay, dur, when | trig}` it rises (its floor stays put). Water must be
+  closed in: walls start at -1, so deeper water needs its own lining (w3.js's `pit()` lines a pit under the floor).
+  Numbers in `PHYS3` (page CORE): `SWIM` 4.6 (top speed in water), `SINK` 2.6, `STROKE` 6.6 (under water), `LEAP` 12.6
+  (at the surface: climbs out onto a ledge up to ~0.75 above the water), `AIR` 10 s.
+- `B.rail(name, pts, {v, dwell, ph, w, d, col, part})`: a minecart whose floor runs through `pts` (`[x, top, z]` or
+  `[x, top, z, stop seconds]`) and back, easing in and out, on the shared clock (so online everyone sees the same cart).
+  The track is drawn under it automatically. Keep track segments level (the drawing doesn't pitch them). Bot: `B.jon`
+  onto it, then `B.ladder(name, t => cartIsThere ? 'done' : 'wait')`, then `B.j` off.
+- Move type `rise`: `{type: 'rise', ay, dur, when: flag}` or `{..., trig: zoneName}` with `B.trig(name, x0, z0, x1,
+  z1, y0, y1)`. Still until triggered, then rises `ay` over `dur` s and stays. Back to a checkpoint lowers it again; a
+  `when` flag that's still on starts it again at once, a `trig` zone when you step in again. Lava: `B.lava(..., {y,
+  move: {type: 'rise', ...}})` (start it under the floor for a few seconds' grace).
+- `B.dark(x0, z0, x1, z1)`: pitch dark a few steps out unless you carry the lantern (`B.item('lamp', 'lamp', ...)`);
+  no rule changes. Sign option `lamp: true` (in the sign object) shows it only while you carry the lantern.
+- Bot step `B.swim(x, y, z, {ground, tol, r, until})`: swim to a point, stroking while below it (`ground`: done once
+  standing; `until(t, W, pl)`: tread water there until it's true, e.g. waiting for a shark to pass).
+- Level options `cave: true` (rock ground, stalagmites, a rock ceiling and a closer haze) and `deep: true` (the seabed).
+- Part mats drawn specially: `tank` (see-through glass, merged), `shark`, `jelly` (red and glowing: give them `kill`),
+  `fish3` (harmless decoration).
+- Sign types `{w3: 'chalk', code, n, label}`, `{w3: 'gauge', label}` and `{w3: 'gauges', dial}`, `{w3: 'chart', seq}`,
+  `{w3: 'lines', lines: [{col, to}], title, note}`, `{w3: 'crystal', key, col}` and `{w3: 'order', key}` (the colour
+  order is `W.books[key]`). Icons for buttons: `crab`, `squid`, `fish`, `turtle`, `pump`.
+- Tests for water levels: the shortcut search must keep states while swimming (and stroke); World 3's copy
+  (`escapade-w3/explore3.js`) does, with a coarser grid in water, and it carries keys (a lock door opens only once its
+  item has been reached) and stands still on moving carts.
+
+### World 4, Full Power
+
+- `B.belt(x0, z0, x1, z1, [vx, vz], {top, rev, name})`: a conveyor slab (top 0.25 by default, so lava under it is
+  harmless; a belt along z is turned so its arrows point the right way). With `rev: flag` it runs the other way while
+  the flag is on (a lever: `{toggle: flag}`); its arrows turn round too. Speeds of 12.5 or more can't be walked or
+  bunny-hopped against; a slower belt is only a nuisance.
+- `B.rev(part, flag)`: the same for any conveyor or wind zone (a fan that a lever turns round).
+- `B.hold(name, x, z, flag, {top, w, d, linger, col})`: a pressure plate. While you stand on it, or a crate sits on
+  it, `flag` is on, and it stays on `linger` seconds after (a number flag, so back to a checkpoint shuts it, and the
+  crate goes home). Use it for doors, `onIf` steps / lifts, and `B.all([...], set)` for "both plates at once".
+- `B.crusher(name, x, y, z, w, h, d, move, o)` and `B.press(name, x, z, w, d, {up, h, drop, per, ph, base})`: moving
+  solid blocks that crush. You die if you're right under / inside one, or touching one while stuck in anything else
+  (so a piston squeezes you against a wall, a press flattens you). A crate caught by one goes back to its start.
+  Keep press tops out of reach (top at its lowest more than 3.67 above anything you stand on), or riding one up lets
+  you jump onto a wall.
+- `B.cardDoor(axis, at, c, kind, {flag, name})`: a door that opens when you come close carrying keycard `kind`
+  (`cardR`, `cardG`, `cardY`; `card` is World 1's blue one). Items `B.item(name, 'cardR', x, y, z)`.
+- Signs (`{w4: kind, ...}`): `slip` (one digit of keypad `key`'s code: `{w4: 'slip', key, k, label, col}`), `notes`
+  (`{w4: 'notes', title, lines}`, lines worked out in the build so they can hold clues), `gauge` (the thermostat's
+  face, with a `{hand, dial, n: 8}` sign over it), `care` (a plant care card from `W.w4care`), `panel`.
+- Button icon `thermo` ("Turn the thermostat").
+
+- Lessons: a plate or island that meets lava must overlap the floor it joins
+(lava kills at 0.46 from its edge, a step-up only happens at 0.42), a keypad panel's top counts as a ledge (keep it at
+6.3 or lower on a 5-high balcony), and route `j` targets next to a vine climb it while walking.
+
+### World 5, Sky High
+
+- `B.lift(x0, z0, x1, z1, y0, y1, o)`: an updraft zone. `o.acc` (default 80, more than gravity's 46) pushes you up to
+  `o.vmax` (default 9) a second; falling into one brakes you hard; inside it you drift to a stop unless you steer.
+  `o.timed`, `onIf`, `offIf` as for any part. You hover about one unit below `y1`; put the ledge you step off onto
+  2-3 lower and within a couple of units. Make columns at least 3 deep or runners overshoot them.
+- `B.cannon(name, x, top, z, o)`: a barrel to stand in; USE fires you. `o.to: [x, y, z]` aims it (with `o.vy`, default
+  17; it throws an error if `vy` can't reach that height), or `o.yaw`/`o.sp`/`o.vy`. The shot can't be steered
+  (wind still blows it) and you stop dead when you land. `o.pow: flag` = it won't fire until that flag is on. Inside
+  `B.turning` it turns with the group (aim it). Landing pads should be about 4 or more across (you can stand up to 1.5
+  off the barrel's centre) and kept clear of trampolines.
+- `B.bolt(name, x, z, r, timed, o)`: lightning from the sky down to `o.y0` (default -2), lethal while on. A ring
+  flickers on the ground and the cloud darkens 1.3 s before each strike. `o.charge: {flag, dur, need}`: each strike sets
+  `flag` on for `dur` seconds while `need` is on (a lightning rod).
+- `B.turning(key, cx, cz, n, fn, {start, dir})`: every part `fn` adds turns round (cx, cz) by 1/n of a turn (eased over
+  1.1 s) at each press of `B.turnBtn(name, x, z, key, o)`. `W.st.dial[key]` is its way (0 to n-1); the turn stays
+  when you fall. With dir 1, one step turns a thing facing north to face north-west (a direction k of 8 is
+  (-sin(k·45°), -cos(k·45°))). `B.align({key: k, ...}, flag)`: flag on once those groups face those ways.
+- `B.btn(..., {w5: 'timer', flag, dur})`: a valve-like button whose banner reads the level's `msgs[flag]` ("The burner
+  roars for 9 seconds").
+- `B.sky()` at the start of a build: that level's buttons and wall panels are drawn in two draw calls instead of six.
+- Level option `clouds: true` (or a colour, for storm clouds): a sea of clouds below instead of the lawn.
+- Bot steps: `B.fire(cannon, land, when)` fires once a simulated shot lands on a part named in `land`;
+  `B.turnTo(button, key, k)` presses until the group faces k; `B.drive(fn)` gives the stick `fn(t, W, pl)` until it
+  returns 'done' (use it for updrafts). A checkpoint test that respawns during a `fire` step must carry on from the
+  next step.
+- `Escapade` now also exports `phaseOn` and `phaseLeft`.
+
+### World 6, The Last Door
+
+- `B.oneway(axis, at, c, dir, o)`: a flap filling a door gap (like `B.door`) that you can walk through only one way:
+  `dir` +1/-1 is the way you may go (along +z/-z for a wall along x, +x/-x for a wall along z). It is the part option
+  `oneway: [nx, nz]`; `pl.ow` remembers the flap you're halfway through, so turning back inside it is fine. The plan
+  sign `{w6: 'maze'}` draws `W.w6maze` (`{cols, lines, dots, you}`; the labyrinth level fills it).
+- `B.ring(x, z, rad, per, o)`: a ring of fire round (x, z) that grows to `rad` over the first `o.on` of every `per`
+  seconds (`o.ph` phase, `o.y` the height of its bottom, `o.h` 0.7 tall, `o.onIf/offIf`). Shape `'ring'`, move type
+  `'pulse'`. Players standing on anything taller than the ring are safe; keep its radius inside the room (it passes
+  through walls) and checkpoints out of its reach.
+- `B.shadow(x0, z0, x1, z1, o)`: a shadow zone. While you're in it your shadow follows `o.delay` seconds (default 3)
+  behind you along your path; touching it sends you back to your checkpoint. `o.item` / `o.flag`: only once you carry
+  that item / while that flag is on; `o.y0`, `o.y1` the zone's height. Everyone has their own shadow; it starts again
+  after a checkpoint or when you leave the zone. Design for it: no waits longer than the delay inside a zone (no
+  moving platforms to wait for, no crumbling tiles to wait on), and keep keypads outside zones (online, the clock
+  doesn't stop while the keypad is open). The bot doesn't see the shadow, so its route must keep moving too.
+- A level can set `W.tick` itself (World 6's boss does) to drive phases from its own flags.
