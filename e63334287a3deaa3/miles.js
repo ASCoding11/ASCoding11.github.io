@@ -1,6 +1,7 @@
 /*
  * Back Room status tiers: "miles with us". Every player is Economy, Business Class, First Class or Private Jet,
- * except the site's owners (OWNERS below), who always show as Captain, a tier above Private Jet. Tiers are worked out
+ * except the site's owners (OWNERS below), who always show as Captain, a tier above Private Jet, and the people in
+ * VICE_CAPTAINS, who show as Vice Captain, between Private Jet and Captain. Tiers are worked out
  * from their leaderboard node (rooms/lb-all/players/<uid>, written by stats.js): play time plus points for
  * doing well in the games. A small badge next to names in the Online panel, the Party panel, the Leaderboards and the
  * admin page. Tiers are for fun: the data is self-reported by each player's own browser (see README: stats.js).
@@ -11,17 +12,20 @@
  *   of(node, uid, now)  { miles, tier, next, hours, play, bonus, ok, owner, real } for one node, raw (checked first with
  *                       BackRoomBoards.parse from leaderboard.js, so junk gives Economy) or already parsed by it.
  *                       For an owner: tier is CAPTAIN, next is null, owner is true; miles and real (the tier those
- *                       miles earn) are worked out as for everyone else, so sorting by miles still uses the real number
- *   tierOf(miles)       the tier for a number of miles (never Captain: that comes from the uid, not the miles)
+ *                       miles earn) are worked out as for everyone else, so sorting by miles still uses the real number.
+ *                       For a vice captain the same with VICE_CAPTAIN, and vice is true (owner stays false)
+ *   tierOf(miles)       the tier for a number of miles (never Captain or Vice Captain: those come from the uid)
  *   isOwner(uid)        whether a uid is in OWNERS
+ *   isVice(uid)         whether a uid is in VICE_CAPTAINS (and not in OWNERS: an owner is always Captain)
  *   badge(result, opts) a <span class="bra-tier"> pill for it (opts.miles: show the miles too)
  *   line(result)        the progress line under your own name: "2,340 miles · 7,660 to First Class", "… · the top tier",
- *                       or for an owner "12,000 miles · flies the plane" (it sits next to the badge, which says Captain;
- *                       '' when there's nothing to say)
+ *                       for an owner "12,000 miles · flies the plane" (it sits next to the badge, which says Captain),
+ *                       for a vice captain "12,000 miles · co-pilot" ('' when there's nothing to say)
  *   peek(uid)           the cached result for a uid, or null (and starts a read if there is none or it's over 10 minutes old)
  *   load(uid)           a promise of the result, read through party.js's sign-in; one read per uid, kept for 10 minutes
  *   fmt(n)              1,234
- *   TIERS, RULES        the tiers and the points table; CAPTAIN, the owners' tier; OWNERS, a copy of the list
+ *   TIERS, RULES        the tiers and the points table; CAPTAIN, the owners' tier; OWNERS, a copy of the list;
+ *                       VICE_CAPTAIN and VICE_CAPTAINS the same for vice captains
  *   HOUR                miles per hour played (100); the Leaderboards' This week board uses it for the week's play time
  * }
  * A finished load fires `backroom:miles` on document (detail.uid), so panels can redraw; so does this file when it loads.
@@ -44,7 +48,8 @@
  *                    ÷ 200 (1,000 each); Melon Merge score ÷ 10 (1,500); Coil longest snake ÷ 10 (1,500); Trivium best Daily ÷ 10
  *                    (1,500); Showdown biggest pot ÷ 200 (500)
  * Tiers: Economy under 2,000 · Business Class 2,000–9,999 · First Class 10,000–39,999 · Private Jet 40,000+.
- * Captain isn't on the miles scale at all: it's the OWNERS list below, whatever their miles.
+ * Captain isn't on the miles scale at all: it's the OWNERS list below, whatever their miles; Vice Captain is the
+ * VICE_CAPTAINS list the same way.
  * So an hour a day for three weeks is Business; First takes about 100 hours, or 50 with a lot of winning; Private Jet is a year.
  * (Tuned against the live boards a week in: the score rules were halved or quartered after one good Stackfall or Coil
  * sitting alone was putting people in Business Class.)
@@ -97,8 +102,16 @@
     'dUdkRLW9dKfhchtQuNepDRrQ95n1',   // Arjun ("Ascoding")
     'z3ATmlobzgfIp5suh8ITz5Im2dH2'    // Arjun ("Arjun")
   ];
+  // Vice captains, by account uid, the same way: always shown as Vice Captain (between Private Jet and Captain).
+  // Add or remove them exactly like OWNERS above; someone in both lists shows as Captain.
+  var VICE_CAPTAINS = [
+    'jHIYq4Viwbg8ni944R6z91kqk7q2',   // Cooper Yang (Google sign-in, "Cooper")
+    '7KFEzAVFO5bu1pmImvSmHOdvRJn2'    // Wesley Smith (Google sign-in, "Wesley")
+  ];
   var CAPTAIN = { k: 'captain', n: 'Captain', min: Infinity };
+  var VICE_CAPTAIN = { k: 'vice', n: 'Vice Captain', min: Number.MAX_VALUE };   // above every miles tier, below Captain
   function isOwner(uid) { return typeof uid === 'string' && OWNERS.indexOf(uid) >= 0; }
+  function isVice(uid) { return typeof uid === 'string' && !isOwner(uid) && VICE_CAPTAINS.indexOf(uid) >= 0; }
   var LAP_PER_TRACK = 200, LAP_CAP = 2000, LAP_WINDOW = 2.5, REC_EACH = 100, REC_CAP = 1000;
 
   function num(v) { return typeof v === 'number' && isFinite(v) ? v : NaN; }
@@ -119,7 +132,7 @@
   // One node → miles. Anything leaderboard.js wouldn't show (stale, oversized, from the future, impossible numbers) is Economy.
   // An owner (OWNERS) shows as Captain whatever the node says, even with no node at all; their miles stay real.
   function of(node, uid, now) {
-    var out = { miles: 0, tier: TIERS[0], next: nextOf(0), hours: 0, play: 0, bonus: 0, ok: false, owner: false, real: TIERS[0] };
+    var out = { miles: 0, tier: TIERS[0], next: nextOf(0), hours: 0, play: 0, bonus: 0, ok: false, owner: false, vice: false, real: TIERS[0] };
     var p = null, B = LB();
     try {
       if (parsed(node)) p = node;
@@ -127,6 +140,7 @@
     } catch (e) { p = null; }
     var who = typeof uid === 'string' && uid ? uid : p && typeof p.uid === 'string' ? p.uid : '';
     if (isOwner(who)) { out.owner = true; out.tier = CAPTAIN; out.next = null; }
+    else if (isVice(who)) { out.vice = true; out.tier = VICE_CAPTAIN; out.next = null; }
     if (!p) return out;
     var play = Math.max(0, num(p.total) || 0), bonus = 0;
     Object.keys(p.g).forEach(function (d) {
@@ -144,7 +158,7 @@
     });
     var miles = Math.floor(play / 3600 * HOUR + bonus);
     out.miles = miles; out.real = tierOf(miles);
-    if (!out.owner) { out.tier = out.real; out.next = nextOf(miles); }
+    if (!out.owner && !out.vice) { out.tier = out.real; out.next = nextOf(miles); }
     out.hours = play / 3600; out.play = Math.floor(play / 3600 * HOUR); out.bonus = Math.floor(bonus); out.ok = true;
     return out;
   }
@@ -156,16 +170,18 @@
     first: '<path d="M6 1.2l1.45 3.1 3.35.4-2.5 2.3.7 3.3L6 8.6 3 10.3l.7-3.3L1.2 4.7l3.35-.4z" fill="currentColor"/>',
     jet: '<path d="M11 6L8.2 4.8 7 1.4H5.6l.6 3L3.4 5.1 2.2 3.7H1l.8 2.3L1 8.3h1.2l1.2-1.4 2.8.7-.6 3H7l1.2-3.4z" fill="currentColor"/>',
     // Pilot's wings: a round badge with a feathered wing on each side.
+    // Vice Captain: the same wings with a plain bar across the middle in place of the star.
+    vice: '<path d="M4.5 5.5L.3 3.2l.6 1.6-.5.1 1 1.2-.5.2 1.4 1 2.2.3zM7.5 5.5l4.2-2.3-.6 1.6.5.1-1 1.2.5.2-1.4 1-2.2.3z" fill="currentColor"/><circle cx="6" cy="6.4" r="2" fill="currentColor"/><rect x="4.9" y="6" width="2.2" height=".8" rx=".3" fill="#13233F"/>',
     captain: '<path d="M4.5 5.5L.3 3.2l.6 1.6-.5.1 1 1.2-.5.2 1.4 1 2.2.3zM7.5 5.5l4.2-2.3-.6 1.6.5.1-1 1.2.5.2-1.4 1-2.2.3z" fill="currentColor"/><circle cx="6" cy="6.4" r="2" fill="currentColor"/><path d="M6 5.2l.4.8.9.1-.65.6.15.9L6 7.2l-.8.4.15-.9-.65-.6.9-.1z" fill="#141B2D"/>'
   };
   function badge(res, opts) {
-    var t = res && res.tier && ICON[res.tier.k] ? res.tier : TIERS[0], cap = t.k === 'captain';
+    var t = res && res.tier && ICON[res.tier.k] ? res.tier : TIERS[0], cap = t.k === 'captain', vc = t.k === 'vice';
     var s = document.createElement('span');
     s.className = 'bra-tier bra-tier-' + t.k;
     s.innerHTML = '<svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true" focusable="false">' + ICON[t.k] + '</svg>';   // fixed markup, no text from anyone
     var label = document.createElement('span'); label.textContent = t.n; s.appendChild(label);
     if (opts && opts.miles && res && res.ok) { var m = document.createElement('span'); m.className = 'bra-mi'; m.textContent = '· ' + fmt(res.miles) + ' mi'; s.appendChild(m); }
-    s.title = t.n + (cap ? ' · flies the plane (site owner)' : '') + (res && res.ok ? ' · ' + fmt(res.miles) + ' miles' + (cap && res.real ? ' (' + res.real.n + ' by miles alone)' : '') : '') + (res && res.next ? ' · ' + fmt(res.next.miles) + ' to ' + res.next.tier.n : '');
+    s.title = t.n + (cap ? ' · flies the plane (site owner)' : vc ? ' · co-pilot' : '') + (res && res.ok ? ' · ' + fmt(res.miles) + ' miles' + ((cap || vc) && res.real ? ' (' + res.real.n + ' by miles alone)' : '') : '') + (res && res.next ? ' · ' + fmt(res.next.miles) + ' to ' + res.next.tier.n : '');
     return s;
   }
   // The progress line for your own card.
@@ -173,6 +189,7 @@
     if (!res) return '';
     var mi = res.ok ? fmt(res.miles) + ' miles · ' : '';
     if (res.owner) return mi + 'flies the plane';   // next to the Captain badge: "Captain 12,000 miles · flies the plane"
+    if (res.vice) return mi + 'co-pilot';           // next to the Vice Captain badge
     return res.ok ? mi + (res.next ? fmt(res.next.miles) + ' to ' + res.next.tier.n : 'the top tier') : '';
   }
   var css = document.createElement('style');
@@ -184,6 +201,8 @@
     '.bra-tier-first{color:#2A1B00;background:#F0B429;border-color:#F0B429}' +
     '.bra-tier-jet{color:#fff;background:linear-gradient(135deg,#6D3BD9,#1E1B4B);border-color:#4C2EA8}' +
     // Captain: gold on near-black navy with a gold rim, so it reads as above Private Jet's purple in light and dark mode.
+    // Vice Captain: silver on steel blue with a silver rim: Captain's shape and glow, clearly not gold.
+    '.bra-tier-vice{color:#E3E9F2;background:linear-gradient(135deg,#2F4E7E,#13233F);border-color:#AEB9C9;box-shadow:0 0 0 1px rgba(208,217,230,.18),0 1px 4px rgba(120,150,200,.35);letter-spacing:.08em}' +
     '.bra-tier-captain{color:#F7C948;background:linear-gradient(135deg,#1F2A44,#0B1020);border-color:#D4A72C;box-shadow:0 0 0 1px rgba(247,201,72,.18),0 1px 4px rgba(212,167,44,.35);letter-spacing:.1em}';
   (document.head || document.documentElement).appendChild(css);
 
@@ -218,6 +237,6 @@
   }
 
   window.BackRoomMiles = { of: of, tierOf: tierOf, isOwner: isOwner, badge: badge, line: line, peek: peek, load: load, fmt: fmt, TIERS: TIERS, RULES: RULES, PATH: PATH, HOUR: HOUR,
-    CAPTAIN: CAPTAIN, OWNERS: OWNERS.slice(), forget: function (uid) { if (uid) delete cache[uid]; else cache = {}; } };
+    CAPTAIN: CAPTAIN, OWNERS: OWNERS.slice(), isVice: isVice, VICE_CAPTAIN: VICE_CAPTAIN, VICE_CAPTAINS: VICE_CAPTAINS.slice(), forget: function (uid) { if (uid) delete cache[uid]; else cache = {}; } };
   try { document.dispatchEvent(new CustomEvent('backroom:miles', { detail: { uid: '' } })); } catch (e) {}
 })();

@@ -145,6 +145,16 @@ tr.prow .bra-tier{margin-left:6px;vertical-align:1px}
 .dup{flex-direction:row!important;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 14px!important}
 .dup .meta{flex:1 1 280px}
 .acts .sm{min-height:32px;padding:4px 10px}
+.ro{margin:0 0 14px;padding:10px 14px;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;background:var(--panel);font-size:14px;color:var(--ink-2)}
+#pTable code.uid{font-size:11.5px;white-space:nowrap;user-select:all}
+.det code.uid{user-select:all;overflow-wrap:anywhere}
+.pchart{max-width:760px;min-width:0}
+#pTable small.ponly{display:none}
+@media (min-width:601px){#pTable tr.prow td:first-child{min-width:13em}}
+@media (max-width:600px){#pTable small.ponly{display:block}#pTable .det .meta{flex-direction:column;align-items:flex-start}}
+.pchart canvas{display:block;width:100%;height:150px;touch-action:pan-y;cursor:crosshair}
+.pchart-tip{margin:6px 0 0;font-family:var(--mono);font-size:12px;color:var(--ink);min-height:1.4em;overflow-wrap:anywhere}
+.pchart-note{margin:2px 0 0;font-size:12.5px;color:var(--ink-2)}
 .empty-l{background:var(--panel);border:1px dashed var(--line);border-radius:12px;padding:22px;color:var(--ink-2);text-align:center}
 @media (max-width:600px){
   header{padding:26px 0 18px}
@@ -186,6 +196,7 @@ tr.prow .bra-tier{margin-left:6px;vertical-align:1px}
     <div id="app" hidden>
       <div class="tabs" role="tablist" aria-label="Admin">
         <button type="button" role="tab" id="t-stats" aria-controls="p-stats" data-tab="stats">Stats</button>
+        <button type="button" role="tab" id="t-players" aria-controls="p-players" data-tab="players">Players</button>
         <button type="button" role="tab" id="t-chat" aria-controls="p-chat" data-tab="chat">Chat</button>
         <button type="button" role="tab" id="t-fb" aria-controls="p-fb" data-tab="fb">Feedback</button>
       </div>
@@ -216,6 +227,23 @@ tr.prow .bra-tier{margin-left:6px;vertical-align:1px}
           <h2>Same person?</h2>
           <p class="hint">Entries with the same name where one (usually from before a Google sign-in) has nothing the other doesn't: every game it has, the other has too, with at least as many hours, and it was last seen first. Merging shows them as one row on every board (per game the larger hours and the better bests; nothing is added up, so no hours are counted twice). Names aren't unique, so check before merging; you can undo it from the merged account's details.</p>
           <ul class="list" id="sDups"></ul>
+        </div>
+      </div>
+
+      <!-- Players: every account in the Leaderboards' nodes, one at a time in detail. Read-only. -->
+      <div role="tabpanel" id="p-players" aria-labelledby="t-players" hidden>
+        <p class="ro">Read-only. Everything here is what the play-time nodes (<code>rooms/lb-all</code>), the account saves (<code>rooms/sv-saves</code>, size only) and the Online panel's status fields already hold, all readable by any signed-in browser: no emails, no messages, nothing else.</p>
+        <div class="filters">
+          <label>Find<input type="search" id="pFind" placeholder="Name or account id"></label>
+          <button class="sm" id="pRefresh" type="button">Refresh</button>
+        </div>
+        <p class="status" id="pStatus" role="status" aria-live="polite"></p>
+        <p class="sum" id="pSum"></p>
+        <div class="card">
+          <h2>Players</h2>
+          <p class="hint">One row per account. Type is Google when the node carries stats.js's Google mark, else Anonymous (nodes from before the mark was added count as Anonymous). Tap a row for their games, bests, the last 60 days, whether they're online now and the size of their account save.</p>
+          <div class="scroll"><table id="pTable"></table></div>
+          <button class="sm more" id="pMore" type="button" hidden>Show more</button>
         </div>
       </div>
 
@@ -380,15 +408,21 @@ tr.prow .bra-tier{margin-left:6px;vertical-align:1px}
     },
     chat:function(start,cap){return bounded('chatlog',start,cap).then(function(s){return all(s.docs,openChat)})},
     fbList:function(){return db.collection('feedback').orderBy('ts','desc').limit(FB_CAP).get().then(function(s){return all(s.docs,openFb)})},
-    fbDone:function(id,v){return db.collection('feedback').doc(id).update({done:v})}
+    fbDone:function(id,v){return db.collection('feedback').doc(id).update({done:v})},
+    // One read of one Realtime Database path (the Players tab's details), or an error after 15 seconds.
+    one:function(path){
+      var t,read=rtdb.ref(path).once('value').then(function(s){return s.val()});
+      var late=new Promise(function(_,rej){t=setTimeout(function(){rej(new Error('no answer in 15 seconds'))},15000)});
+      return Promise.race([read,late]).finally(function(){clearTimeout(t)});
+    }
   };
 
   // ---------- Tabs ----------
-  var TABS=['stats','chat','fb'],tab=TABS.indexOf(store('bra:tab'))>=0?store('bra:tab'):'stats',loaded={};
+  var TABS=['stats','players','chat','fb'],tab=TABS.indexOf(store('bra:tab'))>=0?store('bra:tab'):'stats',loaded={};
   function showTab(t){
     tab=t;store('bra:tab',t);
     TABS.forEach(function(x){var b=$('t-'+x),on=x===t;b.setAttribute('aria-selected',on?'true':'false');b.tabIndex=on?0:-1;$('p-'+x).hidden=!on});
-    if(!loaded[t]){loaded[t]=1;({stats:loadStats,chat:loadChat,fb:loadFb})[t]()}
+    if(!loaded[t]){loaded[t]=1;({stats:loadStats,players:loadPlayers,chat:loadChat,fb:loadFb})[t]()}
   }
   document.querySelector('.tabs').addEventListener('click',function(e){var b=e.target.closest('[data-tab]');if(b)showTab(b.dataset.tab)});
   document.querySelector('.tabs').addEventListener('keydown',function(e){
@@ -676,6 +710,238 @@ tr.prow .bra-tier{margin-left:6px;vertical-align:1px}
   });
   $('sPeople').addEventListener('keydown',function(e){if((e.key==='Enter'||e.key===' ')&&e.target.matches('tr.prow')){e.preventDefault();e.target.click()}});
 
+  // ================= Players =================
+  // One row per account seen in the Leaderboards' nodes (rooms/lb-all/players), read-only. Details read two more things,
+  // one account at a time: its account save (rooms/sv-saves/players/<uid>, only its size is shown, never its contents) and
+  // a few fields of its Online node (rooms/ol-lobby/players/<uid>: heartbeat, party size, party leader, game), read field by
+  // field so the node's messages are never downloaded. Nothing in this section writes anything.
+  var P={rows:[],now:0,loadedAt:0,sort:'last',dir:'desc',open:'',show:PAGE,seq:0,extra:{}},P_DAYS=60,ONLINE_STALE=75000;
+  // Game names for the Online node's g (the invite prefixes, social.js's GAMES).
+  var OL_GAMES={sc:'Shell Crackers',rk:'Rumble Karts',ss:'Slipstream',bb:'Boostball',cl:'Coil',sd:'Showdown',br:'Backrooms 1v1–4v4',cf:'Chromaflage',tw:'Spire',sr:'Turbo Trail',er:'Escapade',up:'Updraft',ph:'Odd One Out',ko:'Tumble Trials',dw:'Deepword',pf:'Puffer Party',tv:'Trivium',hm:'Hail Mary',qy:'Quarry',kw:'Kartwheel',st:'Starhop',ab:'Abyssal',bx:'Boxed',hc:'Hype Cycle Exchange'};
+  function pNow(){return P.now+(Date.now()-P.loadedAt)}
+  function okNum(x){return typeof x==='number'&&isFinite(x)}
+  // Play seconds per day for the last P_DAYS days from the node's d, checked like the Stats tab: real dates, games the boards
+  // know (plus '_', stats.js's "other games" bucket), whole seconds, at most 24 hours a day. After an hours reset, only the
+  // days from then on.
+  function daysOf(p,src){
+    var out={},lo=dayAgo(P_DAYS-1),hi=dayAgo(-1);
+    if(p&&p.reset){var rd=dayKey(new Date(p.reset));if(rd>lo)lo=rd}
+    if(!src||typeof src!=='object'||Array.isArray(src))return out;
+    Object.keys(src).filter(function(k){return /^\d{8}$/.test(k)&&k>=lo&&k<=hi&&dayKey(dayDate(k))===k}).forEach(function(k){
+      var g=src[k],o={},tot=0;if(!g||typeof g!=='object'||Array.isArray(g))return;
+      Object.keys(g).slice(0,40).forEach(function(gk){
+        if(gk!=='_'&&!(LB.BY[gk]))return;
+        var x=okNum(g[gk])?Math.floor(g[gk]):0;x=Math.min(x,86400-tot);if(!(x>0))return;
+        o[gk]=(o[gk]||0)+x;tot+=x;
+      });
+      if(tot>0){o.$=tot;out[k]=o}
+    });
+    return out;
+  }
+  // One row for every node, even the ones the boards skip (stale, malformed, over the caps): those are marked and show
+  // only what can be read safely (name, last seen).
+  function playerRow(uid,v,now){
+    var p=null;try{p=LB.parse(uid,v,now)}catch(e){p=null}
+    var ga=!!(v&&typeof v==='object'&&(v.ga===1||v.ga===true));
+    var gn=ga?LB.mask(cleanName(v.gn,40)):'';
+    var ts=v&&okNum(v.ts)&&v.ts>0&&v.ts<now+864e5?new Date(v.ts):null;
+    var n=p?p.n:(LB.mask(LB.cleanName(v&&v.n))||'Player');
+    var mi=null;if(p&&window.BackRoomMiles){try{mi=BackRoomMiles.of(p,uid,now)}catch(e){mi=null}}
+    return {uid:uid,p:p,ok:!!p,n:n,gn:gn,name:gn||n,ga:ga,seat:LB.seatOf(uid),ts:ts,total:p?p.total:0,week:p?(p.week||0):0,
+      mi:mi,miles:mi?mi.miles:-1,tierK:mi?mi.tier.k:'',to:p&&p.to?p.to:'',hidden:p?p.hidden:0,reset:p?p.reset:0};
+  }
+  async function loadPlayers(){
+    var seq=++P.seq;say('pStatus','Loading…');$('pRefresh').disabled=true;
+    if(!LB){say('pStatus','Couldn\'t load leaderboard.js, which holds the checks for this data. Reload the page.',true);$('pRefresh').disabled=false;return}
+    var nodes={};
+    try{var r=await api.lb();if(rtdb)await LB.readResets(rtdb);if(seq!==P.seq)return;nodes=r.val&&typeof r.val==='object'?r.val:{};P.now=r.now;P.loadedAt=Date.now();say('pStatus','')}
+    catch(e){if(seq!==P.seq)return;P.now=Date.now();P.loadedAt=Date.now();say('pStatus','Couldn\'t load the play-time data: '+((e&&e.message)||'error'),true)}
+    P.nodes=nodes;
+    P.rows=Object.keys(nodes).slice(0,LB.MAX_NODES).filter(function(u){return /^[A-Za-z0-9_-]{6,128}$/.test(u)}).map(function(u){return playerRow(u,nodes[u],P.now)});
+    P.extra={};P.open='';P.show=PAGE;$('pRefresh').disabled=false;renderPlayers();
+  }
+  function typeText(r){return r.ga?'Google':'Anonymous'}
+  function renderPlayers(){
+    var q=$('pFind').value.trim().toLowerCase(),rows=P.rows;
+    var g=rows.filter(function(r){return r.ga}).length,act=rows.filter(function(r){return r.week>0}).length,sk=rows.filter(function(r){return !r.ok}).length;
+    $('pSum').textContent=rows.length?fmtN(rows.length)+(rows.length===1?' account':' accounts')+' · '+fmtN(g)+' Google · '+fmtN(rows.length-g)+' anonymous · '+fmtN(act)+' played this week'+(sk?' · '+fmtN(sk)+' the boards skip (stale or malformed)':''):'';
+    var list=rows.filter(function(r){return !q||(r.name+' '+r.n+' '+r.gn+' '+r.uid+' '+r.seat).toLowerCase().indexOf(q)>=0});
+    var dir=P.dir==='asc'?1:-1,key=P.sort;
+    list.sort(function(a,b){
+      var x,y;
+      if(key==='name'||key==='uid'||key==='type'){x=(key==='name'?a.name:key==='uid'?a.uid:typeText(a)).toLowerCase();y=(key==='name'?b.name:key==='uid'?b.uid:typeText(b)).toLowerCase();return x<y?-dir:x>y?dir:(+b.ts||0)-(+a.ts||0)}
+      if(key==='tier'){x=a.miles;y=b.miles}else if(key==='last'){x=+a.ts||0;y=+b.ts||0}else if(key==='week'){x=a.week;y=b.week}else{x=a.total;y=b.total}
+      return (x-y)*dir||((+b.ts||0)-(+a.ts||0));
+    });
+    var t=$('pTable');t.textContent='';
+    var head=el('tr');
+    [['name','Player',''],['uid','Account','opt'],['type','Type','opt'],['tier','Tier','opt'],['last','Last seen',''],['total','Play time','num'],['week','This week','num opt']].forEach(function(c){
+      var th=el('th',c[2]),b=el('button',null,c[1]);b.type='button';b.dataset.sort=c[0];if(P.sort===c[0])b.dataset.dir=P.dir;th.appendChild(b);head.appendChild(th);
+    });
+    var thead=el('thead');thead.appendChild(head);t.appendChild(thead);
+    var tb=el('tbody');t.appendChild(tb);
+    if(!list.length){var tr0=el('tr'),td0=el('td',null,rows.length?'Nobody matches.':'No accounts yet.');td0.colSpan=7;tr0.appendChild(td0);tb.appendChild(tr0)}
+    list.slice(0,P.show).forEach(function(r){
+      var open=P.open===r.uid,tr=el('tr','prow'+(open?' open':''));tr.dataset.k=r.uid;tr.tabIndex=0;tr.setAttribute('aria-expanded',open?'true':'false');
+      var td=el('td'),who=el('span','who');
+      if(window.BackRoomAvatar){try{who.appendChild(BackRoomAvatar.el(r.uid,26))}catch(e){}}
+      who.appendChild(document.createTextNode(r.name));
+      if(!r.ok){var sk=el('span','badge','Skipped');sk.title='The leaderboards skip this node (stale, malformed or over the caps)';who.appendChild(sk)}
+      if(r.hidden){var hd=el('span','badge','Removed');hd.title='Removed from the leaderboards';who.appendChild(hd)}
+      if(r.to){var mg=el('span','badge','Merged');mg.title='Merged by its owner into another account at a Google sign-in';who.appendChild(mg)}
+      td.appendChild(who);
+      td.appendChild(el('small',null,r.seat+(r.gn&&r.n!==r.gn?' · Online name: '+r.n:'')));
+      // on a phone the Account, Type, Tier and This week columns are hidden: the type and tier go under the name
+      var ph=el('small','ponly',typeText(r)+(r.mi?' · '+(r.mi.tier&&r.mi.tier.n||r.tierK)+' · '+fmtN(r.mi.miles)+' mi':''));td.appendChild(ph);
+      var tu=el('td','opt'),cu=el('code','uid',r.uid);tu.appendChild(cu);
+      var ty=el('td','opt'),tb2=el('span','badge'+(r.ga?' google':''),typeText(r));ty.appendChild(tb2);
+      var tt=el('td','opt');if(r.mi){try{tt.appendChild(BackRoomMiles.badge(r.mi,{miles:true}))}catch(e){tt.textContent=r.tierK}}else tt.textContent='–';
+      var tl=el('td');tl.appendChild(timeEl(r.ts));
+      tr.append(td,tu,ty,tt,tl,el('td','num',r.ok?fmtDur(r.total):'–'),el('td','num opt',r.ok?fmtDur(r.week):'–'));
+      tb.appendChild(tr);
+      if(open){var dr=el('tr','pdet'),dd=el('td');dd.colSpan=7;dd.appendChild(playerDetail(r));dr.appendChild(dd);tb.appendChild(dr)}
+    });
+    $('pMore').hidden=list.length<=P.show;$('pMore').textContent='Show more ('+fmtN(list.length-P.show)+' left)';
+    drawOpenChart();
+  }
+  // The extra reads for one account, once per load: the account save's size and the Online presence fields.
+  function extraOf(uid){
+    if(P.extra[uid])return P.extra[uid];
+    var x=P.extra[uid]={save:null,saveErr:'',ol:null,olErr:'',done:false};
+    var sv=api.one('rooms/sv-saves/players/'+uid).then(function(v){
+      if(v==null){x.save={none:true};return}
+      var s='';try{s=JSON.stringify(v)}catch(e){}
+      var d=v&&typeof v.d==='object'&&v.d?Object.keys(v.d).length:0;
+      x.save={bytes:new Blob([s]).size,keys:d,ts:okNum(v.ts)?new Date(v.ts):null};
+    },function(e){x.saveErr=(e&&e.message)||'error'});
+    var base='rooms/ol-lobby/players/'+uid+'/';
+    var ol=Promise.all(['ts','p','g','pl'].map(function(f){return api.one(base+f)})).then(function(a){
+      x.ol={ts:okNum(a[0])?a[0]:0,p:okNum(a[1])?Math.max(0,Math.floor(a[1])):0,g:typeof a[2]==='string'?a[2].slice(0,20):'',pl:typeof a[3]==='string'?a[3].slice(0,128):''};
+    },function(e){x.olErr=(e&&e.message)||'error'});
+    Promise.all([sv,ol]).then(function(){x.done=true;if(P.open===uid)renderPlayers()});
+    return x;
+  }
+  function kb(n){return n<1024?fmtN(n)+' bytes':(n/1024).toFixed(n<10240?1:0)+' KB'}
+  function playerDetail(r){
+    var box=el('div','det'),v=P.nodes[r.uid],p=r.p,x=extraOf(r.uid);
+    // Who
+    var s0=el('div');s0.appendChild(el('h3',null,'Account'));
+    var m=el('div','meta');
+    m.append(el('b',null,r.name),el('span',null,r.seat),el('span',null,typeText(r)+(r.ga?' (signed in with Google)':' (no Google sign-in on this node)')));
+    if(r.gn&&r.n!==r.gn)m.appendChild(el('span',null,'Online name: '+r.n));
+    var cu=el('code','uid',r.uid);m.appendChild(cu);
+    if(r.mi)m.appendChild(el('span',null,(r.mi.tier&&r.mi.tier.n||r.tierK)+' · '+fmtN(r.mi.miles)+' miles'));
+    if(r.ts){var lsn=el('span',null,'Last seen ');lsn.appendChild(timeEl(r.ts));lsn.appendChild(document.createTextNode(' ('+r.ts.toLocaleString()+')'));m.appendChild(lsn)}
+    if(r.to)m.appendChild(el('span',null,'Merged by its owner into account '+r.to.slice(0,6)));
+    if(r.reset)m.appendChild(el('span',null,'Hours counted from '+new Date(r.reset).toLocaleString()));
+    s0.appendChild(m);box.appendChild(s0);
+    // Online now
+    var s1=el('div');s1.appendChild(el('h3',null,'Online now'));
+    var ol=el('p','hint');ol.style.margin='0';
+    if(x.olErr)ol.textContent='Couldn\'t read the Online panel: '+x.olErr;
+    else if(!x.ol)ol.textContent='Checking…';
+    else if(!x.ol.ts)ol.textContent='Not online (no Online panel open).';
+    else if(pNow()-x.ol.ts>ONLINE_STALE)ol.textContent='Not online (last heartbeat '+ago(new Date(x.ol.ts))+').';
+    else{
+      var bits=['Online now'];
+      if(x.ol.p>0){var lead=x.ol.pl&&x.ol.pl!==r.uid?P.rows.filter(function(y){return y.uid===x.ol.pl})[0]:null;bits.push('in a party of '+x.ol.p+(x.ol.pl===r.uid?' (the leader)':lead?' led by '+lead.name+' · '+lead.seat:''))}
+      else bits.push('not in a party');
+      bits.push(x.ol.g?'playing '+(OL_GAMES[x.ol.g]||x.ol.g):'not in a game');
+      ol.textContent=bits.join(', ')+'.';
+    }
+    s1.appendChild(ol);box.appendChild(s1);
+    // Account save
+    var s2=el('div');s2.appendChild(el('h3',null,'Account save mirror'));
+    var sv=el('p','hint');sv.style.margin='0';
+    if(x.saveErr)sv.textContent='Couldn\'t read the account save: '+x.saveErr;
+    else if(!x.save)sv.textContent='Checking…';
+    else if(x.save.none)sv.textContent='No account save (it only exists for accounts that signed in with Google on a hub page).';
+    else sv.textContent=kb(x.save.bytes)+' · '+fmtN(x.save.keys)+(x.save.keys===1?' saved setting or record':' saved settings and records')+(x.save.ts?' · last saved '+ago(x.save.ts):'')+'. Contents not shown.';
+    s2.appendChild(sv);box.appendChild(s2);
+    if(!p){box.appendChild(el('p','hint','The leaderboards skip this node (stale, malformed or over the caps), so no play time or bests are shown.'));return box}
+    // Per game: all-time time, this week and bests
+    var s3=el('div');s3.appendChild(el('h3',null,'Games · all time'));
+    var ds=Object.keys(p.g).filter(function(d){return p.g[d].s>0||bestsOf(p,d).length}).sort(function(a,b){return p.g[b].s-p.g[a].s});
+    var mx=ds.length?p.g[ds[0]].s:0,ul=el('ul','bars');
+    if(!ds.length)ul.appendChild(el('li','hint','No play time recorded.'));
+    ds.forEach(function(d){
+      var li=el('li'),b=el('button');b.type='button';b.tabIndex=-1;
+      var tr=el('span','tr'),i=el('i');i.style.width=(mx?Math.max(1,100*p.g[d].s/mx):0)+'%';tr.appendChild(i);
+      var n=el('span','n',fmtDur(p.g[d].s));var wk=p.wk&&p.wk[d];if(wk>0)n.appendChild(el('small',null,' · '+fmtDur(wk)+' this week'));
+      b.append(el('span','nm',gameName(d)),tr,n);li.appendChild(b);
+      var bests=bestsOf(p,d);
+      if(bests.length){var bl=el('div','bests');bests.forEach(function(q){var s=el('span',null,q[0]+': ');s.appendChild(el('b',null,q[1]));bl.appendChild(s)});li.appendChild(bl)}
+      ul.appendChild(li);
+    });
+    s3.appendChild(ul);box.appendChild(s3);
+    // Day by day, last 60 days (a canvas, drawn by drawOpenChart once it's in the page)
+    var days=daysOf(p,v&&v.d),s4=el('div');
+    var act=Object.keys(days).length,sum=Object.keys(days).reduce(function(a,k){return a+days[k].$},0);
+    s4.appendChild(el('h3',null,'Play time per day · last '+P_DAYS+' days'));
+    var wrap=el('div','pchart'),cv=el('canvas');cv.setAttribute('role','img');
+    cv.setAttribute('aria-label','Play time per day over the last '+P_DAYS+' days: '+act+' active days, '+fmtDur(sum)+' in all');
+    wrap.appendChild(cv);s4.appendChild(wrap);
+    var tip=el('p','pchart-tip',act?act+' active '+(act===1?'day':'days')+', '+fmtDur(sum)+' in all. Point at a day for its games.':'No play time on record in these days.');
+    s4.appendChild(tip);
+    s4.appendChild(el('p','pchart-note','stats.js keeps each account\'s last 30 days, so days before that are always empty here.'+(p.reset?' Days before the hours reset are left out.':'')));
+    cv._days=days;cv._tip=tip;cv._idle=tip.textContent;
+    box.appendChild(s4);
+    return box;
+  }
+  // The 60-day chart: one bar a day, today outlined, faint gridlines at the top value and half of it, dates under it.
+  function drawOpenChart(){
+    var cv=document.querySelector('#pTable .pchart canvas');if(!cv)return;
+    var w=Math.max(200,Math.floor(cv.parentNode.clientWidth)),h=150,r=Math.min(2,window.devicePixelRatio||1);
+    cv.width=w*r;cv.height=h*r;cv.style.width=w+'px';cv.style.height=h+'px';
+    var cx=cv.getContext('2d');cx.setTransform(r,0,0,r,0,0);cx.clearRect(0,0,w,h);
+    var cs=getComputedStyle(document.documentElement),acc=cs.getPropertyValue('--accent').trim()||'#7dd3fc',ink2=cs.getPropertyValue('--ink-2').trim()||'#c3cedb',line=cs.getPropertyValue('--line').trim()||'rgba(125,211,252,.24)',ink=cs.getPropertyValue('--ink').trim()||'#f1f5f9';
+    var days=cv._days||{},keys=[],max=0;
+    for(var i=P_DAYS-1;i>=0;i--){var k=dayAgo(i);keys.push(k);if(days[k])max=Math.max(max,days[k].$)}
+    var L=46,R=6,T=10,B=24,pw=w-L-R,ph=h-T-B,bw=pw/P_DAYS;
+    // the scale: a round number of minutes or hours just above the top day
+    var steps=[600,1800,3600,7200,10800,14400,21600,28800,43200,86400],top=steps.filter(function(s){return s>=max})[0]||86400;
+    cx.font='500 11px "IBM Plex Mono",ui-monospace,monospace';cx.textBaseline='middle';cx.textAlign='right';
+    [0,.5,1].forEach(function(f){var y=T+ph-ph*f;cx.strokeStyle=line;cx.lineWidth=1;cx.beginPath();cx.moveTo(L,Math.round(y)+.5);cx.lineTo(w-R,Math.round(y)+.5);cx.stroke();cx.fillStyle=ink2;cx.fillText(f?fmtDur(top*f):'0',L-6,y)});
+    // the days stats.js no longer keeps (older than 30), shaded
+    var cut=P_DAYS-30;cx.fillStyle='rgba(125,211,252,.05)';cx.fillRect(L,T,cut*bw,ph);
+    keys.forEach(function(k,j){
+      var v=days[k]?days[k].$:0,x=L+j*bw,bh=v>0?Math.max(2,ph*v/top):0;
+      if(bh){cx.fillStyle=acc;cx.fillRect(x+Math.max(.5,bw*.12),T+ph-bh,Math.max(1,bw*.76),bh)}
+      if(j===P_DAYS-1){cx.strokeStyle=ink;cx.lineWidth=1;cx.strokeRect(x+Math.max(.5,bw*.12)-.5,T+.5,Math.max(1,bw*.76)+1,ph-1)}
+    });
+    cx.fillStyle=ink2;cx.textBaseline='top';
+    function lab(j,t,al){cx.textAlign=al;cx.fillText(t,L+j*bw+(al==='left'?0:al==='right'?bw:bw/2),T+ph+7)}
+    function short(k){var d=dayDate(k);return d.toLocaleDateString(undefined,{month:'short',day:'numeric'})}
+    lab(0,short(keys[0]),'left');lab(cut,short(keys[cut]),'center');if(w>420)lab(45,short(keys[45]),'center');lab(P_DAYS-1,'Today','right');
+    if(!cv._wired){
+      cv._wired=1;
+      var show=function(e){
+        var b=cv.getBoundingClientRect(),j=Math.floor((e.clientX-b.left-L)/bw);
+        if(j<0||j>=P_DAYS){cv._tip.textContent=cv._idle;return}
+        var k=keys[j],o=cv._days[k],d=dayDate(k).toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});
+        if(!o){cv._tip.textContent=d+': nothing';return}
+        var g=Object.keys(o).filter(function(q){return q!=='$'}).sort(function(a,b2){return o[b2]-o[a]}).map(function(q){return (q==='_'?'other games':gameName(q))+' '+fmtDur(o[q])});
+        cv._tip.textContent=d+': '+fmtDur(o.$)+' ('+g.join(', ')+')';
+      };
+      cv.addEventListener('pointermove',show);cv.addEventListener('pointerdown',show);
+      cv.addEventListener('pointerleave',function(e){if(e.pointerType==='mouse')cv._tip.textContent=cv._idle});   // a tap keeps its day shown
+    }
+  }
+  var pRz=0;addEventListener('resize',function(){clearTimeout(pRz);pRz=setTimeout(drawOpenChart,150)});
+  $('pRefresh').addEventListener('click',loadPlayers);
+  $('pFind').addEventListener('input',function(){P.show=PAGE;renderPlayers()});
+  $('pMore').addEventListener('click',function(){P.show+=PAGE;renderPlayers()});
+  $('pTable').addEventListener('click',function(e){
+    var sb=e.target.closest('button[data-sort]');
+    if(sb){var k=sb.dataset.sort;if(P.sort===k)P.dir=P.dir==='asc'?'desc':'asc';else{P.sort=k;P.dir=k==='name'||k==='uid'||k==='type'?'asc':'desc'}renderPlayers();return}
+    if(e.target.closest('.pdet'))return;
+    var tr=e.target.closest('tr.prow');if(!tr)return;
+    if(getSelection&&String(getSelection())&&tr.contains(getSelection().anchorNode))return;   // selecting a uid to copy it
+    P.open=P.open===tr.dataset.k?'':tr.dataset.k;renderPlayers();
+    var again=$('pTable').querySelector('tr.prow[data-k="'+CSS.escape(tr.dataset.k)+'"]');if(again)again.focus({preventScroll:true});
+  });
+  $('pTable').addEventListener('keydown',function(e){if((e.key==='Enter'||e.key===' ')&&e.target.matches('tr.prow')){e.preventDefault();e.target.click()}});
+
   // ================= Chat =================
   var C={rows:[],capped:false,show:PAGE,seq:0};
   async function loadChat(){
@@ -918,7 +1184,8 @@ tr.prow .bra-tier{margin-left:6px;vertical-align:1px}
           lb:function(){return o.denyLb?deny():Promise.resolve({val:data.lb||{},now:data.now||Date.now()})},
           chat:function(s,c){return o.denyChat?deny():all(docs(range(chat,s,c)),openChat)},
           fbList:function(){return o.denyFb?deny():all(docs(range(fb,null,FB_CAP)),openFb)},
-          fbDone:function(id,v){if(o.denyWrite)return deny();fb.forEach(function(x){if(x.id===id)x.done=v});return Promise.resolve()}
+          fbDone:function(id,v){if(o.denyWrite)return deny();fb.forEach(function(x){if(x.id===id)x.done=v});return Promise.resolve()},
+          one:function(path){var v=(data.paths||{})[path];return Promise.resolve(v===undefined?null:JSON.parse(JSON.stringify(v)))}
         };
         stubbed=true;
         if(PRIV){loaded={};showTab(tab)}
@@ -926,6 +1193,7 @@ tr.prow .bra-tier{margin-left:6px;vertical-align:1px}
       get unlocked(){return !!PRIV},
       get stats(){return last&&{total:last.total,players:last.list.length,google:last.google,accounts:S.people.length,skipped:S.skipped,games:last.games.map(function(g){return [g.d,g.s,g.people]}),
         people:last.list.map(function(r){return {into:r.p.into||'',uid:r.p.uid,name:r.p.name,n:r.p.n,gn:r.p.gn,ga:r.p.ga,seat:r.p.seat,v:r.v,top:r.top,n_games:r.n,days:Object.keys(r.p.d).length,miles:r.miles,tier:r.mi?r.mi.tier.k:''}})}},
+      get players(){return {rows:P.rows.length,open:P.open,shown:$('pTable').querySelectorAll('tr.prow').length,list:P.rows.map(function(r){return {uid:r.uid,name:r.name,ga:r.ga,ok:r.ok,total:r.total,week:r.week,miles:r.miles,ts:r.ts?+r.ts:0}})}},
       get dups(){return dupPairs().map(function(d){return [d.x.uid,d.t.uid]})},
       get chat(){return {rows:C.rows.length,shown:chatShown().length,capped:C.capped,unopened:C.rows.filter(function(r){return !r.opened}).length}},
       get feedback(){return F.rows.map(function(r){return {id:r.id,done:r.done,sealed:r.sealed,msg:r.msg}})}
