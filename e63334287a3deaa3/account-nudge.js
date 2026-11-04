@@ -14,6 +14,15 @@
  *    in by itself, and it does nothing when the page has no sign-in (the phone page opened on its
  *    own; inside the home page's phone frame it uses the home page's sign-in).
  *
+ *    The prompt. Once per visit (sessionStorage `sv:prompt`, shared by the page and its phone frame), the first time a
+ *    hub page finds nobody signed in with Google, a centred card over the page asks them to sign in to save their
+ *    account, skins and records, with "Sign in with Google" (the same SiteAccount.signIn() popup) and "Not now". It
+ *    never blocks anything: Not now, Esc, the close button or a click outside close it at once, and the small card
+ *    above is there as usual afterwards (with its own 7-day quiet period). It waits while a game is open over the
+ *    page (an invite link), closes itself if a game opens, and is never shown while signed in or without SiteAccount.
+ *    On the Back Room page it first waits (at most 4 s) for the prize wheel (account/wheel.js), whose offer also asks a
+ *    signed-out visitor to sign in; if the wheel's offer opens, that counts as this visit's prompt.
+ *
  * 2. The save. While someone is signed in with Google, a whitelist of the games' localStorage keys
  *    (KEYS and PREFIXES below: names, skins and colours, bests and records, settings and keybinds)
  *    is mirrored to their own node in the Firebase Realtime Database, the same project and rules
@@ -70,7 +79,7 @@
   window.__acctNudge = true;
 
   var PATH = 'rooms/sv-saves/players';
-  var DISMISS = 'sv:nudge', META = 'sv:meta', DAYS = 7;
+  var DISMISS = 'sv:nudge', META = 'sv:meta', DAYS = 7, PROMPTED = 'sv:prompt';
   var MAX_VAL = 64000, MAX_NODE = 200000, MAX_KEYS = 400;
   var POLL = 15000, DEBOUNCE = 2500, WAIT = 8000;
   var COLORS = ['#1D6A4B', '#C0562F', '#3E5BA9', '#9A3F8F', '#B07A12', '#2A8A8A', '#B42318', '#5B6B2E'];
@@ -80,6 +89,7 @@
     // shared
     'party:name', 'ol:name', 'ol:block', 'ol:mute',
     'wallet:v1', 'cosmetics:v1',   // coins and the locker (wallet.js, cosmetics.js), switched off for now
+    'layout:v1',   // Edit layout (layout.js): the order of the Back Room's blocks
     // Rumble Karts
     'rk_name', 'rk_color', 'rk_mode', 'rk_sound',
     // Shell Crackers
@@ -185,7 +195,29 @@
     '.svt{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(8px);z-index:9;max-width:min(440px,calc(100vw - 32px));' +
       'background:var(--ink,#16201b);color:var(--ground,var(--bg,#fff));border-radius:10px;padding:10px 14px;font-family:var(--body,var(--f-b,system-ui,sans-serif));font-size:14px;line-height:1.4;' +
       'box-shadow:0 8px 24px rgba(0,0,0,.25);opacity:0;transition:opacity .25s,transform .25s;pointer-events:none}' +
-    '.svt[data-on]{opacity:1;transform:translateX(-50%) translateY(0)}';
+    '.svt[data-on]{opacity:1;transform:translateX(-50%) translateY(0)}' +
+    // The once-a-visit prompt: a centred card over the page, under any game layer (1000) and the Online drawer.
+    '.svm{position:fixed;inset:0;z-index:999;display:grid;place-items:center;padding:16px;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));' +
+      'background:rgba(8,12,10,.55);overflow-y:auto;font-family:var(--body,var(--f-b,system-ui,sans-serif));-webkit-tap-highlight-color:transparent;animation:svm-in .16s ease-out}' +
+    '.svm *{box-sizing:border-box}' +
+    '.svm-c{position:relative;width:min(420px,100%);margin:auto;background:var(--panel,#fff);color:var(--ink,#16201b);border:1px solid var(--line,#d3dad2);border-radius:16px;padding:26px 24px 20px;' +
+      'box-shadow:0 18px 50px rgba(0,0,0,.35);text-align:center;outline:0}' +
+    '.svm-ic{width:52px;height:52px;margin:0 auto 12px;border-radius:50%;display:grid;place-items:center;color:var(--accent,#1d6a4b);background:color-mix(in srgb,var(--accent,#1d6a4b) 16%,transparent)}' +
+    '.svm-ic svg{width:28px;height:28px;display:block}' +
+    '.svm h2{margin:0 0 8px;padding:0 26px;font-family:var(--display,var(--f-d,system-ui,sans-serif));font-weight:800;font-size:30px;line-height:1.05;letter-spacing:.01em;color:var(--ink,#16201b)}' +
+    '.svm p{margin:0 0 18px;font-size:15.5px;line-height:1.5;color:var(--ink-2,#4a5751)}' +
+    '.svm-acts{display:flex;flex-direction:column;gap:8px}' +
+    '.svm-acts button{font:inherit;font-weight:600;font-size:16px;min-height:46px;padding:8px 16px;border-radius:10px;border:1px solid var(--line,#d3dad2);background:var(--panel-2,transparent);color:var(--ink,#16201b);cursor:pointer;width:100%}' +
+    '.svm-acts button:hover{border-color:var(--ink-2,#4a5751)}' +
+    '.svm-acts button[disabled]{opacity:.6;cursor:default}' +
+    '.svm-acts .go{background:var(--accent,#1d6a4b);border-color:var(--accent,#1d6a4b);color:var(--accent-ink,#fff)}' +
+    '.svm-acts .go:hover{filter:brightness(1.08)}' +
+    '.svm-x{position:absolute;top:8px;right:8px;width:40px;height:40px;border:0;border-radius:8px;background:none;color:var(--ink-2,#4a5751);font-size:24px;line-height:1;cursor:pointer}' +
+    '.svm-x:hover{color:var(--ink,#16201b)}' +
+    '.svm button:focus-visible{outline:2px solid var(--accent,#1d6a4b);outline-offset:2px}' +
+    '@media (max-height:460px){.svm-c{padding:16px 20px 14px}.svm-ic{display:none}.svm h2{font-size:24px}.svm p{margin-bottom:12px;font-size:14.5px}.svm-acts{flex-direction:row}.svm-acts button{min-height:42px}}' +
+    '@keyframes svm-in{from{opacity:0}to{opacity:1}}' +
+    '@media (prefers-reduced-motion:reduce){.svm{animation:none}}';
   document.head.appendChild(css);
 
   var ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18a4.5 4.5 0 0 1-.5-8.97A6 6 0 0 1 18 9.5 3.5 3.5 0 0 1 18 18H7z"/></svg>';
@@ -227,6 +259,87 @@
     no.addEventListener('click', function () { store(DISMISS, String(Date.now())); hideCard(); });
   }
   function hideCard() { if (card) { card.remove(); card = null; } }
+
+  // ---- The once-a-visit prompt ----
+  var modal = null, modalBack = null, modalWatch = 0, modalWait = 0;
+  function prompted() { try { return sessionStorage.getItem(PROMPTED) === '1'; } catch (e) { return true; } }
+  // A game layer over the page (the home page's, the Party panel's or the phone page's): a big visible frame.
+  function gameOpen() {
+    var fs = document.getElementsByTagName('iframe');
+    for (var i = 0; i < fs.length; i++) {
+      var r = fs[i].getBoundingClientRect();
+      if (r.width >= innerWidth * 0.8 && r.height >= innerHeight * 0.6 && fs[i].offsetParent !== null) return true;
+    }
+    return false;
+  }
+  // The Back Room page also has the prize wheel (account/wheel.js), whose offer opens about a second after it boots and
+  // asks a signed-out visitor to sign in too. Two asks in a row would be pushy, so wait for its decision first; if it
+  // opened, that was this visit's ask.
+  var wheelT0 = 0;
+  function wheelBusy() {
+    if (!document.querySelector('script[src*="wheel.js"]')) return false;
+    if (!wheelT0) wheelT0 = Date.now();
+    var cta = document.getElementById('wheel-cta');
+    if (cta && !cta.__svSeen) cta.__svSeen = Date.now();
+    var since = cta ? Date.now() - cta.__svSeen : 0;
+    return Date.now() - wheelT0 < 4000 && (!cta || since < 1300);
+  }
+  function maybePrompt() {
+    if (modal || modalWait || prompted() || !A || (A.user && A.user())) return;
+    if (document.querySelector('.wh-bg')) { try { sessionStorage.setItem(PROMPTED, '1'); } catch (e) {} return; }
+    if (gameOpen() || wheelBusy()) { modalWait = setTimeout(function () { modalWait = 0; maybePrompt(); }, gameOpen() ? 1000 : 250); return; }
+    try { sessionStorage.setItem(PROMPTED, '1'); } catch (e) { return; }   // no session storage: never risk showing it on every load
+    openModal();
+  }
+  function openModal() {
+    modalBack = document.activeElement;
+    modal = el('div', 'svm');
+    var c = el('div', 'svm-c'); c.setAttribute('role', 'dialog'); c.setAttribute('aria-modal', 'true');
+    c.setAttribute('aria-labelledby', 'svm-h'); c.setAttribute('aria-describedby', 'svm-p'); c.tabIndex = -1;
+    var x = el('button', 'svm-x', '\u00d7'); x.type = 'button'; x.setAttribute('aria-label', 'Close');
+    var ic = el('span', 'svm-ic'); ic.innerHTML = ICON;
+    var h = el('h2', '', 'Save your progress'); h.id = 'svm-h';
+    var p = el('p', '', 'Sign in with Google to save your account, skins and records, so they’re here on any device you play on. You can keep playing without it.'); p.id = 'svm-p';
+    var acts = el('div', 'svm-acts');
+    var go = el('button', 'go', 'Sign in with Google'), no = el('button', '', 'Not now');
+    go.type = 'button'; no.type = 'button';
+    acts.append(go, no); c.append(x, ic, h, p, acts); modal.appendChild(c);
+    document.body.appendChild(modal);
+    go.focus({ preventScroll: true });
+    go.addEventListener('click', function () {
+      if (!A) return;
+      go.disabled = true; go.textContent = 'Signing in…';
+      A.signIn().catch(function () {}).then(function () {
+        if (!go.isConnected) return;                      // signed in: onUser already closed it
+        go.disabled = false; go.textContent = 'Sign in with Google';
+      });
+    });
+    no.addEventListener('click', closeModal);
+    x.addEventListener('click', closeModal);
+    modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });   // a click or tap outside the card
+    document.addEventListener('keydown', onModalKey, true);
+    // A game opening over the page (a party starting one) closes it, as Not now would.
+    modalWatch = setInterval(function () { if (gameOpen()) closeModal(); }, 500);
+  }
+  function onModalKey(e) {
+    if (!modal) return;
+    if (e.key === 'Escape' || e.key === 'Esc') { e.preventDefault(); e.stopPropagation(); closeModal(); return; }
+    if (e.key !== 'Tab') return;
+    // Keep Tab inside the card while it's open.
+    var bs = modal.querySelectorAll('button:not([disabled])'); if (!bs.length) return;
+    var first = bs[0], last = bs[bs.length - 1];
+    if (e.shiftKey && (document.activeElement === first || !modal.contains(document.activeElement))) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && (document.activeElement === last || !modal.contains(document.activeElement))) { e.preventDefault(); first.focus(); }
+  }
+  function closeModal() {
+    clearTimeout(modalWait); modalWait = 0;
+    if (!modal) return;
+    clearInterval(modalWatch); modalWatch = 0;
+    document.removeEventListener('keydown', onModalKey, true);
+    modal.remove(); modal = null;
+    var b = modalBack; modalBack = null;
+    if (b && b.focus && b.isConnected && b !== document.body) { try { b.focus({ preventScroll: true }); } catch (e) {} }
+  }
 
   function showStatus(text, err) {
     if (!status) { status = el('p', 'svs'); status.style.margin = '0'; status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite'); }
@@ -469,8 +582,8 @@
 
   // ---- Wire it up ----
   function onUser(u) {
-    if (u && u.uid && !u.isAnonymous) { hideCard(); startSave(u); linkAnon(u); }
-    else { stopSave(); showCard(); watchAnon(); }
+    if (u && u.uid && !u.isAnonymous) { closeModal(); hideCard(); startSave(u); linkAnon(u); }
+    else { stopSave(); showCard(); maybePrompt(); watchAnon(); }
   }
   function start() {
     var head = document.querySelector('header');
@@ -491,7 +604,7 @@
   if (navigator.webdriver) window.__acctNudgeT = {
     PATH: PATH, KEYS: KEYS, PREFIXES: PREFIXES, keyOk: keyOk, enc: enc, dec: dec, hash: hash, cleanNode: cleanNode,
     get state() { return { on: SY.on, uid: SY.uid, busy: SY.busy, lastSave: SY.lastSave, restored: SY.restored, meta: SY.meta, conn: !!SY.conn }; },
-    get card() { return !!card; }, get status() { return status && status.parentNode ? status.textContent : ''; },
+    get card() { return !!card; }, get modal() { return !!modal; }, get status() { return status && status.parentNode ? status.textContent : ''; },
     check: function () { return check(); }, flush: flush, sync: sync, onUser: onUser, stop: stopSave, place: place,
     get anon() { return ANON ? ANON.uid : ''; }, statsLib: statsLib,
     setLimits: function (v, n) { if (v) MAX_VAL = v; if (n) MAX_NODE = n; }

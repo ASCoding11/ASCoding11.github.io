@@ -800,9 +800,8 @@ function build(seed){
   const sr=mulberry(77),sp=a=>a[Math.floor(sr()*a.length)];
   for(let i=0;i<16;i++){const a=i/16*Math.PI*2+(sr()-.5)*.2,r=52+sr()*6;dec({s:'car',x:Math.sin(a)*r,z:Math.cos(a)*r,yaw:a+Math.PI/2+(sr()<.5?0:Math.PI),col:sp(['#c8462f','#2f6fb3','#e0b028','#3f8f5a','#ecebe6','#2b2f38'])})}
   for(let i=0;i<20;i++){const a=i/20*Math.PI*2+.08,r=49;dec({s:'lamp',x:Math.sin(a)*r,z:Math.cos(a)*r,yaw:a})}
-  // start pad on the street, south of the tower (with a shabby poster beside it: the one hint to the staff lift)
+  // start pad on the street, south of the tower
   put({t:'cyl',x:0,z:36,top:.14,h:.14,r:2.6,v:'pad',col:'#ffcf3d',surf:'metal'});
-  dec({s:'poster',x:-4.6,z:38.4,yaw:Math.PI/2+.55,text:'Staff lift: ask the crane'});
   K.h=Math.PI/2;
   for(let i=0;i<6;i++){const s=rr(1.25,1.8);go({t:'box',w:s,d:s,h:0,v:'crate',col:'#b8915f',surf:'wood',ground:1},rr(.4,1.3),rr(.55,.95),rr(-.4,.4))}
   for(let i=0;i<7;i++){const L=pick([6.1,6.1,12.2]);go({t:'box',w:2.44,d:L,h:0,v:'container',col:pick(CONT),surf:'metal',ground:1},rr(.6,1.8),rr(.7,1.1),rr(-.45,.45),rr(-.5,.5))}
@@ -908,12 +907,15 @@ function build(seed){
     dec({s:'box',x:mx,y:G+3.5,z:mz,w:.5,h:7,d:.5,v:'lattice',col:'#e7b416'});
     const hc=go({t:'box',w:6.1,d:2.44,h:2.6,v:'container',col:'#2f6fb3',surf:'metal'},.6,-.8,0);
     dec({s:'tube',a:[hc.x,hc.y1,hc.z],b:[hc.x,G-1.2,hc.z],r:.06,col:'#2b2b2b'});
-    // The staff lift (a secret, drawn and run by the page script): a door in the mast's +x face at the foot of
-    // the spiral, reached over a grate landing between the mast and the first step (4 cm lower than the step,
-    // so the bot's jump still counts as landing on the step), and a cab that rides inside the mast up to the
-    // top grate, where the route carries on along the jib. It skips the spiral and nothing else.
+    // A small grate landing between the mast and the first step of the spiral (4 cm lower than the step, so
+    // the bot's jump still counts as landing on the step). It used to lead to the staff lift's door; it stays
+    // so the route and the bot are unchanged.
     add({t:'box',x:mx+1.9,z:mz+.3,top:y0+.76,h:.18,w:1.6,d:2,v:'grate',col:'#e7b416',surf:'metal'});
-    secrets.lift={mx,mz,y0:y0+.8,y1:G,door:[mx+1.1,mz],exit:[mx+1.6,mz]};
+    // The staff lift (a secret, drawn and run by the page script): an unmarked door in the mast's +x face down
+    // on the street, and a cab that rides inside the mast all the way up to the top grate, where the route
+    // carries on along the jib. Nothing points to it: you hold the lift key (G) by the mast's foot (r: how far
+    // from the mast's middle counts), so it skips the street-to-crane climb and the spiral, and nothing else.
+    secrets.lift={mx,mz,y0:0,y1:G,door:[mx+1.1,mz],exit:[mx+1.6,mz],r:3.3};
   }
   {
     const hc=K.last;onPath(tower[1]);K.flow=true;
@@ -2198,8 +2200,9 @@ function updateCamera(dt,fdt){
 }
 
 // =====================================================================
-//  Secrets: the crane's staff lift and the tower's back stairs. Each is a door you walk up to and open
-//  with the interact key (E; an Enter button on touch screens). The climber then follows a short scripted
+//  Secrets: the crane's staff lift and the tower's back stairs. The stairs are a door you walk up to and
+//  open with the interact key (E; an Enter button on touch screens); the lift is called by holding the lift
+//  key (G; Jump on touch screens) for a second at the foot of the crane's mast, down on the street. The climber then follows a short scripted
 //  path (`ride`: walk in, ride or climb, walk out) with the physics switched off, so there is nothing to
 //  fall off and slow motion never starts (you count as standing). The lift skips the spiral round the
 //  mast and comes out on the top grate; the stairs skip the last ledges and come out on the roof; both
@@ -2225,12 +2228,10 @@ const secretMesh={};
   const L=SEC.lift;
   if(L){
     const Y='#e7b416',yel=LM(Y),yelD=LM(shade(Y,.7)),dark=LM('#3a3a3f'),glow=LMB('#fff3cf');
-    // the door in the mast's +x face: a frame, two leaves that slide apart, and a small sign over it
+    // the door in the mast's +x face, down on the street: a frame and two leaves that slide apart (no sign: it's a secret)
     const dg=new THREE.Group();dg.position.set(L.door[0]+.03,L.y0,L.door[1]);
     dg.add(bx(yelD,.1,.14,1.3,0,2.33,0));dg.add(bx(yelD,.1,2.4,.12,0,1.2,-.59));dg.add(bx(yelD,.1,2.4,.12,0,1.2,.59));
     const l1=bx(yel,.05,2.15,.52,.06,1.075,-.26),l2=bx(yel,.05,2.15,.52,.06,1.075,.26);dg.add(l1);dg.add(l2);
-    const sc=cnv(256,80),sx=sc.getContext('2d');sx.fillStyle='#2b2b30';sx.fillRect(0,0,256,80);sx.fillStyle='#f3d87a';sx.font='800 34px Outfit, Arial, sans-serif';sx.textAlign='center';sx.textBaseline='middle';sx.fillText('STAFF LIFT',128,42);
-    const sign=new THREE.Mesh(new THREE.PlaneGeometry(.7,.22),new THREE.MeshBasicMaterial({map:tex(sc,false)}));sign.position.set(.1,2.62,0);sign.rotation.y=Math.PI/2;dg.add(sign);
     scene.add(dg);secretMesh.liftDoor={g:dg,l1,l2};
     // the cab: a cage with a floor, a roof, posts, waist panels and its own gate (two sliding leaves) on the +x side
     const makeCab=()=>{const g=new THREE.Group();const st=new THREE.MeshLambertMaterial({map:T.stripes});
@@ -2289,9 +2290,14 @@ function ridePlan(kind){
   const ph=[],P=(n,dur,a,b,ya,yb,ease)=>ph.push({n,dur,a,b,ya,yb:yb==null?ya:yb,ease:!!ease});
   const here=[me.x,me.y,me.z];
   if(kind==='lift'){
-    const L=SEC.lift,c=[L.mx,L.y0,L.mz],out=[L.exit[0],L.y1,L.mz];
-    P('open',.55,here,here,me.yaw,-Math.PI/2);P('in',.75,here,c,-Math.PI/2);P('turn',.4,c,c,-Math.PI/2,Math.PI/2);
-    P('close',.55,c,c,Math.PI/2);P('ride',5.6,c,[L.mx,L.y1,L.mz],Math.PI/2,null,true);
+    const L=SEC.lift,c=[L.mx,L.y0,L.mz],out=[L.exit[0],L.y1,L.mz],F=[L.door[0]+.5,L.y0,L.mz];
+    // from anywhere round the mast's foot: walk round its corner (clear of the lattice) to the door first
+    const way=[];let at=here;
+    if(here[0]<F[0]-.1){const s=here[2]<L.mz?-1:1,zc=L.mz+s*1.8;if(Math.abs(here[2]-L.mz)<1.8)way.push([here[0],L.y0,zc]);way.push([F[0],L.y0,zc])}
+    way.push(F);
+    for(const w of way){const d=Math.hypot(w[0]-at[0],w[2]-at[2]);if(d>.05||Math.abs(w[1]-at[1])>.05)P('in',Math.max(.25,d/3),at,w,d>.05?Math.atan2(w[0]-at[0],w[2]-at[2]):me.yaw);at=w}
+    P('open',.55,F,F,ph.length?ph[ph.length-1].ya:me.yaw,-Math.PI/2);P('in',.75,F,c,-Math.PI/2);P('turn',.4,c,c,-Math.PI/2,Math.PI/2);
+    P('close',.55,c,c,Math.PI/2);P('ride',clamp((L.y1-L.y0)/12,5.6,12),c,[L.mx,L.y1,L.mz],Math.PI/2,null,true);
     P('ding',.7,[L.mx,L.y1,L.mz],[L.mx,L.y1,L.mz],Math.PI/2);P('out',.7,[L.mx,L.y1,L.mz],out,Math.PI/2);
     // then turn to face along the jib, where the route carries on
     const g=PATH.find(c=>c.v==='grate'&&c.hx===1.7&&Math.abs(c.y1-L.y1)<.01),nx=g&&PATH[g.path+1];
@@ -2314,10 +2320,18 @@ function foundSecret(kind,name){
 // Which door you are standing at, if any (standing still enough to use it; never for the bot or a watcher)
 function doorNear(){
   if(ride||G.mode!=='play'||G.paused||G.spec||G.bot||!me.gnd||me.mantle||me.slide)return null;
-  const L=SEC.lift;if(L&&Math.abs(me.y-L.y0)<.7&&Math.hypot(me.x-(L.door[0]+.5),me.z-L.door[1])<1.2)return 'lift';
   const R=SEC.roof;if(R&&Math.abs(me.y-R.y0)<.7&&Math.hypot(me.x-(R.door[0]+R.n[0]*.5),me.z-(R.door[1]+R.n[1]*.5))<1.1)return 'roof';
   return null;
 }
+// Standing (or hopping) by the foot of the crane's mast, within L.r of its middle on the street: holding the
+// lift key there for a second calls the staff lift (on touch screens, holding Jump does the same). The small
+// prompt shows only while you're on that spot.
+function atLift(){
+  const L=SEC.lift;if(!L||ride||G.mode!=='play'||G.paused||G.spec||G.bot||me.mantle)return false;
+  return me.y-L.y0<4&&me.y-L.y0>-.5&&Math.max(Math.abs(me.x-L.mx),Math.abs(me.z-L.mz))<L.r;
+}
+let liftHoldT=0;
+const LIFT_HOLD=1;
 function startRide(kind){
   if(ride||!SEC[kind])return false;
   ride={kind,ph:ridePlan(kind),i:-1,t:0,gnd:me.gnd};
@@ -2383,10 +2397,18 @@ function updateSecrets(dt){
     M.cab2.visible=!!rider;if(rider)M.cab2.position.y=rider.y;
   }
   if(M.roofDoor){M.roofDoor.rotation.y=Math.atan2(SEC.roof.n[0],SEC.roof.n[1])+doorK.roof*1.5;M.exitDoor.rotation.y=Math.atan2(-SEC.roof.n[0],-SEC.roof.n[1])-doorK.exit*1.5}
+  // the lift: hold its key (or Jump on a touch screen) for a second at the mast's foot
+  const al=atLift(),hold=al&&(KB.held('lift',keys)||isTouch&&!!tAct.jump);
+  liftHoldT=hold?liftHoldT+dt:0;
+  if(hold&&liftHoldT>=LIFT_HOLD){liftHoldT=0;startRide('lift')}
   // prompt
-  const d=doorNear();
-  if(d!==secretMesh.prompt){secretMesh.prompt=d;$('tEnter').hidden=!d||!isTouch;
-    $('doorHint').hidden=!d||isTouch;if(d&&!isTouch)$('doorHint').innerHTML='<kbd>'+esc(KB.short('interact'))+'</kbd> '+(d==='lift'?'Staff lift':'Open')}
+  const d=doorNear(),pk=d||(al&&!ride?'lift':null),hk=pk+(pk==='lift'?'|'+isTouch:'');
+  if(hk!==secretMesh.prompt){secretMesh.prompt=hk;$('tEnter').hidden=!d||!isTouch;
+    $('doorHint').hidden=!pk||isTouch&&pk!=='lift';
+    if(pk==='lift')$('doorHint').innerHTML=isTouch?'Hold <kbd>Jump</kbd>':'Hold <kbd>'+esc(KB.short('lift'))+'</kbd>';
+    else if(d&&!isTouch)$('doorHint').innerHTML='<kbd>'+esc(KB.short('interact'))+'</kbd> Open'}
+  if(pk==='lift'){const f=Math.round(clamp(liftHoldT/LIFT_HOLD,0,1)*100);$('doorHint').style.background=f?'linear-gradient(90deg,rgba(255,179,71,.35) '+f+'%,rgba(10,16,32,.7) '+f+'%)':''}
+  else if($('doorHint').style.background)$('doorHint').style.background='';
 }
 // the interior of the shaft is drawn over everything once the camera is inside it (the block's own walls
 // face outward, so from inside you would otherwise see the city through them, and the roof over you)
@@ -2430,6 +2452,7 @@ const KB=Keybinds.create({
     {id:'walk',label:'Walk slowly',note:'Hold, for narrow beams',group:'Move',keys:['KeyC']},
     {id:'slowmo',label:'Slow motion',note:'Hold',group:'Move',keys:['KeyF']},
     {id:'interact',label:'Use a door',note:'When you find one',group:'Move',ctx:'door',keys:['KeyE']},   // its own context: E stays on Camera closer too (a door takes it first)
+    {id:'lift',label:'Hold to use',note:'Hold for a second',group:'Move',ctx:'door',keys:['KeyG']},   // the staff lift (a secret: the label says nothing about it)
     {id:'view',label:'First / third person',note:'Zooming all the way in switches too',group:'Camera',keys:['KeyV']},
     {id:'zoomIn',label:'Camera closer',group:'Camera',keys:['Equal','KeyE']},
     {id:'zoomOut',label:'Camera farther',group:'Camera',keys:['Minus','KeyQ']},
