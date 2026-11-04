@@ -495,9 +495,9 @@
   function accBack(a, id) {
     var c = a.three.color, c2 = a.three.color2;
     switch (a.draw) {
-      case 'hero': return P('M5 66 L13 49 L51 49 L59 66 Z', c) + P('M13 49 L51 49', null, c2, 1.4, ' opacity=".7"');
-      case 'galaxy': return P('M4 66 L12 48 L52 48 L60 66 Z', c) + star(10, 60, 1.6, c2, 4, .3) + star(54, 58, 1.3, c2, 4, .3) + C(15, 54, .7, c2) + C(50, 53, .7, c2) + C(7, 64, .6, c2);
-      case 'leaf': return P('M4 66 L12 48 L52 48 L60 66 Z', c) + P('M4 66 Q8 60 12 66 Q16 60 20 66 M44 66 Q48 60 52 66 Q56 60 60 66', c2, null, 0) + P('M12 50 L8 62 M52 50 L56 62', null, c2, 1, ' opacity=".7"');
+      case 'hero': return P('M1 68 L7 46 Q32 38 57 46 L63 68 Z', c) + P('M7 46 Q32 38 57 46', null, c2, 1.4, ' opacity=".7"');
+      case 'galaxy': return P('M1 68 L7 46 Q32 38 57 46 L63 68 Z', c) + star(10, 60, 1.6, c2, 4, .3) + star(54, 58, 1.3, c2, 4, .3) + C(15, 54, .7, c2) + C(50, 53, .7, c2) + C(7, 64, .6, c2);
+      case 'leaf': return P('M1 68 L7 46 Q32 38 57 46 L63 68 Z', c) + E(9, 47, 4, 2.2, c2, ' transform="rotate(-30 9 47)"') + E(55, 47, 4, 2.2, c2, ' transform="rotate(30 55 47)"') + P('M8 48 L4 62 M56 48 L60 62', null, c2, 1, ' opacity=".7"');
       case 'sparkle': return star(6, 52, 2.6, c, 4, .3) + star(12, 44, 1.8, c2, 4, .3) + star(4, 38, 1.4, c, 4, .3) + C(10, 58, .9, c2) + C(16, 50, .8, c);
       case 'bubbles': return C(7, 50, 3, 'none', ' stroke="' + c + '" stroke-width="1.3"') + C(12, 42, 2.2, 'none', ' stroke="' + c + '" stroke-width="1.1"') + C(5, 36, 1.6, 'none', ' stroke="' + c + '" stroke-width="1"') + C(6.2, 49, .8, c2);
       case 'rainbow': var cols = ['#FF5C5C', '#FFA63D', '#FFE45C', '#5CE07A', '#5CC8FF', '#9A7CFF'], r = ''; cols.forEach(function (k, i) { r += P('M-4 ' + (40 + i * 2.6) + ' Q10 ' + (36 + i * 2.6) + ' 18 ' + (46 + i * 2.6), null, k, 2.6); }); return r;
@@ -563,7 +563,7 @@
     var bg = lk ? background(lk, id) : C(32, 32, 32, bgHex || '#3B82F6');
     var back = '', front = '';
     ['aura', 'trail', 'cape'].forEach(function (k) { if (ac[k]) back += accBack(ac[k], id); });
-    ['cape', 'aura', 'glasses', 'hat', 'pet'].forEach(function (k) { if (ac[k]) front += accFront(ac[k]); });
+    ['cape', 'aura', 'glasses', 'hat', 'pet'].forEach(function (k) { if (ac[k]) front += k === 'pet' ? '<g transform="translate(-5 -4)">' + accFront(ac[k]) + '</g>' : accFront(ac[k]); });
     var body = lk ? outfit(lk, col, id) + headPiece(lk, col) : '';
     return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="' + size + '" height="' + size + '" aria-hidden="true" focusable="false">' +
       '<defs><clipPath id="' + id + '"><circle cx="32" cy="32" r="32"/></clipPath><clipPath id="' + id + 's"><path d="' + SH + '"/></clipPath></defs>' +
@@ -575,7 +575,7 @@
     size = Math.max(16, Math.min(1024, Math.round(Number(size) || 256)));
     var sk = SKINS_BY_ID[skinId], c = sk ? sk.colors : DEFAULT_COLORS, cv = document.createElement('canvas');
     cv.width = cv.height = size;
-    var g = cv.getContext('2d'), u = size / 16, i, j;
+    var g = cv.getContext('2d'), u = size / 16, i, j, nx = seeded(sk ? sk.no * 7919 : 1), rnd = function () { return nx() / 4294967296; };   // the same marks every time
     if (!g) return cv;
     g.fillStyle = c.body; g.fillRect(0, 0, size, size);
     g.fillStyle = c.accent; g.strokeStyle = c.accent; g.lineWidth = u * .5;
@@ -584,9 +584,9 @@
       case 'grid': case 'circuit': g.strokeStyle = c.pattern === 'grid' ? c.accent : c.emissive; for (i = 0; i <= 16; i += 4) { g.beginPath(); g.moveTo(i * u, 0); g.lineTo(i * u, size); g.moveTo(0, i * u); g.lineTo(size, i * u); g.stroke(); } if (c.pattern === 'circuit') { g.fillStyle = c.emissive; for (i = 0; i <= 16; i += 4) for (j = 0; j <= 16; j += 8) { g.beginPath(); g.arc(i * u, (j + (i % 8 ? 4 : 0)) * u, u * .8, 0, 7); g.fill(); } } break;
       case 'quilt': g.strokeStyle = c.trim; for (i = 2; i < 16; i += 4) { g.beginPath(); g.moveTo(0, i * u); g.lineTo(size, i * u); g.stroke(); } break;
       case 'scales': for (j = 0; j < 17; j += 2) for (i = 0; i < 17; i += 2) { g.beginPath(); g.arc((i + (j % 4 ? 1 : 0)) * u, j * u, u, 0, Math.PI); g.stroke(); } break;
-      case 'stars': g.fillStyle = c.emissive; for (i = 0; i < 24; i++) { var x = ((i * 37) % 16) * u, y = ((i * 11) % 16) * u; g.fillRect(x, y, u * .5, u * .5); } break;
+      case 'stars': g.fillStyle = c.emissive; for (i = 0; i < 28; i++) { g.fillRect(rnd() * size, rnd() * size, u * .5, u * .5); } break;
       case 'hex': case 'plates': g.strokeStyle = c.trim; for (j = 0; j < 16; j += 4) for (i = 0; i < 16; i += 4) g.strokeRect((i + (j % 8 ? 2 : 0)) * u, j * u, 4 * u, 4 * u); break;
-      case 'leaves': case 'spots': case 'sprinkles': case 'snow': for (i = 0; i < 20; i++) { g.fillStyle = i % 3 === 0 ? c.trim : (i % 3 === 1 ? c.accent : c.emissive); g.beginPath(); g.ellipse(((i * 41) % 16) * u, ((i * 23) % 16) * u, u * .9, u * .55, i, 0, 7); g.fill(); } break;
+      case 'leaves': case 'spots': case 'sprinkles': case 'snow': for (i = 0; i < 26; i++) { g.fillStyle = i % 3 === 0 ? c.trim : (i % 3 === 1 ? c.accent : c.emissive); g.beginPath(); g.ellipse(rnd() * size, rnd() * size, u * .9, u * .55, rnd() * 3.2, 0, 7); g.fill(); } break;
       case 'waves': for (j = 2; j < 16; j += 4) { g.beginPath(); for (i = 0; i <= 16; i += .5) g.lineTo(i * u, (j + Math.sin(i) * .7) * u); g.stroke(); } break;
       case 'rays': case 'flames': g.fillStyle = c.pattern === 'flames' ? c.emissive : c.accent; for (i = 0; i < 16; i += 2) { g.beginPath(); g.moveTo(i * u, size); g.lineTo((i + 1) * u, size * .55); g.lineTo((i + 2) * u, size); g.fill(); } break;
       case 'quarters': ['#9BE07A', '#FFC93C', '#E07A2E', '#9FD3FF'].forEach(function (k, n) { g.fillStyle = k; g.fillRect((n % 2) * size / 2, Math.floor(n / 2) * size / 2, size / 2, size / 2); }); break;
