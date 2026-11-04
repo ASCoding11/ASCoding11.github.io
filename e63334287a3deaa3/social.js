@@ -849,6 +849,7 @@
     var s = { n: myName(), c: colorOf(uid), x: 0, z: 0, h: 0, ts: Math.round(now()), v: 1, p: status.p };
     if (status.g) s.g = status.g;
     if (status.pl) s.pl = status.pl;
+    var q = pubGame(); if (q) { s.pp = q.pp; s.pg = q.pg; s.pr = q.pr; s.pn = q.pn; s.pt = q.pt; }
     if (keys.pub) s.pk = keys.pub;
     if (mine.l.length) s.l = mine.l;
     if (Object.keys(mine.d).length) s.d = mine.d;
@@ -908,6 +909,10 @@
     }
     return null;
   }
+  // A public party we lead, in the game it launched (party.js's Party.pub): pp party code, pg game, pr room, pn size,
+  // pt launch time, for the Playing now panel (playingnow.js), which checks it against the party's own nodes.
+  var pubSent = '';
+  function pubGame() { var q = P && P.pub; return q && status.g && q.pg === status.g ? q : null; }
   function poll() {
     var gf = gameFrame(), p = P ? P.size : 0, g = gf ? gf.g.k : '', pl = p && P.leader ? P.leader.uid : '';
     if (gf) addBarButton(gf.fr);
@@ -915,6 +920,11 @@
       status = { p: p, g: g, pl: pl };
       if (published) write({ p: p, g: g || null, pl: pl || null }).catch(function () {});
       schedule();
+    }
+    var q = pubGame(), qs = q ? [q.pp, q.pg, q.pr, q.pn, q.pt].join('|') : '';
+    if (qs !== pubSent) {
+      pubSent = qs;
+      if (published) write(q ? { pp: q.pp, pg: q.pg, pr: q.pr, pn: q.pn, pt: q.pt } : { pp: null, pg: null, pr: null, pn: null, pt: null }).catch(function () {});
     }
     // The party's members changed (someone joined, left or was removed): new copies of the party chat follow the new list.
     var sig = (P && P.code || '') + ':' + partyMembers().join(',');
