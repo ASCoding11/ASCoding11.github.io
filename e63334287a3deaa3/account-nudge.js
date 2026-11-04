@@ -79,6 +79,7 @@
   var KEYS = [
     // shared
     'party:name', 'ol:name', 'ol:block', 'ol:mute',
+    'wallet:v1', 'cosmetics:v1',   // coins and the locker (wallet.js, cosmetics.js), switched off for now
     // Rumble Karts
     'rk_name', 'rk_color', 'rk_mode', 'rk_sound',
     // Shell Crackers
