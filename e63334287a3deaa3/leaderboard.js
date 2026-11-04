@@ -136,6 +136,11 @@
       { k: 'total-w6', l: 'Fastest total (World 6)', chip: 'World 6 total', f: 'time', lo: 90, hi: 36000 },
       { k: 'escapes', l: 'Escapes', f: 'n', u: 'escape', rate: 1 / 8 }] },
     { d: 'updraft', n: 'Updraft', st: [{ k: 'summit', l: 'Fastest summit', f: 'time', lo: 120, hi: 1e7 }, { k: 'height', l: 'Best height', f: 'm', hi: 1005 }] },
+    { d: 'asteroid-run', n: 'Asteroid Run', st: [
+      { k: 'distance', l: 'Longest Endless run', chip: 'Endless', f: 'm', hi: 100000 },
+      { k: 'levels', l: 'Levels cleared (of 32)', chip: 'Levels', f: 'n', u: 'level', hi: 32 },
+      { k: 'crystals', l: 'Power crystals collected', chip: 'Crystals', f: 'n', u: 'crystal', hi: 100000 },
+      { k: 'runs', l: 'Runs (all time)', chip: 'Runs', f: 'n', u: 'run', rate: 1 / 8 }] },
     { d: 'odd-one-out', n: 'Odd One Out', st: [
       { k: 'rfound', l: 'Most props found in a round', f: 'n', u: 'prop', hi: 15, le: 'found' },
       { k: 'survive', l: 'Longest survival as a prop', f: 'dur', hi: 900 },
