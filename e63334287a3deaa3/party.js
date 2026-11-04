@@ -15,6 +15,7 @@
  *   pk game the leader has picked (leader only)
  *   go { id, g, r, t }        the leader's latest launch: game key, room code, server time
  *   kick [{ u, t }]           people the leader removed (uid, server time), up to 8, kept for 10 minutes
+ *   pub 1, pn size            leader only, while the leader has set the party Public (playingnow.js lists it)
  * The leader is whoever has been in the party longest (smallest j), so when the leader leaves the next
  * person takes over with nothing to hand over. Closing the tab removes your node (onDisconnect).
  *
@@ -165,6 +166,14 @@
     '.pty-wait{margin:0;color:var(--ink-2);font-size:15px}' +
     '.pty-msg{margin:0;font-size:14px;color:var(--ink-2);overflow-wrap:anywhere}' +
     '.pty-msg:empty{display:none}' +
+    '.pty-pub{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin-top:12px}' +
+    '.pty-sw{font:inherit;font-size:14px;font-weight:600;color:var(--ink);background:var(--panel-2);border:1px solid var(--line);border-radius:999px;padding:4px 12px 4px 4px;min-height:36px;display:inline-flex;align-items:center;gap:8px;cursor:pointer;flex:none}' +
+    '.pty-sw i{width:34px;height:20px;border-radius:999px;background:var(--line);position:relative;flex:none;transition:background .15s}' +
+    '.pty-sw i::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--ink-2);transition:transform .15s,background .15s}' +
+    '.pty-sw[aria-checked="true"]{border-color:var(--accent)}' +
+    '.pty-sw[aria-checked="true"] i{background:var(--accent)}' +
+    '.pty-sw[aria-checked="true"] i::after{transform:translateX(14px);background:var(--accent-ink)}' +
+    '.pty-pub .pty-wait{font-size:14px;flex:1 1 220px}' +
     '.pty-msg.err{color:var(--down)}' +
     '@media (max-width:600px){.pty{padding:16px 14px 14px}.pty-or{display:none}.pty label{max-width:none}.pty-acts{margin-left:0;width:100%}.pty-acts .btn{flex:1;justify-content:center}.pty-row > .btn{flex:1 1 auto;justify-content:center}.pty-mem{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}' +
     '@media (max-width:360px){.pty-mem{grid-template-columns:minmax(0,1fr)}}';
@@ -184,6 +193,7 @@
   var app = null, auth = null, db = null, uid = null, offset = 0, booting = null;
   var code = '', refs = null, myJ = 0, members = [], picked = '', goId = 0, beat = 0, busy = false;
   var handled = {}, wasConnected = false, connRef = null, lastLeader = '', kicked = [];
+  var pub = false, pubN = 0;   // Public party (leader only): other Back Room visitors can see the game it's in and join (playingnow.js)
   function now() { return Date.now() + offset; }
 
   function load(src) {
@@ -229,7 +239,7 @@
     Object.keys(val || {}).forEach(function (k) {
       var v = val[k];
       if (!v || typeof v !== 'object' || t - (+v.ts || 0) > STALE) return;
-      out.push({ uid: k, n: cleanName(v.n) || 'Player', c: /^#[0-9a-f]{6}$/i.test(v.c) ? v.c : '#4A5751', j: +v.j || +v.ts || 0, pk: typeof v.pk === 'string' ? v.pk : '', go: v.go && typeof v.go === 'object' ? v.go : null, kick: kickList(v.kick, t) });
+      out.push({ uid: k, n: cleanName(v.n) || 'Player', c: /^#[0-9a-f]{6}$/i.test(v.c) ? v.c : '#4A5751', j: +v.j || +v.ts || 0, pk: typeof v.pk === 'string' ? v.pk : '', go: v.go && typeof v.go === 'object' ? v.go : null, kick: kickList(v.kick, t), pub: v.pub === 1 });
     });
     out.sort(function (a, b) { return a.j - b.j || (a.uid < b.uid ? -1 : 1); });
     return out;
@@ -255,6 +265,7 @@
     if (picked) s.pk = picked;
     if (goId && lastGo) s.go = lastGo;
     if (kicked.length) s.kick = kicked;
+    if (pub) { s.pub = 1; s.pn = pubN = members.length || 1; }
     return s;
   }
   var lastGo = null;
@@ -320,7 +331,7 @@
     } finally { busy = false; render(); }
   }
   async function enter(c) {
-    code = c; myJ = Math.round(now()); picked = ''; goId = 0; lastGo = null; handled = {};
+    code = c; myJ = Math.round(now()); picked = ''; goId = 0; lastGo = null; handled = {}; pub = false;
     var room = db.ref('rooms/pt-' + c);
     refs = { players: room.child('players'), me: room.child('players/' + uid) };
     try { await timeout(refs.me.set(myState()), 10000, NET); }
@@ -353,7 +364,7 @@
     clearInterval(beat);
     if (connRef) { connRef.off('value', onConnected); connRef = null; }
     if (refs) { var r = refs; try { r.players.off('value', onPlayers); r.me.onDisconnect().cancel(); r.me.remove().catch(function () {}); } catch (e) {} }
-    refs = null; code = ''; members = []; picked = ''; lastGo = null; goId = 0; lastLeader = ''; kicked = [];
+    refs = null; code = ''; members = []; picked = ''; lastGo = null; goId = 0; lastLeader = ''; kicked = []; pub = false;
     if (clear) sess('party:code', null);
   }
   function leave() { teardown(true); say('You left the party.'); render(); }
@@ -375,6 +386,8 @@
     var L = leader();
     if (L && lastLeader && L.uid !== lastLeader) say(L.uid === uid ? 'You’re the party leader now. Pick a game.' : L.n + ' is the party leader now.');
     lastLeader = L ? L.uid : '';
+    if (pub && (!L || L.uid !== uid)) pub = false;   // only the leader's setting counts
+    if (pub && members.length !== pubN) { pubN = members.length; refs.me.update({ pn: pubN, ts: Math.round(now()) }).catch(function () {}); }
     // A new launch from the leader that happened while we were in the party: go there too.
     if (L && L.uid !== uid && L.go && okRoom(L.go.r)) {
       var key = L.uid + ':' + L.go.id + ':' + L.go.t;
@@ -548,8 +561,13 @@
         box.setAttribute('data-mode', 'lead');
         box.innerHTML = '<p class="pty-h">Pick a game</p><div class="pty-games" role="group" aria-label="Game">' +
           GAMES.map(function (g) { return '<button type="button" data-g="' + g.k + '" aria-pressed="false">' + esc(g.n) + (g.max < MAX ? ' <small>· up to ' + g.max + '</small>' : '') + '</button>'; }).join('') +
-          '</div><div class="pty-go"><button type="button" class="btn primary" data-a="play">▶ Play together</button><span class="pty-wait"></span></div>';
+          '</div><div class="pty-go"><button type="button" class="btn primary" data-a="play">▶ Play together</button><span class="pty-wait"></span></div>' +
+          '<div class="pty-pub"><button type="button" class="pty-sw" data-a="pub" role="switch" aria-checked="false"><i aria-hidden="true"></i><span></span></button><span class="pty-wait"></span></div>';
       }
+      var sw = box.querySelector('[data-a="pub"]');
+      sw.setAttribute('aria-checked', String(pub)); sw.lastChild.textContent = pub ? 'Public' : 'Private';
+      sw.nextSibling.textContent = 'Public: other people in the Back Room can see what you’re playing and join in.' +
+        (pub && store('ol:hidden') === '1' ? ' You’re hidden in Online, so nobody sees it until you show yourself there.' : '');
       if (picked && byKey(picked) && byKey(picked).max < n) picked = '';
       box.querySelectorAll('[data-g]').forEach(function (b) {
         var g = byKey(b.getAttribute('data-g'));
@@ -561,7 +579,8 @@
     } else {
       box.setAttribute('data-mode', 'member');
       var g = L && byKey(L.pk), go = L && L.go, gg = go && byKey(go.g);
-      var html = '<p class="pty-wait">' + (L ? esc(L.n) + (g ? ' has picked <b>' + esc(g.n) + '</b>.' : ' hasn’t picked a game yet.') : '') + '</p>';
+      var html = '<p class="pty-wait">' + (L ? esc(L.n) + (g ? ' has picked <b>' + esc(g.n) + '</b>.' : ' hasn’t picked a game yet.') : '') +
+        (L && L.pub ? ' This party is public: others in the Back Room can join your games.' : '') + '</p>';
       if (gg && okRoom(go.r) && now() - (+go.t || 0) < 3 * 3600000)
         html += '<div class="pty-go"><button type="button" class="btn" data-a="rejoin">Join them in ' + esc(gg.n) + '</button><span class="pty-wait">Room ' + esc(go.r) + '</span></div>';
       box.innerHTML = html;
@@ -590,6 +609,13 @@
       var done = function (ok) { say(ok ? 'Invite link copied. Friends open it, enter the Back Room code, and join the party.' : 'Invite link: ' + url); };
       try { navigator.clipboard.writeText(url).then(function () { done(true); }, function () { done(false); }); } catch (err) { done(false); }
     } else if (a === 'play') playTogether();
+    else if (a === 'pub') {
+      var L0 = leader(); if (!refs || !L0 || L0.uid !== uid) return;
+      pub = !pub; pubN = members.length;
+      refs.me.update({ pub: pub ? 1 : null, pn: pub ? pubN : null, ts: Math.round(now()) }).catch(function (e) { say('Couldn’t save that (' + (e.code || e.message) + ').', true); });
+      say(pub ? 'Your party is public. People in the Back Room can see your game and join it.' : 'Your party is private again.');
+      drawParty();
+    }
     else if (a === 'rejoin') {
       var L = leader(), g = L && L.go && byKey(L.go.g);
       if (g && okRoom(L.go.r)) launch(g, L.go.r);
@@ -655,7 +681,14 @@
     },
     max: MAX,
     get room() { return lastRoom; },
-    games: GAMES.map(function (g) { return { k: g.k, n: g.n, d: g.d, pre: g.pre != null ? g.pre : g.k + '-' }; }),
+    // A public party's game, for the Online node (social.js) to show in Playing now (playingnow.js): only while we lead,
+    // the party is public, and the room we're in is the one we launched the party into.
+    get pub() {
+      var L = refs && leader();
+      if (!pub || !L || L.uid !== uid || !lastGo || !lastRoom || lastRoom.k !== lastGo.g || lastRoom.r !== lastGo.r) return null;
+      return { pp: code, pg: lastGo.g, pr: lastGo.r, pn: members.length, pt: lastGo.t };
+    },
+    games: GAMES.map(function (g) { return { k: g.k, n: g.n, d: g.d, pre: g.pre != null ? g.pre : g.k + '-', max: g.max }; }),
     create: function () { return (refs || busy ? Promise.resolve() : create()).then(function () { return refs ? code : ''; }); },
     join: function (c) {
       c = cleanCode(c);
