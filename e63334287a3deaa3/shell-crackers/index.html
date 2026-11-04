@@ -2687,7 +2687,7 @@ const Net={
     return false;
   },
   // A round to switch to: a new match, or the same match on a map other than the one built here.
-  isNewRound(v){return !!v&&typeof v.id==='number'&&(v.id!==this.matchId||clamp(v.map|0,0,MAPS.length-1)!==mapIdx||(v.sm?1:0)!==mapSm)},
+  isNewRound(v){return !!v&&typeof v.id==='number'&&(v.id!==this.matchId||mapOf(v)!==mapIdx||smOf(v)!==mapSm)},
   send(e){
     if(!online||!this.refs)return;
     const ref=this.refs.events.push();this.seen.add(ref.key);
@@ -2718,6 +2718,9 @@ const Net={
 // A small arena for SMALL_MAX eggs or fewer, only if every egg in the room runs a version that can build one.
 const SMALL_GROW_MS=15000;
 function smallFor(n,allNew){return n<=SMALL_MAX&&allNew?1:0}
+// the map and arena a round asks for (only maps with a small entry in MAPS can be small)
+function mapOf(v){return clamp(v.map|0,0,MAPS.length-1)}
+function smOf(v){return v.sm&&MAPS[mapOf(v)].small?1:0}
 function roundEnd(v){const st=+v.ends||Net.now(),len=+v.len;return st+(len>0&&len<=MATCH_MS?len:MATCH_MS)}
 // You're dropped into the room's match as soon as it arrives (onMatch). If it hasn't after the join's 8 s, keep waiting
 // rather than play on a map of this browser's own choosing: try to start it again after 12 s more, and give up after 15 s
@@ -2787,7 +2790,7 @@ function handleEvent(ev){
 }
 function onMatch(v){
   Net.matchId=v.id;matchEnds=roundEnd(v);
-  const mi=clamp(v.map|0,0,MAPS.length-1),sm=v.sm?1:0;
+  const mi=mapOf(v),sm=smOf(v);
   const sameMap=mi===mapIdx&&sm===mapSm;const wasIn=state==='playing'&&player.alive;
   clearTimeout(Net.waitT);if(state!=='playing')setMsg('');
   resetFx();if(!sameMap)buildMap(mi,sm);
@@ -2802,7 +2805,9 @@ function onMatch(v){
   if(!(wasIn&&sameMap&&!ratedThis&&clock-matchJoinClock<15))startRatedMatch();
   if(state!=='playing'){state='playing';showHud();if(!paused)requestLock()}
   else{$('end').hidden=true}
-  banner(MAPS[mapIdx].name.toUpperCase(),(Net.isPublic?'Public lobby':'Room '+Net.room)+' · first to '+target+' cracks'+(mapSm?' · small arena for '+SMALL_MAX+' or fewer':''),2.6);
+  banner(MAPS[mapIdx].name.toUpperCase(),(Net.isPublic?'Public lobby':'Room '+Net.room)+' · first to '+target+' cracks',2.6);
+  // after the banner has gone (on a phone held sideways they'd overlap)
+  if(mapSm&&!sameMap){const id=v.id;setTimeout(()=>{if(Net.matchId===id&&mapSm)infoFeed('Small arena for '+SMALL_MAX+' or fewer')},2800)}
 }
 // Other eggs are drawn a moment in the past, between the updates around that moment (netsmooth.js),
 // so they move evenly however unevenly their updates arrive. If an update is late they're carried on for at most
