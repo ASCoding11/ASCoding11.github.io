@@ -99,6 +99,11 @@
       { k: 'deaths', l: 'Deaths', f: 'n', u: 'death', rate: 0.5, hide: true },
       { k: 'kd', l: 'K/D (all time)', chip: 'K/D', f: 'kd', kd: ['kdkills', 'deaths'], min: 20, hi: 100 },
       { k: 'wins', l: 'Match wins', f: 'n', u: 'win', rate: 1 / 20 }] },
+    { d: 'drop-zone', n: 'Driftfall', st: [
+      { k: 'wins', l: 'Wins', f: 'n', u: 'win', rate: 1 / 120 },
+      { k: 'kills', l: 'Most knockouts in a match', f: 'n', u: 'knockout', hi: 29 },
+      { k: 'place', l: 'Best placing', chip: 'Best placing', f: 'n', lo: 1, hi: 30, low: 1 },
+      { k: 'matches', l: 'Matches played', f: 'n', u: 'match', rate: 1 / 60 }] },
     { d: 'slipstream', n: 'Slipstream', laps: true, st: [] },
     { d: 'boostball', n: 'Boostball', st: [
       { k: 'mgoals', l: 'Most goals in a match', f: 'n', u: 'goal', hi: 40, le: 'goals' },
