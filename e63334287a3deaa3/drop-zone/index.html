@@ -72,7 +72,7 @@ button:disabled{opacity:.5;cursor:default}
 #slots{position:absolute;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));display:flex;gap:5px;flex-wrap:nowrap;justify-content:flex-end}
 .slot{width:62px;height:60px;background:var(--panel);border:1px solid var(--line);position:relative;display:flex;flex-direction:column;justify-content:flex-end;padding:3px 5px;border-radius:5px;overflow:hidden}
 .slot .k{position:absolute;top:2px;left:5px;font-size:14px;font-weight:700;color:var(--ink-dim)}
-.slot .nm{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slot .nm{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.02em;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .slot .am{font-size:12px;color:var(--ink-dim);font-variant-numeric:tabular-nums;white-space:nowrap}
 .slot.on{border-color:var(--sun);box-shadow:inset 0 0 0 1px var(--sun);background:rgba(70,52,10,.84)}
 .slot.empty .nm{color:var(--ink-dim);font-weight:600}
@@ -212,7 +212,7 @@ body.touch #mats{font-size:13px}
 body.touch #slots{pointer-events:auto;z-index:1;right:auto;left:calc(200px + env(safe-area-inset-left,0px));bottom:auto;top:calc(8px + env(safe-area-inset-top,0px));gap:3px}
 body.touch .slot{width:46px;height:44px;padding:2px 3px}
 body.touch .slot .k{display:none}
-body.touch .slot .nm{font-size:10px}
+body.touch .slot .nm{font-size:10px;letter-spacing:0;text-overflow:clip}
 body.touch .slot .am{font-size:10px}
 body.touch .slot.gap{margin-left:6px}
 body.touch #ammo{right:auto;left:calc(200px + env(safe-area-inset-left,0px));bottom:auto;top:calc(56px + env(safe-area-inset-top,0px));font-size:18px}
@@ -227,15 +227,20 @@ body.touch #prompt{font-size:14px;top:calc(50% + 34px)}
 body.touch #placeLbl{top:calc(60px + env(safe-area-inset-top,0px));font-size:15px}
 body.touch #net{top:calc(112px + env(safe-area-inset-top,0px));font-size:14px}
 @media (orientation:portrait){
-  body.touch #slots{left:50%;transform:translateX(-50%);top:calc(150px + env(safe-area-inset-top,0px))}
+  body.touch #slots{left:50%;transform:translateX(-50%);top:calc(184px + env(safe-area-inset-top,0px))}
   body.touch .slot{width:40px;height:42px}
   body.touch .slot.gap{margin-left:4px}
-  body.touch #ammo{left:50%;transform:translateX(-50%);top:calc(196px + env(safe-area-inset-top,0px))}
+  body.touch #ammo{left:50%;transform:translateX(-50%);top:calc(232px + env(safe-area-inset-top,0px))}
   body.touch #feed{top:calc(64px + env(safe-area-inset-top,0px));max-width:calc(100vw - 150px)}
-  body.touch #placeLbl{top:calc(228px + env(safe-area-inset-top,0px))}
-  body.touch #net{top:calc(256px + env(safe-area-inset-top,0px))}
-  body.touch #hint{top:calc(290px + env(safe-area-inset-top,0px))}
+  body.touch #placeLbl{top:calc(262px + env(safe-area-inset-top,0px))}
+  body.touch #net{top:calc(290px + env(safe-area-inset-top,0px))}
+  body.touch #hint{top:calc(324px + env(safe-area-inset-top,0px))}
   #banner{top:36%}
+}
+/* short phones held sideways: a smaller map so the buttons on the right fit under it */
+@media (orientation:landscape) and (max-height:420px){
+  body.touch #mapBox{width:100px} body.touch #mini{width:100px;height:100px}
+  body.touch #info{font-size:12px;padding:1px 5px} body.touch #stormT{font-size:11px;padding:1px 5px}
 }
 @media (prefers-reduced-motion:reduce){#banner.show{animation:none}}
 </style>
@@ -421,20 +426,20 @@ const DIR_YAW=[Math.PI/2,0,-Math.PI/2,Math.PI];
 // Weapons. dmg per bullet (pellet for the shotgun), rate seconds between shots, hip/ads spread, range in metres,
 // build: damage multiplier against builds, am: the ammo it uses. Rarity adds 7% damage a step and trims the reload.
 const WEAP={
-  pi:{id:'pi',name:'Pistol',dmg:24,head:1.75,rate:.2,mag:12,reload:1.3,hip:.02,ads:.011,range:80,pellets:1,build:1,fov:58,am:'L',fall:[30,.6]},
-  sm:{id:'sm',name:'SMG',dmg:15,head:1.5,rate:.075,mag:28,reload:2,hip:.034,ads:.024,range:55,pellets:1,build:.8,fov:62,am:'L',fall:[18,.55]},
-  sg:{id:'sg',name:'Shotgun',dmg:10,head:1.5,rate:.9,mag:5,reload:2.1,hip:.075,ads:.062,range:40,pellets:9,build:1.25,fov:62,am:'S',falloff:true},
-  ar:{id:'ar',name:'Rifle',dmg:22,head:1.5,rate:.12,mag:30,reload:1.9,hip:.022,ads:.006,range:150,pellets:1,build:1,fov:50,am:'M',fall:[60,.75]},
-  sr:{id:'sr',name:'Sniper',dmg:98,head:2,rate:1.3,mag:4,reload:2.5,hip:.1,ads:0,range:320,pellets:1,build:1.4,fov:20,am:'H'}
+  pi:{id:'pi',name:'Pistol',short:'Pistol',dmg:24,head:1.75,rate:.2,mag:12,reload:1.3,hip:.02,ads:.011,range:80,pellets:1,build:1,fov:58,am:'L',fall:[30,.6]},
+  sm:{id:'sm',name:'SMG',short:'SMG',dmg:15,head:1.5,rate:.075,mag:28,reload:2,hip:.034,ads:.024,range:55,pellets:1,build:.8,fov:62,am:'L',fall:[18,.55]},
+  sg:{id:'sg',name:'Shotgun',short:'Pump',dmg:10,head:1.5,rate:.9,mag:5,reload:2.1,hip:.075,ads:.062,range:40,pellets:9,build:1.25,fov:62,am:'S',falloff:true},
+  ar:{id:'ar',name:'Rifle',short:'Rifle',dmg:22,head:1.5,rate:.12,mag:30,reload:1.9,hip:.022,ads:.006,range:150,pellets:1,build:1,fov:50,am:'M',fall:[60,.75]},
+  sr:{id:'sr',name:'Sniper',short:'Sniper',dmg:98,head:2,rate:1.3,mag:4,reload:2.5,hip:.1,ads:0,range:320,pellets:1,build:1.4,fov:20,am:'H'}
 };
 const WIDS=['pi','sm','sg','ar','sr'];
 const CROW={id:'cb',name:'Crowbar',dmg:20,rate:.45,range:3.2,build:50};
 // Heals: hp or sh added, use: seconds to use (you can walk slowly meanwhile), stack: how many fit in one slot.
 const HEALS={
-  bd:{id:'bd',name:'Bandage',hp:25,use:2.5,stack:10},
-  mk:{id:'mk',name:'Medkit',hp:100,use:6,stack:3},
-  sf:{id:'sf',name:'Shield Fizz',sh:25,use:2,stack:6},
-  sj:{id:'sj',name:'Shield Jug',sh:50,use:4.5,stack:3}
+  bd:{id:'bd',name:'Bandage',short:'Band.',hp:25,use:2.5,stack:10},
+  mk:{id:'mk',name:'Medkit',short:'Medkit',hp:100,use:6,stack:3},
+  sf:{id:'sf',name:'Shield Fizz',short:'Fizz',sh:25,use:2,stack:6},
+  sj:{id:'sj',name:'Shield Jug',short:'Jug',sh:50,use:4.5,stack:3}
 };
 const AMMO={L:{name:'Light ammo',n:36},M:{name:'Rifle ammo',n:30},S:{name:'Shells',n:8},H:{name:'Heavy ammo',n:6}};
 const AMMO_CAP=300;
@@ -762,7 +767,7 @@ function segDist(x,z,a,b){const dx=b[0]-a[0],dz=b[1]-a[1],L=dx*dx+dz*dz;let t=L?
 // Ground colour at a point: grass with a little variation, painted areas, tracks, then sand along the shore.
 function vnoise(x,z){const s=Math.sin(x*.071+z*.033)*.5+Math.sin(x*.019-z*.057)*.5+Math.sin((x+z)*.11)*.25;return s*.5}
 function groundCol(x,z,out){
-  const n=vnoise(x,z);let r=.39+n*.05,g=.62+n*.06,b=.3+n*.03;
+  const n=vnoise(x,z);let r=.42+n*.05,g=.58+n*.06,b=.31+n*.03;
   for(const p of paints){
     let inside=false,edge=1;
     if(p.k==='rect'){inside=x>=p.x0&&x<=p.x1&&z>=p.z0&&z<=p.z1}
@@ -814,8 +819,8 @@ function setupChests(){
   for(const c of chests)drawChest(c);
   const ig=Bag();bagBox(ig,0,0,0,.8,.34,.34,0xffffff);bagBox(ig,.18,-.18,0,.16,.28,.2,0xdddddd);bagBox(ig,-.1,.2,0,.36,.08,.22,0xeeeeee);
   itemMesh=new THREE.InstancedMesh(bagGeo(ig),new THREE.MeshLambertMaterial({vertexColors:true}),ITEM_CAP);
-  itemMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);itemMesh.count=0;
-  itemMesh.setColorAt(0,new THREE.Color(1,1,1));scene.add(itemMesh);
+  itemMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  itemMesh.setColorAt(0,new THREE.Color(1,1,1));itemMesh.count=0;scene.add(itemMesh);   // the colour buffer is sized from count, so set a colour before emptying it
 }
 function drawChest(c){
   _o.position.set(c.x,c.y,c.z);_o.rotation.set(0,c.yaw,0);
@@ -892,12 +897,12 @@ const plyMat=new THREE.MeshLambertMaterial({map:plyTex});
 const geoPWall=new THREE.BoxGeometry(4,4,.25),geoPFloor=new THREE.BoxGeometry(4,.25,4),geoPRamp=new THREE.BoxGeometry(4,.25,Math.SQRT2*4);
 const PCAP=900,PHP={wall:150,floor:140,ramp:140};
 const pieceInst={};
-for(const [k,g] of [['wall',geoPWall],['floor',geoPFloor],['ramp',geoPRamp]]){const m=new THREE.InstancedMesh(g,plyMat,PCAP);m.count=0;m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);m.setColorAt(0,new THREE.Color(1,1,1));m.frustumCulled=false;scene.add(m);pieceInst[k]={mesh:m,list:[]}}
+for(const [k,g] of [['wall',geoPWall],['floor',geoPFloor],['ramp',geoPRamp]]){const m=new THREE.InstancedMesh(g,plyMat,PCAP);m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);m.setColorAt(0,new THREE.Color(1,1,1));m.count=0;m.frustumCulled=false;scene.add(m);pieceInst[k]={mesh:m,list:[]}}
 const pieces=new Map();
 function pieceKey(s){return s.kind==='wall'?`W${s.o}${s.x}_${s.z}_${s.L}`:(s.kind==='floor'?'F':'R')+`${s.x}_${s.z}_${s.L}`}
 function wallSpec(cx,cz,dir,L){if(dir===0)return{kind:'wall',o:'V',x:cx+1,z:cz,L};if(dir===2)return{kind:'wall',o:'V',x:cx,z:cz,L};if(dir===1)return{kind:'wall',o:'H',x:cx,z:cz+1,L};return{kind:'wall',o:'H',x:cx,z:cz,L}}
 function pieceMatrix(s){
-  if(s.kind==='ramp')return rampMatrix(s.x*4,s.z*4,s.L*4,s.dir).clone();
+  if(s.kind==='ramp'){_e.set(-Math.PI/4,DIR_YAW[s.dir],0,'YXZ');_q.setFromEuler(_e);return new THREE.Matrix4().compose(new V3(s.x*4+2,s.L*4+2,s.z*4+2),_q,new V3(1,1,1))}   // the ramp geometry is already full size
   _o.rotation.set(0,0,0);_o.scale.setScalar(1);
   if(s.kind==='wall'){if(s.o==='H')_o.position.set(s.x*4+2,s.L*4+2,s.z*4);else{_o.rotation.y=Math.PI/2;_o.position.set(s.x*4,s.L*4+2,s.z*4+2)}}
   else _o.position.set(s.x*4+2,s.L*4,s.z*4+2);
@@ -1144,7 +1149,7 @@ const trGeo=new THREE.BufferGeometry();trGeo.setAttribute('position',new THREE.B
 const tracerMesh=new THREE.LineSegments(trGeo,new THREE.LineBasicMaterial({vertexColors:true,transparent:true,opacity:.85}));tracerMesh.frustumCulled=false;scene.add(tracerMesh);
 function addTracer(a,b,hex){const i=trNext;trNext=(trNext+1)%TR_CAP;trPos.set([a.x,a.y,a.z,b.x,b.y,b.z],i*6);_col.setHex(hex);trCol.set([_col.r,_col.g,_col.b,_col.r,_col.g,_col.b],i*6);trLife[i]=.07;trGeo.attributes.position.needsUpdate=trGeo.attributes.color.needsUpdate=true}
 const BIT_CAP=160;
-const bitMesh=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshLambertMaterial({color:0xffffff}),BIT_CAP);bitMesh.count=0;bitMesh.frustumCulled=false;bitMesh.setColorAt(0,new THREE.Color(1,1,1));scene.add(bitMesh);
+const bitMesh=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshLambertMaterial({color:0xffffff}),BIT_CAP);bitMesh.frustumCulled=false;bitMesh.setColorAt(0,new THREE.Color(1,1,1));bitMesh.count=0;scene.add(bitMesh);
 const bits=[];
 function bit(p,v,hex,size,life,grav){if(bits.length>=BIT_CAP)bits.shift();bits.push({p:p.clone(),v,hex,size,life,max:life,g:grav})}
 function spark(p){for(let i=0;i<2;i++)bit(p,new V3((Math.random()-.5)*3,Math.random()*2,(Math.random()-.5)*3),0xfff1b0,.1,.12,0)}
@@ -1950,7 +1955,7 @@ function showPlace(n){hud.place.textContent=n;hud.place.classList.add('on');plac
 const fmtT=s=>{s=Math.max(0,Math.ceil(s));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
 const tagEls=[];
 function tagEl(i){while(tagEls.length<=i){const d=document.createElement('div');d.className='ntag';d.hidden=true;hud.tags.appendChild(d);tagEls.push(d)}return tagEls[i]}
-function slotLabel(s){if(!s)return['Empty',''];if(WEAP[s.t])return[WEAP[s.t].name,s.n+''];return[HEALS[s.t].name.replace('Shield ','Sh. '),'×'+s.n]}
+function slotLabel(s){if(!s)return[touchUI?'–':'Empty',''];const d=WEAP[s.t]||HEALS[s.t];return[touchUI?d.short:d.name.replace('Shield ','Sh. '),WEAP[s.t]?s.n+'':'×'+s.n]}
 let tagClock=0;
 function updateHud(dt){
   const p=player,t=matchT(),S=stormAt(t),w=heldW(p),s=heldItem(p);
@@ -1961,7 +1966,7 @@ function updateHud(dt){
     hud.shN.textContent=Math.ceil(p.sh);hud.shF.style.width=p.sh+'%';hud.mats.textContent='SCRAP '+p.mats;
     for(let i=0;i<4;i++){const el=$('slot'+i),it=p.inv[i],[nm,am]=slotLabel(it);el.querySelector('.nm').textContent=nm;el.querySelector('.am').textContent=it&&WEAP[it.t]&&p.sel===i&&p.reloadT>0?'reload':am;
       el.querySelector('.rar').style.background=it&&WEAP[it.t]?RARH[it.r|0]:'transparent';el.classList.toggle('empty',!it);el.classList.toggle('on',mode==='combat'&&p.sel===i)}
-    $('slotX').classList.toggle('on',mode==='combat'&&p.sel<0);
+    $('slotX').classList.toggle('on',mode==='combat'&&p.sel<0);$('slotX').querySelector('.nm').textContent=touchUI?'Bar':'Crowbar';
     for(const k of ['wall','floor','ramp']){const el=$('slot'+k);el.classList.toggle('on',mode==='build'&&buildType===k);el.querySelector('.am').style.color=p.mats>=COST?'':'#ff9a8a'}
     hud.ammo.innerHTML=w?`${s.n}<small> / ${p.ammo[w.am]}</small>`:'';hud.ammo.hidden=!w;
     hud.hint.hidden=mode!=='build';if(mode==='build')hud.hint.textContent='Build · '+buildType+(p.mats<COST?' · needs '+COST+' scrap':touchUI?' · tap Fire to place':' · click to place');
@@ -2149,7 +2154,7 @@ function updateCamera(dt){
   if(self&&player.st==='bus'){
     // riding the Drifter: look around it
     busPos(matchT(),_bp);const f=fwdOf(player.yaw,player.pitch);
-    camera.position.copy(_bp).addScaledVector(f,-34).add(new V3(0,11,0));camera.lookAt(_bp.clone().addScaledVector(f,24).add(new V3(0,-7,0)));camDist=3.5;return;
+    const far=camera.aspect<1?58:34;camera.position.copy(_bp).addScaledVector(f,-far).add(new V3(0,far*.33,0));camera.lookAt(_bp.clone().addScaledVector(f,24).add(new V3(0,-7,0)));camDist=3.5;return;
   }
   const f=fwdOf(tgt.yaw,tgt.pitch),r=rightOf(tgt.yaw);
   const head=tgt.pos.clone().add(new V3(0,1.62,0));
@@ -2167,6 +2172,8 @@ function updateCamera(dt){
 function updateWorldFx(){
   const ip=inPlay();
   if(ip){const t=matchT(),S=stormAt(t);stormMesh.visible=S.r<R0-1;stormMesh.scale.set(Math.max(.1,S.r),400,Math.max(.1,S.r));stormMesh.position.set(S.x,150,S.z);
+    // the wall shows strongly only when you're near it, so it doesn't tint the whole sky from the middle of the circle
+    const ce=camera.position,gap=Math.abs(S.r-Math.hypot(ce.x-S.x,ce.z-S.z));stormMesh.material.opacity=.06+.3*clamp(1-gap/70,0,1);
     const out=inMatch&&player.alive&&player.st!=='bus'&&outsideStorm(player,S);scene.fog.color.setHex(out?STORM_SKY:SKY);scene.background.setHex(out?STORM_SKY:SKY);
     busMesh.visible=t<busLine.tEnd+1;if(busMesh.visible){busPos(Math.max(0,t),busMesh.position);busMesh.rotation.set(0,Math.atan2(busLine.dx,busLine.dz),0)}}
   else{stormMesh.visible=false;busMesh.visible=false;scene.fog.color.setHex(SKY);scene.background.setHex(SKY)}
@@ -2416,14 +2423,14 @@ if(navigator.webdriver)window.__dz={get state(){return state},get online(){retur
   get mode(){return mode},set mode(v){mode=v},get buildType(){return buildType},set buildType(v){buildType=v},get myKills(){return myKills},get specId(){return specId},get lobbyShown(){return lobbyShown},get cpuMs(){return cpuMs},get busLine(){return busLine},get storm(){return storm},
   Net,player,remotes,bots,items,itemList,chests,pieces,places,statics,ramps,renderer,scene,camera,tAct,keys,STORM,WEAP,HEALS,
   matchT,stormAt,busPos,aliveIds,hostStart,hostDuties,startPractice,toMenu,goOnline,joinPrivate,quickMatch,interact,selectSlot,takeItem,playerShoot,useHeld,tryBuild,specValid,playerBuildSpec,
-  damageEntity,die,raycast,groundAt,moveEntity,openChest,nearestChest,nearestItem,canTake,dropFromBus,updateCamera,camTarget,cycleSpectate,rankRows,lineClear,stepAir,
+  damageEntity,die,raycast,groundAt,moveEntity,openChest,addItem,nearestChest,nearestItem,canTake,dropFromBus,updateCamera,camTarget,cycleSpectate,rankRows,lineClear,stepAir,
   start(){startWanted=true;hostDuties()},
   teleport(x,z,y){player.pos.set(x,y==null?groundAt(x,z,200):y,z);player.vel.set(0,0,0);player.st='ground';player.float=false;player.glide=false;player.onGround=true},
   aimAt(e){const t=e.pos.clone().add(new V3(0,1.1,0));for(let i=0;i<4;i++){updateCamera(0);const c=camera.position;player.yaw=yawTo(t.x-c.x,t.z-c.z);player.pitch=Math.atan2(t.y-c.y,Math.hypot(t.x-c.x,t.z-c.z))}},
   give(t,r){takeItem(player,{t,r:r|0,n:WEAP[t]?WEAP[t].mag:HEALS[t]?1:t==='mt'?100:60})},
   fire(){const w=heldW(player),s=heldItem(player);updateCamera(0);playerShoot();if(s&&w)s.n=w.mag;player.cd=0},
   draws(){return renderer.info.render.calls},
-  setNoRender(v){window.__noRender=!!v}};
+  setNoRender(v){window.__noRender=!!v},renderOnce(){renderer.render(scene,camera)}};
 
 requestAnimationFrame(t=>{last=t;frame(t)});
 })();
