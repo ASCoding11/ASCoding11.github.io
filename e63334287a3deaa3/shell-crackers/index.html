@@ -654,7 +654,9 @@ function air(x,y,z){return vget(x,y,z)===0}
 
 // ---------- materials ----------
 const M_={AIR:0,GRASS:1,DIRT:2,PLANK:3,DARKWOOD:4,REDWOOD:5,SIDING:6,BRICK:7,CONCRETE:8,STONE:9,ROOF:10,SLATE:11,METAL:12,CRED:13,CBLUE:14,CYEL:15,CGRN:16,
-  CRATE:17,HAY:18,LEAVES:19,ASPHALT:20,SIDEWALK:21,TILE:22,LAMP:23,GRATE:24,HAZARD:25,STUCCO:26,PLASTER:27,CARPET:28,GRASSSIDE:29,WHITEWOOD:30,GREENWALL:31,FLOOR:32,AWNING:33,WATER:34,TRIM:35};
+  CRATE:17,HAY:18,LEAVES:19,ASPHALT:20,SIDEWALK:21,TILE:22,LAMP:23,GRATE:24,HAZARD:25,STUCCO:26,PLASTER:27,CARPET:28,GRASSSIDE:29,WHITEWOOD:30,GREENWALL:31,FLOOR:32,AWNING:33,WATER:34,TRIM:35,BARRIER:36};
+// BARRIER: the invisible wall that closes off the wings of a small arena. Eggs can't walk into it, but it is never drawn
+// and shots and sight lines pass through it (see smallArena).
 function texDirt(){return canvasTex(64,64,(g,w,h)=>{g.fillStyle='#8a6440';g.fillRect(0,0,w,h);noiseDots(g,w,h,90,['#7a5636','#9a7450','#6e4c2e','#a07a52'],1,3)})}
 function texGrassSide(){return canvasTex(64,64,(g,w,h)=>{g.fillStyle='#8a6440';g.fillRect(0,0,w,h);noiseDots(g,w,h,60,['#7a5636','#9a7450','#6e4c2e'],1,3);
   g.fillStyle='#5fa043';g.fillRect(0,0,w,18);for(let x=0;x<w;x+=3){g.fillRect(x,18,3,Math.random()*12)}})}
@@ -731,7 +733,7 @@ function voxMaterial(key){
 }
 function meshWorld(group){
   const topSolid=new Int16Array(W*W).fill(-1);
-  for(let z=0;z<W;z++)for(let x=0;x<W;x++)for(let y=HY-1;y>=0;y--)if(vox[vIdx(x,y,z)]!==0&&vox[vIdx(x,y,z)]!==M_.WATER){topSolid[z*W+x]=y;break}
+  for(let z=0;z<W;z++)for(let x=0;x<W;x++)for(let y=HY-1;y>=0;y--){const b=vox[vIdx(x,y,z)];if(b!==0&&b!==M_.WATER&&b!==M_.BARRIER){topSolid[z*W+x]=y;break}}
   const cover=(x,y,z)=>{if(x<0||z<0||x>=W||z>=W)return 0;const t=topSolid[z*W+x];return y<t?(y<G-1?2:1):0};
   const out={};const dims=[W,HY,W],sc=[VX,VY,VX],pos=[0,0,0],q=[0,0,0],tmp=new THREE.Color();
   const shade=[[.8,.8],[1,.55],[.9,.9]];// [axis][sign>0?0:1]
@@ -752,7 +754,7 @@ function meshWorld(group){
         let n=0;
         for(let j=0;j<dv;j++)for(let i=0;i<du;i++){pos[ax]=d;pos[u]=i;pos[v]=j;
           const m=vget(pos[0],pos[1],pos[2]);let f=0;
-          if(m&&m!==255&&m!==M_.WATER){const nx=pos[0]+q[0],ny=pos[1]+q[1],nz=pos[2]+q[2],nm=vget(nx,ny,nz);if(nm===0||nm===M_.WATER)f=(faceMat(m,ax,sg)<<2)|(MATV[m]&&MATV[m].tex==='lamp'?0:cover(nx,ny,nz))}
+          if(m&&m!==255&&m!==M_.WATER&&m!==M_.BARRIER){const nx=pos[0]+q[0],ny=pos[1]+q[1],nz=pos[2]+q[2],nm=vget(nx,ny,nz);if(nm===0||nm===M_.WATER||nm===M_.BARRIER)f=(faceMat(m,ax,sg)<<2)|(MATV[m]&&MATV[m].tex==='lamp'?0:cover(nx,ny,nz))}
           else if(m===M_.WATER&&ax===1&&sg>0&&vget(pos[0],pos[1]+1,pos[2])===0)f=M_.WATER<<2;
           mask[n++]=f}
         for(let j=0;j<dv;j++)for(let i=0;i<du;){const f=mask[j*du+i];if(!f){i++;continue}
@@ -790,7 +792,7 @@ function rayWorld(o,d,maxT){
     if(tx<ty&&tx<tz){x+=sx;t=tx;tx+=tdx}else if(ty<tz){y+=sy;t=ty;ty+=tdy}else{z+=sz;t=tz;tz+=tdz}
     if(t>maxT)return maxT;
     if(y>=HY&&sy>0)return maxT;
-    const m=vget(x,y,z);if(m!==0&&m!==M_.WATER)return t;
+    const m=vget(x,y,z);if(m!==0&&m!==M_.WATER&&m!==M_.BARRIER)return t;
   }
   return maxT;
 }
@@ -798,7 +800,7 @@ const _lo=new V3(),_ld=new V3();
 function los(a,b){_ld.subVectors(b,a);const L=_ld.length();if(L<.01)return true;_ld.multiplyScalar(1/L);return rayWorld(a,_ld,L)>=L-.05}
 
 // ---------- bot navigation: every spot an egg can stand, on every floor and in every tunnel ----------
-function standV(x,y,z){if(y<1||y+2>=HY)return false;const b=vget(x,y-1,z);return b!==0&&b!==255&&b!==M_.WATER&&b!==M_.LEAVES&&air(x,y,z)&&air(x,y+1,z)&&air(x,y+2,z)}
+function standV(x,y,z){if(y<1||y+2>=HY)return false;const b=vget(x,y-1,z);return b!==0&&b!==255&&b!==M_.WATER&&b!==M_.LEAVES&&b!==M_.BARRIER&&air(x,y,z)&&air(x,y+1,z)&&air(x,y+2,z)}
 let navN=0,navX=null,navY=null,navZ=null,navNb=null;const navAt=new Int32Array(W*W*HY);
 function stepTo(x,y,z,nx,nz){
   if(standV(nx,y,nz))return navAt[vIdx(nx,y,nz)];
@@ -1095,15 +1097,31 @@ function buildTown(){
   for(const [x,z] of [[2,14],[15,2],[2,31],[30,15],[36,2],[57,2],[68,15],[38,22],[22,14]])spawn(x,z);
 }
 
+// Small arena: an online round that starts with SMALL_MAX eggs or fewer closes off the far wings of the map (box x0..71-x0,
+// z0..71-z0 stays open; a wall of the map's own fence, h blocks high, runs round it) and uses its own spawns, nearer the
+// middle, so a few players find each other. Full rooms, practice and the training range always get the whole map.
+const SMALL_MAX=4;
 const MAPS=[
-  {name:'Farmstead',build:buildFarm,skyTop:'#3f9cf5',skyHor:'#d6efff',fog:0xd6efff,fogFar:170,sunC:0xfff1d6,sunI:.8,sunPos:[58,70,18],hemiS:0xffffff,hemiG:0x7a8a50,
+  {name:'Farmstead',build:buildFarm,small:{x0:12,z0:17,h:8,m:M_.DARKWOOD,sp:[[14,19],[27,21],[38,24],[52,20],[16,28]]},skyTop:'#3f9cf5',skyHor:'#d6efff',fog:0xd6efff,fogFar:170,sunC:0xfff1d6,sunI:.8,sunPos:[58,70,18],hemiS:0xffffff,hemiG:0x7a8a50,
    outer:['#5fa043','#6cae4d','#549238','#78b95a'],hills:0x6fb34a,trees:0x3f8f3a,cloud:0xffffff},
-  {name:'Yolk Works',build:buildFactory,skyTop:'#4b3a8f',skyHor:'#ffb27a',fog:0xf2b88f,fogFar:160,sunC:0xffcf9a,sunI:.9,sunPos:[-46,40,70],hemiS:0xffd9b8,hemiG:0x6b4a3a,
+  {name:'Yolk Works',build:buildFactory,small:{x0:6,z0:18,h:10,m:M_.BRICK,sp:[[8,20],[24,20],[40,21],[54,20],[14,30],[43,39]]},skyTop:'#4b3a8f',skyHor:'#ffb27a',fog:0xf2b88f,fogFar:160,sunC:0xffcf9a,sunI:.9,sunPos:[-46,40,70],hemiS:0xffd9b8,hemiG:0x6b4a3a,
    outer:['#c7b067','#d3bd72','#b89f5a','#dccb86'],hills:0x9b7a55,trees:0x5f7d3f,cloud:0xffd6c2},
-  {name:'Eggsburg',build:buildTown,skyTop:'#5b86c9',skyHor:'#e3e9f2',fog:0xdfe6ef,fogFar:170,sunC:0xfff0dc,sunI:.8,sunPos:[-40,66,-30],hemiS:0xf4f6ff,hemiG:0x6c7a55,
+  {name:'Eggsburg',build:buildTown,small:{x0:1,z0:16,h:12,m:M_.BRICK,sp:[[2,31],[16,17],[31,24],[40,18],[22,34],[6,35]]},skyTop:'#5b86c9',skyHor:'#e3e9f2',fog:0xdfe6ef,fogFar:170,sunC:0xfff0dc,sunI:.8,sunPos:[-40,66,-30],hemiS:0xf4f6ff,hemiG:0x6c7a55,
    outer:['#6aa34c','#76ad55','#5f9644','#80b65e'],hills:0x6c9a4a,trees:0x3f7f3a,cloud:0xffffff}
 ];
-let mapIdx=-1;
+let mapIdx=-1,mapSm=0;
+// Close off the wings for a small arena (after the map is built): every open block outside the box becomes BARRIER, and
+// a wall goes round the box from the tunnels up (so tunnels that cross it end at the wall), with BARRIER above it to the
+// sky so nobody jumps over from a roof. Buildings out in the wings stay as scenery.
+function smallArena(a){
+  const x0=a.x0,z0=a.z0,x1=W-1-x0,z1=W-1-z0,top=G+a.h;mirrorOn=false;
+  for(let y=1;y<HY;y++)for(let z=0;z<W;z++)for(let x=0;x<W;x++){
+    if(x>=x0-1&&x<=x1+1&&z>=z0-1&&z<=z1+1)continue;const i=vIdx(x,y,z);if(vox[i]===0)vox[i]=M_.BARRIER}
+  const col=(x,z)=>{for(let y=1;y<HY;y++){const i=vIdx(x,y,z);if(y<top)vox[i]=a.m;else if(vox[i]===0)vox[i]=M_.BARRIER}};
+  for(let x=Math.max(0,x0-1);x<=Math.min(W-1,x1+1);x++){col(x,z0-1);col(x,z1+1)}
+  if(x0>1)for(let z=z0-1;z<=z1+1;z++){col(x0-1,z);col(x1+1,z)}
+  mapSpawns=[];mirrorOn=true;for(const [x,z] of a.sp)spawn(x,z);
+}
 
 // The training range is its own map, kept out of MAPS so it never comes up in practice or online rotation.
 // Not mirrored: you stand on the concrete pad at the south end (z 62-70) and shoot north. Distance lines
@@ -1188,11 +1206,12 @@ const _mo=new THREE.Object3D();
 function partM(x,y,z,sx,sy,sz,rx,ry,rz){_mo.position.set(x,y,z);_mo.scale.set(sx,sy,sz);_mo.rotation.set(rx||0,ry||0,rz||0);_mo.updateMatrix();return _mo.matrix.clone()}
 
 let spawns=[],perches=[];
-function buildMap(idx){
-  mapIdx=idx;const M=idx===RANGE_IDX?RANGE_MAP:MAPS[idx];
+function buildMap(idx,sm){
+  mapIdx=idx;const M=idx===RANGE_IDX?RANGE_MAP:MAPS[idx];mapSm=sm&&M.small?1:0;
   Range.clear();
   vox.fill(0);mapSpawns=[];mirrorOn=true;
   M.build();
+  if(mapSm)smallArena(M.small);
   buildNav();
   // Spawn points stand where they were placed. If a map change has put something there, the nearest clear spot on the
   // same level (within 3 m, or a step up or down) is used instead, and only failing that the first spot above.
@@ -2542,7 +2561,7 @@ const NET_BLOCKED='Couldn\'t reach the game database. If you\'re on a school or 
 function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('Could not load '+src));document.head.appendChild(s)})}
 function cleanName(n){return String(n||'Egg').replace(/[^\w \-.'!?]/g,'').trim().slice(0,14)||'Egg'}
 const Net={
-  peek:[],peekRoom:{},ready:false,uid:null,db:null,offset:0,room:null,refs:null,isPublic:false,matchId:null,joinT:0,pubTimer:0,seen:new Set(),pruneTimer:0,
+  peek:[],peekRoom:{},peekNew:{},cur:null,joining:false,checkT:0,fixT:0,growT:0,odd:0,ready:false,uid:null,db:null,offset:0,room:null,refs:null,isPublic:false,matchId:null,joinT:0,pubTimer:0,seen:new Set(),pruneTimer:0,
   now(){return Date.now()+this.offset},
   async init(){
     if(this.ready)return;
@@ -2566,19 +2585,20 @@ const Net={
   stateOf(){
     const p=player;
     return{n:myName,c:myColor,x:r2(p.pos.x),y:r2(p.pos.y),z:r2(p.pos.z),h:r3(p.yaw),p:r3(p.pitch),hp:Math.max(0,Math.round(p.hp)),d:p.alive?0:1,
-      w:WKEYS.indexOf(p.wkey),sc:p.shotCount,k:p.kills,dt:p.deaths,r:Math.round(rank.r),sp:p.spawnShield>0?1:0,m:this.matchId==null?-1:this.matchId,ts:Math.round(this.now())};
+      w:WKEYS.indexOf(p.wkey),sc:p.shotCount,k:p.kills,dt:p.deaths,r:Math.round(rank.r),sp:p.spawnShield>0?1:0,m:this.matchId==null?-1:this.matchId,mp:mapIdx,ar:mapSm,ts:Math.round(this.now())};
   },
   async count(room){
     const s=await this.db.ref('rooms/'+room+'/players').once('value');let n=0;const pk=[];
-    s.forEach(c=>{const v=c.val();if(c.key!==this.uid&&v&&this.now()-(+v.ts||0)<10000){n++;if(!v.d&&isFinite(+v.x)&&isFinite(+v.z))pk.push({uid:c.key,x:+v.x,z:+v.z})}});
-    this.peekRoom[room]=pk;return n;
+    let allNew=true;
+    s.forEach(c=>{const v=c.val();if(c.key!==this.uid&&v&&this.now()-(+v.ts||0)<10000){n++;if(v.ar==null)allNew=false;if(!v.d&&isFinite(+v.x)&&isFinite(+v.z))pk.push({uid:c.key,x:+v.x,z:+v.z})}});
+    this.peekRoom[room]=pk;this.peekNew[room]=allNew;return n;
   },
   async joinRoom(room,isPublic){
     await this.init();
     const others=await withTimeout(this.count(room),10000,NET_BLOCKED);
     if(others>=MAX_ROOM)throw new Error('That room is full (8 eggs). Try another code.');
     const roomRef=this.db.ref('rooms/'+room);
-    this.room=room;this.isPublic=!!isPublic;this.matchId=null;this.seen.clear();this.peek=this.peekRoom[room]||[];
+    this.room=room;this.isPublic=!!isPublic;this.matchId=null;this.cur=null;this.seen.clear();this.peek=this.peekRoom[room]||[];
     this.refs={room:roomRef,players:roomRef.child('players'),events:roomRef.child('events'),round:roomRef.child('round'),me:roomRef.child('players/'+this.uid)};
     online=true;player.id=this.uid;
     try{await withTimeout(this.refs.me.set(this.stateOf()),10000,NET_BLOCKED)}
@@ -2587,17 +2607,19 @@ const Net={
     this.joinT=this.now();
     // The shared database rules only accept a round "ends" up to 200 s ahead, so a round stores
     // its start time in "ends" and its length in "len"; the real end is ends + len.
-    // When a party lands together every browser races to start the round, each with its own random map. Only one
-    // write wins, so the transaction doesn't show this browser its own guess first (applyLocally false): acting on a
-    // losing guess put people on a different map from the rest of the room under the same match id.
-    this.roundErr=null;
-    const roundP=this.refs.round.transaction(cur=>{const n=this.now();if(cur&&typeof cur.ends==='number'&&typeof cur.id==='number'&&n<roundEnd(cur)+20000)return;return{id:(cur&&+cur.id||0)+1,ends:n,len:MATCH_MS,map:Math.floor(Math.random()*MAPS.length)}},undefined,false).catch(err=>{this.roundErr=err});
+    // The room's match lives in one node, rooms/sc-<code>/round: id, start (ends), length, map and sm (small arena). It is
+    // the only thing that decides the map: every egg builds what it says (takeRound), whoever wrote it and whoever has left
+    // since. When a party lands together every browser races to start it, each with its own random map; only one write
+    // wins, and the transaction runs with applyLocally off so nobody sees, let alone builds, a losing guess. The join
+    // never acts on the transaction's own result either (it can be older than what the listener has already delivered,
+    // which used to put a late joiner back on the previous map); it waits for the listener.
+    this.claimRound(smallFor(others+1,this.peekNew[room]!==false));
     const r=this.refs;
     const up=s=>{if(s.key===this.uid)return;onRemoteState(s.key,s.val())};
     r.players.on('child_added',up);r.players.on('child_changed',up);
     r.players.on('child_removed',s=>{const e=remotes.get(s.key);if(e){infoFeed(e.name+' left');removeEntity(e);remotes.delete(s.key)}});
     r.events.on('child_added',s=>{const e=s.val();if(!e||typeof e.t!=='number'||e.t<this.joinT-1500||e.by===this.uid||this.seen.has(s.key))return;this.seen.add(s.key);if(this.seen.size>1500)this.seen.delete(this.seen.values().next().value);handleEvent(e)});
-    r.round.on('value',s=>{const v=s.val();if(this.isNewRound(v))onMatch(v)});
+    r.round.on('value',s=>this.takeRound(s.val()));
     clearInterval(this.pubTimer);
     // About 12 updates a second while something changes (position, aim, health, shots); when nothing has, a
     // heartbeat a second keeps the node fresh (others drop an egg they haven't heard from for 9 s).
@@ -2606,15 +2628,55 @@ const Net={
       if(!online||!this.refs)return;
       const s=this.stateOf(),key=JSON.stringify(s,(k,v)=>k==='ts'?undefined:v);
       if(this.wantSend(key,performance.now()))this.refs.me.set(s).catch(()=>{});
+      this.check();
     },80);
     clearInterval(this.pruneTimer);
     this.pruneTimer=setInterval(()=>{const t=performance.now();for(const [k,e] of remotes)if(t-e.seen>9000){removeEntity(e);remotes.delete(k)}},2000);
     try{if(!isPublic)history.replaceState(null,'','#'+room)}catch(e){}
-    // Wait (up to 8 s) for the room's match, so you're dropped onto the same map as everyone else rather than
-    // the menu's random one. The transaction's result holds the round whether it started a new one or kept the old.
-    const res=await withTimeout(roundP,8000,'slow').catch(()=>null);
-    const v=res&&res.snapshot&&res.snapshot.val();
-    if(this.refs&&this.isNewRound(v))onMatch(v);
+    // Wait (up to 8 s) for the room's match; it starts play here (onMatch) when it comes. enterRoom keeps waiting after
+    // that rather than dropping you onto the menu's random map.
+    const t0=performance.now();
+    await new Promise(res=>{const k=setInterval(()=>{if(!this.refs||this.matchId!=null||performance.now()-t0>8000){clearInterval(k);res()}},100)});
+  },
+  // Start the room's match if there is none, or the last one ended more than 20 s ago; otherwise keep it.
+  claimRound(sm){
+    this.roundErr=null;this.joining=true;const refs=this.refs;
+    refs.round.transaction(cur=>{const n=this.now();if(cur&&typeof cur.ends==='number'&&typeof cur.id==='number'&&n<roundEnd(cur)+20000)return;return{id:(cur&&+cur.id||0)+1,ends:n,len:MATCH_MS,map:Math.floor(Math.random()*MAPS.length),sm}},undefined,false)
+      .catch(err=>{this.roundErr=err}).then(()=>{if(this.refs!==refs)return;this.joining=false;if(this.cur)this.takeRound(this.cur)});
+  },
+  // A value of the room's match node from the server (the listener, or a fresh read). It becomes this browser's copy of
+  // the match (cur), and if it isn't the match and layout built here, onMatch switches to it at once.
+  takeRound(v){
+    if(!this.refs)return;
+    if(v==null){
+      // The last egg out removes the match (dropRound); one that hadn't seen us yet can do that while we're still here.
+      // Put back the match we're playing (only if nobody has started another), so a later joiner doesn't start a new one.
+      const keep=this.cur;
+      if(keep&&this.matchId===keep.id&&!this.joining&&this.now()<roundEnd(keep))this.refs.round.transaction(c=>c==null?keep:undefined,undefined,false).catch(()=>{});
+      return;
+    }
+    if(typeof v!=='object'||typeof v.id!=='number')return;
+    this.cur=v;
+    // a finished match that our own join is about to replace: wait for the new one rather than building the old map
+    if(this.joining&&this.now()>=roundEnd(v)+20000)return;
+    if(this.isNewRound(v))onMatch(v);
+  },
+  // Run with every send (about 12 times a second). The map built here must always be the one in cur; if anything ever
+  // left them apart, rebuild now. Once a second, look at the other eggs in this match: if most of them report a different
+  // map or arena from ours, read the match node again (our copy may be stale). And in the first seconds of a small-arena
+  // match, open the whole map if the room has filled up to 5 or more (a party arriving one by one) or an older version
+  // of the game has joined (it can't build the small arena).
+  check(){
+    const v=this.cur;if(!v||this.joining||!this.refs)return;
+    if(this.isNewRound(v)){onMatch(v);return}
+    const t=performance.now();if(t-this.checkT<1000)return;this.checkT=t;
+    let same=0,diff=0,n=1,old=false;const now=this.now();
+    for(const e of remotes.values()){const q=e.net;if(!q||now-(+q.ts||0)>10000)continue;n++;if(q.ar==null)old=true;
+      if(+q.m!==this.matchId||q.mp==null)continue;if(+q.mp===mapIdx&&(+q.ar||0)===mapSm)same++;else diff++}
+    this.odd=diff>same?this.odd+1:0;
+    if(this.odd>=2&&t-this.fixT>5000){this.fixT=t;this.odd=0;this.refs.round.once('value',s=>this.takeRound(s.val())).catch(()=>{})}
+    if(v.sm&&v.id===this.matchId&&now-(+v.ends||0)<SMALL_GROW_MS&&(n>SMALL_MAX||old)&&t-this.growT>3000){this.growT=t;
+      const id=v.id;this.refs.round.transaction(c=>c&&c.id===id&&c.sm?Object.assign({},c,{sm:0}):undefined,undefined,false).catch(()=>{})}
   },
   // After the last change, the same state goes out twice more at the usual rate: others then know at once that this egg
   // has stopped, instead of carrying it on (into the wall it stopped at, or through the floor it landed on) until the
@@ -2625,7 +2687,7 @@ const Net={
     return false;
   },
   // A round to switch to: a new match, or the same match on a map other than the one built here.
-  isNewRound(v){return !!v&&typeof v.id==='number'&&(v.id!==this.matchId||clamp(v.map|0,0,MAPS.length-1)!==mapIdx)},
+  isNewRound(v){return !!v&&typeof v.id==='number'&&(v.id!==this.matchId||clamp(v.map|0,0,MAPS.length-1)!==mapIdx||(v.sm?1:0)!==mapSm)},
   send(e){
     if(!online||!this.refs)return;
     const ref=this.refs.events.push();this.seen.add(ref.key);
@@ -2637,7 +2699,10 @@ const Net={
     if(!online||!this.refs)return;const id=this.matchId;
     // a missing match (the last egg out took it, see dropRound) starts a fresh one too, always numbered past this
     // browser's own match so its listener (which ignores the match it already has) picks it up
-    this.refs.round.transaction(cur=>(!cur||cur.id===id)?{id:(+id||0)+1,ends:this.now(),len:MATCH_MS,map:((+(cur&&cur.map)||0)+1)%MAPS.length}:undefined,undefined,false).catch(()=>{});
+    // the next match is a small arena if 4 or fewer eggs are here now (and all of them can build one)
+    let n=1,allNew=true;const now=this.now();for(const e of remotes.values()){const q=e.net;if(!q||now-(+q.ts||0)>10000)continue;n++;if(q.ar==null)allNew=false}
+    const sm=smallFor(n,allNew);
+    this.refs.round.transaction(cur=>(!cur||cur.id===id)?{id:(+id||0)+1,ends:this.now(),len:MATCH_MS,map:((+(cur&&cur.map)||0)+1)%MAPS.length,sm}:undefined,undefined,false).catch(()=>{});
   },
   // The last egg out takes the room's match with it, so a code nobody uses again doesn't keep a stale node. Only when
   // no other egg is here, and only the match this browser saw; an egg that was mid-join re-creates one (its own join
@@ -2646,19 +2711,26 @@ const Net={
   leave(){
     clearInterval(this.pubTimer);clearInterval(this.pruneTimer);
     if(this.refs){const r=this.refs;try{r.players.off();r.events.off();r.round.off();r.me.onDisconnect().cancel();r.me.remove();this.dropRound(r)}catch(e){}}
-    this.refs=null;this.room=null;this.matchId=null;online=false;player.id='me';
+    this.refs=null;this.room=null;this.matchId=null;this.cur=null;this.joining=false;clearTimeout(this.waitT);online=false;player.id='me';
     clearRemotes();
   }
 };
+// A small arena for SMALL_MAX eggs or fewer, only if every egg in the room runs a version that can build one.
+const SMALL_GROW_MS=15000;
+function smallFor(n,allNew){return n<=SMALL_MAX&&allNew?1:0}
 function roundEnd(v){const st=+v.ends||Net.now(),len=+v.len;return st+(len>0&&len<=MATCH_MS?len:MATCH_MS)}
-// Like Backrooms 1v1: you're dropped into the room as soon as your egg is saved. If the room's match
-// info hasn't arrived yet, play starts on a local clock and switches over when it does.
+// You're dropped into the room's match as soon as it arrives (onMatch). If it hasn't after the join's 8 s, keep waiting
+// rather than play on a map of this browser's own choosing: try to start it again after 12 s more, and give up after 15 s
+// beyond that with a message (the menu stays usable throughout).
 function enterRoom(){
-  if(Net.matchId!=null||state==='playing')return;
-  matchEnds=Date.now()+MATCH_MS;target=TARGET_ONLINE;$('goal').textContent='First to '+target;
-  player.kills=0;player.deaths=0;player.streak=0;
-  state='playing';showHud();respawn(player);sfx('spawn');requestLock();startRatedMatch();
-  banner(MAPS[mapIdx].name.toUpperCase(),(Net.isPublic?'Public lobby':'Room '+Net.room)+' · first to '+target+' cracks',2.6);
+  if(Net.matchId!=null||state==='playing'){setMsg('');return}
+  setMsg('Waiting for the room\u2019s match…');
+  const room=Net.room;clearTimeout(Net.waitT);
+  Net.waitT=setTimeout(()=>{
+    if(!Net.refs||Net.room!==room||Net.matchId!=null)return;
+    Net.claimRound(smallFor(1+remotes.size,[...remotes.values()].every(e=>e.net&&e.net.ar!=null)));
+    Net.waitT=setTimeout(()=>{if(Net.refs&&Net.room===room&&Net.matchId==null){Net.leave();setupAttract();setMsg('Couldn\u2019t get this room\u2019s match from the game server. Try again, or play Practice.',true)}},15000);
+  },12000);
 }
 function onRemoteState(uid,v){
   if(!v||typeof v.x!=='number'||!isFinite(v.x)||!isFinite(v.z))return;
@@ -2687,7 +2759,9 @@ function onRemoteState(uid,v){
   if(sc>e.lastSc&&e.alive){const n=Math.min(sc-e.lastSc,3),w=WEAPONS[e.wkey];for(let i=0;i<n;i++)setTimeout(()=>remoteShotFx(e),i*Math.min(70,w.cd*1000))}
   e.lastSc=sc;
 }
-function inMyMatch(v){return Net.matchId!=null&&!!v&&+v.m===Net.matchId}
+// Same match, and (when it says) the same map and arena: an egg still on another layout is hidden and can't be hit until
+// it has switched, so nobody is shot through a wall that only one of the two can see.
+function inMyMatch(v){return Net.matchId!=null&&!!v&&+v.m===Net.matchId&&(v.mp==null||+v.mp===mapIdx&&(+v.ar||0)===mapSm)}
 function remoteShotFx(e){
   if(!e.active||!e.alive||!e.model)return;
   const w=WEAPONS[e.wkey];eyeOf(e,_o);const d=dirOf(e.yaw,e.pitch);const t=rayWorld(_o,d,w.range*3+40);
@@ -2713,10 +2787,11 @@ function handleEvent(ev){
 }
 function onMatch(v){
   Net.matchId=v.id;matchEnds=roundEnd(v);
+  const mi=clamp(v.map|0,0,MAPS.length-1),sm=v.sm?1:0;
+  const sameMap=mi===mapIdx&&sm===mapSm;const wasIn=state==='playing'&&player.alive;
+  clearTimeout(Net.waitT);if(state!=='playing')setMsg('');
+  resetFx();if(!sameMap)buildMap(mi,sm);
   for(const e of remotes.values())e.active=inMyMatch(e.net);
-  const mi=clamp(v.map|0,0,MAPS.length-1);
-  const sameMap=mi===mapIdx;const wasIn=state==='playing'&&player.alive;
-  resetFx();if(!sameMap)buildMap(mi);
   player.kills=0;player.deaths=0;player.streak=0;target=TARGET_ONLINE;$('goal').textContent='First to '+target;
   if(!(wasIn&&sameMap)){
     const ids=[Net.uid,...remotes.keys()].sort();
@@ -2727,7 +2802,7 @@ function onMatch(v){
   if(!(wasIn&&sameMap&&!ratedThis&&clock-matchJoinClock<15))startRatedMatch();
   if(state!=='playing'){state='playing';showHud();if(!paused)requestLock()}
   else{$('end').hidden=true}
-  banner(MAPS[mapIdx].name.toUpperCase(),(Net.isPublic?'Public lobby':'Room '+Net.room)+' · first to '+target+' cracks',2.6);
+  banner(MAPS[mapIdx].name.toUpperCase(),(Net.isPublic?'Public lobby':'Room '+Net.room)+' · first to '+target+' cracks'+(mapSm?' · small arena for '+SMALL_MAX+' or fewer':''),2.6);
 }
 // Other eggs are drawn a moment in the past, between the updates around that moment (netsmooth.js),
 // so they move evenly however unevenly their updates arrive. If an update is late they're carried on for at most
@@ -2769,7 +2844,7 @@ function prepOnline(){
 async function joinPrivate(){
   const code=sanitizeRoom($('room').value)||randomRoom();$('room').value=code;store.set('room',code);
   busy(true);setMsg('Connecting…');
-  try{Net.leave();prepOnline();await Net.joinRoom('sc-'+code,false);enterRoom();setMsg('')}
+  try{Net.leave();prepOnline();await Net.joinRoom('sc-'+code,false);enterRoom()}
   catch(err){Net.leave();setupAttract();setMsg(err.message||String(err),true)}
   finally{busy(false)}
 }
@@ -2782,7 +2857,7 @@ async function quickMatch(){
     if(res.every(x=>x instanceof Error))throw new Error(res[0].message===NET_BLOCKED?NET_BLOCKED:'Couldn\'t read the lobbies ('+(res[0].code||res[0].message)+').');
     const counts=res.map(x=>x instanceof Error?0:x);
     let best=0,bn=-1;counts.forEach((n,i)=>{if(n<MAX_ROOM&&n>bn){bn=n;best=i}});
-    prepOnline();await Net.joinRoom(rooms[best],true);enterRoom();setMsg('');
+    prepOnline();await Net.joinRoom(rooms[best],true);enterRoom();
   }catch(err){Net.leave();setupAttract();setMsg(err.message||String(err),true)}
   finally{busy(false)}
 }
@@ -2975,7 +3050,7 @@ addEventListener('pagehide',()=>{leaveCheck();Net.leave()});
 const inv=/^#sc-([a-z0-9-]{1,17})$/.exec(location.hash);
 if(inv){$('room').value=inv[1];setMsg('You were invited to room sc-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.remove('alt');$('quick').classList.add('alt')}
 
-if(navigator.webdriver)window.__sc={get state(){return state},get mode(){return mode},get noRender(){return noRender},set noRender(v){noRender=!!v},player,get ents(){return ents},get map(){return mapIdx},findPath,rayWorld,floorBelow,buildMap,MAPS,W,HY,VY,G,GROUND_Y,vox,vget,standV,nodeFor,entHits,get navN(){return navN},get navReach(){return navReach},navAt,get navY(){return navY},get perches(){return perches},spawns:()=>spawns,Net,onRemoteState,handleEvent,onMatch,endMatch,standings,DIFF,WEAPONS,fireShot,damage,throwNade,nades,addFeed,respawn,spawnSplat,keys,setPaused:v=>{paused=v},get rank(){return rank},HUMAN_W,ratingChange,applyRating,get lastRated(){return lastRated},get clock(){return clock},toMenu,loadLeaderboard,renderer,scene,camera,vmScene,vmCam,advance:s=>{noRender=true;try{for(let t=0;t<s;t+=1/30)step(1/30)}finally{noRender=false}},get matchEnds(){return matchEnds},set matchEnds(v){matchEnds=v},get remotes(){return remotes},get range(){return Range},startTraining,tryFire,startReload,setLoadout,switchSlot,mapInfo,RANGE_IDX,get paused(){return paused},get hudDirty(){return hudDirty},
+if(navigator.webdriver)window.__sc={get state(){return state},get mode(){return mode},get noRender(){return noRender},set noRender(v){noRender=!!v},player,get ents(){return ents},get map(){return mapIdx},get arena(){return mapSm},get layout(){return mapIdx+(mapSm?"s":"")},findPath,rayWorld,floorBelow,buildMap,MAPS,W,HY,VY,G,GROUND_Y,vox,vget,standV,nodeFor,entHits,get navN(){return navN},get navReach(){return navReach},navAt,get navY(){return navY},get perches(){return perches},spawns:()=>spawns,Net,onRemoteState,handleEvent,onMatch,endMatch,standings,DIFF,WEAPONS,fireShot,damage,throwNade,nades,addFeed,respawn,spawnSplat,keys,setPaused:v=>{paused=v},get rank(){return rank},HUMAN_W,ratingChange,applyRating,get lastRated(){return lastRated},get clock(){return clock},toMenu,loadLeaderboard,renderer,scene,camera,vmScene,vmCam,advance:s=>{noRender=true;try{for(let t=0;t<s;t+=1/30)step(1/30)}finally{noRender=false}},get matchEnds(){return matchEnds},set matchEnds(v){matchEnds=v},get remotes(){return remotes},get range(){return Range},startTraining,tryFire,startReload,setLoadout,switchSlot,mapInfo,RANGE_IDX,get paused(){return paused},get hudDirty(){return hudDirty},
   // collision audit: the real movement, push-out and remote-drawing code, driven step by step
   moveEntity,steer,pushOutPos,rescue,boxSolid,updateRemotes,drawClamp,simulate,simSteps,FRAME_CAP,consts:{PR,PH,STEP,JUMP,GRAV,MAX_FALL},mapSpawns:()=>mapSpawns,los};
 
