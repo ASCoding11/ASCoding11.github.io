@@ -259,7 +259,7 @@ body.touch #top{width:min(340px,calc(100vw - 250px))}
       <div class="pick-head"><h2>Level map</h2><button class="btn sm alt" id="mapBack" type="button">Back</button></div>
       <p class="sub">Clear a level to open the ones it leads to. Paths split, so there's more than one way to the Core.</p>
       <div class="mapwrap">
-        <svg id="mapSvg" viewBox="0 0 1000 560" role="group" aria-label="Level map"></svg>
+        <svg id="mapSvg" viewBox="0 0 1000 680" role="group" aria-label="Level map"></svg>
         <div class="lvinfo" id="lvInfo"></div>
       </div>
     </div>
@@ -344,7 +344,7 @@ const THEMES={
 //   R n      n rows of complete ring                    G n    n empty rows (jump them)
 //   S n wW   only a strip W tiles wide (the corridor)   M n kK the strip slides K tiles sideways over n rows
 //   H n dD   ring with holes (share D), a 2-wide safe lane wanders through
-//   X n wW   rows on, rows off (hop along); wW makes it a strip     Q n wW checkerboard
+//   X n wW   rows on, rows off (hop along); wW makes it a strip; kK: K rows on between the gaps     Q n wW checkerboard
 //   Z n kK wW  the strip weaves K tiles each way          F n kK only the face K faces round from the corridor's face
 //   O n kK   every face but that one (O n k0: the floor drops out, take a wall)
 //   P n      a boost pad row, then n empty rows
@@ -353,12 +353,12 @@ const THEMES={
 const LEVELS=[
  // 1-5 Launch Lane: square tunnel, teaching
  {n:'First Steps',s:'sq',th:'launch',sp:.86,p:'R14 $0 R8 G1 R10 G1 R8 $2 R8 G2 R10 S8w3 R6 ^0 G2 R10 G1 R6'},
- {n:'Side Step',s:'sq',th:'launch',sp:.88,p:'R12 S10w3 $3 R6 O10k0 R8 G2 R6 $-3 O12k0 R8 S8w3 G1 ^0 R10 G2 R8'},
+ {n:'Side Step',s:'sq',th:'launch',sp:.88,p:'R12 S10w3 $3 R6 O10k0 R8 G2 R6 $-3 O12k0 R10 S8w3 G1 ^0 R10 G2 R8'},
  {n:'Hop Scotch',s:'sq',th:'launch',sp:.9,p:'R12 X6 R8 $0 G2 R6 X8 R8 O8k0 R6 ^0 X10 R8 G2 R6 $0 X6w3 R8'},
  {n:'Round the Bend',s:'sq',th:'launch',sp:.92,p:'R12 S6w3 M10k4w3 $0 S8w3 M10k5w3 R8 G2 R6 S6w3 ^0 M12k-5w3 S6w3 R8 O10k0 $0 R8 G2 R8'},
  {n:'Swiss Cheese',s:'sq',th:'launch',sp:.94,p:'R12 H16d.25 R6 G2 $0 H16d.35 R6 X6 ^0 H18d.4 R6 G2 R4 $0 S10w2 R8'},
  // 6-10 Frostbelt: hexagon, ice
- {n:'Thin Ice',s:'hex',th:'frost',sp:.92,p:'R12 R10:i $0 R6 G1 R10:i S8w3:i R6 ^0 G2 R10 O10k0:i $0 R8 G2 R8'},
+ {n:'Thin Ice',s:'hex',th:'frost',sp:.92,p:'R12 R10:i $0 R6 G1 R10:i S8w4:i R6 ^0 G2 R10 O10k0:i $0 R8 G2 R8'},
  {n:'Skid Row',s:'hex',th:'frost',sp:.94,p:'R10 S10w3:i $0 M10k3w3:i S6w3 G1 S8w3:i ^0 M10k-4w3:i R6 G2 $0 H14d.3:i R8'},
  {n:'Glacier Gaps',s:'hex',th:'frost',sp:.96,p:'R10 X8:i R6:i G2 $0 R6:i G2 R6 ^0 X10w4:i R6 G3 R8:i $0 O10k0:i R8'},
  {n:'Snow Globe',s:'hex',th:'frost',sp:.98,p:'R12 F10k1 $0 R10 F10k-1:i R10 G2 ^0 R10 F10k1:i R12 F10k1 $0 R10 G2 R10'},
@@ -370,10 +370,10 @@ const LEVELS=[
  {n:'Shale Spiral',s:'oct',th:'rubble',sp:.98,p:'R10 S6w3 M14k6w3:c $0 S6w3 M14k-6w3 R6:c G2 ^0 S6w2 M12k4w2:c S6w3 R6 $0 G2 R8'},
  {n:'Rockfall',s:'oct',th:'rubble',sp:1,p:'R10 Q10:c R6 G2 $0 R4 H16d.4:c R6 ^0 X8:c R6 G3 $0 R6:c R8'},
  // 16 The Junction: square, a bit of everything
- {n:'Crossroads',s:'sq',th:'junction',sp:1,p:'R10 R8:i G2 R6 R8:c $0 O10k0 R6 ^0 H14d.35 R6 S6w3 M10k5w3:i S6w3 $0 G2 R8 X6 R8'},
+ {n:'Crossroads',s:'sq',th:'junction',sp:1,p:'R10 R8:i G2 R6 R8:c $0 O10k0 R8 ^0 H14d.35 R6 S6w3 M10k5w3:i S6w3 $0 G2 R8 X6 R8'},
  // 17-20 Drift Docks: hexagon, conveyors
  {n:'Moving Floor',s:'hex',th:'drift',sp:.96,p:'R10 R10:r $0 R6 R10:l R6 G1 R10:f ^0 R6 G2 R10:b $0 R6 G2 R8'},
- {n:'Undertow',s:'hex',th:'drift',sp:.98,p:'R10 S10w3:r $0 S6w3 S10w3:l R6 G2 ^0 R10:r O10k0:l R6 $0 S8w2 G2 R8'},
+ {n:'Undertow',s:'hex',th:'drift',sp:.98,p:'R10 S10w3:r $0 S6w3 S10w3:l R6 G2 ^0 R10:r O10k0:l R10 $0 S8w2 G2 R8'},
  {n:'Cargo Belt',s:'hex',th:'drift',sp:1,p:'R10 H14d.3:r $0 R6 X8:f R6 ^0 G3 R6 H14d.35:l R6 $0 R8:b G2 R8'},
  {n:'Dock Spin',s:'hex',th:'drift',sp:1.02,p:'R10 R14:r $0 R6:l Z14k2w2 R6 ^0 G2 R14:l R6 $0 F10k1:r R6 G2 R8'},
  // 21-24 Spring Fields: octagon, boost pads and sticky goo
@@ -390,21 +390,21 @@ const LEVELS=[
  {n:'Crystal Garden',s:'big',th:'comet',sp:1,p:'R12 H16d.3 $0 R6 P4 R8 ^4 X8 R6 $-4 F10k2 R6 G2 R8'},
  {n:'Tail Spin',s:'big',th:'comet',sp:1.02,p:'R10 S6w3 M16k8w3 $0 S6w3 M16k-8w3:i R6 G2 ^0 Z16k3w3 R6 $0 H16d.4 R8'},
  // 31-32 The Core
- {n:'Heat Shield',s:'hex',th:'core',sp:1.06,p:'R10 H16d.4:c $0 R6:i G2 R6 X8:r R6 ^0 P5 R6 O10k0:l R6 $0 Z14k2w2 R6 G3 R8'},
+ {n:'Heat Shield',s:'hex',th:'core',sp:1.06,p:'R10 H16d.4:c $0 R6:i G2 R6 X8:r R6 ^0 P5 R6 O10k0:l R10 $0 Z14k2w2 R6 G3 R8'},
  {n:'Heart of the Rock',s:'oct',th:'core',sp:1.08,p:'R10 S6w3 M12k4w3:i $0 R6 G2 H14d.4:c R6 P5 ^0 R6:k R6 G2 X8:f R6 $0 Q10 R6 O10k0:r R6 G3 R8'}
 ];
-// The map: where each level sits (x, y in a 1000 x 560 box) and which levels it opens.
+// The map: where each level sits (x, y in a 1000 x 680 box) and which levels it opens.
 const MAP=[
- [70,300,[1]],[160,250,[2]],[250,300,[3]],[340,250,[4]],[420,300,[5,10]],
- [500,170,[6]],[580,120,[7,11]],[660,150,[8]],[740,110,[9]],[810,170,[15]],
- [500,430,[11]],[580,470,[12]],[660,440,[13]],[740,480,[14]],[810,420,[15]],
- [870,300,[16,20]],
- [780,240,[17]],[700,250,[18]],[620,290,[19]],[540,300,[24]],
- [790,360,[21]],[710,350,[22]],[630,360,[23]],[560,370,[24]],
- [470,300,[25,28]],
- [380,370,[26]],[300,410,[27]],[220,380,[30]],
- [380,210,[29]],[300,170,[30]],
- [150,180,[31]],[80,110,[]]
+ [70,150,[1]],[165,105,[2]],[260,150,[3]],[355,105,[4]],[450,150,[5,10]],
+ [545,70,[6]],[640,110,[7]],[735,70,[8]],[830,110,[9]],[900,70,[15]],
+ [545,235,[11]],[615,290,[12]],[700,255,[13]],[790,240,[14]],[860,275,[15]],
+ [950,340,[16,20]],
+ [840,345,[17]],[740,385,[18]],[640,345,[19]],[540,385,[24]],
+ [840,485,[21]],[740,525,[22]],[640,485,[23]],[540,525,[24]],
+ [440,455,[25,28]],
+ [340,400,[26]],[240,360,[27]],[140,400,[30]],
+ [340,520,[29]],[240,560,[30]],
+ [100,500,[31]],[80,620,[]]
 ];
 const PRED=MAP.map(()=>[]);MAP.forEach((m,i)=>m[2].forEach(j=>PRED[j].push(i)));
 
@@ -445,15 +445,16 @@ function piece(W,cmd,n,o,R){
       if(since>=4&&R()<.5){const np=p+(R()<.5?-1:1);corr(W,np,2,j=>r[j]=t);p=np;since=0}else since++;
       corr(W,p,2,j=>r[j]=t)}
       W.p=p;break}
-    case 'X':for(let i=0;i<n;i++){const on=i%2===0;const r=addRow(W,0);if(on){if(o.w)corr(W,W.p,w,j=>r[j]=t);else r.fill(t)}}
+    case 'X':for(let i=0;i<n;i++){const on=i%((o.k||1)+1)<(o.k||1);const r=addRow(W,0);if(on){if(o.w)corr(W,W.p,w,j=>r[j]=t);else r.fill(t)}}
       addRow(W,0).fill(t);break;
     case 'Q':for(let i=0;i<n;i++){const r=addRow(W,0);for(let j=0;j<W.P;j++)if((j+i)%2===0&&(!o.w||Math.abs(wrapd(W,j+.5-W.p))<w/2))r[j]=t}break;
     case 'Z':{const p0=W.p,k=o.k||1;for(let i=0;i<n;i++){const p=p0+k*Math.sin(i/n*Math.PI*2),pp=p0+k*Math.sin((i-1)/n*Math.PI*2);const r=addRow(W,0);corr(W,p,w,j=>r[j]=t);corr(W,pp,w,j=>r[j]=t)}W.p=p0;break}
     case 'F':{const f=(faceOf(W,W.p)+(o.k||0)+W.N)%W.N;for(let i=0;i<n;i++){const r=addRow(W,0);for(let j=f*W.L;j<(f+1)*W.L;j++)r[j]=t}
       W.p=f*W.L+W.L/2;break}
     case 'O':{const f=(faceOf(W,W.p)+(o.k||0)+W.N)%W.N;for(let i=0;i<n;i++){const r=addRow(W,t);for(let j=f*W.L;j<(f+1)*W.L;j++)r[j]=0}
-      // the corridor moves to the nearer neighbouring face
-      const off=wrapd(W,W.p-(f*W.L+W.L/2));if(o.k===0||o.k==null)W.p=off>=0?((f+1)%W.N)*W.L+W.L/2:((f-1+W.N)%W.N)*W.L+W.L/2;break}
+      // the corridor stays put: whichever wall you took, the face that dropped out is one face away, so what comes
+      // next is as far from either side (levels give a ring of 8+ rows after this before anything narrower)
+      break}
     case 'P':addRow(W,T.B);for(let i=0;i<n;i++)addRow(W,0);break;
   }
   placeCry(W,r0,W.rows.length-r0);
@@ -507,11 +508,11 @@ function extendEndless(W,upto){
     const k=R(),t=tt();
     const run=Math.max(3,Math.round(8-D*4+R()*3));
     if(k<.2)piece(W,'G',1+Math.floor(R()*gapMax),{},R);
-    else if(k<.32)piece(W,'H',10+Math.floor(R()*8),{d:.2+D*.25,t},R);
-    else if(k<.42)piece(W,'X',6+2*Math.floor(R()*3),{t:t===T.C?T.N:t},R);
+    else if(k<.32)piece(W,'H',10+Math.floor(R()*8),{d:.2+D*.25,t:t===T.VF?T.N:t},R);
+    else if(k<.42)piece(W,'X',6+3*Math.floor(R()*3),{k:2,t:t===T.C||t===T.VF?T.N:t},R);
     else if(k<.52){piece(W,'S',4,{w:3,t},R);piece(W,'M',10+Math.floor(R()*6),{k:pick(R,[-4,-3,3,4,5,-5]),w:3,t},R);piece(W,'S',4,{w:3},R)}
-    else if(k<.6)piece(W,'O',8+Math.floor(R()*4),{k:0,t},R);
-    else if(k<.66)piece(W,'P',3+Math.floor(R()*2),{},R);
+    else if(k<.6){piece(W,'O',8+Math.floor(R()*4),{k:0,t},R);piece(W,'R',8,{},R)}
+    else if(k<.66){piece(W,'P',3+Math.floor(R()*2),{},R);piece(W,'R',6,{},R)}
     else if(k<.72&&D>.15)piece(W,'Z',12+Math.floor(R()*6),{k:2,w:2,t:t===T.C?T.N:t},R);
     else if(k<.78&&D>.3)piece(W,'Q',6+2*Math.floor(R()*3),{},R);
     else if(k<.84)piece(W,'F',8+Math.floor(R()*4),{k:pick(R,[-1,1]),t:t===T.C?T.N:t},R);
@@ -596,7 +597,7 @@ function step(W,s,inp,plan){
     if(tt===T.VF)vT*=1.35;else if(tt===T.VB)vT*=.68;else if(tt===T.K)vT*=.62;
     s.vd+=clamp(vT-s.vd,-24*DT,12*DT);
     // sideways
-    const ice=tt===T.I,acc=ice?C.accG*.25:C.accG;
+    const ice=tt===T.I,acc=ice?Math.max(6,C.accG*.25):C.accG;
     let drift=0;if(tt===T.VL)drift=-3.2;else if(tt===T.VR)drift=3.2;
     const tgt=clamp(inp.x||0,-1,1)*C.lat*(tt===T.K?.7:1)+drift;
     s.vu+=clamp(tgt-s.vu,-acc*DT,acc*DT);
@@ -607,6 +608,8 @@ function step(W,s,inp,plan){
       if(tt===T.C&&!C.heavy&&!plan)trigger(W,s,_sr.j,_sr.r,.08,null);
     }
   }else{
+    // extra speed from a belt fades in the air too, so hopping can't keep it (a pad's launch keeps it until landing)
+    if(!s.boost&&s.vd>base)s.vd=Math.max(base,s.vd-9*DT);
     const tgt=clamp(inp.x||0,-1,1)*C.lat;
     s.vu+=clamp(tgt-s.vu,-C.accA*DT,C.accA*DT);
   }
@@ -617,7 +620,7 @@ function step(W,s,inp,plan){
     const h0=s.h;s.vh=Math.max(-30,s.vh-gg*DT);s.h+=s.vh*DT;
     if(h0>=0&&s.h<=0&&s.vh<=0){
       const sup=support(W,s,ov,_sr);
-      if(sup){s.h=0;s.vh=0;s.g=true;s.co=COYOTE;s.boost=false;s.hold=false;s.lt=sup;s.ev|=EV.LAND;
+      if(sup){if(s.boost)s.vd=Math.min(s.vd,speedAt(W,s)*1.05);s.h=0;s.vh=0;s.g=true;s.co=COYOTE;s.boost=false;s.hold=false;s.lt=sup;s.ev|=EV.LAND;
         if(sup===T.C&&!C.heavy)trigger(W,s,_sr.j,_sr.r,CR_LAND,ov);}
     }
   }
@@ -665,7 +668,7 @@ function actsFor(s){
 }
 // how much floor there is further up the tunnel in the runner's lane and its neighbours (beyond the planning horizon)
 function lookAhead(W,s){
-  const r0=Math.floor(s.d/TL)+6,j=Math.floor(s.u);let n=0;
+  const r0=Math.floor(s.d/TL)+1,j=Math.floor(s.u);let n=0;
   for(let r=r0;r<r0+26;r+=2){const row=W.rows[r];if(!row){n+=3;continue}
     for(let dj=-1;dj<=1;dj++){const ty=row[((j+dj)%W.P+W.P)%W.P];if(ty)n+=dj?.5:1}}
   return n;
@@ -1088,7 +1091,7 @@ function showResults(){
     $('resTitle').textContent='Level clear!';
     $('resSub').textContent='Level '+(r.i+1)+' · '+LEVELS[r.i].n+(G.tries>1?' · '+G.tries+' tries':' · first try');
     $('resFacts').innerHTML='';
-    fact('Time',fmtT(r.t)+(r.newBest&&save.lv[r.i].n>1?' ★':''));fact('Crystals','◆ '+r.got+' of 3');fact('Best',fmtT(r.best)+' · '+bits(r.c)+'/3');
+    fact('Time',fmtT(r.t)+(r.newBest&&save.lv[r.i].n>1?' ★':''));fact('Crystals',r.got+' of 3'+(bits(r.c)>r.got?' ('+bits(r.c)+' best)':''));fact('Best time',fmtT(r.best));
     const u=$('resUnlock');u.innerHTML='';
     const nc=CHARS.filter(c=>unlocked(c)).length>r.chars0?CHARS.filter(unlocked).slice(r.chars0):[];
     if(r.opened.length)addUnlock('New on the map: '+r.opened.map(k=>(k+1)+' '+LEVELS[k].n).join(', '));
@@ -1101,7 +1104,7 @@ function showResults(){
   }else{
     $('resTitle').textContent=r.newBest?'New best!':'Run over';
     $('resSub').textContent='Endless · '+G.ch.name;
-    $('resFacts').innerHTML='';fact('Distance',fmtM(r.d));fact('Crystals','◆ '+r.got);fact('Best',fmtM(r.best));
+    $('resFacts').innerHTML='';fact('Distance',fmtM(r.d));fact('Crystals',String(r.got));fact('Best',fmtM(r.best));
     $('resUnlock').innerHTML='';newCharsLine(r.chars0);
     const b=$('resBtns');b.innerHTML='';
     addBtn(b,'Run again','btn big pink',()=>startEndless());addBtn(b,'Menu','btn alt',toMenu);
@@ -1152,19 +1155,17 @@ function renderMenu(){
   renderChars();
 }
 // the map: on a tall screen it's drawn top to bottom
-const SECS=[[0,'launch'],[5,'frost'],[10,'rubble'],[15,'junction'],[16,'drift'],[20,'spring'],[24,'gauntlet'],[28,'comet'],[30,'core']];
-const secOf=i=>{let t='launch';for(const [k,th] of SECS)if(i>=k)t=th;return t};
 let mapSel=0;
 function openMap(sel){G.paused=true;if(sel==null){const n=nextLevel();sel=n>=0?n:0}mapSel=sel;showOverlay('mapMenu');drawMap()}
 function drawMap(){
   const svg=$('mapSvg'),tall=innerWidth<640&&innerHeight>innerWidth;
-  const P=i=>tall?[MAP[i][1]*.95+20,MAP[i][0]*1.0+10]:[MAP[i][0],MAP[i][1]];
-  svg.setAttribute('viewBox',tall?'0 0 580 1020':'0 0 1000 560');
+  const P=i=>tall?[MAP[i][1]*.9+30,MAP[i][0]]:[MAP[i][0],MAP[i][1]];
+  svg.setAttribute('viewBox',tall?'0 0 640 1010':'0 0 1000 680');
   let h='';
   MAP.forEach((m,i)=>m[2].forEach(j=>{const a=P(i),b=P(j);h+='<line class="lnk'+(save.lv[i]?' on':'')+'" x1="'+a[0]+'" y1="'+a[1]+'" x2="'+b[0]+'" y2="'+b[1]+'"/>'}));
   MAP.forEach((m,i)=>{const [x,y]=P(i),op=isOpen(i),done=!!save.lv[i],th=THEMES[LEVELS[i].th],c='#'+th.a.toString(16).padStart(6,'0');
-    h+='<g class="nd'+(op?'':' lock')+(i===mapSel?' sel':'')+'" data-i="'+i+'" tabindex="0" role="button" aria-label="Level '+(i+1)+(op?'':' (locked)')+'"><circle cx="'+x+'" cy="'+y+'" r="'+(tall?27:25)+'" fill="'+(done?'#b6ff3b':c)+'"/><text x="'+x+'" y="'+y+'">'+(i+1)+'</text>';
-    if(done){const cb=save.lv[i].c;for(let k=0;k<3;k++){const gx=x-12+k*12,gy=y+(tall?36:34);h+='<path class="gem'+(cb>>k&1?'':' no')+'" d="M'+gx+' '+(gy-6)+'l5 6-5 6-5-6z"/>'}}
+    h+='<g class="nd'+(op?'':' lock')+(i===mapSel?' sel':'')+'" data-i="'+i+'" tabindex="0" role="button" aria-label="Level '+(i+1)+(op?'':' (locked)')+'"><circle cx="'+x+'" cy="'+y+'" r="'+(tall?31:25)+'" fill="'+(done?'#b6ff3b':c)+'"/><text x="'+x+'" y="'+y+'"'+(tall?' style="font-size:25px"':'')+'>'+(i+1)+'</text>';
+    if(done){const cb=save.lv[i].c;for(let k=0;k<3;k++){const gx=x-12+k*12,gy=y+(tall?40:34);h+='<path class="gem'+(cb>>k&1?'':' no')+'" d="M'+gx+' '+(gy-6)+'l5 6-5 6-5-6z"/>'}}
     h+='</g>'});
   svg.innerHTML=h;
   svg.querySelectorAll('.nd').forEach(g=>{const f=()=>{mapSel=+g.dataset.i;sfx.click();drawMap()};g.addEventListener('click',f);g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();f()}})});
@@ -1240,7 +1241,7 @@ function update(dt){
   if(!G.noRender)draw(dt);
 }
 function draw(dt){
-  const s=G.s,W=G.W,t=performance.now()/1000;
+  const s=G.s,W=G.W,t=performance.now()/1000,pt0=performance.now();
   const r0=Math.floor(s.d/TL);
   if(r0!==G.lastRow||W.cr.size!==G.lastCr){updateFallers();G.lastRow=r0;rebuildTiles()}
   else if(G.fall.length)updateFallers();
@@ -1283,7 +1284,7 @@ function draw(dt){
   if(gate){gate.children[gate.children.length-1].material.opacity=.14+.08*Math.sin(t*4)}
   if(G.demo&&G.demo.still&&G.drawnStill&&!G.forceDraw)return;
   if(G.demo&&G.demo.still)G.drawnStill=true;
-  renderer.render(scene,camera);
+  const pt1=performance.now();renderer.render(scene,camera);G.perf={draw:pt1-pt0,render:performance.now()-pt1};
 }
 function frame(now){
   const dt=Math.min(.1,Math.max(0,(now-last)/1000));last=now;
@@ -1348,6 +1349,8 @@ addEventListener('resize',()=>{G.drawnStill=false;if(G.overlay==='mapMenu')drawM
 if(navigator.webdriver)window.__ar={AR,G,KB,keys,tIn,get save(){return save},set save(v){save=v},startLevel,startEndless,toMenu,openMap,showPause,resume,restart,renderer,scene,camera,
   advance(sec){G.noRender=true;try{const n=Math.round(sec/DT);for(let i=0;i<n;i++){const s=G.s;if(G.paused||s.dead||s.fin)break;if(G.hold>0){G.hold-=DT;continue}tick()}}finally{G.noRender=false}},
   autopilot(on,beam){G.auto=on?{q:[],inp:{x:0,j:false},a:null,i:0,beam:beam||48,ahead:16}:null},
+  // one real 60 Hz frame (physics and drawing), timed
+  live(){const t0=performance.now();update(1/60);return {all:performance.now()-t0,draw:G.perf&&G.perf.draw,render:G.perf&&G.perf.render}},
   frame(n){G.freeze=true;try{for(let i=0;i<(n||1);i++)update(1/60)}finally{G.freeze=false}},
   botLevel(o){const W=G.W,ch=G.ch;return AR.runBot(W,ch,o||{})},
   stepInput(inp,steps){for(let i=0;i<steps;i++){if(G.s.dead||G.s.fin)break;AR.step(G.W,G.s,inp,false)}},
