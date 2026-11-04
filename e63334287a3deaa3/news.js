@@ -42,6 +42,9 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-04', version: '1.14', title: 'Driftfall', kind: 'game', games: ['Driftfall:drop-zone'], items: [
+      'Driftfall: a battle royale for up to 30. Ride the Drifter over Gullrock Isle, jump and glide down, open chests for pistols, SMGs, shotguns, rifles and snipers, heal up, build walls and ramps like Backrooms, and outlast the storm. Quick match into a public room, play with friends, or practise against bots.'
+    ]},
     {date: '2026-10-30', version: '1.13', title: 'Daily Puzzles', kind: 'game', games: ['Daily Puzzles:daily', 'Puffer Party', 'Hunch', 'Quartets', 'Hotspot', 'Deadline Day', 'Ninefold', 'Poopdle'], items: [
       'Daily Puzzles: a new page with 21 new puzzles every day, plus Deepword\'s daily dive, the same for everyone and fresh at midnight. It shows what you\'ve done today and keeps your streak going.',
       'Word: Hunch (guess the five-letter word), Fourcast (four words at once), Quartets (sort sixteen words into four groups), Crosslet (a mini crossword), Sleight (one cryptic clue), and Nearword and Warmer (find the secret word by its meaning).',
