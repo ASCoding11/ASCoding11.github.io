@@ -575,8 +575,10 @@ function setMapSize(n){
 setMapSize(12);
 
 /* ---------- map (seeded, so every online player gets the same rooms) ---------- */
-// Two layouts, both built on the same grid of 4 m cells (walls on cell edges, pillars on cell corners):
-//  - layoutV2 (MAP_V 2): a new Level 0 every round: the floor is split into areas of different sizes and shapes, each
+// Three layouts, all built on the same grid of 4 m cells (walls on cell edges, pillars on cell corners):
+//  - layoutV3 (MAP_V 3): a new Level 0 every round in one consistent style: one-cell corridors and small rooms behind
+//    full-height walls, joined by doorways, with short sightlines and the same lighting everywhere (see layoutV3).
+//  - layoutV2: the previous random layout, still built when someone in the room has a page that knows v2 but not v3: the floor is split into areas of different sizes and shapes, each
 //    furnished its own way (twisty corridors, small rooms, open halls, pillar fields, office cubicles behind low
 //    partitions, long straight corridors, the odd solid block of wall), joined by doorways (sometimes several, so there
 //    are loops), with its own lighting (dim and dark patches, banks of lights that flicker together) and now and then a
@@ -584,7 +586,8 @@ setMapSize(12);
 //    reached is opened up, and the layout is checked for fairness (see fairV2) and redrawn if it fails.
 //  - layoutV1: the original maze (one per match). Online it's still used whenever someone in the room is on an older
 //    copy of the page, which only knows this one, so everyone in a room always builds the same walls.
-const MAP_V=2,LOW_H=1.25;
+// Online, a match uses the newest layout every player in the room can build (round.mv: 3, 2, or none for v1).
+const MAP_V=3,LOW_H=1.25;
 let hWall=[],vWall=[],lowH=[],lowV=[],voidC=[],mapSolids=[],solids=[],ramps=[],flickers=[],mapInfo=null,litList=[];
 const mapGroup=new THREE.Group();scene.add(mapGroup);
 const grid=(w,h,v)=>Array.from({length:w},()=>Array(h).fill(v));
@@ -593,13 +596,13 @@ function mapSizeV2(players,seed){const r=mulberry((seed^0x2c1b3c6d)>>>0)();const
 // Each online round's layout comes from the match seed and the round number, which every player already has.
 function roundSeed(seed,rn){let h=(seed>>>0)^Math.imul((rn|0)+1,0x9E3779B1);h=Math.imul(h^h>>>16,0x85ebca6b);h=Math.imul(h^h>>>13,0xc2b2ae35);return(h^h>>>16)>>>0}
 // n: maze size in cells; cells: spawn cells, each cleared to an open 3 x 3 area (defaults to the two 1v1 corners);
-// legacy: build the original v1 maze from this seed instead
-function generateMap(seed,n,cells,legacy){
+// v: which layout (1 or true: the original v1 maze from this seed; 2: layoutV2; anything else: layoutV3)
+function generateMap(seed,n,cells,v){
   setMapSize(n||12);
   cells=cells&&cells.length?cells:[soloCell(0),soloCell(1)];
   clearPieces();
   while(mapGroup.children.length){const c=mapGroup.children.pop();if(c.dispose)c.dispose();if(c.material&&!SHARED.has(c.material))c.material.dispose()}
-  const L=legacy?layoutV1(seed>>>0,cells):layoutV2(seed>>>0,cells);
+  const L=v===true||v===1?layoutV1(seed>>>0,cells):v===2?layoutV2(seed>>>0,cells):layoutV3(seed>>>0,cells);
   L.spawns=cells.map(c=>[c,c[0]<N/2?TEAM_HEX.r:TEAM_HEX.b]);
   buildMap(L);
 }
@@ -814,9 +817,156 @@ function mirrorV2(L){
   const p=new Map();for(const [q,s] of L.pillars){const x=Math.floor(q/64),z=q%64;if(2*x<N||(2*x===N&&2*z<=N)){p.set(q,s);p.set((N-x)*64+(N-z),s)}}L.pillars=p;
 }
 
+// v3: one consistent Level 0 every round: 4 m corridors and rooms (2 x 2 to 2 x 4 cells, plus a 3 x 3 room round every
+// spawn), every wall full height, rooms entered through doorways (an opening with a short jamb of wall each side),
+// one opening at most between a room and each neighbour, a few loops, straight lines of sight cut at V3_RUN cells.
+// No low partitions, stray wall slabs, open halls or areas with their own lighting and wallpaper: the same light
+// everywhere, with the odd dead or flickering panel and one or two banks that flicker together.
+const V3_RUN=6,JAMB=.8;
+// are both cells in the same spawn area (whose inside stays open)?
+function sameSpawn(cells,x1,z1,x2,z2){return cells.some(c=>{const [sx,sz]=spawnArea(c);return x1>=sx&&x1<sx+3&&z1>=sz&&z1<sz+3&&x2>=sx&&x2<sx+3&&z2>=sz&&z2<sz+3})}
+// would the full-height walls touching this corner be a short piece (one or two cells long) standing on its own?
+function lonePiece(cx,cz){
+  const seen=new Set([cx*64+cz]),q=[[cx,cz]];let ends=0;
+  for(let h=0;h<q.length;h++){const [x,z]=q[h];if(x===0||z===0||x===N||z===N)return false;
+    for(const [ok,a,b] of [[x>0&&hWall[z][x-1],x-1,z],[x<N&&hWall[z][x],x+1,z],[z>0&&vWall[x][z-1],x,z-1],[z<N&&vWall[x][z],x,z+1]]){
+      if(!ok)continue;ends++;if(!seen.has(a*64+b)){seen.add(a*64+b);q.push([a,b])}}
+    if(ends>4)return false}
+  return ends>0;
+}
+function layoutV3(seed,cells){
+  const rnd=mulberry((seed^0x3c6ef372)>>>0);
+  let best=null;
+  // up to 16 draws (each passes about three times in four, so the fallback below is next to never needed)
+  for(let a=0;a<16;a++){
+    const L=attemptV3(rnd,cells),f=fairV2(cells);
+    if(f.ok){L.tries=a+1;return doorsV3(L,cells)}
+    if(!best||f.bad<best.f.bad)best={L,f,g:[hWall,vWall].map(q=>q.map(r=>r.slice()))};
+  }
+  // nothing passed: as for v2, the closest made point-symmetric (the rooms keep their ids, so doorways match); this can
+  // leave a few open patches and longer sightlines along the middle, but it is fair and fully connected
+  [hWall,vWall]=best.g;lowH=grid(N+1,N,false);lowV=grid(N+1,N,false);voidC=grid(N,N,false);
+  const L=best.L;mirrorV2(L);
+  for(let x=0;x<N;x++)for(let z=0;z<N;z++)if(2*x+1>N||(2*x+1===N&&2*z+1>N))L.rid[x][z]=L.rid[N-1-x][N-1-z];
+  clearSpawns(L,cells);connectV2(rnd,cells);
+  L.mirrored=true;return doorsV3(L,cells);
+}
+function attemptV3(rnd,cells){
+  const ri=n=>Math.floor(rnd()*n),chance=p=>rnd()<p;
+  const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=ri(i+1);[a[i],a[j]]=[a[j],a[i]]}return a};
+  hWall=grid(N+1,N,true);vWall=grid(N+1,N,true);lowH=grid(N+1,N,false);lowV=grid(N+1,N,false);voidC=grid(N,N,false);
+  const L={v:3,lit:true,pillars:new Map(),panel:grid(N,N,1),next:grid(N,N,0),group:grid(N,N,-1),groups:0,light:grid(N,N,1),tint:grid(N,N,null),ftint:grid(N,N,null),styles:null,special:null,rid:grid(N,N,-1),rooms:[]};
+  const rid=L.rid,rooms=L.rooms,isIn=(x,z)=>x>=0&&z>=0&&x<N&&z<N;
+  const spawnC=grid(N,N,false);for(const c of cells){const [sx,sz]=spawnArea(c);for(let x=sx;x<sx+3;x++)for(let z=sz;z<sz+3;z++)spawnC[x][z]=true}
+  const inSpawn=(x1,z1,x2,z2)=>spawnC[x1][z1]&&spawnC[x2][z2]&&sameSpawn(cells,x1,z1,x2,z2);
+  const addRoom=(x,z,w,d,sp)=>{const cs=[];for(let a=x;a<x+w;a++)for(let b=z;b<z+d;b++)if(rid[a][b]<0)cs.push([a,b]);if(!cs.length)return;
+    const id=rooms.length;rooms.push({x,z,w,d,sp,cells:cs});for(const [a,b] of cs)rid[a][b]=id;
+    for(const [a,b] of cs){if(a+1<N&&rid[a+1][b]===id)vWall[a+1][b]=false;if(b+1<N&&rid[a][b+1]===id)hWall[b+1][a]=false}};
+  // 1. a room round every spawn, then rooms dropped at random until about two fifths of the floor is rooms
+  for(const c of cells){const [sx,sz]=spawnArea(c);addRoom(sx,sz,3,3,true)}
+  let have=0;for(let x=0;x<N;x++)for(let z=0;z<N;z++)if(rid[x][z]>=0)have++;
+  const target=N*N*(.36+rnd()*.08),sizes=N>=13?[[2,2],[2,2],[2,3],[3,2],[2,3],[3,2],[2,4],[4,2]]:[[2,2],[2,2],[2,3],[3,2],[2,3],[3,2]];
+  for(let k=0;k<90&&have<target;k++){const [w,d]=sizes[ri(sizes.length)],x=ri(N-w+1),z=ri(N-d+1);let ok=true;
+    for(let a=x;a<x+w&&ok;a++)for(let b=z;b<z+d;b++)if(rid[a][b]>=0){ok=false;break}
+    if(ok){addRoom(x,z,w,d,false);have+=w*d}}
+  // 2. everything else is corridor, one cell wide: each room and each corridor cell is a node, joined into a tree
+  const nodeOf=(x,z)=>rid[x][z]>=0?rid[x][z]:rooms.length+x*N+z;
+  const wallAt=(x,z,i)=>i===0?vWall[x+1][z]:i===2?vWall[x][z]:i===1?hWall[z+1][x]:hWall[z][x];
+  const linked=new Set(),pk=(a,b)=>a<b?a+','+b:b+','+a;
+  const openings=id=>{let n=0;for(const [x,z] of rooms[id].cells)for(let i=0;i<4;i++){const a=x+DV[i][0],b=z+DV[i][1];if(isIn(a,b)&&rid[a][b]!==id&&!wallAt(x,z,i))n++}return n};
+  // would this opening leave four corridor cells open as a square (corridors stay one cell wide)?
+  const square=(x,z,i)=>{const a=x+DV[i][0],b=z+DV[i][1],px=DV[i][1],pz=DV[i][0];
+    for(const s of [-1,1]){const x2=x+px*s,z2=z+pz*s,a2=a+px*s,b2=b+pz*s;if(!isIn(x2,z2)||!isIn(a2,b2))continue;
+      const j=px?(s>0?0:2):(s>0?1:3);if(!wallAt(x,z,j)&&!wallAt(a,b,j)&&!wallAt(x2,z2,i))return true}return false};
+  // or a short piece of wall standing on its own between corridors?
+  const lone=(x,z,i)=>{const c=i===0?[[x+1,z],[x+1,z+1]]:i===2?[[x,z],[x,z+1]]:i===1?[[x,z+1],[x+1,z+1]]:[[x,z],[x+1,z]];
+    openEdge(x,z,i);const r=lonePiece(...c[0])||lonePiece(...c[1]);
+    if(i===0)vWall[x+1][z]=true;else if(i===2)vWall[x][z]=true;else if(i===1)hWall[z+1][x]=true;else hWall[z][x]=true;return r};
+  // may this edge be opened? a room never gets two openings side by side in the same wall
+  const okOpen=(x,z,i)=>{const a=x+DV[i][0],b=z+DV[i][1],ra=rid[x][z],rb=rid[a][b];
+    if(ra<0&&rb<0)return !square(x,z,i)&&!lone(x,z,i);
+    if(lone(x,z,i))return false;
+    const px=DV[i][1],pz=DV[i][0];
+    for(const s of [-1,1]){const x2=x+px*s,z2=z+pz*s,a2=a+px*s,b2=b+pz*s;if(!isIn(x2,z2)||!isIn(a2,b2))continue;
+      if(((ra>=0&&rid[x2][z2]===ra)||(rb>=0&&rid[a2][b2]===rb))&&!wallAt(x2,z2,i))return false}
+    return true};
+  const open=(x,z,i)=>{openEdge(x,z,i);linked.add(pk(nodeOf(x,z),nodeOf(x+DV[i][0],z+DV[i][1])))};
+  const nodeCells=new Map();for(let x=0;x<N;x++)for(let z=0;z<N;z++){const k=nodeOf(x,z);if(!nodeCells.has(k))nodeCells.set(k,[]);nodeCells.get(k).push([x,z])}
+  const seen=new Set(),act=[nodeOf(cells[0][0],cells[0][1])];seen.add(act[0]);
+  while(act.length){
+    const k=chance(.6)?act.length-1:ri(act.length),nd=act[k],opts=[];
+    for(const [x,z] of nodeCells.get(nd))for(let i=0;i<4;i++){const a=x+DV[i][0],b=z+DV[i][1];if(!isIn(a,b))continue;const m=nodeOf(a,b);if(m!==nd&&!seen.has(m)&&okOpen(x,z,i))opts.push([x,z,i,m])}
+    if(!opts.length){act.splice(k,1);continue}
+    const [x,z,i,m]=opts[ri(opts.length)];open(x,z,i);seen.add(m);act.push(m);
+  }
+  // 3. loops: a second way in to some rooms, the odd extra link between corridors; most dead ends go somewhere
+  const cand=[];for(let x=0;x<N;x++)for(let z=0;z<N;z++)for(const i of [0,1]){const a=x+DV[i][0],b=z+DV[i][1];if(isIn(a,b)&&wallAt(x,z,i)&&nodeOf(x,z)!==nodeOf(a,b))cand.push([x,z,i])}
+  const most=id=>rooms[id].sp?4:rooms[id].cells.length>4?4:3;
+  for(const [x,z,i] of shuffle(cand)){const a=x+DV[i][0],b=z+DV[i][1],ra=rid[x][z],rb=rid[a][b];
+    if(linked.has(pk(nodeOf(x,z),nodeOf(a,b))))continue;
+    if(ra>=0||rb>=0){if(!chance(.45)||(ra>=0&&openings(ra)>=most(ra))||(rb>=0&&openings(rb)>=most(rb)))continue}
+    else if(!chance(.22))continue;
+    if(okOpen(x,z,i))open(x,z,i);
+  }
+  for(let x=0;x<N;x++)for(let z=0;z<N;z++){if(rid[x][z]>=0)continue;
+    const o=[];let n=0;for(let i=0;i<4;i++){const a=x+DV[i][0],b=z+DV[i][1];if(!isIn(a,b))continue;if(!wallAt(x,z,i))n++;else if(okOpen(x,z,i)&&(rid[a][b]<0||openings(rid[a][b])<most(rid[a][b])))o.push(i)}
+    if(n===1&&o.length&&chance(.9))open(x,z,o[ri(o.length)]);
+  }
+  // every spawn room has at least two ways out
+  for(let id=0;id<rooms.length;id++){if(!rooms[id].sp||openings(id)>=2)continue;const o=[];
+    for(const [x,z] of rooms[id].cells)for(let i=0;i<4;i++){const a=x+DV[i][0],b=z+DV[i][1];if(isIn(a,b)&&rid[a][b]!==id&&wallAt(x,z,i)&&!linked.has(pk(id,nodeOf(a,b)))&&okOpen(x,z,i))o.push([x,z,i])}
+    if(o.length){const [x,z,i]=o[ri(o.length)];open(x,z,i)}}
+  // 4. now and then a column in the middle of a room
+  for(const r of rooms)if(!r.sp&&r.w>=2&&r.d>=2&&chance(.3)){const x=r.x+1+ri(r.w-1),z=r.z+1+ri(r.d-1);L.pillars.set(x*64+z,.9)}
+  // 5. lights: the same everywhere, a few dead panels (a little darker below), a few lone flickers, one or two banks
+  for(let x=0;x<N;x++)for(let z=0;z<N;z++){L.light[x][z]=.96+rnd()*.07;if(!spawnC[x][z]&&chance(.08)){L.panel[x][z]=2;L.light[x][z]=.8}}
+  const banks=chance(.75)?(chance(.35)?2:1):0;
+  for(let g=0;g<banks;g++){
+    let list=[];
+    if(chance(.5)){const rs=rooms.filter(r=>!r.sp);if(rs.length)list=rs[ri(rs.length)].cells}
+    if(!list.length){const cs=[];for(let x=0;x<N;x++)for(let z=0;z<N;z++)if(rid[x][z]<0&&!spawnC[x][z])cs.push([x,z]);
+      if(cs.length){const s=cs[ri(cs.length)],q=[s],k=new Set([s[0]*64+s[1]]);
+        for(let h=0;h<q.length&&q.length<4+ri(3);h++){const [x,z]=q[h];for(let i=0;i<4;i++){const a=x+DV[i][0],b=z+DV[i][1];if(isIn(a,b)&&!wallAt(x,z,i)&&rid[a][b]<0&&!spawnC[a][b]&&!k.has(a*64+b)){k.add(a*64+b);q.push([a,b])}}}
+        list=q}}
+    if(!list.length)continue;const id=L.groups++;
+    for(const [x,z] of list){L.panel[x][z]=4+id;L.group[x][z]=id;L.light[x][z]=Math.max(L.light[x][z],.96)}
+  }
+  for(let k=0;k<3;k++){const x=ri(N),z=ri(N);if(chance(.6)&&L.panel[x][z]===1&&!spawnC[x][z]){L.panel[x][z]=3;L.next[x][z]=1+rnd()*7}}
+  L.regs=rooms.map(r=>[r.x,r.z,r.w,r.d,r.sp?'spawn':'room']);
+  clearSpawns(L,cells);connectV2(rnd,cells);
+  // 6. no long straight sightlines: a line of more than V3_RUN cells gets a wall across it near the middle
+  for(let pass=0;pass<10;pass++){let cut=0;
+    for(const ax of [0,1])for(let l=0;l<N;l++){let s=0;
+      for(let p=1;p<=N;p++){const x=ax?l:p,z=ax?p:l,shut=p===N||(ax?hWall[p][l]:vWall[p][l]);if(!shut)continue;
+        if(p-s>V3_RUN){const es=[];for(let q=s+1;q<p;q++){const x1=ax?l:q-1,z1=ax?q-1:l,x2=ax?l:q,z2=ax?q:l;
+            if(inSpawn(x1,z1,x2,z2)||(rid[x1][z1]>=0&&rid[x1][z1]===rid[x2][z2]))continue;
+            // a cut that joins a wall at one end at least, so it never stands on its own
+            const c1=ax?[l,q]:[q,l],c2=ax?[l+1,q]:[q,l+1];es.push([q,Math.abs(q-(s+p)/2)+(hasPost(...c1)||hasPost(...c2)?0:3)])}
+          if(es.length){es.sort((a,b)=>a[1]-b[1]);const best=es.filter(e=>e[1]<=es[0][1]+1),q=best[ri(best.length)][0];if(ax)hWall[q][l]=true;else vWall[q][l]=true;cut++;
+            // the corridor jogs round the cut rather than ending there
+            for(const [x,z] of ax?[[l,q-1],[l,q]]:[[q-1,l],[q,l]]){if(rid[x][z]>=0)continue;let n=0;const o=[];
+              for(let i=0;i<4;i++){const a=x+DV[i][0],b=z+DV[i][1];if(!isIn(a,b))continue;if(!wallAt(x,z,i))n++;else if((i&1)!==ax&&okOpen(x,z,i)&&(rid[a][b]<0||openings(rid[a][b])<most(rid[a][b])))o.push(i)}
+              if(n<=1&&o.length)open(x,z,o[ri(o.length)])}}}
+        s=p}}
+    if(!cut)break;connectV2(rnd,cells);
+  }
+  return L;
+}
+// doorway jambs: where a room opens onto something else, a short piece of wall each side of the opening, wherever the
+// wall carries on past it (so no jamb ever stands on its own)
+function doorsV3(L,cells){
+  const J=[],rid=L.rid;
+  const door=(x1,z1,x2,z2)=>{const a=rid[x1][z1],b=rid[x2][z2];return a!==b&&(a>=0||b>=0)&&!sameSpawn(cells,x1,z1,x2,z2)};
+  for(let x=1;x<N;x++)for(let z=0;z<N;z++)if(!vWall[x][z]&&door(x-1,z,x,z)){if(z===0||vWall[x][z-1])J.push(['V',x,z,0]);if(z===N-1||vWall[x][z+1])J.push(['V',x,z,1])}
+  for(let z=1;z<N;z++)for(let x=0;x<N;x++)if(!hWall[z][x]&&door(x,z-1,x,z)){if(x===0||hWall[z][x-1])J.push(['H',x,z,0]);if(x===N-1||hWall[z][x+1])J.push(['H',x,z,1])}
+  L.jambs=J;return L;
+}
+
 /* building the meshes: every kind of piece is one instanced mesh (one draw call), coloured per piece by the light
    of the cells beside it, so dim and dark areas darken their walls, floor and ceiling too */
 const flickOn=[];
+// a doorway jamb: a short piece of wall, with the wallpaper scaled to match the walls beside it
+const geoJamb=(()=>{const g=gradBox(JAMB,CEIL,.3),uv=g.attributes.uv;for(let i=0;i<uv.count;i++){const f=Math.floor(i/4);uv.setX(i,uv.getX(i)*(f<2?.3/4:f>=4?JAMB/4:1))}return g})();
 function buildMap(L){
   mapInfo=L;mapSolids=[];litList=[];flickers=[];
   const m=new THREE.Matrix4();
@@ -832,6 +982,10 @@ function buildMap(L){
   for(let x=0;x<=N;x++)for(let z=0;z<N;z++){if(vWall[x][z])vList.push([x,z]);else if(lowV[x][z])lvList.push([x,z])}
   inst(geoWallH,wallMat,hList,(m,[x,z])=>m.makeTranslation(x*4+2,CEIL/2,z*4),([x,z])=>({min:[x*4,0,z*4-.15],max:[x*4+4,CEIL,z*4+.15]}),([x,z])=>[[x,z-1],[x,z]]);
   inst(geoWallV,wallMat,vList,(m,[x,z])=>m.makeTranslation(x*4,CEIL/2,z*4+2),([x,z])=>({min:[x*4-.15,0,z*4],max:[x*4+.15,CEIL,z*4+4]}),([x,z])=>[[x-1,z],[x,z]]);
+  // v3 doorway jambs (one instanced mesh for both directions)
+  if(L.jambs)inst(geoJamb,wallMat,L.jambs,(m,[o,x,z,e])=>{const t=e?4-JAMB/2:JAMB/2;if(o==='H')m.makeTranslation(x*4+t,CEIL/2,z*4);else m.makeRotationY(Math.PI/2).setPosition(x*4,CEIL/2,z*4+t)},
+    ([o,x,z,e])=>{const a=e?4-JAMB:0;return o==='H'?{min:[x*4+a,0,z*4-.15],max:[x*4+a+JAMB,CEIL,z*4+.15]}:{min:[x*4-.15,0,z*4+a],max:[x*4+.15,CEIL,z*4+a+JAMB]}},
+    ([o,x,z])=>o==='H'?[[x,z-1],[x,z]]:[[x-1,z],[x,z]]);
   inst(geoLowH,lowMat,lhList,(m,[x,z])=>m.makeTranslation(x*4+2,LOW_H/2,z*4),([x,z])=>({min:[x*4,0,z*4-.06],max:[x*4+4,LOW_H,z*4+.06]}),([x,z])=>[[x,z-1],[x,z]]);
   inst(geoLowV,lowMat,lvList,(m,[x,z])=>m.makeTranslation(x*4,LOW_H/2,z*4+2),([x,z])=>({min:[x*4-.06,0,z*4],max:[x*4+.06,LOW_H,z*4+4]}),([x,z])=>[[x-1,z],[x,z]]);
   const posts=[],pillars=[],bigs=[];
@@ -856,8 +1010,28 @@ function buildMap(L){
   banks.forEach((list,g)=>{flickOn[g]=1;if(!list)return;const mat=new THREE.MeshBasicMaterial({color:0xfffae6});panels(list,mat);
     const pos=new V3();for(const [x,z] of list)pos.x+=x*4+2,pos.z+=z*4+2;pos.divideScalar(list.length);pos.y=CEIL-.03;
     flickers.push({mat,pos,next:1+(g*1.7)%6,until:0,tick:0,g})});
+  if(L.v===3)mapSolids=solidsV3(L,posts,pillars);
   solids=mapSolids.slice();
   applyLight();
+}
+// v3 maps have more walls, so their collision boxes are joined up: the walls and doorway jambs along each line that touch
+// end to end become one box, and the posts in the middle of a straight run (covered by it, bar 3 cm) are left out.
+// Movement and shots loop over every box each frame, so this keeps that work below a v2 map's.
+function solidsV3(L,posts,pillars){
+  const out=[],T=.15,segH=[],segV=[];
+  for(let z=0;z<=N;z++){segH[z]=[];for(let x=0;x<N;x++)if(hWall[z][x])segH[z].push([x*4,x*4+4])}
+  for(let x=0;x<=N;x++){segV[x]=[];for(let z=0;z<N;z++)if(vWall[x][z])segV[x].push([z*4,z*4+4])}
+  for(const [o,x,z,e] of L.jambs||[]){const a=e?4-JAMB:0;(o==='H'?segH[z]:segV[x]).push(o==='H'?[x*4+a,x*4+a+JAMB]:[z*4+a,z*4+a+JAMB])}
+  const runs=iv=>{iv.sort((p,q)=>p[0]-q[0]);const r=[];for(const s of iv){const l=r[r.length-1];if(l&&s[0]<=l[1]+1e-6)l[1]=Math.max(l[1],s[1]);else r.push(s.slice())}return r};
+  for(let z=0;z<=N;z++)for(const [a,b] of runs(segH[z]))out.push({min:[a,0,z*4-T],max:[b,CEIL,z*4+T]});
+  for(let x=0;x<=N;x++)for(const [a,b] of runs(segV[x]))out.push({min:[x*4-T,0,a],max:[x*4+T,CEIL,b]});
+  for(const [x,z] of posts){
+    const w=x>0&&hWall[z][x-1],e=x<N&&hWall[z][x],n=z>0&&vWall[x][z-1],s=z<N&&vWall[x][z];
+    if((w&&e&&!n&&!s)||(n&&s&&!w&&!e))continue;
+    out.push({min:[x*4-.18,0,z*4-.18],max:[x*4+.18,CEIL,z*4+.18]});
+  }
+  for(const [x,z] of pillars)out.push({min:[x*4-.45,0,z*4-.45],max:[x*4+.45,CEIL,z*4+.45]});
+  return out;
 }
 // colours of the floor and ceiling corners and of every wall, post and pillar from the light of the cells around them
 function applyLight(){
@@ -1236,7 +1410,7 @@ function spawn(e,cell){
   e.yaw=yawTo(W/2-e.pos.x,W/2-e.pos.z);e.pitch=0;e.model.visible=e.present;
   pushOut(e);
 }
-// A fresh v2 layout for practice (and the menu backdrop); round > 1 shows the lights going out as the rooms change.
+// A fresh v3 layout for practice (and the menu backdrop); round > 1 shows the lights going out as the rooms change.
 function practiceMap(){const sd=randSeed();generateMap(sd,mapSizeV2(2,sd))}
 function shiftFx(){if(RM)return;const el=$('shift');el.classList.remove('on');void el.offsetWidth;el.classList.add('on');sfxCrackle(.7)}
 // Practice rounds (online rounds start in startOnlineRound): every round is a new layout
@@ -1596,13 +1770,13 @@ function onRound(r){
       for(const u of roster.keys())names.set(u,nameOf(u));
       syncRoster();
     }
-    // the layout: mv 2, a new one each round from the match seed and round number; otherwise one v1 maze per match
-    const v2=r.mv===2,key=r.id+':'+(v2?r.rn|0:0);
+    // the layout: mv 3 or 2, a new one each round from the match seed and round number; otherwise one v1 maze per match
+    const mv=r.mv===3||r.mv===2?r.mv:1,key=r.id+':'+(mv>1?r.rn|0:0);
     if(key!==mapKey){
       if(mapKey&&curRound)shiftFx();
       mapKey=key;
-      if(v2){const sd=roundSeed(r.seed,r.rn),ns=mapSizeV2(roster.size,sd);generateMap(sd,ns,allCells(roster,ns))}
-      else{const ns=clamp(r.ns|0,12,16);generateMap(r.seed>>>0,ns,allCells(roster,ns),true)}
+      if(mv>1){const sd=roundSeed(r.seed,r.rn),ns=mapSizeV2(roster.size,sd);generateMap(sd,ns,allCells(roster,ns),mv)}
+      else{const ns=clamp(r.ns|0,12,16);generateMap(r.seed>>>0,ns,allCells(roster,ns),1)}
     }
     if(r.ph!=='end'&&(r.rn|0)!==curRound){curRound=r.rn|0;startOnlineRound()}
     applyDead(r);
@@ -1749,8 +1923,8 @@ function hostStart(){
   const kr=[...ro.values()].filter(t=>t==='r').length;
   if(!kr||kr===ro.size){$('lbMsg').textContent='Both teams need at least one player.';return}
   const now=Math.round(Net.now());
-  // a new layout every round only if everyone in the room has a page that can build it; otherwise the original maze
-  const mv=hs.every(h=>h.mv>=2)?{mv:2}:{};
+  // the newest layout everyone in the room has a page that can build: v3, v2, or (no mv) the original maze
+  const lo=Math.min(...hs.map(h=>h.mv)),mv=lo>=3?{mv:3}:lo>=2?{mv:2}:{};
   Net.tx(cur=>{if(!cur||cur.id!==r.id||cur.ph!=='lobby')return;
     return Object.assign({id:cur.id+1,ends:now,seed:randSeed(),ns:mapSizeFor(ro.size),ph:'cd',pt:now+3500,to:[3,5,10].includes(cur.to)?cur.to:5,rn:1,sr:0,sb:0,ro:fmtRo(ro),dd:'',rw:'',mw:'',fm:0,rz:cur.rz||''},mv)});
 }
@@ -2405,7 +2579,7 @@ if(navigator.webdriver)window.__br={get state(){return state},get online(){retur
   moveEntity,tryBuild,specValid,damagePiece,generateMap,spawn,soloCell,teamCells,wallSpec,playerBuildSpec,updateRemotes,makeRemote,updateBot,
   mapSizeV2,roundSeed,fairV2,MAP_V,get mapKey(){return mapKey},
   mapInfo(){const L=mapInfo;if(!L)return null;const fl=[];for(let x=0;x<N;x++)for(let z=0;z<N;z++)if(L.group[x][z]>=0)(fl[L.group[x][z]]=fl[L.group[x][z]]||[]).push([x,z]);
-    return{v:L.v,light:L.light,tint:L.tint.map((c,x)=>c.map((t,z)=>L.ftint[x][z]||t)),voids:voidC,flick:fl.filter(Boolean),special:L.special,spawns:L.spawns,styles:L.styles,regs:L.regs,mirrored:!!L.mirrored,tries:L.tries,low:{h:lowH,v:lowV}}},
+    return{v:L.v,light:L.light,tint:L.tint.map((c,x)=>c.map((t,z)=>L.ftint[x][z]||t)),voids:voidC,flick:fl.filter(Boolean),special:L.special,spawns:L.spawns,styles:L.styles,regs:L.regs,mirrored:!!L.mirrored,tries:L.tries,low:{h:lowH,v:lowV},jambs:L.jambs||[],rid:L.rid||null}},
   consts:{R,H,STEP,CELL,CEIL,SPEED,JUMP},
   teleport(x,z,y){player.pos.set(x,y||0,z);player.vel.set(0,0,0)},
   aimAt(e){const t=e.pos.clone().add(new V3(0,1.1,0));for(let i=0;i<4;i++){updateCamera(0);const c=camera.position;player.yaw=yawTo(t.x-c.x,t.z-c.z);player.pitch=Math.atan2(t.y-c.y,Math.hypot(t.x-c.x,t.z-c.z))}},
