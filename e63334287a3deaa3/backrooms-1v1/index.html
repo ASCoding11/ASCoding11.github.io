@@ -1008,8 +1008,28 @@ function buildMap(L){
   banks.forEach((list,g)=>{flickOn[g]=1;if(!list)return;const mat=new THREE.MeshBasicMaterial({color:0xfffae6});panels(list,mat);
     const pos=new V3();for(const [x,z] of list)pos.x+=x*4+2,pos.z+=z*4+2;pos.divideScalar(list.length);pos.y=CEIL-.03;
     flickers.push({mat,pos,next:1+(g*1.7)%6,until:0,tick:0,g})});
+  if(L.v===3)mapSolids=solidsV3(L,posts,pillars);
   solids=mapSolids.slice();
   applyLight();
+}
+// v3 maps have more walls, so their collision boxes are joined up: the walls and doorway jambs along each line that touch
+// end to end become one box, and the posts in the middle of a straight run (covered by it, bar 3 cm) are left out.
+// Movement and shots loop over every box each frame, so this keeps that work below a v2 map's.
+function solidsV3(L,posts,pillars){
+  const out=[],T=.15,segH=[],segV=[];
+  for(let z=0;z<=N;z++){segH[z]=[];for(let x=0;x<N;x++)if(hWall[z][x])segH[z].push([x*4,x*4+4])}
+  for(let x=0;x<=N;x++){segV[x]=[];for(let z=0;z<N;z++)if(vWall[x][z])segV[x].push([z*4,z*4+4])}
+  for(const [o,x,z,e] of L.jambs||[]){const a=e?4-JAMB:0;(o==='H'?segH[z]:segV[x]).push(o==='H'?[x*4+a,x*4+a+JAMB]:[z*4+a,z*4+a+JAMB])}
+  const runs=iv=>{iv.sort((p,q)=>p[0]-q[0]);const r=[];for(const s of iv){const l=r[r.length-1];if(l&&s[0]<=l[1]+1e-6)l[1]=Math.max(l[1],s[1]);else r.push(s.slice())}return r};
+  for(let z=0;z<=N;z++)for(const [a,b] of runs(segH[z]))out.push({min:[a,0,z*4-T],max:[b,CEIL,z*4+T]});
+  for(let x=0;x<=N;x++)for(const [a,b] of runs(segV[x]))out.push({min:[x*4-T,0,a],max:[x*4+T,CEIL,b]});
+  for(const [x,z] of posts){
+    const w=x>0&&hWall[z][x-1],e=x<N&&hWall[z][x],n=z>0&&vWall[x][z-1],s=z<N&&vWall[x][z];
+    if((w&&e&&!n&&!s)||(n&&s&&!w&&!e))continue;
+    out.push({min:[x*4-.18,0,z*4-.18],max:[x*4+.18,CEIL,z*4+.18]});
+  }
+  for(const [x,z] of pillars)out.push({min:[x*4-.45,0,z*4-.45],max:[x*4+.45,CEIL,z*4+.45]});
+  return out;
 }
 // colours of the floor and ceiling corners and of every wall, post and pillar from the light of the cells around them
 function applyLight(){
