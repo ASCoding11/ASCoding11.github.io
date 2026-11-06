@@ -95,6 +95,8 @@
   var LOWER = { tower: 1, summit: 1, obby: 1 };
   LOWER.total = 1;   // Escapade's fastest total of levels 1–8 (min('total', seconds)) is a time too
   LOWER.place = 1;   // Driftfall's best placing (1 = won)
+  // Rampline's best time on each built-in track (min('t-<track id>', seconds))
+  ['t-first-gear', 't-elbow-room', 't-brake-check', 't-hill-hop', 't-paperclip', 't-kicker', 't-banking-hours', 't-mind-the-gap', 't-two-storey', 't-pinch-point', 't-loop-the-loop', 't-sidewall', 't-big-air', 't-twin-loops', 't-high-wire', 't-needle', 't-corkscrew-hill', 't-gauntlet', 't-skyline', 't-grand-tour'].forEach(function (k) { LOWER[k] = 1; });
   LOWER['total-w2'] = LOWER['total-w3'] = LOWER['total-w4'] = LOWER['total-w5'] = LOWER['total-w6'] = 1;   // Escapade's fastest total of each later world
   // The daily puzzles' fewest-guess and fastest bests (LOWER is one list for every game, so these names stay lower-wins everywhere):
   // fewest (Hunch, Fourcast), guesses (Hotspot, Nearword, Warmer), tries (Outline, Unfurl), fastest (Crosslet), fast-<level> (Ninefold).
