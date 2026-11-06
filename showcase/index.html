@@ -151,7 +151,7 @@ footer{font-size:14px;color:var(--muted);border-top:1px solid var(--line);paddin
     <h2 id="trafficTitle">Traffic</h2>
     <p>From the site’s own analytics, which I wrote instead of using Google Analytics. These are anonymous totals for every page, with no names or visitor IDs.</p>
     <div class="panel dash" id="dash">
-      <div class="dhead"><span class="badge" id="dashBadge">Awaiting numbers</span><span class="asof" id="dashAsof">Updated from the analytics dashboard</span></div>
+      <div class="dhead"><span class="badge" id="dashBadge">Loading</span><span class="asof" id="dashAsof">Live from the site’s analytics</span></div>
       <div class="tiles" id="tiles"></div>
       <div class="chart"><h3 id="dailyTitle">Visitors per day</h3><div id="daily"></div></div>
       <div class="chart"><h3>Top pages by visitors</h3><div class="bars" id="sites"></div></div>
@@ -173,11 +173,11 @@ footer{font-size:14px;color:var(--muted);border-top:1px solid var(--line);paddin
   <footer>Arjun’s Projects · <a href="/#new">ascoding11.com</a> · also at ascoding11.github.io</footer>
 </div>
 
-<!-- Traffic numbers (anonymous totals, no names or visitor IDs) in the dashboard's "Copy showcase numbers" format, last 30 days to 2026-11-01 (UTC days). Excludes a bot burst on 2026-10-28 02:00-06:00 UTC: 3,158 single 0-second homepage hits with no referrer. -->
+<!-- Fallback only: a saved snapshot shown if /api/traffic can't be reached. Traffic numbers (anonymous totals, no names or visitor IDs) in the dashboard's "Copy showcase numbers" format, last 30 days to 2026-11-01 (UTC days). Excludes a bot burst on 2026-10-28 02:00-06:00 UTC: 3,158 single 0-second homepage hits with no referrer. -->
 <script type="application/json" id="trafficData">{"updated":"2026-11-01","days":30,"visitors":1076,"pageviews":8313,"sessions":2014,"avgEngagedSec":966,"engagedHours":540,"returning":165,"d1":[70,1058],"w1":[99,615],"mobile":226,"daily":[7,18,43,45,38,45,11,4,8,12,27,40,36,34,124,36,42,79,120,57,85,20,48,162,141,180,137,156,20,13],"sites":[{"name":"Shell Crackers","visitors":145,"hours":60.5},{"name":"Slipstream","visitors":115,"hours":67.2},{"name":"Rumble Karts","visitors":112,"hours":35.6},{"name":"Web Development Projects page","visitors":112,"hours":1.0},{"name":"Backrooms 1v1","visitors":111,"hours":21.6},{"name":"Boostball","visitors":102,"hours":36.3},{"name":"Hype Cycle Exchange","visitors":87,"hours":12.1}]}</script>
 <script>
-(function(){
-  let d=null;try{d=JSON.parse(document.getElementById('trafficData').textContent)}catch(e){}
+function drawTraffic(d){
+  ['tiles','daily','sites'].forEach(id=>{document.getElementById(id).innerHTML=''});
   const dash=document.getElementById('dash');
   const n=v=>Number(v).toLocaleString('en-US');
   const dur=s=>s<60?s+'s':Math.floor(s/60)+'m '+(s%60)+'s';
@@ -205,7 +205,7 @@ footer{font-size:14px;color:var(--muted);border-top:1px solid var(--line);paddin
       <path d="${line} L${W} ${H-6} L0 ${H-6} Z" fill="var(--accent)" fill-opacity=".14"/>
       <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`;
     const ax=mk('div','axis');ax.append(mk('span',null,d.days+' days ago'),mk('span',null,'Peak '+n(max)+' a day'),mk('span',null,'Today: '+n(d.daily[d.daily.length-1])));daily.append(ax);
-  } else daily.append(mk('div','placeholder','The daily chart appears once numbers are added.'));
+  } else daily.append(mk('div','placeholder','Loading the daily chart…'));
 
   const sites=document.getElementById('sites');
   const rows=d&&d.sites?d.sites:['Boxed','Docket','Prompted','Hype Cycle Exchange','Shell Crackers'].map(name=>({name,visitors:0,hours:0}));
@@ -216,6 +216,14 @@ footer{font-size:14px;color:var(--muted);border-top:1px solid var(--line);paddin
   if(d){dash.classList.remove('empty');const b=document.getElementById('dashBadge');b.textContent='Last '+d.days+' days';b.classList.add('live');
     document.getElementById('dashAsof').textContent='Updated '+new Date(d.updated+'T12:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});}
   else dash.classList.add('empty');
+}
+// Live numbers from /api/traffic (functions/api/traffic.js), which works them out from the analytics; the saved
+// snapshot in trafficData is shown only if that can't be reached. GitHub Pages has no functions, so it asks ascoding11.com.
+(function(){
+  let saved=null;try{saved=JSON.parse(document.getElementById('trafficData').textContent)}catch(e){}
+  drawTraffic(null);
+  const api=/github\.io$/.test(location.hostname)?'https://ascoding11.com/api/traffic':'/api/traffic';
+  fetch(api).then(r=>r.ok?r.json():null).then(x=>drawTraffic(x&&x.visitors?x:saved)).catch(()=>drawTraffic(saved));
 })();
 </script>
 </body>

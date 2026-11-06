@@ -109,7 +109,7 @@ export async function stripeEvent(request, raw, secret, nowSec) {
 
 // ---------- Firestore with the service account ----------
 let tok = null, tokUntil = 0;
-async function googleToken(env, fetchFn) {
+export async function googleToken(env, fetchFn) {
   if (tok && Date.now() < tokUntil) return tok;
   const sa = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT);
   const now = Math.floor(Date.now() / 1000);
@@ -125,8 +125,8 @@ async function googleToken(env, fetchFn) {
   tok = d.access_token; tokUntil = Date.now() + (Math.max(60, (d.expires_in || 3600) - 120)) * 1000;
   return tok;
 }
-const DOCS = 'projects/' + PROJECT + '/databases/(default)/documents';
-const FS = 'https://firestore.googleapis.com/v1/' + DOCS;
+export const DOCS = 'projects/' + PROJECT + '/databases/(default)/documents';
+export const FS = 'https://firestore.googleapis.com/v1/' + DOCS;
 export async function ownedItems(env, uid, fetchFn) {
   fetchFn = fetchFn || fetch;
   const r = await fetchFn(FS + '/entitlements/' + encodeURIComponent(uid), { headers: { Authorization: 'Bearer ' + await googleToken(env, fetchFn) } });
