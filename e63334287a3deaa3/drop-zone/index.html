@@ -361,6 +361,8 @@ body.touch #net{top:calc(112px + env(safe-area-inset-top,0px));font-size:14px}
       <div class="row" style="align-items:baseline;gap:14px"><span class="bigcount" id="lbCount">0</span><span class="label" id="lbCountLbl">players in the room</span></div>
       <ul class="plist" id="plist"></ul>
       <p class="msg" id="lbBots"></p>
+      <p class="msg" id="lbVer" hidden></p>
+      <div class="row" id="lbStale" hidden><button class="cta" id="lbReload" type="button">Reload</button></div>
       <div class="row" id="lbHost" hidden><button class="cta" id="startMatch" type="button">Start match</button><span style="color:var(--ink-dim);font-size:15px">You're the host.</span></div>
       <div class="row"><button class="ghost-btn" id="lbWatch" type="button" hidden>Watch the match</button><button class="ghost-btn" id="lbInvite" type="button">Copy invite link</button><button class="ghost-btn" id="lbLeave" type="button">Leave room</button></div>
       <p class="msg" id="lbMsg"></p>
@@ -414,7 +416,12 @@ const $=id=>document.getElementById(id);
 const V3=THREE.Vector3;
 const PREFIX='dz';
 // The island is MAP metres square; builds sit on a grid of CELL-metre cells, as in Backrooms.
-const MAP=320,CELL=4,NC=MAP/CELL,MAX_ROOM=30,MIN_FILL=6,PRACTICE_BOTS=11,LIVE_MS=8000,MAXL=7,COST=10,MAX_MATS=500,EDGE=3;
+// MAPV is the island's version: it went from 1 (320 m) to 2 (240 m). Every node carries it, and the host only puts people
+// on the same version in a match, so nobody plays on a different island from everyone else.
+const MAPV=2;
+let mapV=MAPV;   // only a test changes this, to play the part of a page from before the change
+const nodeV=v=>+(v&&v.mv)||1;   // nodes from before map versions existed are on the old island
+const MAP=240,CELL=4,NC=MAP/CELL,MAX_ROOM=30,MIN_FILL=6,PRACTICE_BOTS=11,LIVE_MS=8000,MAXL=7,COST=10,MAX_MATS=500,EDGE=3;
 // Movement and size: the same numbers as Backrooms 1v1–4v4, so it feels the same.
 const G=26,JUMP=9.4,SPEED=6.6,STEP=0.6,R=0.36,H=1.95,TOPY=300;
 // The Drifter (the airship everyone starts on): height and speed.
@@ -477,7 +484,10 @@ const scene=new THREE.Scene();
 const SKY=0x9fd6f2,STORM_SKY=0x6a4fa6;
 scene.background=new THREE.Color(SKY);
 scene.fog=new THREE.Fog(SKY,90,330);
-const camera=new THREE.PerspectiveCamera(72,1,0.08,1400);
+// Near and far planes as tight as the view allows (see setNear), so the depth buffer has precision to spare and
+// faces a few centimetres apart don't flicker in the distance. Everything past the fog's end is the sky colour anyway.
+const camera=new THREE.PerspectiveCamera(72,1,0.15,800);
+function setNear(v){if(camera.near!==v){camera.near=v;camera.updateProjectionMatrix()}}
 scene.add(new THREE.HemisphereLight(0xe8f6ff,0x5d7a3c,0.78));
 scene.add(new THREE.AmbientLight(0xffffff,0.18));
 const sun=new THREE.DirectionalLight(0xfff1d6,0.82);sun.position.set(0.45,1,0.3);scene.add(sun);
@@ -493,12 +503,14 @@ const _m4=new THREE.Matrix4(),_q=new THREE.Quaternion(),_s=new V3(),_p=new V3(),
 
 // A bag of triangles (positions, normals, colours) that becomes one mesh.
 function Bag(){return{p:[],n:[],c:[]}}
+// While a place is being built (grp()), everything it adds is moved by OFX, OFZ metres (a multiple of 4, so the grid holds).
+let OFX=0,OFZ=0;
 function bagAdd(B,geo,m,hex,shade){
   const g=geo.index?geo.toNonIndexed():geo,pos=g.attributes.position,nor=g.attributes.normal;
   const nm=new THREE.Matrix3().getNormalMatrix(m);_col.setHex(hex);if(shade)_col.multiplyScalar(shade);
   const v=new V3();
   for(let i=0;i<pos.count;i++){
-    v.fromBufferAttribute(pos,i).applyMatrix4(m);B.p.push(v.x,v.y,v.z);
+    v.fromBufferAttribute(pos,i).applyMatrix4(m);B.p.push(v.x+OFX,v.y,v.z+OFZ);
     v.fromBufferAttribute(nor,i).applyMatrix3(nm).normalize();B.n.push(v.x,v.y,v.z);
     B.c.push(_col.r,_col.g,_col.b);
   }
@@ -509,7 +521,7 @@ function bagGeo(B){const g=new THREE.BufferGeometry();g.setAttribute('position',
 /* ---------- the static island: merged geometry in chunks, solid boxes in a spatial hash ---------- */
 const CH=4,CHS=MAP/CH;
 const chunks=[];for(let i=0;i<CH*CH;i++)chunks.push(Bag());
-function chunkOf(x,z){return chunks[clamp(Math.floor(z/CHS),0,CH-1)*CH+clamp(Math.floor(x/CHS),0,CH-1)]}
+function chunkOf(x,z){x+=OFX;z+=OFZ;return chunks[clamp(Math.floor(z/CHS),0,CH-1)*CH+clamp(Math.floor(x/CHS),0,CH-1)]}
 // Solids are axis-aligned boxes {min,max}; hv is how much scrap a crowbar hit on it gives. They sit in a hash of 8 m cells,
 // so movement and rays only look at what's nearby.
 const HS=8;
@@ -526,7 +538,7 @@ function near(H_,x0,z0,x1,z1,out){
   return out;
 }
 const statics=[],ramps=[],places=[],footprints=[],buildings=[],chestSpots=[],floorSpots=[],paints=[],roads=[];
-function solid(x0,y0,z0,x1,y1,z1,hv){const s={min:[Math.min(x0,x1),Math.min(y0,y1),Math.min(z0,z1)],max:[Math.max(x0,x1),Math.max(y0,y1),Math.max(z0,z1)],hv:hv||0};hashIn(hash,s);statics.push(s);return s}
+function solid(x0,y0,z0,x1,y1,z1,hv){x0+=OFX;x1+=OFX;z0+=OFZ;z1+=OFZ;const s={min:[Math.min(x0,x1),Math.min(y0,y1),Math.min(z0,z1)],max:[Math.max(x0,x1),Math.max(y0,y1),Math.max(z0,z1)],hv:hv||0};hashIn(hash,s);statics.push(s);return s}
 // a visible box, solid unless ghost
 function sbox(x0,y0,z0,x1,y1,z1,hex,hv,ghost){
   const cx=(x0+x1)/2,cy=(y0+y1)/2,cz=(z0+z1)/2;
@@ -534,7 +546,7 @@ function sbox(x0,y0,z0,x1,y1,z1,hex,hv,ghost){
   return ghost?null:solid(x0,y0,z0,x1,y1,z1,hv);
 }
 // Ramps (walkable 4 x 4 m slopes rising 4 m toward dir, as in Backrooms): the map's stairs and players' ramp builds.
-function addRamp(r){r.min=[r.x0,r.base,r.z0];r.max=[r.x0+4,r.base+4.3,r.z0+4];hashIn(rhash,r);ramps.push(r);return r}
+function addRamp(r){r.x0+=OFX;r.z0+=OFZ;r.min=[r.x0,r.base,r.z0];r.max=[r.x0+4,r.base+4.3,r.z0+4];hashIn(rhash,r);ramps.push(r);return r}
 function rampMatrix(x0,z0,base,dir){_e.set(-Math.PI/4,DIR_YAW[dir],0,'YXZ');_q.setFromEuler(_e);return _m4.compose(_p.set(x0+2,base+2,z0+2),_q,_s.set(4,.25,Math.SQRT2*4))}
 function staticRamp(cx,cz,base,dir,hex){
   const x0=cx*4,z0=cz*4;bagAdd(chunkOf(x0+2,z0+2),UNIT_BOX,rampMatrix(x0,z0,base,dir),hex,1);
@@ -551,10 +563,13 @@ function wallRun(axis,c,a,b,y0,h,hex,ops,hv,T){
   seg(cur,b,y0,y0+h);
 }
 // Slab for a level's floor (top at y), over cells [x0..x1) x [z0..z1) minus holes ("cx,cz"), merged into runs.
-function slab(cx0,cz0,cx1,cz1,y,hex,holes,hv){
-  for(let cz=cz0;cz<cz1;cz++){let run=-1;
+// ins pulls its outer edges in (a house's floors and roof sit between its walls instead of sharing the walls' outer faces,
+// which flickered as the two fought over the same plane).
+function slab(cx0,cz0,cx1,cz1,y,hex,holes,hv,ins){
+  ins=ins||0;const X0=cx0*4+ins,X1=cx1*4-ins;
+  for(let cz=cz0;cz<cz1;cz++){let run=-1;const z0=cz===cz0?cz*4+ins:cz*4,z1=cz===cz1-1?cz*4+4-ins:cz*4+4;
     for(let cx=cx0;cx<=cx1;cx++){const open=cx<cx1&&!(holes&&holes.has(cx+','+cz));
-      if(open&&run<0)run=cx;if(!open&&run>=0){sbox(run*4,y-.3,cz*4,cx*4,y,cz*4+4,hex,hv);run=-1}}}
+      if(open&&run<0)run=cx;if(!open&&run>=0){sbox(Math.max(X0,run*4),y-.3,z0,Math.min(X1,cx*4),y,z1,hex,hv);run=-1}}}
 }
 // Zigzag stairs: ramp k (from level k-1 to k) alternates between cell S0 and the next cell along dir. Returns the cell
 // of each level's ramp, which that level's floor leaves open.
@@ -588,12 +603,13 @@ function house(cx,cz,w,d,o){
       else if(side==='w')wallRun(2,x0+.15,z0+.3,z1-.3,y,4,col,ops,hv);
       else wallRun(2,x1-.15,z0+.3,z1-.3,y,4,col,ops,hv);
     }
-    if(lv>0)slab(cx,cz,cx+w,cz+d,y,o.floorCol||0xb59a72,holes.get(lv),hv);
-    // a trim band where the levels meet
-    if(lv>0){bagBox(chunkOf(x0+w*2,z0+d*2),x0+w*2,y,z0+d*2,w*4+.12,.22,d*4+.12,trim,0,1)}
+    if(lv>0)slab(cx,cz,cx+w,cz+d,y,o.floorCol||0xb59a72,holes.get(lv),hv,.3);
+    // a trim band round the outside where the levels meet (just the rim: a solid band here once covered the floors and the holes in them)
+    if(lv>0){const b=(x,z,sx,sz)=>bagBox(chunkOf(x,z),x,y,z,sx,.22,sz,trim,0,1);
+      b(x0+w*2,z0+.02,w*4+.12,.16);b(x0+w*2,z1-.02,w*4+.12,.16);b(x0+.02,z0+d*2,.16,d*4-.2);b(x1-.02,z0+d*2,.16,d*4-.2)}
   }
   // roof and parapet
-  slab(cx,cz,cx+w,cz+d,top,roof,o.roofStairs?holes.get(L):null,hv);
+  slab(cx,cz,cx+w,cz+d,top,roof,o.roofStairs?holes.get(L):null,hv,.3);
   if(o.parapet!==false){
     sbox(x0,top,z0,x1,top+.9,z0+.25,trim,hv);sbox(x0,top,z1-.25,x1,top+.9,z1,trim,hv);
     sbox(x0,top,z0+.25,x0+.25,top+.9,z1-.25,trim,hv);sbox(x1-.25,top,z0+.25,x1,top+.9,z1-.25,trim,hv);
@@ -613,6 +629,17 @@ function house(cx,cz,w,d,o){
 function place(name,x,z,r){places.push({name,x,z,r})}
 function paint(o){paints.push(o)}
 function road(pts,w,col){roads.push({pts,w,col})}
+// Build one place moved by (dx, dz) metres: its boxes and ramps move as they're added, its lists (places, paint, chests…) after.
+function grp(dx,dz,fn){
+  const L=[places,paints,footprints,buildings,chestSpots,floorSpots].map(a=>a.length);
+  OFX=dx;OFZ=dz;try{fn()}finally{OFX=OFZ=0}
+  const mv=o=>{if(o.x!=null){o.x+=dx;o.z+=dz}if(o.x0!=null){o.x0+=dx;o.x1+=dx;o.z0+=dz;o.z1+=dz}};
+  [places,paints,footprints,chestSpots,floorSpots].forEach((a,k)=>{for(let i=[0,1,2,4,5][k],j=L[i];j<a.length;j++)mv(a[j])});
+  for(let j=L[3];j<buildings.length;j++){const B=buildings[j];mv(B);for(const d of B.doors){mv(d.out);mv(d.in)}}
+}
+// where each place sits on the 240 m island: how far it moved from where it was on the old 320 m one
+const OFS={farm:[-4,-8],signal:[-40,-8],plaza:[-48,-48],dam:[-76,-40],motel:[-16,-72],crater:[-64,-64],timber:[-36,-72]};
+const at=(k,x,z)=>[x+OFS[k][0],z+OFS[k][1]];
 // props
 function crate(x,z,y,s,hex){s=s||1.4;return sbox(x-s/2,y||0,z-s/2,x+s/2,(y||0)+s,z+s/2,hex||0xa8783f,6)}
 function bale(x,z,rot){const a=rot?[1.2,2.2]:[2.2,1.2];return sbox(x-a[0]/2,0,z-a[1]/2,x+a[0]/2,1.3,z+a[1]/2,0xe7c35a,6)}
@@ -642,6 +669,7 @@ function railing(x0,z0,x1,z1,y,hex){sbox(x0,y,z0,x1,y+.95,z1,hex||0x55606a,2)}
 function buildWorld(){
   const RW=0xb79c6b;
   // ---- Haybale Farm (north-west) ----
+  grp(OFS.farm[0],OFS.farm[1],()=>{
   place('Haybale Farm',58,68,44);
   paint({k:'rect',x0:10,z0:22,x1:38,z1:52,col:[.55,.42,.27],stripe:[.47,.36,.22]});
   paint({k:'rect',x0:36,z0:48,x1:94,z1:94,col:[.6,.62,.36]});
@@ -655,59 +683,67 @@ function buildWorld(){
   fence(40,24,40,46);fence(40,50,40,54);fence(10,54,34,54);
   sbox(66,0,62,70,1.6,64,0x3b7d3a,4);sbox(66.5,1.6,62.3,68,2.6,63.7,0x2d3a46,4);sbox(64.5,0,61.6,65.6,1.3,64.4,0x1c1d20,4);
   floorSpots.push({x:44,y:0,z:84},{x:20,y:0,z:60},{x:82,y:0,z:52});
+  });
   // ---- Signal Point (north): a lattice tower with zigzag ramps to a lookout 20 m up ----
+  grp(OFS.signal[0],OFS.signal[1],()=>{
   place('Signal Point',166,50,36);
   paint({k:'circle',x:164,z:48,r:24,col:[.5,.55,.38]});
   {const holes=zigzag(39,10,0,0,5,0x7d8790);
     for(let k=1;k<=5;k++){slab(38,10,42,12,k*4,0x9aa4ad,new Set([holes[k]]),2);
       railing(152,40,168,40.25,k*4);railing(152,47.75,168,48,k*4);railing(152,40.25,152.25,47.75,k*4);railing(167.75,40.25,168,47.75,k*4)}
-    for(const [x,z] of [[152.3,40.3],[167.7,40.3],[152.3,47.7],[167.7,47.7],[160,40.3],[160,47.7]])sbox(x-.3,0,z-.3,x+.3,20.9,z+.3,0xb64236,2);
+    for(const [x,z] of [[152.3,40.3],[167.7,40.3],[152.3,47.7],[167.7,47.7],[160,40.3],[160,47.7]])sbox(x-.32,0,z-.32,x+.32,20.9,z+.32,0xb64236,2);
     sbox(159.6,20.9,43.6,160.4,36,44.4,0xd8dde2,2,true);sbox(159.4,35.6,43.4,160.6,36.6,44.6,0xff4a3a,0,true);
     chestSpots.push({x:166,y:12,z:46,yaw:0},{x:154,y:20,z:46,yaw:Math.PI});floorSpots.push({x:154,y:8,z:46},{x:166,y:16,z:46},{x:158,y:20,z:46});}
   const hut=house(43,12,3,2,{col:0xe4e7ea,trim:0x56616c,roof:0x3e4a55,doors:[['w',0],['s',2]],win:.5});
   hut.chest(2,0,0,Math.PI);hut.floor(0,1,0);
   crate(146,52);crate(147.5,53.4,0,1.2,0x5d6b78);crate(172,40,0,1.6,0x5d6b78);floorSpots.push({x:150,y:0,z:36});
+  });
   // ---- Pinecone Plaza (the middle): a two-level mall round an open atrium, shops on the north side, car park round it ----
+  grp(OFS.plaza[0],OFS.plaza[1],()=>{
   place('Pinecone Plaza',164,162,46);
   paint({k:'rect',x0:124,z0:132,x1:204,z1:192,col:[.42,.43,.45]});
   {const atr=new Set();for(let ix=3;ix<=8;ix++)for(let iz=2;iz<=4;iz++)atr.add((35+ix)+','+(37+iz));
-    const mall=house(35,37,12,7,{levels:2,col:0xe9dcc3,trim:0x2f6f68,roof:0x436a59,floorCol:0xcfc6b4,holes:{1:atr},doors:[['n',5],['n',6],['s',5],['s',6],['w',3],['e',3]],win:.35});
+    const mall=house(35,37,12,7,{levels:2,col:0xe9dcc3,trim:0x2f6f68,roof:0x436a59,floorCol:0xb3aa96,holes:{1:atr},doors:[['n',5],['n',6],['s',5],['s',6],['w',3],['e',3]],win:.35});
     staticRamp(38,40,0,2,0x2f6f68);staticRamp(43,40,0,0,0x2f6f68);
     // railings round the atrium on the upper floor (gaps where the ramps arrive)
     railing(152,155.85,176,156.1,4,0x2f6f68);railing(152,167.9,176,168.15,4,0x2f6f68);
     railing(151.9,156.1,152.15,159.8,4,0x2f6f68);railing(151.9,164.2,152.15,167.9,4,0x2f6f68);railing(175.85,156.1,176.1,159.8,4,0x2f6f68);railing(175.85,164.2,176.1,167.9,4,0x2f6f68);
     // shop row: partitions and a shop front with doors, a corridor in the middle to the north doors
     const SHC=0xd2c2a2;
-    for(const x of [148,156,160,168,172,180])wallRun(2,x,148.3,156,0,4,SHC,[],6,.25);
-    wallRun(0,156,140.3,160,0,4,SHC,[{at:146,w:2.2,lo:0,hi:2.8},{at:154,w:2.2,lo:0,hi:2.8},{at:158,w:2,lo:0,hi:2.8}],6,.25);
-    wallRun(0,156,168,187.7,0,4,SHC,[{at:170,w:2,lo:0,hi:2.8},{at:178,w:2.2,lo:0,hi:2.8},{at:186,w:2.2,lo:0,hi:2.8}],6,.25);
+    for(const x of [148,156,160,168,172,180])wallRun(2,x,148.3,156,0,3.7,SHC,[],6,.25);
+    wallRun(0,156,140.3,160,0,3.7,SHC,[{at:146,w:2.2,lo:0,hi:2.8},{at:154,w:2.2,lo:0,hi:2.8},{at:158,w:2,lo:0,hi:2.8}],6,.25);
+    wallRun(0,156,168,187.7,0,3.7,SHC,[{at:170,w:2,lo:0,hi:2.8},{at:178,w:2.2,lo:0,hi:2.8},{at:186,w:2.2,lo:0,hi:2.8}],6,.25);
     mall.chest(0,0,0,0);mall.chest(3,0,0,0);mall.chest(7,0,0,0);mall.chest(10,0,0,0);mall.chest(1,5,1,Math.PI/2);mall.chest(10,1,1,-Math.PI/2);mall.chest(5,5,0,0);
     mall.floor(6,3,0);mall.floor(2,5,0);mall.floor(9,5,0);mall.floor(5,0,1);mall.floor(6,6,1);mall.floor(0,3,1);mall.floor(11,3,1);
     for(const [x,z] of [[158,164],[168,160]]){sbox(x-1,0,z-1,x+1,.8,z+1,0x6f8f4a,4);shape(ICO,x,1.7,z,1.1,1.3,1.1,0x3f8a39)}
     for(const [x,z] of [[184,174],[146,174],[184,150]])crate(x,z,4,1.4,0x9a7a52);}
   for(const [x,z,rot,c] of [[132,140,0,0xd44a3a],[132,148,0,0x3a76d4],[132,176,0,0xe8e2d4],[196,144,0,0x2e2e33],[196,170,0,0x4fa36a],[150,186,1,0xe0b13a],[176,186,1,0x7a4fd4],[160,138,1,0xd47a3a],[178,138,1,0x3ad4c4]])car(x,z,rot,c);
+  });
   // ---- Spillway Dam (east): a 12 m dam wall with a walkway on top, stair towers at both ends, a pump house ----
+  grp(OFS.dam[0],OFS.dam[1],()=>{
   place('Spillway Dam',258,114,44);
   paint({k:'rect',x0:268,z0:60,x1:316,z1:164,col:[.27,.55,.62]});
   paint({k:'rect',x0:236,z0:60,x1:260,z1:164,col:[.52,.53,.42]});
   sbox(260,0,72,268,12,152,0xb9b6ab,5);
-  for(let z=76;z<152;z+=8)sbox(259.6,0,z,260,11,z+1.2,0x9f9c92,5,true);
+  for(let z=76;z<152;z+=8)sbox(259.6,0,z+.05,260,11,z+1.15,0x9f9c92,5,true);
   railing(267.6,72,268,152,12,0x8f8c84);railing(260,72,260.4,100,12,0x8f8c84);railing(260,116,260.4,124,12,0x8f8c84);railing(260,140,260.4,152,12,0x8f8c84);
   for(const cz0 of [25,31]){const holes=zigzag(64,cz0+1,1,0,3,0x8f8c84);
     for(let k=1;k<=3;k++)slab(64,cz0,65,cz0+4,k*4,0xa8a59b,new Set([holes[k]]),5);
     railing(256,cz0*4,256.3,cz0*4+16,4);railing(256,cz0*4,256.3,cz0*4+16,8);railing(256,cz0*4,256.3,cz0*4+16,12);
-    for(const z of [cz0*4+.3,cz0*4+15.7])sbox(256,0,z-.3,256.6,12,z+.3,0x8f8c84,5)}
+    for(const z of [cz0*4+.3,cz0*4+15.7])sbox(255.97,0,z-.32,256.63,12,z+.32,0x8f8c84,5)}
   const pump=house(60,29,3,2,{col:0xcfd4c9,trim:0x4b5a52,roof:0x5b6b62,doors:[['w',0],['e',1],['n',2]],win:.5});
   pump.chest(0,1,0,0);pump.chest(2,0,0,Math.PI);pump.floor(1,1,0);
   chestSpots.push({x:264,y:12,z:120,yaw:0});floorSpots.push({x:264,y:12,z:92},{x:264,y:12,z:140},{x:248,y:0,z:150});
   for(const [x,z] of [[250,90],[252,92.5],[246,138]])crate(x,z,0,1.6,0x6d7c86);
+  });
   // ---- Moonbeam Motel (south-west): two wings of rooms, a balcony reached by a ramp, an empty pool, the office ----
+  grp(OFS.motel[0],OFS.motel[1],()=>{
   place('Moonbeam Motel',70,236,40);
   paint({k:'rect',x0:36,z0:212,x1:108,z1:258,col:[.44,.45,.47]});
   paint({k:'rect',x0:60,z0:238,x1:80,z1:250,col:[.55,.8,.9]});
   {const doorsA=[];for(let i=0;i<12;i++){doorsA.push(['s',i,0],['s',i,1])}
     const wa=house(10,54,12,2,{levels:2,col:0xf3c6b8,trim:0x4b3f6b,roof:0x4b3f6b,floorCol:0xb9a08a,doors:doorsA,win:0});
-    for(let i=1;i<12;i++){wallRun(2,40+i*4,216.3,223.7,0,4,0xe9b8a8,[],6,.2);wallRun(2,40+i*4,216.3,223.7,4,4,0xe9b8a8,[],6,.2)}
+    for(let i=1;i<12;i++){wallRun(2,40+i*4,216.3,223.7,0,3.7,0xe9b8a8,[],6,.2);wallRun(2,40+i*4,216.3,223.7,4,3.7,0xe9b8a8,[],6,.2)}
     sbox(40,3.7,224,88,4,228,0xb9a08a,6);railing(40,227.75,88,228,4,0x4b3f6b);
     for(let x=40.3;x<88;x+=8)sbox(x-.15,0,227.6,x+.15,3.7,227.9,0x4b3f6b,2);
     staticRamp(22,56,0,2,0x4b3f6b);
@@ -715,7 +751,7 @@ function buildWorld(){
     wa.floor(4,1,0);wa.floor(8,1,0);wa.floor(0,1,1);wa.floor(6,1,1);wa.floor(11,1,1);
     const doorsB=[];for(let i=0;i<6;i++)doorsB.push(['e',i,0]);
     const wb=house(10,57,2,6,{col:0xf3c6b8,trim:0x4b3f6b,roof:0x4b3f6b,doors:doorsB,win:0});
-    for(let i=1;i<6;i++)wallRun(0,228+i*4,40.3,47.7,0,4,0xe9b8a8,[],6,.2);
+    for(let i=1;i<6;i++)wallRun(0,228+i*4,40.3,47.7,0,3.7,0xe9b8a8,[],6,.2);
     wb.chest(0,2,0,Math.PI/2);wb.floor(1,4,0);
     const off=house(24,59,2,2,{col:0x9fd7e6,trim:0x4b3f6b,roof:0xe2546b,doors:[['w',0],['n',1]],win:.7});
     off.chest(1,1,0,Math.PI);
@@ -724,7 +760,9 @@ function buildWorld(){
     sbox(59.6,0,237.6,80.4,.2,238,0xf2f2f2,0,true);sbox(59.6,0,249.6,80.4,.2,250,0xf2f2f2,0,true);
     for(const x of [64,70,76])sbox(x-.5,0,252.5,x+.5,.6,254.5,0xf0f0ea,2);
     car(56,231,0,0x3a76d4);car(92,232,0,0xe8e2d4);car(104,250,1,0xd44a3a);floorSpots.push({x:70,y:0,z:244});}
+  });
   // ---- Starfall Crater (south-east): a ring of boulders round a fallen star, a mining camp inside ----
+  grp(OFS.crater[0],OFS.crater[1],()=>{
   place('Starfall Crater',248,248,40);
   paint({k:'circle',x:248,z:248,r:34,col:[.42,.36,.33]});paint({k:'circle',x:248,z:248,r:14,col:[.3,.26,.26]});
   {const rr=mulberry(77);
@@ -735,7 +773,9 @@ function buildWorld(){
     chestSpots.push({x:240,y:0,z:252,yaw:Math.PI/2},{x:256,y:0,z:242,yaw:-Math.PI/2});
     for(const [x,z] of [[238,240],[239.4,241.6],[258,256],[244,262],[252,234]])crate(x,z,0,1.5,0x7a5f3c);
     floorSpots.push({x:248,y:0,z:238},{x:236,y:0,z:256},{x:262,y:0,z:248},{x:250,y:0,z:262},{x:248,y:6.8,z:248});}
+  });
   // ---- Timber Camp (south): log cabins and a sawmill shed ----
+  grp(OFS.timber[0],OFS.timber[1],()=>{
   place('Timber Camp',158,276,38);
   paint({k:'circle',x:158,z:276,r:30,col:[.52,.44,.3]});
   {for(const [cx,cz,dr] of [[34,66,'e'],[34,71,'e'],[43,66,'w'],[43,71,'w']]){const c=house(cx,cz,2,2,{col:0x8a5a34,trim:0x5a3a20,roof:0x4f6b36,doors:[[dr,1]],win:.5,hv:10});c.chest(dr==='e'?0:1,0,0,0);c.floor(1,1,0)}
@@ -745,28 +785,28 @@ function buildWorld(){
     for(let i=0;i<3;i++){const z=262+i*1.1;_e.set(0,0,Math.PI/2);_q.setFromEuler(_e);_m4.compose(_p.set(158,.55+(i%2)*.0,z),_q,_s.set(.55,7,.55));bagAdd(chunkOf(158,z),CYL,_m4,0x7a5232,1)}
     solid(154.5,0,261.4,161.5,1.1,264.8,12);
     floorSpots.push({x:158,y:0,z:272},{x:146,y:0,z:276},{x:170,y:0,z:276},{x:158,y:5.3,z:288});}
+  });
   // ---- sheds along the tracks ----
-  for(const [cx,cz,yaw] of [[24,40,0],[60,48,0],[18,40,0],[48,24,0],[30,24,0]]){const s=house(cx,cz,2,2,{col:0xc8b89a,trim:0x6d5844,roof:0x7a4a3a,doors:[['s',0],['e',1]],win:.4});s.chest(1,0,0,yaw);s.floor(0,1,0)}
+  for(const [cx,cz,yaw] of [[8,26,0],[14,28,0],[50,34,0],[23,17,0],[6,50,0]]){const s=house(cx,cz,2,2,{col:0xc8b89a,trim:0x6d5844,roof:0x7a4a3a,doors:[['s',0],['e',1]],win:.4});s.chest(1,0,0,yaw);s.floor(0,1,0)}
   // ---- tracks between the places ----
-  const hub=[164,192];
-  for(const p of [[64,96],[160,60],[248,124],[100,226],[236,236],[158,250],[90,150],[230,178]])road([hub,p],5,[.62,.53,.37]);
-  road([[64,96],[100,226]],4,[.62,.53,.37]);road([[160,60],[248,124]],4,[.62,.53,.37]);road([[236,236],[158,250]],4,[.62,.53,.37]);road([[64,96],[160,60]],4,[.62,.53,.37]);
-  for(const p of [[132,140],[132,148],[196,144],[196,170],[150,186],[176,186],[160,138],[178,138]])void p;
+  const hub=at('plaza',164,192),F=at('farm',64,96),S=at('signal',160,60),D=at('dam',248,124),M=at('motel',100,226),C=at('crater',236,236),T=at('timber',158,250);
+  for(const p of [F,S,D,M,C,T,[40,118],[204,146]])road([hub,p],5,[.62,.53,.37]);
+  road([F,M],4,[.62,.53,.37]);road([S,D],4,[.62,.53,.37]);road([C,T],4,[.62,.53,.37]);road([F,S],4,[.62,.53,.37]);
   // ---- trees, rocks and bushes, kept off buildings, tracks and the beach ----
   const rr=mulberry(1234);
   const free=(x,z,m)=>{if(x<18||z<18||x>MAP-18||z>MAP-18)return false;
     for(const f of footprints)if(x>f.x0-m&&x<f.x1+m&&z>f.z0-m&&z<f.z1+m)return false;
     for(const p of paints)if(p.k==='rect'&&x>p.x0-2&&x<p.x1+2&&z>p.z0-2&&z<p.z1+2)return false;
-    if(Math.hypot(x-248,z-248)<36||Math.hypot(x-164,z-48)<26)return false;
-    if(x>232&&x<272&&z>66&&z<160)return false;
+    {const c=at('crater',248,248),t=at('signal',164,48),d=at('dam',232,66);if(Math.hypot(x-c[0],z-c[1])<36||Math.hypot(x-t[0],z-t[1])<26)return false;
+    if(x>d[0]&&x<d[0]+40&&z>d[1]&&z<d[1]+94)return false;const w=at('timber',146,278);if(x>w[0]&&x<w[0]+26&&z>w[1]&&z<w[1]+20)return false}
     for(const rd of roads)if(segDist(x,z,rd.pts[0],rd.pts[1])<rd.w+2)return false;
     for(const c of chestSpots)if(Math.hypot(c.x-x,c.z-z)<4)return false;
     for(const c of floorSpots)if(Math.hypot(c.x-x,c.z-z)<3)return false;
     return true};
-  let n=0;for(let i=0;i<2600&&n<175;i++){const x=rr()*MAP,z=rr()*MAP;if(!free(x,z,5))continue;if(z<150?rr()<.7:rr()<.35)pine(x,z,.9+rr()*.5);else oak(x,z,.85+rr()*.45);n++}
-  n=0;for(let i=0;i<1200&&n<46;i++){const x=rr()*MAP,z=rr()*MAP;if(!free(x,z,3))continue;rock(x,z,1+rr()*1.8,rr()<.5?0x8b8f94:0x9c9a90);n++}
-  n=0;for(let i=0;i<1200&&n<80;i++){const x=rr()*MAP,z=rr()*MAP;if(!free(x,z,2))continue;bush(x,z,.8+rr()*.8);n++}
-  for(let i=0;i<14;i++){const a=rr()*Math.PI*2,side=rr()<.5;const x=side?(rr()<.5?7:MAP-7):18+rr()*(MAP-36),z=side?18+rr()*(MAP-36):(rr()<.5?7:MAP-7);rock(x,z,1.2+rr()*1.4,0xa59c8a);void a}
+  let n=0;for(let i=0;i<2600&&n<110;i++){const x=rr()*MAP,z=rr()*MAP;if(!free(x,z,5))continue;if(z<MAP*.47?rr()<.7:rr()<.35)pine(x,z,.9+rr()*.5);else oak(x,z,.85+rr()*.45);n++}
+  n=0;for(let i=0;i<1200&&n<30;i++){const x=rr()*MAP,z=rr()*MAP;if(!free(x,z,3))continue;rock(x,z,1+rr()*1.8,rr()<.5?0x8b8f94:0x9c9a90);n++}
+  n=0;for(let i=0;i<1200&&n<50;i++){const x=rr()*MAP,z=rr()*MAP;if(!free(x,z,2))continue;bush(x,z,.8+rr()*.8);n++}
+  for(let i=0;i<11;i++){const a=rr()*Math.PI*2,side=rr()<.5;const x=side?(rr()<.5?7:MAP-7):18+rr()*(MAP-36),z=side?18+rr()*(MAP-36):(rr()<.5?7:MAP-7);rock(x,z,1.2+rr()*1.4,0xa59c8a);void a}
 }
 function segDist(x,z,a,b){const dx=b[0]-a[0],dz=b[1]-a[1],L=dx*dx+dz*dz;let t=L?((x-a[0])*dx+(z-a[1])*dz)/L:0;t=clamp(t,0,1);return Math.hypot(x-a[0]-dx*t,z-a[1]-dz*t)}
 // Ground colour at a point: grass with a little variation, painted areas, tracks, then sand along the shore.
@@ -778,7 +818,7 @@ function groundCol(x,z,out){
     if(p.k==='rect'){inside=x>=p.x0&&x<=p.x1&&z>=p.z0&&z<=p.z1}
     else{const d=Math.hypot(x-p.x,z-p.z);inside=d<=p.r;edge=clamp((p.r-d)/6,0,1)}
     if(!inside)continue;
-    let c=p.col;if(p.stripe&&Math.floor(x/3)%2===0)c=p.stripe;
+    let c=p.col;if(p.stripe&&Math.floor(x/4)%2===0)c=p.stripe;   // 4 m stripes: the ground has a vertex every 2 m, so 3 m ones aliased into a smear
     r+=(c[0]-r)*edge;g+=(c[1]-g)*edge;b+=(c[2]-b)*edge;
   }
   for(const rd of roads){const d=segDist(x,z,rd.pts[0],rd.pts[1]);if(d<rd.w){const k=clamp((rd.w-d)/2,0,1)*.9;r+=(rd.col[0]-r)*k;g+=(rd.col[1]-g)*k;b+=(rd.col[2]-b)*k}}
@@ -897,7 +937,7 @@ function openChest(c,fromNet){
 const plyTex=(()=>{const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d');
   g.fillStyle='#c7955a';g.fillRect(0,0,128,128);for(let i=0;i<8;i++){g.fillStyle=i%2?'#bd8a50':'#cf9f66';g.fillRect(0,i*16,128,15)}
   g.strokeStyle='rgba(70,40,15,.55)';g.lineWidth=2;for(let i=0;i<=8;i++){g.beginPath();g.moveTo(0,i*16);g.lineTo(128,i*16);g.stroke()}
-  g.strokeStyle='rgba(70,40,15,.35)';g.strokeRect(2,2,124,124);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;return t})();
+  g.strokeStyle='rgba(70,40,15,.35)';g.strokeRect(2,2,124,124);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());return t})();   // mipmapped (the default) and anisotropic, so the planks don't shimmer or smear at an angle
 const plyMat=new THREE.MeshLambertMaterial({map:plyTex});
 const geoPWall=new THREE.BoxGeometry(4,4,.25),geoPFloor=new THREE.BoxGeometry(4,.25,4),geoPRamp=new THREE.BoxGeometry(4,.25,Math.SQRT2*4);
 const PCAP=900,PHP={wall:150,floor:140,ramp:140};
@@ -1234,19 +1274,19 @@ function cleanName(n){const s=String(n||'').replace(/[<>]/g,'').trim().slice(0,1
 /* ---------- the Drifter's line and the storm, both from the match seed ---------- */
 function makeBus(sd){
   const r=mulberry((sd^0x1234567)>>>0),a=r()*Math.PI*2,dx=Math.cos(a),dz=Math.sin(a);
-  const cx=MAP/2+(r()-.5)*100,cz=MAP/2+(r()-.5)*100,half=250,ax=cx-dx*half,az=cz-dz*half;
+  const cx=MAP/2+(r()-.5)*75,cz=MAP/2+(r()-.5)*75,half=230,ax=cx-dx*half,az=cz-dz*half;
   let sIn=-1,sOut=-1;for(let s=0;s<=half*2;s+=1){const x=ax+dx*s,z=az+dz*s;const ins=x>14&&x<MAP-14&&z>14&&z<MAP-14;if(ins&&sIn<0)sIn=s;if(ins)sOut=s}
   return{ax,az,dx,dz,tIn:sIn/BUS_V,tOut:sOut/BUS_V,tEnd:half*2/BUS_V};
 }
 function busPos(t,out){const s=clamp(t,0,busLine.tEnd)*BUS_V;return(out||new V3()).set(busLine.ax+busLine.dx*s,BUS_Y,busLine.az+busLine.dz*s)}
 // Storm phases: at = seconds after the Drifter sets off when the circle starts closing, dur = how long it takes,
 // r = the radius it closes to, dps = damage a second to anyone outside from then on (health, not shield).
-const STORM=[{at:80,dur:40,r:118,dps:1},{at:145,dur:30,r:74,dps:2},{at:198,dur:25,r:44,dps:4},{at:242,dur:20,r:22,dps:7},{at:276,dur:18,r:9,dps:10},{at:304,dur:22,r:0,dps:15}];
-const R0=240;
+const STORM=[{at:70,dur:34,r:88,dps:1},{at:126,dur:26,r:56,dps:2},{at:172,dur:22,r:33,dps:4},{at:210,dur:18,r:17,dps:7},{at:240,dur:16,r:7,dps:10},{at:264,dur:20,r:0,dps:15}];
+const R0=180;   // covers the whole island, corners too
 function makeStorm(sd){
   const r=mulberry((sd^0x9e3779b9)>>>0);let cx=MAP/2,cz=MAP/2,rad=R0;const out=[{x:cx,z:cz,r:R0}];
   for(const ph of STORM){const room=Math.max(0,rad-ph.r),a=r()*Math.PI*2,d=Math.sqrt(r())*room*.8;
-    let nx=cx+Math.cos(a)*d,nz=cz+Math.sin(a)*d;const m=Math.min(ph.r+24,MAP/2);nx=clamp(nx,m,MAP-m);nz=clamp(nz,m,MAP-m);
+    let nx=cx+Math.cos(a)*d,nz=cz+Math.sin(a)*d;const m=Math.min(ph.r+18,MAP/2);nx=clamp(nx,m,MAP-m);nz=clamp(nz,m,MAP-m);
     out.push({x:nx,z:nz,r:ph.r});cx=nx;cz=nz;rad=ph.r}
   return out;
 }
@@ -1818,7 +1858,7 @@ function updateRemotes(dt){
 
 /* ---------- the host: lobby countdown, starting, ending (online the longest-present live player; offline you) ---------- */
 let lobbyDirty=false,startWanted=false;
-function lobbyHumans(){const out=[{uid:myId(),j:Net.j||0}];if(online)for(const [k,o] of Net.others)if(Net.now()-o.ts<LIVE_MS)out.push({uid:k,j:+o.v.j||o.ts});return out.sort((a,b)=>a.j-b.j||(a.uid<b.uid?-1:1))}
+function lobbyHumans(){const out=[{uid:myId(),j:Net.j||0}];if(online)for(const [k,o] of Net.others)if(Net.now()-o.ts<LIVE_MS&&nodeV(o.v)===mapV)out.push({uid:k,j:+o.v.j||o.ts});return out.sort((a,b)=>a.j-b.j||(a.uid<b.uid?-1:1))}
 function hostStart(){
   const now=Math.round(nowMs());
   const hs=lobbyHumans().slice(0,MAX_ROOM).map(o=>o.uid),nb=practice?PRACTICE_BOTS:Math.max(0,MIN_FILL-hs.length);
@@ -1830,6 +1870,7 @@ function hostDuties(){
   const now=nowMs();
   if(!MS||!validMS(MS))MS={id:0,ph:'lobby',ce:0};
   if(MS.ph==='lobby'){
+    if(online&&Net.stale){if(MS.ce)MS=Object.assign({},MS,{ce:0});startWanted=false;return}
     const n=lobbyHumans().length;
     if(n>=2&&!MS.ce){MS=Object.assign({},MS,{ce:Math.round(now)+60000});lobbyDirty=true}
     if(n<2&&MS.ce){MS=Object.assign({},MS,{ce:0});lobbyDirty=true}
@@ -1842,7 +1883,7 @@ function hostDuties(){
 }
 function followMS(){
   const ms=MS;if(!validMS(ms))return;
-  if(ms.ph==='play'&&ms.id!==curMatch)setupMatch(ms);
+  if(ms.ph==='play'&&ms.id!==curMatch&&!(online&&Net.stale))setupMatch(ms);
   if(ms.ph==='end'&&curMatch===ms.id&&endShown!==ms.id)onMatchEnd(ms);
   if(ms.ph==='lobby'&&curMatch){endMatchView();if(online){state='playing';$('end').hidden=true;$('hud').hidden=true;showLobby()}}
 }
@@ -1860,7 +1901,7 @@ function loadScript(src){return new Promise((res,rej)=>{const s=document.createE
 const stCode=()=>!curMatch?'l':!inMatch?'o':ST_TO[player.st]||'o';
 const Net={
   ready:false,uid:null,db:null,offset:0,room:null,refs:null,loaded:false,quick:false,j:0,joinedAt:0,others:new Map(),amHost:false,hostUid:null,prevHost:null,
-  pubTimer:0,tickTimer:0,lastPub:0,lastBeat:0,soon:false,evSeq:0,evOut:[],lastSent:{},lastEv:new Map(),recon:new Map(),oc:[],pk:[],lastMS:null,
+  stale:false,oldN:0,pubTimer:0,tickTimer:0,lastPub:0,lastBeat:0,soon:false,evSeq:0,evOut:[],lastSent:{},lastEv:new Map(),recon:new Map(),oc:[],pk:[],lastMS:null,
   now(){return Date.now()+this.offset},
   async init(){
     if(this.ready)return;
@@ -1881,9 +1922,9 @@ const Net={
   stateOf(){
     const p=player;
     const o={n:myName,c:myHex,x:r2(p.pos.x),z:r2(p.pos.z),h:r3(p.yaw),ts:Math.round(this.now()),y:r2(p.pos.y),p:r2(p.pitch),hp:Math.ceil(p.hp),sh:Math.ceil(p.sh),
-      st:stCode(),w:heldKey(p),m:curMatch||0,j:this.j,k:myKills,pl:p.place|0,dm:Math.round(p.dmg)};
+      st:stCode(),w:heldKey(p),m:curMatch||0,j:this.j,k:myKills,pl:p.place|0,dm:Math.round(p.dmg),mv:mapV};
     if(curMatch){o.oc=this.oc.join('.');o.pk=this.pk.slice(-400).join(',')}
-    if(this.amHost&&MS){o.ms=MS;if(curMatch&&bots.size)o.bt=[...bots.values()].map(b=>[b.id,r1(b.pos.x),r1(b.pos.y),r1(b.pos.z),r2(b.yaw),r2(b.pitch),Math.ceil(b.hp),Math.ceil(b.sh),ST_TO[b.st]||'b',heldKey(b),b.kills|0,b.place|0])}
+    if(this.amHost&&MS){o.ms=MS.mv===mapV?MS:Object.assign({},MS,{mv:mapV});if(curMatch&&bots.size)o.bt=[...bots.values()].map(b=>[b.id,r1(b.pos.x),r1(b.pos.y),r1(b.pos.z),r2(b.yaw),r2(b.pitch),Math.ceil(b.hp),Math.ceil(b.sh),ST_TO[b.st]||'b',heldKey(b),b.kills|0,b.place|0])}
     return o;
   },
   async peek(room){
@@ -1932,11 +1973,11 @@ const Net={
     this.refs.me.update(patch).catch(()=>{});
   },
   publishSoon(){this.soon=true},
-  elect(){const now=this.now();let best=this.uid,bj=this.j;for(const [k,o] of this.others){if(now-o.ts>LIVE_MS)continue;const j=+o.v.j||o.ts;if(j<bj||(j===bj&&k<best)){best=k;bj=j}}return best},
+  elect(){const now=this.now();let best=this.uid,bj=this.j;for(const [k,o] of this.others){if(now-o.ts>LIVE_MS||nodeV(o.v)!==mapV)continue;const j=+o.v.j||o.ts;if(j<bj||(j===bj&&k<best)){best=k;bj=j}}return best},
   leave(){
     clearInterval(this.pubTimer);clearInterval(this.tickTimer);
     if(this.refs){const r=this.refs;try{r.players.off();r.me.onDisconnect().cancel();r.me.remove()}catch(e){}}
-    this.refs=null;this.room=null;this.others.clear();this.amHost=false;this.hostUid=null;this.loaded=false;online=false;
+    this.refs=null;this.room=null;this.others.clear();this.amHost=false;this.stale=false;this.oldN=0;this.hostUid=null;this.loaded=false;online=false;
     MS=null;if(curMatch)endMatchView();curMatch=0;clearRemotes();
   }
 };
@@ -1961,6 +2002,9 @@ function onlineTick(){
     if(Net.amHost)hostDuties();
   }
   if(!Net.amHost){const ho=Net.others.get(Net.hostUid);if(ho&&validMS(ho.v.ms))Net.lastMS=ho.v.ms;if(validMS(Net.lastMS))MS=Net.lastMS}
+  // someone here has a newer island than this page: say so, and sit matches out until a reload
+  {const now=Net.now();let st=false,old=0;for(const o of Net.others.values()){if(now-o.ts>LIVE_MS)continue;const v=nodeV(o.v);if(v>mapV)st=true;else if(v<mapV)old++}
+    if(st!==Net.stale||old!==Net.oldN){Net.stale=st;Net.oldN=old;lobbyDirty=true}}
   followMS();
   // a player whose node stops updating counts as gone
   if(settled&&curMatch)for(const e of remotes.values())if(roster.includes(e.id)&&e.alive&&!Net.live(e.id,12000)&&performance.now()-matchStartAt>12000){e.alive=false;e.present=false;e.st='dead'}
@@ -2097,13 +2141,16 @@ function renderLobby(){
   const nb=Math.max(0,MIN_FILL-list.length);
   $('lbBots').textContent=nb?`Bots fill the match up to ${MIN_FILL}: ${nb} bot${nb===1?'':'s'} with this many people. They're marked BOT.`:'Enough people for a match without bots.';
   let st='';
-  if(!Net.loaded||!MS)st='Connecting to the room…';
+  if(Net.stale)st='This match uses a newer map, reload to join.';
+  else if(!Net.loaded||!MS)st='Connecting to the room…';
   else if(MS.ph==='play'){const al=curMatch===MS.id?aliveIds().length:0;st=`A match is on${al?' ('+al+' left)':''}. You'll drop in with everyone at the next one.`}
   else if(MS.ph==='end')st='A match is just finishing. The next one boards soon.';
   else if(MS.ce)st='The Drifter boards in '+Math.max(0,Math.ceil((MS.ce-Net.now())/1000))+' s'+(Net.amHost?', or start now.':'.');
   else st=Net.amHost?'Waiting for one more person (the countdown starts at 2), or start now with bots.':'Waiting for one more person; the host can also start now.';
   $('lbStatus').textContent=st;
-  $('lbHost').hidden=!(Net.amHost&&MS&&MS.ph==='lobby');
+  $('lbHost').hidden=!(Net.amHost&&MS&&MS.ph==='lobby')||Net.stale;
+  $('lbStale').hidden=!Net.stale;
+  const ov=$('lbVer');ov.hidden=Net.stale||!Net.oldN;if(Net.oldN)ov.textContent=Net.oldN+(Net.oldN===1?' person here has':' people here have')+' an older copy of the game with the old island. They can join once they reload.';
   $('lbWatch').hidden=!(MS&&MS.ph==='play'&&curMatch===MS.id&&(!inMatch||!player.alive));
 }
 setInterval(()=>{if(lobbyShown&&online)renderLobby()},1000);
@@ -2172,8 +2219,8 @@ let attractYaw=0;const _bp=new V3();
 function updateCamera(dt){
   const tgt=camTarget();
   if(!tgt){
-    attractYaw+=dt*.05;if(camera.fov!==60){camera.fov=60;camera.updateProjectionMatrix()}
-    const r=150;camera.position.set(MAP/2+Math.sin(attractYaw)*r,70,MAP/2+Math.cos(attractYaw)*r);camera.lookAt(MAP/2,0,MAP/2);
+    attractYaw+=dt*.05;if(camera.fov!==60){camera.fov=60;camera.updateProjectionMatrix()}setNear(1);
+    const r=MAP*.47;camera.position.set(MAP/2+Math.sin(attractYaw)*r,55,MAP/2+Math.cos(attractYaw)*r);camera.lookAt(MAP/2,0,MAP/2);
     return;
   }
   const self=tgt===player,ads=self&&isADS(),w=self?heldW(player):null;
@@ -2181,7 +2228,7 @@ function updateCamera(dt){
   if(self&&player.st==='bus'){
     // riding the Drifter: look around it
     busPos(matchT(),_bp);const f=fwdOf(player.yaw,player.pitch);
-    const far=camera.aspect<1?58:34;camera.position.copy(_bp).addScaledVector(f,-far).add(new V3(0,far*.33,0));camera.lookAt(_bp.clone().addScaledVector(f,24).add(new V3(0,-7,0)));camDist=3.5;return;
+    setNear(1);const far=camera.aspect<1?58:34;camera.position.copy(_bp).addScaledVector(f,-far).add(new V3(0,far*.33,0));camera.lookAt(_bp.clone().addScaledVector(f,24).add(new V3(0,-7,0)));camDist=3.5;return;
   }
   const f=fwdOf(tgt.yaw,tgt.pitch),r=rightOf(tgt.yaw);
   const head=tgt.pos.clone().add(new V3(0,1.62,0));
@@ -2192,6 +2239,7 @@ function updateCamera(dt){
   const res=raycast(arr(pivot),arr(back),want,null,false);
   const d=res.hit?Math.max(.3,res.t-.25):want;
   camDist=d<camDist?d:camDist+(d-camDist)*Math.min(1,dt*8);
+  setNear(airy?.5:camDist<1.2?.08:.15);   // pulled in against a wall: a nearer plane so the wall isn't cut open
   camera.position.copy(pivot).addScaledVector(back,camDist);
   camera.lookAt(pivot.clone().addScaledVector(f,20));
   if(self)player.model.visible=player.alive?camDist>.9&&!(ads&&w&&w.id==='sr'):player.dieT<=2.2;
@@ -2428,6 +2476,7 @@ function copyInvite(m){
 $('copyInvite').addEventListener('click',()=>copyInvite($('inviteMsg')));
 $('lbInvite').addEventListener('click',()=>copyInvite($('lbMsg')));
 $('lbLeave').addEventListener('click',toMenu);
+$('lbReload').addEventListener('click',()=>location.reload());
 $('startMatch').addEventListener('click',()=>{initAudio();if(Net.amHost){startWanted=true;hostDuties()}});
 $('lbWatch').addEventListener('click',()=>{watchMode=true;hideLobby()});
 $('keysMenu').addEventListener('click',()=>KB.open());
@@ -2458,7 +2507,7 @@ if(navigator.webdriver)window.__dz={get state(){return state},get online(){retur
   give(t,r){takeItem(player,{t,r:r|0,n:WEAP[t]?WEAP[t].mag:HEALS[t]?1:t==='mt'?100:60})},
   fire(){const w=heldW(player),s=heldItem(player);updateCamera(0);playerShoot();if(s&&w)s.n=w.mag;player.cd=0},
   draws(){return renderer.info.render.calls},
-  setNoRender(v){window.__noRender=!!v},renderOnce(){renderer.render(scene,camera)}};
+  setNoRender(v){window.__noRender=!!v},renderOnce(){renderer.render(scene,camera)},setMapV(v){mapV=v},get mapV(){return mapV},mapSize:MAP};
 
 requestAnimationFrame(t=>{last=t;frame(t)});
 })();
