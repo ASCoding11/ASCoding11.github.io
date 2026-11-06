@@ -42,6 +42,10 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-06', version: '1.16', title: 'Rampline', kind: 'game', games: ['Rampline'], items: [
+      'Rampline: a stunt time-trial racer. One little car, tracks built from blocks, and the clock: brake into the corners, land your jumps straight, hold on round loops and along wall rides, and race a ghost of your best run for bronze, silver, gold and the builder\'s time on 20 tracks.',
+      'It comes with a track builder: snap pieces together on a grid, test drive straight away, and share your track as a code that anyone can paste in to race it.'
+    ]},
     {date: '2026-11-04', version: '1.15', title: 'Asteroid Run', kind: 'game', games: ['Asteroid Run:asteroid-run'], items: [
       'Asteroid Run: a runner through tile tunnels floating in space. You run on your own; sidestep, jump, and run onto a wall to turn the whole tunnel. Cracked, icy, conveyor, boost and sticky tiles, five runners with their own feel, 32 levels on a branching map and an Endless mode.'
     ]},
