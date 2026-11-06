@@ -313,7 +313,7 @@ body.touch #net{top:calc(112px + env(safe-area-inset-top,0px));font-size:14px}
         <span class="label">Online</span>
         <div class="row">
           <button id="quick" class="cta" type="button">Quick match</button>
-          <span style="color:var(--ink-dim);font-size:15px">Joins a public room. Bots fill in up to 6.</span>
+          <span style="color:var(--ink-dim);font-size:15px">Joins a public room. People only: a match starts once there are 2.</span>
         </div>
         <div class="row">
           <div class="prefix"><span>dz-</span><input class="text" id="room" maxlength="17" autocomplete="off" spellcheck="false" aria-label="Room code"></div>
@@ -323,7 +323,7 @@ body.touch #net{top:calc(112px + env(safe-area-inset-top,0px));font-size:14px}
       </div>
       <div class="group">
         <span class="label">Offline</span>
-        <div class="row"><button id="play" class="ghost-btn" type="button">Practice vs bots</button><span style="color:var(--ink-dim);font-size:15px">A full match against 11 bots, just in this browser.</span></div>
+        <div class="row"><button id="play" class="ghost-btn" type="button">Practice (offline)</button><span style="color:var(--ink-dim);font-size:15px">A full match against 11 practice bots, just in this browser. Bots are only in Practice.</span></div>
       </div>
       <div class="group">
         <div class="field">
@@ -421,7 +421,7 @@ const PREFIX='dz';
 const MAPV=2;
 let mapV=MAPV;   // only a test changes this, to play the part of a page from before the change
 const nodeV=v=>+(v&&v.mv)||1;   // nodes from before map versions existed are on the old island
-const MAP=240,CELL=4,NC=MAP/CELL,MAX_ROOM=30,MIN_FILL=6,PRACTICE_BOTS=11,LIVE_MS=8000,MAXL=7,COST=10,MAX_MATS=500,EDGE=3;
+const MAP=240,CELL=4,NC=MAP/CELL,MAX_ROOM=30,PRACTICE_BOTS=11,LIVE_MS=8000,MAXL=7,COST=10,MAX_MATS=500,EDGE=3;
 // Movement and size: the same numbers as Backrooms 1v1–4v4, so it feels the same.
 const G=26,JUMP=9.4,SPEED=6.6,STEP=0.6,R=0.36,H=1.95,TOPY=300;
 // The Drifter (the airship everyone starts on): height and speed.
@@ -431,13 +431,13 @@ const DV=[[1,0],[0,1],[-1,0],[0,-1]];
 const DIR_YAW=[Math.PI/2,0,-Math.PI/2,Math.PI];
 
 // Weapons. dmg per bullet (pellet for the shotgun), rate seconds between shots, hip/ads spread, range in metres,
-// build: damage multiplier against builds, am: the ammo it uses. Rarity adds 7% damage a step and trims the reload.
+// sd: damage a bullet (or pellet) does to builds and the map's breakable pieces, am: the ammo it uses. Rarity adds 7% damage a step and trims the reload.
 const WEAP={
-  pi:{id:'pi',name:'Pistol',short:'Pistol',dmg:24,head:1.75,rate:.2,mag:12,reload:1.3,hip:.02,ads:.011,range:80,pellets:1,build:1,fov:58,am:'L',fall:[30,.6]},
-  sm:{id:'sm',name:'SMG',short:'SMG',dmg:15,head:1.5,rate:.075,mag:28,reload:2,hip:.034,ads:.024,range:55,pellets:1,build:.8,fov:62,am:'L',fall:[18,.55]},
-  sg:{id:'sg',name:'Shotgun',short:'Pump',dmg:10,head:1.5,rate:.9,mag:5,reload:2.1,hip:.075,ads:.062,range:40,pellets:9,build:1.25,fov:62,am:'S',falloff:true},
-  ar:{id:'ar',name:'Rifle',short:'Rifle',dmg:22,head:1.5,rate:.12,mag:30,reload:1.9,hip:.022,ads:.006,range:150,pellets:1,build:1,fov:50,am:'M',fall:[60,.75]},
-  sr:{id:'sr',name:'Sniper',short:'Sniper',dmg:98,head:2,rate:1.3,mag:4,reload:2.5,hip:.1,ads:0,range:320,pellets:1,build:1.4,fov:20,am:'H'}
+  pi:{id:'pi',name:'Pistol',short:'Pistol',dmg:24,head:1.75,rate:.2,mag:12,reload:1.3,hip:.02,ads:.011,range:80,pellets:1,fov:58,am:'L',fall:[30,.6],sd:24},
+  sm:{id:'sm',name:'SMG',short:'SMG',dmg:15,head:1.5,rate:.075,mag:28,reload:2,hip:.034,ads:.024,range:55,pellets:1,fov:62,am:'L',fall:[18,.55],sd:12},
+  sg:{id:'sg',name:'Shotgun',short:'Pump',dmg:10,head:1.5,rate:.9,mag:5,reload:2.1,hip:.075,ads:.062,range:40,pellets:9,fov:62,am:'S',falloff:true,sd:13},
+  ar:{id:'ar',name:'Rifle',short:'Rifle',dmg:22,head:1.5,rate:.12,mag:30,reload:1.9,hip:.022,ads:.006,range:150,pellets:1,fov:50,am:'M',fall:[60,.75],sd:22},
+  sr:{id:'sr',name:'Sniper',short:'Sniper',dmg:98,head:2,rate:1.3,mag:4,reload:2.5,hip:.1,ads:0,range:320,pellets:1,fov:20,am:'H',sd:150}
 };
 const WIDS=['pi','sm','sg','ar','sr'];
 const CROW={id:'cb',name:'Crowbar',dmg:20,rate:.45,range:3.2,build:50};
@@ -508,9 +508,10 @@ let OFX=0,OFZ=0;
 function bagAdd(B,geo,m,hex,shade){
   const g=geo.index?geo.toNonIndexed():geo,pos=g.attributes.position,nor=g.attributes.normal;
   const nm=new THREE.Matrix3().getNormalMatrix(m);_col.setHex(hex);if(shade)_col.multiplyScalar(shade);
-  const v=new V3();
+  const v=new V3(),P=curMP;
+  if(P){const start=B.p.length/3,l=P.parts[P.parts.length-1];if(l&&l.B===B&&l.start+l.count===start)l.count+=pos.count;else P.parts.push({B,start,count:pos.count})}
   for(let i=0;i<pos.count;i++){
-    v.fromBufferAttribute(pos,i).applyMatrix4(m);B.p.push(v.x+OFX,v.y,v.z+OFZ);
+    v.fromBufferAttribute(pos,i).applyMatrix4(m);B.p.push(v.x+OFX,v.y,v.z+OFZ);if(P)mpGrow(P,v.x+OFX,v.y,v.z+OFZ,v.x+OFX,v.y,v.z+OFZ);
     v.fromBufferAttribute(nor,i).applyMatrix3(nm).normalize();B.n.push(v.x,v.y,v.z);
     B.c.push(_col.r,_col.g,_col.b);
   }
@@ -521,6 +522,19 @@ function bagGeo(B){const g=new THREE.BufferGeometry();g.setAttribute('position',
 /* ---------- the static island: merged geometry in chunks, solid boxes in a spatial hash ---------- */
 const CH=4,CHS=MAP/CH;
 const chunks=[];for(let i=0;i<CH*CH;i++)chunks.push(Bag());
+// ---- breakable map pieces ----
+// Most of the island can be shot apart. Each breakable thing (a 4 m cell of a building's wall with its trim and parapet,
+// a 4 x 4 m cell of a floor or roof, a partition, a tree, a rock, a car, a crate, a fence section, a railing…) is a piece:
+// a run of vertices in the chunk meshes plus its solid boxes. Breaking one squashes its vertices to a point (no extra
+// draw calls, just a small buffer update) and takes its boxes out of the hash, so players, shots, builds and bots go
+// through. The ground, the dam's wall, ribs and stair towers, the tower's frame, the silo, the star, stairs and the
+// ground-level decorations stay. Pieces are numbered in build order, so every browser has the same ids.
+const mpieces=[];let curMP=null,BRK=0,brokenN=0;
+function mpGrow(P,a,b,c,d,e,f){P.min[0]=Math.min(P.min[0],a);P.min[1]=Math.min(P.min[1],b);P.min[2]=Math.min(P.min[2],c);P.max[0]=Math.max(P.max[0],d);P.max[1]=Math.max(P.max[1],e);P.max[2]=Math.max(P.max[2],f)}
+function mpBegin(hp,hv){if(curMP)return null;curMP={id:-1,hp,mhp:hp,hv:hv||0,parts:[],solids:[],min:[1e9,1e9,1e9],max:[-1e9,-1e9,-1e9],broken:false,stage:0,nb:[],gr:false};return curMP}
+function mpEnd(P){if(!P||curMP!==P)return null;curMP=null;if(!P.solids.length&&!P.parts.length)return null;P.id=mpieces.length;mpieces.push(P);return P}
+function brk(hp,hv,fn){const P=mpBegin(hp,hv);try{fn()}finally{if(P)mpEnd(P)}return P}
+
 function chunkOf(x,z){x+=OFX;z+=OFZ;return chunks[clamp(Math.floor(z/CHS),0,CH-1)*CH+clamp(Math.floor(x/CHS),0,CH-1)]}
 // Solids are axis-aligned boxes {min,max}; hv is how much scrap a crowbar hit on it gives. They sit in a hash of 8 m cells,
 // so movement and rays only look at what's nearby.
@@ -538,11 +552,14 @@ function near(H_,x0,z0,x1,z1,out){
   return out;
 }
 const statics=[],ramps=[],places=[],footprints=[],buildings=[],chestSpots=[],floorSpots=[],paints=[],roads=[];
-function solid(x0,y0,z0,x1,y1,z1,hv){x0+=OFX;x1+=OFX;z0+=OFZ;z1+=OFZ;const s={min:[Math.min(x0,x1),Math.min(y0,y1),Math.min(z0,z1)],max:[Math.max(x0,x1),Math.max(y0,y1),Math.max(z0,z1)],hv:hv||0};hashIn(hash,s);statics.push(s);return s}
+function solid(x0,y0,z0,x1,y1,z1,hv){x0+=OFX;x1+=OFX;z0+=OFZ;z1+=OFZ;const s={min:[Math.min(x0,x1),Math.min(y0,y1),Math.min(z0,z1)],max:[Math.max(x0,x1),Math.max(y0,y1),Math.max(z0,z1)],hv:hv||0};hashIn(hash,s);statics.push(s);
+  if(curMP){s.mp=curMP;curMP.solids.push(s);mpGrow(curMP,...s.min,...s.max)}return s}
 // a visible box, solid unless ghost
+// SHADE, when set, gives a run of boxes one shade (a wall or floor that's in cells shouldn't look patched)
+let SHADE=0;
 function sbox(x0,y0,z0,x1,y1,z1,hex,hv,ghost){
   const cx=(x0+x1)/2,cy=(y0+y1)/2,cz=(z0+z1)/2;
-  bagBox(chunkOf(cx,cz),cx,cy,cz,Math.abs(x1-x0),Math.abs(y1-y0),Math.abs(z1-z0),hex,0,.94+Math.random()*.1);
+  bagBox(chunkOf(cx,cz),cx,cy,cz,Math.abs(x1-x0),Math.abs(y1-y0),Math.abs(z1-z0),hex,0,SHADE||.94+Math.random()*.1);
   return ghost?null:solid(x0,y0,z0,x1,y1,z1,hv);
 }
 // Ramps (walkable 4 x 4 m slopes rising 4 m toward dir, as in Backrooms): the map's stairs and players' ramp builds.
@@ -556,6 +573,9 @@ function staticRamp(cx,cz,base,dir,hex){
 // A straight wall along x (axis 0, at z=c) or along z (axis 2, at x=c), from a to b, y0 up h metres, with openings
 // [{at, w, lo, hi}] (centre along the wall, width, bottom and top above y0) for doors and windows.
 function wallRun(axis,c,a,b,y0,h,hex,ops,hv,T){
+  // breakable (BRK set, not already inside a piece): one piece per 4 m cell along the wall
+  if(BRK&&!curMP){for(let k=Math.floor(a/4);k*4<b-.01;k++){const ca=Math.max(a,k*4),cb=Math.min(b,k*4+4);if(cb-ca<.05)continue;
+    brk(BRK,hv,()=>wallRun(axis,c,ca,cb,y0,h,hex,(ops||[]).filter(o=>o.at>=ca&&o.at<cb),hv,T))}return}
   T=T||.3;ops=(ops||[]).slice().sort((p,q)=>p.at-q.at);
   const seg=(s0,s1,ya,yb)=>{if(s1-s0<.05||yb-ya<.05)return;if(axis===0)sbox(s0,ya,c-T/2,s1,yb,c+T/2,hex,hv);else sbox(c-T/2,ya,s0,c+T/2,yb,s1,hex,hv)};
   let cur=a;
@@ -565,8 +585,11 @@ function wallRun(axis,c,a,b,y0,h,hex,ops,hv,T){
 // Slab for a level's floor (top at y), over cells [x0..x1) x [z0..z1) minus holes ("cx,cz"), merged into runs.
 // ins pulls its outer edges in (a house's floors and roof sit between its walls instead of sharing the walls' outer faces,
 // which flickered as the two fought over the same plane).
-function slab(cx0,cz0,cx1,cz1,y,hex,holes,hv,ins){
+function slab(cx0,cz0,cx1,cz1,y,hex,holes,hv,ins,cellHp){
   ins=ins||0;const X0=cx0*4+ins,X1=cx1*4-ins;
+  // breakable: one piece per 4 x 4 m cell (a floor gives way a cell at a time)
+  if(cellHp){const sh=SHADE;SHADE=sh||.94+Math.random()*.1;for(let cz=cz0;cz<cz1;cz++)for(let cx=cx0;cx<cx1;cx++){if(holes&&holes.has(cx+','+cz))continue;
+    brk(cellHp,hv,()=>sbox(Math.max(X0,cx*4),y-.3,cz===cz0?cz*4+ins:cz*4,Math.min(X1,cx*4+4),y,cz===cz1-1?cz*4+4-ins:cz*4+4,hex,hv))}SHADE=sh;return}
   for(let cz=cz0;cz<cz1;cz++){let run=-1;const z0=cz===cz0?cz*4+ins:cz*4,z1=cz===cz1-1?cz*4+4-ins:cz*4+4;
     for(let cx=cx0;cx<=cx1;cx++){const open=cx<cx1&&!(holes&&holes.has(cx+','+cz));
       if(open&&run<0)run=cx;if(!open&&run>=0){sbox(Math.max(X0,run*4),y-.3,z0,Math.min(X1,cx*4),y,z1,hex,hv);run=-1}}}
@@ -589,31 +612,47 @@ function house(cx,cz,w,d,o){
   // walls level by level
   const doors=o.doors||[];   // [side ('n','s','e','w'), cell index along that side, level]
   const winP=o.win==null?.45:o.win,rnd=mulberry(hashStr('h'+cx+','+cz));
+  // window and door openings, in the same order as ever (so the windows stay where they were)
+  const OPS={};
+  for(let lv=0;lv<L;lv++)for(const side of ['n','s','w','e']){
+    const along=side==='n'||side==='s'?w:d,ops=[];
+    for(let i=0;i<along;i++){
+      const at=(side==='n'||side==='s'?x0:z0)+i*4+2;
+      if(doors.some(dd=>dd[0]===side&&dd[1]===i&&(dd[2]|0)===lv))ops.push({at,w:2.2,lo:0,hi:2.8});
+      else if(rnd()<winP)ops.push({at,w:1.8,lo:1.2,hi:2.5});
+    }
+    OPS[lv+side]=ops;
+  }
+  // walls, one breakable piece per 4 m cell per level and side: the wall, the trim band along its top (between levels)
+  // and, on the top level, the parapet above it, so nothing is left hanging when the wall goes
+  const par=o.parapet!==false;
   for(let lv=0;lv<L;lv++){
     const y=lv*4;
     for(const side of ['n','s','w','e']){
-      const along=side==='n'||side==='s'?w:d,ops=[];
+      const ns=side==='n'||side==='s',along=ns?w:d,ops=OPS[lv+side];SHADE=.94+Math.random()*.1;
       for(let i=0;i<along;i++){
-        const at=(side==='n'||side==='s'?x0:z0)+i*4+2;
-        if(doors.some(dd=>dd[0]===side&&dd[1]===i&&(dd[2]|0)===lv))ops.push({at,w:2.2,lo:0,hi:2.8});
-        else if(rnd()<winP)ops.push({at,w:1.8,lo:1.2,hi:2.5});
+        brk(240,hv,()=>{
+          if(ns){const a=x0+i*4,b=a+4,zc=side==='n'?z0:z1,out=side==='n'?-1:1,cs=ops.filter(q=>q.at>=a&&q.at<b);
+            wallRun(0,zc-out*.15,a,b,y,4,col,cs,hv);
+            const ba=a-(i===0?.06:0),bb=b+(i===w-1?.06:0);
+            if(lv<L-1)bagBox(chunkOf((ba+bb)/2,zc),(ba+bb)/2,y+4,zc-out*.02,bb-ba,.22,.16,trim,0,1);
+            if(lv===L-1&&par)sbox(a,top,side==='n'?z0:z1-.25,b,top+.9,side==='n'?z0+.25:z1,trim,hv);
+          }else{const a=Math.max(z0+.3,z0+i*4),b=Math.min(z1-.3,z0+i*4+4),xc=side==='w'?x0:x1,out=side==='w'?-1:1,cs=ops.filter(q=>q.at>=z0+i*4&&q.at<z0+i*4+4);
+            wallRun(2,xc-out*.15,a,b,y,4,col,cs,hv);
+            const ba=Math.max(z0+.1,z0+i*4),bb=Math.min(z1-.1,z0+i*4+4);
+            if(lv<L-1)bagBox(chunkOf(xc,(ba+bb)/2),xc-out*.02,y+4,(ba+bb)/2,.16,.22,bb-ba,trim,0,1);
+            const pa=Math.max(z0+.25,z0+i*4),pb=Math.min(z1-.25,z0+i*4+4);
+            if(lv===L-1&&par)sbox(side==='w'?x0:x1-.25,top,pa,side==='w'?x0+.25:x1,top+.9,pb,trim,hv);
+          }
+        });
       }
-      if(side==='n')wallRun(0,z0+.15,x0,x1,y,4,col,ops,hv);
-      else if(side==='s')wallRun(0,z1-.15,x0,x1,y,4,col,ops,hv);
-      else if(side==='w')wallRun(2,x0+.15,z0+.3,z1-.3,y,4,col,ops,hv);
-      else wallRun(2,x1-.15,z0+.3,z1-.3,y,4,col,ops,hv);
     }
-    if(lv>0)slab(cx,cz,cx+w,cz+d,y,o.floorCol||0xb59a72,holes.get(lv),hv,.3);
-    // a trim band round the outside where the levels meet (just the rim: a solid band here once covered the floors and the holes in them)
-    if(lv>0){const b=(x,z,sx,sz)=>bagBox(chunkOf(x,z),x,y,z,sx,.22,sz,trim,0,1);
-      b(x0+w*2,z0+.02,w*4+.12,.16);b(x0+w*2,z1-.02,w*4+.12,.16);b(x0+.02,z0+d*2,.16,d*4-.2);b(x1-.02,z0+d*2,.16,d*4-.2)}
+    SHADE=0;
+    // floors between the walls (a floor shared the walls' outer faces once, and flickered)
+    if(lv>0)slab(cx,cz,cx+w,cz+d,y,o.floorCol||0xb59a72,holes.get(lv),hv,.3,200);
   }
-  // roof and parapet
-  slab(cx,cz,cx+w,cz+d,top,roof,o.roofStairs?holes.get(L):null,hv,.3);
-  if(o.parapet!==false){
-    sbox(x0,top,z0,x1,top+.9,z0+.25,trim,hv);sbox(x0,top,z1-.25,x1,top+.9,z1,trim,hv);
-    sbox(x0,top,z0+.25,x0+.25,top+.9,z1-.25,trim,hv);sbox(x1-.25,top,z0+.25,x1,top+.9,z1-.25,trim,hv);
-  }
+  // roof
+  slab(cx,cz,cx+w,cz+d,top,roof,o.roofStairs?holes.get(L):null,hv,.3,200);
   footprints.push({x0,z0,x1,z1,col:roof});
   // ground-floor doors, for the bots' way in and out: a point just outside and just inside each one
   const dl=[];for(const d of doors)if(!(d[2]|0)){const i=d[1],side=d[0];let cx_,cz_,ox,oz;
@@ -641,31 +680,40 @@ function grp(dx,dz,fn){
 const OFS={farm:[-4,-8],signal:[-40,-8],plaza:[-48,-48],dam:[-76,-40],motel:[-16,-72],crater:[-64,-64],timber:[-36,-72]};
 const at=(k,x,z)=>[x+OFS[k][0],z+OFS[k][1]];
 // props
-function crate(x,z,y,s,hex){s=s||1.4;return sbox(x-s/2,y||0,z-s/2,x+s/2,(y||0)+s,z+s/2,hex||0xa8783f,6)}
-function bale(x,z,rot){const a=rot?[1.2,2.2]:[2.2,1.2];return sbox(x-a[0]/2,0,z-a[1]/2,x+a[0]/2,1.3,z+a[1]/2,0xe7c35a,6)}
-function car(x,z,rot,hex){const l=rot?[2,4.2]:[4.2,2];sbox(x-l[0]/2,.3,z-l[1]/2,x+l[0]/2,1.25,z+l[1]/2,hex,4);
+function crate(x,z,y,s,hex){s=s||1.4;let r;brk(70,6,()=>{r=sbox(x-s/2,y||0,z-s/2,x+s/2,(y||0)+s,z+s/2,hex||0xa8783f,6)});return r}
+function bale(x,z,rot){const a=rot?[1.2,2.2]:[2.2,1.2];let r;brk(50,6,()=>{r=sbox(x-a[0]/2,0,z-a[1]/2,x+a[0]/2,1.3,z+a[1]/2,0xe7c35a,6)});return r}
+function car(x,z,rot,hex){brk(260,4,()=>car0(x,z,rot,hex))}
+function car0(x,z,rot,hex){const l=rot?[2,4.2]:[4.2,2];sbox(x-l[0]/2,.3,z-l[1]/2,x+l[0]/2,1.25,z+l[1]/2,hex,4);
   const k=.62;sbox(x-l[0]*k/2,1.25,z-l[1]*k/2,x+l[0]*k/2,1.85,z+l[1]*k/2,0x2d3a46,4);
   for(const [dx,dz] of [[-.34,-.4],[.34,-.4],[-.34,.4],[.34,.4]])sbox(x+dx*l[0]-.25,0,z+dz*l[1]-.25,x+dx*l[0]+.25,.55,z+dz*l[1]+.25,0x1b1d22,0,true)}
 function fence(x0,z0,x1,z1){
-  const len=Math.hypot(x1-x0,z1-z0),n=Math.max(1,Math.round(len/3));
-  for(let i=0;i<=n;i++){const x=x0+(x1-x0)*i/n,z=z0+(z1-z0)*i/n;sbox(x-.12,0,z-.12,x+.12,1.1,z+.12,0xf2ede2,3)}
-  const ax=Math.abs(x1-x0)>Math.abs(z1-z0);
-  if(ax){sbox(Math.min(x0,x1),.75,z0-.05,Math.max(x0,x1),.9,z0+.05,0xf2ede2,3,true);sbox(Math.min(x0,x1),.35,z0-.05,Math.max(x0,x1),.5,z0+.05,0xf2ede2,3,true);solid(Math.min(x0,x1),0,z0-.08,Math.max(x0,x1),1.1,z0+.08,3)}
-  else{sbox(x0-.05,.75,Math.min(z0,z1),x0+.05,.9,Math.max(z0,z1),0xf2ede2,3,true);sbox(x0-.05,.35,Math.min(z0,z1),x0+.05,.5,Math.max(z0,z1),0xf2ede2,3,true);solid(x0-.08,0,Math.min(z0,z1),x0+.08,1.1,Math.max(z0,z1),3)}
+  // a section at a time (a post and the rails to the next one), each its own breakable piece
+  const len=Math.hypot(x1-x0,z1-z0),n=Math.max(1,Math.round(len/3)),ax=Math.abs(x1-x0)>Math.abs(z1-z0);
+  const P=i=>[x0+(x1-x0)*i/n,z0+(z1-z0)*i/n];
+  for(let i=0;i<n;i++)brk(40,3,()=>{
+    for(const k of i===n-1?[i,i+1]:[i]){const [x,z]=P(k);sbox(x-.12,0,z-.12,x+.12,1.1,z+.12,0xf2ede2,3)}
+    const [ax0,az0]=P(i),[ax1,az1]=P(i+1);
+    if(ax){sbox(Math.min(ax0,ax1),.75,z0-.05,Math.max(ax0,ax1),.9,z0+.05,0xf2ede2,3,true);sbox(Math.min(ax0,ax1),.35,z0-.05,Math.max(ax0,ax1),.5,z0+.05,0xf2ede2,3,true);solid(Math.min(ax0,ax1),0,z0-.08,Math.max(ax0,ax1),1.1,z0+.08,3)}
+    else{sbox(x0-.05,.75,Math.min(az0,az1),x0+.05,.9,Math.max(az0,az1),0xf2ede2,3,true);sbox(x0-.05,.35,Math.min(az0,az1),x0+.05,.5,Math.max(az0,az1),0xf2ede2,3,true);solid(x0-.08,0,Math.min(az0,az1),x0+.08,1.1,Math.max(az0,az1),3)}
+  });
 }
 const CYL=new THREE.CylinderGeometry(1,1,1,9,1).toNonIndexed(),CONE=new THREE.ConeGeometry(1,1,7,1).toNonIndexed(),ICO=new THREE.IcosahedronGeometry(1,0).toNonIndexed(),DODE=new THREE.DodecahedronGeometry(1,0).toNonIndexed();
 function shape(geo,x,y,z,sx,sy,sz,hex,ry,shade,B){_e.set(0,ry||0,0);_q.setFromEuler(_e);_m4.compose(_p.set(x,y,z),_q,_s.set(sx,sy,sz));bagAdd(B||chunkOf(x,z),geo,_m4,hex,shade||1)}
-function pine(x,z,s){s=s||1;shape(CYL,x,1.4*s,z,.32*s,2.8*s,.32*s,0x6b4a2f);const g=[0x2f7a3f,0x357f45,0x2a6b3a][Math.floor(Math.random()*3)];
+function pine(x,z,s){brk(170,14,()=>pine0(x,z,s))}
+function pine0(x,z,s){s=s||1;shape(CYL,x,1.4*s,z,.32*s,2.8*s,.32*s,0x6b4a2f);const g=[0x2f7a3f,0x357f45,0x2a6b3a][Math.floor(Math.random()*3)];
   shape(CONE,x,4.3*s,z,2.3*s,4*s,2.3*s,g,Math.random()*3);shape(CONE,x,6.6*s,z,1.6*s,3.2*s,1.6*s,g,Math.random()*3,1.08);solid(x-.42*s,0,z-.42*s,x+.42*s,5*s,z+.42*s,14)}
-function oak(x,z,s){s=s||1;shape(CYL,x,1.5*s,z,.38*s,3*s,.38*s,0x70502f);const g=[0x4f9a3c,0x5aa645,0x478f35][Math.floor(Math.random()*3)];
+function oak(x,z,s){brk(170,14,()=>oak0(x,z,s))}
+function oak0(x,z,s){s=s||1;shape(CYL,x,1.5*s,z,.38*s,3*s,.38*s,0x70502f);const g=[0x4f9a3c,0x5aa645,0x478f35][Math.floor(Math.random()*3)];
   shape(ICO,x,4.4*s,z,2.6*s,2.2*s,2.6*s,g,Math.random()*3);shape(ICO,x+.9*s,5.3*s,z-.4*s,1.6*s,1.5*s,1.6*s,g,Math.random()*3,1.08);solid(x-.48*s,0,z-.48*s,x+.48*s,4*s,z+.48*s,14)}
-function rock(x,z,s,hex){shape(DODE,x,s*.55,z,s,s*.8,s*.9,hex||0x8b8f94,Math.random()*3);const k=s*.72;return solid(x-k,0,z-k,x+k,s*1.15,z+k,6)}
+function rock(x,z,s,hex){let r;brk(Math.round(80+60*s),6,()=>{shape(DODE,x,s*.55,z,s,s*.8,s*.9,hex||0x8b8f94,Math.random()*3);const k=s*.72;r=solid(x-k,0,z-k,x+k,s*1.15,z+k,6)});return r}
 function bush(x,z,s){shape(ICO,x,.5*s,z,1.1*s,.8*s,1.1*s,0x3f8a39,Math.random()*3)}
 
 /* ---------- Gullrock Isle: seven places joined by dirt tracks ---------- */
 // Coordinates are metres from the island's north-west corner (x east, z south). Builds and buildings share the 4 m grid,
 // and every floor and roof is at a multiple of 4 m, so a build lines up with the buildings it's built against.
-function railing(x0,z0,x1,z1,y,hex){sbox(x0,y,z0,x1,y+.95,z1,hex||0x55606a,2)}
+// railings break in pieces of up to 4 m
+function railing(x0,z0,x1,z1,y,hex){const ax=x1-x0>z1-z0,a=ax?x0:z0,b=ax?x1:z1,n=Math.max(1,Math.ceil((b-a)/4-.01));
+  for(let i=0;i<n;i++){const p=a+(b-a)*i/n,q=a+(b-a)*(i+1)/n;brk(60,2,()=>ax?sbox(p,y,z0,q,y+.95,z1,hex||0x55606a,2):sbox(x0,y,p,x1,y+.95,q,hex||0x55606a,2))}}
 function buildWorld(){
   const RW=0xb79c6b;
   // ---- Haybale Farm (north-west) ----
@@ -681,7 +729,7 @@ function buildWorld(){
   chestSpots.push({x:32,y:0,z:91,yaw:0});
   for(const [x,z,r] of [[48,42,0],[52,42,0],[50,40.8,0],[66,46,1],[70,46,1],[78,58,0],[30,62,1],[26,66,0],[86,70,1]])bale(x,z,r);
   fence(40,24,40,46);fence(40,50,40,54);fence(10,54,34,54);
-  sbox(66,0,62,70,1.6,64,0x3b7d3a,4);sbox(66.5,1.6,62.3,68,2.6,63.7,0x2d3a46,4);sbox(64.5,0,61.6,65.6,1.3,64.4,0x1c1d20,4);
+  brk(220,4,()=>{sbox(66,0,62,70,1.6,64,0x3b7d3a,4);sbox(66.5,1.6,62.3,68,2.6,63.7,0x2d3a46,4);sbox(64.5,0,61.6,65.6,1.3,64.4,0x1c1d20,4)});
   floorSpots.push({x:44,y:0,z:84},{x:20,y:0,z:60},{x:82,y:0,z:52});
   });
   // ---- Signal Point (north): a lattice tower with zigzag ramps to a lookout 20 m up ----
@@ -710,12 +758,12 @@ function buildWorld(){
     railing(151.9,156.1,152.15,159.8,4,0x2f6f68);railing(151.9,164.2,152.15,167.9,4,0x2f6f68);railing(175.85,156.1,176.1,159.8,4,0x2f6f68);railing(175.85,164.2,176.1,167.9,4,0x2f6f68);
     // shop row: partitions and a shop front with doors, a corridor in the middle to the north doors
     const SHC=0xd2c2a2;
-    for(const x of [148,156,160,168,172,180])wallRun(2,x,148.3,156,0,3.7,SHC,[],6,.25);
+    BRK=150;for(const x of [148,156,160,168,172,180])wallRun(2,x,148.3,156,0,3.7,SHC,[],6,.25);
     wallRun(0,156,140.3,160,0,3.7,SHC,[{at:146,w:2.2,lo:0,hi:2.8},{at:154,w:2.2,lo:0,hi:2.8},{at:158,w:2,lo:0,hi:2.8}],6,.25);
-    wallRun(0,156,168,187.7,0,3.7,SHC,[{at:170,w:2,lo:0,hi:2.8},{at:178,w:2.2,lo:0,hi:2.8},{at:186,w:2.2,lo:0,hi:2.8}],6,.25);
+    wallRun(0,156,168,187.7,0,3.7,SHC,[{at:170,w:2,lo:0,hi:2.8},{at:178,w:2.2,lo:0,hi:2.8},{at:186,w:2.2,lo:0,hi:2.8}],6,.25);BRK=0;
     mall.chest(0,0,0,0);mall.chest(3,0,0,0);mall.chest(7,0,0,0);mall.chest(10,0,0,0);mall.chest(1,5,1,Math.PI/2);mall.chest(10,1,1,-Math.PI/2);mall.chest(5,5,0,0);
     mall.floor(6,3,0);mall.floor(2,5,0);mall.floor(9,5,0);mall.floor(5,0,1);mall.floor(6,6,1);mall.floor(0,3,1);mall.floor(11,3,1);
-    for(const [x,z] of [[158,164],[168,160]]){sbox(x-1,0,z-1,x+1,.8,z+1,0x6f8f4a,4);shape(ICO,x,1.7,z,1.1,1.3,1.1,0x3f8a39)}
+    for(const [x,z] of [[158,164],[168,160]])brk(70,4,()=>{sbox(x-1,0,z-1,x+1,.8,z+1,0x6f8f4a,4);shape(ICO,x,1.7,z,1.1,1.3,1.1,0x3f8a39)});
     for(const [x,z] of [[184,174],[146,174],[184,150]])crate(x,z,4,1.4,0x9a7a52);}
   for(const [x,z,rot,c] of [[132,140,0,0xd44a3a],[132,148,0,0x3a76d4],[132,176,0,0xe8e2d4],[196,144,0,0x2e2e33],[196,170,0,0x4fa36a],[150,186,1,0xe0b13a],[176,186,1,0x7a4fd4],[160,138,1,0xd47a3a],[178,138,1,0x3ad4c4]])car(x,z,rot,c);
   });
@@ -743,19 +791,19 @@ function buildWorld(){
   paint({k:'rect',x0:60,z0:238,x1:80,z1:250,col:[.55,.8,.9]});
   {const doorsA=[];for(let i=0;i<12;i++){doorsA.push(['s',i,0],['s',i,1])}
     const wa=house(10,54,12,2,{levels:2,col:0xf3c6b8,trim:0x4b3f6b,roof:0x4b3f6b,floorCol:0xb9a08a,doors:doorsA,win:0});
-    for(let i=1;i<12;i++){wallRun(2,40+i*4,216.3,223.7,0,3.7,0xe9b8a8,[],6,.2);wallRun(2,40+i*4,216.3,223.7,4,3.7,0xe9b8a8,[],6,.2)}
-    sbox(40,3.7,224,88,4,228,0xb9a08a,6);railing(40,227.75,88,228,4,0x4b3f6b);
-    for(let x=40.3;x<88;x+=8)sbox(x-.15,0,227.6,x+.15,3.7,227.9,0x4b3f6b,2);
+    BRK=150;for(let i=1;i<12;i++){wallRun(2,40+i*4,216.3,223.7,0,3.7,0xe9b8a8,[],6,.2);wallRun(2,40+i*4,216.3,223.7,4,3.7,0xe9b8a8,[],6,.2)}BRK=0;
+    for(let x=40;x<88;x+=4)brk(180,6,()=>sbox(x,3.7,224,x+4,4,228,0xb9a08a,6));railing(40,227.75,88,228,4,0x4b3f6b);
+    for(let x=40.3;x<88;x+=8)brk(70,2,()=>sbox(x-.15,0,227.6,x+.15,3.7,227.9,0x4b3f6b,2));
     staticRamp(22,56,0,2,0x4b3f6b);
     wa.chest(1,1,0,0);wa.chest(6,1,0,0);wa.chest(10,1,0,0);wa.chest(3,1,1,0);wa.chest(9,1,1,0);
     wa.floor(4,1,0);wa.floor(8,1,0);wa.floor(0,1,1);wa.floor(6,1,1);wa.floor(11,1,1);
     const doorsB=[];for(let i=0;i<6;i++)doorsB.push(['e',i,0]);
     const wb=house(10,57,2,6,{col:0xf3c6b8,trim:0x4b3f6b,roof:0x4b3f6b,doors:doorsB,win:0});
-    for(let i=1;i<6;i++)wallRun(0,228+i*4,40.3,47.7,0,3.7,0xe9b8a8,[],6,.2);
+    BRK=150;for(let i=1;i<6;i++)wallRun(0,228+i*4,40.3,47.7,0,3.7,0xe9b8a8,[],6,.2);BRK=0;
     wb.chest(0,2,0,Math.PI/2);wb.floor(1,4,0);
     const off=house(24,59,2,2,{col:0x9fd7e6,trim:0x4b3f6b,roof:0xe2546b,doors:[['w',0],['n',1]],win:.7});
     off.chest(1,1,0,Math.PI);
-    sbox(99.6,0,229.6,100.4,9,230.4,0x4b3f6b,2);sbox(96,9,229.8,104,12,230.2,0xe2546b,2,true);sbox(96.4,9.4,229.6,103.6,11.6,229.8,0xffe9a8,0,true);
+    brk(120,2,()=>sbox(99.6,0,229.6,100.4,9,230.4,0x4b3f6b,2));brk(60,2,()=>{sbox(96,9,229.8,104,12,230.2,0xe2546b,2);sbox(96.4,9.4,229.6,103.6,11.6,229.8,0xffe9a8,0,true)});
     for(const [x,z] of [[60,237],[80,237],[60,251],[80,251]])sbox(x-.3,0,z-.3,x+.3,.25,z+.3,0xeeeeee,0,true);
     sbox(59.6,0,237.6,80.4,.2,238,0xf2f2f2,0,true);sbox(59.6,0,249.6,80.4,.2,250,0xf2f2f2,0,true);
     for(const x of [64,70,76])sbox(x-.5,0,252.5,x+.5,.6,254.5,0xf0f0ea,2);
@@ -779,11 +827,11 @@ function buildWorld(){
   place('Timber Camp',158,276,38);
   paint({k:'circle',x:158,z:276,r:30,col:[.52,.44,.3]});
   {for(const [cx,cz,dr] of [[34,66,'e'],[34,71,'e'],[43,66,'w'],[43,71,'w']]){const c=house(cx,cz,2,2,{col:0x8a5a34,trim:0x5a3a20,roof:0x4f6b36,doors:[[dr,1]],win:.5,hv:10});c.chest(dr==='e'?0:1,0,0,0);c.floor(1,1,0)}
-    for(const [x,z] of [[150,282],[158,282],[166,282],[150,294],[158,294],[166,294]])sbox(x-.3,0,z-.3,x+.3,5,z+.3,0x5a3a20,10);
-    sbox(148,5,280,168,5.3,296,0x6b4a2a,10);
+    for(const [x,z] of [[150,282],[158,282],[166,282],[150,294],[158,294],[166,294]])brk(100,10,()=>sbox(x-.3,0,z-.3,x+.3,5,z+.3,0x5a3a20,10));
+    for(let x=148;x<168;x+=4)for(let z=280;z<296;z+=4)brk(100,10,()=>sbox(x,5,z,x+4,5.3,z+4,0x6b4a2a,10));
     chestSpots.push({x:158,y:0,z:288,yaw:0});
-    for(let i=0;i<3;i++){const z=262+i*1.1;_e.set(0,0,Math.PI/2);_q.setFromEuler(_e);_m4.compose(_p.set(158,.55+(i%2)*.0,z),_q,_s.set(.55,7,.55));bagAdd(chunkOf(158,z),CYL,_m4,0x7a5232,1)}
-    solid(154.5,0,261.4,161.5,1.1,264.8,12);
+    brk(120,12,()=>{for(let i=0;i<3;i++){const z=262+i*1.1;_e.set(0,0,Math.PI/2);_q.setFromEuler(_e);_m4.compose(_p.set(158,.55+(i%2)*.0,z),_q,_s.set(.55,7,.55));bagAdd(chunkOf(158,z),CYL,_m4,0x7a5232,1)}
+    solid(154.5,0,261.4,161.5,1.1,264.8,12)});
     floorSpots.push({x:158,y:0,z:272},{x:146,y:0,z:276},{x:170,y:0,z:276},{x:158,y:5.3,z:288});}
   });
   // ---- sheds along the tracks ----
@@ -835,12 +883,76 @@ function finishWorld(){
   gg.setAttribute('color',new THREE.BufferAttribute(col,3));gg.computeVertexNormals();
   groundMesh=new THREE.Mesh(gg,MAT);scene.add(groundMesh);
   seaMesh=new THREE.Mesh(new THREE.PlaneGeometry(3000,3000).rotateX(-Math.PI/2),new THREE.MeshLambertMaterial({color:0x2f93bf}));seaMesh.position.set(MAP/2,-.5,MAP/2);scene.add(seaMesh);
-  for(const B of chunks){if(!B.p.length)continue;const m=new THREE.Mesh(bagGeo(B),MAT);scene.add(m);staticMeshes.push(m)}
+  for(const B of chunks){if(!B.p.length)continue;const m=new THREE.Mesh(bagGeo(B),MAT);scene.add(m);staticMeshes.push(m);
+    // keep the original positions and colours, to restore broken and damaged pieces for the next match
+    B.mesh=m;B.pos=m.geometry.attributes.position;B.col=m.geometry.attributes.color;B.pos.setUsage(THREE.DynamicDrawUsage);B.col.setUsage(THREE.DynamicDrawUsage);
+    B.p0=B.pos.array.slice();B.c0=B.col.array.slice();B.p=B.n=B.c=null}
+  mpLink();
   // clouds, all one mesh, above the Drifter's line
   const cb=Bag(),rr=mulberry(99);
   for(let i=0;i<26;i++){const x=-200+rr()*(MAP+400),z=-200+rr()*(MAP+400),y=150+rr()*40;for(let k=0;k<3;k++)shape(ICO,x+k*9-9,y+rr()*3,z+rr()*6,8+rr()*6,3+rr()*2,6+rr()*4,0xffffff,rr()*3,1,cb)}
   cloudMesh=new THREE.Mesh(bagGeo(cb),new THREE.MeshBasicMaterial({vertexColors:true,fog:false,transparent:true,opacity:.9}));scene.add(cloudMesh);
 }
+/* ---------- breaking the map ---------- */
+// Which pieces touch which, and which touch the ground or something that never breaks. A piece that loses every
+// path to the ground (a roof whose walls are all gone, a wall's upper storey with nothing beside or below it) falls too.
+function mpLink(){
+  const E=.06,ph=new Map(),key=(i,j)=>i*4096+j;
+  for(const P of mpieces){P.cells=[];for(let i=Math.floor((P.min[0]-E)/HS);i<=Math.floor((P.max[0]+E)/HS);i++)for(let j=Math.floor((P.min[2]-E)/HS);j<=Math.floor((P.max[2]+E)/HS);j++){const k=key(i,j);let a=ph.get(k);if(!a)ph.set(k,a=[]);a.push(P)}
+    const B=P.parts.length?P.parts[0].B:null;if(B){const i=P.parts[0].start*3;P.hex=new THREE.Color(B.c0[i],B.c0[i+1],B.c0[i+2]).getHex()}else P.hex=0x9a8f80}
+  const touch=(a,b)=>a.min[0]<=b.max[0]+E&&a.max[0]>=b.min[0]-E&&a.min[1]<=b.max[1]+E&&a.max[1]>=b.min[1]-E&&a.min[2]<=b.max[2]+E&&a.max[2]>=b.min[2]-E;
+  const seen=new Set(),NB=[];
+  for(const P of mpieces){
+    seen.clear();
+    for(let i=Math.floor((P.min[0]-E)/HS);i<=Math.floor((P.max[0]+E)/HS);i++)for(let j=Math.floor((P.min[2]-E)/HS);j<=Math.floor((P.max[2]+E)/HS);j++)for(const Q of ph.get(key(i,j))||[]){if(Q===P||seen.has(Q))continue;seen.add(Q);if(touch(P,Q))P.nb.push(Q)}
+    P.gr=P.min[1]<=.05;
+    if(!P.gr){near(hash,P.min[0]-E,P.min[2]-E,P.max[0]+E,P.max[2]+E,NB);for(const s of NB)if(!s.mp&&!s.piece&&touch(P,s)){P.gr=true;break}}
+  }
+}
+// Changed vertex ranges are sent to the GPU once a frame, one range per chunk and attribute.
+const mpDirty=new Set();
+function mpMark(B,a,start,count){const k=a==='pos'?'dp':'dc',r=B[k]||(B[k]=[1e9,-1]);r[0]=Math.min(r[0],start);r[1]=Math.max(r[1],start+count);mpDirty.add(B)}
+function mpFlush(){for(const B of mpDirty){for(const [k,at] of [['dp',B.pos],['dc',B.col]]){const r=B[k];if(!r||r[1]<0)continue;at.updateRange.offset=r[0]*3;at.updateRange.count=(r[1]-r[0])*3;at.needsUpdate=true;B[k]=null}}mpDirty.clear()}
+const MP_SHADE=[1,.76,.56];
+function mpShade(P){const f=MP_SHADE[P.stage];for(const pt of P.parts){const a=pt.B.col.array,o=pt.B.c0;for(let i=pt.start*3,e=(pt.start+pt.count)*3;i<e;i++)a[i]=o[i]*f;mpMark(pt.B,'col',pt.start,pt.count)}}
+function mpStage(P){const f=P.hp/P.mhp,st=f>.66?0:f>.33?1:2;if(st!==P.stage){P.stage=st;mpShade(P)}}
+// Breaking is final: a piece's health only ever goes down (the lowest anyone reports wins).
+function mpSetHp(P,hp,by){if(!P||P.broken||!(hp<P.hp))return;P.hp=hp;if(hp<=0)mpBreak(P,true,by);else mpStage(P)}
+const _mc=new V3();
+function mpBreak(P,fx,by,whole){
+  if(P.broken)return;P.broken=true;P.hp=0;brokenN++;
+  for(const pt of P.parts){const a=pt.B.pos.array,s0=pt.start*3,e=(pt.start+pt.count)*3,x=a[s0],y=a[s0+1],z=a[s0+2];for(let i=s0;i<e;i+=3){a[i]=x;a[i+1]=y;a[i+2]=z}mpMark(pt.B,'pos',pt.start,pt.count)}
+  for(const s of P.solids){hashOut(hash,s);s.gone=true}
+  _mc.set((P.min[0]+P.max[0])/2,(P.min[1]+P.max[1])/2,(P.min[2]+P.max[2])/2);
+  if(fx){const big=Math.max(P.max[0]-P.min[0],P.max[1]-P.min[1],P.max[2]-P.min[2])>2.5;debris(_mc,P.hex,big?12:6);sfxBreak(1/(1+camera.position.distanceTo(_mc)*.07))}
+  if(by&&by.alive&&P.hv){by.mats=Math.min(MAX_MATS,by.mats+P.hv*2);if(by===player)hint2('+'+P.hv*2+' scrap','#f2d29b')}
+  // whatever stood on it settles: chests and loot drop to what's under them now
+  for(const c of chests)if(c.y>.05&&c.x>P.min[0]-1&&c.x<P.max[0]+1&&c.z>P.min[2]-1&&c.z<P.max[2]+1&&c.y>=P.min[1]-.2&&c.y<=P.max[1]+.6){c.y=groundAt(c.x,c.z,c.y-.01);drawChest(c)}
+  for(const it of itemList)if(it.y>.05&&it.x>P.min[0]-1&&it.x<P.max[0]+1&&it.z>P.min[2]-1&&it.z<P.max[2]+1&&it.y>=P.min[1]-.2&&it.y<=P.max[1]+.6)it.y=groundAt(it.x,it.z,it.y-.01);
+  if(online&&Net.amHost)Net.publishSoon();
+  // and anything that was only held up by it comes down
+  if(!whole)for(const Q of P.nb)if(!Q.broken&&!mpGrounded(Q)){const comp=mpComp.slice();for(const R of comp)mpBreak(R,fx&&comp.length<40,null,true)}
+}
+const mpComp=[];let mpQ=0;
+function mpGrounded(P){
+  const q=++mpQ;mpComp.length=0;const st=[P];P.q=q;
+  while(st.length){const A=st.pop();mpComp.push(A);if(A.gr)return true;for(const B of A.nb)if(!B.broken&&B.q!==q){B.q=q;st.push(B)}}
+  return false;
+}
+function resetMap(){
+  for(const P of mpieces){if(!P.broken&&P.hp===P.mhp)continue;
+    for(const pt of P.parts){const a=pt.B.pos.array,o=pt.B.p0,c=pt.B.col.array,oc=pt.B.c0;for(let i=pt.start*3,e=(pt.start+pt.count)*3;i<e;i++){a[i]=o[i];c[i]=oc[i]}mpMark(pt.B,'pos',pt.start,pt.count);mpMark(pt.B,'col',pt.start,pt.count)}
+    if(P.broken)for(const s of P.solids){hashIn(hash,s);s.gone=false}
+    P.broken=false;P.hp=P.mhp;P.stage=0}
+  brokenN=0;mpBits='';mpBitsN=-1;
+  for(const c of chests){c.y=chestSpots[c.id].y;drawChest(c)}
+}
+// the host's list of broken pieces: a bitset, base64, trailing zeros dropped (a few hundred characters at most)
+let mpBits='',mpBitsN=-1;
+function brokenBits(){if(mpBitsN===brokenN)return mpBits;const by=new Uint8Array(Math.ceil(mpieces.length/8));for(const P of mpieces)if(P.broken)by[P.id>>3]|=1<<(P.id&7);
+  let e=by.length;while(e>0&&!by[e-1])e--;let t='';for(let i=0;i<e;i++)t+=String.fromCharCode(by[i]);mpBits=btoa(t);mpBitsN=brokenN;return mpBits}
+function applyBits(b){if(typeof b!=='string'||b.length>1200)return;let t;try{t=atob(b)}catch(e){return}
+  for(let i=0;i<t.length;i++){const v=t.charCodeAt(i);if(v)for(let k=0;k<8;k++)if(v&(1<<k)){const P=mpieces[i*8+k];if(P&&!P.broken)mpBreak(P,camera.position.distanceTo(_mc.set(P.min[0],P.min[1],P.min[2]))<60,null)}}}
 function placeAt(x,z){let best=null,bd=1e9;for(const p of places){const d=Math.hypot(x-p.x,z-p.z);if(d<p.r&&d<bd){bd=d;best=p}}return best}
 
 /* ---------- chests and floor loot: instanced, one draw call each ---------- */
@@ -994,17 +1106,20 @@ function removePiece(pc,fx){
   if(pc.solid)hashOut(hash,pc.solid);
   if(pc.ramp){hashOut(rhash,pc.ramp);const i=ramps.indexOf(pc.ramp);if(i>=0)ramps.splice(i,1)}
   const P=pieceInst[pc.kind],last=P.list.pop();
-  if(last!==pc){P.list[pc.ix]=last;last.ix=pc.ix;P.mesh.setMatrixAt(last.ix,pieceMatrix(last.spec));const f=last.hp/last.max;P.mesh.setColorAt(last.ix,_col.setRGB(.45+.55*f,.4+.6*f,.38+.62*f))}
+  if(last!==pc){P.list[pc.ix]=last;last.ix=pc.ix;P.mesh.setMatrixAt(last.ix,pieceMatrix(last.spec));P.mesh.setColorAt(last.ix,pieceTint(last))}
   P.mesh.count=P.list.length;P.mesh.instanceMatrix.needsUpdate=true;if(P.mesh.instanceColor)P.mesh.instanceColor.needsUpdate=true;
-  if(fx){const c=pieceCentre(pc.spec);debris(c);sfxBreak(1/(1+camera.position.distanceTo(c)*.07))}
+  if(fx){const c=pieceCentre(pc.spec);debris(c,0xc7955a,10);sfxBreak(1/(1+camera.position.distanceTo(c)*.07))}
 }
 function pieceCentre(s){const b=pieceBox(s);return new V3((b.min[0]+b.max[0])/2,(b.min[1]+b.max[1])/2,(b.min[2]+b.max[2])/2)}
 function clearPieces(){for(const pc of [...pieces.values()])removePiece(pc,false)}
 function damagePiece(pc,amt){
   if(!pc||!pieces.has(pc.key))return;
   pc.hp-=amt;if(pc.hp<=0){removePiece(pc,true);return}
-  const f=pc.hp/pc.max,P=pieceInst[pc.kind];P.mesh.setColorAt(pc.ix,_col.setRGB(.45+.55*f,.4+.6*f,.38+.62*f));if(P.mesh.instanceColor)P.mesh.instanceColor.needsUpdate=true;
+  const P=pieceInst[pc.kind];P.mesh.setColorAt(pc.ix,pieceTint(pc));if(P.mesh.instanceColor)P.mesh.instanceColor.needsUpdate=true;
 }
+// three damage stages: whole, worn (darker) and nearly gone (darker still)
+function pieceTint(pc){const f=pc.hp/pc.max,k=f>.66?1:f>.33?.74:.5;return _col.setRGB(k,k*.95,k*.92)}
+function setPieceHp(pc,hp){if(pc&&pieces.has(pc.key)&&hp<pc.hp)damagePiece(pc,pc.hp-hp)}
 // owner: the entity that built it (its own builds online are sent to everyone else in the room)
 function tryBuild(s,owner,quiet){
   if(!specValid(s))return false;
@@ -1183,7 +1298,7 @@ function makeModel(hex,skinIx){
 function setModelColor(model,hex,skinIx){const u=model.userData;if(u.hex===hex)return;u.hex=hex;u.body.geometry.dispose();u.body.geometry=bodyGeo(hex,SKINS[(skinIx|0)%SKINS.length])}
 function setHeldModel(model,key){const u=model.userData;const k=GUN_GEO[key]?key:HEALS[key]?(HEALS[key].sh?'sh':'hp'):'cb';if(u.gk===k)return;u.gk=k;u.gun.geometry=GUN_GEO[k]}
 function disposeModel(m){if(m&&m.userData.body)m.userData.body.geometry.dispose()}
-// Entities: you, the other players (remotes) and bots. local: moved by this browser's physics (you, and bots on the host).
+// Entities: you, the other players (remotes) and, in Practice only, bots. local: moved by this browser's physics (you, and Practice bots).
 function newEnt(model){return{pos:new V3(),vel:new V3(),onGround:false,hp:100,sh:0,alive:true,present:true,hittable:true,local:false,yaw:0,pitch:0,model,walk:0,
   inv:[null,null,null,null],sel:0,ammo:{L:0,M:0,S:0,H:0},mats:0,cd:0,reloadT:0,switchT:0,useT:0,useSlot:-1,st:'ground',float:false,glide:false,dieT:0,kills:0,dmg:0,place:0,name:'',id:'',hex:0xffffff}}
 const heldItem=e=>e.sel>=0?e.inv[e.sel]:null;
@@ -1201,7 +1316,7 @@ const bitMesh=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),new THREE.Mes
 const bits=[];
 function bit(p,v,hex,size,life,grav){if(bits.length>=BIT_CAP)bits.shift();bits.push({p:p.clone(),v,hex,size,life,max:life,g:grav})}
 function spark(p){for(let i=0;i<2;i++)bit(p,new V3((Math.random()-.5)*3,Math.random()*2,(Math.random()-.5)*3),0xfff1b0,.1,.12,0)}
-function debris(p){for(let i=0;i<8;i++)bit(p.clone().add(new V3((Math.random()-.5)*2.4,(Math.random()-.5)*2,(Math.random()-.5)*2.4)),new V3((Math.random()-.5)*5,Math.random()*5,(Math.random()-.5)*5),0xc7955a,.35,.9,14)}
+function debris(p,hex,n){for(let i=0;i<(n||8);i++)bit(p.clone().add(new V3((Math.random()-.5)*2.4,(Math.random()-.5)*2,(Math.random()-.5)*2.4)),new V3((Math.random()-.5)*5,Math.random()*5,(Math.random()-.5)*5),hex||0xc7955a,.35,.9,14)}
 function puff(p,hex){for(let i=0;i<6;i++)bit(p.clone(),new V3((Math.random()-.5)*4,1+Math.random()*3,(Math.random()-.5)*4),hex,.25,.6,6)}
 function updateFx(dt){
   let dirty=false;for(let i=0;i<TR_CAP;i++)if(trLife[i]>0){trLife[i]-=dt;if(trLife[i]<=0){trPos.fill(0,i*6,i*6+6);dirty=true}}
@@ -1412,7 +1527,7 @@ function killFeed(k,v,w){
 }
 function muzzleOf(e){return e.pos.clone().add(new V3(0,1.38,0)).addScaledVector(rightOf(e.yaw),.3).addScaledVector(fwdOf(e.yaw,e.pitch),.5)}
 function resolveShot(shooter,w,r,rays,color){
-  const entAcc=new Map(),pcAcc=new Map(),ends=[];
+  const entAcc=new Map(),pcAcc=new Map(),mpAcc=new Map(),ends=[];
   for(const ry of rays){
     const res=raycast(arr(ry.o),arr(ry.d),ry.max,shooter,true);
     const end=ry.o.clone().addScaledVector(ry.d,res.t);ends.push(end);
@@ -1422,10 +1537,14 @@ function resolveShot(shooter,w,r,rays,color){
     if(w.falloff)dmg*=res.t<6?1:Math.max(.3,1-(res.t-6)/22);
     else if(w.fall&&res.t>w.fall[0])dmg*=Math.max(w.fall[1],1-(res.t-w.fall[0])/(w.range-w.fall[0])*(1-w.fall[1]));
     if(res.hit.kind==='ent'){const a=entAcc.get(res.hit.ent)||{d:0,head:false,pt:end};a.d+=dmg*(res.hit.head&&w!==CROW?w.head:1);a.head=a.head||res.hit.head;entAcc.set(res.hit.ent,a)}
-    else{spark(end);if(res.hit.kind==='piece')pcAcc.set(res.hit.piece,(pcAcc.get(res.hit.piece)||0)+(w===CROW?CROW.build:dmg*w.build));
-      else if(w===CROW&&res.hit.s&&res.hit.s.hv&&shooter.alive){shooter.mats=Math.min(MAX_MATS,shooter.mats+res.hit.s.hv);if(shooter===player)hint2('+'+res.hit.s.hv+' scrap','#f2d29b')}}
+    else{spark(end);const sdm=w===CROW?CROW.build:w.sd*(1+.07*(r|0))*(dmg/wDmg(w,r));   // structure damage, with the same falloff
+      if(res.hit.kind==='piece')pcAcc.set(res.hit.piece,(pcAcc.get(res.hit.piece)||0)+sdm);
+      else{const mp=res.hit.s&&res.hit.s.mp;if(mp&&!mp.broken)mpAcc.set(mp,(mpAcc.get(mp)||0)+sdm)}
+      if(res.hit.kind!=='piece'&&w===CROW&&res.hit.s&&res.hit.s.hv&&shooter.alive){shooter.mats=Math.min(MAX_MATS,shooter.mats+res.hit.s.hv);if(shooter===player)hint2('+'+res.hit.s.hv+' scrap','#f2d29b')}}
   }
-  const pd=[];for(const [pc,d] of pcAcc){pd.push([pc.key,Math.round(d)]);damagePiece(pc,d)}
+  // builds and map pieces: the shooter decides the damage and reports the new health
+  const pd=[];for(const [pc,d] of pcAcc){damagePiece(pc,d);pd.push([pc.key,Math.max(0,Math.round(pc.hp))])}
+  const md=[];for(const [P,d] of mpAcc){mpSetHp(P,P.hp-d,shooter);md.push([P.id,Math.max(0,Math.round(P.hp))])}
   const hs=[],mine=shooter===player||(shooter.bot&&amHost());
   for(const [e,a] of entAcc){
     const amt=Math.max(1,Math.round(a.d));
@@ -1433,7 +1552,7 @@ function resolveShot(shooter,w,r,rays,color){
     if(e.local&&mine)damageEntity(e,amt,a.head,shooter===player?myId():shooter.id,a.pt,w.id);   // you or a bot this browser runs
     else hs.push([e.id,amt,a.head?1:0,r2(a.pt.x),r2(a.pt.y),r2(a.pt.z)]);
   }
-  return{ends,pd,hs};
+  return{ends,pd,md,hs};
 }
 // Right-click or hold Shift to aim; with the sniper that brings up the scope.
 function isADS(){return state==='playing'&&!paused&&mode==='combat'&&held('aim')&&player.alive&&player.st==='ground'&&player.reloadT<=0&&!!heldW(player)}
@@ -1452,7 +1571,7 @@ function shootFrom(e,w,r,camF,cp,ads,color){
   sfxShot(w.id,e===player?1:1/(1+camera.position.distanceTo(mz)*.05));
   if(w===CROW&&res.ends.length)sfxWhack(e===player?1:.4);
   const ev={k:'s',w:w.id,r:r|0,o:arr(mz).map(r2),e:w===CROW?[]:res.ends.map(v=>arr(v).map(r1))};
-  if(res.pd.length)ev.pd=res.pd;if(res.hs.length)ev.hs=res.hs;
+  if(res.pd.length)ev.pd=res.pd;if(res.md.length)ev.md=res.md;if(res.hs.length)ev.hs=res.hs;
   sendEv(ev,e);
 }
 function playerShoot(){
@@ -1567,7 +1686,8 @@ function recordStats(place,win){
   BackRoomStats.add('matches',1);if(myKills>0)BackRoomStats.max('kills',myKills);BackRoomStats.min('place',place);if(win)BackRoomStats.add('wins',1);
 }
 
-/* ---------- bots (run by the host: online the host's browser, offline yours) ---------- */
+/* ---------- Practice bots (offline only; online matches are people only) ----------
+   Tuned to be beatable while you learn: they're slow to react, aim loosely, fire slower than they could and rarely build. */
 function makeBot(id){
   const i=parseInt(id.slice(1),10)|0,hex=hexNum(PCOLS[(i*3+2)%PCOLS.length]);
   const b=newEnt(makeModel(hex,i));b.id=id;b.bot=true;b.hex=hex;b.name=botName(id);b.snaps=[];b.lag=NetSmooth.lag();
@@ -1577,8 +1697,8 @@ function clearBots(){for(const b of bots.values()){scene.remove(b.model);dispose
 function botBrain(b,rnd){
   const r=rnd||Math.random;
   const c=chests.filter(c=>c.present)[Math.floor(r()*chests.filter(c=>c.present).length)]||{x:MAP/2,z:MAP/2};
-  b.ai={jumpAt:busLine.tIn+.5+r()*Math.max(1,busLine.tOut-busLine.tIn-1.5),land:{x:c.x+(r()-.5)*8,z:c.z+(r()-.5)*8},goal:null,think:0,target:null,seenT:0,react:.35+r()*.35,
-    aimErr:.03+r()*.035,strafe:1,strafeT:0,stuck:0,jumpCd:0,buildCd:0,hurt:0,threat:null,lastPos:new V3(),wander:0,healCd:0,path:[],bad:new Map()};
+  b.ai={jumpAt:busLine.tIn+.5+r()*Math.max(1,busLine.tOut-busLine.tIn-1.5),land:{x:c.x+(r()-.5)*8,z:c.z+(r()-.5)*8},goal:null,think:0,target:null,seenT:0,react:.8+r()*.6,
+    aimErr:.075+r()*.05,strafe:1,strafeT:0,stuck:0,jumpCd:0,buildCd:0,hurt:0,threat:null,lastPos:new V3(),wander:0,healCd:0,path:[],bad:new Map()};
 }
 // a bot's local brain; becomes local when this browser is (or becomes) the host
 function botLocal(b){
@@ -1616,7 +1736,11 @@ function botThink(b,t){
   const hasGun=b.inv.some(s=>s&&WEAP[s.t]&&(s.n>0||b.ammo[WEAP[s.t].am]>0));
   // targets: nearest enemy in sight
   const en=enemyOf(b);ai.target=null;
-  if(en&&en.d<(hasGun?95:12)){const a=b.pos.clone().add(new V3(0,1.6,0)),c=en.e.pos.clone().add(new V3(0,1.2,0));if(lineClear(a,c)){ai.target=en.e;ai.tDist=en.d;ai.seenT+=.4}else ai.seenT=0}else ai.seenT=0;
+  if(en&&en.d<(hasGun?70:12)){const a=b.pos.clone().add(new V3(0,1.6,0)),c=en.e.pos.clone().add(new V3(0,1.2,0));if(lineClear(a,c)){ai.target=en.e;ai.tDist=en.d;ai.seenT+=.4}
+    // close, behind something that breaks (a build, a wall, a tree): shoot through it
+    else if(hasGun&&en.d<35){const d=c.clone().sub(a),L=d.length();d.divideScalar(L);const h=raycast(arr(a),arr(d),L,null,false).hit;
+      if(h&&(h.kind==='piece'||(h.s&&h.s.mp&&!h.s.mp.broken))){ai.target=en.e;ai.tDist=en.d;ai.seenT+=.25}else ai.seenT=0}
+    else ai.seenT=0}else ai.seenT=0;
   // the storm comes first
   const dS=Math.hypot(b.pos.x-S.x,b.pos.z-S.z),dN=Math.hypot(b.pos.x-S.nx,b.pos.z-S.nz);
   if(dS>S.r-6||(S.showNext&&dN>S.nr-4&&S.left<35)){if(!ai.goal||!ai.goal.storm){const a=Math.atan2(S.nz-b.pos.z,S.nx-b.pos.x),rr=Math.max(2,S.nr*.4);setGoal(b,{x:S.nx-Math.cos(a)*rr*.5,z:S.nz-Math.sin(a)*rr*.5,storm:true})}return}
@@ -1644,17 +1768,17 @@ function updateBot(b,dt,t){
     const d=b.pos.distanceTo(tg.pos);
     const has=botPickWeapon(b,d);
     // face the target, with a little error that shrinks the longer it's been in sight
-    const err=ai.aimErr*(1+Math.max(0,1.2-ai.seenT))+(tg.vel?Math.hypot(tg.vel.x,tg.vel.z)*.004:0);
+    const err=ai.aimErr*(1+Math.max(0,1.2-ai.seenT))+(tg.vel?Math.hypot(tg.vel.x,tg.vel.z)*.008:0);
     const aim=tg.pos.clone().add(new V3((Math.random()-.5)*err*d,1.1+(Math.random()-.5)*err*d,(Math.random()-.5)*err*d));
     const hd=b.pos.clone().add(new V3(0,1.62,0));b.yaw=yawTo(aim.x-hd.x,aim.z-hd.z);b.pitch=Math.atan2(aim.y-hd.y,Math.hypot(aim.x-hd.x,aim.z-hd.z));
     ai.strafeT-=dt;if(ai.strafeT<=0){ai.strafeT=.6+Math.random()*1.2;ai.strafe=Math.random()<.5?-1:1}
     const r=rightOf(b.yaw),f=fwdOf(b.yaw,0);const want=has?(heldW(b)&&heldW(b).id==='sg'?6:heldW(b)&&heldW(b).id==='sr'?50:18):1.6;
     const fw=d>want+4?1:d<want-3?-.6:0;mx=f.x*fw+r.x*ai.strafe*.8;mz=f.z*fw+r.z*ai.strafe*.8;
     if(ai.seenT>ai.react&&(has||d<CROW.range+.5)){const w=heldW(b),s=heldItem(b);
-      if(!w||d<(w.range||3)){if(w&&s.n<=0)startReload(b);else if(b.cd<=0&&b.reloadT<=0&&b.switchT<=0){botShoot(b,w,s);if(w){s.n--;b.cd=w.rate*1.3}else b.cd=CROW.rate}}}
+      if(!w||d<(w.range||3)){if(w&&s.n<=0)startReload(b);else if(b.cd<=0&&b.reloadT<=0&&b.switchT<=0){botShoot(b,w,s);if(w){s.n--;b.cd=w.rate*1.9+.08}else b.cd=CROW.rate*1.5}}}
     // under fire with scrap: throw up a wall toward the shooter now and then
-    if(ai.hurt>0&&b.mats>=COST&&ai.buildCd<=0&&Math.random()<.02){const dir=Math.abs(f.x)>Math.abs(f.z)?(f.x>0?0:2):(f.z>0?1:3);const s=wallSpec(Math.floor(b.pos.x/4),Math.floor(b.pos.z/4),dir,Math.max(0,Math.floor((b.pos.y+.4)/4)));
-      if(tryBuild(s,b)){b.mats-=COST;sendEv({k:'b',s},b)}ai.buildCd=3+Math.random()*3}
+    if(ai.hurt>0&&b.mats>=COST&&ai.buildCd<=0&&Math.random()<.006){const dir=Math.abs(f.x)>Math.abs(f.z)?(f.x>0?0:2):(f.z>0?1:3);const s=wallSpec(Math.floor(b.pos.x/4),Math.floor(b.pos.z/4),dir,Math.max(0,Math.floor((b.pos.y+.4)/4)));
+      if(tryBuild(s,b)){b.mats-=COST;sendEv({k:'b',s},b)}ai.buildCd=8+Math.random()*6}
   }else{
     // heal when it's quiet
     if(b.useT<=0&&ai.healCd<=0&&(b.hp<70||b.sh<50)){const i=b.inv.findIndex(s=>s&&HEALS[s.t]&&canHeal(b,HEALS[s.t]));if(i>=0){selectSlot(b,i);b.useT=HEALS[b.inv[i].t].use;b.useSlot=i;ai.healCd=1}}
@@ -1673,8 +1797,13 @@ function updateBot(b,dt,t){
   moveEntity(b,dt);
   // stuck: jump, then try another way
   const moved=Math.hypot(b.pos.x-ai.lastPos.x,b.pos.z-ai.lastPos.z);ai.lastPos.copy(b.pos);
-  if((mx||mz)&&moved<spd*dt*.3){ai.stuck+=dt;if(ai.stuck>.35&&b.onGround&&ai.jumpCd<=0){b.vel.y=JUMP;b.onGround=false;ai.jumpCd=.8}if(ai.stuck>2.2){ai.stuck=0;const k=goalKey(ai.goal);if(k)ai.bad.set(k,performance.now()+25000);const a=Math.random()*Math.PI*2;setGoal(b,{x:clamp(b.pos.x+Math.cos(a)*14,10,MAP-10),z:clamp(b.pos.z+Math.sin(a)*14,10,MAP-10)});ai.wander=3}}
-  else ai.stuck=Math.max(0,ai.stuck-dt);
+  if((mx||mz)&&moved<spd*dt*.3){ai.stuck+=dt;if(ai.stuck>.35&&b.onGround&&ai.jumpCd<=0){b.vel.y=JUMP;b.onGround=false;ai.jumpCd=.8}
+    // stuck against something breakable in the way: break through it (a few tries, then go another way as before)
+    if(ai.stuck>.7&&(ai.brk|0)<10&&b.cd<=0&&b.useT<=0){const L=Math.hypot(mx,mz),dr=[mx/L,0,mz/L],o=[b.pos.x,b.pos.y+1,b.pos.z],h=raycast(o,dr,1.6,null,false).hit;
+      if(h&&(h.kind==='piece'||(h.s&&h.s.mp&&!h.s.mp.broken))){ai.brk=(ai.brk|0)+1;b.yaw=yawTo(dr[0],dr[2]);b.pitch=-.2;const w=heldW(b),s=heldItem(b);
+        if(w&&s.n>0&&b.reloadT<=0){botShoot(b,w,s);s.n--;b.cd=w.rate*1.9+.08}else{botShoot(b,null,null);b.cd=CROW.rate*1.5}ai.stuck=.4}}
+    if(ai.stuck>2.2){ai.stuck=0;const k=goalKey(ai.goal);if(k)ai.bad.set(k,performance.now()+25000);const a=Math.random()*Math.PI*2;setGoal(b,{x:clamp(b.pos.x+Math.cos(a)*14,10,MAP-10),z:clamp(b.pos.z+Math.sin(a)*14,10,MAP-10)});ai.wander=3}}
+  else{ai.stuck=Math.max(0,ai.stuck-dt);if(moved>spd*dt*.6)ai.brk=0}
   stormDamage(b,dt,t);
 }
 function botShoot(b,w,s){
@@ -1691,28 +1820,28 @@ function resetEnt(e){
 function setupMatch(ms){
   curMatch=ms.id;seed=ms.sd>>>0;roster=String(ms.ro||'').split(',').filter(Boolean).slice(0,MAX_ROOM);
   busLine=makeBus(seed);storm=makeStorm(seed);
-  clearPieces();spawnLoot();bits.length=0;
+  clearPieces();resetMap();Net.brApplied='';spawnLoot();bits.length=0;
   Net.oc=[];Net.pk=[];endShown=0;myResult=null;myKills=0;watchMode=false;specId=null;matchStartAt=performance.now();
   hud.feed.innerHTML='';
   inMatch=roster.includes(myId());
   resetEnt(player);player.id=myId();player.present=inMatch;player.alive=inMatch;player.st=inMatch?'bus':'out';
   if(inMatch)busPos(0,player.pos);
   player.yaw=Math.atan2(-busLine.dx,-busLine.dz);player.pitch=-.25;
-  // bots: the host runs them; everyone else draws them from the host's node
+  // bots exist only in Practice (offline), where this browser runs them
   clearBots();
   const rnd=mulberry((seed^0x77)>>>0);
-  for(const id of roster)if(isBotId(id)){const b=makeBot(id);resetEnt(b);b.wkey='cb';if(amHost()){botBrain(b,rnd);botLocal(b)}else{b.local=false;b.present=false}}
+  if(!online)for(const id of roster)if(isBotId(id)){const b=makeBot(id);resetEnt(b);b.wkey='cb';botBrain(b,rnd);botLocal(b)}
   for(const e of remotes.values()){e.snaps.length=0;e.lag.reset();e.alive=roster.includes(e.id);e.st=e.alive?'bus':'out';e.present=false;e.place=0;e.kills=0;e.ocS='';e.pkS=''}
   for(const [uid,o] of (online?Net.others:new Map()))reconcile(uid,o.v);
   rebuildEnts();
   hideLobby();$('end').hidden=true;showHud();
-  if(inMatch)banner('ALL ABOARD',`${roster.length} players · ${roster.filter(isBotId).length} bots · jump when you like`,3);
+  if(inMatch)banner('ALL ABOARD',practice?`Practice · you and ${roster.filter(isBotId).length} bots · jump when you like`:`${roster.length} players · jump when you like`,3);
   else if(online){watchMode=false;showLobby()}
   else{watchMode=true;banner('WATCHING','You\'ll drop in the next match',3)}
 }
 function endMatchView(){
   // back to the lobby (online) or the menu (practice)
-  curMatch=0;roster=[];inMatch=false;clearBots();clearPieces();clearLoot();stormMesh.visible=false;busMesh.visible=false;
+  curMatch=0;roster=[];inMatch=false;clearBots();clearPieces();clearLoot();resetMap();stormMesh.visible=false;busMesh.visible=false;
   player.present=false;player.alive=false;player.st='out';
   for(const e of remotes.values()){e.present=false;e.alive=false}
 }
@@ -1721,7 +1850,7 @@ function endMatchView(){
 // Each event has a number i that only goes up (it starts from the clock when you join), so others take each one once.
 function sendEv(ev,actor){
   if(!online||!Net.refs||!curMatch)return;
-  if(actor&&actor.bot){if(!Net.amHost)return;ev.f=actor.id}else if(actor&&actor!==player)return;
+  if(actor&&actor!==player)return;
   ev.i=++Net.evSeq;ev.m=curMatch;ev.t=Math.round(Net.now());
   Net.evOut.push(ev);Net.soon=true;
 }
@@ -1749,7 +1878,7 @@ function acceptHit(shooter,victim,wid,r,dmg,o){
 function handleEvent(from,e){
   if(!e||typeof e!=='object'||!curMatch||e.m!==curMatch)return;
   let actorId=from;
-  if(e.f!=null){if(from!==Net.hostUid&&from!==Net.prevHost)return;actorId=String(e.f);if(!isBotId(actorId))return}
+  if(e.f!=null)return;   // events on behalf of bots (online bots are gone)
   const actor=entById(actorId);
   if(e.k==='s'){
     const o=Array.isArray(e.o)&&e.o.length===3?new V3(+e.o[0],+e.o[1],+e.o[2]):null;
@@ -1757,10 +1886,14 @@ function handleEvent(from,e){
       if(Array.isArray(e.e))for(const p of e.e.slice(0,12))if(Array.isArray(p)){const v=new V3(+p[0],+p[1],+p[2]);if([v.x,v.y,v.z].every(isFinite)){addTracer(o,v,0xffb08a);spark(v)}}
       sfxShot(String(e.w),1/(1+camera.position.distanceTo(o)*.05));
     }
-    if(Array.isArray(e.pd))for(const it of e.pd.slice(0,12))if(Array.isArray(it))damagePiece(pieces.get(String(it[0])),clamp(+it[1]||0,0,300));
+    // builds (pd) and map pieces (md) at the health the shooter reports, the lowest wins, but no lower than one shot of
+    // that weapon could take them from here
+    const sw=e.w==='cb'?CROW:WEAP[e.w],cap=sw?(sw===CROW?CROW.build:sw.sd*1.3*sw.pellets)+1:0;
+    if(cap&&Array.isArray(e.pd))for(const it of e.pd.slice(0,12))if(Array.isArray(it)&&isFinite(+it[1])){const pc=pieces.get(String(it[0]));if(pc)setPieceHp(pc,Math.max(+it[1],pc.hp-cap))}
+    if(cap&&Array.isArray(e.md))for(const it of e.md.slice(0,12))if(Array.isArray(it)&&isFinite(+it[1])){const P=mpieces[it[0]|0];if(P)mpSetHp(P,Math.max(+it[1],P.hp-cap),null)}
     if(Array.isArray(e.hs))for(const h of e.hs.slice(0,12)){
       if(!Array.isArray(h))continue;const vid=String(h[0]);
-      const victim=vid===myId()?player:(Net.amHost&&bots.get(vid)&&bots.get(vid).local?bots.get(vid):null);
+      const victim=vid===myId()?player:null;
       if(!victim||!playing())continue;
       const d=+h[1]||0;if(!acceptHit(actor,victim,String(e.w),e.r|0,d,e.o))continue;
       const pt=[h[3],h[4],h[5]].every(n=>typeof n==='number'&&isFinite(n))?new V3(h[3],h[4],h[5]):victim.pos.clone().add(new V3(0,1.2,0));
@@ -1775,7 +1908,6 @@ function handleEvent(from,e){
     if(v&&v.alive){v.alive=false;v.st='dead';v.dieT=0;v.place=e.pl|0;puff(v.pos.clone().add(new V3(0,1,0)),v.hex||0xffffff)}
     const by=String(e.by||'');killFeed(by,actorId,String(e.w||''));
     if(by===myId()&&v)gotKill(v);
-    else if(Net.amHost){const k=bots.get(by);if(k&&k.local)k.kills++}
   }
 }
 
@@ -1806,25 +1938,13 @@ function reconcile(uid,v){
   if(typeof v.pk==='string'&&v.pk!==R_.pk){R_.pk=v.pk;for(const id of v.pk.split(','))if(id)removeItem(id)}
   Net.recon.set(uid,R_);
 }
-function applyBots(bt,ts){
-  if(!curMatch||!Array.isArray(bt))return;
-  for(const row of bt.slice(0,MAX_ROOM)){
-    if(!Array.isArray(row)||!isBotId(row[0])||!roster.includes(row[0]))continue;
-    const b=bots.get(row[0])||makeBot(row[0]);if(b.local)continue;
-    const st=ST_FROM[row[8]]||'bus',s={t:ts,x:+row[1],y:+row[2],z:+row[3],h:+row[4],p:+row[5]};
-    if(st!=='bus'&&[s.x,s.y,s.z].every(isFinite)&&b.lag.note(s.t,Net.now())){b.snaps.push(s);if(b.snaps.length>30)b.snaps.shift()}
-    b.hp=+row[6]||0;b.sh=+row[7]||0;b.wkey=String(row[9]||'cb');setHeldModel(b.model,b.wkey);b.kills=row[10]|0;b.place=row[11]|0;
-    if(st==='dead'){if(b.alive){b.alive=false;b.dieT=0}}else b.alive=true;
-    b.st=st;b.glide=st==='glide';b.present=st!=='bus';b.hittable=st!=='bus';
-  }
-}
 function onNode(uid,v){
   if(!v||typeof v!=='object'||typeof v.x!=='number')return;
   const fresh=!Net.others.has(uid);
   Net.others.set(uid,{v,ts:+v.ts||0});
   const e=remotes.get(uid)||makeRemote(uid,v);
   applyNode(e,v);
-  if(uid===Net.hostUid&&!Net.amHost){if(validMS(v.ms))Net.lastMS=v.ms;if(Array.isArray(v.bt))applyBots(v.bt,+v.ts||Net.now())}
+  if(uid===Net.hostUid&&!Net.amHost){if(validMS(v.ms))Net.lastMS=v.ms;if(v.br&&typeof v.br==='object')Net.lastBR=v.br}
   if(fresh){Net.lastEv.set(uid,maxEv(v.ev));if(Net.now()-(+v.ts||0)<LIVE_MS&&performance.now()-Net.joinedAt>2500){feed(esc(cleanName(v.n))+' joined','info');sfxJoin()}}
   else if(v.ev&&typeof v.ev==='object'){
     const last=Net.lastEv.get(uid)||0;const list=Object.values(v.ev).filter(x=>x&&typeof x.i==='number'&&x.i>last).sort((a,b)=>a.i-b.i);
@@ -1861,7 +1981,8 @@ let lobbyDirty=false,startWanted=false;
 function lobbyHumans(){const out=[{uid:myId(),j:Net.j||0}];if(online)for(const [k,o] of Net.others)if(Net.now()-o.ts<LIVE_MS&&nodeV(o.v)===mapV)out.push({uid:k,j:+o.v.j||o.ts});return out.sort((a,b)=>a.j-b.j||(a.uid<b.uid?-1:1))}
 function hostStart(){
   const now=Math.round(nowMs());
-  const hs=lobbyHumans().slice(0,MAX_ROOM).map(o=>o.uid),nb=practice?PRACTICE_BOTS:Math.max(0,MIN_FILL-hs.length);
+  const hs=lobbyHumans().slice(0,MAX_ROOM).map(o=>o.uid),nb=practice?PRACTICE_BOTS:0;   // online matches are people only
+  if(online&&hs.length<2)return;
   const ro=hs.concat(Array.from({length:Math.min(nb,MAX_ROOM-hs.length)},(_,i)=>'b'+i));
   MS={id:now,ph:'play',sd:randSeed(),t0:now+4500,ro:ro.join(','),nh:hs.length,ce:0};
   Net.publishSoon();followMS();
@@ -1874,7 +1995,7 @@ function hostDuties(){
     const n=lobbyHumans().length;
     if(n>=2&&!MS.ce){MS=Object.assign({},MS,{ce:Math.round(now)+60000});lobbyDirty=true}
     if(n<2&&MS.ce){MS=Object.assign({},MS,{ce:0});lobbyDirty=true}
-    if(startWanted||(MS.ce&&now>=MS.ce)){startWanted=false;hostStart()}
+    if((startWanted&&(n>=2||!online))||(MS.ce&&now>=MS.ce)){startWanted=false;hostStart()}else startWanted=false;
   }else if(MS.ph==='play'){
     const t=(now-MS.t0)/1000;
     if(t>6&&curMatch===MS.id){const al=aliveIds();if(al.length<=1){MS=Object.assign({},MS,{ph:'end',wn:al[0]||'',we:Math.round(now)+15000});Net.publishSoon()}}
@@ -1901,7 +2022,7 @@ function loadScript(src){return new Promise((res,rej)=>{const s=document.createE
 const stCode=()=>!curMatch?'l':!inMatch?'o':ST_TO[player.st]||'o';
 const Net={
   ready:false,uid:null,db:null,offset:0,room:null,refs:null,loaded:false,quick:false,j:0,joinedAt:0,others:new Map(),amHost:false,hostUid:null,prevHost:null,
-  stale:false,oldN:0,pubTimer:0,tickTimer:0,lastPub:0,lastBeat:0,soon:false,evSeq:0,evOut:[],lastSent:{},lastEv:new Map(),recon:new Map(),oc:[],pk:[],lastMS:null,
+  stale:false,oldN:0,lastBR:null,brApplied:'',pubTimer:0,tickTimer:0,lastPub:0,lastBeat:0,soon:false,evSeq:0,evOut:[],lastSent:{},lastEv:new Map(),recon:new Map(),oc:[],pk:[],lastMS:null,
   now(){return Date.now()+this.offset},
   async init(){
     if(this.ready)return;
@@ -1924,7 +2045,8 @@ const Net={
     const o={n:myName,c:myHex,x:r2(p.pos.x),z:r2(p.pos.z),h:r3(p.yaw),ts:Math.round(this.now()),y:r2(p.pos.y),p:r2(p.pitch),hp:Math.ceil(p.hp),sh:Math.ceil(p.sh),
       st:stCode(),w:heldKey(p),m:curMatch||0,j:this.j,k:myKills,pl:p.place|0,dm:Math.round(p.dmg),mv:mapV};
     if(curMatch){o.oc=this.oc.join('.');o.pk=this.pk.slice(-400).join(',')}
-    if(this.amHost&&MS){o.ms=MS.mv===mapV?MS:Object.assign({},MS,{mv:mapV});if(curMatch&&bots.size)o.bt=[...bots.values()].map(b=>[b.id,r1(b.pos.x),r1(b.pos.y),r1(b.pos.z),r2(b.yaw),r2(b.pitch),Math.ceil(b.hp),Math.ceil(b.sh),ST_TO[b.st]||'b',heldKey(b),b.kills|0,b.place|0])}
+    if(this.amHost&&MS)o.ms=MS.mv===mapV?MS:Object.assign({},MS,{mv:mapV});
+    if(this.amHost&&curMatch&&brokenN)o.br={m:curMatch,b:brokenBits()};   // what's broken on the island, for late joiners and the next host
     return o;
   },
   async peek(room){
@@ -1936,7 +2058,7 @@ const Net={
     await this.init();
     const info=await this.peek(room);
     if(info.n>=MAX_ROOM)throw new Error('That room is full ('+MAX_ROOM+' players). Pick another code.');
-    this.room=room;this.quick=!!quick;this.others.clear();this.lastEv.clear();this.recon.clear();this.amHost=false;this.hostUid=null;this.prevHost=null;this.lastMS=null;this.lastSent={};this.evOut=[];
+    this.room=room;this.quick=!!quick;this.others.clear();this.lastEv.clear();this.recon.clear();this.amHost=false;this.hostUid=null;this.prevHost=null;this.lastMS=null;this.lastBR=null;this.brApplied='';this.lastSent={};this.evOut=[];
     const roomRef=this.db.ref('rooms/'+room);
     this.refs={room:roomRef,players:roomRef.child('players'),me:roomRef.child('players/'+this.uid)};
     this.j=Math.round(this.now());this.evSeq=this.j;this.joinedAt=performance.now();
@@ -1960,7 +2082,7 @@ const Net={
   pubTick(){
     if(!online||!this.refs)return;
     const t=performance.now(),n=this.others.size;
-    const act=(inMatch&&player.alive&&player.st!=='bus'&&inPlay())||(this.amHost&&bots.size&&playing());
+    const act=inMatch&&player.alive&&player.st!=='bus'&&inPlay();
     const iv=act?(n<10?80:n<20?100:125):1000;
     if(!this.soon&&t-this.lastPub<iv)return;
     const s=this.stateOf(),patch={};let changed=false;
@@ -1991,12 +2113,10 @@ function onlineTick(){
     if(h!==Net.hostUid){
       const was=Net.hostUid,wasMe=Net.amHost;Net.prevHost=was;Net.hostUid=h;Net.amHost=h===Net.uid;lobbyDirty=true;
       if(Net.amHost&&!wasMe){
-        // taking over: carry on the match the last host was running, and its bots from where they were
+        // taking over: carry on the match the last host was running
         if(validMS(Net.lastMS))MS=JSON.parse(JSON.stringify(Net.lastMS));else if(!validMS(MS))MS={id:0,ph:'lobby',ce:0};
-        for(const b of bots.values())if(b.alive||b.st==='dead'){if(!b.ai)botBrain(b);botLocal(b)}
         if(was)feed('You\'re the host now','info');
-      }else if(!Net.amHost&&wasMe){for(const b of bots.values()){b.local=false;b.snaps.length=0;b.lag.reset()}}
-      else if(was)feed(esc(nameOf(h))+' is the host now','info');
+      }else if(was&&!Net.amHost)feed(esc(nameOf(h))+' is the host now','info');
       Net.publishSoon();
     }
     if(Net.amHost)hostDuties();
@@ -2006,6 +2126,8 @@ function onlineTick(){
   {const now=Net.now();let st=false,old=0;for(const o of Net.others.values()){if(now-o.ts>LIVE_MS)continue;const v=nodeV(o.v);if(v>mapV)st=true;else if(v<mapV)old++}
     if(st!==Net.stale||old!==Net.oldN){Net.stale=st;Net.oldN=old;lobbyDirty=true}}
   followMS();
+  // the host's list of broken pieces (a late joiner, or anything this browser missed)
+  const br=Net.lastBR;if(curMatch&&br&&br.m===curMatch&&typeof br.b==='string'&&br.b!==Net.brApplied){Net.brApplied=br.b;applyBits(br.b)}
   // a player whose node stops updating counts as gone
   if(settled&&curMatch)for(const e of remotes.values())if(roster.includes(e.id)&&e.alive&&!Net.live(e.id,12000)&&performance.now()-matchStartAt>12000){e.alive=false;e.present=false;e.st='dead'}
   if(lobbyDirty)renderLobby();
@@ -2138,17 +2260,16 @@ function renderLobby(){
   $('lbCount').textContent=list.length;$('lbCountLbl').textContent=list.length===1?'player in the room':'players in the room';
   const ul=$('plist'),html=list.map(o=>{const v=o.uid===Net.uid?{n:myName,c:myHex}:(Net.others.get(o.uid)||{}).v||{};return`<li><span class="dot" style="background:${esc(v.c||'#fff')}"></span><span class="nm">${esc(o.uid===Net.uid?myName:cleanName(v.n))}</span>${o.uid===Net.hostUid?'<span class="tg">host</span>':''}${o.uid===Net.uid?'<span class="tg">you</span>':''}</li>`}).join('');
   if(ul.innerHTML!==html)ul.innerHTML=html;
-  const nb=Math.max(0,MIN_FILL-list.length);
-  $('lbBots').textContent=nb?`Bots fill the match up to ${MIN_FILL}: ${nb} bot${nb===1?'':'s'} with this many people. They're marked BOT.`:'Enough people for a match without bots.';
+  $('lbBots').textContent=list.length<2?'Online matches are people only, so a match needs at least 2. Practice (offline) has bots.':'';
   let st='';
   if(Net.stale)st='This match uses a newer map, reload to join.';
   else if(!Net.loaded||!MS)st='Connecting to the room…';
   else if(MS.ph==='play'){const al=curMatch===MS.id?aliveIds().length:0;st=`A match is on${al?' ('+al+' left)':''}. You'll drop in with everyone at the next one.`}
   else if(MS.ph==='end')st='A match is just finishing. The next one boards soon.';
   else if(MS.ce)st='The Drifter boards in '+Math.max(0,Math.ceil((MS.ce-Net.now())/1000))+' s'+(Net.amHost?', or start now.':'.');
-  else st=Net.amHost?'Waiting for one more person (the countdown starts at 2), or start now with bots.':'Waiting for one more person; the host can also start now.';
+  else st='Waiting for one more person: a match starts with 2 or more, and the countdown begins when the second one joins.';
   $('lbStatus').textContent=st;
-  $('lbHost').hidden=!(Net.amHost&&MS&&MS.ph==='lobby')||Net.stale;
+  $('lbHost').hidden=!(Net.amHost&&MS&&MS.ph==='lobby'&&list.length>=2)||Net.stale;
   $('lbStale').hidden=!Net.stale;
   const ov=$('lbVer');ov.hidden=Net.stale||!Net.oldN;if(Net.oldN)ov.textContent=Net.oldN+(Net.oldN===1?' person here has':' people here have')+' an older copy of the game with the old island. They can join once they reload.';
   $('lbWatch').hidden=!(MS&&MS.ph==='play'&&curMatch===MS.id&&(!inMatch||!player.alive));
@@ -2272,6 +2393,7 @@ function frame(now){
   if(touchUI)document.body.classList.toggle('inlobby',lobbyShown);
   updateDnums(running?dt:0);
   if(bannerTimer>0){bannerTimer-=dt;if(bannerTimer<=0)hud.banner.hidden=true}
+  mpFlush();
   if(!window.__noRender)renderer.render(scene,camera);
   cpuMs=cpuMs*.95+(performance.now()-t0)*.05;
   requestAnimationFrame(frame);
@@ -2507,7 +2629,7 @@ if(navigator.webdriver)window.__dz={get state(){return state},get online(){retur
   give(t,r){takeItem(player,{t,r:r|0,n:WEAP[t]?WEAP[t].mag:HEALS[t]?1:t==='mt'?100:60})},
   fire(){const w=heldW(player),s=heldItem(player);updateCamera(0);playerShoot();if(s&&w)s.n=w.mag;player.cd=0},
   draws(){return renderer.info.render.calls},
-  setNoRender(v){window.__noRender=!!v},renderOnce(){renderer.render(scene,camera)},setMapV(v){mapV=v},get mapV(){return mapV},mapSize:MAP};
+  setNoRender(v){window.__noRender=!!v},renderOnce(){mpFlush();renderer.render(scene,camera)},mpieces,mpBreak,mpSetHp,resetMap,brokenBits,applyBits,sendEv,get brokenN(){return brokenN},hash,setMapV(v){mapV=v},get mapV(){return mapV},mapSize:MAP};
 
 requestAnimationFrame(t=>{last=t;frame(t)});
 })();
