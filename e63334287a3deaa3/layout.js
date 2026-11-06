@@ -11,7 +11,8 @@
  *
  * The editor has two tabs, Order (the bars above) and Game sizes. Game sizes shows every section's games as tiles
  * (thumbnail, name, Big/Small) laid out in the section's own number of columns at this screen width, so it's a
- * live preview of the rows. A tap (or Enter) switches a game between big and small; each section also has All
+ * live preview of the rows. A tap (or Enter) switches a game between big and small (back to the site's own size
+ * forgets the choice, unless one was saved before the editor opened); each section also has All
  * small, All big and Default (its games back to the site's sizes). Reset on this tab puts every game back.
  *   Back Room page (and the home page's copy): big = .wide + .pw (two columns on computers, a whole row on
  *   phones, games.css), small = neither. A game the player hasn't chosen keeps the classes the page gave it.
@@ -155,7 +156,7 @@
     '.lay-pill{flex:none;font-family:var(--mono,var(--f-m,monospace));font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:4px 8px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink-2)}' +
     '.lay-tl.big{border-color:color-mix(in srgb,var(--gs-c,var(--accent)) 55%,var(--line))}.lay-tl.big .lay-pill{background:var(--gs-c,var(--accent));border-color:var(--gs-c,var(--accent));color:var(--gs-ink,var(--accent-ink))}' +
     '.lay-tl.fill{border-style:dashed}.lay-fl{position:absolute;left:6px;top:6px;font-family:var(--mono,var(--f-m,monospace));font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;padding:3px 7px;border-radius:999px;background:rgba(8,16,12,.72);color:#fff}' +
-    '.lay-gap{margin:8px 0 0;font-size:13px;line-height:1.4;color:var(--ink-2)}' +
+    '.lay-gap{margin:8px 0 0;font-size:13px;line-height:1.4;color:var(--ink-2)}.lay-szs > .lay-gap{margin:0}' +
     '@media (prefers-reduced-motion:reduce){.lay-tl{transition:none}.lay-tl:active{transform:none}}' +
     '@media (prefers-reduced-motion:reduce){.lay-it.lay-moved{animation:none}}' +
     // while editing, the blocks themselves are hidden (the editor shows them as bars)
@@ -527,7 +528,7 @@
   }
 
   var live = null, list = null, resetB = null, drop = null, blocksNow = {};
-  var tab = 'order', wsize = {}, desc = null, szBox = null, tabBs = {};
+  var tab = 'order', wsize = {}, wsize0 = {}, desc = null, szBox = null, tabBs = {};
   var DESC = {
     order: 'Drag a bar, or use the arrows, to put this page in your order. Done saves it in this browser.',
     size: 'Tap a game to make it big or small. Each section below is laid out the way it will look on this screen. Done saves it.'
@@ -537,7 +538,7 @@
     editing = true;
     blocksNow = scan();
     work = resolve(readSaved(), presentIds(blocksNow));
-    wsize = readSize();
+    wsize = readSize(); wsize0 = readSize();
     ed = el('div', 'lay-ed'); ed.setAttribute('role', 'region'); ed.setAttribute('aria-label', 'Edit layout');
     var top = el('div', 'lay-ed-top'), tt = el('div', 'lay-ed-tt');
     tt.append(el('b', '', 'Edit layout'));
@@ -638,6 +639,8 @@
     var order = work.filter(function (id) { return !PANEL[id] && id !== 'daily'; }), secs = sizeSections();
     secs.sort(function (a, b) { return order.indexOf(a.id) - order.indexOf(b.id); });
     szBox.textContent = '';
+    var one = el('p', 'lay-gap', 'At this window width every game takes one column; big games are wider on bigger and smaller screens.');
+    one.hidden = true; szBox.appendChild(one);
     secs.forEach(function (s) {
       var pv = previewSpans(s), C = pv.C, custom = s.cards.some(function (c) { return wsize[c.key]; });
       var spans = s.cards.map(function (c) { return pv.spans[pv.its.indexOf(c.e)]; }), p = plan(spans, C);
@@ -671,7 +674,7 @@
       box.append(h, grid);
       var names = custom ? p.gaps.map(function (i) { return s.cards[i].name; }) : [];
       if (names.length) box.appendChild(el('p', 'lay-gap', names.length === 1 ? 'This row has a gap, so ' + names[0] + ' stretches to fill it.' : 'Some rows have gaps, so ' + names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] + ' stretch to fill them.'));
-      else if (C > 1 && pv.want.some(function (w, i) { return w === 'big' && spans[i] < 2; })) box.appendChild(el('p', 'lay-gap', 'At this window width every game takes one column; big games are wider on bigger and smaller screens.'));
+      if (C > 1 && pv.want.some(function (w, i) { return w === 'big' && spans[i] < 2; })) one.hidden = false;
       szBox.appendChild(box);
     });
     if (focusKey) {
@@ -683,8 +686,10 @@
   function sizeClick(e) {
     var t = e.target.closest('.lay-tl'), a = e.target.closest('[data-all]');
     if (t) {
-      var k = t.getAttribute('data-key'), to = t.getAttribute('aria-pressed') === 'true' ? 'small' : 'big', nm = t.querySelector('b').textContent;
-      wsize[k] = to;
+      var k = t.getAttribute('data-key'), to = t.getAttribute('aria-pressed') === 'true' ? 'small' : 'big', nm = t.querySelector('b').textContent, card = null;
+      sizeSections().forEach(function (s) { s.cards.forEach(function (c) { if (c.key === k) card = c.e; }); });
+      // back to the size the site gives it (and nothing was saved for it before): no choice is kept
+      if (card && !wsize0[k] && to === siteSize(card)) delete wsize[k]; else wsize[k] = to;
       renderSizes('.lay-tl[data-key="' + k + '"]'); updateReset();
       say(nm + ' is ' + to + ' now.');
     } else if (a && !a.disabled) {
