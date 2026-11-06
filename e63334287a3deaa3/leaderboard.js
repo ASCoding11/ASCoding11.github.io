@@ -125,6 +125,10 @@
       { k: 'cleared', l: 'Levels escaped (of 48)', chip: 'Levels escaped', f: 'n', u: 'level', hi: 48 },
       { k: 'total', l: 'Fastest total (World 1)', chip: 'Fastest total', f: 'time', lo: 60, hi: 36000 },
       { k: 'total-w2', l: 'Fastest total (World 2)', chip: 'World 2 total', f: 'time', lo: 90, hi: 36000 },
+      { k: 'total-w3', l: 'Fastest total (World 3)', chip: 'World 3 total', f: 'time', lo: 120, hi: 36000 },
+      { k: 'total-w4', l: 'Fastest total (World 4)', chip: 'World 4 total', f: 'time', lo: 90, hi: 36000 },
+      { k: 'total-w5', l: 'Fastest total (World 5)', chip: 'World 5 total', f: 'time', lo: 90, hi: 36000 },
+      { k: 'total-w6', l: 'Fastest total (World 6)', chip: 'World 6 total', f: 'time', lo: 90, hi: 36000 },
       { k: 'escapes', l: 'Escapes', f: 'n', u: 'escape', rate: 1 / 8 }] },
     { d: 'updraft', n: 'Updraft', st: [{ k: 'summit', l: 'Fastest summit', f: 'time', lo: 120, hi: 1e7 }, { k: 'height', l: 'Best height', f: 'm', hi: 1005 }] },
     { d: 'odd-one-out', n: 'Odd One Out', st: [
