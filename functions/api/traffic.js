@@ -25,7 +25,9 @@ export async function onRequestGet({ request, env }) {
   catch (e) {
     // The reason is safe to show (a missing secret or a Firestore status code, never a key) and helps when it breaks.
     const why = !env.FIREBASE_SERVICE_ACCOUNT ? 'FIREBASE_SERVICE_ACCOUNT is not set' : String((e && e.message) || e).slice(0, 120);
-    return json({ error: 'Couldn’t load the traffic numbers.', why }, 503, Object.assign(h, { 'Cache-Control': 'no-store' }));
+    // Names only (never values) of settings that look like a misspelt FIREBASE_SERVICE_ACCOUNT.
+    const similar = Object.keys(env || {}).filter(k => /fire|service|account/i.test(k));
+    return json({ error: 'Couldn’t load the traffic numbers.', why, similar }, 503, Object.assign(h, { 'Cache-Control': 'no-store' }));
   }
 }
 
