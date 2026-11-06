@@ -22,7 +22,11 @@ export const onRequestOptions = ({ request, env }) => new Response(null, { statu
 export async function onRequestGet({ request, env }) {
   const h = Object.assign(cors(request, env), { 'Cache-Control': 'public, max-age=300' });
   try { return json(await traffic(env, fetch, Date.now()), 200, h); }
-  catch (e) { return json({ error: 'Couldn’t load the traffic numbers.' }, 502, Object.assign(h, { 'Cache-Control': 'no-store' })); }
+  catch (e) {
+    // The reason is safe to show (a missing secret or a Firestore status code, never a key) and helps when it breaks.
+    const why = !env.FIREBASE_SERVICE_ACCOUNT ? 'FIREBASE_SERVICE_ACCOUNT is not set' : String((e && e.message) || e).slice(0, 120);
+    return json({ error: 'Couldn’t load the traffic numbers.', why }, 503, Object.assign(h, { 'Cache-Control': 'no-store' }));
+  }
 }
 
 export async function traffic(env, fetchFn, now) {
