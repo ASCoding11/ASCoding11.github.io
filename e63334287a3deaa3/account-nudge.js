@@ -88,6 +88,7 @@
   var KEYS = [
     // shared
     'party:name', 'ol:name', 'ol:block', 'ol:mute',
+    'wallet:v1', 'cosmetics:v1',   // coins and the locker (wallet.js, cosmetics.js), switched off for now
     'layout:v1',   // Edit layout (layout.js): the order of the Back Room's blocks
     'wallet:v1', 'cosmetics:v1',   // coins and the locker (wallet.js, cosmetics.js), switched off for now
     // Rumble Karts
