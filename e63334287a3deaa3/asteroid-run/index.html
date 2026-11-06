@@ -1,0 +1,1365 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Asteroid Run</title>
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#0a0d2a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Russo+One&family=Nunito:wght@600;700;800;900&display=swap">
+<style>
+/* Layout: a full-bleed WebGL scene of the tunnel. Menus are cards over the tunnel (on computers a demo runner keeps
+   running behind them); in a run the HUD hugs the top edge and the touch buttons the bottom corners. */
+:root{
+  --ink:#15123a;--ink-2:#4f4b7c;--ink-3:#8985ad;
+  --paper:#f7f5ff;--paper-2:#e9e5fb;--line:rgba(21,18,58,.14);
+  --lime:#b6ff3b;--pink:#ff4fa0;--cyan:#3fe0ff;--sun:#ffd23f;--violet:#7c5cff;--red:#ef4444;--good:#16a34a;
+  --f-d:'Russo One','Arial Black','Trebuchet MS',system-ui,sans-serif;
+  --f-b:'Nunito',system-ui,-apple-system,'Segoe UI',sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;overflow:hidden;background:#0a0d2a;color:var(--ink);font-family:var(--f-b);-webkit-font-smoothing:antialiased}
+body{user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+#app{position:fixed;inset:0;overflow:hidden}
+#view{display:block;width:100%;height:100%;touch-action:none}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,summary:focus-visible{outline:3px solid var(--violet);outline-offset:2px}
+button:disabled{opacity:.45;cursor:default}
+
+/* ---------- cards and controls ---------- */
+.overlay{position:absolute;inset:0;overflow:auto;padding:max(18px,env(safe-area-inset-top)) 16px 26px}
+.overlay.center{display:flex;align-items:center;justify-content:center;background:rgba(10,8,40,.45)}
+.overlay.center>.card{margin:auto}
+.card{background:var(--paper);border:3px solid var(--ink);border-radius:20px;box-shadow:0 6px 0 var(--ink);padding:18px 20px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:var(--f-d);font-weight:400;font-size:17px;letter-spacing:.02em;padding:9px 16px;border:3px solid var(--ink);border-radius:13px;background:var(--sun);box-shadow:0 4px 0 var(--ink);color:var(--ink);white-space:nowrap}
+.btn:hover:not(:disabled){filter:brightness(1.05)}
+.btn:active:not(:disabled){transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
+.btn.big{width:100%;font-size:21px;padding:11px 18px}
+.btn.alt{background:#fff}
+.btn.lime{background:var(--lime)}
+.btn.pink{background:var(--pink);color:#fff}
+.btn.cyan{background:var(--cyan)}
+.btn.sm{font-size:14px;padding:5px 11px;border-radius:10px;box-shadow:0 3px 0 var(--ink)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.label{font-weight:900;font-size:12.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);margin:14px 0 7px}
+.seg{display:inline-flex;border:3px solid var(--ink);border-radius:12px;overflow:hidden;background:#fff;flex-wrap:nowrap;max-width:100%}
+.seg button{border:0;background:transparent;padding:6px 10px;font-weight:900;font-size:13.5px;white-space:nowrap}
+.seg button+button{border-left:2px solid var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.note{font-size:13.5px;font-weight:700;color:var(--ink-2);line-height:1.45}
+.setting{display:flex;align-items:center;gap:12px;margin:10px 0 0;font-weight:800;font-size:14px;flex-wrap:wrap}
+.setting>span:first-child{min-width:92px}
+.setting input[type=range]{flex:1;accent-color:var(--pink);min-width:80px}
+details{margin-top:12px;border-top:2px dashed var(--line);padding-top:10px}
+summary{cursor:pointer;font-family:var(--f-d);font-size:15px;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary::before{content:'+ ';color:var(--pink)}
+details[open] summary::before{content:'− '}
+.how{margin:8px 0 0;padding:0 0 0 18px;font-weight:700;font-size:14px;line-height:1.5;color:var(--ink-2)}
+.how b{color:var(--ink)}
+/* Controls panel (../keybinds.js) in the same chunky card style */
+:root{--kb-bg:var(--paper);--kb-fg:var(--ink);--kb-muted:var(--ink-2);--kb-line:var(--line);--kb-accent:var(--lime);--kb-accent-ink:var(--ink);--kb-warn:var(--red);
+  --kb-border:3px solid var(--ink);--kb-shadow:0 6px 0 var(--ink);--kb-radius:20px;--kb-key-radius:9px;--kb-key-border:2.5px solid var(--ink);--kb-key-bg:#fff;--kb-key-shadow:0 3px 0 var(--ink);
+  --kb-font:var(--f-b);--kb-font-display:var(--f-d);--kb-key-weight:900;--kb-title-size:24px;--kb-title-weight:400;--kb-backdrop:rgba(10,8,40,.5);--kb-blur:2px;--kb-pad:20px;--kb-width:480px}
+.kb-panel .kb-label{font-weight:800}
+.kb-panel .btn{font-size:16px;padding:8px 14px}
+
+/* ---------- main menu ---------- */
+.menu-grid{display:grid;grid-template-columns:minmax(0,440px) minmax(0,420px);gap:20px;justify-content:center;align-items:start;max-width:900px;margin:0 auto}
+@media (max-width:900px){.menu-grid{grid-template-columns:minmax(0,520px)}}
+.logo{display:flex;align-items:center;gap:12px;margin:-2px 0 2px}
+.logo svg{flex:0 0 auto;width:60px;height:60px}
+h1{font-family:var(--f-d);font-weight:400;font-size:clamp(32px,5vw,44px);line-height:.95;margin:0;letter-spacing:.01em}
+h1 span{color:var(--pink);display:block}
+.tag{margin:8px 0 10px;font-weight:700;color:var(--ink-2);line-height:1.45}
+.play{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.play .btn{flex-direction:column;gap:0;padding:9px 10px;font-size:19px;white-space:normal;text-align:center;line-height:1.05}
+.play .btn small{font-family:var(--f-b);font-weight:800;font-size:12px;color:var(--ink-2);margin-top:4px;letter-spacing:0}
+.play .wide2{grid-column:1/-1}
+.prog{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.prog div{background:#fff;border:2.5px solid var(--ink);border-radius:12px;padding:6px;text-align:center;min-width:0}
+.prog b{display:block;font-family:var(--f-d);font-weight:400;font-size:18px;line-height:1.15;white-space:nowrap;font-variant-numeric:tabular-nums}
+.prog small{display:block;font-weight:900;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.cry{color:#14b8d4}
+.chars{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.chars button{border:2.5px solid var(--ink);border-radius:12px;background:#fff;padding:5px 2px 4px;display:flex;flex-direction:column;align-items:center;gap:1px;box-shadow:0 2px 0 var(--ink);min-width:0}
+.chars button svg{width:44px;height:44px}
+.chars button b{font-family:var(--f-d);font-weight:400;font-size:12.5px}
+.chars button small{font-size:10px;font-weight:900;color:var(--ink-2);white-space:nowrap}
+.chars button[aria-pressed="true"]{background:var(--lime)}
+.chars button.locked svg{filter:grayscale(1) brightness(.6);opacity:.6}
+.charinfo{margin-top:8px;background:#fff;border:2.5px solid var(--ink);border-radius:12px;padding:8px 10px;min-height:96px}
+.charinfo h3{margin:0;font-family:var(--f-d);font-weight:400;font-size:17px}
+.charinfo p{margin:3px 0 6px;font-weight:700;font-size:13px;color:var(--ink-2);line-height:1.35}
+.bars{display:grid;grid-template-columns:auto 1fr;gap:3px 8px;align-items:center;font-weight:900;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.bars i{display:block;height:8px;border-radius:5px;background:var(--paper-2);overflow:hidden}
+.bars i::after{content:'';display:block;height:100%;width:var(--v);background:var(--pink);border-radius:5px}
+
+/* ---------- level map ---------- */
+#mapMenu .card{max-width:1060px;margin:0 auto}
+.pick-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.pick-head h2{font-family:var(--f-d);font-weight:400;font-size:26px;margin:0}
+.mapwrap{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:14px;margin-top:10px;align-items:start}
+@media (max-width:760px){.mapwrap{grid-template-columns:minmax(0,1fr)}}
+#mapSvg{width:100%;height:auto;display:block;background:radial-gradient(ellipse at 30% 40%,#2a2370,#0d0b2c 70%);border:3px solid var(--ink);border-radius:16px}
+#mapSvg .lnk{stroke:#6d68a8;stroke-width:4;stroke-dasharray:2 9;stroke-linecap:round}
+#mapSvg .lnk.on{stroke:#d9d4ff;stroke-dasharray:none;opacity:.8}
+#mapSvg .nd{cursor:pointer}
+#mapSvg .nd circle{stroke:#15123a;stroke-width:4}
+#mapSvg .nd text{font-family:var(--f-d);font-size:20px;fill:#15123a;text-anchor:middle;dominant-baseline:central;pointer-events:none}
+#mapSvg .nd.lock circle{fill:#3a3670!important}
+#mapSvg .nd.lock text{fill:#8985ad}
+#mapSvg .nd.sel circle{stroke:#fff;stroke-width:6}
+#mapSvg .gem{fill:#3fe0ff;stroke:#15123a;stroke-width:2}
+#mapSvg .gem.no{fill:#3a3670}
+#mapSvg .sec{font-family:var(--f-b);font-weight:900;font-size:15px;fill:#b9b4f0;letter-spacing:.08em;text-transform:uppercase}
+.lvinfo{background:#fff;border:2.5px solid var(--ink);border-radius:14px;padding:10px 12px}
+.lvinfo h3{margin:0;font-family:var(--f-d);font-weight:400;font-size:20px;line-height:1.1}
+.lvinfo .sub{margin:4px 0 8px}
+.gems{font-size:20px;letter-spacing:2px}
+.gems i{font-style:normal;color:#14b8d4}.gems i.no{color:#c9c5e6}
+
+/* ---------- HUD ---------- */
+#hud{position:absolute;inset:0;pointer-events:none;color:#fff}
+.pill{background:var(--paper);color:var(--ink);border:3px solid var(--ink);border-radius:13px;box-shadow:0 3px 0 var(--ink);padding:3px 12px 4px;text-align:center}
+.pill small{display:block;font-weight:900;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);white-space:nowrap}
+#top{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);width:min(380px,calc(100vw - 210px))}
+#top b{display:block;font-family:var(--f-d);font-weight:400;font-size:16px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#bar{height:7px;border-radius:5px;background:var(--paper-2);margin:3px 0 1px;overflow:hidden}
+#bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--cyan),var(--lime));border-radius:5px}
+#gemBox{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));right:calc(12px + env(safe-area-inset-right,0px));min-width:78px}
+#gemBox b{font-family:var(--f-d);font-weight:400;font-size:20px;line-height:1.1;font-variant-numeric:tabular-nums}
+#tryBox{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));left:calc(12px + env(safe-area-inset-left,0px));min-width:70px}
+#tryBox b{font-family:var(--f-d);font-weight:400;font-size:20px;line-height:1.1}
+#banner{position:absolute;left:50%;top:26%;transform:translateX(-50%);text-align:center;opacity:0;transition:opacity .2s;width:min(92vw,720px)}
+#banner b{display:block;font-family:var(--f-d);font-weight:400;font-size:clamp(28px,5vw,52px);color:#fff;line-height:1.02;-webkit-text-stroke:2px var(--ink);paint-order:stroke fill;text-shadow:0 4px 0 var(--ink)}
+#banner span{display:block;font-weight:900;font-size:17px;margin-top:8px;text-shadow:0 2px 0 var(--ink),0 0 4px var(--ink)}
+#hint{position:absolute;left:14px;bottom:calc(14px + env(safe-area-inset-bottom,0px));font-weight:800;font-size:13px;display:flex;flex-wrap:wrap;gap:5px;max-width:min(820px,70vw)}
+#hint span{background:rgba(10,8,40,.72);border-radius:8px;padding:3px 8px;white-space:nowrap}
+#hint kbd{font:inherit;color:var(--lime);font-weight:900}
+#flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .3s}
+
+/* ---------- pause / results ---------- */
+#pause .card,#results .card{width:min(440px,100%)}
+#pause h2,#results h2{font-family:var(--f-d);font-weight:400;font-size:28px;margin:0;line-height:1.05}
+.sub{font-weight:800;color:var(--ink-2);margin:6px 0 0;font-size:14px}
+.stack{display:grid;gap:10px;margin-top:14px}
+.big-num{font-family:var(--f-d);font-weight:400;font-size:40px;font-variant-numeric:tabular-nums;margin:8px 0 0}
+.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.facts div{background:#fff;border:2.5px solid var(--ink);border-radius:12px;padding:6px;text-align:center}
+.facts b{display:block;font-family:var(--f-d);font-weight:400;font-size:18px}
+.facts small{display:block;font-weight:900;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.unlock{margin-top:10px;background:#f2ffd0;border:2.5px solid var(--ink);border-radius:12px;padding:6px 10px;font-weight:900;font-size:14px}
+
+/* ---------- touch controls (only on touch screens) ---------- */
+#touch{display:none;position:absolute;inset:0;pointer-events:none;font-family:var(--f-d)}
+body.touch.playing #touch{display:block}
+#tSteer{position:absolute;inset:0;pointer-events:auto;touch-action:none}
+body:not(.halves) #tSteer{display:none}
+body.halves #tL,body.halves #tR{display:none}
+.tb{position:absolute;pointer-events:auto;touch-action:none;border:3px solid var(--ink);background:rgba(247,245,255,.88);color:var(--ink);font:400 15px var(--f-d);box-shadow:0 4px 0 var(--ink);padding:0;-webkit-user-select:none;user-select:none;display:flex;align-items:center;justify-content:center}
+.tb.on{background:var(--lime);transform:translateY(2px);box-shadow:0 2px 0 var(--ink)}
+.tb svg{width:34px;height:34px}
+#tL,#tR{bottom:calc(20px + env(safe-area-inset-bottom,0px));width:84px;height:84px;border-radius:22px}
+#tL{left:calc(16px + env(safe-area-inset-left,0px))}
+#tR{left:calc(110px + env(safe-area-inset-left,0px))}
+#tJ{right:calc(18px + env(safe-area-inset-right,0px));bottom:calc(22px + env(safe-area-inset-bottom,0px));width:100px;height:100px;border-radius:50%;font-size:17px;background:rgba(182,255,59,.92)}
+#tP{left:calc(10px + env(safe-area-inset-left,0px));top:calc(10px + env(safe-area-inset-top,0px));width:44px;height:44px;border-radius:50%;font-size:13px}
+#halfHint{position:absolute;left:50%;bottom:calc(30px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);font:900 12px var(--f-b);color:#fff;background:rgba(10,8,40,.6);padding:3px 10px;border-radius:9px;white-space:nowrap;pointer-events:none}
+body:not(.halves) #halfHint{display:none}
+body.touch #hint,body.touch .kbonly{display:none}
+body.touch.playing #tryBox{left:calc(62px + env(safe-area-inset-left,0px))}
+body.touch #top{width:min(340px,calc(100vw - 250px))}
+@media (orientation:portrait){
+  body.touch #top{top:calc(64px + env(safe-area-inset-top,0px));width:min(340px,calc(100vw - 32px))}
+  body.touch #banner{top:30%}
+}
+@media (max-width:420px){
+  .chars button svg{width:36px;height:36px}
+  .chars button b{font-size:11px}
+  .card{padding:16px 14px}
+}
+</style>
+<script src="/e63334287a3deaa3/stats.js" data-game="asteroid-run" defer></script>
+</head>
+<body>
+<div id="app">
+  <canvas id="view" aria-label="Asteroid Run game view"></canvas>
+  <div id="flash"></div>
+  <div id="hud" hidden>
+    <div class="pill" id="tryBox"><small id="tryLbl">Try</small><b id="tries">1</b></div>
+    <div class="pill" id="top"><small id="lvlLbl">Level 1</small><b id="lvlName">First Steps</b><div id="bar"><i></i></div></div>
+    <div class="pill" id="gemBox"><small>Crystals</small><b><span class="cry">◆</span> <span id="gems">0</span></b></div>
+    <div id="banner"><b></b><span></span></div>
+    <div id="hint" class="kbonly"><span><kbd data-kb="left right" data-kb-short data-kb-sep=" ">A D</kbd> sidestep</span><span><kbd data-kb="jump" data-kb-short>Space</kbd> jump (hold for higher)</span><span><kbd data-kb="restart" data-kb-short>R</kbd> restart</span><span><kbd>Esc</kbd> pause</span></div>
+  </div>
+  <div id="touch" aria-hidden="true">
+    <div id="tSteer"></div>
+    <div id="halfHint">Hold left or right of the screen to sidestep</div>
+    <button class="tb" id="tL" type="button" aria-label="Left"><svg viewBox="0 0 24 24"><path d="M15 4 7 12l8 8" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <button class="tb" id="tR" type="button" aria-label="Right"><svg viewBox="0 0 24 24"><path d="m9 4 8 8-8 8" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <button class="tb" id="tJ" type="button">JUMP</button>
+    <button class="tb" id="tP" type="button" aria-label="Pause">❚❚</button>
+  </div>
+
+  <section id="menu" class="overlay">
+    <div class="menu-grid">
+      <div class="card">
+        <div class="logo">
+          <svg viewBox="0 0 60 60" aria-hidden="true"><rect x="2" y="2" width="56" height="56" rx="15" fill="#15123a"/><path d="M14 46 22 14h16l8 32" fill="none" stroke="#7c5cff" stroke-width="4" stroke-linejoin="round"/><path d="M18 32h24M20 24h20M16 40h28" stroke="#3fe0ff" stroke-width="2.5" opacity=".7"/><ellipse cx="30" cy="36" rx="7" ry="8" fill="#b6ff3b" stroke="#15123a" stroke-width="2"/><circle cx="27.5" cy="34" r="1.8" fill="#15123a"/><circle cx="32.5" cy="34" r="1.8" fill="#15123a"/><path d="M30 28v-5" stroke="#b6ff3b" stroke-width="2"/><circle cx="30" cy="22" r="2.2" fill="#ff4fa0"/></svg>
+          <h1>Asteroid<span>Run</span></h1>
+        </div>
+        <p class="tag">Run through tunnels of tiles floating in deep space. Jump the gaps, or step onto a wall and let gravity turn the whole tunnel round.</p>
+        <div class="play">
+          <button class="btn lime wide2" id="contBtn" type="button">Play<small id="contSub">Level 1 · First Steps</small></button>
+          <button class="btn alt" id="mapBtn" type="button">Level map<small id="mapSub">32 levels</small></button>
+          <button class="btn pink" id="endBtn" type="button">Endless<small id="endSub" style="color:#fff0f7">how far can you go?</small></button>
+        </div>
+        <div class="label">Progress</div>
+        <div class="prog">
+          <div><b id="pLv">0</b><small>of 32 levels</small></div>
+          <div><b><span class="cry">◆</span><span id="pCr">0</span></b><small>crystals</small></div>
+          <div><b id="pBest">–</b><small>endless best</small></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="label" style="margin-top:0">Runner</div>
+        <div class="chars" id="chars" role="group" aria-label="Pick a runner"></div>
+        <div class="charinfo" id="charInfo"></div>
+        <div class="label">Settings</div>
+        <div class="setting"><span>Sound</span><input id="vol" type="range" min="0" max="1" step=".05" aria-label="Sound volume"></div>
+        <div class="row" style="margin-top:10px"><span style="font-weight:800;font-size:14px;min-width:92px">Graphics</span><div class="seg" id="gfxSeg"><button type="button" data-q="low">Fast</button><button type="button" data-q="high">Pretty</button></div></div>
+        <div class="row" id="tmRow" style="margin-top:10px" hidden><span style="font-weight:800;font-size:14px;min-width:92px">Touch</span><div class="seg" id="tmSeg"><button type="button" data-v="buttons">Arrow buttons</button><button type="button" data-v="halves">Screen halves</button></div></div>
+        <div class="row" style="margin-top:12px"><button class="btn sm alt kbonly" id="keysMenu" type="button">Controls</button></div>
+        <details>
+          <summary>How to play</summary>
+          <ul class="how">
+            <li><b>Running</b> is automatic. Sidestep left and right, and jump: a tap is a short hop, holding jump goes higher and further. You can steer in the air.</li>
+            <li><b>Walls</b>: run off the side of the floor and you walk up the wall, and the whole tunnel turns so the wall is your new floor. When there's a gap, a wall is often the easier way round.</li>
+            <li><b>Tiles</b>: <span style="color:#0e7490">ice</span> is slippery; <span style="color:#b45309">cracked</span> tiles hold while you run but give way if you land on them; orange belts push you sideways, green ones speed you up and red ones slow you down; green pads launch you; purple goo is sticky (slow, small jumps).</li>
+            <li><b>Levels</b>: reach the glowing ring at the end. Falling into space restarts the level, as many times as you like. Each level has three crystals; clearing a level opens the next ones on the map, and some levels open two paths.</li>
+            <li><b>Endless</b>: the tunnel never ends and slowly gets faster and harder. Crystals you pick up are kept.</li>
+            <li><b>Runners</b>: new runners unlock as you clear levels and collect crystals.</li>
+            <li class="kbonly"><b>Keys</b>: A / D or the arrow keys sidestep, Space, W or the up arrow jumps, R restarts, Esc pauses. Change them under Controls.</li>
+            <li id="touchNote" hidden><b>Touch</b>: the arrow buttons (or the left and right halves of the screen, in Settings) sidestep, the green button jumps (hold it for a big jump), and the top-left button pauses.</li>
+          </ul>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <section id="mapMenu" class="overlay" hidden>
+    <div class="card">
+      <div class="pick-head"><h2>Level map</h2><button class="btn sm alt" id="mapBack" type="button">Back</button></div>
+      <p class="sub">Clear a level to open the ones it leads to. Paths split, so there's more than one way to the Core.</p>
+      <div class="mapwrap">
+        <svg id="mapSvg" viewBox="0 0 1000 680" role="group" aria-label="Level map"></svg>
+        <div class="lvinfo" id="lvInfo"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="pause" class="overlay center" hidden>
+    <div class="card">
+      <h2>Paused</h2>
+      <p class="sub" id="pauseSub"></p>
+      <div class="stack">
+        <button class="btn big lime" id="resume" type="button">Resume</button>
+        <button class="btn alt" id="restartBtn" type="button">Restart</button>
+        <button class="btn alt" id="toMap" type="button">Level map</button>
+        <button class="btn alt" id="quit" type="button">Quit to menu</button>
+      </div>
+      <div class="setting"><span>Sound</span><input id="vol2" type="range" min="0" max="1" step=".05" aria-label="Sound volume"></div>
+      <div class="row" style="margin-top:12px"><button class="btn sm alt kbonly" id="keysPause" type="button">Controls</button></div>
+    </div>
+  </section>
+
+  <section id="results" class="overlay center" hidden>
+    <div class="card">
+      <h2 id="resTitle">Level clear!</h2>
+      <p class="sub" id="resSub"></p>
+      <div class="facts" id="resFacts"></div>
+      <div id="resUnlock"></div>
+      <div class="stack" id="resBtns"></div>
+    </div>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../autores.js"></script>
+<script src="../keybinds.js"></script>
+<script>
+// ==CORE==
+// Everything that decides what happens: runners, tiles, levels, the endless tunnel, the physics step and the checking bot.
+// No DOM and no Three.js in here, so a test can run it on its own (see README).
+const AR=(()=>{
+'use strict';
+const DT=1/120;          // fixed physics step
+const TL=1.5;            // tile length along the tunnel (m); tiles are 1 m wide
+const CR_WALK=.3,CR_LAND=.05;   // a cracked tile gives way this long after you run onto it / land on it
+const COYOTE=.08,JBUF=.12;      // grace after running off an edge, and how early a jump press still counts
+// Tile types
+const T={E:0,N:1,C:2,I:3,VL:4,VR:5,VF:6,VB:7,B:8,K:9};
+const TCH={n:T.N,c:T.C,i:T.I,l:T.VL,r:T.VR,f:T.VF,b:T.VB,k:T.K};
+
+// The runners. speed: forward m/s; lat: sideways m/s; accG/accA: how fast sideways speed changes on the ground / in the
+// air; jumpV: take-off speed; g: gravity; holdG: gravity while jump is held (for at most holdT s); cutV: the most upward
+// speed left after letting go early (a tap is a short hop).
+const CHARS=[
+  {id:'pip',name:'Pip',desc:'Steady all-rounder. Good at everything, best at nothing.',col:0x7dff6a,col2:0x2f9e3f,
+    speed:9,lat:4.6,accG:42,accA:24,jumpV:7.6,g:26,holdG:.45,holdT:.26,cutV:3.6,need:null},
+  {id:'brick',name:'Brick',desc:'A rock with legs. Slower and lower, but cracked tiles never give way under him.',col:0xc98a5a,col2:0x7a4a2a,
+    speed:8.3,lat:4.2,accG:46,accA:18,jumpV:7.5,g:29,holdG:.45,holdT:.27,cutV:3.6,heavy:true,need:{lv:5}},
+  {id:'vex',name:'Vex',desc:'Very fast and very slippery: plan your sidesteps early.',col:0xb26bff,col2:0x5a2aa8,
+    speed:10.6,lat:5.2,accG:15,accA:12,jumpV:7.4,g:26,holdG:.45,holdT:.26,cutV:3.6,need:{cr:25}},
+  {id:'moppet',name:'Moppet',desc:'A fluffy floater. Low gravity means long, lazy jumps.',col:0xffb3e6,col2:0xd0569e,
+    speed:8.7,lat:4.1,accG:30,accA:28,jumpV:6.6,g:16,holdG:.5,holdT:.3,cutV:3.2,need:{lv:14}},
+  {id:'twitch',name:'Twitch',desc:'Tiny and twitchy: the quickest sidestep, the smallest hop.',col:0xffd23f,col2:0xc77d00,
+    speed:9.6,lat:6.2,accG:64,accA:40,jumpV:7,g:28,holdG:.45,holdT:.26,cutV:3.4,need:{cr:60}}
+];
+
+// Tunnel shapes: [faces, tiles across each face]
+const SHAPES={sq:[4,5],hex:[6,4],oct:[8,3],nar:[4,3],big:[8,4]};
+const THEMES={
+  launch:{name:'Launch Lane',a:0x5d7cff,b:0x8fa4ff,sky:0x0a0d2a,neb:0x3b2bff,pl:0xff9a4a},
+  frost:{name:'Frostbelt',a:0x5fc6e8,b:0x9fe6ff,sky:0x06182a,neb:0x1fb6ff,pl:0xdff6ff},
+  rubble:{name:'Rubble Reach',a:0xb0794c,b:0xd9a06a,sky:0x1a0d08,neb:0xff6a2a,pl:0xa36bff},
+  junction:{name:'The Junction',a:0x7b6cff,b:0xb4a8ff,sky:0x0d0a26,neb:0xd04bff,pl:0x5fffc8},
+  drift:{name:'Drift Docks',a:0x3fbf9a,b:0x7fe6c4,sky:0x041c1a,neb:0x00ffb0,pl:0xffd04a},
+  spring:{name:'Spring Fields',a:0x9be04a,b:0xd0ff8a,sky:0x0c1a06,neb:0x7cff3b,pl:0xff5fa8},
+  gauntlet:{name:'The Gauntlet',a:0xe0485a,b:0xff8c8c,sky:0x1c0408,neb:0xff2244,pl:0xffe14a},
+  comet:{name:'Comet Tail',a:0xffc23f,b:0xffe08a,sky:0x1a1204,neb:0xffb800,pl:0x55c8ff},
+  core:{name:'The Core',a:0xff7a2a,b:0xffb36a,sky:0x200800,neb:0xff3d00,pl:0xffffff},
+  endless:{name:'Endless',a:0x6a7bff,b:0xa5b0ff,sky:0x080a20,neb:0x8a3bff,pl:0x46e0ff}
+};
+
+// Levels. Each is a list of pieces, read left to right; each piece lays some rows of tiles. The corridor is the path the
+// level is built round: it starts in the middle of the floor and some pieces move it.
+//   R n      n rows of complete ring                    G n    n empty rows (jump them)
+//   S n wW   only a strip W tiles wide (the corridor)   M n kK the strip slides K tiles sideways over n rows
+//   H n dD   ring with holes (share D), a 2-wide safe lane wanders through
+//   X n wW   rows on, rows off (hop along); wW makes it a strip; kK: K rows on between the gaps     Q n wW checkerboard
+//   Z n kK wW  the strip weaves K tiles each way          F n kK only the face K faces round from the corridor's face
+//   O n kK   every face but that one (O n k0: the floor drops out, take a wall)
+//   P n      a boost pad row, then n empty rows
+//   :t       tile type for the piece: n normal, c cracked, i ice, l/r conveyor to the left/right, f/b forward/back, k sticky
+//   $d / ^d  a power crystal d tiles from the corridor in the middle of the next piece, low ($) or high (^, jump for it)
+const LEVELS=[
+ // 1-5 Launch Lane: square tunnel, teaching
+ {n:'First Steps',s:'sq',th:'launch',sp:.86,p:'R14 $0 R8 G1 R10 G1 R8 $2 R8 G2 R10 S8w3 R6 ^0 G2 R10 G1 R6'},
+ {n:'Side Step',s:'sq',th:'launch',sp:.88,p:'R12 S10w3 $3 R6 O10k0 R8 G2 R6 $-3 O12k0 R10 S8w3 G1 ^0 R10 G2 R8'},
+ {n:'Hop Scotch',s:'sq',th:'launch',sp:.9,p:'R12 X6 R8 $0 G2 R6 X8 R8 O8k0 R6 ^0 X10 R8 G2 R6 $0 X6w3 R8'},
+ {n:'Round the Bend',s:'sq',th:'launch',sp:.92,p:'R12 S6w3 M10k4w3 $0 S8w3 M10k5w3 R8 G2 R6 S6w3 ^0 M12k-5w3 S6w3 R8 O10k0 $0 R8 G2 R8'},
+ {n:'Swiss Cheese',s:'sq',th:'launch',sp:.94,p:'R12 H16d.25 R6 G2 $0 H16d.35 R6 X6 ^0 H18d.4 R6 G2 R4 $0 S10w2 R8'},
+ // 6-10 Frostbelt: hexagon, ice
+ {n:'Thin Ice',s:'hex',th:'frost',sp:.92,p:'R12 R10:i $0 R6 G1 R10:i S8w4:i R6 ^0 G2 R10 O10k0:i $0 R8 G2 R8'},
+ {n:'Skid Row',s:'hex',th:'frost',sp:.94,p:'R10 S10w3:i $0 M10k3w3:i S6w3 G1 S8w3:i ^0 M10k-4w3:i R6 G2 $0 H14d.3:i R8'},
+ {n:'Glacier Gaps',s:'hex',th:'frost',sp:.96,p:'R10 X8:i R6:i G2 $0 R6:i G2 R6 ^0 X10w4:i R6 G3 R8:i $0 O10k0:i R8'},
+ {n:'Snow Globe',s:'hex',th:'frost',sp:.98,p:'R12 F10k1 $0 R10 F10k-1:i R10 G2 ^0 R10 F10k1:i R12 F10k1 $0 R10 G2 R10'},
+ {n:'Polar Express',s:'hex',th:'frost',sp:1,p:'R10 H14d.35:i G2 $0 R6:i Z16k2w2:i R6 G2 ^0 H16d.4:i R6 X6:i $0 R6 G3 R8'},
+ // 11-15 Rubble Reach: octagon, cracked tiles
+ {n:'Cracked Path',s:'oct',th:'rubble',sp:.92,p:'R12 R10:c $0 R6 G1 R6 R8:c ^0 G2 R8 R10:c $0 R4 G2 R8'},
+ {n:'Soft Landing',s:'oct',th:'rubble',sp:.94,p:'R10 G2 R1:c R6 $0 G2 R2:c R6 R6:c ^0 G2 R2:c R8 S8w3:c $0 G2 R8'},
+ {n:'Rubble Run',s:'oct',th:'rubble',sp:.96,p:'R10 H14d.3:c $0 R6 X8 R6:c ^0 O10k0:c R6 G2 $0 H14d.35 R8'},
+ {n:'Shale Spiral',s:'oct',th:'rubble',sp:.98,p:'R10 S6w3 M14k6w3:c $0 S6w3 M14k-6w3 R6:c G2 ^0 S6w2 M12k4w2:c S6w3 R6 $0 G2 R8'},
+ {n:'Rockfall',s:'oct',th:'rubble',sp:1,p:'R10 Q10:c R6 G2 $0 R4 H16d.4:c R6 ^0 X8:c R6 G3 $0 R6:c R8'},
+ // 16 The Junction: square, a bit of everything
+ {n:'Crossroads',s:'sq',th:'junction',sp:1,p:'R10 R8:i G2 R6 R8:c $0 O10k0 R8 ^0 H14d.35 R6 S6w3 M10k5w3:i S6w3 $0 G2 R8 X6 R8'},
+ // 17-20 Drift Docks: hexagon, conveyors
+ {n:'Moving Floor',s:'hex',th:'drift',sp:.96,p:'R10 R10:r $0 R6 R10:l R6 G1 R10:f ^0 R6 G2 R10:b $0 R6 G2 R8'},
+ {n:'Undertow',s:'hex',th:'drift',sp:.98,p:'R10 S10w3:r $0 S6w3 S10w3:l R6 G2 ^0 R10:r O10k0:l R10 $0 S8w2 G2 R8'},
+ {n:'Cargo Belt',s:'hex',th:'drift',sp:1,p:'R10 H14d.3:r $0 R6 X8:f R6 ^0 G3 R6 H14d.35:l R6 $0 R8:b G2 R8'},
+ {n:'Dock Spin',s:'hex',th:'drift',sp:1.02,p:'R10 R14:r $0 R6:l Z14k2w2 R6 ^0 G2 R14:l R6 $0 F10k1:r R6 G2 R8'},
+ // 21-24 Spring Fields: octagon, boost pads and sticky goo
+ {n:'Springboard',s:'oct',th:'spring',sp:.96,p:'R12 P3 $0 R8 P4 R8 ^0 R6 P4 R8 $0 R8:k R6 G2 R8'},
+ {n:'Gumtrap',s:'oct',th:'spring',sp:.98,p:'R10 R8:k $0 R6 G2 R6 S8w3:k ^0 R6 P4 R8 $0 R6:k R6 G2 R8'},
+ {n:'Long Leap',s:'oct',th:'spring',sp:1,p:'R10 P5 $0 R6 G2 R6 P5 ^0 R6 H12d.3 P5 $0 R8 X6 R8'},
+ {n:'Bounce House',s:'oct',th:'spring',sp:1.02,p:'R10 P4 R4:k $0 R6 P4 S6w3 G2 ^0 R6:k R6 P5 R6 $0 H14d.35 R8'},
+ // 25-28 The Gauntlet: narrow square, harder
+ {n:'Tight Squeeze',s:'nar',th:'gauntlet',sp:1,p:'R12 S10w2 $0 R6 O10k0 R6 G2 ^0 R6 F10k1 R6 F10k-1 $0 R6 G2 R8'},
+ {n:'Knife Edge',s:'nar',th:'gauntlet',sp:1.02,p:'R10 S10w1 R6 $0 X8w2 R6 ^0 H14d.4 R6 S8w1:i $0 R6 G2 R8'},
+ {n:'Tumble Dryer',s:'nar',th:'gauntlet',sp:1.04,p:'R10 S6w2 M12k6w2 $0 S6w2 M12k-6w2:i R6 G2 ^0 S6w2 M12k6w2:r S6w2 $0 R6 G2 R8'},
+ {n:'No Way Out',s:'nar',th:'gauntlet',sp:1.06,p:'R10 H16d.4:c $0 R6 G2 R6:i O10k0 R6 ^0 X10 R6 G3 $0 R6 Q8 R8'},
+ // 29-30 Comet Tail: big octagon, bonus branch
+ {n:'Crystal Garden',s:'big',th:'comet',sp:1,p:'R12 H16d.3 $0 R6 P4 R8 ^4 X8 R6 $-4 F10k2 R6 G2 R8'},
+ {n:'Tail Spin',s:'big',th:'comet',sp:1.02,p:'R10 S6w3 M16k8w3 $0 S6w3 M16k-8w3:i R6 G2 ^0 Z16k3w3 R6 $0 H16d.4 R8'},
+ // 31-32 The Core
+ {n:'Heat Shield',s:'hex',th:'core',sp:1.06,p:'R10 H16d.4:c $0 R6:i G2 R6 X8:r R6 ^0 P5 R6 O10k0:l R10 $0 Z14k2w2 R6 G3 R8'},
+ {n:'Heart of the Rock',s:'oct',th:'core',sp:1.08,p:'R10 S6w3 M12k4w3:i $0 R6 G2 H14d.4:c R6 P5 ^0 R6:k R6 G2 X8:f R6 $0 Q10 R6 O10k0:r R6 G3 R8'}
+];
+// The map: where each level sits (x, y in a 1000 x 680 box) and which levels it opens.
+const MAP=[
+ [70,150,[1]],[165,105,[2]],[260,150,[3]],[355,105,[4]],[450,150,[5,10]],
+ [545,70,[6]],[640,110,[7]],[735,70,[8]],[830,110,[9]],[900,70,[15]],
+ [545,235,[11]],[615,290,[12]],[700,255,[13]],[790,240,[14]],[860,275,[15]],
+ [950,340,[16,20]],
+ [840,345,[17]],[740,385,[18]],[640,345,[19]],[540,385,[24]],
+ [840,485,[21]],[740,525,[22]],[640,485,[23]],[540,525,[24]],
+ [440,455,[25,28]],
+ [340,400,[26]],[240,360,[27]],[140,400,[30]],
+ [340,520,[29]],[240,560,[30]],
+ [100,500,[31]],[80,620,[]]
+];
+const PRED=MAP.map(()=>[]);MAP.forEach((m,i)=>m[2].forEach(j=>PRED[j].push(i)));
+
+function rng(seed){let a=seed>>>0||1;return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+
+// ---- the tunnel ----
+function newWorld(shape,th,sp){
+  const [N,L]=SHAPES[shape];const P=N*L;
+  return {shape,N,L,P,th,sp:sp||1,a:(L/2)/Math.tan(Math.PI/N),rows:[],cry:[],fin:Infinity,cr:new Map(),spRow:null,
+    p:L/2,pend:[],pr:null,gen:null,cryAt:{}};
+}
+const wrapd=(W,x)=>{const P=W.P;let v=((x%P)+P)%P;if(v>P/2)v-=P;return v};
+const laneOf=(W,u)=>{const P=W.P;let j=Math.floor(u)%P;return j<0?j+P:j};
+function addRow(W,fill){const r=new Uint8Array(W.P);if(fill)r.fill(fill);W.rows.push(r);return r}
+// lanes of the corridor centred on p, w wide
+function corr(W,p,w,fn){for(let j=0;j<W.P;j++)if(Math.abs(wrapd(W,j+.5-p))<w/2)fn(j)}
+function faceOf(W,p){return Math.floor(((p%W.P)+W.P)%W.P/W.L)}
+function placeCry(W,r0,n){
+  if(!W.pend.length)return;
+  const r=r0+Math.floor(n/2);
+  for(const c of W.pend){const o={l:laneOf(W,W.p+c.d),r,h:c.hi?1.75:.55,id:W.cry.length};W.cry.push(o);(W.cryAt[r]||(W.cryAt[r]=[])).push(o)}
+  W.pend=[];
+}
+// One piece: [cmd, n, {w,k,d,t}]
+function piece(W,cmd,n,o,R){
+  const t=o.t||T.N,w=o.w||W.L,r0=W.rows.length;
+  const pAt=[];
+  switch(cmd){
+    case 'R':for(let i=0;i<n;i++)addRow(W,t);break;
+    case 'G':for(let i=0;i<n;i++)addRow(W,0);break;
+    case 'S':for(let i=0;i<n;i++){const r=addRow(W,0);corr(W,W.p,w,j=>r[j]=t)}break;
+    case 'M':{const p0=W.p,k=o.k||0;for(let i=0;i<n;i++){const p=p0+k*(i+1)/n,r=addRow(W,0);corr(W,p,w,j=>r[j]=t);
+      // a little overlap with the row before so the strip stays joined
+      corr(W,p0+k*i/n,w,j=>r[j]=t)}W.p=p0+k;break}
+    case 'H':{const d=o.d||.3;let p=W.p,since=0;for(let i=0;i<n;i++){const r=addRow(W,t);
+      for(let j=0;j<W.P;j++)if(R()<d)r[j]=0;
+      if(since>=4&&R()<.5){const np=p+(R()<.5?-1:1);corr(W,np,2,j=>r[j]=t);p=np;since=0}else since++;
+      corr(W,p,2,j=>r[j]=t)}
+      W.p=p;break}
+    case 'X':for(let i=0;i<n;i++){const on=i%((o.k||1)+1)<(o.k||1);const r=addRow(W,0);if(on){if(o.w)corr(W,W.p,w,j=>r[j]=t);else r.fill(t)}}
+      addRow(W,0).fill(t);break;
+    case 'Q':for(let i=0;i<n;i++){const r=addRow(W,0);for(let j=0;j<W.P;j++)if((j+i)%2===0&&(!o.w||Math.abs(wrapd(W,j+.5-W.p))<w/2))r[j]=t}break;
+    case 'Z':{const p0=W.p,k=o.k||1;for(let i=0;i<n;i++){const p=p0+k*Math.sin(i/n*Math.PI*2),pp=p0+k*Math.sin((i-1)/n*Math.PI*2);const r=addRow(W,0);corr(W,p,w,j=>r[j]=t);corr(W,pp,w,j=>r[j]=t)}W.p=p0;break}
+    case 'F':{const f=(faceOf(W,W.p)+(o.k||0)+W.N)%W.N;for(let i=0;i<n;i++){const r=addRow(W,0);for(let j=f*W.L;j<(f+1)*W.L;j++)r[j]=t}
+      W.p=f*W.L+W.L/2;break}
+    case 'O':{const f=(faceOf(W,W.p)+(o.k||0)+W.N)%W.N;for(let i=0;i<n;i++){const r=addRow(W,t);for(let j=f*W.L;j<(f+1)*W.L;j++)r[j]=0}
+      // the corridor stays put: whichever wall you took, the face that dropped out is one face away, so what comes
+      // next is as far from either side (levels give a ring of 8+ rows after this before anything narrower)
+      break}
+    case 'P':addRow(W,T.B);for(let i=0;i<n;i++)addRow(W,0);break;
+  }
+  placeCry(W,r0,W.rows.length-r0);
+}
+function parse(src){
+  const out=[];
+  for(const tok of src.trim().split(/\s+/)){
+    let m;
+    if((m=/^([$^])(-?\d+)$/.exec(tok))){out.push(['cry',+m[2],m[1]==='^']);continue}
+    m=/^([A-Z])(\d+)((?:[wkd]-?[\d.]+)*)(?::([a-z]))?$/.exec(tok);
+    if(!m)throw new Error('bad piece '+tok);
+    const o={};(m[3].match(/[wkd]-?[\d.]+/g)||[]).forEach(s=>o[s[0]]=+s.slice(1));
+    if(m[4])o.t=TCH[m[4]];
+    out.push([m[1],+m[2],o]);
+  }
+  return out;
+}
+function buildLevel(i){
+  const L=LEVELS[i],W=newWorld(L.s,L.th,L.sp),R=rng(9173+i*7919);
+  W.level=i;
+  for(let r=0;r<4;r++)addRow(W,T.N);   // under the start
+  for(const pc of parse(L.p)){
+    if(pc[0]==='cry'){W.pend.push({d:pc[1],hi:pc[2]});continue}
+    piece(W,pc[0],pc[1],pc[2],R);
+  }
+  W.fin=W.rows.length+2;
+  for(let r=0;r<16;r++)addRow(W,T.N);
+  W.len=W.fin*TL;
+  return W;
+}
+
+// ---- endless: an endless seeded tunnel that gets harder the further you go ----
+const ENDLESS_SHAPE='oct';
+function endlessSpeed(d){return 1+.32*Math.min(1,d/2400)}
+function buildEndless(seed){
+  const W=newWorld(ENDLESS_SHAPE,'endless',1),R=rng(seed||1);
+  W.endless=true;W.seed=seed;
+  for(let r=0;r<22;r++)addRow(W,T.N);
+  W.gen={R,n:0};
+  extendEndless(W,80);
+  return W;
+}
+const pick=(R,a)=>a[Math.floor(R()*a.length)];
+function extendEndless(W,upto){
+  const g=W.gen,R=g.R;
+  while(W.rows.length<upto){
+    const D=Math.min(1,W.rows.length*TL/2200);     // 0 at the start, 1 from 2.2 km
+    const gapMax=D<.25?2:3;
+    const tt=()=>R()<.25+D*.4?pick(R,[T.I,T.C,T.VL,T.VR,T.VF,T.I,T.C]):T.N;
+    if(R()<.3)W.pend.push({d:R()<.6?0:Math.round((R()-.5)*4),hi:R()<.3});
+    const k=R(),t=tt();
+    const run=Math.max(3,Math.round(8-D*4+R()*3));
+    if(k<.2)piece(W,'G',1+Math.floor(R()*gapMax),{},R);
+    else if(k<.32)piece(W,'H',10+Math.floor(R()*8),{d:.2+D*.25,t:t===T.VF?T.N:t},R);
+    else if(k<.42)piece(W,'X',6+3*Math.floor(R()*3),{k:2,t:t===T.C||t===T.VF?T.N:t},R);
+    else if(k<.52){piece(W,'S',4,{w:3,t},R);piece(W,'M',10+Math.floor(R()*6),{k:pick(R,[-4,-3,3,4,5,-5]),w:3,t},R);piece(W,'S',4,{w:3},R)}
+    else if(k<.6){piece(W,'O',8+Math.floor(R()*4),{k:0,t},R);piece(W,'R',8,{},R)}
+    else if(k<.66){piece(W,'P',3+Math.floor(R()*2),{},R);piece(W,'R',6,{},R)}
+    else if(k<.72&&D>.15)piece(W,'Z',12+Math.floor(R()*6),{k:2,w:2,t:t===T.C?T.N:t},R);
+    else if(k<.78&&D>.3)piece(W,'Q',6+2*Math.floor(R()*3),{},R);
+    else if(k<.84)piece(W,'F',8+Math.floor(R()*4),{k:pick(R,[-1,1]),t:t===T.C?T.N:t},R);
+    else piece(W,'R',4+Math.floor(R()*6),{t},R);
+    piece(W,'R',run,{},R);
+    g.n++;
+  }
+}
+
+// ---- geometry: where a point on the tunnel wall is ----
+// Faces are numbered round the tunnel from the floor (face 0) the way "right" goes. u is the distance round the tunnel
+// wall in tiles. Returns the wall point (x, y), the normal pointing into the tunnel (nx, ny) and the sideways direction
+// (tx, ty). Near a corner the normal turns gradually from one face's to the next (over B tiles each side), which is
+// what rolls the runner and the camera smoothly when gravity swaps faces.
+const B_CORNER=.45;
+function wallAt(W,u,out,blend){
+  const P=W.P,L=W.L,N=W.N;u=((u%P)+P)%P;
+  const k=Math.min(N-1,Math.floor(u/L)),e=u-k*L-L/2,th=2*Math.PI/N,al=-Math.PI/2+k*th;
+  const ox=Math.cos(al),oy=Math.sin(al);
+  out.x=W.a*ox-e*oy;out.y=W.a*oy+e*ox;
+  let be=al;
+  if(blend!==false){const c=L/2-Math.abs(e);if(c<B_CORNER)be=al+Math.sign(e)*.5*(1-c/B_CORNER)*th}
+  out.nx=-Math.cos(be);out.ny=-Math.sin(be);out.tx=-Math.sin(be);out.ty=Math.cos(be);out.ang=be;out.face=k;
+  return out;
+}
+
+// ---- tiles ----
+function tileAt(W,j,r){const row=W.rows[r];return row?row[j]:0}
+function isGone(W,j,r,t,ov){
+  const id=r*64+j;let tr=W.cr.get(id);
+  if(tr==null&&ov)for(let i=0;i<ov.length;i++)if(ov[i][0]===id){tr=ov[i][1];break}
+  return tr!=null&&t>=tr;
+}
+function solid(W,j,r,s,ov){
+  const ty=tileAt(W,j,r);if(!ty)return 0;
+  if(ty===T.C&&!s.ch.heavy&&isGone(W,j,r,s.t,ov))return 0;
+  return ty;
+}
+const FOOT=[[0,0],[-.2,0],[.2,0],[0,.16],[0,-.16]];
+function support(W,s,ov,res){
+  for(let i=0;i<FOOT.length;i++){const j=laneOf(W,s.u+FOOT[i][0]),r=Math.floor((s.d+FOOT[i][1])/TL);
+    if(r<0)continue;const ty=solid(W,j,r,s,ov);if(ty){res.j=j;res.r=r;return ty}}
+  return 0;
+}
+
+// ---- the runner ----
+function newRunner(W,ch){
+  return {ch,u:W.L/2,d:2.5,h:0,vu:0,vh:0,vd:ch.speed*W.sp*.8,g:true,co:COYOTE,jb:0,jh:false,ht:0,hold:false,boost:false,
+    t:0,dead:false,fin:false,lt:T.N,fall:0,got:0,gotIds:[],tr:null,ev:0,jumps:0};
+}
+function cloneRunner(s){const c=Object.assign({},s);c.gotIds=s.gotIds.slice();if(s.tr)c.tr=s.tr.slice();return c}
+const EV={JUMP:1,LAND:2,CRY:4,DIE:8,FIN:16,BOOST:32,CRACK:64};
+const _sr={j:0,r:0};
+function trigger(W,s,j,r,delay,ov){
+  const id=r*64+j;if(W.cr.has(id))return;
+  if(ov){for(let i=0;i<ov.length;i++)if(ov[i][0]===id)return;ov.push([id,s.t+delay]);}
+  else W.cr.set(id,s.t+delay);
+  s.ev|=EV.CRACK;
+}
+function land(s){s.h=0;s.vh=0;s.g=true;s.co=COYOTE;s.boost=false;s.hold=false;s.ev|=EV.LAND}
+function speedAt(W,s){return s.ch.speed*(W.endless?endlessSpeed(s.d):W.sp)}
+// One fixed step. inp: {x: -1..1 sideways, j: jump held}. In the planner, ov is the runner's own list of cracked tiles
+// (so trying moves doesn't touch the real tunnel).
+function step(W,s,inp,plan){
+  if(s.dead||s.fin)return;
+  const C=s.ch,ov=plan?(s.tr||(s.tr=[])):null;
+  s.ev=0;
+  if(inp.j&&!s.jh)s.jb=JBUF;
+  s.jh=!!inp.j;
+  if(s.jb>0)s.jb-=DT;
+  let tt=0;
+  if(s.g){
+    const sup=support(W,s,ov,_sr);
+    if(sup){s.co=COYOTE;tt=sup;s.lt=sup;
+      if(sup===T.C&&!C.heavy)trigger(W,s,_sr.j,_sr.r,CR_WALK,ov);
+      if(sup===T.C&&C.heavy&&!plan)trigger(W,s,_sr.j,_sr.r,99,null);}
+    else{s.co-=DT;if(s.co<=0){s.g=false;s.vh=0;s.hold=false}else tt=s.lt}
+  }
+  const base=speedAt(W,s);
+  if(s.g){
+    let vT=base;
+    if(tt===T.VF)vT*=1.35;else if(tt===T.VB)vT*=.68;else if(tt===T.K)vT*=.62;
+    s.vd+=clamp(vT-s.vd,-24*DT,12*DT);
+    // sideways
+    const ice=tt===T.I,acc=ice?Math.max(6,C.accG*.25):C.accG;
+    let drift=0;if(tt===T.VL)drift=-3.2;else if(tt===T.VR)drift=3.2;
+    const tgt=clamp(inp.x||0,-1,1)*C.lat*(tt===T.K?.7:1)+drift;
+    s.vu+=clamp(tgt-s.vu,-acc*DT,acc*DT);
+    if(s.jb>0||tt===T.B){
+      const pad=tt===T.B;s.jb=0;s.g=false;s.ht=0;s.hold=true;s.boost=pad;s.jumps++;
+      s.vh=pad?C.jumpV*1.12:C.jumpV*(tt===T.K?.6:1);
+      if(pad){s.vd=Math.max(s.vd,base*1.3);s.ev|=EV.BOOST}else s.ev|=EV.JUMP;
+      if(tt===T.C&&!C.heavy&&!plan)trigger(W,s,_sr.j,_sr.r,.08,null);
+    }
+  }else{
+    // extra speed from a belt fades in the air too, so hopping can't keep it (a pad's launch keeps it until landing)
+    if(!s.boost&&s.vd>base)s.vd=Math.max(base,s.vd-9*DT);
+    const tgt=clamp(inp.x||0,-1,1)*C.lat;
+    s.vu+=clamp(tgt-s.vu,-C.accA*DT,C.accA*DT);
+  }
+  if(!s.g){
+    let gg=C.g;
+    if(s.hold&&(s.jh||s.boost)&&s.ht<C.holdT*(s.boost?1.6:1)&&s.vh>0){gg*=C.holdG;s.ht+=DT}
+    else{if(s.hold&&!s.boost&&s.vh>C.cutV)s.vh=C.cutV;s.hold=false}
+    const h0=s.h;s.vh=Math.max(-30,s.vh-gg*DT);s.h+=s.vh*DT;
+    if(h0>=0&&s.h<=0&&s.vh<=0){
+      const sup=support(W,s,ov,_sr);
+      if(sup){if(s.boost)s.vd=Math.min(s.vd,speedAt(W,s)*1.05);s.h=0;s.vh=0;s.g=true;s.co=COYOTE;s.boost=false;s.hold=false;s.lt=sup;s.ev|=EV.LAND;
+        if(sup===T.C&&!C.heavy)trigger(W,s,_sr.j,_sr.r,CR_LAND,ov);}
+    }
+  }
+  // move; below the wall you can't slide in under a tile
+  let nu=s.u+s.vu*DT,nd=s.d+s.vd*DT;
+  if(s.h<0){
+    // just below the edge of a tile you move onto: step up onto it (a forgiving ledge); deeper: bump into its side
+    const r=Math.floor(s.d/TL),pop=s.h>-.25;
+    if(Math.floor(nu)!==Math.floor(s.u)&&solid(W,laneOf(W,nu),r,s,ov)){if(pop)land(s,ov);else{nu=s.u;s.vu=0}}
+    if(s.h<0&&Math.floor(nd/TL)!==r&&solid(W,laneOf(W,nu),Math.floor(nd/TL),s,ov)){if(pop)land(s,ov);else{nd=s.d;s.vd=0}}
+    if(s.h<0)s.fall+=DT;
+  }
+  s.u=((nu%W.P)+W.P)%W.P;s.d=nd;s.t+=DT;
+  // crystals
+  const rr=Math.floor(s.d/TL);
+  for(let r=rr-1;r<=rr+1;r++){const cs=W.cryAt[r];if(!cs)continue;for(let i=0;i<cs.length;i++){const c=cs[i];
+    if(s.gotIds.indexOf(c.id)>=0)continue;
+    if(Math.abs(wrapd(W,c.l+.5-s.u))<.75&&Math.abs((c.r+.5)*TL-s.d)<.9&&Math.abs(c.h-s.h-.4)<.85){s.gotIds.push(c.id);s.got++;s.ev|=EV.CRY}}}
+  if(s.h<-4.5){s.dead=true;s.ev|=EV.DIE}
+  if(s.d>=W.fin*TL){s.fin=true;s.ev|=EV.FIN}
+  if(W.endless&&W.gen&&rr+60>W.rows.length)extendEndless(W,rr+120);
+}
+
+// ---- the checking bot ----
+// Plans with the real physics: a beam search over short bursts of inputs (left / none / right, with no jump, a tap or a
+// full jump; in the air, keep holding or let go), keeping the most promising few dozen different states at each depth,
+// until one keeps the runner alive for `ahead` metres. Used by the tests and the demo runner behind the menu.
+const CHUNK=12;
+const XS=[0,-1,1];
+function runChunk(W,s,a){
+  for(let i=0;i<CHUNK;i++){
+    const jh=a.j===2||a.j===3||(a.j===1&&i<2);
+    step(W,s,{x:a.x,j:jh},true);
+    if(s.dead||s.fin)return;
+  }
+}
+function actsFor(s){
+  const out=[];
+  for(const x of XS){
+    if(s.g){out.push({x,j:0},{x,j:2},{x,j:1})}
+    else if(s.hold){out.push({x,j:3},{x,j:0})}
+    else out.push({x,j:0});
+  }
+  return out;
+}
+// how much floor there is further up the tunnel in the runner's lane and its neighbours (beyond the planning horizon)
+function lookAhead(W,s){
+  const r0=Math.floor(s.d/TL)+1,j=Math.floor(s.u);let n=0;
+  for(let r=r0;r<r0+26;r+=2){const row=W.rows[r];if(!row){n+=3;continue}
+    for(let dj=-1;dj<=1;dj++){const ty=row[((j+dj)%W.P+W.P)%W.P];if(ty)n+=dj?.5:1}}
+  return n;
+}
+function plan(W,s0,opt){
+  opt=opt||{};
+  const ahead=opt.ahead||16,beam=opt.beam||48,goal=s0.d+ahead,maxDepth=opt.depth||40;
+  let layer=[{s:cloneRunner(s0),acts:[],sc:0}],nodes=0,lastGood=layer,done=null;
+  for(let depth=0;depth<maxDepth;depth++){
+    const next=new Map();
+    for(const nd of layer){
+      for(const a of actsFor(nd.s)){
+        const c=cloneRunner(nd.s);runChunk(W,c,a);nodes++;
+        if(c.dead||c.h<-.05)continue;
+        const acts=nd.acts.concat([a]);
+        if(c.fin)return {ok:true,acts,nodes};
+        const prev=nd.acts.length?nd.acts[nd.acts.length-1]:null;
+        // prefer: further on, fewer changes of input, crystals, standing near the middle of a tile
+        let sc=nd.sc+(prev&&(prev.x!==a.x)?-.15:0)+(a.j===2||a.j===1?-.25:0)+(c.got-nd.s.got)*.6;
+        const k=Math.round(c.u*2)+','+(c.g?1:0)+','+Math.round(c.h*2)+','+(c.hold?1:0)+','+Math.round(c.vu*.8)+','+Math.round(c.d);
+        if(c.d>=goal){const v=sc+lookAhead(W,c)*.25;if(!done||v>done.v)done={acts,v};continue}
+        const tot=sc+c.d;
+        const o=next.get(k);if(!o||o.tot<tot)next.set(k,{s:c,acts,sc,tot});
+      }
+    }
+    if(done)return {ok:true,acts:done.acts,nodes};
+    if(!next.size)break;
+    layer=[...next.values()].sort((p,q)=>q.tot-p.tot).slice(0,beam);
+    lastGood=layer;
+  }
+  return {ok:false,acts:lastGood[0].acts,nodes};
+}
+// Drive a runner through a level or for a time with the planner. Returns {fin, dead, t, d, got}.
+function runBot(W,ch,o){
+  o=o||{};
+  const s=newRunner(W,ch),maxT=o.maxT||120;let q=[],fails=0;
+  while(!s.dead&&!s.fin&&s.t<maxT){
+    if(!q.length){const p=plan(W,s,{ahead:o.ahead||16,beam:o.beam||48});q=p.acts.slice(0,Math.max(1,Math.min(4,p.acts.length-2)));if(!p.ok)fails++;if(!q.length)q=[{x:0,j:0}]}
+    const a=q.shift();
+    for(let i=0;i<CHUNK&&!s.dead&&!s.fin;i++){let jh=a.j===2||a.j===3||(a.j===1&&i<2);step(W,s,{x:a.x,j:jh},false)}
+  }
+  return {fin:s.fin,dead:s.dead,t:s.t,d:s.d,got:s.got,fails,s};
+}
+return {DT,TL,T,TCH,CHARS,SHAPES,THEMES,LEVELS,MAP,PRED,EV,CHUNK,rng,newWorld,buildLevel,buildEndless,extendEndless,endlessSpeed,
+  wallAt,tileAt,isGone,laneOf,wrapd,newRunner,cloneRunner,step,plan,runBot,speedAt,parse,CR_WALK,CR_LAND};
+})();
+// ==/CORE==
+(()=>{
+'use strict';
+const $=id=>document.getElementById(id);
+const {DT,TL,T,CHARS,THEMES,LEVELS,MAP,PRED,EV}=AR;
+const NL=LEVELS.length;
+const clamp=(v,a,b)=>v<a?a:v>b?b:v,lerp=(a,b,t)=>a+(b-a)*t;
+const KEY='asteroid-run:';
+const store={get(k,d){try{const v=localStorage.getItem(KEY+k);return v===null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(KEY+k,JSON.stringify(v))}catch(e){}}};
+
+// ---------- saved progress ----------
+// asteroid-run:save = {v:1, lv:{<level index>:{c: crystal bits, t: best time, n: clears}}, bank: endless crystals kept,
+// ch: runner id, best: endless metres, runs}
+function loadSave(){
+  const s=store.get('save',null),o={v:1,lv:{},bank:0,ch:'pip',best:0,runs:0};
+  if(!s||typeof s!=='object')return o;
+  if(s.lv&&typeof s.lv==='object')for(const k in s.lv){const i=+k,e=s.lv[k];if(i>=0&&i<NL&&e&&typeof e==='object')o.lv[i]={c:(+e.c||0)&7,t:isFinite(+e.t)&&+e.t>0?+e.t:0,n:Math.max(1,+e.n||1)}}
+  o.bank=Math.max(0,Math.floor(+s.bank||0));o.best=Math.max(0,+s.best||0);o.runs=Math.max(0,Math.floor(+s.runs||0));
+  if(CHARS.some(c=>c.id===s.ch))o.ch=s.ch;
+  return o;
+}
+let save=loadSave();
+const saveNow=()=>store.set('save',save);
+const bits=n=>(n&1)+(n>>1&1)+(n>>2&1);
+const clearedCount=()=>Object.keys(save.lv).length;
+const crystalTotal=()=>{let n=save.bank;for(const k in save.lv)n+=bits(save.lv[k].c);return n};
+const isOpen=i=>i===0||!!save.lv[i]||PRED[i].some(p=>!!save.lv[p]);
+const unlocked=ch=>!ch.need||(ch.need.lv!=null?clearedCount()>=ch.need.lv:crystalTotal()>=ch.need.cr);
+const needText=ch=>!ch.need?'':ch.need.lv!=null?'Clear '+ch.need.lv+' levels':'Collect '+ch.need.cr+' crystals';
+function statsHook(kind,k,v){if(window.BackRoomStats){try{BackRoomStats[kind](k,v)}catch(e){}}}
+
+const set=Object.assign({vol:.7,gfx:null,tm:'buttons'},store.get('set',{}));
+let touchUI=matchMedia('(pointer: coarse)').matches&&!matchMedia('(any-pointer: fine)').matches;
+if(set.gfx!=='low'&&set.gfx!=='high')set.gfx=touchUI?'low':'high';
+if(set.tm!=='halves')set.tm='buttons';
+set.vol=clamp(+set.vol,0,1);if(!isFinite(set.vol))set.vol=.7;
+const saveSet=()=>store.set('set',set);
+
+// ---------- sound (tiny synth, no files) ----------
+let ac=null,master=null;
+function initAudio(){if(ac)return;try{ac=new(window.AudioContext||window.webkitAudioContext)();master=ac.createGain();master.gain.value=set.vol*.5;master.connect(ac.destination)}catch(e){ac=null}}
+function tone(f0,f1,dur,type,vol,delay){
+  if(!ac||set.vol<=0)return;const t=ac.currentTime+(delay||0),o=ac.createOscillator(),g=ac.createGain();
+  o.type=type||'square';o.frequency.setValueAtTime(f0,t);o.frequency.exponentialRampToValueAtTime(Math.max(20,f1),t+dur);
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol||.2,t+.01);g.gain.exponentialRampToValueAtTime(.001,t+dur);
+  o.connect(g);g.connect(master);o.start(t);o.stop(t+dur+.02);
+}
+const sfx={
+  jump(){tone(320,640,.12,'square',.08)},land(){tone(140,70,.07,'triangle',.12)},
+  cry(){tone(880,1320,.08,'sine',.18);tone(1320,1760,.1,'sine',.14,.06)},
+  boost(){tone(200,900,.25,'sawtooth',.08)},crack(){tone(180,60,.12,'sawtooth',.05)},
+  die(){tone(500,60,.6,'triangle',.18)},win(){[523,659,784,1046].forEach((f,i)=>tone(f,f*1.01,.18,'square',.09,i*.09))},
+  click(){tone(600,500,.04,'square',.05)}
+};
+
+// ---------- three.js scene ----------
+const canvas=$('view');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:set.gfx==='high',powerPreference:'high-performance'});
+const hiQ=()=>set.gfx==='high';
+function applyQuality(){renderer.setPixelRatio(Math.min(devicePixelRatio||1,hiQ()?1.5:1));resize()}
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(70,1,.1,500);
+scene.fog=new THREE.Fog(0x0a0d2a,26,64);
+scene.add(new THREE.HemisphereLight(0xdfe4ff,0x30285a,.95));
+const sun=new THREE.DirectionalLight(0xffffff,.55);sun.position.set(.4,1,.6);scene.add(sun);scene.add(sun.target);
+function resize(){
+  const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;
+  camera.fov=w/h<.8?86:w/h<1.2?78:70;camera.updateProjectionMatrix();
+}
+addEventListener('resize',resize);
+
+function canvasTex(w,h,draw){const c=document.createElement('canvas');c.width=w;c.height=h;draw(c.getContext('2d'),w,h);const t=new THREE.CanvasTexture(c);t.anisotropy=2;return t}
+// tile face: light middle, darker bevelled border
+const tileTex=canvasTex(128,128,(g,w,h)=>{
+  g.fillStyle='#fff';g.fillRect(0,0,w,h);
+  const gr=g.createLinearGradient(0,0,w,h);gr.addColorStop(0,'rgba(255,255,255,0)');gr.addColorStop(1,'rgba(0,0,30,.16)');g.fillStyle=gr;g.fillRect(0,0,w,h);
+  g.strokeStyle='rgba(10,8,50,.55)';g.lineWidth=10;g.strokeRect(5,5,w-10,h-10);
+  g.strokeStyle='rgba(255,255,255,.55)';g.lineWidth=3;g.strokeRect(13,13,w-26,h-26);
+});
+const arrowTex=canvasTex(64,128,(g,w,h)=>{g.strokeStyle='#fff';g.lineWidth=9;g.lineCap='round';g.lineJoin='round';
+  for(const y of [20,84]){g.beginPath();g.moveTo(12,y+26);g.lineTo(32,y+6);g.lineTo(52,y+26);g.stroke()}});
+arrowTex.wrapS=arrowTex.wrapT=THREE.RepeatWrapping;
+const chevTex=canvasTex(64,64,(g,w,h)=>{g.fillStyle='#fff';g.beginPath();g.moveTo(32,4);g.lineTo(60,34);g.lineTo(46,34);g.lineTo(32,20);g.lineTo(18,34);g.lineTo(4,34);g.closePath();g.fill();
+  g.beginPath();g.moveTo(32,30);g.lineTo(60,60);g.lineTo(46,60);g.lineTo(32,46);g.lineTo(18,60);g.lineTo(4,60);g.closePath();g.fill()});
+chevTex.wrapS=chevTex.wrapT=THREE.RepeatWrapping;
+const crackTex=canvasTex(128,128,(g,w,h)=>{const R=AR.rng(7);g.strokeStyle='rgba(30,12,0,.85)';g.lineWidth=4;g.lineCap='round';
+  for(let i=0;i<5;i++){let x=64,y=64;g.beginPath();g.moveTo(x,y);const a=i/5*Math.PI*2+R()*.6;for(let k=0;k<4;k++){x+=Math.cos(a+(R()-.5)*1.2)*16;y+=Math.sin(a+(R()-.5)*1.2)*16;g.lineTo(x,y)}g.stroke()}});
+const gooTex=canvasTex(128,128,(g,w,h)=>{const R=AR.rng(3);g.fillStyle='rgba(255,255,255,.75)';for(let i=0;i<14;i++){g.beginPath();g.arc(12+R()*104,12+R()*104,4+R()*9,0,7);g.fill()}});
+
+const MAXI=2400;
+const tileGeo=new THREE.BoxGeometry(.95,.24,TL*.96);tileGeo.translate(0,-.12,0);
+const tileMat=new THREE.MeshLambertMaterial({map:tileTex});
+const tiles=new THREE.InstancedMesh(tileGeo,tileMat,MAXI);tiles.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+tiles.setColorAt(0,new THREE.Color());tiles.count=0;tiles.frustumCulled=false;scene.add(tiles);
+function decalMesh(tex,col,max,op,blend){
+  const g=new THREE.PlaneGeometry(.78,TL*.82);g.rotateX(-Math.PI/2);g.translate(0,.012,0);
+  const m=new THREE.MeshBasicMaterial({map:tex,color:col,transparent:true,opacity:op,depthWrite:false,blending:blend||THREE.NormalBlending});
+  const im=new THREE.InstancedMesh(g,m,max);im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);im.count=0;im.frustumCulled=false;scene.add(im);return im;
+}
+const arrows=decalMesh(arrowTex,0x5a2400,600,.75);
+const chevs=decalMesh(chevTex,0xffffff,300,.9,THREE.AdditiveBlending);
+const cracks=decalMesh(crackTex,0xffffff,600,.9);
+const goos=decalMesh(gooTex,0xffd0ff,400,.6);
+const fallers=new THREE.InstancedMesh(tileGeo,new THREE.MeshLambertMaterial({map:tileTex}),160);
+fallers.setColorAt(0,new THREE.Color());fallers.count=0;fallers.frustumCulled=false;fallers.instanceMatrix.setUsage(THREE.DynamicDrawUsage);scene.add(fallers);
+const cryMesh=new THREE.InstancedMesh(new THREE.OctahedronGeometry(.3,0),new THREE.MeshLambertMaterial({color:0x5ff0ff,emissive:0x1a8fb0,flatShading:true}),96);
+cryMesh.count=0;cryMesh.frustumCulled=false;cryMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);scene.add(cryMesh);
+const glowTex=canvasTex(64,64,(g,w,h)=>{const r=g.createRadialGradient(32,32,0,32,32,32);r.addColorStop(0,'rgba(255,255,255,1)');r.addColorStop(.35,'rgba(255,255,255,.35)');r.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=r;g.fillRect(0,0,64,64)});
+
+// sky: a big sphere with a vertex-coloured nebula, stars, two planets
+const skyGroup=new THREE.Group();scene.add(skyGroup);
+const skyGeo=new THREE.SphereGeometry(420,32,20);
+skyGeo.setAttribute('color',new THREE.BufferAttribute(new Float32Array(skyGeo.attributes.position.count*3),3));
+const skyMat=new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.BackSide,fog:false,depthWrite:false});
+const skyMesh=new THREE.Mesh(skyGeo,skyMat);skyMesh.renderOrder=-10;skyGroup.add(skyMesh);
+{
+  const n=1400,pos=new Float32Array(n*3),col=new Float32Array(n*3),R=AR.rng(42);
+  for(let i=0;i<n;i++){const z=R()*2-1,a=R()*Math.PI*2,r=Math.sqrt(1-z*z),d=380;pos[i*3]=Math.cos(a)*r*d;pos[i*3+1]=Math.sin(a)*r*d;pos[i*3+2]=z*d;
+    const b=.55+R()*.45,tint=R();col[i*3]=b*(tint<.2?.8:1);col[i*3+1]=b*(tint>.8?.85:1);col[i*3+2]=b}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));g.setAttribute('color',new THREE.BufferAttribute(col,3));
+  const st=new THREE.Points(g,new THREE.PointsMaterial({size:1.6,sizeAttenuation:false,vertexColors:true,fog:false,depthWrite:false}));st.renderOrder=-9;skyGroup.add(st);
+}
+const planetMat=new THREE.MeshLambertMaterial({color:0xff9a4a,fog:false});
+const planet=new THREE.Mesh(new THREE.SphereGeometry(40,28,18),planetMat);planet.position.set(-150,60,-300);skyGroup.add(planet);
+const moon=new THREE.Mesh(new THREE.SphereGeometry(12,18,12),new THREE.MeshLambertMaterial({color:0xc8c4e6,fog:false}));moon.position.set(170,-40,-260);skyGroup.add(moon);
+const ringMesh=new THREE.Mesh(new THREE.RingGeometry(52,70,48),new THREE.MeshBasicMaterial({color:0xffd9a8,side:THREE.DoubleSide,transparent:true,opacity:.35,fog:false,depthWrite:false}));
+ringMesh.position.copy(planet.position);ringMesh.rotation.set(1.2,.3,.2);skyGroup.add(ringMesh);
+function paintSky(th){
+  const c=skyGeo.attributes.color,p=skyGeo.attributes.position,A=new THREE.Color(th.sky),Bc=new THREE.Color(th.neb),tmp=new THREE.Color();
+  for(let i=0;i<c.count;i++){const x=p.getX(i)/420,y=p.getY(i)/420,z=p.getZ(i)/420;
+    const n=.5+.5*Math.sin(x*3.1+z*2.3)*Math.cos(y*2.7-z*1.3)+.25*Math.sin(x*7+y*5);
+    const k=clamp((n-.45)*1.1,0,.55);tmp.copy(A).lerp(Bc,k);c.setXYZ(i,tmp.r,tmp.g,tmp.b)}
+  c.needsUpdate=true;scene.fog.color.set(th.sky);planetMat.color.set(th.pl);
+}
+
+// the finish ring
+const gateMat=new THREE.MeshBasicMaterial({color:0xb6ff3b});
+let gate=null;
+function buildGate(W){
+  if(gate){scene.remove(gate);gate.traverse(o=>{if(o.geometry)o.geometry.dispose()});gate=null}
+  if(!isFinite(W.fin))return;
+  gate=new THREE.Group();const z=-W.fin*TL,o={};
+  const bar=new THREE.BoxGeometry(W.L+.6,.35,.35);
+  for(let k=0;k<W.N;k++){AR.wallAt(W,k*W.L+W.L/2,o,false);const m=new THREE.Mesh(bar,gateMat);m.position.set(o.x+o.nx*.25,o.y+o.ny*.25,z);m.rotation.z=Math.atan2(o.ty,o.tx);gate.add(m)}
+  const R=W.a/Math.cos(Math.PI/W.N);
+  const disc=new THREE.Mesh(new THREE.CircleGeometry(R,W.N),new THREE.MeshBasicMaterial({color:0xb6ff3b,transparent:true,opacity:.18,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending}));
+  disc.rotation.z=-Math.PI/2+Math.PI/W.N;disc.position.z=z;gate.add(disc);
+  scene.add(gate);
+}
+
+// ---------- the runners' models ----------
+function lam(c,o){return new THREE.MeshLambertMaterial(Object.assign({color:c},o||{}))}
+const eyeW=lam(0xffffff),eyeB=lam(0x15123a);
+function eye(g,x,y,z,r){const e=new THREE.Mesh(new THREE.SphereGeometry(r,12,8),eyeW);e.position.set(x,y,z);g.add(e);const p=new THREE.Mesh(new THREE.SphereGeometry(r*.5,8,6),eyeB);p.position.set(x,y,z-r*.62);g.add(p)}
+function makeModel(ch){
+  const root=new THREE.Group(),body=new THREE.Group();root.add(body);
+  const m1=lam(ch.col),m2=lam(ch.col2);
+  const feet=[];
+  const foot=(x,r)=>{const f=new THREE.Mesh(new THREE.SphereGeometry(r,10,8),m2);f.position.set(x,r,0);root.add(f);feet.push(f)};
+  if(ch.id==='pip'){
+    const b=new THREE.Mesh(new THREE.SphereGeometry(.38,18,14),m1);b.scale.set(1,1.15,1);b.position.y=.6;body.add(b);
+    eye(body,-.13,.72,-.3,.11);eye(body,.13,.72,-.3,.11);
+    const an=new THREE.Mesh(new THREE.CylinderGeometry(.025,.025,.3,6),m2);an.position.set(0,1.1,0);body.add(an);
+    const tip=new THREE.Mesh(new THREE.SphereGeometry(.07,8,6),lam(0xff4fa0,{emissive:0x661030}));tip.position.set(0,1.27,0);body.add(tip);
+    foot(-.16,.11);foot(.16,.11);
+  }else if(ch.id==='brick'){
+    const b=new THREE.Mesh(new THREE.DodecahedronGeometry(.46,0),lam(ch.col,{flatShading:true}));b.position.y=.62;b.scale.set(1.05,1,1);body.add(b);
+    eye(body,0,.74,-.38,.14);
+    const brow=new THREE.Mesh(new THREE.BoxGeometry(.36,.07,.08),m2);brow.position.set(0,.92,-.38);body.add(brow);
+    foot(-.2,.14);foot(.2,.14);
+  }else if(ch.id==='vex'){
+    const b=new THREE.Mesh(new THREE.SphereGeometry(.3,16,12),m1);b.scale.set(.9,1.7,.9);b.position.y=.72;body.add(b);
+    const fin=new THREE.Mesh(new THREE.ConeGeometry(.12,.42,8),m2);fin.position.set(0,1.32,.08);fin.rotation.x=.5;body.add(fin);
+    eye(body,-.1,.95,-.22,.08);eye(body,.1,.95,-.22,.08);
+    foot(-.13,.1);foot(.13,.1);
+  }else if(ch.id==='moppet'){
+    const b=new THREE.Mesh(new THREE.IcosahedronGeometry(.42,1),lam(ch.col,{flatShading:true}));b.position.y=.68;body.add(b);
+    for(let i=0;i<6;i++){const a=i/6*Math.PI*2,p=new THREE.Mesh(new THREE.SphereGeometry(.15,8,6),m1);p.position.set(Math.cos(a)*.4,.68+Math.sin(a)*.38,.05);body.add(p)}
+    eye(body,-.14,.76,-.36,.13);eye(body,.14,.76,-.36,.13);
+    foot(-.15,.1);foot(.15,.1);
+  }else{
+    const b=new THREE.Mesh(new THREE.SphereGeometry(.3,14,10),m1);b.position.y=.45;b.scale.set(1.1,.9,1);body.add(b);
+    eye(body,-.13,.55,-.24,.07);eye(body,0,.6,-.27,.07);eye(body,.13,.55,-.24,.07);
+    for(const x of [-.12,.12]){const an=new THREE.Mesh(new THREE.CylinderGeometry(.02,.02,.32,5),m2);an.position.set(x,.82,0);an.rotation.z=-x*3;body.add(an)}
+    foot(-.14,.09);foot(.14,.09);
+  }
+  const blob=new THREE.Mesh(new THREE.CircleGeometry(.42,20),new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:.35,depthWrite:false}));
+  blob.rotation.x=-Math.PI/2;
+  return {root,body,feet,blob,ch,dispose(){root.traverse(o=>{if(o.geometry)o.geometry.dispose()});blob.geometry.dispose()}};
+}
+
+// ---------- game state ----------
+const G={mode:'menu',W:null,s:null,ch:null,li:0,tries:1,paused:false,overlay:'menu',acc:0,hold:0,deadAt:0,finAt:0,
+  camAng:-Math.PI/2,camU:0,camP:new THREE.Vector3(),camL:new THREE.Vector3(),camInit:false,lastRow:-99,lastCr:-1,
+  fall:[],demo:null,noRender:false,runGot:0,bannerT:0,started:false};
+let model=null;
+const keys={},tIn={l:false,r:false,j:false,hl:0,hr:0};
+const KB=Keybinds.create({
+  game:'asteroid-run',
+  actions:[
+    {id:'left',label:'Sidestep left',group:'Run',keys:['KeyA','ArrowLeft']},
+    {id:'right',label:'Sidestep right',group:'Run',keys:['KeyD','ArrowRight']},
+    {id:'jump',label:'Jump',note:'Tap for a hop, hold for a big jump',group:'Run',keys:['Space','KeyW','ArrowUp']},
+    {id:'restart',label:'Restart',note:'Start the level (or endless run) again',group:'Run',keys:['KeyR']},
+    {id:'pause',label:'Pause',group:'Run',keys:['Escape'],fixed:true}
+  ],
+  classes:{button:'btn alt',primary:'btn'}
+});
+const playing=()=>G.mode==='level'||G.mode==='endless';
+function input(){
+  if(G.demo)return G.demo.inp;
+  if(G.auto)return G.auto.inp;
+  let x=0;
+  if(KB.held('left',keys)||tIn.l||tIn.hl>0)x-=1;
+  if(KB.held('right',keys)||tIn.r||tIn.hr>0)x+=1;
+  return {x,j:KB.held('jump',keys)||tIn.j};
+}
+
+// lane frames: where each tile sits
+let laneF=[];
+function setupWorld(W){
+  G.W=W;laneF=[];const o={};
+  for(let j=0;j<W.P;j++){AR.wallAt(W,j+.5,o,false);laneF.push({x:o.x,y:o.y,nx:o.nx,ny:o.ny,tx:o.tx,ty:o.ty,face:o.face})}
+  const th=THEMES[W.th];paintSky(th);G.colA=new THREE.Color(th.a);G.colB=new THREE.Color(th.b);
+  buildGate(W);G.lastRow=-99;G.fall.length=0;fallers.count=0;G.lastCr=-1;G.fallSeen=new Set();
+  scene.fog.near=hiQ()?28:24;scene.fog.far=hiQ()?66:56;
+}
+const _m=new THREE.Matrix4(),_c=new THREE.Color(),_v=new THREE.Vector3(),_q=new THREE.Quaternion(),_s=new THREE.Vector3(1,1,1);
+const TCOL={[T.C]:0xb9814f,[T.I]:0xc9f3ff,[T.VL]:0xffa13c,[T.VR]:0xffa13c,[T.VF]:0x3ddc8c,[T.VB]:0xff5a5a,[T.B]:0x7dff3a,[T.K]:0xb052e8};
+function setBasis(m,f,z,lift,dirx,diry,dirz){
+  // columns: sideways, inward normal, along the tunnel; optional rotation so the decal's arrow points along dir
+  if(dirx===undefined)m.set(f.tx,f.nx,0,f.x+f.nx*lift,f.ty,f.ny,0,f.y+f.ny*lift,0,0,1,z,0,0,0,1);
+  else{ // local -Z should point along dir; X = N x Z
+    const zx=-dirx,zy=-diry,zz=-dirz;const xx=f.ny*zz-0*zy,xy=0*zx-f.nx*zz,xz=f.nx*zy-f.ny*zx;
+    m.set(xx,f.nx,zx,f.x+f.nx*lift,xy,f.ny,zy,f.y+f.ny*lift,xz,0,zz,z,0,0,0,1)}
+}
+function rebuildTiles(){
+  const W=G.W,s=G.s,r0=Math.floor(s.d/TL),from=Math.max(0,r0-7),to=r0+(hiQ()?44:38);
+  let n=0,na=0,nc=0,ncr=0,ng=0;
+  for(let r=from;r<to&&r<W.rows.length;r++){
+    const row=W.rows[r],z=-(r+.5)*TL;
+    for(let j=0;j<W.P;j++){
+      const ty=row[j];if(!ty)continue;
+      if(ty===T.C&&W.cr.has(r*64+j))continue;     // shown by the falling-tile mesh
+      if(n>=MAXI)break;
+      const f=laneF[j];setBasis(_m,f,z,0);tiles.setMatrixAt(n,_m);
+      if(ty===T.N){_c.copy((f.face&1)?G.colB:G.colA);if((j+r)&1)_c.multiplyScalar(.9)}
+      else{_c.set(TCOL[ty]);if((j+r)&1)_c.multiplyScalar(.93)}
+      tiles.setColorAt(n,_c);n++;
+      if(ty>=T.VL&&ty<=T.VB&&na<600){const dx=ty===T.VL?-f.tx:ty===T.VR?f.tx:0,dy=ty===T.VL?-f.ty:ty===T.VR?f.ty:0,dz=ty===T.VF?-1:ty===T.VB?1:0;setBasis(_m,f,z,0,dx,dy,dz);arrows.setMatrixAt(na++,_m)}
+      else if(ty===T.B&&nc<300){setBasis(_m,f,z,0,0,0,-1);chevs.setMatrixAt(nc++,_m)}
+      else if(ty===T.C&&ncr<600){setBasis(_m,f,z,0);cracks.setMatrixAt(ncr++,_m)}
+      else if(ty===T.K&&ng<400){setBasis(_m,f,z,0);goos.setMatrixAt(ng++,_m)}
+    }
+  }
+  tiles.count=n;tiles.instanceMatrix.needsUpdate=true;if(tiles.instanceColor)tiles.instanceColor.needsUpdate=true;
+  arrows.count=na;arrows.instanceMatrix.needsUpdate=true;chevs.count=nc;chevs.instanceMatrix.needsUpdate=true;
+  cracks.count=ncr;cracks.instanceMatrix.needsUpdate=true;goos.count=ng;goos.instanceMatrix.needsUpdate=true;
+}
+// cracked tiles that were stepped on: shake, then drop away into space
+function updateFallers(){
+  const W=G.W,s=G.s;
+  if(W.cr.size!==G.lastCr){
+    for(const [id,t] of W.cr){if(G.fallSeen.has(id))continue;G.fallSeen.add(id);const r=Math.floor(id/64),j=id%64;
+      G.fall.push({j,r,at:s.ch.heavy?Infinity:t,heavy:s.ch.heavy,t0:s.t});}
+    G.lastCr=W.cr.size;G.lastRow=-99;
+  }
+  const r0=Math.floor(s.d/TL);let n=0;
+  for(let i=G.fall.length-1;i>=0;i--){
+    const f=G.fall[i];
+    if(f.heavy&&f.at===Infinity&&r0>f.r+1)f.at=s.t+.05;
+    const age=s.t-f.at;
+    if(age>1.6||f.r<r0-6){G.fall.splice(i,1);continue}
+    if(n>=160)continue;
+    const L=laneF[f.j],z=-(f.r+.5)*TL;
+    if(age<0){const k=.04*Math.sin(s.t*90+f.j);setBasis(_m,L,z,0);_m.elements[12]+=L.tx*k;_m.elements[13]+=L.ty*k}
+    else{const dropD=-(4*age*age+age),sp=age*2.2;setBasis(_m,L,z,dropD);
+      _m.multiply(new THREE.Matrix4().makeRotationX(sp*(f.j&1?1:-1)))}
+    fallers.setMatrixAt(n,_m);_c.set(TCOL[T.C]);fallers.setColorAt(n,_c);n++;
+  }
+  fallers.count=n;fallers.instanceMatrix.needsUpdate=true;if(fallers.instanceColor)fallers.instanceColor.needsUpdate=true;
+}
+function updateCrystals(t){
+  const W=G.W,s=G.s,r0=Math.floor(s.d/TL);let n=0;
+  for(const c of W.cry){
+    if(c.r<r0-3||c.r>r0+44)continue;if(s.gotIds.indexOf(c.id)>=0)continue;if(n>=96)break;
+    const f=laneF[c.l],z=-(c.r+.5)*TL,y=c.h+.18*Math.sin(t*3+c.id);
+    _q.setFromAxisAngle(_v.set(f.nx,f.ny,0),t*2.2+c.id);_m.compose(_v.set(f.x+f.nx*y,f.y+f.ny*y,z),_q,_s);
+    cryMesh.setMatrixAt(n++,_m);
+  }
+  cryMesh.count=n;cryMesh.instanceMatrix.needsUpdate=true;
+}
+// sparkle bursts
+const PN=90,pPos=new Float32Array(PN*3),pVel=new Float32Array(PN*3),pLife=new Float32Array(PN);
+const pGeo=new THREE.BufferGeometry();pGeo.setAttribute('position',new THREE.BufferAttribute(pPos,3));
+const pts=new THREE.Points(pGeo,new THREE.PointsMaterial({size:.22,map:glowTex,color:0x9ff8ff,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));pts.frustumCulled=false;scene.add(pts);
+let pNext=0;
+function burst(x,y,z,n,sp){for(let i=0;i<n;i++){const k=pNext++%PN;pPos[k*3]=x;pPos[k*3+1]=y;pPos[k*3+2]=z;const a=Math.random()*6.28,b=Math.random()*2-1,q=Math.sqrt(1-b*b);pVel[k*3]=Math.cos(a)*q*sp;pVel[k*3+1]=b*sp;pVel[k*3+2]=Math.sin(a)*q*sp;pLife[k]=.6}}
+function stepParticles(dt){let any=false;for(let k=0;k<PN;k++){if(pLife[k]<=0){pPos[k*3+1]=9999;continue}any=true;pLife[k]-=dt;pPos[k*3]+=pVel[k*3]*dt;pPos[k*3+1]+=pVel[k*3+1]*dt;pPos[k*3+2]+=pVel[k*3+2]*dt}pGeo.attributes.position.needsUpdate=true;pts.visible=any}
+
+// ---------- starting and ending runs ----------
+function charById(id){return CHARS.find(c=>c.id===id)||CHARS[0]}
+function setModel(ch){if(model){scene.remove(model.root);scene.remove(model.blob);model.dispose()}model=makeModel(ch);scene.add(model.root);scene.add(model.blob)}
+function begin(W){
+  setupWorld(W);G.ch=charById(save.ch);if(!unlocked(G.ch))G.ch=CHARS[0];
+  G.s=AR.newRunner(W,G.ch);G.acc=0;G.deadAt=0;G.finAt=0;G.hold=.55;G.camInit=false;G.runGot=0;
+  if(!model||model.ch!==G.ch)setModel(G.ch);
+  rebuildTiles();
+}
+function startLevel(i,keepTries){
+  G.mode='level';G.li=i;G.demo=null;if(!keepTries)G.tries=1;
+  begin(AR.buildLevel(i));
+  $('lvlLbl').textContent='Level '+(i+1)+' · '+THEMES[LEVELS[i].th].name;$('lvlName').textContent=LEVELS[i].n;
+  $('tryLbl').textContent='Try';$('tries').textContent=G.tries;$('tryBox').hidden=false;
+  enterPlay();banner('Level '+(i+1),LEVELS[i].n,1.1);
+}
+function startEndless(){
+  G.mode='endless';G.demo=null;G.tries=1;
+  begin(AR.buildEndless((Math.random()*1e9)>>>0));
+  $('lvlLbl').textContent='Endless · best '+fmtM(save.best);$('lvlName').textContent='0 m';$('tryBox').hidden=true;
+  enterPlay();banner('Endless','It only gets faster',1.1);
+}
+function enterPlay(){
+  showOverlay(null);$('hud').hidden=false;document.body.classList.add('playing');G.paused=false;
+  updateHud(true);
+}
+function restart(){if(G.mode==='level'){G.tries++;startLevel(G.li,true)}else if(G.mode==='endless'){endEndless(true);startEndless()}}
+function onDie(){
+  sfx.die();
+  if(G.mode==='level'){banner('Lost in space!','Again from the start',.9);G.deadAt=performance.now()+950}
+  else if(G.mode==='endless'){G.deadAt=performance.now()+900;banner('Lost in space!',fmtM(G.s.d)+' this run',1)}
+}
+function onFinish(){
+  sfx.win();flash();
+  const i=G.li,s=G.s,prev=save.lv[i],wasOpen=LEVELS.map((_,k)=>isOpen(k)),chars0=CHARS.filter(unlocked).length;
+  const bitsGot=s.gotIds.reduce((b,id)=>b|(1<<Math.min(2,id)),0);
+  const e=prev||{c:0,t:0,n:0};const newBest=!e.t||s.t<e.t;
+  save.lv[i]={c:(e.c|bitsGot)&7,t:newBest?Math.round(s.t*100)/100:e.t,n:(e.n||0)+1};saveNow();
+  statsHook('max','levels',clearedCount());statsHook('add','runs',1);statsHook('max','crystals',crystalTotal());
+  const opened=LEVELS.map((_,k)=>k).filter(k=>isOpen(k)&&!wasOpen[k]);
+  const newChars=CHARS.filter(unlocked).length>chars0?CHARS.filter(c=>unlocked(c)&&!(c.need&&isUnlockedBefore(c,chars0))):[];
+  G.finAt=performance.now()+700;
+  G.pendingRes={i,t:s.t,got:bits(bitsGot),best:save.lv[i].t,c:save.lv[i].c,newBest,opened,chars0};
+}
+function isUnlockedBefore(){return true}
+function endEndless(quiet){
+  if(G.mode!=='endless'||!G.s||G.endDone)return null;G.endDone=true;
+  const d=Math.floor(G.s.d),got=G.s.got,chars0=CHARS.filter(unlocked).length,old=save.best;
+  save.bank+=got;save.runs++;if(d>save.best)save.best=d;saveNow();
+  statsHook('max','distance',d);statsHook('add','runs',1);statsHook('max','crystals',crystalTotal());
+  return {d,got,best:save.best,newBest:d>old,chars0};
+}
+const fmtM=m=>m>0?Math.floor(m).toLocaleString('en-US')+' m':'–';
+const fmtT=t=>t>0?t.toFixed(2)+' s':'–';
+
+// ---------- overlays ----------
+function showOverlay(id){
+  G.overlay=id;for(const o of ['menu','mapMenu','pause','results'])$(o).hidden=o!==id;
+  document.body.classList.toggle('playing',!id&&playing());
+}
+function toMenu(){
+  if(G.mode==='endless')endEndless(true);
+  G.mode='menu';$('hud').hidden=true;document.body.classList.remove('playing');
+  startDemo();showOverlay('menu');renderMenu();
+}
+function showPause(){if(!playing()||G.overlay)return;G.paused=true;showOverlay('pause');
+  $('pauseSub').textContent=G.mode==='level'?'Level '+(G.li+1)+' · '+LEVELS[G.li].n+' · try '+G.tries:'Endless · '+fmtM(G.s.d)+' so far';
+  $('toMap').hidden=G.mode!=='level';pausedAt=performance.now()}
+let pausedAt=0;
+function resume(){if(G.overlay!=='pause')return;G.paused=false;showOverlay(null);G.hold=Math.max(G.hold,.35)}
+function showResults(){
+  const r=G.pendingRes;G.pendingRes=null;G.paused=true;
+  if(G.mode==='level'){
+    $('resTitle').textContent='Level clear!';
+    $('resSub').textContent='Level '+(r.i+1)+' · '+LEVELS[r.i].n+(G.tries>1?' · '+G.tries+' tries':' · first try');
+    $('resFacts').innerHTML='';
+    fact('Time',fmtT(r.t)+(r.newBest&&save.lv[r.i].n>1?' ★':''));fact('Crystals',r.got+' of 3'+(bits(r.c)>r.got?' ('+bits(r.c)+' best)':''));fact('Best time',fmtT(r.best));
+    const u=$('resUnlock');u.innerHTML='';
+    const nc=CHARS.filter(c=>unlocked(c)).length>r.chars0?CHARS.filter(unlocked).slice(r.chars0):[];
+    if(r.opened.length)addUnlock('New on the map: '+r.opened.map(k=>(k+1)+' '+LEVELS[k].n).join(', '));
+    newCharsLine(r.chars0);
+    const b=$('resBtns');b.innerHTML='';
+    const nexts=MAP[r.i][2].filter(isOpen);
+    nexts.forEach((k,n)=>addBtn(b,'Next: '+(k+1)+' '+LEVELS[k].n,'btn big '+(n?'cyan':'lime'),()=>startLevel(k)));
+    addBtn(b,'Play again','btn alt',()=>startLevel(r.i));
+    addBtn(b,'Level map','btn alt',()=>openMap(nexts[0]!=null?nexts[0]:r.i));
+  }else{
+    $('resTitle').textContent=r.newBest?'New best!':'Run over';
+    $('resSub').textContent='Endless · '+G.ch.name;
+    $('resFacts').innerHTML='';fact('Distance',fmtM(r.d));fact('Crystals',String(r.got));fact('Best',fmtM(r.best));
+    $('resUnlock').innerHTML='';newCharsLine(r.chars0);
+    const b=$('resBtns');b.innerHTML='';
+    addBtn(b,'Run again','btn big pink',()=>startEndless());addBtn(b,'Menu','btn alt',toMenu);
+  }
+  showOverlay('results');const f=$('resBtns').querySelector('button');if(f&&!touchUI)f.focus();
+}
+function fact(k,v){const d=document.createElement('div');d.innerHTML='<b></b><small></small>';d.firstChild.textContent=v;d.lastChild.textContent=k;$('resFacts').append(d)}
+function addUnlock(t){const d=document.createElement('div');d.className='unlock';d.textContent=t;$('resUnlock').append(d)}
+function newCharsLine(n0){const all=CHARS.filter(unlocked);if(all.length>n0)addUnlock('New runner: '+all.slice(n0).map(c=>c.name).join(', ')+'! Pick them in the menu.')}
+function addBtn(p,t,c,fn){const b=document.createElement('button');b.type='button';b.className=c;b.textContent=t;b.addEventListener('click',()=>{sfx.click();fn()});p.append(b);return b}
+
+// ---------- menu ----------
+function charSvg(ch){
+  const c='#'+ch.col.toString(16).padStart(6,'0'),c2='#'+ch.col2.toString(16).padStart(6,'0');
+  const eyes=n=>n===1?'<circle cx="22" cy="21" r="5" fill="#fff"/><circle cx="22" cy="22" r="2.4" fill="#15123a"/>':n===3?'<circle cx="15" cy="23" r="3" fill="#fff"/><circle cx="22" cy="21" r="3" fill="#fff"/><circle cx="29" cy="23" r="3" fill="#fff"/><circle cx="15" cy="24" r="1.4" fill="#15123a"/><circle cx="22" cy="22" r="1.4" fill="#15123a"/><circle cx="29" cy="24" r="1.4" fill="#15123a"/>':'<circle cx="17" cy="21" r="4" fill="#fff"/><circle cx="27" cy="21" r="4" fill="#fff"/><circle cx="17" cy="22" r="2" fill="#15123a"/><circle cx="27" cy="22" r="2" fill="#15123a"/>';
+  const body={pip:'<ellipse cx="22" cy="25" rx="13" ry="15" fill="'+c+'" stroke="#15123a" stroke-width="2"/><path d="M22 10V4" stroke="'+c2+'" stroke-width="2"/><circle cx="22" cy="4" r="2.6" fill="#ff4fa0"/>'+eyes(2),
+    brick:'<path d="M9 18 15 9h14l6 9-3 17H12z" fill="'+c+'" stroke="#15123a" stroke-width="2" stroke-linejoin="round"/><rect x="15" y="14" width="14" height="2.5" fill="'+c2+'"/>'+eyes(1),
+    vex:'<ellipse cx="22" cy="25" rx="9" ry="16" fill="'+c+'" stroke="#15123a" stroke-width="2"/><path d="M22 9 25 2 19 6z" fill="'+c2+'"/>'+eyes(2).replace(/cx="17"/g,'cx="18"').replace(/cx="27"/g,'cx="26"'),
+    moppet:'<g fill="'+c+'" stroke="#15123a" stroke-width="2"><circle cx="12" cy="20" r="6"/><circle cx="32" cy="20" r="6"/><circle cx="22" cy="12" r="6"/><circle cx="22" cy="25" r="13"/></g>'+eyes(2),
+    twitch:'<path d="M17 14 12 5M27 14l5-9" stroke="'+c2+'" stroke-width="2"/><ellipse cx="22" cy="26" rx="13" ry="11" fill="'+c+'" stroke="#15123a" stroke-width="2"/>'+eyes(3)}[ch.id];
+  return '<svg viewBox="0 0 44 44" aria-hidden="true">'+body+'</svg>';
+}
+function renderChars(){
+  const box=$('chars');box.innerHTML='';
+  for(const ch of CHARS){const b=document.createElement('button');b.type='button';const ok=unlocked(ch);
+    b.innerHTML=charSvg(ch)+'<b></b><small></small>';b.querySelector('b').textContent=ch.name;b.querySelector('small').textContent=ok?'ready':'🔒';
+    if(!ok)b.classList.add('locked');b.setAttribute('aria-pressed',String(save.ch===ch.id));b.setAttribute('aria-label',ch.name+(ok?'':' (locked: '+needText(ch)+')'));
+    b.addEventListener('click',()=>{sfx.click();G.viewCh=ch.id;if(ok&&save.ch!==ch.id){save.ch=ch.id;saveNow();if(G.mode==='menu')startDemo()}renderChars()});box.append(b)}
+  const ch=charById(G.viewCh||save.ch),ok=unlocked(ch);
+  const sp=(ch.speed-7.5)/3.5,jm=AR.CHARS.length&&jumpLen(ch),gr=(ch.accG/64+ch.lat/6.2)/2;
+  $('charInfo').innerHTML='<h3></h3><p></p><div class="bars"><span>Speed</span><i style="--v:'+Math.round(clamp(sp,.1,1)*100)+'%"></i><span>Jump</span><i style="--v:'+Math.round(clamp((jm-5.5)/3.5,.1,1)*100)+'%"></i><span>Grip</span><i style="--v:'+Math.round(clamp(gr,.1,1)*100)+'%"></i></div>';
+  $('charInfo').querySelector('h3').textContent=ch.name+(ok?'':' · locked');
+  $('charInfo').querySelector('p').textContent=ok?ch.desc:needText(ch)+' to unlock. '+ch.desc;
+}
+const jlCache={};
+function jumpLen(ch){ // a full jump's length on flat ground
+  if(jlCache[ch.id])return jlCache[ch.id];
+  const W=AR.newWorld('sq','launch',1);for(let i=0;i<60;i++){const r=new Uint8Array(W.P);r.fill(1);W.rows.push(r)}
+  const s=AR.newRunner(W,ch);s.vd=ch.speed;AR.step(W,s,{x:0,j:true});const d0=s.d;let k=0;while((!s.g||k<3)&&k<600){AR.step(W,s,{x:0,j:true});k++}
+  return jlCache[ch.id]=s.d-d0;
+}
+function nextLevel(){for(let i=0;i<NL;i++)if(isOpen(i)&&!save.lv[i])return i;return -1}
+function renderMenu(){
+  const n=nextLevel();
+  $('contSub').textContent=n>=0?'Level '+(n+1)+' · '+LEVELS[n].n:'all levels cleared: replay any';
+  $('mapSub').textContent=clearedCount()+' of '+NL+' cleared';
+  $('pLv').textContent=clearedCount();$('pCr').textContent=crystalTotal();$('pBest').textContent=fmtM(save.best);
+  renderChars();
+}
+// the map: on a tall screen it's drawn top to bottom
+let mapSel=0;
+function openMap(sel){G.paused=true;if(sel==null){const n=nextLevel();sel=n>=0?n:0}mapSel=sel;showOverlay('mapMenu');drawMap()}
+function drawMap(){
+  const svg=$('mapSvg'),tall=innerWidth<640&&innerHeight>innerWidth;
+  const P=i=>tall?[MAP[i][1]*.9+30,MAP[i][0]]:[MAP[i][0],MAP[i][1]];
+  svg.setAttribute('viewBox',tall?'0 0 640 1010':'0 0 1000 680');
+  let h='';
+  MAP.forEach((m,i)=>m[2].forEach(j=>{const a=P(i),b=P(j);h+='<line class="lnk'+(save.lv[i]?' on':'')+'" x1="'+a[0]+'" y1="'+a[1]+'" x2="'+b[0]+'" y2="'+b[1]+'"/>'}));
+  MAP.forEach((m,i)=>{const [x,y]=P(i),op=isOpen(i),done=!!save.lv[i],th=THEMES[LEVELS[i].th],c='#'+th.a.toString(16).padStart(6,'0');
+    h+='<g class="nd'+(op?'':' lock')+(i===mapSel?' sel':'')+'" data-i="'+i+'" tabindex="0" role="button" aria-label="Level '+(i+1)+(op?'':' (locked)')+'"><circle cx="'+x+'" cy="'+y+'" r="'+(tall?31:25)+'" fill="'+(done?'#b6ff3b':c)+'"/><text x="'+x+'" y="'+y+'"'+(tall?' style="font-size:25px"':'')+'>'+(i+1)+'</text>';
+    if(done){const cb=save.lv[i].c;for(let k=0;k<3;k++){const gx=x-12+k*12,gy=y+(tall?40:34);h+='<path class="gem'+(cb>>k&1?'':' no')+'" d="M'+gx+' '+(gy-6)+'l5 6-5 6-5-6z"/>'}}
+    h+='</g>'});
+  svg.innerHTML=h;
+  svg.querySelectorAll('.nd').forEach(g=>{const f=()=>{mapSel=+g.dataset.i;sfx.click();drawMap()};g.addEventListener('click',f);g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();f()}})});
+  const i=mapSel,L=LEVELS[i],e=save.lv[i],op=isOpen(i);
+  const info=$('lvInfo');info.innerHTML='<small style="font-weight:900;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)"></small><h3></h3><p class="sub"></p><div class="gems"></div><div class="stack" style="margin-top:8px"></div>';
+  info.querySelector('small').textContent='Level '+(i+1)+' · '+THEMES[L.th].name;info.querySelector('h3').textContent=L.n;
+  const shapeName={sq:'square',hex:'six-sided',oct:'eight-sided',nar:'narrow square',big:'wide eight-sided'}[L.s];
+  info.querySelector('p').textContent=op?(e?'Best '+fmtT(e.t)+' · cleared '+e.n+'×':'Not cleared yet')+' · '+shapeName+' tunnel':'Locked: clear '+PRED[i].map(p=>'level '+(p+1)).join(' or ')+' to open it.';
+  info.querySelector('.gems').innerHTML=[0,1,2].map(k=>'<i class="'+(e&&(e.c>>k&1)?'':'no')+'">◆</i>').join('');
+  if(op)addBtn(info.querySelector('.stack'),'Play level '+(i+1),'btn big lime',()=>startLevel(i));
+}
+
+// ---------- HUD ----------
+let bannerTimer=0;
+function banner(a,b,secs){const el=$('banner');el.querySelector('b').textContent=a;el.querySelector('span').textContent=b||'';el.style.opacity=1;clearTimeout(bannerTimer);bannerTimer=setTimeout(()=>{el.style.opacity=0},secs*1000)}
+function flash(){const f=$('flash');f.style.transition='none';f.style.opacity=.5;requestAnimationFrame(()=>{f.style.transition='opacity .4s';f.style.opacity=0})}
+let hudLast='';
+function updateHud(force){
+  const s=G.s,W=G.W;if(!s)return;
+  let key;
+  if(G.mode==='level'){const p=clamp(s.d/W.len,0,1);key=Math.round(p*200)+'|'+s.got;
+    if(key!==hudLast||force){$('bar').firstChild.style.width=(p*100).toFixed(1)+'%';$('gems').textContent=s.got+'/3'}}
+  else{const m=Math.floor(s.d);key=m+'|'+s.got;if(key!==hudLast||force){$('lvlName').textContent=m.toLocaleString('en-US')+' m';$('gems').textContent=s.got;
+    $('bar').firstChild.style.width=(save.best>0?clamp(s.d/save.best,0,1)*100:0).toFixed(1)+'%'}}
+  hudLast=key;
+}
+
+// ---------- the demo runner behind the menu ----------
+function startDemo(){
+  G.mode='menu';G.paused=false;
+  const W=AR.buildEndless(12345+Math.floor(Math.random()*1000));
+  setupWorld(W);G.ch=charById(save.ch);if(!unlocked(G.ch))G.ch=CHARS[0];
+  G.s=AR.newRunner(W,G.ch);G.hold=0;G.camInit=false;G.deadAt=0;G.finAt=0;
+  if(!model||model.ch!==G.ch)setModel(G.ch);
+  G.demo={q:[],inp:{x:0,j:false},a:null,i:0,still:touchUI};
+  rebuildTiles();
+}
+function botInput(D){
+  const s=G.s;
+  if(D.i<=0){
+    if(!D.q.length){const p=AR.plan(G.W,s,{ahead:D.ahead||12,beam:D.beam||14});D.q=p.acts.slice(0,3);if(!D.q.length)D.q=[{x:0,j:0}]}
+    D.a=D.q.shift();D.i=AR.CHUNK;D.k=0;
+  }
+  const a=D.a;D.inp.x=a.x;D.inp.j=a.j===2||a.j===3||(a.j===1&&D.k<2);D.i--;D.k++;
+}
+
+// ---------- main loop ----------
+let last=performance.now();
+function tick(){
+  const s=G.s,W=G.W;
+  if(G.demo)botInput(G.demo);else if(G.auto)botInput(G.auto);
+  AR.step(W,s,input(),false);
+  if(s.ev){
+    if(s.ev&EV.JUMP)sfx.jump();if(s.ev&EV.BOOST)sfx.boost();if(s.ev&EV.LAND)sfx.land();
+    if(s.ev&EV.CRY){sfx.cry();const P=runnerPos();burst(P.x,P.y,P.z,16,3.5)}
+    if(s.ev&EV.DIE&&!G.demo)onDie();
+    if(s.ev&EV.FIN&&G.mode==='level')onFinish();
+    if((s.ev&EV.CRACK)&&!G.demo&&!s.ch.heavy)sfx.crack();
+  }
+}
+const _w={};
+function runnerPos(){const s=G.s;AR.wallAt(G.W,s.u,_w,true);return {x:_w.x+_w.nx*s.h,y:_w.y+_w.ny*s.h,z:-s.d,w:_w}}
+function update(dt){
+  const s=G.s;if(!s)return;
+  const now=performance.now();
+  if(!G.paused&&!G.freeze){
+    if(G.hold>0){G.hold-=dt;s.jh=input().j}   // a short beat at the start before running
+    else if(!s.dead&&!s.fin){G.acc+=dt;let n=0;while(G.acc>=DT&&n<12){tick();G.acc-=DT;n++;if(s.dead||s.fin)break}if(n>=12)G.acc=0}
+  }
+  if(G.demo&&(s.dead||s.fin||s.d>1600)){startDemo();return}
+  if(G.deadAt&&now>=G.deadAt){G.deadAt=0;if(G.mode==='level'){G.tries++;startLevel(G.li,true);return}else if(G.mode==='endless'){G.pendingRes=endEndless();if(G.pendingRes)showResults();return}}
+  if(G.finAt&&now>=G.finAt){G.finAt=0;showResults()}
+  if(!G.noRender)draw(dt);
+}
+function draw(dt){
+  const s=G.s,W=G.W,t=performance.now()/1000,pt0=performance.now();
+  const r0=Math.floor(s.d/TL);
+  if(r0!==G.lastRow||W.cr.size!==G.lastCr){updateFallers();G.lastRow=r0;rebuildTiles()}
+  else if(G.fall.length)updateFallers();
+  updateCrystals(t);
+  arrows.material.map.offset.y=-t*1.6;chevs.material.map.offset.y=-t*3;
+  // the runner
+  const P=runnerPos(),w=P.w;
+  const m=model;
+  m.root.position.set(P.x,P.y,P.z);
+  _m.set(w.tx,w.nx,0,0,w.ty,w.ny,0,0,0,0,1,0,0,0,0,1);m.root.quaternion.setFromRotationMatrix(_m);
+  const run=s.g?Math.sin(s.d*2.6):0;
+  m.feet[0].position.z=s.g?run*.18:.08;m.feet[1].position.z=s.g?-run*.18:.08;
+  m.feet[0].position.y=m.feet[0].geometry.parameters.radius+(s.g?Math.max(0,run)*.08:.1);m.feet[1].position.y=m.feet[1].geometry.parameters.radius+(s.g?Math.max(0,-run)*.08:.1);
+  const sq=s.g?1+Math.abs(run)*.03:clamp(1+s.vh*.025,.85,1.18);
+  m.body.scale.set(1/Math.sqrt(sq),sq,1/Math.sqrt(sq));m.body.position.y=s.g?Math.abs(run)*.06:0;
+  m.body.rotation.z=-clamp(s.vu*.05,-.3,.3);m.body.rotation.x=s.g?-.08:clamp(-s.vh*.03,-.25,.25);
+  m.root.visible=!(s.dead&&s.h<-30);
+  // shadow on the tile below
+  const j=AR.laneOf(W,s.u),under=AR.tileAt(W,j,Math.floor(s.d/TL));
+  m.blob.visible=s.h>=-.01&&!!under;
+  if(m.blob.visible){AR.wallAt(W,s.u,_w,false);m.blob.position.set(_w.x+_w.nx*.015,_w.y+_w.ny*.015,-s.d);m.blob.quaternion.copy(m.root.quaternion);m.blob.rotateX(-Math.PI/2);const k=clamp(1-s.h*.25,.4,1);m.blob.scale.set(k,k,k);m.blob.material.opacity=.35*k}
+  // camera: the up direction follows the wall you're on, eased so the tunnel swings round
+  let ang=w.ang;if(!G.camInit){G.camAng=ang;G.camInit=true;G.camU=s.u}
+  let da=ang-G.camAng;da=Math.atan2(Math.sin(da),Math.cos(da));G.camAng+=da*Math.min(1,dt*7);
+  const ux=-Math.cos(G.camAng),uy=-Math.sin(G.camAng);
+  AR.wallAt(W,s.u,_w,true);
+  const camH=Math.min(2.1,W.a*.9),back=G.mode==='menu'?5.2:4.3;
+  const tx=_w.x+ux*camH,ty=_w.y+uy*camH;
+  if(!G.camP0){G.camP0={x:tx,y:ty}}
+  const kk=Math.min(1,dt*10);G.camP0.x+= (tx-G.camP0.x)*kk;G.camP0.y+=(ty-G.camP0.y)*kk;
+  if(!G.camInitP||G.camInitP!==G.W){G.camP0.x=tx;G.camP0.y=ty;G.camInitP=G.W}
+  camera.position.set(G.camP0.x,G.camP0.y,-s.d+back);
+  camera.up.set(ux,uy,0);
+  const tall=camera.aspect<.8,lk=tall?1.7:.9;
+  camera.lookAt(_w.x+ux*lk,_w.y+uy*lk,-s.d-(tall?10:8));
+  skyGroup.position.copy(camera.position);
+  sun.position.set(camera.position.x+ux*10+3,camera.position.y+uy*10,camera.position.z+6);sun.target.position.set(camera.position.x,camera.position.y,camera.position.z-10);
+  stepParticles(dt);
+  if(playing())updateHud();
+  if(gate){gate.children[gate.children.length-1].material.opacity=.14+.08*Math.sin(t*4)}
+  if(G.demo&&G.demo.still&&G.drawnStill&&!G.forceDraw)return;
+  if(G.demo&&G.demo.still)G.drawnStill=true;
+  const pt1=performance.now();renderer.render(scene,camera);G.perf={draw:pt1-pt0,render:performance.now()-pt1};
+}
+function frame(now){
+  const dt=Math.min(.1,Math.max(0,(now-last)/1000));last=now;
+  try{update(dt)}catch(err){console.error(err)}
+  requestAnimationFrame(frame);
+}
+
+// ---------- input ----------
+addEventListener('keydown',e=>{
+  const tag=e.target&&e.target.tagName;if(tag==='INPUT'&&e.target.type!=='range'){return}
+  if(KB.busy())return;
+  initAudio();
+  const c=e.code;
+  if(c==='Escape'){if(G.overlay==='pause'){if(performance.now()-pausedAt>300)resume()}else if(G.overlay==='mapMenu'&&G.mode==='menu'){showOverlay('menu');renderMenu()}else if(playing()&&!G.overlay)showPause();return}
+  if(!playing())return;
+  if(c==='Space'||KB.actionsFor(c).length)e.preventDefault();
+  keys[c]=true;if(e.repeat)return;
+  if(G.overlay)return;
+  if(KB.is('restart',c))restart();
+});
+addEventListener('keyup',e=>{keys[e.code]=false});
+addEventListener('blur',()=>{for(const k in keys)keys[k]=false;tIn.l=tIn.r=tIn.j=false;tIn.hl=tIn.hr=0;if(playing()&&!G.overlay&&!G.s.fin)showPause()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&playing()&&!G.overlay&&!G.s.fin)showPause()});
+$('keysMenu').addEventListener('click',()=>KB.open());$('keysPause').addEventListener('click',()=>KB.open());
+
+// touch: arrow buttons (or the screen halves) and a jump button, only on touch screens
+function setTouchUI(on){touchUI=on;document.body.classList.toggle('touch',on);$('touchNote').hidden=!on;$('tmRow').hidden=!on;applyTm()}
+function applyTm(){document.body.classList.toggle('halves',touchUI&&set.tm==='halves');document.querySelectorAll('#tmSeg button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v===set.tm)))}
+addEventListener('pointerdown',e=>{if(e.pointerType==='touch'&&!touchUI)setTouchUI(true)},true);
+{
+  const btn=(id,down,up)=>{const el=$(id);const ids=new Set();
+    el.addEventListener('pointerdown',e=>{e.preventDefault();initAudio();ids.add(e.pointerId);try{el.setPointerCapture(e.pointerId)}catch(_){}el.classList.add('on');down()});
+    const fin=e=>{if(!ids.delete(e.pointerId))return;if(!ids.size){el.classList.remove('on');if(up)up()}};
+    el.addEventListener('pointerup',fin);el.addEventListener('pointercancel',fin);el.addEventListener('lostpointercapture',fin);el.addEventListener('contextmenu',e=>e.preventDefault())};
+  btn('tL',()=>{tIn.l=true},()=>{tIn.l=false});
+  btn('tR',()=>{tIn.r=true},()=>{tIn.r=false});
+  btn('tJ',()=>{tIn.j=true},()=>{tIn.j=false});
+  btn('tP',()=>{if(playing()&&!G.overlay)showPause()});
+  const st=$('tSteer'),side=new Map();
+  const upd=()=>{let l=0,r=0;for(const v of side.values())v<0?l++:r++;tIn.hl=l;tIn.hr=r};
+  st.addEventListener('pointerdown',e=>{e.preventDefault();initAudio();side.set(e.pointerId,e.clientX<innerWidth/2?-1:1);try{st.setPointerCapture(e.pointerId)}catch(_){}upd()});
+  st.addEventListener('pointermove',e=>{if(side.has(e.pointerId)){side.set(e.pointerId,e.clientX<innerWidth/2?-1:1);upd()}});
+  const end=e=>{side.delete(e.pointerId);upd()};st.addEventListener('pointerup',end);st.addEventListener('pointercancel',end);
+}
+document.querySelectorAll('#tmSeg button').forEach(b=>b.addEventListener('click',()=>{set.tm=b.dataset.v;saveSet();applyTm()}));
+
+// ---------- menu wiring ----------
+$('contBtn').addEventListener('click',()=>{initAudio();sfx.click();const n=nextLevel();if(n>=0)startLevel(n);else openMap(0)});
+$('mapBtn').addEventListener('click',()=>{initAudio();sfx.click();openMap()});
+$('endBtn').addEventListener('click',()=>{initAudio();sfx.click();startEndless()});
+$('mapBack').addEventListener('click',()=>{sfx.click();if(G.mode==='menu'){showOverlay('menu');renderMenu()}else toMenu()});
+$('resume').addEventListener('click',resume);
+$('restartBtn').addEventListener('click',()=>{G.paused=false;restart()});
+$('toMap').addEventListener('click',()=>{G.mode='menu';$('hud').hidden=true;startDemo();openMap(G.li)});
+$('quit').addEventListener('click',toMenu);
+for(const id of ['vol','vol2']){const el=$(id);el.value=set.vol;el.addEventListener('input',()=>{set.vol=+el.value;$('vol').value=$('vol2').value=set.vol;if(master)master.gain.value=set.vol*.5;saveSet()})}
+function renderGfx(){document.querySelectorAll('#gfxSeg button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.q===set.gfx)))}
+document.querySelectorAll('#gfxSeg button').forEach(b=>b.addEventListener('click',()=>{set.gfx=b.dataset.q;saveSet();renderGfx();applyQuality();G.lastRow=-99;G.drawnStill=false}));
+addEventListener('resize',()=>{G.drawnStill=false;if(G.overlay==='mapMenu')drawMap()});
+
+// Test hook (automated browsers only): step the game without waiting for frames, drive it, read its state.
+if(navigator.webdriver)window.__ar={AR,G,KB,keys,tIn,get save(){return save},set save(v){save=v},startLevel,startEndless,toMenu,openMap,showPause,resume,restart,renderer,scene,camera,
+  advance(sec){G.noRender=true;try{const n=Math.round(sec/DT);for(let i=0;i<n;i++){const s=G.s;if(G.paused||s.dead||s.fin)break;if(G.hold>0){G.hold-=DT;continue}tick()}}finally{G.noRender=false}},
+  autopilot(on,beam){G.auto=on?{q:[],inp:{x:0,j:false},a:null,i:0,beam:beam||48,ahead:16}:null},
+  // one real 60 Hz frame (physics and drawing), timed
+  live(){const t0=performance.now();update(1/60);return {all:performance.now()-t0,draw:G.perf&&G.perf.draw,render:G.perf&&G.perf.render}},
+  frame(n){G.freeze=true;try{for(let i=0;i<(n||1);i++)update(1/60)}finally{G.freeze=false}},
+  botLevel(o){const W=G.W,ch=G.ch;return AR.runBot(W,ch,o||{})},
+  stepInput(inp,steps){for(let i=0;i<steps;i++){if(G.s.dead||G.s.fin)break;AR.step(G.W,G.s,inp,false)}},
+  info(){return {calls:renderer.info.render.calls,tris:renderer.info.render.triangles,tiles:tiles.count}}};
+
+makeModel&&setTouchUI(touchUI);renderGfx();applyQuality();renderMenu();startDemo();showOverlay('menu');
+requestAnimationFrame(t=>{last=t;frame(t)});
+})();
+</script>
+<script src="/analytics/tracker.js" data-site="asteroid-run" defer></script>
+</body>
+</html>
