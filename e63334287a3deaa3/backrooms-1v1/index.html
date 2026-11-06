@@ -837,12 +837,14 @@ function lonePiece(cx,cz){
 function layoutV3(seed,cells){
   const rnd=mulberry((seed^0x3c6ef372)>>>0);
   let best=null;
-  for(let a=0;a<8;a++){
+  // up to 16 draws (each passes about three times in four, so the fallback below is next to never needed)
+  for(let a=0;a<16;a++){
     const L=attemptV3(rnd,cells),f=fairV2(cells);
     if(f.ok){L.tries=a+1;return doorsV3(L,cells)}
     if(!best||f.bad<best.f.bad)best={L,f,g:[hWall,vWall].map(q=>q.map(r=>r.slice()))};
   }
-  // nothing passed: as for v2, the closest made point-symmetric (the rooms keep their ids, so doorways match)
+  // nothing passed: as for v2, the closest made point-symmetric (the rooms keep their ids, so doorways match); this can
+  // leave a few open patches and longer sightlines along the middle, but it is fair and fully connected
   [hWall,vWall]=best.g;lowH=grid(N+1,N,false);lowV=grid(N+1,N,false);voidC=grid(N,N,false);
   const L=best.L;mirrorV2(L);
   for(let x=0;x<N;x++)for(let z=0;z<N;z++)if(2*x+1>N||(2*x+1===N&&2*z+1>N))L.rid[x][z]=L.rid[N-1-x][N-1-z];
