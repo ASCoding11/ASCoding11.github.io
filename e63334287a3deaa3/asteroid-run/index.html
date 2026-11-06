@@ -836,7 +836,7 @@ const chevTex=canvasTex(64,64,(g,w,h)=>{g.fillStyle='#fff';g.beginPath();g.moveT
   g.beginPath();g.moveTo(32,30);g.lineTo(60,60);g.lineTo(46,60);g.lineTo(32,46);g.lineTo(18,60);g.lineTo(4,60);g.closePath();g.fill()});
 chevTex.wrapS=chevTex.wrapT=THREE.RepeatWrapping;
 const crackTex=canvasTex(128,128,(g,w,h)=>{const R=AR.rng(7);g.strokeStyle='#fff';g.lineWidth=6;g.lineCap='round';g.lineJoin='round';
-  for(let i=0;i<5;i++){let x=64,y=64;g.beginPath();g.moveTo(x,y);const a=i/5*Math.PI*2+R()*.6;for(let k=0;k<4;k++){x+=Math.cos(a+(R()-.5)*1.2)*15;y+=Math.sin(a+(R()-.5)*1.2)*15;g.lineTo(x,y)}g.stroke()}});
+  for(let i=0;i<3;i++){let x=64,y=64;g.beginPath();g.moveTo(x,y);const a=i/3*Math.PI*2+R()*.6;for(let k=0;k<3;k++){x+=Math.cos(a+(R()-.5)*1.2)*14;y+=Math.sin(a+(R()-.5)*1.2)*14;g.lineTo(x,y)}g.stroke()}});
 const gooTex=canvasTex(128,128,(g,w,h)=>{const R=AR.rng(3);g.fillStyle='#fff';for(let i=0;i<12;i++){g.beginPath();g.arc(14+R()*100,14+R()*100,5+R()*9,0,7);g.fill()}});
 
 const MAXI=2600;
@@ -850,7 +850,7 @@ function decalMesh(tex,col,max,op){
 }
 const arrows=decalMesh(arrowTex,0x14102e,700,.7);
 const chevs=decalMesh(chevTex,0x14102e,300,.7);
-const cracks=decalMesh(crackTex,0x2a1200,700,.8);
+const cracks=decalMesh(crackTex,0x5a2a00,700,.6);
 const goos=decalMesh(gooTex,0xf2d4ff,500,.7);
 const fallers=new THREE.InstancedMesh(tileGeo,flatTileMat(),160);
 fallers.setColorAt(0,new THREE.Color());fallers.count=0;fallers.visible=false;fallers.frustumCulled=false;fallers.instanceMatrix.setUsage(THREE.DynamicDrawUsage);scene.add(fallers);
@@ -1000,7 +1000,7 @@ function updateFallers(){
     if(age>1.4||f.r<r0-6){G.fall.splice(i,1);continue}
     if(n>=160)continue;
     const L=laneF[f.j],z=-(f.r+.5)*TL;
-    if(age<0){const k=.04*Math.sin(s.t*90+f.j);setBasis(_m,L,z,0);_m.elements[12]+=L.tx*k;_m.elements[13]+=L.ty*k}
+    if(age<0)setBasis(_m,L,z,.03+.03*Math.sin(s.t*90+f.j));   // shakes up and down before it goes
     else{const dropD=-(5*age*age+age),sp=age*2.4;setBasis(_m,L,z,dropD);
       _m.multiply(new THREE.Matrix4().makeRotationX(sp*(f.j&1?1:-1)))}
     fallers.setMatrixAt(n,_m);_c.set(TCOL[T.C]);fallers.setColorAt(n,_c);n++;
