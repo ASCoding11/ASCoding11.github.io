@@ -150,6 +150,33 @@ pre{background:#030d11;border:1px solid var(--line);border-radius:8px;padding:14
 .status .ok{color:var(--holo)}
 .status span:last-child{text-align:right}
 
+.toc{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--line);padding-top:12px}
+.toc button{background:none;border:0;width:100%;text-align:left;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:14px;color:var(--ink-2)}
+.toc button:hover{background:var(--bg-2);color:var(--ink)}
+.cols2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;max-width:900px}
+.ticks{list-style:none;margin:0;padding:14px 16px;border:1px solid var(--line);border-radius:8px;display:flex;flex-direction:column;gap:6px}
+.ticks li{font-size:14px;color:var(--ink-2);padding-left:18px;position:relative}
+.ticks li::before{content:"";position:absolute;left:0;top:8px;width:7px;height:7px;border-radius:2px;background:var(--holo)}
+.ticks.warn li::before{background:var(--amber)}
+.build{display:grid;grid-template-columns:minmax(280px,360px) minmax(0,1fr);gap:20px;align-items:start;max-width:1320px}
+.boardwrap{position:sticky;top:0;background:var(--bg);padding:4px 0}
+.steptext{border:1px solid var(--line);border-radius:8px;padding:14px 16px;background:var(--bg-2)}
+.stepnav{display:flex;align-items:center;gap:10px}
+.stepnav .play{min-width:48px}
+.dots{display:flex;flex-wrap:wrap;gap:5px;margin:12px 0 4px}
+.dots button{width:26px;height:26px;border-radius:50%;border:1px solid var(--line-2);background:none;cursor:pointer;font-family:var(--mono);font-size:11px;color:var(--ink-2);padding:0}
+.dots button.done{background:var(--line);color:var(--ink)}
+.dots button[aria-current="step"]{background:var(--amber);border-color:var(--amber);color:var(--bg);font-weight:600}
+.steptext h4{margin:12px 0 8px;font-weight:500;font-size:18px;color:var(--amber)}
+.steptext ul{margin:0 0 10px;padding-left:18px}
+.steptext li{font-size:14px;color:var(--ink);line-height:1.55;margin-bottom:4px}
+.steptext .lab{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--holo);margin:10px 0 4px;display:block}
+.steptext p{color:var(--ink-2);font-size:14px;margin:0 0 4px}
+#pb g[data-st]{transition:opacity .25s}
+#pb .todo{opacity:.12}
+#pb .done{opacity:.7}
+#pb .now{opacity:1;filter:drop-shadow(0 0 4px rgba(242,184,75,.9))}
+@media (max-width:900px){ .build{grid-template-columns:minmax(0,1fr)} .boardwrap{order:-1;top:0;z-index:2} }
 @media (max-width:900px){
   body{display:block;height:auto;overflow:auto}
   .top{grid-template-columns:1fr auto;padding:12px 16px;gap:10px}
@@ -270,8 +297,21 @@ pre{background:#030d11;border:1px solid var(--line);border-radius:8px;padding:14
     <div class="pane" data-pane="prototype">
       <p class="eyebrow">Build one first</p>
       <h2>Bench tile</h2>
-      <p>Every number in this workbench rests on one figure: how many joules of electricity a real step makes. A plywood bench tile measures it for about $100 in parts.</p>
-      <p><b style="color:var(--ink);font-weight:500">Goal:</b> at least 1.5 J per step at 6 mm of travel. A first build will probably land well under that; finding out by how much is the point.</p>
+      <p>Every number in this workbench rests on one figure: how many joules of electricity a real step makes. This plywood tile measures it for about $127 in parts.</p>
+      <p><b style="color:var(--ink);font-weight:500">Goal:</b> at least 1.5 J per step at 6 mm of travel. A first build will probably land under that; finding out by how much is the point.</p>
+      <ul class="toc" id="toc">
+        <li><button data-go="p-how">1 · How the circuit works</button></li>
+        <li><button data-go="p-schem">2 · Schematic</button></li>
+        <li><button data-go="p-parts">3 · Parts</button></li>
+        <li><button data-go="p-tools">4 · Tools and safety</button></li>
+        <li><button data-go="p-frame">5 · Build the frame</button></li>
+        <li><button data-go="p-solder">6 · Solder the board</button></li>
+        <li><button data-go="p-checks">7 · Multimeter checks</button></li>
+        <li><button data-go="p-power">8 · First power-up</button></li>
+        <li><button data-go="p-code">9 · Sketch and calibration</button></li>
+        <li><button data-go="p-test">10 · Test plan</button></li>
+        <li><button data-go="p-trouble">11 · Troubleshooting</button></li>
+      </ul>
     </div>
   </aside>
 
@@ -297,77 +337,233 @@ pre{background:#030d11;border:1px solid var(--line);border-radius:8px;padding:14
     </div>
 
     <div class="doc" id="docProto">
-      <h2>Bench tile prototype</h2>
-      <p>A plywood plate on four springs pushes a rack that spins a stepper motor used as a generator. An Arduino logs the voltage across a known load resistor and adds up the energy of each step.</p>
-      <h3>Parts (approximate prices)</h3>
+      <h2>Bench tile: full build guide</h2>
+      <p>A plywood plate on four springs pushes a rack. The rack turns a pinion, a belt makes a stepper motor spin almost four times faster, and the motor works as a generator. Two diode bridges turn its AC into DC, which heats a known resistor; an Arduino measures the voltage across that resistor and adds up each step's energy. Allow two afternoons: one for the frame, one for the board.</p>
+
+      <h3 id="p-how">1 · How the circuit works</h3>
+      <div class="cards">
+        <div class="card"><small>GENERATOR</small><b style="font-size:17px">Stepper motor</b><span>Two separate coils around a magnet rotor. Spin the shaft and each coil makes its own AC; faster spin, more voltage.</span></div>
+        <div class="card"><small>RECTIFIERS</small><b style="font-size:17px">Two diode bridges</b><span>One per coil, four diodes each. They flip the negative half-waves positive, so both coils feed one DC pair without fighting.</span></div>
+        <div class="card"><small>WHY SCHOTTKY</small><b style="font-size:17px">1N5819 diodes</b><span>About 0.3 V lost per diode instead of 0.7 V. Two conduct at a time, and a gentle step makes only a few volts.</span></div>
+        <div class="card"><small>LOAD</small><b style="font-size:17px">R1, 10 Ω</b><span>All the step's electricity turns into heat here. Power is V² ÷ R, so voltage alone tells you the energy.</span></div>
+        <div class="card"><small>MEASUREMENT</small><b style="font-size:17px">Divider, Zener, filter</b><span>R2 and R3 divide the voltage by 5.7 so up to 28 V reads as 0–5 V. The 5.1 V Zener clamps a hard stomp; C1 removes noise.</span></div>
+      </div>
+
+      <h3 id="p-schem">2 · Schematic</h3>
+      <svg class="wire" viewBox="0 0 880 410" role="img" aria-label="Schematic: the stepper's coil A feeds diode bridge D1 to D4 and coil B feeds bridge D5 to D8. Both bridges join on a positive rail and ground. R1, 10 ohms, sits across the rails. R2 47k and R3 10k divide the rail voltage into the Arduino's A0 pin, protected by Zener D9 and capacitor C1.">
+        <defs>
+          <g id="sd"><path d="M-8,-8 L8,0 L-8,8 Z" fill="#7fdcef" stroke="none"/><path d="M8,-8 V8" stroke-width="2"/></g>
+          <g id="sz"><path d="M-8,-8 L8,0 L-8,8 Z" fill="#7fdcef" stroke="none"/><path d="M4,-11 L8,-8 V8 L12,11" stroke-width="2"/></g>
+        </defs>
+        <g fill="none" stroke="#7fdcef" stroke-width="1.5">
+          <rect x="30" y="26" width="100" height="310" rx="8" stroke-dasharray="5 5" stroke="#2a5866"/>
+          <path d="M80,40 V60 a10,10 0 0 1 0,20 a10,10 0 0 1 0,20 a10,10 0 0 1 0,20 a10,10 0 0 1 0,20 V160"/>
+          <path d="M80,200 V220 a10,10 0 0 1 0,20 a10,10 0 0 1 0,20 a10,10 0 0 1 0,20 a10,10 0 0 1 0,20 V320"/>
+          <path d="M80,40 H230 M80,160 H230 M80,200 H230 M80,320 H230"/>
+          <path d="M230,40 L290,100 L230,160 L170,100 Z M230,200 L290,260 L230,320 L170,260 Z"/>
+          <use href="#sd" transform="translate(260,70) rotate(45)"/><use href="#sd" transform="translate(260,130) rotate(-45)"/>
+          <use href="#sd" transform="translate(200,70) rotate(-45)"/><use href="#sd" transform="translate(200,130) rotate(45)"/>
+          <use href="#sd" transform="translate(260,230) rotate(45)"/><use href="#sd" transform="translate(260,290) rotate(-45)"/>
+          <use href="#sd" transform="translate(200,230) rotate(-45)"/><use href="#sd" transform="translate(200,290) rotate(45)"/>
+          <path d="M290,100 H340 M290,260 H340 V60 H790"/>
+          <path d="M170,100 H150 V380 H790 M170,260 H150"/>
+          <path d="M430,60 V190 l8,5 l-16,10 l16,10 l-16,10 l16,10 l-16,10 l8,5 V380"/>
+          <path d="M560,60 V100 l8,5 l-16,10 l16,10 l-16,10 l16,10 l-16,10 l8,5 V250 l8,5 l-16,10 l16,10 l-16,10 l16,10 l-16,10 l8,5 V380"/>
+          <path d="M560,210 H790"/>
+          <path d="M640,210 V287 M640,303 V380"/><use href="#sz" transform="translate(640,295) rotate(-90)"/>
+          <path d="M720,210 V288 M706,288 H734 M706,296 H734 M720,296 V380"/>
+          <rect x="790" y="180" width="76" height="216" rx="6" stroke="#4fb3c8"/>
+        </g>
+        <g fill="#7fdcef"><circle cx="340" cy="100" r="3.5"/><circle cx="150" cy="260" r="3.5"/><circle cx="430" cy="60" r="3.5"/><circle cx="430" cy="380" r="3.5"/><circle cx="560" cy="60" r="3.5"/><circle cx="560" cy="210" r="3.5"/><circle cx="560" cy="380" r="3.5"/><circle cx="640" cy="210" r="3.5"/><circle cx="640" cy="380" r="3.5"/><circle cx="720" cy="210" r="3.5"/><circle cx="720" cy="380" r="3.5"/></g>
+        <g font-family="IBM Plex Mono,monospace" font-size="12" fill="#d7eaef">
+          <text x="80" y="18" text-anchor="middle">M1 · NEMA 17</text>
+          <text x="98" y="104" fill="#8aa6ae">coil A</text><text x="98" y="264" fill="#8aa6ae">coil B</text>
+          <text x="140" y="34">A+</text><text x="140" y="154">A−</text><text x="140" y="194">B+</text><text x="140" y="314">B−</text>
+          <text x="272" y="62">D1</text><text x="272" y="150">D2</text><text x="190" y="62" text-anchor="end">D3</text><text x="190" y="150" text-anchor="end">D4</text>
+          <text x="272" y="222">D5</text><text x="272" y="310">D6</text><text x="190" y="222" text-anchor="end">D7</text><text x="190" y="310" text-anchor="end">D8</text>
+          <text x="350" y="52">+ rail (DC)</text><text x="160" y="400">GND</text>
+          <text x="446" y="212">R1</text><text x="446" y="228" fill="#8aa6ae">10 Ω 10 W</text><text x="446" y="244" fill="#8aa6ae">load</text>
+          <text x="576" y="124">R2</text><text x="576" y="140" fill="#8aa6ae">47 kΩ</text>
+          <text x="576" y="274">R3</text><text x="576" y="290" fill="#8aa6ae">10 kΩ</text>
+          <text x="576" y="202" fill="#f2b84b">A0 node, max 5 V</text>
+          <text x="656" y="292">D9</text><text x="656" y="308" fill="#8aa6ae">5.1 V</text>
+          <text x="740" y="288">C1</text><text x="740" y="304" fill="#8aa6ae">10 nF</text>
+          <text x="828" y="290" text-anchor="middle">Arduino</text><text x="828" y="306" text-anchor="middle">Nano</text>
+          <text x="798" y="214">A0</text><text x="798" y="376">GND</text>
+        </g>
+      </svg>
+      <p>Arrows show the direction each diode conducts; the bar end is the stripe on the real part. Crossing lines without a dot are not connected.</p>
+
+      <h3 id="p-parts">3 · Parts (approximate prices)</h3>
       <table>
         <thead><tr><th>Part</th><th>Qty</th><th>Why</th><th>Approx.</th></tr></thead>
         <tbody>
           <tr><td>12 mm plywood, 60 × 60 cm</td><td class="num">2</td><td>Top plate and base</td><td class="num">$20</td></tr>
-          <tr><td>Compression springs, about 4 N/mm</td><td class="num">4</td><td>Hold the plate up and return it</td><td class="num">$12</td></tr>
-          <tr><td>Rack and pinion kit, module 1</td><td class="num">1</td><td>Turns plate travel into rotation</td><td class="num">$12</td></tr>
-          <tr><td>NEMA 17 stepper motor</td><td class="num">1</td><td>Generator: spin it and it makes AC</td><td class="num">$14</td></tr>
-          <tr><td>Bridge rectifiers</td><td class="num">2</td><td>One per stepper coil, AC to DC</td><td class="num">$3</td></tr>
-          <tr><td>10 Ω, 10 W resistor</td><td class="num">1</td><td>Known load to measure power into</td><td class="num">$3</td></tr>
-          <tr><td>47 kΩ and 10 kΩ resistors</td><td class="num">1 each</td><td>Voltage divider for the Arduino input</td><td class="num">$1</td></tr>
-          <tr><td>Arduino Nano or compatible</td><td class="num">1</td><td>Samples voltage, sums energy</td><td class="num">$12</td></tr>
-          <tr><td>Wood blocks, screws, wire, end-stop shims</td><td class="num">—</td><td>Frame and adjustable travel</td><td class="num">$15</td></tr>
+          <tr><td>Compression springs, about 4 N/mm, ~25 mm long</td><td class="num">4</td><td>Hold the plate up and return it</td><td class="num">$12</td></tr>
+          <tr><td>Rack and pinion, module 1, 8 mm bore pinion</td><td class="num">1</td><td>Turns plate travel into rotation</td><td class="num">$12</td></tr>
+          <tr><td>KFL08 bearings and 8 mm × 100 mm shaft</td><td class="num">2 + 1</td><td>Carry the pinion and big pulley</td><td class="num">$10</td></tr>
+          <tr><td>GT2 pulleys 60T (8 mm bore) and 16T (5 mm bore), 200 mm belt</td><td class="num">1 set</td><td>Spins the motor 3.75× faster</td><td class="num">$12</td></tr>
+          <tr><td>NEMA 17 stepper motor</td><td class="num">1</td><td>The generator</td><td class="num">$14</td></tr>
+          <tr><td>1N5819 Schottky diodes</td><td class="num">8</td><td>Two bridge rectifiers</td><td class="num">$2</td></tr>
+          <tr><td>10 Ω, 10 W ceramic resistor (R1)</td><td class="num">1</td><td>Known load</td><td class="num">$3</td></tr>
+          <tr><td>47 kΩ (R2) and 10 kΩ (R3) resistors, ¼ W</td><td class="num">1 each</td><td>Voltage divider</td><td class="num">$1</td></tr>
+          <tr><td>1N4733A 5.1 V Zener (D9), 10 nF ceramic capacitor (C1)</td><td class="num">1 each</td><td>Protect and filter the A0 input</td><td class="num">$2</td></tr>
+          <tr><td>Arduino Nano or compatible, USB cable</td><td class="num">1</td><td>Samples voltage, sums energy</td><td class="num">$12</td></tr>
+          <tr><td>Perfboard 5 × 7 cm, 4-way screw terminal, standoffs</td><td class="num">1 each</td><td>The circuit board</td><td class="num">$4</td></tr>
+          <tr><td>22 AWG solid and stranded wire, heat-shrink, jumper leads</td><td class="num">—</td><td>Rails, links, leads</td><td class="num">$8</td></tr>
+          <tr><td>8 mm dowel, wood blocks, screws, washers for shims</td><td class="num">—</td><td>Guides, mounts, end stops</td><td class="num">$15</td></tr>
         </tbody>
-        <tfoot><tr><td colspan="3">Total</td><td class="num">≈ $92</td></tr></tfoot>
+        <tfoot><tr><td colspan="3">Total</td><td class="num">≈ $127</td></tr></tfoot>
       </table>
-      <h3>Wiring</h3>
-      <svg class="wire" viewBox="0 0 820 170" role="img" aria-label="Wiring: stepper coils to two bridge rectifiers, in parallel across a 10 ohm load; a 47k and 10k divider feeds Arduino pin A0">
-        <g fill="none" stroke="#4fb3c8" stroke-width="1.4">
-          <rect x="20" y="40" width="130" height="90" rx="8"/><rect x="210" y="22" width="120" height="50" rx="8"/><rect x="210" y="98" width="120" height="50" rx="8"/>
-          <rect x="400" y="55" width="110" height="60" rx="8"/><rect x="570" y="40" width="90" height="90" rx="8"/><rect x="710" y="55" width="90" height="60" rx="8"/>
-          <path d="M150 60H210M150 112H210M330 47H365V85H400M330 123H365V85"/><path d="M510 85H570M660 85H710"/>
-        </g>
-        <g font-family="IBM Plex Mono,monospace" font-size="13" fill="#d7eaef" text-anchor="middle">
-          <text x="85" y="80">NEMA 17</text><text x="85" y="98" fill="#8aa6ae" font-size="11">2 coils</text>
-          <text x="270" y="52">Rectifier A</text><text x="270" y="128">Rectifier B</text>
-          <text x="455" y="82">10 Ω load</text><text x="455" y="99" fill="#8aa6ae" font-size="11">10 W</text>
-          <text x="615" y="80">Divider</text><text x="615" y="98" fill="#8aa6ae" font-size="11">47k / 10k</text>
-          <text x="755" y="82">Arduino</text><text x="755" y="99" fill="#8aa6ae" font-size="11">pin A0</text>
+
+      <h3 id="p-tools">4 · Tools and safety</h3>
+      <div class="cols2">
+        <ul class="ticks">
+          <li>Temperature-controlled soldering iron, chisel or conical tip</li>
+          <li>Lead-free rosin-core solder, 0.8 mm, and a flux pen</li>
+          <li>Brass-wool tip cleaner, helping hands or a small vise</li>
+          <li>Flush cutters, wire strippers, needle-nose pliers</li>
+          <li>Multimeter with resistance, continuity and diode test</li>
+          <li>Desoldering braid, heat-shrink and a heat gun or lighter</li>
+          <li>Calipers (or a ruler and feeler shims) for setting travel</li>
+        </ul>
+        <ul class="ticks warn">
+          <li>Safety glasses on: trimmed leads and solder spatter fly.</li>
+          <li>A fan pulling flux smoke away from your face; window open.</li>
+          <li>The iron's metal is at 340 °C: always return it to its stand.</li>
+          <li>Wash your hands after soldering, before eating.</li>
+          <li>Never connect the + rail straight to the Arduino: only A0 through the divider.</li>
+          <li>If you're new to soldering, practise ten joints on a spare piece of perfboard first.</li>
+        </ul>
+      </div>
+
+      <h3 id="p-frame">5 · Build the frame</h3>
+      <ol>
+        <li>Cut two 60 × 60 cm plywood squares. Drill a 10 mm hole 3 cm in from each corner of the base; glue 8 mm dowels into matching spots on the top plate so they slide in the holes as plungers.</li>
+        <li>Slip a spring over each dowel between the plates. Unloaded, the top plate should sit about 10 mm above the end stops.</li>
+        <li>Screw the rack upright to the underside of the top plate, near one edge, teeth facing inward.</li>
+        <li>Screw two KFL08 bearings to a wood block on the base. Push the 8 mm shaft through them with the pinion meshing on the rack and the 60-tooth pulley on the other end. Tighten both set screws on the shaft's flat.</li>
+        <li>Mount the stepper on a second block with the 16-tooth pulley on its 5 mm shaft. Fit the belt, slide the motor back until the belt is snug, and screw it down. Without this 3.75× step-up the motor turns too slowly to get past the diodes.</li>
+        <li>Glue four end-stop blocks to the base under the corners. Stack washers on them until the plate stops after 6 mm of travel; you'll change this to 4 and 8 mm in testing.</li>
+        <li>There is no one-way clutch on the bench tile. On the way back up the springs turn the motor backwards; the bridges rectify that too, so you also measure the energy the springs give back.</li>
+      </ol>
+
+      <h3 id="p-solder">6 · Solder the board, step by step</h3>
+      <p>Click through the steps. The board view highlights what each step adds; faded parts come later. The view is from the component side.</p>
+      <div class="build">
+        <div class="steptext">
+          <div class="stepnav">
+            <button class="play" id="sPrev" aria-label="Previous step">←</button>
+            <span id="sCount" class="clock" style="text-align:center;min-width:0;flex:1"></span>
+            <button class="play" id="sNext" aria-label="Next step">→</button>
+          </div>
+          <div class="dots" id="sDots"></div>
+          <h4 id="sTitle"></h4>
+          <div id="sBody"></div>
+        </div>
+        <div class="boardwrap"><svg id="pb" class="wire" viewBox="0 0 880 410" role="img" aria-label="Perfboard layout for the bench tile circuit, with the current step highlighted"></svg></div>
+      </div>
+
+      <h3 id="p-joints">What a good joint looks like</h3>
+      <svg class="wire" viewBox="0 0 820 160" role="img" aria-label="Three solder joints: a good joint is a shiny concave cone; a cold joint is a dull ball; a bridge joins two pads">
+        <g font-family="IBM Plex Mono,monospace" font-size="12.5" text-anchor="middle">
+          <rect x="40" y="110" width="200" height="10" fill="#23412f"/><rect x="110" y="104" width="60" height="6" fill="#b87d3e"/><rect x="137" y="20" width="6" height="90" fill="#b9c2c6"/>
+          <path d="M112,104 Q140,98 137,50 L143,50 Q140,98 168,104 Z" fill="#cfd6da"/>
+          <text x="140" y="142" fill="#5fd39a">GOOD · shiny cone</text>
+          <rect x="310" y="110" width="200" height="10" fill="#23412f"/><rect x="380" y="104" width="60" height="6" fill="#b87d3e"/><rect x="407" y="20" width="6" height="90" fill="#b9c2c6"/>
+          <ellipse cx="410" cy="84" rx="20" ry="17" fill="#8d9396"/>
+          <text x="410" y="142" fill="#f2796c">COLD · dull ball, reheat</text>
+          <rect x="580" y="110" width="220" height="10" fill="#23412f"/><rect x="600" y="104" width="50" height="6" fill="#b87d3e"/><rect x="730" y="104" width="50" height="6" fill="#b87d3e"/>
+          <rect x="622" y="20" width="6" height="90" fill="#b9c2c6"/><rect x="752" y="20" width="6" height="90" fill="#b9c2c6"/>
+          <path d="M600,104 Q625,70 640,92 Q690,80 740,92 Q755,70 780,104 Z" fill="#cfd6da"/>
+          <text x="690" y="142" fill="#f2796c">BRIDGE · remove with braid</text>
         </g>
       </svg>
-      <p>Connect both rectifier outputs in parallel across the load resistor. The divider scales up to about 28 V down to the Arduino's 5 V range. Tie the Arduino ground to the rectifier minus.</p>
-      <h3>Logger sketch</h3>
-<pre>// Harvest Steps bench logger: energy of each step into a 10-ohm load
-const float R_LOAD  = 10.0;   // ohms
-const float DIVIDER = 5.7;    // (47k + 10k) / 10k
-const float VREF    = 5.0;
-const unsigned long DT_US = 500;   // sample at 2 kHz
 
-float joules = 0;
+      <h3 id="p-checks">7 · Multimeter checks before any power</h3>
+      <table>
+        <thead><tr><th>Probe between</th><th>Setting</th><th>Expect</th><th>If not</th></tr></thead>
+        <tbody>
+          <tr><td>+ pad (column 22, top) and GND pad</td><td>Ω</td><td class="num">≈ 10 Ω</td><td>0 Ω: solder bridge between the rails. Open: an R1 lead is loose.</td></tr>
+          <tr><td>Each diode: red on the plain end, black on the stripe</td><td>Diode</td><td class="num">0.15–0.35 V</td><td>Swap probes and it should read OL. OL both ways: open joint. Low both ways: shorted diode or bridge.</td></tr>
+          <tr><td>A0 pad and GND</td><td>Ω</td><td class="num">≈ 8.2 kΩ</td><td>About 10 kΩ: R2 side open. About 47 kΩ: R3 side open. Much lower: D9 is in backwards.</td></tr>
+          <tr><td>Each J1 screw and its row-7 node</td><td>Continuity</td><td class="num">beep</td><td>The jumper wire's joint is open.</td></tr>
+          <tr><td>Column 5 node and column 10 node</td><td>Continuity</td><td class="num">no beep</td><td>Solder bridge between the two bridges.</td></tr>
+          <tr><td>Stepper wires, before connecting</td><td>Ω</td><td class="num">1–5 Ω in a pair</td><td>Wires from different coils read open: that's how you find the two pairs.</td></tr>
+        </tbody>
+      </table>
+
+      <h3 id="p-power">8 · First power-up</h3>
+      <ol>
+        <li>Find the coil pairs with the ohmmeter. Put one pair in J1's A+ and A−, the other in B+ and B−. Which wire of a pair goes where doesn't matter; the bridge rectifies either way.</li>
+        <li>Meter on DC volts across R1. Spin the big pulley by hand: the reading should flick up to a few volts.</li>
+        <li>Move the meter to A0 and GND. Stomp on the plate as hard as you can: it must stay under 5 V.</li>
+        <li>Plug the Nano into a laptop by USB, connect the A0 and GND leads, upload the sketch below, and open Serial Monitor at 115200 baud.</li>
+        <li>Step on the tile. Each step prints one line: step number, joules, peak volts and the running average.</li>
+      </ol>
+
+      <h3 id="p-code">9 · Logger sketch and calibration</h3>
+      <p>Before trusting the numbers, measure three things and type them into the top of the sketch: R1 with its leads (R_LOAD), R2 and R3 to work out (R2 + R3) ÷ R3 (DIVIDER), and the Nano's 5V pin while on USB (VREF; often 4.7–5.1 V). The output is comma-separated, so you can paste it straight into a spreadsheet.</p>
+<pre>// Harvest Steps bench logger v2: energy of each step into the load resistor
+// Put your own measurements in the four values below.
+const float R_LOAD  = 10.0;   // ohms: R1 plus its leads, measured
+const float DIVIDER = 5.70;   // (R2 + R3) / R3, from measured values
+const float VREF    = 5.00;   // volts on the Nano's 5V pin, measured on USB
+const float THRESH  = 0.20;   // volts across R1 that count as "producing"
+const unsigned long DT_US    = 500;  // sample every 0.5 ms (2 kHz)
+const unsigned long QUIET_MS = 400;  // this long below THRESH ends a step
+
+float joules = 0, peakV = 0, total = 0;
 unsigned long quietSince = 0;
 int steps = 0;
 
-void setup() { Serial.begin(115200); }
+void setup() {
+  Serial.begin(115200);
+  Serial.println("step,joules,peak_volts,average_joules");
+}
 
 void loop() {
   static unsigned long next = micros();
-  while ((long)(micros() - next) &lt; 0) {}
+  while ((long)(micros() - next) &lt; 0) {}    // wait for the next sample
   next += DT_US;
 
-  float v = analogRead(A0) * VREF / 1023.0 * DIVIDER;
-  if (v &gt; 0.2) {                        // generator is producing
-    joules += v * v / R_LOAD * DT_US * 1e-6;
+  float v = analogRead(A0) * VREF / 1023.0 * DIVIDER;   // volts across R1
+  if (v &gt; THRESH) {
+    joules += v * v / R_LOAD * DT_US * 1e-6;              // P = V^2/R, times dt
+    if (v &gt; peakV) peakV = v;
     quietSince = millis();
-  } else if (joules &gt; 0 &amp;&amp; millis() - quietSince &gt; 400) {
-    steps++;                              // step finished: report it
-    Serial.print("step ");  Serial.print(steps);
-    Serial.print("  J: ");  Serial.println(joules, 3);
-    joules = 0;
+  } else if (joules &gt; 0 &amp;&amp; millis() - quietSince &gt; QUIET_MS) {
+    steps++;
+    total += joules;
+    Serial.print(steps);      Serial.print(',');
+    Serial.print(joules, 4);  Serial.print(',');
+    Serial.print(peakV, 2);   Serial.print(',');
+    Serial.println(total / steps, 4);
+    joules = 0;  peakV = 0;
   }
 }</pre>
-      <h3>Test plan</h3>
+
+      <h3 id="p-test">10 · Test plan</h3>
       <ol>
         <li>Weigh three walkers of different builds on a bathroom scale.</li>
-        <li>Set the end stop to 4 mm with shims. Each walker takes 20 normal steps across the tile; record the joules of each.</li>
-        <li>Repeat at 6 mm and 8 mm. Put the averages into the Energy physics tab: change the efficiencies until its prediction matches what you measured.</li>
-        <li>If 6 mm gives under 1 J, try a higher gear ratio or a bigger generator before changing anything else.</li>
-        <li>Spend one market day with a clicker counting entries and aisle traffic, to check the visitor and steps-per-visitor figures.</li>
+        <li>With the end stops at 4 mm, each walker takes 20 normal steps across the tile. Save the serial output.</li>
+        <li>Repeat at 6 mm and 8 mm. Average each walker's joules at each travel.</li>
+        <li>In the Energy physics tab, set the mass and travel, then adjust the efficiencies until the prediction matches your average. That tells you which stage loses the most.</li>
+        <li>If 6 mm gives under 1 J, raise the step-up ratio (a 20T pinion or a bigger pulley) before changing anything else.</li>
       </ol>
+
+      <h3 id="p-trouble">11 · Troubleshooting</h3>
+      <table>
+        <thead><tr><th>What you see</th><th>Likely cause</th><th>Fix</th></tr></thead>
+        <tbody>
+          <tr><td>Nothing prints when you step</td><td>Voltage never passes THRESH; motor spinning too slowly</td><td>Check the belt isn't slipping; spin the pulley fast by hand to test; lower THRESH to 0.1</td></tr>
+          <tr><td>Lines print with nobody on the tile</td><td>Noise on A0</td><td>Twist the A0 and GND leads together; check C1; raise THRESH</td></tr>
+          <tr><td>Only half the expected voltage</td><td>Both wires of one coil in the same bridge as the other coil's wire</td><td>Recheck the pairs with the ohmmeter; one pair per bridge</td></tr>
+          <tr><td>A0 reads near 0 always</td><td>D9 backwards, or A0 lead on the wrong pin</td><td>Stripe of D9 toward the A0 line; check the Nano pin label</td></tr>
+          <tr><td>Joules far below the physics tab</td><td>Diode drops dominate at low voltage; loose end stops</td><td>More step-up; check travel with calipers; heavier walker</td></tr>
+          <tr><td>R1 warm after drill tests</td><td>Continuous spinning, not steps</td><td>Normal; keep drill spins under 10 s</td></tr>
+        </tbody>
+      </table>
     </div>
   </section>
 </main>
@@ -874,7 +1070,7 @@ function setTab(t) {
   document.querySelectorAll('.corner').forEach(c => c.style.visibility = docTab ? 'hidden' : 'visible');
   document.querySelectorAll('.bar .ctl').forEach(c => c.classList.toggle('on', c.dataset.ctl === (docTab ? 'doc' : t)));
   $('modes').style.display = docTab ? 'none' : 'flex';
-  $('docNote').textContent = t === 'physics' ? 'Inputs on the left · every figure updates live' : 'Parts and code for a bench tile';
+  $('docNote').textContent = t === 'physics' ? 'Inputs on the left · every figure updates live' : 'Build guide · soldering steps in section 6';
   tile.visible = t === 'sequence' || t === 'blueprint'; market.visible = t === 'market'; grid.visible = t === 'sequence';
   $('hint').innerHTML = t === 'market' ? 'Drag to turn · scroll to zoom<br>Schematic, not to scale' : t === 'blueprint' ? 'Click a part · drag to turn · scroll to zoom' : 'Drag to turn · scroll to zoom<br>Plate travel drawn 3× · slowed for viewing';
   $('tag').style.display = 'none';
@@ -924,8 +1120,161 @@ setTab((location.hash || '#sequence').slice(1)); setView(tab, true);
 resize(); $('ready').textContent = '● VISUALIZATION READY';
 requestAnimationFrame(frame);
 
+/* ---------------- Bench prototype: soldering walkthrough ---------------- */
+const SVGNS = 'http://www.w3.org/2000/svg';
+const PX = c => 40 + c * 22, PY = r => 40 + r * 22;
+const PB_PARTS = [
+  {s: 3, k: 'rail', a: [4, 0], b: [22, 0], t: '+ rail'},
+  {s: 3, k: 'rail', a: [4, 15], b: [23, 15], t: 'GND rail'},
+  {s: 4, k: 'term'},
+  {s: 5, k: 'diode', c: 5, r0: 0, r1: 6, t: 'D1'}, {s: 5, k: 'diode', c: 5, r0: 8, r1: 15, t: 'D3'}, {s: 5, k: 'trace', a: [5, 6], b: [5, 8]},
+  {s: 5, k: 'diode', c: 7, r0: 0, r1: 6, t: 'D2'}, {s: 5, k: 'diode', c: 7, r0: 8, r1: 15, t: 'D4'}, {s: 5, k: 'trace', a: [7, 6], b: [7, 8]},
+  {s: 6, k: 'diode', c: 10, r0: 0, r1: 6, t: 'D5'}, {s: 6, k: 'diode', c: 10, r0: 8, r1: 15, t: 'D7'}, {s: 6, k: 'trace', a: [10, 6], b: [10, 8]},
+  {s: 6, k: 'diode', c: 12, r0: 0, r1: 6, t: 'D6'}, {s: 6, k: 'diode', c: 12, r0: 8, r1: 15, t: 'D8'}, {s: 6, k: 'trace', a: [12, 6], b: [12, 8]},
+  {s: 7, k: 'jump', a: [1, 5], b: [5, 7], col: '#e5484d', dy: 50}, {s: 7, k: 'jump', a: [1, 6], b: [7, 7], col: '#3e8ef7', dy: 70},
+  {s: 7, k: 'jump', a: [1, 7], b: [10, 7], col: '#46c37b', dy: 92}, {s: 7, k: 'jump', a: [1, 8], b: [12, 7], col: '#e8e8e8', dy: 112},
+  {s: 8, k: 'res', c: 16, r0: 0, r1: 6, t: 'R2 47k', bands: ['#e8c547', '#8a4fd1', '#f08a24', '#c9a046']},
+  {s: 8, k: 'res', c: 16, r0: 8, r1: 15, t: 'R3 10k', bands: ['#8b5a2b', '#151515', '#f08a24', '#c9a046']},
+  {s: 8, k: 'trace', a: [16, 6], b: [16, 8]},
+  {s: 9, k: 'trace', a: [16, 7], b: [22, 7]}, {s: 9, k: 'trace', a: [18, 7], b: [18, 8]}, {s: 9, k: 'trace', a: [20, 7], b: [20, 8]},
+  {s: 9, k: 'zener', c: 18, r0: 8, r1: 15, t: 'D9'}, {s: 9, k: 'cap', c: 20, r0: 8, r1: 15, t: 'C1'},
+  {s: 10, k: 'r1'}, {s: 11, k: 'ard'}
+];
+const STEPS = [
+  {t: 'Dry-fit the layout', all: true,
+   do: ['Place every part in its holes without soldering, matching this board view.', 'Check every diode: all eight 1N5819s and the Zener D9 have their stripe toward the top (+) edge of the board.', 'Take a photo so you can rebuild the layout if parts fall out.'],
+   tip: 'Bend leads with pliers about 2 mm from the body, not right at it, so the glass or epoxy doesn’t crack.',
+   check: 'Everything matches the board view and every stripe points up.'},
+  {t: 'Set up the iron and stay safe', none: true,
+   do: ['Set the iron to 340 °C for lead-free solder (about 320 °C for leaded).', 'Wipe the tip on brass wool, then melt a little solder onto it until it’s shiny. This is called tinning.', 'Glasses on, fan pulling the smoke away from your face, iron back in its stand whenever you put it down.'],
+   tip: 'Re-tin whenever the tip looks dull. A dull tip doesn’t pass heat, and that is what makes cold joints.',
+   check: 'Solder flows over the tip and stays bright.'},
+  {t: 'Lay the two rails',
+   do: ['Cut two pieces of bare 22 AWG solid wire and straighten them by pulling between two pliers.', 'Lay one along the top row from column 4 to 22: the + rail. Lay the other along the bottom row from column 4 to 23: the GND rail.', 'Solder every third hole to hold each rail flat.'],
+   tip: 'Hold the wire down with the tip of a screwdriver while the first joint cools.',
+   check: 'Both rails are straight and touch only their own row.'},
+  {t: 'Solder the coil terminal J1',
+   do: ['Push the 4-way screw terminal into column 1, rows 5 to 8, wire openings facing the board edge.', 'Touch the iron to the pad and pin together for 1–2 seconds.', 'Feed solder into the joint, not onto the iron, until a small shiny cone forms. Pull the solder away, then the iron. About 3 seconds in all.'],
+   tip: 'Terminals have thick pins that soak up heat: give them an extra second before feeding solder.',
+   check: 'Four cone-shaped joints, none touching the next pad.'},
+  {t: 'Bridge A: D1 to D4',
+   do: ['D1 and D2 go in columns 5 and 7, rows 0 to 6, stripes on the + rail end. Solder their top leads to the + rail.', 'D3 and D4 go below them, rows 8 to 15, stripes toward row 8. Solder their bottom leads to the GND rail.', 'On the underside, bend D1’s lower lead and D3’s upper lead to meet at row 7 and solder them together. Do the same for D2 and D4. These two joints are coil A’s connection points.', 'Trim every lead with flush cutters, holding the loose end so it doesn’t fly.'],
+   tip: 'A diode survives about 5 seconds of heat. If a joint won’t flow, stop, let it cool, add flux and try again.',
+   check: 'Eight joints, two joined pairs at row 7, all stripes up.'},
+  {t: 'Bridge B: D5 to D8',
+   do: ['Repeat the last step in columns 10 and 12: D5 and D6 on top, D7 and D8 below.', 'Join each column’s two inner leads at row 7.'],
+   tip: 'Two bridges, one per coil, so the coils never push current into each other.',
+   check: 'Columns 7 and 10 are not touching anywhere.'},
+  {t: 'Coil jumpers',
+   do: ['Cut four short insulated wires. Strip 3 mm from each end, twist the strands and tin them.', 'Solder them from J1 to the row-7 joints: A+ to column 5, A− to column 7, B+ to column 10, B− to column 12.'],
+   tip: 'Tinned wire ends solder in about a second and don’t fray into the next pad.',
+   check: 'Tug each wire gently: nothing moves.'},
+  {t: 'Divider: R2 and R3',
+   do: ['Measure both resistors with the multimeter first and write down the real values. You need them for calibration.', 'R2, 47 kΩ (yellow, violet, orange), goes in column 16 from the + rail down to row 6. R3, 10 kΩ (brown, black, orange), goes from row 8 down to the GND rail.', 'Join their inner leads at row 7. That joint is the A0 node.'],
+   tip: 'Resistors have no direction; either way round is fine.',
+   check: 'Both measured values written down.'},
+  {t: 'Protection: D9 and C1',
+   do: ['Fit the 5.1 V Zener D9 in column 18, rows 8 to 15, with its stripe toward the top.', 'Fit the 10 nF capacitor C1 (marked 103) in column 20, rows 8 to 15.', 'Run a short bare wire along row 7 from column 16 to 22, joining the A0 node, the top of D9, the top of C1 and the A0 pad.'],
+   tip: 'The Zener is glass: keep each joint under 3 seconds.',
+   check: 'D9’s stripe faces the A0 line. Backwards, it pins A0 near 0.7 V and you read nothing useful.'},
+  {t: 'Load resistor R1, off the board',
+   do: ['R1 is big and warms up in long tests, so mount it on the wooden base, not the board.', 'Solder 10 cm leads to its two terminals and slide heat-shrink over each joint before shrinking it.', 'Solder the other ends to the + pad (column 22, top row) and the GND pad (column 23, bottom row).'],
+   tip: 'Slide the heat-shrink onto the wire before you solder, or it won’t go on afterwards.',
+   check: 'R1 sits clear of other wires.'},
+  {t: 'Arduino leads',
+   do: ['A yellow wire from the A0 pad (column 22, row 7) to the Nano’s A0 pin.', 'A black wire from the GND pad (column 22, bottom row) to a Nano GND pin.', 'Use female jumper ends on the Nano side so it unplugs.'],
+   tip: 'Twist the yellow and black wires together: it cuts noise on A0.',
+   check: 'Nothing from the + rail reaches the Nano except through the divider.'},
+  {t: 'Inspect, then test without power', all: true,
+   do: ['Look at every joint with a magnifier or your phone’s zoom. Shiny cones are good; dull balls are cold joints (reheat with flux); remove any bridge between pads with desoldering braid.', 'Then run every check in section 7 before connecting the motor or the Nano.'],
+   tip: 'Hold the board up to a light: solder bridges show up as dark lines between pads.',
+   check: 'All checks in section 7 pass.'}
+];
+let sCur = 0;
+function el(tag, attrs, parent) { const e = document.createElementNS(SVGNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+function buildBoard() {
+  const svg = $('pb'); if (!svg) return;
+  el('rect', {x: 18, y: 18, width: 550, height: 374, rx: 8, fill: '#1e3a2b', stroke: '#2f5a44'}, svg);
+  const holes = el('g', {}, svg);
+  for (let c = 0; c < 24; c++) for (let r = 0; r < 16; r++) el('circle', {cx: PX(c), cy: PY(r), r: 3.6, fill: '#0e1d16', stroke: '#b87d3e', 'stroke-width': 1.4}, holes);
+  const lbl = el('g', {'font-family': 'IBM Plex Mono,monospace', 'font-size': 10, fill: '#8aa6ae'}, svg);
+  [0, 5, 10, 15, 20].forEach(c => { const t = el('text', {x: PX(c), y: 12 + 0, 'text-anchor': 'middle'}, lbl); t.textContent = c; });
+  [0, 7, 15].forEach(r => { const t = el('text', {x: 578, y: PY(r) + 4}, lbl); t.textContent = 'row ' + r; });
+  const blob = (g, c, r) => el('circle', {cx: PX(c), cy: PY(r), r: 4.6, fill: '#cfd6da'}, g);
+  const txt = (g, x, y, s, fill = '#d7eaef', anchor = 'start') => { const t = el('text', {x, y, 'font-family': 'IBM Plex Mono,monospace', 'font-size': 11, fill, 'text-anchor': anchor}, g); t.textContent = s; return t; };
+  PB_PARTS.forEach(p => {
+    const g = el('g', {'data-st': p.s}, svg);
+    if (p.k === 'rail') {
+      el('line', {x1: PX(p.a[0]), y1: PY(p.a[1]), x2: PX(p.b[0]), y2: PY(p.b[1]), stroke: '#c8d0d4', 'stroke-width': 3, 'stroke-linecap': 'round'}, g);
+      for (let c = p.a[0]; c <= p.b[0]; c += 3) blob(g, c, p.a[1]);
+      txt(g, PX(13), p.a[1] ? PY(15) + 17 : PY(0) - 8, p.t, '#d7eaef', 'middle');
+    } else if (p.k === 'trace') {
+      el('line', {x1: PX(p.a[0]), y1: PY(p.a[1]), x2: PX(p.b[0]), y2: PY(p.b[1]), stroke: '#c8d0d4', 'stroke-width': 4.5, 'stroke-linecap': 'round'}, g);
+      blob(g, p.a[0], p.a[1]); blob(g, p.b[0], p.b[1]);
+    } else if (p.k === 'term') {
+      el('rect', {x: PX(1) - 12, y: PY(5) - 12, width: 24, height: PY(8) - PY(5) + 24, rx: 3, fill: '#2b6cb0', stroke: '#173f6b'}, g);
+      ['A+', 'A−', 'B+', 'B−'].forEach((n, i) => { el('circle', {cx: PX(1), cy: PY(5 + i), r: 6, fill: '#9fb4c7', stroke: '#173f6b'}, g); el('line', {x1: PX(1) - 4, y1: PY(5 + i), x2: PX(1) + 4, y2: PY(5 + i), stroke: '#173f6b', 'stroke-width': 1.5}, g); txt(g, PX(1) - 16, PY(5 + i) + 4, n, '#d7eaef', 'end'); });
+      txt(g, PX(1), PY(4) - 2, 'J1', '#d7eaef', 'middle');
+    } else if (p.k === 'diode' || p.k === 'zener' || p.k === 'res' || p.k === 'cap') {
+      const x = PX(p.c), y0 = PY(p.r0), y1 = PY(p.r1), ym = (y0 + y1) / 2;
+      el('line', {x1: x, y1: y0, x2: x, y2: y1, stroke: '#b9c2c6', 'stroke-width': 1.8}, g);
+      blob(g, p.c, p.r0); blob(g, p.c, p.r1);
+      if (p.k === 'diode') { el('rect', {x: x - 6, y: ym - 16, width: 12, height: 32, rx: 3, fill: '#1b1b1b', stroke: '#444'}, g); el('rect', {x: x - 6, y: ym - 14, width: 12, height: 5, fill: '#c9c9c9'}, g); }
+      if (p.k === 'zener') { el('rect', {x: x - 5.5, y: ym - 14, width: 11, height: 28, rx: 5, fill: '#e07b39', 'fill-opacity': 0.85, stroke: '#a24f1d'}, g); el('rect', {x: x - 5.5, y: ym - 12, width: 11, height: 4, fill: '#111'}, g); }
+      if (p.k === 'res') { el('rect', {x: x - 7, y: ym - 18, width: 14, height: 36, rx: 6, fill: '#d9c7a0', stroke: '#a8946a'}, g); p.bands.forEach((b, i) => el('rect', {x: x - 7, y: ym - 13 + i * 7 + (i === 3 ? 4 : 0), width: 14, height: 4, fill: b}, g)); }
+      if (p.k === 'cap') { el('circle', {cx: x, cy: ym, r: 10, fill: '#e0a63a', stroke: '#9b6a17'}, g); txt(g, x, ym + 3.5, '103', '#3a2a08', 'middle').setAttribute('font-size', 8); }
+      txt(g, x + 11, ym + 4, p.t);
+    } else if (p.k === 'jump') {
+      const x0 = PX(p.a[0]), y0 = PY(p.a[1]), x1 = PX(p.b[0]), y1 = PY(p.b[1]);
+      const d = `M${x0},${y0} C${x0 + 30},${y0 + p.dy} ${x1 - 10},${y1 + p.dy} ${x1},${y1}`;
+      el('path', {d, fill: 'none', stroke: '#0b1418', 'stroke-width': 6.5, 'stroke-linecap': 'round'}, g);
+      el('path', {d, fill: 'none', stroke: p.col, 'stroke-width': 4, 'stroke-linecap': 'round'}, g);
+      blob(g, p.b[0], p.b[1]);
+    } else if (p.k === 'r1') {
+      const d1 = `M${PX(22)},${PY(0)} C${PX(22) + 50},${PY(0) - 10} 600,60 650,80`, d2 = `M${PX(23)},${PY(15)} C${PX(23) + 60},${PY(15)} 840,150 810,90`;
+      [d1, d2].forEach((d, i) => { el('path', {d, fill: 'none', stroke: '#0b1418', 'stroke-width': 6, 'stroke-linecap': 'round'}, g); el('path', {d, fill: 'none', stroke: i ? '#222' : '#e5484d', 'stroke-width': 3.6, 'stroke-linecap': 'round'}, g); });
+      el('rect', {x: 650, y: 66, width: 160, height: 34, rx: 4, fill: '#e2ddd1', stroke: '#9c968a'}, g);
+      el('rect', {x: 640, y: 74, width: 14, height: 18, rx: 3, fill: '#111'}, g); el('rect', {x: 806, y: 74, width: 14, height: 18, rx: 3, fill: '#111'}, g);
+      txt(g, 730, 88, 'R1 10 Ω 10 W', '#2b2b2b', 'middle');
+      txt(g, 730, 122, 'off-board, on the base', '#8aa6ae', 'middle');
+      blob(g, 22, 0); blob(g, 23, 15);
+    } else if (p.k === 'ard') {
+      const dA = `M${PX(22)},${PY(7)} C${PX(22) + 40},${PY(7)} 600,290 640,292`, dG = `M${PX(22)},${PY(15)} C${PX(22) + 40},${PY(15) - 6} 600,350 640,346`;
+      [[dA, '#f2d33b'], [dG, '#1a1a1a']].forEach(([d, c]) => { el('path', {d, fill: 'none', stroke: '#6b7f86', 'stroke-width': 6, 'stroke-linecap': 'round'}, g); el('path', {d, fill: 'none', stroke: c, 'stroke-width': 3.8, 'stroke-linecap': 'round'}, g); });
+      el('rect', {x: 640, y: 250, width: 210, height: 120, rx: 6, fill: '#1f4fa0', stroke: '#123268'}, g);
+      el('rect', {x: 838, y: 296, width: 22, height: 28, rx: 3, fill: '#c9d0d4'}, g);
+      txt(g, 745, 318, 'Arduino Nano', '#ffffff', 'middle');
+      txt(g, 652, 296, 'A0', '#f2d33b'); txt(g, 652, 350, 'GND', '#d7eaef');
+      txt(g, 860, 388, 'USB to laptop', '#8aa6ae', 'end');
+      blob(g, 22, 7); blob(g, 22, 15);
+    }
+  });
+  const sd = $('sDots');
+  STEPS.forEach((st, i) => { const b = document.createElement('button'); b.textContent = i + 1; b.setAttribute('aria-label', 'Step ' + (i + 1) + ': ' + st.t); b.addEventListener('click', () => showStep(i)); sd.appendChild(b); });
+  $('sPrev').addEventListener('click', () => showStep(Math.max(0, sCur - 1)));
+  $('sNext').addEventListener('click', () => showStep(Math.min(STEPS.length - 1, sCur + 1)));
+  showStep(0);
+}
+function showStep(i) {
+  sCur = i; const st = STEPS[i], n = i + 1;
+  $('sCount').textContent = 'STEP ' + n + ' OF ' + STEPS.length;
+  $('sTitle').textContent = st.t;
+  $('sBody').innerHTML = '<span class="lab">DO</span><ul>' + st.do.map(d => '<li>' + d + '</li>').join('') + '</ul><span class="lab">TIP</span><p>' + st.tip + '</p><span class="lab">CHECK</span><p>' + st.check + '</p>';
+  [...$('sDots').children].forEach((b, j) => { b.classList.toggle('done', j < i); if (j === i) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current'); });
+  $('pb').querySelectorAll('g[data-st]').forEach(g => {
+    const s = +g.getAttribute('data-st');
+    g.setAttribute('class', st.all ? 'now' : st.none ? 'todo' : s < n ? 'done' : s === n ? 'now' : 'todo');
+  });
+  $('sPrev').disabled = i === 0; $('sNext').disabled = i === STEPS.length - 1;
+}
+buildBoard();
+document.querySelectorAll('#toc button').forEach(b => b.addEventListener('click', () => {
+  if (tab !== 'prototype') setTab('prototype');
+  const t = $(b.dataset.go); if (t) t.scrollIntoView({behavior: 'smooth', block: 'start'});
+}));
+
 // Hook for screenshots and tests
-window.__hs = {seek(t) { seqT = t; seqPlaying = false; $('play').textContent = '▶ Play'; }, setTab, setMode, P, model, select: k => select(parts.find(p => p.key === k) || null)};
+window.__hs = {seek(t) { seqT = t; seqPlaying = false; $('play').textContent = '▶ Play'; }, setTab, setMode, P, model, select: k => select(parts.find(p => p.key === k) || null), showStep};
 })();
 </script>
 </body>
