@@ -1,0 +1,932 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Harvest Steps · Footstep Power Workbench</title>
+<meta name="description" content="Harvest Steps: a kinetic floor mat for the Union Square Greenmarket that turns footsteps into electricity. Interactive 3D workbench with a step-by-step animation, an exploded blueprint, live energy physics, a market layout and a bench prototype you can build.">
+<link rel="canonical" href="https://ascoding11.github.io/harvest-steps/">
+<meta name="robots" content="index,follow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#06141a; --bg-2:#0a1c23; --panel:#0c2029; --line:#1b3a45; --line-2:#2a5866;
+  --holo:#7fdcef; --holo-2:#4fb3c8; --ink:#d7eaef; --ink-2:#8aa6ae; --amber:#f2b84b; --good:#5fd39a; --bad:#f2796c;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:var(--sans)}
+body{display:grid;grid-template-rows:auto auto minmax(0,1fr) auto auto;height:100dvh;overflow:hidden}
+a{color:inherit}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--holo);outline-offset:2px}
+
+.top{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:24px;padding:14px 28px;border-bottom:1px solid var(--line)}
+.brand b{display:block;font-family:var(--sans);font-weight:600;letter-spacing:.14em;font-size:17px}
+.brand span{display:block;font-family:var(--mono);color:var(--holo);font-size:11px;letter-spacing:.32em}
+.brand small{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;color:var(--ink-2);margin-top:2px}
+.crumb{justify-self:center;font-family:var(--mono);font-size:13px;letter-spacing:.08em;color:var(--ink-2);text-align:center}
+.crumb a{color:var(--holo);text-decoration:none;margin-right:14px}
+.crumb a:hover{text-decoration:underline}
+.crumb b{color:var(--ink);font-weight:500}
+.rev{font-family:var(--mono);font-size:12.5px;letter-spacing:.06em;color:var(--holo);white-space:nowrap}
+.rev span{color:var(--ink-2);margin-left:18px}
+
+.tabs{display:flex;align-items:stretch;gap:4px;padding:0 28px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{background:none;border:0;border-bottom:2px solid transparent;padding:14px 12px 12px;cursor:pointer;white-space:nowrap;color:var(--ink-2);font-size:15px}
+.tab i{font-style:normal;font-family:var(--mono);font-size:12.5px;margin-right:8px}
+.tab[aria-selected="true"]{color:var(--holo);border-bottom-color:var(--holo)}
+.tab:hover{color:var(--ink)}
+.tabs .spec{margin-left:auto;align-self:center;font-family:var(--mono);font-size:12px;letter-spacing:.06em;color:var(--ink-2);white-space:nowrap;padding-left:20px}
+
+main{display:grid;grid-template-columns:320px minmax(0,1fr);min-height:0}
+#side{border-right:1px solid var(--line);padding:22px 20px;overflow-y:auto;display:flex;flex-direction:column;gap:16px;min-height:0}
+.pane{display:none;flex-direction:column;gap:14px;flex:1}
+.pane.on{display:flex}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.16em;color:var(--holo);text-transform:uppercase;margin:0}
+.pane h2{font-weight:500;font-size:20px;margin:0}
+.pane p{margin:0;color:var(--ink-2);font-size:14px;line-height:1.55}
+
+.seq{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.seq button{display:grid;grid-template-columns:62px 1fr;width:100%;text-align:left;background:none;border:0;border-left:2px solid transparent;padding:7px 8px;cursor:pointer;border-radius:0 6px 6px 0}
+.seq button:hover{background:var(--bg-2)}
+.seq code{font-family:var(--mono);font-size:11.5px;color:var(--ink-2);padding-top:2px}
+.seq b{font-weight:400;font-size:15px}
+.seq small{grid-column:2;display:none;color:var(--ink-2);font-size:13px;line-height:1.5;margin-top:4px}
+.seq .on button{border-left-color:var(--holo);background:var(--bg-2)}
+.seq .on code{color:var(--holo)}
+.seq .on small{display:block}
+
+.tele{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px;border-top:1px solid var(--line);padding-top:16px;margin-top:auto}
+.tele div{font-family:var(--mono)}
+.tele small{display:block;font-size:10.5px;letter-spacing:.12em;color:var(--ink-2)}
+.tele b{display:block;font-weight:500;font-size:16px;color:var(--holo)}
+.tele b.amber{color:var(--amber)}
+
+.parts{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.parts button{display:flex;justify-content:space-between;gap:10px;width:100%;background:none;border:0;padding:7px 10px;border-radius:6px;cursor:pointer;text-align:left;font-size:14.5px}
+.parts button:hover{background:var(--bg-2)}
+.parts button span{font-family:var(--mono);font-size:12px;color:var(--ink-2)}
+.parts .on button{background:var(--bg-2);color:var(--amber)}
+.sheet{border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:8px;margin-top:auto}
+.sheet h3{margin:0;font-weight:500;font-size:16px;color:var(--amber)}
+.sheet dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0;font-size:13px}
+.sheet dt{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--ink-2);padding-top:2px}
+.sheet dd{margin:0}
+
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{display:flex;justify-content:space-between;font-size:13.5px}
+.field label output{font-family:var(--mono);color:var(--holo)}
+input[type=range]{width:100%;accent-color:var(--holo)}
+.seg{display:flex;border:1px solid var(--line-2);border-radius:8px;overflow:hidden}
+.seg button{flex:1;background:none;border:0;padding:9px 8px;cursor:pointer;font-size:13.5px;color:var(--ink-2)}
+.seg button+button{border-left:1px solid var(--line-2)}
+.seg button[aria-pressed="true"]{background:var(--holo);color:var(--bg);font-weight:600}
+
+#stage{position:relative;min-width:0;min-height:0;overflow:hidden}
+#gl{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+#gl.drag{cursor:grabbing}
+.corner{position:absolute;width:26px;height:26px;border-color:var(--line-2);border-style:solid;pointer-events:none}
+.c1{left:14px;top:14px;border-width:1px 0 0 1px}.c2{right:14px;top:14px;border-width:1px 1px 0 0}
+.c3{left:14px;bottom:14px;border-width:0 0 1px 1px}.c4{right:14px;bottom:14px;border-width:0 1px 1px 0}
+.cap{position:absolute;left:50%;top:22px;transform:translateX(-50%);text-align:center;pointer-events:none;max-width:min(560px,86%)}
+.cap code{font-family:var(--mono);font-size:12px;letter-spacing:.12em;color:var(--holo)}
+.cap h3{margin:2px 0 4px;font-weight:500;font-size:22px;letter-spacing:.14em;text-transform:uppercase}
+.cap p{margin:0;font-family:var(--mono);font-size:12px;line-height:1.5;color:var(--ink-2)}
+.hint{position:absolute;right:22px;bottom:20px;font-family:var(--mono);font-size:11px;color:var(--ink-2);pointer-events:none;text-align:right}
+.tag{position:absolute;pointer-events:none;font-family:var(--mono);font-size:12px;color:var(--amber);background:rgba(6,20,26,.85);border:1px solid var(--amber);border-radius:4px;padding:3px 7px;transform:translate(-50%,-140%);white-space:nowrap;display:none}
+
+.doc{position:absolute;inset:0;overflow-y:auto;padding:28px 32px 40px;display:none}
+.doc.on{display:block}
+.doc h2{font-weight:500;font-size:22px;margin:0 0 6px}
+.doc h3{font-family:var(--mono);font-weight:500;font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--holo);margin:28px 0 10px}
+.doc p,.doc li{color:var(--ink-2);font-size:14.5px;line-height:1.6}
+.doc p{margin:0 0 10px;max-width:72ch}
+.doc ol{padding-left:20px;margin:0;max-width:72ch}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.card{border:1px solid var(--line);border-radius:8px;padding:14px;background:var(--bg-2)}
+.card small{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;color:var(--ink-2)}
+.card b{display:block;font-family:var(--mono);font-weight:500;font-size:24px;color:var(--holo);margin-top:4px}
+.card span{display:block;font-size:12.5px;color:var(--ink-2);margin-top:2px}
+.flow{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-family:var(--mono);font-size:12.5px}
+.flow span{border:1px solid var(--line-2);border-radius:6px;padding:6px 9px}
+.flow span b{color:var(--holo);font-weight:500}
+.flow i{font-style:normal;color:var(--ink-2)}
+.chartbox{border:1px solid var(--line);border-radius:8px;background:var(--bg-2);padding:10px}
+#chart{width:100%;height:280px;display:block}
+.checks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;max-width:820px}
+.checks li{display:grid;grid-template-columns:64px 1fr;gap:12px;align-items:start;border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.checks li b{font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;text-align:center;border-radius:4px;padding:3px 0}
+.checks .pass b{color:var(--bg);background:var(--good)}
+.checks .fail b{color:var(--bg);background:var(--bad)}
+.checks .fix b{color:var(--bg);background:var(--amber)}
+.checks li span{font-size:14px;color:var(--ink)}
+.checks li span em{display:block;font-style:normal;color:var(--ink-2);font-size:13px;margin-top:2px}
+table{border-collapse:collapse;width:100%;max-width:820px;font-size:14px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--mono);font-weight:500;font-size:11px;letter-spacing:.12em;color:var(--ink-2);text-transform:uppercase}
+td.num{font-family:var(--mono);white-space:nowrap}
+tfoot td{color:var(--ink);font-weight:600}
+pre{background:#030d11;border:1px solid var(--line);border-radius:8px;padding:14px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.55;color:#bfe3ea;max-width:820px}
+.wire{max-width:820px;width:100%;height:auto;display:block}
+
+.bar{display:flex;align-items:center;gap:14px;padding:12px 20px;border-top:1px solid var(--line);flex-wrap:wrap}
+.bar .ctl{display:none;align-items:center;gap:14px;flex:1;min-width:0}
+.bar .ctl.on{display:flex}
+.play{border:1px solid var(--line-2);background:none;border-radius:4px;padding:7px 14px;cursor:pointer;font-family:var(--mono);font-size:13px;color:var(--holo);min-width:84px}
+.scrub{flex:1;min-width:120px}
+.clock{font-family:var(--mono);font-size:13px;color:var(--holo);white-space:nowrap;min-width:110px;text-align:right}
+.bar label{font-size:13.5px;color:var(--ink-2);display:flex;align-items:center;gap:8px}
+.bar select{background:var(--bg-2);border:1px solid var(--line-2);border-radius:4px;padding:6px 8px}
+.modes{display:flex;border:1px solid var(--line-2);border-radius:4px;overflow:hidden;margin-left:auto}
+.modes button{background:none;border:0;padding:7px 12px;cursor:pointer;font-family:var(--mono);font-size:13px;color:var(--ink-2)}
+.modes button[aria-pressed="true"]{background:var(--bg-2);color:var(--holo)}
+
+.status{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;padding:9px 20px;border-top:1px solid var(--line);font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;color:var(--ink-2)}
+.status .ok{color:var(--holo)}
+.status span:last-child{text-align:right}
+
+@media (max-width:900px){
+  body{display:block;height:auto;overflow:auto}
+  .top{grid-template-columns:1fr auto;padding:12px 16px;gap:10px}
+  .crumb{grid-column:1/-1;grid-row:2;justify-self:start;text-align:left;font-size:12px}
+  .rev span{display:none}
+  .tabs{padding:0 10px}
+  .tabs .spec{display:none}
+  main{display:flex;flex-direction:column}
+  #stage{height:58vh;min-height:340px;order:1}
+  #side{order:2;border-right:0;border-top:1px solid var(--line);overflow:visible}
+  .bar{position:sticky;bottom:0;background:var(--bg);z-index:5;padding:10px 12px;gap:10px}
+  .bar .ctl{flex-wrap:wrap}
+  .clock{min-width:0}
+  .bar label .lbl{display:none}
+  .status{grid-template-columns:1fr;text-align:left}
+  .status span:last-child{text-align:left}
+  .cap h3{font-size:17px}
+  .cap p{display:none}
+  .doc{position:static;display:none;padding:20px 16px 32px}
+  .doc.on{display:block}
+  #stage.docmode{height:auto;min-height:0}
+  #stage.docmode #gl,#stage.docmode .corner,#stage.docmode .cap,#stage.docmode .hint{display:none}
+  .hint{display:none}
+}
+@media (prefers-reduced-motion: reduce){ .tab,.seq button{transition:none} }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><b>HARVEST STEPS</b><span>FOOTSTEP POWER</span><small>CONCEPT ENGINEERING</small></div>
+  <div class="crumb"><a href="../engineering/">← Engineering projects</a><b>HARVEST MAT</b> / KINETIC FLOOR TILE FOR THE UNION SQUARE GREENMARKET</div>
+  <div class="rev">● CONCEPT STUDY <span>REV 01</span></div>
+</header>
+
+<nav class="tabs" role="tablist" aria-label="Workbench views">
+  <button class="tab" role="tab" data-tab="sequence" aria-selected="true"><i>01</i>Step sequence</button>
+  <button class="tab" role="tab" data-tab="blueprint" aria-selected="false"><i>02</i>Exploded blueprint</button>
+  <button class="tab" role="tab" data-tab="physics" aria-selected="false"><i>03</i>Energy physics</button>
+  <button class="tab" role="tab" data-tab="market" aria-selected="false"><i>04</i>Market layout</button>
+  <button class="tab" role="tab" data-tab="prototype" aria-selected="false"><i>05</i>Bench prototype</button>
+  <span class="spec">600 × 600 × 45 mm · 6 mm TRAVEL · 24 V DC BUS</span>
+</nav>
+
+<main>
+  <aside id="side">
+    <!-- 01 Step sequence -->
+    <div class="pane on" data-pane="sequence">
+      <p class="eyebrow">Harvest Mat / one footstep</p>
+      <h2>Heel strike to battery</h2>
+      <ol class="seq" id="seq"></ol>
+      <div class="tele" aria-live="off">
+        <div><small>PLATE TRAVEL</small><b id="tTravel">0.0 mm</b></div>
+        <div><small>FOOT FORCE</small><b id="tForce">0 N</b></div>
+        <div><small>FLYWHEELS</small><b id="tRpm">0 rpm</b></div>
+        <div><small>CLUTCHES</small><b id="tClutch">FREE</b></div>
+        <div><small>THIS STEP</small><b class="amber" id="tEnergy">0.00 J</b></div>
+        <div><small>BUS</small><b id="tBus">24.0 V</b></div>
+        <div><small>STEPS COUNTED</small><b id="tSteps">0</b></div>
+        <div><small>WALKER</small><b id="tWalker">70 kg</b></div>
+      </div>
+    </div>
+
+    <!-- 02 Blueprint -->
+    <div class="pane" data-pane="blueprint">
+      <p class="eyebrow">Harvest Mat / parts</p>
+      <h2>Exploded blueprint</h2>
+      <p>Click a part in the list or on the model. Drag the explode slider to pull the tile apart.</p>
+      <ul class="parts" id="parts"></ul>
+      <div class="sheet" id="sheet" aria-live="polite"></div>
+    </div>
+
+    <!-- 03 Physics -->
+    <div class="pane" data-pane="physics">
+      <p class="eyebrow">Inputs</p>
+      <h2>Energy physics</h2>
+      <p>Change the walker, the tile or the crowd. Every number on the right updates.</p>
+      <div class="field"><label for="iMass">Walker mass <output id="oMass"></output></label><input type="range" id="iMass" min="40" max="110" step="1" value="70"></div>
+      <div class="field"><label for="iTravel">Plate travel <output id="oTravel"></output></label><input type="range" id="iTravel" min="2" max="12" step="0.5" value="6"></div>
+      <div class="field"><label for="iDrive">Gears and clutch efficiency <output id="oDrive"></output></label><input type="range" id="iDrive" min="50" max="98" step="1" value="85"></div>
+      <div class="field"><label for="iGen">Generator efficiency <output id="oGen"></output></label><input type="range" id="iGen" min="40" max="92" step="1" value="75"></div>
+      <div class="field"><label for="iElec">Electronics efficiency <output id="oElec"></output></label><input type="range" id="iElec" min="50" max="97" step="1" value="85"></div>
+      <div class="field"><label for="iVisitors">Visitors per market day <output id="oVisitors"></output></label><input type="range" id="iVisitors" min="5000" max="80000" step="1000" value="60000"></div>
+      <div class="field"><label>Mat coverage (steps on mats per visitor)</label>
+        <div class="seg" id="segCover">
+          <button data-spv="6" aria-pressed="false">A · Entry</button>
+          <button data-spv="60" aria-pressed="true">B · Aisle</button>
+          <button data-spv="400" aria-pressed="false">C · All</button>
+        </div>
+      </div>
+      <div class="field"><label for="iPrice">Electricity price <output id="oPrice"></output></label><input type="range" id="iPrice" min="0.10" max="0.45" step="0.01" value="0.29"></div>
+    </div>
+
+    <!-- 04 Market -->
+    <div class="pane" data-pane="market">
+      <p class="eyebrow">Union Square Greenmarket / schematic</p>
+      <h2>One market day</h2>
+      <p>Shoppers enter along the north and west sides of the park. Amber strips are mats; a shopper flashes amber while stepping on one.</p>
+      <div class="field"><label>Coverage</label>
+        <div class="seg" id="segMarket">
+          <button data-spv="6" aria-pressed="false">A · Entry</button>
+          <button data-spv="60" aria-pressed="true">B · Aisle</button>
+          <button data-spv="400" aria-pressed="false">C · All</button>
+        </div>
+      </div>
+      <p id="mDesc"></p>
+      <div class="tele">
+        <div><small>TIME</small><b id="mTime">8:00</b></div>
+        <div><small>SHOPPERS SO FAR</small><b id="mShoppers">0</b></div>
+        <div><small>STEPS ON MATS</small><b id="mSteps">0</b></div>
+        <div><small>ENERGY</small><b class="amber" id="mEnergy">0.00 kWh</b></div>
+        <div><small>PHONE CHARGES</small><b id="mPhones">0</b></div>
+        <div><small>GRID VALUE</small><b id="mValue">$0.00</b></div>
+      </div>
+    </div>
+
+    <!-- 05 Prototype -->
+    <div class="pane" data-pane="prototype">
+      <p class="eyebrow">Build one first</p>
+      <h2>Bench tile</h2>
+      <p>Every number in this workbench rests on one figure: how many joules of electricity a real step makes. A plywood bench tile measures it for about $100 in parts.</p>
+      <p><b style="color:var(--ink);font-weight:500">Goal:</b> at least 1.5 J per step at 6 mm of travel. A first build will probably land well under that; finding out by how much is the point.</p>
+    </div>
+  </aside>
+
+  <section id="stage" aria-label="Workbench view">
+    <canvas id="gl" aria-label="3D view of the Harvest Mat. Drag to turn, scroll or pinch to zoom."></canvas>
+    <span class="corner c1"></span><span class="corner c2"></span><span class="corner c3"></span><span class="corner c4"></span>
+    <div class="cap" id="cap"><code id="capCode"></code><h3 id="capTitle"></h3><p id="capText"></p></div>
+    <div class="tag" id="tag"></div>
+    <div class="hint" id="hint">Drag to turn · scroll to zoom<br>Plate travel drawn 3× for visibility</div>
+
+    <div class="doc" id="docPhysics">
+      <h2>Energy per step, per day, per season</h2>
+      <p>A step can give up at most the walker's weight times how far the plate sinks. Springs take a share to lift the plate back; gears, generators and electronics lose more. What reaches the 24 V line is below.</p>
+      <h3>Where one step's energy goes</h3>
+      <div class="flow" id="flow"></div>
+      <h3>Results</h3>
+      <div class="cards" id="cards"></div>
+      <h3>Electricity per step vs plate travel</h3>
+      <div class="chartbox"><canvas id="chart" role="img" aria-label="Chart of electrical energy per step against plate travel for three walker masses"></canvas></div>
+      <h3>Checks</h3>
+      <ul class="checks" id="checks"></ul>
+      <p style="margin-top:14px;font-size:13px">Visitor figure: up to 60,000 on peak days (amNY, GrowNYC). Electricity price: Con Edison 2026 all-in residential average, about $0.29/kWh. Solar comparison is approximate. Steps per visitor are estimates to be checked with hand counts.</p>
+    </div>
+
+    <div class="doc" id="docProto">
+      <h2>Bench tile prototype</h2>
+      <p>A plywood plate on four springs pushes a rack that spins a stepper motor used as a generator. An Arduino logs the voltage across a known load resistor and adds up the energy of each step.</p>
+      <h3>Parts (approximate prices)</h3>
+      <table>
+        <thead><tr><th>Part</th><th>Qty</th><th>Why</th><th>Approx.</th></tr></thead>
+        <tbody>
+          <tr><td>12 mm plywood, 60 × 60 cm</td><td class="num">2</td><td>Top plate and base</td><td class="num">$20</td></tr>
+          <tr><td>Compression springs, about 4 N/mm</td><td class="num">4</td><td>Hold the plate up and return it</td><td class="num">$12</td></tr>
+          <tr><td>Rack and pinion kit, module 1</td><td class="num">1</td><td>Turns plate travel into rotation</td><td class="num">$12</td></tr>
+          <tr><td>NEMA 17 stepper motor</td><td class="num">1</td><td>Generator: spin it and it makes AC</td><td class="num">$14</td></tr>
+          <tr><td>Bridge rectifiers</td><td class="num">2</td><td>One per stepper coil, AC to DC</td><td class="num">$3</td></tr>
+          <tr><td>10 Ω, 10 W resistor</td><td class="num">1</td><td>Known load to measure power into</td><td class="num">$3</td></tr>
+          <tr><td>47 kΩ and 10 kΩ resistors</td><td class="num">1 each</td><td>Voltage divider for the Arduino input</td><td class="num">$1</td></tr>
+          <tr><td>Arduino Nano or compatible</td><td class="num">1</td><td>Samples voltage, sums energy</td><td class="num">$12</td></tr>
+          <tr><td>Wood blocks, screws, wire, end-stop shims</td><td class="num">—</td><td>Frame and adjustable travel</td><td class="num">$15</td></tr>
+        </tbody>
+        <tfoot><tr><td colspan="3">Total</td><td class="num">≈ $92</td></tr></tfoot>
+      </table>
+      <h3>Wiring</h3>
+      <svg class="wire" viewBox="0 0 820 170" role="img" aria-label="Wiring: stepper coils to two bridge rectifiers, in parallel across a 10 ohm load; a 47k and 10k divider feeds Arduino pin A0">
+        <g fill="none" stroke="#4fb3c8" stroke-width="1.4">
+          <rect x="20" y="40" width="130" height="90" rx="8"/><rect x="210" y="22" width="120" height="50" rx="8"/><rect x="210" y="98" width="120" height="50" rx="8"/>
+          <rect x="400" y="55" width="110" height="60" rx="8"/><rect x="570" y="40" width="90" height="90" rx="8"/><rect x="710" y="55" width="90" height="60" rx="8"/>
+          <path d="M150 60H210M150 112H210M330 47H365V85H400M330 123H365V85"/><path d="M510 85H570M660 85H710"/>
+        </g>
+        <g font-family="IBM Plex Mono,monospace" font-size="13" fill="#d7eaef" text-anchor="middle">
+          <text x="85" y="80">NEMA 17</text><text x="85" y="98" fill="#8aa6ae" font-size="11">2 coils</text>
+          <text x="270" y="52">Rectifier A</text><text x="270" y="128">Rectifier B</text>
+          <text x="455" y="82">10 Ω load</text><text x="455" y="99" fill="#8aa6ae" font-size="11">10 W</text>
+          <text x="615" y="80">Divider</text><text x="615" y="98" fill="#8aa6ae" font-size="11">47k / 10k</text>
+          <text x="755" y="82">Arduino</text><text x="755" y="99" fill="#8aa6ae" font-size="11">pin A0</text>
+        </g>
+      </svg>
+      <p>Connect both rectifier outputs in parallel across the load resistor. The divider scales up to about 28 V down to the Arduino's 5 V range. Tie the Arduino ground to the rectifier minus.</p>
+      <h3>Logger sketch</h3>
+<pre>// Harvest Steps bench logger: energy of each step into a 10-ohm load
+const float R_LOAD  = 10.0;   // ohms
+const float DIVIDER = 5.7;    // (47k + 10k) / 10k
+const float VREF    = 5.0;
+const unsigned long DT_US = 500;   // sample at 2 kHz
+
+float joules = 0;
+unsigned long quietSince = 0;
+int steps = 0;
+
+void setup() { Serial.begin(115200); }
+
+void loop() {
+  static unsigned long next = micros();
+  while ((long)(micros() - next) &lt; 0) {}
+  next += DT_US;
+
+  float v = analogRead(A0) * VREF / 1023.0 * DIVIDER;
+  if (v &gt; 0.2) {                        // generator is producing
+    joules += v * v / R_LOAD * DT_US * 1e-6;
+    quietSince = millis();
+  } else if (joules &gt; 0 &amp;&amp; millis() - quietSince &gt; 400) {
+    steps++;                              // step finished: report it
+    Serial.print("step ");  Serial.print(steps);
+    Serial.print("  J: ");  Serial.println(joules, 3);
+    joules = 0;
+  }
+}</pre>
+      <h3>Test plan</h3>
+      <ol>
+        <li>Weigh three walkers of different builds on a bathroom scale.</li>
+        <li>Set the end stop to 4 mm with shims. Each walker takes 20 normal steps across the tile; record the joules of each.</li>
+        <li>Repeat at 6 mm and 8 mm. Put the averages into the Energy physics tab: change the efficiencies until its prediction matches what you measured.</li>
+        <li>If 6 mm gives under 1 J, try a higher gear ratio or a bigger generator before changing anything else.</li>
+        <li>Spend one market day with a clicker counting entries and aisle traffic, to check the visitor and steps-per-visitor figures.</li>
+      </ol>
+    </div>
+  </section>
+</main>
+
+<div class="bar">
+  <div class="ctl on" data-ctl="sequence">
+    <button class="play" id="play">❚❚ Pause</button>
+    <input class="scrub" id="scrub" type="range" min="0" max="1000" value="0" aria-label="Step sequence time">
+    <span class="clock" id="clock">0.0 / 7.6 s</span>
+    <label><span class="lbl">Speed</span><select id="speed" aria-label="Playback speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label>
+  </div>
+  <div class="ctl" data-ctl="blueprint">
+    <label for="explode">Explode</label>
+    <input class="scrub" id="explode" type="range" min="0" max="1000" value="650" aria-label="Explode amount">
+    <span class="clock" id="explodeOut">65 %</span>
+  </div>
+  <div class="ctl" data-ctl="market">
+    <button class="play" id="mPlay">❚❚ Pause</button>
+    <input class="scrub" id="mScrub" type="range" min="0" max="1000" value="0" aria-label="Time of day">
+    <span class="clock" id="mClock">8:00 / 18:00</span>
+    <label><span class="lbl">Speed</span><select id="mSpeed" aria-label="Market day speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label>
+  </div>
+  <div class="ctl" data-ctl="doc"><span class="clock" style="text-align:left;color:var(--ink-2)" id="docNote"></span></div>
+  <div class="modes" id="modes" aria-label="Display mode">
+    <button data-mode="holo" aria-pressed="true">Hologram</button>
+    <button data-mode="mat" aria-pressed="false">Material</button>
+  </div>
+</div>
+
+<footer class="status">
+  <span class="ok" id="ready">● LOADING</span>
+  <span>HARVEST STEPS REV 01</span>
+  <span>CONCEPT DESIGN · NOT FIELD-TESTED</span>
+</footer>
+
+<script>
+(function(){
+'use strict';
+const $ = id => document.getElementById(id);
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const ease = x => { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); };
+const fmt = (v, d = 0) => v.toLocaleString('en-US', {minimumFractionDigits: d, maximumFractionDigits: d});
+
+/* ---------------- Physics model (shared by every tab) ---------------- */
+const P = {mass: 70, travel: 6, eDrive: 0.85, eGen: 0.75, eElec: 0.85, visitors: 60000, spv: 60, price: 0.29};
+const SPRING_PRELOAD = 60, SPRING_RATE = 15;     // N total at rest, N/mm total (4 springs)
+const SOLAR_KWH = 1.2, PHONE_WH = 15, SEASON_DAYS = 208, RAMP_RISE_MM = 45;
+function model(p = P) {
+  const g = 9.81, d = p.travel;                                  // d in mm
+  const mech = p.mass * g * d / 1000;                            // J, the ceiling
+  const spring = (SPRING_PRELOAD * d + 0.5 * SPRING_RATE * d * d) / 1000;
+  const toDrive = Math.max(0, mech - spring);
+  const afterDrive = toDrive * p.eDrive, afterGen = afterDrive * p.eGen, elec = afterGen * p.eElec;
+  const kwh = p.visitors * p.spv * elec / 3.6e6;
+  return {mech, spring, toDrive, afterDrive, afterGen, elec, kwh, usd: kwh * p.price,
+          phones: kwh * 1000 / PHONE_WH, season: kwh * SEASON_DAYS, panels: kwh / SOLAR_KWH};
+}
+
+/* ---------------- Three.js setup ---------------- */
+const canvas = $('gl'), stage = $('stage');
+if (!window.THREE) { $('ready').textContent = '● 3D LIBRARY DID NOT LOAD'; }
+const renderer = new THREE.WebGLRenderer({canvas, antialias: true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setClearColor(0x06141a, 1);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(38, 1, 0.005, 2000);
+scene.add(new THREE.HemisphereLight(0xdfefff, 0x1a2a2f, 0.55));
+const sun = new THREE.DirectionalLight(0xffffff, 0.9); sun.position.set(2, 4, 3); scene.add(sun);
+const fill = new THREE.DirectionalLight(0x9fc8ff, 0.35); fill.position.set(-3, 2, -2); scene.add(fill);
+
+const HOLO = 0x7fdcef, AMBER = 0xf2b84b;
+const holoFace = new THREE.MeshBasicMaterial({color: HOLO, transparent: true, opacity: 0.06, depthWrite: false, side: THREE.DoubleSide});
+const holoSolid = new THREE.MeshBasicMaterial({color: HOLO, transparent: true, opacity: 0.55});
+const MATS = {
+  rubber: new THREE.MeshStandardMaterial({color: 0x2b2f2e, roughness: 0.95}),
+  alu: new THREE.MeshStandardMaterial({color: 0x7f8a90, roughness: 0.6, metalness: 0.25}),
+  steel: new THREE.MeshStandardMaterial({color: 0xc9d0d4, roughness: 0.3, metalness: 0.85}),
+  nylon: new THREE.MeshStandardMaterial({color: 0xe8e2cf, roughness: 0.7}),
+  brass: new THREE.MeshStandardMaterial({color: 0xc9a046, roughness: 0.35, metalness: 0.8}),
+  motor: new THREE.MeshStandardMaterial({color: 0x3c4a55, roughness: 0.5, metalness: 0.5}),
+  pcb: new THREE.MeshStandardMaterial({color: 0x1f6b45, roughness: 0.6}),
+  chip: new THREE.MeshStandardMaterial({color: 0x15191b, roughness: 0.5}),
+  conn: new THREE.MeshStandardMaterial({color: 0x1d2a33, roughness: 0.6}),
+  ramp: new THREE.MeshStandardMaterial({color: 0x3a3f3d, roughness: 0.95}),
+  wire: new THREE.MeshStandardMaterial({color: 0xd2662f, roughness: 0.6})
+};
+let mode = 'holo';
+const solids = [];
+function solid(geo, matKey, opt = {}) {
+  const m = new THREE.Mesh(geo, holoFace);
+  m.userData.matKey = matKey; m.userData.thin = !!opt.thin;
+  if (!opt.thin) {
+    const e = new THREE.LineSegments(new THREE.EdgesGeometry(geo, opt.angle || 25), new THREE.LineBasicMaterial({color: HOLO, transparent: true, opacity: 0.9}));
+    m.add(e); m.userData.edge = e;
+  }
+  solids.push(m); applyMode(m); return m;
+}
+function applyMode(m) {
+  const holo = mode === 'holo', sel = m.userData.selected;
+  if (holo) m.material = m.userData.thin ? holoSolid : holoFace; else m.material = MATS[m.userData.matKey];
+  if (m.userData.thin && holo && sel) m.material = new THREE.MeshBasicMaterial({color: AMBER});
+  const e = m.userData.edge;
+  if (e) { e.material.color.setHex(sel ? AMBER : (holo ? HOLO : 0x0b1a20)); e.material.opacity = holo ? (sel ? 1 : 0.85) : (sel ? 1 : 0.35); }
+}
+function setMode(m) {
+  mode = m; solids.forEach(applyMode);
+  document.querySelectorAll('#modes button').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === m));
+  ghost.visible = true; renderMarketMode();
+}
+
+/* ---------------- The Harvest Mat ---------------- */
+const tile = new THREE.Group(); scene.add(tile);
+const EX = 3;                      // drawn travel multiplier
+const parts = [];
+function part(def, objs, explode) {
+  const g = new THREE.Group(); objs.forEach(o => g.add(o)); tile.add(g);
+  def.group = g; def.explode = explode; def.objs = objs; g.userData.part = def; parts.push(def); return g;
+}
+function box(w, h, d, x, y, z, mat, opt) { const m = solid(new THREE.BoxGeometry(w, h, d), mat, opt); m.position.set(x, y, z); return m; }
+function cyl(r, h, x, y, z, mat, axis, seg = 24, opt) {
+  const m = solid(new THREE.CylinderGeometry(r, r, h, seg), mat, opt); m.position.set(x, y, z);
+  if (axis === 'x') m.rotation.z = Math.PI / 2; if (axis === 'z') m.rotation.x = Math.PI / 2; return m;
+}
+function gearGeo(r, teeth, thick) {
+  const s = new THREE.Shape(), ro = r * 1.12, ri = r * 0.86, n = teeth * 4;
+  for (let i = 0; i <= n; i++) {
+    const a = i / n * Math.PI * 2, k = i % 4, rr = (k === 1 || k === 2) ? ro : ri;
+    const x = Math.cos(a) * rr, y = Math.sin(a) * rr; i ? s.lineTo(x, y) : s.moveTo(x, y);
+  }
+  const hole = new THREE.Path(); hole.absarc(0, 0, r * 0.25, 0, Math.PI * 2, true); s.holes.push(hole);
+  const g = new THREE.ExtrudeGeometry(s, {depth: thick, bevelEnabled: false, curveSegments: 6}); g.translate(0, 0, -thick / 2); return g;
+}
+function wedgeGeo(len, h, w) {   // rises from 0 at z=len to h at z=0, width along x
+  const x = w / 2;
+  const v = [-x,0,0, x,0,0, x,0,len, -x,0,len, -x,h,0, x,h,0];
+  const idx = [0,2,1, 0,3,2, 0,1,5, 0,5,4, 4,5,2, 4,2,3, 0,4,3, 1,2,5];
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); g.setIndex(idx); g.computeVertexNormals(); return g;
+}
+const Y_FLOOR = 0.012, Y_PLATE = 0.039, AX = 0.0195, C = 0.24;
+const corners = [[1, 1], [-1, 1], [1, -1], [-1, -1]];
+
+// Base tray
+part({key: 'base', name: 'Base tray', qty: '1', material: 'Pressed aluminium, gasket groove, drain holes', size: '600 × 600 × 33 mm', mass: '3.1 kg', role: 'Carries everything and seals it to IP67 against rain, slush and road salt.'}, [
+  box(0.6, 0.012, 0.6, 0, 0.006, 0, 'alu'),
+  box(0.6, 0.021, 0.006, 0, 0.0225, 0.297, 'alu'), box(0.6, 0.021, 0.006, 0, 0.0225, -0.297, 'alu'),
+  box(0.006, 0.021, 0.588, 0.297, 0.0225, 0, 'alu'), box(0.006, 0.021, 0.588, -0.297, 0.0225, 0, 'alu')
+], new THREE.Vector3(0, -0.10, 0));
+
+// Top plate (moves)
+const plate = part({key: 'plate', name: 'Top plate', qty: '1', material: 'Recycled-rubber tread bonded to 6 mm aluminium', size: '588 × 588 × 12 mm', mass: '4.3 kg', role: 'What you step on. Rests on four plungers so a step anywhere pushes it down evenly.'}, [
+  box(0.588, 0.012, 0.588, 0, Y_PLATE, 0, 'rubber')
+], new THREE.Vector3(0, 0.20, 0));
+
+// Plungers, springs, racks, drive trains
+const plungerObjs = [], springObjs = [], rackObjs = [], pinions = [], flywheels = [], rotors = [], gearboxObjs = [], genObjs = [];
+corners.forEach(([sx, sz]) => {
+  plungerObjs.push(cyl(0.008, 0.027, sx * C, 0.0255, sz * C, 'steel'));
+  const pts = []; for (let i = 0; i <= 120; i++) { const a = i / 120 * Math.PI * 2 * 6; pts.push(new THREE.Vector3(Math.cos(a) * 0.014, i / 120 * 0.021, Math.sin(a) * 0.014)); }
+  const sp = solid(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 240, 0.0012, 5), 'steel', {thin: true});
+  sp.position.set(sx * C, Y_FLOOR, sz * C); springObjs.push(sp);
+  // Rack: vertical toothed bar facing the pinion (toward the centre along x)
+  const rs = new THREE.Shape(); const rx = 0.004, rh = 0.03; rs.moveTo(0, 0); rs.lineTo(rx, 0);
+  for (let i = 0; i < 9; i++) { const y = i * rh / 9; rs.lineTo(rx, y + 0.0008); rs.lineTo(rx + 0.0022, y + 0.0015); rs.lineTo(rx + 0.0022, y + 0.0025); rs.lineTo(rx, y + 0.0032); }
+  rs.lineTo(rx, rh); rs.lineTo(0, rh); rs.lineTo(0, 0);
+  const rg = new THREE.ExtrudeGeometry(rs, {depth: 0.006, bevelEnabled: false}); rg.translate(0, 0, -0.003);
+  const rack = solid(rg, 'nylon'); rack.scale.x = -sx; rack.position.set(sx * (C - 0.010), 0.006, sz * C); rackObjs.push(rack);
+  // Pinion meshes the rack; its axis runs along z
+  const pin = solid(gearGeo(0.006, 12, 0.005), 'nylon'); pin.position.set(sx * (C - 0.0225), AX, sz * C); pinions.push(pin);
+  // Gearbox, flywheel, generator along z toward the centre
+  const gb = box(0.022, 0.014, 0.022, sx * (C - 0.0225), AX, sz * (C - 0.020), 'alu'); gearboxObjs.push(gb);
+  const fw = cyl(0.007, 0.010, sx * (C - 0.0225), AX, sz * (C - 0.040), 'brass', 'z', 20); flywheels.push(fw);
+  const gen = cyl(0.006, 0.020, sx * (C - 0.0225), AX, sz * (C - 0.062), 'motor', 'z', 20); genObjs.push(gen);
+  const rot = box(0.0016, 0.0016, 0.004, sx * (C - 0.0225), AX + 0.0045, sz * (C - 0.0745), 'steel', {thin: true}); rotors.push(rot);
+});
+const plungers = part({key: 'plungers', name: 'Corner plungers', qty: '4', material: 'Stainless steel rod with hard end stop', size: 'Ø16 × 27 mm', mass: '0.05 kg each', role: 'Carry the plate down. The end stop limits travel to 6 mm, however hard someone lands.'}, plungerObjs, new THREE.Vector3(0, 0.12, 0));
+const springs = part({key: 'springs', name: 'Return springs', qty: '4', material: 'Music-wire compression springs', size: 'Ø28 mm, 15 N/mm total', mass: '0.03 kg each', role: 'Hold the plate up with 60 N and lift it back in about 0.3 s. Their stored energy is not harvested.'}, springObjs, new THREE.Vector3(0, 0.07, 0));
+const racks = part({key: 'racks', name: 'Racks', qty: '4', material: 'Glass-filled nylon, module 1', size: '30 × 6 mm', mass: '0.01 kg each', role: 'Fixed to the plate. As it sinks, each rack turns a pinion.'}, rackObjs, new THREE.Vector3(0, 0.155, 0));
+part({key: 'pinions', name: 'Pinions with one-way clutches', qty: '4', material: 'Nylon gear on a sprag clutch', size: '12 teeth, Ø12 mm', mass: '0.01 kg each', role: 'Turn about 57° per step. The clutch drives on the way down and freewheels on the way up.'}, pinions, new THREE.Vector3(0, 0.035, 0));
+part({key: 'gearbox', name: 'Step-up gearboxes', qty: '4', material: 'Two-stage spur gears in an aluminium case', size: '22 × 22 × 14 mm, 1:12', mass: '0.02 kg each', role: 'Spin the flywheel and generator 12 times faster than the pinion, to about 760 rpm at peak.'}, gearboxObjs, new THREE.Vector3(0, 0.0, 0));
+part({key: 'flywheels', name: 'Flywheels', qty: '4', material: 'Brass', size: 'Ø14 × 10 mm', mass: '0.012 kg each', role: 'Keep the generator turning after the push ends, so each step makes a longer, smoother pulse.'}, flywheels, new THREE.Vector3(0, -0.02, 0));
+part({key: 'generators', name: 'Generators', qty: '4', material: 'Brushless DC motors run backwards', size: 'Ø12 × 20 mm', mass: '0.03 kg each', role: 'Turn rotation into three-phase AC. Four small ones mean a step lands near one wherever the foot falls.'}, [...genObjs, ...rotors], new THREE.Vector3(0, -0.045, 0));
+
+// Power board and cabling
+const board = part({key: 'board', name: 'Power board', qty: '1', material: 'FR-4 circuit board, conformal coated', size: '120 × 80 mm', mass: '0.08 kg', role: 'Rectifies the four generators into a supercapacitor, boosts onto the 24 V bus, and counts each step for the footfall data.'}, [
+  box(0.12, 0.003, 0.08, 0, 0.0145, 0, 'pcb'),
+  cyl(0.008, 0.012, -0.035, 0.022, 0.015, 'chip', 'y', 18), box(0.016, 0.006, 0.016, 0.01, 0.019, -0.015, 'chip'),
+  box(0.012, 0.003, 0.012, 0.035, 0.0175, 0.018, 'chip'), cyl(0.006, 0.008, 0.03, 0.020, -0.02, 'motor', 'y', 16)
+], new THREE.Vector3(0, -0.075, 0));
+const cablePts = [];
+corners.forEach(([sx, sz]) => { cablePts.push([[sx * (C - 0.0225), AX, sz * (C - 0.075)], [sx * (C - 0.0225), 0.0135, sz * 0.12], [sx * 0.05, 0.0135, sz * 0.035]]); });
+const cables = cablePts.map(p => { const g = solid(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(p.map(a => new THREE.Vector3(...a))), 30, 0.0012, 5), 'wire', {thin: true}); return g; });
+const busPath = [[0.06, 0.0135, 0], [0.2, 0.0135, 0], [0.288, 0.022, 0]];
+cables.push(solid(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(busPath.map(a => new THREE.Vector3(...a))), 20, 0.0016, 5), 'wire', {thin: true}));
+cables.push(solid(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([[-0.06, 0.0135, 0], [-0.2, 0.0135, 0], [-0.288, 0.022, 0]].map(a => new THREE.Vector3(...a))), 20, 0.0016, 5), 'wire', {thin: true}));
+part({key: 'cables', name: 'Internal wiring', qty: '6 runs', material: 'Silicone-insulated copper', size: '3-phase from each generator; 24 V bus through', mass: '0.06 kg', role: 'Carries generator output to the board and the bus from one mat to the next.'}, cables, new THREE.Vector3(0, -0.06, 0));
+part({key: 'connectors', name: 'Bus connectors', qty: '2', material: 'IP67 two-pin, in and out', size: '24 × 16 mm', mass: '0.02 kg each', role: 'Mats click together in a row; the row becomes one cable run back to the Power Cart.'}, [
+  box(0.012, 0.016, 0.024, 0.306, 0.022, 0, 'conn'), box(0.012, 0.016, 0.024, -0.306, 0.022, 0, 'conn')
+], new THREE.Vector3(0, 0.0, 0));
+part({key: 'ramp', name: 'End ramp', qty: 'per open edge', material: 'Recycled rubber, 1:12 slope', size: '600 × 540 mm, 45 mm rise', mass: '2.9 kg', role: 'A 45 mm edge is too tall to step over safely or roll a wheelchair across, so every open edge of a mat strip gets a 1:12 ramp. Ramps harvest nothing.'}, [
+  (() => { const m = solid(wedgeGeo(0.54, 0.045, 0.6), 'ramp'); m.position.set(0, 0, 0.3); return m; })()
+], new THREE.Vector3(0, 0, 0.10));
+parts.forEach(p => { p.home = p.group.position.clone(); });
+
+// Ghost neighbour: the strip continues
+const ghost = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(0.6, 0.045, 0.6)), new THREE.LineBasicMaterial({color: HOLO, transparent: true, opacity: 0.18}));
+ghost.position.set(0, 0.0225, -0.6); tile.add(ghost);
+
+// Ground grid
+const grid = new THREE.GridHelper(4, 40, 0x1b3a45, 0x10262e); grid.position.y = -0.0005; tile.add(grid);
+
+// Foot
+const soleOutline = [[0,-0.13],[0.03,-0.12],[0.038,-0.09],[0.035,-0.04],[0.04,0.0],[0.05,0.05],[0.048,0.09],[0.035,0.12],[0.01,0.135],[-0.02,0.13],[-0.04,0.11],[-0.045,0.07],[-0.035,0.02],[-0.03,-0.04],[-0.036,-0.09],[-0.03,-0.12]];
+const soleShape = new THREE.Shape(soleOutline.map(([x, y]) => new THREE.Vector2(x, y)));
+const foot = new THREE.Group();
+const footFace = new THREE.Mesh(new THREE.ShapeGeometry(soleShape), new THREE.MeshBasicMaterial({color: AMBER, transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false}));
+const footLine = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(soleOutline.map(([x, y]) => new THREE.Vector3(x, y, 0))), new THREE.LineBasicMaterial({color: AMBER, transparent: true}));
+foot.add(footFace, footLine); foot.rotation.x = -Math.PI / 2; foot.rotation.z = Math.PI; tile.add(foot);
+
+// Energy pulse
+const pulse = new THREE.Mesh(new THREE.SphereGeometry(0.008, 16, 12), new THREE.MeshBasicMaterial({color: AMBER}));
+const pulseHalo = new THREE.Mesh(new THREE.SphereGeometry(0.018, 16, 12), new THREE.MeshBasicMaterial({color: AMBER, transparent: true, opacity: 0.25, depthWrite: false}));
+pulse.add(pulseHalo); tile.add(pulse);
+const pulseCurve = new THREE.CatmullRomCurve3([[0, 0.02, 0], [0.06, 0.0135, 0], [0.2, 0.0135, 0], [0.288, 0.022, 0], [0.33, 0.022, 0], [0.62, 0.006, 0]].map(a => new THREE.Vector3(...a)));
+const genSparks = corners.map(([sx, sz]) => { const s = new THREE.Mesh(new THREE.SphereGeometry(0.004, 10, 8), new THREE.MeshBasicMaterial({color: AMBER, transparent: true})); s.position.set(sx * (C - 0.0225), AX, sz * (C - 0.062)); tile.add(s); return s; });
+
+/* ---------------- Step sequence ---------------- */
+const SEQ = [
+  {t: 0.0, name: 'Approach', d: 'A shopper walks up the end ramp onto the strip. The plate sits 6 mm proud on four springs.'},
+  {t: 1.0, name: 'Heel strike', d: 'Weight lands on the plate and the force briefly passes body weight.'},
+  {t: 1.6, name: 'Plate travel', d: 'The plate sinks 6 mm, pushing all four plungers down evenly. In real life this takes about 0.15 s.'},
+  {t: 2.4, name: 'Racks turn pinions', d: 'Each rack turns its 12-tooth pinion about 57°. One-way clutches lock and drive the gearboxes.'},
+  {t: 3.2, name: 'Generators fire', d: 'The plate bottoms out with the flywheels at full speed, about 760 rpm. Four generators put out bursts of three-phase AC.'},
+  {t: 4.2, name: 'Spring return', d: 'The foot rolls off. Springs lift the plate back; the clutches freewheel so the flywheels keep coasting and generating.'},
+  {t: 5.2, name: 'Rectify and boost', d: 'The power board rectifies the pulses into a supercapacitor, boosts them onto the 24 V bus and counts the step.'},
+  {t: 6.2, name: 'Onto the spine', d: 'The energy leaves through the edge connector, mat to mat, toward the Power Cart battery.'}
+];
+const DUR = 7.6;
+let seqT = 0, seqPlaying = true, seqSpeed = 1, stepsCounted = 0, lastSeqT = 0;
+const seqEl = $('seq');
+SEQ.forEach((s, i) => {
+  const li = document.createElement('li');
+  li.innerHTML = `<button><code>T+${s.t.toFixed(1)}</code><b>${s.name}</b><small>${s.d}</small></button>`;
+  li.querySelector('button').addEventListener('click', () => { seqT = s.t + 0.01; });
+  seqEl.appendChild(li);
+});
+function press(t) { if (t < 1.0) return 0; if (t < 3.2) return ease((t - 1.0) / 2.2); if (t < 4.2) return 1; if (t < 4.7) return 1 - ease((t - 4.2) / 0.5); return 0; }
+function omega(t) { if (t < 1.2) return 0; if (t < 3.2) return ease((t - 1.2) / 2.0); return Math.exp(-(t - 3.2) / 1.1); }
+const N_SAMP = 400; let cumW = [], cumA = [];
+(function buildTables() {
+  let w = 0, a = 0; for (let i = 0; i <= N_SAMP; i++) { const t = i / N_SAMP * DUR, o = omega(t); w += o * o * DUR / N_SAMP; a += o * DUR / N_SAMP; cumW.push(w); cumA.push(a); }
+})();
+const lookup = (arr, t) => arr[Math.round(clamp(t / DUR, 0, 1) * N_SAMP)];
+function updateSequence(t) {
+  const m = model(), p = press(t), drop = P.travel / 1000 * EX * p;
+  plate.position.y = plate.userData.part.home.y + explodeOff(plate.userData.part).y - drop;
+  plungers.position.y = plungers.userData.part.home.y + explodeOff(plungers.userData.part).y - drop;
+  racks.position.y = racks.userData.part.home.y + explodeOff(racks.userData.part).y - drop;
+  springObjs.forEach(s => { s.scale.y = (0.021 - drop) / 0.021; });
+  const pinAng = p * 1.0;
+  pinions.forEach((g, i) => { g.rotation.z = -corners[i][0] * pinAng; });
+  const ang = lookup(cumA, t) * 60;
+  flywheels.forEach((f, i) => { f.rotation.y = ang * corners[i][1]; });
+  rotors.forEach((r, i) => { const [sx, sz] = corners[i]; const a = ang; r.position.x = sx * (C - 0.0225) + Math.cos(a) * 0.0045; r.position.y = AX + Math.sin(a) * 0.0045; });
+  const o = omega(t);
+  genSparks.forEach(s => { s.visible = o > 0.05; s.material.opacity = clamp(o, 0, 1); s.scale.setScalar(0.6 + o); });
+  // Foot
+  let fz, fy, fo;
+  if (t < 1.0) { const k = ease(t / 1.0); fz = 0.75 - 0.75 * k; fy = 0.10 * (1 - k) + 0.046; fo = Math.min(1, t * 3); }
+  else if (t < 4.2) { fz = 0; fy = 0.046 + 0.0002 - drop; fo = 1; }
+  else if (t < 5.0) { const k = ease((t - 4.2) / 0.8); fz = -0.45 * k; fy = 0.046 + 0.09 * k; fo = 1 - k; }
+  else { fz = -0.45; fy = 0.14; fo = 0; }
+  foot.position.set(0.02, fy, fz); footFace.material.opacity = 0.2 * fo; footLine.material.opacity = fo; foot.visible = fo > 0.01;
+  // Pulse
+  pulse.visible = t > 5.2 && t < 7.4;
+  if (pulse.visible) { const k = clamp((t - 5.2) / 2.2, 0, 1); pulse.position.copy(pulseCurve.getPointAt(ease(k))); }
+  // Telemetry
+  const contact = t >= 1.0 && t < 4.6;
+  let force = 0; if (contact) { const k = (t - 1.0) / 3.6; force = P.mass * 9.81 * (k < 0.15 ? 1.15 * ease(k / 0.15) : k < 0.85 ? 1.0 + 0.15 * Math.max(0, 1 - (k - 0.15) / 0.1) : 1 - ease((k - 0.85) / 0.15)); }
+  const eFrac = lookup(cumW, t) / cumW[N_SAMP];
+  $('tTravel').textContent = (P.travel * p).toFixed(1) + ' mm';
+  $('tForce').textContent = fmt(force) + ' N';
+  $('tRpm').textContent = fmt(o * 760) + ' rpm';
+  $('tClutch').textContent = (t >= 1.0 && t < 3.2) ? 'DRIVING' : 'FREE';
+  $('tEnergy').textContent = (m.elec * eFrac).toFixed(2) + ' J';
+  $('tBus').textContent = t > 5.2 && t < 6.6 ? '24.0 V ▲' : '24.0 V';
+  $('tWalker').textContent = P.mass + ' kg';
+  let cur = 0; SEQ.forEach((s, i) => { if (t >= s.t) cur = i; });
+  [...seqEl.children].forEach((li, i) => li.classList.toggle('on', i === cur));
+  setCaption('T+' + t.toFixed(1), SEQ[cur].name, SEQ[cur].d);
+  $('clock').textContent = t.toFixed(1) + ' / ' + DUR.toFixed(1) + ' s';
+  $('scrub').value = Math.round(t / DUR * 1000);
+}
+function setCaption(code, title, text) { $('capCode').textContent = code; $('capTitle').textContent = title; $('capText').textContent = text; }
+
+/* ---------------- Blueprint ---------------- */
+let explode = 0.65, selected = null;
+const explodeOff = p => (tab === 'blueprint' ? p.explode.clone().multiplyScalar(explode) : new THREE.Vector3());
+function placeParts() { parts.forEach(p => { p.group.position.copy(p.home).add(explodeOff(p)); }); springObjs.forEach(s => s.scale.y = 1); }
+const partsEl = $('parts');
+parts.forEach(p => {
+  const li = document.createElement('li');
+  li.innerHTML = `<button><b style="font-weight:400">${p.name}</b><span>${/^\d/.test(p.qty) ? '× ' + p.qty.split(' ')[0] : 'per edge'}</span></button>`;
+  li.querySelector('button').addEventListener('click', () => select(p));
+  p.li = li; partsEl.appendChild(li);
+});
+function select(p) {
+  selected = p;
+  parts.forEach(q => { q.li.classList.toggle('on', q === p); q.objs.forEach(o => { o.userData.selected = q === p; applyMode(o); }); });
+  $('sheet').innerHTML = p ? `<h3>${p.name}</h3><dl><dt>QTY</dt><dd>${p.qty}</dd><dt>MATERIAL</dt><dd>${p.material}</dd><dt>SIZE</dt><dd>${p.size}</dd><dt>MASS (EST.)</dt><dd>${p.mass}</dd></dl><p>${p.role}</p>` :
+    `<h3>Whole tile</h3><dl><dt>SIZE</dt><dd>600 × 600 × 45 mm</dd><dt>MASS (EST.)</dt><dd>8.6 kg tile, 2.9 kg per ramp</dd><dt>TRAVEL</dt><dd>6 mm, hard stop</dd><dt>OUTPUT</dt><dd>24 V DC bus</dd></dl><p>Masses are design estimates; the target is under 12 kg so one person can carry a tile.</p>`;
+  if (p) setCaption('PART', p.name, p.role); else setCaption('BLUEPRINT', 'Harvest Mat', 'Thirteen kinds of parts. Click one to see its datasheet.');
+}
+
+/* ---------------- Physics tab ---------------- */
+function bind(id, out, key, scale, show) {
+  const el = $(id); const upd = () => { P[key] = parseFloat(el.value) * scale; $(out).textContent = show(parseFloat(el.value)); refreshPhysics(); };
+  el.addEventListener('input', upd); $(out).textContent = show(parseFloat(el.value));
+}
+bind('iMass', 'oMass', 'mass', 1, v => v + ' kg');
+bind('iTravel', 'oTravel', 'travel', 1, v => v.toFixed(1) + ' mm');
+bind('iDrive', 'oDrive', 'eDrive', 0.01, v => v + ' %');
+bind('iGen', 'oGen', 'eGen', 0.01, v => v + ' %');
+bind('iElec', 'oElec', 'eElec', 0.01, v => v + ' %');
+bind('iVisitors', 'oVisitors', 'visitors', 1, v => fmt(v));
+bind('iPrice', 'oPrice', 'price', 1, v => '$' + v.toFixed(2) + '/kWh');
+function coverButtons(sel) {
+  document.querySelectorAll(sel + ' button').forEach(b => b.addEventListener('click', () => {
+    P.spv = parseFloat(b.dataset.spv);
+    document.querySelectorAll('#segCover button, #segMarket button').forEach(x => x.setAttribute('aria-pressed', parseFloat(x.dataset.spv) === P.spv));
+    refreshPhysics(); buildMats();
+  }));
+}
+coverButtons('#segCover'); coverButtons('#segMarket');
+function refreshPhysics() {
+  const m = model();
+  $('flow').innerHTML = `<span>Ceiling <b>${m.mech.toFixed(2)} J</b></span><i>− springs ${m.spring.toFixed(2)} →</i><span>Into gears <b>${m.toDrive.toFixed(2)} J</b></span><i>× ${Math.round(P.eDrive * 100)}% →</i><span>Generators <b>${m.afterDrive.toFixed(2)} J</b></span><i>× ${Math.round(P.eGen * 100)}% →</i><span>AC out <b>${m.afterGen.toFixed(2)} J</b></span><i>× ${Math.round(P.eElec * 100)}% →</i><span style="border-color:var(--amber)">On the bus <b style="color:var(--amber)">${m.elec.toFixed(2)} J</b></span>`;
+  const cards = [
+    ['PER STEP', m.elec.toFixed(2) + ' J', 'electricity onto the 24 V bus'],
+    ['PER MARKET DAY', m.kwh.toFixed(m.kwh < 1 ? 2 : 1) + ' kWh', fmt(P.visitors) + ' visitors × ' + P.spv + ' steps'],
+    ['GRID VALUE / DAY', '$' + m.usd.toFixed(2), 'at $' + P.price.toFixed(2) + '/kWh'],
+    ['PHONE CHARGES / DAY', fmt(m.phones), 'at 15 Wh per full charge'],
+    ['PER SEASON', fmt(m.season) + ' kWh', '$' + fmt(m.season * P.price) + ' over ' + SEASON_DAYS + ' market days'],
+    ['SOLAR PANELS', m.panels.toFixed(1), 'rooftop panels making the same (≈1.2 kWh/day each)']
+  ];
+  $('cards').innerHTML = cards.map(c => `<div class="card"><small>${c[0]}</small><b>${c[1]}</b><span>${c[2]}</span></div>`).join('');
+  const checks = [
+    [P.travel <= 6 ? 'pass' : 'fail', P.travel <= 6 ? 'PASS' : 'FAIL', 'Comfortable underfoot (travel ≤ 6 mm)', P.travel <= 6 ? 'Feels like a firm gym mat.' : 'Past 6 mm the floor feels spongy and tiring, and becomes a trip risk.'],
+    [m.elec >= 1.5 ? 'pass' : 'fail', m.elec >= 1.5 ? 'PASS' : 'FAIL', 'At least 1.5 J of electricity per step', m.elec.toFixed(2) + ' J now. The bench prototype has to confirm this.'],
+    [m.spring / m.mech <= 0.2 ? 'pass' : 'fail', m.spring / m.mech <= 0.2 ? 'PASS' : 'FAIL', 'Springs take under 20% of each step', Math.round(m.spring / m.mech * 100) + '% goes into lifting the plate back.'],
+    [m.kwh >= SOLAR_KWH ? 'pass' : 'fail', m.kwh >= SOLAR_KWH ? 'PASS' : 'FAIL', 'Beats one rooftop solar panel per day', m.kwh.toFixed(2) + ' kWh vs about 1.2 kWh (approximate).'],
+    ['fix', 'FIX', 'Edges safe to cross', RAMP_RISE_MM + ' mm is over the 13 mm a beveled edge allows, so each open edge of a strip needs a 1:12 ramp, 540 mm long.'],
+    ['fail', 'NO', 'Electricity pays for the system', 'A season of power is worth about $' + fmt(m.season * P.price) + ', about the parts cost of one bench prototype. Sponsors and footfall data have to pay.']
+  ];
+  $('checks').innerHTML = checks.map(c => `<li class="${c[0]}"><b>${c[1]}</b><span>${c[2]}<em>${c[3]}</em></span></li>`).join('');
+  drawChart(); updateMarketCounters();
+}
+function drawChart() {
+  const cv = $('chart'); if (!cv.offsetWidth) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2), W = cv.offsetWidth, H = cv.offsetHeight;
+  cv.width = W * dpr; cv.height = H * dpr; const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+  const L = 48, R = 16, T = 16, B = 36, xs = d => L + (d - 2) / 10 * (W - L - R);
+  const yMax = 5, ys = j => T + (1 - j / yMax) * (H - T - B);
+  g.font = '11px IBM Plex Mono, monospace'; g.lineWidth = 1;
+  for (let j = 0; j <= yMax; j++) { g.strokeStyle = '#123039'; g.beginPath(); g.moveTo(L, ys(j)); g.lineTo(W - R, ys(j)); g.stroke(); g.fillStyle = '#8aa6ae'; g.textAlign = 'right'; g.fillText(j + ' J', L - 8, ys(j) + 4); }
+  g.textAlign = 'center'; for (let d = 2; d <= 12; d += 2) { g.fillStyle = '#8aa6ae'; g.fillText(d + ' mm', xs(d), H - 12); }
+  g.setLineDash([4, 4]); g.strokeStyle = '#f2b84b'; g.beginPath(); g.moveTo(xs(6), T); g.lineTo(xs(6), H - B); g.stroke();
+  g.strokeStyle = '#5fd39a'; g.beginPath(); g.moveTo(L, ys(1.5)); g.lineTo(W - R, ys(1.5)); g.stroke(); g.setLineDash([]);
+  g.textAlign = 'left'; g.fillStyle = '#f2b84b'; g.fillText('comfort limit', xs(6) + 6, T + 10); g.fillStyle = '#5fd39a'; g.fillText('1.5 J target', L + 6, ys(1.5) - 6);
+  [[55, '#4fb3c8'], [70, '#7fdcef'], [85, '#cfeff6']].forEach(([mass, col]) => {
+    g.strokeStyle = col; g.lineWidth = mass === 70 ? 2 : 1.25; g.beginPath();
+    for (let d = 2; d <= 12.001; d += 0.25) { const e = model(Object.assign({}, P, {mass, travel: d})).elec; d === 2 ? g.moveTo(xs(d), ys(e)) : g.lineTo(xs(d), ys(e)); }
+    g.stroke(); const e12 = model(Object.assign({}, P, {mass, travel: 12})).elec; g.fillStyle = col; g.textAlign = 'right'; g.fillText(mass + ' kg', W - R - 4, ys(e12) - 6);
+  });
+  const cur = model(); g.fillStyle = '#f2b84b'; g.beginPath(); g.arc(xs(P.travel), ys(cur.elec), 5, 0, Math.PI * 2); g.fill();
+  g.textAlign = 'left'; g.fillText(P.mass + ' kg, ' + P.travel.toFixed(1) + ' mm: ' + cur.elec.toFixed(2) + ' J', Math.min(xs(P.travel) + 9, W - 190), ys(cur.elec) - 10);
+}
+
+/* ---------------- Market layout ---------------- */
+const market = new THREE.Group(); market.visible = false; scene.add(market);
+const mLine = new THREE.LineBasicMaterial({color: HOLO, transparent: true, opacity: 0.55});
+const mFaceHolo = new THREE.MeshBasicMaterial({color: HOLO, transparent: true, opacity: 0.05, depthWrite: false});
+const mStallMat = new THREE.MeshStandardMaterial({color: 0xe9e4d6, roughness: 0.8});
+const mGroundMat = new THREE.MeshStandardMaterial({color: 0x56605c, roughness: 1});
+const mParkMat = new THREE.MeshStandardMaterial({color: 0x2f5a3a, roughness: 1});
+const marketSolids = [];
+function mSolid(geo, matMat, x, y, z) { const m = new THREE.Mesh(geo, mFaceHolo); m.position.set(x, y, z); const e = new THREE.LineSegments(new THREE.EdgesGeometry(geo), mLine); m.add(e); m.userData.mat = matMat; m.userData.edge = e; market.add(m); marketSolids.push(m); return m; }
+function renderMarketMode() { marketSolids.forEach(m => { m.material = mode === 'holo' ? mFaceHolo : m.userData.mat; m.userData.edge.visible = mode === 'holo'; }); }
+mSolid(new THREE.BoxGeometry(150, 0.2, 110), mGroundMat, 0, -0.1, 0);
+mSolid(new THREE.BoxGeometry(92, 0.6, 62), mParkMat, 8, 0.3, 10);
+for (let i = 0; i < 26; i++) { const x = -30 + (i % 7) * 12 + (i % 2) * 3, z = -14 + Math.floor(i / 7) * 13; mSolid(new THREE.CylinderGeometry(2.2, 2.2, 5, 8), mParkMat, x, 3, z); }
+const N_AISLE = {z: -30, x0: -52, x1: 50}, W_AISLE = {x: -46, z0: -30, z1: 42};
+for (let x = N_AISLE.x0 + 4; x < N_AISLE.x1; x += 5.2) { if (Math.abs(x - 2) < 4) continue; mSolid(new THREE.BoxGeometry(4.4, 2.6, 3), mStallMat, x, 1.3, N_AISLE.z - 5); mSolid(new THREE.BoxGeometry(4.4, 2.6, 3), mStallMat, x, 1.3, N_AISLE.z + 5); }
+for (let z = W_AISLE.z0 + 8; z < W_AISLE.z1; z += 5.2) { mSolid(new THREE.BoxGeometry(3, 2.6, 4.4), mStallMat, W_AISLE.x - 5, 1.3, z); mSolid(new THREE.BoxGeometry(3, 2.6, 4.4), mStallMat, W_AISLE.x + 5, 1.3, z); }
+// Power Cart near the info tent at the corner
+const cart = mSolid(new THREE.BoxGeometry(2.4, 1.6, 1.4), new THREE.MeshStandardMaterial({color: 0x1d6a4b}), -40, 0.8, -24);
+const ENTR = [{name: 'East', x: 54, z: N_AISLE.z}, {name: 'North', x: 2, z: -42}, {name: 'NW corner', x: -46, z: -42}, {name: 'South', x: W_AISLE.x, z: 46}];
+const matGroup = new THREE.Group(); market.add(matGroup);
+const matMat = new THREE.MeshBasicMaterial({color: AMBER, transparent: true, opacity: 0.85});
+let matRects = [];
+function addMatRect(x0, x1, z0, z1) { const w = x1 - x0, d = z1 - z0; const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.15, d), matMat); m.position.set((x0 + x1) / 2, 0.1, (z0 + z1) / 2); matGroup.add(m); matRects.push([x0, x1, z0, z1]); }
+const DESC = {6: 'Four short strips where shoppers come in. Cheapest to test, smallest yield.', 60: 'Entrance strips plus a two-mat strip down the middle of both aisles. The recommended first build.', 400: 'The whole aisle floor covered. Most energy, by far the most hardware and ramps.'};
+function buildMats() {
+  while (matGroup.children.length) matGroup.remove(matGroup.children[0]); matRects = [];
+  addMatRect(N_AISLE.x1 - 1, N_AISLE.x1 + 4, N_AISLE.z - 1.2, N_AISLE.z + 1.2);
+  addMatRect(0.8, 3.2, -41, -36); addMatRect(W_AISLE.x - 1.2, W_AISLE.x + 1.2, -41, -36);
+  addMatRect(W_AISLE.x - 1.2, W_AISLE.x + 1.2, W_AISLE.z1 - 1, W_AISLE.z1 + 4);
+  if (P.spv >= 60) { addMatRect(N_AISLE.x0, N_AISLE.x1, N_AISLE.z - 0.6, N_AISLE.z + 0.6); addMatRect(W_AISLE.x - 0.6, W_AISLE.x + 0.6, W_AISLE.z0, W_AISLE.z1); }
+  if (P.spv >= 400) { addMatRect(N_AISLE.x0, N_AISLE.x1, N_AISLE.z - 3, N_AISLE.z + 3); addMatRect(W_AISLE.x - 3, W_AISLE.x + 3, W_AISLE.z0, W_AISLE.z1); }
+  $('mDesc').textContent = DESC[P.spv];
+}
+// Shoppers
+const NS = 320, sPos = new Float32Array(NS * 3), sCol = new Float32Array(NS * 3);
+const sGeo = new THREE.BufferGeometry(); sGeo.setAttribute('position', new THREE.BufferAttribute(sPos, 3)); sGeo.setAttribute('color', new THREE.BufferAttribute(sCol, 3));
+const shoppers = new THREE.Points(sGeo, new THREE.PointsMaterial({size: 1.1, vertexColors: true, sizeAttenuation: true}));
+market.add(shoppers);
+let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const NODES = {E: [54, N_AISLE.z], N: [2, -42], NW: [-46, -42], S: [W_AISLE.x, 46], J: [W_AISLE.x, N_AISLE.z], Nm: [2, N_AISLE.z], Sx: [W_AISLE.x, W_AISLE.z1]};
+const ROUTES = [['E', 'Nm', 'J', 'Sx', 'S'], ['S', 'Sx', 'J', 'Nm', 'E'], ['N', 'Nm', 'J', 'Sx', 'S'], ['NW', 'J', 'Nm', 'E'], ['E', 'Nm', 'N'], ['S', 'Sx', 'J', 'NW'], ['NW', 'J', 'Sx', 'S'], ['N', 'Nm', 'E']];
+const sh = [];
+for (let i = 0; i < NS; i++) {
+  const r = ROUTES[Math.floor(rnd() * ROUTES.length)], pts = r.map(k => NODES[k]); let len = 0; const segs = [];
+  for (let j = 1; j < pts.length; j++) { const l = Math.hypot(pts[j][0] - pts[j - 1][0], pts[j][1] - pts[j - 1][1]); segs.push(l); len += l; }
+  sh.push({pts, segs, len, off: (rnd() - 0.5) * 4.5, phase: rnd(), speed: 0.75 + rnd() * 0.5});
+}
+const DAY_H = [3, 6, 9, 12, 13, 13, 12, 11, 9, 7], DAY_SUM = DAY_H.reduce((a, b) => a + b);
+function arrived(h) { let s = 0; for (let i = 0; i < 10; i++) s += DAY_H[i] * clamp(h - i, 0, 1); return s / DAY_SUM; }
+let mT = 0, mPlaying = true, mSpeed = 1; const M_DUR = 50;
+function updateMarket(t, dt) {
+  const h = t / M_DUR * 10, crowd = DAY_H[Math.min(9, Math.floor(h))] / 13;
+  const elapsed = performance.now() / 1000;
+  for (let i = 0; i < NS; i++) {
+    const s = sh[i], active = i / NS < 0.25 + 0.75 * crowd;
+    let k = ((elapsed * 0.035 * s.speed * (60 / s.len) + s.phase) % 1) * s.len, j = 0;
+    while (j < s.segs.length - 1 && k > s.segs[j]) { k -= s.segs[j]; j++; }
+    const a = s.pts[j], b = s.pts[j + 1], f = clamp(k / s.segs[j], 0, 1), dx = b[0] - a[0], dz = b[1] - a[1], L = Math.hypot(dx, dz) || 1;
+    const x = a[0] + dx * f + (-dz / L) * s.off, z = a[1] + dz * f + (dx / L) * s.off;
+    sPos[i * 3] = x; sPos[i * 3 + 1] = 1.0; sPos[i * 3 + 2] = z;
+    const onMat = matRects.some(r => x >= r[0] && x <= r[1] && z >= r[2] && z <= r[3]);
+    const c = onMat ? [0.95, 0.72, 0.29] : [0.62, 0.86, 0.92]; sCol[i * 3] = c[0]; sCol[i * 3 + 1] = c[1]; sCol[i * 3 + 2] = c[2];
+  }
+  sGeo.setDrawRange(0, Math.round(NS * (0.25 + 0.75 * crowd)));
+  sGeo.attributes.position.needsUpdate = true; sGeo.attributes.color.needsUpdate = true;
+  updateMarketCounters();
+}
+function updateMarketCounters() {
+  const h = mT / M_DUR * 10, frac = arrived(h), m = model(), vis = P.visitors * frac, steps = vis * P.spv, kwh = steps * m.elec / 3.6e6;
+  const hh = 8 + Math.floor(h), mm = Math.floor((h % 1) * 60);
+  const clockTxt = (hh > 12 ? hh - 12 : hh) + ':' + String(mm).padStart(2, '0') + (hh >= 12 ? ' pm' : ' am');
+  $('mTime').textContent = clockTxt; $('mShoppers').textContent = fmt(vis); $('mSteps').textContent = fmt(steps);
+  $('mEnergy').textContent = kwh.toFixed(2) + ' kWh'; $('mPhones').textContent = fmt(kwh * 1000 / PHONE_WH); $('mValue').textContent = '$' + (kwh * P.price).toFixed(2);
+  $('mClock').textContent = clockTxt + ' / 6:00 pm'; $('mScrub').value = Math.round(mT / M_DUR * 1000);
+  if (tab === 'market') setCaption('MARKET DAY · ' + clockTxt.toUpperCase(), 'Scenario ' + ({6: 'A', 60: 'B', 400: 'C'})[P.spv] + ': ' + kwh.toFixed(2) + ' kWh so far', 'Schematic, not to scale. Mat positions to be set by a day of hand counts.');
+}
+
+/* ---------------- Camera control ---------------- */
+const VIEWS = {sequence: {r: 1.15, th: 0.62, ph: 0.95, tg: [0, 0.02, 0.05]}, blueprint: {r: 1.25, th: 0.75, ph: 0.92, tg: [0, 0.05, 0.05]}, market: {r: 150, th: 0.35, ph: 0.85, tg: [2, 0, 4]}};
+const cam = {r: 1.15, th: 0.62, ph: 0.95, tg: new THREE.Vector3(0, 0.02, 0.05)}, camGoal = {r: 1.15, th: 0.62, ph: 0.95, tg: new THREE.Vector3(0, 0.02, 0.05)};
+let userTouched = 0;
+function setView(v, snap) { const V = VIEWS[v]; if (!V) return; const narrow = stage.clientWidth < stage.clientHeight * 1.1 ? 1.55 : 1; camGoal.r = V.r * narrow; camGoal.th = V.th; camGoal.ph = V.ph; camGoal.tg.set(...V.tg); if (snap) { cam.r = camGoal.r; cam.th = V.th; cam.ph = V.ph; cam.tg.copy(camGoal.tg); } }
+function applyCam(dt) {
+  const k = 1 - Math.exp(-dt * 4);
+  if (!userTouched) camGoal.th += dt * (tab === 'market' ? 0.02 : 0.05);
+  cam.r += (camGoal.r - cam.r) * k; cam.th += (camGoal.th - cam.th) * k; cam.ph += (camGoal.ph - cam.ph) * k; cam.tg.lerp(camGoal.tg, k);
+  camera.position.set(cam.tg.x + cam.r * Math.sin(cam.ph) * Math.sin(cam.th), cam.tg.y + cam.r * Math.cos(cam.ph), cam.tg.z + cam.r * Math.sin(cam.ph) * Math.cos(cam.th));
+  camera.lookAt(cam.tg);
+}
+const pointers = new Map(); let pinch0 = 0, r0 = 0, downAt = null;
+canvas.addEventListener('pointerdown', e => { canvas.setPointerCapture(e.pointerId); pointers.set(e.pointerId, [e.clientX, e.clientY]); canvas.classList.add('drag'); downAt = [e.clientX, e.clientY]; if (pointers.size === 2) { const p = [...pointers.values()]; pinch0 = Math.hypot(p[0][0] - p[1][0], p[0][1] - p[1][1]); r0 = camGoal.r; } });
+canvas.addEventListener('pointermove', e => {
+  if (!pointers.has(e.pointerId)) { hover(e); return; }
+  const prev = pointers.get(e.pointerId); pointers.set(e.pointerId, [e.clientX, e.clientY]); userTouched = 4;
+  if (pointers.size === 1) { camGoal.th -= (e.clientX - prev[0]) * 0.006; camGoal.ph = clamp(camGoal.ph - (e.clientY - prev[1]) * 0.005, 0.15, 1.45); }
+  else if (pointers.size === 2) { const p = [...pointers.values()]; const d = Math.hypot(p[0][0] - p[1][0], p[0][1] - p[1][1]); camGoal.r = clamp(r0 * pinch0 / Math.max(d, 1), zoomMin(), zoomMax()); }
+});
+const endPtr = e => { const d = downAt ? Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) : 99; pointers.delete(e.pointerId); if (!pointers.size) canvas.classList.remove('drag'); if (d < 5 && tab === 'blueprint') pick(e); downAt = null; };
+canvas.addEventListener('pointerup', endPtr); canvas.addEventListener('pointercancel', e => { pointers.delete(e.pointerId); canvas.classList.remove('drag'); });
+canvas.addEventListener('wheel', e => { e.preventDefault(); userTouched = 4; camGoal.r = clamp(camGoal.r * Math.exp(e.deltaY * 0.001), zoomMin(), zoomMax()); }, {passive: false});
+const zoomMin = () => tab === 'market' ? 30 : 0.18, zoomMax = () => tab === 'market' ? 320 : 3;
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
+function hitPart(e) {
+  const r = canvas.getBoundingClientRect(); mouse.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
+  ray.setFromCamera(mouse, camera); const hits = ray.intersectObjects(parts.flatMap(p => p.objs), false);
+  for (const h of hits) { let o = h.object; while (o && !o.userData.part) o = o.parent; if (o) return o.userData.part; } return null;
+}
+function pick(e) { const p = hitPart(e); select(p); }
+function hover(e) {
+  const tag = $('tag'); if (tab !== 'blueprint') { tag.style.display = 'none'; return; }
+  const p = hitPart(e); if (!p) { tag.style.display = 'none'; canvas.style.cursor = ''; return; }
+  const r = stage.getBoundingClientRect(); tag.textContent = p.name; tag.style.display = 'block'; tag.style.left = (e.clientX - r.left) + 'px'; tag.style.top = (e.clientY - r.top) + 'px'; canvas.style.cursor = 'pointer';
+}
+
+/* ---------------- Tabs ---------------- */
+let tab = 'sequence';
+const TAB_KEYS = ['sequence', 'blueprint', 'physics', 'market', 'prototype'];
+function setTab(t) {
+  if (!TAB_KEYS.includes(t)) t = 'sequence';
+  tab = t;
+  document.querySelectorAll('.tab').forEach(b => { b.setAttribute('aria-selected', b.dataset.tab === t); if (b.dataset.tab === t && b.scrollIntoView) b.scrollIntoView({block: 'nearest', inline: 'nearest'}); });
+  document.querySelectorAll('.pane').forEach(p => p.classList.toggle('on', p.dataset.pane === t));
+  const docTab = t === 'physics' || t === 'prototype';
+  $('docPhysics').classList.toggle('on', t === 'physics'); $('docProto').classList.toggle('on', t === 'prototype');
+  stage.classList.toggle('docmode', docTab);
+  ['gl', 'cap', 'hint'].forEach(id => $(id).style.visibility = docTab ? 'hidden' : 'visible');
+  document.querySelectorAll('.corner').forEach(c => c.style.visibility = docTab ? 'hidden' : 'visible');
+  document.querySelectorAll('.bar .ctl').forEach(c => c.classList.toggle('on', c.dataset.ctl === (docTab ? 'doc' : t)));
+  $('modes').style.display = docTab ? 'none' : 'flex';
+  $('docNote').textContent = t === 'physics' ? 'Inputs on the left · every figure updates live' : 'Parts and code for a bench tile';
+  tile.visible = t === 'sequence' || t === 'blueprint'; market.visible = t === 'market'; grid.visible = t === 'sequence';
+  $('hint').innerHTML = t === 'market' ? 'Drag to turn · scroll to zoom<br>Schematic, not to scale' : t === 'blueprint' ? 'Click a part · drag to turn · scroll to zoom' : 'Drag to turn · scroll to zoom<br>Plate travel drawn 3× · slowed for viewing';
+  $('tag').style.display = 'none';
+  userTouched = 0; setView(t);
+  if (t === 'blueprint') { placeParts(); foot.visible = false; pulse.visible = false; genSparks.forEach(s => s.visible = false); select(selected); }
+  else if (t === 'sequence') { parts.forEach(p => { p.objs.forEach(o => { o.userData.selected = false; applyMode(o); }); }); placeParts(); }
+  if (t === 'physics') requestAnimationFrame(drawChart);
+  if (t === 'market') updateMarketCounters();
+  if (history.replaceState) history.replaceState(null, '', '#' + t);
+  resize();
+}
+document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => setTab(b.dataset.tab)));
+document.querySelectorAll('#modes button').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
+$('play').addEventListener('click', () => { seqPlaying = !seqPlaying; $('play').textContent = seqPlaying ? '❚❚ Pause' : '▶ Play'; });
+$('scrub').addEventListener('input', e => { seqT = e.target.value / 1000 * DUR; seqPlaying = false; $('play').textContent = '▶ Play'; });
+$('speed').addEventListener('change', e => seqSpeed = parseFloat(e.target.value));
+$('explode').addEventListener('input', e => { explode = e.target.value / 1000; $('explodeOut').textContent = Math.round(explode * 100) + ' %'; placeParts(); });
+$('mPlay').addEventListener('click', () => { mPlaying = !mPlaying; $('mPlay').textContent = mPlaying ? '❚❚ Pause' : '▶ Play'; });
+$('mScrub').addEventListener('input', e => { mT = e.target.value / 1000 * M_DUR; mPlaying = false; $('mPlay').textContent = '▶ Play'; updateMarketCounters(); });
+$('mSpeed').addEventListener('change', e => mSpeed = parseFloat(e.target.value));
+
+/* ---------------- Loop ---------------- */
+function resize() {
+  const w = stage.clientWidth, h = stage.clientHeight; if (!w || !h) return;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+  if (tab === 'physics') drawChart();
+}
+window.addEventListener('resize', resize);
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (userTouched) userTouched = Math.max(0, userTouched - dt);
+  if (tab === 'sequence') {
+    if (seqPlaying) { seqT += dt * seqSpeed; if (seqT >= DUR) { seqT -= DUR; } }
+    if (seqT < lastSeqT && seqPlaying) { /* wrapped */ }
+    if (lastSeqT < 5.2 && seqT >= 5.2) { stepsCounted++; $('tSteps').textContent = fmt(stepsCounted); }
+    lastSeqT = seqT; updateSequence(seqT);
+  } else if (tab === 'market') {
+    if (mPlaying) { mT += dt * mSpeed; if (mT >= M_DUR) mT = 0; }
+    updateMarket(mT, dt);
+  }
+  if (tab === 'sequence' || tab === 'blueprint' || tab === 'market') { applyCam(dt); renderer.render(scene, camera); }
+  requestAnimationFrame(frame);
+}
+buildMats(); refreshPhysics(); select(null);
+setTab((location.hash || '#sequence').slice(1)); setView(tab, true);
+resize(); $('ready').textContent = '● VISUALIZATION READY';
+requestAnimationFrame(frame);
+
+// Hook for screenshots and tests
+window.__hs = {seek(t) { seqT = t; seqPlaying = false; $('play').textContent = '▶ Play'; }, setTab, setMode, P, model, select: k => select(parts.find(p => p.key === k) || null)};
+})();
+</script>
+</body>
+</html>
