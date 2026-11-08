@@ -12,6 +12,13 @@
  *   v  format (1)        pk this browser's ECDH P-256 public key (raw, base64)
  *   p  party size (0 = not in a party)        g  game being played (a key from GAMES below), or absent
  *   pl the party leader's uid while in a party (so a join request can go to the leader), or absent
+ *   jg, jr, jt  the game room we're in, for anyone to join (playingnow.js): game key (party.js's GAMES), room code (what
+ *      goes after the game's prefix, e.g. ab12 or pub-3) and when we got there (server time). Only while "Let people join
+ *      my games" is on (localStorage ol:join, '0' = off, on by default) and we aren't in a party set to Private. The room
+ *      is found by looking for our own node in the rooms the open game could be in (see gameRoom below; Quick match
+ *      rooms too); single-player games and games not in party.js's GAMES are never advertised. When someone else's node
+ *      starts advertising our room after we got there, a small toast says they joined (not our own party, who arrive
+ *      together).
  *   l  lounge: [{ i, t, x }], the last 20 messages, 200 characters each, dropped after 30 minutes
  *   d  { <recipient uid>: [{ i, t, b }] }  private messages, the last 6 to each of the last 6 people
  *   i  { <recipient uid>: { i, t, b } }    the latest party or room invite to each of the last 6 people
@@ -224,6 +231,7 @@
     '.onl-p{display:flex;align-items:center;gap:10px;width:100%;min-width:0;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font:inherit;color:inherit;text-align:left;cursor:pointer}' +
     '.onl-p:hover{border-color:var(--ink-2)}' +
     '.onl-p.me{cursor:default}.onl-p.me:hover{border-color:var(--line)}' +
+    '.onl-jl{position:relative}.onl-jl .onl-p{padding-right:86px}.onl-jb{position:absolute;right:8px;top:50%;transform:translateY(-50%);min-height:34px;padding:4px 12px}' +
     '.onl-av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:14px;color:#fff;flex:none}' +
     '.onl-who{display:grid;min-width:0;line-height:1.25;flex:1;gap:2px}' +
     '.onl-nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}' +
@@ -295,7 +303,9 @@
   // Your avatar (filled in once we know who you are) and your status tier with your miles.
   var $meAv = el('span', 'onl-meav'), $tier = el('span', 'onl-tier');
   var hideLbl = el('label'); var $hide = el('input'); $hide.type = 'checkbox'; hideLbl.append($hide, 'Hide me');
-  meRow.append($meAv, nameLbl, $seat, $tier, hideLbl);
+  var joinLbl = el('label'); var $join = el('input'); $join.type = 'checkbox'; joinLbl.append($join, 'Let people join my games');
+  joinLbl.title = 'When you’re in an online game, people here can see it and join you (Playing now, and a Join button by your name)';
+  meRow.append($meAv, nameLbl, $seat, $tier, hideLbl, joinLbl);
   var $list = el('ul', 'onl-list'); $list.setAttribute('aria-label', 'People online');
   var $msg = el('p', 'onl-msg'); $msg.setAttribute('role', 'status'); $msg.setAttribute('aria-live', 'polite');
   var fine = el('p', 'onl-fine'), plink = el('a', '', 'Privacy'); plink.href = '/privacy.html'; plink.target = '_blank'; plink.rel = 'noopener';
@@ -342,6 +352,8 @@
   var reported = {};                       // uid -> time we last reported them (one report a minute per person)
   var view = null;                         // what the drawer shows: { v: 'people' | 'lounge' | 'dm', u }
   var hidden = store('ol:hidden') === '1';
+  var joinable = store('ol:join') !== '0';   // Let people join my games: on unless switched off
+  var joinAd = null, joinSent = '', joinSeen = {};   // the room we advertise { g, r, t }; toasts already shown
   var started = Date.now();
   function now() { return P && P.now ? P.now() : Date.now(); }
 
@@ -441,6 +453,7 @@
       party: Math.max(0, Math.min(99, Math.floor(num(v.p)) || 0)),
       pl: typeof v.pl === 'string' && /^[A-Za-z0-9_-]{6,64}$/.test(v.pl) ? v.pl : '',
       g: typeof v.g === 'string' && gameOf(v.g) ? v.g : '',
+      jg: typeof v.jg === 'string' && gameOf(v.jg) ? v.jg : '', jr: typeof v.jr === 'string' && ROOM.test(v.jr) ? v.jr : '', jt: when(v.jt, t) || 0,
       l: [], dm: [], pc: [], inv: null
     };
     arr(v.l, LOUNGE_KEEP).forEach(function (m) {
@@ -483,7 +496,17 @@
     if (was && was.n !== p.n) nameEvent(k, p.n, false);
     remember(p);
     if (keys.pair && p.pk) openAll(p);
+    joinedUs(p);
     schedule();
+  }
+  // Someone's node has just started advertising the room we're in, after we got there: they joined our game.
+  function joinedUs(p) {
+    var a = joinAd; if (!a || !p.jr || p.jg !== a.g || p.jr !== a.r) return;
+    var key = p.uid + '|' + a.g + '|' + a.r;
+    if (joinSeen[key] || !(p.jt > a.t + 1000) || now() - p.jt > 60000) return;
+    joinSeen[key] = 1;
+    if (isBlocked(p.uid) || muted[p.uid] || (P && P.members.indexOf(p.uid) >= 0)) return;
+    toast(p, { k: 'jn' });
   }
   function onGone(s) {
     if (s.key === uid) {
@@ -850,6 +873,7 @@
     if (status.g) s.g = status.g;
     if (status.pl) s.pl = status.pl;
     var q = pubGame(); if (q) { s.pp = q.pp; s.pg = q.pg; s.pr = q.pr; s.pn = q.pn; s.pt = q.pt; }
+    if (joinAd) { s.jg = joinAd.g; s.jr = joinAd.r; s.jt = joinAd.t; }
     if (keys.pub) s.pk = keys.pub;
     if (mine.l.length) s.l = mine.l;
     if (Object.keys(mine.d).length) s.d = mine.d;
@@ -926,10 +950,68 @@
       pubSent = qs;
       if (published) write(q ? { pp: q.pp, pg: q.pg, pr: q.pr, pn: q.pn, pt: q.pt } : { pp: null, pg: null, pr: null, pn: null, pt: null }).catch(function () {});
     }
+    joinPoll();
     // The party's members changed (someone joined, left or was removed): new copies of the party chat follow the new list.
     var sig = (P && P.code || '') + ':' + partyMembers().join(',');
     if (sig !== status.sig) { status.sig = sig; partyChanged(); schedule(); }
   }
+  // The room of the party game that's open, if we're in one: { g: game key, r: room code }, or null. The game runs in
+  // its own window and keeps its connection to itself, so this page works it out from the outside: the rooms it could be
+  // in (the room in the game's address, #<prefix>-<code>, which every party game sets when it joins a room by code; the
+  // room party.js launched it into; the code in its room box; and its Quick match rooms, pub-1 to pub-6, or Rumble
+  // Karts' lobby to lobby-6) are each checked for our own node there, rooms/<prefix><code>/players/<uid>/ts (one small
+  // read each), and the first one that heard from us in the last ROOM_LIVE wins. The room we found is checked again
+  // every SCAN_MS while the game is open; the others only when it stops matching, every SCAN_IDLE.
+  var SCAN_MS = 4000, SCAN_IDLE = 6000, ROOM_LIVE = 20000;
+  var scan = { at: 0, busy: false, fr: null, cur: null };
+  function partyGame(k) { var pg = null; if (P && P.games) P.games.forEach(function (x) { if (x.k === k) pg = x; }); return pg; }
+  function roomCodes(gf, pg) {
+    var out = [], add = function (r) { r = String(r || '').toLowerCase(); if (r && ROOM.test(r) && !/^daily-/.test(r) && out.indexOf(r) < 0) out.push(r); };
+    if (scan.cur && scan.cur.g === pg.k) add(scan.cur.r);
+    try { var h = decodeURIComponent(gf.fr.contentWindow.location.hash.slice(1)); if (h.indexOf(pg.pre) === 0) add(h.slice(pg.pre.length)); } catch (e) {}
+    var lr = P && P.room; if (lr && lr.k === pg.k) add(lr.r);
+    try {
+      var d = gf.fr.contentDocument, box = d && (d.getElementById('room') || d.getElementById('inRoom'));
+      if (box) add(String(box.value || '').toLowerCase().replace(pg.pre ? new RegExp('^' + pg.pre) : /^$/, '').replace(/[^a-z0-9-]/g, ''));
+    } catch (e) {}
+    for (var i = 1; i <= 6; i++) add(pg.pre ? 'pub-' + i : i === 1 ? 'lobby' : 'lobby-' + i);
+    return out;
+  }
+  function scanRoom() {
+    var gf = gameFrame(), pg = gf && partyGame(gf.g.k), t = Date.now();
+    if (!gf || !pg || !db || !uid) { scan.cur = null; scan.fr = null; return; }
+    if (gf.fr !== scan.fr) { scan.fr = gf.fr; scan.cur = null; scan.at = 0; }
+    if (scan.busy || t - scan.at < (scan.cur ? SCAN_MS : SCAN_IDLE)) return;
+    scan.busy = true; scan.at = t;
+    var codes = scan.cur ? [scan.cur.r] : roomCodes(gf, pg), me = uid, fr = gf.fr;
+    Promise.all(codes.map(function (r) {
+      return db.ref('rooms/' + pg.pre + r + '/players/' + me + '/ts').once('value').then(function (x) { return now() - (+x.val() || 0) < ROOM_LIVE; }, function () { return false; });
+    })).then(function (ok) {
+      if (scan.fr !== fr || me !== uid) return;
+      var i = ok.indexOf(true);
+      if (i >= 0) scan.cur = { g: pg.k, r: codes[i] };
+      else if (scan.cur) { scan.cur = null; scan.at = 0; }   // not in that room any more: look through the others next time
+    }).then(function () { scan.busy = false; joinPoll(); });
+  }
+  function gameRoom() { var gf = gameFrame(); return gf && scan.cur && scan.cur.g === gf.g.k && scan.fr === gf.fr ? scan.cur : null; }
+  // Keep jg / jr / jt on our node in step with the game we're in and the setting.
+  function joinPoll() {
+    var want = joinable && !hidden && !(P && P.priv);
+    if (want) scanRoom();
+    var gr = want ? gameRoom() : null, sig = gr ? gr.g + '|' + gr.r : '';
+    if (sig === joinSent) return;
+    joinSent = sig;
+    joinAd = gr ? { g: gr.g, r: gr.r, t: Math.round(now()) } : null;
+    if (published) write(joinAd ? { jg: joinAd.g, jr: joinAd.r, jt: joinAd.t } : { jg: null, jr: null, jt: null }).catch(function () {});
+    schedule();
+  }
+  function setJoinable(v) {
+    joinable = !!v; store('ol:join', joinable ? '1' : '0');
+    joinPoll();
+    say(joinable ? 'People here can see the online game you’re in and join you.' : 'Your games are private: nobody here sees a Join button for them.');
+    drawnView = ''; schedule();
+  }
+
   // The room the game that's open is in, as far as we can tell: the one party.js last opened, or the game's room box.
   function currentRoom() {
     var gf = gameFrame(); if (!gf || !gf.g.room) return null;
@@ -1224,12 +1306,20 @@
     if (n) { var badge = el('span', 'onl-n', String(n)); badge.setAttribute('aria-label', n + ' unread'); b.append(badge); }
     return b;
   }
+  // A Join (or Queue) button on the row of someone in a game anyone can join, as Playing now (playingnow.js) checked it.
+  function joinBtn(li, p) {
+    var J = window.BackRoomPlaying, s = J && J.state ? J.state(p.uid) : null;
+    if (!s) return;
+    var b = btn(s.label, 'onl-jb' + (s.pri ? ' pri' : ''), 'gjoin'); b.setAttribute('data-u', p.uid); b.disabled = !!s.off;
+    b.setAttribute('aria-label', s.label + ': ' + mask(p.n) + ' in ' + s.game);
+    li.className = 'onl-jl'; li.append(b);
+  }
   function fillList(ul, withMe) {
     ul.textContent = '';
     var me = el('li'); me.append(personBtn(meEntry(), true));
     if (uid && withMe) ul.append(me);
     var os = others();
-    os.forEach(function (p) { var li = el('li'); li.append(personBtn(p, false)); ul.append(li); });
+    os.forEach(function (p) { var li = el('li'); li.append(personBtn(p, false)); joinBtn(li, p); ul.append(li); });
     return os.length;
   }
 
@@ -1244,7 +1334,8 @@
     var mt = uid ? tierOf(uid) : null;
     $tier.textContent = '';
     if (mt) { $tier.append(BackRoomMiles.badge(mt)); var ml = milesLine(mt); if (ml) $tier.append(el('span', '', ml)); }
-    $hide.checked = hidden;
+    $hide.checked = hidden; $join.checked = joinable; $join.disabled = hidden;
+    joinLbl.title = hidden ? 'You’re hidden, so nobody sees your games anyway' : 'When you’re in an online game, people here can see it and join you (Playing now, and a Join button by your name)';
     var lu = loungeUnread(); $loungeBtn.lastChild.textContent = lu ? String(lu) : '';
     fillList($list);
     if (uid && !os.length) { var li = el('li'); li.append(el('p', 'onl-empty', hidden ? 'You’re hidden, so nobody can see you. Nobody else is around right now either.' : 'Nobody else is here right now. Leave this open and you’ll see people as they arrive.')); $list.append(li); }
@@ -1308,6 +1399,7 @@
       var lu = loungeUnread(); lb.append(el('span', 'onl-n', lu ? String(lu) : ''));
       if (P && P.code) { var pb = btn('Party chat', '', 'pchat'), pu = partyUnread(); pb.append(el('span', 'onl-n', pu ? String(pu) : '')); acts.append(pb); }
       acts.append(lb, btn(hidden ? 'Show me' : 'Hide me', '', 'hide'));
+      if (!hidden) { var jo = btn('Let people join: ' + (joinable ? 'On' : 'Off'), '', 'joinable'); jo.setAttribute('aria-pressed', String(joinable)); acts.append(jo); }
       sub.append(el('span', '', hidden ? 'You’re hidden. Others can’t see or message you.' : 'Tap someone to request a chat or invite them.'), acts);
       parts.push(sub);
       var ul = el('ul', 'onl-list'); fillList(ul, true); body.append(ul);
@@ -1545,6 +1637,9 @@
       line.append(who, joinNoText(m));
       var al = askLeaderBtn(m); if (al) { acts.append(al); life = 20000; }
       acts.append(btn('Dismiss', '', 'dismiss'));
+    } else if (m.k === 'jn') {
+      line.append(who, ' joined your game.');
+      t.classList.add('onl-tj'); life = 5000;
     } else if (m.k === 'g') {
       line.append(who, ' to your party: ' + mask(m.x).slice(0, 120));
       acts.append(btn('Reply', 'pri', 'pchat'), btn('Dismiss', '', 'dismiss'));
@@ -1560,7 +1655,7 @@
       acts.append(a, btn('Not now', '', 'dismiss')); life = 30000;
     }
     t.setAttribute('data-u', p.uid); t.setAttribute('data-t', String(m.t));
-    t.append(line, acts);
+    t.append(line); if (acts.children.length) t.append(acts);
     toasts.append(t);
     while (toasts.children.length > 3) toasts.firstChild.remove();
     setTimeout(function () { t.remove(); }, life);
@@ -1581,6 +1676,8 @@
     else if (a === 'list') openDrawer({ v: 'people' });
     else if (a === 'close') closeDrawer();
     else if (a === 'hide') setHidden(!hidden);
+    else if (a === 'joinable') setJoinable(!joinable);
+    else if (a === 'gjoin') { var gu = b.getAttribute('data-u'), J = window.BackRoomPlaying; if (gu && J && J.act) { if (J.act(gu) && b.closest('.onl-dr')) closeDrawer(); } }
     else if (a === 'dismiss') { if (host) host.remove(); }
     else if (a === 'reply') { var u0 = host && host.getAttribute('data-u'); if (host) host.remove(); if (u0) openDrawer({ v: 'dm', u: u0 }); }
     else if (a === 'joinp') {
@@ -1656,9 +1753,14 @@
   });
   $name.addEventListener('blur', function () { $name.value = myName(); });
   $hide.addEventListener('change', function () { setHidden($hide.checked); });
+  $join.addEventListener('change', function () { setJoinable($join.checked); });
+  addEventListener('storage', function (e) { if (e.key === 'ol:join' && (e.newValue !== '0') !== joinable) { joinable = e.newValue !== '0'; joinPoll(); schedule(); } });
+  // Playing now (playingnow.js) checked someone's game: show or drop the Join button on their row.
+  document.addEventListener('backroom:playing', function () { schedule(); });
   function setHidden(v) {
     hidden = !!v; store('ol:hidden', hidden ? '1' : null);
     if (!uid) return schedule();
+    joinPoll();
     if (hidden) { unpublish(); say('You’re hidden. Nobody can see you online, and you can’t chat until you turn this off.'); }
     else { say(''); publish(); }
     drawnView = ''; schedule();
