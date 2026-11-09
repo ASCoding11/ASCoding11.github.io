@@ -331,7 +331,7 @@ const HW = 9;                       // body half-width
 
 // Timings in ticks (60 a second), distances in pixels of a 640 x 360 room.
 const BASE_T = {
-  grav: 0.55, jump: -9.4, cut: -3.2, run: 3.9, acc: 1.25, dec: 1.6, air: 0.5, iceAcc: 0.14, iceDec: 0.05, maxFall: 12,
+  grav: 0.55, jump: -9.4, cut: -3.2, run: 4.2, acc: 1.25, dec: 1.6, air: 0.5, iceAcc: 0.14, iceDec: 0.05, maxFall: 12,
   back: 0.82, crawl: 1.4, step: 5,
   guard: 36, thrust: 56, lunge: 60,
   thrustDur: 14, thA0: 3, thA1: 7,
@@ -2322,7 +2322,7 @@ const Net = {
     this.refs.me.onDisconnect().remove();
     const up = s => { if (s.key !== this.uid) onNode(s.key, s.val()); };
     this.refs.players.on('child_added', up); this.refs.players.on('child_changed', up);
-    this.refs.players.on('child_removed', s => { if (s.key !== this.uid) { this.others.delete(s.key); lobbyDirty = true; } });
+    this.refs.players.on('child_removed', s => { if (s.key !== this.uid) { this.others.delete(s.key); lobbyDirty = true; if (G.mode === 'online' && G.net && s.key === G.net.opp) opponentGone(); } });
     clearInterval(this.beat);
     this.beat = setInterval(() => { if (!this.refs) return; if (performance.now() - this.hbT > 2500) this.upd({}); onlineTick(); if (document.hidden && (G.mode === 'online' || G.mode === 'spec')) (G.mode === 'online' ? netFrame : specFrame)(performance.now()); }, 250);
     try { if (!isPublic) history.replaceState(null, '', '#' + room); } catch (e) {}
@@ -2380,6 +2380,7 @@ function rbSim(n) {
 function onRemote(o) {
   const n = G.net; if (!n) return;
   n.remAd = o.ad / 10;
+  if (o.fx === n.id + '|q' && !G.ended) { opponentGone(); return; }
   const m = /^(\d+)\.(\d+)\.([0-9a-zA-Z_-]*)$/.exec(o.i);
   if (m && +m[1] === n.id) {
     n.lastRemote = performance.now();
@@ -2830,6 +2831,7 @@ function howHTML() {
     '<li><b>Throw.</b> Press up again at high to raise your sword, then attack to throw it. A sword held high blocks a throw; ducking or rolling dodges it.</li>' +
     '<li><b>No sword?</b> Punch, sweep (down + attack) or dive kick (attack in the air) to knock someone down, then attack again to finish them. A low guard catches sweeps; a high guard catches dive kicks. Hold down over a dropped sword to pick it up.</li>' +
     '<li><b>The line.</b> Win a duel and only you may run toward your beacon (Tide runs right, Bloom runs left); the loser is back in a moment, in front of you. The bar at the top shows the rooms and who is running. Reach your beacon to win. Pits and water are deadly.</li>' +
+    (document.body.classList.contains('touch') ? '<li><b>On a touch screen:</b> the arrows on the left move. On the right: \u25B2 and \u25BC move your sword up and down (\u25BC also ducks, rolls while running and picks up swords), the arrow jumps, and the blade attacks.</li>' : '') +
     '</ul>' + keysTable();
 }
 function closeHelp() { $('help').hidden = true; if (G.running && G.scene === 'game') { show('game'); } else show(G.scene || 'menu'); }
@@ -2910,6 +2912,7 @@ async function joinRoom(room, isPublic) {
 document.addEventListener('visibilitychange', () => { if (document.hidden) { keysDown.clear(); if (G.running && (G.mode === 'bot' || G.mode === 'local' || G.mode === 'tour') && !G.ended && $('pause').hidden) pauseGame(); } });
 
 R.init(); setupTouch(); initMenu(); show('menu');
+addEventListener('touchstart', () => { $('howBody').innerHTML = howHTML(); $('helpBody').innerHTML = howHTML(); }, {once: true, passive: true});
 
 // Test hook for automated browsers only.
 if (navigator.webdriver) window.__ll = {ff(n, lv) { if (lv) G.bots = [0, 1].map(i => G.bots[i] || C.botMem(i + 7, lv)); G.cdUntil = 0; for (let i = 0; i < n && !G.ended; i++) tickOffline(); return G.ended; },
