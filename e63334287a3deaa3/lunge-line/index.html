@@ -342,7 +342,7 @@ const BASE_T = {
   diveVx: 5.2, diveVy: 6.6, land: 9,
   throwDur: 9, throwAt: 2, throwV: 12.5,
   finDur: 13, finAt: 5, stompDur: 17, stompAt: 11,
-  rollDur: 17, rollV: 5.0,
+  rollDur: 18, rollV: 5.8,
   climb: 11, respawn: 26, inv: 28, hitstop: 8, hsDisarm: 5, hsParry: 6, sc: 3
 };
 function tuning(cfg) {
@@ -460,7 +460,7 @@ function gustState(h, ht) { // {s: 0 calm | 1 warning | 2 blowing, d: direction}
 // ---------------------------------------------------------------------
 function mkF(i) {
   return {i, x: 0, y: BASE, vx: 0, vy: 0, f: 1, h: 1, hT: 99, sc: 0, cr: 0, dl: 0, arm: 1, s: ST.IDLE, t: 0, gnd: 1, co: 0, jb: 0, ab: 0,
-    jh: 0, step: 0, sd: 0, tgt: 0, kd: 0, rt: 0, rw: 0, inv: 0, pin: 0, res: 0, ah: 1, chg: 0, bk: 0, kills: 0, deaths: 0, stk: 0, best: 0,
+    jh: 0, tb: 0, step: 0, sd: 0, tgt: 0, kd: 0, rt: 0, rw: 0, inv: 0, pin: 0, res: 0, ah: 1, chg: 0, bk: 0, kills: 0, deaths: 0, stk: 0, best: 0,
     hz: 0, vt: -1, cx: 0, cy: 0, gone: 0, sup: -1};
 }
 function newMatch(cfg) {
@@ -520,6 +520,7 @@ function hurt(p) {
   if (!alive(p)) return null;
   if (p.s === ST.KD) return {x0: p.x - 24, x1: p.x + 24, y0: p.y - 12, y1: p.y};
   if (p.s === ST.CLIMB) return {x0: p.x - HW, x1: p.x + HW, y0: p.y - 54, y1: p.y};
+  if (p.s === ST.DIVE) return {x0: p.x - HW, x1: p.x + HW, y0: p.y - 40, y1: p.y - 9};
   return {x0: p.x - HW, x1: p.x + HW, y0: p.y - bodyH(p), y1: p.y};
 }
 function bladeOut(p) {
@@ -636,7 +637,8 @@ function control(S, w, T, p, o, inp, e) {
   } else if (mdir) {
     if (oA && o.arm && adx < 110 && mdir !== toO && p.f === toO && p.gnd) { p.bk = 1; p.tgt = mdir * T.run * T.back; }
     else { p.f = mdir; p.tgt = mdir * T.run; }
-  } else if (oA && adx < 260 && p.gnd) p.f = toO;
+  } else if (oA && adx < 260 && p.gnd) { if (p.f !== toO) { if (++p.tb >= 12) { p.f = toO; p.tb = 0; } } else p.tb = 0; }
+  if (mdir || p.cr) p.tb = 0;
   // Jump (buffered a few ticks, with a little grace after running off a ledge). Release early for a short hop.
   if (p.jb > 0 && (p.gnd || p.co > 0) && !p.cr) {
     p.vy = T.jump; p.gnd = 0; p.co = 0; p.jb = 0; p.jh = 1; p.sup = -1;
@@ -654,7 +656,7 @@ function control(S, w, T, p, o, inp, e) {
       else { p.s = ST.THRUST; p.ah = p.h; }
     } else {
       if (!p.gnd) p.s = ST.DIVE;
-      else if (near && adx < 40) { p.s = ST.STOMP; p.f = toO; }
+      else if (near && adx < 48) { p.s = ST.STOMP; p.f = toO; }
       else if (p.cr || (inp & K.D)) { p.s = ST.SWEEP; p.cr = 0; }
       else p.s = ST.PUNCH;
     }
@@ -671,7 +673,7 @@ function disarms(S, T) {
     if (b.f !== -a.f || a.f * (b.x - a.x) <= 0) continue;
     if (Math.abs(bandY(a) - bandY(b)) > 8) continue;
     if (a.f * (tipX(a, T) - tipX(b, T)) < 0) continue;  // blades not crossed yet
-    if (attacking(b, T)) continue;                      // stepping into a thrust is a parry, judged in combat()
+    if (b.s === ST.THRUST || b.s === ST.LUNGE) continue; // stepping into a thrust is a parry, judged in combat()
     hit[1 - k] = 1;
   }
   for (let k = 0; k < 2; k++) if (hit[k]) {
@@ -790,7 +792,7 @@ function physics(S, w, T, p, o, inp, mv) {
       }
     }
     // Ledge grab: falling (or near the top of a jump) beside a ledge while pushing toward it.
-    if (!p.gnd && p.s === ST.IDLE && p.vy > -2.5) {
+    if (!p.gnd && p.s === ST.IDLE && p.vy > -2.5 && p.y <= BASE + 4) {   // never out of a pit
       const dir = ((inp & K.R) ? 1 : 0) - ((inp & K.L) ? 1 : 0);
       if (dir) {
         const edge = (x0, x1, top) => {
@@ -864,7 +866,25 @@ function combat(S, w, T) {
       if (k === 0 || !res[0]) ev(S, r === 'clash' ? 'clash' : 'block', {a: k, b: 1 - k, x, y});
     }
   }
-  // 2. A blade is deadly on contact: anything that reaches the body ahead of it dies, unless the other blade is
+  // 2. Fists and feet: punches, sweeps and dive kicks knock down (judged before blades, so a kick that lands
+  //    in the same tick as the blade touches wins: feet first).
+  const kd = [];
+  for (let k = 0; k < 2; k++) {
+    const a = P[k], b = P[1 - k];
+    if (a.res || !alive(b) || b.s === ST.KD || b.inv > 0 || S.kq.some(q => q.v === a.i)) continue;
+    let pt = null;
+    if (a.s === ST.PUNCH && a.t >= T.puA0 && a.t <= T.puA1) pt = [a.x + a.f * T.punchReach, a.y - 36];
+    else if (a.s === ST.SWEEP && a.t >= T.swA0 && a.t <= T.swA1) pt = [a.x + a.f * 22, a.y - 5];
+    else if (a.s === ST.DIVE) pt = [a.x + a.f * 16, a.y - 3];
+    if (!pt) continue;
+    const hb = hurt(b); if (!hb) continue;
+    if (pt[0] < hb.x0 - 2 || pt[0] > hb.x1 + 2 || pt[1] < hb.y0 - 2 || pt[1] > hb.y1 + 2) continue;
+    a.res = 1;
+    if (a.s === ST.DIVE && bladeOut(b) && b.f === -a.f && b.h === 2) { killQ(S, a.i, b.i, 'skewer'); continue; }
+    kd.push([b, a]);
+  }
+  for (const [b, a] of kd) knockDown(S, T, b, a.f, a.i, a.s === ST.PUNCH ? 'punch' : a.s === ST.SWEEP ? 'sweep' : 'dive');
+  // 3. A blade is deadly on contact: anything that reaches the body ahead of it dies, unless the other blade is
   //    held at the same height in the way.
   for (let k = 0; k < 2; k++) {
     const a = P[k], b = P[1 - k];
@@ -883,25 +903,8 @@ function combat(S, w, T) {
   for (let k = 0; k < 2; k++) {
     const a = P[k], o = P[1 - k], down = alive(o) && (o.s === ST.KD || (o.s === ST.GETUP && o.t === 0));
     if (a.s === ST.FIN && a.t === T.finAt && down && Math.abs(o.x - a.x) < 54 && a.arm) killQ(S, o.i, a.i, 'finish');
-    if (a.s === ST.STOMP && a.t === T.stompAt && down && Math.abs(o.x - a.x) < 36) killQ(S, o.i, a.i, 'stomp');
+    if (a.s === ST.STOMP && a.t === T.stompAt && down && Math.abs(o.x - a.x) < 44) killQ(S, o.i, a.i, 'stomp');
   }
-  // 3. Fists and feet: punches, sweeps and dive kicks knock down.
-  const kd = [];
-  for (let k = 0; k < 2; k++) {
-    const a = P[k], b = P[1 - k];
-    if (a.res || !alive(b) || b.s === ST.KD || b.inv > 0 || S.kq.some(q => q.v === a.i)) continue;
-    let pt = null;
-    if (a.s === ST.PUNCH && a.t >= T.puA0 && a.t <= T.puA1) pt = [a.x + a.f * T.punchReach, a.y - 36];
-    else if (a.s === ST.SWEEP && a.t >= T.swA0 && a.t <= T.swA1) pt = [a.x + a.f * 22, a.y - 5];
-    else if (a.s === ST.DIVE) pt = [a.x + a.f * 10, a.y - 4];
-    if (!pt) continue;
-    const hb = hurt(b); if (!hb) continue;
-    if (pt[0] < hb.x0 - 2 || pt[0] > hb.x1 + 2 || pt[1] < hb.y0 - 2 || pt[1] > hb.y1 + 2) continue;
-    a.res = 1;
-    if (a.s === ST.DIVE && bladeOut(b) && b.f === -a.f && b.h === 2) { killQ(S, a.i, b.i, 'skewer'); continue; }
-    kd.push([b, a]);
-  }
-  for (const [b, a] of kd) knockDown(S, T, b, a.f, a.i, a.s === ST.PUNCH ? 'punch' : a.s === ST.SWEEP ? 'sweep' : 'dive');
 }
 
 function swords(S, w, T, ins, mv) {
@@ -1194,7 +1197,7 @@ function botInput(S, w, i, m) {
       for (const g of fut) if (x >= g.x0 + 8 && x <= g.x1 - 8 && oy <= g.y + 2 && y >= g.y - 2) return true;
       for (const g of w.plats) if (x >= g.x0 + 4 && x <= g.x1 - 4 && oy <= g.y && y >= g.y) return true;
       for (const g of w.segs) if (x >= g.x0 + 6 && x <= g.x1 - 6 && segSolid(S, g) && oy <= g.y && y >= g.y) return true;
-      if (y > p.y + 40) return false;
+      if (y > Math.max(p.y + 40, BASE + 12)) return false;
     }
     return false;
   };
