@@ -212,11 +212,11 @@ ol.board .btn.sm{padding:3px 8px;font-size:12.5px}
 #rvCmp{border:2.5px solid var(--ink);border-radius:10px;padding:4px 6px;font:800 13px var(--f-b);background:#fff;max-width:100%}
 body.replay #hud,body.replay #touch{display:none!important}
 /* ---------- builder: selection ---------- */
-#edSelBar{position:absolute;left:50%;bottom:calc(max(8px,env(safe-area-inset-bottom)) + 100px);transform:translateX(-50%);display:flex;gap:6px;align-items:center;background:rgba(251,250,246,.95);border:2.5px solid var(--ink);border-radius:12px;padding:5px 7px;pointer-events:auto;white-space:nowrap}
+#edSelBar{position:absolute;left:50%;bottom:calc(max(8px,env(safe-area-inset-bottom)) + 128px);transform:translateX(-50%);display:flex;gap:6px;align-items:center;background:rgba(251,250,246,.95);border:2.5px solid var(--ink);border-radius:12px;padding:5px 7px;pointer-events:auto;white-space:nowrap}
 #edSelN{font:900 13px var(--f-b);margin-right:4px}
 #edRect{position:fixed;border:2px dashed #3b82f6;background:rgba(59,130,246,.12);pointer-events:none;z-index:5}
 #edTheme{border:3px solid var(--ink);border-radius:11px;padding:4px 6px;font:900 13px var(--f-b);background:#fff}
-@media (max-height:440px){#edSelBar{bottom:calc(max(8px,env(safe-area-inset-bottom)) + 76px)}#rvGraph{height:56px}}
+@media (max-height:440px){#edSelBar{bottom:calc(max(8px,env(safe-area-inset-bottom)) + 104px)}#rvGraph{height:56px}}
 /* ---------- touch controls (only on touch screens) ---------- */
 #touch{display:none;position:absolute;inset:0;pointer-events:none;font-family:var(--f-d)}
 body.touch.racing #touch{display:block}
@@ -1548,7 +1548,7 @@ function labelSprite(text,col){
   const c=document.createElement('canvas');c.width=256;c.height=64;const g=c.getContext('2d');g.font='800 30px Nunito, Arial, sans-serif';
   const w=Math.min(250,g.measureText(text).width+28);g.fillStyle='rgba(22,33,58,.72)';g.beginPath();if(g.roundRect)g.roundRect((256-w)/2,10,w,44,14);else g.rect((256-w)/2,10,w,44);g.fill();
   g.fillStyle=col||'#fff';g.textAlign='center';g.textBaseline='middle';g.fillText(text,128,33);
-  const t=new THREE.CanvasTexture(c),sp=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,depthWrite:false,depthTest:false,opacity:.9}));sp.scale.set(4,1,1);sp.renderOrder=6;return sp;
+  const t=new THREE.CanvasTexture(c),sp=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,depthWrite:false,depthTest:false,opacity:.9}));sp.scale.set(2.8,.7,1);sp.renderOrder=6;return sp;
 }
 // which ghosts race with you: your best (Ghost setting) plus the board ghosts you picked for this track, at most 10 together
 function pbGhost(key){const gs=store.get(ghostKey(key),null);if(gs&&gs.v===RL.PHYS_V&&typeof gs.g==='string'){const r=RL.decInputs(gs.g,72000,gs.f||1);if(r)return {rec:r,t:gs.t,g:gs.g}}return null}
@@ -1573,7 +1573,7 @@ function ghostsReset(){
 function ghostsPose(k,a,dt){
   for(const g of G.ghosts){if(!g.obj)continue;const ps=g.tr.pose(k,a);const vis=!(ps.fl&2)&&!(ps.fl&4&&g.tr.fin>=0&&k-g.tr.fin/DT>120);
     poseCar(g.obj,ps.p,ps.f,ps.u,ps.steer,ps.vf,dt,!!(ps.fl&1));g.obj.grp.visible=vis;
-    if(g.lab){g.lab.visible=vis;g.lab.position.set(ps.p[0]+ps.u[0]*2.2,ps.p[1]+ps.u[1]*2.2,ps.p[2]+ps.u[2]*2.2)}}
+    if(g.lab){g.lab.position.set(ps.p[0]+ps.u[0]*2.2,ps.p[1]+ps.u[1]*2.2,ps.p[2]+ps.u[2]*2.2);g.lab.visible=vis&&g.lab.position.distanceTo(camera.position)>12}}
 }
 function ghostsHide(){for(const g of G.ghosts){if(g.obj)g.obj.grp.visible=false;if(g.lab)g.lab.visible=false}}
 function anyDrive(){return !!G.auto||KB.held('gas',keys)||KB.held('brake',keys)||KB.held('left',keys)||KB.held('right',keys)||tIn.g||tIn.b||tIn.l||tIn.r}
@@ -1832,7 +1832,7 @@ const slMat=new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity
 const speedLines=new THREE.LineSegments(slGeo,slMat);speedLines.frustumCulled=false;speedLines.renderOrder=20;camera.add(speedLines);scene.add(camera);
 for(let i=0;i<SL;i++){slSeed[i*3]=Math.random()*Math.PI*2;slSeed[i*3+1]=1.2+Math.random()*1.6;slSeed[i*3+2]=Math.random()}
 function speedLinesStep(sp,dt,on){
-  const k=on?clamp((sp-30)/35,0,1):0;slMat.opacity+=(k*0.5-slMat.opacity)*Math.min(1,dt*6);speedLines.visible=slMat.opacity>0.01;if(!speedLines.visible)return;
+  const k=on?clamp((sp-25)/30,0,1):0;slMat.opacity+=(k*0.45-slMat.opacity)*Math.min(1,dt*6);speedLines.visible=slMat.opacity>0.01;if(!speedLines.visible)return;
   const L=1.5+sp*0.06;
   for(let i=0;i<SL;i++){let z=slSeed[i*3+2];z-=dt*sp/40;if(z<0)z+=1;slSeed[i*3+2]=z;
     const a=slSeed[i*3],r=slSeed[i*3+1],x=Math.cos(a)*r*1.5,y=Math.sin(a)*r*.9,zz=-2-z*16,o=i*6;
@@ -2411,8 +2411,8 @@ const Online={
   base(){return {n:myName(),c:COLS[gar.col]||'#ef4444',x:0,z:0,h:0,ts:firebase.database.ServerValue.TIMESTAMP}},
   ref(room,uid){return this.db.ref('rooms/'+ROOM+'-'+room+'/players'+(uid?'/'+uid:''))},
   // a new clean best: send it if it beats what this account already has on the board
-  async submit(key,id,ms,g){
-    if(!(G.builtin>=0||G.community))return;
+  async submit(key,id,ms,g,force){
+    if(!force&&!(G.builtin>=0||G.community))return;
     try{await this.init();const k2='b'+RL.PHYS_V+'-'+key,mine=await this.ref(k2,this.uid).once('value');const v=mine.val();
       if(v&&+v.t>0&&+v.t<=ms)return;
       await this.ref('g'+RL.PHYS_V+'-'+key,this.uid).set(Object.assign(this.base(),{t:ms,g,f:2,v:RL.PHYS_V}));
@@ -2467,10 +2467,13 @@ const Online={
     if(!tr[key]&&Object.keys(tr).length>=PUB_MAX)throw new Error('You can have '+PUB_MAX+' tracks published at once. Take one down first (Community → yours).');
     tr[key]={nm:nf(track.name).slice(0,40)||'Untitled',code,at:Date.now()};
     await this.ref('tracks',this.uid).set(Object.assign(this.base(),{tr}));
+    // your clean best on it opens its board
+    const b=bestOf(key),gs=store.get(ghostKey(key),null);if(b&&gs&&gs.t===b.t&&gs.f===2&&typeof gs.g==='string')await this.submit(key,null,b.t,gs.g,true);
   },
   async unpublish(key){await this.init();const tr=await this.myTracks();delete tr[key];await this.ref('tracks',this.uid).set(Object.assign(this.base(),{tr}))},
   // you raced a published track: [your best on it (0 if none yet), when]
-  async played(key,ms){
+  played(key,ms){this.pq=(this.pq||Promise.resolve()).then(()=>this.played1(key,ms));return this.pq}, // one at a time
+  async played1(key,ms){
     try{await this.init();const s=await this.ref('plays',this.uid).once('value');const v=s.val();const p=v&&v.p&&typeof v.p==='object'?v.p:{};
       const o=Array.isArray(p[key])?p[key]:[0,0];const b=+o[0]>0&&(!ms||+o[0]<=ms)?+o[0]:(ms||0);p[key]=[b,Date.now()];
       const ks=Object.keys(p);if(ks.length>PLAYS_MAX)ks.sort((a,b)=>(+(p[a]||[])[1]||0)-(+(p[b]||[])[1]||0)).slice(0,ks.length-PLAYS_MAX).forEach(k=>delete p[k]);

@@ -128,7 +128,9 @@
     'g48:best', 'g48:opts',
     'gridpop:best', 'gridpop:mute', 'gridpop:seen',
     'stackfall:mute', 'stackfall:sandColours',
-    'melon-merge:best', 'melon-merge:mute', 'melon-merge:faces'
+    'melon-merge:best', 'melon-merge:mute', 'melon-merge:faces',
+    // Rampline's garage (car, paint, pattern, rims, trail, name)
+    'rampline:garage'
   ];
   var PREFIXES = ['keybinds:', 'tumble-best-', 'trivium.daily.', 'stackfall:best:', 'g48:best:'];
   var KEYSET = Object.create(null); KEYS.forEach(function (k) { KEYSET[k] = 1; });
