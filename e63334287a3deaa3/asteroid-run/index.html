@@ -159,7 +159,7 @@ h1 span{color:var(--lime)}
 #pop.cy{color:var(--cyan)}#pop.au{color:var(--sun)}
 #pop.go{animation:pop .7s ease-out}
 @keyframes pop{0%{opacity:0;transform:translate(-50%,-30%) scale(.6)}15%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}30%{transform:translate(-50%,-50%) scale(1)}75%{opacity:1}100%{opacity:0;transform:translate(-50%,-90%) scale(1)}}
-#abil{position:absolute;left:calc(64px + env(safe-area-inset-left,0px));top:calc(14px + env(safe-area-inset-top,0px));width:74px;height:36px;padding:4px 8px}
+#abil{position:absolute;left:calc(12px + env(safe-area-inset-left,0px));top:calc(62px + env(safe-area-inset-top,0px));width:74px;height:36px;padding:4px 8px}
 #abil{display:flex;flex-direction:column;justify-content:center}
 #abil i{display:block;height:5px;border-radius:3px;background:var(--cyan);width:0;order:2}
 #abil small{order:1}
@@ -195,7 +195,7 @@ body.halves #tL,body.halves #tR{display:none}
 #tR{left:calc(110px + env(safe-area-inset-left,0px))}
 #tJ{right:calc(18px + env(safe-area-inset-right,0px));bottom:calc(22px + env(safe-area-inset-bottom,0px));width:100px;height:100px;border-radius:50%;font-size:17px;background:rgba(182,255,59,.8);color:var(--ink)}
 #tJ.on{background:var(--lime)}
-#tA{right:calc(132px + env(safe-area-inset-right,0px));bottom:calc(34px + env(safe-area-inset-bottom,0px));width:76px;height:76px;border-radius:50%;font-size:12px;background:rgba(63,224,255,.3)}
+#tA{right:calc(30px + env(safe-area-inset-right,0px));bottom:calc(134px + env(safe-area-inset-bottom,0px));width:76px;height:76px;border-radius:50%;font-size:12px;background:rgba(63,224,255,.3)}
 #tA.ready{background:rgba(63,224,255,.75);color:var(--ink)}
 #halfHint{position:absolute;left:50%;bottom:calc(140px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);font:900 12px var(--f-b);color:#fff;background:rgba(11,13,38,.7);padding:3px 10px;border-radius:9px;white-space:nowrap;pointer-events:none}
 body:not(.halves) #halfHint{display:none}
@@ -1017,11 +1017,14 @@ function loadSave(){
   else{ // from v1: the old unlock rules (levels cleared / crystals collected)
     const n=Object.keys(o.lv).length;let cr=o.bank;for(const k in o.lv)cr+=bits(o.lv[k].c);
     if(n>=5)o.own.push('brick');if(cr>=25)o.own.push('vex');if(n>=14)o.own.push('moppet');if(cr>=60)o.own.push('twitch');
+    // the old Endless best was set with some runner; credit it to the one that was picked
+    if(o.best>0&&ids.includes(s.ch))o.bestBy[s.ch]=o.best;
+    o.mig=true;
   }
   o.spent=Math.max(0,Math.floor(+s.spent||0));
   if(Array.isArray(s.trails))o.trails=['none'].concat(s.trails.filter(t=>TRAILS.some(x=>x.id===t)&&t!=='none'));
   if(o.trails.includes(s.trail))o.trail=s.trail;
-  if(s.bestBy&&typeof s.bestBy==='object')for(const id of ids)if(+s.bestBy[id]>0)o.bestBy[id]=+s.bestBy[id];
+  if(s.bestBy&&typeof s.bestBy==='object')for(const id of ids)if(+s.bestBy[id]>0)o.bestBy[id]=Math.max(o.bestBy[id]||0,+s.bestBy[id]);
   if(s.daily&&typeof s.daily==='object'&&typeof s.daily.day==='string')o.daily={day:s.daily.day,best:Math.max(0,+s.daily.best||0)};
   if(s.seen&&typeof s.seen==='object')for(const k in s.seen)if(AR.ZONE_BY_ID[k])o.seen[k]=1;
   if(ids.includes(s.ch))o.ch=s.ch;
@@ -1033,6 +1036,7 @@ const TRAILS=[{id:'none',name:'None',cost:0},{id:'spark',name:'Sparks',cost:40,c
 const bits=n=>(n&1)+(n>>1&1)+(n>>2&1);
 let save=loadSave();
 const saveNow=()=>store.set('save',save);
+if(save.mig){delete save.mig;saveNow()}   // keep the runners an old save had, for good
 const clearedCount=()=>Object.keys(save.lv).length;
 const crystalTotal=()=>{let n=save.bank;for(const k in save.lv)n+=bits(save.lv[k].c);return n};
 const wallet=()=>Math.max(0,crystalTotal()-save.spent);
@@ -1156,8 +1160,9 @@ cryMesh.count=0;cryMesh.frustumCulled=false;cryMesh.instanceMatrix.setUsage(THRE
 // the landing shadow: a soft dark disc on the tile under the runner (none over a hole)
 const shadowTex=canvasTex(64,64,(g)=>{const gr=g.createRadialGradient(32,32,2,32,32,31);gr.addColorStop(0,'rgba(0,0,0,.85)');gr.addColorStop(.6,'rgba(0,0,0,.55)');gr.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=gr;g.fillRect(0,0,64,64)});
 const shadowGeo=new THREE.PlaneGeometry(.9,.9);shadowGeo.rotateX(-Math.PI/2);
-const shadow=new THREE.Mesh(shadowGeo,new THREE.MeshBasicMaterial({map:shadowTex,transparent:true,depthWrite:false,opacity:.6,fog:false}));
-shadow.renderOrder=2;scene.add(shadow);
+// (drawn over the tiles without a depth test, just before the runner, so a tile edge never cuts it off)
+const shadow=new THREE.Mesh(shadowGeo,new THREE.MeshBasicMaterial({map:shadowTex,transparent:true,depthWrite:false,depthTest:false,opacity:.6,fog:false}));
+shadow.renderOrder=4;scene.add(shadow);
 
 // the sky: a plain dark background with small white stars
 const skyGroup=new THREE.Group();scene.add(skyGroup);
@@ -1286,9 +1291,10 @@ function setBasis(m,f,z,lift,dirx,diry,dirz){
 const LIT=14,DIM=.05;
 function litAt(W,r,r0){
   if(!W.dk[r])return 1;
+  // full light close by, fading to a third at LIT rows ahead, then out over the next 4
   const a=r-r0;
-  if(a<-3)return DIM;if(a<=LIT)return 1;if(a>=LIT+4)return DIM;
-  return DIM+(1-DIM)*(1-(a-LIT)/4);
+  if(a<-3||a>=LIT+4)return DIM;if(a<=4)return 1;if(a<=LIT)return 1-.65*(a-4)/(LIT-4);
+  return DIM+(.35-DIM)*(1-(a-LIT)/4);
 }
 function rebuildTiles(){
   const W=G.W,s=G.s,r0=Math.floor(s.d/TL),from=Math.max(0,r0-6),to=r0+(hiQ()?50:42);
@@ -1361,7 +1367,7 @@ function updateCrystals(t){
 // sparkle bursts: small flat squares (colour per point)
 const PN=140,pPos=new Float32Array(PN*3),pVel=new Float32Array(PN*3),pLife=new Float32Array(PN),pCol=new Float32Array(PN*3);
 const pGeo=new THREE.BufferGeometry();pGeo.setAttribute('position',new THREE.BufferAttribute(pPos,3));pGeo.setAttribute('color',new THREE.BufferAttribute(pCol,3));
-const pts=new THREE.Points(pGeo,new THREE.PointsMaterial({size:.16,vertexColors:true,depthWrite:false,fog:false}));pts.frustumCulled=false;pts.visible=false;scene.add(pts);
+const pts=new THREE.Points(pGeo,new THREE.PointsMaterial({size:.07,vertexColors:true,depthWrite:false,fog:false}));pts.frustumCulled=false;pts.visible=false;scene.add(pts);
 let pNext=0;
 function burst(x,y,z,n,sp,col,life,grav){const cc=_c.set(col==null?0x9ff8ff:col);
   for(let i=0;i<n;i++){const k=pNext++%PN;pPos[k*3]=x;pPos[k*3+1]=y;pPos[k*3+2]=z;const a=Math.random()*6.28,b=Math.random()*2-1,q=Math.sqrt(1-b*b);
@@ -1407,7 +1413,7 @@ function onDie(){
   sfx.die();
   // a short look at the runner tumbling away into space, then straight back to the start (or the score)
   const P=runnerPos(),s=G.s;
-  G.dying={t:0,x:P.x,y:P.y,z:P.z,nx:P.w.nx,ny:P.w.ny,v:Math.max(4,-s.vh),vd:s.vd,spin:(s.vu>=0?1:-1)*(5+Math.random()*3),cx:camera.position.x,cy:camera.position.y,cz:camera.position.z,
+  G.dying={t:0,x:P.x,y:P.y,z:P.z,lx:G.cam.lx,ly:G.cam.ly,lz:G.cam.lz,nx:P.w.nx,ny:P.w.ny,v:Math.max(4,-s.vh),vd:s.vd,spin:(s.vu>=0?1:-1)*(5+Math.random()*3),cx:camera.position.x,cy:camera.position.y,cz:camera.position.z,
     dur:G.mode==='level'?.42:.6};
   flash('#ff4f6a',.25);
 }
@@ -1665,7 +1671,7 @@ function update(dt){
   if(G.finAt&&now>=G.finAt){G.finAt=0;showResults()}
   if(!G.noRender)draw(dt);
 }
-const _sup={};
+const _sup={},_v3=new THREE.Vector3();
 function draw(dt){
   const s=G.s,W=G.W,t=performance.now()/1000,pt0=performance.now();
   const r0=Math.floor(s.d/TL);
@@ -1679,7 +1685,7 @@ function draw(dt){
   if(D){ // tumbling away into space
     const k=D.t;runRoot.position.set(D.x-D.nx*(D.v*k+6*k*k),D.y-D.ny*(D.v*k+6*k*k),D.z-D.vd*.6*k);
     runner.rotation.z+=D.spin*dt;runner.scale.setScalar(base*Math.max(.3,1-k*.9));runMat.depthTest=true;
-    camera.position.set(D.cx,D.cy,D.cz);camera.lookAt(runRoot.position);shadow.visible=false;
+    camera.position.set(D.cx,D.cy,D.cz);_v3.set(D.lx,D.ly,D.lz).lerp(runRoot.position,Math.min(.35,k));camera.lookAt(_v3);shadow.visible=false;
   }else{
     runRoot.position.set(P.x,P.y,P.z);
     _m.set(w.tx,w.nx,0,0,w.ty,w.ny,0,0,0,0,1,0,0,0,0,1);runRoot.quaternion.setFromRotationMatrix(_m);
