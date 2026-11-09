@@ -42,6 +42,10 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-09', version: '1.17', title: 'Lunge Line', kind: 'game', games: ['Lunge Line'], items: [
+      'Lunge Line: a sword-duel tug-of-war. One touch wins the duel, and only the winner may run for their beacon while the other comes straight back in front of them. Three sword heights, disarms, parries, throws, rolls, and fists and feet when you lose your sword.',
+      'Four arenas with their own tricks (crumbling docks, low-ceilinged archive stacks, a glasshouse full of hiding leaves, a windy mountain pass), online 1v1 with friends or Quick match, a bot on three levels, two players on one keyboard, and a knockout tournament for up to 8.'
+    ]},
     {date: '2026-11-06', version: '1.16', title: 'Rampline', kind: 'game', games: ['Rampline'], items: [
       'Rampline: a stunt time-trial racer. One little car, tracks built from blocks, and the clock: brake into the corners, land your jumps straight, hold on round loops and along wall rides, and race a ghost of your best run for bronze, silver, gold and the builder\'s time on 20 tracks.',
       'It comes with a track builder: snap pieces together on a grid, test drive straight away, and share your track as a code that anyone can paste in to race it.'

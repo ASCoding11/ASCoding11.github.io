@@ -75,6 +75,7 @@
     { k: 'ph', n: 'Odd One Out', d: 'odd-one-out', max: 16, nk: 'oddone-name' },
     { k: 'ko', n: 'Tumble Trials', d: 'tumble-trials', max: 16, nk: 'tumble-name' },
     { k: 'dz', n: 'Driftfall', d: 'drop-zone', max: 30, nk: 'driftfall:name' },
+    { k: 'gd', n: 'Lunge Line', d: 'lunge-line', max: 8, nk: 'lungeline:name' },
     { k: 'dw', n: 'Deepword', d: 'deepword', max: 12, nk: 'deepword-name' },
     { k: 'pf', n: 'Puffer Party', d: 'puffer-party', max: 12, nk: 'pufferparty:name' }
   ];
