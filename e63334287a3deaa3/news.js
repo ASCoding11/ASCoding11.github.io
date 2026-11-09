@@ -35,6 +35,24 @@
  *            'Name:folder' when the folder is named differently). The open list shows them too.
  *            Leave it out for updates and fixes.
  *   items    the bullet points, written for players, in your own words
+ *   img      optional: a snapshot for the entry, or a list of up to 3, as a path inside the Back Room folder
+ *            (use the game's phone thumbnail, 'm/thumbs/<folder>.jpg', 560 × 350). The latest entry's first
+ *            snapshot sits next to its headline on the strip, and the open list shows them on the card.
+ *            Only plain relative paths to .jpg/.png/.webp files are used (no http:, no ../), so every
+ *            picture comes from the site's own folders.
+ *   tags     optional: up to 4 short keywords shown as little tags on the card, like
+ *            ['Battle royale', 'Up to 30 players', 'Build'] (each cut to 28 characters).
+ *
+ * The "New games!" chips get a tiny picture each by themselves: the game's m/thumbs/<folder>.jpg (a game with no
+ * thumbnail just keeps its coloured chip).
+ *
+ * ---- Spotlight ----
+ * SPOTLIGHT (below NEWS) pins one game at the very top of the strip for `days` days from `from`: its snapshot, a
+ * kicker ("New battle royale"), its name, 2–3 keyword tags and a Play button that opens it like the chips do.
+ * While it shows, that game is left out of the "New games!" row. On phones (560 px wide or less, or a phone
+ * sideways) it's one compact row: thumbnail, kicker and name, Play and ×. The × hides it in this browser
+ * (localStorage `news:spot`, the spotlight's from|folder, removed again once the spotlight has ended), so a
+ * new spotlight shows even to someone who closed the last one. Set SPOTLIGHT to null for none.
  *
  * Several entries can share a date (say 1.7 and then 1.7.1 the same day); they're shown
  * under one day. Text is put on the page as plain text, never as HTML. Leave out anything
@@ -42,26 +60,32 @@
  */
 (function () {
   var NEWS = [
-    {date: '2026-11-09', version: '1.18', title: 'Updraft: 2,000 m more', kind: 'feature', items: [
+    {date: '2026-11-09', version: '1.18', title: 'Updraft: 2,000 m more', kind: 'feature',
+     img: 'm/thumbs/updraft.jpg', tags: ['3,000 m', 'Five new zones', 'New leaderboard'], items: [
       'Updraft: 2,000 m more. The old summit at 1,000 m is now a milestone, and the climb goes on to the Crown at 3,000 m through five new zones.',
       'Aurora Drift, where platforms blink on and off in time; Storm Front, with rain, lightning and gusts that push you in mid-air; Skyport, a floating town at sunset with conveyor belts, barge traffic, cannons and a blimp; Orbit Yard, in low gravity over the curve of the world; and The Crown, with rising waves of steps, a giant pendulum and a carousel of moons.',
       'Your best time to the old summit still counts, and there\'s a new Leaderboard for the fastest climb to the Crown. A run saved at the old top carries on from there.'
     ]},
-    {date: '2026-11-09', version: '1.17', title: 'Lunge Line', kind: 'game', games: ['Lunge Line'], items: [
+    {date: '2026-11-09', version: '1.17', title: 'Lunge Line', kind: 'game', games: ['Lunge Line'],
+     img: 'm/thumbs/lunge-line.jpg', tags: ['Sword duel', 'Online 1v1', 'Bots', 'Tournament'], items: [
       'Lunge Line: a sword-duel tug-of-war. One touch wins the duel, and only the winner may run for their beacon while the other comes straight back in front of them. Three sword heights, disarms, parries, throws, rolls, and fists and feet when you lose your sword.',
       'Four arenas with their own tricks (crumbling docks, low-ceilinged archive stacks, a glasshouse full of hiding leaves, a windy mountain pass), online 1v1 with friends or Quick match, a bot on three levels, two players on one keyboard, and a knockout tournament for up to 8.'
     ]},
-    {date: '2026-11-06', version: '1.16', title: 'Rampline', kind: 'game', games: ['Rampline'], items: [
+    {date: '2026-11-06', version: '1.16', title: 'Rampline', kind: 'game', games: ['Rampline'],
+     img: 'm/thumbs/rampline.jpg', tags: ['Stunt racer', 'Time trials', 'Track builder'], items: [
       'Rampline: a stunt time-trial racer. One little car, tracks built from blocks, and the clock: brake into the corners, land your jumps straight, hold on round loops and along wall rides, and race a ghost of your best run for bronze, silver, gold and the builder\'s time on 20 tracks.',
       'It comes with a track builder: snap pieces together on a grid, test drive straight away, and share your track as a code that anyone can paste in to race it.'
     ]},
-    {date: '2026-11-04', version: '1.15', title: 'Asteroid Run', kind: 'game', games: ['Asteroid Run:asteroid-run'], items: [
+    {date: '2026-11-04', version: '1.15', title: 'Asteroid Run', kind: 'game', games: ['Asteroid Run:asteroid-run'],
+     img: 'm/thumbs/asteroid-run.jpg', tags: ['Runner', 'Space tunnels', 'Endless mode'], items: [
       'Asteroid Run: a runner through tile tunnels floating in space. You run on your own; sidestep, jump, and run onto a wall to turn the whole tunnel. Cracked, icy, conveyor, boost and sticky tiles, five runners with their own feel, 32 levels on a branching map and an Endless mode.'
     ]},
-    {date: '2026-11-04', version: '1.14', title: 'Driftfall', kind: 'game', games: ['Driftfall:drop-zone'], items: [
+    {date: '2026-11-04', version: '1.14', title: 'Driftfall', kind: 'game', games: ['Driftfall:drop-zone'],
+     img: 'm/thumbs/drop-zone.jpg', tags: ['Battle royale', 'Up to 30 players', 'Build'], items: [
       'Driftfall: a battle royale for up to 30. Ride the Drifter over Gullrock Isle, jump and glide down, open chests for pistols, SMGs, shotguns, rifles and snipers, heal up, build walls and ramps like Backrooms, and outlast the storm. Quick match into a public room, play with friends, or practise against bots.'
     ]},
-    {date: '2026-10-30', version: '1.13', title: 'Daily Puzzles', kind: 'game', games: ['Daily Puzzles:daily', 'Puffer Party', 'Hunch', 'Quartets', 'Hotspot', 'Deadline Day', 'Ninefold', 'Poopdle'], items: [
+    {date: '2026-10-30', version: '1.13', title: 'Daily Puzzles', kind: 'game', games: ['Daily Puzzles:daily', 'Puffer Party', 'Hunch', 'Quartets', 'Hotspot', 'Deadline Day', 'Ninefold', 'Poopdle'],
+     img: ['m/thumbs/daily.jpg', 'm/thumbs/hotspot.jpg', 'm/thumbs/puffer-party.jpg'], tags: ['21 puzzles a day', 'Streaks', 'Party game'], items: [
       'Daily Puzzles: a new page with 21 new puzzles every day, plus Deepword\'s daily dive, the same for everyone and fresh at midnight. It shows what you\'ve done today and keeps your streak going.',
       'Word: Hunch (guess the five-letter word), Fourcast (four words at once), Quartets (sort sixteen words into four groups), Crosslet (a mini crossword), Sleight (one cryptic clue), and Nearword and Warmer (find the secret word by its meaning).',
       'Logic: Ninefold, three new sudokus a day from Easy to Hard, and Poopdle, a word ladder where every path ends at POOP.',
@@ -76,7 +100,8 @@
       'The Back Room is now in sections, Puzzles, Parkour, Shooter / Action, Multiplayer and Single player, on the computer and on the phone version.',
       'Leaderboards: hours played no longer go up and down when you play on two devices, and if you played as a guest before signing in with Google, your two entries now merge into one.'
     ]},
-    {date: '2026-10-29', version: '1.11', title: 'Turbo Trail, Escapade and Spire', kind: 'game', games: ['Turbo Trail', 'Escapade'], items: [
+    {date: '2026-10-29', version: '1.11', title: 'Turbo Trail, Escapade and Spire', kind: 'game', games: ['Turbo Trail', 'Escapade'],
+     img: ['m/thumbs/turbo-trail.jpg', 'm/thumbs/escapade.jpg', 'm/thumbs/spire.jpg'], tags: ['Obby', 'Escape rooms', 'Online races'], items: [
       'Turbo Trail: a speedrun obby with 25 short levels across five worlds. Race the clock for gold medals and your own ghost, try all 25 in one full run, or race up to 12 friends online.',
       'Escapade: parkour your way out of eight escape rooms. Hop the desks over lava, dodge the lasers, find the key and crack the keypad code to reach the EXIT, on your own or with up to 12 in a room.',
       'Spire is back, with a checkpoint at every landing, four new sections, and coins to grab on the way up and spend on hats.'
@@ -108,7 +133,8 @@
       '2048: new Mega (6 × 6), College and Dessert modes, each with its own best score and leaderboard.',
       'Parties: ask to join someone\'s party from their card, and the leader can remove people. You can also block someone just until you close the tab.'
     ]},
-    {date: '2026-10-28', version: '1.7', title: 'Deepword', kind: 'game', games: ['Deepword'], items: [
+    {date: '2026-10-28', version: '1.7', title: 'Deepword', kind: 'game', games: ['Deepword'],
+     img: 'm/thumbs/deepword.jpg', tags: ['Daily word dive', 'Up to 12 online'], items: [
       'A daily word dive: eight prompts a day, the same for everyone, and the rarer your answer, the deeper you sink.',
       'Blowfish Brawl: up to 12 players get the same prompt, and an answer someone already sent puffs you up. Three puffs and you pop.'
     ]},
@@ -173,12 +199,19 @@
     ]}
   ];
 
+  // Pinned at the very top of the strip for `days` days from `from` (see "Spotlight" above).
+  var SPOTLIGHT = {
+    from: '2026-11-09', days: 21,
+    kicker: 'New battle royale', game: 'Driftfall:drop-zone', img: 'm/thumbs/drop-zone.jpg',
+    tags: ['Up to 30 players', 'Drop in · loot · build', 'Last one standing']
+  };
+
   var KIND = { game: 'New game', feature: 'Update', fix: 'Bug fix' };
   var ICON = { game: '🎮', feature: '✨', fix: '🔧' };
   var PAGE = 5;      // days shown at first, and added by each "Show older"
   var NEW_DAYS = 7;  // how long an entry's games get the "New games!" row on the strip
   var MAX_CHIPS = 6;
-  var SEEN = 'news:seen';
+  var SEEN = 'news:seen', SPOT_X = 'news:spot';
   var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   var DAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   var HUES = ['#23946A', '#D9663A', '#4F74D9', '#B14FA5', '#C08D12', '#2A9D9D'];  // chip colours, in turn
@@ -192,12 +225,22 @@
     return n && /^[a-z0-9-]{1,40}$/.test(d) ? { n: n, d: d } : null;
   }
   function gamesOf(e) { return Array.isArray(e.games) ? e.games.map(gameOf).filter(Boolean) : []; }
+  // Snapshots: plain relative paths inside the Back Room folder only (no scheme, no //, no ..), at most 3.
+  var IMG_RE = /^(?:[a-z0-9][a-z0-9_-]*\/)*[a-z0-9][a-z0-9_.-]*\.(?:jpe?g|png|webp)$/i;
+  function imgsOf(e) {
+    var a = Array.isArray(e.img) ? e.img : e.img ? [e.img] : [];
+    return a.filter(function (x) { return typeof x === 'string' && IMG_RE.test(x) && x.indexOf('..') < 0; }).slice(0, 3);
+  }
+  function tagsOf(e) {
+    return (Array.isArray(e.tags) ? e.tags : []).filter(function (x) { return typeof x === 'string' && x.trim(); })
+      .slice(0, 4).map(function (x) { return x.trim().slice(0, 28); });
+  }
 
   // Keep only well-formed entries, newest first.
   var list = NEWS.filter(function (e) {
     return e && /^\d{4}-\d{2}-\d{2}$/.test(e.date) && typeof e.title === 'string' && Array.isArray(e.items);
   }).sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; });
-  window.BackRoomNews = { entries: list.map(function (e) { return { date: e.date, version: e.version, title: e.title, kind: e.kind, games: gamesOf(e).map(function (g) { return g.n; }), items: e.items.slice() }; }) };
+  window.BackRoomNews = { entries: list.map(function (e) { return { date: e.date, version: e.version, title: e.title, kind: e.kind, games: gamesOf(e).map(function (g) { return g.n; }), items: e.items.slice(), img: imgsOf(e), tags: tagsOf(e) }; }) };
   if (!list.length) return;
 
   function store(k, v) {
@@ -221,6 +264,18 @@
   function label(e) { return KIND[kindOf(e)] + (e.version ? ' ' + e.version : ''); }
   function el(tag, cls, text) { var x = document.createElement(tag); if (cls) x.className = cls; if (text != null) x.textContent = text; return x; }
 
+  // The spotlight, when it's on today: {g: {n, d}, id, kicker, img, tags}, or null. Closed in this browser: hidden.
+  // A record of closing a spotlight that has ended (or been replaced) is removed.
+  var spot = (function () {
+    var S = SPOTLIGHT, g = S && gameOf(S.game);
+    if (!g || !/^\d{4}-\d{2}-\d{2}$/.test(S.from)) { if (store(SPOT_X)) try { localStorage.removeItem(SPOT_X); } catch (e) {} return null; }
+    var n = daysAgo(S.from), id = S.from + '|' + g.d, on = n >= 0 && n < Math.max(1, +S.days || 14), x = store(SPOT_X);
+    if (x && x !== id) { try { localStorage.removeItem(SPOT_X); } catch (e) {} x = null; }
+    if (!on) { if (x) try { localStorage.removeItem(SPOT_X); } catch (e) {} return null; }
+    return { g: g, id: id, closed: x === id, kicker: typeof S.kicker === 'string' ? S.kicker.slice(0, 40) : 'New', img: imgsOf(S)[0] || 'm/thumbs/' + g.d + '.jpg', tags: tagsOf(S).slice(0, 3) };
+  })();
+  window.BackRoomNews.spotlight = spot ? { game: spot.g.n, folder: spot.g.d, kicker: spot.kicker, tags: spot.tags.slice() } : null;
+
   // How many entries at the top haven't been opened in this browser. Nothing saved yet: just the latest.
   function unseen() {
     var s = store(SEEN);
@@ -236,7 +291,7 @@
     list.forEach(function (e) {
       var n = daysAgo(e.date);
       if (n < 0 || n > NEW_DAYS) return;
-      gamesOf(e).forEach(function (g) { if (!seen[g.d]) { seen[g.d] = 1; out.push(g); } });
+      gamesOf(e).forEach(function (g) { if (!seen[g.d] && !(spot && !spot.closed && spot.g.d === g.d)) { seen[g.d] = 1; out.push(g); } });
     });
     return out;
   }
@@ -246,19 +301,35 @@
     var me = document.currentScript;
     return (me && me.src ? new URL(me.src, location.href).pathname : '/e63334287a3deaa3/news.js').replace(/[^/]*$/, '');
   })();
+  // A link that opens game g like the chips do.
+  function opens(a, g) {
+    a.href = BASE + g.d + '/';
+    a.addEventListener('click', function (ev) {
+      var br = window.BackRoom;
+      if (br && typeof br.openGame === 'function' && !ev.metaKey && !ev.ctrlKey && !ev.shiftKey) { ev.preventDefault(); br.openGame(a.getAttribute('href'), g.n); }
+    });
+    return a;
+  }
+  // A game's tiny picture: its phone thumbnail as a background, over the chip's colour (so a missing one is just colour).
+  function thumb(g) {
+    var t = el('span', 'nws-th'); t.setAttribute('aria-hidden', 'true');
+    t.style.backgroundImage = 'url("' + BASE + 'm/thumbs/' + g.d + '.jpg")';
+    return t;
+  }
+  function pic(src, cls) {
+    var im = el('img', cls); im.src = BASE + src; im.alt = ''; im.loading = 'lazy'; im.decoding = 'async'; im.width = 560; im.height = 350;
+    im.addEventListener('error', function () { im.remove(); });
+    return im;
+  }
   function chip(g, i, link) {
-    var c = el(link ? 'a' : 'span', 'nws-chip', null);
+    var c = el(link ? 'a' : 'span', 'nws-chip', null), th = thumb(g);
     c.style.setProperty('--h', HUES[i % HUES.length]);
     if (link) {
-      c.href = BASE + g.d + '/';
-      var tri = el('span', 'nws-play', '▶'); tri.setAttribute('aria-hidden', 'true');
-      c.append(tri, g.n);
+      opens(c, g);
+      var tri = el('span', 'nws-play', '▶'); th.appendChild(tri);
+      c.append(th, g.n);
       c.setAttribute('aria-label', 'Play ' + g.n);
-      c.addEventListener('click', function (ev) {
-        var br = window.BackRoom;
-        if (br && typeof br.openGame === 'function' && !ev.metaKey && !ev.ctrlKey && !ev.shiftKey) { ev.preventDefault(); br.openGame(c.getAttribute('href'), g.n); }
-      });
-    } else c.textContent = g.n;
+    } else c.append(th, g.n);
     return c;
   }
 
@@ -301,9 +372,33 @@
         'color:color-mix(in srgb,var(--h) 45%,var(--ink,#16201b));background:color-mix(in srgb,var(--h) 15%,var(--panel,#fff));border:1px solid color-mix(in srgb,var(--h) 42%,transparent);transition:transform .15s ease,background .15s ease}' +
       'a.nws-chip:hover{transform:translateY(-1px);background:color-mix(in srgb,var(--h) 24%,var(--panel,#fff))}' +
       'a.nws-chip:focus-visible{outline:2px solid var(--h);outline-offset:2px}' +
-      '.nws-play{font-size:9px;line-height:1;width:18px;height:18px;border-radius:50%;display:inline-grid;place-items:center;padding-left:1px;background:var(--h);color:#fff}' +
+      '.nws-th{flex:none;display:inline-grid;place-items:center;width:30px;height:19px;margin-left:-4px;border-radius:6px;background:var(--h) center/cover no-repeat;box-shadow:inset 0 0 0 1px rgba(255,255,255,.18)}' +
+      '.nws-play{font-size:7px;line-height:1;width:14px;height:14px;border-radius:50%;display:inline-grid;place-items:center;padding-left:1px;background:color-mix(in srgb,var(--h) 70%,rgba(0,0,0,.5));color:#fff;box-shadow:0 0 0 1.5px rgba(255,255,255,.75)}' +
+      // the latest entry's snapshot next to its headline
+      '.nws-snap{flex:none;display:block;width:40px;height:25px;border-radius:6px;object-fit:cover;background:color-mix(in srgb,var(--nws-g) 18%,var(--panel,#fff));box-shadow:0 0 0 1px color-mix(in srgb,var(--nws-g) 25%,transparent)}' +
+      '.nws-brk{display:none}' +
+      // the spotlight: one game pinned at the top
+      '.nws-spot{--sw:#D9663A;display:flex;align-items:center;gap:14px;padding:10px 10px 10px 10px;border-radius:13px 13px 0 0;border-bottom:1px solid color-mix(in srgb,var(--sw) 28%,var(--line,#d3dad2));' +
+        'background:linear-gradient(100deg,color-mix(in srgb,var(--sw) 17%,var(--panel,#fff)) 0%,color-mix(in srgb,var(--sw) 7%,var(--panel,#fff)) 55%,transparent 100%)}' +
+      '.nws-sth{flex:none;position:relative;display:block;width:120px;aspect-ratio:16/10;border-radius:9px;overflow:hidden;background:color-mix(in srgb,var(--sw) 30%,var(--panel,#fff));box-shadow:0 6px 14px -8px var(--sw),0 0 0 1px color-mix(in srgb,var(--sw) 35%,transparent)}' +
+      '.nws-sth img{display:block;width:100%;height:100%;object-fit:cover}' +
+      '.nws-stx{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:4px}' +
+      '.nws-sk{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono,monospace);font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:color-mix(in srgb,var(--sw) 72%,var(--ink,#16201b))}' +
+      '.nws-sk::before{content:"";flex:none;width:7px;height:7px;border-radius:50%;background:var(--sw);box-shadow:0 0 0 3px color-mix(in srgb,var(--sw) 25%,transparent);animation:nws-pulse 2s ease-in-out infinite}' +
+      '.nws-sn{font-family:var(--display,var(--f-d,"Arial Narrow",sans-serif));font-weight:800;font-size:28px;line-height:.95;letter-spacing:.02em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:inherit;text-decoration:none}' +
+      '.nws .nws-kws{display:flex;flex-wrap:wrap;gap:5px;margin:1px 0 0;padding:0;list-style:none}' +
+      '.nws .nws-kws li{margin:0;display:inline-flex;align-items:center;font-size:12px;font-weight:600;line-height:1.15;white-space:nowrap;padding:3px 9px;border-radius:999px;' +
+        'color:color-mix(in srgb,var(--kh,var(--nws-g)) 60%,var(--ink,#16201b));background:color-mix(in srgb,var(--kh,var(--nws-g)) 11%,transparent);border:1px solid color-mix(in srgb,var(--kh,var(--nws-g)) 32%,transparent)}' +
+      '.nws-spot .nws-kws{--kh:var(--sw)}' +
+      '.nws-sp{flex:none;display:inline-flex;align-items:center;gap:7px;min-height:42px;padding:6px 20px;border-radius:999px;background:var(--sw);color:#fff;font-weight:700;font-size:15px;text-decoration:none;white-space:nowrap;box-shadow:0 8px 16px -10px var(--sw);transition:filter .15s ease,transform .15s ease}' +
+      '.nws-sp:hover{filter:brightness(1.08);transform:translateY(-1px)}.nws-sp:active{transform:scale(.97)}' +
+      '.nws-sp:focus-visible,.nws-sx:focus-visible,.nws-sth:focus-visible{outline:2px solid var(--sw);outline-offset:2px}' +
+      '.nws-sx{flex:none;align-self:flex-start;display:grid;place-items:center;width:30px;height:30px;margin:-2px -2px 0 -6px;padding:0;border:0;border-radius:50%;background:none;color:var(--ink-2,#4a5751);font:600 19px/1 var(--mono,monospace);cursor:pointer}' +
+      '.nws-sx:hover{background:color-mix(in srgb,var(--sw) 14%,transparent);color:var(--ink,#16201b)}' +
+      '@media (max-width:560px),(max-height:500px){.nws-spot{gap:10px;padding:7px 6px 7px 7px}.nws-sth{width:64px;border-radius:7px}.nws-stx{gap:2px}.nws-sk{font-size:10px;letter-spacing:.08em;gap:6px}.nws-sk::before{width:6px;height:6px}' +
+        '.nws-sn{font-size:21px}.nws-spot .nws-kws{display:none}.nws-sp{min-height:36px;padding:5px 14px;font-size:14px}.nws-sx{align-self:center;width:28px;height:28px;margin:0 0 0 -4px}}' +
       '.nws-plus{font-size:13px;color:var(--ink-2,#4a5751)}' +
-      '@media (max-width:560px){.nws-bar{flex-wrap:wrap;row-gap:5px}.nws-t{flex-basis:100%;order:5;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}.nws-d{margin-left:auto}.nws-chev b{display:none}.nws-chev i{display:inline}.nws-chev{padding:2px 8px}' +
+      '@media (max-width:560px){.nws-bar{flex-wrap:wrap;row-gap:6px}.nws-brk{display:block;flex-basis:100%;height:0;order:4}.nws-snap{order:5;width:36px;height:22px}.nws-t{flex:1 1 0;order:6;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}.nws-d{margin-left:auto}.nws-chev b{display:none}.nws-chev i{display:inline}.nws-chev{padding:2px 8px}' +
         '.nws-fl{flex-basis:100%;font-size:18px}.nws-chip{font-size:13px;min-height:32px}}' +
       // the open list
       '.nws-body{border-top:1px solid color-mix(in srgb,var(--nws-g) 22%,var(--line,#d3dad2));padding:4px 14px 14px}' +
@@ -317,6 +412,10 @@
       '.nws-et{flex-basis:100%;font-family:var(--display,var(--f-d,"Arial Narrow",sans-serif));font-weight:800;font-size:22px;line-height:1.05;letter-spacing:.02em;text-transform:uppercase;min-width:0;overflow-wrap:anywhere;order:5}' +
       '.nws-new{font-family:var(--mono,monospace);font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#fff;background:var(--down,#b42318);border-radius:999px;padding:2px 8px}' +
       '.nws-eg{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 8px}' +
+      '.nws-em{display:flex;gap:8px;margin:4px 0 8px;overflow:hidden}' +
+      '.nws-em img{display:block;flex:0 1 150px;min-width:0;width:150px;height:auto;aspect-ratio:16/10;object-fit:cover;border-radius:9px;background:color-mix(in srgb,var(--kc) 14%,var(--panel,#fff));box-shadow:0 0 0 1px color-mix(in srgb,var(--kc) 22%,transparent)}' +
+      '.nws-e .nws-kws{--kh:var(--kc);margin:0 0 8px}' +
+      '@media (max-width:560px){.nws-em img{flex-basis:110px;width:110px}.nws .nws-kws li{font-size:11.5px;padding:2px 8px}}' +
       '.nws-eg .nws-chip{min-height:26px;font-size:12.5px;padding:3px 10px}' +
       '.nws ul{margin:0;padding:0 0 0 20px;color:var(--ink-2,#4a5751)}' +
       '.nws li{margin:4px 0;overflow-wrap:anywhere}' +
@@ -324,11 +423,11 @@
       '.nws-acts{display:flex;flex-wrap:wrap;gap:10px;padding-top:6px}' +
       '.nws-acts button{font:inherit;font-weight:600;font-size:14px;min-height:40px;padding:6px 16px;border-radius:999px;border:1px solid var(--line,#d3dad2);background:var(--panel-2,#f6f8f4);color:var(--ink,#16201b);cursor:pointer}' +
       '.nws-acts button:hover{border-color:var(--ink-2,#4a5751)}' +
-      '@media (prefers-reduced-motion:reduce){.nws-dot,.nws-fl{animation:none}.nws-chip{transition:none}}';
+      '@media (prefers-reduced-motion:reduce){.nws-dot,.nws-fl,.nws-sk::before{animation:none}.nws-chip,.nws-sp{transition:none}}';
     document.head.appendChild(css);
 
     var latest = list[0], fresh = unseen(), shown = 0, games = freshGames();
-    var box = el('div', 'nws' + (games.length ? ' hot' : '')); box.id = 'news'; box.setAttribute('role', 'region'); box.setAttribute('aria-label', 'What\'s new');
+    var box = el('div', 'nws' + (games.length || (spot && !spot.closed) ? ' hot' : '')); box.id = 'news'; box.setAttribute('role', 'region'); box.setAttribute('aria-label', 'What\'s new');
     var bar = el('button', 'nws-bar'); bar.type = 'button'; bar.setAttribute('aria-expanded', 'false'); bar.setAttribute('aria-controls', 'nws-body');
     var k = el('span', 'nws-k'), dot = el('span', 'nws-dot'), dotTxt = el('span', '', ' (new)');
     dot.setAttribute('aria-hidden', 'true'); dotTxt.style.cssText = 'position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)';
@@ -341,27 +440,60 @@
     var d = el('span', 'nws-d', rel(latest.date)); d.title = short(latest.date);
     var chev = el('span', 'nws-chev'); chev.setAttribute('aria-hidden', 'true');
     var chevB = el('b', '', 'Open'), chevI = el('i', '', '▾'); chev.append(chevB, chevI);
-    bar.append(k, v, t, d, chev);
+    var snap = imgsOf(latest)[0];
+    bar.append(k, v, el('span', 'nws-brk'));
+    if (snap) bar.append(pic(snap, 'nws-snap'));
+    bar.append(t, d, chev);
+
+    // The spotlight: one game pinned at the top, with its picture, keywords and a Play button; × hides it here.
+    var spotRow = null;
+    if (spot && !spot.closed) {
+      spotRow = el('div', 'nws-spot'); spotRow.setAttribute('role', 'group'); spotRow.setAttribute('aria-label', spot.kicker + ': ' + spot.g.n);
+      var sth = opens(el('a', 'nws-sth'), spot.g); sth.tabIndex = -1; sth.setAttribute('aria-hidden', 'true');
+      var sim = pic(spot.img, ''); sim.loading = 'eager'; sth.appendChild(sim);
+      var stx = el('div', 'nws-stx'), sn = opens(el('a', 'nws-sn', spot.g.n), spot.g); sn.tabIndex = -1; sn.setAttribute('aria-hidden', 'true');
+      stx.append(el('span', 'nws-sk', spot.kicker), sn);
+      if (spot.tags.length) {
+        var kws = el('ul', 'nws-kws'); kws.setAttribute('aria-label', 'At a glance');
+        spot.tags.forEach(function (x) { kws.appendChild(el('li', '', x)); });
+        stx.appendChild(kws);
+      }
+      var sp = opens(el('a', 'nws-sp'), spot.g), spT = el('span', '', '▶'); spT.setAttribute('aria-hidden', 'true');
+      sp.append(spT, 'Play'); sp.setAttribute('aria-label', 'Play ' + spot.g.n);
+      var sx = el('button', 'nws-sx', '×'); sx.type = 'button'; sx.setAttribute('aria-label', 'Hide this');
+      sx.title = 'Hide this';
+      sx.addEventListener('click', function () {
+        store(SPOT_X, spot.id); spot.closed = true;
+        spotRow.remove(); spotRow = null;
+        // the game goes back among the "New games!" chips
+        var g2 = freshGames();
+        if (g2.length !== games.length) { games = g2; drawFresh(); }
+        if (!games.length) box.classList.remove('hot');
+        bar.focus({ preventScroll: true });
+      });
+      spotRow.append(sth, stx, sp, sx);
+    }
 
     // "New games!" and a chip for each game less than a week old (links, so they work as links too).
-    var row = null;
-    if (games.length) {
-      row = el('div', 'nws-fresh');
+    var row = el('div', 'nws-fresh');
+    function drawFresh() {
+      row.textContent = ''; row.hidden = !games.length;
+      if (!games.length) return;
       var fl = el('span', 'nws-fl'), fi = el('span', 'nws-ic', '🎮'); fi.setAttribute('aria-hidden', 'true');
       fl.append(fi, games.length === 1 ? 'New game!' : 'New games!');
       row.appendChild(fl);
       games.slice(0, MAX_CHIPS).forEach(function (g, i) { row.appendChild(chip(g, i, true)); });
       if (games.length > MAX_CHIPS) row.appendChild(el('span', 'nws-plus', '+' + (games.length - MAX_CHIPS) + ' more'));
     }
+    drawFresh();
 
     var body = el('div', 'nws-body'); body.id = 'nws-body'; body.hidden = true;
     var days = el('div', 'nws-days');
     var acts = el('div', 'nws-acts'), more = el('button', 'nws-more'), shut = el('button', 'nws-x', 'Close');
     more.type = 'button'; shut.type = 'button'; acts.append(more, shut);
     body.append(days, acts);
-    box.append(bar);
-    if (row) box.append(row);
-    box.append(body);
+    if (spotRow) box.append(spotRow);
+    box.append(bar, row, body);
 
     function showDot() { dot.hidden = dotTxt.hidden = fresh <= 0; }
     showDot();
@@ -388,6 +520,17 @@
           eh.append(tag, el('span', 'nws-et', e.title));
           if (it.i < newUpTo) eh.appendChild(el('span', 'nws-new', 'New'));
           art.appendChild(eh);
+          var ims = imgsOf(e), tg = tagsOf(e);
+          if (ims.length) {
+            var em = el('div', 'nws-em');
+            ims.forEach(function (src) { em.appendChild(pic(src, '')); });
+            art.appendChild(em);
+          }
+          if (tg.length) {
+            var kw = el('ul', 'nws-kws'); kw.setAttribute('aria-label', 'Keywords');
+            tg.forEach(function (x) { kw.appendChild(el('li', '', x)); });
+            art.appendChild(kw);
+          }
           var gs = gamesOf(e);
           if (gs.length) {
             var eg = el('div', 'nws-eg'); eg.setAttribute('aria-label', gs.length === 1 ? 'New game' : 'New games');

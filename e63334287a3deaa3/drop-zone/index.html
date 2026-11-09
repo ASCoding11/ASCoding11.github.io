@@ -1231,7 +1231,7 @@ function moveEntity(e,dt){
   pushOut(e);
   const sx=p.x,sz=p.z;
   const n=Math.min(24,Math.max(1,Math.ceil(Math.hypot(e.vel.x,e.vel.z)*dt/.25)));
-  for(let i=0;i<n;i++)for(const ax of [0,2]){
+  for(let i=0;i<n;i++)for(let ax=0;ax<=2;ax+=2){
     const delta=(ax===0?e.vel.x:e.vel.z)*dt/n;if(!delta)continue;
     const nx=ax===0?p.x+delta:p.x,nz=ax===2?p.z+delta:p.z;
     const s=blockedAt(nx,p.y,nz,p.x,p.z);
@@ -1283,7 +1283,10 @@ function rayRamp(o,d,r,maxT){
   if(px<r.x0-.01||px>r.x0+4.01||pz<r.z0-.01||pz>r.z0+4.01)return -1;
   return k;
 }
-function hitboxes(e){const p=e.pos;return[{head:true,min:[p.x-.28,p.y+1.5,p.z-.28],max:[p.x+.28,p.y+2.08,p.z+.28]},{head:false,min:[p.x-.42,p.y,p.z-.42],max:[p.x+.42,p.y+1.5,p.z+.42]}]}
+// (two boxes kept on the entity and refilled, since every shot's rays check every player)
+function hitboxes(e){const p=e.pos,b=e.hbx||(e.hbx=[{head:true,min:[0,0,0],max:[0,0,0]},{head:false,min:[0,0,0],max:[0,0,0]}]),h=b[0],c=b[1];
+  h.min[0]=p.x-.28;h.min[1]=p.y+1.5;h.min[2]=p.z-.28;h.max[0]=p.x+.28;h.max[1]=p.y+2.08;h.max[2]=p.z+.28;
+  c.min[0]=p.x-.42;c.min[1]=p.y;c.min[2]=p.z-.42;c.max[0]=p.x+.42;c.max[1]=p.y+1.5;c.max[2]=p.z+.42;return b}
 // Walks the hash cells the ray crosses (nearest first) and stops once the best hit is nearer than the next cell.
 function raycast(o,d,maxT,ignore,withEnts){
   let best=maxT,hit=null;
@@ -1331,18 +1334,36 @@ const GUN_GEO=(()=>{const o={},mk=f=>{const B=Bag();f(B);return bagGeo(B)};
 const GLIDER_GEO=(()=>{const B=Bag();bagBox(B,0,0,0,3.6,.08,1.1,0xffc93c);bagBox(B,-1.2,-.02,0,1.2,.09,1.12,0xff6a3a);bagBox(B,1.2,-.02,0,1.2,.09,1.12,0x2f93bf);
   bagBox(B,-1.1,-.75,0,.04,1.5,.04,0x333333);bagBox(B,1.1,-.75,0,.04,1.5,.04,0x333333);return bagGeo(B)})();
 const SKINS=[0xf1c7a0,0xd9a77c,0xb98058,0x8a5a3c,0xf5d3b5,0x6e4630];
+// Legs and held items: every player's are drawn together, one instanced mesh for all legs and one per kind of held
+// item (syncLimbs, just before each render), instead of three draw calls per player. In the model they're plain
+// Object3Ds that only carry the pose (position, rotation, visible).
+const LIMB_N=96,limbModels=new Set(),legIM=new THREE.InstancedMesh(LEG_GEO,MAT,LIMB_N*2),gunIM={};
+for(const k in GUN_GEO)gunIM[k]=new THREE.InstancedMesh(GUN_GEO[k],MAT,LIMB_N);
+for(const im of [legIM,...Object.values(gunIM)]){im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);im.frustumCulled=false;im.count=0;im.visible=false;scene.add(im)}
+const _lm=new THREE.Matrix4();
+function syncLimbs(){
+  let nl=0;for(const k in gunIM)gunIM[k].count=0;
+  for(const g of limbModels){
+    if(!g.visible||g.parent!==scene)continue;
+    const u=g.userData;g.updateMatrix();
+    if(u.legs[0].visible&&nl+2<=LIMB_N*2)for(const l of u.legs){l.updateMatrix();legIM.setMatrixAt(nl++,_lm.multiplyMatrices(g.matrix,l.matrix))}
+    const im=gunIM[u.gk];if(u.gun.visible&&im&&im.count<LIMB_N){u.gun.updateMatrix();im.setMatrixAt(im.count++,_lm.multiplyMatrices(g.matrix,u.gun.matrix))}
+  }
+  legIM.count=nl;legIM.visible=nl>0;if(nl)legIM.instanceMatrix.needsUpdate=true;
+  for(const k in gunIM){const im=gunIM[k];im.visible=im.count>0;if(im.count)im.instanceMatrix.needsUpdate=true}
+}
 function makeModel(hex,skinIx){
   const g=new THREE.Group();
   const body=new THREE.Mesh(bodyGeo(hex,SKINS[(skinIx|0)%SKINS.length]),MAT);
-  const legs=[-.17,.17].map(x=>{const l=new THREE.Mesh(LEG_GEO,MAT);l.position.set(x,.86,0);g.add(l);return l});
-  const gun=new THREE.Mesh(GUN_GEO.cb,MAT);gun.position.set(.3,1.36,-.62);
+  const legs=[-.17,.17].map(x=>{const l=new THREE.Object3D();l.position.set(x,.86,0);g.add(l);return l});
+  const gun=new THREE.Object3D();gun.position.set(.3,1.36,-.62);
   const glider=new THREE.Mesh(GLIDER_GEO,MAT);glider.position.set(0,3.4,0);glider.visible=false;
-  g.add(body,gun,glider);g.userData={body,legs,gun,glider,gk:'cb',hex};
+  g.add(body,gun,glider);g.userData={body,legs,gun,glider,gk:'cb',hex};limbModels.add(g);
   return g;
 }
 function setModelColor(model,hex,skinIx){const u=model.userData;if(u.hex===hex)return;u.hex=hex;u.body.geometry.dispose();u.body.geometry=bodyGeo(hex,SKINS[(skinIx|0)%SKINS.length])}
-function setHeldModel(model,key){const u=model.userData;const k=GUN_GEO[key]?key:HEALS[key]?(HEALS[key].sh?'sh':'hp'):'cb';if(u.gk===k)return;u.gk=k;u.gun.geometry=GUN_GEO[k]}
-function disposeModel(m){if(m&&m.userData.body)m.userData.body.geometry.dispose()}
+function setHeldModel(model,key){const u=model.userData;const k=GUN_GEO[key]?key:HEALS[key]?(HEALS[key].sh?'sh':'hp'):'cb';if(u.gk===k)return;u.gk=k}
+function disposeModel(m){if(m)limbModels.delete(m);if(m&&m.userData.body)m.userData.body.geometry.dispose()}
 // Entities: you, the other players (remotes) and, in Practice only, bots. local: moved by this browser's physics (you, and Practice bots).
 function newEnt(model){return{pos:new V3(),vel:new V3(),onGround:false,hp:100,sh:0,alive:true,present:true,hittable:true,local:false,yaw:0,pitch:0,model,walk:0,
   inv:[null,null,null,null],sel:0,ammo:{L:0,M:0,S:0,H:0},mats:0,cd:0,reloadT:0,switchT:0,useT:0,useSlot:-1,st:'ground',float:false,glide:false,dieT:0,kills:0,dmg:0,place:0,name:'',id:'',hex:0xffffff}}
@@ -1355,7 +1376,7 @@ const TR_CAP=320;
 const trPos=new Float32Array(TR_CAP*6),trCol=new Float32Array(TR_CAP*6),trLife=new Float32Array(TR_CAP);let trNext=0;
 const trGeo=new THREE.BufferGeometry();trGeo.setAttribute('position',new THREE.BufferAttribute(trPos,3).setUsage(THREE.DynamicDrawUsage));trGeo.setAttribute('color',new THREE.BufferAttribute(trCol,3).setUsage(THREE.DynamicDrawUsage));
 const tracerMesh=new THREE.LineSegments(trGeo,new THREE.LineBasicMaterial({vertexColors:true,transparent:true,opacity:.85}));tracerMesh.frustumCulled=false;scene.add(tracerMesh);
-function addTracer(a,b,hex){const i=trNext;trNext=(trNext+1)%TR_CAP;trPos.set([a.x,a.y,a.z,b.x,b.y,b.z],i*6);_col.setHex(hex);trCol.set([_col.r,_col.g,_col.b,_col.r,_col.g,_col.b],i*6);trLife[i]=.07;trGeo.attributes.position.needsUpdate=trGeo.attributes.color.needsUpdate=true}
+function addTracer(a,b,hex){const i=trNext;trNext=(trNext+1)%TR_CAP;trPos.set([a.x,a.y,a.z,b.x,b.y,b.z],i*6);_col.setHex(hex);trCol.set([_col.r,_col.g,_col.b,_col.r,_col.g,_col.b],i*6);trLife[i]=.07;trLive++;trGeo.attributes.position.needsUpdate=trGeo.attributes.color.needsUpdate=true}
 const BIT_CAP=160;
 const bitMesh=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshLambertMaterial({color:0xffffff}),BIT_CAP);bitMesh.frustumCulled=false;bitMesh.setColorAt(0,new THREE.Color(1,1,1));bitMesh.count=0;scene.add(bitMesh);
 const bits=[];
@@ -1363,17 +1384,24 @@ function bit(p,v,hex,size,life,grav){if(bits.length>=BIT_CAP)bits.shift();bits.p
 function spark(p){for(let i=0;i<2;i++)bit(p,new V3((Math.random()-.5)*3,Math.random()*2,(Math.random()-.5)*3),0xfff1b0,.1,.12,0)}
 function debris(p,hex,n){for(let i=0;i<(n||8);i++)bit(p.clone().add(new V3((Math.random()-.5)*2.4,(Math.random()-.5)*2,(Math.random()-.5)*2.4)),new V3((Math.random()-.5)*5,Math.random()*5,(Math.random()-.5)*5),hex||0xc7955a,.35,.9,14)}
 function puff(p,hex){for(let i=0;i<6;i++)bit(p.clone(),new V3((Math.random()-.5)*4,1+Math.random()*3,(Math.random()-.5)*4),hex,.25,.6,6)}
+let trLive=0;
 function updateFx(dt){
-  let dirty=false;for(let i=0;i<TR_CAP;i++)if(trLife[i]>0){trLife[i]-=dt;if(trLife[i]<=0){trPos.fill(0,i*6,i*6+6);dirty=true}}
-  if(dirty)trGeo.attributes.position.needsUpdate=true;
+  // tracers: only look at them while some are showing; sparks and splinters: nothing to send to the GPU when there are none
+  if(trLive>0){let dirty=false,n=0;for(let i=0;i<TR_CAP;i++)if(trLife[i]>0){trLife[i]-=dt;if(trLife[i]<=0){trPos.fill(0,i*6,i*6+6);dirty=true}else n++}
+    trLive=n;if(dirty)trGeo.attributes.position.needsUpdate=true}
   for(let i=bits.length-1;i>=0;i--){const b=bits[i];b.life-=dt;if(b.life<=0){bits.splice(i,1);continue}b.v.y-=b.g*dt;b.p.addScaledVector(b.v,dt)}
+  if(!bits.length&&!bitMesh.count)return;
   for(let i=0;i<bits.length;i++){const b=bits[i],k=b.life/b.max;_o.position.copy(b.p);_o.rotation.set(b.life*3,b.life*2,0);_o.scale.setScalar(b.size*(.4+.6*k));_o.updateMatrix();bitMesh.setMatrixAt(i,_o.matrix);bitMesh.setColorAt(i,_col.setHex(b.hex))}
   bitMesh.count=bits.length;bitMesh.instanceMatrix.needsUpdate=true;if(bitMesh.instanceColor)bitMesh.instanceColor.needsUpdate=true;
 }
 const dmgLayer=$('dmg');const dnums=[];
 function dmgNumber(pt,amt,head,sh){if(dnums.length>24)return;const el=document.createElement('div');el.className='dn'+(head?' head':sh?' sh':'');el.textContent=amt;dmgLayer.appendChild(el);dnums.push({el,p:pt.clone(),t:0,dx:(Math.random()-.5)*30})}
 const tmpV=new V3();
-function toScreen(p){tmpV.copy(p).project(camera);return{x:(tmpV.x*.5+.5)*VW,y:(-tmpV.y*.5+.5)*VH,front:tmpV.z<1}}
+const _scr={x:0,y:0,front:false};
+function toScreen(p){tmpV.copy(p).project(camera);_scr.x=(tmpV.x*.5+.5)*VW;_scr.y=(-tmpV.y*.5+.5)*VH;_scr.front=tmpV.z<1;return _scr}
+// HUD values are only written to the page when they change (a write a frame keeps the browser restyling the HUD)
+const hudLast=new Map();
+function hudSet(el,k,v){if(hudLast.get(k)===v)return;hudLast.set(k,v);if(k.charCodeAt(0)===35)el.textContent=v;else el.style[k.slice(k.indexOf(':')+1)]=v}
 function updateDnums(dt){
   for(let i=dnums.length-1;i>=0;i--){const d=dnums[i];d.t+=dt;if(d.t>.8){d.el.remove();dnums.splice(i,1);continue}
     const s=toScreen(d.p);if(!s.front){d.el.style.opacity='0';continue}
@@ -1387,15 +1415,20 @@ function initAudio(){
   try{AC=new (window.AudioContext||window.webkitAudioContext)();master=AC.createGain();master.gain.value=.5;master.connect(AC.destination);
     noiseBuf=AC.createBuffer(1,AC.sampleRate*.5,AC.sampleRate);const d=noiseBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1}catch(e){AC=null}
 }
-function burst(type,freq,vol,dur,q){if(!AC||vol<.005)return;const t=AC.currentTime;const s=AC.createBufferSource();s.buffer=noiseBuf;const f=AC.createBiquadFilter();f.type=type;f.frequency.value=freq;if(q)f.Q.value=q;const g=AC.createGain();g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);s.connect(f);f.connect(g);g.connect(master);s.start(t);s.stop(t+dur+.02)}
-function tone(type,f0,f1,vol,dur){if(!AC||vol<.005)return;const t=AC.currentTime;const o=AC.createOscillator();o.type=type;o.frequency.setValueAtTime(f0,t);o.frequency.exponentialRampToValueAtTime(Math.max(20,f1),t+dur);const g=AC.createGain();g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);o.connect(g);g.connect(master);o.start(t);o.stop(t+dur+.02)}
+// A budget of sound nodes: a big fight or a building coming down can ask for hundreds at once, and building that many
+// audio nodes in one frame stutters. Each 1/20 s gets 14 voices; past that only loud ones (yours, or very close) play.
+// Your own hit, hurt and pick-up sounds always play (vKeep).
+let vSlot=-1,vUsed=0,vKeep=false;
+function voice(vol){if(!AC)return false;const sl=Math.floor(AC.currentTime*20);if(sl!==vSlot){vSlot=sl;vUsed=0}if(!vKeep&&vUsed>=14&&(vol<.3||vUsed>=22))return false;vUsed++;return true}
+function burst(type,freq,vol,dur,q){if(!AC||vol<.005||!voice(vol))return;const t=AC.currentTime;const s=AC.createBufferSource();s.buffer=noiseBuf;const f=AC.createBiquadFilter();f.type=type;f.frequency.value=freq;if(q)f.Q.value=q;const g=AC.createGain();g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);s.connect(f);f.connect(g);g.connect(master);s.start(t);s.stop(t+dur+.02)}
+function tone(type,f0,f1,vol,dur){if(!AC||vol<.005||!voice(vol))return;const t=AC.currentTime;const o=AC.createOscillator();o.type=type;o.frequency.setValueAtTime(f0,t);o.frequency.exponentialRampToValueAtTime(Math.max(20,f1),t+dur);const g=AC.createGain();g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);o.connect(g);g.connect(master);o.start(t);o.stop(t+dur+.02)}
 function sfxShot(id,v){if(id==='ar'){burst('lowpass',2600,.42*v,.12);tone('sine',150,45,.32*v,.12)}else if(id==='sg'){burst('lowpass',1500,.75*v,.32);tone('sine',90,35,.5*v,.24)}else if(id==='sr'){burst('lowpass',3400,.6*v,.4);tone('sine',120,30,.55*v,.35)}else if(id==='sm'){burst('bandpass',3000,.3*v,.07,1.2);tone('square',220,90,.06*v,.06)}else if(id==='pi'){burst('lowpass',2800,.36*v,.1);tone('sine',260,80,.2*v,.08)}else{burst('bandpass',900,.3*v,.1,2)}}
 function sfxBuild(v){burst('bandpass',700,.35*v,.08,2);tone('sine',140,60,.35*v,.1)}
 function sfxBreak(v){burst('lowpass',900,.5*v,.3)}
-function sfxHit(head){tone('square',head?1500:1050,head?1700:1000,.07,.06)}
-function sfxHurt(){tone('sine',90,40,.5,.25);burst('lowpass',500,.25,.15)}
+function sfxHit(head){vKeep=true;tone('square',head?1500:1050,head?1700:1000,.07,.06);vKeep=false}
+function sfxHurt(){vKeep=true;tone('sine',90,40,.5,.25);burst('lowpass',500,.25,.15);vKeep=false}
 function sfxChest(v){tone('triangle',520,1040,.14*v,.25);tone('triangle',780,1560,.1*v,.3)}
-function sfxPick(){tone('triangle',660,990,.08,.09)}
+function sfxPick(){vKeep=true;tone('triangle',660,990,.08,.09);vKeep=false}
 function sfxJoin(){tone('triangle',440,660,.12,.18)}
 function sfxWhack(v){burst('bandpass',1200,.4*v,.08,3);tone('square',180,90,.08*v,.06)}
 function sfxStorm(){burst('lowpass',300,.18,.4)}
@@ -1429,7 +1462,10 @@ const BOT_NAMES=['Pebble','Marlow','Juniper','Tinker','Biscuit','Rook','Sprocket
 function botName(id){const i=parseInt(String(id).slice(1),10)|0;const off=Math.floor(mulberry((seed^0x6e616d65)>>>0)()*BOT_NAMES.length);return BOT_NAMES[(off+i*7)%BOT_NAMES.length]}
 const isBotId=id=>/^b\d{1,2}$/.test(String(id));
 function nameOf(id){if(id===myId())return myName;const e=entById(id);if(e&&e.name)return e.name;if(isBotId(id))return botName(id);const o=online&&Net.others.get(id);return o?cleanName(o.v.n):'Someone'}
-function cleanName(n){const s=String(n||'').replace(/[<>]/g,'').trim().slice(0,16)||'Glider';return window.NameFilter&&NameFilter.clean?NameFilter.clean(s):s}
+const nameMemo=new Map();
+function cleanName(n){const raw=String(n||''),m=nameMemo.get(raw);if(m!==undefined)return m;
+  const s=raw.replace(/[<>]/g,'').trim().slice(0,16)||'Glider',out=window.NameFilter&&NameFilter.clean?NameFilter.clean(s):s;
+  if(nameMemo.size>300)nameMemo.clear();nameMemo.set(raw,out);return out}
 
 /* ---------- the Drifter's line and the storm, both from the match seed ---------- */
 function makeBus(sd){
@@ -1451,14 +1487,15 @@ function makeStorm(sd){
   return out;
 }
 const _st={x:0,z:0,r:0,nx:0,nz:0,nr:0,dps:1,left:0,closing:false,phase:0,showNext:false};
+// (fills the one shared result in place: it's asked for several times a frame, so no new object each time)
+function setSt(x,z,r,nx,nz,nr,dps,left,closing,phase,showNext){const S=_st;S.x=x;S.z=z;S.r=r;S.nx=nx;S.nz=nz;S.nr=nr;S.dps=dps;S.left=left;S.closing=closing;S.phase=phase;S.showNext=showNext;return S}
 function stormAt(t){
   const S=_st,C=storm;if(!C){S.x=S.z=MAP/2;S.r=R0;S.dps=0;return S}
   let i=0;while(i<STORM.length&&t>=STORM[i].at+STORM[i].dur)i++;
-  if(i>=STORM.length){const c=C[C.length-1];Object.assign(S,{x:c.x,z:c.z,r:c.r,nx:c.x,nz:c.z,nr:c.r,dps:STORM[STORM.length-1].dps,left:0,closing:false,phase:i,showNext:false});return S}
+  if(i>=STORM.length){const c=C[C.length-1];return setSt(c.x,c.z,c.r,c.x,c.z,c.r,STORM[STORM.length-1].dps,0,false,i,false)}
   const ph=STORM[i],a=C[i],b=C[i+1];
-  if(t<ph.at){Object.assign(S,{x:a.x,z:a.z,r:a.r,nx:b.x,nz:b.z,nr:b.r,dps:i?STORM[i-1].dps:1,left:ph.at-t,closing:false,phase:i,showNext:t>20})}
-  else{const k=(t-ph.at)/ph.dur;Object.assign(S,{x:a.x+(b.x-a.x)*k,z:a.z+(b.z-a.z)*k,r:a.r+(b.r-a.r)*k,nx:b.x,nz:b.z,nr:b.r,dps:ph.dps,left:ph.at+ph.dur-t,closing:true,phase:i,showNext:true})}
-  return S;
+  if(t<ph.at)return setSt(a.x,a.z,a.r,b.x,b.z,b.r,i?STORM[i-1].dps:1,ph.at-t,false,i,t>20);
+  const k=(t-ph.at)/ph.dur;return setSt(a.x+(b.x-a.x)*k,a.z+(b.z-a.z)*k,a.r+(b.r-a.r)*k,b.x,b.z,b.r,ph.dps,ph.at+ph.dur-t,true,i,true);
 }
 const outsideStorm=(e,S)=>Math.hypot(e.pos.x-S.x,e.pos.z-S.z)>S.r;
 // the storm wall: an open cylinder, and the Drifter (an airship), both one mesh
@@ -1992,8 +2029,9 @@ function onNode(uid,v){
   if(uid===Net.hostUid&&!Net.amHost){if(validMS(v.ms))Net.lastMS=v.ms;if(v.br&&typeof v.br==='object')Net.lastBR=v.br}
   if(fresh){Net.lastEv.set(uid,maxEv(v.ev));if(Net.now()-(+v.ts||0)<LIVE_MS&&performance.now()-Net.joinedAt>2500){feed(esc(cleanName(v.n))+' joined','info');sfxJoin()}}
   else if(v.ev&&typeof v.ev==='object'){
-    const last=Net.lastEv.get(uid)||0;const list=Object.values(v.ev).filter(x=>x&&typeof x.i==='number'&&x.i>last).sort((a,b)=>a.i-b.i);
-    if(list.length){Net.lastEv.set(uid,list[list.length-1].i);for(const x of list)handleEvent(uid,x)}
+    const last=Net.lastEv.get(uid)||0;let any=false;for(const k in v.ev){const x=v.ev[k];if(x&&typeof x.i==='number'&&x.i>last){any=true;break}}
+    if(any){const list=Object.values(v.ev).filter(x=>x&&typeof x.i==='number'&&x.i>last).sort((a,b)=>a.i-b.i);
+      Net.lastEv.set(uid,list[list.length-1].i);for(const x of list)handleEvent(uid,x)}
   }
   reconcile(uid,v);
   lobbyDirty=true;
@@ -2006,14 +2044,14 @@ function onNodeGone(uid){
   const e=remotes.get(uid);if(e){e.present=false;if(e.alive&&roster.includes(uid)){e.alive=false;e.st='dead'}e.model.visible=false}
 }
 function validMS(m){return !!m&&typeof m==='object'&&typeof m.id==='number'&&['lobby','play','end'].includes(m.ph)&&(m.ph==='lobby'||(typeof m.sd==='number'&&typeof m.t0==='number'&&typeof m.ro==='string'))}
-const _rs={};
+const _rs={},RS_LIN=['x','y','z','p'],RS_ANG=['h'];
 function updateRemotes(dt){
   const now=nowMs();
   for(const e of ents){
     if(e.local||!e.snaps)continue;
     if(!e.present||!e.snaps.length)continue;
     const px=e.pos.x,py=e.pos.y,pz=e.pos.z;
-    NetSmooth.sample(e.snaps,e.lag.time(now),_rs,['x','y','z','p'],['h']);
+    NetSmooth.sample(e.snaps,e.lag.time(now),_rs,RS_LIN,RS_ANG);
     e.pos.set(_rs.x,_rs.y,_rs.z);e.yaw=_rs.h;e.pitch=_rs.p;
     clampToMap(e.pos);if(e.st==='ground')pushOut(e);
     if(dt>0){e.vel.set((e.pos.x-px)/dt,(e.pos.y-py)/dt,(e.pos.z-pz)/dt);if(e.vel.length()>40)e.vel.set(0,0,0)}
@@ -2186,13 +2224,15 @@ let hurtA=0,hitT=0,lastHud='',bannerTimer=0,placeT=0,stormSeen='';
 function hitmark(head){hitT=.14;hud.hitm.style.color=head?'#ffd84a':'#fff'}
 function feed(html,cls){const d=document.createElement('div');d.className=cls;d.innerHTML=html;hud.feed.prepend(d);while(hud.feed.children.length>(touchUI?4:6))hud.feed.lastChild.remove();setTimeout(()=>{d.style.opacity='0';setTimeout(()=>d.remove(),700)},6000)}
 function hint2(t,col){const d=document.createElement('div');d.className='info';d.textContent=t;if(col)d.style.color=col;hud.feed.prepend(d);while(hud.feed.children.length>(touchUI?4:6))hud.feed.lastChild.remove();setTimeout(()=>{d.style.opacity='0';setTimeout(()=>d.remove(),700)},2600)}
-function banner(big,small,dur){hud.banner.innerHTML=`<div class="big">${esc(big)}</div>${small?`<div class="small">${esc(small)}</div>`:''}`;hud.banner.hidden=false;hud.banner.classList.remove('show');void hud.banner.offsetWidth;hud.banner.classList.add('show');bannerTimer=dur||2}
+// (the slide-in restarts without reading offsetWidth, which made the browser lay out the whole page there and then)
+function banner(big,small,dur){hud.banner.innerHTML=`<div class="big">${esc(big)}</div>${small?`<div class="small">${esc(small)}</div>`:''}`;const was=!hud.banner.hidden;hud.banner.hidden=false;hud.banner.classList.add('show');
+  if(was&&hud.banner.getAnimations)for(const a of hud.banner.getAnimations())a.currentTime=0;bannerTimer=dur||2}
 function showPlace(n){hud.place.textContent=n;hud.place.classList.add('on');placeT=3}
 const fmtT=s=>{s=Math.max(0,Math.ceil(s));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
 const tagEls=[];
 function tagEl(i){while(tagEls.length<=i){const d=document.createElement('div');d.className='ntag';d.hidden=true;hud.tags.appendChild(d);tagEls.push(d)}return tagEls[i]}
 function slotLabel(s){if(!s)return[touchUI?'–':'Empty',''];const d=WEAP[s.t]||HEALS[s.t];return[touchUI?d.short:d.name.replace('Shield ','Sh. '),WEAP[s.t]?s.n+'':'×'+s.n]}
-let tagClock=0;
+let tagClock=0;const _tag=new V3(),_tagD=new V3();
 function updateHud(dt){
   const p=player,t=matchT(),S=stormAt(t),w=heldW(p),s=heldItem(p);
   const reach=reachable(p);
@@ -2217,16 +2257,16 @@ function updateHud(dt){
     else{const it=reach.it,nm=(WEAP[it.t]?RAR[it.r|0]+' ':'')+itemName(it.t)+(it.n>1&&!WEAP[it.t]?' ×'+it.n:'');const take=canTake(p,it);pr=k+(take?'Take ':'Swap for ')+`<span style="color:${WEAP[it.t]?RARH[it.r|0]:'inherit'}">${esc(nm)}</span>`;tl=take?'TAKE':'SWAP'}
   }
   hud.prompt.hidden=!pr;if(pr&&hud.prompt.innerHTML!==pr)hud.prompt.innerHTML=pr;
-  if(touchUI){const u=$('tUse');u.hidden=!tl;if(tl&&u.textContent!==tl)u.textContent=tl;$('tFire').textContent=mode==='build'?'PLACE':(s&&HEALS[s.t]?'USE':!w?'HIT':'FIRE');$('tAim').classList.toggle('on',!!tAct.aim)}
+  if(touchUI){const u=$('tUse');u.hidden=!tl;if(tl&&u.textContent!==tl)u.textContent=tl;hudSet($('tFire'),'#tf',mode==='build'?'PLACE':(s&&HEALS[s.t]?'USE':!w?'HIT':'FIRE'));$('tAim').classList.toggle('on',!!tAct.aim)}
   const ads=isADS(),scoped=ads&&w&&w.id==='sr';hud.scope.hidden=!scoped;
   const sp=mode==='build'||!w?.004:(w.pellets>1?(ads?w.ads:w.hip):curSpread(p,w,ads));
-  const gap=4+sp*(VH/2)/Math.tan(camera.fov*Math.PI/360)*.9;
-  hud.cl.style.transform=`translate(${-gap-9}px,0)`;hud.cr.style.transform=`translate(${gap}px,0)`;hud.ct.style.transform=`translate(0,${-gap-9}px)`;hud.cb.style.transform=`translate(0,${gap}px)`;
-  hud.cross.style.opacity=scoped?'0':'1';
-  hitT-=dt;hud.hitm.style.opacity=hitT>0?'1':'0';
-  hurtA=Math.max(0,hurtA-dt*1.2);hud.hurt.style.opacity=hurtA.toFixed(3);
+  const gap=Math.round((4+sp*(VH/2)/Math.tan(camera.fov*Math.PI/360)*.9)*4)/4;
+  if(hudLast.get('gap')!==gap){hudLast.set('gap',gap);hud.cl.style.transform=`translate(${-gap-9}px,0)`;hud.cr.style.transform=`translate(${gap}px,0)`;hud.ct.style.transform=`translate(0,${-gap-9}px)`;hud.cb.style.transform=`translate(0,${gap}px)`}
+  hudSet(hud.cross,'c:opacity',scoped?'0':'1');
+  hitT-=dt;hudSet(hud.hitm,'h:opacity',hitT>0?'1':'0');
+  hurtA=Math.max(0,hurtA-dt*1.2);hudSet(hud.hurt,'u:opacity',hurtA.toFixed(2));
   // match info: players left, your knockouts, the storm clock
-  const al=inPlay()?aliveIds().length:0;hud.alive.textContent=al;hud.kills.textContent=myKills;
+  const al=inPlay()?aliveIds().length:0;hudSet(hud.alive,'#al',String(al));hudSet(hud.kills,'#k',String(myKills));
   let stx='',closing=false;
   if(!inPlay())stx='';
   else if(t<0)stx='Boarding · '+Math.ceil(-t);
@@ -2234,7 +2274,7 @@ function updateHud(dt){
   else if(S.closing){stx='Storm closing · '+fmtT(S.left);closing=true}
   else if(S.phase<STORM.length)stx=(S.showNext?'Storm moves in ':'Storm in ')+fmtT(S.left);
   else stx='Final storm';
-  hud.stormT.textContent=stx;hud.stormT.classList.toggle('closing',closing);
+  hudSet(hud.stormT,'#st',stx);hud.stormT.classList.toggle('closing',closing);
   // a word when the storm starts to close (once a phase)
   const sk=inPlay()&&closing?MS.id+':'+S.phase:'';if(sk&&sk!==stormSeen){stormSeen=sk;if(inMatch&&p.alive&&p.st==='ground'){banner('STORM CLOSING',outsideStorm(p,S)||Math.hypot(p.pos.x-S.nx,p.pos.z-S.nz)>S.nr?'Head for the dashed circle on the map':'You\'re inside the next circle',2.4);sfxStorm()}}
   const out=inPlay()&&p.alive&&inMatch&&p.st!=='bus'&&outsideStorm(p,S);hud.tint.style.opacity=out?'1':'0';
@@ -2243,11 +2283,12 @@ function updateHud(dt){
   let ti=0;const tgt=camTarget();
   if(inPlay())for(const e of ents){
     if(e===player||e===tgt||!e.present||!e.alive||e.st==='bus')continue;
-    const top=e.pos.clone().add(new V3(0,e.glide?4.3:2.4,0));const dd=top.distanceTo(camera.position);if(dd>70)continue;
+    const top=_tag.set(e.pos.x,e.pos.y+(e.glide?4.3:2.4),e.pos.z);const dd=top.distanceTo(camera.position);if(dd>70)continue;
     const sc=toScreen(top);if(!sc.front)continue;
-    if(check){const d=top.clone().sub(camera.position);const L=d.length();d.divideScalar(L);e.tagVis=!raycast(arr(camera.position),arr(d),L-.4,null,false).hit}
+    if(check){const d=_tagD.copy(top).sub(camera.position);const L=d.length();d.divideScalar(L);e.tagVis=!raycast(arr(camera.position),arr(d),L-.4,null,false).hit}
     if(!e.tagVis)continue;
-    const el=tagEl(ti++);el.hidden=false;const html=esc(e.name)+(e.bot?'<em>BOT</em>':'');if(el.innerHTML!==html)el.innerHTML=html;el.style.transform=`translate(${sc.x}px,${sc.y}px) translate(-50%,-100%)`;
+    const el=tagEl(ti++);el.hidden=false;if(el.dzN!==e.name||el.dzB!==!!e.bot){el.dzN=e.name;el.dzB=!!e.bot;el.innerHTML=esc(e.name)+(e.bot?'<em>BOT</em>':'')}
+    const tx=Math.round(sc.x),ty=Math.round(sc.y);if(el.dzX!==tx||el.dzY!==ty){el.dzX=tx;el.dzY=ty;el.style.transform=`translate(${tx}px,${ty}px) translate(-50%,-100%)`}
   }
   for(let i=ti;i<tagEls.length;i++)tagEls[i].hidden=true;
   const spec=!(inMatch&&p.alive&&inPlay());
@@ -2299,6 +2340,7 @@ function showHud(){state='playing';paused=false;$('menu').hidden=true;$('end').h
 function showLobby(){lobbyShown=true;$('lobby').hidden=false;$('hud').hidden=!inPlay();renderLobby();if(document.pointerLockElement)document.exitPointerLock()}
 function hideLobby(){lobbyShown=false;$('lobby').hidden=true;if(inMatch&&state==='playing'&&!touchUI)requestLock(false)}
 function renderLobby(){
+  if(!lobbyShown)return;   // drawn again by showLobby(); every update from anyone marks it dirty, so not while it's hidden
   lobbyDirty=false;if(!online)return;
   const list=lobbyHumans();
   $('lbRoom').textContent='Room '+(Net.room||'').replace(/^dz-/,'');
@@ -2381,7 +2423,7 @@ function animModel(e,dt){
   u.legs[0].rotation.x=sw;u.legs[1].rotation.x=-sw;
   u.gun.position.y=1.36+(e.reloadT>0||e.useT>0?-.14:0);
 }
-let attractYaw=0;const _bp=new V3();
+let attractYaw=0;const _bp=new V3(),_ch=new V3(),_cp=new V3(),_cb=new V3(),_cl=new V3();
 function updateCamera(dt){
   const tgt=camTarget();
   if(!tgt){
@@ -2397,17 +2439,17 @@ function updateCamera(dt){
     setNear(1);const far=camera.aspect<1?58:34;camera.position.copy(_bp).addScaledVector(f,-far).add(new V3(0,far*.33,0));camera.lookAt(_bp.clone().addScaledVector(f,24).add(new V3(0,-7,0)));camDist=3.5;return;
   }
   const f=fwdOf(tgt.yaw,tgt.pitch),r=rightOf(tgt.yaw);
-  const head=tgt.pos.clone().add(new V3(0,1.62,0));
+  const head=_ch.set(tgt.pos.x,tgt.pos.y+1.62,tgt.pos.z);
   const airy=tgt.st==='fall'||tgt.st==='glide';
   const side=raycast(arr(head),arr(r),.78,null,false);const so=airy?0:side.hit?Math.max(0,side.t-.25):.78;
-  const pivot=head.clone().addScaledVector(r,so);
-  const want=airy?7:ads?2.2:3.5,back=f.clone().negate();
+  const pivot=_cp.copy(head).addScaledVector(r,so);
+  const want=airy?7:ads?2.2:3.5,back=_cb.copy(f).negate();
   const res=raycast(arr(pivot),arr(back),want,null,false);
   const d=res.hit?Math.max(.3,res.t-.25):want;
   camDist=d<camDist?d:camDist+(d-camDist)*Math.min(1,dt*8);
   setNear(airy?.5:camDist<1.2?.08:.15);   // pulled in against a wall: a nearer plane so the wall isn't cut open
   camera.position.copy(pivot).addScaledVector(back,camDist);
-  camera.lookAt(pivot.clone().addScaledVector(f,20));
+  camera.lookAt(_cl.copy(pivot).addScaledVector(f,20));
   if(self)player.model.visible=player.alive?camDist>.9&&!(ads&&w&&w.id==='sr'):player.dieT<=2.2;
 }
 function updateWorldFx(){
@@ -2439,7 +2481,7 @@ function frame(now){
   updateDnums(running?dt:0);
   if(bannerTimer>0){bannerTimer-=dt;if(bannerTimer<=0)hud.banner.hidden=true}
   mpFlush();
-  if(!window.__noRender)renderer.render(scene,camera);
+  if(!window.__noRender){syncLimbs();renderer.render(scene,camera)}
   cpuMs=cpuMs*.95+(performance.now()-t0)*.05;
   requestAnimationFrame(frame);
 }
@@ -2661,6 +2703,16 @@ if(inv){$('room').value=inv[1];setMsg('You were invited to room dz-'+inv[1]+'. P
 /* ---------- start ---------- */
 buildWorld();finishWorld();setupChests();
 setSens(sens);
+// Compile every shader now, with the hidden things (the storm wall, builds, the build ghost, the glider…) shown for a
+// moment: three.js otherwise compiles one the first time it's drawn, which froze a frame when the storm first closed in.
+(function warmShaders(){
+  const hid=[];const pl=new THREE.Group();pl.add(makeModel(0xffffff,0));pl.children[0].userData.glider.visible=true;scene.add(pl);
+  scene.traverse(o=>{if(!o.visible){hid.push(o);o.visible=true}});
+  try{renderer.compile(scene,camera)}catch(e){}
+  for(const o of hid)o.visible=false;scene.remove(pl);disposeModel(pl.children[0]);
+})();
+// The minimap's island picture takes ~30 ms to draw: do it while the menu is up, not on the first frame of a match.
+setTimeout(()=>{if(!mapBg)buildMapBg()},400);
 
 // Test hook for automated browser tests only (navigator.webdriver is set by Playwright and similar tools).
 if(navigator.webdriver)window.__dz={get state(){return state},get online(){return online},get MS(){return MS},set MS(v){MS=v},get curMatch(){return curMatch},get roster(){return roster},get inMatch(){return inMatch},
@@ -2674,7 +2726,7 @@ if(navigator.webdriver)window.__dz={get state(){return state},get online(){retur
   give(t,r){takeItem(player,{t,r:r|0,n:WEAP[t]?WEAP[t].mag:HEALS[t]?1:t==='mt'?100:60})},
   fire(){const w=heldW(player),s=heldItem(player);updateCamera(0);playerShoot();if(s&&w)s.n=w.mag;player.cd=0},
   draws(){return renderer.info.render.calls},
-  setNoRender(v){window.__noRender=!!v},renderOnce(){mpFlush();renderer.render(scene,camera)},mpieces,mpBreak,mpSetHp,resetMap,mpAt,allRuns,brokenBits,applyBits,sendEv,get brokenN(){return brokenN},hash,setMapV(v){mapV=v},get mapV(){return mapV},mapSize:MAP};
+  setNoRender(v){window.__noRender=!!v},onNode,updateRemotes,renderOnce(){mpFlush();syncLimbs();renderer.render(scene,camera)},mpieces,mpBreak,mpSetHp,resetMap,mpAt,allRuns,brokenBits,applyBits,sendEv,get brokenN(){return brokenN},hash,setMapV(v){mapV=v},get mapV(){return mapV},mapSize:MAP};
 
 requestAnimationFrame(t=>{last=t;frame(t)});
 })();
