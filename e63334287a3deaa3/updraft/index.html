@@ -3260,8 +3260,8 @@ function afterSteps(dt){
   if(me.gnd&&me.gnd.summit===2&&!run.fin){run.fin=Math.max(.1,run.t);onSummit()}
   // standing on a pulse platform that's about to go dark: it ticks
   if(me.gnd&&me.gnd.kind==='blink'){const c=me.gnd,left=(c.blink.on-U.blinkU(c,W.t))*c.blink.T,q=Math.floor(left*4);if(left<1.2&&q!==G.tickQ){G.tickQ=q;sfx('tick')}}
-  // a new zone (the new ones say what's special about them)
-  const z=U.zoneAt(run.maxY);if(z>G.lastZone&&me.gnd){G.lastZone=z;if(z>run.zone){run.zone=z;const Z=U.ZONES[z];toast(Z.name,Z.intro?Math.round(Z.y0).toLocaleString('en-US')+' m · '+Z.intro:Math.round(Z.y0)+' m',Z.intro?4.5:3);sfx('zone')}}
+  // a new zone (the new ones say what's special about them; not over the old summit's banner: it waits)
+  const z=U.zoneAt(run.maxY);if(z>G.lastZone&&me.gnd&&!(performance.now()<(G.toastHold||0))){G.lastZone=z;if(z>run.zone){run.zone=z;const Z=U.ZONES[z];toast(Z.name,Z.intro?Math.round(Z.y0).toLocaleString('en-US')+' m · '+Z.intro:Math.round(Z.y0)+' m',Z.intro?4.5:3);sfx('zone')}}
   // a new best height
   if(run.maxY>best.h+.5){const was=best.h;best.h=Math.round(run.maxY*10)/10;if(was>25&&!G.pbShown){G.pbShown=true;feed('New best height! You\'re past '+Math.round(was)+' m');sfx('best')}if(performance.now()-(G.bestSaved||0)>3000){G.bestSaved=performance.now();saveBest()}}
   // save where you are (only standing on something that stays put)
@@ -3275,7 +3275,7 @@ function afterSteps(dt){
 function onMilestone(){
   sfx('fanfare');confetti(me.x,me.y,me.z);
   best.wins=(best.wins|0)+1;const pb=!best.time||run.mile<best.time;if(pb)best.time=Math.round(run.mile*10)/10;best.h=Math.max(best.h,SUMMIT);saveBest();saveRun();
-  toast('Old summit · 1,000 m',fmtT(run.mile)+(pb&&best.wins>1?' · a new best':best.wins>1?' · best '+fmtT(best.time):'')+' · 2,000 m more above',5);
+  G.toastHold=performance.now()+3500;toast('Old summit · 1,000 m',fmtT(run.mile)+(pb&&best.wins>1?' · a new best':best.wins>1?' · best '+fmtT(best.time):'')+' · 2,000 m more above',5);
   feed('This used to be the top. The Crown is at 3,000 m.');
 }
 // fireworks at the Crown

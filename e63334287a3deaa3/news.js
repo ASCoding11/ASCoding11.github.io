@@ -42,6 +42,11 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-09', version: '1.18', title: 'Updraft: 2,000 m more', kind: 'feature', items: [
+      'Updraft: 2,000 m more. The old summit at 1,000 m is now a milestone, and the climb goes on to the Crown at 3,000 m through five new zones.',
+      'Aurora Drift, where platforms blink on and off in time; Storm Front, with rain, lightning and gusts that push you in mid-air; Skyport, a floating town at sunset with conveyor belts, barge traffic, cannons and a blimp; Orbit Yard, in low gravity over the curve of the world; and The Crown, with rising waves of steps, a giant pendulum and a carousel of moons.',
+      'Your best time to the old summit still counts, and there\'s a new Leaderboard for the fastest climb to the Crown. A run saved at the old top carries on from there.'
+    ]},
     {date: '2026-11-09', version: '1.17', title: 'Lunge Line', kind: 'game', games: ['Lunge Line'], items: [
       'Lunge Line: a sword-duel tug-of-war. One touch wins the duel, and only the winner may run for their beacon while the other comes straight back in front of them. Three sword heights, disarms, parries, throws, rolls, and fists and feet when you lose your sword.',
       'Four arenas with their own tricks (crumbling docks, low-ceilinged archive stacks, a glasshouse full of hiding leaves, a windy mountain pass), online 1v1 with friends or Quick match, a bot on three levels, two players on one keyboard, and a knockout tournament for up to 8.'
