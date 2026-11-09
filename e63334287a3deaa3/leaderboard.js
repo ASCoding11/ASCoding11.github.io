@@ -139,7 +139,7 @@
       { k: 'total-w5', l: 'Fastest total (World 5)', chip: 'World 5 total', f: 'time', lo: 90, hi: 36000 },
       { k: 'total-w6', l: 'Fastest total (World 6)', chip: 'World 6 total', f: 'time', lo: 90, hi: 36000 },
       { k: 'escapes', l: 'Escapes', f: 'n', u: 'escape', rate: 1 / 8 }] },
-    { d: 'updraft', n: 'Updraft', st: [{ k: 'summit', l: 'Fastest summit', f: 'time', lo: 120, hi: 1e7 }, { k: 'height', l: 'Best height', f: 'm', hi: 1005 }] },
+    { d: 'updraft', n: 'Updraft', st: [{ k: 'summit2', l: 'Fastest to the Crown (3000 m)', chip: 'The Crown', f: 'time', lo: 400, hi: 1e7 }, { k: 'summit', l: 'Fastest to the old summit (1000 m)', chip: 'Old summit', f: 'time', lo: 120, hi: 1e7 }, { k: 'height', l: 'Best height', f: 'm', hi: 3005 }] },
     { d: 'asteroid-run', n: 'Asteroid Run', st: [
       { k: 'distance', l: 'Longest Endless run', chip: 'Endless', f: 'm', hi: 100000 },
       { k: 'dist-pip', l: 'Longest Endless run · Pip', chip: 'Pip', f: 'm', hi: 100000 },
