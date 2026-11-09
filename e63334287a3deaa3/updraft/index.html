@@ -413,8 +413,9 @@ const C={
   MANTLE:true
 };
 C.APEX=C.JUMP*C.JUMP/(2*C.G);
-function tAir(dh){const d=C.JUMP*C.JUMP-2*C.G*dh;return d<0?NaN:(C.JUMP+Math.sqrt(d))/C.G}
-function reach(dh,speed){return (speed||C.SPRINT)*tAir(dh)}
+// time in the air and how far a jump goes (g: a gravity scale, for the low gravity in Orbit Yard; left out it's 1)
+function tAir(dh,g){const G=g?C.G*g:C.G,d=C.JUMP*C.JUMP-2*G*dh;return d<0?NaN:(C.JUMP+Math.sqrt(d))/G}
+function reach(dh,speed,g){return (speed||C.SPRINT)*tAir(dh,g)}
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 const TAU=Math.PI*2;
 function angDiff(a,b){let d=(a-b)%TAU;if(d>Math.PI)d-=TAU;if(d<-Math.PI)d+=TAU;return d}
@@ -458,8 +459,9 @@ function footHit(c,x,z,rad){
 const CELL=8;
 function cellKey(i,j,k){return((i+600)*1200+(j+40))*1200+(k+600)}
 function World(course){
-  const W={cols:course.cols,stat:[],dyn:[],fans:course.fans,grid:new Map(),t:0,stamp:1,ev:[],course};
-  for(const c of W.cols){if(c.dyn)W.dyn.push(c);else W.stat.push(c)}
+  const W={cols:course.cols,stat:[],dyn:[],fans:course.fans,grid:new Map(),t:0,stamp:1,ev:[],course,winds:course.winds||[],blink:[]};
+  for(const c of W.cols){if(c.dyn)W.dyn.push(c);else W.stat.push(c);if(c.kind==='blink')W.blink.push(c)}
+  W.windY0=W.winds.reduce((m,w)=>Math.min(m,w.y0),1e9);
   for(const c of W.stat){
     const b=aabb(c);
     for(let i=Math.floor(b[0]/CELL);i<=Math.floor(b[3]/CELL);i++)for(let j=Math.floor(b[1]/CELL);j<=Math.floor(b[4]/CELL);j++)for(let k=Math.floor(b[2]/CELL);k<=Math.floor(b[5]/CELL);k++){
@@ -489,7 +491,7 @@ function motion(c,t){
   }
   if(m.type==='spin')return[c.bx,c.by,c.bz,c.byaw+m.w*t];
   if(m.type==='swing'){const th=m.amp*Math.sin(TAU*t/m.T+(m.ph||0));return[m.px+Math.sin(th)*m.L*m.ax,m.py-Math.cos(th)*m.L,m.pz+Math.sin(th)*m.L*m.az,c.byaw]}
-  if(m.type==='orbit'){const a=(m.a0||0)+TAU*t/m.T;return[m.cx+Math.sin(a)*m.rad,c.by,m.cz+Math.cos(a)*m.rad,c.byaw]}
+  if(m.type==='orbit'||m.type==='ring'){const a=(m.a0||0)+TAU*t/m.T;return[m.cx+Math.sin(a)*m.rad,c.by,m.cz+Math.cos(a)*m.rad,c.byaw]}   // ring: a carousel moon (the bot may jump off it while it moves)
   return[c.bx,c.by,c.bz,c.byaw];
 }
 function setTime(W,t){
@@ -501,9 +503,31 @@ function setTime(W,t){
     if(c.kind==='fragile'&&c.touchT>=0){if(c.gone&&t-c.touchT>4.5){c.gone=false;c.touchT=-1}else if(!c.gone&&t-c.touchT>1.1)c.gone=true}
   }
   for(const c of W.stat)if(c.kind==='fragile'&&c.touchT>=0){if(c.gone&&t-c.touchT>4.5){c.gone=false;c.touchT=-1}else if(!c.gone&&t-c.touchT>1.1)c.gone=true}
+  for(const c of W.blink)c.gone=!blinkOn(c,t);
 }
+// Aurora Drift's pulse platforms are lit for a share `on` of every T seconds, on the shared clock (ph shifts each one's beat)
+function blinkU(c,t){const b=c.blink;return((t/b.T+b.ph)%1+1)%1}
+function blinkOn(c,t){return blinkU(c,t)<c.blink.on}
+// Storm Front's gusts: each layer of air blows one way for a stretch of every T seconds (calm, then a warning, then the
+// gust, easing in and out). Returns how hard it blows (0 to 1) at height y and time t, and which way (in _wd), or -1
+// for the warning before it starts. Wind only pushes you while you're in the air.
+const _wd=[0,0,0];
+function windAt(W,y,t){
+  if(!W.winds.length||y<W.windY0)return 0;
+  for(const w of W.winds){
+    if(y<w.y0||y>=w.y1)continue;
+    const u=((t/w.T+w.ph)%1+1)%1;_wd[0]=w.dx;_wd[1]=w.dz;_wd[2]=w.acc;
+    if(u<.42||u>=.86)return 0;
+    if(u<.55)return -1;
+    const k=u<.6?(u-.55)/.05:u>.81?(.86-u)/.05:1;return k*k*(3-2*k);
+  }
+  return 0;
+}
+// gravity scale at a height (1 everywhere but Orbit Yard)
+function gAt(y){if(y<2000)return 1;const z=ZONES[zoneAt(y)];return z.g||1}
 // velocity of a moving platform at a point (for the jump you make off it)
 function platVel(c,x,z,dt){
+  if(c&&c.belt&&!c.gone)return[c.belt[0],0,c.belt[1]];   // a conveyor belt (Skyport)
   if(!c||!c.dyn)return[0,0,0];
   const a=c.yaw-c.pyaw,dx=x-c.px,dz=z-c.pz,cs=Math.cos(a),sn=Math.sin(a);
   const nx=c.x+dx*cs+dz*sn,nz=c.z-dx*sn+dz*cs;return[(nx-x)/dt,(c.y1-c.py)/dt,(nz-z)/dt];
@@ -592,6 +616,7 @@ function step(W,p,inp,dt){
     const a=g.yaw-g.pyaw,dx=p.x-g.px,dz=p.z-g.pz,cs=Math.cos(a),sn=Math.sin(a);
     p.x=g.x+dx*cs+dz*sn;p.z=g.z-dx*sn+dz*cs;p.y+=g.y1-g.py;p.yaw+=a;
   }
+  if(g&&g.belt){p.x+=g.belt[0]*dt;p.z+=g.belt[1]*dt}   // a conveyor belt carries you along
   let ix=inp.x||0,iz=inp.z||0;const il=Math.hypot(ix,iz);if(il>1){ix/=il;iz/=il}
   const mag=Math.min(1,il);
   if(p.gnd){
@@ -619,7 +644,11 @@ function step(W,p,inp,dt){
     if(p.gnd&&fade>.5){p.gnd=null;p.vy=Math.max(p.vy,2);p.fallFrom=p.y;p.peakY=p.y}
     if(!p.gnd){p.vy=Math.min(C.FAN_VMAX,p.vy+C.FAN_ACC*fade*dt);p.airCap=Math.max(p.airCap,C.WALK);p.peakY=Math.max(p.peakY,p.y);p.fallFrom=p.y;p.jumpVel=false}
   }
-  if(!p.gnd){p.vy-=C.G*dt;if(p.vy<-C.MAXFALL)p.vy=-C.MAXFALL;p.airT+=dt}
+  if(!p.gnd){
+    p.vy-=(p.y<2000?C.G:C.G*gAt(p.y))*dt;if(p.vy<-C.MAXFALL)p.vy=-C.MAXFALL;p.airT+=dt;
+    // a gust of wind (Storm Front): steer against it and you lose only a little
+    if(p.y>=W.windY0){const k=windAt(W,p.y,W.t);if(k>0){p.vx+=_wd[0]*_wd[2]*k*dt;p.vz+=_wd[1]*_wd[2]*k*dt}}
+  }
   // slide down steep slopes
   if(p.slide){const s=p.slide;p.vx+=s[0]*C.G*.55*dt;p.vz+=s[1]*C.G*.55*dt}
   // move across, then out of walls
@@ -643,7 +672,7 @@ function step(W,p,inp,dt){
   if(p.gnd){
     const s=support(W,p.x,p.z,p.y-C.STEP,p.y+C.STEP);
     if(s&&!(s[1].sl&&Math.abs(s[1].sl)>C.SLIDE)){
-      if(s[1]!==p.gnd&&(s[1].kind==='bounce'||s[1].kind==='launch')){landOn(W,p,s[1],s[0],0);return}
+      if(s[1]!==p.gnd&&(s[1].kind==='bounce'||s[1].kind==='launch'||s[1].kind==='cannon')){landOn(W,p,s[1],s[0],0);return}
       p.y=s[0];p.gnd=s[1];p.vy=0;touch(W,s[1]);
     }else{p.coyC=p.gnd;p.gnd=null;p.vy=Math.min(0,p.vy);p.peakY=p.y;p.fallFrom=p.y;p.airT=0}
   }else{
@@ -673,6 +702,12 @@ function landOn(W,p,c,top,impact){
   p.slide=null;p.slideT=0;
   const fell=p.fallFrom-top;
   p.lastLand=c;p.impact=impact;p.landT=0;
+  if(c.kind==='cannon'){
+    // a cannon (Skyport): from the middle of its pad, the same throw every time, onto the platform it points at
+    p.x=c.x;p.z=c.z;p.vx=c.shot[0];p.vy=c.shot[1];p.vz=c.shot[2];p.gnd=null;p.jumpVel=false;p.cut=true;p.airCap=Math.hypot(p.vx,p.vz);p.peakY=p.y;p.fallFrom=p.y;p.airT=0;W.ev.push(['cannon',c]);
+    if(fell>10){p.falls++;W.ev.push(['fall',fell])}
+    return;
+  }
   if(c.kind==='bounce'||c.kind==='launch'){
     p.vy=c.kind==='launch'?C.LAUNCH:C.BOUNCE;p.gnd=null;p.jumpVel=false;p.cut=true;p.airCap=Math.max(Math.hypot(p.vx,p.vz),C.WALK);p.peakY=p.y;p.fallFrom=p.y;p.airT=0;W.ev.push(['bounce',c]);
     if(fell>10){p.falls++;W.ev.push(['fall',fell])}
@@ -695,9 +730,18 @@ const ZONES=[
   {name:'Lost and Found',y0:168,y1:390,rho:[30,36]},
   {name:'Cloud Isles',y0:390,y1:630,rho:[40,34]},
   {name:'Thin Air',y0:630,y1:850,rho:[34,28]},
-  {name:'Edge of Space',y0:850,y1:1000,rho:[26,12]}
+  {name:'Edge of Space',y0:850,y1:1000,rho:[26,12]},
+  // Beyond the beacon: 2000 m more, added on top of the old summit (which stays where it was, as a milestone).
+  // intro: the line under the zone's name when you get there. g: gravity scale. (y0 is just over 1000 so the old summit
+  // itself stays in Edge of Space.)
+  {name:'Aurora Drift',y0:1000.4,y1:1400,rho:[22,30],intro:'Pulse platforms blink in time. Go on the beat.'},
+  {name:'Storm Front',y0:1400,y1:1800,rho:[30,26],intro:'Wind gusts push you in the air. Wait for the calm.'},
+  {name:'Skyport',y0:1800,y1:2200,rho:[30,36],intro:'Belts, traffic, cannons and a blimp to catch.'},
+  {name:'Orbit Yard',y0:2200,y1:2600,rho:[34,26],g:.55,intro:'Low gravity: jumps go higher and farther.'},
+  {name:'The Crown',y0:2600,y1:3000,rho:[24,14],intro:'The last 400 m. The Crown is waiting at the top.'}
 ];
-const SUMMIT=1000;
+const SUMMIT=1000;   // the old summit (a milestone now; its `summit` stat is still the time to here)
+const TOP=3000;      // the top of the course: the Crown
 function zoneAt(y){for(let i=ZONES.length-1;i>=0;i--)if(y>=ZONES[i].y0-.01)return i;return 0}
 const CONT=['#c8462f','#2f6fb3','#d68a1c','#3f8f5a','#8a3f8f','#2f9c9c','#b7b0a2','#a33b4c'];
 const BOOKS=['#b8433a','#2f5d9a','#3d7a4a','#c79a2b','#6b3f8a','#1f6f74','#d0643a','#3b3f58'];
@@ -742,14 +786,14 @@ function build(seed){
   const rr=(a,b)=>a+(b-a)*rnd(),pick=a=>a[Math.floor(rnd()*a.length)];
   const cols=[],deco=[],path=[],fans=[],signs=[],secrets={};   // secrets: the staff lift, the service elevator and the hidden updraft (see the page script)
   const K={last:null,h:0,flow:true,maxFrac:.62};   // the first zone teaches: no jump past 62% of a sprint jump (zone 2 on allows 80%)
-  function add(o){const c=mk(o);c.zone=zoneAt(c.y1);cols.push(c);return c}
-  function dec(o){deco.push(o);return o}
+  function add(o){const c=mk(o);c.zone=zoneAt(c.y1);if(K.nz)c.nz=1;cols.push(c);return c}
+  function dec(o){if(K.nz)o.nz=1;deco.push(o);return o}
   // Every path platform is pulled in toward the one before if the jump would be longer than this
   // zone allows (a safety net under the scripts; the checker and the bot do the real testing).
   function onPath(c){
     const L=K.last;
     if(L&&!c.dyn&&!L.dyn&&!c.big&&!L.big&&!c.fixed){
-      const lim=(K.maxFrac||.8)*reach(Math.max(c.y1-L.y1,-4));
+      const lim=(K.maxFrac||.8)*reach(Math.max(c.y1-L.y1,-4),0,K.g);
       for(let k=0;k<5;k++){const g=gapBetween(L,c);if(!(g>lim))break;const dx=L.x-c.x,dz=L.z-c.z,d=Math.hypot(dx,dz),mv=Math.min(g-lim+.05,d*.5);c.x+=dx/d*mv;c.z+=dz/d*mv}
     }
     c.path=path.length;path.push(c);K.last=c;return c;
@@ -1229,13 +1273,271 @@ function build(seed){
       secrets.gust={x:qx,z:qz,r:2.4,y0:S.y1-20,y1:S.y1-.3,stack:S.path,land:L.path,way};
     }
   }
+  // =====================================================================================================
+  //  Beyond the beacon (1000 – 3000 m). Added later, on top of everything above, and none of it moves or
+  //  changes a thing below the old summit: it's built after all of that, from the same random numbers carrying
+  //  on, and every new piece is marked `nz`. Five more zones, each with something the lower course doesn't
+  //  have: platforms that blink in time (Aurora Drift), gusts of wind (Storm Front), conveyor belts, traffic,
+  //  cannons and a blimp (Skyport), low gravity and spinning satellites (Orbit Yard), and a wave of rising
+  //  steps, a carousel of moons and the Crown at 3000 m (The Crown).
+  // =====================================================================================================
+  K.nz=true;K.maxFrac=.8;K.flow=true;
+  const winds=[];
+  const anchor=(x,y,z)=>{const a=mk({t:'cyl',x,z,top:y,h:.1,r:.01});a.fixed=1;return a};   // a stand-in to place the next piece from
+  const restDeck=(o,text,sub)=>{const c=go(Object.assign({t:'box',w:5.5,d:5.5,h:.6,surf:'metal'},o),1.4,.9,0);c.rest=1;if(text)signs.push({x:c.x,y:c.y1,z:c.z,yaw:K.h,text,sub});return c};
+  {
+    // Leave the old summit where the stair of light below it is lowest, so nothing new hangs over its last steps,
+    // and head out past the stair's ring before the route starts to circle again.
+    const steps=path.filter(c=>c.v==='step');let bestA=0,bh=1e9;
+    for(let i=0;i<72;i++){const a=i/72*TAU;let h=-1e9;for(const q of steps)if(Math.abs(angDiff(Math.atan2(q.x,q.z),a))<.5)h=Math.max(h,q.y1);if(h<bh){bh=h;bestA=a}}
+    K.h=bestA;K.flow=false;
+    // a little marker where the old climb ended (drawn by the page): the start of the new one
+    dec({s:'milestone',x:Math.sin(bestA)*5.6,y:SUMMIT,z:Math.cos(bestA)*5.6,yaw:bestA});
+    go({t:'cyl',r:1.5,h:.45,v:'floe',col:'#a9ecff',surf:'ice'},1.2,.45,0);
+    go({t:'cyl',r:1.6,h:.45,v:'floe',col:'#b9f2e0',surf:'ice'},1.5,.6,0);
+    go({t:'cyl',r:1.7,h:.45,v:'floe',col:'#c9d8ff',surf:'ice'},1.6,.7,.25);
+    K.flow=true;
+  }
+
+  // ===================== Zone 6: Aurora Drift (1000 – 1400 m) =====================
+  // Night, with curtains of light in the sky. Floes of glowing ice, paper lanterns, crystal prisms, ribbons of
+  // light to walk up, and pulse platforms that blink on and off in time with each other.
+  function z6(kind,f,dh){
+    const g=rr(f[0],f[1])*reach(dh),tn=rr(-.4,.4);
+    if(kind==='floe')return go({t:'cyl',r:rr(1.3,2.3),h:.45,v:'floe',col:pick(['#a9ecff','#b9f2e0','#c9d8ff']),surf:'ice'},g,dh,tn);
+    if(kind==='lantern')return go({t:'cyl',r:rr(1.05,1.35),h:1.3,v:'lantern',col:pick(['#ff9f5a','#ffcf6b','#ff7a8a','#ffb3e6']),surf:'cloth'},g,dh,tn);
+    if(kind==='prism')return go({t:'box',w:1.45,d:1.45,h:1.8,yawOff:rr(-.7,.7),v:'prism',col:pick(['#7dffc8','#8fb8ff','#d59bff']),surf:'glass'},g,dh,tn);
+    if(kind==='ribbon')return go({t:'box',w:.75,d:rr(4.5,6.5),h:.16,sl:rr(.1,.2),v:'ribbon',col:pick(['#5dffb0','#62d2ff','#c48bff']),surf:'glass'},g*.9,Math.min(dh,.9),tn*.5);
+  }
+  const Z6MENU=[[3,'floe'],[1.5,'lantern'],[1,'prism'],[1,'ribbon']];
+  function fill6(until){while(top()<until)z6(pickW(Z6MENU),diff(.42,.64,.5,.72),rr(.5,1.25))}
+  // Pulse platforms: each is lit for 70% of a beat of T seconds and the next one comes on half a beat later,
+  // so two in a row are both lit for a fifth of every beat. Then a solid one to stand on.
+  function pulseRun(n,T){
+    for(let i=0;i<n;i++){const c=go({t:'box',w:2.3,d:2.3,h:.3,v:'pulse',col:i%2?'#7dffc8':'#d59bff',surf:'glass',kind:'blink'},rr(.36,.48)*reach(.6),.6,rr(-.3,.3));c.blink={T,on:.7,ph:-((i*.5)%1)}}
+    return go({t:'cyl',r:2.4,h:.45,v:'floe',col:'#a9ecff',surf:'ice'},rr(.36,.46)*reach(.7),.7,0);
+  }
+  // a ribbon of light: long slopes that climb one after another
+  function ribbonRun(n){for(let i=0;i<n;i++)go({t:'box',w:.85,d:rr(5,6.5),h:.16,sl:rr(.14,.22),v:'ribbon',col:['#5dffb0','#62d2ff','#c48bff'][i%3],surf:'glass'},rr(.32,.45)*reach(.8),.8,rr(-.25,.25))}
+  fill6(1024);pulseRun(4,4.6);
+  fill6(1062);ribbonRun(5);
+  fill6(1098);restDeck({v:'deck',col:'#4a5c7a'},'Aurora Drift','1,100 m');
+  fill6(1132);pulseRun(5,4.4);
+  fill6(1170);switchback(5,()=>({t:'cyl',r:rr(1.3,1.5),h:.45,v:'floe',col:'#a9ecff',surf:'ice'}),'tramp');
+  fill6(1206);ribbonRun(4);
+  fill6(1240);pulseRun(6,4.2);
+  fill6(1282);restDeck({v:'deck',col:'#4a5c7a'},'Aurora Drift','1,300 m');
+  fill6(1316);pulseRun(4,4);fill6(1340);pulseRun(5,4);
+  fill6(1394);restDeck({v:'deck',col:'#4a5c7a'},'Storm Front','next stop');
+
+  // ===================== Zone 7: Storm Front (1400 – 1800 m) =====================
+  // A thunderstorm: dark clouds to stand on, lightning rods and hail, wind turbines whose blades you ride, and gusts
+  // that blow one way for a couple of seconds at a time (each layer of air its own way; streaks and a rising
+  // whoosh warn you first). Gusts only push you in the air, and every jump here still makes it with a gust in your
+  // face if you steer against it.
+  for(let y=1404;y<1800;y+=rr(52,66)){const a=rr(0,TAU);winds.push({y0:y,y1:y+66,dx:Math.sin(a),dz:Math.cos(a),acc:9,T:rr(6.6,8.2),ph:rr(0,1)})}
+  for(let i=0;i+1<winds.length;i++)winds[i].y1=winds[i+1].y0;
+  winds[winds.length-1].y1=1800;
+  function z7(kind,f,dh){
+    const g=rr(f[0],f[1])*reach(dh),tn=rr(-.4,.4);
+    if(kind==='storm')return go({t:'cyl',r:rr(1.6,2.6),h:.8,v:'storm',col:pick(['#5d6678','#6b7488','#545c6d']),surf:'cloud'},g,dh,tn);
+    if(kind==='rod')return go({t:'cyl',r:rr(1.15,1.4),h:.3,v:'rod',col:'#8a929c',surf:'metal'},g,dh,tn);
+    if(kind==='hail')return go({t:'box',w:rr(1.5,1.9),d:rr(1.5,1.9),h:1.1,yawOff:rr(-.7,.7),v:'hail',col:'#d6e6f2',surf:'ice'},g,dh,tn);
+    if(kind==='vane')return go({t:'box',w:.75,d:rr(4,6),h:.3,v:'vane',col:'#a07a4a',surf:'metal'},g*.9,dh,tn*.5);
+  }
+  const Z7MENU=[[3,'storm'],[1.4,'rod'],[1.2,'hail'],[1,'vane']];
+  function fill7(until){while(top()<until)z7(pickW(Z7MENU),diff(.4,.58,.46,.64),rr(.5,1.2))}
+  // A wind turbine lying on its side: one long blade turning about its middle. Land on its near end as it lines up,
+  // walk along it as it turns, and step off its far end onto the next cloud when it lines up again (every half turn).
+  function spinArm(len,spd,look,col,surf){
+    K.flow=false;
+    const c=go({t:'box',w:1.7,d:len,h:.3,v:look,col,surf,fixed:1},1.15,.6,0);
+    setDyn(c,{type:'spin',w:spd});c.extra={hub:look};
+    const ux=Math.sin(K.h),uz=Math.cos(K.h);
+    K.last=anchor(c.x+ux*len/2,c.y1,c.z+uz*len/2);
+    const n=go(look==='blade'?{t:'cyl',r:2.2,h:.8,v:'storm',col:'#6b7488',surf:'cloud'}:{t:'cyl',r:2.2,h:.9,v:'module',col:'#e8ecf2',surf:'metal'},1.15,.6,0);
+    K.flow=true;return n;
+  }
+  fill7(1428);spinArm(10,.42,'blade','#e9edf2','metal');
+  fill7(1470);
+  {const c=restDeck({v:'deck',col:'#59616e'},'Storm Front','1,470 m');dec({s:'windsock',x:c.x+2,y:c.y1,z:c.z+2})}
+  fill7(1510);switchback(4,()=>({t:'cyl',r:rr(1.5,1.8),h:.8,v:'storm',col:'#6b7488',surf:'cloud'}),'tramp');
+  fill7(1556);spinArm(11,-.38,'blade','#e9edf2','metal');
+  fill7(1600);restDeck({v:'deck',col:'#59616e'},'Halfway there','1,600 m · 1,400 to go');
+  fill7(1640);for(let i=0;i<5;i++)go({t:'cyl',r:1.25,h:.3,v:'rod',col:'#8a929c',surf:'metal'},rr(.4,.55)*reach(.8),.8,rr(-.4,.4));
+  fill7(1690);spinArm(10,.45,'blade','#e9edf2','metal');
+  fill7(1736);spinArm(12,-.34,'blade','#e9edf2','metal');
+  fill7(1794);restDeck({v:'deck',col:'#59616e'},'Skyport','next stop');
+
+  // ===================== Zone 8: Skyport (1800 – 2200 m) =====================
+  // A floating town in a sunset: wooden decks, crates and awnings, conveyor belts (some help, some run against you),
+  // lanes of barges crossing the route, cannons that throw you across a gap, and a blimp that ferries you up.
+  const deck=(w,d)=>({t:'box',w:w||rr(2.4,3.2),d:d||rr(2.6,3.4),h:.5,v:'plank2',col:pick(['#b07a46','#a06a3a','#c08850']),surf:'wood'});
+  function z8(kind,f,dh){
+    const g=rr(f[0],f[1])*reach(dh),tn=rr(-.4,.4);
+    if(kind==='deck')return go(deck(),g,dh,tn);
+    if(kind==='crate')return go({t:'box',w:1.7,d:1.7,h:1.7,yawOff:rr(-.5,.5),v:'crate2',col:pick(['#c9955a','#8fa65a','#5a87a6']),surf:'wood'},g,dh,tn);
+    if(kind==='awning')return go({t:'box',w:rr(2.2,2.8),d:rr(2.4,3),h:.25,v:'awning',col:pick(['#e05a47','#3d6fb6','#f2c14e','#4caf7d']),surf:'cloth'},g,dh,tn);
+    if(kind==='pontoon')return go({t:'cyl',r:rr(1.2,1.6),h:1,v:'pontoon',col:pick(['#d0d4d9','#e6a23c']),surf:'metal'},g,dh,tn);
+  }
+  const Z8MENU=[[3,'deck'],[1.4,'crate'],[1.3,'awning'],[1.2,'pontoon']];
+  function fill8(until){while(top()<until)z8(pickW(Z8MENU),diff(.44,.66,.5,.74),rr(.5,1.25))}
+  const BELT=2.6;
+  // Conveyor belts, end to end. One that runs with you is a moving walkway (jump off its end); one that runs
+  // against you is a treadmill you have to walk up. Each starts right by the one before, so a treadmill only
+  // ever carries you back onto it.
+  function beltRun(dirs){
+    for(const d of dirs){
+      const c=go({t:'box',w:1.7,d:rr(7,9),h:.45,v:'belt',col:'#3a3f47',surf:'metal',fixed:1},d>0?rr(.8,1.1):.25,d>0?.6:.35,0);
+      c.belt=[Math.sin(c.yaw)*BELT*d,Math.cos(c.yaw)*BELT*d];c.extra={belt:d};
+    }
+    return go(deck(3,3),.25,.35,0);
+  }
+  // Traffic: barges crossing the route, each in its own lane at its own pace. Hop from one to the next as they pass.
+  function traffic(n){
+    K.flow=false;let tp=null;
+    for(let i=0;i<n;i++){
+      const c=go({t:'box',w:3.2,d:2.6,h:.55,v:'barge',col:pick(['#c8462f','#2f6fb3','#e0b028','#3f8f5a']),surf:'metal',fixed:1},1.15,rr(.25,.5),0);
+      const ux=Math.sin(K.h),uz=Math.cos(K.h),s=i%2?1:-1,A=3.4,cx=c.x,cz=c.z;
+      c.x-=uz*A*s;c.z+=ux*A*s;setDyn(c,{type:'line',dx:uz*2*A*s,dy:0,dz:-ux*2*A*s,T:[6.2,7.4,8.6,9.8][i%4],dw:.22,ph:rr(0,1)});
+      K.last=tp=anchor(cx,c.y1,cz);
+    }
+    const n2=go(deck(3.4,3.4),1.15,.4,0);n2.rest=1;K.flow=true;return n2;
+  }
+  // A cannon: step onto its pad and it throws you in a high arc across a wide gap onto the platform it points at
+  // (the arc is marked with lights). The throw is worked out here so that with your hands off it lands in the middle.
+  function cannon(span,rise){
+    const pad=go({t:'cyl',r:1.15,h:.5,v:'cannon',col:'#4b5563',surf:'metal',kind:'cannon'},rr(1,1.4),.5,rr(-.2,.2));
+    K.flow=false;const tgt=go({t:'cyl',r:2.6,h:.6,v:'pontoon',col:'#e6a23c',surf:'metal',fixed:1},span,rise,0);K.flow=true;
+    const dx=tgt.x-pad.x,dz=tgt.z-pad.z,D=Math.hypot(dx,dz),dh=tgt.y1-pad.y1;
+    const vy=Math.sqrt(2*C.G*(Math.max(dh,0)+4.5)),t=(vy+Math.sqrt(vy*vy-2*C.G*dh))/C.G;
+    pad.shot=[dx/D*D/t,vy,dz/D*D/t];
+    return tgt;
+  }
+  // The blimp: its gondola waits at one dock, then sails across and up to the next (and back again).
+  function blimp(dist,rise){
+    K.flow=false;
+    const c=go({t:'box',w:2.6,d:3.4,h:.35,v:'gondola2',col:'#c58b4a',surf:'wood',fixed:1},1.3,.6,0);
+    const ux=Math.sin(K.h),uz=Math.cos(K.h);
+    setDyn(c,{type:'line',dx:ux*dist,dy:rise,dz:uz*dist,T:Math.round(dist*1.1),dw:.24,ph:rr(0,1)});c.extra={blimp:pick(['#e0473c','#f0b429','#2f7de0','#ecebe6'])};
+    K.last=anchor(c.x+ux*dist,c.y1+rise,c.z+uz*dist);
+    const n=go(deck(3.4,3.4),1.3,.85,0);n.rest=1;K.flow=true;return n;
+  }
+  fill8(1822);beltRun([1,1,-1]);
+  fill8(1858);traffic(3);
+  fill8(1890);cannon(11,3);
+  fill8(1920);blimp(20,9);
+  fill8(1960);restDeck(deck(5.5,5.5),'Skyport','1,960 m');
+  fill8(1996);beltRun([-1,1,-1,1]);
+  fill8(2030);switchback(5,()=>deck(2.4,2.4),'tramp');
+  fill8(2062);traffic(4);
+  fill8(2094);cannon(13,4);
+  fill8(2126);blimp(24,11);
+  fill8(2158);cannon(12,2);
+  fill8(2194);restDeck({v:'deck',col:'#8b97a6'},'Orbit Yard','next stop');
+
+  // ===================== Zone 9: Orbit Yard (2200 – 2600 m) =====================
+  // Satellites and junk in orbit over the blue curve of the world, in low gravity: every jump goes higher and
+  // farther, and floats. Station modules, solar panels, drifting debris, satellites whose panel arms turn, and
+  // long moon leaps between rocks.
+  const LOWG=ZONES[8].g;
+  function z9(kind,f,dh){
+    // (a jump from below 2200 m into the low gravity is sized for normal gravity)
+    const gg=Math.max(gAt(top()+.01),gAt(top()+dh+.01));K.g=gg===1?undefined:gg;if(gg===1)dh=Math.min(dh,1.2);
+    const g=rr(f[0],f[1])*reach(dh,0,K.g),tn=rr(-.4,.4);
+    if(kind==='module')return go({t:'cyl',r:rr(1.3,1.7),h:1.6,v:'module',col:pick(['#e8ecf2','#d9dee6']),surf:'metal'},g,dh,tn);
+    if(kind==='panelS')return go({t:'box',w:3.4,d:1.7,h:.14,v:'panel',col:'#2b4c8c',surf:'glass'},g,dh,tn);
+    if(kind==='debris')return go({t:'box',w:rr(1.4,2),d:rr(1.6,2.6),h:.5,yawOff:rr(-.8,.8),v:'debris',col:pick(['#9aa3ad','#b0846a','#c9ced6']),surf:'metal'},g,dh,tn);
+    if(kind==='srock')return go({t:'cyl',r:rr(1.3,2.2),h:1.3,v:'rock',col:pick(['#8d8a99','#7a7484','#9a9387']),surf:'stone'},g,dh,tn);
+  }
+  const Z9MENU=[[2.4,'module'],[1.4,'panelS'],[1.6,'debris'],[2,'srock']];
+  function fill9(until){while(top()<until)z9(pickW(Z9MENU),diff(.46,.66,.52,.74),rr(.6,1.8))}
+  // moon leaps: a run of rocks far apart that only low gravity gets you across
+  function moonLeaps(n){K.g=LOWG;for(let i=0;i<n;i++)go({t:'cyl',r:rr(1.8,2.4),h:1.3,v:'rock',col:'#a8a2b8',surf:'stone'},rr(.62,.74)*reach(1.2,0,LOWG),rr(.8,1.6),rr(-.35,.35))}
+  fill9(2226);K.g=LOWG;spinArm(11,.36,'satarm','#2b4c8c','glass');
+  fill9(2262);moonLeaps(5);
+  fill9(2300);restDeck({v:'deck',col:'#8b97a6'},'Orbit Yard','2,300 m');
+  fill9(2338);spinArm(12,-.32,'satarm','#2b4c8c','glass');
+  fill9(2376);moonLeaps(6);
+  fill9(2412);switchback(5,()=>({t:'cyl',r:rr(1.3,1.6),h:1.6,v:'module',col:'#e8ecf2',surf:'metal'}),'tramp');
+  fill9(2450);spinArm(13,.3,'satarm','#2b4c8c','glass');
+  fill9(2490);restDeck({v:'deck',col:'#8b97a6'},'Orbit Yard','2,490 m');
+  fill9(2528);moonLeaps(5);
+  fill9(2560);spinArm(11,-.38,'satarm','#2b4c8c','glass');
+  fill9(2592);K.g=undefined;restDeck({v:'gold',col:'#d9b45a'},'The Crown','last stretch');
+
+  // ===================== Zone 10: The Crown (2600 – 3000 m) =====================
+  // Gold and starlight. Gold plates, star platforms, a wave of steps that rise and fall one after another, a great
+  // pendulum, a carousel of moons that circles the middle, and a last spiral of jewels up to the Crown.
+  function z10(kind,f,dh){
+    const g=rr(f[0],f[1])*reach(dh),tn=rr(-.4,.4);
+    if(kind==='gold')return go({t:'box',w:rr(1.8,2.6),d:rr(2,3),h:.35,v:'gold',col:pick(['#e3c063','#d9b45a','#f0d27a']),surf:'metal'},g,dh,tn);
+    if(kind==='star')return go({t:'cyl',r:rr(1.2,1.8),h:.5,v:'starp',col:pick(['#fff1b8','#ffd6f0','#cfe6ff']),surf:'glass'},g,dh,tn);
+    if(kind==='bar')return go({t:'box',w:.6,d:rr(4,6),h:.3,v:'gold',col:'#e3c063',surf:'metal'},g*.9,dh,tn*.5);
+  }
+  const Z10MENU=[[3,'gold'],[2,'star'],[1,'bar']];
+  function fill10(until){while(top()<until)z10(pickW(Z10MENU),diff(.48,.7,.54,.78),rr(.5,1.25))}
+  // a wave of steps: each rises and falls 1.5 m, a little after the one before, so a wave runs up the stair
+  function waveStair(n){for(let i=0;i<n;i++){const c=go({t:'box',w:2.2,d:1.8,h:.3,v:'wave',col:['#ffd36b','#ff9fd0','#9fd6ff'][i%3],surf:'glass',fixed:1},rr(.9,1.15),.9,rr(-.15,.15));setDyn(c,{type:'line',dx:0,dy:1.5,dz:0,T:4.8,dw:.2,ph:((-i*.12)%1+1)%1})}
+    return go({t:'cyl',r:2,h:.5,v:'starp',col:'#fff1b8',surf:'glass',fixed:1},1.1,2.2,0)}
+  function pendulum(){
+    const c=go({t:'box',w:2.2,d:2.4,h:.3,v:'pend',col:'#e3c063',surf:'metal',fixed:1},3.4,-.9,0);
+    const L=11,ux=Math.sin(K.h),uz=Math.cos(K.h);
+    setDyn(c,{type:'swing',ax:ux,az:uz,L,amp:.34,T:6.2,ph:rr(0,6),px:c.x,py:c.y1+L,pz:c.z});c.extra={rope:L,star:1};
+    return go({t:'cyl',r:1.8,h:.5,v:'starp',col:'#fff1b8',surf:'glass',fixed:1},3.4,1,0);
+  }
+  // The carousel: moons circling the middle on one slow ring. Board one as it passes the ledge and step off at the
+  // next ledge, a little higher, a sixth of the way round.
+  function carousel(){
+    K.flow=false;
+    const L=K.last,a0=Math.atan2(L.x,L.z),rE=Math.hypot(L.x,L.z),eE=L.t===1?L.r:Math.max(L.hx,L.hz);
+    const R=rE+eE+1.1+1.9,T=56,y=L.y1+.3,n=6;
+    for(let i=0;i<n;i++){const c=add({t:'cyl',x:0,z:R,top:y,h:.8,r:1.9,v:'moon',col:'#e9e4f2',surf:'stone'});setDyn(c,{type:'ring',cx:0,cz:0,rad:R,T,a0:i/n*TAU});c.fixed=1;if(i===0)onPath(c)}
+    // the ledge to step off onto, a sixth of the way round in the way they go
+    const a1=a0+TAU/n*.95,rX=R-1.9-1.1-1.4;
+    put({t:'cyl',x:Math.sin(a1)*rX,z:Math.cos(a1)*rX,top:y+.8,h:.5,r:1.4,v:'starp',col:'#fff1b8',surf:'glass'});
+    K.h=a1+Math.PI/2;K.flow=true;
+    return go({t:'box',w:2.6,d:2.6,h:.35,v:'gold',col:'#e3c063',surf:'metal'},1.2,.8,-.2);
+  }
+  fill10(2624);waveStair(7);
+  fill10(2660);pendulum();
+  fill10(2700);restDeck({v:'gold',col:'#d9b45a'},'The Crown','2,700 m');
+  fill10(2736);carousel();
+  fill10(2770);waveStair(8);
+  fill10(2806);switchback(5,()=>({t:'box',w:2.2,d:2.2,h:.35,v:'gold',col:'#e3c063',surf:'metal'}),'tramp');
+  fill10(2840);pendulum();
+  fill10(2870);restDeck({v:'gold',col:'#d9b45a'},'Almost there','2,870 m');
+  fill10(2900);carousel();
+  fill10(2930);
+  // The Crown: a last spiral of jewels round its tower, then the top.
+  {
+    const cR=12.5;
+    K.flow=false;
+    for(let n=0;n<14;n++){const L=K.last,rho=Math.hypot(L.x,L.z);if(rho<cR+3.6)break;K.h=Math.atan2(-L.x,-L.z)+.5;go({t:'cyl',r:1.4,h:.5,v:'starp',col:'#fff1b8',surf:'glass'},Math.min(rr(1.6,2.4),rho-cR-2.6),rr(.5,1),0)}
+    let a=Math.atan2(K.last.x,K.last.z)+.35,k=0;
+    const JEWEL=['#e0475a','#3d7be0','#3fbf7f','#b45ae0','#f0b429'];
+    while(TOP-K.last.y1>1.2){
+      put({t:'box',x:Math.sin(a)*cR,z:Math.cos(a)*cR,top:TOP-K.last.y1>2.1?K.last.y1+1.05:TOP-1,h:.3,w:2.3,d:1.5,yaw:a,v:'jewel',col:JEWEL[k++%5],surf:'glass'});
+      a+=.34;K.h=a+Math.PI/2;
+    }
+    add({t:'cyl',x:0,z:0,top:TOP,h:64,r:3.4,v:'crownpillar',col:'#e3c063',surf:'metal',deco:true});
+    const s=put({t:'cyl',x:0,z:0,top:TOP,h:1.6,r:9,v:'crown',col:'#fff4d6',surf:'stone'});s.summit=2;s.big=1;s.rest=1;
+    signs.push({x:0,y:TOP,z:-4.5,yaw:0,text:'The Crown',sub:'3000 m · the top'});
+    dec({s:'crown',x:0,y:TOP,z:0,r:9});
+  }
+  // far-off scenery for the new zones (its own random numbers, like the rest of the far scenery)
+  {
+    const kinds=[['fcrystal','faurora','fcrystal'],['fstorm','fstorm','fturbine'],['fbldg','fbldg','fblimp','fballoon'],['fsat','frock','fsat','fstation'],['fstar','fstar','fcrystal']];
+    const fr=mulberry(191),fp=a=>a[Math.floor(fr()*a.length)],fq=(a,b)=>a+(b-a)*fr();
+    for(let z=5;z<10;z++){const Z=ZONES[z];for(let i=0;i<26;i++){const a=fr()*TAU,r=fq(80,200),y=fq(Z.y0+10,Z.y1+(z===9?80:0));dec({s:'far',k:fp(kinds[z-5]),x:Math.sin(a)*r,y,z:Math.cos(a)*r,sc:fq(.7,1.6)*(r/110),yaw:fq(0,6.3),tilt:fq(-.5,.5),col:fp(['#ffffff','#ffd36b','#9fd6ff','#ff9fd0'])})}}
+  }
   // Scenery that ended up in the way of a jump (or right over a platform) is taken out.
   {
     const W=World({cols,fans}),ck=check({path,cols,fans,W});const bad=new Set();
     for(const is of ck.issues)if(is[0]==='blocked'||is[0]==='headroom'){const c=cols.find(q=>q.id===is[2]);if(c&&c.deco&&c.path<0)bad.add(c)}
     for(let i=cols.length-1;i>=0;i--)if(bad.has(cols[i]))cols.splice(i,1);
   }
-  return{cols,deco,path,fans,signs,shortcuts,secrets};
+  return{cols,deco,path,fans,signs,shortcuts,secrets,winds};
 }
 
 // ---------------------------------------------------------------------
@@ -1262,17 +1564,27 @@ function curve(pts,per){
   out.push(pts[n-1].slice());return out;
 }
 function check(course){
-  const P=course.path,out={jumps:[],issues:[],maxFrac:0,zoneMax:[0,0,0,0,0],count:P.length};
+  const P=course.path,out={jumps:[],issues:[],maxFrac:0,zoneMax:ZONES.map(()=>0),count:P.length};
   const W=course.W||World(course);
   for(let i=0;i+1<P.length;i++){
     const A=P[i],B=P[i+1];
+    if(A.kind==='cannon'){out.jumps.push({i,dyn:true});const r=cannonCheck(W,A,B);if(r)out.issues.push(['cannon',i,r]);continue}
     if(A.dyn||B.dyn||A.kind==='bounce'||A.kind==='launch'||A.fan){out.jumps.push({i,dyn:true});continue}
     const g=gapBetween(A,B),np=nearPair(A,B,0,0);
     const dh=topAt(B,np[1][0],np[1][1])-topAt(A,np[0][0],np[0][1]);
-    const r=reach(dh),frac=g/r;
+    // low gravity: measured with the stronger pull of the two ends (a jump into or out of Orbit Yard counts as normal)
+    const gs=Math.max(gAt(A.y1+.01),gAt(B.y1+.01)),ta=tAir(dh,gs===1?undefined:gs);
+    let r=reach(dh,0,gs===1?undefined:gs);
+    // off a conveyor belt you keep its speed, for or against the jump
+    if(A.belt){const dx=np[1][0]-np[0][0],dz=np[1][1]-np[0][1],l=Math.hypot(dx,dz)||1;r+=(A.belt[0]*dx+A.belt[1]*dz)/l*ta}
+    const frac=g/r;
     const j={i,g:+g.toFixed(2),dh:+dh.toFixed(2),frac:isNaN(frac)?9:+frac.toFixed(3),z:B.zone};out.jumps.push(j);
+    // two pulse platforms in a row: both lit together for long enough
+    if(A.kind==='blink'&&B.kind==='blink'){let both=0;for(let k=0;k<200;k++){const t=k/200*A.blink.T*B.blink.T;if(blinkOn(A,t)&&blinkOn(B,t))both++}if(both/200*Math.min(A.blink.T,B.blink.T)<.75)out.issues.push(['blink window',i])}
     if(g<.05&&dh<=C.STEP)continue;   // a step
-    if(dh>C.APEX-.22)out.issues.push(['too high',i,dh.toFixed(2)]);
+    // in a gust layer: still makes it with a full gust in your face, steering against it
+    if(W.winds.length&&A.y1>=W.windY0-2){const w=W.winds.find(q=>B.y1+1>=q.y0&&B.y1+1<q.y1);if(w&&!isNaN(ta)){const rw=r-.5*Math.max(0,w.acc-C.AIR)*ta*ta;if(g>rw*.95)out.issues.push(['wind',i,g.toFixed(2),rw.toFixed(2)])}}
+    if(dh>C.APEX/gs-.22)out.issues.push(['too high',i,dh.toFixed(2)]);
     else if(frac>.9)out.issues.push(['too far',i,g.toFixed(2),dh.toFixed(2)]);
     if(j.frac<9){out.maxFrac=Math.max(out.maxFrac,j.frac);out.zoneMax[B.zone]=Math.max(out.zoneMax[B.zone],j.frac)}
     // the air above the jump must be clear: sample the line between the nearest points
@@ -1295,7 +1607,7 @@ function check(course){
     if(L.y1>g.y1+130||L.dyn)out.issues.push(['secret','updraft lands too high or on a moving platform'])}
   // headroom over every path platform
   for(const A of P){
-    if(A.dyn||A.big||A.y1>=SUMMIT-1)continue;const q=[];
+    if(A.dyn||A.big||(A.y1>=SUMMIT-1&&A.y1<SUMMIT+.5)||A.y1>=TOP-1)continue;const q=[];
     const pts=A.t===1?[[A.x,A.z],[A.x+A.r*.7,A.z],[A.x-A.r*.7,A.z],[A.x,A.z+A.r*.7],[A.x,A.z-A.r*.7]]:[[A.x,A.z],toWorld(A,A.hx*.85,A.hz*.85),toWorld(A,-A.hx*.85,-A.hz*.85),toWorld(A,A.hx*.85,-A.hz*.85),toWorld(A,-A.hx*.85,A.hz*.85)];
     for(const p of pts){
       const y=topAt(A,p[0],p[1]);W.query(p[0]-.4,y,p[1]-.4,p[0]+.4,y+C.H+.4,p[1]+.4,q);
@@ -1305,6 +1617,12 @@ function check(course){
   return out;
 }
 
+// A cannon's throw, played out with no input: it has to come down on the platform after it, and nothing on the way.
+function cannonCheck(W,A,B){
+  const p=Body(A.x,A.y1+.3,A.z);p.vy=-1;
+  for(let k=0;k<6/C.DT;k++){W.ev.length=0;step(W,p,{x:0,z:0},C.DT);if(p.gnd&&p.gnd!==A)return p.gnd===B?null:'lands on '+(p.gnd.path>=0?'path '+p.gnd.path:p.gnd.v);if(p.y<A.y1-40)return 'falls short'}
+  return 'never lands';
+}
 // The climb bot: plays the course with the same inputs a player has (direction, sprint, jump).
 function idxOf(P,c){if(!c)return -1;if(!P._ix){P._ix=new Map();P.forEach((q,i)=>P._ix.set(q,i))}const v=P._ix.get(c);return v==null?-1:v}
 function Bot(course,P){return{P:P||course.path,i:1,ph:'plan',fails:[],t0:0,retry:0,sprint:false,u:[0,0],Tp:null,Lp:null,Rp:null,stuck:0,log:[],lastI:1,lastT:0}}
@@ -1323,7 +1641,7 @@ function botInput(W,p,b,inp){
   if(p.gnd===A&&!A.dyn)b.onA=[p.x,p.y,p.z];
   // landed somewhere that isn't on the way: a failed jump
   if(p.gnd&&p.gnd!==A&&!(idxOf(P,p.gnd)>=b.i)&&b.ph!=='plan0'){
-    if(!(A.kind==='bounce'||A.kind==='launch'||A.fan)||p.gnd!==A){
+    if(!(A.kind==='bounce'||A.kind==='launch'||A.kind==='cannon'||A.fan)||p.gnd!==A){
       b.fails.push({i:b.i,y:+p.y.toFixed(1),on:p.gnd.path,v:p.gnd.v});
       return 'fail';
     }
@@ -1337,8 +1655,8 @@ function botInput(W,p,b,inp){
     const Lp=b.aim&&b.aim.c===B?toWorld(Bt,b.aim.l[0],b.aim.l[1]):clampInto(Bt,p.x,p.z,Bt.t===1?Math.min(1,Bt.r*.6):Math.min(.9,Math.min(Bt.hx,Bt.hz)*.7));
     const yb=topAt(Bt,Lp[0],Lp[1]);
     if(fan&&p.y<yb+1.2){inp.x=(fan.x-p.x);inp.z=(fan.z-p.z);const l=Math.hypot(inp.x,inp.z);if(l>1){inp.x/=l;inp.z/=l}inp.jump=true;return 'fan'}
-    const disc=p.vy*p.vy+2*C.G*(p.y-yb);
-    let tr=disc>=0?(p.vy+Math.sqrt(disc))/C.G:.3;tr=Math.max(tr,.06);b.tr=tr;
+    const Gg=p.y<2000?C.G:C.G*gAt(p.y),disc=p.vy*p.vy+2*Gg*(p.y-yb);
+    let tr=disc>=0?(p.vy+Math.sqrt(disc))/Gg:.3;tr=Math.max(tr,.06);b.tr=tr;
     const cap=Math.max(p.airCap,C.WALK*C.AIRMIN);
     let vx=(Lp[0]-p.x)/tr,vz=(Lp[1]-p.z)/tr;
     // velocity we want, as stick input; the body chases ix*cap
@@ -1363,7 +1681,8 @@ function botInput(W,p,b,inp){
   const dx=Lp[0]-Tp[0],dz=Lp[1]-Tp[1],d=Math.hypot(dx,dz);
   const ux=d>1e-4?dx/d:Math.sin(p.yaw),uz=d>1e-4?dz/d:Math.cos(p.yaw);
   const dh=topAt(Bf,Lp[0],Lp[1])-p.y;
-  const ta=tAir(dh);
+  const gg=p.y<2000?1:gAt(p.y),gu=gg===1?undefined:gg;   // gravity scale here (low in Orbit Yard)
+  const ta=tAir(dh,gu);
   // close and low enough: just walk on
   const gNow=gapBetween(An===GROUND?{t:1,x:p.x,z:p.z,r:.01}:An,Bn);
   if(gNow<.25&&dh<C.STEP-.04&&dh>-1.2){
@@ -1373,13 +1692,18 @@ function botInput(W,p,b,inp){
   // A jump is on when B (where it will be by the time we land) is in reach from where we stand now,
   // and the platform we're riding isn't mid-move.
   const yT=An===GROUND?p.y:topAt(An,Tp[0],Tp[1]);
-  const feasible=Bx=>{const g=gapBetween(An===GROUND?{t:1,x:p.x,z:p.z,r:.01}:An,Bx);const L=clampInto(Bx,Tp[0],Tp[1],.5);const h=topAt(Bx,L[0],L[1])-yT;const t=tAir(h);return !isNaN(t)&&h<C.APEX-.25&&g<C.SPRINT*t*(B.dyn&&B.dyn.type!=='spin'?.6:.85)};
+  const feasible=Bx=>{const g=gapBetween(An===GROUND?{t:1,x:p.x,z:p.z,r:.01}:An,Bx);const L=clampInto(Bx,Tp[0],Tp[1],.5);const h=topAt(Bx,L[0],L[1])-yT;const t=tAir(h,gu);return !isNaN(t)&&h<C.APEX/gg-.25&&g<C.SPRINT*t*(B.dyn&&B.dyn.type!=='spin'?.6:.85)};
   let ok=feasible(Bf)&&(!B.dyn||feasible(predict(B,now+.3)));
   if(An.dyn&&An.dyn.type==='line'&&An.dyn.dy){const a1=predict(An,now+.6);if(Math.abs(a1.y1-An.y1)>.25)ok=false}
-  if(An.dyn&&An.dyn.type!=='spin'){const a1=predict(An,now+.1);if(Math.hypot(a1.x-An.x,a1.z-An.z)>.15)ok=false}
+  if(An.dyn&&An.dyn.type!=='spin'&&An.dyn.type!=='ring'){const a1=predict(An,now+.1);if(Math.hypot(a1.x-An.x,a1.z-An.z)>.15)ok=false}
+  // a pulse platform has to be lit when we land and for a moment after; no jumping into a gust or its warning
+  if(B.kind==='blink'){const tl=now+(isNaN(ta)?.8:ta);if(!blinkOn(B,tl)||!blinkOn(B,tl+1.1))ok=false}
+  if(W.winds.length&&p.y>=W.windY0-3){for(let k=0;k<=8;k++)if(windAt(W,p.y+1,now+k*.19)>0){ok=false;break}}
   const need=isNaN(ta)?99:d/ta;
   // run-up speed: just enough for the gap (narrow targets need a careful jump), a bit more on retries
-  const vt=clamp(need*[1.12,1.3,.95,1.5][b.retry%4]+.25,1.6,C.SPRINT);
+  // (on a conveyor belt running against the jump, faster by the belt's speed)
+  const bv=An.belt?Math.max(0,-(An.belt[0]*ux+An.belt[1]*uz)):0;
+  const vt=clamp(need*[1.12,1.3,.95,1.5][b.retry%4]+.25+bv*1.15,1.6,C.SPRINT);
   b.sprint=vt>C.WALK;b.mag=b.sprint?vt/C.SPRINT:vt/C.WALK;
   const run=b.sprint?1.7:.9;
   // run-up spot, kept on our platform
@@ -1393,7 +1717,7 @@ function botInput(W,p,b,inp){
       // standing still after a walk to the run-up spot: let the body settle first
       if(Math.hypot(p.vx,p.vz)>.6&&dr<.22&&along>-runLen*.75){inp.x=0;inp.z=0;return 'settle'}
       b.ph='run';b.runT=0;
-    }else{let ix=R[0]-p.x,iz=R[1]-p.z;const l=Math.hypot(ix,iz);const s=Math.min(1,l*1.5);ix=ix/l*s;iz=iz/l*s;inp.x=ix;inp.z=iz;return 'setup'}
+    }else{let ix=R[0]-p.x,iz=R[1]-p.z;const l=Math.hypot(ix,iz);const s=An.belt?1:Math.min(1,l*1.5);ix=ix/l*s;iz=iz/l*s;inp.x=ix;inp.z=iz;return 'setup'}
   }
   if(!ok&&along<-.3){b.ph='plan';return 'wait'}
   // run at the take-off spot and jump there (or as the platform runs out under us)
@@ -1444,7 +1768,7 @@ function runBot(course,opts){
   return{reached:b.i,total:P.length,time:+t.toFixed(1),fails,retries,falls:p.falls,jumps:p.jumps};
 }
 function makeWorld(seed){const course=build(seed);course.W=World(course);return course}
-return{C,ZONES,SUMMIT,zoneAt,build,makeWorld,World,setTime,step,Body,check,curve,runBot,Bot,botInput,support,footHit,topAt,toLocal,toWorld,extent,aabb,motion,predict,gapBetween,tAir,reach,GROUND,clampInto,inFan,platVel,mulberry,angDiff,clamp,sq};
+return{C,ZONES,SUMMIT,TOP,gAt,windAt,blinkOn,blinkU,zoneAt,build,makeWorld,World,setTime,step,Body,check,curve,runBot,Bot,botInput,support,footHit,topAt,toLocal,toWorld,extent,aabb,motion,predict,gapBetween,tAir,reach,GROUND,clampInto,inFan,platVel,mulberry,angDiff,clamp,sq};
 })();
 if(typeof module!=='undefined')module.exports=UpCore;
 
