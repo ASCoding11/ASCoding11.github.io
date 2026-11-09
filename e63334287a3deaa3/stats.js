@@ -97,6 +97,8 @@
   LOWER.place = 1;   // Driftfall's best placing (1 = won)
   // Rampline's best time on each built-in track (min('t-<track id>', seconds))
   ['t-first-gear', 't-elbow-room', 't-brake-check', 't-hill-hop', 't-paperclip', 't-kicker', 't-banking-hours', 't-mind-the-gap', 't-two-storey', 't-pinch-point', 't-loop-the-loop', 't-sidewall', 't-big-air', 't-twin-loops', 't-high-wire', 't-needle', 't-corkscrew-hill', 't-gauntlet', 't-skyline', 't-grand-tour'].forEach(function (k) { LOWER[k] = 1; });
+  // the same for the longer layouts from the handling pass (layout 2): min('r2-<track id>', seconds)
+  ['r2-first-gear', 'r2-elbow-room', 'r2-brake-check', 'r2-hill-hop', 'r2-paperclip', 'r2-sunday-drive', 'r2-kicker', 'r2-banking-hours', 'r2-mind-the-gap', 'r2-two-storey', 'r2-pinch-point', 'r2-switchback', 'r2-rollercoaster', 'r2-boost-alley', 'r2-loop-the-loop', 'r2-sidewall', 'r2-big-air', 'r2-twin-loops', 'r2-high-wire', 'r2-ring-road', 'r2-drift-king', 'r2-sky-bridge', 'r2-needle', 'r2-corkscrew-hill', 'r2-gauntlet', 'r2-skyline', 'r2-grand-tour', 'r2-freefall', 'r2-afterburner', 'r2-final-exam'].forEach(function (k) { LOWER[k] = 1; });
   LOWER['total-w2'] = LOWER['total-w3'] = LOWER['total-w4'] = LOWER['total-w5'] = LOWER['total-w6'] = 1;   // Escapade's fastest total of each later world
   // The daily puzzles' fewest-guess and fastest bests (LOWER is one list for every game, so these names stay lower-wins everywhere):
   // fewest (Hunch, Fourcast), guesses (Hotspot, Nearword, Warmer), tries (Outline, Unfurl), fastest (Crosslet), fast-<level> (Ninefold).
