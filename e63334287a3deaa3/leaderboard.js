@@ -104,6 +104,10 @@
       { k: 'kills', l: 'Most knockouts in a match', f: 'n', u: 'knockout', hi: 29 },
       { k: 'place', l: 'Best placing', chip: 'Best placing', f: 'n', lo: 1, hi: 30, low: 1 },
       { k: 'matches', l: 'Matches played', f: 'n', u: 'match', rate: 1 / 60 }] },
+    { d: 'lunge-line', n: 'Lunge Line', st: [
+      { k: 'wins', l: 'Online wins', f: 'n', u: 'win', rate: 1 / 45 },
+      { k: 'kills', l: 'Touches (all time)', chip: 'Touches', f: 'n', u: 'touch', rate: 1 },
+      { k: 'streak', l: 'Longest touch streak', chip: 'Best streak', f: 'n', u: 'touch', hi: 500, le: 'kills' }] },
     { d: 'slipstream', n: 'Slipstream', laps: true, st: [] },
     { d: 'boostball', n: 'Boostball', st: [
       { k: 'mgoals', l: 'Most goals in a match', f: 'n', u: 'goal', hi: 40, le: 'goals' },
