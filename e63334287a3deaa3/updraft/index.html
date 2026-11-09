@@ -2096,8 +2096,12 @@ function placeSaved(s,x,y,z){
     return b;
   }
   if(!s.v){
-    const sp=U.support(W,x,z,y-.6,y+.6);
-    if(sp&&!sp[1].dyn&&!insideAt(x,sp[0],z)){const b=U.Body(x,sp[0],z);b.gnd=sp[1];b.lastLand=sp[1];return b}
+    // standing: right there, or if something stands there now (a course change, like the elevator's lift room on the
+    // roof), the nearest clear spot on the same level within 3 m
+    for(let r=0;r<=3;r+=.5)for(let k=0;k<(r?12:1);k++){
+      const a=k/12*Math.PI*2,px=x+Math.sin(a)*r,pz=z+Math.cos(a)*r,sp=U.support(W,px,pz,y-.6,y+.6);
+      if(sp&&!sp[1].dyn&&!insideAt(px,sp[0],pz)){const b=U.Body(px,sp[0],pz);b.gnd=sp[1];b.lastLand=sp[1];return b}
+    }
   }
   let bestC=START,bd=1e9;
   for(const c of PATH){if(c.dyn||c.kind||c.y1>y+.5)continue;const d=Math.hypot(c.x-x,c.z-z,(y-c.y1)*1.5);if(d<bd&&!insideAt(c.x,c.y1,c.z)){bd=d;bestC=c}}
@@ -2397,7 +2401,7 @@ const RIDE_NAME={lift:'the staff lift',elev:'the service elevator',gust:'the hid
 function startRide(kind){
   if(ride||!SEC[kind])return false;
   ride={kind,ph:ridePlan(kind),i:-1,t:0,gnd:me.gnd};
-  me.vx=me.vy=me.vz=0;me.mantle=null;me.slide=null;me.buf=0;me.coy=0;G.slow=0;
+  me.vx=me.vy=me.vz=0;me.mantle=null;me.slide=null;me.buf=0;me.coy=0;G.slow=0;G.timeScale=1;   // slow motion lets go at once
   if(kind==='lift'){cabY=cabWant=SEC.lift.y0;cabBackT=0}   // the cab is waiting at the bottom (even if someone just rode it up)
   if(kind==='elev')ecabY=SEC.elev.y0;
   if(kind==='gust'){sfx('gust');puff(me.x,me.y+.6,me.z,22,0xffffff,2.4);G.shake=Math.max(G.shake,.35)}
