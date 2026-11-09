@@ -460,7 +460,7 @@ function gustState(h, ht) { // {s: 0 calm | 1 warning | 2 blowing, d: direction}
 // ---------------------------------------------------------------------
 function mkF(i) {
   return {i, x: 0, y: BASE, vx: 0, vy: 0, f: 1, h: 1, hT: 99, sc: 0, cr: 0, dl: 0, arm: 1, s: ST.IDLE, t: 0, gnd: 1, co: 0, jb: 0, ab: 0,
-    jh: 0, tb: 0, step: 0, sd: 0, tgt: 0, kd: 0, rt: 0, rw: 0, inv: 0, pin: 0, res: 0, ah: 1, chg: 0, bk: 0, kills: 0, deaths: 0, stk: 0, best: 0,
+    jh: 0, ln: 0, tb: 0, step: 0, sd: 0, tgt: 0, kd: 0, rt: 0, rw: 0, inv: 0, pin: 0, res: 0, ah: 1, chg: 0, bk: 0, kills: 0, deaths: 0, stk: 0, best: 0,
     hz: 0, vt: -1, cx: 0, cy: 0, gone: 0, sup: -1};
 }
 function newMatch(cfg) {
@@ -716,7 +716,7 @@ function physics(S, w, T, p, o, inp, mv) {
       const a = p.gnd ? (ice ? T.iceAcc : (Math.abs(p.tgt) > Math.abs(p.vx) && p.tgt * p.vx >= 0 ? T.acc : T.dec)) : T.air;
       const d = ice && p.gnd && p.tgt === 0 ? T.iceDec : a;
       if (p.vx < p.tgt) p.vx = Math.min(p.tgt, p.vx + d); else if (p.vx > p.tgt) p.vx = Math.max(p.tgt, p.vx - d);
-      if (!p.gnd && p.vy < T.cut && !p.jh && p.vy < 0) p.vy = T.cut;
+      if (!p.gnd && p.vy < T.cut && !p.jh && !p.ln && p.vy < 0) p.vy = T.cut;   // let go of jump early: a short hop (not after a vent)
       break;
     }
     case ST.THRUST: p.vx *= ice ? 0.97 : 0.72; if (p.t >= T.thrustDur) p.s = ST.IDLE; break;
@@ -785,7 +785,7 @@ function physics(S, w, T, p, o, inp, mv) {
     } else {
       const s = surfaceBelow(S, w, p.x, py, p.y, mv);
       if (s) {
-        p.y = s.y; p.vy = 0; p.gnd = 1; p.sup = s.kind === 2 ? 100 + s.i : s.kind === 0 ? s.i : -1;
+        p.y = s.y; p.vy = 0; p.gnd = 1; p.ln = 0; p.sup = s.kind === 2 ? 100 + s.i : s.kind === 0 ? s.i : -1;
         if (p.s === ST.DIVE) { p.s = ST.LAND; p.t = 0; }
         ev(S, 'land', {a: p.i, x: p.x, y: p.y});
         if (p.jb > 0 && p.s === ST.IDLE && !p.cr) { p.vy = T.jump; p.gnd = 0; p.jb = 0; p.jh = 1; p.sup = -1; ev(S, 'jump', {a: p.i, x: p.x, y: p.y}); }
@@ -1007,7 +1007,7 @@ function hazards(S, w, T) {
         if (!alive(p) || p.s === ST.KD || p.vt === id * 100 + (h.x | 0) % 100) continue;
         if (Math.abs(p.x - h.x) > h.w / 2 + HW || p.y < BASE - 120) continue;
         p.vt = id * 100 + (h.x | 0) % 100;
-        p.vy = S.cfg.lowg ? -8.5 : -12.5; p.gnd = 0; p.sup = -1; p.cr = 0;
+        p.vy = S.cfg.lowg ? -8.5 : -12.5; p.gnd = 0; p.sup = -1; p.cr = 0; p.ln = 1;
         if (p.s !== ST.IDLE && p.s !== ST.DIVE) { p.s = ST.IDLE; }
         ev(S, 'vent', {a: p.i, x: p.x, y: p.y});
       }
@@ -1070,7 +1070,7 @@ function spawnAt(S, w, p, x, T) {
   if (top !== null) y = Math.min(y, top);
   const o = S.p[1 - p.i];
   Object.assign(p, {x, y, vx: 0, vy: 0, s: ST.IDLE, t: 0, arm: 1, h: 1, hT: 99, inv: T.inv, gnd: 0, rw: 0, gone: 0, res: 0, cr: 0, dl: 0,
-    step: 0, ab: 0, jb: 0, kd: 0, sup: -1, co: 0});
+    step: 0, ab: 0, jb: 0, kd: 0, sup: -1, co: 0, ln: 0});
   p.f = alive(o) ? (o.x > x ? 1 : -1) : (x < S.room * W + W / 2 ? 1 : -1);
   ev(S, 'spawn', {a: p.i, x, y});
 }
@@ -1160,6 +1160,12 @@ function botInput(S, w, i, m) {
     if (m.leapD && !p.gnd) { b &= ~(K.L | K.R); b |= m.leapD > 0 ? K.R : K.L; if (p.vy < 0) b |= K.J; }
     if (p.gnd && !(b & K.J)) m.leapD = 0;
     if ((b & K.J) && p.gnd) m.leapD = (b & K.R) ? 1 : (b & K.L) ? -1 : 0;
+    // pushing a direction but not getting anywhere for a while (a ledge, someone in the way): hop
+    if ((b & (K.L | K.R)) && p.gnd && p.s === ST.IDLE) {
+      if (Math.abs(p.x - (m.px == null ? p.x : m.px)) < 0.5) m.pushT = (m.pushT || 0) + 1; else m.pushT = 0;
+      if (m.pushT > 40 && !(prevHeld & K.J)) { b |= K.J; m.pushT = 0; }
+    } else m.pushT = 0;
+    m.px = p.x;
     m.roll = 0; m.prev = b; return b;
   };
   if (S.win >= 0 || !alive(p)) return out();
@@ -1263,6 +1269,8 @@ function botInput(S, w, i, m) {
   }
   if (bold && p.arm && S.cfg.thr && adx > 70 && p.f === toO && Math.abs(o.y - p.y) < 30 && (m.bored % 240) === 120 && o.h !== 2) { m.throwT = 12; return out(); }
   if (bold && S.adv === -1 && (m.bored % 200) < 100 && p.gnd && gapAhead(toO, Math.min(adx, 90)) === 'pit') { leap(toO); return out(); }
+  // a defender whose runner won't come (a standoff across a gap): take the fight to them now and then
+  if (bold && S.adv === 1 - i && (m.bored % 300) >= 180 && adx > 60) { if (p.arm && o.arm && p.h === o.h) stanceTo(p, o.h === 2 ? 1 : o.h + 1, tapU, tapD); leap(toO); return out(); }
   if (bold && S.adv === -1 && adx > 100 && (m.bored % 200) < 100) { wantDir(toO); return out();
   }
   // The runner would rather get past than fight: over the top where there's headroom, under a mid or high
