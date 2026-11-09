@@ -88,6 +88,7 @@
   var KEYS = [
     // shared
     'party:name', 'ol:name', 'ol:block', 'ol:mute',
+    'ol:join', 'party:pub',   // Let people join my games (social.js) and the party's Public / Private switch (party.js)
     'wallet:v1', 'cosmetics:v1',   // coins and the locker (wallet.js, cosmetics.js), switched off for now
     'layout:v1',   // Edit layout (layout.js): the order of the Back Room's blocks
     'wallet:v1', 'cosmetics:v1',   // coins and the locker (wallet.js, cosmetics.js), switched off for now
