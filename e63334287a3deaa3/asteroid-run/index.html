@@ -87,15 +87,20 @@ h1 span{color:var(--lime)}
 .prog{margin:10px 0 0;font-weight:800;font-size:13.5px;color:var(--tx-2);text-align:center}
 .prog b{color:var(--tx);font-weight:900}
 .cry{color:var(--cyan)}
-.chars{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.chars{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
 .chars button{border:2px solid transparent;border-radius:12px;background:var(--panel-2);padding:5px 2px 3px;display:flex;flex-direction:column;align-items:center;gap:0;min-width:0}
 .chars button svg{width:40px;height:40px}
 .chars button b{font-family:var(--f-d);font-weight:400;font-size:12px}
-.chars button small{font-size:10px;font-weight:900;color:var(--tx-3);white-space:nowrap}
+.chars button small{font-size:9.5px;font-weight:900;color:var(--tx-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.chars button.locked small{color:var(--cyan)}
 .chars button[aria-pressed="true"]{border-color:var(--lime);background:#26306e}
 .chars button.locked svg{filter:grayscale(1) brightness(.55)}
 .charinfo{margin:8px 0 0;font-weight:700;font-size:13px;color:var(--tx-2);line-height:1.35;min-height:2.7em}
 .charinfo b{color:var(--tx);font-family:var(--f-d);font-weight:400}
+.charinfo em{font-style:normal;font-weight:900;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink);background:var(--lime);border-radius:6px;padding:1px 6px;margin-right:2px}
+.buy{margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}.buy small{font-weight:800;color:var(--tx-2)}
+.seg.wrap{flex-wrap:wrap}
+#trails button:disabled{opacity:.45}
 .bars{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:4px 8px;align-items:center;font-weight:900;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--tx-3);margin-top:6px}
 .bars i{display:block;height:6px;border-radius:4px;background:var(--panel-2);overflow:hidden}
 .bars i::after{content:'';display:block;height:100%;width:var(--v);background:var(--lime);border-radius:4px}
@@ -106,18 +111,25 @@ h1 span{color:var(--lime)}
 .pick-head h2{font-family:var(--f-d);font-weight:400;font-size:24px;margin:0}
 .mapwrap{display:grid;grid-template-columns:minmax(0,1fr) 240px;gap:14px;margin-top:10px;align-items:start}
 @media (max-width:760px){.mapwrap{grid-template-columns:minmax(0,1fr)}}
-#mapSvg{width:100%;height:auto;display:block;background:#080a20;border-radius:14px}
+#mapWrap{overflow:auto;max-height:calc(100vh - 150px);max-height:calc(100dvh - 150px);background:#080a20;border-radius:14px;overscroll-behavior:contain}
+@media (max-width:760px){#mapWrap{max-height:calc(100vh - 330px);max-height:calc(100dvh - 330px);min-height:240px}}
+#mapSvg{display:block}
+#mapSvg .zl{font-family:var(--f-d);font-size:24px}
+#mapSvg .zl.lock{opacity:.45}
+#mapSvg .zi{font-family:var(--f-b);font-weight:800;font-size:14px;fill:#8d92c8}
+#mapSvg .lnk.side{stroke-dasharray:6 8}
 #mapSvg .lnk{stroke:#3a3f7a;stroke-width:4;stroke-dasharray:2 9;stroke-linecap:round}
 #mapSvg .lnk.on{stroke:#9aa0e0;stroke-dasharray:none}
 #mapSvg .nd{cursor:pointer}
 #mapSvg .nd circle{stroke:#fff;stroke-width:0}
-#mapSvg .nd text{font-family:var(--f-d);font-size:20px;fill:#0b0d26;text-anchor:middle;dominant-baseline:central;pointer-events:none}
+#mapSvg .nd text{font-family:var(--f-d);font-size:16px;fill:#0b0d26;text-anchor:middle;dominant-baseline:central;pointer-events:none}
 #mapSvg .nd.lock circle{fill:#23285a!important}
 #mapSvg .nd.lock text{fill:#6b70a8}
 #mapSvg .nd.sel circle{stroke-width:5}
 #mapSvg .gem{fill:#3fe0ff}
 #mapSvg .gem.no{fill:#2a2f66}
 .lvinfo{background:var(--panel-2);border-radius:14px;padding:10px 12px}
+.eyebrow{font-weight:900;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--tx-3)}
 .lvinfo h3{margin:0;font-family:var(--f-d);font-weight:400;font-size:20px;line-height:1.1}
 .lvinfo .sub{margin:4px 0 8px}
 .gems{font-size:20px;letter-spacing:2px}
@@ -143,10 +155,24 @@ h1 span{color:var(--lime)}
 #hint kbd{font:inherit;color:var(--lime);font-weight:900}
 #hint.gone{opacity:0}
 #flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+#pop{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);font-family:var(--f-d);font-size:clamp(24px,4vw,36px);color:#fff;text-shadow:0 3px 0 var(--ink);opacity:0;pointer-events:none;white-space:nowrap}
+#pop.cy{color:var(--cyan)}#pop.au{color:var(--sun)}
+#pop.go{animation:pop .7s ease-out}
+@keyframes pop{0%{opacity:0;transform:translate(-50%,-30%) scale(.6)}15%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}30%{transform:translate(-50%,-50%) scale(1)}75%{opacity:1}100%{opacity:0;transform:translate(-50%,-90%) scale(1)}}
+#abil{position:absolute;left:calc(12px + env(safe-area-inset-left,0px));top:calc(62px + env(safe-area-inset-top,0px));width:74px;height:36px;padding:4px 8px}
+#abil{display:flex;flex-direction:column;justify-content:center}
+#abil i{display:block;height:5px;border-radius:3px;background:var(--cyan);width:0;order:2}
+#abil small{order:1}
+#abil.ready small{color:var(--cyan)}
 
 /* ---------- pause / results ---------- */
-#pause .card,#results .card{width:min(400px,100%)}
-#pause h2,#results h2{font-family:var(--f-d);font-weight:400;font-size:26px;margin:0;line-height:1.05}
+#pause .card,#results .card,#story .card{width:min(400px,100%)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#resGems{font-size:24px;letter-spacing:4px;margin-top:2px}#resGems i{font-style:normal;color:var(--cyan)}#resGems i.no{color:#3a3f7a}
+#story .who{display:flex;align-items:center;gap:10px}
+#story .who svg{width:44px;height:44px;flex:0 0 auto}
+#storyLines p{margin:10px 0 0;font-weight:700;font-size:15.5px;line-height:1.45;color:var(--tx)}
+#pause h2,#results h2,#story h2{font-family:var(--f-d);font-weight:400;font-size:26px;margin:0;line-height:1.05}
 .sub{font-weight:800;color:var(--tx-2);margin:6px 0 0;font-size:14px}
 .stack{display:grid;gap:8px;margin-top:14px}
 .big-num{font-family:var(--f-d);font-weight:400;font-size:46px;font-variant-numeric:tabular-nums;margin:4px 0 0;line-height:1.05;color:var(--lime)}
@@ -169,6 +195,8 @@ body.halves #tL,body.halves #tR{display:none}
 #tR{left:calc(110px + env(safe-area-inset-left,0px))}
 #tJ{right:calc(18px + env(safe-area-inset-right,0px));bottom:calc(22px + env(safe-area-inset-bottom,0px));width:100px;height:100px;border-radius:50%;font-size:17px;background:rgba(182,255,59,.8);color:var(--ink)}
 #tJ.on{background:var(--lime)}
+#tA{right:calc(30px + env(safe-area-inset-right,0px));bottom:calc(134px + env(safe-area-inset-bottom,0px));width:76px;height:76px;border-radius:50%;font-size:12px;background:rgba(63,224,255,.3)}
+#tA.ready{background:rgba(63,224,255,.75);color:var(--ink)}
 #halfHint{position:absolute;left:50%;bottom:calc(140px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);font:900 12px var(--f-b);color:#fff;background:rgba(11,13,38,.7);padding:3px 10px;border-radius:9px;white-space:nowrap;pointer-events:none}
 body:not(.halves) #halfHint{display:none}
 body.touch #hint,body.touch .kbonly{display:none}
@@ -188,14 +216,17 @@ body.touch #hint,body.touch .kbonly{display:none}
     <div class="pill" id="top"><small id="lvlLbl">Level 1</small><b id="lvlName">First Steps</b><div id="bar"><i></i></div></div>
     <div class="pill" id="gemBox" aria-label="Crystals"><b><span class="cry">◆</span> <span id="gems">0</span></b></div>
     <button id="tP" type="button" aria-label="Pause" data-no-ad-refresh>❚❚</button>
+    <div class="pill" id="abil" hidden><i></i><small>Bridge</small></div>
+    <div id="pop"></div>
     <div id="banner"><b></b><span></span></div>
-    <div id="hint" class="kbonly"><span><kbd data-kb="left right" data-kb-short data-kb-sep=" ">A D</kbd> sidestep</span><span><kbd data-kb="jump" data-kb-short>Space</kbd> jump</span><span><kbd data-kb="restart" data-kb-short>R</kbd> restart</span><span><kbd>Esc</kbd> pause</span></div>
+    <div id="hint" class="kbonly"><span><kbd data-kb="left right" data-kb-short data-kb-sep=" ">A D</kbd> sidestep</span><span><kbd data-kb="jump" data-kb-short>Space</kbd> jump (hold for higher)</span><span id="hintA" hidden><kbd data-kb="ability" data-kb-short>S</kbd> bridge</span><span><kbd data-kb="restart" data-kb-short>R</kbd> restart</span><span><kbd>Esc</kbd> pause</span></div>
   </div>
   <div id="touch" aria-hidden="true">
     <div id="tSteer"></div>
     <div id="halfHint">Hold left or right of the screen to sidestep</div>
     <button class="tb" id="tL" type="button" aria-label="Left"><svg viewBox="0 0 24 24"><path d="M15 4 7 12l8 8" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     <button class="tb" id="tR" type="button" aria-label="Right"><svg viewBox="0 0 24 24"><path d="m9 4 8 8-8 8" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <button class="tb" id="tA" type="button" hidden>BRIDGE</button>
     <button class="tb" id="tJ" type="button">JUMP</button>
   </div>
 
@@ -206,32 +237,37 @@ body.touch #hint,body.touch .kbonly{display:none}
           <svg viewBox="0 0 60 60" aria-hidden="true"><rect x="2" y="2" width="56" height="56" rx="15" fill="#1b1f52"/><path d="M14 46 22 14h16l8 32" fill="none" stroke="#5a6cff" stroke-width="4" stroke-linejoin="round"/><path d="M18 32h24M20 24h20M16 40h28" stroke="#8fa0ff" stroke-width="2"/><ellipse cx="30" cy="36" rx="7" ry="8" fill="#7dff6a" stroke="#0b0d26" stroke-width="2"/><path d="M30 28v-5" stroke="#0b0d26" stroke-width="2"/><circle cx="30" cy="22" r="2.4" fill="#ff4fa0"/></svg>
           <h1>Asteroid <span>Run</span></h1>
         </div>
-        <p class="tag">Run the tunnels at full speed. Jump the holes, or step onto a wall and the whole tunnel turns.</p>
+        <p class="tag">Run the tunnels at full speed. Jump the holes, or step onto a wall and the whole tunnel turns with you.</p>
         <div class="play">
           <button class="btn lime big wide2" id="contBtn" type="button">Play<small id="contSub">Level 1 · First Steps</small></button>
-          <button class="btn alt" id="mapBtn" type="button">Levels<small id="mapSub">0 of 32</small></button>
+          <button class="btn alt" id="mapBtn" type="button">Level map<small id="mapSub">0 cleared</small></button>
           <button class="btn pink" id="endBtn" type="button">Endless<small id="endSub">best –</small></button>
+          <button class="btn cyan wide2" id="dayBtn" type="button">Daily run<small id="daySub">same tunnel for all</small></button>
         </div>
-        <p class="prog"><b id="pLv">0</b> of 32 levels · <span class="cry">◆</span> <b id="pCr">0</b> crystals · best <b id="pBest">–</b></p>
+        <p class="prog"><b id="pLv">0</b> of <span id="pNL">57</span> levels · <span class="cry">◆</span> <b id="pCr">0</b> to spend · best <b id="pBest">–</b></p>
       </div>
       <div class="col2">
         <div class="label">Runner</div>
         <div class="chars" id="chars" role="group" aria-label="Pick a runner"></div>
         <div class="charinfo" id="charInfo"></div>
+        <div class="label">Trail</div>
+        <div class="seg wrap" id="trails" role="group" aria-label="Pick a trail"></div>
         <details>
           <summary>Settings and help</summary>
           <div class="setting"><span>Sound</span><input id="vol" type="range" min="0" max="1" step=".05" aria-label="Sound volume"></div>
           <div class="row" style="margin-top:10px"><span style="font-weight:800;font-size:14px;min-width:80px">Graphics</span><div class="seg" id="gfxSeg"><button type="button" data-q="low">Fast</button><button type="button" data-q="high">Sharp</button></div></div>
+          <div class="row" style="margin-top:10px"><span style="font-weight:800;font-size:14px;min-width:80px">Jump</span><div class="seg" id="jumpSeg"><button type="button" data-v="hold">Hold for higher</button><button type="button" data-v="fixed">Always full</button></div></div>
           <div class="row" id="tmRow" style="margin-top:10px" hidden><span style="font-weight:800;font-size:14px;min-width:80px">Touch</span><div class="seg" id="tmSeg"><button type="button" data-v="buttons">Arrow buttons</button><button type="button" data-v="halves">Screen halves</button></div></div>
           <div class="row" style="margin-top:10px"><button class="btn sm alt kbonly" id="keysMenu" type="button">Controls</button></div>
           <ul class="how">
-            <li><b>You run on your own.</b> Sidestep left and right and jump. Every jump is the same big jump, so you can learn exactly how far it goes. You can steer in the air.</li>
+            <li><b>You run on your own.</b> Sidestep left and right and jump. Tap jump for a small hop, hold it for a big one (or set Jump to Always full). You can steer in the air, and the dark spot under you shows where you'll land.</li>
             <li><b>Walls</b>: run off the side of the floor and you walk up the wall, and the tunnel turns so the wall is your new floor. A wall is often the way round a hole.</li>
-            <li><b>Tiles</b>: holes are black. <span style="color:#bff4ff">White ice</span> is slippery, <span style="color:#ff9a3c">orange cracked tiles</span> fall away if you land on them, belts push you (<span style="color:#ffc23a">yellow</span> sideways, <span style="color:#3ee68a">green</span> faster, <span style="color:#ff6a78">red</span> slower), <span style="color:#b6ff3b">lime pads</span> launch you and <span style="color:#c27bff">purple goo</span> slows you down.</li>
-            <li><b>Levels</b>: reach the ring at the end. Fall and you're straight back at the start. Each level has three crystals.</li>
-            <li><b>Endless</b>: the tunnel never ends and keeps speeding up. Crystals you pick up are kept.</li>
-            <li class="kbonly"><b>Keys</b>: A / D or the arrow keys sidestep, Space, W or the up arrow jumps, R restarts, Esc pauses. Change them under Controls.</li>
-            <li id="touchNote" hidden><b>Touch</b>: the arrow buttons (or the two halves of the screen, in Settings) sidestep, the green button jumps, and the top-left button pauses.</li>
+            <li><b>Tiles</b>: holes are black. <span style="color:#bff4ff">White ice</span> is slippery, <span style="color:#ff9a3c">orange cracked tiles</span> fall away if you land on them, belts push you (<span style="color:#ffc23a">yellow</span> sideways, <span style="color:#3ee68a">green</span> faster, <span style="color:#ff6a78">red</span> slower), <span style="color:#3fe0ff">cyan strips</span> speed you up, <span style="color:#b6ff3b">lime ramps</span> launch you over big gaps and <span style="color:#c27bff">purple goo</span> slows you down. In the dark, tiles light up as you get near.</li>
+            <li><b>Levels</b>: reach the ring at the end. Fall and you're straight back at the start. Each level has three crystals. Clear one to open the next; the map splits, and side tunnels each free a new runner.</li>
+            <li><b>Endless</b>: the tunnel never ends, keeps speeding up and changes zone every few hundred metres. Keep picking up crystals for a streak. Once a run you can spend ◆15 to carry on after a fall. The Daily run is the same tunnel for everyone, all day.</li>
+            <li><b>Crystals</b> unlock runners early and buy trails.</li>
+            <li class="kbonly"><b>Keys</b>: A / D or the arrow keys sidestep, Space, W or the up arrow jumps, S, the down arrow or Shift is Spool's bridge, R restarts, Esc pauses. Change them under Controls.</li>
+            <li id="touchNote" hidden><b>Touch</b>: the arrow buttons (or the two halves of the screen, in Settings) sidestep, the green button jumps (hold it for a bigger jump), the blue button is Spool's bridge, and the top-left button pauses.</li>
           </ul>
         </details>
       </div>
@@ -241,9 +277,9 @@ body.touch #hint,body.touch .kbonly{display:none}
   <section id="mapMenu" class="overlay" hidden>
     <div class="card">
       <div class="pick-head"><h2>Levels</h2><button class="btn sm alt" id="mapBack" type="button">Back</button></div>
-      <p class="sub">Clear a level to open the ones it leads to. The paths split, so there's more than one way to the Core.</p>
+      <p class="sub">Clear a level to open the ones it leads to. Each zone teaches one thing; the path splits, and dashed side tunnels are harder and each frees a runner.</p>
       <div class="mapwrap">
-        <svg id="mapSvg" viewBox="0 0 1000 680" role="group" aria-label="Level map"></svg>
+        <div id="mapWrap"><svg id="mapSvg" viewBox="0 0 1590 900" role="group" aria-label="Level map"></svg></div>
         <div class="lvinfo" id="lvInfo"></div>
       </div>
     </div>
@@ -264,11 +300,21 @@ body.touch #hint,body.touch .kbonly{display:none}
     </div>
   </section>
 
+  <section id="story" class="overlay center" hidden>
+    <div class="card">
+      <div class="who"><svg viewBox="0 0 44 44" aria-hidden="true"><rect x="3" y="8" width="38" height="28" rx="8" fill="#1b1f52" stroke="#3fe0ff" stroke-width="2.5"/><path d="M12 22h4l3-6 4 12 3-6h6" fill="none" stroke="#b6ff3b" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/><path d="M30 8l5-6" stroke="#3fe0ff" stroke-width="2.5" stroke-linecap="round"/></svg>
+        <div><h2>Dispatch</h2><p class="sub" id="storyZone"></p></div></div>
+      <div id="storyLines"></div>
+      <div class="stack"><button class="btn big lime" id="storyGo" type="button">Let’s go</button></div>
+    </div>
+  </section>
+
   <section id="results" class="overlay center" hidden>
     <div class="card">
       <h2 id="resTitle">Level clear!</h2>
       <p class="sub" id="resSub"></p>
       <div id="resBig" class="big-num" hidden></div>
+      <div id="resGems" hidden></div>
       <p class="facts" id="resFacts"></p>
       <div id="resUnlock"></div>
       <div class="stack" id="resBtns"></div>
@@ -282,123 +328,204 @@ body.touch #hint,body.touch .kbonly{display:none}
 <script src="../keybinds.js"></script>
 <script>
 // ==CORE==
-// Everything that decides what happens: runners, tiles, levels, the endless tunnel, the physics step, the camera and the
-// checking bot. No DOM and no Three.js in here, so a test can run it on its own (see README).
+// Everything that decides what happens: runners, tiles, zones and levels, the map, the endless tunnel, the physics step,
+// the camera and the checking bot. No DOM and no Three.js in here, so a test can run it on its own (see README).
 const AR=(()=>{
 'use strict';
 const DT=1/120;          // fixed physics step
 const TL=1.5;            // tile length along the tunnel (m); tiles are 1 m wide
 const CR_WALK=.3,CR_LAND=.05;   // a cracked tile gives way this long after you run onto it / land on it
-const COYOTE=.1,JBUF=.12;       // a jump still works this long after running off an edge, and this early before landing
-const DEATH_H=-2.2;      // this far below the wall you're lost in space (the level restarts at once)
+const COYOTE=.12,JBUF=.14;      // a jump still works this long after running off an edge, and this early before landing
+const DEATH_H=-2.2;      // this far below the wall you're lost in space
 const POP_AIR=.3,POP_WALK=.05;  // how far below a tile's edge you can still step up onto it: after a jump / after running off
-const CAM_TURN=30;       // how fast the camera's "up" follows the wall (1/s): the tunnel turn takes about 0.15 s
-// Tile types
-const T={E:0,N:1,C:2,I:3,VL:4,VR:5,VF:6,VB:7,B:8,K:9};
-const TCH={n:T.N,c:T.C,i:T.I,l:T.VL,r:T.VR,f:T.VF,b:T.VB,k:T.K};
+const CAM_TURN=24;       // how fast the camera's "up" follows the wall (1/s): the tunnel turn takes about 0.2 s
+const TAP=.4;            // a tap jump is this fraction of the full jump's height (see jumpArc)
+const HOLD_FR=.3;        // jump can be held for this fraction of the full jump's air time (about 0.25 s)
+const BOOST_T=1.5,BOOST_X=1.3;  // a speed strip: this many seconds at this times the speed
+const GLIDE_T=1.1;       // Wisp can float this long each jump
+const BRIDGE_T=2.6,BRIDGE_CD=6,BRIDGE_ROWS=10;  // Spool's bridge: how long it lasts, recharge, how far it reaches
+// Tile types. Bridges (BR) are never in the rows: they're laid on top of holes for a moment (W.br).
+const T={E:0,N:1,C:2,I:3,VL:4,VR:5,VF:6,VB:7,B:8,K:9,S:10,L:11,BR:12};
+const TCH={n:T.N,c:T.C,i:T.I,l:T.VL,r:T.VR,f:T.VF,b:T.VB,k:T.K,s:T.S,g:T.L};
 
-// The runners. Every runner has ONE jump: jl metres long and jh metres high, at any speed and however long jump is held
-// (the take-off speed and gravity are worked out from those at take-off, see jumpArc). speed: forward m/s; lat: sideways
-// tiles/s; accG/accA: how fast sideways speed changes on the ground / in the air (air control).
+// The runners. Jumping: a tap is a small hop and holding jump makes it bigger, up to the runner's full jump (jl metres
+// long, jh metres high) once it has been held for about a quarter of a second (see jumpArc). With the "fixed jump"
+// setting every jump is that full jump. speed: forward m/s; lat: sideways tiles/s; accG/accA: how fast sideways speed
+// changes on the ground / in the air. free: how the runner unlocks for nothing ({lv: n} levels cleared, or {at: i} clearing
+// level i); cost: crystals to unlock it straight away instead. Abilities: heavy (cracked tiles hold), dbl (a second jump
+// in the air), glide (hold jump while falling to float), mag (pulls crystals from this far), bridge (lays a bridge).
 const CHARS=[
   {id:'pip',name:'Pip',desc:'Steady all-rounder. Good at everything, best at nothing.',col:0x7dff6a,col2:0x2f9e3f,
-    speed:12.5,lat:7.5,accG:70,accA:42,jl:10.5,jh:2.5,need:null},
-  {id:'brick',name:'Brick',desc:'A rock with legs. A little slower, and cracked tiles never give way under him.',col:0xe0a070,col2:0x8a5530,
-    speed:11.6,lat:6.8,accG:70,accA:28,jl:10.5,jh:2.5,heavy:true,need:{lv:5}},
-  {id:'vex',name:'Vex',desc:'The fastest runner, and very slippery: plan your sidesteps early.',col:0xc07bff,col2:0x6a2ac0,
-    speed:14.5,lat:8.2,accG:24,accA:18,jl:10.5,jh:2.5,need:{cr:25}},
-  {id:'moppet',name:'Moppet',desc:'A fluffy floater whose jump goes a bit higher and further than anyone’s.',col:0xffa8e0,col2:0xd0569e,
-    speed:12,lat:7,accG:50,accA:46,jl:11.5,jh:2.8,need:{lv:14}},
-  {id:'twitch',name:'Twitch',desc:'Tiny and twitchy: the quickest sidestep and the best steering in the air.',col:0xffd23f,col2:0xc77d00,
-    speed:13.2,lat:9.6,accG:110,accA:80,jl:10.5,jh:2.5,need:{cr:60}}
+    speed:12.5,lat:7.5,accG:70,accA:42,jl:10.5,jh:2.5,free:null,cost:0},
+  {id:'brick',name:'Brick',desc:'A rock with legs. A little slower, but cracked tiles never give way under him.',col:0xe0a070,col2:0x8a5530,
+    speed:11.6,lat:6.8,accG:70,accA:28,jl:10.5,jh:2.5,heavy:true,free:{lv:6},cost:30},
+  {id:'vex',name:'Vex',desc:'The fastest runner, and very slippery: start your sidesteps early.',col:0xc07bff,col2:0x6a2ac0,
+    speed:14.5,lat:8.2,accG:24,accA:18,jl:10.5,jh:2.5,free:{at:9},cost:60},
+  {id:'moppet',name:'Moppet',desc:'A fluffy high jumper: her full jump goes higher and further than anyone’s.',col:0xffa8e0,col2:0xd0569e,
+    speed:12,lat:7,accG:50,accA:46,jl:12.5,jh:3.3,free:{lv:18},cost:80},
+  {id:'twitch',name:'Twitch',desc:'Tiny and twitchy: the quickest sidestep, and a second jump in mid-air.',col:0xffd23f,col2:0xc77d00,
+    speed:13.2,lat:9.6,accG:110,accA:80,jl:10.5,jh:2.5,dbl:true,free:{at:54},cost:120},
+  {id:'wisp',name:'Wisp',desc:'A little cloud: hold jump on the way down and she floats gently.',col:0xbff4ff,col2:0x58a8d8,
+    speed:12.2,lat:7.2,accG:60,accA:52,jl:10.5,jh:2.5,glide:true,free:{at:53},cost:140},
+  {id:'clink',name:'Clink',desc:'A walking magnet: crystals fly to him from a couple of tiles away.',col:0xff6a5a,col2:0x3a4a78,
+    speed:12.8,lat:7.6,accG:70,accA:44,jl:10.5,jh:2.5,mag:2.6,free:{lv:30},cost:100},
+  {id:'spool',name:'Spool',desc:'Weaves a glowing bridge over the holes ahead (Ability key or button, recharges).',col:0x5ef0c8,col2:0x1f8a74,
+    speed:12.3,lat:7.4,accG:70,accA:42,jl:10.5,jh:2.5,bridge:true,free:{lv:42},cost:180}
 ];
 
 // Tunnel shapes: [faces, tiles across each face]
-const SHAPES={sq:[4,5],hex:[6,4],oct:[8,3],nar:[4,4],big:[8,4]};
+const SHAPES={sq:[4,5],hex:[6,4],oct:[8,3],nar:[4,4],big:[8,4],tube:[6,2],tri:[3,6],pent:[5,4]};
+const SHAPE_NAME={sq:'square',hex:'six-sided',oct:'eight-sided',nar:'narrow square',big:'wide eight-sided',tube:'thin six-sided pipe',tri:'three-sided',pent:'five-sided'};
 // One tunnel colour per zone (tile: a; background: sky). Special tiles have their own colours (in the drawing code).
 const THEMES={
   launch:{name:'Launch Lane',a:0x4f68ff,sky:0x05061a},
+  roll:{name:'Rollover Ring',a:0x2fbf8a,sky:0x03120c},
   frost:{name:'Frostbelt',a:0x2f8fd8,sky:0x03101c},
   rubble:{name:'Rubble Reach',a:0x7b7fa8,sky:0x0a0912},
   junction:{name:'The Junction',a:0x8358ff,sky:0x0a0618},
+  gauntlet:{name:'Pinch Pipes',a:0xd8344a,sky:0x140306},
   drift:{name:'Drift Docks',a:0x1fa8b8,sky:0x021214},
+  burn:{name:'Afterburn',a:0xf07a20,sky:0x140802},
   spring:{name:'Spring Fields',a:0xe0559a,sky:0x14040c},
-  gauntlet:{name:'The Gauntlet',a:0xd8344a,sky:0x140306},
+  hush:{name:'The Hush',a:0x6a5cff,sky:0x020208},
   comet:{name:'Comet Tail',a:0xf0b020,sky:0x110c02},
   core:{name:'The Core',a:0xd23cc0,sky:0x12031a},
   endless:{name:'Endless',a:0x5a6cff,sky:0x05061a}
 };
 
 // Levels. Each is a list of pieces, read left to right; each piece lays some rows of tiles. The corridor is the path the
-// level is built round: it starts in the middle of the floor and some pieces move it. Gaps are sized for the one fixed
-// jump (7 rows long, 7.7 for Moppet): G2-G3 are easy, G4 needs a timed jump, G5 a well-timed one.
+// level is built round: it starts in the middle of the floor and some pieces move it. A full jump is 7 rows long (8.3 for
+// Moppet) and a tap about 4: G2-G3 are a tap, G4 needs a held jump, G5 a full, well-timed one.
 //   R n      n rows of complete ring                    G n    n empty rows (jump them)
-//   S n wW   only a strip W tiles wide (the corridor)   M n kK the strip slides K tiles sideways over n rows
+//   S n wW   only a strip W tiles wide (the corridor)   M n kK wW  the strip slides K tiles sideways over n rows
 //   H n dD   ring with holes (share D), a 2-wide safe lane wanders through
-//   X n kK gG  platforms: n times (K rows on, G rows off), then K rows on (default 4 and 4); wW makes them strips
+//   X n kK gG wW  platforms: n times (K rows on, G rows off), then K rows on (default 4 and 4); wW makes them strips
 //   Q n      stepping stones: n groups of 3 rows of 2-tile blocks, every other block, shifting each group, 4 rows apart
 //   Z n kK wW  the strip weaves K tiles each way          F n kK only the face K faces round from the corridor's face
 //   O n kK   every face but that one (O n k0: the floor drops out, take a wall)
-//   P n      a boost pad row, then n empty rows (a pad launch is 11 rows long)
-//   :t       tile type for the piece: n normal, c cracked, i ice, l/r conveyor to the left/right, f/b forward/back, k sticky
+//   P n      a ramp row, then n empty rows (a ramp launch is 11 rows long)
+//   D1 / D0  the lights go out / come back on (dark rows only light up near the runner)
+//   :t       tile type for the piece: n normal, c cracked, i ice, l/r conveyor to the left/right, f/b forward/back,
+//            k sticky goo, s speed strip, g glow tile (always lit, even in the dark)
 //   $d / ^d  a power crystal d tiles from the corridor in the middle of the next piece, low ($) or high (^, jump for it)
+// A face piece (F) K faces round needs a ring before it at least 1.5 x (K x tiles per face) + 4 rows long, so there's
+// time to run round to it. Level indexes never change (saved progress is keyed by them); new levels go on the end.
 const LEVELS=[
- // 1-5 Launch Lane: square tunnel, teaching
- {n:'First Steps',s:'sq',th:'launch',sp:.92,p:'R14 $0 R8 G2 R10 G2 R8 $2 R8 G3 R10 S8w3 R6 ^0 G3 R10 G2 R6'},
- {n:'Side Step',s:'sq',th:'launch',sp:.94,p:'R12 S10w3 $3 R6 O10k0 R8 G3 R6 $-3 O12k0 R10 S8w3 G2 ^0 R10 G3 R8'},
- {n:'Hop Scotch',s:'sq',th:'launch',sp:.96,p:'R12 X2 R8 $0 G3 R6 X3 R8 O8k0 R6 ^0 X3 R8 G3 R6 $0 X2w3 R8'},
- {n:'Round the Bend',s:'sq',th:'launch',sp:.98,p:'R12 S6w3 M10k4w3 $0 S8w3 M10k5w3 R8 G3 R6 S6w3 ^0 M12k-5w3 S6w3 R8 O10k0 $0 R8 G3 R8'},
- {n:'Swiss Cheese',s:'sq',th:'launch',sp:1,p:'R12 H16d.2 R6 G3 $0 H16d.25 R6 X2 ^0 H18d.3 R6 G3 R4 $0 S10w2 R8'},
- // 6-10 Frostbelt: hexagon, ice
- {n:'Thin Ice',s:'hex',th:'frost',sp:.96,p:'R12 R10:i $0 R6 G2 R10:i S8w4:i R6 ^0 G3 R10 O10k0:i $0 R8 G3 R8'},
- {n:'Skid Row',s:'hex',th:'frost',sp:.98,p:'R10 S10w3:i $0 M10k3w3:i S6w3 G2 S8w3:i ^0 M10k-4w3:i R6 G3 $0 H14d.25:i R8'},
- {n:'Glacier Gaps',s:'hex',th:'frost',sp:1,p:'R10 X2:i R6:i G3 $0 R6:i G3 R6 ^0 X2w4:i R6 G4 R8:i $0 O10k0:i R8'},
- {n:'Snow Globe',s:'hex',th:'frost',sp:1.02,p:'R12 F10k1 $0 R10 F10k-1:i R10 G3 ^0 R10 F10k1:i R12 F10k1 $0 R10 G3 R10'},
- {n:'Polar Express',s:'hex',th:'frost',sp:1.04,p:'R10 H14d.25:i G3 $0 R6:i Z16k2w2:i R6 G3 ^0 H16d.3:i R6 X2:i $0 R6 G4 R8'},
- // 11-15 Rubble Reach: octagon, cracked tiles
- {n:'Cracked Path',s:'oct',th:'rubble',sp:.98,p:'R12 R10:c $0 R6 G2 R6 R8:c ^0 G3 R8 R10:c $0 R4 G3 R8'},
- {n:'Soft Landing',s:'oct',th:'rubble',sp:1,p:'R10 G3 R1:c R6 $0 G3 R2:c R6 R6:c ^0 G3 R2:c R8 S8w3:c $0 G3 R8'},
- {n:'Rubble Run',s:'oct',th:'rubble',sp:1.02,p:'R10 H14d.25:c $0 R6 X2 R6:c ^0 O10k0:c R6 G3 $0 H14d.3 R8'},
- {n:'Shale Spiral',s:'oct',th:'rubble',sp:1.04,p:'R10 S6w3 M14k6w3:c $0 S6w3 M14k-6w3 R6:c G3 ^0 S6w2 M12k4w2:c S6w3 R6 $0 G3 R8'},
- {n:'Rockfall',s:'oct',th:'rubble',sp:1.06,p:'R10 Q3:c R6 G3 $0 R4 H16d.3:c R6 ^0 X2:c R6 G4 $0 R6:c R8'},
- // 16 The Junction: square, a bit of everything
- {n:'Crossroads',s:'sq',th:'junction',sp:1.04,p:'R10 R8:i G3 R6 R8:c $0 O10k0 R8 ^0 H14d.3 R6 S6w3 M10k5w3:i S6w3 $0 G3 R8 X2 R8'},
- // 17-20 Drift Docks: hexagon, conveyors
- {n:'Moving Floor',s:'hex',th:'drift',sp:1,p:'R10 R10:r $0 R6 R10:l R6 G2 R10:f ^0 R6 G3 R10:b $0 R6 G3 R8'},
- {n:'Undertow',s:'hex',th:'drift',sp:1.02,p:'R10 S10w3:r $0 S6w3 S10w3:l R6 G3 ^0 R10:r O10k0:l R10 $0 S8w2 G3 R8'},
- {n:'Cargo Belt',s:'hex',th:'drift',sp:1.04,p:'R10 H14d.25:r $0 R6 X2:f R6 ^0 G4 R6 H14d.3:l R6 $0 R8:b G3 R8'},
- {n:'Dock Spin',s:'hex',th:'drift',sp:1.06,p:'R10 R14:r $0 R6:l Z14k2w2 R6 ^0 G3 R14:l R6 $0 F10k1:r R6 G3 R8'},
- // 21-24 Spring Fields: octagon, boost pads and sticky goo
- {n:'Springboard',s:'oct',th:'spring',sp:1,p:'R12 P5 $0 R8 P7 R8 ^0 R6 P8 R8 $0 R8:k R6 G3 R8'},
- {n:'Gumtrap',s:'oct',th:'spring',sp:1.02,p:'R10 R8:k $0 R6 G3 R6 S8w3:k ^0 R6 P7 R8 $0 R6:k R6 G3 R8'},
- {n:'Long Leap',s:'oct',th:'spring',sp:1.04,p:'R10 P8 $0 R6 G4 R6 P9 ^0 R6 H12d.25 P8 $0 R8 X2 R8'},
- {n:'Bounce House',s:'oct',th:'spring',sp:1.06,p:'R10 P7 R4:k $0 R6 P7 S6w3 G3 ^0 R6:k R6 P8 R6 $0 H14d.3 R8'},
- // 25-28 The Gauntlet: narrow square, harder
- {n:'Tight Squeeze',s:'nar',th:'gauntlet',sp:1.04,p:'R12 S10w2 $0 R6 O10k0 R6 G3 ^0 R6 F10k1 R6 F10k-1 $0 R6 G4 R8'},
- {n:'Knife Edge',s:'nar',th:'gauntlet',sp:1.06,p:'R10 S10w1 R6 $0 X2w2 R6 ^0 H14d.3 R6 S8w1:i $0 R6 G4 R8'},
- {n:'Tumble Dryer',s:'nar',th:'gauntlet',sp:1.08,p:'R10 S6w2 M12k6w2 $0 S6w2 M12k-6w2:i R6 G3 ^0 S6w2 M12k6w2:r S6w2 $0 R6 G4 R8'},
- {n:'No Way Out',s:'nar',th:'gauntlet',sp:1.1,p:'R10 H16d.3:c $0 R6 G4 R6:i O10k0 R6 ^0 X3 R6 G4 $0 R6 Q3 R8'},
- // 29-30 Comet Tail: big octagon, bonus branch
- {n:'Crystal Garden',s:'big',th:'comet',sp:1.06,p:'R12 H16d.25 $0 R6 P8 R8 ^4 X2 R6 $-4 F10k2 R6 G3 R8'},
- {n:'Tail Spin',s:'big',th:'comet',sp:1.08,p:'R10 S6w3 M16k8w3 $0 S6w3 M16k-8w3:i R6 G3 ^0 Z16k3w3 R6 $0 H16d.3 R8'},
- // 31-32 The Core
- {n:'Heat Shield',s:'hex',th:'core',sp:1.1,p:'R10 H16d.3:c $0 R6:i G3 R6 X2:r R6 ^0 P8 R6 O10k0:l R10 $0 Z14k2w2 R6 G4 R8'},
- {n:'Heart of the Rock',s:'oct',th:'core',sp:1.12,p:'R10 S6w3 M12k4w3:i $0 R6 G4 H14d.3:c R6 P8 ^0 R6:k R6 G3 X2:f R6 $0 Q3 R6 O10k0:r R6 G5 R8'}
+ /*0*/ {n:'First Steps',s:'sq',th:'launch',sp:.92,p:'R16 $0 R10 G2 R12 G2 R12 G3 R10 H14d.12 R10 $2 R8 G3 R12 S10w3 R8 G2 R10 H16d.15 R8 ^0 G3 R12 H14d.18 R8 G2 R12'},
+ /*1*/ {n:'Side Step',s:'sq',th:'launch',sp:.94,p:'R14 H12d.1 R8 $2 S10w3 R6 H16d.15 R8 G2 R10 S6w3 M10k4w3 S6w3 R8 $-2 H16d.2 R10 G3 R10 S8w2 R6 H18d.2 R8 ^0 G2 R10 S6w3 M10k-4w3 R8 G3 R12 H14d.22 R10'},
+ /*2*/ {n:'Hop Scotch',s:'sq',th:'launch',sp:.95,p:'R12 X2 R8 $0 G2 R6 G3 R6 X3 R8 G2 R5 G2 R5 G3 R10 ^0 X3k4g3 R8 G4 R10 X2w3 R6 $0 G3 R8 X3 R8 G4 R12'},
+ /*3*/ {n:'Round the Bend',s:'hex',th:'roll',sp:.95,p:'R14 O12k0 R10 $4 O12k0 R10 S6w3 M12k4w3 S8w3 ^0 M12k-4w3 R10 O14k0 R8 G2 R12 F12k1 R12 $0 F12k-1 R12 O12k0 R14'},
+ /*4*/ {n:'Swiss Cheese',s:'sq',th:'launch',sp:.98,p:'R12 H18d.2 R6 G3 $0 H18d.25 R6 X2 H20d.28 R6 ^0 G3 R6 H20d.3 R8 S10w2 R6 G4 R8 $0 H18d.32 R8 G3 R10'},
+ /*5*/ {n:'Thin Ice',s:'hex',th:'frost',sp:.98,p:'R12 R10:i $0 R8 G2 R10:i S8w4:i R8 ^0 G3 R10 O12k0:i R8 H14d.2:i $0 R8 G3 R8 S10w3:i M12k4w3:i S6w3 R8 G3 R10 R12:i G2 R8 R10'},
+ /*6*/ {n:'Skid Row',s:'hex',th:'frost',sp:1,p:'R10 S10w3:i $0 M10k3w3:i S6w3 G2 S8w3:i ^0 M12k-4w3:i R8 G3 $0 H16d.25:i R8 S8w2:i R8 G3 R8 Z16k2w2:i R8 O12k0:i S6w3:i M12k4w3:i S6w3 R8 G3 R8 H14d.2:i R6 R10'},
+ /*7*/ {n:'Glacier Gaps',s:'hex',th:'frost',sp:1,p:'R10 X2:i R6:i G3 $0 R6:i G3 R6 ^0 X2w4:i R6 G4 R8:i $0 O12k0:i R8 X3:i R8 G4 R8:i H14d.25:i X2:i R8 G3 R6 R10'},
+ /*8*/ {n:'Snow Globe',s:'hex',th:'frost',sp:1.02,p:'R12 F12k1 R12 $0 F12k-1:i R12 G3 R6 ^0 R6 F12k1:i R12 F12k1 R10 $0 O12k0:i R16 F12k2:i R12 F12k-1 R10 G3 R10'},
+ /*9*/ {n:'Polar Express',s:'hex',th:'frost',sp:1.04,p:'R10 H16d.25:i G3 $0 R6:i Z16k2w2:i R6 G3 ^0 H16d.3:i R6 X2:i $0 R6 G4 R8 S6w3:i M16k8w3:i S6w3 R8 O12k0:i R8 G4 H14d.25:i R8 G3 R6 R12'},
+ /*10*/{n:'Cracked Path',s:'oct',th:'rubble',sp:.96,p:'R14 R6:c R10 $0 R8:c R10 G2 R8 R10:c R8 ^0 S10w3:c R8 G2 R8 R12:c R6 $0 H14d.15:c R8 G3 R10 R10:c R8:c G2 R8 S8w3:c R8 R12'},
+ /*11*/{n:'Soft Landing',s:'oct',th:'rubble',sp:.98,p:'R12 G3 R2:c R10 $0 G4 R2:c R10 R8:c R8 G2 R10 ^0 G3 R3:c R10 S8w3:c R6 G3 R8 G2 R2:c R10 $0 G3 R2:c R8 R10:c G3 R3:c R8 X2 R8 G3 R2:c R10 R12'},
+ /*12*/{n:'Rubble Run',s:'oct',th:'rubble',sp:.98,p:'R10 H16d.25:c R8 $0 X2 R6:c R8 O12k0:c R8 G3 R8 ^0 H16d.3 R6 R8:c G2 R8 S6w3:c M10k4w3:c S6w3 R8 $0 H16d.3:c R8 G3 R10'},
+ /*13*/{n:'Shale Spiral',s:'oct',th:'rubble',sp:1,p:'R10 S6w3 M14k6w3:c S6w3 $0 R6 S6w3 M14k-6w3 R6:c G3 R6 ^0 S6w2 M12k4w2:c S6w3 R8 O12k0:c R8 S6w3 M16k8w3:c S6w3 $0 R6 G3 R10 H14d.25:c R12'},
+ /*14*/{n:'Rockfall',s:'oct',th:'rubble',sp:1.02,p:'R10 Q3:c R8 G3 $0 R6 H16d.3:c R8 ^0 X2 R6:c G4 R8 $0 R8:c Q3 R8 O12k0:c R8 G3 R6 H16d.3:c X2 R8:c R6 R12'},
+ /*15*/{n:'Crossroads',s:'sq',th:'junction',sp:1.02,p:'R10 R8:i G3 R6 R8:c $0 O12k0 R8 ^0 H16d.3 R6 S6w3 M12k5w3:i S6w3 $0 G3 R8 X2 R14 F12k1 R20 F12k-2 R12 G3 R10 H14d.3:c R12'},
+ /*16*/{n:'Moving Floor',s:'hex',th:'drift',sp:.98,p:'R12 R10:r $0 R8 R10:l R8 G2 R10:f ^0 R8 G3 R10:b $0 R8 G3 R10 R12:r R6 R12:l R8 G3 R10:f G3 R8 S8w3:r M10k-4w3:l S6w3 R8 G3 R8:b R8 R12'},
+ /*17*/{n:'Undertow',s:'hex',th:'drift',sp:1,p:'R10 S10w3:r $0 S6w3 S10w3:l R8 G3 ^0 R10:r O12k0:l R10 $0 S8w2 G3 R8 S12w3:l R6 S12w3:r R8 G3 S8w3:r M12k-5w3:l S6w3 R8 X2:f R8 H14d.2:r R8 R10'},
+ /*18*/{n:'Cargo Belt',s:'hex',th:'drift',sp:1.02,p:'R10 H16d.25:r $0 R6 X2:f R6 ^0 G4 R6 H16d.3:l R6 $0 R8:b G3 R8 X3:f R8 H14d.25:r S6w3:l M12k5w3:r S6w3 R8 G3 R10:f R8 R10'},
+ /*19*/{n:'Dock Spin',s:'hex',th:'drift',sp:1.04,p:'R10 R14:r $0 R6:l Z16k2w2 R6 ^0 G3 R14:l R6 $0 F12k1:r R12 G3 R8 O12k0:r R8 Z16k2w2:l R12:r F12k-1:l R12 G3 R8 H14d.25:l R8 R12'},
+ /*20*/{n:'Springboard',s:'oct',th:'spring',sp:.98,p:'R14 P5 R10 $0 R8 P7 R10 ^0 R8 P8 R10 $0 R10 P9 R10 G3 R10 P10 R12 X2 R10 P8 R10 G3 R14'},
+ /*21*/{n:'Gumtrap',s:'oct',th:'spring',sp:1,p:'R10 R8:k $0 R6 P7 R8 S8w3:k ^0 R6 P8 R8 $0 R6:k R6 G3 R8 P9 R8 R10:k P8 R8 H14d.25 P8 R8 R8:k G3 R8 P9 R10 R10'},
+ /*22*/{n:'Long Leap',s:'oct',th:'spring',sp:1.02,p:'R10 P8 $0 R6 G4 R6 P9 ^0 R6 H14d.25 R4 P8 $0 R8 X2 R8 P10 R8 S8w3 R2 P9 R6 G3 R8 P10 R8 X2 R8 P9 R8 R12'},
+ /*23*/{n:'Bounce House',s:'oct',th:'spring',sp:1.04,p:'R10 P7 R4:k $0 R6 P7 S6w3 G3 ^0 R6:k R6 P8 R6 $0 H16d.3 R8 P8 R4 P8 R4 P9 R10 G4 R8 P7 R6:k R6 P8 R6 X2 R8 P9 R6 H14d.25 R8 R12'},
+ /*24*/{n:'Tight Squeeze',s:'nar',th:'gauntlet',sp:1,p:'R12 S10w2 $0 R8 O12k0 R8 G3 ^0 R8 F10k1 R10 F10k-1 $0 R8 G3 R8 S10w2 R6 O12k0 R8 G4 R10 H14d.2 S8w2 R6 G3 R8 R10'},
+ /*25*/{n:'Knife Edge',s:'nar',th:'gauntlet',sp:1.02,p:'R10 S10w1 R8 $0 X2w2 R8 ^0 H16d.3 R6 S8w1:i $0 R6 G4 R8 S12w1 R6 S6w2 M10k3w2 S8w1 R8 G3 X2w2 R8 S10w1:i R6 G3 R8 R10'},
+ /*26*/{n:'Tumble Dryer',s:'nar',th:'gauntlet',sp:1.04,p:'R10 S6w2 M14k8w2 $0 S6w2 M14k-8w2:i R6 G3 ^0 S6w2 M14k8w2:r S6w2 $0 R6 G4 R8 S6w2 M16k-8w2 S6w2 S6w2 M14k8w2:l S6w2 R6 G3 R8 S6w2 M14k-8w2:i S6w2 R6 G4 R8 R8'},
+ /*27*/{n:'No Way Out',s:'nar',th:'gauntlet',sp:1.06,p:'R10 H16d.3:c $0 R6 G4 R6:i O12k0 R6 ^0 X3 R6 G4 $0 R6 Q3 R8 O12k0 R6 O12k2 R8 G3 H14d.3:c R6 X2 R8 G4 R8 R10'},
+ /*28*/{n:'Crystal Garden',s:'big',th:'comet',sp:1.04,p:'R12 H18d.25 $0 R6 P8 R8 ^4 X2 R16 $-4 F12k2 R18 G3 R8 H18d.3 R8 P9 R8 X3 R10'},
+ /*29*/{n:'Tail Spin',s:'big',th:'comet',sp:1.06,p:'R10 S6w3 M18k8w3 $0 S6w3 M18k-8w3:i R6 G3 ^0 Z18k3w3 R6 $0 H18d.3 R8 S6w3 M20k16w3 S6w3 R8 G4 Z18k3w3:i R6 G3 R8 X2 R8 R12'},
+ /*30*/{n:'Heat Shield',s:'hex',th:'core',sp:1.06,p:'R10 H16d.3:c $0 R6:i G3 R6 X2:r R6 ^0 P8 R6 O12k0:l R10 $0 Z16k2w2 R6 G4 R8 R1:s H16d.25 R8 D1 R10 F12k1 R12 G3 R8 X2:l R6 D0 R10'},
+ /*31*/{n:'Heart of the Rock',s:'oct',th:'core',sp:1.08,p:'R10 S6w3 M12k4w3:i $0 R6 G4 H14d.3:c R6 P8 ^0 R6:k R6 G3 X2:f R6 $0 Q3 R6 O10k0:r R6 G5 R8 R1:s D1 H16d.25 R8 X2:r R6 P8 R8 H14d.25:c R8 D0 G3 R12'},
+ // ---- added in the fun update (32 on) ----
+ /*32*/{n:'Pothole Parade',s:'sq',th:'launch',sp:1,p:'R12 H16d.25 G3 R6 X3 R6 H18d.3 $0 R6 G4 R8 S8w3 M10k5w3 S6w3 G3 R8 ^0 H20d.32 R6 X3k3g4 R6 G4 $0 R6 H16d.35 R8 G5 R12'},
+ /*33*/{n:'Wall Walker',s:'hex',th:'roll',sp:.96,p:'R12 F14k1 R12 F14k-1 R10 $0 O16k0 R8 G2 R18 F12k2 R10 ^0 R6 F12k-2 R8 O14k0 R6 G2 R10 $0 F16k1 R22 F16k3 R14'},
+ /*34*/{n:'Corkscrew',s:'hex',th:'roll',sp:.98,p:'R12 S6w3 M20k8w3 R8 $0 S6w3 M20k-8w3 S6w3 G2 S8w3 M16k6w3 ^0 S8w3 R8 O12k0 R8 S6w3 M24k12w3 S6w3 $0 R10 Z18k3w3 R12'},
+ /*35*/{n:'Pillar Dance',s:'hex',th:'roll',sp:.98,p:'R12 O10k0 R6 O10k1 R6 O10k-1 R8 $3 H18d.3 R8 O12k0 G2 R10 F10k1 R12 ^0 F10k-1 R10 O12k0 R8 O12k2 R10 $0 H18d.3 R10'},
+ /*36*/{n:'Barrel Roll',s:'hex',th:'roll',sp:1,p:'R12 F12k1 R10 F12k1 R10 F12k1 R10 F12k1 R10 $0 O14k0 R8 S6w4 M20k12w4 R8 ^0 F14k-1 R10 F14k-1 R10 G2 R8 $0 Z20k4w3 R8 O12k0 R12'},
+ /*37*/{n:'Loop the Loop',s:'hex',th:'roll',sp:1.02,p:'R10 F12k1 R10 F12k1 R10 $0 H16d.3 R8 O12k0 R6 O12k1 R8 G3 R8 S6w3 M24k-12w3 S6w3 ^0 R18 F12k2 R14 F12k-1 R10 G3 $0 R8 O14k0 R22 F12k3 R14 X2 R12'},
+ /*38*/{n:'Landslide',s:'oct',th:'rubble',sp:1.04,p:'R10 R8:c H16d.3:c R8 $0 G3 R2:c R8 S8w3:c M12k-5w3:c S6w3 R8 ^0 O14k0:c R8 G4 R8 Q2:c R8 $0 H18d.3:c R8 R12:c G3 X2 R6:c G3 R8 R12'},
+ /*39*/{n:'Pipe Dream',s:'tube',th:'gauntlet',sp:1,p:'R14 S10w1 R8 $0 F12k1 R8 F12k1 R8 F12k1 R8 ^0 O12k0 R6 G2 R8 S6w1 M18k6w1 S6w1 R8 $0 H14d.2 R14 F10k3 R14 G3 R12'},
+ /*40*/{n:'Needle’s Eye',s:'tube',th:'gauntlet',sp:1.04,p:'R12 S8w1 R6 O10k0 R6 O10k1 R6 O10k-1 $0 R8 G3 R10 F10k2 R12 F10k-2 R10 ^0 S6w1 M16k-6w1 S6w1 R6 X2 R8 $0 H16d.25 R6 G4 R12'},
+ /*41*/{n:'Rush Hour',s:'hex',th:'drift',sp:1.02,p:'R10 R12:f G4 R8 $0 R10:b G2 R8 S8w3:r M12k5w3:r S6w3 ^0 R8 R12:f X2 R8 H16d.3:l R8 $0 R10:r O12k0:l R10 G3 X2:f R8 G3 R6 R12'},
+ /*42*/{n:'Kickstart',s:'oct',th:'burn',sp:.96,p:'R14 R1:s R14 $0 G2 R10 R1:s R10 G3 R10 ^0 R1:s H16d.15 R8 R1:s R8 S8w3 M10k4w3 S6w3 $0 R10 R1:s G3 R10 R1:s X2 R1:s H16d.2 R8 R1:s G3 R8 S6w3 M10k-4w3 S6w3 R8 R12'},
+ /*43*/{n:'Overdrive',s:'oct',th:'burn',sp:.98,p:'R10 R2:s H18d.2 R6 $0 R1:s G3 R8 R1:s S6w3 M12k-5w3 S6w3 R6 ^0 R2:s X2 R8 R1:s O12k0 R8 $0 R1:s H18d.25 R8 G3 R1:s X2 R8 R1:s H18d.25 R6 G3 R8 R1:s Z16k2w2 R8 R12'},
+ /*44*/{n:'Tailwind',s:'oct',th:'burn',sp:.98,p:'R10 S12w3:s R6 $0 G3 R8 F12k1 R8 R1:s F12k-1 R10 G3 ^0 R8 S6w3:s M14k6w3:s S6w3 R8 $0 R1:s Z16k2w2 R8 G4 S10w3:s G3 R8 R1:s H16d.25 R8 F12k1 R12 G3 R8 R12'},
+ /*45*/{n:'Redline',s:'oct',th:'burn',sp:1,p:'R10 R1:s H16d.25 R6 R1:s H16d.3 R6 $0 G4 R8 R1:s X3g3 R6 ^0 R1:s O12k0 R6 O12k2 R8 $0 R1:s S6w2 M14k6w2 S6w2 R6 G4 R1:s H16d.3 R6 G4 R8 R1:s X2 R8 R12'},
+ /*46*/{n:'Afterburner',s:'oct',th:'burn',sp:1.02,p:'R10 S10w3:s G3 R6 $0 H18d.3 R6 R1:s Q2 R8 ^0 R1:s S6w3 M16k-8w3 S6w3 R6 R1:s G4 R8 $0 F12k1:s R10 X3 R6 R1:s H16d.32 R1:s Z16k2w2:s R6 G4 R8 R1:s H14d.2 R8 R12'},
+ /*47*/{n:'Skyhook',s:'oct',th:'spring',sp:1.02,p:'R10 P8 R6 F12k1 R10 P8 $0 R8 O12k0 R8 P9 R8 ^0 S6w3 M12k6w3 S6w3 R2 P10 R8 $0 P8 R6 P8 R10 G4 R8 P9 R8 F12k1 R10 G3 R8 R12'},
+ /*48*/{n:'Lights Out',s:'hex',th:'hush',sp:.96,p:'R14 D1 R12 $0 G2 R10 H14d.15 R10 G3 R10 ^0 S10w3 R8 G2 R10 $0 H16d.2 R8 X2 R10 G3 R10 G2 R8 D0 R14'},
+ /*49*/{n:'Glowworm',s:'hex',th:'hush',sp:.98,p:'R12 D1 R10 S10w3:g R6 $0 G3 R8 S6w3 M12k4w3 S6w3 ^0 G3 R8 H16d.25 R8 O12k0 R10 $0 F12k1 R12 G3 R10 X2 R8 G3 R8 D0 R12'},
+ /*50*/{n:'Night Shift',s:'hex',th:'hush',sp:.98,p:'R12 D1 R10 X2 R8 $0 G3 R8 R8:c R8 ^0 H16d.25 R8 G4 R8 $0 R1:s H16d.2 R8 Z16k2w2 R8 G3 R10 X2 R8 G3 R8 D0 R12'},
+ /*51*/{n:'Blind Bend',s:'hex',th:'hush',sp:1,p:'R10 D1 R8 F12k1 R12 $0 F12k-1 R12 G3 R8 O12k0 R8 ^0 S6w3 M16k8w3 S6w3 R8 G3 R8 $0 H16d.3 R8 X2 R10 D0 R12'},
+ /*52*/{n:'Pitch Black',s:'hex',th:'hush',sp:1.02,p:'R10 D1 R8 H16d.3 R6 G3 $0 R6 X3 R12 F12k1 R12 ^0 O12k0 R8 G4 R8 S6w2 M14k-6w2 S6w2 $0 R8 Q2 R8 H16d.32 R10 D0 R12'},
+ /*53*/{n:'Deep Hush',s:'hex',th:'hush',sp:1.04,p:'R10 D1 R6 H18d.35 R6 G4 $0 R6 Q3 R18 F12k2 R18 ^0 F12k-1 R10 G4 R6 X3k3g4 R8 $0 S6w2 M16k8w2:c S6w2 R6 G4 R12 D0 R10'},
+ /*54*/{n:'Supernova',s:'big',th:'comet',sp:1.06,p:'R10 H18d.35 R6 G4 $0 R6 P10 R8 S6w2 M18k10w2:i S6w2 ^0 R6 Q3 R8 O12k0 R6 O12k2 R6 O12k-2 R8 $0 X3k3g4 R6 H18d.35 R6 G5 R12'},
+ /*55*/{n:'Three Ways',s:'tri',th:'core',sp:1.04,p:'R14 O12k0 R10 $0 R4 F12k1 R14 F12k1 R14 ^0 H16d.25 R8 G3 R8 S6w3 M18k9w3 S6w3 R8 O12k0 R8 $0 R6 F12k-1 R14 G3 R10 X2 R12'},
+ /*56*/{n:'Five Alive',s:'pent',th:'core',sp:1.06,p:'R12 F12k1 R18 F12k2 R18 $0 O12k0 R8 H16d.3 R8 G4 R8 ^0 R1:s S6w3 M16k-8w3:c S6w3 R8 P9 R8 D1 R12 F12k1 R10 D0 $0 X3 R8 Q2 R8 G4 R14'}
 ];
-// The map: where each level sits (x, y in a 1000 x 680 box) and which levels it opens.
-const MAP=[
- [70,150,[1]],[165,105,[2]],[260,150,[3]],[355,105,[4]],[450,150,[5,10]],
- [545,70,[6]],[640,110,[7]],[735,70,[8]],[830,110,[9]],[900,70,[15]],
- [545,235,[11]],[615,290,[12]],[700,255,[13]],[790,240,[14]],[860,275,[15]],
- [950,340,[16,20]],
- [840,345,[17]],[740,385,[18]],[640,345,[19]],[540,385,[24]],
- [840,485,[21]],[740,525,[22]],[640,485,[23]],[540,525,[24]],
- [440,455,[25,28]],
- [340,400,[26]],[240,360,[27]],[140,400,[30]],
- [340,520,[29]],[240,560,[30]],
- [100,500,[31]],[80,620,[]]
+
+// Zones, in the order of the main path, each teaching one idea (lv: its levels in order; a pair is a fork, either one
+// opens what comes next). side: optional branches (harder, and each gives a runner when you clear its last level).
+// say: what Dispatch radios in when you first play the zone (the little story); at: where the zone sits on the map.
+const ZONES=[
+ {id:'launch',idea:'Holes',lv:[0,[1,2],4,32],at:[90,130,1],
+  say:['Dispatch here. The quake knocked the lights out across the whole rock, and you’re carrying the last spark.','The tunnels are full of holes now. Tap jump for a hop, hold it for a big one.']},
+ {id:'roll',idea:'Walls',lv:[3,33,[34,35],36,37],at:[505,130,1],
+  say:['Gravity sticks to whatever you’re standing on out here.','No floor? Step onto a wall. The tunnel turns with you.']},
+ {id:'rubble',idea:'Crumbling tiles',lv:[10,[11,12],13,14,38],at:[1015,130,1],
+  say:['Rubble Reach took the worst of the quake.','Orange tiles hold while you keep running, but land on one and it drops.']},
+ {id:'junction',idea:'A bit of everything',lv:[15],at:[1480,410,-1],
+  say:['The Junction. Everything you’ve learned, in one tunnel.']},
+ {id:'gauntlet',idea:'Narrow tunnels',lv:[24,25,[26,39],27,40],at:[1365,410,-1],
+  say:['The pipes get tight from here. Fewer tiles, and the walls come round fast.']},
+ {id:'drift',idea:'Conveyor belts',lv:[16,17,[18,41],19],at:[855,410,-1],
+  say:['The old cargo belts still run. Yellow pushes you sideways, green speeds you up, red holds you back.']},
+ {id:'burn',idea:'Speed strips',lv:[42,[43,44],45,46],at:[90,690,1],
+  say:['Afterburn. The cyan strips kick you up to full throttle for a moment.','Your jump stays the same length. It just comes round sooner.']},
+ {id:'spring',idea:'Ramps',lv:[20,21,[22,47],23],at:[505,690,1],
+  say:['The gaps here are too wide to jump, so ride the ramps over them.','Purple goo slows you down. Stay off it before a ramp.']},
+ {id:'hush',idea:'The dark',lv:[48,[49,50],51,52],at:[920,690,1],
+  say:['The Hush has no power at all. Tiles only light up when you get close.','Look for the glow and trust your feet.']},
+ {id:'core',idea:'The finale',lv:[30,[31,55],56],at:[1335,690,1],
+  say:['That’s the Core up ahead. The tunnels change shape down there, so pick your walls carefully.','Bring that spark home, runner.']}
 ];
+const SIDES=[
+ {id:'frost',idea:'Ice',lv:[5,6,7,8,9],from:37,to:15,at:[1015,270,1],gift:'vex',
+  say:['A side tunnel through the Frostbelt. The ice is slippery, so start each sidestep early.','A runner called Vex is stuck at the far end. Get there and she’ll join you.']},
+ {id:'comet',idea:'Hard mix',lv:[28,29,54],from:23,to:null,at:[835,550,1],gift:'twitch',
+  say:['Comet Tail is the toughest run on the rock. Twitch is waiting at the end.']},
+ {id:'deep',idea:'Darker',lv:[53],from:51,to:null,at:[1110,830,1],gift:'wisp',
+  say:['Deeper in the Hush there’s no light at all, and Wisp is lost down there. Go and find her.']}
+];
+const STEP_X=95,FORK_Y=50;
+// The map: where each level sits (x, y in a MAP_W x MAP_H box), which levels it opens, and its zone.
+const MAP_W=1590,MAP_H=900;
+const MAP=LEVELS.map(()=>[0,0,[],'']);
+const LV_ZONE=[];
+(function(){
+  const all=ZONES.concat(SIDES);
+  const firstOf=z=>{const a=z.lv[0];return Array.isArray(a)?a:[a]},lastOf=z=>{const a=z.lv[z.lv.length-1];return Array.isArray(a)?a:[a]};
+  for(const z of all){
+    const [x0,y0,dir]=z.at;let prev=null;
+    z.lv.forEach((it,k)=>{
+      const ids=Array.isArray(it)?it:[it];
+      ids.forEach((i,m)=>{MAP[i][0]=x0+dir*k*STEP_X;MAP[i][1]=y0+(ids.length>1?(m?FORK_Y:-FORK_Y):0);MAP[i][3]=z.id;LV_ZONE[i]=z});
+      if(prev)for(const p of prev)for(const i of ids)MAP[p][2].push(i);
+      prev=ids;
+    });
+  }
+  ZONES.forEach((z,k)=>{const nx=ZONES[k+1];if(nx)for(const p of lastOf(z))for(const i of firstOf(nx))MAP[p][2].push(i)});
+  for(const s of SIDES){for(const i of firstOf(s))MAP[s.from][2].push(i);if(s.to!=null)for(const p of lastOf(s))MAP[p][2].push(s.to)}
+})();
 const PRED=MAP.map(()=>[]);MAP.forEach((m,i)=>m[2].forEach(j=>PRED[j].push(i)));
+const ZONE_BY_ID={};ZONES.concat(SIDES).forEach(z=>ZONE_BY_ID[z.id]=z);
 
 function rng(seed){let a=seed>>>0||1;return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
@@ -406,19 +533,29 @@ const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 // ---- the tunnel ----
 function newWorld(shape,th,sp){
   const [N,L]=SHAPES[shape];const P=N*L;
-  return {shape,N,L,P,th,sp:sp||1,a:(L/2)/Math.tan(Math.PI/N),rows:[],cry:[],fin:Infinity,cr:new Map(),spRow:null,
-    p:L/2+(shape==='nar'?.5:0),pend:[],pr:null,gen:null,cryAt:{}};
+  return {shape,N,L,P,th,sp:sp||1,a:(L/2)/Math.tan(Math.PI/N),rows:[],dk:[],zr:[],dark:false,zone:0,cry:[],fin:Infinity,len:Infinity,
+    cr:new Map(),br:new Map(),p:L/2+(shape==='nar'?.5:0),pend:[],gen:null,cryAt:{}};
 }
 const wrapd=(W,x)=>{const P=W.P;let v=((x%P)+P)%P;if(v>P/2)v-=P;return v};
 const laneOf=(W,u)=>{const P=W.P;let j=Math.floor(u)%P;return j<0?j+P:j};
-function addRow(W,fill){const r=new Uint8Array(W.P);if(fill)r.fill(fill);W.rows.push(r);return r}
-// lanes of the corridor centred on p, w wide
-function corr(W,p,w,fn){for(let j=0;j<W.P;j++)if(Math.abs(wrapd(W,j+.5-p))<w/2)fn(j)}
+function addRow(W,fill){const r=new Uint8Array(W.P);if(fill)r.fill(fill);W.rows.push(r);W.dk.push(W.dark?1:0);W.zr.push(W.zone);return r}
+// lanes of the corridor at p, w wide
+function corr(W,p,w,fn){
+  if(w>=W.P){for(let j=0;j<W.P;j++)fn(j);return}
+  // odd widths centre on the lane p is in, even widths on the lane edge nearest p
+  const a=w%2?Math.floor(p)-(w-1)/2:Math.round(p)-w/2;
+  for(let k=0;k<w;k++)fn(((a+k)%W.P+W.P)%W.P);
+}
 function faceOf(W,p){return Math.floor(((p%W.P)+W.P)%W.P/W.L)}
 function placeCry(W,r0,n){
   if(!W.pend.length)return;
-  const r=r0+Math.floor(n/2);
-  for(const c of W.pend){const o={l:laneOf(W,W.p+c.d),r,h:c.hi?2:.55,id:W.cry.length};W.cry.push(o);(W.cryAt[r]||(W.cryAt[r]=[])).push(o)}
+  for(const c of W.pend){
+    const cnt=c.n||1,gap=2,r=r0+Math.max(0,Math.floor((n-(cnt-1)*gap)/2));
+    for(let i=0;i<cnt;i++){const rr=r+i*gap;
+      // a line of crystals sits on tiles (endless): skip any over a hole
+      if(cnt>1&&!(W.rows[rr]&&W.rows[rr][laneOf(W,W.p+c.d)]))continue;
+      const o={l:laneOf(W,W.p+c.d),r:rr,h:c.hi?2:.55,id:W.cry.length};W.cry.push(o);(W.cryAt[rr]||(W.cryAt[rr]={a:[]})).a.push(o)}
+  }
   W.pend=[];
 }
 // One piece: [cmd, n, {w,k,d,g,t}]
@@ -446,13 +583,13 @@ function piece(W,cmd,n,o,R){
         if(c<n-1)for(let i=0;i<4;i++)addRow(W,0)}
       break}
     case 'Z':{const p0=W.p,k=o.k||1;for(let i=0;i<n;i++){const p=p0+k*Math.sin(i/n*Math.PI*2),pp=p0+k*Math.sin((i-1)/n*Math.PI*2);const r=addRow(W,0);corr(W,p,w,j=>r[j]=t);corr(W,pp,w,j=>r[j]=t)}W.p=p0;break}
-    case 'F':{const f=(faceOf(W,W.p)+(o.k||0)+W.N)%W.N;for(let i=0;i<n;i++){const r=addRow(W,0);for(let j=f*W.L;j<(f+1)*W.L;j++)r[j]=t}
+    case 'F':{const f=(faceOf(W,W.p)+(o.k||0)+W.N*4)%W.N;for(let i=0;i<n;i++){const r=addRow(W,0);for(let j=f*W.L;j<(f+1)*W.L;j++)r[j]=t}
       W.p=f*W.L+W.L/2;break}
-    case 'O':{const f=(faceOf(W,W.p)+(o.k||0)+W.N)%W.N;for(let i=0;i<n;i++){const r=addRow(W,t);for(let j=f*W.L;j<(f+1)*W.L;j++)r[j]=0}
-      // the corridor stays put: whichever wall you took, the face that dropped out is one face away, so what comes
-      // next is as far from either side (levels give a ring of 8+ rows after this before anything narrower)
+    case 'O':{const f=(faceOf(W,W.p)+(o.k||0)+W.N*4)%W.N;for(let i=0;i<n;i++){const r=addRow(W,t);for(let j=f*W.L;j<(f+1)*W.L;j++)r[j]=0}
+      // the corridor stays put: whichever wall you took, the face that dropped out is one face away
       break}
     case 'P':addRow(W,T.B);for(let i=0;i<n;i++)addRow(W,0);break;
+    case 'D':W.dark=!!n;break;
   }
   placeCry(W,r0,W.rows.length-r0);
 }
@@ -464,7 +601,7 @@ function parse(src){
     m=/^([A-Z])(\d+)((?:[wkdg]-?[\d.]+)*)(?::([a-z]))?$/.exec(tok);
     if(!m)throw new Error('bad piece '+tok);
     const o={};(m[3].match(/[wkdg]-?[\d.]+/g)||[]).forEach(s=>o[s[0]]=+s.slice(1));
-    if(m[4])o.t=TCH[m[4]];
+    if(m[4]){if(TCH[m[4]]==null)throw new Error('bad tile '+tok);o.t=TCH[m[4]]}
     out.push([m[1],+m[2],o]);
   }
   return out;
@@ -477,15 +614,27 @@ function buildLevel(i){
     if(pc[0]==='cry'){W.pend.push({d:pc[1],hi:pc[2]});continue}
     piece(W,pc[0],pc[1],pc[2],R);
   }
+  W.dark=false;
   W.fin=W.rows.length+2;
   for(let r=0;r<16;r++)addRow(W,T.N);
   W.len=W.fin*TL;
   return W;
 }
 
-// ---- endless: an endless seeded tunnel that gets faster and harder the further you go ----
-const ENDLESS_SHAPE='oct';
+// ---- endless: a seeded tunnel through zones that change colour and hazards every ENDZ_LEN metres, faster and harder
+// the further you go ----
+const ENDLESS_SHAPE='oct',ENDZ_LEN=360;
+const ENDZ=[
+  {n:'Launch Lane',a:0x5a6cff,sky:0x05061a,haz:[]},
+  {n:'Rubble Reach',a:0x8a8eb8,sky:0x0a0912,haz:[T.C]},
+  {n:'Drift Docks',a:0x1fa8b8,sky:0x021214,haz:[T.VL,T.VR,T.VF]},
+  {n:'Afterburn',a:0xf07a20,sky:0x140802,haz:[T.S],pads:true},
+  {n:'Frostbelt',a:0x2f8fd8,sky:0x03101c,haz:[T.I]},
+  {n:'The Hush',a:0x6a5cff,sky:0x020208,haz:[],dark:true},
+  {n:'The Core',a:0xd23cc0,sky:0x12031a,haz:[T.C,T.I,T.VL,T.VR,T.S],pads:true}
+];
 function endlessSpeed(d){return 1+.5*Math.min(1,d/2000)}    // 1x at the start, 1.5x from 2 km
+const endZoneAt=d=>Math.floor(Math.max(0,d)/ENDZ_LEN);
 function buildEndless(seed){
   const W=newWorld(ENDLESS_SHAPE,'endless',1),R=rng(seed||1);
   W.endless=true;W.seed=seed;
@@ -498,20 +647,26 @@ const pick=(R,a)=>a[Math.floor(R()*a.length)];
 function extendEndless(W,upto){
   const g=W.gen,R=g.R;
   while(W.rows.length<upto){
-    const D=Math.min(1,W.rows.length*TL/2400);     // 0 at the start, 1 from 2.4 km
-    const tt=()=>R()<.25+D*.4?pick(R,[T.I,T.C,T.VL,T.VR,T.VF,T.I,T.C]):T.N;
-    if(R()<.3)W.pend.push({d:R()<.6?0:Math.round((R()-.5)*4),hi:R()<.3});
+    const m=W.rows.length*TL,D=Math.min(1,m/2400);     // 0 at the start, 1 from 2.4 km
+    const zi=endZoneAt(m),Z=ENDZ[zi%ENDZ.length];
+    if(zi!==W.zone){ // a short plain stretch at the change of zone, so the new colour has room to show
+      W.zone=zi;W.dark=false;for(let i=0;i<6;i++)addRow(W,T.N);W.dark=!!Z.dark;continue}
+    W.dark=!!Z.dark;
+    const tt=()=>Z.haz.length&&R()<.35+D*.3?pick(R,Z.haz):T.N;
+    if(R()<.45)W.pend.push({d:R()<.6?0:Math.round((R()-.5)*4),hi:R()<.15,n:3+Math.floor(R()*3)});
     const k=R(),t=tt();
     const run=Math.max(4,Math.round(9-D*4+R()*3));
-    if(k<.2)piece(W,'G',2+Math.floor(R()*(D<.3?2:4)),{},R);
-    else if(k<.32)piece(W,'H',10+Math.floor(R()*8),{d:.15+D*.2,t:t===T.VF?T.N:t},R);
-    else if(k<.42)piece(W,'X',1+Math.floor(R()*2),{t:t===T.C||t===T.VF?T.N:t},R);
+    if(Z.pads&&k<.12){piece(W,'P',7+Math.floor(R()*3),{},R);piece(W,'R',6,{},R)}
+    else if(k<.2)piece(W,'G',2+Math.floor(R()*(D<.3?2:4)),{},R);
+    else if(k<.32)piece(W,'H',10+Math.floor(R()*8),{d:.15+D*.2,t:t===T.VF||t===T.S?T.N:t},R);
+    else if(k<.42)piece(W,'X',1+Math.floor(R()*2),{t:t===T.C||t===T.VF||t===T.S?T.N:t},R);
     else if(k<.52){piece(W,'S',4,{w:3,t},R);piece(W,'M',10+Math.floor(R()*6),{k:pick(R,[-4,-3,3,4,5,-5]),w:3,t},R);piece(W,'S',4,{w:3},R)}
     else if(k<.6){piece(W,'O',8+Math.floor(R()*4),{k:0,t},R);piece(W,'R',8,{},R)}
     else if(k<.66){piece(W,'P',6+Math.floor(R()*3),{},R);piece(W,'R',6,{},R)}
-    else if(k<.72&&D>.15)piece(W,'Z',12+Math.floor(R()*6),{k:2,w:2,t:t===T.C?T.N:t},R);
+    else if(k<.72&&D>.15)piece(W,'Z',12+Math.floor(R()*6),{k:2,w:2,t:t===T.C||t===T.S?T.N:t},R);
     else if(k<.78&&D>.3)piece(W,'Q',2+Math.floor(R()*2),{},R);
-    else if(k<.84)piece(W,'F',8+Math.floor(R()*4),{k:pick(R,[-1,1]),t:t===T.C?T.N:t},R);
+    else if(k<.84){piece(W,'R',8,{},R);piece(W,'F',8+Math.floor(R()*4),{k:pick(R,[-1,1]),t:t===T.C||t===T.S?T.N:t},R)}
+    else if(t===T.S)piece(W,'R',1,{t},R);
     else piece(W,'R',4+Math.floor(R()*6),{t},R);
     piece(W,'R',run,{},R);
     g.n++;
@@ -523,14 +678,14 @@ function extendEndless(W,upto){
 // wall in tiles. Returns the wall point (x, y), the normal pointing into the tunnel (nx, ny) and the sideways direction
 // (tx, ty). Near a corner the normal turns gradually from one face's to the next (over B tiles each side), which is
 // what rolls the runner and the camera smoothly when gravity swaps faces.
-const B_CORNER=.35;
+const B_CORNER=.3,B_TURN=.35;   // corner blend: B_CORNER + B_TURN x (corner angle) tiles each side
 function wallAt(W,u,out,blend){
   const P=W.P,L=W.L,N=W.N;u=((u%P)+P)%P;
   const k=Math.min(N-1,Math.floor(u/L)),e=u-k*L-L/2,th=2*Math.PI/N,al=-Math.PI/2+k*th;
   const ox=Math.cos(al),oy=Math.sin(al);
   out.x=W.a*ox-e*oy;out.y=W.a*oy+e*ox;
   let be=al;
-  if(blend!==false){const c=L/2-Math.abs(e);if(c<B_CORNER)be=al+Math.sign(e)*.5*(1-c/B_CORNER)*th}
+  if(blend!==false){const c=L/2-Math.abs(e),B=Math.min(B_CORNER+B_TURN*th,L/2-.05);if(c<B){const q=1-c/B;be=al+Math.sign(e)*.5*q*q*(3-2*q)*th}}
   out.nx=-Math.cos(be);out.ny=-Math.sin(be);out.tx=-Math.sin(be);out.ty=Math.cos(be);out.ang=be;out.face=k;
   return out;
 }
@@ -544,88 +699,142 @@ function isGone(W,j,r,t,ov){
   if(tr==null&&ov)for(let i=0;i<ov.length;i++)if(ov[i][0]===id){tr=ov[i][1];break}
   return tr!=null&&t>=tr;
 }
+function bridgeAt(W,id,t,bo){
+  const e=W.br.get(id);if(e!=null&&t<e)return true;
+  if(bo)for(let i=0;i<bo.length;i++)if(bo[i][0]===id&&t<bo[i][1])return true;
+  return false;
+}
 function solid(W,j,r,s,ov){
-  const ty=tileAt(W,j,r);if(!ty)return 0;
-  if(ty===T.C&&!s.ch.heavy&&isGone(W,j,r,s.t,ov))return 0;
-  return ty;
+  const ty=tileAt(W,j,r);
+  if(ty&&!(ty===T.C&&!s.ch.heavy&&isGone(W,j,r,s.t,ov)))return ty;
+  if((W.br.size||s.bo)&&bridgeAt(W,r*64+j,s.t,s.bo))return T.BR;
+  return 0;
 }
 const FOOT=[[0,0],[-.2,0],[.2,0],[0,.16],[0,-.16]];
 function support(W,s,ov,res){
   for(let i=0;i<FOOT.length;i++){const j=laneOf(W,s.u+FOOT[i][0]),r=Math.floor((s.d+FOOT[i][1])/TL);
-    if(r<0)continue;const ty=solid(W,j,r,s,ov);if(ty){res.j=j;res.r=r;return ty}}
+    if(r<0)continue;const ty=solid(W,j,r,s,ov);if(ty){res.j=j;res.r=r;res.edge=i>0;return ty}}
   return 0;
 }
 
 // ---- the runner ----
-function newRunner(W,ch){
-  return {ch,u:W.L/2,d:2.5,h:0,vu:0,vh:0,vd:speedAt(W,{ch,d:0})*.92,g:true,co:0,jb:0,jh:false,air:0,jg:0,boost:false,
-    t:0,dead:false,fin:false,lt:T.N,fall:0,got:0,gotIds:[],tr:null,ev:0,jumps:0};
+function newRunner(W,ch,opt){
+  const s={ch,u:W.L/2+(W.shape==='nar'?.5:0),d:2.5,h:0,vu:0,vh:0,vd:0,g:true,co:0,jb:0,jh:false,ah:false,air:0,jg:0,gh:0,tc:0,jt:0,hp:false,
+    boost:false,bst:0,dj:true,glT:0,brC:0,airT:0,peak:0,t:0,dead:false,fin:false,lt:T.N,fall:0,got:0,gotIds:[],tr:null,bo:null,ev:0,jumps:0,
+    fixed:!!(opt&&opt.fixed),bh:0};
+  s.vd=speedAt(W,s)*.92;
+  return s;
 }
-function cloneRunner(s){const c=Object.assign({},s);c.gotIds=s.gotIds.slice();if(s.tr)c.tr=s.tr.slice();return c}
-const EV={JUMP:1,LAND:2,CRY:4,DIE:8,FIN:16,BOOST:32,CRACK:64};
-const _sr={j:0,r:0};
+function cloneRunner(s){const c=Object.assign({},s);c.gotIds=s.gotIds.slice();if(s.tr)c.tr=s.tr.slice();if(s.bo)c.bo=s.bo.slice();return c}
+const EV={JUMP:1,LAND:2,CRY:4,DIE:8,FIN:16,BOOST:32,CRACK:64,SPEED:128,NEAR:256,DJ:512,BRIDGE:1024,BIGLAND:2048};
+const _sr={j:0,r:0,edge:false};
 function trigger(W,s,j,r,delay,ov){
   const id=r*64+j;if(W.cr.has(id))return;
   if(ov){for(let i=0;i<ov.length;i++)if(ov[i][0]===id)return;ov.push([id,s.t+delay]);}
   else W.cr.set(id,s.t+delay);
   s.ev|=EV.CRACK;
 }
-function speedAt(W,s){return s.ch.speed*(W.endless?endlessSpeed(s.d):W.sp)}
-// The one jump: forward speed, take-off speed and gravity so the arc is exactly jl metres long and jh metres high
-// (a boost pad: 1.6 times as long and 1.3 times as high, 1.3 times as fast).
+// Running speed: the level's pace, rising by a tenth from start to finish (in Endless, endlessSpeed), and a speed strip.
+function speedAt(W,s){
+  const k=W.endless?endlessSpeed(s.d):W.sp*(1+.1*clamp(s.d/W.len,0,1));
+  return s.ch.speed*k*(s.bst>0?1+(BOOST_X-1)*Math.min(1,s.bst/.4):1);
+}
+// The jump. Take-off speed vt; while jump is held (for at most tc seconds) gravity is a gentle gh, after that (or as soon
+// as it's let go) it's gn. The three are worked out so that a jump held all the way is exactly jl metres long and jh
+// metres high at the running speed v, and a tap (let go at once) rises TAP x jh. So a tap is a small hop, holding grows it
+// smoothly, and letting go only makes gravity firmer (no sudden drop). A ramp launch is always the full jump, 1.6 times
+// as long and 1.3 times as high, 1.3 times as fast.
+const _arcs=new Map();
 function jumpArc(C,base,pad){
-  const L=C.jl*(pad?1.6:1),H=C.jh*(pad?1.3:1),v=base*(pad?1.3:1),tt=L/v;
-  return {vd:v,vh:4*H/tt,g:8*H/(tt*tt),t:tt};
+  const key=C.id+(pad?'p':'')+base.toFixed(3);let a=_arcs.get(key);if(a)return a;
+  const L=C.jl*(pad?1.6:1),H=C.jh*(pad?1.3:1),v=base*(pad?1.3:1),Tt=L/v,tc=HOLD_FR*Tt;
+  const f=x=>{const v1=x*(Tt-tc)-Math.sqrt(2*H*x),vt=2*(H-v1*v1/(2*x))/tc-v1;return {v1,vt,err:vt-Math.sqrt(2*TAP*H*x)}};
+  let lo=8*H/(Tt*Tt),hi=lo*6;
+  for(let i=0;i<60;i++){const mid=(lo+hi)/2;if(f(mid).err>0)lo=mid;else hi=mid}
+  const gn=(lo+hi)/2,r=f(gn);
+  a={vd:v,vt:r.vt,gh:(r.vt-r.v1)/tc,gn,tc,t:Tt,L,H};
+  if(_arcs.size>4000)_arcs.clear();_arcs.set(key,a);return a;
 }
 function takeOff(W,s,base,pad,tt,plan){
   const a=jumpArc(s.ch,base,pad);
-  s.jb=0;s.g=false;s.co=0;s.air=1;s.boost=pad;s.jumps++;s.vh=a.vh;s.jg=a.g;s.vd=a.vd;
+  if(!s.g&&!pad){s.ev|=EV.DJ;s.dj=false}
+  s.jb=0;s.g=false;s.co=0;s.air=1;s.boost=pad;s.jumps++;s.vh=a.vt;s.gh=a.gh;s.jg=a.gn;s.tc=a.tc;s.jt=0;s.hp=true;s.vd=a.vd;s.glT=0;
   s.ev|=pad?EV.BOOST:EV.JUMP;
   if(tt===T.C&&!s.ch.heavy&&!plan)trigger(W,s,_sr.j,_sr.r,.08,null);
 }
-function land(s,sup){s.h=0;s.vh=0;s.g=true;s.co=0;s.air=0;s.boost=false;if(sup)s.lt=sup;s.ev|=EV.LAND}
-// One fixed step. inp: {x: -1..1 sideways, j: jump held}. Holding jump does nothing more than pressing it: a press
-// (or one held through a landing) starts the one fixed jump. In the planner, ov is the runner's own list of cracked
-// tiles (so trying moves doesn't touch the real tunnel).
+function land(W,s,sup,near){
+  if(s.airT>.72||s.peak>2.6)s.ev|=EV.BIGLAND;
+  s.h=0;s.vh=0;s.g=true;s.co=0;s.air=0;s.boost=false;s.hp=false;s.dj=true;s.glT=0;s.airT=0;s.peak=0;if(sup)s.lt=sup;s.ev|=EV.LAND;
+  if(near)s.ev|=EV.NEAR;
+}
+function layBridge(W,s,plan){
+  const r0=Math.floor(s.d/TL),fr=s.u-Math.floor(s.u),j0=laneOf(W,s.u),j1=laneOf(W,s.u+(fr<.5?-1:1)),end=s.t+BRIDGE_T;
+  for(let r=r0;r<=r0+BRIDGE_ROWS;r++)for(const j of [j0,j1]){
+    const id=r*64+j,ty=tileAt(W,j,r);
+    if(ty&&!(ty===T.C&&!s.ch.heavy&&isGone(W,j,r,s.t,s.tr)))continue;
+    if(plan)(s.bo||(s.bo=[])).push([id,end]);else W.br.set(id,end);
+  }
+  s.brC=BRIDGE_CD;s.ev|=EV.BRIDGE;
+}
+// One fixed step. inp: {x: -1..1 sideways, j: jump held, a: ability held}. In the planner, s.tr is the runner's own list of
+// cracked tiles and s.bo its own bridges (so trying moves doesn't touch the real tunnel).
 function step(W,s,inp,plan){
   if(s.dead||s.fin)return;
   const C=s.ch,ov=plan?(s.tr||(s.tr=[])):null;
   s.ev=0;
-  if(inp.j&&!s.jh)s.jb=JBUF;
+  const press=inp.j&&!s.jh;
+  if(press)s.jb=JBUF;
   s.jh=!!inp.j;
   if(s.jb>0)s.jb-=DT;
+  if(s.bst>0)s.bst-=DT;
+  if(s.brC>0)s.brC-=DT;
+  if(C.bridge&&inp.a&&!s.ah&&s.brC<=0&&s.h>-.3){layBridge(W,s,plan);if(s.h<0)land(W,s,T.BR,true)}   // just started to drop: back up onto it
+  s.ah=!!inp.a;
   const base=speedAt(W,s);
   let tt=0;
   if(s.g){
     const sup=support(W,s,ov,_sr);
     if(sup){tt=sup;s.lt=sup;
       if(sup===T.C&&!C.heavy)trigger(W,s,_sr.j,_sr.r,CR_WALK,ov);
-      if(sup===T.C&&C.heavy&&!plan)trigger(W,s,_sr.j,_sr.r,99,null);}
+      if(sup===T.C&&C.heavy&&!plan)trigger(W,s,_sr.j,_sr.r,99,null);
+      if(sup===T.S){if(s.bst<=0)s.ev|=EV.SPEED;s.bst=BOOST_T}}
     else{ // ran off an edge: falling from now on, but a jump still works for COYOTE s
-      s.g=false;s.vh=0;s.co=COYOTE;s.air=0;s.boost=false;const a=jumpArc(C,base,false);s.jg=a.g}
+      s.g=false;s.vh=0;s.co=COYOTE;s.air=0;s.boost=false;s.hp=false;const a=jumpArc(C,base,false);s.jg=a.gn}
   }
   if(s.g){
     let vT=base;
     if(tt===T.VF)vT*=1.35;else if(tt===T.VB)vT*=.68;else if(tt===T.K)vT*=.62;
-    s.vd+=clamp(vT-s.vd,-30*DT,16*DT);
+    s.vd+=clamp(vT-s.vd,-30*DT,(s.bst>0?40:16)*DT);
     // sideways
     const ice=tt===T.I,acc=ice?Math.max(8,C.accG*.22):C.accG;
     let drift=0;if(tt===T.VL)drift=-4;else if(tt===T.VR)drift=4;
     const tgt=clamp(inp.x||0,-1,1)*C.lat*(tt===T.K?.7:1)+drift;
     s.vu+=clamp(tgt-s.vu,-acc*DT,acc*DT);
-    if(s.jb>0||tt===T.B)takeOff(W,s,base,tt===T.B,tt,plan);
+    if(s.jb>0||tt===T.B){
+      // jumping off the very end of a tile with a hole ahead: a close call
+      if(tt!==T.B){const r=Math.floor(s.d/TL),left=(r+1)*TL-s.d;if(left<.45&&!solid(W,laneOf(W,s.u),r+1,s,ov))s.ev|=EV.NEAR}
+      takeOff(W,s,base,tt===T.B,tt,plan);
+    }
   }else{
-    if(s.co>0){s.co-=DT;if(s.jb>0&&!s.air){s.h=Math.max(s.h,0);takeOff(W,s,base,false,0,plan)}}
-    // extra speed from a forward belt fades if you run off its end (a jump or a pad launch keeps its speed to the end)
+    if(s.co>0){s.co-=DT;if(s.jb>0&&!s.air){s.h=Math.max(s.h,0);takeOff(W,s,base,false,0,plan);s.ev|=EV.NEAR;s.ev&=~EV.DJ;s.dj=true}}
+    else if(press&&C.dbl&&s.dj&&!s.boost&&s.h>-.5)takeOff(W,s,base,false,0,plan);
+    // extra speed from a forward belt fades if you run off its end (a jump or a ramp launch keeps its speed to the end)
     if(!s.air&&s.vd>base)s.vd=Math.max(base,s.vd-9*DT);
     const tgt=clamp(inp.x||0,-1,1)*C.lat;
     s.vu+=clamp(tgt-s.vu,-C.accA*DT,C.accA*DT);
   }
   if(!s.g){
-    const h0=s.h;s.vh=Math.max(-40,s.vh-s.jg*DT);s.h+=s.vh*DT;
+    const h0=s.h;let g=s.jg;
+    if(s.hp){if((inp.j||s.fixed||s.boost)&&s.jt<s.tc&&s.vh>0){g=s.gh;s.jt+=DT}else s.hp=false}
+    // Wisp: holding jump on the way down floats (for GLIDE_T s a jump): gentle gravity, and the fall eases to 2 m/s
+    const gl=C.glide&&inp.j&&s.vh<0&&!s.hp&&s.glT<GLIDE_T&&s.h>-.3;
+    if(gl){s.glT+=DT;g*=.2}
+    s.vh=Math.max(-40,s.vh-g*DT);
+    if(gl&&s.vh<-2)s.vh+=(-2-s.vh)*Math.min(1,10*DT);
+    s.h+=s.vh*DT;s.airT+=DT;if(s.h>s.peak)s.peak=s.h;
     if(h0>=0&&s.h<=0&&s.vh<=0){
       const sup=support(W,s,ov,_sr);
-      if(sup){if(s.boost)s.vd=Math.min(s.vd,base*1.05);land(s,sup);
+      if(sup){if(s.boost)s.vd=Math.min(s.vd,base*1.05);land(W,s,sup,_sr.edge);
         if(sup===T.C&&!C.heavy)trigger(W,s,_sr.j,_sr.r,CR_LAND,ov);}
     }
   }
@@ -636,24 +845,43 @@ function step(W,s,inp,plan){
     // deeper, or after running into a hole: bump into its side and fall
     const r=Math.floor(s.d/TL),pop=s.h>(s.air?-POP_AIR:-POP_WALK);
     let ty;
-    if(Math.floor(nu)!==Math.floor(s.u)&&(ty=solid(W,laneOf(W,nu),r,s,ov))){if(pop)land(s,ty);else{nu=s.u;s.vu=0}}
-    if(s.h<0&&Math.floor(nd/TL)!==r&&(ty=solid(W,laneOf(W,nu),Math.floor(nd/TL),s,ov))){if(pop)land(s,ty);else{nd=s.d;s.vd=0}}
+    if(Math.floor(nu)!==Math.floor(s.u)&&(ty=solid(W,laneOf(W,nu),r,s,ov))){if(pop)land(W,s,ty,true);else{nu=s.u;s.vu=0}}
+    if(s.h<0&&Math.floor(nd/TL)!==r&&(ty=solid(W,laneOf(W,nu),Math.floor(nd/TL),s,ov))){if(pop)land(W,s,ty,true);else{nd=s.d;s.vd=0}}
     if(s.h<0)s.fall+=DT;
   }
   s.u=((nu%W.P)+W.P)%W.P;s.d=nd;s.t+=DT;
-  // crystals
-  const rr=Math.floor(s.d/TL);
-  for(let r=rr-1;r<=rr+1;r++){const cs=W.cryAt[r];if(!cs)continue;for(let i=0;i<cs.length;i++){const c=cs[i];
+  // the far side of a narrow tunnel is a ceiling: bump your head on it
+  if(s.h>.3){const hm=headroom(W,s.u);if(s.h>hm){s.h=hm;if(s.vh>0){s.vh=0;s.hp=false}}}
+  // crystals (Clink pulls them in from further away)
+  const rr=Math.floor(s.d/TL),mg=C.mag||0,rw=mg?Math.ceil(mg/TL)+1:1;
+  for(let r=rr-1;r<=rr+rw;r++){const cs=W.cryAt[r];if(!cs)continue;for(let i=0;i<cs.a.length;i++){const c=cs.a[i];
     if(s.gotIds.indexOf(c.id)>=0)continue;
-    if(Math.abs(wrapd(W,c.l+.5-s.u))<.75&&Math.abs((c.r+.5)*TL-s.d)<.9&&Math.abs(c.h-s.h-.4)<.85){s.gotIds.push(c.id);s.got++;s.ev|=EV.CRY}}}
+    const du=Math.abs(wrapd(W,c.l+.5-s.u)),dd=Math.abs((c.r+.5)*TL-s.d),dh=Math.abs(c.h-s.h-.4);
+    if((du<.75&&dd<.9&&dh<.85)||(mg&&du<mg&&dd<mg&&dh<mg&&s.h>-.3)){s.gotIds.push(c.id);s.got++;s.ev|=EV.CRY}}}
   if(s.h<DEATH_H){s.dead=true;s.ev|=EV.DIE}
   if(s.d>=W.fin*TL){s.fin=true;s.ev|=EV.FIN}
   if(W.endless&&W.gen&&rr+60>W.rows.length)extendEndless(W,rr+120);
 }
+// How high a runner at u can go before its head (0.65 m up) would leave the tunnel.
+const _hw={};
+function headroom(W,u){
+  wallAt(W,u,_hw,true);let lo=0,hi=2*W.a;
+  for(let i=0;i<14;i++){const m=(lo+hi)/2;if(insideBy(W,_hw.x+_hw.nx*(m+.65),_hw.y+_hw.ny*(m+.65))>.02)lo=m;else hi=m}
+  return lo;
+}
+// Endless "continue": put a runner who fell back on its feet on the next stretch of solid ring ahead.
+function respawn(W,s){
+  let r=Math.max(0,Math.floor(s.d/TL)-2);
+  for(;;r++){if(W.endless&&r+8>W.rows.length)extendEndless(W,r+60);
+    let ok=true;for(let k=0;k<4&&ok;k++){const row=W.rows[r+k];for(let j=0;j<W.P;j++)if(row[j]!==T.N){ok=false;break}}
+    if(ok)break}
+  s.d=(r+.5)*TL;s.h=0;s.vh=0;s.g=true;s.dead=false;s.air=0;s.hp=false;s.boost=false;s.vu=0;s.fall=0;s.co=0;s.jb=0;s.dj=true;s.airT=0;s.peak=0;
+  s.u=Math.floor(s.u)+.5;s.vd=speedAt(W,s)*.8;
+}
 
 // ---- the camera ----
 // Behind the runner and a little above the floor; its "up" follows the wall the runner is on, quickly (CAM_TURN), so
-// the tunnel swings round in about 0.15 s. It never leaves the tunnel: if the turn would put it through a wall it is
+// the tunnel swings round in about 0.2 s. It never leaves the tunnel: if the turn would put it through a wall it is
 // pushed back inside. cam is {} to start with; fills x, y, z (position), ux, uy (up) and lx, ly, lz (where it looks).
 const _cw={};
 function camStep(W,s,cam,dt,o){
@@ -676,20 +904,32 @@ function camStep(W,s,cam,dt,o){
 }
 
 // ---- the checking bot ----
-// Plans with the real physics: a beam search over short bursts of inputs (left / none / right, each with or without a
-// jump press), keeping the most promising few dozen different states at each depth, until one keeps the runner alive
-// for `ahead` metres. Used by the tests and the demo runner behind the menu.
-const CHUNK=12;
+// Plans with the real physics: a beam search over short bursts of inputs (left / none / right, each with no jump, a tap,
+// or a held jump, and for Spool the bridge), keeping the most promising few dozen different states at each depth, until
+// one keeps the runner alive for `ahead` metres. Used by the tests and the demo runner behind the menu.
+const CHUNK=12,HOLD_STEPS=36;
 const XS=[0,-1,1];
+// the input for step i of a burst a: j 1 is a tap (two steps), j 2 holds jump for HOLD_STEPS steps (into the next bursts),
+// j 3 is a tap half way through the burst (with the Always full setting, where every jump is long, timing needs it)
+function actInput(s,a,i,out){
+  if(i===0&&a.j===2)s.bh=HOLD_STEPS;
+  out.x=a.x;out.j=(a.j===1&&i<2)||(a.j===3&&i>=6&&i<8)||s.bh>0;out.a=!!(a.a&&i<2);
+  if(s.bh>0)s.bh--;
+  return out;
+}
+const _ai={x:0,j:false,a:false};
 function runChunk(W,s,a){
   for(let i=0;i<CHUNK;i++){
-    step(W,s,{x:a.x,j:a.j===1&&i<2},true);
+    step(W,s,actInput(s,a,i,_ai),true);
     if(s.dead||s.fin)return;
   }
 }
 function actsFor(s){
-  const out=[],cj=s.g||(s.co>0&&!s.air)||(s.vh<0&&s.h<1.2);   // in the air: a press just before landing jumps on landing
-  for(const x of XS){out.push({x,j:0});if(cj)out.push({x,j:1})}
+  const out=[],C=s.ch;
+  // a press can do something: on the ground, in coyote time, just before landing (buffered), a double jump, or gliding
+  const cj=s.bh<=0&&(s.g||(s.co>0&&!s.air)||(s.vh<0&&s.h<1.2)||(C.dbl&&s.dj&&!s.g)||(C.glide&&s.vh<0));
+  const ab=C.bridge&&s.brC<=0;
+  for(const x of XS){out.push({x,j:0});if(cj){out.push({x,j:1});out.push({x,j:2});if(s.fixed&&s.g)out.push({x,j:3})}if(ab)out.push({x,j:0,a:1})}
   return out;
 }
 // how much floor there is further up the tunnel in the runner's lane and its neighbours (beyond the planning horizon)
@@ -712,11 +952,14 @@ function plan(W,s0,opt){
         const acts=nd.acts.concat([a]);
         if(c.fin)return {ok:true,acts,nodes};
         const prev=nd.acts.length?nd.acts[nd.acts.length-1]:null;
-        // prefer: further on, fewer changes of input, fewer jumps, crystals
-        let sc=nd.sc+(prev&&(prev.x!==a.x)?-.15:0)+(a.j?-.25:0)+(c.got-nd.s.got)*.6;
-        const k=Math.round(c.u*2)+','+(c.g?1:0)+','+Math.round(c.h*2)+','+Math.round(c.vh*.4)+','+Math.round(c.vu*.8)+','+Math.round(c.d);
-        if(c.d>=goal){const v=sc+lookAhead(W,c)*.25;if(!done||v>done.v)done={acts,v};continue}
-        const tot=sc+c.d;
+        // prefer: further on, fewer changes of input, fewer jumps (taps over holds), no bridge unless needed, crystals
+        let sc=nd.sc+(prev&&(prev.x!==a.x)?-.15:0)+(a.j===1||a.j===3?-.25:a.j===2?(nd.s.g?-.3:-.6):0)+(a.a?-.6:0)+(c.got-nd.s.got)*.6;
+        const k=Math.round(c.u*2)+','+(c.g?1:0)+','+Math.round(c.h*2)+','+Math.round(c.vh*.4)+','+Math.round(c.vu*.8)+','+Math.round(c.d)+','+(c.bh>0?1:0)+(c.dj?1:0);
+        // far enough, and on its feet (a runner still in the air might not have anywhere to land)
+        if(c.d>=goal&&c.g){const v=sc+lookAhead(W,c)*.25;if(!done||v>done.v)done={acts,v};continue}
+        // and how fast it's going (so riding a ramp after goo isn't crowded out); with Always full, where every jump is long,
+        // a later take-off ranks a little higher (otherwise early jumpers that can't make it fill the beam)
+        const tot=sc+c.d+c.vd*.8-(c.fixed&&!c.g?c.airT:0);
         const o=next.get(k);if(!o||o.tot<tot)next.set(k,{s:c,acts,sc,tot});
       }
     }
@@ -733,69 +976,116 @@ function plan(W,s0,opt){
 // Drive a runner through a level or for a time with the planner. Returns {fin, dead, t, d, got}.
 function runBot(W,ch,o){
   o=o||{};
-  const s=newRunner(W,ch),maxT=o.maxT||120;let q=[],fails=0;
+  const s=newRunner(W,ch,{fixed:o.fixed}),maxT=o.maxT||120;let q=[],fails=0;const inp={x:0,j:false,a:false};
   while(!s.dead&&!s.fin&&s.t<maxT){
     if(!q.length){const p=plan(W,s,{ahead:o.ahead||24,beam:o.beam||48});q=p.acts.slice(0,Math.max(1,Math.min(4,p.acts.length-2)));if(!p.ok)fails++;if(!q.length)q=[{x:0,j:0}]}
     const a=q.shift();
-    for(let i=0;i<CHUNK&&!s.dead&&!s.fin;i++)step(W,s,{x:a.x,j:a.j===1&&i<2},false);
+    for(let i=0;i<CHUNK&&!s.dead&&!s.fin;i++)step(W,s,actInput(s,a,i,inp),false);
   }
   return {fin:s.fin,dead:s.dead,t:s.t,d:s.d,got:s.got,fails,s};
 }
-return {DT,TL,T,TCH,CHARS,SHAPES,THEMES,LEVELS,MAP,PRED,EV,CHUNK,DEATH_H,rng,newWorld,buildLevel,buildEndless,extendEndless,endlessSpeed,
-  wallAt,insideBy,tileAt,isGone,laneOf,wrapd,newRunner,cloneRunner,step,jumpArc,camStep,plan,runBot,speedAt,parse,CR_WALK,CR_LAND};
+return {DT,TL,T,TCH,CHARS,SHAPES,SHAPE_NAME,THEMES,LEVELS,ZONES,SIDES,ZONE_BY_ID,LV_ZONE,MAP,MAP_W,MAP_H,PRED,EV,CHUNK,DEATH_H,ENDZ,ENDZ_LEN,
+  BRIDGE_CD,rng,newWorld,buildLevel,buildEndless,extendEndless,endlessSpeed,endZoneAt,wallAt,insideBy,tileAt,isGone,bridgeAt,laneOf,wrapd,
+  newRunner,cloneRunner,step,respawn,jumpArc,camStep,plan,runBot,actInput,speedAt,parse,CR_WALK,CR_LAND,COYOTE,JBUF};
 })();
 // ==/CORE==
 (()=>{
 'use strict';
 const $=id=>document.getElementById(id);
-const {DT,TL,T,CHARS,THEMES,LEVELS,MAP,PRED,EV}=AR;
+const {DT,TL,T,CHARS,THEMES,LEVELS,MAP,PRED,EV,ZONES,SIDES,ENDZ}=AR;
 const NL=LEVELS.length;
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 const KEY='asteroid-run:';
 const store={get(k,d){try{const v=localStorage.getItem(KEY+k);return v===null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(KEY+k,JSON.stringify(v))}catch(e){}}};
 
+// ---------- levels in map order, and their short names ("2-3": zone 2, third level; side branches use a letter) ----------
+const ORDER=[],LABEL=[];
+ZONES.forEach((z,k)=>{let n=0;z.lv.forEach(it=>(Array.isArray(it)?it:[it]).forEach(i=>{ORDER.push(i);LABEL[i]=(k+1)+'-'+(++n)}))});
+SIDES.forEach(z=>{let n=0;const c=z.id[0].toUpperCase();z.lv.forEach(i=>{ORDER.push(i);LABEL[i]=c+(++n)})});
+const zoneOf=i=>AR.LV_ZONE[i];
+const zoneName=z=>THEMES[LEVELS[(Array.isArray(z.lv[0])?z.lv[0][0]:z.lv[0])].th].name;
+
 // ---------- saved progress ----------
-// asteroid-run:save = {v:1, lv:{<level index>:{c: crystal bits, t: best time, n: clears}}, bank: endless crystals kept,
-// ch: runner id, best: endless metres, runs}
+// asteroid-run:save = {v:2, lv:{<level index>:{c: crystal bits, t: best time, n: clears}}, bank: crystals kept from Endless,
+// ch: runner id, best: Endless metres, runs, own: runners unlocked with crystals (or before this version), spent: crystals
+// spent, trail: trail picked, trails: trails owned, bestBy: {runner id: Endless metres}, daily: {day, best}, seen: {zone id: 1}}
+// A v1 save (no own) keeps every runner the old rules had unlocked, and every level and crystal.
 function loadSave(){
-  const s=store.get('save',null),o={v:1,lv:{},bank:0,ch:'pip',best:0,runs:0};
+  const s=store.get('save',null),o={v:2,lv:{},bank:0,ch:'pip',best:0,runs:0,own:['pip'],spent:0,trail:'none',trails:['none'],bestBy:{},daily:null,seen:{}};
   if(!s||typeof s!=='object')return o;
   if(s.lv&&typeof s.lv==='object')for(const k in s.lv){const i=+k,e=s.lv[k];if(i>=0&&i<NL&&e&&typeof e==='object')o.lv[i]={c:(+e.c||0)&7,t:isFinite(+e.t)&&+e.t>0?+e.t:0,n:Math.max(1,+e.n||1)}}
   o.bank=Math.max(0,Math.floor(+s.bank||0));o.best=Math.max(0,+s.best||0);o.runs=Math.max(0,Math.floor(+s.runs||0));
-  if(CHARS.some(c=>c.id===s.ch))o.ch=s.ch;
+  const ids=CHARS.map(c=>c.id);
+  if(Array.isArray(s.own)){o.own=['pip'].concat(s.own.filter(id=>ids.includes(id)&&id!=='pip'))}
+  else{ // from v1: the old unlock rules (levels cleared / crystals collected)
+    const n=Object.keys(o.lv).length;let cr=o.bank;for(const k in o.lv)cr+=bits(o.lv[k].c);
+    if(n>=5)o.own.push('brick');if(cr>=25)o.own.push('vex');if(n>=14)o.own.push('moppet');if(cr>=60)o.own.push('twitch');
+    // the old Endless best was set with some runner; credit it to the one that was picked
+    if(o.best>0&&ids.includes(s.ch))o.bestBy[s.ch]=o.best;
+    o.mig=true;
+  }
+  o.spent=Math.max(0,Math.floor(+s.spent||0));
+  if(Array.isArray(s.trails))o.trails=['none'].concat(s.trails.filter(t=>TRAILS.some(x=>x.id===t)&&t!=='none'));
+  if(o.trails.includes(s.trail))o.trail=s.trail;
+  if(s.bestBy&&typeof s.bestBy==='object')for(const id of ids)if(+s.bestBy[id]>0)o.bestBy[id]=Math.max(o.bestBy[id]||0,+s.bestBy[id]);
+  if(s.daily&&typeof s.daily==='object'&&typeof s.daily.day==='string')o.daily={day:s.daily.day,best:Math.max(0,+s.daily.best||0)};
+  if(s.seen&&typeof s.seen==='object')for(const k in s.seen)if(AR.ZONE_BY_ID[k])o.seen[k]=1;
+  if(ids.includes(s.ch))o.ch=s.ch;
   return o;
 }
+// cosmetic trails, bought with crystals
+const TRAILS=[{id:'none',name:'None',cost:0},{id:'spark',name:'Sparks',cost:40,col:0xffd23f},{id:'comet',name:'Comet',cost:90,col:0x3fe0ff},
+  {id:'ember',name:'Embers',cost:130,col:0xff6a2a},{id:'rainbow',name:'Rainbow',cost:200,col:null}];
+const bits=n=>(n&1)+(n>>1&1)+(n>>2&1);
 let save=loadSave();
 const saveNow=()=>store.set('save',save);
-const bits=n=>(n&1)+(n>>1&1)+(n>>2&1);
+if(save.mig){delete save.mig;saveNow()}   // keep the runners an old save had, for good
 const clearedCount=()=>Object.keys(save.lv).length;
 const crystalTotal=()=>{let n=save.bank;for(const k in save.lv)n+=bits(save.lv[k].c);return n};
+const wallet=()=>Math.max(0,crystalTotal()-save.spent);
 const isOpen=i=>i===0||!!save.lv[i]||PRED[i].some(p=>!!save.lv[p]);
-const unlocked=ch=>!ch.need||(ch.need.lv!=null?clearedCount()>=ch.need.lv:crystalTotal()>=ch.need.cr);
-const needText=ch=>!ch.need?'':ch.need.lv!=null?'Clear '+ch.need.lv+' levels':'Collect '+ch.need.cr+' crystals';
+const freeMet=ch=>!!ch.free&&(ch.free.lv!=null?clearedCount()>=ch.free.lv:!!save.lv[ch.free.at]);
+const unlocked=ch=>ch.id==='pip'||save.own.includes(ch.id)||freeMet(ch);
+const freeText=ch=>!ch.free?'':ch.free.lv!=null?'clear '+ch.free.lv+' levels':'clear level '+LABEL[ch.free.at]+' ('+LEVELS[ch.free.at].n+')';
 function statsHook(kind,k,v){if(window.BackRoomStats){try{BackRoomStats[kind](k,v)}catch(e){}}}
+const todayKey=()=>{const d=new Date();return d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')};
+const dailySeed=k=>{let h=2166136261;for(const c of 'asteroid-daily-'+k){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0};
+const CONT_COST=15;
 
-const set=Object.assign({vol:.7,gfx:null,tm:'buttons'},store.get('set',{}));
+const set=Object.assign({vol:.7,gfx:null,tm:'buttons',fixed:false},store.get('set',{}));
 let touchUI=matchMedia('(pointer: coarse)').matches&&!matchMedia('(any-pointer: fine)').matches;
 if(set.gfx!=='low'&&set.gfx!=='high')set.gfx=touchUI?'low':'high';
 if(set.tm!=='halves')set.tm='buttons';
+set.fixed=set.fixed===true;
 set.vol=clamp(+set.vol,0,1);if(!isFinite(set.vol))set.vol=.7;
 const saveSet=()=>store.set('set',set);
 
 // ---------- sound (tiny synth, no files) ----------
-let ac=null,master=null;
-function initAudio(){if(ac)return;try{ac=new(window.AudioContext||window.webkitAudioContext)();master=ac.createGain();master.gain.value=set.vol*.5;master.connect(ac.destination)}catch(e){ac=null}}
+let ac=null,master=null,noiseBuf=null;
+function initAudio(){if(ac)return;try{ac=new(window.AudioContext||window.webkitAudioContext)();master=ac.createGain();master.gain.value=set.vol*.5;master.connect(ac.destination);
+  noiseBuf=ac.createBuffer(1,ac.sampleRate*.5,ac.sampleRate);const d=noiseBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1}catch(e){ac=null}}
 function tone(f0,f1,dur,type,vol,delay){
   if(!ac||set.vol<=0)return;const t=ac.currentTime+(delay||0),o=ac.createOscillator(),g=ac.createGain();
   o.type=type||'square';o.frequency.setValueAtTime(f0,t);o.frequency.exponentialRampToValueAtTime(Math.max(20,f1),t+dur);
   g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol||.2,t+.01);g.gain.exponentialRampToValueAtTime(.001,t+dur);
   o.connect(g);g.connect(master);o.start(t);o.stop(t+dur+.02);
 }
+// a burst of filtered noise (whooshes and thumps)
+function noise(dur,f0,f1,vol,q,delay){
+  if(!ac||set.vol<=0||!noiseBuf)return;const t=ac.currentTime+(delay||0),src=ac.createBufferSource(),f=ac.createBiquadFilter(),g=ac.createGain();
+  src.buffer=noiseBuf;f.type='bandpass';f.Q.value=q||1.2;f.frequency.setValueAtTime(f0,t);f.frequency.exponentialRampToValueAtTime(Math.max(30,f1),t+dur);
+  g.gain.setValueAtTime(vol||.2,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);src.connect(f);f.connect(g);g.connect(master);src.start(t);src.stop(t+dur+.02);
+}
 const sfx={
-  jump(){tone(300,720,.13,'square',.08)},land(){tone(140,70,.06,'triangle',.1)},
-  cry(){tone(880,1320,.08,'sine',.18);tone(1320,1760,.1,'sine',.14,.06)},
-  boost(){tone(200,1000,.25,'sawtooth',.08)},crack(){tone(180,60,.12,'sawtooth',.05)},
-  die(){tone(420,90,.25,'triangle',.18)},win(){[523,659,784,1046].forEach((f,i)=>tone(f,f*1.01,.16,'square',.09,i*.07))},
+  jump(){tone(320,760,.12,'square',.07)},dj(){tone(520,1240,.12,'square',.07);tone(780,1560,.08,'sine',.05,.03)},
+  land(){tone(150,70,.06,'triangle',.1)},bigland(){tone(110,40,.22,'triangle',.22);noise(.18,600,90,.25,.8)},
+  cry(n){const k=Math.pow(2,Math.min(12,(n||1)-1)/12);tone(880*k,1320*k,.08,'sine',.18);tone(1320*k,1760*k,.1,'sine',.14,.06)},
+  boost(){tone(200,1000,.25,'sawtooth',.07);noise(.3,400,2400,.12,1)},speed(){noise(.35,300,3200,.16,1.4);tone(300,900,.3,'triangle',.06)},
+  crack(){tone(180,60,.12,'sawtooth',.05);noise(.1,1800,500,.06,2)},near(){noise(.22,2600,900,.13,3);tone(1600,2400,.06,'sine',.05,.02)},
+  bridge(){[660,880,1100,1320].forEach((f,i)=>tone(f,f*1.02,.09,'triangle',.07,i*.04))},
+  die(){tone(420,60,.5,'triangle',.16);noise(.45,900,120,.08,1)},win(){[523,659,784,1046].forEach((f,i)=>tone(f,f*1.01,.16,'square',.09,i*.07))},
+  zone(){[392,523,659].forEach((f,i)=>tone(f,f*1.01,.22,'sine',.08,i*.09))},
+  unlock(){[523,784,1046,1568].forEach((f,i)=>tone(f,f*1.01,.18,'square',.07,i*.06))},
   click(){tone(600,500,.04,'square',.05)}
 };
 
@@ -810,22 +1100,23 @@ scene.background=new THREE.Color(0x05060f);
 // fog only over the last few metres of the draw distance, so far rows fade in instead of popping up
 scene.fog=new THREE.Fog(0x05060f,60,74);
 const camera=new THREE.PerspectiveCamera(72,1,.1,400);
+let baseFov=72;
 function resize(){
   const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;
-  camera.fov=w/h<.8?88:w/h<1.2?80:72;camera.updateProjectionMatrix();
+  baseFov=w/h<.8?88:w/h<1.2?80:72;camera.fov=baseFov;camera.updateProjectionMatrix();
 }
 addEventListener('resize',resize);
 
 function canvasTex(w,h,draw){const c=document.createElement('canvas');c.width=w;c.height=h;draw(c.getContext('2d'),w,h);const t=new THREE.CanvasTexture(c);t.anisotropy=4;return t}
 // tile: flat colour with a thin bright outline. The texture is only a mask (red = outline); the shader below turns it
-// into the tile's own colour (instance colour) with the outline mixed towards white.
+// into the tile's own colour (instance colour) with the outline mixed towards white (less so for a tile left in the dark).
 const tileTex=canvasTex(64,96,(g,w,h)=>{g.fillStyle='#000';g.fillRect(0,0,w,h);g.strokeStyle='#fff';g.lineWidth=4;g.strokeRect(2,2,w-4,h-4)});
-function flatTileMat(){
-  const m=new THREE.MeshBasicMaterial({map:tileTex,side:THREE.DoubleSide});
+function flatTileMat(o){
+  const m=new THREE.MeshBasicMaterial(Object.assign({map:tileTex,side:THREE.DoubleSide},o||{}));
   m.onBeforeCompile=sh=>{
     sh.fragmentShader=sh.fragmentShader
       .replace('#include <map_fragment>','vec4 tileMask=texture2D(map,vUv);')
-      .replace('#include <color_fragment>','#ifdef USE_COLOR\n diffuseColor.rgb=mix(vColor,mix(vColor,vec3(1.0),.55),tileMask.r);\n#endif');
+      .replace('#include <color_fragment>','#ifdef USE_COLOR\n float tileLit=clamp(max(vColor.r,max(vColor.g,vColor.b))*2.5,0.0,1.0);\n diffuseColor.rgb=mix(vColor,mix(vColor,vec3(1.0),.55*tileLit),tileMask.r);\n#endif');
   };
   return m;
 }
@@ -849,17 +1140,32 @@ function decalMesh(tex,col,max,op){
   const im=new THREE.InstancedMesh(g,m,max);im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);im.count=0;im.visible=false;im.frustumCulled=false;scene.add(im);return im;
 }
 const arrows=decalMesh(arrowTex,0x14102e,700,.7);
-const chevs=decalMesh(chevTex,0x14102e,300,.7);
+const chevs=decalMesh(chevTex,0x14102e,400,.7);
 const cracks=decalMesh(crackTex,0x5a2a00,700,.6);
 const goos=decalMesh(gooTex,0xf2d4ff,500,.7);
+// ramps: a flat lime wedge on the launch tile, rising towards the gap
+const rampGeo=(()=>{const w=.5,l=TL/2,h=.42,g=new THREE.BufferGeometry();
+  const v=[-w,0,l, w,0,l, w,h,-l, -w,0,l, w,h,-l, -w,h,-l,  -w,0,-l, -w,h,-l, w,h,-l, -w,0,-l, w,h,-l, w,0,-l,  -w,0,l, -w,h,-l, -w,0,-l,  w,0,l, w,0,-l, w,h,-l];
+  g.setAttribute('position',new THREE.Float32BufferAttribute(v,3));return g})();
+const ramps=new THREE.InstancedMesh(rampGeo,new THREE.MeshBasicMaterial({color:0xd6ff7a,side:THREE.DoubleSide}),120);
+ramps.count=0;ramps.visible=false;ramps.frustumCulled=false;ramps.instanceMatrix.setUsage(THREE.DynamicDrawUsage);scene.add(ramps);
+// Spool's bridges: see-through glowing tiles
+const bridges=new THREE.InstancedMesh(tileGeo,flatTileMat({transparent:true,opacity:.7,depthWrite:false}),80);
+bridges.setColorAt(0,new THREE.Color());bridges.count=0;bridges.visible=false;bridges.frustumCulled=false;bridges.instanceMatrix.setUsage(THREE.DynamicDrawUsage);scene.add(bridges);
 const fallers=new THREE.InstancedMesh(tileGeo,flatTileMat(),160);
 fallers.setColorAt(0,new THREE.Color());fallers.count=0;fallers.visible=false;fallers.frustumCulled=false;fallers.instanceMatrix.setUsage(THREE.DynamicDrawUsage);scene.add(fallers);
 // crystals: flat diamonds that spin by flipping
 const cryTex=canvasTex(64,64,(g)=>{g.beginPath();g.moveTo(32,3);g.lineTo(58,32);g.lineTo(32,61);g.lineTo(6,32);g.closePath();g.fillStyle='#3fe0ff';g.fill();g.lineWidth=5;g.strokeStyle='#fff';g.lineJoin='round';g.stroke();
   g.beginPath();g.moveTo(32,14);g.lineTo(46,32);g.lineTo(32,32);g.closePath();g.fillStyle='rgba(255,255,255,.75)';g.fill()});
 const cryGeo=new THREE.PlaneGeometry(.62,.62);
-const cryMesh=new THREE.InstancedMesh(cryGeo,new THREE.MeshBasicMaterial({map:cryTex,transparent:true,alphaTest:.3,side:THREE.DoubleSide}),96);
+const cryMesh=new THREE.InstancedMesh(cryGeo,new THREE.MeshBasicMaterial({map:cryTex,transparent:true,alphaTest:.3,side:THREE.DoubleSide,fog:false}),160);
 cryMesh.count=0;cryMesh.frustumCulled=false;cryMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);scene.add(cryMesh);
+// the landing shadow: a soft dark disc on the tile under the runner (none over a hole)
+const shadowTex=canvasTex(64,64,(g)=>{const gr=g.createRadialGradient(32,32,2,32,32,31);gr.addColorStop(0,'rgba(0,0,0,.85)');gr.addColorStop(.6,'rgba(0,0,0,.55)');gr.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=gr;g.fillRect(0,0,64,64)});
+const shadowGeo=new THREE.PlaneGeometry(.9,.9);shadowGeo.rotateX(-Math.PI/2);
+// (drawn over the tiles without a depth test, just before the runner, so a tile edge never cuts it off)
+const shadow=new THREE.Mesh(shadowGeo,new THREE.MeshBasicMaterial({map:shadowTex,transparent:true,depthWrite:false,depthTest:false,opacity:.6,fog:false}));
+shadow.renderOrder=4;scene.add(shadow);
 
 // the sky: a plain dark background with small white stars
 const skyGroup=new THREE.Group();scene.add(skyGroup);
@@ -889,13 +1195,14 @@ function buildGate(W){
 // ---------- the runners: flat cartoon sprites seen from behind ----------
 // Each runner is one textured plane that faces the camera, with three frames (two running steps and one in the air).
 const OUT='#0b0d26';
+const hex=c=>'#'+c.toString(16).padStart(6,'0');
 function drawRunner(g,ch,frame){
-  const c='#'+ch.col.toString(16).padStart(6,'0'),c2='#'+ch.col2.toString(16).padStart(6,'0');
+  const c=hex(ch.col),c2=hex(ch.col2);
   g.lineJoin='round';g.lineCap='round';g.lineWidth=6;g.strokeStyle=OUT;
   const foot=(x,y,rx,ry)=>{g.beginPath();g.ellipse(x,y,rx,ry,0,0,7);g.fillStyle=c2;g.fill();g.stroke()};
   const feet=(dx,y,rx,ry)=>{const a=frame===0?-8:frame===1?8:0,air=frame===2;
     foot(64-dx,y+(air?-10:a),rx,ry);foot(64+dx,y+(air?-10:-a),rx,ry)};
-  const blob=(x,y,rx,ry)=>{g.beginPath();g.ellipse(x,y,rx,ry,0,0,7);g.fillStyle=c;g.fill();g.stroke()};
+  const blob=(x,y,rx,ry,col)=>{g.beginPath();g.ellipse(x,y,rx,ry,0,0,7);g.fillStyle=col||c;g.fill();g.stroke()};
   const shine=(x,y,rx,ry)=>{g.beginPath();g.ellipse(x,y,rx,ry,-.5,0,7);g.fillStyle='rgba(255,255,255,.35)';g.fill()};
   if(ch.id==='pip'){feet(17,128,13,9);blob(64,80,38,46);shine(48,58,9,15);
     g.beginPath();g.moveTo(64,35);g.lineTo(64,14);g.stroke();g.beginPath();g.arc(64,12,8,0,7);g.fillStyle='#ff4fa0';g.fill();g.stroke()}
@@ -904,9 +1211,22 @@ function drawRunner(g,ch,frame){
   else if(ch.id==='vex'){feet(14,130,11,8);g.beginPath();g.moveTo(64,6);g.lineTo(76,32);g.lineTo(52,32);g.closePath();g.fillStyle=c2;g.fill();g.stroke();blob(64,78,30,52);shine(52,52,7,15)}
   else if(ch.id==='moppet'){feet(16,130,12,8);g.fillStyle=c;for(let i=0;i<7;i++){const a=-Math.PI*.95+i/6*Math.PI*.9;g.beginPath();g.arc(64+Math.cos(a)*36,82+Math.sin(a)*40,15,0,7);g.fill();g.stroke()}
     blob(64,84,40,42);shine(48,66,9,13)}
-  else{feet(15,130,11,8);g.beginPath();g.moveTo(52,74);g.lineTo(38,36);g.moveTo(76,74);g.lineTo(90,36);g.strokeStyle=c2;g.lineWidth=6;g.stroke();g.strokeStyle=OUT;
+  else if(ch.id==='twitch'){feet(15,130,11,8);g.beginPath();g.moveTo(52,74);g.lineTo(38,36);g.moveTo(76,74);g.lineTo(90,36);g.strokeStyle=c2;g.lineWidth=6;g.stroke();g.strokeStyle=OUT;
     for(const x of [38,90]){g.beginPath();g.arc(x,34,6,0,7);g.fillStyle=c2;g.fill();g.stroke()}
     blob(64,98,40,32);shine(48,84,9,10)}
+  else if(ch.id==='wisp'){feet(12,132,9,7);
+    for(const [x,y,r] of [[34,92,22],[94,92,22],[46,64,24],[82,64,24],[64,50,24]]){g.beginPath();g.arc(x,y,r,0,7);g.fillStyle=c;g.fill();g.stroke()}
+    blob(64,90,40,32);shine(50,56,10,8)}
+  else if(ch.id==='clink'){feet(18,130,13,9);
+    g.beginPath();g.moveTo(40,40);g.lineTo(40,22);g.arc(64,22,24,Math.PI,0);g.lineTo(88,40);g.lineTo(76,40);g.lineTo(76,22);g.arc(64,22,12,0,Math.PI,true);g.lineTo(52,40);g.closePath();g.fillStyle=c;g.fill();g.stroke();
+    g.fillStyle='#d8dcf0';g.fillRect(40,34,12,8);g.fillRect(76,34,12,8);
+    g.beginPath();g.roundRect?g.roundRect(30,44,68,76,16):g.rect(30,44,68,76);g.fillStyle=c2;g.fill();g.stroke();
+    g.fillStyle=c;g.fillRect(44,68,40,10);shine(44,58,6,8)}
+  else{feet(16,130,12,8);
+    g.beginPath();g.ellipse(64,44,40,12,0,0,7);g.fillStyle=c2;g.fill();g.stroke();
+    g.beginPath();g.rect(36,44,56,64);g.fillStyle=c;g.fill();g.stroke();
+    g.strokeStyle='rgba(255,255,255,.55)';g.lineWidth=3;for(let y=54;y<104;y+=10){g.beginPath();g.moveTo(38,y);g.lineTo(90,y+4);g.stroke()}g.strokeStyle=OUT;g.lineWidth=6;
+    g.beginPath();g.ellipse(64,110,40,12,0,0,7);g.fillStyle=c2;g.fill();g.stroke()}
 }
 const runnerTex={};
 function texFor(ch){
@@ -918,44 +1238,51 @@ const runGeo=new THREE.PlaneGeometry(.96,1.08);runGeo.translate(0,.54,0);
 const runMat=new THREE.MeshBasicMaterial({transparent:true,alphaTest:.4,side:THREE.DoubleSide,fog:false});
 const runner=new THREE.Mesh(runGeo,runMat);runner.renderOrder=5;
 const runRoot=new THREE.Group();runRoot.add(runner);scene.add(runRoot);
-function setModel(ch){runMat.map=texFor(ch);runMat.needsUpdate=true;G.modelCh=ch;runner.scale.setScalar(ch.id==='twitch'?.85:ch.id==='brick'?1.08:1)}
+const sizeOf=ch=>ch.id==='twitch'?.85:ch.id==='brick'?1.08:ch.id==='wisp'?.92:1;
+function setModel(ch){runMat.map=texFor(ch);runMat.needsUpdate=true;G.modelCh=ch}
 
 // ---------- game state ----------
-const G={mode:'menu',W:null,s:null,ch:null,li:0,tries:1,paused:false,overlay:'menu',acc:0,hold:0,deadAt:0,finAt:0,
-  cam:{},lastRow:-99,lastCr:-1,fall:[],demo:null,noRender:false,modelCh:null,resAt:0};
-const keys={},tIn={l:false,r:false,j:false,hl:0,hr:0};
+const G={mode:'menu',W:null,s:null,ch:null,li:0,tries:1,paused:false,overlay:'menu',acc:0,hold:0,finAt:0,dying:null,
+  cam:{},lastRow:-99,lastCr:-1,lastBr:-1,fall:[],demo:null,noRender:false,modelCh:null,resAt:0,shake:0,combo:0,comboAt:-9,bestCombo:0,
+  bonus:0,contUsed:false,daily:null,zoneShown:-1,fovK:0};
+const keys={},tIn={l:false,r:false,j:false,a:false,hl:0,hr:0};
 const KB=Keybinds.create({
   game:'asteroid-run',
   actions:[
     {id:'left',label:'Sidestep left',group:'Run',keys:['KeyA','ArrowLeft']},
     {id:'right',label:'Sidestep right',group:'Run',keys:['KeyD','ArrowRight']},
-    {id:'jump',label:'Jump',note:'Every jump is the same size',group:'Run',keys:['Space','KeyW','ArrowUp']},
+    {id:'jump',label:'Jump',note:'Tap for a hop, hold for a big jump',group:'Run',keys:['Space','KeyW','ArrowUp']},
+    {id:'ability',label:'Ability',note:'Spool’s bridge',group:'Run',keys:['KeyS','ArrowDown','ShiftLeft']},
     {id:'restart',label:'Restart',note:'Start the level (or endless run) again',group:'Run',keys:['KeyR']},
     {id:'pause',label:'Pause',group:'Run',keys:['Escape'],fixed:true}
   ],
   classes:{button:'btn alt',primary:'btn lime'}
 });
 const playing=()=>G.mode==='level'||G.mode==='endless';
+const _in={x:0,j:false,a:false};
 function input(){
   if(G.demo)return G.demo.inp;
   if(G.auto)return G.auto.inp;
   let x=0;
   if(KB.held('left',keys)||tIn.l||tIn.hl>0)x-=1;
   if(KB.held('right',keys)||tIn.r||tIn.hr>0)x+=1;
-  return {x,j:KB.held('jump',keys)||tIn.j};
+  _in.x=x;_in.j=KB.held('jump',keys)||tIn.j;_in.a=KB.held('ability',keys)||tIn.a;
+  return _in;
 }
 
 // lane frames: where each tile sits
 let laneF=[];
-const TCOL={[T.C]:0xff8a2a,[T.I]:0xd8f8ff,[T.VL]:0xffc23a,[T.VR]:0xffc23a,[T.VF]:0x3ee68a,[T.VB]:0xff5a6a,[T.B]:0xb6ff3b,[T.K]:0xb050f0};
+const TCOL={[T.C]:0xff8a2a,[T.I]:0xd8f8ff,[T.VL]:0xffc23a,[T.VR]:0xffc23a,[T.VF]:0x3ee68a,[T.VB]:0xff5a6a,[T.B]:0xb6ff3b,[T.K]:0xb050f0,[T.S]:0x3fe0ff,[T.L]:0xffe27a,[T.BR]:0x5ef0c8};
+const zoneCols=ENDZ.map(z=>new THREE.Color(z.a)),zoneSky=ENDZ.map(z=>new THREE.Color(z.sky));
+const skyCol=new THREE.Color(),skyTo=new THREE.Color(),BLACK=new THREE.Color(0x010104);
 function setupWorld(W){
   G.W=W;laneF=[];const o={};
   for(let j=0;j<W.P;j++){AR.wallAt(W,j+.5,o,false);laneF.push({x:o.x,y:o.y,nx:o.nx,ny:o.ny,tx:o.tx,ty:o.ty,face:o.face})}
-  const th=THEMES[W.th];G.colA=new THREE.Color(th.a);scene.background.set(th.sky);scene.fog.color.set(th.sky);
-  buildGate(W);G.lastRow=-99;G.fall.length=0;fallers.count=0;G.lastCr=-1;G.fallSeen=new Set();
+  const th=THEMES[W.th];G.colA=new THREE.Color(th.a);G.sky0=new THREE.Color(th.sky);skyCol.copy(G.sky0);scene.background.copy(skyCol);scene.fog.color.copy(skyCol);
+  buildGate(W);G.lastRow=-99;G.fall.length=0;fallers.count=0;G.lastCr=-1;G.lastBr=-1;G.fallSeen=new Set();
   const far=(hiQ()?50:42)*TL;scene.fog.near=far-14;scene.fog.far=far;
 }
-const _m=new THREE.Matrix4(),_c=new THREE.Color(),_v=new THREE.Vector3(),_q=new THREE.Quaternion(),_s=new THREE.Vector3(1,1,1);
+const _m=new THREE.Matrix4(),_m2=new THREE.Matrix4(),_c=new THREE.Color();
 function setBasis(m,f,z,lift,dirx,diry,dirz){
   // columns: sideways, inward normal, along the tunnel; optional rotation so the decal's arrow points along dir
   if(dirx===undefined)m.set(f.tx,f.nx,0,f.x+f.nx*lift,f.ty,f.ny,0,f.y+f.ny*lift,0,0,1,z,0,0,0,1);
@@ -963,26 +1290,37 @@ function setBasis(m,f,z,lift,dirx,diry,dirz){
     const zx=-dirx,zy=-diry,zz=-dirz;const xx=f.ny*zz-0*zy,xy=0*zx-f.nx*zz,xz=f.nx*zy-f.ny*zx;
     m.set(xx,f.nx,zx,f.x+f.nx*lift,xy,f.ny,zy,f.y+f.ny*lift,xz,0,zz,z,0,0,0,1)}
 }
+// In the dark, tiles are lit only from a little behind the runner to LIT rows ahead (fading over the next 4).
+const LIT=14,DIM=.05;
+function litAt(W,r,r0){
+  if(!W.dk[r])return 1;
+  // full light close by, fading to a third at LIT rows ahead, then out over the next 4
+  const a=r-r0;
+  if(a<-3||a>=LIT+4)return DIM;if(a<=4)return 1;if(a<=LIT)return 1-.65*(a-4)/(LIT-4);
+  return DIM+(.35-DIM)*(1-(a-LIT)/4);
+}
 function rebuildTiles(){
   const W=G.W,s=G.s,r0=Math.floor(s.d/TL),from=Math.max(0,r0-6),to=r0+(hiQ()?50:42);
-  let n=0,na=0,nc=0,ncr=0,ng=0;
+  let n=0,na=0,nc=0,ncr=0,ng=0,nr=0;
   for(let r=from;r<to&&r<W.rows.length;r++){
-    const row=W.rows[r],z=-(r+.5)*TL;
+    const row=W.rows[r],z=-(r+.5)*TL,lit=litAt(W,r,r0),base=W.endless?zoneCols[W.zr[r]%zoneCols.length]:G.colA;
     for(let j=0;j<W.P;j++){
       const ty=row[j];if(!ty)continue;
       if(ty===T.C&&W.cr.has(r*64+j))continue;     // shown by the falling-tile mesh
       if(n>=MAXI)break;
       const f=laneF[j];setBasis(_m,f,z,0);tiles.setMatrixAt(n,_m);
-      if(ty===T.N)_c.copy(G.colA);else _c.set(TCOL[ty]);
+      if(ty===T.N)_c.copy(base);else _c.set(TCOL[ty]);
+      if(lit<1&&ty!==T.L)_c.multiplyScalar(lit);
       tiles.setColorAt(n,_c);n++;
+      if(lit<.5&&ty!==T.L)continue;
       if(ty>=T.VL&&ty<=T.VB&&na<700){const dx=ty===T.VL?-f.tx:ty===T.VR?f.tx:0,dy=ty===T.VL?-f.ty:ty===T.VR?f.ty:0,dz=ty===T.VF?-1:ty===T.VB?1:0;setBasis(_m,f,z,0,dx,dy,dz);arrows.setMatrixAt(na++,_m)}
-      else if(ty===T.B&&nc<300){setBasis(_m,f,z,0,0,0,-1);chevs.setMatrixAt(nc++,_m)}
+      else if((ty===T.B||ty===T.S)&&nc<400){setBasis(_m,f,z,0,0,0,-1);chevs.setMatrixAt(nc++,_m);if(ty===T.B&&nr<120){setBasis(_m,f,z,0);ramps.setMatrixAt(nr++,_m)}}
       else if(ty===T.C&&ncr<700){setBasis(_m,f,z,0);cracks.setMatrixAt(ncr++,_m)}
       else if(ty===T.K&&ng<500){setBasis(_m,f,z,0);goos.setMatrixAt(ng++,_m)}
     }
   }
   tiles.count=n;tiles.instanceMatrix.needsUpdate=true;if(tiles.instanceColor)tiles.instanceColor.needsUpdate=true;
-  for(const [im,c] of [[arrows,na],[chevs,nc],[cracks,ncr],[goos,ng]]){im.count=c;im.visible=c>0;im.instanceMatrix.needsUpdate=true}
+  for(const [im,c] of [[arrows,na],[chevs,nc],[cracks,ncr],[goos,ng],[ramps,nr]]){im.count=c;im.visible=c>0;im.instanceMatrix.needsUpdate=true}
 }
 // cracked tiles that were stepped on: shake, then drop away into space
 function updateFallers(){
@@ -1002,86 +1340,113 @@ function updateFallers(){
     const L=laneF[f.j],z=-(f.r+.5)*TL;
     if(age<0)setBasis(_m,L,z,.03+.03*Math.sin(s.t*90+f.j));   // shakes up and down before it goes
     else{const dropD=-(5*age*age+age),sp=age*2.4;setBasis(_m,L,z,dropD);
-      _m.multiply(new THREE.Matrix4().makeRotationX(sp*(f.j&1?1:-1)))}
+      _m.multiply(_m2.makeRotationX(sp*(f.j&1?1:-1)))}
     fallers.setMatrixAt(n,_m);_c.set(TCOL[T.C]);fallers.setColorAt(n,_c);n++;
   }
   fallers.count=n;fallers.visible=n>0;fallers.instanceMatrix.needsUpdate=true;if(fallers.instanceColor)fallers.instanceColor.needsUpdate=true;
 }
+function updateBridges(){
+  const W=G.W,s=G.s;let n=0;
+  if(W.br.size)for(const [id,e] of W.br){
+    const left=e-s.t;if(left<=0){W.br.delete(id);continue}if(n>=80)continue;
+    const r=Math.floor(id/64),j=id%64;setBasis(_m,laneF[j],-(r+.5)*TL,.01);bridges.setMatrixAt(n,_m);
+    _c.set(TCOL[T.BR]);if(left<.6&&Math.floor(left*14)%2)_c.multiplyScalar(.45);bridges.setColorAt(n,_c);n++;
+  }
+  bridges.count=n;bridges.visible=n>0;bridges.instanceMatrix.needsUpdate=true;if(bridges.instanceColor)bridges.instanceColor.needsUpdate=true;
+}
 function updateCrystals(t){
-  const W=G.W,s=G.s,r0=Math.floor(s.d/TL);let n=0;
+  const W=G.W,s=G.s,r0=Math.floor(s.d/TL),P=runnerPos(),mg=s.ch.mag||0;let n=0;
   for(const c of W.cry){
-    if(c.r<r0-3||c.r>r0+50)continue;if(s.gotIds.indexOf(c.id)>=0)continue;if(n>=96)break;
+    if(c.r<r0-3||c.r>r0+50)continue;if(s.gotIds.indexOf(c.id)>=0)continue;if(n>=160)break;
     const f=laneF[c.l],z=-(c.r+.5)*TL,y=c.h+.32+.12*Math.sin(t*4+c.id),flip=Math.cos(t*3+c.id);
     // a plane standing on the wall facing back down the tunnel, squashed sideways to look like it spins
     _m.set(f.tx*flip,f.nx,0,f.x+f.nx*y,f.ty*flip,f.ny,0,f.y+f.ny*y,0,0,1,z,0,0,0,1);
+    // Clink's magnet: crystals close ahead lean in towards him
+    if(mg){const dz=-s.d-z;if(dz<0&&dz>-mg*2.2){const k=clamp(1+dz/(mg*2.2),0,1)*.55;_m.elements[12]+=(P.x-_m.elements[12])*k;_m.elements[13]+=(P.y+P.w.ny*.4-_m.elements[13])*k;_m.elements[14]+=(P.z-_m.elements[14])*k}}
     cryMesh.setMatrixAt(n++,_m);
   }
   cryMesh.count=n;cryMesh.visible=n>0;cryMesh.instanceMatrix.needsUpdate=true;
 }
-// sparkle bursts: small flat squares
-const PN=90,pPos=new Float32Array(PN*3),pVel=new Float32Array(PN*3),pLife=new Float32Array(PN);
-const pGeo=new THREE.BufferGeometry();pGeo.setAttribute('position',new THREE.BufferAttribute(pPos,3));
-const pts=new THREE.Points(pGeo,new THREE.PointsMaterial({size:.16,color:0x9ff8ff,depthWrite:false,fog:false}));pts.frustumCulled=false;pts.visible=false;scene.add(pts);
+// sparkle bursts: small flat squares (colour per point)
+const PN=140,pPos=new Float32Array(PN*3),pVel=new Float32Array(PN*3),pLife=new Float32Array(PN),pCol=new Float32Array(PN*3);
+const pGeo=new THREE.BufferGeometry();pGeo.setAttribute('position',new THREE.BufferAttribute(pPos,3));pGeo.setAttribute('color',new THREE.BufferAttribute(pCol,3));
+const pts=new THREE.Points(pGeo,new THREE.PointsMaterial({size:.07,vertexColors:true,depthWrite:false,fog:false}));pts.frustumCulled=false;pts.visible=false;scene.add(pts);
 let pNext=0;
-function burst(x,y,z,n,sp){for(let i=0;i<n;i++){const k=pNext++%PN;pPos[k*3]=x;pPos[k*3+1]=y;pPos[k*3+2]=z;const a=Math.random()*6.28,b=Math.random()*2-1,q=Math.sqrt(1-b*b);pVel[k*3]=Math.cos(a)*q*sp;pVel[k*3+1]=b*sp;pVel[k*3+2]=Math.sin(a)*q*sp;pLife[k]=.5}}
+function burst(x,y,z,n,sp,col,life,grav){const cc=_c.set(col==null?0x9ff8ff:col);
+  for(let i=0;i<n;i++){const k=pNext++%PN;pPos[k*3]=x;pPos[k*3+1]=y;pPos[k*3+2]=z;const a=Math.random()*6.28,b=Math.random()*2-1,q=Math.sqrt(1-b*b);
+    pVel[k*3]=Math.cos(a)*q*sp;pVel[k*3+1]=b*sp;pVel[k*3+2]=Math.sin(a)*q*sp+(grav||0);pLife[k]=life||.5;
+    if(col==='rainbow')cc.setHSL((performance.now()/900+i/n)%1,1,.6);pCol[k*3]=cc.r;pCol[k*3+1]=cc.g;pCol[k*3+2]=cc.b}
+  pGeo.attributes.color.needsUpdate=true}
 function stepParticles(dt){let any=false;for(let k=0;k<PN;k++){if(pLife[k]<=0){pPos[k*3+1]=9999;continue}any=true;pLife[k]-=dt;pPos[k*3]+=pVel[k*3]*dt;pPos[k*3+1]+=pVel[k*3+1]*dt;pPos[k*3+2]+=pVel[k*3+2]*dt}if(any||pts.visible)pGeo.attributes.position.needsUpdate=true;pts.visible=any}
 
 // ---------- starting and ending runs ----------
 function charById(id){return CHARS.find(c=>c.id===id)||CHARS[0]}
 function begin(W,beat){
   setupWorld(W);G.ch=charById(save.ch);if(!unlocked(G.ch))G.ch=CHARS[0];
-  G.s=AR.newRunner(W,G.ch);G.acc=0;G.deadAt=0;G.finAt=0;G.hold=beat;G.cam={};G.endDone=false;
+  G.s=AR.newRunner(W,G.ch,{fixed:set.fixed&&!G.demo});G.acc=0;G.finAt=0;G.dying=null;G.hold=beat;G.cam={};G.endDone=false;
+  G.combo=0;G.comboAt=-9;G.bestCombo=0;G.bonus=0;G.shake=0;G.zoneShown=-1;G.trailAt=0;
   if(G.modelCh!==G.ch)setModel(G.ch);
+  runRoot.visible=true;runner.rotation.set(0,0,0);
+  $('tA').hidden=!G.ch.bridge;$('abil').hidden=!G.ch.bridge;$('hintA').hidden=!G.ch.bridge;
   rebuildTiles();
 }
 function startLevel(i,keepTries){
-  G.mode='level';G.li=i;G.demo=null;if(!keepTries)G.tries=1;
-  begin(AR.buildLevel(i),keepTries?.15:.35);
-  $('lvlLbl').textContent='Level '+(i+1)+(G.tries>1?' · try '+G.tries:'');$('lvlName').textContent=LEVELS[i].n;
-  enterPlay();if(!keepTries)banner('Level '+(i+1),LEVELS[i].n,.8);
+  const z=zoneOf(i);
+  if(!keepTries&&z&&!save.seen[z.id]&&!navigator.webdriver){showStory(z,()=>startLevel(i));return}
+  G.mode='level';G.li=i;G.demo=null;G.daily=null;if(!keepTries)G.tries=1;
+  begin(AR.buildLevel(i),keepTries?.12:.35);
+  $('lvlLbl').textContent='Level '+LABEL[i]+(G.tries>1?' · try '+G.tries:'');$('lvlName').textContent=LEVELS[i].n;
+  enterPlay();if(!keepTries)banner(LABEL[i]+' · '+LEVELS[i].n,THEMES[LEVELS[i].th].name,.9);
 }
-function startEndless(){
-  G.mode='endless';G.demo=null;G.tries=1;
-  begin(AR.buildEndless((Math.random()*1e9)>>>0),.3);
-  $('lvlLbl').textContent='Endless · best '+fmtM(save.best);$('lvlName').textContent='0 m';
+function startEndless(daily){
+  G.mode='endless';G.demo=null;G.tries=1;G.contUsed=false;G.daily=daily?todayKey():null;
+  begin(AR.buildEndless(daily?dailySeed(G.daily):(Math.random()*1e9)>>>0),.3);
+  $('lvlLbl').textContent=(daily?'Daily run':'Endless')+' · best '+fmtM(daily?dailyBest():(save.bestBy[G.ch.id]||0));$('lvlName').textContent='0 m';
   enterPlay();
 }
+const dailyBest=()=>save.daily&&save.daily.day===todayKey()?save.daily.best:0;
 let hintTimer=0;
 function enterPlay(){
   showOverlay(null);$('hud').hidden=false;document.body.classList.add('playing');G.paused=false;
-  const h=$('hint');h.classList.remove('gone');clearTimeout(hintTimer);hintTimer=setTimeout(()=>h.classList.add('gone'),4000);
+  const h=$('hint');h.classList.remove('gone');clearTimeout(hintTimer);hintTimer=setTimeout(()=>h.classList.add('gone'),4500);
   updateHud(true);
 }
-function restart(){if(G.mode==='level'){G.tries++;startLevel(G.li,true)}else if(G.mode==='endless'){endEndless(true);startEndless()}}
+function restart(){if(G.mode==='level'){G.tries++;startLevel(G.li,true)}else if(G.mode==='endless'){endEndless(true);startEndless(!!G.daily)}}
 function onDie(){
-  sfx.die();flash('#ff4f6a',.45);
-  // levels: straight back to the start; endless: a quick look at the score
-  G.deadAt=performance.now()+(G.mode==='level'?120:350);
+  sfx.die();
+  // a short look at the runner tumbling away into space, then straight back to the start (or the score)
+  const P=runnerPos(),s=G.s;
+  G.dying={t:0,x:P.x,y:P.y,z:P.z,lx:G.cam.lx,ly:G.cam.ly,lz:G.cam.lz,nx:P.w.nx,ny:P.w.ny,v:Math.max(4,-s.vh),vd:s.vd,spin:(s.vu>=0?1:-1)*(5+Math.random()*3),cx:camera.position.x,cy:camera.position.y,cz:camera.position.z,
+    dur:G.mode==='level'?.42:.6};
+  flash('#ff4f6a',.25);
 }
 function onFinish(){
   sfx.win();flash('#b6ff3b',.4);
-  const i=G.li,s=G.s,prev=save.lv[i],wasOpen=LEVELS.map((_,k)=>isOpen(k)),chars0=CHARS.filter(unlocked).length;
+  const i=G.li,s=G.s,prev=save.lv[i],wasOpen=LEVELS.map((_,k)=>isOpen(k)),chars0=CHARS.filter(unlocked).map(c=>c.id);
   const bitsGot=s.gotIds.reduce((b,id)=>b|(1<<Math.min(2,id)),0);
   const e=prev||{c:0,t:0,n:0};const newBest=!e.t||s.t<e.t;
   save.lv[i]={c:(e.c|bitsGot)&7,t:newBest?Math.round(s.t*100)/100:e.t,n:(e.n||0)+1};saveNow();
   statsHook('max','levels',clearedCount());statsHook('add','runs',1);statsHook('max','crystals',crystalTotal());
-  const opened=LEVELS.map((_,k)=>k).filter(k=>isOpen(k)&&!wasOpen[k]);
-  G.finAt=performance.now()+350;
-  G.pendingRes={i,t:s.t,got:bits(bitsGot),best:save.lv[i].t,c:save.lv[i].c,newBest,opened,chars0};
+  const opened=ORDER.filter(k=>isOpen(k)&&!wasOpen[k]);
+  G.finAt=performance.now()+450;
+  G.pendingRes={i,t:s.t,got:bits(bitsGot),newCry:bits(bitsGot&~e.c),best:save.lv[i].t,c:save.lv[i].c,newBest,first:!prev,opened,chars0};
 }
 function endEndless(quiet){
   if(G.mode!=='endless'||!G.s||G.endDone)return null;G.endDone=true;
-  const d=Math.floor(G.s.d),got=G.s.got,chars0=CHARS.filter(unlocked).length,old=save.best;
-  save.bank+=got;save.runs++;if(d>save.best)save.best=d;saveNow();
-  statsHook('max','distance',d);statsHook('add','runs',1);statsHook('max','crystals',crystalTotal());
-  return {d,got,best:save.best,newBest:d>old,chars0};
+  const id=G.ch.id,d=Math.floor(G.s.d),got=G.s.got+G.bonus,chars0=CHARS.filter(unlocked).map(c=>c.id),old=save.best,oldMine=save.bestBy[id]||0;
+  save.bank+=got;save.runs++;if(d>save.best)save.best=d;if(d>oldMine)save.bestBy[id]=d;
+  let dailyNew=false;if(G.daily){const b=dailyBest();if(d>b){save.daily={day:G.daily,best:d};dailyNew=true}}
+  saveNow();
+  statsHook('max','distance',d);statsHook('max','dist-'+id,d);if(!G.contUsed)statsHook('add','runs',1);statsHook('max','crystals',crystalTotal());
+  return {d,got,best:save.best,mine:save.bestBy[id]||0,newBest:d>old,newMine:d>oldMine,chars0,dailyNew};
 }
 const fmtM=m=>m>0?Math.floor(m).toLocaleString('en-US')+' m':'–';
 const fmtT=t=>t>0?t.toFixed(2)+' s':'–';
 
 // ---------- overlays ----------
+const OVERLAYS=['menu','mapMenu','pause','results','story'];
 function showOverlay(id){
-  G.overlay=id;for(const o of ['menu','mapMenu','pause','results'])$(o).hidden=o!==id;
+  G.overlay=id;for(const o of OVERLAYS)$(o).hidden=o!==id;
   document.body.classList.toggle('playing',!id&&playing());
 }
 function toMenu(){
@@ -1090,117 +1455,173 @@ function toMenu(){
   startDemo();showOverlay('menu');renderMenu();
 }
 let pausedAt=0;
-function showPause(){if(!playing()||G.overlay||G.deadAt||G.finAt)return;G.paused=true;showOverlay('pause');
-  $('pauseSub').textContent=G.mode==='level'?'Level '+(G.li+1)+' · '+LEVELS[G.li].n+' · try '+G.tries:'Endless · '+fmtM(G.s.d)+' so far';
+function showPause(){if(!playing()||G.overlay||G.dying||G.finAt)return;G.paused=true;showOverlay('pause');
+  $('pauseSub').textContent=G.mode==='level'?'Level '+LABEL[G.li]+' · '+LEVELS[G.li].n+' · try '+G.tries:(G.daily?'Daily run':'Endless')+' · '+fmtM(G.s.d)+' so far';
   $('toMap').hidden=G.mode!=='level';pausedAt=performance.now()}
 function resume(){if(G.overlay!=='pause')return;G.paused=false;showOverlay(null);G.hold=Math.max(G.hold,.3)}
+// Dispatch's lines when a zone is played for the first time (and from the map)
+let storyGo=null;
+function showStory(z,go){
+  storyGo=go;G.paused=true;
+  $('storyZone').textContent=zoneName(z)+(z.gift?' · side tunnel':'')+' · '+z.idea;
+  const box=$('storyLines');box.innerHTML='';z.say.forEach(t=>{const p=document.createElement('p');p.textContent=t;box.append(p)});
+  $('storyGo').textContent=go?'Let’s go':'Got it';
+  showOverlay('story');G.storyZ=z;G.resAt=performance.now();
+}
+function closeStory(){if(G.overlay!=='story')return;const z=G.storyZ;if(z){save.seen[z.id]=1;saveNow()}
+  const go=storyGo;storyGo=null;if(go)go();else{showOverlay('mapMenu');drawMap()}}
 function showResults(){
   const r=G.pendingRes;G.pendingRes=null;G.paused=true;
   const b=$('resBtns');b.innerHTML='';$('resUnlock').innerHTML='';const big=$('resBig');
   if(G.mode==='level'){
-    $('resTitle').textContent='Level clear!';big.hidden=true;
-    $('resSub').textContent='Level '+(r.i+1)+' · '+LEVELS[r.i].n+(G.tries>1?' · '+G.tries+' tries':' · first try');
-    facts([['Time',fmtT(r.t)+(r.newBest&&save.lv[r.i].n>1?' ★ best':'')],['Crystals',r.got+' of 3']]);
-    if(r.opened.length)addUnlock('New: '+r.opened.map(k=>(k+1)+' '+LEVELS[k].n).join(', '));
+    $('resTitle').textContent=r.first?'Level clear!':r.newBest?'New best time!':'Level clear!';
+    $('resSub').textContent=LABEL[r.i]+' · '+LEVELS[r.i].n+(G.tries>1?' · '+G.tries+' tries':' · first try');
+    big.hidden=false;big.textContent=fmtT(r.t);
+    $('resGems').innerHTML=[0,1,2].map(k=>'<i class="'+(r.c>>k&1?'':'no')+'">◆</i>').join('');$('resGems').hidden=false;
+    facts([['Best',fmtT(r.best)],['Crystals',r.got+' of 3'+(r.newCry?' (+'+r.newCry+' new)':'')]]);
+    if(r.opened.length)addUnlock('Opened: '+r.opened.map(k=>LABEL[k]+' '+LEVELS[k].n).join(', '));
     newCharsLine(r.chars0);
-    const nexts=MAP[r.i][2].filter(isOpen);
+    const nexts=MAP[r.i][2].filter(isOpen).sort((a,b)=>ORDER.indexOf(a)-ORDER.indexOf(b));
     nexts.forEach((k,n)=>addBtn(b,'Next: '+LEVELS[k].n,'btn big '+(n?'cyan':'lime'),()=>startLevel(k)));
     if(!nexts.length)addBtn(b,'Levels','btn big lime',()=>openMap(r.i));
-    addBtn(b,'Play again','btn alt',()=>startLevel(r.i));
-    if(nexts.length)addBtn(b,'Levels','btn alt',()=>openMap(nexts[0]));
+    const row=document.createElement('div');row.className='row2';b.append(row);
+    addBtn(row,'↻ Retry','btn alt',()=>startLevel(r.i));
+    if(nexts.length)addBtn(row,'Levels','btn alt',()=>openMap(nexts[0]));else addBtn(row,'Menu','btn alt',toMenu);
   }else{
-    $('resTitle').textContent=r.newBest?'New best!':'Run over';
-    $('resSub').textContent='Endless · '+G.ch.name;big.hidden=false;big.textContent=fmtM(r.d);
-    facts([['Best',fmtM(r.best)],['Crystals',String(r.got)]]);
+    $('resGems').hidden=true;
+    $('resTitle').textContent=r.newMine?'New best for '+G.ch.name+'!':r.dailyNew?'New daily best!':'Run over';
+    $('resSub').textContent=(G.daily?'Daily run · ':'Endless · ')+G.ch.name;big.hidden=false;big.textContent=fmtM(r.d);
+    const f=[[G.ch.name+'’s best',fmtM(r.mine)],['Crystals','+'+r.got]];if(G.bestCombo>2)f.push(['Best streak','×'+G.bestCombo]);if(G.daily)f.push(['Today',fmtM(dailyBest())]);
+    facts(f);
     newCharsLine(r.chars0);
-    addBtn(b,'Run again','btn big pink',()=>startEndless());addBtn(b,'Menu','btn alt',toMenu);
+    addBtn(b,'↻ Run again','btn big pink',()=>startEndless(!!G.daily));
+    const row=document.createElement('div');row.className='row2';b.append(row);
+    addBtn(row,'Menu','btn alt',toMenu);
+    if(G.cont){const ok=wallet()>=CONT_COST;const cb=addBtn(row,'Continue ◆'+CONT_COST,'btn cyan',continueRun);cb.disabled=!ok;if(!ok)cb.title='Not enough crystals'}
   }
-  $('resKey').textContent=touchUI?'':'Space or Enter: '+(b.firstChild?b.firstChild.textContent:'');
+  $('resKey').textContent=touchUI?'Tap outside the card to retry':'Space or Enter: '+(b.firstChild?b.firstChild.textContent:'')+' · R: retry';
   G.resAt=performance.now();showOverlay('results');
+}
+// Endless: one continue per run, for a few crystals, straight from the score
+function continueRun(){
+  if(!G.cont||wallet()<CONT_COST)return;
+  save.spent+=CONT_COST;G.cont=false;G.contUsed=true;
+  // undo the end-of-run bookkeeping so the run carries on as one
+  const r=G.contSnap;save.bank=r.bank;save.runs=r.runs;save.best=r.best;save.bestBy=r.bestBy;save.daily=r.daily;saveNow();
+  G.endDone=false;G.dying=null;AR.respawn(G.W,G.s);G.cam={};G.lastRow=-99;G.shake=0;runRoot.visible=true;runner.rotation.set(0,0,0);
+  G.mode='endless';showOverlay(null);$('hud').hidden=false;document.body.classList.add('playing');G.paused=false;G.hold=.6;sfx.unlock();banner('Back in!','◆'+CONT_COST+' spent',.8);
 }
 function facts(list){const p=$('resFacts');p.innerHTML='';list.forEach(([k,v],i)=>{if(i)p.append(' · ');p.append(k+' ');const e=document.createElement('b');e.textContent=v;p.append(e)})}
 function addUnlock(t){const d=document.createElement('div');d.className='unlock';d.textContent=t;$('resUnlock').append(d)}
-function newCharsLine(n0){const all=CHARS.filter(unlocked);if(all.length>n0)addUnlock('New runner: '+all.slice(n0).map(c=>c.name).join(', ')+'! Pick them in the menu.')}
+function newCharsLine(ids0){const all=CHARS.filter(unlocked).filter(c=>!ids0.includes(c.id));if(all.length){sfx.unlock();addUnlock('New runner: '+all.map(c=>c.name).join(', ')+'! Pick them in the menu.')}}
 function addBtn(p,t,c,fn){const b=document.createElement('button');b.type='button';b.className=c;b.textContent=t;b.addEventListener('click',()=>{sfx.click();fn()});p.append(b);return b}
-// a tap on the dark area round the Endless score runs again
-$('results').addEventListener('click',e=>{if(e.target===$('results')&&G.mode==='endless'&&performance.now()-G.resAt>300){sfx.click();startEndless()}});
+// a tap on the dark area round the results card is a quick retry
+$('results').addEventListener('click',e=>{if(e.target===$('results')&&performance.now()-G.resAt>300){sfx.click();if(G.mode==='endless')startEndless(!!G.daily);else if(G.mode==='level')startLevel(G.li)}});
 
 // ---------- menu ----------
 function charSvg(ch){
-  const c='#'+ch.col.toString(16).padStart(6,'0'),c2='#'+ch.col2.toString(16).padStart(6,'0'),o=' stroke="#0b0d26" stroke-width="2"';
+  const c=hex(ch.col),c2=hex(ch.col2),o=' stroke="#0b0d26" stroke-width="2"';
   const eyes=n=>n===1?'<circle cx="22" cy="21" r="5" fill="#fff"/><circle cx="22" cy="22" r="2.4" fill="#0b0d26"/>':n===3?'<circle cx="15" cy="23" r="3" fill="#fff"/><circle cx="22" cy="21" r="3" fill="#fff"/><circle cx="29" cy="23" r="3" fill="#fff"/><circle cx="15" cy="24" r="1.4" fill="#0b0d26"/><circle cx="22" cy="22" r="1.4" fill="#0b0d26"/><circle cx="29" cy="24" r="1.4" fill="#0b0d26"/>':'<circle cx="17" cy="21" r="4" fill="#fff"/><circle cx="27" cy="21" r="4" fill="#fff"/><circle cx="17" cy="22" r="2" fill="#0b0d26"/><circle cx="27" cy="22" r="2" fill="#0b0d26"/>';
   const body={pip:'<path d="M22 10V4"'+o+'/><circle cx="22" cy="4" r="2.6" fill="#ff4fa0"'+o+'/><ellipse cx="22" cy="25" rx="13" ry="15" fill="'+c+'"'+o+'/>'+eyes(2),
     brick:'<path d="M9 18 15 9h14l6 9-3 17H12z" fill="'+c+'"'+o+' stroke-linejoin="round"/>'+eyes(1),
     vex:'<path d="M22 9 25 2 19 6z" fill="'+c2+'"'+o+'/><ellipse cx="22" cy="25" rx="9" ry="16" fill="'+c+'"'+o+'/>'+eyes(2).replace(/cx="17"/g,'cx="18"').replace(/cx="27"/g,'cx="26"'),
     moppet:'<g fill="'+c+'"'+o+'><circle cx="12" cy="20" r="6"/><circle cx="32" cy="20" r="6"/><circle cx="22" cy="12" r="6"/><circle cx="22" cy="25" r="13"/></g>'+eyes(2),
-    twitch:'<path d="M17 14 12 5M27 14l5-9" stroke="'+c2+'" stroke-width="2.5"/><ellipse cx="22" cy="26" rx="13" ry="11" fill="'+c+'"'+o+'/>'+eyes(3)}[ch.id];
+    twitch:'<path d="M17 14 12 5M27 14l5-9" stroke="'+c2+'" stroke-width="2.5"/><ellipse cx="22" cy="26" rx="13" ry="11" fill="'+c+'"'+o+'/>'+eyes(3),
+    wisp:'<g fill="'+c+'"'+o+'><circle cx="12" cy="27" r="7"/><circle cx="32" cy="27" r="7"/><circle cx="16" cy="17" r="7"/><circle cx="28" cy="17" r="7"/><ellipse cx="22" cy="26" rx="13" ry="10"/></g>'+eyes(2).replace(/cy="21"/g,'cy="24"').replace(/cy="22"/g,'cy="25"'),
+    clink:'<path d="M13 15V8a9 9 0 0 1 18 0v7h-5V8a4 4 0 0 0-8 0v7z" fill="'+c+'"'+o+'/><rect x="10" y="15" width="24" height="23" rx="6" fill="'+c2+'"'+o+'/>'+eyes(2).replace(/cy="21"/g,'cy="25"').replace(/cy="22"/g,'cy="26"'),
+    spool:'<ellipse cx="22" cy="11" rx="13" ry="4" fill="'+c2+'"'+o+'/><rect x="12" y="11" width="20" height="22" fill="'+c+'"'+o+'/><ellipse cx="22" cy="34" rx="13" ry="4" fill="'+c2+'"'+o+'/>'+eyes(2).replace(/cy="21"/g,'cy="20"').replace(/cy="22"/g,'cy="21"')}[ch.id];
   return '<svg viewBox="0 0 44 44" aria-hidden="true">'+body+'</svg>';
 }
+const abilityOf=ch=>ch.heavy?'Cracked tiles hold':ch.dbl?'Double jump':ch.glide?'Glide':ch.mag?'Crystal magnet':ch.bridge?'Bridge':ch.id==='vex'?'Top speed, slides':ch.id==='moppet'?'Biggest jump':'All-rounder';
 function renderChars(){
   const box=$('chars');box.innerHTML='';
   for(const ch of CHARS){const b=document.createElement('button');b.type='button';const ok=unlocked(ch);
-    b.innerHTML=charSvg(ch)+'<b></b><small></small>';b.querySelector('b').textContent=ch.name;b.querySelector('small').textContent=ok?'ready':'🔒';
-    if(!ok)b.classList.add('locked');b.setAttribute('aria-pressed',String(save.ch===ch.id));b.setAttribute('aria-label',ch.name+(ok?'':' (locked: '+needText(ch)+')'));
+    b.innerHTML=charSvg(ch)+'<b></b><small></small>';b.querySelector('b').textContent=ch.name;b.querySelector('small').textContent=ok?abilityOf(ch):'◆'+ch.cost;
+    if(!ok)b.classList.add('locked');b.setAttribute('aria-pressed',String(save.ch===ch.id));b.setAttribute('aria-label',ch.name+(ok?'':' (locked)'));
     b.addEventListener('click',()=>{sfx.click();G.viewCh=ch.id;if(ok&&save.ch!==ch.id){save.ch=ch.id;saveNow();if(G.mode==='menu')startDemo()}renderChars()});box.append(b)}
   const ch=charById(G.viewCh||save.ch),ok=unlocked(ch);
   const bar=(k,v)=>'<span>'+k+'</span><i style="--v:'+Math.round(clamp(v,.12,1)*100)+'%"></i>';
-  $('charInfo').innerHTML='<b></b> <span></span><div class="bars">'+bar('Speed',(ch.speed-10.5)/4.5)+bar('Sidestep',(ch.lat-6)/3.8)+bar('Grip',ch.accG/110)+bar('Air steer',ch.accA/80)+'</div>';
-  $('charInfo').querySelector('b').textContent=ch.name+(ok?'':' · locked');
-  $('charInfo').querySelector('span').textContent=ok?ch.desc:needText(ch)+' to unlock. '+ch.desc;
+  const info=$('charInfo');
+  info.innerHTML='<b></b> <em></em> <span></span><div class="bars">'+bar('Speed',(ch.speed-10.5)/4.5)+bar('Sidestep',(ch.lat-6)/3.8)+bar('Grip',ch.accG/110)+bar('Jump',(ch.jh-1.6)/1.8)+'</div><div class="buy"></div>';
+  info.querySelector('b').textContent=ch.name;info.querySelector('em').textContent=abilityOf(ch);
+  info.querySelector('span').textContent=ch.desc+(ok?'':' Unlock free: '+freeText(ch)+'.');
+  if(!ok){const can=wallet()>=ch.cost,bb=addBtn(info.querySelector('.buy'),'Unlock now for ◆'+ch.cost,'btn sm '+(can?'lime':'alt'),()=>{
+      if(wallet()<ch.cost)return;save.own.push(ch.id);save.spent+=ch.cost;save.ch=ch.id;saveNow();sfx.unlock();renderMenu();if(G.mode==='menu')startDemo()});
+    bb.disabled=!can;if(!can){const sm=document.createElement('small');sm.textContent=' you have ◆'+wallet();info.querySelector('.buy').append(sm)}}
+  else if(save.bestBy[ch.id]){const sm=document.createElement('small');sm.textContent='Endless best: '+fmtM(save.bestBy[ch.id]);info.querySelector('.buy').append(sm)}
 }
-function nextLevel(){for(let i=0;i<NL;i++)if(isOpen(i)&&!save.lv[i])return i;return -1}
+function renderTrails(){
+  const box=$('trails');box.innerHTML='';
+  for(const t of TRAILS){const own=save.trails.includes(t.id),b=document.createElement('button');b.type='button';
+    b.textContent=t.name+(own?'':' ◆'+t.cost);b.setAttribute('aria-pressed',String(save.trail===t.id));if(!own&&wallet()<t.cost)b.disabled=true;
+    b.addEventListener('click',()=>{sfx.click();if(!own){if(wallet()<t.cost)return;save.trails.push(t.id);save.spent+=t.cost;sfx.unlock()}save.trail=t.id;saveNow();renderMenu()});box.append(b)}
+}
+function nextLevel(){for(const i of ORDER)if(isOpen(i)&&!save.lv[i]&&!zoneOf(i).gift)return i;for(const i of ORDER)if(isOpen(i)&&!save.lv[i])return i;return -1}
 function renderMenu(){
   const n=nextLevel();
-  $('contSub').textContent=n>=0?'Level '+(n+1)+' · '+LEVELS[n].n:'all cleared: replay any level';
+  $('contSub').textContent=n>=0?LABEL[n]+' · '+LEVELS[n].n:'all cleared: replay any level';
   $('mapSub').textContent=clearedCount()+' of '+NL+' cleared';$('endSub').textContent='best '+fmtM(save.best);
-  $('pLv').textContent=clearedCount();$('pCr').textContent=crystalTotal();$('pBest').textContent=fmtM(save.best);
-  renderChars();
+  $('daySub').textContent=dailyBest()?'today '+fmtM(dailyBest()):'same tunnel for all';
+  $('pLv').textContent=clearedCount();$('pNL').textContent=NL;$('pCr').textContent=wallet();$('pBest').textContent=fmtM(save.best);
+  renderChars();renderTrails();
 }
-// the map: on a tall screen it's drawn top to bottom
+// the map: a big scrollable picture; on a tall screen it's drawn top to bottom
 let mapSel=0;
-function openMap(sel){G.paused=true;if(sel==null){const n=nextLevel();sel=n>=0?n:0}mapSel=sel;showOverlay('mapMenu');drawMap()}
-function drawMap(){
-  const svg=$('mapSvg'),tall=innerWidth<640&&innerHeight>innerWidth;
-  const P=i=>tall?[MAP[i][1]*.9+30,MAP[i][0]]:[MAP[i][0],MAP[i][1]];
-  svg.setAttribute('viewBox',tall?'0 0 640 1010':'0 0 1000 680');
+function openMap(sel){G.paused=true;if(sel==null){const n=nextLevel();sel=n>=0?n:0}mapSel=sel;showOverlay('mapMenu');drawMap(true)}
+function drawMap(scroll){
+  const svg=$('mapSvg'),tall=innerWidth<640&&innerHeight>innerWidth,W0=AR.MAP_W,H0=AR.MAP_H;
+  const P=i=>tall?[MAP[i][1],MAP[i][0]]:[MAP[i][0],MAP[i][1]];
+  const vw=tall?H0:W0,vh=tall?W0:H0,sc=tall?.62:innerWidth<900?.62:.72;
+  svg.setAttribute('viewBox','0 0 '+vw+' '+vh);svg.style.width=Math.round(vw*sc)+'px';svg.style.height=Math.round(vh*sc)+'px';
   let h='';
-  MAP.forEach((m,i)=>m[2].forEach(j=>{const a=P(i),b=P(j);h+='<line class="lnk'+(save.lv[i]?' on':'')+'" x1="'+a[0]+'" y1="'+a[1]+'" x2="'+b[0]+'" y2="'+b[1]+'"/>'}));
-  MAP.forEach((m,i)=>{const [x,y]=P(i),op=isOpen(i),done=!!save.lv[i],th=THEMES[LEVELS[i].th],c='#'+th.a.toString(16).padStart(6,'0');
-    h+='<g class="nd'+(op?'':' lock')+(i===mapSel?' sel':'')+'" data-i="'+i+'" tabindex="0" role="button" aria-label="Level '+(i+1)+(op?'':' (locked)')+'"><circle cx="'+x+'" cy="'+y+'" r="'+(tall?31:25)+'" fill="'+(done?'#b6ff3b':c)+'"/><text x="'+x+'" y="'+y+'"'+(tall?' style="font-size:25px"':'')+'>'+(i+1)+'</text>';
-    if(done){const cb=save.lv[i].c;for(let k=0;k<3;k++){const gx=x-12+k*12,gy=y+(tall?40:34);h+='<path class="gem'+(cb>>k&1?'':' no')+'" d="M'+gx+' '+(gy-6)+'l5 6-5 6-5-6z"/>'}}
+  // zone names
+  for(const z of ZONES.concat(SIDES)){const [x,y]=tall?[z.at[1],z.at[0]]:[z.at[0],z.at[1]];const first=Array.isArray(z.lv[0])?z.lv[0][0]:z.lv[0];
+    const op=isOpen(first),c=hex(THEMES[LEVELS[first].th].a);
+    h+='<text class="zl'+(op?'':' lock')+'" x="'+(tall?x+44:x-24)+'" y="'+(tall?y-34:y-(z.gift?44:84))+'" fill="'+c+'"'+(tall?' text-anchor="start"':'')+'>'+esc(zoneName(z))+'</text>';
+    h+='<text class="zi" x="'+(tall?x+44:x-24)+'" y="'+(tall?y-14:y-(z.gift?26:66))+'">'+esc(z.gift?'Side tunnel: '+z.idea+' · frees '+charById(z.gift).name:z.idea)+'</text>'}
+  MAP.forEach((m,i)=>m[2].forEach(j=>{const a=P(i),b=P(j);h+='<line class="lnk'+(save.lv[i]?' on':'')+(zoneOf(j).gift?' side':'')+'" x1="'+a[0]+'" y1="'+a[1]+'" x2="'+b[0]+'" y2="'+b[1]+'"/>'}));
+  MAP.forEach((m,i)=>{const [x,y]=P(i),op=isOpen(i),done=!!save.lv[i],th=THEMES[LEVELS[i].th],c=hex(th.a);
+    h+='<g class="nd'+(op?'':' lock')+(i===mapSel?' sel':'')+'" data-i="'+i+'" tabindex="0" role="button" aria-label="Level '+LABEL[i]+' '+esc(LEVELS[i].n)+(op?'':' (locked)')+'"><circle cx="'+x+'" cy="'+y+'" r="26" fill="'+(done?'#b6ff3b':c)+'"/><text x="'+x+'" y="'+y+'">'+LABEL[i]+'</text>';
+    if(done){const cb=save.lv[i].c;for(let k=0;k<3;k++){const gx=x-12+k*12,gy=y+36;h+='<path class="gem'+(cb>>k&1?'':' no')+'" d="M'+gx+' '+(gy-6)+'l5 6-5 6-5-6z"/>'}}
     h+='</g>'});
   svg.innerHTML=h;
   svg.querySelectorAll('.nd').forEach(g=>{const f=()=>{mapSel=+g.dataset.i;sfx.click();drawMap()};g.addEventListener('click',f);g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();f()}})});
-  const i=mapSel,L=LEVELS[i],e=save.lv[i],op=isOpen(i);
-  const info=$('lvInfo');info.innerHTML='<small style="font-weight:900;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--tx-3)"></small><h3></h3><p class="sub"></p><div class="gems"></div><div class="stack" style="margin-top:8px"></div>';
-  info.querySelector('small').textContent='Level '+(i+1)+' · '+THEMES[L.th].name;info.querySelector('h3').textContent=L.n;
-  const shapeName={sq:'square',hex:'six-sided',oct:'eight-sided',nar:'narrow square',big:'wide eight-sided'}[L.s];
-  info.querySelector('p').textContent=op?(e?'Best '+fmtT(e.t)+' · cleared '+e.n+'×':'Not cleared yet')+' · '+shapeName+' tunnel':'Locked: clear '+PRED[i].map(p=>'level '+(p+1)).join(' or ')+' to open it.';
+  if(scroll){const [x,y]=P(mapSel),wrap=$('mapWrap');wrap.scrollLeft=x*sc-wrap.clientWidth/2;wrap.scrollTop=y*sc-wrap.clientHeight/2}
+  const i=mapSel,L=LEVELS[i],e=save.lv[i],op=isOpen(i),z=zoneOf(i);
+  const info=$('lvInfo');info.innerHTML='<small class="eyebrow"></small><h3></h3><p class="sub"></p><div class="gems"></div><div class="stack" style="margin-top:8px"></div>';
+  info.querySelector('small').textContent='Level '+LABEL[i]+' · '+zoneName(z);info.querySelector('h3').textContent=L.n;
+  info.querySelector('p').textContent=op?(e?'Best '+fmtT(e.t)+' · cleared '+e.n+'×':'Not cleared yet')+' · '+AR.SHAPE_NAME[L.s]+' tunnel':'Locked: clear '+PRED[i].map(p=>LABEL[p]).join(' or ')+' to open it.';
   info.querySelector('.gems').innerHTML=[0,1,2].map(k=>'<i class="'+(e&&(e.c>>k&1)?'':'no')+'">◆</i>').join('');
-  if(op)addBtn(info.querySelector('.stack'),'Play level '+(i+1),'btn big lime',()=>startLevel(i));
+  const st=info.querySelector('.stack');
+  if(op)addBtn(st,'Play '+LABEL[i],'btn big lime',()=>startLevel(i));
+  if(op)addBtn(st,'Dispatch: '+zoneName(z),'btn sm alt',()=>showStory(z,null));
 }
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 // ---------- HUD ----------
 let bannerTimer=0;
 function banner(a,b,secs){const el=$('banner');el.querySelector('b').textContent=a;el.querySelector('span').textContent=b||'';el.style.opacity=1;clearTimeout(bannerTimer);bannerTimer=setTimeout(()=>{el.style.opacity=0},secs*1000)}
 function flash(col,op){const f=$('flash');f.style.background=col||'#fff';f.style.transition='none';f.style.opacity=op||.5;requestAnimationFrame(()=>requestAnimationFrame(()=>{f.style.transition='opacity .3s';f.style.opacity=0}))}
+// a quick word that pops up under the middle of the screen (streaks, close calls)
+function pop(t,cls){const el=$('pop');el.textContent=t;el.className='';void el.offsetWidth;el.className='go '+(cls||'')}
 let hudLast='';
 function updateHud(force){
   const s=G.s,W=G.W;if(!s)return;
   let key;
   if(G.mode==='level'){const p=clamp(s.d/W.len,0,1);key=Math.round(p*200)+'|'+s.got;
     if(key!==hudLast||force){$('bar').firstChild.style.width=(p*100).toFixed(1)+'%';$('gems').textContent=s.got+'/3'}}
-  else{const m=Math.floor(s.d);key=m+'|'+s.got;if(key!==hudLast||force){$('lvlName').textContent=m.toLocaleString('en-US')+' m';$('gems').textContent=s.got;
-    $('bar').firstChild.style.width=(save.best>0?clamp(s.d/save.best,0,1)*100:0).toFixed(1)+'%'}}
+  else{const m=Math.floor(s.d),best=G.daily?dailyBest():(save.bestBy[G.ch.id]||0);key=m+'|'+s.got+'|'+G.bonus;if(key!==hudLast||force){$('lvlName').textContent=m.toLocaleString('en-US')+' m';$('gems').textContent=s.got+G.bonus;
+    $('bar').firstChild.style.width=(best>0?clamp(s.d/best,0,1)*100:0).toFixed(1)+'%'}}
   hudLast=key;
+  if(G.ch.bridge){const k=s.brC>0?1-s.brC/AR.BRIDGE_CD:1;$('abil').firstChild.style.width=(k*100).toFixed(0)+'%';$('abil').classList.toggle('ready',k>=1);$('tA').classList.toggle('ready',k>=1)}
 }
 
 // ---------- the demo runner behind the menu ----------
 function startDemo(){
   G.mode='menu';G.paused=false;
+  G.demo={q:[],inp:{x:0,j:false,a:false},a:null,i:0,still:touchUI,beam:16,ahead:20};G.drawnStill=false;
   const W=AR.buildEndless(12345+Math.floor(Math.random()*1000));
   begin(W,0);
-  G.demo={q:[],inp:{x:0,j:false},a:null,i:0,still:touchUI,beam:16,ahead:20};G.drawnStill=false;
 }
 function botInput(D){
   const s=G.s;
@@ -1208,7 +1629,7 @@ function botInput(D){
     if(!D.q.length){const p=AR.plan(G.W,s,{ahead:D.ahead||20,beam:D.beam||16});D.q=p.acts.slice(0,3);if(!D.q.length)D.q=[{x:0,j:0}]}
     D.a=D.q.shift();D.i=AR.CHUNK;D.k=0;
   }
-  const a=D.a;D.inp.x=a.x;D.inp.j=a.j===1&&D.k<2;D.i--;D.k++;
+  AR.actInput(s,D.a,D.k,D.inp);D.i--;D.k++;
 }
 
 // ---------- main loop ----------
@@ -1217,57 +1638,98 @@ function tick(){
   const s=G.s,W=G.W;
   if(G.demo)botInput(G.demo);else if(G.auto)botInput(G.auto);
   AR.step(W,s,input(),false);
-  if(s.ev){
-    if(s.ev&EV.JUMP)sfx.jump();if(s.ev&EV.BOOST)sfx.boost();if(s.ev&EV.LAND)sfx.land();
-    if(s.ev&EV.CRY){sfx.cry();const P=runnerPos();burst(P.x,P.y,P.z,16,3.5)}
-    if(s.ev&EV.DIE&&!G.demo)onDie();
-    if(s.ev&EV.FIN&&G.mode==='level')onFinish();
-    if((s.ev&EV.CRACK)&&!G.demo&&!s.ch.heavy)sfx.crack();
-  }
+  if(s.ev)events(s);
+}
+function events(s){
+  const ev=s.ev,real=!G.demo;
+  if(ev&EV.DJ)sfx.dj();else if(ev&EV.JUMP)sfx.jump();
+  if(ev&EV.BOOST)sfx.boost();
+  if(ev&EV.LAND){if(ev&EV.BIGLAND){sfx.bigland();G.shake=Math.max(G.shake,.16);const P=runnerPos();burst(P.x,P.y,P.z,10,2.2,0xffffff,.35)}else sfx.land()}
+  if(ev&EV.CRY){const now=s.t;G.combo=now-G.comboAt<2.4?G.combo+1:1;G.comboAt=now;G.bestCombo=Math.max(G.bestCombo,G.combo);
+    sfx.cry(G.combo);const P=runnerPos();burst(P.x,P.y,P.z,16,3.5,0x9ff8ff);
+    if(real&&G.combo>=2){let t='×'+G.combo;if(G.mode==='endless'&&G.combo%5===0){G.bonus++;t+=' streak +1 ◆'}pop(t,'cy')}}
+  if(ev&EV.NEAR&&real){const P=runnerPos();burst(P.x,P.y,P.z,12,3,0xffd23f,.4);sfx.near();pop('Close!','au')}
+  if(ev&EV.SPEED&&real){sfx.speed();G.fovK=1}
+  if(ev&EV.BRIDGE)sfx.bridge();
+  if(ev&EV.DIE&&real)onDie();
+  if(ev&EV.FIN&&G.mode==='level')onFinish();
+  if((ev&EV.CRACK)&&real&&!s.ch.heavy)sfx.crack();
 }
 const _w={};
 function runnerPos(){const s=G.s;AR.wallAt(G.W,s.u,_w,true);return {x:_w.x+_w.nx*s.h,y:_w.y+_w.ny*s.h,z:-s.d,w:_w}}
 function update(dt){
   const s=G.s;if(!s)return;
   const now=performance.now();
-  if(!G.paused&&!G.freeze){
+  if(G.dying){
+    const D=G.dying;D.t+=dt;
+    if(D.t>=D.dur){G.dying=null;
+      if(G.mode==='level'){G.tries++;startLevel(G.li,true);return}
+      if(G.mode==='endless'){G.cont=!G.contUsed;G.contSnap={bank:save.bank,runs:save.runs,best:save.best,bestBy:Object.assign({},save.bestBy),daily:save.daily&&Object.assign({},save.daily)};
+        G.pendingRes=endEndless();if(G.pendingRes)showResults();return}}
+  }else if(!G.paused&&!G.freeze){
     if(G.hold>0){G.hold-=dt;s.jh=input().j}   // a short beat at the start before running
     else if(!s.dead&&!s.fin){G.acc+=dt;let n=0;while(G.acc>=DT&&n<12){tick();G.acc-=DT;n++;if(s.dead||s.fin)break}if(n>=12)G.acc=0}
   }
   if(G.demo&&(s.dead||s.fin||s.d>1600)){startDemo();return}
-  if(G.deadAt&&now>=G.deadAt){G.deadAt=0;if(G.mode==='level'){G.tries++;startLevel(G.li,true);return}else if(G.mode==='endless'){G.pendingRes=endEndless();if(G.pendingRes)showResults();return}}
   if(G.finAt&&now>=G.finAt){G.finAt=0;showResults()}
   if(!G.noRender)draw(dt);
 }
+const _sup={},_v3=new THREE.Vector3();
 function draw(dt){
   const s=G.s,W=G.W,t=performance.now()/1000,pt0=performance.now();
   const r0=Math.floor(s.d/TL);
   if(r0!==G.lastRow||W.cr.size!==G.lastCr){updateFallers();G.lastRow=r0;rebuildTiles()}
   else if(G.fall.length)updateFallers();
+  if(W.br.size||bridges.visible)updateBridges();
   updateCrystals(t);
   if(arrows.visible)arrows.material.map.offset.y=-t*1.6;if(chevs.visible)chevs.material.map.offset.y=-t*3;
   // the runner: a flat sprite standing on the wall, facing the camera
-  const P=runnerPos(),w=P.w;
-  runRoot.position.set(P.x,P.y,P.z);
-  _m.set(w.tx,w.nx,0,0,w.ty,w.ny,0,0,0,0,1,0,0,0,0,1);runRoot.quaternion.setFromRotationMatrix(_m);
-  const step=Math.floor(s.d/1.1)&1,fr=s.g?step:2;runMat.map.offset.x=fr/3;
-  const run=s.g?Math.abs(Math.sin(s.d*2.85)):0,sq=s.g?1-run*.05:clamp(1+s.vh*.012,.9,1.12);
-  const base=G.ch&&G.ch.id==='twitch'?.85:G.ch&&G.ch.id==='brick'?1.08:1;runner.scale.set(base/Math.sqrt(sq),base*sq,base);
-  runner.position.y=s.g?run*.06:0;runner.rotation.z=-clamp(s.vu*.035,-.3,.3);
-  runRoot.visible=!(s.dead&&s.h<-30);
-  // in front of everything while it's on or above the floor, so it never vanishes into a wall at a corner
-  runMat.depthTest=s.h<-.05;
-  // camera
-  const tall=camera.aspect<.8;
-  const C=AR.camStep(W,s,G.cam,dt,{tall,back:G.mode==='menu'?5:4.3});
-  camera.position.set(C.x,C.y,C.z);camera.up.set(C.ux,C.uy,0);camera.lookAt(C.lx,C.ly,C.lz);
+  const P=runnerPos(),w=P.w,D=G.dying,base=sizeOf(G.ch);
+  if(D){ // tumbling away into space
+    const k=D.t;runRoot.position.set(D.x-D.nx*(D.v*k+6*k*k),D.y-D.ny*(D.v*k+6*k*k),D.z-D.vd*.6*k);
+    runner.rotation.z+=D.spin*dt;runner.scale.setScalar(base*Math.max(.3,1-k*.9));runMat.depthTest=true;
+    camera.position.set(D.cx,D.cy,D.cz);_v3.set(D.lx,D.ly,D.lz).lerp(runRoot.position,Math.min(.35,k));camera.lookAt(_v3);shadow.visible=false;
+  }else{
+    runRoot.position.set(P.x,P.y,P.z);
+    _m.set(w.tx,w.nx,0,0,w.ty,w.ny,0,0,0,0,1,0,0,0,0,1);runRoot.quaternion.setFromRotationMatrix(_m);
+    const step=Math.floor(s.d/1.1)&1,fr=s.g?step:2;runMat.map.offset.x=fr/3;
+    const run=s.g?Math.abs(Math.sin(s.d*2.85)):0,sq=s.g?1-run*.05:clamp(1+s.vh*.012,.9,1.12);
+    runner.scale.set(base/Math.sqrt(sq),base*sq,base);
+    runner.position.y=s.g?run*.06:0;runner.rotation.z=-clamp(s.vu*.035,-.3,.3)+(s.glT>0&&!s.g&&s.vh<0?Math.sin(t*9)*.08:0);
+    // in front of everything while it's on or above the floor, so it never vanishes into a wall at a corner
+    runMat.depthTest=s.h<-.05;
+    // the landing shadow, on whatever tile is under the runner (nothing over a hole)
+    const j=AR.laneOf(W,s.u),r=Math.floor(s.d/TL),ty=AR.tileAt(W,j,r);
+    const under=s.h>-.05&&((ty&&!(ty===T.C&&!s.ch.heavy&&AR.isGone(W,j,r,s.t)))||AR.bridgeAt(W,r*64+j,s.t));
+    shadow.visible=!!under;
+    if(under){AR.wallAt(W,s.u,_sup,true);const k=clamp(1-s.h*.11,.45,1);shadow.position.set(_sup.x+_sup.nx*.025,_sup.y+_sup.ny*.025,-s.d);
+      shadow.quaternion.copy(runRoot.quaternion);shadow.scale.set(k*base,1,k*base*.8);shadow.material.opacity=.55*k}
+    // camera
+    const tall=camera.aspect<.8;
+    const C=AR.camStep(W,s,G.cam,dt,{tall,back:G.mode==='menu'?5:4.3});
+    camera.position.set(C.x,C.y,C.z);camera.up.set(C.ux,C.uy,0);camera.lookAt(C.lx,C.ly,C.lz);
+    if(G.shake>0){G.shake=Math.max(0,G.shake-dt*.9);const a=G.shake;camera.position.x+=(Math.random()-.5)*a;camera.position.y+=(Math.random()-.5)*a}
+    // a speed strip widens the view a little while it lasts
+    const fk=s.bst>0?Math.min(1,s.bst/.4):0;if(Math.abs(fk-G.fovK)>.01||G.fovK){G.fovK+=(fk-G.fovK)*Math.min(1,dt*8);if(G.fovK<.01)G.fovK=0;camera.fov=baseFov+7*G.fovK;camera.updateProjectionMatrix()}
+    trail(dt,P);
+  }
   skyGroup.position.copy(camera.position);
+  // the sky follows the zone (Endless) and goes black in the dark
+  {const zr=W.zr[r0]||0,dk=W.dk[r0];skyTo.copy(W.endless?zoneSky[zr%zoneSky.length]:G.sky0);if(dk)skyTo.copy(BLACK);
+    skyCol.lerp(skyTo,Math.min(1,dt*3));scene.background.copy(skyCol);scene.fog.color.copy(skyCol);
+    if(W.endless&&playing()&&zr!==G.zoneShown){if(G.zoneShown>=0){banner(ENDZ[zr%ENDZ.length].n,'Zone '+(zr+1),1.3);sfx.zone()}G.zoneShown=zr;G.colA.copy(zoneCols[zr%zoneCols.length])}}
   stepParticles(dt);
   if(playing())updateHud();
   if(gate)gateDiscMat.opacity=.12+.06*Math.sin(t*5);
   if(G.demo&&G.demo.still&&G.drawnStill&&!G.forceDraw)return;
   if(G.demo&&G.demo.still)G.drawnStill=true;
   const pt1=performance.now();renderer.render(scene,camera);G.perf={draw:pt1-pt0,render:performance.now()-pt1};
+}
+// the cosmetic trail: a few sparks dropped behind the runner as it runs
+function trail(dt,P){
+  const tr=TRAILS.find(x=>x.id===save.trail);if(!tr||!tr.id||tr.id==='none'||G.mode==='menu'||!G.s||G.s.dead)return;
+  G.trailAt-=dt;if(G.trailAt>0)return;G.trailAt=.035;
+  burst(P.x+P.w.nx*.3,P.y+P.w.ny*.3,P.z+.25,1,.6,tr.col==null?'rainbow':tr.col,.45,G.s.vd*.25);
 }
 function frame(now){
   const dt=Math.min(.1,Math.max(0,(now-last)/1000));last=now;
@@ -1282,21 +1744,23 @@ addEventListener('keydown',e=>{
   if(KB.busy())return;
   initAudio();
   const c=e.code;
-  if(c==='Escape'){if(G.overlay==='pause'){if(performance.now()-pausedAt>300)resume()}else if(G.overlay==='mapMenu'&&G.mode==='menu'){showOverlay('menu');renderMenu()}else if(playing()&&!G.overlay)showPause();return}
-  // on the results card, jump / Space / Enter does the big button (next level, or run again)
+  if(c==='Escape'){if(G.overlay==='pause'){if(performance.now()-pausedAt>300)resume()}else if(G.overlay==='story'){closeStory()}else if(G.overlay==='mapMenu'&&G.mode==='menu'){showOverlay('menu');renderMenu()}else if(playing()&&!G.overlay)showPause();return}
+  if(G.overlay==='story'&&!e.repeat&&(c==='Enter'||c==='Space'||KB.is('jump',c))){e.preventDefault();if(performance.now()-G.resAt>250)closeStory();return}
+  // on the results card, jump / Space / Enter does the big button (next level, or run again); R retries
   if(G.overlay==='results'&&!e.repeat&&(c==='Enter'||c==='Space'||KB.is('jump',c))){e.preventDefault();primaryResult();return}
+  if(G.overlay==='results'&&!e.repeat&&KB.is('restart',c)&&performance.now()-G.resAt>250){if(G.mode==='endless')startEndless(!!G.daily);else startLevel(G.li);return}
   if(!playing())return;
   if(c==='Space'||KB.actionsFor(c).length)e.preventDefault();
   keys[c]=true;if(e.repeat)return;
   if(G.overlay)return;
-  if(KB.is('restart',c))restart();
+  if(KB.is('restart',c)){if(G.dying&&G.mode==='endless')return;G.dying=null;restart()}
 });
 addEventListener('keyup',e=>{keys[e.code]=false});
-addEventListener('blur',()=>{for(const k in keys)keys[k]=false;tIn.l=tIn.r=tIn.j=false;tIn.hl=tIn.hr=0;if(playing()&&!G.overlay&&!G.s.fin&&!G.s.dead)showPause()});
-document.addEventListener('visibilitychange',()=>{if(document.hidden&&playing()&&!G.overlay&&!G.s.fin&&!G.s.dead)showPause()});
+addEventListener('blur',()=>{for(const k in keys)keys[k]=false;tIn.l=tIn.r=tIn.j=tIn.a=false;tIn.hl=tIn.hr=0;if(playing()&&!G.overlay&&!G.s.fin&&!G.s.dead&&!G.dying)showPause()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&playing()&&!G.overlay&&!G.s.fin&&!G.s.dead&&!G.dying)showPause()});
 $('keysMenu').addEventListener('click',()=>KB.open());$('keysPause').addEventListener('click',()=>KB.open());
 
-// touch: arrow buttons (or the screen halves) and a jump button, only on touch screens
+// touch: arrow buttons (or the screen halves), a jump button and (for Spool) an ability button, only on touch screens
 function setTouchUI(on){touchUI=on;document.body.classList.toggle('touch',on);$('touchNote').hidden=!on;$('tmRow').hidden=!on;applyTm()}
 function applyTm(){document.body.classList.toggle('halves',touchUI&&set.tm==='halves');document.querySelectorAll('#tmSeg button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v===set.tm)))}
 addEventListener('pointerdown',e=>{if(e.pointerType==='touch'&&!touchUI)setTouchUI(true)},true);
@@ -1308,6 +1772,7 @@ addEventListener('pointerdown',e=>{if(e.pointerType==='touch'&&!touchUI)setTouch
   btn('tL',()=>{tIn.l=true},()=>{tIn.l=false});
   btn('tR',()=>{tIn.r=true},()=>{tIn.r=false});
   btn('tJ',()=>{tIn.j=true},()=>{tIn.j=false});
+  btn('tA',()=>{tIn.a=true},()=>{tIn.a=false});
   btn('tP',()=>{if(playing()&&!G.overlay)showPause()});
   const st=$('tSteer'),side=new Map();
   const upd=()=>{let l=0,r=0;for(const v of side.values())v<0?l++:r++;tIn.hl=l;tIn.hr=r};
@@ -1320,26 +1785,30 @@ document.querySelectorAll('#tmSeg button').forEach(b=>b.addEventListener('click'
 // ---------- menu wiring ----------
 $('contBtn').addEventListener('click',()=>{initAudio();sfx.click();const n=nextLevel();if(n>=0)startLevel(n);else openMap(0)});
 $('mapBtn').addEventListener('click',()=>{initAudio();sfx.click();openMap()});
-$('endBtn').addEventListener('click',()=>{initAudio();sfx.click();startEndless()});
+$('endBtn').addEventListener('click',()=>{initAudio();sfx.click();startEndless(false)});
+$('dayBtn').addEventListener('click',()=>{initAudio();sfx.click();startEndless(true)});
 $('mapBack').addEventListener('click',()=>{sfx.click();if(G.mode==='menu'){showOverlay('menu');renderMenu()}else toMenu()});
+$('storyGo').addEventListener('click',()=>{sfx.click();closeStory()});
 $('resume').addEventListener('click',resume);
 $('restartBtn').addEventListener('click',()=>{G.paused=false;restart()});
 $('toMap').addEventListener('click',()=>{G.mode='menu';$('hud').hidden=true;startDemo();openMap(G.li)});
 $('quit').addEventListener('click',toMenu);
 for(const id of ['vol','vol2']){const el=$(id);el.value=set.vol;el.addEventListener('input',()=>{set.vol=+el.value;$('vol').value=$('vol2').value=set.vol;if(master)master.gain.value=set.vol*.5;saveSet()})}
-function renderGfx(){document.querySelectorAll('#gfxSeg button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.q===set.gfx)))}
+function renderGfx(){document.querySelectorAll('#gfxSeg button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.q===set.gfx)));
+  document.querySelectorAll('#jumpSeg button').forEach(b=>b.setAttribute('aria-pressed',String((b.dataset.v==='fixed')===set.fixed)))}
 document.querySelectorAll('#gfxSeg button').forEach(b=>b.addEventListener('click',()=>{set.gfx=b.dataset.q;saveSet();renderGfx();applyQuality();if(G.W){const far=(hiQ()?50:42)*TL;scene.fog.near=far-14;scene.fog.far=far}G.lastRow=-99;G.drawnStill=false}));
+document.querySelectorAll('#jumpSeg button').forEach(b=>b.addEventListener('click',()=>{set.fixed=b.dataset.v==='fixed';saveSet();renderGfx();if(G.s&&!G.demo)G.s.fixed=set.fixed}));
 addEventListener('resize',()=>{G.drawnStill=false;if(G.overlay==='mapMenu')drawMap()});
 
 // Test hook (automated browsers only): step the game without waiting for frames, drive it, read its state.
-if(navigator.webdriver)window.__ar={AR,G,KB,keys,tIn,get save(){return save},set save(v){save=v},startLevel,startEndless,toMenu,openMap,showPause,resume,restart,renderer,scene,camera,
-  advance(sec){G.noRender=true;try{const n=Math.round(sec/DT);for(let i=0;i<n;i++){const s=G.s;if(G.paused||s.dead||s.fin)break;if(G.hold>0){G.hold-=DT;continue}tick()}}finally{G.noRender=false}},
-  autopilot(on,beam){G.auto=on?{q:[],inp:{x:0,j:false},a:null,i:0,beam:beam||48,ahead:24}:null},
+if(navigator.webdriver)window.__ar={AR,G,KB,keys,tIn,set,LABEL,ORDER,get save(){return save},set save(v){save=v},loadSave,wallet,unlocked,startLevel,startEndless,toMenu,openMap,showPause,resume,restart,renderer,scene,camera,showStory,continueRun,
+  advance(sec){G.noRender=true;try{const n=Math.round(sec/DT);for(let i=0;i<n;i++){const s=G.s;if(G.paused||s.dead||s.fin||G.dying)break;if(G.hold>0){G.hold-=DT;continue}tick()}}finally{G.noRender=false}},
+  autopilot(on,beam){G.auto=on?{q:[],inp:{x:0,j:false,a:false},a:null,i:0,beam:beam||48,ahead:24}:null},
   // one real 60 Hz frame (physics and drawing), timed
   live(){const t0=performance.now();update(1/60);return {all:performance.now()-t0,draw:G.perf&&G.perf.draw,render:G.perf&&G.perf.render}},
   frame(n){G.freeze=true;try{for(let i=0;i<(n||1);i++)update(1/60)}finally{G.freeze=false}},
   botLevel(o){const W=G.W,ch=G.ch;return AR.runBot(W,ch,o||{})},
-  stepInput(inp,steps){for(let i=0;i<steps;i++){if(G.s.dead||G.s.fin)break;AR.step(G.W,G.s,inp,false)}},
+  stepInput(inp,steps){for(let i=0;i<steps;i++){if(G.s.dead||G.s.fin)break;AR.step(G.W,G.s,inp,false);if(G.s.ev)events(G.s)}},
   info(){return {calls:renderer.info.render.calls,tris:renderer.info.render.triangles,tiles:tiles.count}}};
 
 setTouchUI(touchUI);renderGfx();applyQuality();renderMenu();startDemo();showOverlay('menu');
