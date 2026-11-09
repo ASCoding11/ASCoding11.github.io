@@ -909,10 +909,11 @@ function camStep(W,s,cam,dt,o){
 // one keeps the runner alive for `ahead` metres. Used by the tests and the demo runner behind the menu.
 const CHUNK=12,HOLD_STEPS=36;
 const XS=[0,-1,1];
-// the input for step i of a burst a: j 1 is a tap (two steps), j 2 holds jump for HOLD_STEPS steps (into the next bursts)
+// the input for step i of a burst a: j 1 is a tap (two steps), j 2 holds jump for HOLD_STEPS steps (into the next bursts),
+// j 3 is a tap half way through the burst (with the Always full setting, where every jump is long, timing needs it)
 function actInput(s,a,i,out){
   if(i===0&&a.j===2)s.bh=HOLD_STEPS;
-  out.x=a.x;out.j=(a.j===1&&i<2)||s.bh>0;out.a=!!(a.a&&i<2);
+  out.x=a.x;out.j=(a.j===1&&i<2)||(a.j===3&&i>=6&&i<8)||s.bh>0;out.a=!!(a.a&&i<2);
   if(s.bh>0)s.bh--;
   return out;
 }
@@ -928,7 +929,7 @@ function actsFor(s){
   // a press can do something: on the ground, in coyote time, just before landing (buffered), a double jump, or gliding
   const cj=s.bh<=0&&(s.g||(s.co>0&&!s.air)||(s.vh<0&&s.h<1.2)||(C.dbl&&s.dj&&!s.g)||(C.glide&&s.vh<0));
   const ab=C.bridge&&s.brC<=0;
-  for(const x of XS){out.push({x,j:0});if(cj){out.push({x,j:1});out.push({x,j:2})}if(ab)out.push({x,j:0,a:1})}
+  for(const x of XS){out.push({x,j:0});if(cj){out.push({x,j:1});out.push({x,j:2});if(s.fixed&&s.g)out.push({x,j:3})}if(ab)out.push({x,j:0,a:1})}
   return out;
 }
 // how much floor there is further up the tunnel in the runner's lane and its neighbours (beyond the planning horizon)
@@ -952,11 +953,11 @@ function plan(W,s0,opt){
         if(c.fin)return {ok:true,acts,nodes};
         const prev=nd.acts.length?nd.acts[nd.acts.length-1]:null;
         // prefer: further on, fewer changes of input, fewer jumps (taps over holds), no bridge unless needed, crystals
-        let sc=nd.sc+(prev&&(prev.x!==a.x)?-.15:0)+(a.j===1?-.25:a.j===2?(nd.s.g?-.3:-.6):0)+(a.a?-.6:0)+(c.got-nd.s.got)*.6;
+        let sc=nd.sc+(prev&&(prev.x!==a.x)?-.15:0)+(a.j===1||a.j===3?-.25:a.j===2?(nd.s.g?-.3:-.6):0)+(a.a?-.6:0)+(c.got-nd.s.got)*.6;
         const k=Math.round(c.u*2)+','+(c.g?1:0)+','+Math.round(c.h*2)+','+Math.round(c.vh*.4)+','+Math.round(c.vu*.8)+','+Math.round(c.d)+','+(c.bh>0?1:0)+(c.dj?1:0);
         // far enough, and on its feet (a runner still in the air might not have anywhere to land)
         if(c.d>=goal&&c.g){const v=sc+lookAhead(W,c)*.25;if(!done||v>done.v)done={acts,v};continue}
-        const tot=sc+c.d;
+        const tot=sc+c.d+c.vd*.8;   // and how fast it's going (so riding a ramp after goo isn't crowded out)
         const o=next.get(k);if(!o||o.tot<tot)next.set(k,{s:c,acts,sc,tot});
       }
     }
