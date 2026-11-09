@@ -138,7 +138,15 @@
     { d: 'updraft', n: 'Updraft', st: [{ k: 'summit', l: 'Fastest summit', f: 'time', lo: 120, hi: 1e7 }, { k: 'height', l: 'Best height', f: 'm', hi: 1005 }] },
     { d: 'asteroid-run', n: 'Asteroid Run', st: [
       { k: 'distance', l: 'Longest Endless run', chip: 'Endless', f: 'm', hi: 100000 },
-      { k: 'levels', l: 'Levels cleared (of 32)', chip: 'Levels', f: 'n', u: 'level', hi: 32 },
+      { k: 'dist-pip', l: 'Longest Endless run · Pip', chip: 'Pip', f: 'm', hi: 100000 },
+      { k: 'dist-brick', l: 'Longest Endless run · Brick', chip: 'Brick', f: 'm', hi: 100000 },
+      { k: 'dist-vex', l: 'Longest Endless run · Vex', chip: 'Vex', f: 'm', hi: 100000 },
+      { k: 'dist-moppet', l: 'Longest Endless run · Moppet', chip: 'Moppet', f: 'm', hi: 100000 },
+      { k: 'dist-twitch', l: 'Longest Endless run · Twitch', chip: 'Twitch', f: 'm', hi: 100000 },
+      { k: 'dist-wisp', l: 'Longest Endless run · Wisp', chip: 'Wisp', f: 'm', hi: 100000 },
+      { k: 'dist-clink', l: 'Longest Endless run · Clink', chip: 'Clink', f: 'm', hi: 100000 },
+      { k: 'dist-spool', l: 'Longest Endless run · Spool', chip: 'Spool', f: 'm', hi: 100000 },
+      { k: 'levels', l: 'Levels cleared (of 57)', chip: 'Levels', f: 'n', u: 'level', hi: 57 },
       { k: 'crystals', l: 'Power crystals collected', chip: 'Crystals', f: 'n', u: 'crystal', hi: 100000 },
       { k: 'runs', l: 'Runs (all time)', chip: 'Runs', f: 'n', u: 'run', rate: 1 / 8 }] },
     { d: 'rampline', n: 'Rampline', st: [
