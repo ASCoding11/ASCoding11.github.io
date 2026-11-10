@@ -85,6 +85,7 @@ input,select{user-select:text;-webkit-user-select:text}
 .mode b{font:400 17px/1.1 var(--f-d);text-transform:uppercase}
 .mode small{font:400 14px/1.25 var(--f-u);color:var(--ink-3)}
 .mode.hero{box-shadow:inset 0 0 0 2px var(--tide),4px 4px 0 var(--edge);background:#1f2f3c}
+.mode.span2{grid-column:span 2}
 details.how summary{cursor:pointer;font:400 15px var(--f-d);text-transform:uppercase;color:var(--ink-2);list-style:none}
 details.how summary::-webkit-details-marker{display:none}
 details.how summary::before{content:'+ '}
@@ -157,6 +158,37 @@ details.how[open] summary::before{content:'- '}
 #tL{grid-template-columns:1fr 1fr}
 #tR{grid-template-columns:1fr 1fr}
 
+/* practice: the move list (beside the picture on a computer, above it on a phone) and the dummy switch */
+#prac,#pracDum{position:absolute;z-index:5;background:rgba(14,10,24,.9);border:2px solid var(--edge);box-shadow:inset 0 0 0 2px var(--line),3px 3px 0 var(--edge);padding:8px 10px;color:var(--ink)}
+.ph{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:0 0 5px;font:400 12px var(--f-d);text-transform:uppercase;color:var(--ink)}
+.ph small{font:400 12px var(--f-u);text-transform:none;color:var(--ink-3)}
+#pracList{list-style:none;margin:0;padding:0;font:400 14px/1.2 var(--f-u)}
+#pracList li{display:grid;grid-template-columns:15px 1fr;column-gap:7px;padding:3px 0;color:var(--ink-2)}
+#pracList li i{grid-row:span 2;width:13px;height:13px;margin-top:2px;border:2px solid var(--ink-3);font:400 10px/9px var(--f-d);font-style:normal;text-align:center;color:#05211d}
+#pracList li b{font-weight:600;color:var(--ink)}
+#pracList li span{font-size:13px;color:var(--ink-3)}
+#pracList li.done i{background:var(--tide);border-color:var(--tide)}
+#pracList li.done b{color:var(--tide)}
+#pracList li.just{animation:pj .6s steps(4)}
+@keyframes pj{0%{background:rgba(46,230,201,.35)}100%{background:transparent}}
+#pracDum .seg{display:flex;flex-wrap:wrap}
+#pracDum .seg button{font-size:14px;padding:4px 8px}
+#prac.strip{padding:5px 7px}
+#prac.strip .ph{margin-bottom:3px;font-size:11px}
+#prac.strip #pracList{display:flex;flex-wrap:wrap;gap:3px 5px;font-size:12px}
+#prac.strip #pracList li{display:flex;align-items:center;gap:4px;padding:1px 5px 1px 2px;background:rgba(255,255,255,.04)}
+#prac.strip #pracList li i{margin:0;width:11px;height:11px;font-size:9px;line-height:7px}
+#prac.strip #pracList li span{font-size:11px}
+#pracDum.strip{display:flex;align-items:center;gap:8px;padding:4px 7px}
+#pracDum.strip .label,#pracDum.gutter .label{margin:0}
+#pracDum.strip .seg button{font-size:13px;padding:3px 7px}
+#pracDum.strip .seg{flex-wrap:nowrap}
+#pracDum.strip .lg,#pracDum.gutter .lg{display:none}
+#pracDum.gutter{padding:6px}
+#pracDum.gutter .seg{flex-direction:column;align-items:stretch}
+#pracDum.gutter .seg button{font-size:13px;padding:4px 6px;text-align:left}
+#prac.wide #pracList li b{font-size:12px}
+
 #pause{z-index:15}
 .keys{display:grid;grid-template-columns:auto 1fr 1fr;gap:4px 12px;font:400 14px var(--f-u);color:var(--ink-2);margin:10px 0}
 .keys b{color:var(--ink);font-weight:600}
@@ -188,6 +220,11 @@ details.how[open] summary::before{content:'- '}
   <section id="game" hidden>
     <canvas id="cv" aria-label="The duel"></canvas>
     <div id="wait" hidden></div>
+    <aside id="prac" hidden aria-label="Practice moves">
+      <div class="ph"><span>Practice</span><small id="pracCount"></small></div>
+      <ul id="pracList"></ul>
+    </aside>
+    <div id="pracDum" hidden><span class="label">Dummy</span><div class="seg" id="dumSeg" role="group" aria-label="Dummy"><button type="button" data-v="0">Off</button><button type="button" data-v="1">Stands still</button><button type="button" data-v="2">Fights back<span class="lg"> slowly</span></button></div></div>
     <div id="touch" hidden>
       <div class="tc" id="tL">
         <button class="tb" type="button" data-b="L" aria-label="Left"><svg viewBox="0 0 10 10"><path d="M7 1 2 5l5 4z"/></svg></button>
@@ -213,12 +250,13 @@ details.how[open] summary::before{content:'- '}
       </div>
       <div class="modes">
         <button class="mode hero" id="mBot" type="button"><b>Vs bot</b><small id="mBotSub">Duel a bot on this device</small></button>
+        <button class="mode hero" id="mPrac" type="button"><b>Practice</b><small>On your own: try every move</small></button>
         <button class="mode" id="mQuick" type="button"><b>Quick match</b><small>Online 1v1 in a public room</small></button>
         <button class="mode" id="mLocal" type="button"><b>Local 2 players</b><small>Two on one keyboard (or two gamepads)</small></button>
-        <button class="mode" id="mTour" type="button"><b>Tournament</b><small>3 to 8 players, knockout bracket</small></button>
+        <button class="mode span2" id="mTour" type="button"><b>Tournament</b><small>3 to 8 players, knockout bracket</small></button>
       </div>
       <div class="row" style="margin-top:10px"><span class="label" style="margin:0">Bot</span>
-        <div class="seg" id="diffSeg" role="group" aria-label="Bot level"><button type="button" data-v="easy">Easy</button><button type="button" data-v="normal">Normal</button><button type="button" data-v="hard">Hard</button></div>
+        <div class="seg" id="diffSeg" role="group" aria-label="Bot level"><button type="button" data-v="easy">Easy</button><button type="button" data-v="normal">Normal</button><button type="button" data-v="hard">Hard</button><button type="button" data-v="expert">Expert</button></div>
       </div>
       <div class="row">
         <div class="prefix"><span>gd-</span><input class="text" id="room" maxlength="17" autocomplete="off" spellcheck="false" aria-label="Room code"></div>
@@ -230,7 +268,7 @@ details.how[open] summary::before{content:'- '}
         <span class="label">Match</span>
         <div class="opts">
           <span class="label">Arena</span><div class="seg" id="arenaSeg" role="group" aria-label="Arena"></div>
-          <span class="label">Length</span><div class="seg" id="lenSeg" role="group" aria-label="Length"><button type="button" data-v="5">5 stages</button><button type="button" data-v="7">7 stages</button></div>
+          <span class="label">Length</span><div class="seg" id="lenSeg" role="group" aria-label="Length"><button type="button" data-v="3">3 stages</button><button type="button" data-v="5">5 stages</button><button type="button" data-v="7">7 stages</button></div>
           <span class="label">Rules</span>
           <div class="vars">
             <label class="chk"><input type="checkbox" id="oThr" checked> Sword throwing</label>
@@ -347,27 +385,31 @@ const HW = 9;                       // body half-width
 const PIT = 92;                     // the drop at each end of the line is the last 92 px of the last room
 
 // Timings in ticks (60 a second), distances in pixels of a 640 x 360 room (the screen shows it at half size).
-// Tuned to be quick: top speed in 3 ticks, stops in 2, short committed lunges, a fast roll, a jump that hangs a
-// little at the top while you hold it, a dive kick that speeds up as it falls, and inputs buffered for 8 ticks.
+// Tuned to be calm and readable: a run of 3.7 px a tick (a room in about 3 s), top speed in 6 ticks, a stop in 4,
+// a lunge of 17 ticks, a roll of 5.5 px a tick, a slightly floaty jump that hangs at the top while you hold it, a
+// slower dive kick, and inputs buffered for 8 ticks. Turbo puts back the old quick numbers.
 const BASE_T = {
-  grav: 0.5, hangG: 0.3, hangV: 2.2, jump: -8.8, cut: -3.0, run: 5.4, acc: 1.9, dec: 2.7, air: 0.75, maxFall: 12,
-  back: 0.8, crawl: 1.6, step: 4, buf: 8, coyote: 6, turnT: 6,
-  guard: 36, thrust: 56, lunge: 62,
-  thrustDur: 12, thA0: 2, thA1: 6,
-  lungeDur: 14, luA0: 2, luA1: 8, lungeV: 8.4, lungeDash: 6,
-  recoil: 9, lungeRecoil: 13, stag: 20, parryWin: 8, disarmStun: 10,
-  kd: 40, getup: 6, punchDur: 12, puA0: 2, puA1: 5, punchReach: 30,
-  sweepDur: 16, swA0: 2, swA1: 11, sweepV: 5.2,
-  diveVx: 6, diveVy: 6, diveAcc: 0.45, diveMax: 11, land: 8,
-  throwDur: 8, throwAt: 2, throwV: 13,
-  finDur: 12, finAt: 4, stompDur: 15, stompAt: 9,
-  rollDur: 14, rollV: 7.4,
-  climb: 9, respawn: 22, inv: 26, hitstop: 8, hsDisarm: 5, hsParry: 6, sc: 2
+  grav: 0.42, hangG: 0.25, hangV: 2.0, jump: -8.1, cut: -2.8, run: 3.7, acc: 0.62, dec: 0.93, air: 0.5, maxFall: 10,
+  crawl: 1.2, step: 6, buf: 8, coyote: 6, crouchHold: 8,
+  guard: 36, thrust: 56, lunge: 60,
+  thrustDur: 15, thA0: 3, thA1: 8,
+  lungeDur: 17, luA0: 3, luA1: 10, lungeV: 6.0, lungeDash: 7,
+  recoil: 11, lungeRecoil: 16, stag: 24, parryWin: 8, disarmStun: 12,
+  kd: 48, getup: 8, punchDur: 15, puA0: 3, puA1: 7, punchReach: 30,
+  // the sliding kick (crouch + attack): wind-up until swA0, sliding and hitting until swA1, then getting back up
+  sweepDur: 32, swA0: 9, swA1: 18, sweepV: 5.0,
+  diveVx: 4.6, diveVy: 4.8, diveAcc: 0.35, diveMax: 9, land: 10,
+  throwDur: 10, throwAt: 3, throwV: 11,
+  finDur: 14, finAt: 5, stompDur: 18, stompAt: 11,
+  rollDur: 16, rollV: 5.5,
+  climb: 11, respawn: 36, inv: 30, hitstop: 8, hsDisarm: 5, hsParry: 6, sc: 3
 };
 function tuning(cfg) {
   const t = Object.assign({}, BASE_T);
-  if (cfg.lowg) { t.grav = 0.25; t.hangG = 0.16; t.jump = -6.6; t.cut = -2.3; t.maxFall = 8; t.diveVy = 4.4; t.diveAcc = 0.3; t.diveMax = 8; }
-  if (cfg.turbo) { t.run *= 1.25; t.rollV *= 1.2; t.lungeV *= 1.15; t.acc *= 1.3; t.respawn = 14; t.sweepV *= 1.2; t.diveVx *= 1.2; }
+  if (cfg.turbo) Object.assign(t, {grav: 0.5, hangG: 0.3, hangV: 2.2, jump: -8.8, cut: -3.0, run: 5.4, acc: 1.9, dec: 2.7, air: 0.75, maxFall: 12,
+    thrustDur: 12, thA0: 2, thA1: 6, lungeDur: 14, luA0: 2, luA1: 8, lungeV: 8.4, lungeDash: 6, sweepDur: 26, swA0: 6, swA1: 14, sweepV: 6.2,
+    diveVx: 6, diveVy: 6, diveAcc: 0.45, diveMax: 11, rollDur: 14, rollV: 7.4, respawn: 22, step: 4, crawl: 1.6});
+  if (cfg.lowg) { t.grav = 0.22; t.hangG = 0.14; t.jump = -6.2; t.cut = -2.1; t.maxFall = 7; t.diveVy = 3.8; t.diveAcc = 0.25; t.diveMax = 7; }
   return t;
 }
 
@@ -415,7 +457,7 @@ function buildWorld(ai, N) {
   const w = {N, ai, segs: [], plats: [], ceils: [], sp: [], tplOf: [], goal: [{x0: N * W - PIT, x1: N * W}, {x0: 0, x1: PIT}]};
   for (let r = 0; r < N; r++) {
     const k = r - c, ak = Math.abs(k);
-    const ti = N === 7 ? ak : N === 5 ? [0, 1, 3][ak] : Math.min(3, ak);
+    const ti = N === 7 ? ak : N === 5 ? [0, 1, 3][ak] : [0, 3][Math.min(1, ak)];
     const tp = A.tpl[ti], mir = k < 0, off = r * W;
     const mx = x => mir ? W - x : x;
     const span = (a, b) => [off + Math.min(mx(a), mx(b)), off + Math.max(mx(a), mx(b))];
@@ -431,17 +473,19 @@ function buildWorld(ai, N) {
 function inGoal(w, i, x) { const g = w.goal[i]; return x > g.x0 && x < g.x1; }
 
 // ---------------------------------------------------------------------
-// Match state. cfg: {arena, N (5 or 7), thr (throwing on), lowg, bounce (thrown swords bounce), turbo}
+// Match state. cfg: {arena, N (3, 5 or 7), thr (throwing on), lowg, bounce (thrown swords bounce), turbo, prac}
+// prac (practice, never online): player 0 may walk through every stage either way, nobody wins, a fall puts you back
+// in the middle, and player 1 (the dummy, when there is one) comes back 1.5 s after a touch near where it fell.
 // ---------------------------------------------------------------------
 function mkF(i) {
-  return {i, x: 0, y: BASE, vx: 0, vy: 0, f: 1, h: 1, hT: 99, sc: 0, cr: 0, dl: 0, arm: 1, s: ST.IDLE, t: 0, gnd: 1, co: 0, jb: 0, ab: 0,
+  return {i, x: 0, y: BASE, vx: 0, vy: 0, f: 1, h: 1, hT: 99, sc: 0, cr: 0, hd: 0, arm: 1, s: ST.IDLE, t: 0, gnd: 1, co: 0, jb: 0, ab: 0,
     jh: 0, tb: 0, step: 0, sd: 0, tgt: 0, kd: 0, rt: 0, rw: 0, inv: 0, pin: 0, res: 0, ah: 1, chg: 0, bk: 0, kills: 0, deaths: 0, stk: 0, best: 0,
     cx: 0, cy: 0, gone: 0};
 }
 function newMatch(cfg) {
-  const N = cfg.N === 5 ? 5 : 7, w = buildWorld(cfg.arena | 0, N), c = (N - 1) / 2;
+  const N = cfg.N === 3 ? 3 : cfg.N === 5 ? 5 : 7, w = buildWorld(cfg.arena | 0, N), c = (N - 1) / 2;
   const S = {t: 0, hs: 0, room: c, adv: -1, win: -1, endT: 0, N, cfg: {arena: cfg.arena | 0, N, thr: cfg.thr ? 1 : 0, lowg: cfg.lowg ? 1 : 0,
-    bounce: cfg.bounce ? 1 : 0, turbo: cfg.turbo ? 1 : 0}, p: [mkF(0), mkF(1)], sw: [], swn: 0, ev: [], kq: []};
+    bounce: cfg.bounce ? 1 : 0, turbo: cfg.turbo ? 1 : 0, prac: cfg.prac ? 1 : 0}, p: [mkF(0), mkF(1)], sw: [], swn: 0, ev: [], kq: []};
   const L = c * W;
   S.p[0].x = L + W / 2 - 110; S.p[0].f = 1;
   S.p[1].x = L + W / 2 + 110; S.p[1].f = -1;
@@ -484,7 +528,7 @@ function ceilAt(w, x, y) { // the lowest ceiling above y at x
 function bodyH(p) {
   switch (p.s) {
     case ST.KD: return 12; case ST.ROLL: return 22; case ST.SWEEP: return 20; case ST.DIVE: return 40; case ST.DEAD: return 0;
-    default: return p.cr ? 32 : 54;
+    default: return p.cr ? 24 : 54;   // crouched: under a middle (30) or high (44) blade; a low one (16) still gets you
   }
 }
 function hurt(p) {
@@ -495,7 +539,7 @@ function hurt(p) {
   return {x0: p.x - HW, x1: p.x + HW, y0: p.y - bodyH(p), y1: p.y};
 }
 function bladeOut(p) {
-  if (!p.arm || p.h > 2 || !alive(p)) return false;
+  if (!p.arm || p.h > 2 || !alive(p) || p.cr) return false;   // crouched, the sword is tucked in: it neither blocks nor cuts
   const s = p.s;
   return s === ST.IDLE || s === ST.THRUST || s === ST.LUNGE || s === ST.RECOIL || s === ST.LAND || s === ST.DIVE;
 }
@@ -520,7 +564,7 @@ function attacking(p, T) {
 }
 function bandY(p) {
   const b = (p.s === ST.THRUST || p.s === ST.LUNGE) ? p.ah : p.h;
-  return p.y - (p.cr && b === 0 ? 11 : BAND[Math.min(2, b)]);
+  return p.y - BAND[Math.min(2, b)];
 }
 function tipX(p, T) { return p.x + p.f * reach(p, T); }
 function ev(S, k, o) { o.k = k; o.t = S.t; S.ev.push(o); }
@@ -542,7 +586,7 @@ function capSwords(S) {
   }
 }
 function knockDown(S, T, v, dir, a, how) {
-  if (v.arm) { v.arm = 0; dropSword(S, v.x + v.f * 6, v.y - 30, dir * 1.2, -4); }
+  if (v.arm) { v.arm = 0; dropSword(S, v.x + v.f * 6, v.y - 30, dir * 2.2, -5); }
   v.s = ST.KD; v.t = 0; v.kd = T.kd; v.vx = dir * 2.6; v.cr = 0; v.res = 0;
   ev(S, 'kd', {a, b: v.i, x: v.x, y: v.y, how});
 }
@@ -571,7 +615,7 @@ function step(S, w, i0, i1) {
   // The pit at the end of the line: the fencer who has the run wins by dropping into their own end pit.
   // Anyone else who falls in (or into any other gap) just falls to their death.
   for (const p of P) {
-    if (alive(p) && S.adv === p.i && p.y > BASE + 18 && inGoal(w, p.i, p.x) && S.win < 0 && !S.kq.some(q => q.v === p.i)) {
+    if (alive(p) && S.adv === p.i && p.y > BASE + 18 && inGoal(w, p.i, p.x) && S.win < 0 && !S.cfg.prac && !S.kq.some(q => q.v === p.i)) {
       S.win = p.i; S.endT = 0; ev(S, 'win', {a: p.i, x: p.x, y: p.y});
     }
   }
@@ -594,57 +638,59 @@ function control(S, w, T, p, o, inp, e) {
   p.chg = 0;
   if (e & K.A) p.ab = T.buf; else if (p.ab > 0) p.ab--;
   if (e & K.J) p.jb = T.buf; else if (p.jb > 0) p.jb--;
-  if (!(inp & K.D)) p.dl = 0;
   if (!(inp & K.J)) p.jh = 0;
+  if (inp & K.D) { if (p.hd < 99) p.hd++; } else p.hd = 0;   // how long Down has been held
   p.tgt = 0; p.bk = 0;
   if (p.s === ST.DEAD) return;
-  if (p.s === ST.KD) { if (e & (K.A | K.J | K.L | K.R | K.U)) p.kd -= 3; return; }
+  if (p.s === ST.KD) { if (e & (K.A | K.J | K.L | K.R | K.U | K.D)) p.kd -= 3; return; }
   if (p.s !== ST.IDLE) return;
   const dir = ((inp & K.R) ? 1 : 0) - ((inp & K.L) ? 1 : 0);
-  const oA = alive(o), dx = o.x - p.x, adx = Math.abs(dx), toO = dx > 0 ? 1 : dx < 0 ? -1 : p.f;
+  const oA = alive(o), dx = o.x - p.x, adx = Math.abs(dx);
   // Roll: down while running.
-  if ((e & K.D) && p.gnd && dir !== 0 && Math.abs(p.vx) > 2.3) {
-    p.s = ST.ROLL; p.t = 0; p.f = dir; p.vx = dir * T.rollV; p.cr = 0; p.dl = 1; p.step = 0;
+  if ((e & K.D) && p.gnd && dir !== 0 && !p.cr && Math.abs(p.vx) > T.run * 0.6) {
+    p.s = ST.ROLL; p.t = 0; p.f = dir; p.vx = dir * T.rollV; p.cr = 0; p.step = 0;
     ev(S, 'roll', {a: p.i, x: p.x, y: p.y});
     return;
   }
-  // Sword height: up and down; up from high raises the sword to throw (if throwing is on).
-  if (p.arm && p.sc <= 0) {
+  // Sword height: a tap of up or down moves it one height; up from high raises it to throw (if throwing is on).
+  const atLow = !p.arm || p.h === 0;
+  if (p.arm && p.sc <= 0 && !p.cr) {
     if (e & K.U) { if (p.h < 2) { p.h++; p.chg = 1; } else if (p.h === 2 && S.cfg.thr) { p.h = 3; p.chg = 1; } }
-    else if (e & K.D) { if (p.h > 0) { p.h--; p.chg = 1; p.dl = 1; } }
+    else if (e & K.D) { if (p.h > 0) { p.h--; p.chg = 1; } }
     if (p.chg) { p.hT = 0; p.sc = T.sc; ev(S, 'stance', {a: p.i, h: p.h}); }
   }
-  p.cr = (p.gnd && (inp & K.D) && !p.dl && (!p.arm || p.h === 0)) ? 1 : 0;
-  // A tap is a short step; holding runs. Near an armed opponent, walking away is a guarded backpedal.
-  if (dir && (e & (K.L | K.R)) && p.gnd && !p.cr) { p.step = T.step; p.sd = dir; }
+  // Crouch: hold down (or press it with the sword already low, or with no sword). Letting go stands you up.
+  if (!p.gnd || !(inp & K.D)) p.cr = 0;
+  else if (!p.cr && (((e & K.D) && atLow) || p.hd >= T.crouchHold)) { p.cr = 1; if (p.arm) p.h = 0; ev(S, 'crouch', {a: p.i, x: p.x, y: p.y}); }
+  // Facing: always the way you last pressed, at once. Pressing the other way while standing turns you on the spot;
+  // a tap the way you face is a short step; holding runs. Standing still never turns you.
+  let turned = 0;
+  if (dir && dir !== p.f) { p.f = dir; turned = 1; }
+  if (dir && (e & (K.L | K.R)) && p.gnd && !p.cr && !turned) { p.step = T.step; p.sd = dir; }
+  if (turned) p.step = 0;
   const mdir = dir || (p.step > 0 ? p.sd : 0);
   if (p.step > 0) p.step--;
-  if (p.cr) {
-    p.tgt = dir * T.crawl; if (dir) p.f = dir;
-  } else if (mdir) {
-    if (oA && o.arm && adx < 110 && mdir !== toO && p.f === toO && p.gnd) { p.bk = 1; p.tgt = mdir * T.run * T.back; }
-    else { p.f = mdir; p.tgt = mdir * T.run; }
-  } else if (oA && adx < 260 && p.gnd) { if (p.f !== toO) { if (++p.tb >= T.turnT) { p.f = toO; p.tb = 0; } } else p.tb = 0; }
-  if (mdir || p.cr) p.tb = 0;
+  if (p.cr) p.tgt = dir * T.crawl;
+  else if (mdir && !(turned && p.gnd && p.vx * dir <= 0)) p.tgt = mdir * T.run;
   // Jump (buffered a few ticks, with a little grace after running off a ledge). Release early for a short hop.
-  if (p.jb > 0 && (p.gnd || p.co > 0) && !p.cr) {
-    p.vy = T.jump; p.gnd = 0; p.co = 0; p.jb = 0; p.jh = 1;
+  if (p.jb > 0 && (p.gnd || p.co > 0)) {
+    p.vy = T.jump; p.gnd = 0; p.co = 0; p.jb = 0; p.jh = 1; p.cr = 0;
     ev(S, 'jump', {a: p.i, x: p.x, y: p.y});
   }
   // Attack (buffered so a press just before you can act still counts).
   if (p.ab > 0) {
     p.ab = 0; p.res = 0; p.t = 0;
-    const near = oA && o.s === ST.KD && Math.abs(o.y - p.y) < 24;
-    if (p.arm) {
+    const near = oA && o.s === ST.KD && Math.abs(o.y - p.y) < 24, facing = p.f * dx > 0 || adx < 12;
+    if (p.cr && p.gnd) { p.s = ST.SWEEP; p.cr = 0; }                       // crouched: the sliding kick, armed or not
+    else if (p.arm) {
       if (p.h === 3) { p.s = ST.THROW; }
       else if (!p.gnd) { p.s = ST.DIVE; }
-      else if (near && adx < 50) { p.s = ST.FIN; p.f = toO; }
-      else if (mdir === p.f && Math.abs(p.vx) > 2.6 && !p.bk && !p.cr) { p.s = ST.LUNGE; p.ah = p.h; }
+      else if (near && adx < 50 && facing) { p.s = ST.FIN; }
+      else if (mdir === p.f && Math.abs(p.vx) > T.run * 0.65) { p.s = ST.LUNGE; p.ah = p.h; }
       else { p.s = ST.THRUST; p.ah = p.h; }
     } else {
       if (!p.gnd) p.s = ST.DIVE;
-      else if (near && adx < 48) { p.s = ST.STOMP; p.f = toO; }
-      else if (p.cr || (inp & K.D)) { p.s = ST.SWEEP; p.cr = 0; }
+      else if (near && adx < 48 && facing) { p.s = ST.STOMP; }
       else p.s = ST.PUNCH;
     }
     ev(S, 'atk', {a: p.i, s: p.s, x: p.x, y: p.y});
@@ -688,6 +734,8 @@ function surfaceBelow(S, w, x, y0, y1) {
   }
   return best;
 }
+// Coming out of a roll or a kick with down still held: stay crouched.
+function endLow(p, inp) { p.cr = (inp & K.D) && p.gnd ? 1 : 0; if (p.cr && p.arm) p.h = 0; }
 // Gravity this tick: lighter near the top of a jump while jump is held, so jumps hang a moment and stay steerable.
 function gravAt(T, p) { return p.jh && p.s === ST.IDLE && p.vy > -T.hangV && p.vy < T.hangV ? T.hangG : T.grav; }
 
@@ -709,7 +757,12 @@ function physics(S, w, T, p, o, inp) {
     case ST.KD: p.vx *= 0.85; p.kd--; if (p.kd <= 0) { p.s = ST.GETUP; p.t = 0; } break;
     case ST.GETUP: p.vx = 0; if (p.t >= T.getup) p.s = ST.IDLE; break;
     case ST.PUNCH: p.vx *= 0.6; if (p.t >= T.punchDur) p.s = ST.IDLE; break;
-    case ST.SWEEP: p.vx = p.f * T.sweepV * Math.max(0, 1 - p.t / T.sweepDur); if (p.t >= T.sweepDur) { p.s = ST.IDLE; p.cr = (inp & K.D) ? 1 : 0; } break;
+    case ST.SWEEP:
+      if (p.t < T.swA0) p.vx *= 0.6;                                                   // wind-up: drop back on one hand
+      else if (p.t <= T.swA1) p.vx = p.f * T.sweepV * (1 - (p.t - T.swA0) / (T.swA1 - T.swA0 + 6));   // slide along the floor
+      else p.vx *= 0.7;                                                                // get back up
+      if (p.t >= T.sweepDur) { p.s = ST.IDLE; endLow(p, inp); }
+      break;
     case ST.DIVE: p.vx = p.f * T.diveVx; p.vy = Math.min(T.diveMax, Math.max(p.vy, T.diveVy) + T.diveAcc); break;
     case ST.LAND: p.vx *= 0.5; if (p.t >= T.land) p.s = ST.IDLE; break;
     case ST.THROW:
@@ -730,7 +783,7 @@ function physics(S, w, T, p, o, inp) {
       p.vx = 0;
       if (p.t >= T.stompDur) p.s = ST.IDLE;
       break;
-    case ST.ROLL: p.vx = p.f * T.rollV; if (p.t >= T.rollDur) { p.s = ST.IDLE; p.cr = (inp & K.D) ? 1 : 0; p.vx *= 0.7; } break;
+    case ST.ROLL: p.vx = p.f * T.rollV; if (p.t >= T.rollDur) { p.s = ST.IDLE; endLow(p, inp); p.vx *= 0.7; } break;
     case ST.CLIMB:
       p.vx = 0; p.vy = 0;
       if (p.t >= T.climb) { p.x = p.cx; p.y = p.cy; p.s = ST.IDLE; p.gnd = 1; }
@@ -738,7 +791,8 @@ function physics(S, w, T, p, o, inp) {
   }
   // Integrate: horizontal first (walls), then vertical (landing and ceilings).
   const L = S.room * W, R = L + W, d = p.i === 0 ? 1 : -1;
-  const exitR = S.adv === p.i && d > 0 && S.room < S.N - 1, exitL = S.adv === p.i && d < 0 && S.room > 0;
+  const pr = S.cfg.prac && p.i === 0;   // practice: walk on through the stages either way
+  const exitR = (pr || (S.adv === p.i && d > 0)) && S.room < S.N - 1, exitL = (pr || (S.adv === p.i && d < 0)) && S.room > 0;
   const px = p.x;
   p.x += p.vx;
   for (const g of w.segs) {
@@ -849,7 +903,7 @@ function combat(S, w, T) {
     if (a.res || !alive(b) || b.s === ST.KD || b.inv > 0 || S.kq.some(q => q.v === a.i)) continue;
     let pt = null;
     if (a.s === ST.PUNCH && a.t >= T.puA0 && a.t <= T.puA1) pt = [a.x + a.f * T.punchReach, a.y - 36];
-    else if (a.s === ST.SWEEP && a.t >= T.swA0 && a.t <= T.swA1) pt = [a.x + a.f * 22, a.y - 5];
+    else if (a.s === ST.SWEEP && a.t >= T.swA0 && a.t <= T.swA1) pt = [a.x + a.f * 24, a.y - 5];
     else if (a.s === ST.DIVE) pt = [a.x + a.f * 16, a.y - 3];
     if (!pt) continue;
     const hb = hurt(b); if (!hb) continue;
@@ -858,7 +912,7 @@ function combat(S, w, T) {
     if (a.s === ST.DIVE && bladeOut(b) && b.f === -a.f && b.h === 2) { killQ(S, a.i, b.i, 'skewer'); continue; }
     kd.push([b, a]);
   }
-  for (const [b, a] of kd) knockDown(S, T, b, a.f, a.i, a.s === ST.PUNCH ? 'punch' : a.s === ST.SWEEP ? 'sweep' : 'dive');
+  for (const [b, a] of kd) knockDown(S, T, b, a.f, a.i, a.s === ST.PUNCH ? 'punch' : a.s === ST.SWEEP ? 'kick' : 'dive');
   // 3. A blade is deadly on contact: anything that reaches the body ahead of it dies, unless the other blade is
   //    held at the same height in the way.
   for (let k = 0; k < 2; k++) {
@@ -960,7 +1014,7 @@ function swords(S, w, T, ins) {
   });
   if (want[0] && want[1] && want[0].s === want[1].s) { if (want[0].d < want[1].d) want[1] = null; else if (want[1].d < want[0].d) want[0] = null; else want[0] = want[1] = null; }
   for (let k = 0; k < 2; k++) if (want[k]) {
-    const who = S.p[k]; S.sw.splice(S.sw.indexOf(want[k].s), 1); who.arm = 1; who.h = 0; who.hT = 99; who.dl = 1;
+    const who = S.p[k]; S.sw.splice(S.sw.indexOf(want[k].s), 1); who.arm = 1; who.h = 0; who.hT = 99;
     ev(S, 'pickup', {a: who.i, x: who.x, y: who.y});
   }
 }
@@ -972,7 +1026,7 @@ function applyDeaths(S, w, T) {
     const p = P[q.v];
     if (!alive(p)) continue;
     if (p.arm && q.how !== 'fall') dropSword(S, p.x, p.y - 30, -p.f * 0.8, -3);
-    p.arm = 0; p.s = ST.DEAD; p.t = 0; p.rt = T.respawn; p.rw = 0; p.gone = 0; p.cr = 0; p.deaths++; p.stk = 0;
+    p.arm = 0; p.s = ST.DEAD; p.t = 0; p.rt = S.cfg.prac && p.i === 1 ? 90 : T.respawn; p.rw = 0; p.gone = 0; p.cr = 0; p.deaths++; p.stk = 0;
     p.dx = p.x; p.dy = p.y; p.dh = q.how;
     if (q.k >= 0 && q.k !== q.v) { const k = P[q.k]; k.kills++; k.stk++; if (k.stk > k.best) k.best = k.stk; }
     ev(S, 'kill', {a: q.k, b: q.v, how: q.how, x: p.x, y: p.y - 28, f: p.f, fy: p.y, dir: q.k >= 0 && q.k !== q.v ? (P[q.k].x < p.x ? 1 : -1) : 0});
@@ -991,7 +1045,7 @@ function spawnAt(S, w, p, x, T) {
   if (c !== null) y = Math.max(y, c + 56);
   if (top !== null) y = Math.min(y, top);
   const o = S.p[1 - p.i];
-  Object.assign(p, {x, y, vx: 0, vy: 0, s: ST.IDLE, t: 0, arm: 1, h: 1, hT: 99, inv: T.inv, gnd: 0, rw: 0, gone: 0, res: 0, cr: 0, dl: 0,
+  Object.assign(p, {x, y, vx: 0, vy: 0, s: ST.IDLE, t: 0, arm: 1, h: 1, hT: 99, inv: T.inv, gnd: 0, rw: 0, gone: 0, res: 0, cr: 0, hd: 0,
     step: 0, ab: 0, jb: 0, kd: 0, co: 0, jh: 0});
   const mid = S.room * W + W / 2, own = p.i === 0 ? 1 : -1;
   p.f = alive(o) ? (o.x > x ? 1 : o.x < x ? -1 : own) : (x < mid ? 1 : x > mid ? -1 : own);
@@ -1002,6 +1056,24 @@ function respawns(S, w, T) {
     if (alive(p)) continue;
     if (p.rt > 0) { p.rt--; continue; }
     const o = S.p[1 - p.i], spots = w.sp[S.room], L = S.room * W;
+    if (S.cfg.prac) {
+      if (p.i === 0 && p.dh === 'fall') {
+        // practice: a fall puts you back in the middle stage (and the dummy with you)
+        S.room = (S.N - 1) / 2; S.sw = [];
+        spawnAt(S, w, p, S.room * W + W / 2 - 110, T);
+        if (alive(o)) { o.s = ST.DEAD; o.gone = 1; o.rt = 6; o.t = 0; o.arm = 0; o.dh = 'left'; }
+        continue;
+      }
+      if (p.i === 1) {
+        // the dummy comes back near where it fell, but not on top of you
+        const sp = w.sp[S.room], want = p.gone || p.dx == null ? L + W / 2 + 110 : p.dx;
+        let best = null, bs = 1e9;
+        for (const c of sp) { if (alive(o) && Math.abs(c - o.x) < 100) continue; if (Math.abs(c - want) < bs) { bs = Math.abs(c - want); best = c; } }
+        if (best === null) { if (p.rw++ < 120) continue; best = sp[0]; for (const c of sp) if (Math.abs(c - o.x) > Math.abs(best - o.x)) best = c; }
+        spawnAt(S, w, p, best, T);
+        continue;
+      }
+    }
     if (S.adv === o.i && alive(o)) {
       // Ahead of the runner, between them and their goal.
       const d = o.i === 0 ? 1 : -1, want = o.x + d * 230;
@@ -1031,6 +1103,17 @@ function respawns(S, w, T) {
 }
 
 function advance(S, w, T) {
+  if (S.cfg.prac) {
+    // practice: the stage follows you, whichever way you walk
+    const p = S.p[0], L = S.room * W;
+    if (!alive(p) || (p.x >= L && p.x <= L + W)) return;
+    const d = p.x > L + W ? 1 : -1, o = S.p[1];
+    S.room += d; S.sw = [];
+    if (alive(o)) { o.s = ST.DEAD; o.gone = 1; o.rt = 6; o.t = 0; o.arm = 0; o.dh = 'left'; } else if (o.rt < 1e8) o.rt = Math.min(o.rt, 6);
+    o.rw = 0; o.gone = 1;
+    ev(S, 'room', {a: 0, r: S.room});
+    return;
+  }
   const a = S.adv;
   if (a < 0) return;
   const p = S.p[a];
@@ -1051,12 +1134,22 @@ function advance(S, w, T) {
 // The bot. It only sets the same buttons a player presses. It sees the opponent's sword height a reaction
 // time late (`react`), and the levels differ only in the numbers in BOT.
 // ---------------------------------------------------------------------
+// Easy is a clumsy beginner: it sees you late, pauses for long stretches, stops before it strikes (tele), often holds the
+// wrong height, sometimes walks onto a held blade (blunder), is slow to chase a runner (chase), never parries, disarms,
+// throws or dodges a throw, and takes a while to turn round (face). Normal is about the old Easy (a little slower to react, with a short stop before it strikes); Hard and Expert are the old
+// Normal and Hard. Tuned against a scripted novice (see the README): the novice beats Easy about 9 times in 10 and Normal about half the time.
 const BOT = {
-  easy: {evade: 0.15, react: 22, aggr: 0.035, parry: 0.0, disarm: 0.004, feint: 0.0, throwP: 0.0, dodge: 0.35, match: 0.55, hop: 0.85, lunge: 0.2, roll: 0.15, unarmed: 0.4, mash: 0.25, finish: 0.6, wobble: 0.04},
-  normal: {evade: 0.35, react: 12, aggr: 0.08, parry: 0.15, disarm: 0.02, feint: 0.01, throwP: 0.004, dodge: 0.7, match: 0.82, hop: 0.97, lunge: 0.45, roll: 0.4, unarmed: 0.75, mash: 0.6, finish: 0.9, wobble: 0.02},
-  hard: {evade: 0.5, react: 6, aggr: 0.16, parry: 0.5, disarm: 0.05, feint: 0.03, throwP: 0.008, dodge: 0.95, match: 0.97, hop: 1, lunge: 0.7, roll: 0.7, unarmed: 0.95, mash: 0.95, finish: 1, wobble: 0.005}
+  easy: {evade: 0.03, react: 34, aggr: 0.016, parry: 0, disarm: 0, feint: 0, throwP: 0, dodge: 0, match: 0.3, hop: 0.75, lunge: 0.08, roll: 0, unarmed: 0.2, mash: 0.12, finish: 0.35, wobble: 0.03,
+    tele: 22, idle: 0.01, idleLen: 60, blunder: 0.004, chase: 0.5, kick: 0, face: 34, wrongH: 0.012, guardKick: 0},
+  normal: {evade: 0.15, react: 26, aggr: 0.035, parry: 0.0, disarm: 0.004, feint: 0.0, throwP: 0.0, dodge: 0.35, match: 0.55, hop: 0.85, lunge: 0.2, roll: 0.15, unarmed: 0.4, mash: 0.25, finish: 0.6, wobble: 0.04,
+    tele: 10, idle: 0.004, idleLen: 40, blunder: 0, chase: 0.8, kick: 0.004, face: 16, wrongH: 0, guardKick: 0.25},
+  hard: {evade: 0.35, react: 12, aggr: 0.08, parry: 0.15, disarm: 0.02, feint: 0.01, throwP: 0.004, dodge: 0.7, match: 0.82, hop: 0.97, lunge: 0.45, roll: 0.4, unarmed: 0.75, mash: 0.6, finish: 0.9, wobble: 0.02,
+    tele: 0, idle: 0, idleLen: 0, blunder: 0, chase: 1, kick: 0.012, face: 7, wrongH: 0, guardKick: 0.6},
+  expert: {evade: 0.5, react: 6, aggr: 0.16, parry: 0.5, disarm: 0.05, feint: 0.03, throwP: 0.008, dodge: 0.95, match: 0.97, hop: 1, lunge: 0.7, roll: 0.7, unarmed: 0.95, mash: 0.95, finish: 1, wobble: 0.005,
+    tele: 0, idle: 0, idleLen: 0, blunder: 0, chase: 1, kick: 0.025, face: 2, wrongH: 0, guardKick: 0.9}
 };
-function botMem(seed, level) { return {r: (seed >>> 0) || 1, lv: level, hist: [], want: 1, wait: 0, plan: 0, pt: 0, lastU: 0, lastD: 0, jumpT: 0, rollT: 0, throwT: 0, prev: 0}; }
+function botMem(seed, level) { return {r: (seed >>> 0) || 1, lv: level, hist: [], want: 1, wait: 0, plan: 0, pt: 0, lastU: 0, lastD: 0, jumpT: 0, rollT: 0, throwT: 0, prev: 0,
+  idle: 0, tele: 0, blT: 0, wf: 0, kickT: 0}; }
 function brand(m) { m.r = (Math.imul(m.r ^ (m.r >>> 15), 1 | m.r) + 0x6D2B79F5) | 0; let t = m.r; t = Math.imul(t ^ (t >>> 7), 61 | t) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }
 function botInput(S, w, i, m) {
   const B = BOT[m.lv] || BOT.normal, T = tuning(S.cfg);
@@ -1085,10 +1178,19 @@ function botInput(S, w, i, m) {
       if (m.pushT > 40 && !(prevHeld & K.J)) { b |= K.J; m.pushT = 0; }
     } else m.pushT = 0;
     m.px = p.x;
+    // Turn to face the opponent (a one-tick press turns on the spot), after a level-dependent moment.
+    const q = S.p[1 - i];
+    if (alive(p) && alive(q) && p.s === ST.IDLE && p.gnd && !(b & (K.L | K.R)) && Math.abs(q.x - p.x) < 300 && Math.abs(q.y - p.y) < 50 && p.f * (q.x - p.x) < 0 && !m.idle) {
+      if (++m.wf > B.face) { b |= q.x > p.x ? K.R : K.L; m.wf = 0; }
+    } else m.wf = 0;
     m.roll = 0; m.prev = b; return b;
   };
-  if (S.win >= 0 || !alive(p)) return out();
-  if (p.s === ST.KD) { if (brand(m) < B.mash) tapA(); return out(); }
+  if (S.win >= 0 || !alive(p)) { m.tele = 0; m.idle = 0; return out(); }
+  if (p.s === ST.KD) { m.tele = 0; if (brand(m) < B.mash) tapA(); return out(); }
+  // a beginner's habits: a long pause now and then, and a visible stop before each strike
+  if (m.tele > 0) { if (--m.tele === 0 && p.s === ST.IDLE) tapA(); return out(); }
+  if (m.idle > 0) { m.idle--; return out(); }
+  if (B.idle && alive(S.p[1 - i]) && brand(m) < B.idle) { m.idle = Math.round(B.idleLen * (0.5 + brand(m))); return out(); }
   const goal = i === 0 ? 1 : -1, runner = S.adv === i, L = S.room * W, R = L + W;
   const oA = alive(o), dx = o.x - p.x, adx = Math.abs(dx), toO = dx > 0 ? 1 : dx < 0 ? -1 : p.f;
   // Is there a drop, a pit or a wall just ahead in direction dir?
@@ -1209,40 +1311,62 @@ function botInput(S, w, i, m) {
   if (runner && (goal * dx < -30 && adx > 60)) { wantDir(goal); return out(); }
   if (!p.arm) return unarmedBot(S, w, i, m, B, T, p, o, seen, b, press, tapA, tapJ, tapD, wantDir, out, runner, goal);
   // ---- armed ----
-  const oh = seen.al ? seen.h : o.h, oarm = seen.arm;
+  const oh = seen.al ? (seen.cr ? 0 : seen.h) : o.h, oarm = seen.arm;
+  // Easy telegraphs: it stops for a moment, then strikes
+  const strike = () => { if (B.tele && p.s === ST.IDLE) { m.tele = B.tele; b &= ~(K.L | K.R); } else tapA(); };
+  // a sword thrown at us: hold it high to knock it away, or duck under it
+  if (B.dodge && p.gnd) {
+    for (const sw of S.sw) if (sw.fl && sw.ow !== i && (sw.vx > 0 ? 1 : -1) * (p.x - sw.x) > 0 && Math.abs(p.x - sw.x) < 170 && brand(m) < B.dodge) {
+      if (p.h < 2) tapU(); else if (p.h === 3) tapD();
+      return out();
+    }
+  }
   if (!o.arm) {
-    // they have no sword: close in at mid height (low if they're crouched for a sweep), thrust when in reach
+    // they have no sword: close in at mid height (low if they're crouched or kicking), thrust when in reach
     const tgtH = o.cr || o.s === ST.SWEEP ? 0 : !o.gnd ? 2 : 1;
     stanceTo(p, tgtH, tapU, tapD);
     if (adx > 52) wantDir(toO);
-    else if (p.f === toO && brand(m) < B.aggr * 4) tapA();
-    if (runner && adx > 140 && goal * dx > 0) { /* keep coming */ }
+    else if (p.f === toO && brand(m) < B.aggr * 4) strike();
     return out();
   }
   // a throw from range sometimes
   if (S.cfg.thr && adx > 170 && adx < 420 && o.h !== 2 && !o.cr && p.gnd && brand(m) < B.throwP && p.f === toO) { m.throwT = 12; return out(); }
+  // a kick coming (they've dropped into the wind-up): a low sword stops it
+  if (seen.s === ST.SWEEP && adx < 110 && p.h !== 0 && brand(m) < B.guardKick) { stanceTo(p, 0, tapU, tapD); return out(); }
+  // our own sliding kick under a middle or high guard: crouch (down with the sword low), then attack
+  if (m.kickT > 0) {
+    m.kickT--;
+    if (p.h > 0 && !p.cr) { tapD(); return out(); }
+    press(K.D); if (p.cr) { tapA(); m.kickT = 0; }
+    return out();
+  }
   // Both armed. Keep the duel distance, mirror their height to stay safe, and strike when they're open.
   const close = 66;
+  // slow to chase a runner: stops and starts
+  if (B.chase < 1 && S.adv === 1 - i && adx > 110 && ((S.t / 24) | 0) % 10 >= B.chase * 10) return out();
   if (adx > 120) {
     // approach (the runner and a defender both want this fight; the runner wants past)
     wantDir(toO);
     if (p.h !== oh && brand(m) < B.match) stanceTo(p, oh, tapU, tapD);
-    if (adx < 150 && p.gnd && brand(m) < B.lunge * 0.05 && p.h !== oh) { /* lunge is attack while running */ tapA(); }
+    if (adx < 150 && p.gnd && brand(m) < B.lunge * 0.05 && p.h !== oh && !B.tele) { /* lunge is attack while running */ tapA(); }
     return out();
   }
+  if (p.f !== toO) return out();   // turn round first (out() does it)
   // in the zone
-  const open = p.h !== o.h && o.h < 3 && !(o.s === ST.ROLL);
-  const theyOpen = o.h === 3 || o.s === ST.STAG || o.s === ST.RECOIL || o.s === ST.DISARM || o.s === ST.THROW;
-  if (theyOpen && adx < 80) { if (adx > 50) moveTo(toO); tapA(); return out(); }
-  // react to a thrust coming at a different height: step into it (parry) or back off
+  const open = p.h !== o.h && o.h < 3 && !(o.s === ST.ROLL) && !o.cr;
+  const theyOpen = o.h === 3 || o.s === ST.STAG || o.s === ST.RECOIL || o.s === ST.DISARM || o.s === ST.THROW || (o.cr && p.h === 0);
+  if (theyOpen && adx < 80) { if (adx > 50) moveTo(toO); strike(); return out(); }
+  // react to a thrust coming at a different height: step into it (parry) or meet it at its height (block)
   if ((o.s === ST.THRUST || o.s === ST.LUNGE) && o.t < 4 && p.h !== o.ah && adx < 90) {
-    if (brand(m) < B.parry) { stanceTo(p, o.ah, tapU, tapD); return out(); }
-    moveTo(-toO); return out();
+    if (brand(m) < Math.max(B.parry, B.match * 0.5)) { stanceTo(p, o.ah, tapU, tapD); return out(); }
+    return out();
   }
-  if (open && adx <= close && p.f === toO && brand(m) < B.aggr * 2.2) { tapA(); return out(); }
-  if (open && adx > close && adx < 100 && p.f === toO && brand(m) < B.aggr * B.lunge) { moveTo(toO); if (Math.abs(p.vx) > 2.6) tapA(); return out(); }
+  if (open && adx <= close && p.f === toO && brand(m) < B.aggr * 2.2) { strike(); return out(); }
+  if (open && adx > close && adx < 100 && p.f === toO && brand(m) < B.aggr * B.lunge && !B.tele) { moveTo(toO); if (Math.abs(p.vx) > 2.6) tapA(); return out(); }
+  if (o.h >= 1 && !o.cr && adx > 50 && adx < 72 && p.gnd && brand(m) < B.kick) { m.kickT = 20; return out(); }
   // defend: match their (perceived) height
-  if (p.h !== oh && oh < 3) { if (brand(m) < B.match) stanceTo(p, oh, tapU, tapD); }
+  if (B.wrongH && brand(m) < B.wrongH) stanceTo(p, (brand(m) * 3) | 0, tapU, tapD);
+  else if (p.h !== oh && oh < 3) { if (brand(m) < B.match) stanceTo(p, oh, tapU, tapD); }
   else if (oh === p.h) {
     // blades matched: try a disarm (step away and back across their blade), a feint, a roll under, or a jump over
     const r = brand(m);
@@ -1257,10 +1381,11 @@ function botInput(S, w, i, m) {
     else if (p.h !== m.want) stanceTo(p, m.want, tapU, tapD);
     if (m.pt <= 0) m.plan = 0;
   }
-  // spacing
-  if (adx < 54) moveTo(-toO);
+  // spacing: close in to striking range, but don't back off (that would turn our back); a beginner sometimes walks right in
+  if (B.blunder && m.blT <= 0 && brand(m) < B.blunder) m.blT = 24;
+  if (m.blT > 0) { m.blT--; moveTo(toO); }
   else if (adx > 78) moveTo(toO);
-  else if (brand(m) < B.wobble) moveTo(brand(m) < 0.5 ? toO : -toO);
+  else if (adx > 60 && brand(m) < B.wobble) moveTo(toO);
   if (runner && goal * dx < 0) wantDir(goal);
   return out();
 }
@@ -1519,35 +1644,49 @@ const THEMES = {
   yard: {sky: ['#060b16', '#0b1426', '#12203a', '#1a2c4a'], star: '#cfe0ff', far: '#16233b', farLit: '#ff4a4a', mid: '#20324f', midLit: '#ffcc33',
     ground: '#2c3646', groundL: '#3e4a5e', top: '#8fa3bf', topL: '#d8e4f4', ink: '#05080f', plat: '#a24a36', plat2: '#6a2a22', ceil: '#2a3a52', beam: '#45597a', lamp: '#5cff8a', pit: '#020308', pit2: '#0e1424'}
 };
+// Toned down so the two flat fencers and their paint are the brightest things on screen: every arena colour is
+// mixed toward near-black (the sky and far scenery the most, the floors the least).
+function mixHex(a, b, k) {
+  const p = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)), A = p(a), B = p(b);
+  return '#' + A.map((v, i) => Math.round(v + (B[i] - v) * k).toString(16).padStart(2, '0')).join('');
+}
+const DIM = {sky: 0.5, far: 0.45, mid: 0.4, farLit: 0.5, midLit: 0.45, star: 0.5, sun: 0.45, sea: 0.45, seaL: 0.5, moon: 0.45, dome: 0.5, domeD: 0.5,
+  ground: 0.3, groundL: 0.35, top: 0.35, topL: 0.4, plat: 0.35, plat2: 0.3, ceil: 0.3, beam: 0.35, lamp: 0.4};
+for (const k in THEMES) { const th = THEMES[k]; for (const c in DIM) if (th[c]) th[c] = Array.isArray(th[c]) ? th[c].map(v => mixHex(v, '#05040a', DIM[c])) : mixHex(th[c], '#05040a', DIM[c]); }
+// Each stage of an arena has its own look: the middle stage as it is, the first pair out cooler, the second pair warmer,
+// and the two pit stages a deep red; by template (0 middle, 1 and 2 the pairs, 3 the pit stage).
+const STAGE_TINT = [null, ['#123a66', 0.32], ['#6a3812', 0.3], ['#5a0820', 0.36]];
+function tintHex(c, ti) { const t = STAGE_TINT[ti]; return t ? mixHex(c, t[0], t[1]) : c; }
 const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
 function rect(x, c, a, b, w, h) { x.fillStyle = c; x.fillRect(Math.round(a), Math.round(b), Math.round(w), Math.round(h)); }
 function mkCanvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d'); x.imageSmoothingEnabled = false; return [c, x]; }
 // The sky: flat colour bands, dithered where they meet.
-function buildSky(key, w) {
-  const th = THEMES[key], [cv, x] = mkCanvas(w, PH), n = th.sky.length, band = PH / (n - 0.5);
+function buildSky(key, w, ti) {
+  const th = THEMES[key], [cv, x] = mkCanvas(w, PH), sky = th.sky.map(c => tintHex(c, ti || 0)), n = sky.length, band = PH / (n - 0.5);
   for (let y = 0; y < PH; y++) {
     const f = y / band, i = Math.min(n - 1, Math.floor(f)), frac = f - i;
-    x.fillStyle = th.sky[i]; x.fillRect(0, y, w, 1);
+    x.fillStyle = sky[i]; x.fillRect(0, y, w, 1);
     // the last third of each band is dithered into the next one
     if (i < n - 1 && frac > 0.62) {
-      const k = (frac - 0.62) / 0.38; x.fillStyle = th.sky[i + 1];
+      const k = (frac - 0.62) / 0.38; x.fillStyle = sky[i + 1];
       for (let xx = 0; xx < w; xx++) if ((BAYER[(y & 3) * 4 + (xx & 3)] + 0.5) / 16 < k) x.fillRect(xx, y, 1, 1);
     }
   }
   const r = srand(key.length * 31 + 7);
-  if (th.star) for (let i = 0; i < w / 6; i++) { const sx = (r() * w) | 0, sy = (r() * 80) | 0; rect(x, r() < 0.3 ? '#ffffff' : th.star, sx, sy, 1, 1); }
+  if (th.star) for (let i = 0; i < w / 20; i++) { const sx = (r() * w) | 0, sy = (r() * 80) | 0; rect(x, r() < 0.3 ? '#ffffff' : th.star, sx, sy, 1, 1); }
   if (key === 'aqueduct') { // low sun over the sea
     const cx = (w * 0.68) | 0, cy = 118;
-    for (let dy = -14; dy <= 0; dy++) { const hw = Math.floor(Math.sqrt(196 - dy * dy)); rect(x, th.sun, cx - hw, cy + dy, hw * 2, 1); }
-    rect(x, th.sea, 0, 120, w, PH - 120);
-    const r2 = srand(5); for (let i = 0; i < w / 4; i++) { const yy = 122 + ((r2() * 50) | 0); rect(x, (Math.abs((i * 7 % w) - cx) < 20 && yy < 140) ? th.sun : th.seaL, (r2() * w) | 0, yy, 2 + ((r2() * 5) | 0), 1); }
+    for (let dy = -14; dy <= 0; dy++) { const hw = Math.floor(Math.sqrt(196 - dy * dy)); rect(x, tintHex(th.sun, ti || 0), cx - hw, cy + dy, hw * 2, 1); }
+    rect(x, tintHex(th.sea, ti || 0), 0, 120, w, PH - 120);
+    const r2 = srand(5); for (let i = 0; i < w / 10; i++) { const yy = 122 + ((r2() * 50) | 0); rect(x, (Math.abs((i * 7 % w) - cx) < 20 && yy < 140) ? th.sun : th.seaL, (r2() * w) | 0, yy, 2 + ((r2() * 5) | 0), 1); }
   }
-  if (key === 'dunes') { const cx = (w * 0.24) | 0, cy = 34; for (let dy = -7; dy <= 7; dy++) { const hw = Math.floor(Math.sqrt(49 - dy * dy)); rect(x, th.moon, cx - hw, cy + dy, hw * 2, 1); } rect(x, '#c8b8e8', cx - 3, cy - 2, 2, 2); rect(x, '#c8b8e8', cx + 2, cy + 3, 2, 1); }
+  if (key === 'dunes') { const cx = (w * 0.24) | 0, cy = 34; for (let dy = -7; dy <= 7; dy++) { const hw = Math.floor(Math.sqrt(49 - dy * dy)); rect(x, th.moon, cx - hw, cy + dy, hw * 2, 1); } rect(x, '#5e5674', cx - 3, cy - 2, 2, 2); rect(x, '#5e5674', cx + 2, cy + 3, 2, 1); }
   return cv;
 }
 // Far and middle layers: 512 px strips that repeat, moving slower than the rooms.
-function buildLayer(key, depth) {
-  const th = THEMES[key], Wd = 512, [cv, x] = mkCanvas(Wd, PH), r = srand(depth * 101 + key.charCodeAt(0) * 7);
+function buildLayer(key, depth, ti) {
+  const th0 = THEMES[key], Wd = 512, [cv, x] = mkCanvas(Wd, PH), r = srand(depth * 101 + key.charCodeAt(0) * 7);
+  const th = {}; for (const k in th0) th[k] = typeof th0[k] === 'string' ? tintHex(th0[k], ti || 0) : th0[k];
   const col = depth === 0 ? th.far : th.mid, lit = depth === 0 ? th.farLit : th.midLit;
   if (key === 'market') {
     // rooftops, chimneys and lit windows; strings of lanterns in front
@@ -1559,12 +1698,12 @@ function buildLayer(key, depth) {
         for (let s = 0; s < 5; s++) rect(x, col, bx + s * 2, top - s - 1, bw - s * 4, 1);
       }
       if (r() < 0.4) rect(x, col, bx + 3, top - 9, 3, 9);
-      for (let wy = top + 4; wy < PH - 10; wy += 6) for (let wx = bx + 3; wx < bx + bw - 3; wx += 5) if (r() < (depth ? 0.06 : 0.1)) rect(x, lit, wx, wy, depth ? 2 : 1, depth ? 2 : 1);
+      for (let wy = top + 4; wy < PH - 10; wy += 6) for (let wx = bx + 3; wx < bx + bw - 3; wx += 5) if (r() < (depth ? 0.025 : 0.04)) rect(x, lit, wx, wy, depth ? 2 : 1, depth ? 2 : 1);
       bx += bw + ((r() * 4) | 0);
     }
     if (depth === 1) for (let i = 0; i < 4; i++) {
       const x0 = i * 128 + 6, y0 = 40 + ((r() * 20) | 0);
-      for (let k = 0; k < 120; k++) { const sag = Math.round(10 * Math.sin(k / 120 * Math.PI)); rect(x, '#1a0d22', x0 + k, y0 + sag, 1, 1); if (k % 12 === 6) { rect(x, ['#ff6b4a', '#ffcf5a', '#ff4d6d'][(k / 12 | 0) % 3], x0 + k - 1, y0 + sag + 1, 3, 3); } }
+      for (let k = 0; k < 120; k++) { const sag = Math.round(10 * Math.sin(k / 120 * Math.PI)); rect(x, '#1a0d22', x0 + k, y0 + sag, 1, 1); if (k % 12 === 6) { rect(x, ['#8a4a3a', '#8a7442', '#7a3a4a'][(k / 12 | 0) % 3], x0 + k - 1, y0 + sag + 1, 3, 3); } }
     }
   } else if (key === 'aqueduct') {
     if (depth === 0) { // a far line of small arches on the horizon
@@ -1576,8 +1715,8 @@ function buildLayer(key, depth) {
         rect(x, col, ax, 58, 64, 16); rect(x, th.far, ax, 56, 64, 2);
         rect(x, col, ax, 58, 14, PH - 58);
         for (let k = 0; k <= 25; k++) { const h = Math.round(Math.sqrt(Math.max(0, 625 - (k - 25) * (k - 25)))); rect(x, col, ax + 14 + k, 74, 1, Math.max(0, 25 - h)); rect(x, col, ax + 64 - k, 74, 1, Math.max(0, 25 - h)); }
-        for (let by = 62; by < PH; by += 7) rect(x, '#5a2e52', ax + 2, by, 10, 1);
-        for (let k = 0; k < 64; k += 8) rect(x, '#5a2e52', ax + k, 62, 1, 10);
+        for (let by = 62; by < PH; by += 7) rect(x, th.far, ax + 2, by, 10, 1);
+        for (let k = 0; k < 64; k += 8) rect(x, th.far, ax + k, 62, 1, 10);
       }
     }
   } else if (key === 'dunes') {
@@ -1594,7 +1733,7 @@ function buildLayer(key, depth) {
       let bx = 0;
       while (bx < Wd) { const bw = 10 + ((r() * 22) | 0), bh = 30 + ((r() * 52) | 0), top = 130 - bh; rect(x, col, bx, top, bw, PH - top);
         if (r() < 0.3) { rect(x, col, bx + (bw >> 1), top - 8, 1, 8); rect(x, lit, bx + (bw >> 1), top - 9, 1, 1); }
-        for (let wy = top + 3; wy < PH; wy += 4) for (let wx = bx + 2; wx < bx + bw - 2; wx += 3) if (r() < 0.12) rect(x, '#5a7aa8', wx, wy, 1, 1);
+        for (let wy = top + 3; wy < PH; wy += 4) for (let wx = bx + 2; wx < bx + bw - 2; wx += 3) if (r() < 0.04) rect(x, '#2c3a52', wx, wy, 1, 1);
         bx += bw + 1; }
     } else {
       for (let gx = 20; gx < Wd; gx += 170) { // a gantry crane
@@ -1603,21 +1742,51 @@ function buildLayer(key, depth) {
         rect(x, col, gx + 40, 52, 1, 30); rect(x, col, gx + 36, 82, 9, 4);
         rect(x, lit, gx + 45, 47, 1, 1);
       }
-      for (let wx = 0; wx < Wd; wx += 44) { rect(x, col, wx, 132, 40, 18); rect(x, '#2a4062', wx + 2, 134, 36, 1); }
+      for (let wx = 0; wx < Wd; wx += 44) { rect(x, col, wx, 132, 40, 18); rect(x, th.far, wx + 2, 134, 36, 1); }
     }
   }
   return cv;
 }
 
+// Set pieces that make each stage its own place: dark silhouettes behind the floor, a few dim lights. ti: the stage
+// template (0 middle, 1 and 2 the pairs, 3 the pit stage); mir: the left half (drawn mirrored so both sides match).
+function stageProps(x, key, th, ti, mir, rr, w, r) {
+  const sil = mixHex(th.mid, '#05040a', 0.15), sil2 = mixHex(th.far, '#05040a', 0.1), lamp = mixHex(th.lamp, '#05040a', 0.35);
+  const R0 = (a, c, px, py, pw, ph) => rect(a, c, mir ? PW - px - pw : px, py, pw, ph);
+  if (ti === 0) {
+    // the middle: one big landmark in the centre
+    if (key === 'market') { R0(x, sil, 112, 70, 5, 80); R0(x, sil, 203, 70, 5, 80); R0(x, sil, 104, 64, 112, 7); for (let i = 0; i < 4; i++) { R0(x, sil, 128 + i * 20, 71, 1, 8); R0(x, lamp, 126 + i * 20, 79, 5, 6); } }
+    else if (key === 'aqueduct') { R0(x, sil, 140, 128, 40, 22); R0(x, sil, 146, 120, 28, 8); R0(x, sil, 154, 86, 12, 34); R0(x, sil, 156, 78, 8, 9); R0(x, sil, 166, 92, 10, 3); }
+    else if (key === 'dunes') { for (let k = 0; k < 64; k++) R0(x, sil, 157 - Math.floor(k / 9), 86 + k, 6 + Math.floor(k / 9) * 2, 1); R0(x, lamp, 159, 82, 2, 4); }
+    else { R0(x, sil, 132, 96, 56, 54); R0(x, sil, 128, 90, 64, 6); R0(x, lamp, 140, 104, 10, 6); R0(x, lamp, 170, 104, 10, 6); R0(x, sil, 156, 60, 3, 30); R0(x, '#6a2a2a', 155, 58, 5, 3); }
+  } else if (ti === 1) {
+    if (key === 'market') for (let i = 0; i < 3; i++) { const bx = 34 + i * 96; R0(x, sil, bx, 104, 52, 46); for (let k = 0; k < 52; k += 4) R0(x, (k / 4) & 1 ? sil2 : mixHex(th.plat2, '#05040a', 0.3), bx + k, 98 + (k % 8 ? 0 : 1), 4, 6); }
+    else if (key === 'aqueduct') for (let i = 0; i < 4; i++) { const bx = 30 + i * 76; R0(x, sil, bx, 74, 10, 76); R0(x, sil, bx - 3, 70, 16, 5); R0(x, sil, bx - 3, 145, 16, 5); }
+    else if (key === 'dunes') for (let i = 0; i < 2; i++) { const bx = 70 + i * 160; R0(x, sil, bx, 120, 2, 30); R0(x, sil, bx - 8, 140, 2, 10); R0(x, sil, bx + 8, 140, 2, 10); for (let k = 0; k < 22; k++) R0(x, sil, bx - 6 + k, 116 - Math.floor(k / 2), 3, 3); R0(x, lamp, bx + 15, 105, 2, 2); }
+    else for (let i = 0; i < 3; i++) { const bx = 26 + i * 100; R0(x, sil, bx, 116, 60, 34); R0(x, sil2, bx + 6, 86, 48, 30); for (let k = 6; k < 54; k += 6) R0(x, sil2, bx + k, 118, 1, 30); }
+  } else if (ti === 2) {
+    if (key === 'market') for (let i = 0; i < 3; i++) { const bx = 50 + i * 100; R0(x, sil, bx, 90, 8, 60); R0(x, sil, bx + 20, 108, 26, 20); R0(x, sil, bx + 24, 128, 2, 22); R0(x, sil, bx + 40, 128, 2, 22); R0(x, lamp, bx + 2, 86, 4, 3); }
+    else if (key === 'aqueduct') { R0(x, sil, 40, 60, 14, 90); R0(x, sil, 40, 60, 70, 12); for (let k = 0; k <= 28; k++) { const h = Math.round(Math.sqrt(Math.max(0, 784 - (k - 28) * (k - 28)))); R0(x, sil, 54 + k, 72, 1, Math.max(0, 28 - h)); } R0(x, sil, 210, 96, 14, 54); R0(x, sil, 224, 96, 18, 8); }
+    else if (key === 'dunes') for (let i = 0; i < 2; i++) { const bx = 50 + i * 170; for (let k = 0; k < 24; k++) R0(x, sil, bx + 24 - k, 126 + k, k * 2, 1); R0(x, lamp, bx + 22, 140, 4, 10); R0(x, sil, bx + 23, 118, 1, 8); }
+    else { R0(x, sil, 200, 56, 52, 30); R0(x, sil, 206, 86, 3, 64); R0(x, sil, 242, 86, 3, 64); for (let k = 0; k < 6; k++) R0(x, sil, 206 + k * 6, 100 + k * 8, 3, 3); R0(x, sil, 50, 120, 40, 30); R0(x, lamp, 222, 66, 4, 2); }
+  } else {
+    // the pit stage: chains hanging over the drop, warning posts in the colour of the fencer who wins here
+    const team = TEAM[mir ? 1 : 0], warn = mixHex(team.c, '#05040a', 0.45);
+    for (let i = 0; i < 5; i++) { const cx = 70 + i * 50, len = 30 + ((i * 37) % 40); for (let k = 0; k < len; k += 3) R0(x, sil, cx, k, 2, 2); R0(x, sil, cx - 2, len, 6, 3); }
+    for (let i = 0; i < 3; i++) { const px = 40 + i * 70; R0(x, sil, px, 118, 3, 32); for (let k = 0; k < 4; k++) R0(x, k & 1 ? sil : warn, px - 2, 112 + k * 2, 7, 2); }
+    R0(x, sil2, 0, 30, PW, 2);
+  }
+}
 // Room tiles, platforms, ceilings and props for one room (320 x 180 pixels, drawn once per match).
 function buildRoom(w, r) {
   const key = C.ARENAS[w.ai].key, th = THEMES[key], [cv, x] = mkCanvas(PW, PH), off = r * RW, rr = srand(r * 131 + w.ai * 17 + 5);
   const P = v => Math.round(v / 2);
+  stageProps(x, key, th, w.tplOf[r][0], w.tplOf[r][1], rr, w, r);
   // props behind everything
   if (key === 'market') { for (let i = 0; i < 2; i++) { const lx = 30 + i * 160 + ((rr() * 60) | 0); rect(x, th.beam, lx, 108, 2, 42); rect(x, th.plat2, lx - 8, 104, 18, 4); for (let k = 0; k < 18; k += 3) rect(x, k % 6 ? th.plat : th.plat2, lx - 8 + k, 108, 3, 2); } }
   else if (key === 'aqueduct') { for (const px0 of [0, PW - 14]) { rect(x, th.groundL, px0, 40, 14, 110); for (let by = 44; by < 150; by += 8) rect(x, th.ground, px0, by, 14, 1); } }
   else if (key === 'dunes') { for (let i = 0; i < 3; i++) { const lx = 20 + ((rr() * 280) | 0); rect(x, th.plat2, lx, 128, 2, 22); rect(x, th.lamp, lx - 1, 126, 4, 2); } }
-  else { for (let i = 0; i < 2; i++) { const lx = 40 + i * 180 + ((rr() * 60) | 0); rect(x, th.beam, lx, 100, 2, 50); rect(x, th.ink, lx - 3, 96, 8, 6); rect(x, '#ff4a4a', lx - 2, 97, 2, 2); rect(x, th.lamp, lx + 2, 97, 2, 2); } rect(x, th.ink, 0, 22, PW, 1); }
+  else { for (let i = 0; i < 2; i++) { const lx = 40 + i * 180 + ((rr() * 60) | 0); rect(x, th.beam, lx, 100, 2, 50); rect(x, th.ink, lx - 3, 96, 8, 6); rect(x, '#8a3030', lx - 2, 97, 2, 2); rect(x, th.lamp, lx + 2, 97, 2, 2); } rect(x, th.ink, 0, 22, PW, 1); }
   // the drop beneath gaps and the end pits
   rect(x, th.pit, 0, 150, PW, 30);
   for (let y = 150; y < PH; y++) for (let xx = 0; xx < PW; xx++) if ((BAYER[(y & 3) * 4 + (xx & 3)]) < (180 - y) / 2) rect(x, th.pit2, xx, y, 1, 1);
@@ -1653,7 +1822,7 @@ function buildRoom(w, r) {
     if (key === 'market') { rect(x, th.ceil, x0, 0, x1 - x0, y); for (let wy = 12; wy < y - 22; wy += 22) for (let wx = x0 + 8; wx < x1 - 10; wx += 18) { rect(x, th.ink, wx - 1, wy - 1, 9, 12); rect(x, ((wx * 7 + wy) % 3) ? '#3a1d2e' : th.lamp, wx, wy, 7, 10); rect(x, th.ink, wx + 3, wy, 1, 10); } for (let k = 0; k < 6; k++) rect(x, th.plat2, x0 - 4 + k, y - 18 + k, x1 - x0 + 8 - 2 * k, 1); rect(x, th.beam, x0, y - 4, x1 - x0, 4); for (let lx = x0 + 12; lx < x1 - 6; lx += 40) { rect(x, th.ink, lx, y, 1, 4); rect(x, th.lamp, lx - 1, y + 4, 3, 3); } }
     else if (key === 'aqueduct') { for (let yy = 2; yy < y; yy += 6) { rect(x, th.ink, x0, yy, x1 - x0, 1); for (let xx = x0 + ((yy / 6) & 1) * 5; xx < x1; xx += 10) rect(x, th.ink, xx, yy, 1, 6); } rect(x, th.beam, x0, y - 3, x1 - x0, 3); }
     else if (key === 'dunes') { rect(x, th.beam, x0, y - 5, x1 - x0, 5); for (let xx = x0 + 3; xx < x1; xx += 7) rect(x, th.ink, xx, y - 5, 1, 5); for (let yy = 6; yy < y - 8; yy += 9) rect(x, th.beam, x0 + 3, yy, x1 - x0 - 6, 1); }
-    else { for (let px = x0 + 4; px < x1 - 6; px += 22) { rect(x, '#33465f', px, 4, 18, y - 14); rect(x, th.ink, px + 17, 4, 1, y - 14); for (let ry = 8; ry < y - 12; ry += 8) { rect(x, '#5a7090', px + 2, ry, 1, 1); rect(x, '#5a7090', px + 14, ry, 1, 1); } } rect(x, '#ffcc33', x0 + 6, y - 12, x1 - x0 - 12, 1); for (let k = x0 + 6; k < x1 - 6; k += 8) rect(x, th.ink, k, y - 12, 4, 1); rect(x, th.beam, x0, 2, x1 - x0, 2); rect(x, th.beam, x0, y - 6, x1 - x0, 6); for (let xx = x0 + 2; xx < x1; xx += 5) rect(x, th.ceil, xx, y - 4, 2, 2); for (let lx = x0 + 10; lx < x1 - 4; lx += 36) rect(x, (lx / 36) & 1 ? '#ff4a4a' : th.lamp, lx, y, 2, 1); }
+    else { for (let px = x0 + 4; px < x1 - 6; px += 22) { rect(x, '#1e2838', px, 4, 18, y - 14); rect(x, th.ink, px + 17, 4, 1, y - 14); for (let ry = 8; ry < y - 12; ry += 8) { rect(x, '#33405a', px + 2, ry, 1, 1); rect(x, '#33405a', px + 14, ry, 1, 1); } } rect(x, '#7a6830', x0 + 6, y - 12, x1 - x0 - 12, 1); for (let k = x0 + 6; k < x1 - 6; k += 8) rect(x, th.ink, k, y - 12, 4, 1); rect(x, th.beam, x0, 2, x1 - x0, 2); rect(x, th.beam, x0, y - 6, x1 - x0, 6); for (let xx = x0 + 2; xx < x1; xx += 5) rect(x, th.ceil, xx, y - 4, 2, 2); for (let lx = x0 + 10; lx < x1 - 4; lx += 36) rect(x, (lx / 36) & 1 ? '#8a3030' : th.lamp, lx, y, 2, 1); }
     rect(x, th.ink, x0, y - 1, x1 - x0, 1); rect(x, th.ink, x0, 0, 1, y); rect(x, th.ink, x1 - 1, 0, 1, y);
   }
   // the end pits: a lip, a sign with an arrow pointing down, in the colour of the fencer who wins there
@@ -1673,9 +1842,9 @@ function buildRoom(w, r) {
 // ---------------------------------------------------------------------
 const R = {
   cv: null, ctx: null, iw: 320, k: 1, cw: 0, ch: 0, viewW: 640, camX: 0, camT: 0, shake: 0, flash: 0, flashC: '#fff',
-  sky: null, skyKey: '', lay: [null, null], layKey: '', rooms: [], decal: [], decN: [], pools: [], paint: [], parts: [], dying: [],
-  pend: [null, null], vis: [{}, {}], banner: null, fall: null, decals: [], spr: null, sil: null, frame: 0,
-  init() { this.cv = $('cv'); this.ctx = this.cv.getContext('2d'); [this.spr, this.sx] = mkCanvas(112, 96); [this.sil, this.lx] = mkCanvas(112, 96); },
+  sky: null, skyKey: '', lay: [null, null], layKey: '', rooms: [], decal: [], decN: [], pools: [], drips: [], paint: [], parts: [], dying: [],
+  pend: [null, null], vis: [{}, {}], banner: null, fall: null, decals: [], spr: null, frame: 0,
+  init() { this.cv = $('cv'); this.ctx = this.cv.getContext('2d'); [this.spr, this.sx] = mkCanvas(112, 96); },
   // x, y, w, h: where the canvas sits on the page (CSS px); iw: its width in game pixels (the height is always 180)
   resize(x, y, w, h, iw) {
     const cv = this.cv;
@@ -1686,10 +1855,10 @@ const R = {
     this.skyKey = '';
   },
   reset(w) {
-    this.pend = [null, null]; this.parts = []; this.paint = []; this.pools = []; this.dying = []; this.banner = null; this.fall = null; this.shake = 0; this.flash = 0; this.camT = 0;
+    this.pend = [null, null]; this.parts = []; this.paint = []; this.pools = []; this.drips = []; this.dying = []; this.banner = null; this.fall = null; this.shake = 0; this.flash = 0; this.camT = 0;
     this.rooms = []; this.decal = []; this.decN = [];
     if (w) for (let r = 0; r < w.N; r++) { this.rooms.push(buildRoom(w, r)); this.decal.push(mkCanvas(PW, PH)); this.decN.push(0); }
-    this.skyKey = ''; this.layKey = '';
+    this.skyKey = ''; this.layKey = ''; this.bd = {}; this.bdTi = -1;
   }
 };
 
@@ -1703,32 +1872,45 @@ function puff(x, y, n, col, sp, life, grav, sz) {
 }
 function sparks(x, y, n) { puff(x, y, n, '#fff6c8', 4, 16, 0.25, 1); puff(x, y, n >> 1, '#ffd36b', 3, 12, 0.2, 1); }
 
-// --- paint: a fencer touched bursts into paint of their colour; drops stick where they land, for the rest of the match
-const DEC_CAP = 1400, PAINT_CAP = 700;
-function solidAt(w, px, py) { // is this world pixel inside the ground or a ceiling? (platforms are only their top edge)
+// --- paint: a fencer touched bursts into paint of their colour. Drops stick where they land, a big pool spreads
+// where they fell and runs down the front of the floor, drips hang from platform edges, and spray marks the walls and
+// ceilings. All of it is drawn straight into one canvas per stage that lasts the whole match (nothing is ever
+// trimmed: a canvas holds any number of stamps), drawn under the fencers on every stage you look at. Drawing only:
+// the simulation never reads it.
+const PAINT_CAP = 900;
+function solidAt(w, px, py) { // is this game pixel inside the ground or a ceiling? (platforms are only their top edge)
   const x = px * 2, y = py * 2;
   for (const g of w.segs) if (x >= g.x0 && x <= g.x1 && y >= g.y) return 1;
   for (const c of w.ceils) if (x >= c.x0 && x <= c.x1 && y <= c.y) return 2;
   return 0;
 }
-function platCross(w, px, py0, py1) { const x = px * 2; for (const p of w.plats) if (x >= p.x0 && x <= p.x1 && py0 * 2 <= p.y && py1 * 2 >= p.y) return p.y / 2; return null; }
+function platCross(w, px, py0, py1) { const x = px * 2; for (const p of w.plats) if (x >= p.x0 && x <= p.x1 && py0 * 2 <= p.y && py1 * 2 >= p.y) return p; return null; }
+function segAt(w, px, py) { const x = px * 2; let best = null; for (const g of w.segs) if (x >= g.x0 && x <= g.x1 && Math.abs(g.y / 2 - py) < 3 && (!best || g.y < best.y)) best = g; return best; }
 function stamp(w, px, py, c, sw, sh) {
-  const r = Math.floor(px / PW); if (r < 0 || r >= w.N || !R.decal[r]) return;
-  if (R.decN[r] >= DEC_CAP) return;
-  R.decN[r]++;
-  const x = R.decal[r][1]; x.fillStyle = c; x.fillRect(Math.round(px - r * PW), Math.round(py), sw || 1, sh || 1);
+  sw = Math.max(1, Math.round(sw || 1)); sh = Math.max(1, Math.round(sh || 1)); px = Math.round(px); py = Math.round(py);
+  // a stamp may straddle two stages: draw it into each
+  const r0 = Math.floor(px / PW), r1 = Math.floor((px + sw - 1) / PW);
+  for (let r = r0; r <= r1; r++) {
+    if (r < 0 || r >= w.N || !R.decal[r]) continue;
+    R.decN[r]++;
+    const x = R.decal[r][1]; x.fillStyle = c; x.fillRect(px - r * PW, py, sw, sh);
+  }
 }
+function drip(px, py, c, max) { R.drips.push({x: Math.round(px), y: Math.round(py), len: 0, max: Math.round(max), c, t: 0}); }
 function paintBurst(w, e) {
-  const t = TEAM[e.b], cols = [t.c, t.c, t.c, t.m, t.d, t.l], fx = e.x / 2, fy = (e.fy || e.y + 28) / 2, dir = e.dir || 0;
-  const n = 46 + ((rnd() * 18) | 0);
+  const t = TEAM[e.b], cols = [t.c, t.c, t.c, t.m], fx = e.x / 2, fy = (e.fy || e.y + 28) / 2, dir = e.dir || 0;
+  const n = 70 + ((rnd() * 20) | 0);
   for (let i = 0; i < n; i++) {
-    const big = rnd() < 0.25;
-    R.paint.push({x: fx + (rnd() - 0.5) * 7, y: fy - 3 - rnd() * 22, vx: dir * (0.5 + rnd() * 2.6) + (rnd() - 0.5) * 2.6, vy: -0.6 - rnd() * 3.4, c: cols[(rnd() * cols.length) | 0], s: big ? 2 : 1, l: 240});
+    const big = rnd() < 0.4;
+    R.paint.push({x: fx + (rnd() - 0.5) * 8, y: fy - 3 - rnd() * 22, vx: dir * (0.4 + rnd() * 2.8) + (rnd() - 0.5) * 3, vy: -0.5 - rnd() * 3.6, c: cols[(rnd() * cols.length) | 0], s: big ? 2 : 1, l: 260});
   }
   if (R.paint.length > PAINT_CAP) R.paint.splice(0, R.paint.length - PAINT_CAP);
-  // a pool spreads under the body if they died on a floor
-  const top = C.groundTopAt(null, w, e.x);
-  if (top !== null && Math.abs(top - (e.fy || top)) < 4) R.pools.push({x: Math.round(fx), y: top / 2, w: 2, max: 9 + ((rnd() * 6) | 0), c: t.d, c2: t.m, t: 0});
+  // a pool spreads where they fell, if that was on a floor
+  const top = C.groundTopAt(null, w, e.x), sg = top !== null && Math.abs(top - (e.fy || top)) < 4 ? segAt(w, fx, top / 2) : null;
+  if (sg) {
+    R.pools.push({x: Math.round(fx), y: top / 2, w: 4, max: 20 + ((rnd() * 15) | 0), c: t.c, c2: t.m, t: 0, x0: sg.x0 / 2, x1: sg.x1 / 2 - 1, dr: 0});
+    stamp(w, fx - 3, top / 2 - 1, t.c, 6, 3);
+  }
 }
 function stepPaint(w) {
   for (const q of R.paint) {
@@ -1737,44 +1919,80 @@ function stepPaint(w) {
     const s = solidAt(w, q.x, q.y);
     if (s === 1) { // floor (landed from above) or a wall (hit from the side)
       const fromAbove = !solidAt(w, q.x, oy) && oy < q.y;
-      if (fromAbove) { let y = Math.floor(q.y); while (y > oy - 1 && solidAt(w, q.x, y - 1)) y--; const sw = 2 + q.s + ((rnd() * 3) | 0); stamp(w, q.x - (sw >> 1), y, q.c, sw, 1); if (rnd() < 0.6) stamp(w, q.x - (sw >> 1) + 1, y + 1, q.c, Math.max(1, sw - 2), 1); if (rnd() < 0.25) stamp(w, q.x + (rnd() < 0.5 ? -3 : 3), y, q.c, 1, 1); }
-      else { stamp(w, ox + (q.vx > 0 ? 1 : -1), q.y, q.c, 1, 1 + q.s); if (rnd() < 0.5) stamp(w, ox + (q.vx > 0 ? 1 : -1), q.y + 2, q.c, 1, 1 + ((rnd() * 3) | 0)); }
+      if (fromAbove) {
+        let y = Math.floor(q.y); while (y > oy - 1 && solidAt(w, q.x, y - 1)) y--;
+        const sw = 2 + q.s + ((rnd() * 4) | 0), x0 = q.x - (sw >> 1);
+        stamp(w, x0, y, q.c, sw, 2); stamp(w, x0 + 1, y + 2, q.c, Math.max(1, sw - 2), 1);
+        if (rnd() < 0.3) stamp(w, x0 + (sw >> 1), y - 1, q.c, 1 + q.s, 1);
+        // near the edge of a drop: it runs down the side
+        const sg = segAt(w, q.x, y);
+        if (sg) { if (q.x - sg.x0 / 2 < 3) drip(sg.x0 / 2, y + 2, q.c, 4 + rnd() * 10); else if (sg.x1 / 2 - q.x < 3) drip(sg.x1 / 2 - 1, y + 2, q.c, 4 + rnd() * 10); }
+      } else {
+        const wx = ox + (q.vx > 0 ? 1 : -1);
+        stamp(w, wx - (q.vx > 0 ? 0 : 1), q.y - 1, q.c, 2, 2 + q.s); if (rnd() < 0.6) drip(wx, q.y + 1 + q.s, q.c, 2 + rnd() * 6);
+      }
       q.l = 0; continue;
     }
-    if (s === 2) { stamp(w, q.x, Math.ceil(q.y), q.c, 1 + q.s, 1); if (rnd() < 0.4) stamp(w, q.x, Math.ceil(q.y) + 1, q.c, 1, 1 + ((rnd() * 2) | 0)); q.l = 0; continue; }
-    if (q.vy > 0) { const py = platCross(w, q.x, oy, q.y); if (py !== null) { stamp(w, q.x - 1, py, q.c, 2 + q.s, 1); q.l = 0; continue; } }
+    if (s === 2) { const y = Math.ceil(q.y); stamp(w, q.x - 1, y - 1, q.c, 2 + q.s, 2); if (rnd() < 0.5) drip(q.x, y + 1, q.c, 1 + rnd() * 4); q.l = 0; continue; }
+    if (q.vy > 0) {
+      const pl = platCross(w, q.x, oy, q.y);
+      if (pl) {
+        const py = pl.y / 2, sw = 2 + q.s + ((rnd() * 3) | 0);
+        stamp(w, q.x - (sw >> 1), py, q.c, sw, 2);
+        // drips hang from the underside near a platform's ends
+        if (q.x - pl.x0 / 2 < 4 || pl.x1 / 2 - q.x < 4 || rnd() < 0.2) drip(q.x, py + 3, q.c, 2 + rnd() * 5);
+        q.l = 0; continue;
+      }
+    }
     if (q.y > PH + 4) q.l = 0;
   }
   R.paint = R.paint.filter(q => q.l > 0);
+  // pools: spread to 20-35 pixels wide and several thick (a raised middle, then into the front of the floor),
+  // never past the end of the floor they're on; where they reach an end, and here and there under them, they run down
   for (const p of R.pools) {
-    if (p.w >= p.max) continue;
-    p.t++; if (p.t % 3) continue;
+    p.t++; if (p.t % 2) continue;
     p.w++;
-    stamp(w, p.x - (p.w >> 1), p.y, p.c, p.w, 1);
-    stamp(w, p.x - (p.w >> 1) + 1, p.y + 1, p.c, Math.max(1, p.w - 2), 1);
-    if (p.w > 4) stamp(w, p.x - (p.w >> 1) + 2, p.y, p.c2, Math.max(1, p.w - 6), 1);
+    const hw = p.w >> 1, a = Math.max(p.x0, p.x - hw), b = Math.min(p.x1, p.x + hw), span = b - a + 1;
+    if (span > 0) {
+      stamp(w, a, p.y, p.c, span, 2);
+      stamp(w, a + Math.round(span * 0.1), p.y + 2, p.c, Math.round(span * 0.8), 1);
+      stamp(w, a + Math.round(span * 0.25), p.y + 3, p.c2, Math.round(span * 0.5), 1);
+      stamp(w, p.x - Math.round(hw * 0.4), p.y - 1, p.c, Math.max(1, Math.round(hw * 0.8)), 1);
+      if (p.w > 10) stamp(w, p.x - Math.round(hw * 0.2), p.y - 2, p.c, Math.max(1, Math.round(hw * 0.4)), 1);
+    }
+    if (p.x - hw <= p.x0 && !(p.dr & 1)) { p.dr |= 1; drip(p.x0, p.y + 2, p.c, 10 + rnd() * 14); drip(p.x0 + 1, p.y + 3, p.c, 5 + rnd() * 8); }
+    if (p.x + hw >= p.x1 && !(p.dr & 2)) { p.dr |= 2; drip(p.x1, p.y + 2, p.c, 10 + rnd() * 14); drip(p.x1 - 1, p.y + 3, p.c, 5 + rnd() * 8); }
+    if (p.w === 12) for (let k = 0; k < 3; k++) drip(p.x + Math.round((rnd() - 0.5) * 14), p.y + 3, p.c, 3 + rnd() * 7);
   }
   R.pools = R.pools.filter(p => p.w < p.max);
+  // drips run down a pixel every few frames
+  for (const d of R.drips) { if (++d.t % 3) continue; stamp(w, d.x, d.y + d.len, d.c, 1, 1); d.len++; }
+  R.drips = R.drips.filter(d => d.len < d.max);
 }
 
 // ---------------------------------------------------------------------
-// The fencers: small pixel sprites, posed frame by frame from the simulation state.
+// The fencers: plain flat pixel figures, one colour each (teal or rose), posed frame by frame from the simulation
+// state: a blocky head, a thick body, thin limbs and a 1-pixel pale sword. No face, no outline, no shading.
 // Coordinates are game pixels, x forward (flipped for facing left), y up from the feet.
 // ---------------------------------------------------------------------
+const BLADE = '#e4ecf8';
 const RUNF = [ // run cycle: front foot, front knee, back foot, back knee, body bob
   [5, 0, 3, -6, -5, -2, -3, -6, 0], [3, 0, 3, -6, -6, -4, -2, -7, -1], [0, -1, 2, -7, -2, -3, -1, -6, -1],
   [-5, -2, -3, -6, 5, 0, 3, -6, 0], [-6, -4, -2, -7, 3, 0, 3, -6, -1], [-2, -3, -1, -6, 0, -1, 2, -7, -1]
 ];
-const CRAWLF = [[6, 0, 4, -4, -6, 0, -4, -4], [4, 0, 3, -4, -7, 0, -5, -3], [7, 0, 5, -3, -5, 0, -3, -4], [5, 0, 4, -3, -6, 0, -4, -4]];
+const CRAWLF = [[5, 0, 4, -4, -5, 0, -4, -4], [3, 0, 3, -4, -6, 0, -5, -3], [6, 0, 5, -3, -4, 0, -3, -4], [4, 0, 4, -3, -5, 0, -4, -4]];
 function pose(p, T, now) {
-  const P = {hip: [0, -11], sh: [0, -20], head: [1, -24], fF: [4, 0], kF: [3, -6], fB: [-4, 0], kB: [-3, -5], hand: null, tip: null, hand2: [-2, -14], tilt: 0, kind: 'stand', crest: 1};
+  const P = {hip: [0, -11], sh: [0, -20], head: [1, -24], fF: [4, 0], kF: [3, -6], fB: [-4, 0], kB: [-3, -5], hand: null, tip: null, hand2: [-2, -14], kind: 'stand'};
   const sp = Math.abs(p.vx), band = p.arm ? (p.s === ST.THRUST || p.s === ST.LUNGE ? p.ah : p.h) : 1;
   const idleBob = Math.floor(now / 420) % 2;
   const setLegs = a => { P.fF = [a[0], a[1]]; P.kF = [a[2], a[3]]; P.fB = [a[4], a[5]]; P.kB = [a[6], a[7]]; if (a[8]) { P.hip[1] += a[8]; P.sh[1] += a[8]; P.head[1] += a[8]; } };
   const swordAt = (hx, by, len) => { P.hand = [hx, -by]; P.tip = [hx + len, -by]; };
-  const bandPx = b => (b === 0 && p.cr ? 6 : C.BAND[Math.min(2, b)] / 2);
-  // default sword: held at its band, reaching what the simulation reaches
-  if (p.arm && p.h <= 2) { const reach = C.reach(p, T) / 2; swordAt(Math.max(4, Math.round(reach - 13)), Math.round(bandPx(band)), 13); }
+  // default sword: held at its height, reaching what the simulation reaches
+  if (p.arm && p.h <= 2) { const reach = C.reach(p, T) / 2; swordAt(Math.max(4, Math.round(reach - 13)), Math.round(C.BAND[Math.min(2, band)] / 2), 13); }
+  if (p.dead) { // touched: knees buckle, thrown back
+    P.kind = 'dead'; P.hip = [-1, -8]; P.sh = [-4, -16]; P.head = [-6, -19]; setLegs([4, 0, 3, -4, -3, 0, -1, -4]); P.hand = [3, -19]; P.hand2 = [-9, -20]; P.tip = null;
+    return P;
+  }
   switch (p.s) {
     case ST.IDLE:
       if (!p.gnd) {
@@ -1782,34 +2000,43 @@ function pose(p, T, now) {
         if (p.vy < -1) setLegs([3, -4, 4, -8, -3, -2, -1, -7]); else setLegs([4, -1, 4, -6, -4, -3, -2, -7]);
         P.hand2 = [-4, -21];
       } else if (p.cr) {
-        P.kind = 'crouch'; P.hip = [-1, -6]; P.sh = [2, -13]; P.head = [4, -16]; P.hand2 = [-1, -8];
-        const fr = sp > 0.3 ? CRAWLF[Math.floor(Math.abs(p.x) / 6) % 4] : CRAWLF[0]; setLegs(fr);
+        // crouched: clearly lower, the sword tucked back along the body (it neither blocks nor cuts)
+        P.kind = 'crouch'; P.hip = [-1, -6]; P.sh = [2, -12]; P.head = [4, -15]; P.hand2 = [5, -7];
+        const fr = sp > 0.3 ? CRAWLF[Math.floor(Math.abs(p.x) / 5) % 4] : CRAWLF[0]; setLegs(fr);
+        if (p.arm) { P.hand = [1, -8]; P.tip = [-11, -5]; }
       } else if (sp > 0.6) {
-        P.kind = 'run'; const fr = RUNF[Math.floor(Math.abs(p.x) / (sp > 3 ? 9 : 6)) % 6];
-        if (p.bk) setLegs([...RUNF[5 - Math.floor(Math.abs(p.x) / 6) % 6]]); else setLegs(fr);
-        if (sp > 3 && !p.bk) { P.sh[0] += 1; P.head[0] += 2; P.hand2 = [-5, -16]; }
+        P.kind = 'run'; setLegs(RUNF[Math.floor(Math.abs(p.x) / (sp > 2.5 ? 8 : 5)) % 6]);
+        if (sp > 2.5) { P.sh[0] += 1; P.head[0] += 1; P.hand2 = [-5, -15]; }
       } else {
-        P.sh[1] += idleBob; P.head[1] += idleBob; P.hip[1] += 0;
-        if (p.hT < 5 && p.arm) { P.hand2 = [-5, -22]; P.tilt = 1; } // a quick change of guard: the parry flick
+        P.sh[1] += idleBob; P.head[1] += idleBob;
+        if (p.hT < 5 && p.arm) P.hand2 = [-5, -21];   // a quick change of guard
       }
       break;
     case ST.THRUST: setLegs([6, 0, 4, -6, -5, 0, -3, -5]); P.sh[0] += 2; P.head[0] += 2; P.hand2 = [-6, -16]; break;
     case ST.LUNGE: {
-      const ext = p.t >= T.luA0 && p.t <= T.luA1 + 2;
+      const ext = p.t >= T.luA0 - 1 && p.t <= T.luA1 + 2;
       if (ext) { setLegs([9, 0, 7, -5, -8, 0, -5, -4]); P.hip = [0, -9]; P.sh = [3, -17]; P.head = [5, -21]; P.hand2 = [-8, -14]; }
       else setLegs([6, 0, 4, -6, -6, 0, -4, -5]);
       break;
     }
     case ST.RECOIL: case ST.STAG: {
       setLegs([3, 0, 2, -6, -6, 0, -4, -5]); P.sh[0] -= 2; P.head[0] -= 3; P.hand2 = [-6, -19];
-      if (p.s === ST.STAG && p.arm) { P.hand = [-2, -27]; P.tip = [-8, -38]; }
+      if (p.s === ST.STAG && p.arm) { P.hand = [-2, -25]; P.tip = [-8, -36]; }
       break;
     }
-    case ST.DISARM: setLegs([2, 0, 2, -6, -6, 0, -4, -5]); P.sh[0] -= 2; P.head[0] -= 3; P.hand = [3, -27]; P.hand2 = [-5, -26]; P.tip = null; break;
+    case ST.DISARM: setLegs([2, 0, 2, -6, -6, 0, -4, -5]); P.sh[0] -= 2; P.head[0] -= 3; P.hand = [3, -25]; P.hand2 = [-5, -24]; P.tip = null; break;
     case ST.KD: P.kind = 'down'; break;
     case ST.GETUP: case ST.LAND: P.hip = [0, -7]; P.sh = [2, -15]; P.head = [3, -19]; setLegs([5, 0, 5, -5, -4, 0, -4, -4]); P.hand2 = [-3, -9]; break;
-    case ST.PUNCH: { const ext = p.t >= T.puA0 && p.t <= T.puA1 + 2; setLegs([6, 0, 4, -6, -5, 0, -3, -5]); P.hand = ext ? [14, -18] : [5, -18]; P.hand2 = [-3, -17]; P.sh[0] += ext ? 2 : 0; P.head[0] += ext ? 2 : 0; P.fist = 1; break; }
-    case ST.SWEEP: { P.kind = 'sweep'; const f2 = Math.floor(p.t / 4) % 2; P.hip = [-2, -4]; P.sh = [-6, -10]; P.head = [-8, -13]; P.fF = [f2 ? 11 : 9, -1]; P.kF = [5, -3]; P.fB = [-1, 0]; P.kB = [-2, -4]; P.hand = [-9, -1]; P.hand2 = [-6, -1]; P.tip = null; break; }
+    case ST.PUNCH: { const ext = p.t >= T.puA0 && p.t <= T.puA1 + 2; setLegs([6, 0, 4, -6, -5, 0, -3, -5]); P.hand = ext ? [13, -17] : [5, -17]; P.hand2 = [-3, -16]; P.sh[0] += ext ? 2 : 0; P.head[0] += ext ? 2 : 0; P.fist = 1; break; }
+    case ST.SWEEP: {
+      // the sliding kick: drop back onto one hand (wind-up), slide in feet first along the floor, get up
+      P.kind = 'kick';
+      if (p.t < T.swA0) { P.hip = [-2, -5]; P.sh = [-5, -11]; P.head = [-7, -14]; P.kF = [2, -8]; P.fF = [5, -4]; P.kB = [-1, -4]; P.fB = [-2, 0]; P.hand2 = [-8, -1]; }
+      else if (p.t <= T.swA1 + 2) { P.hip = [-2, -4]; P.sh = [-8, -7]; P.head = [-11, -9]; P.kF = [5, -3]; P.fF = [12, -1]; P.kB = [0, -6]; P.fB = [-2, -1]; P.hand2 = [-10, -1]; }
+      else { P.hip = [-1, -6]; P.sh = [-1, -13]; P.head = [0, -16]; setLegs([5, 0, 4, -4, -4, 0, -3, -4]); P.hand2 = [-5, -1]; }
+      P.hand = p.arm ? [P.sh[0] + 2, P.sh[1] + 4] : null; P.tip = p.arm ? [P.hand[0] - 12, P.hand[1] + 3] : null;
+      break;
+    }
     case ST.DIVE: { P.kind = 'dive'; P.hip = [-1, -10]; P.sh = [-4, -18]; P.head = [-5, -22]; P.fF = [8, -1]; P.kF = [4, -5]; P.fB = [-3, -6]; P.kB = [1, -9]; P.hand2 = [-8, -21]; if (p.arm) { P.hand = [3, -15]; P.tip = [15, -15]; } else P.hand = [-2, -22]; break; }
     case ST.THROW: setLegs([6, 0, 4, -6, -5, 0, -3, -5]); P.hand = [9, -22]; P.tip = null; P.hand2 = [-5, -16]; P.sh[0] += 2; P.head[0] += 2; break;
     case ST.FIN: {
@@ -1822,39 +2049,43 @@ function pose(p, T, now) {
     case ST.CLIMB: P.kind = 'climb'; break;
   }
   // a raised sword ready to throw: up over the head, point back
-  if (p.arm && p.h === 3 && p.s === ST.IDLE) { P.hand = [1, -30]; P.tip = [-9, -38]; P.hand2 = [-3, -20]; }
+  if (p.arm && p.h === 3 && p.s === ST.IDLE && !p.cr) { P.hand = [1, -29]; P.tip = [-9, -37]; P.hand2 = [-3, -20]; }
   return P;
 }
-// Pixel drawing helpers on the sprite canvas (origin at the feet, ox/oy; f flips x)
+// Draw a fencer into the sprite canvas (origin at the feet, ox/oy; f flips x)
 function sprite(G, p, team, now, flashWhite) {
-  const T = G.T, x = R.sx, f = p.f, ox = 56, oy = 72;
+  const T = G.T, x = R.sx, f = p.f, ox = 56, oy = 69;   // feet on the row just above the floor line
   x.clearRect(0, 0, 112, 96);
-  const dot = (a, b, c, s) => { x.fillStyle = c; x.fillRect(ox + Math.round(a * f) - (f < 0 && s > 1 ? s - 1 : 0), oy + Math.round(b), s || 1, s || 1); };
+  const col = flashWhite ? '#ffffff' : team.c, steel = flashWhite ? '#ffffff' : BLADE;
+  // a square of s pixels centred on (a, b), mirrored exactly when facing left
+  const dot = (a, b, c, s) => { s = s || 1; const k = (s - 1) >> 1; const fx = Math.round(a) - k; x.fillStyle = c; x.fillRect(ox + (f < 0 ? -fx - s + 1 : fx), oy + Math.round(b) - k, s, s); };
   const line = (a, b, c, th) => {
     let x0 = Math.round(a[0]), y0 = Math.round(a[1]); const x1 = Math.round(b[0]), y1 = Math.round(b[1]);
     const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1; let err = dx + dy, n = 0;
     for (;;) { dot(x0, y0, c, th); if (x0 === x1 && y0 === y1 || n++ > 200) break; const e2 = 2 * err; if (e2 >= dy) { err += dy; x0 += sx; } if (e2 <= dx) { err += dx; y0 += sy; } }
   };
+  const block = (a, b, w, h, c) => { for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) dot(a + xx, b + yy, c, 1); };
   const P = pose(p, T, now);
-  const col = c => flashWhite ? '#ffffff' : c;
-  const sc = p.i === 0 ? 0 : 1;
+  const blade = (hand, tip) => {
+    line([hand[0] + (tip[0] >= hand[0] ? 1 : -1), hand[1]], tip, steel, 1);
+    const horiz = Math.abs(tip[0] - hand[0]) >= Math.abs(tip[1] - hand[1]), gx = hand[0] + (tip[0] >= hand[0] ? 1 : -1);
+    if (horiz) { dot(gx, hand[1] - 1, steel, 1); dot(gx, hand[1] + 1, steel, 1); } else { dot(hand[0] - 1, hand[1] + 1, steel, 1); dot(hand[0] + 1, hand[1] + 1, steel, 1); }
+  };
   if (P.kind === 'down') {
-    // lying on the back, dazed
-    line([-12, -2], [2, -2], col(team.d), 3); line([2, -1], [12, -1], col(LEG), 2); dot(12, -2, col(INK), 2);
-    line([-14, -4], [-10, -4], col(team.l), 1); for (let i = 0; i < 4; i++) dot(-15 + i, -3 - (i % 2), col(team.l), 2);
-    dot(-15, -5, col(team.c), 1); line([-4, -3], [-8, -6 - (Math.floor(now / 200) % 2)], col(team.m), 1);
-    for (let i = 0; i < 3; i++) { const a = now * 0.006 + i * 2.1; dot(-13 + Math.round(Math.cos(a) * 5), -9 + Math.round(Math.sin(a) * 2), '#ffffff', 1); }
+    // flat on the back: legs, body and head in a line along the floor, a few stars while dazed
+    block(-14, -4, 4, 4, col); line([-9, -2], [3, -2], col, 3); line([4, -1], [13, -1], col, 2);
+    line([-4, -3], [-7, -7 - (Math.floor(now / 220) % 2)], col, 1);
+    if (p.arm && p.h <= 2) line([-2, -5], [-14, -5], steel, 1);
+    for (let i = 0; i < 3; i++) { const a = now * 0.006 + i * 2.1; dot(-12 + Math.round(Math.cos(a) * 5), -9 + Math.round(Math.sin(a) * 2), '#ffffff', 1); }
     return P;
   }
   if (P.kind === 'roll') {
-    // a tumbling bundle in four frames; the sword stays at its height so you can read it
-    const fr = Math.floor(p.t / 3) % 4, cx = 0, cy = -7;
-    for (let yy = -5; yy <= 5; yy++) for (let xx = -5; xx <= 5; xx++) if (xx * xx + yy * yy <= 26) dot(cx + xx, cy + yy, col(team.d), 1);
-    const hp = [[4, -4], [4, 4], [-4, 4], [-4, -4]][fr];
-    dot(cx + hp[0] - 1, cy + hp[1] - 1, col(team.l), 3); dot(cx + hp[0], cy + hp[1], col(INK), 1);
-    const kp = [[-4, 3], [-4, -4], [4, -4], [4, 3]][fr]; dot(cx + kp[0] - 1, cy + kp[1] - 1, col(LEG), 2);
-    line([cx - hp[0], cy - hp[1]], [cx - hp[0] * 1.8, cy - hp[1] * 1.8], col(team.c), 1);
-    if (p.arm && p.h <= 2) { const by = -Math.round(C.BAND[p.h] / 2); line([3, Math.min(-2, by)], [11, Math.min(-2, by)], col(STEEL), 1); dot(2, Math.min(-2, by) - 1, col(team.c), 1); dot(2, Math.min(-2, by) + 1, col(team.c), 1); }
+    // a tumbling ball with a notch that turns; the sword stays at its height so you can read it
+    const fr = Math.floor(p.t / 3) % 4, cy = -6;
+    for (let yy = -5; yy <= 5; yy++) for (let xx = -5; xx <= 5; xx++) if (xx * xx + yy * yy <= 27) dot(xx, cy + yy, col, 1);
+    const hp = [[3, -4], [4, 3], [-3, 4], [-4, -3]][fr];
+    x.clearRect(ox + (f < 0 ? -(hp[0]) - 1 : hp[0]), oy + cy + hp[1], 2, 2);
+    if (p.arm && p.h <= 2) { const by = Math.min(-2, -Math.round(C.BAND[p.h] / 2)); line([3, by], [12, by], steel, 1); }
     return P;
   }
   let shift = [0, 0];
@@ -1870,54 +2101,26 @@ function sprite(G, p, team, now, flashWhite) {
   }
   const S = (a) => [a[0] + shift[0], a[1] + shift[1]];
   const hip = S(P.hip), sh = S(P.sh), head = S(P.head);
-  // back leg and off arm
-  line(hip, S(P.kB), col(LEG), 2); line(S(P.kB), S(P.fB), col(LEG), 2); dot(S(P.fB)[0] - 1, S(P.fB)[1] - 1, col(INK), 2);
-  if (P.hand2) line(sh, S(P.hand2), col(team.d), 1);
-  // scarf, streaming back (longer and flatter at speed)
-  const spd = Math.min(1, Math.abs(p.vx) / 5), wav = Math.floor(now / 110) % 2;
-  for (let i = 1; i <= 5; i++) dot(head[0] - 2 - i * (1 + spd), head[1] + 3 + Math.round(i * (1 - spd) * 0.6) + ((i + wav) % 2), col(team.c), 1);
-  // coat: a long tapered shape from shoulders to knees, flaring back with speed
-  const fl = Math.round(spd * 3);
-  for (let yy = Math.round(sh[1]); yy <= Math.round(hip[1]) + 4; yy++) {
-    const t = (yy - sh[1]) / Math.max(1, hip[1] + 4 - sh[1]);
-    const cx = lerp(sh[0], hip[0], Math.min(1, t * 1.1));
-    const back = Math.round(2 + t * (2 + fl)), front = Math.round(2 - (t > 0.8 ? 1 : 0));
-    for (let xx = Math.round(cx) - back; xx <= Math.round(cx) + front; xx++) dot(xx, yy, col(xx === Math.round(cx) + front ? team.m : team.d), 1);
-  }
-  dot(Math.round(hip[0]) - 2, Math.round(hip[1]), col(team.c), 1); dot(Math.round(hip[0]) - 1, Math.round(hip[1]), col(team.c), 1); dot(Math.round(hip[0]), Math.round(hip[1]), col(team.c), 1);
-  // front leg
-  line(hip, S(P.kF), col(LEG), 2); line(S(P.kF), S(P.fF), col(LEG), 2); dot(S(P.fF)[0], S(P.fF)[1] - 1, col(INK), 2);
-  // helm: a rounded block with a dark visor and a lit eye slit, and a short crest
-  const hx = Math.round(head[0]), hy = Math.round(head[1]);
-  const HELM = [' LLL ', 'LLLLL', 'LLKCC', 'LLKKK', ' LLL '];
-  for (let r = 0; r < 5; r++) for (let c = 0; c < 5; c++) { const ch = HELM[r][c]; if (ch === ' ') continue; dot(hx - 2 + c, hy - 3 + r, col(ch === 'L' ? team.l : ch === 'K' ? INK : team.c), 1); }
-  if (P.crest) { dot(hx - 2, hy - 4, col(team.c), 1); dot(hx - 3, hy - 4, col(team.c), 1); dot(hx - 4, hy - 3, col(team.c), 1); }
+  // back leg, off arm, body, front leg, head
+  line(hip, S(P.kB), col, 2); line(S(P.kB), S(P.fB), col, 2);
+  if (P.hand2) line([sh[0], sh[1] + 1], S(P.hand2), col, 2);
+  line([sh[0], sh[1]], [hip[0], hip[1] - 1], col, 4);
+  line(hip, S(P.kF), col, 2); line(S(P.kF), S(P.fF), col, 2);
+  block(Math.round(head[0]) - 2, Math.round(head[1]) - 2, 5, 5, col);
   // sword arm and blade
   if (P.hand) {
     const hand = S(P.hand);
-    line([sh[0] + 1, sh[1] + 1], hand, col(team.m), 1);
-    dot(hand[0], hand[1], col(INK), 1);
-    if (P.fist) dot(hand[0] - (1), hand[1] - 1, col(team.l), 2);
-    if (P.tip && p.arm) {
-      const tip = S(P.tip);
-      line([hand[0] + 1, hand[1]], tip, col(STEEL), 1);
-      const vx = tip[0] - hand[0], vy = tip[1] - hand[1], horiz = Math.abs(vx) >= Math.abs(vy);
-      if (horiz) { dot(hand[0] + 1, hand[1] - 1, col(team.c), 1); dot(hand[0] + 1, hand[1] + 1, col(team.c), 1); }
-      else { dot(hand[0] - 1, hand[1] + 1, col(team.c), 1); dot(hand[0] + 1, hand[1] + 1, col(team.c), 1); }
-      dot(tip[0], tip[1], col(p.hT < 10 ? '#ffffff' : STEEL), 1);
-      if ((p.s === ST.THRUST || p.s === ST.LUNGE) && C.reach(p, T) > T.guard + 4) line([hand[0] - 2, hand[1] - 1], [hand[0] - 6, hand[1] - 1], col(team.l), 1);
-    }
+    line([sh[0] + 1, sh[1] + 1], hand, col, 2);
+    if (P.fist) dot(hand[0], hand[1], col, 2);
+    if (P.tip && p.arm) blade(hand, S(P.tip));
   }
   return P;
 }
-// Draw a fencer on the main canvas at its world position, with a 1-pixel ink outline.
+// Draw a fencer on the main canvas at its world position.
 function drawFencer(x, G, p, team, now, alpha, ox, oy, white) {
   sprite(G, p, team, now, white);
-  const lx = R.lx; lx.clearRect(0, 0, 112, 96); lx.globalCompositeOperation = 'source-over'; lx.drawImage(R.spr, 0, 0);
-  lx.globalCompositeOperation = 'source-in'; lx.fillStyle = INK; lx.fillRect(0, 0, 112, 96); lx.globalCompositeOperation = 'source-over';
-  const sx = Math.round((p.x + (ox || 0)) / 2 - R.camPx) - 56, sy = Math.round((p.y + (oy || 0)) / 2) - 72;
+  const sx = Math.round((p.x + (ox || 0)) / 2 - R.camPx) - 56, sy = Math.round((p.y + (oy || 0)) / 2) - 71;
   x.globalAlpha = alpha;
-  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) x.drawImage(R.sil, sx + dx, sy + dy);
   x.drawImage(R.spr, sx, sy);
   x.globalAlpha = 1;
 }
@@ -1965,13 +2168,19 @@ function render(G, now, dt) {
   R.camPx = Math.round((R.camX - R.viewW / 2) / 2) - shx;
   const cam = R.camPx;
   // sky, far and middle layers
-  if (R.skyKey !== key + iw) { R.sky = buildSky(key, iw); R.skyKey = key + iw; }
-  if (R.layKey !== key) { R.lay = [buildLayer(key, 0), buildLayer(key, 1)]; R.layKey = key; }
-  x.drawImage(R.sky, 0, 0);
-  for (let d = 0; d < 2; d++) {
-    const f = d === 0 ? 0.12 : 0.35, o = (((Math.round(cam * f)) % 512) + 512) % 512;
-    for (let xx = -o; xx < iw; xx += 512) x.drawImage(R.lay[d], xx, shy + (d ? 0 : 0));
-  }
+  // (each stage has its own tint; when the view moves to another stage the new one fades in over 0.4 s)
+  if (R.skyKey !== key + iw) { R.bd = {}; R.skyKey = key + iw; R.bdTi = -1; }
+  const rc = clamp(Math.floor((cam + iw / 2) / PW), 0, w.N - 1), ti = w.tplOf[rc][0];
+  const back = t => R.bd[t] || (R.bd[t] = {sky: buildSky(key, iw, t), lay: [buildLayer(key, 0, t), buildLayer(key, 1, t)]});
+  if (ti !== R.bdTi) { R.bdPrev = R.bdTi; R.bdTi = ti; R.bdAt = R.bdPrev < 0 ? -1e9 : now; }
+  const drawBack = (t, a) => {
+    const b = back(t); x.globalAlpha = a; x.drawImage(b.sky, 0, 0);
+    for (let d = 0; d < 2; d++) { const f = d === 0 ? 0.12 : 0.35, o = (((Math.round(cam * f)) % 512) + 512) % 512; for (let xx = -o; xx < iw; xx += 512) x.drawImage(b.lay[d], xx, shy); }
+    x.globalAlpha = 1;
+  };
+  const fade = clamp((now - R.bdAt) / 400, 0, 1);
+  if (fade < 1 && R.bdPrev >= 0) drawBack(R.bdPrev, 1);
+  drawBack(ti, fade < 1 ? fade : 1);
   x.save(); x.translate(0, shy);
   // rooms in view, then their paint
   stepPaint(w);
@@ -2053,11 +2262,8 @@ function fallScene(G, now, dt) {
   sprite(G, q, team, now, false);
   // drawn at double size: this is the close-up
   const cx = Math.round(iw / 2 + Math.sin(t * 2.2) * 10), cy = Math.round(PH * 0.45 + Math.sin(t * 3.1) * 4);
-  for (let i = 0; i < 7; i++) rect(x, team.c, cx - 2 + ((i + fr) % 2) * 2, cy - 34 - i * 5, 4, 4);   // scarf streaming upward
-  const lx = R.lx; lx.clearRect(0, 0, 112, 96); lx.drawImage(R.spr, 0, 0); lx.globalCompositeOperation = 'source-in'; lx.fillStyle = INK; lx.fillRect(0, 0, 112, 96); lx.globalCompositeOperation = 'source-over';
   x.save(); x.translate(cx, cy); x.rotate(Math.floor(fr / 2) * Math.PI / 2);
-  for (const [dx, dy] of [[2, 0], [-2, 0], [0, 2], [0, -2]]) x.drawImage(R.sil, -112 + 24 + dx, -144 + 24 + dy, 224, 192);
-  x.drawImage(R.spr, -112 + 24, -144 + 24, 224, 192); x.restore();
+  x.drawImage(R.spr, -112 + 24, -142 + 24, 224, 192); x.restore();
   // the banner and the prompt
   if (t > 2.2) {
     if (!F.banner) { F.banner = 1; F.bannerAt = now; Snd.play('win'); R.flash = 0.5; R.flashC = team.l; if (F.onBanner) F.onBanner(); }
@@ -2067,29 +2273,36 @@ function fallScene(G, now, dt) {
     x.globalAlpha = a; rect(x, INK, 0, yb - 6, iw, 7 * s1 + 7 * 3 + 20); x.globalAlpha = 1;
     rect(x, team.c, 0, yb - 7, iw, 1); rect(x, team.c, 0, yb + 7 * s1 + 7 * 3 + 14, iw, 1);
     text(x, name, iw / 2, yb, team.c, s1, 1, INK);
-    text(x, 'WINS', iw / 2, yb + 7 * s1 + 6, '#ffffff', 3, 1, team.m);
+    text(x, F.name === 'You' ? 'WIN' : 'WINS', iw / 2, yb + 7 * s1 + 6, '#ffffff', 3, 1, team.m);
     if (Math.floor((now - F.bannerAt) / 450) % 2 === 0) text(x, R.fall.prompt || 'NEXT GAME', iw / 2, yb + 7 * s1 + 7 * 3 + 20, '#ffffff', 1, 1, INK);
   }
   if (R.flash > 0) { x.globalAlpha = Math.min(0.6, R.flash); x.fillStyle = R.flashC; x.fillRect(0, 0, iw, PH); x.globalAlpha = 1; R.flash = Math.max(0, R.flash - dt * 4); }
 }
 
 function hud(G, now, dt) {
-  const x = R.ctx, S = G.S, iw = R.iw, N = S.N;
-  // the line of rooms: small boxes, the drops at each end in the colour of who wins there
-  const bw = iw < 240 ? 8 : 12, gap = 3, lw = N * bw + (N - 1) * gap, lx = Math.round((iw - lw) / 2), ly = iw < 240 ? 22 : 5, c = (N - 1) / 2;
+  const x = R.ctx, S = G.S, iw = R.iw, N = S.N, prac = G.mode === 'practice';
+  // The stages: one block each. The two pit stages at the ends are in the colour of the fencer who wins there (Tide's
+  // at the right end, Bloom's at the left), with a notch for the pit; stages the runner has cleared take their colour;
+  // the one you're on is lit white.
+  const bw = iw < 240 ? (N > 5 ? 9 : 12) : (N > 5 ? 14 : 18), gap = 2, lw = N * bw + (N - 1) * gap, lx = Math.round((iw - lw) / 2), ly = iw < 240 ? 23 : 5, c = (N - 1) / 2;
+  rect(x, INK, lx - 2, ly - 2, lw + 4, 10);
   for (let i = 0; i < N; i++) {
-    const bx = lx + i * (bw + gap), here = i === S.room;
-    rect(x, INK, bx - 1, ly - 1, bw + 2, 7);
-    const runC = S.adv >= 0 ? TEAM[S.adv].c : '#ffffff';
-    rect(x, here ? runC : i === c ? '#6a6480' : '#3a3450', bx, ly, bw, 5);
-    if (S.adv >= 0 && ((S.adv === 0 && i > c && i < S.room) || (S.adv === 1 && i < c && i > S.room))) rect(x, TEAM[S.adv].d, bx, ly, bw, 5);
-    if (here) rect(x, '#ffffff', bx + (bw >> 1) - 1, ly + 1, 2, 3);
+    const bx = lx + i * (bw + gap), here = i === S.room, pitOf = i === N - 1 ? 0 : i === 0 ? 1 : -1;
+    const cleared = S.adv >= 0 && ((S.adv === 0 && i > c && i < S.room) || (S.adv === 1 && i < c && i > S.room));
+    let fill = i === c ? '#4a4462' : '#2c2640';
+    if (pitOf >= 0) fill = TEAM[pitOf].d;
+    if (cleared) fill = TEAM[S.adv].m;
+    rect(x, fill, bx, ly, bw, 6);
+    if (pitOf >= 0) { rect(x, TEAM[pitOf].c, bx + (bw >> 1) - 2, ly + 3, 4, 3); rect(x, TEAM[pitOf].c, bx + (bw >> 1) - 1, ly + 6, 2, 1); }
+    if (here) { rect(x, '#ffffff', bx, ly, bw, 6); rect(x, S.adv >= 0 && !prac ? TEAM[S.adv].c : '#ffffff', bx, ly + 6, bw, 2); if (pitOf >= 0) rect(x, TEAM[pitOf].c, bx + (bw >> 1) - 2, ly + 3, 4, 3); }
   }
-  for (const [ti, ex] of [[1, lx - 6], [0, lx + lw + 2]]) { const col = TEAM[ti].c; rect(x, INK, ex - 1, ly - 1, 6, 7); for (let k = 0; k < 3; k++) rect(x, col, ex + k, ly + k, 4 - 2 * k, 1); rect(x, col, ex + 1, ly + 3, 2, 2); }
+  // which way each end belongs: a little arrow in the owner's colour beside it
+  for (const [ti, ex, d] of [[1, lx - 7, -1], [0, lx + lw + 3, 1]]) { const col = TEAM[ti].c; for (let k = 0; k < 3; k++) rect(x, col, d > 0 ? ex + k : ex + 3 - k, ly + k, 1, 6 - 2 * k); }
+  if (prac) { text(x, 'PRACTICE', 4, 4, '#e8e4f4', 1, 0, INK); }
   // names and touches
-  for (let i = 0; i < 2; i++) {
+  else for (let i = 0; i < 2; i++) {
     const p = S.p[i]; let nm = (G.names[i] || TEAM[i].name);
-    const maxCh = Math.max(4, Math.floor((iw * (iw < 240 ? 0.48 : 0.36)) / 6));
+    const maxCh = Math.max(4, Math.floor((iw * (iw < 240 ? 0.48 : 0.3)) / 6));
     if (nm.length > maxCh) nm = nm.slice(0, maxCh - 1) + '.';
     const xx = i === 0 ? 4 : iw - 4, al = i === 0 ? 0 : 2;
     text(x, nm, xx, 4, TEAM[i].c, 1, al, INK);
@@ -2136,6 +2349,10 @@ const FIREBASE_CONFIG = {
 };
 const FIREBASE_SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
 const PREFIX = 'gd', LIVE_MS = 10000, PUB_ROOMS = 6;
+// The simulation's version. Both players must run the same one (a page cached from before a change to the rules would
+// fall out of step), so it rides in every player node as `v` and the lobby only seats players with the same number.
+// Pages from before this check have no `v` and count as version 1. Bump it whenever core.js changes how a match plays.
+const NETV = 2;
 const store = {
   get(k, d) { try { const v = localStorage.getItem('lungeline:' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem('lungeline:' + k, JSON.stringify(v)); } catch (e) {} }
@@ -2145,6 +2362,15 @@ function cleanName(s) { s = String(s == null ? '' : s).replace(/[<>\u0000-\u001f
 function loadName() { try { const v = localStorage.getItem(NAME_KEY); if (v != null) return cleanName(v.charAt(0) === '"' ? JSON.parse(v) : v); } catch (e) {} return ''; }
 let myName = loadName();
 function saveName() { myName = cleanName($('name').value); try { localStorage.setItem(NAME_KEY, myName); } catch (e) {} }
+// Bot levels: Easy (the default), Normal, Hard, Expert. Saved under `lungeline:bot`; an older saved `lungeline:diff`
+// (easy / normal / hard, from when there were three) maps to the same strength where there is one: easy -> normal,
+// hard -> expert, and normal -> normal (a step easier than it was, on purpose).
+const LEVELS = ['easy', 'normal', 'hard', 'expert'], OLD_LV = {easy: 'normal', normal: 'normal', hard: 'expert'};
+function botLevel() {
+  let v = store.get('bot', null);
+  if (LEVELS.indexOf(v) < 0) { const old = store.get('diff', null); v = OLD_LV[old] || 'easy'; }
+  return v;
+}
 const BOT_NAMES = ['Sable', 'Quill', 'Rook', 'Juniper', 'Vesper', 'Marlowe', 'Cobalt', 'Wren', 'Ashby', 'Lark', 'Pell', 'Fennick'];
 
 // ---------------------------------------------------------------------
@@ -2255,21 +2481,22 @@ const G = {mode: null, S: null, w: null, T: null, names: ['Tide', 'Bloom'], ctrl
   fxKeys: new Set(), fxOrder: [], finalKills: [], winner: -1, stk: 0, best: 0, musicT: 0, raf: 0, lastCd: -1};
 function optsFromMenu() {
   const a = store.get('arena', -1);
-  return {arena: a < 0 ? Math.floor(Math.random() * C.ARENAS.length) : a, N: store.get('len', 7) === 5 ? 5 : 7,
+  const n = store.get('len', 5);
+  return {arena: a < 0 ? Math.floor(Math.random() * C.ARENAS.length) : a, N: n === 3 || n === 7 ? n : 5,
     thr: $('oThr').checked ? 1 : 0, lowg: $('oLowg').checked ? 1 : 0, bounce: $('oBounce').checked ? 1 : 0, turbo: $('oTurbo').checked ? 1 : 0};
 }
 // Quick match rooms always use the standard rules on a random arena, so strangers aren't surprised by variants.
-function stdCfg() { return {arena: Math.floor(Math.random() * C.ARENAS.length), N: 7, thr: 1, lowg: 0, bounce: 0, turbo: 0}; }
+function stdCfg() { return {arena: Math.floor(Math.random() * C.ARENAS.length), N: 5, thr: 1, lowg: 0, bounce: 0, turbo: 0}; }
 // The match settings travel as 7 numbers; the 4th (it was "hazards") is always 0 now.
 function cfgStr(c) { return [c.arena, c.N, c.thr, 0, c.lowg, c.bounce, c.turbo].join(','); }
 function parseCfg(s) {
   const a = String(s || '').split(',').map(v => v | 0);
-  return {arena: clamp(a[0] || 0, 0, C.ARENAS.length - 1), N: a[1] === 5 ? 5 : 7, thr: a[2] ? 1 : 0, lowg: a[4] ? 1 : 0, bounce: a[5] ? 1 : 0, turbo: a[6] ? 1 : 0};
+  return {arena: clamp(a[0] || 0, 0, C.ARENAS.length - 1), N: a[1] === 3 || a[1] === 5 ? a[1] : 7, thr: a[2] ? 1 : 0, lowg: a[4] ? 1 : 0, bounce: a[5] ? 1 : 0, turbo: a[6] ? 1 : 0};
 }
 function cfgText(c) {
   const v = [];
   if (!c.thr) v.push('no throwing'); if (c.lowg) v.push('low gravity'); if (c.bounce) v.push('bouncing throws'); if (c.turbo) v.push('turbo');
-  return C.ARENAS[c.arena].name + ' · ' + c.N + ' rooms' + (v.length ? ' · ' + v.join(', ') : '');
+  return C.ARENAS[c.arena].name + ' · ' + c.N + ' stages' + (v.length ? ' · ' + v.join(', ') : '');
 }
 
 function begin(cfg, o) {
@@ -2284,7 +2511,7 @@ function begin(cfg, o) {
   clearTaps(); keysDown.clear();
   show('game'); layout();
   Snd.init(); Snd.startMusic(cfg.arena);
-  banner(C.ARENAS[cfg.arena].name, C.ARENAS[cfg.arena].tag, '#ffffff', 1.7);
+  if (o.mode === 'practice') banner('PRACTICE', C.ARENAS[cfg.arena].name, '#ffffff', 1.4); else banner(C.ARENAS[cfg.arena].name, C.ARENAS[cfg.arena].tag, '#ffffff', 1.7);
   if (!G.raf) G.raf = requestAnimationFrame(frame);
 }
 function stopGame() {
@@ -2321,10 +2548,12 @@ function countdownTick(cd) {
 }
 function tickOffline() {
   const S = G.S;
-  if (G.lastCd !== 0) { G.lastCd = 0; banner('DUEL!', '', '#fff', 0.6, true); Snd.play('go'); }
-  const ins = [0, 1].map(i => G.bots[i] ? C.botInput(S, G.w, i, G.bots[i]) : seatInput(G.ctrl[i]));
+  if (G.lastCd !== 0) { G.lastCd = 0; if (G.mode !== 'practice') { banner('DUEL!', '', '#fff', 0.6, true); Snd.play('go'); } }
+  const ins = [0, 1].map(i => G.bots[i] ? C.botInput(S, G.w, i, G.bots[i]) : G.mode === 'practice' && i === 1 ? dummyInput(S) : seatInput(G.ctrl[i]));
   clearTaps();
+  const h0 = S.p[0].h;
   C.step(S, G.w, ins[0], ins[1]);
+  if (G.mode === 'practice') pracTick(S, h0);
   if (S.ev.length) { effects(S.ev, S); finals(S.ev); }
 }
 
@@ -2347,11 +2576,11 @@ function effects(evs, S, settled) {
       case 'kill': {
         Snd.play('kill'); R.shake = Math.max(R.shake, 3); R.flash = 0.18; R.flashC = '#ffffff';
         // the touched fencer flashes for the hit-stop, then bursts into paint (drawing only: it never feeds back into the match)
-        if (e.how !== 'fall') R.dying.push({t: 0, e, p: Object.assign({}, S.p[e.b], {i: e.b, x: e.x, y: e.fy || e.y + 28, f: e.f || 1, s: ST.STAG, t: 0, arm: 0, h: 1, gnd: 1, cr: 0, vx: 0, vy: 0, inv: 0})});
+        if (e.how !== 'fall') R.dying.push({t: 0, e, p: Object.assign({}, S.p[e.b], {i: e.b, x: e.x, y: e.fy || e.y + 28, f: e.f || 1, s: ST.STAG, dead: 1, t: 0, arm: 0, h: 1, gnd: 1, cr: 0, vx: 0, vy: 0, inv: 0})});
         else puff(e.x, 330, 12, TEAM[e.b].c, 3, 24, 0.2, 2);
         break;
       }
-      case 'adv': if (e.a >= 0 && S.win < 0) { const n = G.names[e.a] || TEAM[e.a].name, v = n === 'You' ? ' run' : ' runs'; banner(e.a === 0 ? n + v + ' >' : '< ' + n + v, '', TEAM[e.a].c, 1.2); } break;
+      case 'adv': if (e.a >= 0 && S.win < 0 && G.mode !== 'practice') { const n = G.names[e.a] || TEAM[e.a].name, v = n === 'You' ? ' run' : ' runs'; banner(e.a === 0 ? n + v + ' >' : '< ' + n + v, '', TEAM[e.a].c, 1.2); } break;
       case 'disarm': Snd.play('disarm'); sparks(e.x, e.y, 16); R.shake = Math.max(R.shake, 2); break;
       case 'parry': Snd.play('parry'); sparks(e.x, e.y, 22); R.flash = 0.12; R.flashC = TEAM[e.a].l; R.shake = Math.max(R.shake, 2); for (let i = 0; i < 12; i++) { const a = i / 12 * 6.283; R.parts.push({x: e.x / 2, y: e.y / 2, vx: Math.cos(a) * 1.6, vy: Math.sin(a) * 1.6, l: 12, m: 12, c: '#ffffff', g: 0, s: 1}); } break;
       case 'clash': Snd.play('clash'); sparks(e.x, e.y, 12); break;
@@ -2366,7 +2595,14 @@ function effects(evs, S, settled) {
       case 'roll': Snd.play('roll'); puff(e.x, e.y - 2, 6, '#c8c2d8', 1.6, 14, 0, 1); break;
       case 'climb': Snd.play('climb'); break;
       case 'pickup': Snd.play('pickup'); break;
-      case 'room': Snd.play('room'); break;
+      case 'room': {
+        // a short banner for the new stage, counted from the runner's own end (practice: from the left)
+        Snd.play('room');
+        const a = G.mode === 'practice' ? 0 : e.a, k = a === 0 ? e.r + 1 : S.N - e.r, last = G.mode !== 'practice' && k === S.N;
+        banner(last ? 'LAST STAGE' : 'STAGE ' + k + ' OF ' + S.N, '', G.mode === 'practice' ? '#ffffff' : TEAM[a].c, 0.85);
+        break;
+      }
+      case 'crouch': if (e.a === G.me && G.mode !== 'local' && G.mode !== 'tour') Snd.play('crouch'); break;
       case 'spawn': puff(e.x, e.y - 30, 14, TEAM[e.a].c, 2.2, 22, -0.02, 1); break;
       case 'stance': if (e.a === G.me && G.mode !== 'local' && G.mode !== 'tour') Snd.play('stance'); break;
       case 'win':
@@ -2445,11 +2681,12 @@ const Net = {
     this.db.ref('.info/serverTimeOffset').on('value', s => { this.offset = s.val() || 0; });
     this.ready = true;
   },
-  base() { return {n: myName || 'Player', c: TEAM[0].c, x: 0, z: 0, h: 0, ts: Math.round(this.now()), j: this.j, rd: 0}; },
+  base() { return {n: myName || 'Player', c: TEAM[0].c, x: 0, z: 0, h: 0, ts: Math.round(this.now()), j: this.j, rd: 0, v: NETV}; },
+  // live players in a room on our version (n) and on another one (old)
   async count(room) {
-    const s = await this.db.ref('rooms/' + room + '/players').once('value'); let n = 0;
-    s.forEach(c => { const v = c.val(); if (c.key !== this.uid && v && this.now() - (+v.ts || 0) < LIVE_MS) n++; });
-    return n;
+    const s = await this.db.ref('rooms/' + room + '/players').once('value'); let n = 0, old = 0;
+    s.forEach(c => { const v = c.val(); if (c.key !== this.uid && v && this.now() - (+v.ts || 0) < LIVE_MS) { if ((+v.v || 1) === NETV) n++; else old++; } });
+    return {n, old};
   },
   async join(room, isPublic) {
     await this.init();
@@ -2481,7 +2718,7 @@ const str = (v, n) => typeof v === 'string' ? v.slice(0, n) : '';
 function onNode(uid, v) {
   if (!v || typeof v !== 'object') return;
   const prev = Net.others.get(uid);
-  const o = {n: cleanName(v.n) || 'Player', ts: +v.ts || 0, j: +v.j || +v.ts || 0, rd: v.rd ? 1 : 0, op: str(v.op, 40), m: str(v.m, 160), ma: +v.ma || 0,
+  const o = {v: +v.v || 1, n: cleanName(v.n) || 'Player', ts: +v.ts || 0, j: +v.j || +v.ts || 0, rd: v.rd ? 1 : 0, op: str(v.op, 40), m: str(v.m, 160), ma: +v.ma || 0,
     i: str(v.i, 2000), tk: +v.tk || 0, ad: +v.ad || 0, hc: str(v.hc, 60), ss: str(v.ss, 8000), fx: str(v.fx, 40), pq: +v.pq || 0, pe: str(v.pe, 80)};
   Net.others.set(uid, o);
   if (!prev && G.scene === 'lobby') toast(o.n + ' joined');
@@ -2489,6 +2726,7 @@ function onNode(uid, v) {
   if (o.pe) { const m = /^([^:]+):(\d+)$/.exec(o.pe); if (m && m[1] === Net.uid && Net.pqAt.has(+m[2])) { Net.rtt.push(performance.now() - Net.pqAt.get(+m[2])); Net.pqAt.delete(+m[2]); if (Net.rtt.length > 9) Net.rtt.shift(); } }
   // echo their ping counter straight back (in a match it rides along with the inputs instead)
   if (o.pq && (!prev || prev.pq !== o.pq) && G.mode !== 'online' && G.mode !== 'spec' && Net.refs) Net.upd({pe: uid + ':' + o.pq});
+  if (o.v !== NETV) { lobbyDirty = true; return; }   // a page on another version: never seated, watched or played
   if (G.net && G.mode === 'online' && uid === G.net.opp) onRemote(o);
   if (G.mode === 'spec' && G.spec) onSpecNode(uid, o);
   lobbyDirty = true;
@@ -2687,10 +2925,12 @@ let lobbyDirty = true, lobbyMsgT = 0;
 function nameOf(uid) { if (uid === Net.uid) return myName || 'Player'; const o = Net.others.get(uid); return o ? o.n : 'Player'; }
 function roster() {
   const a = [{uid: Net.uid, j: Net.j}];
-  for (const [k, v] of Net.others) if (Net.live(k)) a.push({uid: k, j: v.j});
+  for (const [k, v] of Net.others) if (Net.live(k) && v.v === NETV) a.push({uid: k, j: v.j});
   a.sort((x, y) => x.j - y.j || (x.uid < y.uid ? -1 : 1));
   return a;
 }
+// names of live players in the room whose page runs another version of the game
+function otherVersions() { const a = []; for (const [k, v] of Net.others) if (Net.live(k) && v.v !== NETV) a.push(v.n); return a; }
 function parseM(s) {
   const p = String(s || '').split('|');
   if (p.length < 7) return null;
@@ -2707,7 +2947,8 @@ function onlineTick() {
   if (G.mode === 'online' || (G.mode === 'spec' && G.running)) return;
   if (G.scene !== 'lobby') return;
   const r = roster(), seat = r.findIndex(x => x.uid === Net.uid), s0 = r[0], s1 = r[1];
-  if (Net.isPublic && seat >= 0 && seat < 2 && !myReady && performance.now() - (G.lobbyAt || 0) > 1500) setReady(1);
+  if (myReady && otherVersions().length) setReady(0);
+  if (Net.isPublic && seat >= 0 && seat < 2 && !myReady && !otherVersions().length && performance.now() - (G.lobbyAt || 0) > 1500) setReady(1);
   // a match in progress that we're not in: watch it
   const host = s0 && s0.uid !== Net.uid ? Net.others.get(s0.uid) : null;
   const hm = host && parseM(host.m);
@@ -2740,7 +2981,9 @@ function startOnline(m) {
   Net.upd({ma: m.id, rd: 0, i: m.id + '.0.', fx: ''});
   const o = Net.others.get(opp); if (o) onRemote(o);
 }
-function setReady(v) { myReady = v; Net.upd({rd: v}); lobbyDirty = true; }
+// Not ready while someone on an older copy of the game is in the room: their page doesn't check versions, so it could
+// start a match with us that would fall out of step.
+function setReady(v) { if (v && otherVersions().length) { renderLobby(); return; } myReady = v; Net.upd({rd: v}); lobbyDirty = true; }
 function renderLobby() {
   lobbyDirty = false;
   const r = roster(), seat = r.findIndex(x => x.uid === Net.uid);
@@ -2750,7 +2993,9 @@ function renderLobby() {
     $('seat' + i + 's').textContent = !s ? '' : (s.uid === Net.uid ? myReady : o && o.rd) ? 'Ready' : 'Not ready';
   }
   const sp = r.slice(2).map(x => nameOf(x.uid));
-  $('specs').textContent = sp.length ? 'Watching: ' + sp.join(', ') + ' (winner stays on; the loser swaps out)' : '';
+  const ov = otherVersions();
+  $('specs').textContent = (sp.length ? 'Watching: ' + sp.join(', ') + ' (winner stays on; the loser swaps out). ' : '') +
+    (ov.length ? ov.join(', ') + (ov.length > 1 ? ' have' : ' has') + ' an older copy of Lokop open, so you can’t play each other yet: they need to refresh the page.' : '');
   const cfg = seat === 0 ? optsFromMenu() : null;
   $('lbOpts').textContent = seat === 0 ? 'You’re the host: ' + cfgText(cfg) + '. Change it in the menu before you join.' : 'The Tide seat picks the arena and rules.';
   $('ready').hidden = seat < 0 || seat > 1 || Net.isPublic;
@@ -2765,7 +3010,10 @@ function renderLobby() {
 // ---------------------------------------------------------------------
 function tourEntriesUI() {
   const box = $('entries'); box.innerHTML = '';
-  const list = store.get('tour', null) || [{n: myName || 'Player 1', k: 'human'}, {n: 'Player 2', k: 'human'}, {n: BOT_NAMES[0], k: 'normal'}, {n: BOT_NAMES[1], k: 'easy'}];
+  // a list saved before there were four bot levels (no `tourv`) maps its levels the same way as the menu's
+  let list = store.get('tour', null);
+  if (list && store.get('tourv', 1) < 2) list = list.map(e => Object.assign({}, e, {k: e.k === 'human' ? 'human' : OLD_LV[e.k] || 'normal'}));
+  list = list || [{n: myName || 'Player 1', k: 'human'}, {n: 'Player 2', k: 'human'}, {n: BOT_NAMES[0], k: 'normal'}, {n: BOT_NAMES[1], k: 'easy'}];
   list.forEach(e => addEntryRow(e));
 }
 function addEntryRow(e) {
@@ -2773,7 +3021,7 @@ function addEntryRow(e) {
   const row = document.createElement('div'); row.className = 'entry';
   const inp = document.createElement('input'); inp.className = 'text'; inp.maxLength = 14; inp.value = e.n; inp.setAttribute('data-name-filter', ''); inp.setAttribute('aria-label', 'Name');
   const sel = document.createElement('select'); sel.setAttribute('aria-label', 'Player or bot');
-  for (const [v, t] of [['human', 'Person'], ['easy', 'Bot: easy'], ['normal', 'Bot: normal'], ['hard', 'Bot: hard']]) { const o = document.createElement('option'); o.value = v; o.textContent = t; if (v === e.k) o.selected = true; sel.appendChild(o); }
+  for (const [v, t] of [['human', 'Person'], ['easy', 'Bot: easy'], ['normal', 'Bot: normal'], ['hard', 'Bot: hard'], ['expert', 'Bot: expert']]) { const o = document.createElement('option'); o.value = v; o.textContent = t; if (v === e.k) o.selected = true; sel.appendChild(o); }
   const x = document.createElement('button'); x.className = 'x'; x.type = 'button'; x.textContent = '×'; x.setAttribute('aria-label', 'Remove');
   x.onclick = () => { if (box.children.length > 3) row.remove(); };
   row.append(inp, sel, x); box.appendChild(row);
@@ -2782,7 +3030,7 @@ function readEntries() { return Array.from($('entries').children).map((r, i) => 
 function startTour() {
   const list = readEntries();
   if (list.length < 3) { $('tourMsg').textContent = 'A tournament needs at least 3 players.'; return; }
-  store.set('tour', list);
+  store.set('tour', list); store.set('tourv', 2);
   const pl = list.map((e, i) => ({id: i, n: e.n, k: e.k}));
   for (let i = pl.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pl[i], pl[j]] = [pl[j], pl[i]]; }
   let size = 2; while (size < pl.length) size *= 2;
@@ -2851,6 +3099,80 @@ function playTourMatch() {
 function tourResult(w) { const T = G.tour, m = T && T.cur; if (!m || m.w) return; m.w = w === 0 ? m.a : m.b; tourAdvance(); }
 
 // ---------------------------------------------------------------------
+// Practice: alone in an arena, a list of moves that tick off as you do them, and an optional dummy
+// ---------------------------------------------------------------------
+// [id, name, keys (from the player's own bindings), touch hint]
+function pracMoves() {
+  const L = id => KB.label(id, ' / ', ' ', id === 'p1jump' ? 2 : 1), both = (a, b) => L(a) + ' or ' + L(b);
+  const atk = both('p1atk', 'p2atk'), down = both('p1down', 'p2down'), up = both('p1up', 'p2up');
+  return [
+    ['move', 'Move', L('p1left') + ' ' + L('p1right') + ' or ' + L('p2left') + ' ' + L('p2right'), '◀ ▶'],
+    ['jump', 'Jump', both('p1jump', 'p2jump'), 'jump'],
+    ['sword', 'Sword up / down', L('p1up') + ' ' + L('p1down') + ' or ' + L('p2up') + ' ' + L('p2down'), '▲ ▼'],
+    ['stab', 'Stab', atk, 'blade'],
+    ['lunge', 'Lunge', 'run, then ' + atk, 'run + blade'],
+    ['crouch', 'Crouch', 'hold ' + down, 'hold ▼'],
+    ['kick', 'Kick', 'crouch, then ' + atk, '▼ + blade'],
+    ['roll', 'Roll', down + ' while running', 'run + ▼'],
+    ['dive', 'Dive kick', atk + ' in the air', 'jump + blade'],
+    ['throw', 'Throw', up + ' past high, then ' + atk, '▲▲ + blade']
+  ];
+}
+function startPractice() {
+  saveName();
+  G.lastStart = null;
+  const cfg = Object.assign(optsFromMenu(), {prac: 1});
+  begin(cfg, {mode: 'practice', names: [myName || 'You', 'Dummy'], ctrl: ['all', null], bots: [null, null], me: 0, statSeat: -1, cdAt: performance.now()});
+  G.prac = {dummy: 0, done: {}, up: 0, down: 0, moveT: 0, hT: 1, hAt: 0, mem: null};
+  setDummy(+store.get('dummy', 0) || 0);
+  renderPrac(); layout();
+}
+// 0 off, 1 stands still (changes height every few seconds), 2 fights back slowly (the Easy bot)
+function setDummy(v) {
+  const P = G.prac, S = G.S; if (!P || !S) return;
+  P.dummy = v; store.set('dummy', v);
+  const d = S.p[1];
+  if (v === 0) { if (d.s !== ST.DEAD) puff(d.x, d.y - 20, 10, '#c8c2d8', 2, 16, 0, 1); Object.assign(d, {s: ST.DEAD, gone: 1, rt: 1e9, arm: 0, t: 0}); }
+  else if (d.s === ST.DEAD && d.rt > 1e8) { d.rt = 0; d.gone = 1; }
+  P.mem = v === 2 ? C.botMem((Math.random() * 1e9) | 0, 'easy') : null;
+  for (const b of document.querySelectorAll('#dumSeg button')) b.setAttribute('aria-pressed', +b.dataset.v === v ? 'true' : 'false');
+}
+function dummyInput(S) {
+  const P = G.prac; if (!P || !P.dummy) return 0;
+  if (P.dummy === 2) return C.botInput(S, G.w, 1, P.mem);
+  const d = S.p[1], me = S.p[0]; if (d.s === ST.DEAD) return 0;
+  let b = 0;
+  if (S.t >= P.hAt) { P.hAt = S.t + 150 + ((Math.random() * 90) | 0); let h = (Math.random() * 3) | 0; if (h === d.h) h = (h + 1) % 3; P.hT = h; }
+  if (S.t % 4 === 0 && d.h !== P.hT && d.s === ST.IDLE) b |= d.h < P.hT ? K.U : K.D;
+  // keep facing you: a one-tick press the other way turns on the spot
+  if (d.s === ST.IDLE && d.gnd && d.f * (me.x - d.x) < -4 && !(P.prevB & (K.L | K.R))) b |= me.x > d.x ? K.R : K.L;
+  P.prevB = b;
+  return b;
+}
+function pracTick(S, h0) {
+  const P = G.prac; if (!P) return;
+  const p = S.p[0], hit = id => { if (!P.done[id]) { P.done[id] = 1; renderPrac(id); Snd.play('pickup'); } };
+  if (p.s === ST.IDLE && p.gnd && !p.cr && Math.abs(p.vx) > 1.5) { if (++P.moveT > 20) hit('move'); }
+  for (const e of S.ev) {
+    if (e.a !== 0) continue;
+    if (e.k === 'jump') hit('jump');
+    else if (e.k === 'stance') { if (e.h > h0) P.up = 1; else P.down = 1; if (P.up && P.down) hit('sword'); }
+    else if (e.k === 'crouch') hit('crouch');
+    else if (e.k === 'roll') hit('roll');
+    else if (e.k === 'throw') hit('throw');
+    else if (e.k === 'atk') { if (e.s === ST.THRUST) hit('stab'); else if (e.s === ST.LUNGE) hit('lunge'); else if (e.s === ST.SWEEP) hit('kick'); else if (e.s === ST.DIVE) hit('dive'); }
+  }
+}
+function renderPrac(just) {
+  const P = G.prac, ul = $('pracList'); if (!P || !ul) return;
+  const touch = document.body.classList.contains('touch');
+  const moves = pracMoves();
+  let n = 0;
+  ul.innerHTML = moves.map(([id, name, keys, tap]) => { const d = !!P.done[id]; if (d) n++; return `<li class="${d ? 'done' : ''}${id === just ? ' just' : ''}" data-m="${id}"><i aria-hidden="true">${d ? '✓' : ''}</i><b>${name}</b><span>${(touch ? tap : keys).replace(/</g, '&lt;')}</span></li>`; }).join('');
+  $('pracCount').textContent = n === moves.length ? 'All ten done!' : n + ' of ' + moves.length + ' done';
+}
+
+// ---------------------------------------------------------------------
 // Screens and layout
 // ---------------------------------------------------------------------
 const SCREENS = ['menu', 'lobby', 'tour', 'brk', 'over', 'pause', 'help', 'game'];
@@ -2869,22 +3191,43 @@ function show(name) {
 function layout() {
   const W = innerWidth, H = innerHeight, touch = document.body.classList.contains('touch') && G.running && !G.ended && G.mode !== 'local' && !(G.mode === 'tour' && G.ctrl[0] && G.ctrl[1]) && G.mode !== 'spec';
   const side = document.body.classList.contains('touch') && W > H && G.running;
-  const upright = document.body.classList.contains('touch') && H > W && G.running;   // upright phone: the picture stays at the top   // keep the picture between the gutters on a sideways phone
+  const upright = document.body.classList.contains('touch') && H > W && G.running;   // upright phone: the picture stays at the top
+  const prac = G.mode === 'practice' && G.running;
   const tb = $('touch'); tb.hidden = !touch;
+  const pl = $('prac'), pd = $('pracDum');
+  pl.hidden = pd.hidden = !prac;
+  pl.className = pd.className = '';
   const topH = 46 + (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sat')) || 0);
   let x, y, w, h;
   const inGameTop = ['keysBtn', 'helpBtn'];
   for (const id of inGameTop) $(id).hidden = touch && G.scene === 'game';
+  // practice: the move list goes beside the picture on a computer, above it on an upright phone, and over the top
+  // between the button gutters on a phone on its side (the dummy switch then sits in the left gutter)
+  const place = (el, o) => { el.style.left = el.style.right = el.style.top = el.style.bottom = el.style.width = el.style.maxHeight = ''; for (const k in o) el.style[k] = typeof o[k] === 'number' ? o[k] + 'px' : o[k]; };
+  let ph = 0;
   if (upright && !touch) {
     w = W; h = Math.min(H - topH - 190, W * 0.95); x = 0; y = topH;
   } else if (!touch && !side) {
     w = W; h = H - topH - 4; x = 0; y = topH;
+    if (prac) {
+      const col = clamp(W * 0.2, 200, 250);
+      pl.className = pd.className = 'col';
+      place(pl, {left: 10, top: topH + 6, width: col - 20});
+      place(pd, {left: 10, top: topH + 12 + pl.offsetHeight, width: col - 20});
+      x = col; w = W - col;
+    }
   } else if (!touch) {
     const gut = clamp(W * 0.17, 118, 200); w = W - gut * 2; h = H; x = gut; y = 0;
   } else if (H > W) {
     // upright phone: the duel on top, the buttons underneath
+    if (prac) {
+      pl.className = 'strip'; pd.className = 'strip';
+      place(pl, {left: 8, right: 8, top: topH});
+      place(pd, {left: 8, right: 8, top: topH + pl.offsetHeight + 4});
+      ph = pl.offsetHeight + pd.offsetHeight + 10;
+    }
     const ctrlH = Math.min(250, Math.max(180, H * 0.3));
-    w = W; h = Math.min(H - topH - ctrlH - 10, W * 0.95); x = 0; y = topH;
+    w = W; h = Math.min(H - topH - ph - ctrlH - 10, W * 0.95); x = 0; y = topH + ph;
     const bs = Math.min(82, (W - 40) / 4 - 6);
     const tL = $('tL'), tR = $('tR');
     const by = y + h + Math.max(10, (H - y - h - bs * 2 - 10) / 2);
@@ -2897,12 +3240,18 @@ function layout() {
     const bs = Math.min(70, (gut - 26) / 2);
     Object.assign($('tL').style, {left: 'max(10px, env(safe-area-inset-left))', right: '', bottom: '18px', top: '', gridTemplateColumns: `${bs}px ${bs}px`, gridAutoRows: bs * 1.3 + 'px'});
     Object.assign($('tR').style, {right: 'max(10px, env(safe-area-inset-right))', left: '', bottom: '18px', top: '', gridTemplateColumns: `${bs}px ${bs}px`, gridAutoRows: bs + 'px'});
+    if (prac) {
+      pl.className = 'strip wide'; pd.className = 'gutter';
+      place(pl, {left: gut + 4, width: W - gut * 2 - 8, top: 4});
+      place(pd, {left: 'max(8px, env(safe-area-inset-left))', width: gut - 16, top: topH + 4});
+      y = pl.offsetHeight + 8; h = H - y;
+    }
   }
   // Fit the 180-pixel-high picture into that space, at a whole-number scale when that loses little room, so every game
   // pixel is the same size and stays crisp; up to 320 pixels wide (one room), narrower on upright phones.
   const kf = Math.min(h / 180, w / 160), ki = Math.floor(kf), k = ki >= 1 && ki / kf >= 0.8 ? ki : kf;
   const iw = Math.min(320, Math.floor(w / k)), cw = Math.round(iw * k), ch = Math.round(180 * k);
-  const cx = Math.round(x + (w - cw) / 2), cy = Math.round(upright ? y : y + (h - ch) / 2);
+  const cx = Math.round(x + (w - cw) / 2), cy = Math.round(upright || (prac && side) ? y : y + (h - ch) / 2);
   R.resize(cx, cy, cw, ch, iw);
   $('wait').style.top = (cy + ch * 0.18) + 'px';
   // the results bar goes under the picture when there's room (upright phones), else over its lower part
@@ -2924,7 +3273,7 @@ function onPauseKey() {
   if (G.scene === 'game' && !G.ended) pauseGame();
 }
 function pauseGame() {
-  if (G.mode === 'bot' || G.mode === 'local' || G.mode === 'tour') G.paused = true;
+  if (G.mode === 'bot' || G.mode === 'local' || G.mode === 'tour' || G.mode === 'practice') G.paused = true;
   $('pauseMsg').textContent = G.mode === 'online' ? 'The duel carries on while this is open.' : '';
   $('pauseKeys').innerHTML = keysTable();
   show('pause');
@@ -2938,7 +3287,7 @@ function quitMatch() {
   if (wasTour && G.tour) { showBracket(); return; }
   toMenu();
 }
-function toMenu() { if (Net.refs) Net.leave(); stopGame(); G.tour = null; G.spec = null; setWait(''); show('menu'); refreshStats(); }
+function toMenu() { if (Net.refs) Net.leave(); stopGame(); G.tour = null; G.spec = null; G.prac = null; setWait(''); show('menu'); refreshStats(); layout(); }
 function showResults() {
   G.resultShown = true;
   const S = G.S, w = G.winner;
@@ -2997,17 +3346,19 @@ function keysTable() {
     row('Move', L('p1left') + ' ' + L('p1right'), L('p2left') + ' ' + L('p2right')) +
     row('Sword up / down', L('p1up') + ' ' + L('p1down'), L('p2up') + ' ' + L('p2down')) +
     row('Jump', L('p1jump'), L('p2jump')) + row('Attack', L('p1atk'), L('p2atk')) + '</div>' +
-    '<p class="msg" style="margin-top:0">Playing alone, either set works. Gamepads: stick or d-pad, A jumps, X or B attacks, Start pauses.</p>';
+    '<p class="msg" style="margin-top:0">Playing alone, both sets work at once: move with either hand and jump or attack with the other. Gamepads: stick or d-pad, A jumps, X or B attacks, Start pauses.</p>';
 }
 function howHTML() {
   return '<ul class="rules">' +
+    '<li><b>New here?</b> Press <b>Practice</b> on the menu to try every move on your own first.</li>' +
     '<li><b>One touch wins the duel.</b> A blade kills anything it reaches: thrust, lunge, or just walk or jump into an opponent’s point.</li>' +
     '<li><b>Three sword heights.</b> Up and down move your sword between low, middle and high. Held at the same height as theirs, blades block. Move your sword across theirs and you knock it out of their hand. Switch into their thrust at the last moment for a <b>parry</b>: a white flash, and they stagger.</li>' +
-    '<li><b>Moving.</b> Tap a direction for a step, hold it to run. Attack while running lunges. Down while running rolls under a middle or high blade (a low one catches you). Duck with down and crawl. Jump over people, and push into a ledge to climb it.</li>' +
-    '<li><b>Throw.</b> Press up again at high to raise your sword, then attack to throw it. A sword held high blocks a throw; ducking or rolling dodges it.</li>' +
-    '<li><b>No sword?</b> Punch, sweep (down + attack) or dive kick (attack in the air) to knock someone down, then attack again to finish them. A low guard catches sweeps; a high guard catches dive kicks. Hold down over a dropped sword to pick it up.</li>' +
-    '<li><b>The line.</b> Win a duel and only you may run toward your end of the line (Tide runs right, Bloom runs left); the loser is back in a moment, in front of you. The boxes at the top show the rooms and who is running. The last room ends in a pit: jump in while you have the run and you win. Anyone else who falls in a pit or a gap is out until they come back.</li>' +
-    (document.body.classList.contains('touch') ? '<li><b>On a touch screen:</b> the arrows on the left move. On the right: \u25B2 and \u25BC move your sword up and down (\u25BC also ducks, rolls while running and picks up swords), the arrow jumps, and the blade attacks.</li>' : '') +
+    '<li><b>Moving.</b> You face the way you last pressed, so walking away turns your back. Tap a direction for a step, hold it to run. Attack while running lunges. Down while running rolls under a middle or high blade (a low one catches you). Jump over people, and push into a ledge to climb it.</li>' +
+    '<li><b>Going down.</b> Hold down (or press it with your sword already low) to crouch: you duck under middle and high blades and can shuffle along; let go to stand. Crouch and attack for a <b>sliding kick</b>: it knocks them flat and their sword flies off, but a sword held low stops it.</li>' +
+    '<li><b>Throw.</b> Press up again at high to raise your sword, then attack to throw it. A sword held high blocks a throw; crouching or rolling dodges it.</li>' +
+    '<li><b>No sword?</b> Punch, kick or dive kick (attack in the air) to knock someone down, then attack again to finish them. A high guard catches dive kicks. Crouch over a dropped sword to pick it up.</li>' +
+    '<li><b>The stages.</b> Win a duel and only you may run toward your end (Tide runs right, Bloom runs left); the loser is back in a moment, in front of you. The blocks at the top are the stages, with the one you’re on lit. The last stage ends in a pit: jump in while you have the run and you win. Anyone else who falls in a pit or a gap is out until they come back.</li>' +
+    (document.body.classList.contains('touch') ? '<li><b>On a touch screen:</b> the arrows on the left move. On the right: ▲ and ▼ move your sword up and down (hold ▼ to crouch; it also rolls while running and picks up swords), the arrow jumps, and the blade attacks.</li>' : '') +
     '</ul>' + keysTable();
 }
 function closeHelp() { $('help').hidden = true; if (G.running && G.scene === 'game') { show('game'); } else show(G.scene || 'menu'); }
@@ -3027,16 +3378,20 @@ function initMenu() {
   };
   const ar = $('arenaSeg');
   ar.innerHTML = '<button type="button" data-v="-1">Random</button>' + C.ARENAS.map((a, i) => `<button type="button" data-v="${i}" title="${a.tag}">${a.name}</button>`).join('');
-  segs('arenaSeg', 'arena', -1); segs('lenSeg', 'len', 7);
-  segs('diffSeg', 'diff', 'normal', v => { $('mBotSub').textContent = 'Duel a ' + v + ' bot on this device'; });
-  $('mBotSub').textContent = 'Duel a ' + store.get('diff', 'normal') + ' bot on this device';
+  segs('arenaSeg', 'arena', -1); segs('lenSeg', 'len', 5);
+  const lv0 = botLevel(); store.set('bot', lv0);
+  const botSub = () => { const v = botLevel(); $('mBotSub').textContent = (v === 'easy' || v === 'expert' ? 'Duel an ' : 'Duel a ') + v + ' bot on this device'; };
+  segs('diffSeg', 'bot', lv0, botSub);
+  botSub();
+  for (const b of document.querySelectorAll('#dumSeg button')) b.addEventListener('click', () => { setDummy(+b.dataset.v); b.blur(); });
+  $('mPrac').onclick = startPractice;
   const opt = store.get('opts', null);
   const OPTS = ['oThr', 'oLowg', 'oBounce', 'oTurbo'];
   if (opt) for (const k of OPTS) if (k in opt) $(k).checked = !!opt[k];
   for (const k of OPTS) $(k).addEventListener('change', () => { const o = {}; for (const q of OPTS) o[q] = $(q).checked ? 1 : 0; store.set('opts', o); lobbyDirty = true; });
   $('howBody').innerHTML = howHTML(); $('helpBody').innerHTML = howHTML();
   KB.onChange(() => { $('howBody').innerHTML = howHTML(); $('helpBody').innerHTML = howHTML(); });
-  $('mBot').onclick = () => { saveName(); const lv = store.get('diff', 'normal'); const bn = BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
+  $('mBot').onclick = () => { saveName(); const lv = botLevel(); const bn = BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
     G.lastStart = () => begin(optsFromMenu(), {mode: 'bot', names: [myName || 'You', bn + ' (bot)'], ctrl: ['all', null], bots: [null, lv], me: 0, statSeat: 0});
     G.lastStart(); };
   $('mLocal').onclick = () => { saveName(); if (document.body.classList.contains('touch') && !matchMedia('(any-pointer: fine)').matches) toast('Two players need a keyboard or two gamepads', 2600); G.lastStart = () => begin(optsFromMenu(), {mode: 'local', names: ['Tide', 'Bloom'], ctrl: ['p1', 'p2'], bots: [null, null], statSeat: -1}); G.lastStart(); };
@@ -3050,7 +3405,7 @@ function initMenu() {
   $('ready').onclick = () => setReady(myReady ? 0 : 1);
   $('copyInv').onclick = () => { const url = location.origin + '/#' + Net.room; const done = ok => { $('lbMsg').textContent = ok ? 'Invite link copied.' : 'Invite link: ' + url; }; try { navigator.clipboard.writeText(url).then(() => done(true), () => done(false)); } catch (e) { done(false); } };
   $('lbLeave').onclick = toMenu;
-  $('leave').onclick = () => { if (G.running && !G.ended && G.scene === 'game') { if (G.mode === 'online' || G.mode === 'spec') quitMatch(); else pauseGame(); } else if (G.scene === 'brk' || G.scene === 'tour') { G.tour = null; toMenu(); } else if (G.running) quitMatch(); else toMenu(); };
+  $('leave').onclick = () => { if (G.mode === 'practice') { toMenu(); return; } if (G.running && !G.ended && G.scene === 'game') { if (G.mode === 'online' || G.mode === 'spec') quitMatch(); else pauseGame(); } else if (G.scene === 'brk' || G.scene === 'tour') { G.tour = null; toMenu(); } else if (G.running) quitMatch(); else toMenu(); };
   $('pauseBtn').onclick = () => { if ($('pause').hidden) pauseGame(); else resume(); };
   $('resume').onclick = resume; $('pQuit').onclick = quitMatch; $('pKeys').onclick = () => KB.open(); $('keysBtn').onclick = () => KB.open();
   $('again').onclick = again; $('oMenu').onclick = () => { if (G.mode === 'tour') { G.tour = null; } toMenu(); };
@@ -3072,8 +3427,10 @@ async function joinRoom(room, isPublic) {
     if (isPublic) {
       await Net.init();
       const rooms = []; for (let i = 1; i <= PUB_ROOMS; i++) rooms.push(PREFIX + '-pub-' + i);
-      const res = await Promise.all(rooms.map(r => Net.count(r).catch(() => -1)));
-      // someone waiting alone first, then an empty room, then the room with the shortest queue
+      const cnt = await Promise.all(rooms.map(r => Net.count(r).catch(() => null)));
+      // someone waiting alone first, then an empty room, then the room with the shortest queue; rooms with someone
+      // on an older copy of the game only as a last resort
+      const res = cnt.map(c => !c ? -1 : c.old ? 100 + c.n : c.n);
       let bi = res.findIndex(n => n === 1); if (bi < 0) bi = res.findIndex(n => n === 0);
       if (bi < 0) { let bn = 1e9; res.forEach((n, i) => { if (n >= 0 && n < bn) { bn = n; bi = i; } }); }
       if (bi < 0) throw new Error(NET_BLOCKED);
@@ -3086,7 +3443,7 @@ async function joinRoom(room, isPublic) {
   $('lbRoom').textContent = isPublic ? 'Public room' : 'Room ' + room.replace(/^gd-/, '');
   show('lobby'); renderLobby();
 }
-document.addEventListener('visibilitychange', () => { if (document.hidden) { keysDown.clear(); if (G.running && (G.mode === 'bot' || G.mode === 'local' || G.mode === 'tour') && !G.ended && $('pause').hidden) pauseGame(); } });
+document.addEventListener('visibilitychange', () => { if (document.hidden) { keysDown.clear(); if (G.running && (G.mode === 'bot' || G.mode === 'local' || G.mode === 'tour' || G.mode === 'practice') && !G.ended && $('pause').hidden) pauseGame(); } });
 
 R.init(); setupTouch(); initMenu(); show('menu'); drawLogo($('logo'));
 addEventListener('touchstart', () => { $('howBody').innerHTML = howHTML(); $('helpBody').innerHTML = howHTML(); }, {once: true, passive: true});
@@ -3094,7 +3451,7 @@ addEventListener('touchstart', () => { $('howBody').innerHTML = howHTML(); $('he
 // Test hook for automated browsers only.
 if (navigator.webdriver) window.__ll = {tickOffline, ff(n, lv) { if (lv) G.bots = [0, 1].map(i => G.bots[i] || C.botMem(i + 7, lv)); G.cdUntil = 0; for (let i = 0; i < n && !G.ended; i++) tickOffline(); return G.ended; },
   autoBot(lv) { G.autoBot = lv ? C.botMem((Math.random() * 1e9) | 0, lv) : null; },
-  G, C, R, Net, KB, store, begin, sprite, TEAM, optsFromMenu, quitMatch, toMenu, roster, rttMs, startTour, playTourMatch, touchHeld, touchHit,
+  G, C, R, Net, KB, store, begin, sprite, TEAM, optsFromMenu, startPractice, setDummy, layout, NETV, botLevel, quitMatch, toMenu, roster, rttMs, startTour, playTourMatch, touchHeld, touchHit,
   stats() { const n = G.net; return n ? {cur: n.cur, known: n.known, rolls: n.rolls, rollTicks: n.rollTicks, maxRoll: n.maxRoll, desync: n.desync, resyncs: n.resyncs || 0, skew: n.skew, D: n.D, ping: n.ping, stallMs: n.stallMs, finalT: n.finalT, ghosts: n.ghosts, shifted: n.shifted, kills: G.finalKills.length} : null; }};
 })();
 </script>
