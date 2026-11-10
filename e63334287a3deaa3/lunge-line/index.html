@@ -85,6 +85,7 @@ input,select{user-select:text;-webkit-user-select:text}
 .mode b{font:400 17px/1.1 var(--f-d);text-transform:uppercase}
 .mode small{font:400 14px/1.25 var(--f-u);color:var(--ink-3)}
 .mode.hero{box-shadow:inset 0 0 0 2px var(--tide),4px 4px 0 var(--edge);background:#1f2f3c}
+.mode.span2{grid-column:span 2}
 details.how summary{cursor:pointer;font:400 15px var(--f-d);text-transform:uppercase;color:var(--ink-2);list-style:none}
 details.how summary::-webkit-details-marker{display:none}
 details.how summary::before{content:'+ '}
@@ -157,6 +158,35 @@ details.how[open] summary::before{content:'- '}
 #tL{grid-template-columns:1fr 1fr}
 #tR{grid-template-columns:1fr 1fr}
 
+/* practice: the move list (beside the picture on a computer, above it on a phone) and the dummy switch */
+#prac,#pracDum{position:absolute;z-index:5;background:rgba(14,10,24,.9);border:2px solid var(--edge);box-shadow:inset 0 0 0 2px var(--line),3px 3px 0 var(--edge);padding:8px 10px;color:var(--ink)}
+.ph{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:0 0 5px;font:400 12px var(--f-d);text-transform:uppercase;color:var(--ink)}
+.ph small{font:400 12px var(--f-u);text-transform:none;color:var(--ink-3)}
+#pracList{list-style:none;margin:0;padding:0;font:400 14px/1.2 var(--f-u)}
+#pracList li{display:grid;grid-template-columns:15px 1fr;column-gap:7px;padding:3px 0;color:var(--ink-2)}
+#pracList li i{grid-row:span 2;width:13px;height:13px;margin-top:2px;border:2px solid var(--ink-3);font:400 10px/9px var(--f-d);font-style:normal;text-align:center;color:#05211d}
+#pracList li b{font-weight:600;color:var(--ink)}
+#pracList li span{font-size:13px;color:var(--ink-3)}
+#pracList li.done i{background:var(--tide);border-color:var(--tide)}
+#pracList li.done b{color:var(--tide)}
+#pracList li.just{animation:pj .6s steps(4)}
+@keyframes pj{0%{background:rgba(46,230,201,.35)}100%{background:transparent}}
+#pracDum .seg{display:flex;flex-wrap:wrap}
+#pracDum .seg button{font-size:14px;padding:4px 8px}
+#prac.strip{padding:5px 7px}
+#prac.strip .ph{margin-bottom:3px;font-size:11px}
+#prac.strip #pracList{display:flex;flex-wrap:wrap;gap:3px 5px;font-size:12px}
+#prac.strip #pracList li{display:flex;align-items:center;gap:4px;padding:1px 5px 1px 2px;background:rgba(255,255,255,.04)}
+#prac.strip #pracList li i{margin:0;width:11px;height:11px;font-size:9px;line-height:7px}
+#prac.strip #pracList li span{font-size:11px}
+#pracDum.strip{display:flex;align-items:center;gap:8px;padding:4px 7px}
+#pracDum.strip .label,#pracDum.gutter .label{margin:0}
+#pracDum.strip .seg button{font-size:13px;padding:3px 7px}
+#pracDum.gutter{padding:6px}
+#pracDum.gutter .seg{flex-direction:column;align-items:stretch}
+#pracDum.gutter .seg button{font-size:13px;padding:4px 6px;text-align:left}
+#prac.wide #pracList li b{font-size:12px}
+
 #pause{z-index:15}
 .keys{display:grid;grid-template-columns:auto 1fr 1fr;gap:4px 12px;font:400 14px var(--f-u);color:var(--ink-2);margin:10px 0}
 .keys b{color:var(--ink);font-weight:600}
@@ -188,6 +218,11 @@ details.how[open] summary::before{content:'- '}
   <section id="game" hidden>
     <canvas id="cv" aria-label="The duel"></canvas>
     <div id="wait" hidden></div>
+    <aside id="prac" hidden aria-label="Practice moves">
+      <div class="ph"><span>Practice</span><small id="pracCount"></small></div>
+      <ul id="pracList"></ul>
+    </aside>
+    <div id="pracDum" hidden><span class="label">Dummy</span><div class="seg" id="dumSeg" role="group" aria-label="Dummy"><button type="button" data-v="0">Off</button><button type="button" data-v="1">Stands still</button><button type="button" data-v="2">Fights back slowly</button></div></div>
     <div id="touch" hidden>
       <div class="tc" id="tL">
         <button class="tb" type="button" data-b="L" aria-label="Left"><svg viewBox="0 0 10 10"><path d="M7 1 2 5l5 4z"/></svg></button>
@@ -213,12 +248,13 @@ details.how[open] summary::before{content:'- '}
       </div>
       <div class="modes">
         <button class="mode hero" id="mBot" type="button"><b>Vs bot</b><small id="mBotSub">Duel a bot on this device</small></button>
+        <button class="mode hero" id="mPrac" type="button"><b>Practice</b><small>On your own: try every move</small></button>
         <button class="mode" id="mQuick" type="button"><b>Quick match</b><small>Online 1v1 in a public room</small></button>
         <button class="mode" id="mLocal" type="button"><b>Local 2 players</b><small>Two on one keyboard (or two gamepads)</small></button>
-        <button class="mode" id="mTour" type="button"><b>Tournament</b><small>3 to 8 players, knockout bracket</small></button>
+        <button class="mode span2" id="mTour" type="button"><b>Tournament</b><small>3 to 8 players, knockout bracket</small></button>
       </div>
       <div class="row" style="margin-top:10px"><span class="label" style="margin:0">Bot</span>
-        <div class="seg" id="diffSeg" role="group" aria-label="Bot level"><button type="button" data-v="easy">Easy</button><button type="button" data-v="normal">Normal</button><button type="button" data-v="hard">Hard</button></div>
+        <div class="seg" id="diffSeg" role="group" aria-label="Bot level"><button type="button" data-v="easy">Easy</button><button type="button" data-v="normal">Normal</button><button type="button" data-v="hard">Hard</button><button type="button" data-v="expert">Expert</button></div>
       </div>
       <div class="row">
         <div class="prefix"><span>gd-</span><input class="text" id="room" maxlength="17" autocomplete="off" spellcheck="false" aria-label="Room code"></div>
@@ -230,7 +266,7 @@ details.how[open] summary::before{content:'- '}
         <span class="label">Match</span>
         <div class="opts">
           <span class="label">Arena</span><div class="seg" id="arenaSeg" role="group" aria-label="Arena"></div>
-          <span class="label">Length</span><div class="seg" id="lenSeg" role="group" aria-label="Length"><button type="button" data-v="5">5 stages</button><button type="button" data-v="7">7 stages</button></div>
+          <span class="label">Length</span><div class="seg" id="lenSeg" role="group" aria-label="Length"><button type="button" data-v="3">3 stages</button><button type="button" data-v="5">5 stages</button><button type="button" data-v="7">7 stages</button></div>
           <span class="label">Rules</span>
           <div class="vars">
             <label class="chk"><input type="checkbox" id="oThr" checked> Sword throwing</label>
@@ -347,27 +383,31 @@ const HW = 9;                       // body half-width
 const PIT = 92;                     // the drop at each end of the line is the last 92 px of the last room
 
 // Timings in ticks (60 a second), distances in pixels of a 640 x 360 room (the screen shows it at half size).
-// Tuned to be quick: top speed in 3 ticks, stops in 2, short committed lunges, a fast roll, a jump that hangs a
-// little at the top while you hold it, a dive kick that speeds up as it falls, and inputs buffered for 8 ticks.
+// Tuned to be calm and readable: a run of 3.7 px a tick (a room in about 3 s), top speed in 6 ticks, a stop in 4,
+// a lunge of 17 ticks, a roll of 5.5 px a tick, a slightly floaty jump that hangs at the top while you hold it, a
+// slower dive kick, and inputs buffered for 8 ticks. Turbo puts back the old quick numbers.
 const BASE_T = {
-  grav: 0.5, hangG: 0.3, hangV: 2.2, jump: -8.8, cut: -3.0, run: 5.4, acc: 1.9, dec: 2.7, air: 0.75, maxFall: 12,
-  back: 0.8, crawl: 1.6, step: 4, buf: 8, coyote: 6, turnT: 6,
-  guard: 36, thrust: 56, lunge: 62,
-  thrustDur: 12, thA0: 2, thA1: 6,
-  lungeDur: 14, luA0: 2, luA1: 8, lungeV: 8.4, lungeDash: 6,
-  recoil: 9, lungeRecoil: 13, stag: 20, parryWin: 8, disarmStun: 10,
-  kd: 40, getup: 6, punchDur: 12, puA0: 2, puA1: 5, punchReach: 30,
-  sweepDur: 16, swA0: 2, swA1: 11, sweepV: 5.2,
-  diveVx: 6, diveVy: 6, diveAcc: 0.45, diveMax: 11, land: 8,
-  throwDur: 8, throwAt: 2, throwV: 13,
-  finDur: 12, finAt: 4, stompDur: 15, stompAt: 9,
-  rollDur: 14, rollV: 7.4,
-  climb: 9, respawn: 22, inv: 26, hitstop: 8, hsDisarm: 5, hsParry: 6, sc: 2
+  grav: 0.42, hangG: 0.25, hangV: 2.0, jump: -8.1, cut: -2.8, run: 3.7, acc: 0.62, dec: 0.93, air: 0.5, maxFall: 10,
+  crawl: 1.2, step: 6, buf: 8, coyote: 6, crouchHold: 8,
+  guard: 36, thrust: 56, lunge: 60,
+  thrustDur: 15, thA0: 3, thA1: 8,
+  lungeDur: 17, luA0: 3, luA1: 10, lungeV: 6.0, lungeDash: 7,
+  recoil: 11, lungeRecoil: 16, stag: 24, parryWin: 8, disarmStun: 12,
+  kd: 48, getup: 8, punchDur: 15, puA0: 3, puA1: 7, punchReach: 30,
+  // the sliding kick (crouch + attack): wind-up until swA0, sliding and hitting until swA1, then getting back up
+  sweepDur: 32, swA0: 9, swA1: 18, sweepV: 5.0,
+  diveVx: 4.6, diveVy: 4.8, diveAcc: 0.35, diveMax: 9, land: 10,
+  throwDur: 10, throwAt: 3, throwV: 11,
+  finDur: 14, finAt: 5, stompDur: 18, stompAt: 11,
+  rollDur: 16, rollV: 5.5,
+  climb: 11, respawn: 36, inv: 30, hitstop: 8, hsDisarm: 5, hsParry: 6, sc: 3
 };
 function tuning(cfg) {
   const t = Object.assign({}, BASE_T);
-  if (cfg.lowg) { t.grav = 0.25; t.hangG = 0.16; t.jump = -6.6; t.cut = -2.3; t.maxFall = 8; t.diveVy = 4.4; t.diveAcc = 0.3; t.diveMax = 8; }
-  if (cfg.turbo) { t.run *= 1.25; t.rollV *= 1.2; t.lungeV *= 1.15; t.acc *= 1.3; t.respawn = 14; t.sweepV *= 1.2; t.diveVx *= 1.2; }
+  if (cfg.turbo) Object.assign(t, {grav: 0.5, hangG: 0.3, hangV: 2.2, jump: -8.8, cut: -3.0, run: 5.4, acc: 1.9, dec: 2.7, air: 0.75, maxFall: 12,
+    thrustDur: 12, thA0: 2, thA1: 6, lungeDur: 14, luA0: 2, luA1: 8, lungeV: 8.4, lungeDash: 6, sweepDur: 26, swA0: 6, swA1: 14, sweepV: 6.2,
+    diveVx: 6, diveVy: 6, diveAcc: 0.45, diveMax: 11, rollDur: 14, rollV: 7.4, respawn: 22, step: 4, crawl: 1.6});
+  if (cfg.lowg) { t.grav = 0.22; t.hangG = 0.14; t.jump = -6.2; t.cut = -2.1; t.maxFall = 7; t.diveVy = 3.8; t.diveAcc = 0.25; t.diveMax = 7; }
   return t;
 }
 
@@ -415,7 +455,7 @@ function buildWorld(ai, N) {
   const w = {N, ai, segs: [], plats: [], ceils: [], sp: [], tplOf: [], goal: [{x0: N * W - PIT, x1: N * W}, {x0: 0, x1: PIT}]};
   for (let r = 0; r < N; r++) {
     const k = r - c, ak = Math.abs(k);
-    const ti = N === 7 ? ak : N === 5 ? [0, 1, 3][ak] : Math.min(3, ak);
+    const ti = N === 7 ? ak : N === 5 ? [0, 1, 3][ak] : [0, 3][Math.min(1, ak)];
     const tp = A.tpl[ti], mir = k < 0, off = r * W;
     const mx = x => mir ? W - x : x;
     const span = (a, b) => [off + Math.min(mx(a), mx(b)), off + Math.max(mx(a), mx(b))];
@@ -431,17 +471,19 @@ function buildWorld(ai, N) {
 function inGoal(w, i, x) { const g = w.goal[i]; return x > g.x0 && x < g.x1; }
 
 // ---------------------------------------------------------------------
-// Match state. cfg: {arena, N (5 or 7), thr (throwing on), lowg, bounce (thrown swords bounce), turbo}
+// Match state. cfg: {arena, N (3, 5 or 7), thr (throwing on), lowg, bounce (thrown swords bounce), turbo, prac}
+// prac (practice, never online): player 0 may walk through every stage either way, nobody wins, a fall puts you back
+// in the middle, and player 1 (the dummy, when there is one) comes back 1.5 s after a touch near where it fell.
 // ---------------------------------------------------------------------
 function mkF(i) {
-  return {i, x: 0, y: BASE, vx: 0, vy: 0, f: 1, h: 1, hT: 99, sc: 0, cr: 0, dl: 0, arm: 1, s: ST.IDLE, t: 0, gnd: 1, co: 0, jb: 0, ab: 0,
+  return {i, x: 0, y: BASE, vx: 0, vy: 0, f: 1, h: 1, hT: 99, sc: 0, cr: 0, hd: 0, arm: 1, s: ST.IDLE, t: 0, gnd: 1, co: 0, jb: 0, ab: 0,
     jh: 0, tb: 0, step: 0, sd: 0, tgt: 0, kd: 0, rt: 0, rw: 0, inv: 0, pin: 0, res: 0, ah: 1, chg: 0, bk: 0, kills: 0, deaths: 0, stk: 0, best: 0,
     cx: 0, cy: 0, gone: 0};
 }
 function newMatch(cfg) {
-  const N = cfg.N === 5 ? 5 : 7, w = buildWorld(cfg.arena | 0, N), c = (N - 1) / 2;
+  const N = cfg.N === 3 ? 3 : cfg.N === 5 ? 5 : 7, w = buildWorld(cfg.arena | 0, N), c = (N - 1) / 2;
   const S = {t: 0, hs: 0, room: c, adv: -1, win: -1, endT: 0, N, cfg: {arena: cfg.arena | 0, N, thr: cfg.thr ? 1 : 0, lowg: cfg.lowg ? 1 : 0,
-    bounce: cfg.bounce ? 1 : 0, turbo: cfg.turbo ? 1 : 0}, p: [mkF(0), mkF(1)], sw: [], swn: 0, ev: [], kq: []};
+    bounce: cfg.bounce ? 1 : 0, turbo: cfg.turbo ? 1 : 0, prac: cfg.prac ? 1 : 0}, p: [mkF(0), mkF(1)], sw: [], swn: 0, ev: [], kq: []};
   const L = c * W;
   S.p[0].x = L + W / 2 - 110; S.p[0].f = 1;
   S.p[1].x = L + W / 2 + 110; S.p[1].f = -1;
@@ -484,7 +526,7 @@ function ceilAt(w, x, y) { // the lowest ceiling above y at x
 function bodyH(p) {
   switch (p.s) {
     case ST.KD: return 12; case ST.ROLL: return 22; case ST.SWEEP: return 20; case ST.DIVE: return 40; case ST.DEAD: return 0;
-    default: return p.cr ? 32 : 54;
+    default: return p.cr ? 24 : 54;   // crouched: under a middle (30) or high (44) blade; a low one (16) still gets you
   }
 }
 function hurt(p) {
@@ -495,7 +537,7 @@ function hurt(p) {
   return {x0: p.x - HW, x1: p.x + HW, y0: p.y - bodyH(p), y1: p.y};
 }
 function bladeOut(p) {
-  if (!p.arm || p.h > 2 || !alive(p)) return false;
+  if (!p.arm || p.h > 2 || !alive(p) || p.cr) return false;   // crouched, the sword is tucked in: it neither blocks nor cuts
   const s = p.s;
   return s === ST.IDLE || s === ST.THRUST || s === ST.LUNGE || s === ST.RECOIL || s === ST.LAND || s === ST.DIVE;
 }
@@ -520,7 +562,7 @@ function attacking(p, T) {
 }
 function bandY(p) {
   const b = (p.s === ST.THRUST || p.s === ST.LUNGE) ? p.ah : p.h;
-  return p.y - (p.cr && b === 0 ? 11 : BAND[Math.min(2, b)]);
+  return p.y - BAND[Math.min(2, b)];
 }
 function tipX(p, T) { return p.x + p.f * reach(p, T); }
 function ev(S, k, o) { o.k = k; o.t = S.t; S.ev.push(o); }
@@ -542,7 +584,7 @@ function capSwords(S) {
   }
 }
 function knockDown(S, T, v, dir, a, how) {
-  if (v.arm) { v.arm = 0; dropSword(S, v.x + v.f * 6, v.y - 30, dir * 1.2, -4); }
+  if (v.arm) { v.arm = 0; dropSword(S, v.x + v.f * 6, v.y - 30, dir * 2.2, -5); }
   v.s = ST.KD; v.t = 0; v.kd = T.kd; v.vx = dir * 2.6; v.cr = 0; v.res = 0;
   ev(S, 'kd', {a, b: v.i, x: v.x, y: v.y, how});
 }
@@ -571,7 +613,7 @@ function step(S, w, i0, i1) {
   // The pit at the end of the line: the fencer who has the run wins by dropping into their own end pit.
   // Anyone else who falls in (or into any other gap) just falls to their death.
   for (const p of P) {
-    if (alive(p) && S.adv === p.i && p.y > BASE + 18 && inGoal(w, p.i, p.x) && S.win < 0 && !S.kq.some(q => q.v === p.i)) {
+    if (alive(p) && S.adv === p.i && p.y > BASE + 18 && inGoal(w, p.i, p.x) && S.win < 0 && !S.cfg.prac && !S.kq.some(q => q.v === p.i)) {
       S.win = p.i; S.endT = 0; ev(S, 'win', {a: p.i, x: p.x, y: p.y});
     }
   }
@@ -594,57 +636,59 @@ function control(S, w, T, p, o, inp, e) {
   p.chg = 0;
   if (e & K.A) p.ab = T.buf; else if (p.ab > 0) p.ab--;
   if (e & K.J) p.jb = T.buf; else if (p.jb > 0) p.jb--;
-  if (!(inp & K.D)) p.dl = 0;
   if (!(inp & K.J)) p.jh = 0;
+  if (inp & K.D) { if (p.hd < 99) p.hd++; } else p.hd = 0;   // how long Down has been held
   p.tgt = 0; p.bk = 0;
   if (p.s === ST.DEAD) return;
-  if (p.s === ST.KD) { if (e & (K.A | K.J | K.L | K.R | K.U)) p.kd -= 3; return; }
+  if (p.s === ST.KD) { if (e & (K.A | K.J | K.L | K.R | K.U | K.D)) p.kd -= 3; return; }
   if (p.s !== ST.IDLE) return;
   const dir = ((inp & K.R) ? 1 : 0) - ((inp & K.L) ? 1 : 0);
-  const oA = alive(o), dx = o.x - p.x, adx = Math.abs(dx), toO = dx > 0 ? 1 : dx < 0 ? -1 : p.f;
+  const oA = alive(o), dx = o.x - p.x, adx = Math.abs(dx);
   // Roll: down while running.
-  if ((e & K.D) && p.gnd && dir !== 0 && Math.abs(p.vx) > 2.3) {
-    p.s = ST.ROLL; p.t = 0; p.f = dir; p.vx = dir * T.rollV; p.cr = 0; p.dl = 1; p.step = 0;
+  if ((e & K.D) && p.gnd && dir !== 0 && !p.cr && Math.abs(p.vx) > T.run * 0.6) {
+    p.s = ST.ROLL; p.t = 0; p.f = dir; p.vx = dir * T.rollV; p.cr = 0; p.step = 0;
     ev(S, 'roll', {a: p.i, x: p.x, y: p.y});
     return;
   }
-  // Sword height: up and down; up from high raises the sword to throw (if throwing is on).
-  if (p.arm && p.sc <= 0) {
+  // Sword height: a tap of up or down moves it one height; up from high raises it to throw (if throwing is on).
+  const atLow = !p.arm || p.h === 0;
+  if (p.arm && p.sc <= 0 && !p.cr) {
     if (e & K.U) { if (p.h < 2) { p.h++; p.chg = 1; } else if (p.h === 2 && S.cfg.thr) { p.h = 3; p.chg = 1; } }
-    else if (e & K.D) { if (p.h > 0) { p.h--; p.chg = 1; p.dl = 1; } }
+    else if (e & K.D) { if (p.h > 0) { p.h--; p.chg = 1; } }
     if (p.chg) { p.hT = 0; p.sc = T.sc; ev(S, 'stance', {a: p.i, h: p.h}); }
   }
-  p.cr = (p.gnd && (inp & K.D) && !p.dl && (!p.arm || p.h === 0)) ? 1 : 0;
-  // A tap is a short step; holding runs. Near an armed opponent, walking away is a guarded backpedal.
-  if (dir && (e & (K.L | K.R)) && p.gnd && !p.cr) { p.step = T.step; p.sd = dir; }
+  // Crouch: hold down (or press it with the sword already low, or with no sword). Letting go stands you up.
+  if (!p.gnd || !(inp & K.D)) p.cr = 0;
+  else if (!p.cr && (((e & K.D) && atLow) || p.hd >= T.crouchHold)) { p.cr = 1; if (p.arm) p.h = 0; ev(S, 'crouch', {a: p.i, x: p.x, y: p.y}); }
+  // Facing: always the way you last pressed, at once. Pressing the other way while standing turns you on the spot;
+  // a tap the way you face is a short step; holding runs. Standing still never turns you.
+  let turned = 0;
+  if (dir && dir !== p.f) { p.f = dir; turned = 1; }
+  if (dir && (e & (K.L | K.R)) && p.gnd && !p.cr && !turned) { p.step = T.step; p.sd = dir; }
+  if (turned) p.step = 0;
   const mdir = dir || (p.step > 0 ? p.sd : 0);
   if (p.step > 0) p.step--;
-  if (p.cr) {
-    p.tgt = dir * T.crawl; if (dir) p.f = dir;
-  } else if (mdir) {
-    if (oA && o.arm && adx < 110 && mdir !== toO && p.f === toO && p.gnd) { p.bk = 1; p.tgt = mdir * T.run * T.back; }
-    else { p.f = mdir; p.tgt = mdir * T.run; }
-  } else if (oA && adx < 260 && p.gnd) { if (p.f !== toO) { if (++p.tb >= T.turnT) { p.f = toO; p.tb = 0; } } else p.tb = 0; }
-  if (mdir || p.cr) p.tb = 0;
+  if (p.cr) p.tgt = dir * T.crawl;
+  else if (mdir && !(turned && p.gnd && p.vx * dir <= 0)) p.tgt = mdir * T.run;
   // Jump (buffered a few ticks, with a little grace after running off a ledge). Release early for a short hop.
-  if (p.jb > 0 && (p.gnd || p.co > 0) && !p.cr) {
-    p.vy = T.jump; p.gnd = 0; p.co = 0; p.jb = 0; p.jh = 1;
+  if (p.jb > 0 && (p.gnd || p.co > 0)) {
+    p.vy = T.jump; p.gnd = 0; p.co = 0; p.jb = 0; p.jh = 1; p.cr = 0;
     ev(S, 'jump', {a: p.i, x: p.x, y: p.y});
   }
   // Attack (buffered so a press just before you can act still counts).
   if (p.ab > 0) {
     p.ab = 0; p.res = 0; p.t = 0;
-    const near = oA && o.s === ST.KD && Math.abs(o.y - p.y) < 24;
-    if (p.arm) {
+    const near = oA && o.s === ST.KD && Math.abs(o.y - p.y) < 24, facing = p.f * dx > 0 || adx < 12;
+    if (p.cr && p.gnd) { p.s = ST.SWEEP; p.cr = 0; }                       // crouched: the sliding kick, armed or not
+    else if (p.arm) {
       if (p.h === 3) { p.s = ST.THROW; }
       else if (!p.gnd) { p.s = ST.DIVE; }
-      else if (near && adx < 50) { p.s = ST.FIN; p.f = toO; }
-      else if (mdir === p.f && Math.abs(p.vx) > 2.6 && !p.bk && !p.cr) { p.s = ST.LUNGE; p.ah = p.h; }
+      else if (near && adx < 50 && facing) { p.s = ST.FIN; }
+      else if (mdir === p.f && Math.abs(p.vx) > T.run * 0.65) { p.s = ST.LUNGE; p.ah = p.h; }
       else { p.s = ST.THRUST; p.ah = p.h; }
     } else {
       if (!p.gnd) p.s = ST.DIVE;
-      else if (near && adx < 48) { p.s = ST.STOMP; p.f = toO; }
-      else if (p.cr || (inp & K.D)) { p.s = ST.SWEEP; p.cr = 0; }
+      else if (near && adx < 48 && facing) { p.s = ST.STOMP; }
       else p.s = ST.PUNCH;
     }
     ev(S, 'atk', {a: p.i, s: p.s, x: p.x, y: p.y});
@@ -688,6 +732,8 @@ function surfaceBelow(S, w, x, y0, y1) {
   }
   return best;
 }
+// Coming out of a roll or a kick with down still held: stay crouched.
+function endLow(p, inp) { p.cr = (inp & K.D) && p.gnd ? 1 : 0; if (p.cr && p.arm) p.h = 0; }
 // Gravity this tick: lighter near the top of a jump while jump is held, so jumps hang a moment and stay steerable.
 function gravAt(T, p) { return p.jh && p.s === ST.IDLE && p.vy > -T.hangV && p.vy < T.hangV ? T.hangG : T.grav; }
 
@@ -709,7 +755,12 @@ function physics(S, w, T, p, o, inp) {
     case ST.KD: p.vx *= 0.85; p.kd--; if (p.kd <= 0) { p.s = ST.GETUP; p.t = 0; } break;
     case ST.GETUP: p.vx = 0; if (p.t >= T.getup) p.s = ST.IDLE; break;
     case ST.PUNCH: p.vx *= 0.6; if (p.t >= T.punchDur) p.s = ST.IDLE; break;
-    case ST.SWEEP: p.vx = p.f * T.sweepV * Math.max(0, 1 - p.t / T.sweepDur); if (p.t >= T.sweepDur) { p.s = ST.IDLE; p.cr = (inp & K.D) ? 1 : 0; } break;
+    case ST.SWEEP:
+      if (p.t < T.swA0) p.vx *= 0.6;                                                   // wind-up: drop back on one hand
+      else if (p.t <= T.swA1) p.vx = p.f * T.sweepV * (1 - (p.t - T.swA0) / (T.swA1 - T.swA0 + 6));   // slide along the floor
+      else p.vx *= 0.7;                                                                // get back up
+      if (p.t >= T.sweepDur) { p.s = ST.IDLE; endLow(p, inp); }
+      break;
     case ST.DIVE: p.vx = p.f * T.diveVx; p.vy = Math.min(T.diveMax, Math.max(p.vy, T.diveVy) + T.diveAcc); break;
     case ST.LAND: p.vx *= 0.5; if (p.t >= T.land) p.s = ST.IDLE; break;
     case ST.THROW:
@@ -730,7 +781,7 @@ function physics(S, w, T, p, o, inp) {
       p.vx = 0;
       if (p.t >= T.stompDur) p.s = ST.IDLE;
       break;
-    case ST.ROLL: p.vx = p.f * T.rollV; if (p.t >= T.rollDur) { p.s = ST.IDLE; p.cr = (inp & K.D) ? 1 : 0; p.vx *= 0.7; } break;
+    case ST.ROLL: p.vx = p.f * T.rollV; if (p.t >= T.rollDur) { p.s = ST.IDLE; endLow(p, inp); p.vx *= 0.7; } break;
     case ST.CLIMB:
       p.vx = 0; p.vy = 0;
       if (p.t >= T.climb) { p.x = p.cx; p.y = p.cy; p.s = ST.IDLE; p.gnd = 1; }
@@ -738,7 +789,8 @@ function physics(S, w, T, p, o, inp) {
   }
   // Integrate: horizontal first (walls), then vertical (landing and ceilings).
   const L = S.room * W, R = L + W, d = p.i === 0 ? 1 : -1;
-  const exitR = S.adv === p.i && d > 0 && S.room < S.N - 1, exitL = S.adv === p.i && d < 0 && S.room > 0;
+  const pr = S.cfg.prac && p.i === 0;   // practice: walk on through the stages either way
+  const exitR = (pr || (S.adv === p.i && d > 0)) && S.room < S.N - 1, exitL = (pr || (S.adv === p.i && d < 0)) && S.room > 0;
   const px = p.x;
   p.x += p.vx;
   for (const g of w.segs) {
@@ -849,7 +901,7 @@ function combat(S, w, T) {
     if (a.res || !alive(b) || b.s === ST.KD || b.inv > 0 || S.kq.some(q => q.v === a.i)) continue;
     let pt = null;
     if (a.s === ST.PUNCH && a.t >= T.puA0 && a.t <= T.puA1) pt = [a.x + a.f * T.punchReach, a.y - 36];
-    else if (a.s === ST.SWEEP && a.t >= T.swA0 && a.t <= T.swA1) pt = [a.x + a.f * 22, a.y - 5];
+    else if (a.s === ST.SWEEP && a.t >= T.swA0 && a.t <= T.swA1) pt = [a.x + a.f * 24, a.y - 5];
     else if (a.s === ST.DIVE) pt = [a.x + a.f * 16, a.y - 3];
     if (!pt) continue;
     const hb = hurt(b); if (!hb) continue;
@@ -858,7 +910,7 @@ function combat(S, w, T) {
     if (a.s === ST.DIVE && bladeOut(b) && b.f === -a.f && b.h === 2) { killQ(S, a.i, b.i, 'skewer'); continue; }
     kd.push([b, a]);
   }
-  for (const [b, a] of kd) knockDown(S, T, b, a.f, a.i, a.s === ST.PUNCH ? 'punch' : a.s === ST.SWEEP ? 'sweep' : 'dive');
+  for (const [b, a] of kd) knockDown(S, T, b, a.f, a.i, a.s === ST.PUNCH ? 'punch' : a.s === ST.SWEEP ? 'kick' : 'dive');
   // 3. A blade is deadly on contact: anything that reaches the body ahead of it dies, unless the other blade is
   //    held at the same height in the way.
   for (let k = 0; k < 2; k++) {
@@ -960,7 +1012,7 @@ function swords(S, w, T, ins) {
   });
   if (want[0] && want[1] && want[0].s === want[1].s) { if (want[0].d < want[1].d) want[1] = null; else if (want[1].d < want[0].d) want[0] = null; else want[0] = want[1] = null; }
   for (let k = 0; k < 2; k++) if (want[k]) {
-    const who = S.p[k]; S.sw.splice(S.sw.indexOf(want[k].s), 1); who.arm = 1; who.h = 0; who.hT = 99; who.dl = 1;
+    const who = S.p[k]; S.sw.splice(S.sw.indexOf(want[k].s), 1); who.arm = 1; who.h = 0; who.hT = 99;
     ev(S, 'pickup', {a: who.i, x: who.x, y: who.y});
   }
 }
@@ -972,7 +1024,7 @@ function applyDeaths(S, w, T) {
     const p = P[q.v];
     if (!alive(p)) continue;
     if (p.arm && q.how !== 'fall') dropSword(S, p.x, p.y - 30, -p.f * 0.8, -3);
-    p.arm = 0; p.s = ST.DEAD; p.t = 0; p.rt = T.respawn; p.rw = 0; p.gone = 0; p.cr = 0; p.deaths++; p.stk = 0;
+    p.arm = 0; p.s = ST.DEAD; p.t = 0; p.rt = S.cfg.prac && p.i === 1 ? 90 : T.respawn; p.rw = 0; p.gone = 0; p.cr = 0; p.deaths++; p.stk = 0;
     p.dx = p.x; p.dy = p.y; p.dh = q.how;
     if (q.k >= 0 && q.k !== q.v) { const k = P[q.k]; k.kills++; k.stk++; if (k.stk > k.best) k.best = k.stk; }
     ev(S, 'kill', {a: q.k, b: q.v, how: q.how, x: p.x, y: p.y - 28, f: p.f, fy: p.y, dir: q.k >= 0 && q.k !== q.v ? (P[q.k].x < p.x ? 1 : -1) : 0});
@@ -991,7 +1043,7 @@ function spawnAt(S, w, p, x, T) {
   if (c !== null) y = Math.max(y, c + 56);
   if (top !== null) y = Math.min(y, top);
   const o = S.p[1 - p.i];
-  Object.assign(p, {x, y, vx: 0, vy: 0, s: ST.IDLE, t: 0, arm: 1, h: 1, hT: 99, inv: T.inv, gnd: 0, rw: 0, gone: 0, res: 0, cr: 0, dl: 0,
+  Object.assign(p, {x, y, vx: 0, vy: 0, s: ST.IDLE, t: 0, arm: 1, h: 1, hT: 99, inv: T.inv, gnd: 0, rw: 0, gone: 0, res: 0, cr: 0, hd: 0,
     step: 0, ab: 0, jb: 0, kd: 0, co: 0, jh: 0});
   const mid = S.room * W + W / 2, own = p.i === 0 ? 1 : -1;
   p.f = alive(o) ? (o.x > x ? 1 : o.x < x ? -1 : own) : (x < mid ? 1 : x > mid ? -1 : own);
@@ -1002,6 +1054,24 @@ function respawns(S, w, T) {
     if (alive(p)) continue;
     if (p.rt > 0) { p.rt--; continue; }
     const o = S.p[1 - p.i], spots = w.sp[S.room], L = S.room * W;
+    if (S.cfg.prac) {
+      if (p.i === 0 && p.dh === 'fall') {
+        // practice: a fall puts you back in the middle stage (and the dummy with you)
+        S.room = (S.N - 1) / 2; S.sw = [];
+        spawnAt(S, w, p, S.room * W + W / 2 - 110, T);
+        if (alive(o)) { o.s = ST.DEAD; o.gone = 1; o.rt = 6; o.t = 0; o.arm = 0; o.dh = 'left'; }
+        continue;
+      }
+      if (p.i === 1) {
+        // the dummy comes back near where it fell, but not on top of you
+        const sp = w.sp[S.room], want = p.gone || p.dx == null ? L + W / 2 + 110 : p.dx;
+        let best = null, bs = 1e9;
+        for (const c of sp) { if (alive(o) && Math.abs(c - o.x) < 100) continue; if (Math.abs(c - want) < bs) { bs = Math.abs(c - want); best = c; } }
+        if (best === null) { if (p.rw++ < 120) continue; best = sp[0]; for (const c of sp) if (Math.abs(c - o.x) > Math.abs(best - o.x)) best = c; }
+        spawnAt(S, w, p, best, T);
+        continue;
+      }
+    }
     if (S.adv === o.i && alive(o)) {
       // Ahead of the runner, between them and their goal.
       const d = o.i === 0 ? 1 : -1, want = o.x + d * 230;
@@ -1031,6 +1101,17 @@ function respawns(S, w, T) {
 }
 
 function advance(S, w, T) {
+  if (S.cfg.prac) {
+    // practice: the stage follows you, whichever way you walk
+    const p = S.p[0], L = S.room * W;
+    if (!alive(p) || (p.x >= L && p.x <= L + W)) return;
+    const d = p.x > L + W ? 1 : -1, o = S.p[1];
+    S.room += d; S.sw = [];
+    if (alive(o)) { o.s = ST.DEAD; o.gone = 1; o.rt = 6; o.t = 0; o.arm = 0; o.dh = 'left'; } else if (o.rt < 1e8) o.rt = Math.min(o.rt, 6);
+    o.rw = 0; o.gone = 1;
+    ev(S, 'room', {a: 0, r: S.room});
+    return;
+  }
   const a = S.adv;
   if (a < 0) return;
   const p = S.p[a];
@@ -1051,12 +1132,22 @@ function advance(S, w, T) {
 // The bot. It only sets the same buttons a player presses. It sees the opponent's sword height a reaction
 // time late (`react`), and the levels differ only in the numbers in BOT.
 // ---------------------------------------------------------------------
+// Easy is a clumsy beginner: it sees you late, pauses for long stretches, stops before it strikes (tele), often holds the
+// wrong height, sometimes walks onto a held blade (blunder), is slow to chase a runner (chase), never parries, disarms,
+// throws or dodges a throw, and takes a while to turn round (face). Normal is about the old Easy (a little slower to react, with a short stop before it strikes); Hard and Expert are the old
+// Normal and Hard. Tuned against a scripted novice (see the README): the novice beats Easy about 9 times in 10 and Normal about half the time.
 const BOT = {
-  easy: {evade: 0.15, react: 22, aggr: 0.035, parry: 0.0, disarm: 0.004, feint: 0.0, throwP: 0.0, dodge: 0.35, match: 0.55, hop: 0.85, lunge: 0.2, roll: 0.15, unarmed: 0.4, mash: 0.25, finish: 0.6, wobble: 0.04},
-  normal: {evade: 0.35, react: 12, aggr: 0.08, parry: 0.15, disarm: 0.02, feint: 0.01, throwP: 0.004, dodge: 0.7, match: 0.82, hop: 0.97, lunge: 0.45, roll: 0.4, unarmed: 0.75, mash: 0.6, finish: 0.9, wobble: 0.02},
-  hard: {evade: 0.5, react: 6, aggr: 0.16, parry: 0.5, disarm: 0.05, feint: 0.03, throwP: 0.008, dodge: 0.95, match: 0.97, hop: 1, lunge: 0.7, roll: 0.7, unarmed: 0.95, mash: 0.95, finish: 1, wobble: 0.005}
+  easy: {evade: 0.03, react: 34, aggr: 0.016, parry: 0, disarm: 0, feint: 0, throwP: 0, dodge: 0, match: 0.3, hop: 0.75, lunge: 0.08, roll: 0, unarmed: 0.2, mash: 0.12, finish: 0.35, wobble: 0.03,
+    tele: 22, idle: 0.01, idleLen: 60, blunder: 0.004, chase: 0.5, kick: 0, face: 34, wrongH: 0.012, guardKick: 0},
+  normal: {evade: 0.15, react: 26, aggr: 0.035, parry: 0.0, disarm: 0.004, feint: 0.0, throwP: 0.0, dodge: 0.35, match: 0.55, hop: 0.85, lunge: 0.2, roll: 0.15, unarmed: 0.4, mash: 0.25, finish: 0.6, wobble: 0.04,
+    tele: 10, idle: 0.004, idleLen: 40, blunder: 0, chase: 0.8, kick: 0.004, face: 16, wrongH: 0, guardKick: 0.25},
+  hard: {evade: 0.35, react: 12, aggr: 0.08, parry: 0.15, disarm: 0.02, feint: 0.01, throwP: 0.004, dodge: 0.7, match: 0.82, hop: 0.97, lunge: 0.45, roll: 0.4, unarmed: 0.75, mash: 0.6, finish: 0.9, wobble: 0.02,
+    tele: 0, idle: 0, idleLen: 0, blunder: 0, chase: 1, kick: 0.012, face: 7, wrongH: 0, guardKick: 0.6},
+  expert: {evade: 0.5, react: 6, aggr: 0.16, parry: 0.5, disarm: 0.05, feint: 0.03, throwP: 0.008, dodge: 0.95, match: 0.97, hop: 1, lunge: 0.7, roll: 0.7, unarmed: 0.95, mash: 0.95, finish: 1, wobble: 0.005,
+    tele: 0, idle: 0, idleLen: 0, blunder: 0, chase: 1, kick: 0.025, face: 2, wrongH: 0, guardKick: 0.9}
 };
-function botMem(seed, level) { return {r: (seed >>> 0) || 1, lv: level, hist: [], want: 1, wait: 0, plan: 0, pt: 0, lastU: 0, lastD: 0, jumpT: 0, rollT: 0, throwT: 0, prev: 0}; }
+function botMem(seed, level) { return {r: (seed >>> 0) || 1, lv: level, hist: [], want: 1, wait: 0, plan: 0, pt: 0, lastU: 0, lastD: 0, jumpT: 0, rollT: 0, throwT: 0, prev: 0,
+  idle: 0, tele: 0, blT: 0, wf: 0, kickT: 0}; }
 function brand(m) { m.r = (Math.imul(m.r ^ (m.r >>> 15), 1 | m.r) + 0x6D2B79F5) | 0; let t = m.r; t = Math.imul(t ^ (t >>> 7), 61 | t) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }
 function botInput(S, w, i, m) {
   const B = BOT[m.lv] || BOT.normal, T = tuning(S.cfg);
@@ -1085,10 +1176,19 @@ function botInput(S, w, i, m) {
       if (m.pushT > 40 && !(prevHeld & K.J)) { b |= K.J; m.pushT = 0; }
     } else m.pushT = 0;
     m.px = p.x;
+    // Turn to face the opponent (a one-tick press turns on the spot), after a level-dependent moment.
+    const q = S.p[1 - i];
+    if (alive(p) && alive(q) && p.s === ST.IDLE && p.gnd && !(b & (K.L | K.R)) && Math.abs(q.x - p.x) < 300 && Math.abs(q.y - p.y) < 50 && p.f * (q.x - p.x) < 0 && !m.idle) {
+      if (++m.wf > B.face) { b |= q.x > p.x ? K.R : K.L; m.wf = 0; }
+    } else m.wf = 0;
     m.roll = 0; m.prev = b; return b;
   };
-  if (S.win >= 0 || !alive(p)) return out();
-  if (p.s === ST.KD) { if (brand(m) < B.mash) tapA(); return out(); }
+  if (S.win >= 0 || !alive(p)) { m.tele = 0; m.idle = 0; return out(); }
+  if (p.s === ST.KD) { m.tele = 0; if (brand(m) < B.mash) tapA(); return out(); }
+  // a beginner's habits: a long pause now and then, and a visible stop before each strike
+  if (m.tele > 0) { if (--m.tele === 0 && p.s === ST.IDLE) tapA(); return out(); }
+  if (m.idle > 0) { m.idle--; return out(); }
+  if (B.idle && alive(S.p[1 - i]) && brand(m) < B.idle) { m.idle = Math.round(B.idleLen * (0.5 + brand(m))); return out(); }
   const goal = i === 0 ? 1 : -1, runner = S.adv === i, L = S.room * W, R = L + W;
   const oA = alive(o), dx = o.x - p.x, adx = Math.abs(dx), toO = dx > 0 ? 1 : dx < 0 ? -1 : p.f;
   // Is there a drop, a pit or a wall just ahead in direction dir?
@@ -1209,40 +1309,62 @@ function botInput(S, w, i, m) {
   if (runner && (goal * dx < -30 && adx > 60)) { wantDir(goal); return out(); }
   if (!p.arm) return unarmedBot(S, w, i, m, B, T, p, o, seen, b, press, tapA, tapJ, tapD, wantDir, out, runner, goal);
   // ---- armed ----
-  const oh = seen.al ? seen.h : o.h, oarm = seen.arm;
+  const oh = seen.al ? (seen.cr ? 0 : seen.h) : o.h, oarm = seen.arm;
+  // Easy telegraphs: it stops for a moment, then strikes
+  const strike = () => { if (B.tele && p.s === ST.IDLE) { m.tele = B.tele; b &= ~(K.L | K.R); } else tapA(); };
+  // a sword thrown at us: hold it high to knock it away, or duck under it
+  if (B.dodge && p.gnd) {
+    for (const sw of S.sw) if (sw.fl && sw.ow !== i && (sw.vx > 0 ? 1 : -1) * (p.x - sw.x) > 0 && Math.abs(p.x - sw.x) < 170 && brand(m) < B.dodge) {
+      if (p.h < 2) tapU(); else if (p.h === 3) tapD();
+      return out();
+    }
+  }
   if (!o.arm) {
-    // they have no sword: close in at mid height (low if they're crouched for a sweep), thrust when in reach
+    // they have no sword: close in at mid height (low if they're crouched or kicking), thrust when in reach
     const tgtH = o.cr || o.s === ST.SWEEP ? 0 : !o.gnd ? 2 : 1;
     stanceTo(p, tgtH, tapU, tapD);
     if (adx > 52) wantDir(toO);
-    else if (p.f === toO && brand(m) < B.aggr * 4) tapA();
-    if (runner && adx > 140 && goal * dx > 0) { /* keep coming */ }
+    else if (p.f === toO && brand(m) < B.aggr * 4) strike();
     return out();
   }
   // a throw from range sometimes
   if (S.cfg.thr && adx > 170 && adx < 420 && o.h !== 2 && !o.cr && p.gnd && brand(m) < B.throwP && p.f === toO) { m.throwT = 12; return out(); }
+  // a kick coming (they've dropped into the wind-up): a low sword stops it
+  if (seen.s === ST.SWEEP && adx < 110 && p.h !== 0 && brand(m) < B.guardKick) { stanceTo(p, 0, tapU, tapD); return out(); }
+  // our own sliding kick under a middle or high guard: crouch (down with the sword low), then attack
+  if (m.kickT > 0) {
+    m.kickT--;
+    if (p.h > 0 && !p.cr) { tapD(); return out(); }
+    press(K.D); if (p.cr) { tapA(); m.kickT = 0; }
+    return out();
+  }
   // Both armed. Keep the duel distance, mirror their height to stay safe, and strike when they're open.
   const close = 66;
+  // slow to chase a runner: stops and starts
+  if (B.chase < 1 && S.adv === 1 - i && adx > 110 && ((S.t / 24) | 0) % 10 >= B.chase * 10) return out();
   if (adx > 120) {
     // approach (the runner and a defender both want this fight; the runner wants past)
     wantDir(toO);
     if (p.h !== oh && brand(m) < B.match) stanceTo(p, oh, tapU, tapD);
-    if (adx < 150 && p.gnd && brand(m) < B.lunge * 0.05 && p.h !== oh) { /* lunge is attack while running */ tapA(); }
+    if (adx < 150 && p.gnd && brand(m) < B.lunge * 0.05 && p.h !== oh && !B.tele) { /* lunge is attack while running */ tapA(); }
     return out();
   }
+  if (p.f !== toO) return out();   // turn round first (out() does it)
   // in the zone
-  const open = p.h !== o.h && o.h < 3 && !(o.s === ST.ROLL);
-  const theyOpen = o.h === 3 || o.s === ST.STAG || o.s === ST.RECOIL || o.s === ST.DISARM || o.s === ST.THROW;
-  if (theyOpen && adx < 80) { if (adx > 50) moveTo(toO); tapA(); return out(); }
-  // react to a thrust coming at a different height: step into it (parry) or back off
+  const open = p.h !== o.h && o.h < 3 && !(o.s === ST.ROLL) && !o.cr;
+  const theyOpen = o.h === 3 || o.s === ST.STAG || o.s === ST.RECOIL || o.s === ST.DISARM || o.s === ST.THROW || (o.cr && p.h === 0);
+  if (theyOpen && adx < 80) { if (adx > 50) moveTo(toO); strike(); return out(); }
+  // react to a thrust coming at a different height: step into it (parry) or meet it at its height (block)
   if ((o.s === ST.THRUST || o.s === ST.LUNGE) && o.t < 4 && p.h !== o.ah && adx < 90) {
-    if (brand(m) < B.parry) { stanceTo(p, o.ah, tapU, tapD); return out(); }
-    moveTo(-toO); return out();
+    if (brand(m) < Math.max(B.parry, B.match * 0.5)) { stanceTo(p, o.ah, tapU, tapD); return out(); }
+    return out();
   }
-  if (open && adx <= close && p.f === toO && brand(m) < B.aggr * 2.2) { tapA(); return out(); }
-  if (open && adx > close && adx < 100 && p.f === toO && brand(m) < B.aggr * B.lunge) { moveTo(toO); if (Math.abs(p.vx) > 2.6) tapA(); return out(); }
+  if (open && adx <= close && p.f === toO && brand(m) < B.aggr * 2.2) { strike(); return out(); }
+  if (open && adx > close && adx < 100 && p.f === toO && brand(m) < B.aggr * B.lunge && !B.tele) { moveTo(toO); if (Math.abs(p.vx) > 2.6) tapA(); return out(); }
+  if (o.h >= 1 && !o.cr && adx > 50 && adx < 72 && p.gnd && brand(m) < B.kick) { m.kickT = 20; return out(); }
   // defend: match their (perceived) height
-  if (p.h !== oh && oh < 3) { if (brand(m) < B.match) stanceTo(p, oh, tapU, tapD); }
+  if (B.wrongH && brand(m) < B.wrongH) stanceTo(p, (brand(m) * 3) | 0, tapU, tapD);
+  else if (p.h !== oh && oh < 3) { if (brand(m) < B.match) stanceTo(p, oh, tapU, tapD); }
   else if (oh === p.h) {
     // blades matched: try a disarm (step away and back across their blade), a feint, a roll under, or a jump over
     const r = brand(m);
@@ -1257,10 +1379,11 @@ function botInput(S, w, i, m) {
     else if (p.h !== m.want) stanceTo(p, m.want, tapU, tapD);
     if (m.pt <= 0) m.plan = 0;
   }
-  // spacing
-  if (adx < 54) moveTo(-toO);
+  // spacing: close in to striking range, but don't back off (that would turn our back); a beginner sometimes walks right in
+  if (B.blunder && m.blT <= 0 && brand(m) < B.blunder) m.blT = 24;
+  if (m.blT > 0) { m.blT--; moveTo(toO); }
   else if (adx > 78) moveTo(toO);
-  else if (brand(m) < B.wobble) moveTo(brand(m) < 0.5 ? toO : -toO);
+  else if (adx > 60 && brand(m) < B.wobble) moveTo(toO);
   if (runner && goal * dx < 0) wantDir(goal);
   return out();
 }
@@ -2136,6 +2259,10 @@ const FIREBASE_CONFIG = {
 };
 const FIREBASE_SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
 const PREFIX = 'gd', LIVE_MS = 10000, PUB_ROOMS = 6;
+// The simulation's version. Both players must run the same one (a page cached from before a change to the rules would
+// fall out of step), so it rides in every player node as `v` and the lobby only seats players with the same number.
+// Pages from before this check have no `v` and count as version 1. Bump it whenever core.js changes how a match plays.
+const NETV = 2;
 const store = {
   get(k, d) { try { const v = localStorage.getItem('lungeline:' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem('lungeline:' + k, JSON.stringify(v)); } catch (e) {} }
@@ -2145,6 +2272,15 @@ function cleanName(s) { s = String(s == null ? '' : s).replace(/[<>\u0000-\u001f
 function loadName() { try { const v = localStorage.getItem(NAME_KEY); if (v != null) return cleanName(v.charAt(0) === '"' ? JSON.parse(v) : v); } catch (e) {} return ''; }
 let myName = loadName();
 function saveName() { myName = cleanName($('name').value); try { localStorage.setItem(NAME_KEY, myName); } catch (e) {} }
+// Bot levels: Easy (the default), Normal, Hard, Expert. Saved under `lungeline:bot`; an older saved `lungeline:diff`
+// (easy / normal / hard, from when there were three) maps to the same strength where there is one: easy -> normal,
+// hard -> expert, and normal -> normal (a step easier than it was, on purpose).
+const LEVELS = ['easy', 'normal', 'hard', 'expert'], OLD_LV = {easy: 'normal', normal: 'normal', hard: 'expert'};
+function botLevel() {
+  let v = store.get('bot', null);
+  if (LEVELS.indexOf(v) < 0) { const old = store.get('diff', null); v = OLD_LV[old] || 'easy'; }
+  return v;
+}
 const BOT_NAMES = ['Sable', 'Quill', 'Rook', 'Juniper', 'Vesper', 'Marlowe', 'Cobalt', 'Wren', 'Ashby', 'Lark', 'Pell', 'Fennick'];
 
 // ---------------------------------------------------------------------
@@ -2255,21 +2391,22 @@ const G = {mode: null, S: null, w: null, T: null, names: ['Tide', 'Bloom'], ctrl
   fxKeys: new Set(), fxOrder: [], finalKills: [], winner: -1, stk: 0, best: 0, musicT: 0, raf: 0, lastCd: -1};
 function optsFromMenu() {
   const a = store.get('arena', -1);
-  return {arena: a < 0 ? Math.floor(Math.random() * C.ARENAS.length) : a, N: store.get('len', 7) === 5 ? 5 : 7,
+  const n = store.get('len', 5);
+  return {arena: a < 0 ? Math.floor(Math.random() * C.ARENAS.length) : a, N: n === 3 || n === 7 ? n : 5,
     thr: $('oThr').checked ? 1 : 0, lowg: $('oLowg').checked ? 1 : 0, bounce: $('oBounce').checked ? 1 : 0, turbo: $('oTurbo').checked ? 1 : 0};
 }
 // Quick match rooms always use the standard rules on a random arena, so strangers aren't surprised by variants.
-function stdCfg() { return {arena: Math.floor(Math.random() * C.ARENAS.length), N: 7, thr: 1, lowg: 0, bounce: 0, turbo: 0}; }
+function stdCfg() { return {arena: Math.floor(Math.random() * C.ARENAS.length), N: 5, thr: 1, lowg: 0, bounce: 0, turbo: 0}; }
 // The match settings travel as 7 numbers; the 4th (it was "hazards") is always 0 now.
 function cfgStr(c) { return [c.arena, c.N, c.thr, 0, c.lowg, c.bounce, c.turbo].join(','); }
 function parseCfg(s) {
   const a = String(s || '').split(',').map(v => v | 0);
-  return {arena: clamp(a[0] || 0, 0, C.ARENAS.length - 1), N: a[1] === 5 ? 5 : 7, thr: a[2] ? 1 : 0, lowg: a[4] ? 1 : 0, bounce: a[5] ? 1 : 0, turbo: a[6] ? 1 : 0};
+  return {arena: clamp(a[0] || 0, 0, C.ARENAS.length - 1), N: a[1] === 3 || a[1] === 5 ? a[1] : 7, thr: a[2] ? 1 : 0, lowg: a[4] ? 1 : 0, bounce: a[5] ? 1 : 0, turbo: a[6] ? 1 : 0};
 }
 function cfgText(c) {
   const v = [];
   if (!c.thr) v.push('no throwing'); if (c.lowg) v.push('low gravity'); if (c.bounce) v.push('bouncing throws'); if (c.turbo) v.push('turbo');
-  return C.ARENAS[c.arena].name + ' · ' + c.N + ' rooms' + (v.length ? ' · ' + v.join(', ') : '');
+  return C.ARENAS[c.arena].name + ' · ' + c.N + ' stages' + (v.length ? ' · ' + v.join(', ') : '');
 }
 
 function begin(cfg, o) {
@@ -2284,7 +2421,7 @@ function begin(cfg, o) {
   clearTaps(); keysDown.clear();
   show('game'); layout();
   Snd.init(); Snd.startMusic(cfg.arena);
-  banner(C.ARENAS[cfg.arena].name, C.ARENAS[cfg.arena].tag, '#ffffff', 1.7);
+  if (o.mode === 'practice') banner('PRACTICE', C.ARENAS[cfg.arena].name, '#ffffff', 1.4); else banner(C.ARENAS[cfg.arena].name, C.ARENAS[cfg.arena].tag, '#ffffff', 1.7);
   if (!G.raf) G.raf = requestAnimationFrame(frame);
 }
 function stopGame() {
@@ -2321,10 +2458,12 @@ function countdownTick(cd) {
 }
 function tickOffline() {
   const S = G.S;
-  if (G.lastCd !== 0) { G.lastCd = 0; banner('DUEL!', '', '#fff', 0.6, true); Snd.play('go'); }
-  const ins = [0, 1].map(i => G.bots[i] ? C.botInput(S, G.w, i, G.bots[i]) : seatInput(G.ctrl[i]));
+  if (G.lastCd !== 0) { G.lastCd = 0; if (G.mode !== 'practice') { banner('DUEL!', '', '#fff', 0.6, true); Snd.play('go'); } }
+  const ins = [0, 1].map(i => G.bots[i] ? C.botInput(S, G.w, i, G.bots[i]) : G.mode === 'practice' && i === 1 ? dummyInput(S) : seatInput(G.ctrl[i]));
   clearTaps();
+  const h0 = S.p[0].h;
   C.step(S, G.w, ins[0], ins[1]);
+  if (G.mode === 'practice') pracTick(S, h0);
   if (S.ev.length) { effects(S.ev, S); finals(S.ev); }
 }
 
@@ -2351,7 +2490,7 @@ function effects(evs, S, settled) {
         else puff(e.x, 330, 12, TEAM[e.b].c, 3, 24, 0.2, 2);
         break;
       }
-      case 'adv': if (e.a >= 0 && S.win < 0) { const n = G.names[e.a] || TEAM[e.a].name, v = n === 'You' ? ' run' : ' runs'; banner(e.a === 0 ? n + v + ' >' : '< ' + n + v, '', TEAM[e.a].c, 1.2); } break;
+      case 'adv': if (e.a >= 0 && S.win < 0 && G.mode !== 'practice') { const n = G.names[e.a] || TEAM[e.a].name, v = n === 'You' ? ' run' : ' runs'; banner(e.a === 0 ? n + v + ' >' : '< ' + n + v, '', TEAM[e.a].c, 1.2); } break;
       case 'disarm': Snd.play('disarm'); sparks(e.x, e.y, 16); R.shake = Math.max(R.shake, 2); break;
       case 'parry': Snd.play('parry'); sparks(e.x, e.y, 22); R.flash = 0.12; R.flashC = TEAM[e.a].l; R.shake = Math.max(R.shake, 2); for (let i = 0; i < 12; i++) { const a = i / 12 * 6.283; R.parts.push({x: e.x / 2, y: e.y / 2, vx: Math.cos(a) * 1.6, vy: Math.sin(a) * 1.6, l: 12, m: 12, c: '#ffffff', g: 0, s: 1}); } break;
       case 'clash': Snd.play('clash'); sparks(e.x, e.y, 12); break;
@@ -2366,7 +2505,14 @@ function effects(evs, S, settled) {
       case 'roll': Snd.play('roll'); puff(e.x, e.y - 2, 6, '#c8c2d8', 1.6, 14, 0, 1); break;
       case 'climb': Snd.play('climb'); break;
       case 'pickup': Snd.play('pickup'); break;
-      case 'room': Snd.play('room'); break;
+      case 'room': {
+        // a short banner for the new stage, counted from the runner's own end (practice: from the left)
+        Snd.play('room');
+        const a = G.mode === 'practice' ? 0 : e.a, k = a === 0 ? e.r + 1 : S.N - e.r, last = G.mode !== 'practice' && k === S.N;
+        banner(last ? 'LAST STAGE' : 'STAGE ' + k + ' OF ' + S.N, '', G.mode === 'practice' ? '#ffffff' : TEAM[a].c, 0.85);
+        break;
+      }
+      case 'crouch': if (e.a === G.me && G.mode !== 'local' && G.mode !== 'tour') Snd.play('crouch'); break;
       case 'spawn': puff(e.x, e.y - 30, 14, TEAM[e.a].c, 2.2, 22, -0.02, 1); break;
       case 'stance': if (e.a === G.me && G.mode !== 'local' && G.mode !== 'tour') Snd.play('stance'); break;
       case 'win':
@@ -2445,11 +2591,12 @@ const Net = {
     this.db.ref('.info/serverTimeOffset').on('value', s => { this.offset = s.val() || 0; });
     this.ready = true;
   },
-  base() { return {n: myName || 'Player', c: TEAM[0].c, x: 0, z: 0, h: 0, ts: Math.round(this.now()), j: this.j, rd: 0}; },
+  base() { return {n: myName || 'Player', c: TEAM[0].c, x: 0, z: 0, h: 0, ts: Math.round(this.now()), j: this.j, rd: 0, v: NETV}; },
+  // live players in a room on our version (n) and on another one (old)
   async count(room) {
-    const s = await this.db.ref('rooms/' + room + '/players').once('value'); let n = 0;
-    s.forEach(c => { const v = c.val(); if (c.key !== this.uid && v && this.now() - (+v.ts || 0) < LIVE_MS) n++; });
-    return n;
+    const s = await this.db.ref('rooms/' + room + '/players').once('value'); let n = 0, old = 0;
+    s.forEach(c => { const v = c.val(); if (c.key !== this.uid && v && this.now() - (+v.ts || 0) < LIVE_MS) { if ((+v.v || 1) === NETV) n++; else old++; } });
+    return {n, old};
   },
   async join(room, isPublic) {
     await this.init();
@@ -2481,7 +2628,7 @@ const str = (v, n) => typeof v === 'string' ? v.slice(0, n) : '';
 function onNode(uid, v) {
   if (!v || typeof v !== 'object') return;
   const prev = Net.others.get(uid);
-  const o = {n: cleanName(v.n) || 'Player', ts: +v.ts || 0, j: +v.j || +v.ts || 0, rd: v.rd ? 1 : 0, op: str(v.op, 40), m: str(v.m, 160), ma: +v.ma || 0,
+  const o = {v: +v.v || 1, n: cleanName(v.n) || 'Player', ts: +v.ts || 0, j: +v.j || +v.ts || 0, rd: v.rd ? 1 : 0, op: str(v.op, 40), m: str(v.m, 160), ma: +v.ma || 0,
     i: str(v.i, 2000), tk: +v.tk || 0, ad: +v.ad || 0, hc: str(v.hc, 60), ss: str(v.ss, 8000), fx: str(v.fx, 40), pq: +v.pq || 0, pe: str(v.pe, 80)};
   Net.others.set(uid, o);
   if (!prev && G.scene === 'lobby') toast(o.n + ' joined');
@@ -2489,6 +2636,7 @@ function onNode(uid, v) {
   if (o.pe) { const m = /^([^:]+):(\d+)$/.exec(o.pe); if (m && m[1] === Net.uid && Net.pqAt.has(+m[2])) { Net.rtt.push(performance.now() - Net.pqAt.get(+m[2])); Net.pqAt.delete(+m[2]); if (Net.rtt.length > 9) Net.rtt.shift(); } }
   // echo their ping counter straight back (in a match it rides along with the inputs instead)
   if (o.pq && (!prev || prev.pq !== o.pq) && G.mode !== 'online' && G.mode !== 'spec' && Net.refs) Net.upd({pe: uid + ':' + o.pq});
+  if (o.v !== NETV) { lobbyDirty = true; return; }   // a page on another version: never seated, watched or played
   if (G.net && G.mode === 'online' && uid === G.net.opp) onRemote(o);
   if (G.mode === 'spec' && G.spec) onSpecNode(uid, o);
   lobbyDirty = true;
@@ -2687,10 +2835,12 @@ let lobbyDirty = true, lobbyMsgT = 0;
 function nameOf(uid) { if (uid === Net.uid) return myName || 'Player'; const o = Net.others.get(uid); return o ? o.n : 'Player'; }
 function roster() {
   const a = [{uid: Net.uid, j: Net.j}];
-  for (const [k, v] of Net.others) if (Net.live(k)) a.push({uid: k, j: v.j});
+  for (const [k, v] of Net.others) if (Net.live(k) && v.v === NETV) a.push({uid: k, j: v.j});
   a.sort((x, y) => x.j - y.j || (x.uid < y.uid ? -1 : 1));
   return a;
 }
+// names of live players in the room whose page runs another version of the game
+function otherVersions() { const a = []; for (const [k, v] of Net.others) if (Net.live(k) && v.v !== NETV) a.push(v.n); return a; }
 function parseM(s) {
   const p = String(s || '').split('|');
   if (p.length < 7) return null;
@@ -2707,7 +2857,7 @@ function onlineTick() {
   if (G.mode === 'online' || (G.mode === 'spec' && G.running)) return;
   if (G.scene !== 'lobby') return;
   const r = roster(), seat = r.findIndex(x => x.uid === Net.uid), s0 = r[0], s1 = r[1];
-  if (Net.isPublic && seat >= 0 && seat < 2 && !myReady && performance.now() - (G.lobbyAt || 0) > 1500) setReady(1);
+  if (Net.isPublic && seat >= 0 && seat < 2 && !myReady && !otherVersions().length && performance.now() - (G.lobbyAt || 0) > 1500) setReady(1);
   // a match in progress that we're not in: watch it
   const host = s0 && s0.uid !== Net.uid ? Net.others.get(s0.uid) : null;
   const hm = host && parseM(host.m);
@@ -2750,7 +2900,9 @@ function renderLobby() {
     $('seat' + i + 's').textContent = !s ? '' : (s.uid === Net.uid ? myReady : o && o.rd) ? 'Ready' : 'Not ready';
   }
   const sp = r.slice(2).map(x => nameOf(x.uid));
-  $('specs').textContent = sp.length ? 'Watching: ' + sp.join(', ') + ' (winner stays on; the loser swaps out)' : '';
+  const ov = otherVersions();
+  $('specs').textContent = (sp.length ? 'Watching: ' + sp.join(', ') + ' (winner stays on; the loser swaps out). ' : '') +
+    (ov.length ? ov.join(', ') + (ov.length > 1 ? ' have' : ' has') + ' an older copy of Lokop open, so you can’t play each other yet: they need to refresh the page.' : '');
   const cfg = seat === 0 ? optsFromMenu() : null;
   $('lbOpts').textContent = seat === 0 ? 'You’re the host: ' + cfgText(cfg) + '. Change it in the menu before you join.' : 'The Tide seat picks the arena and rules.';
   $('ready').hidden = seat < 0 || seat > 1 || Net.isPublic;
@@ -2765,7 +2917,10 @@ function renderLobby() {
 // ---------------------------------------------------------------------
 function tourEntriesUI() {
   const box = $('entries'); box.innerHTML = '';
-  const list = store.get('tour', null) || [{n: myName || 'Player 1', k: 'human'}, {n: 'Player 2', k: 'human'}, {n: BOT_NAMES[0], k: 'normal'}, {n: BOT_NAMES[1], k: 'easy'}];
+  // a list saved before there were four bot levels (no `tourv`) maps its levels the same way as the menu's
+  let list = store.get('tour', null);
+  if (list && store.get('tourv', 1) < 2) list = list.map(e => Object.assign({}, e, {k: e.k === 'human' ? 'human' : OLD_LV[e.k] || 'normal'}));
+  list = list || [{n: myName || 'Player 1', k: 'human'}, {n: 'Player 2', k: 'human'}, {n: BOT_NAMES[0], k: 'normal'}, {n: BOT_NAMES[1], k: 'easy'}];
   list.forEach(e => addEntryRow(e));
 }
 function addEntryRow(e) {
@@ -2773,7 +2928,7 @@ function addEntryRow(e) {
   const row = document.createElement('div'); row.className = 'entry';
   const inp = document.createElement('input'); inp.className = 'text'; inp.maxLength = 14; inp.value = e.n; inp.setAttribute('data-name-filter', ''); inp.setAttribute('aria-label', 'Name');
   const sel = document.createElement('select'); sel.setAttribute('aria-label', 'Player or bot');
-  for (const [v, t] of [['human', 'Person'], ['easy', 'Bot: easy'], ['normal', 'Bot: normal'], ['hard', 'Bot: hard']]) { const o = document.createElement('option'); o.value = v; o.textContent = t; if (v === e.k) o.selected = true; sel.appendChild(o); }
+  for (const [v, t] of [['human', 'Person'], ['easy', 'Bot: easy'], ['normal', 'Bot: normal'], ['hard', 'Bot: hard'], ['expert', 'Bot: expert']]) { const o = document.createElement('option'); o.value = v; o.textContent = t; if (v === e.k) o.selected = true; sel.appendChild(o); }
   const x = document.createElement('button'); x.className = 'x'; x.type = 'button'; x.textContent = '×'; x.setAttribute('aria-label', 'Remove');
   x.onclick = () => { if (box.children.length > 3) row.remove(); };
   row.append(inp, sel, x); box.appendChild(row);
@@ -2782,7 +2937,7 @@ function readEntries() { return Array.from($('entries').children).map((r, i) => 
 function startTour() {
   const list = readEntries();
   if (list.length < 3) { $('tourMsg').textContent = 'A tournament needs at least 3 players.'; return; }
-  store.set('tour', list);
+  store.set('tour', list); store.set('tourv', 2);
   const pl = list.map((e, i) => ({id: i, n: e.n, k: e.k}));
   for (let i = pl.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pl[i], pl[j]] = [pl[j], pl[i]]; }
   let size = 2; while (size < pl.length) size *= 2;
@@ -2851,6 +3006,80 @@ function playTourMatch() {
 function tourResult(w) { const T = G.tour, m = T && T.cur; if (!m || m.w) return; m.w = w === 0 ? m.a : m.b; tourAdvance(); }
 
 // ---------------------------------------------------------------------
+// Practice: alone in an arena, a list of moves that tick off as you do them, and an optional dummy
+// ---------------------------------------------------------------------
+// [id, name, keys (from the player's own bindings), touch hint]
+function pracMoves() {
+  const L = id => KB.label(id, ' / ', ' ', id === 'p1jump' ? 2 : 1), both = (a, b) => L(a) + ' or ' + L(b);
+  const atk = both('p1atk', 'p2atk'), down = both('p1down', 'p2down'), up = both('p1up', 'p2up');
+  return [
+    ['move', 'Move', L('p1left') + ' ' + L('p1right') + ' or ' + L('p2left') + ' ' + L('p2right'), '◀ ▶'],
+    ['jump', 'Jump', both('p1jump', 'p2jump'), 'jump'],
+    ['sword', 'Sword up / down', L('p1up') + ' ' + L('p1down') + ' or ' + L('p2up') + ' ' + L('p2down'), '▲ ▼'],
+    ['stab', 'Stab', atk, 'blade'],
+    ['lunge', 'Lunge', 'run, then ' + atk, 'run + blade'],
+    ['crouch', 'Crouch', 'hold ' + down, 'hold ▼'],
+    ['kick', 'Kick', 'crouch, then ' + atk, '▼ + blade'],
+    ['roll', 'Roll', down + ' while running', 'run + ▼'],
+    ['dive', 'Dive kick', atk + ' in the air', 'jump + blade'],
+    ['throw', 'Throw', up + ' past high, then ' + atk, '▲▲ + blade']
+  ];
+}
+function startPractice() {
+  saveName();
+  G.lastStart = null;
+  const cfg = Object.assign(optsFromMenu(), {prac: 1});
+  begin(cfg, {mode: 'practice', names: [myName || 'You', 'Dummy'], ctrl: ['all', null], bots: [null, null], me: 0, statSeat: -1, cdAt: performance.now()});
+  G.prac = {dummy: 0, done: {}, up: 0, down: 0, moveT: 0, hT: 1, hAt: 0, mem: null};
+  setDummy(+store.get('dummy', 0) || 0);
+  renderPrac(); layout();
+}
+// 0 off, 1 stands still (changes height every few seconds), 2 fights back slowly (the Easy bot)
+function setDummy(v) {
+  const P = G.prac, S = G.S; if (!P || !S) return;
+  P.dummy = v; store.set('dummy', v);
+  const d = S.p[1];
+  if (v === 0) { if (d.s !== ST.DEAD) puff(d.x, d.y - 20, 10, '#c8c2d8', 2, 16, 0, 1); Object.assign(d, {s: ST.DEAD, gone: 1, rt: 1e9, arm: 0, t: 0}); }
+  else if (d.s === ST.DEAD && d.rt > 1e8) { d.rt = 0; d.gone = 1; }
+  P.mem = v === 2 ? C.botMem((Math.random() * 1e9) | 0, 'easy') : null;
+  for (const b of document.querySelectorAll('#dumSeg button')) b.setAttribute('aria-pressed', +b.dataset.v === v ? 'true' : 'false');
+}
+function dummyInput(S) {
+  const P = G.prac; if (!P || !P.dummy) return 0;
+  if (P.dummy === 2) return C.botInput(S, G.w, 1, P.mem);
+  const d = S.p[1], me = S.p[0]; if (d.s === ST.DEAD) return 0;
+  let b = 0;
+  if (S.t >= P.hAt) { P.hAt = S.t + 150 + ((Math.random() * 90) | 0); let h = (Math.random() * 3) | 0; if (h === d.h) h = (h + 1) % 3; P.hT = h; }
+  if (S.t % 4 === 0 && d.h !== P.hT && d.s === ST.IDLE) b |= d.h < P.hT ? K.U : K.D;
+  // keep facing you: a one-tick press the other way turns on the spot
+  if (d.s === ST.IDLE && d.gnd && d.f * (me.x - d.x) < -4 && !(P.prevB & (K.L | K.R))) b |= me.x > d.x ? K.R : K.L;
+  P.prevB = b;
+  return b;
+}
+function pracTick(S, h0) {
+  const P = G.prac; if (!P) return;
+  const p = S.p[0], hit = id => { if (!P.done[id]) { P.done[id] = 1; renderPrac(id); Snd.play('pickup'); } };
+  if (p.s === ST.IDLE && p.gnd && !p.cr && Math.abs(p.vx) > 1.5) { if (++P.moveT > 20) hit('move'); }
+  for (const e of S.ev) {
+    if (e.a !== 0) continue;
+    if (e.k === 'jump') hit('jump');
+    else if (e.k === 'stance') { if (e.h > h0) P.up = 1; else P.down = 1; if (P.up && P.down) hit('sword'); }
+    else if (e.k === 'crouch') hit('crouch');
+    else if (e.k === 'roll') hit('roll');
+    else if (e.k === 'throw') hit('throw');
+    else if (e.k === 'atk') { if (e.s === ST.THRUST) hit('stab'); else if (e.s === ST.LUNGE) hit('lunge'); else if (e.s === ST.SWEEP) hit('kick'); else if (e.s === ST.DIVE) hit('dive'); }
+  }
+}
+function renderPrac(just) {
+  const P = G.prac, ul = $('pracList'); if (!P || !ul) return;
+  const touch = document.body.classList.contains('touch');
+  const moves = pracMoves();
+  let n = 0;
+  ul.innerHTML = moves.map(([id, name, keys, tap]) => { const d = !!P.done[id]; if (d) n++; return `<li class="${d ? 'done' : ''}${id === just ? ' just' : ''}" data-m="${id}"><i aria-hidden="true">${d ? '✓' : ''}</i><b>${name}</b><span>${(touch ? tap : keys).replace(/</g, '&lt;')}</span></li>`; }).join('');
+  $('pracCount').textContent = n === moves.length ? 'All ten done!' : n + ' of ' + moves.length + ' done';
+}
+
+// ---------------------------------------------------------------------
 // Screens and layout
 // ---------------------------------------------------------------------
 const SCREENS = ['menu', 'lobby', 'tour', 'brk', 'over', 'pause', 'help', 'game'];
@@ -2869,22 +3098,43 @@ function show(name) {
 function layout() {
   const W = innerWidth, H = innerHeight, touch = document.body.classList.contains('touch') && G.running && !G.ended && G.mode !== 'local' && !(G.mode === 'tour' && G.ctrl[0] && G.ctrl[1]) && G.mode !== 'spec';
   const side = document.body.classList.contains('touch') && W > H && G.running;
-  const upright = document.body.classList.contains('touch') && H > W && G.running;   // upright phone: the picture stays at the top   // keep the picture between the gutters on a sideways phone
+  const upright = document.body.classList.contains('touch') && H > W && G.running;   // upright phone: the picture stays at the top
+  const prac = G.mode === 'practice' && G.running;
   const tb = $('touch'); tb.hidden = !touch;
+  const pl = $('prac'), pd = $('pracDum');
+  pl.hidden = pd.hidden = !prac;
+  pl.className = pd.className = '';
   const topH = 46 + (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sat')) || 0);
   let x, y, w, h;
   const inGameTop = ['keysBtn', 'helpBtn'];
   for (const id of inGameTop) $(id).hidden = touch && G.scene === 'game';
+  // practice: the move list goes beside the picture on a computer, above it on an upright phone, and over the top
+  // between the button gutters on a phone on its side (the dummy switch then sits in the left gutter)
+  const place = (el, o) => { el.style.left = el.style.right = el.style.top = el.style.bottom = el.style.width = el.style.maxHeight = ''; for (const k in o) el.style[k] = typeof o[k] === 'number' ? o[k] + 'px' : o[k]; };
+  let ph = 0;
   if (upright && !touch) {
     w = W; h = Math.min(H - topH - 190, W * 0.95); x = 0; y = topH;
   } else if (!touch && !side) {
     w = W; h = H - topH - 4; x = 0; y = topH;
+    if (prac) {
+      const col = clamp(W * 0.2, 200, 250);
+      pl.className = pd.className = 'col';
+      place(pl, {left: 10, top: topH + 6, width: col - 20});
+      place(pd, {left: 10, top: topH + 12 + pl.offsetHeight, width: col - 20});
+      x = col; w = W - col;
+    }
   } else if (!touch) {
     const gut = clamp(W * 0.17, 118, 200); w = W - gut * 2; h = H; x = gut; y = 0;
   } else if (H > W) {
     // upright phone: the duel on top, the buttons underneath
+    if (prac) {
+      pl.className = 'strip'; pd.className = 'strip';
+      place(pl, {left: 8, right: 8, top: topH});
+      place(pd, {left: 8, right: 8, top: topH + pl.offsetHeight + 4});
+      ph = pl.offsetHeight + pd.offsetHeight + 10;
+    }
     const ctrlH = Math.min(250, Math.max(180, H * 0.3));
-    w = W; h = Math.min(H - topH - ctrlH - 10, W * 0.95); x = 0; y = topH;
+    w = W; h = Math.min(H - topH - ph - ctrlH - 10, W * 0.95); x = 0; y = topH + ph;
     const bs = Math.min(82, (W - 40) / 4 - 6);
     const tL = $('tL'), tR = $('tR');
     const by = y + h + Math.max(10, (H - y - h - bs * 2 - 10) / 2);
@@ -2897,12 +3147,18 @@ function layout() {
     const bs = Math.min(70, (gut - 26) / 2);
     Object.assign($('tL').style, {left: 'max(10px, env(safe-area-inset-left))', right: '', bottom: '18px', top: '', gridTemplateColumns: `${bs}px ${bs}px`, gridAutoRows: bs * 1.3 + 'px'});
     Object.assign($('tR').style, {right: 'max(10px, env(safe-area-inset-right))', left: '', bottom: '18px', top: '', gridTemplateColumns: `${bs}px ${bs}px`, gridAutoRows: bs + 'px'});
+    if (prac) {
+      pl.className = 'strip wide'; pd.className = 'gutter';
+      place(pl, {left: gut + 4, width: W - gut * 2 - 8, top: 4});
+      place(pd, {left: 'max(8px, env(safe-area-inset-left))', width: gut - 16, top: topH + 4});
+      y = pl.offsetHeight + 8; h = H - y;
+    }
   }
   // Fit the 180-pixel-high picture into that space, at a whole-number scale when that loses little room, so every game
   // pixel is the same size and stays crisp; up to 320 pixels wide (one room), narrower on upright phones.
   const kf = Math.min(h / 180, w / 160), ki = Math.floor(kf), k = ki >= 1 && ki / kf >= 0.8 ? ki : kf;
   const iw = Math.min(320, Math.floor(w / k)), cw = Math.round(iw * k), ch = Math.round(180 * k);
-  const cx = Math.round(x + (w - cw) / 2), cy = Math.round(upright ? y : y + (h - ch) / 2);
+  const cx = Math.round(x + (w - cw) / 2), cy = Math.round(upright || (prac && side) ? y : y + (h - ch) / 2);
   R.resize(cx, cy, cw, ch, iw);
   $('wait').style.top = (cy + ch * 0.18) + 'px';
   // the results bar goes under the picture when there's room (upright phones), else over its lower part
@@ -2924,7 +3180,7 @@ function onPauseKey() {
   if (G.scene === 'game' && !G.ended) pauseGame();
 }
 function pauseGame() {
-  if (G.mode === 'bot' || G.mode === 'local' || G.mode === 'tour') G.paused = true;
+  if (G.mode === 'bot' || G.mode === 'local' || G.mode === 'tour' || G.mode === 'practice') G.paused = true;
   $('pauseMsg').textContent = G.mode === 'online' ? 'The duel carries on while this is open.' : '';
   $('pauseKeys').innerHTML = keysTable();
   show('pause');
@@ -2938,7 +3194,7 @@ function quitMatch() {
   if (wasTour && G.tour) { showBracket(); return; }
   toMenu();
 }
-function toMenu() { if (Net.refs) Net.leave(); stopGame(); G.tour = null; G.spec = null; setWait(''); show('menu'); refreshStats(); }
+function toMenu() { if (Net.refs) Net.leave(); stopGame(); G.tour = null; G.spec = null; G.prac = null; setWait(''); show('menu'); refreshStats(); layout(); }
 function showResults() {
   G.resultShown = true;
   const S = G.S, w = G.winner;
@@ -2997,17 +3253,19 @@ function keysTable() {
     row('Move', L('p1left') + ' ' + L('p1right'), L('p2left') + ' ' + L('p2right')) +
     row('Sword up / down', L('p1up') + ' ' + L('p1down'), L('p2up') + ' ' + L('p2down')) +
     row('Jump', L('p1jump'), L('p2jump')) + row('Attack', L('p1atk'), L('p2atk')) + '</div>' +
-    '<p class="msg" style="margin-top:0">Playing alone, either set works. Gamepads: stick or d-pad, A jumps, X or B attacks, Start pauses.</p>';
+    '<p class="msg" style="margin-top:0">Playing alone, both sets work at once: move with either hand and jump or attack with the other. Gamepads: stick or d-pad, A jumps, X or B attacks, Start pauses.</p>';
 }
 function howHTML() {
   return '<ul class="rules">' +
+    '<li><b>New here?</b> Press <b>Practice</b> on the menu to try every move on your own first.</li>' +
     '<li><b>One touch wins the duel.</b> A blade kills anything it reaches: thrust, lunge, or just walk or jump into an opponent’s point.</li>' +
     '<li><b>Three sword heights.</b> Up and down move your sword between low, middle and high. Held at the same height as theirs, blades block. Move your sword across theirs and you knock it out of their hand. Switch into their thrust at the last moment for a <b>parry</b>: a white flash, and they stagger.</li>' +
-    '<li><b>Moving.</b> Tap a direction for a step, hold it to run. Attack while running lunges. Down while running rolls under a middle or high blade (a low one catches you). Duck with down and crawl. Jump over people, and push into a ledge to climb it.</li>' +
-    '<li><b>Throw.</b> Press up again at high to raise your sword, then attack to throw it. A sword held high blocks a throw; ducking or rolling dodges it.</li>' +
-    '<li><b>No sword?</b> Punch, sweep (down + attack) or dive kick (attack in the air) to knock someone down, then attack again to finish them. A low guard catches sweeps; a high guard catches dive kicks. Hold down over a dropped sword to pick it up.</li>' +
-    '<li><b>The line.</b> Win a duel and only you may run toward your end of the line (Tide runs right, Bloom runs left); the loser is back in a moment, in front of you. The boxes at the top show the rooms and who is running. The last room ends in a pit: jump in while you have the run and you win. Anyone else who falls in a pit or a gap is out until they come back.</li>' +
-    (document.body.classList.contains('touch') ? '<li><b>On a touch screen:</b> the arrows on the left move. On the right: \u25B2 and \u25BC move your sword up and down (\u25BC also ducks, rolls while running and picks up swords), the arrow jumps, and the blade attacks.</li>' : '') +
+    '<li><b>Moving.</b> You face the way you last pressed, so walking away turns your back. Tap a direction for a step, hold it to run. Attack while running lunges. Down while running rolls under a middle or high blade (a low one catches you). Jump over people, and push into a ledge to climb it.</li>' +
+    '<li><b>Going down.</b> Hold down (or press it with your sword already low) to crouch: you duck under middle and high blades and can shuffle along; let go to stand. Crouch and attack for a <b>sliding kick</b>: it knocks them flat and their sword flies off, but a sword held low stops it.</li>' +
+    '<li><b>Throw.</b> Press up again at high to raise your sword, then attack to throw it. A sword held high blocks a throw; crouching or rolling dodges it.</li>' +
+    '<li><b>No sword?</b> Punch, kick or dive kick (attack in the air) to knock someone down, then attack again to finish them. A high guard catches dive kicks. Crouch over a dropped sword to pick it up.</li>' +
+    '<li><b>The stages.</b> Win a duel and only you may run toward your end (Tide runs right, Bloom runs left); the loser is back in a moment, in front of you. The blocks at the top are the stages, with the one you’re on lit. The last stage ends in a pit: jump in while you have the run and you win. Anyone else who falls in a pit or a gap is out until they come back.</li>' +
+    (document.body.classList.contains('touch') ? '<li><b>On a touch screen:</b> the arrows on the left move. On the right: ▲ and ▼ move your sword up and down (hold ▼ to crouch; it also rolls while running and picks up swords), the arrow jumps, and the blade attacks.</li>' : '') +
     '</ul>' + keysTable();
 }
 function closeHelp() { $('help').hidden = true; if (G.running && G.scene === 'game') { show('game'); } else show(G.scene || 'menu'); }
@@ -3027,16 +3285,20 @@ function initMenu() {
   };
   const ar = $('arenaSeg');
   ar.innerHTML = '<button type="button" data-v="-1">Random</button>' + C.ARENAS.map((a, i) => `<button type="button" data-v="${i}" title="${a.tag}">${a.name}</button>`).join('');
-  segs('arenaSeg', 'arena', -1); segs('lenSeg', 'len', 7);
-  segs('diffSeg', 'diff', 'normal', v => { $('mBotSub').textContent = 'Duel a ' + v + ' bot on this device'; });
-  $('mBotSub').textContent = 'Duel a ' + store.get('diff', 'normal') + ' bot on this device';
+  segs('arenaSeg', 'arena', -1); segs('lenSeg', 'len', 5);
+  const lv0 = botLevel(); store.set('bot', lv0);
+  const botSub = () => { const v = botLevel(); $('mBotSub').textContent = (v === 'easy' || v === 'expert' ? 'Duel an ' : 'Duel a ') + v + ' bot on this device'; };
+  segs('diffSeg', 'bot', lv0, botSub);
+  botSub();
+  for (const b of document.querySelectorAll('#dumSeg button')) b.addEventListener('click', () => { setDummy(+b.dataset.v); b.blur(); });
+  $('mPrac').onclick = startPractice;
   const opt = store.get('opts', null);
   const OPTS = ['oThr', 'oLowg', 'oBounce', 'oTurbo'];
   if (opt) for (const k of OPTS) if (k in opt) $(k).checked = !!opt[k];
   for (const k of OPTS) $(k).addEventListener('change', () => { const o = {}; for (const q of OPTS) o[q] = $(q).checked ? 1 : 0; store.set('opts', o); lobbyDirty = true; });
   $('howBody').innerHTML = howHTML(); $('helpBody').innerHTML = howHTML();
   KB.onChange(() => { $('howBody').innerHTML = howHTML(); $('helpBody').innerHTML = howHTML(); });
-  $('mBot').onclick = () => { saveName(); const lv = store.get('diff', 'normal'); const bn = BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
+  $('mBot').onclick = () => { saveName(); const lv = botLevel(); const bn = BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
     G.lastStart = () => begin(optsFromMenu(), {mode: 'bot', names: [myName || 'You', bn + ' (bot)'], ctrl: ['all', null], bots: [null, lv], me: 0, statSeat: 0});
     G.lastStart(); };
   $('mLocal').onclick = () => { saveName(); if (document.body.classList.contains('touch') && !matchMedia('(any-pointer: fine)').matches) toast('Two players need a keyboard or two gamepads', 2600); G.lastStart = () => begin(optsFromMenu(), {mode: 'local', names: ['Tide', 'Bloom'], ctrl: ['p1', 'p2'], bots: [null, null], statSeat: -1}); G.lastStart(); };
@@ -3050,7 +3312,7 @@ function initMenu() {
   $('ready').onclick = () => setReady(myReady ? 0 : 1);
   $('copyInv').onclick = () => { const url = location.origin + '/#' + Net.room; const done = ok => { $('lbMsg').textContent = ok ? 'Invite link copied.' : 'Invite link: ' + url; }; try { navigator.clipboard.writeText(url).then(() => done(true), () => done(false)); } catch (e) { done(false); } };
   $('lbLeave').onclick = toMenu;
-  $('leave').onclick = () => { if (G.running && !G.ended && G.scene === 'game') { if (G.mode === 'online' || G.mode === 'spec') quitMatch(); else pauseGame(); } else if (G.scene === 'brk' || G.scene === 'tour') { G.tour = null; toMenu(); } else if (G.running) quitMatch(); else toMenu(); };
+  $('leave').onclick = () => { if (G.mode === 'practice') { toMenu(); return; } if (G.running && !G.ended && G.scene === 'game') { if (G.mode === 'online' || G.mode === 'spec') quitMatch(); else pauseGame(); } else if (G.scene === 'brk' || G.scene === 'tour') { G.tour = null; toMenu(); } else if (G.running) quitMatch(); else toMenu(); };
   $('pauseBtn').onclick = () => { if ($('pause').hidden) pauseGame(); else resume(); };
   $('resume').onclick = resume; $('pQuit').onclick = quitMatch; $('pKeys').onclick = () => KB.open(); $('keysBtn').onclick = () => KB.open();
   $('again').onclick = again; $('oMenu').onclick = () => { if (G.mode === 'tour') { G.tour = null; } toMenu(); };
@@ -3072,8 +3334,10 @@ async function joinRoom(room, isPublic) {
     if (isPublic) {
       await Net.init();
       const rooms = []; for (let i = 1; i <= PUB_ROOMS; i++) rooms.push(PREFIX + '-pub-' + i);
-      const res = await Promise.all(rooms.map(r => Net.count(r).catch(() => -1)));
-      // someone waiting alone first, then an empty room, then the room with the shortest queue
+      const cnt = await Promise.all(rooms.map(r => Net.count(r).catch(() => null)));
+      // someone waiting alone first, then an empty room, then the room with the shortest queue; rooms with someone
+      // on an older copy of the game only as a last resort
+      const res = cnt.map(c => !c ? -1 : c.old ? 100 + c.n : c.n);
       let bi = res.findIndex(n => n === 1); if (bi < 0) bi = res.findIndex(n => n === 0);
       if (bi < 0) { let bn = 1e9; res.forEach((n, i) => { if (n >= 0 && n < bn) { bn = n; bi = i; } }); }
       if (bi < 0) throw new Error(NET_BLOCKED);
@@ -3086,7 +3350,7 @@ async function joinRoom(room, isPublic) {
   $('lbRoom').textContent = isPublic ? 'Public room' : 'Room ' + room.replace(/^gd-/, '');
   show('lobby'); renderLobby();
 }
-document.addEventListener('visibilitychange', () => { if (document.hidden) { keysDown.clear(); if (G.running && (G.mode === 'bot' || G.mode === 'local' || G.mode === 'tour') && !G.ended && $('pause').hidden) pauseGame(); } });
+document.addEventListener('visibilitychange', () => { if (document.hidden) { keysDown.clear(); if (G.running && (G.mode === 'bot' || G.mode === 'local' || G.mode === 'tour' || G.mode === 'practice') && !G.ended && $('pause').hidden) pauseGame(); } });
 
 R.init(); setupTouch(); initMenu(); show('menu'); drawLogo($('logo'));
 addEventListener('touchstart', () => { $('howBody').innerHTML = howHTML(); $('helpBody').innerHTML = howHTML(); }, {once: true, passive: true});
@@ -3094,7 +3358,7 @@ addEventListener('touchstart', () => { $('howBody').innerHTML = howHTML(); $('he
 // Test hook for automated browsers only.
 if (navigator.webdriver) window.__ll = {tickOffline, ff(n, lv) { if (lv) G.bots = [0, 1].map(i => G.bots[i] || C.botMem(i + 7, lv)); G.cdUntil = 0; for (let i = 0; i < n && !G.ended; i++) tickOffline(); return G.ended; },
   autoBot(lv) { G.autoBot = lv ? C.botMem((Math.random() * 1e9) | 0, lv) : null; },
-  G, C, R, Net, KB, store, begin, sprite, TEAM, optsFromMenu, quitMatch, toMenu, roster, rttMs, startTour, playTourMatch, touchHeld, touchHit,
+  G, C, R, Net, KB, store, begin, sprite, TEAM, optsFromMenu, startPractice, setDummy, layout, NETV, botLevel, quitMatch, toMenu, roster, rttMs, startTour, playTourMatch, touchHeld, touchHit,
   stats() { const n = G.net; return n ? {cur: n.cur, known: n.known, rolls: n.rolls, rollTicks: n.rollTicks, maxRoll: n.maxRoll, desync: n.desync, resyncs: n.resyncs || 0, skew: n.skew, D: n.D, ping: n.ping, stallMs: n.stallMs, finalT: n.finalT, ghosts: n.ghosts, shifted: n.shifted, kills: G.finalKills.length} : null; }};
 })();
 </script>
