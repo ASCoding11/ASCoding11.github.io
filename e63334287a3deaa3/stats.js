@@ -93,6 +93,7 @@
   var MAX_DEV = 12, MAX_AL = 8, MAX_HW = 4, MAX_LK = 8;
   var NAME_WAIT = 1500, NAME_GAP = 10000;            // a rename republishes after NAME_WAIT, at most once every NAME_GAP
   var LOWER = { tower: 1, summit: 1, obby: 1 };
+  LOWER.summit2 = 1;   // Updraft's fastest climb to the Crown (3000 m); summit stays its time to the old summit (1000 m)
   LOWER.total = 1;   // Escapade's fastest total of levels 1–8 (min('total', seconds)) is a time too
   LOWER.place = 1;   // Driftfall's best placing (1 = won)
   // Rampline's best time on each built-in track (min('t-<track id>', seconds))
@@ -251,7 +252,7 @@
   var READ = {
     'coil': function () { return { best: sj('coil:best') }; },
     'shell-crackers': function () { var r = sj('shellcr-rank'); return r && (r.g | 0) > 0 ? { elo: Math.round(num(r.r)) } : {}; },
-    'updraft': function () { var b = sj('updraft:best') || {}; return { height: b.h, summit: b.time, summits: b.wins }; },
+    'updraft': function () { var b = sj('updraft:best') || {}; return { height: b.h, summit: b.time, summits: b.wins, summit2: b.t2 }; },   // summit: to the old summit (1000 m); summit2: to the Crown (3000 m)
     'spire': function () { var p = sj('spire:profile') || {}; return { tower: p.best && p.best.tower, towers: p.towers }; },
     'tumble-trials': function () { var s = sj('tumble-stats') || {}; return { crowns: s.w, shows: s.g }; },
     'showdown': function () { var s = sj('sd:pstats') || {}; return { pot: s.big, hands: s.h }; },
