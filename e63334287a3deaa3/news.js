@@ -60,6 +60,14 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-10', version: '1.19', title: 'Lunge Line is now Lokop', kind: 'feature', games: ['Lokop:lunge-line'],
+     img: 'm/thumbs/lunge-line.jpg', tags: ['8-bit look', 'Paint splats', 'New arenas', 'Faster moves'], items: [
+      'Lunge Line has a new name, Lokop, and a whole new look: chunky pixel art, a pixel font and chip-tune music and sound.',
+      'A touch now bursts the loser into paint of their colour, and the splats stay on the floors and walls for the rest of the match.',
+      'Moving is much quicker and tighter: faster runs and stops, shorter lunges, a quicker roll, a jump you can steer and a heavier dive kick.',
+      'Four new arenas made of plain stages with platforms, steps, low tunnels and gaps, and no more wind, ice, steam or crumbling floors. To win, run off the end of the last stage and drop into the pit.',
+      'Your touches, streaks, wins, keys and settings carry over, and old invite links still work.'
+    ]},
     {date: '2026-11-09', version: '1.18', title: 'Updraft: 2,000 m more', kind: 'feature',
      img: 'm/thumbs/updraft.jpg', tags: ['3,000 m', 'Five new zones', 'New leaderboard'], items: [
       'Updraft: 2,000 m more. The old summit at 1,000 m is now a milestone, and the climb goes on to the Crown at 3,000 m through five new zones.',
