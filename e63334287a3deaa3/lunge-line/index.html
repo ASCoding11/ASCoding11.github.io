@@ -182,6 +182,8 @@ details.how[open] summary::before{content:'- '}
 #pracDum.strip{display:flex;align-items:center;gap:8px;padding:4px 7px}
 #pracDum.strip .label,#pracDum.gutter .label{margin:0}
 #pracDum.strip .seg button{font-size:13px;padding:3px 7px}
+#pracDum.strip .seg{flex-wrap:nowrap}
+#pracDum.strip .lg,#pracDum.gutter .lg{display:none}
 #pracDum.gutter{padding:6px}
 #pracDum.gutter .seg{flex-direction:column;align-items:stretch}
 #pracDum.gutter .seg button{font-size:13px;padding:4px 6px;text-align:left}
@@ -222,7 +224,7 @@ details.how[open] summary::before{content:'- '}
       <div class="ph"><span>Practice</span><small id="pracCount"></small></div>
       <ul id="pracList"></ul>
     </aside>
-    <div id="pracDum" hidden><span class="label">Dummy</span><div class="seg" id="dumSeg" role="group" aria-label="Dummy"><button type="button" data-v="0">Off</button><button type="button" data-v="1">Stands still</button><button type="button" data-v="2">Fights back slowly</button></div></div>
+    <div id="pracDum" hidden><span class="label">Dummy</span><div class="seg" id="dumSeg" role="group" aria-label="Dummy"><button type="button" data-v="0">Off</button><button type="button" data-v="1">Stands still</button><button type="button" data-v="2">Fights back<span class="lg"> slowly</span></button></div></div>
     <div id="touch" hidden>
       <div class="tc" id="tL">
         <button class="tb" type="button" data-b="L" aria-label="Left"><svg viewBox="0 0 10 10"><path d="M7 1 2 5l5 4z"/></svg></button>
@@ -2271,7 +2273,7 @@ function fallScene(G, now, dt) {
     x.globalAlpha = a; rect(x, INK, 0, yb - 6, iw, 7 * s1 + 7 * 3 + 20); x.globalAlpha = 1;
     rect(x, team.c, 0, yb - 7, iw, 1); rect(x, team.c, 0, yb + 7 * s1 + 7 * 3 + 14, iw, 1);
     text(x, name, iw / 2, yb, team.c, s1, 1, INK);
-    text(x, 'WINS', iw / 2, yb + 7 * s1 + 6, '#ffffff', 3, 1, team.m);
+    text(x, F.name === 'You' ? 'WIN' : 'WINS', iw / 2, yb + 7 * s1 + 6, '#ffffff', 3, 1, team.m);
     if (Math.floor((now - F.bannerAt) / 450) % 2 === 0) text(x, R.fall.prompt || 'NEXT GAME', iw / 2, yb + 7 * s1 + 7 * 3 + 20, '#ffffff', 1, 1, INK);
   }
   if (R.flash > 0) { x.globalAlpha = Math.min(0.6, R.flash); x.fillStyle = R.flashC; x.fillRect(0, 0, iw, PH); x.globalAlpha = 1; R.flash = Math.max(0, R.flash - dt * 4); }
@@ -2945,6 +2947,7 @@ function onlineTick() {
   if (G.mode === 'online' || (G.mode === 'spec' && G.running)) return;
   if (G.scene !== 'lobby') return;
   const r = roster(), seat = r.findIndex(x => x.uid === Net.uid), s0 = r[0], s1 = r[1];
+  if (myReady && otherVersions().length) setReady(0);
   if (Net.isPublic && seat >= 0 && seat < 2 && !myReady && !otherVersions().length && performance.now() - (G.lobbyAt || 0) > 1500) setReady(1);
   // a match in progress that we're not in: watch it
   const host = s0 && s0.uid !== Net.uid ? Net.others.get(s0.uid) : null;
@@ -2978,7 +2981,9 @@ function startOnline(m) {
   Net.upd({ma: m.id, rd: 0, i: m.id + '.0.', fx: ''});
   const o = Net.others.get(opp); if (o) onRemote(o);
 }
-function setReady(v) { myReady = v; Net.upd({rd: v}); lobbyDirty = true; }
+// Not ready while someone on an older copy of the game is in the room: their page doesn't check versions, so it could
+// start a match with us that would fall out of step.
+function setReady(v) { if (v && otherVersions().length) { renderLobby(); return; } myReady = v; Net.upd({rd: v}); lobbyDirty = true; }
 function renderLobby() {
   lobbyDirty = false;
   const r = roster(), seat = r.findIndex(x => x.uid === Net.uid);

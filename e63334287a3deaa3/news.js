@@ -60,6 +60,14 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-10', version: '1.20', title: 'Lokop: calmer, easier, and Practice', kind: 'feature', games: ['Lokop:lunge-line'],
+     img: 'm/thumbs/lunge-line.jpg', tags: ['Practice', 'Easier bots', 'Crouch and kick', 'Stages'], items: [
+      'A new Practice button drops you into an arena on your own, with a list of moves that tick off as you try them and an optional dummy to hit.',
+      'Fencers move more calmly, face whichever way you press, and are now simple one-colour pixel figures.',
+      'Hold down to crouch under a sword, and attack while crouched for a sliding kick that knocks the other fencer flat.',
+      'The bots are much easier: Easy is a real beginner and is the new default, and there are four levels.',
+      'Each stage has its own look and a banner when you reach it, matches can be 3 stages long, and paint splats now stay on the floor for the whole match.'
+    ]},
     {date: '2026-11-10', version: '1.19', title: 'Lunge Line is now Lokop', kind: 'feature', games: ['Lokop:lunge-line'],
      img: 'm/thumbs/lunge-line.jpg', tags: ['8-bit look', 'Paint splats', 'New arenas', 'Faster moves'], items: [
       'Lunge Line has a new name, Lokop, and a whole new look: chunky pixel art, a pixel font and chip-tune music and sound.',
