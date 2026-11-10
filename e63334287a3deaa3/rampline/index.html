@@ -12,7 +12,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Russo+One&family=Nunito:wght@600;700;800;900&display=swap">
 <script src="/namefilter.js"></script>
 <style>
-/* Layout: a full-bleed WebGL scene. Menus are cards over a slowly turning view of a track; while racing the HUD hugs
+/* Layout: a full-bleed WebGL scene. Menus are cards over a still view of a track; while racing the HUD hugs
    the top edge and the touch buttons the bottom corners; the editor has a bar on top and the piece palette at the bottom. */
 :root{
   --ink:#16213a;--ink-2:#4b5675;--ink-3:#8790aa;
@@ -341,6 +341,7 @@ body.touch #edHelp{display:none}
         <div class="row" style="margin-top:10px"><span style="font-weight:800;font-size:14px;min-width:92px">Graphics</span><div class="seg" id="gfxSeg"><button type="button" data-q="low">Fast</button><button type="button" data-q="high">Pretty</button></div></div>
         <div class="row" style="margin-top:10px"><span style="font-weight:800;font-size:14px;min-width:92px">Camera</span><div class="seg" id="camSeg"><button type="button" data-c="0">Chase</button><button type="button" data-c="1">Far</button><button type="button" data-c="2">Hood</button></div></div>
         <div class="row" style="margin-top:10px"><span style="font-weight:800;font-size:14px;min-width:92px">Ghost</span><div class="seg" id="ghostSeg"><button type="button" data-g="1">Show my best</button><button type="button" data-g="0">Off</button></div></div>
+        <div class="row" style="margin-top:10px"><span style="font-weight:800;font-size:14px;min-width:92px">Speed effects</span><div class="seg" id="fxSeg" title="Speed lines and the view widening at speed"><button type="button" data-fx="1">On</button><button type="button" data-fx="0">Off</button></div></div>
         <div class="row" style="margin-top:12px"><button class="btn sm alt kbonly" id="keysMenu" type="button">Controls</button></div>
         <details>
           <summary>How to play</summary>
@@ -418,6 +419,7 @@ body.touch #edHelp{display:none}
       </div>
       <div class="setting"><span>Sound</span><input id="vol2" type="range" min="0" max="1" step=".05" aria-label="Sound volume"></div>
       <div class="row" style="margin-top:10px"><span style="font-weight:800;font-size:14px;min-width:92px">Ghost</span><div class="seg" id="ghostSeg2"><button type="button" data-g="1">On</button><button type="button" data-g="0">Off</button></div></div>
+      <div class="row" style="margin-top:10px"><span style="font-weight:800;font-size:14px;min-width:92px">Speed effects</span><div class="seg" id="fxSeg2" title="Speed lines and the view widening at speed"><button type="button" data-fx="1">On</button><button type="button" data-fx="0">Off</button></div></div>
       <div class="row" style="margin-top:12px"><button class="btn sm alt kbonly" id="keysPause" type="button">Controls</button></div>
     </div>
   </section>
@@ -1255,7 +1257,7 @@ const store={get(k,d){try{const v=localStorage.getItem(PFX+k);return v==null?d:J
 let save=store.get('save',null);
 if(!save||typeof save!=='object'||save.v!==1||typeof save.pb!=='object'||!save.pb)save={v:1,pb:{},runs:0};
 const saveNow=()=>store.set('save',save);
-const set=Object.assign({vol:.7,mute:false,cam:0,gfx:null,car:0,col:0,ghost:1},store.get('set',{}));
+const set=Object.assign({vol:.7,mute:false,cam:0,gfx:null,car:0,col:0,ghost:1,fx:1},store.get('set',{}));
 let touchUI=matchMedia('(pointer: coarse)').matches&&!matchMedia('(any-pointer: fine)').matches;
 if(set.gfx!=='low'&&set.gfx!=='high')set.gfx=touchUI?'low':'high';
 set.vol=clamp(+set.vol,0,1);if(!isFinite(set.vol))set.vol=.7;set.cam=[0,1,2].includes(set.cam)?set.cam:0;
@@ -1310,7 +1312,6 @@ function noise(dur,freq,vol){
   s.connect(f);f.connect(g);g.connect(master);s.start(t,Math.random()*.5);s.stop(t+dur+.02);
 }
 const sfx={
-  beep(){tone(520,520,.14,'square',.12)},go(){tone(1040,1040,.32,'square',.13)},
   cp(){tone(880,1320,.09,'sine',.22);tone(1320,1760,.14,'sine',.18,.08)},
   fin(){[523,659,784,1046,1318].forEach((f,i)=>tone(f,f*1.01,.2,'triangle',.18,i*.08))},
   pb(){[784,988,1175,1568].forEach((f,i)=>tone(f,f,.16,'sine',.16,.45+i*.07))},
@@ -1516,6 +1517,7 @@ const trailPts=new THREE.Points(trGeo,new THREE.PointsMaterial({size:.75,map:puf
 for(let i=0;i<TRN;i++)trPos[i*3+1]=-999;
 function puffTexEarly(){const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d'),r=g.createRadialGradient(32,32,0,32,32,32);r.addColorStop(0,'rgba(255,255,255,.95)');r.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=r;g.fillRect(0,0,64,64);return new THREE.CanvasTexture(c)}
 const _tc=new THREE.Color();
+function trailClear(){trLife.fill(0);for(let i=0;i<TRN;i++)trPos[i*3+1]=-999;trGeo.attributes.position.needsUpdate=true}
 function trailStep(p,f,u,car,dt){
   const on=gar.trail>0&&car&&car.out<=0;trAcc+=dt;
   if(on&&(G.lastInp&1||car.boost>0)&&trAcc>0.016){trAcc=0;
@@ -1607,9 +1609,9 @@ function stepPuffs(dt){for(let i=0;i<PUFF;i++){if(puffLife[i]<=0)continue;puffLi
   for(let k=0;k<3;k++)puffPos[i*3+k]+=puffVel[i*3+k]*dt}puffGeo.attributes.position.needsUpdate=true}
 
 // ---------- game state ----------
-const G={mode:'menu',overlay:'menu',B:null,track:null,key:null,builtin:-1,car:null,gcar:null,grec:null,rec:[],acc:0,cd:0,paused:false,
+const G={mode:'menu',overlay:'menu',B:null,track:null,key:null,builtin:-1,car:null,gcar:null,grec:null,rec:[],acc:0,paused:false,
   test:false,prevP:null,prevF:null,prevU:null,gprev:null,camP:new THREE.Vector3(),camL:new THREE.Vector3(),camU:new THREE.Vector3(0,1,0),camF:new THREE.Vector3(0,0,1),camInit:false,
-  wantCp:false,splitT:0,bannerT:0,menuAng:0,pb:null,finShown:false,lastInp:0,noRender:false,gcache:new Map(),ghosts:[],gsel:{},splits:[],wait:false};
+  wantCp:false,splitT:0,bannerT:0,pb:null,finShown:false,lastInp:0,noRender:false,gcache:new Map(),ghosts:[],gsel:{},splits:[],wait:false};
 const keys={},tIn={l:false,r:false,g:false,b:false};
 const KB=Keybinds.create({
   game:'rampline',
@@ -1643,6 +1645,7 @@ function readInput(){
 const OVERLAYS=['menu','tracks','mine','pause','results','dlg','sheet','comm'];
 function showOverlay(id){G.overlay=id;for(const o of OVERLAYS)$(o).hidden=o!==id;document.body.classList.toggle('racing',G.mode==='race'&&!id)}
 function banner(text,t){const b=$('banner');b.textContent=text;b.classList.add('show');G.bannerT=t||1}
+function clearBanner(){const b=$('banner');b.style.transition='none';b.classList.remove('show');b.textContent='';G.bannerT=0;void b.offsetWidth;b.style.transition=''}
 function flash(){const f=$('flash');f.style.transition='none';f.style.opacity=.55;requestAnimationFrame(()=>{f.style.transition='opacity .35s';f.style.opacity=0})}
 function dialog(title,bodyNodes,btns){
   $('dlgTitle').textContent=title;const b=$('dlgBody');b.textContent='';(Array.isArray(bodyNodes)?bodyNodes:[bodyNodes]).forEach(n=>n&&b.appendChild(typeof n==='string'?Object.assign(document.createElement('p'),{className:'sub',textContent:n}):n));
@@ -1670,28 +1673,31 @@ function startRace(track,key,builtin,test,comm){
   if(!same)setTrack(track,key,builtin);
   G.mode='race';G.test=!!test;G.paused=false;G.community=!!comm;
   if(comm&&key)Online.played(key,0);
-  const first=!G.raced||G.raced!==key;G.raced=key;
   $('hud').hidden=false;$('ed').hidden=true;
   $('hudName').textContent=(builtin>=0?(builtin+1)+'. ':'')+(track.name||'Untitled');
   $('pEdit').hidden=!G.test;$('pQuit').textContent=G.test?'My tracks':G.community?'Community':'Tracks';
-  restart(first);
+  restart();
   showOverlay(null);
 }
-// Restart is instant: the car waits on the line and the clock starts with your first key (G.wait). Only the first
-// start on a track has a countdown, and pressing go skips it once you've raced before.
-function restart(countdown){
+// Starting and restarting are instant and plain: no countdown, no camera move, no fade. The car waits on the line,
+// the camera is already in its chase spot, and the clock starts with your first drive key (G.wait).
+function restart(){
   const t0=performance.now();
-  const B=G.B;G.car=RL.newCar(B);G.rec=[];G.acc=0;G.finShown=false;G.wantCp=false;G.wait=!countdown;G.res=null;G.splits=[];
+  const B=G.B;G.car=RL.newCar(B);G.rec=[];G.acc=0;G.finShown=false;G.wantCp=false;G.wait=true;G.res=null;G.splits=[];
   G.pb=G.key?bestOf(G.key):null;
   // the ghost: your best run's inputs, driven again by the same physics
   G.gcar=null;G.grec=null;
   ghostsReset();
   G.prevP=G.car.p.slice();G.prevF=G.car.f.slice();G.prevU=G.car.u.slice();
-  G.cd=countdown?1.2:0;G.cdLast=4;G.camInit=false;
+  G.camInit=false;
+  // nothing left moving from the last run: the body spring at rest, old smoke and trail gone, no finish flash
+  carObj.susp=carObj.suspV=0;puffLife.fill(0);for(let i=0;i<PUFF;i++)puffPos[i*3+1]=-999;puffGeo.attributes.position.needsUpdate=true;trailClear();
+  const fl=$('flash');fl.style.transition='none';fl.style.opacity=0;
+  slMat.opacity=0;speedLines.visible=false;
   $('split').className='';$('cpCount').hidden=!B.cps.length;updateCpCount();renderTargets();$('invPill').hidden=true;
   $('waitHint').hidden=!G.wait;
   paintGates(G.car);
-  if(!countdown)banner('',0);
+  clearBanner();
   if(G.overlay==='results'||G.overlay==='pause')showOverlay(null);
   G.restartMs=performance.now()-t0;
 }
@@ -1804,6 +1810,7 @@ function camFollow(p,f,u,car,dt){
     const fw=_t2.set(f[0],f[1],f[2]),up=_t3.set(u[0],u[1],u[2]);
     camera.position.copy(tp).addScaledVector(up,.95).addScaledVector(fw,.35);
     camera.up.copy(up);camera.lookAt(tp.clone().addScaledVector(fw,20).addScaledVector(up,.6));
+    if(camera.fov!==FOV0){camera.fov=FOV0;camera.updateProjectionMatrix()}
     G.camInit=false;return;
   }
   const v=car.v,sp=Math.hypot(v[0],v[1],v[2]);
@@ -1811,7 +1818,8 @@ function camFollow(p,f,u,car,dt){
   const want=_t2.set(f[0],f[1],f[2]);
   if(!car.gr&&sp>6)want.set(v[0],v[1]*0.4,v[2]).normalize();
   const upW=car.gr?_t3.set(u[0],u[1],u[2]):_t3.set(0,1,0);
-  if(!G.camInit){G.camF.copy(want);G.camU.copy(upW);}
+  const snap=!G.camInit; // first frame of a run (or after a respawn or camera change): straight into place, no swoop
+  if(snap){G.camF.copy(want);G.camU.copy(upW);}
   const kf=1-Math.exp(-dt*(car.gr?7:3)),ku=1-Math.exp(-dt*(car.gr?5:2.2));
   G.camF.lerp(want,kf).normalize();G.camU.lerp(upW,ku).normalize();
   const far=mode===1,dist=(far?9.5:6.6)+clamp((sp-10)*0.045,0,2.6),hgt=(far?3.6:2.3)+clamp((sp-30)*0.01,0,0.4);
@@ -1821,10 +1829,13 @@ function camFollow(p,f,u,car,dt){
   camera.position.copy(G.camP);camera.up.copy(G.camU);
   G.camL.copy(tp).addScaledVector(G.camU,1.1).addScaledVector(G.camF,3);
   camera.lookAt(G.camL);
-  const fov=fovFor(sp,car);if(Math.abs(camera.fov-fov)>.05){camera.fov+=(fov-camera.fov)*Math.min(1,dt*4);camera.updateProjectionMatrix()}
+  const fov=fovFor(sp,car);
+  if(snap){if(camera.fov!==fov){camera.fov=fov;camera.updateProjectionMatrix()}}
+  else if(Math.abs(camera.fov-fov)>.05){camera.fov+=(fov-camera.fov)*Math.min(1,dt*4);camera.updateProjectionMatrix()}
 }
-// the faster you go, the wider the view (and a boost kicks it out a little more)
-function fovFor(sp,car){return 64+clamp((sp-8)*0.36,0,24)+(car&&car.boost>0?5:0)}
+// the faster you go, the wider the view (and a boost kicks it out a little more); with speed effects off it stays put
+const FOV0=64;
+function fovFor(sp,car){return set.fx?FOV0+clamp((sp-8)*0.36,0,24)+(car&&car.boost>0?5:0):FOV0}
 // speed lines: thin streaks rushing past the edges of the view, fading in above about 110 km/h
 const SL=64,slPos=new Float32Array(SL*6),slSeed=new Float32Array(SL*3);
 const slGeo=new THREE.BufferGeometry();slGeo.setAttribute('position',new THREE.BufferAttribute(slPos,3));
@@ -1832,7 +1843,7 @@ const slMat=new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity
 const speedLines=new THREE.LineSegments(slGeo,slMat);speedLines.frustumCulled=false;speedLines.renderOrder=20;camera.add(speedLines);scene.add(camera);
 for(let i=0;i<SL;i++){slSeed[i*3]=Math.random()*Math.PI*2;slSeed[i*3+1]=1.2+Math.random()*1.6;slSeed[i*3+2]=Math.random()}
 function speedLinesStep(sp,dt,on){
-  const k=on?clamp((sp-25)/30,0,1):0;slMat.opacity+=(k*0.45-slMat.opacity)*Math.min(1,dt*6);speedLines.visible=slMat.opacity>0.01;if(!speedLines.visible)return;
+  const k=on&&set.fx?clamp((sp-25)/30,0,1):0;slMat.opacity+=(k*0.45-slMat.opacity)*Math.min(1,dt*6);speedLines.visible=slMat.opacity>0.01;if(!speedLines.visible)return;
   const L=1.5+sp*0.06;
   for(let i=0;i<SL;i++){let z=slSeed[i*3+2];z-=dt*sp/40;if(z<0)z+=1;slSeed[i*3+2]=z;
     const a=slSeed[i*3],r=slSeed[i*3+1],x=Math.cos(a)*r*1.5,y=Math.sin(a)*r*.9,zz=-2-z*16,o=i*6;
@@ -1863,9 +1874,11 @@ function update(dt){
   if(!G.noRender)renderer.render(scene,camera);
   perf.frame=t1-t0;perf.render=performance.now()-t1;
 }
+// the menu sits over a still view of a track (it used to turn slowly)
+const MENU_ANG=0;
 function updateMenu(dt){
-  G.menuAng+=dt*.06;const b=G.B.bounds,cx=(b.minX+b.maxX)/2,cz=(b.minZ+b.maxZ)/2,sz=Math.max(b.maxX-b.minX,b.maxZ-b.minZ),r=sz*.42+50;
-  camera.position.set(cx+Math.cos(G.menuAng)*r,b.maxY+30+sz*.22,cz+Math.sin(G.menuAng)*r);camera.up.set(0,1,0);camera.lookAt(cx,b.minY,cz);
+  const b=G.B.bounds,cx=(b.minX+b.maxX)/2,cz=(b.minZ+b.maxZ)/2,sz=Math.max(b.maxX-b.minX,b.maxZ-b.minZ),r=sz*.42+50;
+  camera.position.set(cx+Math.cos(MENU_ANG)*r,b.maxY+30+sz*.22,cz+Math.sin(MENU_ANG)*r);camera.up.set(0,1,0);camera.lookAt(cx,b.minY,cz);
   if(camera.fov!==60){camera.fov=60;camera.updateProjectionMatrix()}
   const c=G.car;if(c){poseCar(carObj,c.p,c.f,c.u,0,0,dt,false);carObj.grp.visible=true}
   if(slMat.opacity>0)speedLinesStep(0,dt,false);
@@ -1877,15 +1890,11 @@ function updateRace(dt){
   const car=G.car;
   const t0=performance.now();
   if(!G.paused&&!G.overlay){
-    if(G.cd>0){
-      if(save.runs>0&&(KB.held('gas',keys)||tIn.g)){G.cd=0;banner('GO!',.5);sfx.go()} // racing before? go skips the countdown
-      else{G.cd-=dt;const n=Math.ceil(G.cd/.4);
-        if(G.cd<=0){banner('GO!',.6);sfx.go()}else if(n!==G.cdLast&&n<=3){G.cdLast=n;banner(String(n),.38);sfx.beep()}}}
-    else if(G.wait){if(anyDrive()){G.wait=false;$('waitHint').hidden=true;G.acc=DT}} // the clock starts with your first key
-    if(G.cd<=0&&!G.wait){G.acc+=dt;let n=0;while(G.acc>=DT&&n<12){tick();G.acc-=DT;n++}if(n>=12)G.acc=0}
+    if(G.wait){if(anyDrive()){G.wait=false;$('waitHint').hidden=true;G.acc=DT}} // the clock starts with your first key
+    if(!G.wait){G.acc+=dt;let n=0;while(G.acc>=DT&&n<12){tick();G.acc-=DT;n++}if(n>=12)G.acc=0}
   }
   perf.phys=performance.now()-t0;
-  const a=G.cd>0||G.wait?1:clamp(G.acc/DT,0,1);
+  const a=G.wait?1:clamp(G.acc/DT,0,1);
   const lp=(x,y)=>[x[0]+(y[0]-x[0])*a,x[1]+(y[1]-x[1])*a,x[2]+(y[2]-x[2])*a];
   const p=lp(G.prevP,car.p),f=Vm.norm(lp(G.prevF,car.f)),u=Vm.norm(lp(G.prevU,car.u));
   const vf=Vm.dot(car.v,car.f);
@@ -1897,11 +1906,11 @@ function updateRace(dt){
   sun.position.set(p[0]+40,p[1]+90,p[2]+25);sun.target.position.set(p[0],p[1],p[2]);
   if(sun.shadow.camera.right!==60){sun.shadow.camera.left=sun.shadow.camera.bottom=-60;sun.shadow.camera.right=sun.shadow.camera.top=60;sun.shadow.camera.updateProjectionMatrix()}
   // HUD
-  const tms=car.fin>=0?car.fin*1000:(G.cd>0||G.wait?0:car.step*DT*1000);
+  const tms=car.fin>=0?car.fin*1000:(G.wait?0:car.step*DT*1000);
   $('timer').textContent=fmt(tms);
   $('speed').firstChild.nodeValue=String(Math.round(Math.abs(vf)*3.6));
   speedLinesStep(Vm.len(car.v),dt,set.cam!==2&&!G.overlay);
-  engineSound(car,G.lastInp,!G.paused&&!G.overlay&&G.cd<=0);
+  engineSound(car,G.lastInp,!G.paused&&!G.overlay);
   if(car.fin>=0&&!G.finShown&&performance.now()-G.finAt>1200){G.finShown=true;showResults()}
 }
 
@@ -2002,7 +2011,9 @@ function renderSegs(){
   document.querySelectorAll('#gfxSeg button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.q===set.gfx)));
   document.querySelectorAll('#camSeg button').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.c===set.cam)));
   document.querySelectorAll('#ghostSeg button,#ghostSeg2 button').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.g===set.ghost)));
+  document.querySelectorAll('#fxSeg button,#fxSeg2 button').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.fx===(set.fx?1:0))));
 }
+document.querySelectorAll('#fxSeg button,#fxSeg2 button').forEach(b=>b.addEventListener('click',()=>{set.fx=+b.dataset.fx;saveSet();renderSegs()}));
 document.querySelectorAll('#gfxSeg button').forEach(b=>b.addEventListener('click',()=>{set.gfx=b.dataset.q;saveSet();renderSegs();applyQuality()}));
 document.querySelectorAll('#camSeg button').forEach(b=>b.addEventListener('click',()=>{set.cam=+b.dataset.c;saveSet();renderSegs()}));
 document.querySelectorAll('#ghostSeg button,#ghostSeg2 button').forEach(b=>b.addEventListener('click',()=>{set.ghost=+b.dataset.g;saveSet();renderSegs();
@@ -2692,7 +2703,7 @@ function updateReplay(dt){
 // Test hook (automated browsers only): step the game without waiting for frames, drive it, read its state.
 if(navigator.webdriver)window.__rl={RL,G,ED,KB,keys,tIn,RV,Online,gar,get save(){return save},set save(v){save=v},startRace,restart,toMenu,openTracks,openMine,openEditor,testDrive,backToEditor,showPause,builtinTrack,renderer,scene,camera,
   openSheet,openComm,openReplay,closeReplay,publishSlot,slotsGet,edCopy,edPaste,edMove,edPickUp,edCancelPaste,edSelChanged,updateRace,
-  advance(sec){G.noRender=true;try{const n=Math.round(sec/DT);for(let i=0;i<n;i++){if(G.paused||G.overlay)break;if(G.cd>0){G.cd=0;continue}if(G.wait){G.wait=false;$('waitHint').hidden=true}tick()}}finally{G.noRender=false}},
+  advance(sec){G.noRender=true;try{const n=Math.round(sec/DT);for(let i=0;i<n;i++){if(G.paused||G.overlay)break;if(G.wait){G.wait=false;$('waitHint').hidden=true}tick()}}finally{G.noRender=false}},
   frame(n){for(let i=0;i<(n||1);i++)update(1/60);return {frame:perf.frame,phys:perf.phys,render:perf.render}},
   info(){return {calls:renderer.info.render.calls,tris:renderer.info.render.triangles,build:G.buildMs}},
   autoplay(rec){G.auto=rec?{rec,i:0}:null},freeze(on){G.freeze=on},
