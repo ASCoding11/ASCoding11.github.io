@@ -976,7 +976,7 @@ function physics(S, w, T, p, o, inp) {
   // walls: met in the order you come to them (left to right when moving right), so a mirrored match stays a mirror
   const segs = (p.vx > 0 || (p.vx === 0 && p.f > 0)) ? w.segsR : w.segsL;
   for (const g of segs) {
-    if (g.y >= p.y - 10) continue;
+    if (g.y >= p.y - (p.gnd ? 10 : 0.01)) continue;   // on foot you walk up a small step; in the air any block side is a wall
     if (p.x + HW > g.x0 && p.x - HW < g.x1) {
       if (px <= g.x0 - HW + 0.01 || (px > g.x1 + HW - 0.01 ? false : px < (g.x0 + g.x1) / 2)) p.x = g.x0 - HW; else p.x = g.x1 + HW;
       p.vx = 0;
@@ -1600,6 +1600,8 @@ function botInput(S, w, i, m) {
     return out();
   }
   if (p.f !== toO) return out();   // turn round first (out() does it)
+  // a long standoff with matched blades (nobody touched for 6 s): every couple of seconds, switch height to break it
+  if (bold && adx < 90 && p.h === o.h && o.h < 3 && (m.bored % 150) === 75) { stanceTo(p, p.h === 1 ? (brand(m) < 0.5 ? 0 : 2) : 1, tapU, tapD); return out(); }
   // in the zone
   const open = p.h !== o.h && o.h < 3 && !(o.s === ST.ROLL) && !o.cr;
   const theyOpen = o.h === 3 || o.s === ST.STAG || o.s === ST.RECOIL || o.s === ST.DISARM || o.s === ST.THROW || (o.cr && p.h === 0) || (o.f === p.f && o.gnd);   // (or their back is turned)
@@ -2433,9 +2435,14 @@ function render(G, now, dt) {
   if (R.viewW < C.VIEW - 1) {
     // as near the focus as possible while keeping your own fencer well inside the picture (no easing of its own: it
     // moves exactly as smoothly as the focus and your fencer do, so it never lags)
-    const me = S.p[G.me || 0], m = R.viewW / 2 - 100;
+    const me = S.p[G.me || 0], m = R.viewW / 2 - 100, lim = half - R.viewW / 2;
     if (me.s !== ST.DEAD) tx = clamp(tx, me.x - m, me.x + m);
-    tx = clamp(tx, S.cam - half + R.viewW / 2, S.cam + half - R.viewW / 2);
+    // kept as an offset from the focus, which follows at once while it changes smoothly but glides (never jumps) when
+    // it has to move a long way at once, e.g. when you come back in after a touch
+    const want = clamp(tx - S.cam, -lim, lim);
+    if (R.nOff == null || R.camRoom !== S.room) R.nOff = want;
+    const d = want - R.nOff; R.nOff += clamp(d, -Math.max(9, Math.abs(d) * 0.12), Math.max(9, Math.abs(d) * 0.12));
+    tx = S.cam + clamp(R.nOff, -lim, lim);
   }
   R.camX = tx;
   R.camT = 1; R.camRoom = S.room;
@@ -2445,8 +2452,10 @@ function render(G, now, dt) {
   // Rounded relative to the fencer the camera is following (the runner, or your own fencer), so that fencer keeps a
   // steady place on the screen instead of wobbling a pixel against the scrolling ground; everything else is drawn from
   // the same whole number, so nothing shimmers.
+  // (only while the camera really is keeping pace with that fencer; standing still, it just rounds its own position)
   const left = R.camX - R.viewW / 2, li = S.adv >= 0 && S.p[S.adv].s !== ST.DEAD ? S.adv : G.mode === 'practice' || S.p[G.me || 0].s !== ST.DEAD ? (G.me || 0) : -1;
-  if (li >= 0 && Math.abs(S.p[li].x - R.camX) < R.viewW / 2) { const ax = S.p[li].x; R.camPx = Math.round(ax / 2) - Math.round((ax - left) / 2) - shx; }
+  const cv = R.camRoom === S.room && R.prevX != null ? R.camX - R.prevX : 0; R.prevX = R.camX;
+  if (li >= 0 && Math.abs(cv) > 0.5 && Math.abs(S.p[li].vx - cv) < 0.4 && Math.abs(S.p[li].x - R.camX) < R.viewW / 2) { const ax = S.p[li].x; R.camPx = Math.round(ax / 2) - Math.round((ax - left) / 2) - shx; }
   else R.camPx = Math.round(left / 2) - shx;
   const cam = R.camPx;
   // sky, far and middle layers, scrolling at a tenth and a third of the speed of the ground (parallax)
