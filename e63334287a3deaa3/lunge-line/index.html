@@ -135,6 +135,7 @@ details.how[open] summary::before{content:'- '}
 /* after a match: a bar over the bottom of the picture with Next game and Menu (the winner's banner is drawn in the picture) */
 #over{position:absolute;display:flex;align-items:flex-end;justify-content:center;padding:0 8px 6%;z-index:12;pointer-events:auto}
 #over.nobanner{align-items:center}
+#over.below{align-items:flex-start;padding:4px 10px 0}
 .obar{background:var(--panel-2);border:3px solid var(--edge);box-shadow:inset 0 0 0 3px var(--line),5px 5px 0 var(--edge);padding:10px 14px;width:min(520px,100%);text-align:center;max-height:100%;overflow:auto}
 .obar .kicker{justify-content:center}
 .otitle{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
@@ -1649,10 +1650,10 @@ function buildRoom(w, r) {
     if (c.r !== r) continue;
     const x0 = P(c.x0 - off), x1 = P(c.x1 - off), y = P(c.y);
     rect(x, th.ceil, x0, 0, x1 - x0, y);
-    if (key === 'market') { for (let yy = 4; yy < y - 6; yy += 5) for (let xx = x0 + ((yy / 5) & 1) * 4; xx < x1; xx += 8) rect(x, th.beam, xx, yy, 6, 2); rect(x, th.beam, x0, y - 4, x1 - x0, 4); for (let lx = x0 + 12; lx < x1 - 6; lx += 40) { rect(x, th.ink, lx, y, 1, 4); rect(x, th.lamp, lx - 1, y + 4, 3, 3); } }
+    if (key === 'market') { rect(x, th.ceil, x0, 0, x1 - x0, y); for (let wy = 12; wy < y - 22; wy += 22) for (let wx = x0 + 8; wx < x1 - 10; wx += 18) { rect(x, th.ink, wx - 1, wy - 1, 9, 12); rect(x, ((wx * 7 + wy) % 3) ? '#3a1d2e' : th.lamp, wx, wy, 7, 10); rect(x, th.ink, wx + 3, wy, 1, 10); } for (let k = 0; k < 6; k++) rect(x, th.plat2, x0 - 4 + k, y - 18 + k, x1 - x0 + 8 - 2 * k, 1); rect(x, th.beam, x0, y - 4, x1 - x0, 4); for (let lx = x0 + 12; lx < x1 - 6; lx += 40) { rect(x, th.ink, lx, y, 1, 4); rect(x, th.lamp, lx - 1, y + 4, 3, 3); } }
     else if (key === 'aqueduct') { for (let yy = 2; yy < y; yy += 6) { rect(x, th.ink, x0, yy, x1 - x0, 1); for (let xx = x0 + ((yy / 6) & 1) * 5; xx < x1; xx += 10) rect(x, th.ink, xx, yy, 1, 6); } rect(x, th.beam, x0, y - 3, x1 - x0, 3); }
     else if (key === 'dunes') { rect(x, th.beam, x0, y - 5, x1 - x0, 5); for (let xx = x0 + 3; xx < x1; xx += 7) rect(x, th.ink, xx, y - 5, 1, 5); for (let yy = 6; yy < y - 8; yy += 9) rect(x, th.beam, x0 + 3, yy, x1 - x0 - 6, 1); }
-    else { rect(x, th.beam, x0, y - 6, x1 - x0, 6); for (let xx = x0 + 2; xx < x1; xx += 5) rect(x, th.ceil, xx, y - 4, 2, 2); for (let lx = x0 + 10; lx < x1 - 4; lx += 36) rect(x, (lx / 36) & 1 ? '#ff4a4a' : th.lamp, lx, y, 2, 1); }
+    else { for (let px = x0 + 4; px < x1 - 6; px += 22) { rect(x, '#33465f', px, 4, 18, y - 14); rect(x, th.ink, px + 17, 4, 1, y - 14); for (let ry = 8; ry < y - 12; ry += 8) { rect(x, '#5a7090', px + 2, ry, 1, 1); rect(x, '#5a7090', px + 14, ry, 1, 1); } } rect(x, '#ffcc33', x0 + 6, y - 12, x1 - x0 - 12, 1); for (let k = x0 + 6; k < x1 - 6; k += 8) rect(x, th.ink, k, y - 12, 4, 1); rect(x, th.beam, x0, 2, x1 - x0, 2); rect(x, th.beam, x0, y - 6, x1 - x0, 6); for (let xx = x0 + 2; xx < x1; xx += 5) rect(x, th.ceil, xx, y - 4, 2, 2); for (let lx = x0 + 10; lx < x1 - 4; lx += 36) rect(x, (lx / 36) & 1 ? '#ff4a4a' : th.lamp, lx, y, 2, 1); }
     rect(x, th.ink, x0, y - 1, x1 - x0, 1); rect(x, th.ink, x0, 0, 1, y); rect(x, th.ink, x1 - 1, 0, 1, y);
   }
   // the end pits: a lip, a sign with an arrow pointing down, in the colour of the fencer who wins there
@@ -1736,7 +1737,7 @@ function stepPaint(w) {
     const s = solidAt(w, q.x, q.y);
     if (s === 1) { // floor (landed from above) or a wall (hit from the side)
       const fromAbove = !solidAt(w, q.x, oy) && oy < q.y;
-      if (fromAbove) { let y = Math.floor(q.y); while (y > oy - 1 && solidAt(w, q.x, y - 1)) y--; stamp(w, q.x - 1, y, q.c, 2 + q.s, 1); if (rnd() < 0.3) stamp(w, q.x + 1, y + 1, q.c, 1, 1); }
+      if (fromAbove) { let y = Math.floor(q.y); while (y > oy - 1 && solidAt(w, q.x, y - 1)) y--; const sw = 2 + q.s + ((rnd() * 3) | 0); stamp(w, q.x - (sw >> 1), y, q.c, sw, 1); if (rnd() < 0.6) stamp(w, q.x - (sw >> 1) + 1, y + 1, q.c, Math.max(1, sw - 2), 1); if (rnd() < 0.25) stamp(w, q.x + (rnd() < 0.5 ? -3 : 3), y, q.c, 1, 1); }
       else { stamp(w, ox + (q.vx > 0 ? 1 : -1), q.y, q.c, 1, 1 + q.s); if (rnd() < 0.5) stamp(w, ox + (q.vx > 0 ? 1 : -1), q.y + 2, q.c, 1, 1 + ((rnd() * 3) | 0)); }
       q.l = 0; continue;
     }
@@ -1750,6 +1751,7 @@ function stepPaint(w) {
     p.t++; if (p.t % 3) continue;
     p.w++;
     stamp(w, p.x - (p.w >> 1), p.y, p.c, p.w, 1);
+    stamp(w, p.x - (p.w >> 1) + 1, p.y + 1, p.c, Math.max(1, p.w - 2), 1);
     if (p.w > 4) stamp(w, p.x - (p.w >> 1) + 2, p.y, p.c2, Math.max(1, p.w - 6), 1);
   }
   R.pools = R.pools.filter(p => p.w < p.max);
@@ -2065,7 +2067,7 @@ function fallScene(G, now, dt) {
     x.globalAlpha = a; rect(x, INK, 0, yb - 6, iw, 7 * s1 + 7 * 3 + 20); x.globalAlpha = 1;
     rect(x, team.c, 0, yb - 7, iw, 1); rect(x, team.c, 0, yb + 7 * s1 + 7 * 3 + 14, iw, 1);
     text(x, name, iw / 2, yb, team.c, s1, 1, INK);
-    text(x, 'WINS', iw / 2, yb + 7 * s1 + 6, '#ffffff', 3, 1, team.d);
+    text(x, 'WINS', iw / 2, yb + 7 * s1 + 6, '#ffffff', 3, 1, team.m);
     if (Math.floor((now - F.bannerAt) / 450) % 2 === 0) text(x, R.fall.prompt || 'NEXT GAME', iw / 2, yb + 7 * s1 + 7 * 3 + 20, '#ffffff', 1, 1, INK);
   }
   if (R.flash > 0) { x.globalAlpha = Math.min(0.6, R.flash); x.fillStyle = R.flashC; x.fillRect(0, 0, iw, PH); x.globalAlpha = 1; R.flash = Math.max(0, R.flash - dt * 4); }
@@ -2866,13 +2868,16 @@ function show(name) {
 }
 function layout() {
   const W = innerWidth, H = innerHeight, touch = document.body.classList.contains('touch') && G.running && !G.ended && G.mode !== 'local' && !(G.mode === 'tour' && G.ctrl[0] && G.ctrl[1]) && G.mode !== 'spec';
-  const side = document.body.classList.contains('touch') && W > H && G.running;   // keep the picture between the gutters on a sideways phone
+  const side = document.body.classList.contains('touch') && W > H && G.running;
+  const upright = document.body.classList.contains('touch') && H > W && G.running;   // upright phone: the picture stays at the top   // keep the picture between the gutters on a sideways phone
   const tb = $('touch'); tb.hidden = !touch;
   const topH = 46 + (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sat')) || 0);
   let x, y, w, h;
   const inGameTop = ['keysBtn', 'helpBtn'];
   for (const id of inGameTop) $(id).hidden = touch && G.scene === 'game';
-  if (!touch && !side) {
+  if (upright && !touch) {
+    w = W; h = Math.min(H - topH - 190, W * 0.95); x = 0; y = topH;
+  } else if (!touch && !side) {
     w = W; h = H - topH - 4; x = 0; y = topH;
   } else if (!touch) {
     const gut = clamp(W * 0.17, 118, 200); w = W - gut * 2; h = H; x = gut; y = 0;
@@ -2897,10 +2902,14 @@ function layout() {
   // pixel is the same size and stays crisp; up to 320 pixels wide (one room), narrower on upright phones.
   const kf = Math.min(h / 180, w / 160), ki = Math.floor(kf), k = ki >= 1 && ki / kf >= 0.8 ? ki : kf;
   const iw = Math.min(320, Math.floor(w / k)), cw = Math.round(iw * k), ch = Math.round(180 * k);
-  const cx = Math.round(x + (w - cw) / 2), cy = Math.round(touch && H > W ? y : y + (h - ch) / 2);
+  const cx = Math.round(x + (w - cw) / 2), cy = Math.round(upright ? y : y + (h - ch) / 2);
   R.resize(cx, cy, cw, ch, iw);
   $('wait').style.top = (cy + ch * 0.18) + 'px';
-  const ov = $('over'); ov.style.left = cx + 'px'; ov.style.width = cw + 'px'; ov.style.top = cy + 'px'; ov.style.height = ch + 'px';
+  // the results bar goes under the picture when there's room (upright phones), else over its lower part
+  const ov = $('over'), below = H - (cy + ch) > 170;
+  ov.classList.toggle('below', below);
+  if (below) Object.assign(ov.style, {left: '0px', width: W + 'px', top: (cy + ch + 6) + 'px', height: (H - cy - ch - 6) + 'px'});
+  else Object.assign(ov.style, {left: cx + 'px', width: cw + 'px', top: cy + 'px', height: ch + 'px'});
 }
 addEventListener('resize', () => { if (G.running) layout(); });
 let toastT = 0;
