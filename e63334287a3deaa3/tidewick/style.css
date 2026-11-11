@@ -1,0 +1,56 @@
+/* Tidewick page layout. The game draws itself into a 256 × 240 canvas, scaled up by a whole number of device pixels
+   (main.js sets its size) with pixelated scaling. Computers get a slim key strip under it; touch screens get a pad and
+   two buttons under it (upright) or beside it (sideways), and two small buttons on top. */
+:root{
+  --bg:#0e1030;--panel:#1a1c4a;--panel-2:#2a2a66;--line:rgba(255,255,255,.16);--tx:#fffef0;--tx-2:#cfe8f0;--lamp:#f8c838;--ink:#120a1c;
+  --f-d:'Russo One','Arial Black','Trebuchet MS',system-ui,sans-serif;--f-b:'Nunito',system-ui,-apple-system,'Segoe UI',sans-serif;
+  /* the Controls panel (../keybinds.js) */
+  --kb-bg:var(--panel);--kb-fg:var(--tx);--kb-muted:var(--tx-2);--kb-line:var(--line);--kb-accent:var(--lamp);--kb-accent-ink:var(--ink);--kb-warn:#ff9a50;
+  --kb-border:2px solid var(--line);--kb-shadow:none;--kb-radius:14px;--kb-key-radius:6px;--kb-key-border:2px solid var(--line);--kb-key-bg:var(--panel-2);--kb-key-shadow:none;
+  --kb-font:var(--f-b);--kb-font-display:var(--f-d);--kb-key-weight:900;--kb-title-size:22px;--kb-title-weight:400;--kb-backdrop:rgba(14,16,48,.7);--kb-blur:0px;--kb-pad:18px;--kb-width:460px;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;overflow:hidden;background:var(--bg);color:var(--tx);font-family:var(--f-b);-webkit-font-smoothing:antialiased}
+body{user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+[hidden]{display:none!important}
+#app{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
+#stageBox{display:flex;align-items:center;justify-content:center}
+#screen{display:block;image-rendering:pixelated;image-rendering:crisp-edges;background:#000;touch-action:none}
+
+/* computers: the key strip */
+#bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;font-weight:800;font-size:13px;color:var(--tx-2);max-width:100%;padding:0 10px}
+#bar .keys{white-space:normal;text-align:center}
+kbd{font:900 12px var(--f-b);background:var(--panel-2);border:1px solid var(--line);border-radius:5px;padding:1px 5px;color:var(--tx)}
+.tbtn{font:400 14px var(--f-d);letter-spacing:.02em;border:0;border-radius:9px;padding:6px 12px;background:var(--panel-2);color:var(--tx);cursor:pointer}
+.tbtn.primary{background:var(--lamp);color:var(--ink)}
+.tbtn:hover{filter:brightness(1.12)}
+.tbtn:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
+.kb-panel .kb-label{font-weight:800}
+body.touch .kbonly{display:none!important}
+
+/* touch screens */
+#touch,#tTop{display:none}
+body.touch #touch{display:block;position:fixed;left:0;right:0;bottom:0;height:200px;pointer-events:none}
+body.touch #tTop{display:flex;gap:10px;position:fixed;top:calc(8px + env(safe-area-inset-top,0px));right:calc(10px + env(safe-area-inset-right,0px))}
+body.touch:not(.land) #app{justify-content:flex-start;padding-top:calc(60px + env(safe-area-inset-top,0px))}
+.tt{width:42px;height:42px;border-radius:50%;border:0;background:rgba(255,255,255,.14);color:var(--tx);font:400 14px var(--f-d);display:flex;align-items:center;justify-content:center;padding:0;touch-action:manipulation}
+.tt svg{width:22px;height:22px}
+.tt.off .w{display:none}
+#pad{position:absolute;left:calc(14px + env(safe-area-inset-left,0px));bottom:calc(22px + env(safe-area-inset-bottom,0px));width:156px;height:132px;pointer-events:auto;touch-action:none}
+.pb{position:absolute;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.16);color:var(--tx);border-radius:16px;pointer-events:none}
+.pb svg{width:30px;height:30px}
+.pb.on{background:rgba(248,200,56,.6);color:var(--ink)}
+.pb[data-act=left]{left:0;top:0;width:72px;height:76px}
+.pb[data-act=right]{right:0;top:0;width:72px;height:76px}
+.pb[data-act=down]{left:42px;bottom:0;width:72px;height:48px}
+#acts{position:absolute;right:calc(14px + env(safe-area-inset-right,0px));bottom:calc(22px + env(safe-area-inset-bottom,0px));width:160px;height:132px}
+.ab{position:absolute;width:76px;height:76px;border-radius:50%;border:0;font:400 14px var(--f-d);letter-spacing:.03em;pointer-events:auto;touch-action:none;padding:0}
+.ab.run{left:0;bottom:0;background:rgba(122,208,160,.35);color:var(--tx)}
+.ab.jump{right:0;top:0;background:rgba(248,200,56,.8);color:var(--ink)}
+.ab.on{filter:brightness(1.35)}
+.ab.run.on{background:rgba(122,208,160,.75);color:var(--ink)}
+/* sideways: the pad and buttons sit either side of the picture */
+body.touch.land #touch{top:0;height:auto}
+body.touch.land #pad{bottom:calc(16px + env(safe-area-inset-bottom,0px))}
+body.touch.land #acts{bottom:calc(16px + env(safe-area-inset-bottom,0px))}
