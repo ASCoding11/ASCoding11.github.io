@@ -212,7 +212,6 @@ export class Game {
 
   // ---------- main update ----------
   update(inp = NO_INPUT) {
-    this.frame++;
     if (inp.mutePressed) this.audio.toggleMute && this.audio.toggleMute();
     const pausable = this.mode === 'play' || this.mode === 'pipe';
     if (inp.startPressed && pausable && !inp.stepPressed) {
@@ -222,6 +221,7 @@ export class Game {
       return;
     }
     if (this.paused) return;
+    this.frame++;                   // only counts while not paused, so everything on screen holds still
     this.modeT++;
     switch (this.mode) {
       case 'title':

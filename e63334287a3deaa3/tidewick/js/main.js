@@ -42,9 +42,14 @@ function fit() {
   if (touchUI && land) { aw = vw - 2 * 176; ah = vh - 8; }
   else if (touchUI) { aw = vw - 8; ah = vh - 250; }
   else { aw = vw - 16; ah = vh - 44; }
-  const k = Math.max(1, Math.floor(Math.min(aw * dpr / SCREEN_W, ah * dpr / SCREEN_H)));
-  canvas.style.width = (SCREEN_W * k / dpr) + 'px';
-  canvas.style.height = (SCREEN_H * k / dpr) + 'px';
+  // k device pixels per game pixel, but only where the size is also a whole number of CSS pixels (so the browser
+  // never rounds it); if no such size fits (unusual zoom levels), whole CSS pixels.
+  let k = Math.floor(Math.min(aw * dpr / SCREEN_W, ah * dpr / SCREEN_H));
+  const whole = v => Math.abs(v - Math.round(v)) < 1e-6;
+  while (k > 0 && !(whole(SCREEN_W * k / dpr) && whole(SCREEN_H * k / dpr))) k--;
+  if (k < 1) k = Math.max(1, Math.floor(Math.min(aw / SCREEN_W, ah / SCREEN_H))) * dpr;
+  canvas.style.width = Math.round(SCREEN_W * k / dpr) + 'px';
+  canvas.style.height = Math.round(SCREEN_H * k / dpr) + 'px';
   canvas.dataset.scale = k;
   document.body.classList.toggle('land', land);
 }

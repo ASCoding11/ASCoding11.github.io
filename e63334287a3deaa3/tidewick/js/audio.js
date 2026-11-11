@@ -4,7 +4,7 @@
 // A tune is a set of voices (p1, p2: pulse; tri: triangle; nz: noise), each a string of notes "NAME/steps" ("D5/3",
 // "F#4/1", "r/2" is a rest; the noise voice uses k (kick), s (snare), h (hat)). `step` is the length of one step in
 // seconds. Looping tunes repeat each voice on its own length.
-import { MASTER_VOL, HURRY_TEMPO, SCHEDULE_AHEAD, SCHEDULE_EVERY_MS } from './constants.js';
+import { MASTER_VOL, SFX_GAIN, HURRY_TEMPO, SCHEDULE_AHEAD, SCHEDULE_EVERY_MS } from './constants.js';
 
 const bar = s => s.replace(/\|/g, ' ');
 const rep = (s, n) => Array(n).fill(s).join(' ');
@@ -180,7 +180,7 @@ class Synth {
       case 'kick': T(50, 900, 0, 0.04, 0.08, { to: 400 }); this.hit('h', t, 0.06); break;
       case 'life': ['A5', 'E6', 'C#6', 'A6', 'E6', 'A6'].forEach((x, i) => T(25, noteFreq(x), i * 0.07, i === 5 ? 0.2 : 0.07, 0.08)); break;
       case 'mast': T(25, 1400, 0, 0.9, 0.06, { to: 260, vib: 9 }); break;
-      case 'tick': T(12, 2100, 0, 0.025, 0.05); break;
+      case 'tick': T(12, 2100, 0, 0.03, 0.1); break;
       case 'pause': T(25, noteFreq('E6'), 0, 0.06, 0.08); T(25, noteFreq('B5'), 0.08, 0.1, 0.08); break;
       case 'bolt': this.hit('s', t, 0.07, 0.3); T(12, 180, 0, 0.3, 0.05, { to: 420 }); break;
       case 'splash': this.hit('k', t, 0.16, 0.5); this.hit('s', t + 0.05, 0.08, 0.4); break;
@@ -206,7 +206,8 @@ export class GameAudio {
     this.master.connect(this.ctx.destination);
     this.musicBus = this.ctx.createGain(); this.musicBus.connect(this.master);
     this.music2 = new Synth(this.ctx, this.musicBus);
-    this.syn = new Synth(this.ctx, this.master);
+    this.sfxBus = this.ctx.createGain(); this.sfxBus.gain.value = SFX_GAIN; this.sfxBus.connect(this.master);
+    this.syn = new Synth(this.ctx, this.sfxBus);
     this.timer = setInterval(() => this.pump(), SCHEDULE_EVERY_MS);
     if (this.want) { const w = this.want; this.want = null; this.music(w.name, w.fast); }
   }
@@ -258,7 +259,8 @@ export class GameAudio {
 export async function renderOffline(kind, name, seconds = 2, rate = 22050) {
   const ctx = new OfflineAudioContext(1, Math.floor(seconds * rate), rate);
   const g = ctx.createGain(); g.gain.value = MASTER_VOL; g.connect(ctx.destination);
-  const syn = new Synth(ctx, g);
+  const sg = ctx.createGain(); sg.gain.value = SFX_GAIN; sg.connect(g);
+  const syn = new Synth(ctx, kind === 'sfx' ? sg : g);
   if (kind === 'sfx') syn.sfx(name, 0.01);
   else {
     const s = song(name);
@@ -269,5 +271,5 @@ export async function renderOffline(kind, name, seconds = 2, rate = 22050) {
   const win = Math.floor(rate * 0.05);
   for (let i = 0; i < d.length; i++) { const a = Math.abs(d[i]); peak = Math.max(peak, a); sum += d[i] * d[i]; }
   for (let i = 0; i + win <= d.length; i += win) { let m = 0; for (let j = i; j < i + win; j++) m = Math.max(m, Math.abs(d[j])); if (m < 0.002) quiet++; }
-  return { peak: +peak.toFixed(3), rms: +Math.sqrt(sum / d.length).toFixed(4), quietShare: +(quiet / Math.floor(d.length / win)).toFixed(2), len: song(name) && kind !== 'sfx' ? +(song(name).len * SONGS[name].step).toFixed(2) : null };
+  return { peak: +peak.toFixed(3), rms: +Math.sqrt(sum / d.length).toFixed(4), quietShare: +(quiet / Math.floor(d.length / win)).toFixed(2), len: kind !== 'sfx' && song(name) ? +(song(name).len * SONGS[name].step).toFixed(2) : null };
 }

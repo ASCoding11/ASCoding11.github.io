@@ -175,6 +175,7 @@ export const BOSS_DOWN_FRAMES = 110;      // the fall before Pip walks on
 
 // ---------- audio ----------
 export const MASTER_VOL = 0.22;
+export const SFX_GAIN = 2.5;            // effects over the music
 export const HURRY_TEMPO = 1.35;
 export const SCHEDULE_AHEAD = 0.12;       // seconds of music scheduled ahead
 export const SCHEDULE_EVERY_MS = 25;

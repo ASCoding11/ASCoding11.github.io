@@ -68,7 +68,7 @@ function drawQuaySky(ctx, scene, camX, w, h, frame) {
     ctx.drawImage(scene._S[(Math.floor((frame + g.ph) / 12) % 2) ? 'gull1' : 'gull0'], gx, g.y + Math.floor(Math.sin((frame + g.ph * 7) / 40) * 3));
   }
   // the harbour behind the quay, with moored boats (half speed)
-  ctx.fillStyle = col(P.deep); ctx.fillRect(0, 196, w, 12);
+  ctx.fillStyle = col(P.deep); ctx.fillRect(0, 196, w, h - 196);
   ctx.fillStyle = col(P.water); for (let x = (frame >> 4) % 6; x < w; x += 6) ctx.fillRect(x, 197 + ((x >> 3) & 1), 3, 1);
   const hx = Math.floor(camX / 2);
   for (const b of d.boats) {
