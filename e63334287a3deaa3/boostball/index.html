@@ -398,6 +398,11 @@ const UU=.02;
 // Blue defends the goal at -z and attacks +z; Orange the other way round.
 const AW=4096*UU,AL=5120*UU,AH=2044*UU,GW=892.755*UU,GH=642.775*UU,GD=880*UU,CUT=1152*UU;
 const BR=91.25*UU,GRAV=650*UU,BALL_MAX=6000*UU;
+// Cars fall under their own gravity, a quarter stronger than the ball's (GRAV, which the ball keeps), so a car hangs
+// in the air less and comes down with some weight. The jump's kick and hold are raised by JUMP_K so a jump still goes
+// up nearly as high, just faster. Everything a car does in the air or on a wall uses CAR_GRAV, including other
+// players' cars drawn from their updates (updateRemotes).
+const CAR_GRAV=GRAV*1.25,JUMP_K=1.1;
 // Car hitbox half-extents (x width, y height, z length; the Octane's) and the hitbox centre's height when parked.
 const CAR_HX=.84,CAR_HY=.36,CAR_HZ=1.2,CAR_Y=.62,CAR_R=1.08;
 const MAXD=1410*UU,MAXB=2300*UU,SUPER=2200*UU,BOOST_USE=100/3,KICK_BOOST=100/3;
@@ -407,7 +412,7 @@ const BOOST_GROUND=(2975/3)*UU,BOOST_AIR=(3175/3)*UU,THROTTLE_AIR=(200/3)*UU;
 // felt too easy (5000 / 1300, then 3750 / 975, now 2900 / 750): braking from top speed takes about 0.49 s and 6.9 units.
 const DRIVE_ACC=1600*UU,BRAKE_ACC=2900*UU,COAST_ACC=750*UU,OVERSPEED_DEC=500*UU;
 // Jumps
-const JUMP_IMM=(875/3)*UU,JUMP_ACC=(4375/3)*UU,JUMP_MIN=.025,JUMP_MAX=.2,DJ_DELAY=1.25,DODGE_DEADZONE=.5;
+const JUMP_IMM=(875/3)*UU*JUMP_K,JUMP_ACC=(4375/3)*UU*JUMP_K,JUMP_MIN=.025,JUMP_MAX=.2,DJ_DELAY=1.25,DODGE_DEADZONE=.5;
 // Dodges (flips)
 const FLIP_IMP=500*UU,FLIP_SIDE_SCALE=1.9,FLIP_BACK_SCALE=2.5,FLIP_BACK_X=16/15,FLIP_TORQUE_TIME=.65,FLIP_PITCHLOCK_EXTRA=.3,
   FLIP_TORQUE_PITCH=224,FLIP_TORQUE_ROLL=260,FLIP_Z_DAMP=.35,FLIP_Z_DAMP_START=.15,FLIP_Z_DAMP_END=.21;
@@ -689,7 +694,7 @@ function stepCar(c,dt,frozen){
     }
     if(!canBoost&&Math.abs(vf)>MAXD){const d=Math.min(Math.abs(vf)-MAXD,OVERSPEED_DEC*fs*dt);vf-=Math.sign(vf)*d}
     // gravity along the surface: what slows you climbing a wall and pulls you back down it
-    _v1.set(0,-GRAV,0).addScaledVector(N,GRAV*ny);
+    _v1.set(0,-CAR_GRAV,0).addScaledVector(N,CAR_GRAV*ny);
     vf+=(a+_v1.dot(_f))*dt;lat+=_v1.dot(_rt)*dt;
     vf=clamp(vf,-MAXD,MAXB);
     // Steering: in a drift the car turns on its whole sliding speed and much tighter, while the tires let go
@@ -706,7 +711,7 @@ function stepCar(c,dt,frozen){
     // The sticky force (half gravity, plus more on walls while you're driving) against gravity pulling you off:
     // it holds you to walls but not to the ceiling.
     const full=sticky||Math.abs(vf)>25*UU;
-    if(-GRAV*ny-GRAV*(.5+(full?1-Math.abs(ny):0))>0){c.onGround=false;c.noLandT=.25}
+    if(-CAR_GRAV*ny-CAR_GRAV*(.5+(full?1-Math.abs(ny):0))>0){c.onGround=false;c.noLandT=.25}
   }
 
   if(!c.onGround)c.slideAmt=0;
@@ -764,7 +769,7 @@ function stepCar(c,dt,frozen){
     integrateRot(c,dt);carAxes(c);
     if(canBoost)c.vel.addScaledVector(_f,BOOST_AIR*dt);
     if(Math.abs(thr)>.001)c.vel.addScaledVector(_f,THROTTLE_AIR*thr*dt);
-    c.vel.y-=GRAV*dt;
+    c.vel.y-=CAR_GRAV*dt;
     const sp=c.vel.length();if(sp>MAXB)c.vel.multiplyScalar(MAXB/sp);
   }
   if(canBoost){c.boost=Math.max(0,c.boost-BOOST_USE*dt);c.boosting=true}else c.boosting=false;
@@ -2786,11 +2791,11 @@ function updateRemotes(dt){
       _rq.setFromAxisAngle(Y_AXIS,w*age).multiply(c.tq);
     }else{_rp.x+=c.tvel.x*age;_rp.z+=c.tvel.z*age;_rq.copy(c.tq)}
     _rp.y+=c.tvel.y*age;
-    if(!c.netGround)_rp.y-=.5*GRAV*age*age;
+    if(!c.netGround)_rp.y-=.5*CAR_GRAV*age*age;
     _rp.set(clamp(_rp.x,-AW+1,AW-1),Math.max(CAR_Y,Math.min(_rp.y,AH-1)),clamp(_rp.z,-AL-GD+1,AL+GD-1));
     // the drawn car moves on at its own speed, then closes the gap to that estimate: quickly, but never faster than
     // CORR_V, so a late update makes it glide over rather than jump (far off, e.g. a respawn, it just moves there)
-    const vy=c.tvel.y-(c.netGround?0:GRAV*age);
+    const vy=c.tvel.y-(c.netGround?0:CAR_GRAV*age);
     _rv.set(s*Math.sin(h2)*dt,vy*dt,s*Math.cos(h2)*dt);
     if(c.pos.distanceTo(_rp)>20)c.pos.copy(_rp);
     else{
