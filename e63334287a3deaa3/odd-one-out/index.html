@@ -148,7 +148,8 @@ h1 .o{color:var(--hunt)}h1 .t{color:var(--prop)}
 #pop.bad{color:#ff8b8b}#pop.good{color:var(--sun)}
 #tgt{position:absolute;left:50%;top:calc(50% + 26px);transform:translateX(-50%);font-weight:900;font-size:14px;background:rgba(23,26,46,.75);padding:3px 10px;border-radius:9px;white-space:nowrap}
 #tgt kbd{font:inherit;color:var(--sun)}
-#oob{position:absolute;left:50%;top:28%;transform:translateX(-50%);font-weight:900;font-size:16px;background:rgba(160,28,28,.88);padding:6px 14px;border-radius:10px;white-space:nowrap;box-shadow:0 0 0 2px rgba(255,255,255,.85)}
+#oob{position:absolute;left:50%;top:calc(64px + env(safe-area-inset-top,0px));transform:translateX(-50%);font-weight:900;font-size:16px;background:rgba(160,28,28,.88);padding:6px 14px;border-radius:10px;white-space:nowrap;box-shadow:0 0 0 2px rgba(255,255,255,.85)}
+@media (max-width:420px){#oob{font-size:13.5px;padding:5px 10px}}
 #status{position:absolute;right:calc(14px + env(safe-area-inset-right,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));text-align:right;min-width:210px}
 #status .nm{font-family:var(--f-d);font-size:20px;line-height:1.1}
 #status .sub{font-weight:900;font-size:12.5px;opacity:.95;margin-top:2px}
@@ -3097,7 +3098,9 @@ addEventListener('pagehide',()=>{if(Net.refs)Net.leave()});
 // A tab in the background gets no animation frames, so the main loop stops. Keep this player in the room with a slow
 // timer instead (browsers still run it about once a second) and, if it's the host, keep the round moving and the hits
 // counted; otherwise after LIVE_MS everyone else would count it as gone and the round would stall until a new host took over.
-setInterval(()=>{if(!document.hidden||G.mode!=='online'||!Net.refs)return;try{onlineTick();if(performance.now()-Net.hbT>2000)Net.upd({})}catch(err){console.error(err)}},1000);
+// (it sends its position, not just a heartbeat: a hunter whose tab is hidden when the hunt starts is moved out of the
+// waiting room by placeMe, and the host would otherwise see it still there, out of bounds)
+setInterval(()=>{if(!document.hidden||G.mode!=='online'||!Net.refs)return;try{onlineTick();Net.pubPos()}catch(err){console.error(err)}},1000);
 
 // An invite opens this page with #ph-<code>: fill in the room and point at the join button.
 const inv=/^#ph-([a-z0-9-]{1,17})$/.exec(location.hash);
