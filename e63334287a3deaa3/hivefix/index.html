@@ -288,7 +288,7 @@ var HF = (function () {
     while (h < t) { c = g.q[h++]; n++; for (var d = 0; d < 4; d++) { var m = nb(g, c, d); if (m >= 0 && !g.seen[m]) { g.seen[m] = 1; g.q[t++] = m; } } }
     return n === NC;
   }
-  function shuffle(g) { var p = g.perm; for (var i = NC - 1; i > 0; i--) { var j = (rnd(g) * (i + 1)) | 0, k = p[i]; p[i] = p[j]; p[j] = k; } }
+  function shuffle(g) { var p = g.perm, i; for (i = 0; i < NC; i++) p[i] = i; for (i = NC - 1; i > 0; i--) { var j = (rnd(g) * (i + 1)) | 0, k = p[i]; p[i] = p[j]; p[j] = k; } }
 
   function genFrame(g) {
     var t = tune(g.level, g.tn), i, c;
@@ -318,6 +318,7 @@ var HF = (function () {
   function newGame(g, seed, level) {
     g.seed = seed | 0; g.level = level || 1; g.score = 0; g.lives = LIVES; g.hits = 0; g.holds = 0; g.delays = 0;
     g.inv = 0; g.glow = 0; g.freeze = 0; g.holdDir = -1; g.holdMask = 0; g.holdFix = false;
+    g.bx = g.bpx = g.btx = 220; g.nextId = 1; g.face = 1; g.landT = 0; g.combo = 0;
     genFrame(g); g.bs = 0; g.bt = 1; enterReady(g);
   }
   function titleScene(g, seed) { g.seed = seed | 0; g.level = 1; genFrame(g); g.state = S_TITLE; g.st = 0; g.wc = g.wf = START; place(g); g.px = g.x; g.py = g.y; }
@@ -1118,14 +1119,16 @@ var HF = (function () {
     if (ac === AC) noiseBuf = b;
     return b;
   }
+  // an envelope gain that starts silent (a gain node is 1 until its first event, which would let a click through)
+  function envGain(ac) { var g2 = ac.createGain(); g2.gain.value = 0; return g2; }
   function tone(ac, dest, t, type, f0, f1, dur, vol, att) {
-    var o = ac.createOscillator(), gn = ac.createGain();
+    var o = ac.createOscillator(), gn = envGain(ac);
     o.type = type; o.frequency.setValueAtTime(f0, t); if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + dur);
     gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(vol, t + (att || 0.005)); gn.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     o.connect(gn); gn.connect(dest); o.start(t); o.stop(t + dur + 0.02);
   }
   function noise(ac, dest, t, dur, vol, ftype, freq, q) {
-    var s = ac.createBufferSource(), f = ac.createBiquadFilter(), gn = ac.createGain();
+    var s = ac.createBufferSource(), f = ac.createBiquadFilter(), gn = envGain(ac);
     s.buffer = getNoise(ac); f.type = ftype; f.frequency.value = freq; f.Q.value = q || 1;
     gn.gain.setValueAtTime(vol, t); gn.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     s.connect(f); f.connect(gn); gn.connect(dest); s.start(t); s.stop(t + dur + 0.02);
@@ -1139,24 +1142,24 @@ var HF = (function () {
     sticky: function (ac, d, t) { tone(ac, d, t, 'sine', 260, 180, 0.22, 0.14); },
     bump: function (ac, d, t) { tone(ac, d, t, 'triangle', 140, 80, 0.1, 0.22); },
     windup: function (ac, d, t) {
-      var o = ac.createOscillator(), o2 = ac.createOscillator(), f = ac.createBiquadFilter(), gn = ac.createGain();
+      var o = ac.createOscillator(), o2 = ac.createOscillator(), f = ac.createBiquadFilter(), gn = envGain(ac);
       o.type = 'sawtooth'; o2.type = 'sawtooth'; o.frequency.setValueAtTime(70, t); o.frequency.linearRampToValueAtTime(105, t + 0.45);
       o2.frequency.setValueAtTime(73, t); o2.frequency.linearRampToValueAtTime(110, t + 0.45);
       f.type = 'lowpass'; f.frequency.value = 520; gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(0.22, t + 0.12); gn.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
       o.connect(f); o2.connect(f); f.connect(gn); gn.connect(d); o.start(t); o2.start(t); o.stop(t + 0.52); o2.stop(t + 0.52);
     },
-    slam: function (ac, d, t) { tone(ac, d, t, 'sine', 130, 38, 0.38, 0.5); noise(ac, d, t, 0.26, 0.32, 'lowpass', 700, 0.7); noise(ac, d, t, 0.08, 0.16, 'bandpass', 2400, 1); },
+    slam: function (ac, d, t) { tone(ac, d, t, 'sine', 130, 38, 0.38, 0.42); noise(ac, d, t, 0.26, 0.32, 'lowpass', 700, 0.7); noise(ac, d, t, 0.08, 0.16, 'bandpass', 2400, 1); },
     land: function (ac, d, t) { noise(ac, d, t, 0.09, 0.16, 'bandpass', 900, 1.5); tone(ac, d, t, 'triangle', 190, 90, 0.07, 0.1); },
     buzz: function (ac, d, t, dur) {
       dur = dur || 0.9;
-      var o = ac.createOscillator(), lfo = ac.createOscillator(), lg2 = ac.createGain(), f = ac.createBiquadFilter(), gn = ac.createGain();
+      var o = ac.createOscillator(), lfo = ac.createOscillator(), lg2 = ac.createGain(), f = ac.createBiquadFilter(), gn = envGain(ac);
       o.type = 'sawtooth'; o.frequency.value = 185; lfo.frequency.value = 28; lg2.gain.value = 24; lfo.connect(lg2); lg2.connect(o.frequency);
       f.type = 'bandpass'; f.frequency.value = 1100; f.Q.value = 1.2;
       gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(0.2, t + dur * 0.8); gn.gain.exponentialRampToValueAtTime(0.0001, t + dur);
       o.connect(f); f.connect(gn); gn.connect(d); o.start(t); lfo.start(t); o.stop(t + dur + 0.02); lfo.stop(t + dur + 0.02);
     },
     zip: function (ac, d, t) {
-      var o = ac.createOscillator(), f = ac.createBiquadFilter(), gn = ac.createGain();
+      var o = ac.createOscillator(), f = ac.createBiquadFilter(), gn = envGain(ac);
       o.type = 'sawtooth'; o.frequency.setValueAtTime(240, t); o.frequency.exponentialRampToValueAtTime(150, t + 0.5);
       f.type = 'bandpass'; f.frequency.value = 1300; gn.gain.setValueAtTime(0.2, t); gn.gain.exponentialRampToValueAtTime(0.0001, t + 0.55);
       o.connect(f); f.connect(gn); gn.connect(d); o.start(t); o.stop(t + 0.57);
@@ -1179,16 +1182,17 @@ var HF = (function () {
   var LEAD = [12, -1, 16, -1, 19, 17, 16, -1, 14, -1, 12, -1, 9, -1, -1, -1, 10, -1, 14, -1, 17, 16, 14, -1, 12, -1, 14, -1, 16, -1, -1, -1,
     12, -1, 16, -1, 19, -1, 21, 19, 17, -1, 16, -1, 14, -1, 12, -1, 14, -1, 12, -1, 10, -1, 9, -1, 7, -1, 9, -1, 12, -1, -1, -1];
   var BASS = [0, 7, 0, 7, -3, 4, -3, 4, -7, 0, -7, 0, -5, 2, -5, 2, 0, 7, 0, 7, -3, 4, -3, 4, -7, 0, -5, 2, 0, -1, -1, -1];
-  function musicNote(ac, d, t, i) {
+  function musicNote(ac, d, t, i, parts) {
+    if (parts == null) parts = 7;
     var base = 349.23, n = LEAD[i % 64], b = BASS[(i >> 1) % 32];
-    if (n >= 0) {
-      var o = ac.createOscillator(), f = ac.createBiquadFilter(), gn = ac.createGain();
+    if (n >= 0 && (parts & 1)) {
+      var o = ac.createOscillator(), f = ac.createBiquadFilter(), gn = envGain(ac);
       o.type = 'square'; o.frequency.value = base * semi(n); f.type = 'lowpass'; f.frequency.value = 2200;
-      gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(0.075, t + 0.01); gn.gain.exponentialRampToValueAtTime(0.0001, t + MUS_STEP * 1.7);
+      gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(0.07, t + 0.01); gn.gain.exponentialRampToValueAtTime(0.0001, t + MUS_STEP * 1.7);
       o.connect(f); f.connect(gn); gn.connect(d); o.start(t); o.stop(t + MUS_STEP * 1.8);
     }
-    if (!(i & 1) && b > -1) tone(ac, d, t, 'triangle', base / 2 * semi(b), base / 2 * semi(b), MUS_STEP * 1.8, 0.16, 0.01);
-    if ((i & 3) === 2) noise(ac, d, t, 0.04, 0.05, 'highpass', 6000, 0.7);
+    if ((parts & 2) && !(i & 1) && b > -1) tone(ac, d, t, 'triangle', base / 2 * semi(b), base / 2 * semi(b), MUS_STEP * 1.8, 0.16, 0.01);
+    if ((parts & 4) && (i & 3) === 2) noise(ac, d, t, 0.04, 0.035, 'highpass', 6000, 0.7);
   }
   function audioUnlock() {
     if (!AC) {
