@@ -398,8 +398,9 @@ const BASE_T = {
   lungeDur: 17, luA0: 3, luA1: 10, lungeV: 6.0, lungeDash: 7,
   recoil: 11, lungeRecoil: 16, stag: 24, parryWin: 8, disarmStun: 12,
   kd: 48, getup: 8, punchDur: 15, puA0: 3, puA1: 7, punchReach: 30,
-  // the sliding kick (crouch + attack): wind-up until swA0, sliding and hitting until swA1, then getting back up
-  sweepDur: 32, swA0: 9, swA1: 18, sweepV: 5.0,
+  // the sliding kick (down + attack): wind-up until swA0, sliding and hitting until swA1, then getting back up.
+  // The slide carries about 60 px and the leg reaches 30 px ahead of the body (swReach), so it lands from about 20 to 100 px.
+  sweepDur: 36, swA0: 7, swA1: 21, sweepV: 6.5, swReach: 30,
   diveVx: 4.6, diveVy: 4.8, diveAcc: 0.35, diveMax: 9, land: 10,
   throwDur: 10, throwAt: 3, throwV: 11,
   finDur: 14, finAt: 5, stompDur: 18, stompAt: 11,
@@ -859,7 +860,7 @@ function control(S, w, T, p, o, inp, e) {
     const near = oA && o.s === ST.KD && Math.abs(o.y - p.y) < 24, facing = p.f * dx > 0 || adx < 12;
     // someone hanging from the ledge you stand on: stamp on their hands (a low sword stabs them instead)
     const hangNear = oA && o.s === ST.HANG && Math.abs(o.ey - p.y) < 6 && adx < 40 && p.gnd && facing;
-    if (p.cr && p.gnd) { p.s = ST.SWEEP; p.cr = 0; }                       // crouched: the sliding kick, armed or not
+    if (p.gnd && (p.cr || (inp & K.D))) { p.s = ST.SWEEP; p.cr = 0; if (p.arm) p.h = 0; }   // down held (crouched or not yet): the sliding kick, armed or not
     else if (p.arm) {
       if (p.h === 3) { p.s = ST.THROW; }
       else if (!p.gnd) { p.s = ST.DIVE; }
@@ -1113,14 +1114,17 @@ function combat(S, w, T) {
   for (let k = 0; k < 2; k++) {
     const a = P[k], b = P[1 - k];
     if (a.res || !alive(b) || b.s === ST.KD || b.inv > 0 || S.kq.some(q => q.v === a.i)) continue;
-    let pt = null;
+    let pt = null, leg = null;
     if (a.s === ST.PUNCH && a.t >= T.puA0 && a.t <= T.puA1) pt = [a.x + a.f * T.punchReach, a.y - 36];
-    else if (a.s === ST.SWEEP && a.t >= T.swA0 && a.t <= T.swA1) pt = [a.x + a.f * 24, a.y - 5];
+    else if (a.s === ST.SWEEP && a.t >= T.swA0 && a.t <= T.swA1) { pt = [a.x + a.f * T.swReach, a.y - 5]; leg = a.x; }
     else if (a.s === ST.DIVE) pt = [a.x + a.f * 16, a.y - 3];
     if (!pt) continue;
     const hb = hurt(b); if (!hb) continue;
-    if (pt[0] < hb.x0 - 2 || pt[0] > hb.x1 + 2 || pt[1] < hb.y0 - 2 || pt[1] > hb.y1 + 2) continue;
+    // the kick hits with the whole leg (from the body out to the foot); punches and dive kicks with one point
+    const lo = leg === null ? pt[0] : Math.min(leg, pt[0]), hi = leg === null ? pt[0] : Math.max(leg, pt[0]);
+    if (hi < hb.x0 - 2 || lo > hb.x1 + 2 || pt[1] < hb.y0 - 2 || pt[1] > hb.y1 + 2) continue;
     a.res = 1;
+    if (a.s === ST.SWEEP && bladeOut(b) && b.h === 0 && b.f === -a.f) { killQ(S, a.i, b.i, 'blade'); continue; }   // a sword held low, facing the kick, stops it
     if (a.s === ST.DIVE && bladeOut(b) && b.f === -a.f && b.h === 2) { killQ(S, a.i, b.i, 'skewer'); continue; }
     kd.push([b, a]);
   }
@@ -1387,7 +1391,7 @@ const BOT = {
     tele: 0, idle: 0, idleLen: 0, blunder: 0, chase: 1, kick: 0.025, face: 2, wrongH: 0, guardKick: 0.9, hang: 2}
 };
 function botMem(seed, level) { return {r: (seed >>> 0) || 1, lv: level, hist: [], want: 1, wait: 0, plan: 0, pt: 0, lastU: 0, lastD: 0, jumpT: 0, rollT: 0, throwT: 0, prev: 0,
-  idle: 0, tele: 0, blT: 0, wf: 0, kickT: 0, hangT: 0, pickT: 0}; }
+  idle: 0, tele: 0, blT: 0, wf: 0, kickT: 0, kk: 0, hangT: 0, pickT: 0}; }
 function brand(m) { m.r = (Math.imul(m.r ^ (m.r >>> 15), 1 | m.r) + 0x6D2B79F5) | 0; let t = m.r; t = Math.imul(t ^ (t >>> 7), 61 | t) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }
 function botInput(S, w, i, m) {
   const B = BOT[m.lv] || BOT.normal, T = tuning(S.cfg);
@@ -1422,6 +1426,9 @@ function botInput(S, w, i, m) {
       if (++m.wf > B.face) { b |= q.x > p.x ? K.R : K.L; m.wf = 0; }
     } else m.wf = 0;
     if (p.s === ST.HANG) b &= ~(K.L | K.R);   // hanging: never let go by accident
+    // down held + attack is the sliding kick: when the bot only meant to lower its sword and strike, the strike waits a tick
+    if ((b & K.D) && (b & K.A) && !p.cr && !m.kk) b &= ~K.A;
+    m.kk = 0;
     m.roll = 0; m.prev = b; return b;
   };
   if (S.win >= 0 || !alive(p)) { m.tele = 0; m.idle = 0; return out(); }
@@ -1585,7 +1592,7 @@ function botInput(S, w, i, m) {
   if (m.kickT > 0) {
     m.kickT--;
     if (p.h > 0 && !p.cr) { tapD(); return out(); }
-    press(K.D); if (p.cr) { tapA(); m.kickT = 0; }
+    press(K.D); if (p.cr) { tapA(); m.kk = 1; m.kickT = 0; }
     return out();
   }
   // Both armed. Keep the duel distance, mirror their height to stay safe, and strike when they're open.
@@ -1613,7 +1620,7 @@ function botInput(S, w, i, m) {
   }
   if (open && adx <= close && p.f === toO && brand(m) < B.aggr * 2.2) { strike(); return out(); }
   if (open && adx > close && adx < 100 && p.f === toO && brand(m) < B.aggr * B.lunge && !B.tele) { moveTo(toO); if (Math.abs(p.vx) > 2.6) tapA(); return out(); }
-  if (o.h >= 1 && !o.cr && adx > 50 && adx < 72 && p.gnd && brand(m) < B.kick) { m.kickT = 20; return out(); }
+  if (o.h >= 1 && !o.cr && adx > 44 && adx < 96 && p.gnd && brand(m) < B.kick) { m.kickT = 20; return out(); }
   // defend: match their (perceived) height
   if (B.wrongH && brand(m) < B.wrongH) stanceTo(p, (brand(m) * 3) | 0, tapU, tapD);
   else if (p.h !== oh && oh < 3) { if (brand(m) < B.match) stanceTo(p, oh, tapU, tapD); }
@@ -3427,7 +3434,7 @@ function pracMoves() {
     ['stab', 'Stab', atk, 'blade'],
     ['lunge', 'Lunge', 'run, then ' + atk, 'run + blade'],
     ['crouch', 'Crouch', 'hold ' + down, 'hold ▼'],
-    ['kick', 'Kick', 'crouch, then ' + atk, '▼ + blade'],
+    ['kick', 'Kick', 'hold down, then ' + atk, 'hold ▼ + blade'],
     ['roll', 'Roll', down + ' while running', 'run + ▼'],
     ['dive', 'Dive kick', atk + ' in the air', 'jump + blade'],
     ['throw', 'Throw', up + ' past high, then ' + atk, '▲▲ + blade'],
@@ -3671,7 +3678,7 @@ function howHTML() {
     '<li><b>One touch wins the duel.</b> A blade kills anything it reaches: thrust, lunge, or just walk or jump into an opponent’s point.</li>' +
     '<li><b>Three sword heights.</b> Up and down move your sword between low, middle and high. Held at the same height as theirs, blades block. Move your sword across theirs and you knock it out of their hand. Switch into their thrust at the last moment for a <b>parry</b>: a white flash, and they stagger.</li>' +
     '<li><b>Moving.</b> You face the way you last pressed, so walking away turns your back. Tap a direction for a step, hold it to run. Attack while running lunges. Down while running rolls under a middle or high blade (a low one catches you). Jump over people, and push into a ledge to climb it. Fall past an edge and you grab it and hang: up or jump pulls you up, down lets go (hold down while falling to drop past on purpose).</li>' +
-    '<li><b>Going down.</b> Hold down (or press it with your sword already low) to crouch: you duck under middle and high blades and can shuffle along; let go to stand. Crouch and attack for a <b>sliding kick</b>: it knocks them flat and their sword flies off, but a sword held low stops it.</li>' +
+    '<li><b>Going down.</b> Hold down (or press it with your sword already low) to crouch: you duck under middle and high blades and can shuffle along; let go to stand. Hold down and attack for a <b>sliding kick</b> (no need to wait for the crouch): it knocks them flat and their sword flies off, but a sword held low stops it.</li>' +
     '<li><b>Throw.</b> Press up again at high to raise your sword, then attack to throw it. A sword held high blocks a throw; crouching or rolling dodges it.</li>' +
     '<li><b>No sword?</b> Punch, kick or dive kick (attack in the air) to knock someone down, then attack again to finish them. A high guard catches dive kicks. Crouch over a dropped sword to pick it up.</li>' +
     '<li><b>The stages.</b> Each stage is a long stretch you can roam both ways, and the camera follows the fight. Until someone wins a duel you can’t get more than a screen apart. Win one and only you may run toward your end (Tide runs right, Bloom runs left); the loser is back in a moment, in front of you, and if they fall off the back of the screen they are left behind and come back in front too. The blocks at the top are the stages, with the one you’re on lit and a mark for where the fight is. The last stage ends in a pit: jump in while you have the run and you win. Anyone else who falls in a pit or a gap is out until they come back.</li>' +
