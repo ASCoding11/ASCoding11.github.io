@@ -60,6 +60,11 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-11', version: '1.22', title: 'Tidewick', kind: 'game', games: ['Tidewick'],
+     img: 'm/thumbs/tidewick.jpg', tags: ['Platformer', '2 stages', 'Boss'], items: [
+      'Tidewick: an 8-bit style side-scroller on a rainy harbour at dusk. Run and jump Pip across the quay, stomp Bilges and Whelks, knock lantern crates for brass buttons, find the cellar under the smoking chimney, and reach the signal mast.',
+      'Then cross the Breakwater fortress, over dark water, to the Tollkeeper on its drawbridge: slip past it to the winch, or throw five sparks. Your best score goes on the Leaderboards.'
+    ]},
     {date: '2026-11-10', version: '1.21', title: 'Lokop: long stages and a camera that follows', kind: 'feature', games: ['Lokop:lunge-line'],
      img: 'm/thumbs/lunge-line.jpg', tags: ['Long stages', 'Camera', 'Ledge hang', 'Deeper crouch'], items: [
       'Every stage is now a long stretch, about four screens, with raised sections, walkways, tunnels and gaps, and you can roam it back and forth while the camera follows the fight.',

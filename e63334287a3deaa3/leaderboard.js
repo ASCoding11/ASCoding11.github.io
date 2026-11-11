@@ -186,6 +186,7 @@
       { k: 'r2-freefall', l: '28. Freefall', chip: 'Freefall', f: 'time', lo: 38.7, hi: 3600 },
       { k: 'r2-afterburner', l: '29. Afterburner', chip: 'Afterburner', f: 'time', lo: 29.9, hi: 3600 },
       { k: 'r2-final-exam', l: '30. Final Exam', chip: 'Final Exam', f: 'time', lo: 34.8, hi: 3600 }] },
+    { d: 'tidewick', n: 'Tidewick', st: [{ k: 'score', l: 'Best score', f: 'n', u: 'pt', hi: 999999 }] },
     { d: 'odd-one-out', n: 'Odd One Out', st: [
       { k: 'rfound', l: 'Most props found in a round', f: 'n', u: 'prop', hi: 15, le: 'found' },
       { k: 'survive', l: 'Longest survival as a prop', f: 'dur', hi: 900 },
