@@ -312,7 +312,7 @@ var HF = (function () {
     g.ft = 0; g.jelly = -1; g.combo = 0; g.lastFix = -9;
     for (i = 0; i < NCH; i++) g.cA[i] = 0;
     for (i = 0; i < NW; i++) g.wA[i] = 0;
-    g.jellyNext = 7 + rnd(g) * 5; g.waspNext = 2.5 + rnd(g) * 2;
+    g.jellyNext = 3.5 + rnd(g) * 4; g.waspNext = 2.5 + rnd(g) * 2;
   }
 
   function newGame(g, seed, level) {
@@ -1020,7 +1020,7 @@ var HF = (function () {
     rr(x, -15, -6, 30, 106, 15); x.fillStyle = lg(x, -15, 0, 15, 0, [0, '#5a3016', 0.45, '#8a5430', 1, '#4e2a12']); x.fill(); x.strokeStyle = '#2a1406'; x.lineWidth = 3; x.stroke();
   }
   function stripeSpr(x) { // the warning column under a raised paw
-    x.fillStyle = lg(x, 0, 0, 0, 300, [0, 'rgba(255,60,40,.55)', 0.6, 'rgba(255,60,40,.22)', 1, 'rgba(255,60,40,0)']); x.fillRect(-36, 0, 72, 300);
+    x.fillStyle = lg(x, 0, 0, 0, 300, [0, 'rgba(255,50,30,.7)', 0.6, 'rgba(255,50,30,.32)', 1, 'rgba(255,50,30,0)']); x.fillRect(-36, 0, 72, 300);
     x.fillStyle = 'rgba(255,255,255,.18)'; for (var i = 0; i < 8; i++) { x.beginPath(); x.moveTo(-36, i * 40); x.lineTo(-36, i * 40 + 14); x.lineTo(36, i * 40 - 26); x.lineTo(36, i * 40 - 40); x.closePath(); x.fill(); }
   }
   function chevSpr(x) {
@@ -1059,6 +1059,7 @@ var HF = (function () {
     SPR.wingA = mk(44, 30, 22, 26, wingA); SPR.wingB = mk(56, 40, 28, 34, wingB);
     SPR.trowel = mk(36, 20, 8, 8, trowel);
     SPR.aura = mk(92, 92, 46, 46, auraSpr);
+    SPR.ring = mk(84, 84, 42, 42, function (x) { circ(x, 0, 0, 36); x.strokeStyle = '#ffe14a'; x.lineWidth = 5; x.stroke(); circ(x, 0, 0, 36); x.strokeStyle = 'rgba(255,255,255,.9)'; x.lineWidth = 1.6; x.stroke(); for (var i = 0; i < 6; i++) { var a = i * Math.PI / 3; x.save(); x.translate(Math.cos(a) * 36, Math.sin(a) * 36); star(x); x.restore(); } });
     SPR.jelly = mk(44, 44, 22, 22, jellySpr);
     SPR.chunk = [mk(26, 26, 13, 13, chunkSpr(0)), mk(26, 26, 13, 13, chunkSpr(1))];
     SPR.wasp = [mk(72, 40, 36, 22, waspSpr(0)), mk(72, 40, 36, 22, waspSpr(1))];
@@ -1102,7 +1103,7 @@ var HF = (function () {
   }
   var NPOP = 12, popA = new Uint8Array(NPOP), popX = new Float32Array(NPOP), popY = new Float32Array(NPOP), popT = new Float32Array(NPOP), popS = new Array(NPOP), popC = new Uint8Array(NPOP), popNext = 0;
   var POPCOL = ['#fff4c0', '#ffd23f', '#ff9a3a', '#ff6a3a', '#ff4aa0', '#ffffff'];
-  function pop(text, x, y, col) { var i = popNext; popNext = (popNext + 1) % NPOP; popA[i] = 1; popX[i] = x; popY[i] = y; popT[i] = 0; popS[i] = text; popC[i] = col; }
+  function pop(text, x, y, col) { for (var j = 0; j < NPOP; j++) if (popA[j] && Math.abs(popX[j] - x) < 30 && popT[j] < 0.7) popA[j] = 0; var i = popNext; popNext = (popNext + 1) % NPOP; popA[i] = 1; popX[i] = x; popY[i] = y; popT[i] = 0; popS[i] = text; popC[i] = col; }
   var COMBO_TXT = ['', '', ' x2', ' x3', ' x4', ' x5'];
 
   // =====================================================================================================
@@ -1301,7 +1302,7 @@ var HF = (function () {
     var bx = g.bpx + (g.bx - g.bpx) * a, t = g.tn, bs = g.bs;
     var v = (g.bx - g.bpx) / DT / t.brunoV; leanS += (v * 0.09 - leanS) * 0.12;
     var head = 0, hy = 70 + Math.sin(vt * 2.2) * 1.5, raise = 0, down = 0;
-    if (bs === 2) { head = 1; var u = 1 - g.bt / t.windup; raise = Math.min(1, u * 3.5); hy -= 4 * raise; }
+    if (bs === 2) { head = 1; var u = 1 - g.bt / t.windup; raise = Math.min(1, u * 3.5); hy += 6 * raise; }
     else if (bs === 4) head = 1;
     else if (bs === 3) { var r = g.bt / HF.RECOVER; head = r > 0.4 ? 2 : 1; down = r; hy += 5 * r; }
     else if (bs === 5 || g.state === S.SLIDE) head = 3;
@@ -1310,16 +1311,18 @@ var HF = (function () {
     var pair = g.tc1 >= 0, cx = bx, lx = bx - 52, rx = bx + 52, ly = 120, ry = 120;
     if (bs === 1 || bs === 0 || bs === 4) { var ph = vt * 9; if (bs === 1) { ly -= Math.max(0, Math.sin(ph)) * 7; ry -= Math.max(0, -Math.sin(ph)) * 7; } }
     if ((bs === 2 || bs === 3) && g.tc0 >= 0) {
-      var tl = pair ? COLX[g.tc0] : COLX[g.tc0] - 17, tr = pair ? COLX[g.tc1] : COLX[g.tc0] + 17, k = bs === 2 ? raise : 1;
+      var tl = pair ? COLX[g.tc0] : COLX[g.tc0] - 20, tr = pair ? COLX[g.tc1] : COLX[g.tc0] + 20, k = bs === 2 ? raise : 1;
       lx = lx + (tl - lx) * k; rx = rx + (tr - rx) * k;
-      if (bs === 2) { var sh = Math.sin(vt * 70) * 1.6 * raise; ly = 120 - 78 * raise + sh; ry = 120 - 78 * raise - sh; }
+      if (bs === 2) { // paws up over his head, spread beside the ears, above the columns they'll hit
+        var sh = Math.sin(vt * 70) * 1.6 * raise, spread = (pair ? 22 : 40) * raise;
+        lx -= spread; rx += spread; ly = 120 - 94 * raise + sh; ry = 120 - 94 * raise - sh;
+      }
       else { var back = 1 - Math.min(1, (1 - down) * 1.6); ly = ry = 122; lx = tl + (bx - 52 - tl) * (1 - back); rx = tr + (bx + 52 - tr) * (1 - back); }
     }
+    var pu = bs === 2 && raise > 0.35;
     ctx.save(); ctx.translate(cx, hy + 40); ctx.rotate(leanS); spr(SPR.head[head], 0, -40); ctx.restore();
     spr(TOPBAR[THEME], 0, 110);
-    // arms from the shoulders to the paws, then the paws
     arm(bx - 46, 118, lx, ly); arm(bx + 46, 118, rx, ry);
-    var pu = bs === 2 && raise > 0.5;
     if (pu) { spr(SPR.pawUp, lx, ly); spr(SPR.pawUp, rx, ry); } else { spr(SPR.pawDown, lx, ly); spr(SPR.pawDown, rx, ry); }
   }
   function arm(sx, sy, px, py) {
@@ -1332,7 +1335,7 @@ var HF = (function () {
     if (st === S.SLIDE) return;
     var hurt = g.freeze > 0 || st === S.DYING || st === S.OVER;
     if (!hurt && g.inv > 0 && ((g.inv * 14) | 0) % 2 === 0) return;
-    if (g.glow > 0 && !(g.glow < 1.5 && ((g.glow * 10) | 0) % 2 === 0)) { ctx.globalAlpha = 0.65 + 0.25 * Math.sin(vt * 9); spr(SPR.aura, x, y); ctx.globalAlpha = 1; }
+    if (g.glow > 0 && !(g.glow < 1.5 && ((g.glow * 10) | 0) % 2 === 0)) { ctx.globalAlpha = 0.75 + 0.25 * Math.sin(vt * 9); sprS(SPR.aura, x, y, 1.25, 1.25); ctx.globalAlpha = 1; sprR(SPR.ring, x, y, vt * 2.5, 0.92 + 0.08 * Math.sin(vt * 9)); }
     var flying = g.hopping || st === S.READY || st === S.CLEAR || st === S.DYING;
     var bob = flying ? 0 : Math.sin(vt * 5) * 1.3;
     var sq = g.landT > 0 ? 1 + g.landT * 1.2 : 1, sy = 1 / sq;
@@ -1379,10 +1382,10 @@ var HF = (function () {
     }
     // telegraphs
     if (g.bs === 2 && st === S.PLAY) {
-      var pul = 0.6 + 0.4 * Math.sin(vt * 22), raise = Math.min(1, (1 - g.bt / g.tn.windup) * 3);
+      var pul = 0.8 + 0.2 * Math.sin(vt * 22), raise = Math.min(1, (1 - g.bt / g.tn.windup) * 3);
       for (i = 0; i < 2; i++) {
         var col = i ? g.tc1 : g.tc0; if (col < 0) continue;
-        ctx.globalAlpha = (0.45 + 0.4 * raise) * pul; spr(SPR.stripe, COLX[col], 136); ctx.globalAlpha = 1;
+        ctx.globalAlpha = (0.55 + 0.45 * raise) * pul; spr(SPR.stripe, COLX[col], 136); ctx.globalAlpha = 1;
         spr(SPR.chev, COLX[col], 150 + Math.abs(Math.sin(vt * 10)) * 6);
       }
     }
@@ -1397,7 +1400,7 @@ var HF = (function () {
     for (i = 0; i < 16; i++) {
       if (!g.cA[i]) continue;
       y = g.cPY[i] + (g.cY[i] - g.cPY[i]) * a;
-      sprR(SPR.chunk[g.cId[i] & 1], g.cX[i], y, g.cId[i] * 1.7 + y * 0.045, 1);
+      sprR(SPR.chunk[g.cId[i] & 1], g.cX[i], y, g.cId[i] * 1.7 + y * 0.045, 1.4);
     }
     // Wax
     drawWax(a);
@@ -1426,7 +1429,7 @@ var HF = (function () {
     for (i = 0; i < NPOP; i++) {
       if (!popA[i]) continue;
       var pt = popT[i]; ctx.globalAlpha = pt < 0.7 ? 1 : (1 - (pt - 0.7) / 0.3);
-      drawText(popS[i], popX[i], popY[i] - pt * 34, popC[i] >= 2 ? 19 + popC[i] : 17, POPCOL[popC[i]]);
+      drawText(popS[i], popX[i], popY[i] - pt * 34, popC[i] >= 2 ? 15 + popC[i] * 1.5 : 15, POPCOL[popC[i]]);
     }
     ctx.globalAlpha = 1;
     // banners
@@ -1435,7 +1438,7 @@ var HF = (function () {
       ctx.globalAlpha = ba; spr(SPR.banner, W / 2, 262);
       if (st === S.CLEAR) {
         drawText(bannerA, W / 2, 248, 30, '#ffd23f');
-        var shown = g.bonusTotal - g.bonusLeft; if (shown !== bonusShown) { bonusShown = shown; bonusStr = 'Frame +500   Time +' + Math.max(0, shown - 500); }
+        if (g.timeBonus !== bonusShown) { bonusShown = g.timeBonus; bonusStr = 'Frame +500   Time bonus +' + g.timeBonus; }
         drawText(g.st > 0.5 ? bonusStr : 'Time ' + g.clearTime.toFixed(1) + ' s', W / 2, 280, 15, '#fff4d8');
       } else { drawText(bannerA, W / 2, 250, 30, '#ffd23f'); drawText(bannerB, W / 2, 280, 15, '#fff4d8'); }
       ctx.globalAlpha = 1;
@@ -1465,7 +1468,7 @@ var HF = (function () {
   // =====================================================================================================
   // Loop: fixed 120 updates a second; the frame gap is capped at 0.1 s; drawing interpolates between steps.
   // =====================================================================================================
-  var paused = false, running = false, lastNow = -1, simTime = 0, steps = 0, onStep = null;
+  var paused = false, testHold = false, running = false, lastNow = -1, simTime = 0, steps = 0, onStep = null;
   var perfOn = false, perfBuf = new Float32Array(4096), perfN = 0;
   function stepAll() {
     if (onStep) onStep(g);
@@ -1486,6 +1489,7 @@ var HF = (function () {
     requestAnimationFrame(frame);
     var t0 = perfOn ? performance.now() : 0;
     var dt = lastNow < 0 ? 0 : (now - lastNow) / 1000; lastNow = now;
+    if (testHold) { render(0); return; }
     if (paused) { if (frameDirty) { render(0); frameDirty = false; } return; }
     var a = advance(dt);
     render(a);
@@ -1705,7 +1709,7 @@ var HF = (function () {
       perf: function (on) { perfOn = on; perfN = 0; }, perfData: function () { return Array.prototype.slice.call(perfBuf, 0, Math.min(perfN, 4096)); },
       state: function () { return {state: g.state, level: g.level, score: g.score, lives: g.lives, wc: g.wc, hopping: g.hopping, fixing: g.fixing, left: g.left, steps: steps, simTime: simTime, muted: muted, shake: shakeOn, touch: touchUI, combo: g.combo, bs: g.bs}; },
       view: view, layout: layout, get K() { return K; }, SPR: function () { return SPR; }, BG: BG,
-      stopLoop: function () { running = false; }, frame: frame,
+      hold: function (on) { testHold = on; lastNow = -1; }, frame: frame, onEvent: onEvent,
       setLastNow: function (v) { lastNow = v; }, get steps() { return steps; }, get simTime() { return simTime; }
     };
   }
