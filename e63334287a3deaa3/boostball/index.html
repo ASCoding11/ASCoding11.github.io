@@ -828,7 +828,9 @@ function stepCar(c,dt,frozen){
     const rest=N.y>.3;
     c.contact=true;c.cN.copy(N);
     c.pos.addScaledVector(N,sup-s1);
-    if(vn<0)c.vel.addScaledVector(N,-vn*(imp>3?1.25:1));
+    // A hard knock bounces the body off by BODY_BOUNCE of the speed it hit at: a little on the floor (it used to be a
+    // quarter there too, and a car dropped on its side hopped half a unit and skipped for 0.3 s), more off walls.
+    if(vn<0)c.vel.addScaledVector(N,-vn*(1+(imp>3?(rest?BODY_BOUNCE.floor:BODY_BOUNCE.wall):0)));
     _v1.copy(c.vel).addScaledVector(N,-c.vel.dot(N));c.vel.addScaledVector(_v1,-(1-Math.exp(-(rest?2.2:.4)*dt)));
     if(!wasContact&&imp>6&&!ev)ev=imp>14?'bonk':'land';
     if(c.autoFlipT<=0&&rest){
@@ -843,12 +845,15 @@ function stepCar(c,dt,frozen){
   return ev;
 }
 const FROZEN_INPUT=newInput();
+const BODY_BOUNCE={floor:.08,wall:.25};
 
 // Car vs ball. Every client runs it for every car: the cars it controls move and score touches, and other players'
 // cars (and bots someone else runs) are solid but immovable here, so the ball can't fly through a car just because
 // that car's player is on another computer. Returns the hit power on contact, else 0.
 const _bl=new V3(),_bc=new V3(),_bd=new V3(),_bw=new V3(),_bn=new V3(),_bp=new V3(),_br=new V3(),_be=new V3(),_bt=new V3();
-const CAR_MASS=180,BALL_MASS=30,HIT_CURVE=[[0,.65],[500,.65],[2300,.55],[4600,.3]];
+// CAR_HEFT: the car's own recoil from the ball is worked out as if it were a quarter heavier, so a ball knocks it
+// about less; what the ball gets from the car (and so every shot) is unchanged.
+const CAR_MASS=180,BALL_MASS=30,CAR_HEFT=1.25,HIT_CURVE=[[0,.65],[500,.65],[2300,.55],[4600,.3]];
 // Dribbling. Rocket League keeps a ball sitting on your roof moving with the car through car–ball friction (2.0).
 // Here: soft contacts (closing at under 200 uu/s, fading out by 500) grip the ball with friction CB_MU, so it rides
 // along while you drive and turn gently, and slides off when you brake, turn hard or accelerate hard. The extra
@@ -913,7 +918,7 @@ function carBall(c,b,now){
   if(vn<0){
     const k=-vn*1.04;
     b.vel.addScaledVector(_bn,k*CAR_MASS/(CAR_MASS+BALL_MASS));
-    if(!c.remote)c.vel.addScaledVector(_bn,-k*BALL_MASS/(CAR_MASS+BALL_MASS)*.7);
+    if(!c.remote)c.vel.addScaledVector(_bn,-k*BALL_MASS/(CAR_MASS*CAR_HEFT+BALL_MASS)*.7);
     power=-vn;
     // friction on soft contacts: the ball takes on the speed of the car's surface where they touch
     const soft=clamp((CB_SOFT1+vn)/(CB_SOFT1-CB_SOFT0),0,1);
@@ -1888,6 +1893,7 @@ function demolish(v,a,send){
   addFeed((a?a.name:'Someone')+' demolished '+v.name,a?'t'+a.team:'');
   if(send&&online)Net.send({type:'demo',v:v.id,a:a?a.id:''});
 }
+const BUMP_SOFT=.72;
 function carCar(a,o,now){
   if(a.demo>0||o.demo>0||o.active===false)return;
   _v1.subVectors(a.pos,o.pos);const d=_v1.length();
@@ -1900,7 +1906,8 @@ function carCar(a,o,now){
   a.pos.addScaledVector(_v1,(2.3-d)*(o.remote?1:.5));
   const rel=_v2.subVectors(o.vel,a.vel).dot(_v1);
   if(rel>0){
-    a.vel.addScaledVector(_v1,rel*.85+.4);
+    // a soft bump moves a car a little less (BUMP_SOFT of the closing speed below 6, back up to .85 by 12)
+    a.vel.addScaledVector(_v1,rel*lerp(BUMP_SOFT,.85,clamp((rel-6)/6,0,1))+.4);
     if(rel>9&&a.team!==o.team){a.vel.y+=Math.min(9,rel*.22);a.onGround=false}
     if(rel>6&&(a===me||o===me))sfx('bump',a.pos,Math.min(1,rel/25));
   }
