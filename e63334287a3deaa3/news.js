@@ -60,6 +60,13 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-10', version: '1.21', title: 'Lokop: long stages and a camera that follows', kind: 'feature', games: ['Lokop:lunge-line'],
+     img: 'm/thumbs/lunge-line.jpg', tags: ['Long stages', 'Camera', 'Ledge hang', 'Deeper crouch'], items: [
+      'Every stage is now a long stretch, about four screens, with raised sections, walkways, tunnels and gaps, and you can roam it back and forth while the camera follows the fight.',
+      'Fall past an edge and you grab it and hang: press up or jump to pull yourself up, or down to let go.',
+      'Crouching is a proper deep squat now, so you can see at a glance who is ducking.',
+      'Matches are 3 stages long by default.'
+    ]},
     {date: '2026-11-10', version: '1.20', title: 'Lokop: calmer, easier, and Practice', kind: 'feature', games: ['Lokop:lunge-line'],
      img: 'm/thumbs/lunge-line.jpg', tags: ['Practice', 'Easier bots', 'Crouch and kick', 'Stages'], items: [
       'A new Practice button drops you into an arena on your own, with a list of moves that tick off as you try them and an optional dummy to hit.',

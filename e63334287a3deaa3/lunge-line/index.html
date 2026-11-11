@@ -379,10 +379,12 @@ details.how[open] summary::before{content:'- '}
 const W = 640, H = 360, BASE = 300, TICK = 60;
 const K = {L: 1, R: 2, U: 4, D: 8, J: 16, A: 32};
 const ST = {IDLE: 0, THRUST: 1, LUNGE: 2, RECOIL: 3, STAG: 4, KD: 5, DEAD: 6, PUNCH: 7, SWEEP: 8, DIVE: 9, THROW: 10,
-  FIN: 11, STOMP: 12, GETUP: 13, LAND: 14, ROLL: 15, CLIMB: 16, DISARM: 17};
+  FIN: 11, STOMP: 12, GETUP: 13, LAND: 14, ROLL: 15, CLIMB: 16, DISARM: 17, HANG: 18};
 const BAND = [16, 30, 44];          // sword heights above the feet: low, mid, high
 const HW = 9;                       // body half-width
-const PIT = 92;                     // the drop at each end of the line is the last 92 px of the last room
+const PIT = 92;                     // the drop at each end of the line is the last 92 px of the last stage
+const VIEW = 640;                   // the camera's window: one screen of the world, centred on the focus (S.cam)
+const HANG_D = 44, REACH = 50;      // hanging: feet this far below the edge; a falling fencer's hands are REACH above the feet
 
 // Timings in ticks (60 a second), distances in pixels of a 640 x 360 room (the screen shows it at half size).
 // Tuned to be calm and readable: a run of 3.7 px a tick (a room in about 3 s), top speed in 6 ticks, a stop in 4,
@@ -396,13 +398,17 @@ const BASE_T = {
   lungeDur: 17, luA0: 3, luA1: 10, lungeV: 6.0, lungeDash: 7,
   recoil: 11, lungeRecoil: 16, stag: 24, parryWin: 8, disarmStun: 12,
   kd: 48, getup: 8, punchDur: 15, puA0: 3, puA1: 7, punchReach: 30,
-  // the sliding kick (crouch + attack): wind-up until swA0, sliding and hitting until swA1, then getting back up
-  sweepDur: 32, swA0: 9, swA1: 18, sweepV: 5.0,
+  // the sliding kick (down + attack): wind-up until swA0, sliding and hitting until swA1, then getting back up.
+  // The slide carries about 60 px and the leg reaches 30 px ahead of the body (swReach), so it lands from about 20 to 100 px.
+  sweepDur: 36, swA0: 7, swA1: 21, sweepV: 6.5, swReach: 30,
   diveVx: 4.6, diveVy: 4.8, diveAcc: 0.35, diveMax: 9, land: 10,
   throwDur: 10, throwAt: 3, throwV: 11,
   finDur: 14, finAt: 5, stompDur: 18, stompAt: 11,
   rollDur: 16, rollV: 5.5,
-  climb: 11, respawn: 36, inv: 30, hitstop: 8, hsDisarm: 5, hsParry: 6, sc: 3
+  climb: 14, respawn: 36, inv: 30, hitstop: 8, hsDisarm: 5, hsParry: 6, sc: 3, regrab: 30,
+  // the camera: how far ahead of the runner it looks, how fast that swings round, how hard it follows, its top speed
+  // and how quickly it can speed up or slow down; and how long you may be off the trailing edge before you're left behind
+  look: 150, lookV: 5, camK: 0.08, camV: 10, camA: 0.5, lost: 45
 };
 function tuning(cfg) {
   const t = Object.assign({}, BASE_T);
@@ -414,61 +420,147 @@ function tuning(cfg) {
 }
 
 // ---------------------------------------------------------------------
-// Arenas. Each is a line of rooms: a centre room and three room templates (A, B, C) built for the runner heading
-// right; the left half uses the same templates mirrored, so both sides are fair by construction. Template C is
-// always the last room, and it ends in the pit: drop into it as the runner and you win.
-// g: ground [x0, x1, top]   p: one-way platforms [x0, x1, top]   c: ceilings [x0, x1, bottom]   sp: respawn spots
-// Every template has flat ground at y 300 at both ends so rooms join up (the last room's far end is the pit).
+// Arenas. Each is a line of long stages (3.5 to 4.5 screens each): a middle stage and three stage layouts (A, B, C)
+// built for the runner heading right; the left half uses the same layouts mirrored, so both sides are fair by
+// construction. Layout C is always the last stage, and it ends in the pit: drop into it as the runner and you win.
+// A layout is a short list of features spread evenly along flat ground at y 300 (so there is room to fight between
+// them and long flat runs at both ends):
+//   ['G', w]                   a gap w px wide
+//   ['T', w]                   a low tunnel w px long (ceiling at 214: you can't jump over anyone under it)
+//   ['P', w, y]                a lone platform w px wide, top at y
+//   ['W', w]                   an upper walkway: a one-way platform at 240, w px long, open ground underneath
+//   ['U', n, top, len, walk]   a raised section: n steps up (50 px each) to `top`, a plateau len px long, then either
+//                              a cliff back down or (walk > 0) a walkway at the same height that carries on, then drops
+//   ['D', n, top, len]         a raised section the other way round: a cliff up, the plateau, then steps down
+//   ['S', n, dh]               a bump: n steps of dh px up, then down again
+// The middle stage is built from half a list and mirrored about a centre feature (`c`), so it is the same both ways.
+// Every edge with a drop of 50 px or more under it can be caught and hung from (see HANG below).
 // ---------------------------------------------------------------------
+const WALK_Y = 240, CEIL_Y = 214, STEP_W = 50;
 const ARENAS = [
   { key: 'market', name: 'Lantern Market', tag: 'Rooftop stalls and a covered lane',
-    tpl: [
-      {g: [[0, 640, 300]], p: [[140, 230, 232], [410, 500, 232]], sp: [100, 210, 320, 430, 540]},
-      {g: [[0, 640, 300]], c: [[250, 420, 214]], p: [[70, 160, 232], [490, 580, 232]], sp: [60, 170, 330, 460, 600]},
-      {g: [[0, 250, 300], [312, 460, 300], [460, 580, 280], [580, 640, 300]], p: [[350, 440, 226]], sp: [60, 150, 360, 520, 610]},
-      {g: [[0, 180, 300], [180, 300, 282], [300, 548, 300]], p: [[360, 450, 232]], sp: [60, 140, 240, 400, 500]}
+    st: [
+      {len: 2880, f: [['G', 72], ['U', 3, 240, 160, 280]], c: ['T', 120]},
+      {len: 2560, f: [['P', 100, 232], ['U', 3, 240, 180, 260], ['S', 2, 16], ['G', 72], ['T', 220]]},
+      {len: 2560, f: [['T', 200], ['D', 3, 240, 200], ['G', 76], ['W', 320], ['P', 100, 232]]},
+      {len: 2400, f: [['S', 2, 16], ['W', 300], ['G', 72], ['U', 2, 256, 200, 0], ['T', 180]]}
     ]},
   { key: 'aqueduct', name: 'Old Aqueduct', tag: 'Stone arches and low tunnels',
-    tpl: [
-      {g: [[0, 640, 300]], c: [[0, 110, 212], [530, 640, 212]], p: [[260, 380, 236]], sp: [100, 210, 320, 430, 540]},
-      {g: [[0, 290, 300], [350, 640, 300]], p: [[110, 200, 234], [440, 530, 234]], sp: [60, 160, 240, 420, 520, 600]},
-      {g: [[0, 640, 300]], c: [[150, 490, 214]], sp: [60, 170, 320, 460, 600]},
-      {g: [[0, 230, 300], [230, 380, 280], [380, 548, 300]], c: [[0, 170, 214]], p: [[420, 500, 234]], sp: [60, 150, 300, 440, 510]}
+    st: [
+      {len: 2880, f: [['W', 270], ['G', 72], ['U', 2, 250, 140, 0]], c: ['T', 100]},
+      {len: 2560, f: [['T', 240], ['U', 3, 240, 160, 280], ['P', 100, 236], ['G', 72]]},
+      {len: 2560, f: [['G', 80], ['W', 320], ['D', 3, 246, 220], ['T', 260]]},
+      {len: 2400, f: [['U', 3, 240, 200, 260], ['T', 200], ['G', 72], ['P', 100, 234]]}
     ]},
   { key: 'dunes', name: 'Dune Observatory', tag: 'Steps, domes and a gap to jump',
-    tpl: [
-      {g: [[0, 250, 300], [250, 390, 288], [390, 640, 300]], sp: [100, 210, 320, 430, 540]},
-      {g: [[0, 200, 300], [200, 300, 280], [300, 400, 264], [400, 640, 300]], p: [[470, 560, 232]], sp: [60, 150, 250, 350, 500, 600]},
-      {g: [[0, 260, 300], [330, 640, 300]], p: [[420, 510, 232]], sp: [60, 160, 420, 520, 600]},
-      {g: [[0, 548, 300]], p: [[110, 200, 236], [320, 410, 236]], c: [[210, 310, 214]], sp: [60, 150, 260, 450, 510]}
+    st: [
+      {len: 2880, f: [['U', 3, 240, 110, 0], ['G', 72], ['W', 240]], c: ['T', 120]},
+      {len: 2560, f: [['S', 2, 20], ['G', 72], ['T', 220], ['U', 3, 240, 180, 280]]},
+      {len: 2560, f: [['P', 100, 232], ['T', 200], ['D', 3, 240, 220], ['G', 72], ['W', 300]]},
+      {len: 2400, f: [['G', 72], ['U', 3, 240, 180, 240], ['T', 200], ['S', 2, 16]]}
     ]},
   { key: 'yard', name: 'Signal Yard', tag: 'Freight cars and gantries at night',
-    tpl: [
-      {g: [[0, 640, 300]], p: [[50, 140, 240], [500, 590, 240]], c: [[250, 390, 216]], sp: [100, 210, 320, 430, 540]},
-      {g: [[0, 640, 300]], c: [[170, 450, 214]], p: [[490, 580, 232]], sp: [60, 150, 310, 470, 600]},
-      {g: [[0, 220, 300], [220, 330, 268], [330, 400, 300], [466, 640, 300]], sp: [60, 150, 270, 360, 520, 600]},
-      {g: [[0, 548, 300]], p: [[180, 270, 234], [380, 470, 234]], sp: [60, 140, 320, 430, 510]}
+    st: [
+      {len: 2880, f: [['T', 200], ['G', 72], ['U', 3, 246, 160, 0]], c: ['P', 100, 236]},
+      {len: 2560, f: [['W', 320], ['G', 76], ['U', 3, 240, 160, 0], ['T', 240], ['P', 100, 236]]},
+      {len: 2560, f: [['U', 3, 240, 160, 280], ['T', 200], ['S', 2, 16], ['G', 72]]},
+      {len: 2400, f: [['T', 220], ['D', 3, 240, 200], ['P', 100, 232], ['G', 72], ['W', 280]]}
     ]}
 ];
+// One feature, laid out from x 0: its width, its ground (spans [x0, x1, top or null for a hole]), platforms, ceilings
+function feature(f) {
+  const o = {w: 0, g: [], p: [], c: []};
+  switch (f[0]) {
+    case 'G': o.w = f[1]; o.g.push([0, f[1], null]); break;
+    case 'T': o.w = f[1]; o.g.push([0, f[1], BASE]); o.c.push([0, f[1], CEIL_Y]); break;
+    case 'P': o.w = f[1]; o.g.push([0, f[1], BASE]); o.p.push([0, f[1], f[2]]); break;
+    case 'W': o.w = f[1]; o.g.push([0, f[1], BASE]); o.p.push([0, f[1], WALK_Y]); break;
+    case 'U': case 'D': {
+      const n = f[1], top = f[2], len = f[3], walk = f[0] === 'U' ? f[4] || 0 : 0, dh = (BASE - top) / n;
+      for (let k = 1; k <= n; k++) o.g.push([(k - 1) * STEP_W, k * STEP_W, BASE - k * dh]);
+      o.g.push([n * STEP_W, n * STEP_W + len, top]);
+      o.w = n * STEP_W + len + walk;
+      if (walk) { o.g.push([n * STEP_W + len, o.w, BASE]); o.p.push([n * STEP_W + len, o.w, top]); }
+      if (f[0] === 'D') for (const a of [o.g]) for (const s of a) { const x0 = o.w - s[1], x1 = o.w - s[0]; s[0] = x0; s[1] = x1; }
+      break;
+    }
+    case 'S': { const n = f[1], dh = f[2]; o.w = n * 2 * 40; for (let k = 0; k < n * 2; k++) o.g.push([k * 40, k * 40 + 40, BASE - dh * (k < n ? k + 1 : n * 2 - k)]); break; }
+  }
+  return o;
+}
+// A stage layout: {len, g, p, c} in stage coordinates (x 0 at the end the runner comes in by)
+function layout(sp, pit) {
+  const out = {len: sp.len, g: [], p: [], c: []};
+  const put = (o, x, mir, L) => {
+    const m = (a, b) => mir ? [L - b, L - a] : [a, b];
+    for (const s of o.g) { const [a, b] = m(x + s[0], x + s[1]); out.g.push([a, b, s[2]]); }
+    for (const s of o.p) { const [a, b] = m(x + s[0], x + s[1]); out.p.push([a, b, s[2]]); }
+    for (const s of o.c) { const [a, b] = m(x + s[0], x + s[1]); out.c.push([a, b, s[2]]); }
+  };
+  const fs = sp.f.map(feature), sum = fs.reduce((a, o) => a + o.w, 0);
+  if (sp.c) {
+    const c = feature(sp.c), half = sp.len / 2, avail = half - c.w / 2, gap = (avail - sum) / (fs.length + 1);
+    let x = gap; const xs = [];
+    for (const o of fs) { xs.push(Math.round(x)); x += o.w + gap; }
+    for (let k = 0; k < 2; k++) fs.forEach((o, i) => put(o, xs[i], k === 1, sp.len));
+    put(c, half - c.w / 2, false, sp.len);
+    out.gap = gap;
+  } else {
+    const avail = sp.len - (pit ? PIT : 0), gap = (avail - sum) / (fs.length + 1);
+    let x = gap;
+    for (const o of fs) { put(o, Math.round(x), false, sp.len); x += o.w + gap; }
+    out.gap = gap;
+  }
+  // the ground: flat at BASE except where a feature says otherwise; the pit stage stops PIT short of its end
+  const end = sp.len - (pit ? PIT : 0), marks = out.g.slice().sort((a, b) => a[0] - b[0]), g = [];
+  let x = 0;
+  for (const s of marks) { if (s[0] > x) g.push([x, s[0], BASE]); g.push(s.slice()); x = Math.max(x, s[1]); }
+  if (x < end) g.push([x, end, BASE]);
+  out.g = [];
+  for (const s of g) {
+    if (s[2] === null || s[1] <= s[0]) continue;
+    const l = out.g[out.g.length - 1];
+    if (l && l[2] === s[2] && l[1] === s[0]) l[1] = s[1]; else out.g.push(s);
+  }
+  return out;
+}
+const LAYOUTS = ARENAS.map(A => A.st.map((sp, ti) => layout(sp, ti === 3)));
 
 function buildWorld(ai, N) {
-  const A = ARENAS[ai], c = (N - 1) / 2;
-  // goal[i]: the pit player i drops into to win (player 0 runs right, player 1 left)
-  const w = {N, ai, segs: [], plats: [], ceils: [], sp: [], tplOf: [], goal: [{x0: N * W - PIT, x1: N * W}, {x0: 0, x1: PIT}]};
+  const c = (N - 1) / 2;
+  const w = {N, ai, segs: [], plats: [], ceils: [], st: [], tplOf: [], edges: [], len: 0};
+  let off = 0;
   for (let r = 0; r < N; r++) {
     const k = r - c, ak = Math.abs(k);
     const ti = N === 7 ? ak : N === 5 ? [0, 1, 3][ak] : [0, 3][Math.min(1, ak)];
-    const tp = A.tpl[ti], mir = k < 0, off = r * W;
-    const mx = x => mir ? W - x : x;
-    const span = (a, b) => [off + Math.min(mx(a), mx(b)), off + Math.max(mx(a), mx(b))];
+    const tp = LAYOUTS[ai][ti], mir = k < 0, L = tp.len;
+    const span = (a, b) => mir ? [off + L - b, off + L - a] : [off + a, off + b];
     w.tplOf.push([ti, mir ? 1 : 0]);
+    w.st.push({x0: off, x1: off + L});
     for (const g of tp.g) { const s = span(g[0], g[1]); w.segs.push({x0: s[0], x1: s[1], y: g[2], r}); }
-    for (const p of (tp.p || [])) { const s = span(p[0], p[1]); w.plats.push({x0: s[0], x1: s[1], y: p[2], r}); }
-    for (const p of (tp.c || [])) { const s = span(p[0], p[1]); w.ceils.push({x0: s[0], x1: s[1], y: p[2], r}); }
-    w.sp.push(tp.sp.map(x => off + mx(x)).sort((a, b) => a - b));
+    for (const p of tp.p) { const s = span(p[0], p[1]); w.plats.push({x0: s[0], x1: s[1], y: p[2], r}); }
+    for (const p of tp.c) { const s = span(p[0], p[1]); w.ceils.push({x0: s[0], x1: s[1], y: p[2], r}); }
+    off += L;
   }
+  w.len = off;
+  w.segsR = w.segs.slice().sort((a, b) => a.x0 - b.x0); w.segsL = w.segsR.slice().reverse();
+  // goal[i]: the pit player i drops into to win (player 0 runs right, player 1 left)
+  w.goal = [{x0: off - PIT, x1: off}, {x0: 0, x1: PIT}];
+  // ledge edges you can hang from: a corner of ground or a platform end with a drop of 50 px or more beside it
+  const hx = (x, s) => x + s * (HW + 1);
+  const open = (x, s, y) => {
+    const gt = groundTopAt(null, w, hx(x, s));
+    if (gt !== null && gt - y < 50) return false;
+    for (const p of w.plats) if (hx(x, s) >= p.x0 - 3 && hx(x, s) <= p.x1 + 3 && Math.abs(p.y - y) < 50) return false;
+    const cl = ceilAt(w, x - s * 12, y);
+    return cl === null || y - cl >= 56;
+  };
+  for (const g of w.segs) for (const s of [-1, 1]) { const x = s < 0 ? g.x0 : g.x1; if (open(x, s, g.y)) w.edges.push({x, y: g.y, s}); }
+  for (const g of w.plats) for (const s of [-1, 1]) { const x = s < 0 ? g.x0 : g.x1; if (open(x, s, g.y)) w.edges.push({x, y: g.y, s, p: 1}); }
   return w;
 }
+// Which stage is x in?
+function stageOf(w, x) { for (let r = 0; r < w.N; r++) if (x < w.st[r].x1) return r; return w.N - 1; }
 // Is x inside the end pit that player i wins by dropping into?
 function inGoal(w, i, x) { const g = w.goal[i]; return x > g.x0 && x < g.x1; }
 
@@ -480,15 +572,16 @@ function inGoal(w, i, x) { const g = w.goal[i]; return x > g.x0 && x < g.x1; }
 function mkF(i) {
   return {i, x: 0, y: BASE, vx: 0, vy: 0, f: 1, h: 1, hT: 99, sc: 0, cr: 0, hd: 0, arm: 1, s: ST.IDLE, t: 0, gnd: 1, co: 0, jb: 0, ab: 0,
     jh: 0, tb: 0, step: 0, sd: 0, tgt: 0, kd: 0, rt: 0, rw: 0, inv: 0, pin: 0, res: 0, ah: 1, chg: 0, bk: 0, kills: 0, deaths: 0, stk: 0, best: 0,
-    cx: 0, cy: 0, gone: 0};
+    cx: 0, cy: 0, gone: 0, ex: 0, ey: 0, es: 0, hl: 0, lb: 0};
 }
 function newMatch(cfg) {
   const N = cfg.N === 3 ? 3 : cfg.N === 5 ? 5 : 7, w = buildWorld(cfg.arena | 0, N), c = (N - 1) / 2;
-  const S = {t: 0, hs: 0, room: c, adv: -1, win: -1, endT: 0, N, cfg: {arena: cfg.arena | 0, N, thr: cfg.thr ? 1 : 0, lowg: cfg.lowg ? 1 : 0,
+  const S = {t: 0, hs: 0, room: c, adv: -1, win: -1, endT: 0, N, cam: 0, cv: 0, la: 0, cfg: {arena: cfg.arena | 0, N, thr: cfg.thr ? 1 : 0, lowg: cfg.lowg ? 1 : 0,
     bounce: cfg.bounce ? 1 : 0, turbo: cfg.turbo ? 1 : 0, prac: cfg.prac ? 1 : 0}, p: [mkF(0), mkF(1)], sw: [], swn: 0, ev: [], kq: []};
-  const L = c * W;
-  S.p[0].x = L + W / 2 - 110; S.p[0].f = 1;
-  S.p[1].x = L + W / 2 + 110; S.p[1].f = -1;
+  const mid = (w.st[c].x0 + w.st[c].x1) / 2;
+  S.p[0].x = mid - 130; S.p[0].f = 1;
+  S.p[1].x = mid + 130; S.p[1].f = -1;
+  S.cam = mid;
   return {S, w};
 }
 function clone(S) {
@@ -502,7 +595,7 @@ function clone(S) {
 }
 function hashState(S) {
   // FNV-1a over a canonical text of the state (number formatting is exact and the same in every engine).
-  const s = JSON.stringify([S.t, S.hs, S.room, S.adv, S.win, S.p, S.sw]);
+  const s = JSON.stringify([S.t, S.hs, S.room, S.adv, S.win, S.cam, S.cv, S.la, S.p, S.sw]);
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
   return (h >>> 0).toString(36);
@@ -528,7 +621,7 @@ function ceilAt(w, x, y) { // the lowest ceiling above y at x
 function bodyH(p) {
   switch (p.s) {
     case ST.KD: return 12; case ST.ROLL: return 22; case ST.SWEEP: return 20; case ST.DIVE: return 40; case ST.DEAD: return 0;
-    default: return p.cr ? 24 : 54;   // crouched: under a middle (30) or high (44) blade; a low one (16) still gets you
+    default: return p.cr ? 22 : 54;   // crouched (a deep squat): under a middle (30) or high (44) blade; a low one (16) still gets you
   }
 }
 function hurt(p) {
@@ -536,6 +629,8 @@ function hurt(p) {
   if (p.s === ST.KD) return {x0: p.x - 24, x1: p.x + 24, y0: p.y - 12, y1: p.y};
   if (p.s === ST.CLIMB) return {x0: p.x - HW, x1: p.x + HW, y0: p.y - 54, y1: p.y};
   if (p.s === ST.DIVE) return {x0: p.x - HW, x1: p.x + HW, y0: p.y - 40, y1: p.y - 9};
+  // hanging: the hands and head come up to the ledge, so a low blade from up there reaches them (a middle or high one doesn't)
+  if (p.s === ST.HANG) return {x0: p.x - HW, x1: p.x + HW, y0: p.ey - 18, y1: p.y};
   return {x0: p.x - HW, x1: p.x + HW, y0: p.y - bodyH(p), y1: p.y};
 }
 function bladeOut(p) {
@@ -571,9 +666,9 @@ function ev(S, k, o) { o.k = k; o.t = S.t; S.ev.push(o); }
 
 function dropSword(S, x, y, vx, vy) {
   S.sw.push({id: ++S.swn, x, y, vx, vy, fl: 0, ow: -1, t: 0, b: 0, g: 0});
-  capSwords(S);
 }
-// At most 6 loose swords: the one lying furthest from both fencers goes (by position, so mirrored matches agree).
+// At most 6 loose swords: the one lying furthest from both fencers goes (by position, so mirrored matches agree;
+// checked once at the end of each tick).
 function capSwords(S) {
   while (S.sw.length > 6) {
     let bi = 0, bd = -1;
@@ -589,6 +684,11 @@ function knockDown(S, T, v, dir, a, how) {
   if (v.arm) { v.arm = 0; dropSword(S, v.x + v.f * 6, v.y - 30, dir * 2.2, -5); }
   v.s = ST.KD; v.t = 0; v.kd = T.kd; v.vx = dir * 2.6; v.cr = 0; v.res = 0;
   ev(S, 'kd', {a, b: v.i, x: v.x, y: v.y, how});
+}
+// Knocked off a ledge: you let go and fall (and can't grab again straight away).
+function knockOff(S, T, v, a) {
+  v.s = ST.IDLE; v.t = 0; v.gnd = 0; v.vy = 1; v.vx = v.es * 1.2; v.hl = T.regrab + 30;
+  ev(S, 'kd', {a, b: v.i, x: v.x, y: v.y, how: 'off'});
 }
 function killQ(S, v, k, how) { if (!S.kq.some(q => q.v === v)) S.kq.push({v, k, how}); }
 
@@ -624,14 +724,79 @@ function step(S, w, i0, i1) {
   applyDeaths(S, w, T);
   respawns(S, w, T);
   advance(S, w, T);
-  const MX = S.N * W / 2;
+  camera(S, w, T);
+  leftBehind(S, w, T);
+  capSwords(S);   // once a tick, after everyone has moved (so it doesn't matter who dropped a sword first)
+  const MX = w.len / 2;
   for (const p of P) { p.x = MX + q8(p.x - MX); p.y = q8(p.y); p.vx = q8(p.vx); p.vy = q8(p.vy); }
   for (const s of S.sw) { s.x = MX + q8(s.x - MX); s.y = q8(s.y); s.vx = q8(s.vx); s.vy = q8(s.vy); }
+  S.cam = MX + q8(S.cam - MX); S.cv = q8(S.cv); S.la = q8(S.la);
   for (const p of P) {
-    if (p.sc > 0) p.sc--; if (p.hT < 99) p.hT++; if (p.inv > 0) p.inv--; if (p.co > 0) p.co--;
+    if (p.sc > 0) p.sc--; if (p.hT < 99) p.hT++; if (p.inv > 0) p.inv--; if (p.co > 0) p.co--; if (p.hl > 0) p.hl--;
   }
   S.t++;
   return S;
+}
+
+// ---------------------------------------------------------------------
+// The camera's focus (S.cam: the middle of a 640-px window) is part of the match, so both online players and every
+// mode agree on it, and the rules use it. Nobody has the run: it follows the midpoint of the two fencers, and the
+// window's edges are soft walls, so they can't get more than a screen apart (but can walk the pair anywhere). Someone
+// has the run: it looks ahead of the runner (they sit about a third of the way in from the trailing edge), swinging
+// round smoothly when they head back, and keeps a defender who is ahead of them in view; a defender who drops off the
+// trailing edge for 0.75 s is left behind. It never shows past the ends of the stage, and it moves smoothly: it speeds
+// up gently, slows down in proportion to the distance left (so it never overshoots), and has a top speed.
+// ---------------------------------------------------------------------
+function camLead(S) { return S.cfg.prac ? 0 : S.adv >= 0 && alive(S.p[S.adv]) ? S.adv : -1; }
+function camTarget(S, w, T) {
+  const P = S.p, st = w.st[S.room], li = camLead(S);
+  let tgt = S.cam;
+  if (li >= 0 && alive(P[li])) {
+    const r = P[li], o = P[1 - li];
+    // the look-ahead turns with the way the runner is actually going (turning on the spot doesn't swing it)
+    if (Math.abs(r.vx) > 1.5 && r.s !== ST.HANG) { const want = (r.vx > 0 ? 1 : -1) * T.look; S.la += Math.max(-T.lookV, Math.min(T.lookV, want - S.la)); }
+    tgt = r.x + S.la;
+    // a defender ahead of the runner stays in the picture too (the runner first, if both can't be)
+    if (!S.cfg.prac && alive(o)) {
+      const d = li === 0 ? 1 : -1;
+      if (d * (o.x - r.x) > 0) tgt = d > 0 ? Math.min(r.x + VIEW / 2 - 30, Math.max(o.x - VIEW / 2 + 30, tgt)) : Math.max(r.x - VIEW / 2 + 30, Math.min(o.x + VIEW / 2 - 30, tgt));
+    }
+  } else {
+    const al = P.filter(alive);
+    if (al.length) tgt = al.reduce((a, p) => a + p.x, 0) / al.length;
+  }
+  return Math.max(st.x0 + VIEW / 2, Math.min(st.x1 - VIEW / 2, tgt));
+}
+function camera(S, w, T) {
+  const st = w.st[S.room], tgt = camTarget(S, w, T), d = tgt - S.cam;
+  if (Math.abs(d) < 1.5 && Math.abs(S.cv) < 0.3) { S.cv = 0; return; }   // a small dead zone: no creeping
+  const want = Math.max(-T.camV, Math.min(T.camV, d * T.camK));
+  if (Math.abs(want) < Math.abs(S.cv) && want * S.cv >= 0) S.cv = want;   // slowing down: at once, so no overshoot
+  else S.cv += Math.max(-T.camA, Math.min(T.camA, want - S.cv));          // speeding up or turning: gently
+  S.cam += S.cv;
+  const lo = st.x0 + VIEW / 2, hi = st.x1 - VIEW / 2;
+  if (S.cam < lo) { S.cam = lo; S.cv = 0; } else if (S.cam > hi) { S.cam = hi; S.cv = 0; }
+}
+// A new stage (or practice's fall back to the middle): the camera cuts straight to it.
+function camCut(S, w, T, d) {
+  S.la = d * T.look; S.cv = 0;
+  S.cam = camTarget(S, w, T);
+}
+// The fencer without the run who is off the trailing edge of the window for more than T.lost ticks is left behind:
+// they vanish (no paint, no touch counted) and come back ahead of the runner like after a touch. In practice the
+// dummy is brought back the same way if it ends up off the screen.
+function leftBehind(S, w, T) {
+  for (const p of S.p) {
+    let off = false;
+    if (alive(p) && S.win < 0) {
+      if (S.cfg.prac) off = p.i === 1 && Math.abs(p.x - S.cam) > VIEW / 2 + HW;
+      else if (S.adv >= 0 && S.adv !== p.i && alive(S.p[S.adv])) { const d = S.adv === 0 ? 1 : -1; off = d * (S.cam - d * VIEW / 2 - p.x) > HW; }
+    }
+    if (!off) { p.lb = 0; continue; }
+    if (++p.lb <= T.lost) continue;
+    ev(S, 'lost', {a: p.i, x: p.x, y: p.y});
+    Object.assign(p, {s: ST.DEAD, t: 0, gone: 1, rt: S.cfg.prac ? 30 : T.respawn, rw: 0, arm: 0, cr: 0, lb: 0, dh: 'left', dx: p.x, dy: p.y});
+  }
 }
 
 function control(S, w, T, p, o, inp, e) {
@@ -643,6 +808,18 @@ function control(S, w, T, p, o, inp, e) {
   p.tgt = 0; p.bk = 0;
   if (p.s === ST.DEAD) return;
   if (p.s === ST.KD) { if (e & (K.A | K.J | K.L | K.R | K.U | K.D)) p.kd -= 3; return; }
+  if (p.s === ST.HANG) {
+    // hanging from a ledge: up or jump pulls you up onto it; down or pressing away lets go
+    const away = p.es > 0 ? K.R : K.L;
+    if ((e & (K.U | K.J)) || p.jb > 0) {
+      p.jb = 0; p.s = ST.CLIMB; p.t = 0; p.cx = p.ex - p.es * 12; p.cy = p.ey; p.f = -p.es;
+      ev(S, 'climb', {a: p.i, x: p.x, y: p.y, hang: 1});
+    } else if (e & (K.D | away)) {
+      p.s = ST.IDLE; p.t = 0; p.gnd = 0; p.vy = 0.5; p.vx = p.es * 0.6; p.hl = T.regrab;
+      ev(S, 'drop', {a: p.i, x: p.x, y: p.y});
+    }
+    return;
+  }
   if (p.s !== ST.IDLE) return;
   const dir = ((inp & K.R) ? 1 : 0) - ((inp & K.L) ? 1 : 0);
   const oA = alive(o), dx = o.x - p.x, adx = Math.abs(dx);
@@ -681,16 +858,19 @@ function control(S, w, T, p, o, inp, e) {
   if (p.ab > 0) {
     p.ab = 0; p.res = 0; p.t = 0;
     const near = oA && o.s === ST.KD && Math.abs(o.y - p.y) < 24, facing = p.f * dx > 0 || adx < 12;
-    if (p.cr && p.gnd) { p.s = ST.SWEEP; p.cr = 0; }                       // crouched: the sliding kick, armed or not
+    // someone hanging from the ledge you stand on: stamp on their hands (a low sword stabs them instead)
+    const hangNear = oA && o.s === ST.HANG && Math.abs(o.ey - p.y) < 6 && adx < 40 && p.gnd && facing;
+    if (p.gnd && (p.cr || (inp & K.D))) { p.s = ST.SWEEP; p.cr = 0; if (p.arm) p.h = 0; }   // down held (crouched or not yet): the sliding kick, armed or not
     else if (p.arm) {
       if (p.h === 3) { p.s = ST.THROW; }
       else if (!p.gnd) { p.s = ST.DIVE; }
       else if (near && adx < 50 && facing) { p.s = ST.FIN; }
+      else if (hangNear && p.h > 0) { p.s = ST.STOMP; }
       else if (mdir === p.f && Math.abs(p.vx) > T.run * 0.65) { p.s = ST.LUNGE; p.ah = p.h; }
       else { p.s = ST.THRUST; p.ah = p.h; }
     } else {
       if (!p.gnd) p.s = ST.DIVE;
-      else if (near && adx < 48 && facing) { p.s = ST.STOMP; }
+      else if ((near && adx < 48 && facing) || hangNear) { p.s = ST.STOMP; }
       else p.s = ST.PUNCH;
     }
     ev(S, 'atk', {a: p.i, s: p.s, x: p.x, y: p.y});
@@ -713,7 +893,6 @@ function disarms(S, T) {
     const b = P[k];
     b.arm = 0; b.s = ST.DISARM; b.t = 0; b.cr = 0; b.vx = -b.f * 1.5;
     S.sw.push({id: ++S.swn, x: b.x + b.f * 20, y: bandY(b), vx: -b.f * 2.4, vy: -6.6, fl: 0, ow: -1, t: 0, b: 0, g: 0});
-    capSwords(S);
     ev(S, 'disarm', {a: 1 - k, b: k, x: b.x + b.f * 20, y: bandY(b)});
     S.hs = Math.max(S.hs, T.hsDisarm);
   }
@@ -770,7 +949,6 @@ function physics(S, w, T, p, o, inp) {
       if (p.t === T.throwAt && p.arm) {
         p.arm = 0; p.h = 1;
         S.sw.push({id: ++S.swn, x: p.x + p.f * 16, y: p.y - BAND[2], vx: p.f * T.throwV, vy: 0, fl: 1, ow: p.i, t: 0, b: S.cfg.bounce ? 2 : 0, g: 0});
-        capSwords(S);
         ev(S, 'throw', {a: p.i, x: p.x, y: p.y});
       }
       if (p.t >= T.throwDur) p.s = ST.IDLE;
@@ -788,15 +966,18 @@ function physics(S, w, T, p, o, inp) {
       p.vx = 0; p.vy = 0;
       if (p.t >= T.climb) { p.x = p.cx; p.y = p.cy; p.s = ST.IDLE; p.gnd = 1; }
       return;
+    case ST.HANG: p.vx = 0; p.vy = 0; return;
   }
   // Integrate: horizontal first (walls), then vertical (landing and ceilings).
-  const L = S.room * W, R = L + W, d = p.i === 0 ? 1 : -1;
+  const st = w.st[S.room], L = st.x0, R = st.x1, d = p.i === 0 ? 1 : -1;
   const pr = S.cfg.prac && p.i === 0;   // practice: walk on through the stages either way
   const exitR = (pr || (S.adv === p.i && d > 0)) && S.room < S.N - 1, exitL = (pr || (S.adv === p.i && d < 0)) && S.room > 0;
   const px = p.x;
   p.x += p.vx;
-  for (const g of w.segs) {
-    if (g.y >= p.y - 10) continue;
+  // walls: met in the order you come to them (left to right when moving right), so a mirrored match stays a mirror
+  const segs = (p.vx > 0 || (p.vx === 0 && p.f > 0)) ? w.segsR : w.segsL;
+  for (const g of segs) {
+    if (g.y >= p.y - (p.gnd ? 10 : 0.01)) continue;   // on foot you walk up a small step; in the air any block side is a wall
     if (p.x + HW > g.x0 && p.x - HW < g.x1) {
       if (px <= g.x0 - HW + 0.01 || (px > g.x1 + HW - 0.01 ? false : px < (g.x0 + g.x1) / 2)) p.x = g.x0 - HW; else p.x = g.x1 + HW;
       p.vx = 0;
@@ -807,6 +988,16 @@ function physics(S, w, T, p, o, inp) {
   }
   if (p.x < L + HW && !exitL) { p.x = L + HW; if (p.vx < 0) p.vx = 0; }
   if (p.x > R - HW && !exitR) { p.x = R - HW; if (p.vx > 0) p.vx = 0; }
+  // the camera window's soft walls: with nobody on the run, neither fencer can leave it (so they stay within a screen
+  // of each other); with a runner, the other fencer can't run on ahead out of it. They only stop you going further
+  // out: a wall never shoves anyone.
+  if (!S.cfg.prac && p.s !== ST.CLIMB) {
+    const li = camLead(S); let lo = -1e9, hi = 1e9;
+    if (li < 0) { lo = S.cam - VIEW / 2 + HW; hi = S.cam + VIEW / 2 - HW; }
+    else if (li !== p.i) { const r = S.p[li]; if (li === 0) hi = Math.min(S.cam + VIEW / 2, r.x + VIEW - 60) - HW; else lo = Math.max(S.cam - VIEW / 2, r.x - VIEW + 60) + HW; }
+    if (p.x > hi && p.x > px) { p.x = Math.max(hi, px); if (p.vx > 0) p.vx = 0; }
+    if (p.x < lo && p.x < px) { p.x = Math.min(lo, px); if (p.vx < 0) p.vx = 0; }
+  }
   // vertical
   const py = p.y;
   if (!p.gnd) {
@@ -828,19 +1019,41 @@ function physics(S, w, T, p, o, inp) {
     if (!p.gnd && p.s === ST.IDLE && p.vy > -2.5 && p.y <= BASE + 4) {   // never out of a pit
       const dir = ((inp & K.R) ? 1 : 0) - ((inp & K.L) ? 1 : 0);
       if (dir) {
+        // of the ledges in reach, the nearest (then the highest), so the choice never depends on list order
+        let best = null;
         const edge = (x0, x1, top) => {
           const ex = dir > 0 ? x0 : x1;
-          if (dir * (ex - p.x) < HW - 3 || dir * (ex - p.x) > HW + 12) return false;
-          if (top > p.y - 18 || top < p.y - 64) return false;
+          if (dir * (ex - p.x) < HW - 3 || dir * (ex - p.x) > HW + 12) return;
+          if (top > p.y - 18 || top < p.y - 64) return;
           const c = ceilAt(w, ex + dir * 12, top);
-          if (c !== null && top - c < 54) return false;
-          p.s = ST.CLIMB; p.t = 0; p.cx = ex + dir * 12; p.cy = top; p.f = dir; p.vx = 0; p.vy = 0;
-          ev(S, 'climb', {a: p.i, x: p.x, y: p.y});
-          return true;
+          if (c !== null && top - c < 54) return;
+          const d = Math.abs(ex - p.x);
+          if (!best || d < best.d || (d === best.d && top < best.top)) best = {ex, top, d};
         };
-        let done = false;
-        for (const g of w.segs) if (!done && g.x1 - g.x0 > 24) done = edge(g.x0, g.x1, g.y);
-        for (const g of w.plats) if (!done) done = edge(g.x0, g.x1, g.y);
+        for (const g of w.segs) if (g.x1 - g.x0 > 24) edge(g.x0, g.x1, g.y);
+        for (const g of w.plats) edge(g.x0, g.x1, g.y);
+        if (best) {
+          p.s = ST.CLIMB; p.t = 0; p.cx = best.ex + dir * 12; p.cy = best.top; p.f = dir; p.vx = 0; p.vy = 0;
+          ev(S, 'climb', {a: p.i, x: p.x, y: p.y});
+        }
+      }
+    }
+    // Catching a ledge: falling past an edge (of the ground or a platform, with a drop beside it) with your hands
+    // passing its level right beside it, you grab it and hang. Holding down lets you drop past on purpose; just after
+    // letting go you can't grab again for a moment; and the runner dropping into their own winning pit never grabs.
+    if (!p.gnd && p.s === ST.IDLE && p.vy > 0 && !(inp & K.D) && p.hl <= 0 && !(S.adv === p.i && !S.cfg.prac && inGoal(w, p.i, p.x))) {
+      const h0 = py - REACH, h1 = p.y - REACH;
+      let best = null, bd = 0;
+      for (const e of w.edges) {
+        if (e.y <= h0 || e.y > h1) continue;
+        const hx = e.x + e.s * (HW + 1), d = Math.abs(p.x - hx);
+        if (d > 8 || hx < L || hx > R) continue;
+        if (!best || d < bd || (d === bd && e.y < best.y)) { best = e; bd = d; }
+      }
+      if (best) {
+        const e = best, hx = e.x + e.s * (HW + 1);
+        Object.assign(p, {s: ST.HANG, t: 0, x: hx, y: e.y + HANG_D, vx: 0, vy: 0, ex: e.x, ey: e.y, es: e.s, f: -e.s, cr: 0, jh: 0});
+        ev(S, 'hang', {a: p.i, x: p.x, y: p.y});
       }
     }
   } else {
@@ -855,7 +1068,7 @@ function physics(S, w, T, p, o, inp) {
 function separate(S, w, T) {
   const a = S.p[0], b = S.p[1];
   if (!alive(a) || !alive(b)) return;
-  const free = p => p.s === ST.ROLL || p.s === ST.KD || p.s === ST.CLIMB || p.s === ST.SWEEP;
+  const free = p => p.s === ST.ROLL || p.s === ST.KD || p.s === ST.CLIMB || p.s === ST.SWEEP || p.s === ST.HANG;
   if (free(a) || free(b)) return;
   if (Math.abs(a.y - b.y) > 40) return;
   const bound = bladeOut(a) && bladeOut(b) && a.f === -b.f && a.f * (b.x - a.x) > 0 && Math.abs(bandY(a) - bandY(b)) <= 8;
@@ -901,18 +1114,21 @@ function combat(S, w, T) {
   for (let k = 0; k < 2; k++) {
     const a = P[k], b = P[1 - k];
     if (a.res || !alive(b) || b.s === ST.KD || b.inv > 0 || S.kq.some(q => q.v === a.i)) continue;
-    let pt = null;
+    let pt = null, leg = null;
     if (a.s === ST.PUNCH && a.t >= T.puA0 && a.t <= T.puA1) pt = [a.x + a.f * T.punchReach, a.y - 36];
-    else if (a.s === ST.SWEEP && a.t >= T.swA0 && a.t <= T.swA1) pt = [a.x + a.f * 24, a.y - 5];
+    else if (a.s === ST.SWEEP && a.t >= T.swA0 && a.t <= T.swA1) { pt = [a.x + a.f * T.swReach, a.y - 5]; leg = a.x; }
     else if (a.s === ST.DIVE) pt = [a.x + a.f * 16, a.y - 3];
     if (!pt) continue;
     const hb = hurt(b); if (!hb) continue;
-    if (pt[0] < hb.x0 - 2 || pt[0] > hb.x1 + 2 || pt[1] < hb.y0 - 2 || pt[1] > hb.y1 + 2) continue;
+    // the kick hits with the whole leg (from the body out to the foot); punches and dive kicks with one point
+    const lo = leg === null ? pt[0] : Math.min(leg, pt[0]), hi = leg === null ? pt[0] : Math.max(leg, pt[0]);
+    if (hi < hb.x0 - 2 || lo > hb.x1 + 2 || pt[1] < hb.y0 - 2 || pt[1] > hb.y1 + 2) continue;
     a.res = 1;
+    if (a.s === ST.SWEEP && bladeOut(b) && b.h === 0 && b.f === -a.f) { killQ(S, a.i, b.i, 'blade'); continue; }   // a sword held low, facing the kick, stops it
     if (a.s === ST.DIVE && bladeOut(b) && b.f === -a.f && b.h === 2) { killQ(S, a.i, b.i, 'skewer'); continue; }
     kd.push([b, a]);
   }
-  for (const [b, a] of kd) knockDown(S, T, b, a.f, a.i, a.s === ST.PUNCH ? 'punch' : a.s === ST.SWEEP ? 'kick' : 'dive');
+  for (const [b, a] of kd) { if (b.s === ST.HANG) knockOff(S, T, b, a.i); else knockDown(S, T, b, a.f, a.i, a.s === ST.PUNCH ? 'punch' : a.s === ST.SWEEP ? 'kick' : 'dive'); }
   // 3. A blade is deadly on contact: anything that reaches the body ahead of it dies, unless the other blade is
   //    held at the same height in the way.
   for (let k = 0; k < 2; k++) {
@@ -933,11 +1149,12 @@ function combat(S, w, T) {
     const a = P[k], o = P[1 - k], down = alive(o) && (o.s === ST.KD || (o.s === ST.GETUP && o.t === 0));
     if (a.s === ST.FIN && a.t === T.finAt && down && Math.abs(o.x - a.x) < 54 && a.arm) killQ(S, o.i, a.i, 'finish');
     if (a.s === ST.STOMP && a.t === T.stompAt && down && Math.abs(o.x - a.x) < 44) killQ(S, o.i, a.i, 'stomp');
+    if (a.s === ST.STOMP && a.t === T.stompAt && alive(o) && o.s === ST.HANG && Math.abs(o.x - a.x) < 44 && Math.abs(o.ey - a.y) < 6 && o.inv <= 0) knockOff(S, T, o, a.i);
   }
 }
 
 function swords(S, w, T, ins) {
-  const L = S.room * W, R = L + W;
+  const L = w.st[S.room].x0, R = w.st[S.room].x1;
   const g = T.grav;
   for (let i = S.sw.length - 1; i >= 0; i--) {
     const s = S.sw[i];
@@ -1046,71 +1263,95 @@ function spawnAt(S, w, p, x, T) {
   if (top !== null) y = Math.min(y, top);
   const o = S.p[1 - p.i];
   Object.assign(p, {x, y, vx: 0, vy: 0, s: ST.IDLE, t: 0, arm: 1, h: 1, hT: 99, inv: T.inv, gnd: 0, rw: 0, gone: 0, res: 0, cr: 0, hd: 0,
-    step: 0, ab: 0, jb: 0, kd: 0, co: 0, jh: 0});
-  const mid = S.room * W + W / 2, own = p.i === 0 ? 1 : -1;
-  p.f = alive(o) ? (o.x > x ? 1 : o.x < x ? -1 : own) : (x < mid ? 1 : x > mid ? -1 : own);
+    step: 0, ab: 0, jb: 0, kd: 0, co: 0, jh: 0, hl: 0, lb: 0});
+  const own = p.i === 0 ? 1 : -1;
+  p.f = alive(o) ? (o.x > x ? 1 : o.x < x ? -1 : own) : (x < S.cam ? 1 : x > S.cam ? -1 : own);
   ev(S, 'spawn', {a: p.i, x, y});
 }
+// Somewhere to come back: inside this stage and the camera's window, on solid level ground (the same height a little
+// either side, so never by a drop, a step or a wall), not by a ledge, not under a roof too low to stand under, and not
+// on top of anyone.
+function spotOK(S, w, x, o) {
+  const st = w.st[S.room];
+  if (x < st.x0 + 40 || x > st.x1 - 40 || x < S.cam - VIEW / 2 + 30 || x > S.cam + VIEW / 2 - 30) return false;
+  const t = groundTopAt(S, w, x);
+  if (t === null || groundTopAt(S, w, x - HW - 8) !== t || groundTopAt(S, w, x + HW + 8) !== t) return false;
+  const c = ceilAt(w, x, t); if (c !== null && t - c < 60) return false;
+  for (const e of w.edges) if (Math.abs(e.x - x) < 40) return false;
+  if (o && alive(o) && Math.abs(o.x - x) < 70) return false;
+  return true;
+}
+// The first good spot at base + d * k, trying k from the middle of [lo, hi] outward (the same order either way round,
+// so a mirrored match stays a mirror)
+function findSpot(S, w, base, d, o, lo, hi) {
+  const mid = (lo + hi) / 2;
+  for (let j = 0; j <= (hi - lo) / 2; j += 5) for (const k of j ? [mid + j, mid - j] : [mid]) { const x = base + d * k; if (spotOK(S, w, x, o)) return x; }
+  return null;
+}
 function respawns(S, w, T) {
+  const c = (S.N - 1) / 2;
+  // both back on the same tick: each places itself as if the other weren't there yet (so neither goes first)
+  const both = !alive(S.p[0]) && !alive(S.p[1]) && S.p[0].rt <= 0 && S.p[1].rt <= 0;
   for (const p of S.p) {
     if (alive(p)) continue;
     if (p.rt > 0) { p.rt--; continue; }
-    const o = S.p[1 - p.i], spots = w.sp[S.room], L = S.room * W;
+    const o = both ? {x: 0, s: ST.DEAD} : S.p[1 - p.i];
+    let x = null;
     if (S.cfg.prac) {
       if (p.i === 0 && p.dh === 'fall') {
         // practice: a fall puts you back in the middle stage (and the dummy with you)
-        S.room = (S.N - 1) / 2; S.sw = [];
-        spawnAt(S, w, p, S.room * W + W / 2 - 110, T);
+        S.room = c; S.sw = [];
+        spawnAt(S, w, p, (w.st[c].x0 + w.st[c].x1) / 2 - 130, T);
+        camCut(S, w, T, 1);
         if (alive(o)) { o.s = ST.DEAD; o.gone = 1; o.rt = 6; o.t = 0; o.arm = 0; o.dh = 'left'; }
         continue;
       }
       if (p.i === 1) {
-        // the dummy comes back near where it fell, but not on top of you
-        const sp = w.sp[S.room], want = p.gone || p.dx == null ? L + W / 2 + 110 : p.dx;
-        let best = null, bs = 1e9;
-        for (const c of sp) { if (alive(o) && Math.abs(c - o.x) < 100) continue; if (Math.abs(c - want) < bs) { bs = Math.abs(c - want); best = c; } }
-        if (best === null) { if (p.rw++ < 120) continue; best = sp[0]; for (const c of sp) if (Math.abs(c - o.x) > Math.abs(best - o.x)) best = c; }
-        spawnAt(S, w, p, best, T);
+        // the dummy comes back in front of you (or behind you, if there's no room in front), never on top of you
+        if (!alive(o)) continue;
+        x = findSpot(S, w, o.x, o.f, o, 160, 260);
+        if (x === null) x = findSpot(S, w, o.x, -o.f, o, 160, 260);
+        if (x === null) x = findSpot(S, w, o.x, o.f, o, 80, 300);
+        if (x === null) continue;
+        spawnAt(S, w, p, x, T);
         continue;
       }
     }
     if (S.adv === o.i && alive(o)) {
-      // Ahead of the runner, between them and their goal.
-      const d = o.i === 0 ? 1 : -1, want = o.x + d * 230;
-      let best = null, bs = 1e9, far = null, fa = -1e9;
-      for (const c of spots) {
-        const ah = d * (c - o.x);
-        if (ah >= 150 && (Math.abs(c - want) < bs || (Math.abs(c - want) === bs && d * c > d * best))) { best = c; bs = Math.abs(c - want); }
-        if (ah > fa) { fa = ah; far = c; }
+      // Ahead of the runner, between them and their goal: 250 to 320 px in front if there's good ground there
+      const d = o.i === 0 ? 1 : -1;
+      x = findSpot(S, w, o.x, d, o, 250, 320);
+      if (x === null) x = findSpot(S, w, o.x, d, o, 150, 420);
+      if (x === null) {
+        // the runner is about to leave the stage: wait for the next one (but not for ever)
+        if (++p.rw < 150) continue;
+        x = findSpot(S, w, o.x, d, o, 80, 160);
+        if (x === null) x = findSpot(S, w, o.x, -d, o, 150, 300);
+        if (x === null) continue;
       }
-      if (best === null) {
-        p.rw++;
-        if (p.rw < 24 || (fa < 60 && p.rw < 150)) continue;   // the runner is about to leave the room; wait for the next one
-        best = far;
-      }
-      spawnAt(S, w, p, best, T);
     } else {
-      const want = L + W / 2 + (p.i === 0 ? -120 : 120);
-      let best = spots[0], bs = 1e9;
-      for (const c of spots) {
-        if (alive(o) && Math.abs(c - o.x) < 120) continue;
-        const side = p.i === 0 ? -1 : 1;
-        if (Math.abs(c - want) < bs || (Math.abs(c - want) === bs && side * c > side * best)) { best = c; bs = Math.abs(c - want); }
-      }
-      spawnAt(S, w, p, best, T);
+      // Nobody has the run: on your own side of the opponent (or of the middle of the picture), a similar way off
+      const side = p.i === 0 ? -1 : 1, base = alive(o) ? o.x : S.cam;
+      x = findSpot(S, w, base, side, o, alive(o) ? 250 : 120, alive(o) ? 320 : 200);
+      if (x === null) x = findSpot(S, w, base, side, o, alive(o) ? 120 : 20, 420);
+      if (x === null) x = findSpot(S, w, base, -side, o, 150, 320);
+      if (x === null) { p.rw++; continue; }
     }
+    spawnAt(S, w, p, x, T);
   }
 }
 
 function advance(S, w, T) {
+  const st = w.st[S.room];
   if (S.cfg.prac) {
     // practice: the stage follows you, whichever way you walk
-    const p = S.p[0], L = S.room * W;
-    if (!alive(p) || (p.x >= L && p.x <= L + W)) return;
-    const d = p.x > L + W ? 1 : -1, o = S.p[1];
+    const p = S.p[0];
+    if (!alive(p) || (p.x >= st.x0 && p.x <= st.x1)) return;
+    const d = p.x > st.x1 ? 1 : -1, o = S.p[1];
     S.room += d; S.sw = [];
     if (alive(o)) { o.s = ST.DEAD; o.gone = 1; o.rt = 6; o.t = 0; o.arm = 0; o.dh = 'left'; } else if (o.rt < 1e8) o.rt = Math.min(o.rt, 6);
     o.rw = 0; o.gone = 1;
+    camCut(S, w, T, d);
     ev(S, 'room', {a: 0, r: S.room});
     return;
   }
@@ -1118,14 +1359,15 @@ function advance(S, w, T) {
   if (a < 0) return;
   const p = S.p[a];
   if (!alive(p)) return;
-  const d = a === 0 ? 1 : -1, L = S.room * W, R = L + W;
-  if ((d > 0 && p.x > R) || (d < 0 && p.x < L)) {
+  const d = a === 0 ? 1 : -1;
+  if ((d > 0 && p.x > st.x1) || (d < 0 && p.x < st.x0)) {
     S.room += d;
     S.sw = [];
     const o = S.p[1 - a];
     if (alive(o)) { o.s = ST.DEAD; o.gone = 1; o.rt = 6; o.t = 0; o.arm = 0; o.dh = 'left'; }
     else o.rt = Math.min(o.rt, 6);
     o.rw = 0;
+    camCut(S, w, T, d);
     ev(S, 'room', {a, r: S.room});
   }
 }
@@ -1140,16 +1382,16 @@ function advance(S, w, T) {
 // Normal and Hard. Tuned against a scripted novice (see the README): the novice beats Easy about 9 times in 10 and Normal about half the time.
 const BOT = {
   easy: {evade: 0.03, react: 34, aggr: 0.016, parry: 0, disarm: 0, feint: 0, throwP: 0, dodge: 0, match: 0.3, hop: 0.75, lunge: 0.08, roll: 0, unarmed: 0.2, mash: 0.12, finish: 0.35, wobble: 0.03,
-    tele: 22, idle: 0.01, idleLen: 60, blunder: 0.004, chase: 0.5, kick: 0, face: 34, wrongH: 0.012, guardKick: 0},
+    tele: 22, idle: 0.01, idleLen: 60, blunder: 0.004, chase: 0.5, kick: 0, face: 34, wrongH: 0.012, guardKick: 0, hang: 45},
   normal: {evade: 0.15, react: 26, aggr: 0.035, parry: 0.0, disarm: 0.004, feint: 0.0, throwP: 0.0, dodge: 0.35, match: 0.55, hop: 0.85, lunge: 0.2, roll: 0.15, unarmed: 0.4, mash: 0.25, finish: 0.6, wobble: 0.04,
-    tele: 10, idle: 0.004, idleLen: 40, blunder: 0, chase: 0.8, kick: 0.004, face: 16, wrongH: 0, guardKick: 0.25},
+    tele: 10, idle: 0.004, idleLen: 40, blunder: 0, chase: 0.8, kick: 0.004, face: 16, wrongH: 0, guardKick: 0.25, hang: 12},
   hard: {evade: 0.35, react: 12, aggr: 0.08, parry: 0.15, disarm: 0.02, feint: 0.01, throwP: 0.004, dodge: 0.7, match: 0.82, hop: 0.97, lunge: 0.45, roll: 0.4, unarmed: 0.75, mash: 0.6, finish: 0.9, wobble: 0.02,
-    tele: 0, idle: 0, idleLen: 0, blunder: 0, chase: 1, kick: 0.012, face: 7, wrongH: 0, guardKick: 0.6},
+    tele: 0, idle: 0, idleLen: 0, blunder: 0, chase: 1, kick: 0.012, face: 7, wrongH: 0, guardKick: 0.6, hang: 5},
   expert: {evade: 0.5, react: 6, aggr: 0.16, parry: 0.5, disarm: 0.05, feint: 0.03, throwP: 0.008, dodge: 0.95, match: 0.97, hop: 1, lunge: 0.7, roll: 0.7, unarmed: 0.95, mash: 0.95, finish: 1, wobble: 0.005,
-    tele: 0, idle: 0, idleLen: 0, blunder: 0, chase: 1, kick: 0.025, face: 2, wrongH: 0, guardKick: 0.9}
+    tele: 0, idle: 0, idleLen: 0, blunder: 0, chase: 1, kick: 0.025, face: 2, wrongH: 0, guardKick: 0.9, hang: 2}
 };
 function botMem(seed, level) { return {r: (seed >>> 0) || 1, lv: level, hist: [], want: 1, wait: 0, plan: 0, pt: 0, lastU: 0, lastD: 0, jumpT: 0, rollT: 0, throwT: 0, prev: 0,
-  idle: 0, tele: 0, blT: 0, wf: 0, kickT: 0}; }
+  idle: 0, tele: 0, blT: 0, wf: 0, kickT: 0, kk: 0, hangT: 0, pickT: 0}; }
 function brand(m) { m.r = (Math.imul(m.r ^ (m.r >>> 15), 1 | m.r) + 0x6D2B79F5) | 0; let t = m.r; t = Math.imul(t ^ (t >>> 7), 61 | t) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }
 function botInput(S, w, i, m) {
   const B = BOT[m.lv] || BOT.normal, T = tuning(S.cfg);
@@ -1183,15 +1425,27 @@ function botInput(S, w, i, m) {
     if (alive(p) && alive(q) && p.s === ST.IDLE && p.gnd && !(b & (K.L | K.R)) && Math.abs(q.x - p.x) < 300 && Math.abs(q.y - p.y) < 50 && p.f * (q.x - p.x) < 0 && !m.idle) {
       if (++m.wf > B.face) { b |= q.x > p.x ? K.R : K.L; m.wf = 0; }
     } else m.wf = 0;
+    if (p.s === ST.HANG) b &= ~(K.L | K.R);   // hanging: never let go by accident
+    // down held + attack is the sliding kick: when the bot only meant to lower its sword and strike, the strike waits a tick
+    if ((b & K.D) && (b & K.A) && !p.cr && !m.kk) b &= ~K.A;
+    m.kk = 0;
     m.roll = 0; m.prev = b; return b;
   };
   if (S.win >= 0 || !alive(p)) { m.tele = 0; m.idle = 0; return out(); }
+  // hanging from a ledge: pull up (Easy dithers a moment first); let go instead if the opponent is down below on firm ground
+  if (p.s === ST.HANG) {
+    m.tele = 0; m.idle = 0;
+    if (++m.hangT > B.hang) {
+      if (alive(o) && o.gnd && o.y > p.ey + 30 && groundTopAt(S, w, p.x) !== null) tapD(); else tapU();
+    }
+    return out();
+  } else m.hangT = 0;
   if (p.s === ST.KD) { m.tele = 0; if (brand(m) < B.mash) tapA(); return out(); }
   // a beginner's habits: a long pause now and then, and a visible stop before each strike
   if (m.tele > 0) { if (--m.tele === 0 && p.s === ST.IDLE) tapA(); return out(); }
   if (m.idle > 0) { m.idle--; return out(); }
   if (B.idle && alive(S.p[1 - i]) && brand(m) < B.idle) { m.idle = Math.round(B.idleLen * (0.5 + brand(m))); return out(); }
-  const goal = i === 0 ? 1 : -1, runner = S.adv === i, L = S.room * W, R = L + W;
+  const goal = i === 0 ? 1 : -1, runner = S.adv === i;
   const oA = alive(o), dx = o.x - p.x, adx = Math.abs(dx), toO = dx > 0 ? 1 : dx < 0 ? -1 : p.f;
   // Is there a drop, a pit or a wall just ahead in direction dir?
   // The runner's own end pit is the way to win, not a hazard.
@@ -1251,7 +1505,7 @@ function botInput(S, w, i, m) {
     if (runner) wantDir(goal);
     else if (p.arm && p.h !== 1 && p.h < 3) { if (p.h < 1) tapU(); else tapD(); }
     if (!p.arm) {
-      const sw = nearestSword(S, p); if (sw && Math.abs(sw.x - p.x) < 200) { if (Math.abs(sw.x - p.x) < 12) press(K.D); else wantDir(sw.x > p.x ? 1 : -1); }
+      const sw = nearestSword(S, w, p); if (sw && Math.abs(sw.x - p.x) < 200) { if (Math.abs(sw.x - p.x) < 12) press(K.D); else wantDir(sw.x > p.x ? 1 : -1); }
     }
     return out();
   }
@@ -1266,7 +1520,7 @@ function botInput(S, w, i, m) {
     if (brand(m) < B.finish) {
       if (adx > (p.arm ? 34 : 22)) wantDir(toO); else if (p.f === toO) tapA(); else moveTo(toO);
     }
-    if (!p.arm) { const sw = nearestSword(S, p); if (sw && Math.abs(sw.x - p.x) < 14) press(K.D); }
+    if (!p.arm) { const sw = nearestSword(S, w, p); if (sw && Math.abs(sw.x - p.x) < 14) press(K.D); }
     return out();
   }
   // the opponent is up on a platform (or down below): the runner just goes; anyone else climbs up or waits under
@@ -1308,7 +1562,8 @@ function botInput(S, w, i, m) {
     }
   } else if (adx > 200 || !runner) m.ev = null;
   // the runner leaves a far or helpless opponent behind
-  if (runner && (goal * dx < -30 && adx > 60)) { wantDir(goal); return out(); }
+  // (or one close behind, once the runner is already facing the way to go: no turning back and forth)
+  if (runner && goal * dx < -30 && (adx > 60 || p.f === goal)) { wantDir(goal); return out(); }
   if (!p.arm) return unarmedBot(S, w, i, m, B, T, p, o, seen, b, press, tapA, tapJ, tapD, wantDir, out, runner, goal);
   // ---- armed ----
   const oh = seen.al ? (seen.cr ? 0 : seen.h) : o.h, oarm = seen.arm;
@@ -1337,7 +1592,7 @@ function botInput(S, w, i, m) {
   if (m.kickT > 0) {
     m.kickT--;
     if (p.h > 0 && !p.cr) { tapD(); return out(); }
-    press(K.D); if (p.cr) { tapA(); m.kickT = 0; }
+    press(K.D); if (p.cr) { tapA(); m.kk = 1; m.kickT = 0; }
     return out();
   }
   // Both armed. Keep the duel distance, mirror their height to stay safe, and strike when they're open.
@@ -1352,9 +1607,11 @@ function botInput(S, w, i, m) {
     return out();
   }
   if (p.f !== toO) return out();   // turn round first (out() does it)
+  // a long standoff with matched blades (nobody touched for 6 s): every couple of seconds, switch height to break it
+  if (bold && adx < 90 && p.h === o.h && o.h < 3 && (m.bored % 150) === 75) { stanceTo(p, p.h === 1 ? (brand(m) < 0.5 ? 0 : 2) : 1, tapU, tapD); return out(); }
   // in the zone
   const open = p.h !== o.h && o.h < 3 && !(o.s === ST.ROLL) && !o.cr;
-  const theyOpen = o.h === 3 || o.s === ST.STAG || o.s === ST.RECOIL || o.s === ST.DISARM || o.s === ST.THROW || (o.cr && p.h === 0);
+  const theyOpen = o.h === 3 || o.s === ST.STAG || o.s === ST.RECOIL || o.s === ST.DISARM || o.s === ST.THROW || (o.cr && p.h === 0) || (o.f === p.f && o.gnd);   // (or their back is turned)
   if (theyOpen && adx < 80) { if (adx > 50) moveTo(toO); strike(); return out(); }
   // react to a thrust coming at a different height: step into it (parry) or meet it at its height (block)
   if ((o.s === ST.THRUST || o.s === ST.LUNGE) && o.t < 4 && p.h !== o.ah && adx < 90) {
@@ -1363,7 +1620,7 @@ function botInput(S, w, i, m) {
   }
   if (open && adx <= close && p.f === toO && brand(m) < B.aggr * 2.2) { strike(); return out(); }
   if (open && adx > close && adx < 100 && p.f === toO && brand(m) < B.aggr * B.lunge && !B.tele) { moveTo(toO); if (Math.abs(p.vx) > 2.6) tapA(); return out(); }
-  if (o.h >= 1 && !o.cr && adx > 50 && adx < 72 && p.gnd && brand(m) < B.kick) { m.kickT = 20; return out(); }
+  if (o.h >= 1 && !o.cr && adx > 44 && adx < 96 && p.gnd && brand(m) < B.kick) { m.kickT = 20; return out(); }
   // defend: match their (perceived) height
   if (B.wrongH && brand(m) < B.wrongH) stanceTo(p, (brand(m) * 3) | 0, tapU, tapD);
   else if (p.h !== oh && oh < 3) { if (brand(m) < B.match) stanceTo(p, oh, tapU, tapD); }
@@ -1394,20 +1651,27 @@ function onPlat(S, w, x, y) {
   return false;
 }
 function stanceTo(p, h, tapU, tapD) { if (p.h < h) tapU(); else if (p.h > h) tapD(); }
-function nearestSword(S, p) {
+function nearestSword(S, w, p) {
   let best = null, bd = 1e9;
-  for (const s of S.sw) if (!s.fl && s.g && s.x >= S.room * W && s.x <= S.room * W + W && (Math.abs(s.x - p.x) < bd || (Math.abs(s.x - p.x) === bd && p.f * (s.x - p.x) > 0))) { bd = Math.abs(s.x - p.x); best = s; }
+  const st = w.st[S.room];
+  for (const s of S.sw) if (!s.fl && s.g && s.x >= st.x0 && s.x <= st.x1 && (Math.abs(s.x - p.x) < bd || (Math.abs(s.x - p.x) === bd && p.f * (s.x - p.x) > 0))) { bd = Math.abs(s.x - p.x); best = s; }
   return best;
 }
 function unarmedBot(S, w, i, m, B, T, p, o, seen, b, press, tapA, tapJ, tapD, wantDir, out, runner, goal) {
   const dx = o.x - p.x, adx = Math.abs(dx), toO = dx > 0 ? 1 : dx < 0 ? -1 : p.f;
-  const sw = nearestSword(S, p);
+  const sw = nearestSword(S, w, p);
   const moveTo = d => { if (d > 0) press(K.R); else if (d < 0) press(K.L); };
   // a sword nearby and not past the opponent: get it
   if (sw) {
     const sdx = sw.x - p.x, behindOpp = o.arm && Math.sign(sdx) === toO && Math.abs(sdx) > adx - 10;
     if (!behindOpp || !o.arm) {
-      if (Math.abs(sdx) < 12) { press(K.D); return out(); }
+      if (Math.abs(sdx) < 12) {
+        // both crouched over the same sword, the same distance away (nobody gets it): punch them, or shuffle closer
+        if (++m.pickT > 24 && !o.arm && adx < 34) { if (p.f === toO) tapA(); else press(toO > 0 ? K.R : K.L); return out(); }
+        if (m.pickT > 24 && brand(m) < 0.2) { press(sdx > 0 ? K.R : K.L); return out(); }
+        press(K.D); return out();
+      }
+      m.pickT = 0;
       if (Math.abs(sdx) < 260) { wantDir(sdx > 0 ? 1 : -1); if (adx < 60 && o.arm && brand(m) < 0.1) tapJ(); return out(); }
     }
   }
@@ -1431,7 +1695,7 @@ function unarmedBot(S, w, i, m, B, T, p, o, seen, b, press, tapA, tapJ, tapD, wa
   return out();
 }
 
-root.LLCore = {W, H, BASE, TICK, K, ST, BAND, PIT, ARENAS, BOT, tuning, buildWorld, inGoal, gravAt,
+root.LLCore = {W, H, BASE, TICK, K, ST, BAND, PIT, VIEW, HW, HANG_D, REACH, ARENAS, LAYOUTS, BOT, tuning, buildWorld, inGoal, gravAt, stageOf, camTarget, spotOK,
   newMatch, clone, step, hashState, botMem, botInput, bladeOut, bandY, tipX, reach, bodyH, hurt, groundTopAt, ceilAt};
 })(typeof window !== 'undefined' ? window : globalThis);
 </script>
@@ -1446,7 +1710,7 @@ const C = window.LLCore, ST = C.ST, RW = C.W, RH = C.H;
 const $ = id => document.getElementById(id);
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 const lerp = (a, b, t) => a + (b - a) * t;
-const PW = RW / 2, PH = RH / 2;   // a room in pixels
+const PW = RW / 2, PH = RH / 2;   // one screen (the camera's 640-px window) in pixels
 const INK = '#120d1c', STEEL = '#e6edf7', STEEL_D = '#8a96b0', LEG = '#2a2238';
 const TEAM = [
   {name: 'Tide', c: '#2ee6c9', d: '#0d6f6a', m: '#1aa89a', l: '#c9fff5'},
@@ -1777,19 +2041,28 @@ function stageProps(x, key, th, ti, mir, rr, w, r) {
     R0(x, sil2, 0, 30, PW, 2);
   }
 }
-// Room tiles, platforms, ceilings and props for one room (320 x 180 pixels, drawn once per match).
+// One stage: its ground, platforms, ceilings and props (drawn once per match into a canvas as long as the stage, which
+// is 2,400 to 2,880 px of world, so 1,200 to 1,440 pixels). The set pieces are laid out a screen at a time along it;
+// a stage on the left half is drawn as the mirror image of its twin on the right.
 function buildRoom(w, r) {
-  const key = C.ARENAS[w.ai].key, th = THEMES[key], [cv, x] = mkCanvas(PW, PH), off = r * RW, rr = srand(r * 131 + w.ai * 17 + 5);
-  const P = v => Math.round(v / 2);
-  stageProps(x, key, th, w.tplOf[r][0], w.tplOf[r][1], rr, w, r);
-  // props behind everything
-  if (key === 'market') { for (let i = 0; i < 2; i++) { const lx = 30 + i * 160 + ((rr() * 60) | 0); rect(x, th.beam, lx, 108, 2, 42); rect(x, th.plat2, lx - 8, 104, 18, 4); for (let k = 0; k < 18; k += 3) rect(x, k % 6 ? th.plat : th.plat2, lx - 8 + k, 108, 3, 2); } }
-  else if (key === 'aqueduct') { for (const px0 of [0, PW - 14]) { rect(x, th.groundL, px0, 40, 14, 110); for (let by = 44; by < 150; by += 8) rect(x, th.ground, px0, by, 14, 1); } }
-  else if (key === 'dunes') { for (let i = 0; i < 3; i++) { const lx = 20 + ((rr() * 280) | 0); rect(x, th.plat2, lx, 128, 2, 22); rect(x, th.lamp, lx - 1, 126, 4, 2); } }
-  else { for (let i = 0; i < 2; i++) { const lx = 40 + i * 180 + ((rr() * 60) | 0); rect(x, th.beam, lx, 100, 2, 50); rect(x, th.ink, lx - 3, 96, 8, 6); rect(x, '#8a3030', lx - 2, 97, 2, 2); rect(x, th.lamp, lx + 2, 97, 2, 2); } rect(x, th.ink, 0, 22, PW, 1); }
-  // the drop beneath gaps and the end pits
-  rect(x, th.pit, 0, 150, PW, 30);
-  for (let y = 150; y < PH; y++) for (let xx = 0; xx < PW; xx++) if ((BAYER[(y & 3) * 4 + (xx & 3)]) < (180 - y) / 2) rect(x, th.pit2, xx, y, 1, 1);
+  const key = C.ARENAS[w.ai].key, th = THEMES[key], st = w.st[r], SW = Math.round((st.x1 - st.x0) / 2), [cv, x] = mkCanvas(SW, PH), off = st.x0, rr = srand(r * 131 + w.ai * 17 + 5);
+  const P = v => Math.round(v / 2), mir = w.tplOf[r][1], ti = w.tplOf[r][0];
+  const [pc, px] = mkCanvas(PW, PH);
+  for (let j = 0; j * PW < SW; j++) {
+    px.clearRect(0, 0, PW, PH);
+    // this stage's own set pieces on every other screen, the arena's everyday props on every one
+    if (j % 2 === 0) stageProps(px, key, th, ti, mir, rr, w, r);
+    if (key === 'market') { for (let i = 0; i < 2; i++) { const lx = 30 + i * 160 + ((rr() * 60) | 0); rect(px, th.beam, lx, 108, 2, 42); rect(px, th.plat2, lx - 8, 104, 18, 4); for (let k = 0; k < 18; k += 3) rect(px, k % 6 ? th.plat : th.plat2, lx - 8 + k, 108, 3, 2); } }
+    else if (key === 'aqueduct') { for (const px0 of [0]) { rect(px, th.groundL, px0, 40, 14, 110); for (let by = 44; by < 150; by += 8) rect(px, th.ground, px0, by, 14, 1); } }
+    else if (key === 'dunes') { for (let i = 0; i < 3; i++) { const lx = 20 + ((rr() * 280) | 0); rect(px, th.plat2, lx, 128, 2, 22); rect(px, th.lamp, lx - 1, 126, 4, 2); } }
+    else { for (let i = 0; i < 2; i++) { const lx = 40 + i * 180 + ((rr() * 60) | 0); rect(px, th.beam, lx, 100, 2, 50); rect(px, th.ink, lx - 3, 96, 8, 6); rect(px, '#8a3030', lx - 2, 97, 2, 2); rect(px, th.lamp, lx + 2, 97, 2, 2); } rect(px, th.ink, 0, 22, PW, 1); }
+    x.drawImage(pc, mir ? SW - PW * (j + 1) : PW * j, 0);
+  }
+  // the drop beneath gaps and the end pits (a dithered fade, drawn from a small repeating tile)
+  rect(x, th.pit, 0, 150, SW, 30);
+  const [dc, dx] = mkCanvas(4, PH);
+  for (let y = 150; y < PH; y++) for (let xx = 0; xx < 4; xx++) if ((BAYER[(y & 3) * 4 + (xx & 3)]) < (180 - y) / 2) rect(dx, th.pit2, xx, y, 1, 1);
+  x.fillStyle = x.createPattern(dc, 'repeat'); x.fillRect(0, 150, SW, 30);
   // ground
   for (const g of w.segs) {
     if (g.r !== r) continue;
@@ -1827,7 +2100,7 @@ function buildRoom(w, r) {
   }
   // the end pits: a lip, a sign with an arrow pointing down, in the colour of the fencer who wins there
   for (let i = 0; i < 2; i++) {
-    const gl = w.goal[i]; if (gl.x1 <= off || gl.x0 >= off + RW) continue;
+    const gl = w.goal[i]; if (gl.x1 <= off || gl.x0 >= st.x1) continue;
     const team = TEAM[i], x0 = P(gl.x0 - off), x1 = P(gl.x1 - off), lip = i === 0 ? x0 : x1;
     for (let y = 150; y < PH; y += 2) rect(x, (y >> 1) & 1 ? th.pit2 : th.pit, x0 + 2, y, x1 - x0 - 4, 1);
     const sx = i === 0 ? lip - 12 : lip + 6;
@@ -1857,7 +2130,7 @@ const R = {
   reset(w) {
     this.pend = [null, null]; this.parts = []; this.paint = []; this.pools = []; this.drips = []; this.dying = []; this.banner = null; this.fall = null; this.shake = 0; this.flash = 0; this.camT = 0;
     this.rooms = []; this.decal = []; this.decN = [];
-    if (w) for (let r = 0; r < w.N; r++) { this.rooms.push(buildRoom(w, r)); this.decal.push(mkCanvas(PW, PH)); this.decN.push(0); }
+    if (w) for (let r = 0; r < w.N; r++) { this.rooms.push(buildRoom(w, r)); this.decal.push(mkCanvas(Math.round((w.st[r].x1 - w.st[r].x0) / 2), PH)); this.decN.push(0); }
     this.skyKey = ''; this.layKey = ''; this.bd = {}; this.bdTi = -1;
   }
 };
@@ -1889,11 +2162,11 @@ function segAt(w, px, py) { const x = px * 2; let best = null; for (const g of w
 function stamp(w, px, py, c, sw, sh) {
   sw = Math.max(1, Math.round(sw || 1)); sh = Math.max(1, Math.round(sh || 1)); px = Math.round(px); py = Math.round(py);
   // a stamp may straddle two stages: draw it into each
-  const r0 = Math.floor(px / PW), r1 = Math.floor((px + sw - 1) / PW);
-  for (let r = r0; r <= r1; r++) {
-    if (r < 0 || r >= w.N || !R.decal[r]) continue;
+  for (let r = 0; r < w.N; r++) {
+    const a = w.st[r].x0 / 2, b = w.st[r].x1 / 2;
+    if (px + sw <= a || px >= b || !R.decal[r]) continue;
     R.decN[r]++;
-    const x = R.decal[r][1]; x.fillStyle = c; x.fillRect(px - r * PW, py, sw, sh);
+    const x = R.decal[r][1]; x.fillStyle = c; x.fillRect(px - a, py, sw, sh);
   }
 }
 function drip(px, py, c, max) { R.drips.push({x: Math.round(px), y: Math.round(py), len: 0, max: Math.round(max), c, t: 0}); }
@@ -1980,7 +2253,8 @@ const RUNF = [ // run cycle: front foot, front knee, back foot, back knee, body 
   [5, 0, 3, -6, -5, -2, -3, -6, 0], [3, 0, 3, -6, -6, -4, -2, -7, -1], [0, -1, 2, -7, -2, -3, -1, -6, -1],
   [-5, -2, -3, -6, 5, 0, 3, -6, 0], [-6, -4, -2, -7, 3, 0, 3, -6, -1], [-2, -3, -1, -6, 0, -1, 2, -7, -1]
 ];
-const CRAWLF = [[5, 0, 4, -4, -5, 0, -4, -4], [3, 0, 3, -4, -6, 0, -5, -3], [6, 0, 5, -3, -4, 0, -3, -4], [4, 0, 4, -3, -5, 0, -4, -4]];
+// the crouched shuffle: a deep squat, knees right up by the head, feet stepping a pixel or two
+const CRAWLF = [[4, 0, 5, -6, -4, 0, 0, -6], [2, 0, 4, -6, -5, 0, -1, -5], [5, 0, 6, -5, -3, 0, 1, -6], [3, 0, 5, -5, -4, 0, 0, -6]];
 function pose(p, T, now) {
   const P = {hip: [0, -11], sh: [0, -20], head: [1, -24], fF: [4, 0], kF: [3, -6], fB: [-4, 0], kB: [-3, -5], hand: null, tip: null, hand2: [-2, -14], kind: 'stand'};
   const sp = Math.abs(p.vx), band = p.arm ? (p.s === ST.THRUST || p.s === ST.LUNGE ? p.ah : p.h) : 1;
@@ -2000,10 +2274,11 @@ function pose(p, T, now) {
         if (p.vy < -1) setLegs([3, -4, 4, -8, -3, -2, -1, -7]); else setLegs([4, -1, 4, -6, -4, -3, -2, -7]);
         P.hand2 = [-4, -21];
       } else if (p.cr) {
-        // crouched: clearly lower, the sword tucked back along the body (it neither blocks nor cuts)
-        P.kind = 'crouch'; P.hip = [-1, -6]; P.sh = [2, -12]; P.head = [4, -15]; P.hand2 = [5, -7];
+        // crouched: a deep squat about 40% of standing height (matching the 22-px hitbox), knees up by the head, the
+        // sword tucked back along the body (it neither blocks nor cuts)
+        P.kind = 'crouch'; P.hip = [-2, -3]; P.sh = [1, -6]; P.head = [3, -8]; P.hand2 = [6, -4];
         const fr = sp > 0.3 ? CRAWLF[Math.floor(Math.abs(p.x) / 5) % 4] : CRAWLF[0]; setLegs(fr);
-        if (p.arm) { P.hand = [1, -8]; P.tip = [-11, -5]; }
+        if (p.arm) { P.hand = [2, -4]; P.tip = [-10, -2]; }
       } else if (sp > 0.6) {
         P.kind = 'run'; setLegs(RUNF[Math.floor(Math.abs(p.x) / (sp > 2.5 ? 8 : 5)) % 6]);
         if (sp > 2.5) { P.sh[0] += 1; P.head[0] += 1; P.hand2 = [-5, -15]; }
@@ -2031,7 +2306,7 @@ function pose(p, T, now) {
     case ST.SWEEP: {
       // the sliding kick: drop back onto one hand (wind-up), slide in feet first along the floor, get up
       P.kind = 'kick';
-      if (p.t < T.swA0) { P.hip = [-2, -5]; P.sh = [-5, -11]; P.head = [-7, -14]; P.kF = [2, -8]; P.fF = [5, -4]; P.kB = [-1, -4]; P.fB = [-2, 0]; P.hand2 = [-8, -1]; }
+      if (p.t < T.swA0) { P.hip = [-2, -3]; P.sh = [-4, -6]; P.head = [-6, -8]; P.kF = [3, -6]; P.fF = [6, -3]; P.kB = [-1, -4]; P.fB = [-2, 0]; P.hand2 = [-8, -1]; }
       else if (p.t <= T.swA1 + 2) { P.hip = [-2, -4]; P.sh = [-8, -7]; P.head = [-11, -9]; P.kF = [5, -3]; P.fF = [12, -1]; P.kB = [0, -6]; P.fB = [-2, -1]; P.hand2 = [-10, -1]; }
       else { P.hip = [-1, -6]; P.sh = [-1, -13]; P.head = [0, -16]; setLegs([5, 0, 4, -4, -4, 0, -3, -4]); P.hand2 = [-5, -1]; }
       P.hand = p.arm ? [P.sh[0] + 2, P.sh[1] + 4] : null; P.tip = p.arm ? [P.hand[0] - 12, P.hand[1] + 3] : null;
@@ -2047,6 +2322,14 @@ function pose(p, T, now) {
     case ST.STOMP: { const k = p.t < T.stompAt; setLegs(k ? [6, -7, 6, -12, -4, 0, -3, -5] : [8, 0, 6, -6, -4, 0, -3, -5]); P.hand2 = [-5, -21]; P.hand = [4, -18]; break; }
     case ST.ROLL: P.kind = 'roll'; break;
     case ST.CLIMB: P.kind = 'climb'; break;
+    case ST.HANG: {
+      // hanging from a ledge by both hands, legs dangling (they swing a little), the sword put away on the back
+      const top = Math.round((p.ey - p.y) / 2), sw = Math.floor(now / 380) % 2;
+      // arms up in front of the head to the edge, the head hanging back between them, body and legs straight down
+      P.kind = 'hang'; P.hand = [6, top + 1]; P.hand2 = [4, top]; P.head = [-1, top + 6]; P.sh = [0, top + 10]; P.hip = [-1, top + 17];
+      P.kF = [0 + sw, top + 20]; P.fF = [1 + sw, top + 23]; P.kB = [-2, top + 20]; P.fB = [-2 - sw, top + 23]; P.tip = null; P.sheath = p.arm ? 1 : 0;
+      break;
+    }
   }
   // a raised sword ready to throw: up over the head, point back
   if (p.arm && p.h === 3 && p.s === ST.IDLE && !p.cr) { P.hand = [1, -29]; P.tip = [-9, -37]; P.hand2 = [-3, -20]; }
@@ -2107,6 +2390,7 @@ function sprite(G, p, team, now, flashWhite) {
   line([sh[0], sh[1]], [hip[0], hip[1] - 1], col, 4);
   line(hip, S(P.kF), col, 2); line(S(P.kF), S(P.fF), col, 2);
   block(Math.round(head[0]) - 2, Math.round(head[1]) - 2, 5, 5, col);
+  if (P.sheath) line([sh[0] - 2, sh[1] - 2], [hip[0] - 5, hip[1] + 3], steel, 1);
   // sword arm and blade
   if (P.hand) {
     const hand = S(P.hand);
@@ -2149,33 +2433,47 @@ function render(G, now, dt) {
   R.frame++;
   const key = C.ARENAS[w.ai].key, th = THEMES[key], iw = R.iw;
   if (R.fall && now - R.fall.t0 > 380) { fallScene(G, now, dt); return; }
-  // camera: the whole room, or (on narrow screens) the part of it where the action is
-  const L = S.room * RW;
-  let tx = L + RW / 2;
-  if (R.viewW < 639) {
-    const al = S.p.filter(p => p.s !== ST.DEAD);
-    const fx = S.adv >= 0 && S.p[S.adv].s !== ST.DEAD ? S.p[S.adv].x : al.length ? al.reduce((a, p) => a + p.x, 0) / al.length : tx;
-    const lead = S.adv === 0 ? 50 : S.adv === 1 ? -50 : 0;
-    tx = clamp(fx + lead, L + R.viewW / 2, L + RW - R.viewW / 2);
+  // The camera. Wide enough to show the whole 640-px window: exactly the simulation's focus (S.cam), so every mode and
+  // both online players see the same thing. Narrower (an upright phone): the part of that window around your own
+  // fencer, eased. Rounded once, to a whole game pixel, and everything is drawn from that one number, so the pixel art
+  // never shimmers as it scrolls.
+  const st = w.st[S.room], half = C.VIEW / 2;
+  let tx = S.cam;
+  if (R.viewW < C.VIEW - 1) {
+    // as near the focus as possible while keeping your own fencer well inside the picture (no easing of its own: it
+    // moves exactly as smoothly as the focus and your fencer do, so it never lags)
+    const me = S.p[G.me || 0], m = R.viewW / 2 - 100, lim = half - R.viewW / 2;
+    if (me.s !== ST.DEAD) tx = clamp(tx, me.x - m, me.x + m);
+    // kept as an offset from the focus, which follows at once while it changes smoothly but glides (never jumps) when
+    // it has to move a long way at once, e.g. when you come back in after a touch
+    const want = clamp(tx - S.cam, -lim, lim);
+    if (R.nOff == null || R.camRoom !== S.room) R.nOff = want;
+    const d = want - R.nOff; R.nOff += clamp(d, -Math.max(9, Math.abs(d) * 0.12), Math.max(9, Math.abs(d) * 0.12));
+    tx = S.cam + clamp(R.nOff, -lim, lim);
   }
-  if (!R.camT) R.camX = tx;
-  R.camT = 1;
-  R.camX = lerp(R.camX, tx, Math.min(1, dt * 9));
-  if (Math.abs(R.camX - tx) < 1) R.camX = tx;
+  R.camX = tx;
+  R.camT = 1; R.camRoom = S.room;
   let shx = 0, shy = 0;
   if (R.shake > 0.4) { shx = Math.round((rnd() - 0.5) * R.shake); shy = Math.round((rnd() - 0.5) * R.shake); }
   R.shake *= Math.pow(0.002, dt);
-  R.camPx = Math.round((R.camX - R.viewW / 2) / 2) - shx;
+  // Rounded relative to the fencer the camera is following (the runner, or your own fencer), so that fencer keeps a
+  // steady place on the screen instead of wobbling a pixel against the scrolling ground; everything else is drawn from
+  // the same whole number, so nothing shimmers.
+  // (only while the camera really is keeping pace with that fencer; standing still, it just rounds its own position)
+  const left = R.camX - R.viewW / 2, li = S.adv >= 0 && S.p[S.adv].s !== ST.DEAD ? S.adv : G.mode === 'practice' || S.p[G.me || 0].s !== ST.DEAD ? (G.me || 0) : -1;
+  const cv = R.camRoom === S.room && R.prevX != null ? R.camX - R.prevX : 0; R.prevX = R.camX;
+  if (li >= 0 && Math.abs(cv) > 0.5 && Math.abs(S.p[li].vx - cv) < 0.4 && Math.abs(S.p[li].x - R.camX) < R.viewW / 2) { const ax = S.p[li].x; R.camPx = Math.round(ax / 2) - Math.round((ax - left) / 2) - shx; }
+  else R.camPx = Math.round(left / 2) - shx;
   const cam = R.camPx;
-  // sky, far and middle layers
+  // sky, far and middle layers, scrolling at a tenth and a third of the speed of the ground (parallax)
   // (each stage has its own tint; when the view moves to another stage the new one fades in over 0.4 s)
   if (R.skyKey !== key + iw) { R.bd = {}; R.skyKey = key + iw; R.bdTi = -1; }
-  const rc = clamp(Math.floor((cam + iw / 2) / PW), 0, w.N - 1), ti = w.tplOf[rc][0];
+  const ti = w.tplOf[S.room][0];
   const back = t => R.bd[t] || (R.bd[t] = {sky: buildSky(key, iw, t), lay: [buildLayer(key, 0, t), buildLayer(key, 1, t)]});
   if (ti !== R.bdTi) { R.bdPrev = R.bdTi; R.bdTi = ti; R.bdAt = R.bdPrev < 0 ? -1e9 : now; }
   const drawBack = (t, a) => {
     const b = back(t); x.globalAlpha = a; x.drawImage(b.sky, 0, 0);
-    for (let d = 0; d < 2; d++) { const f = d === 0 ? 0.12 : 0.35, o = (((Math.round(cam * f)) % 512) + 512) % 512; for (let xx = -o; xx < iw; xx += 512) x.drawImage(b.lay[d], xx, shy); }
+    for (let d = 0; d < 2; d++) { const f = d === 0 ? 0.1 : 0.33, o = (((Math.floor((cam + shx) * f)) % 512) + 512) % 512; for (let xx = -o; xx < iw; xx += 512) x.drawImage(b.lay[d], xx, shy); }
     x.globalAlpha = 1;
   };
   const fade = clamp((now - R.bdAt) / 400, 0, 1);
@@ -2184,8 +2482,11 @@ function render(G, now, dt) {
   x.save(); x.translate(0, shy);
   // rooms in view, then their paint
   stepPaint(w);
-  const r0 = Math.floor(cam / PW), r1 = Math.floor((cam + iw) / PW);
-  for (let r = r0; r <= r1; r++) { if (r < 0 || r >= w.N) continue; x.drawImage(R.rooms[r], r * PW - cam, 0); x.drawImage(R.decal[r][0], r * PW - cam, 0); }
+  for (let r = 0; r < w.N; r++) {
+    const a = Math.round(w.st[r].x0 / 2), b = Math.round(w.st[r].x1 / 2);
+    if (b <= cam || a >= cam + iw) continue;
+    x.drawImage(R.rooms[r], a - cam, 0); x.drawImage(R.decal[r][0], a - cam, 0);
+  }
   // the goal pit's arrow blinks when that fencer has the run
   for (let i = 0; i < 2; i++) if (S.adv === i && S.win < 0 && Math.floor(now / 250) % 2) {
     const gl = w.goal[i], lip = i === 0 ? gl.x0 / 2 : gl.x1 / 2, sx = Math.round(lip - cam) + (i === 0 ? -12 : 6);
@@ -2224,6 +2525,14 @@ function render(G, now, dt) {
   }
   R.parts = R.parts.filter(q => q.l > 0);
   x.restore();
+  // on a narrow screen, a fencer out of the picture: a small arrow at that edge, in their colour, at their height
+  for (let i = 0; i < 2; i++) {
+    const p = S.p[i]; if (p.s === ST.DEAD || R.viewW >= C.VIEW - 1 || S.win >= 0) continue;
+    const sx = Math.round(p.x / 2) - cam; if (sx >= -2 && sx <= iw + 2) continue;
+    const right = sx > iw, ay = clamp(Math.round(p.y / 2) - 14, 30, PH - 12), ax = right ? iw - 2 : 1;
+    const tri = (c, x0, n) => { for (let k = 0; k < n; k++) rect(x, c, right ? x0 - k : x0 + k, ay - k, 1, 1 + 2 * k); };
+    tri(INK, ax, 6); tri(TEAM[i].c, right ? ax - 1 : ax + 1, 4);
+  }
   // the runner's way: chevrons streaming toward their goal edge
   if (S.adv >= 0 && S.win < 0) {
     const team = TEAM[S.adv], right = S.adv === 0;
@@ -2294,7 +2603,12 @@ function hud(G, now, dt) {
     if (cleared) fill = TEAM[S.adv].m;
     rect(x, fill, bx, ly, bw, 6);
     if (pitOf >= 0) { rect(x, TEAM[pitOf].c, bx + (bw >> 1) - 2, ly + 3, 4, 3); rect(x, TEAM[pitOf].c, bx + (bw >> 1) - 1, ly + 6, 2, 1); }
-    if (here) { rect(x, '#ffffff', bx, ly, bw, 6); rect(x, S.adv >= 0 && !prac ? TEAM[S.adv].c : '#ffffff', bx, ly + 6, bw, 2); if (pitOf >= 0) rect(x, TEAM[pitOf].c, bx + (bw >> 1) - 2, ly + 3, 4, 3); }
+    if (here) {
+      rect(x, '#ffffff', bx, ly, bw, 6); rect(x, S.adv >= 0 && !prac ? TEAM[S.adv].c : '#ffffff', bx, ly + 6, bw, 2); if (pitOf >= 0) rect(x, TEAM[pitOf].c, bx + (bw >> 1) - 2, ly + 3, 4, 3);
+      // where the fight is inside this long stage: a dark tick that slides along the lit block as the camera moves
+      const st = G.w.st[i], f = clamp((S.cam - st.x0 - C.VIEW / 2) / Math.max(1, st.x1 - st.x0 - C.VIEW), 0, 1);
+      rect(x, INK, bx + Math.round(f * (bw - 2)), ly, 2, 6);
+    }
   }
   // which way each end belongs: a little arrow in the owner's colour beside it
   for (const [ti, ex, d] of [[1, lx - 7, -1], [0, lx + lw + 3, 1]]) { const col = TEAM[ti].c; for (let k = 0; k < 3; k++) rect(x, col, d > 0 ? ex + k : ex + 3 - k, ly + k, 1, 6 - 2 * k); }
@@ -2352,7 +2666,7 @@ const PREFIX = 'gd', LIVE_MS = 10000, PUB_ROOMS = 6;
 // The simulation's version. Both players must run the same one (a page cached from before a change to the rules would
 // fall out of step), so it rides in every player node as `v` and the lobby only seats players with the same number.
 // Pages from before this check have no `v` and count as version 1. Bump it whenever core.js changes how a match plays.
-const NETV = 2;
+const NETV = 3;
 const store = {
   get(k, d) { try { const v = localStorage.getItem('lungeline:' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem('lungeline:' + k, JSON.stringify(v)); } catch (e) {} }
@@ -2481,12 +2795,12 @@ const G = {mode: null, S: null, w: null, T: null, names: ['Tide', 'Bloom'], ctrl
   fxKeys: new Set(), fxOrder: [], finalKills: [], winner: -1, stk: 0, best: 0, musicT: 0, raf: 0, lastCd: -1};
 function optsFromMenu() {
   const a = store.get('arena', -1);
-  const n = store.get('len', 5);
-  return {arena: a < 0 ? Math.floor(Math.random() * C.ARENAS.length) : a, N: n === 3 || n === 7 ? n : 5,
+  const n = store.get('len', 3);   // 3 long stages by default (a beginner's match against the Easy bot: about 2 minutes)
+  return {arena: a < 0 ? Math.floor(Math.random() * C.ARENAS.length) : a, N: n === 5 || n === 7 ? n : 3,
     thr: $('oThr').checked ? 1 : 0, lowg: $('oLowg').checked ? 1 : 0, bounce: $('oBounce').checked ? 1 : 0, turbo: $('oTurbo').checked ? 1 : 0};
 }
 // Quick match rooms always use the standard rules on a random arena, so strangers aren't surprised by variants.
-function stdCfg() { return {arena: Math.floor(Math.random() * C.ARENAS.length), N: 5, thr: 1, lowg: 0, bounce: 0, turbo: 0}; }
+function stdCfg() { return {arena: Math.floor(Math.random() * C.ARENAS.length), N: 3, thr: 1, lowg: 0, bounce: 0, turbo: 0}; }
 // The match settings travel as 7 numbers; the 4th (it was "hazards") is always 0 now.
 function cfgStr(c) { return [c.arena, c.N, c.thr, 0, c.lowg, c.bounce, c.turbo].join(','); }
 function parseCfg(s) {
@@ -2504,7 +2818,7 @@ function begin(cfg, o) {
   G.S = m.S; G.w = m.w; G.T = C.tuning(m.S.cfg); G.cfg = cfg;
   G.mode = o.mode; G.names = o.names; G.ctrl = o.ctrl; G.me = o.me || 0; G.statSeat = o.statSeat == null ? -1 : o.statSeat;
   G.bots = (o.bots || [null, null]).map((lv, i) => lv ? C.botMem((Math.random() * 1e9) | 0 + i, lv) : null);
-  G.running = true; G.paused = false; G.acc = 0; G.ended = false; G.resultShown = false; G.winner = -1; G.stk = 0; G.best = 0;
+  G.running = true; G.paused = false; G.acc = 0.5 / 60; G.ended = false; G.resultShown = false; G.winner = -1; G.stk = 0; G.best = 0;
   G.fxKeys.clear(); G.fxOrder = []; G.finalKills = []; G.lastCd = -1;
   G.cdUntil = o.cdAt || (performance.now() + 1900);
   R.reset(m.w); R.vis = [{}, {}];
@@ -2521,7 +2835,10 @@ function stopGame() {
 function frame(now) {
   G.raf = 0;
   if (!G.running) return;
-  const dt = Math.min(0.1, Math.max(0, (now - (G.last || now)) / 1000)); G.last = now;
+  let dt = Math.min(0.1, Math.max(0, (now - (G.last || now)) / 1000)); G.last = now;
+  // On a 60 Hz screen, count every frame as exactly one tick, so frame-time jitter never shows two ticks in one frame and
+  // none in the next (with the camera scrolling, that would read as a stutter)
+  if (Math.abs(dt - 1 / 60) < 0.0025) dt = 1 / 60;
   pollPads();
   if (G.mode === 'online') netFrame(now);
   else if (G.mode === 'spec') specFrame(now);
@@ -2531,7 +2848,7 @@ function frame(now) {
     else {
       G.acc += dt; let n = 0;
       while (G.acc >= 1 / 60 && n < 6) { tickOffline(); G.acc -= 1 / 60; n++; }
-      if (n >= 6) G.acc = 0;
+      if (n >= 6) G.acc = 0.5 / 60;
     }
   }
   music(now);
@@ -2594,6 +2911,11 @@ function effects(evs, S, settled) {
       case 'land': puff(e.x, e.y - 1, 4, '#c8c2d8', 1.2, 12, 0, 1); break;
       case 'roll': Snd.play('roll'); puff(e.x, e.y - 2, 6, '#c8c2d8', 1.6, 14, 0, 1); break;
       case 'climb': Snd.play('climb'); break;
+      case 'hang': Snd.play('pickup'); puff(e.x, e.y - 44, 4, '#c8c2d8', 1, 10, 0.1, 1); break;
+      case 'lost':
+        // left behind: they vanish in a puff (no paint, no touch), and come back ahead of the runner
+        Snd.play('roll'); puff(e.x, e.y - 26, 16, TEAM[e.a].c, 2.2, 22, -0.03, 1); puff(e.x, e.y - 26, 8, '#ffffff', 1.6, 14, -0.03, 1);
+        break;
       case 'pickup': Snd.play('pickup'); break;
       case 'room': {
         // a short banner for the new stage, counted from the runner's own end (practice: from the left)
@@ -3090,7 +3412,7 @@ function playTourMatch() {
     // decide it on the spot with the same simulation, no drawing
     const mm = C.newMatch(cfg), ba = C.botMem(Math.random() * 1e9, m.a.k), bb = C.botMem(Math.random() * 1e9, m.b.k);
     for (let t = 0; t < 60 * 60 * 6 && mm.S.win < 0; t++) C.step(mm.S, mm.w, C.botInput(mm.S, mm.w, 0, ba), C.botInput(mm.S, mm.w, 1, bb));
-    const w = mm.S.win >= 0 ? mm.S.win : (mm.S.adv === 0 ? 0 : mm.S.adv === 1 ? 1 : (mm.S.room >= (mm.S.N - 1) / 2 ? 0 : 1));
+    const w = mm.S.win >= 0 ? mm.S.win : (mm.S.adv === 0 ? 0 : mm.S.adv === 1 ? 1 : (mm.S.cam >= mm.w.len / 2 ? 0 : 1));
     m.w = w === 0 ? m.a : m.b; tourAdvance(); showBracket(); return;
   }
   const ha = m.a.k === 'human', hb = m.b.k === 'human';
@@ -3112,10 +3434,11 @@ function pracMoves() {
     ['stab', 'Stab', atk, 'blade'],
     ['lunge', 'Lunge', 'run, then ' + atk, 'run + blade'],
     ['crouch', 'Crouch', 'hold ' + down, 'hold ▼'],
-    ['kick', 'Kick', 'crouch, then ' + atk, '▼ + blade'],
+    ['kick', 'Kick', 'hold down, then ' + atk, 'hold ▼ + blade'],
     ['roll', 'Roll', down + ' while running', 'run + ▼'],
     ['dive', 'Dive kick', atk + ' in the air', 'jump + blade'],
-    ['throw', 'Throw', up + ' past high, then ' + atk, '▲▲ + blade']
+    ['throw', 'Throw', up + ' past high, then ' + atk, '▲▲ + blade'],
+    ['hang', 'Hang and climb', 'drop by a ledge, then ' + up + ' or jump', 'drop by a ledge, ▲']
   ];
 }
 function startPractice() {
@@ -3159,6 +3482,7 @@ function pracTick(S, h0) {
     else if (e.k === 'stance') { if (e.h > h0) P.up = 1; else P.down = 1; if (P.up && P.down) hit('sword'); }
     else if (e.k === 'crouch') hit('crouch');
     else if (e.k === 'roll') hit('roll');
+    else if (e.k === 'climb' && e.hang) hit('hang');
     else if (e.k === 'throw') hit('throw');
     else if (e.k === 'atk') { if (e.s === ST.THRUST) hit('stab'); else if (e.s === ST.LUNGE) hit('lunge'); else if (e.s === ST.SWEEP) hit('kick'); else if (e.s === ST.DIVE) hit('dive'); }
   }
@@ -3169,7 +3493,7 @@ function renderPrac(just) {
   const moves = pracMoves();
   let n = 0;
   ul.innerHTML = moves.map(([id, name, keys, tap]) => { const d = !!P.done[id]; if (d) n++; return `<li class="${d ? 'done' : ''}${id === just ? ' just' : ''}" data-m="${id}"><i aria-hidden="true">${d ? '✓' : ''}</i><b>${name}</b><span>${(touch ? tap : keys).replace(/</g, '&lt;')}</span></li>`; }).join('');
-  $('pracCount').textContent = n === moves.length ? 'All ten done!' : n + ' of ' + moves.length + ' done';
+  $('pracCount').textContent = n === moves.length ? 'All ' + moves.length + ' done!' : n + ' of ' + moves.length + ' done';
 }
 
 // ---------------------------------------------------------------------
@@ -3248,7 +3572,7 @@ function layout() {
     }
   }
   // Fit the 180-pixel-high picture into that space, at a whole-number scale when that loses little room, so every game
-  // pixel is the same size and stays crisp; up to 320 pixels wide (one room), narrower on upright phones.
+  // pixel is the same size and stays crisp; up to 320 pixels wide (the camera's whole 640-px window), narrower on upright phones.
   const kf = Math.min(h / 180, w / 160), ki = Math.floor(kf), k = ki >= 1 && ki / kf >= 0.8 ? ki : kf;
   const iw = Math.min(320, Math.floor(w / k)), cw = Math.round(iw * k), ch = Math.round(180 * k);
   const cx = Math.round(x + (w - cw) / 2), cy = Math.round(upright || (prac && side) ? y : y + (h - ch) / 2);
@@ -3353,11 +3677,11 @@ function howHTML() {
     '<li><b>New here?</b> Press <b>Practice</b> on the menu to try every move on your own first.</li>' +
     '<li><b>One touch wins the duel.</b> A blade kills anything it reaches: thrust, lunge, or just walk or jump into an opponent’s point.</li>' +
     '<li><b>Three sword heights.</b> Up and down move your sword between low, middle and high. Held at the same height as theirs, blades block. Move your sword across theirs and you knock it out of their hand. Switch into their thrust at the last moment for a <b>parry</b>: a white flash, and they stagger.</li>' +
-    '<li><b>Moving.</b> You face the way you last pressed, so walking away turns your back. Tap a direction for a step, hold it to run. Attack while running lunges. Down while running rolls under a middle or high blade (a low one catches you). Jump over people, and push into a ledge to climb it.</li>' +
-    '<li><b>Going down.</b> Hold down (or press it with your sword already low) to crouch: you duck under middle and high blades and can shuffle along; let go to stand. Crouch and attack for a <b>sliding kick</b>: it knocks them flat and their sword flies off, but a sword held low stops it.</li>' +
+    '<li><b>Moving.</b> You face the way you last pressed, so walking away turns your back. Tap a direction for a step, hold it to run. Attack while running lunges. Down while running rolls under a middle or high blade (a low one catches you). Jump over people, and push into a ledge to climb it. Fall past an edge and you grab it and hang: up or jump pulls you up, down lets go (hold down while falling to drop past on purpose).</li>' +
+    '<li><b>Going down.</b> Hold down (or press it with your sword already low) to crouch: you duck under middle and high blades and can shuffle along; let go to stand. Hold down and attack for a <b>sliding kick</b> (no need to wait for the crouch): it knocks them flat and their sword flies off, but a sword held low stops it.</li>' +
     '<li><b>Throw.</b> Press up again at high to raise your sword, then attack to throw it. A sword held high blocks a throw; crouching or rolling dodges it.</li>' +
     '<li><b>No sword?</b> Punch, kick or dive kick (attack in the air) to knock someone down, then attack again to finish them. A high guard catches dive kicks. Crouch over a dropped sword to pick it up.</li>' +
-    '<li><b>The stages.</b> Win a duel and only you may run toward your end (Tide runs right, Bloom runs left); the loser is back in a moment, in front of you. The blocks at the top are the stages, with the one you’re on lit. The last stage ends in a pit: jump in while you have the run and you win. Anyone else who falls in a pit or a gap is out until they come back.</li>' +
+    '<li><b>The stages.</b> Each stage is a long stretch you can roam both ways, and the camera follows the fight. Until someone wins a duel you can’t get more than a screen apart. Win one and only you may run toward your end (Tide runs right, Bloom runs left); the loser is back in a moment, in front of you, and if they fall off the back of the screen they are left behind and come back in front too. The blocks at the top are the stages, with the one you’re on lit and a mark for where the fight is. The last stage ends in a pit: jump in while you have the run and you win. Anyone else who falls in a pit or a gap is out until they come back.</li>' +
     (document.body.classList.contains('touch') ? '<li><b>On a touch screen:</b> the arrows on the left move. On the right: ▲ and ▼ move your sword up and down (hold ▼ to crouch; it also rolls while running and picks up swords), the arrow jumps, and the blade attacks.</li>' : '') +
     '</ul>' + keysTable();
 }
@@ -3378,7 +3702,7 @@ function initMenu() {
   };
   const ar = $('arenaSeg');
   ar.innerHTML = '<button type="button" data-v="-1">Random</button>' + C.ARENAS.map((a, i) => `<button type="button" data-v="${i}" title="${a.tag}">${a.name}</button>`).join('');
-  segs('arenaSeg', 'arena', -1); segs('lenSeg', 'len', 5);
+  segs('arenaSeg', 'arena', -1); segs('lenSeg', 'len', 3);
   const lv0 = botLevel(); store.set('bot', lv0);
   const botSub = () => { const v = botLevel(); $('mBotSub').textContent = (v === 'easy' || v === 'expert' ? 'Duel an ' : 'Duel a ') + v + ' bot on this device'; };
   segs('diffSeg', 'bot', lv0, botSub);
