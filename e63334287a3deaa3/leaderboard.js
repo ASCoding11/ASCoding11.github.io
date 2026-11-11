@@ -210,6 +210,7 @@
       { k: 'best-dessert', l: 'Best score (Dessert)', chip: 'Dessert', f: 'n', u: 'pt', hi: 4000000 }] },
     { d: 'stackfall', n: 'Stackfall', st: [{ k: 'classic', l: 'Best score (Classic)', chip: 'Classic', f: 'n', u: 'pt', hi: 1e8 }, { k: 'sand', l: 'Best score (Sand)', chip: 'Sand', f: 'n', u: 'pt', hi: 1e8 }, { k: 'lines', l: 'Most lines in a game (Classic)', chip: 'Most lines', f: 'n', u: 'line', hi: 100000 }] },
     { d: 'melon-merge', n: 'Melon Merge', st: [{ k: 'score', l: 'Best score', f: 'n', u: 'pt', hi: 1e7 }, { k: 'melons', l: 'Watermelons grown (all time)', chip: 'Watermelons', f: 'n', u: 'watermelon', rate: 0.05 }] },
+    { d: 'hivefix', n: 'Hivefix', st: [{ k: 'score', l: 'Best score', f: 'n', u: 'pt', hi: 9999999 }] },
     // Daily Puzzles: grp puts them in their own group in the Board menu. The hub's `done` (one per puzzle finished, counted
     // on the hub page) is checked against the time played in every daily game together (rateOf), as the hub itself is only
     // open for a few seconds between puzzles.

@@ -60,6 +60,11 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-11', version: '1.23', title: 'Hivefix', kind: 'game', games: ['Hivefix'],
+     img: 'm/thumbs/hivefix.jpg', tags: ['Arcade', 'Solo', 'Combos'], items: [
+      'Hivefix: a one-screen fix-it arcade game. Wax the worker bee hops around a honeycomb frame patching cracked and smashed cells while Bruno the bear pounds the top of the hive and shakes chunks of comb loose.',
+      'Fixing roots you to the spot, so watch his paws: when they go up, that column is about to get hit. Every couple of frames brings something new (resin ridges, royal jelly, wasps, sticky honey), and your best score goes on the Leaderboards.'
+    ]},
     {date: '2026-11-11', version: '1.22', title: 'Tidewick', kind: 'game', games: ['Tidewick'],
      img: 'm/thumbs/tidewick.jpg', tags: ['Platformer', '2 stages', 'Boss'], items: [
       'Tidewick: an 8-bit style side-scroller on a rainy harbour at dusk. Run and jump Pip across the quay, stomp Bilges and Whelks, knock lantern crates for brass buttons, find the cellar under the smoking chimney, and reach the signal mast.',
