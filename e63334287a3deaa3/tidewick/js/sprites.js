@@ -777,7 +777,7 @@ PIP_B.throw = replaceRows(PIP_B.idle, 13, [
 BILGE.walk2 = replaceRows(shift(BILGE.walk1, 0), 13, ['....1111111111..', '.....11...11....', '....111...111...']);
 WHELK.walk2 = replaceRows(WHELK.walk1, 1, ['................', '.1....1.........', '.31..31.........']).map((r, i) => i === 14 ? '.....1311131131.' : r);
 ITEMS.pepper1 = ITEMS.pepper0.map(r => r.replace(/3/g, '2'));
-ITEMS.jar1 = ITEMS.jar0.map((r, i) => i < 4 ? r : r.replace(/3/g, '.').replace(/\.\.(?=\.\.\.1)/, '3.'));
+ITEMS.jar1 = ITEMS.jar0.map((r, i) => (i < 5 || i > 13) ? r : r.slice(0, 4) + r.slice(4, 13).split('').map((c, x) => c === '3' ? '.' : ((x * 5 + i * 3) % 11 === 0 ? '3' : c)).join('') + r.slice(13));
 
 // fixes the grid to exactly w × h ('.' fills, extra cut), so a stray character can't shift a sprite
 function norm(rows, w, h) {
@@ -790,7 +790,7 @@ function norm(rows, w, h) {
 export const PAL = {
   pip: [P.plum, P.coat, P.skin], pipFire: [P.plum, P.ember, P.cream],
   star: [[P.seaDk, P.foamG, P.white], [P.maroon, P.coral, P.lamp], [P.ink, P.lamp, P.white], [P.shellDk, P.shellLt, P.skin]],
-  bilge: [P.ink, P.sea, P.white], whelk: [P.ink, P.shell, P.cream], whelkWary: [P.ink, P.coral, P.cream],
+  bilge: [P.ink, P.waterLt, P.white], whelk: [P.ink, P.shell, P.cream], whelkWary: [P.ink, P.coral, P.cream],
   whelkShell: [P.ink, P.shell, P.shellLt], waryShell: [P.ink, P.coral, P.lamp],
   button: [P.umber, P.amber, P.lamp], loaf: [P.umber, P.woodLt, P.white], pepper: [P.maroon, P.ember, P.lamp],
   jar: [P.greyDk, P.foam, P.lamp], clover: [P.cloverDk, P.clover, P.cloverLt],

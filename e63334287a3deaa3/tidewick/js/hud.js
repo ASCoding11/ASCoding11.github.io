@@ -80,7 +80,7 @@ export function drawIntro(ctx, g, S, w = SCREEN_W, h = SCREEN_H) {
   const x = Math.floor(w / 2) - 30;
   ctx.drawImage(fr, x, 122);
   text(ctx, 'x  ' + g.lives, x + 26, 128, P.white);
-  centred(ctx, g.stage === 0 ? 'RAIN ON THE QUAY. REACH THE MAST.' : 'CROSS THE BREAKWATER.', 168, P.greyDk + 0, 1, w);
+  centred(ctx, g.stage === 0 ? 'RAIN ON THE QUAY. REACH THE MAST.' : 'CROSS THE BREAKWATER.', 168, P.grey, 1, w);
 }
 
 export function drawGameOver(ctx, g, S, w = SCREEN_W, h = SCREEN_H) {
