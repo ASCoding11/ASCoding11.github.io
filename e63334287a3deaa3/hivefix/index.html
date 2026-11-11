@@ -1203,7 +1203,11 @@ var HF = (function () {
     }
     if (AC.state === 'suspended' && !paused) AC.resume();
   }
-  function play(name, arg) { if (!AC || muted || AC.state !== 'running') return; try { SND[name](AC, master, AC.currentTime + 0.005, arg); } catch (e) {} }
+  // At most a few sounds start in one animation frame; small blips beyond that are skipped (starting many Web Audio
+  // nodes at once is what made the slowest frames).
+  var LOWPRI = {pat: 1, land: 1, hop: 1, tick: 1, sticky: 1}, startsThisFrame = 0;
+  function play(name, arg) { if (!AC || muted || AC.state !== 'running') return;
+    if (++startsThisFrame > 2 && LOWPRI[name]) return; try { SND[name](AC, master, AC.currentTime + 0.005, arg); } catch (e) {} }
   function musicTick() {
     if (!AC || !musicOn || muted || AC.state !== 'running') return;
     var now = AC.currentTime; if (musicNext < now) musicNext = now + 0.05;
@@ -1355,8 +1359,10 @@ var HF = (function () {
     }
     ctx.restore();
   }
+  var FONTS = []; // font strings by size, built once
   function drawText(txt, x, y, size, fill) {
-    ctx.font = size + "px 'Russo One','Arial Black',sans-serif";
+    var fs = FONTS[size * 2 | 0]; if (!fs) fs = FONTS[size * 2 | 0] = size + "px 'Russo One','Arial Black',sans-serif";
+    ctx.font = fs;
     ctx.lineWidth = size * 0.22; ctx.strokeStyle = '#2a1204'; ctx.strokeText(txt, x, y); ctx.fillStyle = fill; ctx.fillText(txt, x, y);
   }
   var bonusStr = '', bonusShown = -1, frameDirty = true;
@@ -1493,7 +1499,7 @@ var HF = (function () {
   function frame(now) {
     requestAnimationFrame(frame);
     var t0 = perfOn ? performance.now() : 0;
-    var dt = lastNow < 0 ? 0 : (now - lastNow) / 1000; lastNow = now;
+    var dt = lastNow < 0 ? 0 : (now - lastNow) / 1000; lastNow = now; startsThisFrame = 0;
     if (testHold) { render(0); return; }
     if (paused) { if (frameDirty) { render(0); frameDirty = false; } return; }
     var a = advance(dt);
