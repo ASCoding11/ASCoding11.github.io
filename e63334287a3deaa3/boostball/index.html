@@ -398,6 +398,11 @@ const UU=.02;
 // Blue defends the goal at -z and attacks +z; Orange the other way round.
 const AW=4096*UU,AL=5120*UU,AH=2044*UU,GW=892.755*UU,GH=642.775*UU,GD=880*UU,CUT=1152*UU;
 const BR=91.25*UU,GRAV=650*UU,BALL_MAX=6000*UU;
+// Cars fall under their own gravity, a quarter stronger than the ball's (GRAV, which the ball keeps), so a car hangs
+// in the air less and comes down with some weight. The jump's kick and hold are raised by JUMP_K so a jump still goes
+// up nearly as high, just faster. Everything a car does in the air or on a wall uses CAR_GRAV, including other
+// players' cars drawn from their updates (updateRemotes).
+const CAR_GRAV=GRAV*1.25,JUMP_K=1.1;
 // Car hitbox half-extents (x width, y height, z length; the Octane's) and the hitbox centre's height when parked.
 const CAR_HX=.84,CAR_HY=.36,CAR_HZ=1.2,CAR_Y=.62,CAR_R=1.08;
 const MAXD=1410*UU,MAXB=2300*UU,SUPER=2200*UU,BOOST_USE=100/3,KICK_BOOST=100/3;
@@ -407,7 +412,7 @@ const BOOST_GROUND=(2975/3)*UU,BOOST_AIR=(3175/3)*UU,THROTTLE_AIR=(200/3)*UU;
 // felt too easy (5000 / 1300, then 3750 / 975, now 2900 / 750): braking from top speed takes about 0.49 s and 6.9 units.
 const DRIVE_ACC=1600*UU,BRAKE_ACC=2900*UU,COAST_ACC=750*UU,OVERSPEED_DEC=500*UU;
 // Jumps
-const JUMP_IMM=(875/3)*UU,JUMP_ACC=(4375/3)*UU,JUMP_MIN=.025,JUMP_MAX=.2,DJ_DELAY=1.25,DODGE_DEADZONE=.5;
+const JUMP_IMM=(875/3)*UU*JUMP_K,JUMP_ACC=(4375/3)*UU*JUMP_K,JUMP_MIN=.025,JUMP_MAX=.2,DJ_DELAY=1.25,DODGE_DEADZONE=.5;
 // Dodges (flips)
 const FLIP_IMP=500*UU,FLIP_SIDE_SCALE=1.9,FLIP_BACK_SCALE=2.5,FLIP_BACK_X=16/15,FLIP_TORQUE_TIME=.65,FLIP_PITCHLOCK_EXTRA=.3,
   FLIP_TORQUE_PITCH=224,FLIP_TORQUE_ROLL=260,FLIP_Z_DAMP=.35,FLIP_Z_DAMP_START=.15,FLIP_Z_DAMP_END=.21;
@@ -689,7 +694,7 @@ function stepCar(c,dt,frozen){
     }
     if(!canBoost&&Math.abs(vf)>MAXD){const d=Math.min(Math.abs(vf)-MAXD,OVERSPEED_DEC*fs*dt);vf-=Math.sign(vf)*d}
     // gravity along the surface: what slows you climbing a wall and pulls you back down it
-    _v1.set(0,-GRAV,0).addScaledVector(N,GRAV*ny);
+    _v1.set(0,-CAR_GRAV,0).addScaledVector(N,CAR_GRAV*ny);
     vf+=(a+_v1.dot(_f))*dt;lat+=_v1.dot(_rt)*dt;
     vf=clamp(vf,-MAXD,MAXB);
     // Steering: in a drift the car turns on its whole sliding speed and much tighter, while the tires let go
@@ -706,7 +711,7 @@ function stepCar(c,dt,frozen){
     // The sticky force (half gravity, plus more on walls while you're driving) against gravity pulling you off:
     // it holds you to walls but not to the ceiling.
     const full=sticky||Math.abs(vf)>25*UU;
-    if(-GRAV*ny-GRAV*(.5+(full?1-Math.abs(ny):0))>0){c.onGround=false;c.noLandT=.25}
+    if(-CAR_GRAV*ny-CAR_GRAV*(.5+(full?1-Math.abs(ny):0))>0){c.onGround=false;c.noLandT=.25}
   }
 
   if(!c.onGround)c.slideAmt=0;
@@ -764,7 +769,7 @@ function stepCar(c,dt,frozen){
     integrateRot(c,dt);carAxes(c);
     if(canBoost)c.vel.addScaledVector(_f,BOOST_AIR*dt);
     if(Math.abs(thr)>.001)c.vel.addScaledVector(_f,THROTTLE_AIR*thr*dt);
-    c.vel.y-=GRAV*dt;
+    c.vel.y-=CAR_GRAV*dt;
     const sp=c.vel.length();if(sp>MAXB)c.vel.multiplyScalar(MAXB/sp);
   }
   if(canBoost){c.boost=Math.max(0,c.boost-BOOST_USE*dt);c.boosting=true}else c.boosting=false;
@@ -813,7 +818,7 @@ function stepCar(c,dt,frozen){
       c.onGround=true;c.gN.copy(N);alignUp(c,N);
       c.pos.addScaledVector(N,CAR_Y-s1);c.vel.addScaledVector(N,-vn);
       c.ang.set(0,0,0);resetAir(c);syncYaw(c);
-      if(imp>6)ev='land';
+      if(imp>6){ev='land';c.landImp=imp}
       return ev;
     }
     // Resting on its body: slide and tip toward whichever side it's nearer to. Only on surfaces gravity presses the
@@ -823,9 +828,11 @@ function stepCar(c,dt,frozen){
     const rest=N.y>.3;
     c.contact=true;c.cN.copy(N);
     c.pos.addScaledVector(N,sup-s1);
-    if(vn<0)c.vel.addScaledVector(N,-vn*(imp>3?1.25:1));
+    // A hard knock bounces the body off by BODY_BOUNCE of the speed it hit at: a little on the floor (it used to be a
+    // quarter there too, and a car dropped on its side hopped half a unit and skipped for 0.3 s), more off walls.
+    if(vn<0)c.vel.addScaledVector(N,-vn*(1+(imp>3?(rest?BODY_BOUNCE.floor:BODY_BOUNCE.wall):0)));
     _v1.copy(c.vel).addScaledVector(N,-c.vel.dot(N));c.vel.addScaledVector(_v1,-(1-Math.exp(-(rest?2.2:.4)*dt)));
-    if(!wasContact&&imp>6&&!ev)ev=imp>14?'bonk':'land';
+    if(!wasContact&&imp>6&&!ev){ev=imp>14?'bonk':'land';c.landImp=imp}
     if(c.autoFlipT<=0&&rest){
       c.ang.multiplyScalar(Math.exp(-4*dt));
       const unp=un+_v4.crossVectors(c.ang,_u).dot(N)*.35; // where it's rolling toward, not just where it is
@@ -838,12 +845,15 @@ function stepCar(c,dt,frozen){
   return ev;
 }
 const FROZEN_INPUT=newInput();
+const BODY_BOUNCE={floor:.08,wall:.25};
 
 // Car vs ball. Every client runs it for every car: the cars it controls move and score touches, and other players'
 // cars (and bots someone else runs) are solid but immovable here, so the ball can't fly through a car just because
 // that car's player is on another computer. Returns the hit power on contact, else 0.
 const _bl=new V3(),_bc=new V3(),_bd=new V3(),_bw=new V3(),_bn=new V3(),_bp=new V3(),_br=new V3(),_be=new V3(),_bt=new V3();
-const CAR_MASS=180,BALL_MASS=30,HIT_CURVE=[[0,.65],[500,.65],[2300,.55],[4600,.3]];
+// CAR_HEFT: the car's own recoil from the ball is worked out as if it were a quarter heavier, so a ball knocks it
+// about less; what the ball gets from the car (and so every shot) is unchanged.
+const CAR_MASS=180,BALL_MASS=30,CAR_HEFT=1.25,HIT_CURVE=[[0,.65],[500,.65],[2300,.55],[4600,.3]];
 // Dribbling. Rocket League keeps a ball sitting on your roof moving with the car through car–ball friction (2.0).
 // Here: soft contacts (closing at under 200 uu/s, fading out by 500) grip the ball with friction CB_MU, so it rides
 // along while you drive and turn gently, and slides off when you brake, turn hard or accelerate hard. The extra
@@ -908,7 +918,7 @@ function carBall(c,b,now){
   if(vn<0){
     const k=-vn*1.04;
     b.vel.addScaledVector(_bn,k*CAR_MASS/(CAR_MASS+BALL_MASS));
-    if(!c.remote)c.vel.addScaledVector(_bn,-k*BALL_MASS/(CAR_MASS+BALL_MASS)*.7);
+    if(!c.remote)c.vel.addScaledVector(_bn,-k*BALL_MASS/(CAR_MASS*CAR_HEFT+BALL_MASS)*.7);
     power=-vn;
     // friction on soft contacts: the ball takes on the speed of the car's surface where they touch
     const soft=clamp((CB_SOFT1+vn)/(CB_SOFT1-CB_SOFT0),0,1);
@@ -1366,11 +1376,26 @@ function disposeCarMesh(c){
   c.mesh.shadow.geometry.dispose();c.mesh.shadow.material.dispose();c.mesh=null;
 }
 const _dq=new QT();
+// Suspension, drawn only: a landing pushes the body down onto its wheels and it springs back (stiffness SQ_K, damping
+// SQ_D: about 0.08 s down, settled in a quarter of a second), harder the faster the car came down. Works for every car,
+// other players' too (from their updates); your own hard landings also dip the camera a little (dipKick, updateCamera).
+const SQ_K=220,SQ_D=18,SQ_KICK=.45,SQ_MAXV=5;
 function updateCarMesh(c,dt,time){
   if(c.meshKey!==c.team+':'+c.body+':'+c.accent+':'+schemeIdx)attachCarMesh(c);
   const m=c.mesh;const vis=c.demo<=0&&c.active!==false;
+  const grounded=c.remote?!!c.netGround:c.onGround;
+  if(grounded&&c.wasG===false&&vis&&c.prevVy<-4){
+    c.sqV=(c.sqV||0)-Math.min(SQ_MAXV,(-c.prevVy-3)*SQ_KICK);
+    if(c===me&&c.prevVy<-9)c.dipKick=Math.min(SQ_MAXV,(-c.prevVy-8)*.6);
+  }
+  c.wasG=grounded;c.prevVy=c.vel.y;
   m.g.visible=vis;m.shadow.visible=vis;if(!vis)return;
   m.g.position.copy(c.pos);m.g.quaternion.copy(c.q);
+  if(c.sqV||c.sq){
+    const h=Math.min(dt,.05);c.sqV=(c.sqV||0)+(-SQ_K*(c.sq||0)-SQ_D*c.sqV)*h;c.sq=clamp((c.sq||0)+c.sqV*h,-.16,.06);
+    if(Math.abs(c.sq)<1e-4&&Math.abs(c.sqV)<1e-3)c.sq=c.sqV=0;
+    m.inner.position.y=c.sq;for(const w of m.wheels)w.g.position.y=-.26-c.sq; // the wheels stay on the ground
+  }
   if(c.landT>0){c.landT-=dt;if(c.landT>0)m.g.quaternion.copy(c.landQ).slerp(c.q,1-c.landT/(c.landDur||.14))}
   const fwdSp=_v1.set(0,0,1).applyQuaternion(c.q).dot(c.vel);
   c.wheelSpin+=fwdSp*dt/.36;
@@ -1738,7 +1763,7 @@ function newMatch(){
 const KICK=[[-2048,-2560],[2048,-2560],[-256,-3840],[256,-3840],[0,-4608]].map(([x,z])=>[x*UU,z*UU]);
 const RESP=[[-2304,-4608],[2304,-4608],[-2688,-4608],[2688,-4608],[0,-4608],[-256,-3840],[256,-3840]].map(([x,z])=>[x*UU,z*UU]);
 function placeCar(c,x,z,yaw){
-  c.pos.set(x,CAR_Y,z);c.vel.set(0,0,0);c.ang.set(0,0,0);setYaw(c,yaw);c.onGround=true;resetAir(c);c.landT=0;c.gN.set(0,1,0);c.noLandT=0;
+  c.pos.set(x,CAR_Y,z);c.vel.set(0,0,0);c.ang.set(0,0,0);setYaw(c,yaw);c.onGround=true;resetAir(c);c.landT=0;c.prevVy=0;c.gN.set(0,1,0);c.noLandT=0;
   c.demo=0;c.placed=true;c.brain.plan=null;c.brain.jp=null;
 }
 function kickoffSpot(c){
@@ -1883,6 +1908,7 @@ function demolish(v,a,send){
   addFeed((a?a.name:'Someone')+' demolished '+v.name,a?'t'+a.team:'');
   if(send&&online)Net.send({type:'demo',v:v.id,a:a?a.id:''});
 }
+const BUMP_SOFT=.72;
 function carCar(a,o,now){
   if(a.demo>0||o.demo>0||o.active===false)return;
   _v1.subVectors(a.pos,o.pos);const d=_v1.length();
@@ -1895,7 +1921,8 @@ function carCar(a,o,now){
   a.pos.addScaledVector(_v1,(2.3-d)*(o.remote?1:.5));
   const rel=_v2.subVectors(o.vel,a.vel).dot(_v1);
   if(rel>0){
-    a.vel.addScaledVector(_v1,rel*.85+.4);
+    // a soft bump moves a car a little less (BUMP_SOFT of the closing speed below 6, back up to .85 by 12)
+    a.vel.addScaledVector(_v1,rel*lerp(BUMP_SOFT,.85,clamp((rel-6)/6,0,1))+.4);
     if(rel>9&&a.team!==o.team){a.vel.y+=Math.min(9,rel*.22);a.onGround=false}
     if(rel>6&&(a===me||o===me))sfx('bump',a.pos,Math.min(1,rel/25));
   }
@@ -2270,6 +2297,10 @@ function freeReset(){
 //  Camera
 // =====================================================================
 const camPos=new V3(0,30,-70),camLook=new V3(),camV=new V3();
+// camDip: a small, quick drop of the camera when your car lands hard, scaled by the Camera shake setting and off when
+// the system asks for reduced motion.
+const REDUCED_MOTION=!!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches),_cdl=new V3();
+let camDip=0,camDipV=0;
 let shakeT=0,shakeA=0,orbitA=0,camElev=0,camSnap=false;const camUp=new V3(0,1,0),camFwd=new V3(0,0,1),_cu0=new V3();
 const CAM_DIST=270*UU,CAM_HGT=100*UU;
 function baseFov(){const a=camera.aspect||1.6;return Math.min(100,2*Math.atan(Math.tan(55*Math.PI/180)/a)*180/Math.PI)}
@@ -2342,7 +2373,13 @@ function updateCamera(dt){
   // tilt the camera's up a little toward the wall you're on, so looking straight up a wall never flips the view
   const onWall=me&&state==='playing'&&mode!=='attract'&&me.demo<=0;
   camera.up.copy(Y_AXIS);if(onWall)camera.up.lerp(camUp,.6).normalize();
-  camera.lookAt(camLook);
+  if(me&&me.dipKick){if(!REDUCED_MOTION&&state==='playing')camDipV-=me.dipKick*shakeAmt;me.dipKick=0}
+  if(camDip||camDipV){
+    const h=Math.min(dt,.05);camDipV+=(-120*camDip-16*camDipV)*h;camDip=clamp(camDip+camDipV*h,-.3,.1);
+    if(Math.abs(camDip)<1e-4&&Math.abs(camDipV)<1e-3)camDip=camDipV=0;
+    camera.position.addScaledVector(camUp,camDip);
+  }
+  camera.lookAt(camDip?_cdl.copy(camLook).addScaledVector(camUp,camDip*.6):camLook);
   const sup=me&&state==='playing'&&me.vel.length()>SUPER?6:0;
   const base=baseFov();
   if(Math.abs(camera.fov-(base+sup))>.05){camera.fov=lerp(camera.fov,base+sup,1-Math.exp(-dt*4));camera.updateProjectionMatrix()}
@@ -2491,7 +2528,7 @@ function sfx(name,pos,x){
     case 'bounce':tone(t,.12,'sine',90,50,.22*Math.min(1,x||.5)*v);noise(t,.05,700,1,.08*v);break;
     case 'jump':noise(t,.16,600,1.5,.12*v,'highpass');tone(t,.12,'triangle',220,420,.05*v);break;
     case 'flip':noise(t,.22,1200,1.2,.13*v);break;
-    case 'land':noise(t,.1,300,1,.12*v,'lowpass');break;
+    case 'land':{const k=x||0;noise(t,.1+.06*k,300-90*k,1,(.12+.1*k)*v,'lowpass');tone(t,.12+.1*k,'sine',95,40,(.04+.32*k)*v);break} // a thud, harder the faster you came down
     case 'bonk':tone(t,.1,'square',110,60,.07*v);break;
     case 'bump':tone(t,.18,'sine',80,40,.35*(x||.5)*v);noise(t,.12,500,1,.18*(x||.5)*v);break;
     case 'pad':tone(t,.09,'sine',x?660:880,x?1320:1180,.09);if(x)tone(t+.05,.14,'sine',990,1760,.07);break;
@@ -2786,11 +2823,11 @@ function updateRemotes(dt){
       _rq.setFromAxisAngle(Y_AXIS,w*age).multiply(c.tq);
     }else{_rp.x+=c.tvel.x*age;_rp.z+=c.tvel.z*age;_rq.copy(c.tq)}
     _rp.y+=c.tvel.y*age;
-    if(!c.netGround)_rp.y-=.5*GRAV*age*age;
+    if(!c.netGround)_rp.y-=.5*CAR_GRAV*age*age;
     _rp.set(clamp(_rp.x,-AW+1,AW-1),Math.max(CAR_Y,Math.min(_rp.y,AH-1)),clamp(_rp.z,-AL-GD+1,AL+GD-1));
     // the drawn car moves on at its own speed, then closes the gap to that estimate: quickly, but never faster than
     // CORR_V, so a late update makes it glide over rather than jump (far off, e.g. a respawn, it just moves there)
-    const vy=c.tvel.y-(c.netGround?0:GRAV*age);
+    const vy=c.tvel.y-(c.netGround?0:CAR_GRAV*age);
     _rv.set(s*Math.sin(h2)*dt,vy*dt,s*Math.cos(h2)*dt);
     if(c.pos.distanceTo(_rp)>20)c.pos.copy(_rp);
     else{
@@ -3001,7 +3038,7 @@ function physStep(h,now,ph){
     if(c.demo>0)continue;
     if(mode==='free'&&c===me)c.boost=100;
     const ev=stepCar(c,h,frozen);
-    if(ev&&c===me)sfx(ev);
+    if(ev&&c===me)sfx(ev,null,ev==='land'?clamp((c.landImp-6)/16,0,1):undefined);
   }
   if(!frozen)for(const a of locals)for(const o of cars)if(o!==a)carCar(a,o,now);
   if(!ballHidden){
