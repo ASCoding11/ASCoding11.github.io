@@ -985,12 +985,19 @@ function buildInstances(placed,group){
       list.forEach((p,i)=>im.setMatrixAt(i,instMatrix(p.x,p.y,p.z,p.yaw)));im.instanceMatrix.needsUpdate=true;group.add(im);
     }
   }
-  if(placed.length){const im=new THREE.InstancedMesh(blobGeo,blobMatOf(),placed.length);im.frustumCulled=false;im.renderOrder=1;
+  if(placed.length){const im=new THREE.InstancedMesh(blobGeo,blobMatOf(),placed.length);im.frustumCulled=false;im.renderOrder=1;im.userData.key='blob';
     placed.forEach((p,i)=>im.setMatrixAt(i,instMatrix(p.x,p.y,p.z,p.yaw).multiply(p.t.blob)));im.instanceMatrix.needsUpdate=true;group.add(im)}
 }
 // A disguised player's model: plain meshes on the same geometries and materials.
-function propModel(t){const g=new THREE.Group();for(const gi of t.geos){const m=new THREE.Mesh(gi.g,gi.m);m.castShadow=!t.ns;m.receiveShadow=true;g.add(m)}
-  const sh=new THREE.Mesh(blobGeo,blobMatOf());sh.matrixAutoUpdate=false;sh.matrix.copy(t.blob);sh.renderOrder=1;g.add(sh);return g}
+function propModel(t){const g=new THREE.Group();for(const gi of t.geos){const m=new THREE.Mesh(gi.g,gi.m);m.castShadow=!t.ns;m.receiveShadow=true;g.add(m)}return g}
+// Disguised players' contact shadows: one instanced mesh (the same quad, material and matrix maths as the map's), filled
+// just before every render from where each prop-looking player is drawn.
+const playerBlobs=new THREE.InstancedMesh(blobGeo,blobMatOf(),32);playerBlobs.frustumCulled=false;playerBlobs.renderOrder=1;playerBlobs.count=0;scene.add(playerBlobs);
+scene.onBeforeRender=()=>{
+  let n=0;if(playerBlobs.visible)for(const e of ents.values()){if(n>=32)break;if(e.look!=='prop'||!e.form||!e.root.visible)continue;
+    const r=e.root;playerBlobs.setMatrixAt(n++,instMatrix(r.position.x,r.position.y,r.position.z,r.rotation.y).multiply(e.form.blob))}
+  playerBlobs.count=n;playerBlobs.instanceMatrix.needsUpdate=true;
+};
 // The outline you see on the thing you're aiming at (only on your screen).
 const outlineMat=new THREE.MeshBasicMaterial({color:0xffd23f,side:THREE.BackSide,transparent:true,opacity:.95,depthWrite:false});
 const outline=new THREE.Group(),outlineIn=new THREE.Group();outline.add(outlineIn);outline.visible=false;scene.add(outline);let outlineType=null;
@@ -1052,7 +1059,7 @@ class Builder{
       const fit=!!(o.fit&&(o.fit==='all'||o.fit.indexOf(FACES[f])>=0)),key=k+(o.ns?'|ns':'');
       let bk=this.buckets.get(key);if(!bk){bk={k,ns:!!o.ns,p:[],n:[],u:[],i:[]};this.buckets.set(key,bk)}
       const base=bk.p.length/3,N=FACE_N[f];
-      for(const c of faceCorners(b,f)){bk.p.push(c[0],c[1],c[2]);bk.n.push(N[0],N[1],N[2]);const uv=faceUV(b,f,c[0],c[1],c[2],def.tile,fit||!def.tile);bk.u.push(uv[0],uv[1])}
+      for(const c of faceCorners(b,f)){bk.p.push(c[0],c[1],c[2]);bk.n.push(N[0],N[1],N[2]);const uv=faceUV(b,f,c[0],c[1],c[2],def.tile,fit||!def.tile);if(o.swapUV)bk.u.push(uv[1],uv[0]);else bk.u.push(uv[0],uv[1])}
       bk.i.push(base,base+1,base+2,base,base+2,base+3);
     }
     if(!o.ghost)this.boxes.push(b);
@@ -1291,9 +1298,8 @@ addMats({
   ext2:{hex:'#c8102e'},lockers:{draw:(x,w,h)=>P.drawers(x,w,h,'#5b7bd5',1),tile:.5,rough:.4},
   hedge:{draw:(x,w,h)=>P.leaves(x,w,h,['#2f6b3a','#3b7d44','#2a5a33','#4a8c4f'],12),tile:1.4,rough:.95},trunk:{hex:'#7a5534',rough:.95},
   water:{hex:'#4fb3d9',rough:.05},stone:{hex:'#d8d2c6',rough:.8},
-  skirting:{draw:(x,w,h)=>P.noise(x,w,h,'#e9e3d6',14,.02),tile:1,rough:.45},trim:{draw:(x,w,h)=>P.noise(x,w,h,'#f3efe6',15,.02),tile:1,rough:.4},
-  aoV:{draw:(x,w,h)=>P.band(x,w,h,false,.62),w:4,h:64,tile:0,basic:1},aoU:{draw:(x,w,h)=>P.band(x,w,h,true,.62),w:64,h:4,tile:0,basic:1},
-  aoWall:{draw:(x,w,h)=>P.band(x,w,h,false,.42),w:4,h:64,tile:0,basic:1},aoPad:{draw:(x,w,h)=>P.pad(x,w,h,.42,.55),w:64,h:64,tile:0,basic:1},
+  skirting:{draw:(x,w,h)=>P.noise(x,w,h,'#e9e3d6',14,.02),tile:1,rough:.45},
+  aoV:{draw:(x,w,h)=>P.band(x,w,h,false,.55),w:4,h:64,tile:0,basic:1},aoPad:{draw:(x,w,h)=>P.pad(x,w,h,.42,.55),w:64,h:64,tile:0,basic:1},
   lightGlow:{draw:(x,w,h)=>P.glow(x,w,h,.55),w:64,h:64,tile:0,basic:1,add:1},
   kiosk:{draw:(x,w,h)=>P.stripes(x,w,h,['#14b89a','#0d8f78'],true),tile:.8,rough:.5},awning:{draw:(x,w,h)=>P.stripes(x,w,h,['#ff7a1a','#fff8ec','#ff7a1a','#fff8ec'],true),tile:0,rough:.8},
 });
@@ -1308,12 +1314,12 @@ function kit(B,H){
     const e=.014;B.box(x0-(alongX?0:e),0,z0-(alongX?e:0),x1+(alongX?0:e),.1,z1+(alongX?e:0),'skirting',Object.assign({skip:'-y'},G0));
     const w=.48,cx=(x0+x1)/2,cz=(z0+z1)/2;
     if(alongX)B.box(x0,.002,cz-w,x1,.0025,cz+w,'aoV',Object.assign({fit:'+y',skip:'-y+x-x+z-z'},G0));
-    else B.box(cx-w,.002,z0,cx+w,.0025,z1,'aoU',Object.assign({fit:'+y',skip:'-y+x-x+z-z'},G0));
+    else B.box(cx-w,.002,z0,cx+w,.0025,z1,'aoV',Object.assign({fit:'+y',skip:'-y+x-x+z-z',swapUV:true},G0));
     const f=alongX?'+z-z':'+x-x',sk=alongX?'+y-y+x-x':'+y-y+z-z',d=.004;
-    for(const y of h>=H-.01?[0,h]:[0])B.box(x0-(alongX?0:d),y-.34,z0-(alongX?d:0),x1+(alongX?0:d),y+.34,z1+(alongX?d:0),'aoWall',Object.assign({fit:f,skip:sk},G0));
+    for(const y of h>=H-.01?[0,h]:[0])B.box(x0-(alongX?0:d),y-.34,z0-(alongX?d:0),x1+(alongX?0:d),y+.34,z1+(alongX?d:0),'aoV',Object.assign({fit:f,skip:sk},G0));
   };
   const frame=(a,b2,c,dh,alongX,h)=>{const t=T+.02,fw=.07;
-    const bx=(u0,y0,u1,y1)=>alongX?B.box(u0,y0,c-t,u1,y1,c+t,'trim',G0):B.box(c-t,y0,u0,c+t,y1,u1,'trim',G0);
+    const bx=(u0,y0,u1,y1)=>alongX?B.box(u0,y0,c-t,u1,y1,c+t,'skirting',G0):B.box(c-t,y0,u0,c+t,y1,u1,'skirting',G0);
     bx(a-fw,0,a,Math.min(h,dh+fw));bx(b2,0,b2+fw,Math.min(h,dh+fw));if(h>dh+.01)bx(a-fw,dh,b2+fw,Math.min(h,dh+fw))};
   const wallX=(z,x0,x1,m,doors,o)=>{o=o||{};const h=o.h||H,dh=o.dh||2.5;let a=x0;const segs=[];for(const d of (doors||[]).slice().sort((p,q)=>p[0]-q[0])){segs.push([a,d[0]]);a=d[1]}segs.push([a,x1]);
     const kind=m==='fence'?'fence':'wall';
@@ -1649,12 +1655,12 @@ function loadMap(i){
   const sc=sun.shadow.camera;sc.left=-span*.8;sc.right=span*.8;sc.top=span*.8;sc.bottom=-span*.8;sc.near=1;sc.far=140;sc.updateProjectionMatrix();
   scene.background=new THREE.Color(MAP.sky);
   // a sky all round (seen outdoors and from the menu), and light haze: aerial outdoors, a little indoors
-  const F=MAP.fog||[MAP.sky,30,140];scene.fog=new THREE.Fog(new THREE.Color(F[0]).convertSRGBToLinear(),F[1],F[2]);
-  skyFor(MAP);renderer.toneMappingExposure=L.exp||1;
+  const F=MAP.fog||[MAP.sky,30,140];MAP.fogObj=new THREE.Fog(new THREE.Color(F[0]).convertSRGBToLinear(),F[1],F[2]);
+  skyFor(MAP);renderer.toneMappingExposure=L.exp||1;applyExtras();
   // which placed objects stand together: used to line up with the real ones and by the bots
   for(const p of MAP.props){p.near=0;for(const q of MAP.props)if(q!==p&&q.t===p.t&&Math.abs(q.x-p.x)<3.5&&Math.abs(q.z-p.z)<3.5&&Math.abs(q.y-p.y)<.6)p.near++}
 }
-const sky=new THREE.Mesh(new THREE.SphereGeometry(200,32,16),new THREE.MeshBasicMaterial({side:THREE.BackSide,fog:false,depthWrite:false}));sky.renderOrder=-1;scene.add(sky);
+const sky=new THREE.Mesh(new THREE.SphereGeometry(200,32,16),new THREE.MeshBasicMaterial({side:THREE.BackSide,fog:false,depthWrite:false}));sky.renderOrder=10;scene.add(sky);
 const skyTex={};
 function skyFor(M){
   const k=M.short;if(!skyTex[k]){
@@ -3072,11 +3078,18 @@ $('sens').oninput=()=>setSens($('sens').value);$('sens2').oninput=()=>setSens($(
 $('volFx').oninput=()=>setFx($('volFx').value);$('volMu').oninput=()=>setMu($('volMu').value);$('volMu2').oninput=()=>setMu($('volMu2').value);
 $('invY').onchange=()=>setInv($('invY').checked);$('invY2').onchange=()=>setInv($('invY2').checked);
 const renderGfx=()=>{for(const b2 of $('gfxSeg').children)b2.setAttribute('aria-pressed',String(b2.dataset.q===gfx))};
+// Low (fast) leaves out the extras that cost fill on a slow laptop: sky dome, haze, ceiling-light glow, soft darkening
+// decals and contact shadows (for real objects and disguised players alike, so they still match)
+const EXTRAS=['aoV','aoPad','lightGlow','blob'];
+function applyExtras(){
+  const on=gfx!=='fast';sky.visible=on;playerBlobs.visible=on;scene.fog=on&&MAP?MAP.fogObj:null;
+  if(MAP)MAP.group.traverse(o=>{if(o.isMesh&&o.material&&EXTRAS.indexOf(o.userData.key||o.material.userData.key)>=0)o.visible=on});
+}
 function setGfx(q,save){
   if(!GQ[q])return;gfx=q;if(save)store.set('gfx',q);renderGfx();const Q=GQ[q];
   renderer.shadowMap.enabled=Q.shadow>0;renderer.shadowMap.type=Q.soft?THREE.PCFSoftShadowMap:THREE.PCFShadowMap;sun.castShadow=Q.shadow>0;
   if(Q.shadow&&sun.shadow.mapSize.x!==Q.shadow){sun.shadow.mapSize.set(Q.shadow,Q.shadow);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null}}
-  scene.traverse(o=>{if(o.material){const ms=Array.isArray(o.material)?o.material:[o.material];ms.forEach(m=>m.needsUpdate=true)}});resize();
+  applyExtras();scene.traverse(o=>{if(o.material){const ms=Array.isArray(o.material)?o.material:[o.material];ms.forEach(m=>m.needsUpdate=true)}});resize();
 }
 $('gfxSeg').onclick=ev=>{const q=ev.target.dataset&&ev.target.dataset.q;if(q)setGfx(q,true)};
 // no saved choice: if the first 4 s of play run slower than about 30 frames a second, step down a level (not saved)
