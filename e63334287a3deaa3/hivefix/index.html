@@ -95,7 +95,7 @@ body.touch #touch{display:block}
   --kb-border:3px solid #7a4a1c;--kb-shadow:none;--kb-radius:18px;--kb-key-radius:8px;--kb-key-border:2px solid var(--line);--kb-key-bg:var(--panel-2);--kb-key-shadow:none;
   --kb-font:var(--f-b);--kb-font-display:var(--f-d);--kb-key-weight:900;--kb-title-size:22px;--kb-title-weight:400;--kb-backdrop:rgba(20,10,2,.6);--kb-blur:0px;--kb-pad:18px;--kb-width:440px}
 .kb-panel .kb-label{font-weight:800}
-@media (max-width:520px){.hide-narrow{display:none!important}.pill{padding:4px 9px}.pill b{font-size:16px}.logo{font-size:40px}}
+@media (max-width:520px){.hide-narrow{display:none!important}#hud{gap:5px}.pill{padding:4px 8px}.pill b{font-size:16px}.pill small{display:none}.lives{padding:5px 7px}.lives i{width:15px;height:13px}.ib{width:34px;height:34px}#back{padding:2px 2px}.logo{font-size:40px}}
 @media (max-height:460px){.card{padding:12px 16px}.logo{font-size:34px}.card .how{display:none}.card p{font-size:14px}}
 </style>
 <script src="/e63334287a3deaa3/stats.js" data-game="hivefix" defer></script>
@@ -1073,6 +1073,7 @@ var HF = (function () {
     SPR.spark = mk(18, 18, 9, 9, dot('rgba(255,250,220,1)', 9));
     SPR.fleck = mk(8, 10, 4, 5, fleck); SPR.star = mk(16, 16, 8, 8, star); SPR.crumb = mk(8, 8, 4, 4, crumb); SPR.puff = mk(20, 20, 10, 10, puff);
     SPR.banner = mk(346, 74, 173, 37, bannerSpr);
+    SPR.ribbon = mk(436, 30, 218, 15, function (x) { rr(x, -216, -13, 432, 26, 13); x.fillStyle = 'rgba(40,18,4,.92)'; x.fill(); x.strokeStyle = '#ffc22e'; x.lineWidth = 2; x.stroke(); });
     for (var i = 0; i < THEMES.length; i++) { BG[i] = buildBg(i); TOPBAR[i] = buildTopBar(i); }
   }
   var PK = []; // particle sprites by kind
@@ -1212,12 +1213,12 @@ var HF = (function () {
   var shakeT = 0, shakeMag = 0, flashT = 0, fixFlash = new Float32Array(15), bannerT = 0, bannerA = '', bannerB = '', newT = 0, newA = '', newB = '';
   var jellySeen = false, slamT = 0, bumpT = 0, bumpDir = 0, patT = 0, nurseT = 0, nurseCell = -1, recrackT = new Float32Array(15);
   var FEATURES = {
-    2: ['NEW: PROPOLIS RIDGES', 'Dark ridges block a hop. Go round them.'],
-    3: ['NEW: WASPS', 'An arrow flashes first. Leave that row!'],
-    5: ['NEW: STICKY HONEY', 'Hopping out of a drippy cell is slow.'],
-    6: ['NEW: DOUBLE POUND', 'Bruno can slam twice in a row.'],
-    8: ['NEW: WASP PAIRS', 'Two wasps can come one after another.'],
-    10: ['NEW: AFTERSHOCKS', 'A slam can crack a top cell again.']
+    2: 'NEW: propolis ridges block a hop. Go round them',
+    3: 'NEW: wasps! When an arrow flashes, leave that row',
+    5: 'NEW: sticky honey. Hopping out of it is slow',
+    6: 'NEW: Bruno can pound twice in a row',
+    8: 'NEW: wasps can come in pairs',
+    10: 'NEW: aftershocks can crack a top cell again'
   };
   function onEvent(t, a, b, c) {
     var x, y, i;
@@ -1244,7 +1245,7 @@ var HF = (function () {
       case E.WGO: play('zip'); break;
       case E.JSPAWN:
         nurseT = 1.2; nurseCell = a; play('jspawn');
-        if (!jellySeen) { jellySeen = true; newT = 3.5; newA = 'ROYAL JELLY!'; newB = 'Grab the drop: 6 s of golden glow.'; }
+        if (!jellySeen) { jellySeen = true; newT = 4; newA = 'ROYAL JELLY! Grab the drop for 6 s of golden glow'; }
         break;
       case E.JGRAB: x = COLX[a % 5]; y = ROWY[(a / 5) | 0]; burst(2, x, y, 18, 220, 0.8, 0); pop('+' + b + ' GLOW!', x, y - 36, 5); play('jgrab'); break;
       case E.JGONE: x = COLX[a % 5]; y = ROWY[(a / 5) | 0]; burst(4, x, y, 4, 40, 0.4, -20); break;
@@ -1255,7 +1256,7 @@ var HF = (function () {
       case E.SLIDE: break;
       case E.READY:
         bannerT = 1.6; bannerA = 'FRAME ' + a; bannerB = THEMES[themeFor(a)].name;
-        if (FEATURES[a]) { newT = 4.2; newA = FEATURES[a][0]; newB = FEATURES[a][1]; }
+        if (FEATURES[a]) { newT = 6; newA = FEATURES[a]; }
         play('ready');
         break;
       case E.PLAY: setMusic(true); break;
@@ -1443,9 +1444,9 @@ var HF = (function () {
       } else { drawText(bannerA, W / 2, 250, 30, '#ffd23f'); drawText(bannerB, W / 2, 280, 15, '#fff4d8'); }
       ctx.globalAlpha = 1;
     }
-    if (newT > 0 && st !== S.CLEAR && bannerT <= 0) {
-      ctx.globalAlpha = Math.min(1, newT * 3); spr(SPR.banner, W / 2, 262);
-      drawText(newA, W / 2, 250, 22, '#ff8a5a'); drawText(newB, W / 2, 278, 14, '#fff4d8'); ctx.globalAlpha = 1;
+    if (newT > 0 && st !== S.CLEAR) { // a slim ribbon on the bottom bar, where it hides nothing
+      ctx.globalAlpha = Math.min(1, newT * 3); spr(SPR.ribbon, W / 2, 454);
+      ctx.font = "13px 'Russo One','Arial Black',sans-serif"; ctx.fillStyle = '#ffb07a'; ctx.fillText(newA, W / 2, 455); ctx.globalAlpha = 1;
     }
     if (flashT > 0) { ctx.globalAlpha = flashT * 1.6 > 0.6 ? 0.6 : flashT * 1.6; ctx.fillStyle = '#ffffff'; ctx.fillRect(-10, -10, W + 20, H + 20); ctx.globalAlpha = 1; }
     hud();
@@ -1455,7 +1456,7 @@ var HF = (function () {
     if (shakeT > 0) shakeT -= DT;
     if (flashT > 0) flashT -= DT;
     if (bannerT > 0) bannerT -= DT;
-    if (newT > 0 && bannerT <= 0) newT -= DT;
+    if (newT > 0) newT -= DT;
     if (slamT > 0) slamT -= DT;
     if (bumpT > 0) bumpT -= DT;
     if (nurseT > 0) nurseT -= DT;
@@ -1709,7 +1710,7 @@ var HF = (function () {
       perf: function (on) { perfOn = on; perfN = 0; }, perfData: function () { return Array.prototype.slice.call(perfBuf, 0, Math.min(perfN, 4096)); },
       state: function () { return {state: g.state, level: g.level, score: g.score, lives: g.lives, wc: g.wc, hopping: g.hopping, fixing: g.fixing, left: g.left, steps: steps, simTime: simTime, muted: muted, shake: shakeOn, touch: touchUI, combo: g.combo, bs: g.bs}; },
       view: view, layout: layout, get K() { return K; }, SPR: function () { return SPR; }, BG: BG,
-      hold: function (on) { testHold = on; lastNow = -1; }, frame: frame, onEvent: onEvent,
+      hold: function (on) { testHold = on; lastNow = -1; }, resetClock: function () { simTime = 0; steps = 0; lastNow = -1; }, frame: frame, onEvent: onEvent,
       setLastNow: function (v) { lastNow = v; }, get steps() { return steps; }, get simTime() { return simTime; }
     };
   }
