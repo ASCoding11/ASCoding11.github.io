@@ -818,7 +818,7 @@ function stepCar(c,dt,frozen){
       c.onGround=true;c.gN.copy(N);alignUp(c,N);
       c.pos.addScaledVector(N,CAR_Y-s1);c.vel.addScaledVector(N,-vn);
       c.ang.set(0,0,0);resetAir(c);syncYaw(c);
-      if(imp>6)ev='land';
+      if(imp>6){ev='land';c.landImp=imp}
       return ev;
     }
     // Resting on its body: slide and tip toward whichever side it's nearer to. Only on surfaces gravity presses the
@@ -832,7 +832,7 @@ function stepCar(c,dt,frozen){
     // quarter there too, and a car dropped on its side hopped half a unit and skipped for 0.3 s), more off walls.
     if(vn<0)c.vel.addScaledVector(N,-vn*(1+(imp>3?(rest?BODY_BOUNCE.floor:BODY_BOUNCE.wall):0)));
     _v1.copy(c.vel).addScaledVector(N,-c.vel.dot(N));c.vel.addScaledVector(_v1,-(1-Math.exp(-(rest?2.2:.4)*dt)));
-    if(!wasContact&&imp>6&&!ev)ev=imp>14?'bonk':'land';
+    if(!wasContact&&imp>6&&!ev){ev=imp>14?'bonk':'land';c.landImp=imp}
     if(c.autoFlipT<=0&&rest){
       c.ang.multiplyScalar(Math.exp(-4*dt));
       const unp=un+_v4.crossVectors(c.ang,_u).dot(N)*.35; // where it's rolling toward, not just where it is
@@ -1376,11 +1376,26 @@ function disposeCarMesh(c){
   c.mesh.shadow.geometry.dispose();c.mesh.shadow.material.dispose();c.mesh=null;
 }
 const _dq=new QT();
+// Suspension, drawn only: a landing pushes the body down onto its wheels and it springs back (stiffness SQ_K, damping
+// SQ_D: about 0.08 s down, settled in a quarter of a second), harder the faster the car came down. Works for every car,
+// other players' too (from their updates); your own hard landings also dip the camera a little (dipKick, updateCamera).
+const SQ_K=220,SQ_D=18,SQ_KICK=.3,SQ_MAXV=4;
 function updateCarMesh(c,dt,time){
   if(c.meshKey!==c.team+':'+c.body+':'+c.accent+':'+schemeIdx)attachCarMesh(c);
   const m=c.mesh;const vis=c.demo<=0&&c.active!==false;
+  const grounded=c.remote?!!c.netGround:c.onGround;
+  if(grounded&&c.wasG===false&&vis&&c.prevVy<-4){
+    c.sqV=(c.sqV||0)-Math.min(SQ_MAXV,(-c.prevVy-3)*SQ_KICK);
+    if(c===me&&c.prevVy<-9)c.dipKick=Math.min(SQ_MAXV,(-c.prevVy-8)*.6);
+  }
+  c.wasG=grounded;c.prevVy=c.vel.y;
   m.g.visible=vis;m.shadow.visible=vis;if(!vis)return;
   m.g.position.copy(c.pos);m.g.quaternion.copy(c.q);
+  if(c.sqV||c.sq){
+    const h=Math.min(dt,.05);c.sqV=(c.sqV||0)+(-SQ_K*(c.sq||0)-SQ_D*c.sqV)*h;c.sq=clamp((c.sq||0)+c.sqV*h,-.16,.06);
+    if(Math.abs(c.sq)<1e-4&&Math.abs(c.sqV)<1e-3)c.sq=c.sqV=0;
+    m.inner.position.y=c.sq;for(const w of m.wheels)w.g.position.y=-.26-c.sq; // the wheels stay on the ground
+  }
   if(c.landT>0){c.landT-=dt;if(c.landT>0)m.g.quaternion.copy(c.landQ).slerp(c.q,1-c.landT/(c.landDur||.14))}
   const fwdSp=_v1.set(0,0,1).applyQuaternion(c.q).dot(c.vel);
   c.wheelSpin+=fwdSp*dt/.36;
@@ -1748,7 +1763,7 @@ function newMatch(){
 const KICK=[[-2048,-2560],[2048,-2560],[-256,-3840],[256,-3840],[0,-4608]].map(([x,z])=>[x*UU,z*UU]);
 const RESP=[[-2304,-4608],[2304,-4608],[-2688,-4608],[2688,-4608],[0,-4608],[-256,-3840],[256,-3840]].map(([x,z])=>[x*UU,z*UU]);
 function placeCar(c,x,z,yaw){
-  c.pos.set(x,CAR_Y,z);c.vel.set(0,0,0);c.ang.set(0,0,0);setYaw(c,yaw);c.onGround=true;resetAir(c);c.landT=0;c.gN.set(0,1,0);c.noLandT=0;
+  c.pos.set(x,CAR_Y,z);c.vel.set(0,0,0);c.ang.set(0,0,0);setYaw(c,yaw);c.onGround=true;resetAir(c);c.landT=0;c.prevVy=0;c.gN.set(0,1,0);c.noLandT=0;
   c.demo=0;c.placed=true;c.brain.plan=null;c.brain.jp=null;
 }
 function kickoffSpot(c){
@@ -2282,6 +2297,10 @@ function freeReset(){
 //  Camera
 // =====================================================================
 const camPos=new V3(0,30,-70),camLook=new V3(),camV=new V3();
+// camDip: a small, quick drop of the camera when your car lands hard, scaled by the Camera shake setting and off when
+// the system asks for reduced motion.
+const REDUCED_MOTION=!!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches),_cdl=new V3();
+let camDip=0,camDipV=0;
 let shakeT=0,shakeA=0,orbitA=0,camElev=0,camSnap=false;const camUp=new V3(0,1,0),camFwd=new V3(0,0,1),_cu0=new V3();
 const CAM_DIST=270*UU,CAM_HGT=100*UU;
 function baseFov(){const a=camera.aspect||1.6;return Math.min(100,2*Math.atan(Math.tan(55*Math.PI/180)/a)*180/Math.PI)}
@@ -2354,7 +2373,13 @@ function updateCamera(dt){
   // tilt the camera's up a little toward the wall you're on, so looking straight up a wall never flips the view
   const onWall=me&&state==='playing'&&mode!=='attract'&&me.demo<=0;
   camera.up.copy(Y_AXIS);if(onWall)camera.up.lerp(camUp,.6).normalize();
-  camera.lookAt(camLook);
+  if(me&&me.dipKick){if(!REDUCED_MOTION&&state==='playing')camDipV-=me.dipKick*shakeAmt;me.dipKick=0}
+  if(camDip||camDipV){
+    const h=Math.min(dt,.05);camDipV+=(-120*camDip-16*camDipV)*h;camDip=clamp(camDip+camDipV*h,-.3,.1);
+    if(Math.abs(camDip)<1e-4&&Math.abs(camDipV)<1e-3)camDip=camDipV=0;
+    camera.position.addScaledVector(camUp,camDip);
+  }
+  camera.lookAt(camDip?_cdl.copy(camLook).addScaledVector(camUp,camDip*.6):camLook);
   const sup=me&&state==='playing'&&me.vel.length()>SUPER?6:0;
   const base=baseFov();
   if(Math.abs(camera.fov-(base+sup))>.05){camera.fov=lerp(camera.fov,base+sup,1-Math.exp(-dt*4));camera.updateProjectionMatrix()}
@@ -2503,7 +2528,7 @@ function sfx(name,pos,x){
     case 'bounce':tone(t,.12,'sine',90,50,.22*Math.min(1,x||.5)*v);noise(t,.05,700,1,.08*v);break;
     case 'jump':noise(t,.16,600,1.5,.12*v,'highpass');tone(t,.12,'triangle',220,420,.05*v);break;
     case 'flip':noise(t,.22,1200,1.2,.13*v);break;
-    case 'land':noise(t,.1,300,1,.12*v,'lowpass');break;
+    case 'land':{const k=x||0;noise(t,.1+.06*k,300-90*k,1,(.12+.1*k)*v,'lowpass');tone(t,.12+.1*k,'sine',95,40,(.04+.32*k)*v);break} // a thud, harder the faster you came down
     case 'bonk':tone(t,.1,'square',110,60,.07*v);break;
     case 'bump':tone(t,.18,'sine',80,40,.35*(x||.5)*v);noise(t,.12,500,1,.18*(x||.5)*v);break;
     case 'pad':tone(t,.09,'sine',x?660:880,x?1320:1180,.09);if(x)tone(t+.05,.14,'sine',990,1760,.07);break;
@@ -3013,7 +3038,7 @@ function physStep(h,now,ph){
     if(c.demo>0)continue;
     if(mode==='free'&&c===me)c.boost=100;
     const ev=stepCar(c,h,frozen);
-    if(ev&&c===me)sfx(ev);
+    if(ev&&c===me)sfx(ev,null,ev==='land'?clamp((c.landImp-6)/16,0,1):undefined);
   }
   if(!frozen)for(const a of locals)for(const o of cars)if(o!==a)carCar(a,o,now);
   if(!ballHidden){
