@@ -258,7 +258,7 @@ var HF = (function () {
       nextId: 1, jelly: -1, jellyT: 0, jellyNext: 8, waspNext: 3,
       bonusLeft: 0, bonusTotal: 0, timeBonus: 0, clearTime: 0,
       evN: 0, evT: new Uint8Array(NEV), evA: new Float32Array(NEV), evB: new Float32Array(NEV), evC: new Float32Array(NEV),
-      D: new Uint8Array(HZ * NC), R: new Uint16Array(HZ * NC), OK: new Uint8Array(HZ * NC), okb: new Uint8Array(NC),
+      D: new Uint8Array(HZ * NC), R: new Uint16Array(HZ * NC), ED: new Uint8Array(HZ * 22), ER: new Uint16Array(HZ * 22), OK: new Uint8Array(HZ * NC), okb: new Uint8Array(NC),
       tn: {}, perm: new Int8Array(NC), q: new Int8Array(NC), seen: new Uint8Array(NC)
     };
     for (var i = 0; i < NC; i++) g.perm[i] = i;
@@ -407,25 +407,35 @@ var HF = (function () {
   // hitbox there. OK[t][c] is 1 if Wax, free at cell c at tick t, can survive every known threat (waiting, or hopping
   // along cells; a hop occupies both cells for its whole length). A new slam or wasp is only announced if no cell that
   // had a way out loses it, and Wax (counting a fix or hop in progress) keeps hers; otherwise Bruno holds his paws a beat.
-  function mark(g, c, ta, tb) {
+  // ED does the same for the 22 edges between cells (0-11 side by side, r*4+c; 12-21 one above the other, 12+r*5+c):
+  // a hop sweeps Wax's hitbox along the edge, so a chunk falling between two rows, or a wasp flying between two
+  // columns, blocks that hop even when neither cell is in its path at that moment.
+  function mark(g, A, W2, c, ta, tb) {
     if (tb < 0) return;
-    var i0 = Math.floor(ta * TR) - 1, i1 = Math.ceil(tb * TR) + 1, D = g.D;
+    var i0 = Math.floor(ta * TR) - 1, i1 = Math.ceil(tb * TR) + 1;
     if (i0 < 0) i0 = 0; if (i1 > HZ - 1) i1 = HZ - 1;
-    for (var i = i0; i <= i1; i++) D[i * NC + c] = 1;
+    for (var i = i0; i <= i1; i++) A[i * W2 + c] = 1;
   }
   function markChunk(g, col, y, v, dl) {
-    for (var r = 0; r < 3; r++) mark(g, col + 5 * r, dl + (ROWY[r] - HB - CH - y) / v, dl + (ROWY[r] + HB + CH - y) / v);
+    for (var r = 0; r < 3; r++) {
+      mark(g, g.D, NC, col + 5 * r, dl + (ROWY[r] - HB - CH - y) / v, dl + (ROWY[r] + HB + CH - y) / v);
+      if (r < 2) mark(g, g.ED, 22, 12 + r * 5 + col, dl + (ROWY[r] - HB - CH - y) / v, dl + (ROWY[r + 1] + HB + CH - y) / v);
+    }
   }
   function markWasp(g, row, x0, dir, v, dl) {
     for (var c = 0; c < 5; c++) {
-      var p0 = COLX[c] - HB - WHW, p1 = COLX[c] + HB + WHW;
-      if (dir > 0) mark(g, c + 5 * row, dl + (p0 - x0) / v, dl + (p1 - x0) / v);
-      else mark(g, c + 5 * row, dl + (x0 - p1) / v, dl + (x0 - p0) / v);
+      var p0 = COLX[c] - HB - WHW, p1 = COLX[c] + HB + WHW, q1 = c < 4 ? COLX[c + 1] + HB + WHW : 0;
+      if (dir > 0) { mark(g, g.D, NC, c + 5 * row, dl + (p0 - x0) / v, dl + (p1 - x0) / v); if (c < 4) mark(g, g.ED, 22, row * 4 + c, dl + (p0 - x0) / v, dl + (q1 - x0) / v); }
+      else { mark(g, g.D, NC, c + 5 * row, dl + (x0 - p1) / v, dl + (x0 - p0) / v); if (c < 4) mark(g, g.ED, 22, row * 4 + c, dl + (x0 - q1) / v, dl + (x0 - p0) / v); }
     }
+  }
+  function edge(c, d) { // the edge a hop from c in direction d crosses
+    var col = c % 5, row = (c / 5) | 0;
+    return d === 0 ? 12 + (row - 1) * 5 + col : d === 2 ? 12 + row * 5 + col : d === 1 ? row * 4 + col : row * 4 + col - 1;
   }
   function markKnown(g) {
     var i, t = g.tn;
-    g.D.fill(0);
+    g.D.fill(0); g.ED.fill(0);
     for (i = 0; i < NCH; i++) if (g.cA[i]) markChunk(g, g.cCol[i], g.cY[i], g.cV[i], 0);
     if (g.bs === 2) { markChunk(g, g.tc0, CHUNK_Y0, t.chunkV, g.bt); if (g.tc1 >= 0) markChunk(g, g.tc1, CHUNK_Y0, t.chunkV, g.bt); }
     for (i = 0; i < NW; i++) {
@@ -434,11 +444,13 @@ var HF = (function () {
     }
   }
   function solve(g) {
-    var D = g.D, R = g.R, OK = g.OK, t, c, d, n, b, h, last = (HZ - 1) * NC;
+    var D = g.D, R = g.R, OK = g.OK, ED = g.ED, ER = g.ER, t, c, d, n, b, h, e, last = (HZ - 1) * NC;
     for (c = 0; c < NC; c++) { R[last + c] = D[last + c] ? 0 : 1; OK[last + c] = D[last + c] ? 0 : 1; }
+    for (e = 0; e < 22; e++) ER[(HZ - 1) * 22 + e] = ED[(HZ - 1) * 22 + e] ? 0 : 1;
     for (t = HZ - 2; t >= 0; t--) {
       b = t * NC;
       for (c = 0; c < NC; c++) R[b + c] = D[b + c] ? 0 : R[b + NC + c] + 1;
+      for (e = 0; e < 22; e++) ER[t * 22 + e] = ED[t * 22 + e] ? 0 : ER[t * 22 + 22 + e] + 1;
       for (c = 0; c < NC; c++) {
         if (D[b + c]) { OK[b + c] = 0; continue; }
         if (OK[b + NC + c]) { OK[b + c] = 1; continue; }
@@ -447,7 +459,7 @@ var HF = (function () {
         for (d = 0; d < 4 && !ok; d++) {
           n = nb(g, c, d); if (n < 0) continue;
           var need = h + 1; if (need > HZ - t) need = HZ - t;
-          if (R[b + c] >= need && R[b + n] >= need && (t + h >= HZ - 1 || OK[(t + h) * NC + n])) ok = 1;
+          if (R[b + c] >= need && R[b + n] >= need && ER[t * 22 + edge(c, d)] >= need && (t + h >= HZ - 1 || OK[(t + h) * NC + n])) ok = 1;
         }
         OK[b + c] = ok;
       }
@@ -460,7 +472,7 @@ var HF = (function () {
     if (lock >= HZ) lock = HZ - 1;
     if (lock === 0) return OK[g.wc] === 1;
     if (R[g.wc] < lock + 1) return false;
-    if (g.hopping && R[g.wf] < lock + 1) return false;
+    if (g.hopping && (R[g.wf] < lock + 1 || g.ER[edge(g.wf, hopDir(g))] < lock + 1)) return false;
     return OK[lock * NC + g.wc] === 1;
   }
   // kind 0: a slam on columns a (and b) after the windup; kind 1: a wasp on row a going b after its warning.
@@ -477,6 +489,7 @@ var HF = (function () {
     if (wb && !waxOK(g)) return false;
     return true;
   }
+  function hopDir(g) { var d = g.wc - g.wf; return d === -5 ? 0 : d === 1 ? 1 : d === 5 ? 2 : 3; }
   function known(g) { markKnown(g); solve(g); } // for the bots and tests
 
   // ----- Bruno -----
@@ -646,7 +659,7 @@ var HF = (function () {
     S: {TITLE: S_TITLE, READY: S_READY, PLAY: S_PLAY, CLEAR: S_CLEAR, SLIDE: S_SLIDE, DYING: S_DYING, OVER: S_OVER}, E: E,
     create: create, newGame: newGame, titleScene: titleScene, step: step, pressDir: pressDir, releaseDir: releaseDir,
     pressFix: pressFix, releaseFix: releaseFix, releaseAll: releaseAll, nb: nb, hopTicks: hopTicks, known: known,
-    layoutOK: layoutOK, tune: tune, speed: speed, rnd: rnd
+    layoutOK: layoutOK, edge: edge, tune: tune, speed: speed, rnd: rnd
   };
 })();
 // ==/CORE==
