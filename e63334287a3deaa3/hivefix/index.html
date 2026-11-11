@@ -207,7 +207,7 @@ var HF = (function () {
   var S_TITLE = 0, S_READY = 1, S_PLAY = 2, S_CLEAR = 3, S_SLIDE = 4, S_DYING = 5, S_OVER = 6;
   var CLEAR_T = 2.2, SLIDE_T = 0.8, READY_T = 1.0, DYING_T = 1.4;
   var START = 12, NCH = 16, NW = 2, NEV = 48;
-  var HZ = 300, TR = 60;                          // the escape check looks 5 s ahead in 1/60 s ticks
+  var HZ = 600, TR = 120;                         // the escape check looks 5 s ahead in 1/120 s ticks (the game's own step)
   var E = {HOP: 1, BUMP: 2, FIXSTART: 3, FIX: 4, WHOLE: 5, WINDUP: 6, SLAM: 7, LAND: 8, WWARN: 9, WGO: 10, JSPAWN: 11,
     JGRAB: 12, BONK: 13, HIT: 14, CLEAR: 15, SLIDE: 16, READY: 17, PLAY: 18, DYING: 19, OVER: 20, RECRACK: 21, JGONE: 22};
 
@@ -259,7 +259,7 @@ var HF = (function () {
       bonusLeft: 0, bonusTotal: 0, timeBonus: 0, clearTime: 0,
       evN: 0, evT: new Uint8Array(NEV), evA: new Float32Array(NEV), evB: new Float32Array(NEV), evC: new Float32Array(NEV),
       D: new Uint8Array(HZ * NC), R: new Uint16Array(HZ * NC), ED: new Uint8Array(HZ * 22), ER: new Uint16Array(HZ * 22), OK: new Uint8Array(HZ * NC), okb: new Uint8Array(NC),
-      tn: {}, perm: new Int8Array(NC), q: new Int8Array(NC), seen: new Uint8Array(NC)
+      mg: 1, tn: {}, perm: new Int8Array(NC), q: new Int8Array(NC), seen: new Uint8Array(NC)
     };
     for (var i = 0; i < NC; i++) g.perm[i] = i;
     tune(1, g.tn);
@@ -275,7 +275,7 @@ var HF = (function () {
     if (d === 2) return row < 2 && !g.vR[row * 5 + col] ? c + 5 : -1;
     return col > 0 && !g.hR[row * 4 + col - 1] ? c - 1 : -1;
   }
-  function hopTicks(g, c) { return g.sticky[c] ? 16 : 6; } // in 1/60 s, rounded up
+  function hopTicks(g, c) { return g.sticky[c] ? 32 : 12; } // in 1/120 s, rounded up
   // Every cell keeps a sideways and an up-or-down way out, and every cell can be reached.
   function layoutOK(g) {
     var c, n = 0, h, t;
@@ -403,7 +403,7 @@ var HF = (function () {
   }
 
   // ----- the escape check: is there still a way out once this threat is added? -----
-  // D marks, for each 1/60 s tick of the next 5 s and each cell, whether a known chunk or wasp would overlap Wax's
+  // D marks, for each 1/120 s tick of the next 5 s and each cell, whether a known chunk or wasp would overlap Wax's
   // hitbox there. OK[t][c] is 1 if Wax, free at cell c at tick t, can survive every known threat (waiting, or hopping
   // along cells; a hop occupies both cells for its whole length). A new slam or wasp is only announced if no cell that
   // had a way out loses it, and Wax (counting a fix or hop in progress) keeps hers; otherwise Bruno holds his paws a beat.
@@ -412,7 +412,7 @@ var HF = (function () {
   // columns, blocks that hop even when neither cell is in its path at that moment.
   function mark(g, A, W2, c, ta, tb) {
     if (tb < 0) return;
-    var i0 = Math.floor(ta * TR) - 1, i1 = Math.ceil(tb * TR) + 1;
+    var i0 = Math.floor(ta * TR) - g.mg, i1 = Math.ceil(tb * TR) + g.mg;
     if (i0 < 0) i0 = 0; if (i1 > HZ - 1) i1 = HZ - 1;
     for (var i = i0; i <= i1; i++) A[i * W2 + c] = 1;
   }
@@ -478,9 +478,12 @@ var HF = (function () {
   // kind 0: a slam on columns a (and b) after the windup; kind 1: a wasp on row a going b after its warning.
   function check(g, kind, a, b) {
     if (g.state !== S_PLAY) return true;
-    markKnown(g); solve(g);
+    // "before" is judged without the one-tick safety margin and "after" with it, so a cell with even a narrow way
+    // out keeps a way out with room to spare
+    g.mg = 0; markKnown(g); solve(g); g.mg = 1;
     var c, wb = waxOK(g);
     for (c = 0; c < NC; c++) g.okb[c] = g.OK[c];
+    markKnown(g);
     var t = g.tn;
     if (kind === 0) { markChunk(g, a, CHUNK_Y0, t.chunkV, t.windup); if (b >= 0) markChunk(g, b, CHUNK_Y0, t.chunkV, t.windup); }
     else markWasp(g, a, b > 0 ? WASP_X0 : W - WASP_X0, b, t.waspV, WASP_WARN);
