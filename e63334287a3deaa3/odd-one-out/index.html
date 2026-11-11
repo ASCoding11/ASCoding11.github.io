@@ -1858,8 +1858,8 @@ function tfCheck(e,t,yaw){
 }
 // ---------- out of bounds ----------
 // Why a position is out of bounds ('' if it isn't): outside the map's floor (the hunters' waiting room counts as in only
-// when wait is true), under the floor, more than a jump above the area's height limit, standing on a cap, or inside a
-// wall. Only the position is needed, so it works on what other players report as well as on you.
+// when wait is true), under the floor, above the area's height limit (by more than a moment's jump: 'high'), standing
+// on a cap, or inside a wall. Only the position is needed, so it works on what other players report as well as on you.
 function oobAt(x,y,z,wait){
   const M=MAP;if(!M||!M.lidAt)return '';
   const wb=M.waitBox;
@@ -1868,11 +1868,13 @@ function oobAt(x,y,z,wait){
   let fl=false;for(const b2 of M.floors)if(x>=b2.x0-.05&&x<=b2.x1+.05&&z>=b2.z0-.05&&z<=b2.z1+.05){fl=true;break}
   if(!fl)return 'outside';
   if(y<-.5)return 'under';
-  if(y>M.lidAt(x,z)+1.15)return 'high';
   const near=solidsNear(x-.05,z-.05,x+.05,z+.05);
   for(const b2 of near){if(b2.ent||x<b2.x0||x>b2.x1||z<b2.z0||z>b2.z1)continue;
     if(b2.cap&&b2.kind!=='fix'&&y>=b2.y1-.08&&y<=b2.y1+.12)return 'on top';
     if((b2.kind==='wall'||b2.kind==='fence')&&y+.3>b2.y0&&y+.3<b2.y1)return 'in a wall'}
+  // more than 0.4 m above the height limit: a jump from the highest place you may stand gets there for under half a
+  // second (whoever reads this allows for that: your warning waits 0.6 s, others' screens 1 s, the host 5 s)
+  if(y>M.lidAt(x,z)+.4)return 'high';
   return '';
 }
 // The nearest place a player may be: the walkable floor cell closest to x, z (for drawing others, and putting you back).
@@ -2628,9 +2630,10 @@ function updateRemotes(dt){
     }
     // a player who says they're out of bounds (on a roof, in a wall, off the map) is drawn, and can be shot, at the
     // nearest place they could really be
-    const tk=e.tpos.x+','+e.tpos.y+','+e.tpos.z;
-    if(e.oobK!==tk){e.oobK=tk;e.oob=e.alive?oobAt(e.tpos.x,e.tpos.y,e.tpos.z,waitOK(e.id)):'';if(e.oob)e.oobP=nearestAllowed(e.tpos.x,e.tpos.y,e.tpos.z,e.oobP)}
-    if(e.oob)e.pos.copy(e.oobP);
+    // (checked where they're drawn, a moment in the past; just high only once it has lasted a second, so a jump from a
+    // tall shelf isn't cut short)
+    const w=e.alive?oobAt(e.pos.x,e.pos.y,e.pos.z,waitOK(e.id)):'';if(w&&!e.oob)e.oobT0=t;e.oob=w;
+    if(w&&(w!=='high'||t-e.oobT0>1000)){const k=Math.round(e.pos.x*4)+','+Math.round(e.pos.z*4);if(e.oobK!==k){e.oobK=k;e.oobP=nearestAllowed(e.pos.x,e.pos.y,e.pos.z,e.oobP)}e.pos.copy(e.oobP)}
     e.spd=lerp(e.spd,Math.hypot(e.pos.x-bx,e.pos.z-bz)/Math.max(dt,1e-3),.25);
     if(e.spd>.3)e.moveT=clock;
     if(e.alive&&e.spd>.8){e.stepT-=dt;if(e.stepT<=0){e.stepT=e.look==='hunter'?.36:.3;if(e.look==='hunter')sfx('step',e.pos,.8);else propSfx('scoot',e.pos,.8)}}
