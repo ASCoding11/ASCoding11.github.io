@@ -174,7 +174,7 @@ export const BOSS_FALL_GRAV = 0.2;
 export const BOSS_DOWN_FRAMES = 110;      // the fall before Pip walks on
 
 // ---------- audio ----------
-export const MASTER_VOL = 0.22;
+export const MASTER_VOL = 0.6;               // music peaks near 0.2 of full scale, the loudest effect near 0.45
 export const SFX_GAIN = 2.5;            // effects over the music
 export const HURRY_TEMPO = 1.35;
 export const SCHEDULE_AHEAD = 0.12;       // seconds of music scheduled ahead

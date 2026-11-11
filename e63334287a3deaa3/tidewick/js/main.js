@@ -16,9 +16,18 @@ const store = {
 
 const $ = id => document.getElementById(id);
 const canvas = $('screen');
-const ctx = canvas.getContext('2d', { alpha: false });
-canvas.width = SCREEN_W; canvas.height = SCREEN_H;
+// The game always draws into a 256 x 240 buffer. The canvas on the page holds that buffer blown up by a whole number
+// of DEVICE pixels (set in fit), so one canvas pixel is one screen pixel and nothing is ever resampled by the browser.
+const buffer = document.createElement('canvas');
+buffer.width = SCREEN_W; buffer.height = SCREEN_H;
+const ctx = buffer.getContext('2d', { alpha: false });
 ctx.imageSmoothingEnabled = false;
+const screenCtx = canvas.getContext('2d', { alpha: false });
+let pixelScale = 1;
+function present() {
+  screenCtx.imageSmoothingEnabled = false;
+  screenCtx.drawImage(buffer, 0, 0, SCREEN_W * pixelScale, SCREEN_H * pixelScale);
+}
 
 const S = buildSprites();
 const audio = new GameAudio(store);
@@ -42,14 +51,22 @@ function fit() {
   if (touchUI && land) { aw = vw - 2 * 176; ah = vh - 8; }
   else if (touchUI) { aw = vw - 8; ah = vh - 250; }
   else { aw = vw - 16; ah = vh - 44; }
-  // k device pixels per game pixel, but only where the size is also a whole number of CSS pixels (so the browser
-  // never rounds it); if no such size fits (unusual zoom levels), whole CSS pixels.
-  let k = Math.floor(Math.min(aw * dpr / SCREEN_W, ah * dpr / SCREEN_H));
-  const whole = v => Math.abs(v - Math.round(v)) < 1e-6;
-  while (k > 0 && !(whole(SCREEN_W * k / dpr) && whole(SCREEN_H * k / dpr))) k--;
-  if (k < 1) k = Math.max(1, Math.floor(Math.min(aw / SCREEN_W, ah / SCREEN_H))) * dpr;
-  canvas.style.width = Math.round(SCREEN_W * k / dpr) + 'px';
-  canvas.style.height = Math.round(SCREEN_H * k / dpr) + 'px';
+  // k whole device pixels per game pixel: the largest that fits. The canvas holds exactly that many pixels, and its
+  // CSS size is that divided by the device pixel ratio (which may be a fraction of a CSS pixel on a 3x phone).
+  const k = Math.max(1, Math.floor(Math.min(aw * dpr / SCREEN_W, ah * dpr / SCREEN_H)));
+  if (canvas.width !== SCREEN_W * k || canvas.height !== SCREEN_H * k) { canvas.width = SCREEN_W * k; canvas.height = SCREEN_H * k; }
+  pixelScale = k;
+  // Lay the canvas out at one CSS pixel per canvas pixel and shrink it by the device pixel ratio with a transform, so
+  // its size on screen is exactly k device pixels per game pixel (a fractional CSS width would be rounded by layout
+  // and stretch the picture by a pixel or two). Negative margins give the space back to the page.
+  const cw = SCREEN_W * k, ch = SCREEN_H * k;
+  canvas.style.width = cw + 'px';
+  canvas.style.height = ch + 'px';
+  canvas.style.transformOrigin = '0 0';
+  canvas.style.transform = dpr === 1 ? '' : 'scale(' + (1 / dpr) + ')';
+  canvas.style.marginRight = (cw / dpr - cw) + 'px';
+  canvas.style.marginBottom = (ch / dpr - ch) + 'px';
+  present();
   canvas.dataset.scale = k;
   document.body.classList.toggle('land', land);
 }
@@ -131,6 +148,7 @@ function render() {
     if (game.paused) drawPaused(ctx);
     if (debug) drawDebug(ctx, game, fps);
   }
+  present();
   document.body.classList.toggle('playing', game.mode !== 'title');
 }
 function frame(ts) {
