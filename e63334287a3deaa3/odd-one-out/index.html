@@ -148,6 +148,7 @@ h1 .o{color:var(--hunt)}h1 .t{color:var(--prop)}
 #pop.bad{color:#ff8b8b}#pop.good{color:var(--sun)}
 #tgt{position:absolute;left:50%;top:calc(50% + 26px);transform:translateX(-50%);font-weight:900;font-size:14px;background:rgba(23,26,46,.75);padding:3px 10px;border-radius:9px;white-space:nowrap}
 #tgt kbd{font:inherit;color:var(--sun)}
+#oob{position:absolute;left:50%;top:28%;transform:translateX(-50%);font-weight:900;font-size:16px;background:rgba(160,28,28,.88);padding:6px 14px;border-radius:10px;white-space:nowrap;box-shadow:0 0 0 2px rgba(255,255,255,.85)}
 #status{position:absolute;right:calc(14px + env(safe-area-inset-right,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));text-align:right;min-width:210px}
 #status .nm{font-family:var(--f-d);font-size:20px;line-height:1.1}
 #status .sub{font-weight:900;font-size:12.5px;opacity:.95;margin-top:2px}
@@ -291,6 +292,7 @@ body.touch #banner span{font-size:14px}
     <div id="hitm"><i></i><i></i><i></i><i></i></div>
     <div id="pop" class="out"></div>
     <div id="tgt" hidden></div>
+    <div id="oob" role="status" hidden></div>
     <div class="pill" id="propsBox"><svg class="tico" viewBox="0 0 26 26" aria-hidden="true"><path d="M3 9l10-5 10 5v10l-10 5-10-5z" fill="#14b89a" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><path d="M3 9l10 5 10-5M13 14v10" fill="none" stroke="#fff" stroke-width="2"/></svg><div><small id="propsLbl">Props</small><b id="propsN">0</b></div></div>
     <div class="pill" id="clockBox"><b id="clock">0:00</b><small id="phaseName">Lobby</small></div>
     <div class="pill" id="huntBox"><svg class="tico" viewBox="0 0 26 26" aria-hidden="true"><circle cx="13" cy="13" r="9" fill="none" stroke="#ff7a1a" stroke-width="3"/><path d="M13 1v7M13 18v7M1 13h7M18 13h7" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg><div><small>Hunters</small><b id="huntN">0</b></div></div>
@@ -1011,11 +1013,12 @@ const QYAW=[0,Math.PI/2,Math.PI,-Math.PI/2]; // a quarter-turned fixture's match
 class Builder{
   constructor(seed){this.r=rng(seed);this.buckets=new Map();this.boxes=[];this.props=[];this.objs=[]}
   // m: a material key, or {all, '+x', '-z', ...}. o: solid (default true), fit ('all' or faces like '+z-x' that stretch
-  // the texture once instead of tiling), skip (faces not drawn), ns (casts no shadow), ghost (drawn only), noRay (bullets pass)
+  // the texture once instead of tiling), skip (faces not drawn), ns (casts no shadow), ghost (drawn only), noRay (bullets pass),
+  // kind ('fix' furniture, default; 'floor', 'wall', 'fence', 'ceil' come from kit): see standRules
   box(x0,y0,z0,x1,y1,z1,m,o){
     o=o||{};
     if(x0>x1)[x0,x1]=[x1,x0];if(y0>y1)[y0,y1]=[y1,y0];if(z0>z1)[z0,z1]=[z1,z0];
-    const b={x0,y0,z0,x1,y1,z1,solid:o.solid!==false,ray:!o.noRay,big:true};
+    const b={x0,y0,z0,x1,y1,z1,solid:o.solid!==false,ray:!o.noRay,big:true,kind:o.kind||'fix'};
     for(let f=0;f<6;f++){
       const k=typeof m==='string'?m:(m[FACES[f]]||m.all);
       if(!k||o.invis||(o.skip&&o.skip.indexOf(FACES[f])>=0))continue;
@@ -1060,12 +1063,40 @@ class Builder{
     for(const o of this.objs)group.add(o);
     buildInstances(this.props,group);
     // every placed object is also a collider (its turned footprint) and a ray target (its exact turned box)
-    for(const p of this.props){const a=propAABB(p.t,p.x,p.y,p.z,p.yaw);a.solid=p.t.solid;a.ray=false;a.prop=p;p.box=a;this.boxes.push(a)}
+    for(const p of this.props){const a=propAABB(p.t,p.x,p.y,p.z,p.yaw);a.solid=p.t.solid;a.ray=false;a.prop=p;a.kind='fix';p.box=a;this.boxes.push(a)}
     const M=Object.assign({group,boxes:this.boxes,solids:this.boxes.filter(b=>b.solid),props:this.props},info);
-    buildGrid(M);buildNav(M);
+    standRules(M);buildGrid(M);buildNav(M);
     return M;
   }
 }
+// ---------- where players may stand ----------
+// Players were getting onto roofs (Willow Lane: up the shed's shelves and onto its roof, then across, or onto a tall
+// disguised player's head next to the house) and through walls. The rules, worked out here for every map so a new
+// map gets them for free:
+// - every ceiling is an indoor area; its height limit (lid) is the top of the tallest furniture or object base in it
+//   (+0.12 m). Outdoors the lid is just under the lowest roof (0.3 m below it).
+// - tops of walls, fences and ceilings (roofs), anything whose top is above its area's lid, and other players are
+//   "caps": you can't stand on them; land on one and you slide off (pushOut), the same as walking into a wall.
+// - you can't stand where your head would be in the ceiling.
+// - out of bounds (oobAt): outside the map's floor, under it, well above the lid (more than a jump), on a cap, or
+//   inside a wall. See controlMe (your own warning), updateRemotes (others drawn where they may be) and hostOOB.
+function standRules(M){
+  const areas=[];
+  for(const b of M.boxes)if(b.kind==='ceil')areas.push({x0:b.x0,z0:b.z0,x1:b.x1,z1:b.z1,ceil:b.y0,lid:0});
+  const areaAt=(x,z)=>{let best=null;for(const a of areas)if(x>=a.x0&&x<=a.x1&&z>=a.z0&&z<=a.z1&&(!best||(a.x1-a.x0)*(a.z1-a.z0)<(best.x1-best.x0)*(best.z1-best.z0)))best=a;return best};
+  for(const b of M.boxes){if(!b.solid||(b.kind!=='fix'))continue;const a=areaAt((b.x0+b.x1)/2,(b.z0+b.z1)/2);if(!a)continue;a.lid=Math.max(a.lid,b.prop?b.prop.y:b.y1)}
+  for(const a of areas)a.lid=Math.min(a.ceil-.3,a.lid+.12);
+  const outLid=M.outLid!=null?M.outLid:(areas.length?Math.min(...areas.map(a=>a.ceil)):3)-.3;
+  M.areas=areas;M.areaAt=areaAt;M.lidAt=(x,z)=>{const a=areaAt(x,z);return a?a.lid:outLid};M.ceilAt=(x,z)=>{const a=areaAt(x,z);return a?a.ceil:Infinity};
+  for(const b of M.boxes){
+    const cx=(b.x0+b.x1)/2,cz=(b.z0+b.z1)/2;
+    b.cap=b.kind==='wall'||b.kind==='fence'||b.kind==='ceil'||(b.kind!=='floor'&&b.y1>M.lidAt(cx,cz)+.001);
+    b.ceil0=b.kind==='ceil'?Infinity:M.ceilAt(cx,cz);
+  }
+  M.floors=M.boxes.filter(b=>b.kind==='floor');
+}
+// can an entity of height h stand on this box?
+const capFor=(b,h)=>b.cap||b.ceil0<b.y1+h-.02;
 // the axis-aligned box around a turned prop
 function propAABB(t,x,y,z,yaw){
   const c=Math.cos(yaw),s=Math.sin(yaw),bb=t.bb;let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;
@@ -1240,15 +1271,17 @@ sign('sMall','STARLIGHT GALLERIA','#171a2e','#ffd23f','#14b89a');sign('sOffice',
 function kit(B,H){
   const T=.1;
   const wallX=(z,x0,x1,m,doors,o)=>{o=o||{};const h=o.h||H,dh=o.dh||2.5;let a=x0;const segs=[];for(const d of (doors||[]).slice().sort((p,q)=>p[0]-q[0])){segs.push([a,d[0]]);a=d[1]}segs.push([a,x1]);
-    for(const s of segs)if(s[1]-s[0]>.01)B.box(s[0],0,z-T,s[1],h,z+T,m,o.fit?{fit:o.fit}:null);
-    if(h>dh)for(const d of doors||[])B.box(d[0],dh,z-T,d[1],h,z+T,m)};
+    const kind=m==='fence'?'fence':'wall';
+    for(const s of segs)if(s[1]-s[0]>.01)B.box(s[0],0,z-T,s[1],h,z+T,m,o.fit?{fit:o.fit,kind}:{kind});
+    if(h>dh)for(const d of doors||[])B.box(d[0],dh,z-T,d[1],h,z+T,m,{kind})};
   const wallZ=(x,z0,z1,m,doors,o)=>{o=o||{};const h=o.h||H,dh=o.dh||2.5;let a=z0;const segs=[];for(const d of (doors||[]).slice().sort((p,q)=>p[0]-q[0])){segs.push([a,d[0]]);a=d[1]}segs.push([a,z1]);
-    for(const s of segs)if(s[1]-s[0]>.01)B.box(x-T,0,s[0],x+T,h,s[1],m);
-    if(h>dh)for(const d of doors||[])B.box(x-T,dh,d[0],x+T,h,d[1],m)};
-  const floor=(x0,z0,x1,z1,m)=>B.box(x0,-.2,z0,x1,0,z1,m,{skip:'-y',ns:true});
+    const kind=m==='fence'?'fence':'wall';
+    for(const s of segs)if(s[1]-s[0]>.01)B.box(x-T,0,s[0],x+T,h,s[1],m,{kind});
+    if(h>dh)for(const d of doors||[])B.box(x-T,dh,d[0],x+T,h,d[1],m,{kind})};
+  const floor=(x0,z0,x1,z1,m)=>B.box(x0,-.2,z0,x1,0,z1,m,{skip:'-y',ns:true,kind:'floor'});
   // ceilings have a drawn top (a plain roof): outdoors the camera can rise above the walls, and an open top let a
   // hunter in the yard look straight down into the rooms
-  const ceil=(x0,z0,x1,z1,h)=>B.box(x0,h||H,z0,x1,(h||H)+.15,z1,{all:'ceil','+y':'roof'},{ns:true});
+  const ceil=(x0,z0,x1,z1,h)=>B.box(x0,h||H,z0,x1,(h||H)+.15,z1,{all:'ceil','+y':'roof'},{ns:true,kind:'ceil'});
   const lights=(x0,z0,x1,z1,sx,sz,h)=>{for(let x=x0;x<=x1+.01;x+=sx)for(let z=z0;z<=z1+.01;z+=sz)B.box(x-.6,(h||H)-.03,z-.3,x+.6,(h||H)-.005,z+.3,'lightPanel',{ghost:true,ns:true})};
   const deco=(x0,y0,z0,x1,y1,z1,k,face)=>B.box(x0,y0,z0,x1,y1,z1,{all:'black',[face]:k},{fit:face,solid:false,ghost:true,ns:true});
   return{wallX,wallZ,floor,ceil,lights,deco};
@@ -1650,13 +1683,18 @@ function shapeOf(e,yaw,out){
   return _shape.set(r,t.h);
 }
 const _shape={r:0,h:0,set(r,h){this.r=r;this.h=h;return this}};
-function pushOut(e,cs,r,h){
+// Push the body's circles out of what they overlap. A box counts when it's taller than a step above your feet (not a
+// ceiling: those only stop your head, and pushing sideways out of one could throw you through a wall), or when it's a
+// cap (see standRules) and you're on or just above its top: then you slide off it. capOnly: just the caps (standing still).
+function pushOut(e,cs,r,h,capOnly){
   let moved=false;const pad=r+.1;
   let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;for(const c of cs){x0=Math.min(x0,c[0]);x1=Math.max(x1,c[0]);z0=Math.min(z0,c[1]);z1=Math.max(z1,c[1])}
   const list=solidsNear(x0-pad,z0-pad,x1+pad,z1+pad).slice();
   for(let it=0;it<4;it++){let any=false;
     for(const b2 of list){
-      if(b2.ent===e||b2.y1<=e.pos.y+STEP||b2.y0>=e.pos.y+h)continue;
+      if(b2.ent===e)continue;
+      const y=e.pos.y,std=!capOnly&&b2.kind!=='ceil'&&b2.y1>y+STEP&&b2.y0<y+h;
+      if(!std&&!(b2.y1<=y+STEP&&b2.y1>y-.6&&y>=b2.y0-.01&&capFor(b2,h)))continue;
       for(const c of cs){
         const cx=clamp(c[0],b2.x0,b2.x1),cz=clamp(c[1],b2.z0,b2.z1),dx=c[0]-cx,dz=c[1]-cz,d2=dx*dx+dz*dz;if(d2>=r*r)continue;
         let px=0,pz=0;
@@ -1669,20 +1707,49 @@ function pushOut(e,cs,r,h){
   }
   return moved;
 }
+const heightOf=e=>e.look==='hunter'||!e.form?1.8:e.form.h;
+// the highest top under the body that it may stand on (caps and other players don't count)
 function groundAt(e,cs,r){
+  const h=heightOf(e);
   let g=-20;let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;for(const c of cs){x0=Math.min(x0,c[0]);x1=Math.max(x1,c[0]);z0=Math.min(z0,c[1]);z1=Math.max(z1,c[1])}
-  for(const b2 of solidsNear(x0-r,z0-r,x1+r,z1+r)){if(b2.ent===e||b2.y1>e.pos.y+STEP+.02||b2.y1<=g)continue;for(const c of cs){const cx=clamp(c[0],b2.x0,b2.x1),cz=clamp(c[1],b2.z0,b2.z1);if((c[0]-cx)**2+(c[1]-cz)**2<(r*.75)**2){g=b2.y1;break}}}
+  for(const b2 of solidsNear(x0-r,z0-r,x1+r,z1+r)){if(b2.ent===e||b2.y1>e.pos.y+STEP+.02||b2.y1<=g||capFor(b2,h))continue;for(const c of cs){const cx=clamp(c[0],b2.x0,b2.x1),cz=clamp(c[1],b2.z0,b2.z1);if((c[0]-cx)**2+(c[1]-cz)**2<(r*.75)**2){g=b2.y1;break}}}
   return g;
 }
+// a long body is a row of circles with gaps between them: the line through their centres mustn't cross a wall,
+// or a sofa could straddle a thin wall and turn its way through it
+function spineHit(e,cs,h){
+  if(cs.length<2)return false;const y=e.pos.y;
+  const a=cs[0],b=cs[cs.length-1],dx=b[0]-a[0],dz=b[1]-a[1];
+  for(const b2 of solidsNear(Math.min(a[0],b[0]),Math.min(a[1],b[1]),Math.max(a[0],b[0]),Math.max(a[1],b[1]))){
+    if(b2.ent===e||b2.kind==='ceil'||!(b2.y1>y+STEP&&b2.y0<y+h))continue;
+    let t0=0,t1=1;
+    for(const [o,d,lo,hi] of [[a[0],dx,b2.x0,b2.x1],[a[1],dz,b2.z0,b2.z1]]){
+      if(Math.abs(d)<1e-9){if(o<=lo||o>=hi){t0=2;break}continue}
+      let u=(lo-o)/d,v=(hi-o)/d;if(u>v)[u,v]=[v,u];t0=Math.max(t0,u);t1=Math.min(t1,v);if(t0>=t1)break;
+    }
+    if(t0<t1)return true;
+  }
+  return false;
+}
 function overlapping(e){const cs=[],f=shapeOf(e,e.yaw,cs),r=f.r,h=f.h;let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;for(const c of cs){x0=Math.min(x0,c[0]);x1=Math.max(x1,c[0]);z0=Math.min(z0,c[1]);z1=Math.max(z1,c[1])}
-  for(const b2 of solidsNear(x0-r,z0-r,x1+r,z1+r)){if(b2.ent===e||b2.y1<=e.pos.y+STEP||b2.y0>=e.pos.y+h)continue;for(const c of cs){const cx=clamp(c[0],b2.x0,b2.x1),cz=clamp(c[1],b2.z0,b2.z1);if((c[0]-cx)**2+(c[1]-cz)**2<(r-.03)**2)return true}}return false}
+  const y=e.pos.y;
+  for(const b2 of solidsNear(x0-r,z0-r,x1+r,z1+r)){if(b2.ent===e)continue;
+    if(!(b2.y1>y+STEP&&b2.y0<y+h)&&!(b2.y1<=y+STEP&&b2.y1>y-.6&&y>=b2.y0-.01&&capFor(b2,h)))continue;
+    for(const c of cs){const cx=clamp(c[0],b2.x0,b2.x1),cz=clamp(c[1],b2.z0,b2.z1);if((c[0]-cx)**2+(c[1]-cz)**2<(r-.03)**2)return true}}
+  return spineHit(e,cs,h)}
 const _cs=[];
 function moveEnt(e,dt){
   if(!MAP)return;
   const oy=e.pos.y;
-  e.pos.x+=e.vel.x*dt;e.pos.z+=e.vel.z*dt;
   let f=shapeOf(e,e.yaw,_cs);const r=f.r,h=f.h;
-  if(e.vel.x||e.vel.z)pushOut(e,_cs,r,h);
+  // move in steps no longer than most of the body's radius: at a slow laptop's frame rate a small, quick prop
+  // would otherwise cover more than a wall's thickness in one frame and come out on the far side
+  const mx=e.vel.x*dt,mz=e.vel.z*dt,moving=!!(mx||mz),n=moving?Math.min(10,Math.max(1,Math.ceil(Math.hypot(mx,mz)/Math.max(.05,r*.8)))):1;
+  for(let k=0;k<n;k++){
+    const px=e.pos.x,pz=e.pos.z;e.pos.x+=mx/n;e.pos.z+=mz/n;shapeOf(e,e.yaw,_cs);
+    pushOut(e,_cs,r,h,!moving);
+    if(_cs.length>1&&spineHit(e,_cs,h)){e.pos.x=px;e.pos.z=pz;shapeOf(e,e.yaw,_cs)}
+  }
   // keep to the map, or to the hunters' waiting room for whoever is in it (the space between them has no floor: on
   // Willow Lane a prop could climb the yard fence and drop off the outside, below the map where nobody can reach it)
   const wb=MAP.waitBox,bd=e.pos.x>wb[0]-.5&&e.pos.x<wb[2]+.5&&e.pos.z>wb[1]-.5&&e.pos.z<wb[3]+.5?wb:MAP.bounds;
@@ -1696,14 +1763,67 @@ function moveEnt(e,dt){
   if(e.pos.y<=g+.001||(e.onGround&&e.vel.y<=0&&e.pos.y-g<.3)){if(!e.onGround&&e.isMe&&e.vel.y<-4)sfx('step',null,.6);e.pos.y=g;e.vel.y=0;e.onGround=true}else e.onGround=false;
   if(e.pos.y<-5){e.pos.y=1;e.vel.y=0}
 }
-function turnTo(e,yaw){const oy=e.yaw,oPos=e.pos.clone();e.yaw=wrapA(yaw);const f=shapeOf(e,e.yaw,_cs);pushOut(e,_cs,f.r,f.h);if(e.pos.distanceTo(oPos)>.3||overlapping(e)){e.yaw=oy;e.pos.copy(oPos);return false}return true}
+function turnTo(e,yaw){const oy=e.yaw,oPos=e.pos.clone();e.yaw=wrapA(yaw);const f=shapeOf(e,e.yaw,_cs);pushOut(e,_cs,f.r,f.h);if(e.pos.distanceTo(oPos)>.3||overlapping(e)||!segClear(e,oPos,e.pos,f.h)){e.yaw=oy;e.pos.copy(oPos);return false}return true}
+// is the straight move from a to b (at a's height) clear of walls and furniture taller than a step?
+function segClear(e,a,b,h){
+  const dx=b.x-a.x,dz=b.z-a.z;if(dx*dx+dz*dz<1e-8)return true;
+  for(const b2 of solidsNear(Math.min(a.x,b.x),Math.min(a.z,b.z),Math.max(a.x,b.x),Math.max(a.z,b.z))){
+    if(b2.ent===e||b2.kind==='ceil'||!(b2.y1>a.y+STEP&&b2.y0<a.y+h))continue;
+    let t0=0,t1=1;
+    for(const [o,d,lo,hi] of [[a.x,dx,b2.x0,b2.x1],[a.z,dz,b2.z0,b2.z1]]){
+      if(Math.abs(d)<1e-9){if(o<=lo||o>=hi){t0=2;break}continue}
+      let u=(lo-o)/d,v=(hi-o)/d;if(u>v)[u,v]=[v,u];t0=Math.max(t0,u);t1=Math.min(t1,v);if(t0>=t1)break;
+    }
+    if(t0<t1)return false;
+  }
+  return true;
+}
+// Changing form (you, or a bot): the new shape is pushed out of whatever it overlaps, but never more than 0.8 m, never
+// through anything (the move must be clear), never up onto something higher than you stood, and never out of bounds.
+// On success e has the new form and facing (the caller swaps the model); otherwise nothing changes.
+function tfCheck(e,t,yaw){
+  const old=e.form,oy=e.yaw,op=e.pos.clone();e.form=t;e.yaw=yaw;
+  const f=shapeOf(e,e.yaw,_cs);pushOut(e,_cs,f.r,f.h);
+  let bad=e.pos.distanceTo(op)>.8||overlapping(e)||!segClear(e,op,e.pos,f.h);
+  if(!bad){shapeOf(e,e.yaw,_cs);const g=groundAt(e,_cs,f.r);if(g>op.y+.02)bad=true}
+  if(!bad&&oobAt(e.pos.x,e.pos.y,e.pos.z,true))bad=true;
+  if(bad){e.form=old;e.yaw=oy;e.pos.copy(op);return false}
+  return true;
+}
+// ---------- out of bounds ----------
+// Why a position is out of bounds ('' if it isn't): outside the map's floor (the hunters' waiting room counts as in only
+// when wait is true), under the floor, more than a jump above the area's height limit, standing on a cap, or inside a
+// wall. Only the position is needed, so it works on what other players report as well as on you.
+function oobAt(x,y,z,wait){
+  const M=MAP;if(!M||!M.lidAt)return '';
+  const wb=M.waitBox;
+  if(x>wb[0]-.3&&x<wb[2]+.3&&z>wb[1]-.3&&z<wb[3]+.3)return wait?(y<-.5||y>2.6?'outside':''):'outside';
+  const bd=M.bounds;if(x<bd[0]-.05||x>bd[2]+.05||z<bd[1]-.05||z>bd[3]+.05)return 'outside';
+  let fl=false;for(const b2 of M.floors)if(x>=b2.x0-.05&&x<=b2.x1+.05&&z>=b2.z0-.05&&z<=b2.z1+.05){fl=true;break}
+  if(!fl)return 'outside';
+  if(y<-.5)return 'under';
+  if(y>M.lidAt(x,z)+1.15)return 'high';
+  const near=solidsNear(x-.05,z-.05,x+.05,z+.05);
+  for(const b2 of near){if(b2.ent||x<b2.x0||x>b2.x1||z<b2.z0||z>b2.z1)continue;
+    if(b2.cap&&b2.kind!=='fix'&&y>=b2.y1-.08&&y<=b2.y1+.12)return 'on top';
+    if((b2.kind==='wall'||b2.kind==='fence')&&y+.3>b2.y0&&y+.3<b2.y1)return 'in a wall'}
+  return '';
+}
+// The nearest place a player may be: the walkable floor cell closest to x, z (for drawing others, and putting you back).
+function nearestAllowed(x,y,z,out){
+  const N=MAP.nav;let c=navCell(x,z);
+  if(c<0||!N.g[c]||oobAt(cellPos(c)[0],0,cellPos(c)[1])){let bd=1e9;c=-1;for(let k=0;k<N.g.length;k++){if(!N.g[k])continue;const p=cellPos(k),d=(p[0]-x)**2+(p[1]-z)**2;if(d<bd&&!oobAt(p[0],0,p[1])){bd=d;c=k}}}
+  out=out||new V3();if(c<0)return out.set(x,0,z);const p=cellPos(c);
+  let g=0;for(const b2 of solidsNear(p[0]-.01,p[1]-.01,p[0]+.01,p[1]+.01))if(!b2.ent&&!b2.cap&&b2.y1<=STEP+.02&&b2.y1>g&&p[0]>=b2.x0&&p[0]<=b2.x1&&p[1]>=b2.z0&&p[1]<=b2.z1)g=b2.y1;
+  return out.set(p[0],g,p[1]);
+}
 function rebuildDyn(){
   dynBoxes.length=0;
   for(const e of ents.values()){
     if(!e.alive||!e.visible)continue;
     let bx;if(e.look==='hunter'||!e.form)bx={x0:e.pos.x-.3,y0:e.pos.y,z0:e.pos.z-.3,x1:e.pos.x+.3,y1:e.pos.y+1.8,z1:e.pos.z+.3};
     else{bx=propAABB(e.form,e.pos.x,e.pos.y,e.pos.z,e.yaw);if(!e.form.solid)continue}
-    bx.solid=true;bx.ray=false;bx.ent=e;dynBoxes.push(bx);
+    bx.solid=true;bx.ray=false;bx.ent=e;bx.cap=true;bx.ceil0=Infinity;bx.kind='ent';dynBoxes.push(bx);
   }
 }
 
@@ -1797,6 +1917,7 @@ function hostTick(){
     return;
   }
   if(rs.ph==='hunt'){
+    if(hostOOB(rs))return;
     const p=aliveProps(rs),h=aliveHunters(rs);
     if(!p.length)endRound(rs,'hunters');else if(!h.length)endRound(rs,'props');else if(t>=rs.t0+rs.dur)endRound(rs,'props');
     return;
@@ -1807,6 +1928,20 @@ function hostTick(){
     return;
   }
   if(rs.ph==='over'&&t>=rs.t0+rs.dur)setRS(lobbyRS(rs));
+}
+// The host's out-of-bounds rule: anyone whose own reported position (or a bot's) stays out of bounds for 5 s of a hunt
+// is out of the round ('ob' in the round state says why, for the feed).
+function hostOOB(rs){
+  const t=now(),seen=G.oobSeen||(G.oobSeen={});let el=null,ob=null;
+  for(const u of rs.pr.concat(rs.hu)){
+    if(rs.el&&rs.el[u])continue;const k=rs.id+':'+u;
+    let p=null;if(u===myId())p=me&&me.alive?me.pos:null;else{const e=ents.get(u);if(e&&e.alive&&present(u))p=e.remote?e.tpos:e.pos}
+    if(!p||!oobAt(p.x,p.y,p.z,false)){delete seen[k];continue}
+    if(!seen[k]){seen[k]=t;continue}
+    if(t-seen[k]>5000){el=el||Object.assign({},rs.el);ob=ob||Object.assign({},rs.ob);el[u]=['',Math.round((t-rs.t0)/1000)];ob[u]=1;delete seen[k]}
+  }
+  if(el){setRS(Object.assign({},rs,{el,ob}));return true}
+  return false;
 }
 function endRound(rs,win){
   const pts={},sc=Object.assign({},rs.sc||{}),surv={},huntS=Math.min(rs.set.hunt,Math.max(0,(now()-rs.t0)/1000));
@@ -1856,9 +1991,11 @@ function onElim(u,by,rs){
   const e=ents.get(u),isH=rs.hu.indexOf(u)>=0;
   if(e){const c=e.pos.clone();c.y+=e.look==='hunter'?1:(e.form?e.form.h/2:.4);burst(c,e.look==='prop'?e.form:null);sfx('elim',c)}
   const fn=e&&e.form&&!isH?' <span class="y">('+esc(e.form.name)+')</span>':'';
-  if(isH)feed('<span class="h">'+esc(nameOf(u))+'</span> ran out of health');
+  const ob=!!(rs.ob&&rs.ob[u]);
+  if(ob)feed('<span class="'+(isH?'h':'p')+'">'+esc(nameOf(u))+'</span> was out of bounds'+fn);
+  else if(isH)feed('<span class="h">'+esc(nameOf(u))+'</span> ran out of health');
   else feed('<span class="h">'+esc(nameOf(by))+'</span> found <span class="p">'+esc(nameOf(u))+'</span>'+fn);
-  if(u===myId()){banner(isH?'OUT OF HEALTH':'FOUND!',isH?'Too many wrong shots. Watch your team finish the round.':'By '+nameOf(by)+'. Watch your team finish the round.',3,'hunt');G.specId=null}
+  if(u===myId()){if(ob)banner('OUT OF BOUNDS','You stayed off the map too long. Watch your team finish the round.',3,'hunt');else banner(isH?'OUT OF HEALTH':'FOUND!',isH?'Too many wrong shots. Watch your team finish the round.':'By '+nameOf(by)+'. Watch your team finish the round.',3,'hunt');G.specId=null}
   if(by===myId()&&window.BackRoomStats)BackRoomStats.add('found',1);
   if(by===myId()){popup('+100 · FOUND '+nameOf(u).toUpperCase(),'good');hitMark(true)}
 }
@@ -1959,11 +2096,27 @@ function controlMe(dt){
     else if(!G.lock){const want=wrapA(camYaw+Math.PI+G.rotOff),d=angDiff(want,e.yaw);if(Math.abs(d)>.002)turnTo(e,e.yaw+clamp(d,-9*dt,9*dt))}
   }
   if(held('jump')&&canMove()&&e.onGround){e.vel.y=JUMP*(hunter?1:.92);e.onGround=false;sfx('jump',null,.5)}
-  const before=e.pos.clone();moveEnt(e,dt);
+  const before=e.pos.clone();moveEnt(e,dt);ownOOB(dt);
   e.spd=Math.hypot(e.pos.x-before.x,e.pos.z-before.z)/Math.max(dt,1e-3);
   if(e.spd>.3)e.moveT=clock;
   if(e.onGround&&e.spd>.6){e.stepT-=dt;if(e.stepT<=0){e.stepT=hunter?.36:.3;sfx(hunter?'step':'scoot',null,.5)}}
 }
+// Out of bounds on your own screen (a glitch nobody found, or someone editing their position): after a moment, a
+// one-line warning counts down from 3, then you're put back where you last stood (or the nearest floor).
+const waitOK=(id,rs)=>{rs=rs||G.rs;return !rs||!(rs.ph==='hide'||rs.ph==='hunt')||(rs.ph==='hide'&&rs.hu.indexOf(id)>=0)};
+function ownOOB(dt){
+  const e=me,why=e&&e.alive&&canMove()?oobAt(e.pos.x,e.pos.y,e.pos.z,waitOK(myId())):'';
+  if(!why){G.oobT=0;if(e&&e.onGround){if(!e.safe)e.safe=new V3();e.safe.copy(e.pos)}setOOB('');return}
+  G.oobT=(G.oobT||0)+dt;
+  if(G.oobT<.6){setOOB('');return}
+  const left=3.6-G.oobT;
+  if(left>0){setOOB('Out of bounds: back in '+Math.ceil(left)+'…');return}
+  const to=e.safe&&!oobAt(e.safe.x,e.safe.y,e.safe.z,waitOK(myId()))?e.safe.clone():nearestAllowed(e.pos.x,e.pos.y,e.pos.z);
+  e.pos.copy(to);e.vel.set(0,0,0);e.onGround=true;const f=shapeOf(e,e.yaw,_cs);pushOut(e,_cs,f.r,f.h);
+  G.oobT=0;setOOB('');G.oobResets=(G.oobResets||0)+1;sfx('deny');
+  if(G.mode==='online')Net.pubPos();
+}
+function setOOB(t){if(hudCache.oob!==t){hudCache.oob=t;const el=$('oob');el.textContent=t;el.hidden=!t}}
 // ---------- props: turning into things ----------
 const _o=new V3(),_d=new V3();
 function camRay(spread){
@@ -1990,9 +2143,7 @@ function doTransform(){
   const T=G.target;if(!T||!me||!isProp()||!me.alive)return;
   if(G.tfCd>0){toast('You can change again in '+Math.ceil(G.tfCd)+'s');sfx('deny');return}
   if(T.t===me.form&&Math.abs(angDiff(T.yaw,me.yaw))<.01){toast('You already look like that');return}
-  const old=me.form,oy=me.yaw,op=me.pos.clone();me.form=T.t;me.yaw=T.yaw;
-  const f=shapeOf(me,me.yaw,_cs);pushOut(me,_cs,f.r,f.h);
-  if(me.pos.distanceTo(op)>.8||overlapping(me)){me.form=old;me.yaw=oy;me.pos.copy(op);toast('No room to become that here');sfx('deny');return}
+  if(!tfCheck(me,T.t,T.yaw)){toast('No room to become that here');sfx('deny');return}
   setForm(me,T.t);G.tfCd=TF_CD;G.lock=true;G.rotOff=0;
   const c=me.pos.clone();c.y+=T.t.h/2;puff(c,clamp(Math.max(T.t.w,T.t.h),.4,1.4));sfx('transform',c);
   if(G.mode==='online')Net.upd({d:T.t.id,h:r3(me.yaw)});
@@ -2169,7 +2320,7 @@ function botProp(e,dt,rs){
   }
 }
 function lerpAng(a,b2,k){return wrapA(a+angDiff(b2,a)*clamp(k,0,1))}
-function tryForm(e,t,yaw){const of=e.form,oy=e.yaw,op=e.pos.clone();e.form=t;e.yaw=yaw;const f=shapeOf(e,e.yaw,_cs);pushOut(e,_cs,f.r,f.h);if(e.pos.distanceTo(op)>.8||overlapping(e)){e.form=of;e.yaw=oy;e.pos.copy(op);return false}setForm(e,t);return true}
+function tryForm(e,t,yaw){if(!tfCheck(e,t,yaw))return false;setForm(e,t);return true}
 const _eye=new V3(),_tc=new V3();
 function botHunter(e,dt,rs){
   const b2=e.bot,D=DIFF[G.diff];
@@ -2342,7 +2493,7 @@ function sanitizeRS(p){
   return{id:p.id,mid:Math.round(numIn(p.mid,0,1e9,0)),rn:Math.round(numIn(p.rn,0,1000,0)),ph:p.ph,t0:p.t0,dur:numIn(p.dur,0,3600000,0),map:clamp(p.map|0,0,MAPS.length-1),
     set:cleanSet(p.set),hu,pr:idList(p.pr).filter(u=>hu.indexOf(u)<0),hf:idMap(p.hf,v=>finN(v)?clamp(v,0,1):undefined),
     el:idMap(p.el,v=>Array.isArray(v)?[typeof v[0]==='string'&&(v[0]===''||ID_RE.test(v[0]))?v[0]:'',numIn(v[1],0,3600,0)]:undefined),
-    k:intMap(p.k),sc:intMap(p.sc),hn:intMap(p.hn),as:numIn(p.as,0,1e15,0),
+    k:intMap(p.k),sc:intMap(p.sc),hn:intMap(p.hn),as:numIn(p.as,0,1e15,0),ob:idMap(p.ob,v=>v?1:undefined),
     res:isObj(res)?{win:res.win==='hunters'?'hunters':'props',pts:intMap(res.pts),names:idMap(res.names,v=>typeof v==='string'&&cleanName(v)||undefined),surv:intMap(res.surv),forms:idMap(res.forms,v=>ptOf(v)?v:undefined)}:null};
 }
 function onNode(uid,v){
@@ -2409,6 +2560,11 @@ function updateRemotes(dt){
       if(e.pos.distanceTo(e.tpos)>6)e.pos.copy(e.tpos);else if(e.pos.distanceToSquared(e.tpos)<1e-6)e.pos.copy(e.tpos);else e.pos.lerp(e.tpos,k);
       const d=angDiff(e.tyaw,e.yaw);e.yaw=Math.abs(d)<1e-3?e.tyaw:wrapA(e.yaw+d*k);
     }
+    // a player who says they're out of bounds (on a roof, in a wall, off the map) is drawn, and can be shot, at the
+    // nearest place they could really be
+    const tk=e.tpos.x+','+e.tpos.y+','+e.tpos.z;
+    if(e.oobK!==tk){e.oobK=tk;e.oob=e.alive?oobAt(e.tpos.x,e.tpos.y,e.tpos.z,waitOK(e.id)):'';if(e.oob)e.oobP=nearestAllowed(e.tpos.x,e.tpos.y,e.tpos.z,e.oobP)}
+    if(e.oob)e.pos.copy(e.oobP);
     e.spd=lerp(e.spd,Math.hypot(e.pos.x-bx,e.pos.z-bz)/Math.max(dt,1e-3),.25);
     if(e.spd>.3)e.moveT=clock;
     if(e.alive&&e.spd>.8){e.stepT-=dt;if(e.stepT<=0){e.stepT=e.look==='hunter'?.36:.3;if(e.look==='hunter')sfx('step',e.pos,.8);else propSfx('scoot',e.pos,.8)}}
@@ -2864,7 +3020,8 @@ const inv=/^#ph-([a-z0-9-]{1,17})$/.exec(location.hash);
 if(inv){$('room').value=inv[1];setMsg('You were invited to room ph-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.remove('alt');$('joinRoom').classList.add('orange');$('quick').classList.remove('orange');$('quick').classList.add('alt')}
 
 // In automated browsers only: a handle for tests (advance runs the game without drawing).
-if(navigator.webdriver)window.__ph={hostSet,setTouchUI,setForm,G,PT,PT_LIST,MAPS,ents,Net,onNode,get me(){return me},get MAP(){return MAP},get mapIdx(){return mapIdx},loadMap,startPractice,practiceReady,goOnline,toMenu,setRS,newRound,lobbyRS,hostTick,hostHits,roleOf,hpOf,maxHpOf,
+if(navigator.webdriver)window.__ph={clearFx,moveEnt,shapeOf,groundAt,pushOut,turnTo,rebuildDyn,dynBoxes,makeEnt,removeEnt,setLook,solidsNear,propAABB,GRAV,JUMP,STEP,tfCheck,oobAt,nearestAllowed,capFor,
+  get lidAt(){return MAP&&MAP.lidAt},hostSet,setTouchUI,setForm,G,PT,PT_LIST,MAPS,ents,Net,onNode,get me(){return me},get MAP(){return MAP},get mapIdx(){return mapIdx},loadMap,startPractice,practiceReady,goOnline,toMenu,setRS,newRound,lobbyRS,hostTick,hostHits,roleOf,hpOf,maxHpOf,
   doTransform,toggleLock,alignMe,fire,startReload,findTarget,rayWorld,camRay,cycleSpec,specTarget,showPause,resume,overlapping,keys,tAct,KB,renderer,scene,camera,step,
   get camYaw(){return camYaw},set camYaw(v){camYaw=v},get camPitch(){return camPitch},set camPitch(v){camPitch=v},propModel,
   advance(sec,dt){dt=dt||1/30;G.noRender=true;try{for(let t=0;t<sec-1e-9;t+=dt){if(G.mode!=='online'&&!G.paused)G.tOff=(G.tOff||0)+dt*1000;step(dt)}}finally{G.noRender=false}renderer.render(scene,camera)},
