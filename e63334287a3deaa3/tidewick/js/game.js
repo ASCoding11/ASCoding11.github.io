@@ -46,6 +46,7 @@ export class Game {
 
   get map() { return this.scene.map; }
   get camX() { return this.cam.x; }
+  get camLeft() { return this.cam.x; }   // the left edge of the view is a wall for Pip
   get bolts() { return this.scene.bolts; }
   get stageDef() { return STAGES[this.stage]; }
 

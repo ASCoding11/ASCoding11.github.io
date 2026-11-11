@@ -61,7 +61,7 @@ export const SONGS = {
   clear: { step: 0.11, p1: 'A4/1 D5/1 F#5/1 A5/2 F#5/1 A5/1 D6/6', p2: 'F#4/1 A4/1 D5/1 F#5/2 D5/1 F#5/1 A5/6', tri: 'D3/3 A3/3 D3/1 D2/6' },
   death: { step: 0.12, p1: 'B4/1 r/1 A#4/1 A4/1 r/1 G#4/2 r/1 E4/1 D#4/1 E4/4', tri: 'E3/2 r/2 D#3/2 r/2 E2/6' },
   gameover: { step: 0.2, p1: 'A4/2 F4/2 D4/2 C#4/2 D4/6', p2: 'F4/4 D4/4 A3/6', tri: 'D3/4 A2/4 D2/6' },
-  hurry: { step: 0.07, p1: 'A5/1 r/1 A4/1 r/1 A5/1 r/1 A4/1 r/1 C6/1 r/1 C5/1 r/1 E6/4', p2: 'A4/1 r/1 A3/1 r/1 A4/1 r/1 A3/1 r/1 C5/1 r/1 C4/1 r/1 E5/4' },
+  hurry: { step: 0.07, p1: 'A5/1 r/1 A4/1 r/1 A5/1 r/1 A4/1 r/1 C6/1 r/1 C5/1 r/1 E6/4', p2: 'A4/1 r/1 A3/1 r/1 A4/1 r/1 A3/1 r/1 C5/1 r/1 C4/1 r/1 E5/4', tri: 'A3/2 A2/2 A3/2 A2/2 C4/2 C3/2 E4/4' },
   bossDown: { step: 0.09, p1: 'C5/1 E5/1 G5/1 C6/1 E5/1 G5/1 C6/1 E6/1 G5/1 C6/1 E6/1 G6/5', tri: 'C3/4 G3/4 C4/4 C3/4' },
   ending: { step: 0.13, p1: 'D5/2 F#5/1 A5/1 B5/2 A5/2 F#5/2 E5/1 F#5/1 D5/2 A4/2 B4/2 C#5/2 D5/8', p2: 'A4/4 B4/4 A4/4 G4/4 F#4/4 G4/4 F#4/8', tri: 'D3/4 G2/4 D3/4 A2/4 B2/4 A2/4 D2/8' }
 };
