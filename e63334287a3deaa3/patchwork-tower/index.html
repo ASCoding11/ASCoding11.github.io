@@ -1,0 +1,645 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Patchwork Tower</title>
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#0d1230">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one night-time world. A slim bar along the top, the game screen (a 240 x 320 picture shown at a whole number
+   of screen pixels per game pixel, placed by layout() in the script) in the middle, a key hint under it on computers,
+   and on touch screens a d-pad and a round FIX button under the screen (beside it when the phone is sideways). */
+:root{
+  color-scheme:dark;
+  --night:#0d1230;--panel:#1a2150;--edge:#323c85;--ink:#eef0ff;--dim:#9aa3d6;--lamp:#ffd35a;--teal:#3fd6c0;--red:#ff6b6b;
+  --display:"Press Start 2P",ui-monospace,monospace;
+  --body:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  /* Controls panel (../keybinds.js) in the tower's colours */
+  --kb-bg:#141a44;--kb-fg:var(--ink);--kb-muted:var(--dim);--kb-line:var(--edge);--kb-accent:var(--lamp);--kb-accent-ink:#1a1400;--kb-warn:var(--red);
+  --kb-border:3px solid var(--edge);--kb-shadow:none;--kb-radius:8px;--kb-key-radius:4px;--kb-key-border:2px solid var(--edge);--kb-key-bg:var(--panel);--kb-key-shadow:none;
+  --kb-font:var(--body);--kb-font-display:var(--display);--kb-key-weight:600;--kb-title-size:14px;--kb-title-weight:400;--kb-backdrop:rgba(5,7,20,.7);--kb-blur:0px;--kb-pad:18px;--kb-width:440px;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;overflow:hidden}
+body{background:var(--night);color:var(--ink);font-family:var(--body);font-size:14px;line-height:1.5;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
+[hidden]{display:none!important}
+#app{position:fixed;inset:0;overflow:hidden}
+#bar{position:absolute;left:0;right:0;top:0;height:calc(40px + env(safe-area-inset-top));display:flex;align-items:center;gap:8px;padding:env(safe-area-inset-top) max(10px,env(safe-area-inset-right)) 0 max(10px,env(safe-area-inset-left));z-index:5}
+#bar h1{font-family:var(--display);font-weight:400;font-size:clamp(8px,2.6vw,12px);letter-spacing:1px;color:var(--lamp);margin:0 auto 0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#back{font-family:var(--display);font-size:16px;color:var(--dim);text-decoration:none;padding:6px 8px;border-radius:6px}
+#back:hover{color:var(--ink)}
+button{font-family:var(--display);color:var(--ink);background:var(--panel);border:2px solid var(--edge);border-radius:6px;font-size:10px;cursor:pointer;touch-action:manipulation}
+button:active{background:#2a3478}
+button:focus-visible,a:focus-visible{outline:2px solid var(--lamp);outline-offset:2px}
+.ib{height:30px;min-width:34px;padding:0 8px}
+.ib[aria-pressed="true"]{color:var(--dim);border-style:dashed}
+.ghost{padding:10px 14px}
+.cta{padding:10px 14px;background:var(--teal);color:#06302b;border-color:#8ff0e2}
+#c{position:absolute;left:0;top:0;display:block;transform-origin:0 0;image-rendering:pixelated;image-rendering:crisp-edges;background:#000;outline:4px solid var(--panel);touch-action:none}
+#hint{position:absolute;left:0;right:0;bottom:8px;margin:0;text-align:center;color:var(--dim);font-size:13px}
+#hint b{color:var(--ink);font-weight:600}
+body.touch #hint,body.touch #bKeys{display:none}
+/* touch controls: placed by layout() */
+#pad,#fix{position:absolute;display:none;touch-action:none}
+body.touch #pad,body.touch #fix{display:block}
+#pad{width:168px;height:168px}
+#pad i{position:absolute;width:52px;height:52px;display:grid;place-items:center;font-style:normal;font-family:var(--display);font-size:16px;background:var(--panel);border:2px solid var(--edge);border-radius:8px;color:var(--ink);pointer-events:none}
+#pad i.on{background:#34409a;border-color:var(--lamp);color:var(--lamp)}
+#pad .u{left:58px;top:0}#pad .l{left:0;top:58px}#pad .r{left:116px;top:58px}#pad .d{left:58px;top:116px}
+#fix{width:104px;height:104px;border-radius:50%;background:var(--teal);color:#06302b;border:3px solid #8ff0e2;font-size:16px}
+#fix.on,#fix:active{background:#2fb3a0}
+/* how to play: a column beside the screen when there is room, otherwise a sheet opened with the ? button */
+#how{position:absolute;z-index:6;width:250px;color:var(--dim);font-size:13px}
+#how h2{font-family:var(--display);font-weight:400;font-size:10px;color:var(--lamp);margin:0 0 10px;letter-spacing:1px}
+#how p{margin:0 0 10px}
+#how b{color:var(--ink);font-weight:600}
+#how.sheet{left:50%;top:50%;transform:translate(-50%,-50%);width:min(340px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow:auto;background:#141a44;border:3px solid var(--edge);border-radius:8px;padding:16px}
+#how:not(.sheet) #howClose{display:none}
+#howClose{margin-top:4px}
+</style>
+<script src="/e63334287a3deaa3/stats.js" data-game="patchwork-tower" defer></script>
+</head>
+<body>
+<div id="app">
+  <div id="bar">
+    <a id="back" href="/e63334287a3deaa3/" aria-label="Back to the Back Room">‹</a>
+    <h1>PATCHWORK TOWER</h1>
+    <button class="ib" id="bHelp" aria-label="How to play">?</button>
+    <button class="ib" id="bKeys" aria-label="Change the keys">KEYS</button>
+    <button class="ib" id="bMute" aria-label="Sound" aria-pressed="false">SND</button>
+    <button class="ib" id="bPause" aria-label="Pause">II</button>
+  </div>
+  <canvas id="c" width="240" height="320" aria-label="Game screen"></canvas>
+  <div id="pad" aria-label="Move"><i class="u">▲</i><i class="l">◀</i><i class="r">▶</i><i class="d">▼</i></div>
+  <button id="fix" aria-label="Fix">FIX</button>
+  <p id="hint"><b data-kb="up left down right" data-kb-short data-kb-sep=" ">Arrows</b> move · <b data-kb="fix" data-kb-short>Space</b> fix · <b data-kb="pause" data-kb-short>P</b> pause</p>
+  <div id="how" hidden>
+    <h2>HOW TO PLAY</h2>
+    <p>Hop <b>Rivet the repair bot</b> from window to window and press <b>FIX</b> until each one glows. Dark windows need two fixes. Fixing roots you to the spot.</p>
+    <p>The <b>gargoyle</b> on the roof kicks bricks down the column it stands over. When its eyes go red, a red arrow marks every column about to be hit.</p>
+    <p><b>Bats</b> cross the rows: an arrow at the edge shows where one is coming from.</p>
+    <p>Grab the <b>cocoa</b> for a few seconds of invincibility and one-tap repairs. <b>Planters</b> block climbing and <b>shutters</b> block side steps.</p>
+    <p>Finish a floor quickly for a bigger bonus.</p>
+    <button class="ghost" id="howClose">CLOSE</button>
+  </div>
+</div>
+<script src="../keybinds.js"></script>
+<script>
+(function(){
+"use strict";
+/* =====================================================================
+   Patchwork Tower: a one-screen fix-it arcade game.
+   ==RULES== ... ==END RULES== is the game itself: it never touches the page, the clock, sound or Math.random, so the
+   same seed and the same presses always give the same game (the tests run it headless). It advances in fixed steps
+   of 1/120 s; the page draws between steps, so sprites slide smoothly on any screen and the game runs at the same
+   speed on all of them. Everything it wants heard goes into g.ev as a word for the page to play.
+   ===================================================================== */
+// ==RULES==
+const W=240,H=320,COLS=5,ROWS=4,CW=40,RH=56,BX=20,BY=76,ROOF=60,GROUND=H-20;
+const STEP=1/120;
+const HOP=0.12;         // seconds a hop takes
+const FIX=0.26;         // seconds one repair takes (fixing roots you to the spot)
+const FIX_FAST=0.08;    // the same with cocoa, which also mends a window in one go
+const TELE=0.4;         // the gargoyle's wind-up before it kicks: eyes red, arrows on the columns it will hit
+const TELE_EARLY=0.3;   // extra wind-up on floor 1, shrinking to nothing by floor 4, so new players can read it
+const BRICK2=0.18;      // the second brick of a double kick leaves this long after the first
+const BAT_WARN=0.8;     // an arrow shows at the edge of the row this long before a bat flies in
+const BUF=0.3;          // a press made during a hop or a fix is remembered this long, so fix-then-hop works in one motion
+const REPEAT=0.22;      // holding a direction (or FIX) repeats after this long
+const REST=0.04;        // and then pauses this long between repeats, so a held key doesn't overshoot a column
+const TOP_LEVEL=12;     // speeds stop rising here, so late floors stay fair
+const START_C=2,START_R=ROWS-1;
+const DIRS={up:[-1,0],down:[1,0],left:[0,-1],right:[0,1]};
+const cx=c=>BX+c*CW+CW/2;      // centre x of a column
+const fy=r=>BY+r*RH+40;        // feet y of a row: the top of that row's window sills
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const rnd=(g,n)=>Math.floor(g.rand()*n);
+const grid=v=>Array.from({length:ROWS},()=>Array(COLS).fill(v));
+
+function create(seed){
+  const g={rand:mulberry(seed>>>0),state:'title',level:1,score:0,lives:3,timeLeft:60,bonus:0,msgT:0,shake:0,tick:0,ev:[],held:{},order:[]};
+  setupLevel(g);return g;
+}
+// blockV[r][c]: a planter under the sill of (r, c) blocks climbing between rows r and r+1.
+// blockH[r][c]: an open shutter between (r, c) and (r, c+1) blocks stepping sideways.
+function canMove(g,r,c,dr,dc){
+  const nr=r+dr,nc=c+dc;
+  if(nr<0||nr>=ROWS||nc<0||nc>=COLS)return false;
+  if(dr===1&&g.blockV[r][c])return false;
+  if(dr===-1&&g.blockV[nr][c])return false;
+  if(dc===1&&g.blockH[r][c])return false;
+  if(dc===-1&&g.blockH[r][nc])return false;
+  return true;
+}
+function reachable(g){
+  const seen=new Set(['0,0']),q=[[0,0]];
+  while(q.length){const [r,c]=q.pop();
+    for(const k in DIRS){const [dr,dc]=DIRS[k];
+      if(!canMove(g,r,c,dr,dc))continue;const id=(r+dr)+','+(c+dc);
+      if(!seen.has(id)){seen.add(id);q.push([r+dr,c+dc])}}}
+  return seen.size===ROWS*COLS;
+}
+function setupLevel(g){
+  const L=g.level;
+  g.win=grid(0);
+  const cells=[];for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)cells.push([r,c]);
+  for(let i=cells.length-1;i>0;i--){const j=rnd(g,i+1);const t=cells[i];cells[i]=cells[j];cells[j]=t}
+  const n=Math.min(ROWS*COLS,7+L*2);
+  for(let i=0;i<n;i++){const [r,c]=cells[i];g.win[r][c]=g.rand()<Math.min(0.75,0.15+L*0.1)?2:1}
+  // planters and shutters: one more per floor up to four, each on its own edge, every window still reachable
+  const nb=Math.min(4,L-1);let tries=0;
+  do{
+    g.blockV=grid(false);g.blockH=grid(false);
+    for(let placed=0,guard=0;placed<nb&&guard<60;guard++){
+      if(g.rand()<0.5){const r=rnd(g,ROWS-1),c=rnd(g,COLS);if(!g.blockV[r][c]){g.blockV[r][c]=true;placed++}}
+      else{const r=rnd(g,ROWS),c=rnd(g,COLS-1);if(!g.blockH[r][c]){g.blockH[r][c]=true;placed++}}
+    }
+  }while(!reachable(g)&&++tries<200);
+  if(!reachable(g)){g.blockV=grid(false);g.blockH=grid(false)}
+  const x=cx(START_C),y=fy(START_R);
+  g.p={c:START_C,r:START_R,fc:START_C,fr:START_R,hopT:0,x:x,y:y,ox:x,oy:y,face:1,fix:0,fixAll:false,inv:1.5,gold:0,dead:0,buf:null,bufT:0,bump:0,bd:[0,0],rest:0};
+  g.garg={x:x,ox:x,tc:START_C,extra:-1,mode:'wait',t:1.2};
+  g.bricks=[];g.pending=[];g.bats=[];g.sparks=[];g.pops=[];g.dust=[];g.cocoa=null;
+  g.cocoaT=8+g.rand()*4;g.batT=4;g.timeLeft=60;g.winDirty=true;
+}
+function startGame(g){g.level=1;g.score=0;g.lives=3;setupLevel(g);g.state='play';g.ev.push('start')}
+
+// ----- input: press(k) for a tap, hold(k, on) while a key or button is down. k: up, down, left, right, fix -----
+function press(g,k){
+  if(g.state==='title'||g.state==='over'){if(g.msgT<=0)startGame(g);return}
+  if(g.state!=='play')return;
+  const p=g.p;if(p.dead>0)return;
+  if(p.hopT>0||p.fix>0){p.buf=k;p.bufT=BUF;return}   // busy: remember it for a moment
+  act(g,k);
+}
+function hold(g,k,on){
+  const i=g.order.indexOf(k);if(i>=0)g.order.splice(i,1);
+  if(on){g.held[k]=0;g.order.push(k)}else delete g.held[k];
+}
+function act(g,k){
+  const p=g.p;
+  if(k==='fix'){
+    if(g.win[p.r][p.c]>0){p.fixAll=p.gold>0;p.fix=p.fixAll?FIX_FAST:FIX;g.ev.push('fixstart')}
+    return;
+  }
+  const d=DIRS[k];if(!d)return;
+  if(d[1])p.face=d[1];
+  if(canMove(g,p.r,p.c,d[0],d[1])){p.fr=p.r;p.fc=p.c;p.r+=d[0];p.c+=d[1];p.hopT=HOP;g.ev.push('hop')}
+  else{p.bump=0.1;p.bd=d;g.ev.push('bump')}
+}
+function hurt(g){
+  const p=g.p;if(p.inv>0||p.dead>0)return;
+  p.dead=1;g.lives--;g.shake=0.3;p.fix=0;p.buf=null;g.ev.push('hurt');
+}
+function allFixed(g){for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)if(g.win[r][c])return false;return true}
+
+function step(g,dt){
+  g.tick+=dt;if(g.msgT>0)g.msgT-=dt;if(g.shake>0)g.shake-=dt;
+  for(const s of g.sparks)s.t-=dt;if(g.sparks.length)g.sparks=g.sparks.filter(s=>s.t>0);
+  for(const s of g.pops){s.t-=dt;s.y-=14*dt}if(g.pops.length)g.pops=g.pops.filter(s=>s.t>0);
+  for(const s of g.dust)s.t-=dt;if(g.dust.length)g.dust=g.dust.filter(s=>s.t>0);
+  if(g.state==='clear'){if(g.msgT<=0){g.level++;setupLevel(g);g.state='play'}return}
+  if(g.state!=='play')return;
+  const p=g.p,ga=g.garg,L=Math.min(g.level,TOP_LEVEL);
+  p.ox=p.x;p.oy=p.y;ga.ox=ga.x;
+
+  // hit: the world holds still for a second, then the bot starts again from the door
+  if(p.dead>0){
+    p.dead-=dt;
+    if(p.dead<=0){
+      p.dead=0;
+      if(g.lives<=0){g.state='over';g.msgT=0.8;g.ev.push('over');return}
+      p.c=p.fc=START_C;p.r=p.fr=START_R;p.hopT=0;p.x=p.ox=cx(START_C);p.y=p.oy=fy(START_R);p.inv=2;p.gold=0;p.fix=0;p.buf=null;
+      g.bricks=[];g.pending=[];g.bats=[];if(ga.mode==='stomp'){ga.mode='wait';ga.t=0.6;ga.extra=-1}
+    }
+    return;
+  }
+  g.timeLeft=Math.max(0,g.timeLeft-dt);
+  if(p.inv>0)p.inv-=dt;if(p.gold>0)p.gold-=dt;if(p.bump>0)p.bump-=dt;if(p.rest>0)p.rest-=dt;
+  if(p.bufT>0){p.bufT-=dt;if(p.bufT<=0)p.buf=null}
+  for(const k in g.held)g.held[k]+=dt;
+
+  if(p.hopT>0){p.hopT-=dt;if(p.hopT<=0){p.hopT=0;p.fr=p.r;p.fc=p.c;p.rest=REST}}
+  if(p.fix>0){
+    p.fix-=dt;
+    if(p.fix<=0){
+      p.fix=0;
+      const was=g.win[p.r][p.c],now=p.fixAll?0:was-1,pts=100*(was-now);
+      g.win[p.r][p.c]=now;g.winDirty=true;g.score+=pts;g.ev.push(now?'fix1':'fixdone');
+      for(let i=0;i<6;i++)g.sparks.push({x:p.x+rnd(g,20)-10,y:p.y-18+rnd(g,16)-8,t:0.4});
+      g.pops.push({x:p.x,y:p.y-30,t:0.7,s:'+'+pts});
+      if(allFixed(g)){g.bonus=Math.floor(g.timeLeft)*10+500;g.score+=g.bonus;g.state='clear';g.msgT=1.8;g.ev.push('clear')}
+    }
+  }
+  // free to act: a remembered press first, then whatever is being held (the latest key down wins)
+  if(g.state==='play'&&p.hopT<=0&&p.fix<=0){
+    if(p.buf){const k=p.buf;p.buf=null;act(g,k)}
+    else{
+      const k=g.order[g.order.length-1];
+      if(k&&g.held[k]>=REPEAT&&p.rest<=0){
+        if(k==='fix'){if(g.win[p.r][p.c]>0)act(g,k)}
+        else{const d=DIRS[k];if(canMove(g,p.r,p.c,d[0],d[1]))act(g,k)}
+      }
+    }
+  }
+  // where the bot is drawn and hit: eased between the window it left and the one it is hopping to
+  if(p.hopT>0){const t=1-p.hopT/HOP,e=1-(1-t)*(1-t);
+    p.x=cx(p.fc)+(cx(p.c)-cx(p.fc))*e;p.y=fy(p.fr)+(fy(p.r)-fy(p.fr))*e-(p.fr===p.r?Math.sin(Math.PI*t)*3:0)}
+  else{p.x=cx(p.c);p.y=fy(p.r)}
+
+  // the gargoyle: waits, walks to a column (more often than not the bot's), winds up, kicks
+  const gs=55+L*9;
+  if(ga.mode==='wait'){
+    ga.t-=dt;
+    if(ga.t<=0){ga.tc=g.rand()<0.55?p.c:rnd(g,COLS);ga.mode='walk'}
+  }else if(ga.mode==='walk'){
+    const tx=cx(ga.tc),dx=tx-ga.x;
+    if(Math.abs(dx)<=gs*dt){
+      ga.x=tx;ga.mode='stomp';ga.t=TELE+Math.max(0,TELE_EARLY-(g.level-1)*0.1);ga.extra=-1;
+      // from floor 3 it sometimes kicks a second brick down a neighbouring column: chosen now, so it can be shown
+      if(g.level>=3&&g.rand()<0.35){const c2=ga.tc+(g.rand()<0.5?-1:1);if(c2>=0&&c2<COLS)ga.extra=c2}
+      g.ev.push('windup');
+    }else ga.x+=Math.sign(dx)*gs*dt;
+  }else{
+    ga.t-=dt;
+    if(ga.t<=0){
+      const v=65+L*11;
+      g.bricks.push({x:cx(ga.tc),y:ROOF+2,oy:ROOF+2,v:v});
+      if(ga.extra>=0)g.pending.push({c:ga.extra,t:BRICK2,v:v});
+      ga.extra=-1;g.shake=0.12;g.ev.push('kick');
+      ga.mode='wait';ga.t=Math.max(0.35,1.5-L*0.13);
+    }
+  }
+  for(const q of g.pending){q.t-=dt;if(q.t<=0)g.bricks.push({x:cx(q.c),y:ROOF+2,oy:ROOF+2,v:q.v})}
+  if(g.pending.length)g.pending=g.pending.filter(q=>q.t>0);
+  // bricks: the hit box is narrower than the sprites, so a brick that only clips the bot's edge misses
+  let landed=false;
+  for(const b of g.bricks){
+    b.oy=b.y;b.y+=b.v*dt;
+    if(Math.abs(b.x-p.x)<9&&Math.abs(b.y-(p.y-11))<12)hurt(g);
+    if(b.y>=GROUND-3){b.gone=true;landed=true;for(let i=0;i<4;i++)g.dust.push({x:b.x-6+i*4,y:GROUND-2-(i%2)*2,t:0.25})}
+  }
+  if(landed){g.bricks=g.bricks.filter(b=>!b.gone);g.ev.push('thud')}
+
+  // bats (from floor 2): warned at the edge of their row, then straight across it
+  if(g.level>=2){
+    g.batT-=dt;
+    if(g.batT<=0){
+      const d=g.rand()<0.5?1:-1,x=d>0?-10:W+10;
+      g.bats.push({x:x,ox:x,r:rnd(g,ROWS),d:d,v:38+L*5,w:BAT_WARN});
+      g.batT=Math.max(2,7-L*0.6)+g.rand()*2;g.ev.push('batwarn');
+    }
+  }
+  for(const b of g.bats){
+    b.ox=b.x;
+    if(b.w>0){b.w-=dt;continue}
+    b.x+=b.d*b.v*dt;
+    if(Math.abs(b.x-p.x)<9&&Math.abs(fy(b.r)-p.y)<8)hurt(g);
+  }
+  if(g.bats.length)g.bats=g.bats.filter(b=>b.x>-20&&b.x<W+20);
+
+  // cocoa: six seconds safe from everything, the first four with one-tap repairs
+  if(g.cocoa){
+    g.cocoa.t-=dt;
+    if(g.cocoa.r===p.r&&g.cocoa.c===p.c&&p.hopT<=0){p.inv=6;p.gold=4;g.score+=300;g.pops.push({x:p.x,y:p.y-30,t:0.7,s:'+300'});g.cocoa=null;g.cocoaT=14+g.rand()*6;g.ev.push('cocoa')}
+    else if(g.cocoa.t<=0){g.cocoa=null;g.cocoaT=10+g.rand()*6}
+  }else{
+    g.cocoaT-=dt;
+    if(g.cocoaT<=0){let r,c;do{r=rnd(g,ROWS);c=rnd(g,COLS)}while(r===p.r&&c===p.c);g.cocoa={r:r,c:c,t:7}}
+  }
+}
+// ==END RULES==
+
+/* ---------- the page ---------- */
+const $=id=>document.getElementById(id);
+const body=document.body,cv=$('c'),vx=cv.getContext('2d');
+const buf=document.createElement('canvas');buf.width=W;buf.height=H;const g2=buf.getContext('2d');
+const store={get(k,d){try{const v=localStorage.getItem(k);return v===null?d:v}catch(e){return d}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+let best=+store.get('patchwork-best',0)||0,muted=store.get('patchwork-mute','0')==='1',paused=false,newBest=false;
+let G=create((Date.now()^(Math.random()*1e9))>>>0);
+
+/* ---------- sound: short square and triangle blips and a little noise, made here ---------- */
+let ac=null,master=null,noiseBuf=null;
+function wake(){
+  if(ac){if(ac.state==='suspended')ac.resume();return}
+  try{ac=new (window.AudioContext||window.webkitAudioContext)();master=ac.createGain();master.gain.value=muted?0:0.5;master.connect(ac.destination);
+    noiseBuf=ac.createBuffer(1,ac.sampleRate*0.3|0,ac.sampleRate);const d=noiseBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1}catch(e){ac=null}
+}
+function tone(f,d,type,v,at,f2){
+  if(!ac)return;
+  try{const t=ac.currentTime+(at||0),o=ac.createOscillator(),a=ac.createGain();o.type=type||'square';o.frequency.setValueAtTime(f,t);
+    if(f2)o.frequency.exponentialRampToValueAtTime(f2,t+d);
+    a.gain.setValueAtTime(v||0.08,t);a.gain.exponentialRampToValueAtTime(0.0001,t+d);
+    o.connect(a);a.connect(master);o.start(t);o.stop(t+d+0.02)}catch(e){}
+}
+function noise(d,v,at){
+  if(!ac)return;
+  try{const t=ac.currentTime+(at||0),s=ac.createBufferSource(),a=ac.createGain(),f=ac.createBiquadFilter();s.buffer=noiseBuf;f.type='lowpass';f.frequency.value=900;
+    a.gain.setValueAtTime(v,t);a.gain.exponentialRampToValueAtTime(0.0001,t+d);s.connect(f);f.connect(a);a.connect(master);s.start(t);s.stop(t+d+0.02)}catch(e){}
+}
+const SFX={
+  start(){tone(660,0.1)},hop(){tone(520,0.03,'triangle',0.1)},bump(){tone(140,0.05)},fixstart(){tone(300,0.05)},
+  fix1(){tone(700,0.08)},fixdone(){tone(990,0.07);tone(1320,0.09,'square',0.06,0.06)},
+  windup(){tone(190,0.16,'sawtooth',0.05,0,120)},kick(){tone(90,0.09,'square',0.1);noise(0.12,0.12)},thud(){noise(0.06,0.05)},
+  batwarn(){tone(1900,0.03,'square',0.04);tone(2200,0.03,'square',0.04,0.07)},
+  cocoa(){tone(880,0.1);tone(1175,0.2,'triangle',0.12,0.09)},hurt(){tone(240,0.4,'sawtooth',0.12,0,70)},
+  clear(){tone(660,0.12);tone(880,0.12,'square',0.08,0.12);tone(1320,0.25,'square',0.08,0.24)},
+  over(){tone(440,0.16);tone(330,0.16,'square',0.08,0.16);tone(220,0.4,'square',0.08,0.32)}
+};
+function setMute(m){muted=m;store.set('patchwork-mute',m?'1':'0');if(master)master.gain.value=m?0:0.5;const b=$('bMute');b.setAttribute('aria-pressed',String(m));b.textContent=m?'MUTE':'SND'}
+function saveBest(){
+  if(G.score>best){best=G.score;newBest=true;store.set('patchwork-best',String(best))}
+  if(window.BackRoomStats){try{BackRoomStats.max('score',G.score);BackRoomStats.max('floor',G.level)}catch(e){}}
+}
+function drain(){
+  if(!G.ev.length)return;
+  for(const e of G.ev){if(e==='start')newBest=false;if(e==='clear'||e==='over')saveBest();if(SFX[e])SFX[e]()}
+  G.ev.length=0;
+}
+
+/* ---------- drawing: everything is whole pixels on a 240 x 320 picture ---------- */
+const R=(x,y,w,h,col)=>{g2.fillStyle=col;g2.fillRect(Math.round(x),Math.round(y),w,h)};
+// a 5 x 5 pixel alphabet, so the words are as crisp as the sprites and need no web font
+const FONT={A:'0111010001111111000110001',B:'1111010001111101000111110',C:'0111110000100001000001111',D:'1111010001100011000111110',E:'1111110000111101000011111',
+  F:'1111110000111101000010000',G:'0111110000100111000101111',H:'1000110001111111000110001',I:'0111000100001000010001110',J:'0011100001000011000101110',
+  K:'1000110010111001001010001',L:'1000010000100001000011111',M:'1000111011101011000110001',N:'1000111001101011001110001',O:'0111010001100011000101110',
+  P:'1111010001111101000010000',Q:'0111010001101011001001101',R:'1111010001111101001010001',S:'0111110000011100000111110',T:'1111100100001000010000100',
+  U:'1000110001100011000101110',V:'1000110001100010101000100',W:'1000110001101011101110001',X:'1000101010001000101010001',Y:'1000101010001000010000100',
+  Z:'1111100010001000100011111',0:'0111010011101011100101110',1:'0010001100001000010001110',2:'1111000001011101000011111',3:'1111000001011100000111110',
+  4:'1001010010111110001000010',5:'1111110000111100000111110',6:'0111010000111101000101110',7:'1111100001000100010000100',8:'0111010001011101000101110',
+  9:'0111010001011110000101110','+':'0000000100011100010000000','-':'0000000000011100000000000',':':'0000000100000000010000000','!':'0010000100001000000000100',
+  '.':'0000000000000000000000100'};
+function txt(s,x,y,sc,col,align){
+  s=String(s);const w=s.length*6*sc-sc;
+  if(align==='center')x-=w/2;else if(align==='right')x-=w;
+  x=Math.round(x);y=Math.round(y);g2.fillStyle=col;
+  for(let i=0;i<s.length;i++){const m=FONT[s[i]];if(!m)continue;
+    for(let r=0;r<5;r++)for(let c=0;c<5;c++)if(m[r*5+c]==='1')g2.fillRect(x+(i*6+c)*sc,y+r*sc,sc,sc)}
+}
+const layer=()=>{const c=document.createElement('canvas');c.width=W;c.height=H;return c};
+// the backdrop and the brickwork never change: drawn once
+const back=layer();
+(function(){
+  const b=back.getContext('2d');
+  const B=(x,y,w,h,col)=>{b.fillStyle=col;b.fillRect(Math.round(x),Math.round(y),w,h)};
+  const bands=['#0a0e2a','#0e1233','#12173c','#171c46','#1c214f','#212558','#262860','#2a2a66'];
+  bands.forEach((col,i)=>B(0,i*40,W,40,col));
+  // moon
+  B(196,30,14,14,'#fff3c4');B(193,33,3,8,'#fff3c4');B(210,33,3,8,'#fff3c4');B(199,27,8,3,'#fff3c4');B(199,44,8,3,'#fff3c4');B(200,33,3,3,'#e6d596');B(204,38,2,2,'#e6d596');B(199,40,2,2,'#e6d596');
+  // far skyline
+  for(let i=0;i<8;i++){const h=40+((i*37)%50);B(i*32-6,GROUND-h,26,h,'#161b47');
+    for(let j=0;j<3;j++)if((i+j)%2)B(i*32+j*7-2,GROUND+8-h+((j*13)%h*0.6|0),2,3,'#4d57a0')}
+  B(0,GROUND,W,20,'#10142f');B(0,GROUND,W,2,'#2c356f');
+  // the tower
+  B(BX-6,ROOF,COLS*CW+12,GROUND-ROOF,'#8a3f3a');
+  for(let y=ROOF+4;y<GROUND;y+=8){B(BX-6,y,COLS*CW+12,1,'#6f2f2c');
+    for(let x=BX-6+((y/8|0)%2)*8;x<BX+COLS*CW+6;x+=16)B(x,y-7,1,7,'#6f2f2c')}
+  B(BX-10,ROOF-4,COLS*CW+20,6,'#c9c2d8');B(BX-10,ROOF+2,COLS*CW+20,2,'#7a738f');
+  B(BX-6,ROOF,2,GROUND-ROOF,'#a85650');
+  B(cx(2)-10,GROUND-15,20,15,'#d8cba8');B(cx(2)-8,GROUND-13,16,13,'#3a2222');B(cx(2)+4,GROUND-7,2,2,'#ffd35a');
+})();
+// stars twinkle, so they are drawn each frame: only the ones in open sky (not behind the tower or the moon)
+const stars=Array.from({length:40},(_,i)=>[(i*53)%W,(i*97)%150+22,i%3])  .filter(([x,y])=>(y<ROOF-4||x<BX-10||x>=BX+COLS*CW+10)&&!(x>190&&x<216&&y>24&&y<50));
+// windows, planters and shutters change only when one is fixed or a floor starts: redrawn then
+const wins=layer(),wx=wins.getContext('2d');
+function drawWindows(){
+  wx.clearRect(0,0,W,H);
+  const Q=(x,y,w,h,col)=>{wx.fillStyle=col;wx.fillRect(x,y,w,h)};
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    const x=BX+c*CW+8,y=BY+r*RH+4,d=G.win[r][c];
+    Q(x-2,y-2,28,38,'#efe2c2');
+    Q(x,y,24,34,d===0?'#ffd77a':d===1?'#6c6a8c':'#141a36');
+    if(d===0){Q(x,y,24,4,'#fff0b8');Q(x+2,y+20,8,12,'#f0b84a')}
+    if(d<2){Q(x+11,y,2,34,'#efe2c2');Q(x,y+16,24,2,'#efe2c2')}
+    if(d>=1){const k='#dfe6ff';Q(x+5,y+6,1,6,k);Q(x+6,y+11,4,1,k);Q(x+9,y+12,1,7,k);Q(x+10,y+18,6,1,k);Q(x+15,y+19,1,6,k)}
+    if(d===2){Q(x+12,y+4,8,10,'#05070f');Q(x+3,y+20,7,9,'#05070f');Q(x+16,y+24,1,6,'#dfe6ff');Q(x+17,y+24,4,1,'#dfe6ff')}
+    Q(x-4,y+36,32,4,'#d8cba8');Q(x-4,y+40,32,1,'#8f8468');
+  }
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    const x=BX+c*CW+8,y=BY+r*RH+4;
+    if(r<ROWS-1&&G.blockV[r][c]){ // planter hanging under this sill
+      Q(x+2,y+42,20,7,'#5b3a24');Q(x+2,y+42,20,1,'#7a5234');
+      for(let i=0;i<5;i++){Q(x+3+i*4,y+44,2,3,'#3fa35a');Q(x+3+i*4,y+43,2,1,i%2?'#ff7aa8':'#ffd35a')}
+    }
+    if(c<COLS-1&&G.blockH[r][c]){ // open shutter between this window and the next
+      Q(x+27,y-2,10,38,'#2f6f73');for(let i=0;i<6;i++)Q(x+28,y+1+i*6,8,1,'#1d4a4e');Q(x+27,y-2,1,38,'#58a3a6');
+    }
+  }
+  G.winDirty=false;
+}
+function drawBot(a){
+  const p=G.p;
+  if(p.dead>0&&Math.floor(p.dead*12)%2)return;
+  const gold=p.gold>0;
+  if(p.inv>0&&!gold&&Math.floor(G.tick*14)%2)return;
+  let x=Math.round(p.ox+(p.x-p.ox)*a),y=Math.round(p.oy+(p.y-p.oy)*a);
+  if(p.bump>0){x+=p.bd[1]*2;y+=p.bd[0]*2}
+  const f=p.face,bodyC=gold?'#ffd35a':'#3fd6c0',head=gold?'#fff0b8':'#9ff2e6';
+  if(gold&&Math.floor(G.tick*10)%2){R(x-8,y-27,16,1,'#ffd35a');R(x-9,y-26,1,26,'#ffd35a');R(x+8,y-26,1,26,'#ffd35a')}
+  R(x-5,y-3,3,3,'#22305a');R(x+2,y-3,3,3,'#22305a');
+  R(x-6,y-12,12,9,bodyC);R(x-6,y-4,12,1,gold?'#b8902a':'#1c8f80');R(x-1,y-9,2,2,'#ff6b6b');
+  R(x-5,y-20,10,8,head);R(x-4,y-18,8,3,'#16203f');R(x+(f>0?1:-3),y-18,2,2,'#ffffff');
+  R(x,y-23,1,3,'#9aa3d6');R(x-1,y-25,2,2,'#ff6b6b');
+  const sw=p.fix>0?(Math.floor(p.fix*30)%2?-5:1):0,ax=x+f*7-1;   // wrench arm
+  R(ax,y-17+sw,2,8,'#c9d0e8');R(ax-1,y-20+sw,4,3,'#c9d0e8');R(ax,y-20+sw,2,1,'#0d1230');
+}
+function drawGargoyle(a){
+  const ga=G.garg,x=Math.round(ga.ox+(ga.x-ga.ox)*a),st=ga.mode==='stomp',y=ROOF-4-(st&&ga.t>0.2?5:0),s='#8b88a6',d='#5f5c78';
+  const flap=st?-4:(Math.floor(G.tick*4)%2);
+  for(let i=0;i<4;i++){R(x-12-i*2,y-18+i*3+flap,3+i,3,d);R(x+9+i*2-i,y-18+i*3+flap,3+i,3,d)}
+  R(x-9,y-14,18,12,s);R(x-9,y-4,18,2,d);R(x-8,y-2,5,2,d);R(x+3,y-2,5,2,d);
+  R(x-7,y-24,14,10,s);R(x-7,y-28,2,4,d);R(x+5,y-28,2,4,d);
+  const e=st?'#ff5a4a':'#ffd35a';R(x-5,y-21,3,2,e);R(x+2,y-21,3,2,e);
+  R(x-3,y-17,6,1,'#2a2840');R(x-3,y-16,1,1,'#fff');R(x+2,y-16,1,1,'#fff');
+  if(st&&Math.floor(G.tick*12)%2){ // red arrows on the columns about to be hit
+    for(const c of [ga.tc,ga.extra]){if(c<0)continue;const ax=cx(c);R(ax-4,ROOF+6,9,2,'#ff5a4a');R(ax-3,ROOF+8,7,2,'#ff5a4a');R(ax-2,ROOF+10,5,2,'#ff5a4a');R(ax-1,ROOF+12,3,2,'#ff5a4a')}
+  }
+}
+function drawThings(a){
+  for(const b of G.bricks){const y=b.oy+(b.y-b.oy)*a;R(b.x-5,y-3,10,7,'#e0703a');R(b.x-5,y-3,10,1,'#ffa066');R(b.x-5,y+3,10,1,'#9c421c');R(b.x-1,y-2,1,3,'#9c421c')}
+  for(const b of G.bats){const y=fy(b.r)-14;
+    if(b.w>0){ // warning arrow at the edge of the row
+      if(Math.floor(G.tick*10)%2){const ex=b.d>0?3:W-4,s=b.d;R(ex,y-3,2,9,'#ff5a4a');R(ex+s*2,y-2,2,7,'#ff5a4a');R(ex+s*4,y,2,3,'#ff5a4a')}
+      continue;
+    }
+    const x=b.ox+(b.x-b.ox)*a,up=Math.floor(G.tick*10)%2;
+    // light wings and a pale rim, so a bat still shows against a dark window
+    R(x-3,y-1,6,6,'#b9a6f2');R(x-2,y,4,4,'#3b2a70');R(x-1,y+1,1,1,'#ff5a4a');R(x+1,y+1,1,1,'#ff5a4a');
+    R(x-9,y+(up?-3:2),7,2,'#9a82e8');R(x+2,y+(up?-3:2),7,2,'#9a82e8');R(x-9,y+(up?-1:4),3,1,'#6a52b8');R(x+6,y+(up?-1:4),3,1,'#6a52b8')}
+  const co=G.cocoa;
+  if(co&&(co.t>2||Math.floor(G.tick*8)%2)){
+    const x=cx(co.c)+5,y=BY+co.r*RH+40;
+    R(x,y-8,8,8,'#f4f4ff');R(x+8,y-6,2,4,'#f4f4ff');R(x+1,y-7,6,2,'#6b3b1f');
+    const w=Math.floor(G.tick*3)%2;R(x+2+w,y-12,1,3,'#cdd3ff');R(x+5-w,y-13,1,3,'#cdd3ff');
+  }
+  for(const s of G.dust)R(s.x,s.y-(0.25-s.t)*16,2,2,'#c9c2d8');
+  for(const s of G.sparks){R(s.x,s.y-1,1,3,'#fff6c9');R(s.x-1,s.y,3,1,'#fff6c9')}
+  for(const s of G.pops)txt(s.s,s.x,s.y,1,'#fff6c9','center');
+}
+function drawHud(){
+  R(0,0,W,22,'#0a0e2a');R(0,22,W,1,'#2c356f');
+  txt('SCORE',6,3,1,'#9aa3d6');txt(String(G.score).padStart(6,'0'),6,10,2,'#eef0ff');
+  txt('FLOOR '+G.level,W/2+18,3,1,'#9aa3d6','center');
+  txt('+'+String(Math.floor(G.timeLeft)*10).padStart(3,'0'),W/2+18,10,2,'#ffd35a','center');
+  txt('BOTS',W-6,3,1,'#9aa3d6','right');
+  for(let i=0;i<G.lives;i++){R(W-13-i*10,11,7,7,'#3fd6c0');R(W-12-i*10,13,5,2,'#16203f')}
+}
+function banner(a,b,c){
+  R(8,118,W-16,84,'#0a0e2a');R(8,118,W-16,2,'#ffd35a');R(8,200,W-16,2,'#ffd35a');
+  txt(a,W/2,134,2,'#ffd35a','center');
+  if(b)txt(b,W/2,160,1,'#eef0ff','center');
+  if(c&&Math.floor(performance.now()/500)%2===0)txt(c,W/2,180,1,'#3fd6c0','center');
+}
+function draw(a){
+  if(G.winDirty)drawWindows();
+  const sh=G.shake>0&&!paused;
+  g2.setTransform(1,0,0,1,sh?(Math.random()*3|0)-1:0,sh?(Math.random()*3|0)-1:0);
+  g2.drawImage(back,0,0);
+  for(const [x,y,k] of stars)R(x,y,1,1,(Math.floor(G.tick*2)+k)%3?'#cdd3ff':'#6e77b8');
+  g2.drawImage(wins,0,0);
+  drawGargoyle(a);drawThings(a);drawBot(a);
+  g2.setTransform(1,0,0,1,0,0);
+  drawHud();
+  if(paused)banner('PAUSED','','FIX TO GO ON');
+  else if(G.state==='title')banner('PATCHWORK TOWER','BEST '+String(best).padStart(6,'0'),'PRESS FIX TO START');
+  else if(G.state==='clear')banner('FLOOR CLEAR','BONUS +'+G.bonus);
+  else if(G.state==='over')banner('GAME OVER',(newBest?'NEW BEST ':'SCORE ')+G.score+(newBest?'!':'   BEST '+best),'PRESS FIX TO RETRY');
+  vx.imageSmoothingEnabled=false;vx.drawImage(buf,0,0,cv.width,cv.height);
+}
+
+/* ---------- layout: the screen at a whole number of device pixels per game pixel, controls around it ---------- */
+let touchUI=matchMedia('(pointer: coarse)').matches&&!matchMedia('(any-pointer: fine)').matches;
+const pad=$('pad'),fixB=$('fix'),how=$('how'),hint=$('hint'),bar=$('bar');
+let howOpen=false;
+function layout(){
+  body.classList.toggle('touch',touchUI);
+  const vw=innerWidth,vh=innerHeight,dpr=window.devicePixelRatio||1,snap=v=>Math.round(v*dpr)/dpr;
+  const top=bar.offsetHeight+6;let ax=8,ay=top,aw=vw-16,ah=vh-top-8;
+  const wide=vw>vh*1.15;
+  if(touchUI){
+    if(wide){const side=Math.max(180,Math.min(240,(vw-200)/2));ax=side;aw=vw-side*2}
+    else ah-=196;
+  }else ah-=hint.offsetHeight+10;
+  const k=Math.max(1,Math.floor(Math.min(aw*dpr/W,ah*dpr/H)));
+  const cw=W*k/dpr,ch=H*k/dpr,left=snap(ax+(aw-cw)/2),tp=snap(ay+Math.max(0,(ah-ch)/2));
+  if(cv.width!==W*k){cv.width=W*k;cv.height=H*k}
+  cv.style.width=W*k+'px';cv.style.height=H*k+'px';cv.style.transform='translate('+left+'px,'+tp+'px) scale('+(1/dpr)+')';
+  if(touchUI){
+    if(wide){
+      const cy=top+(vh-top)/2;
+      pad.style.left=Math.max(8,(left-168)/2)+'px';pad.style.top=(cy-84)+'px';
+      fixB.style.left=(left+cw+Math.max(8,(vw-left-cw-104)/2))+'px';fixB.style.top=(cy-52)+'px';
+    }else{
+      const y0=tp+ch+(vh-(tp+ch))/2;
+      pad.style.left='16px';pad.style.top=(y0-84)+'px';
+      fixB.style.left=(vw-104-22)+'px';fixB.style.top=(y0-52)+'px';
+    }
+  }
+  // how to play: beside the screen if it fits, otherwise a sheet behind the ? button
+  const room=vw-(left+cw)-24;
+  if(!touchUI&&room>=270){how.classList.remove('sheet');how.hidden=false;how.style.left=(left+cw+24)+'px';how.style.top=tp+'px';how.style.transform='';$('bHelp').hidden=true}
+  else{how.classList.add('sheet');how.style.left='';how.style.top='';how.style.transform='';how.hidden=!howOpen;$('bHelp').hidden=false}
+}
+function setTouch(on){if(touchUI!==on){touchUI=on;layout()}}
+addEventListener('resize',layout);addEventListener('orientationchange',layout);
+if(window.visualViewport)visualViewport.addEventListener('resize',layout);
+
+/* ---------- input ---------- */
+const inPlay=()=>G.state==='play'||G.state==='clear';
+function setPaused(v){if(v&&!inPlay())return;paused=v;$('bPause').setAttribute('aria-pressed',String(v));if(!v)last=0}
+function down(k){wake();if(paused){if(k==='fix')setPaused(false);return}press(G,k);hold(G,k,true)}
+function up(k){hold(G,k,false)}
+const KB=window.Keybinds?Keybinds.create({
+  game:'patchwork-tower',
+  actions:[
+    {id:'up',label:'Hop up',keys:['ArrowUp','KeyW']},
+    {id:'down',label:'Hop down',keys:['ArrowDown','KeyS']},
+    {id:'left',label:'Hop left',keys:['ArrowLeft','KeyA']},
+    {id:'right',label:'Hop right',keys:['ArrowRight','KeyD']},
+    {id:'fix',label:'Fix',keys:['Space','KeyZ','KeyX']},
+    {id:'pause',label:'Pause',keys:['KeyP','Enter']},
+    {id:'mute',label:'Sound on / off',keys:['KeyM']},
+    {id:'esc',label:'Pause (always)',keys:['Escape'],fixed:true}
+  ],
+  classes:{button:'ghost',primary:'cta'}
+}):null;
+const FALLBACK={ArrowUp:['up'],KeyW:['up'],ArrowDown:['down'],KeyS:['down'],ArrowLeft:['left'],KeyA:['left'],ArrowRight:['right'],KeyD:['right'],Space:['fix'],KeyZ:['fix'],KeyX:['fix'],KeyP:['pause'],Enter:['pause'],KeyM:['mute'],Escape:['esc']};
+const actsFor=code=>KB?KB.actionsFor(code):(FALLBACK[code]||[]);
+const keysDown={};
+addEventListener('keydown',e=>{
+  if(KB&&KB.busy())return;
+  if(e.ctrlKey||e.metaKey||e.altKey)return;
+  if(howOpen&&e.code==='Escape'){toggleHow(false);e.preventDefault();return}
+  let acts=actsFor(e.code);
+  if(e.code==='Escape'&&acts.indexOf('esc')<0)acts=acts.concat(['esc']);
+  if(!acts.length)return;
+  e.preventDefault();
+  if(e.repeat)return;
+  setTouch(false);keysDown[e.code]=1;
+  for(const a of acts){
+    if(a==='mute')setMute(!muted);
+    else if(a==='pause'||a==='esc'){wake();if(paused)setPaused(false);else if(inPlay())setPaused(true);else if(a==='pause')press(G,'fix')}
+    else down(a);
+  }
+});
+addEventListener('keyup',e=>{
+  if(!keysDown[e.code])return;keysDown[e.code]=0;
+  for(const a of actsFor(e.code))if(DIRS[a]||a==='fix')up(a);
+});
+// the pad: slide a thumb from one arrow to another without lifting it
+const PADK=['up','left','right','down'],padEls=pad.children;let padDir=null,padId=null;
+function padAt(e){const b=pad.getBoundingClientRect(),dx=e.clientX-(b.left+b.width/2),dy=e.clientY-(b.top+b.height/2);
+  if(Math.hypot(dx,dy)<14)return padDir;return Math.abs(dx)>Math.abs(dy)?(dx<0?'left':'right'):(dy<0?'up':'down')}
+function padSet(k){
+  if(k===padDir)return;
+  if(padDir){up(padDir);padEls[PADK.indexOf(padDir)].classList.remove('on')}
+  padDir=k;
+  if(k){padEls[PADK.indexOf(k)].classList.add('on');down(k)}
+}
+pad.addEventListener('pointerdown',e=>{e.preventDefault();if(padId!==null)return;padId=e.pointerId;try{pad.setPointerCapture(padId)}catch(x){}padSet(padAt(e))});
+pad.addEventListener('pointermove',e=>{if(e.pointerId===padId)padSet(padAt(e))});
+for(const t of ['pointerup','pointercancel','lostpointercapture'])pad.addEventListener(t,e=>{if(e.pointerId===padId){padId=null;padSet(null)}});
+let fixId=null;
+fixB.addEventListener('pointerdown',e=>{e.preventDefault();if(fixId!==null)return;fixId=e.pointerId;try{fixB.setPointerCapture(fixId)}catch(x){}fixB.classList.add('on');down('fix')});
+for(const t of ['pointerup','pointercancel','lostpointercapture'])fixB.addEventListener(t,e=>{if(e.pointerId===fixId){fixId=null;fixB.classList.remove('on');up('fix')}});
+fixB.addEventListener('click',e=>{if(e.detail===0){down('fix');up('fix')}});   // keyboard or switch activation
+cv.addEventListener('pointerdown',e=>{e.preventDefault();wake();if(paused)setPaused(false);else if(G.state!=='play')press(G,'fix')});
+document.addEventListener('touchstart',()=>setTouch(true),{passive:true});
+document.addEventListener('contextmenu',e=>{if(e.target===cv||pad.contains(e.target)||e.target===fixB)e.preventDefault()});
+$('bMute').addEventListener('click',()=>{wake();setMute(!muted)});
+$('bPause').addEventListener('click',()=>{wake();setPaused(!paused)});
+function toggleHow(v){howOpen=v;if(v)setPaused(true);layout()}
+$('bHelp').addEventListener('click',()=>toggleHow(!howOpen));
+$('howClose').addEventListener('click',()=>toggleHow(false));
+if(KB)$('bKeys').addEventListener('click',()=>{setPaused(true);KB.open()});else $('bKeys').hidden=true;
+addEventListener('blur',()=>{for(const k in G.held)hold(G,k,false);if(G.state==='play')setPaused(true)});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&G.state==='play')setPaused(true)});
+
+/* ---------- loop: fixed steps of the rules, drawn in between ---------- */
+let last=0,acc=0;
+function frame(t){
+  requestAnimationFrame(frame);
+  if(!last)last=t;
+  let dt=(t-last)/1000;last=t;if(dt>0.1)dt=0.1;
+  if(!paused){acc+=dt;while(acc>=STEP){step(G,STEP);acc-=STEP}drain()}
+  draw(paused?1:acc/STEP);
+}
+setMute(muted);layout();
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(layout);
+requestAnimationFrame(frame);
+
+// for automated tests only
+if(navigator.webdriver)window.__pt={create,step,press,hold,canMove,reachable,startGame,STEP,W,H,COLS,ROWS,TELE,BAT_WARN,cx,fy,
+  get g(){return G},set g(v){G=v},get paused(){return paused},get best(){return best},get touch(){return touchUI},layout,setPaused,
+  run(sec){const n=Math.round(sec/STEP);for(let i=0;i<n;i++)step(G,STEP);drain()}};
+})();
+</script>
+<script src="/analytics/tracker.js" data-site="patchwork-tower" defer></script>
+</body>
+</html>
