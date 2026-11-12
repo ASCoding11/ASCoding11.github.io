@@ -616,16 +616,19 @@ function pad(f,dur,vol,t){
 //  Renderer, scene, lights
 // =====================================================================
 // Graphics quality, saved as oddone-gfx: 'fast' (Low: no shadow maps, sharpness up to 1.1), 'med' (Medium: 1024 shadow map,
-// up to 1.35) or 'high' (High: soft 2048 shadow map, up to 1.75). Everything else (tone mapping, sky, fog, contact
-// shadows, trims) is the same at every level, and anything that changes how objects look applies to real ones and
-// disguised players alike. With no saved choice: Low on touch screens, otherwise High, stepping down by itself if the
-// first seconds of play are slow (gfxProbe).
+// up to 1.35) or 'high' (High: soft 2048 shadow map, up to 1.75). Low also leaves out the sky, haze, light glow, soft
+// darkening and contact shadows (applyExtras) and the tone curve, so its shaders cost what the old Fast did. Anything that changes how objects look applies to real ones and
+// disguised players alike at every level. With no saved choice: Low on touch screens, otherwise High, stepping down
+// by itself if the first seconds of play are slow (gfxProbe).
 const GQ={fast:{shadow:0,ratio:1.1},med:{shadow:1024,ratio:1.35},high:{shadow:2048,ratio:1.75,soft:true}};
 const gfxSaved=store.get('gfx',null);
 let gfx=GQ[gfxSaved]?gfxSaved:(touchUI?'fast':'high');
 const canvas=$('view');
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance',preserveDrawingBuffer:!!navigator.webdriver});
-renderer.outputEncoding=THREE.sRGBEncoding;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1;
+// Colours: hues stay as painted (a filmic curve greyed everything); only the brightest part of each channel is eased
+// off, so strong light rolls towards white instead of clipping hard
+THREE.ShaderChunk.tonemapping_pars_fragment=THREE.ShaderChunk.tonemapping_pars_fragment.replace('vec3 CustomToneMapping( vec3 color ) { return color; }','vec3 CustomToneMapping( vec3 color ) { color *= toneMappingExposure; return mix( color, 0.7 + 0.3 * ( 1.0 - exp( - ( color - 0.7 ) / 0.3 ) ), step( 0.7, color ) ); }');
+renderer.outputEncoding=THREE.sRGBEncoding;renderer.toneMapping=gfx==='fast'?THREE.NoToneMapping:THREE.CustomToneMapping;renderer.toneMappingExposure=1;
 renderer.shadowMap.enabled=GQ[gfx].shadow>0;renderer.shadowMap.type=GQ[gfx].soft?THREE.PCFSoftShadowMap:THREE.PCFShadowMap;
 const scene=new THREE.Scene();
 const camera=new THREE.PerspectiveCamera(72,1,.05,260);
@@ -1463,8 +1466,8 @@ function buildMall(){
   B.place('cone',26,43,0);B.place('wetSign',40.5,42.6,1.5);B.place('bucket',41.2,43.2,0);
   const room=hunterRoom(B,-15,18);
   return B.finish(Object.assign({
-    name:'Starlight Galleria',short:'Mall',bounds:[0,0,60,44],height:H,sky:'#cfe3f3',fog:['#efe9df',28,110],
-    light:{sky:0xfff4e6,ground:0x8d8070,hemi:.5,sun:.95,sunColor:0xffeccf,dir:[.35,1,.25],amb:.08,exp:.92},
+    name:'Starlight Galleria',short:'Mall',bounds:[0,0,60,44],height:H,sky:'#cfe3f3',fog:['#efe9df',40,170],
+    light:{sky:0xfff4e6,ground:0x9a8d7c,hemi:.68,sun:.8,sunColor:0xfff1dc,dir:[.35,1,.25],amb:.2,exp:1},
     propSpawns:[[30,17],[30,27],[10,22],[50,22],[22,17],[38,27],[5,17.5],[55,26.5],[16,22],[44,22],[26,25],[34,19]],
     hunterSpawns:[[2.5,19],[2.5,21],[2.5,23],[2.5,25],[4,20],[4,22],[4,24],[4,26]],
   },room));
@@ -1571,7 +1574,7 @@ function buildHouse(){
   const room=hunterRoom(B,-15,12);
   return B.finish(Object.assign({
     name:'Willow Lane',short:'House',bounds:[0,0,40,34],height:H,sky:'#bfdcf0',fog:['#c8e0f0',55,210],skyCols:['#2f73cc','#74b0e6','#bfdcf0'],
-    light:{sky:0xe8f2ff,ground:0x7c8a5a,hemi:.62,sun:1.25,sunColor:0xfff0d6,dir:[-.4,1,.3],amb:.1,exp:1},
+    light:{sky:0xeef5ff,ground:0x7c8a5a,hemi:.74,sun:1.1,sunColor:0xfff0d6,dir:[-.4,1,.3],amb:.2,exp:1},
     propSpawns:[[9,10.5],[19.5,8],[8,15],[16,16],[24,16.5],[33,14],[10,22],[22,27],[14,30],[34,24],[3,10],[25,2.5]],
     hunterSpawns:[[12,2.5],[14,2.5],[16,2.5],[18,2.5],[20,2.5],[22,2.5],[24,2.5],[26,2.5]],
   },room));
@@ -1637,8 +1640,8 @@ function buildOffice(){
   for(const [x,z,id] of [[39,35.3,'cone'],[39.5,35.4,'cone'],[40.1,35.2,'wetSign'],[46.8,35.2,'bucket'],[47.3,34.8,'bucket2'],[47.3,33.6,'trashBag'],[46.6,33.9,'trashBag'],[38.7,21,'ext'],[47.2,21,'barrel'],[46.5,21,'barrel'],[47.3,22.2,'boxL'],[42.5,21,'crate'],[43.4,21.2,'boxM'],[39,30,'boxT'],[39,31,'speaker'],[46.8,26,'cooler'],[46.9,29,'boxM'],[40,24,'wetSign']])B.place(id,x,z,(r()-.5)*.4);
   const room=hunterRoom(B,-15,2);
   return B.finish(Object.assign({
-    name:'Brightside Office',short:'Office',bounds:[0,0,48,36],height:H,sky:'#d6e6f2',fog:['#e9edf2',26,100],
-    light:{sky:0xf6f8ff,ground:0x8a8c90,hemi:.52,sun:.9,sunColor:0xfff3e2,dir:[.3,1,-.35],amb:.08,exp:.95},
+    name:'Brightside Office',short:'Office',bounds:[0,0,48,36],height:H,sky:'#d6e6f2',fog:['#e9edf2',40,170],
+    light:{sky:0xf6f8ff,ground:0x96989c,hemi:.68,sun:.72,sunColor:0xfff6ea,dir:[.3,1,-.35],amb:.2,exp:1},
     propSpawns:[[22,7],[36,7],[22,13],[36,13],[29.5,1.5],[16,18],[20,28],[33,25],[43,25],[7,17],[7,29],[3,10]],
     hunterSpawns:[[10.5,4],[11.5,4],[12.5,4],[10.5,6],[11.5,6],[12.5,6],[10.5,2],[11.5,2]],
   },room));
@@ -1660,7 +1663,7 @@ function loadMap(i){
   // which placed objects stand together: used to line up with the real ones and by the bots
   for(const p of MAP.props){p.near=0;for(const q of MAP.props)if(q!==p&&q.t===p.t&&Math.abs(q.x-p.x)<3.5&&Math.abs(q.z-p.z)<3.5&&Math.abs(q.y-p.y)<.6)p.near++}
 }
-const sky=new THREE.Mesh(new THREE.SphereGeometry(200,32,16),new THREE.MeshBasicMaterial({side:THREE.BackSide,fog:false,depthWrite:false}));sky.renderOrder=10;scene.add(sky);
+const sky=new THREE.Mesh(new THREE.SphereGeometry(200,32,16),new THREE.MeshBasicMaterial({side:THREE.BackSide,fog:false,depthWrite:false,toneMapped:false}));sky.renderOrder=10;scene.add(sky);
 const skyTex={};
 function skyFor(M){
   const k=M.short;if(!skyTex[k]){
@@ -3088,6 +3091,7 @@ function applyExtras(){
 function setGfx(q,save){
   if(!GQ[q])return;gfx=q;if(save)store.set('gfx',q);renderGfx();const Q=GQ[q];
   renderer.shadowMap.enabled=Q.shadow>0;renderer.shadowMap.type=Q.soft?THREE.PCFSoftShadowMap:THREE.PCFShadowMap;sun.castShadow=Q.shadow>0;
+  renderer.toneMapping=q==='fast'?THREE.NoToneMapping:THREE.CustomToneMapping;
   if(Q.shadow&&sun.shadow.mapSize.x!==Q.shadow){sun.shadow.mapSize.set(Q.shadow,Q.shadow);if(sun.shadow.map){sun.shadow.map.dispose();sun.shadow.map=null}}
   applyExtras();scene.traverse(o=>{if(o.material){const ms=Array.isArray(o.material)?o.material:[o.material];ms.forEach(m=>m.needsUpdate=true)}});resize();
 }
