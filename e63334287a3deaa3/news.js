@@ -60,6 +60,13 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-12', version: '1.26', title: 'Tidewick: a bigger picture and truer jumps', kind: 'feature',
+     img: 'm/thumbs/tidewick.jpg', tags: ['Tidewick', 'Full screen', 'Physics'], items: [
+      'The picture now fills the window instead of stopping at the nearest whole size, on computers and phones. Press F (or the Full screen button) to give it the whole screen.',
+      'The higher running jump now starts as soon as you are going faster than a walk, not only at full speed.',
+      'Running into a wall stops you, so a jump from against a wall is a normal standing jump and no longer a full running one.',
+      'Skids turn round a little sooner, long falls are a touch faster, and right Shift runs too.'
+    ]},
     {date: '2026-11-12', version: '1.25', title: 'Patchwork Tower', kind: 'game', games: ['Patchwork Tower'],
      img: 'm/thumbs/patchwork-tower.jpg', tags: ['Arcade', 'Solo', 'Pixel art'], items: [
       'Patchwork Tower: a one-screen pixel-art arcade game. Rivet the repair bot hops from window to window on a brick tower, fixing each one until it glows, while the gargoyle on the roof kicks bricks down the column it stands over.',

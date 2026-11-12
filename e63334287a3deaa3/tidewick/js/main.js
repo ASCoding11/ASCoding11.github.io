@@ -16,17 +16,32 @@ const store = {
 
 const $ = id => document.getElementById(id);
 const canvas = $('screen');
-// The game always draws into a 256 x 240 buffer. The canvas on the page holds that buffer blown up by a whole number
-// of DEVICE pixels (set in fit), so one canvas pixel is one screen pixel and nothing is ever resampled by the browser.
+// The game always draws into a 256 x 240 buffer. The canvas on the page is as big as the window allows (set in fit),
+// measured in DEVICE pixels, so the browser never resamples it. When that size is a whole number of device pixels per
+// game pixel the buffer is copied straight across. Otherwise it is first blown up to the next whole number with hard
+// edges and then eased down to the canvas, which keeps every game pixel the same width (no shimmer when the view
+// scrolls) at the cost of a hair of softness on pixel edges.
 const buffer = document.createElement('canvas');
 buffer.width = SCREEN_W; buffer.height = SCREEN_H;
 const ctx = buffer.getContext('2d', { alpha: false });
 ctx.imageSmoothingEnabled = false;
 const screenCtx = canvas.getContext('2d', { alpha: false });
-let pixelScale = 1;
+const mid = document.createElement('canvas');
+const midCtx = mid.getContext('2d', { alpha: false });
+let pixelScale = 1;   // device pixels per game pixel; need not be a whole number
 function present() {
-  screenCtx.imageSmoothingEnabled = false;
-  screenCtx.drawImage(buffer, 0, 0, SCREEN_W * pixelScale, SCREEN_H * pixelScale);
+  const cw = canvas.width, ch = canvas.height, ki = Math.ceil(pixelScale - 1e-6);
+  if (cw === SCREEN_W * ki) {
+    screenCtx.imageSmoothingEnabled = false;
+    screenCtx.drawImage(buffer, 0, 0, cw, ch);
+    return;
+  }
+  if (mid.width !== SCREEN_W * ki) { mid.width = SCREEN_W * ki; mid.height = SCREEN_H * ki; }
+  midCtx.imageSmoothingEnabled = false;
+  midCtx.drawImage(buffer, 0, 0, mid.width, mid.height);
+  screenCtx.imageSmoothingEnabled = true;
+  screenCtx.imageSmoothingQuality = 'high';
+  screenCtx.drawImage(mid, 0, 0, cw, ch);
 }
 
 const S = buildSprites();
@@ -42,24 +57,30 @@ let touchUI = matchMedia('(pointer: coarse)').matches && !matchMedia('(any-point
 function setTouch(on) { touchUI = on; game.touch = on; document.body.classList.toggle('touch', on); fit(); }
 addEventListener('pointerdown', e => { if (e.pointerType === 'touch' && !touchUI) setTouch(true); }, true);
 
-// ---------- scaling: the largest whole number of device pixels per game pixel that fits ----------
+// ---------- scaling: as big as fits, keeping the 16:15 picture; the game itself is untouched ----------
 function fit() {
   const dpr = window.devicePixelRatio || 1;
   const vw = window.innerWidth, vh = window.innerHeight;
   let aw, ah;
   const land = vw > vh;
+  const fs = !!document.fullscreenElement;
+  document.body.classList.toggle('fs', fs);
+  document.body.classList.toggle('land', land);
   if (touchUI && land) { aw = vw - 2 * 176; ah = vh - 8; }
   else if (touchUI) { aw = vw - 8; ah = vh - 250; }
-  else { aw = vw - 16; ah = vh - 44; }
-  // k whole device pixels per game pixel: the largest that fits. The canvas holds exactly that many pixels, and its
-  // CSS size is that divided by the device pixel ratio (which may be a fraction of a CSS pixel on a 3x phone).
-  const k = Math.max(1, Math.floor(Math.min(aw * dpr / SCREEN_W, ah * dpr / SCREEN_H)));
-  if (canvas.width !== SCREEN_W * k || canvas.height !== SCREEN_H * k) { canvas.width = SCREEN_W * k; canvas.height = SCREEN_H * k; }
-  pixelScale = k;
+  else if (fs) { aw = vw; ah = vh; }
+  else { aw = vw - 16; ah = vh - ($('bar').offsetHeight || 36) - 20; }
+  // the canvas in device pixels: the largest 16:15 box that fits, snapped to a whole number of device pixels per
+  // game pixel when that is within 4% (then nothing is resampled at all)
+  let cw = Math.max(SCREEN_W, Math.floor(Math.min(aw * dpr, ah * dpr * SCREEN_W / SCREEN_H)));
+  const k = Math.round(cw / SCREEN_W);
+  if (k >= 1 && Math.abs(cw / SCREEN_W - k) / k < 0.04 && SCREEN_W * k <= aw * dpr + 0.5 && SCREEN_H * k <= ah * dpr + 0.5) cw = SCREEN_W * k;
+  const ch = Math.round(cw * SCREEN_H / SCREEN_W);
+  if (canvas.width !== cw || canvas.height !== ch) { canvas.width = cw; canvas.height = ch; }
+  pixelScale = cw / SCREEN_W;
   // Lay the canvas out at one CSS pixel per canvas pixel and shrink it by the device pixel ratio with a transform, so
-  // its size on screen is exactly k device pixels per game pixel (a fractional CSS width would be rounded by layout
-  // and stretch the picture by a pixel or two). Negative margins give the space back to the page.
-  const cw = SCREEN_W * k, ch = SCREEN_H * k;
+  // its size on screen is exactly its size in device pixels (a fractional CSS width would be rounded by layout and
+  // stretch the picture by a pixel or two). Negative margins give the space back to the page.
   canvas.style.width = cw + 'px';
   canvas.style.height = ch + 'px';
   canvas.style.transformOrigin = '0 0';
@@ -67,9 +88,16 @@ function fit() {
   canvas.style.marginRight = (cw / dpr - cw) + 'px';
   canvas.style.marginBottom = (ch / dpr - ch) + 'px';
   present();
-  canvas.dataset.scale = k;
-  document.body.classList.toggle('land', land);
+  canvas.dataset.scale = pixelScale.toFixed(3);
 }
+// full screen (computers): the F key or the button; the key strip hides and the picture takes the whole screen
+function toggleFullscreen() {
+  try {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
+  } catch (e) {}
+}
+document.addEventListener('fullscreenchange', fit);
 addEventListener('resize', fit);
 fit();
 setTouch(touchUI);
@@ -109,6 +137,9 @@ canvas.addEventListener('pointerdown', () => {
   if (game.mode === 'title' || game.mode === 'gameover' || game.mode === 'ending') input.queued.start = true;
 });
 $('keysBtn').addEventListener('click', () => { if (input.kb) input.kb.open(); });
+if (document.fullscreenEnabled) $('fsBtn').addEventListener('click', e => { toggleFullscreen(); e.currentTarget.blur(); }); else $('fsBtn').hidden = true;
+// asked for from the key press itself: browsers only allow full screen straight from something the player did
+addEventListener('keydown', e => { if (!e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey && !(input.kb && input.kb.busy()) && input.bound('fullscreen', e.code)) { e.preventDefault(); toggleFullscreen(); } });
 $('muteBtn').addEventListener('click', () => { audio.unlock(); input.queued.mute = true; });
 input.onAny = () => audio.unlock();
 const showMute = () => { const t = audio.muted ? 'Sound off' : 'Sound on'; $('muteBtn').textContent = t; $('tMute').setAttribute('aria-label', t); $('tMute').classList.toggle('off', audio.muted); };

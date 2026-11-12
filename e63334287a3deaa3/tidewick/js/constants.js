@@ -20,17 +20,19 @@ export const MAX_WALK = 1.5625;
 export const MAX_RUN = 2.5625;
 export const RELEASE_DECEL = 0.0508;      // no direction held (also how a too-fast walk settles back to MAX_WALK)
 export const SKID_DECEL = 0.1016;         // pressing against the direction of travel
-export const SKID_TURN = 0.5625;          // below this during a skid, Pip turns round
+export const SKID_TURN = 0.6875;          // below this during a skid, Pip turns round
 
 // ---------- player: jumping ----------
 // Picked at take-off from the horizontal speed and fixed for the whole jump: [speed below, start speed, gravity while
-// jump is held and rising, gravity otherwise]. The last band has no upper limit.
+// jump is held and rising, gravity otherwise]. The last band has no upper limit: the higher, heavier jump starts the
+// moment Pip is going faster than a walk (MAX_WALK), not only at full run.
 export const JUMP_BANDS = [
   { below: 1.0, vy: -4.0, holdG: 0.125, fallG: 0.4375 },
-  { below: 2.5, vy: -4.0, holdG: 0.1172, fallG: 0.375 },
+  { below: 1.5625, orEqual: true, vy: -4.0, holdG: 0.1172, fallG: 0.375 },   // up to and including a full walk
   { below: Infinity, vy: -5.0, holdG: 0.15625, fallG: 0.5625 }
 ];
-export const MAX_FALL = 4.0;
+export const MAX_FALL = 4.0;              // falling speed drops back to this...
+export const FALL_TRIP = 4.5;             // ...whenever it reaches this, so a long fall averages a little over 4
 
 // ---------- player: air control ----------
 export const AIR_FWD_SLOW = 0.0371;       // pressing forward under MAX_WALK
