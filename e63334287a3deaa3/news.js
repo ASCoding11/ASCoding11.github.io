@@ -60,6 +60,12 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-12', version: '1.25', title: 'Patchwork Tower', kind: 'game', games: ['Patchwork Tower'],
+     img: 'm/thumbs/patchwork-tower.jpg', tags: ['Arcade', 'Solo', 'Pixel art'], items: [
+      'Patchwork Tower: a one-screen pixel-art arcade game. Rivet the repair bot hops from window to window on a brick tower, fixing each one until it glows, while the gargoyle on the roof kicks bricks down the column it stands over.',
+      'Its eyes go red and red arrows mark the columns before every kick. Higher floors add planters, shutters, bats and double kicks; cocoa makes you invincible for a few seconds. Your best score goes on the Leaderboards.',
+      'It takes the place of Hivefix, which has been retired: the old link opens Patchwork Tower.'
+    ]},
     {date: '2026-11-12', version: '1.24', title: 'Odd One Out: no more roofs, and a fresh coat of paint', kind: 'feature',
       items: ['Nobody can stand on roofs, wall tops, fences or other players any more: you slide off, like walking into a wall.',
         'Turning into something can no longer lift you onto anything or push you through a wall.',
@@ -67,7 +73,7 @@
         'New look: softer light, a sky with clouds, glowing ceiling lights, skirting boards and soft shadows under everything, disguised players included.',
         'Graphics setting is now Low, Medium or High.'],
       img: 'm/thumbs/odd-one-out.jpg', tags: ['Odd One Out', 'Anti-cheat', 'Graphics']},
-    {date: '2026-11-11', version: '1.23', title: 'Hivefix', kind: 'game', games: ['Hivefix'],
+    {date: '2026-11-11', version: '1.23', title: 'Hivefix', kind: 'game',
      img: 'm/thumbs/hivefix.jpg', tags: ['Arcade', 'Solo', 'Combos'], items: [
       'Hivefix: a one-screen fix-it arcade game. Wax the worker bee hops around a honeycomb frame patching cracked and smashed cells while Bruno the bear pounds the top of the hive and shakes chunks of comb loose.',
       'Fixing roots you to the spot, so watch his paws: when they go up, that column is about to get hit. Every couple of frames brings something new (resin ridges, royal jelly, wasps, sticky honey), and your best score goes on the Leaderboards.'
