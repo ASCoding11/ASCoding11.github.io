@@ -60,7 +60,7 @@
  */
 (function () {
   var NEWS = [
-    {date: '2026-11-11', version: '1.24', title: 'Odd One Out: no more roofs, and a fresh coat of paint', kind: 'feature',
+    {date: '2026-11-12', version: '1.24', title: 'Odd One Out: no more roofs, and a fresh coat of paint', kind: 'feature',
       items: ['Nobody can stand on roofs, wall tops, fences or other players any more: you slide off, like walking into a wall.',
         'Turning into something can no longer lift you onto anything or push you through a wall.',
         'Stray off the map and a warning counts down from 3, then puts you back. Hunters see anyone who hides out of bounds at the nearest real spot, and staying out for 5 seconds of a hunt knocks you out.',
