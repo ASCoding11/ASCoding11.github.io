@@ -7,9 +7,10 @@ export const ACTIONS = [
   { id: 'right', label: 'Move right', group: 'Move', keys: ['ArrowRight', 'KeyD'] },
   { id: 'down', label: 'Crouch / go down a chimney', group: 'Move', keys: ['ArrowDown', 'KeyS'] },
   { id: 'jump', label: 'Jump', note: 'Hold for a higher jump', group: 'Move', keys: ['KeyX', 'Space'] },
-  { id: 'run', label: 'Run / throw a spark', group: 'Move', keys: ['KeyZ', 'ShiftLeft'] },
+  { id: 'run', label: 'Run / throw a spark', group: 'Move', keys: ['KeyZ', 'ShiftLeft', 'ShiftRight'] },
   { id: 'start', label: 'Start / pause', group: 'Game', keys: ['Enter'] },
   { id: 'mute', label: 'Sound on / off', group: 'Game', keys: ['KeyM'] },
+  { id: 'fullscreen', label: 'Full screen', group: 'Game', keys: ['KeyF'] },
   { id: 'pause', label: 'Pause', group: 'Game', keys: ['Escape'], fixed: true }
 ];
 const IDS = ['left', 'right', 'down', 'jump', 'run', 'start', 'mute'];

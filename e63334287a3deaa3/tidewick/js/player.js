@@ -7,7 +7,7 @@ const EPS = 0.001;
 export const SMALL = 0, BIG = 1, FIRE = 2;
 
 export function jumpBand(speed) {
-  for (const b of C.JUMP_BANDS) if (speed < b.below) return b;
+  for (const b of C.JUMP_BANDS) if (speed < b.below || (b.orEqual && speed === b.below)) return b;
   return C.JUMP_BANDS[C.JUMP_BANDS.length - 1];
 }
 
@@ -62,6 +62,8 @@ export class Player {
 
     // ---- crouching (big only), and standing back up when there is room ----
     this.forcedCrouch = false;
+    // big Pip standing where there is only room to crouch (he grew there, or a level was edited): duck, then slide out
+    if (this.big && !this.crouch && this.onGround && boxHitsSolid(map, this.x, this.feet - C.BIG_BOX.h, this.w, C.BIG_BOX.h)) this.setCrouch(true);
     if (this.onGround && this.big) {
       if (inp.down && !this.crouch) this.setCrouch(true);
       else if (!inp.down && this.crouch) {
@@ -118,8 +120,8 @@ export class Player {
     if (this.throwT > 0) this.throwT--;
     if (this.power === FIRE && inp.runPressed && !this.crouch && w.throwSpark && w.throwSpark(this)) this.throwT = C.THROW_POSE;
 
-    // ---- move X, then Y ----
-    moveX(map, this);
+    // ---- move X, then Y (running into a wall stops Pip dead, so a jump from there is a standing jump) ----
+    if (moveX(map, this)) this.vx = 0;
     const left = w.camLeft || 0;
     if (this.x < left) { this.x = left; if (this.vx < 0) this.vx = 0; }
     const right = map.w * TILE - this.w;
@@ -128,7 +130,8 @@ export class Player {
 
     // ---- gravity for the next frame (the lighter one only while jump is held and Pip is still rising) ----
     if (this.holding && (!inp.jump || this.vy >= 0 || !this.jumping)) this.holding = false;
-    this.vy = Math.min(C.MAX_FALL, this.vy + (this.holding ? this.band.holdG : this.band.fallG));
+    this.vy += this.holding ? this.band.holdG : this.band.fallG;
+    if (this.vy >= C.FALL_TRIP) this.vy = C.MAX_FALL;
 
     // ---- animation clock ----
     if (this.onGround && this.vx !== 0) this.walkT += Math.max(0.5, Math.abs(this.vx));
