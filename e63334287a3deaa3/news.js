@@ -60,6 +60,13 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-12', version: '1.24', title: 'Odd One Out: no more roofs, and a fresh coat of paint', kind: 'feature',
+      items: ['Nobody can stand on roofs, wall tops, fences or other players any more: you slide off, like walking into a wall.',
+        'Turning into something can no longer lift you onto anything or push you through a wall.',
+        'Stray off the map and a warning counts down from 3, then puts you back. Hunters see anyone who hides out of bounds at the nearest real spot, and staying out for 5 seconds of a hunt knocks you out.',
+        'New look: softer light, a sky with clouds, glowing ceiling lights, skirting boards and soft shadows under everything, disguised players included.',
+        'Graphics setting is now Low, Medium or High.'],
+      img: 'm/thumbs/odd-one-out.jpg', tags: ['Odd One Out', 'Anti-cheat', 'Graphics']},
     {date: '2026-11-11', version: '1.23', title: 'Hivefix', kind: 'game', games: ['Hivefix'],
      img: 'm/thumbs/hivefix.jpg', tags: ['Arcade', 'Solo', 'Combos'], items: [
       'Hivefix: a one-screen fix-it arcade game. Wax the worker bee hops around a honeycomb frame patching cracked and smashed cells while Bruno the bear pounds the top of the hive and shakes chunks of comb loose.',
