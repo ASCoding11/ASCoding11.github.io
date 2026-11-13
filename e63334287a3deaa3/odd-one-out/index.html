@@ -359,7 +359,7 @@ body.touch #banner span{font-size:14px}
           <svg viewBox="0 0 74 64" aria-hidden="true"><path d="M6 24l16-8 16 8v18l-16 8-16-8z" fill="#c9965c" stroke="#171a2e" stroke-width="3" stroke-linejoin="round"/><path d="M6 24l16 8 16-8M22 32v18" fill="none" stroke="#171a2e" stroke-width="3" stroke-linejoin="round"/><path d="M36 26l16-8 16 8v18l-16 8-16-8z" fill="#14b89a" stroke="#171a2e" stroke-width="3" stroke-linejoin="round"/><path d="M36 26l16 8 16-8M52 34v18" fill="none" stroke="#171a2e" stroke-width="3" stroke-linejoin="round"/><circle cx="45" cy="36" r="2.4" fill="#171a2e"/><circle cx="57" cy="36" r="2.4" fill="#171a2e"/><circle cx="52" cy="13" r="10" fill="none" stroke="#ff7a1a" stroke-width="3.5"/><path d="M52 0v7M52 19v7M39 13h7M58 13h7" stroke="#ff7a1a" stroke-width="3" stroke-linecap="round"/></svg>
           <h1><span class="o">Odd</span> One <span class="t">Out</span></h1>
         </div>
-        <p class="tag">Props vs Hunters. Props turn into anything in the room (a box, a chair, a potted plant) and blend in. Hunters get a rifle and four minutes, and every wrong shot costs them health.</p>
+        <p class="tag">Props vs Hunters. Props turn into anything in the room (a box, a chair, a potted plant) and blend in. Hunters get a rifle and four minutes to find them.</p>
         <div class="label" style="margin-top:4px">Play with friends</div>
         <button id="quick" class="btn big orange" type="button">Quick match</button>
         <div class="roomrow">
@@ -387,8 +387,9 @@ body.touch #banner span{font-size:14px}
           <ol class="how">
             <li><b>Props</b> get 30 seconds to hide while the hunters wait in a locked room. Aim at any object and click to <b>become</b> it, then park yourself where it looks at home.</li>
             <li><b>Lock rotation</b> to keep facing the way the real ones do while you look around. Keep still: moving gives you away.</li>
+            <li><b>Size matters:</b> a small object is harder to spot, but it moves slower and has less health. A big one is quicker and tougher.</li>
             <li>Every few seconds every prop lets out a <b>ping</b>, so the hunters can hear roughly where you are. Pings come faster in the last minute.</li>
-            <li><b>Hunters</b> shoot anything suspicious. Hitting a disguised prop damages it; hitting a real object costs you health.</li>
+            <li><b>Hunters</b> shoot anything suspicious. Hitting a disguised prop damages it. Shooting a real object costs nothing, unless the host switches the Wrong shot penalty on.</li>
             <li>Hunters win if every prop is found. Props win if one of them is still standing when time runs out. Everyone takes a turn hunting.</li>
           </ol>
         </details>
@@ -900,7 +901,10 @@ function defProp(id,name,parts,o){
   bb.min.y=0;
   const w=bb.max.x-bb.min.x,h=bb.max.y,d=bb.max.z-bb.min.z,vol=w*h*d;
   const t={id,name,geos,bb,w,h,d,vol,idx:PT_LIST.length,elig:o.elig!==false,ns:!!o.ns,cx:(bb.min.x+bb.max.x)/2,cz:(bb.min.z+bb.max.z)/2,solid:o.solid!==false,
-    hp:clamp(Math.round(100*Math.cbrt(vol/.12)/5)*5,40,200),speed:vol>1?3.4:vol>.3?3.9:4.4};
+    hp:clamp(Math.round(100*Math.cbrt(vol/.12)/5)*5,40,200),
+    // the smaller the object, the harder it is to spot, so the slower it moves (the owner's rule; it used to be the other
+    // way round): 3.0 m a second for a cup, about 3.7 for a cardboard box, 3.9 for a bench, 4.3 for a sofa; hunters run at 5.2
+    speed:clamp(Math.round((3.9+.55*Math.log10(Math.max(vol,.001)/.3))*20)/20,3,4.4)};
   // its contact shadow: a soft pad on whatever it stands on, a little bigger than its footprint (see blobOf)
   t.blob=new THREE.Matrix4().compose(new V3(t.cx,.003,t.cz),new THREE.Quaternion(),new V3(w*1.1+.12,1,d*1.1+.12));
   PT[id]=t;PT_LIST.push(t);return t;
@@ -1968,8 +1972,10 @@ function aliveHunters(rs){return rs.hu.filter(u=>!(rs.el&&rs.el[u])&&present(u))
 function phaseLeft(){const rs=G.rs;if(!rs||!rs.dur)return 0;return(rs.t0+rs.dur-now())/1000}
 function maxHpOf(id,rs){rs=rs||G.rs;if(rs&&rs.hu.indexOf(id)>=0)return 100;const e=ents.get(id);const t=e&&e.form||PT[DEFAULT_FORM];return rs&&rs.set&&rs.set.hps===0?100:t.hp}
 function hpOf(id,rs){rs=rs||G.rs;const f=rs&&rs.hf?rs.hf[id]||0:0;return Math.max(0,Math.round((1-f)*maxHpOf(id,rs)))}
-const DEF_SET={map:-1,rounds:5,hide:30,hunt:240,ratio:0,ping:15,pen:3,hps:1};
-function defaultSet(){return cleanSet(Object.assign({},DEF_SET,store.get('hostset',{})))}
+const DEF_SET={map:-1,rounds:5,hide:30,hunt:240,ratio:0,ping:15,pen:0,hps:1};   // pen 0: wrong shots are free unless the host turns the penalty on
+// A saved penalty only counts if the host chose it since wrong shots became free by default (hostpen): the 3 HP saved
+// with older settings was the old default, not a choice.
+function defaultSet(){const s=Object.assign({},DEF_SET,store.get('hostset',{}));if(!store.get('hostpen',0))s.pen=DEF_SET.pen;return cleanSet(s)}
 function lobbyRS(prev,set){return{id:prev?prev.id:0,mid:prev?prev.mid||0:0,rn:0,ph:'lobby',t0:now(),dur:0,map:prev?prev.map:mapIdx<0?0:mapIdx,set:set||(prev&&prev.set)||defaultSet(),hu:[],pr:[],hf:{},el:{},k:{},sc:prev&&prev.ph!=='over'?prev.sc||{}:{},hn:{},as:0}}
 function liveIds(){if(G.mode==='practice')return[...ents.keys()];const a=[Net.uid];for(const k of Net.others.keys())if(Net.live(k))a.push(k);return a}
 function huntersFor(n,set){const want=set.ratio|0?set.ratio|0:n<=3?1:n<=6?2:n<=10?3:4;return clamp(want,1,Math.max(1,n-1))}
@@ -2702,7 +2708,7 @@ function updateHud(){
   setHidden('status',!alive||(touchUI&&ph==='lobby'&&G.mode==='online'));
   if(alive){
     const hp=rs&&ph!=='lobby'?hpOf(myId()):(role==='hunter'?100:me.form.hp),mx=rs&&ph!=='lobby'?maxHpOf(myId()):(role==='hunter'?100:me.form.hp);
-    if(role==='hunter'){setText('stName','Rifle');setText('stSub','Health '+hp+'/100'+(touchUI||!rs||!rs.set.pen?'':' · wrong shots cost '+rs.set.pen+' HP'))}
+    if(role==='hunter'){setText('stName','Rifle');setText('stSub',rs&&rs.set.pen?'Health '+hp+'/100'+(touchUI?'':' · wrong shots cost '+rs.set.pen+' HP'):touchUI?'Wrong shots are free':'Wrong shots are free · shoot anything suspicious')}
     else{setText('stName',me.form.name);setText('stSub','Health '+hp+'/'+mx+(G.tfCd>0?' · change in '+Math.ceil(G.tfCd)+'s':''))}
     $('hpFill').style.width=clamp(hp/mx*100,0,100)+'%';setClass('hpBar','hpbar'+(hp/mx<.35?' low':''));
     setHidden('ammo',role!=='hunter');if(role==='hunter'){const a=G.reloadT>0?'RELOADING':G.ammo+'';if(hudCache.ammo!==a){hudCache.ammo=a;$('ammo').innerHTML=G.reloadT>0?'Reloading…':G.ammo+'<small> / '+MAG+'</small>';$('ammo').className=G.reloadT>0?'reload':''}}
@@ -2779,7 +2785,7 @@ function renderLobby(){
   const sb=$('startRound');sb.hidden=Net.isPublic;sb.disabled=!G.host||ids.length<2;sb.textContent=G.host?'Start match':'Host starts';
 }
 function hostSet(key,val){
-  if(!G.host||!G.rs||G.rs.ph!=='lobby')return;const set=Object.assign({},G.rs.set,{[key]:val});store.set('hostset',set);
+  if(!G.host||!G.rs||G.rs.ph!=='lobby')return;const set=Object.assign({},G.rs.set,{[key]:val});store.set('hostset',set);if(key==='pen')store.set('hostpen',1);
   const rs=Object.assign({},G.rs,{set});if(key==='map'&&val>=0)rs.map=val;setRS(rs);renderLobby();sfx('ui');
 }
 // ---------- results ----------
@@ -2824,7 +2830,7 @@ function startPractice(kind){
   initAudio();Music.start();saveProfile();if(Net.refs)Net.leave();
   clearEnts();clearFx();G.mode='practice';G.pmode=kind;G.host=true;G.paused=false;
   loadMap(G.pracMap);makeMe('me');
-  const D=DIFF[G.diff],set={map:G.pracMap,rounds:1,hide:kind==='hunt'?20:30,hunt:180,ratio:0,ping:15,pen:3,hps:1};
+  const D=DIFF[G.diff],set={map:G.pracMap,rounds:1,hide:kind==='hunt'?20:30,hunt:180,ratio:0,ping:15,pen:0,hps:1};
   let hu,pr;
   if(kind==='hunt'){hu=['me'];pr=[];for(let i=0;i<D.props;i++){const id='b'+i;makeEnt({id,name:BOTNAMES[i],color:COLORS[(i+1)%COLORS.length],bot:{kind:'prop'}});pr.push(id)}}
   else{pr=['me'];hu=[];for(let i=0;i<D.hunters;i++){const id='h'+i;makeEnt({id,name:'Hunter '+BOTNAMES[i+4],color:COLORS[(i+3)%COLORS.length],bot:{kind:'hunter'}});hu.push(id)}}
