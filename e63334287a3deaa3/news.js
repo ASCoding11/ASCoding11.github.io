@@ -43,6 +43,9 @@
  *   tags     optional: up to 4 short keywords shown as little tags on the card, like
  *            ['Battle royale', 'Up to 30 players', 'Build'] (each cut to 28 characters).
  *
+ *   link     optional: {text: 'Open the Marketplace', href: '/marketplace/'}, a link shown under the bullet points
+ *            for news about another part of the site. Only paths on this site (starting with one /) are used.
+ *
  * The "New games!" chips get a tiny picture each by themselves: the game's m/thumbs/<folder>.jpg (a game with no
  * thumbnail just keeps its coloured chip).
  *
@@ -60,6 +63,13 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-13', version: '1.27', title: 'The Marketplace is open', kind: 'feature',
+     tags: ['Buy and sell', 'Haggle', 'No fees'], link: {text: 'Open the Marketplace', href: '/marketplace/'}, items: [
+      'A new Marketplace tab on the main site: post things you no longer need, with a photo and an asking price, and browse what other people are selling.',
+      'Haggle over anything: every buyer gets a private thread with the seller to offer, counter and agree a price, and each listing shows its best open offer.',
+      'You pay the agreed price by card. Nobody sees who they are dealing with until the item is paid for; then buyer and seller get each other\'s details to arrange the handover.',
+      'The marketplace takes no cut of your sale for now.'
+    ]},
     {date: '2026-11-12', version: '1.26', title: 'Tidewick: a bigger picture and truer jumps', kind: 'feature',
      img: 'm/thumbs/tidewick.jpg', tags: ['Tidewick', 'Full screen', 'Physics'], items: [
       'The picture now fills the window instead of stopping at the nearest whole size, on computers and phones. Press F (or the Full screen button) to give it the whole screen.',
@@ -592,7 +602,14 @@
           }
           var ul = el('ul');
           e.items.forEach(function (s) { if (typeof s === 'string' && s) ul.appendChild(el('li', '', s)); });
-          art.appendChild(ul); day.appendChild(art);
+          art.appendChild(ul);
+          // An optional link to another page of this site (never an outside address).
+          if (e.link && typeof e.link.href === 'string' && /^\/(?!\/)[\w\-./#]*$/.test(e.link.href) && typeof e.link.text === 'string' && e.link.text.trim()) {
+            var lk = el('a', 'nws-link', e.link.text.trim().slice(0, 40) + ' \u2192'); lk.href = e.link.href; lk.target = '_top';
+            lk.style.cssText = 'display:inline-block;margin-top:8px;font-weight:600;color:var(--accent)';
+            art.appendChild(lk);
+          }
+          day.appendChild(art);
         });
         days.appendChild(day);
       }
