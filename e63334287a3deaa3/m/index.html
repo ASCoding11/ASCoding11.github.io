@@ -63,8 +63,21 @@ h1 span{color:var(--accent)}
 h2{font-family:var(--f-m);font-weight:600;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);margin:22px 0 10px}
 .mode{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin:30px 0 2px;padding-bottom:10px;border-bottom:1px solid var(--line)}
 .mode h2{font-family:var(--f-d);font-weight:800;font-size:32px;line-height:.95;letter-spacing:.01em;text-transform:uppercase;margin:0;color:var(--ink)}
-.mode.multi h2{color:var(--accent)}.mode.solo h2{color:#8fd3ff}.mode.puzzles h2{color:#b7a8ff}.mode.parkour h2{color:#6cc8ff}.mode.action h2{color:#ff8a94}
+.mode.cars h2{color:var(--accent)}.mode.arcade h2{color:#ffab7a}.mode.puzzles h2{color:#b7a8ff}.mode.parkour h2{color:#6cc8ff}.mode.shooters h2{color:#ff8a94}.mode.partygames h2{color:#f39bd3}
 .mode p{margin:4px 0 0;font-size:13px;color:var(--ink-2)}
+/* the row of game types above the lists */
+.gnav{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:5px;margin:16px 0 0}
+.gnav button{font-family:var(--f-d);font-weight:800;font-size:13px;line-height:1;letter-spacing:.01em;text-transform:uppercase;min-height:44px;padding:0 2px;border-radius:11px;border:1px solid var(--line);background:var(--panel);color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+.gnav button:active{transform:scale(.96)}
+.gnav .cars{color:var(--accent)}.gnav .arcade{color:#ffab7a}.gnav .puzzles{color:#b7a8ff}.gnav .parkour{color:#6cc8ff}.gnav .shooters{color:#ff8a94}.gnav .partygames{color:#f39bd3}
+.mode{scroll-margin-top:10px}
+/* the daily puzzles: small tiles, what the puzzle is first and its name under it */
+.grid.pz{gap:8px}
+.grid.pz .tile{flex-direction:row;align-items:center;gap:8px;padding:6px 8px 6px 6px;border-radius:12px}
+.grid.pz .tile img{flex:none;width:50px;height:38px;aspect-ratio:auto;border-radius:7px}
+.grid.pz .tile .t{padding:0;gap:2px;min-width:0}
+.grid.pz .tile strong{font-family:inherit;font-weight:700;font-size:13px;line-height:1.2;text-transform:none;letter-spacing:0}
+.grid.pz .tile span{font-family:var(--f-m);font-size:10px;line-height:1.2;letter-spacing:.08em;text-transform:uppercase;color:#b7a8ff}
 .mode .n{flex:none;font-family:var(--f-m);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);border:1px solid var(--line);border-radius:999px;padding:4px 10px}
 #lists h3{font-family:var(--f-m);font-weight:600;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);margin:18px 0 10px}
 .ask{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:30px;padding:14px;border-radius:14px;border:1px dashed rgba(255,201,60,.45);background:linear-gradient(115deg,rgba(255,201,60,.14),rgba(143,211,255,.08))}
@@ -123,63 +136,81 @@ body .pty h2{font-family:var(--f-d);font-weight:800;font-size:30px;letter-spacin
 (function(){
   // land: plays best with the phone turned sideways
   var B='/e63334287a3deaa3/';
-  // Each group: [kind, games, mode]. mode puts it under one of the five headings in MODES, in this order (the same
-  // sections as the computer version): keep groups of one mode together. A game goes where it fits best, so an online
-  // puzzle game is under Puzzles and an online shooter under Shooter / Action; Multiplayer has the other online games.
-  // A game: [folder, name, one line, best sideways (1/0), and its address if it lives outside the Back Room folder].
-  // daily (Daily Puzzles) is the dashboard for every daily puzzle; the daily games open from it inside the same frame.
-  var MODES={puzzles:['Puzzles','Daily puzzles, word games, trivia and numbers.'],parkour:['Parkour','Obbies, towers and climbs.'],action:['Shooter / Action','Shoot, hide, build and wreck.'],multi:['Multiplayer','Play online with friends, or against bots.'],solo:['Single player','Drop-and-stack games for one.']};
+  // Each group: [kind, games, mode, and 1 if its tiles are the daily puzzles]. mode puts it under one of the six
+  // headings in MODES (the same sections as the computer version, most played type first, and inside each the most
+  // played game first: see the README's note on play-time order): keep groups of one mode together.
+  // A game: [folder, name, one line, best sideways (1/0), its address if it lives outside the Back Room folder, and
+  // for a daily puzzle what it is in plain words, shown as the tile's heading with the name under it].
+  // daily (Daily Puzzles) is the dashboard for every daily puzzle; the daily puzzles also have a small tile each.
+  var MODES={cars:['Cars','Racing, car soccer, kart battles and stunt time trials.'],shooters:['Shooters','Aim, build and outlast.'],parkour:['Parkour','Obbies, towers, climbs and runs.'],partygames:['Party games','Hide, bluff and shout out answers with friends.'],puzzles:['Puzzles','Every daily puzzle, block puzzles, word games and trivia.'],arcade:['Arcade','Snakes, sword duels, platformers and more.']};
   var GROUPS=[
+    ['Racing and car games',[
+      ['slipstream','Slipstream','22-car open-wheel races. Draft, brake late, pass.',1],
+      ['boostball','Boostball','Rocket-car soccer with a giant ball.',1],
+      ['rampline','Rampline','Stunt time trials, online boards and a track builder.',1],
+      ['rumble-karts','Rumble Karts','Three-minute kart brawls with weapons.',1]
+    ],'cars'],
+    ['Shoot, build and outlast',[
+      ['shell-crackers','Shell Crackers','First-person egg shooter. Crack the most shells before the clock runs out.',1],
+      ['backrooms-1v1','Backrooms 1v1–4v4','Red vs Blue in Level 0. Build cover and wipe out the other team.',1],
+      ['drop-zone','Driftfall','New battle royale for up to 30: jump, glide, loot and build. Last one standing wins.',1]
+    ],'shooters'],
+    ['Obbies, climbs and runs',[
+      ['updraft','Updraft','Climb three thousand metres of junk, clouds, storm and space. Miss a jump and you fall.',1],
+      ['tumble-trials','Tumble Trials','A wobbly knockout show for up to 16. Last bean standing wins.',1],
+      ['turbo-trail','Turbo Trail','A speedrun obby: 25 quick levels, medals, splits and online races.',1],
+      ['spire','Spire','Race up a random tower. Every landing saves your place, so mind the red.',1],
+      ['asteroid-run','Asteroid Run','Run tile tunnels in space. Take a wall and the tunnel turns.',0],
+      ['escapade','Escapade','World after world of escape rooms. Find the key, crack the code.',1]
+    ],'parkour'],
+    ['Hide, bluff and shout',[
+      ['chromaflage','Chromaflage','Paint yourself to match the room, then hide. Or hunt the painted.',1],
+      ['odd-one-out','Odd One Out','Props vs Hunters: turn into anything in the room, or shoot what doesn\'t belong.',1],
+      ['showdown','Showdown','No-limit Hold\'em with friends or bots.',0],
+      ['puffer-party','Puffer Party','Name something in the category before the pufferfish pops.',0]
+    ],'partygames'],
     ['Every day',[
       ['daily','Daily Puzzles','22 puzzles a day: word, geography, logic and soccer, with your streak.',0]
     ],'puzzles'],
-    ['Words and trivia',[
+    ['Today’s puzzles, one tap each',[
+      ['nearword','Nearword','Nearword',0,'','Find the word by meaning'],
+      ['fourcast','Fourcast','Fourcast',0,'','Four word guesses at once'],
+      ['hotspot','Hotspot','Hotspot',0,'','Find the country on a globe'],
+      ['ninefold','Ninefold','Ninefold',0,'','Sudoku, three a day'],
+      ['warmer','Warmer','Warmer',0,'','Hot or cold word hunt'],
+      ['hunch','Hunch','Hunch',0,'','Guess the 5-letter word'],
+      ['top-bins','Top Bins','Top Bins',0,'','Soccer: name the top 10'],
+      ['quartets','Quartets','Quartets',0,'','Sort words into 4 groups'],
+      ['poopdle','Poopdle','Poopdle',0,'','Word ladder'],
+      ['crosslet','Crosslet','Crosslet',0,'','Mini crossword'],
+      ['sleight','Sleight','Sleight',0,'','One cryptic clue'],
+      ['unfurl','Unfurl','Unfurl',0,'','Name the country by its flag'],
+      ['deadline-day','Deadline Day','Deadline Day',0,'','Soccer: guess the transfer'],
+      ['overland','Overland','Overland',0,'','Link two countries by land'],
+      ['outline','Outline','Outline',0,'','Name the country by its shape'],
+      ['teamsheet','Teamsheet','Teamsheet',0,'','Soccer: the missing player'],
+      ['journeyman','Journeyman','Journeyman',0,'','Soccer: guess the player by clubs'],
+      ['scout-report','Scout Report','Scout Report',0,'','Soccer: mystery player'],
+      ['crossbar','Crossbar','Crossbar',0,'','Soccer: fill the grid'],
+      ['back-four','Back Four','Back Four',0,'','Soccer: four hidden links'],
+      ['stat-duel','Stat Duel','Stat Duel',0,'','Soccer: higher or lower']
+    ],'puzzles',1],
+    ['Blocks, words and trivia',[
+      ['stackfall','Stackfall','Falling blocks: clear rows, or link sand wall to wall.',0],
+      ['melon-merge','Melon Merge','Drop fruit, merge twins, grow a watermelon.',0],
+      ['2048','2048','Join tiles to 2048: Classic, 6 × 6 Mega, or College and Dessert ladders.',0],
       ['deepword','Deepword','Find the answer nobody else thought of and dive deeper.',0],
-      ['puffer-party','Puffer Party','Name something in the category before the pufferfish pops.',0],
       ['trivium','Trivium','Trivia: a daily ten, quick play or a live contest.',0],
+      ['gridpop','Gridpop','Drop blocks on an 8 × 8 grid and pop full rows and columns.',0],
       ['boxed','Boxed','Real AMC 10 and AIME problems, five a day.',0,'/boxed/']
     ],'puzzles'],
-    ['Number and block puzzles',[
-      ['gridpop','Gridpop','Drop blocks on an 8 × 8 grid and pop full rows and columns.',0],
-      ['2048','2048','Join tiles to 2048: Classic, 6 × 6 Mega, or College and Dessert ladders.',0]
-    ],'puzzles'],
-    ['Obbies and climbs',[
-      ['spire','Spire','Race up a random tower. Every landing saves your place, so mind the red.',1],
-      ['turbo-trail','Turbo Trail','A speedrun obby: 25 quick levels, medals, splits and online races.',1],
-      ['escapade','Escapade','World after world of escape rooms. Find the key, crack the code.',1],
-      ['updraft','Updraft','Climb three thousand metres of junk, clouds, storm and space. Miss a jump and you fall.',1],
-      ['tumble-trials','Tumble Trials','A wobbly knockout show for up to 16. Last bean standing wins.',1],
-      ['asteroid-run','Asteroid Run','Run tile tunnels in space. Take a wall and the tunnel turns.',0],
-      ['rampline','Rampline','Stunt time trials, online boards and a track builder.',1],
-      ['tidewick','Tidewick','A rainy-harbour platformer: stomp, jump, and get past the Tollkeeper.',0]
-    ],'parkour'],
-    ['Shoot and hide',[
-      ['drop-zone','Driftfall','New battle royale for up to 30: jump, glide, loot and build. Last one standing wins.',1],
-      ['shell-crackers','Shell Crackers','First-person egg shooter. Crack the most shells before the clock runs out.',1],
-      ['backrooms-1v1','Backrooms 1v1–4v4','Red vs Blue in Level 0. Build cover and wipe out the other team.',1],
-      ['chromaflage','Chromaflage','Paint yourself to match the room, then hide. Or hunt the painted.',1],
-      ['odd-one-out','Odd One Out','Props vs Hunters: turn into anything in the room, or shoot what doesn\'t belong.',1]
-    ],'action'],
-    ['Battle',[
-      ['rumble-karts','Rumble Karts','Three-minute kart brawls with weapons.',1],
-      ['lunge-line','Lokop','Pixel sword duels. Win, run, and drop into the pit.',1]
-    ],'action'],
-    ['Racing and sports',[
-      ['slipstream','Slipstream','22-car open-wheel races. Draft, brake late, pass.',1],
-      ['boostball','Boostball','Rocket-car soccer with a giant ball.',1]
-    ],'multi'],
-    ['Arenas, cards and markets',[
+    ['Snakes, duels and platformers',[
       ['coil','Coil','Grow your snake and cut off the bigger ones.',0],
-      ['showdown','Showdown','No-limit Hold\'em with friends or bots.',0],
+      ['lunge-line','Lokop','Pixel sword duels. Win, run, and drop into the pit.',1],
+      ['tidewick','Tidewick','A rainy-harbour platformer: stomp, jump, and get past the Tollkeeper.',0],
+      ['patchwork-tower','Patchwork Tower','Fix the windows while a gargoyle kicks bricks at you.',0],
       ['hype-cycle-exchange','Hype Cycle Exchange','A stock market game: trade the rumors, beat the index.',0,'/hype-cycle-exchange/']
-    ],'multi'],
-    ['Drop and stack',[
-      ['stackfall','Stackfall','Falling blocks: clear rows, or link sand wall to wall.',0],
-      ['melon-merge','Melon Merge','Drop fruit, merge twins, grow a watermelon.',0]
-    ],'solo'],
-    ['Arcade',[
-      ['patchwork-tower','Patchwork Tower','Fix the windows while a gargoyle kicks bricks at you.',0]
-    ],'solo']
+    ],'arcade']
   ];
   var byId={},total=0;
   var store={get:function(k){try{return localStorage.getItem(k)}catch(e){return null}},set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
@@ -189,7 +220,7 @@ body .pty h2{font-family:var(--f-d);font-weight:800;font-size:30px;letter-spacin
     var b=document.createElement('button');b.type='button';b.className='tile';
     var img=document.createElement('img');img.src='thumbs/'+g.id+'.jpg';img.alt='';img.loading='lazy';img.width=560;img.height=350;
     var t=document.createElement('div');t.className='t';
-    var n=document.createElement('strong');n.textContent=g.name;
+    var n=document.createElement('strong');n.textContent=g.plain||g.name;
     var d=document.createElement('span');d.textContent=g.desc;
     t.append(n,d);
     if(g.land){var e=document.createElement('em');e.textContent='↻ Best sideways';t.append(e)}
@@ -207,11 +238,22 @@ body .pty h2{font-family:var(--f-d);font-weight:800;font-size:30px;letter-spacin
     }
     var k=document.createElement('h3');k.textContent=gr[0];
     var grid=document.createElement('div');grid.className='grid';
-    gr[1].forEach(function(r){var g={id:r[0],name:r[1],desc:r[2],land:!!r[3],url:r[4]||B+r[0]+'/'};if(g.id==='daily')g.scope=B;byId[g.id]=g;if(g.id!=='daily'){total++;modeCount++}grid.append(tile(g))});
-    modeN.textContent=modeCount+(modeCount===1?' game':' games')+(mode==='puzzles'?' + daily':'');
+    gr[1].forEach(function(r){var g={id:r[0],name:r[1],desc:r[2],land:!!r[3],url:r[4]||B+r[0]+'/',plain:r[5]||''};if(g.id==='daily')g.scope=B;byId[g.id]=g;if(g.id!=='daily'&&!gr[3]){total++;modeCount++}grid.append(tile(g))});
+    if(gr[3])grid.classList.add('pz');
+    modeN.textContent=modeCount+(modeCount===1?' game':' games')+(mode==='puzzles'?' + 21 daily':'');
     $('lists').append(k,grid);
   });
   $('count').textContent=total+' games · made for touch';
+  // A row of game types above the lists, most played first: tap one to jump to its heading.
+  var gnav=document.createElement('div');gnav.className='gnav';gnav.setAttribute('role','navigation');gnav.setAttribute('aria-label','Game types');
+  var seenMode={};
+  GROUPS.forEach(function(gr){
+    var m=gr[2];if(seenMode[m])return;seenMode[m]=1;
+    var nb=document.createElement('button');nb.type='button';nb.className=m;nb.textContent=m==='partygames'?'Party':(MODES[m]||[m])[0];
+    nb.addEventListener('click',function(){var h=document.querySelector('.mode.'+m);if(h)h.scrollIntoView({behavior:'smooth',block:'start'})});
+    gnav.append(nb);
+  });
+  $('lists').parentNode.insertBefore(gnav,$('lists'));
   // Under the games: ask for ideas through the feedback bar at the top (feedback.js opens it for data-feedback-open).
   var ask=document.createElement('div');ask.className='ask';
   var at=document.createElement('p');var ab=document.createElement('b');ab.textContent='Want more games, or have an idea?';

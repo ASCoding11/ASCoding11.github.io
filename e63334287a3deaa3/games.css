@@ -1,6 +1,6 @@
 /*
- * Back Room games launcher: the Puzzles, Parkour, Shooter / Action, Multiplayer and Single player sections, their
- * game cards, and the Daily Puzzles feature card at the top of Puzzles.
+ * Back Room games launcher: the row of game types, the Cars, Shooters, Parkour, Party, Puzzles and Arcade sections,
+ * their game cards, the Daily Puzzles feature card at the top of Puzzles and the small tiles for each daily puzzle.
  *
  * Linked from inside <section aria-label="Games"> in e63334287a3deaa3/index.html (not from <head>), because the
  * home page's reveal() copies that section into the home page and the link comes along with it. Builds on site.css
@@ -15,6 +15,7 @@
   --puz:#5B45B0;--puz-ink:#FFFFFF;
   --park:#1C6B9C;--park-ink:#FFFFFF;
   --act:#B3263A;--act-ink:#FFFFFF;
+  --pty:#A3267E;--pty-ink:#FFFFFF;
   padding-top:34px;
 }
 @media (prefers-color-scheme: dark){
@@ -25,17 +26,32 @@
     --puz:#A796FF;--puz-ink:#140B33;
     --park:#5DB6EC;--park-ink:#06182A;
     --act:#F2727F;--act-ink:#2A070D;
+    --pty:#F08CCB;--pty-ink:#2A0720;
   }
 }
 
 /* ---------- section headings ---------- */
 .br-games .gs{padding-top:0}
 .br-games .gs + .gs{margin-top:48px}
-.gs-multi{--gs-c:var(--accent);--gs-ink:var(--accent-ink)}
-.gs-solo{--gs-c:var(--solo);--gs-ink:var(--solo-ink)}
+.gs-cars{--gs-c:var(--accent);--gs-ink:var(--accent-ink)}
+.gs-arcade{--gs-c:var(--solo);--gs-ink:var(--solo-ink)}
 .gs-puzzles{--gs-c:var(--puz);--gs-ink:var(--puz-ink)}
 .gs-parkour{--gs-c:var(--park);--gs-ink:var(--park-ink)}
-.gs-action{--gs-c:var(--act);--gs-ink:var(--act-ink)}
+.gs-shooters{--gs-c:var(--act);--gs-ink:var(--act-ink)}
+/* partygames, not party: layout.js names each section's block after its class, and "party" is the Party panel */
+.gs-partygames{--gs-c:var(--pty);--gs-ink:var(--pty-ink)}
+
+/* ---------- the row of game types: equal buttons in one row, most played type first; a click goes to that section ---------- */
+.gs-nav{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin:0 0 34px}
+.gs-nb{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:0;min-height:74px;padding:10px 6px;border-radius:14px;text-decoration:none;text-align:center;color:var(--gs-ink);background:var(--gs-c);box-shadow:0 8px 18px -10px var(--gs-c);transition:transform .15s ease,filter .15s ease}
+.gs-nb b{font-family:var(--display,inherit);font-size:20px;font-weight:800;line-height:1;letter-spacing:.03em;text-transform:uppercase;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gs-nb small{font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;opacity:.85;white-space:nowrap}
+.gs-nb:active{transform:scale(.97)}
+.gs-nb:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+@media (hover: hover){.gs-nb:hover{transform:translateY(-3px);filter:brightness(1.08)}}
+@media (max-width:719px){.gs-nav{gap:6px}.gs-nb{min-height:62px;padding:8px 2px;border-radius:11px}.gs-nb b{font-size:13px;letter-spacing:0}.gs-nb small{display:none}.gs-nb svg{width:18px;height:18px}}
+@media (max-width:399px){.gs-nav{gap:4px}.gs-nb b{font-size:11px}}
+.br-games .gs{scroll-margin-top:70px}
 .gs-head{display:flex;align-items:center;gap:14px;margin:0 0 18px}
 .gs-ic{flex:none;display:grid;place-items:center;width:48px;height:48px;border-radius:15px;background:var(--gs-c);color:var(--gs-ink);box-shadow:0 8px 18px -8px var(--gs-c)}
 .gs-tt{flex:1;min-width:0}
@@ -62,18 +78,18 @@
 .br-games .gc .gc-blurb{margin:0;font-size:14px;line-height:1.4;color:var(--ink-2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.8em}
 .gc-chips{display:flex;flex-wrap:wrap;gap:5px;margin:2px 0 0;padding:0;list-style:none}
 .gc-chips li{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;line-height:1.1;white-space:nowrap;padding:4px 9px;border-radius:999px;background:var(--panel-2);color:var(--ink-2);border:1px solid var(--line)}
-.gc-chips li.on,.gs-solo .gc-chips li:first-child,.gc-chips:not(:has(.on)) li:first-child{color:var(--gs-c);background:color-mix(in srgb,var(--gs-c) 11%,var(--panel));border-color:color-mix(in srgb,var(--gs-c) 32%,transparent)}
+.gc-chips li.on,.gs-arcade .gc-chips li:first-child,.gc-chips:not(:has(.on)) li:first-child{color:var(--gs-c);background:color-mix(in srgb,var(--gs-c) 11%,var(--panel));border-color:color-mix(in srgb,var(--gs-c) 32%,transparent)}
 .gc-chips li.on::before{content:"";flex:none;width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 0 3px color-mix(in srgb,currentColor 22%,transparent);animation:gc-live 2.4s ease-in-out infinite}
 @keyframes gc-live{50%{box-shadow:0 0 0 5px color-mix(in srgb,currentColor 0%,transparent)}}
 .br-games .gc .actions{margin-top:auto;padding-top:5px}
 .br-games .gc .btn.primary{width:100%;justify-content:center;min-height:42px;border-radius:11px;font-size:15px;background:var(--gs-c);border-color:var(--gs-c);color:var(--gs-ink);box-shadow:0 6px 14px -8px var(--gs-c);transition:filter .15s ease,transform .15s ease}
 .br-games .gc .btn.primary:active{transform:scale(.97)}
 
-/* Wide cards (two columns, picture on the left) keep each section's rows full on computers: Parkour and Shooter /
-   Action have 5 games (3 wide + 2 = two rows of four), Single player 2 (both wide = one row); Puzzles has the
-   Daily Puzzles card on its own row and 5 games (3 wide + 2, like Parkour), Multiplayer 4 regular. Between 560 and 960 px a wide card
-   takes a whole row of two, which keeps the other cards in pairs. On phones (560 px and less) only .pw cards (the first
-   of Puzzles, Parkour and Shooter / Action) take a whole row and the rest pair up. If a section's count changes, fix wide/pw. */
+/* Wide cards (two columns, picture on the left) keep each section's rows full on computers, four across: Shooters has
+   3 games (1 wide + 2), Parkour and Puzzles 6 (2 wide + 4 = two rows), Cars, Party and Arcade 4 regular. The wide ones
+   are each section's most played. Between 560 and 960 px a wide card takes a whole row of two, which keeps the other
+   cards in pairs. On phones (560 px and less) only .pw cards (Shell Crackers, so Shooters' other two pair up) take a
+   whole row and the rest pair up. If a section's count changes, fix wide/pw. */
 @media (min-width:960px), (min-width:561px) and (max-width:879px){
   .br-games .gc.wide{grid-column:span 2;flex-direction:row}
   .br-games .gc.wide .shot{flex:0 0 52%;aspect-ratio:auto;min-height:220px;margin:7px 0 7px 7px}
@@ -93,20 +109,20 @@
 .br-games .gc:focus-within{border-color:color-mix(in srgb,var(--gs-c) 55%,var(--line))}
 .br-games .gc .btn.primary:focus-visible{outline:3px solid var(--gs-c);outline-offset:3px}
 
-/* The Daily Puzzles card: a whole row at the top of Puzzles, picture on the left (on top on phones), with today's
+/* The Daily Puzzles card: a slim whole row at the top of Puzzles, picture on the left (on top on phones), with today's
    progress (#dailyToday, filled in by a small script on the Back Room page; hidden on the home page's copy). */
 .br-games .gc.gc-daily{grid-column:1 / -1;background:linear-gradient(115deg,color-mix(in srgb,var(--gs-c) 12%,var(--panel)) 0%,var(--panel) 70%)}
 .br-games .gc-daily .gc-blurb{-webkit-line-clamp:3;min-height:0}
 .gc-today{margin:0;font-family:var(--mono);font-size:12.5px;font-weight:600;letter-spacing:.04em;color:var(--gs-c)}
 @media (min-width:561px){
   .br-games .gc.gc-daily{flex-direction:row}
-  .br-games .gc-daily .shot{flex:0 0 46%;aspect-ratio:auto;min-height:250px;margin:7px 0 7px 7px}
+  .br-games .gc-daily .shot{flex:0 0 30%;aspect-ratio:auto;min-height:168px;margin:7px 0 7px 7px}
   .br-games .gc-daily .shot img{position:absolute;inset:0;object-position:left top}
-  .br-games .gc-daily .body{padding:20px 22px 18px;gap:10px;justify-content:center}
-  .br-games .gc-daily h3{font-size:40px}
-  .br-games .gc-daily .gc-blurb{font-size:16px;max-width:52ch}
-  .br-games .gc-daily .actions{margin-top:6px;max-width:320px}
-  .br-games .gc-daily .gc-more summary{right:auto;left:calc(46% - 31px)}
+  .br-games .gc-daily .body{padding:14px 22px 14px;gap:8px;justify-content:center}
+  .br-games .gc-daily h3{font-size:32px}
+  .br-games .gc-daily .gc-blurb{font-size:15px;max-width:70ch;-webkit-line-clamp:2}
+  .br-games .gc-daily .actions{margin-top:4px;max-width:280px}
+  .br-games .gc-daily .gc-more summary{right:auto;left:calc(30% - 31px)}
   .br-games .gc-daily .gc-more[open] summary{left:auto;right:15px}
 }
 
@@ -174,3 +190,26 @@
   .br-games .gc:hover,.br-games .gc:hover .shot img{transform:none}
   .gc-chips li.on::before{animation:none}
 }
+
+/* ---------- the daily puzzles as small tiles (inside Puzzles, under the Daily Puzzles card) ----------
+   Each tile says what the puzzle is in plain words, with its name under that. Six across on computers, down to two
+   on phones. .pz-wrap is one full-width item of the section's .gc-grid; the tiles aren't game cards (.gc), so the
+   Edit layout sizes leave them alone. */
+.pz-wrap{grid-column:1 / -1;min-width:0}
+/* Puzzles' rows needn't all be as tall as its game cards: the Daily Puzzles card and the tiles take only what they need */
+.gs-puzzles .gc-grid{grid-auto-rows:auto}
+.pz-h{margin:2px 0 10px;font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--gs-c)}
+.pz-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+@media (max-width:1100px){.pz-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (max-width:879px){.pz-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:560px){.pz-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}}
+.br-games .pz{min-width:0;margin:0}
+.br-games .pz a{display:flex;align-items:center;gap:9px;height:100%;min-height:58px;padding:6px 8px 6px 6px;border-radius:12px;text-decoration:none;color:var(--ink);background:var(--panel);border:1px solid color-mix(in srgb,var(--line) 80%,transparent);box-shadow:var(--gc-shadow);transition:transform .15s ease,border-color .15s ease}
+.br-games .pz img{flex:none;width:58px;height:44px;border-radius:8px;object-fit:cover;background:var(--tape)}
+.pz-t{display:flex;flex-direction:column;gap:2px;min-width:0}
+.pz-t b{font-size:13.5px;font-weight:600;line-height:1.2;color:var(--ink)}
+.br-games .pz h3{margin:0;font-family:var(--mono);font-size:10.5px;font-weight:600;line-height:1.2;letter-spacing:.08em;text-transform:uppercase;color:var(--gs-c);overflow-wrap:anywhere}
+.br-games .pz a:active{transform:scale(.98)}
+.br-games .pz a:focus-visible{outline:3px solid var(--gs-c);outline-offset:2px}
+@media (hover: hover){.br-games .pz a:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--gs-c) 50%,var(--line))}}
+@media (max-width:560px){.br-games .pz img{width:46px;height:36px}.pz-t b{font-size:12.5px}}
