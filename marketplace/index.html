@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Marketplace – Buy, Sell and Haggle | Arjun's Projects</title>
+<meta name="description" content="A marketplace for buying and selling second-hand things: post an item, haggle over the price with buyers, and pay safely by card. Buyer and seller stay anonymous until the item is paid for.">
+<link rel="canonical" href="https://ascoding11.github.io/marketplace/">
+<meta name="robots" content="index,follow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="../site.css">
+<style>
+/* Marketplace only; everything else comes from site.css. The server side is functions/_market.js (see README). */
+button.btn{font:inherit;font-weight:600;color:inherit;cursor:pointer}
+button.btn.primary{color:var(--accent-ink)}
+.btn[disabled]{opacity:.55;cursor:default}
+.btn.small{min-height:36px;padding:6px 12px;font-size:14px}
+.btn.danger{color:var(--down)}
+.mk-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:18px}
+.mk-bar .tab[aria-current="page"]{border-color:var(--accent);color:var(--accent)}
+.mk-bar .push{margin-left:auto}
+.badge{font-family:var(--mono);font-size:12px;background:var(--accent);color:var(--accent-ink);border-radius:999px;padding:0 7px;line-height:20px}
+.mk-filters{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;margin-bottom:16px}
+@media (max-width:640px){.mk-filters{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.mk-filters input{grid-column:1/-1}.mk-bar .push{margin-left:0}}
+.mk-in,.mk-filters input,.mk-filters select{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px;min-height:44px;width:100%;min-width:0}
+textarea.mk-in{min-height:120px;resize:vertical}
+.mk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+@media (max-width:520px){.mk-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}}
+.mk-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;text-decoration:none;display:flex;flex-direction:column;min-width:0}
+.mk-card:hover{border-color:var(--accent)}
+.mk-pic{aspect-ratio:4/3;background:var(--panel-2);display:grid;place-items:center;position:relative;overflow:hidden}
+.mk-pic img{width:100%;height:100%;object-fit:cover;display:block}
+.mk-pic .none{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);padding:8px;text-align:center}
+.mk-pic .flag{position:absolute;left:8px;top:8px}
+.mk-card .in{padding:10px 12px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.price{font-family:var(--display);font-weight:800;font-size:26px;line-height:1.1;letter-spacing:.02em}
+.mk-card .ttl{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.meta{font-size:13px;color:var(--ink-2)}
+.chip{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--line);border-radius:999px;padding:1px 8px;background:var(--panel);color:var(--ink-2);white-space:nowrap}
+.chip.go{border-color:var(--accent);color:var(--accent)}
+.chip.no{border-color:var(--down);color:var(--down)}
+.mk-item{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:820px){.mk-item{grid-template-columns:minmax(0,1fr)}}
+.mk-item .mk-pic{border:1px solid var(--line);border-radius:12px}
+.thumbs{display:flex;gap:8px;margin-top:8px}
+.thumbs button{width:72px;height:54px;padding:0;border:2px solid var(--line);border-radius:8px;overflow:hidden;background:none;cursor:pointer}
+.thumbs button[aria-pressed="true"]{border-color:var(--accent)}
+.thumbs img{width:100%;height:100%;object-fit:cover;display:block}
+.mk-item h2{font-size:34px;line-height:1.05;margin:4px 0 10px;overflow-wrap:anywhere}
+.mk-item .price{font-size:44px}
+.desc{white-space:pre-wrap;overflow-wrap:anywhere;margin:14px 0 0}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-top:16px;display:flex;flex-direction:column;gap:10px}
+.box.hi{border-color:var(--accent)}
+.box h3{font-family:var(--display);font-weight:700;font-size:21px;letter-spacing:.02em;text-transform:uppercase;margin:0;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.box p{margin:0}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.row form{display:flex;flex-wrap:wrap;gap:8px;flex:1 1 100%}
+.row form .mk-in{flex:1 1 160px}
+.money{position:relative;flex:0 1 130px;min-width:110px}
+.money::before{content:"$";position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--ink-2)}
+.money .mk-in{padding-left:24px}
+.hist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:15px;border-left:2px solid var(--line);padding-left:12px}
+.hist .t{font-size:12px;color:var(--ink-2);margin-left:4px}
+.hist q{display:block;color:var(--ink-2);font-style:italic}
+.who{background:var(--panel-2);border:1px solid var(--accent);border-radius:10px;padding:12px 14px;overflow-wrap:anywhere}
+.who b{display:block;font-size:18px}
+.back{font-family:var(--mono);font-size:13px;color:var(--accent);text-decoration:none;display:inline-block;margin-bottom:14px}
+.mk-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;max-width:760px}
+.mk-form label{display:flex;flex-direction:column;gap:5px;font-weight:600;font-size:14px}
+.mk-form label small{font-weight:400;color:var(--ink-2)}
+.mk-form .wide{grid-column:1/-1}
+@media (max-width:640px){.mk-form{grid-template-columns:minmax(0,1fr)}}
+.picks{display:flex;flex-wrap:wrap;gap:8px}
+.picks img{width:96px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+.deal{display:grid;grid-template-columns:72px minmax(0,1fr) auto;gap:12px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;text-decoration:none}
+.deal:hover{border-color:var(--accent)}
+.deal .mk-pic{width:72px;border-radius:8px}
+.deal .ttl{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.deals{display:flex;flex-direction:column;gap:8px;margin-bottom:28px}
+@media (max-width:520px){.deal{grid-template-columns:56px minmax(0,1fr)}.deal .mk-pic{width:56px}.deal .end{grid-column:2}}
+#toast{position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:60;max-width:min(560px,calc(100vw - 32px));width:max-content;background:var(--tape);color:var(--tape-ink);border-radius:10px;padding:12px 16px;font-size:15px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+#toast[hidden]{display:none}
+.rules{margin-top:40px;font-size:15px;color:var(--ink-2);max-width:70ch}
+.rules summary{cursor:pointer;font-weight:600;color:var(--ink)}
+.stack-how{margin-top:40px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <a class="wordmark" href="../">Arjun</a>
+    <nav class="nav" aria-label="Site"><a href="../">Home</a><a href="../projects/">Web Development Projects</a><a href="../productivity/">Productivity</a><a href="../engineering/">Engineering Projects</a><a href="../marketplace/" aria-current="page">Marketplace</a></nav>
+  </div>
+  <header>
+    <p class="kicker">Buy, sell and haggle</p>
+    <h1>Marketplace</h1>
+    <p class="intro">Post what you don't need, make an offer on what you want, and settle on a price. You pay by card, and nobody sees who they're dealing with until the item is paid for.</p>
+  </header>
+
+  <section aria-label="Marketplace">
+    <div class="mk-bar">
+      <a class="btn tab" href="#" data-tab="browse">Browse</a>
+      <a class="btn tab" href="#deals" data-tab="deals">My deals <span class="badge" id="badge" hidden></span></a>
+      <a class="btn primary push" href="#sell">Sell something</a>
+    </div>
+    <div id="view" aria-live="polite"><p class="note">Loading…</p></div>
+  </section>
+
+  <div class="how stack-how" aria-label="How the marketplace works">
+    <div class="step"><span class="n">01</span><h4>Post or browse</h4><p>Sign in with Google, add a photo and a price. Listings show the item and a rough area, never your name.</p></div>
+    <div class="step"><span class="n">02</span><h4>Haggle</h4><p>Each buyer gets a private thread with the seller: offer, counter, accept. The best open offer shows on the listing.</p></div>
+    <div class="step"><span class="n">03</span><h4>Pay, then meet</h4><p>The buyer pays the agreed price by card through Stripe. Only then do you both get each other's name and contact details.</p></div>
+  </div>
+
+  <details class="rules">
+    <summary>Rules and fees</summary>
+    <p id="feeLine">Listing is free and the marketplace takes no cut of your sale. Stripe's card processing fee (2.9% + 30¢) comes out of the seller's payout.</p>
+    <p>Sell only things that are yours and legal for anyone to buy. No weapons, alcohol, vapes, drugs or medicine, no tickets, accounts, schoolwork or answers, and nothing stolen or counterfeit. Listings that get reported are hidden and can be removed.</p>
+    <p>Keep phone numbers, emails, links and usernames out of listings and offers: you get each other's details when the item is paid for. Meet in a public place, bring someone with you, and check the item before you leave. If you're under 18, ask a parent or guardian before buying or selling, and have them set up payouts with you. Sales are between the buyer and the seller; if an item never turns up, use the report button so the listing can be looked at.</p>
+  </details>
+
+  <footer>© 2026 Arjun · <a href="../about/">About</a> · <a href="../privacy.html">Privacy policy</a></footer>
+</div>
+<div id="toast" role="status" hidden></div>
+<script src="/analytics/tracker.js" data-site="marketplace" defer></script>
+<script src="/account/account.js" defer></script>
+<script>
+(function () {
+  'use strict';
+  // The server side only runs on ascoding11.com (Cloudflare); on ascoding11.github.io the page calls it there, like store.js.
+  var API = /(^|\.)ascoding11\.com$|^localhost$|^127\.0\.0\.1$/.test(location.hostname) ? '/api/market/' : 'https://ascoding11.com/api/market/';
+  var CATS = { electronics: 'Electronics', books: 'Books & school', clothing: 'Clothing & shoes', sports: 'Sports & outdoors', games: 'Games & toys', home: 'Home & furniture', bikes: 'Bikes & rides', other: 'Everything else' };
+  var CONDS = { 'new': 'New', likenew: 'Like new', good: 'Good', fair: 'Well used' };
+  var cfg = { feePct: 0, cardPct: 2.9, cardFixed: 30, min: 100, max: 500000, maxPhotos: 3 };
+  var view = document.getElementById('view'), toastEl = document.getElementById('toast');
+  var me = null, mineData = null, item = null, list = null, picked = null, filters = { q: '', cat: '', sort: 'new' }, toastTimer = 0, drawn = '';
+
+  // ---------- helpers ----------
+  function esc(s) { return String(s === undefined || s === null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function usd(c) { return '$' + (c % 100 ? (c / 100).toFixed(2) : (c / 100).toLocaleString('en-US')); }
+  function toCents(s) { var n = parseFloat(String(s).replace(/[$,\s]/g, '')); return isFinite(n) ? Math.round(n * 100) : NaN; }
+  // Same sum as split() in functions/_market.js: what the seller is paid.
+  function net(amount, pct) { return amount - Math.round(amount * pct / 100) - Math.round(amount * cfg.cardPct / 100) - cfg.cardFixed; }
+  function ago(t) {
+    var s = Math.max(0, (Date.now() - t) / 1000);
+    if (s < 60) return 'just now'; if (s < 3600) return Math.floor(s / 60) + ' min ago'; if (s < 86400) return Math.floor(s / 3600) + ' h ago';
+    if (s < 86400 * 14) return Math.floor(s / 86400) + ' d ago';
+    return new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }
+  function toast(msg, keep) {
+    clearTimeout(toastTimer);
+    toastEl.textContent = msg || ''; toastEl.hidden = !msg;
+    if (msg && !keep) toastTimer = setTimeout(function () { toastEl.hidden = true; }, 7000);
+  }
+  function pic(l, n, v) { return API + 'photo?id=' + l + '&n=' + (n || 0) + '&v=' + (v || 0); }
+  function thumb(id, photos, v, cat) {
+    return photos ? '<img src="' + pic(id, 0, v) + '" alt="" loading="lazy">' : '<span class="none">' + esc(CATS[cat] || 'No photo') + '</span>';
+  }
+  function call(action, body) {
+    return (me ? me.getIdToken() : Promise.resolve('')).then(function (t) {
+      var h = {}; if (t) h.Authorization = 'Bearer ' + t; if (body) h['Content-Type'] = 'application/json';
+      return fetch(API + action, { method: body ? 'POST' : 'GET', headers: h, body: body ? JSON.stringify(body) : undefined });
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (d) {
+        if (!r.ok) { var e = new Error(d.error || 'Something went wrong. Try again in a minute.'); e.status = r.status; e.data = d; throw e; }
+        if (d.config) { cfg = d.config; feeLine(); }
+        return d;
+      });
+    }, function () { throw new Error('Couldn’t reach the marketplace. Check your connection and try again.'); });
+  }
+  function feeLine() {
+    document.getElementById('feeLine').textContent = (cfg.feePct ? 'Listing is free. The marketplace keeps ' + cfg.feePct + '% of each sale, and '
+      : 'Listing is free and the marketplace takes no cut of your sale. ') + 'Stripe’s card processing fee (' + cfg.cardPct + '% + ' + cfg.cardFixed + '¢) comes out of the seller’s payout.';
+  }
+  function here() { return location.origin + location.pathname; }
+  function signInBox(why) {
+    return '<div class="box"><p>' + esc(why) + '</p><div class="row"><button class="btn primary" type="button" data-act="signin">Sign in with Google</button></div></div>';
+  }
+  function statusChip(s, l) {
+    var m = { open: ['Haggling', 'go'], accepted: ['Deal agreed', 'go'], paid: ['Paid', 'go'], declined: ['Turned down', 'no'], withdrawn: ['Withdrawn', ''], closed: ['Closed', ''],
+      active: ['For sale', 'go'], pending: ['Sale pending', ''], sold: ['Sold', 'go'], hidden: ['Hidden after reports', 'no'] }[s] || [s, ''];
+    return '<span class="chip ' + m[1] + '">' + esc(l || m[0]) + '</span>';
+  }
+
+  // ---------- browse ----------
+  function showBrowse() {
+    if (!list) view.innerHTML = '<p class="note">Loading…</p>';
+    else drawBrowse();
+    call('listings').then(function (d) { list = d.listings; if (route.now === 'browse') drawBrowse(); }, function (e) {
+      if (!list) view.innerHTML = '<div class="empty"><h3>Not open right now</h3><p>' + esc(e.message) + '</p></div>';
+    });
+  }
+  function drawBrowse() {
+    var q = filters.q.toLowerCase(), rows = list.filter(function (l) {
+      return (!filters.cat || l.cat === filters.cat) && (!q || (l.title + ' ' + l.area).toLowerCase().indexOf(q) >= 0);
+    });
+    rows.sort(function (a, b) { return filters.sort === 'low' ? a.price - b.price : filters.sort === 'high' ? b.price - a.price : b.created - a.created; });
+    var cards = rows.map(function (l) {
+      var line = l.status === 'pending' ? 'Sale pending' : l.offers ? l.offers + (l.offers === 1 ? ' offer' : ' offers') + (l.top ? ' · best ' + usd(l.top) : '') : 'No offers yet';
+      return '<a class="mk-card" href="#item/' + l.id + '"><span class="mk-pic">' + thumb(l.id, l.photos, l.updated, l.cat) +
+        (l.mine ? '<span class="chip go flag">Yours</span>' : l.status === 'pending' ? '<span class="chip flag">Pending</span>' : '') + '</span>' +
+        '<span class="in"><span class="price">' + usd(l.price) + '</span><span class="ttl">' + esc(l.title) + '</span>' +
+        '<span class="meta">' + esc(l.area) + ' · ' + esc(CONDS[l.cond] || '') + '</span><span class="meta">' + line + '</span></span></a>';
+    }).join('');
+    var had = document.activeElement && document.activeElement.id === 'fq', pos = had ? document.activeElement.selectionStart : 0;
+    view.innerHTML = '<div class="mk-filters"><input id="fq" type="search" placeholder="Search items or places" aria-label="Search" value="' + esc(filters.q) + '">' +
+      '<select id="fcat" aria-label="Category"><option value="">All categories</option>' + Object.keys(CATS).map(function (k) { return '<option value="' + k + '"' + (filters.cat === k ? ' selected' : '') + '>' + esc(CATS[k]) + '</option>'; }).join('') + '</select>' +
+      '<select id="fsort" aria-label="Sort"><option value="new">Newest first</option><option value="low"' + (filters.sort === 'low' ? ' selected' : '') + '>Price: low to high</option><option value="high"' + (filters.sort === 'high' ? ' selected' : '') + '>Price: high to low</option></select></div>' +
+      (cards ? '<div class="mk-grid">' + cards + '</div>' : '<div class="empty"><h3>' + (list.length ? 'Nothing matches' : 'Nothing for sale yet') + '</h3><p>' +
+        (list.length ? 'Try a different search or category.' : 'Be the first: post something you no longer need.') + '</p><a class="btn primary" href="#sell">Sell something</a></div>');
+    if (had) { var f = document.getElementById('fq'); f.focus(); try { f.setSelectionRange(pos, pos); } catch (e) {} }
+  }
+
+  // ---------- one listing ----------
+  function showItem(id, quiet) {
+    if (!quiet || !item || item.listing.id !== id) { item = null; view.innerHTML = '<p class="note">Loading…</p>'; }
+    return call('listing?id=' + id).then(function (d) { item = d; if (route.now === 'item' && route.id === id) drawItem(); }, function (e) {
+      if (quiet && item) return;
+      view.innerHTML = '<a class="back" href="#">← All listings</a><div class="empty"><h3>Can’t show this one</h3><p>' + esc(e.message) + '</p></div>';
+    });
+  }
+  function histList(o) {
+    var who = function (by) { return by === o.role ? 'You' : o.role === 'buyer' ? 'The seller' : o.label; };
+    return '<ul class="hist">' + o.hist.map(function (e) {
+      var verb = e.kind === 'accept' ? 'agreed to ' + usd(e.amount) : e.kind === 'decline' ? 'said no' : e.kind === 'withdraw' ? 'backed out' : e.kind === 'paid' ? 'paid ' + usd(e.amount) : 'offered ' + usd(e.amount);
+      return '<li><b>' + esc(who(e.by)) + '</b> ' + verb + '<span class="t">' + ago(e.at) + '</span>' + (e.note ? '<q>' + esc(e.note) + '</q>' : '') + '</li>';
+    }).join('') + '</ul>';
+  }
+  function priceForm(kind, id, label, start) {
+    return '<form data-form="' + kind + '" data-id="' + id + '"><span class="money"><input class="mk-in" name="amount" inputmode="decimal" autocomplete="off" aria-label="Price in dollars" placeholder="0" value="' + (start ? start / 100 : '') + '" required></span>' +
+      '<input class="mk-in" name="note" maxlength="200" placeholder="Add a note (optional)" aria-label="Note"><button class="btn" type="submit">' + label + '</button></form>';
+  }
+  function whoBox(o, lead) {
+    return '<p>' + lead + '</p><div class="who"><b>' + esc(o.other.name) + '</b>' + esc(o.other.contact) + '</div>';
+  }
+  // The buyer's side of their own thread.
+  function buyerBox(o, l) {
+    var h = '<div class="box' + (o.status === 'accepted' || o.status === 'paid' ? ' hi' : '') + '"><h3>Your offer ' + statusChip(o.status) + '</h3>' + histList(o);
+    if (o.status === 'open' && o.by === 'buyer') h += '<p>Waiting for the seller to answer your ' + usd(o.amount) + '.</p><div class="row">' + priceForm('offer', l.id, 'Change my offer') + '<button class="btn danger" type="button" data-act="withdraw" data-id="' + o.id + '">Withdraw</button></div>';
+    else if (o.status === 'open') h += '<p>The seller came back with <b>' + usd(o.amount) + '</b>.</p><div class="row"><button class="btn primary" type="button" data-act="accept" data-id="' + o.id + '">Accept ' + usd(o.amount) + '</button>' +
+      '<button class="btn danger" type="button" data-act="withdraw" data-id="' + o.id + '">Walk away</button>' + priceForm('offer', l.id, 'Counter') + '</div>';
+    else if (o.status === 'accepted') h += '<p>You agreed on <b>' + usd(o.amount) + '</b>. Pay by card and you’ll get the seller’s name and contact details straight away; the seller gets your name and email.</p>' +
+      '<div class="row"><button class="btn primary" type="button" data-act="pay" data-id="' + o.id + '">Pay ' + usd(o.amount) + '</button><button class="btn danger" type="button" data-act="withdraw" data-id="' + o.id + '">Back out</button></div>';
+    else if (o.status === 'paid') h += whoBox(o, 'Paid. Here’s who you bought it from; get in touch to arrange the handover:');
+    else if (o.status === 'closed') h += '<p>This one went to someone else or was taken down.</p>';
+    else if (l.status === 'active') h += '<p>' + (o.status === 'declined' ? 'The seller turned that down.' : 'You withdrew your offer.') + ' You can try another price.</p><div class="row">' + priceForm('offer', l.id, 'Send offer') + '</div>';
+    return h + '</div>';
+  }
+  // One buyer's thread, as the seller sees it.
+  function sellerBox(o, l) {
+    var mine = usd(net(o.amount, l.feePct || 0)), h = '<div class="box' + (o.status === 'accepted' || o.status === 'paid' ? ' hi' : '') + '"><h3>' + esc(o.label) + ' ' + statusChip(o.status) + '</h3>' + histList(o);
+    if (o.status === 'open' && o.by === 'buyer') h += '<p>' + esc(o.label) + ' offers <b>' + usd(o.amount) + '</b>. You’d be paid ' + mine + ' after fees.</p><div class="row"><button class="btn primary" type="button" data-act="accept" data-id="' + o.id + '">Accept ' + usd(o.amount) + '</button>' +
+      '<button class="btn danger" type="button" data-act="decline" data-id="' + o.id + '">Decline</button>' + priceForm('counter', o.id, 'Counter') + '</div>';
+    else if (o.status === 'open') h += '<p>Waiting for ' + esc(o.label) + ' to answer your ' + usd(o.amount) + '.</p><div class="row">' + priceForm('counter', o.id, 'Change my price') + '<button class="btn danger" type="button" data-act="decline" data-id="' + o.id + '">End this one</button></div>';
+    else if (o.status === 'accepted') h += '<p>Deal at <b>' + usd(o.amount) + '</b>: you’ll be paid ' + mine + '. ' + (o.paying ? esc(o.label) + ' is paying right now.' : 'Waiting for ' + esc(o.label) + ' to pay; you’ll see who they are as soon as they do.') + '</p>' +
+      '<div class="row"><button class="btn danger" type="button" data-act="cancel" data-id="' + o.id + '">Call off the deal</button></div>';
+    else if (o.status === 'paid') h += whoBox(o, 'Paid ' + usd(o.amount) + ' (' + mine + ' to you). Here’s your buyer; they have your contact details too:');
+    return h + '</div>';
+  }
+  function payoutBox(s) {
+    if (!s || s.ready) return '';
+    return '<div class="box hi"><h3>' + (s.started ? 'Finish setting up payouts' : 'Set up payouts') + '</h3><p>Before you can agree a price, tell Stripe where to send your money (a bank account or debit card). It takes a few minutes, and this site never sees those details.</p>' +
+      '<div class="row"><button class="btn primary" type="button" data-act="payouts">' + (s.started ? 'Continue with Stripe' : 'Set up payouts') + '</button></div></div>';
+  }
+  function drawItem() {
+    var l = item.listing, o = item.offer, h = '<a class="back" href="#">← All listings</a><div class="mk-item"><div>';
+    h += '<div class="mk-pic" id="big">' + thumb(l.id, l.photos, l.updated, l.cat) + '</div>';
+    if (l.photos > 1) { h += '<div class="thumbs">'; for (var i = 0; i < l.photos; i++) h += '<button type="button" data-act="photo" data-n="' + i + '" aria-pressed="' + (i === 0) + '" aria-label="Photo ' + (i + 1) + '"><img src="' + pic(l.id, i, l.updated) + '" alt=""></button>'; h += '</div>'; }
+    h += '</div><div><div class="price">' + usd(l.price) + '</div><h2>' + esc(l.title) + '</h2><div class="row">' + statusChip(l.status) + '<span class="chip">' + esc(CATS[l.cat] || '') + '</span><span class="chip">' + esc(CONDS[l.cond] || '') + '</span><span class="chip">' + esc(l.area) + '</span></div>' +
+      '<p class="desc">' + (esc(l.desc) || '<span class="meta">No description.</span>') + '</p><p class="meta">Posted ' + ago(l.created) + (l.status === 'active' && l.offers ? ' · ' + l.offers + (l.offers === 1 ? ' open offer' : ' open offers') + (l.top ? ', best ' + usd(l.top) : '') : '') + '</p>';
+
+    if (l.mine) {
+      h += payoutBox(item.seller);
+      h += '<div class="box"><h3>Your listing</h3><p class="meta">Buyers see none of this until they’ve paid: ' + esc(l.contact) + '</p>' +
+        (l.status === 'hidden' ? '<p>This listing was reported several times and is hidden while it’s looked at.</p>' : '') +
+        (l.status !== 'sold' ? '<div class="row">' + (l.status === 'active' ? '<a class="btn small" href="#edit/' + l.id + '">Edit</a>' : '') + '<button class="btn small danger" type="button" data-act="remove">Take it down</button></div>' : '') + '</div>';
+      var live = item.offers.filter(function (x) { return x.status === 'open' || x.status === 'accepted' || x.status === 'paid'; });
+      var done = item.offers.length - live.length;
+      h += live.length ? live.map(function (x) { return sellerBox(x, l); }).join('') : '<div class="box"><p>' + (l.status === 'active' ? 'No offers yet. Each buyer who makes one gets their own thread here.' : 'No open offers.') + '</p></div>';
+      if (done) h += '<p class="meta" style="margin-top:10px">' + done + ' earlier ' + (done === 1 ? 'offer' : 'offers') + ' ended without a sale.</p>';
+    } else if (!me) {
+      h += l.status === 'active' ? signInBox('Sign in to buy this or make an offer. The seller won’t see who you are until you’ve paid.') : '<div class="box"><p>Someone has a deal on this. It comes back up if they don’t pay.</p></div>';
+    } else {
+      if (o) h += buyerBox(o, l);
+      if (!o && l.status === 'active') h += '<div class="box hi"><h3>Want it?</h3><div class="row"><button class="btn primary" type="button" data-act="buy">Buy at ' + usd(l.price) + '</button></div><p>Or name your price and haggle:</p><div class="row">' + priceForm('offer', l.id, 'Send offer') + '</div>' +
+        '<p class="meta">The seller’s name and contact details stay hidden until you’ve paid, and so do yours.</p></div>';
+      if (l.status === 'pending' && (!o || (o.status !== 'accepted' && o.status !== 'paid'))) h += '<div class="box"><p>Someone else has a deal on this. It comes back up if they don’t pay.</p></div>';
+      h += '<p class="meta" style="margin-top:12px"><button class="btn small" type="button" data-act="report">Report this listing</button>' + (item.admin ? ' <button class="btn small danger" type="button" data-act="remove">Remove (admin)</button>' : '') + '</p>';
+    }
+    view.innerHTML = h + '</div></div>';
+  }
+
+  // ---------- my deals ----------
+  function loadMine() {
+    if (!me) { mineData = null; badge(); return Promise.resolve(null); }
+    return call('mine').then(function (d) { mineData = d; badge(); return d; });
+  }
+  function badge() {
+    var n = 0, b = document.getElementById('badge');
+    if (mineData) {
+      mineData.buying.forEach(function (o) { if ((o.status === 'open' && o.by === 'seller') || o.status === 'accepted') n++; });
+      mineData.incoming.forEach(function (o) { if (o.status === 'open' && o.by === 'buyer') n++; });
+    }
+    b.hidden = !n; b.textContent = n;
+  }
+  function showDeals() {
+    if (!me) { view.innerHTML = signInBox('Sign in to see the things you’re buying and selling.'); return; }
+    if (mineData) drawDeals(); else view.innerHTML = '<p class="note">Loading…</p>';
+    loadMine().then(function () { if (route.now === 'deals' && mineData) drawDeals(); }, function (e) { if (!mineData) view.innerHTML = '<div class="empty"><h3>Not open right now</h3><p>' + esc(e.message) + '</p></div>'; });
+  }
+  function drawDeals() {
+    var d = mineData, h = payoutBox(d.selling.length ? d.seller : null);
+    h += '<h2 style="margin-top:' + (h ? '28px' : '0') + '">Buying</h2><div class="deals">' + (d.buying.length ? d.buying.map(function (o) {
+      var say = o.status === 'accepted' ? 'Agreed at ' + usd(o.amount) + ' · pay to get the seller’s details' : o.status === 'open' ? (o.by === 'seller' ? 'Seller countered ' + usd(o.amount) + ' · your turn' : 'You offered ' + usd(o.amount)) :
+        o.status === 'paid' ? 'Paid ' + usd(o.amount) + ' · ' + esc(o.other ? o.other.name : '') : 'Last price ' + usd(o.amount);
+      var tag = o.item || o.status === 'paid' ? 'a' : 'div';
+      return '<' + tag + ' class="deal"' + (tag === 'a' ? ' href="#item/' + o.listing + '"' : '') + '><span class="mk-pic">' + (o.item ? thumb(o.listing, o.item.photos, o.item.updated) : '<span class="none">Gone</span>') + '</span>' +
+        '<span><span class="ttl" style="display:block">' + esc(o.title) + '</span><span class="meta">' + say + '</span></span><span class="end">' + statusChip(o.status) + '</span></' + tag + '>';
+    }).join('') : '<p class="note">You haven’t made any offers yet. <a href="#">Have a look around.</a></p>') + '</div>';
+    var need = {}; d.incoming.forEach(function (o) { if (o.status === 'open' && o.by === 'buyer') need[o.listing] = (need[o.listing] || 0) + 1; });
+    h += '<h2>Selling</h2><div class="deals">' + (d.selling.length ? d.selling.map(function (l) {
+      var paid = d.incoming.filter(function (o) { return o.listing === l.id && o.status === 'paid'; })[0];
+      var say = paid ? 'Sold for ' + usd(paid.amount) + ' to ' + esc(paid.other.name) : l.status === 'pending' ? 'Deal agreed · waiting for payment' :
+        usd(l.price) + ' · ' + (l.offers ? l.offers + (l.offers === 1 ? ' open offer' : ' open offers') + (l.top ? ', best ' + usd(l.top) : '') : 'no offers yet');
+      return '<a class="deal" href="#item/' + l.id + '"><span class="mk-pic">' + thumb(l.id, l.photos, l.updated, l.cat) + '</span><span><span class="ttl" style="display:block">' + esc(l.title) + '</span><span class="meta">' + say + '</span></span>' +
+        '<span class="end">' + (need[l.id] ? '<span class="chip go">' + need[l.id] + ' to answer</span> ' : '') + statusChip(l.status) + '</span></a>';
+    }).join('') : '<p class="note">You aren’t selling anything yet. <a href="#sell">Post your first item.</a></p>') + '</div>';
+    view.innerHTML = h;
+  }
+
+  // ---------- sell / edit ----------
+  function showSell(id) {
+    if (!me) { view.innerHTML = signInBox('Sign in to sell something. Buyers won’t see your name until they’ve paid.'); return; }
+    picked = null;
+    if (!id) return drawSell(null);
+    view.innerHTML = '<p class="note">Loading…</p>';
+    call('listing?id=' + id).then(function (d) {
+      if (route.now !== 'sell' || route.id !== id) return;
+      if (!d.listing.mine || d.listing.status !== 'active') { location.hash = '#item/' + id; return; }
+      drawSell(d.listing);
+    }, function (e) { view.innerHTML = '<div class="empty"><h3>Can’t edit this one</h3><p>' + esc(e.message) + '</p></div>'; });
+  }
+  function drawSell(l) {
+    var v = l || { title: '', desc: '', price: 0, cat: 'electronics', cond: 'good', area: '', contact: '' };
+    var opts = function (map, cur) { return Object.keys(map).map(function (k) { return '<option value="' + k + '"' + (k === cur ? ' selected' : '') + '>' + esc(map[k]) + '</option>'; }).join(''); };
+    var old = ''; if (l) for (var i = 0; i < l.photos; i++) old += '<img src="' + pic(l.id, i, l.updated) + '" alt="">';
+    view.innerHTML = '<a class="back" href="#' + (l ? 'item/' + l.id : '') + '">← ' + (l ? 'Back to the listing' : 'All listings') + '</a><h2>' + (l ? 'Edit your listing' : 'Sell something') + '</h2>' +
+      '<form class="mk-form" data-form="sell" data-id="' + (l ? l.id : '') + '">' +
+      '<label class="wide">What is it?<input class="mk-in" name="title" maxlength="80" required minlength="3" value="' + esc(v.title) + '" placeholder="e.g. TI-84 Plus graphing calculator"></label>' +
+      '<label>Asking price<span class="money" style="flex:none"><input class="mk-in" name="price" inputmode="decimal" autocomplete="off" required value="' + (v.price ? v.price / 100 : '') + '" placeholder="0"></span><small id="netLine">Buyers can offer less; you decide what to accept.</small></label>' +
+      '<label>Roughly where<input class="mk-in" name="area" maxlength="60" required value="' + esc(v.area) + '" placeholder="A town or school, not your address"></label>' +
+      '<label>Category<select class="mk-in" name="cat">' + opts(CATS, v.cat) + '</select></label>' +
+      '<label>Condition<select class="mk-in" name="cond">' + opts(CONDS, v.cond) + '</select></label>' +
+      '<label class="wide">Description<textarea class="mk-in" name="desc" maxlength="1500" placeholder="What’s included, any marks or faults, why you’re selling.">' + esc(v.desc) + '</textarea><small>Leave out phone numbers, emails, links and usernames.</small></label>' +
+      '<label class="wide">Photos (up to ' + cfg.maxPhotos + ')<input class="mk-in" type="file" name="photos" accept="image/*" multiple><small>' + (l && l.photos ? 'Choosing new photos replaces the ones below.' : 'The first one is the cover.') + '</small><span class="picks" id="picks">' + old + '</span></label>' +
+      '<label class="wide">How the buyer reaches you<input class="mk-in" name="contact" maxlength="200" required minlength="3" value="' + esc(v.contact) + '" placeholder="e.g. Text 555-0100, or an email"><small>Private. Only shown to the buyer after they’ve paid, along with your name.</small></label>' +
+      '<div class="wide row"><button class="btn primary" type="submit">' + (l ? 'Save changes' : 'Post it') + '</button><span class="meta">By posting you agree to the rules at the bottom of this page.</span></div></form>';
+    netLine();
+  }
+  function netLine() {
+    var f = view.querySelector('[data-form="sell"]'), el = document.getElementById('netLine'); if (!f || !el) return;
+    var c = toCents(f.price.value);
+    if (!(c >= cfg.min && c <= cfg.max)) { el.textContent = 'Buyers can offer less; you decide what to accept.'; return; }
+    el.textContent = 'Sold at ' + usd(c) + ' you’d be paid ' + usd(net(c, cfg.feePct)) + ': card processing ' + usd(Math.round(c * cfg.cardPct / 100) + cfg.cardFixed) +
+      (cfg.feePct ? ', marketplace fee ' + cfg.feePct + '% (' + usd(Math.round(c * cfg.feePct / 100)) + ').' : ', no marketplace fee.');
+  }
+  // Shrinks a photo in the browser (which also drops its location data) to a JPEG the server will take.
+  function shrink(file) {
+    return new Promise(function (res, rej) {
+      var img = new Image(), url = URL.createObjectURL(file);
+      img.onerror = function () { URL.revokeObjectURL(url); rej(new Error('That photo didn’t work. Try a JPEG or PNG.')); };
+      img.onload = function () {
+        URL.revokeObjectURL(url);
+        var max = 1200, q = 0.82, out = '';
+        for (var i = 0; i < 7; i++) {
+          var s = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight)), c = document.createElement('canvas');
+          c.width = Math.max(1, Math.round(img.naturalWidth * s)); c.height = Math.max(1, Math.round(img.naturalHeight * s));
+          var g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+          out = c.toDataURL('image/jpeg', q).split(',')[1] || '';
+          if (out.length * 0.75 <= 400000) break;
+          max *= 0.8; q -= 0.06;
+        }
+        res(out);
+      };
+      img.src = url;
+    });
+  }
+
+  // ---------- actions ----------
+  function busy(el, on) { if (el) el.disabled = on; }
+  function after(p, el) {
+    busy(el, true);
+    return p.then(function () { return Promise.all([showItem(route.id, true), loadMine().catch(function () {})]); }).catch(function (e) { toast(e.message); if (route.now === 'item') showItem(route.id, true); }).then(function () { busy(el, false); });
+  }
+  function goStripe(p, el) {
+    busy(el, true);
+    p.then(function (d) { if (d.url) location.href = d.url; else { busy(el, false); toast('You’re all set: payouts are ready.'); route(); } }, function (e) { busy(el, false); toast(e.message); });
+  }
+  var acts = {
+    signin: function (el) {
+      var s = window.SiteAccount;
+      if (!s) return toast('Sign-in is still loading. Try again in a moment.');
+      s.signIn().catch(function () { s.boot().then(function () { if (!me) toast('Ready: tap Sign in again.'); }, function () { toast('Couldn’t load sign-in. Check your connection.'); }); });
+    },
+    photo: function (el) {
+      document.querySelector('#big img').src = el.querySelector('img').src;
+      view.querySelectorAll('.thumbs button').forEach(function (b) { b.setAttribute('aria-pressed', b === el); });
+    },
+    buy: function (el) { after(call('offer', { listing: item.listing.id, amount: item.listing.price }), el); },
+    accept: function (el) { after(call('respond', { offer: el.dataset.id, action: 'accept' }), el); },
+    decline: function (el) { after(call('respond', { offer: el.dataset.id, action: 'decline' }), el); },
+    withdraw: function (el) { after(call('respond', { offer: el.dataset.id, action: 'withdraw' }), el); },
+    cancel: function (el) { if (confirm('Call off this deal? The item goes back up for sale.')) after(call('respond', { offer: el.dataset.id, action: 'cancel' }), el); },
+    pay: function (el) { goStripe(call('pay', { offer: el.dataset.id, back: here() }), el); },
+    payouts: function (el) { goStripe(call('payouts', { back: here() }), el); },
+    remove: function (el) {
+      if (!confirm('Take this listing down? Any open offers on it are closed.')) return;
+      busy(el, true);
+      call('remove', { id: item.listing.id }).then(function () { list = null; mineData = null; toast('Listing taken down.'); location.hash = '#deals'; }, function (e) { busy(el, false); toast(e.message); });
+    },
+    report: function (el) {
+      var why = prompt('What’s wrong with this listing?'); if (why === null) return;
+      busy(el, true);
+      call('report', { id: item.listing.id, reason: why }).then(function () { toast('Thanks. It’s been reported.'); }, function (e) { busy(el, false); toast(e.message); });
+    }
+  };
+  var forms = {
+    offer: function (f, btn) {
+      var c = toCents(f.amount.value); if (!(c >= cfg.min)) return toast('Enter a price of at least ' + usd(cfg.min) + '.');
+      after(call('offer', { listing: f.dataset.id, amount: c, note: f.note.value }), btn);
+    },
+    counter: function (f, btn) {
+      var c = toCents(f.amount.value); if (!(c >= cfg.min && c <= cfg.max)) return toast('Enter a price between ' + usd(cfg.min) + ' and ' + usd(cfg.max) + '.');
+      after(call('respond', { offer: f.dataset.id, action: 'counter', amount: c, note: f.note.value }), btn);
+    },
+    sell: function (f, btn) {
+      var c = toCents(f.price.value); if (!(c >= cfg.min && c <= cfg.max)) return toast('Prices go from ' + usd(cfg.min) + ' to ' + usd(cfg.max) + '.');
+      var id = f.dataset.id, body = { title: f.title.value, desc: f.desc.value, price: c, cat: f.cat.value, cond: f.cond.value, area: f.area.value, contact: f.contact.value };
+      if (id) body.id = id;
+      if (picked || !id) body.photos = picked || [];
+      busy(btn, true);
+      call(id ? 'edit' : 'create', body).then(function (d) { list = null; picked = null; toast(id ? 'Saved.' : 'It’s up for sale.'); location.hash = '#item/' + d.id; loadMine().catch(function () {}); },
+        function (e) { busy(btn, false); toast(e.message); });
+    }
+  };
+  view.addEventListener('click', function (e) {
+    var el = e.target.closest('[data-act]'); if (!el || el.disabled) return;
+    var f = acts[el.dataset.act]; if (f) { e.preventDefault(); f(el); }
+  });
+  view.addEventListener('submit', function (e) {
+    var f = e.target.closest('[data-form]'); if (!f) return;
+    e.preventDefault();
+    var btn = f.querySelector('[type="submit"]'); if (btn.disabled) return;
+    forms[f.dataset.form](f, btn);
+  });
+  view.addEventListener('input', function (e) {
+    var t = e.target;
+    if (t.id === 'fq') { filters.q = t.value; drawBrowse(); }
+    else if (t.name === 'price') netLine();
+  });
+  view.addEventListener('change', function (e) {
+    var t = e.target;
+    if (t.id === 'fcat') { filters.cat = t.value; drawBrowse(); }
+    else if (t.id === 'fsort') { filters.sort = t.value; drawBrowse(); }
+    else if (t.name === 'photos' && t.type === 'file') {
+      var files = [].slice.call(t.files, 0, cfg.maxPhotos), box = document.getElementById('picks');
+      if (t.files.length > cfg.maxPhotos) toast('Only the first ' + cfg.maxPhotos + ' photos are used.');
+      Promise.all(files.map(shrink)).then(function (out) {
+        picked = out;
+        box.innerHTML = out.map(function (b) { return '<img src="data:image/jpeg;base64,' + b + '" alt="">'; }).join('');
+      }, function (err) { picked = null; t.value = ''; toast(err.message); });
+    }
+  });
+
+  // ---------- routing ----------
+  function route() {
+    var h = location.hash.replace(/^#/, ''), m;
+    if ((m = /^item\/([a-z0-9]+)$/.exec(h))) { route.now = 'item'; route.id = m[1]; showItem(m[1], drawn === h); }
+    else if (h === 'sell') { route.now = 'sell'; route.id = ''; showSell(); }
+    else if ((m = /^edit\/([a-z0-9]+)$/.exec(h))) { route.now = 'sell'; route.id = m[1]; showSell(m[1]); }
+    else if (h === 'deals') { route.now = 'deals'; showDeals(); }
+    else { route.now = 'browse'; showBrowse(); }
+    if (drawn !== h) window.scrollTo(0, 0);
+    drawn = h;
+    document.querySelectorAll('.mk-bar .tab').forEach(function (a) {
+      if (a.dataset.tab === route.now) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+    });
+  }
+  window.addEventListener('hashchange', route);
+  // Offers arrive while the page is open: keep the listing and the badge fresh, but never while someone is typing.
+  setInterval(function () {
+    if (document.hidden) return;
+    var a = document.activeElement, typing = a && view.contains(a) && /INPUT|TEXTAREA|SELECT/.test(a.tagName);
+    if (route.now === 'item' && item && !typing) showItem(route.id, true);
+    if (me) loadMine().then(function () { if (route.now === 'deals' && !typing) drawDeals(); }, function () {});
+  }, 20000);
+
+  // Back from Stripe: ?paid=<offer> after paying, ?unpaid=<offer> after cancelling, ?payouts=return after setting up payouts.
+  function returned() {
+    var q = new URLSearchParams(location.search), paid = q.get('paid'), unpaid = q.get('unpaid'), po = q.get('payouts');
+    if (!paid && !unpaid && !po) return;
+    try { history.replaceState(null, '', location.pathname + location.hash); } catch (e) {}
+    if (unpaid) { toast('Payment cancelled. The deal is still on if you want to pay later.'); location.hash = '#deals'; return; }
+    if (po) {
+      call('mine').then(function (d) { mineData = d; toast(d.seller.ready ? 'Payouts are set up. You can agree prices now.' : 'Stripe still needs a few details before you can be paid.'); if (route.now === 'deals') drawDeals(); else location.hash = '#deals'; }, function () {});
+      return;
+    }
+    // The payment is only real once Stripe has told the server, which can take a few seconds.
+    toast('Payment received. Getting the seller’s details…', true);
+    var end = Date.now() + 30000;
+    (function poll() {
+      loadMine().then(function (d) {
+        var o = d && d.buying.filter(function (x) { return x.id === paid; })[0];
+        if (o && o.status === 'paid') { toast('Paid. The seller’s details are below.'); if (location.hash === '#item/' + o.listing) route(); else location.hash = '#item/' + o.listing; return; }
+        if (Date.now() > end) { toast('Your payment is still being confirmed. Check My deals in a minute.'); location.hash = '#deals'; return; }
+        setTimeout(poll, 1500);
+      }, function () { setTimeout(poll, 3000); });
+    })();
+  }
+
+  // ---------- start ----------
+  function setUser(u) {
+    var was = me && me.uid; me = u || null;
+    if ((me && me.uid) === was) return;
+    mineData = null; list = null; badge();
+    route();
+    if (me) loadMine().catch(function () {});
+  }
+  document.addEventListener('DOMContentLoaded', function () {
+    route();   // browsing works signed out, straight away
+    var s = window.SiteAccount;
+    if (!s) return;
+    s.onChange(setUser);
+    s.boot().then(function (u) { setUser(u); returned(); }, function () { returned(); });
+  });
+})();
+</script>
+</body>
+</html>
