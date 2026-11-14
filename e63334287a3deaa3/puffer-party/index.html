@@ -555,7 +555,25 @@ function addCat(c,ents){
     }
   }
 })();
-// The list entry a typed answer stands for in a category, or null. Category rounds forgive a stray plural; word rounds don't.
+// A slip of the finger still counts, but only just: the same letters with the spaces left out ("icecream"), or,
+// for answers of six letters or more, one letter wrong, missing, extra or swapped with its neighbour, with the
+// first letter right. Only when exactly one answer in the list is that close.
+function oneOff(a,b){
+  const la=a.length,lb=b.length;if(Math.abs(la-lb)>1)return false;
+  let i=0;while(i<la&&i<lb&&a[i]===b[i])i++;
+  if(la===lb)return a.slice(i+1)===b.slice(i+1)||(a[i]===b[i+1]&&a[i+1]===b[i]&&a.slice(i+2)===b.slice(i+2));
+  return la>lb?a.slice(i+1)===b.slice(i):a.slice(i)===b.slice(i+1);
+}
+function nearMiss(m,t){
+  const sq=t.replace(/ /g,'');if(sq.length<4)return null;
+  let hit=null;
+  for(const [a,e] of m){if(a.length>=sq.length&&a.replace(/ /g,'')===sq){if(hit&&hit!==e)return null;hit=e}}
+  if(hit||sq.length<6)return hit;
+  for(const [a,e] of m){const b=a.replace(/ /g,'');if(b[0]===sq[0]&&oneOff(sq,b)){if(hit&&hit!==e)return null;hit=e}}
+  return hit;
+}
+// The list entry a typed answer stands for in a category, or null. Category rounds forgive a stray plural and a
+// near miss; word rounds don't, because a word one letter out is a different word.
 function check(c,text){
   if(!c)return null;const t=norm(text);if(!t)return null;const m=c.map;
   let e=m.get(t);if(e)return e;
@@ -563,7 +581,7 @@ function check(c,text){
   if(t.length>3&&t.endsWith('es')&&(e=m.get(t.slice(0,-2))))return e;
   if(t.length>2&&t.endsWith('s')&&(e=m.get(t.slice(0,-1))))return e;
   if((e=m.get(t+'s'))||(e=m.get(t+'es')))return e;
-  return null;
+  return nearMiss(m,t);
 }
 function rawOf(c,n){const e=c&&c.map.get(n);return e?e.raw:n}
 
@@ -1429,7 +1447,7 @@ if(!store.get('seenHelp',false)&&!inv){store.set('seenHelp',true);$('howMenu').o
 requestAnimationFrame(frame);
 
 // Test hook: only for automated browsers.
-if(navigator.webdriver)window.__pf={flashSeat,norm,check,CATS,CATL,cleanRS,onNode,applyRS,acceptAnswer,popTurn,afterPop,dropLeavers,judgeAttempt,newMatchRS,beginTurn,fuseFor,nextAlive,parseAttempt,aliveOf,setRS,startMatch,startSolo,joinRoom,toMenu,lobbyRS,B,G,Net,get ST(){return ST},Fish,store,seatPos,layout};
+if(navigator.webdriver)window.__pf={flashSeat,norm,check,nearMiss,oneOff,CATS,CATL,cleanRS,onNode,applyRS,acceptAnswer,popTurn,afterPop,dropLeavers,judgeAttempt,newMatchRS,beginTurn,fuseFor,nextAlive,parseAttempt,aliveOf,setRS,startMatch,startSolo,joinRoom,toMenu,lobbyRS,B,G,Net,get ST(){return ST},Fish,store,seatPos,layout};
 })();
 </script>
 <script src="/analytics/tracker.js" data-site="puffer-party" defer></script>
