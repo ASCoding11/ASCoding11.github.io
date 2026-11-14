@@ -63,6 +63,10 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-14', version: '1.29.1', title: 'A simpler suggestion box', kind: 'fix',
+     tags: ['Back Room', 'Suggestions'], items: [
+      'The box at the top of the page is now just that: a box. Type a suggestion or report an error and press Send, with no game or category to pick first.'
+    ]},
     {date: '2026-11-14', version: '1.29', title: 'A proper fall look', kind: 'feature',
      tags: ['Back Room', 'Fall', 'Thanksgiving'], items: [
       'The cards now take on warm fall colours with the background instead of sitting grey on top of it, most of all in dark mode.',
