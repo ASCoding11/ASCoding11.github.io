@@ -5,9 +5,14 @@
  * looking grey on top of it), lets leaves and the odd acorn drift down, and draws a small harvest scene behind the
  * page: a low sun glow, a field along the bottom edge, a pumpkin patch with wheat in the bottom left corner, a
  * Thanksgiving turkey in a pilgrim hat in the bottom right (it sways, blinks and pecks) and a branch in the top left.
- * Winter (Nov 27 to the end of February) tints the page cool blue, drops snow and slowly builds a thin line of snow
- * along the bottom edge. The date (the viewer's own) decides; outside those dates nothing happens. Each page loads
- * this with one <script defer>.
+ * Winter (Nov 27 to the end of February) tints the page cool blue, makes the accent blue, drops snow, slowly builds a
+ * thin line of snow along the bottom edge and puts snowy ground and a snowman behind the page. During the holidays,
+ * the first part of winter (Nov 27, the day after Thanksgiving, to Jan 6), it also draws lights and hanging
+ * gingerbread across the top of the margins, a Christmas tree with presents and a diya with a little rangoli in the
+ * bottom left, and a menorah next to the snowman in the bottom right; and on the pages that list the games it loads
+ * holiday.js, which adds the cabin you arrive in and the retro TV look (see that file).
+ * The date (the viewer's own) decides; outside those dates nothing happens. Each page loads this with one
+ * <script defer>.
  *
  * The tint only overrides the page's own colour variables (site.css's --ground/--panel-2/--line/--panel, and in fall
  * its green --accent, which becomes harvest gold so buttons and labels belong to the season too; the phone
@@ -22,7 +27,8 @@
  * prefers-reduced-motion shows the tint and a few still shapes only.
  *
  * A small 🍂 / ❄ button in the footer turns it all off (or back on) for this browser: localStorage "season:off" = "1".
- * Testing: add ?season=fall, ?season=winter or ?season=none to the address, or call BackRoomSeasons.set('winter')
+ * Testing: add ?season=fall, ?season=holiday (winter with the holidays), ?season=winter (winter without them) or
+ * ?season=none to the address, or call BackRoomSeasons.set('winter')
  * (set() with nothing goes back to the date). BackRoomSeasons.seasonFor(date) is the date rule, and
  * BackRoomSeasons.bench(n) draws n frames at once and returns the milliseconds per frame.
  */
@@ -36,9 +42,18 @@
     if(md>FALL_TO[0]*100+FALL_TO[1]||m<=2)return 'winter';
     return 'none';
   }
+  // The holidays: the first part of winter, from the day after FALL_TO (the day after Thanksgiving) to January 6. Only
+  // then does winter get its decorations (tree, menorah, diya, gingerbread, lights) and, on the pages that list the
+  // games, the cabin and the retro TV look (holiday.js, which this file loads when it is needed).
+  var HOLIDAY_TO=[1,6];
+  function holidayFor(d){
+    var md=(d.getMonth()+1)*100+d.getDate();
+    return md>FALL_TO[0]*100+FALL_TO[1]||md<=HOLIDAY_TO[0]*100+HOLIDAY_TO[1];
+  }
 
   var forced=null;
-  try{var q=new URLSearchParams(location.search).get('season');if(q==='fall'||q==='winter'||q==='none')forced=q}catch(e){}
+  try{var q=new URLSearchParams(location.search).get('season');if(q==='fall'||q==='winter'||q==='holiday'||q==='none')forced=q}catch(e){}
+  var meSrc=document.currentScript&&document.currentScript.src,BASE=(meSrc?new URL(meSrc,location.href).pathname:'/e63334287a3deaa3/seasons.js').replace(/[^/]*$/,'');
   function isOff(){try{return localStorage.getItem('season:off')==='1'}catch(e){return false}}
   function setOff(v){try{if(v)localStorage.setItem('season:off','1');else localStorage.removeItem('season:off')}catch(e){}}
 
@@ -76,7 +91,7 @@
   // The site's green accent (Play buttons in Cars, the Send button, small labels, links, the What's new glow) looks
   // out of place in a fall scene, so in fall it becomes harvest gold: [--accent, --accent-ink] for light and dark
   // pages. Only a green accent is replaced: the phone page's is already yellow and stays as it is.
-  var ACCENT={fall:{light:['#9C6300','#FFFFFF'],dark:['#F3B94A','#2A1703']}};
+  var ACCENT={fall:{light:['#9C6300','#FFFFFF'],dark:['#F3B94A','#2A1703']},winter:{light:['#2459C8','#FFFFFF'],dark:['#8DB4FF','#0A1A3A']}};
 
   var styleEl=null;
   function tint(season){
@@ -89,10 +104,12 @@
     var own=season==='fall'?FALL[light?'light':'dark']:{};
     for(var v in VARS){var c=parse(cs.getPropertyValue(v));if(c)out.push(v+':'+(own[v]?mix(c,own[v][0],own[v][1]):mix(c,t,VARS[v])))}
     var ac=parse(cs.getPropertyValue('--accent')),A=ACCENT[season]&&ACCENT[season][light?'light':'dark'];
-    if(ac&&A&&ac[1]>ac[0]&&ac[1]>ac[2]){out.push('--accent:'+A[0]);if(cs.getPropertyValue('--accent-ink').trim())out.push('--accent-ink:'+A[1])}
+    // fall only replaces a green accent (the phone page's yellow already fits); winter makes every accent blue
+    if(ac&&A&&(season==='winter'||(ac[1]>ac[0]&&ac[1]>ac[2]))){out.push('--accent:'+A[0]);if(cs.getPropertyValue('--accent-ink').trim())out.push('--accent-ink:'+A[1])}
     styleEl=document.createElement('style');styleEl.id='season-style';
     styleEl.textContent='html:root{'+out.join(';')+'}body{isolation:isolate}'+
-      '#season-fx,#season-bg{position:fixed;left:0;right:0;bottom:0;width:100%;height:100vh;height:100lvh;z-index:-1;pointer-events:none;display:block}';
+      '#season-fx,#season-bg{position:fixed;left:0;right:0;bottom:0;width:100%;height:100vh;height:100lvh;z-index:-1;pointer-events:none;display:block}'+
+      'html.tv-on #season-fx,html.tv-on #season-bg,html.tv-on .season-foot{image-rendering:pixelated;image-rendering:crisp-edges}';
     document.head.appendChild(styleEl);
     return light;
   }
@@ -255,15 +272,151 @@
     return spriteCache[key]={tail:tail,body:body,head:head(false),blink:head(true)};
   }
 
+  /* ---------- the winter scene: a tree, a snowman, a menorah, a diya, gingerbread and lights ---------- */
+  // Each is drawn standing at x, y (bottom centre) at size k, like the pumpkins.
+  function drawTree(g,x,y,k){
+    g.save();g.translate(x,y);g.scale(k,k);g.lineJoin='round';g.lineCap='round';
+    g.fillStyle='rgba(20,40,70,.18)';ell(g,0,-1,62,8);g.fill();
+    g.fillStyle='#6B4423';g.fillRect(-7,-18,14,18);
+    [[58,-14,-72],[46,-48,-106],[34,-82,-136],[22,-114,-160]].forEach(function(t,i){
+      var gr=g.createLinearGradient(-t[0],t[1],t[0],t[2]);gr.addColorStop(0,'#1B6A3B');gr.addColorStop(1,'#2E8B50');
+      g.beginPath();g.moveTo(0,t[2]);g.lineTo(t[0],t[1]);g.quadraticCurveTo(0,t[1]+9,-t[0],t[1]);g.closePath();
+      g.fillStyle=gr;g.fill();g.strokeStyle='rgba(10,52,28,.7)';g.lineWidth=1.4;g.stroke();
+      // snow resting on the tips of each tier, and a string of lights across it
+      g.fillStyle='#FFFFFF';ell(g,-t[0]+7,t[1]-1,8,3.2,.25);g.fill();ell(g,t[0]-7,t[1]-1,8,3.2,-.25);g.fill();
+      g.beginPath();g.moveTo(-t[0]*.82,t[1]-9);g.quadraticCurveTo(0,t[1]+2,t[0]*.82,t[1]-11);g.strokeStyle='#F2C34B';g.lineWidth=1.3;g.stroke();
+      var cols=['#E5483F','#FFD34D','#4FA3F7','#F37FB7'];
+      for(var j=0;j<4+(3-i);j++){var u=(j+.5)/(4+(3-i)),lx=-t[0]*.82+u*t[0]*1.64,ly=t[1]-9+(-2*u*u+2*u)*10-u*2;ell(g,lx,ly+2.5,2.6,2.6);g.fillStyle=cols[(j+i)%4];g.fill()}
+    });
+    [[-24,-38,'#E5483F'],[20,-34,'#4FA3F7'],[-4,-58,'#FFD34D'],[14,-70,'#E5483F'],[-16,-92,'#F37FB7'],[8,-100,'#FFD34D'],[-4,-126,'#4FA3F7']].forEach(function(o){
+      ell(g,o[0],o[1],4.6,4.6);g.fillStyle=o[2];g.fill();g.strokeStyle='rgba(0,0,0,.25)';g.lineWidth=.8;g.stroke();g.fillStyle='rgba(255,255,255,.6)';ell(g,o[0]-1.4,o[1]-1.5,1.3,1.3);g.fill()});
+    g.beginPath();for(var i=0;i<10;i++){var a=-1.5708+i*.6283,r=i%2?5:11;g.lineTo(Math.cos(a)*r,-166+Math.sin(a)*r)}g.closePath();
+    g.fillStyle='#FFD34D';g.fill();g.strokeStyle='rgba(150,100,10,.7)';g.lineWidth=1;g.stroke();
+    // presents
+    [[-66,-2,26,20,'#D8433B','#FFE08A'],[-38,-2,18,14,'#2F7FD6','#FFFFFF'],[38,-2,24,18,'#3BA55D','#E5483F']].forEach(function(b){
+      g.fillStyle=b[4];g.fillRect(b[0],b[1]-b[3],b[2],b[3]);g.strokeStyle='rgba(0,0,0,.3)';g.lineWidth=1;g.strokeRect(b[0],b[1]-b[3],b[2],b[3]);
+      g.fillStyle=b[5];g.fillRect(b[0]+b[2]/2-2,b[1]-b[3],4,b[3]);g.fillRect(b[0],b[1]-b[3]/2-2,b[2],4);
+      g.beginPath();g.ellipse(b[0]+b[2]/2-4,b[1]-b[3]-2.5,4.5,2.6,-.5,0,6.2832);g.ellipse(b[0]+b[2]/2+4,b[1]-b[3]-2.5,4.5,2.6,.5,0,6.2832);g.fill();
+    });
+    g.restore();
+  }
+  function drawSnowman(g,x,y,k){
+    g.save();g.translate(x,y);g.scale(k,k);g.lineJoin='round';g.lineCap='round';
+    g.fillStyle='rgba(20,40,70,.18)';ell(g,0,-1,40,7);g.fill();
+    g.strokeStyle='#6B4423';g.lineWidth=3;   // stick arms
+    g.beginPath();g.moveTo(-20,-76);g.lineTo(-48,-94);g.moveTo(-40,-89);g.lineTo(-47,-80);g.moveTo(-42,-90);g.lineTo(-44,-101);
+    g.moveTo(20,-76);g.lineTo(46,-100);g.moveTo(39,-94);g.lineTo(49,-91);g.moveTo(41,-96);g.lineTo(40,-107);g.stroke();
+    [[0,-30,31],[0,-74,23],[0,-106,17]].forEach(function(b){
+      var gr=g.createRadialGradient(b[0]-b[2]*.35,b[1]-b[2]*.4,2,b[0],b[1],b[2]);gr.addColorStop(0,'#FFFFFF');gr.addColorStop(1,'#D6E4F4');
+      ell(g,b[0],b[1],b[2],b[2]);g.fillStyle=gr;g.fill();g.strokeStyle='rgba(96,130,176,.75)';g.lineWidth=1.4;g.stroke()});
+    g.fillStyle='#22262C';[[0,-84],[0,-72],[0,-60]].forEach(function(b){ell(g,b[0],b[1],2.6,2.6);g.fill()});
+    ell(g,-6,-110,2.2,2.2);g.fill();ell(g,6,-110,2.2,2.2);g.fill();
+    [-7,-3.5,0,3.5,7].forEach(function(dx,i){ell(g,dx,-99+(i===2?1.6:Math.abs(dx)<4?1:0)-1,1.1,1.1);g.fill()});
+    g.beginPath();g.moveTo(0,-106);g.lineTo(17,-103);g.lineTo(0,-101.5);g.closePath();g.fillStyle='#F28A2E';g.fill();g.strokeStyle='rgba(150,70,10,.7)';g.lineWidth=.9;g.stroke();
+    // scarf and hat
+    g.fillStyle='#D8433B';g.beginPath();g.moveTo(-17,-95);g.quadraticCurveTo(0,-87,17,-95);g.lineTo(17,-89);g.quadraticCurveTo(0,-81,-17,-89);g.closePath();g.fill();
+    g.fillRect(8,-90,8,22);g.fillStyle='#FFFFFF';g.fillRect(8,-76,8,3);g.fillRect(8,-71,8,3);
+    g.fillStyle='#22262C';g.fillRect(-18,-122,36,4);g.fillRect(-12,-144,24,23);g.fillStyle='#D8433B';g.fillRect(-12,-128,24,5);
+    g.restore();
+  }
+  function flame(g,x,y,h){
+    var gr=g.createLinearGradient(0,y-h,0,y);gr.addColorStop(0,'#FFF3B0');gr.addColorStop(.55,'#FFC23D');gr.addColorStop(1,'#F2742E');
+    g.beginPath();g.moveTo(x,y-h);g.bezierCurveTo(x+h*.42,y-h*.45,x+h*.34,y,x,y);g.bezierCurveTo(x-h*.34,y,x-h*.42,y-h*.45,x,y-h);
+    g.fillStyle=gr;g.fill();
+  }
+  function drawMenorah(g,x,y,k){
+    g.save();g.translate(x,y);g.scale(k,k);g.lineJoin='round';g.lineCap='round';
+    g.fillStyle='rgba(20,40,70,.18)';ell(g,0,-1,34,5);g.fill();
+    g.strokeStyle='#D9A936';g.fillStyle='#E9BE4B';
+    g.beginPath();g.moveTo(-20,0);g.lineTo(20,0);g.lineTo(11,-7);g.lineTo(-11,-7);g.closePath();g.fill();
+    g.lineWidth=4.5;g.beginPath();g.moveTo(0,-6);g.lineTo(0,-60);g.stroke();
+    g.lineWidth=3.4;
+    for(var i=1;i<=4;i++){var r=i*10.5;g.beginPath();g.arc(0,-52,r,0,Math.PI);g.stroke()}
+    for(i=-4;i<=4;i++){
+      var cx=i*10.5,top=i?-52:-60;
+      g.fillStyle='#E9BE4B';g.fillRect(cx-4,top-3,8,4);
+      g.fillStyle=i%2?'#FFFFFF':'#4F8FEA';g.fillRect(cx-2.4,top-17,4.8,14);
+      g.strokeStyle='rgba(40,60,110,.45)';g.lineWidth=.7;g.strokeRect(cx-2.4,top-17,4.8,14);g.strokeStyle='#D9A936';
+      flame(g,cx,top-17,9);
+    }
+    g.restore();
+  }
+  function drawDiya(g,x,y,k){
+    g.save();g.translate(x,y);g.scale(k,k);g.lineJoin='round';g.lineCap='round';
+    // a little rangoli of dots in front, then the clay lamp and its flame
+    var cols=['#F37FB7','#FFD34D','#4FD1A5','#F2742E','#8E7BEF'];
+    for(var i=0;i<9;i++){var a=Math.PI*(i/8),r=27;ell(g,Math.cos(a)*r,-2+Math.sin(a)*5,2.1,1.5);g.fillStyle=cols[i%5];g.fill()}
+    var gl=g.createRadialGradient(15,-24,1,15,-24,26);gl.addColorStop(0,'rgba(255,214,110,.55)');gl.addColorStop(1,'rgba(255,214,110,0)');
+    g.fillStyle=gl;g.fillRect(-14,-52,58,54);
+    g.beginPath();g.moveTo(-19,-13);g.quadraticCurveTo(-17,0,0,0);g.quadraticCurveTo(15,0,19,-10);g.lineTo(26,-15);g.lineTo(18,-14);g.closePath();
+    var gr=g.createLinearGradient(0,-15,0,0);gr.addColorStop(0,'#D97B45');gr.addColorStop(1,'#A9522A');
+    g.fillStyle=gr;g.fill();g.strokeStyle='rgba(90,36,12,.7)';g.lineWidth=1.2;g.stroke();
+    g.fillStyle='#E99A5C';ell(g,0,-13,18.5,3.4);g.fill();g.stroke();
+    g.fillStyle='#FFD34D';for(i=-2;i<=2;i++){ell(g,i*6.4,-6.5+Math.abs(i)*-.6,1.5,1.5);g.fill()}
+    flame(g,19,-14,13);
+    g.restore();
+  }
+  // a gingerbread man; hangs from a thread when hang is given (the thread goes up that far)
+  function drawGingerbread(g,x,y,k,hang){
+    g.save();g.translate(x,y);g.scale(k,k);g.lineJoin='round';g.lineCap='round';
+    if(hang){g.strokeStyle=light?'rgba(120,80,40,.7)':'rgba(240,220,190,.6)';g.lineWidth=1;g.beginPath();g.moveTo(0,-52);g.lineTo(0,-52-hang);g.stroke()}
+    g.strokeStyle='#B5733A';g.lineWidth=11;g.beginPath();
+    g.moveTo(-15,-28);g.lineTo(15,-28);g.moveTo(0,-36);g.lineTo(0,-18);g.moveTo(-1,-18);g.lineTo(-9,-4);g.moveTo(1,-18);g.lineTo(9,-4);g.stroke();
+    g.fillStyle='#B5733A';ell(g,0,-42,10,10);g.fill();
+    g.strokeStyle='rgba(90,50,16,.45)';g.lineWidth=1;ell(g,0,-42,10,10);g.stroke();
+    g.fillStyle='#FFFFFF';ell(g,-3.6,-44,1.5,1.5);g.fill();ell(g,3.6,-44,1.5,1.5);g.fill();
+    g.strokeStyle='#FFFFFF';g.lineWidth=1.4;g.beginPath();g.arc(0,-41.5,4.6,.35,2.8);g.stroke();
+    g.beginPath();g.moveTo(-18,-31);g.lineTo(-15,-25);g.moveTo(18,-31);g.lineTo(15,-25);g.moveTo(-13,-7);g.lineTo(-7,-3);g.moveTo(13,-7);g.lineTo(7,-3);g.stroke();
+    g.fillStyle='#E5483F';ell(g,0,-29,2,2);g.fill();g.fillStyle='#3BA55D';ell(g,0,-22,2,2);g.fill();
+    g.restore();
+  }
+  // a string of coloured bulbs sagging from (x0, y0) to (x1, y1)
+  function drawLights(g,x0,y0,x1,y1,sag){
+    var n=Math.max(3,Math.round(Math.abs(x1-x0)/30)),cols=['#E5483F','#FFD34D','#3BA55D','#4FA3F7'];
+    g.strokeStyle=light?'rgba(40,70,60,.8)':'rgba(20,30,40,.9)';g.lineWidth=1.6;g.beginPath();g.moveTo(x0,y0);g.quadraticCurveTo((x0+x1)/2,(y0+y1)/2+sag*2,x1,y1);g.stroke();
+    for(var i=0;i<n;i++){var t=(i+.5)/n,u=1-t,mx=(x0+x1)/2,my=(y0+y1)/2+sag*2,bx=u*u*x0+2*u*t*mx+t*t*x1,by=u*u*y0+2*u*t*my+t*t*y1;
+      g.fillStyle='rgba(30,40,50,.9)';g.fillRect(bx-2,by,4,3.5);
+      var gl=g.createRadialGradient(bx,by+8,0,bx,by+8,11);gl.addColorStop(0,cols[i%4]);gl.addColorStop(1,'rgba(255,255,255,0)');
+      g.globalAlpha=.35;g.fillStyle=gl;g.fillRect(bx-11,by-3,22,22);g.globalAlpha=1;
+      g.fillStyle=cols[i%4];ell(g,bx,by+8,3.4,5);g.fill();g.fillStyle='rgba(255,255,255,.55)';ell(g,bx-1,by+6.5,1,1.6);g.fill()}
+  }
+  function drawWinterScene(){
+    var g=bgx,k=scene.k,x;g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
+    // cold light from the top left, and a deeper foot of the page
+    var gl=g.createRadialGradient(W*.14,-H*.08,0,W*.14,-H*.08,Math.max(W,H)*.95);
+    gl.addColorStop(0,light?'rgba(255,255,255,.8)':'rgba(140,186,255,.2)');gl.addColorStop(.55,light?'rgba(236,246,255,.2)':'rgba(110,160,240,.06)');gl.addColorStop(1,'rgba(200,225,255,0)');
+    g.fillStyle=gl;g.fillRect(0,0,W,H);
+    var sh=g.createLinearGradient(0,H*.5,0,H);sh.addColorStop(0,'rgba(0,0,0,0)');sh.addColorStop(1,light?'rgba(70,120,190,.2)':'rgba(2,10,30,.5)');
+    g.fillStyle=sh;g.fillRect(0,H*.5,W,H*.5);
+    // snowy ground along the bottom edge
+    var m=scene.mh;g.beginPath();g.moveTo(0,H);
+    for(x=0;x<=W+12;x+=12)g.lineTo(x,H-m*(.6+.24*Math.sin(x*.006+seedA)+.16*Math.sin(x*.019+seedB)));
+    g.lineTo(W+12,H);g.closePath();
+    var fg=g.createLinearGradient(0,H-m,0,H);fg.addColorStop(0,light?'#FFFFFF':'rgba(224,236,250,.96)');fg.addColorStop(1,light?'#DCE9F8':'rgba(170,196,228,.96)');
+    g.fillStyle=fg;g.fill();g.strokeStyle=light?'rgba(104,140,184,.6)':'rgba(120,150,200,.5)';g.lineWidth=1;g.stroke();
+    if(!scene.roomy)return;   // no margins to stand in: the decorations go at the foot of the page instead (footScene)
+    var px=scene.px,tx=scene.tx,by=scene.base+4,gut=scene.gut;
+    if(holiday){
+      // lights strung across the top of each margin, with gingerbread hanging from them
+      drawLights(g,-6,8,gut-14,18,13);drawLights(g,W-gut+14,18,W+6,8,13);
+      drawGingerbread(g,gut*.34,104,k*.8,34);drawGingerbread(g,W-gut*.36,112,k*.8,40);
+      drawTree(g,px-4*k,by,k*.82);
+      drawDiya(g,px+50*k,by+6,k*.7);
+      drawMenorah(g,tx+34*k,by+2,k*.62);
+      drawSnowman(g,tx-22*k,by+4,k*.78);
+    }else drawSnowman(g,tx,by+4,k*.9);
+  }
+
   /* ---------- the effect ---------- */
   var cv=null,ctx=null,W=0,H=0,parts=[],rest=[],season='none',light=true,raf=0,last=0,t0=0,clock=0,still=false,ground=null,btn=null,covered=false;
-  var bg=null,bgx=null,scene=null,seedA=0,seedB=0;   // fall: the still canvas, where things stand, and the field's shape
+  var bg=null,bgx=null,scene=null,seedA=0,seedB=0;   // the still canvas, where things stand, and the shape of the field or the snow
+  var holiday=false,pixelMode=false;
   function rnd(a,b){return a+Math.random()*(b-a)}
 
   function size(){
     if(!cv)return false;
     var w=cv.clientWidth,h=cv.clientHeight;if(!w||!h)return false;
-    var nd=Math.min(window.devicePixelRatio||1,phone?1.5:2);
+    var nd=pixelMode?.34:Math.min(window.devicePixelRatio||1,phone?1.5:2);   // retro TV look: one canvas pixel is about three screen pixels
     if(w===W&&h===H&&nd===dpr)return false;
     if(nd!==dpr){dpr=nd;spriteCache={}}
     var ow=W||w,oh=H||h;W=w;H=h;
@@ -355,9 +508,10 @@
       g.save();g.translate(a[0],a[1]);g.rotate(a[2]);g.drawImage(sp,-w/2,-w*.973,w,w);g.restore();
     });
   }
-  // The parts of the fall scene that never move, drawn once on the still canvas.
+  // The parts of the scene that never move, drawn once on the still canvas.
   function drawScene(){
     if(!bg||!scene)return;
+    if(season==='winter'){drawWinterScene();return}
     var g=bgx,k=scene.k,i;g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
     // a low sun in the top right, and the foot of the page a little deeper
     var gl=g.createRadialGradient(W*.84,-H*.08,0,W*.84,-H*.08,Math.max(W,H)*.95);
@@ -406,19 +560,26 @@
   // the page's footer instead: wheat, two pumpkins and the turkey on a little mound.
   var foot=null;
   function footScene(){
-    var f=document.querySelector('footer, .foot');
-    if(season!=='fall'||!scene||scene.roomy||!f){if(foot){foot.remove();foot=null}return}
+    var f=document.querySelector('footer, .foot'),win=season==='winter';
+    if((season!=='fall'&&!win)||!scene||scene.roomy||!f){if(foot){foot.remove();foot=null}return}
+    var fw=win&&holiday?300:230;
     if(!foot){
       foot=document.createElement('canvas');foot.className='season-foot';foot.setAttribute('aria-hidden','true');
-      foot.style.cssText='display:block;width:230px;height:108px;margin:0 auto 12px;pointer-events:none';
       f.insertBefore(foot,f.firstChild);
     }
-    var d=dpr,g=foot.getContext('2d'),i;foot.width=Math.round(230*d);foot.height=Math.round(108*d);
+    foot.style.cssText='display:block;width:'+fw+'px;max-width:100%;height:auto;aspect-ratio:'+fw+'/108;margin:0 auto 12px;pointer-events:none';
+    var d=dpr,g=foot.getContext('2d'),i;foot.width=Math.round(fw*d);foot.height=Math.round(108*d);
     g.setTransform(d,0,0,d,0,0);
-    g.beginPath();g.ellipse(115,108,113,17,0,Math.PI,0);g.fillStyle=light?'rgba(190,112,46,.6)':'rgba(24,9,1,.9)';g.fill();
-    for(i=0;i<5;i++)drawWheat(g,22+i*13,98,(52+(i*37%30)),-9+i*4.5,.62);
-    drawPumpkin(g,40,97,.42,PUMPKINS[1]);drawPumpkin(g,78,100,.62,PUMPKINS[0]);drawPumpkin(g,118,101,.3,PUMPKINS[2]);
-    drawTurkey(g,172*d,99*d,.6*d,null);
+    if(win){
+      g.beginPath();g.ellipse(fw/2,108,fw/2-2,17,0,Math.PI,0);g.fillStyle=light?'#FFFFFF':'rgba(226,238,252,.95)';g.fill();
+      if(holiday){drawTree(g,44,100,.5);drawDiya(g,96,101,.62);drawMenorah(g,150,100,.6);drawGingerbread(g,206,98,.8);drawSnowman(g,256,100,.6)}
+      else drawSnowman(g,fw/2,100,.68);
+    }else{
+      g.beginPath();g.ellipse(115,108,113,17,0,Math.PI,0);g.fillStyle=light?'rgba(190,112,46,.6)':'rgba(24,9,1,.9)';g.fill();
+      for(i=0;i<5;i++)drawWheat(g,22+i*13,98,(52+(i*37%30)),-9+i*4.5,.62);
+      drawPumpkin(g,40,97,.42,PUMPKINS[1]);drawPumpkin(g,78,100,.62,PUMPKINS[0]);drawPumpkin(g,118,101,.3,PUMPKINS[2]);
+      drawTurkey(g,172*d,99*d,.6*d,null);
+    }
     g.setTransform(1,0,0,1,0,0);
   }
 
@@ -470,25 +631,41 @@
 
   function stop(){
     pause();if(cv){cv.remove();cv=null;ctx=null}
+    if(window.BackRoomHoliday)window.BackRoomHoliday.stop();
     if(bg){bg.remove();bg=null;bgx=null}
     if(foot){foot.remove();foot=null}
     parts=[];rest=[];W=H=0;ground=null;scene=null;tint('none');
   }
   function start(s){
-    stop();season=s;updateButton();
+    stop();season=s;holiday=s==='winter'&&holidayNow();updateButton();
     if(s==='none'||isOff())return;
     light=tint(s);still=mqStill.matches;clock=0;
     cv=document.createElement('canvas');cv.id='season-fx';cv.setAttribute('aria-hidden','true');
     document.body.insertBefore(cv,document.body.firstChild);
     ctx=cv.getContext('2d');
-    if(s==='fall'){   // the still part of the scene goes on its own canvas, under the moving one
+    if(s==='fall'||s==='winter'){   // the still part of the scene goes on its own canvas, under the moving one
       bg=document.createElement('canvas');bg.id='season-bg';bg.setAttribute('aria-hidden','true');
       document.body.insertBefore(bg,cv);bgx=bg.getContext('2d');seedA=rnd(0,6.3);seedB=rnd(0,6.3);
     }
     size();populate();
     if(still){step(0);draw()}else play();
+    if(holiday)loadHoliday();
   }
-  function current(){return forced||seasonFor(new Date())}
+  // The cabin and the retro TV look live in holiday.js, loaded only during the holidays and only on the pages that
+  // list the games (the Back Room page, its copy on the home page, and the phone page).
+  var holidayAsked=false;
+  function loadHoliday(){
+    if(!document.querySelector('.br-games, #lists'))return;
+    if(window.BackRoomHoliday){window.BackRoomHoliday.start();return}
+    if(holidayAsked)return;holidayAsked=true;
+    var sc=document.createElement('script');sc.src=BASE+'holiday.js';
+    sc.onload=function(){if(holiday&&cv&&window.BackRoomHoliday)window.BackRoomHoliday.start()};
+    sc.onerror=function(){holidayAsked=false};
+    document.head.appendChild(sc);
+  }
+  // forced: 'winter' is winter without the holidays, 'holiday' is winter with them
+  function current(){return forced==='holiday'?'winter':forced||seasonFor(new Date())}
+  function holidayNow(){return forced==='holiday'||(!forced&&seasonFor(new Date())==='winter'&&holidayFor(new Date()))}
 
   /* ---------- the on/off button ---------- */
   function updateButton(){
@@ -527,7 +704,12 @@
     seasonFor:seasonFor,
     get season(){return season},
     get running(){return !!raf},
-    set:function(s){forced=s==='fall'||s==='winter'||s==='none'?s:null;start(current());return season},
+    set:function(s){forced=s==='fall'||s==='winter'||s==='holiday'||s==='none'?s:null;start(current());return season},
+    holidayFor:holidayFor,
+    get holiday(){return holiday},
+    get off(){return isOff()},
+    // the retro TV look (holiday.js) asks for the scene and the snow to be drawn in big pixels
+    pixel:function(on){on=!!on;if(on===pixelMode)return;pixelMode=on;if(cv){size();if(still){step(0);draw()}}},
     bench:function(n){
       if(!cv)return null;n=n||300;size();
       var a=performance.now();for(var i=0;i<n;i++){step(1/30);draw()}
