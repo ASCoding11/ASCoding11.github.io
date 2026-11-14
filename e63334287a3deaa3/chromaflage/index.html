@@ -299,6 +299,7 @@ body.touch #lobby{top:calc(150px + env(safe-area-inset-top,0px));left:12px;right
 }
 </style>
 <script src="/e63334287a3deaa3/stats.js" data-game="chromaflage" defer></script>
+<script src="/e63334287a3deaa3/elo.js" data-game="chromaflage" defer></script>
 <script src="/e63334287a3deaa3/gamechat.js" data-key="KeyY" defer></script>
 <script src="/adrefresh.js" defer></script>
 </head>
@@ -4420,6 +4421,12 @@ function showResults(rs){
   hudCache.endMsg=null;$('endMsg').textContent='';
   $('end').hidden=false;
   if(rs.pl.indexOf(mine)>=0&&rs.sk.indexOf(mine)<0&&!(rs.fd&&rs.fd[mine])&&window.BackRoomStats)BackRoomStats.add('hidden',1);
+  // ranked rating (../elo.js): online rounds only. A seeker beats each hider that was found; a hider beats the seekers by staying hidden.
+  if(G.mode==='online'&&rs.pl.indexOf(mine)>=0&&window.BackRoomElo){try{
+    const fd=rs.fd||{},seek=rs.sk.indexOf(mine)>=0;
+    const opp=rs.pl.filter(u=>u!==mine&&(rs.sk.indexOf(u)>=0)!==seek).map(u=>({u,bot:Net.others&&Net.others.has(u)?0:1,s:seek?(fd[u]?1:0):(fd[mine]?0:1)}));
+    BackRoomElo.report({id:Net.room+':'+rs.id,won:seek?opp.length>0&&opp.every(x=>x.s===1):!fd[mine],opp});
+  }catch(e){}}
   if(G.mode==='practice'){const won=G.pmode==='hide'?!(rs.fd&&rs.fd.me):Object.keys(rs.fd||{}).length===rs.pl.length-1;sfx(won?'win':'lose')}
   else sfx(roleOf(mine,Object.assign({},rs,{ph:'seek'}))==='hider'||(res.win==='seekers'&&rs.sk.indexOf(mine)>=0)?'win':'lose');
   showAd('adEnd');

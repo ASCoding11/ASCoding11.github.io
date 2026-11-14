@@ -260,6 +260,7 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
 }
 </style>
 <script src="/e63334287a3deaa3/stats.js" data-game="slipstream" defer></script>
+<script src="/e63334287a3deaa3/elo.js" data-game="slipstream" defer></script>
 <script src="/e63334287a3deaa3/gamechat.js" defer></script>
 <script src="/adrefresh.js" defer></script>
 </head>
@@ -2468,6 +2469,8 @@ function showResults(){
   state='results';$('touch').hidden=true;
   const o=order(),me=race.me,win=o[0];
   const myPos=me?o.indexOf(me)+1:0;
+  // ranked rating (../elo.js): online races only, by finishing order (bots count for less)
+  if(mode==='online'&&me&&window.BackRoomElo){try{BackRoomElo.report({id:Net.room+':'+race.id,won:myPos===1,opp:o.filter(c=>c!==me).map(c=>({u:c.owner,bot:c.bot||!c.owner?1:0,s:o.indexOf(c)>myPos-1?1:0}))})}catch(e){}}
   $('resTitle').textContent=me?(myPos===1?'You won!':'You finished P'+myPos):'Race results';
   $('resSub').textContent=TRACKS[race.track].n+' · '+race.laps+(race.laps>1?' laps':' lap')+(me?' · started P'+me.gridPos:'');
   let h='';

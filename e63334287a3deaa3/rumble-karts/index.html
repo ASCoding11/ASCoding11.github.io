@@ -268,6 +268,7 @@ body.touch #hint,body.touch #itemTip{bottom:calc(210px + var(--sab))}
 }
 </style>
 <script src="/e63334287a3deaa3/stats.js" data-game="rumble-karts" defer></script>
+<script src="/e63334287a3deaa3/elo.js" data-game="rumble-karts" defer></script>
 <script src="/e63334287a3deaa3/gamechat.js" defer></script>
 <script src="/adrefresh.js" defer></script>
 </head>
@@ -3066,6 +3067,8 @@ function showResults() {
   renderResults(); $('#results').hidden = false; hideBanner(); showAd('adResults');
   const top = standings()[0]; if (top && top === S.me && top.score > 0) Snd.play('win');
   if (top && top === S.me && top.score > 0 && window.BackRoomStats) BackRoomStats.add('wins', 1);
+  // ranked rating (../elo.js): online rounds only, by finishing place (equal scores are a draw)
+  if (Net.online && S.me && window.BackRoomElo) { try { const l = standings(), mi = l.indexOf(S.me); BackRoomElo.report({ id: Net.room + ':' + (S.round ? S.round.id : ''), won: l[0] === S.me && S.me.score > 0, opp: l.filter(k => k !== S.me).map(k => ({ u: k.id, bot: k.ai ? 1 : 0, s: k.score === S.me.score ? .5 : l.indexOf(k) > mi ? 1 : 0 })) }); } catch (e) {} }
 }
 function renderResults() {
   const list = standings(), top = list[0], you = top === S.me, nm = top ? (you ? 'You' : top.name) : '';

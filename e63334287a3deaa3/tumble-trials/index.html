@@ -275,6 +275,7 @@ body.touch #banner{top:30%}
 }
 </style>
 <script src="/e63334287a3deaa3/stats.js" data-game="tumble-trials" defer></script>
+<script src="/e63334287a3deaa3/elo.js" data-game="tumble-trials" defer></script>
 <script src="/e63334287a3deaa3/gamechat.js" defer></script>
 <script src="/adrefresh.js" defer></script>
 </head>
@@ -1912,6 +1913,15 @@ function onRoundEnd(rs){
   }
   if(kind==='final'&&inRound){bumpStatOnce('g',rs);if(rs.win.includes(myI))bumpStatOnce('w',rs)}
   if(kind==='final'&&inRound&&me&&G.mode!=='practice'&&!statSeen.has('k'+rs.id)&&statSeen.add('k'+rs.id)&&window.BackRoomStats)BackRoomStats.max('crownrun',G.crRun=rs.win.includes(myI)?(G.crRun|0)+1:0);
+  // ranked rating (../elo.js): once per show, when you go out or the final ends. You beat everyone who went out before
+  // you, lost to everyone who went further (or took the crown), and drew with those who went out in the same round.
+  if(inRound&&me&&G.mode==='online'&&window.BackRoomElo&&(kind==='final'||!(rs.q||[]).includes(myI))){try{
+    const fin=kind==='final',wl=rs.win||[],q=rs.q||[],w=fin&&wl.includes(myI);
+    BackRoomElo.report({id:Net.room+':'+rs.id,won:w,opp:rs.ro.map((id,i)=>{
+      if(i===myI||!id)return null;const inR=rs.pl.includes(i),re=rosterEntry(rs,id);
+      const s=fin?(w?(wl.includes(i)?.5:1):(wl.includes(i)?0:inR?.5:1)):(q.includes(i)?0:inR?.5:1);
+      return{u:id,bot:re&&re.bot?1:0,s}}).filter(Boolean)});
+  }catch(e){}}
 }
 
 // =====================================================================

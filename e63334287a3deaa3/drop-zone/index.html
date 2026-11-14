@@ -245,6 +245,7 @@ body.touch #net{top:calc(112px + env(safe-area-inset-top,0px));font-size:14px}
 @media (prefers-reduced-motion:reduce){#banner.show{animation:none}}
 </style>
 <script src="/e63334287a3deaa3/stats.js" data-game="drop-zone" defer></script>
+<script src="/e63334287a3deaa3/elo.js" data-game="drop-zone" defer></script>
 <script src="/e63334287a3deaa3/gamechat.js" defer></script>
 </head>
 <body>
@@ -1766,6 +1767,8 @@ function recordStats(place,win){
   // only matches with at least two real people count: a match against bots alone doesn't
   if(!online||!MS||(MS.nh|0)<2)return;
   BackRoomStats.add('matches',1);if(myKills>0)BackRoomStats.max('kills',myKills);BackRoomStats.min('place',place);if(win)BackRoomStats.add('wins',1);
+  // ranked rating (../elo.js): you beat everyone already knocked out, and lost to everyone still alive when you went out
+  if(window.BackRoomElo){try{const al=new Set(aliveIds());BackRoomElo.report({id:Net.room+':'+curMatch,won:!!win,opp:roster.filter(id=>id!==myId()).map(id=>({u:id,bot:isBotId(id)?1:0,s:win||!al.has(id)?1:0}))})}catch(e){}}
 }
 
 /* ---------- Practice bots (offline only; online matches are people only) ----------

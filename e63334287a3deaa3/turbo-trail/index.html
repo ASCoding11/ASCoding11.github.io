@@ -259,6 +259,7 @@ body.touch #banner b{font-size:clamp(24px,8vw,40px)}
 }
 </style>
 <script src="/e63334287a3deaa3/stats.js" data-game="turbo-trail" defer></script>
+<script src="/e63334287a3deaa3/elo.js" data-game="turbo-trail" defer></script>
 <script src="/e63334287a3deaa3/gamechat.js" data-key="Enter" defer></script>
 <script src="/adrefresh.js" defer></script>
 </head>
@@ -2108,6 +2109,8 @@ function showOnlineResults(){
   const rs=G.rs;if(!rs)return;
   const rows=rs.fin.map(f=>{const e=ents.get(f[0]);return{n:f[0]===Net.uid?(myName||'You')+' (you)':f[2]||nameOf(f[0]),c:f[0]===Net.uid?myColor:e?e.color:'#ccc',t:fmt(f[1]/1000),me:f[0]===Net.uid}});
   const mi=rs.fin.findIndex(f=>f[0]===Net.uid);
+  // ranked rating (../elo.js): by finishing order; two racers who both didn't finish draw
+  if(rs.fin.length&&window.BackRoomElo){try{const pos=u=>{const i=rs.fin.findIndex(f=>f[0]===u);return i<0?1e9:i},mp=pos(Net.uid);BackRoomElo.report({id:Net.room+':'+rs.t0+':'+rs.id,won:mi===0,opp:liveIds().filter(u=>u!==Net.uid).map(u=>({u,s:pos(u)===mp?.5:mp<pos(u)?1:0}))})}catch(e){}}
   showResults(rs.fin.length?'Race over':'Time\'s up!',rs.fin.length?(rs.fin.length+' of '+liveIds().length+' finished'+(mi>=0?' · you were '+(mi+1)+ordinal(mi+1):'')):'Nobody reached the last portal this time.',null,rows,'online');
 }
 

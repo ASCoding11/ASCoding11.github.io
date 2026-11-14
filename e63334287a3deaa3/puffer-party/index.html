@@ -11,6 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
 <script src="/e63334287a3deaa3/stats.js" data-game="puffer-party" defer></script>
+<script src="/e63334287a3deaa3/elo.js" data-game="puffer-party" defer></script>
 <script src="/e63334287a3deaa3/gamechat.js" defer></script>
 <style>
 /* Layout: the sea and the pufferfish are drawn on one canvas behind everything; the player ring, the category bar
@@ -1167,6 +1168,8 @@ function renderOver(rs){
     li.append(rk,dot,q,s);ol.appendChild(li)});
   $('rematch').textContent=B.host?'Play again':'Ask for a rematch';$('oMsg').textContent=Net.isPublic?'The next match starts in a moment.':'';
   const humans=rs.pl.filter(u=>!isBot(u)).length;
+  // ranked rating (../elo.js): by finishing place in the list above
+  if(!Net.solo&&rs.pl.indexOf(Net.uid)>=0&&window.BackRoomElo){try{const mi=order.indexOf(Net.uid);BackRoomElo.report({id:Net.room+':'+rs.id,won:win===Net.uid,opp:order.filter(u=>u!==Net.uid).map(u=>({u,bot:isBot(u)?1:0,s:order.indexOf(u)>mi?1:0}))})}catch(e){}}
   if(win===Net.uid){confetti(W*.5,H*.35,1);Snd.win();
     if(!Net.solo&&humans>=2&&!B.counted.has('w'+rs.id)){B.counted.add('w'+rs.id);store.set('wins',(+store.get('wins',0)||0)+1);if(window.BackRoomStats){try{BackRoomStats.add('wins',1)}catch(e){}}}}
   else Snd.bad();

@@ -12,6 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
 <script src="/e63334287a3deaa3/stats.js" data-game="deepword" defer></script>
+<script src="/e63334287a3deaa3/elo.js" data-game="deepword" defer></script>
 <script src="/e63334287a3deaa3/gamechat.js" defer></script>
 <style>
 /* Layout: the ocean fills the screen on a canvas and sinks as you score. Everything else is one card in the
@@ -1292,6 +1293,12 @@ function judgeRound(rs){
   const popped=j.out.length-rs.out.length;
   setRS(Object.assign({},rs,{ph:'reveal',t0:Net.now(),dur:3800+(popped?1200:0)+(j.wash?800:0),res:j.res,pf:j.pf,out:j.out,el:j.el,wash:j.wash?1:0,ans:{},bd:{}}));
 }
+// ranked rating (../elo.js) for a finished Brawl: the winner first, then whoever was still in, then by who went out last
+function eloOver(rs){
+  if(!window.BackRoomElo||!rs||!rs.pl||rs.pl.indexOf(Net.uid)<0)return;
+  try{const out=rs.out||[],pos=u=>u===rs.win?0:out.indexOf(u)<0?1:2+out.length-out.indexOf(u),mp=pos(Net.uid);
+    BackRoomElo.report({id:Net.room+':'+rs.t0,won:rs.win===Net.uid,opp:rs.pl.filter(u=>u!==Net.uid).map(u=>{const p=pos(u);return{u,bot:isBot(u)?1:0,s:p===mp?.5:mp<p?1:0}})})}catch(e){}
+}
 function endMatch(rs,win){
   setRS(Object.assign({},rs,{ph:'over',t0:Net.now(),dur:0,win}));
   if(win===Net.uid&&window.BackRoomStats){try{BackRoomStats.add('brawlwins',1)}catch(e){}}
@@ -1310,7 +1317,7 @@ function applyRS(rs){
   const newMatch=rs.id!==B.rid,newRound=newMatch||rs.rn!==B.rn,newPh=newRound||rs.ph!==B.ph;
   B.rid=rs.id;B.rn=rs.rn;B.ph=rs.ph;
   if(rs.ph==='lobby'){if(G.scene!=='lobby'&&B.on)show('lobby');renderLobby();return}
-  if(rs.ph==='over'){if(G.scene!=='over'){show('over');renderOver(rs)}return}
+  if(rs.ph==='over'){if(G.scene!=='over'){show('over');renderOver(rs);eloOver(rs)}return}
   if(G.scene!=='brawl'){show('brawl')}
   if(newRound&&rs.ph==='round'){B.myAns='';B.myAnsT=0;B.sent='';const inp=$('bAns');inp.value='';inp.className='ans';inp.disabled=false;$('bSend').disabled=false;$('bHint').textContent='';$('bHint').className='hint';$('bReveal').hidden=true;$('bAsk').hidden=false;
     setText('bcat',rs.pr&&rs.pr.L==='@words'?'Word':'Category');setText('bq',rs.pr?rs.pr.q:'…');
