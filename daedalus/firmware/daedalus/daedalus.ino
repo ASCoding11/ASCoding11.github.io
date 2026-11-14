@@ -1,5 +1,5 @@
 /*
- * The Five Hundred Hand Project: firmware for a one-stick Bluetooth LE gamepad.
+ * Project Daedalus: firmware for a one-stick Bluetooth LE gamepad.
  *
  * Board:    ESP32-C6-WROOM-1 on the project's own PCB, or an ESP32-C6-DevKitC-1 for the breadboard prototype
  * Shows up: as a standard HID gamepad over Bluetooth LE (HID over GATT), no drivers, on Windows and macOS
@@ -11,7 +11,7 @@
  *   Tools > CPU Frequency     "80MHz (WiFi)"
  *   Tools > Flash Size        "8MB (64Mb)"
  * Last compiled without errors against esp32 core 3.3.12 and NimBLE-Arduino 2.5.2.
- * The page at /five-hundred-hand/ has the wiring, the pin table and the step-by-step instructions.
+ * The page at /daedalus/ has the wiring, the pin table and the step-by-step instructions.
  *
  * What the buttons do besides being buttons:
  *   Hold HOME for 5 s             forget every paired computer and start pairing again
@@ -34,8 +34,8 @@
 #include "driver/rtc_io.h"
 
 // ----------------------------------------------------------------------------------------------- settings
-static const char *DEVICE_NAME  = "Five Hundred Hand";
-static const char *MANUFACTURER = "Five Hundred Hand Project";
+static const char *DEVICE_NAME  = "Daedalus";
+static const char *MANUFACTURER = "Project Daedalus";
 // 0x1209 / 0x0001 is the pid.codes test ID: fine on your own desk, not for units you sell.
 static const uint16_t USB_VID = 0x1209, USB_PID = 0x0001, DEVICE_VERSION = 0x0100;
 
@@ -463,7 +463,7 @@ void setup() {
   readBattery(true);
   startBluetooth();
   lastActivity = millis();
-  Serial.printf("Five Hundred Hand ready. Stick centre %d, %d mV. Battery %u %%.\n", cal.cx, cal.cy, batteryPct);
+  Serial.printf("Daedalus ready. Stick centre %d, %d mV. Battery %u %%.\n", cal.cx, cal.cy, batteryPct);
 }
 
 void loop() {
