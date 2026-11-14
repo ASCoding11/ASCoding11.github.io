@@ -1199,8 +1199,16 @@ function drawBall(g,w,h){
   g.fillStyle='rgba('+TEAM[0].rgb+',.7)';g.fillRect(0,h*.44,w,h*.025);g.fillStyle='rgba('+TEAM[1].rgb+',.7)';g.fillRect(0,h*.535,w,h*.025);
 }
 const ballTex=canvasTex(512,256,drawBall);
-const ballMesh=new THREE.Mesh(new THREE.SphereGeometry(BR,36,24),new THREE.MeshLambertMaterial({map:ballTex,emissive:0x2a3046}));
+const ballFlat=new THREE.MeshLambertMaterial({map:ballTex,emissive:0x2a3046});
+const ballMesh=new THREE.Mesh(new THREE.SphereGeometry(BR,36,24),ballFlat);
 scene.add(ballMesh);
+// Pretty graphics give the ball a soft sheen (see glossOn); the material is made the first time it's needed.
+let ballGloss=null,ballGl=false;
+function ballLook(){
+  const gl=glossOn();if(gl===ballGl)return;ballGl=gl;
+  if(gl&&!ballGloss)ballGloss=new THREE.MeshStandardMaterial({map:ballTex,emissive:0x2a3046,roughness:.34,metalness:.12,envMap:stadiumEnv(),envMapIntensity:.7});
+  ballMesh.material=gl?ballGloss:ballFlat;
+}
 const ballShadow=makeShadow(BR*2.4,BR*2.4);
 const ballRing=new THREE.Mesh(new THREE.RingGeometry(BR*.95,BR*1.12,40),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.35,side:THREE.DoubleSide,depthWrite:false}));
 ballRing.rotation.x=-Math.PI/2;scene.add(ballRing);
@@ -1319,14 +1327,39 @@ function padsVisual(now,time){
 // ---------- cars ----------
 const matCache={};
 function lam(hex){return matCache['l'+hex]||(matCache['l'+hex]=new THREE.MeshLambertMaterial({color:hex}))}
+// Pretty graphics: car paint, windows and the ball are glossy and reflect a small drawn picture of the stadium (floodlight
+// rows, dark stands, the pitch below), so they catch the light as they turn. Fast graphics and touch screens keep the flat
+// materials, which cost less to draw. glossOn() is part of each car's meshKey, so switching Graphics rebuilds the cars.
+function glossOn(){return gfx==='high'&&!touchIn.active}
+let envTex=null;
+function stadiumEnv(){
+  if(envTex)return envTex;
+  const S=64,face=draw=>{const c=document.createElement('canvas');c.width=c.height=S;draw(c.getContext('2d'));return c};
+  const side=g=>{
+    const gr=g.createLinearGradient(0,0,0,S);
+    gr.addColorStop(0,'#0a1230');gr.addColorStop(.3,'#101a3c');gr.addColorStop(.5,'#1c2a52');gr.addColorStop(.56,'#24583a');gr.addColorStop(1,'#1e6e38');
+    g.fillStyle=gr;g.fillRect(0,0,S,S);
+    g.fillStyle='#f4f8ff';for(let x=5;x<S;x+=14)g.fillRect(x,13,8,3);   // a row of floodlights
+    g.fillStyle='rgba(190,215,255,.45)';g.fillRect(0,28,S,2);             // the lit rim of the wall
+  };
+  const top=g=>{g.fillStyle='#070c20';g.fillRect(0,0,S,S);g.fillStyle='#eef4ff';for(const y of [14,44])for(let x=8;x<S;x+=16)g.fillRect(x,y,9,5)};
+  const bottom=g=>{g.fillStyle='#1e6e38';g.fillRect(0,0,S,S)};
+  envTex=new THREE.CubeTexture([face(side),face(side),face(top),face(bottom),face(side),face(side)]);
+  envTex.needsUpdate=true;return envTex;
+}
+function std(hex,rough,metal,extra){
+  const k='s'+hex+':'+rough+':'+metal;
+  return matCache[k]||(matCache[k]=new THREE.MeshStandardMaterial(Object.assign({color:hex,roughness:rough,metalness:metal,envMap:stadiumEnv(),envMapIntensity:1},extra||{})));
+}
 function bas(hex){return matCache['b'+hex]||(matCache['b'+hex]=new THREE.MeshBasicMaterial({color:hex}))}
 function box(g,w,h,d,x,y,z,mat,rx,ry){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);if(rx)m.rotation.x=rx;if(ry)m.rotation.y=ry;g.add(m);return m}
 const wheelG=new THREE.CylinderGeometry(.36,.36,.3,16);wheelG.rotateZ(Math.PI/2);
 const hubG=new THREE.CylinderGeometry(.2,.2,.32,8);hubG.rotateZ(Math.PI/2);
 function buildCarModel(team,body,accent){
   const g=new THREE.Group(),inner=new THREE.Group();g.add(inner);
-  const T=TEAM[team],mB=lam(T.col),mD=lam(0x161a28),mA=lam(new THREE.Color(ACCENTS[accent]||ACCENTS[0]).getHex());
-  const mG=new THREE.MeshLambertMaterial({color:0x0b1222,emissive:0x0c1c3a});
+  const T=TEAM[team],gl=glossOn(),aHex=new THREE.Color(ACCENTS[accent]||ACCENTS[0]).getHex();
+  const mB=gl?std(T.col,.3,.3):lam(T.col),mD=lam(0x161a28),mA=gl?std(aHex,.38,.35):lam(aHex);
+  const mG=gl?std(0x0b1222,.08,.85,{emissive:0x0c1c3a}):(matCache.glass||(matCache.glass=new THREE.MeshLambertMaterial({color:0x0b1222,emissive:0x0c1c3a})));
   const head=bas(0xfff3c4),tail=bas(0xff3048);
   if(body===1){ // Viper: long and low
     box(inner,1.66,.28,2.5,0,-.12,0,mB);
@@ -1364,11 +1397,12 @@ function buildCarModel(team,body,accent){
   flame.rotation.x=-Math.PI/2;flame.position.set(0,.02,-1.6);flame.visible=false;inner.add(flame);
   return{g,inner,wheels,flame};
 }
+function carKey(c){return c.team+':'+c.body+':'+c.accent+':'+schemeIdx+(glossOn()?':g':'')}
 function attachCarMesh(c){
   if(c.mesh)disposeCarMesh(c);
   const m=buildCarModel(c.team,c.body,c.accent);
   m.shadow=makeShadow(2.4,3.2);
-  scene.add(m.g);c.mesh=m;c.meshKey=c.team+':'+c.body+':'+c.accent+':'+schemeIdx;
+  scene.add(m.g);c.mesh=m;c.meshKey=carKey(c);
 }
 function disposeCarMesh(c){
   if(!c.mesh)return;scene.remove(c.mesh.g);scene.remove(c.mesh.shadow);
@@ -1381,7 +1415,7 @@ const _dq=new QT();
 // other players' too (from their updates); your own hard landings also dip the camera a little (dipKick, updateCamera).
 const SQ_K=220,SQ_D=18,SQ_KICK=.45,SQ_MAXV=5;
 function updateCarMesh(c,dt,time){
-  if(c.meshKey!==c.team+':'+c.body+':'+c.accent+':'+schemeIdx)attachCarMesh(c);
+  if(c.meshKey!==carKey(c))attachCarMesh(c);
   const m=c.mesh;const vis=c.demo<=0&&c.active!==false;
   const grounded=c.remote?!!c.netGround:c.onGround;
   if(grounded&&c.wasG===false&&vis&&c.prevVy<-4){
@@ -1640,7 +1674,7 @@ function renderGarage(dt){
   if(!garage)return;
   const cv=$('garage');const w=cv.clientWidth,h=cv.clientHeight;if(!w||!h)return;
   if(cv.width!==Math.round(w*Math.min(2,devicePixelRatio||1))){garage.r.setPixelRatio(Math.min(2,devicePixelRatio||1));garage.r.setSize(w,h,false);garage.cam.aspect=w/h;garage.cam.updateProjectionMatrix()}
-  const key=myBody+':'+myAccent+':'+schemeIdx;
+  const key=myBody+':'+myAccent+':'+schemeIdx+(glossOn()?':g':'');
   if(garage.key!==key){
     if(garage.model){garage.sc.remove(garage.model.g);garage.model.g.traverse(o=>{if(o.geometry&&o.geometry!==wheelG&&o.geometry!==hubG)o.geometry.dispose()})}
     garage.model=buildCarModel(0,myBody,myAccent);garage.model.g.position.y=.3;garage.sc.add(garage.model.g);garage.key=key;
@@ -3080,6 +3114,7 @@ function step(dt,bg){
   simulate(dt,freeze);
   // visuals
   ballVisOff.multiplyScalar(Math.exp(-dt*9));
+  ballLook();
   ballMesh.visible=!ballHidden;ballShadow.visible=!ballHidden;ballRing.visible=!ballHidden;
   if(!ballHidden){
     ballMesh.position.copy(ball.pos).add(ballVisOff);
