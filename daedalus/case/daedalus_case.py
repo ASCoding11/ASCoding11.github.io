@@ -1,9 +1,10 @@
 """
 Project Daedalus: the case, the button caps and the board outline, as one parametric model.
 
-Run with CadQuery 2.x (pip install cadquery):
+Run with CadQuery 2.x and four other free Python libraries:
 
-    python daedalus_case.py            # writes the STL and STEP files, board.dxf, layout.json and template.svg
+    pip install cadquery numpy scipy scikit-image manifold3d
+    python daedalus_case.py            # writes the STL files, board.step, board.dxf, layout.json and template.svg
                                        # next to this file
 
 Every size is in millimetres and lives in the P dictionary below. The same numbers place the parts on the
@@ -15,18 +16,18 @@ Axes, looking at the front of the controller as you hold it:
     Y  bottom to top, 0 in the middle of the main bar (the grips hang below)
     Z  back to front, 0 = the front face of the circuit board (the side with the parts and the stick)
 
-STATUS: version 3. Drawn from datasheets and estimates, not yet printed or fitted. The values marked MEASURE
+STATUS: version 4. Drawn from datasheets and estimates, not yet printed or fitted. The values marked MEASURE
 must be checked against the real parts with calipers before a full case is printed. Print coupon.stl first.
 
     version 1   a plain slab with bevelled edges, 134 x 80 x 22.7 mm
     version 2   the same inside, with a curved outline and rounded edges, 140 x 85 x 22.7 mm (kept in v2/)
-    version 3   this one: smaller (125 x 78 x 20.9 mm) and cleaner. The board is 14 mm narrower, the radio
-                module has moved to the bottom edge so the USB-C socket sits dead centre at the top, the
-                shoulders sweep round in one curve with the shoulder buttons following it, and Select,
-                Start, Home and the light form a small diamond that echoes the face buttons.
+    version 3   smaller and cleaner, 125 x 78 x 21.7 mm, still with flat faces (kept in v3/)
+    version 4   this one: the same outline, board and layout as version 3, but sculpted. The front is a
+                shallow dome that falls away down the grips, the back swells into each palm, and every
+                edge rolls over in one curve. See sculpt.py for how the surfaces are made.
 
-Both faces stay flat and print against the plate, which gives the cleanest surface a filament printer can
-make; the edges start with a short 45-degree flat and then curve into the wall, so nothing needs supports.
+Versions 1 to 3 had flat faces so they could print against the plate with no supports. Version 4 gives that
+up: print each shell with its rim on the plate and supports inside, where they cannot be seen.
 
 Where the numbers come from (read November 2026):
     stick        YTL YHE-YG13-013 / YTMR-YG13-006 datasheets (hole pattern, 13.1 mm frame, 19.45 mm shaft height)
@@ -46,6 +47,9 @@ import math
 import os
 
 import cadquery as cq
+import numpy as np
+
+import sculpt
 
 P = {
     # ---- body ---------------------------------------------------------------------------------------------
@@ -60,17 +64,28 @@ P = {
         (26.0, -27.0, 17.0),    # the arch where the grip meets the underside of the bar
     ],
     "wall": 2.0,                # wall thickness
-    "front_gap": 8.5,           # board front face to the inside of the front shell        MEASURE against the stick
-    "back_gap": 8.0,            # board back face to the inside of the back shell: a 6 mm battery, 0.6 mm of tape
-                                #   under it, and 1.4 mm above it so it clears the USB-C socket's solder legs
-    # Outside edges: (flat, radius). The edge starts with a 45-degree flat this wide where it meets the print
-    # bed, then curves into the wall with this radius. A plain round would overhang too steeply to print.
-    "edge_front": (2.0, 5.0),
-    "edge_back": (3.2, 7.5),    # the palm side, so rounder
-    "edge_front_in": 1.2,       # matching bevels inside, which keep the wall an even thickness round the edge
-    "edge_back_in": 2.4,
+    # The sculpted surfaces. Heights are measured from the front face of the circuit board (Z = 0): the
+    # front of the case is above it, the back below.
+    "topo": {
+        "front_top": 11.0,      # height of the crown of the front face, in the middle
+        "front_rx": 700.0,      # the front is a shallow dome: its radius left to right ...
+        "front_ry": 380.0,      #   ... and top to bottom (bigger = flatter)
+        "front_yc": 2.0,        # Y of the highest point of the dome
+        "grip_fall": 2.0,       # the front also falls away by this much down the grips,
+        "grip_fall_from": -22.0,    # starting at this Y
+        "grip_fall_over": 26.0,     # and spread over this distance
+        "back_flat": -11.2,     # the back face, flat in the middle: 2 mm wall + 8.0 mm for the battery (6 mm cell,
+                                #   0.6 mm of tape under it, 1.4 mm above it to clear the USB-C socket's solder
+                                #   legs) + the 1.2 mm board
+        "swell": 7.0,           # how far each palm swell stands out from the flat back
+        "swell_xy": (50.0, -40.0),  # centre of the right-hand swell (the left one is its mirror image)
+        "swell_size": (16.0, 20.0), # how far each swell spreads, left to right and top to bottom
+        "edge_front_r": 5.5,    # radius the front face rolls over into the side wall with
+        "edge_back_r": 8.0,     # the same for the back: the palm side, so rounder
+    },
+    "mesh_step": 0.4,           # fineness of the sculpted surfaces (smaller = smoother, bigger files, slower)
+    "mesh_tolerance": 0.02,     # how far the saved triangles may stray from the true surface
     "hole_ease": 0.5,           # small bevel round the stick and button holes, so their rims are not sharp
-    "fit": 0.2,                 # clearance between the two shells' lip and groove
 
     # ---- circuit board ------------------------------------------------------------------------------------
     "pcb_w": 108.0,
@@ -155,13 +170,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 # ------------------------------------------------------------------------------------------------ helpers
 def z_levels(p):
-    """The heights everything else is built from."""
-    front_in = p["front_gap"]
-    front_out = front_in + p["wall"]
-    pcb_back = -p["pcb_t"]
-    back_in = pcb_back - p["back_gap"]
-    back_out = back_in - p["wall"]
-    return {"front_in": front_in, "front_out": front_out, "split": pcb_back, "back_in": back_in, "back_out": back_out}
+    """Z = 0 is the front face of the board; the two shells meet at its back face."""
+    return {"split": -p["pcb_t"]}
 
 
 def outline_corners(p):
@@ -225,22 +235,6 @@ def ease(x, y, z_face, d, e):
     return cq.Workplane("XY").add(cone)
 
 
-def half_space(z0, z1):
-    """A slab bigger than the whole case, from z0 to z1."""
-    return box(0, 0, z0, z1, 400, 400)
-
-
-def soft_edge(solid, face, flat, radius):
-    """Round the edge of the given face (">Z" or "<Z"): a 45-degree flat, then a curve into the wall."""
-    zf = solid.faces(face).val().Center().z
-    solid = solid.faces(face).edges().chamfer(flat)
-    if radius:
-        zc = zf - flat if face == ">Z" else zf + flat
-        ring = cq.selectors.BoxSelector((-400, -400, zc - 0.01), (400, 400, zc + 0.01))
-        solid = solid.edges(ring).fillet(radius)
-    return solid
-
-
 def cyl(x, y, z0, z1, d):
     return cq.Workplane("XY").workplane(offset=z0).center(x, y).circle(d / 2).extrude(z1 - z0)
 
@@ -272,196 +266,208 @@ def shoulders(p):
             ("R2", p["r2_x"], p["shoulder_w2"]), ("R1", p["r1_x"], p["shoulder_w1"])]
 
 
-# ------------------------------------------------------------------------------------------------ shells
-LIP_H, LIP_T = 1.2, 1.0     # the back shell's lip: how far it stands up into the front shell, and its thickness
-LIP_STOP = 7.0              # the lip and its groove stop this far below the top edge, so the wall under the USB-C
-                            #   opening and the shoulder slots keeps its full thickness
+# ------------------------------------------------------------------------------------------------ sculpted shells
+CAP_BASE_EXTRA = 1.2    # how much wider a button's base is than its top, all round
+CAP_REST_GAP = 0.3      # gap between a button's base and the inside of the shell when it is not pressed
+FAR = 40.0              # "well outside the case", for solids that are trimmed to the sculpted surface afterwards
 
 
-def lip_zone(p, z0, z1):
-    """Everything except a strip along the top edge."""
-    top = p["bar_h"] / 2 - LIP_STOP
-    bottom = -200.0
-    return box(0, (top + bottom) / 2, z0, z1, 400, top - bottom)
+def make_body(p):
+    return sculpt.Body(p, outline_corners(p))
 
 
-def outer_solid(p):
+def body_bounds(p):
+    cs = outline_corners(p)
+    xs, ys = [c[0] for c in cs], [c[1] for c in cs]
+    t = p["topo"]
+    return (min(xs) - 3, min(ys) - 3, t["back_flat"] - t["swell"] - 3, max(xs) + 3, max(ys) + 3, t["front_top"] + 3)
+
+
+def skins(p, body):
+    """The outside of the case, and the hollow inside it (the same surface moved in by the wall thickness)."""
+    def fn(xs, ys, zs):
+        X, Y = np.meshgrid(xs, ys, indexing="ij")
+        d2 = body.outline.distance(X, Y)
+        return body.field(X[:, :, None], Y[:, :, None], zs[None, None, :], d2=d2[:, :, None])
+
+    outer = sculpt.field_mesh(fn, body_bounds(p), p["mesh_step"], 0.0).simplify(p["mesh_tolerance"])
+    hollow = sculpt.field_mesh(fn, body_bounds(p), p["mesh_step"], -p["wall"]).simplify(p["mesh_tolerance"])
+    return outer, hollow
+
+
+def join(shapes):
+    """Several exact solids as one set of triangles."""
+    import manifold3d as m3
+    return m3.Manifold.batch_boolean([sculpt.from_cq(s) for s in shapes], m3.OpType.Add)
+
+
+def ease_cut(p, body, x, y, d):
+    """A small bevel round the rim of a round hole of diameter d, following the curve of the surface."""
+    e = p["hole_ease"]
+    zf = float(body.front(x, y))
+    r = d / 2
+
+    def fn(xs, ys, zs):
+        X, Y, Z = np.meshgrid(xs, ys, zs, indexing="ij")
+        f = body.field(X, Y, Z)
+        ring = np.hypot(X - x, Y - y) - r - e - f          # wider at the surface, down to the hole's own size e below it
+        return np.maximum(np.maximum(ring, -f - e - 0.05), f - 0.6)
+
+    b = (x - r - e - 1, y - r - e - 1, zf - e - 2.5, x + r + e + 1, y + r + e + 1, zf + 2.0)
+    return sculpt.field_mesh(fn, b, 0.25)
+
+
+def front_shell(p, body, outer, hollow):
     z = z_levels(p)
-    body = prism(p, z["back_out"], z["front_out"])
-    body = soft_edge(body, ">Z", *p["edge_front"])
-    body = soft_edge(body, "<Z", *p["edge_back"])
-    return body
-
-
-def cavity(p):
-    z = z_levels(p)
-    hollow = prism(p, z["back_in"], z["front_in"], inset=p["wall"])
-    hollow = hollow.faces(">Z").edges().chamfer(p["edge_front_in"])
-    hollow = hollow.faces("<Z").edges().chamfer(p["edge_back_in"])
-    return hollow
-
-
-def front_shell(p):
-    z = z_levels(p)
-    shell = outer_solid(p).intersect(half_space(z["split"], z["front_out"] + 1)).cut(cavity(p))
-
-    # groove round the inside of the rim that the back shell's lip slides into
-    groove = prism(p, z["split"], z["split"] + LIP_H + 0.3, inset=p["wall"] - LIP_T - p["fit"])
-    shell = shell.cut(groove.intersect(lip_zone(p, z["split"] - 1, z["split"] + LIP_H + 1)))
-
-    # stick: opening and raised collar
-    sx, sy = p["stick_xy"]
-    collar_od = p["stick_open_d"] + 2 * p["stick_collar_w"]
-    shell = shell.union(cyl(sx, sy, z["front_in"] - p["stick_collar_h"], z["front_in"] + 0.5, collar_od))
-    shell = shell.cut(cyl(sx, sy, z["front_in"] - p["stick_collar_h"] - 1, z["front_out"] + 1, p["stick_open_d"]))
-
-    # face buttons, Select, Start, Home, status light
     g = p["plunger_gap"]
+    adds, cuts, eases = [], [], []
+
+    # stick: opening, and a ring inside that thickens its rim
+    sx, sy = p["stick_xy"]
+    c = body.ceiling(sx, sy)
+    adds.append(cyl(sx, sy, c - p["stick_collar_h"], FAR, p["stick_open_d"] + 2 * p["stick_collar_w"]))
+    cuts.append(cyl(sx, sy, c - p["stick_collar_h"] - 1, FAR, p["stick_open_d"]))
+    eases.append((sx, sy, p["stick_open_d"]))
+
+    # face buttons, each with a small rib beside its hole: the flat on the button's base runs against it
     for (x, y) in face_centres(p).values():
-        shell = shell.cut(cyl(x, y, z["front_in"] - 1, z["front_out"] + 1, p["face_cap_d"] + 2 * g))
-        # a small rib beside each hole: the flat on the button's base runs against it, so the button cannot turn
+        c = body.ceiling(x, y)
+        cuts.append(cyl(x, y, c - 1.5, FAR, p["face_cap_d"] + 2 * g))
         rib_x = x + p["face_cap_d"] / 2 + CAP_BASE_EXTRA - 0.6 + g + 0.5
-        shell = shell.union(box(rib_x, y, z["front_in"] - 3.0, z["front_in"] + 0.5, 1.0, 6.0))
-    for key in ("select_xy", "start_xy"):
+        adds.append(box(rib_x, y, body.ceiling(rib_x, y) - 3.0, FAR, 1.0, 6.0))
+        eases.append((x, y, p["face_cap_d"] + 2 * g))
+
+    # Select, Start, Home and the status light
+    for key, d in (("select_xy", p["select_cap_d"]), ("start_xy", p["select_cap_d"]), ("home_xy", p["home_cap_d"])):
         x, y = p[key]
-        shell = shell.cut(cyl(x, y, z["front_in"] - 1, z["front_out"] + 1, p["select_cap_d"] + 2 * g))
-    hx, hy = p["home_xy"]
-    shell = shell.cut(cyl(hx, hy, z["front_in"] - 1, z["front_out"] + 1, p["home_cap_d"] + 2 * g))
+        cuts.append(cyl(x, y, body.ceiling(x, y) - 1.5, FAR, d + 2 * g))
+        eases.append((x, y, d + 2 * g))
     lx, ly = p["led_xy"]
-    shell = shell.cut(cyl(lx, ly, z["front_in"] - 1, z["front_out"] + 1, 1.6))
+    cuts.append(cyl(lx, ly, body.ceiling(lx, ly) - 1.5, FAR, 1.6))
     # (the BOOT switch has no hole: it is only needed if firmware goes badly wrong, and a clean front is
     # worth opening six screws for on that day)
 
-    # ease the rims of the round holes
-    e = p["hole_ease"]
-    if e:
-        shell = shell.cut(ease(sx, sy, z["front_out"], p["stick_open_d"], e))
-        for (x, y) in face_centres(p).values():
-            shell = shell.cut(ease(x, y, z["front_out"], p["face_cap_d"] + 2 * g, e))
-        shell = shell.cut(ease(hx, hy, z["front_out"], p["home_cap_d"] + 2 * g, e))
-        for key in ("select_xy", "start_xy"):
-            shell = shell.cut(ease(p[key][0], p[key][1], z["front_out"], p["select_cap_d"] + 2 * g, e))
-
-    # top edge: USB-C, charge light, slide switch, four shoulder plungers
-    shell = shell.cut(top_wall_cut(p, p["usb_x"], p["usb_z"], *p["usb_open"]))
-    # a shallow pocket round the opening, from the rim upwards, so the moulded end of a cable can seat
-    rz0 = z["split"]
-    shell = shell.cut(top_wall_cut(p, p["usb_x"], rz0 + p["usb_recess"][1] / 2, p["usb_recess"][0], p["usb_recess"][1], depth=p["usb_recess"][2]))
-    shell = shell.cut(top_wall_cut(p, p["charge_led_x"], 1.0, 1.8, 1.8))
-    shell = shell.cut(top_wall_cut(p, p["switch_x"], p["switch_z"], *p["switch_slot"]))
-    shell = shell.cut(top_wall_cut(p, p["switch_x"], p["switch_z"] + 0.6, p["switch_recess"][0], p["switch_recess"][1], depth=p["switch_recess"][2]))
+    # top edge: USB-C in a shallow pocket, charge light, slide switch in its pocket, four shoulder plungers
+    cuts.append(top_wall_cut(p, p["usb_x"], p["usb_z"], *p["usb_open"]))
+    cuts.append(top_wall_cut(p, p["usb_x"], z["split"] + p["usb_recess"][1] / 2, p["usb_recess"][0], p["usb_recess"][1], depth=p["usb_recess"][2]))
+    cuts.append(top_wall_cut(p, p["charge_led_x"], 1.0, 1.8, 1.8))
+    cuts.append(top_wall_cut(p, p["switch_x"], p["switch_z"], *p["switch_slot"]))
+    cuts.append(top_wall_cut(p, p["switch_x"], p["switch_z"] + 0.6, p["switch_recess"][0], p["switch_recess"][1], depth=p["switch_recess"][2]))
     for _, x, w in shoulders(p):
-        # cut from well inside the wall to well outside it, so the slot goes right through a curved shoulder too
         zc = p["shoulder_z0"] + p["shoulder_h"] / 2
-        shell = shell.cut(box(x, p["bar_h"] / 2 - 7.0 + 8.0, zc - p["shoulder_h"] / 2 - g, zc + p["shoulder_h"] / 2 + g, w + 2 * g, 16.0))
+        cuts.append(box(x, p["bar_h"] / 2 - 7.0 + 8.0, zc - p["shoulder_h"] / 2 - g, zc + p["shoulder_h"] / 2 + g, w + 2 * g, 16.0))
 
     # posts: four hold the board, two more sit in the grips. Each takes a brass insert.
     for (x, y) in p["pcb_holes"]:
-        shell = shell.union(cyl(x, y, 0, z["front_in"] + 0.5, p["boss_d"]))
-        shell = shell.cut(cyl(x, y, -0.1, p["insert_depth"], p["insert_d"]))
+        adds.append(cyl(x, y, 0, FAR, p["boss_d"]))
+        cuts.append(cyl(x, y, -0.1, p["insert_depth"], p["insert_d"]))
     for (x, y) in p["grip_screws"]:
-        shell = shell.union(cyl(x, y, z["split"], z["front_in"] + 0.5, p["boss_d"]))
-        shell = shell.cut(cyl(x, y, z["split"] - 0.1, z["split"] + p["insert_depth"], p["insert_d"]))
+        adds.append(cyl(x, y, z["split"], FAR, p["boss_d"]))
+        cuts.append(cyl(x, y, z["split"] - 0.1, z["split"] + p["insert_depth"], p["insert_d"]))
+
+    half = sculpt.slab(z["split"], FAR)
+    shell = ((outer - hollow) ^ half) + (join(adds) ^ outer ^ half)
+    shell = shell - join(cuts)
+    for (x, y, d) in eases:
+        shell = shell - ease_cut(p, body, x, y, d)
     return shell
 
 
-def back_shell(p):
+def back_shell(p, body, outer, hollow):
     z = z_levels(p)
-    shell = outer_solid(p).intersect(half_space(z["back_out"] - 1, z["split"])).cut(cavity(p))
-
-    # lip that slides into the front shell's groove
-    lip = prism(p, z["split"] - 0.5, z["split"] + LIP_H, inset=p["wall"] - LIP_T).cut(
-        prism(p, z["split"] - 1, z["split"] + LIP_H + 1, inset=p["wall"]))
-    shell = shell.union(lip.intersect(lip_zone(p, z["split"] - 2, z["split"] + LIP_H + 2).translate((0, -p["fit"] - 0.3, 0))))
-
+    adds, cuts = [], []
     seat = z["split"] - p["seat_below_pcb"]
-    posts = [(x, y, z["split"]) for (x, y) in p["pcb_holes"]] + [(x, y, z["split"]) for (x, y) in p["grip_screws"]]
-    for (x, y, top) in posts:
-        shell = shell.union(cyl(x, y, z["back_in"] - 0.5, top, p["boss_d"] + 0.8))
-    for (x, y, top) in posts:
-        shell = shell.cut(cyl(x, y, z["back_out"] - 1, top + 2, p["screw_d"]))
-        shell = shell.cut(cyl(x, y, z["back_out"] - 1, seat, p["head_d"]))
-
+    for (x, y) in p["pcb_holes"] + p["grip_screws"]:
+        adds.append(cyl(x, y, -FAR, z["split"], p["boss_d"] + 0.8))
+        cuts.append(cyl(x, y, -FAR, z["split"] + 2, p["screw_d"]))
+        cuts.append(cyl(x, y, -FAR, seat, p["head_d"]))
     for (x, y) in p["back_supports"]:
-        shell = shell.union(cyl(x, y, z["back_in"] - 0.5, z["split"], 4.0))
+        adds.append(cyl(x, y, -FAR, z["split"], 4.0))
 
-    # battery pocket: four low walls, with a gap at the top right for the lead
+    # battery pocket: four low walls, with a gap for the lead
     bx, by = p["battery_xy"]
     bw, bh = p["battery_box"]
-    t, h = p["battery_rib_t"], p["battery_rib_h"]
-    z0, z1 = z["back_in"] - 0.5, z["back_in"] + h
-    ribs = (box(bx, by + bh / 2 + t / 2, z0, z1, bw * 0.6, t)
-            .union(box(bx, by - bh / 2 - t / 2, z0, z1, bw * 0.6, t))
-            .union(box(bx - bw / 2 - t / 2, by, z0, z1, t, bh * 0.6))
-            .union(box(bx + bw / 2 + t / 2, by - bh * 0.15, z0, z1, t, bh * 0.4)))
-    return shell.union(ribs)
+    t = p["battery_rib_t"]
+    top = body.floor(bx, by) + p["battery_rib_h"]
+    adds.append(box(bx, by + bh / 2 + t / 2, -FAR, top, bw * 0.6, t))
+    adds.append(box(bx, by - bh / 2 - t / 2, -FAR, top, bw * 0.6, t))
+    adds.append(box(bx - bw / 2 - t / 2, by, -FAR, top, t, bh * 0.6))
+    adds.append(box(bx + bw / 2 + t / 2, by - bh * 0.15, -FAR, top, t, bh * 0.4))
+
+    half = sculpt.slab(-FAR, z["split"])
+    shell = ((outer - hollow) ^ half) + (join(adds) ^ outer ^ half)
+    return shell - join(cuts)
 
 
 # ------------------------------------------------------------------------------------------------ small parts
-CAP_BASE_EXTRA = 1.2    # how much wider a button's base is than its top, all round
-CAP_REST_GAP = 0.3      # gap between a button's base and the inside of the shell when it is not pressed
+def cap(p, body, x, y, d, seat_z, proud, key_flat=False, in_place=False):
+    """A button at (x, y). A wide base stops it coming out through its hole; above that, a top of diameter d
+    whose face follows the curve of the case, standing `proud` above it, with a rounded rim. seat_z is the
+    height of whatever it rests on (a rubber dome or a push switch). Returned ready to print, base down,
+    unless in_place."""
+    # the inside of the shell slopes, so the base stops short of its lowest point above the base's rim
+    rb = d / 2 + CAP_BASE_EXTRA
+    base_top = min(body.ceiling(x + rb * math.cos(a), y + rb * math.sin(a)) for a in np.linspace(0, 2 * math.pi, 24, endpoint=False)) - CAP_REST_GAP
+    base = cq.Workplane("XY").workplane(offset=seat_z).center(x, y).circle(d / 2 + CAP_BASE_EXTRA).extrude(base_top - seat_z)
+    if key_flat:
+        base = base.cut(box(x + d / 2 + CAP_BASE_EXTRA, y, seat_z - 1, base_top + 1, 1.2, d + 4))      # the flat
+        base = base.cut(cyl(x, y, seat_z - 0.1, seat_z + 1.0, d - 3.2))                            # sits over the dome
+    zf = float(body.front(x, y))
+
+    def fn(xs, ys, zs):
+        X, Y, Z = np.meshgrid(xs, ys, zs, indexing="ij")
+        top = sculpt.rounded(np.hypot(X - x, Y - y) - d / 2, body.field(X, Y, Z) - proud, 0.8)
+        return np.maximum(top, (base_top - 0.6) - Z)
+
+    b = (x - d / 2 - 1.2, y - d / 2 - 1.2, base_top - 1.4, x + d / 2 + 1.2, y + d / 2 + 1.2, zf + proud + 1.6)
+    top = sculpt.field_mesh(fn, b, 0.15).trim_by_plane((0.0, 0.0, 1.0), base_top - 0.2)
+    part = (sculpt.from_cq(base) + top).simplify(0.005)
+    return part if in_place else part.translate((-x, -y, -seat_z))
 
 
-def face_cap(p):
-    """A face button, modelled standing on its base, bottom at Z = 0. Print it this way up: no overhangs.
-    A wide base stops it coming out through the hole; one flat on the base stops it turning."""
-    z = z_levels(p)
-    d = p["face_cap_d"]
-    height = z["front_out"] + p["face_proud"] - p["face_dome_top"]
-    base_h = z["front_in"] - CAP_REST_GAP - p["face_dome_top"]
-    cap = cq.Workplane("XY").circle(d / 2 + CAP_BASE_EXTRA).extrude(base_h)
-    cap = cap.cut(box(d / 2 + CAP_BASE_EXTRA, 0, -1, base_h + 1, 1.2, d + 4))          # the flat
-    cap = cap.union(cq.Workplane("XY").workplane(offset=base_h).circle(d / 2).extrude(height - base_h))
-    cap = cap.faces(">Z").edges().fillet(0.8)
-    # a shallow socket underneath that sits over the top of the rubber dome
-    cap = cap.cut(cq.Workplane("XY").circle(d / 2 - 1.6).extrude(1.0))
-    return cap
+def face_caps(p, body, in_place=False):
+    names = {"north": "top", "east": "right", "south": "bottom", "west": "left"}
+    return {names[k]: cap(p, body, x, y, p["face_cap_d"], p["face_dome_top"], p["face_proud"], key_flat=True, in_place=in_place)
+            for k, (x, y) in face_centres(p).items()}
 
 
-def small_cap(p, d):
-    """Select, Start or Home: a wide base that reaches down to the push switch, then the narrower round top
-    that shows through the shell. Bottom at Z = 0; print it this way up."""
-    z = z_levels(p)
-    height = z["front_out"] + p["small_proud"] - p["tact_top"]
-    base_h = z["front_in"] - CAP_REST_GAP - p["tact_top"]
-    base = cq.Workplane("XY").circle(d / 2 + CAP_BASE_EXTRA).extrude(base_h)
-    top = cq.Workplane("XY").workplane(offset=base_h).circle(d / 2).extrude(height - base_h)
-    return base.union(top).faces(">Z").edges().fillet(0.5)
+def small_caps(p, body, in_place=False):
+    return {key: cap(p, body, p[key + "_xy"][0], p[key + "_xy"][1], p[d], p["tact_top"], p["small_proud"], in_place=in_place)
+            for key, d in (("select", "select_cap_d"), ("start", "select_cap_d"), ("home", "home_cap_d"))}
 
 
 def plunger(p, x, width, in_place=False):
     """A shoulder button at X = x. It slides through the slot in the top wall. Its lower part stops at the
-    switch's push-button; its upper part carries on over the switch's body and ends in a catch that hooks
-    behind the wall, so it cannot be pulled out. Its outer end is cut to follow the outline of the case,
-    standing shoulder_proud out from it, with its two long edges rounded. With in_place it is returned
-    where it sits in the case (for checking); without, standing on end ready to print."""
+    switch's push-button; its upper part carries on over the switch's body, and just behind the wall it has
+    a small wing on each side, wider than the slot, so it cannot be pulled out. Its outer end is cut to
+    follow the outline of the case, standing shoulder_proud out from it, with its two long edges rounded.
+    With in_place it is returned where it sits in the case (for checking); without, turned over ready to
+    print: its flat top on the plate, the shorter lower part uppermost, so nothing overhangs but the two
+    wings, which start 0.8 mm up and are only 0.8 mm wide."""
     z0 = p["shoulder_z0"]
     z1 = z0 + p["shoulder_h"]
     zb = p["shoulder_body_top"]
     y_far = p["bar_h"] / 2 + p["shoulder_proud"] + 6
     y_tip = p["shoulder_tip_y"]
     y_wall = p["bar_h"] / 2 - p["wall"]
-    catch_t, catch_h, back = 1.4, 1.6, 0.25           # catch thickness, how far it stands above the slot, gap to the wall
-    y_catch0 = y_wall - back - catch_t
+    wing, wing_t, back = 0.8, 2.4, 0.25               # how far each wing sticks out sideways, its thickness, gap to the wall
+    y_in = y_wall - back - wing_t
     lower = box(x, (y_far + y_tip) / 2, z0, zb, width, y_far - y_tip)
-    upper = box(x, (y_far + y_catch0) / 2, zb, z1, width, y_far - y_catch0)
-    # the catch is cut to the inside of the wall, so on a curved shoulder it still sits just behind it
-    catch = box(x, y_catch0, zb, z1 + catch_h, width, catch_t + 4).intersect(
-        prism(p, zb - 1, z1 + catch_h + 1, inset=p["wall"] + back)).intersect(box(x, y_catch0 + 20, zb, z1 + catch_h, width, 40))
+    upper = box(x, (y_far + y_in) / 2, zb, z1, width, y_far - y_in)
+    # the wings are cut to the inside of the wall, so on a curved shoulder they still sit just behind it
+    wings = box(x, y_in + 10, zb, z1 - 0.8, width + 2 * wing, 20).intersect(prism(p, zb - 1, z1 + 1, inset=p["wall"] + back))
     # the shape the outer end is cut to: the case's outline grown by shoulder_proud, with rounded edges
     skin = prism(p, z0, z1, inset=-p["shoulder_proud"])
     skin = skin.faces(">Z").edges().fillet(1.2).faces("<Z").edges().fillet(1.2)
-    part = lower.union(upper).intersect(skin).union(catch)
+    part = lower.union(upper).intersect(skin).union(wings)
     if in_place:
         return part
-    # stand it on one end, the L-shaped side flat against the plate
-    return part.translate((-x, -y_catch0, -z0)).rotate((0, 0, 0), (0, 1, 0), 90).translate((0, 0, width / 2))
+    return part.translate((-x, -y_in, -z1)).rotate((0, 0, 0), (0, 1, 0), 180)
 
 
 def coupon(p):
     """A small test piece to print first: one face-button hole, one Select hole, one insert post and the
     USB-C opening, all at the real sizes. Check each against the real part before printing a whole case."""
-    z = z_levels(p)
     g = p["plunger_gap"]
     t = p["wall"]
     plate = cq.Workplane("XY").rect(46, 26).extrude(t)
@@ -545,7 +551,8 @@ def layout(p):
     return {
         "units": "mm",
         "case": {"width": outline_size(p)[0], "height": outline_size(p)[1],
-                 "thickness": round(z_levels(p)["front_out"] - z_levels(p)["back_out"], 2)},
+                 "thickness_middle": round(p["topo"]["front_top"] - p["topo"]["back_flat"], 2),
+                 "depth_overall": round(p["topo"]["front_top"] - p["topo"]["back_flat"] + p["topo"]["swell"], 2)},
         "origin": "bottom-left corner of the board, seen from the front (the side with the parts)",
         "board": {"width": p["pcb_w"], "height": p["pcb_h"], "thickness": p["pcb_t"],
                   "corner_radius_bottom": p["pcb_corner_r"],
@@ -643,31 +650,38 @@ def export(shape, name, tolerance=0.03):
     cq.exporters.export(shape, os.path.join(HERE, name), tolerance=tolerance, angularTolerance=0.15)
 
 
+def build(p):
+    """Every printable part, as triangles. Shells are in their assembled position (front face towards +Z)."""
+    body = make_body(p)
+    outer, hollow = skins(p, body)
+    parts = {"front_shell": front_shell(p, body, outer, hollow), "back_shell": back_shell(p, body, outer, hollow)}
+    for name, part in face_caps(p, body).items():
+        parts["face_button_" + name] = part
+    small = small_caps(p, body)
+    parts["select_start_button"] = small["select"]            # Start is its mirror image; the difference is under 0.05 mm
+    parts["home_button"] = small["home"]
+    return body, outer, parts
+
+
 def main():
     p = P
-    parts = {
-        "front_shell": front_shell(p),
-        "back_shell": back_shell(p),
-        "face_button": face_cap(p),
-        "select_start_button": small_cap(p, p["select_cap_d"]),
-        "home_button": small_cap(p, p["home_cap_d"]),
+    body, outer, parts = build(p)
+    for name, part in parts.items():
+        n = sculpt.write_stl(part, os.path.join(HERE, name + ".stl"))
+        x0, y0, z0, x1, y1, z1 = part.bounding_box()
+        print("%-22s %6.1f cm3   %6.1f x %5.1f x %5.1f mm   %6d triangles" % (name, part.volume() / 1000.0, x1 - x0, y1 - y0, z1 - z0, n))
+    exact = {
         "shoulder_l1": plunger(p, p["l1_x"], p["shoulder_w1"]),      # L1 and R1 are mirror images: their ends
         "shoulder_r1": plunger(p, p["r1_x"], p["shoulder_w1"]),      #   follow the curve of the shoulder
         "shoulder_l2_r2": plunger(p, p["l2_x"], p["shoulder_w2"]),
         "coupon": coupon(p),
     }
-    for name, shape in parts.items():
+    for name, shape in exact.items():
         export(shape, name + ".stl")
-        vol = shape.val().Volume() / 1000.0
         bb = shape.val().BoundingBox()
-        print("%-22s %6.1f cm3   %6.1f x %5.1f x %5.1f mm" % (name, vol, bb.xlen, bb.ylen, bb.zlen))
+        print("%-22s %6.1f cm3   %6.1f x %5.1f x %5.1f mm" % (name, shape.val().Volume() / 1000.0, bb.xlen, bb.ylen, bb.zlen))
 
-    assembly = (cq.Assembly()
-                .add(parts["front_shell"], name="front_shell", color=cq.Color(0.85, 0.85, 0.88))
-                .add(parts["back_shell"], name="back_shell", color=cq.Color(0.25, 0.27, 0.3))
-                .add(board(p), name="board", color=cq.Color(0.1, 0.45, 0.25)))
-    assembly.save(os.path.join(HERE, "daedalus_case.step"))
-
+    cq.exporters.export(board(p), os.path.join(HERE, "board.step"))
     outline = cq.Workplane("XY").add(board(p)).section()
     cq.exporters.export(outline, os.path.join(HERE, "board.dxf"))
     with open(os.path.join(HERE, "template.svg"), "w") as f:
@@ -675,9 +689,11 @@ def main():
     with open(os.path.join(HERE, "layout.json"), "w") as f:
         json.dump(layout(p), f, indent=2)
         f.write("\n")
-    z = z_levels(p)
     w, h = outline_size(p)
-    print("thickness %.1f mm, overall %.0f x %.0f mm" % (z["front_out"] - z["back_out"], w, h))
+    x0, y0, z0, x1, y1, z1 = outer.bounding_box()
+    t = p["topo"]
+    print("overall %.0f x %.0f mm; %.1f mm thick in the middle; %.1f mm from the crown to the bottom of the palm swells"
+          % (w, h, t["front_top"] - t["back_flat"], z1 - z0))
 
 
 if __name__ == "__main__":
