@@ -1319,7 +1319,7 @@ const bloom=(function(){
   return{run};
 })();
 // One place draws the match: the scene, then the bloom on Pretty graphics.
-function drawScene(){renderer.render(scene,camera);if(lookGl)bloom.run()}
+function drawScene(){renderer.render(scene,camera);if(lookGl&&fxTier>=2)bloom.run();fxWatch()}
 
 // ---------- blob shadows ----------
 const shadowTex=canvasTex(64,64,(g,w,h)=>{const gr=g.createRadialGradient(32,32,2,32,32,32);gr.addColorStop(0,'rgba(0,0,0,.75)');gr.addColorStop(.6,'rgba(0,0,0,.35)');gr.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=gr;g.fillRect(0,0,w,h)});
@@ -1339,14 +1339,26 @@ const ballMesh=new THREE.Mesh(new THREE.SphereGeometry(BR,48,32),ballFlat);
 scene.add(ballMesh);
 // Pretty graphics (see glossOn): the ball gets a soft sheen, the sun casts real shadows and the glows show. lookSync runs
 // every frame and only does anything when the setting (or touch) has just changed.
-let ballGloss=null,lookGl=false;
+let ballGloss=null,lookGl=false,realSh=false,lookKey=-2;
+// Pretty has three levels, so a slow computer keeps a steady frame rate: 2 = everything, 1 = no bloom or colour grade,
+// 0 = also no real shadows or fine grass (paint, reflections and glows stay). fxWatch (below) steps down a level when
+// frames stay slow even after autores.js has lowered the resolution; it never steps back up during a visit, so the look
+// doesn't flicker. Choosing Pretty again in Settings starts from the top.
+let fxTier=2;
 function lookSync(){
-  const gl=glossOn();if(gl===lookGl)return;lookGl=gl;
+  const gl=glossOn(),key=gl?fxTier:-1;if(key===lookKey)return;lookKey=key;lookGl=gl;realSh=gl&&fxTier>=1;
   if(gl&&!ballGloss)ballGloss=new THREE.MeshStandardMaterial({map:ballTex,emissive:0x2a3046,roughness:.34,metalness:.12,envMap:stadiumEnv(),envMapIntensity:.7});
-  ballMesh.material=gl?ballGloss:ballFlat;ballMesh.castShadow=gl;
-  floor.material=gl?fineFloor():floorFlat;
-  sun.castShadow=gl;if(gl)sun.position.set(0,100,-12);else sun.position.set(30,80,-20);
+  ballMesh.material=gl?ballGloss:ballFlat;ballMesh.castShadow=realSh;
+  floor.material=realSh?fineFloor():floorFlat;
+  sun.castShadow=realSh;if(realSh)sun.position.set(0,100,-12);else sun.position.set(30,80,-20);
   for(const o of prettyOnly)o.visible=gl;
+}
+let fxAvg=16,fxSlow=0,fxLast=0;
+function fxWatch(){
+  const now=performance.now(),dt=now-fxLast;fxLast=now;
+  if(!lookGl||fxTier<=0||dt<=0||dt>250||document.hidden)return;
+  fxAvg+=(dt-fxAvg)*.05;
+  if(fxAvg>24&&(!window.AutoRes||AutoRes.scale<=.7)){fxSlow+=dt;if(fxSlow>3000){fxTier--;fxSlow=0;fxAvg=16}}else fxSlow=0;
 }
 
 const ballShadow=makeShadow(BR*2.4,BR*2.4);
@@ -1631,7 +1643,7 @@ function updateCarMesh(c,dt,time){
   if(c.boosting){const s=.8+Math.random()*.5;m.flame.scale.set(1,s,1);m.flame.position.z=-1.2-.7*s;if(m.boostGlow)m.boostGlow.scale.set(2.6+s,2.6+s,1)}
   const h=Math.max(0,c.pos.y-CAR_Y);
   m.shadow.position.set(c.pos.x,.03,c.pos.z);m.shadow.rotation.z=c.yaw||Math.atan2(_v1.x,_v1.z);
-  const k=clamp(1-h/12,.15,1);m.shadow.scale.set(k,k,k);m.shadow.material.opacity=lookGl?k*.45*clamp(1-h/3,0,1):k;
+  const k=clamp(1-h/12,.15,1);m.shadow.scale.set(k,k,k);m.shadow.material.opacity=realSh?k*.45*clamp(1-h/3,0,1):k;
 }
 
 // ---------- particles ----------
@@ -3194,7 +3206,7 @@ function segBind(id,attr,get,set){
 segBind('sizeSeg','s',()=>teamSize,v=>{teamSize=+v;store.set('size',teamSize)});
 segBind('botSeg','b',()=>botsOn?1:0,v=>{botsOn=v==='1';store.set('bots',botsOn?1:0)});
 segBind('diffSeg','d',()=>practiceDiff,v=>{practiceDiff=v;store.set('diff',v)});
-segBind('gfxSeg','q',()=>gfx,v=>{gfx=v;store.set('gfx',v);resize()});
+segBind('gfxSeg','q',()=>gfx,v=>{gfx=v;store.set('gfx',v);fxTier=2;resize()});
 segBind('markSeg','m',()=>markerOn?1:0,v=>{markerOn=v==='1';store.set('marker',markerOn?1:0)});
 (function teamPicker(){
   const el=$('teamSeg');
@@ -3313,7 +3325,7 @@ function step(dt,bg){
     if(sdf(ball.pos,_v4)<BR+.08)ball.ang.crossVectors(_v4,ball.vel).multiplyScalar(1/BR);else ball.ang.multiplyScalar(Math.exp(-dt*.3));
     const w=ball.ang.length();if(w>1e-4&&!freeze){_qa.setFromAxisAngle(_v5.copy(ball.ang).multiplyScalar(1/w),w*dt);ballMesh.quaternion.premultiply(_qa)}
     const hgt=ballMesh.position.y-BR;const k=clamp(1-hgt/20,.25,1);
-    ballShadow.position.set(ballMesh.position.x,.04,ballMesh.position.z);ballShadow.scale.set(k,k,k);ballShadow.material.opacity=lookGl?k*.4*clamp(1-hgt/4,0,1):k;
+    ballShadow.position.set(ballMesh.position.x,.04,ballMesh.position.z);ballShadow.scale.set(k,k,k);ballShadow.material.opacity=realSh?k*.4*clamp(1-hgt/4,0,1):k;
     ballRing.position.set(ballMesh.position.x,.05,ballMesh.position.z);ballRing.material.opacity=hgt>3?.4:0;
   }
   updateLanding(state==='playing');
@@ -3343,7 +3355,7 @@ $('room').value=inv?inv[1]:store.get('room','')||'';
 $('name').value=myName;
 if(inv){setMsg('You were invited to room bb-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.remove('alt');$('quick').classList.add('alt')}
 
-if(navigator.webdriver)window.__bb={get state(){return state},get mode(){return mode},get me(){return me},get cars(){return cars},ball,get R(){return R},set R(v){R=v},PADS,Net,stepCar,makeCar,newInput,stepBall,carBall,predictGoal,applyRound,onRemoteState,handleEvent,applyBallSnap,startLocal,setupAttract,keys,phaseOf,nowMs,
+if(navigator.webdriver)window.__bb={get fxTier(){return fxTier},get state(){return state},get mode(){return mode},get me(){return me},get cars(){return cars},ball,get R(){return R},set R(v){R=v},PADS,Net,stepCar,makeCar,newInput,stepBall,carBall,predictGoal,applyRound,onRemoteState,handleEvent,applyBallSnap,startLocal,setupAttract,keys,phaseOf,nowMs,
   get owner(){return owner},fast(sec){for(let i=0;i<sec*60;i++){warp+=1000/60;simulate(1/60,false)}},get lastTouchBt(){return lastTouchBt},setPaused:v=>{paused=v},camera,renderer,scene,toggleBallCam,touches:()=>touches,scoreGoal,remainingAt,demolish,botThink,
   // fixed-step driving for tests: manual(true) stops the real-time loop; advance() runs whole frames (physics, camera,
   // HUD, landing marker) at 60 Hz without drawing; render() draws one frame.
