@@ -1001,12 +1001,21 @@ function unpinch(list){
 const canvas=$('view');
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
 renderer.setClearColor(0x060a18);
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap; // drawn only while the sun casts (Pretty graphics, see lookSync)
 const scene=new THREE.Scene();
 scene.fog=new THREE.Fog(0x0b1433,240,640);
 const camera=new THREE.PerspectiveCamera(74,1,.25,1600);
 camera.position.set(0,30,-70);
 scene.add(new THREE.HemisphereLight(0xcfe0ff,0x1a2a22,.82));
 const sun=new THREE.DirectionalLight(0xffffff,.62);sun.position.set(30,80,-20);scene.add(sun);
+// Pretty graphics: the sun moves almost straight overhead and casts real shadows of the cars and the ball onto the pitch, so
+// a shadow sits under the thing that casts it (which is also how you judge the ball's height). One shadow map covers the
+// whole pitch; only cars and the ball are drawn into it, so it costs a handful of draw calls.
+(function(){
+  const c=sun.shadow.camera,hx=4096*UU+3,hz=(5120+880)*UU+3;
+  c.left=-hx;c.right=hx;c.top=hz;c.bottom=-hz;c.near=20;c.far=140;
+  sun.shadow.mapSize.set(2048,3072);sun.shadow.bias=-.0006;sun.shadow.normalBias=.03;sun.shadow.radius=2;
+})();
 const fill=new THREE.DirectionalLight(0x9fb8ff,.25);fill.position.set(-40,30,60);scene.add(fill);
 let gfx=store.get('gfx','high');
 function resize(){
@@ -1058,7 +1067,7 @@ function drawField(g,w,h){
 const fieldTex=canvasTex(AW*2*PX,AL*2*PX,drawField);
 // subdivided so the goal explosion's light shows on the turf (Lambert lighting is worked out per vertex)
 const floor=new THREE.Mesh(new THREE.PlaneGeometry(AW*2,AL*2,32,40),new THREE.MeshLambertMaterial({map:fieldTex}));
-floor.rotation.x=-Math.PI/2;scene.add(floor);
+floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
 
 const netTex=canvasTex(128,128,(g,w,h)=>{g.clearRect(0,0,w,h);g.strokeStyle='rgba(255,255,255,.75)';g.lineWidth=3;for(let i=0;i<=w;i+=16){g.beginPath();g.moveTo(i,0);g.lineTo(i,h);g.stroke();g.beginPath();g.moveTo(0,i);g.lineTo(w,i);g.stroke()}},[1,1]);
 const wallTex=canvasTex(256,256,(g,w,h)=>{
@@ -1068,6 +1077,14 @@ const wallTex=canvasTex(256,256,(g,w,h)=>{
 },[1,1]);
 
 const arena=new THREE.Group();scene.add(arena);
+// Soft glows (Pretty graphics only): one small drawn texture, added on top of the picture, for the floodlights, the cars'
+// lights and the boost. prettyOnly lists the fixed ones so lookSync can hide them on Fast.
+const glowTex=canvasTex(64,64,(g,w,h)=>{const gr=g.createRadialGradient(32,32,0,32,32,32);gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(.25,'rgba(255,255,255,.45)');gr.addColorStop(.6,'rgba(255,255,255,.1)');gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.fillRect(0,0,w,h)});
+const prettyOnly=[];
+function glowSprite(color,opacity,size){
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color,transparent:true,opacity,blending:THREE.AdditiveBlending,depthWrite:false}));
+  sp.scale.set(size,size,1);return sp;
+}
 // Geometry whose vertex colours fade from one team's colour to the other's along the arena (walls, neon strips),
 // with each vertex's brightness, so recolorShell() can repaint them when the team colours change.
 const shellCols=[],_sc0=new THREE.Color(),_sc1=new THREE.Color(),_sc2=new THREE.Color();
@@ -1181,6 +1198,7 @@ function recolorGoals(){
   for(const sx of [-1,1])for(const sz of [-1,1]){
     const p=new THREE.Mesh(new THREE.BoxGeometry(2.4,120,2.4),pole);p.position.set(sx*(AW+72),60,sz*(AL+72));scene.add(p);
     const l=new THREE.Mesh(new THREE.BoxGeometry(18,9,1.5),lamp);l.position.set(sx*(AW+72),120,sz*(AL+72));l.lookAt(0,0,0);scene.add(l);
+    const h=glowSprite(0xfff0cc,.55,90);h.position.copy(l.position);h.visible=false;scene.add(h);prettyOnly.push(h);
   }
   const sky=new THREE.Mesh(new THREE.SphereGeometry(1300,24,16),new THREE.MeshBasicMaterial({side:THREE.BackSide,fog:false,map:canvasTex(4,256,(g,w,h)=>{const gr=g.createLinearGradient(0,0,0,h);gr.addColorStop(0,'#03050f');gr.addColorStop(.42,'#0b1638');gr.addColorStop(.5,'#2a2350');gr.addColorStop(.52,'#0a1226');gr.addColorStop(1,'#0a1226');g.fillStyle=gr;g.fillRect(0,0,w,h)})}));
   scene.add(sky);
@@ -1200,15 +1218,19 @@ function drawBall(g,w,h){
 }
 const ballTex=canvasTex(512,256,drawBall);
 const ballFlat=new THREE.MeshLambertMaterial({map:ballTex,emissive:0x2a3046});
-const ballMesh=new THREE.Mesh(new THREE.SphereGeometry(BR,36,24),ballFlat);
+const ballMesh=new THREE.Mesh(new THREE.SphereGeometry(BR,48,32),ballFlat);
 scene.add(ballMesh);
-// Pretty graphics give the ball a soft sheen (see glossOn); the material is made the first time it's needed.
-let ballGloss=null,ballGl=false;
-function ballLook(){
-  const gl=glossOn();if(gl===ballGl)return;ballGl=gl;
+// Pretty graphics (see glossOn): the ball gets a soft sheen, the sun casts real shadows and the glows show. lookSync runs
+// every frame and only does anything when the setting (or touch) has just changed.
+let ballGloss=null,lookGl=false;
+function lookSync(){
+  const gl=glossOn();if(gl===lookGl)return;lookGl=gl;
   if(gl&&!ballGloss)ballGloss=new THREE.MeshStandardMaterial({map:ballTex,emissive:0x2a3046,roughness:.34,metalness:.12,envMap:stadiumEnv(),envMapIntensity:.7});
-  ballMesh.material=gl?ballGloss:ballFlat;
+  ballMesh.material=gl?ballGloss:ballFlat;ballMesh.castShadow=gl;
+  sun.castShadow=gl;if(gl)sun.position.set(0,100,-12);else sun.position.set(30,80,-20);
+  for(const o of prettyOnly)o.visible=gl;
 }
+
 const ballShadow=makeShadow(BR*2.4,BR*2.4);
 const ballRing=new THREE.Mesh(new THREE.RingGeometry(BR*.95,BR*1.12,40),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.35,side:THREE.DoubleSide,depthWrite:false}));
 ballRing.rotation.x=-Math.PI/2;scene.add(ballRing);
@@ -1334,68 +1356,138 @@ function glossOn(){return gfx==='high'&&!touchIn.active}
 let envTex=null;
 function stadiumEnv(){
   if(envTex)return envTex;
-  const S=64,face=draw=>{const c=document.createElement('canvas');c.width=c.height=S;draw(c.getContext('2d'));return c};
+  const S=128,face=draw=>{const c=document.createElement('canvas');c.width=c.height=S;draw(c.getContext('2d'));return c};
   const side=g=>{
     const gr=g.createLinearGradient(0,0,0,S);
     gr.addColorStop(0,'#0a1230');gr.addColorStop(.3,'#101a3c');gr.addColorStop(.5,'#1c2a52');gr.addColorStop(.56,'#24583a');gr.addColorStop(1,'#1e6e38');
     g.fillStyle=gr;g.fillRect(0,0,S,S);
-    g.fillStyle='#f4f8ff';for(let x=5;x<S;x+=14)g.fillRect(x,13,8,3);   // a row of floodlights
-    g.fillStyle='rgba(190,215,255,.45)';g.fillRect(0,28,S,2);             // the lit rim of the wall
+    g.fillStyle='#f4f8ff';for(let x=10;x<S;x+=28)g.fillRect(x,24,16,7);   // a row of floodlights
+    g.fillStyle='rgba(190,215,255,.45)';g.fillRect(0,56,S,4);             // the lit rim of the wall
   };
-  const top=g=>{g.fillStyle='#070c20';g.fillRect(0,0,S,S);g.fillStyle='#eef4ff';for(const y of [14,44])for(let x=8;x<S;x+=16)g.fillRect(x,y,9,5)};
+  const top=g=>{g.fillStyle='#070c20';g.fillRect(0,0,S,S);g.fillStyle='#eef4ff';for(const y of [28,88])for(let x=16;x<S;x+=32)g.fillRect(x,y,18,10)};
   const bottom=g=>{g.fillStyle='#1e6e38';g.fillRect(0,0,S,S)};
   envTex=new THREE.CubeTexture([face(side),face(side),face(top),face(bottom),face(side),face(side)]);
   envTex.needsUpdate=true;return envTex;
 }
+// Car paint: a coloured base under a clear glossy coat, like real car paint.
+function paint(hex){return matCache['p'+hex]||(matCache['p'+hex]=new THREE.MeshPhysicalMaterial({color:hex,roughness:.5,metalness:.45,clearcoat:1,clearcoatRoughness:.08,envMap:stadiumEnv(),envMapIntensity:1}))}
 function std(hex,rough,metal,extra){
   const k='s'+hex+':'+rough+':'+metal;
   return matCache[k]||(matCache[k]=new THREE.MeshStandardMaterial(Object.assign({color:hex,roughness:rough,metalness:metal,envMap:stadiumEnv(),envMapIntensity:1},extra||{})));
 }
 function bas(hex){return matCache['b'+hex]||(matCache['b'+hex]=new THREE.MeshBasicMaterial({color:hex}))}
 function box(g,w,h,d,x,y,z,mat,rx,ry){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);if(rx)m.rotation.x=rx;if(ry)m.rotation.y=ry;g.add(m);return m}
-const wheelG=new THREE.CylinderGeometry(.36,.36,.3,16);wheelG.rotateZ(Math.PI/2);
-const hubG=new THREE.CylinderGeometry(.2,.2,.32,8);hubG.rotateZ(Math.PI/2);
+// ---- car bodies ----
+// Each body is a side outline (points [z, y], front is +z) rounded off and pushed out sideways into a solid with bevelled
+// edges, then given smooth normals, so the paint catches the light in curves rather than flat box faces. The cabin is a
+// narrower solid of dark glass with a painted roof. All three bodies fill the same hitbox (CAR_HX/HY/HZ): only the look differs.
+const SHARED_G=new Set();
+function chaikin(pts,n){
+  for(let k=0;k<n;k++){const o=[];for(let i=0;i<pts.length;i++){const a=pts[i],b=pts[(i+1)%pts.length];o.push([a[0]*.75+b[0]*.25,a[1]*.75+b[1]*.25],[a[0]*.25+b[0]*.75,a[1]*.25+b[1]*.75])}pts=o}
+  return pts;
+}
+// Smooth normals for a geometry without an index: each corner takes the average of the faces around that point that
+// face nearly the same way (within deg), so curves are smooth and real edges stay crisp.
+function smoothNormals(geo,deg){
+  const p=geo.attributes.position,n=p.count,cosT=Math.cos(deg*Math.PI/180),fn=new Float32Array(n*3),map=new Map();
+  const a=new V3(),b=new V3(),c=new V3(),e1=new V3(),e2=new V3();
+  for(let i=0;i<n;i+=3){
+    a.fromBufferAttribute(p,i);b.fromBufferAttribute(p,i+1);c.fromBufferAttribute(p,i+2);
+    e1.subVectors(b,a);e2.subVectors(c,a);e1.cross(e2);const area=e1.length()||1e-9;
+    for(let k=0;k<3;k++){
+      fn[(i+k)*3]=e1.x/area;fn[(i+k)*3+1]=e1.y/area;fn[(i+k)*3+2]=e1.z/area;
+      const key=Math.round(p.getX(i+k)*500)+','+Math.round(p.getY(i+k)*500)+','+Math.round(p.getZ(i+k)*500);
+      let l=map.get(key);if(!l)map.set(key,l=[]);l.push(i+k,area);
+    }
+  }
+  const out=new Float32Array(n*3);
+  map.forEach(l=>{
+    for(let j=0;j<l.length;j+=2){
+      const v=l[j],x=fn[v*3],y=fn[v*3+1],z=fn[v*3+2];let sx=0,sy=0,sz=0;
+      for(let m=0;m<l.length;m+=2){const u=l[m],w=l[m+1];if(fn[u*3]*x+fn[u*3+1]*y+fn[u*3+2]*z>cosT){sx+=fn[u*3]*w;sy+=fn[u*3+1]*w;sz+=fn[u*3+2]*w}}
+      const len=Math.hypot(sx,sy,sz)||1;out[v*3]=sx/len;out[v*3+1]=sy/len;out[v*3+2]=sz/len;
+    }
+  });
+  geo.setAttribute('normal',new THREE.BufferAttribute(out,3));return geo;
+}
+function hull(parent,pts,width,mat,round,bevel){
+  const q=chaikin(pts,round===undefined?2:round),sh=new THREE.Shape();
+  q.forEach(([z,y],i)=>i?sh.lineTo(z,y):sh.moveTo(z,y));sh.closePath();
+  const bv=bevel===undefined?.07:bevel,d=width-2*bv;
+  const geo=new THREE.ExtrudeGeometry(sh,{depth:d,bevelEnabled:bv>0,bevelThickness:bv,bevelSize:bv,bevelOffset:-bv,bevelSegments:3,curveSegments:4});
+  geo.rotateY(-Math.PI/2);geo.translate(d/2,0,0);smoothNormals(geo,38);
+  const m=new THREE.Mesh(geo,mat);parent.add(m);return m;
+}
+const tyreG=(()=>{const g=new THREE.LatheGeometry([[.2,-.15],[.31,-.15],[.35,-.11],[.36,-.05],[.36,.05],[.35,.11],[.31,.15],[.2,.15]].map(([r,y])=>new THREE.Vector2(r,y)),28);g.rotateZ(Math.PI/2);return g})();
+const wheelG=tyreG;
+const hubG=new THREE.CylinderGeometry(.235,.235,.27,20);hubG.rotateZ(Math.PI/2);
+const spokeG=new THREE.BoxGeometry(.3,.44,.06),capG=new THREE.CylinderGeometry(.07,.07,.32,10);capG.rotateZ(Math.PI/2);
+const archG=new THREE.CylinderGeometry(.42,.42,.03,24);archG.rotateZ(Math.PI/2);
+[tyreG,hubG,spokeG,capG,archG].forEach(g=>SHARED_G.add(g));
+const BODY_SHAPES=[
+  { // Comet: the all-rounder
+    w:1.58,low:[[-1.2,-.32],[1.16,-.32],[1.24,-.14],[1.14,.02],[.52,.15],[-.6,.19],[-1.16,.21],[-1.24,.0]],
+    cab:[[.72,.06],[.22,.53],[-.44,.55],[-.98,.1]],cw:1.22,roof:[[.14,.455],[.2,.545],[-.42,.565],[-.5,.47]],rw:1.06,
+    wing:[1.62,.06,.36,.56,-1.06,.3],lightY:-.03,tailY:.08,stripe:1
+  },
+  { // Viper: long and low
+    w:1.62,low:[[-1.22,-.32],[1.18,-.32],[1.28,-.18],[1.12,-.06],[.42,.05],[-.7,.11],[-1.16,.15],[-1.26,-.04]],
+    cab:[[.52,-.02],[.04,.37],[-.48,.39],[-1.0,.04]],cw:1.14,roof:[[-.02,.305],[.02,.385],[-.46,.405],[-.54,.325]],rw:.98,
+    wing:[1.72,.06,.4,.44,-1.12,.26],lightY:-.11,tailY:.03,stripe:1
+  },
+  { // Brick: tall and boxy
+    w:1.6,low:[[-1.2,-.32],[1.16,-.32],[1.22,.0],[1.12,.2],[.56,.27],[-1.1,.29],[-1.22,.1]],
+    cab:[[.7,.18],[.46,.73],[-.94,.75],[-1.1,.2]],cw:1.42,roof:[[.4,.655],[.44,.755],[-.94,.775],[-1.0,.675]],rw:1.44,roofAccent:1,
+    bar:1,lightY:.06,tailY:.14,stripe:0
+  }
+];
 function buildCarModel(team,body,accent){
   const g=new THREE.Group(),inner=new THREE.Group();g.add(inner);
   const T=TEAM[team],gl=glossOn(),aHex=new THREE.Color(ACCENTS[accent]||ACCENTS[0]).getHex();
-  const mB=gl?std(T.col,.3,.3):lam(T.col),mD=lam(0x161a28),mA=gl?std(aHex,.38,.35):lam(aHex);
-  const mG=gl?std(0x0b1222,.08,.85,{emissive:0x0c1c3a}):(matCache.glass||(matCache.glass=new THREE.MeshLambertMaterial({color:0x0b1222,emissive:0x0c1c3a})));
+  const mB=gl?paint(T.col):lam(T.col),mD=gl?std(0x161a28,.7,.1):lam(0x161a28),mA=gl?std(aHex,.36,.4):lam(aHex);
+  const mT=gl?std(0x0c0e16,.92,0):lam(0x0c0e16),mR=gl?std(aHex,.25,.8):lam(aHex);
+  const mG=gl?std(0x0b1222,.06,.9,{emissive:0x0c1c3a}):(matCache.glass||(matCache.glass=new THREE.MeshLambertMaterial({color:0x0b1222,emissive:0x0c1c3a})));
   const head=bas(0xfff3c4),tail=bas(0xff3048);
-  if(body===1){ // Viper: long and low
-    box(inner,1.66,.28,2.5,0,-.12,0,mB);
-    box(inner,1.5,.22,1.0,0,.06,.72,mB,.18);
-    box(inner,1.16,.28,1.0,0,.18,-.32,mG);
-    box(inner,1.2,.06,1.02,0,.33,-.32,mB);
-    box(inner,.3,.04,2.2,0,.03,.1,mA);
-    box(inner,1.7,.06,.36,0,.34,-1.16,mA);box(inner,.08,.24,.1,-.6,.2,-1.12,mD);box(inner,.08,.24,.1,.6,.2,-1.12,mD);
-  }else if(body===2){ // Brick: tall and boxy
-    box(inner,1.66,.48,2.3,0,-.02,0,mB);
-    box(inner,1.5,.46,1.5,0,.44,-.28,mB);
-    box(inner,1.52,.3,.06,0,.46,.48,mG);box(inner,1.54,.26,1.3,0,.46,-.3,mG);
-    box(inner,1.54,.06,1.52,0,.69,-.28,mA);
-    box(inner,1.68,.12,.1,0,.08,1.16,mA);
-  }else{ // Comet: the all-rounder
-    box(inner,1.62,.4,2.3,0,-.06,0,mB);
-    box(inner,1.5,.16,.8,0,.15,.68,mB,.22);
-    box(inner,1.24,.36,1.06,0,.3,-.2,mG);
-    box(inner,1.26,.07,.9,0,.5,-.24,mB);
-    box(inner,.36,.03,1.6,0,.16,.3,mA,.1);
-    box(inner,1.64,.07,.4,0,.52,-1.06,mA);box(inner,.1,.3,.12,-.55,.3,-1.04,mD);box(inner,.1,.3,.12,.55,.3,-1.04,mD);
+  const B=BODY_SHAPES[body]||BODY_SHAPES[0],hw=B.w/2;
+  hull(inner,B.low,B.w,mB);
+  hull(inner,B.cab,B.cw,mG,2,.1);
+  hull(inner,B.roof,B.rw,B.roofAccent?mA:mB,1,.04);
+  box(inner,B.w-.12,.1,2.2,0,-.33,0,mD);                                  // underbody
+  box(inner,B.w-.04,.07,.22,0,-.3,1.13,mD);                               // front splitter
+  box(inner,B.w-.2,.12,.1,0,-.2,-1.2,mD);                                 // rear diffuser
+  for(const sx of [-1,1]){
+    box(inner,.05,.09,1.02,sx*(hw-.005),-.27,0,mD);                       // side skirts
+    if(B.stripe)box(inner,.02,.045,1.5,sx*(hw+.001),-.02,.05,mA);
+    box(inner,.34,.09,.05,sx*(hw-.3),B.lightY,1.2,head);
+    box(inner,.12,.2,.06,sx*(hw-.02),.02,.62,mD);                         // mirrors
   }
-  box(inner,1.7,.14,2.36,0,-.3,0,mD);
-  box(inner,.32,.1,.04,-.55,-.02,1.17,head);box(inner,.32,.1,.04,.55,-.02,1.17,head);
-  box(inner,.3,.1,.04,-.58,-.02,-1.18,tail);box(inner,.3,.1,.04,.58,-.02,-1.18,tail);
+  box(inner,B.w-.3,.07,.05,0,B.tailY,-1.205,tail);                        // tail light bar
+  if(B.wing){
+    const [ww,wh,wd,wy,wz,sh]=B.wing;
+    box(inner,ww,wh,wd,0,wy,wz,mA);box(inner,.06,.16,wd+.04,-ww/2,wy+.04,wz,mA);box(inner,.06,.16,wd+.04,ww/2,wy+.04,wz,mA);
+    box(inner,.09,sh,.12,-.52,wy-sh/2,wz+.02,mD);box(inner,.09,sh,.12,.52,wy-sh/2,wz+.02,mD);
+  }
+  if(B.bar){box(inner,B.w+.06,.12,.1,0,-.06,1.23,mA);box(inner,.9,.05,.5,0,.8,-.3,mD)}
   const wheels=[];
   for(const [x,z] of [[.8,.78],[-.8,.78],[.8,-.78],[-.8,-.78]]){
+    const arch=new THREE.Mesh(archG,mT);arch.position.set(Math.sign(x)*(hw-.01),-.24,z);inner.add(arch);
     const w=new THREE.Group();w.position.set(x,-.26,z);
     const spin=new THREE.Group();w.add(spin);
-    spin.add(new THREE.Mesh(wheelG,mD));const hb=new THREE.Mesh(hubG,mA);spin.add(hb);
-    const spoke=new THREE.Mesh(new THREE.BoxGeometry(.33,.5,.08),mD);spin.add(spoke);
+    spin.add(new THREE.Mesh(wheelG,mT));spin.add(new THREE.Mesh(hubG,mR));
+    for(let k=0;k<3;k++){const sp=new THREE.Mesh(spokeG,mD);sp.rotation.x=k*Math.PI/3;spin.add(sp)}
+    spin.add(new THREE.Mesh(capG,mR));
     inner.add(w);wheels.push({g:w,spin,front:z>0});
   }
+  inner.traverse(o=>{if(o.isMesh)o.castShadow=true});
   const flame=new THREE.Mesh(new THREE.ConeGeometry(.24,1.4,10),new THREE.MeshBasicMaterial({color:T.flame[0],transparent:true,opacity:.85,blending:THREE.AdditiveBlending,depthWrite:false}));
   flame.rotation.x=-Math.PI/2;flame.position.set(0,.02,-1.6);flame.visible=false;inner.add(flame);
-  return{g,inner,wheels,flame};
+  let boostGlow=null;
+  if(gl){
+    for(const sx of [-1,1]){const h=glowSprite(0xfff3c4,.5,.9);h.position.set(sx*(hw-.3),B.lightY,1.26);inner.add(h)}
+    const t=glowSprite(0xff3048,.45,1.5);t.position.set(0,B.tailY,-1.26);inner.add(t);
+    boostGlow=glowSprite(T.flame[0],.7,3.2);boostGlow.position.set(0,.02,-1.7);boostGlow.visible=false;inner.add(boostGlow);
+  }
+  return{g,inner,wheels,flame,boostGlow};
 }
 function carKey(c){return c.team+':'+c.body+':'+c.accent+':'+schemeIdx+(glossOn()?':g':'')}
 function attachCarMesh(c){
@@ -1406,7 +1498,7 @@ function attachCarMesh(c){
 }
 function disposeCarMesh(c){
   if(!c.mesh)return;scene.remove(c.mesh.g);scene.remove(c.mesh.shadow);
-  c.mesh.g.traverse(o=>{if(o.geometry&&o.geometry!==wheelG&&o.geometry!==hubG)o.geometry.dispose()});
+  c.mesh.g.traverse(o=>{if(o.isSprite)o.material.dispose();else if(o.geometry&&!SHARED_G.has(o.geometry))o.geometry.dispose()});
   c.mesh.shadow.geometry.dispose();c.mesh.shadow.material.dispose();c.mesh=null;
 }
 const _dq=new QT();
@@ -1435,11 +1527,11 @@ function updateCarMesh(c,dt,time){
   c.wheelSpin+=fwdSp*dt/.36;
   const steerT=(c.remote?0:-c.inp.steer)*.45;c.steerVis=lerp(c.steerVis,steerT,1-Math.exp(-dt*12));
   for(const w of m.wheels){w.spin.rotation.x=c.wheelSpin;w.g.rotation.y=w.front?c.steerVis:0}
-  m.flame.visible=!!c.boosting;
-  if(c.boosting){const s=.8+Math.random()*.5;m.flame.scale.set(1,s,1);m.flame.position.z=-1.2-.7*s}
+  m.flame.visible=!!c.boosting;if(m.boostGlow)m.boostGlow.visible=!!c.boosting;
+  if(c.boosting){const s=.8+Math.random()*.5;m.flame.scale.set(1,s,1);m.flame.position.z=-1.2-.7*s;if(m.boostGlow)m.boostGlow.scale.set(2.6+s,2.6+s,1)}
   const h=Math.max(0,c.pos.y-CAR_Y);
   m.shadow.position.set(c.pos.x,.03,c.pos.z);m.shadow.rotation.z=c.yaw||Math.atan2(_v1.x,_v1.z);
-  const k=clamp(1-h/12,.15,1);m.shadow.scale.set(k,k,k);m.shadow.material.opacity=k;
+  const k=clamp(1-h/12,.15,1);m.shadow.scale.set(k,k,k);m.shadow.material.opacity=lookGl?k*.45*clamp(1-h/3,0,1):k;
 }
 
 // ---------- particles ----------
@@ -1676,7 +1768,7 @@ function renderGarage(dt){
   if(cv.width!==Math.round(w*Math.min(2,devicePixelRatio||1))){garage.r.setPixelRatio(Math.min(2,devicePixelRatio||1));garage.r.setSize(w,h,false);garage.cam.aspect=w/h;garage.cam.updateProjectionMatrix()}
   const key=myBody+':'+myAccent+':'+schemeIdx+(glossOn()?':g':'');
   if(garage.key!==key){
-    if(garage.model){garage.sc.remove(garage.model.g);garage.model.g.traverse(o=>{if(o.geometry&&o.geometry!==wheelG&&o.geometry!==hubG)o.geometry.dispose()})}
+    if(garage.model){garage.sc.remove(garage.model.g);garage.model.g.traverse(o=>{if(o.isSprite)o.material.dispose();else if(o.geometry&&!SHARED_G.has(o.geometry))o.geometry.dispose()})}
     garage.model=buildCarModel(0,myBody,myAccent);garage.model.g.position.y=.3;garage.sc.add(garage.model.g);garage.key=key;
   }
   garage.rot+=dt*.5;garage.model.g.rotation.y=garage.rot;
@@ -3114,14 +3206,14 @@ function step(dt,bg){
   simulate(dt,freeze);
   // visuals
   ballVisOff.multiplyScalar(Math.exp(-dt*9));
-  ballLook();
+  lookSync();
   ballMesh.visible=!ballHidden;ballShadow.visible=!ballHidden;ballRing.visible=!ballHidden;
   if(!ballHidden){
     ballMesh.position.copy(ball.pos).add(ballVisOff);
     if(sdf(ball.pos,_v4)<BR+.08)ball.ang.crossVectors(_v4,ball.vel).multiplyScalar(1/BR);else ball.ang.multiplyScalar(Math.exp(-dt*.3));
     const w=ball.ang.length();if(w>1e-4&&!freeze){_qa.setFromAxisAngle(_v5.copy(ball.ang).multiplyScalar(1/w),w*dt);ballMesh.quaternion.premultiply(_qa)}
     const hgt=ballMesh.position.y-BR;const k=clamp(1-hgt/20,.25,1);
-    ballShadow.position.set(ballMesh.position.x,.04,ballMesh.position.z);ballShadow.scale.set(k,k,k);ballShadow.material.opacity=k;
+    ballShadow.position.set(ballMesh.position.x,.04,ballMesh.position.z);ballShadow.scale.set(k,k,k);ballShadow.material.opacity=lookGl?k*.4*clamp(1-hgt/4,0,1):k;
     ballRing.position.set(ballMesh.position.x,.05,ballMesh.position.z);ballRing.material.opacity=hgt>3?.4:0;
   }
   updateLanding(state==='playing');
