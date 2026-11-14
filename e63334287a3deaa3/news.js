@@ -18,7 +18,8 @@
  *   {date: '2026-10-22', version: '1.7', title: 'Short headline', kind: 'game',
  *    games: ['Deepword'], items: ['One short sentence per change, in plain words.', '…']},
  *
- *   date     the day it went live (the merge date, local time), as YYYY-MM-DD
+ *   date     the day it went live (the merge date, local time), as YYYY-MM-DD. An entry dated in the future is
+ *            hidden until that day (for things that switch themselves on at a date, like the holidays)
  *   kind     'game'    a new game                  shows as "New game 1.7"
  *            'feature' a new feature or big update  shows as "Update 1.7"
  *            'fix'     bug fixes and small tweaks   shows as "Bug fix 1.7.1"
@@ -63,6 +64,13 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-27', version: '1.30', title: 'Happy holidays: the cabin is open', kind: 'feature',
+     tags: ['Back Room', 'Holidays', 'Retro TV'], items: [
+      'The Back Room now opens on a log cabin at Christmas: a fire, a tree, snow at the window, and an old TV in the middle. Click the TV to step through to the games.',
+      'Retro TV look: the whole page as if on that old set, with pixel letters, big-pixel game pictures and faint scan lines. The Retro TV switch at the top right turns it off.',
+      'With it off you get the winter page: snow, a tree, a snowman, a menorah, a diya, gingerbread and lights. Buttons are blue for the season.',
+      'It stays until January 6. The Cabin button shows the cabin again, and the ❄ button in the footer turns all of it off.'
+    ]},
     {date: '2026-11-14', version: '1.29.2', title: 'Fall buttons', kind: 'fix',
      tags: ['Back Room', 'Fall'], items: [
       'The green Play buttons, labels and links are harvest gold for the fall, so they match the rest of the page.'
@@ -325,9 +333,11 @@
       .slice(0, 4).map(function (x) { return x.trim().slice(0, 28); });
   }
 
-  // Keep only well-formed entries, newest first.
+  // Keep only well-formed entries, newest first. An entry dated after today (the viewer's own date) is held back
+  // until that day, so something that switches itself on at a date can have its entry written ahead of time.
+  var nowD = new Date(), today = nowD.getFullYear() + '-' + ('0' + (nowD.getMonth() + 1)).slice(-2) + '-' + ('0' + nowD.getDate()).slice(-2);
   var list = NEWS.filter(function (e) {
-    return e && /^\d{4}-\d{2}-\d{2}$/.test(e.date) && typeof e.title === 'string' && Array.isArray(e.items);
+    return e && /^\d{4}-\d{2}-\d{2}$/.test(e.date) && typeof e.title === 'string' && Array.isArray(e.items) && e.date <= today;
   }).sort(function (a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; });
   window.BackRoomNews = { entries: list.map(function (e) { return { date: e.date, version: e.version, title: e.title, kind: e.kind, games: gamesOf(e).map(function (g) { return g.n; }), items: e.items.slice(), img: imgsOf(e), tags: tagsOf(e) }; }) };
   if (!list.length) return;
