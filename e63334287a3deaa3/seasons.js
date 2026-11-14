@@ -9,7 +9,8 @@
  * along the bottom edge. The date (the viewer's own) decides; outside those dates nothing happens. Each page loads
  * this with one <script defer>.
  *
- * The tint only overrides the page's own colour variables (site.css's --ground/--panel-2/--line/--panel, the phone
+ * The tint only overrides the page's own colour variables (site.css's --ground/--panel-2/--line/--panel, and in fall
+ * its green --accent, which becomes harvest gold so buttons and labels belong to the season too; the phone
  * page's --bg/--panel, the Daily page's --night/--panel-2), mixed a little towards a warm or cool colour, so text keeps
  * its colours. The leaves and snow are drawn on one fixed canvas placed first in <body> at z-index -1 (body gets
  * isolation:isolate so the canvas sits above the page background but under everything else); in fall a second fixed
@@ -72,6 +73,10 @@
     light:{'--panel':[[255,244,226],.8],'--panel-2':[[251,226,190],.7],'--line':[[214,160,104],.6]},
     dark:{'--ground':[[104,48,10],.66],'--bg':[[104,48,10],.66],'--night':[[104,48,10],.6],'--panel':[[50,26,11],.86],'--panel-2':[[72,39,16],.82],'--line':[[136,84,42],.62]}
   };
+  // The site's green accent (Play buttons in Cars, the Send button, small labels, links, the What's new glow) looks
+  // out of place in a fall scene, so in fall it becomes harvest gold: [--accent, --accent-ink] for light and dark
+  // pages. Only a green accent is replaced: the phone page's is already yellow and stays as it is.
+  var ACCENT={fall:{light:['#9C6300','#FFFFFF'],dark:['#F3B94A','#2A1703']}};
 
   var styleEl=null;
   function tint(season){
@@ -83,6 +88,8 @@
     var t=TINT[season][light?'light':'dark'];
     var own=season==='fall'?FALL[light?'light':'dark']:{};
     for(var v in VARS){var c=parse(cs.getPropertyValue(v));if(c)out.push(v+':'+(own[v]?mix(c,own[v][0],own[v][1]):mix(c,t,VARS[v])))}
+    var ac=parse(cs.getPropertyValue('--accent')),A=ACCENT[season]&&ACCENT[season][light?'light':'dark'];
+    if(ac&&A&&ac[1]>ac[0]&&ac[1]>ac[2]){out.push('--accent:'+A[0]);if(cs.getPropertyValue('--accent-ink').trim())out.push('--accent-ink:'+A[1])}
     styleEl=document.createElement('style');styleEl.id='season-style';
     styleEl.textContent='html:root{'+out.join(';')+'}body{isolation:isolate}'+
       '#season-fx,#season-bg{position:fixed;left:0;right:0;bottom:0;width:100%;height:100vh;height:100lvh;z-index:-1;pointer-events:none;display:block}';
