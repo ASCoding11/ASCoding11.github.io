@@ -1045,6 +1045,11 @@ function drawField(g,w,h){
   const n=16;for(let i=0;i<n;i++){g.fillStyle=i%2?'#1e6e38':'#237c40';g.fillRect(0,i*h/n,w,h/n+1)}
   // turf grain
   for(let i=0;i<9000;i++){g.fillStyle=rnd()<.5?'rgba(0,0,0,.06)':'rgba(255,255,255,.035)';g.fillRect(rnd()*w,rnd()*h,2,2)}
+  // lengthwise mowing bands crossing the stripes, then the floodlights' pool of light fading toward the corners
+  for(let i=1;i<10;i+=2){g.fillStyle='rgba(255,255,255,.035)';g.fillRect(i*w/10,0,w/10,h)}
+  for(let i=0;i<2600;i++){g.fillStyle=rnd()<.5?'rgba(10,40,20,.05)':'rgba(190,255,200,.03)';g.fillRect(rnd()*w,rnd()*h,1,5+rnd()*9)}
+  const vg=g.createRadialGradient(w/2,h/2,h*.15,w/2,h/2,h*.66);vg.addColorStop(0,'rgba(255,255,230,.08)');vg.addColorStop(.55,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,8,22,.34)');
+  g.fillStyle=vg;g.fillRect(0,0,w,h);
   // team halves
   let gr=g.createLinearGradient(0,0,0,h);
   gr.addColorStop(0,'rgba('+TEAM[0].rgb+',.2)');gr.addColorStop(.45,'rgba('+TEAM[0].rgb+',0)');gr.addColorStop(.55,'rgba('+TEAM[1].rgb+',0)');gr.addColorStop(1,'rgba('+TEAM[1].rgb+',.2)');
@@ -1200,9 +1205,51 @@ function recolorGoals(){
     const l=new THREE.Mesh(new THREE.BoxGeometry(18,9,1.5),lamp);l.position.set(sx*(AW+72),120,sz*(AL+72));l.lookAt(0,0,0);scene.add(l);
     const h=glowSprite(0xfff0cc,.55,90);h.position.copy(l.position);h.visible=false;scene.add(h);prettyOnly.push(h);
   }
-  const sky=new THREE.Mesh(new THREE.SphereGeometry(1300,24,16),new THREE.MeshBasicMaterial({side:THREE.BackSide,fog:false,map:canvasTex(4,256,(g,w,h)=>{const gr=g.createLinearGradient(0,0,0,h);gr.addColorStop(0,'#03050f');gr.addColorStop(.42,'#0b1638');gr.addColorStop(.5,'#2a2350');gr.addColorStop(.52,'#0a1226');gr.addColorStop(1,'#0a1226');g.fillStyle=gr;g.fillRect(0,0,w,h)})}));
+  const sky=new THREE.Mesh(new THREE.SphereGeometry(1300,24,16),new THREE.MeshBasicMaterial({side:THREE.BackSide,fog:false,map:canvasTex(4,256,(g,w,h)=>{
+    const gr=g.createLinearGradient(0,0,0,h);gr.addColorStop(0,'#02040c');gr.addColorStop(.36,'#0a1434');gr.addColorStop(.46,'#1b2152');gr.addColorStop(.5,'#3a2c66');gr.addColorStop(.52,'#0a1226');gr.addColorStop(1,'#0a1226');g.fillStyle=gr;g.fillRect(0,0,w,h);
+  })}));
+  // stars: small fixed-size points high in the sky (a texture on a sphere this big would smear them)
+  const sr=rng(7741),sp=[];
+  for(let i=0;i<420;i++){const az=sr()*Math.PI*2,el=.28+sr()*1.2,R=1250;sp.push(Math.cos(el)*Math.cos(az)*R,Math.sin(el)*R,Math.cos(el)*Math.sin(az)*R)}
+  const sg=new THREE.BufferGeometry();sg.setAttribute('position',new THREE.Float32BufferAttribute(sp,3));
+  scene.add(new THREE.Points(sg,new THREE.PointsMaterial({color:0xcfdcff,size:1.6,sizeAttenuation:false,transparent:true,opacity:.7,fog:false,depthWrite:false})));
   scene.add(sky);
 })();
+
+// ---------- bloom (Pretty graphics) ----------
+// Bright things (floodlights, goal frames, neon strips, boost, the goal fireball) bleed a soft glow into the picture
+// around them. After the scene is drawn, the finished frame is copied into a texture, its brightest parts are shrunk to a
+// quarter of the size and blurred, and that blur is added back on top. The scene itself is drawn once, straight to the
+// screen as before (so edges stay smooth), and the HUD is HTML, so it never glows. Sizes follow the drawing buffer, so
+// autores.js lowering the resolution just makes these smaller.
+const bloom=(function(){
+  const VS='varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}';
+  const mk=(fs,u,add)=>new THREE.ShaderMaterial({vertexShader:VS,fragmentShader:'varying vec2 vUv;uniform sampler2D t;'+fs,uniforms:Object.assign({t:{value:null}},u),depthTest:false,depthWrite:false,transparent:!!add,blending:add?THREE.AdditiveBlending:THREE.NoBlending});
+  const bright=mk('uniform vec2 px;void main(){vec3 c=(texture2D(t,vUv+px*vec2(-1.,-1.)).rgb+texture2D(t,vUv+px*vec2(1.,-1.)).rgb+texture2D(t,vUv+px*vec2(-1.,1.)).rgb+texture2D(t,vUv+px).rgb)*.25;float m=max(c.r,max(c.g,c.b));gl_FragColor=vec4(c*smoothstep(.8,1.,m),1.);}',{px:{value:new THREE.Vector2()}});
+  const blur=mk('uniform vec2 d;void main(){vec3 c=texture2D(t,vUv).rgb*.227;c+=(texture2D(t,vUv+d*1.385).rgb+texture2D(t,vUv-d*1.385).rgb)*.316;c+=(texture2D(t,vUv+d*3.231).rgb+texture2D(t,vUv-d*3.231).rgb)*.0703;gl_FragColor=vec4(c,1.);}',{d:{value:new THREE.Vector2()}});
+  const mix=mk('uniform float k;void main(){gl_FragColor=vec4(texture2D(t,vUv).rgb*k,1.);}',{k:{value:.55}},true);
+  const cam=new THREE.OrthographicCamera(-1,1,1,-1,0,1),quad=new THREE.Mesh(new THREE.PlaneGeometry(2,2),bright),sc=new THREE.Scene();sc.add(quad);quad.frustumCulled=false;
+  const sz=new THREE.Vector2(),zero=new THREE.Vector2();let tex=null,a=null,b=null,w=0,h=0,dead=false;
+  function pass(m,src,dst){quad.material=m;m.uniforms.t.value=src;renderer.setRenderTarget(dst);renderer.render(sc,cam)}
+  function run(){
+    if(dead)return;
+    try{
+      renderer.getDrawingBufferSize(sz);const W=Math.floor(sz.x),H=Math.floor(sz.y);if(W<8||H<8)return;
+      if(W!==w||H!==h){
+        if(tex){tex.dispose();a.dispose();b.dispose()}
+        w=W;h=H;tex=new THREE.DataTexture(new Uint8Array(w*h*3),w,h,THREE.RGBFormat);tex.minFilter=tex.magFilter=THREE.LinearFilter;
+        const o={depthBuffer:false,stencilBuffer:false};a=new THREE.WebGLRenderTarget(Math.max(2,w>>2),Math.max(2,h>>2),o);b=new THREE.WebGLRenderTarget(a.width,a.height,o);
+      }
+      renderer.copyFramebufferToTexture(zero,tex);
+      bright.uniforms.px.value.set(1/w,1/h);pass(bright,tex,a);
+      for(const r of [1,2.2]){blur.uniforms.d.value.set(r/a.width,0);pass(blur,a.texture,b);blur.uniforms.d.value.set(0,r/a.height);pass(blur,b.texture,a)}
+      const ac=renderer.autoClear;renderer.autoClear=false;pass(mix,a.texture,null);renderer.autoClear=ac;
+    }catch(e){dead=true;renderer.setRenderTarget(null);renderer.autoClear=true}
+  }
+  return{run};
+})();
+// One place draws the match: the scene, then the bloom on Pretty graphics.
+function drawScene(){renderer.render(scene,camera);if(lookGl)bloom.run()}
 
 // ---------- blob shadows ----------
 const shadowTex=canvasTex(64,64,(g,w,h)=>{const gr=g.createRadialGradient(32,32,2,32,32,32);gr.addColorStop(0,'rgba(0,0,0,.75)');gr.addColorStop(.6,'rgba(0,0,0,.35)');gr.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=gr;g.fillRect(0,0,w,h)});
@@ -3144,7 +3191,7 @@ const H_STEP=1/120;
 let manual=false,noRender=false,testInput=null;
 function frame(t){
   lastFrame=performance.now();const dt=Math.min(.1,Math.max(0,(t-last)/1000));last=t;
-  if(manual){if(!noRender)renderer.render(scene,camera)}
+  if(manual){if(!noRender)drawScene()}
   else try{step(dt)}catch(err){console.error(err)}
   requestAnimationFrame(frame);
 }
@@ -3233,7 +3280,7 @@ function step(dt,bg){
     wn.hidden=others>0;if(others===0)wn.textContent='Waiting for players · share the invite link from the pause menu';
   }
   audioTick(dt);
-  if(!noRender&&!bg)renderer.render(scene,camera);
+  if(!noRender&&!bg)drawScene();
   if(state==='menu'&&!$('menu').hidden)renderGarage(dt);
 }
 
@@ -3249,7 +3296,7 @@ if(navigator.webdriver)window.__bb={get state(){return state},get mode(){return 
   // HUD, landing marker) at 60 Hz without drawing; render() draws one frame.
   manual(v){manual=!!v},set noRender(v){noRender=!!v},set testInput(f){testInput=f},
   advance(sec,fps){const f=fps||60,n=Math.round(sec*f);const nr=noRender;noRender=true;try{for(let i=0;i<n;i++){if(!online)warp+=1000/f;step(1/f)}}finally{noRender=nr}},
-  render(){renderer.render(scene,camera)},physStep,carCar,ballVsCars,sdf,land,predictLanding,ballInPlay,get camUp(){return camUp},camFwd,camPos,camLook,get ballVisOff(){return ballVisOff},
+  render(){drawScene()},physStep,carCar,ballVsCars,sdf,land,predictLanding,ballInPlay,get camUp(){return camUp},camFwd,camPos,camLook,get ballVisOff(){return ballVisOff},
   get ballHidden(){return ballHidden},set ballHidden(v){ballHidden=!!v},updateCamera,setupKickoff,landDecal,arcPts,
   boom,fxMat,fxLight,goalExplosion,TEAM,SCHEMES,get schemeIdx(){return schemeIdx},get teamPref(){return teamPref}};
 
