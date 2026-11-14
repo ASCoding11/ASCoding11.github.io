@@ -3,7 +3,7 @@
  * people join their games), grouped by game and room, with a Join button for anyone else.
  *
  * Loaded like social.js (a <script defer> on the Back Room page, by the home page's reveal() and by m/index.html),
- * after party.js; it signs in through party.js (window.Party) and adds its own panel, #playingnow, under the Party panel.
+ * after party.js; it signs in through party.js (window.Party) and adds its own panel, #playingnow, right above the Party panel.
  *
  * Where the list comes from (no rules change): the shared rules don't let a browser list rooms/, so it can't look
  * for every rooms/pt-<code>. Instead a public party's leader puts its game on its Online node (social.js, the shared
@@ -87,12 +87,14 @@
     '<ul class="pn-list" aria-label="Public games"></ul><p class="pn-empty">Connecting…</p><p class="pty-msg" role="status" aria-live="polite"></p></div>';
   var $list = sec.querySelector('.pn-list'), $empty = sec.querySelector('.pn-empty'), $msg = sec.querySelector('.pty-msg');
   function say(t, err) { $msg.textContent = t || ''; $msg.classList.toggle('err', !!err); }
-  // Under the Party panel. social.js puts the Online panel straight under Party once when it starts, so wait for it
-  // (up to 5 s) and then go between the two. Only placed once, so a layout that moves panels later isn't fought.
+  // Right above the Party panel, so the page reads What's new, Playing now, Party, Online, then the games (the order
+  // the owner asked for). Without a Party panel it goes under the header. Only placed once, so a layout that moves
+  // panels later isn't fought.
   function place() {
     var party = document.getElementById('party'), head = document.querySelector('header');
-    var after = party || head;
-    if (after && after.parentNode) after.parentNode.insertBefore(sec, after.nextSibling); else document.body.appendChild(sec);
+    if (party && party.parentNode) party.parentNode.insertBefore(sec, party);
+    else if (head && head.parentNode) head.parentNode.insertBefore(sec, head.nextSibling); else document.body.appendChild(sec);
+    // The phone page spaces its panels with a bottom margin instead of section padding.
     if (party) { var mb = getComputedStyle(party).marginBottom; if (parseFloat(mb) > 0) { sec.style.paddingTop = '0'; sec.style.marginBottom = mb; } }
   }
 

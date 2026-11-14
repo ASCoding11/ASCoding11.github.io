@@ -31,7 +31,7 @@
  * The movable blocks:
  *   Back Room page and the home page's copy: party (the Party panel, party.js), online (the Online panel,
  *   social.js), daily (the Daily Puzzles card), one per genre section (<section class="gs gs-<name>"> inside
- *   section.br-games, so a new section is picked up by itself: puzzles, parkour, action, multi, solo) and
+ *   section.br-games, so a new section is picked up by itself: cars, shooters, parkour, partygames, puzzles, arcade) and
  *   leaderboards (leaderboard.js).
  *   Phone page: party, online, every GROUPS row (its <h3> and tile grid; id "m-" + the row's name in lowercase
  *   with dashes, "daily" for the Daily Puzzles row) and leaderboards. A mode heading (Puzzles, Parkour…) is shown
@@ -893,6 +893,17 @@
       });
       DEFAULT = ['party', 'online'].concat(rows.map(function (r) { return r.id; }), ['leaderboards']);
     }
+    // The row of game types at the top of the games (.gs-nav): a click scrolls to that section. Done here rather than
+    // with the links' own #anchors, because on the home page a # in the address would be read as a room code on reload.
+    doc.addEventListener('click', function (e) {
+      if (e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      var a = e.target.closest && e.target.closest('.gs-nav [data-go]'); if (!a) return;
+      var t = byId(a.getAttribute('data-go')); if (!t) return;
+      e.preventDefault();
+      var sec = t.closest('section') || t, still = false;
+      try { still = matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (x) {}
+      sec.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'start' });
+    });
     addButton();
     sync();
     observe();

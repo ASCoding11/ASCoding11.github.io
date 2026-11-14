@@ -63,6 +63,13 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-13', version: '1.28', title: 'Find a game faster', kind: 'feature',
+     tags: ['Back Room', 'Puzzles', 'Layout'], items: [
+      'Six buttons at the top of the games jump straight to Cars, Shooters, Parkour, Party games, Puzzles or Arcade.',
+      'The most played kind of game comes first, and the most played game leads each group.',
+      'Every daily puzzle now has its own small tile that says what it is: "Guess the 5-letter word" is Hunch, "Find the country on a globe" is Hotspot, and so on.',
+      'Playing now moved up, above the Party panel.'
+    ]},
     {date: '2026-11-13', version: '1.27', title: 'The Marketplace is open', kind: 'feature',
      tags: ['Buy and sell', 'Haggle', 'No fees'], link: {text: 'Open the Marketplace', href: '/marketplace/'}, items: [
       'A new Marketplace tab on the main site: post things you no longer need, with a photo and an asking price, and browse what other people are selling.',
