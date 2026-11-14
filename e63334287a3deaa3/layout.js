@@ -30,12 +30,13 @@
  * *
  * The movable blocks:
  *   Back Room page and the home page's copy: party (the Party panel, party.js), online (the Online panel,
- *   social.js), daily (the Daily Puzzles card), one per genre section (<section class="gs gs-<name>"> inside
+ *   social.js), daily (a Daily Puzzles card, .gc-daily, if the page has one: it hasn't since every puzzle got a
+ *   tile, and an old saved order that names it still loads), one per genre section (<section class="gs gs-<name>"> inside
  *   section.br-games, so a new section is picked up by itself: cars, shooters, parkour, partygames, puzzles, arcade) and
  *   leaderboards (leaderboard.js).
  *   Phone page: party, online, every GROUPS row (its <h3> and tile grid; id "m-" + the row's name in lowercase
- *   with dashes, "daily" for the Daily Puzzles row) and leaderboards. A mode heading (Puzzles, Parkour…) is shown
- *   above each run of rows of that mode, with that run's count.
+ *   with dashes, "daily" for a row that is only the Daily Puzzles tile, which the page no longer has) and leaderboards. A mode heading (Puzzles, Parkour…) is shown
+ *   above each run of rows of that mode, with that run's count (puzzle tiles, .grid.pz, are counted as puzzles).
  *
  * Saved per browser in localStorage `layout:v1` = {v: 1, order: [ids], size: {gameFolder: 'big'|'small'}}: one
  * record for both pages; each page uses the ids it has, in that order, and keeps the others where they were when
@@ -438,8 +439,10 @@
     ids.forEach(function (id) {
       var r = rowBy[id];
       if (r) {
-        if (!run || run.mode !== r.mode) { run = { mode: r.mode, head: head(r.mode), n: 0, d: false }; runs.push(run); seq.push(run.head); }
-        if (r.id === 'daily') run.d = true; else run.n += r.grid.children.length;
+        if (!run || run.mode !== r.mode) { run = { mode: r.mode, head: head(r.mode), n: 0, p: 0, d: false }; runs.push(run); seq.push(run.head); }
+        if (r.id === 'daily') run.d = true;
+        else if (r.grid.classList.contains('pz')) run.p += r.grid.children.length - r.grid.querySelectorAll('img[src*="thumbs/daily."]').length;   // puzzle tiles, less the Daily Puzzles page's own
+        else run.n += r.grid.children.length;
         seq.push(r.h3, r.grid);
       } else if (b[id]) { run = null; seq.push(b[id][0]); }
     });
@@ -451,7 +454,10 @@
     Object.keys(clones).forEach(function (m) { clones[m].forEach(function (c, i) { if (i >= (used[m] || 1) - 1 && c.parentNode) c.parentNode.removeChild(c); }); });
     runs.forEach(function (r) {
       var n = r.head.querySelector('.n'); if (!n) return;
-      n.textContent = def ? modeCountText[r.mode] : (r.n ? r.n + (r.n === 1 ? ' game' : ' games') + (r.d ? ' + daily' : '') : (r.d ? 'Daily' : ''));
+      var t = [];
+      if (r.p) t.push(r.p + (r.p === 1 ? ' puzzle' : ' puzzles'));
+      if (r.n) t.push(r.n + (r.n === 1 ? ' game' : ' games'));
+      n.textContent = def ? modeCountText[r.mode] : (t.length ? t.join(' + ') + (r.d ? ' + daily' : '') : (r.d ? 'Daily' : ''));
     });
     if (def) {
       on = false; root.classList.remove('lay-m-on');

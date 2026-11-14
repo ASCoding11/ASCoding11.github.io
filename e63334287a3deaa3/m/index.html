@@ -139,10 +139,11 @@ body .pty h2{font-family:var(--f-d);font-weight:800;font-size:30px;letter-spacin
   // Each group: [kind, games, mode, and 1 if its tiles are the daily puzzles]. mode puts it under one of the six
   // headings in MODES (the same sections as the computer version, most played type first, and inside each the most
   // played game first: see the README's note on play-time order): keep groups of one mode together.
-  // A game: [folder, name, one line, best sideways (1/0), its address if it lives outside the Back Room folder, and
-  // for a daily puzzle what it is in plain words, shown as the tile's heading with the name under it].
-  // daily (Daily Puzzles) is the dashboard for every daily puzzle; the daily puzzles also have a small tile each.
-  var MODES={cars:['Cars','Racing, car soccer, kart battles and stunt time trials.'],shooters:['Shooters','Aim, build and outlast.'],parkour:['Parkour','Obbies, towers, climbs and runs.'],partygames:['Party games','Hide, bluff and shout out answers with friends.'],puzzles:['Puzzles','Every daily puzzle, block puzzles, word games and trivia.'],arcade:['Arcade','Snakes, sword duels, platformers and more.']};
+  // A game: [folder, name, one line, best sideways (1/0), its address if it lives outside the Back Room folder, for a
+  // puzzle tile what it is in plain words (shown as the tile's heading with the name under it), and 1 if that tile
+  // is a game of its own (Deepword, Trivium, Boxed) and so counts towards the number of games].
+  // daily (Daily Puzzles), the last puzzle tile, is the dashboard for every daily puzzle and the streak.
+  var MODES={cars:['Cars','Racing, car soccer, kart battles and stunt time trials.'],shooters:['Shooters','Aim, build and outlast.'],parkour:['Parkour','Obbies, towers, climbs and runs.'],partygames:['Party games','Hide, bluff and shout out answers with friends.'],puzzles:['Puzzles','Every puzzle one tap away, then block and number games.'],arcade:['Arcade','Snakes, sword duels, platformers and more.']};
   var GROUPS=[
     ['Racing and car games',[
       ['slipstream','Slipstream','22-car open-wheel races. Draft, brake late, pass.',1],
@@ -169,10 +170,9 @@ body .pty h2{font-family:var(--f-d);font-weight:800;font-size:30px;letter-spacin
       ['showdown','Showdown','No-limit Hold\'em with friends or bots.',0],
       ['puffer-party','Puffer Party','Name something in the category before the pufferfish pops.',0]
     ],'partygames'],
-    ['Every day',[
-      ['daily','Daily Puzzles','22 puzzles a day: word, geography, logic and soccer, with your streak.',0]
-    ],'puzzles'],
     ['Today’s puzzles, one tap each',[
+      ['deepword','Deepword','Deepword',0,'','Find the answer nobody else picked',1],
+      ['trivium','Trivium','Trivium',0,'','Trivia quiz',1],
       ['nearword','Nearword','Nearword',0,'','Find the word by meaning'],
       ['fourcast','Fourcast','Fourcast',0,'','Four word guesses at once'],
       ['hotspot','Hotspot','Hotspot',0,'','Find the country on a globe'],
@@ -193,16 +193,15 @@ body .pty h2{font-family:var(--f-d);font-weight:800;font-size:30px;letter-spacin
       ['scout-report','Scout Report','Scout Report',0,'','Soccer: mystery player'],
       ['crossbar','Crossbar','Crossbar',0,'','Soccer: fill the grid'],
       ['back-four','Back Four','Back Four',0,'','Soccer: four hidden links'],
-      ['stat-duel','Stat Duel','Stat Duel',0,'','Soccer: higher or lower']
+      ['stat-duel','Stat Duel','Stat Duel',0,'','Soccer: higher or lower'],
+      ['boxed','Boxed','Boxed',0,'/boxed/','Math contest problems',1],
+      ['daily','Daily Puzzles','Daily Puzzles',0,'','All of today’s puzzles and your streak']
     ],'puzzles',1],
-    ['Blocks, words and trivia',[
+    ['Blocks and numbers',[
       ['stackfall','Stackfall','Falling blocks: clear rows, or link sand wall to wall.',0],
       ['melon-merge','Melon Merge','Drop fruit, merge twins, grow a watermelon.',0],
       ['2048','2048','Join tiles to 2048: Classic, 6 × 6 Mega, or College and Dessert ladders.',0],
-      ['deepword','Deepword','Find the answer nobody else thought of and dive deeper.',0],
-      ['trivium','Trivium','Trivia: a daily ten, quick play or a live contest.',0],
-      ['gridpop','Gridpop','Drop blocks on an 8 × 8 grid and pop full rows and columns.',0],
-      ['boxed','Boxed','Real AMC 10 and AIME problems, five a day.',0,'/boxed/']
+      ['gridpop','Gridpop','Drop blocks on an 8 × 8 grid and pop full rows and columns.',0]
     ],'puzzles'],
     ['Snakes, duels and platformers',[
       ['coil','Coil','Grow your snake and cut off the bigger ones.',0],
@@ -227,10 +226,10 @@ body .pty h2{font-family:var(--f-d);font-weight:800;font-size:30px;letter-spacin
     b.append(img,t);b.addEventListener('click',function(){openGame(g)});
     return b;
   }
-  var mode='',modeN=null,modeCount=0;
+  var mode='',modeN=null,modeCount=0,modePz=0;
   GROUPS.forEach(function(gr){
     if(gr[2]!==mode){
-      mode=gr[2];modeCount=0;var M=MODES[mode]||[mode,''];
+      mode=gr[2];modeCount=0;modePz=0;var M=MODES[mode]||[mode,''];
       var mh=document.createElement('div');mh.className='mode '+mode;
       var mt=document.createElement('div');var h=document.createElement('h2');h.textContent=M[0];var mp=document.createElement('p');mp.textContent=M[1];mt.append(h,mp);
       modeN=document.createElement('span');modeN.className='n';
@@ -238,9 +237,9 @@ body .pty h2{font-family:var(--f-d);font-weight:800;font-size:30px;letter-spacin
     }
     var k=document.createElement('h3');k.textContent=gr[0];
     var grid=document.createElement('div');grid.className='grid';
-    gr[1].forEach(function(r){var g={id:r[0],name:r[1],desc:r[2],land:!!r[3],url:r[4]||B+r[0]+'/',plain:r[5]||''};if(g.id==='daily')g.scope=B;byId[g.id]=g;if(g.id!=='daily'&&!gr[3]){total++;modeCount++}grid.append(tile(g))});
+    gr[1].forEach(function(r){var g={id:r[0],name:r[1],desc:r[2],land:!!r[3],url:r[4]||B+r[0]+'/',plain:r[5]||''};if(g.id==='daily')g.scope=B;byId[g.id]=g;if(g.id!=='daily'){if(!gr[3]||r[6])total++;if(gr[3])modePz++;else modeCount++}grid.append(tile(g))});
     if(gr[3])grid.classList.add('pz');
-    modeN.textContent=modeCount+(modeCount===1?' game':' games')+(mode==='puzzles'?' + 21 daily':'');
+    modeN.textContent=(modePz?modePz+' puzzles + ':'')+modeCount+(modeCount===1?' game':' games');
     $('lists').append(k,grid);
   });
   $('count').textContent=total+' games · made for touch';
