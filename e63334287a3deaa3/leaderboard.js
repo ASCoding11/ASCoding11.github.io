@@ -78,7 +78,7 @@
   // moment as deaths (so kills from before deaths were counted can't inflate it), and no more than the all-time count.
   // Boards show in this order, after Hours.
   var GAMES = [
-    { d: 'rumble-karts', n: 'Rumble Karts', st: [
+    { d: 'rumble-karts', n: 'Rumble Karts', st: [{ k: 'elo', l: 'Elo', f: 'elo', lo: 100, hi: 3000 },
       { k: 'rwrecks', l: 'Most wrecks in a round', f: 'n', u: 'wreck', hi: 60, le: 'wrecks' },
       { k: 'wrecks', l: 'Wrecks (all time)', f: 'n', u: 'wreck', rate: 0.5 },
       { k: 'kdkills', l: 'Wrecks counted for K/D', f: 'n', u: 'wreck', rate: 0.5, le: 'wrecks', hide: true },
@@ -92,31 +92,31 @@
       { k: 'kdkills', l: 'Kills counted for K/D', f: 'n', u: 'kill', rate: 0.5, le: 'kills', hide: true },
       { k: 'deaths', l: 'Deaths', f: 'n', u: 'death', rate: 0.5, hide: true },
       { k: 'kd', l: 'K/D (all time)', chip: 'K/D', f: 'kd', kd: ['kdkills', 'deaths'], min: 20, hi: 100 }] },
-    { d: 'backrooms-1v1', n: 'Backrooms 1v1–4v4', st: [
+    { d: 'backrooms-1v1', n: 'Backrooms 1v1–4v4', st: [{ k: 'elo', l: 'Elo', f: 'elo', lo: 100, hi: 3000 },
       { k: 'mkills', l: 'Most kills in a match', f: 'n', u: 'kill', hi: 80, le: 'kills' },
       { k: 'kills', l: 'Kills (all time)', f: 'n', u: 'kill', rate: 0.5 },
       { k: 'kdkills', l: 'Kills counted for K/D', f: 'n', u: 'kill', rate: 0.5, le: 'kills', hide: true },
       { k: 'deaths', l: 'Deaths', f: 'n', u: 'death', rate: 0.5, hide: true },
       { k: 'kd', l: 'K/D (all time)', chip: 'K/D', f: 'kd', kd: ['kdkills', 'deaths'], min: 20, hi: 100 },
       { k: 'wins', l: 'Match wins', f: 'n', u: 'win', rate: 1 / 20 }] },
-    { d: 'drop-zone', n: 'Driftfall', st: [
+    { d: 'drop-zone', n: 'Driftfall', st: [{ k: 'elo', l: 'Elo', f: 'elo', lo: 100, hi: 3000 },
       { k: 'wins', l: 'Wins', f: 'n', u: 'win', rate: 1 / 120 },
       { k: 'kills', l: 'Most knockouts in a match', f: 'n', u: 'knockout', hi: 29 },
       { k: 'place', l: 'Best placing', chip: 'Best placing', f: 'n', lo: 1, hi: 30, low: 1 },
       { k: 'matches', l: 'Matches played', f: 'n', u: 'match', rate: 1 / 60 }] },
-    { d: 'lunge-line', n: 'Lokop', st: [
+    { d: 'lunge-line', n: 'Lokop', st: [{ k: 'elo', l: 'Elo', f: 'elo', lo: 100, hi: 3000 },
       { k: 'wins', l: 'Online wins', f: 'n', u: 'win', rate: 1 / 45 },
       { k: 'kills', l: 'Touches (all time)', chip: 'Touches', f: 'n', u: 'touch', rate: 1 },
       { k: 'streak', l: 'Longest touch streak', chip: 'Best streak', f: 'n', u: 'touch', hi: 500, le: 'kills' }] },
-    { d: 'slipstream', n: 'Slipstream', laps: true, st: [] },
-    { d: 'boostball', n: 'Boostball', st: [
+    { d: 'slipstream', n: 'Slipstream', laps: true, st: [{ k: 'elo', l: 'Elo', f: 'elo', lo: 100, hi: 3000 }] },
+    { d: 'boostball', n: 'Boostball', st: [{ k: 'elo', l: 'Elo', f: 'elo', lo: 100, hi: 3000 },
       { k: 'mgoals', l: 'Most goals in a match', f: 'n', u: 'goal', hi: 40, le: 'goals' },
       { k: 'goals', l: 'Goals (all time)', f: 'n', u: 'goal', rate: 0.2 },
       { k: 'wins', l: 'Match wins', f: 'n', u: 'win', rate: 1 / 30 }] },
     { d: 'coil', n: 'Coil', st: [{ k: 'best', l: 'Longest snake', f: 'n', hi: 100000 }, { k: 'kills', l: 'Cut-offs (all time)', f: 'n', u: 'cut-off', rate: 0.5 }] },
     { d: 'trivium', n: 'Trivium', st: [{ k: 'daily', l: 'Best Daily score', f: 'n', u: 'pt', hi: 20000 }, { k: 'streak', l: 'Best Daily streak', f: 'days', hi: 3650 }] },
     { d: 'showdown', n: 'Showdown', st: [{ k: 'pot', l: 'Biggest pot (practice)', f: 'chips', hi: 1e7 }, { k: 'hands', l: 'Hands played (practice)', f: 'n', u: 'hand', hi: 1e7 }] },
-    { d: 'chromaflage', n: 'Chromaflage', st: [
+    { d: 'chromaflage', n: 'Chromaflage', st: [{ k: 'elo', l: 'Elo', f: 'elo', lo: 100, hi: 3000 },
       { k: 'rfound', l: 'Most hiders found in a round', f: 'n', u: 'hider', hi: 7, le: 'found' },
       { k: 'found', l: 'Hiders found (all time)', f: 'n', u: 'hider', rate: 0.2 },
       { k: 'hidden', l: 'Rounds stayed hidden', f: 'n', u: 'round', rate: 1 / 20 }] },
@@ -124,7 +124,7 @@
       { k: 'tower', l: 'Fastest tower', f: 'time', lo: 20, hi: 36000 },
       { k: 'obby', l: 'Fastest obby (all 49 stages)', chip: 'Fastest obby', f: 'time', lo: 120, hi: 360000 },
       { k: 'towers', l: 'Towers climbed', f: 'n', u: 'tower', hi: 1e6 }] },
-    { d: 'turbo-trail', n: 'Turbo Trail', st: [
+    { d: 'turbo-trail', n: 'Turbo Trail', st: [{ k: 'elo', l: 'Elo', f: 'elo', lo: 100, hi: 3000 },
       { k: 'obby', l: 'Fastest full run (all 25 levels)', chip: 'Fastest full run', f: 'time', lo: 150, hi: 360000 },
       { k: 'stars', l: 'Most stars', f: 'n', u: 'star', hi: 75 },
       { k: 'levels', l: 'Levels cleared (all time)', chip: 'Levels cleared', f: 'n', u: 'level', rate: 1 / 4 },
@@ -187,20 +187,20 @@
       { k: 'r2-afterburner', l: '29. Afterburner', chip: 'Afterburner', f: 'time', lo: 29.9, hi: 3600 },
       { k: 'r2-final-exam', l: '30. Final Exam', chip: 'Final Exam', f: 'time', lo: 34.8, hi: 3600 }] },
     { d: 'tidewick', n: 'Tidewick', st: [{ k: 'score', l: 'Best score', f: 'n', u: 'pt', hi: 999999 }] },
-    { d: 'odd-one-out', n: 'Odd One Out', st: [
+    { d: 'odd-one-out', n: 'Odd One Out', st: [{ k: 'elo', l: 'Elo', f: 'elo', lo: 100, hi: 3000 },
       { k: 'rfound', l: 'Most props found in a round', f: 'n', u: 'prop', hi: 15, le: 'found' },
       { k: 'survive', l: 'Longest survival as a prop', f: 'dur', hi: 900 },
       { k: 'found', l: 'Props found (all time)', f: 'n', u: 'prop', rate: 0.5 },
       { k: 'wins', l: 'Rounds won', f: 'n', u: 'round', rate: 1 / 20 }] },
-    { d: 'tumble-trials', n: 'Tumble Trials', st: [
+    { d: 'tumble-trials', n: 'Tumble Trials', st: [{ k: 'elo', l: 'Elo', f: 'elo', lo: 100, hi: 3000 },
       { k: 'crowns', l: 'Crowns', f: 'n', u: 'crown', hi: 1e5 },
       { k: 'crownrun', l: 'Most crowns in a row', f: 'n', u: 'crown', hi: 1000, le: 'crowns' },
       { k: 'shows', l: 'Shows played', f: 'n', u: 'show', hi: 1e6 }] },
-    { d: 'deepword', n: 'Deepword', st: [
+    { d: 'deepword', n: 'Deepword', st: [{ k: 'elo', l: 'Elo', f: 'elo', lo: 100, hi: 3000 },
       { k: 'depth', l: 'Deepest daily dive', f: 'm', hi: 10935 },
       { k: 'dives', l: 'Daily dives', f: 'n', u: 'dive', rate: 1 / 30 },
       { k: 'brawlwins', l: 'Blowfish Brawl wins', f: 'n', u: 'win', rate: 1 / 30 }] },
-    { d: 'puffer-party', n: 'Puffer Party', st: [
+    { d: 'puffer-party', n: 'Puffer Party', st: [{ k: 'elo', l: 'Elo', f: 'elo', lo: 100, hi: 3000 },
       { k: 'wins', l: 'Online wins', f: 'n', u: 'win', rate: 1 / 45 },
       { k: 'answers', l: 'Answers given (all time)', chip: 'Answers', f: 'n', u: 'answer', rate: 1 / 2 },
       { k: 'streak', l: 'Longest answer streak', chip: 'Best streak', f: 'n', u: 'answer', hi: 1000, le: 'answers' }] },

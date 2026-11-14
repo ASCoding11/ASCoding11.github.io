@@ -280,6 +280,7 @@ body.touch #banner span{font-size:14px}
 }
 </style>
 <script src="/e63334287a3deaa3/stats.js" data-game="odd-one-out" defer></script>
+<script src="/e63334287a3deaa3/elo.js" data-game="odd-one-out" defer></script>
 <script src="/e63334287a3deaa3/gamechat.js" defer></script>
 <script src="/adrefresh.js" defer></script>
 </head>
@@ -2812,6 +2813,8 @@ function showResults(rs){
   hudCache.endMsg=null;$('endMsg').textContent='';$('end').hidden=false;
   const myTeam=rs.hu.indexOf(mine)>=0?'hunters':rs.pr.indexOf(mine)>=0?'props':'';
   if(!over&&myTeam&&myTeam===res.win&&window.BackRoomStats)BackRoomStats.add('wins',1);
+  // ranked rating (../elo.js): online rounds only; opp is everyone on the other side
+  if(!over&&myTeam&&G.mode==='online'&&window.BackRoomElo){try{const s=myTeam===res.win?1:0;BackRoomElo.report({id:Net.room+':'+rs.id,won:!!s,opp:(myTeam==='hunters'?rs.pr:rs.hu).map(u=>{const e=ents.get(u);return{u,bot:e&&e.bot?1:0,s}})})}catch(e){}}
   if(!over&&myTeam&&window.BackRoomStats)BackRoomStats.max(myTeam==='hunters'?'rfound':'survive',myTeam==='hunters'?+(rs.k||{})[mine]||0:+(res.surv||{})[mine]||0);
   if(!over)sfx(myTeam&&myTeam===res.win?'win':'lose');else sfx('win');
   showAd('adEnd');

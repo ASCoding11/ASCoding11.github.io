@@ -12,6 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&family=Pixelify+Sans:wght@400;600&display=swap">
 <script src="/e63334287a3deaa3/stats.js" data-game="lunge-line" defer></script>
+<script src="/e63334287a3deaa3/elo.js" data-game="lunge-line" defer></script>
 <script src="/e63334287a3deaa3/gamechat.js" defer></script>
 <style>
 /* Lokop. The duel is drawn on one small canvas (#cv, 180 game pixels high) scaled up with hard edges; menus, lobby,
@@ -2953,6 +2954,8 @@ function finals(evs) {
       if (G.statSeat >= 0) {
         if (G.best > (+store.get('streak', 0) || 0)) store.set('streak', G.best);
         if (window.BackRoomStats) try { BackRoomStats.max('streak', G.best); } catch (x) {}
+        // ranked rating (../elo.js): online duels only
+        if (G.mode === 'online' && G.net && G.net.opp && window.BackRoomElo) try { BackRoomElo.report({ won: e.a === G.statSeat, opp: [{ u: G.net.opp, s: e.a === G.statSeat ? 1 : 0 }] }); } catch (x) {}
         if (G.mode === 'online' && e.a === G.statSeat) {
           store.set('wins', (+store.get('wins', 0) || 0) + 1);
           if (window.BackRoomStats) try { BackRoomStats.add('wins', 1); } catch (x) {}

@@ -255,6 +255,7 @@ body.touch #pips{left:calc(200px + env(safe-area-inset-left,0px));transform:none
 @media (prefers-reduced-motion:reduce){.blink{animation:none}#banner.show{animation:none}}
 </style>
 <script src="/e63334287a3deaa3/stats.js" data-game="backrooms-1v1" defer></script>
+<script src="/e63334287a3deaa3/elo.js" data-game="backrooms-1v1" defer></script>
 <script src="/e63334287a3deaa3/gamechat.js" defer></script>
 <script src="/adrefresh.js" defer></script>
 </head>
@@ -1999,6 +2000,8 @@ function showOnlineEnd(){
   state='end';lobbyShown=false;$('lobby').hidden=true;$('osd').hidden=false;$('hud').hidden=true;$('pause').hidden=true;paused=false;hideGhosts();
   fillOnlineEnd();
   if(RD&&roster.get(Net.uid)===(RD.mw==='b'?'b':'r')&&window.BackRoomStats)BackRoomStats.add('wins',1);
+  // ranked rating (../elo.js): opp is everyone on the other team
+  if(RD&&roster.has(Net.uid)&&window.BackRoomElo){try{const mt=roster.get(Net.uid),s=mt===(RD.mw==='b'?'b':'r')?1:0;BackRoomElo.report({id:Net.room+':'+RD.id,won:!!s,opp:[...roster].filter(([u,t])=>u!==Net.uid&&t!==mt).map(([u])=>({u,s}))})}catch(e){}}
   $('end').hidden=false;showAd('adEnd');
   if(document.pointerLockElement)document.exitPointerLock();
 }
