@@ -63,6 +63,10 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-14', version: '1.29.2', title: 'Fall buttons', kind: 'fix',
+     tags: ['Back Room', 'Fall'], items: [
+      'The green Play buttons, labels and links are harvest gold for the fall, so they match the rest of the page.'
+    ]},
     {date: '2026-11-14', version: '1.29.1', title: 'A simpler suggestion box', kind: 'fix',
      tags: ['Back Room', 'Suggestions'], items: [
       'The box at the top of the page is now just that: a box. Type a suggestion or report an error and press Send, with no game or category to pick first.'
