@@ -63,6 +63,11 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-13', version: '1.28.1', title: 'Odd One Out: size sets your speed, and shots are free', kind: 'fix',
+     img: 'm/thumbs/odd-one-out.jpg', tags: ['Odd One Out', 'Balance'], items: [
+      'Props: the smaller the object you become, the slower you move. Big objects are now the quick ones.',
+      'Hunters: shooting a real object no longer costs health. A host who wants the old penalty can switch it on in the lobby.'
+    ]},
     {date: '2026-11-13', version: '1.28', title: 'Find a game faster', kind: 'feature',
      tags: ['Back Room', 'Puzzles', 'Layout'], items: [
       'Six buttons at the top of the games jump straight to Cars, Shooters, Parkour, Party games, Puzzles or Arcade.',
