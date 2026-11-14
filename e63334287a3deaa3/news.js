@@ -63,6 +63,12 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-14', version: '1.29', title: 'A proper fall look', kind: 'feature',
+     tags: ['Back Room', 'Fall', 'Thanksgiving'], items: [
+      'The cards now take on warm fall colours with the background instead of sitting grey on top of it, most of all in dark mode.',
+      'A harvest scene sits behind the page: a pumpkin patch with wheat, a low sun, a branch, and a Thanksgiving turkey in a pilgrim hat that pecks at the ground.',
+      'Leaves still fall, with the odd acorn. On a phone the pumpkins and the turkey are at the bottom of the page. The 🍂 button in the footer still turns it all off.'
+    ]},
     {date: '2026-11-13', version: '1.28.1', title: 'Odd One Out: size sets your speed, and shots are free', kind: 'fix',
      img: 'm/thumbs/odd-one-out.jpg', tags: ['Odd One Out', 'Balance'], items: [
       'Props: the smaller the object you become, the slower you move. Big objects are now the quick ones.',
