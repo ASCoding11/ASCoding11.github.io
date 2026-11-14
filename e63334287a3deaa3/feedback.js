@@ -3,9 +3,12 @@
  *
  *   <script src="/e63334287a3deaa3/feedback.js" defer></script>
  *
- * Puts a slim "Got an idea or found a bug? Tell Arjun" bar at the very top of the page
- * (the first thing in #home or .wrap). It opens into a small form: what kind of note,
- * which game, the message, and an optional name and way to reply.
+ * Puts a suggestion box at the very top of the page (the first thing in #home or .wrap): a
+ * small heading, "Add any suggestions or report any errors", over one empty text box that
+ * says "Suggestion here...". Nothing has to be picked first. The box grows and a Send button
+ * appears once it has the cursor or some text in it. (It used to be a bar that opened into a
+ * form asking for the kind of note, the game, a name and a way to reply; notes from this box
+ * are stored the same way with game and kind both "other" and the name and reply left empty.)
  *
  * Each note becomes one Firestore document in `feedback` (same `rumblekarts` project as
  * the games): {uid, ts, game, kind, box}, with uid the sender's Firebase account, ts set by
@@ -23,7 +26,7 @@
  * the real checking of keys, types and sizes.
  *
  * Anything with a data-feedback-open attribute (the "Want more games?" button under the games
- * on the Back Room and phone pages) scrolls to the bar and opens it; so does
+ * on the Back Room and phone pages) scrolls to the box and puts the cursor in it; so does
  * window.BackRoomFeedback.open().
  *
  * Loaded with data-list-only (as the admin page does), it only shares the game list.
@@ -83,141 +86,82 @@
 
     var css = document.createElement('style');
     css.textContent =
-      '.fbk{margin:12px 0 0;border:1px solid var(--line,#d3dad2);border-radius:12px;background:var(--panel,#fff);color:var(--ink,#16201b);font-family:var(--body,system-ui,sans-serif);font-size:14px;line-height:1.45}' +
+      '.fbk{margin:12px 0 0;color:var(--ink,#16201b);font-family:var(--body,system-ui,sans-serif);font-size:14px;line-height:1.45}' +
       '#home > .fbk{margin:0 0 16px}' +
       '.fbk *{box-sizing:border-box}.fbk [hidden]{display:none!important}' +
-      '.fbk-bar{display:flex;align-items:center;gap:10px;width:100%;min-height:42px;padding:8px 14px;background:none;border:0;border-radius:12px;color:inherit;font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}' +
-      '.fbk-bar:hover .fbk-t b{text-decoration:underline}' +
-      '.fbk-dot{width:8px;height:8px;border-radius:50%;background:var(--accent,#1d6a4b);flex:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent,#1d6a4b) 25%,transparent)}' +
-      '.fbk-t{min-width:0;color:var(--ink-2,#4a5751)}' +
-      '.fbk-t b{color:var(--accent,#1d6a4b);font-weight:600;white-space:nowrap}' +
-      '.fbk-s{display:none}' +
-      '@media (max-width:400px){.fbk-l{display:none}.fbk-s{display:inline}}' +
-      '.fbk-chev{margin-left:auto;flex:none;font-family:var(--mono,monospace);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2,#4a5751);border:1px solid var(--line,#d3dad2);border-radius:999px;padding:3px 10px}' +
-      '.fbk-body{border-top:1px solid var(--line,#d3dad2);padding:14px}' +
-      '.fbk form{display:grid;gap:12px;margin:0}' +
-      '.fbk-top{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:flex-end}' +
-      '.fbk fieldset{border:0;margin:0;padding:0;min-width:0}' +
-      '.fbk legend,.fbk-lab{display:block;padding:0;margin:0 0 6px;font-family:var(--mono,monospace);font-size:11.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2,#4a5751)}' +
-      '.fbk-lab i{font-style:normal;text-transform:none;letter-spacing:0;font-family:var(--body,system-ui,sans-serif);font-weight:400}' +
-      '.fbk-chips{display:flex;flex-wrap:wrap;gap:6px}' +
-      '.fbk-chips label{position:relative;cursor:pointer}' +
-      '.fbk-chips input{position:absolute;opacity:0;width:1px;height:1px;margin:0}' +
-      '.fbk-chips span{display:inline-flex;align-items:center;min-height:36px;padding:6px 13px;border-radius:999px;border:1px solid var(--line,#d3dad2);background:var(--panel-2,#f6f8f4);font-weight:600;font-size:14px}' +
-      '.fbk-chips input:checked + span{background:var(--accent,#1d6a4b);border-color:var(--accent,#1d6a4b);color:var(--accent-ink,#fff)}' +
-      '.fbk-chips input:focus-visible + span{outline:2px solid var(--accent,#1d6a4b);outline-offset:2px}' +
-      '.fbk-game{flex:1 1 220px;min-width:0;max-width:340px}' +
-      '.fbk select,.fbk textarea,.fbk input[type=text]{display:block;width:100%;font:inherit;font-size:16px;color:var(--ink,#16201b);background:var(--panel-2,#f6f8f4);border:1px solid var(--line,#d3dad2);border-radius:8px;padding:8px 10px;min-height:40px}' +
-      '.fbk textarea{min-height:96px;resize:vertical;line-height:1.4}' +
-      '.fbk select:focus,.fbk textarea:focus,.fbk input[type=text]:focus{outline:2px solid var(--accent,#1d6a4b);outline-offset:0;border-color:transparent}' +
-      '.fbk-cnt{float:right;font-family:var(--mono,monospace);font-weight:500;letter-spacing:0}' +
+      '.fbk form{display:grid;gap:6px;margin:0}' +
+      '.fbk-lab{display:flex;align-items:baseline;gap:10px;margin:0;font-family:var(--mono,monospace);font-size:11.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2,#4a5751)}' +
+      '.fbk-cnt{margin-left:auto;font-weight:500;letter-spacing:0;text-transform:none}' +
       '.fbk-cnt.hi{color:var(--down,#b42318)}' +
-      '.fbk-two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:12px}' +
-      '@media (max-width:560px){.fbk-two{grid-template-columns:minmax(0,1fr)}.fbk-game{max-width:none}}' +
-      '.fbk-acts{display:flex;flex-wrap:wrap;align-items:center;gap:10px}' +
-      '.fbk-acts button{font:inherit;font-weight:600;font-size:15px;min-height:42px;padding:8px 18px;border-radius:8px;border:1px solid var(--line,#d3dad2);background:var(--panel-2,#f6f8f4);color:var(--ink,#16201b);cursor:pointer}' +
+      '.fbk textarea{display:block;width:100%;font:inherit;font-size:16px;line-height:1.4;color:var(--ink,#16201b);background:var(--panel,#fff);border:1px solid var(--line,#d3dad2);border-radius:12px;padding:10px 12px;min-height:46px;height:46px;resize:vertical;transition:height .15s ease}' +
+      '.fbk textarea::placeholder{color:var(--ink-2,#4a5751);opacity:.75}' +
+      '.fbk[data-on] textarea{height:104px}' +
+      '.fbk textarea:focus{outline:2px solid var(--accent,#1d6a4b);outline-offset:0;border-color:transparent}' +
+      '.fbk-acts{display:none;flex-wrap:wrap;align-items:center;gap:8px 12px}' +
+      '.fbk[data-on] .fbk-acts,.fbk-done .fbk-acts{display:flex}' +
+      '.fbk-acts button{font:inherit;font-weight:600;font-size:15px;min-height:40px;padding:7px 18px;border-radius:9px;border:1px solid var(--line,#d3dad2);background:var(--panel-2,#f6f8f4);color:var(--ink,#16201b);cursor:pointer}' +
       '.fbk-acts .fbk-send{background:var(--accent,#1d6a4b);border-color:var(--accent,#1d6a4b);color:var(--accent-ink,#fff)}' +
       '.fbk-acts button[disabled]{opacity:.6;cursor:default}' +
-      '.fbk-msg{margin:0;flex:1 1 220px;font-size:14px;color:var(--ink-2,#4a5751);overflow-wrap:anywhere}' +
-      '.fbk-msg:empty{display:none}' +
+      '.fbk-msg{margin:0;flex:1 1 220px;font-size:13px;color:var(--ink-2,#4a5751);overflow-wrap:anywhere}' +
       '.fbk-msg.err{color:var(--down,#b42318)}' +
-      '.fbk-fine{margin:0;font-size:12.5px;color:var(--ink-2,#4a5751)}' +
-      '.fbk-done{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}' +
+      '.fbk-done{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;border:1px solid var(--line,#d3dad2);border-radius:12px;background:var(--panel,#fff);padding:10px 14px}' +
       '.fbk-done p{margin:0;flex:1 1 220px}' +
       '.fbk-done b{color:var(--accent,#1d6a4b)}' +
-      '@media (max-width:560px){.fbk-acts button{flex:1 1 auto}}';
+      '@media (prefers-reduced-motion: reduce){.fbk textarea{transition:none}}';
     document.head.appendChild(css);
 
+    // One heading and one empty box: no kind or game to pick first. Notes are stored as before, with game and kind
+    // both "other" (the admin page's filters still work), and no name or reply field.
+    var FINE = 'Only Arjun and the site\'s admins can read these. Please don\'t put passwords or anything private in it.';
     var box = document.createElement('div');
-    box.id = 'fbk'; box.className = 'fbk'; box.setAttribute('role', 'region'); box.setAttribute('aria-label', 'Feedback');
+    box.id = 'fbk'; box.className = 'fbk'; box.setAttribute('role', 'region'); box.setAttribute('aria-label', 'Suggestions');
     box.innerHTML =
-      '<button type="button" class="fbk-bar" aria-expanded="false" aria-controls="fbk-body">' +
-        '<span class="fbk-dot" aria-hidden="true"></span>' +
-        '<span class="fbk-t"><span class="fbk-l">Got an idea or found a bug?</span><span class="fbk-s">Idea or bug?</span> <b>Tell Arjun</b></span>' +
-        '<span class="fbk-chev" aria-hidden="true">Open</span>' +
-      '</button>' +
-      '<div class="fbk-body" id="fbk-body" hidden>' +
-        '<form novalidate>' +
-          '<div class="fbk-top">' +
-            '<fieldset><legend>What is it?</legend><div class="fbk-chips"></div></fieldset>' +
-            '<label class="fbk-game"><span class="fbk-lab">Which game?</span><select name="game"><option value="" disabled selected>Pick one…</option></select></label>' +
-          '</div>' +
-          '<label><span class="fbk-lab">Your message <span class="fbk-cnt" aria-hidden="true"></span></span>' +
-            '<textarea name="msg" rows="4" maxlength="' + MAX.msg + '"></textarea></label>' +
-          '<div class="fbk-two">' +
-            '<label><span class="fbk-lab">Your name <i>(optional)</i></span><input type="text" name="name" maxlength="' + MAX.name + '" autocomplete="nickname"></label>' +
-            '<label><span class="fbk-lab">How to reach you <i>(optional)</i></span><input type="text" name="contact" maxlength="' + MAX.contact + '" autocomplete="email" placeholder="If you\'d like a reply"></label>' +
-          '</div>' +
-          '<div class="fbk-acts"><button type="submit" class="fbk-send">Send</button><button type="button" class="fbk-x">Close</button>' +
-            '<p class="fbk-msg" role="status" aria-live="polite"></p></div>' +
-          '<p class="fbk-fine">Only Arjun and the site\'s admins can read these. Please don\'t put passwords or anything private in it.</p>' +
-        '</form>' +
-        '<div class="fbk-done" hidden><p><b>Thanks!</b> Arjun will read it.</p><div class="fbk-acts"><button type="button" class="fbk-again">Send another</button><button type="button" class="fbk-x">Close</button></div></div>' +
-      '</div>';
+      '<form novalidate>' +
+        '<label class="fbk-lab" for="fbk-ta"><span>Add any suggestions or report any errors</span><span class="fbk-cnt" aria-hidden="true"></span></label>' +
+        '<textarea id="fbk-ta" name="msg" rows="1" maxlength="' + MAX.msg + '" placeholder="Suggestion here..."></textarea>' +
+        '<div class="fbk-acts"><button type="submit" class="fbk-send">Send</button><p class="fbk-msg" role="status" aria-live="polite"></p></div>' +
+      '</form>' +
+      '<div class="fbk-done" hidden><p><b>Thanks!</b> Arjun will read it.</p><div class="fbk-acts"><button type="button" class="fbk-again">Send another</button></div></div>';
 
     var $ = function (s) { return box.querySelector(s); };
-    var bar = $('.fbk-bar'), body = $('.fbk-body'), form = $('form'), done = $('.fbk-done');
-    var sel = form.elements.game, ta = form.elements.msg, nm = form.elements.name, ct = form.elements.contact;
-    var send = $('.fbk-send'), msg = $('.fbk-msg'), cnt = $('.fbk-cnt');
+    var form = $('form'), done = $('.fbk-done');
+    var ta = form.elements.msg, send = $('.fbk-send'), msg = $('.fbk-msg'), cnt = $('.fbk-cnt');
 
-    KINDS.forEach(function (k, i) {
-      var l = document.createElement('label'), r = document.createElement('input'), s = document.createElement('span');
-      r.type = 'radio'; r.name = 'kind'; r.value = k[0]; r.checked = i === 0; s.textContent = k[1];
-      l.append(r, s); $('.fbk-chips').appendChild(l);
-    });
-    GAMES.forEach(function (g) { var o = document.createElement('option'); o.value = g[0]; o.textContent = g[1]; sel.appendChild(o); });
-
-    var HINT = { idea: 'What would you add or change, and in which part of the game?', bug: 'What happened, what did you expect, and on what device?', other: 'What\'s on your mind?' };
-    function kind() { var r = form.querySelector('input[name="kind"]:checked'); return r ? r.value : 'other'; }
-    function hint() { ta.placeholder = HINT[kind()] || ''; }
-    function count() { var n = ta.value.length; cnt.textContent = n + ' / ' + MAX.msg; cnt.classList.toggle('hi', n > MAX.msg - 50); }
-    function say(t, err) { msg.textContent = t || ''; msg.classList.toggle('err', !!err); }
+    function count() { var n = ta.value.length; cnt.textContent = n > MAX.msg - 200 ? n + ' / ' + MAX.msg : ''; cnt.classList.toggle('hi', n > MAX.msg - 50); }
+    function say(t, err) { msg.textContent = t || FINE; msg.classList.toggle('err', !!err); }
+    // The box grows and shows Send once it has the cursor or some text in it.
+    function show() { box.toggleAttribute('data-on', document.activeElement === ta || !!ta.value || send.disabled || msg.classList.contains('err')); }
 
     ta.value = store('fbk:draft') || '';
-    nm.value = store('fbk:name') || '';
-    ct.value = store('fbk:contact') || '';
-    hint(); count();
+    count(); say(''); show();
 
-    function setOpen(o) {
-      body.hidden = !o; box.toggleAttribute('data-open', o);
-      bar.setAttribute('aria-expanded', o ? 'true' : 'false');
-      $('.fbk-chev').textContent = o ? 'Close' : 'Open';
-      if (o) { if (!form.hidden) setTimeout(function () { (sel.value ? ta : sel).focus({ preventScroll: true }); }, 0); }
-      else bar.focus({ preventScroll: true });
-    }
-    bar.addEventListener('click', function () { setOpen(body.hidden); });
-    // "Tell Arjun" buttons elsewhere on the page (data-feedback-open) bring the bar into view and open it.
+    // "Tell Arjun" buttons elsewhere on the page (data-feedback-open) bring the box into view and put the cursor in it.
     function openHere() {
       var still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
       box.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'start' });
-      if (body.hidden) setOpen(true);
+      if (form.hidden) { done.hidden = true; form.hidden = false; }
+      ta.focus({ preventScroll: true }); show();
     }
     window.BackRoomFeedback.open = openHere;
     document.addEventListener('click', function (e) {
       var t = e.target && e.target.closest && e.target.closest('[data-feedback-open]');
       if (t) { e.preventDefault(); openHere(); }
     });
-    box.addEventListener('click', function (e) { if (e.target.closest('.fbk-x')) setOpen(false); });
-    box.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !body.hidden) { e.stopPropagation(); setOpen(false); } });
-    form.addEventListener('change', function (e) { if (e.target.name === 'kind') hint(); });
-    ta.addEventListener('input', function () { count(); store('fbk:draft', ta.value ? ta.value.slice(0, MAX.msg) : null); if (msg.classList.contains('err')) say(''); });
-    $('.fbk-again').addEventListener('click', function () { done.hidden = true; form.hidden = false; say(''); ta.focus(); });
+    ta.addEventListener('focus', show);
+    ta.addEventListener('blur', function () { setTimeout(show, 150); });   // after a click on Send has landed
+    ta.addEventListener('input', function () { count(); store('fbk:draft', ta.value ? ta.value.slice(0, MAX.msg) : null); if (msg.classList.contains('err')) say(''); show(); });
+    box.addEventListener('keydown', function (e) { if (e.key === 'Escape' && document.activeElement === ta) { e.stopPropagation(); ta.blur(); } });
+    $('.fbk-again').addEventListener('click', function () { done.hidden = true; form.hidden = false; say(''); ta.focus(); show(); });
 
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       if (send.disabled) return;
       var text = cut(ta.value, MAX.msg);
-      if (!sel.value) { say('Pick which game it\'s about, or "The website, not a game".', true); sel.focus(); return; }
-      if (!text) { say('Write a few words first.', true); ta.value = ''; count(); ta.focus(); return; }
+      if (!text) { say('Write a few words first.', true); ta.value = ''; count(); ta.focus(); show(); return; }
       var t = sentTimes(), now = Date.now();
-      if (t.length >= PER_DAY) { say('That\'s ' + PER_DAY + ' notes from this browser today. Thanks! Try again tomorrow.', true); return; }
-      if (t.length && now - t[t.length - 1] < GAP) { say('You just sent one. Wait ' + Math.ceil((GAP - (now - t[t.length - 1])) / 1000) + ' seconds and try again.', true); return; }
-      var doc = {
-        msg: text, game: sel.value, kind: kind(),
-        name: cut(nm.value, MAX.name), contact: cut(ct.value, MAX.contact),
-        page: String(location.pathname || '/').slice(0, MAX.page)
-      };
-      store('fbk:name', doc.name || null); store('fbk:contact', doc.contact || null);
+      if (t.length >= PER_DAY) { say('That\'s ' + PER_DAY + ' notes from this browser today. Thanks! Try again tomorrow.', true); show(); return; }
+      if (t.length && now - t[t.length - 1] < GAP) { say('You just sent one. Wait ' + Math.ceil((GAP - (now - t[t.length - 1])) / 1000) + ' seconds and try again.', true); show(); return; }
+      var doc = { msg: text, game: 'other', kind: 'other', name: '', contact: '', page: String(location.pathname || '/').slice(0, MAX.page) };
       send.disabled = true; send.textContent = 'Sending…'; say('');
       submit(doc).then(function () {
         noteSent(); store('fbk:draft', null);
@@ -225,10 +169,10 @@
         form.hidden = true; done.hidden = false; done.querySelector('.fbk-again').focus({ preventScroll: true });
       }, function (err) {
         var c = (err && err.code) || '';
-        if (c === 'denied') say('Feedback isn\'t switched on yet. Arjun still has to turn it on, so nothing was sent. Your message is kept here; try again another day.', true);
+        if (c === 'denied') say('Suggestions aren\'t switched on yet. Arjun still has to turn them on, so nothing was sent. Your message is kept here; try again another day.', true);
         else if (c === 'busy') say('Too many people are signing in right now. Wait a minute and try again.', true);
         else say('Couldn\'t send it. Check your connection and try again.', true);
-      }).then(function () { send.disabled = false; send.textContent = 'Send'; });
+      }).then(function () { send.disabled = false; send.textContent = 'Send'; show(); });
     });
 
     host.insertBefore(box, host.firstChild);
