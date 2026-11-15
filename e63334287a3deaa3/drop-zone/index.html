@@ -1158,7 +1158,7 @@ function applyBits(b){if(typeof b!=='string'||b.length>1200)return;let t;try{t=a
 function placeAt(x,z){let best=null,bd=1e9;for(const p of places){const d=Math.hypot(x-p.x,z-p.z);if(d<p.r&&d<bd){bd=d;best=p}}return best}
 
 /* ---------- chests and floor loot: instanced, one draw call each ---------- */
-let chests=[],chestMesh=null,openMesh=null,itemMesh=null;
+let chests=[],chestMesh=null,openMesh=null,glowIM=null;const itemIM={};
 const ITEM_CAP=700;
 const items=new Map(),itemList=[],picked=new Set();
 const _o=new THREE.Object3D();
@@ -1176,42 +1176,65 @@ function setupChests(){
   chestMesh=new THREE.InstancedMesh(ga,MAT,chests.length);openMesh=new THREE.InstancedMesh(gb,MAT,chests.length);
   for(const m of [chestMesh,openMesh]){m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);scene.add(m)}
   for(const c of chests)drawChest(c);
-  const ig=Bag();bagBox(ig,0,0,0,.8,.34,.34,0xffffff);bagBox(ig,.18,-.18,0,.16,.28,.2,0xdddddd);bagBox(ig,-.1,.2,0,.36,.08,.22,0xeeeeee);
-  itemMesh=new THREE.InstancedMesh(bagGeo(ig),new THREE.MeshLambertMaterial({vertexColors:true}),ITEM_CAP);
-  itemMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-  itemMesh.setColorAt(0,new THREE.Color(1,1,1));itemMesh.count=0;scene.add(itemMesh);   // the colour buffer is sized from count, so set a colour before emptying it
+  // Floor loot: a weapon lies there as itself (the same model you hold), a heal as its kit or bottle, ammo and scrap
+  // as a small crate in the colour of the weapon that uses it. One instanced mesh per shape (8), filled each frame by
+  // drawItems(), plus one mesh of soft glows underneath in the rarity colour.
+  const ig=Bag();bagRBox(ig,0,0,0,.62,.4,.44,0xffffff);bagBox(ig,0,.06,0,.72,.07,.5,0xbfbfbf);bagBox(ig,0,.25,0,.3,.05,.08,0x8a8a8a);
+  const im=new THREE.MeshLambertMaterial({vertexColors:true});
+  for(const [k,g,cap] of [['pi',GUN_GEO.pi,120],['sm',GUN_GEO.sm,120],['sg',GUN_GEO.sg,120],['ar',GUN_GEO.ar,120],['sr',GUN_GEO.sr,120],['hp',GUN_GEO.hp,200],['sh',GUN_GEO.sh,200],['box',bagGeo(ig),400]]){
+    const m=new THREE.InstancedMesh(g,k==='box'?new THREE.MeshLambertMaterial({vertexColors:true}):im,cap);m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);m.frustumCulled=false;if(k==='box')m.setColorAt(0,new THREE.Color(1,1,1));m.count=0;m.userData.cap=cap;scene.add(m);itemIM[k]=m}   // (only the crates are tinted per item)
+  glowIM=new THREE.InstancedMesh(new THREE.PlaneGeometry(1,1).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({map:glowTex(),transparent:true,depthWrite:false,opacity:.85}),ITEM_CAP);
+  glowIM.instanceMatrix.setUsage(THREE.DynamicDrawUsage);glowIM.frustumCulled=false;glowIM.setColorAt(0,new THREE.Color(1,1,1));glowIM.count=0;glowIM.renderOrder=1;scene.add(glowIM);
+  // (chests and loot are spread over the whole island but their meshes sit at the map's corner, so they must not be
+  // culled by that corner: before this they vanished whenever the north-west corner was out of view)
+  chestMesh.frustumCulled=openMesh.frustumCulled=false;
 }
+function glowTex(){const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d'),gr=g.createRadialGradient(32,32,2,32,32,32);
+  gr.addColorStop(0,'rgba(255,255,255,.95)');gr.addColorStop(.35,'rgba(255,255,255,.5)');gr.addColorStop(.62,'rgba(255,255,255,.2)');gr.addColorStop(.7,'rgba(255,255,255,.34)');gr.addColorStop(1,'rgba(255,255,255,0)');
+  g.fillStyle=gr;g.fillRect(0,0,64,64);return new THREE.CanvasTexture(c)}
 function drawChest(c){
   _o.position.set(c.x,c.y,c.z);_o.rotation.set(0,c.yaw,0);
   _o.scale.setScalar(c.present&&!c.open?1:0);_o.updateMatrix();chestMesh.setMatrixAt(c.id,_o.matrix);
   _o.scale.setScalar(c.present&&c.open?1:0);_o.updateMatrix();openMesh.setMatrixAt(c.id,_o.matrix);
   chestMesh.instanceMatrix.needsUpdate=openMesh.instanceMatrix.needsUpdate=true;
 }
-function itemColor(it){if(WEAP[it.t])return RARC[it.r|0];if(it.t==='bd'||it.t==='mk')return 0xff6f6f;if(it.t==='sf'||it.t==='sj')return 0x5cc6ff;if(it.t==='mt')return 0xb07a45;return 0xe9d6a0}
+const AMMO_COL={L:0xf2b23f,M:0x1f9c8f,S:0xd9483b,H:0x596078};
+function itemColor(it){if(WEAP[it.t])return RARC[it.r|0];if(it.t==='bd'||it.t==='mk')return 0xff7a6a;if(it.t==='sf'||it.t==='sj')return 0x5cc6ff;if(it.t==='mt')return 0xc08a4f;return AMMO_COL[it.t[1]]||0xe9d6a0}
+const itemKind=it=>WEAP[it.t]?it.t:it.t==='bd'||it.t==='mk'?'hp':it.t==='sf'||it.t==='sj'?'sh':'box';
 function addItem(it){
   if(!it||!it.id||items.has(it.id)||picked.has(it.id)||itemList.length>=ITEM_CAP)return null;
   if(!isFinite(it.x)||!isFinite(it.z))return null;
-  it.y=isFinite(it.y)?it.y:groundAt(it.x,it.z,TOPY);it.ix=itemList.length;it.ph=Math.random()*6;
-  items.set(it.id,it);itemList.push(it);
-  itemMesh.setColorAt(it.ix,_col.setHex(itemColor(it)));if(itemMesh.instanceColor)itemMesh.instanceColor.needsUpdate=true;
-  itemMesh.count=itemList.length;return it;
+  it.y=isFinite(it.y)?it.y:groundAt(it.x,it.z,TOPY);it.ix=itemList.length;it.ph=Math.random()*6;it.gk=itemKind(it);it.col=itemColor(it);
+  items.set(it.id,it);itemList.push(it);return it;
 }
 function removeItem(id){
   const it=items.get(id);picked.add(id);if(!it)return null;
   items.delete(id);const last=itemList.pop();
-  if(last!==it){itemList[it.ix]=last;last.ix=it.ix;itemMesh.setColorAt(last.ix,_col.setHex(itemColor(last)));if(itemMesh.instanceColor)itemMesh.instanceColor.needsUpdate=true}
-  itemMesh.count=itemList.length;return it;
+  if(last!==it){itemList[it.ix]=last;last.ix=it.ix}
+  return it;
 }
-function clearLoot(){items.clear();itemList.length=0;picked.clear();if(itemMesh)itemMesh.count=0;for(const c of chests){c.present=false;c.open=false;drawChest(c)}}
+function clearLoot(){items.clear();itemList.length=0;picked.clear();for(const k in itemIM)itemIM[k].count=0;if(glowIM)glowIM.count=0;for(const c of chests){c.present=false;c.open=false;drawChest(c)}}
 let itemClock=0;
+const ITEM_S={bd:.85,mk:1.25,sf:.9,sj:1.4,mt:.8};
 function drawItems(dt){
-  itemClock+=dt;
+  itemClock+=dt;if(!glowIM)return;
+  for(const k in itemIM)itemIM[k].count=0;
+  let ng=0;const c=camera.position;
   for(const it of itemList){
-    const bob=RM?0:Math.sin(itemClock*2.2+it.ph)*.08;
-    _o.position.set(it.x,it.y+.42+bob,it.z);_o.rotation.set(0,RM?it.ph:itemClock*.9+it.ph,WEAP[it.t]?0:.0);
-    _o.scale.setScalar(WEAP[it.t]?1.1:isAmmo(it.t)||it.t==='mt'?.7:.8);_o.updateMatrix();itemMesh.setMatrixAt(it.ix,_o.matrix);
+    const dx=it.x-c.x,dz=it.z-c.z,d2=dx*dx+dz*dz;if(d2>150*150)continue;          // too far to make out
+    const m=itemIM[it.gk];if(m.count>=m.userData.cap)continue;
+    const w=!!WEAP[it.t],bob=RM?0:Math.sin(itemClock*2.2+it.ph)*.07,i=m.count++;
+    _o.position.set(it.x,it.y+(w?.62:.4)+bob,it.z);_o.rotation.set(w?.5:0,RM?it.ph:itemClock*.9+it.ph,0,'YXZ');
+    _o.scale.setScalar(w?1.45:ITEM_S[it.t]||.75);_o.updateMatrix();m.setMatrixAt(i,_o.matrix);
+    if(it.gk==='box')m.setColorAt(i,_col.setHex(it.col));
+    // the glow: bigger and brighter the rarer the weapon
+    const r=w?it.r|0:0,gs=w?1.7+r*.3:1.2;
+    _o.position.set(it.x,it.y+.05,it.z);_o.rotation.set(0,0,0);_o.scale.setScalar(gs*(RM?1:1+.06*Math.sin(itemClock*3+it.ph)));_o.updateMatrix();glowIM.setMatrixAt(ng,_o.matrix);
+    glowIM.setColorAt(ng++,_col.setHex(it.col));
   }
-  itemMesh.instanceMatrix.needsUpdate=true;
+  _o.scale.set(1,1,1);
+  for(const k in itemIM){const m=itemIM[k];m.visible=m.count>0;if(m.count){m.instanceMatrix.needsUpdate=true;if(k==='box')m.instanceColor.needsUpdate=true}}
+  glowIM.count=ng;glowIM.visible=ng>0;if(ng){glowIM.instanceMatrix.needsUpdate=true;glowIM.instanceColor.needsUpdate=true}
 }
 // Loot is decided by the match seed, so every browser rolls the same chests and floor spots without sending them.
 let seed=1;
@@ -1481,16 +1504,32 @@ function bodyGeo(hex,skin){
   return bagGeo(B);
 }
 const LEG_GEO=(()=>{const B=Bag();bagRBox(B,0,-.43,0,.26,.86,.28,0x2f3a4a);bagRBox(B,0,-.79,-.03,.3,.16,.36,0x1b1d22);return bagGeo(B)})();
-const GUN_GEO=(()=>{const o={},mk=f=>{const B=Bag();f(B);return bagGeo(B)};
-  o.pi=mk(B=>{bagBox(B,0,0,-.08,.08,.12,.34,0x2c2f35);bagBox(B,0,-.12,.02,.07,.16,.08,0x2c2f35)});
-  o.sm=mk(B=>{bagBox(B,0,0,-.14,.1,.14,.56,0x34383f);bagBox(B,0,-.17,-.12,.07,.22,.07,0x22252a);bagBox(B,0,-.1,.12,.07,.14,.08,0x22252a)});
-  o.sg=mk(B=>{bagBox(B,0,0,-.2,.12,.13,.86,0x3b3326);bagBox(B,0,-.09,-.32,.14,.1,.26,0x7a5232);bagBox(B,0,-.06,.2,.1,.16,.2,0x7a5232)});
-  o.ar=mk(B=>{bagBox(B,0,0,-.2,.1,.15,.8,0x2f3a2c);bagBox(B,0,-.15,-.14,.08,.2,.1,0x22252a);bagBox(B,0,.11,-.1,.06,.06,.22,0x22252a);bagBox(B,0,-.03,.24,.09,.14,.22,0x2f3a2c)});
-  o.sr=mk(B=>{bagBox(B,0,0,-.32,.09,.12,1.2,0x2b2a33);bagBox(B,0,.12,-.14,.08,.08,.36,0x1a1a1f);bagBox(B,0,-.04,.24,.1,.16,.24,0x5b4733)});
-  o.cb=mk(B=>{bagBox(B,0,0,-.3,.06,.06,.82,0xd6402f);bagBox(B,0,.06,-.72,.06,.16,.06,0xd6402f);bagBox(B,0,.12,-.76,.06,.06,.12,0xd6402f)});
-  o.hp=mk(B=>{bagBox(B,0,0,-.1,.28,.22,.18,0xf1f1f1);bagBox(B,0,0,-.2,.14,.06,.02,0xff4a4a);bagBox(B,0,0,-.2,.04,.14,.02,0xff4a4a)});
-  o.sh=mk(B=>{bagBox(B,0,0,-.1,.16,.3,.16,0x5cc6ff);bagBox(B,0,.18,-.1,.08,.06,.08,0xe8f6ff)});
+// Held items. Each weapon has its own outline and its own body colour, so you can tell what someone is carrying from
+// across a field: Pistol short and cream, SMG a boxy orange with a long magazine, Shotgun red with two fat barrels and
+// wood, Rifle teal with a curved magazine and a cream stock, Sniper dark and very long with a big scope. All have an
+// orange toy tip. (-z is forward; the hand is near the origin.) TYPE_COL is the same colour for the HUD and the ammo boxes.
+const TYPE_COL={pi:0xece4cf,sm:0xf2902f,sg:0xd9483b,ar:0x1f9c8f,sr:0x596078};
+const GUN_GEO=(()=>{const o={},mk=f=>{const B=Bag();f(B);return bagGeo(B)},TIP=0xff8a3a,DK=0x2a2d34,WOOD=0x9a6a3c;
+  o.pi=mk(B=>{bagRBox(B,0,.02,-.12,.11,.13,.42,TYPE_COL.pi);bagBox(B,0,0,-.33,.07,.07,.1,DK);bagBox(B,0,0,-.4,.09,.09,.05,TIP);
+    bagBox(B,0,-.15,.03,.09,.22,.11,DK);bagBox(B,0,-.08,-.08,.03,.05,.1,DK);bagBox(B,0,.1,.05,.05,.03,.05,DK)});
+  o.sm=mk(B=>{bagRBox(B,0,.02,-.14,.13,.17,.5,TYPE_COL.sm);bagBox(B,0,.02,-.45,.07,.07,.14,DK);bagBox(B,0,.02,-.54,.09,.09,.05,TIP);
+    bagBox(B,0,-.25,-.18,.08,.36,.1,DK);bagBox(B,0,-.14,.08,.08,.2,.1,DK);bagBox(B,0,.13,-.14,.05,.04,.3,DK);
+    bagBox(B,0,.05,.22,.05,.05,.24,DK);bagBox(B,0,-.02,.34,.07,.18,.04,DK)});
+  o.sg=mk(B=>{bagBox(B,-.045,.03,-.44,.075,.075,.7,DK);bagBox(B,.045,.03,-.44,.075,.075,.7,DK);bagBox(B,0,.03,-.81,.18,.09,.05,TIP);
+    bagRBox(B,0,.01,-.02,.15,.17,.34,TYPE_COL.sg);bagRBox(B,0,-.07,-.44,.17,.1,.3,WOOD);bagRBox(B,0,-.05,.3,.11,.16,.34,WOOD);bagBox(B,0,-.14,.08,.08,.16,.09,DK)});
+  o.ar=mk(B=>{bagRBox(B,0,.02,-.16,.12,.16,.6,TYPE_COL.ar);bagBox(B,0,.03,-.62,.06,.06,.34,DK);bagBox(B,0,.03,-.81,.085,.085,.06,TIP);
+    bagBox(B,0,-.01,-.5,.1,.1,.22,0x16756c);bagBox(B,0,-.2,-.2,.08,.24,.11,DK);bagBox(B,0,-.33,-.25,.08,.1,.11,DK);bagBox(B,0,-.14,.06,.08,.18,.09,DK);
+    bagBox(B,0,.14,-.2,.04,.07,.06,DK);bagBox(B,0,.13,-.56,.03,.08,.03,DK);bagRBox(B,0,-.01,.28,.1,.15,.3,TYPE_COL.pi)});
+  o.sr=mk(B=>{bagRBox(B,0,.01,-.1,.11,.14,.6,TYPE_COL.sr);bagBox(B,0,.02,-.84,.05,.05,.9,DK);bagBox(B,0,.02,-1.31,.09,.09,.08,TIP);
+    bagBox(B,0,.17,-.14,.1,.1,.44,0x1b1d24);bagBox(B,0,.17,-.375,.115,.115,.03,0xbfe8ff);bagBox(B,0,.17,.095,.09,.09,.03,0xbfe8ff);
+    bagBox(B,0,.1,-.26,.04,.06,.04,DK);bagBox(B,0,.1,-.02,.04,.06,.04,DK);bagRBox(B,0,-.03,.34,.1,.17,.4,0x8a5a36);bagBox(B,0,-.14,.08,.08,.16,.09,DK);
+    bagBox(B,-.07,-.15,-.66,.03,.3,.03,DK,0);bagBox(B,.07,-.15,-.66,.03,.3,.03,DK,0)});
+  o.cb=mk(B=>{bagBox(B,0,0,-.3,.07,.07,.82,0xd6402f);bagBox(B,0,.07,-.72,.07,.18,.07,0xd6402f);bagBox(B,0,.14,-.77,.07,.07,.14,0xd6402f);bagBox(B,0,0,.06,.085,.085,.22,0xffc93c)});
+  o.hp=mk(B=>{bagRBox(B,0,0,-.1,.3,.24,.18,0xf4f1ea);bagBox(B,0,0,-.205,.16,.06,.02,0xe8483f);bagBox(B,0,0,-.205,.06,.16,.02,0xe8483f);bagBox(B,0,0,.005,.16,.06,.02,0xe8483f);bagBox(B,0,0,.005,.06,.16,.02,0xe8483f);bagBox(B,0,.15,-.1,.14,.04,.05,0x8b9098)});
+  o.sh=mk(B=>{bagRBox(B,0,-.02,-.1,.18,.28,.18,0x4fb8f5);bagBox(B,0,-.03,-.1,.205,.1,.205,0xdff3ff);bagBox(B,0,.17,-.1,.09,.08,.09,0x2f86c9);bagBox(B,0,.23,-.1,.11,.04,.11,0xf4f1ea)});
   return o})();
+// where the rarity band sits on each weapon (a thin sleeve round the body): y, z, then its width, height and depth
+const RTAG={pi:[.02,.03,.14,.16,.06],sm:[.02,.05,.16,.2,.07],sg:[.01,.1,.185,.2,.07],ar:[.02,.07,.15,.19,.07],sr:[.01,.13,.14,.17,.07]};
 const GLIDER_GEO=(()=>{const B=Bag();bagBox(B,0,0,0,3.6,.08,1.1,0xffc93c);bagBox(B,-1.2,-.02,0,1.2,.09,1.12,0xff6a3a);bagBox(B,1.2,-.02,0,1.2,.09,1.12,0x2f93bf);
   bagBox(B,-1.1,-.75,0,.04,1.5,.04,0x333333);bagBox(B,1.1,-.75,0,.04,1.5,.04,0x333333);return bagGeo(B)})();
 const SKINS=[0xf1c7a0,0xd9a77c,0xb98058,0x8a5a3c,0xf5d3b5,0x6e4630],HAIR=[0x5a3a22,0x2b211c,0x1c1917,0x151312,0xc9a05a,0x1a1614];
@@ -1499,17 +1538,21 @@ const SKINS=[0xf1c7a0,0xd9a77c,0xb98058,0x8a5a3c,0xf5d3b5,0x6e4630],HAIR=[0x5a3a
 // Object3Ds that only carry the pose (position, rotation, visible).
 const LIMB_N=96,limbModels=new Set(),legIM=new THREE.InstancedMesh(LEG_GEO,MAT,LIMB_N*2),gunIM={};
 for(const k in GUN_GEO)gunIM[k]=new THREE.InstancedMesh(GUN_GEO[k],MAT,LIMB_N);
-for(const im of [legIM,...Object.values(gunIM)]){im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);im.frustumCulled=false;im.count=0;im.visible=false;scene.add(im)}
-const _lm=new THREE.Matrix4();
+// the rarity band on a held weapon (when its rarity is known: yours, a bot's, or another player's once they've fired it)
+const rarIM=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshLambertMaterial({color:0xffffff}),LIMB_N);rarIM.setColorAt(0,new THREE.Color(1,1,1));
+for(const im of [legIM,rarIM,...Object.values(gunIM)]){im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);im.frustumCulled=false;im.count=0;im.visible=false;scene.add(im)}
+const _lm=new THREE.Matrix4(),_tm=new THREE.Matrix4(),_iq=new THREE.Quaternion();
 function syncLimbs(){
-  let nl=0;for(const k in gunIM)gunIM[k].count=0;
+  let nl=0,nr=0;for(const k in gunIM)gunIM[k].count=0;
   for(const g of limbModels){
     if(!g.visible||g.parent!==scene)continue;
     const u=g.userData;g.updateMatrix();
     if(u.legs[0].visible&&nl+2<=LIMB_N*2)for(const l of u.legs){l.updateMatrix();legIM.setMatrixAt(nl++,_lm.multiplyMatrices(g.matrix,l.matrix))}
-    const im=gunIM[u.gk];if(u.gun.visible&&im&&im.count<LIMB_N){u.gun.updateMatrix();im.setMatrixAt(im.count++,_lm.multiplyMatrices(g.matrix,u.gun.matrix))}
+    const im=gunIM[u.gk];if(u.gun.visible&&im&&im.count<LIMB_N){u.gun.updateMatrix();im.setMatrixAt(im.count++,_lm.multiplyMatrices(g.matrix,u.gun.matrix));
+      const T=RTAG[u.gk];if(T&&u.gr>=0&&nr<LIMB_N){rarIM.setMatrixAt(nr,_lm.multiply(_tm.compose(_p.set(0,T[0],T[1]),_iq,_s.set(T[2],T[3],T[4]))));rarIM.setColorAt(nr++,_col.setHex(RARC[u.gr]))}}
   }
   legIM.count=nl;legIM.visible=nl>0;if(nl)legIM.instanceMatrix.needsUpdate=true;
+  rarIM.count=nr;rarIM.visible=nr>0;if(nr){rarIM.instanceMatrix.needsUpdate=true;rarIM.instanceColor.needsUpdate=true}
   for(const k in gunIM){const im=gunIM[k];im.visible=im.count>0;if(im.count)im.instanceMatrix.needsUpdate=true}
 }
 function makeModel(hex,skinIx){
@@ -1518,11 +1561,11 @@ function makeModel(hex,skinIx){
   const legs=[-.17,.17].map(x=>{const l=new THREE.Object3D();l.position.set(x,.86,0);g.add(l);return l});
   const gun=new THREE.Object3D();gun.position.set(.3,1.36,-.62);
   const glider=new THREE.Mesh(GLIDER_GEO,MAT);glider.position.set(0,3.4,0);glider.visible=false;
-  g.add(body,gun,glider);g.userData={body,legs,gun,glider,gk:'cb',hex};limbModels.add(g);
+  g.add(body,gun,glider);g.userData={body,legs,gun,glider,gk:'cb',gr:-1,hex};limbModels.add(g);
   return g;
 }
 function setModelColor(model,hex,skinIx){const u=model.userData;if(u.hex===hex)return;u.hex=hex;u.body.geometry.dispose();u.body.geometry=bodyGeo(hex,SKINS[(skinIx|0)%SKINS.length])}
-function setHeldModel(model,key){const u=model.userData;const k=GUN_GEO[key]?key:HEALS[key]?(HEALS[key].sh?'sh':'hp'):'cb';if(u.gk===k)return;u.gk=k}
+function setHeldModel(model,key,rar){const u=model.userData;const k=GUN_GEO[key]?key:HEALS[key]?(HEALS[key].sh?'sh':'hp'):'cb';u.gr=WEAP[k]&&rar>=0&&rar<5?rar|0:-1;if(u.gk===k)return;u.gk=k}
 function disposeModel(m){if(m)limbModels.delete(m);if(m&&m.userData.body)m.userData.body.geometry.dispose()}
 // Entities: you, the other players (remotes) and, in Practice only, bots. local: moved by this browser's physics (you, and Practice bots).
 function newEnt(model){return{pos:new V3(),vel:new V3(),onGround:false,hp:100,sh:0,alive:true,present:true,hittable:true,local:false,yaw:0,pitch:0,model,walk:0,
@@ -1532,23 +1575,55 @@ const heldW=e=>{const s=heldItem(e);return s&&WEAP[s.t]?WEAP[s.t]:null};
 const heldKey=e=>{const s=heldItem(e);return s?s.t:'cb'};
 
 /* ---------- effects: tracers in one line mesh, sparks and splinters in one instanced pool ---------- */
-const TR_CAP=320;
-const trPos=new Float32Array(TR_CAP*6),trCol=new Float32Array(TR_CAP*6),trLife=new Float32Array(TR_CAP);let trNext=0;
-const trGeo=new THREE.BufferGeometry();trGeo.setAttribute('position',new THREE.BufferAttribute(trPos,3).setUsage(THREE.DynamicDrawUsage));trGeo.setAttribute('color',new THREE.BufferAttribute(trCol,3).setUsage(THREE.DynamicDrawUsage));
-const tracerMesh=new THREE.LineSegments(trGeo,new THREE.LineBasicMaterial({vertexColors:true,transparent:true,opacity:.85}));tracerMesh.frustumCulled=false;scene.add(tracerMesh);
-function addTracer(a,b,hex){const i=trNext;trNext=(trNext+1)%TR_CAP;trPos.set([a.x,a.y,a.z,b.x,b.y,b.z],i*6);_col.setHex(hex);trCol.set([_col.r,_col.g,_col.b,_col.r,_col.g,_col.b],i*6);trLife[i]=.07;trLive++;trGeo.attributes.position.needsUpdate=trGeo.attributes.color.needsUpdate=true}
-const BIT_CAP=160;
+// Tracers are bright streaks (one instanced mesh, added light): a slug runs from the muzzle to where the shot landed,
+// thick enough to see at any distance. Flashes are little stars of light, at a muzzle (pointing along the shot) or at
+// a hit (facing you). Bits are small lit blocks: splinters, dust and the pop when a shot lands.
+const TR_CAP=96,TR_W={pi:1,sm:.8,sg:.7,ar:1,sr:2.2};
+const trIM=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshBasicMaterial({transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,fog:false}),TR_CAP);
+trIM.frustumCulled=false;trIM.setColorAt(0,new THREE.Color(1,1,1));trIM.count=0;trIM.renderOrder=4;scene.add(trIM);
+const trs=[];
+function addTracer(a,b,hex,wid){if(trs.length>=TR_CAP)trs.shift();const L=a.distanceTo(b),max=wid==='sr'?.24:clamp(L/230,.07,.14);trs.push({a:a.clone(),b:b.clone(),hex,life:max,max,wide:TR_W[wid]||1,L,sr:wid==='sr'})}
+const FL_CAP=48;
+const flGeo=(()=>{const g=new THREE.BufferGeometry(),p=[],u=[],q=(a,b,c,d)=>{for(const v of [a,b,c,a,c,d])p.push(v[0],v[1],v[2]);u.push(0,0,1,0,1,1,0,0,1,1,0,1)};
+  q([-.5,-.5,0],[.5,-.5,0],[.5,.5,0],[-.5,.5,0]);                       // facing along the shot (or you)
+  q([-.32,0,.25],[.32,0,.25],[.32,0,-1.5],[-.32,0,-1.5]);q([0,-.32,.25],[0,.32,.25],[0,.32,-1.5],[0,-.32,-1.5]);   // the tongue of the flash, seen from the side
+  g.setAttribute('position',new THREE.Float32BufferAttribute(p,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(u,2));return g})();
+const flIM=new THREE.InstancedMesh(flGeo,new THREE.MeshBasicMaterial({map:(()=>{const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d'),gr=g.createRadialGradient(32,32,0,32,32,32);
+  gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(.22,'rgba(255,255,255,.85)');gr.addColorStop(.5,'rgba(255,255,255,.25)');gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.fillRect(0,0,64,64);
+  g.globalCompositeOperation='lighter';g.strokeStyle='rgba(255,255,255,.75)';g.lineCap='round';for(const [w,l] of [[5,30],[2.5,30]])for(let i=0;i<4;i++){const a=i*Math.PI/4+(w<4?Math.PI/8:0),r=w<4?l*.6:l;g.lineWidth=w;g.beginPath();g.moveTo(32-Math.cos(a)*r,32-Math.sin(a)*r);g.lineTo(32+Math.cos(a)*r,32+Math.sin(a)*r);g.stroke()}
+  return new THREE.CanvasTexture(c)})(),transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,fog:false,side:THREE.DoubleSide}),FL_CAP);
+flIM.frustumCulled=false;flIM.setColorAt(0,new THREE.Color(1,1,1));flIM.count=0;flIM.renderOrder=5;scene.add(flIM);
+const flashes=[];
+// dir: which way a muzzle flash points (null: a star facing the camera)
+function flash(p,dir,hex,size,life){if(flashes.length>=FL_CAP)flashes.shift();flashes.push({p:p.clone(),d:dir?dir.clone():null,hex,size,life,max:life,roll:Math.random()*6.283})}
+const FLASH_S={pi:.55,sm:.5,sg:1,ar:.7,sr:1.15};
+function muzzleFlash(e,p,dir,wid){flash(p,dir,wid==='sg'?0xffb86a:0xffe9a8,FLASH_S[wid]||.6,.07);if(e)e.kick=wid==='sr'||wid==='sg'?1:.55}
+const BIT_CAP=220;
 const bitMesh=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshLambertMaterial({color:0xffffff}),BIT_CAP);bitMesh.frustumCulled=false;bitMesh.setColorAt(0,new THREE.Color(1,1,1));bitMesh.count=0;scene.add(bitMesh);
 const bits=[];
 function bit(p,v,hex,size,life,grav){if(bits.length>=BIT_CAP)bits.shift();bits.push({p:p.clone(),v,hex,size,life,max:life,g:grav})}
-function spark(p){for(let i=0;i<2;i++)bit(p,new V3((Math.random()-.5)*3,Math.random()*2,(Math.random()-.5)*3),0xfff1b0,.1,.12,0)}
+const rv=(a,up)=>new V3((Math.random()-.5)*a,up==null?(Math.random()-.5)*a:Math.random()*up,(Math.random()-.5)*a);
+// a shot landing on a wall, the ground or a tree: a star, a few sparks and a little dust
+function spark(p){flash(p,null,0xffe2a0,.5,.09);for(let i=0;i<3;i++)bit(p,rv(7,4),0xffe9b0,.07,.16,12);for(let i=0;i<2;i++)bit(p,rv(1.6,1.6),0xcfc6b8,.16,.4,-1)}
+// a shot landing on a player: a bigger star and a pop of confetti (blue off a shield, the player's own colour otherwise)
+function hitPop(p,hex,head){flash(p,null,head?0xffe36a:0xffffff,head?1.15:.85,.11);for(let i=0;i<(head?8:5);i++)bit(p,rv(6,5),i%2?hex:0xffffff,.1,.38,13)}
 function debris(p,hex,n){for(let i=0;i<(n||8);i++)bit(p.clone().add(new V3((Math.random()-.5)*2.4,(Math.random()-.5)*2,(Math.random()-.5)*2.4)),new V3((Math.random()-.5)*5,Math.random()*5,(Math.random()-.5)*5),hex||0xc7955a,.35,.9,14)}
-function puff(p,hex){for(let i=0;i<6;i++)bit(p.clone(),new V3((Math.random()-.5)*4,1+Math.random()*3,(Math.random()-.5)*4),hex,.25,.6,6)}
-let trLive=0;
+// a knockout: a burst of stars, confetti in the player's colour and a few pale puffs that drift up (no mess)
+function puff(p,hex){flash(p,null,0xffffff,2.2,.16);for(let i=0;i<12;i++)bit(p.clone(),rv(7,6),i%3?hex:0xffffff,.16,.75,11);for(let i=0;i<5;i++)bit(p.clone().add(rv(.8)),rv(1.4,1.8),0xf2f2ee,.4,.9,-1.5)}
 function updateFx(dt){
-  // tracers: only look at them while some are showing; sparks and splinters: nothing to send to the GPU when there are none
-  if(trLive>0){let dirty=false,n=0;for(let i=0;i<TR_CAP;i++)if(trLife[i]>0){trLife[i]-=dt;if(trLife[i]<=0){trPos.fill(0,i*6,i*6+6);dirty=true}else n++}
-    trLive=n;if(dirty)trGeo.attributes.position.needsUpdate=true}
+  for(let i=trs.length-1;i>=0;i--){trs[i].life-=dt;if(trs[i].life<=0)trs.splice(i,1)}
+  if(trs.length||trIM.count){
+    const c=camera.position;
+    for(let i=0;i<trs.length;i++){const t=trs[i],u=1-t.life/t.max,h=t.sr?1:Math.min(1,u*1.5+.12),tl=t.sr?0:Math.max(0,u*1.5-.3),k=(h+tl)/2;
+      _o.position.copy(t.a).lerp(t.b,k);const len=Math.max(0,h-tl)*t.L,th=Math.max(.03,_o.position.distanceTo(c)*.0021)*t.wide*(t.sr?1-u*.7:1);
+      _o.lookAt(t.b);_o.scale.set(th,th,len);_o.updateMatrix();trIM.setMatrixAt(i,_o.matrix);trIM.setColorAt(i,_col.setHex(t.hex).multiplyScalar(t.sr?1-u:1-u*.45))}
+    _o.scale.set(1,1,1);trIM.count=trs.length;trIM.visible=trs.length>0;trIM.instanceMatrix.needsUpdate=true;trIM.instanceColor.needsUpdate=true}
+  for(let i=flashes.length-1;i>=0;i--){flashes[i].life-=dt;if(flashes[i].life<=0)flashes.splice(i,1)}
+  if(flashes.length||flIM.count){
+    for(let i=0;i<flashes.length;i++){const f=flashes[i],k=f.life/f.max;_o.position.copy(f.p);
+      if(f.d){_p.copy(f.p).sub(f.d);_o.lookAt(_p);_o.rotateZ(f.roll)}else{_o.quaternion.copy(camera.quaternion);_o.rotateZ(f.roll)}
+      _o.scale.setScalar(f.size*(.55+.45*k));_o.updateMatrix();flIM.setMatrixAt(i,_o.matrix);flIM.setColorAt(i,_col.setHex(f.hex).multiplyScalar(.35+.65*k))}
+    _o.scale.set(1,1,1);flIM.count=flashes.length;flIM.visible=flashes.length>0;flIM.instanceMatrix.needsUpdate=true;flIM.instanceColor.needsUpdate=true}
   for(let i=bits.length-1;i>=0;i--){const b=bits[i];b.life-=dt;if(b.life<=0){bits.splice(i,1);continue}b.v.y-=b.g*dt;b.p.addScaledVector(b.v,dt)}
   if(!bits.length&&!bitMesh.count)return;
   for(let i=0;i<bits.length;i++){const b=bits[i],k=b.life/b.max;_o.position.copy(b.p);_o.rotation.set(b.life*3,b.life*2,0);_o.scale.setScalar(b.size*(.4+.6*k));_o.updateMatrix();bitMesh.setMatrixAt(i,_o.matrix);bitMesh.setColorAt(i,_col.setHex(b.hex))}
@@ -1762,7 +1837,7 @@ function feedItem(it){const nm=itemName(it.t),r=WEAP[it.t]?RAR[it.r|0]+' ':'';hi
 function selectSlot(e,i){
   if(i>=0&&!e.inv[i])i=-1;   // an empty slot holds the crowbar
   if(e.sel===i)return;
-  e.sel=i;e.reloadT=0;e.useT=0;e.switchT=.25;setHeldModel(e.model,heldKey(e));
+  e.sel=i;e.reloadT=0;e.useT=0;e.switchT=.25;setHeldModel(e.model,heldKey(e),heldItem(e)?heldItem(e).r:-1);
   if(e===player){mode='combat';lastHud=''}
 }
 function nearestChest(e,maxD,filter){let best=null,bd=maxD;for(const c of chests){if(!c.present||c.open||Math.abs(c.y-e.pos.y)>2.2||(filter&&!filter(c)))continue;const d=Math.hypot(c.x-e.pos.x,c.z-e.pos.z);if(d<bd){bd=d;best=c}}return best}
@@ -1832,12 +1907,12 @@ function resolveShot(shooter,w,r,rays,color){
   for(const ry of rays){
     const res=raycast(arr(ry.o),arr(ry.d),ry.max,shooter,true);
     const end=ry.o.clone().addScaledVector(ry.d,res.t);ends.push(end);
-    if(w!==CROW)addTracer(ry.o,end,color);
+    if(w!==CROW)addTracer(ry.o,end,color,w.id);
     if(!res.hit)continue;
     let dmg=w===CROW?CROW.dmg:wDmg(w,r);
     if(w.falloff)dmg*=res.t<6?1:Math.max(.3,1-(res.t-6)/22);
     else if(w.fall&&res.t>w.fall[0])dmg*=Math.max(w.fall[1],1-(res.t-w.fall[0])/(w.range-w.fall[0])*(1-w.fall[1]));
-    if(res.hit.kind==='ent'){const a=entAcc.get(res.hit.ent)||{d:0,head:false,pt:end};a.d+=dmg*(res.hit.head&&w!==CROW?w.head:1);a.head=a.head||res.hit.head;entAcc.set(res.hit.ent,a)}
+    if(res.hit.kind==='ent'){hitPop(end,res.hit.ent.sh>0?0x5cc6ff:res.hit.ent.hex||0xffffff,res.hit.head&&w!==CROW);const a=entAcc.get(res.hit.ent)||{d:0,head:false,pt:end};a.d+=dmg*(res.hit.head&&w!==CROW?w.head:1);a.head=a.head||res.hit.head;entAcc.set(res.hit.ent,a)}
     else{spark(end);const sdm=w===CROW?CROW.build:w.sd*(1+.07*(r|0))*(dmg/wDmg(w,r));   // structure damage, with the same falloff
       if(res.hit.kind==='piece')pcAcc.set(res.hit.piece,(pcAcc.get(res.hit.piece)||0)+sdm);
       else{const mp=mpAt(res.hit.s,arr(end));if(mp)mpAcc.set(mp,(mpAcc.get(mp)||0)+sdm)}
@@ -1869,6 +1944,7 @@ function shootFrom(e,w,r,camF,cp,ads,color){
     rays.push({o:mz.clone(),d:d2,max:w===CROW?Math.min(L+.3,CROW.range):L+.3});
   }
   const res=resolveShot(e,w,r,rays,color);
+  if(w!==CROW)muzzleFlash(e,mz,rays[0].d,w.id);else e.kick=.8;
   sfxShot(w.id,e===player?1:1/(1+camera.position.distanceTo(mz)*.05));
   if(w===CROW&&res.ends.length)sfxWhack(e===player?1:.4);
   const ev={k:'s',w:w.id,r:r|0,o:arr(mz).map(r2),e:w===CROW?[]:res.ends.map(v=>arr(v).map(r1))};
@@ -2186,7 +2262,8 @@ function handleEvent(from,e){
   if(e.k==='s'){
     const o=Array.isArray(e.o)&&e.o.length===3?new V3(+e.o[0],+e.o[1],+e.o[2]):null;
     if(o&&[o.x,o.y,o.z].every(isFinite)){
-      if(Array.isArray(e.e))for(const p of e.e.slice(0,12))if(Array.isArray(p)){const v=new V3(+p[0],+p[1],+p[2]);if([v.x,v.y,v.z].every(isFinite)){addTracer(o,v,0xffb08a);spark(v)}}
+      let fd=null;if(actor&&WEAP[e.w]){(actor.wr||(actor.wr={}))[e.w]=clamp(e.r|0,0,4);if(e.w==='cb')actor.kick=.8}
+      if(Array.isArray(e.e))for(const p of e.e.slice(0,12))if(Array.isArray(p)){const v=new V3(+p[0],+p[1],+p[2]);if([v.x,v.y,v.z].every(isFinite)){addTracer(o,v,0xffb08a,String(e.w));spark(v);if(!fd){fd=v.clone().sub(o).normalize();muzzleFlash(actor,o,fd,String(e.w))}}}
       sfxShot(String(e.w),1/(1+camera.position.distanceTo(o)*.05));
     }
     // builds (pd) and map pieces (md) at the health the shooter reports, the lowest wins, but no lower than one shot of
@@ -2227,7 +2304,7 @@ function applyNode(e,v){
   const st=ST_FROM[v.st]||'out';
   const s={t:+v.ts||Net.now(),x:+v.x,y:+v.y||0,z:+v.z,h:+v.h||0,p:+v.p||0};
   if(st!=='bus'&&st!=='out'&&isFinite(s.x)&&isFinite(s.z)&&e.lag.note(s.t,Net.now())){e.snaps.push(s);if(e.snaps.length>30)e.snaps.shift()}
-  e.hp=+v.hp||0;e.sh=+v.sh||0;setHeldModel(e.model,String(v.w||'cb'));
+  e.hp=+v.hp||0;e.sh=+v.sh||0;{const hk=String(v.w||'cb');setHeldModel(e.model,hk,e.wr&&e.wr[hk]!=null?e.wr[hk]:-1)}
   e.st=st;e.kills=v.k|0;e.place=v.pl|0;e.dmg=v.dm|0;e.glide=st==='glide';e.hittable=true;
   if(st==='dead'){if(e.alive){e.alive=false;e.dieT=0}}
   else if(st==='out')e.alive=false;
@@ -2642,7 +2719,10 @@ function animModel(e,dt){
   const sp=Math.hypot(e.vel.x,e.vel.z);
   e.walk+=dt*sp*1.7;const sw=e.onGround?Math.sin(e.walk)*Math.min(1,sp/4)*.65:air?.5:.25;
   u.legs[0].rotation.x=sw;u.legs[1].rotation.x=-sw;
-  u.gun.position.y=1.36+(e.reloadT>0||e.useT>0?-.14:0);
+  if(e.local)setHeldModel(m,heldKey(e),heldItem(e)?heldItem(e).r:-1);
+  // the held item kicks back and up for a moment after a shot (or a swing)
+  const kk=e.kick>0?(e.kick=Math.max(0,e.kick-dt*9)):0;
+  u.gun.position.y=1.36+(e.reloadT>0||e.useT>0?-.14:0);u.gun.position.z=-.62+kk*.11;u.gun.rotation.x=kk*.22;
 }
 let attractYaw=0;const _bp=new V3(),_ch=new V3(),_cp=new V3(),_cb=new V3(),_cl=new V3();
 function updateCamera(dt){
@@ -2963,7 +3043,7 @@ if(navigator.webdriver)window.__dz={get state(){return state},get online(){retur
   get mode(){return mode},set mode(v){mode=v},get buildType(){return buildType},set buildType(v){buildType=v},get myKills(){return myKills},get specId(){return specId},get lobbyShown(){return lobbyShown},get cpuMs(){return cpuMs},get busLine(){return busLine},get storm(){return storm},
   Net,player,remotes,bots,items,itemList,chests,pieces,places,statics,ramps,renderer,scene,camera,tAct,keys,STORM,WEAP,HEALS,
   matchT,stormAt,busPos,aliveIds,hostStart,hostDuties,startPractice,toMenu,goOnline,joinPrivate,quickMatch,interact,selectSlot,takeItem,playerShoot,useHeld,tryBuild,specValid,playerBuildSpec,
-  damageEntity,die,raycast,groundAt,moveEntity,openChest,addItem,nearestChest,nearestItem,canTake,dropFromBus,updateCamera,camTarget,cycleSpectate,rankRows,lineClear,stepAir,
+  damageEntity,die,raycast,groundAt,moveEntity,updateFx,drawItems,updateWorldFx,updateHud,openChest,addItem,nearestChest,nearestItem,canTake,dropFromBus,updateCamera,camTarget,cycleSpectate,rankRows,lineClear,stepAir,
   start(){startWanted=true;hostDuties()},now:()=>nowMs(),
   teleport(x,z,y){player.pos.set(x,y==null?groundAt(x,z,200):y,z);player.vel.set(0,0,0);player.st='ground';player.float=false;player.glide=false;player.onGround=true},
   aimAt(e){const t=e.pos.clone().add(new V3(0,1.1,0));for(let i=0;i<4;i++){updateCamera(0);const c=camera.position;player.yaw=yawTo(t.x-c.x,t.z-c.z);player.pitch=Math.atan2(t.y-c.y,Math.hypot(t.x-c.x,t.z-c.z))}},
