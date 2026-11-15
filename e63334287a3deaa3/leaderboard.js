@@ -57,12 +57,19 @@
   'use strict';
   var me = document.currentScript;
   if (document.getElementById('leaderboards')) return;
+  // Game mode: stats.js loads this file inside a game page with data-game="<folder>" when its Leaderboard button is first
+  // pressed. The same section is then built inside a panel over the page instead of in the page, fixed to that game (no
+  // game picker; its boards, tracks and This week / All time work as usual), signed in through stats.js's connection
+  // (BackRoomStats.conn) instead of party.js, and read when the panel is opened. BackRoomBoards.open(onClose) and
+  // .close() show and hide it. The view is remembered per game ('lb:view:<folder>').
+  var GAME = me && me.getAttribute('data-game') || '';
+  if (!/^[a-z0-9-]{1,30}$/.test(GAME)) GAME = '';
 
   var PATH = 'rooms/lb-all/players', RS_PATH = 'rooms/lb-rs/players', RESETS = {}, SHOW_HIDDEN = false;
   // STALE: an entry nobody has updated for 180 days is skipped before anything else is read from it (entries are never
   // removed from the database, so this is what keeps old ones cheap to parse: a timestamp check, no JSON.stringify or
   // stats; they are still downloaded).
-  var TOP = 25, MAX_NODES = 3000, NODE_MAX = 8000, MAX_STATS = 120, STALE = 180 * 86400000;
+  var TOP = 25, MAX_NODES = 3000, NODE_MAX = 8000, MAX_STATS = 240, STALE = 180 * 86400000;
   var EPOCH = Date.UTC(2026, 9, 21);            // the day stats.js started counting
   var WEEK_DAYS = 7, DAY_GAMES = 12, DAY_REST = '_';   // This week: how many dates; games a day accepted (stats.js keeps 8); d's other-games key
   var NAME_MAX = 14;
@@ -461,6 +468,16 @@
           var n = m ? +m[2] : 0, lap = m ? o['lap:' + m[1]] : 0;
           if (t && lap > 0 && x >= t[1] * n && x >= (lap - 0.001) * n && x <= 900 * n) o[k] = x;
         });
+        // The clean twins (no corner cut): a clean lap can't beat the driver's own fastest lap there, and a clean course
+        // record can't beat their course record over the same laps (every clean lap or race also counts for those).
+        sk.forEach(function (k) {
+          var m = /^clap:([a-z0-9-]{1,20})$/.exec(k), t = m && TRACKS[m[1]], x = num(src[k]), lap = m ? o['lap:' + m[1]] : 0;
+          if (t && lap > 0 && x >= lap - 0.001 && x <= 900) o[k] = x;
+        });
+        sk.forEach(function (k) {
+          var m = /^crec:([a-z0-9-]{1,20}):([1-9]|1[0-9]|20)$/.exec(k), x = num(src[k]), rec = m ? o['rec:' + m[1] + ':' + m[2]] : 0;
+          if (m && rec > 0 && x >= rec - 0.001 && x <= 900 * +m[2]) o[k] = x;
+        });
       }
       p.g[keys[i]] = o; p.total += s;
       if (s > p.topS) { p.topS = s; p.top = meta.n; }
@@ -493,7 +510,7 @@
       Object.keys(o).forEach(function (sk) {
         if (sk === 's') return;
         var st = meta && meta.st.filter(function (x) { return x.k === sk; })[0];
-        to[sk] = better(st || { f: /^(lap|rec):/.test(sk) ? 'lap' : 'n' }, to[sk], o[sk]);
+        to[sk] = better(st || { f: /^c?(lap|rec):/.test(sk) ? 'lap' : 'n' }, to[sk], o[sk]);
       });
     });
     t.total = 0; t.top = ''; t.topS = 0;
@@ -570,7 +587,7 @@
       var o = p.g.slipstream; if (!o) return;
       var seen = {};
       Object.keys(o).forEach(function (k) {
-        var m = /^(?:lap|rec):([a-z0-9-]+)(?::(\d+))?$/.exec(k); if (!m || !TRACKS[m[1]]) return;
+        var m = /^c?(?:lap|rec):([a-z0-9-]+)(?::(\d+))?$/.exec(k); if (!m || !TRACKS[m[1]]) return;
         if (!seen[m[1]]) { seen[m[1]] = 1; c[m[1]] = (c[m[1]] || 0) + 1; }
         if (m[2]) (laps[m[1]] || (laps[m[1]] = {}))[m[2]] = 1;
       });
@@ -593,8 +610,11 @@
     laps.sort(function (a, b) { return a - b; }).forEach(function (n) {
       var ln = n + (n === 1 ? ' lap' : ' laps');
       out.push({ k: 'rec:' + t + ':' + n, id: 'rec' + n, l: 'Course record · ' + nm + ' · ' + ln, chip: n + '-lap record', f: 'lap', laps: n, track: nm });
+      out.push({ k: 'crec:' + t + ':' + n, id: 'crec' + n, l: 'Clean course record · ' + nm + ' · ' + ln, chip: n + '-lap clean', f: 'lap', laps: n, track: nm, cleanB: 1 });
     });
     out.push({ k: 'lap:' + t, id: 'lap', l: 'Fastest lap · ' + nm, chip: 'Fastest lap', f: 'lap', track: nm });
+    out.push({ k: 'clap:' + t, id: 'clap', l: 'Fastest clean lap · ' + nm, chip: 'Clean lap', f: 'lap', track: nm, cleanB: 1 });
+    meta.st.forEach(function (st) { if (!st.hide) out.push(st); });   // its other boards (Elo), after the times
     return out;
   }
   // Slipstream's every-track board: one row per track, tracks with times first (most drivers first, as in the Track menu),
@@ -724,6 +744,45 @@
   box.append(top, ctl, $chips, $h, $list, $msg, $rule, $spanNote, $note);
   sec.append(box);
 
+  // Game mode: the panel. Its own colours and type, since a game page has none of the hub's CSS variables.
+  var modal = null, onClose = null, $close = null;
+  if (GAME) {
+    lbl.hidden = !!BY[GAME];
+    top.querySelector('h2').textContent = BY[GAME] ? BY[GAME].n + ' leaderboard' : 'Leaderboards';
+    top.querySelector('.lbd-sub').textContent = BY[GAME] ? '' : 'Most miles flown across the Back Room, and the best in each game.';
+    $close = el('button', 'lbd-b', 'Close'); $close.type = 'button'; top.append($close);
+    modal = el('div', 'lbd-modal'); modal.hidden = true; modal.setAttribute('role', 'dialog'); modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', top.querySelector('h2').textContent); modal.setAttribute('data-no-ad-refresh', '');
+    css.textContent += '.lbd-modal{position:fixed;inset:0;z-index:2147482000;overflow:auto;-webkit-overflow-scrolling:touch;background:rgba(12,14,20,.62);padding:max(14px,env(safe-area-inset-top,0px)) 12px 24px;' +
+      '--panel:#fffdf8;--panel-2:#f4efe4;--line:#d8d0bf;--ink:#1c1b19;--ink-2:#5d584e;--accent:#1f3a5f;--accent-ink:#fff;--down:#b42318;' +
+      '--display:Georgia,"Times New Roman",serif;--body:system-ui,-apple-system,"Segoe UI",sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;' +
+      'font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:#1c1b19;text-align:left;user-select:text;-webkit-user-select:text;cursor:auto}' +
+      '.lbd-modal[hidden]{display:none}.lbd-modal #leaderboards{padding:0;max-width:720px;margin:0 auto}.lbd-modal .lbd{box-shadow:0 18px 60px rgba(0,0,0,.4)}' +
+      '.lbd-modal .lbd h2{text-transform:none;letter-spacing:0;font-size:24px;flex:1 1 auto}.lbd-modal .lbd-sub:empty{display:none}.lbd-modal .lbd-ctl label[hidden]{display:none}' +
+      '.lbd-modal button:focus-visible,.lbd-modal select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}';
+    modal.append(sec);
+    // keys and presses inside the panel stay in it, so the game underneath doesn't act on them
+    ['keydown', 'keyup', 'keypress', 'pointerdown', 'mousedown', 'touchstart', 'wheel', 'click', 'contextmenu'].forEach(function (t) {
+      modal.addEventListener(t, function (e) {
+        if (t === 'pointerdown' && e.target === modal) closeModal();
+        e.stopPropagation();
+      });
+    });
+    $close.addEventListener('click', function () { closeModal(); });
+    // Escape closes it; caught on the window first, since a game may swallow the key before it reaches the panel
+    window.addEventListener('keydown', function (e) { if (!modal.hidden && e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); closeModal(); } }, true);
+  }
+  function openModal(cb) {
+    if (!modal) return;
+    onClose = typeof cb === 'function' ? cb : null;
+    if (!modal.parentNode) document.body.appendChild(modal);
+    try { if (document.pointerLockElement) document.exitPointerLock(); } catch (e) {}
+    modal.hidden = false; modal.scrollTop = 0;
+    try { $close.focus(); } catch (e) {}
+    if (!people) load(); else if (Date.now() - lastLoad > 60000) { lastLoad = 0; load(); }
+  }
+  function closeModal() { if (!modal || modal.hidden) return; modal.hidden = true; var cb = onClose; onClose = null; if (cb) try { cb(); } catch (e) {} }
+
   function place() {
     var games = document.querySelector('section[aria-label="Games"]'), lists = document.getElementById('lists');
     var after = games || lists, foot = document.querySelector('.wrap > footer') || document.querySelector('footer');
@@ -732,17 +791,19 @@
     else document.body.appendChild(sec);
     if (lists && !games) sec.style.paddingTop = '22px';
   }
-  place();
+  if (!GAME) place();
   function say(t, err) { $msg.textContent = t || ''; $msg.classList.toggle('err', !!err); }
 
   // ---------------- State ----------------
   // g: 'all' or a game folder. b: the board (its stat key, 's' for hours, or for Slipstream 'laps' (every track), 'rec3', 'rec5'… or 'lap'),
   // '' for the game's first board that has anyone on it. t: the Slipstream track.
   var view = { g: 'all', b: 's', t: '' };
+  var VIEW_KEY = GAME ? 'lb:view:' + GAME : 'lb:view';
   try {
-    var sv = JSON.parse(ls('lb:view') || 'null');
+    var sv = JSON.parse(ls(VIEW_KEY) || 'null');
     if (sv && (sv.g === 'all' || BY[sv.g])) view = { g: sv.g, b: typeof sv.b === 'string' ? sv.b.slice(0, 40) : 's', t: typeof sv.t === 'string' && TRACKS[sv.t] ? sv.t : '' };
   } catch (e) {}
+  if (GAME && BY[GAME] && view.g !== GAME) view = { g: GAME, b: '', t: '' };
   $sel.value = view.g;
   view.span = ls('lb:span') === 'all' ? 'all' : 'week';   // This week unless this browser picked All time
   var people = null, myUid = '', loading = false, lastLoad = 0;
@@ -759,9 +820,18 @@
     if (loading || Date.now() - lastLoad < 8000) return;
     loading = true; $refresh.disabled = true; say(people ? 'Refreshing…' : 'Loading the leaderboards…');
     try {
-      var P = await waitParty();
-      if (!P) throw new Error('The leaderboards need the Party panel, which didn’t load. Reload the page to try again.');
-      var b = await P.boot(); myUid = b.uid;
+      var P, b;
+      if (GAME) {
+        // in a game page: the connection stats.js already has (the game's own sign-in, or its own)
+        var c = window.BackRoomStats && BackRoomStats.conn ? await timeout(BackRoomStats.conn(), 25000) : null;
+        if (!c) throw new Error('timeout');
+        P = { now: c.now }; b = { uid: c.uid(), db: c.db };
+      } else {
+        P = await waitParty();
+        if (!P) throw new Error('The leaderboards need the Party panel, which didn’t load. Reload the page to try again.');
+        b = await P.boot();
+      }
+      myUid = b.uid;
       var snap = (await timeout(Promise.all([b.db.ref(PATH).once('value'), readResets(b.db)]), 15000))[0];
       var val = snap.val() || {}, now = P.now ? P.now() : Date.now(), out = [], keys = Object.keys(val);
       // MAX_NODES counts players shown, not nodes read: stale nodes (which pile up, as nothing removes them) cost one
@@ -860,7 +930,8 @@
     }
     boards.forEach(function (b) { $chips.append(chip(b)); });
     view.st = st && st.k !== 's' ? st : null;
-    $rule.hidden = !(view.st && view.st.laps);
+    $rule.hidden = !(view.st && (view.st.laps || view.st.cleanB));
+    $rule.textContent = view.st && view.st.cleanB ? 'Clean times: no corner was cut on ' + (view.st.laps ? 'any lap of the race.' : 'the lap.') : 'Race times include any track-cut penalties (+2.5 s each).';
     var miles = view.g === 'all', spans = miles || !view.st, wk = spans && view.span === 'week';
     $span.hidden = !spans;
     [].forEach.call($span.children, function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-s') === view.span)); });
@@ -889,13 +960,14 @@
     if (mine >= TOP) { var gap = el('li', 'lbd-gap', '···'); gap.setAttribute('aria-hidden', 'true'); $list.append(gap, row(list[mine])); }
     if (!list.length) say(miles ? (wk ? 'Nobody has played this week yet. Play any game for a minute to get on it.' : 'Nobody’s on the board yet. Play any game for a minute to get on it.')
       : wk ? 'Nobody has played ' + BY[view.g].n + ' this week yet. Pick All time to see everyone.'
+      : view.st && view.st.cleanB ? 'No clean ' + (view.st.laps ? view.st.laps + '-lap race' : 'lap') + ' at ' + view.st.track + ' yet. Drive one without cutting a corner to set it.'
       : view.st && view.st.laps ? 'No course record at ' + view.st.track + ' over ' + view.st.laps + (view.st.laps === 1 ? ' lap' : ' laps') + ' yet. Finish a race of that length there to set one.'
       : view.st && view.st.track ? 'No lap times at ' + view.st.track + ' yet. Race there to set one.'
       : 'Nobody has a score here yet. Play ' + BY[view.g].n + ' to be the first.');
     else if (mine < 0 && myUid) say(list.length + (list.length === 1 ? ' player' : ' players') + '. You’re not on this board yet.');
     else say(list.length + (list.length === 1 ? ' player' : ' players') + (mine >= 0 ? '. You’re #' + list[mine].rank + '.' : '.'));
   }
-  function save() { ls('lb:view', JSON.stringify({ g: view.g, b: view.b, t: view.t || '' })); }
+  function save() { ls(VIEW_KEY, JSON.stringify({ g: view.g, b: view.b, t: view.t || '' })); }
 
   $sel.addEventListener('change', function () { view.g = $sel.value === 'all' || BY[$sel.value] ? $sel.value : 'all'; view.b = view.g === 'all' ? 's' : ''; save(); draw(); if (!people) load(); });
   $trk.addEventListener('change', function () { if (TRACKS[$trk.value]) { view.t = $trk.value; if (view.b === 'laps') view.b = 'lap'; picked = true; save(); draw(); } });
@@ -927,8 +999,10 @@
   });
 
   // Read nothing until the section is near the screen.
-  draw(); say('The boards load when you scroll down to them.');
-  if ('IntersectionObserver' in window) {
+  if (GAME) { draw(); window.BackRoomBoards.open = openModal; window.BackRoomBoards.close = closeModal; }
+  else { draw(); say('The boards load when you scroll down to them.'); }
+  if (GAME) { /* read when the panel opens */ }
+  else if ('IntersectionObserver' in window) {
     var io = new IntersectionObserver(function (es) {
       if (es.some(function (x) { return x.isIntersecting; })) { io.disconnect(); load(); }
     }, { rootMargin: '200px 0px' });

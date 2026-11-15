@@ -560,7 +560,7 @@ const MIN_R=14;
 function roundCorners(P){
   const N=P.length;let pts=P.map(p=>p.slice());
   const turn=(i)=>{const a=pts[(i-1+N)%N],b=pts[i],c=pts[(i+1)%N];return Math.abs(angDiff(Math.atan2(c[1]-b[1],c[0]-b[0]),Math.atan2(b[1]-a[1],b[0]-a[0])))/Math.hypot(c[0]-a[0],c[1]-a[1])*2};
-  for(let it=0;it<400;it++){
+  for(let it=0;it<8000;it++){   // until no bend is tighter than MIN_R (Monaco's hairpin needs about 2,000 passes)
     const hot=[];for(let i=0;i<N;i++)if(turn(i)>1/MIN_R)hot.push(i);
     if(!hot.length)break;
     const mark=new Uint8Array(N);for(const i of hot)for(let k=-6;k<=6;k++)mark[(i+k+N)%N]=1;
@@ -639,6 +639,15 @@ function buildTrack(def){
       const w=Math.max(floor,Math.abs(lat)/2-.6);
       if(lat>0){if(w<WP[i])WP[i]=w}else if(w<WN[i])WN[i]=w;
     }
+  }
+  // On the inside of a tight corner a barrier further in than the corner's own centre would double back on itself
+  // (a knot of wall and fence inside every hairpin), so there it sits at most 0.8 of the corner's radius from the centre line.
+  {
+    const kn=new Float32Array(N);for(let i=0;i<N;i++){const a=(i-1+N)%N,b=(i+1)%N;kn[i]=((TX[b]-TX[a])*NX[i]+(TZ[b]-TZ[a])*NZ[i])/(Math.hypot(X[b]-X[a],Z[b]-Z[a])||ds)}
+    // the sharpest bend toward each side within a few samples (map data puts short kinks in some corners)
+    for(let i=0;i<N;i++){let kp=0,km=0;for(let j=-3;j<=3;j++){const k=kn[(i+j+N)%N];if(k>kp)kp=k;if(-k>km)km=-k}
+      if(kp>1/70){const cap=Math.max(floor,.72/kp);if(cap<WP[i])WP[i]=cap}
+      if(km>1/70){const cap=Math.max(floor,.72/km);if(cap<WN[i])WN[i]=cap}}
   }
   const ease=a=>{const m=new Float32Array(N);for(let i=0;i<N;i++){let v=1e9;for(let k=-6;k<=6;k++)v=Math.min(v,a[(i+k+N)%N]);m[i]=v}return smooth(m,3)};
   const WPs=ease(WP),WNs=ease(WN);
@@ -929,7 +938,13 @@ function lapCheck(c,t){
   if(k>=1&&!c.fin){
     const lt=t-c.lastCross;c.lastCross=t;c.lastLap=lt;
     const pb=!c.best||lt<c.best;if(pb)c.best=lt;
-    if(c.ctrl==='me')onMyLap(c,lt,pb);
+    // Clean laps (the separate no-cutting times): a lap is clean if no excursion in it took a shortcut (judgeEx sets
+    // c.dirty). An excursion still open at the line (off the track, or back on for under a second) holds this lap's
+    // verdict until it is judged; if the car is still off as it crosses, the new lap starts dirty as well.
+    const open=c.ex,was=!c.dirty;c.dirty=false;
+    if(open){open.hold={lt,clean:was};open.offAtLine=!open.done}
+    else if(!was)c.unclean=true;
+    if(c.ctrl==='me')onMyLap(c,lt,pb,open?null:was);
   }
   if(!c.fin&&k>=1&&(k>=race.laps||race.anyFin)){
     c.fin=t;
@@ -995,7 +1010,7 @@ function trackLimits(c,dt,t){
   const off=c.offTrack=Math.abs(c.lat)>HALF_W+1.1; // centre more than half a car past the white line: all four wheels out
   let ex=c.ex;
   if(off){
-    if(!ex||ex.done){if(ex&&ex.done&&ex.onT<1){ex.done=false}else ex=c.ex={P0:c.P,path:0,dur:0,idx:c.idx,v0:Math.abs(c.v),done:false,forced:t-(c.lastContact??-9)<1.5}}
+    if(!ex||ex.done){if(ex&&ex.done&&ex.onT<1){ex.done=false}else ex=c.ex={P0:c.P,path:0,dur:0,idx:c.idx,v0:Math.abs(c.v),done:false,forced:t-(c.lastContact??-9)<1.5,k:c.k}}
     if(t-(c.lastContact??-9)<.3)ex.forced=true;
     ex.path+=Math.abs(c.v)*dt;ex.dur+=dt;
   }else if(ex){
@@ -1007,13 +1022,22 @@ function trackLimits(c,dt,t){
 function judgeEx(c,ex){
   c.ex=null;
   if(!ex.done)ex.dP=c.P-ex.P0; // still off the track (at the flag): judged as it stands
-  if(ex.dur<.12||(ex.v0<12&&ex.dP<8))return; // a brush with the line, or a crawl after a spin
-  if(ex.forced&&ex.dP-ex.path<6)return;     // pushed off by another car (and no time gained): no offence
-  const gain=(ex.dP-ex.path)/Math.max(12,Math.abs(c.v)),where=turnAt(ex.idx);
-  if(gain>.25&&ex.dP-ex.path>6){ // a clear cut that gained time
-    c.pen=(c.pen||0)+CUT_PEN;c.pens=(c.pens||0)+1;
-    toast('+'+CUT_PEN+' s · '+(c===race.me?'you':c.name)+' cut the track'+(where?' at '+where:''),'pen');
+  let short=false;
+  // not judged at all: a brush with the line, a crawl after a spin, or pushed off by another car with no time gained
+  if(!(ex.dur<.12||(ex.v0<12&&ex.dP<8))&&!(ex.forced&&ex.dP-ex.path<6)){
+    short=ex.dP-ex.path>1.5;      // came back further round the lap than it drove while off: a shortcut, however small
+    const gain=(ex.dP-ex.path)/Math.max(12,Math.abs(c.v)),where=turnAt(ex.idx);
+    if(gain>.25&&ex.dP-ex.path>6){ // a clear cut that gained time
+      c.pen=(c.pen||0)+CUT_PEN;c.pens=(c.pens||0)+1;
+      toast('+'+CUT_PEN+' s · '+(c===race.me?'you':c.name)+' cut the track'+(where?' at '+where:''),'pen');
+    }
   }
+  // clean laps: a shortcut spoils the lap it happened in (see the lap code in timing's caller)
+  if(ex.hold){
+    if(short||!ex.hold.clean)c.unclean=true;
+    else if(c.ctrl==='me')cleanLap(ex.hold.lt);
+    if(short&&ex.offAtLine)c.dirty=true;
+  }else if(short)c.dirty=true;
 }
 function raceTime(c){return c.fin?c.fin+(c.pen||0):0}
 function order(){
@@ -1021,13 +1045,14 @@ function order(){
   cs.sort((a,b)=>(a.fin&&b.fin)?raceTime(a)-raceTime(b):a.fin?-1:b.fin?1:b.P-a.P);
   return cs;
 }
+let testAuto=false; // automated checks only (window.__ss.auto): a bot drives the player's car
 function stepRace(dt){
   const R=race;if(!R)return;
   const t=raceT(),live=t>=0;
   const cars=R.cars;
   for(const c of cars){
     if(c.ctrl==='remote'){predictRemote(c,dt);if(t>=0)drsUpdate(c,t);continue}
-    let inp=c.ctrl==='me'&&!c.fin?humanInput(c,dt):botInput(c,dt,t);
+    let inp=c.ctrl==='me'&&!c.fin&&!testAuto?humanInput(c,dt):botInput(c,dt,t);
     if(c.ctrl==='me'&&c.fin)c.vcap=.7;
     slipstream(c);
     c.steer=lerp(c.steer,inp.steer,.35);c.thr=inp.thr;c.brk=inp.brk;
@@ -1309,7 +1334,8 @@ function buildWorld(ti){
     const n=Math.round(420*dens),bld=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1).translate(0,.5,0),new THREE.MeshLambertMaterial({color:0xffffff}),n);
     let c=0;const waterZ=mxz+150;
     for(let t=0;t<n*5&&c<n;t++){const x=lerp(area[0],area[1],rng()),z=lerp(area[2],Math.min(area[3],waterZ-40),rng());if(!far(x,z,WALL+22)||nearStands(x,z))continue;
-      const w=14+rng()*26,d=14+rng()*26,h=10+rng()*rng()*90;mm.compose(ps.set(x,0,z),q.setFromAxisAngle(new THREE.Vector3(0,1,0),rng()*.3),sc.set(w,h,d));bld.setMatrixAt(c,mm);
+      const w=14+rng()*26,d=14+rng()*26,h=10+rng()*rng()*90;
+      if(!far(x,z,WALL+6+Math.hypot(w,d)/2))continue;   // the whole footprint, corners included, stays behind the barriermm.compose(ps.set(x,0,z),q.setFromAxisAngle(new THREE.Vector3(0,1,0),rng()*.3),sc.set(w,h,d));bld.setMatrixAt(c,mm);
       if(D.night)col.setHSL(.6+rng()*.1,.25,.12+rng()*.1);else col.setHSL(.55+rng()*.12,.12+rng()*.18,.28+rng()*.26);bld.setColorAt(c,col);c++}
     bld.count=c;g.add(bld);
     const water=new THREE.Mesh(new THREE.PlaneGeometry(gw,2400),new THREE.MeshLambertMaterial({color:0x2c6f9a}));water.rotation.x=-Math.PI/2;water.position.set(cx,.03,waterZ+1200);g.add(water);
@@ -1321,7 +1347,7 @@ function buildWorld(ti){
     const n=90,mesa=new THREE.InstancedMesh(new THREE.CylinderGeometry(1,1.25,1,8).translate(0,.5,0),new THREE.MeshLambertMaterial({color:0xffffff}),n);
     let c=0;
     for(let t=0;t<n*6&&c<n;t++){const x=lerp(area[0]-600,area[1]+600,rng()),z=lerp(area[2]-600,area[3]+600,rng());if(!far(x,z,170))continue;
-      const r=20+rng()*70,h=15+rng()*60;mm.compose(ps.set(x,0,z),q.identity(),sc.set(r,h,r*(.7+rng()*.6)));mesa.setMatrixAt(c,mm);
+      const r=20+rng()*70,h=15+rng()*60;if(!far(x,z,WALL+30+r*1.7))continue;mm.compose(ps.set(x,0,z),q.identity(),sc.set(r,h,r*(.7+rng()*.6)));mesa.setMatrixAt(c,mm);
       col.setHSL(.04+rng()*.03,.55,.38+rng()*.12);mesa.setColorAt(c,col);c++}
     mesa.count=c;g.add(mesa);
     const m2=Math.round(360*dens),cac=new THREE.InstancedMesh(new THREE.CylinderGeometry(.45,.5,1,6).translate(0,.5,0),new THREE.MeshLambertMaterial({color:0x4f7a3a}),m2);
@@ -1333,10 +1359,14 @@ function buildWorld(ti){
   if(D.night){
     const n=Math.floor(T.L/120),pole=new THREE.InstancedMesh(new THREE.CylinderGeometry(.25,.35,18,6).translate(0,9,0),new THREE.MeshLambertMaterial({color:0x2a2f3a}),n);
     const head=new THREE.InstancedMesh(new THREE.BoxGeometry(3,1.2,.6),new THREE.MeshBasicMaterial({color:0xfff6dc}),n);
-    for(let k=0;k<n;k++){const s=k*120,i=Math.round(s/T.ds)%T.N,sd=k%2?1:-1,l=sd*((sd>0?T.WP[i]:T.WN[i])+2.5),p=posAt(s,l);
-      mm.compose(ps.set(p.x,0,p.z),q.identity(),sc.set(1,1,1));pole.setMatrixAt(k,mm);
-      mm.compose(ps.set(p.x,18,p.z),q.setFromAxisAngle(new THREE.Vector3(0,1,0),-p.h),sc.set(1,1,1));head.setMatrixAt(k,mm)}
-    g.add(pole,head);
+    let c=0;
+    for(let k=0;k<n;k++){const s=k*120,i=Math.round(s/T.ds)%T.N;let p=null;
+      // the usual side first, then the other; skipped where both sides are another stretch of road
+      for(const sd of k%2?[1,-1]:[-1,1]){const q2=posAt(s,sd*((sd>0?T.WP[i]:T.WN[i])+2.5));if(clear(q2.x,q2.z,s,HALF_W+KERB_W+3)){p=q2;break}}
+      if(!p)continue;
+      mm.compose(ps.set(p.x,0,p.z),q.identity(),sc.set(1,1,1));pole.setMatrixAt(c,mm);
+      mm.compose(ps.set(p.x,18,p.z),q.setFromAxisAngle(new THREE.Vector3(0,1,0),-p.h),sc.set(1,1,1));head.setMatrixAt(c,mm);c++}
+    pole.count=head.count=c;g.add(pole,head);
   }
   // distant hills all round
   {
@@ -2226,16 +2256,22 @@ function drawTags(){
 // =====================================================================
 //  Race events
 // =====================================================================
-function onMyLap(c,lt,pb){
-  // every lap counts for the leaderboard, cut or not, as it does for Best in the game; penalties are for the race time
+// A lap with no shortcut also counts for the separate clean-lap board ('clap:<track>'), next to the fastest lap.
+function cleanLap(lt){if(window.BackRoomStats&&!race.attract)BackRoomStats.min('clap:'+TRACKS[race.track].id,lt)}
+function onMyLap(c,lt,pb,clean){
+  // every lap counts for the leaderboard, cut or not, as it does for Best in the game; penalties are for the race time.
+  // clean: true or false, or null while an excursion at the line is still to be judged (judgeEx then records it).
   if(window.BackRoomStats&&!race.attract)BackRoomStats.min('lap:'+TRACKS[race.track].id,lt);
-  toast('Lap '+c.k+' · '+fmtTime(lt)+(pb&&c.k>1?' · personal best':''));
+  if(clean)cleanLap(lt);
+  toast('Lap '+c.k+' · '+fmtTime(lt)+(pb&&c.k>1?' · personal best':'')+(clean?' · clean':clean===false?' · cut':''));
   if(c.k===race.laps-1&&!race.anyFin)banner('FINAL LAP',1800);
 }
 function onFinish(c){
   if(c.ctrl!=='me')return;
   // the course record is the race time with any track-cut penalties added (raceTime), as in the results
   if(window.BackRoomStats&&!race.attract&&c.k>=race.laps)BackRoomStats.min('rec:'+TRACKS[race.track].id+':'+race.laps,raceTime(c));
+  // and, when every lap of the race was clean, the separate clean course record ('crec:<track>:<laps>')
+  if(window.BackRoomStats&&!race.attract&&c.k>=race.laps&&!c.unclean&&!c.dirty)BackRoomStats.min('crec:'+TRACKS[race.track].id+':'+race.laps,raceTime(c));
   const p=order().indexOf(c)+1;
   banner((p===1?'YOU WIN!':'P'+p)+'<small>CHEQUERED FLAG</small>',3500);
   beep(660,.2,.2);setTimeout(()=>beep(990,.4,.2),180);
@@ -2554,7 +2590,10 @@ if(inv&&!/^pub-/.test(inv[1])){$('room').value=inv[1];setMsg('You were invited t
 // test hook for automated browsers only (bots-only races, lap-time checks)
 if(navigator.webdriver)window.__ss={get race(){return race},get track(){return track},get state(){return state},get mode(){return mode},
   get clock(){return localClock},set clock(v){localClock=v},set paused(v){paused=v},
-  TRACKS,DIFF,PACE,AI,SEATS,HALF_W:()=>HALF_W,newRace,stepRace,setupAttract,startPractice,prefs,raceTime,order};
+  TRACKS,DIFF,PACE,AI,SEATS,HALF_W:()=>HALF_W,newRace,stepRace,setupAttract,startPractice,prefs,raceTime,order,
+  get world(){return world},set auto(v){testAuto=!!v},posAt,
+  // a picture of the circuit from a camera at (px,py,pz) looking at (tx,ty,tz), for checking the scenery
+  snap(px,py,pz,tx,ty,tz){const c=camera.clone();c.position.set(px,py,pz);c.up.set(0,1,0);c.lookAt(tx,ty,tz);c.far=9000;c.updateProjectionMatrix();c.updateMatrixWorld();const f=scene.fog;scene.fog=null;renderer.render(scene,c);scene.fog=f;return renderer.domElement.toDataURL('image/jpeg',.85)}};
 requestAnimationFrame(frame);
 })();
 </script>
