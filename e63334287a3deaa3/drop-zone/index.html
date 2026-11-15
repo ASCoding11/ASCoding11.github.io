@@ -41,7 +41,7 @@ button{font:inherit;color:inherit}
 button:focus-visible,input:focus-visible{outline:2px solid var(--sun);outline-offset:3px}
 button:disabled{opacity:.5;cursor:default}
 
-#stormTint{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,rgba(120,60,220,.18) 30%,rgba(90,30,190,.55) 100%);opacity:0;transition:opacity .4s}
+#stormTint{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,rgba(20,30,52,0) 38%,rgba(8,14,30,.62) 100%);opacity:0;transition:opacity .4s}
 #hud{position:absolute;inset:0;pointer-events:none}
 #hud.spec #vitals,#hud.spec #slots,#hud.spec #cross,#hud.spec #reload,#hud.spec #hint,#hud.spec #scope,#hud.spec #ammo,#hud.spec #prompt,#hud.spec #useBar{display:none}
 #hud.air #cross,#hud.air #ammo{display:none}
@@ -489,16 +489,21 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.6));
 renderer.domElement.id='view';renderer.domElement.tabIndex=-1;
 $('app').prepend(renderer.domElement);
 const scene=new THREE.Scene();
-const SKY=0x9fd6f2,STORM_SKY=0x6a4fa6;
+const SKY=0xa9d8ee,STORM_SKY=0x39465a,SEA=0x1f7fae;
 scene.background=new THREE.Color(SKY);
-scene.fog=new THREE.Fog(SKY,90,330);
+scene.fog=new THREE.Fog(SKY,110,400);
 // Near and far planes as tight as the view allows (see setNear), so the depth buffer has precision to spare and
 // faces a few centimetres apart don't flicker in the distance. Everything past the fog's end is the sky colour anyway.
 const camera=new THREE.PerspectiveCamera(72,1,0.15,800);
 function setNear(v){if(camera.near!==v){camera.near=v;camera.updateProjectionMatrix()}}
-scene.add(new THREE.HemisphereLight(0xe8f6ff,0x5d7a3c,0.78));
-scene.add(new THREE.AmbientLight(0xffffff,0.18));
-const sun=new THREE.DirectionalLight(0xfff1d6,0.82);sun.position.set(0.45,1,0.3);scene.add(sun);
+// Light: a warm sun from fairly low in the sky, so walls facing it are clearly brighter than the ones that don't and
+// shadows are long, and a cooler, weaker fill from the sky. The three add up to about 1.2 on sunlit ground, so
+// colours keep their hue instead of washing out to white.
+const LIGHT={hemi:.54,amb:.1,sun:.9};
+const hemi=new THREE.HemisphereLight(0xd6e9ff,0x7d8a56,LIGHT.hemi);scene.add(hemi);
+const amb=new THREE.AmbientLight(0xffffff,LIGHT.amb);scene.add(amb);
+const SUN_V=[0.56,0.66,0.38];
+const sun=new THREE.DirectionalLight(0xfff0cf,LIGHT.sun);sun.position.set(SUN_V[0],SUN_V[1],SUN_V[2]);scene.add(sun);
 let VW=innerWidth,VH=innerHeight;
 function resize(){const a=$('app'),w=VW=a.clientWidth||innerWidth,h=VH=a.clientHeight||innerHeight;renderer.setSize(w,h,false);renderer.domElement.style.width='100%';renderer.domElement.style.height='100%';camera.aspect=w/h;camera.updateProjectionMatrix()}
 addEventListener('resize',resize);resize();
@@ -525,8 +530,13 @@ MAT.onBeforeCompile=sh=>{
   sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\n#ifdef FINE\nvarying vec3 dzP;varying vec3 dzN;\n#endif')
     .replace('#include <begin_vertex>','#include <begin_vertex>\n#ifdef FINE\ndzP=transformed;dzN=objectNormal;\n#endif');
   sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\n#ifdef FINE\nuniform sampler2D dzTex;varying vec3 dzP;varying vec3 dzN;\n#endif')
-    .replace('#include <color_fragment>','#include <color_fragment>\n#ifdef FINE\n{vec3 w=pow(abs(dzN),vec3(4.));w/=(w.x+w.y+w.z);vec3 q=dzP*.42;float f=texture2D(dzTex,q.zy).r*w.x+texture2D(dzTex,q.xz).r*w.y+texture2D(dzTex,q.xy).r*w.z;float b=texture2D(dzTex,dzP.xz*.023).g;float g2=texture2D(dzTex,dzP.xz*1.9).r;diffuseColor.rgb*=(.95+.1*f)*(1.+((b-.5)*.22+(g2-.5)*.2)*w.y);}\n#endif');
+    .replace('#include <color_fragment>','#include <color_fragment>\n#ifdef FINE\n{vec3 w=pow(abs(dzN),vec3(4.));w/=(w.x+w.y+w.z);vec3 q=dzP*.42;float f=texture2D(dzTex,q.zy).r*w.x+texture2D(dzTex,q.xz).r*w.y+texture2D(dzTex,q.xy).r*w.z;float b=texture2D(dzTex,dzP.xz*.023).g;float g2=texture2D(dzTex,dzP.xz*1.9).r;diffuseColor.rgb*=(.95+.1*f)*(1.+((b-.5)*.3+(g2-.5)*.22)*w.y);\n#ifdef WORLD\n'
+      // the island only (WMAT): walls get thin board lines every half metre that fade out with distance, broad soft
+      // patches, and a darker foot where they meet the ground, so a big wall isn't one flat colour
+      +'float side=1.-w.y;float near=clamp(1.5-.03/gl_FragCoord.w,0.,1.);float ln=fract(dzP.y*2.+.02);float b2=texture2D(dzTex,vec2(dzP.x+dzP.z,dzP.y*1.7)*.045).g;diffuseColor.rgb*=1.-side*(.13*near*step(.9,ln)+(.5-b2)*.16+.2*(1.-smoothstep(0.,2.4,dzP.y)));\n#endif\n}\n#endif');
 };
+// The island's own copy of that material (ground and buildings): the same shader with the wall detail above switched on.
+const WMAT=new THREE.MeshLambertMaterial({vertexColors:true});WMAT.onBeforeCompile=MAT.onBeforeCompile;WMAT.defines={WORLD:1};
 // A unit box with rounded edges and smooth shading, for characters (a plain box pushed part of the way toward a ball).
 const ROUND_BOX=(()=>{
   const g=new THREE.BoxGeometry(1,1,1,4,4,4).toNonIndexed(),p=g.attributes.position,n=g.attributes.normal,v=new V3(),u=new V3(),f=new V3();
@@ -939,38 +949,57 @@ function segDist(x,z,a,b){const dx=b[0]-a[0],dz=b[1]-a[1],L=dx*dx+dz*dz;let t=L?
 // Ground colour at a point: grass with a little variation, painted areas, tracks, then sand along the shore.
 function vnoise(x,z){const s=Math.sin(x*.071+z*.033)*.5+Math.sin(x*.019-z*.057)*.5+Math.sin((x+z)*.11)*.25;return s*.5}
 function groundCol(x,z,out){
-  const n=vnoise(x,z);let r=.42+n*.05,g=.58+n*.06,b=.31+n*.03;
+  // grass: a deeper green than before, with broad lighter and darker patches so a field isn't one colour
+  const n=vnoise(x,z),n2=Math.sin(x*.21+z*.13)*Math.sin(z*.17-x*.09);let r=.29+n*.09+n2*.025,g=.5+n*.1+n2*.035,b=.2+n*.04;
   for(const p of paints){
     let inside=false,edge=1;
     if(p.k==='rect'){inside=x>=p.x0&&x<=p.x1&&z>=p.z0&&z<=p.z1}
     else{const d=Math.hypot(x-p.x,z-p.z);inside=d<=p.r;edge=clamp((p.r-d)/6,0,1)}
     if(!inside)continue;
-    let c=p.col;if(p.stripe&&Math.floor(x/4)%2===0)c=p.stripe;   // 4 m stripes: the ground has a vertex every 2 m, so 3 m ones aliased into a smear
+    let c=p.col;if(p.stripe&&Math.floor(x/4)%2===0)c=p.stripe;c=[Math.min(1,c[0]*1.2),Math.min(1,c[1]*1.2),Math.min(1,c[2]*1.2)];   // (lifted to suit the softer light)   // 4 m stripes: the ground has a vertex every 2 m, so 3 m ones aliased into a smear
     r+=(c[0]-r)*edge;g+=(c[1]-g)*edge;b+=(c[2]-b)*edge;
   }
-  for(const rd of roads){const d=segDist(x,z,rd.pts[0],rd.pts[1]);if(d<rd.w){const k=clamp((rd.w-d)/2,0,1)*.9;r+=(rd.col[0]-r)*k;g+=(rd.col[1]-g)*k;b+=(rd.col[2]-b)*k}}
-  const e=Math.min(x,z,MAP-x,MAP-z);if(e<16){const k=clamp((16-e)/8,0,1);r+=(.86-r)*k;g+=(.79-g)*k;b+=(.58-b)*k}
+  for(const rd of roads){const d=segDist(x,z,rd.pts[0],rd.pts[1]);if(d<rd.w){const k=clamp((rd.w-d)/2,0,1)*.9;r+=(rd.col[0]*1.18-r)*k;g+=(rd.col[1]*1.18-g)*k;b+=(rd.col[2]*1.18-b)*k}}
+  const e=Math.min(x,z,MAP-x,MAP-z)+vnoise(x*3.1,z*2.7)*5;if(e<15){const k=clamp((15-e)/7,0,1);r+=(.87-r)*k;g+=(.77-g)*k;b+=(.52-b)*k}
   out[0]=r;out[1]=g;out[2]=b;return out;
 }
 let groundMesh=null,seaMesh=null,staticMeshes=[],cloudMesh=null;
 function finishWorld(){
   // ground: one mesh, 2 m squares, vertex colours; the rim outside the island dips under the sea
-  const S=MAP+16,N=Math.round(S/2);
+  // Outside the 240 m square you can walk on, a beach slopes down under the sea. How far it reaches changes along the
+  // shore (4 to 20 m) and it rounds the corners, so from the air the island has a coastline rather than a ruler edge.
+  // It is only for looks: nobody can stand on it (clampToMap).
+  const S=MAP+72,N=Math.round(S/2);
   const gg=new THREE.PlaneGeometry(S,S,N,N);gg.rotateX(-Math.PI/2);gg.translate(MAP/2,0,MAP/2);
   const pos=gg.attributes.position,col=new Float32Array(pos.count*3),c=[0,0,0];
-  for(let i=0;i<pos.count;i++){const x=pos.getX(i),z=pos.getZ(i);if(x<-.1||z<-.1||x>MAP+.1||z>MAP+.1)pos.setY(i,-1.6);groundCol(clamp(x,0,MAP),clamp(z,0,MAP),c);col[i*3]=c[0];col[i*3+1]=c[1];col[i*3+2]=c[2]}
+  for(let i=0;i<pos.count;i++){const x=pos.getX(i),z=pos.getZ(i),cx=clamp(x,0,MAP),cz=clamp(z,0,MAP),d=Math.hypot(x-cx,z-cz);
+    groundCol(cx,cz,c);
+    if(d>.1){const a=Math.atan2(z-MAP/2,x-MAP/2),w=11+5*Math.sin(a*3+.7)+3.5*Math.sin(a*7+2.1)+2*Math.sin(a*13+4),k=clamp(d/w,0,1.6);
+      pos.setY(i,-1.3*k*k-.12*k);
+      const wet=clamp((k-.35)/.35,0,1);c[0]=.87-.2*wet;c[1]=.77-.14*wet;c[2]=.52-.02*wet}   // sand, darker where it's wet
+    col[i*3]=c[0];col[i*3+1]=c[1];col[i*3+2]=c[2]}
   gg.setAttribute('color',new THREE.BufferAttribute(col,3));gg.computeVertexNormals();
-  groundMesh=new THREE.Mesh(gg,MAT);scene.add(groundMesh);
-  seaMesh=new THREE.Mesh(new THREE.PlaneGeometry(3000,3000).rotateX(-Math.PI/2),new THREE.MeshLambertMaterial({color:0x2f93bf}));seaMesh.position.set(MAP/2,-.5,MAP/2);seaMesh.receiveShadow=true;scene.add(seaMesh);
-  for(const B of chunks){if(!B.p.length)continue;const m=new THREE.Mesh(bagGeo(B),MAT);scene.add(m);staticMeshes.push(m);
+  groundMesh=new THREE.Mesh(gg,WMAT);scene.add(groundMesh);
+  seaMesh=new THREE.Mesh(new THREE.PlaneGeometry(3000,3000).rotateX(-Math.PI/2),new THREE.MeshLambertMaterial({color:SEA}));seaMesh.position.set(MAP/2,-.5,MAP/2);seaMesh.receiveShadow=true;scene.add(seaMesh);
+  // shallow water: a paler band round the island, drawn just over the sea (one flat ring, no texture)
+  {const rg=new THREE.RingGeometry(MAP*.5,MAP*.5+70,48,3).rotateX(-Math.PI/2),rp=rg.attributes.position,rc=new Float32Array(rp.count*4);
+    for(let i=0;i<rp.count;i++){const x=rp.getX(i),z=rp.getZ(i),a=Math.atan2(z,x),R_=Math.hypot(x,z),sq=MAP/2/Math.max(Math.abs(Math.cos(a)),Math.abs(Math.sin(a))),k=clamp((R_-MAP*.5)/70,0,1);
+      // the ring's inner edge follows the square island (pulled a little inside it), its outer edge stays round
+      const rr=(sq-4)*(1-k)+(MAP*.5+78)*k*1.25;rp.setXYZ(i,Math.cos(a)*rr,0,Math.sin(a)*rr);rc[i*4]=.42;rc[i*4+1]=.86;rc[i*4+2]=.84;rc[i*4+3]=(1-k)*(1-k)*.62}
+    rg.setAttribute('color',new THREE.BufferAttribute(rc,4));
+    const sh=new THREE.Mesh(rg,new THREE.MeshBasicMaterial({vertexColors:true,transparent:true,depthWrite:false}));sh.position.set(MAP/2,-.44,MAP/2);sh.renderOrder=-1;scene.add(sh)}
+  for(const B of chunks){if(!B.p.length)continue;const m=new THREE.Mesh(bagGeo(B),WMAT);scene.add(m);staticMeshes.push(m);
     // keep the original positions and colours, to restore broken and damaged pieces for the next match
     B.mesh=m;B.pos=m.geometry.attributes.position;B.col=m.geometry.attributes.color;B.pos.setUsage(THREE.DynamicDrawUsage);B.col.setUsage(THREE.DynamicDrawUsage);
     B.p0=B.pos.array.slice();B.c0=B.col.array.slice();B.p=B.n=B.c=null}
   mpLink();
   // clouds, all one mesh, above the Drifter's line
-  const cb=Bag(),rr=mulberry(99);
-  for(let i=0;i<26;i++){const x=-200+rr()*(MAP+400),z=-200+rr()*(MAP+400),y=150+rr()*40;for(let k=0;k<3;k++)shape(ICO,x+k*9-9,y+rr()*3,z+rr()*6,8+rr()*6,3+rr()*2,6+rr()*4,0xffffff,rr()*3,1,cb)}
-  cloudMesh=new THREE.Mesh(bagGeo(cb),new THREE.MeshBasicMaterial({vertexColors:true,fog:false,transparent:true,opacity:.9}));scene.add(cloudMesh);
+  // (bigger and fewer than before: each is a row of five to seven puffs with a flat, blue-grey underside and a white top)
+  const cb=Bag(),rr=mulberry(99),CLD=new THREE.IcosahedronGeometry(1,1).toNonIndexed();
+  for(let i=0;i<20;i++){const x=-420+rr()*(MAP+840),z=-420+rr()*(MAP+840),y=165+rr()*45,n=5+Math.floor(rr()*3),a=rr()*3,s=.8+rr()*.9;
+    for(let k=0;k<n;k++){const u=(k-(n-1)/2)*11*s,m=1-Math.abs(k-(n-1)/2)/n;shape(CLD,x+Math.cos(a)*u+rr()*6,y+m*5*s,z+Math.sin(a)*u+rr()*6,(11+rr()*6)*s*(.6+m*.6),(4.5+rr()*2.5)*s*(.5+m),(9+rr()*5)*s*(.6+m*.6),0xffffff,rr()*3,1,cb)}}
+  for(let i=0;i<cb.n.length;i+=3){const k=clamp(cb.n[i+1]*.75+.55,0,1);cb.c[i]=.68+.32*k;cb.c[i+1]=.76+.24*k;cb.c[i+2]=.88+.12*k}
+  cloudMesh=new THREE.Mesh(bagGeo(cb),new THREE.MeshBasicMaterial({vertexColors:true,fog:false,transparent:true,opacity:.94}));scene.add(cloudMesh);
   seaFlat=seaMesh.material;
 }
 
@@ -983,7 +1012,7 @@ function finishWorld(){
 // aren't (after autores.js has already lowered the resolution). A level it had to leave is never tried again that visit.
 let seaFlat=null,seaFine=null,fxTier=1,fxMax=2,lookKey=-9,lookOn=false,gfxPref=store.get('gfx','auto')==='fast'?'fast':'auto';
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-const SUN_DIR=new V3(0.45,1,0.3).normalize(),SH_HALF=46,SH_MAP=2048;
+const SUN_DIR=new V3(SUN_V[0],SUN_V[1],SUN_V[2]).normalize(),SH_HALF=46,SH_MAP=2048;
 scene.add(sun.target);
 (function(){const c=sun.shadow.camera;c.left=-SH_HALF;c.right=SH_HALF;c.top=SH_HALF;c.bottom=-SH_HALF;c.near=10;c.far=330;sun.shadow.mapSize.set(SH_MAP,SH_MAP);sun.shadow.bias=-.0005;sun.shadow.normalBias=.06})();
 // The shadow map covers 92 m around where you're looking and follows you in whole-texel steps, so shadow edges don't crawl.
@@ -996,7 +1025,7 @@ function followSun(){
 // sky: a dome that deepens toward the top and meets the fog colour at the horizon, and a soft sun
 const skyDome=new THREE.Mesh(new THREE.SphereGeometry(700,24,12),new THREE.MeshBasicMaterial({side:THREE.BackSide,fog:false,depthWrite:false,map:(()=>{
   const c=document.createElement('canvas');c.width=4;c.height=256;const g=c.getContext('2d'),gr=g.createLinearGradient(0,0,0,256);
-  gr.addColorStop(0,'#3f8fd6');gr.addColorStop(.3,'#6fb6ea');gr.addColorStop(.47,'#9fd6f2');gr.addColorStop(.5,'#c9e9f8');gr.addColorStop(.53,'#9fd6f2');gr.addColorStop(1,'#9fd6f2');
+  gr.addColorStop(0,'#2a72c8');gr.addColorStop(.22,'#3f8fdc');gr.addColorStop(.4,'#74b8ea');gr.addColorStop(.475,'#a9d8ee');gr.addColorStop(.5,'#d9eef6');gr.addColorStop(.525,'#a9d8ee');gr.addColorStop(1,'#a9d8ee');
   g.fillStyle=gr;g.fillRect(0,0,4,256);return new THREE.CanvasTexture(c)})()}));
 skyDome.renderOrder=-10;skyDome.frustumCulled=false;skyDome.visible=false;scene.add(skyDome);
 const sunGlow=new THREE.Sprite(new THREE.SpriteMaterial({fog:false,depthWrite:false,transparent:true,blending:THREE.AdditiveBlending,map:(()=>{
@@ -1009,8 +1038,8 @@ function fineSea(){
   const N=128,c=document.createElement('canvas');c.width=c.height=N;const g=c.getContext('2d'),im=g.createImageData(N,N),h=new Float32Array(N*N);
   for(let y=0;y<N;y++)for(let x=0;x<N;x++)h[y*N+x]=Math.sin(x/N*6.283*3+Math.sin(y/N*6.283*2)*1.3)*.5+Math.sin(y/N*6.283*5+x/N*6.283)*.3+Math.sin((x+y)/N*6.283*7)*.2;
   for(let y=0;y<N;y++)for(let x=0;x<N;x++){const dx=h[y*N+(x+1)%N]-h[y*N+(x+N-1)%N],dy=h[((y+1)%N)*N+x]-h[((y+N-1)%N)*N+x],l=Math.hypot(dx,dy,1),o=(y*N+x)*4;im.data[o]=(-dx/l*.5+.5)*255;im.data[o+1]=(-dy/l*.5+.5)*255;im.data[o+2]=(1/l*.5+.5)*255;im.data[o+3]=255}
-  g.putImageData(im,0,0);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(170,170);
-  return seaFine=new THREE.MeshPhongMaterial({color:0x2a8fc0,specular:0xbfe6ff,shininess:70,normalMap:t,normalScale:new THREE.Vector2(.5,.5)});
+  g.putImageData(im,0,0);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(64,64);
+  t.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());return seaFine=new THREE.MeshPhongMaterial({color:SEA,specular:0x6fb4d8,shininess:36,normalMap:t,normalScale:new THREE.Vector2(.3,.3)});
 }
 // colour grade (level 2): the finished frame is copied to a texture and redrawn with a touch more colour and contrast and
 // slightly darker corners. (No bloom here: in full daylight most pale surfaces are already at full brightness, so a glow
@@ -1034,20 +1063,21 @@ const grade=(function(){
   }
   return{run};
 })();
-function shadowFlags(){scene.traverse(o=>{if(o.isMesh&&o.material===MAT){o.castShadow=o!==groundMesh;o.receiveShadow=true}else if(o.isInstancedMesh&&o.material===plyMat){o.castShadow=true;o.receiveShadow=true}})}
+function shadowFlags(){scene.traverse(o=>{if(o.isMesh&&(o.material===MAT||o.material===WMAT)){o.castShadow=o!==groundMesh;o.receiveShadow=true}else if(o.isInstancedMesh&&o.material===plyMat){o.castShadow=true;o.receiveShadow=true}})}
 function lookSync(){
   const tier=gfxPref==='fast'||touchUI?0:fxTier;
   if(tier!==lookKey){
     lookKey=tier;lookOn=tier>=1;
     if(lookOn)shadowFlags();
-    sun.castShadow=lookOn;if(!lookOn){sun.position.set(0.45,1,0.3);sun.target.position.set(0,0,0)}
+    sun.castShadow=lookOn;if(!lookOn){sun.position.set(SUN_V[0],SUN_V[1],SUN_V[2]);sun.target.position.set(0,0,0)}
     const want=lookOn?1:undefined;if(MAT.defines===undefined)MAT.defines={};
-    if(MAT.defines.FINE!==want){if(want)MAT.defines.FINE=1;else delete MAT.defines.FINE;MAT.needsUpdate=true}
+    for(const M of [MAT,WMAT])if(M.defines.FINE!==want){if(want)M.defines.FINE=1;else delete M.defines.FINE;M.needsUpdate=true}
     if(seaMesh&&seaFlat)seaMesh.material=lookOn?fineSea():seaFlat;
+    if(!!stormMat.defines.LITE===lookOn){if(lookOn)delete stormMat.defines.LITE;else stormMat.defines.LITE=1;stormMat.needsUpdate=true}
   }
   if(!lookOn){skyDome.visible=sunGlow.visible=false;return}
   followSun();
-  const clear=scene.background.getHex()===SKY;                 // inside the storm the flat purple sky takes over
+  const clear=stormK<.98;                                      // deep in the storm the flat slate sky takes over
   skyDome.visible=sunGlow.visible=clear;
   if(clear){skyDome.position.copy(camera.position);sunGlow.position.copy(camera.position).addScaledVector(SUN_DIR,640)}
   if(seaFine)seaFine.normalMap.offset.set(performance.now()*.0000035,performance.now()*.0000021);
@@ -1442,6 +1472,7 @@ function bodyGeo(hex,skin){
   bagRBox(B,0,1.22,0,.7,.72,.42,hex);bagRBox(B,0,1.36,-.005,.62,.3,.44,lite);bagRBox(B,0,.9,0,.73,.1,.45,0x2b2f36);   // torso, chest panel, belt
   bagRBox(B,0,1.58,0,.24,.1,.24,skin);                                                                                // neck
   bagRBox(B,0,1.79,0,.48,.48,.48,skin);bagRBox(B,0,2.07,0,.52,.15,.52,dark);bagRBox(B,0,2.02,-.27,.5,.06,.16,dark);    // head, cap and its peak
+  bagRBox(B,0,1.8,.2,.5,.4,.16,HAIR[SKINS.indexOf(skin)%HAIR.length]||HAIR[0]);                                     // hair
   bagBox(B,0,1.83,-.262,.34,.08,.02,0x1d2228);                                                                        // visor
   bagRBox(B,0,1.25,.31,.44,.5,.2,dark);bagRBox(B,0,1.52,.31,.46,.06,.22,0xffc93c);                                    // backpack and its roll
   bagRBox(B,-.41,1.46,0,.17,.2,.26,hex);bagRBox(B,.41,1.46,0,.17,.2,.26,hex);                                         // shoulders
@@ -1462,7 +1493,7 @@ const GUN_GEO=(()=>{const o={},mk=f=>{const B=Bag();f(B);return bagGeo(B)};
   return o})();
 const GLIDER_GEO=(()=>{const B=Bag();bagBox(B,0,0,0,3.6,.08,1.1,0xffc93c);bagBox(B,-1.2,-.02,0,1.2,.09,1.12,0xff6a3a);bagBox(B,1.2,-.02,0,1.2,.09,1.12,0x2f93bf);
   bagBox(B,-1.1,-.75,0,.04,1.5,.04,0x333333);bagBox(B,1.1,-.75,0,.04,1.5,.04,0x333333);return bagGeo(B)})();
-const SKINS=[0xf1c7a0,0xd9a77c,0xb98058,0x8a5a3c,0xf5d3b5,0x6e4630];
+const SKINS=[0xf1c7a0,0xd9a77c,0xb98058,0x8a5a3c,0xf5d3b5,0x6e4630],HAIR=[0x5a3a22,0x2b211c,0x1c1917,0x151312,0xc9a05a,0x1a1614];
 // Legs and held items: every player's are drawn together, one instanced mesh for all legs and one per kind of held
 // item (syncLimbs, just before each render), instead of three draw calls per player. In the model they're plain
 // Object3Ds that only carry the pose (position, rotation, visible).
@@ -1561,6 +1592,15 @@ function sfxPick(){vKeep=true;tone('triangle',660,990,.08,.09);vKeep=false}
 function sfxJoin(){tone('triangle',440,660,.12,.18)}
 function sfxWhack(v){burst('bandpass',1200,.4*v,.08,3);tone('square',180,90,.08*v,.06)}
 function sfxStorm(){burst('lowpass',300,.18,.4)}
+function sfxThunder(v){if(v<.05)return;burst('lowpass',170,.55*v,1.1);burst('lowpass',80,.5*v,1.9);tone('sine',70,34,.3*v,.9)}
+// wind and rain while you're out in the storm: one looping noise source whose volume follows how far into it you are
+let humGain=null,humK=-1;
+function stormHum(k){
+  if(!AC)return;k=Math.round(k*20)/20;if(k===humK)return;humK=k;
+  if(!humGain){if(!k)return;try{const b=AC.createBuffer(1,AC.sampleRate*2,AC.sampleRate),d=b.getChannelData(0);let v=0;for(let i=0;i<d.length;i++){v+=(Math.random()*2-1-v)*.12;d[i]=v*(1-Math.abs(i/d.length*2-1)*.0)}
+      const s=AC.createBufferSource();s.buffer=b;s.loop=true;const f=AC.createBiquadFilter();f.type='lowpass';f.frequency.value=1400;humGain=AC.createGain();humGain.gain.value=0;s.connect(f);f.connect(humGain);humGain.connect(master);s.start()}catch(e){humGain=null;return}}
+  humGain.gain.setTargetAtTime(k*.5,AC.currentTime,.25);
+}
 
 /* ---------- game state ---------- */
 let state='menu',paused=false,online=false,practice=false;
@@ -1628,8 +1668,58 @@ function stormAt(t){
 }
 const outsideStorm=(e,S)=>Math.hypot(e.pos.x-S.x,e.pos.z-S.z)>S.r;
 // the storm wall: an open cylinder, and the Drifter (an airship), both one mesh
-const stormMesh=new THREE.Mesh(new THREE.CylinderGeometry(1,1,1,72,1,true),new THREE.MeshBasicMaterial({color:0x9b5cff,transparent:true,opacity:.3,side:THREE.DoubleSide,depthWrite:false,fog:false}));
-stormMesh.visible=false;scene.add(stormMesh);
+// It is drawn as a bank of thundercloud: two layers of drifting cloud from the shared noise texture, rain streaks low
+// down, a ragged top, and a brightening when lightning strikes. One draw call. Phones and Fast graphics (LITE) get one
+// cloud layer and no streaks. Everything here is only how the storm looks: where it is comes from stormAt().
+const STORM_H=130;   // (the wall's height follows its radius: about 130 m when it first appears, 34 m at the end)
+const stormMat=new THREE.ShaderMaterial({transparent:true,side:THREE.DoubleSide,depthWrite:false,fog:false,defines:gfxPref==='fast'||matchMedia('(pointer: coarse)').matches?{LITE:1}:{},
+  uniforms:{t:{value:detailTex},time:{value:0},flash:{value:0},op:{value:.85}},
+  vertexShader:'varying vec3 wp;varying vec3 wn;varying float h;void main(){h=position.y+.5;vec4 w=modelMatrix*vec4(position,1.);wp=w.xyz;wn=vec3(position.x,0.,position.z);gl_Position=projectionMatrix*viewMatrix*w;}',
+  fragmentShader:`uniform sampler2D t;uniform float time,flash,op;varying vec3 wp;varying vec3 wn;varying float h;
+    #define L(s,o) (texture2D(t,vec2(wp.x*s+wp.y*s*.55,wp.y*s-wp.x*s*.55)+o).g*w.x+texture2D(t,vec2(wp.z*s+wp.y*s*.55,wp.y*s-wp.z*s*.55)+o).g*w.y)
+    void main(){
+      vec2 w=wn.zx*wn.zx;w/=(w.x+w.y);
+      float n=L(.0075,vec2(time*.009,-time*.013));
+      #ifndef LITE
+      n=n*.62+.38*L(.024,vec2(-time*.02,-time*.034)+n*.3);
+      #endif
+      float p=smoothstep(.32,.72,n);
+      vec3 c=mix(vec3(.1,.14,.22),vec3(.34,.4,.52),p);c=mix(c,vec3(.66,.72,.82),smoothstep(.62,.9,n)*h);
+      c=mix(c,vec3(.17,.22,.32),(1.-smoothstep(0.,.5,h))*.7);
+      #ifndef LITE
+      float r=texture2D(t,vec2(wp.x*.7+wp.y*.05,wp.y*.012+time*.9)).r*w.x+texture2D(t,vec2(wp.z*.7+wp.y*.05,wp.y*.012+time*.9)).r*w.y;
+      c+=vec3(.36,.43,.5)*smoothstep(.62,.9,r)*(1.-smoothstep(.1,.45,h));
+      #endif
+      c+=flash*vec3(.5,.6,.8)*(.2+n);
+      float top=1.-smoothstep(.5,.96,h+(n-.5)*.7);
+      gl_FragColor=vec4(c,op*top*mix(1.,.62+.38*p,smoothstep(.15,.5,h)));
+    }`});
+const stormMesh=new THREE.Mesh(new THREE.CylinderGeometry(1,1,1,72,1,true),stormMat);
+stormMesh.visible=false;stormMesh.renderOrder=2;scene.add(stormMesh);
+// Rain round the camera while it is out in the storm: a few hundred streaks in a box that follows you, moved entirely
+// in the shader (nothing is updated per streak per frame).
+const RAIN_BOX=44,RAIN_H=26;
+const rainMesh=(()=>{const N=matchMedia('(pointer: coarse)').matches?180:340,p=new Float32Array(N*6),e=new Float32Array(N*2),r=mulberry(4242);
+  for(let i=0;i<N;i++){const x=r()*RAIN_BOX,y=r()*RAIN_H,z=r()*RAIN_BOX;p.set([x,y,z,x,y,z],i*6);e[i*2+1]=1}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(p,3));g.setAttribute('aE',new THREE.BufferAttribute(e,1));
+  const m=new THREE.LineSegments(g,new THREE.ShaderMaterial({transparent:true,depthWrite:false,fog:false,uniforms:{time:{value:0},cam:{value:new V3()},op:{value:0}},
+    vertexShader:`attribute float aE;uniform float time;uniform vec3 cam;varying float a;void main(){vec3 p=position;p.y=mod(p.y-time*(24.+fract(position.x*7.3)*8.),${RAIN_H}.);p.x+=time*5.;
+      vec3 q=vec3(cam.x+mod(p.x-cam.x,${RAIN_BOX}.)-${RAIN_BOX/2}.,cam.y-10.+p.y,cam.z+mod(p.z-cam.z,${RAIN_BOX}.)-${RAIN_BOX/2}.);q+=aE*vec3(.24,1.25,.06);a=.35+.65*aE;gl_Position=projectionMatrix*viewMatrix*vec4(q,1.);}`,
+    fragmentShader:'uniform float op;varying float a;void main(){gl_FragColor=vec4(.8,.87,.96,op*a);}'}));
+  m.frustumCulled=false;m.visible=false;m.renderOrder=3;scene.add(m);return m})();
+// Lightning: decided by the match seed and the match clock, so everyone sees the same strikes at the same moments.
+// Every 3 s there may be one, more often as the storm closes; it lights the cloud wall and draws a bolt somewhere along it.
+const BOLT_N=9,boltMesh=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshBasicMaterial({color:0xeaf2ff,fog:false}),BOLT_N);boltMesh.frustumCulled=false;boltMesh.visible=false;scene.add(boltMesh);
+const bolt={j:-1,on:false,t:0,ang:0,str:1,heard:false,x:0,z:0,shape:0};
+function boltFor(t,phase){const j=Math.floor(t/3);if(j!==bolt.j){bolt.j=j;const r=mulberry((seed^Math.imul(j+1,0x9e3779b1))>>>0);bolt.on=r()<.3+.08*phase;bolt.t=j*3+r()*2.2;bolt.ang=r()*6.283;bolt.str=.6+.4*r();bolt.heard=false;bolt.shape=r()*1e6|0}return bolt}
+function boltGlow(dt){return dt<0||dt>.6?0:dt<.07?1:dt<.13?.2:dt<.2?.85:Math.exp(-(dt-.2)*9)*.85}
+function drawBolt(S){
+  const r=mulberry(bolt.shape),R_=S.r+6,bx=S.x+Math.cos(bolt.ang)*R_,bz=S.z+Math.sin(bolt.ang)*R_;bolt.x=bx;bolt.z=bz;
+  let x=bx+(r()-.5)*14,y=(30+.55*S.r)*.8,z=bz+(r()-.5)*14;const step=y/BOLT_N;
+  for(let i=0;i<BOLT_N;i++){const nx=i===BOLT_N-1?bx:bx+(r()-.5)*16,nz=i===BOLT_N-1?bz:bz+(r()-.5)*16,ny=y-step;
+    _o.position.set((x+nx)/2,(y+ny)/2,(z+nz)/2);_o.lookAt(nx,ny,nz);_o.scale.set(.75,.75,Math.hypot(nx-x,ny-y,nz-z)+.4);_o.updateMatrix();boltMesh.setMatrixAt(i,_o.matrix);x=nx;y=ny;z=nz}
+  _o.scale.set(1,1,1);boltMesh.instanceMatrix.needsUpdate=true;
+}
 const busMesh=(()=>{const B=Bag();
   _m4.compose(_p.set(0,0,0),_q.identity(),_s.set(5.2,5.2,17));bagAdd(B,new THREE.SphereGeometry(1,14,10),_m4,0xffc93c,1);
   bagBox(B,0,0,0,10.6,.6,22,0xff6a3a);bagBox(B,0,-6.2,1,3.6,2.2,8,0xf2ede2);bagBox(B,0,-6.2,-3.4,3.7,1,.6,0x2f93bf);bagBox(B,0,-4.6,1,.4,2.2,.4,0x6d5844);
@@ -2054,7 +2144,7 @@ function setupMatch(ms){
 }
 function endMatchView(){
   // back to the lobby (online) or the menu (practice)
-  curMatch=0;roster=[];inMatch=false;clearBots();clearPieces();clearLoot();resetMap();stormMesh.visible=false;busMesh.visible=false;
+  curMatch=0;roster=[];inMatch=false;clearBots();clearPieces();clearLoot();resetMap();stormMesh.visible=false;busMesh.visible=false;boltMesh.visible=false;
   player.present=false;player.alive=false;player.st='out';
   for(const e of remotes.values()){e.present=false;e.alive=false}
 }
@@ -2585,13 +2675,35 @@ function updateCamera(dt){
 }
 function updateWorldFx(){
   const ip=inPlay();
-  if(ip){const t=matchT(),S=stormAt(t);stormMesh.visible=S.r<R0-1;stormMesh.scale.set(Math.max(.1,S.r),400,Math.max(.1,S.r));stormMesh.position.set(S.x,150,S.z);
-    // the wall shows strongly only when you're near it, so it doesn't tint the whole sky from the middle of the circle
-    const ce=camera.position,gap=Math.abs(S.r-Math.hypot(ce.x-S.x,ce.z-S.z));stormMesh.material.opacity=.06+.3*clamp(1-gap/70,0,1);
-    const out=inMatch&&player.alive&&player.st!=='bus'&&outsideStorm(player,S);scene.fog.color.setHex(out?STORM_SKY:SKY);scene.background.setHex(out?STORM_SKY:SKY);
+  const now=performance.now(),dt=Math.min(.1,Math.max(0,(now-wfLast)/1000));wfLast=now;
+  let want=0,glow=0;
+  if(ip){const t=matchT(),S=stormAt(t),ce=camera.position,cd=Math.hypot(ce.x-S.x,ce.z-S.z),shown=S.r<R0-1&&MS.ph==='play';
+    stormMesh.visible=S.r<R0-1;const sh=30+.55*S.r;stormMesh.scale.set(Math.max(.1,S.r),sh,Math.max(.1,S.r));stormMesh.position.set(S.x,sh/2-3,S.z);
+    // the wall is a solid bank of cloud from a distance and thins when you're right at it, so a fight across it can still be seen
+    stormMat.uniforms.op.value=.9-.34*clamp(1-Math.abs(S.r-cd)/26,0,1);stormMat.uniforms.time.value=RM?0:(now*.001)%4000;
+    want=stormMesh.visible&&cd>S.r&&ce.y<sh?1:0;
+    // lightning (same for everyone: seed and clock)
+    if(shown){const B=boltFor(t,S.phase);glow=B.on?boltGlow(t-B.t)*B.str:0;
+      if(B.on&&t>=B.t&&t<B.t+.6){if(!B.heard){B.heard=true;drawBolt(S);const d=Math.hypot(ce.x-B.x,ce.z-B.z);setTimeout(()=>sfxThunder(1/(1+d*.012)),Math.min(1500,d*3))}boltMesh.visible=t-B.t<.24}else boltMesh.visible=false}
+    else boltMesh.visible=false;
     busMesh.visible=t<busLine.tEnd+1;if(busMesh.visible){busPos(Math.max(0,t),busMesh.position);busMesh.rotation.set(0,Math.atan2(busLine.dx,busLine.dz),0)}}
-  else{stormMesh.visible=false;busMesh.visible=false;scene.fog.color.setHex(SKY);scene.background.setHex(SKY)}
+  else{stormMesh.visible=false;busMesh.visible=false;boltMesh.visible=false}
+  // Out in the storm the light drops, the sky and the haze turn slate, the haze closes in and it rains. stormK eases
+  // between the two looks over about half a second as the camera crosses the wall.
+  stormK+=(want-stormK)*Math.min(1,dt*4);if(Math.abs(want-stormK)<.004)stormK=want;
+  const k=stormK,fl=RM?0:glow;stormMat.uniforms.flash.value=fl;
+  _skyC.setHex(SKY).lerp(_stormC,k);if(k>0&&fl>0)_skyC.lerp(_flashC,fl*.45*k);
+  scene.fog.color.copy(_skyC);scene.background.copy(_skyC);scene.fog.near=110-98*k;scene.fog.far=400-250*k;
+  hemi.intensity=LIGHT.hemi*(1-.34*k)+fl*.45*k;amb.intensity=LIGHT.amb+fl*.2*k;sun.intensity=LIGHT.sun*(1-.8*k);
+  if(cloudMesh)cloudMesh.material.color.setRGB(1-.62*k,1-.56*k,1-.46*k);
+  skyDome.material.color.setRGB(1-.7*k,1-.64*k,1-.52*k);sunGlow.material.opacity=1-k;
+  if(k>.02){rainCover-=dt;if(rainCover<=0){rainCover=.3;const c=camera.position;rainRoof=raycast([c.x,c.y+.3,c.z],[0,1,0],40,null,false).hit?.2:1}
+    rainA+=(rainRoof-rainA)*Math.min(1,dt*5);rainMesh.visible=true;const u=rainMesh.material.uniforms;u.time.value=RM?0:(now*.001)%600;u.cam.value.copy(camera.position);u.op.value=.75*k*rainA}
+  else rainMesh.visible=false;
+  stormHum(k);
 }
+let wfLast=performance.now(),stormK=0,rainCover=0,rainRoof=1,rainA=1;
+const _skyC=new THREE.Color(),_stormC=new THREE.Color(STORM_SKY),_flashC=new THREE.Color(0xc4d2ea);
 
 /* ---------- main loop ---------- */
 let last=performance.now(),cpuMs=0;
