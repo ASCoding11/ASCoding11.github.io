@@ -331,6 +331,13 @@ body.touch #net{top:calc(112px + env(safe-area-inset-top,0px));font-size:14px}
           <label class="label" for="sens">Look sensitivity</label>
           <div class="range"><input type="range" id="sens" min="0.3" max="2.5" step="0.05" value="1"><output id="sensOut" for="sens">1.00</output></div>
         </div>
+        <div class="field">
+          <label class="label" for="gfx">Graphics</label>
+          <select id="gfx" style="font:inherit;padding:8px 10px;border-radius:8px;max-width:100%">
+            <option value="auto">Pretty (eases off by itself if frames drop)</option>
+            <option value="fast">Fast</option>
+          </select>
+        </div>
         <details class="ctrl">
           <summary>Controls</summary>
           <dl class="keys">
@@ -499,6 +506,33 @@ addEventListener('resize',resize);resize();
 // One material for nearly everything: colours live in the geometry (vertex colours), so the whole island, every
 // player body and the Drifter share it and the static map can be merged into a handful of meshes.
 const MAT=new THREE.MeshLambertMaterial({vertexColors:true});
+// Pretty graphics give that one material a surface grain: a small drawn noise texture laid over every face from three
+// sides (so no geometry needs UVs), fine speckle everywhere plus broad soft patches on upward faces like grass and roofs.
+// It uses each mesh's own coordinates, so it stays put on the map and moves with a player's body. It is compiled in only
+// while MAT.defines.FINE is set (see lookSync), so Fast graphics run the plain shader.
+const detailTex=(()=>{
+  const N=256,c=document.createElement('canvas');c.width=c.height=N;const g=c.getContext('2d'),im=g.createImageData(N,N);
+  let sd=1234567;const rnd=()=>((sd=(sd*1664525+1013904223)>>>0)/4294967296);
+  const lo=new Float32Array(17*17);for(let i=0;i<lo.length;i++)lo[i]=rnd();
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+    const fx=x/N*16,fy=y/N*16,ix=fx|0,iy=fy|0,tx=fx-ix,ty=fy-iy,sx=tx*tx*(3-2*tx),sy=ty*ty*(3-2*ty),a=lo[(iy%16)*17+ix%16],b=lo[(iy%16)*17+(ix+1)%16],cc=lo[((iy+1)%16)*17+ix%16],d=lo[((iy+1)%16)*17+(ix+1)%16];
+    const o=(y*N+x)*4;im.data[o]=rnd()*255;im.data[o+1]=(a+(b-a)*sx+(cc-a)*sy+(a-b-cc+d)*sx*sy)*255;im.data[o+2]=0;im.data[o+3]=255;
+  }
+  g.putImageData(im,0,0);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;return t;
+})();
+MAT.onBeforeCompile=sh=>{
+  sh.uniforms.dzTex={value:detailTex};
+  sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\n#ifdef FINE\nvarying vec3 dzP;varying vec3 dzN;\n#endif')
+    .replace('#include <begin_vertex>','#include <begin_vertex>\n#ifdef FINE\ndzP=transformed;dzN=objectNormal;\n#endif');
+  sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\n#ifdef FINE\nuniform sampler2D dzTex;varying vec3 dzP;varying vec3 dzN;\n#endif')
+    .replace('#include <color_fragment>','#include <color_fragment>\n#ifdef FINE\n{vec3 w=pow(abs(dzN),vec3(4.));w/=(w.x+w.y+w.z);vec3 q=dzP*.42;float f=texture2D(dzTex,q.zy).r*w.x+texture2D(dzTex,q.xz).r*w.y+texture2D(dzTex,q.xy).r*w.z;float b=texture2D(dzTex,dzP.xz*.023).g;float g2=texture2D(dzTex,dzP.xz*1.9).r;diffuseColor.rgb*=(.95+.1*f)*(1.+((b-.5)*.22+(g2-.5)*.2)*w.y);}\n#endif');
+};
+// A unit box with rounded edges and smooth shading, for characters (a plain box pushed part of the way toward a ball).
+const ROUND_BOX=(()=>{
+  const g=new THREE.BoxGeometry(1,1,1,4,4,4).toNonIndexed(),p=g.attributes.position,n=g.attributes.normal,v=new V3(),u=new V3(),f=new V3();
+  for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i);f.fromBufferAttribute(n,i);u.copy(v).normalize();v.lerp(u.clone().multiplyScalar(.62),.4);p.setXYZ(i,v.x,v.y,v.z);f.lerp(u,.55).normalize();n.setXYZ(i,f.x,f.y,f.z)}
+  return g;
+})();
 const UNIT_BOX=new THREE.BoxGeometry(1,1,1).toNonIndexed();
 const _m4=new THREE.Matrix4(),_q=new THREE.Quaternion(),_s=new V3(),_p=new V3(),_e=new THREE.Euler(),_col=new THREE.Color();
 
@@ -518,6 +552,7 @@ function bagAdd(B,geo,m,hex,shade){
   }
 }
 function bagBox(B,cx,cy,cz,sx,sy,sz,hex,ry,shade){_e.set(0,ry||0,0);_q.setFromEuler(_e);_m4.compose(_p.set(cx,cy,cz),_q,_s.set(sx,sy,sz));bagAdd(B,UNIT_BOX,_m4,hex,shade)}
+function bagRBox(B,cx,cy,cz,sx,sy,sz,hex,ry,shade){_e.set(0,ry||0,0);_q.setFromEuler(_e);_m4.compose(_p.set(cx,cy,cz),_q,_s.set(sx*1.12,sy*1.12,sz*1.12));bagAdd(B,ROUND_BOX,_m4,hex,shade)}
 function bagGeo(B){const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(B.p,3));g.setAttribute('normal',new THREE.Float32BufferAttribute(B.n,3));g.setAttribute('color',new THREE.Float32BufferAttribute(B.c,3));g.computeBoundingSphere();g.computeBoundingBox();return g}
 
 /* ---------- the static island: merged geometry in chunks, solid boxes in a spatial hash ---------- */
@@ -926,7 +961,7 @@ function finishWorld(){
   for(let i=0;i<pos.count;i++){const x=pos.getX(i),z=pos.getZ(i);if(x<-.1||z<-.1||x>MAP+.1||z>MAP+.1)pos.setY(i,-1.6);groundCol(clamp(x,0,MAP),clamp(z,0,MAP),c);col[i*3]=c[0];col[i*3+1]=c[1];col[i*3+2]=c[2]}
   gg.setAttribute('color',new THREE.BufferAttribute(col,3));gg.computeVertexNormals();
   groundMesh=new THREE.Mesh(gg,MAT);scene.add(groundMesh);
-  seaMesh=new THREE.Mesh(new THREE.PlaneGeometry(3000,3000).rotateX(-Math.PI/2),new THREE.MeshLambertMaterial({color:0x2f93bf}));seaMesh.position.set(MAP/2,-.5,MAP/2);scene.add(seaMesh);
+  seaMesh=new THREE.Mesh(new THREE.PlaneGeometry(3000,3000).rotateX(-Math.PI/2),new THREE.MeshLambertMaterial({color:0x2f93bf}));seaMesh.position.set(MAP/2,-.5,MAP/2);seaMesh.receiveShadow=true;scene.add(seaMesh);
   for(const B of chunks){if(!B.p.length)continue;const m=new THREE.Mesh(bagGeo(B),MAT);scene.add(m);staticMeshes.push(m);
     // keep the original positions and colours, to restore broken and damaged pieces for the next match
     B.mesh=m;B.pos=m.geometry.attributes.position;B.col=m.geometry.attributes.color;B.pos.setUsage(THREE.DynamicDrawUsage);B.col.setUsage(THREE.DynamicDrawUsage);
@@ -936,7 +971,98 @@ function finishWorld(){
   const cb=Bag(),rr=mulberry(99);
   for(let i=0;i<26;i++){const x=-200+rr()*(MAP+400),z=-200+rr()*(MAP+400),y=150+rr()*40;for(let k=0;k<3;k++)shape(ICO,x+k*9-9,y+rr()*3,z+rr()*6,8+rr()*6,3+rr()*2,6+rr()*4,0xffffff,rr()*3,1,cb)}
   cloudMesh=new THREE.Mesh(bagGeo(cb),new THREE.MeshBasicMaterial({vertexColors:true,fog:false,transparent:true,opacity:.9}));scene.add(cloudMesh);
+  seaFlat=seaMesh.material;
 }
+
+/* ---------- Pretty graphics: sky, sun, real shadows, a shinier sea, a colour grade ---------- */
+// Driftfall is a shooter, so the frame rate comes first. The look has three levels and fxWatch() moves between them:
+//   0  the plain look (always on touch screens and when Graphics is Fast)
+//   1  surface grain, real shadows near you, the sky and a sea that catches the sun
+//   2  level 1 plus a light colour grade
+// It starts at 1, steps up to 2 only after frames have been comfortably fast for a while, and steps down as soon as they
+// aren't (after autores.js has already lowered the resolution). A level it had to leave is never tried again that visit.
+let seaFlat=null,seaFine=null,fxTier=1,fxMax=2,lookKey=-9,lookOn=false,gfxPref=store.get('gfx','auto')==='fast'?'fast':'auto';
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+const SUN_DIR=new V3(0.45,1,0.3).normalize(),SH_HALF=46,SH_MAP=2048;
+scene.add(sun.target);
+(function(){const c=sun.shadow.camera;c.left=-SH_HALF;c.right=SH_HALF;c.top=SH_HALF;c.bottom=-SH_HALF;c.near=10;c.far=330;sun.shadow.mapSize.set(SH_MAP,SH_MAP);sun.shadow.bias=-.0005;sun.shadow.normalBias=.06})();
+// The shadow map covers 92 m around where you're looking and follows you in whole-texel steps, so shadow edges don't crawl.
+const _sr=new V3().crossVectors(new V3(0,1,0),SUN_DIR).normalize(),_su=new V3().crossVectors(SUN_DIR,_sr).normalize(),_sc=new V3();
+function followSun(){
+  const tx=2*SH_HALF/SH_MAP,c=camera.position,a=Math.round(c.dot(_sr)/tx)*tx,b=Math.round(c.dot(_su)/tx)*tx,d=c.dot(SUN_DIR);
+  _sc.copy(_sr).multiplyScalar(a).addScaledVector(_su,b).addScaledVector(SUN_DIR,d);
+  sun.target.position.copy(_sc);sun.position.copy(_sc).addScaledVector(SUN_DIR,160);sun.target.updateMatrixWorld();
+}
+// sky: a dome that deepens toward the top and meets the fog colour at the horizon, and a soft sun
+const skyDome=new THREE.Mesh(new THREE.SphereGeometry(700,24,12),new THREE.MeshBasicMaterial({side:THREE.BackSide,fog:false,depthWrite:false,map:(()=>{
+  const c=document.createElement('canvas');c.width=4;c.height=256;const g=c.getContext('2d'),gr=g.createLinearGradient(0,0,0,256);
+  gr.addColorStop(0,'#3f8fd6');gr.addColorStop(.3,'#6fb6ea');gr.addColorStop(.47,'#9fd6f2');gr.addColorStop(.5,'#c9e9f8');gr.addColorStop(.53,'#9fd6f2');gr.addColorStop(1,'#9fd6f2');
+  g.fillStyle=gr;g.fillRect(0,0,4,256);return new THREE.CanvasTexture(c)})()}));
+skyDome.renderOrder=-10;skyDome.frustumCulled=false;skyDome.visible=false;scene.add(skyDome);
+const sunGlow=new THREE.Sprite(new THREE.SpriteMaterial({fog:false,depthWrite:false,transparent:true,blending:THREE.AdditiveBlending,map:(()=>{
+  const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d'),gr=g.createRadialGradient(64,64,0,64,64,64);
+  gr.addColorStop(0,'rgba(255,252,235,1)');gr.addColorStop(.12,'rgba(255,246,210,.9)');gr.addColorStop(.3,'rgba(255,236,180,.28)');gr.addColorStop(1,'rgba(255,230,170,0)');
+  g.fillStyle=gr;g.fillRect(0,0,128,128);return new THREE.CanvasTexture(c)})()}));
+sunGlow.scale.set(210,210,1);sunGlow.renderOrder=-9;sunGlow.visible=false;scene.add(sunGlow);
+function fineSea(){
+  if(seaFine)return seaFine;
+  const N=128,c=document.createElement('canvas');c.width=c.height=N;const g=c.getContext('2d'),im=g.createImageData(N,N),h=new Float32Array(N*N);
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++)h[y*N+x]=Math.sin(x/N*6.283*3+Math.sin(y/N*6.283*2)*1.3)*.5+Math.sin(y/N*6.283*5+x/N*6.283)*.3+Math.sin((x+y)/N*6.283*7)*.2;
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){const dx=h[y*N+(x+1)%N]-h[y*N+(x+N-1)%N],dy=h[((y+1)%N)*N+x]-h[((y+N-1)%N)*N+x],l=Math.hypot(dx,dy,1),o=(y*N+x)*4;im.data[o]=(-dx/l*.5+.5)*255;im.data[o+1]=(-dy/l*.5+.5)*255;im.data[o+2]=(1/l*.5+.5)*255;im.data[o+3]=255}
+  g.putImageData(im,0,0);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(170,170);
+  return seaFine=new THREE.MeshPhongMaterial({color:0x2a8fc0,specular:0xbfe6ff,shininess:70,normalMap:t,normalScale:new THREE.Vector2(.5,.5)});
+}
+// colour grade (level 2): the finished frame is copied to a texture and redrawn with a touch more colour and contrast and
+// slightly darker corners. (No bloom here: in full daylight most pale surfaces are already at full brightness, so a glow
+// pass just smears them.) The scene itself is still drawn once, straight to the screen; the HUD is HTML and is never touched.
+const grade=(function(){
+  const mat=new THREE.ShaderMaterial({vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}',
+    fragmentShader:'varying vec2 vUv;uniform sampler2D t;void main(){vec3 c=texture2D(t,vUv).rgb;float l=dot(c,vec3(.2126,.7152,.0722));c=clamp(mix(vec3(l),c,1.14),0.,1.);c=mix(c,c*c*(3.-2.*c),.32);vec2 q=vUv-.5;c*=1.-dot(q,q)*.42;gl_FragColor=vec4(c,1.);}',
+    uniforms:{t:{value:null}},depthTest:false,depthWrite:false,blending:THREE.NoBlending,fog:false});
+  const cam=new THREE.OrthographicCamera(-1,1,1,-1,0,1),quad=new THREE.Mesh(new THREE.PlaneGeometry(2,2),mat),sc=new THREE.Scene();sc.add(quad);quad.frustumCulled=false;
+  const sz=new THREE.Vector2(),zero=new THREE.Vector2();let tex=null,w=0,h=0,dead=false;
+  function run(){
+    if(dead)return;
+    const sm=renderer.shadowMap.autoUpdate;
+    try{
+      renderer.getDrawingBufferSize(sz);const W=Math.floor(sz.x),H=Math.floor(sz.y);if(W<8||H<8)return;
+      if(W!==w||H!==h){if(tex)tex.dispose();w=W;h=H;tex=new THREE.DataTexture(new Uint8Array(w*h*3),w,h,THREE.RGBFormat);tex.minFilter=tex.magFilter=THREE.LinearFilter}
+      renderer.shadowMap.autoUpdate=false;                      // the shadow map is already drawn for this frame
+      renderer.copyFramebufferToTexture(zero,tex);mat.uniforms.t.value=tex;renderer.render(sc,cam);
+    }catch(e){dead=true}
+    renderer.shadowMap.autoUpdate=sm;
+  }
+  return{run};
+})();
+function shadowFlags(){scene.traverse(o=>{if(o.isMesh&&o.material===MAT){o.castShadow=o!==groundMesh;o.receiveShadow=true}else if(o.isInstancedMesh&&o.material===plyMat){o.castShadow=true;o.receiveShadow=true}})}
+function lookSync(){
+  const tier=gfxPref==='fast'||touchUI?0:fxTier;
+  if(tier!==lookKey){
+    lookKey=tier;lookOn=tier>=1;
+    if(lookOn)shadowFlags();
+    sun.castShadow=lookOn;if(!lookOn){sun.position.set(0.45,1,0.3);sun.target.position.set(0,0,0)}
+    const want=lookOn?1:undefined;if(MAT.defines===undefined)MAT.defines={};
+    if(MAT.defines.FINE!==want){if(want)MAT.defines.FINE=1;else delete MAT.defines.FINE;MAT.needsUpdate=true}
+    if(seaMesh&&seaFlat)seaMesh.material=lookOn?fineSea():seaFlat;
+  }
+  if(!lookOn){skyDome.visible=sunGlow.visible=false;return}
+  followSun();
+  const clear=scene.background.getHex()===SKY;                 // inside the storm the flat purple sky takes over
+  skyDome.visible=sunGlow.visible=clear;
+  if(clear){skyDome.position.copy(camera.position);sunGlow.position.copy(camera.position).addScaledVector(SUN_DIR,640)}
+  if(seaFine)seaFine.normalMap.offset.set(performance.now()*.0000035,performance.now()*.0000021);
+}
+let fxAvg=14,fxSlow=0,fxFast=0,fxLast=0,fxNew=0;
+function fxWatch(){
+  const now=performance.now(),dt=now-fxLast;fxLast=now;
+  if(!lookOn||dt<=0||dt>250||document.hidden)return;
+  if(limbModels.size!==fxNew){fxNew=limbModels.size;shadowFlags()}        // players who joined since
+  fxAvg+=(dt-fxAvg)*.05;
+  if(fxAvg>18&&(!window.AutoRes||AutoRes.scale<=.8)){fxFast=0;fxSlow+=dt;if(fxSlow>2000&&fxTier>0){fxMax=fxTier-1;fxTier--;fxSlow=0;fxAvg=14}}
+  else if(fxAvg<12.5&&fxTier<fxMax){fxSlow=0;fxFast+=dt;if(fxFast>6000){fxTier++;fxFast=0}}
+  else{fxSlow=0;fxFast=0}
+}
+function drawScene(){lookSync();renderer.render(scene,camera);if(lookKey>=2)grade.run();fxWatch()}
 /* ---------- breaking the map ---------- */
 // Which pieces touch which, and which touch the ground or something that never breaks. A piece that loses every
 // path to the ground (a roof whose walls are all gone, a wall's upper storey with nothing beside or below it) falls too.
@@ -1312,16 +1438,18 @@ function lineClear(a,b){const d=b.clone().sub(a),L=d.length();if(L<.01)return tr
 
 /* ---------- characters: one merged body per player, two legs, the held item and a glider ---------- */
 function bodyGeo(hex,skin){
-  const B=Bag(),dark=new THREE.Color(hex).multiplyScalar(.55).getHex();
-  bagBox(B,0,1.22,0,.7,.72,.42,hex);bagBox(B,0,.9,0,.73,.1,.45,0x2b2f36);
-  bagBox(B,0,1.79,0,.48,.48,.48,skin);bagBox(B,0,2.07,0,.52,.15,.52,dark);bagBox(B,0,2.02,-.27,.5,.06,.16,dark);
-  bagBox(B,0,1.83,-.245,.34,.08,.02,0x1d2228);
-  bagBox(B,0,1.25,.31,.44,.5,.2,dark);bagBox(B,0,1.52,.31,.46,.06,.22,0xffc93c);
-  bagBox(B,-.27,1.36,-.24,.16,.16,.6,hex,-.4);bagBox(B,.3,1.36,-.22,.16,.16,.6,hex);
-  bagBox(B,-.1,1.36,-.5,.13,.13,.13,skin);bagBox(B,.3,1.36,-.5,.13,.13,.13,skin);
+  const B=Bag(),dark=new THREE.Color(hex).multiplyScalar(.55).getHex(),lite=new THREE.Color(hex).lerp(new THREE.Color(0xffffff),.22).getHex();
+  bagRBox(B,0,1.22,0,.7,.72,.42,hex);bagRBox(B,0,1.36,-.005,.62,.3,.44,lite);bagRBox(B,0,.9,0,.73,.1,.45,0x2b2f36);   // torso, chest panel, belt
+  bagRBox(B,0,1.58,0,.24,.1,.24,skin);                                                                                // neck
+  bagRBox(B,0,1.79,0,.48,.48,.48,skin);bagRBox(B,0,2.07,0,.52,.15,.52,dark);bagRBox(B,0,2.02,-.27,.5,.06,.16,dark);    // head, cap and its peak
+  bagBox(B,0,1.83,-.262,.34,.08,.02,0x1d2228);                                                                        // visor
+  bagRBox(B,0,1.25,.31,.44,.5,.2,dark);bagRBox(B,0,1.52,.31,.46,.06,.22,0xffc93c);                                    // backpack and its roll
+  bagRBox(B,-.41,1.46,0,.17,.2,.26,hex);bagRBox(B,.41,1.46,0,.17,.2,.26,hex);                                         // shoulders
+  bagRBox(B,-.27,1.36,-.24,.16,.16,.6,hex,-.4);bagRBox(B,.3,1.36,-.22,.16,.16,.6,hex);                                // arms
+  bagRBox(B,-.1,1.36,-.5,.13,.13,.13,skin);bagRBox(B,.3,1.36,-.5,.13,.13,.13,skin);                                   // hands
   return bagGeo(B);
 }
-const LEG_GEO=(()=>{const B=Bag();bagBox(B,0,-.43,0,.26,.86,.28,0x2f3a4a);bagBox(B,0,-.79,-.03,.3,.16,.36,0x1b1d22);return bagGeo(B)})();
+const LEG_GEO=(()=>{const B=Bag();bagRBox(B,0,-.43,0,.26,.86,.28,0x2f3a4a);bagRBox(B,0,-.79,-.03,.3,.16,.36,0x1b1d22);return bagGeo(B)})();
 const GUN_GEO=(()=>{const o={},mk=f=>{const B=Bag();f(B);return bagGeo(B)};
   o.pi=mk(B=>{bagBox(B,0,0,-.08,.08,.12,.34,0x2c2f35);bagBox(B,0,-.12,.02,.07,.16,.08,0x2c2f35)});
   o.sm=mk(B=>{bagBox(B,0,0,-.14,.1,.14,.56,0x34383f);bagBox(B,0,-.17,-.12,.07,.22,.07,0x22252a);bagBox(B,0,-.1,.12,.07,.14,.08,0x22252a)});
@@ -2484,7 +2612,7 @@ function frame(now){
   updateDnums(running?dt:0);
   if(bannerTimer>0){bannerTimer-=dt;if(bannerTimer<=0)hud.banner.hidden=true}
   mpFlush();
-  if(!window.__noRender){syncLimbs();renderer.render(scene,camera)}
+  if(!window.__noRender){syncLimbs();drawScene()}
   cpuMs=cpuMs*.95+(performance.now()-t0)*.05;
   requestAnimationFrame(frame);
 }
@@ -2665,6 +2793,7 @@ async function quickMatch(){
   finally{busy(false)}
 }
 const sensEl=$('sens');
+{const ge=$('gfx');ge.value=gfxPref;ge.addEventListener('change',()=>{gfxPref=ge.value==='fast'?'fast':'auto';store.set('gfx',gfxPref);if(gfxPref==='auto'){fxTier=1;fxMax=2}})}
 function setSens(v){sens=v;sensEl.value=v;$('sensOut').textContent=v.toFixed(2);store.set('sens',v)}
 sensEl.addEventListener('input',()=>setSens(parseFloat(sensEl.value)));
 const nameEl=$('name');nameEl.value=myName;
@@ -2729,7 +2858,7 @@ if(navigator.webdriver)window.__dz={get state(){return state},get online(){retur
   give(t,r){takeItem(player,{t,r:r|0,n:WEAP[t]?WEAP[t].mag:HEALS[t]?1:t==='mt'?100:60})},
   fire(){const w=heldW(player),s=heldItem(player);updateCamera(0);playerShoot();if(s&&w)s.n=w.mag;player.cd=0},
   draws(){return renderer.info.render.calls},
-  setNoRender(v){window.__noRender=!!v},onNode,updateRemotes,renderOnce(){mpFlush();syncLimbs();renderer.render(scene,camera)},mpieces,mpBreak,mpSetHp,resetMap,mpAt,allRuns,brokenBits,applyBits,sendEv,get brokenN(){return brokenN},hash,setMapV(v){mapV=v},get mapV(){return mapV},mapSize:MAP};
+  setNoRender(v){window.__noRender=!!v},onNode,updateRemotes,renderOnce(){mpFlush();syncLimbs();drawScene()},get fxTier(){return fxTier},set fxTier(v){fxTier=v},get lookKey(){return lookKey},mpieces,mpBreak,mpSetHp,resetMap,mpAt,allRuns,brokenBits,applyBits,sendEv,get brokenN(){return brokenN},hash,setMapV(v){mapV=v},get mapV(){return mapV},mapSize:MAP};
 
 requestAnimationFrame(t=>{last=t;frame(t)});
 })();
