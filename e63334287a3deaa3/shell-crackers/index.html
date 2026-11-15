@@ -637,12 +637,18 @@ function grassTex(cols){
   const k=cols.join();if(grassCache[k])return grassCache[k];
   return grassCache[k]=canvasTex(256,256,(g,w,h)=>{
     g.fillStyle=cols[0];g.fillRect(0,0,w,h);
+    // soft patches (drawn nine times round the edges so the tile still repeats without a seam)
+    for(let i=0;i<16;i++){const x=Math.random()*w,y=Math.random()*h,r=rand(22,54),dark=i%2;
+      for(let ox=-w;ox<=w;ox+=w)for(let oy=-h;oy<=h;oy+=h){const gr=g.createRadialGradient(x+ox,y+oy,0,x+ox,y+oy,r);gr.addColorStop(0,dark?'rgba(20,60,10,.16)':'rgba(255,255,170,.13)');gr.addColorStop(1,dark?'rgba(20,60,10,0)':'rgba(255,255,170,0)');g.fillStyle=gr;g.fillRect(x+ox-r,y+oy-r,r*2,r*2)}}
     noiseDots(g,w,h,500,cols,2,7);
     for(let i=0;i<900;i++){g.strokeStyle=pick(cols);g.globalAlpha=rand(.4,.9);g.lineWidth=1.5;const x=Math.random()*w,y=Math.random()*h;g.beginPath();g.moveTo(x,y);g.lineTo(x+rand(-2,2),y-rand(3,7));g.stroke()}
     g.globalAlpha=1;
   });
 }
-function skyTex(top,hor){return canvasTex(4,256,(g,w,h)=>{const gr=g.createLinearGradient(0,0,0,h);gr.addColorStop(0,top);gr.addColorStop(.48,hor);gr.addColorStop(1,hor);g.fillStyle=gr;g.fillRect(0,0,w,h)},false)}
+function skyTex(top,hor){return canvasTex(4,256,(g,w,h)=>{const T=new THREE.Color(top),H=new THREE.Color(hor),mid=T.clone().lerp(H,.5),deep=T.clone().multiplyScalar(.82);
+  const gr=g.createLinearGradient(0,0,0,h);gr.addColorStop(0,'#'+deep.getHexString());gr.addColorStop(.2,top);gr.addColorStop(.38,'#'+mid.getHexString());gr.addColorStop(.485,hor);gr.addColorStop(1,hor);g.fillStyle=gr;g.fillRect(0,0,w,h)},false)}
+const sunTex=canvasTex(128,128,(g,w,h)=>{const c=w/2;let gr=g.createRadialGradient(c,c,0,c,c,c);gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(.1,'rgba(255,255,255,1)');gr.addColorStop(.14,'rgba(255,255,255,.5)');
+  gr.addColorStop(.4,'rgba(255,255,255,.16)');gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.fillRect(0,0,w,h)},false);
 const flashTex=canvasTex(128,128,(g,w,h)=>{const c=w/2;
   let gr=g.createRadialGradient(c,c,0,c,c,c);gr.addColorStop(0,'rgba(255,190,70,.55)');gr.addColorStop(.45,'rgba(255,140,30,.22)');gr.addColorStop(1,'rgba(255,120,20,0)');g.fillStyle=gr;g.fillRect(0,0,w,h);
   const star=(n,r0,r1,fill)=>{g.fillStyle=fill;g.beginPath();for(let i=0;i<n*2;i++){const a=i/(n*2)*Math.PI*2,r=i%2?r0:r1*(i%4?1:.72);g.lineTo(c+Math.cos(a)*r,c+Math.sin(a)*r)}g.fill()};
@@ -745,30 +751,40 @@ function voxMaterial(key){
   const m=key==='lamp'?new THREE.MeshBasicMaterial({color:0xfff2c4}):key==='water'?new THREE.MeshLambertMaterial({map:T.water,vertexColors:true,transparent:true,opacity:.85}):new THREE.MeshLambertMaterial({map:T[key],vertexColors:true});
   return voxMats[key]=m;
 }
+let meshedAo=null;
 function meshWorld(group){
+  meshedAo=gfx==='high';
   const topSolid=new Int16Array(W*W).fill(-1);
   for(let z=0;z<W;z++)for(let x=0;x<W;x++)for(let y=HY-1;y>=0;y--){const b=vox[vIdx(x,y,z)];if(b!==0&&b!==M_.WATER&&b!==M_.BARRIER){topSolid[z*W+x]=y;break}}
   const cover=(x,y,z)=>{if(x<0||z<0||x>=W||z>=W)return 0;const t=topSolid[z*W+x];return y<t?(y<G-1?2:1):0};
   const out={};const dims=[W,HY,W],sc=[VX,VY,VX],pos=[0,0,0],q=[0,0,0],tmp=new THREE.Color();
   const shade=[[.8,.8],[1,.55],[.9,.9]];// [axis][sign>0?0:1]
+  // Soft shading in corners: each corner of a face is darkened by how many of the three blocks around it (on the open
+  // side) are solid, 0 to 3. It is worked out once when the map is built and stored in the vertex colours, so it costs
+  // nothing per frame. Faces only merge when their four corners match, so the map has more triangles with it on (Pretty).
+  const AO=[1,.8,.64,.5],occ=(x,y,z)=>{const m=vget(x,y,z);return m!==0&&m!==255&&m!==M_.WATER&&m!==M_.BARRIER&&m!==M_.LAMP?1:0};
+  const aoOn=gfx==='high',ap=[0,0,0];
+  const aoAt=(ax,u,v,su,sv)=>{ap[u]+=su;const a=occ(ap[0],ap[1],ap[2]);ap[v]+=sv;const c=occ(ap[0],ap[1],ap[2]);ap[u]-=su;const b=occ(ap[0],ap[1],ap[2]);ap[v]-=sv;return a&&b?3:a+b+c};
   const emit=(ax,sg,d,i,j,w,h,fk,u,v)=>{
-    const f=fk>>2,cv=fk&3,D=MATV[f]||MATV[M_.CONCRETE],key=D.tex,o=out[key]||(out[key]={p:[],n:[],uv:[],c:[],ix:[]});
+    const f=(fk>>2)&255,cv=fk&3,ao=fk>>10,D=MATV[f]||MATV[M_.CONCRETE],key=D.tex,o=out[key]||(out[key]={p:[],n:[],uv:[],c:[],ix:[]});
     const base=o.p.length/3,plane=(sg>0?d+1:d)*sc[ax];
     const corner=(a,b)=>{const P=[0,0,0];P[ax]=plane;P[u]=a*sc[u];P[v]=b*sc[v];return P};
-    let cs=[corner(i,j),corner(i+w,j),corner(i+w,j+h),corner(i,j+h)];if(sg<0)cs=[cs[0],cs[3],cs[2],cs[1]];
-    tmp.setHex(D.c).multiplyScalar(shade[ax][sg>0?0:1]*(cv===2?.5:cv===1?.66:1));
-    for(const P of cs){o.p.push(P[0],P[1],P[2]);const N=[0,0,0];N[ax]=sg;o.n.push(N[0],N[1],N[2]);
+    let cs=[corner(i,j),corner(i+w,j),corner(i+w,j+h),corner(i,j+h)],as=[ao&3,(ao>>2)&3,(ao>>4)&3,(ao>>6)&3];if(sg<0){cs=[cs[0],cs[3],cs[2],cs[1]];as=[as[0],as[3],as[2],as[1]]}
+    const lit=shade[ax][sg>0?0:1]*(cv===2?.5:cv===1?.66:1);
+    for(let ci=0;ci<4;ci++){const P=cs[ci];tmp.setHex(D.c).multiplyScalar(lit*AO[as[ci]]);o.p.push(P[0],P[1],P[2]);const N=[0,0,0];N[ax]=sg;o.n.push(N[0],N[1],N[2]);
       let U,V;if(ax===1){U=P[0]/D.s[0];V=P[2]/D.s[0]}else if(ax===0){U=P[2]/D.s[0];V=P[1]/D.s[1]}else{U=P[0]/D.s[0];V=P[1]/D.s[1]}
       o.uv.push(U,V);o.c.push(tmp.r,tmp.g,tmp.b)}
-    o.ix.push(base,base+1,base+2,base,base+2,base+3);
+    // split the quad along the diagonal that keeps the shading even
+    if(as[0]+as[2]>as[1]+as[3])o.ix.push(base,base+1,base+3,base+1,base+2,base+3);else o.ix.push(base,base+1,base+2,base,base+2,base+3);
   };
-  for(let ax=0;ax<3;ax++){const u=(ax+1)%3,v=(ax+2)%3,du=dims[u],dv=dims[v],mask=new Int16Array(du*dv);
+  for(let ax=0;ax<3;ax++){const u=(ax+1)%3,v=(ax+2)%3,du=dims[u],dv=dims[v],mask=new Int32Array(du*dv);
     for(const sg of [1,-1]){q[0]=q[1]=q[2]=0;q[ax]=sg;
       for(let d=0;d<dims[ax];d++){
         let n=0;
         for(let j=0;j<dv;j++)for(let i=0;i<du;i++){pos[ax]=d;pos[u]=i;pos[v]=j;
           const m=vget(pos[0],pos[1],pos[2]);let f=0;
-          if(m&&m!==255&&m!==M_.WATER&&m!==M_.BARRIER){const nx=pos[0]+q[0],ny=pos[1]+q[1],nz=pos[2]+q[2],nm=vget(nx,ny,nz);if(nm===0||nm===M_.WATER||nm===M_.BARRIER)f=(faceMat(m,ax,sg)<<2)|(MATV[m]&&MATV[m].tex==='lamp'?0:cover(nx,ny,nz))}
+          if(m&&m!==255&&m!==M_.WATER&&m!==M_.BARRIER){const nx=pos[0]+q[0],ny=pos[1]+q[1],nz=pos[2]+q[2],nm=vget(nx,ny,nz);if(nm===0||nm===M_.WATER||nm===M_.BARRIER){const lamp=MATV[m]&&MATV[m].tex==='lamp';f=(faceMat(m,ax,sg)<<2)|(lamp?0:cover(nx,ny,nz));
+              if(aoOn&&!lamp){ap[0]=nx;ap[1]=ny;ap[2]=nz;f|=(aoAt(ax,u,v,-1,-1)|aoAt(ax,u,v,1,-1)<<2|aoAt(ax,u,v,1,1)<<4|aoAt(ax,u,v,-1,1)<<6)<<10}}}
           else if(m===M_.WATER&&ax===1&&sg>0&&vget(pos[0],pos[1]+1,pos[2])===0)f=M_.WATER<<2;
           mask[n++]=f}
         for(let j=0;j<dv;j++)for(let i=0;i<du;){const f=mask[j*du+i];if(!f){i++;continue}
@@ -1116,11 +1132,11 @@ function buildTown(){
 // middle, so a few players find each other. Full rooms, practice and the training range always get the whole map.
 const SMALL_MAX=4;
 const MAPS=[
-  {name:'Farmstead',build:buildFarm,small:{x0:12,z0:17,h:8,m:M_.DARKWOOD,sp:[[14,19],[27,21],[38,24],[52,20],[16,28]]},skyTop:'#3f9cf5',skyHor:'#d6efff',fog:0xd6efff,fogFar:170,sunC:0xfff1d6,sunI:.8,sunPos:[58,70,18],hemiS:0xffffff,hemiG:0x7a8a50,
+  {name:'Farmstead',build:buildFarm,small:{x0:12,z0:17,h:8,m:M_.DARKWOOD,sp:[[14,19],[27,21],[38,24],[52,20],[16,28]]},skyTop:'#3a93f2',skyHor:'#d6efff',fog:0xd6efff,fogFar:170,sunC:0xfff1d6,sunI:.8,sunPos:[58,70,18],hemiS:0xe1ecff,hemiG:0x7a8a50,
    outer:['#5fa043','#6cae4d','#549238','#78b95a'],hills:0x6fb34a,trees:0x3f8f3a,cloud:0xffffff},
   {name:'Yolk Works',build:buildFactory,small:{x0:6,z0:18,h:10,m:M_.BRICK,sp:[[8,20],[24,20],[40,21],[54,20],[14,30],[43,39]]},skyTop:'#4b3a8f',skyHor:'#ffb27a',fog:0xf2b88f,fogFar:160,sunC:0xffcf9a,sunI:.9,sunPos:[-46,40,70],hemiS:0xffd9b8,hemiG:0x6b4a3a,
    outer:['#c7b067','#d3bd72','#b89f5a','#dccb86'],hills:0x9b7a55,trees:0x5f7d3f,cloud:0xffd6c2},
-  {name:'Eggsburg',build:buildTown,small:{x0:1,z0:16,h:12,m:M_.BRICK,sp:[[2,31],[16,17],[31,24],[40,18],[22,34],[6,35]]},skyTop:'#5b86c9',skyHor:'#e3e9f2',fog:0xdfe6ef,fogFar:170,sunC:0xfff0dc,sunI:.8,sunPos:[-40,66,-30],hemiS:0xf4f6ff,hemiG:0x6c7a55,
+  {name:'Eggsburg',build:buildTown,small:{x0:1,z0:16,h:12,m:M_.BRICK,sp:[[2,31],[16,17],[31,24],[40,18],[22,34],[6,35]]},skyTop:'#5b86c9',skyHor:'#e3e9f2',fog:0xdfe6ef,fogFar:170,sunC:0xfff0dc,sunI:.8,sunPos:[-40,66,-30],hemiS:0xe4ecff,hemiG:0x6c7a55,
    outer:['#6aa34c','#76ad55','#5f9644','#80b65e'],hills:0x6c9a4a,trees:0x3f7f3a,cloud:0xffffff}
 ];
 let mapIdx=-1,mapSm=0;
@@ -1190,6 +1206,8 @@ const plainTex=canvasTex(128,128,(g,w,h)=>{g.fillStyle='#f4f4f4';g.fillRect(0,0,
 // ---------- scene pieces shared by every map ----------
 const skyMat=new THREE.MeshBasicMaterial({side:THREE.BackSide,fog:false,depthWrite:false});
 const sky=new THREE.Mesh(new THREE.SphereGeometry(450,24,16),skyMat);sky.position.set(SPAN/2,0,SPAN/2);scene.add(sky);
+// the sun: one sprite far off in the direction the light comes from (buildings hide it like anything else)
+const sunSprite=new THREE.Sprite(new THREE.SpriteMaterial({map:sunTex,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true,fog:false}));sunSprite.scale.set(190,190,1);scene.add(sunSprite);
 const matFloor=new THREE.MeshLambertMaterial({map:grassTex(['#79c254','#88cf5f','#6aae47'])});
 // ground outside the walls: four strips around the map, so nothing covers the stairwells inside
 const outerFloor=new THREE.Group();scene.add(outerFloor);
@@ -1249,11 +1267,17 @@ function buildMap(idx,sm){
   for(let i=0;i<50;i++){const a=rr()*Math.PI*2,d=SPAN*.78+rr()*60;const x=SPAN/2+Math.cos(a)*d,z=SPAN/2+Math.sin(a)*d;const s=.8+rr()*.8;
     land[quarter(a)].push({g:trunkGeo,c:0x7a5230,m:partM(x,GROUND_Y+s,z,s,s,s)},{g:coneA,c:M.trees,m:partM(x,GROUND_Y+3.6*s,z,s,s,s)},{g:coneB,c:M.trees,m:partM(x,GROUND_Y+5.2*s,z,s,s,s)})}
   const landMat=lam(0xffffff,{vertexColors:true});for(const q of land)if(q.length)decoGroup.add(new THREE.Mesh(mergeParts(q),landMat));
-  // each cloud is one mesh; they turn slowly round the middle of the map together
-  const cloudMat=lam(M.cloud,{emissive:M.cloud,emissiveIntensity:.35,fog:false}),sky_=new THREE.Group();sky_.position.set(SPAN/2,0,SPAN/2);decoGroup.add(sky_);clouds.push(sky_);
+  // each cloud is one mesh; they turn slowly round the middle of the map together. A cloud is a row of puffs sitting on a
+  // flat base, coloured by its own vertex colours (bright on top, tinted by the sky underneath), so it needs no lighting.
+  const cloudMat=new THREE.MeshBasicMaterial({vertexColors:true,fog:false});cloudMat.userData.own=true;
+  const sky_=new THREE.Group();sky_.position.set(SPAN/2,0,SPAN/2);decoGroup.add(sky_);clouds.push(sky_);
+  const cTop=new THREE.Color(M.cloud),cLow=new THREE.Color(M.skyTop).lerp(cTop,.62),cc=new THREE.Color();
   for(let i=0;i<10;i++){const n=4+Math.floor(rr()*4),puffs=[];
-    for(let j=0;j<n;j++){const s=5+rr()*6;puffs.push({g:puffGeo,c:0xffffff,m:partM(j*6-n*3+rr()*3,rr()*3,rr()*6-3,s,s*.7,s)})}
-    const a=rr()*Math.PI*2,d=160+rr()*90,c=new THREE.Mesh(mergeParts(puffs),cloudMat);c.position.set(Math.cos(a)*d,60+rr()*40,Math.sin(a)*d);rr();sky_.add(c)}
+    for(let j=0;j<n;j++){const mid=1-Math.abs((j+.5)/n-.5)*1.3,s=(4+rr()*4)*(.55+mid*.75);puffs.push({g:puffGeo,c:0xffffff,m:partM(j*5.2-n*2.6+rr()*2,s*.42,rr()*5-2.5,s,s*.78,s*(.8+rr()*.3))})}
+    puffs.push({g:puffGeo,c:0xffffff,m:partM(0,.4,0,n*3.3,1.5,4.6)});
+    const cg=mergeParts(puffs),P=cg.attributes.position,N=cg.attributes.normal,C=cg.attributes.color;
+    for(let k=0;k<P.count;k++){const t=clamp(N.getY(k)*.6+.45+P.getY(k)*.03,0,1);cc.copy(cLow).lerp(cTop,t*t*(3-2*t));C.setXYZ(k,cc.r,cc.g,cc.b)}
+    const a=rr()*Math.PI*2,d=160+rr()*90,c=new THREE.Mesh(cg,cloudMat);c.position.set(Math.cos(a)*d,60+rr()*40,Math.sin(a)*d);c.rotation.y=-a+Math.PI/2;rr();sky_.add(c)}
   for(const g of [hillGeo,trunkGeo,coneA,coneB,puffGeo])g.dispose();
   // look and light
   skyMat.map&&skyMat.map.dispose();skyMat.map=skyTex(M.skyTop,M.skyHor);skyMat.needsUpdate=true;
@@ -1261,6 +1285,8 @@ function buildMap(idx,sm){
   matFloor.map=grassTex(M.outer);matFloor.map.repeat.set(225,225);matFloor.needsUpdate=true;
   sun.color.setHex(M.sunC);sun.intensity=M.sunI;sun.position.set(SPAN/2+M.sunPos[0],M.sunPos[1],SPAN/2+M.sunPos[2]);sun.target.position.set(SPAN/2,0,SPAN/2);
   hemi.color.setHex(M.hemiS);hemi.groundColor.setHex(M.hemiG);
+  _mv.set(M.sunPos[0],M.sunPos[1],M.sunPos[2]).normalize();sunSprite.position.set(SPAN/2+_mv.x*400,_mv.y*400,SPAN/2+_mv.z*400);
+  sunSprite.material.color.setHex(M.sunC).lerp(_mc.setHex(0xffffff),.35);
   if(idx===RANGE_IDX)Range.build();
 }
 let navReach=null;
@@ -3146,7 +3172,7 @@ function renderDiff(){for(const b of $('diffSeg').children)b.setAttribute('aria-
 function renderGfx(){for(const b of $('gfxSeg').children)b.setAttribute('aria-pressed',String(b.dataset.q===gfx))}
 $('diffSeg').addEventListener('click',e=>{const d=e.target.dataset&&e.target.dataset.d;if(d&&DIFF[d]){diffKey=d;store.set('diff',d);renderDiff()}});
 function applyGfx(q){gfx=q;store.set('gfx',q);renderGfx();
-  renderer.shadowMap.enabled=gfx==='high';sun.castShadow=gfx==='high';if(vmGun)vmGun.children[0].material=gfx==='high'?vmGunMat:gunMat;scene.traverse(o=>{if(o.material){const ms=Array.isArray(o.material)?o.material:[o.material];ms.forEach(m=>m.needsUpdate=true)}});resize()}
+  renderer.shadowMap.enabled=gfx==='high';sun.castShadow=gfx==='high';if(vmGun)vmGun.children[0].material=gfx==='high'?vmGunMat:gunMat;if(mapIdx!==-1&&meshedAo!==(gfx==='high')){disposeGroup(mapGroup);meshWorld(mapGroup)}scene.traverse(o=>{if(o.material){const ms=Array.isArray(o.material)?o.material:[o.material];ms.forEach(m=>m.needsUpdate=true)}});resize()}
 $('gfxSeg').addEventListener('click',e=>{const q=e.target.dataset&&e.target.dataset.q;if(q)applyGfx(q)});
 // A machine that can't keep up: if frames stay slower than about 30 a second for 8 s of play even after autores.js has
 // dropped to its lowest resolution, and the player has never picked a graphics setting, switch to Fast (no shadows) and
