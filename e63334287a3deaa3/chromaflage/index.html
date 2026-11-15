@@ -3499,26 +3499,82 @@ const fxRoot=new THREE.Group();scene.add(fxRoot);
 const fx=[],splats=[];
 const fxSphere=new THREE.SphereGeometry(1,10,8),fxBox=new THREE.BoxGeometry(1,1,1),fxDisc=new THREE.CircleGeometry(1,18);
 function fxMesh(geo,color,opa){const m=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color,transparent:opa!=null,opacity:opa==null?1:opa,depthWrite:opa==null}));fxRoot.add(m);return m}
-function clearFx(){for(const f of fx){fxRoot.remove(f.m);f.m.material.dispose()}fx.length=0;for(const s of splats){fxRoot.remove(s.m);s.m.material.dispose()}splats.length=0}
+function clearFx(){for(const f of fx){fxRoot.remove(f.m);f.m.material.dispose();if(f.tr){fxRoot.remove(f.tr);f.tr.material.dispose()}}fx.length=0;for(const s of splats){fxRoot.remove(s.m);s.m.material.dispose()}splats.length=0}
 let noteTex=null;
 function puff(pos,color){
   for(let i=0;i<12;i++){const a=i/12*Math.PI*2,m=fxMesh(fxSphere,color||'#ffffff',.85);m.position.copy(pos);m.scale.setScalar(.09);fx.push({m,t:0,life:.9,v:new V3(Math.cos(a)*1.6,1+Math.random(),Math.sin(a)*1.6),grow:.25,fade:1})}
   if(!noteTex){const c=cnv(64,64),x=c.getContext('2d');x.font='900 52px sans-serif';x.textAlign='center';x.textBaseline='middle';x.lineWidth=6;x.strokeStyle='#1f1b33';x.strokeText('♪',32,34);x.fillStyle='#ffc83d';x.fillText('♪',32,34);noteTex=new THREE.CanvasTexture(c)}
   const s=new THREE.Sprite(new THREE.SpriteMaterial({map:noteTex,transparent:true,depthTest:false}));s.position.copy(pos).add(new V3(0,.4,0));s.scale.setScalar(.6);fxRoot.add(s);fx.push({m:s,t:0,life:1.6,v:new V3(0,1.1,0),fade:1});
 }
-function confetti(pos){const cols=['#ff4f8b','#ffc83d','#14b8a6','#3f7cff','#8b5cf6','#ffffff'];for(let i=0;i<34;i++){const m=fxMesh(fxBox,pick(cols));m.position.copy(pos);m.scale.set(.07,.07,.02);fx.push({m,t:0,life:1.6+Math.random(),v:new V3(rand(-3,3),rand(2,6),rand(-3,3)),grav:1,spin:new V3(rand(-9,9),rand(-9,9),0)})}}
-function pellet(from,to,color,onHit){const m=fxMesh(fxSphere,color||'#ff4f8b');m.scale.setScalar(.07);m.position.copy(from);const d=from.distanceTo(to);fx.push({m,t:0,life:Math.max(.05,d/70),from:from.clone(),to:to.clone(),onHit})}
+// Effects are drawn only on this computer and are hidden from the practice bot's eyes (perceive hides fxRoot), so they
+// never change what can be hidden against. The Fast setting gets fewer pieces.
+const fxHigh=()=>gfx==='high';
+// soft round textures for the found burst: a ring and an eight-point sparkle, tinted by the sprite's colour
+let ringTex=null,sparkTex=null;
+function burstTex(kind){
+  const c=cnv(128,128),x=c.getContext('2d');x.translate(64,64);
+  if(kind==='ring'){x.lineWidth=9;x.strokeStyle='#fff';x.beginPath();x.arc(0,0,52,0,Math.PI*2);x.stroke();x.globalAlpha=.35;x.lineWidth=20;x.stroke()}
+  else{x.fillStyle='#fff';for(let i=0;i<8;i++){const a=i/8*Math.PI*2,r=i%2?34:60,w=i%2?5:8;x.save();x.rotate(a);x.beginPath();x.moveTo(0,-w);x.quadraticCurveTo(r*.5,-w*.3,r,0);x.quadraticCurveTo(r*.5,w*.3,0,w);x.closePath();x.fill();x.restore()}
+    x.beginPath();x.arc(0,0,12,0,Math.PI*2);x.fill()}
+  return new THREE.CanvasTexture(c);
+}
+function burstSprite(tex,color,pos,size,life,grow){const s=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,color,transparent:true,depthWrite:false}));s.position.copy(pos);s.scale.setScalar(size);fxRoot.add(s);fx.push({m:s,t:0,life,v:_v0,grow,fade:1});return s}
+const _v0=new V3();
+function confetti(pos){
+  const cols=['#ff4f8b','#ffc83d','#14b8a6','#3f7cff','#8b5cf6','#ffffff'],n=fxHigh()?34:22;
+  // paper pieces of mixed sizes: thrown up fast, then slowed by the air so they flutter down
+  for(let i=0;i<n;i++){const m=fxMesh(fxBox,pick(cols),1);m.material.depthWrite=true;m.position.copy(pos);m.scale.set(rand(.05,.1),rand(.035,.07),.012);m.rotation.set(rand(0,6),rand(0,6),0);
+    fx.push({m,t:0,life:1.7+Math.random()*1.1,v:new V3(rand(-3.4,3.4),rand(2.5,7),rand(-3.4,3.4)),grav:1,drag:1.7,late:1,spin:new V3(rand(-10,10),rand(-10,10),0)})}
+  if(!ringTex){ringTex=burstTex('ring');sparkTex=burstTex('spark')}
+  burstSprite(ringTex,'#ffc83d',pos,.5,.5,3.6);burstSprite(sparkTex,'#ffffff',pos,.7,.28,4.5);
+}
+// a paint pellet: a short streak that flies from the blaster to where it lands, with a paler tail behind it
+const _pd=new V3(),_pt=new V3();
+function pellet(from,to,color,onHit){
+  const m=fxMesh(fxSphere,color||'#ff4f8b');m.position.copy(from);const d=from.distanceTo(to);
+  _pd.subVectors(to,from);if(d>1e-4){_pd.multiplyScalar(1/d);_nq.setFromUnitVectors(_zf,_pd);m.quaternion.copy(_nq)}m.scale.set(.055,.055,.15);
+  const tr=fxMesh(fxBox,'#ff9cc0',.5);tr.quaternion.copy(m.quaternion);tr.scale.set(.03,.03,.001);tr.position.copy(from);
+  fx.push({m,tr,t:0,life:Math.max(.05,d/70),from:from.clone(),to:to.clone(),onHit});
+  // a quick pale flash at the muzzle
+  const fl=fxMesh(fxSphere,'#ffd3e2',.9);fl.position.copy(from);fl.scale.setScalar(.04);fx.push({m:fl,t:0,life:.08,v:_v0,grow:.8,fade:1});
+}
 const _nq=new THREE.Quaternion(),_zf=new V3(0,0,1);
+// Splat shapes: a blob with a wobbly edge, a few long lobes and some stray drops, all in one flat mesh. A handful are
+// made once and shared; each splat picks one, turns it and pops it open. Same pink and about the same size as the
+// round marks they replace.
+const splatGeos=[];
+function splatGeo(){
+  const pos=[],idx=[];
+  const fan=(cx,cy,rf,seg)=>{const b=pos.length/3;pos.push(cx,cy,0);for(let i=0;i<seg;i++){const a=i/seg*Math.PI*2,r=rf(a);pos.push(cx+Math.cos(a)*r,cy+Math.sin(a)*r,0)}for(let i=0;i<seg;i++)idx.push(b,b+1+i,b+1+(i+1)%seg)};
+  const lobes=[];for(let i=0,nl=5+Math.floor(Math.random()*3);i<nl;i++)lobes.push([i/nl*Math.PI*2+rand(-.3,.3),rand(.22,.62),rand(.16,.26)]);
+  const ph=rand(0,6),ph2=rand(0,6);
+  fan(0,0,a=>{let r=.6+.06*Math.sin(3*a+ph)+.04*Math.sin(7*a+ph2);for(const l of lobes){let da=Math.abs(a-l[0])%(Math.PI*2);if(da>Math.PI)da=Math.PI*2-da;r+=l[1]*Math.exp(-(da*da)/(2*l[2]*l[2]))}return r},56);
+  for(let i=0,nd=3+Math.floor(Math.random()*3);i<nd;i++){const a=rand(0,6.283),d=rand(1.2,1.6),r=rand(.06,.14);fan(Math.cos(a)*d,Math.sin(a)*d,()=>r,10)}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setIndex(idx);g.computeVertexNormals();return g;
+}
+const _tA=new V3(),_tB=new V3();
 function splat(p,n,color){
-  const m=fxMesh(fxDisc,color||'#ff4f8b',.95);m.position.copy(p).addScaledVector(n,.012);_nq.setFromUnitVectors(_zf,n);m.quaternion.copy(_nq);m.rotateZ(Math.random()*6);m.scale.setScalar(rand(.12,.2));
-  splats.push({m,t:0});if(splats.length>60){const s=splats.shift();fxRoot.remove(s.m);s.m.material.dispose()}
+  if(!splatGeos.length)for(let i=0;i<5;i++)splatGeos.push(splatGeo());
+  const m=fxMesh(pick(splatGeos),color||'#ff4f8b',.95);m.position.copy(p).addScaledVector(n,.012);_nq.setFromUnitVectors(_zf,n);m.quaternion.copy(_nq);m.rotateZ(Math.random()*6);
+  const sc=rand(.115,.175);m.scale.setScalar(sc*.35);
+  splats.push({m,t:0,sc,pop:1});if(splats.length>60){const s=splats.shift();fxRoot.remove(s.m);s.m.material.dispose()}
+  // drops thrown off the surface where the pellet lands
+  _tA.set(n.y,n.z,n.x).cross(n);if(_tA.lengthSq()<1e-4)_tA.set(1,0,0).cross(n);_tA.normalize();_tB.crossVectors(n,_tA);
+  for(let i=0,nd=fxHigh()?6:3;i<nd;i++){const a=rand(0,6.283),o=rand(.6,2.2),d=fxMesh(fxSphere,color||'#ff4f8b');d.position.copy(p).addScaledVector(n,.03);const s0=rand(.018,.034);d.scale.setScalar(s0);
+    fx.push({m:d,t:0,life:rand(.3,.5),v:new V3().copy(n).multiplyScalar(rand(.8,2.4)).addScaledVector(_tA,Math.cos(a)*o).addScaledVector(_tB,Math.sin(a)*o),grav:1,shrink:s0})}
 }
 function updateFx(dt){
   for(let i=fx.length-1;i>=0;i--){const f=fx[i];f.t+=dt;const k=f.t/f.life;
-    if(f.from){f.m.position.lerpVectors(f.from,f.to,Math.min(1,k));if(k>=1&&f.onHit){f.onHit();f.onHit=null}}
-    else{if(f.grav)f.v.y-=9*dt;f.m.position.addScaledVector(f.v,dt);if(f.grow)f.m.scale.addScalar(f.grow*dt);if(f.spin){f.m.rotation.x+=f.spin.x*dt;f.m.rotation.y+=f.spin.y*dt}if(f.fade)f.m.material.opacity=Math.max(0,1-k)}
-    if(k>=1){fxRoot.remove(f.m);f.m.material.dispose();fx.splice(i,1)}}
-  for(const s of splats){s.t+=dt;if(s.t>40)s.m.material.opacity=Math.max(0,1-(s.t-40)/5)}
+    if(f.from){f.m.position.lerpVectors(f.from,f.to,Math.min(1,k));
+      if(f.tr){const len=Math.min(1.5,f.m.position.distanceTo(f.from));_pt.subVectors(f.from,f.to).normalize();f.tr.position.copy(f.m.position).addScaledVector(_pt,len*.5);f.tr.scale.z=Math.max(.001,len)}
+      if(k>=1&&f.onHit){f.onHit();f.onHit=null}}
+    else{if(f.grav)f.v.y-=9*dt;if(f.drag)f.v.multiplyScalar(Math.max(0,1-f.drag*dt));f.m.position.addScaledVector(f.v,dt);if(f.grow)f.m.scale.addScalar(f.grow*dt);if(f.spin){f.m.rotation.x+=f.spin.x*dt;f.m.rotation.y+=f.spin.y*dt}
+      if(f.fade)f.m.material.opacity=Math.max(0,1-k);else if(f.late)f.m.material.opacity=Math.min(1,Math.max(0,(1-k)*4));
+      if(f.shrink)f.m.scale.setScalar(f.shrink*Math.max(.05,1-k*k))}
+    if(k>=1){fxRoot.remove(f.m);f.m.material.dispose();if(f.tr){fxRoot.remove(f.tr);f.tr.material.dispose()}fx.splice(i,1)}}
+  for(const s of splats){s.t+=dt;
+    if(s.pop){const k=Math.min(1,s.t/.16),c=k-1;s.m.scale.setScalar(s.sc*(.35+.65*(1+2.6*c*c*c+1.6*c*c)));if(k>=1)s.pop=0} // opens with a small overshoot
+    if(s.t>40)s.m.material.opacity=Math.max(0,1-(s.t-40)/5)}
 }
 
 // =====================================================================
@@ -3753,7 +3809,7 @@ function shoot(auto){
   const targets=[];for(const e of ents.values()){if(e===me||roleOf(e.id)!=='hider'||!e.av.root.visible)continue;targets.push(...e.av.parts)}
   const hits=targets.length?ray.intersectObjects(targets,false):[];
   const muzzle=new V3();if(me.av.gun){me.av.gun.getWorldPosition(muzzle)}else muzzle.copy(me.pos).add(new V3(0,1.2,0));
-  G.shotSeq++;sfx('shot',me.pos);
+  G.shotSeq++;sfx('shot',me.pos);hudPop($('xh'),[{transform:'scale(1.32)'},{transform:'scale(1)'}],150);
   if(hits.length){
     const h=hits[0],tgt=h.object.userData.av.e;hitPoint=h.point;
     pellet(muzzle,hitPoint,'#ff4f8b',()=>{splatBody(tgt,h)});
@@ -4292,8 +4348,11 @@ function setHidden(id,h){const k='h_'+id;if(hudCache[k]!==h){hudCache[k]=h;$(id)
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function feed(html){const box=$('feed'),d=document.createElement('div');d.innerHTML=html;box.appendChild(d);while(box.children.length>5)box.firstChild.remove();setTimeout(()=>{d.style.opacity='0';setTimeout(()=>d.remove(),700)},4500)}
 const toast=t=>feed(esc(t));
-let bannerT=0;function banner(t,s,sec){const b=$('banner');b.querySelector('b').textContent=t;b.querySelector('span').textContent=s||'';b.style.opacity='1';clearTimeout(bannerT);bannerT=setTimeout(()=>b.style.opacity='0',(sec||2.5)*1000)}
-let hitT=0;function showHit(n){const h=$('hitPop');h.textContent='Found '+n+'!';h.style.opacity='1';clearTimeout(hitT);hitT=setTimeout(()=>h.style.opacity='0',1400)}
+// small pops for HUD pieces; skipped when the player's device asks for less motion
+const calm=matchMedia('(prefers-reduced-motion: reduce)').matches;
+function hudPop(el,frames,ms){if(!calm&&el.animate)el.animate(frames,{duration:ms,easing:'cubic-bezier(.2,.9,.3,1.25)'})}
+let bannerT=0;function banner(t,s,sec){const b=$('banner');b.querySelector('b').textContent=t;b.querySelector('span').textContent=s||'';b.style.opacity='1';hudPop(b.querySelector('b'),[{transform:'scale(.55) rotate(-4deg)'},{transform:'scale(1) rotate(0)'}],380);clearTimeout(bannerT);bannerT=setTimeout(()=>b.style.opacity='0',(sec||2.5)*1000)}
+let hitT=0;function showHit(n){const h=$('hitPop');h.textContent='Found '+n+'!';h.style.opacity='1';hudPop(h,[{transform:'translate(-50%,-50%) scale(.5)'},{transform:'translate(-50%,-50%) scale(1)'}],320);hudPop($('xh'),[{transform:'scale(1.9)',borderColor:'#ffc83d'},{transform:'scale(1)',borderColor:'#fff'}],360);clearTimeout(hitT);hitT=setTimeout(()=>h.style.opacity='0',1400)}
 function flashVig(){const v=$('vig');v.style.opacity='1';setTimeout(()=>v.style.opacity='0',600)}
 const ROLE_TXT={free:['Warming up',''],hider:['Hiding','hider'],seeker:['Seeking','seeker'],out:['Found','spec'],spec:['Watching','spec']};
 function updateHud(){
