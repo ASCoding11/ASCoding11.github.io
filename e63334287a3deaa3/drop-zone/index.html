@@ -12,8 +12,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Barlow+Condensed:wght@500;600;700;800&display=swap">
 <style>
-/* Layout: full-bleed WebGL island. Minimap and storm clock top right, health and shield bottom left, the four item
-   slots, the crowbar and the build pieces bottom right. Menus are panels on the left over the live island. */
+/* Layout: full-bleed WebGL island. Top right: the map, the storm clock under it, then players left and your knockouts,
+   then the feed. Top centre, one column: compass, storm warning, messages. Bottom left: health (the biggest bar),
+   shield and scrap in one panel. Bottom right: what you're holding and its ammo in big figures, over the row of
+   slots. On touch screens the slots run along the top and the bottom corners belong to the stick and the buttons.
+   Menus are panels on the left over the live island. */
 :root{
   --ink:#fff8ea;
   --ink-dim:rgba(255,248,234,.66);
@@ -49,9 +52,10 @@ button:disabled{opacity:.5;cursor:default}
 
 #mapBox{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:calc(12px + env(safe-area-inset-right,0px));width:168px;display:flex;flex-direction:column;gap:4px;align-items:stretch}
 #mini{width:168px;height:168px;display:block;border:2px solid rgba(255,248,234,.5);background:#164a63;border-radius:6px;pointer-events:auto;cursor:pointer}
-#info{display:flex;justify-content:space-between;gap:6px;background:var(--panel);padding:3px 8px;font-size:16px;font-weight:700;letter-spacing:.04em;white-space:nowrap;border-radius:4px}
-#info b{font-variant-numeric:tabular-nums}
-#stormT{display:block;background:var(--panel);padding:3px 8px;font-size:15px;font-weight:700;letter-spacing:.04em;color:#e1ccff;text-align:center;border-radius:4px;white-space:nowrap}
+#info{display:flex;justify-content:space-between;align-items:baseline;gap:6px;background:var(--panel);padding:3px 10px;font-size:15px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;border-radius:4px;color:var(--ink-dim)}
+#info b{font-variant-numeric:tabular-nums;font-size:22px;font-weight:800;color:var(--ink);margin-right:2px}
+#info .al b{color:var(--sun)}
+#stormT{display:block;background:var(--panel);padding:4px 8px;font-size:17px;font-weight:800;letter-spacing:.04em;color:var(--safe);text-align:center;border-radius:4px;white-space:nowrap;font-variant-numeric:tabular-nums}
 #stormT.closing{color:#1d1300;background:var(--sun)}
 /* top centre, one column: compass, storm warning, messages, the name of the place you landed in */
 #topc{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;max-width:calc(100vw - 32px)}
@@ -64,38 +68,46 @@ button:disabled{opacity:.5;cursor:default}
 #compSafe{position:absolute;left:50%;bottom:1px;width:12px;height:12px;margin-left:-6px;background:var(--safe);clip-path:polygon(50% 0,100% 45%,82% 45%,82% 100%,18% 100%,18% 45%,0 45%);will-change:transform}
 #stormWarn{display:flex;gap:10px;align-items:baseline;padding:4px 14px;border-radius:4px;background:var(--panel);white-space:nowrap;font-weight:700;font-size:16px;letter-spacing:.04em;border-left:4px solid var(--safe)}
 #stormWarn b{font-family:var(--f-big);font-weight:400;font-size:17px;letter-spacing:.06em}
+#stormWarn span{white-space:nowrap}
 #stormWarn.bad{background:rgba(120,22,14,.9);border-left-color:var(--bad);animation:swPulse .9s ease-in-out infinite alternate}
 #stormWarn.bad b{color:#ffd9d2}
 @keyframes swPulse{from{box-shadow:0 0 0 0 rgba(255,116,97,0)}to{box-shadow:0 0 0 4px rgba(255,116,97,.5)}}
 #placeLbl{font-family:var(--f-big);font-size:20px;letter-spacing:.06em;text-shadow:0 2px 0 rgba(0,0,0,.45);white-space:nowrap;opacity:0;transition:opacity .6s}
 #placeLbl.on{opacity:1}
 #net{font-size:18px;font-weight:700;color:var(--ink);background:var(--panel);padding:4px 12px;border-radius:4px;letter-spacing:.04em;white-space:nowrap;max-width:calc(100vw - 32px);overflow:hidden;text-overflow:ellipsis}
-#feed{position:absolute;top:calc(250px + env(safe-area-inset-top,0px));right:calc(12px + env(safe-area-inset-right,0px));display:flex;flex-direction:column;align-items:flex-end;gap:3px;font-size:15px;font-weight:600;max-width:320px}
+#feed{position:absolute;top:calc(262px + env(safe-area-inset-top,0px));right:calc(12px + env(safe-area-inset-right,0px));display:flex;flex-direction:column;align-items:flex-end;gap:3px;font-size:15px;font-weight:600;max-width:320px}
 #feed div{background:var(--panel);padding:2px 9px;border-radius:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 #feed .you{color:var(--sun)} #feed .them{color:var(--bad)} #feed .info{color:var(--ink-dim)}
 #feed .bt{font-size:11px;letter-spacing:.1em;color:var(--ink-dim);margin-left:3px}
 
-#vitals{position:absolute;left:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:6px;width:min(250px,40vw)}
+#vitals{position:absolute;left:calc(16px + env(safe-area-inset-left,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:6px;width:min(310px,38vw);padding:8px 12px 10px;background:var(--panel);border-radius:8px}
+.bar.hp .num{font-size:34px;width:58px} .bar.hp .track{height:20px}
+.bar.sh .num{font-size:20px;width:58px} .bar.sh .track{height:11px}
+#vitals.low .bar.hp .fill{background:var(--bad)} #vitals.low #hpNum{color:var(--bad)}
 .bar{display:flex;align-items:center;gap:8px}
 .bar .num{width:44px;text-align:right;font-size:24px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;text-shadow:0 1px 2px rgba(0,0,0,.6)}
 .bar .track{flex:1;height:14px;background:rgba(0,0,0,.5);border:1px solid var(--line);position:relative;overflow:hidden;border-radius:3px}
 .bar .fill{position:absolute;inset:0 auto 0 0;transition:width .12s}
 #shFill{background:var(--sh)} #hpFill{background:var(--hp)}
 #shNum{color:var(--sh)} #hpNum{color:var(--hp)}
-#mats{font-size:15px;font-weight:700;letter-spacing:.06em;color:#f2d29b;text-shadow:0 1px 2px #000}
+#mats{font-size:14px;font-weight:700;letter-spacing:.1em;color:#f2d29b;text-shadow:0 1px 2px #000}
 
-#slots{position:absolute;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));display:flex;gap:5px;flex-wrap:nowrap;justify-content:flex-end}
+#slots{position:absolute;right:calc(16px + env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));display:flex;gap:5px;flex-wrap:nowrap;justify-content:flex-end}
 .slot{width:62px;height:60px;background:var(--panel);border:1px solid var(--line);position:relative;display:flex;flex-direction:column;justify-content:flex-end;padding:3px 5px;border-radius:5px;overflow:hidden}
 .slot .k{position:absolute;top:2px;left:5px;font-size:14px;font-weight:700;color:var(--ink-dim)}
 .slot .nm{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.02em;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .slot .am{font-size:12px;color:var(--ink-dim);font-variant-numeric:tabular-nums;white-space:nowrap}
-.slot.on{border-color:var(--sun);box-shadow:inset 0 0 0 1px var(--sun);background:rgba(70,52,10,.84)}
+.slot.on{border-color:var(--sun);box-shadow:inset 0 0 0 1px var(--sun);background:rgba(70,52,10,.9);transform:translateY(-5px)}
+.slot::after{content:"";position:absolute;right:5px;top:5px;width:9px;height:9px;border-radius:50%;background:var(--tc,transparent)}   /* the weapon's own colour */
 .slot.empty .nm{color:var(--ink-dim);font-weight:600}
 .slot.build .nm{color:#ffe0a8}
 .slot.gap{margin-left:10px}
 .slot i.rar{position:absolute;left:0;right:0;bottom:0;height:4px}
-#ammo{position:absolute;right:16px;bottom:calc(84px + env(safe-area-inset-bottom,0px));font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;text-shadow:0 2px 2px rgba(0,0,0,.6);text-align:right}
-#ammo small{font-size:16px;color:var(--ink-dim);font-weight:700}
+#ammo{position:absolute;right:calc(16px + env(safe-area-inset-right,0px));bottom:calc(88px + env(safe-area-inset-bottom,0px));font-weight:800;font-variant-numeric:tabular-nums;text-shadow:0 2px 2px rgba(0,0,0,.6);text-align:right;display:flex;flex-direction:column;align-items:flex-end;line-height:1}
+#ammo .wn{font-size:14px;letter-spacing:.12em;text-transform:uppercase;margin-bottom:3px}
+#ammo b{font-size:46px;font-weight:800}
+#ammo.low b{color:var(--bad)}
+#ammo small{font-size:20px;color:var(--ink-dim);font-weight:700}
 
 #cross{position:absolute;left:50%;top:50%;width:0;height:0}
 #cross i{position:absolute;background:#fff;box-shadow:0 0 2px #000}
@@ -121,9 +133,9 @@ button:disabled{opacity:.5;cursor:default}
 .ntag{position:absolute;left:0;top:0;font-weight:700;font-size:14px;letter-spacing:.04em;color:#fff;text-shadow:0 1px 2px #000;white-space:nowrap;pointer-events:none}
 .ntag em{font-style:normal;font-size:10px;letter-spacing:.12em;color:var(--ink-dim);margin-left:4px}
 
-#banner{position:absolute;left:0;right:0;top:28%;text-align:center;pointer-events:none;padding-inline:16px}
-#banner .big{font-family:var(--f-big);font-size:clamp(34px,7vw,76px);line-height:1;letter-spacing:.02em;color:#fff;text-shadow:0 4px 0 rgba(0,0,0,.35)}
-#banner .small{font-size:17px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink);font-weight:700;margin-top:6px;text-shadow:0 1px 3px #000}
+#banner{position:absolute;left:0;right:0;top:max(23%,150px);text-align:center;pointer-events:none;padding-inline:16px}
+#banner .big{font-family:var(--f-big);font-size:clamp(28px,5vw,60px);line-height:1;letter-spacing:.02em;color:#fff;text-shadow:0 4px 0 rgba(0,0,0,.35)}
+#banner .small{font-size:16px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink);font-weight:700;margin-top:6px;text-shadow:0 1px 3px #000}
 #banner.show{animation:bannerIn .35s ease-out}
 @keyframes bannerIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 #dmg{position:absolute;inset:0;pointer-events:none;overflow:hidden}
@@ -192,12 +204,20 @@ details.ctrl[open] .keys{margin-top:10px}
 .rank li .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rank li .k{color:var(--ink-dim);font-variant-numeric:tabular-nums}
 .rank li.me{color:var(--sun)}
+@media (max-width:960px){
+  body:not(.touch) .slot{width:54px;height:54px} body:not(.touch) .slot .nm{font-size:11px}
+  body:not(.touch) #vitals{width:min(250px,34vw)} body:not(.touch) .bar.hp .num{font-size:28px;width:48px} body:not(.touch) .bar.sh .num{width:48px}
+}
+@media (max-width:820px){
+  body:not(.touch) #vitals{bottom:calc(84px + env(safe-area-inset-bottom,0px));width:210px}
+  body:not(.touch) #ammo b{font-size:34px}
+}
 @media (max-width:560px){
   .keys{grid-template-columns:1fr}
   .slot{width:50px;height:50px}
   .slot .nm{font-size:11px}
   #mapBox{width:128px} #mini{width:128px;height:128px}
-  #feed{top:calc(206px + env(safe-area-inset-top,0px))}
+  #feed{top:calc(222px + env(safe-area-inset-top,0px))}
 }
 /* Touch controls: a move stick on the left, buttons on the right, and dragging anywhere else turns the view.
    Only shown on touch screens, where the item and build slots become buttons along the top. */
@@ -220,10 +240,13 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
 #hud.spec #tStick,#hud.spec #tFire,#hud.spec #tJump,#hud.spec #tAim,#hud.spec #tReload,#hud.spec #tUse{display:none}
 #hud.air #tFire,#hud.air #tAim,#hud.air #tReload,#hud.air #tUse{display:none}
 body.touch.inlobby #hud,body.touch.inlobby #banner,body.touch.inlobby #dmg{visibility:hidden}
-body.touch #vitals{left:calc(60px + env(safe-area-inset-left,0px));bottom:auto;top:calc(10px + env(safe-area-inset-top,0px));width:130px;gap:3px}
+body.touch #vitals{left:calc(60px + env(safe-area-inset-left,0px));bottom:auto;top:calc(8px + env(safe-area-inset-top,0px));width:132px;gap:2px;padding:3px 6px 5px;border-radius:6px}
 body.touch .bar .num{font-size:15px;width:30px}
 body.touch .bar .track{height:9px}
-body.touch #mats{font-size:13px}
+body.touch #mats{font-size:11px}
+body.touch .slot.on{transform:none}
+body.touch #ammo .wn{display:none} body.touch #ammo b{font-size:20px}
+body.touch #info{font-size:11px;padding:1px 6px} body.touch #info b{font-size:15px}
 body.touch #slots{pointer-events:auto;z-index:1;right:auto;left:calc(200px + env(safe-area-inset-left,0px));bottom:auto;top:calc(8px + env(safe-area-inset-top,0px));gap:3px}
 body.touch .slot{width:46px;height:44px;padding:2px 3px}
 body.touch .slot .k{display:none}
@@ -234,8 +257,7 @@ body.touch #ammo{right:auto;left:calc(200px + env(safe-area-inset-left,0px));bot
 body.touch #ammo small{font-size:13px}
 body.touch #mapBox{width:112px;top:calc(8px + env(safe-area-inset-top,0px));right:calc(8px + env(safe-area-inset-right,0px))}
 body.touch #mini{width:112px;height:112px}
-body.touch #info{font-size:13px;padding:2px 6px}
-body.touch #stormT{font-size:12px;padding:2px 6px}
+body.touch #stormT{font-size:13px;padding:2px 6px}
 body.touch #feed{right:auto;left:calc(10px + env(safe-area-inset-left,0px));align-items:flex-start;top:calc(60px + env(safe-area-inset-top,0px));font-size:12px;max-width:180px}
 body.touch #hint{bottom:auto;top:calc(86px + env(safe-area-inset-top,0px));font-size:12px}
 body.touch #prompt{font-size:14px;top:calc(50% + 34px)}
@@ -252,14 +274,15 @@ body.touch #net{font-size:14px}
   body.touch #ammo{left:50%;transform:translateX(-50%);top:calc(232px + env(safe-area-inset-top,0px))}
   body.touch #feed{top:calc(64px + env(safe-area-inset-top,0px));max-width:calc(100vw - 150px)}
   body.touch #topc{top:calc(262px + env(safe-area-inset-top,0px))}
-  body.touch #stormWarn{flex-direction:column;align-items:center;gap:0;white-space:normal;text-align:center}
+  body.touch #stormWarn{flex-direction:column;align-items:center;gap:0;text-align:center;font-size:12px}
   body.touch #hint{top:auto;bottom:calc(196px + env(safe-area-inset-bottom,0px))}
-  #banner{top:36%}
+  #banner{top:max(41%,330px)}
+  #banner .small{font-size:13px;letter-spacing:.08em}
 }
 /* short phones held sideways: a smaller map so the buttons on the right fit under it */
 @media (orientation:landscape) and (max-height:420px){
   body.touch #mapBox{width:100px} body.touch #mini{width:100px;height:100px}
-  body.touch #info{font-size:12px;padding:1px 5px} body.touch #stormT{font-size:11px;padding:1px 5px}
+  body.touch #info{font-size:10px;padding:0 5px} body.touch #info b{font-size:13px} body.touch #stormT{font-size:11px;padding:1px 5px}
 }
 @media (prefers-reduced-motion:reduce){#banner.show{animation:none} #stormWarn.bad{animation:none}}
 </style>
@@ -279,8 +302,8 @@ body.touch #net{font-size:14px}
     </div>
     <div id="mapBox">
       <canvas id="mini" width="200" height="200" aria-label="Map"></canvas>
-      <div id="info"><span><b id="aliveN">0</b> left</span><span><b id="killN">0</b> KO</span></div>
       <div id="stormT">Storm</div>
+      <div id="info"><span class="al"><b id="aliveN">0</b> left</span><span><b id="killN">0</b> KO</span></div>
     </div>
     <div id="feed"></div>
     <div id="tags"></div>
@@ -293,9 +316,9 @@ body.touch #net{font-size:14px}
     <div id="prompt" hidden></div>
     <div id="hint" hidden></div>
     <div id="vitals">
-      <div id="mats">WOOD 0</div>
-      <div class="bar"><span class="num" id="shNum">0</span><div class="track"><div class="fill" id="shFill" style="width:0"></div></div></div>
-      <div class="bar"><span class="num" id="hpNum">100</span><div class="track"><div class="fill" id="hpFill" style="width:100%"></div></div></div>
+      <div id="mats">SCRAP 0</div>
+      <div class="bar sh"><span class="num" id="shNum">0</span><div class="track"><div class="fill" id="shFill" style="width:0"></div></div></div>
+      <div class="bar hp"><span class="num" id="hpNum">100</span><div class="track"><div class="fill" id="hpFill" style="width:100%"></div></div></div>
     </div>
     <div id="ammo"></div>
     <div id="slots">
@@ -591,6 +614,10 @@ function bagAdd(B,geo,m,hex,shade){
   }
 }
 function bagBox(B,cx,cy,cz,sx,sy,sz,hex,ry,shade){_e.set(0,ry||0,0);_q.setFromEuler(_e);_m4.compose(_p.set(cx,cy,cz),_q,_s.set(sx,sy,sz));bagAdd(B,UNIT_BOX,_m4,hex,shade)}
+// the same with far fewer triangles (48 instead of 192), for small things there are many of: held items and floor loot
+const ROUND_LO=(()=>{const g=new THREE.BoxGeometry(1,1,1,2,2,2).toNonIndexed(),p=g.attributes.position,n=g.attributes.normal,v=new V3(),u=new V3(),f=new V3();
+  for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i);f.fromBufferAttribute(n,i);u.copy(v).normalize();v.lerp(u.clone().multiplyScalar(.62),.4);p.setXYZ(i,v.x,v.y,v.z);f.lerp(u,.55).normalize();n.setXYZ(i,f.x,f.y,f.z)}return g})();
+function bagRLo(B,cx,cy,cz,sx,sy,sz,hex,ry,shade){_e.set(0,ry||0,0);_q.setFromEuler(_e);_m4.compose(_p.set(cx,cy,cz),_q,_s.set(sx*1.12,sy*1.12,sz*1.12));bagAdd(B,ROUND_LO,_m4,hex,shade)}
 function bagRBox(B,cx,cy,cz,sx,sy,sz,hex,ry,shade){_e.set(0,ry||0,0);_q.setFromEuler(_e);_m4.compose(_p.set(cx,cy,cz),_q,_s.set(sx*1.12,sy*1.12,sz*1.12));bagAdd(B,ROUND_BOX,_m4,hex,shade)}
 function bagGeo(B){const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(B.p,3));g.setAttribute('normal',new THREE.Float32BufferAttribute(B.n,3));g.setAttribute('color',new THREE.Float32BufferAttribute(B.c,3));g.computeBoundingSphere();g.computeBoundingBox();return g}
 
@@ -998,7 +1025,7 @@ function finishWorld(){
   // Outside the 240 m square you can walk on, a beach slopes down under the sea. How far it reaches changes along the
   // shore (4 to 20 m) and it rounds the corners, so from the air the island has a coastline rather than a ruler edge.
   // It is only for looks: nobody can stand on it (clampToMap).
-  const S=MAP+72,N=Math.round(S/2);
+  const S=MAP+32,N=Math.round(S/2);   // (16 m out is always under the sea, so the mesh can stop there)
   const gg=new THREE.PlaneGeometry(S,S,N,N);gg.rotateX(-Math.PI/2);gg.translate(MAP/2,0,MAP/2);
   const pos=gg.attributes.position,col=new Float32Array(pos.count*3),c=[0,0,0];
   for(let i=0;i<pos.count;i++){const x=pos.getX(i),z=pos.getZ(i),cx=clamp(x,0,MAP),cz=clamp(z,0,MAP),d=Math.hypot(x-cx,z-cz);
@@ -1024,7 +1051,7 @@ function finishWorld(){
   mpLink();
   // clouds, all one mesh, above the Drifter's line
   // (bigger and fewer than before: each is a row of five to seven puffs with a flat, blue-grey underside and a white top)
-  const cb=Bag(),rr=mulberry(99),CLD=new THREE.IcosahedronGeometry(1,1).toNonIndexed();
+  const cb=Bag(),rr=mulberry(99),CLD=ICO;
   for(let i=0;i<20;i++){const x=-420+rr()*(MAP+840),z=-420+rr()*(MAP+840),y=165+rr()*45,n=5+Math.floor(rr()*3),a=rr()*3,s=.8+rr()*.9;
     for(let k=0;k<n;k++){const u=(k-(n-1)/2)*11*s,m=1-Math.abs(k-(n-1)/2)/n;shape(CLD,x+Math.cos(a)*u+rr()*6,y+m*5*s,z+Math.sin(a)*u+rr()*6,(11+rr()*6)*s*(.6+m*.6),(4.5+rr()*2.5)*s*(.5+m),(9+rr()*5)*s*(.6+m*.6),0xffffff,rr()*3,1,cb)}}
   for(let i=0;i<cb.n.length;i+=3){const k=clamp(cb.n[i+1]*.75+.55,0,1);cb.c[i]=.68+.32*k;cb.c[i+1]=.76+.24*k;cb.c[i+2]=.88+.12*k}
@@ -1208,7 +1235,7 @@ function setupChests(){
   // Floor loot: a weapon lies there as itself (the same model you hold), a heal as its kit or bottle, ammo and scrap
   // as a small crate in the colour of the weapon that uses it. One instanced mesh per shape (8), filled each frame by
   // drawItems(), plus one mesh of soft glows underneath in the rarity colour.
-  const ig=Bag();bagRBox(ig,0,0,0,.62,.4,.44,0xffffff);bagBox(ig,0,.06,0,.72,.07,.5,0xbfbfbf);bagBox(ig,0,.25,0,.3,.05,.08,0x8a8a8a);
+  const ig=Bag();bagRLo(ig,0,0,0,.62,.4,.44,0xffffff);bagBox(ig,0,.06,0,.72,.07,.5,0xbfbfbf);bagBox(ig,0,.25,0,.3,.05,.08,0x8a8a8a);
   const im=new THREE.MeshLambertMaterial({vertexColors:true});
   for(const [k,g,cap] of [['pi',GUN_GEO.pi,120],['sm',GUN_GEO.sm,120],['sg',GUN_GEO.sg,120],['ar',GUN_GEO.ar,120],['sr',GUN_GEO.sr,120],['hp',GUN_GEO.hp,200],['sh',GUN_GEO.sh,200],['box',bagGeo(ig),400]]){
     const m=new THREE.InstancedMesh(g,k==='box'?new THREE.MeshLambertMaterial({vertexColors:true}):im,cap);m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);m.frustumCulled=false;if(k==='box')m.setColorAt(0,new THREE.Color(1,1,1));m.count=0;m.userData.cap=cap;scene.add(m);itemIM[k]=m}   // (only the crates are tinted per item)
@@ -1250,7 +1277,7 @@ function drawItems(dt){
   for(const k in itemIM)itemIM[k].count=0;
   let ng=0;const c=camera.position;
   for(const it of itemList){
-    const dx=it.x-c.x,dz=it.z-c.z,d2=dx*dx+dz*dz;if(d2>150*150)continue;          // too far to make out
+    const dx=it.x-c.x,dz=it.z-c.z,d2=dx*dx+dz*dz;if(d2>110*110)continue;          // too far to make out
     const m=itemIM[it.gk];if(m.count>=m.userData.cap)continue;
     const w=!!WEAP[it.t],bob=RM?0:Math.sin(itemClock*2.2+it.ph)*.07,i=m.count++;
     _o.position.set(it.x,it.y+(w?.62:.4)+bob,it.z);_o.rotation.set(w?.5:0,RM?it.ph:itemClock*.9+it.ph,0,'YXZ');
@@ -1539,23 +1566,23 @@ const LEG_GEO=(()=>{const B=Bag();bagRBox(B,0,-.43,0,.26,.86,.28,0x2f3a4a);bagRB
 // orange toy tip. (-z is forward; the hand is near the origin.) TYPE_COL is the same colour for the HUD and the ammo boxes.
 const TYPE_COL={pi:0xece4cf,sm:0xf2902f,sg:0xd9483b,ar:0x1f9c8f,sr:0x596078};
 const GUN_GEO=(()=>{const o={},mk=f=>{const B=Bag();f(B);return bagGeo(B)},TIP=0xff8a3a,DK=0x2a2d34,WOOD=0x9a6a3c;
-  o.pi=mk(B=>{bagRBox(B,0,.02,-.12,.11,.13,.42,TYPE_COL.pi);bagBox(B,0,0,-.33,.07,.07,.1,DK);bagBox(B,0,0,-.4,.09,.09,.05,TIP);
+  o.pi=mk(B=>{bagRLo(B,0,.02,-.12,.11,.13,.42,TYPE_COL.pi);bagBox(B,0,0,-.33,.07,.07,.1,DK);bagBox(B,0,0,-.4,.09,.09,.05,TIP);
     bagBox(B,0,-.15,.03,.09,.22,.11,DK);bagBox(B,0,-.08,-.08,.03,.05,.1,DK);bagBox(B,0,.1,.05,.05,.03,.05,DK)});
-  o.sm=mk(B=>{bagRBox(B,0,.02,-.14,.13,.17,.5,TYPE_COL.sm);bagBox(B,0,.02,-.45,.07,.07,.14,DK);bagBox(B,0,.02,-.54,.09,.09,.05,TIP);
+  o.sm=mk(B=>{bagRLo(B,0,.02,-.14,.13,.17,.5,TYPE_COL.sm);bagBox(B,0,.02,-.45,.07,.07,.14,DK);bagBox(B,0,.02,-.54,.09,.09,.05,TIP);
     bagBox(B,0,-.25,-.18,.08,.36,.1,DK);bagBox(B,0,-.14,.08,.08,.2,.1,DK);bagBox(B,0,.13,-.14,.05,.04,.3,DK);
     bagBox(B,0,.05,.22,.05,.05,.24,DK);bagBox(B,0,-.02,.34,.07,.18,.04,DK)});
   o.sg=mk(B=>{bagBox(B,-.045,.03,-.44,.075,.075,.7,DK);bagBox(B,.045,.03,-.44,.075,.075,.7,DK);bagBox(B,0,.03,-.81,.18,.09,.05,TIP);
-    bagRBox(B,0,.01,-.02,.15,.17,.34,TYPE_COL.sg);bagRBox(B,0,-.07,-.44,.17,.1,.3,WOOD);bagRBox(B,0,-.05,.3,.11,.16,.34,WOOD);bagBox(B,0,-.14,.08,.08,.16,.09,DK)});
-  o.ar=mk(B=>{bagRBox(B,0,.02,-.16,.12,.16,.6,TYPE_COL.ar);bagBox(B,0,.03,-.62,.06,.06,.34,DK);bagBox(B,0,.03,-.81,.085,.085,.06,TIP);
+    bagRLo(B,0,.01,-.02,.15,.17,.34,TYPE_COL.sg);bagRLo(B,0,-.07,-.44,.17,.1,.3,WOOD);bagRLo(B,0,-.05,.3,.11,.16,.34,WOOD);bagBox(B,0,-.14,.08,.08,.16,.09,DK)});
+  o.ar=mk(B=>{bagRLo(B,0,.02,-.16,.12,.16,.6,TYPE_COL.ar);bagBox(B,0,.03,-.62,.06,.06,.34,DK);bagBox(B,0,.03,-.81,.085,.085,.06,TIP);
     bagBox(B,0,-.01,-.5,.1,.1,.22,0x16756c);bagBox(B,0,-.2,-.2,.08,.24,.11,DK);bagBox(B,0,-.33,-.25,.08,.1,.11,DK);bagBox(B,0,-.14,.06,.08,.18,.09,DK);
-    bagBox(B,0,.14,-.2,.04,.07,.06,DK);bagBox(B,0,.13,-.56,.03,.08,.03,DK);bagRBox(B,0,-.01,.28,.1,.15,.3,TYPE_COL.pi)});
-  o.sr=mk(B=>{bagRBox(B,0,.01,-.1,.11,.14,.6,TYPE_COL.sr);bagBox(B,0,.02,-.84,.05,.05,.9,DK);bagBox(B,0,.02,-1.31,.09,.09,.08,TIP);
+    bagBox(B,0,.14,-.2,.04,.07,.06,DK);bagBox(B,0,.13,-.56,.03,.08,.03,DK);bagRLo(B,0,-.01,.28,.1,.15,.3,TYPE_COL.pi)});
+  o.sr=mk(B=>{bagRLo(B,0,.01,-.1,.11,.14,.6,TYPE_COL.sr);bagBox(B,0,.02,-.84,.05,.05,.9,DK);bagBox(B,0,.02,-1.31,.09,.09,.08,TIP);
     bagBox(B,0,.17,-.14,.1,.1,.44,0x1b1d24);bagBox(B,0,.17,-.375,.115,.115,.03,0xbfe8ff);bagBox(B,0,.17,.095,.09,.09,.03,0xbfe8ff);
-    bagBox(B,0,.1,-.26,.04,.06,.04,DK);bagBox(B,0,.1,-.02,.04,.06,.04,DK);bagRBox(B,0,-.03,.34,.1,.17,.4,0x8a5a36);bagBox(B,0,-.14,.08,.08,.16,.09,DK);
+    bagBox(B,0,.1,-.26,.04,.06,.04,DK);bagBox(B,0,.1,-.02,.04,.06,.04,DK);bagRLo(B,0,-.03,.34,.1,.17,.4,0x8a5a36);bagBox(B,0,-.14,.08,.08,.16,.09,DK);
     bagBox(B,-.07,-.15,-.66,.03,.3,.03,DK,0);bagBox(B,.07,-.15,-.66,.03,.3,.03,DK,0)});
   o.cb=mk(B=>{bagBox(B,0,0,-.3,.07,.07,.82,0xd6402f);bagBox(B,0,.07,-.72,.07,.18,.07,0xd6402f);bagBox(B,0,.14,-.77,.07,.07,.14,0xd6402f);bagBox(B,0,0,.06,.085,.085,.22,0xffc93c)});
-  o.hp=mk(B=>{bagRBox(B,0,0,-.1,.3,.24,.18,0xf4f1ea);bagBox(B,0,0,-.205,.16,.06,.02,0xe8483f);bagBox(B,0,0,-.205,.06,.16,.02,0xe8483f);bagBox(B,0,0,.005,.16,.06,.02,0xe8483f);bagBox(B,0,0,.005,.06,.16,.02,0xe8483f);bagBox(B,0,.15,-.1,.14,.04,.05,0x8b9098)});
-  o.sh=mk(B=>{bagRBox(B,0,-.02,-.1,.18,.28,.18,0x4fb8f5);bagBox(B,0,-.03,-.1,.205,.1,.205,0xdff3ff);bagBox(B,0,.17,-.1,.09,.08,.09,0x2f86c9);bagBox(B,0,.23,-.1,.11,.04,.11,0xf4f1ea)});
+  o.hp=mk(B=>{bagRLo(B,0,0,-.1,.3,.24,.18,0xf4f1ea);bagBox(B,0,0,-.205,.16,.06,.02,0xe8483f);bagBox(B,0,0,-.205,.06,.16,.02,0xe8483f);bagBox(B,0,0,.005,.16,.06,.02,0xe8483f);bagBox(B,0,0,.005,.06,.16,.02,0xe8483f);bagBox(B,0,.15,-.1,.14,.04,.05,0x8b9098)});
+  o.sh=mk(B=>{bagRLo(B,0,-.02,-.1,.18,.28,.18,0x4fb8f5);bagBox(B,0,-.03,-.1,.205,.1,.205,0xdff3ff);bagBox(B,0,.17,-.1,.09,.08,.09,0x2f86c9);bagBox(B,0,.23,-.1,.11,.04,.11,0xf4f1ea)});
   return o})();
 // where the rarity band sits on each weapon (a thin sleeve round the body): y, z, then its width, height and depth
 const RTAG={pi:[.02,.03,.14,.16,.06],sm:[.02,.05,.16,.2,.07],sg:[.01,.1,.185,.2,.07],ar:[.02,.07,.15,.19,.07],sr:[.01,.13,.14,.17,.07]};
@@ -2573,10 +2600,12 @@ function updateHud(dt){
     hud.hpN.textContent=Math.max(0,Math.ceil(p.hp));hud.hpF.style.width=Math.max(0,p.hp)+'%';
     hud.shN.textContent=Math.ceil(p.sh);hud.shF.style.width=p.sh+'%';hud.mats.textContent='SCRAP '+p.mats;
     for(let i=0;i<4;i++){const el=$('slot'+i),it=p.inv[i],[nm,am]=slotLabel(it);el.querySelector('.nm').textContent=nm;el.querySelector('.am').textContent=it&&WEAP[it.t]&&p.sel===i&&p.reloadT>0?'reload':am;
-      el.querySelector('.rar').style.background=it&&WEAP[it.t]?RARH[it.r|0]:'transparent';el.classList.toggle('empty',!it);el.classList.toggle('on',mode==='combat'&&p.sel===i)}
+      el.querySelector('.rar').style.background=it&&WEAP[it.t]?RARH[it.r|0]:'transparent';el.style.setProperty('--tc',it&&WEAP[it.t]?'#'+TYPE_COL[it.t].toString(16).padStart(6,'0'):it&&HEALS[it.t]?(HEALS[it.t].sh?'#5cc6ff':'#ff7a6a'):'transparent');
+      el.classList.toggle('empty',!it);el.classList.toggle('on',mode==='combat'&&p.sel===i)}
+    $('vitals').classList.toggle('low',p.hp<=30);
     $('slotX').classList.toggle('on',mode==='combat'&&p.sel<0);$('slotX').querySelector('.nm').textContent=touchUI?'Bar':'Crowbar';
     for(const k of ['wall','floor','ramp']){const el=$('slot'+k);el.classList.toggle('on',mode==='build'&&buildType===k);el.querySelector('.am').style.color=p.mats>=COST?'':'#ff9a8a'}
-    hud.ammo.innerHTML=w?`${s.n}<small> / ${p.ammo[w.am]}</small>`:'';hud.ammo.hidden=!w;
+    hud.ammo.innerHTML=w?`<span class="wn" style="color:${RARH[s.r|0]}">${RAR[s.r|0]} ${w.name}</span><span><b>${s.n}</b><small> / ${p.ammo[w.am]}</small></span>`:'';hud.ammo.hidden=!w;if(w)hud.ammo.classList.toggle('low',s.n<=Math.max(1,w.mag*.25));
     hud.hint.hidden=mode!=='build';if(mode==='build')hud.hint.textContent='Build · '+buildType+(p.mats<COST?' · needs '+COST+' scrap':touchUI?' · tap Fire to place':' · click to place');
   }
   hud.reload.hidden=!(p.reloadT>0);if(p.reloadT>0&&w)hud.reloadF.style.width=(100*(1-p.reloadT/wReload(w,s.r)))+'%';
@@ -2603,8 +2632,8 @@ function updateHud(dt){
   if(!inPlay())stx='';
   else if(t<0)stx='Boarding · '+Math.ceil(-t);
   else if(MS.ph==='end')stx='Match over';
-  else if(S.closing){stx='Storm closing · '+fmtT(S.left);closing=true}
-  else if(S.phase<STORM.length)stx=(S.showNext?'Storm moves in ':'Storm in ')+fmtT(S.left);
+  else if(S.closing){stx=(touchUI?'Closing · ':'Storm closing · ')+fmtT(S.left);closing=true}
+  else if(S.phase<STORM.length)stx=(touchUI?'Storm in ':S.showNext?'Storm moves in ':'Storm in ')+fmtT(S.left);
   else stx='Final storm';
   hudSet(hud.stormT,'#st',stx);hud.stormT.classList.toggle('closing',closing);
   // a word when the storm starts to close (once a phase)
