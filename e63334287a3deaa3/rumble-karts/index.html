@@ -1185,7 +1185,6 @@ const Snd = {
 //  Karts
 // =====================================================================
 const wheelGeo = new THREE.CylinderGeometry(.52, .52, .5, 14); wheelGeo.rotateZ(Math.PI / 2);
-const tireMat = lam(0x23202e), trimMat = lam(0x2e2942), hubMat = lam(0xd9d6e8), skinMat = lam(0xffd2a8), visorMat = lam(0x1b1733);
 const shieldGeo = new THREE.SphereGeometry(2.5, 20, 14);
 const spikeGeo = new THREE.ConeGeometry(.3, 1, 6), spikeMat = lam(0xf4f4f8), spikeRingGeo = new THREE.TorusGeometry(1.9, .18, 6, 30), spikeRingMat = lam(0x2ed19a);
 const dripGeo = new THREE.CylinderGeometry(.11, .17, 1, 6).translate(0, -.5, 0);      // hangs from its top, so scale.y makes it run down the kart
@@ -1260,28 +1259,52 @@ function dressKart(P) {
 }
 function dressKarts() { for (const k of karts.values()) dressKart(k.parts); }
 
+// The usual kart body is two meshes made once and shared by every kart, like the turkey: everything in fixed colours
+// (vertex colours) and everything in the driver's paint. A wheel with its rim and hub cap is one shared mesh too.
+const KC = { trim: 0x2e2942, skin: 0xffd2a8, visor: 0x1b1733, tire: 0x23202e, rim: 0x6d6880, hub: 0xd9d6e8, steel: 0x8d8aa0, engine: 0x4a4563, lamp: 0xfff3b0, tail: 0xff3b4e, white: 0xf6f4ff };
+let kartGeos = null;
+function kartParts() {
+  if (kartGeos) return kartGeos;
+  const fixed = [], painted = [], tube = new THREE.CylinderGeometry(1, 1, 1, 10), helmet = new THREE.SphereGeometry(.52, 14, 12, 0, TAU, 0, Math.PI * .62), wheelRing = new THREE.TorusGeometry(.3, .07, 6, 12);
+  const F = (g, c, p, s, r) => fixed.push({ g, c, p, s: s || [1, 1, 1], r }), Pn = (g, p, s, r) => painted.push({ g, p, s: s || [1, 1, 1], r });
+  F(cubeGeo, KC.trim, [0, .55, 0], [2.3, .32, 3.5]);                                  // chassis
+  F(cubeGeo, KC.trim, [0, .58, 1.92], [2.5, .3, .4]);                                 // front bumper
+  F(cubeGeo, KC.trim, [0, 1.45, -1.0], [1.25, .85, .3]);                              // seat back
+  for (const sd of [-1, 1]) {
+    F(cubeGeo, KC.trim, [.8 * sd, 1.35, -1.6], [.18, .7, .18]);                       // spoiler posts
+    F(tube, KC.steel, [.45 * sd, .84, -1.62], [.13, .7, .13], [Math.PI / 2, 0, 0]);   // exhaust pipes
+    F(tube, KC.visor, [.45 * sd, .84, -1.975], [.09, .02, .09], [Math.PI / 2, 0, 0]);
+    F(cubeGeo, KC.tail, [.72 * sd, 1.06, -1.36], [.42, .16, .06]);                    // tail lights
+    F(ballGeo, KC.lamp, [.56 * sd, .96, 1.94], [.16, .16, .1]);                       // headlights
+    Pn(cubeGeo, [1.14 * sd, .9, .04], [.34, .38, 1.02]);                              // side pods between the wheels
+    Pn(cubeGeo, [1.32 * sd, 1.62, -1.65], [.07, .46, .8]);                            // spoiler end plates
+  }
+  F(cubeGeo, KC.engine, [0, 1.42, -1.38], [.8, .3, .42]);                             // engine cover behind the seat
+  F(tube, KC.steel, [0, 1.62, -1.38], [.16, .14, .16]);
+  F(wheelRing, KC.trim, [0, 1.45, .45], null, [-.9, 0, 0]);                           // steering wheel
+  F(ballGeo, KC.skin, [0, 1.72, -.35], [.34, .34, .34]);                              // driver
+  F(cubeGeo, KC.visor, [0, 1.86, .06], [.72, .22, .2]);
+  F(tube, KC.white, [0, 1.135, 1.3], [.4, .02, .4]);                                  // number roundel on the nose
+  F(cubeGeo, KC.white, [0, 1.826, -1.65], [.5, .02, .7]);                             // stripe on the spoiler
+  Pn(cubeGeo, [0, .98, -.25], [2.0, .6, 2.2]);                                        // body
+  Pn(cubeGeo, [0, .88, 1.3], [1.7, .5, 1.3]);                                         // nose
+  Pn(cubeGeo, [0, 1.75, -1.65], [2.6, .14, .7]);                                      // spoiler
+  Pn(helmet, [0, 1.95, -.4], [1, 1.05, 1.08]);
+  const hubGeo = new THREE.CylinderGeometry(.22, .22, .56, 8).rotateZ(Math.PI / 2), rimGeo = new THREE.CylinderGeometry(.36, .36, .52, 12).rotateZ(Math.PI / 2), one = [1, 1, 1], at = [0, 0, 0];
+  kartGeos = { fixed: mergeGeo(fixed), painted: mergeGeo(painted), wheel: mergeGeo([{ g: wheelGeo, c: KC.tire, p: at, s: one }, { g: rimGeo, c: KC.rim, p: at, s: one }, { g: hubGeo, c: KC.hub, p: at, s: one }]) };
+  for (const g of [tube, helmet, wheelRing, hubGeo, rimGeo]) g.dispose();
+  return kartGeos;
+}
 function buildKart(color) {
   const g = new THREE.Group(), body = new THREE.Group(), shellG = new THREE.Group(); g.add(body); body.add(shellG);
-  const paint = lam(new THREE.Color(color)); paint.emissive = new THREE.Color(0);
-  const add = (geo, mat, x, y, z, par = shellG) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; par.add(m); return m; };
-  add(new THREE.BoxGeometry(2.3, .32, 3.5), trimMat, 0, .55, 0);
-  add(new THREE.BoxGeometry(2.0, .6, 2.2), paint, 0, .98, -.25);
-  add(new THREE.BoxGeometry(1.7, .5, 1.3), paint, 0, .88, 1.3);
-  add(new THREE.BoxGeometry(2.5, .3, .4), trimMat, 0, .58, 1.92);
-  add(new THREE.BoxGeometry(1.25, .85, .3), trimMat, 0, 1.45, -1.0);
-  add(new THREE.BoxGeometry(.18, .7, .18), trimMat, -.8, 1.35, -1.6);
-  add(new THREE.BoxGeometry(.18, .7, .18), trimMat, .8, 1.35, -1.6);
-  add(new THREE.BoxGeometry(2.6, .14, .7), paint, 0, 1.75, -1.65);
-  add(new THREE.TorusGeometry(.3, .07, 6, 12), trimMat, 0, 1.45, .45).rotation.x = -.9;
-  add(new THREE.SphereGeometry(.34, 12, 10), skinMat, 0, 1.72, -.35);
-  const helmet = add(new THREE.SphereGeometry(.52, 14, 12, 0, TAU, 0, Math.PI * .62), paint, 0, 1.95, -.4);
-  helmet.scale.set(1, 1.05, 1.08);
-  add(new THREE.BoxGeometry(.72, .22, .2), visorMat, 0, 1.86, .06);
+  // glossy paint: the only shiny material in the game, so karts catch the sun and stand out from the matte world
+  const paint = new THREE.MeshPhongMaterial({ color: new THREE.Color(color), specular: 0x55555f, shininess: 42 });
+  const K = kartParts();
+  for (const [geo, mat] of [[K.fixed, turkeyMat], [K.painted, paint]]) { const m = new THREE.Mesh(geo, mat); m.castShadow = true; shellG.add(m); }
   const wheels = [], pivots = [];
   for (const [x, z, front] of [[-1.2, 1.2, 1], [1.2, 1.2, 1], [-1.25, -1.15, 0], [1.25, -1.15, 0]]) {
     const piv = new THREE.Group(); piv.position.set(x, .52, z); g.add(piv);
-    const w = new THREE.Mesh(wheelGeo, tireMat); w.castShadow = true; if (!front) w.scale.set(1.1, 1.08, 1.08); piv.add(w);
-    const hub = new THREE.Mesh(new THREE.CylinderGeometry(.22, .22, .54, 8).rotateZ(Math.PI / 2), hubMat); w.add(hub);
+    const w = new THREE.Mesh(K.wheel, turkeyMat); w.castShadow = true; if (!front) w.scale.set(1.1, 1.08, 1.08); piv.add(w);
     wheels.push(w); if (front) pivots.push(piv);
   }
   const shield = new THREE.Mesh(shieldGeo, new THREE.MeshBasicMaterial({ color: 0x5ee8ff, transparent: true, opacity: .28, depthWrite: false }));
