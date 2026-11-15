@@ -87,7 +87,7 @@
 
   var KEY = 'lbs:v2', OLD_KEY = 'lbs:v1', DEV_KEY = 'lbs:dev', TAB_KEY = 'lbs:tab', PATH = 'rooms/lb-all/players';
   var IDLE = 120000, GRACE = 30000, SAVE_MS = 15000, PUB_MS = 60000, DAY_MAX = 86400, TAB_FRESH = 3500;
-  var MAX_GAMES = 80, MAX_STATS = 120;   // 80 games: the Back Room has 21, plus 21 daily puzzles and their hub (was 40)
+  var MAX_GAMES = 80, MAX_STATS = 240;   // 80 games: the Back Room has 21, plus 21 daily puzzles and their hub (was 40)
   var DAYS = 30, DAY_GAMES = 8, NODE_CAP = 7000;    // per-day history: how many days and games a day are kept, and how big the node may get
   var DAY_REST = '_';                                 // a day's seconds in games past its first DAY_GAMES, all together
   var MAX_DEV = 12, MAX_AL = 8, MAX_HW = 4, MAX_LK = 8;
@@ -130,7 +130,7 @@
   function okKey(k) { return typeof k === 'string' && /^[a-z][a-z0-9:-]{0,39}$/.test(k); }
   function okGame(k) { return typeof k === 'string' && /^[a-z0-9-]{1,30}$/.test(k); }
   function okUid(u) { return typeof u === 'string' && /^[A-Za-z0-9_-]{6,128}$/.test(u); }
-  function lower(k) { return k.indexOf('lap:') === 0 || k.indexOf('rec:') === 0 || LOWER[k] === 1; }
+  function lower(k) { return /^c?(lap|rec):/.test(k) || LOWER[k] === 1; }   // Slipstream's laps and records, and their clean (no cutting) twins
   // Rude words in names are masked by the shared name filter (/namefilter.js) when the page has loaded it.
   function byFilter(v) { return window.NameFilter ? window.NameFilter.clean(v) : v; }
   function cleanName(s, n) { return byFilter(String(s == null ? '' : s).replace(/[<>\u0000-\u001f\u007f​-‏‪-‮⁦-⁩]/g, '').replace(/\s+/g, ' ').trim().slice(0, n || 14)); }
@@ -660,6 +660,85 @@
     });
   }
 
+  // ---------------- The Leaderboard button ----------------
+  // Every game page gets a "Leaderboard" button that opens this game's boards (leaderboard.js in its game mode, loaded
+  // the first time the button is pressed) in a panel over the page; the same boards are on the Back Room page.
+  // It must never sit over play or over a menu's own text. Where it goes:
+  //  - a game with a #menu: inside that menu, as its last item (so it shows exactly when the menu does and scrolls with it);
+  //  - a page with no #menu and no canvas (the word and football puzzles): at the end of the page, under the puzzle;
+  //  - a page with a canvas and no #menu: a small round button fixed in the bottom left corner, hidden while the pointer
+  //    is locked and for 8 s after any key press or any press on the page, so it is only there when nobody is playing.
+  // The script tag can override: data-board="off" (none), "tl", "tr", "bl", "br" (fixed in that corner, with the label),
+  // or data-board-in="<css selector>" (appended inside that element instead).
+  function boardButton() {
+    var where = (me0 && me0.getAttribute('data-board')) || '', into = (me0 && me0.getAttribute('data-board-in')) || '';
+    if (where === 'off' || window.top !== window) return;
+    var b = document.createElement('button'), open = false, loading = null, lastPlay = 0, fixed = true, tail = false;
+    var ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg>';
+    var LOOK = 'align-items:center;justify-content:center;gap:7px;font:600 14px/1 system-ui,-apple-system,"Segoe UI",sans-serif;letter-spacing:0;text-transform:none;color:#1c1b19;background:rgba(255,255,255,.96);' +
+      'border:1px solid rgba(0,0,0,.22);border-radius:999px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.18);-webkit-tap-highlight-color:transparent;margin:0;width:auto;height:auto;min-width:0;';
+    b.type = 'button'; b.id = 'brlb-open'; b.setAttribute('aria-haspopup', 'dialog'); b.setAttribute('data-no-ad-refresh', '');
+    function field(t) { return !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable); }
+    function want() {
+      if (open) return false;
+      if (!fixed) return true;
+      if (document.querySelector('canvas')) return !document.pointerLockElement && Date.now() - lastPlay > 8000;
+      return true;
+    }
+    function tick() { var w = want(); if ((b.style.display !== 'none') !== w) b.style.display = w ? 'inline-flex' : 'none'; }
+    function script(src, attrs) {
+      return new Promise(function (res, rej) {
+        var s = document.createElement('script'); s.src = src; Object.keys(attrs || {}).forEach(function (k) { s.setAttribute(k, attrs[k]); });
+        s.onload = res; s.onerror = function () { rej(new Error('load')); }; document.head.appendChild(s);
+      });
+    }
+    b.addEventListener('click', function (e) {
+      e.preventDefault(); e.stopPropagation();
+      if (!loading) loading = (window.NameFilter ? Promise.resolve() : script('/namefilter.js').catch(function () {}))
+        .then(function () { return window.BackRoomBoards && window.BackRoomBoards.open ? null : script('/e63334287a3deaa3/leaderboard.js', { 'data-game': GAME }); });
+      loading.then(function () {
+        var B = window.BackRoomBoards; if (!B || !B.open) return;
+        open = true; tick();
+        B.open(function () { open = false; tick(); try { b.focus(); } catch (e2) {} });
+      }).catch(function () { loading = null; });
+    });
+    function mount() {
+      var host = null;
+      if (!where) {
+        try { host = into ? document.querySelector(into) : null; } catch (e) { host = null; }
+        var menu = host ? null : document.getElementById('menu');
+        if (menu) {
+          // the menu's card, when the menu is just a full-screen wrapper round one
+          host = menu;
+          var kids = [].filter.call(menu.children, function (c) { return c.tagName !== 'SCRIPT' && c.tagName !== 'STYLE'; });
+          if (kids.length === 1 && kids[0].children.length > 1 && /^(DIV|SECTION|FORM|MAIN|ARTICLE)$/.test(kids[0].tagName)) host = kids[0];
+        } else if (!host && !document.querySelector('canvas')) {
+          host = document.querySelector('main') || document.body;
+          tail = true;
+        }
+      }
+      if (host) {
+        fixed = false;
+        var row = document.createElement('div');
+        row.style.cssText = 'display:flex;justify-content:center;flex:none;grid-column:1/-1;width:100%;margin:' + (tail ? '22px 0 26px' : '14px 0 2px') + ';padding:0;box-sizing:border-box';
+        b.innerHTML = ICON + '<span>Leaderboard</span>';
+        b.style.cssText = 'display:inline-flex;position:static;' + LOOK + 'padding:9px 16px 9px 13px;min-height:38px';
+        row.appendChild(b); host.appendChild(row);
+      } else {
+        var v = where.charAt(0) === 't' ? 'top' : 'bottom', h = where.charAt(1) === 'r' ? 'right' : 'left';
+        var pos = 'position:fixed;' + v + ':calc(10px + env(safe-area-inset-' + v + ',0px));' + h + ':calc(10px + env(safe-area-inset-' + h + ',0px));z-index:2147481000;display:none;';
+        if (where) { b.innerHTML = ICON + '<span>Leaderboard</span>'; b.style.cssText = pos + LOOK + 'padding:8px 13px 8px 10px;min-height:34px'; }
+        else { b.innerHTML = ICON; b.setAttribute('aria-label', 'Leaderboard'); b.title = 'Leaderboard'; b.style.cssText = pos + LOOK + 'padding:0;width:40px;height:40px;min-width:40px'; }
+        document.addEventListener('keydown', function (e) { if (!field(e.target)) lastPlay = Date.now(); }, true);
+        document.addEventListener('pointerdown', function (e) { if (e.target !== b && !b.contains(e.target) && !(e.target.closest && e.target.closest('.lbd-modal'))) lastPlay = Date.now(); }, true);
+        (document.body || document.documentElement).appendChild(b);
+        setInterval(tick, 500);
+      }
+      tick();
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount); else mount();
+  }
+
   // ---------------- API ----------------
   if (LIB) {
     window.BackRoomStatsLib = { link: link, apply: apply, PATH: PATH };
@@ -678,8 +757,11 @@
       game: GAME,
       add: function (k, n) { bump(k, n == null ? 1 : n, 'add'); },
       min: function (k, v) { bump(k, v, 'min'); },
-      max: function (k, v) { bump(k, v, 'max'); }
+      max: function (k, v) { bump(k, v, 'max'); },
+      // The same signed-in connection this file publishes with ({ db, uid(), now() }), for the in-game leaderboard.
+      conn: function () { return getConn(); }
     };
+    boardButton();
   }
   // Test hook for the automated checks; harmless in normal play.
   if (navigator.webdriver) window[LIB ? '__lbsLib' : '__lbs'] = {
