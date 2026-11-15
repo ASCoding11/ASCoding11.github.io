@@ -24,7 +24,8 @@
   --line:rgba(255,248,234,.18);
   --hp:#7fe06d;
   --sh:#5cc6ff;
-  --storm:#a46bff;
+  --storm:#3e4c66;
+  --safe:#9fe8ff;
   --bad:#ff7461;
   --f-big:'Bungee',Impact,'Arial Black',system-ui,sans-serif;
   --f-hud:'Barlow Condensed','Arial Narrow',system-ui,sans-serif;
@@ -51,10 +52,24 @@ button:disabled{opacity:.5;cursor:default}
 #info{display:flex;justify-content:space-between;gap:6px;background:var(--panel);padding:3px 8px;font-size:16px;font-weight:700;letter-spacing:.04em;white-space:nowrap;border-radius:4px}
 #info b{font-variant-numeric:tabular-nums}
 #stormT{display:block;background:var(--panel);padding:3px 8px;font-size:15px;font-weight:700;letter-spacing:.04em;color:#e1ccff;text-align:center;border-radius:4px;white-space:nowrap}
-#stormT.closing{color:#fff;background:rgba(110,50,200,.85)}
-#placeLbl{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);font-family:var(--f-big);font-size:20px;letter-spacing:.06em;text-shadow:0 2px 0 rgba(0,0,0,.45);white-space:nowrap;opacity:0;transition:opacity .6s}
+#stormT.closing{color:#1d1300;background:var(--sun)}
+/* top centre, one column: compass, storm warning, messages, the name of the place you landed in */
+#topc{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;max-width:calc(100vw - 32px)}
+#compass{position:relative;width:min(300px,46vw);height:26px;overflow:hidden;background:var(--panel);border-radius:4px;-webkit-mask-image:linear-gradient(90deg,transparent,#000 14%,#000 86%,transparent);mask-image:linear-gradient(90deg,transparent,#000 14%,#000 86%,transparent)}
+#compStrip{position:absolute;left:50%;top:0;height:100%;width:3240px;will-change:transform}
+#compStrip span{position:absolute;top:3px;transform:translateX(-50%);font-size:15px;font-weight:800;letter-spacing:.04em;color:var(--ink)}
+#compStrip span.s{font-size:12px;font-weight:600;color:var(--ink-dim);top:6px}
+#compStrip i{position:absolute;bottom:0;width:1px;height:5px;background:var(--ink-dim)}
+#compMid{position:absolute;left:50%;top:0;width:2px;height:6px;margin-left:-1px;background:var(--sun)}
+#compSafe{position:absolute;left:50%;bottom:1px;width:12px;height:12px;margin-left:-6px;background:var(--safe);clip-path:polygon(50% 0,100% 45%,82% 45%,82% 100%,18% 100%,18% 45%,0 45%);will-change:transform}
+#stormWarn{display:flex;gap:10px;align-items:baseline;padding:4px 14px;border-radius:4px;background:var(--panel);white-space:nowrap;font-weight:700;font-size:16px;letter-spacing:.04em;border-left:4px solid var(--safe)}
+#stormWarn b{font-family:var(--f-big);font-weight:400;font-size:17px;letter-spacing:.06em}
+#stormWarn.bad{background:rgba(120,22,14,.9);border-left-color:var(--bad);animation:swPulse .9s ease-in-out infinite alternate}
+#stormWarn.bad b{color:#ffd9d2}
+@keyframes swPulse{from{box-shadow:0 0 0 0 rgba(255,116,97,0)}to{box-shadow:0 0 0 4px rgba(255,116,97,.5)}}
+#placeLbl{font-family:var(--f-big);font-size:20px;letter-spacing:.06em;text-shadow:0 2px 0 rgba(0,0,0,.45);white-space:nowrap;opacity:0;transition:opacity .6s}
 #placeLbl.on{opacity:1}
-#net{position:absolute;top:calc(48px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);font-size:18px;font-weight:700;color:var(--ink);background:var(--panel);padding:4px 12px;border-radius:4px;letter-spacing:.04em;white-space:nowrap;max-width:calc(100vw - 32px);overflow:hidden;text-overflow:ellipsis}
+#net{font-size:18px;font-weight:700;color:var(--ink);background:var(--panel);padding:4px 12px;border-radius:4px;letter-spacing:.04em;white-space:nowrap;max-width:calc(100vw - 32px);overflow:hidden;text-overflow:ellipsis}
 #feed{position:absolute;top:calc(250px + env(safe-area-inset-top,0px));right:calc(12px + env(safe-area-inset-right,0px));display:flex;flex-direction:column;align-items:flex-end;gap:3px;font-size:15px;font-weight:600;max-width:320px}
 #feed div{background:var(--panel);padding:2px 9px;border-radius:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 #feed .you{color:var(--sun)} #feed .them{color:var(--bad)} #feed .info{color:var(--ink-dim)}
@@ -224,17 +239,21 @@ body.touch #stormT{font-size:12px;padding:2px 6px}
 body.touch #feed{right:auto;left:calc(10px + env(safe-area-inset-left,0px));align-items:flex-start;top:calc(60px + env(safe-area-inset-top,0px));font-size:12px;max-width:180px}
 body.touch #hint{bottom:auto;top:calc(86px + env(safe-area-inset-top,0px));font-size:12px}
 body.touch #prompt{font-size:14px;top:calc(50% + 34px)}
-body.touch #placeLbl{top:calc(60px + env(safe-area-inset-top,0px));font-size:15px}
-body.touch #net{top:calc(112px + env(safe-area-inset-top,0px));font-size:14px}
+body.touch #topc{top:calc(58px + env(safe-area-inset-top,0px));gap:4px}
+body.touch #compass{width:200px;height:22px}
+body.touch #compStrip span{font-size:13px;top:2px} body.touch #compStrip span.s{font-size:11px;top:4px}
+body.touch #stormWarn{font-size:13px;padding:3px 10px;gap:7px} body.touch #stormWarn b{font-size:13px}
+body.touch #placeLbl{font-size:15px}
+body.touch #net{font-size:14px}
 @media (orientation:portrait){
   body.touch #slots{left:50%;transform:translateX(-50%);top:calc(184px + env(safe-area-inset-top,0px))}
   body.touch .slot{width:40px;height:42px}
   body.touch .slot.gap{margin-left:4px}
   body.touch #ammo{left:50%;transform:translateX(-50%);top:calc(232px + env(safe-area-inset-top,0px))}
   body.touch #feed{top:calc(64px + env(safe-area-inset-top,0px));max-width:calc(100vw - 150px)}
-  body.touch #placeLbl{top:calc(262px + env(safe-area-inset-top,0px))}
-  body.touch #net{top:calc(290px + env(safe-area-inset-top,0px))}
-  body.touch #hint{top:calc(324px + env(safe-area-inset-top,0px))}
+  body.touch #topc{top:calc(262px + env(safe-area-inset-top,0px))}
+  body.touch #stormWarn{flex-direction:column;align-items:center;gap:0;white-space:normal;text-align:center}
+  body.touch #hint{top:auto;bottom:calc(196px + env(safe-area-inset-bottom,0px))}
   #banner{top:36%}
 }
 /* short phones held sideways: a smaller map so the buttons on the right fit under it */
@@ -242,7 +261,7 @@ body.touch #net{top:calc(112px + env(safe-area-inset-top,0px));font-size:14px}
   body.touch #mapBox{width:100px} body.touch #mini{width:100px;height:100px}
   body.touch #info{font-size:12px;padding:1px 5px} body.touch #stormT{font-size:11px;padding:1px 5px}
 }
-@media (prefers-reduced-motion:reduce){#banner.show{animation:none}}
+@media (prefers-reduced-motion:reduce){#banner.show{animation:none} #stormWarn.bad{animation:none}}
 </style>
 <script src="/e63334287a3deaa3/stats.js" data-game="drop-zone" defer></script>
 <script src="/e63334287a3deaa3/elo.js" data-game="drop-zone" defer></script>
@@ -252,8 +271,12 @@ body.touch #net{top:calc(112px + env(safe-area-inset-top,0px));font-size:14px}
 <div id="app">
   <div id="stormTint"></div>
   <div id="hud" hidden>
-    <div id="placeLbl"></div>
-    <div id="net" hidden></div>
+    <div id="topc">
+      <div id="compass" aria-hidden="true"><div id="compStrip"></div><i id="compSafe"></i><i id="compMid"></i></div>
+      <div id="stormWarn" hidden><b id="swTitle"></b><span id="swSub"></span></div>
+      <div id="net" hidden></div>
+      <div id="placeLbl"></div>
+    </div>
     <div id="mapBox">
       <canvas id="mini" width="200" height="200" aria-label="Map"></canvas>
       <div id="info"><span><b id="aliveN">0</b> left</span><span><b id="killN">0</b> KO</span></div>
@@ -2517,7 +2540,9 @@ function onlineTick(){
 /* ---------- HUD ---------- */
 const hud={root:$('hud'),feed:$('feed'),banner:$('banner'),hint:$('hint'),cross:$('cross'),cl:$('cl'),cr:$('cr'),ct:$('ct'),cb:$('cb'),hitm:$('hitm'),hurt:$('hurt'),scope:$('scope'),
   reload:$('reload'),reloadF:$('reloadFill'),hpN:$('hpNum'),hpF:$('hpFill'),shN:$('shNum'),shF:$('shFill'),tags:$('tags'),net:$('net'),mats:$('mats'),ammo:$('ammo'),prompt:$('prompt'),
-  useBar:$('useBar'),useLbl:$('useLbl'),useFill:$('useFill'),alive:$('aliveN'),kills:$('killN'),stormT:$('stormT'),tint:$('stormTint'),place:$('placeLbl')};
+  useBar:$('useBar'),useLbl:$('useLbl'),useFill:$('useFill'),alive:$('aliveN'),kills:$('killN'),stormT:$('stormT'),tint:$('stormTint'),place:$('placeLbl'),strip:$('compStrip'),safe:$('compSafe'),warn:$('stormWarn'),swT:$('swTitle'),swS:$('swSub')};
+// the compass strip: three turns of the dial side by side (3 px a degree), slid sideways as you turn
+(()=>{const N=['N','NE','E','SE','S','SW','W','NW'];let h='';for(let d=0;d<1080;d+=15){const x=d*3;h+=d%45?`<i style="left:${x}px"></i>`:`<span${d%90?' class="s"':''} style="left:${x}px">${N[d/45%8]}</span>`}hud.strip.innerHTML=h})();
 let hurtA=0,hitT=0,lastHud='',bannerTimer=0,placeT=0,stormSeen='';
 function hitmark(head){hitT=.14;hud.hitm.style.color=head?'#ffd84a':'#fff'}
 function feed(html,cls){const d=document.createElement('div');d.className=cls;d.innerHTML=html;hud.feed.prepend(d);while(hud.feed.children.length>(touchUI?4:6))hud.feed.lastChild.remove();setTimeout(()=>{d.style.opacity='0';setTimeout(()=>d.remove(),700)},6000)}
@@ -2574,8 +2599,23 @@ function updateHud(dt){
   else stx='Final storm';
   hudSet(hud.stormT,'#st',stx);hud.stormT.classList.toggle('closing',closing);
   // a word when the storm starts to close (once a phase)
-  const sk=inPlay()&&closing?MS.id+':'+S.phase:'';if(sk&&sk!==stormSeen){stormSeen=sk;if(inMatch&&p.alive&&p.st==='ground'){banner('STORM CLOSING',outsideStorm(p,S)||Math.hypot(p.pos.x-S.nx,p.pos.z-S.nz)>S.nr?'Head for the dashed circle on the map':'You\'re inside the next circle',2.4);sfxStorm()}}
-  const out=inPlay()&&p.alive&&inMatch&&p.st!=='bus'&&outsideStorm(p,S);hud.tint.style.opacity=out?'1':'0';
+  const sk=inPlay()&&closing?MS.id+':'+S.phase:'';if(sk&&sk!==stormSeen){stormSeen=sk;if(inMatch&&p.alive&&p.st==='ground'){banner('STORM CLOSING',outsideStorm(p,S)||Math.hypot(p.pos.x-S.nx,p.pos.z-S.nz)>S.nr?'Follow the marker on the compass to the safe zone':'You\'re inside the next circle',2.4);sfxStorm()}}
+  const out=inPlay()&&p.alive&&inMatch&&p.st!=='bus'&&outsideStorm(p,S);hudSet(hud.tint,'t:opacity',out?'1':'0');
+  // compass: which way you (or whoever you're watching) face, and a marker for the middle of the safe zone
+  {const me=camTarget()||p,brg=((-me.yaw*180/Math.PI)%360+360)%360,on=playing()&&me.st!=='bus';
+    hudSet(hud.strip,'s:transform',`translateX(${-Math.round(brg*3+1080)}px)`);
+    const live=on&&S.r<R0-1||on&&S.showNext,tx=S.showNext?S.nx:S.x,tz=S.showNext?S.nz:S.z,tr=S.showNext?S.nr:S.r,dx=tx-me.pos.x,dz=tz-me.pos.z,dist=Math.hypot(dx,dz);
+    const need=live&&dist>tr;   // outside where the circle is going
+    if(live){const sb=Math.atan2(dx,-dz)*180/Math.PI,rel=((sb-brg)%360+540)%360-180,half=(hud.strip.parentNode.clientWidth||300)/2-10;
+      hudSet(hud.safe,'f:transform',`translateX(${Math.round(clamp(rel*3,-half,half))}px)`)}
+    hudSet(hud.safe,'f:opacity',live?(need?'1':'.4'):'0');
+    // the warning under it: in the storm, or the storm is coming and you're not yet where it will stop
+    let wt='',ws='',bad=false;
+    if(on&&p===me&&p.alive&&inMatch){
+      if(out){bad=true;wt='IN THE STORM';ws=`−${S.dps} health a second · safe zone ${Math.max(1,Math.ceil(Math.hypot(p.pos.x-S.x,p.pos.z-S.z)-S.r))} m`}
+      else if(need&&(S.closing||S.left<=30)){wt=S.closing?'STORM CLOSING':'STORM MOVES IN '+fmtT(S.left);ws=`safe zone ${Math.max(1,Math.ceil(dist-tr))} m`}
+    }
+    hud.warn.hidden=!wt;if(wt){hudSet(hud.swT,'#wt',wt);hudSet(hud.swS,'#ws',ws);hud.warn.classList.toggle('bad',bad)}}
   // name tags for players in sight (checked a few times a second)
   tagClock-=dt;const check=tagClock<=0;if(check)tagClock=.2;
   let ti=0;const tgt=camTarget();
@@ -2608,7 +2648,7 @@ function updateHud(dt){
 const mini=$('mini'),mctx=mini.getContext('2d'),bigc=$('bigc'),bctx=bigc.getContext('2d');
 let mapBg=null,bigMap=false;
 function buildMapBg(){
-  const N=160,c=document.createElement('canvas');c.width=c.height=N;const g=c.getContext('2d'),img=g.createImageData(N,N),col=[0,0,0];
+  const N=256,c=document.createElement('canvas');c.width=c.height=N;const g=c.getContext('2d'),img=g.createImageData(N,N),col=[0,0,0];
   for(let y=0;y<N;y++)for(let x=0;x<N;x++){groundCol((x+.5)*MAP/N,(y+.5)*MAP/N,col);const i=(y*N+x)*4;img.data[i]=col[0]*255;img.data[i+1]=col[1]*255;img.data[i+2]=col[2]*255;img.data[i+3]=255}
   g.putImageData(img,0,0);
   for(const f of footprints){g.fillStyle='#'+new THREE.Color(f.col).multiplyScalar(.8).getHexString();g.fillRect(f.x0*N/MAP,f.z0*N/MAP,(f.x1-f.x0)*N/MAP,(f.z1-f.z0)*N/MAP)}
@@ -2618,9 +2658,11 @@ function drawMap(g,W_,labels){
   const k=W_/MAP;g.imageSmoothingEnabled=true;g.drawImage(mapBg,0,0,W_,W_);
   if(inPlay()){
     const t=matchT(),S=stormAt(t);
-    g.save();g.fillStyle='rgba(120,60,220,.38)';g.beginPath();g.rect(0,0,W_,W_);g.arc(S.x*k,S.z*k,Math.max(0,S.r)*k,0,Math.PI*2,true);g.fill('evenodd');g.restore();
+    g.save();g.fillStyle='rgba(24,32,54,.66)';g.beginPath();g.rect(0,0,W_,W_);g.arc(S.x*k,S.z*k,Math.max(0,S.r)*k,0,Math.PI*2,true);g.fill('evenodd');g.restore();
     g.strokeStyle='#fff';g.lineWidth=Math.max(1.5,W_/140);g.beginPath();g.arc(S.x*k,S.z*k,Math.max(0,S.r)*k,0,Math.PI*2);g.stroke();
-    if(S.showNext&&S.nr<S.r-1){g.setLineDash([W_/50,W_/70]);g.strokeStyle='#bfe8ff';g.beginPath();g.arc(S.nx*k,S.nz*k,S.nr*k,0,Math.PI*2);g.stroke();g.setLineDash([])}
+    if(S.showNext&&S.nr<S.r-1){g.setLineDash([W_/50,W_/70]);g.strokeStyle='#9fe8ff';g.beginPath();g.arc(S.nx*k,S.nz*k,S.nr*k,0,Math.PI*2);g.stroke();g.setLineDash([]);
+      const me=camTarget()||player,dx=S.nx-me.pos.x,dz=S.nz-me.pos.z,d=Math.hypot(dx,dz);
+      if(me.st!=='bus'&&d>S.nr+1){g.strokeStyle='rgba(159,232,255,.95)';g.lineWidth=Math.max(1.5,W_/110);g.beginPath();g.moveTo(me.pos.x*k,me.pos.z*k);g.lineTo((me.pos.x+dx*(1-S.nr/d))*k,(me.pos.z+dz*(1-S.nr/d))*k);g.stroke()}}
     if(t<busLine.tOut+2){g.setLineDash([W_/60,W_/60]);g.strokeStyle='rgba(255,201,60,.95)';g.lineWidth=Math.max(1.5,W_/160);g.beginPath();g.moveTo(busLine.ax*k,busLine.az*k);const e=busPos(busLine.tEnd);g.lineTo(e.x*k,e.z*k);g.stroke();g.setLineDash([]);
       const b=busPos(t);g.fillStyle='#ffc93c';g.beginPath();g.arc(b.x*k,b.z*k,W_/45,0,Math.PI*2);g.fill()}
   }
