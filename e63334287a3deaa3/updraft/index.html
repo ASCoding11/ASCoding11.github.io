@@ -58,6 +58,7 @@ button:disabled{opacity:.45;cursor:default}
 .field input{flex:1;min-width:0;border:0;background:transparent;font:600 16px var(--f);padding:10px 4px;outline:0;color:var(--ink)}
 .msg{min-height:1.4em;margin:10px 0 0;font-weight:600;color:var(--ink-2);font-size:14px}
 .msg.err{color:var(--red)}
+#inviteMsg:empty{display:none}
 .note{font-size:13.5px;font-weight:500;color:var(--ink-2);line-height:1.5}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:rgba(0,0,0,.25)}
 .seg button{border:0;background:transparent;padding:7px 13px;font-weight:700;font-size:14px}
@@ -88,7 +89,7 @@ details[open] summary::before{content:'− '}
 .logo svg{width:.62em;height:.62em;vertical-align:.04em;margin-left:.08em}
 .tag{margin:10px 0 18px;font-weight:500;color:#e3e8f2;line-height:1.45;font-size:16.5px;text-shadow:0 1px 8px rgba(0,0,0,.6),0 0 2px rgba(0,0,0,.5)}
 .recs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:14px 0 0}
-.rec{background:rgba(0,0,0,.22);border:1px solid var(--line);border-radius:12px;padding:8px 10px}
+.rec{background:rgba(0,0,0,.22);border:1px solid var(--line);border-radius:12px;padding:8px 10px;display:flex;flex-direction:column;justify-content:space-between}
 .rec b{display:block;font-size:19px;font-weight:800;font-variant-numeric:tabular-nums}
 .rec small{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);font-weight:700}
 .roomrow{display:flex;gap:10px;margin-top:10px;min-width:0}
@@ -109,8 +110,8 @@ details[open] summary::before{content:'− '}
 #bar{position:absolute;right:calc(16px + env(safe-area-inset-right,0px));top:calc(70px + env(safe-area-inset-top,0px));bottom:calc(110px + env(safe-area-inset-bottom,0px));width:10px;border-radius:6px;background:rgba(10,16,32,.45);border:1px solid rgba(255,255,255,.16)}
 #bar .fill{position:absolute;left:0;right:0;bottom:0;border-radius:6px;background:linear-gradient(0deg,var(--sun-2),var(--sun))}
 #bar .best{position:absolute;left:-4px;right:-4px;height:2px;background:#fff;opacity:.8}
-#bar .tick{position:absolute;right:14px;transform:translateY(50%);font-size:10px;font-weight:700;letter-spacing:.06em;color:rgba(255,255,255,.85);text-shadow:0 1px 3px rgba(0,0,0,.7);white-space:nowrap;text-transform:uppercase}
-#bar .tick::after{content:'';position:absolute;right:-14px;top:50%;width:10px;height:1px;background:rgba(255,255,255,.4)}
+#bar .tick{position:absolute;right:14px;transform:translateY(50%);font-size:10px;font-weight:700;letter-spacing:.06em;color:rgba(255,255,255,.92);text-shadow:0 0 2px rgba(8,14,30,.85),0 1px 4px rgba(8,14,30,.75),0 0 10px rgba(8,14,30,.35);white-space:nowrap;text-transform:uppercase}
+#bar .tick::after{content:'';position:absolute;right:-14px;top:50%;width:10px;height:1px;background:rgba(255,255,255,.55);box-shadow:0 0 2px rgba(8,14,30,.6)}
 #bar .mile{position:absolute;left:-5px;right:-5px;height:3px;margin-bottom:-1px;border-radius:2px;background:#ffd36b;box-shadow:0 0 6px #ffd36b}
 #bar .dot{position:absolute;left:50%;width:12px;height:12px;margin:0 0 -6px -6px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)}
 #bar .dot.me{width:16px;height:16px;margin:0 0 -8px -8px;border-width:3px}
@@ -225,6 +226,7 @@ body.touch #spec{bottom:calc(160px + env(safe-area-inset-bottom,0px))}
 }
 @media (orientation:landscape) and (max-height:500px){
   .menu-wrap{max-width:720px;margin:0 auto}
+  #menu{background:linear-gradient(180deg,rgba(8,12,24,.6),rgba(8,12,24,.25))}
   .menu-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start}
   .menu-cols>.card{margin-top:0!important;min-width:0}
   .recs .rec{min-width:0;padding:7px 8px}
@@ -2110,6 +2112,12 @@ const CHUNK=48;
 const chunks=new Map();   // 'mat|chunk' -> bucket
 function sb(key,y){const k=key+'|'+Math.floor(y/CHUNK);let b=chunks.get(k);if(!b)chunks.set(k,b=Bucket());return b}
 const GEO={box:new THREE.BoxGeometry(1,1,1),cyl:{},sph:new THREE.IcosahedronGeometry(1,1),sph2:new THREE.IcosahedronGeometry(1,2),cone:{}};
+// A lumpy rock from a ball: each corner is pushed in or out by its own amount. The ball's triangles don't share
+// corners, so the amount is looked up by where the corner is; pushing every triangle's corners separately tore the
+// rock into loose shards with the sky showing through. set(P,i,x,y,z,k) writes the moved corner.
+function lumpG(R2,lo,span,set){const g=new THREE.IcosahedronGeometry(1,1),P=g.attributes.position,seen=new Map();
+  for(let i=0;i<P.count;i++){const x=P.getX(i),y=P.getY(i),z=P.getZ(i),key=Math.round(x*1e3)+','+Math.round(y*1e3)+','+Math.round(z*1e3);let k=seen.get(key);if(k===undefined)seen.set(key,k=lo+R2()*span);set(P,i,x,y,z,k)}
+  g.computeVertexNormals();return g}
 function cylG(n,open){const k=n+(open?'o':'');return GEO.cyl[k]||(GEO.cyl[k]=new THREE.CylinderGeometry(1,1,1,n,1,!!open))}
 function frustG(rt,rb,n){const k=rt+'_'+rb+'_'+n;return GEO.cone[k]||(GEO.cone[k]=new THREE.CylinderGeometry(rt,rb,1,n,1))}
 function M(x,y,z,yaw,sx,sy,sz,rx,rz){const m=new THREE.Matrix4();m.compose(new V3(x,y,z),new THREE.Quaternion().setFromEuler(new THREE.Euler(rx||0,yaw||0,rz||0,'YXZ')),new V3(sx||1,sy||1,sz||1));return m}
@@ -2191,7 +2199,8 @@ function drawCollider(c,get,local){
       if(!local)for(let i=0;i<4;i++){const a=i*Math.PI/2+.4;addGeo(get('metal'),cylG(6),M(c.x+Math.sin(a)*R*.85,Y-h-.5,c.z+Math.cos(a)*R*.85,0,.05,1,.05),'#555')}break}
     case 'log':{const m=M(X,Y-c.hx,Z,yaw,c.hx,2*c.hz,c.hx,Math.PI/2);addGeo(get('wood'),cylG(12),m,col,2,c.hz);break}
     case 'rock':case 'pod':{if(v==='pod'){cylinder('metal',col,18,3,1,'metal',col);addGeo(get('glow'),new THREE.TorusGeometry(1,.05,4,24),M(X,Y-h*.5,Z,0,R*1.01,R*1.01,R*1.01,Math.PI/2),'#7df9ff');break}
-      const g=new THREE.IcosahedronGeometry(1,1),P=g.attributes.position,R2=rng(c.id*5+9);for(let i=0;i<P.count;i++){const k=.8+R2()*.35;P.setXYZ(i,P.getX(i)*k,Math.min(P.getY(i)*k,.62),P.getZ(i)*k)}g.computeVertexNormals();
+      // its flat top stops a touch under the cap drawn below (at .62 the two were level and flickered through each other)
+      const g=lumpG(rng(c.id*5+9),.8,.35,(P,i,x,y,z,k)=>P.setXYZ(i,x*k,Math.min(y*k,.6),z*k));
       addGeo(get('rock'),g,M(X,Y-.62*R*.9,Z,c.id,R*1.08,R*.9,R*1.08),col,1.5,1.5);addGeo(get('rock'),new THREE.CircleGeometry(1,16).rotateX(-Math.PI/2),M(X,Y,Z,0,R*.96,1,R*.96),shade(col,1.1),1.5,1.5);break}
     case 'trunk':cylinder('wood',col,8,1,2);break;
     case 'panel':box({top:'panel',side:'metal'},'#ffffff',1.6,null);break;
@@ -2211,7 +2220,8 @@ function drawCollider(c,get,local){
     case 'ribbon':case 'pulse':case 'wave':case 'jewel':box({top:'glow',side:v==='ribbon'?'glow':'plain'},col,2,tint(col,'#ffffff',.35),.7);break;
     case 'storm':{const R2=rng(c.id*13+1);addGeo(get('plain'),cylG(18),M(X,Y-h/2,Z,0,R*.98,h,R*.98),col);
       for(let i=0;i<7;i++){const a=i/7*Math.PI*2+R2(),rr=R*(.55+R2()*.35),s=R*(.42+R2()*.25);addGeo(get('plain'),GEO.sph,M(X+Math.sin(a)*rr,Y+.02-s*.6,Z+Math.cos(a)*rr,0,s,s*.6,s),shade(col,.9+R2()*.2))}
-      addGeo(get('plain'),GEO.sph,M(X,Y-R*.45,Z,0,R*.8,R*.5,R*.8),shade(col,.75));break}
+      // the dark belly stops just under the top (it used to poke through the middle and hide the climber's shadow)
+      addGeo(get('plain'),GEO.sph,M(X,Y-R*.53,Z,0,R*.8,R*.5,R*.8),shade(col,.75));break}
     case 'rod':{cylinder('metal',col,20,3,1,'metal',shade(col,1.1));if(!local){const a=c.id*2.1,px=X+Math.sin(a)*R*.78,pz=Z+Math.cos(a)*R*.78;addGeo(get('metal'),cylG(6),M(px,Y+.9,pz,0,.035,1.8,.035),'#c9ced6');addGeo(get('glow'),GEO.sph,M(px,Y+1.85,pz,0,.08,.08,.08),'#bfe6ff')}break}
     case 'hail':box({top:'plain',side:'plain'},col,2,tint(col,'#ffffff',.4),.8);break;
     case 'vane':box({top:'wood',side:'wood'},col,1.2,null,.85);if(!local){const p=toW(c,0,c.hz);addGeo(get('metal'),new THREE.ConeGeometry(1,1,4),M(p[0],Y-h/2,p[1],c.yaw,.5,.7,.25,Math.PI/2),'#a0a8b2')}break;
@@ -2331,7 +2341,7 @@ function drawDeco(d){
   if(d.s==='spire'){}
   // the old summit's marker: a post with a plaque, where the new climb leaves it
   if(d.s==='milestone'){addGeo(get('metal'),cylG(8),M(d.x,d.y+.7,d.z,0,.07,1.4,.07),'#555');
-    const t=signTex('OLD SUMMIT','1,000 m · the climb goes on',512,192,'#2a1d4a');const m=new THREE.Mesh(new THREE.PlaneGeometry(1.6,.6),new THREE.MeshBasicMaterial({map:t,side:THREE.DoubleSide}));
+    const t=signTex('OLD SUMMIT','1,000 m · the climb goes on',512,192,'#2a1d4a');const m=new THREE.Mesh(SIGN_GEO,new THREE.MeshBasicMaterial({map:t}));m.scale.set(.5,.5,1);
     m.position.set(d.x,d.y+1.6,d.z);m.rotation.y=d.yaw;scene.add(m);addGeo(get('glow'),new THREE.TorusGeometry(1,.05,6,32),M(d.x,d.y+.02,d.z,0,.6,.6,.6,Math.PI/2),'#ffd36b');return}
   if(d.s==='windsock'){addGeo(get('metal'),cylG(6),M(d.x,d.y+1.5,d.z,0,.05,3,.05),'#9aa3ad');addGeo(get('plain'),frustG(.12,.3,10),M(d.x+.6,d.y+2.9,d.z,0,1,1.2,1,0,Math.PI/2),'#ff7a3d');return}
   // the Crown: eight gold spires round the top and jewels on them, all below the rim so they're never in the way
@@ -2375,12 +2385,17 @@ function drawFar(d){
     case 'fstation':addGeo(get('metal'),new THREE.TorusGeometry(1,.12,6,24),M(x,y,z,yw,s*2,s*2,s*2,t,0),'#d9dee6');addGeo(get('metal'),cylG(10),M(x,y,z,yw,s*.35,s*3.6,s*.35,Math.PI/2+t,0),'#e8ecf2');break;
     case 'fstar':addGeo(get('glow'),new THREE.OctahedronGeometry(1,0),M(x,y,z,yw,s*.5,s*.9,s*.5,t,0),pick(['#ffe08a','#ffd6f0','#cfe6ff']));break;
     case 'faurora':break;
-    case 'frock':{const g=new THREE.IcosahedronGeometry(1,1),P=g.attributes.position,R2=rng(Math.floor(x*7+z*13));for(let i=0;i<P.count;i++){const k=.75+R2()*.45;P.setXYZ(i,P.getX(i)*k,P.getY(i)*k*.8,P.getZ(i)*k)}g.computeVertexNormals();addGeo(get('rock'),g,M(x,y,z,yw,s*1.3,s*1.3,s*1.3,t,0),pick(['#7a7484','#857a72','#6f7180']),2,2);break}
+    case 'frock':{const g=lumpG(rng(Math.floor(x*7+z*13)),.75,.45,(P,i,x,y,z,k)=>P.setXYZ(i,x*k,y*k*.8,z*k));addGeo(get('rock'),g,M(x,y,z,yw,s*1.3,s*1.3,s*1.3,t,0),pick(['#7a7484','#857a72','#6f7180']),2,2);break}
   }
 }
+// A sign's board: two faces back to back in one mesh, so the words read the right way round from behind as well
+// (one two-sided face showed them mirrored).
+const SIGN_GEO=(()=>{const f=new THREE.PlaneGeometry(3.2,1.2),b=f.clone().rotateY(Math.PI),g=new THREE.BufferGeometry(),n=f.attributes.position.count;
+  for(const k of ['position','normal','uv']){const A=f.attributes[k],a=new Float32Array(A.array.length*2);a.set(A.array);a.set(b.attributes[k].array,A.array.length);g.setAttribute(k,new THREE.BufferAttribute(a,A.itemSize))}
+  const ix=Array.from(f.index.array);g.setIndex(ix.concat(ix.map(v=>v+n)));return g})();
 function drawSign(s){
   // the old summit's sign: it's a milestone now, not the top
-  const old=s.text==='The Top'&&s.y===SUMMIT,t=old?signTex('Old summit','1,000 m · keep climbing'):signTex(s.text,s.sub);const m=new THREE.Mesh(new THREE.PlaneGeometry(3.2,1.2),new THREE.MeshBasicMaterial({map:t,side:THREE.DoubleSide}));
+  const old=s.text==='The Top'&&s.y===SUMMIT,t=old?signTex('Old summit','1,000 m · keep climbing'):signTex(s.text,s.sub);const m=new THREE.Mesh(SIGN_GEO,new THREE.MeshBasicMaterial({map:t}));
   m.position.set(s.x,s.y+2.4,s.z);m.rotation.y=(s.yaw||0)+Math.PI;scene.add(m);
   addGeo(sb('metal',s.y),cylG(6),M(s.x,s.y+.9,s.z,0,.06,1.8,.06),'#555');
 }
@@ -2407,6 +2422,12 @@ function buildScenery(){
   const hm=new THREE.MeshLambertMaterial({color:0x8fa7c2,fog:false,flatShading:true});hills=hm;const R2=rng(77);
   for(let i=0;i<46;i++){const a=i/46*Math.PI*2+R2()*.1,r=2300+R2()*700,h=90+R2()*210,w=320+R2()*420;const m=new THREE.Mesh(new THREE.ConeGeometry(1,1,7),hm);m.scale.set(w,h,w*.8);m.position.set(Math.sin(a)*r,h/2-20,Math.cos(a)*r);m.rotation.y=R2()*3;scene.add(m);hillMeshes.push(m)}
   const sea=new THREE.Mesh(new THREE.PlaneGeometry(9000,9000),new THREE.MeshBasicMaterial({map:T.cloudsea,transparent:true,opacity:0,depthWrite:false,fog:false,color:0xffffff,toneMapped:false}));T.cloudsea.repeat.set(14,14);sea.rotation.x=-Math.PI/2;sea.position.y=330;sea.renderOrder=-5;scene.add(sea);
+  // Far out, the sea takes the colour the sky has in that direction (the same sums as the sky's shader), so its
+  // square edge and the far clip can't be told from the sky: from high up they showed as a hard line with corners.
+  sea.material.onBeforeCompile=sh=>{sh.uniforms.skyTop=skyU.top;sh.uniforms.skyHor=skyU.hor;sh.uniforms.skySun=skyU.sunDir;sh.uniforms.skyGlow=skyU.glow;
+    sh.vertexShader='varying vec3 vSeaD;varying vec2 vSeaP;\n'+sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvSeaP=position.xy;vSeaD=(vec4((modelViewMatrix*vec4(position,1.)).xyz,0.)*viewMatrix).xyz;');
+    sh.fragmentShader='uniform vec3 skyTop;uniform vec3 skyHor;uniform vec3 skySun;uniform float skyGlow;varying vec3 vSeaD;varying vec2 vSeaP;\n'+sh.fragmentShader.replace('#include <map_fragment>',
+      '#include <map_fragment>\n{float f=smoothstep(2000.,4000.,length(vSeaP));if(f>0.){vec3 d=normalize(vSeaD);float h=d.y;vec3 c=mix(skyHor,skyTop,pow(clamp(h,0.,1.),.55));c=mix(c,skyHor*.82,clamp(-h*3.,0.,1.));float s=max(dot(d,skySun),0.);c+=vec3(1.,.9,.7)*(pow(s,380.)*1.6+pow(s,9.)*.22*skyGlow);diffuseColor.rgb=mix(diffuseColor.rgb,sRGBToLinear(vec4(min(c,vec3(1.)),1.)).rgb,f);}}')};
   const puffs=new THREE.Group();const pm=new THREE.SpriteMaterial({map:T.puff,transparent:true,opacity:.85,depthWrite:false,fog:true});const R3=rng(99);
   for(let i=0;i<160;i++){const a=R3()*Math.PI*2,r=70+R3()*420,y=R3()<.7?rand(360,640):rand(160,900),s=30+R3()*70;const sp=new THREE.Sprite(pm);sp.position.set(Math.sin(a)*r,y,Math.cos(a)*r);sp.scale.set(s*1.8,s,1);puffs.add(sp)}
   scene.add(puffs);
