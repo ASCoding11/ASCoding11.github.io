@@ -1265,6 +1265,7 @@ TEX.noise=texFrom(cvs(256,256,(g,N)=>{
       v+=amp*(a+(b-a)*sx+(c-a)*sy+(a-b-c+d)*sx*sy);tot+=amp;amp*=.5}
     const k=Math.round(clamp((v/tot-.5)*1.9+.5,0,1)*255),j=(y*N+x)*4;im.data[j]=im.data[j+1]=im.data[j+2]=k;im.data[j+3]=255}
   g.putImageData(im,0,0)}));
+TEX.noise.anisotropy=1; // read several times per pixel of sky and sea: keep each read cheap
 
 // Geometry with UVs scaled to the part's size (one texture square per 2 units) and an 'fe' attribute for the bevel
 // look: across the face, up the face, and the face's width and height. Shapes made while a level is built are freed
@@ -1392,7 +1393,7 @@ const LOOK={
     amb:{c:['#ffb347','#ff5a1f'],v:[.3,2.2,.2],size:.24,add:1,op:.95},lines:'rgba(255,225,170,.8)',band:['#ff7a2e','#5a1408']},
   ice:{sky:['#3f9df0','#a9dcff','#f3fbff','#d9efff'],fog:'#e9f6ff',fogD:[100,540],
     body:{c:'#ffffff',r:.07,g:.65,el:.16},clouds:{k:.7,cov:.56,a:'#ffffff',b:'#cfe6fa'},haze:{c:'#ffffff',k:.7},
-    sea:{a:'#17608f',b:'#3594cc',c:'#f2fbff',foam:.55,floe:1,grid:0,sc:1},
+    sea:{a:'#17608f',b:'#3594cc',c:'#d9eefb',foam:.55,floe:1,grid:0,sc:1},
     light:['#eef8ff','#86bde8',.6,'#ffffff',.62],under:['#3fa6e0',.3],edge:['#ffffff',0],dust:'#ffffff',add:0,
     amb:{c:['#ffffff','#e3f4ff'],v:[1.4,-2.6,.5],size:.3,add:.2,op:.9},lines:'rgba(40,96,170,.5)',band:['#8fd0ff','#2f7fd0']},
   space:{sky:['#02010a','#140a3a','#3a1b7a','#070318'],fog:'#170b3a',fogD:[170,900],stars:1.5,starsLow:1,
@@ -1448,6 +1449,40 @@ const seaMat=new THREE.ShaderMaterial({
     ' if(k.z>0.){vec2 g=abs(fract(p/12.)-.5);float gn=1.-smoothstep(60.,200.,vD);float l=1.-smoothstep(.0,.03+.05*(1.-gn),min(g.x,g.y));float pulse=.6+.4*sin(uT*1.6+(p.x+p.y)*.05);c+=mix(cC,cD,step(g.x,g.y))*(l*gn*pulse*.8*k.z);}',
     ' gl_FragColor=vec4(mix(c,fogC,smoothstep(fogD.x,fogD.y,vD)),1.);}'].join('\n')});
 const sea=new THREE.Mesh(new THREE.PlaneGeometry(2400,2400),seaMat);sea.rotation.x=-Math.PI/2;scene.add(sea);
+// Fast graphics (and any computer autores.js has had to lower the resolution for) don't run those two shaders every
+// frame: the sky is baked once per world into a picture laid over the same dome (so it's one texture read per pixel,
+// with still clouds and stars), and the sea into a tile that repeats every 96 units and slides slowly.
+const skyRT=new THREE.WebGLRenderTarget(2048,1024,{depthBuffer:false});
+const skyFlat=new THREE.MeshBasicMaterial({map:skyRT.texture,side:THREE.BackSide,depthWrite:false,fog:false});
+const seaRT=new THREE.WebGLRenderTarget(512,512,{depthBuffer:false,generateMipmaps:true,minFilter:THREE.LinearMipmapLinearFilter,wrapS:THREE.RepeatWrapping,wrapT:THREE.RepeatWrapping});
+const seaFlat=new THREE.ShaderMaterial({uniforms:{tile:{value:seaRT.texture},uT:U.time,fogC:seaMat.uniforms.fogC,fogD:seaMat.uniforms.fogD,sc:{value:new THREE.Vector3(1/96,.0035,.0022)}},fog:false,
+  vertexShader:seaMat.vertexShader,
+  fragmentShader:'uniform sampler2D tile;uniform vec3 fogC,sc;uniform vec2 fogD;uniform float uT;varying vec3 vW;varying float vD;void main(){vec3 c=texture2D(tile,vW.xz*sc.x+uT*sc.yz).rgb;gl_FragColor=vec4(mix(c,fogC,smoothstep(fogD.x,fogD.y,vD)),1.);}'});
+const bakeScene=new THREE.Scene(),bakeCam=new THREE.Camera();
+const skyBake=new THREE.Mesh(sky.geometry,new THREE.ShaderMaterial({uniforms:skyMat.uniforms,side:THREE.DoubleSide,depthTest:false,depthWrite:false,fog:false,
+  vertexShader:'varying vec3 vP;void main(){vP=position;gl_Position=vec4(uv*2.-1.,0.,1.);}',fragmentShader:skyMat.fragmentShader}));
+const seaBake=new THREE.Mesh(new THREE.PlaneGeometry(2,2),new THREE.ShaderMaterial({uniforms:seaMat.uniforms,depthTest:false,depthWrite:false,fog:false,
+  vertexShader:'varying vec2 vU;void main(){vU=uv;gl_Position=vec4(position.xy,0.,1.);}',
+  fragmentShader:['uniform sampler2D nz;uniform vec3 cA,cB,cC,cD;uniform vec4 k;uniform float lava;varying vec2 vU;',
+    'void main(){float a=texture2D(nz,vU).r,b=texture2D(nz,vU*3.+vec2(.37,.61)).r;float w=a*.62+b*.38;',
+    ' vec3 c=mix(cA,cB,smoothstep(.3,.7,w));',
+    ' c=mix(c,cC,(1.-smoothstep(0.,.022+lava*.05,abs(w-.56)))*k.x*.8);c=mix(c,cC,smoothstep(.69,.78,w)*lava*.85);',
+    ' if(k.y>0.){float f=smoothstep(.625,.64,a*.5+b*.5+texture2D(nz,vU*7.).r*.06);c=mix(c,cC*(.9+.1*b),f*k.y);}',
+    ' if(k.z>0.){vec2 g=abs(fract(vU*8.)-.5);float l=1.-smoothstep(.0,.04,min(g.x,g.y));c+=mix(cC,cD,step(g.x,g.y))*(l*.6*k.z);}',
+    ' gl_FragColor=vec4(c,1.);}'].join('\n')}));
+skyBake.frustumCulled=seaBake.frustumCulled=false;bakeScene.add(skyBake,seaBake);
+let cheapLook=null,slowSeen=false;
+function bakeLook(){
+  const old=renderer.getRenderTarget();
+  skyBake.visible=true;seaBake.visible=false;renderer.setRenderTarget(skyRT);renderer.render(bakeScene,bakeCam);
+  skyBake.visible=false;seaBake.visible=true;renderer.setRenderTarget(seaRT);renderer.render(bakeScene,bakeCam);
+  renderer.setRenderTarget(old);
+}
+function applyLookTier(){
+  const cheap=!hiQ()||slowSeen;if(cheap===cheapLook)return;cheapLook=cheap;
+  sky.material=cheap?skyFlat:skyMat;sea.material=cheap?seaFlat:seaMat;
+  if(cheap&&curWorld>=0)bakeLook();
+}
 const mix3=(a,b,t)=>'#'+new THREE.Color(a).lerp(new THREE.Color(b),clamp(t,0,1)).getHexString();
 function shade(hex,k){const c=new THREE.Color(hex);if(k<0)c.multiplyScalar(1+k);else c.lerp(new THREE.Color('#ffffff'),k);return '#'+c.getHexString()}
 let sceneryMesh=null,sceneryMat=null,curWorld=-1;
@@ -1464,6 +1499,8 @@ function setTheme(wi){
   UW.under.value.set(L.under[0]);UW.underK.value=L.under[1];UW.edge.value.set(L.edge[0]);UW.edgeK.value=L.edge[1];UW.hot.value=L.hot||0;
   const s=L.sea;sea.visible=!!s;
   if(s){const q=seaMat.uniforms;q.cA.value.set(s.a);q.cB.value.set(s.b);q.cC.value.set(s.c);q.cD.value.set(s.c2||s.c);q.k.value.set(s.foam,s.floe,s.grid,s.sc);q.lava.value=s.lava||0;q.fogC.value.set(L.fog);q.fogD.value.set(L.fogD[0]*1.6,L.fogD[1])}
+  if(s){const g=s.grid?0:1;seaFlat.uniforms.sc.value.set(s.sc/96,.0035*g,.0022*g)}
+  if(cheapLook)bakeLook();
   setAmbient(L);
   document.documentElement.style.setProperty('--lines',L.lines);
 }
@@ -2627,7 +2664,7 @@ const renderGfx=()=>{for(const b of $('gfxSeg').children)b.setAttribute('aria-pr
 $('gfxSeg').onclick=ev=>{const q=ev.target.dataset&&ev.target.dataset.q;if(!q)return;gfx=q;store.set('gfx',q);renderGfx();applyQuality()};
 // Pretty turns on the sun's shadows (every material needs rebuilding for that) and more particles.
 function applyQuality(){
-  const hi=hiQ();renderer.shadowMap.enabled=hi;sun.castShadow=hi;FX.lim=hi?600:260;AMB.g.setDrawRange(0,hi?AMB.n:80);
+  const hi=hiQ();renderer.shadowMap.enabled=hi;sun.castShadow=hi;FX.lim=hi?600:260;AMB.g.setDrawRange(0,hi?AMB.n:80);applyLookTier();
   for(const m of matCache.values())m.needsUpdate=true;scene.traverse(o=>{if(o.material)for(const m of [].concat(o.material))m.needsUpdate=true});
   resize();
 }
@@ -2691,6 +2728,7 @@ function update(dt){
   // the sun's shadow box follows you, snapped to its texels so shadows don't shimmer
   {const q=56/1024,fx=Math.round(x/q)*q,fy=Math.round(y/q)*q,fz=Math.round(z/q)*q;sun.target.position.set(fx,fy,fz);sun.position.set(fx+SUN_DIR.x*100,fy+SUN_DIR.y*100,fz+SUN_DIR.z*100)}
   sky.position.copy(camera.position);
+  if(!slowSeen&&window.AutoRes&&AutoRes.scale<1){slowSeen=true;applyLookTier()}
   AMB.m.uniforms.cam.value.copy(camera.position);AMB.m.uniforms.scale.value=fxScale;
   // looks only: a puff at each footfall, and sparks streaming off the runner while a boost lasts
   if(!me.dead&&!G.respawnAt&&dt>0){
