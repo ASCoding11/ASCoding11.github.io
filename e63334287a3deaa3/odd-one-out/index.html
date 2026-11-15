@@ -1957,12 +1957,27 @@ const fxSphere=new THREE.SphereGeometry(1,8,6),fxBox=new THREE.BoxGeometry(1,1,1
 function fxMesh(geo,color,opa,add){const m=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color,transparent:opa!=null,opacity:opa==null?1:opa,depthWrite:opa==null,blending:add?THREE.AdditiveBlending:THREE.NormalBlending}));fxRoot.add(m);return m}
 function clearFx(){for(const f of fx){fxRoot.remove(f.m);f.m.material.dispose()}fx.length=0;for(const s of decals){fxRoot.remove(s.m);s.m.material.dispose()}decals.length=0}
 const tracerGeo=new THREE.CylinderGeometry(.012,.012,1,4).rotateX(Math.PI/2).translate(0,0,.5);
-function tracer(from,to){const m=fxMesh(tracerGeo,'#ffe08a',.85,true);m.position.copy(from);m.lookAt(to);m.scale.set(1,1,from.distanceTo(to));fx.push({m,t:0,life:.07,fade:1})}
-function flash(pos){const m=fxMesh(fxSphere,'#ffd27a',.9,true);m.position.copy(pos);m.scale.setScalar(.09);fx.push({m,t:0,life:.05,fade:1,grow:2})}
+const fxBall=new THREE.SphereGeometry(1,16,10),coneGeo=new THREE.ConeGeometry(.5,1,8,1,true).rotateX(Math.PI/2).translate(0,0,.5),ringGeo=new THREE.RingGeometry(.62,1,18);
+// Low keeps the plain line and dot; Medium and High add a soft glow round the line, a cone of flame at the muzzle and a
+// ring where the shot lands (the same for every shot, whatever it hit)
+function tracer(from,to){
+  const len=from.distanceTo(to),m=fxMesh(tracerGeo,'#fff0b8',.9,true);m.position.copy(from);m.lookAt(to);m.scale.set(1,1,len);fx.push({m,t:0,life:.08,fade:1});
+  if(gfx==='fast')return;
+  const g=fxMesh(tracerGeo,'#ff9a3c',.3,true);g.position.copy(from);g.quaternion.copy(m.quaternion);g.scale.set(3.6,3.6,len);fx.push({m:g,t:0,life:.12,fade:1});
+  const c=fxMesh(coneGeo,'#ffd98a',.85,true);c.position.copy(from);c.quaternion.copy(m.quaternion);c.rotateZ(Math.random()*TAU);c.scale.set(.1,.1,rand(.28,.4));fx.push({m:c,t:0,life:.055,fade:1});
+}
+function flash(pos){
+  const m=fxMesh(fxSphere,'#fff3c4',.95,true);m.position.copy(pos);m.scale.setScalar(.07);fx.push({m,t:0,life:.05,fade:1,grow:2});
+  if(gfx==='fast')return;
+  const h=fxMesh(fxBall,'#ff9a3c',.26,true);h.position.copy(pos);h.scale.setScalar(.15);fx.push({m:h,t:0,life:.07,fade:1,grow:1.5});
+}
 const _nq=new THREE.Quaternion(),_zf=new V3(0,0,1);
 function impact(p,n,color,decal){
   for(let i=0;i<5;i++){const m=fxMesh(fxBox,color||'#d8d2c6');m.position.copy(p);m.scale.setScalar(.03);fx.push({m,t:0,life:.35+Math.random()*.2,v:new V3(n.x+rand(-1,1),n.y+rand(0,1.5),n.z+rand(-1,1)).multiplyScalar(2),grav:1})}
   const pu=fxMesh(fxSphere,'#cfcac0',.5);pu.position.copy(p).addScaledVector(n,.05);pu.scale.setScalar(.06);fx.push({m:pu,t:0,life:.4,grow:.5,fade:1});
+  if(gfx!=='fast'){_nq.setFromUnitVectors(_zf,n);
+    const r=fxMesh(ringGeo,'#fff3d6',.7,true);r.position.copy(p).addScaledVector(n,.012);r.quaternion.copy(_nq);r.scale.setScalar(.035);r.material.side=THREE.DoubleSide;fx.push({m:r,t:0,life:.16,grow:3.5,fade:1});
+    const sp=fxMesh(fxSphere,'#fff3c4',.9,true);sp.position.copy(p).addScaledVector(n,.02);sp.scale.setScalar(.045);fx.push({m:sp,t:0,life:.06,fade:1})}
   if(decal){const m=fxMesh(fxDisc,'#2a2620',.75);m.position.copy(p).addScaledVector(n,.008);_nq.setFromUnitVectors(_zf,n);m.quaternion.copy(_nq);m.scale.setScalar(.035);decals.push({m});if(decals.length>80){const s=decals.shift();fxRoot.remove(s.m);s.m.material.dispose()}}
 }
 function puff(pos,size,color){for(let i=0;i<12;i++){const a=i/12*TAU,m=fxMesh(fxSphere,color||'#ffffff',.7);m.position.copy(pos);m.scale.setScalar(.08*size);fx.push({m,t:0,life:.45,v:new V3(Math.cos(a)*1.6*size,rand(.3,1.2),Math.sin(a)*1.6*size),grow:.25,fade:1})}}
