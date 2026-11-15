@@ -530,7 +530,53 @@ const CAT_DEFS=[
   ['cars','Car brands','Name a car maker','carbrands',0],
   ['feelings','Feelings','Name a feeling or emotion','emotions',0],
   ['boys',"Boys' names",'Name a boy\'s name','boynames',0],
-  ['girls',"Girls' names",'Name a girl\'s name','girlnames',0]
+  ['girls',"Girls' names",'Name a girl\'s name','girlnames',0],
+  // added with the November 2026 bank expansion (each list is in ../deepword/prompts.js)
+  ['pokemon','Pokémon','Name a Pokémon','pokemon',0],
+  ['films','Famous movies','Name a famous film','movies',1],
+  ['animated','Animated movies','Name an animated film','animatedfilms',0],
+  ['disneychars','Disney characters','Name a Disney character','disneychars',0],
+  ['pixarchars','Pixar characters','Name a Pixar character','pixarchars',0],
+  ['starwars','Star Wars characters','Name a Star Wars character','starwarschars',0],
+  ['potter','Harry Potter characters','Name a Harry Potter character','hpchars',0],
+  ['mario','Mario characters','Someone from the Mario games','mariochars',0],
+  ['mcmobs','Minecraft mobs','A creature in Minecraft','mcmobs',0],
+  ['mcblocks','Minecraft blocks and items','A block or item in Minecraft','mcblocks',0],
+  ['roblox','Roblox games','Name a game on Roblox','robloxgames',0],
+  ['consoles','Games consoles','Name a console or handheld','consoles',0],
+  ['fish','Fish','Name a fish','fish',0],
+  ['snakes','Snakes','Name a kind of snake','snakes',0],
+  ['primates','Monkeys and apes','A monkey, ape or other primate','primates',0],
+  ['stadiums','Stadiums','Name a famous stadium or arena','stadiums',0],
+  ['brands','Sports brands','Name a sports brand','sportsbrands',0],
+  ['playground','Playground games','Name a playground game','playgroundgames',0],
+  ['worldcup','World Cup countries','A country that has played at a men\'s World Cup','worldcupteams',0],
+  ['nationalities','Nationalities','Like French or Kenyan','nationalities',0],
+  ['biscuits','Biscuits and cookies','Name a biscuit or cookie','biscuits',0],
+  ['powers','Superpowers','Name a superpower','superpowers',1],
+  ['wheels','Things with wheels','Name something with wheels','haswheels',1],
+  ['plugin','Things you plug in','Name something you plug in','plugin',1],
+  ['wood','Things made of wood','Name something made of wood','madeofwood',1],
+  ['sky','Things in the sky','Something you\'d see in the sky','inthesky',1],
+  ['onhead','On your head','Something you wear on your head','onhead',0],
+  ['castle','In a castle','Something you\'d find in a castle','incastle',0],
+  ['pirate','A pirate\'s things','Something a pirate would own','pirate',0],
+  ['wizard','A wizard\'s backpack','Something in a wizard\'s backpack','wizardpack',0],
+  ['haunted','Haunted house','Something you\'d find in a haunted house','hauntedhouse',0],
+  ['schoolbag','In a school bag','Something you\'d find in a school bag','schoolbag',1],
+  ['party','Birthday party','Something you\'d see at a birthday party','birthdayparty',1],
+  ['floats','Things that float','Name something that floats','floats',0],
+  ['sticky','Sticky things','Name something sticky','sticky',0],
+  ['loud','Loud things','Something that makes a loud noise','loudnoise',1],
+  ['sounds','Animal sounds','A sound an animal makes','animalsounds',0],
+  ['buttons','Things with buttons','Name something that has buttons','hasbuttons',0],
+  ['screens','Things with a screen','Name something with a screen','hasscreen',1],
+  ['bounces','Things that bounce','Name something that bounces','bounces',0],
+  ['batteries','Things that need batteries','Name something that needs batteries','needsbatteries',0],
+  ['moon','Packing for the Moon','Something you\'d pack for a trip to the Moon','moontrip',0],
+  ['pairs','Things in pairs','Something that comes in pairs','pairs',0],
+  ['sandwich','In a sandwich','Something you\'d put in a sandwich','insandwich',1],
+  ['fairfood','Fairground food','A food you\'d eat at a fair','fairfood',0]
 ];
 // Letter rounds, made from the lists: "Words starting with B", "Animals starting with S", "Foods starting with P".
 const LETTER_DEFS=[['w','Words starting with ','Any everyday English word','@words',.35],['an','Animals starting with ','Any animal','allanimals',.6],['fd','Foods starting with ','Anything you can eat',FOODS,.6]];
@@ -556,7 +602,25 @@ function addCat(c,ents){
     }
   }
 })();
-// The list entry a typed answer stands for in a category, or null. Category rounds forgive a stray plural; word rounds don't.
+// A slip of the finger still counts, but only just: the same letters with the spaces left out ("icecream"), or,
+// for answers of six letters or more, one letter wrong, missing, extra or swapped with its neighbour, with the
+// first letter right. Only when exactly one answer in the list is that close.
+function oneOff(a,b){
+  const la=a.length,lb=b.length;if(Math.abs(la-lb)>1)return false;
+  let i=0;while(i<la&&i<lb&&a[i]===b[i])i++;
+  if(la===lb)return a.slice(i+1)===b.slice(i+1)||(a[i]===b[i+1]&&a[i+1]===b[i]&&a.slice(i+2)===b.slice(i+2));
+  return la>lb?a.slice(i+1)===b.slice(i):a.slice(i)===b.slice(i+1);
+}
+function nearMiss(m,t){
+  const sq=t.replace(/ /g,'');if(sq.length<4)return null;
+  let hit=null;
+  for(const [a,e] of m){if(a.length>=sq.length&&a.replace(/ /g,'')===sq){if(hit&&hit!==e)return null;hit=e}}
+  if(hit||sq.length<6)return hit;
+  for(const [a,e] of m){const b=a.replace(/ /g,'');if(b[0]===sq[0]&&oneOff(sq,b)){if(hit&&hit!==e)return null;hit=e}}
+  return hit;
+}
+// The list entry a typed answer stands for in a category, or null. Category rounds forgive a stray plural and a
+// near miss; word rounds don't, because a word one letter out is a different word.
 function check(c,text){
   if(!c)return null;const t=norm(text);if(!t)return null;const m=c.map;
   let e=m.get(t);if(e)return e;
@@ -564,7 +628,7 @@ function check(c,text){
   if(t.length>3&&t.endsWith('es')&&(e=m.get(t.slice(0,-2))))return e;
   if(t.length>2&&t.endsWith('s')&&(e=m.get(t.slice(0,-1))))return e;
   if((e=m.get(t+'s'))||(e=m.get(t+'es')))return e;
-  return null;
+  return nearMiss(m,t);
 }
 function rawOf(c,n){const e=c&&c.map.get(n);return e?e.raw:n}
 
@@ -1432,7 +1496,7 @@ if(!store.get('seenHelp',false)&&!inv){store.set('seenHelp',true);$('howMenu').o
 requestAnimationFrame(frame);
 
 // Test hook: only for automated browsers.
-if(navigator.webdriver)window.__pf={flashSeat,norm,check,CATS,CATL,cleanRS,onNode,applyRS,acceptAnswer,popTurn,afterPop,dropLeavers,judgeAttempt,newMatchRS,beginTurn,fuseFor,nextAlive,parseAttempt,aliveOf,setRS,startMatch,startSolo,joinRoom,toMenu,lobbyRS,B,G,Net,get ST(){return ST},Fish,store,seatPos,layout};
+if(navigator.webdriver)window.__pf={flashSeat,norm,check,nearMiss,oneOff,CATS,CATL,cleanRS,onNode,applyRS,acceptAnswer,popTurn,afterPop,dropLeavers,judgeAttempt,newMatchRS,beginTurn,fuseFor,nextAlive,parseAttempt,aliveOf,setRS,startMatch,startSolo,joinRoom,toMenu,lobbyRS,B,G,Net,get ST(){return ST},Fish,store,seatPos,layout};
 })();
 </script>
 <script src="/analytics/tracker.js" data-site="puffer-party" defer></script>

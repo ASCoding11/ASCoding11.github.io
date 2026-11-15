@@ -561,7 +561,25 @@ function mapOf(p){
   const m=new Map();for(const e of entriesOf(p))for(const a of e.al)if(!m.has(a))m.set(a,e);
   p.map=m;return m;
 }
-// The list entry a typed answer stands for, or null. Category prompts forgive a stray plural.
+// A slip of the finger still counts, but only just: the same letters with the spaces left out ("icecream"), or,
+// for answers of six letters or more, one letter wrong, missing, extra or swapped with its neighbour, with the
+// first letter right. Only when exactly one answer in the list is that close.
+function oneOff(a,b){
+  const la=a.length,lb=b.length;if(Math.abs(la-lb)>1)return false;
+  let i=0;while(i<la&&i<lb&&a[i]===b[i])i++;
+  if(la===lb)return a.slice(i+1)===b.slice(i+1)||(a[i]===b[i+1]&&a[i+1]===b[i]&&a.slice(i+2)===b.slice(i+2));
+  return la>lb?a.slice(i+1)===b.slice(i):a.slice(i)===b.slice(i+1);
+}
+function nearMiss(m,t){
+  const sq=t.replace(/ /g,'');if(sq.length<4)return null;
+  let hit=null;
+  for(const [a,e] of m){if(a.length>=sq.length&&a.replace(/ /g,'')===sq){if(hit&&hit!==e)return null;hit=e}}
+  if(hit||sq.length<6)return hit;
+  for(const [a,e] of m){const b=a.replace(/ /g,'');if(b[0]===sq[0]&&oneOff(sq,b)){if(hit&&hit!==e)return null;hit=e}}
+  return hit;
+}
+// The list entry a typed answer stands for, or null. Category prompts forgive a stray plural and a near miss;
+// word prompts don't, because a word one letter out is a different word.
 function check(p,text){
   const t=norm(text);if(!t)return null;const m=mapOf(p);
   let e=m.get(t);if(e)return e;
@@ -569,7 +587,7 @@ function check(p,text){
   if(t.length>3&&t.endsWith('es')&&(e=m.get(t.slice(0,-2))))return e;
   if(t.length>2&&t.endsWith('s')&&(e=m.get(t.slice(0,-1))))return e;
   if((e=m.get(t+'s'))||(e=m.get(t+'es')))return e;
-  return null;
+  return nearMiss(m,t);
 }
 function makePrompt(pr){ // a brawl prompt {q,L,f} -> a prompt object like the bank's
   return{i:-1,cat:'brawl',q:pr.q,L:pr.L,f:pr.f||'',words:pr.L==='@words'||/^(rh|~w)/.test(pr.L)};
@@ -604,6 +622,8 @@ function picksFor(day){
   let guard=0;while(out.length<PROMPTS_PER_DIVE&&P.length&&guard++<200){const p=P[Math.floor(rng()*P.length)];if(out.indexOf(p.i)<0&&entriesOf(p).length>=15)out.push(p.i)}
   return out;
 }
+// A saved dive carries its own questions (older saves don't, and fall back to the day's).
+const okPicks=a=>Array.isArray(a)&&a.length===PROMPTS_PER_DIVE&&a.every(i=>Number.isInteger(i)&&P[i]);
 function randomPicks(){
   const cats=shuffle(Object.keys(CATS)),out=[];
   for(const c of cats){const pool=dailyPool(c);if(pool.length)out.push(pick(pool).i);if(out.length>=PROMPTS_PER_DIVE)break}
@@ -838,7 +858,7 @@ function startDive(daily){
   const saved=daily?store.get('today',null):null;
   Object.assign(D,{on:true,daily,day,i:0,ans:[],pts:[],ks:[],ns:[],total:0,state:'ready',others:null,rare:[],resolving:false});
   D.picks=daily?picksFor(day):randomPicks();
-  if(saved&&saved.day===day&&Array.isArray(saved.ans)&&saved.ans.length<=PROMPTS_PER_DIVE){D.ans=saved.ans.slice();D.pts=(saved.pts||[]).slice();D.ks=(saved.ks||[]).slice();D.ns=(saved.ns||[]).slice();D.i=D.ans.length;D.total=D.pts.reduce((a,b)=>a+(+b||0),0)}
+  if(saved&&saved.day===day&&Array.isArray(saved.ans)&&saved.ans.length<=PROMPTS_PER_DIVE){if(okPicks(saved.picks))D.picks=saved.picks.slice();D.ans=saved.ans.slice();D.pts=(saved.pts||[]).slice();D.ks=(saved.ks||[]).slice();D.ns=(saved.ns||[]).slice();D.i=D.ans.length;D.total=D.pts.reduce((a,b)=>a+(+b||0),0)}
   Sea.menu=false;Sea.build(daily?strHash('reef'+day):Math.floor(Math.random()*1e9));Sea.zoneSeen='';Sea.d=Sea.target=depthOf(D.total);Sea.boat=true;
   G.mode=daily?'daily':'practice';G.paused=false;
   show('dive');setText('dPts',String(D.total));
@@ -878,7 +898,7 @@ function submitDive(timeout){
   const done=(k,n,rareTxt)=>{
     const pts=e?score(e.w,k,n):0;
     D.pts.push(pts);D.ks.push(k);D.ns.push(n);D.total+=pts;
-    if(D.daily)store.set('today',{day:D.day,ans:D.ans,pts:D.pts,ks:D.ks,ns:D.ns});
+    if(D.daily)store.set('today',{day:D.day,picks:D.picks,ans:D.ans,pts:D.pts,ks:D.ks,ns:D.ns});
     reveal(e,raw,pts,k,n,rareTxt);
   };
   if(D.daily&&Daily.ok)Daily.counts(D.i,ans).then(r=>done(r.k,r.n,r.rare)).catch(()=>done(1,1,''));
@@ -914,7 +934,7 @@ function finishDive(){
   let best=+store.get('best',0)||0,newBest=false;
   if(D.daily){
     const days=store.get('days',{})||{};if(!days[D.day]){days[D.day]=depth;store.set('days',days);store.set('dives',(+store.get('dives',0)||0)+1)}
-    store.del('today');store.set('last',{day:D.day,ans:D.ans,pts:D.pts,ks:D.ks,ns:D.ns});
+    store.del('today');store.set('last',{day:D.day,picks:D.picks,ans:D.ans,pts:D.pts,ks:D.ks,ns:D.ns});
     if(depth>best){best=depth;store.set('best',depth);newBest=true}
     if(window.BackRoomStats){try{BackRoomStats.max('depth',Math.round(depth));BackRoomStats.add('dives',1)}catch(e){}}
   }
@@ -948,7 +968,7 @@ function showResultsOfToday(){
   const day=dayKey(),days=store.get('days',{})||{};if(!days[day])return false;
   const saved=store.get('last',null);
   Object.assign(D,{on:false,daily:true,day,picks:picksFor(day),ans:[],pts:[],ks:[],ns:[],total:0,state:'done'});
-  if(saved&&saved.day===day){D.ans=saved.ans||[];D.pts=saved.pts||[];D.ks=saved.ks||[];D.ns=saved.ns||[]}
+  if(saved&&saved.day===day){D.ans=saved.ans||[];D.pts=saved.pts||[];D.ks=saved.ks||[];D.ns=saved.ns||[];if(okPicks(saved.picks))D.picks=saved.picks.slice()}
   D.total=Math.round(days[day]/M_PER_PT);
   Sea.menu=false;Sea.build(strHash('reef'+day));Sea.d=Sea.target=days[day];
   show('results');
@@ -1470,7 +1490,7 @@ if(inv&&!/^daily-/.test(inv[1])){$('room').value=inv[1];setMsg('You were invited
 requestAnimationFrame(frame);
 
 // Test hook: only for automated browsers.
-if(navigator.webdriver)window.__dw={norm,check,score,picksFor,randomPicks,dayKey,P,BANK,listEntries,entriesOf,mapOf,judge,cleanRS,onNode,applyRS,makePrompt,pickBrawlPrompt,safeRe,brawlCandidates,streakFrom,D,B,G,Net,Sea,Daily,store,startDive,submitDive,nextPrompt,joinBrawl,toMenu,zoneOf,depthOf,SQ,rematch,startMatch,
+if(navigator.webdriver)window.__dw={norm,check,nearMiss,oneOff,score,picksFor,randomPicks,dayKey,P,BANK,listEntries,entriesOf,mapOf,judge,cleanRS,onNode,applyRS,makePrompt,pickBrawlPrompt,safeRe,brawlCandidates,streakFrom,D,B,G,Net,Sea,Daily,store,startDive,submitDive,nextPrompt,joinBrawl,toMenu,zoneOf,depthOf,SQ,rematch,startMatch,
   setDay(d){D.day=d},setToday(k){DAY_TEST=/^\d{8}$/.test(k)?k:''},setAir(ms){D.deadline=performance.now()+ms}};
 })();
 </script>
