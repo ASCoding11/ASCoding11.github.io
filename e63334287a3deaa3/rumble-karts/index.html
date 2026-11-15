@@ -791,6 +791,7 @@ function setMap(i) {
     }
     for (let n = 0; n < 500; n++) { g.fillStyle = `rgba(${n % 2 ? '255,255,255' : '90,90,120'},${Math.random() * .16})`; g.fillRect(Math.random() * w, Math.random() * h, 2, 2); }
   }, [16, 16]);
+  groundTex.anisotropy = Math.min(2, maxAniso);       // soft patches need no sharpening at a distance, so keep this one cheap
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(700, 700), lam(L.ground, { map: groundTex }));
   ground.rotation.x = -Math.PI / 2; ground.position.y = -0.06; add(ground, false);
 
@@ -1271,7 +1272,7 @@ const KC = { trim: 0x2e2942, skin: 0xffd2a8, visor: 0x1b1733, tire: 0x23202e, ri
 let kartGeos = null;
 function kartParts() {
   if (kartGeos) return kartGeos;
-  const fixed = [], painted = [], tube = new THREE.CylinderGeometry(1, 1, 1, 10), helmet = new THREE.SphereGeometry(.52, 14, 12, 0, TAU, 0, Math.PI * .62), wheelRing = new THREE.TorusGeometry(.3, .07, 6, 12);
+  const fixed = [], painted = [], tube = new THREE.CylinderGeometry(1, 1, 1, 8), round = new THREE.CylinderGeometry(1, 1, 1, 14), head = new THREE.SphereGeometry(1, 10, 8), helmet = new THREE.SphereGeometry(.52, 12, 10, 0, TAU, 0, Math.PI * .62), wheelRing = new THREE.TorusGeometry(.3, .07, 5, 10);
   const F = (g, c, p, s, r) => fixed.push({ g, c, p, s: s || [1, 1, 1], r }), Pn = (g, p, s, r) => painted.push({ g, p, s: s || [1, 1, 1], r });
   F(cubeGeo, KC.trim, [0, .55, 0], [2.3, .32, 3.5]);                                  // chassis
   F(cubeGeo, KC.trim, [0, .58, 1.92], [2.5, .3, .4]);                                 // front bumper
@@ -1279,26 +1280,25 @@ function kartParts() {
   for (const sd of [-1, 1]) {
     F(cubeGeo, KC.trim, [.8 * sd, 1.35, -1.6], [.18, .7, .18]);                       // spoiler posts
     F(tube, KC.steel, [.45 * sd, .84, -1.62], [.13, .7, .13], [Math.PI / 2, 0, 0]);   // exhaust pipes
-    F(tube, KC.visor, [.45 * sd, .84, -1.975], [.09, .02, .09], [Math.PI / 2, 0, 0]);
     F(cubeGeo, KC.tail, [.72 * sd, 1.06, -1.36], [.42, .16, .06]);                    // tail lights
-    F(ballGeo, KC.lamp, [.56 * sd, .96, 1.94], [.16, .16, .1]);                       // headlights
+    F(tube, KC.lamp, [.56 * sd, .96, 1.95], [.16, .08, .16], [Math.PI / 2, 0, 0]);    // headlights
     Pn(cubeGeo, [1.14 * sd, .9, .04], [.34, .38, 1.02]);                              // side pods between the wheels
     Pn(cubeGeo, [1.32 * sd, 1.62, -1.65], [.07, .46, .8]);                            // spoiler end plates
   }
   F(cubeGeo, KC.engine, [0, 1.42, -1.38], [.8, .3, .42]);                             // engine cover behind the seat
   F(tube, KC.steel, [0, 1.62, -1.38], [.16, .14, .16]);
   F(wheelRing, KC.trim, [0, 1.45, .45], null, [-.9, 0, 0]);                           // steering wheel
-  F(ballGeo, KC.skin, [0, 1.72, -.35], [.34, .34, .34]);                              // driver
+  F(head, KC.skin, [0, 1.72, -.35], [.34, .34, .34]);                                 // driver
   F(cubeGeo, KC.visor, [0, 1.86, .06], [.72, .22, .2]);
-  F(tube, KC.white, [0, 1.135, 1.3], [.4, .02, .4]);                                  // number roundel on the nose
+  F(round, KC.white, [0, 1.135, 1.3], [.4, .02, .4]);                                  // number roundel on the nose
   F(cubeGeo, KC.white, [0, 1.826, -1.65], [.5, .02, .7]);                             // stripe on the spoiler
   Pn(cubeGeo, [0, .98, -.25], [2.0, .6, 2.2]);                                        // body
   Pn(cubeGeo, [0, .88, 1.3], [1.7, .5, 1.3]);                                         // nose
   Pn(cubeGeo, [0, 1.75, -1.65], [2.6, .14, .7]);                                      // spoiler
   Pn(helmet, [0, 1.95, -.4], [1, 1.05, 1.08]);
-  const hubGeo = new THREE.CylinderGeometry(.22, .22, .56, 8).rotateZ(Math.PI / 2), rimGeo = new THREE.CylinderGeometry(.36, .36, .52, 12).rotateZ(Math.PI / 2), one = [1, 1, 1], at = [0, 0, 0];
+  const hubGeo = new THREE.CylinderGeometry(.22, .22, .56, 8).rotateZ(Math.PI / 2), rimGeo = new THREE.CylinderGeometry(.36, .36, .52, 10).rotateZ(Math.PI / 2), one = [1, 1, 1], at = [0, 0, 0];
   kartGeos = { fixed: mergeGeo(fixed), painted: mergeGeo(painted), wheel: mergeGeo([{ g: wheelGeo, c: KC.tire, p: at, s: one }, { g: rimGeo, c: KC.rim, p: at, s: one }, { g: hubGeo, c: KC.hub, p: at, s: one }]) };
-  for (const g of [tube, helmet, wheelRing, hubGeo, rimGeo]) g.dispose();
+  for (const g of [tube, round, head, helmet, wheelRing, hubGeo, rimGeo]) g.dispose();
   return kartGeos;
 }
 function buildKart(color) {
