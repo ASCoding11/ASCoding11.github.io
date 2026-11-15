@@ -239,6 +239,7 @@ body.touch #hint,body.touch #itemTip{bottom:calc(210px + var(--sab))}
   #hp{width:110px}
   #slot{width:70px;height:70px}
   #slotIcon svg{width:36px;height:36px}
+  body.touch #dock{left:auto;right:calc(10px + var(--sar));transform:none}   /* upright phone: sit beside the stick, not over it */
   body.touch #hudBtns{right:auto;left:calc(12px + var(--sal));top:calc(206px + var(--sat))}
   #hudBtns .chip{font-size:13px;padding:4px 10px}
   #alone{top:calc(150px + var(--sat));font-size:13px}
@@ -1059,13 +1060,14 @@ function rollItem() {
 // ---------- particles ----------
 const particles = [], ppool = [];
 const cubeGeo = new THREE.BoxGeometry(1, 1, 1), ballGeo = new THREE.SphereGeometry(1, 14, 10);
+const discGeo = new THREE.CircleGeometry(1, 20).rotateX(-Math.PI / 2);   // flat on the floor: scorch marks
 function particle(o) {
   if (particles.length > 700) return;
   let m = ppool.pop();
   if (!m) m = new THREE.Mesh(cubeGeo, new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false }));
-  m.geometry = o.ball ? ballGeo : cubeGeo;
+  m.geometry = o.disc ? discGeo : o.ball ? ballGeo : cubeGeo;
   m.material.color.set(o.color); m.material.opacity = o.op == null ? 1 : o.op;
-  m.position.set(o.x, o.y, o.z); m.scale.setScalar(o.size); m.rotation.set(Math.random() * 3, Math.random() * 3, 0);
+  m.position.set(o.x, o.y, o.z); m.scale.setScalar(o.size); if (o.disc) m.rotation.set(0, 0, 0); else m.rotation.set(Math.random() * 3, Math.random() * 3, 0);
   scene.add(m);
   particles.push({ m, vx: o.vx || 0, vy: o.vy || 0, vz: o.vz || 0, life: o.life, max: o.life, size: o.size, grow: o.grow || 0, grav: o.grav || 0, op: o.op == null ? 1 : o.op, drag: o.drag || 0 });
 }
@@ -1082,6 +1084,10 @@ function updateParticles(dt) {
 }
 function explodeFX(x, z, s = 1, cols = ['#ff6a2b', '#ffc93c', '#ff4d6d'], flash = '#fff2a8') {
   particle({ ball: true, x, y: 1.2, z, life: .32, size: 1.2 * s, grow: 5 * s, color: flash, op: .95 });
+  if (arguments.length < 4) {                       // an ordinary blast also sends a ring out along the floor and leaves a scorch mark for a few seconds
+    ringFX(x, z, 7.5 * s, 0xfff2a8, .36, .18);
+    particle({ disc: true, x, y: .1, z, life: 5, size: 2.7 * s, color: '#16112a', op: .34 });
+  }
   for (let i = 0; i < 16 * s; i++) particle({ x, y: 1, z, vx: rand(-14, 14), vy: rand(4, 14), vz: rand(-14, 14), life: rand(.45, .9), size: rand(.5, 1.1), color: cols[i % cols.length], grav: -24, drag: 1.5 });
   for (let i = 0; i < 8 * s; i++) particle({ x: x + rand(-1.5, 1.5), y: 1.2, z: z + rand(-1.5, 1.5), vx: rand(-2, 2), vy: rand(2, 5), vz: rand(-2, 2), life: rand(1, 1.7), size: rand(1, 1.8), grow: 2.2, color: '#5b5870', op: .55, drag: 1 });
   Snd.play('boom', x, z, s);
@@ -1703,6 +1709,7 @@ class Kart {
       if (this.flameT <= 0) {
         this.flameT = .025; const bx = this.x - Math.sin(this.h) * 2.1, bz = this.z - Math.cos(this.h) * 2.1;
         particle({ x: bx + rand(-.5, .5), y: .8 + this.y, z: bz + rand(-.5, .5), vx: -Math.sin(this.h) * 6, vy: rand(0, 2), vz: -Math.cos(this.h) * 6, life: rand(.18, .3), size: rand(.35, .6), color: Math.random() < .5 ? '#ffc93c' : '#ff6a2b' });
+        if ((this.flameN = (this.flameN | 0) + 1) % 2) particle({ ball: true, x: bx, y: .84 + this.y, z: bz, vx: -Math.sin(this.h) * 3, vz: -Math.cos(this.h) * 3, life: .12, size: .34, color: '#fff6c8', op: .9 });   // white-hot core at the pipes
       }
     }
   }
