@@ -1719,29 +1719,30 @@ function joinGeos(list){
   const o=new THREE.BufferGeometry();o.setAttribute('position',new THREE.BufferAttribute(pos,3));o.setAttribute('normal',new THREE.BufferAttribute(nor,3));o.setIndex(new THREE.BufferAttribute(idx,1));return o;
 }
 // The hunter: a chunky toy figure in a navy jumpsuit and a hi-vis vest, standing on the floor, 1.87 m to the top of the
-// helmet. Shapes are built once and shared; each hunter is 15 meshes.
+// helmet. Shapes are built once and shared; each hunter is 16 meshes (one fewer than the old figure) and about 2,900 triangles.
 const HG=(()=>{
   const cyl=(rt,rb,h,n,x,y,z,rx)=>{const g=new THREE.CylinderGeometry(rt,rb,h,n);if(rx)g.rotateX(rx);return g.translate(x,y,z)};
   const sph=(r,x,y,z,t0,t1)=>new THREE.SphereGeometry(r,16,10,0,TAU,t0||0,t1==null?Math.PI:t1).translate(x,y,z);
+  const bx=(w,h,d,x,y,z)=>new THREE.BoxGeometry(w,h,d).translate(x,y,z); // small parts stay plain boxes
   const ear=x=>new THREE.CylinderGeometry(.05,.05,.05,10).rotateZ(Math.PI/2).translate(x,1.63,0);
   const placed=(g,px,py,pz,rx,ry,sy)=>{const e=new THREE.Euler(rx,ry,0,'YXZ');return g.applyMatrix4(new THREE.Matrix4().compose(new V3(px,py,pz),new THREE.Quaternion().setFromEuler(e),new V3(1,sy,1)))};
   // legs hang from the hip (y 0 here is the hip, .92 m up), boots and knee pads ride on them
-  const leg=rbox(.2,.82,.22,.06,0,-.39,0),legDark=joinGeos([rbox(.225,.16,.34,.055,0,-.84,.05),rbox(.17,.12,.05,.02,0,-.4,.115)]);
+  const leg=rbox(.2,.82,.22,.06,0,-.39,0),legDark=joinGeos([rbox(.225,.16,.34,.055,0,-.84,.05),bx(.16,.12,.04,0,-.4,.12)]);
   // body, in the model's own space
-  const suit=joinGeos([rbox(.46,.58,.28,.07,0,1.2,0),sph(.2,0,1.67,0,0,Math.PI*.5),new THREE.SphereGeometry(.2,10,4,Math.PI,Math.PI,Math.PI*.5,Math.PI*.24).translate(0,1.67,0),rbox(.2,.03,.1,.012,0,1.685,.2),cyl(.07,.08,.07,12,0,1.5,0)]);
+  const suit=joinGeos([rbox(.46,.58,.28,.07,0,1.2,0),sph(.2,0,1.67,0,0,Math.PI*.5),new THREE.SphereGeometry(.2,10,4,Math.PI,Math.PI,Math.PI*.5,Math.PI*.24).translate(0,1.67,0),bx(.2,.025,.1,0,1.685,.2),cyl(.07,.08,.07,12,0,1.5,0)]);
   const vest=joinGeos([rbox(.51,.38,.33,.06,0,1.27,0),cyl(.206,.206,.04,20,0,1.69,0)]);
   const stripe=joinGeos([rbox(.52,.035,.34,.012,0,1.2,0),rbox(.52,.035,.34,.012,0,1.33,0)]);
-  const dark=joinGeos([rbox(.48,.07,.3,.02,0,.95,0),rbox(.1,.1,.06,.02,.17,.93,.15),ear(-.165),ear(.165),cyl(.009,.009,.42,5,.1,1.64,-.27)]);
-  const pack=joinGeos([rbox(.32,.36,.15,.05,0,1.27,-.235),rbox(.2,.14,.06,.025,0,1.2,-.33)]);
+  const dark=joinGeos([bx(.48,.07,.3,0,.95,0),bx(.1,.1,.06,.17,.93,.15),ear(-.165),ear(.165),cyl(.009,.009,.42,5,.1,1.64,-.27)]);
+  const pack=joinGeos([rbox(.32,.36,.15,.05,0,1.27,-.235),bx(.2,.14,.05,0,1.2,-.325)]);
   const skin=sph(.175,0,1.645,0),visor=rbox(.3,.1,.1,.035,0,1.625,.125);
   // arms, already bent round the rifle (they turn as one about the shoulders to aim)
   const armG=()=>rbox(.125,.48,.135,.045,0,-.2,0),hand=()=>rbox(.11,.11,.12,.04,0,-.45,0);
   const arms=joinGeos([placed(armG(),-.26,0,0,-1.25,.8,1.3),placed(armG(),.27,0,0,-.75,0,1)]);
   const hands=joinGeos([placed(hand(),-.26,0,0,-1.25,.8,1.3),placed(hand(),.27,0,0,-.75,0,1)]);
   // the rifle, with a bright tip so it reads as a toy
-  const gun=joinGeos([rbox(.075,.12,.5,.02,0,0,.2),rbox(.055,.17,.08,.015,0,-.13,.24),rbox(.065,.12,.24,.025,0,-.025,-.17),cyl(.02,.02,.26,8,0,.01,.57,Math.PI/2),
-    cyl(.028,.028,.2,10,0,.095,.14,Math.PI/2),rbox(.03,.04,.04,.008,0,.07,.08),rbox(.03,.04,.04,.008,0,.07,.2)]);
-  const gunTip=joinGeos([cyl(.03,.03,.07,10,0,.01,.735,Math.PI/2),rbox(.08,.05,.2,.015,0,-.045,.36)]);
+  const gun=joinGeos([rbox(.075,.12,.5,.02,0,0,.2),bx(.055,.17,.08,0,-.13,.24),rbox(.065,.12,.24,.025,0,-.025,-.17),cyl(.02,.02,.26,8,0,.01,.57,Math.PI/2),
+    cyl(.028,.028,.2,10,0,.095,.14,Math.PI/2),bx(.03,.04,.04,0,.07,.08),bx(.03,.04,.04,0,.07,.2)]);
+  const gunTip=joinGeos([cyl(.03,.03,.07,10,0,.01,.735,Math.PI/2),bx(.08,.05,.2,0,-.045,.36)]);
   return{leg,legDark,suit,vest,stripe,dark,pack,skin,visor,arms,hands,gun,gunTip};
 })();
 function hunterModel(color){
