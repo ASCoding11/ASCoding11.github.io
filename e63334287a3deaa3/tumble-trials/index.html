@@ -616,24 +616,85 @@ const hemi=new THREE.HemisphereLight(0xe4f2ff,0xb995dc,.62);scene.add(hemi);
 const sun=new THREE.DirectionalLight(0xfff1dc,.62);sun.position.set(18,40,12);scene.add(sun);scene.add(sun.target);
 sun.castShadow=gfx==='high';sun.shadow.mapSize.set(2048,2048);
 {const c=sun.shadow.camera;c.left=-34;c.right=34;c.top=34;c.bottom=-34;c.near=1;c.far=120;sun.shadow.bias=-.0006}
-scene.fog=new THREE.Fog(0xd4eeff,80,250);
+scene.fog=new THREE.Fog(0xa6dcff,70,250);
 function resize(){
   const w=canvas.clientWidth||innerWidth,h=canvas.clientHeight||innerHeight;
   renderer.setPixelRatio(Math.min(devicePixelRatio||1,gfx==='high'?1.75:1.2));
   renderer.setSize(w,h,false);camera.aspect=w/h;camera.fov=w/h<1?74:62;camera.updateProjectionMatrix();
 }
 addEventListener('resize',resize);resize();
-// sky dome: a vertical gradient with soft clouds painted on a canvas
-const sky=(()=>{
-  const c=document.createElement('canvas');c.width=512;c.height=256;const x=c.getContext('2d');
-  const g=x.createLinearGradient(0,0,0,256);g.addColorStop(0,'#2f8fff');g.addColorStop(.38,'#6cc0ff');g.addColorStop(.5,'#a9dcff');g.addColorStop(.56,'#d6efff');g.addColorStop(1,'#f3d9ff');
-  x.fillStyle=g;x.fillRect(0,0,512,256);
-  const r=rng(7);x.fillStyle='rgba(255,255,255,.85)';
-  for(let i=0;i<26;i++){const cx=r()*512,cy=70+r()*70,s=8+r()*16;for(let k=0;k<5;k++){x.beginPath();x.arc(cx+(k-2)*s*.9,cy+Math.sin(k*1.7)*s*.25,s*(1-Math.abs(k-2)*.18),0,7);x.fill()}}
-  const t=new THREE.CanvasTexture(c);t.wrapS=THREE.RepeatWrapping;
-  const m=new THREE.Mesh(new THREE.SphereGeometry(300,32,16),new THREE.MeshBasicMaterial({map:t,side:THREE.BackSide,fog:false,depthWrite:false}));
-  m.renderOrder=-10;scene.add(m);return m;
-})();
+// ---------------------------------------------------------------------
+//  Colour moods. Every round names one: it sets the sky, the haze, the light,
+//  the far hills, the colour of the slime and (for some) the colour of the
+//  decks. Only the look changes; nothing here is sent to other players.
+//    sky: top, middle, horizon · fog: haze (also the far slime) · orb: sun or moon [across 0-1, up 0-1, colour, size]
+//    hemi: sky light, ground light, strength · sun: colour, strength, direction · slime: base, light, dark · glow: how much the slime shines
+// ---------------------------------------------------------------------
+const THEMES={
+  day:{sky:['#1b63d8','#4fa8ff','#a6dcff'],fog:'#a6dcff',orb:[.2,.2,'#fff6c8',15],cloud:'#ffffff',hill:'#5f86d8',hemi:['#e4f2ff','#a787dc',.6],sun:['#fff1dc',.8,[18,40,12]],slime:['#9440e6','#c878ff','#6e26c0'],glow:.2},
+  lagoon:{sky:['#0c7fb0','#3cc4d4','#b4f0e0'],fog:'#b4f0e0',orb:[.3,.17,'#fffbe0',14],cloud:'#f4fffb',hill:'#2f9a9a',hemi:['#e8fff8','#58c4b4',.6],sun:['#fff3c8',.82,[22,38,6]],slime:['#12aaa6','#62e2d0','#0a7c86'],glow:.18,
+    pad:{'#43c9ff':'#ffe2a0','#9a6bff':'#ff9a7a'}},
+  candy:{sky:['#f0609c','#ff9fc4','#ffd9cc'],fog:'#ffd6cc',orb:[.7,.24,'#fffbe8',13],cloud:'#fff6f0',hill:'#e0709c',hemi:['#fff0f4','#ff9ab8',.62],sun:['#fff6e0',.72,[-14,40,14]],slime:['#e03c7c','#ff80ac','#b0205c'],glow:.2,
+    pad:{'#43c9ff':'#8fe3ff','#9a6bff':'#c79aff'}},
+  skyhigh:{sky:['#143cc0','#3f8cff','#bcd8ff'],fog:'#c4dcff',orb:[.8,.14,'#ffffff',12],cloud:'#ffffff',hill:'#8fa8f0',hemi:['#f0f6ff','#c0c8ff',.66],sun:['#fff4e0',.72,[10,44,16]],slime:['#aab8ff','#dfe6ff','#8896ee'],glow:.25},
+  sunset:{sky:['#33246e','#d8548c','#ffae6a'],fog:'#ffa873',orb:[.5,.455,'#fff0b0',17],cloud:'#ffd2a8',hill:'#7a3078',hemi:['#ffe2c8','#a860a8',.66],sun:['#ffc088',.8,[6,20,-34]],slime:['#84309a','#c25cb8','#581c6e'],glow:.24,
+    pad:{'#43c9ff':'#ff9a6b','#9a6bff':'#b05cc8','#ffd23f':'#ffd27a'}},
+  morning:{sky:['#2f96d0','#92dcdc','#fff0c0'],fog:'#f8ecc4',orb:[.25,.4,'#fffdf0',15],cloud:'#fffaf0',hill:'#5fae9a',hemi:['#fffbe8','#7ad090',.6],sun:['#fff0c0',.8,[-26,24,10]],slime:['#50c070','#98e8a0','#2f9a58'],glow:.18},
+  neon:{sky:['#07061e','#1f1656','#56288c'],fog:'#48247c',stars:1,orb:[.72,.2,'#e8e6ff',9],cloud:'#6a4ab0',hill:'#241050',hemi:['#e4e0ff','#c88ad8',.7],sun:['#eef0ff',.66,[-16,40,10]],slime:['#d81b9c','#ff62d2','#8a0f78'],glow:.5,
+    pad:{'#43c9ff':'#4455d8','#9a6bff':'#7038d0','#ffd23f':'#ffb22e'}},
+  honey:{sky:['#e07c12','#ffb840','#ffe6a0'],fog:'#ffe0a0',orb:[.5,.3,'#fffbe0',16],cloud:'#fff6d8',hill:'#d88a20',hemi:['#fff3d0','#f0b040',.62],sun:['#fff0c0',.8,[14,36,-12]],slime:['#f0a020','#ffd468','#c87810'],glow:.28},
+  dusk:{sky:['#100c34','#442684','#cc4c88'],fog:'#a8447c',stars:1,orb:[.3,.44,'#ffd0a0',14],cloud:'#b060a8',hill:'#3a1860',hemi:['#e6dcff','#9a78e0',.68],sun:['#ffd2b8',.76,[-20,18,-28]],slime:['#5c2cd4','#9060ff','#3a1890'],glow:.4,
+    pad:{'#43c9ff':'#6f7cf0','#9a6bff':'#8a4fd8'}},
+  works:{sky:['#24667e','#74b8bc','#e4dcb4'],fog:'#dcd8b4',orb:[.65,.36,'#fffbe0',13],cloud:'#f4f0d8',hill:'#4f8088',hemi:['#f0f4e0','#90c860',.6],sun:['#fff0d0',.82,[24,30,8]],slime:['#5cae26','#96d84c','#3c8414'],glow:.16,
+    pad:{'#43c9ff':'#8fb4c8','#9a6bff':'#5f7c98','#ffd23f':'#ffb347'}},
+  forest:{sky:['#1f8470','#84d4a0','#e6f6c4'],fog:'#dcf2c0',orb:[.35,.25,'#fffbe0',14],cloud:'#f8fff0',hill:'#2f8a5a',hemi:['#f0ffe8','#6fb0e0',.6],sun:['#fff6d0',.8,[-18,38,12]],slime:['#2f8ce0','#70c2ff','#1f5cb0'],glow:.2,
+    pad:{'#9a6bff':'#c98a4b','#7be05a':'#8cd860'}},
+  storm:{sky:['#222f4c','#506684','#9cb0c2'],fog:'#98acbe',cloud:'#5c6c84',clouds:44,hill:'#3c506c',hemi:['#d0dcec','#4f9aa0',.64],sun:['#e8f0ff',.62,[12,40,18]],slime:['#1f888c','#50c2c2','#0f5a66'],glow:.2,
+    pad:{'#43c9ff':'#86b0d0','#9a6bff':'#5c6f9a','#ffd23f':'#e8d48a'}},
+  disco:{sky:['#08061c','#1a124c','#38288c'],fog:'#2e2278',stars:1,orb:[.2,.22,'#ffffff',8],cloud:'#4a3aa0',hill:'#150c40',hemi:['#e6e6ff','#9484f0',.72],sun:['#ffffff',.66,[10,40,14]],slime:['#4a30e0','#7c70ff','#2a1aa0'],glow:.45},
+};
+let THEME=THEMES.day;
+function mixc(a,b,t){const p=parseInt(a.slice(1),16),q=parseInt(b.slice(1),16),f=sh=>Math.round(lerp(p>>sh&255,q>>sh&255,t));return'#'+[f(16),f(8),f(0)].map(v=>v.toString(16).padStart(2,'0')).join('')}
+// the sky dome, the far hills and the slime are each painted on one canvas, repainted when the mood changes
+const skyCv=document.createElement('canvas');skyCv.width=1024;skyCv.height=512;
+const skyTex=new THREE.CanvasTexture(skyCv);skyTex.wrapS=THREE.RepeatWrapping;
+const sky=new THREE.Mesh(new THREE.SphereGeometry(300,32,16),new THREE.MeshBasicMaterial({map:skyTex,side:THREE.BackSide,fog:false,depthWrite:false}));sky.renderOrder=-10;scene.add(sky);
+const hillCv=document.createElement('canvas');hillCv.width=1024;hillCv.height=128;
+const hillTex=new THREE.CanvasTexture(hillCv);hillTex.wrapS=THREE.RepeatWrapping;
+const hills=new THREE.Mesh(new THREE.CylinderGeometry(292,292,56,48,1,true),new THREE.MeshBasicMaterial({map:hillTex,side:THREE.BackSide,transparent:true,depthWrite:false,fog:false}));hills.renderOrder=-9;hills.position.y=21;scene.add(hills);
+const slimeCv=document.createElement('canvas');slimeCv.width=slimeCv.height=256;
+function paintSky(th){
+  const x=skyCv.getContext('2d'),W=skyCv.width,H=skyCv.height,hz=H/2;
+  const g=x.createLinearGradient(0,0,0,H);g.addColorStop(0,th.sky[0]);g.addColorStop(.3,th.sky[1]);g.addColorStop(.488,th.sky[2]);g.addColorStop(.502,th.fog);g.addColorStop(1,th.fog);
+  x.fillStyle=g;x.fillRect(0,0,W,H);
+  const r=rng(7);
+  if(th.stars){x.fillStyle='#ffffff';for(let i=0;i<320;i++){const sx=r()*W,sy=r()*hz*.9,k=r()<.1?2.4:1.3;x.globalAlpha=(.3+r()*.7)*(1-sy/hz*.6);x.fillRect(sx,sy,k,k)}x.globalAlpha=1}
+  if(th.orb){const cx=th.orb[0]*W,cy=th.orb[1]*H,rad=th.orb[3],gl=x.createRadialGradient(cx,cy,rad*.5,cx,cy,rad*6);gl.addColorStop(0,th.orb[2]+'b0');gl.addColorStop(.25,th.orb[2]+'40');gl.addColorStop(1,th.orb[2]+'00');
+    x.fillStyle=gl;x.fillRect(cx-rad*6,cy-rad*6,rad*12,rad*12);x.fillStyle=th.orb[2];x.beginPath();x.arc(cx,cy,rad,0,7);x.fill()}
+  // clouds: a darker underside first, then the puffs, smaller toward the horizon
+  const n=th.clouds||30,under=mixc(th.cloud,th.sky[1],.45);
+  for(let i=0;i<n;i++){const cx=r()*W,up=r(),cy=hz-14-up*up*150,sc=8+up*20+r()*8,k=4+Math.floor(r()*3);
+    for(const [col,dy,al] of [[under,sc*.28,.5],[th.cloud,0,.9]]){x.fillStyle=col;x.globalAlpha=al*(th.stars?.5:1);
+      for(const ox of [-W,0,W])for(let j=0;j<k;j++){x.beginPath();x.ellipse(cx+ox+(j-(k-1)/2)*sc*.85,cy+dy+Math.sin(j*1.9+i)*sc*.18,sc*(1-Math.abs(j-(k-1)/2)*.2),sc*(.62-Math.abs(j-(k-1)/2)*.1),0,0,7);x.fill()}}}
+  x.globalAlpha=1;skyTex.needsUpdate=true;
+}
+function paintHills(th){
+  const x=hillCv.getContext('2d'),W=hillCv.width,H=hillCv.height;x.clearRect(0,0,W,H);
+  const layer=(col,base,amp,f1,f2,p)=>{const g=x.createLinearGradient(0,H*(base-amp),0,H);g.addColorStop(0,col);g.addColorStop(1,mixc(col,th.fog,.7));x.fillStyle=g;x.beginPath();x.moveTo(0,H);
+    for(let i=0;i<=W;i+=4){const u=i/W*Math.PI*2;x.lineTo(i,H*(base-amp*(.5+.3*Math.sin(u*f1+p)+.2*Math.sin(u*f2+p*2.3))))}x.lineTo(W,H);x.fill()};
+  layer(mixc(th.fog,th.hill,.4),.78,.5,3,8,1);layer(mixc(th.fog,th.hill,.75),.86,.34,5,13,.4);
+  hillTex.needsUpdate=true;
+}
+function paintSlime(th){
+  const x=slimeCv.getContext('2d'),w=256,r=rng(3),[base,light,dark]=th.slime;x.globalAlpha=1;x.fillStyle=base;x.fillRect(0,0,w,w);
+  const blob=(col,al,n,s0,s1)=>{for(let i=0;i<n;i++){const cx=r()*w,cy=r()*w,s=s0+r()*(s1-s0);for(const ox of [-w,0,w])for(const oy of [-w,0,w]){const g=x.createRadialGradient(cx+ox,cy+oy,0,cx+ox,cy+oy,s);g.addColorStop(0,col);g.addColorStop(.6,col);g.addColorStop(1,col+'00');x.globalAlpha=al;x.fillStyle=g;x.fillRect(cx+ox-s,cy+oy-s,s*2,s*2)}}};
+  blob(dark,.5,16,24,60);blob(light,.42,22,10,34);blob('#ffffff',.5,14,2,5);x.globalAlpha=1;
+}
+function applyTheme(name){
+  const th=THEMES[name]||THEMES.day;THEME=th;paintSky(th);paintHills(th);paintSlime(th);
+  scene.fog.color.set(th.fog);scene.fog.near=th.stars?55:70;scene.fog.far=th.stars?220:250;
+  hemi.color.set(th.hemi[0]);hemi.groundColor.set(th.hemi[1]);hemi.intensity=th.hemi[2];sun.color.set(th.sun[0]);sun.intensity=th.sun[1];
+}
 
 // =====================================================================
 //  Canvas textures (everything is drawn here, nothing is downloaded)
@@ -647,12 +708,13 @@ function canvasTex(key,w,h,draw){
 function shade(hex,k){const n=parseInt(hex.slice(1),16);let r=n>>16&255,g=n>>8&255,b=n&255;if(k<0){r*=1+k;g*=1+k;b*=1+k}else{r+=(255-r)*k;g+=(255-g)*k;b+=(255-b)*k}return'#'+[r,g,b].map(v=>Math.round(clamp(v,0,255)).toString(16).padStart(2,'0')).join('')}
 const TX={
   // foam padding: one rounded square per world unit
-  foam:c=>canvasTex('foam'+c,128,128,(x,w)=>{x.fillStyle=shade(c,-.18);x.fillRect(0,0,w,w);const g=x.createRadialGradient(54,48,6,64,64,70);g.addColorStop(0,shade(c,.18));g.addColorStop(1,c);x.fillStyle=g;x.beginPath();x.roundRect?x.roundRect(5,5,118,118,22):x.rect(5,5,118,118);x.fill()}),
+  foam:c=>canvasTex('foam'+c,128,128,(x,w)=>{x.fillStyle=shade(c,-.14);x.fillRect(0,0,w,w);const g=x.createLinearGradient(0,0,w,w);g.addColorStop(0,shade(c,.2));g.addColorStop(.45,shade(c,.04));g.addColorStop(1,shade(c,-.05));x.fillStyle=g;x.beginPath();x.roundRect?x.roundRect(4,4,120,120,24):x.rect(4,4,120,120);x.fill();
+    x.strokeStyle='rgba(255,255,255,.34)';x.lineWidth=4;x.lineCap='round';x.beginPath();x.moveTo(20,34);x.quadraticCurveTo(22,20,38,18);x.stroke()}),
   checker:(a,b)=>canvasTex('ck'+a+b,128,128,(x,w)=>{x.fillStyle=a;x.fillRect(0,0,w,w);x.fillStyle=b;x.fillRect(0,0,64,64);x.fillRect(64,64,64,64)}),
   stripes:(a,b)=>canvasTex('st'+a+b,128,128,(x,w)=>{x.fillStyle=a;x.fillRect(0,0,w,w);x.fillStyle=b;for(let i=-2;i<4;i++){x.beginPath();x.moveTo(i*64,0);x.lineTo(i*64+32,0);x.lineTo(i*64+32+128,128);x.lineTo(i*64+128,128);x.fill()}}),
   arrows:(a,b)=>canvasTex('ar'+a+b,128,128,(x,w)=>{x.fillStyle=a;x.fillRect(0,0,w,w);x.fillStyle=shade(a,-.15);for(let i=0;i<8;i++)x.fillRect(0,i*16,w,6);x.fillStyle=b;x.beginPath();x.moveTo(64,14);x.lineTo(108,64);x.lineTo(84,64);x.lineTo(84,112);x.lineTo(44,112);x.lineTo(44,64);x.lineTo(20,64);x.closePath();x.fill()}),
   dots:(a,b)=>canvasTex('dt'+a+b,128,128,(x,w)=>{x.fillStyle=a;x.fillRect(0,0,w,w);x.fillStyle=b;for(const [cx,cy] of [[32,32],[96,96],[96,32],[32,96]]){x.beginPath();x.arc(cx,cy,(cx===cy)?16:9,0,7);x.fill()}}),
-  rings:(a,b)=>canvasTex('rg'+a+b,256,256,(x,w)=>{x.fillStyle=a;x.fillRect(0,0,w,w);x.strokeStyle=b;x.lineWidth=18;for(const r of [40,82,118]){x.beginPath();x.arc(128,128,r,0,7);x.stroke()}}),
+  rings:(a,b)=>canvasTex('rg'+a+b,256,256,(x,w)=>{const g=x.createRadialGradient(128,128,10,128,128,180);g.addColorStop(0,shade(a,.16));g.addColorStop(1,shade(a,-.06));x.fillStyle=g;x.fillRect(0,0,w,w);x.strokeStyle=b;x.globalAlpha=.5;x.lineWidth=14;for(const r of [40,82,118]){x.beginPath();x.arc(128,128,r,0,7);x.stroke()}x.globalAlpha=1}),
   slime:()=>canvasTex('slime',256,256,(x,w)=>{x.fillStyle='#b043ff';x.fillRect(0,0,w,w);const r=rng(3);for(let i=0;i<90;i++){const cx=r()*w,cy=r()*w,s=4+r()*20;x.fillStyle=r()<.5?'rgba(255,120,240,.45)':'rgba(120,40,220,.4)';for(const ox of [-w,0,w])for(const oy of [-w,0,w]){x.beginPath();x.arc(cx+ox,cy+oy,s,0,7);x.fill()}}x.fillStyle='rgba(255,255,255,.55)';for(let i=0;i<40;i++){x.beginPath();x.arc(r()*w,r()*w,1.5+r()*3,0,7);x.fill()}}),
   hazard:()=>canvasTex('hz',128,128,(x,w)=>{x.fillStyle='#ffcf3d';x.fillRect(0,0,w,w);x.fillStyle='#24163f';for(let i=-2;i<4;i++){x.beginPath();x.moveTo(i*64,0);x.lineTo(i*64+32,0);x.lineTo(i*64+160,128);x.lineTo(i*64+128,128);x.fill()}}),
   word:(t,bg,fg)=>{const k='wd'+t+bg+fg;const tex=canvasTex(k,512,128,(x,w,h)=>{x.fillStyle=bg;x.fillRect(0,0,w,h);x.font='700 84px Fredoka, Arial Rounded MT Bold, sans-serif';x.textAlign='center';x.textBaseline='middle';x.lineWidth=12;x.strokeStyle='#24163f';x.strokeText(t,w/2,h/2+4);x.fillStyle=fg;x.fillText(t,w/2,h/2+4)});tex.wrapS=tex.wrapT=THREE.ClampToEdgeWrapping;return tex}
@@ -669,6 +731,26 @@ function boxGeo(w,h,d,tile){
   const g=new THREE.BoxGeometry(w,h,d);if(!tile)return g;
   const uv=g.attributes.uv,dims=[[d,h],[d,h],[w,d],[w,d],[w,h],[w,h]];
   for(let f=0;f<6;f++)for(let i=0;i<4;i++){const k=f*4+i;uv.setXY(k,uv.getX(k)*dims[f][0]/tile,uv.getY(k)*dims[f][1]/tile)}
+  return g;
+}
+// The same box with its edges and corners rounded off (top graphics setting only). The collider is still the plain box, so
+// the picture sits a hair inside the hitbox at the edges and nothing about how it plays changes.
+function roundBoxGeo(w,h,d,tile){
+  const hs=[w/2,h/2,d/2],r=Math.min(.16,Math.min(w,h,d)*.22),pos=[],nor=[],uv=[],idx=[];
+  // each face: the axis it faces along, its sign, and the two axes across it (u, v) with the way v runs, to match BoxGeometry
+  for(const [n,sg,a,b,ua,vb] of [[0,1,2,1,-1,1],[0,-1,2,1,1,1],[1,1,0,2,1,-1],[1,-1,0,2,1,1],[2,1,0,1,1,1],[2,-1,0,1,-1,1]]){
+    const ga=[-hs[a],-hs[a]+r,hs[a]-r,hs[a]],gb=[-hs[b],-hs[b]+r,hs[b]-r,hs[b]],base=pos.length/3;
+    for(let j=0;j<4;j++)for(let i=0;i<4;i++){
+      const p=[0,0,0];p[n]=sg*hs[n];p[a]=ga[i];p[b]=gb[j];
+      const q=p.map((v,k)=>clamp(v,-(hs[k]-r),hs[k]-r)),dx=p[0]-q[0],dy=p[1]-q[1],dz=p[2]-q[2],l=Math.hypot(dx,dy,dz)||1;
+      pos.push(q[0]+dx/l*r,q[1]+dy/l*r,q[2]+dz/l*r);nor.push(dx/l,dy/l,dz/l);
+      const u=(ua>0?ga[i]+hs[a]:hs[a]-ga[i]),v=(vb>0?gb[j]+hs[b]:hs[b]-gb[j]);uv.push(tile?u/tile:u/(2*hs[a]),tile?v/tile:v/(2*hs[b]));
+    }
+    // which way round the triangles go depends on the face, so that every one faces outward
+    const e=[0,0,0],f=[0,0,0];e[a]=1;f[b]=1;const cr=[e[1]*f[2]-e[2]*f[1],e[2]*f[0]-e[0]*f[2],e[0]*f[1]-e[1]*f[0]],out=cr[n]*sg>0;
+    for(let j=0;j<3;j++)for(let i=0;i<3;i++){const p0=base+j*4+i,p1=p0+1,p2=p0+4,p3=p2+1;if(out)idx.push(p0,p1,p3,p0,p3,p2);else idx.push(p0,p3,p1,p0,p2,p3)}
+  }
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('normal',new THREE.Float32BufferAttribute(nor,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));g.setIndex(idx);
   return g;
 }
 function cylGeo(r,h,seg,tile){
@@ -1092,8 +1174,8 @@ function pivot(fn){const P=new V3(),Q=new QT();return(lp,lq)=>{const L=new V3(lp
 const B={
   add(m,cast){m.castShadow=!!cast&&gfx==='high';m.receiveShadow=gfx==='high';Lvl.group.add(m);return m},
   shape(kind,o){
-    const geo=kind==='box'?boxGeo(o.s[0],o.s[1],o.s[2],o.tile||(o.tex?1:0)):kind==='cyl'?cylGeo(o.r,o.h,o.seg||32,o.tile||(o.tex?1:0)):new THREE.SphereGeometry(o.r,o.seg||24,16);
-    const m=new THREE.Mesh(geo,o.mat||mat(o.c||C.white,o.tex||null));B.add(m,o.cast!==false&&(o.dyn||o.castS));
+    const geo=kind==='box'?(gfx==='high'&&!o.mat&&Math.min(o.s[0],o.s[1],o.s[2])>=.4?roundBoxGeo:boxGeo)(o.s[0],o.s[1],o.s[2],o.tile||(o.tex?1:0)):kind==='cyl'?cylGeo(o.r,o.h,o.seg||32,o.tile||(o.tex?1:0)):new THREE.SphereGeometry(o.r,o.seg||24,16);
+    const m=new THREE.Mesh(geo,o.mat||mat(o.c||C.white,o.tex||null,o.hit&&o.tex?{emissive:'#ffffff',emissiveMap:o.tex,emissiveIntensity:.22}:undefined));B.add(m,o.cast!==false&&(o.dyn||o.castS));
     if(o.col===false){if(o.p)m.position.set(o.p[0],o.p[1],o.p[2]);if(o.q)m.quaternion.copy(o.q);else m.rotation.set(o.rx||0,o.ry||0,o.rz||0,'YXZ');if(o.dyn){const c={pos:m.position,quat:m.quaternion};o.dyn(0,c);Lvl.anims.push(t=>o.dyn(t,c))}return m}
     const c=makeCol(Object.assign({type:kind},o));c.mesh=m;
     if(c.dyn){Lvl.dyn.push(c);c.dyn(0,c);basis(c.quat,c.m);c.ppos.copy(c.pos);c.pm.set(c.m)}
@@ -1104,7 +1186,7 @@ const B={
 };
 function syncLevelMeshes(t,dt){for(const c of Lvl.dyn){c.mesh.position.copy(c.pos);c.mesh.quaternion.copy(c.quat);c.mesh.visible=c.active||!!c.showOff}for(const f of Lvl.anims)f(t,dt)}
 // a platform with its top at y, from z0 to z1 (either order), width w centred on x
-function pad(x,y,z0,z1,w,c,o){const d=Math.abs(z0-z1),th=(o&&o.th)||1.2;return B.box(Object.assign({p:[x,y-th/2,(z0+z1)/2],s:[w,th,d],tex:TX.foam(c),tile:2},o||{}))}
+function pad(x,y,z0,z1,w,c,o){const d=Math.abs(z0-z1),th=(o&&o.th)||1.2;if(THEME.pad&&THEME.pad[c])c=THEME.pad[c];return B.box(Object.assign({p:[x,y-th/2,(z0+z1)/2],s:[w,th,d],tex:TX.foam(c),tile:2},o||{}))}
 function arch(z,y,w,label,c1,c2){
   for(const s of [-1,1])B.box({p:[s*(w/2+.5),y+2.6,z],s:[1,5.2,1],tex:TX.stripes(c1,C.white),tile:1.2,castS:true});
   B.box({p:[0,y+5.6,z],s:[w+2.2,1.4,1.1],c:c1,col:false});
@@ -1117,28 +1199,35 @@ function finishPad(z0,z1,y,w){
   B.box({p:[0,y-.6,(z0+z1)/2],s:[w,1.2,Math.abs(z1-z0)],tex:TX.checker('#ffffff','#24163f'),tile:2});
   const az=z0-3;arch(az,y,w-2,'FINISH',C.yel,'#24163f');
   B.zone({type:'fin',min:[-w/2-1,y-2,Math.min(z1,az)-4],max:[w/2+1,y+12,az-.2]});
+  {const cm=new THREE.MeshBasicMaterial({color:0xffd23f,transparent:true,opacity:.3,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,fog:false}),cur=new THREE.Mesh(new THREE.PlaneGeometry(w-2,4.9),cm);
+    cur.userData.own=true;cur.position.set(0,y+2.45,az);B.add(cur);cur.castShadow=false;cur.receiveShadow=false;
+    const bm=new THREE.MeshBasicMaterial({color:0xfff0a0,transparent:true,opacity:.34,blending:THREE.AdditiveBlending,depthWrite:false,fog:false});
+    for(const sx of [-1,1]){const b2=new THREE.Mesh(new THREE.CylinderGeometry(.5,.9,46,10,1,true),bm);b2.position.set(sx*(w/2-.5),y+29,az);B.add(b2);b2.castShadow=false;b2.receiveShadow=false;if(sx>0)b2.userData.own=true}
+    Lvl.anims.push(t=>{cm.opacity=.24+.1*Math.sin(t*4);bm.opacity=.28+.1*Math.sin(t*2.2)})}
   // a few bouncy balloons at the edges
   for(const s of [-1,1])for(let i=0;i<3;i++){const m=new THREE.Mesh(new THREE.SphereGeometry(.7,16,12),mat(i%2?C.pink:C.cyan));m.position.set(s*(w/2-.6),y+6.5+i*.9,az-2-i*2.5);B.add(m)}
   return az;
 }
 function checkpoint(idx,z0,z1,x0,x1,y,spawns){
   B.zone({type:'cp',idx,min:[x0,y-1.5,Math.min(z0,z1)],max:[x1,y+6,Math.max(z0,z1)],spawns});
+  {const sm=new THREE.MeshBasicMaterial({color:0x6cf23c,transparent:true,opacity:.6,depthWrite:false}),st=new THREE.Mesh(new THREE.PlaneGeometry(x1-x0-1.4,.4).rotateX(-Math.PI/2),sm);
+    st.userData.own=true;st.position.set((x0+x1)/2,y+.03,Math.max(z0,z1)-.5);B.add(st);st.castShadow=false;st.receiveShadow=false;Lvl.anims.push(t=>{sm.opacity=.5+.25*Math.sin(t*3)})}
   for(const x of [x0+.4,x1-.4]){B.cyl({p:[x,y+1.4,Math.max(z0,z1)-.5],r:.12,h:2.8,c:C.white,col:false});const f=new THREE.Mesh(new THREE.PlaneGeometry(1.1,.7),new THREE.MeshLambertMaterial({color:C.lime,side:THREE.DoubleSide}));f.userData.own=true;f.position.set(x+(x<0?.55:-.55),y+2.4,Math.max(z0,z1)-.5);B.add(f);Lvl.anims.push(t=>{f.rotation.y=Math.sin(t*3+x)*.25})}
 }
 function slime(y,fn){
-  const t=TX.slime().clone();t.needsUpdate=true;t.repeat.set(70,70);
-  const m=new THREE.Mesh(new THREE.PlaneGeometry(700,700),new THREE.MeshLambertMaterial({map:t,emissive:0x3a0a60,emissiveIntensity:.2}));m.userData.own=true;
-  m.rotation.x=-Math.PI/2;m.position.y=y;B.add(m);Lvl.anims.push(tt=>{t.offset.set(tt*.004,tt*.007);m.position.y=(fn?fn(tt):y)+Math.sin(tt*.8)*.08});
+  const th=THEME,t=new THREE.CanvasTexture(slimeCv);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=4;t.repeat.set(96,96);
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(1200,1200),new THREE.MeshLambertMaterial({map:t,emissive:th.slime[0],emissiveIntensity:th.glow}));m.userData.own=true;
+  m.rotation.x=-Math.PI/2;m.position.y=y;B.add(m);m.castShadow=false;Lvl.anims.push(tt=>{t.offset.set(tt*.004,tt*.007);m.position.y=(fn?fn(tt):y)+Math.sin(tt*.8)*.08});
   return m;
 }
 function scenery(seed,cx,cz,spread){
   const r=rng(seed);
   for(let i=0;i<14;i++){
-    const a=r()*Math.PI*2,d=spread+20+r()*60,x=cx+Math.cos(a)*d,z=cz+Math.sin(a)*d,s=3+r()*7,y=-4+r()*22,col=pick2(r,[C.pink,C.cyan,C.yel,C.lime,C.vio,C.org]);
-    const isl=new THREE.Mesh(new THREE.CylinderGeometry(s,s*.35,s*.9,7),mat(shade(col,-.12)));isl.position.set(x,y,z);B.add(isl);const cap=new THREE.Mesh(new THREE.CylinderGeometry(s*1.04,s*1.04,s*.18,7),mat(r()<.5?'#8fe36b':'#fff3c4'));cap.position.set(x,y+s*.5,z);B.add(cap);
-    if(r()<.5){const ball=new THREE.Mesh(new THREE.SphereGeometry(s*.42,14,10),mat(r()<.5?C.pink:C.yel));ball.position.set(x,y+s*.95,z);B.add(ball)}
+    const a=r()*Math.PI*2,d=spread+20+r()*60,x=cx+Math.cos(a)*d,z=cz+Math.sin(a)*d,s=3+r()*7,y=-4+r()*22,col=mixc(pick2(r,[C.pink,C.cyan,C.yel,C.lime,C.vio,C.org]),THEME.fog,.3);
+    const isl=new THREE.Mesh(new THREE.CylinderGeometry(s,s*.35,s*.9,7),mat(shade(col,-.12)));isl.position.set(x,y,z);B.add(isl);const cap=new THREE.Mesh(new THREE.CylinderGeometry(s*1.04,s*1.04,s*.18,7),mat(mixc(r()<.5?'#8fe36b':'#fff3c4',THEME.fog,.25)));cap.position.set(x,y+s*.5,z);B.add(cap);
+    if(r()<.5){const ball=new THREE.Mesh(new THREE.SphereGeometry(s*.42,14,10),mat(mixc(r()<.5?C.pink:C.yel,THEME.fog,.25)));ball.position.set(x,y+s*.95,z);B.add(ball)}
   }
-  for(let i=0;i<6;i++){const a=r()*Math.PI*2,d=spread+30+r()*50,ring=new THREE.Mesh(new THREE.TorusGeometry(5+r()*4,.8,10,28),mat(pick2(r,[C.pink,C.yel,C.cyan])));ring.position.set(cx+Math.cos(a)*d,10+r()*14,cz+Math.sin(a)*d);ring.rotation.set(r()*.6,r()*3,0);B.add(ring);const sp=.2+r()*.3;Lvl.anims.push(t=>{ring.rotation.y+=.004*sp})}
+  for(let i=0;i<6;i++){const a=r()*Math.PI*2,d=spread+30+r()*50,ring=new THREE.Mesh(new THREE.TorusGeometry(5+r()*4,.8,10,28),mat(mixc(pick2(r,[C.pink,C.yel,C.cyan]),THEME.fog,.3)));ring.position.set(cx+Math.cos(a)*d,10+r()*14,cz+Math.sin(a)*d);ring.rotation.set(r()*.6,r()*3,0);B.add(ring);const sp=.2+r()*.3;Lvl.anims.push(t=>{ring.rotation.y+=.004*sp})}
 }
 function pick2(r,a){return a[Math.floor(r()*a.length)]}
 // path node helper: [x,y,z], options
@@ -1147,7 +1236,7 @@ const N=(x,y,z,o)=>Object.assign({p:new V3(x,y,z)},o||{});
 // ---------- the levels ----------
 const LEVELS=[];
 // 1. Whirligig Way: spinning discs, hammers, conveyor belts
-LEVELS.push({id:'whirl',name:'Whirligig Way',kind:'race',time:150,desc:'Ride the spinning discs, slip past the swinging hammers and run up the belts the wrong way.',build(seed){
+LEVELS.push({id:'whirl',name:'Whirligig Way',kind:'race',time:150,theme:'day',desc:'Ride the spinning discs, slip past the swinging hammers and run up the belts the wrong way.',build(seed){
   const spawns=startPad(16);slime(-5);scenery(seed,0,-60,40);
   const disc=(z,r,w,c,extra)=>{
     const piv=pivot((t,P,Q)=>{P.set(0,-.5,z);Q.setFromAxisAngle(UP,t*w)});
@@ -1200,7 +1289,7 @@ LEVELS.push({id:'whirl',name:'Whirligig Way',kind:'race',time:150,desc:'Ride the
 }});
 
 // 2. Teeter Tide: seesaws that tip toward whoever stands on them
-LEVELS.push({id:'teeter',name:'Teeter Tide',kind:'race',time:150,desc:'Seesaws over the slime tip toward wherever the crowd stands. Spread out, or ride the slope down.',build(seed){
+LEVELS.push({id:'teeter',name:'Teeter Tide',kind:'race',time:150,theme:'lagoon',desc:'Seesaws over the slime tip toward wherever the crowd stands. Spread out, or ride the slope down.',build(seed){
   const spawns=startPad(16);slime(-5);scenery(seed,0,-55,40);
   const saws=[];
   const saw=(x,zc,w,len,c)=>{
@@ -1244,7 +1333,7 @@ LEVELS.push({id:'teeter',name:'Teeter Tide',kind:'race',time:150,desc:'Seesaws o
 }});
 
 // 3. Gatecrash Gauntlet: walls of doors (some are fake) and sliding blocks
-LEVELS.push({id:'gates',name:'Gatecrash Gauntlet',kind:'race',time:150,desc:'Every wall has doors that burst open and doors that are painted on. Pick fast, and mind the sliding blocks.',build(seed){
+LEVELS.push({id:'gates',name:'Gatecrash Gauntlet',kind:'race',time:150,theme:'candy',desc:'Every wall has doors that burst open and doors that are painted on. Pick fast, and mind the sliding blocks.',build(seed){
   const r=rng(seed^0x51ed);const spawns=startPad(20);slime(-5);scenery(seed,0,-55,40);
   pad(0,0,-2,-136,20,C.mint,{tex:TX.checker('#d8fbe6','#c2f2d6'),tile:4});
   for(const s of [-1,1])B.box({p:[s*10.3,.6,-69],s:[.6,1.2,134],tex:TX.stripes(C.pink,C.white),tile:1.2});
@@ -1282,7 +1371,7 @@ LEVELS.push({id:'gates',name:'Gatecrash Gauntlet',kind:'race',time:150,desc:'Eve
 }});
 
 // 4. Springboard Skyway: bounce pads, moving platforms, a fan updraft
-LEVELS.push({id:'spring',name:'Springboard Skyway',kind:'race',time:150,desc:'Bounce up to the sky lanes, hop across the drifting platforms and ride the fan updraft over the gap.',build(seed){
+LEVELS.push({id:'spring',name:'Springboard Skyway',kind:'race',time:150,theme:'skyhigh',desc:'Bounce up to the sky lanes, hop across the drifting platforms and ride the fan updraft over the gap.',build(seed){
   const spawns=startPad(14);slime(-5);scenery(seed,0,-55,40);
   pad(0,0,-2,-10,14,C.cyan);
   const bpad=(x,y,z,v,bv)=>{B.cyl({p:[x,y-.25,z],r:1.5,h:.5,c:C.navy,seg:24});B.cyl({p:[x,y+.12,z],r:1.25,h:.24,tex:TX.rings(C.lime,C.yel),bounce:v,bvec:bv,seg:24});};
@@ -1323,7 +1412,7 @@ LEVELS.push({id:'spring',name:'Springboard Skyway',kind:'race',time:150,desc:'Bo
 }});
 
 // 5. Swingset Straits: narrow bridges under swinging wrecking balls
-LEVELS.push({id:'swing',name:'Swingset Straits',kind:'race',time:150,desc:'Narrow bridges with giant swinging balls. Watch the rhythm, then go.',build(seed){
+LEVELS.push({id:'swing',name:'Swingset Straits',kind:'race',time:150,theme:'sunset',desc:'Narrow bridges with giant swinging balls. Watch the rhythm, then go.',build(seed){
   const spawns=startPad(14);slime(-5);scenery(seed,0,-50,40);
   const pend=(x,z,L,amp,w,ph,c,axis)=>{
     const pv=pivot((t,P,Q)=>{P.set(x,L+1.2,z);Q.setFromAxisAngle(axis||AXZ,Math.sin(t*w+ph)*amp)});
@@ -1402,10 +1491,10 @@ function sweeperLevel(def,isFinal){
 function addColGrid(c){const cs=World.cell,ext=c.type===0?Math.abs(c.m[0])*c.hx+Math.abs(c.m[3])*c.hy+Math.abs(c.m[6])*c.hz:c.br,ez=c.type===0?Math.abs(c.m[2])*c.hx+Math.abs(c.m[5])*c.hy+Math.abs(c.m[8])*c.hz:c.br;
   const x0=Math.floor((c.pos.x-ext)/cs),x1=Math.floor((c.pos.x+ext)/cs),z0=Math.floor((c.pos.z-ez)/cs),z1=Math.floor((c.pos.z+ez)/cs);
   for(let i=x0;i<=x1;i++)for(let k=z0;k<=z1;k++){const key=i*100003+k;let a=World.grid.get(key);if(!a){a=[];World.grid.set(key,a)}a.push(c)}}
-LEVELS.push(sweeperLevel({id:'dish',name:'Whirlwind Dish',kind:'survival',time:75,desc:'Jump the low beam, stay on the ground as the high one swings over, and keep off the tiles that start to shake.'},false));
+LEVELS.push(sweeperLevel({id:'dish',name:'Whirlwind Dish',kind:'survival',time:75,theme:'morning',desc:'Jump the low beam, stay on the ground as the high one swings over, and keep off the tiles that start to shake.'},false));
 
 // 7. Gap Rush: walls with gaps sweep across the platform toward the edge
-LEVELS.push({id:'rush',name:'Gap Rush',kind:'survival',time:80,desc:'Walls slide in from the far side. Find the gap before one shoves you off the back.',build(seed){
+LEVELS.push({id:'rush',name:'Gap Rush',kind:'survival',time:80,theme:'neon',desc:'Walls slide in from the far side. Find the gap before one shoves you off the back.',build(seed){
   const r=rng(seed^0x99);slime(-5);scenery(seed,0,0,20);
   pad(0,0,15,-15,22,C.mint,{tex:TX.checker('#d8fbe6','#bff0d2'),tile:4});
   for(const s of [-1,1])B.box({p:[s*11.3,.3,0],s:[.6,.6,30],c:C.white});
@@ -1428,7 +1517,7 @@ LEVELS.push({id:'rush',name:'Gap Rush',kind:'survival',time:80,desc:'Walls slide
 }});
 
 // 8. Honeycomb Havoc (final): three floors of hexagon tiles that vanish after you touch them
-LEVELS.push({id:'hex',name:'Honeycomb Havoc',kind:'final',time:240,desc:'Every tile you touch lights up and vanishes a moment later. Fall through all three floors and you are out. Last one standing wins the crown.',build(seed,np){
+LEVELS.push({id:'hex',name:'Honeycomb Havoc',kind:'final',time:240,theme:'honey',desc:'Every tile you touch lights up and vanishes a moment later. Fall through all three floors and you are out. Last one standing wins the crown.',build(seed,np){
   slime(-26);scenery(seed,0,0,18);
   const S=1.22,RG=(np||8)>10?7:(np||8)>5?6:5,LY=[0,-7.5,-15],COLS=[[C.pink,'#ffd0e4'],[C.cyan,'#d4f3ff'],[C.yel,'#fff1b8']];
   const tiles=[],geo=new THREE.CylinderGeometry(S*.97,S*.97,.5,6);geo.rotateY(Math.PI/6);
@@ -1464,7 +1553,7 @@ LEVELS.push({id:'hex',name:'Honeycomb Havoc',kind:'final',time:240,desc:'Every t
   return{spawns,yaw:0,kill:-24,tiles,tickTiles,hex:true,DELAY,layers:LY};
 }});
 // 9. Last Spin (final): the sweeper on a floor that shrinks from the outside in
-LEVELS.push(sweeperLevel({id:'spin',name:'Last Spin',kind:'final',time:240,desc:'The sweepers speed up and the floor shrinks from the edge. Last one standing wins the crown.'},true));
+LEVELS.push(sweeperLevel({id:'spin',name:'Last Spin',kind:'final',time:240,theme:'dusk',desc:'The sweepers speed up and the floor shrinks from the edge. Last one standing wins the crown.'},true));
 
 // =====================================================================
 //  More rounds. New rounds are only ever added after the old ones, so the
@@ -1794,7 +1883,7 @@ LEVELS.push({id:'tide',name:'High Tide Hill',kind:'final',time:200,theme:'dusk',
 }});
 
 // the lobby yard (also the menu backdrop) and the podium
-const YARD={id:'yard',name:'Warm-up Yard',kind:'lobby',time:0,desc:'',build(seed){
+const YARD={id:'yard',name:'Warm-up Yard',kind:'lobby',theme:'day',time:0,desc:'',build(seed){
   slime(-5);scenery(3,0,0,24);
   pad(0,0,16,-16,32,C.mint,{tex:TX.checker('#bff0ff','#9ee3fb'),tile:4});
   for(const s of [-1,1]){B.box({p:[s*16.3,.4,0],s:[.6,.8,32],tex:TX.stripes(C.pink,C.white),tile:1.2});B.box({p:[0,.4,s*16.3],s:[33.2,.8,.6],tex:TX.stripes(C.pink,C.white),tile:1.2})}
@@ -1813,7 +1902,7 @@ const YARD={id:'yard',name:'Warm-up Yard',kind:'lobby',time:0,desc:'',build(seed
   const spawns=[];for(let k=0;k<16;k++){const a=k/16*Math.PI*2;spawns.push([Math.cos(a)*3.5+2,.05,Math.sin(a)*3.5,0])}
   return{spawns,yaw:Math.PI,kill:-5,lobby:true};
 }};
-const PODIUM={id:'podium',name:'The Crown Stage',kind:'podium',time:0,desc:'',build(){
+const PODIUM={id:'podium',name:'The Crown Stage',kind:'podium',theme:'honey',time:0,desc:'',build(){
   slime(-5);scenery(9,0,0,16);
   pad(0,0,10,-10,22,C.vio,{tex:TX.checker('#efe4ff','#dccbff'),tile:3});
   B.box({p:[0,1.1,-2],s:[3,2.2,3],tex:TX.foam(C.yel),tile:1.5});B.box({p:[-3.4,.65,-1.6],s:[3,1.3,3],tex:TX.foam('#d9dde8'),tile:1.5});B.box({p:[3.4,.4,-1.4],s:[3,.8,3],tex:TX.foam(C.org),tile:1.5});
@@ -2106,7 +2195,7 @@ function placeAt(e,sp,yaw){e.b.pos.set(sp[0],sp[1],sp[2]);e.b.vel.set(0,0,0);e.b
 // ---------- loading a level ----------
 function levelDef(i){return i==='yard'?YARD:i==='podium'?PODIUM:LEVELS[i]}
 function loadLevel(i,seed){
-  resetLevel();const def=levelDef(i);
+  resetLevel();const def=levelDef(i);applyTheme(def.theme);
   const L=def.build(seed|0,G.rs&&G.rs.pl?G.rs.pl.length:8);L.def=def;L.idx=i;G.L=L;World.killY=L.kill;G.physT=0;ghosts.clear();collectBlockers();
   if(def.kind==='podium'){Music.set('menu')}else if(def.kind==='lobby')Music.set(G.mode==='menu'?'menu':'lobby');else Music.set(def.kind==='final'?'final':'race');
   return L;
@@ -2814,7 +2903,7 @@ function updateCamera(dt){
   if(shake>0){shake-=dt;camera.position.x+=rand(-1,1)*shake*.3;camera.position.y+=rand(-1,1)*shake*.3}
   camera.lookAt(camT);moveSun(camT.x,camT.y,camT.z);
 }
-function moveSun(x,y,z){sun.position.set(x+18,y+40,z+12);sun.target.position.set(x,y,z)}
+function moveSun(x,y,z){const d=THEME.sun[2];sun.position.set(x+d[0],y+d[1],z+d[2]);sun.target.position.set(x,y,z)}
 function flyCam(L,rt){
   const u=clamp((rt+8.6)/5.4,0,1);
   if(L.path){const P=L.path,n=P.length-1,s=(1-u)*n,i=Math.min(n-1,Math.floor(s)),k=s-i,a=P[i].p,b=P[i+1].p;
@@ -2841,7 +2930,7 @@ const FX=(()=>{
 })();
 const CONF=['#ff4f9a','#ffcf3d','#2ec5ff','#6fdc4a','#8a5cff','#ffffff','#ff8a3d'];
 function confettiBurst(pos,n){for(let i=0;i<n;i++)FX.spawn(_tmpV.set(pos.x,pos.y+1.5,pos.z),new V3(rand(-4,4),rand(4,10),rand(-4,4)),pick(CONF),rand(1.5,3),1)}
-function splash(pos){for(let i=0;i<22;i++)FX.spawn(_tmpV.set(pos.x,Math.max(pos.y,G.L?G.L.kill:pos.y)+.2,pos.z),new V3(rand(-3,3),rand(5,10),rand(-3,3)),i%2?'#c060ff':'#ff7ae8',rand(.6,1.1),2.2)}
+function splash(pos){for(let i=0;i<22;i++)FX.spawn(_tmpV.set(pos.x,Math.max(pos.y,G.L?G.L.kill:pos.y)+.2,pos.z),new V3(rand(-3,3),rand(5,10),rand(-3,3)),i%2?THEME.slime[0]:THEME.slime[1],rand(.6,1.1),2.2)}
 let confT=0;
 function podiumConfetti(dt){confT-=dt;if(confT>0)return;confT=.05;for(let i=0;i<3;i++)FX.spawn(_tmpV.set(rand(-8,8),9,rand(-6,4)),new V3(rand(-1,1),rand(-1,0),rand(-1,1)),pick(CONF),rand(3,5),1)}
 
@@ -3075,6 +3164,7 @@ function step(dt,bg){
   whooshes(dt);
   FX.update(dt);
   updateCamera(dt);updateHud(dt);
+  sky.position.set(camera.position.x,0,camera.position.z);hills.position.set(camera.position.x,21,camera.position.z);
   if(!G.noRender)renderer.render(scene,camera);
 }
 
