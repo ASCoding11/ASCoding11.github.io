@@ -2149,7 +2149,11 @@ function demolish(v,a,send){
   addFeed((a?a.name:'Someone')+' demolished '+v.name,a?'t'+a.team:'');
   if(send&&online)Net.send({type:'demo',v:v.id,a:a?a.id:''});
 }
-const BUMP_SOFT=.72;
+// A bump is worked out from both cars' speeds as they were before any bump this step (c.bv, set in physStep), so two
+// cars on the same computer (you and a bot) each get their share whichever is handled first. The car that was hit
+// is pushed harder (BUMP_HIT times the usual push) than the one that did the hitting (BUMP_RAM), so ramming a car
+// shoves it away and you carry on; a head-on bump, where both did the hitting, is unchanged.
+const BUMP_SOFT=.72,BUMP_HIT=1.2,BUMP_RAM=.8;
 function carCar(a,o,now){
   if(a.demo>0||o.demo>0||o.active===false)return;
   _v1.subVectors(a.pos,o.pos);const d=_v1.length();
@@ -2160,11 +2164,13 @@ function carCar(a,o,now){
     if(a.vel.length()>=SUPER-1&&-_f.dot(_v1)>.55&&_v2.subVectors(a.vel,o.vel).dot(_v1)<-14&&!(o.demoGuard>now)){o.demoGuard=now+1500;demolish(o,a,true);return}
   }
   a.pos.addScaledVector(_v1,(2.3-d)*(o.remote?1:.5));
-  const rel=_v2.subVectors(o.vel,a.vel).dot(_v1);
+  const av=a.bv||a.vel,ov=o.bv||o.vel,rel=_v2.subVectors(ov,av).dot(_v1);
   if(rel>0){
+    // how much of the closing speed was the other car's doing: 1 = this car was hit, 0 = this car did the hitting
+    const hit=clamp(ov.dot(_v1)/rel,0,1),share=lerp(BUMP_RAM,BUMP_HIT,hit);
     // a soft bump moves a car a little less (BUMP_SOFT of the closing speed below 6, back up to .85 by 12)
-    a.vel.addScaledVector(_v1,rel*lerp(BUMP_SOFT,.85,clamp((rel-6)/6,0,1))+.4);
-    if(rel>9&&a.team!==o.team){a.vel.y+=Math.min(9,rel*.22);a.onGround=false}
+    a.vel.addScaledVector(_v1,rel*lerp(BUMP_SOFT,.85,clamp((rel-6)/6,0,1))*share+.4);
+    if(rel>9&&a.team!==o.team){a.vel.y+=Math.min(9,rel*.22)*lerp(.6,1,clamp(hit*2,0,1));a.onGround=false}
     if(rel>6&&(a===me||o===me))sfx('bump',a.pos,Math.min(1,rel/25));
   }
 }
@@ -3281,7 +3287,7 @@ function physStep(h,now,ph){
     const ev=stepCar(c,h,frozen);
     if(ev&&c===me)sfx(ev,null,ev==='land'?clamp((c.landImp-6)/16,0,1):undefined);
   }
-  if(!frozen)for(const a of locals)for(const o of cars)if(o!==a)carCar(a,o,now);
+  if(!frozen){for(const c of cars)(c.bv||(c.bv=new THREE.Vector3())).copy(c.vel);for(const a of locals)for(const o of cars)if(o!==a)carCar(a,o,now)}
   if(!ballHidden){
     const hit=stepBall(ball,h);
     if(hit>3)sfx('bounce',ball.pos,hit/25);
@@ -3358,7 +3364,7 @@ $('room').value=inv?inv[1]:store.get('room','')||'';
 $('name').value=myName;
 if(inv){setMsg('You were invited to room bb-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.remove('alt');$('quick').classList.add('alt')}
 
-if(navigator.webdriver)window.__bb={get fxTier(){return fxTier},get state(){return state},get mode(){return mode},get me(){return me},get cars(){return cars},ball,get R(){return R},set R(v){R=v},PADS,Net,stepCar,makeCar,newInput,stepBall,carBall,predictGoal,applyRound,onRemoteState,handleEvent,applyBallSnap,startLocal,setupAttract,keys,phaseOf,nowMs,
+if(navigator.webdriver)window.__bb={get fxTier(){return fxTier},get state(){return state},get mode(){return mode},get me(){return me},get cars(){return cars},ball,get R(){return R},set R(v){R=v},PADS,Net,stepCar,carCar,physStep,makeCar,newInput,stepBall,carBall,predictGoal,applyRound,onRemoteState,handleEvent,applyBallSnap,startLocal,setupAttract,keys,phaseOf,nowMs,
   get owner(){return owner},fast(sec){for(let i=0;i<sec*60;i++){warp+=1000/60;simulate(1/60,false)}},get lastTouchBt(){return lastTouchBt},setPaused:v=>{paused=v},camera,renderer,scene,toggleBallCam,touches:()=>touches,scoreGoal,remainingAt,demolish,botThink,
   // fixed-step driving for tests: manual(true) stops the real-time loop; advance() runs whole frames (physics, camera,
   // HUD, landing marker) at 60 Hz without drawing; render() draws one frame.
