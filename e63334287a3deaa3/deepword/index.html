@@ -747,9 +747,10 @@ function eye(g,x,y,r){g.fillStyle='#fff';disc(g,x,y,r);g.fillStyle='#0e1730';dis
 function halo(g,x,y,r,c,a){const gr=g.createRadialGradient(x,y,0,x,y,r);gr.addColorStop(0,rgba(c,a));gr.addColorStop(.4,rgba(c,a*.4));gr.addColorStop(1,rgba(c,0));g.fillStyle=gr;disc(g,x,y,r)} // baking only
 // Art: sprites drawn once. get() makes one w by h units with (0,0) in the middle, at the screen's pixel
 // density (res scales that for big soft things); raw() makes a plain w by h pixel canvas.
+const BMP=typeof createImageBitmap==='function';
 const Art={k:1.25,map:new Map(),
   reset(){this.k=DPR*1.25;this.map.clear()},
-  get(key,w,h,draw,res){let s=this.map.get(key);if(s)return s;const k=this.k*(res||1),c=document.createElement('canvas');c.width=Math.ceil(w*k);c.height=Math.ceil(h*k);const g=c.getContext('2d');g.setTransform(k,0,0,k,w*k/2,h*k/2);g.lineCap=g.lineJoin='round';draw(g);s={c,w,h};this.map.set(key,s);return s},
+  get(key,w,h,draw,res){let s=this.map.get(key);if(s)return s;const k=this.k*(res||1),c=document.createElement('canvas');c.width=Math.ceil(w*k);c.height=Math.ceil(h*k);const g=c.getContext('2d');g.setTransform(k,0,0,k,w*k/2,h*k/2);g.lineCap=g.lineJoin='round';draw(g);s={c,w,h};this.map.set(key,s);if(BMP)createImageBitmap(c).then(b=>{s.c=b}).catch(()=>{});return s},
   raw(key,w,h,draw){let c=this.map.get(key);if(c)return c;c=document.createElement('canvas');c.width=w;c.height=h;draw(c.getContext('2d'));this.map.set(key,c);return c}};
 function put(g,s,x,y){g.drawImage(s.c,x-s.w/2,y-s.h/2,s.w,s.h)}
 function putR(g,s,x,y,r){g.drawImage(s.c,x-r,y-r,r*2,r*2)}
@@ -763,7 +764,6 @@ const skySpr=()=>Art.raw('sky',4,128,g=>{const gr=g.createLinearGradient(0,0,0,1
 const raySpr=()=>Art.raw('ray',64,256,g=>{let gr=g.createLinearGradient(0,0,0,256);gr.addColorStop(0,'rgba(255,255,255,.9)');gr.addColorStop(.45,'rgba(255,255,255,.4)');gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.fillRect(0,0,64,256);
   g.globalCompositeOperation='destination-in';gr=g.createLinearGradient(0,0,64,0);gr.addColorStop(0,'rgba(0,0,0,0)');gr.addColorStop(.5,'rgba(0,0,0,1)');gr.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=gr;g.fillRect(0,0,64,256)});
 const shallowSpr=()=>Art.raw('shallow',4,64,g=>{const gr=g.createLinearGradient(0,0,0,64);gr.addColorStop(0,'rgba(210,250,255,.42)');gr.addColorStop(1,'rgba(210,250,255,0)');g.fillStyle=gr;g.fillRect(0,0,4,64)});
-const vigSpr=()=>Art.raw('vig',128,128,g=>{const gr=g.createRadialGradient(64,64,24,64,64,92);gr.addColorStop(0,'rgba(3,5,18,0)');gr.addColorStop(1,'rgba(3,5,18,.92)');g.fillStyle=gr;g.fillRect(0,0,128,128)});
 const dotSpr=()=>Art.raw('dot',16,16,g=>{const gr=g.createRadialGradient(8,8,0,8,8,8);gr.addColorStop(0,'rgba(232,242,255,1)');gr.addColorStop(.5,'rgba(232,242,255,.8)');gr.addColorStop(1,'rgba(232,242,255,0)');g.fillStyle=gr;g.fillRect(0,0,16,16)});
 const bubSpr=()=>Art.get('bub',16,16,g=>{g.fillStyle='rgba(255,255,255,.16)';disc(g,0,0,6.5);g.strokeStyle='rgba(255,255,255,.85)';g.lineWidth=1.2;g.beginPath();g.arc(0,0,6.5,0,TAU);g.stroke();g.fillStyle='rgba(255,255,255,.9)';disc(g,-2.4,-2.6,1.5)});
 const smokeSpr=()=>Art.get('smoke',64,64,g=>halo(g,0,0,32,'#3a3340',.8),.5);
@@ -797,7 +797,7 @@ const Sea={
     if(this.menu)x=W>=900?(W*.5-270)*.5:W*.3;
     else{const el=G.scene==='results'?$('results').firstElementChild:$('pcard'),r=el.getBoundingClientRect();
       if(r.width&&r.left>=150)x=r.left*.5;
-      else if(r.width&&H-r.bottom>=130)y=r.bottom+(H-r.bottom)*.5}
+      else if(r.width&&H-r.bottom>=84)y=r.bottom+(H-r.bottom)*.5}
     this.tx=x;this.ty=y;this.ww=clamp(W*.085,26,118);
     if(snap){this.ax=x;this.ay=y}
   },
@@ -809,7 +809,7 @@ const Sea={
     return grow*this.ww*(far?1.7:1)*(.55+.45*n+clamp((u-14.5)/3.5,0,1)*(far?1.3:.9));
   },
   walls(g,camY,far){
-    const p=far?.55:1,step=far?26:16,base=camY+this.ay,ay=this.ay; // the far wall slides past at about half speed
+    const p=far?.55:1,step=far?36:22,base=camY+this.ay,ay=this.ay; // the far wall slides past at about half speed
     if((base+(H+step-ay)/p)/H<.3)return;
     const gr=g.createLinearGradient(0,0,0,H);gr.addColorStop(0,rockAt(depthOfU((base-ay/p)/H),far));gr.addColorStop(1,rockAt(depthOfU((base+(H-ay)/p)/H),far));g.fillStyle=gr;
     for(let side=0;side<2;side++){
@@ -856,13 +856,11 @@ const Sea={
     // marine snow drifts down and streaks past when the diver sinks fast; nearer flakes pass quicker
     const dot=dotSpr(),HH=H+40,st=clamp(Math.abs(vy)/450,0,3);
     g.globalAlpha=clamp((d-120)/800,0,1)*.5+.14;
-    for(const s of this.snow){s.y+=s.v*dt;if(s.y>1)s.y-=1;let y=(s.y*HH-camY*(.55+s.r*.3))%HH;if(y<0)y+=HH;const r=s.r*1.3,x=s.x*W+Math.sin(t*.5+s.r*40)*5;g.drawImage(dot,x-r,y-20-r*(1+st),r*2,r*2*(1+st))}
+    for(let i=0;i<this.snow.length;i++){if(i%3===2)continue;const s=this.snow[i];s.y+=s.v*dt;if(s.y>1)s.y-=1;let y=(s.y*HH-camY*(.55+s.r*.3))%HH;if(y<0)y+=HH;const r=s.r*1.3,x=s.x*W+Math.sin(t*.5+s.r*40)*5;g.drawImage(dot,x-r,y-20-r*(1+st),r*2,r*2*(1+st))}
     g.globalAlpha=1;
     // living lights in the dark water (they twinkle by size, so no alpha changes)
     const mA=clamp((d-700)/700,0,1)*clamp((8200-d)/1500,0,1);
     if(mA>0){const sp=glowSpr(d<3600?'#7df5dc':'#c79bff');for(const m of this.motes){const R=(3+m.r*6)*Math.max(0,Math.sin(t*(.7+m.r)+m.ph))*mA;if(R<.8)continue;let y=(m.y*HH-camY*1.15)%HH;if(y<0)y+=HH;putR(g,sp,m.x*W+Math.sin(t*.3+m.ph)*14,y-20,R)}}
-    // the dark closing in, then the diver and the lamp on top of it
-    const va=clamp(d/200,0,1)*.16+clamp((d-200)/1400,0,1)*.5;if(va>.01){g.globalAlpha=va;g.drawImage(vigSpr(),0,0,W,H);g.globalAlpha=1}
     if(!this.menu)drawDiver(g,this,t,dt);
     home(g);
   }
@@ -911,7 +909,7 @@ const turtleSpr=()=>Art.get('turtle',96,52,g=>{
   g.save();shell();g.clip();g.fillStyle='rgba(232,186,110,.6)';[[-14,-6,6],[-2,-11,6.5],[10,-7,6],[-8,2,5],[5,1,5.5],[17,1,4]].forEach(q=>disc(g,q[0],q[1],q[2]));
   g.strokeStyle='#e6c27c';g.lineWidth=3;g.beginPath();g.moveTo(-26,6);g.quadraticCurveTo(0,10,24,3);g.stroke();g.restore();
 });
-const JELLY=['#ff9ecf','#b9a3ff','#8fa0ff','#d2405c'];
+const JELLY=['#ff9ecf','#b9a3ff','#8fa0ff','#d2405c'],JELLY_T=JELLY.map(c=>rgba(c,.7)),JELLY_A=JELLY.map(c=>rgba(liteA(c,.45),.85));
 const jellySpr=z=>Art.get('jelly'+z,64,56,g=>{
   const col=JELLY[z];if(z>=2)halo(g,0,-4,30,z===3?'#ff7f8f':'#9db4ff',.34);
   const bell=()=>{g.beginPath();g.moveTo(-20,7);g.bezierCurveTo(-21,-25,21,-25,20,7);g.quadraticCurveTo(15,2,10,7);g.quadraticCurveTo(5,2,0,7);g.quadraticCurveTo(-5,2,-10,7);g.quadraticCurveTo(-15,2,-20,7);g.closePath()};
@@ -1052,9 +1050,9 @@ function drawCreature(g,c,y,t,surfY){
       g.fillStyle='#3f9a68';g.beginPath();let a=2.1+f*.55;g.ellipse(13+Math.cos(a)*14,3+Math.sin(a)*14,16,5,a,0,TAU);a=2.7-f*.25;g.ellipse(-19+Math.cos(a)*8,5+Math.sin(a)*8,9,3.4,a,0,TAU);g.fill();
       put(g,turtleSpr(),0,0);
       g.fillStyle='#5fbf86';g.beginPath();a=1.9-f*.55;g.ellipse(11+Math.cos(a)*14,5+Math.sin(a)*14,17,5.5,a,0,TAU);g.fill();break}
-    case 'jelly':{const z=zi,p=Math.sin(t*1.5+c.ph),col=JELLY[z];at(g,x,yy-p*6,s*(1+p*.07),s*(1-p*.09),Math.sin(t*.6+c.ph)*.12);
-      g.strokeStyle=rgba(col,.7);g.lineWidth=1.6;g.beginPath();for(let i=0;i<5;i++){const tx=-14+i*7;g.moveTo(tx,5);g.quadraticCurveTo(tx+Math.sin(t*2.2+i)*7,20,tx+Math.sin(t*1.7+i+1)*5,33);g.quadraticCurveTo(tx+Math.sin(t*1.5+i+2)*8,44,tx+Math.sin(t*1.3+i+3)*9,54+(i%2)*8)}g.stroke();
-      g.strokeStyle=rgba(liteA(col,.45),.85);g.lineWidth=3.6;g.beginPath();g.moveTo(-4,5);g.quadraticCurveTo(-6+Math.sin(t*2+1)*4,16,-3+Math.sin(t*1.6)*5,27);g.moveTo(4,5);g.quadraticCurveTo(6+Math.sin(t*2.1)*4,15,4+Math.sin(t*1.5+2)*5,24);g.stroke();
+    case 'jelly':{const z=zi,p=Math.sin(t*1.5+c.ph);at(g,x,yy-p*6,s*(1+p*.07),s*(1-p*.09),Math.sin(t*.6+c.ph)*.12);
+      g.strokeStyle=JELLY_T[z];g.lineWidth=1.6;g.beginPath();for(let i=0;i<5;i++){const tx=-14+i*7;g.moveTo(tx,5);g.quadraticCurveTo(tx+Math.sin(t*2.2+i)*7,20,tx+Math.sin(t*1.7+i+1)*5,33);g.quadraticCurveTo(tx+Math.sin(t*1.5+i+2)*8,44,tx+Math.sin(t*1.3+i+3)*9,54+(i%2)*8)}g.stroke();
+      g.strokeStyle=JELLY_A[z];g.lineWidth=3.6;g.beginPath();g.moveTo(-4,5);g.quadraticCurveTo(-6+Math.sin(t*2+1)*4,16,-3+Math.sin(t*1.6)*5,27);g.moveTo(4,5);g.quadraticCurveTo(6+Math.sin(t*2.1)*4,15,4+Math.sin(t*1.5+2)*5,24);g.stroke();
       put(g,jellySpr(z),0,0);break}
     case 'ray':{const fl=Math.sin(t*2.6+c.ph)*9;at(g,x,yy,c.dir*s,s,-c.dir*fl*.006);
       g.strokeStyle='#3f5279';g.lineWidth=2;g.beginPath();g.moveTo(-24,1);g.quadraticCurveTo(-48,5,-72,-5+fl*.5);g.stroke();
@@ -1157,7 +1155,7 @@ function drawDiver(g,S,t,dt){
   const s=clamp(H/620,.82,1.25),x=S.ax,y=S.ay+Math.sin(t*1.7)*4,a=.16+S.tilt*.85+Math.sin(t*.9)*.04,k=S.kick,d=S.d;
   const torch=clamp((d-420)/480,0,1),ca=Math.cos(a),sa=Math.sin(a);
   if(torch>0){const b=beamSpr(),bx=x+(ca*30+sa*14)*s,by=y+(sa*30-ca*14)*s;g.globalCompositeOperation='lighter';g.globalAlpha=torch*.85;at(g,bx,by,s,s,a+.2);g.drawImage(b.c,0,-75,230,150);
-    home(g);g.globalAlpha=torch*.3;putR(g,glowSpr('#fff3c4'),x,y,120*s);g.globalAlpha=1;g.globalCompositeOperation='source-over'}
+    home(g);g.globalAlpha=torch*.34;putR(g,glowSpr('#fff3c4'),x,y,74*s);g.globalAlpha=1;g.globalCompositeOperation='source-over'}
   at(g,x,y,s,s,a);g.lineCap='round';g.lineJoin='round';g.lineWidth=7;
   const sw=Math.sin(k)*.42;
   g.strokeStyle='#c9563c';g.fillStyle='#2fb59a';limb(g,-15,-2,-.05-sw,-.05-sw*1.5+.1,12,12,Math.cos(k)*.5||.01); // far leg
