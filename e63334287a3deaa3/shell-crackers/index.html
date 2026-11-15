@@ -1631,6 +1631,11 @@ function placeTracer(tr){
   tr.m.position.copy(tr.a).addScaledVector(tr.dir,head-tr.len);tr.m.scale.set(tr.th,tr.th,tr.len);tr.m.material.opacity=.95*(k<.7?1:1-(k-.7)/.3*.6);
 }
 function updateTracers(dt){for(const t of tracers){if(!t.m.visible)continue;t.t+=dt;if(t.t>=t.d){t.m.visible=false;continue}placeTracer(t)}}
+// impact sparks: a small star where a shot lands on a block (a pool of sprites, shown for a few hundredths of a second)
+const sparks=[];for(let i=0;i<14;i++){const m=new THREE.Sprite(new THREE.SpriteMaterial({map:flashTex,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true,fog:false}));m.visible=false;scene.add(m);sparks.push({m,t:0})}
+let sparkI=0;
+function spark(pos,back){const k=sparks[sparkI=(sparkI+1)%sparks.length];k.t=.07;k.m.visible=true;k.m.position.copy(pos).addScaledVector(back,-.1);k.m.material.rotation=Math.random()*6;k.m.material.opacity=1;k.m.scale.setScalar(.3)}
+function updateSparks(dt){for(const k of sparks){if(!k.m.visible)continue;k.t-=dt;if(k.t<=0){k.m.visible=false;continue}const p=1-k.t/.07;k.m.scale.setScalar(.3+p*.3);k.m.material.opacity=1-p*p}}
 // explosion flashes
 const booms=[];const boomGeo=new THREE.SphereGeometry(1,16,12);
 function spawnBoom(pos){
@@ -1733,7 +1738,7 @@ function fireShot(e){
       let dmg=w.dmg*(he.head?w.head:1)*falloff(w,t);if(e.isBot)dmg*=DIFF[diffKey].dmg;
       prev.dmg+=dmg;prev.head=prev.head||he.head;hits.set(he.e,prev);
       emit(_hp,0xffc93c,he.head?6:3,4,.05,.45,12);emit(_hp,he.e.color?new THREE.Color(he.e.color).getHex():0xffffff,2,3,.05,.5,12);
-    }else if(t<maxT-.1){emit(_hp,0xd9cbb0,3,2.5,.05,.5,8,.4)}
+    }else if(t<maxT-.1){emit(_hp,0xd9cbb0,3,2.5,.05,.5,8,.4);spark(_hp,_d)}
   }
   for(const [t,h] of hits)hitTarget(e,t,h.dmg,h.head,e.wkey);
   if(rng)Range.shot(anyHit,anyHead);
@@ -3094,7 +3099,7 @@ function step(dt){
     endTimer-=dt;$('endMsg').textContent=endTimer>0?'Next match starts in '+Math.ceil(endTimer)+'…':'Starting…';
     if(endTimer<=0&&endTimer>-dt*1.5)Net.rematch();
   }
-  updateParts(dt);updateShards(dt);updateSplats(dt);updateTracers(dt);updateBooms(dt);
+  updateParts(dt);updateShards(dt);updateSplats(dt);updateTracers(dt);updateSparks(dt);updateBooms(dt);
   for(const c of clouds)c.rotation.y-=.007*dt;
   for(const e of ents)if(e.model)updateModel(e,dt);
   updateCamera(dt);
