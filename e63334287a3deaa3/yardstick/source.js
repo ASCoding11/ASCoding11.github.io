@@ -211,8 +211,8 @@ add({ id: 'lolong', name: 'Lolong the crocodile', cat: 'animals', axis: 'h', dim
     art: [smooth('560,-78 542,-96 516,-100 472,-130 432,-170 372,-200 300,-216 240,-212 200,-200 120,-152 50,-112 0,-94! 50,-94 120,-110 190,-122 212,-122! 202,-62 198,-20 192,0! 242,0! 246,-20 252,-62 272,-100! 320,-90 380,-84 402,-82! 398,-30 394,0! 434,0! 436,-30 442,-72! 462,-90 500,-84 532,-74 554,-70'),
       ...plates, poly('28,-100 10,-152 42,-106'), poly('58,-112 44,-166 72,-118')] });
 }
-add({ id: 'sue', name: 'Sue the T. rex', cat: 'animals', axis: 'h', dim: 'length', m: 12.3,
-  what: 'the Field Museum\'s Tyrannosaurus rex, snout to tail', note: '40 ft',
+add({ id: 'sue', name: 'Sue the T. rex', cat: 'animals', axis: 'h', dim: 'length', m: 12.3, lo: 12.3, hi: 12.8,
+  what: 'the Field Museum\'s Tyrannosaurus rex, snout to tail', note: 'about 40 ft; measured along the backbone she comes out at 12.3 to 12.8 m',
   src: W('Sue (dinosaur)'), fact: 'Sue stood about 13 ft tall at the hips, and more than 90% of the skeleton was recovered.',
   art: [smooth('1230,-332 1204,-374 1142,-394 1090,-390 1060,-372 1000,-392 900,-408 720,-402 560,-374 380,-338 200,-302 0,-262! 200,-278 380,-292 540,-292 592,-288 640,-252 700,-190 682,-140 674,-100 700,-40 716,-12 716,0! 824,0! 818,-14 772,-32 738,-90 734,-120 792,-170 842,-215 852,-260 862,-292! 920,-292 984,-300 1040,-312 1082,-318 1102,-300 1160,-292 1214,-300 1222,-312! 1170,-318 1112,-330! 1170,-336 1224,-328!') +
     circ(1150, -366, 7),
@@ -357,10 +357,10 @@ add({ id: 'grand-piano', name: 'Concert grand piano', cat: 'everyday', axis: 'h'
 
 // =====================================================================  BUILDINGS, LANDMARKS AND TWO VERY TALL TREES (units: metres)
 add({ id: 'brandenburg-gate', name: 'Brandenburg Gate', cat: 'buildings', axis: 'v', dim: 'height', m: 26,
-  what: 'the gate in Berlin, ground to the top of the chariot statue',
+  what: 'the gate in Berlin, ground to the top of the chariot statue', note: 'the stone gate alone is about 20 m; the statue on top makes up the rest',
   src: W('Brandenburg Gate'), fact: 'Its five passages were once ranked: only royalty could use the wide one in the middle.',
-  art: [...[0, 11.4, 22.8, 36.2, 47.6, 59].map(x => rect(x, -15, 3.4, 15)), rect(-1.2, -19, 64.8, 4), rect(5, -21.6, 52.4, 2.6), rect(17, -22.8, 28.4, 1.2),
-    smooth('21.5,-22.8! 22.4,-24.4 23.6,-25.0 24.8,-24.2 25.8,-24.6 26.8,-25.4 28.2,-24.6 29.6,-25.2 30.6,-26! 31.2,-26! 32.2,-25.2 33.6,-24.6 35,-25.4 36,-24.6 37,-24.2 38.2,-25.0 39.4,-24.4 40.5,-22.8!')] });
+  art: [...[0, 11.4, 22.8, 36.2, 47.6, 59].map(x => rect(x, -13.6, 3.4, 13.6)), rect(-1.2, -17.4, 64.8, 3.8), rect(5, -19.6, 52.4, 2.2), rect(17, -20.3, 28.4, 0.7),
+    smooth('21.5,-20.30! 22.4,-23.15 23.6,-24.22 24.8,-22.79 25.8,-23.51 26.8,-24.93 28.2,-23.51 29.6,-24.57 30.6,-26.00! 31.2,-26.00! 32.2,-24.57 33.6,-23.51 35,-24.93 36,-23.51 37,-22.79 38.2,-24.22 39.4,-23.15 40.5,-20.30!')] });
 add({ id: 'christ-redeemer', also: 28, name: 'Christ the Redeemer', cat: 'buildings', axis: 'v', dim: 'height', m: 30,
   what: 'the statue in Rio de Janeiro on its own, without its pedestal', note: 'the pedestal adds another 8 m',
   src: W('Christ the Redeemer (statue)'), fact: 'Its arms stretch 28 m from fingertip to fingertip, almost as wide as it is tall.',
@@ -417,7 +417,7 @@ add({ id: 'big-ben', name: 'Big Ben', cat: 'buildings', axis: 'v', dim: 'height'
     circ(0, -53.2, 4.2) + circ(0, -53.2, 3.5) + rect(-0.25, -56.2, 0.5, 3.0) + rect(0, -53.45, 2.2, 0.5) +
     [-4.6, -2.3, 0, 2.3, 4.6].map(x => rect(x - 0.55, -63.6, 1.1, 3.6)).join('') + [-3.6, -1.2, 1.2, 3.6].map(x => rect(x - 0.3, -44, 0.6, 38)).join('')] });
 add({ id: 'london-eye', ref: 1, name: 'London Eye', cat: 'buildings', axis: 'v', dim: 'height', m: 135,
-  what: 'the observation wheel on the Thames, ground to the top of the highest capsule',
+  what: 'the observation wheel on the Thames, ground to its highest point', note: 'the wheel itself is 120 m across',
   src: W('London Eye'), fact: 'One slow turn takes about half an hour, and it does not usually stop for people to get on.',
   art: [circ(0, -70, 60) + circ(0, -70, 57.4), circ(0, -70, 4.5),
     ...Array.from({ length: 16 }, (_, i) => { const a = i * 22.5, p1 = pol(0, -70, 3, a - 9), p2 = pol(0, -70, 3, a + 9), p3 = pol(0, -70, 58, a + 0.45), p4 = pol(0, -70, 58, a - 0.45); return poly([p1, p2, p3, p4]); }),
