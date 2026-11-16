@@ -88,8 +88,41 @@ details[open] summary::before{content:'− '}
 .kb-panel .btn{font-size:18px;padding:8px 16px}
 
 /* ---------- main menu ---------- */
-.menu-grid{display:grid;grid-template-columns:minmax(0,450px) minmax(0,400px);gap:20px;justify-content:center;align-items:start;max-width:900px;margin:0 auto}
-@media (max-width:900px){.menu-grid{grid-template-columns:minmax(0,520px)}}
+/* One card with a big Play. More opens a second card beside it (in its place on a narrow screen) holding the
+   other modes, your climber, the settings and the help, one tab at a time. */
+.menu-grid{display:grid;grid-template-columns:minmax(0,420px);gap:20px;justify-content:center;align-content:center;align-items:start;max-width:900px;min-height:100%;margin:0 auto}
+#menu.more .menu-grid{grid-template-columns:minmax(0,420px) minmax(0,420px)}
+@media (max-width:900px){#menu.more .menu-grid{grid-template-columns:minmax(0,520px)}#menu.more #mainCard{display:none}}
+.btn small{font-family:var(--f-b);font-weight:800;font-size:12px;color:var(--ink-2);margin-top:3px;letter-spacing:0;line-height:1.1}
+.btn.coral small{color:#fff5f2}
+.btn.play{flex-direction:column;gap:0;font-size:40px;line-height:1;padding:13px 18px 11px;letter-spacing:.04em;box-shadow:0 6px 0 var(--ink)}
+.btn.play:active:not(:disabled){transform:translateY(4px);box-shadow:0 2px 0 var(--ink)}
+.btn.play small{font-size:13px;margin-top:5px}
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.duo .btn{flex-direction:column;gap:0;padding:8px 8px;font-size:19px;white-space:normal;text-align:center;line-height:1.05}
+#roomBox{margin-top:10px}
+#roomBox .note{margin:6px 0 0}
+#menu .msg{min-height:0;margin:8px 0 0}
+#menu .msg:empty{display:none}
+.foot{display:flex;gap:10px;margin-top:14px;align-items:stretch}
+.you{flex:1;min-width:0;display:flex;align-items:center;gap:8px;border:3px solid var(--ink);border-radius:14px;background:#fff;box-shadow:0 4px 0 var(--ink);padding:5px 10px;font-weight:900;font-size:14px;text-align:left}
+.you:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
+.you>i{flex:0 0 auto;width:20px;height:20px;border-radius:7px;border:2.5px solid var(--ink)}
+.you>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.you em{font-style:normal;font-size:12.5px;color:var(--ink-2);white-space:nowrap}
+.you em b{color:var(--ink)}
+.more-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap-reverse;margin-bottom:14px}
+#moreTabs button{padding:6px 9px}
+body:not(.touch) .touchonly{display:none}
+/* a short, wide screen (a phone on its side): name on the left, buttons on the right, so Play shows without scrolling */
+@media (max-height:520px) and (min-width:620px){
+  #menu:not(.more) .menu-grid{grid-template-columns:minmax(0,640px)}
+  #menu:not(.more) #mainCard{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1fr);column-gap:20px;align-items:center;padding:14px 18px}
+  .hero .tag{margin-bottom:0}
+  .btn.play{font-size:32px;padding:9px 18px 8px}
+  .duo{margin-top:10px}.foot{margin-top:10px}
+  #roomBox .note{display:none}
+}
 .logo{display:flex;align-items:center;gap:12px;margin:-4px 0 2px}
 .logo svg{flex:0 0 auto;width:54px;height:78px}
 h1{font-family:var(--f-d);font-weight:400;font-size:clamp(46px,6.4vw,64px);line-height:.9;margin:0;letter-spacing:.02em}
@@ -104,8 +137,6 @@ h1 span{color:var(--coral)}
 .roomrow .field{flex:1}
 .solo{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .solo .btn{flex-direction:column;gap:0;padding:9px 10px;font-size:20px;white-space:normal;text-align:center;line-height:1.05}
-.solo .btn small{font-family:var(--f-b);font-weight:800;font-size:12px;color:var(--ink-2);margin-top:3px;letter-spacing:0}
-.solo .btn.coral small{color:#fff5f2}
 .prof{display:flex;gap:14px;align-items:center}
 .lvl{flex:0 0 auto;width:64px;height:64px;border-radius:18px;border:3px solid var(--ink);background:var(--violet);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 4px 0 var(--ink)}
 .lvl small{font-weight:900;font-size:10px;letter-spacing:.1em;text-transform:uppercase}
@@ -196,6 +227,14 @@ h1 span{color:var(--coral)}
 #hint span{background:rgba(24,22,58,.72);border-radius:8px;padding:3px 8px;white-space:nowrap}
 #hint kbd{font:inherit;color:var(--sun);font-weight:900}
 #hint span.on{background:var(--violet)}
+#hintShift:not(.on){display:none}
+/* first-time coach: one line at a time (move, then jump, then where to go), gone once each is done */
+#coach{position:absolute;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:rgba(24,22,58,.82);border:2px solid rgba(255,250,242,.55);border-radius:14px;padding:8px 16px;font-weight:900;font-size:17px;white-space:nowrap;max-width:calc(100% - 24px);text-align:center;animation:coachIn .3s}
+#coach>div{display:none}
+#coach[data-step="0"] .c0,#coach[data-step="1"] .c1,#coach[data-step="2"] .c2{display:block}
+#coach kbd{font:inherit;color:var(--ink);background:var(--sun);border-radius:6px;padding:0 6px;margin-right:2px}
+#coach b{color:var(--sun)}
+@keyframes coachIn{from{opacity:0;transform:translate(-50%,8px)}}
 #specBar{position:absolute;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;align-items:center;gap:8px;pointer-events:auto;background:rgba(24,22,58,.8);border-radius:16px;padding:6px 8px 6px 14px;font-weight:900;font-size:14px;white-space:nowrap;max-width:calc(100% - 24px)}
 #specBar span{overflow:hidden;text-overflow:ellipsis}
 #reticle{position:absolute;left:50%;top:50%;width:22px;height:22px;margin:-11px 0 0 -11px}
@@ -258,6 +297,7 @@ body.touch #specBar{bottom:auto;top:calc(60px + env(safe-area-inset-top,0px));fo
 body.touch #specBar span{flex:1 1 100%;text-align:center;white-space:nowrap}
 body.touch #specBar:not([hidden])~#feed{top:calc(150px + env(safe-area-inset-top,0px))}
 body.touch #banner{width:calc(100% - 150px)}
+body.touch #coach{bottom:calc(224px + env(safe-area-inset-bottom,0px));font-size:15px;white-space:normal}
 body.touch #banner{top:30%}
 body.touch #banner b{font-size:clamp(28px,9vw,46px)}
 @media (orientation:landscape){
@@ -265,6 +305,7 @@ body.touch #banner b{font-size:clamp(28px,9vw,46px)}
   body.touch #top{left:50%}
   body.touch #nameBox{max-width:calc(100vw - 330px)}
   body.touch #banner{top:32%}
+  body.touch #coach{bottom:calc(20px + env(safe-area-inset-bottom,0px));max-width:calc(100% - 440px)}
   body.touch #specBar{top:calc(56px + env(safe-area-inset-top,0px));left:50%;right:auto;transform:translateX(-50%);flex-wrap:nowrap;white-space:nowrap;max-width:calc(100% - 300px)}
   body.touch #specBar span{flex:0 1 auto}
   body.touch #specBar:not([hidden])~#feed{top:calc(112px + env(safe-area-inset-top,0px))}
@@ -298,7 +339,12 @@ body.touch #banner b{font-size:clamp(28px,9vw,46px)}
     <div id="count" hidden></div>
     <div id="reticle" hidden><svg viewBox="-11 -11 22 22" aria-hidden="true"><g class="ro"><path class="arm" d="M0-9V-4M0 4V9M-9 0H-4M4 0H9"/><circle class="small" r=".9"/><circle class="big" r="2.6"/></g><g class="rx"><path class="arm" d="M0-9V-4M0 4V9M-9 0H-4M4 0H9"/><circle class="small" r=".9"/><circle class="big" r="2.6"/></g></svg></div>
     <div id="lockHint" class="out" hidden>Click to aim</div>
-    <div id="hint" class="kbonly"><span><kbd data-kb="forward left back right" data-kb-short data-kb-join="" data-kb-sep="">WASD</kbd> move</span><span><kbd data-kb="jump" data-kb-short>Space</kbd> jump</span><span>Mouse aims · wheel zoom</span><span id="hintShift"><kbd data-kb="shiftLock" data-kb-short>Shift</kbd> shift lock</span><span id="hintView"><kbd data-kb="view" data-kb-short>V</kbd> first person</span><span><kbd data-kb="reset" data-kb-short>R</kbd> reset</span><span><kbd>Esc</kbd> menu</span></div>
+    <div id="coach" hidden>
+      <div class="c0"><span class="kbonly"><kbd data-kb="forward left back right" data-kb-short data-kb-join="" data-kb-sep="">WASD</kbd> to move · the mouse looks around</span><span class="touchonly">Push the <b>stick</b> to move · drag to look around</span></div>
+      <div class="c1"><span class="kbonly"><kbd data-kb="jump" data-kb-short>Space</kbd> to jump</span><span class="touchonly">Tap <b>JUMP</b></span></div>
+      <div class="c2">Follow the <b>gold arrow</b> up · red sends you back</div>
+    </div>
+    <div id="hint" class="kbonly"><span id="hintShift"><kbd data-kb="shiftLock" data-kb-short>Shift</kbd> shift lock on</span><span id="hintView" hidden><kbd data-kb="view" data-kb-short>V</kbd> first person</span><span><kbd data-kb="reset" data-kb-short>R</kbd> <i id="hintReset" style="font-style:normal">restart</i></span><span><kbd>Esc</kbd> menu</span></div>
   </div>
   <div id="touch" aria-hidden="true">
     <div id="tLook"></div>
@@ -310,68 +356,93 @@ body.touch #banner b{font-size:clamp(28px,9vw,46px)}
 
   <section id="menu" class="overlay">
     <div class="menu-grid">
-      <div class="card">
+      <div class="card" id="mainCard">
+        <div class="hero">
         <div class="logo">
           <svg viewBox="0 0 54 78" aria-hidden="true"><path d="M27 3 41 22H13Z" fill="#ff5e6c" stroke="#18163a" stroke-width="3" stroke-linejoin="round"/><rect x="15" y="22" width="24" height="14" fill="#ffcf3d" stroke="#18163a" stroke-width="3"/><rect x="12" y="36" width="30" height="16" fill="#4cc2ff" stroke="#18163a" stroke-width="3"/><rect x="9" y="52" width="36" height="22" fill="#2fd39a" stroke="#18163a" stroke-width="3"/><rect x="23" y="60" width="8" height="14" fill="#18163a"/></svg>
           <div><h1>Spi<span>re</span></h1></div>
         </div>
-        <p class="tag">Race up a random tower before the clock runs out. Every landing saves your place, and anything glowing red sends you back to it. Turn checkpoints off for the classic climb, where red means the bottom.</p>
-        <div class="me-row">
-          <label class="field"><span>Name</span><input id="name" maxlength="14" autocomplete="nickname" spellcheck="false" placeholder="Climber"></label>
-          <div class="swatches" id="swatches" role="group" aria-label="Your colour"></div>
+        <p class="tag">Climb to the top of the tower. Anything glowing red sends you back.</p>
         </div>
-        <div class="hatrow"><span class="hatlbl">Hat</span><div class="hats" id="hats" role="group" aria-label="Your hat"></div></div>
-        <p class="hatmsg" id="hatMsg" hidden></p>
-        <div class="label">Online · up to 12 climbers</div>
-        <button class="btn big coral" id="quick" type="button">Quick match</button>
-        <div class="roomrow">
-          <label class="field"><span>tw-</span><input id="room" maxlength="17" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="room code"></label>
-          <button id="joinRoom" class="btn alt" type="button">Play in room</button>
+        <div class="acts">
+        <button class="btn big coral play" id="playBtn" type="button">Play<small id="playSub">Easy tower · 5 sections</small></button>
+        <div class="duo">
+          <button class="btn sky" id="quick" type="button">Quick match<small>race anyone online</small></button>
+          <button class="btn alt" id="friendsBtn" type="button" aria-expanded="false" aria-controls="roomBox">Friends<small>play in a room</small></button>
+        </div>
+        <div id="roomBox" hidden>
+          <div class="roomrow">
+            <label class="field"><span>tw-</span><input id="room" maxlength="17" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="room code"></label>
+            <button id="joinRoom" class="btn alt" type="button">Join</button>
+          </div>
+          <p class="note">Share one code with your friends (up to 12). Leave it empty to make a new room.</p>
         </div>
         <p class="msg" id="netMsg"></p>
-        <div class="label">On your own</div>
-        <div class="solo">
-          <button class="btn sky" id="soloTower" type="button">Tower<small>8 sections · time trial</small></button>
-          <button class="btn alt" id="easyTower" type="button">Easy tower<small>5 gentle sections</small></button>
-          <button class="btn mint" id="obbyBtn" type="button">Obby<small id="obbySub">49 stages · checkpoints</small></button>
-          <button class="btn alt" id="pracBtn" type="button">Practice<small>pick a section</small></button>
+        <div class="foot">
+          <button class="you" id="youBtn" type="button" aria-label="Your climber"><i id="youDot"></i><span id="profName">Climber</span><em>Level <b id="youLvl">1</b></em><em><i class="coin"></i><b id="youCoins">0</b></em></button>
+          <button class="btn alt" id="moreBtn" type="button" aria-expanded="false" aria-controls="moreCard">More</button>
         </div>
-        <div class="setting cprow"><span>Checkpoints</span><div class="seg" id="cpSeg"><button type="button" data-v="1">Every landing</button><button type="button" data-v="0">Off</button></div></div>
+        </div>
         <div class="adbox" id="adMenu" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
       </div>
-      <div class="card">
-        <div class="prof">
-          <div class="lvl"><small>Level</small><b id="lvlN">1</b></div>
-          <div style="flex:1;min-width:0">
-            <div style="display:flex;justify-content:space-between;font-weight:900"><span id="profName">Climber</span><span><i class="coin"></i><span id="profCoins">0</span></span></div>
-            <div class="xpbar"><i id="xpFill"></i></div>
-            <div class="note" id="xpTxt" style="margin-top:3px">0 / 100 XP</div>
+      <div class="card" id="moreCard" hidden>
+        <div class="more-head">
+          <div class="seg" id="moreTabs" role="tablist"><button type="button" data-tab="modes">Modes</button><button type="button" data-tab="you">Climber</button><button type="button" data-tab="set">Settings</button><button type="button" data-tab="help">Help</button></div>
+          <button class="btn sm alt" id="moreClose" type="button">Back</button>
+        </div>
+        <div class="pane" data-pane="modes">
+          <div class="solo">
+            <button class="btn sky" id="soloTower" type="button">Tower<small>8 sections · time trial</small></button>
+            <button class="btn alt" id="easyTower" type="button">Easy tower<small>5 gentle sections</small></button>
+            <button class="btn mint" id="obbyBtn" type="button">Obby<small id="obbySub">49 stages · checkpoints</small></button>
+            <button class="btn alt" id="pracBtn" type="button">Practice<small>pick a section</small></button>
           </div>
+          <div class="setting cprow"><span>Checkpoints</span><div class="seg" id="cpSeg"><button type="button" data-v="1">Every landing</button><button type="button" data-v="0">Off</button></div></div>
+          <p class="note" style="margin:8px 0 0">With checkpoints off, red sends you to the bottom.</p>
         </div>
-        <div class="stats">
-          <div><b id="stTowers">0</b><small>Towers</small></div>
-          <div><b id="stBest">–</b><small>Best tower</small></div>
-          <div><b id="stDeaths">0</b><small>Falls</small></div>
+        <div class="pane" data-pane="you" hidden>
+          <div class="prof">
+            <div class="lvl"><small>Level</small><b id="lvlN">1</b></div>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;justify-content:space-between;font-weight:900"><span id="xpTxt" class="note">0 / 100 XP</span><span><i class="coin"></i><span id="profCoins">0</span></span></div>
+              <div class="xpbar"><i id="xpFill"></i></div>
+            </div>
+          </div>
+          <div class="stats">
+            <div><b id="stTowers">0</b><small>Towers</small></div>
+            <div><b id="stBest">–</b><small>Best tower</small></div>
+            <div><b id="stDeaths">0</b><small>Falls</small></div>
+          </div>
+          <div class="me-row" style="margin-top:12px">
+            <label class="field"><span>Name</span><input id="name" maxlength="14" autocomplete="nickname" spellcheck="false" placeholder="Climber"></label>
+          </div>
+          <div class="swatches" id="swatches" role="group" aria-label="Your colour" style="margin-top:10px"></div>
+          <div class="hatrow"><span class="hatlbl">Hat</span><div class="hats" id="hats" role="group" aria-label="Your hat"></div></div>
+          <p class="hatmsg" id="hatMsg" hidden></p>
         </div>
-        <div class="label">Settings</div>
-        <div class="setting"><span>Sensitivity</span><input id="sens" type="range" min=".3" max="2.5" step=".05" aria-label="Camera sensitivity"><output id="sensOut">1.00</output></div>
-        <div class="setting"><span>Invert Y</span><div class="seg" id="invY"><button type="button" data-v="0">Off</button><button type="button" data-v="1">On</button></div></div>
-        <div class="setting"><span>Sound</span><input id="vol" type="range" min="0" max="1" step=".05"><output id="volOut">70</output></div>
-        <div class="setting"><span>Music</span><input id="mus" type="range" min="0" max="1" step=".05"><output id="musOut">40</output></div>
-        <div class="row" style="margin-top:12px"><span style="font-weight:800;font-size:14px;min-width:92px">Graphics</span><div class="seg" id="gfxSeg"><button type="button" data-q="low">Fast</button><button type="button" data-q="high">Pretty</button></div></div>
-        <div class="row" style="margin-top:12px"><button class="btn sm alt" id="keysMenu" type="button">Controls</button></div>
-        <details>
-          <summary>How to play</summary>
+        <div class="pane" data-pane="set" hidden>
+          <div class="setting" style="margin-top:0"><span>Sensitivity</span><input id="sens" type="range" min=".3" max="2.5" step=".05" aria-label="Camera sensitivity"><output id="sensOut">1.00</output></div>
+          <div class="setting"><span>Invert Y</span><div class="seg" id="invY"><button type="button" data-v="0">Off</button><button type="button" data-v="1">On</button></div></div>
+          <div class="setting"><span>Sound</span><input id="vol" type="range" min="0" max="1" step=".05"><output id="volOut">70</output></div>
+          <div class="setting"><span>Music</span><input id="mus" type="range" min="0" max="1" step=".05"><output id="musOut">40</output></div>
+          <div class="setting"><span>Graphics</span><div class="seg" id="gfxSeg"><button type="button" data-q="low">Fast</button><button type="button" data-q="high">Pretty</button></div></div>
+          <div class="setting"><span>Guide arrow</span><div class="seg" id="guideSeg"><button type="button" data-v="1">On</button><button type="button" data-v="0">Off</button></div></div>
+          <div class="row" style="margin-top:12px"><button class="btn sm alt" id="keysMenu" type="button">Controls</button></div>
+        </div>
+        <div class="pane" data-pane="help" hidden>
           <ul class="how">
-            <li><b>Tower</b>: a stack of random sections, gentle at the bottom and harder near the top. Climb the truss between sections to reach the next one. The clock runs twice as fast once someone reaches the top.</li>
-            <li><b>Checkpoints</b>: each landing between sections saves your place. Glowing red, or dropping out of your section, puts you back on it. With checkpoints off, red sends you to the bottom and a fall just lands you lower down.</li>
-            <li><b>Look out for</b> ice (you slide), launch pads (they throw you the way the arrows point), gusts (wait for a lull), and gold <b>shortcuts</b> that are quicker but harder.</li>
-            <li><b>Coins</b> float along the way. Spend them on hats, or level up to unlock more.</li>
-            <li><b>Obby</b>: 49 stages over seven worlds. Every stage starts on a checkpoint, and your furthest stage is saved.</li>
-            <li class="kbonly"><b>Controls</b>: WASD moves (relative to the camera), Space jumps (hold to keep jumping), click the game to aim the camera with the mouse (a crosshair shows in the middle, you face where you aim as you move, and Esc frees the mouse), the wheel zooms, Shift keeps you facing the camera's way even standing still, V switches between first and third person (scrolling all the way in does too).</li>
-            <li id="touchNote" hidden><b>Touch</b>: the stick moves, drag anywhere else to turn the camera, pinch to zoom, and the eye button switches to first person.</li>
+            <li class="kbonly"><b>Move</b> with WASD, <b>jump</b> with Space (hold it to keep jumping). Click the game and the mouse turns the camera; Esc lets it go.</li>
+            <li id="touchNote" hidden><b>Move</b> with the stick and tap JUMP. Drag anywhere else to turn the camera, pinch to zoom.</li>
+            <li><b>Go up.</b> A gold arrow floats over the next platform. Walk into a truss and keep pushing to climb it.</li>
+            <li><b>Checkpoints</b>: every landing between sections saves your place. Red, or a long fall, puts you back on it.</li>
+            <li><b>Watch for</b> ice (you slide), launch pads (they throw you where the arrows point), gusts (wait for a lull) and gold <b>shortcuts</b> (quicker but harder).</li>
+            <li><b>Coins</b> buy hats; levelling up unlocks more.</li>
+            <li><b>Racing</b>: once someone reaches the top the clock runs twice as fast.</li>
+            <li><b>Obby</b>: 49 stages over seven worlds, saved as you go. <b>Practice</b>: any section on its own.</li>
+            <li class="kbonly"><b>More keys</b>: R goes back to your checkpoint, the wheel zooms, V is first person, Shift keeps you facing the camera's way. Change them under Settings, Controls.</li>
+            <li class="touchonly"><b>Also</b>: the eye button switches to first person, and the pause button has a way back to your checkpoint.</li>
           </ul>
-        </details>
+        </div>
       </div>
     </div>
   </section>
@@ -469,8 +540,8 @@ const PHYS={
   AIR_BRAKE:10,    // air control against the way you are flying: slows you, never flips you round
   AIR_DRAG:1.8,    // slow-down in the air with no input (keeps running-jump momentum)
   MAX_FALL:55,
-  COYOTE:.1,       // a jump still works this long after running off an edge
-  BUFFER:.13,      // a jump pressed this early before landing still happens
+  COYOTE:.12,      // a jump still works this long after running off an edge (it was .1)
+  BUFFER:.14,      // a jump pressed this early before landing still happens (it was .13)
   R:.42,           // body radius
   H:2,             // body height
   STEP:.45,        // walk up lips this high without jumping
@@ -1419,11 +1490,11 @@ const scene=new THREE.Scene();
 const camera=new THREE.PerspectiveCamera(68,1,.1,1600);
 const U={time:{value:0},cam:{value:new V3()}}; // uniforms shared by several shaders
 const SUN_DIR=new V3(.32,1,.22).normalize();
-const hemi=new THREE.HemisphereLight(0xeaf4ff,0x6f6688,.62);scene.add(hemi);
-const sun=new THREE.DirectionalLight(0xfff1d8,.7);scene.add(sun);scene.add(sun.target);
+const hemi=new THREE.HemisphereLight(0xdcecff,0x5f5c8a,.56);scene.add(hemi);
+const sun=new THREE.DirectionalLight(0xfff0d2,.82);scene.add(sun);scene.add(sun.target);
 sun.shadow.mapSize.set(2048,2048);sun.shadow.bias=-.0005;sun.shadow.normalBias=.04;
 {const c=sun.shadow.camera;c.left=c.bottom=-32;c.right=c.top=32;c.near=1;c.far=200;c.layers.enable(1)} // layer 1: seen only by the sun (your body in first person)
-scene.fog=new THREE.Fog(0xcdeeff,120,950);
+scene.fog=new THREE.Fog(0xd3ecff,150,1250);
 const hiQ=()=>gfx==='high';
 let fxScale=500,baseFov=68; // pixels per unit at distance 1, for the particle sprites; the field of view before any speed kick
 function resize(){
@@ -1580,13 +1651,14 @@ TEX.clouds=(function(){
   g.putImageData(img,0,0);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;return t;
 })();
 const skyMat=new THREE.ShaderMaterial({
-  uniforms:{top:{value:new THREE.Color('#57b8ff')},bot:{value:new THREE.Color('#e6f6ff')},sunD:{value:SUN_DIR},sunC:{value:new THREE.Color('#fff2cf')},cloudC:{value:new THREE.Color('#ffffff')},cl:{value:1},uT:U.time,hq:{value:1},tex:{value:TEX.clouds}},
+  uniforms:{top:{value:new THREE.Color('#3f9df2')},bot:{value:new THREE.Color('#d3ecff')},sunD:{value:SUN_DIR},sunC:{value:new THREE.Color('#fff2cf')},cloudC:{value:new THREE.Color('#ffffff')},cl:{value:1},uT:U.time,hq:{value:1},tex:{value:TEX.clouds}},
   side:THREE.BackSide,depthWrite:false,fog:false,
   vertexShader:'varying vec3 vP;void main(){vP=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
   fragmentShader:['uniform vec3 top,bot,sunD,sunC,cloudC;uniform float cl,uT,hq;uniform sampler2D tex;varying vec3 vP;',
     'void main(){vec3 d=normalize(vP);float y=d.y;',
     ' vec3 c=mix(bot,top,pow(clamp(y*1.5+.12,0.,1.),.75));',
     ' float s=max(dot(d,sunD),0.);',
+    ' c=mix(c,mix(bot,sunC,.3+.45*pow(s,3.)),exp(-abs(y)*9.)*.45);',
     ' c+=sunC*(smoothstep(.9986,.9993,s)*.9+pow(s,24.)*.24+pow(s,4.)*.06);',
     ' if(y>0.&&cl>0.){vec2 uv=d.xz/(y+.18)*.33;float f=texture2D(tex,uv+vec2(uT*.0015,uT*.0005)).r;',
     '  if(hq>.5)f=f*.72+texture2D(tex,uv*2.3+vec2(.37-uT*.001,.11)).r*.28;',
@@ -1607,7 +1679,7 @@ let groundTex=null;
 const mix3=(a,b,t)=>'#'+new THREE.Color(a).lerp(new THREE.Color(b),clamp(t,0,1)).getHexString();
 (function(){
   const r=rng(42),items=[];
-  const ground=new THREE.Mesh(new THREE.CircleGeometry(1300,64),new THREE.MeshLambertMaterial({color:'#93cf97',map:groundTex=texFrom(cvs(128,128,(g,w,h)=>{g.fillStyle='#fff';g.fillRect(0,0,w,h);
+  const ground=new THREE.Mesh(new THREE.CircleGeometry(1300,64),new THREE.MeshLambertMaterial({color:'#7cc587',map:groundTex=texFrom(cvs(128,128,(g,w,h)=>{g.fillStyle='#fff';g.fillRect(0,0,w,h);
     for(let i=0;i<70;i++){const x=Math.random()*w,y=Math.random()*h,rr=8+Math.random()*22;for(const ox of [-w,0,w])for(const oy of [-h,0,h]){const gr=g.createRadialGradient(x+ox,y+oy,0,x+ox,y+oy,rr);gr.addColorStop(0,'rgba(40,110,60,.12)');gr.addColorStop(1,'rgba(40,110,60,0)');g.fillStyle=gr;g.fillRect(x+ox-rr,y+oy-rr,rr*2,rr*2)}}
     speckle(g,w,h,800,.08,.25)}),160)}));
   ground.rotation.x=-Math.PI/2;ground.position.y=-2.01;ground.receiveShadow=true;land.add(ground);
@@ -1651,7 +1723,7 @@ const isles=new THREE.Group();isles.visible=false;scene.add(isles);
 })();
 
 // Climbing a tower runs the day on toward sunset: the sky warms with height (f from 0 at the floor to 1 at the top).
-const SKY_STOPS=[[0,'#57b8ff','#e6f6ff','#fff1d8'],[.55,'#5fa4f2','#fde9cf','#ffe6c2'],[1,'#6d62d6','#ffc6a4','#ffc89a']],_s1=new THREE.Color(),_s2=new THREE.Color();
+const SKY_STOPS=[[0,'#3f9df2','#d3ecff','#fff0d2'],[.55,'#4d8fe8','#fbe3c6','#ffe2b8'],[1,'#5f52cf','#ffbd98','#ffc08c']],_s1=new THREE.Color(),_s2=new THREE.Color();
 function skyAt(f){
   let i=0;while(i<SKY_STOPS.length-2&&f>SKY_STOPS[i+1][0])i++;const a=SKY_STOPS[i],b=SKY_STOPS[i+1],k=clamp((f-a[0])/(b[0]-a[0]),0,1);
   const c=(j)=>'#'+_s1.set(a[j]).lerp(_s2.set(b[j]),k).getHexString();
@@ -1708,7 +1780,7 @@ function glassMat(){return new THREE.ShaderMaterial({uniforms:THREE.UniformsUtil
 // glass ribs fade out right in front of the lens
 function ribHook(sh){sh.uniforms.uCam=U.cam;
   sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vW;').replace('#include <begin_vertex>','#include <begin_vertex>\nvW=(modelMatrix*vec4(transformed,1.)).xyz;');
-  sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nuniform vec3 uCam;\nvarying vec3 vW;').replace('#include <alphatest_fragment>','#include <alphatest_fragment>\ndiffuseColor.a*=smoothstep(2.5,5.,length(vW.xz-uCam.xz));')}
+  sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nuniform vec3 uCam;\nvarying vec3 vW;').replace('#include <alphatest_fragment>','#include <alphatest_fragment>\ndiffuseColor.a*=smoothstep(2.5,16.,length(vW.xz-uCam.xz));')}
 const isDyn=p=>!!(p.move||p.timed||p.crumble||p.conv||p.cp>=0||p.finish||p.zone);
 function partMesh(p){
   if(p.zone==='wind'){ // a faint box that brightens in a gust; the gust itself is shown by blown specks (updateParts)
@@ -1808,7 +1880,7 @@ function buildWorldMeshes(W){
   isles.visible=W.kind==='obby';clouds.visible=W.kind!=='obby'; // the obby has its own sky clouds, cloud sea and islands
   if(W.kind==='obby'){cloudSea.visible=true;land.visible=false}
   scene.add(worldGroup);
-  sun.color.set('#fff1d8');if(W.kind!=='obby')setSky('#57b8ff','#e6f6ff');
+  sun.color.set('#fff0d2');if(W.kind!=='obby')setSky('#3f9df2','#d3ecff');
   G.skyQ=-1;placeCoins(W);
 }
 // per-frame look of moving, blinking and crumbling parts, at render time rt
@@ -2018,7 +2090,7 @@ function spawnPoint(){
 const towerCpOn=()=>!!(G.W&&G.W.kind==='tower'&&G.towerCp&&G.mode!=='menu');
 function respawnMe(poof){
   const s=spawnPoint();resetPlayer(me,s[0],s[1],s[2],s[3]);me.px=s[0];me.py=s[1];me.pz=s[2];me.ryaw=s[3];me.cp=G.mode==='obby'||towerCpOn()?G.cp:-1;
-  G.camYaw=s[3];G.respawnAt=0;G.av.root.visible=true;
+  G.camYaw=s[3];G.respawnAt=0;G.av.root.visible=true;G.gi=-2;
   if(poof){glowBurst(s[0],s[1]+1,s[2],'#ffffff',16,3.5,2.5);puff(s[0],s[1],s[2],10,'#ffffff',3,.6,.4,.5)}
 }
 
@@ -2044,7 +2116,7 @@ function startRun(mode,W){
   loadWorld(W);respawnMe();
   G.t=0;G.tBase=performance.now()/1000;G.startT=0;G.stageT=0;
   showOverlay(null);$('hud').hidden=false;$('specBar').hidden=true;$('count').hidden=true;
-  renderHudStatic();requestLock();
+  renderHudStatic();coachStart();requestLock();
 }
 function startSolo(easy,seed){
   const n=easy?5:8;G.soloEasy=!!easy;G.cp=0;G.secReached=0;G.towerCp=soloCp;
@@ -2111,7 +2183,8 @@ function tick(){
     handleEvents(t);
     if(!me.dead&&towerCpOn()&&G.cp>0&&me.y<W.cps[G.cp].y-4&&!G.attract){me.dead=true;onFall()}
     if(coins.length&&!me.dead&&!G.attract&&playing())grabCoins();
-    if(!G.attract&&!G.auto)trussTip();
+    if(!G.attract&&!G.auto){trussTip();if(G.coach>=0&&G.coach<3)coachTick(inp)}
+    if(!G.attract&&(G.gstep=(G.gstep|0)+1)%6===0)guideStep(t);
     if(G.attract&&(G.attract.done||G.attract.fail)){respawnMe();G.attract=makeBot(W.route)}
   }
   G.t=t;
@@ -2125,9 +2198,58 @@ function trussTip(){
   for(const p of trussParts)if(Math.abs(me.y-(p.y-p.hy))<.6&&Math.hypot(me.x-p.x,me.z-p.z)<2.4){
     trussTipT=performance.now();banner('Climb the truss',touchUI?'Push the stick toward it and hold':'Walk into it and keep holding forward',3);break}
 }
+// First-time coach: one line at a time (move, then jump, then where to go). It shows on each run until the climber
+// has climbed a truss once (spire:climbed), and each line goes as soon as it has been done.
+function coachStart(){G.coach=climbedOnce?-1:0;G.coachT=0;G.coachMove=0;G.coachJ=false;renderCoach()}
+function renderCoach(){const c=$('coach'),on=G.coach>=0&&G.coach<3;if(!on)c.hidden=true;else{c.dataset.step=String(G.coach);c.querySelector('.c2').innerHTML=guideOn?'Follow the <b>gold arrow</b> up · red sends you back':'Find the way up · red sends you back'}}
+function coachTick(inp){
+  if(G.coach===0){if(Math.hypot(inp.x,inp.z)>.3&&(G.coachMove+=PHYS.DT)>.7){G.coach=G.coachJ?2:1;renderCoach()}}
+  else if(G.coach===1){if(G.coachJ){G.coach=2;renderCoach()}}
+  else if(G.coach===2&&(G.coachT+=PHYS.DT)>6){G.coach=3;renderCoach()}
+}
+// The guide: a gold arrow over the next platform on the way up. It follows the same route list the checking bot
+// uses: G.gi is the furthest route step you have stood on, and the arrow sits over the step after it. It is only
+// drawn here; nothing about it goes to other players. Settings has a switch for it (spire:guide, on by default).
+let guideOn=store.get('guide',true)!==false;
+const _gp=[0,0,0];
+function nodePos(n,t){
+  if(n.p)return n.p;
+  if(n.on){const p=G.W.byName.get(n.on[0]);if(!p)return null;const b=cur(p,t);_gp[0]=b.x;_gp[1]=b.y+p.hy;_gp[2]=b.z;return _gp}
+  return null;
+}
+function atStep(n,t){
+  if(n.on)return!!(me.gr&&me.gp&&n.on.indexOf(me.gp.name)>=0);
+  if(!n.p)return false;
+  const dy=Math.abs(me.y-n.p[1]);
+  if(dy<1.3&&Math.hypot(me.x-n.p[0],me.z-n.p[2])<1.2)return true;
+  const g=me.gr?me.gp:null;if(!g||dy>.5)return false;
+  return xzDist(g,cur(g,t),n.p[0],n.p[2],_h)<.05; // standing on the part that holds this step
+}
+function guideStep(t){
+  const R=G.W.route;if(!R||!R.length||!(me.gr||me.climb))return;
+  let from=G.gi,to=Math.min(R.length,G.gi+15);
+  if(G.gi===-2){G.gi=-1;from=-1;to=R.length;if(G.W.kind==='obby'&&G.W.cps[G.cp]&&G.W.cps[G.cp].route>0){G.gi=from=G.W.cps[G.cp].route-1;to=Math.min(R.length,from+15)}} // just put down: find where on the route that is
+  for(let i=to-1;i>from;i--)if(atStep(R[i],t)){G.gi=i;break}
+}
+// the arrow itself: a chunky gold pointer with a dark rim, bobbing and turning over the next step, bigger when far off
+const guideMesh=(function(){
+  const g=new THREE.Group(),tip=new THREE.ConeGeometry(.62,.8,4),stem=new THREE.BoxGeometry(.42,.6,.42);
+  tip.rotateX(Math.PI);const geo=mergeInto([{geo:tip,y:.4},{geo:stem,y:1.05}]);
+  const a=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color:'#ffd23f',fog:false})),b=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color:'#18163a',side:THREE.BackSide,fog:false}));
+  b.scale.set(1.2,1.1,1.2);b.position.y=-.07;g.add(a,b);g.visible=false;scene.add(g);return g;
+})();
+function updateGuide(rt,x,y,z){
+  const W=G.W,R=W&&W.route;let n=null;
+  if(guideOn&&R&&R.length&&G.gi>-2&&playing()&&!G.finished&&!G.spec&&!G.attract&&!me.dead&&!G.respawnAt)
+    for(let i=G.gi+1;i<R.length&&i<G.gi+8;i++){const q=nodePos(R[i],rt);if(q){n=q;break}}
+  if(!n){guideMesh.visible=false;return}
+  const dx=n[0]-x,dy=n[1]-y,dz=n[2]-z,d=Math.hypot(dx,dy,dz),k=clamp(d/13,.75,1.9)*clamp((d-1.6)/1.6,0,1); // shrinks away as you arrive
+  guideMesh.visible=k>.02;if(!guideMesh.visible)return;
+  const tt=U.time.value;guideMesh.position.set(n[0],n[1]+1.5+.35*k+Math.sin(tt*3.2)*.16,n[2]);guideMesh.rotation.y=tt*1.4;guideMesh.scale.setScalar(k);
+}
 function handleEvents(t){
   for(const e of me.ev){
-    if(e==='jump'){sfx('jump');puff(me.x,me.y,me.z,7,'#ffffff',2.2,.5,.34,.45);squash(G.av,3.2)}
+    if(e==='jump'){G.coachJ=true;sfx('jump');puff(me.x,me.y,me.z,7,'#ffffff',2.2,.5,.34,.45);squash(G.av,3.2)}
     else if(e==='land'){sfx('land');G.fpDip=Math.max(G.fpDip,.08);puff(me.x,me.y,me.z,8,'#f4efe4',2.4,.4,.38,.5);squash(G.av,-3.4)}
     else if(e==='landHard'){sfx('landHard');G.fpDip=Math.max(G.fpDip,.24);puff(me.x,me.y,me.z,16,'#f4efe4',4,.7,.5,.65);squash(G.av,-5.5)}
     else if(e==='bounce'){sfx('bounce');glowBurst(me.x,me.y+.1,me.z,'#c084fc',16,5,1.5);squash(G.av,4.5)}
@@ -2683,7 +2805,8 @@ function updateHud(){
   if(locked()&&KB.busy())releaseLock();
   const fp=fpOn(),free=playing()&&!touchUI&&!G.spec&&!G.pauseOpen&&!G.overlay&&!KB.busy();
   $('reticle').hidden=!(free&&(G.shiftLock||fp||aimOn()));$('reticle').classList.toggle('dot',fp);
-  $('hintShift').classList.toggle('on',G.shiftLock);
+  {const co=G.coach>=0&&G.coach<3&&playing()&&!G.finished&&!G.spec&&!G.overlay,c=$('coach');if(c.hidden===co)c.hidden=!co}
+  $('hintShift').classList.toggle('on',G.shiftLock);setText('hintReset',G.mode==='obby'||towerCpOn()&&G.cp>0?'checkpoint':'restart');
   $('lockHint').hidden=!(free&&!G.paused&&!locked()&&lockWanted());
 }
 function updateTags(){
@@ -2811,11 +2934,24 @@ addEventListener('pointerdown',e=>{if(e.pointerType==='touch'&&!touchUI)setTouch
 // =====================================================================
 //  Menus
 // =====================================================================
+// The menu: Play starts a tower on your own (the easy one until you've finished a tower), Quick match and Friends
+// go online, and More opens the second card on one of its tabs (modes, your climber, settings, help).
+const firstTower=()=>!profile.towers&&!profile.best.tower;
+let moreTab='modes';
+function showMore(tab){
+  const open=!!tab;$('menu').classList.toggle('more',open);$('moreCard').hidden=!open;$('moreBtn').setAttribute('aria-expanded',String(open));
+  if(!open)return;
+  moreTab=tab;for(const b of $('moreTabs').children)b.setAttribute('aria-pressed',String(b.dataset.tab===tab));
+  for(const q of $('moreCard').querySelectorAll('.pane'))q.hidden=q.dataset.pane!==tab;
+  $('menu').scrollTop=0;
+}
+function showRoom(on){$('roomBox').hidden=!on;$('friendsBtn').setAttribute('aria-expanded',String(on))}
 function showOverlay(id){if(id)releaseLock();for(const s of ['menu','obbyMenu','pracMenu','pause','results'])$(s).hidden=s!==id;if(id!=='pause')G.pauseOpen=false;G.overlay=id||''}
 function setMsg(t,err){const m=$('netMsg');m.textContent=t;m.classList.toggle('err',!!err)}
 function renderProfile(){
   const L=levelOf(profile.xp);setText('lvlN',String(L.l));$('xpFill').style.width=(L.cur/L.need*100)+'%';setText('xpTxt',L.cur+' / '+L.need+' XP to level '+(L.l+1));
-  setText('profCoins',String(profile.coins));setText('profName',myName||'Climber');
+  setText('profCoins',String(profile.coins));setText('profName',myName||'Climber');setText('youLvl',String(L.l));setText('youCoins',String(profile.coins));$('youDot').style.background=myColor;
+  setText('playSub',firstTower()?'Easy tower · 5 gentle sections':'Tower · 8 sections'+(profile.best.tower?' · best '+fmtTime(profile.best.tower):''));
   setText('stTowers',String(profile.towers));setText('stBest',profile.best.tower?fmtTime(profile.best.tower):profile.best.easy?fmtTime(profile.best.easy)+' easy':'–');setText('stDeaths',String(profile.deaths));
   renderHats();
   setText('obbySub',profile.obbyBest>0?'Stage '+Math.min(OBBY_STAGES,profile.obbyBest+1)+' of '+OBBY_STAGES:OBBY_STAGES+' stages · checkpoints');
@@ -2853,7 +2989,7 @@ function renderHats(){
 }
 function renderCpSeg(){for(const b of $('cpSeg').children)b.setAttribute('aria-pressed',String(b.dataset.v==='1'===soloCp))}
 $('cpSeg').onclick=ev=>{const b=ev.target.closest('button');if(!b)return;soloCp=b.dataset.v==='1';store.set('cpOn',soloCp);renderCpSeg();sfx('ui')};
-function renderSwatches(){const box=$('swatches');box.innerHTML='';for(const c of COLORS){const b=document.createElement('button');b.type='button';b.style.background=c;b.setAttribute('aria-label','Colour '+c);b.setAttribute('aria-pressed',String(c===myColor));b.onclick=()=>{myColor=c;store.set('color',c);if(G.av)G.av.setColor(c);renderSwatches();renderHats();sfx('ui')};box.appendChild(b)}}
+function renderSwatches(){const box=$('swatches');box.innerHTML='';for(const c of COLORS){const b=document.createElement('button');b.type='button';b.style.background=c;b.setAttribute('aria-label','Colour '+c);b.setAttribute('aria-pressed',String(c===myColor));b.onclick=()=>{myColor=c;store.set('color',c);if(G.av)G.av.setColor(c);$('youDot').style.background=c;renderSwatches();renderHats();sfx('ui')};box.appendChild(b)}}
 function renderObbyMenu(){
   const box=$('worlds');box.innerHTML='';let k=0;const best=Math.min(profile.obbyBest,OBBY_STAGES-1);
   WORLDS.forEach((w,wi)=>{
@@ -2894,7 +3030,7 @@ function toMenu(){
 }
 function sanitizeRoom(s){return String(s||'').toLowerCase().replace(/^tw-/,'').replace(/[^a-z0-9-]/g,'').slice(0,17)}
 function randomRoom(){return pick(['spire','ledge','truss','summit','peak','tower','climb','stack','beam'])+'-'+Math.floor(100+Math.random()*900)}
-function busy(on){for(const id of ['quick','joinRoom','soloTower','easyTower','obbyBtn','pracBtn'])$(id).disabled=on}
+function busy(on){for(const id of ['playBtn','quick','joinRoom','soloTower','easyTower','obbyBtn','pracBtn'])$(id).disabled=on}
 async function goOnline(room,isPublic){
   initAudio();
   await Net.init();
@@ -2903,7 +3039,7 @@ async function goOnline(room,isPublic){
   G.joinedAt=performance.now();
   respawnMe();
   try{await Net.join(room,isPublic)}catch(err){G.mode='menu';throw err}
-  showOverlay(null);$('hud').hidden=false;$('specBar').hidden=true;renderHudStatic();
+  showOverlay(null);$('hud').hidden=false;$('specBar').hidden=true;renderHudStatic();coachStart();
   banner(isPublic?'Public tower':'Room '+room.replace(/^tw-/,''),'Getting the tower…',2);
   requestLock();
 }
@@ -2930,6 +3066,12 @@ const copyInvite=()=>{const url=location.origin+'/#'+Net.room,m=$('inviteMsg');c
 $('copyInvite').onclick=copyInvite;
 $('quick').onclick=quickMatch;$('joinRoom').onclick=joinPrivate;$('room').addEventListener('keydown',ev=>{if(ev.key==='Enter')joinPrivate()});
 $('soloTower').onclick=()=>startSolo(false);$('easyTower').onclick=()=>startSolo(true);
+$('playBtn').onclick=()=>startSolo(firstTower());
+$('friendsBtn').onclick=()=>{const on=$('roomBox').hidden;showRoom(on);sfx('ui');if(on&&!touchUI)$('room').focus()};
+$('moreBtn').onclick=()=>{showMore($('moreCard').hidden?moreTab:null);sfx('ui')};
+$('moreClose').onclick=()=>{showMore(null);sfx('ui')};
+$('youBtn').onclick=()=>{showMore($('moreCard').hidden||moreTab!=='you'?'you':null);sfx('ui')};
+$('moreTabs').onclick=ev=>{const b=ev.target.closest('button');if(!b)return;showMore(b.dataset.tab);sfx('ui')};
 $('obbyBtn').onclick=()=>{renderObbyMenu();showOverlay('obbyMenu');sfx('ui')};
 $('obbyBack').onclick=()=>{showOverlay('menu');sfx('ui')};
 $('obbyGo').onclick=()=>startObby(Math.min(profile.obbyBest,OBBY_STAGES-1));
@@ -2950,6 +3092,8 @@ $('sens').oninput=()=>setSens($('sens').value);$('sens2').oninput=()=>setSens($(
 $('vol').oninput=()=>setVol($('vol').value);$('vol2').oninput=()=>setVol($('vol2').value);
 $('mus').oninput=()=>setMus($('mus').value);$('mus2').oninput=()=>setMus($('mus2').value);
 const renderGfx=()=>{for(const b of $('gfxSeg').children)b.setAttribute('aria-pressed',String(b.dataset.q===gfx))};
+const renderGuide=()=>{for(const b of $('guideSeg').children)b.setAttribute('aria-pressed',String(b.dataset.v==='1'===guideOn))};
+$('guideSeg').onclick=ev=>{const b=ev.target.closest('button');if(!b)return;guideOn=b.dataset.v==='1';store.set('guide',guideOn);renderGuide();sfx('ui')};
 $('gfxSeg').onclick=ev=>{const q=ev.target.dataset&&ev.target.dataset.q;if(!q)return;gfx=q;store.set('gfx',q);renderGfx();applyQuality()};
 // Pretty turns on the sun's shadows (every material needs rebuilding for that), the finer clouds and more particles.
 function applyQuality(){
@@ -3037,7 +3181,7 @@ function update(dt){
   else if(fpOn()){updateFp(dt,x,y,z);bodyLayer(av,1)}
   else{bodyLayer(av,0);const d=updateCamera(dt,rt,x,y+1.6,z);av.root.visible=av.root.visible&&d>1.1}
   if(G.mode==='obby'&&G.W)cloudSea.position.set(camera.position.x,G.W.cps[G.cp].y-48,camera.position.z);
-  juice(dt,x,y,z);
+  juice(dt,x,y,z);updateGuide(rt,x,y,z);
   // the sun's shadow box follows what you're looking at, snapped to its texels so shadows don't shimmer
   {const sp=G.spec&&G.spec!=='none'&&ents.get(G.spec),f=G.mode==='menu'?[0,camT.y,0]:sp?[sp.pos.x,sp.pos.y,sp.pos.z]:[x,y,z],q=64/2048;
     const fx=Math.round(f[0]/q)*q,fy=Math.round(f[1]/q)*q,fz=Math.round(f[2]/q)*q;sun.target.position.set(fx,fy,fz);sun.position.set(fx+SUN_DIR.x*100,fy+SUN_DIR.y*100,fz+SUN_DIR.z*100)}
@@ -3050,7 +3194,7 @@ function update(dt){
 
 // An invite opens this page with #tw-<code>: fill in the room and point at the join button.
 const inv=/^#tw-([a-z0-9-]{1,17})$/.exec(location.hash);
-if(inv){$('room').value=inv[1];setMsg('You were invited to room tw-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.remove('alt');$('joinRoom').classList.add('coral');$('quick').classList.remove('coral');$('quick').classList.add('alt')}
+if(inv){$('room').value=inv[1];showRoom(true);setMsg('You were invited to room tw-'+inv[1]+'. Press Join.');$('joinRoom').classList.remove('alt');$('joinRoom').classList.add('coral')}
 if(touchUI)setTouchUI(true);
 
 // Test hook (automated browsers only): step the simulation without waiting for frames, check modules, drive the climber.
@@ -3058,7 +3202,7 @@ if(navigator.webdriver)window.__tw={G,PHYS,MODS,WORLDS,OBBY_STAGES,get me(){retu
   advance(s){G.noRender=true;try{const n=Math.round(s/PHYS.DT);for(let i=0;i<n;i++){tick();if(G.respawnAt&&performance.now()>=G.respawnAt)respawnMe(true)}if(G.mode!=='online')G.tBase=performance.now()/1000-G.t}finally{G.noRender=false}},
   respawnNow(){if(G.respawnAt)respawnMe()},
   verifyModule,runBot,buildTower,wearHat,renderHats,get coins(){return coins},buildObby,buildSingle,towerPlan,makeBot,startSolo,startObby,startPractice,toMenu,goOnline,setRS,newRound,hostTick,remaining,showPause,resume,
-  setView,toggleView,fpOn,startSpectate,aimOn,
+  setView,toggleView,fpOn,startSpectate,aimOn,guideMesh,
   autopilot(on,from){G.auto=on?makeBot(G.W.route):null;if(G.auto&&from)G.auto.i=from},
   get camDist(){return camera.position.distanceTo(camT)},
   // stand-in climbers for screenshots: [{x,y,z,yaw,c,n,a}]
@@ -3069,7 +3213,7 @@ if(navigator.webdriver)window.__tw={G,PHYS,MODS,WORLDS,OBBY_STAGES,get me(){retu
 // A tab in the background gets no animation frames: a timer keeps the node's ts fresh (otherwise the others drop the
 // climber after 12 s) and, for the host, keeps the round ticking, as Chromaflage and Odd One Out do.
 setInterval(()=>{if(!document.hidden||!Net.refs)return;try{onlineTick();if(performance.now()-(Net.hbT||0)>2000)Net.upd({})}catch(err){console.error(err)}},1000);
-renderSwatches();renderHats();renderCpSeg();renderProfile();renderGfx();renderView();applyQuality();
+renderSwatches();renderHats();renderCpSeg();renderProfile();renderGfx();renderGuide();renderView();applyQuality();
 // signs are drawn with the display font: redraw the menu tower once it has loaded
 try{document.fonts.ready.then(()=>{if(G.mode==='menu'&&G.W)loadWorld(G.W)})}catch(e){}
 setupAttract();showAd('adMenu');
