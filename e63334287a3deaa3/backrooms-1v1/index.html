@@ -1295,13 +1295,13 @@ function makeSuit(suit,trim,visor){
   // legs: the leg, then the boot and a knee pad
   const legs=[-.17,.17].map(x=>{const lg=new THREE.Group();lg.position.set(x,.86,0);lg.add(P([[.28,.86,.3,0,-.43,0]],ms),P([[.31,.16,.38,0,-.78,-.03],[.3,.14,.05,0,-.4,-.16]],mt));g.add(lg);return lg});
   const torso=P([[.74,.72,.44,0,1.22,0]],ms);
-  const gear=P([[.77,.1,.47,0,.9,0],[.42,.52,.2,0,1.26,.31],[.09,.56,.03,-.2,1.28,-.225],[.09,.56,.03,.2,1.28,-.225],[.31,.07,.03,0,1.36,-.225],[.46,.06,.22,0,1.55,.3]],mt);   // belt, air tank, chest straps
-  const lamp=P([[.14,.07,.03,0,1.4,.42],[.05,.05,.03,0,1.16,.42]],mv);                                          // lamps on the tank, in the visor colour: what you see of yourself
+  const gear=P([[.77,.1,.47,0,.9,0],[.42,.52,.2,0,1.26,.31],[.09,.56,.03,-.2,1.28,-.225],[.09,.56,.03,.2,1.28,-.225],[.31,.07,.03,0,1.36,-.225],[.44,.06,.22,0,1.5,.3]],mt);   // belt, air tank, chest straps
+  const lamp=P([[.14,.07,.02,0,1.4,.412],[.05,.05,.02,0,1.16,.412]],mv);                                          // lamps on the tank, in the visor colour: what you see of yourself
   const head=new THREE.Group();head.position.y=1.78;
   const hood=box(.54,.54,.54,ms);const vis=box(.42,.22,.04,mv);vis.position.set(0,.03,-.275);const filt=P([[.17,.14,.12,0,-.17,-.3],[.46,.05,.05,0,.17,-.27]],mt);head.add(hood,vis,filt);tkHat(head,.92,.27);
   const arms=new THREE.Group();arms.position.set(0,1.44,0);
   const sleeves=P([[.17,.17,.62,-.26,-.05,-.26,-.35],[.17,.17,.62,.3,-.05,-.22]],ms);
-  const gloves=P([[.19,.19,.15,-.174,-.05,-.495,-.35],[.19,.19,.15,.3,-.05,-.47]],mt);
+  const gloves=P([[.18,.18,.14,-.176,-.05,-.49,-.35],[.18,.18,.14,.3,-.05,-.465]],mt);
   const gun=new THREE.Group();gun.position.set(.16,-.04,-.62);arms.add(sleeves,gloves,gun);
   g.add(torso,gear,lamp,head,arms);
   g.userData={legs,arms,gun,head,gunId:-1,ms,mt,mv};
@@ -1312,30 +1312,35 @@ const SUITS={me:[0xe8e9e4,0x34536e,0x7fd3ff],entity:[0x1d1c19,0x3c3a33,0xff3b2e]
 function setSuit(model,key){const c=SUITS[key]||SUITS.me,u=model.userData;u.ms.color.setHex(c[0]);u.mt.color.setHex(c[1]);u.mv.color.setHex(c[2])}
 // The three guns: each is one mesh made of boxes coloured per corner (one draw call), shared by every character.
 // z is along the barrel, pointing away from the holder. GUN_TIP is how far the muzzle is from the hands.
+// gunFit squeezes a gun along its barrel so it runs from z0 to z1: each gun is exactly as long as the plain one it
+// replaced (rifle 0.78 m, shotgun 0.86 m, sniper 1.18 m), so a character holding it takes up the same space as before.
 const gunVMat=new THREE.MeshLambertMaterial({vertexColors:true});
 const GC={steel:[.2,.2,.22],dark:[.09,.09,.1],grey:[.4,.41,.4],wood:[.52,.32,.16],tan:[.56,.48,.31],amber:[.96,.63,.16],red:[.82,.2,.15],lens:[.3,.82,.95]};
+const gunFit=(l,z0,z1)=>{let a=1e9,b=-1e9;for(const p of l){a=Math.min(a,p[5]-p[2]/2);b=Math.max(b,p[5]+p[2]/2)}const k=(z1-z0)/(b-a);
+  return parts(l.map(p=>{const q=p.slice();q[2]=p[2]*k;q[5]=z0+(p[5]-p[2]/2-a)*k+q[2]/2;return q}))};
 const GUN_GEO=[
-  parts([[.1,.15,.4,0,0,.04,0,GC.steel],[.085,.11,.3,0,.005,-.3,0,GC.grey],[.04,.04,.2,0,.02,-.54,0,GC.dark],[.06,.06,.07,0,.02,-.63,0,GC.dark],
-    [.07,.11,.16,0,-.025,.3,0,GC.grey],[.085,.16,.04,0,-.04,.385,0,GC.dark],[.065,.2,.1,0,-.165,-.04,0,GC.dark],[.065,.08,.1,0,-.27,-.065,0,GC.dark],
-    [.055,.13,.07,0,-.13,.15,0,GC.dark],[.045,.025,.34,0,.088,-.06,0,GC.dark],[.05,.05,.03,0,.12,.12,0,GC.dark],[.03,.06,.03,0,.105,-.42,0,GC.dark],[.105,.035,.1,0,.03,.1,0,GC.amber]]),
-  parts([[.11,.15,.32,0,0,.08,0,GC.steel],[.055,.055,.56,0,.035,-.36,0,GC.dark],[.05,.05,.46,0,-.03,-.31,0,GC.dark],[.12,.1,.22,0,-.04,-.27,0,GC.wood],
+  gunFit([[.1,.15,.4,0,0,.04,0,GC.steel],[.085,.11,.3,0,.005,-.3,0,GC.grey],[.04,.04,.2,0,.02,-.54,0,GC.dark],[.06,.06,.07,0,.02,-.63,0,GC.dark],
+    [.07,.11,.16,0,-.025,.3,0,GC.grey],[.085,.16,.04,0,-.04,.385,0,GC.dark],[.065,.15,.1,0,-.14,-.04,0,GC.dark],[.065,.06,.1,0,-.22,-.065,0,GC.dark],
+    [.055,.13,.07,0,-.13,.15,0,GC.dark],[.045,.025,.34,0,.088,-.06,0,GC.dark],[.05,.05,.03,0,.12,.12,0,GC.dark],[.03,.06,.03,0,.105,-.42,0,GC.dark],[.105,.035,.1,0,.03,.1,0,GC.amber]],-.39,.39),
+  gunFit([[.11,.15,.32,0,0,.08,0,GC.steel],[.055,.055,.56,0,.035,-.36,0,GC.dark],[.05,.05,.46,0,-.03,-.31,0,GC.dark],[.12,.1,.22,0,-.04,-.27,0,GC.wood],
     [.09,.13,.2,0,-.03,.3,0,GC.wood],[.095,.16,.04,0,-.045,.4,0,GC.dark],[.06,.1,.07,0,-.11,.2,0,GC.wood],[.02,.03,.02,0,.075,-.62,0,GC.amber],
-    [.02,.06,.045,.062,0,.02,0,GC.red],[.02,.06,.045,.062,0,.08,0,GC.red],[.02,.06,.045,.062,0,.14,0,GC.red]]),
-  parts([[.085,.13,.38,0,0,.08,0,GC.steel],[.04,.04,.74,0,.015,-.48,0,GC.dark],[.065,.065,.1,0,.015,-.88,0,GC.dark],[.075,.08,.3,0,-.03,-.24,0,GC.tan],
+    [.02,.06,.045,.062,0,.02,0,GC.red],[.02,.06,.045,.062,0,.08,0,GC.red],[.02,.06,.045,.062,0,.14,0,GC.red]],-.43,.43),
+  gunFit([[.085,.13,.38,0,0,.08,0,GC.steel],[.04,.04,.74,0,.015,-.48,0,GC.dark],[.065,.065,.1,0,.015,-.88,0,GC.dark],[.075,.08,.3,0,-.03,-.24,0,GC.tan],
     [.075,.14,.2,0,-.03,.3,0,GC.tan],[.06,.04,.14,0,.06,.28,0,GC.dark],[.085,.17,.04,0,-.04,.4,0,GC.dark],[.06,.06,.34,0,.135,0,0,GC.dark],
     [.085,.085,.08,0,.135,-.2,0,GC.dark],[.075,.075,.06,0,.135,.19,0,GC.dark],[.065,.065,.012,0,.135,-.245,0,GC.lens],[.03,.05,.04,0,.085,-.08,0,GC.steel],
-    [.03,.05,.04,0,.085,.1,0,GC.steel],[.06,.09,.1,0,-.1,.02,0,GC.dark],[.02,.02,.26,-.035,-.04,-.52,0,GC.grey],[.02,.02,.26,.035,-.04,-.52,0,GC.grey],[.05,.025,.025,.065,.03,.14,0,GC.grey]])
+    [.03,.05,.04,0,.085,.1,0,GC.steel],[.06,.09,.1,0,-.1,.02,0,GC.dark],[.02,.02,.26,-.035,-.04,-.52,0,GC.grey],[.02,.02,.26,.035,-.04,-.52,0,GC.grey],[.05,.025,.025,.065,.03,.14,0,GC.grey]],-.75,.43)
 ];
-const GUN_TIP=[.67,.64,.93];
+const GUN_TIP=[.39,.43,.75];
 function setGun(model,wi){
   const u=model.userData;if(u.gunId===wi)return;u.gunId=wi;
   const geo=GUN_GEO[wi]||GUN_GEO[0];
   if(u.gunMesh)u.gunMesh.geometry=geo;else{u.gunMesh=new THREE.Mesh(geo,gunVMat);u.gun.add(u.gunMesh)}
 }
-// the soft round shadow that sits on the ground under a character
+// the soft round shadow that sits on the ground under a character: 1 m across, about the width of the figure, so it
+// grounds the feet without making the character read as bigger than it is
 const shadowTex=(()=>{const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d'),r=g.createRadialGradient(32,32,3,32,32,31);
   r.addColorStop(0,'rgba(20,14,2,.62)');r.addColorStop(.55,'rgba(20,14,2,.36)');r.addColorStop(1,'rgba(20,14,2,0)');g.fillStyle=r;g.fillRect(0,0,64,64);return new THREE.CanvasTexture(c)})();
-const shadowGeo=new THREE.PlaneGeometry(1.7,1.7);
+const shadowGeo=new THREE.PlaneGeometry(1,1);
 const shadowMat=new THREE.MeshBasicMaterial({map:shadowTex,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
 function makeShadow(){const m=new THREE.Mesh(shadowGeo,shadowMat);m.rotation.order='YXZ';m.visible=false;scene.add(m);return m}
 function newEnt(model){return{shadow:makeShadow(),kick:0,pos:new V3(),vel:new V3(),onGround:false,hp:100,shield:50,alive:true,present:true,yaw:0,pitch:0,model,walk:0,wi:0,ammo:WEAPONS.map(w=>w.mag),cd:0,reloadT:0,switchT:0,dieT:0}}
