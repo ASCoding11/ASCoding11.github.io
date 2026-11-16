@@ -36,6 +36,21 @@
 .dd-scroll{overflow-x:auto;margin:8px 0 18px;-webkit-overflow-scrolling:touch}
 .dd-scroll table{margin:0;min-width:560px}
 .dd-wide{overflow-x:auto;-webkit-overflow-scrolling:touch}
+/* the three parts tables: wider than the text column on a laptop, and they scroll sideways inside their box */
+.dd-bom{width:min(1040px,calc(100vw - 32px))}
+.dd-bom table{font-size:14px}
+.dd-bom td{padding:7px 9px}
+#ddBomBoard{min-width:1040px}
+#ddBomHand{min-width:1040px}
+#ddBomTools{min-width:900px}
+.dd-bom td.num{min-width:0}
+#ddBomBoard th:nth-child(4){width:14%}#ddBomBoard th:nth-child(5){width:10%}#ddBomBoard th:nth-child(6){width:24%}
+#ddBomHand th:nth-child(2){width:23%}#ddBomHand th:nth-child(5){width:17%}#ddBomHand th:nth-child(7){width:22%}
+#ddBomTools th:nth-child(2){width:26%}#ddBomTools th:nth-child(4){width:26%}
+.dd-bom .nw{white-space:nowrap}
+.dd-bom .tc{color:var(--down);font-weight:600}
+.dd-bom tfoot td{font-weight:600;border-bottom:0}
+.dd-why li{font-size:15.5px;line-height:1.6}
 .dd-wide svg{min-width:640px}
 .guide td.num,.guide th.num{text-align:right}
 .guide th.num{white-space:nowrap}
@@ -167,7 +182,7 @@
     <p class="crumbs"><a href="../">Home</a> / <a href="../engineering/">Engineering Projects</a> / Project Daedalus</p>
     <p class="kicker">Build plan · hardware, firmware and case</p>
     <h1>Project Daedalus</h1>
-    <p class="intro">A compact Bluetooth game controller with one drift-free stick, designed from the start to be made in a batch of 30, for $22 to $27 of parts each.</p>
+    <p class="intro">A compact Bluetooth game controller with one drift-free stick, designed from the start to be made in a batch of 30, for $23 to $28 of parts each.</p>
   </header>
   <article class="guide">
 
@@ -304,7 +319,7 @@
 <tbody>
 <tr><td rowspan="4">Body</td><td>Size</td><td>125 × 78 mm; 22.2 mm thick in the middle, 29.2 mm from the crown of the front to the bottom of the palm swells (version 4; version 3 was a flat 21.7 mm)</td></tr>
 <tr><td>Weight</td><td>About 100 g (estimate: case 58 g, battery 21 g, board and parts 16 g, stick and cap 6 g, screws 2 g)</td></tr>
-<tr><td>Case</td><td>PETG, two shells, 2.0 mm walls, six M2 × 8 mm screws into brass inserts</td></tr>
+<tr><td>Case</td><td>PETG, two shells, 2.0 mm walls, six M2 screws into brass inserts (four 8 mm long through the board, two 6 mm long in the grips)</td></tr>
 <tr><td>Print</td><td>About 46 cm³ of plastic (58 g) in 13 pieces, plus supports inside the two shells</td></tr>
 <tr><td rowspan="5">Controls</td><td>Stick</td><td>Magnetic (Hall), tilts 26° each way, about 120 gf to move, click at about 750 gf, rated 5 million movements and 1 million clicks; returns to centre within 6.3 %</td></tr>
 <tr><td>Face buttons</td><td>4, silicone domes with carbon contacts on gold board pads, 27 mm apart across and 21 mm top to bottom</td></tr>
@@ -331,7 +346,7 @@
 <tr><td>USB-C socket</td><td>Rated 10,000 insertions</td></tr>
 <tr><td>Temperature</td><td>Use −10 to 70 °C (the stick's limit); charge only between 0 and 45 °C (the battery's limit)</td></tr>
 <tr><td rowspan="4">Board</td><td>Size</td><td>108 × 46 × 1.2 mm with its top corners curved to follow the case, two layers, gold (ENIG) finish</td></tr>
-<tr><td>Parts</td><td>About 60, all on the front, placed by the factory; the stick is soldered by hand</td></tr>
+<tr><td>Parts</td><td>50, of 25 different kinds, all on the front, placed by the factory; the stick is soldered by hand</td></tr>
 <tr><td>Connectors</td><td>USB-C (16-pin, charging and data), JST-PH 2-pin for the battery</td></tr>
 <tr><td>Spare pins</td><td>GPIO11, GPIO16 and GPIO17 (test pads). L2 and R2 are on pins that can read a voltage, for analog triggers later</td></tr>
 <tr><td rowspan="3">Firmware</td><td>Built with</td><td>Arduino, esp32 board package 3.3.12, NimBLE-Arduino 2.5.2</td></tr>
@@ -347,7 +362,7 @@
 <li><b>It is a finished, shielded radio with its own antenna and its own FCC ID.</b> You never design radio circuitry, and it matters a great deal if you ever sell a unit (see <a href="#selling">below</a>).</li>
 <li><b>It has USB built in.</b> Each board is flashed through its own USB-C socket. No programmer, no extra chip, which is what makes 30 units practical.</li>
 <li><b>It has enough pins.</b> Twelve buttons, two stick axes, battery sensing and a light need 16 pins. The ESP32-C3 module has 13 free, which would mean adding a second chip to read buttons, and it costs the same. The C6 has more than 20, so every button gets its own pin and the wiring stays simple.</li>
-<li><b>It is easy to program</b> with the free Arduino software, and at $3.53 it is among the cheapest modules that do all of the above.</li>
+<li><b>It is easy to program</b> with the free Arduino software, and at $3.49 it is among the cheapest modules that do all of the above.</li>
 </ul>
 <p>The smaller MINI version of the same chip would save space, but JLCPCB only fits it on its dearer "Standard" assembly service. The WROOM version is accepted on the cheap "Economic" one.</p>
 <p>What you give up: a Nordic nRF52840 uses roughly a tenth of the power and would run for weeks, not days. It costs about $2 more per unit and needs a separate programmer for every board. Battery life is last on this project's priority list and 25-plus hours is already more than most store-bought pads, so the ESP32-C6 wins. If you want month-long battery life later, the nRF52840 is the upgrade.</p>
@@ -373,39 +388,37 @@
 <p>A USB-C socket feeds a charger chip and the battery. A protection chip on the board cuts the battery off if it is over-charged, run flat or shorted, in addition to the one inside the cell. The slide switch does not carry the battery's current: it only tells the voltage regulator to turn on or off, so the switch's tiny contacts are never stressed and the controller draws almost nothing when off. A small transistor also switches the stick's power off when the controller sleeps.</p>
 
 <h2 id="parts">Parts list</h2>
-<p>Prices are per piece at about 30 pieces, in US dollars, as listed in November 2026. "C" numbers are LCSC part numbers, which are also what JLCPCB's assembly service uses. Stock changes weekly, so confirm every number in the JLCPCB parts library when you order.</p>
+<p>Every part in one controller, down to the last resistor, then everything to buy for a batch of 30. Prices are in US dollars and were looked up on <span id="ddBomDate">16 November 2026</span>. For the parts on the board they are what JLCPCB's parts library charged that day for the quantity a batch of 30 uses. "C" numbers are LCSC part numbers, which JLCPCB's assembly service also uses. <b>To confirm</b> marks anything that could not be read from a listing or a datasheet. Stock changes weekly, so check every number again in the JLCPCB parts library when you order.</p>
+<p><b>Download:</b> <a id="ddBomCsv" href="daedalus-bom-jlcpcb.csv" download="daedalus-bom-jlcpcb.csv">daedalus-bom-jlcpcb.csv</a>, the board's parts in the four columns JLCPCB's assembly order asks for (Comment, Designator, Footprint, JLCPCB Part #), ready to upload as its parts list; and <a href="bom.json" download>bom.json</a>, everything in the three tables below. The tables and the CSV are both made from that one file, so they cannot disagree. JLCPCB also asks for a placement file; that comes out of the board drawing, which does not exist yet.</p>
 
 <h3>On the board, placed by the factory</h3>
-<div class="dd-scroll"><table>
-<thead><tr><th>Ref</th><th>Part</th><th>LCSC no.</th><th class="num">Each</th><th>Notes</th></tr></thead>
-<tbody>
-<tr><td>U1</td><td>ESP32-C6-WROOM-1-N8 radio module</td><td>C5366877</td><td class="num">$3.53</td><td>The biggest single cost</td></tr>
-<tr><td>U2</td><td>TP4056 battery charger (ESOP-8)</td><td>C16581</td><td class="num">$0.19</td><td></td></tr>
-<tr><td>U3</td><td>XB5353A battery protection chip</td><td>C80628</td><td class="num">$0.09</td><td>Protection with the switch built in, so one part, not two</td></tr>
-<tr><td>U4</td><td>ME6211C33 3.3 V regulator</td><td>C82942</td><td class="num">$0.05</td><td>500 mA, loses only 0.12 V</td></tr>
-<tr><td>Q1, Q2</td><td>AO3401A transistor (P-channel MOSFET)</td><td>C15127</td><td class="num">$0.07</td><td>Basic part</td></tr>
-<tr><td>D1</td><td>B5819W Schottky diode</td><td>C8598</td><td class="num">$0.03</td><td>Basic part</td></tr>
-<tr><td>J1</td><td>USB-C socket, 16-pin, TYPE-C-31-M-12</td><td>C165948</td><td class="num">$0.19</td><td>Has four legs that go through the board, for strength</td></tr>
-<tr><td>J2</td><td>Battery socket, JST-PH 2-pin, S2B-PH-SM4-TB</td><td>C295747</td><td class="num">$0.21</td><td></td></tr>
-<tr><td>SW1</td><td>Slide switch MSK12C02</td><td>C431540</td><td class="num">$0.06</td><td>Rated only 50 mA, which is why it switches the regulator and not the power</td></tr>
-<tr><td>SW2 to SW5</td><td>Side-facing push switch, SHOU HAN TS3819ZJ, 160 gf</td><td>C6386917</td><td class="num">$0.10</td><td>L1, L2, R1, R2. Rated 500,000 presses</td></tr>
-<tr><td>SW6 to SW9</td><td>Small push switch, top-facing, XUNPU TS-1088-AR02016, 160 gf, 2.0 mm tall</td><td>C720477</td><td class="num">$0.04</td><td>Select, Start, Home, BOOT. A Basic part, so no extra fee</td></tr>
-<tr><td>LED1 to LED3</td><td>0603 LEDs: one for status, red and green for charging</td><td>Basic parts</td><td class="num">$0.01</td><td></td></tr>
-<tr><td>R, C</td><td>About 30 resistors and capacitors, size 0603</td><td>10 kΩ C25804, 5.1 kΩ C23186, 100 kΩ C25803, 100 nF C14663, 1 µF C15849, 10 µF C19702</td><td class="num">$0.06 the lot</td><td>All Basic. Pick Basic 0603 parts for the other values (100 Ω, 1 kΩ, 3 kΩ, 1 MΩ) when ordering</td></tr>
-</tbody></table></div>
+<p>One row for each different part. "Qty" is how many of it one board carries; "Each" is the price of one.</p>
+<div class="dd-scroll dd-bom"><table id="ddBomBoard">
+<thead><tr><th>Ref</th><th class="num">Qty</th><th>Part and value</th><th>Rating</th><th>Size</th><th>What it does here</th><th>Maker and part number</th><th>LCSC no.</th><th>JLCPCB class</th><th class="num">Each</th></tr></thead>
+<tbody><tr><td colspan="10">This table needs JavaScript. The same list is in the two files above.</td></tr></tbody>
+<tfoot></tfoot></table></div>
+<p id="ddBomBoardSum"></p>
+<p><b>Basic and Extended.</b> JLCPCB keeps its Basic parts loaded on the assembly machines and charges nothing extra for using them. Every different Extended part adds a one-off $3.07 to the order, however many boards are made. The exception is an Extended part marked "Preferred", which carries no fee on the Economic assembly service this plan uses. All the resistors, capacitors and lights here were chosen from the Basic list for that reason.</p>
+<p><b>Where each value comes from.</b> The page's wiring section fixes most of these. Where it did not, or where the reason matters, the working is here.</p>
+<ul id="ddBomWhy" class="dd-why"><li>This list needs JavaScript; the same notes are in bom.json.</li></ul>
 <p><b>The shoulder switches are still the parts most likely to wear out first.</b> Half a million presses is five times better than the first switch considered, but a heavily used R1 will get there one day. They are small and easy to re-solder. Their click is also very short, about 0.12 mm of travel, which is normal for this kind of switch.</p>
 
-<h3>Fitted by hand</h3>
-<div class="dd-scroll"><table>
-<thead><tr><th>Part</th><th>What to buy</th><th>Where</th><th class="num">Each</th><th>Notes</th></tr></thead>
-<tbody>
-<tr><td>Stick</td><td>YTL 13-series Hall module, YHE-YG13-013 SH3B166A5</td><td>LCSC, no. C42410941</td><td class="num">$1.69 at 30; $2.25 for one</td><td>Runs on 1.7 to 3.6 V. See the <a href="#options">options</a> for the TMR versions</td></tr>
-<tr><td>Thumb cap</td><td>Replacement thumbstick cap for a 4 mm D-shaped shaft</td><td>AliExpress, eBay, Amazon</td><td class="num">about $0.20</td><td>Price unconfirmed. Or print one</td></tr>
-<tr><td>Battery</td><td>3.7 V lithium-polymer cell, size 603450, 1,200 mAh, with protection board and a JST-PH 2.0 plug</td><td>AliExpress; Adafruit in the US</td><td class="num">$3 to $7.41</td><td>See the <a href="#options">options</a>: $7.41 is the cheapest price that could be confirmed; about $3 from marketplace sellers is unconfirmed. Buy all 30 from one listing</td></tr>
-<tr><td>Rubber pad</td><td>Conductive rubber pad set for a Super Nintendo style controller</td><td>eBay, AliExpress, retro repair shops</td><td class="num">$2.25 to $2.99</td><td>$2.99 a set from Hand Held Legend; about $2.25 in a lot of 100 on eBay. Buy one first and measure it</td></tr>
-<tr><td>Case</td><td>About 70 g of PETG filament</td><td>Any filament brand</td><td class="num">about $1.50</td><td>Two shells, four button caps, four plungers, three small caps</td></tr>
-<tr><td>Fixings</td><td>6 brass M2 heat-set inserts, 6 M2 × 8 mm screws, thin foam tape</td><td>Amazon, AliExpress</td><td class="num">about $0.35</td><td></td></tr>
-</tbody></table></div>
+<h3>Fitted by hand, and everything else in the box</h3>
+<p>What one finished controller holds besides the parts above, and what to buy for a batch of 30 with sensible spares. The 13 printed pieces are listed under <a href="#printing">Printing</a>; they come out of the filament in this table.</p>
+<div class="dd-scroll dd-bom"><table id="ddBomHand">
+<thead><tr><th>Item</th><th>Exactly what to buy</th><th>Where</th><th>For one controller</th><th>To buy for 30</th><th class="num">Cost in one</th><th>Notes</th></tr></thead>
+<tbody><tr><td colspan="7">This table needs JavaScript. The same list is in bom.json.</td></tr></tbody>
+<tfoot></tfoot></table></div>
+<p id="ddBomHandSum"></p>
+<p><b>What is left over after 30:</b> 3 sticks, 10 thumb caps, 2 batteries, 3 pad sets, 20 inserts, 80 of the longer screws and 40 of the shorter, most of the roll of tape, and whatever filament the failed prints did not use. The spare sticks, batteries and pads are the parts most likely to be needed for a repair later.</p>
+
+<h3>Tools and consumables, bought once</h3>
+<p>Needed once for the whole batch, however many controllers are made. Borrow what you can.</p>
+<div class="dd-scroll dd-bom"><table id="ddBomTools">
+<thead><tr><th>Item</th><th>What to buy</th><th>Where</th><th>What it is for</th><th class="num">Price</th><th>Notes</th></tr></thead>
+<tbody><tr><td colspan="6">This table needs JavaScript. The same list is in bom.json.</td></tr></tbody>
+<tfoot></tfoot></table></div>
+<p id="ddBomToolsSum"></p>
 
 
 <h2 id="shop">What to buy first, with links</h2>
@@ -997,6 +1010,53 @@
     host.innerHTML='<svg viewBox="0 0 '+(W*k+2*m)+' '+(H*k+2*m)+'" role="img" aria-label="Front of the circuit board with the position of every part marked. The same positions are listed in the table below.">'+svg.join('')+'</svg>';
     tb.innerHTML=rows.map(function(r){return '<tr><td>'+esc(r[0])+'</td><td class="num">'+r[1]+'</td><td class="num">'+r[2]+'</td><td>'+esc(r[3])+'</td></tr>'}).join('');
   }).catch(function(){host.innerHTML='<p>The drawing could not be loaded. The numbers are in layout.json.</p>'});
+})();
+
+// The three parts tables and the CSV download, all from bom.json (make_bom.py writes the same CSV to disk).
+(function(){
+  var tBoard=document.querySelector('#ddBomBoard tbody');
+  if(!tBoard)return;
+  function $(id){return document.getElementById(id)}
+  function esc(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;')}
+  function money(x){return '$'+(x>=1?x.toFixed(2):x>=.01?x.toFixed(3):x.toFixed(4))}
+  function refs(r){return r.length>3&&/\d+$/.test(r[0])?r[0]+' to '+r[r.length-1]:r.join(', ')}
+  function link(text,url){return url?'<a href="'+esc(url)+'" rel="noopener">'+esc(text)+'</a>':esc(text)}
+  function cell(t){t=String(t);return /[",\n]/.test(t)?'"'+t.replace(/"/g,'""')+'"':t}
+  function csv(B){return [B.csv_columns.map(cell).join(',')].concat(B.board.map(function(p){return [p.comment,p.ref.join(','),p.footprint,p.lcsc].map(cell).join(',')})).join('\n')+'\n'}
+  function note(o){return (o.note?esc(o.note):'')+(o.fit?(o.note?' ':'')+esc(o.fit):'')+(o.confirm?((o.note||o.fit)?' ':'')+'<span class="tc">To confirm.</span> '+esc(o.confirm):'')}
+  fetch('bom.json').then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(B){
+    var n=0,sum=0,basic=0,fees=0;
+    tBoard.innerHTML=B.board.map(function(p){
+      n+=p.ref.length;sum+=p.ref.length*p.each;if(p.cls==='Basic')basic++;if(p.fee)fees++;
+      return '<tr><td class="nw">'+esc(refs(p.ref))+'</td><td class="num">'+p.ref.length+'</td><td>'+esc(p.value)+'</td><td>'+esc(p.rating)+'</td><td>'+esc(p.pkg)+'</td><td>'+esc(p.does)+'</td><td>'+esc(p.mfr)+' <span class="nw">'+esc(p.mpn)+'</span></td><td><a href="https://jlcpcb.com/partdetail/'+esc(p.lcsc)+'" rel="noopener">'+esc(p.lcsc)+'</a></td><td>'+esc(p.cls)+(p.cls==='Basic'?'':p.fee?': fee':': no fee')+'</td><td class="num">'+money(p.each)+'</td></tr>';
+    }).join('');
+    var ext=B.board.length-basic;
+    document.querySelector('#ddBomBoard tfoot').innerHTML='<tr><td>Total</td><td class="num">'+n+'</td><td colspan="7">parts on one board, of '+B.board.length+' different kinds</td><td class="num">'+money(sum)+'</td></tr>';
+    $('ddBomBoardSum').innerHTML='<b>'+n+' parts of '+B.board.length+' kinds: '+basic+' Basic and '+ext+' Extended.</b> '+fees+' of the Extended parts carry JLCPCB\'s fee'+(ext>fees?'; the other '+(ext-fees===1?'is a Preferred part and does':'are Preferred parts and do')+' not':'')+'. The parts for one board come to '+money(sum)+'. Each C number links to that part\'s page at JLCPCB, which shows today\'s price, stock and class.';
+    $('ddBomWhy').innerHTML=B.board.filter(function(p){return p.why||p.note}).map(function(p){return '<li><b>'+esc(refs(p.ref))+', '+esc(p.value)+'.</b> '+esc(p.why||p.note)+'</li>'}).join('');
+    var used=0,buy=0;
+    document.querySelector('#ddBomHand tbody').innerHTML=B.hand.map(function(h){
+      if(!h.board){used+=h.used;buy+=h.buy30}
+      return '<tr><td>'+esc(h.item)+'</td><td>'+esc(h.buy)+'</td><td>'+link(h.where,h.url)+'</td><td>'+esc(h.per)+'</td><td><b>'+esc(h.batch)+'</b>. '+esc(h.pack)+'</td><td class="num">'+esc(h.price)+'</td><td>'+note(h)+'</td></tr>';
+    }).join('');
+    var brd=B.hand.filter(function(h){return h.board})[0];
+    document.querySelector('#ddBomHand tfoot').innerHTML='<tr><td colspan="5">Everything in one controller'+(brd?': the board at '+money(brd.used)+' and the rest at '+money(used):'')+'</td><td class="num">'+money(used+(brd?brd.used:0))+'</td><td></td></tr>';
+    $('ddBomHandSum').innerHTML='<b>Without the board, the parts in one controller cost '+money(used)+'.</b> Bought for '+B.batch+' with the spares and whole packs in the table, they come to about $'+Math.round(buy)+', which is about $'+Math.round(buy-used*B.batch)+' more than '+B.batch+' exact sets. The <a href="#cost">Cost</a> section counts what goes into each controller, so allow that much on top for the batch.';
+    var tools=0,kind='';
+    document.querySelector('#ddBomTools tbody').innerHTML=B.tools.map(function(t){
+      tools+=t.cost||0;
+      var head=t.kind!==kind?'<tr><td colspan="6"><b>'+esc(t.kind==='Tool'?'Tools':'Used up as you go')+'</b></td></tr>':'';kind=t.kind;
+      return head+'<tr><td>'+esc(t.item)+'</td><td>'+link(t.buy,t.url)+'</td><td>'+esc(t.where||'')+'</td><td>'+esc(t['for'])+'</td><td class="num">'+esc(t.price)+'</td><td>'+note(t)+'</td></tr>';
+    }).join('');
+    document.querySelector('#ddBomTools tfoot').innerHTML='<tr><td colspan="4">Everything priced here</td><td class="num">about $'+Math.round(tools/5)*5+'</td><td></td></tr>';
+    $('ddBomToolsSum').innerHTML='About $'+Math.round(tools/5)*5+' if you own none of it, not counting a printer. The prices with links were read from the listing pages on 14 November 2026.';
+    if($('ddBomDate'))$('ddBomDate').textContent=B.checked;
+    // the download link hands over a CSV made here from the same data, so it always matches the table above
+    try{$('ddBomCsv').href=URL.createObjectURL(new Blob([csv(B)],{type:'text/csv'}))}catch(e){}
+    window.__ddBom={csv:csv(B),data:B};
+  }).catch(function(){
+    [].forEach.call(document.querySelectorAll('.dd-bom tbody td'),function(td){td.textContent='This table could not be loaded. The same list is in bom.json and the CSV file above.'});
+  });
 })();
 
 // ---------------------------------------------------------------------------------------------------------------
