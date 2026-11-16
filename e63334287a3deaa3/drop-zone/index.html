@@ -47,8 +47,8 @@ button:disabled{opacity:.5;cursor:default}
 
 #stormTint{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,rgba(20,30,52,0) 38%,rgba(8,14,30,.62) 100%);opacity:0;transition:opacity .4s}
 #hud{position:absolute;inset:0;pointer-events:none}
-#hud.spec #vitals,#hud.spec #slots,#hud.spec #cross,#hud.spec #reload,#hud.spec #hint,#hud.spec #scope,#hud.spec #ammo,#hud.spec #prompt,#hud.spec #useBar{display:none}
-#hud.air #cross,#hud.air #ammo{display:none}
+#hud.spec #vitals,#hud.spec #slots,#hud.spec #cross,#hud.spec #reload,#hud.spec #hint,#hud.spec #scope,#hud.spec #sight,#hud.spec #ammo,#hud.spec #prompt,#hud.spec #useBar{display:none}
+#hud.air #cross,#hud.air #ammo,#hud.air #sight{display:none}
 
 #mapBox{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:calc(12px + env(safe-area-inset-right,0px));width:168px;display:flex;flex-direction:column;gap:4px;align-items:stretch}
 #mini{width:168px;height:168px;display:block;border:2px solid rgba(255,248,234,.5);background:#164a63;border-radius:6px;pointer-events:auto;cursor:pointer}
@@ -124,10 +124,14 @@ button:disabled{opacity:.5;cursor:default}
 #useBar{position:absolute;left:50%;top:calc(50% + 78px);transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:4px;font-size:15px;font-weight:700}
 #useBar i{display:block;width:160px;height:6px;background:rgba(0,0,0,.5);border-radius:3px;overflow:hidden}
 #useBar b{display:block;height:100%;width:0;background:var(--hp)}
-#scope{position:absolute;inset:0;background:radial-gradient(circle at center,transparent 0 min(34vh,34vw),rgba(4,10,16,.96) calc(min(34vh,34vw) + 2px))}
-#scope::before,#scope::after{content:"";position:absolute;background:rgba(0,0,0,.85)}
-#scope::before{left:0;right:0;top:50%;height:1px}
-#scope::after{top:0;bottom:0;left:50%;width:1px}
+/* The snipers' scope: a round lens in a black surround with a rim, a darker edge to the glass, and the reticle (an SVG, different for
+   each sniper) across the lens. --r is the lens radius, --rim the rim colour, --tint a faint colour over the glass. */
+#scope{position:absolute;inset:0;--r:min(36vh,36vw);--rim:#1a2530;--tint:rgba(120,190,255,.05);
+  background:radial-gradient(circle at center,var(--tint) 0 calc(var(--r)*.72),rgba(0,6,12,.34) calc(var(--r) - 7px),var(--rim) calc(var(--r) - 5px) var(--r),rgba(2,5,8,.985) calc(var(--r) + 2px))}
+#scopeR{position:absolute;left:50%;top:50%;width:calc(var(--r)*2);height:calc(var(--r)*2);transform:translate(-50%,-50%);overflow:visible}
+/* every other weapon's sight picture, drawn over the middle of the view while aiming */
+#sight{position:absolute;left:50%;top:50%;width:clamp(170px,34vh,300px);height:clamp(170px,34vh,300px);transform:translate(-50%,-50%);filter:drop-shadow(0 0 1.5px rgba(0,0,0,.9))}
+#sightR{display:block;width:100%;height:100%;overflow:visible}
 #hurt{position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 45%,rgba(200,30,20,.7) 100%);opacity:0}
 #tags{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .ntag{position:absolute;left:0;top:0;font-weight:700;font-size:14px;letter-spacing:.04em;color:#fff;text-shadow:0 1px 2px #000;white-space:nowrap;pointer-events:none}
@@ -307,7 +311,8 @@ body.touch #net{font-size:14px}
     </div>
     <div id="feed"></div>
     <div id="tags"></div>
-    <div id="scope" hidden></div>
+    <div id="scope" hidden><svg id="scopeR" viewBox="-100 -100 200 200" aria-hidden="true"></svg></div>
+    <div id="sight" hidden><svg id="sightR" viewBox="-100 -100 200 200" aria-hidden="true"></svg></div>
     <div id="hurt"></div>
     <div id="cross"><i class="h" id="cl"></i><i class="h" id="cr"></i><i class="v" id="ct"></i><i class="v" id="cb"></i><i class="dot"></i></div>
     <div id="hitm"></div>
@@ -500,18 +505,21 @@ const DIR_YAW=[Math.PI/2,0,-Math.PI/2,Math.PI];
 // to 8 a pellet, Rifle 22 to 18, Bolt Sniper 98 to 82, Crowbar 20 to 17. Fire rates, reloads, magazines and damage to builds are unchanged.)
 // Ten weapons, two in each of five families (fam): one quick and light, one slow and hard-hitting (or the other way round), so
 // two finds of the same family play differently. fam decides how bots use it, the tracer and the recoil; everything else is its own.
-// col: the body colour of its model, also used for its HUD slot.
+// col: the body colour of its model, also used for its HUD slot. Aiming (hold Aim) is different for each: fov is the zoom, ad how far
+// behind the camera sits and as how far to the side (pistols, SMGs and shotguns stay over the shoulder, each at its own distance;
+// 0 and 0 puts the camera at the eye, for the rifles' sights and the snipers' scopes), pose where the gun is held while aiming
+// (seen over the shoulder), and SIGHT[id] below is its sight picture.
 const WEAP={
-  pi:{id:'pi',fam:'pi',name:'Pistol',short:'Pistol',dmg:20,head:1.75,rate:.2,mag:12,reload:1.3,hip:.02,ads:.011,range:80,pellets:1,fov:58,am:'L',fall:[30,.6],sd:24,col:0xece4cf},
-  hc:{id:'hc',fam:'pi',name:'Heavy Pistol',short:'Heavy',dmg:42,head:1.75,rate:.55,mag:6,reload:1.7,hip:.026,ads:.007,range:95,pellets:1,fov:52,am:'L',fall:[40,.65],sd:55,col:0xb9c2cc},
-  sm:{id:'sm',fam:'sm',name:'SMG',short:'SMG',dmg:12,head:1.5,rate:.075,mag:28,reload:2,hip:.034,ads:.024,range:55,pellets:1,fov:62,am:'L',fall:[18,.55],sd:12,col:0xf2902f},
-  ds:{id:'ds',fam:'sm',name:'Drum SMG',short:'Drum',dmg:15,head:1.5,rate:.11,mag:40,reload:2.6,hip:.03,ads:.018,range:65,pellets:1,fov:58,am:'L',fall:[24,.6],sd:15,col:0xf2c230},
-  sg:{id:'sg',fam:'sg',name:'Pump Shotgun',short:'Pump',dmg:8,head:1.5,rate:.9,mag:5,reload:2.1,hip:.075,ads:.062,range:40,pellets:9,fov:62,am:'S',falloff:true,sd:13,col:0xd9483b},
-  as:{id:'as',fam:'sg',name:'Auto Shotgun',short:'Auto',dmg:6,head:1.5,rate:.4,mag:8,reload:2.6,hip:.095,ads:.08,range:32,pellets:7,fov:64,am:'S',falloff:true,sd:9,col:0x3d6fd9},
-  ar:{id:'ar',fam:'ar',name:'Rifle',short:'Rifle',dmg:18,head:1.5,rate:.12,mag:30,reload:1.9,hip:.022,ads:.006,range:150,pellets:1,fov:50,am:'M',fall:[60,.75],sd:22,col:0x1f9c8f},
-  hr:{id:'hr',fam:'ar',name:'Heavy Rifle',short:'Heavy R',dmg:34,head:1.6,rate:.28,mag:18,reload:2.2,hip:.03,ads:.003,range:180,pellets:1,fov:44,am:'M',fall:[80,.8],sd:40,col:0x7a8f3a},
-  sr:{id:'sr',fam:'sr',name:'Bolt Sniper',short:'Bolt',dmg:82,head:2,rate:1.3,mag:4,reload:2.5,hip:.1,ads:0,range:320,pellets:1,fov:20,am:'H',sd:150,col:0x596078},
-  ss:{id:'ss',fam:'sr',name:'Scout Sniper',short:'Scout',dmg:44,head:2,rate:.5,mag:8,reload:2.8,hip:.07,ads:.002,range:260,pellets:1,fov:28,am:'H',sd:80,col:0xd9d2c0}
+  pi:{id:'pi',fam:'pi',name:'Pistol',short:'Pistol',dmg:20,head:1.75,rate:.2,mag:12,reload:1.3,hip:.02,ads:.011,range:80,pellets:1,fov:58,ad:3,as:.85,pose:[.1,1.5,-.76],am:'L',fall:[30,.6],sd:24,col:0xece4cf},
+  hc:{id:'hc',fam:'pi',name:'Heavy Pistol',short:'Heavy',dmg:42,head:1.75,rate:.55,mag:6,reload:1.7,hip:.026,ads:.007,range:95,pellets:1,fov:50,ad:3,as:.88,pose:[.08,1.52,-.8],am:'L',fall:[40,.65],sd:55,col:0xb9c2cc},
+  sm:{id:'sm',fam:'sm',name:'SMG',short:'SMG',dmg:12,head:1.5,rate:.075,mag:28,reload:2,hip:.034,ads:.024,range:55,pellets:1,fov:62,ad:3.2,as:.9,pose:[.22,1.46,-.6],am:'L',fall:[18,.55],sd:12,col:0xf2902f},
+  ds:{id:'ds',fam:'sm',name:'Drum SMG',short:'Drum',dmg:15,head:1.5,rate:.11,mag:40,reload:2.6,hip:.03,ads:.018,range:65,pellets:1,fov:56,ad:3,as:.85,pose:[.2,1.44,-.58],am:'L',fall:[24,.6],sd:15,col:0xf2c230},
+  sg:{id:'sg',fam:'sg',name:'Pump Shotgun',short:'Pump',dmg:8,head:1.5,rate:.9,mag:5,reload:2.1,hip:.075,ads:.062,range:40,pellets:9,fov:60,ad:3,as:.9,pose:[.2,1.47,-.6],am:'S',falloff:true,sd:13,col:0xd9483b},
+  as:{id:'as',fam:'sg',name:'Auto Shotgun',short:'Auto',dmg:6,head:1.5,rate:.4,mag:8,reload:2.6,hip:.095,ads:.08,range:32,pellets:7,fov:66,ad:3.4,as:.95,pose:[.24,1.42,-.6],am:'S',falloff:true,sd:9,col:0x3d6fd9},
+  ar:{id:'ar',fam:'ar',name:'Rifle',short:'Rifle',dmg:18,head:1.5,rate:.12,mag:30,reload:1.9,hip:.022,ads:.006,range:150,pellets:1,fov:46,ad:0,as:0,pose:[.16,1.52,-.56],am:'M',fall:[60,.75],sd:22,col:0x1f9c8f},
+  hr:{id:'hr',fam:'ar',name:'Heavy Rifle',short:'Heavy R',dmg:34,head:1.6,rate:.28,mag:18,reload:2.2,hip:.03,ads:.003,range:180,pellets:1,fov:34,ad:0,as:0,pose:[.13,1.55,-.52],am:'M',fall:[80,.8],sd:40,col:0x7a8f3a},
+  sr:{id:'sr',fam:'sr',name:'Bolt Sniper',short:'Bolt',dmg:82,head:2,rate:1.3,mag:4,reload:2.5,hip:.1,ads:0,range:320,pellets:1,fov:16,ad:0,as:0,pose:[.1,1.56,-.5],am:'H',sd:150,col:0x596078},
+  ss:{id:'ss',fam:'sr',name:'Scout Sniper',short:'Scout',dmg:44,head:2,rate:.5,mag:8,reload:2.8,hip:.07,ads:.002,range:260,pellets:1,fov:30,ad:0,as:0,pose:[.1,1.56,-.5],am:'H',sd:80,col:0xd9d2c0}
 };
 const WIDS=['pi','hc','sm','ds','sg','as','ar','hr','sr','ss'];
 const famOf=id=>WEAP[id]?WEAP[id].fam:'';
@@ -1858,7 +1866,7 @@ function stormHum(k){
 
 /* ---------- game state ---------- */
 let state='menu',paused=false,online=false,practice=false;
-let mode='combat',buildType='wall',lmb=false,buildCd=0,camDist=3.5,locked=false,fallback=false,everLocked=false;
+let mode='combat',buildType='wall',lmb=false,buildCd=0,camDist=3.5,camSide=.7,locked=false,fallback=false,everLocked=false;
 // MS: the match state this browser follows (the host's, see hostDuties): {id, ph: 'lobby'|'play'|'end', ce: lobby countdown end,
 // sd: seed, t0: when the Drifter sets off (server ms), ro: the roster "uid,uid,b0,b1", nh: humans at the start, wn: winner, we: end time}
 let MS=null,curMatch=0,roster=[],inMatch=false,lobbyShown=false,watchMode=false,specId=null,endShown=0,statsDone=0,myResult=null,matchStartAt=0;
@@ -2110,7 +2118,28 @@ function resolveShot(shooter,w,r,rays,color){
   }
   return{ends,pd,md,hs};
 }
-// Right-click or hold Shift to aim; with the sniper that brings up the scope.
+// Sight pictures, one per weapon, in a 200 x 200 box centred on the aim point (SVG, so they stay sharp at any size).
+// Pistol: three white dots. Heavy Pistol: a fat front post in a notch. SMG: a small ring. Drum SMG: a ring with four ticks.
+// Pump Shotgun: a wide dashed circle (about its spread) with a bead. Auto Shotgun: wide brackets. Rifle: a red dot in a small square
+// window. Heavy Rifle: a red chevron with drop marks in a round tube. Bolt Sniper: fine cross hairs with mil dots and thick outer
+// posts. Scout Sniper: a green duplex cross with an open centre and a ring.
+const SIGHT=(()=>{const W='stroke="#fff" fill="none" stroke-linecap="round"',R='#ff4a3a',o={};
+  o.pi=`<circle r="2" fill="#fff"/><circle cx="-13" r="2" fill="#fff"/><circle cx="13" r="2" fill="#fff"/><path ${W} stroke-width="1.5" d="M-22 0h-7M22 0h7"/>`;
+  o.hc=`<path ${W} stroke-width="5" d="M0 3v17"/><path ${W} stroke-width="2.2" d="M-17 20v-13h9M17 20v-13h-9"/><circle r="1.6" fill="${R}"/>`;
+  o.sm=`<circle r="11" ${W} stroke-width="1.8"/><circle r="1.6" fill="#fff"/>`;
+  o.ds=`<circle r="15" ${W} stroke-width="1.8"/><path ${W} stroke-width="2.2" d="M0-15v-8M0 15v8M-15 0h-8M15 0h8"/><circle r="1.8" fill="#fff"/>`;
+  o.sg=`<circle r="30" ${W} stroke-width="1.8" stroke-dasharray="7 6"/><circle r="2.6" fill="#fff"/>`;
+  o.as=`<path ${W} stroke-width="2.4" d="M-30-22h-10v44h10M30-22h10v44h-10"/><path ${W} stroke-width="1.6" d="M-6 0h12M0-6v12"/>`;
+  o.ar=`<rect x="-46" y="-34" width="92" height="68" rx="9" fill="rgba(120,200,255,.07)" stroke="#161b22" stroke-width="7"/><path stroke="#161b22" stroke-width="9" fill="none" d="M-16 37v14h32v-14"/><circle r="6" fill="${R}" opacity=".28"/><circle r="2.6" fill="${R}"/>`;
+  o.hr=`<circle r="74" fill="rgba(120,200,255,.06)" stroke="#12171d" stroke-width="12"/><circle r="67" fill="none" stroke="#2a323b" stroke-width="2"/><path stroke="${R}" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round" d="M-9 9L0 0l9 9"/><path stroke="${R}" stroke-width="1.8" fill="none" d="M-6 20h12M-4 31h8M-2.5 42h5M0 12v40"/><path stroke="#12171d" stroke-width="2.4" fill="none" d="M-62 0h-12M62 0h12M0-62v-12"/>`;
+  let dots='';for(const k of [-4,-3,-2,-1,1,2,3,4])dots+=`<circle cx="${k*12}" r="1.5"/><circle cy="${k*12}" r="1.5"/>`;
+  o.sr=`<g stroke="#0a0d10" fill="#0a0d10"><path stroke-width=".7" d="M-58 0h58M0 0h58M0-58v116"/><path stroke-width="4.5" d="M-99 0h39M60 0h39M0 60v39M0-99v39"/>${dots}</g>`;
+  o.ss=`<g stroke="#0d2a16" fill="none"><path stroke-width="3.6" d="M-99 0h74M25 0h74M0 25v74"/><path stroke-width="1" d="M-25 0h18M7 0h18M0 7v18M0-99v92"/><circle r="7" stroke-width="1.2"/></g><circle r="1.2" fill="#0d2a16"/>`;
+  return o})();
+// what the scope looks like for each sniper: [lens radius, rim colour, glass tint]
+const SCOPE={sr:['min(34vh,34vw)','#1a2530','rgba(120,190,255,.06)'],ss:['min(41vh,41vw)','#22382a','rgba(140,255,170,.06)']};
+let sightKey='';
+// Right-click or hold Shift to aim. Every weapon has its own aim view; with the snipers that is the scope.
 function isADS(){return state==='playing'&&!paused&&mode==='combat'&&held('aim')&&player.alive&&player.st==='ground'&&player.reloadT<=0&&!!heldW(player)}
 function curSpread(e,w,ads){const moving=Math.hypot(e.vel.x,e.vel.z)>1.2||!e.onGround;let s=ads?w.ads:w.hip;if(moving&&w.pellets===1)s=s*1.7+.004;return s}
 function shootFrom(e,w,r,camF,cp,ads,color){
@@ -2696,7 +2725,7 @@ function onlineTick(){
 }
 
 /* ---------- HUD ---------- */
-const hud={root:$('hud'),feed:$('feed'),banner:$('banner'),hint:$('hint'),cross:$('cross'),cl:$('cl'),cr:$('cr'),ct:$('ct'),cb:$('cb'),hitm:$('hitm'),hurt:$('hurt'),scope:$('scope'),
+const hud={root:$('hud'),feed:$('feed'),banner:$('banner'),hint:$('hint'),cross:$('cross'),cl:$('cl'),cr:$('cr'),ct:$('ct'),cb:$('cb'),hitm:$('hitm'),hurt:$('hurt'),scope:$('scope'),scopeR:$('scopeR'),sight:$('sight'),sightR:$('sightR'),
   reload:$('reload'),reloadF:$('reloadFill'),hpN:$('hpNum'),hpF:$('hpFill'),shN:$('shNum'),shF:$('shFill'),tags:$('tags'),net:$('net'),mats:$('mats'),ammo:$('ammo'),prompt:$('prompt'),
   useBar:$('useBar'),useLbl:$('useLbl'),useFill:$('useFill'),alive:$('aliveN'),kills:$('killN'),stormT:$('stormT'),tint:$('stormTint'),place:$('placeLbl'),strip:$('compStrip'),safe:$('compSafe'),warn:$('stormWarn'),swT:$('swTitle'),swS:$('swSub')};
 // the compass strip: three turns of the dial side by side (3 px a degree), slid sideways as you turn
@@ -2741,11 +2770,13 @@ function updateHud(dt){
   }
   hud.prompt.hidden=!pr;if(pr&&hud.prompt.innerHTML!==pr)hud.prompt.innerHTML=pr;
   if(touchUI){const u=$('tUse');u.hidden=!tl;if(tl&&u.textContent!==tl)u.textContent=tl;hudSet($('tFire'),'#tf',mode==='build'?'PLACE':(s&&HEALS[s.t]?'USE':!w?'HIT':'FIRE'));$('tAim').classList.toggle('on',!!tAct.aim)}
-  const ads=isADS(),scoped=ads&&w&&w.fam==='sr';hud.scope.hidden=!scoped;
+  const ads=isADS(),scoped=ads&&w&&w.fam==='sr',sgt=ads&&w?w.id:'';
+  if(sgt!==sightKey){sightKey=sgt;hud.scope.hidden=!scoped;hud.sight.hidden=!sgt||scoped;
+    if(sgt){(scoped?hud.scopeR:hud.sightR).innerHTML=SIGHT[sgt]||'';if(scoped){const c=SCOPE[sgt]||SCOPE.sr;hud.scope.style.setProperty('--r',c[0]);hud.scope.style.setProperty('--rim',c[1]);hud.scope.style.setProperty('--tint',c[2])}}}
   const sp=mode==='build'||!w?.004:(w.pellets>1?(ads?w.ads:w.hip):curSpread(p,w,ads));
   const gap=Math.round((4+sp*(VH/2)/Math.tan(camera.fov*Math.PI/360)*.9)*4)/4;
   if(hudLast.get('gap')!==gap){hudLast.set('gap',gap);hud.cl.style.transform=`translate(${-gap-9}px,0)`;hud.cr.style.transform=`translate(${gap}px,0)`;hud.ct.style.transform=`translate(0,${-gap-9}px)`;hud.cb.style.transform=`translate(0,${gap}px)`}
-  hudSet(hud.cross,'c:opacity',scoped?'0':'1');
+  hudSet(hud.cross,'c:opacity',sgt?'0':'1');   // while aiming, the weapon's own sight replaces the crosshair
   hitT-=dt;hudSet(hud.hitm,'h:opacity',hitT>0?'1':'0');
   hurtA=Math.max(0,hurtA-dt*1.2);hudSet(hud.hurt,'u:opacity',hurtA.toFixed(2));
   // match info: players left, your knockouts, the storm clock
@@ -2924,7 +2955,9 @@ function animModel(e,dt){
   if(e.local)setHeldModel(m,heldKey(e),heldItem(e)?heldItem(e).r:-1);
   // the held item kicks back and up for a moment after a shot (or a swing)
   const kk=e.kick>0?(e.kick=Math.max(0,e.kick-dt*9)):0;
-  u.gun.position.y=1.36+(e.reloadT>0||e.useT>0?-.14:0);u.gun.position.z=-.62+kk*.11;u.gun.rotation.x=kk*.22;
+  // where the item is held: at the hip, or (you, aiming) raised to that weapon's own aiming pose
+  const aw=e===player&&isADS()?heldW(e):null;e.aimK=clamp((e.aimK||0)+(aw?dt*9:-dt*9),0,1);const ps=aw?(e.pose=aw.pose):e.pose,ak=ps?e.aimK*e.aimK*(3-2*e.aimK):0;
+  u.gun.position.x=.3+(ps?(ps[0]-.3)*ak:0);u.gun.position.y=1.36+(ps?(ps[1]-1.36)*ak:0)+(e.reloadT>0||e.useT>0?-.14:0);u.gun.position.z=-.62+(ps?(ps[2]+.62)*ak:0)+kk*.11;u.gun.rotation.x=kk*.22;
 }
 let attractYaw=0;const _bp=new V3(),_ch=new V3(),_cp=new V3(),_cb=new V3(),_cl=new V3();
 function updateCamera(dt){
@@ -2944,16 +2977,18 @@ function updateCamera(dt){
   const f=fwdOf(tgt.yaw,tgt.pitch),r=rightOf(tgt.yaw);
   const head=_ch.set(tgt.pos.x,tgt.pos.y+EYE,tgt.pos.z);
   const airy=tgt.st==='fall'||tgt.st==='glide';
-  const side=raycast(arr(head),arr(r),.7,null,false);const so=airy?0:side.hit?Math.max(0,side.t-.25):.7;
+  // aiming: each weapon has its own distance and shoulder offset (the snipers go to the eye, behind the scope)
+  const sw=ads&&w?w.as:.7;camSide+=(sw-camSide)*Math.min(1,dt*12);
+  const side=camSide>.02?raycast(arr(head),arr(r),camSide,null,false):null;const so=airy?0:side&&side.hit?Math.max(0,side.t-.25):camSide;
   const pivot=_cp.copy(head).addScaledVector(r,so);
-  const want=airy?7:ads?2.2:4,back=_cb.copy(f).negate();
+  const want=airy?7:ads&&w?w.ad:4,back=_cb.copy(f).negate();
   const res=raycast(arr(pivot),arr(back),want,null,false);
-  const d=res.hit?Math.max(.3,res.t-.25):want;
+  const d=res.hit?Math.min(want,Math.max(.3,res.t-.25)):want;
   camDist=d<camDist?d:camDist+(d-camDist)*Math.min(1,dt*8);
   setNear(airy?.5:camDist<1.2?.08:.15);   // pulled in against a wall: a nearer plane so the wall isn't cut open
   camera.position.copy(pivot).addScaledVector(back,camDist);
   camera.lookAt(_cl.copy(pivot).addScaledVector(f,20));
-  if(self)player.model.visible=player.alive?camDist>.9&&!(ads&&w&&w.fam==='sr'):player.dieT<=2.2;
+  if(self)player.model.visible=player.alive?camDist>.9&&!(ads&&w&&!w.ad):player.dieT<=2.2;
 }
 function updateWorldFx(){
   const ip=inPlay();
