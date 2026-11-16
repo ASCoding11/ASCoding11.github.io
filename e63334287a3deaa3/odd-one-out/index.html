@@ -1685,7 +1685,8 @@ function buildOffice(){
     hunterSpawns:[[10.5,4],[11.5,4],[12.5,4],[10.5,6],[11.5,6],[12.5,6],[10.5,2],[11.5,2]],
   },room));
 }
-const MAPS=[{name:'Starlight Galleria',short:'Mall',build:buildMall},{name:'Willow Lane',short:'House',build:buildHouse},{name:'Brightside Office',short:'Office',build:buildOffice}];
+// menu: where the menu's backdrop camera stands inside the map [x, y, z, the way it faces, how far it turns each way]
+const MAPS=[{name:'Starlight Galleria',short:'Mall',build:buildMall,menu:[30,2.6,22,4.71,.55]},{name:'Willow Lane',short:'House',build:buildHouse,menu:[20,2.1,17,4.71,.4]},{name:'Brightside Office',short:'Office',build:buildOffice,menu:[24,2.2,18,1.57,.5]}];
 function loadMap(i){
   i=clamp(i|0,0,MAPS.length-1);if(i===mapIdx&&MAP)return;
   if(MAP){mapRoot.remove(MAP.group);MAP.group.traverse(o=>{if(o.geometry&&!o.isInstancedMesh&&!o.userData.shared)o.geometry.dispose()})}
@@ -1727,30 +1728,68 @@ const HUNTER_MATS={
   suit:new THREE.MeshStandardMaterial({color:new THREE.Color('#2d3348').convertSRGBToLinear(),roughness:.7}),
   vest:new THREE.MeshStandardMaterial({color:new THREE.Color('#ff7a1a').convertSRGBToLinear(),roughness:.6}),
   skin:new THREE.MeshStandardMaterial({color:new THREE.Color('#e8b48f').convertSRGBToLinear(),roughness:.7}),
-  visor:new THREE.MeshStandardMaterial({color:0x101218,roughness:.15,metalness:.3,emissive:new THREE.Color('#ff9a3c').convertSRGBToLinear(),emissiveIntensity:.35}),
-  gun:new THREE.MeshStandardMaterial({color:new THREE.Color('#23252b').convertSRGBToLinear(),roughness:.45,metalness:.4}),
+  visor:new THREE.MeshStandardMaterial({color:0x101218,roughness:.15,metalness:.3,emissive:new THREE.Color('#ff9a3c').convertSRGBToLinear(),emissiveIntensity:.1}),
+  gun:new THREE.MeshStandardMaterial({color:new THREE.Color('#2b2e37').convertSRGBToLinear(),roughness:.45,metalness:.35}),
   boot:new THREE.MeshStandardMaterial({color:new THREE.Color('#1b1d24').convertSRGBToLinear(),roughness:.8}),
+  pack:new THREE.MeshStandardMaterial({color:new THREE.Color('#4d5878').convertSRGBToLinear(),roughness:.75}),
+  stripe:new THREE.MeshStandardMaterial({color:new THREE.Color('#f3efd9').convertSRGBToLinear(),roughness:.35,emissive:new THREE.Color('#f3efd9').convertSRGBToLinear(),emissiveIntensity:.18}),
 };
-const HG={
-  leg:new THREE.BoxGeometry(.16,.5,.18).translate(0,-.25,0),boot:new THREE.BoxGeometry(.18,.12,.26).translate(0,-.5,.04),
-  torso:new THREE.BoxGeometry(.46,.56,.28),vest:new THREE.BoxGeometry(.5,.36,.32),head:new THREE.SphereGeometry(.17,16,12),helmet:new THREE.SphereGeometry(.19,16,10,0,TAU,0,Math.PI/2),
-  visor:new THREE.BoxGeometry(.26,.07,.06),face:new THREE.BoxGeometry(.2,.13,.1),arm:new THREE.BoxGeometry(.12,.46,.13).translate(0,-.2,0),
-  gunBody:new THREE.BoxGeometry(.07,.11,.55),gunMag:new THREE.BoxGeometry(.05,.16,.07),gunStock:new THREE.BoxGeometry(.06,.11,.22),gunSight:new THREE.BoxGeometry(.03,.05,.1),gunBarrel:new THREE.CylinderGeometry(.018,.018,.3,8).rotateX(Math.PI/2),
-};
+// A box with rounded edges, centred on x, y, z (the corners are pulled in onto a radius and shaded smooth).
+function rbox(w,h,d,r,x,y,z){
+  const g=new THREE.BoxGeometry(w,h,d,3,3,3),P=g.attributes.position,N=g.attributes.normal,H=[w/2,h/2,d/2],v=[0,0,0],q=[0,0,0];
+  r=Math.min(r,H[0]*.98,H[1]*.98,H[2]*.98);
+  for(let i=0;i<P.count;i++){
+    v[0]=P.getX(i);v[1]=P.getY(i);v[2]=P.getZ(i);let l=0;
+    for(let a=0;a<3;a++){const out=Math.abs(v[a])>H[a]-1e-6,inner=Math.sign(v[a])*(H[a]-r);q[a]=inner;v[a]=out?Math.sign(v[a]):0;l+=v[a]*v[a]}
+    l=Math.sqrt(l)||1;P.setXYZ(i,q[0]+v[0]/l*r,q[1]+v[1]/l*r,q[2]+v[2]/l*r);N.setXYZ(i,v[0]/l,v[1]/l,v[2]/l);
+  }
+  return g.translate(x||0,y||0,z||0);
+}
+// Several shapes as one mesh's geometry, so a hunter stays a handful of draw calls.
+function joinGeos(list){
+  let nv=0,ni=0;for(const g of list){nv+=g.attributes.position.count;ni+=g.index.count}
+  const pos=new Float32Array(nv*3),nor=new Float32Array(nv*3),idx=new Uint16Array(ni);let vo=0,io=0;
+  for(const g of list){pos.set(g.attributes.position.array,vo*3);nor.set(g.attributes.normal.array,vo*3);const a=g.index.array;for(let i=0;i<a.length;i++)idx[io++]=a[i]+vo;vo+=g.attributes.position.count;g.dispose()}
+  const o=new THREE.BufferGeometry();o.setAttribute('position',new THREE.BufferAttribute(pos,3));o.setAttribute('normal',new THREE.BufferAttribute(nor,3));o.setIndex(new THREE.BufferAttribute(idx,1));return o;
+}
+// The hunter: a chunky toy figure in a navy jumpsuit and a hi-vis vest, standing on the floor, 1.87 m to the top of the
+// helmet. Shapes are built once and shared; each hunter is 16 meshes (one fewer than the old figure) and about 2,900 triangles.
+const HG=(()=>{
+  const cyl=(rt,rb,h,n,x,y,z,rx)=>{const g=new THREE.CylinderGeometry(rt,rb,h,n);if(rx)g.rotateX(rx);return g.translate(x,y,z)};
+  const sph=(r,x,y,z,t0,t1)=>new THREE.SphereGeometry(r,16,10,0,TAU,t0||0,t1==null?Math.PI:t1).translate(x,y,z);
+  const bx=(w,h,d,x,y,z)=>new THREE.BoxGeometry(w,h,d).translate(x,y,z); // small parts stay plain boxes
+  const ear=x=>new THREE.CylinderGeometry(.05,.05,.05,10).rotateZ(Math.PI/2).translate(x,1.63,0);
+  const placed=(g,px,py,pz,rx,ry,sy)=>{const e=new THREE.Euler(rx,ry,0,'YXZ');return g.applyMatrix4(new THREE.Matrix4().compose(new V3(px,py,pz),new THREE.Quaternion().setFromEuler(e),new V3(1,sy,1)))};
+  // legs hang from the hip (y 0 here is the hip, .92 m up), boots and knee pads ride on them
+  const leg=rbox(.2,.82,.22,.06,0,-.39,0),legDark=joinGeos([rbox(.225,.16,.34,.055,0,-.84,.05),bx(.16,.12,.04,0,-.4,.12)]);
+  // body, in the model's own space
+  const suit=joinGeos([rbox(.46,.58,.28,.07,0,1.2,0),sph(.2,0,1.67,0,0,Math.PI*.5),new THREE.SphereGeometry(.2,10,4,Math.PI,Math.PI,Math.PI*.5,Math.PI*.24).translate(0,1.67,0),bx(.2,.025,.1,0,1.685,.2),cyl(.07,.08,.07,12,0,1.5,0)]);
+  const vest=joinGeos([rbox(.51,.38,.33,.06,0,1.27,0),cyl(.206,.206,.04,20,0,1.69,0)]);
+  const stripe=joinGeos([rbox(.52,.035,.34,.012,0,1.2,0),rbox(.52,.035,.34,.012,0,1.33,0)]);
+  const dark=joinGeos([bx(.48,.07,.3,0,.95,0),bx(.1,.1,.06,.17,.93,.15),ear(-.165),ear(.165),cyl(.009,.009,.42,5,.1,1.64,-.27)]);
+  const pack=joinGeos([rbox(.32,.36,.15,.05,0,1.27,-.235),bx(.2,.14,.05,0,1.2,-.325)]);
+  const skin=sph(.175,0,1.645,0),visor=rbox(.3,.1,.1,.035,0,1.625,.125);
+  // arms, already bent round the rifle (they turn as one about the shoulders to aim)
+  const armG=()=>rbox(.125,.48,.135,.045,0,-.2,0),hand=()=>rbox(.11,.11,.12,.04,0,-.45,0);
+  const arms=joinGeos([placed(armG(),-.26,0,0,-1.25,.8,1.3),placed(armG(),.27,0,0,-.75,0,1)]);
+  const hands=joinGeos([placed(hand(),-.26,0,0,-1.25,.8,1.3),placed(hand(),.27,0,0,-.75,0,1)]);
+  // the rifle, with a bright tip so it reads as a toy
+  const gun=joinGeos([rbox(.075,.12,.5,.02,0,0,.2),bx(.055,.17,.08,0,-.13,.24),rbox(.065,.12,.24,.025,0,-.025,-.17),cyl(.02,.02,.26,8,0,.01,.57,Math.PI/2),
+    cyl(.028,.028,.2,10,0,.095,.14,Math.PI/2),bx(.03,.04,.04,0,.07,.08),bx(.03,.04,.04,0,.07,.2)]);
+  const gunTip=joinGeos([cyl(.03,.03,.07,10,0,.01,.735,Math.PI/2),bx(.08,.05,.2,0,-.045,.36)]);
+  return{leg,legDark,suit,vest,stripe,dark,pack,skin,visor,arms,hands,gun,gunTip};
+})();
 function hunterModel(color){
-  const g=new THREE.Group(),M=HUNTER_MATS,mk=(geo,mat,x,y,z)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.castShadow=true;g.add(m);return m};
-  const legL=mk(HG.leg,M.suit,-.11,.92,0),legR=mk(HG.leg,M.suit,.11,.92,0);
-  const bL=new THREE.Mesh(HG.boot,M.boot);legL.add(bL);const bR=new THREE.Mesh(HG.boot,M.boot);legR.add(bR);
-  const torso=mk(HG.torso,M.suit,0,1.2,0);const vest=mk(HG.vest,M.vest,0,1.26,0);
+  const g=new THREE.Group(),M=HUNTER_MATS,mk=(geo,mat,par)=>{const m=new THREE.Mesh(geo,mat);m.castShadow=true;(par||g).add(m);return m};
+  const legL=mk(HG.leg,M.suit),legR=mk(HG.leg,M.suit);legL.position.set(-.12,.92,0);legR.position.set(.12,.92,0);mk(HG.legDark,M.boot,legL);mk(HG.legDark,M.boot,legR);
+  mk(HG.suit,M.suit);const vest=mk(HG.vest,M.vest);mk(HG.stripe,M.stripe);mk(HG.dark,M.boot);mk(HG.pack,M.pack);const head=mk(HG.skin,M.skin);mk(HG.visor,M.visor);
   if(color){vest.material=new THREE.MeshStandardMaterial({color:new THREE.Color(color).convertSRGBToLinear(),roughness:.6})}
-  const head=mk(HG.head,M.boot,0,1.66,0);mk(HG.face,M.skin,0,1.62,.1);mk(HG.helmet,M.suit,0,1.68,0);mk(HG.visor,M.visor,0,1.69,.15);
-  const arms=new THREE.Group();arms.position.set(0,1.42,0);g.add(arms);
-  const armL=new THREE.Mesh(HG.arm,M.suit);armL.position.set(-.26,0,0);armL.rotation.order='YXZ';armL.rotation.x=-1.25;armL.rotation.y=.8;armL.scale.y=1.3;arms.add(armL);
-  const armR=new THREE.Mesh(HG.arm,M.suit);armR.position.set(.27,0,0);armR.rotation.x=-.75;arms.add(armR);
-  const gun=new THREE.Group();gun.position.set(.26,-.06,.14);arms.add(gun);
-  for(const [geo,x,y,z] of [[HG.gunBody,0,0,.2],[HG.gunMag,0,-.12,.24],[HG.gunStock,0,-.02,-.16],[HG.gunBarrel,0,.01,.62],[HG.gunSight,0,.08,.1]]){const m=new THREE.Mesh(geo,M.gun);m.position.set(x,y,z);m.castShadow=true;gun.add(m)}
+  const arms=new THREE.Group();arms.position.set(0,1.42,0);g.add(arms);mk(HG.arms,M.suit,arms);mk(HG.hands,M.boot,arms);
+  const gun=new THREE.Group();gun.position.set(.26,-.06,.14);arms.add(gun);mk(HG.gun,M.gun,gun);mk(HG.gunTip,M.vest,gun);
   const muzzle=new THREE.Object3D();muzzle.position.set(0,.01,.78);gun.add(muzzle);
-  g.userData={legL,legR,arms,gun,muzzle,head};
+  // a soft contact shadow, so a hunter sits on the floor at every quality but Low (as the objects' do)
+  const blob=new THREE.Mesh(blobGeo,blobMatOf());blob.position.y=.004;blob.scale.set(.8,1,.62);blob.renderOrder=1;blob.visible=gfx!=='fast';g.add(blob);
+  g.userData={legL,legR,arms,gun,muzzle,head,blob};
   return g;
 }
 const ents=new Map();
@@ -1778,9 +1817,9 @@ function setLook(e,look){
 function setForm(e,t){e.form=t;if(e.look==='prop')setLook(e,'prop')}
 function hunterStep(e,dt){
   const u=e.model&&e.model.userData;if(!u||!u.legL)return;
-  e.walkT+=dt*clamp(e.spd,0,6)*1.8;const sw=Math.sin(e.walkT)*clamp(e.spd/4,0,1)*.7;
+  e.walkT+=dt*clamp(e.spd,0,6)*1.8;const sw=Math.sin(e.walkT)*clamp(e.spd/4,0,1)*.55;
   u.legL.rotation.x=sw;u.legR.rotation.x=-sw;u.arms.rotation.x=-clamp(e.aimPitch||0,-1.2,1.2);
-  u.gun.position.z=.14-e.flash*.05;e.flash=Math.max(0,e.flash-dt*10);
+  u.gun.position.z=.14-e.flash*.05;e.flash=Math.max(0,e.flash-dt*10);if(u.blob)u.blob.visible=gfx!=='fast';
 }
 
 // =====================================================================
@@ -1953,12 +1992,27 @@ const fxSphere=new THREE.SphereGeometry(1,8,6),fxBox=new THREE.BoxGeometry(1,1,1
 function fxMesh(geo,color,opa,add){const m=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color,transparent:opa!=null,opacity:opa==null?1:opa,depthWrite:opa==null,blending:add?THREE.AdditiveBlending:THREE.NormalBlending}));fxRoot.add(m);return m}
 function clearFx(){for(const f of fx){fxRoot.remove(f.m);f.m.material.dispose()}fx.length=0;for(const s of decals){fxRoot.remove(s.m);s.m.material.dispose()}decals.length=0}
 const tracerGeo=new THREE.CylinderGeometry(.012,.012,1,4).rotateX(Math.PI/2).translate(0,0,.5);
-function tracer(from,to){const m=fxMesh(tracerGeo,'#ffe08a',.85,true);m.position.copy(from);m.lookAt(to);m.scale.set(1,1,from.distanceTo(to));fx.push({m,t:0,life:.07,fade:1})}
-function flash(pos){const m=fxMesh(fxSphere,'#ffd27a',.9,true);m.position.copy(pos);m.scale.setScalar(.09);fx.push({m,t:0,life:.05,fade:1,grow:2})}
+const fxBall=new THREE.SphereGeometry(1,16,10),coneGeo=new THREE.ConeGeometry(.5,1,8,1,true).rotateX(Math.PI/2).translate(0,0,.5),ringGeo=new THREE.RingGeometry(.62,1,18);
+// Low keeps the plain line and dot; Medium and High add a soft glow round the line, a cone of flame at the muzzle and a
+// ring where the shot lands (the same for every shot, whatever it hit)
+function tracer(from,to){
+  const len=from.distanceTo(to),m=fxMesh(tracerGeo,'#fff0b8',.9,true);m.position.copy(from);m.lookAt(to);m.scale.set(1,1,len);fx.push({m,t:0,life:.08,fade:1});
+  if(gfx==='fast')return;
+  const g=fxMesh(tracerGeo,'#ff9a3c',.3,true);g.position.copy(from);g.quaternion.copy(m.quaternion);g.scale.set(3.6,3.6,len);fx.push({m:g,t:0,life:.12,fade:1});
+  const c=fxMesh(coneGeo,'#ffd98a',.85,true);c.position.copy(from);c.quaternion.copy(m.quaternion);c.rotateZ(Math.random()*TAU);c.scale.set(.1,.1,rand(.28,.4));fx.push({m:c,t:0,life:.055,fade:1});
+}
+function flash(pos){
+  const m=fxMesh(fxSphere,'#fff3c4',.95,true);m.position.copy(pos);m.scale.setScalar(.07);fx.push({m,t:0,life:.05,fade:1,grow:2});
+  if(gfx==='fast')return;
+  const h=fxMesh(fxBall,'#ff9a3c',.26,true);h.position.copy(pos);h.scale.setScalar(.15);fx.push({m:h,t:0,life:.07,fade:1,grow:1.5});
+}
 const _nq=new THREE.Quaternion(),_zf=new V3(0,0,1);
 function impact(p,n,color,decal){
   for(let i=0;i<5;i++){const m=fxMesh(fxBox,color||'#d8d2c6');m.position.copy(p);m.scale.setScalar(.03);fx.push({m,t:0,life:.35+Math.random()*.2,v:new V3(n.x+rand(-1,1),n.y+rand(0,1.5),n.z+rand(-1,1)).multiplyScalar(2),grav:1})}
   const pu=fxMesh(fxSphere,'#cfcac0',.5);pu.position.copy(p).addScaledVector(n,.05);pu.scale.setScalar(.06);fx.push({m:pu,t:0,life:.4,grow:.5,fade:1});
+  if(gfx!=='fast'){_nq.setFromUnitVectors(_zf,n);
+    const r=fxMesh(ringGeo,'#fff3d6',.7,true);r.position.copy(p).addScaledVector(n,.012);r.quaternion.copy(_nq);r.scale.setScalar(.035);r.material.side=THREE.DoubleSide;fx.push({m:r,t:0,life:.16,grow:3.5,fade:1});
+    const sp=fxMesh(fxSphere,'#fff3c4',.9,true);sp.position.copy(p).addScaledVector(n,.02);sp.scale.setScalar(.045);fx.push({m:sp,t:0,life:.06,fade:1})}
   if(decal){const m=fxMesh(fxDisc,'#2a2620',.75);m.position.copy(p).addScaledVector(n,.008);_nq.setFromUnitVectors(_zf,n);m.quaternion.copy(_nq);m.scale.setScalar(.035);decals.push({m});if(decals.length>80){const s=decals.shift();fxRoot.remove(s.m);s.m.material.dispose()}}
 }
 function puff(pos,size,color){for(let i=0;i<12;i++){const a=i/12*TAU,m=fxMesh(fxSphere,color||'#ffffff',.7);m.position.copy(pos);m.scale.setScalar(.08*size);fx.push({m,t:0,life:.45,v:new V3(Math.cos(a)*1.6*size,rand(.3,1.2),Math.sin(a)*1.6*size),grow:.25,fade:1})}}
@@ -2339,6 +2393,9 @@ function updateCamera(dt){
   const fov=G.aim&&isHunter()&&canShoot()?48:72;if(Math.abs(camera.fov-fov)>.05){camera.fov=lerp(camera.fov,fov,1-Math.exp(-dt*14));camera.updateProjectionMatrix()}
   if(G.mode==='menu'||!MAP){
     orbitA+=dt*.04;const bd=MAP?MAP.bounds:[0,0,40,30],cx=(bd[0]+bd[2])/2,cz=(bd[1]+bd[3])/2,R=Math.max(bd[2]-bd[0],bd[3]-bd[1])*.42;
+    const V=MAP&&MAPS[mapIdx]&&MAPS[mapIdx].menu;
+    // the menu looks slowly round from inside the map (it used to circle above the roof, which showed a bare slab)
+    if(V){const a=V[3]+Math.sin(orbitA*4)*V[4];camera.position.set(V[0],V[1],V[2]);camera.lookAt(V[0]+Math.sin(a)*10,V[1]-1.2,V[2]+Math.cos(a)*10);return}
     camera.position.set(cx+Math.cos(orbitA)*R,(MAP?MAP.height:4)*2.6,cz+Math.sin(orbitA)*R);camera.lookAt(cx,0,cz);return;
   }
   const t=camTarget();
