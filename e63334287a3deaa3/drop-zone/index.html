@@ -94,7 +94,11 @@ button:disabled{opacity:.5;cursor:default}
    It turns red when you can't afford a piece, and each piece shows what it costs with the same little plank. */
 .slot.scrap{width:88px;border-color:#a87a3c;background:rgba(58,38,12,.92)}
 .slot.scrap .pl,.slot.build .am::before{background:repeating-linear-gradient(#e2ad66 0 4px,#7a4a1c 4px 5px);border:1px solid #7a4a1c;border-radius:1px}
-.slot.scrap .pl{position:absolute;left:7px;top:10px;width:22px;height:19px}
+.slot.scrap .pl{position:absolute;left:7px;top:22px;width:20px;height:14px}
+/* The three build pieces are only in the hotbar while you are building (press the Build key, a piece's own key, or tap the scrap chip) */
+.slot.build{display:none}
+#slots.building .slot.build{display:flex}
+#slots.building .slot.scrap{border-color:var(--sun);box-shadow:inset 0 0 0 1px var(--sun)}
 .slot.scrap b{position:absolute;right:7px;top:5px;font-size:30px;font-weight:800;line-height:1;color:#ffd79a;font-variant-numeric:tabular-nums;text-shadow:0 2px 2px rgba(0,0,0,.6)}
 .slot.scrap .nm{color:#f2d29b;letter-spacing:.1em}
 .slot.scrap.low{border-color:var(--bad)} .slot.scrap.low b{color:#ff9a8a}
@@ -349,7 +353,7 @@ body.touch #net{font-size:14px}
       <div class="slot" id="slot1"><i class="ic"></i><span class="k" data-kb="slot2" data-kb-short>2</span><span class="nm"></span><span class="am"></span><i class="rar"></i></div>
       <div class="slot" id="slot2"><i class="ic"></i><span class="k" data-kb="slot3" data-kb-short>3</span><span class="nm"></span><span class="am"></span><i class="rar"></i></div>
       <div class="slot" id="slot3"><i class="ic"></i><span class="k" data-kb="slot4" data-kb-short>4</span><span class="nm"></span><span class="am"></span><i class="rar"></i></div>
-      <div class="slot scrap gap" id="matsBox"><i class="pl"></i><b id="mats">0</b><span class="nm">Scrap</span></div>
+      <div class="slot scrap gap" id="matsBox"><span class="k" data-kb="build" data-kb-short>B</span><i class="pl"></i><b id="mats">0</b><span class="nm">Scrap</span></div>
       <div class="slot build" id="slotwall"><i class="ic"></i><span class="k" data-kb="wall" data-kb-short>Q</span><span class="nm">Wall</span><span class="am">10</span></div>
       <div class="slot build" id="slotfloor"><i class="ic"></i><span class="k" data-kb="floor" data-kb-short>F</span><span class="nm">Floor</span><span class="am">10</span></div>
       <div class="slot build" id="slotramp"><i class="ic"></i><span class="k" data-kb="ramp" data-kb-short>C</span><span class="nm">Ramp</span><span class="am">10</span></div>
@@ -416,8 +420,9 @@ body.touch #net{font-size:14px}
             <div><dt data-kb="fire" data-kb-short data-kb-case="upper">L-CLICK</dt><dd>Shoot, place a build, use a heal</dd></div>
             <div><dt data-kb="aim" data-kb-short data-kb-case="upper">R-CLICK</dt><dd>Hold to aim / scope</dd></div>
             <div><dt data-kb="slot1 slot2 slot3 slot4" data-kb-short data-kb-case="upper">1 2 3 4</dt><dd>Item slots (or the mouse wheel)</dd></div>
-            <div><dt data-kb="crowbar" data-kb-short data-kb-case="upper">V</dt><dd>Crowbar: hit trees, rocks and walls for wood</dd></div>
-            <div><dt data-kb="wall floor ramp" data-kb-short data-kb-case="upper">Q F C</dt><dd>Wall, floor, ramp (10 wood each)</dd></div>
+            <div><dt data-kb="crowbar" data-kb-short data-kb-case="upper">V</dt><dd>Crowbar: hit trees, rocks and walls for scrap</dd></div>
+            <div><dt data-kb="build" data-kb-short data-kb-case="upper">B</dt><dd>Build mode on and off (shows the build pieces)</dd></div>
+            <div><dt data-kb="wall floor ramp" data-kb-short data-kb-case="upper">Q F C</dt><dd>Wall, floor, ramp (10 scrap each)</dd></div>
             <div><dt data-kb="use" data-kb-short data-kb-case="upper">G</dt><dd>Open a chest, pick up or swap</dd></div>
             <div><dt data-kb="reload" data-kb-short data-kb-case="upper">R</dt><dd>Reload</dd></div>
             <div><dt data-kb="map" data-kb-short data-kb-case="upper">M</dt><dd>Big map</dd></div>
@@ -427,7 +432,7 @@ body.touch #net{font-size:14px}
           <button class="ghost-btn" id="keysMenu" type="button">Change keys</button>
         </details>
       </div>
-      <p id="touchNote" class="note" hidden>On a phone? Turn it sideways for the best view. Tap the slots at the top to switch items or build, and tap the map to make it big.</p>
+      <p id="touchNote" class="note" hidden>On a phone? Turn it sideways for the best view. Tap the slots at the top to switch items, tap the scrap count to build, and tap the map to make it big.</p>
     </div>
   </section>
 
@@ -2744,7 +2749,7 @@ function onlineTick(){
 
 /* ---------- HUD ---------- */
 const hud={root:$('hud'),feed:$('feed'),banner:$('banner'),hint:$('hint'),cross:$('cross'),cl:$('cl'),cr:$('cr'),ct:$('ct'),cb:$('cb'),hitm:$('hitm'),hurt:$('hurt'),scope:$('scope'),scopeR:$('scopeR'),sight:$('sight'),sightR:$('sightR'),
-  reload:$('reload'),reloadF:$('reloadFill'),hpN:$('hpNum'),hpF:$('hpFill'),shN:$('shNum'),shF:$('shFill'),tags:$('tags'),net:$('net'),mats:$('mats'),matsBox:$('matsBox'),ammo:$('ammo'),prompt:$('prompt'),
+  reload:$('reload'),reloadF:$('reloadFill'),hpN:$('hpNum'),hpF:$('hpFill'),shN:$('shNum'),shF:$('shFill'),tags:$('tags'),net:$('net'),mats:$('mats'),matsBox:$('matsBox'),matsNm:$('matsBox').querySelector('.nm'),slots:$('slots'),ammo:$('ammo'),prompt:$('prompt'),
   useBar:$('useBar'),useLbl:$('useLbl'),useFill:$('useFill'),alive:$('aliveN'),kills:$('killN'),stormT:$('stormT'),tint:$('stormTint'),place:$('placeLbl'),strip:$('compStrip'),safe:$('compSafe'),warn:$('stormWarn'),swT:$('swTitle'),swS:$('swSub')};
 // the compass strip: three turns of the dial side by side (3 px a degree), slid sideways as you turn
 (()=>{const N=['N','NE','E','SE','S','SW','W','NW'];let h='';for(let d=0;d<1080;d+=15){const x=d*3;h+=d%45?`<i style="left:${x}px"></i>`:`<span${d%90?' class="s"':''} style="left:${x}px">${N[d/45%8]}</span>`}hud.strip.innerHTML=h})();
@@ -2769,7 +2774,7 @@ function updateHud(dt){
   const key=[Math.ceil(p.hp),Math.ceil(p.sh),p.sel,mode,buildType,p.mats,p.inv.map(x=>x?x.t+x.r+x.n:'-').join(','),p.reloadT>0,w?p.ammo[w.am]:0,p.useT>0].join('|');
   if(key!==lastHud){lastHud=key;
     hud.hpN.textContent=Math.max(0,Math.ceil(p.hp));hud.hpF.style.width=Math.max(0,p.hp)+'%';
-    hud.shN.textContent=Math.ceil(p.sh);hud.shF.style.width=p.sh+'%';if(hud.mats._n!==p.mats){const up=hud.mats._n!=null;hud.mats._n=p.mats;hud.mats.textContent=p.mats;if(up&&!RM&&hud.mats.animate)hud.mats.animate([{transform:'scale(1.35)'},{transform:'scale(1)'}],{duration:280,easing:'ease-out'})}   // a little jump when the count changeshud.matsBox.classList.toggle('low',p.mats<COST);
+    hud.shN.textContent=Math.ceil(p.sh);hud.shF.style.width=p.sh+'%';if(hud.mats._n!==p.mats){const up=hud.mats._n!=null;hud.mats._n=p.mats;hud.mats.textContent=p.mats;if(up&&!RM&&hud.mats.animate)hud.mats.animate([{transform:'scale(1.35)'},{transform:'scale(1)'}],{duration:280,easing:'ease-out'})}hud.matsBox.classList.toggle('low',p.mats<COST);hud.slots.classList.toggle('building',mode==='build');hudSet(hud.matsNm,'#mn',touchUI?(mode==='build'?'Done':'Build'):'Scrap');   // (the count jumps a little when it changes)
     for(let i=0;i<4;i++){const el=$('slot'+i),it=p.inv[i],[nm,am]=slotLabel(it);el.querySelector('.nm').textContent=nm;el.querySelector('.am').textContent=it&&WEAP[it.t]&&p.sel===i&&p.reloadT>0?'reload':am;
       el.querySelector('.rar').style.background=it&&WEAP[it.t]?RARH[it.r|0]:'transparent';slotIcon(el,it?(WEAP[it.t]?it.t:HEALS[it.t]&&HEALS[it.t].sh?'sh':'hp'):'');
       el.classList.toggle('empty',!it);el.classList.toggle('on',mode==='combat'&&p.sel===i)}
@@ -3085,6 +3090,7 @@ const KB=Keybinds.create({
     {id:'crowbar',label:'Crowbar (gather scrap)',group:'Fight',keys:['KeyV','Digit5']},
     {id:'reload',label:'Reload',group:'Fight',keys:['KeyR']},
     {id:'use',label:'Open chest / pick up / swap',group:'Fight',keys:['KeyG']},
+    {id:'build',label:'Build mode on / off',note:'Shows the build pieces. A piece\'s own key also starts building',group:'Build',keys:['KeyB']},
     {id:'wall',label:'Build a wall',group:'Build',keys:['KeyQ','KeyZ']},
     {id:'floor',label:'Build a floor',group:'Build',keys:['KeyF','KeyX']},
     {id:'ramp',label:'Build a ramp',group:'Build',keys:['KeyC','KeyE']},
@@ -3136,6 +3142,8 @@ view.addEventListener('contextmenu',e=>e.preventDefault());
 function cycleSlot(dir){const order=[-1,0,1,2,3].filter(i=>i<0||player.inv[i]);let i=order.indexOf(player.sel);if(i<0)i=0;selectSlot(player,order[(i+dir+order.length)%order.length]);mode='combat'}
 addEventListener('wheel',e=>{if(!canLook())return;cycleSlot(e.deltaY>0?1:-1)},{passive:true});
 const SLOTS=['slot1','slot2','slot3','slot4'],BUILDS=['wall','floor','ramp'];
+// Build mode on and off: the Build key, or a tap on the scrap chip. Going in keeps the piece you last used.
+function toggleBuild(){if(mode==='build')mode='combat';else if(player.st==='ground'){mode='build';player.reloadT=0;player.useT=0;tAct.aim=false}lastHud=''}
 function pressCode(c,key,repeat){
   if(KB.is('fire',c))lmb=true;
   const si=SLOTS.findIndex(a=>KB.is(a,c)),bi=BUILDS.findIndex(a=>KB.is(a,c));
@@ -3144,6 +3152,7 @@ function pressCode(c,key,repeat){
   if(si>=0){selectSlot(player,si);mode='combat'}
   else if(KB.is('crowbar',c)){selectSlot(player,-1);mode='combat'}
   else if(bi>=0&&player.st==='ground'){mode='build';buildType=BUILDS[bi];player.reloadT=0;player.useT=0;lastHud=''}
+  else if(KB.is('build',c)&&!repeat)toggleBuild();
   else if(key&&KB.is('aim',c)&&mode==='build'&&!repeat){mode='combat';lastHud=''}
   else if(KB.is('reload',c)&&mode==='combat')startReload(player);
   else if(KB.is('use',c)&&!repeat)interact(player);
@@ -3210,6 +3219,7 @@ tButton($('tNext'),()=>{if(isSpectating())cycleSpectate()});
 }
 tButton($('slotX'),()=>{if(canAct()){selectSlot(player,-1);mode='combat';lastHud=''}});
 [0,1,2,3].forEach(i=>tButton($('slot'+i),()=>{if(canAct()){selectSlot(player,i);mode='combat';tAct.aim=false;lastHud=''}}));
+tButton($('matsBox'),()=>{if(canAct())toggleBuild()});
 BUILDS.forEach(t=>tButton($('slot'+t),()=>{if(!canAct()||player.st!=='ground')return;if(mode==='build'&&buildType===t)mode='combat';else{mode='build';buildType=t;player.reloadT=0;player.useT=0;tAct.aim=false}lastHud=''}));
 mini.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();setBigMap(!bigMap)});
 $('bigmap').addEventListener('pointerdown',e=>{e.preventDefault();setBigMap(false)});
