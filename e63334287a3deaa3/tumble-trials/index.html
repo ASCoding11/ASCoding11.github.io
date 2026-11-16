@@ -127,6 +127,12 @@ h1 .w span:nth-child(odd){transform:rotate(-3deg)}h1 .w span:nth-child(even){tra
 .pill{background:var(--paper);color:var(--ink);border:2.5px solid var(--ink);border-radius:14px;box-shadow:0 3px 0 var(--ink);padding:3px 12px 4px;text-align:center}
 .pill small{display:block;font-family:var(--f-b);font-weight:900;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);white-space:nowrap}
 .pill b{display:block;font-weight:700;font-size:20px;line-height:1.05;white-space:nowrap}
+.pill.q.behind small{color:#b3261e}
+#intro .plan{display:flex;justify-content:center;flex-wrap:wrap;gap:5px;margin-top:10px;font-family:var(--f-b);font-weight:900;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+#intro .plan span{padding:2px 8px;border-radius:999px;border:2px solid var(--ink);background:var(--paper);color:var(--ink-3)}
+#intro .plan span.done{opacity:.55;text-decoration:line-through}
+#intro .plan span.on{background:var(--ink);color:var(--paper)}
+@media (orientation:landscape) and (max-height:520px){#intro .plan{display:none}}
 #top{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);display:flex;gap:8px;align-items:stretch}
 #rndBox{max-width:34vw}#rndBox b{overflow:hidden;text-overflow:ellipsis}
 #cntBox.q{background:#d9ffd0}#cntBox.s{background:#ffe2ef}
@@ -327,7 +333,7 @@ body.touch #banner{top:30%}
       <div class="pill" id="clkBox"><small>Time</small><b id="clk">0:00</b></div>
     </div>
     <div id="feed"></div>
-    <div id="intro" class="card" hidden><div class="rno" id="introNo">Round 1</div><span class="kind" id="introKind">Race</span><h2 id="introName">Level</h2><p id="introDesc"></p><div class="qline" id="introQ"></div></div>
+    <div id="intro" class="card" hidden><div class="rno" id="introNo">Round 1</div><span class="kind" id="introKind">Race</span><h2 id="introName">Level</h2><p id="introDesc"></p><div class="qline" id="introQ"></div><div class="plan" id="introPlan" aria-label="Rounds in this show"></div></div>
     <div id="cd">3</div>
     <div id="banner"><b></b><span class="out"></span></div>
     <div id="hint" class="out"></div>
@@ -798,7 +804,7 @@ function basis(q,m){
 // o: {type:'box'|'cyl'|'sph', s:[w,h,d] | r,h, p:[x,y,z], q (THREE.Quaternion) or rx/ry/rz, dyn(t,col), hit, bounce, conv:[x,y,z], tile, ...}
 function makeCol(o){
   const c={type:o.type==='cyl'?1:o.type==='sph'?2:0,hx:0,hy:0,hz:0,r:0,pos:new V3(),quat:new QT(),m:new Float32Array(9),ppos:new V3(),pm:new Float32Array(9),
-    dyn:o.dyn||null,mesh:null,active:true,hit:o.hit||0,kb:o.kb!=null?o.kb:3.5,bounce:o.bounce||0,bvec:o.bvec||null,conv:o.conv||null,slip:o.slip||0,tag:o.tag||'',solid:o.solid!==false,cam:o.cam!==false,user:o.user||null,st:0,br:0,ground:o.ground!==false};
+    dyn:o.dyn||null,mesh:null,active:true,hit:o.hit||0,kb:o.kb!=null?o.kb:3.5,bounce:o.bounce||0,bvec:o.bvec||null,conv:o.conv||null,slip:o.slip||0,tag:o.tag||'',solid:o.solid!==false,cam:o.cam!==false,camBlock:!!o.camBlock,user:o.user||null,st:0,br:0,ground:o.ground!==false};
   if(c.type===0){c.hx=o.s[0]/2;c.hy=o.s[1]/2;c.hz=o.s[2]/2;c.br=Math.hypot(c.hx,c.hy,c.hz)}
   else if(c.type===1){c.r=o.r;c.hy=o.h/2;c.br=Math.hypot(c.r,c.hy)}
   else{c.r=o.r;c.br=o.r}
@@ -1545,7 +1551,7 @@ LEVELS.push({id:'rush',name:'Gap Rush',kind:'survival',time:80,theme:'neon',desc
     const segs=[];let x0=-12;for(const g of gaps){segs.push([x0,g-gw/2]);x0=g+gw/2}segs.push([x0,12]);
     const st=t0,c=[C.pink,C.cyan,C.vio,C.org,C.lime][k%5];
     for(const [a,b] of segs){if(b-a<.2)continue;const cx=(a+b)/2,w=b-a;
-      B.box({s:[w,3.2,1],tex:TX.stripes(c,C.white),tile:1.6,hit:.15,dyn:(t,cc)=>{const z=-19+(t-st)*sp;cc.pos.set(cx,z>22||t<st?-30:1.6,z);cc.quat.identity();cc.active=t>=st&&z<22;}})}
+      B.box({s:[w,3.2,1],tex:TX.stripes(c,C.white),tile:1.6,hit:.15,camBlock:true,dyn:(t,cc)=>{const z=-19+(t-st)*sp;cc.pos.set(cx,z>22||t<st?-30:1.6,z);cc.quat.identity();cc.active=t>=st&&z<22;}})}
     walls.push({st,sp,gaps,gw});
     t0+=Math.max(2.8,6-t0/14);k++;
   }
@@ -3018,7 +3024,7 @@ function fell(e,t){
   if(G.mode==='practice'&&e.isMe&&t>=0&&(kind==='survival'||kind==='final')){banner('SPLASH!','You lasted '+fmtT(t)+'. Again!','bad',2);sfx('elim');const li=L.idx;setTimeout(()=>{if(G.mode==='practice'&&G.L===L)startPractice(li)},2200);return}
   if(!knock){e.respawnT=kind==='race'?1:.8;if(e.isMe&&kind==='race')flash();return}
   e.out=true;const ms=Math.round(t*1000);
-  if(e.isMe){G.myOut={k:rs.id+':'+rs.rn,t:ms};if(G.mode==='online')Net.upd({out:G.myOut.k+':'+ms});banner('ELIMINATED','You lasted '+fmtT(t),'bad',2.6);sfx('elim');G.elimSaid=true;flash()}
+  if(e.isMe){G.myOut={k:rs.id+':'+rs.rn,t:ms};if(G.mode==='online')Net.upd({out:G.myOut.k+':'+ms});banner('ELIMINATED','You lasted '+fmtT(t)+' · '+ordinal(Math.max(1,rs.pl.length-rs.x.length))+' of '+rs.pl.length,'bad',2.6);sfx('elim');G.elimSaid=true;flash()}
   else if(e.bot){const r=G.botRep.get(e.id);if(r)r.out=ms}
 }
 function respawn(e){
@@ -3202,8 +3208,17 @@ function active(e){return e&&!e.hidden&&!e.fin&&!e.out}
 function spectating(){const rs=G.rs;return G.mode!=='menu'&&G.mode!=='practice'&&rs&&(rs.ph==='round'||rs.ph==='results')&&!(me&&!me.out&&!me.fin)}
 function specList(){const a=[];for(const e of ents.values())if(e!==me&&!e.podium&&!e.out&&!e.fin&&!e.stale)a.push(e);if(!a.length)for(const e of ents.values())if(e!==me&&!e.podium)a.push(e);return a}
 function cycleSpec(d){const a=specList();if(!a.length)return;let i=a.findIndex(e=>e.id===G.spec);i=(i+d+a.length)%a.length;G.spec=a[i].id;sfx('ui')}
-const camT=new V3(),_cp=new V3(),ray=new THREE.Raycaster();let shake=0,camInit=false,camDip=0,fovX=0;
-function camSnap(){camInit=false}
+const camT=new V3(),_cp=new V3(),ray=new THREE.Raycaster();let shake=0,camInit=false,camDip=0,fovX=0,camIn=0;
+function camSnap(){camInit=false;camIn=0}
+// where a ray from o along d (a unit vector) first meets box collider c within far, or Infinity
+function rayBox(c,o,d,far){
+  const m=c.m,dx=o.x-c.pos.x,dy=o.y-c.pos.y,dz=o.z-c.pos.z,O=[m[0]*dx+m[1]*dy+m[2]*dz,m[3]*dx+m[4]*dy+m[5]*dz,m[6]*dx+m[7]*dy+m[8]*dz],
+    D=[m[0]*d.x+m[1]*d.y+m[2]*d.z,m[3]*d.x+m[4]*d.y+m[5]*d.z,m[6]*d.x+m[7]*d.y+m[8]*d.z],H=[c.hx,c.hy,c.hz];
+  let t0=0,t1=far;
+  for(let i=0;i<3;i++){if(Math.abs(D[i])<1e-8){if(O[i]<-H[i]||O[i]>H[i])return Infinity;continue}
+    let a=(-H[i]-O[i])/D[i],b=(H[i]-O[i])/D[i];if(a>b){const s=a;a=b;b=s}if(a>t0)t0=a;if(b<t1)t1=b;if(t0>t1)return Infinity}
+  return t0;
+}
 function focusEnt(){
   if(me&&G.mode==='practice')return me;
   if(me&&!me.out&&!(me.fin&&me.finAt&&performance.now()-me.finAt>1500)&&!(me.hidden&&G.L&&!isRace(G.L)))return me;
@@ -3224,7 +3239,11 @@ function updateCamera(dt){
   let dist=camDist*(isTouch&&innerWidth<innerHeight?1.12:1);
   const cp=Math.cos(camPitch);_cp.set(Math.sin(camYaw)*cp,Math.sin(camPitch),Math.cos(camYaw)*cp);
   // pull in front of big walls
-  ray.set(camT,_cp);ray.far=dist;const hits=ray.intersectObjects(camBlockers,false);if(hits.length)dist=Math.max(1.6,hits[0].distance-.35);
+  ray.set(camT,_cp);ray.far=dist;const hits=ray.intersectObjects(camBlockers,false);let clear=dist;if(hits.length)clear=Math.max(1.6,hits[0].distance-.35);
+  // moving walls marked camBlock (Gap Rush) get the same treatment, so one that has just passed you isn't left between you and the camera
+  for(const c of World.dyn){if(!c.camBlock||!c.active)continue;const d=rayBox(c,camT,_cp,dist);if(d-.35<clear)clear=Math.max(1.6,d-.35)}
+  // in at once, back out gently: no popping as walls and doorways go by
+  if(!camIn||clear<camIn)camIn=clear;else camIn=Math.min(clear,camIn+dt*9);dist=camIn;
   if(camDip>0)camDip=Math.max(0,camDip-dt*.9);
   {const want=f===me&&(f.b.st==='dive'||Math.hypot(f.b.vel.x,f.b.vel.z)>8.5)?5:0;fovX+=(want-fovX)*Math.min(1,dt*6);const fv=(camera.aspect<1?74:62)+fovX;if(Math.abs(camera.fov-fv)>.05){camera.fov=fv;camera.updateProjectionMatrix()}}
   camera.position.copy(camT).addScaledVector(_cp,dist);camera.position.y-=camDip;
@@ -3298,7 +3317,7 @@ function updateHud(dt){
   const cu=!$('results').hidden||!$('podium').hidden;if(hudCache.cu!==cu){hudCache.cu=cu;document.body.classList.toggle('cardup',cu)}
   if(locked()&&!canLook())releaseLock();
   setHidden('lockHint',isTouch||!lockWanted()||locked()||!canLook()||!ctl||!$('intro').hidden||(rs&&rs.ph==='round'&&(t-rs.go)/1000<-3.2));
-  const spc=spectating()&&!(rs&&rs.ph==='results');setHidden('spec',!spc);if(spc){const f=focusEnt();setText('specTxt',f&&f!==me?'Watching '+f.name:'Watching')}
+  const spc=spectating()&&!(rs&&rs.ph==='results');setHidden('spec',!spc);if(spc){const f=focusEnt();const why=me&&me.fin?'Through! ':rs&&rs.pl.includes(rs.ro.indexOf(myId()))?'Out · ':'';setText('specTxt',f&&f!==me?why+'Watching '+f.name:why+'Watching')}
   if(G.mode==='practice'){
     setText('rndLbl','Practice');setText('rndName',L.def.name);setHidden('cntBox',true);setHidden('clkBox',false);
     const rt=(t-rs.go)/1000;setText('clk',rt<0?'0:00':fmtT(rt));
@@ -3315,18 +3334,27 @@ function updateHud(dt){
   setText('rndLbl',final?'Final round':'Round '+(rs.rn+1)+' of '+rs.plan.length);setText('rndName',L.def.name);
   setHidden('cntBox',false);setHidden('clkBox',false);
   const alive=rs.pl.filter(i=>!rs.q.includes(i)&&!rs.x.includes(i)).length;
-  if(L.def.dash){setText('cntLbl','In the dash');setText('cntN',String(rs.pl.length));$('cntBox').className='pill s'}
-  else if(kind==='race'){setText('cntLbl','Qualified');setText('cntN',rs.q.length+' / '+rs.qn);$('cntBox').className='pill q'}
+  // in a race the label also says where you are running: 9th with 10 to qualify means don't slip
+  G.placeT=(G.placeT||0)-dt;if(G.placeT<=0){G.placeT=.25;G.place=isRace(L)&&rs.ph==='round'&&rt>0?myPlace(rs,L):0}
+  if(L.def.dash){setText('cntLbl','Your place');setText('cntN',(G.place||'–')+' / '+rs.pl.length);$('cntBox').className='pill s'}
+  else if(kind==='race'){setText('cntLbl',G.place?'Qualified · you '+ordinal(G.place):'Qualified');setText('cntN',rs.q.length+' / '+rs.qn);$('cntBox').className='pill q'+(G.place>rs.qn?' behind':'')}
   else{setText('cntLbl',final?'Still standing':'Still in · '+rs.qn+' go through');setText('cntN',(rs.ph==='results'?rs.q.length:alive)+' / '+rs.pl.length);$('cntBox').className='pill s'}
   const left=rs.ph==='results'?0:L.def.time-Math.max(0,rt);setText('clk',fmtT(left));$('clkBox').classList.toggle('low',left<10&&rt>0&&rs.ph==='round');
   // the intro card
   const showIntro=rs.ph==='round'&&rt<-3.2&&rt>-9;
   if(showIntro&&hudCache.introKey!==G.lkey){hudCache.introKey=G.lkey;
     setText('introNo',final?'Final round':'Round '+(rs.rn+1)+' of '+rs.plan.length);$('introKind').textContent=kind==='race'?'Race':kind==='survival'?'Survival':'Final';$('introKind').className='kind '+kind;
-    setText('introName',L.def.name);setText('introDesc',L.def.desc);setText('introQ',countLine(rs,L));$('intro').style.setProperty('--ia',THEME.sky[0]);$('intro').style.setProperty('--ib',THEME.sky[1]);
+    setText('introName',L.def.name);setText('introDesc',L.def.desc);setText('introQ',countLine(rs,L));
+    {const box=$('introPlan');box.textContent='';if(rs.plan.length>1)rs.plan.forEach((p,i)=>{const sp=document.createElement('span');sp.textContent=p.kind==='race'?'Race':p.kind==='survival'?'Survival':'Final';sp.className=i<rs.rn?'done':i===rs.rn?'on':'';box.appendChild(sp)})}$('intro').style.setProperty('--ia',THEME.sky[0]);$('intro').style.setProperty('--ib',THEME.sky[1]);
     if(final)banner('FINAL ROUND','','gold',2.2);}
   setHidden('intro',!showIntro);
   if(rs.ph==='round')countdown(rt);
+}
+const ordinal=n=>n+(n%100>10&&n%100<14?'th':['th','st','nd','rd','th','th','th','th','th','th'][n%10]);
+// where you are in a race: behind everyone who has finished and everyone further down the course
+function myPlace(rs,L){
+  if(!me||me.out)return 0;const myI=rs.ro.indexOf(myId());if(rs.q.includes(myI))return rs.q.indexOf(myI)+1;
+  const mine=raceProgress(L,me);let n=1;for(const e of ents.values())if(e!==me&&!e.stale&&(e.fin||raceProgress(L,e)>mine))n++;return n;
 }
 function countdown(rt){
   const k=rt<-3||rt>.9?-9:Math.ceil(-rt);
