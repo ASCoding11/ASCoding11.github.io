@@ -319,6 +319,7 @@ body.touch #pips{left:calc(200px + env(safe-area-inset-left,0px));transform:none
         <input class="text" id="name" maxlength="16" autocomplete="off" spellcheck="false" style="max-width:260px">
       </div>
 
+      <div class="row"><button id="turkeyBtn" class="ghost-btn" type="button" hidden>Turkey Week on</button></div>
       <div class="group">
         <span class="label">Online</span>
         <div class="row">
@@ -424,6 +425,7 @@ body.touch #pips{left:calc(200px + env(safe-area-inset-left,0px));transform:none
 <script src="../autores.js"></script>
 <script src="../keybinds.js"></script>
 <script src="../netsmooth.js"></script>
+<script src="../events.js"></script>
 <script>
 (function(){
 'use strict';
@@ -1244,6 +1246,15 @@ function raycast(o,d,maxT,ignore,withEnts,skipTeam){
 const gunMat=new THREE.MeshLambertMaterial({color:0x26241e});
 const pumpMat=new THREE.MeshLambertMaterial({color:0x6b4a2a});
 function box(w,h,d,m){return new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m)}
+// Turkey Week (../events.js): a pilgrim hat on every suit. One shared geometry and material (events.js builds the
+// hat), so it is one more draw call each; only the look changes. The Turkey Week button on the menu switches it off.
+const EVT=window.BackRoomEvents&&BackRoomEvents.turkey;let TKON=!!(EVT&&EVT.on()),tkHatMat=null;const tkHats=new Set();
+function tkHat(parent,scale,y,z,ry){
+  if(!EVT||!EVT.live())return null;
+  const m=new THREE.Mesh(EVT.hat(THREE),tkHatMat||(tkHatMat=new THREE.MeshLambertMaterial({vertexColors:true})));
+  m.scale.setScalar(scale);m.position.set(0,y,z||0);if(ry)m.rotation.y=ry;m.visible=TKON;parent.add(m);tkHats.add(m);return m;
+}
+function tkToggle(on){TKON=on;for(const m of tkHats)m.visible=on}
 function makeSuit(suit,trim,visor){
   const g=new THREE.Group();
   const ms=new THREE.MeshLambertMaterial({color:suit}),mt=new THREE.MeshLambertMaterial({color:trim}),mv=new THREE.MeshBasicMaterial({color:visor});
@@ -1252,7 +1263,7 @@ function makeSuit(suit,trim,visor){
   const belt=box(.77,.1,.47,mt);belt.position.y=.9;
   const tank=box(.42,.52,.2,mt);tank.position.set(0,1.26,.31);
   const head=new THREE.Group();head.position.y=1.78;
-  const hood=box(.54,.54,.54,ms);const vis=box(.42,.22,.04,mv);vis.position.set(0,.03,-.275);const filt=box(.17,.14,.12,mt);filt.position.set(0,-.17,-.3);head.add(hood,vis,filt);
+  const hood=box(.54,.54,.54,ms);const vis=box(.42,.22,.04,mv);vis.position.set(0,.03,-.275);const filt=box(.17,.14,.12,mt);filt.position.set(0,-.17,-.3);head.add(hood,vis,filt);tkHat(head,.92,.27);
   const arms=new THREE.Group();arms.position.set(0,1.44,0);
   const aL=box(.17,.17,.62,ms);aL.position.set(-.26,-.05,-.26);aL.rotation.y=-.35;
   const aR=box(.17,.17,.62,ms);aR.position.set(.3,-.05,-.22);
@@ -1706,7 +1717,7 @@ function makeRemote(uid){
   setGun(e.model,0);e.model.visible=false;scene.add(e.model);remotes.set(uid,e);rebuildEnts();return e;
 }
 function clearRemotes(){
-  for(const e of remotes.values()){scene.remove(e.model);e.model.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material&&o.material!==gunMat&&o.material!==pumpMat)o.material.dispose()})}
+  for(const e of remotes.values()){scene.remove(e.model);e.model.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material&&o.material!==gunMat&&o.material!==pumpMat&&o.material!==tkHatMat)o.material.dispose()})}
   remotes.clear();rebuildEnts();
 }
 // Make sure every roster member has a body in their team colour; anyone else is hidden.
@@ -2540,6 +2551,7 @@ nameEl.addEventListener('input',()=>{myName=nameEl.value.replace(/[<>]/g,'').tri
 $('room').value=store.get('room','')||randomRoom();
 $('play').addEventListener('click',startPractice);
 $('quick').addEventListener('click',()=>quickMatch(false));
+if(EVT)EVT.button($('turkeyBtn'),tkToggle);
 $('joinRoom').addEventListener('click',joinPrivate);
 $('room').addEventListener('keydown',e=>{if(e.key==='Enter')joinPrivate()});
 $('again').addEventListener('click',()=>{if(online)hostToLobby();else startPractice()});
