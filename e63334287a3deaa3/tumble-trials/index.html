@@ -1921,6 +1921,181 @@ LEVELS.push({id:'tide',name:'High Tide Hill',kind:'final',time:200,theme:'dusk',
   return{spawns,yaw:0,get kill(){return lv-.25},tide:true,hop:true,TR,TH,TOP,level,tickFx:t=>{lv=level(t);World.killY=lv-.25}};
 }});
 
+// =====================================================================
+//  Five more rounds (added after the others, so the numbers the host sends never change): a climb by lift, a balance
+//  race over turning barrels, a river crossed by ferry, a chase round a ring, and a final won by grabbing the crown.
+// =====================================================================
+const smooth=u=>u*u*(3-2*u);
+// 19. Going Up (race, a climb): lifts carry you up a tower a floor at a time; blocks at the side are the quick way for a good jumper
+LEVELS.push({id:'lifts',name:'Going Up',kind:'race',time:150,theme:'skyhigh',desc:'Lifts carry you up the tower one floor at a time. Catch one while it is down, or skip the queue and hop up the blocks beside it.',build(seed){
+  const spawns=startPad(14);slime(-5);scenery(seed,0,-40,40);
+  // the lifts' own clock shift (the bots' tests read it too, so it isn't done with vary)
+  const T0=rng(seed^0x7007)()*40,D=5;
+  // 0 down (a pause), up, 1 (a pause), down again
+  const cyc=p=>{p=fract(p);return p<.22?0:p<.5?smooth((p-.22)/.28):p<.72?1:1-smooth((p-.72)/.28)};
+  const path=[N(0,0,1),N(0,0,-1,{w:4})];
+  // a lift from the floor at y0 (whose far edge is at z0) up H (and dz along the course) to the next floor
+  const lift=(x,z0,y0,H,P,ph,w,c,dz)=>{
+    const zc=z0-D/2-.25,u=t=>fract((t+T0)/P+ph),f=t=>cyc((t+T0)/P+ph);
+    const col=B.box({s:[w,.8,D],tex:TX.rings(c,C.white),tile:0,dyn:(t,cc)=>{const k=f(t);cc.pos.set(x,y0-.4+k*H,zc-k*(dz||0));cc.quat.identity()}});
+    for(const sx of [-1,1])for(const sz of [-1,1])B.box({s:[.3,.9,.3],c:C.navy,col:false,dyn:(t,cc)=>{const k=f(t);cc.pos.set(x+sx*(w/2-.15),y0+.45+k*H,zc-k*(dz||0)+sz*(D/2-.15));cc.quat.identity()}});
+    return{col,zc,low:t=>{const q=u(t);return q<.13||q>.975},high:t=>{const q=u(t);return q>=.5&&q<.66}};
+  };
+  // blocks to hop up beside a lift: tops 1.1 apart, the last one just under the next floor
+  const blocks=(x,z0,y0,n,c)=>{for(let k=0;k<n;k++)B.box({p:[x,(y0+1.1*(k+1)-1.2)/2,z0-.95-1.5*k],s:[1.6,y0+1.1*(k+1)+1.2,1.45],tex:TX.foam(c),tile:1.2})};
+  const posts=(z,y0,y1)=>{for(const sx of [-1,1])B.box({p:[sx*7.4,(y0+y1)/2+1,z],s:[.5,y1-y0+3,.5],c:C.white,col:false})};
+  // floor 0 and the first lift
+  pad(0,0,-2,-8,14,C.cyan);
+  const A=lift(0,-8,0,4,8,0,6,C.pink);blocks(5.6,-8,0,3,C.yel);blocks(-5.6,-8,0,3,C.yel);posts(-10.7,0,4);
+  path.push(N(0,0,-6.9,{w:1,wait:A.low}),N(0,0,A.zc,{on:A.col,wait:A.high,board:A.low}),N(0,4,-15.2,{w:3}));
+  // floor 1: a sweeper to hop, then two lifts that take turns
+  pad(0,4,-13.5,-26,14,C.vio,{th:5.2});
+  B.cyl({p:[0,4.6,-19.8],r:.6,h:1.2,c:C.navy});
+  {const bar=pivot((t,P,Q)=>{P.set(0,4.33,-19.8);Q.setFromAxisAngle(UP,(t+T0)*1.35)});B.box({s:[12.6,.45,.5],tex:TX.hazard(),tile:1,hit:.4,kb:2,dyn:bar([0,0,0])})}
+  const B1=lift(-3.6,-26,4,4,7.5,.1,5.5,C.cyan),B2=lift(3.6,-26,4,4,7.5,.6,5.5,C.lime),BB=[B1,B2];blocks(0,-26,4,3,C.yel);posts(-28.7,4,8);
+  path.push(N(0,4,-23.6,{w:3}),N(-3.6,4,-24.9,{w:.6,alt:[-3.6,3.6],wait:(t,b,k)=>BB[k%2].low(t)}),N(-3.6,4,B1.zc,{on:[B1.col,B2.col],wait:(t,b,k)=>BB[k%2].high(t),board:(t,b,k)=>BB[k%2].low(t)}),N(0,8,-33.4,{w:3}),N(0,8,-36,{w:4,cp:1}));
+  // floor 2: sliding blocks, then a lift that climbs at a slant
+  pad(0,8,-31.5,-46,14,C.yel,{th:9.2});checkpoint(1,-32,-38.5,-7,7,8,spawnGrid(0,8,-36.4,4,2,2.6,1.6));
+  for(let i=0;i<2;i++){const o=i*Math.PI;B.box({s:[2.8,2.2,1.3],tex:TX.hazard(),tile:1.2,hit:.25,dyn:(t,c)=>{c.pos.set(Math.sin((t+T0)*1.15+o)*5.2,9.1,-41.6);c.quat.identity()}})}
+  const Cc=lift(0,-46,8,4.5,9,.3,6,C.org,8.5);
+  path.push(N(0,8,-39.4,{w:3,safe:1,len:4.2}),N(0,8,-44.9,{w:1,wait:Cc.low}),N(0,8,Cc.zc,{on:Cc.col,wait:Cc.high,board:Cc.low}),N(0,12.5,-61.8,{w:3}),N(0,12.5,-64.5,{w:4,cp:2}));
+  // floor 3 and the last, quicker lift to the top
+  pad(0,12.5,-60,-74,14,C.cyan,{th:13.7});checkpoint(2,-60.5,-67,-7,7,12.5,spawnGrid(0,12.5,-64.9,4,2,2.6,1.6));
+  const Dd=lift(0,-74,12.5,5,6.2,.7,7,C.pink);blocks(5.9,-74,12.5,4,C.yel);blocks(-5.9,-74,12.5,4,C.yel);posts(-77,12.5,17.5);
+  path.push(N(0,12.5,-72.9,{w:1.4,wait:Dd.low}),N(0,12.5,Dd.zc,{on:Dd.col,wait:Dd.high,board:Dd.low}));
+  pad(0,17.5,-79.5,-83,14,C.vio,{th:18.7});
+  const fz=finishPad(-83,-97,17.5,14);path.push(N(0,17.5,-81.5,{w:3}),N(0,17.5,fz-3,{w:4}));
+  return{spawns,yaw:Math.PI,path,kill:-5,finZ:fz};
+}});
+
+// 20. Barrel Roll Row (race, balance): the bridges are barrels that never stop turning
+LEVELS.push({id:'drums',name:'Barrel Roll Row',kind:'race',time:150,theme:'works',desc:'Every bridge is a giant barrel that never stops turning. Lean against the spin, keep to the top, and hop the ridge when it comes round.',build(seed){
+  const spawns=startPad(12);slime(-5);scenery(seed,0,-55,40);vary(seed);
+  const LAYZ=qa(AXX,Math.PI/2);
+  // a barrel with its top at y 0 from z0 to z1, turning w radians a second (a positive w carries you toward -x); ridges: raised bars along it
+  const drum=(x,z0,z1,r,w,c,ridges)=>{
+    const zc=(z0+z1)/2,len=Math.abs(z0-z1),pv=pivot((t,P,Q)=>{P.set(x,-r,zc);Q.setFromAxisAngle(AXZ,t*w)});
+    B.cyl({r,h:len,tex:TX.dots(c,C.white),tile:3,seg:30,dyn:pv([0,0,0],LAYZ)});
+    for(let k=0;k<ridges;k++){const a=k/ridges*Math.PI*2+1;B.box({s:[.5,.5,len-1.2],tex:TX.hazard(),tile:1,hit:.3,kb:2,dyn:pv([Math.cos(a)*(r+.1),Math.sin(a)*(r+.1),0],qa(AXZ,a))})}
+    // paddles on the ends show which way it turns
+    for(const e of [-1,1])for(let k=0;k<4;k++){const a=k*Math.PI/2;B.box({s:[r*1.7,.3,.25],c:C.navy,col:false,dyn:pv([0,0,e*(len/2+.14)],qa(AXZ,a))})}
+  };
+  pad(0,0,-2,-5,12,C.cyan);
+  drum(0,-5.3,-21.3,2.4,.45,C.cyan,0);
+  pad(0,0,-21.6,-27,12,C.vio);
+  drum(-3.4,-27.3,-45.3,1.7,.85,C.pink,1);drum(3.4,-27.3,-45.3,1.7,-.85,C.lime,1);
+  pad(0,0,-45.6,-55,12,C.vio);checkpoint(1,-45.6,-55,-6,6,0,spawnGrid(0,0,-52.5,4,2,2.4,1.8));
+  drum(0,-55.3,-75.3,2,1.15,C.org,2);
+  pad(0,0,-75.6,-84,12,C.vio);checkpoint(2,-75.6,-84,-6,6,0,spawnGrid(0,0,-81.5,4,2,2.4,1.8));
+  drum(0,-84.3,-93.3,1.6,1.4,C.yel,0);drum(0,-93.7,-102.7,1.6,-1.4,C.cyan,0);drum(0,-103.1,-112.1,1.6,1.4,C.pink,1);
+  pad(0,0,-112.4,-116,12,C.vio);
+  const fz=finishPad(-116,-130,0,12);
+  const path=[N(0,0,1),N(0,0,-1,{w:3}),N(0,0,-4.6,{w:1}),N(0,0,-20.6,{w:.4,comp:1}),N(0,0,-24,{w:3}),N(-3.4,0,-27,{w:.3,alt:[-3.4,3.4]}),N(-3.4,0,-44.8,{w:.3,comp:1,alt:[-3.4,3.4]}),N(0,0,-50,{w:4,cp:1}),
+    N(0,0,-54.8,{w:.8}),N(0,0,-74.8,{w:.4,comp:1}),N(0,0,-80,{w:4,cp:2}),N(0,0,-83.8,{w:.6}),N(0,0,-111.6,{w:.3,comp:1}),N(0,0,-114,{w:3}),N(0,0,fz-3,{w:4})];
+  return{spawns,yaw:Math.PI,path,kill:-5,finZ:fz};
+}});
+
+// 21. Ferry Frenzy (race, moving ground): no bridges, only ferries that shuttle between the docks
+LEVELS.push({id:'ferry',name:'Ferry Frenzy',kind:'race',time:150,theme:'lagoon',desc:'There is no bridge, only ferries. Hop aboard while one is docked, ride it across, and change boats in the middle of the river.',build(seed){
+  const spawns=startPad(14);slime(-5);scenery(seed,0,-55,40);
+  const T0=rng(seed^0x7007)()*40;
+  // 0 at the near dock (a pause of h), across, 1 at the far dock (a pause), back
+  const cyc=(p,h)=>{p=fract(p);const m=.5-h;return p<h?0:p<.5?smooth((p-h)/m):p<.5+h?1:1-smooth((p-.5-h)/m)};
+  const boat=(x,zn,zf,P,ph,w,d,c,h)=>{h=h||.16;const u=t=>fract((t+T0)/P+ph),zt=t=>lerp(zn,zf,cyc((t+T0)/P+ph,h));
+    const col=B.box({s:[w,.8,d],tex:TX.checker(c,C.white),tile:2,dyn:(t,cc)=>{cc.pos.set(x,-.4,zt(t));cc.quat.identity()}});
+    // a low rail down each side, and a funnel
+    for(const sx of [-1,1])B.box({s:[.3,.5,d-.6],c:C.navy,dyn:(t,cc)=>{cc.pos.set(x+sx*(w/2-.15),.25,zt(t));cc.quat.identity()}});
+    B.cyl({r:.35,h:1.6,c:C.red,col:false,dyn:(t,cc)=>{cc.pos.set(x+w/2-.9,.8,zt(t)+d/2-.9);cc.quat.identity()}});
+    return{col,near:t=>{const q=u(t);return q<h*.55||q>.98},far:t=>{const q=u(t);return q>=.5&&q<.5+h*.6},mid:t=>{const q=u(t);return q>=.5&&q<.5+h*.45}};
+  };
+  const path=[N(0,0,1),N(0,0,-1,{w:4})];
+  pad(0,0,-2,-6,14,C.cyan);
+  // one wide ferry
+  const F1=boat(0,-10,-26,10,0,8,7,C.pink);
+  path.push(N(0,0,-4.7,{w:1.5,wait:F1.near}),N(0,0,-10,{on:F1.col,wait:F1.far,board:F1.near}),N(0,0,-32,{w:4}));
+  pad(0,0,-29.9,-38,14,C.vio);
+  // two ferries side by side that take turns
+  const F2=boat(-3.7,-41.6,-58.4,9,.2,6,6.5,C.cyan),F3=boat(3.7,-41.6,-58.4,9,.7,6,6.5,C.lime),FF=[F2,F3];
+  path.push(N(-3.7,0,-36.8,{w:.8,alt:[-3.7,3.7],wait:(t,b,k)=>FF[k%2].near(t)}),N(-3.7,0,-41.6,{on:[F2.col,F3.col],wait:(t,b,k)=>FF[k%2].far(t),board:(t,b,k)=>FF[k%2].near(t)}),N(0,0,-64,{w:4}),N(0,0,-66,{w:4,cp:1}));
+  pad(0,0,-62,-72,14,C.vio);checkpoint(1,-62.5,-69,-7,7,0,spawnGrid(0,0,-67,4,2,2.6,1.6));
+  // two ferries that each go halfway and meet in the middle of the river: change boats there
+  const FA=boat(0,-75.6,-86,10,.4,7,7,C.org,.2),FB=boat(0,-93.2,-103.6,10,.9,7,7,C.yel,.2);
+  path.push(N(0,0,-70.7,{w:1.5,wait:FA.near}),N(0,0,-75.6,{on:FA.col,oz:-2.1,wait:FA.mid,board:FA.near}),N(0,0,-93.2,{on:FB.col,wait:FB.far,board:FA.far}),N(0,0,-109.5,{w:4}),N(0,0,-111.5,{w:4,cp:2}));
+  pad(0,0,-107.5,-116,14,C.vio);checkpoint(2,-108,-114,-7,7,0,spawnGrid(0,0,-112.4,4,2,2.6,1.4));
+  const fz=finishPad(-116,-130,0,14);path.push(N(0,0,fz-3,{w:4}));
+  return{spawns,yaw:Math.PI,path,kill:-5,finZ:fz};
+}});
+
+// 22. Roller Rink (survival, a chase): a roller comes round a ring track, faster all the time
+LEVELS.push({id:'chase',name:'Roller Rink',kind:'survival',time:75,theme:'storm',desc:'A giant roller is coming round the ring, and it only gets faster. Keep ahead of it, hop the hurdles, or hit a bounce pad to jump clean over it.',build(seed){
+  const r=rng(seed^0xc4a5e);slime(-5);scenery(seed,0,0,22);
+  const R0=5.5,R1=12.5,RR=1.5,dir=r()<.5?-1:1,a0=r()*Math.PI*2;
+  B.cyl({p:[0,-.6,0],r:R1,h:1.2,tex:TX.rings(C.mint,C.white),tile:6,seg:56});
+  B.cyl({p:[0,2.4,0],r:R0,h:6,tex:TX.stripes(C.navy,C.vio),tile:2,seg:40,castS:true});
+  {const rim=new THREE.Mesh(new THREE.TorusGeometry(R1,.22,8,64),mat(C.navy));rim.rotation.x=Math.PI/2;B.add(rim)}
+  // the roller's angle round the ring (W is how fast it is turning)
+  const W=t=>.36+.0088*Math.max(0,t),A=t=>{t=Math.max(0,t);return a0+dir*(.36*t+.0044*t*t)};
+  const rm=(R0+R1)/2+.2,LAYX=qa(AXZ,-Math.PI/2),q1=new QT();
+  const roll=B.cyl({r:RR,h:R1-R0+.7,tex:TX.stripes(C.red,C.white),tile:2,seg:26,hit:.55,kb:4,dyn:(t,c)=>{const a=A(t);c.pos.set(Math.cos(a)*rm,RR,Math.sin(a)*rm);c.quat.setFromAxisAngle(UP,-a).multiply(LAYX)}});
+  // it is drawn rolling; what you hit is the same cylinder without the spin, so it shoves you along the ring and not under it
+  Lvl.anims.push(t=>{const a=A(t);roll.mesh.quaternion.setFromAxisAngle(UP,-a).multiply(q1.setFromAxisAngle(AXX,dir*(a-a0)*rm/RR)).multiply(LAYX)});
+  B.box({s:[R1-R0+1.6,.3,.3],c:C.navy,col:false,dyn:(t,c)=>{const a=A(t);c.pos.set(Math.cos(a)*rm,RR,Math.sin(a)*rm);c.quat.setFromAxisAngle(UP,-a)}});
+  // hurdles across half the track (inside or outside by turns), and three bounce pads
+  const NH=6;for(let k=0;k<NH;k++){const a=a0+(k+.5)/NH*Math.PI*2,inner=k%2===0,w=(R1-R0)/2+.3,rc=inner?R0+w/2:R1-w/2;
+    B.box({p:[Math.cos(a)*rc,.28,Math.sin(a)*rc],s:[w,.56,.5],ry:-a,tex:TX.hazard(),tile:1})}
+  for(let k=0;k<3;k++){const a=a0+(k*2+1.5)/NH*Math.PI*2,rc=R1-2.1;B.cyl({p:[Math.cos(a)*rc,.1,Math.sin(a)*rc],r:1.15,h:.22,tex:TX.rings(C.lime,C.yel),bounce:15.5,seg:24})}
+  // everyone starts on the half of the ring ahead of the roller, facing the way to run
+  const spawns=[];for(let k=0;k<16;k++){const a=a0+dir*(1.5+(k>>1)/8*3.5),rr=k%2?10.4:8;spawns.push([Math.cos(a)*rr,.05,Math.sin(a)*rr,Math.atan2(-dir*Math.sin(a),dir*Math.cos(a))])}
+  return{spawns,yaw:0,kill:-5,chase:true,orbit:true,dir,A,W,R0,R1};
+}});
+
+// 23. Crown Dash (final): not last one standing. A sprint up a tower, and the first bean to grab the crown wins the show
+LEVELS.push({id:'crown',name:'Crown Dash',kind:'final',dash:true,time:120,theme:'honey',desc:'No last one standing this time. Sprint up the tower, and the first bean to grab the crown as it dips wins the show.',build(seed){
+  const spawns=startPad(14);slime(-5);scenery(seed,0,-45,36);const rv=vary(seed);
+  const path=[N(0,0,1),N(0,0,-1,{w:4})];
+  // tier 0: sliding blocks
+  pad(0,0,-2,-20,14,C.cyan);
+  [[-8,1.2,0],[-14.5,1.45,2]].forEach(([z,w,o])=>{for(let i=0;i<2;i++){const ph=o+i*Math.PI;B.box({s:[2.8,2.2,1.3],tex:TX.hazard(),tile:1.2,hit:.25,dyn:(t,c)=>{c.pos.set(Math.sin(t*w+ph)*5.3,1.1,z);c.quat.identity()}})}
+    path.push(N(0,0,z+2.3,{w:3,safe:1,len:4.2}))});
+  // tier 1: two sweepers to hop
+  pad(0,1.2,-20,-38,14,C.yel,{th:2.4});path.push(N(0,0,-18.6,{w:4}),N(0,1.2,-21.8,{w:4}));
+  [[-26,1.5],[-33,-1.8]].forEach(([z,w])=>{B.cyl({p:[0,1.8,z],r:.6,h:1.2,c:C.navy});const bar=pivot((t,P,Q)=>{P.set(0,1.53,z);Q.setFromAxisAngle(UP,t*w)});B.box({s:[12.8,.45,.5],tex:TX.hazard(),tile:1,hit:.45,kb:2,dyn:bar([0,0,0])})});
+  path.push(N(0,1.2,-36.6,{w:4}));
+  // tier 2: a breather and a checkpoint
+  pad(0,2.4,-38,-50,14,C.vio,{th:3.6});checkpoint(1,-38.6,-46,-7,7,2.4,spawnGrid(0,2.4,-43.5,4,2,2.6,1.8));
+  path.push(N(0,2.4,-40,{w:4}),N(0,2.4,-44,{w:4,cp:1}),N(0,2.4,-48.6,{w:1.5}));
+  // tier 3: a narrow bridge under swinging balls
+  pad(0,3.6,-50,-68,4.6,C.cyan,{th:4.8});
+  [[-54.5,1.9,0],[-59.5,2.2,2.2],[-64.5,2,4.1]].forEach(([z,w,ph],i)=>{const Lr=8.4,pv=pivot((t,P,Q)=>{P.set(0,3.6+Lr+1.2,z);Q.setFromAxisAngle(AXZ,Math.sin(t*w+ph)*.74)});
+    for(const s of [-1,1])B.box({p:[s*4,3.6+8.6,z],s:[.5,17,.5],c:C.white,col:false});B.box({p:[0,3.6+Lr+1.4,z],s:[8.4,.6,.6],c:C.navy,col:false});
+    B.cyl({r:.1,h:Lr-1,c:C.white,dyn:pv([0,-(Lr-1)/2,0]),col:false});B.sph({r:1.05,tex:TX.stripes([C.pink,C.lime,C.org][i],C.white),tile:1,hit:.62,dyn:pv([0,-Lr,0]),seg:22});
+    path.push(N(0,3.6,z+2.6,{w:.3,safe:1,len:5}))});
+  path.push(N(0,3.6,-67,{w:.6}));
+  // a turning barrel for a bridge (which way it turns comes from the seed)
+  {const r=2,w=rv()<.5?-1:1,pv=pivot((t,P,Q)=>{P.set(0,3.6-r,-76.3);Q.setFromAxisAngle(AXZ,t*w)});
+    B.cyl({r,h:16,tex:TX.dots(C.org,C.white),tile:3,seg:30,dyn:pv([0,0,0],qa(AXX,Math.PI/2))});
+    B.box({s:[.5,.5,14.8],tex:TX.hazard(),tile:1,hit:.3,kb:2,dyn:pv([r+.1,0,0])});
+    for(const e of [-1,1])for(let q=0;q<4;q++)B.box({s:[r*1.7,.3,.25],c:C.navy,col:false,dyn:pv([0,0,e*8.14],qa(AXZ,q*Math.PI/2))});
+    path.push(N(0,3.6,-83.6,{w:.4,comp:1}))}
+  // the top: a checkpoint, bounce pads up to the crown deck
+  pad(0,4.8,-84.6,-96.6,14,C.yel,{th:6});checkpoint(2,-85.2,-90.6,-7,7,4.8,spawnGrid(0,4.8,-89,4,2,2.6,1.4));
+  for(const x of [-3.6,0,3.6])bouncePad(x,4.8,-93.6,17.5,[0,0,-1.6]);
+  B.box({p:[0,5.9,-97.2],s:[14,4.8,1.2],tex:TX.stripes(C.pink,C.yel),tile:2});
+  const DY=8.3,CZ=-104.6;pad(0,DY,-96.6,-109.6,11,C.vio,{th:1.4});
+  path.push(N(0,4.8,-86.4,{w:4}),N(0,4.8,-88.6,{w:4,cp:2}),N(0,4.8,-93.6,{xs:[-3.6,0,3.6]}),N(0,DY,-100.1,{w:3}),N(0,DY,CZ,{w:.5,near:1,noDive:1}));
+  // the crown hangs over the deck and dips within reach every few seconds
+  const cph=rv()*6.28,cy=t=>DY+3.1+2*Math.sin(t*1.15+cph),gold=mat('#ffcf3d',null,{emissive:'#ffb000',emissiveIntensity:.35,side:THREE.DoubleSide}),cr=new THREE.Group();
+  {const band=new THREE.Mesh(new THREE.CylinderGeometry(.95,.8,.6,10,1,true),gold);cr.add(band);
+    for(let q=0;q<5;q++){const a=q/5*Math.PI*2,sp=new THREE.Mesh(new THREE.ConeGeometry(.3,.75,6),gold);sp.position.set(Math.cos(a)*.88,.6,Math.sin(a)*.88);cr.add(sp);const g=new THREE.Mesh(new THREE.SphereGeometry(.15,8,6),mat(q%2?C.pink:C.cyan));g.position.set(Math.cos(a)*.88,1.02,Math.sin(a)*.88);cr.add(g)}
+    cr.position.set(0,cy(0),CZ);B.add(cr);
+    const beam=new THREE.Mesh(new THREE.CylinderGeometry(1.5,1.5,30,16,1,true),new THREE.MeshBasicMaterial({color:0xfff0a0,transparent:true,opacity:.22,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,fog:false}));beam.userData.own=true;beam.position.set(0,DY+15,CZ);B.add(beam);beam.castShadow=false;beam.receiveShadow=false;
+    B.cyl({p:[0,DY+.06,CZ],r:1.7,h:.12,tex:TX.rings(C.yel,C.white),col:false,seg:28});
+    Lvl.anims.push(t=>{cr.position.y=cy(t+Lvl0);cr.rotation.y=t*1.4})}
+  const Lvl0=Lvl.to,zone=B.zone({type:'fin',min:[-1.25,0,CZ-1.25],max:[1.25,0,CZ+1.25]});
+  const place=t=>{const y=cy(t+Lvl0);zone.min[1]=y-1.05;zone.max[1]=y+.95};place(0);
+  return{spawns,yaw:Math.PI,path,kill:-5,finZ:null,tickFx:place,crownY:cy};
+}});
+
 // the lobby yard (also the menu backdrop) and the podium
 const YARD={id:'yard',name:'Warm-up Yard',kind:'lobby',theme:'day',time:0,desc:'',build(seed){
   slime(-5);scenery(3,0,0,24);
@@ -1948,7 +2123,7 @@ const PODIUM={id:'podium',name:'The Crown Stage',kind:'podium',theme:'honey',tim
   const spawns=[[0,2.25,-2],[-3.4,1.35,-1.6],[3.4,.85,-1.4]];for(let k=0;k<13;k++){spawns.push([-7.5+(k%7)*2.5,.05,3+Math.floor(k/7)*2.4])}
   return{spawns,yaw:0,kill:-5,podium:true};
 }};
-const RACES=[0,1,2,3,4,9,10,11,12,13,14],SURVIVALS=[5,6,15,16],FINALS=[7,8,17];
+const RACES=[0,1,2,3,4,9,10,11,12,13,14,18,19,20],SURVIVALS=[5,6,15,16,21],FINALS=[7,8,17,22];
 
 // =====================================================================
 //  Bots. They follow each race's path of nodes, wait at "safe" nodes until
@@ -1993,6 +2168,7 @@ function aiInput(e,L,t,dt){
   else if(L.bowl)dodgeAI(e,L,t,dt,inp);
   else if(L.tide)tideAI(e,L,t,dt,inp);
   else if(L.rush)rushAI(e,L,t,dt,inp);
+  else if(L.chase)chaseAI(e,L,t,dt,inp);
   else if(L.hex)hexAI(e,L,t,dt,inp);
   else if(L.sweep)sweepAI(e,L,t,dt,inp);
   else wanderAI(e,L,t,dt,inp);
@@ -2059,8 +2235,17 @@ function raceAI(e,L,t,dt,inp){
   }
   if(n.wait){
     if(n.alt)tx=n.alt[ai.route%n.alt.length];else tx=n.p.x;
+    let wz=n.p.z;
+    if(n.on){
+      // a spot on something that moves (a lift, a ferry): head for it only while it can be boarded, or stay on it once aboard
+      const c=Array.isArray(n.on)?n.on[ai.route%n.on.length]:n.on,aboard=b.onGround&&b.ground===c;tx=c.pos.x+(n.ox||0);wz=c.pos.z+(n.oz||0);
+      if(!aboard&&b.onGround&&n.board&&!n.board(t,b,ai.route)&&Math.hypot(tx-b.pos.x,wz-b.pos.z)>1.2){ai.node--;ai.best=1e9;ai.stuck=0;ai.wait=0;return}
+      const d=steer(b,tx,wz,inp,1.2);
+      if(aboard&&d<(n.rad||1.6)){inp.x*=.3;inp.z*=.3;ai.stuck=0;if(n.wait(t,b,ai.route)){ai.node++;ai.best=1e9}}
+      return;
+    }
     const d=steer(b,tx,n.p.z,inp,1.5);
-    if(d<1.4){inp.x*=.2;inp.z*=.2;ai.stuck=0;ai.wait+=dt;if(n.wait(t,b)||ai.wait>20){ai.wait=0;ai.node++;ai.best=1e9}}
+    if(d<1.4){inp.x*=.2;inp.z*=.2;ai.stuck=0;ai.wait+=dt;if(n.wait(t,b,ai.route)||ai.wait>20){ai.wait=0;ai.node++;ai.best=1e9}}
     else unstick(e,n,P,d,dt,inp,tx,n.p.z);
     return;
   }
@@ -2205,6 +2390,17 @@ function colourAI(e,L,t,dt,inp){
   if(t<ai.tgt.at)return;
   if(Math.hypot(ai.tgt.x-b.pos.x,ai.tgt.z-b.pos.z)>.35)steer(b,ai.tgt.x,ai.tgt.z,inp,1);
 }
+// Roller Rink: keep ahead of the roller round the ring (a nervy bot lets it get closer before it runs), drift to the
+// inside lane as it speeds up, and hop the hurdles
+function chaseAI(e,L,t,dt,inp){
+  const b=e.b,ai=e.ai,p=b.pos,dir=L.dir,a=Math.atan2(p.z,p.x),TAU=Math.PI*2;
+  let gap=((a-L.A(t))*dir)%TAU;if(gap<0)gap+=TAU;
+  const w=L.W(t),hurry=clamp((w-.55)/.3,0,1),lane=lerp(L.R0+1.3+(ai.off*.5+.5)*(L.R1-L.R0-2.8),L.R0+1.15,hurry);
+  const run=gap<2.1+(1-ai.nerve)*1.3?1:gap>TAU-1.5?0:.4;
+  const ta=a+dir*.5;steer(b,Math.cos(ta)*lane,Math.sin(ta)*lane,inp);inp.x*=run;inp.z*=run;
+  if(b.onGround&&ai.jcd<=0){const sp=Math.hypot(b.vel.x,b.vel.z);
+    if(sp>2&&wallAhead(b,p.x+b.vel.x/sp*1.05,p.z+b.vel.z/sp*1.05)){ai.jcd=.6;if(Math.random()<ai.skill+.15)inp.jumpP=true}}
+}
 // Bowled Over: lean away from where each ball is about to be, and keep off the edge
 const DODGE_T=[.2,.55,.9];
 function dodgeAI(e,L,t,dt,inp){
@@ -2295,7 +2491,10 @@ function loadLevel(i,seed){
   if(def.kind==='podium'){Music.set('menu')}else if(def.kind==='lobby')Music.set(G.mode==='menu'?'menu':'lobby');else Music.set(def.kind==='final'?'final':'race');
   return L;
 }
-const isRace=L=>L&&L.def.kind==='race';
+// How a round is played. Its kind says where it sits in a show (race, survival, final); a final marked dash is played
+// like a race (checkpoints, respawns, first to the finish wins the crown) instead of last one standing.
+const mechOf=def=>def&&(def.dash?'race':def.kind);
+const isRace=L=>!!L&&mechOf(L.def)==='race';
 // how far along a race someone is (bigger is further): every race runs toward -z unless the level gives its own measure
 function raceProgress(L,e){return L.prog?L.prog(e.b.pos):-e.b.pos.z}
 // roster ids: bots are b0, b1, ... and have an entry in rs.bm (a player's id can begin with a b too)
@@ -2397,7 +2596,7 @@ function hostTick(){
   }
   if(rs.ph!=='round'||t<rs.go)return;
   const L=G.L;if(!L||L.idx!==rs.lv)return;
-  const kind=L.def.kind,rt=(t-rs.go)/1000,q=rs.q.slice(),x=rs.x.slice();let ch=false;
+  const kind=mechOf(L.def),isFinal=L.def.kind==='final',rt=(t-rs.go)/1000,q=rs.q.slice(),x=rs.x.slice();let ch=false;
   const done=i=>q.includes(i)||x.includes(i);
   // finish reports, in the order they happened
   const fins=[];
@@ -2412,7 +2611,9 @@ function hostTick(){
   for(const [,i] of fins){if(q.length<rs.qn){q.push(i);ch=true}}
   const alive=rs.pl.filter(i=>!q.includes(i)&&!x.includes(i));
   let end=false,win=null;
-  if(kind==='race'){if(q.length>=rs.qn||alive.length===0||rt>=L.def.time){end=true;for(const i of alive)x.push(i)}}
+  if(kind==='race'){if(q.length>=rs.qn||alive.length===0||rt>=L.def.time){end=true;for(const i of alive)x.push(i)}
+    // a dash final nobody finished: whoever got furthest takes the crown
+    if(end&&isFinal){if(!q.length){const back=x.filter(i=>!report(rs,idOf(rs,i)).gone),far=i=>{const e=ents.get(idOf(rs,i));return e?raceProgress(L,e):-1e9};back.sort((a,b)=>far(b)-far(a));if(back.length){q.push(back[0]);x.splice(x.indexOf(back[0]),1)}}win=q.slice()}}
   else if(kind==='survival'){if(alive.length<=rs.qn||rt>=L.def.time){end=true;for(const i of alive)q.push(i)}}
   else{
     if(alive.length<=1||rt>=L.def.time){end=true;if(alive.length)for(const i of alive)q.push(i);else if(x.length)q.push(x.pop())}
@@ -2422,12 +2623,12 @@ function hostTick(){
   // if fewer made it (a race that ran out of time, or several falling in the same moment of a survival), the places left
   // go to the last knocked out, or in a race to whoever got furthest
   const want=Math.max(2,rs.qn);
-  if(end&&kind!=='final'&&q.length<want){
+  if(end&&!isFinal&&q.length<want){
     const back=x.filter(i=>!report(rs,idOf(rs,i)).gone);
     if(kind==='race'){const far=i=>{const e=ents.get(idOf(rs,i));return e?raceProgress(L,e):-1e9};back.sort((a,b)=>far(b)-far(a))}else back.reverse();
     for(const i of back){if(q.length>=want)break;q.push(i);x.splice(x.indexOf(i),1)}
   }
-  if(end)setRS(Object.assign({},rs,{q,x,ph:'results',te:t+(kind==='final'?3800:7200),win:win||rs.win,end:t}));
+  if(end)setRS(Object.assign({},rs,{q,x,ph:'results',te:t+(isFinal?3800:7200),win:win||rs.win,end:t}));
   else if(ch)setRS(Object.assign({},rs,{q,x}));
 }
 // what a participant has reported this round: finish time, knock-out time, or gone from the room
@@ -2441,7 +2642,7 @@ function report(rs,id){
   r.fin=pf(o.fin);r.out=pf(o.out);
   // someone who still hasn't followed the show into this round 15 seconds after GO (for example a browser running an older copy of
   // the page that doesn't have this round) isn't playing it: in a survival or final they count as knocked out, or the round would wait for them
-  if(r.out==null&&rs.ph==='round'&&o.k!==key&&now()-rs.go>15000&&LEVELS[rs.lv]&&LEVELS[rs.lv].kind!=='race')r.out=15000;
+  if(r.out==null&&rs.ph==='round'&&o.k!==key&&now()-rs.go>15000&&LEVELS[rs.lv]&&mechOf(LEVELS[rs.lv])!=='race')r.out=15000;
   return r;
 }
 // ---------- following the round state (everyone) ----------
@@ -2500,7 +2701,7 @@ function bumpStatOnce(k,rs){if(!me||G.mode==='practice')return;const key=k+rs.id
 // qualified / eliminated as the host decides
 function noteProgress(rs){
   const L=G.L;if(!L)return;
-  for(const i of rs.q){const e=ents.get(idOf(rs,i));if(e&&!e.fin&&L.def.kind==='race'){e.fin=true;e.finAt=performance.now();if(e.isMe){banner('QUALIFIED!','#'+(rs.q.indexOf(i)+1)+' across the line','good',2.6);sfx('qualify');bumpStatOnce('q',rs)}else feed('<span class="hl">'+esc(e.name)+'</span> qualified')}}
+  for(const i of rs.q){const e=ents.get(idOf(rs,i));if(e&&!e.fin&&isRace(L)){e.fin=true;e.finAt=performance.now();if(L.def.kind==='final'){if(e.isMe)bumpStatOnce('q',rs)}else if(e.isMe){banner('QUALIFIED!','#'+(rs.q.indexOf(i)+1)+' across the line','good',2.6);sfx('qualify');bumpStatOnce('q',rs)}else feed('<span class="hl">'+esc(e.name)+'</span> qualified')}}
   for(const i of rs.x){const e=ents.get(idOf(rs,i));if(e&&!e.out&&!e.fin){e.out=true;e.outAt=performance.now();if(e.isMe&&L.def.kind!=='race'){}}}
 }
 function onRoundEnd(rs){
@@ -2808,7 +3009,7 @@ function zoneCheck(e,t){
 }
 const fmtMs=ms=>{const s=ms/1000;return Math.floor(s/60)+':'+(s%60).toFixed(2).padStart(5,'0')};
 function fell(e,t){
-  const L=G.L,rs=G.rs,kind=L.def.kind;
+  const L=G.L,rs=G.rs,kind=mechOf(L.def);
   if(e.isMe||Math.random()<.5)sfx('slime',e.b.pos,e.isMe?1:.6);
   splash(e.b.pos);
   e.hidden=true;e.b.vel.set(0,0,0);if(e.isMe&&e.b.grabbing)releaseGrab();
@@ -2822,15 +3023,15 @@ function fell(e,t){
 }
 function respawn(e){
   const L=G.L;let sp=null;
-  if(L.def.kind==='race'&&e.cp>0){const z=World.zones.find(z=>z.type==='cp'&&z.idx===e.cp);if(z)sp=z.spawns[Math.floor(Math.random()*z.spawns.length)]}
+  if(isRace(L)&&e.cp>0){const z=World.zones.find(z=>z.type==='cp'&&z.idx===e.cp);if(z)sp=z.spawns[Math.floor(Math.random()*z.spawns.length)]}
   if(!sp)sp=L.spawns[Math.floor(Math.random()*Math.min(8,L.spawns.length))];
   placeAt(e,[sp[0]+rand(-.4,.4),sp[1]+.3,sp[2]+rand(-.3,.3),sp[3]],L.yaw);e.hidden=false;
   if(e.ai&&L.path){let k=1;if(e.cp>0){const i=L.path.findIndex(n=>n.cp===e.cp);if(i>=0)k=i+1}e.ai=Object.assign(newAI(e.ai.skill,e.ai.nerve,e.ai.route),{node:k})}
-  if(e.isMe)camYaw=L.def.kind==='race'?0:camYaw;
+  if(e.isMe)camYaw=isRace(L)?0:camYaw;
 }
 function bump(){
   if(!collisionsOn())return;
-  const list=[];for(const e of ents.values())if(!e.hidden&&!e.podium&&!(e.fin&&G.L&&G.L.def.kind==='race'))list.push(e);
+  const list=[];for(const e of ents.values())if(!e.hidden&&!e.podium&&!(e.fin&&isRace(G.L)))list.push(e);
   for(const a of list){if(!a.local)continue;const A=a.b;
     for(const o of list){if(o===a)continue;const O=o.b;
       const dx=A.pos.x-O.pos.x,dz=A.pos.z-O.pos.z,dy=A.pos.y-O.pos.y;if(dy>1.75||dy<-1.3)continue;
@@ -3005,7 +3206,7 @@ const camT=new V3(),_cp=new V3(),ray=new THREE.Raycaster();let shake=0,camInit=f
 function camSnap(){camInit=false}
 function focusEnt(){
   if(me&&G.mode==='practice')return me;
-  if(me&&!me.out&&!(me.fin&&me.finAt&&performance.now()-me.finAt>1500)&&!(me.hidden&&G.L&&G.L.def.kind!=='race'))return me;
+  if(me&&!me.out&&!(me.fin&&me.finAt&&performance.now()-me.finAt>1500)&&!(me.hidden&&G.L&&!isRace(G.L)))return me;
   let e=ents.get(G.spec);if(!e||e.out||e.fin){const a=specList();e=a[0]||null;G.spec=e?e.id:null}
   return e||me;
 }
@@ -3016,6 +3217,8 @@ function updateCamera(dt){
   if(L.podium){const port=camera.aspect<1;camera.position.set(0,port?4.6:3.7,port?12.5:8.6);camera.lookAt(0,port?1.6:2,-1.5);moveSun(0,0,0);return}
   if(rs&&rs.ph==='round'){const rt=(t-rs.go)/1000;if(rt<-3.2&&rt>-9){flyCam(L,rt);return}if(rt<-3.2+.05&&me)camYaw=me.b.yaw+Math.PI}
   const f=focusEnt();if(!f){camera.position.set(0,20,25);camera.lookAt(0,0,0);return}
+  // a round that is run round a ring turns the view with the bean, so forward stays forward
+  if(L.orbit&&f===me&&!f.hidden&&rs&&rs.ph==='round'){const a=Math.atan2(f.b.pos.x,f.b.pos.z),rr=Math.hypot(f.b.pos.x,f.b.pos.z);if(G.orbA!=null&&G.orbL===L&&rr>2)camYaw+=angDiff(a,G.orbA);G.orbA=a;G.orbL=L}else G.orbA=null;
   _tg.set(f.b.pos.x,f.b.pos.y+1.25,f.b.pos.z);
   if(!camInit||camT.distanceTo(_tg)>12){camT.copy(_tg);camInit=true}else camT.lerp(_tg,1-Math.exp(-dt*12));
   let dist=camDist*(isTouch&&innerWidth<innerHeight?1.12:1);
@@ -3086,7 +3289,7 @@ function banner(t,s,cls,sec){const b=$('banner');b.querySelector('b').style.colo
 function callBanner(t,s,col,sec){banner(t,s,'call',sec);$('banner').querySelector('b').style.color=col}
 function flash(){const v=$('flash');v.style.opacity='1';setTimeout(()=>v.style.opacity='0',500)}
 function hideCards(){for(const id of ['results','podium','intro'])$(id).hidden=true;$('banner').className=''}
-function countLine(rs,L){const n=rs.pl.length,k=L.def.kind;return k==='race'?rs.qn+' of '+n+' qualify':k==='survival'?'Survive: '+rs.qn+' of '+n+' go through':'Last one standing wins'}
+function countLine(rs,L){const n=rs.pl.length,k=L.def.kind;return k==='race'?rs.qn+' of '+n+' qualify':k==='survival'?'Survive: '+rs.qn+' of '+n+' go through':L.def.dash?'First to grab the crown wins':'Last one standing wins'}
 function updateHud(dt){
   const rs=G.rs,L=G.L,t=now();
   if(G.mode==='menu'||!L)return;
@@ -3112,7 +3315,8 @@ function updateHud(dt){
   setText('rndLbl',final?'Final round':'Round '+(rs.rn+1)+' of '+rs.plan.length);setText('rndName',L.def.name);
   setHidden('cntBox',false);setHidden('clkBox',false);
   const alive=rs.pl.filter(i=>!rs.q.includes(i)&&!rs.x.includes(i)).length;
-  if(kind==='race'){setText('cntLbl','Qualified');setText('cntN',rs.q.length+' / '+rs.qn);$('cntBox').className='pill q'}
+  if(L.def.dash){setText('cntLbl','In the dash');setText('cntN',String(rs.pl.length));$('cntBox').className='pill s'}
+  else if(kind==='race'){setText('cntLbl','Qualified');setText('cntN',rs.q.length+' / '+rs.qn);$('cntBox').className='pill q'}
   else{setText('cntLbl',final?'Still standing':'Still in · '+rs.qn+' go through');setText('cntN',(rs.ph==='results'?rs.q.length:alive)+' / '+rs.pl.length);$('cntBox').className='pill s'}
   const left=rs.ph==='results'?0:L.def.time-Math.max(0,rt);setText('clk',fmtT(left));$('clkBox').classList.toggle('low',left<10&&rt>0&&rs.ph==='round');
   // the intro card
@@ -3230,7 +3434,7 @@ function becomeHost(){
     // carry on: take over the bots from the last positions the old host sent
     const parts=(G.lastBt||'').split('|');
     for(const e of ents.values())if(e.bot){e.local=true;{const tr=botTraits(prev,e.id,rosterEntry(prev,e.id).skill);e.ai=newAI(tr.skill,tr.nerve,tr.route);e.spd=tr.spd}G.botRep.set(e.id,{k:prev.id+':'+prev.rn,fin:null,out:null});
-      if(e.hidden&&!e.out&&!e.fin){e.netHidden=false;if(G.L&&G.L.def.kind==='race')e.respawnT=.5;else G.botRep.get(e.id).out=Math.max(0,Math.round(now()-prev.go))}
+      if(e.hidden&&!e.out&&!e.fin){e.netHidden=false;if(isRace(G.L))e.respawnT=.5;else G.botRep.get(e.id).out=Math.max(0,Math.round(now()-prev.go))}
       if(G.L&&G.L.path){let bi=1,bd=1e9;G.L.path.forEach((n,i)=>{const d=n.p.distanceTo(e.b.pos);if(d<bd&&i>0){bd=d;bi=i}});e.ai.node=bi;
         // the checkpoint it had reached isn't sent: take the last one it is level with or past (races run toward -z)
         e.cp=0;for(const z of World.zones)if(z.type==='cp'&&z.idx>e.cp&&e.b.pos.z<=z.max[2]+.5)e.cp=z.idx}
@@ -3301,7 +3505,7 @@ function step(dt,bg){
     e.bean.visible=!gone;if(gone)continue;
     const turn=angDiff(b.yaw,e.lastYaw||b.yaw)/Math.max(dt,1e-3);e.lastYaw=b.yaw;
     if(b.onGround&&(b.st==='move'||b.st==='slide')){const sp2=b.vel.x*b.vel.x+b.vel.z*b.vel.z;e.dustT=(e.dustT||0)-dt;if(sp2>(b.st==='slide'?4:26)&&e.dustT<=0&&camera.position.distanceToSquared(b.pos)<900){e.dustT=.14;PUFF.spawn(b.pos.x+rand(-.15,.15),b.pos.y+.06,b.pos.z+rand(-.15,.15),-b.vel.x*.12,.5,-b.vel.z*.12,.32,.7)}}
-    e.bean.update(b,dt,{turn,grab:e.isMe?!!b.grabbing:false,grabbed:e.isMe&&!!G.grabbedBy,cheer:e.cheer||(e.fin&&L&&L.def.kind==='race')});
+    e.bean.update(b,dt,{turn,grab:e.isMe?!!b.grabbing:false,grabbed:e.isMe&&!!G.grabbedBy,cheer:e.cheer||(e.fin&&isRace(L))});
     if(e.bean.tag){const d=camera.position.distanceTo(b.pos),k=clamp(d*.03,.26,.62);e.bean.tag.visible=!e.isMe&&G.mode!=='menu'&&d<40&&d>1.5;e.bean.tag.scale.set(k*4,k,1);e.bean.tag.position.y=1.55+k*.4+(e.bean.crown?.35:0)}
     if(gfx!=='high'||!e.bean.body.castShadow)e.bean.place(groundBelow(b.pos.x,b.pos.y+.5,b.pos.z,30),true);else e.bean.shadow.visible=false;
   }
