@@ -356,7 +356,6 @@ body.touch #net{font-size:14px}
         <label class="label" for="name">Your name</label>
         <input class="text" id="name" maxlength="16" autocomplete="off" spellcheck="false" style="max-width:260px">
       </div>
-      <div class="row"><button id="turkeyBtn" class="ghost-btn" type="button" hidden>Turkey Week on</button></div>
       <div class="group">
         <span class="label">Online</span>
         <div class="row">
@@ -1549,8 +1548,8 @@ function lineClear(a,b){const d=b.clone().sub(a),L=d.length();if(L<.01)return tr
 
 /* ---------- characters: one merged body per player, two legs, the held item and a glider ---------- */
 // Turkey Week (../events.js): everyone's cap is drawn as a pilgrim hat. It is part of the same body geometry, so it
-// costs no extra draw calls; only the look changes. The Turkey Week button on the menu switches it off (redressModels).
-const EVT=window.BackRoomEvents&&BackRoomEvents.turkey;let TKON=!!(EVT&&EVT.on());
+// costs no extra draw calls; only the look changes. The Turkey Week switch on the Back Room page turns it off (read once, when the game loads).
+const EVT=window.BackRoomEvents&&BackRoomEvents.turkey,TKON=!!(EVT&&EVT.on());
 function bodyGeo(hex,skin){
   const B=Bag(),dark=new THREE.Color(hex).multiplyScalar(.55).getHex(),lite=new THREE.Color(hex).lerp(new THREE.Color(0xffffff),.22).getHex();
   bagRBox(B,0,1.22,0,.7,.72,.42,hex);bagRBox(B,0,1.36,-.005,.62,.3,.44,lite);bagRBox(B,0,.9,0,.73,.1,.45,0x2b2f36);   // torso, chest panel, belt
@@ -1627,7 +1626,6 @@ function makeModel(hex,skinIx){
   g.add(body,gun,glider);g.userData={body,legs,gun,glider,gk:'cb',gr:-1,hex,skinIx:skinIx|0};limbModels.add(g);
   return g;
 }
-function redressModels(on){TKON=on;for(const m of limbModels){const u=m.userData;u.body.geometry.dispose();u.body.geometry=bodyGeo(u.hex,SKINS[(u.skinIx|0)%SKINS.length])}}
 function setModelColor(model,hex,skinIx){const u=model.userData;if(u.hex===hex)return;u.hex=hex;u.skinIx=skinIx|0;u.body.geometry.dispose();u.body.geometry=bodyGeo(hex,SKINS[(skinIx|0)%SKINS.length])}
 function setHeldModel(model,key,rar){const u=model.userData;const k=GUN_GEO[key]?key:HEALS[key]?(HEALS[key].sh?'sh':'hp'):'cb';u.gr=WEAP[k]&&rar>=0&&rar<5?rar|0:-1;if(u.gk===k)return;u.gk=k}
 function disposeModel(m){if(m)limbModels.delete(m);if(m&&m.userData.body)m.userData.body.geometry.dispose()}
@@ -3081,7 +3079,6 @@ nameEl.addEventListener('input',()=>{myName=nameEl.value.replace(/[<>]/g,'').tri
 $('room').value=store.get('room','')||randomRoom();
 $('play').addEventListener('click',startPractice);
 $('quick').addEventListener('click',quickMatch);
-if(EVT)EVT.button($('turkeyBtn'),redressModels);
 $('joinRoom').addEventListener('click',joinPrivate);
 $('room').addEventListener('keydown',e=>{if(e.key==='Enter')joinPrivate()});
 // online, Next match waits in the lobby panel (watching stays one tap away while the match is still on)

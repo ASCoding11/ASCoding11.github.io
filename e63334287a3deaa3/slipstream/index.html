@@ -318,7 +318,6 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
         <div><label class="f">Bots</label><div class="seg" id="diffSeg" role="radiogroup" aria-label="Bot skill"><button type="button" data-v="easy">Easy</button><button type="button" data-v="normal">Normal</button><button type="button" data-v="hard">Hard</button></div></div>
       </div>
       <div class="row"><button class="ghost" id="practice" type="button">Practice vs bots</button></div>
-      <div class="row"><button class="ghost" id="turkeyBtn" type="button" hidden>Turkey Week on</button></div>
       <dl class="keys">
         <dt data-kb="up">W / ↑</dt><dd>Throttle</dd><dt data-kb="down">S / ↓</dt><dd>Brake (hold when stopped to reverse)</dd>
         <dt data-kb="left right">A D / ← →</dt><dd>Steer (tap to correct, hold to turn)</dd><dt data-kb="boost" data-kb-short>Space</dt><dd>Boost (uses ERS; brake to recharge)</dd>
@@ -1515,14 +1514,13 @@ function wheelGeo(front,odd){const k='w'+front+odd;return geoCache[k]||(geoCache
 const helmetMats={};
 function helmetMat(c){if(!helmetMats[c]){helmetMats[c]=new THREE.MeshPhongMaterial({color:lin(c),shininess:90,specular:0x555555});helmetMats[c].shared=true}return helmetMats[c]}
 // Turkey Week (../events.js): a pilgrim hat on every car's roll hoop. One shared geometry and material (events.js builds the
-// hat), so it is one more draw call each; only the look changes. The Turkey Week button on the menu switches it off.
-const EVT=window.BackRoomEvents&&BackRoomEvents.turkey;let TKON=!!(EVT&&EVT.on()),tkHatMat=null;const tkHats=new Set();
+// hat), so it is one more draw call each; only the look changes. The Turkey Week switch on the Back Room page turns it off; it is read once, when the game loads.
+const EVT=window.BackRoomEvents&&BackRoomEvents.turkey;const TKON=!!(EVT&&EVT.on());let tkHatMat=null;
 function tkHat(parent,scale,y,z,ry){
-  if(!EVT||!EVT.live())return null;
+  if(!TKON)return null;
   const m=new THREE.Mesh(EVT.hat(THREE),tkHatMat||(tkHatMat=new THREE.MeshLambertMaterial({vertexColors:true})));
-  m.scale.setScalar(scale);m.position.set(0,y,z||0);if(ry)m.rotation.y=ry;m.visible=TKON;parent.add(m);tkHats.add(m);return m;
+  m.scale.setScalar(scale);m.position.set(0,y,z||0);if(ry)m.rotation.y=ry;parent.add(m);return m;
 }
-function tkToggle(on){TKON=on;for(const m of tkHats)m.visible=on}
 function makeCarMesh(c){
   const g=new THREE.Group(),odd=c.seat&1;
   g.add(new THREE.Mesh(bodyGeo(c.team,odd),MAT.paint));
@@ -2695,7 +2693,6 @@ function showAd(id){
 //  Main loop
 // =====================================================================
 $('quick').onclick=quickMatch;
-if(EVT)EVT.button($('turkeyBtn'),tkToggle);
 $('joinRoom').onclick=joinPrivate;
 $('practice').onclick=practiceLobby;
 $('name').addEventListener('change',saveName);
