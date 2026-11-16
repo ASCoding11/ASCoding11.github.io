@@ -77,7 +77,18 @@ button:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var
 .ghost:hover{background:rgba(255,255,255,.13)}
 .foot{margin:16px 0 0;font:700 13px var(--f-u);color:var(--ink-3)}
 .foot b{color:var(--gold)}
-.grid4{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:14px 0 16px}
+.grid4{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:10px 0 16px}
+#parade{display:block;width:100%;height:clamp(44px,9vh,64px);margin:10px 0 2px}
+.endhead{display:flex;align-items:center;gap:14px}
+.endhead>div{min-width:0}
+#eArt{flex:none;width:clamp(72px,22vw,104px);height:clamp(72px,22vw,104px)}
+.endbig{margin:4px 0 0;font:700 14px var(--f-u);color:var(--ink-2)}
+.endbig b{color:var(--ink)}
+.escore{margin:14px 0 0;padding:10px 14px 12px;border-radius:14px;text-align:center;background:linear-gradient(180deg,rgba(255,209,102,.16),rgba(255,209,102,.05));border:1px solid rgba(255,209,102,.3)}
+.escore small{display:block;font:800 11px var(--f-u);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2)}
+.escore b{display:block;font:700 clamp(40px,9vw,56px)/1.05 var(--f-d);color:#ffe9c7;text-shadow:0 3px 0 #b4482d;font-variant-numeric:tabular-nums}
+.escore.best b{color:var(--gold);text-shadow:0 3px 0 #a3501b,0 0 24px rgba(255,209,102,.5)}
+@media (max-height:420px){#parade{display:none}.escore{margin-top:8px;padding:6px 14px 8px}.escore b{font-size:34px}#eArt{width:64px;height:64px}}
 .grid4 div{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:12px;padding:9px 12px}
 .grid4 b{display:block;font:700 24px/1.1 var(--f-d);font-variant-numeric:tabular-nums}
 .grid4 small{font:800 11px var(--f-u);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
@@ -124,6 +135,7 @@ html:not(.touch) .touch-only{display:none!important}
     <div class="inner">
       <div class="kicker"><span><b>●</b> Back Room</span><span>Drop · merge · grow</span></div>
       <h1 class="title">Melon <b>Merge</b></h1>
+      <canvas id="parade" aria-hidden="true"></canvas>
       <p class="lede" id="ledeStart">Drop fruit into the jar. Two of the same fruit squish together into the next one up, from a tiny cherry all the way to a watermelon. Keep the pile under the red line.</p>
       <div class="row"><button class="cta" id="play" type="button">Play</button><button class="ghost" id="helpStart" type="button">How to play</button><button class="ghost" id="turkeyS" type="button" hidden>Turkey Week on</button></div>
       <p class="foot">Best score on this device: <b id="bestStart">0</b></p>
@@ -149,12 +161,17 @@ html:not(.touch) .touch-only{display:none!important}
 
   <section id="ovOver" class="overlay" hidden>
     <div class="inner">
-      <div class="kicker"><span><b>✕</b> Game over</span><span>The jar overflowed</span></div>
-      <h2 class="endtitle">Jar's full!<span id="newBest" class="newbest" hidden>New best</span></h2>
+      <div class="endhead">
+        <canvas id="eArt" aria-hidden="true"></canvas>
+        <div>
+          <div class="kicker"><span><b>✕</b> Game over</span><span>The jar overflowed</span></div>
+          <h2 class="endtitle">Jar's full!</h2>
+          <p class="endbig">Biggest: <b id="eBig">–</b></p>
+        </div>
+      </div>
+      <div class="escore"><small>Score<span id="newBest" class="newbest" hidden>New best</span></small><b id="eScore">0</b></div>
       <div class="grid4">
-        <div><b id="eScore">0</b><small>Score</small></div>
         <div class="pb"><b id="eBest">0</b><small>Best</small></div>
-        <div><b id="eBig">–</b><small>Biggest fruit</small></div>
         <div><b id="eMerges">0</b><small>Merges</small></div>
       </div>
       <div class="row"><button class="cta" id="again" type="button">Restart</button><a class="ghost" href="/e63334287a3deaa3/">Back to games</a></div>
@@ -551,6 +568,9 @@ const FR=[null,
   {n:'Watermelon', c:['#74d66e','#31a040','#1c6a29'], line:'#0d4318', ext:1.16}
 ];
 let faces=true;
+// how glossy each fruit is (1 = a hard white highlight like a cherry, 0 = soft like a peach); the dinner uses DINNER_GLOSS
+const GLOSS=[0,1,.3,.8,.5,.85,1,.5,.12,.3,.25,.75],DINNER_GLOSS=[0,1,.4,.45,.3,.3,1,.3,.4,.5,.2,.4];
+function rgba(hex,a){const n=parseInt(hex.slice(1),16);return'rgba('+(n>>16)+','+(n>>8&255)+','+(n&255)+','+a+')'}
 function prng(seed){let s=seed>>>0||1;return()=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return s/4294967296}}
 function leaf(g,x,y,len,ang,c1,c2){
   g.save();g.translate(x,y);g.rotate(ang);
@@ -580,7 +600,7 @@ function paintFruit(g,k,R){
   }
   // body
   const gr=g.createRadialGradient(0,0,R*.08,0,0,R);
-  gr.addColorStop(0,P.c[0]);gr.addColorStop(.72,P.c[1]);gr.addColorStop(1,P.c[2]);
+  gr.addColorStop(0,P.c[1]);gr.addColorStop(.6,P.c[1]);gr.addColorStop(1,P.c[2]);
   g.fillStyle=gr;g.beginPath();g.arc(0,0,R,0,TAU);g.fill();
   // patterns, clipped to the body
   g.save();g.beginPath();g.arc(0,0,R-lw*.5,0,TAU);g.clip();
@@ -610,19 +630,23 @@ function paintFruit(g,k,R){
     g.strokeStyle='rgba(176,60,80,.4)';g.lineWidth=lw*1.3;g.beginPath();g.moveTo(-R*.05,-R);g.bezierCurveTo(R*.3,-R*.55,R*.32,-R*.1,R*.12,R*.15);g.stroke();
   }else if(k===9){ // pineapple diamonds
     g.save();g.rotate(Math.PI/4);
-    const d=R*.36;g.strokeStyle='rgba(150,90,5,.6)';g.lineWidth=lw*1.1;
+    const d=R*.36;g.strokeStyle='rgba(150,90,5,.5)';g.lineWidth=lw;
     for(let x=-R*1.5;x<=R*1.5;x+=d){g.beginPath();g.moveTo(x,-R*1.5);g.lineTo(x,R*1.5);g.stroke();g.beginPath();g.moveTo(-R*1.5,x);g.lineTo(R*1.5,x);g.stroke()}
     g.fillStyle='rgba(140,80,0,.45)';
     for(let x=-R*1.5;x<=R*1.5;x+=d)for(let y=-R*1.5;y<=R*1.5;y+=d){g.beginPath();g.arc(x+d/2,y+d/2,R*.035,0,TAU);g.fill()}
     g.restore();
-  }else if(k===10){ // melon netting
-    g.strokeStyle='rgba(250,255,225,.55)';g.lineWidth=Math.max(.8,R*.022);
-    for(let i=0;i<30;i++){
-      let a=rnd()*TAU,d=Math.sqrt(rnd())*R,x=Math.cos(a)*d,y=Math.sin(a)*d;
-      g.beginPath();g.moveTo(x,y);
-      for(let s=0;s<4;s++){const h=rnd()*TAU;x+=Math.cos(h)*R*.2;y+=Math.sin(h)*R*.2;g.lineTo(x,y)}
-      g.stroke();
+  }else if(k===10){ // melon netting: an uneven mesh of fine pale lines
+    g.save();g.rotate(.35);
+    g.strokeStyle='rgba(250,255,225,.5)';g.lineWidth=Math.max(.8,R*.02);
+    const st=R*.25,nn=10,pt=[];
+    for(let j=0;j<nn;j++)for(let i=0;i<nn;i++)pt.push((i-nn/2+.5)*st+(rnd()-.5)*st*.55,(j-nn/2+.5)*st+(rnd()-.5)*st*.55);
+    g.beginPath();
+    for(let j=0;j<nn;j++)for(let i=0;i<nn;i++){
+      const a=(j*nn+i)*2,x=pt[a],y=pt[a+1];
+      if(i+1<nn&&rnd()>.12){g.moveTo(x,y);g.quadraticCurveTo((x+pt[a+2])/2+(rnd()-.5)*st*.3,(y+pt[a+3])/2+(rnd()-.5)*st*.3,pt[a+2],pt[a+3])}
+      if(j+1<nn&&rnd()>.12){const b=a+nn*2;g.moveTo(x,y);g.quadraticCurveTo((x+pt[b])/2+(rnd()-.5)*st*.3,(y+pt[b+1])/2+(rnd()-.5)*st*.3,pt[b],pt[b+1])}
     }
+    g.stroke();g.restore();
   }else if(k===11){ // watermelon stripes
     g.fillStyle='#145a20';
     for(let i=-3;i<=3;i++){
@@ -632,6 +656,10 @@ function paintFruit(g,k,R){
       for(let s=16;s>=0;s--){const y=-R+s*R/8,q=Math.sqrt(Math.max(0,1-(y/R)*(y/R)));g.lineTo(x0*q+w*q+(s%2?R*.035:-R*.035)*q,y)}
       g.closePath();g.fill();
     }
+  }
+  if(faces&&k>=9){ // a soft patch of the fruit's own colour behind the face, so it reads over diamonds, netting and stripes
+    const fp=g.createRadialGradient(0,R*.1,R*.12,0,R*.1,R*.62);fp.addColorStop(0,rgba(P.c[k===11?0:1],k===10?.75:.9));fp.addColorStop(.55,rgba(P.c[k===11?0:1],k===10?.5:.62));fp.addColorStop(1,rgba(P.c[k===11?0:1],0));
+    g.fillStyle=fp;g.save();g.scale(1,.78);g.beginPath();g.arc(0,R*.13,R*.62,0,TAU);g.fill();g.restore();
   }
   g.restore();
   g.strokeStyle=P.line;g.lineWidth=lw;g.beginPath();g.arc(0,0,R-lw*.5,0,TAU);g.stroke();
@@ -792,17 +820,40 @@ function paintDinner(g,k,R){
     g.beginPath();g.ellipse(R*.09,ey+R*.33,R*.06,R*.13,-.15,0,TAU);g.fill();g.stroke();
   }
 }
+/* Faces: each stage has its own expression, [eyes, mouth].
+   Eyes: 0 round, 1 big and shiny, 2 happy (closed, arched), 3 wink, 4 sleepy. Mouths: 0 smile, 1 open, 2 "o", 3 cat, 4 wide grin.
+   The Turkey Week turkey keeps the plain face, because its beak sits over the mouth. */
+const FACES=[null,[0,0],[2,1],[0,2],[3,4],[4,0],[1,0],[0,3],[2,0],[0,4],[1,0],[1,1]];
 function paintFace(g,k,R){
   if(!faces)return;
-    const ey=R*(k===1&&!TKON?.1:.06),ex=R*.27,er=Math.max(1.1,R*.075);
-    g.fillStyle='#2a1414';
-    g.beginPath();g.arc(-ex,ey,er,0,TAU);g.arc(ex,ey,er,0,TAU);g.fill();
-    g.fillStyle='rgba(255,255,255,.9)';
-    g.beginPath();g.arc(-ex+er*.35,ey-er*.35,er*.38,0,TAU);g.arc(ex+er*.35,ey-er*.35,er*.38,0,TAU);g.fill();
-    g.strokeStyle='#2a1414';g.lineWidth=Math.max(1,R*.045);
-    g.beginPath();g.arc(0,ey+R*.08,R*.11,Math.PI*.15,Math.PI*.85);g.stroke();
-    g.fillStyle=!TKON&&(k===11||k===10||k===7)?'rgba(255,120,140,.45)':'rgba(255,190,200,.5)';
-    g.beginPath();g.ellipse(-R*.45,ey+R*.16,R*.11,R*.065,0,0,TAU);g.ellipse(R*.45,ey+R*.16,R*.11,R*.065,0,0,TAU);g.fill();
+  const F=TKON&&k===11?FACES[1]:FACES[k],ink='#2a1414';
+  const ey=R*(k===1&&!TKON?.1:.06),ex=R*.28,er=Math.max(1.2,R*(F[0]===1?.098:.08)),lw=Math.max(1,R*.05);
+  g.lineCap='round';g.lineJoin='round';
+  g.fillStyle=!TKON&&(k===11||k===10||k===7)?'rgba(255,120,140,.5)':'rgba(255,170,185,.55)';
+  g.beginPath();g.ellipse(-R*.47,ey+R*.17,R*.115,R*.068,0,0,TAU);g.ellipse(R*.47,ey+R*.17,R*.115,R*.068,0,0,TAU);g.fill();
+  for(let sd=-1;sd<=1;sd+=2){
+    const x=sd*ex,e=F[0]===3?(sd<0?0:2):F[0];
+    if(e<2){
+      g.fillStyle=ink;g.beginPath();g.arc(x,ey,er,0,TAU);g.fill();
+      g.fillStyle='rgba(255,255,255,.95)';g.beginPath();g.arc(x+er*.32,ey-er*.36,er*(e?.42:.38),0,TAU);g.fill();
+      if(e){g.beginPath();g.arc(x-er*.36,ey+er*.4,er*.2,0,TAU);g.fill()}
+    }else{
+      g.strokeStyle=ink;g.lineWidth=lw*1.1;g.beginPath();
+      if(e===2)g.arc(x,ey+er*.55,er*1.1,Math.PI*1.17,Math.PI*1.83);else g.arc(x,ey-er*.45,er*1.1,Math.PI*.17,Math.PI*.83);
+      g.stroke();
+    }
+  }
+  const my=ey+R*.08,m=F[1];
+  g.strokeStyle=ink;g.lineWidth=lw;
+  if(m===0){g.beginPath();g.arc(0,my,R*.11,Math.PI*.15,Math.PI*.85);g.stroke()}
+  else if(m===1){
+    g.fillStyle='#5c1322';g.beginPath();g.arc(0,my+R*.03,R*.13,0,Math.PI);g.closePath();g.fill();
+    g.fillStyle='#ff8794';g.beginPath();g.ellipse(0,my+R*.115,R*.07,R*.04,0,0,TAU);g.fill();
+    g.beginPath();g.arc(0,my+R*.03,R*.13,0,Math.PI);g.closePath();g.stroke();
+  }
+  else if(m===2){g.fillStyle='#5c1322';g.beginPath();g.ellipse(0,my+R*.085,R*.05,R*.062,0,0,TAU);g.fill();g.lineWidth=lw*.7;g.stroke()}
+  else if(m===3){g.beginPath();g.arc(-R*.066,my+R*.04,R*.066,Math.PI*.05,Math.PI*.95);g.moveTo(R*.132,my+R*.05);g.arc(R*.066,my+R*.04,R*.066,Math.PI*.05,Math.PI*.95);g.stroke()}
+  else{g.beginPath();g.arc(0,my-R*.02,R*.16,Math.PI*.12,Math.PI*.88);g.stroke()}
 }
 
 /* =====================================================================
@@ -817,7 +868,8 @@ const G={
   state:'ready',sim:makeSim(),rng:mulberry32((Date.now()^(Math.random()*1e9))>>>0),queue:null,
   cur:0,nxt:0,aimX:CW/2,cool:0,acc:0,best:readBest(),newBest:false,
   endT:0,popT:0,glowId:0,glowT:0,shake:0,flash:0,danger:0,hintT:0,bannerT:0,
-  prevOverlay:null,keyAim:0,lastInput:'mouse',dropFlash:0,scoreShown:-1,bestShown:-1
+  prevOverlay:null,keyAim:0,lastInput:'mouse',dropFlash:0,scoreShown:-1,bestShown:-1,
+  clk:0,nxtSeen:0,nxtT:-9   // clk: seconds of un-paused time, for the drawing-only animations below
 };
 G.queue=makeQueue(()=>G.rng());
 function pick(){return G.queue.next()}
@@ -890,7 +942,8 @@ function finishGameOver(){
   setState('over');
   $('eScore').textContent=G.sim.score;$('eBest').textContent=G.best;
   $('eBig').textContent=G.sim.maxStage?FR[G.sim.maxStage].n:'–';$('eMerges').textContent=G.sim.merges;
-  $('newBest').hidden=!G.newBest;
+  $('newBest').hidden=!G.newBest;$('eScore').parentNode.classList.toggle('best',!!G.newBest);
+  drawEndArt();
   $('again').focus({preventScroll:true});
 }
 
@@ -905,10 +958,16 @@ let tW=0;
 function popup(x,y,txt,col,size){const t=TX[tW++%MAXT];t.life=1;t.x=x;t.y=y;t.txt=txt;t.col=col;t.size=size;t.font='700 '+Math.round(size)+'px Fredoka, system-ui, sans-serif'}
 function clearFx(){for(const p of PS)p.life=0;for(const t of TX)t.life=0;$('banner').hidden=true;G.bannerT=0}
 const CONF=['#ff5a6e','#ffd166','#7fe08a','#5ec8ff','#c49af5','#ff9a1f','#ffffff'];
+// Drawing only: a merged fruit is drawn squashed wide, then tall, then settles, over POP_T seconds (its real size and
+// the physics are untouched). POP_AMT is how far it stretches.
+const POP_T=.42,POP_AMT=.17;
 function burst(x,y,stage,n){
-  const col=FR[stage].c[1],r=RADII[stage];
-  for(let i=0;i<n;i++){const a=Math.random()*TAU,v=120+Math.random()*380;part(0,x+Math.cos(a)*r*.6,y+Math.sin(a)*r*.6,Math.cos(a)*v,Math.sin(a)*v-140,3+Math.random()*5,.45+Math.random()*.35,col)}
-  part(2,x,y,0,0,r,.35,'rgba(255,255,255,.9)');
+  const P=FR[stage],r=RADII[stage];
+  for(let i=0;i<n;i++){const a=Math.random()*TAU,v=120+Math.random()*380;part(0,x+Math.cos(a)*r*.6,y+Math.sin(a)*r*.6,Math.cos(a)*v,Math.sin(a)*v-140,3+Math.random()*5,.45+Math.random()*.35,i%3?P.c[1]:P.c[0])}
+  part(4,x,y,0,0,r*1.05,.16,'#ffffff');                 // a quick white flash the size of the new fruit
+  part(2,x,y,0,0,r,.38,P.c[0]);                         // a ring in the fruit's pale colour
+  const ns=3+(stage>>1);                                 // a few sparkles that drift outwards
+  for(let i=0;i<ns;i++){const a=(i+Math.random()*.7)/ns*TAU,v=70+Math.random()*90;part(3,x+Math.cos(a)*r*.85,y+Math.sin(a)*r*.85,Math.cos(a)*v,Math.sin(a)*v,5+Math.random()*4+stage*.5,.5+Math.random()*.25,i&1?'#fff6d8':'#ffffff')}
 }
 function confetti(n){for(let i=0;i<n;i++)part(1,Math.random()*CW,-120-Math.random()*200,(Math.random()-.5)*160,60+Math.random()*160,6+Math.random()*6,2.6+Math.random()*1.6,CONF[i%CONF.length])}
 function banner(t,s,secs){$('bannerT').textContent=t;$('bannerS').textContent=s;$('banner').hidden=false;G.bannerT=secs;
@@ -921,6 +980,7 @@ function handleEvents(){
   for(;G.evR<S.evW;G.evR++){
     const e=S.ev[G.evR%S.EVN];
     if(e.type==='merge'){
+      for(let i=S.bodies.length-1;i>=0;i--)if(S.bodies[i].id===e.id){S.bodies[i].vp=G.clk;break}
       burst(e.x,e.y,e.s,6+e.s*2);
       popup(e.x,e.y-RADII[e.s]*.3,'+'+e.v,e.c>1?'#ffd166':'#fff6ea',14+e.s*1.6);
       if(e.c>1)popup(e.x,e.y+RADII[e.s]*.35,'Chain ×'+e.c,'#ff9a72',13+e.c);
@@ -997,7 +1057,7 @@ function setMuted(m){
 const cv=$('cv'),ctx=cv.getContext('2d',{alpha:false});
 const WALL=16,VX0=-WALL-10,VX1=CW+WALL+10,VY0=-150,VY1=CH+WALL+12,VW=VX1-VX0,VH=VY1-VY0;
 const L={W:1,H:1,dpr:1,s:1,ox:0,oy:0,wide:true,col:0,topH:52,hudY:0,hudH:0,guideY:0,guideH:0};
-const SPR=[],SPRW=[];let SHADE=null,BG=null;
+const SPR=[],SPRW=[],SHD=[],SHDW=[];let BG=null;
 const DASH=[14,10],NODASH=[];
 
 function layout(){
@@ -1019,7 +1079,7 @@ function layout(){
     L.ox=(W-VW*L.s)/2-VX0*L.s;L.oy=topH+hudH+Math.max(0,(free-VH*L.s)/2)-VY0*L.s;
     L.guideY=Math.min(Hh-guideH,L.oy+VY1*L.s+2);
   }
-  buildSprites();buildBg();
+  hudGeom();buildSprites();buildBg();
   const hint=$('hint');hint.style.left=(L.ox+CW/2*L.s)+'px';hint.style.top=(L.oy+CH*.62*L.s)+'px';
   const bn=$('banner');bn.style.left=(L.ox+CW/2*L.s)+'px';bn.style.top=(L.oy+CH*.3*L.s)+'px';
 }
@@ -1031,63 +1091,164 @@ function buildSprites(){
     const g=c.getContext('2d');g.setTransform(1,0,0,1,size/2,size/2);paintFruit(g,k,R);
     SPR[k]=c;SPRW[k]=size/px;
   }
-  // shine (doesn't rotate)
-  const n=Math.max(32,Math.min(512,Math.ceil(RADII[11]*2*px)));
-  const c=SHADE||document.createElement('canvas');c.width=c.height=n;
-  const g=c.getContext('2d'),R=n/2;g.clearRect(0,0,n,n);
-  let gr=g.createRadialGradient(R*.8,R*.75,R*.3,R,R,R);gr.addColorStop(0,'rgba(0,0,0,0)');gr.addColorStop(.8,'rgba(0,0,0,0)');gr.addColorStop(1,'rgba(40,0,30,.22)');
-  g.fillStyle=gr;g.beginPath();g.arc(R,R,R,0,TAU);g.fill();
-  gr=g.createRadialGradient(R*.62,R*.55,0,R*.62,R*.55,R*.42);gr.addColorStop(0,'rgba(255,255,255,.55)');gr.addColorStop(1,'rgba(255,255,255,0)');
-  g.fillStyle=gr;g.beginPath();g.ellipse(R*.62,R*.52,R*.34,R*.24,-.6,0,TAU);g.fill();
-  SHADE=c;
+  // light and shadow, one per stage at its own size (drawn on top without rotating, so the light stays put)
+  for(let k=1;k<=11;k++){
+    const R=Math.max(3,RADII[k]*px),size=Math.ceil(2*R)+2;
+    const c=SHD[k]||document.createElement('canvas');c.width=c.height=size;
+    paintShade(c.getContext('2d'),k,R,size/2);
+    SHD[k]=c;SHDW[k]=size/px;
+  }
+  drawParade();drawEndArt();
+}
+// The lamp is up and to the left: a shadow side in the fruit's own dark colour, a light side in its pale colour,
+// a thin bounce light on the lower rim and a white highlight whose strength is the fruit's gloss.
+function paintShade(g,k,R,c){
+  const P=FR[k],gl=(TKON?DINNER_GLOSS:GLOSS)[k];
+  g.setTransform(1,0,0,1,c,c);g.clearRect(-c,-c,2*c,2*c);
+  g.save();g.beginPath();g.arc(0,0,R,0,TAU);g.clip();
+  let gr=g.createRadialGradient(-R*.3,-R*.36,R*.5,-R*.08,-R*.1,R*1.16);
+  gr.addColorStop(0,rgba(P.line,0));gr.addColorStop(.55,rgba(P.line,.14));gr.addColorStop(1,rgba(P.line,.62));
+  g.fillStyle=gr;g.fillRect(-R,-R,2*R,2*R);
+  gr=g.createRadialGradient(-R*.36,-R*.44,0,-R*.36,-R*.44,R*1.02);
+  gr.addColorStop(0,rgba(P.c[0],.85));gr.addColorStop(.42,rgba(P.c[0],.38));gr.addColorStop(1,rgba(P.c[0],0));
+  g.fillStyle=gr;g.fillRect(-R,-R,2*R,2*R);
+  g.lineCap='round';g.strokeStyle='rgba(255,255,255,.17)';g.lineWidth=R*.05;
+  g.beginPath();g.arc(0,0,R*.9,Math.PI*.1,Math.PI*.4);g.stroke();
+  g.fillStyle='rgba(255,255,255,'+(.22+.58*gl).toFixed(2)+')';
+  g.beginPath();g.ellipse(-R*.42,-R*.54,R*.23,R*.105,-.72,0,TAU);g.fill();
+  g.beginPath();g.arc(-R*.68,-R*.2,R*.045,0,TAU);g.fill();
+  g.restore();
+}
+// where the score, the Next bubble and the guide sit (CSS px); the background painting and the HUD both read these
+const HG={top:0,fs:0,nx:0,ny:0,nr:0,next:true,gx0:0,gy0:0,rowH:0};
+function hudGeom(){
+  if(L.wide){
+    const cw=L.col;HG.top=Math.max(64,L.H*.1);HG.fs=Math.round(Math.min(54,cw*.24,L.H*.085));
+    HG.nr=Math.min(cw*.22,L.H*.1,62);HG.nx=cw/2;HG.ny=HG.top+HG.fs*2.6+HG.nr+Math.max(16,HG.fs*.4);HG.next=HG.ny+HG.nr<L.H-8;
+    const gTop=60,gBot=L.H-12;HG.rowH=Math.min(58,(gBot-gTop)/11);HG.gx0=L.W-cw;HG.gy0=gTop+((gBot-gTop)-HG.rowH*11)/2;
+  }else{
+    HG.nr=L.hudH*.42;HG.nx=L.W-14-HG.nr;HG.ny=L.hudY+L.hudH/2;HG.next=true;
+  }
 }
 function buildBg(){
   const c=BG||document.createElement('canvas');c.width=cv.width;c.height=cv.height;
   const g=c.getContext('2d'),W=L.W,Hh=L.H,d=L.dpr;
   g.setTransform(d,0,0,d,0,0);
-  let gr=g.createLinearGradient(0,0,0,Hh);gr.addColorStop(0,'#2a1f4a');gr.addColorStop(.6,'#1d1636');gr.addColorStop(1,'#151027');
+  // the wall: plum, darker towards the floor, with a tidy dotted wallpaper
+  let gr=g.createLinearGradient(0,0,0,Hh);gr.addColorStop(0,'#2c2052');gr.addColorStop(.55,'#1f1739');gr.addColorStop(1,'#140e25');
   g.fillStyle=gr;g.fillRect(0,0,W,Hh);
-  // soft dots
-  const rnd=prng(7);g.fillStyle='rgba(255,246,234,.035)';
-  for(let i=0;i<70;i++){g.beginPath();g.arc(rnd()*W,rnd()*Hh,6+rnd()*26,0,TAU);g.fill()}
+  const st=Math.max(34,Math.min(50,W/24));g.fillStyle='rgba(255,246,234,.04)';g.beginPath();
+  for(let j=0,y=st*.25;y<Hh+st;y+=st*.5,j++)for(let x=(j%2?st*.75:st*.25);x<W+st;x+=st){g.moveTo(x+st*.06,y);g.arc(x,y,st*.06,0,TAU)}
+  g.fill();
+  // a warm lamp up and to the left, a cool glow behind the jar, and darker corners
+  const jx=L.ox+CW/2*L.s,jy=L.oy+CH*.42*L.s,jr=CH*.8*L.s;
+  gr=g.createRadialGradient(0,0,0,0,0,Math.max(W,Hh)*.75);gr.addColorStop(0,'rgba(255,176,120,.13)');gr.addColorStop(1,'rgba(255,176,120,0)');
+  g.fillStyle=gr;g.fillRect(0,0,W,Hh);
+  gr=g.createRadialGradient(jx,jy,0,jx,jy,jr);gr.addColorStop(0,'rgba(150,125,255,.22)');gr.addColorStop(.6,'rgba(150,125,255,.08)');gr.addColorStop(1,'rgba(150,125,255,0)');
+  g.fillStyle=gr;g.fillRect(0,0,W,Hh);
+  const vr=Math.hypot(W,Hh)/2;
+  gr=g.createRadialGradient(W/2,Hh/2,vr*.55,W/2,Hh/2,vr*1.05);gr.addColorStop(0,'rgba(8,4,20,0)');gr.addColorStop(1,'rgba(8,4,20,.5)');
+  g.fillStyle=gr;g.fillRect(0,0,W,Hh);
+  // HUD furniture that never changes: the score card and guide card (wide screens) and the glass Next bubble
+  const card=(x,y,w,h)=>{rrect(g,x,y,w,h,16);g.fillStyle='rgba(255,246,234,.045)';g.fill();g.strokeStyle='rgba(255,246,234,.09)';g.lineWidth=1;g.stroke()};
+  if(L.wide){
+    const cw=L.col,pw=Math.min(cw-20,230);
+    card(cw/2-pw/2,HG.top-HG.fs*.45,pw,HG.fs*2.93);
+    card(HG.gx0+8,HG.gy0-6,cw-16,HG.rowH*11+12);
+  }
+  if(HG.next){
+    const x=HG.nx,y=HG.ny,r=HG.nr;
+    if(L.wide){g.fillStyle='rgba(0,0,0,.22)';g.beginPath();g.ellipse(x,y+r*1.04,r*.7,r*.09,0,0,TAU);g.fill()}
+    gr=g.createRadialGradient(x-r*.3,y-r*.35,r*.1,x,y,r);gr.addColorStop(0,'rgba(255,246,234,.16)');gr.addColorStop(.7,'rgba(200,190,255,.07)');gr.addColorStop(1,'rgba(200,190,255,.13)');
+    g.fillStyle=gr;g.beginPath();g.arc(x,y,r,0,TAU);g.fill();
+    g.strokeStyle='rgba(255,246,234,.28)';g.lineWidth=1.5;g.stroke();
+    g.lineCap='round';g.strokeStyle='rgba(255,255,255,.4)';g.lineWidth=Math.max(1.5,r*.07);
+    g.beginPath();g.arc(x,y,r*.8,Math.PI*1.12,Math.PI*1.42);g.stroke();
+    g.strokeStyle='rgba(255,255,255,.14)';g.beginPath();g.arc(x,y,r*.8,Math.PI*.15,Math.PI*.35);g.stroke();
+  }
   // the jar, in world units
   g.setTransform(L.s*d,0,0,L.s*d,L.ox*d,L.oy*d);
-  // back glass
-  gr=g.createLinearGradient(0,0,CW,0);gr.addColorStop(0,'rgba(170,220,255,.10)');gr.addColorStop(.5,'rgba(170,220,255,.04)');gr.addColorStop(1,'rgba(170,220,255,.09)');
-  g.fillStyle=gr;g.fillRect(0,-4,CW,CH+4);
+  // back glass, darker near the bottom so the pile sits inside it
+  gr=g.createLinearGradient(0,0,CW,0);gr.addColorStop(0,'rgba(160,205,255,.15)');gr.addColorStop(.5,'rgba(160,205,255,.06)');gr.addColorStop(1,'rgba(160,205,255,.12)');
+  g.fillStyle=gr;g.fillRect(0,-6,CW,CH+6);
+  gr=g.createLinearGradient(0,CH-220,0,CH);gr.addColorStop(0,'rgba(10,5,30,0)');gr.addColorStop(1,'rgba(10,5,30,.42)');
+  g.fillStyle=gr;g.fillRect(0,CH-220,CW,220);
   g.fillStyle='rgba(255,255,255,.035)';
-  for(let x=40;x<CW;x+=80)g.fillRect(x,0,2,CH);
-  // floor
-  rrect(g,-WALL,CH,CW+2*WALL,WALL+6,8);
-  gr=g.createLinearGradient(0,CH,0,CH+WALL+6);gr.addColorStop(0,'#c98e5a');gr.addColorStop(1,'#8a5a34');g.fillStyle=gr;g.fill();
-  g.fillStyle='rgba(255,255,255,.25)';g.fillRect(-WALL+6,CH+3,CW+2*WALL-12,3);
-  // walls
-  for(const x of [-WALL,CW]){
-    rrect(g,x,-14,WALL,CH+16,7);
-    gr=g.createLinearGradient(x,0,x+WALL,0);gr.addColorStop(0,'rgba(210,240,255,.34)');gr.addColorStop(.5,'rgba(210,240,255,.12)');gr.addColorStop(1,'rgba(210,240,255,.28)');
-    g.fillStyle=gr;g.fill();g.strokeStyle='rgba(235,250,255,.5)';g.lineWidth=1.6;g.stroke();
-    g.fillStyle='rgba(255,255,255,.45)';g.fillRect(x+4,-4,2.4,CH-10);
+  g.beginPath();g.moveTo(CW*.6,0);g.lineTo(CW*.8,0);g.lineTo(CW*.58,CH);g.lineTo(CW*.38,CH);g.fill();
+  g.beginPath();g.moveTo(CW*.86,0);g.lineTo(CW*.91,0);g.lineTo(CW*.69,CH);g.lineTo(CW*.64,CH);g.fill();
+  // the shelf
+  const sx0=-WALL-8,sw=CW+2*WALL+16,sy=CH+8,sh=14,wr=prng(31);
+  rrect(g,sx0,sy,sw,sh,5);
+  gr=g.createLinearGradient(0,sy,0,sy+sh);gr.addColorStop(0,'#e0a56a');gr.addColorStop(.45,'#bd804c');gr.addColorStop(1,'#84522e');g.fillStyle=gr;g.fill();
+  g.save();g.clip();
+  g.strokeStyle='rgba(90,48,18,.28)';g.lineWidth=1;
+  for(let i=0;i<5;i++){const y=sy+3+i*2.4,o=wr()*60;g.beginPath();g.moveTo(sx0,y);for(let x=sx0;x<=sx0+sw;x+=30)g.lineTo(x,y+Math.sin((x+o)*.021)*1.1);g.stroke()}
+  g.fillStyle='rgba(255,236,205,.5)';g.fillRect(sx0,sy,sw,1.8);
+  g.restore();
+  // the glass: two walls and a thick base in one piece, open at the top
+  g.beginPath();
+  g.moveTo(-WALL,-16);g.lineTo(-WALL,CH+1);g.arcTo(-WALL,CH+9,-WALL+8,CH+9,8);g.lineTo(CW+WALL-8,CH+9);g.arcTo(CW+WALL,CH+9,CW+WALL,CH+1,8);g.lineTo(CW+WALL,-16);
+  g.lineTo(CW,-16);g.lineTo(CW,CH);g.lineTo(0,CH);g.lineTo(0,-16);g.closePath();
+  gr=g.createLinearGradient(-WALL,0,CW+WALL,0);
+  const w0=WALL/(CW+2*WALL);
+  gr.addColorStop(0,'rgba(215,240,255,.42)');gr.addColorStop(w0*.5,'rgba(215,240,255,.16)');gr.addColorStop(w0,'rgba(215,240,255,.30)');
+  gr.addColorStop(.5,'rgba(215,240,255,.2)');
+  gr.addColorStop(1-w0,'rgba(215,240,255,.30)');gr.addColorStop(1-w0*.5,'rgba(215,240,255,.16)');gr.addColorStop(1,'rgba(215,240,255,.38)');
+  g.fillStyle=gr;g.fill();
+  g.strokeStyle='rgba(235,250,255,.55)';g.lineWidth=1.5;g.lineJoin='round';g.stroke();
+  g.fillStyle='rgba(255,255,255,.55)';
+  rrect(g,-WALL+3.6,-6,2.6,CH-6,1.3);g.fill();rrect(g,CW+WALL-6.2,-6,2,CH*.4,1);g.fill();
+  g.fillStyle='rgba(255,255,255,.3)';g.fillRect(6,CH+2.4,CW-12,1.6);
+  // rounded lips on top of the walls
+  for(const x of [-WALL-3,CW-3]){
+    rrect(g,x,-22,WALL+6,11,5.5);g.fillStyle='rgba(225,244,255,.55)';g.fill();g.strokeStyle='rgba(245,252,255,.7)';g.lineWidth=1.2;g.stroke();
+    g.fillStyle='rgba(255,255,255,.7)';rrect(g,x+3,-20,WALL*.55,2.4,1.2);g.fill();
   }
   // rail the fruit hangs from
-  rrect(g,-WALL-4,-142,CW+2*WALL+8,10,5);g.fillStyle='rgba(255,246,234,.12)';g.fill();
+  rrect(g,-WALL-2,-142,CW+2*WALL+4,10,5);
+  gr=g.createLinearGradient(0,-142,0,-132);gr.addColorStop(0,'rgba(255,246,234,.34)');gr.addColorStop(1,'rgba(255,246,234,.1)');g.fillStyle=gr;g.fill();
+  g.fillStyle='rgba(255,246,234,.4)';g.beginPath();g.arc(-WALL-1,-137,7,0,TAU);g.moveTo(CW+WALL+8,-137);g.arc(CW+WALL+1,-137,7,0,TAU);g.fill();
   BG=c;
 }
 function rrect(g,x,y,w,h,r){g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath()}
 
-// draw sprite k at world (x,y), radius r, angle a, under world transform base (S,ex,ey)
-function drawFruit(k,x,y,r,a,S,ex,ey){
-  const sc=r/RADII[k],w=SPRW[k]*sc,cs=Math.cos(a)*S,sn=Math.sin(a)*S;
-  ctx.setTransform(cs,sn,-sn,cs,ex+x*S,ey+y*S);
+// draw sprite k at world (x,y), radius r, angle a, under world transform base (S,ex,ey);
+// kx, ky stretch it on screen (1, 1 normally; the merge pop squashes it for a moment)
+function drawFruit(k,x,y,r,a,S,ex,ey,kx,ky){
+  const sc=r/RADII[k],w=SPRW[k]*sc,cs=Math.cos(a)*S,sn=Math.sin(a)*S,h=SHDW[k]*sc;
+  ctx.setTransform(cs*kx,sn*ky,-sn*kx,cs*ky,ex+x*S,ey+y*S);
   ctx.drawImage(SPR[k],-w/2,-w/2,w,w);
-  ctx.setTransform(S,0,0,S,ex+x*S,ey+y*S);
-  ctx.drawImage(SHADE,-r,-r,2*r,2*r);
+  ctx.setTransform(S*kx,0,0,S*ky,ex+x*S,ey+y*S);
+  ctx.drawImage(SHD[k],-h/2,-h/2,h,h);
 }
 // draw sprite at screen position (css px) with radius rp (css px)
 function drawIcon(k,x,y,rp){
   const d=L.dpr,S=rp/RADII[k]*d;
   ctx.setTransform(S,0,0,S,x*d,y*d);
-  const w=SPRW[k];ctx.drawImage(SPR[k],-w/2,-w/2,w,w);
-  ctx.drawImage(SHADE,-RADII[k],-RADII[k],RADII[k]*2,RADII[k]*2);
+  const w=SPRW[k],h=SHDW[k];ctx.drawImage(SPR[k],-w/2,-w/2,w,w);
+  ctx.drawImage(SHD[k],-h/2,-h/2,h,h);
+}
+// the same, into one of the small canvases on the menus (start screen parade, game over card)
+function stamp(g,k,x,y,rp){
+  const q=rp/RADII[k],w=SPRW[k]*q,h=SHDW[k]*q;
+  g.drawImage(SPR[k],x-w/2,y-w/2,w,w);g.drawImage(SHD[k],x-h/2,y-h/2,h,h);
+}
+function menuCanvas(el){
+  const w=el.clientWidth,h=el.clientHeight;if(!w||!h)return null;
+  const d=Math.min(window.devicePixelRatio||1,2);el.width=Math.round(w*d);el.height=Math.round(h*d);
+  const g=el.getContext('2d');g.setTransform(d,0,0,d,0,0);g.clearRect(0,0,w,h);g.w=w;g.h=h;return g;
+}
+function drawParade(){
+  const g=menuCanvas($('parade'));if(!g)return;
+  const cell=g.w/11;
+  for(let k=1;k<=11;k++){const rp=Math.min(g.h*.4,cell*(.34+.5*k/11));stamp(g,k,cell*(k-.5),g.h-3-rp,rp)}
+}
+function drawEndArt(){
+  const g=menuCanvas($('eArt'));if(!g)return;
+  const k=G.sim.maxStage||1,cx=g.w/2,cy=g.h/2,rp=g.w*.36;
+  const gr=g.createRadialGradient(cx,cy,rp*.6,cx,cy,g.w/2);gr.addColorStop(0,'rgba(255,209,102,.38)');gr.addColorStop(1,'rgba(255,209,102,0)');
+  g.fillStyle=gr;g.fillRect(0,0,g.w,g.h);
+  stamp(g,k,cx,cy+rp*.12,rp);
 }
 
 let scoreStr='0',bestStr='0';
@@ -1133,7 +1294,9 @@ function render(alpha){
   for(let i=0;i<bs.length;i++){
     const b=bs[i];
     const x=b.px+(b.x-b.px)*alpha,y=b.py+(b.y-b.py)*alpha,a=b.pa+(b.a-b.pa)*alpha;
-    drawFruit(b.stage,x,y,b.r,a,S,ex,ey);
+    let kx=1,ky=1;const ag=G.clk-b.vp;
+    if(ag<POP_T){const q=ag/POP_T,wv=Math.sin(q*TAU*1.5)*(1-q)*(1-q)*POP_AMT;kx=1+wv;ky=1-wv*.75}
+    drawFruit(b.stage,x,y,b.r,a,S,ex,ey,kx,ky);
     if(b===ob||(b.overT>0&&sim.maxOver>.2)){
       ctx.setTransform(S,0,0,S,ex,ey);
       ctx.globalAlpha=.5+.5*Math.sin(t*14);ctx.strokeStyle='#ff4d6d';ctx.lineWidth=4;
@@ -1148,7 +1311,7 @@ function render(alpha){
     const x=clampAim(G.aimX,G.cur),bob=Math.sin(t*3)*2;
     ctx.strokeStyle='rgba(255,246,234,.5)';ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(x,-134);ctx.lineTo(x,DROP_Y-RADII[G.cur]+bob);ctx.stroke();
     ctx.fillStyle='rgba(255,246,234,.85)';ctx.beginPath();ctx.arc(x,-137,6,0,TAU);ctx.fill();
-    drawFruit(G.cur,x,DROP_Y+bob,RADII[G.cur],0,S,ex,ey);
+    drawFruit(G.cur,x,DROP_Y+bob,RADII[G.cur],0,S,ex,ey,1,1);
   }
 
   // particles
@@ -1159,7 +1322,13 @@ function render(alpha){
     if(p.kind===0){ctx.globalAlpha=Math.min(1,f*1.6);ctx.fillStyle=p.col;ctx.beginPath();ctx.arc(p.x,p.y,p.s*(.5+.5*f),0,TAU);ctx.fill()}
     else if(p.kind===1){ctx.globalAlpha=Math.min(1,f*2);ctx.fillStyle=p.col;const c=Math.cos(p.rot),s=Math.sin(p.rot);
       ctx.setTransform(S*c,S*s*.6,-S*s,S*c,ex+p.x*S,ey+p.y*S);ctx.fillRect(-p.s/2,-p.s/4,p.s,p.s/2);ctx.setTransform(S,0,0,S,ex,ey)}
-    else{ctx.globalAlpha=f;ctx.strokeStyle=p.col;ctx.lineWidth=6*f+1;ctx.beginPath();ctx.arc(p.x,p.y,p.s*(1.25-f*.5),0,TAU);ctx.stroke()}
+    else if(p.kind===3){ // sparkle: a four-point star that grows, turns and fades
+      const q=p.s*Math.sin(Math.min(1,f*1.6)*Math.PI*.5)*(.6+.4*f),c=Math.cos(p.rot)*q,s=Math.sin(p.rot)*q,n=.22;
+      ctx.globalAlpha=Math.min(1,f*2.2);ctx.fillStyle=p.col;ctx.beginPath();
+      ctx.moveTo(p.x+c,p.y+s);ctx.lineTo(p.x+(c-s)*n,p.y+(s+c)*n);ctx.lineTo(p.x-s,p.y+c);ctx.lineTo(p.x-(c+s)*n,p.y+(c-s)*n);
+      ctx.lineTo(p.x-c,p.y-s);ctx.lineTo(p.x-(c-s)*n,p.y-(s+c)*n);ctx.lineTo(p.x+s,p.y-c);ctx.lineTo(p.x+(c+s)*n,p.y-(c-s)*n);ctx.fill()}
+    else if(p.kind===4){ctx.globalAlpha=f*.55;ctx.fillStyle=p.col;ctx.beginPath();ctx.arc(p.x,p.y,p.s*(1.15-f*.3),0,TAU);ctx.fill()}
+    else{ctx.globalAlpha=f;ctx.strokeStyle=p.col;ctx.lineWidth=7*f+1;ctx.beginPath();ctx.arc(p.x,p.y,p.s*(1.35-f*.55),0,TAU);ctx.stroke()}
   }
   ctx.globalAlpha=1;
   // pop-ups
@@ -1185,32 +1354,31 @@ function fontU(n){n=n|0;return FONT_U[n]||(FONT_U[n]='800 '+n+'px Nunito, system
 function fontD(n){n=n|0;return FONT_D[n]||(FONT_D[n]='700 '+n+'px Fredoka, system-ui, sans-serif')}
 function label(txt,x,y,size,col,align){ctx.font=fontU(size);ctx.fillStyle=col;ctx.textAlign=align||'center';ctx.fillText(txt,x,y)}
 function big(txt,x,y,size,col,align){ctx.font=fontD(size);ctx.fillStyle=col;ctx.textAlign=align||'center';ctx.fillText(txt,x,y)}
-function bubble(x,y,r){ctx.fillStyle='rgba(255,246,234,.07)';ctx.strokeStyle='rgba(255,246,234,.16)';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(x,y,r,0,TAU);ctx.fill();ctx.stroke()}
 function drawHud(t){
   const d=L.dpr,sim=G.sim;
   if(sim.score!==G.scoreShown){G.scoreShown=sim.score;scoreStr=String(sim.score)}
   const best=Math.max(G.best,sim.score);
   if(best!==G.bestShown){G.bestShown=best;bestStr=String(best)}
   const showNext=G.state==='active'||G.state==='paused';
+  // the next fruit pops into its bubble (drawing only)
+  if(G.nxt!==G.nxtSeen){G.nxtSeen=G.nxt;G.nxtT=G.clk}
+  const nq=Math.min(1,(G.clk-G.nxtT)/.28),nPop=1+.3*Math.sin(nq*Math.PI)*(1-nq)-(1-nq)*(1-nq)*.45;
   ctx.setTransform(d,0,0,d,0,0);ctx.textBaseline='middle';
   if(L.wide){
-    const cw=L.col,cx=cw/2,top=Math.max(64,L.H*.1);
-    const fs=Math.round(Math.min(54,cw*.24,L.H*.085));
+    const cw=L.col,cx=cw/2,top=HG.top,fs=HG.fs;
     label('SCORE',cx,top,Math.max(11,Math.round(fs*.26)),'rgba(255,246,234,.5)');
     big(scoreStr,cx,top+fs*.78,fs,'#fff6ea');
     label('BEST',cx,top+fs*1.62,Math.max(11,Math.round(fs*.24)),'rgba(255,246,234,.45)');
     big(bestStr,cx,top+fs*2.12,Math.round(fs*.5),'#ffd166');
-    const nr=Math.min(cw*.22,L.H*.1,62),ny=top+fs*2.6+nr+Math.max(16,fs*.4);
-    if(ny+nr<L.H-8){
+    const nr=HG.nr,ny=HG.ny;
+    if(HG.next){
       label('NEXT',cx,ny-nr-10,Math.max(11,Math.round(fs*.24)),'rgba(255,246,234,.5)');
-      bubble(cx,ny,nr);
-      if(showNext&&G.nxt)drawIcon(G.nxt,cx,ny,nr*.32+nr*.1*G.nxt);
+      if(showNext&&G.nxt)drawIcon(G.nxt,cx,ny,(nr*.32+nr*.1*G.nxt)*nPop);
       ctx.setTransform(d,0,0,d,0,0);
     }
     // evolution guide, right column
-    const gx0=L.W-cw,gTop=60,gBot=L.H-12,rows=11,rowH=Math.min(58,(gBot-gTop)/rows);
+    const gx0=HG.gx0,rowH=HG.rowH,gy0=HG.gy0;
     const icon=Math.max(8,rowH*.42),withName=rowH>=20&&cw>=150;
-    const gy0=gTop+((gBot-gTop)-rowH*rows)/2;
     const nameX=gx0+cw*.5-cw*.08;
     for(let k=1;k<=11;k++){
       const y=gy0+(k-.5)*rowH,ix=withName?nameX-icon-8:gx0+cw/2;
@@ -1230,10 +1398,9 @@ function drawHud(t){
     const sw=ctx.measureText(scoreStr).width;
     label('BEST',sw+28,y0+hh*.2,11,'rgba(255,246,234,.45)','left');
     big(bestStr,sw+28,y0+hh*.6,Math.round(fs*.6),'#ffd166','left');
-    const nr=hh*.42,nx=L.W-14-nr,ny=y0+hh/2;
+    const nr=HG.nr,nx=HG.nx,ny=HG.ny;
     label('NEXT',nx-nr-8,ny,11,'rgba(255,246,234,.5)','right');
-    bubble(nx,ny,nr);
-    if(showNext&&G.nxt)drawIcon(G.nxt,nx,ny,nr*.3+nr*.1*G.nxt);
+    if(showNext&&G.nxt)drawIcon(G.nxt,nx,ny,(nr*.3+nr*.1*G.nxt)*nPop);
     ctx.setTransform(d,0,0,d,0,0);
     // guide row
     const gy=L.guideY+L.guideH/2,cell=Math.min(44,(L.W-16)/11),gx=(L.W-cell*11)/2;
@@ -1280,7 +1447,9 @@ function frame(now){
   if(live){
     for(let i=0;i<MAXP;i++){const p=PS[i];if(p.life<=0)continue;p.life-=dt;
       if(p.kind===0){p.vy+=1400*dt;p.x+=p.vx*dt;p.y+=p.vy*dt}
-      else if(p.kind===1){p.vy=Math.min(p.vy+300*dt,220);p.vx+=Math.sin(p.rot*1.7)*80*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.rot+=p.vr*dt}}
+      else if(p.kind===1){p.vy=Math.min(p.vy+300*dt,220);p.vx+=Math.sin(p.rot*1.7)*80*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.rot+=p.vr*dt}
+      else if(p.kind===3){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=1-3*dt;p.vy*=1-3*dt;p.rot+=p.vr*.25*dt}}
+    G.clk+=dt;
     for(let i=0;i<MAXT;i++){const p=TX[i];if(p.life>0){p.life-=dt*.9;p.y-=50*dt}}
     G.shake=G.shake>.2?G.shake*Math.pow(.004,dt):0;
     G.flash=Math.max(0,G.flash-dt*2.2);
