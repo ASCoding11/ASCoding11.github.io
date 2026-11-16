@@ -1,0 +1,38 @@
+/* Trivium question bank: Thanksgiving. Row: [difficulty, question, right, wrong, wrong, wrong, fact]
+   A seasonal category: it is only added while Turkey Week is running (../../events.js, loaded before the bank), and it
+   is the whole Daily ten on Thanksgiving Day itself (dailyItems in index.html). The rest of the year the file adds nothing. */
+if (window.BackRoomEvents && BackRoomEvents.turkey.live()) TRIVIA.cat("tgv", "Thanksgiving", [
+[1,"Which bird is the traditional centerpiece of an American Thanksgiving dinner?","Turkey","Goose","Duck","Pheasant","Americans eat tens of millions of turkeys every Thanksgiving, far more than on any other day of the year."],
+[1,"On which day of the week is Thanksgiving held in the United States?","Thursday","Friday","Sunday","Monday","It is the fourth Thursday of November, a date Congress fixed in 1941."],
+[1,"In which month do Americans celebrate Thanksgiving?","November","October","December","September","The earliest it can fall is November 22 and the latest is November 28."],
+[1,"What was the name of the ship that carried the Pilgrims across the Atlantic in 1620?","Mayflower","Santa Maria","Endeavour","Beagle","The crossing took 66 days, with 102 passengers packed below deck."],
+[1,"Which pie, made from an orange squash, is the classic Thanksgiving dessert?","Pumpkin pie","Key lime pie","Lemon meringue pie","Blueberry pie","The usual spices are cinnamon, ginger, nutmeg and cloves."],
+[1,"Which tart red berry is cooked into a sauce served with turkey?","Cranberry","Raspberry","Redcurrant","Cherry","Ripe cranberries have little air pockets inside, so they bounce and float; growers flood the fields to harvest them."],
+[1,"What is the horn-shaped basket overflowing with fruit and vegetables called?","Cornucopia","Pinata","Amphora","Hamper","The name comes from the Latin for 'horn of plenty'."],
+[1,"Which New York department store has put on a Thanksgiving Day parade since 1924?","Macy's","Bloomingdale's","Saks Fifth Avenue","Lord & Taylor","The parade ends with Santa Claus arriving, which is why it was first called a Christmas parade."],
+[1,"What sound is a turkey best known for making?","Gobble","Quack","Honk","Hoot","Only male turkeys gobble. Hens make quieter clucks and yelps."],
+[1,"What is the big shopping day right after Thanksgiving called?","Black Friday","Cyber Monday","Boxing Day","Super Saturday","Philadelphia police used the name in the 1960s for the traffic jams and crowds the day brought."],
+[2,"In which year did the Plymouth colonists hold the harvest feast often called the first Thanksgiving?","1621","1492","1607","1776","The feast went on for three days, with about 50 colonists and around 90 Wampanoag men."],
+[2,"Which Native American people shared the 1621 harvest feast with the Plymouth colonists?","Wampanoag","Cherokee","Navajo","Lakota","Their leader, Massasoit, had made a peace agreement with the colony that spring."],
+[2,"Which president proclaimed a national day of Thanksgiving in 1863?","Abraham Lincoln","George Washington","Thomas Jefferson","Ulysses S. Grant","He did it in the middle of the Civil War, after years of letters from the magazine editor Sarah Josepha Hale."],
+[2,"Sarah Josepha Hale, who campaigned for a national Thanksgiving, also wrote which nursery rhyme?","Mary Had a Little Lamb","Twinkle, Twinkle, Little Star","Humpty Dumpty","Jack and Jill","She published the poem in 1830 and spent well over a decade writing to presidents about the holiday."],
+[2,"What is the fleshy red skin hanging under a turkey's beak and throat called?","Wattle","Comb","Crest","Gizzard","The flap that droops over the top of the beak has its own name: the snood."],
+[2,"Which state has long grown more cranberries than any other?","Wisconsin","Massachusetts","Maine","Oregon","Wisconsin grows more than half of the American crop."],
+[2,"Which president made pardoning a turkey a yearly White House tradition in 1989?","George H. W. Bush","Ronald Reagan","Harry Truman","John F. Kennedy","Turkeys had been presented to presidents for decades before that, and most of them were eaten."],
+[2,"Which NFL team has hosted a game on Thanksgiving almost every year since 1934?","Detroit Lions","Dallas Cowboys","Green Bay Packers","Chicago Bears","The Dallas Cowboys added their own Thanksgiving home game in 1966."],
+[2,"Canadian Thanksgiving falls on the second Monday of which month?","October","November","September","August","Canada's harvest comes earlier because the growing season is shorter further north."],
+[2,"Which vegetable is often baked with marshmallows on top for Thanksgiving?","Sweet potato","Turnip","Parsnip","Beet","Sweet potatoes are not close relatives of ordinary potatoes; they belong to the morning glory family."],
+[2,"The Pilgrims' colony at Plymouth was in what is now which state?","Massachusetts","Virginia","New York","Rhode Island","They had meant to settle near the Hudson River, but storms pushed the ship north to Cape Cod."],
+[2,"Which amino acid in turkey is often blamed, unfairly, for feeling sleepy after the meal?","Tryptophan","Lysine","Glycine","Tyrosine","Turkey has about as much of it as chicken does. A very large meal is the more likely cause."],
+[2,"Who was the Patuxet man who showed the Plymouth colonists how to plant corn?","Squanto","Massasoit","Samoset","Powhatan","Also known as Tisquantum, he had learned English after being kidnapped and taken to Europe years earlier."],
+[2,"What is a male turkey called?","Tom","Drake","Cob","Buck","A female is a hen, and British farmers often call the male a stag."],
+[2,"Benjamin Franklin wrote that the turkey was a more respectable bird than which other?","Bald eagle","Wild goose","Peacock","Mockingbird","It was a remark in a 1784 letter to his daughter; he never formally proposed the turkey as a national symbol."],
+[2,"Which president issued the first national Thanksgiving proclamation, in 1789?","George Washington","John Adams","James Madison","Andrew Jackson","The day he named was Thursday, November 26, 1789."],
+[3,"What is the proper name for a bird's wishbone?","Furcula","Fibula","Scapula","Sternum","It is two collarbones fused together, and it flexes like a spring when a bird flaps."],
+[3,"Which president moved Thanksgiving a week earlier in 1939 to lengthen the shopping season?","Franklin D. Roosevelt","Herbert Hoover","Harry Truman","Woodrow Wilson","Critics called it 'Franksgiving', and for two years some states celebrated on one Thursday and some on the other."],
+[3,"Whose letter gives the main eyewitness account of the 1621 Plymouth feast?","Edward Winslow","William Bradford","John Smith","Myles Standish","His short description mentions wildfowl and five deer brought by the Wampanoag, and nothing about pie."],
+[3,"What did the giant balloons replace when they joined the Macy's parade in 1927?","Live zoo animals","Marching bands","Horse-drawn floats","Fireworks","The first parades borrowed animals from the Central Park Zoo, which frightened some of the children watching."],
+[3,"Which country's autumn harvest festival is called Erntedankfest?","Germany","Sweden","Poland","Hungary","The name means 'harvest thanks festival', and churches are decorated with fruit, grain and a harvest crown."],
+[3,"Before sailing to America, many of the Pilgrims spent about twelve years living in which Dutch city?","Leiden","Rotterdam","Utrecht","The Hague","They left partly because their children were growing up speaking Dutch."],
+[3,"What is a young turkey called?","Poult","Gosling","Cygnet","Squab","Poults can walk and feed themselves within a day of hatching."]
+]);
