@@ -954,8 +954,8 @@ function stepBody(b,inp,dt,opt){
   for(const z of World.zones)if(z.push&&inZone(z,b.pos)){b.vel.y=Math.min(b.vel.y+z.push[1]*dt,z.maxUp||9);b.vel.x+=z.push[0]*dt;b.vel.z+=z.push[2]*dt;b.fanT=.15}
   b.fanT-=dt;
   // move in small pieces so nothing is skipped at speed
-  const wasG=g,vy0=b.vel.y,mv=Math.hypot(b.vel.x,b.vel.y,b.vel.z)*dt,n=Math.max(1,Math.ceil(mv/.18));
-  b.onGround=false;b.ground=null;b.cvMax=0;b.pinch=0;b.cn.length=0;
+  const wasG=g,vy0=b.vel.y,py0=b.pos.y,mv=Math.hypot(b.vel.x,b.vel.y,b.vel.z)*dt,n=Math.max(1,Math.ceil(mv/.18));
+  b.onGround=false;b.ground=null;b.cvMax=0;b.pinch=0;b.cn.length=0;b.touching=0;
   const hv0=Math.hypot(b.vel.x,b.vel.z);
   for(let i=0;i<n;i++){b.pos.x+=b.vel.x*dt/n;b.pos.y+=b.vel.y*dt/n;b.pos.z+=b.vel.z*dt/n;resolve(b,dt)}
   // contacts can slow a body or carry it along, never fling it faster than what touched it
@@ -970,6 +970,9 @@ function stepBody(b,inp,dt,opt){
     const gy=groundBelow(b.pos.x,b.pos.y+.3,b.pos.z,.62);
     if(gy>-Infinity&&b.pos.y-gy<.3){b.pos.y=gy+.001;resolve(b,dt)}
   }
+  // wedged: held up by things that aren't floor (in a crack between two platforms, on a rim) and going nowhere.
+  // It counts as standing, so the body can walk or jump out instead of hanging there for good.
+  if(!b.onGround&&b.touching&&Math.abs(b.pos.y-py0)<.004&&vy0<=0){b.wedgeT=(b.wedgeT||0)+dt;if(b.wedgeT>.25){b.onGround=true;b.ground=null}}else b.wedgeT=0;
   if(b.onGround){
     if(!wasG){b.landV=-vy0;if(vy0<-4)b.ev.push('land');}
     b.coyote=COYOTE;b.canDive=true;b.airT=0;
@@ -986,7 +989,7 @@ function resolve(b,dt){
       for(let s=0;s<cnt;s++){
         const o=_s[s],cx=b.pos.x+o[0],cy=b.pos.y+o[1],cz=b.pos.z+o[2];
         let d=sphereHit(c,cx,cy,cz,RAD,_n,s===0||cnt===2);if(d<=1e-5)continue;
-        any=true;if(it===2&&d>.12)b.deep=1;
+        any=true;b.touching=1;if(it===2&&d>.12)b.deep=1;
         // a little slope is still floor; a wall is a wall
         let nx=_n.x,ny=_n.y,nz=_n.z;
         _p.set(cx-nx*RAD,cy-ny*RAD,cz-nz*RAD);colVel(c,_p,dt,_v);
@@ -1192,8 +1195,12 @@ const _tmpV=new V3();
 const UP=new V3(0,1,0),AXX=new V3(1,0,0),AXZ=new V3(0,0,1);
 const qa=(ax,a)=>new QT().setFromAxisAngle(ax,a);
 const C={pink:'#ff6fae',cyan:'#43c9ff',yel:'#ffd23f',lime:'#7be05a',vio:'#9a6bff',org:'#ff8a3d',white:'#fff7ea',navy:'#3b2f6b',red:'#ff4d6d',teal:'#2fd5c0',sky:'#9fe3ff',mint:'#b9f5d0'};
-const Lvl={group:null,dyn:[],anims:[],L:null};
+// Lvl.to: seconds added to the clock of every moving piece built while it is set. A level sets it from the round's seed
+// (vary), so the hammers, balls and pistons are somewhere different each time it is played, and the same for everyone.
+const Lvl={group:null,dyn:[],anims:[],L:null,to:0};
+function vary(seed,span){const r=rng(seed^0x7007);r();Lvl.to=r()*(span||40);return r}
 function resetLevel(){
+  Lvl.to=0;
   if(Lvl.group){scene.remove(Lvl.group);Lvl.group.traverse(o=>{if(o.geometry&&!o.geometry.userData.keep)o.geometry.dispose();if(o.material&&o.userData.own){if(o.material.map)o.material.map.dispose();o.material.dispose()}})}
   Lvl.group=new THREE.Group();scene.add(Lvl.group);Lvl.dyn.length=0;Lvl.anims.length=0;clearWorld();
 }
@@ -1201,6 +1208,7 @@ function pivot(fn){const P=new V3(),Q=new QT();return(lp,lq)=>{const L=new V3(lp
 const B={
   add(m,cast){m.castShadow=!!cast&&gfx==='high';m.receiveShadow=gfx==='high';Lvl.group.add(m);return m},
   shape(kind,o){
+    if(o.dyn&&Lvl.to){const f=o.dyn,to=Lvl.to;o=Object.assign({},o,{dyn:(t,c)=>f(t+to,c)})}
     const geo=kind==='box'?(gfx==='high'&&!o.mat&&Math.min(o.s[0],o.s[1],o.s[2])>=.4?roundBoxGeo:boxGeo)(o.s[0],o.s[1],o.s[2],o.tile||(o.tex?1:0)):kind==='cyl'?cylGeo(o.r,o.h,o.seg||32,o.tile||(o.tex?1:0)):new THREE.SphereGeometry(o.r,o.seg||24,16);
     const m=new THREE.Mesh(geo,o.mat||mat(o.c||C.white,o.tex||null,o.hit&&o.tex?{emissive:'#ffffff',emissiveMap:o.tex,emissiveIntensity:.22}:undefined));B.add(m,o.cast!==false&&(o.dyn||o.castS));
     if(o.col===false){if(o.p)m.position.set(o.p[0],o.p[1],o.p[2]);if(o.q)m.quaternion.copy(o.q);else m.rotation.set(o.rx||0,o.ry||0,o.rz||0,'YXZ');if(o.dyn){const c={pos:m.position,quat:m.quaternion};o.dyn(0,c);Lvl.anims.push(t=>o.dyn(t,c))}return m}
@@ -1264,7 +1272,7 @@ const N=(x,y,z,o)=>Object.assign({p:new V3(x,y,z)},o||{});
 const LEVELS=[];
 // 1. Whirligig Way: spinning discs, hammers, conveyor belts
 LEVELS.push({id:'whirl',name:'Whirligig Way',kind:'race',time:150,theme:'day',desc:'Ride the spinning discs, slip past the swinging hammers and run up the belts the wrong way.',build(seed){
-  const spawns=startPad(16);slime(-5);scenery(seed,0,-60,40);
+  const spawns=startPad(16);slime(-5);scenery(seed,0,-60,40);vary(seed);
   const disc=(z,r,w,c,extra)=>{
     const piv=pivot((t,P,Q)=>{P.set(0,-.5,z);Q.setFromAxisAngle(UP,t*w)});
     B.cyl({r,h:1,tex:TX.rings(c,C.white),tile:0,dyn:piv([0,0,0]),seg:40});
@@ -1311,7 +1319,7 @@ LEVELS.push({id:'whirl',name:'Whirligig Way',kind:'race',time:150,theme:'day',de
   pad(0,0,-114,-116,16,C.vio);
   const fz=finishPad(-116,-132,0,16);
   const path=[N(0,0,1),N(0,0,-8.5,{w:2}),N(0,.12,-16,{w:1}),N(0,0,-23.5,{w:2.5}),N(0,.12,-31,{w:1}),N(0,0,-38.5,{w:2}),N(0,.12,-45.5,{w:1}),N(0,0,-50,{w:4,cp:1}),
-    N(-2.2,0,-56,{w:.8}),N(-1.6,0,-64,{w:.6,safe:1}),N(1.6,0,-72,{w:.6,safe:1}),N(-1.6,0,-80,{w:.6,safe:1}),N(1.4,0,-87,{w:.6,safe:1}),N(-5.2,0,-91,{w:.8}),N(-5.2,0,-114.5,{w:.6}),N(0,0,fz-3,{w:4})];
+    N(-2.2,0,-56,{w:.8}),N(-1.6,0,-64,{w:.6,safe:1}),N(1.6,0,-72,{w:.6,safe:1}),N(-1.6,0,-80,{w:.6,safe:1}),N(1.4,0,-87,{w:.6,safe:1}),N(-5.2,0,-91,{w:.8,alt:[-5.2,0,-5.2,5.2]}),N(-5.2,0,-114.5,{w:.6,alt:[-5.2,0,-5.2,5.2]}),N(0,0,fz-3,{w:4})];
   return{spawns,yaw:Math.PI,path,kill:-5,finZ:fz};
 }});
 
@@ -1351,9 +1359,9 @@ LEVELS.push({id:'teeter',name:'Teeter Tide',kind:'race',time:150,theme:'lagoon',
       }else{s.st.a+=(s.st.tgt-s.st.a)*Math.min(1,dt*8)}
     }
   };
-  const path=[N(0,0,1),N(-3.5,0,-4.5,{w:1}),N(-3.5,0,-17.5,{w:1.2}),N(0,0,-22,{w:3}),N(-4.2,0,-26.5,{w:1}),N(-4.2,0,-39.5,{w:1.2}),N(0,0,-45,{w:4,cp:1}),
-    N(0,0,-50.5,{w:2}),N(0,0,-63.5,{w:2}),N(0,0,-68,{w:3}),N(0,0,-72.5,{w:.8}),N(0,0,-85.5,{w:.8}),N(0,0,-90,{w:4,cp:2}),
-    N(-4.5,0,-93.8,{w:.8}),N(-4.5,0,-107.5,{w:.8}),N(0,0,-115,{w:3}),N(-3,0,-118.5,{w:.5}),N(-3,0,-132.5,{w:.5}),N(0,0,fz-3,{w:4})];
+  const path=[N(0,0,1),N(-3.5,0,-4.5,{w:1,alt:[-3.5,3.5]}),N(-3.5,0,-17.5,{w:1.2,alt:[-3.5,3.5]}),N(0,0,-22,{w:3}),N(-4.2,0,-26.5,{w:1,alt:[4.2,-4.2]}),N(-4.2,0,-39.5,{w:1.2,alt:[4.2,-4.2]}),N(0,0,-45,{w:4,cp:1}),
+    N(0,0,-50.5,{w:2}),N(0,0,-63.5,{w:2}),N(0,0,-68,{w:3}),N(0,0,-72.5,{w:.8,alt:[0,-5,5]}),N(0,0,-85.5,{w:.8,alt:[0,-5,5]}),N(0,0,-90,{w:4,cp:2}),
+    N(-4.5,0,-93.8,{w:.8}),N(-4.5,0,-107.5,{w:.8}),N(0,0,-115,{w:3}),N(-3,0,-118.5,{w:.5,alt:[-3,3]}),N(-3,0,-132.5,{w:.5,alt:[-3,3]}),N(0,0,fz-3,{w:4})];
   return{spawns,yaw:Math.PI,path,kill:-5,finZ:fz,saws,tickSaws,
     swGet:()=>saws.map(s=>Math.round(s.st.a*1000)).join(','),
     swSet:str=>{const a=String(str).split(',');saws.forEach((s,i)=>{const v=+a[i];if(isFinite(v))s.st.tgt=clamp(v/1000,-.21,.21)})}};
@@ -1361,7 +1369,7 @@ LEVELS.push({id:'teeter',name:'Teeter Tide',kind:'race',time:150,theme:'lagoon',
 
 // 3. Gatecrash Gauntlet: walls of doors (some are fake) and sliding blocks
 LEVELS.push({id:'gates',name:'Gatecrash Gauntlet',kind:'race',time:150,theme:'candy',desc:'Every wall has doors that burst open and doors that are painted on. Pick fast, and mind the sliding blocks.',build(seed){
-  const r=rng(seed^0x51ed);const spawns=startPad(20);slime(-5);scenery(seed,0,-55,40);
+  const r=rng(seed^0x51ed);const spawns=startPad(20);slime(-5);scenery(seed,0,-55,40);vary(seed);
   pad(0,0,-2,-136,20,C.mint,{tex:TX.checker('#d8fbe6','#c2f2d6'),tile:4});
   for(const s of [-1,1])B.box({p:[s*10.3,.6,-69],s:[.6,1.2,134],tex:TX.stripes(C.pink,C.white),tile:1.2});
   const rows=[-12,-28,-44,-62,-80,-98,-116],reals=[4,3,3,2,2,2,2],doors=[];
@@ -1399,7 +1407,7 @@ LEVELS.push({id:'gates',name:'Gatecrash Gauntlet',kind:'race',time:150,theme:'ca
 
 // 4. Springboard Skyway: bounce pads, moving platforms, a fan updraft
 LEVELS.push({id:'spring',name:'Springboard Skyway',kind:'race',time:150,theme:'skyhigh',desc:'Bounce up to the sky lanes, hop across the drifting platforms and ride the fan updraft over the gap.',build(seed){
-  const spawns=startPad(14);slime(-5);scenery(seed,0,-55,40);
+  const spawns=startPad(14);slime(-5);scenery(seed,0,-55,40);vary(seed);
   pad(0,0,-2,-10,14,C.cyan);
   const bpad=(x,y,z,v,bv)=>{B.cyl({p:[x,y-.25,z],r:1.5,h:.5,c:C.navy,seg:24});B.cyl({p:[x,y+.12,z],r:1.25,h:.24,tex:TX.rings(C.lime,C.yel),bounce:v,bvec:bv,seg:24});};
   for(const x of [-4,0,4])bpad(x,0,-6,17.5,[0,0,-1.5]);
@@ -1440,7 +1448,7 @@ LEVELS.push({id:'spring',name:'Springboard Skyway',kind:'race',time:150,theme:'s
 
 // 5. Swingset Straits: narrow bridges under swinging wrecking balls
 LEVELS.push({id:'swing',name:'Swingset Straits',kind:'race',time:150,theme:'sunset',desc:'Narrow bridges with giant swinging balls. Watch the rhythm, then go.',build(seed){
-  const spawns=startPad(14);slime(-5);scenery(seed,0,-50,40);
+  const spawns=startPad(14);slime(-5);scenery(seed,0,-50,40);vary(seed);
   const pend=(x,z,L,amp,w,ph,c,axis)=>{
     const pv=pivot((t,P,Q)=>{P.set(x,L+1.2,z);Q.setFromAxisAngle(axis||AXZ,Math.sin(t*w+ph)*amp)});
     B.box({p:[x,L+1.4,z],s:axis===AXX?[.6,.6,4]:[4,.6,.6],c:C.navy,col:false});
@@ -1468,7 +1476,7 @@ LEVELS.push({id:'swing',name:'Swingset Straits',kind:'race',time:150,theme:'suns
   B.box({s:[7,.45,.5],tex:TX.hazard(),tile:1,hit:.5,dyn:sw([-3.5,.35,0])});
   const fz=finishPad(-116,-130,0,14);
   const path=[N(0,0,1),N(0,0,-3.5,{w:.2}),N(0,0,-6,{w:.1,safe:1}),N(0,0,-14,{w:.1,safe:1}),N(0,0,-22,{w:.1,safe:1}),N(0,0,-30,{w:.1}),N(0,0,-36,{w:3,cp:1}),
-    N(-3,0,-40.5,{w:.2}),N(-3,0,-44,{w:.1,safe:1}),N(-3,0,-51,{w:.1,safe:1}),N(-3,0,-58,{w:.1,safe:1}),N(-3,0,-66,{w:.1}),N(0,0,-70,{w:1}),N(0,0,-73,{w:.1}),N(0,0,-74.5,{w:.1,safe:1}),N(0,0,-81.5,{w:.1,safe:1}),N(0,0,-88.5,{w:.1,safe:1}),N(0,0,-96,{w:.1}),N(0,0,-99.5,{w:3,cp:2}),
+    N(-3,0,-40.5,{w:.2,alt:[-3,3,-3]}),N(-3,0,-44,{w:.1,safe:1,alt:[-3,3,-3]}),N(-3,0,-51,{w:.1,safe:1,alt:[-3,3,-3]}),N(-3,0,-58,{w:.1,safe:1,alt:[-3,3,-3]}),N(-3,0,-66,{w:.1,alt:[-3,3,-3]}),N(0,0,-70,{w:1}),N(0,0,-73,{w:.1}),N(0,0,-74.5,{w:.1,safe:1}),N(0,0,-81.5,{w:.1,safe:1}),N(0,0,-88.5,{w:.1,safe:1}),N(0,0,-96,{w:.1}),N(0,0,-99.5,{w:3,cp:2}),
     N(0,0,-103,{w:.1,safe:1}),N(0,0,-115,{w:.1}),N(0,0,fz-3,{w:3})];
   return{spawns,yaw:Math.PI,path,kill:-5,finZ:fz};
 }});
@@ -1497,7 +1505,9 @@ function sweeperLevel(def,isFinal){
     B.cyl({p:[0,2,0],r:1.3,h:4,tex:TX.stripes(C.navy,C.pink),tile:1.2});
     const k1=isFinal?.012:.008,k2=isFinal?.009:.006;
     const ease=t=>t<2.5?t*t/5:t-1.25,A1=t=>{t=Math.max(0,t);return .75*ease(t)+k1*t*t*.5},A2=t=>{t=Math.max(0,t);return Math.PI/2+.5*ease(t)+k2*t*t*.5};
-    const low=pivot((t,P,Q)=>{P.set(0,0,0);Q.setFromAxisAngle(UP,A1(t))}),high=pivot((t,P,Q)=>{P.set(0,0,0);Q.setFromAxisAngle(UP,A2(t))});
+    // where the beams start and which way they turn come from the round's seed
+    const rv=rng(seed^0x7007),a0=rv()*Math.PI*2,sd=rv()<.5?-1:1;
+    const low=pivot((t,P,Q)=>{P.set(0,0,0);Q.setFromAxisAngle(UP,a0+sd*A1(t))}),high=pivot((t,P,Q)=>{P.set(0,0,0);Q.setFromAxisAngle(UP,a0+sd*A2(t))});
     B.box({s:[R*2+1,.5,.7],tex:TX.hazard(),tile:1,hit:.32,kb:1.6,dyn:low([0,.33,0])});
     // the high beam's underside is at 1.95, well clear of a standing bean (1.6 tall): run or dive under it, just don't jump into it
     B.box({s:[R*2+1,.5,.75],tex:TX.stripes(C.red,C.white),tile:1,hit:.32,kb:1.6,dyn:high([0,HIGH_BEAM_Y,0])});
@@ -1512,7 +1522,7 @@ function sweeperLevel(def,isFinal){
         if(t>=tl.warn&&!tl.redded){tl.redded=1;if(tl.col.mesh)tl.col.mesh.material=mat(C.red,TX.foam(C.red));w=tl}
         if(t>=tl.drop&&!tl.dropped){tl.dropped=1;d=tl}}
         if(w&&t>0)sfx('warn',_tmpV.set(w.x,0,w.z),.8);if(d&&t>0)sfx('drop',_tmpV.set(d.x,0,d.z),.7)},
-      beams:[{fn:A1,y:.33,low:true},{fn:A2,y:HIGH_BEAM_Y,low:false}]};
+      beams:[{fn:t=>a0+sd*A1(t),y:.33,low:true},{fn:t=>a0+sd*A2(t),y:HIGH_BEAM_Y,low:false}]};
   }},def);
 }
 function addColGrid(c){const cs=World.cell,ext=c.type===0?Math.abs(c.m[0])*c.hx+Math.abs(c.m[3])*c.hy+Math.abs(c.m[6])*c.hz:c.br,ez=c.type===0?Math.abs(c.m[2])*c.hx+Math.abs(c.m[5])*c.hy+Math.abs(c.m[8])*c.hz:c.br;
@@ -1601,7 +1611,7 @@ function bouncePad(x,y,z,v,bv){B.cyl({p:[x,y-.25,z],r:1.5,h:.5,c:C.navy,seg:24})
 
 // 10. Piston Parade: pistons punch across the bridge from the sides, stompers slam down on it
 LEVELS.push({id:'piston',name:'Piston Parade',kind:'race',time:150,theme:'works',desc:'Pistons punch out from the sides and stompers slam down. Learn the beat, then run the gap.',build(seed){
-  const spawns=startPad(14);slime(-5);scenery(seed,0,-60,40);
+  const spawns=startPad(14);slime(-5);scenery(seed,0,-60,40);vary(seed);
   // out fast, hold, back slowly, rest
   const punch=p=>{p=fract(p);return p<.12?p/.12:p<.3?1:p<.55?1-(p-.3)/.25:0};
   // down fast, hold, up slowly, rest (1 = all the way up)
@@ -1643,7 +1653,7 @@ LEVELS.push({id:'piston',name:'Piston Parade',kind:'race',time:150,theme:'works'
 
 // 11. Roly-Poly Rise: a climb up giant steps with boulders rolling across them
 LEVELS.push({id:'rise',name:'Roly-Poly Rise',kind:'race',time:150,theme:'sunset',desc:'Climb the giant steps while boulders roll across them. Cross behind a boulder, never in front of one.',build(seed){
-  const spawns=startPad(14);slime(-5);scenery(seed,0,-45,40);
+  const spawns=startPad(14);slime(-5);scenery(seed,0,-45,40);vary(seed);
   const path=[N(0,0,1),N(0,0,-.8,{w:4})],W=14;
   const roller=(y,zc,sp,off,dir,c)=>{const span=22,r=1.05;
     B.sph({r,tex:TX.stripes(c,C.white),tile:1,hit:.55,seg:22,dyn:(t,cc)=>{const x=(fract((t*sp+off)/span)*span-span/2)*dir,ax=Math.abs(x);
@@ -1676,7 +1686,7 @@ LEVELS.push({id:'rise',name:'Roly-Poly Rise',kind:'race',time:150,theme:'sunset'
 
 // 12. Log Jam Lane: logs roll down the lane toward you and drop into the gaps
 LEVELS.push({id:'logs',name:'Log Jam Lane',kind:'race',time:140,theme:'forest',desc:'Logs come rolling down the lane at you. Jump every one, and mind the gaps they drop into.',build(seed){
-  const spawns=startPad(12);slime(-5);scenery(seed,0,-60,40);
+  const spawns=startPad(12);slime(-5);scenery(seed,0,-60,40);vary(seed);
   const LAY=qa(AXZ,Math.PI/2),R=.45;
   // a lane from zNear to zFar with n logs rolling toward the start; half: each log covers a bit over half the lane, on alternate sides
   const lane=(zNear,zFar,w,sp,n,half)=>{
@@ -1703,10 +1713,11 @@ LEVELS.push({id:'logs',name:'Log Jam Lane',kind:'race',time:140,theme:'forest',d
 // 13. Sink or Skip: stepping stones that sink in a wave and come back up
 LEVELS.push({id:'stones',name:'Sink or Skip',kind:'race',time:150,theme:'lagoon',desc:'The stepping stones sink in a wave, then come back up. Hop when the next one is up, and do not hang about on a wobbly one.',build(seed){
   const spawns=startPad(12);slime(-5);scenery(seed,0,-55,40);
+  const T0=rng(seed^0x7007)()*40;
   // u is how far through its cycle a stone is: up, wobble, sink, stay under, rise
   const yOf=(u,t)=>u<.6?0:u<.7?Math.sin(t*40)*.035:u<.8?-(u-.7)/.1*6.6:u<.9?-6.6:-6.6*(1-(u-.9)/.1);
-  const stone=(x,z,r,P,ph,c)=>{B.cyl({r,h:1,tex:TX.rings(c,C.white),tile:0,seg:28,dyn:(t,cc)=>{cc.pos.set(x,yOf(fract(t/P+ph),t)-.5,z);cc.quat.identity()}});return t=>fract(t/P+ph)};
-  const plank=(z,P,ph,c)=>{B.box({s:[5,1,2.92],tex:TX.foam(c),tile:1.5,dyn:(t,cc)=>{cc.pos.set(0,yOf(fract(t/P+ph),t)-.5,z);cc.quat.identity()}});return t=>fract(t/P+ph)};
+  const stone=(x,z,r,P,ph,c)=>{B.cyl({r,h:1,tex:TX.rings(c,C.white),tile:0,seg:28,dyn:(t,cc)=>{cc.pos.set(x,yOf(fract((t+T0)/P+ph),t)-.5,z);cc.quat.identity()}});return t=>fract((t+T0)/P+ph)};
+  const plank=(z,P,ph,c)=>{B.box({s:[5,1,2.92],tex:TX.foam(c),tile:1.5,dyn:(t,cc)=>{cc.pos.set(0,yOf(fract((t+T0)/P+ph),t)-.5,z);cc.quat.identity()}});return t=>fract((t+T0)/P+ph)};
   // a bot sets off for a stone only while it has plenty of its time up left
   const ok=f=>t=>f(t)<.3;
   const path=[N(0,0,1)];
@@ -1734,7 +1745,7 @@ LEVELS.push({id:'stones',name:'Sink or Skip',kind:'race',time:150,theme:'lagoon'
 
 // 14. Belt Bedlam: sideways belts, a fast belt over gaps, and belts that carry crates
 LEVELS.push({id:'belt',name:'Belt Bedlam',kind:'race',time:150,theme:'neon',desc:'Sideways belts drag you toward the edge, a fast belt flings you over the gaps, and crates ride the last ones. Lean into it.',build(seed){
-  const spawns=startPad(14);slime(-5);scenery(seed,0,-60,40);
+  const spawns=startPad(14);slime(-5);scenery(seed,0,-60,40);vary(seed);
   [3.2,3.6,-3.4,-3.8,3.6,-3.4].forEach((v,i)=>{const z0=-2-i*5.6;belt(0,z0,z0-5.6,12,v,0,0)});
   for(const [x,z] of [[4.2,-6],[-4.4,-11],[3.6,-17.5],[-3.8,-23],[4.6,-28],[-4.2,-33]])B.cyl({p:[x,.9,z],r:.7,h:1.8,tex:TX.dots(C.pink,C.white),tile:1.5});
   pad(0,0,-35.6,-46,14,C.vio);checkpoint(1,-35.6,-46,-7,7,0,spawnGrid(0,0,-42.5,4,2,2.6,2));
@@ -1759,9 +1770,9 @@ LEVELS.push({id:'belt',name:'Belt Bedlam',kind:'race',time:150,theme:'neon',desc
 // 15. Blowhard Bridge: fans that blow across the course in bursts
 LEVELS.push({id:'gust',name:'Blowhard Bridge',kind:'race',time:150,theme:'storm',desc:'Giant fans blow across the bridges in bursts. Cross while they wind down, tuck in behind the windbreaks, then ride the last one up.',build(seed){
   const spawns=startPad(12);slime(-5);scenery(seed,0,-55,40);
-  const fans=[],F=36;
+  const fans=[],F=36,T0=rng(seed^0x7007)()*40;
   // a fan blows for `on` seconds out of every P; its zones are the boxes of air it pushes
-  const mkFan=(P,on,ph,push)=>{const f={P,on,ph,push,zones:[],u:t=>fract((t+ph)/P)*P};f.isOn=t=>f.u(t)<on;fans.push(f);return f};
+  const mkFan=(P,on,ph,push)=>{const f={P,on,ph,push,zones:[],u:t=>fract((t+T0+ph)/P)*P};f.isOn=t=>f.u(t)<on;fans.push(f);return f};
   const air=(f,x0,x1,y,z0,z1,o)=>{f.zones.push(B.zone(Object.assign({type:'gust',push:null,min:[Math.min(x0,x1),y-.6,Math.min(z0,z1)],max:[Math.max(x0,x1),y+5,Math.max(z0,z1)]},o||{})))};
   // the fan itself: a ring on a post beside the course, blades that spin up before it blows, and streaks in the air while it does
   const rotor=(f,x,y,z,dir)=>{
@@ -1899,10 +1910,11 @@ LEVELS.push({id:'tide',name:'High Tide Hill',kind:'final',time:200,theme:'dusk',
   let lv=level(0);slime(-2.2,level);
   // the sweeper: one arm each way, stepping down the hill, a little faster all the time
   const ease=t=>t<8?t*t/16:t-4,A=t=>{t=Math.max(0,t);return .8*ease(t)+.011*t*t*.5};
-  const arm=pivot((t,P,Q)=>{P.set(0,0,0);Q.setFromAxisAngle(UP,A(t))});
+  const rv=rng(seed^0x7007),a0=rv()*Math.PI*2,sd=rv()<.5?-1:1;
+  const arm=pivot((t,P,Q)=>{P.set(0,0,0);Q.setFromAxisAngle(UP,a0+sd*A(t))});
   TR.forEach((R,k)=>{const r0=k<TR.length-1?TR[k+1]:0,len=R-r0+(k?0:.6);for(const s of [-1,1])B.box({s:[len,.5,.62],tex:TX.hazard(),tile:1,hit:k>2?.32:.22,kb:k===TR.length-1?5.5:k===TR.length-2?3.2:1.3,dyn:arm([s*(r0+len/2),k*TH+.33,0])})});
   // a second arm, the other way round, comes down onto the top two steps once the tide is well up
-  const T2=40,arm2=pivot((t,P,Q)=>{P.set(0,clamp((T2-t)/2,0,1)*7,0);Q.setFromAxisAngle(UP,1-.9*Math.max(0,t-T2)-.004*Math.max(0,t-T2)**2)});
+  const T2=40,arm2=pivot((t,P,Q)=>{P.set(0,clamp((T2-t)/2,0,1)*7,0);Q.setFromAxisAngle(UP,a0+1-sd*(.9*Math.max(0,t-T2)+.004*Math.max(0,t-T2)**2))});
   for(const k of [3,4]){const r0=k<4?TR[k+1]:0,len=TR[k]-r0;for(const s of [-1,1]){const d=arm2([s*(r0+len/2),k*TH+.33,0]);B.box({s:[len,.5,.62],tex:TX.stripes(C.red,C.white),tile:1,hit:.32,kb:k===4?5.5:3.2,dyn:(t,cc)=>{d(t,cc);cc.active=t>=T2;cc.showOff=true}})}}
   B.cyl({r:.55,h:.7,c:C.yel,dyn:arm([0,TOP+.4,0]),col:false});
   const spawns=[];for(let k=0;k<16;k++){const a=(k+.5)/16*Math.PI*2;spawns.push([Math.cos(a)*12.7,.05,Math.sin(a)*12.7,Math.atan2(-Math.cos(a),-Math.sin(a))])}
@@ -2127,7 +2139,14 @@ function rushAI(e,L,t,dt,inp){
   const b=e.b,ai=e.ai;let best=null,bz=-1e9;
   for(const w of L.walls){const z=-19+(t-w.st)*w.sp;if(t<w.st-1.5)continue;if(z<b.pos.z-.6&&z>bz){bz=z;best=w}}
   let tx=b.pos.x,tz=clamp(b.pos.z,-6,6);
-  if(best){const g=best.gaps.reduce((a,x)=>Math.abs(x-b.pos.x)<Math.abs(a-b.pos.x)?x:a,best.gaps[0]);const dist=b.pos.z-bz;
+  if(best){const dist=b.pos.z-bz;
+    // one decision a wall: which gap, and how soon the bot notices it. A less skilled or less nervy bot now and then
+    // reads a wall late, or sets off for the gap that is further away, and the fast walls near the end catch it out
+    if(ai.wallK!==best){ai.wallK=best;const near=best.gaps.reduce((a,x)=>Math.abs(x-b.pos.x)<Math.abs(a-b.pos.x)?x:a,best.gaps[0]);
+      ai.gapX=best.gaps.length>1&&Math.random()<(1-ai.skill)*.3?best.gaps[Math.floor(Math.random()*best.gaps.length)]:near;
+      ai.seeAt=Math.random()<(1-ai.skill)*.55+.04?rand(3,6.5)+best.sp*.35:1e9}
+    const g=ai.gapX;
+    if(dist>ai.seeAt){steer(b,b.pos.x,clamp(2+ai.off*3,-4,8),inp,.8);return}
     tx=g+clamp(b.pos.x-g,-(best.gw/2-.65),best.gw/2-.65)*.3;
     // fine-tune the aim the closer it gets
     if(dist<5&&Math.abs(b.pos.x-g)>best.gw/2-.55){tz=b.pos.z}else tz=clamp(2+ai.off*3,-4,8)}
@@ -2251,8 +2270,18 @@ const ents=new Map();let me=null;
 function now(){return G.mode==='online'?Net.now()+(G.host?0:G.skew):G.vt}
 function myId(){return G.mode==='online'?Net.uid:'me'}
 function roundT(){const rs=G.rs;if(!rs)return(now()-(G.t0||0))/1000;return(now()-(rs.ph==='lobby'||rs.ph==='podium'?(rs.t0||0):rs.go))/1000}
+// What kind of contestant a bot is: its skill comes with the roster; its nerve (how tight a gap it will run, how long it
+// waits for a better one), its pace and the lanes it likes come from the show and its id, and its form (a good or a bad
+// round) from the round as well. So the same bot is not the same every round, and no two bots are alike. Only the
+// browser that runs the bots uses these, and whoever takes the bots over works out the same ones.
+function botTraits(rs,id,skill){
+  const a=rng(hashStr((rs?rs.id:0)+':'+id)),b=rng(hashStr((rs?rs.id+':'+rs.rn:'0')+':'+id));a();b();
+  const nerve=a(),pace=a(),route=Math.floor(a()*6),form=b()*2-1;
+  return{skill:clamp((skill==null?.75:skill)+form*.1,.3,.99),nerve:clamp(nerve+form*.15,0,1),route:route+Math.floor(b()*2),spd:clamp(.83+pace*.12+form*.03,.8,.98)};
+}
 function makeEnt(o){
-  const e={id:o.id,name:o.name||'Bean',look:o.look,bot:!!o.bot,local:!!o.local,b:newBody(),bean:new Bean(o.look,o.name||'Bean',!o.isMe),ai:o.bot?newAI(o.skill):null,spd:o.bot?(o.spd||rand(.86,.98)):1,
+  const tr=o.bot&&o.traits?o.traits:null;
+  const e={id:o.id,name:o.name||'Bean',look:o.look,bot:!!o.bot,local:!!o.local,b:newBody(),bean:new Bean(o.look,o.name||'Bean',!o.isMe),ai:o.bot?(tr?newAI(tr.skill,tr.nerve,tr.route):newAI(o.skill)):null,spd:o.bot?(tr?tr.spd:o.spd||rand(.86,.98)):1,
     cp:0,fin:false,out:false,hidden:false,respawnT:0,isMe:!!o.isMe,tpos:new V3(),tyaw:0,tvel:new V3(),seen:performance.now(),stc:'move',grabbedT:0,lastSt:'move',lastY:0,lastAir:false};
   ents.set(e.id,e);return e;
 }
@@ -2275,21 +2304,34 @@ const isBotId=(rs,id)=>/^b\d{1,2}$/.test(id)&&!!(rs&&rs.bm&&rs.bm[id]);
 // ---------- the show plan ----------
 // How many reach the final: about a third of the starters, at least 2 and at most 6.
 function finalSize(n){return n<=2?2:clamp(Math.round(n/3),2,6)}
-// Every show has an opening race, at least one middle round, then the final: two rounds before the final in a
-// short show or a small lobby, three in a normal show of 10 or more (or a long one), four in a long show of 10 or more.
-// The knock-outs are spread evenly (by ratio) so that finalSize(n) are left for the final. A lobby with fewer spare
-// players than rounds (2 or 3 players) plays its early rounds as races where everyone who finishes goes through.
-// Middle rounds alternate survival and race; a survival needs at least one knock-out, or it would end at GO.
-function planShow(n,len,r){
-  const pre=len===0?2:len===1?(n>=10?3:2):(n>=10?4:3),F=Math.min(Math.max(2,n),finalSize(n));
-  const races=shuffle(RACES.slice(),r),survs=shuffle(SURVIVALS.slice(),r),plan=[];let cur=Math.max(2,n),ri=0,si=0,lastSurv=false;
+// A show is two to four rounds and a final: two rounds before the final in a short show or a small lobby, three in a
+// normal show of 10 or more (or a long one), four in a long show of 10 or more. Which kinds of round, in which order,
+// how sharply each one cuts the field and how many reach the final all come from the show's seed (r), so two shows
+// rarely have the same shape: a show can open with a survival, play two races or two survivals back to back, and
+// send 4, 5 or 6 to the final. A lobby with fewer spare players than rounds (2 or 3 players) plays its early rounds
+// as races where everyone who finishes goes through; a survival needs at least one knock-out, or it would end at GO.
+// avoid: rounds the last show used, left out while enough others remain.
+function planShow(n,len,r,avoid){
+  const pre=len===0?2:len===1?(n>=10?3:2):(n>=10?4:3);
+  let F=Math.min(Math.max(2,n),finalSize(n));if(n>=12)F=clamp(F+Math.floor(r()*3)-1,3,6);
+  // rounds the last show didn't use come first, so a show only repeats one when it has run out of fresh ones
+  const pool=a=>{const old=avoid?a.filter(i=>avoid.includes(i)):[];return shuffle(a.filter(i=>!old.includes(i)),r).concat(shuffle(old,r))};
+  const races=pool(RACES),survs=pool(SURVIVALS),fins=pool(FINALS),plan=[];
+  // the order of kinds: never the same kind three times running, and never all of one kind
+  let kinds;for(let tries=0;tries<30;tries++){kinds=[];for(let i=0;i<pre;i++)kinds.push(r()<.5?'race':'survival');
+    if(kinds.every(k=>k===kinds[0]))continue;if(kinds.some((k,i)=>i>1&&k===kinds[i-1]&&k===kinds[i-2]))continue;break}
+  if(kinds.every(k=>k===kinds[0]))kinds[kinds.length-1]=kinds[0]==='race'?'survival':'race';
+  // how the knock-outs are shared out: each round gets a weight, so one show thins the field early and another late
+  const w=[];let ws=0;for(let i=0;i<pre;i++){w.push(.6+r()*.9);ws+=w[i]}
+  let cur=Math.max(2,n),ri=0,si=0,done=0;
   for(let i=0;i<pre;i++){
     const left=pre-i,spare=cur-F;
-    const q=spare<left?cur:clamp(Math.round(cur*Math.pow(F/cur,1/left)),F,cur);
-    const surv=i>0&&!lastSurv&&q<cur&&si<survs.length;lastSurv=surv;
+    let q=spare<left?cur:clamp(Math.round(cur*Math.pow(F/cur,w[i]/(ws-done))),F+(left-1),cur-1);
+    done+=w[i];
+    const surv=kinds[i]==='survival'&&q<cur&&si<survs.length;
     plan.push({lv:surv?survs[si++]:races[ri++%races.length],kind:surv?'survival':'race',q});cur=q;
   }
-  plan.push({lv:FINALS[Math.floor(r()*FINALS.length)],kind:'final',q:1});
+  plan.push({lv:fins[0],kind:'final',q:1});
   return plan;
 }
 function defaultSet(){return{mx:16,len:1,bots:0,col:1}}
@@ -2305,8 +2347,8 @@ function newShow(prev){
   const ro=hum.slice(),bm={};
   const nb=G.mode==='solo'?G.soloBots:(set.bots?Math.max(0,set.mx-hum.length):0);
   const names=shuffle(BOT_NAMES.slice(),r);
-  for(let i=0;i<nb;i++){const id='b'+i,lk=botLook(r);bm[id]=[names[i%names.length],lk.c,lookStr(lk),Math.round((.55+r()*.4)*100)];ro.push(id)}
-  const plan=planShow(ro.length,set.len,r);
+  for(let i=0;i<nb;i++){const id='b'+i,lk=botLook(r);bm[id]=[names[i%names.length],lk.c,lookStr(lk),Math.round((.45+r()*.53)*100)];ro.push(id)}
+  const plan=planShow(ro.length,set.len,r,G.lastLv);G.lastLv=plan.map(p=>p.lv);
   const rs={v:1,id:Math.floor(Math.random()*1e9),ph:'round',set,ro,bm,plan,rn:0,lv:plan[0].lv,seed:Math.floor(r()*1e9),go:now()+8600,qn:plan[0].q,pl:ro.map((_,i)=>i),q:[],x:[],te:0,win:[],t0:now(),as:0};
   if(ro.length<2){rs.plan=[{lv:plan[0].lv,kind:'race',q:1}];rs.qn=1}
   return rs;
@@ -2434,11 +2476,13 @@ function enterPhase(rs){
   }
   // a round
   clearEnts(false);const L=loadLevel(rs.lv,rs.seed);
+  // who stands where on the start grid comes from the round's seed (the same for everyone), not from the roster order
+  const order=shuffle(rs.pl.map((_,k)=>k),rng(rs.seed^0x5a17));
   rs.pl.forEach((i,k)=>{
     const id=idOf(rs,i),re=rosterEntry(rs,id),isMe=id===myIdNow;
     const local=isMe||(re.bot&&(G.host||G.mode!=='online'));
-    const e=makeEnt({id,name:re.name,look:re.look,bot:re.bot,local,isMe,skill:re.skill});
-    placeAt(e,L.spawns[k%L.spawns.length],L.yaw);if(k>=L.spawns.length){e.b.pos.x+=rand(-.4,.4);e.b.pos.z+=1}
+    const e=makeEnt({id,name:re.name,look:re.look,bot:re.bot,local,isMe,skill:re.skill,traits:re.bot?botTraits(rs,id,re.skill):null});
+    const sk=order[k];placeAt(e,L.spawns[sk%L.spawns.length],L.yaw);if(sk>=L.spawns.length){e.b.pos.x+=rand(-.4,.4);e.b.pos.z+=1}
     if(isMe)me=e;
     if(e.bot&&e.local){G.botRep.set(id,{k:rs.id+':'+rs.rn,fin:null,out:null})}
   });
