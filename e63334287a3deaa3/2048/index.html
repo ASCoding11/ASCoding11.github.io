@@ -644,7 +644,8 @@ function setMute(m){
 /* =====================================================================
    Drawing: one canvas, one requestAnimationFrame loop that runs only while something moves.
    ===================================================================== */
-const cv=$('cv'),ctx=cv.getContext('2d');
+const cv=$('cv'),mainCtx=cv.getContext('2d');
+let ctx=mainCtx;                 // swapped for a moment while a tile or the board is painted into its own picture
 const boardEl=$('board'),app=$('app'),sideEl=$('side');
 const REDUCED=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const SLIDE_MS=110,POP_MS=150,SPAWN_DELAY=50,SPAWN_MS=140;
@@ -652,15 +653,19 @@ const MAXN=36;
 let S=300,DPR=1,GAP=8,CELL=64,RB=10,RC=6;
 const posX=new Float32Array(MAXN),posY=new Float32Array(MAXN);
 const FONT_FAM='"Fredoka","Nunito",ui-rounded,system-ui,sans-serif';
-const COL_BOARD='#bca68a',COL_CELL='#d6c4aa',COL_CELL_IN='rgba(92,70,54,.06)';
+// The tray: a walnut board with a sunken well for each square.
+const COL_BOARD='#b59c80',COL_BOARD_LO='#a88f73',COL_WELL='#a1896f',COL_WELL_SH='#846d55',COL_WELL_HI='#c6af94',COL_TILE_SH='rgba(52,36,22,.2)';
 
-// Tile colours: cream -> orange -> red -> golden, glowing from 2048 up.
+/* Tile colours, the game's own ramp: [background, number colour, gold rim].
+   Paper -> leaf -> mint -> teal -> blue -> indigo -> violet -> berry, darker at every step, so a bigger tile always reads as
+   heavier even without colour. 2048 breaks the run as the one gold tile (it glows). Past it the tiles are deep "after dark"
+   colours with a gold rim and a stronger glow, so they can't be mixed up with the smaller ones. */
 const PAL={
-  2:['#fbf4e6','#6b5644'],4:['#f5e3bf','#6b5644'],
-  8:['#f6b77a','#fffaf2'],16:['#f39a56','#fffaf2'],32:['#ef7a44','#fffaf2'],64:['#e85a36','#fffaf2'],
-  128:['#dc4434','#fffaf2'],256:['#f0cf6a','#5a3a08'],512:['#ecc44e','#5a3a08'],1024:['#e8b535','#553405'],
-  2048:['#e6a81a','#4f2f02'],4096:['#d98f17','#fffaf0'],8192:['#c77814','#fffaf0'],16384:['#a8601a','#fff3d6'],
-  32768:['#86491d','#ffe7a8'],65536:['#5f3a20','#ffd970'],131072:['#3f2a1c','#ffcf4a']
+  2:['#fdf7ea','#5c4636'],4:['#dff0c8','#3d5426'],
+  8:['#a8e0ae','#1d5231'],16:['#5fcfa8','#0b4838'],32:['#2fb4bd','#04343b'],64:['#2f86d6','#ffffff'],
+  128:['#4a5fd9','#ffffff'],256:['#7448cf','#ffffff'],512:['#a53cc0','#ffffff'],1024:['#d2337c','#ffffff'],
+  2048:['#f5b921','#4f2f02'],4096:['#e2512d','#fff6e8',1],8192:['#b3223c','#ffeede',1],16384:['#6f1d55','#ffd9ec',1],
+  32768:['#2c2a6e','#d6dcff',1],65536:['#113f47','#a6f2e1',1],131072:['#1d1a24','#ffcf4a',1]
 };
 
 /* The College and Dessert ladders: 12 steps from 2 to 4096. Each step is [background, text colour, label, icon].
@@ -683,6 +688,12 @@ function shade(hex,f){
   r=Math.round(r*f);g=Math.round(g*f);b=Math.round(b*f);
   return 'rgb('+r+','+g+','+b+')';
 }
+// Mix a colour toward white by f (0 to 1).
+function tint(hex,f){
+  const n=parseInt(hex.slice(1),16);let r=n>>16,g=(n>>8)&255,b=n&255;
+  r=Math.round(r+(255-r)*f);g=Math.round(g+(255-g)*f);b=Math.round(b+(255-b)*f);
+  return 'rgb('+r+','+g+','+b+')';
+}
 function isLight(hex){const n=parseInt(hex.slice(1),16);return (0.299*(n>>16)+0.587*((n>>8)&255)+0.114*(n&255))>150}
 // Shrink a font size until the text fits in maxW.
 function fitFont(txt,weight,fs,maxW){
@@ -701,20 +712,19 @@ function styleOf(v){
     const light=isLight(sk[0]);
     const label=sk[2],icon=sk[3]?ICONS[sk[3]]:null;
     const lfs=fitFont(label,'800',CELL*(icon?0.2:0.3),CELL*0.86);
-    st={bg:sk[0],edge:shade(sk[0],0.84),ink:sk[1],txt,font:'800 '+(CELL*0.17).toFixed(1)+'px '+FONT_FAM,
+    st={bg:sk[0],hi:tint(sk[0],0.1),edge:shade(sk[0],0.8),rim:null,ink:sk[1],txt,font:'800 '+(CELL*0.17).toFixed(1)+'px '+FONT_FAM,
       label,lfont:'800 '+lfs.toFixed(1)+'px '+FONT_FAM,icon,tsh:light?null:shade(sk[0],0.6),
-      glow:v>=4096?0.9:v>=2048?0.6:0,glowCol:'rgba(255,200,60,.9)'};
+      glow:v>=4096?0.9:v>=2048?0.6:0};
     styles.set(v,st);
     return st;
   }
   const p=PAL[v]||PAL[131072];
   let fs=CELL*(d<=2?0.5:d===3?0.42:d===4?0.34:d===5?0.28:0.235);
   fs=fitFont(txt,'700',fs,CELL*0.84);
-  const light=p[1]!=='#6b5644'&&p[1].charAt(1)==='f';
-  st={bg:p[0],edge:shade(p[0],0.86),ink:p[1],txt,font:'700 '+fs.toFixed(1)+'px '+FONT_FAM,label:null,icon:null,
-    tsh:light?shade(p[0],0.72):null,
-    glow:v>=4096?Math.min(1,0.75+0.1*(Math.log2(v)-12)):v>=2048?0.6:0,
-    glowCol:v>=8192?'rgba(255,190,40,.95)':'rgba(255,200,60,.9)'};
+  const light=isLight(p[1]);
+  st={bg:p[0],hi:tint(p[0],0.2),edge:shade(p[0],0.78),rim:p[2]?'rgba(255,205,90,.85)':null,ink:p[1],txt,font:'700 '+fs.toFixed(1)+'px '+FONT_FAM,label:null,icon:null,
+    tsh:light?shade(p[0],0.62):null,
+    glow:v>=4096?Math.min(1,0.75+0.1*(Math.log2(v)-12)):v>=2048?0.6:0};
   styles.set(v,st);
   return st;
 }
@@ -729,15 +739,19 @@ function rr(x,y,w,h,r){
   ctx.arcTo(x,y,x+w,y,r);
   ctx.closePath();
 }
-function drawTile(v,x,y,sc){
-  const st=styleOf(v),c=CELL,h=c/2;
-  ctx.save();
-  ctx.translate(x+h,y+h);
-  if(sc!==1)ctx.scale(sc,sc);
-  if(st.glow){ctx.shadowColor=st.glowCol;ctx.shadowBlur=CELL*0.42*st.glow*DPR*sc}
+// Paint one tile centred on the origin of the current context: a soft shadow on the board, a darker lower lip,
+// a face lit from above, a gold rim on the tiles past 2048, then the number (or the ladder name and icon).
+function paintTile(v){
+  const st=styleOf(v),c=CELL,h=c/2,lip=c*0.055;
+  ctx.fillStyle=COL_TILE_SH;rr(-h,-h+c*0.032,c,c,RC);ctx.fill();
   ctx.fillStyle=st.edge;rr(-h,-h,c,c,RC);ctx.fill();
-  ctx.shadowBlur=0;ctx.shadowColor='rgba(0,0,0,0)';
-  ctx.fillStyle=st.bg;rr(-h,-h,c,c*0.945,RC);ctx.fill();
+  const g=ctx.createLinearGradient(0,-h,0,h-lip);
+  g.addColorStop(0,st.hi);g.addColorStop(0.6,st.bg);g.addColorStop(1,st.bg);
+  ctx.fillStyle=g;rr(-h,-h,c,c-lip,RC);ctx.fill();
+  if(st.rim){
+    const lw=Math.max(1.5,c*0.028);
+    ctx.strokeStyle=st.rim;ctx.lineWidth=lw;rr(-h+lw*0.5,-h+lw*0.5,c-lw,c-lip-lw,Math.max(1,RC-lw*0.5));ctx.stroke();
+  }
   if(st.label){
     // Ladder tile: the number small in the top-left corner, an icon (desserts) and the name.
     ctx.font=st.font;ctx.textAlign='left';ctx.textBaseline='top';
@@ -749,13 +763,56 @@ function drawTile(v,x,y,sc){
     const ly=st.icon?c*0.33:c*0.08;
     if(st.tsh){ctx.fillStyle=st.tsh;ctx.fillText(st.label,0,ly+Math.max(1,c*0.02))}
     ctx.fillStyle=st.ink;ctx.fillText(st.label,0,ly);
-    ctx.restore();
     return;
   }
   ctx.font=st.font;ctx.textAlign='center';ctx.textBaseline='middle';
-  if(st.tsh){ctx.fillStyle=st.tsh;ctx.fillText(st.txt,0,c*0.01+Math.max(1,c*0.022))}
+  if(st.tsh){ctx.fillStyle=st.tsh;ctx.fillText(st.txt,0,c*0.01+Math.max(1,c*0.024))}
   ctx.fillStyle=st.ink;ctx.fillText(st.txt,0,c*0.01);
-  ctx.restore();
+}
+
+/* Each tile value is painted once into its own small picture and then stamped onto the board, so a frame costs one
+   drawImage per tile however much shading a tile has. The pictures are thrown away whenever the size, the mode or
+   the font changes (clearStyles). */
+const sprites=new Map();
+let PAD=4,SPR=72;                 // room around a tile for its shadow (CSS px), and a picture's size in device pixels
+function clearStyles(){styles.clear();sprites.clear();glowCv=null}
+function spriteOf(v){
+  let sp=sprites.get(v);
+  if(sp)return sp;
+  sp=document.createElement('canvas');sp.width=sp.height=SPR;
+  const c2=sp.getContext('2d');
+  c2.setTransform(DPR,0,0,DPR,0,0);c2.translate(PAD+CELL/2,PAD+CELL/2);
+  ctx=c2;
+  try{paintTile(v)}finally{ctx=mainCtx}
+  sprites.set(v,sp);
+  return sp;
+}
+// The gold glow under 2048 and bigger: one soft picture, drawn under all the tiles so it never smears a neighbour.
+let glowCv=null;
+const GLOW_PX=96;
+function glowOf(){
+  if(glowCv)return glowCv;
+  glowCv=document.createElement('canvas');glowCv.width=glowCv.height=GLOW_PX;
+  const g=glowCv.getContext('2d'),m=GLOW_PX/2,r=GLOW_PX*0.5;
+  const rg=g.createRadialGradient(m,m,r*0.35,m,m,r);
+  rg.addColorStop(0,'rgba(255,196,48,.95)');rg.addColorStop(0.55,'rgba(255,200,60,.42)');rg.addColorStop(1,'rgba(255,205,80,0)');
+  g.fillStyle=rg;g.fillRect(0,0,GLOW_PX,GLOW_PX);
+  return glowCv;
+}
+const GLOW_SIZE=1.75;             // the glow picture's width, in tiles
+function drawGlow(v,x,y,sc){
+  const st=styleOf(v);
+  if(!st.glow)return;
+  const w=CELL*GLOW_SIZE*sc;
+  ctx.globalAlpha=st.glow;
+  ctx.drawImage(glowOf(),x+CELL/2-w/2,y+CELL/2-w/2,w,w);
+  ctx.globalAlpha=1;
+}
+function drawTile(v,x,y,sc){
+  const sp=spriteOf(v),w=SPR/DPR;
+  if(sc===1){ctx.drawImage(sp,Math.round((x-PAD)*DPR)/DPR,Math.round((y-PAD)*DPR)/DPR,w,w);return}
+  const ws=w*sc;
+  ctx.drawImage(sp,x+CELL/2-ws/2,y+CELL/2-ws/2,ws,ws);
 }
 
 /* Dessert icons: simple shapes drawn with the canvas, centred on the origin, in a box s wide. bg is the tile colour. */
@@ -859,18 +916,60 @@ function finishAnim(){
   onAnimEnd();
 }
 
+// The empty tray, painted once per size into its own picture.
+let boardCv=null;
+function boardOf(){
+  if(boardCv)return boardCv;
+  const N=mode.n*mode.n,c=CELL;
+  boardCv=document.createElement('canvas');boardCv.width=boardCv.height=cv.width;
+  ctx=boardCv.getContext('2d');
+  try{
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    const g=ctx.createLinearGradient(0,0,0,S);g.addColorStop(0,COL_BOARD);g.addColorStop(1,COL_BOARD_LO);
+    ctx.fillStyle=g;rr(0,0,S,S,RB);ctx.fill();
+    const d=Math.max(1,c*0.02);
+    for(let i=0;i<N;i++){
+      const x=posX[i],y=posY[i];
+      ctx.fillStyle=COL_WELL_HI;rr(x,y+d,c,c,RC);ctx.fill();          // a light line under the well
+      ctx.fillStyle=COL_WELL_SH;rr(x,y,c,c,RC);ctx.fill();            // the shaded top of the well
+      ctx.fillStyle=COL_WELL;rr(x,y+c*0.045,c,c*0.955,RC);ctx.fill();
+    }
+  }finally{ctx=mainCtx}
+  return boardCv;
+}
+
+// Tiles to draw this frame, in order. Glows go down first, then the tiles, so a glow never covers a neighbour.
+const qV=new Float64Array(MAXN*2),qX=new Float32Array(MAXN*2),qY=new Float32Array(MAXN*2),qS=new Float32Array(MAXN*2);
+let qN=0;
+function put(v,x,y,sc){if(qN<MAXN*2){qV[qN]=v;qX[qN]=x;qY[qN]=y;qS[qN]=sc;qN++}}
+function flush(){
+  for(let i=0;i<qN;i++)drawGlow(qV[i],qX[i],qY[i],qS[i]);
+  for(let i=0;i<qN;i++)drawTile(qV[i],qX[i],qY[i],qS[i]);
+  qN=0;
+}
+// A join: the new tile flashes white for a moment and throws off a ring in its own colour. k runs 0 to 1.
+function drawJoinFx(v,x,y,sc,k){
+  const st=styleOf(v),c=CELL,h=c/2,f=1-k;
+  ctx.save();
+  ctx.translate(x+h,y+h);
+  ctx.globalAlpha=0.5*f*f;
+  ctx.fillStyle='#fff';rr(-h*sc,-h*sc,c*sc,c*sc*0.945,RC*sc);ctx.fill();
+  const rs=1.04+0.26*easeOut(k),lw=Math.max(1.5,c*0.05*f);
+  ctx.globalAlpha=0.75*f;
+  ctx.strokeStyle=st.rim?'#ffd86a':st.hi;ctx.lineWidth=lw;rr(-h*rs,-h*rs,c*rs,c*rs,RC*rs);ctx.stroke();
+  ctx.restore();
+}
+
 function drawBoard(now){
   const N=mode.n*mode.n;
   ctx.setTransform(DPR,0,0,DPR,0,0);
   ctx.clearRect(0,0,S,S);
-  ctx.fillStyle=COL_BOARD;rr(0,0,S,S,RB);ctx.fill();
-  for(let i=0;i<N;i++){
-    ctx.fillStyle=COL_CELL;rr(posX[i],posY[i],CELL,CELL,RC);ctx.fill();
-    ctx.fillStyle=COL_CELL_IN;rr(posX[i],posY[i],CELL,CELL*0.1,RC);ctx.fill();
-  }
+  ctx.drawImage(boardOf(),0,0,S,S);
   const b=G.board;
+  qN=0;
   if(!anim.on){
-    for(let i=0;i<N;i++)if(b[i])drawTile(b[i],posX[i],posY[i],1);
+    for(let i=0;i<N;i++)if(b[i])put(b[i],posX[i],posY[i],1);
+    flush();
     return false;
   }
   const t=now-anim.t0;
@@ -878,23 +977,34 @@ function drawBoard(now){
     const p=easeOut(Math.max(0,t)/anim.slideMs),sl=anim.slides;
     for(let k=0;k<sl.length;k++){
       const s=sl[k];
-      drawTile(s.v,posX[s.from]+(posX[s.to]-posX[s.from])*p,posY[s.from]+(posY[s.to]-posY[s.from])*p,1);
+      put(s.v,posX[s.from]+(posX[s.to]-posX[s.from])*p,posY[s.from]+(posY[s.to]-posY[s.from])*p,1);
     }
+    flush();
     return true;
   }
   const tp=t-anim.slideMs,mm=anim.merge,sm=anim.spawn;
   for(let i=0;i<N;i++){
     if(!b[i])continue;
     if(mm[i]||sm[i])continue;
-    drawTile(b[i],posX[i],posY[i],1);
+    put(b[i],posX[i],posY[i],1);
   }
+  const kp=tp/POP_MS,psc=kp<1?1+0.17*Math.sin(Math.PI*kp):1;
   if(anim.any&1){
-    const k=tp/POP_MS,sc=k<1?1+0.17*Math.sin(Math.PI*k):1;
-    for(let i=0;i<N;i++)if(mm[i]&&b[i])drawTile(b[i],posX[i],posY[i],sc);
+    for(let i=0;i<N;i++)if(mm[i]&&b[i])put(b[i],posX[i],posY[i],psc);
+  }
+  flush();
+  if((anim.any&1)&&kp<1){
+    for(let i=0;i<N;i++)if(mm[i]&&b[i])drawJoinFx(b[i],posX[i],posY[i],psc,kp);
   }
   if(anim.any&2){
     const k=(tp-(anim.slideMs?SPAWN_DELAY:0))/SPAWN_MS;
-    if(k>0){const sc=k<1?Math.max(0.05,backOut(k)):1;for(let i=0;i<N;i++)if(sm[i]&&b[i])drawTile(b[i],posX[i],posY[i],sc)}
+    if(k>0){
+      const sc=k<1?Math.max(0.05,backOut(k)):1;
+      ctx.globalAlpha=Math.min(1,k*2.5);                              // a new tile fades in as it grows
+      for(let i=0;i<N;i++)if(sm[i]&&b[i])put(b[i],posX[i],posY[i],sc);
+      flush();
+      ctx.globalAlpha=1;
+    }
   }
   if(tp>=Math.max(POP_MS,(anim.slideMs?SPAWN_DELAY:0)+SPAWN_MS)){
     anim.on=false;dirty=true;
@@ -933,7 +1043,8 @@ function layout(){
   CELL=(s-(n+1)*GAP)/n;
   RB=Math.max(8,s*0.03);RC=Math.max(4,CELL*0.1);
   for(let i=0;i<n*n;i++){posX[i]=GAP+(i%n)*(CELL+GAP);posY[i]=GAP+Math.floor(i/n)*(CELL+GAP)}
-  styles.clear();
+  PAD=Math.ceil(CELL*0.05)+1;SPR=Math.ceil((CELL+2*PAD)*DPR);
+  clearStyles();boardCv=null;
   dirty=true;
   if(!anim.on){raf&&cancelAnimationFrame(raf);raf=0;frame(performance.now())}else kick();
 }
@@ -943,7 +1054,7 @@ function layout(){
    ===================================================================== */
 const fx=$('fx'),fctx=fx.getContext('2d');
 const CN=150,cX=new Float32Array(CN),cY=new Float32Array(CN),cVX=new Float32Array(CN),cVY=new Float32Array(CN),cR=new Float32Array(CN),cVR=new Float32Array(CN),cW=new Float32Array(CN),cC=new Uint8Array(CN);
-const CCOL=['#f6b77a','#e8743b','#dc4434','#f0cf6a','#e6a81a','#8fc9a8','#7fb0e8','#fffaf2'];
+const CCOL=['#5fcfa8','#2fb4bd','#2f86d6','#7448cf','#d2337c','#f5b921','#e2512d','#fffaf2'];
 let fxOn=false,fxT0=0,fxLast=0,fxW=0,fxH=0,fxD=1;
 function confetti(){
   if(REDUCED)return;
@@ -1147,8 +1258,8 @@ addEventListener('pagehide',save);
 addEventListener('resize',layout);
 if(window.ResizeObserver){const ro=new ResizeObserver(()=>layout());ro.observe(app);ro.observe(sideEl)}
 if(document.fonts&&document.fonts.load){
-  document.fonts.load('700 40px Fredoka').then(()=>{styles.clear();redraw()},()=>{});
-  document.fonts.ready.then(()=>{styles.clear();redraw()},()=>{});
+  document.fonts.load('700 40px Fredoka').then(()=>{clearStyles();redraw()},()=>{});
+  document.fonts.ready.then(()=>{clearStyles();redraw()},()=>{});
 }
 try{if(window.top!==window)document.body.classList.add('framed')}catch(e){document.body.classList.add('framed')}
 
