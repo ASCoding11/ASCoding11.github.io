@@ -355,6 +355,7 @@ body.touch #banner{top:30%}
           <h1><span class="w"><span style="color:#ff4f9a">Tum</span><span style="color:#2ec5ff">ble</span></span> <span class="w"><span style="color:#f2a900">Tri</span><span style="color:#8a5cff">als</span></span></h1>
         </div>
         <p class="tag">A wobbly knockout show for up to 16 players. Race through spinning, swinging, tilting obstacle courses, survive the sweepers, and be the last bean standing on the vanishing honeycomb.</p>
+        <button id="turkeyBtn" class="btn alt" type="button" style="margin-bottom:8px" hidden>Turkey Week on</button>
         <div class="label" style="margin-top:4px">Play with friends</div>
         <button id="quick" class="btn big pink" type="button">Quick match</button>
         <div class="roomrow">
@@ -451,6 +452,7 @@ body.touch #banner{top:30%}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="../autores.js"></script>
 <script src="../keybinds.js"></script>
+<script src="../events.js"></script>
 <script>
 (function(){
 'use strict';
@@ -988,12 +990,21 @@ const limbGeo=new THREE.SphereGeometry(1,12,10);
 const shadowTex=canvasTex('blob',64,64,(x,w)=>{const g=x.createRadialGradient(32,32,2,32,32,31);g.addColorStop(0,'rgba(20,10,40,.55)');g.addColorStop(1,'rgba(20,10,40,0)');x.fillStyle=g;x.fillRect(0,0,w,w)});
 const shadowMat=new THREE.MeshBasicMaterial({map:shadowTex,transparent:true,depthWrite:false});
 const shadowGeo=new THREE.PlaneGeometry(1.25,1.25).rotateX(-Math.PI/2);
+// Turkey Week (../events.js): a pilgrim hat on every bean. One shared geometry and material (events.js builds the
+// hat), so it is one more draw call each; only the look changes. The Turkey Week button on the menu switches it off.
+const EVT=window.BackRoomEvents&&BackRoomEvents.turkey;let TKON=!!(EVT&&EVT.on()),tkHatMat=null;const tkHats=new Set();
+function tkHat(parent,scale,y,z,ry){
+  if(!EVT||!EVT.live())return null;
+  const m=new THREE.Mesh(EVT.hat(THREE),tkHatMat||(tkHatMat=new THREE.MeshLambertMaterial({vertexColors:true})));
+  m.scale.setScalar(scale);m.position.set(0,y,z||0);if(ry)m.rotation.y=ry;m.visible=TKON;parent.add(m);tkHats.add(m);return m;
+}
+function tkToggle(on){TKON=on;for(const m of tkHats)m.visible=on}
 class Bean{
   constructor(look,name,showTag){
     this.root=new THREE.Group();this.tilt=new THREE.Group();this.tilt.position.y=.8;this.root.add(this.tilt);
     this.cv=document.createElement('canvas');this.cv.width=SKIN_W;this.cv.height=SKIN_H;
     this.tex=new THREE.CanvasTexture(this.cv);this.mat=new THREE.MeshLambertMaterial({map:this.tex});
-    this.body=new THREE.Mesh(getBeanGeo(),this.mat);this.body.position.y=-.8;this.body.castShadow=true;this.tilt.add(this.body);
+    this.body=new THREE.Mesh(getBeanGeo(),this.mat);this.body.position.y=-.8;this.body.castShadow=true;this.tilt.add(this.body);this.hat=tkHat(this.tilt,1.02,BODY_H-.8-.05,0,Math.PI);
     this.limbMat=new THREE.MeshLambertMaterial({color:look.c});this.footMat=new THREE.MeshLambertMaterial({color:shade(look.c,-.3)});
     this.arms=[];this.legs=[];
     for(const s of [-1,1]){
@@ -1060,7 +1071,7 @@ class Bean{
   }
   // the winner's crown: a gold band with five points and a jewel
   addCrown(){
-    if(this.crown)return;const g=new THREE.Group(),gold=new THREE.MeshLambertMaterial({color:'#ffcf3d',emissive:0x6a4a00,emissiveIntensity:.35,side:THREE.DoubleSide});this.crownMat=gold;
+    if(this.crown)return;if(this.hat){tkHats.delete(this.hat);this.hat.visible=false}const g=new THREE.Group(),gold=new THREE.MeshLambertMaterial({color:'#ffcf3d',emissive:0x6a4a00,emissiveIntensity:.35,side:THREE.DoubleSide});this.crownMat=gold;
     const band=new THREE.Mesh(new THREE.CylinderGeometry(.27,.3,.16,16,1,true),gold);g.add(band);
     for(let i=0;i<5;i++){const a=i/5*Math.PI*2,c=new THREE.Mesh(new THREE.ConeGeometry(.07,.17,6),gold);c.position.set(Math.sin(a)*.27,.16,Math.cos(a)*.27);g.add(c)}
     const gem=new THREE.Mesh(new THREE.SphereGeometry(.05,10,8),new THREE.MeshLambertMaterial({color:'#ff4f9a'}));gem.position.set(0,0,.3);g.add(gem);
@@ -2736,6 +2747,7 @@ buildSeg($('patSeg'),PATTERNS,myLook.p,v=>{myLook.p=v;lookChanged()});
 segSet($('botSeg'),G.soloBots);$('botSeg').onclick=ev=>{const b=ev.target.closest('button');if(!b)return;G.soloBots=+b.dataset.v;store.set('bots',G.soloBots);segSet($('botSeg'),G.soloBots);sfx('ui')};
 $('name').value=myName;$('name').addEventListener('input',()=>{myName=cleanName($('name').value);store.set('name',myName)});
 $('room').value=store.get('room','');
+if(EVT)EVT.button($('turkeyBtn'),tkToggle);
 $('quick').onclick=quickMatch;$('joinRoom').onclick=joinPrivate;
 $('solo').onclick=startSolo;$('practice').onclick=()=>startPractice(+$('pracMap').value);
 $('resume').onclick=resume;$('leave').onclick=toMenu;$('podMenu').onclick=toMenu;

@@ -317,6 +317,7 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
         <div><label class="f">Bots</label><div class="seg" id="diffSeg" role="radiogroup" aria-label="Bot skill"><button type="button" data-v="easy">Easy</button><button type="button" data-v="normal">Normal</button><button type="button" data-v="hard">Hard</button></div></div>
       </div>
       <div class="row"><button class="ghost" id="practice" type="button">Practice vs bots</button></div>
+      <div class="row"><button class="ghost" id="turkeyBtn" type="button" hidden>Turkey Week on</button></div>
       <dl class="keys">
         <dt data-kb="up">W / ↑</dt><dd>Throttle</dd><dt data-kb="down">S / ↓</dt><dd>Brake (hold when stopped to reverse)</dd>
         <dt data-kb="left right">A D / ← →</dt><dd>Steer (tap to correct, hold to turn)</dd><dt data-kb="boost" data-kb-short>Space</dt><dd>Boost (uses ERS; brake to recharge)</dd>
@@ -378,6 +379,7 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="../autores.js"></script>
 <script src="../keybinds.js"></script>
+<script src="../events.js"></script>
 <script>
 (function(){
 'use strict';
@@ -1436,11 +1438,20 @@ Object.values(MAT).forEach(m=>m.shared=true);
 const teamMats=TEAMS.map(t=>{const a=new THREE.MeshStandardMaterial({color:t.c,roughness:.32,metalness:.35}),b=new THREE.MeshStandardMaterial({color:t.c2,roughness:.38,metalness:.25});a.shared=b.shared=true;return [a,b]});
 const helmetMats={};
 function helmetMat(c){if(!helmetMats[c]){helmetMats[c]=new THREE.MeshStandardMaterial({color:c,roughness:.25,metalness:.3});helmetMats[c].shared=true}return helmetMats[c]}
+// Turkey Week (../events.js): a pilgrim hat on every car's roll hoop. One shared geometry and material (events.js builds the
+// hat), so it is one more draw call each; only the look changes. The Turkey Week button on the menu switches it off.
+const EVT=window.BackRoomEvents&&BackRoomEvents.turkey;let TKON=!!(EVT&&EVT.on()),tkHatMat=null;const tkHats=new Set();
+function tkHat(parent,scale,y,z,ry){
+  if(!EVT||!EVT.live())return null;
+  const m=new THREE.Mesh(EVT.hat(THREE),tkHatMat||(tkHatMat=new THREE.MeshLambertMaterial({vertexColors:true})));
+  m.scale.setScalar(scale);m.position.set(0,y,z||0);if(ry)m.rotation.y=ry;m.visible=TKON;parent.add(m);tkHats.add(m);return m;
+}
+function tkToggle(on){TKON=on;for(const m of tkHats)m.visible=on}
 function makeCarMesh(c){
   const g=new THREE.Group(),[pm,sm]=teamMats[c.team];
   g.add(new THREE.Mesh(CAR_GEO.primary,pm),new THREE.Mesh(CAR_GEO.second,sm),new THREE.Mesh(CAR_GEO.carbon,MAT.carbon));
   const hel=new THREE.Mesh(CAR_GEO.helmet,helmetMat(c.bot?TEAMS[c.team].c2:'#ffffff'));hel.position.set(.12,.83,0);g.add(hel);
-  const tc=new THREE.Mesh(CAR_GEO.tcam,c.seat&1?MAT.tcam1:MAT.tcam0);tc.position.set(-.25,1.26,0);g.add(tc);
+  const tc=new THREE.Mesh(CAR_GEO.tcam,c.seat&1?MAT.tcam1:MAT.tcam0);tc.position.set(-.25,1.26,0);g.add(tc);{const h=tkHat(g,.66,1.29,0,-Math.PI/2);if(h)h.position.x=-.25}   // the hat sits on the roll hoop, over the camera pod, where it can be seen
   const light=new THREE.Mesh(CAR_GEO.light,MAT.lightOff);light.position.set(-2.95,.55,0);g.add(light);
   const flame=new THREE.Group();flame.position.set(-2.98,.5,0);
   const fo=new THREE.Mesh(FLAME_GEO,MAT.flameOut),fi=new THREE.Mesh(FLAME_GEO,MAT.flameIn);fi.scale.set(.6,.5,.5);
@@ -2550,6 +2561,7 @@ function showAd(id){
 //  Main loop
 // =====================================================================
 $('quick').onclick=quickMatch;
+if(EVT)EVT.button($('turkeyBtn'),tkToggle);
 $('joinRoom').onclick=joinPrivate;
 $('practice').onclick=practiceLobby;
 $('name').addEventListener('change',saveName);
