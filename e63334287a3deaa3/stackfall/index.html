@@ -599,7 +599,7 @@ const app=$('app'),cv=$('cv'),ctx=cv.getContext('2d');
 // Stackfall's own piece colours: mint, gold, orchid, lime, coral, indigo, tangerine (I O T S Z J L).
 const PIECE_RGB=[null,[62,224,198],[255,200,64],[224,100,216],[150,220,70],[255,98,94],[98,120,255],[255,144,56]];
 let VW=0,VH=0,DPR=1,LY=null,isTouch=false;
-const tiles=[],ghosts=[],sandTiles=[],LANE=[],SLANE=[];let whiteTile=null,boardBg=null,backdrop=null,WPAD=3;
+const tiles=[],ghosts=[],sandTiles=[],sandGhosts=[],dangerLines=[],LANE=[],SLANE=[];let whiteTile=null,boardBg=null,backdrop=null,beam=null,WPAD=3;
 function css(rgb,a){return 'rgba('+rgb[0]+','+rgb[1]+','+rgb[2]+','+(a==null?1:a)+')'}
 function shadeRgb(rgb,f){return [Math.max(0,Math.min(255,Math.round(rgb[0]*f))),Math.max(0,Math.min(255,Math.round(rgb[1]*f))),Math.max(0,Math.min(255,Math.round(rgb[2]*f)))]}
 function mixRgb(a,b,t){return [Math.round(a[0]+(b[0]-a[0])*t),Math.round(a[1]+(b[1]-a[1])*t),Math.round(a[2]+(b[2]-a[2])*t)]}
@@ -631,11 +631,7 @@ function buildSprites(){
   const s=Math.max(4,Math.round(LY.cell*DPR));
   for(let t=1;t<=7;t++){
     const c=mk(s,s),x=c.getContext('2d');drawTile(x,s,PIECE_RGB[t]);tiles[t]=c;
-    // ghost: where the piece will land, an outline in the piece's colour with a faint fill that is brighter at the foot
-    const gc=mk(s,s),gx=gc.getContext('2d'),i=Math.max(1.5,s*0.09),gg=gx.createLinearGradient(0,0,0,s);
-    gg.addColorStop(0,css(PIECE_RGB[t],0.05));gg.addColorStop(1,css(PIECE_RGB[t],0.24));
-    rr(gx,i,i,s-2*i,s-2*i,s*0.18);gx.fillStyle=gg;gx.fill();gx.lineWidth=Math.max(1.5,s*0.075);gx.strokeStyle=css(mixRgb(PIECE_RGB[t],[255,255,255],0.25),0.8);gx.stroke();ghosts[t]=gc;
-    LANE[t]=css(PIECE_RGB[t],0.07);
+    ghosts[t]=ghostSprite(s,PIECE_RGB[t]);LANE[t]=css(PIECE_RGB[t],0.07);
   }
   const w=mk(s,s),wx=w.getContext('2d');rr(wx,0,0,s,s,s*0.2);wx.fillStyle='#fff';wx.fill();whiteTile=w;tiles[8]=(function(){const c=mk(s,s);drawTile(c.getContext('2d'),s,[120,130,150]);return c})();
   for(let c=1;c<=6;c++){
@@ -645,14 +641,27 @@ function buildSprites(){
       const edge=(yy===0||xx===0)?1.2:(yy===n-1||xx===n-1)?0.66:0.8+Math.random()*0.3;
       x.fillStyle=css(sandShade(rgb,edge));x.fillRect(Math.floor(xx*gs),Math.floor(yy*gs),Math.ceil(gs),Math.ceil(gs));
     }
-    sandTiles[c]=t;SLANE[c]=css(SAND_RGB[c],0.07);
+    sandTiles[c]=t;SLANE[c]=css(SAND_RGB[c],0.07);sandGhosts[c]=ghostSprite(s,SAND_RGB[c]);
   }
+  // the red line in Sand (steady, and the two colours it blinks between), as dashes drawn once
+  const lw=Math.round(10*LY.cell*DPR),lh=Math.max(2,Math.round(2.5*DPR)),dash=Math.max(4,Math.round(LY.cell*0.3*DPR));
+  ['rgba(255,82,110,.9)','#ff3b5c','#ffc2cd'].forEach(function(col,k){const c=mk(lw,lh),x=c.getContext('2d');x.fillStyle=col;for(let px=0;px<lw;px+=dash*2){rr(x,px,0,Math.min(dash,lw-px),lh,lh/2);x.fill()}dangerLines[k]=c});
+  // the bar of light that crosses a cleared row in Classic
+  const bm=mk(lw,s),bx2=bm.getContext('2d'),hg=bx2.createLinearGradient(0,0,lw,0),vg=bx2.createLinearGradient(0,0,0,s);
+  hg.addColorStop(0,'rgba(255,255,255,0)');hg.addColorStop(0.5,'rgba(255,255,255,1)');hg.addColorStop(1,'rgba(255,255,255,0)');bx2.fillStyle=hg;bx2.fillRect(0,0,lw,s);
+  vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(0.5,'rgba(0,0,0,1)');vg.addColorStop(1,'rgba(0,0,0,0)');bx2.globalCompositeOperation='destination-in';bx2.fillStyle=vg;bx2.fillRect(0,0,lw,s);beam=bm;
   buildWell();buildBackdrop();
   FONT.label='800 '+Math.round(Math.max(9,Math.min(14,LY.cell*0.38)))+'px Nunito,system-ui,sans-serif';
   FONT.value='700 '+Math.round(Math.max(13,Math.min(30,LY.valH)))+'px Fredoka,ui-rounded,system-ui,sans-serif';
   FONT.big='700 '+Math.round(LY.cell*1.5)+'px Fredoka,ui-rounded,system-ui,sans-serif';
   FONT.mid='700 '+Math.round(LY.cell*0.62)+'px Fredoka,ui-rounded,system-ui,sans-serif';
   FONT.small='700 '+Math.round(Math.max(10,LY.cell*0.42))+'px Nunito,system-ui,sans-serif';
+}
+// Where a piece will land: an outline in the piece's colour, with a faint fill that is brighter at the foot.
+function ghostSprite(s,rgb){
+  const gc=mk(s,s),gx=gc.getContext('2d'),i=Math.max(1.5,s*0.09),gg=gx.createLinearGradient(0,0,0,s);
+  gg.addColorStop(0,css(rgb,0.05));gg.addColorStop(1,css(rgb,0.24));
+  rr(gx,i,i,s-2*i,s-2*i,s*0.18);gx.fillStyle=gg;gx.fill();gx.lineWidth=Math.max(1.5,s*0.075);gx.strokeStyle=css(mixRgb(rgb,[255,255,255],0.25),0.8);gx.stroke();return gc;
 }
 // Sand shading: darker grains lean cool and violet, lighter ones lean warm, so a pile has depth without going muddy.
 function sandShade(rgb,f){return f<1?mixRgb(shadeRgb(rgb,f),SHADOW_TINT,(1-f)*0.55):mixRgb(shadeRgb(rgb,f),LIGHT_TINT,(f-1)*1.1)}
@@ -791,6 +800,8 @@ function drawStats(g,best){
 const STAT_C=['SCORE','BEST','LEVEL','LINES'],STAT_S=['SCORE','BEST','LEVEL','GRAINS'];
 
 let shake=0;
+// A locked piece flashes for a moment (view only): its shape and place are copied when the engine reports the lock.
+const LOCK_FX_MS=130;let lockFx=0,lockS=null,lockX=0,lockY=0;
 function renderClassic(g,dt){
   const c=LY.cell,bx=LY.bx,by=LY.by,b=g.board;
   // hold
@@ -813,6 +824,15 @@ function renderClassic(g,dt){
       if(p<0.45){ctx.drawImage(tiles[v],px,py,c,c);ctx.globalAlpha=0.35+0.6*Math.abs(Math.sin(p*22));ctx.drawImage(whiteTile,px,py,c,c);ctx.globalAlpha=1}
       else{const s=Math.max(0,1-(p-0.45)/0.55),w=c*s;ctx.globalAlpha=s;ctx.drawImage(whiteTile,px+(c-w)/2,py+(c-w)/2,w,w);ctx.globalAlpha=1}
     }
+  }
+  if(res){ // a bar of light opens out from the middle of each cleared row, then fades
+    const bw=10*c*(0.25+0.75*Math.min(1,p/0.22)),ba=p<0.45?0.85:0.85*Math.max(0,1-(p-0.45)/0.55);ctx.globalAlpha=ba;
+    for(let y=HID;y<CH;y++)if(g.rowFlag[y])ctx.drawImage(beam,bx+(10*c-bw)/2,by+(y-HID)*c-c*0.3,bw,c*1.6);
+    ctx.globalAlpha=1;
+  }
+  if(lockFx>0){
+    lockFx-=dt;
+    if(lockFx>0&&!res){ctx.globalAlpha=0.75*lockFx/LOCK_FX_MS;for(let k=0;k<8;k+=2){const yy=lockY+lockS[k+1];if(yy>=HID)ctx.drawImage(whiteTile,bx+(lockX+lockS[k])*c,by+(yy-HID)*c,c,c)}ctx.globalAlpha=1}
   }
   if(g.phase==='active'){
     const s=SHAPES[g.t][g.r],gy=g.ghostY();
@@ -838,54 +858,66 @@ let SV=null; // {cv, ctx, img, pix, lut, flash, bg, B}
 function packRgb(r,g,b){return ((255<<24)|(b<<16)|(g<<8)|r)>>>0}
 function buildSandView(g){
   const c=mk(g.GW,g.GH),x=c.getContext('2d'),img=x.createImageData(g.GW,g.GH);
-  const lut=new Uint32Array(8*16),flash=new Uint32Array(8),bright=new Uint32Array(8*16);
-  for(let k=1;k<=6;k++){for(let s=0;s<16;s++){const rgb=shadeRgb(SAND_RGB[k],0.74+s/15*0.42);lut[k*16+s]=packRgb(rgb[0],rgb[1],rgb[2])}
-    const f=mixRgb(SAND_RGB[k],[255,255,255],0.72);flash[k]=packRgb(f[0],f[1],f[2]);for(let s=0;s<16;s++){const br=mixRgb(shadeRgb(SAND_RGB[k],0.8+s/15*0.35),[255,255,255],0.32);bright[k*16+s]=packRgb(br[0],br[1],br[2])}}
-  const bg=new Uint32Array(g.N),rs=mulberry(99);
+  // Per colour, 16 shades each: the normal grain, a lit grain for the top of a pile (crest), a shaded grain where one
+  // colour lies on another (seam), and the brightened grain used while a patch dissolves.
+  const lut=new Uint32Array(8*16),flash=new Uint32Array(8),bright=new Uint32Array(8*16),crest=new Uint32Array(8*16),seam=new Uint32Array(8*16);
+  const pk=function(rgb){return packRgb(rgb[0],rgb[1],rgb[2])};
+  for(let k=1;k<=6;k++){for(let s=0;s<16;s++){const t=s/15;lut[k*16+s]=pk(sandShade(SAND_RGB[k],0.76+t*0.4));crest[k*16+s]=pk(sandShade(SAND_RGB[k],1.16+t*0.2));seam[k*16+s]=pk(sandShade(SAND_RGB[k],0.56+t*0.18));
+      bright[k*16+s]=pk(mixRgb(shadeRgb(SAND_RGB[k],0.8+t*0.35),[255,255,255],0.32))}
+    flash[k]=pk(mixRgb(SAND_RGB[k],[255,255,255],0.72))}
+  // the empty well, to match Classic: dark, faint lanes two blocks apart, a dot at each block corner, and a red tint above the line
+  const bg=new Uint32Array(g.N),rs=mulberry(99),B=g.B;
   for(let y=0;y<g.GH;y++)for(let xx=0;xx<g.GW;xx++){
-    const n=rs()*4,t=y/g.GH,danger=y<g.DANGER;let r=10+t*3+n,gg=15+t*4+n,b=31+t*6+n;
-    if(xx%g.B===0||y%g.B===0){r+=4;gg+=5;b+=9}
-    if(danger){r+=16;gg-=2;b-=4}
-    bg[y*g.GW+xx]=packRgb(r|0,gg|0,b|0);
+    const n=rs()*3,t=y/g.GH,danger=y<g.DANGER;let r=9+t*4+n,gg=12+t*7+n,b=28+t*20+n;
+    if(((xx/B)|0)%2===0){r+=2;gg+=2;b+=5}
+    if(xx%B===0&&y%B===0&&xx>0&&y>0){r+=22;gg+=26;b+=40}
+    if(y<B)b*=0.4+0.6*y/B,gg*=0.4+0.6*y/B,r*=0.4+0.6*y/B;
+    if(danger){r+=22;gg-=1;b-=2}
+    bg[y*g.GW+xx]=packRgb(r|0,Math.max(0,gg)|0,Math.max(0,b)|0);
   }
-  SV={cv:c,ctx:x,img,pix:new Uint32Array(img.data.buffer),lut,flash,bright,bg,B:g.B};
+  SV={cv:c,ctx:x,img,pix:new Uint32Array(img.data.buffer),lut,flash,bright,crest,seam,bg,B:g.B};
 }
 function renderSand(g,now){
-  const c=LY.cell,bx=LY.bx,by=LY.by,pix=SV.pix,lut=SV.lut,gr=g.grid,sh=g.shade,f=g.clr,bg=SV.bg,N=g.N;
+  const c=LY.cell,bx=LY.bx,by=LY.by,pix=SV.pix,lut=SV.lut,crest=SV.crest,seam=SV.seam,gr=g.grid,sh=g.shade,f=g.clr,bg=SV.bg,N=g.N,clearing=g.clearing;
   panel(LY.next,'NEXT');
   for(let i=0;i<LY.nNext&&i<g.nextT.length;i++){const t=g.nextT[i];drawMini(t,LY.next.x+LY.next.w/2,LY.next.y+c*0.9+LY.next.slot*(i+0.5),i===0?LY.next.mini*1.15:LY.next.mini,sandTiles,g.nextC[i])}
   drawStats(g,bestNow);
-  // grains -> pixels
-  const blink=g.clearing&&g.clT<FLASH_MS?((g.clT/55)|0)&1:2,sweep=g.clearing&&g.clT>=FLASH_MS?(g.clT-FLASH_MS)/DISSOLVE_MS*g.GW:-1,GW=g.GW;
-  for(let i=0;i<N;i++){
+  // grains -> pixels. A grain with nothing above it is lit, one lying under another colour is shaded.
+  const blink=clearing&&g.clT<FLASH_MS?((g.clT/55)|0)&1:2,sweep=clearing&&g.clT>=FLASH_MS?(g.clT-FLASH_MS)/DISSOLVE_MS*g.GW:-1,GW=g.GW;
+  for(let i=0;i<GW;i++){const v=gr[i];pix[i]=v===0?bg[i]:clearing&&f[i]!==0?SV.flash[v]:crest[v*16+sh[i]]}
+  for(let i=GW;i<N;i++){
     const v=gr[i];
     if(v===0){pix[i]=bg[i];continue}
-    if(f[i]!==0){pix[i]=blink===0?SV.flash[v]:blink===1?lut[v*16+sh[i]]:(i%GW)<sweep?bg[i]:(i%GW)<sweep+3?0xffffffff:SV.bright[v*16+sh[i]];continue}
-    pix[i]=lut[v*16+sh[i]];
+    const k=v*16+sh[i];
+    if(clearing&&f[i]!==0){const x=i%GW;pix[i]=blink===0?SV.flash[v]:blink===1?lut[k]:x<sweep?bg[i]:x<sweep+2?0xffffffff:x<sweep+6?SV.flash[v]:SV.bright[k];continue}
+    const u=gr[i-GW];
+    pix[i]=u===v?lut[k]:u===0?crest[k]:seam[k];
   }
-  if(g.hasPiece&&g.phase==='active'){
-    const s=SHAPES[g.t][g.r],B=g.B,BB=B*B,GW=g.GW,base=g.col*16,ps=g.pshade;
+  if(g.hasPiece&&g.phase==='active'){ // the falling piece: four sand blocks, each lit on its top and left edge and shaded on the other two
+    const s=SHAPES[g.t][g.r],B=g.B,BB=B*B,base=g.col*16,ps=g.pshade,B1=B-1;
     for(let k=0;k<4;k++){const bx0=g.x+s[2*k]*B,by0=g.y+s[2*k+1]*B;
-      for(let yy=0;yy<B;yy++){const y=by0+yy;if(y<0||y>=g.GH)continue;const row=y*GW+bx0,o=k*BB+yy*B;for(let xx=0;xx<B;xx++)pix[row+xx]=lut[base+ps[o+xx]]}}
+      for(let yy=0;yy<B;yy++){const y=by0+yy;if(y<0||y>=g.GH)continue;const row=y*GW+bx0,o=k*BB+yy*B,rowLut=yy===0?crest:yy===B1?seam:lut;
+        for(let xx=0;xx<B;xx++)pix[row+xx]=(xx===0&&yy!==B1?crest:xx===B1&&yy!==0?seam:rowLut)[base+ps[o+xx]]}}
   }
   SV.ctx.putImageData(SV.img,0,0);
   const sx=shake>0?(Math.random()-0.5)*shake:0,sy=shake>0?shake*0.6:0;
   ctx.save();ctx.translate(sx,sy);
   ctx.drawImage(boardBg,bx-WPAD,by-WPAD,10*c+2*WPAD,20*c+2*WPAD);
   ctx.imageSmoothingEnabled=false;ctx.drawImage(SV.cv,bx,by,10*c,20*c);ctx.imageSmoothingEnabled=true;
-  // ghost
+  // ghost, and a faint lane down to it
   const gs=c/g.B;
   if(g.hasPiece&&g.phase==='active'){
     const gy=g.ghostY();
-    if(gy-g.y>g.B){const s=SHAPES[g.t][g.r];ctx.strokeStyle=css(SAND_RGB[g.col],0.5);ctx.lineWidth=Math.max(1,c*0.06);
-      for(let k=0;k<8;k+=2)ctx.strokeRect(bx+(g.x+s[k]*g.B)*gs+1,by+(gy+s[k+1]*g.B)*gs+1,c-2,c-2)}
+    if(gy-g.y>g.B){const s=SHAPES[g.t][g.r];let x0=9,x1=0,yb=0;
+      for(let k=0;k<8;k+=2){if(s[k]<x0)x0=s[k];if(s[k]>x1)x1=s[k];if(s[k+1]>yb)yb=s[k+1]}
+      const ly=Math.max(0,g.y+(yb+1)*g.B);ctx.fillStyle=SLANE[g.col];ctx.fillRect(bx+(g.x+x0*g.B)*gs,by+ly*gs,(x1-x0+1)*c,(gy+(yb+1)*g.B-ly)*gs);
+      const gh=sandGhosts[g.col];for(let k=0;k<8;k+=2)ctx.drawImage(gh,bx+(g.x+s[k]*g.B)*gs,by+(gy+s[k+1]*g.B)*gs,c,c)}
   }
   // danger line
-  const dy=Math.round(by+g.DANGER*gs)+0.5,warn=g.sandAbove();
-  ctx.strokeStyle=warn?(((now/160)|0)&1?'#ff3b5c':'#ffb3c0'):'rgba(255,70,100,.85)';ctx.lineWidth=2;ctx.setLineDash(DASH);ctx.beginPath();ctx.moveTo(bx,dy);ctx.lineTo(bx+10*c,dy);ctx.stroke();ctx.setLineDash(NODASH);
+  const warn=g.sandAbove(),dl=dangerLines[warn?(((now/160)|0)&1?1:2):0],dh=dl.height/DPR;
+  ctx.drawImage(dl,bx,Math.round(by+g.DANGER*gs)-dh/2,10*c,dh);
   ctx.restore();
 }
-const DASH=[6,5],NODASH=[];
 
 function drawCallouts(dt){
   const c=LY.cell,cx=LY.bx+5*c,cy=LY.by+7.5*c;
@@ -928,7 +960,7 @@ function onEvent(type,a){
     case 'move':sfx('move');break;
     case 'rotate':sfx('rotate');break;
     case 'hold':sfx('hold');break;
-    case 'lock':if(!hardJust)sfx('lock');hardJust=false;break;
+    case 'lock':if(!hardJust)sfx('lock');hardJust=false;if(g.mode==='classic'){lockS=SHAPES[g.t][g.r];lockX=g.x;lockY=g.y;lockFx=LOCK_FX_MS}break;
     case 'hard':hardJust=true;sfx('hard');shake=Math.min(8,LY.cell*0.22);
       if(g.mode==='classic'){const s=SHAPES[g.t][g.r];for(let k=0;k<8;k+=2){const x=g.x+s[k]+0.5,y=g.y+s[k+1]-HID+1;for(let j=0;j<2;j++)particle(x+(Math.random()-0.5),y,(Math.random()-0.5)*3,-Math.random()*3,350,g.t)}}
       break;
@@ -968,7 +1000,7 @@ function finishScore(){
 }
 function startGame(m){
   ensureAudio();
-  mode=m;paused=false;overT=-1;hardJust=false;callouts.length=0;floaters.length=0;clearParticles();
+  mode=m;paused=false;overT=-1;hardJust=false;lockFx=0;callouts.length=0;floaters.length=0;clearParticles();
   input.dir=0;input.l=input.r=input.soft=false;input.das=input.arr=0;input.charged=false;
   if(m==='classic'){bestKey=BEST_KEY.classic;game=Classic({onEvent})}
   else{bestKey=BEST_KEY['sand'+sandCols];const B=(isTouch||Math.min(innerWidth,innerHeight)<700)?8:10;game=Sand({onEvent,B,colours:sandCols});buildSandView(game)}
