@@ -1361,8 +1361,9 @@ addEventListener('resize',resize);
   scene.userData.sky=m;
 }
 const groundMat=new THREE.MeshLambertMaterial({color:0x7cc25a});
-const ground=new THREE.Mesh(new THREE.CircleGeometry(2400,48),groundMat);ground.rotation.x=-Math.PI/2;ground.position.y=RL.GROUND_Y-0.02;ground.receiveShadow=true;scene.add(ground);
-let hills=null,clouds=null;
+const ground=new THREE.Mesh(new THREE.CircleGeometry(2400,48),groundMat);ground.rotation.x=-Math.PI/2;ground.position.y=RL.GROUND_Y-0.3;ground.receiveShadow=true;scene.add(ground);
+let hills=null,clouds=null,patch=null;
+const patchMat=new THREE.MeshLambertMaterial({vertexColors:true});
 function triMesh(pos,colInts,opts){ // positions (flat array) and one colour per triangle
   const g=new THREE.BufferGeometry(),n=pos.length/3,col=new Float32Array(n*3),c=new THREE.Color();
   for(let t=0;t<colInts.length;t++){c.setHex(colInts[t]);for(let k=0;k<3;k++){const o=(t*3+k)*3;col[o]=c.r;col[o+1]=c.g;col[o+2]=c.b}}
@@ -1381,7 +1382,20 @@ function buildScenery(bounds,seed){
       const p0=[x+Math.cos(a0)*w,G,z+Math.sin(a0)*w],p1=[x+Math.cos(a1)*w,G,z+Math.sin(a1)*w];
       const m0=[x+Math.cos(a0+.3)*w*.55,G+h*.55,z+Math.sin(a0+.3)*w*.55],m1=[x+Math.cos(a1+.3)*w*.55,G+h*.55,z+Math.sin(a1+.3)*w*.55];
       const cc=cols[(i+k)%cols.length];addTri(P,Cc,p0,m1,m0,cc);addTri(P,Cc,p0,p1,m1,cc);addTri(P,Cc,m0,m1,top,i%3===0&&h>90?TT.cap:cols[(i+k+2)%cols.length])}}
-  hills=triMesh(P,Cc);hills.material.emissive=new THREE.Color(0x24331c);hills.receiveShadow=false;scene.add(hills);
+  hills=triMesh(P,Cc);hills.material.emissive=new THREE.Color(TT.em);hills.receiveShadow=false;scene.add(hills);
+  // ground patchwork: flat triangles in slightly different tones of the ground colour, so the ground isn't one flat
+  // colour and you can see it move. Looks only: it is flat, at ground height, and fades into the plain ground at its edge.
+  if(patch){scene.remove(patch);patch.geometry.dispose()}
+  {const span=Math.max(bounds.maxX-bounds.minX,bounds.maxZ-bounds.minZ)+360,N=clamp(Math.round(span/13),24,56),cs=span/N,x0=cx-span/2,z0=cz-span/2;
+    const pts=[];for(let j=0;j<=N;j++)for(let i=0;i<=N;i++){const e=i===0||j===0||i===N||j===N,jx=e?0:(rnd()-.5)*.7,jz=e?0:(rnd()-.5)*.7;pts.push(x0+(i+jx)*cs,z0+(j+jz)*cs)}
+    const pos=new Float32Array(N*N*18),col=new Float32Array(N*N*18),base=new THREE.Color(TT.ground),c=new THREE.Color(),ph1=rnd()*6,ph2=rnd()*6;let o=0;
+    const tri=(a,b,d)=>{const mx=(pts[a*2]+pts[b*2]+pts[d*2])/3,mz=(pts[a*2+1]+pts[b*2+1]+pts[d*2+1])/3;
+      const fade=clamp((1-Math.max(Math.abs(mx-cx),Math.abs(mz-cz))/(span/2))*5,0,1),v=(.6*Math.sin(mx*.021+ph1)*Math.sin(mz*.017+ph2)+.4*(rnd()*2-1))*fade;
+      c.copy(base).offsetHSL(v*.012,0,v*TT.tone);
+      for(const q of [a,b,d]){pos[o]=pts[q*2];pos[o+1]=0;pos[o+2]=pts[q*2+1];col[o]=c.r;col[o+1]=c.g;col[o+2]=c.b;o+=3}};
+    for(let j=0;j<N;j++)for(let i=0;i<N;i++){const a=j*(N+1)+i,b=a+N+1;if((i+j)&1){tri(a,b,a+1);tri(a+1,b,b+1)}else{tri(a,b,b+1);tri(a,b+1,a+1)}}
+    const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));g.setAttribute('color',new THREE.BufferAttribute(col,3));g.computeVertexNormals();
+    patch=new THREE.Mesh(g,patchMat);patch.position.y=G-0.02;patch.receiveShadow=true;scene.add(patch)}
   const Q=[],Qc=[];
   for(let i=0;i<16;i++){const a=rnd()*Math.PI*2,r=rad*.4+rnd()*rad*1.4,x=cx+Math.cos(a)*r,z=cz+Math.sin(a)*r,y=90+rnd()*90,n=3+Math.floor(rnd()*3);
     for(let k=0;k<n;k++){const ox=x+(k-n/2)*14+rnd()*6,oz=z+rnd()*10,rr=9+rnd()*9,oy=y+rnd()*5;const ico=new THREE.IcosahedronGeometry(rr,0),p=ico.attributes.position;
@@ -1583,10 +1597,10 @@ function anyDrive(){return !!G.auto||KB.held('gas',keys)||KB.held('brake',keys)|
 // ---------- environments ----------
 // Three looks of our own, chosen per track (builder: Look): a green summer valley, a snowy pass and a desert canyon.
 const THEME=[
-  {name:'Summer valley',sky:[0x4f9cf0,0xd9efff],fog:0xbfe4ff,ground:0x7cc25a,hills:[0x93d67c,0xa8e08f,0x86cc72,0xbde8a2,0x9fd889],cap:0xf2f6fa,cloud:0xffffff,map:{}},
-  {name:'Snowy pass',sky:[0x7fa6d6,0xeef4fb],fog:0xe2ebf5,ground:0xf3f7fb,hills:[0xe6edf5,0xdbe5ef,0xf4f8fc,0xcfdae7,0xe9eff6],cap:0xffffff,cloud:0xf7fbff,
+  {name:'Summer valley',sky:[0x4f9cf0,0xd9efff],fog:0xbfe4ff,ground:0x78bd58,hs:0xeef6ff,hg:0x86a873,sun:0xfff1d2,em:0x24331c,tone:.05,dust:0xefe9d8,hills:[0x93d67c,0xa8e08f,0x86cc72,0xbde8a2,0x9fd889],cap:0xf2f6fa,cloud:0xffffff,map:{}},
+  {name:'Snowy pass',sky:[0x6f9ad2,0xeaf2fb],fog:0xdfe9f4,ground:0xcbd8e8,hs:0xf2f7ff,hg:0xa9bbd6,sun:0xfff0dc,em:0x2c3848,tone:.035,dust:0xffffff,hills:[0xe6edf5,0xdbe5ef,0xf4f8fc,0xcfdae7,0xe9eff6],cap:0xffffff,cloud:0xf7fbff,
     map:{[RL.C.leaf]:0x2f6b52,[RL.C.leaf2]:0xf2f7fb,[RL.C.trunk]:0x6d4a33,[RL.C.rock]:0xaeb7c8,[RL.C.rock2]:0x95a0b4,[RL.C.under]:0xaab3c2,[RL.C.side]:0xe8eef6}},
-  {name:'Desert canyon',sky:[0x3f8fe6,0xffe9c4],fog:0xf4dfb8,ground:0xe6c38a,hills:[0xd9925a,0xe0a46b,0xc97f4a,0xeab27a,0xd48a55],cap:0xc4703f,cloud:0xfff6e8,
+  {name:'Desert canyon',sky:[0x3f8fe6,0xffe9c4],fog:0xf4dfb8,ground:0xdcb679,hs:0xfff4e2,hg:0xd6a06a,sun:0xffe8bf,em:0x3a2415,tone:.045,dust:0xf0d2a4,hills:[0xd9925a,0xe0a46b,0xc97f4a,0xeab27a,0xd48a55],cap:0xc4703f,cloud:0xfff6e8,
     map:{[RL.C.leaf]:0x5e9a4a,[RL.C.leaf2]:0x79b35c,[RL.C.trunk]:0x5e9a4a,[RL.C.rock]:0xc98d5a,[RL.C.rock2]:0xb57748,[RL.C.under]:0xc9a77c,[RL.C.side]:0xf1dcb8}}
 ];
 let curTheme=-1;
@@ -1595,6 +1609,7 @@ function applyTheme(th){
   const sky=scene.userData.sky,p=sky.geometry.attributes.position,col=sky.geometry.attributes.color,a=new THREE.Color(T0.sky[0]),b=new THREE.Color(T0.sky[1]),c=new THREE.Color();
   for(let i=0;i<p.count;i++){const y=p.getY(i)/2200;c.copy(b).lerp(a,clamp(y*1.6,0,1));col.setXYZ(i,c.r,c.g,c.b)}col.needsUpdate=true;
   scene.fog.color.setHex(T0.fog);groundMat.color.setHex(T0.ground);
+  hemi.color.setHex(T0.hs);hemi.groundColor.setHex(T0.hg);sun.color.setHex(T0.sun); // each look has its own light, so hills and trees take its colours
 }
 
 // dust puffs: one point cloud
