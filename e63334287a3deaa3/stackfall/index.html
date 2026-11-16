@@ -596,58 +596,102 @@ function setMuted(m){
 //  View: canvas, layout, sprites
 // =====================================================================
 const app=$('app'),cv=$('cv'),ctx=cv.getContext('2d');
-const PIECE_RGB=[null,[47,214,240],[255,210,58],[163,92,255],[76,217,100],[255,77,94],[61,109,255],[255,154,46]];
+// Stackfall's own piece colours: mint, gold, orchid, lime, coral, indigo, tangerine (I O T S Z J L).
+const PIECE_RGB=[null,[62,224,198],[255,200,64],[224,100,216],[150,220,70],[255,98,94],[98,120,255],[255,144,56]];
 let VW=0,VH=0,DPR=1,LY=null,isTouch=false;
-const tiles=[],ghosts=[],sandTiles=[];let whiteTile=null,boardBg=null,backdrop=null;
+const tiles=[],ghosts=[],sandTiles=[],LANE=[],SLANE=[];let whiteTile=null,boardBg=null,backdrop=null,WPAD=3;
 function css(rgb,a){return 'rgba('+rgb[0]+','+rgb[1]+','+rgb[2]+','+(a==null?1:a)+')'}
 function shadeRgb(rgb,f){return [Math.max(0,Math.min(255,Math.round(rgb[0]*f))),Math.max(0,Math.min(255,Math.round(rgb[1]*f))),Math.max(0,Math.min(255,Math.round(rgb[2]*f)))]}
 function mixRgb(a,b,t){return [Math.round(a[0]+(b[0]-a[0])*t),Math.round(a[1]+(b[1]-a[1])*t),Math.round(a[2]+(b[2]-a[2])*t)]}
 function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.lineTo(x+w-r,y);c.quadraticCurveTo(x+w,y,x+w,y+r);c.lineTo(x+w,y+h-r);c.quadraticCurveTo(x+w,y+h,x+w-r,y+h);c.lineTo(x+r,y+h);c.quadraticCurveTo(x,y+h,x,y+h-r);c.lineTo(x,y+r);c.quadraticCurveTo(x,y,x+r,y);c.closePath()}
 function mk(w,h){const c=document.createElement('canvas');c.width=Math.max(1,Math.ceil(w));c.height=Math.max(1,Math.ceil(h));return c}
-// A glossy rounded block: lit top-left edge, shaded bottom-right edge, a soft sheen.
+// A block is a little keycap seen from just above: a lit top face with a darker lip showing under it,
+// a soft window set into the face and one glint. Light comes from the top left everywhere.
+const SHADOW_TINT=[34,26,96],LIGHT_TINT=[255,246,214];
 function drawTile(c,s,rgb){
-  const r=s*0.17,i=Math.max(1,s*0.04);
-  const g=c.createLinearGradient(0,0,s,s);g.addColorStop(0,css(shadeRgb(rgb,1.16)));g.addColorStop(1,css(shadeRgb(rgb,0.78)));
-  rr(c,i,i,s-2*i,s-2*i,r);c.fillStyle=g;c.fill();
-  c.save();rr(c,i,i,s-2*i,s-2*i,r);c.clip();
-  c.fillStyle='rgba(255,255,255,.28)';c.fillRect(i,i,s,s*0.12);c.fillRect(i,i,s*0.12,s);
-  c.fillStyle='rgba(0,0,0,.24)';c.fillRect(i,s-i-s*0.12,s,s*0.12);c.fillRect(s-i-s*0.12,i,s*0.12,s);
-  const sh=c.createRadialGradient(s*0.36,s*0.3,0,s*0.36,s*0.3,s*0.42);sh.addColorStop(0,'rgba(255,255,255,.34)');sh.addColorStop(1,'rgba(255,255,255,0)');
-  c.fillStyle=sh;c.fillRect(0,0,s,s);c.restore();
-  c.lineWidth=Math.max(1,s*0.035);c.strokeStyle='rgba(0,0,0,.35)';rr(c,i,i,s-2*i,s-2*i,r);c.stroke();
+  const i=Math.max(0.5,s*0.03),w=s-2*i,r=s*0.2,lip=Math.max(1.5,s*0.13),fh=w-lip;
+  const dark=mixRgb(shadeRgb(rgb,0.46),SHADOW_TINT,0.34),hi=mixRgb(shadeRgb(rgb,1.1),LIGHT_TINT,0.3);
+  rr(c,i,i,w,w,r);c.fillStyle=css(dark);c.fill();
+  const g=c.createLinearGradient(0,i,0,i+fh);g.addColorStop(0,css(hi));g.addColorStop(0.5,css(rgb));g.addColorStop(1,css(mixRgb(shadeRgb(rgb,0.84),SHADOW_TINT,0.1)));
+  rr(c,i,i,w,fh,r);c.fillStyle=g;c.fill();
+  c.save();rr(c,i,i,w,fh,r);c.clip();
+  c.fillStyle='rgba(255,255,255,.34)';c.fillRect(i,i,w,Math.max(1,s*0.06));
+  c.fillStyle='rgba(0,0,0,.16)';c.fillRect(i+w-Math.max(1,s*0.06),i,s,fh);
+  c.restore();
+  // the window: a paler pane with a dark lower edge, so the face reads as glass, not plastic
+  const wi=s*0.21,ww=w-2*wi,wh=fh-2*wi;
+  if(ww>3&&wh>3){
+    rr(c,i+wi,i+wi+Math.max(0.5,s*0.03),ww,wh,r*0.5);c.fillStyle=css(dark,0.28);c.fill();
+    const pg=c.createLinearGradient(0,i+wi,0,i+wi+wh);pg.addColorStop(0,css(mixRgb(rgb,LIGHT_TINT,0.5),0.95));pg.addColorStop(1,css(mixRgb(rgb,LIGHT_TINT,0.12),0.95));
+    rr(c,i+wi,i+wi,ww,wh,r*0.5);c.fillStyle=pg;c.fill();
+    c.fillStyle='rgba(255,255,255,.75)';rr(c,i+wi+ww*0.12,i+wi+wh*0.14,ww*0.34,Math.max(1,wh*0.16),Math.max(0.5,wh*0.08));c.fill();
+  }
 }
 function buildSprites(){
   const s=Math.max(4,Math.round(LY.cell*DPR));
   for(let t=1;t<=7;t++){
     const c=mk(s,s),x=c.getContext('2d');drawTile(x,s,PIECE_RGB[t]);tiles[t]=c;
-    const gc=mk(s,s),gx=gc.getContext('2d'),i=Math.max(1.5,s*0.08);
-    rr(gx,i,i,s-2*i,s-2*i,s*0.16);gx.fillStyle=css(PIECE_RGB[t],0.13);gx.fill();gx.lineWidth=Math.max(1.5,s*0.07);gx.strokeStyle=css(PIECE_RGB[t],0.55);gx.stroke();ghosts[t]=gc;
+    // ghost: where the piece will land, an outline in the piece's colour with a faint fill that is brighter at the foot
+    const gc=mk(s,s),gx=gc.getContext('2d'),i=Math.max(1.5,s*0.09),gg=gx.createLinearGradient(0,0,0,s);
+    gg.addColorStop(0,css(PIECE_RGB[t],0.05));gg.addColorStop(1,css(PIECE_RGB[t],0.24));
+    rr(gx,i,i,s-2*i,s-2*i,s*0.18);gx.fillStyle=gg;gx.fill();gx.lineWidth=Math.max(1.5,s*0.075);gx.strokeStyle=css(mixRgb(PIECE_RGB[t],[255,255,255],0.25),0.8);gx.stroke();ghosts[t]=gc;
+    LANE[t]=css(PIECE_RGB[t],0.07);
   }
-  const w=mk(s,s),wx=w.getContext('2d');rr(wx,0,0,s,s,s*0.17);wx.fillStyle='#fff';wx.fill();whiteTile=w;tiles[8]=(function(){const c=mk(s,s);drawTile(c.getContext('2d'),s,[120,130,150]);return c})();
+  const w=mk(s,s),wx=w.getContext('2d');rr(wx,0,0,s,s,s*0.2);wx.fillStyle='#fff';wx.fill();whiteTile=w;tiles[8]=(function(){const c=mk(s,s);drawTile(c.getContext('2d'),s,[120,130,150]);return c})();
   for(let c=1;c<=6;c++){
-    const t=mk(s,s),x=t.getContext('2d'),rgb=SAND_RGB[c];rr(x,0,0,s,s,s*0.12);x.fillStyle=css(shadeRgb(rgb,0.9));x.fill();
-    const gs=Math.max(1,Math.round(s/8));for(let yy=0;yy<s;yy+=gs)for(let xx=0;xx<s;xx+=gs){x.fillStyle=css(shadeRgb(rgb,0.72+Math.random()*0.42));x.fillRect(xx,yy,gs,gs)}
-    sandTiles[c]=t;
+    // a block of sand for the Next panel: grains, lit along the top and left, shaded along the bottom and right
+    const t=mk(s,s),x=t.getContext('2d'),rgb=SAND_RGB[c],n=Math.max(4,Math.min(10,Math.round(s/4))),gs=s/n;
+    for(let yy=0;yy<n;yy++)for(let xx=0;xx<n;xx++){
+      const edge=(yy===0||xx===0)?1.2:(yy===n-1||xx===n-1)?0.66:0.8+Math.random()*0.3;
+      x.fillStyle=css(sandShade(rgb,edge));x.fillRect(Math.floor(xx*gs),Math.floor(yy*gs),Math.ceil(gs),Math.ceil(gs));
+    }
+    sandTiles[c]=t;SLANE[c]=css(SAND_RGB[c],0.07);
   }
-  // well background with a faint grid
-  const bw=Math.round(10*LY.cell*DPR),bh=Math.round(20*LY.cell*DPR),bc=mk(bw,bh),b=bc.getContext('2d');
-  const gr=b.createLinearGradient(0,0,0,bh);gr.addColorStop(0,'#0c1226');gr.addColorStop(1,'#0a0f20');b.fillStyle=gr;b.fillRect(0,0,bw,bh);
-  b.strokeStyle='rgba(140,170,255,.07)';b.lineWidth=1;b.beginPath();
-  for(let x=1;x<10;x++){const px=Math.round(x*bw/10)+0.5;b.moveTo(px,0);b.lineTo(px,bh)}
-  for(let y=1;y<20;y++){const py=Math.round(y*bh/20)+0.5;b.moveTo(0,py);b.lineTo(bw,py)}
-  b.stroke();boardBg=bc;
-  // backdrop
-  const dc=mk(VW*DPR,VH*DPR),d=dc.getContext('2d');
-  const rg=d.createRadialGradient(dc.width*0.5,dc.height*0.15,0,dc.width*0.5,dc.height*0.4,Math.max(dc.width,dc.height)*0.8);
-  rg.addColorStop(0,'#17123a');rg.addColorStop(0.55,'#0a0d1d');rg.addColorStop(1,'#060811');d.fillStyle=rg;d.fillRect(0,0,dc.width,dc.height);
-  const rs=mulberry(7);d.globalAlpha=0.05;
-  for(let i=0;i<26;i++){const t=1+Math.floor(rs()*7),sz=(14+rs()*30)*DPR,x=rs()*dc.width,y=rs()*dc.height,sh=SHAPES[t][Math.floor(rs()*4)];d.fillStyle=css(PIECE_RGB[t]);for(let k=0;k<8;k+=2)d.fillRect(x+sh[k]*sz,y+sh[k+1]*sz,sz-2,sz-2)}
-  d.globalAlpha=1;backdrop=dc;
+  buildWell();buildBackdrop();
   FONT.label='800 '+Math.round(Math.max(9,Math.min(14,LY.cell*0.38)))+'px Nunito,system-ui,sans-serif';
   FONT.value='700 '+Math.round(Math.max(13,Math.min(30,LY.valH)))+'px Fredoka,ui-rounded,system-ui,sans-serif';
   FONT.big='700 '+Math.round(LY.cell*1.5)+'px Fredoka,ui-rounded,system-ui,sans-serif';
   FONT.mid='700 '+Math.round(LY.cell*0.62)+'px Fredoka,ui-rounded,system-ui,sans-serif';
   FONT.small='700 '+Math.round(Math.max(10,LY.cell*0.42))+'px Nunito,system-ui,sans-serif';
+}
+// Sand shading: darker grains lean cool and violet, lighter ones lean warm, so a pile has depth without going muddy.
+function sandShade(rgb,f){return f<1?mixRgb(shadeRgb(rgb,f),SHADOW_TINT,(1-f)*0.55):mixRgb(shadeRgb(rgb,f),LIGHT_TINT,(f-1)*1.1)}
+// The well, drawn once: a rounded frame lit from above, and (for Classic) the inside with faint lanes, a dot at
+// every corner of the grid and a shadow under the top edge. Sand mode paints its own inside, grain by grain.
+function buildWell(){
+  const c=LY.cell;WPAD=Math.max(3,Math.min(7,Math.round(c*0.17)));
+  const pad=WPAD*DPR,bw=Math.round(10*c*DPR),bh=Math.round(20*c*DPR),bc=mk(bw+2*pad,bh+2*pad),b=bc.getContext('2d'),W=bc.width,H=bc.height;
+  const fr=b.createLinearGradient(0,0,0,H);fr.addColorStop(0,'#5a63b8');fr.addColorStop(0.5,'#2c3270');fr.addColorStop(1,'#3b4290');
+  rr(b,0,0,W,H,pad*1.6);b.fillStyle=fr;b.fill();
+  b.strokeStyle='rgba(190,205,255,.5)';b.lineWidth=Math.max(1,DPR);rr(b,b.lineWidth/2,b.lineWidth/2,W-b.lineWidth,H-b.lineWidth,pad*1.6);b.stroke();
+  b.save();b.translate(pad,pad);b.beginPath();b.rect(0,0,bw,bh);b.clip();
+  const gr=b.createLinearGradient(0,0,0,bh);gr.addColorStop(0,'#090c1c');gr.addColorStop(1,'#0d1330');b.fillStyle=gr;b.fillRect(0,0,bw,bh);
+  b.fillStyle='rgba(120,140,255,.035)';for(let x=0;x<10;x+=2)b.fillRect(Math.round(x*bw/10),0,Math.round(bw/10),bh);
+  b.fillStyle='rgba(165,185,255,.2)';const d=Math.max(1,Math.round(DPR*1.2));
+  for(let y=1;y<20;y++)for(let x=1;x<10;x++)b.fillRect(Math.round(x*bw/10)-(d>>1),Math.round(y*bh/20)-(d>>1),d,d);
+  const top=b.createLinearGradient(0,0,0,bh*0.09);top.addColorStop(0,'rgba(0,0,8,.6)');top.addColorStop(1,'rgba(0,0,8,0)');b.fillStyle=top;b.fillRect(0,0,bw,bh*0.09);
+  const fl=b.createLinearGradient(0,bh*0.8,0,bh);fl.addColorStop(0,'rgba(110,130,255,0)');fl.addColorStop(1,'rgba(110,130,255,.1)');b.fillStyle=fl;b.fillRect(0,bh*0.8,bw,bh*0.2);
+  b.restore();boardBg=bc;
+}
+// The backdrop, drawn once: a night gradient, a pool of light behind the well (cool for Classic, warm for Sand),
+// a few big soft piece outlines well away from the well, and a darker edge all round.
+function buildBackdrop(){
+  const dc=mk(VW*DPR,VH*DPR),d=dc.getContext('2d'),W=dc.width,H=dc.height,sand=mode==='sand';
+  const base=d.createLinearGradient(0,0,0,H);base.addColorStop(0,'#0e0f2b');base.addColorStop(0.6,'#0a0c1f');base.addColorStop(1,'#07081a');d.fillStyle=base;d.fillRect(0,0,W,H);
+  const cx=(LY.bx+5*LY.cell)*DPR,cy=(LY.by+9*LY.cell)*DPR,R=LY.cell*17*DPR;
+  const pool=d.createRadialGradient(cx,cy,0,cx,cy,R);
+  pool.addColorStop(0,sand?'rgba(214,120,84,.3)':'rgba(84,110,236,.34)');pool.addColorStop(0.45,sand?'rgba(150,70,110,.14)':'rgba(72,60,190,.16)');pool.addColorStop(1,'rgba(20,20,60,0)');
+  d.fillStyle=pool;d.fillRect(0,0,W,H);
+  const rs=mulberry(sand?11:7);d.lineJoin='round';
+  const px0=(Math.min(LY.bx,LY.stats.x)-LY.cell)*DPR,px1=(LY.next.x+LY.next.w+LY.cell)*DPR,py0=(LY.by-LY.cell)*DPR,py1=(LY.by+21*LY.cell)*DPR;
+  for(let i=0;i<26;i++){
+    const t=1+Math.floor(rs()*7),sz=(22+rs()*34)*DPR,x=rs()*W,y=rs()*H,sh=SHAPES[t][Math.floor(rs()*4)];
+    if(x+3*sz>px0&&x-sz<px1&&y+3*sz>py0&&y-sz<py1)continue; // keep them off the well and the panels
+    d.strokeStyle=css(sand?SAND_RGB[1+(i%4)]:PIECE_RGB[t],0.13);d.fillStyle=css(sand?SAND_RGB[1+(i%4)]:PIECE_RGB[t],0.035);d.lineWidth=Math.max(1,1.5*DPR);
+    for(let k=0;k<8;k+=2){rr(d,x+sh[k]*sz+2*DPR,y+sh[k+1]*sz+2*DPR,sz-4*DPR,sz-4*DPR,sz*0.2);d.fill();d.stroke()}
+  }
+  const vg=d.createRadialGradient(W/2,H/2,Math.min(W,H)*0.35,W/2,H/2,Math.max(W,H)*0.75);vg.addColorStop(0,'rgba(3,4,12,0)');vg.addColorStop(1,'rgba(3,4,12,.6)');d.fillStyle=vg;d.fillRect(0,0,W,H);
+  backdrop=dc;
 }
 const FONT={label:'',value:'',big:'',mid:'',small:''};
 
@@ -759,8 +803,7 @@ function renderClassic(g,dt){
   // well
   const sx=shake>0?(Math.random()-0.5)*shake:0,sy=shake>0?shake*0.6:0;
   ctx.save();ctx.translate(sx,sy);
-  ctx.fillStyle='rgba(120,150,255,.16)';ctx.fillRect(bx-3,by-1,10*c+6,20*c+4);
-  ctx.drawImage(boardBg,bx,by,10*c,20*c);
+  ctx.drawImage(boardBg,bx-WPAD,by-WPAD,10*c+2*WPAD,20*c+2*WPAD);
   const res=g.phase==='resolving',p=res?g.clearT/CLEAR_MS:0;
   for(let y=HID;y<CH;y++){
     const py=by+(y-HID)*c,clr=res&&g.rowFlag[y];
@@ -773,6 +816,10 @@ function renderClassic(g,dt){
   }
   if(g.phase==='active'){
     const s=SHAPES[g.t][g.r],gy=g.ghostY();
+    if(gy!==g.y){ // a faint lane from the piece down to where it will land
+      let x0=9,x1=0,yb=0;for(let k=0;k<8;k+=2){if(s[k]<x0)x0=s[k];if(s[k]>x1)x1=s[k];if(s[k+1]>yb)yb=s[k+1]}
+      const ly=Math.max(0,g.y+yb+1-HID);ctx.fillStyle=LANE[g.t];ctx.fillRect(bx+(g.x+x0)*c,by+ly*c,(x1-x0+1)*c,(gy+yb+1-HID-ly)*c);
+    }
     if(gy!==g.y)for(let k=0;k<8;k+=2){const yy=gy+s[k+1];if(yy>=HID)ctx.drawImage(ghosts[g.t],bx+(g.x+s[k])*c,by+(yy-HID)*c,c,c)}
     const dim=g.lockT>0?Math.min(0.42,g.lockT/LOCK_MS*0.42):0;
     for(let k=0;k<8;k+=2){
@@ -824,7 +871,7 @@ function renderSand(g,now){
   SV.ctx.putImageData(SV.img,0,0);
   const sx=shake>0?(Math.random()-0.5)*shake:0,sy=shake>0?shake*0.6:0;
   ctx.save();ctx.translate(sx,sy);
-  ctx.fillStyle='rgba(120,150,255,.16)';ctx.fillRect(bx-3,by-1,10*c+6,20*c+4);
+  ctx.drawImage(boardBg,bx-WPAD,by-WPAD,10*c+2*WPAD,20*c+2*WPAD);
   ctx.imageSmoothingEnabled=false;ctx.drawImage(SV.cv,bx,by,10*c,20*c);ctx.imageSmoothingEnabled=true;
   // ghost
   const gs=c/g.B;
