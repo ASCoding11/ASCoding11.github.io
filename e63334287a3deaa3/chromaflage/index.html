@@ -111,6 +111,13 @@ h1 span{display:inline-block}
 #top{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);display:flex;gap:8px;align-items:stretch}
 #phaseBox{min-width:110px}
 #phaseBox span{display:block;font-weight:700;font-size:27px;line-height:1;font-variant-numeric:tabular-nums}
+/* the last ten seconds of hide or seek time: the clock turns pink and beats once a second */
+#phaseBox.low span{color:var(--pink);animation:clockBeat 1s ease-out infinite}
+@keyframes clockBeat{0%,100%{transform:scale(1)}12%{transform:scale(1.14)}}
+/* the results card rises into place */
+#end>.card{animation:cardIn .3s cubic-bezier(.2,.9,.3,1.2)}
+@keyframes cardIn{from{transform:translateY(18px) scale(.95);opacity:0}}
+@media (prefers-reduced-motion:reduce){#phaseBox.low span,#end>.card{animation:none}}
 #phaseBox small,#roleBox small,#leftBox small{display:block;font-family:var(--f-b);font-weight:900;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2)}
 #roleBox,#leftBox{display:flex;flex-direction:column;justify-content:center;min-width:92px}
 #roleBox b,#leftBox b{font-weight:700;font-size:18px;line-height:1.05}
@@ -3509,6 +3516,7 @@ function puff(pos,color){
 // Effects are drawn only on this computer and are hidden from the practice bot's eyes (perceive hides fxRoot), so they
 // never change what can be hidden against. The Fast setting gets fewer pieces.
 const fxHigh=()=>gfx==='high';
+const fxDrop=new THREE.SphereGeometry(1,6,4); // tiny drops: a few triangles are plenty
 // soft round textures for the found burst: a ring and an eight-point sparkle, tinted by the sprite's colour
 let ringTex=null,sparkTex=null;
 function burstTex(kind){
@@ -3548,8 +3556,8 @@ function splatGeo(){
   const fan=(cx,cy,rf,seg)=>{const b=pos.length/3;pos.push(cx,cy,0);for(let i=0;i<seg;i++){const a=i/seg*Math.PI*2,r=rf(a);pos.push(cx+Math.cos(a)*r,cy+Math.sin(a)*r,0)}for(let i=0;i<seg;i++)idx.push(b,b+1+i,b+1+(i+1)%seg)};
   const lobes=[];for(let i=0,nl=5+Math.floor(Math.random()*3);i<nl;i++)lobes.push([i/nl*Math.PI*2+rand(-.3,.3),rand(.22,.62),rand(.16,.26)]);
   const ph=rand(0,6),ph2=rand(0,6);
-  fan(0,0,a=>{let r=.6+.06*Math.sin(3*a+ph)+.04*Math.sin(7*a+ph2);for(const l of lobes){let da=Math.abs(a-l[0])%(Math.PI*2);if(da>Math.PI)da=Math.PI*2-da;r+=l[1]*Math.exp(-(da*da)/(2*l[2]*l[2]))}return r},56);
-  for(let i=0,nd=3+Math.floor(Math.random()*3);i<nd;i++){const a=rand(0,6.283),d=rand(1.2,1.6),r=rand(.06,.14);fan(Math.cos(a)*d,Math.sin(a)*d,()=>r,10)}
+  fan(0,0,a=>{let r=.6+.06*Math.sin(3*a+ph)+.04*Math.sin(7*a+ph2);for(const l of lobes){let da=Math.abs(a-l[0])%(Math.PI*2);if(da>Math.PI)da=Math.PI*2-da;r+=l[1]*Math.exp(-(da*da)/(2*l[2]*l[2]))}return r},40);
+  for(let i=0,nd=3+Math.floor(Math.random()*3);i<nd;i++){const a=rand(0,6.283),d=rand(1.2,1.6),r=rand(.06,.14);fan(Math.cos(a)*d,Math.sin(a)*d,()=>r,8)}
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setIndex(idx);g.computeVertexNormals();return g;
 }
 const _tA=new V3(),_tB=new V3();
@@ -3560,7 +3568,7 @@ function splat(p,n,color){
   splats.push({m,t:0,sc,pop:1});if(splats.length>60){const s=splats.shift();fxRoot.remove(s.m);s.m.material.dispose()}
   // drops thrown off the surface where the pellet lands
   _tA.set(n.y,n.z,n.x).cross(n);if(_tA.lengthSq()<1e-4)_tA.set(1,0,0).cross(n);_tA.normalize();_tB.crossVectors(n,_tA);
-  for(let i=0,nd=fxHigh()?6:3;i<nd;i++){const a=rand(0,6.283),o=rand(.6,2.2),d=fxMesh(fxSphere,color||'#ff4f8b');d.position.copy(p).addScaledVector(n,.03);const s0=rand(.018,.034);d.scale.setScalar(s0);
+  for(let i=0,nd=fxHigh()?5:3;i<nd;i++){const a=rand(0,6.283),o=rand(.6,2.2),d=fxMesh(fxDrop,color||'#ff4f8b');d.position.copy(p).addScaledVector(n,.03);const s0=rand(.018,.034);d.scale.setScalar(s0);
     fx.push({m:d,t:0,life:rand(.3,.5),v:new V3().copy(n).multiplyScalar(rand(.8,2.4)).addScaledVector(_tA,Math.cos(a)*o).addScaledVector(_tB,Math.sin(a)*o),grav:1,shrink:s0})}
 }
 function updateFx(dt){
@@ -4363,9 +4371,10 @@ function updateHud(){
   if(ph==='lobby'){pn=G.mode==='online'?'Lobby':'Practice';const n=G.mode==='online'?liveIds().length:1;ck=rs&&rs.as?fmtT((rs.as-now())/1000):n+'/'+MAX_ROOM;if(rs&&rs.as)pn='Starting'}
   else if(ph==='hide'){pn='Hide time';ck=fmtT(left)}else if(ph==='seek'){pn='Seek time';ck=fmtT(left)}else{pn='Round over';ck=G.mode==='online'?fmtT(left):'–'}
   setText('phaseName',pn);setText('clock',ck);
+  const low=(ph==='hide'||ph==='seek')&&left<=10&&left>0;if(hudCache.low!==low){hudCache.low=low;$('phaseBox').classList.toggle('low',low)}
   const rt=ROLE_TXT[role]||ROLE_TXT.free;setText('roleName',role==='seeker'&&rs&&rs.sk.indexOf(myId())<0?'Infected':rt[0]);
   const rc='pill '+rt[1];if(hudCache.rc!==rc){hudCache.rc=rc;$('roleBox').className=rc}
-  if(rs&&ph!=='lobby'){setText('leftN',String(hidersLeft(rs).length));setText('leftLbl','Still hidden')}else{setText('leftN',String(G.mode==='online'?liveIds().length:1));setText('leftLbl','Players')}
+  if(rs&&ph!=='lobby'){const ln=String(hidersLeft(rs).length);if(ph==='seek'&&hudCache.leftN!=null&&hudCache.leftN!==ln)hudPop($('leftN'),[{transform:'scale(1.7)',color:'#ff4f8b'},{transform:'scale(1)'}],420);setText('leftN',ln);setText('leftLbl','Still hidden')}else{setText('leftN',String(G.mode==='online'?liveIds().length:1));setText('leftLbl','Players')}
   G.blind=role==='seeker'&&ph==='hide';
   setHidden('blind',!G.blind);if(G.blind){setText('blindN',String(Math.max(0,Math.ceil(left))));if(Math.ceil(left)!==G.lastTick&&left<=5&&left>0){G.lastTick=Math.ceil(left);sfx('tick')}}
   const seekNow=role==='seeker'&&ph==='seek';
