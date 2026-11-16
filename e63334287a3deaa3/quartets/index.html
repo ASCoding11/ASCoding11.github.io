@@ -65,6 +65,10 @@
 'use strict';
 (function () {
 const K = Kit, h = K.h, $ = K.$, P = window.QUARTETS || [];
+// Thanksgiving Day 2026 has its own puzzle. It sits after the end of the list and is never counted in the list's
+// length (NP), so the seeded daily order and Unlimited are exactly what they were; only that one day is replaced.
+const NP = P.length, TG_DAY = '20261126';
+P.push([["On the Thanksgiving table",["TURKEY","STUFFING","GRAVY","ROLLS"]],["Pie fillings",["PUMPKIN","PECAN","APPLE","CHERRY"]],["In a parade",["FLOAT","BALLOON","BAND","CLOWN"]],["___ FRIDAY",["BLACK","GOOD","CASUAL","FREAKY"]]]);
 const SLUG = 'quartets', NAME = 'Quartets', LIVES = 4;
 const EMO = ['🟨', '🟩', '🟦', '🟪'];
 const HOW = '<p>Find the <b>four groups of four</b> words that have something in common.</p>' +
@@ -95,7 +99,7 @@ function start(m) {
   busy = false;
   if (m === 'daily') {
     const day = K.today(), saved = K.store.get(SLUG + ':day', null);
-    let idx = K.pick(SLUG, P.length, day);
+    let idx = day === TG_DAY ? NP : K.pick(SLUG, NP, day);
     if (saved && saved.day === day && P[saved.idx]) idx = saved.idx;
     st = { mode: 'daily', day, idx, order: fresh(idx, SLUG + '-tiles-' + day), solved: [], guesses: [], mistakes: 0, done: false, win: false, t0: 0, t1: 0, sel: [] };
     if (saved && saved.day === day && saved.idx === idx && Array.isArray(saved.order)) {
@@ -110,7 +114,7 @@ function start(m) {
       if (st.done && !st.win) { for (let g = 0; g < 4; g++) if (st.solved.indexOf(g) < 0) st.solved.push(g); st.order = []; }
     }
   } else {
-    const idx = K.randomIndex(P.length, st && st.idx);
+    const idx = K.randomIndex(NP, st && st.idx);
     st = { mode: 'free', day: '', idx, order: fresh(idx, Math.random() * 4294967296 >>> 0), solved: [], guesses: [], mistakes: 0, done: false, win: false, t0: 0, t1: 0, sel: [] };
   }
   mb.set(m, true);
