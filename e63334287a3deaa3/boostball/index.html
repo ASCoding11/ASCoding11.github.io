@@ -280,7 +280,6 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
           <button id="practice" class="btn alt" type="button">Practice vs bots</button>
           <button id="freeplay" class="btn alt" type="button">Free play</button>
         </div>
-        <button id="turkeyBtn" class="btn alt" type="button" style="margin-top:8px" hidden>Turkey Week on</button>
         <p id="netMsg" class="msg" role="status"></p>
         <details>
           <summary>Controls</summary>
@@ -364,9 +363,9 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
 (function(){
 'use strict';
 // Turkey Week (../events.js): the ball is drawn as a pumpkin with a stem and the grass in autumn colours. Only the
-// drawing changes (the ball's size, bounce and everything sent to the room are the same); the Turkey Week button on
-// the menu switches it off for this browser (applyTurkey).
-const EVT=window.BackRoomEvents&&BackRoomEvents.turkey;let TKON=!!(EVT&&EVT.on());
+// drawing changes (the ball's size, bounce and everything sent to the room are the same); the Turkey Week switch on
+// the Back Room page turns it off for this browser. It is read once, here, when the game loads.
+const EVT=window.BackRoomEvents&&BackRoomEvents.turkey,TKON=!!(EVT&&EVT.on());
 // =====================================================================
 //  Firebase (same project and Realtime Database rules as Rumble Karts).
 //  Online rooms live under rooms/bb-<code>, so the existing rules cover them.
@@ -1357,12 +1356,6 @@ scene.add(ballMesh);
 const ballStem=new THREE.Mesh(new THREE.CylinderGeometry(BR*.07,BR*.13,BR*.3,8),new THREE.MeshLambertMaterial({color:0x5f7a2a}));
 ballStem.position.y=BR*1.1;ballStem.rotation.z=.18;ballStem.visible=TKON;ballMesh.add(ballStem);
 if(TKON)ballFlat.emissive.set(0x2e1604);
-function applyTurkey(on){
-  TKON=on;ballStem.visible=on;
-  for(const m of [ballFlat,ballGloss])if(m)m.emissive.set(on?0x2e1604:0x2a3046);
-  drawField(fieldTex.image.getContext('2d'),fieldTex.image.width,fieldTex.image.height);fieldTex.needsUpdate=true;
-  drawBall(ballTex.image.getContext('2d'),ballTex.image.width,ballTex.image.height);ballTex.needsUpdate=true;
-}
 // Pretty graphics (see glossOn): the ball gets a soft sheen, the sun casts real shadows and the glows show. lookSync runs
 // every frame and only does anything when the setting (or touch) has just changed.
 let ballGloss=null,lookGl=false,realSh=false,lookKey=-2;
@@ -3253,7 +3246,6 @@ function switchTeam(){
 }
 $('quick').onclick=quickMatch;$('joinRoom').onclick=joinPrivate;
 $('practice').onclick=()=>startLocal('practice');$('freeplay').onclick=()=>startLocal('free');
-if(EVT)EVT.button($('turkeyBtn'),applyTurkey);
 $('room').addEventListener('keydown',e=>{if(e.key==='Enter')joinPrivate()});
 $('name').addEventListener('change',saveProfile);
 $('resume').onclick=resumeGame;$('switchTeam').onclick=switchTeam;$('pauseBtn').onclick=()=>{initAudio();showPause()};

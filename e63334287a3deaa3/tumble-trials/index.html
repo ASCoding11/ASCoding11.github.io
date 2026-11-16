@@ -373,7 +373,6 @@ body.touch #banner{top:30%}
           <h1><span class="w"><span style="color:#ff4f9a">Tum</span><span style="color:#2ec5ff">ble</span></span> <span class="w"><span style="color:#f2a900">Tri</span><span style="color:#8a5cff">als</span></span></h1>
         </div>
         <p class="tag">A wobbly knockout show for up to 16 players. Race through spinning, swinging, tilting obstacle courses, survive the sweepers, and be the last bean standing on the vanishing honeycomb.</p>
-        <button id="turkeyBtn" class="btn alt" type="button" style="margin-bottom:8px" hidden>Turkey Week on</button>
         <div class="label" style="margin-top:4px">Play with friends</div>
         <button id="quick" class="btn big pink" type="button">Quick match</button>
         <div class="roomrow">
@@ -1097,14 +1096,13 @@ const shadowTex=canvasTex('blob',64,64,(x,w)=>{const g=x.createRadialGradient(32
 const shadowMat=new THREE.MeshBasicMaterial({map:shadowTex,transparent:true,depthWrite:false});
 const shadowGeo=new THREE.PlaneGeometry(1.25,1.25).rotateX(-Math.PI/2);
 // Turkey Week (../events.js): a pilgrim hat on every bean. One shared geometry and material (events.js builds the
-// hat), so it is one more draw call each; only the look changes. The Turkey Week button on the menu switches it off.
-const EVT=window.BackRoomEvents&&BackRoomEvents.turkey;let TKON=!!(EVT&&EVT.on()),tkHatMat=null;const tkHats=new Set();
+// hat), so it is one more draw call each; only the look changes. The Turkey Week switch on the Back Room page turns it off; it is read once, when the game loads.
+const EVT=window.BackRoomEvents&&BackRoomEvents.turkey;const TKON=!!(EVT&&EVT.on());let tkHatMat=null;
 function tkHat(parent,scale,y,z,ry){
-  if(!EVT||!EVT.live())return null;
+  if(!TKON)return null;
   const m=new THREE.Mesh(EVT.hat(THREE),tkHatMat||(tkHatMat=new THREE.MeshLambertMaterial({vertexColors:true})));
-  m.scale.setScalar(scale);m.position.set(0,y,z||0);if(ry)m.rotation.y=ry;m.visible=TKON;parent.add(m);tkHats.add(m);return m;
+  m.scale.setScalar(scale);m.position.set(0,y,z||0);if(ry)m.rotation.y=ry;parent.add(m);return m;
 }
-function tkToggle(on){TKON=on;for(const m of tkHats)m.visible=on}
 class Bean{
   constructor(look,name,showTag){
     this.root=new THREE.Group();this.tilt=new THREE.Group();this.tilt.position.y=.8;this.root.add(this.tilt);
@@ -1178,7 +1176,7 @@ class Bean{
   }
   // the winner's crown: a gold band with five points and a jewel
   addCrown(){
-    if(this.crown)return;if(this.hat){tkHats.delete(this.hat);this.hat.visible=false}const g=new THREE.Group(),gold=new THREE.MeshLambertMaterial({color:'#ffcf3d',emissive:0x6a4a00,emissiveIntensity:.35,side:THREE.DoubleSide});this.crownMat=gold;
+    if(this.crown)return;if(this.hat)this.hat.visible=false;const g=new THREE.Group(),gold=new THREE.MeshLambertMaterial({color:'#ffcf3d',emissive:0x6a4a00,emissiveIntensity:.35,side:THREE.DoubleSide});this.crownMat=gold;
     const band=new THREE.Mesh(new THREE.CylinderGeometry(.27,.3,.16,16,1,true),gold);g.add(band);
     for(let i=0;i<5;i++){const a=i/5*Math.PI*2,c=new THREE.Mesh(new THREE.ConeGeometry(.07,.17,6),gold);c.position.set(Math.sin(a)*.27,.16,Math.cos(a)*.27);g.add(c)}
     const gem=new THREE.Mesh(new THREE.SphereGeometry(.05,10,8),new THREE.MeshLambertMaterial({color:'#ff4f9a'}));gem.position.set(0,0,.3);g.add(gem);
@@ -3597,7 +3595,6 @@ buildSeg($('patSeg'),PATTERNS,myLook.p,v=>{myLook.p=v;lookChanged()});
 
 $('name').value=myName;$('name').addEventListener('input',()=>{myName=cleanName($('name').value);store.set('name',myName)});
 $('room').value=store.get('room','');
-if(EVT)EVT.button($('turkeyBtn'),tkToggle);
 $('quick').onclick=quickMatch;$('joinRoom').onclick=joinPrivate;
 $('solo').onclick=startSolo;$('practice').onclick=()=>startPractice(+$('pracMap').value);
 $('resume').onclick=resume;$('leave').onclick=toMenu;$('podMenu').onclick=toMenu;
