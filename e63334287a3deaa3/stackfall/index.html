@@ -182,7 +182,7 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--cyan);outline-offse
   <section id="menu" class="overlay" aria-label="Choose a mode">
     <div class="mwrap">
       <a class="back" href="/e63334287a3deaa3/">&larr; Back Room</a>
-      <h1 class="logo" aria-label="Stackfall"><span style="color:#3fe0ff">S</span><span style="color:#ffd23a">T</span><span style="color:#b071ff">A</span><span style="color:#ff9a2e">C</span><span style="color:#4f7bff">K</span><span style="color:#4cd964">F</span><span style="color:#ff4d5e">A</span><span style="color:#3fe0ff">L</span><span style="color:#ffd23a">L</span></h1>
+      <h1 class="logo" aria-label="Stackfall"><span style="color:#3ee0c6">S</span><span style="color:#ffc840">T</span><span style="color:#e064d8">A</span><span style="color:#ff9038">C</span><span style="color:#6278ff">K</span><span style="color:#96dc46">F</span><span style="color:#ff625e">A</span><span style="color:#3ee0c6">L</span><span style="color:#ffc840">L</span></h1>
       <p class="lede">Two ways to stack. Classic: fill whole rows to wipe them. Sand: every piece crumbles into grains, and a single colour reaching wall to wall melts away.</p>
       <div class="modes">
         <article class="mode">
@@ -693,7 +693,7 @@ function buildBackdrop(){
   d.fillStyle=pool;d.fillRect(0,0,W,H);
   const rs=mulberry(sand?11:7);d.lineJoin='round';
   const px0=(Math.min(LY.bx,LY.stats.x)-LY.cell)*DPR,px1=(LY.next.x+LY.next.w+LY.cell)*DPR,py0=(LY.by-LY.cell)*DPR,py1=(LY.by+21*LY.cell)*DPR;
-  for(let i=0;i<26;i++){
+  for(let i=0;i<26&&!LY.ctrl;i++){
     const t=1+Math.floor(rs()*7),sz=(22+rs()*34)*DPR,x=rs()*W,y=rs()*H,sh=SHAPES[t][Math.floor(rs()*4)];
     if(x+3*sz>px0&&x-sz<px1&&y+3*sz>py0&&y-sz<py1)continue; // keep them off the well and the panels
     d.strokeStyle=css(sand?SAND_RGB[1+(i%4)]:PIECE_RGB[t],0.13);d.fillStyle=css(sand?SAND_RGB[1+(i%4)]:PIECE_RGB[t],0.035);d.lineWidth=Math.max(1,1.5*DPR);
@@ -1138,7 +1138,7 @@ function drawArt(){
   for(let yy=0;yy<H2;yy++)for(let xx=0;xx<W2;xx++){
     const surf=H2*0.32+Math.sin(xx*0.05)*6+Math.sin(xx*0.13)*3,i=yy*W2+xx;
     if(yy<surf){p[i]=packRgb(10,15,31);continue}
-    const band=Math.floor((yy-surf+Math.sin(xx*0.09+yy*0.02)*5)/9),k=1+((band%sandCols)+sandCols)%sandCols,rgb=shadeRgb(SAND_RGB[k],0.74+rs()*0.42);p[i]=packRgb(rgb[0],rgb[1],rgb[2]);
+    const bandAt=function(y2){return Math.floor((y2-surf+Math.sin(xx*0.09+y2*0.02)*5)/9)},band=bandAt(yy),k=1+((band%sandCols)+sandCols)%sandCols,top=yy-1<surf,rgb=sandShade(SAND_RGB[k],top?1.16+rs()*0.2:bandAt(yy-1)!==band?0.56+rs()*0.18:0.76+rs()*0.4);p[i]=packRgb(rgb[0],rgb[1],rgb[2]);
   }
   const tmp=mk(W2,H2);tmp.getContext('2d').putImageData(im,0,0);y.imageSmoothingEnabled=false;y.drawImage(tmp,0,0,b.width,b.height);
 }
