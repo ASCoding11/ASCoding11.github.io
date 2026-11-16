@@ -1153,7 +1153,7 @@ function skyTex(D){
   const gr=g.createLinearGradient(0,0,0,hz);gr.addColorStop(0,D.sky[0]);gr.addColorStop(.5,mixc(D.sky[0],D.sky[1],kind===1?.3:.22));gr.addColorStop(.82,mixc(D.sky[0],D.sky[1],kind===1?.74:.66));gr.addColorStop(1,D.sky[1]);
   g.fillStyle=gr;g.fillRect(0,0,w,hz);g.fillStyle=D.fog;g.fillRect(0,hz,w,hz);
   const blob=(x,y,rad,sx,stops)=>{for(const ox of [-w,0,w]){g.save();g.translate(x+ox,y);g.scale(sx,1);const q=g.createRadialGradient(0,0,0,0,0,rad);for(const [o,cc] of stops)q.addColorStop(o,cc);g.fillStyle=q;g.fillRect(-rad,-rad,rad*2,rad*2);g.restore()}};
-  if(kind===2)for(let i=0;i<650;i++){const y=Math.pow(r(),1.3)*hz*.94;g.fillStyle=`rgba(${220+r()*35|0},${225+r()*30|0},255,${.25+r()*.7})`;const s=r()<.08?1.8:1.1;g.fillRect(r()*w,y,s/Math.max(.25,Math.sin(y/hz*Math.PI/2)),s)}
+  if(kind===2)for(let i=0;i<300;i++){const y=Math.pow(r(),1.3)*hz*.94;g.fillStyle=`rgba(${220+r()*35|0},${225+r()*30|0},255,${.12+r()*r()*.6})`;g.fillRect(r()*w,y,1,1)}
   // sun or moon
   const su=((Math.atan2(D.sun[2],-D.sun[0])/TAU)%1+1)%1*w,sy=(Math.PI/2-el)/Math.PI*h,sx=1/Math.max(.3,Math.cos(el));
   g.globalCompositeOperation='lighter';
@@ -1171,10 +1171,17 @@ function skyTex(D){
   }
   // haze just above the horizon, so far hills and the sky meet in the fog colour
   const hzg=g.createLinearGradient(0,hz*.86,0,hz);const fc=new THREE.Color(D.fog),f=`${fc.r*255|0},${fc.g*255|0},${fc.b*255|0}`;hzg.addColorStop(0,`rgba(${f},0)`);hzg.addColorStop(1,`rgba(${f},1)`);g.fillStyle=hzg;g.fillRect(0,hz*.86,w,hz*.14+1);
-  const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;t.wrapS=THREE.RepeatWrapping;return t;
+  const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;t.wrapS=THREE.RepeatWrapping;t.generateMipmaps=false;t.minFilter=THREE.LinearFilter;return t;
 }
 function shadowTex(){return canvasTex(64,64,(g,w,h)=>{const r=g.createRadialGradient(32,32,4,32,32,32);r.addColorStop(0,'rgba(0,0,0,.6)');r.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=r;g.fillRect(0,0,64,64)})}
 const SHADOW_TEX=shadowTex();
+// The shadow under a car, in the car's own shape (body, wings and four wheels) with soft edges.
+const CAR_SHADOW_TEX=canvasTex(128,64,(g,w,h)=>{
+  const X=m=>w/2+(m+.1)*w/6.8,Z=m=>h/2+m*h/3.2,box=(x0,x1,z0,z1)=>g.fillRect(X(x0)-300,Z(z0),X(x1)-X(x0),Z(z1)-Z(z0));
+  g.shadowColor='rgba(0,0,0,.34)';g.shadowOffsetX=300;g.shadowBlur=9;g.fillStyle='#000';box(-2.9,3,-1.05,1.05);
+  g.shadowColor='rgba(0,0,0,.6)';g.shadowBlur=4;box(-2.6,3,-.42,.42);box(-1.9,.6,-.92,.92);box(2.7,3.2,-1,1);box(-2.95,-2.25,-.62,.62);
+  for(const [x,z] of [[1.85,.88],[1.85,-.88],[-1.72,.86],[-1.72,-.86]])box(x-.4,x+.4,z-.24,z+.24);
+});
 
 // Triangles between two lateral offsets along the track; mask picks which segments get built.
 function ribbon(T,la,lb,y,vScale,mask,colorFn){
@@ -1428,60 +1435,83 @@ function setLights(n){ // n = number of lit pods (0..5)
 }
 
 // ---------- cars ----------
-function mergeGeos(list){
-  let n=0;const parts=list.map(([geo,mat])=>{const g=geo.index?geo.toNonIndexed():geo.clone();g.applyMatrix4(mat);n+=g.attributes.position.count;return g});
-  const pos=new Float32Array(n*3),nor=new Float32Array(n*3);let o=0;
-  for(const g of parts){pos.set(g.attributes.position.array,o*3);nor.set(g.attributes.normal.array,o*3);o+=g.attributes.position.count;g.dispose()}
-  const out=new THREE.BufferGeometry();out.setAttribute('position',new THREE.BufferAttribute(pos,3));out.setAttribute('normal',new THREE.BufferAttribute(nor,3));
-  return out;
+// Each car is drawn in few pieces: the whole body is one mesh painted through vertex colours (one geometry per team and
+// car number, all sharing the same points), each wheel is one mesh, and every car shares the same two materials.
+function mergeParts(list){ // [geometry, matrix or null, colour slot]
+  let n=0;const parts=list.map(([geo,mat,slot])=>{const g=geo.index?geo.toNonIndexed():geo.clone();if(mat)g.applyMatrix4(mat);n+=g.attributes.position.count;return [g,slot]});
+  const pos=new Float32Array(n*3),nor=new Float32Array(n*3),slot=new Uint8Array(n);let o=0;
+  for(const [g,s] of parts){const k=g.attributes.position.count;pos.set(g.attributes.position.array,o*3);nor.set(g.attributes.normal.array,o*3);slot.fill(s,o,o+k);o+=k;g.dispose()}
+  return {pos:new THREE.BufferAttribute(pos,3),nor:new THREE.BufferAttribute(nor,3),slot};
+}
+function paintGeo(tpl,cols){ // the same shape in another set of colours
+  const n=tpl.slot.length,c=new Float32Array(n*3);for(let i=0;i<n;i++){const k=cols[tpl.slot[i]];c[i*3]=k.r;c[i*3+1]=k.g;c[i*3+2]=k.b}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',tpl.pos);g.setAttribute('normal',tpl.nor);g.setAttribute('color',new THREE.BufferAttribute(c,3));return g;
+}
+// A box whose two ends, at x0 and x1, can differ: each end is [bottom, top, half width, centre z].
+function taperGeo(x0,a,x1,b){
+  const [a0,a1,aw,az=0]=a,[b0,b1,bw,bz=0]=b;
+  const P=[[x0,a0,az-aw],[x0,a0,az+aw],[x0,a1,az+aw],[x0,a1,az-aw],[x1,b0,bz-bw],[x1,b0,bz+bw],[x1,b1,bz+bw],[x1,b1,bz-bw]].map(p=>new THREE.Vector3(...p));
+  const mid=P.reduce((s,p)=>s.add(p),new THREE.Vector3()).multiplyScalar(1/8),pos=[],n=new THREE.Vector3(),e=new THREE.Vector3(),q=new THREE.Vector3();
+  for(const f of [[0,1,2,3],[4,5,6,7],[3,2,6,7],[0,1,5,4],[1,5,6,2],[0,4,7,3]]){
+    const [A,B,C,D]=f.map(i=>P[i]);n.subVectors(B,A).cross(e.subVectors(C,A));q.copy(A).add(B).add(C).add(D).multiplyScalar(.25).sub(mid);
+    for(const v of n.dot(q)>0?[A,B,C,A,C,D]:[A,C,B,A,D,C])pos.push(v.x,v.y,v.z);
+  }
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.computeVertexNormals();return g;
 }
 const M4=(x,y,z,rx,ry,rz,sx,sy,sz)=>new THREE.Matrix4().compose(new THREE.Vector3(x,y,z),new THREE.Quaternion().setFromEuler(new THREE.Euler(rx||0,ry||0,rz||0)),new THREE.Vector3(sx||1,sy||1,sz||1));
 const CAR_GEO=(()=>{
-  const B=(w,h,d)=>new THREE.BoxGeometry(w,h,d);
-  const nose=new THREE.CylinderGeometry(.11,.3,1.75,10);nose.rotateZ(-Math.PI/2);
+  const B=(w,h,d)=>new THREE.BoxGeometry(w,h,d),T=taperGeo;
   const halo=new THREE.TorusGeometry(.34,.035,6,14,Math.PI);halo.rotateX(Math.PI/2);halo.rotateY(Math.PI/2);
-  const primary=mergeGeos([
-    [B(2.5,.52,.8),M4(.25,.46,0)],[nose,M4(2.2,.36,0)],
-    [B(1.7,.46,.56),M4(-.35,.4,.66)],[B(1.7,.46,.56),M4(-.35,.4,-.66)],
-    [B(1.9,.5,.44),M4(-1.1,.72,0)],[B(1.3,.36,.04),M4(-1.55,1.05,0)],
-    [B(.4,.38,.34),M4(-.25,1.05,0)]
-  ]);
-  const second=mergeGeos([
-    [B(.55,.06,2.0),M4(2.95,.16,0)],[B(.3,.05,1.9),M4(2.85,.27,0,0,0,.25)],
-    [B(.46,.08,1.15),M4(-2.55,1.02,0)],
-    [B(.9,.08,.58),M4(-.35,.66,.66)],[B(.9,.08,.58),M4(-.35,.66,-.66)]
-  ]);
-  const carbon=mergeGeos([
-    [B(4.7,.07,1.55),M4(-.05,.13,0)],[B(.65,.32,.05),M4(2.95,.24,.99)],[B(.65,.32,.05),M4(2.95,.24,-.99)],
-    [B(.8,.68,.05),M4(-2.55,.84,.58)],[B(.8,.68,.05),M4(-2.55,.84,-.58)],[B(.4,.05,1.0),M4(-2.5,.48,0)],
-    [halo,M4(.28,.92,0)],[B(.05,.26,.05),M4(.6,.8,0)],[B(.9,.3,1.3),M4(-2.3,.3,0)],
-    [B(.9,.05,.08),M4(1.75,.38,.45,0,.35)],[B(.9,.05,.08),M4(1.75,.38,-.45,0,-.35)],[B(.8,.05,.08),M4(-1.7,.42,.4,0,-.3)],[B(.8,.05,.08),M4(-1.7,.42,-.4,0,.3)]
-  ]);
-  const wf=new THREE.CylinderGeometry(.36,.36,.38,16);wf.rotateX(Math.PI/2);
-  const wr=new THREE.CylinderGeometry(.38,.38,.46,16);wr.rotateX(Math.PI/2);
-  const rim=new THREE.CylinderGeometry(.21,.21,.4,8);rim.rotateX(Math.PI/2);
-  const rimR=new THREE.CylinderGeometry(.22,.22,.48,8);rimR.rotateX(Math.PI/2);
-  return {primary,second,carbon,wf,wr,rim,rimR,helmet:new THREE.SphereGeometry(.17,12,8),tcam:B(.14,.06,.2),light:B(.05,.12,.14),flap:B(.3,.05,1.15),swheel:new THREE.TorusGeometry(.12,.016,6,20).rotateY(Math.PI/2),shub:B(.03,.06,.2),sdot:B(.035,.03,.03),spokeF:B(.4,.06,.41),spokeR:B(.42,.06,.49),shadow:new THREE.PlaneGeometry(6,2.6).rotateX(-Math.PI/2)};
+  const list=[
+    // team colour (0): nose, tub, cockpit sides, engine cover, roll hoop, airbox, fin, sidepods, rear wing endplates, mirrors
+    [T(3.08,[.2,.3,.1],1.4,[.2,.6,.33]),null,0],[T(1.4,[.2,.6,.33],.5,[.18,.7,.42]),null,0],[T(.5,[.18,.7,.42],-.5,[.18,.74,.44]),null,0],
+    [T(-.5,[.18,.92,.4],-2.4,[.3,.5,.13]),null,0],[B(.4,.38,.34),M4(-.25,1.05,0),0],[T(-.45,[.9,1.24,.17],-1.5,[.8,.86,.05]),null,0],
+    [T(-1,[.8,1.1,.02],-2.35,[.5,1.02,.02]),null,0]
+  ];
+  for(const s of [-1,1])list.push(
+    [T(.55,[.2,.68,.27,s*.68],-1.95,[.22,.42,.15,s*.42]),null,0],[B(.8,.68,.05),M4(-2.55,.84,s*.58),0],[B(.09,.1,.2),M4(.72,.8,s*.52),0],
+    // second colour (1): panels on top of the sidepods
+    [T(.5,[.685,.715,.2,s*.68],-.9,[.535,.565,.14,s*.53]),null,1],
+    // carbon (2): front wing endplates, sidepod inlets, suspension arms
+    [B(.65,.32,.05),M4(2.95,.24,s*.99),2],[B(.04,.36,.44),M4(.565,.45,s*.68),2],
+    [B(.9,.05,.08),M4(1.75,.38,s*.45,0,s*.35),2],[B(.8,.05,.08),M4(-1.7,.42,s*.4,0,-s*.3),2]);
+  list.push(
+    // second colour (1): front wing, rear wing, a stripe down the nose
+    [B(.55,.06,2),M4(2.95,.16,0),1],[B(.3,.05,1.9),M4(2.85,.27,0,0,0,.25),1],[B(.46,.08,1.15),M4(-2.55,1.02,0),1],[T(2.9,[.335,.352,.045],1.45,[.595,.612,.09]),null,1],
+    // carbon (2): floor, beam wing, halo, diffuser, cockpit opening
+    [B(4.7,.07,1.55),M4(-.05,.13,0),2],[B(.4,.05,1),M4(-2.5,.48,0),2],[halo,M4(.28,.92,0),2],[B(.05,.26,.05),M4(.6,.8,0),2],[B(.9,.3,1.3),M4(-2.3,.3,0),2],[B(.8,.03,.42),M4(.18,.735,0),2],
+    // the camera pod on the roll hoop (3): yellow on one car of each team, black on the other
+    [B(.14,.06,.2),M4(-.25,1.26,0),3]);
+  const wheel=(r,w,rr)=>{
+    const ty=new THREE.CylinderGeometry(r,r,w,16);ty.rotateX(Math.PI/2);const rim=new THREE.CylinderGeometry(rr,rr,w+.02,8);rim.rotateX(Math.PI/2);
+    const band=()=>new THREE.RingGeometry(r-.1,r-.055,20);
+    return mergeParts([[ty,null,0],[rim,null,1],[B(r*1.1,.06,w+.03),null,2],[band(),M4(0,0,w/2+.004),3],[band(),M4(0,0,-w/2-.004,0,Math.PI),3]]);
+  };
+  return {body:mergeParts(list),wf:wheel(.36,.38,.21),wr:wheel(.38,.46,.22),flapT:mergeParts([[B(.3,.05,1.15),null,0]]),
+    helmet:new THREE.SphereGeometry(.17,12,8),light:B(.05,.12,.14),swheel:new THREE.TorusGeometry(.12,.016,6,20).rotateY(Math.PI/2),shub:B(.03,.06,.2),sdot:B(.035,.03,.03),shadow:new THREE.PlaneGeometry(6.8,3.2).rotateX(-Math.PI/2)};
 })();
 const FLAME_GEO=new THREE.ConeGeometry(.19,1.15,10,1,true).rotateZ(Math.PI/2).translate(-.575,0,0);
 const MAT={
   flameOut:new THREE.MeshBasicMaterial({color:0x2a72ff,transparent:true,opacity:.78,depthWrite:false,side:THREE.DoubleSide}),
   flameIn:new THREE.MeshBasicMaterial({color:0x7fe0ff,transparent:true,opacity:.8,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}),
-  carbon:new THREE.MeshStandardMaterial({color:0x15171b,roughness:.55,metalness:.2}),
-  tyre:new THREE.MeshStandardMaterial({color:0x1b1b1d,roughness:.9}),
-  rim:new THREE.MeshStandardMaterial({color:0x9aa1aa,roughness:.4,metalness:.7}),
-  rimSpin:new THREE.MeshStandardMaterial({color:0x50555c,roughness:.5,metalness:.6}),
+  paint:new THREE.MeshPhongMaterial({vertexColors:true,shininess:70,specular:0x4a4a4a}),   // every car body
+  wheel:new THREE.MeshLambertMaterial({vertexColors:true}),                                 // every wheel
+  carbon:new THREE.MeshLambertMaterial({color:lin('#15171b')}),
   lightOff:new THREE.MeshBasicMaterial({color:0x330608}),
   lightOn:new THREE.MeshBasicMaterial({color:0xff2030}),
-  shadow:new THREE.MeshBasicMaterial({map:SHADOW_TEX,transparent:true,depthWrite:false,opacity:.85}),
-  treeShadow:new THREE.MeshBasicMaterial({map:SHADOW_TEX,transparent:true,depthWrite:false,opacity:.62,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}),
-  tcam0:new THREE.MeshStandardMaterial({color:0x111111,roughness:.5}),
-  tcam1:new THREE.MeshStandardMaterial({color:0xe8ff1a,roughness:.5,emissive:0x222200})
+  shadow:new THREE.MeshBasicMaterial({map:CAR_SHADOW_TEX,transparent:true,depthWrite:false,opacity:.9}),
+  treeShadow:new THREE.MeshBasicMaterial({map:SHADOW_TEX,transparent:true,depthWrite:false,opacity:.62,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2})
 };
 Object.values(MAT).forEach(m=>m.shared=true);
-const teamMats=TEAMS.map(t=>{const a=new THREE.MeshStandardMaterial({color:t.c,roughness:.32,metalness:.35}),b=new THREE.MeshStandardMaterial({color:t.c2,roughness:.38,metalness:.25});a.shared=b.shared=true;return [a,b]});
+const CARBON=lin('#2c2f36'),WHEEL_COLS=[lin('#38393e'),lin('#b4bac2'),lin('#565b63')],
+  paintCol=c=>{const k=lin(c),m=Math.max(k.r,k.g,k.b);return m<.075?k.multiplyScalar(.075/Math.max(m,.01)):k},   // very dark paint is lifted a little so the car's shape still shows
+POD=[lin('#101012'),lin('#e8ff1a')],BAND=[lin('#f2f2f2'),lin('#ffd21f')];
+const geoCache={};
+function bodyGeo(team,odd){const k='b'+team+odd,t=TEAMS[team];return geoCache[k]||(geoCache[k]=paintGeo(CAR_GEO.body,[paintCol(t.c),paintCol(t.c2),CARBON,POD[odd]]))}
+function flapGeo(team){const k='f'+team;return geoCache[k]||(geoCache[k]=paintGeo(CAR_GEO.flapT,[paintCol(TEAMS[team].c2)]))}
+function wheelGeo(front,odd){const k='w'+front+odd;return geoCache[k]||(geoCache[k]=paintGeo(front?CAR_GEO.wf:CAR_GEO.wr,[...WHEEL_COLS,BAND[odd]]))}
 const helmetMats={};
-function helmetMat(c){if(!helmetMats[c]){helmetMats[c]=new THREE.MeshStandardMaterial({color:c,roughness:.25,metalness:.3});helmetMats[c].shared=true}return helmetMats[c]}
+function helmetMat(c){if(!helmetMats[c]){helmetMats[c]=new THREE.MeshPhongMaterial({color:lin(c),shininess:90,specular:0x555555});helmetMats[c].shared=true}return helmetMats[c]}
 // Turkey Week (../events.js): a pilgrim hat on every car's roll hoop. One shared geometry and material (events.js builds the
 // hat), so it is one more draw call each; only the look changes. The Turkey Week button on the menu switches it off.
 const EVT=window.BackRoomEvents&&BackRoomEvents.turkey;let TKON=!!(EVT&&EVT.on()),tkHatMat=null;const tkHats=new Set();
@@ -1492,10 +1522,10 @@ function tkHat(parent,scale,y,z,ry){
 }
 function tkToggle(on){TKON=on;for(const m of tkHats)m.visible=on}
 function makeCarMesh(c){
-  const g=new THREE.Group(),[pm,sm]=teamMats[c.team];
-  g.add(new THREE.Mesh(CAR_GEO.primary,pm),new THREE.Mesh(CAR_GEO.second,sm),new THREE.Mesh(CAR_GEO.carbon,MAT.carbon));
+  const g=new THREE.Group(),odd=c.seat&1;
+  g.add(new THREE.Mesh(bodyGeo(c.team,odd),MAT.paint));
   const hel=new THREE.Mesh(CAR_GEO.helmet,helmetMat(c.bot?TEAMS[c.team].c2:'#ffffff'));hel.position.set(.12,.83,0);g.add(hel);
-  const tc=new THREE.Mesh(CAR_GEO.tcam,c.seat&1?MAT.tcam1:MAT.tcam0);tc.position.set(-.25,1.26,0);g.add(tc);{const h=tkHat(g,.66,1.29,0,-Math.PI/2);if(h)h.position.x=-.25}   // the hat sits on the roll hoop, over the camera pod, where it can be seen
+  {const h=tkHat(g,.66,1.29,0,-Math.PI/2);if(h)h.position.x=-.25}   // the hat sits on the roll hoop, over the camera pod, where it can be seen
   const light=new THREE.Mesh(CAR_GEO.light,MAT.lightOff);light.position.set(-2.95,.55,0);g.add(light);
   const flame=new THREE.Group();flame.position.set(-2.98,.5,0);
   const fo=new THREE.Mesh(FLAME_GEO,MAT.flameOut),fi=new THREE.Mesh(FLAME_GEO,MAT.flameIn);fi.scale.set(.6,.5,.5);
@@ -1504,18 +1534,16 @@ function makeCarMesh(c){
   const wheels=[],pivots=[];
   for(const [x,z,front] of [[1.85,.88,1],[1.85,-.88,1],[-1.72,.86,0],[-1.72,-.86,0]]){
     const piv=new THREE.Group();piv.position.set(x,front?.36:.38,z);
-    const w=new THREE.Group();w.add(new THREE.Mesh(front?CAR_GEO.wf:CAR_GEO.wr,MAT.tyre));
-    const r=new THREE.Mesh(front?CAR_GEO.rim:CAR_GEO.rimR,MAT.rim);w.add(r);
-    const spoke=new THREE.Mesh(front?CAR_GEO.spokeF:CAR_GEO.spokeR,MAT.rimSpin);w.add(spoke);
+    const w=new THREE.Mesh(wheelGeo(front,odd),MAT.wheel);
     piv.add(w);g.add(piv);wheels.push(w);if(front)pivots.push(piv);
   }
-  const flap=new THREE.Group();flap.position.set(-2.5,1.16,0);const fm=new THREE.Mesh(CAR_GEO.flap,sm);fm.position.set(-.12,0,0);flap.add(fm);flap.rotation.z=.3;g.add(flap);
+  const flap=new THREE.Group();flap.position.set(-2.5,1.16,0);const fm=new THREE.Mesh(flapGeo(c.team),MAT.paint);fm.position.set(-.12,0,0);flap.add(fm);flap.rotation.z=.3;g.add(flap);
   // a steering wheel, seen from the cockpit camera
   const wheel=new THREE.Group();wheel.position.set(.78,.73,0);
   const rimW=new THREE.Mesh(CAR_GEO.swheel,MAT.carbon);wheel.add(rimW);const hub=new THREE.Mesh(CAR_GEO.shub,MAT.carbon);wheel.add(hub);
   const dot=new THREE.Mesh(CAR_GEO.sdot,MAT.lightOn);dot.position.set(0,.1,0);wheel.add(dot);
   wheel.visible=false;g.add(wheel);
-  return {g,wheels,pivots,light,hel,flame,flap,wheel};
+  return {g,wheels,pivots,light,hel,flame,flap,wheel,sh};
 }
 let carMeshes=[];
 function buildCars(){
@@ -1533,6 +1561,7 @@ function syncCarMeshes(dt){
   for(const c of race.cars){
     const m=c.mesh;if(!m)continue;
     m.g.position.set(c.x,0,c.z);m.g.rotation.y=-c.h;
+    if(world&&world.shadowDir){const wx=world.shadowDir[0]*.4,wz=world.shadowDir[1]*.4,ch=Math.cos(c.h),sn=Math.sin(c.h);m.sh.position.set(-.1+wx*ch+wz*sn,.04,-wx*sn+wz*ch)}   // the shadow falls away from the sun
     c.spin=(c.spin+c.v*dt/.37)%TAU;
     for(const w of m.wheels)w.rotation.z=-c.spin;
     for(const p of m.pivots)p.rotation.y=-clamp(c.steer,-1,1)*.32;
