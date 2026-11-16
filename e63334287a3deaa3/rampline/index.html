@@ -1239,7 +1239,7 @@ TRACKS.forEach(t=>{t.m=MED[t.id]||[60000,70000,90000,120000];t.om=OLD_MED[t.id]|
 function trackOf(i){const d=TRACKS[i],c=new Course(d.name);d.b(c);const tr=c.done();scatter(tr,fnv(utf8(d.id)),0.22);tr.id=d.id;tr.theme=d.th|0;return tr}
 
 return {TRACKS,TIERS,trackOf,THEMES,T,H,RW,DT,PHYS_V,PH,GROUND_Y,C,PIECES,BY,DIRS,rotT,cellsOf,portsOf,overlaps,buildTrack,rayCast,newCar,step,respawn,snap,
-  encInputs,decInputs,encodeTrack,decodeTrack,trackKey,cleanName,validate,Course,scatter,runBot,replay,b64enc,b64dec,fnv,
+  encInputs,decInputs,encodeTrack,decodeTrack,trackKey,cleanName,validate,Course,scatter,runBot,replay,b64enc,b64dec,fnv,framesWorld,
   v:{add,sub,mul,dot,cross,len,norm,madd,lerp3,clamp}};
 })();
 // ==/CORE==
@@ -1411,6 +1411,22 @@ function makeTrackMesh(B,th){
   for(let t=0;t<B.rc.length;t++){const h=B.rc[t];c.setHex(map[h]!=null?map[h]:h);for(let k=0;k<3;k++){const o=(t*3+k)*3;col[o]=c.r;col[o+1]=c.g;col[o+2]=c.b}}
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));g.setAttribute('color',new THREE.BufferAttribute(col,3));g.computeVertexNormals();
   const m=new THREE.Mesh(g,trackMat);m.castShadow=true;m.receiveShadow=true;m.userData.rpc=B.rpc;return m;
+}
+// Painted centre dashes: their own drawn-only mesh a hair above the road, made from the same frames the road is swept
+// from (every other segment, so they line up with the kerb stripes). The road's own triangles are not touched.
+const lineMat=new THREE.MeshLambertMaterial({color:0xe9e5d8,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-4});
+function makeRoadLines(pieces){
+  const P=[],hw=.13,lift=.03;
+  for(const pc of pieces){const def=RL.PIECES[pc.t];if(!def||!def.fr||def.parts||def.plat||def.boost||def.gate)continue;
+    const n=def.n||4;let A=RL.framesWorld(pc,def.fr,0);
+    for(let i=0;i<n;i++){const Z=RL.framesWorld(pc,def.fr,(i+1)/n),A0=A;A=Z;if(i&1)continue;
+      const sA=Vm.cross(A0.u,A0.t),sZ=Vm.cross(Z.u,Z.t);
+      if(Math.abs(Vm.dot(Vm.sub(Z.u,A0.u),sA))>.012)continue; // the road twists here (bank or wall-ride entry): a flat dash wouldn't lie on it
+      const q=(F,sv,k)=>[F.c[0]+sv[0]*k+F.u[0]*lift,F.c[1]+sv[1]*k+F.u[1]*lift,F.c[2]+sv[2]*k+F.u[2]*lift];
+      const a=q(A0,sA,-hw),b=q(A0,sA,hw),c=q(Z,sZ,hw),d=q(Z,sZ,-hw);
+      P.push(a[0],a[1],a[2],c[0],c[1],c[2],b[0],b[1],b[2],a[0],a[1],a[2],d[0],d[1],d[2],c[0],c[1],c[2])}}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(P),3));g.computeVertexNormals();
+  const m=new THREE.Mesh(g,lineMat);m.receiveShadow=true;return m;
 }
 const gateTex={};
 function bannerTex(kind){
@@ -1674,8 +1690,8 @@ function setTrack(track,key,builtin){
   G.track=track;G.key=key;G.builtin=builtin;
   const t0=performance.now();
   G.B=RL.buildTrack(track);applyTheme(track.theme|0);
-  if(trackMesh){scene.remove(trackMesh);trackMesh.geometry.dispose()}
-  trackMesh=makeTrackMesh(G.B,track.theme);scene.add(trackMesh);makeGates(G.B);
+  if(trackMesh){scene.remove(trackMesh);trackMesh.geometry.dispose();trackMesh.children.forEach(c=>c.geometry.dispose())}
+  trackMesh=makeTrackMesh(G.B,track.theme);trackMesh.add(makeRoadLines(track.pieces));scene.add(trackMesh);makeGates(G.B);
   buildScenery(G.B.bounds,RL.fnv(RL.b64dec(RL.encodeTrack({name:'',pieces:track.pieces}).slice(4))||[1]));
   G.buildMs=performance.now()-t0;
 }
@@ -2149,7 +2165,7 @@ function leaveEditor(){if(ED.grid)ED.grid.visible=false;ED.paste=null;ED.sel=new
 function boundsOf(pcs){if(!pcs.length)return {cx:0,cz:0,r:30};let a=1e9,b=-1e9,c=1e9,d=-1e9;for(const p of pcs){a=Math.min(a,p.x);b=Math.max(b,p.x);c=Math.min(c,p.z);d=Math.max(d,p.z)}return {cx:(a+b)/2*T,cz:(c+d)/2*T,r:Math.max(b-a,d-c)*T/2+10}}
 function edRebuild(){
   edB=RL.buildTrack(ED.track);
-  if(edMesh){scene.remove(edMesh);edMesh.geometry.dispose()}edMesh=makeTrackMesh(edB,ED.track.theme);scene.add(edMesh);
+  if(edMesh){scene.remove(edMesh);edMesh.geometry.dispose();edMesh.children.forEach(c=>c.geometry.dispose())}edMesh=makeTrackMesh(edB,ED.track.theme);edMesh.add(makeRoadLines(ED.track.pieces));scene.add(edMesh);
   if(trackMesh){scene.remove(trackMesh);trackMesh.geometry.dispose();trackMesh=null}
   makeGates(edB);G.B=edB;G.builtin=-1;
   edCheck();
