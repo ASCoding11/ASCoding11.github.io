@@ -319,7 +319,6 @@ body.touch #pips{left:calc(200px + env(safe-area-inset-left,0px));transform:none
         <input class="text" id="name" maxlength="16" autocomplete="off" spellcheck="false" style="max-width:260px">
       </div>
 
-      <div class="row"><button id="turkeyBtn" class="ghost-btn" type="button" hidden>Turkey Week on</button></div>
       <div class="group">
         <span class="label">Online</span>
         <div class="row">
@@ -1318,14 +1317,13 @@ function raycast(o,d,maxT,ignore,withEnts,skipTeam){
 /* ---------- characters ---------- */
 function box(w,h,d,m){return new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m)}
 // Turkey Week (../events.js): a pilgrim hat on every suit. One shared geometry and material (events.js builds the
-// hat), so it is one more draw call each; only the look changes. The Turkey Week button on the menu switches it off.
-const EVT=window.BackRoomEvents&&BackRoomEvents.turkey;let TKON=!!(EVT&&EVT.on()),tkHatMat=null;const tkHats=new Set();
+// hat), so it is one more draw call each; only the look changes. The Turkey Week switch on the Back Room page turns it off; it is read once, when the game loads.
+const EVT=window.BackRoomEvents&&BackRoomEvents.turkey;const TKON=!!(EVT&&EVT.on());let tkHatMat=null;
 function tkHat(parent,scale,y,z,ry){
-  if(!EVT||!EVT.live())return null;
+  if(!TKON)return null;
   const m=new THREE.Mesh(EVT.hat(THREE),tkHatMat||(tkHatMat=new THREE.MeshLambertMaterial({vertexColors:true})));
-  m.scale.setScalar(scale);m.position.set(0,y,z||0);if(ry)m.rotation.y=ry;m.visible=TKON;parent.add(m);tkHats.add(m);return m;
+  m.scale.setScalar(scale);m.position.set(0,y,z||0);if(ry)m.rotation.y=ry;parent.add(m);return m;
 }
-function tkToggle(on){TKON=on;for(const m of tkHats)m.visible=on}
 // A suit is a few meshes, each several boxes joined up (see parts), so the extra detail costs no extra draw calls.
 function makeSuit(suit,trim,visor){
   const g=new THREE.Group();
@@ -2712,7 +2710,6 @@ nameEl.addEventListener('input',()=>{myName=nameEl.value.replace(/[<>]/g,'').tri
 $('room').value=store.get('room','')||randomRoom();
 $('play').addEventListener('click',startPractice);
 $('quick').addEventListener('click',()=>quickMatch(false));
-if(EVT)EVT.button($('turkeyBtn'),tkToggle);
 $('joinRoom').addEventListener('click',joinPrivate);
 $('room').addEventListener('keydown',e=>{if(e.key==='Enter')joinPrivate()});
 $('again').addEventListener('click',()=>{if(online)hostToLobby();else startPractice()});

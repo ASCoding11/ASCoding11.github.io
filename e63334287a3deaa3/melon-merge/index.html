@@ -137,7 +137,7 @@ html:not(.touch) .touch-only{display:none!important}
       <h1 class="title">Melon <b>Merge</b></h1>
       <canvas id="parade" aria-hidden="true"></canvas>
       <p class="lede" id="ledeStart">Drop fruit into the jar. Two of the same fruit squish together into the next one up, from a tiny cherry all the way to a watermelon. Keep the pile under the red line.</p>
-      <div class="row"><button class="cta" id="play" type="button">Play</button><button class="ghost" id="helpStart" type="button">How to play</button><button class="ghost" id="turkeyS" type="button" hidden>Turkey Week on</button></div>
+      <div class="row"><button class="cta" id="play" type="button">Play</button><button class="ghost" id="helpStart" type="button">How to play</button></div>
       <p class="foot">Best score on this device: <b id="bestStart">0</b></p>
     </div>
   </section>
@@ -146,7 +146,7 @@ html:not(.touch) .touch-only{display:none!important}
     <div class="inner">
       <div class="kicker"><span><b>❚❚</b> Paused</span><span id="pauseScore"></span></div>
       <div class="row" style="margin-top:14px"><button class="cta" id="resume" type="button">Resume</button><button class="ghost" id="restartP" type="button">Restart</button></div>
-      <div class="row"><button class="ghost" id="helpP" type="button">How to play</button><button class="ghost mouse-only" id="keysP" type="button">Controls</button><button class="ghost" id="facesP" type="button">Faces: on</button><button class="ghost" id="turkeyP" type="button" hidden>Turkey Week on</button><a class="ghost" href="/e63334287a3deaa3/">Back to games</a></div>
+      <div class="row"><button class="ghost" id="helpP" type="button">How to play</button><button class="ghost mouse-only" id="keysP" type="button">Controls</button><button class="ghost" id="facesP" type="button">Faces: on</button><a class="ghost" href="/e63334287a3deaa3/">Back to games</a></div>
     </div>
   </section>
 
@@ -702,7 +702,8 @@ function paintFruit(g,k,R){
 
 /* Turkey Week (../events.js): for the event the same eleven stages are a Thanksgiving dinner, from a cranberry up to
    the turkey. Only the names and the paint change (FR_DINNER, paintDinner): sizes, scores, physics and the saved best
-   are the fruit game's. The Turkey Week button on the start and pause panels switches back to fruit (setDinner). */
+   are the fruit game's. The Turkey Week switch on the Back Room page puts the fruit back; it is read once, when the
+   game loads (setDinner). */
 const EVT=window.BackRoomEvents&&BackRoomEvents.turkey,FR_FRUIT=FR.slice();
 const FR_DINNER=[null,
   {n:'Cranberry',   c:['#ff7a86','#d4213f','#8e0d27'], line:'#5a0818', ext:1.2},
@@ -1570,8 +1571,6 @@ function dinnerText(){
   $('topName').textContent=TKON?'turkeys':'watermelons';
   const el=$('ptsList');el.textContent='';for(let k=2;k<=11;k++){const s=document.createElement('span');const b=document.createElement('b');b.textContent=FR[k].n;s.append(b,' +'+SCORES[k]);el.append(s)}
 }
-if(EVT){const sync=()=>{setDinner();buildSprites();dinnerText();for(const id of ['turkeyP','turkeyS']){const b=$(id),on=EVT.on();b.textContent=on?'Turkey Week on':'Turkey Week off';b.setAttribute('aria-pressed',String(on))}};
-  EVT.button($('turkeyP'),sync);EVT.button($('turkeyS'),sync)}
 
 // help text
 $('bonusTxt').textContent='+'+MELON_BONUS;dinnerText();

@@ -428,7 +428,6 @@ body.touch #lobby{top:calc(150px + env(safe-area-inset-top,0px));left:12px;right
         </div>
         <p class="tag">Hide and seek where you paint yourself to vanish. Hiders start plain white and copy the room onto their own bodies; seekers get a blaster with limited ink and have to spot them by eye.</p>
         <div class="label" style="margin-top:4px">Play with friends</div>
-        <button id="turkeyBtn" class="btn alt" type="button" style="margin-bottom:8px" hidden>Turkey Week on</button>
         <button id="quick" class="btn big pink" type="button">Quick match</button>
         <div class="roomrow">
           <div class="field"><span>cf-</span><input id="room" maxlength="17" autocomplete="off" spellcheck="false" aria-label="Room code" placeholder="room code"></div>
@@ -3136,14 +3135,13 @@ function makeTag(name,color){
 }
 
 // Turkey Week (../events.js): a pilgrim hat on every seeker (never on hiders, whose whole game is blending in: the hat is part of the seeker gear). One shared geometry and material (events.js builds the
-// hat), so it is one more draw call each; only the look changes. The Turkey Week button on the menu switches it off.
-const EVT=window.BackRoomEvents&&BackRoomEvents.turkey;let TKON=!!(EVT&&EVT.on()),tkHatMat=null;const tkHats=new Set();
+// hat), so it is one more draw call each; only the look changes. The Turkey Week switch on the Back Room page turns it off; it is read once, when the game loads.
+const EVT=window.BackRoomEvents&&BackRoomEvents.turkey;const TKON=!!(EVT&&EVT.on());let tkHatMat=null;const tkHats=new Set();
 function tkHat(parent,scale,y,z,ry){
-  if(!EVT||!EVT.live())return null;
+  if(!TKON)return null;
   const m=new THREE.Mesh(EVT.hat(THREE),tkHatMat||(tkHatMat=new THREE.MeshLambertMaterial({vertexColors:true})));
-  m.scale.setScalar(scale);m.position.set(0,y,z||0);if(ry)m.rotation.y=ry;m.visible=TKON;parent.add(m);tkHats.add(m);return m;
+  m.scale.setScalar(scale);m.position.set(0,y,z||0);if(ry)m.rotation.y=ry;parent.add(m);tkHats.add(m);return m;
 }
-function tkToggle(on){TKON=on;for(const m of tkHats)m.visible=on}
 class Avatar{
   constructor(e){
     this.e=e;this.root=new THREE.Group();this.pose=new THREE.Group();this.root.add(this.pose);scene.add(this.root);
@@ -4806,7 +4804,6 @@ $('sizeSeg').onclick=ev=>{const b=ev.target.closest('button');if(b){setMySize(+b
 $('name').value=myName;$('name').addEventListener('input',()=>{myName=cleanName($('name').value);store.set('name',myName)});
 $('room').value=sanitizeRoom(storeStr('room',''));
 $('pracHide').onclick=()=>startPractice('hide');$('pracSeek').onclick=()=>startPractice('seek');
-if(EVT)EVT.button($('turkeyBtn'),tkToggle);
 $('quick').onclick=quickMatch;$('joinRoom').onclick=joinPrivate;$('room').addEventListener('keydown',ev=>{if(ev.key==='Enter')joinPrivate()});
 $('resume').onclick=resume;$('leave').onclick=toMenu;$('toMenu').onclick=toMenu;
 $('again').onclick=()=>{if(G.mode==='practice')startPractice(G.pmode)};

@@ -323,7 +323,6 @@ body.touch #hint,body.touch #itemTip{bottom:calc(210px + var(--sab))}
       <div class="sticker menu-card">
         <div class="field"><label class="lbl" for="inName">Driver name</label><input class="inp" id="inName" maxlength="14" autocomplete="off" spellcheck="false"></div>
         <div class="field"><span class="lbl" id="swLbl">Kart paint</span><div id="swatches" role="radiogroup" aria-labelledby="swLbl"></div></div>
-        <div class="field" id="turkeyField" hidden><span class="lbl">Turkey Week</span><div class="row"><button id="bTurkey" class="chip" type="button" aria-pressed="true" style="white-space:nowrap;flex:0 0 auto">Turkey karts on</button><span class="mode-desc" id="turkeyNote" style="margin:0"></span></div></div>
         <div class="field"><label class="lbl" for="inRoom">Room code</label>
           <div class="row"><input class="inp" id="inRoom" maxlength="20" autocomplete="off" spellcheck="false"><button id="bNewRoom" class="chip" type="button">New code</button></div>
         </div>
@@ -1202,10 +1201,10 @@ const nooseGeo = new THREE.TorusGeometry(2.35, .14, 6, 28), nooseMat = new THREE
 // driver's paint colour, so players are still told apart the same way (and the hit flash still shows on the tail).
 // The bird is two meshes made once and shared by every kart: everything in fixed colours (vertex colours), and the
 // painted feathers. It is only a look on this computer: sizes for hits, items and what is sent to the room are the
-// same, and the Turkey Week button in the menu puts the karts back (dressKarts).
+// same. The Turkey Week switch on the Back Room page puts the usual karts back; it is read once, when the game loads.
 const EVT = window.BackRoomEvents && BackRoomEvents.turkey;
 const TK = { base: 0x2e2942, body: 0x8a5a2b, chest: 0xa66b34, wing: 0x5a3219, beak: 0xf4a41c, red: 0xd8392b, eye: 0xffffff, ink: 0x1b1733, feather: 0xffc93c };
-const turkeyOn = () => !!(EVT && EVT.on());
+const TKON = !!(EVT && EVT.on()), turkeyOn = () => TKON;
 let turkeyGeos = null;
 const turkeyMat = lam(0xffffff, { vertexColors: true });
 // several shapes as one geometry: each is moved into place and (optionally) given a colour as vertex colours
@@ -1264,7 +1263,6 @@ function dressKart(P) {
   if (P.turkey) P.turkey.visible = on;
   P.shellG.visible = !on;
 }
-function dressKarts() { for (const k of karts.values()) dressKart(k.parts); }
 
 // The usual kart body is two meshes made once and shared by every kart, like the turkey: everything in fixed colours
 // (vertex colours) and everything in the driver's paint. A wheel with its rim and hub cap is one shared mesh too.
@@ -3535,15 +3533,6 @@ $('#bInvite').addEventListener('click', () => {
   const done = ok => { btn.textContent = ok ? 'Link copied' : url; setTimeout(() => { btn.textContent = 'Copy invite link'; }, 2500); };
   try { navigator.clipboard.writeText(url).then(() => done(true), () => done(false)); } catch (_) { done(false); }
 });
-// Turkey Week: the menu row only shows while the event is running; the choice is saved by events.js for both games.
-function paintTurkey() {
-  const live = !!(EVT && EVT.live()), on = turkeyOn();
-  $('#turkeyField').hidden = !live;
-  $('#bTurkey').textContent = on ? 'Turkey karts on' : 'Turkey karts off'; $('#bTurkey').setAttribute('aria-pressed', String(on));
-  $('#turkeyNote').textContent = live ? (on ? 'Every kart is a turkey until ' + EVT.until + '.' : 'Runs until ' + EVT.until + '.') : '';
-}
-$('#bTurkey').addEventListener('click', () => { if (!EVT) return; EVT.set(!turkeyOn()); dressKarts(); paintTurkey(); });
-paintTurkey();
 function toggleMute() { Snd.on = !Snd.on; if (!Snd.on) Snd.engineSet(null); store.set('sound', Snd.on ? '1' : '0'); $('#bMute').textContent = Snd.on ? 'Sound on' : 'Sound off'; }
 $('#bMute').textContent = Snd.on ? 'Sound on' : 'Sound off';
 $('#bMute').addEventListener('click', toggleMute);
