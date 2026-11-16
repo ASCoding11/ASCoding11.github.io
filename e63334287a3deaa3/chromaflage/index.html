@@ -428,6 +428,7 @@ body.touch #lobby{top:calc(150px + env(safe-area-inset-top,0px));left:12px;right
         </div>
         <p class="tag">Hide and seek where you paint yourself to vanish. Hiders start plain white and copy the room onto their own bodies; seekers get a blaster with limited ink and have to spot them by eye.</p>
         <div class="label" style="margin-top:4px">Play with friends</div>
+        <button id="turkeyBtn" class="btn alt" type="button" style="margin-bottom:8px" hidden>Turkey Week on</button>
         <button id="quick" class="btn big pink" type="button">Quick match</button>
         <div class="roomrow">
           <div class="field"><span>cf-</span><input id="room" maxlength="17" autocomplete="off" spellcheck="false" aria-label="Room code" placeholder="room code"></div>
@@ -546,6 +547,7 @@ body.touch #lobby{top:calc(150px + env(safe-area-inset-top,0px));left:12px;right
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="../autores.js"></script>
 <script src="../netsmooth.js"></script>
+<script src="../events.js"></script>
 <script>
 (function(){
 'use strict';
@@ -3133,6 +3135,15 @@ function makeTag(name,color){
   const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,depthTest:true,transparent:true}));s.scale.set(1.2,.3,1);s.renderOrder=5;return s;
 }
 
+// Turkey Week (../events.js): a pilgrim hat on every seeker (never on hiders, whose whole game is blending in: the hat is part of the seeker gear). One shared geometry and material (events.js builds the
+// hat), so it is one more draw call each; only the look changes. The Turkey Week button on the menu switches it off.
+const EVT=window.BackRoomEvents&&BackRoomEvents.turkey;let TKON=!!(EVT&&EVT.on()),tkHatMat=null;const tkHats=new Set();
+function tkHat(parent,scale,y,z,ry){
+  if(!EVT||!EVT.live())return null;
+  const m=new THREE.Mesh(EVT.hat(THREE),tkHatMat||(tkHatMat=new THREE.MeshLambertMaterial({vertexColors:true})));
+  m.scale.setScalar(scale);m.position.set(0,y,z||0);if(ry)m.rotation.y=ry;m.visible=TKON;parent.add(m);tkHats.add(m);return m;
+}
+function tkToggle(on){TKON=on;for(const m of tkHats)m.visible=on}
 class Avatar{
   constructor(e){
     this.e=e;this.root=new THREE.Group();this.pose=new THREE.Group();this.root.add(this.pose);scene.add(this.root);
@@ -3162,12 +3173,13 @@ class Avatar{
       const v=new THREE.Mesh(new THREE.BoxGeometry(.36,.09,.05),visorMat);v.position.set(0,.8,.16);this.gear.add(v);
       const g=new THREE.Group();g.position.set(-.27,.45,.08);const b1=new THREE.Mesh(new THREE.BoxGeometry(.1,.12,.32),gunMat);const b2=new THREE.Mesh(new THREE.CylinderGeometry(.035,.035,.16,10),gunMat2);b2.rotation.x=Math.PI/2;b2.position.z=.22;g.add(b1,b2);this.gun=g;this.gear.add(g);this.hips.add(this.gear);
     }
+    tkHat(this.gear,k===0?.56:.6,k===0?1.17:1.0,k===0?0:.02,Math.PI);
     this.gear.visible=this.seeker;if(this.gun)this.gun.visible=this.seeker;
     this.gear.traverse(o=>{if(o.isMesh){o.castShadow=true}});
   }
   // the visor and blaster are made for each body; the shared materials stay
   freeGear(){
-    const free=o=>{if(!o.isMesh)return;o.geometry.dispose();if(o.material!==visorMat&&o.material!==gunMat&&o.material!==gunMat2)o.material.dispose()};
+    const free=o=>{if(!o.isMesh)return;if(tkHats.has(o)){tkHats.delete(o);return}o.geometry.dispose();if(o.material!==visorMat&&o.material!==gunMat&&o.material!==gunMat2)o.material.dispose()};
     if(this.gear)this.gear.traverse(free);if(this.gun&&this.gun.parent!==this.gear)this.gun.traverse(free);this.gear=null;this.gun=null;
   }
   setSeeker(on){
@@ -4794,6 +4806,7 @@ $('sizeSeg').onclick=ev=>{const b=ev.target.closest('button');if(b){setMySize(+b
 $('name').value=myName;$('name').addEventListener('input',()=>{myName=cleanName($('name').value);store.set('name',myName)});
 $('room').value=sanitizeRoom(storeStr('room',''));
 $('pracHide').onclick=()=>startPractice('hide');$('pracSeek').onclick=()=>startPractice('seek');
+if(EVT)EVT.button($('turkeyBtn'),tkToggle);
 $('quick').onclick=quickMatch;$('joinRoom').onclick=joinPrivate;$('room').addEventListener('keydown',ev=>{if(ev.key==='Enter')joinPrivate()});
 $('resume').onclick=resume;$('leave').onclick=toMenu;$('toMenu').onclick=toMenu;
 $('again').onclick=()=>{if(G.mode==='practice')startPractice(G.pmode)};
