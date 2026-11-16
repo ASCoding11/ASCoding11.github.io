@@ -1542,7 +1542,40 @@ const tyreG=(()=>{const g=new THREE.LatheGeometry([[.2,-.15],[.31,-.15],[.35,-.1
 const wheelG=tyreG;
 const hubG=new THREE.CylinderGeometry(.235,.235,.27,20);hubG.rotateZ(Math.PI/2);
 const spokeG=new THREE.BoxGeometry(.3,.44,.06),capG=new THREE.CylinderGeometry(.07,.07,.32,10);capG.rotateZ(Math.PI/2);
-[tyreG,hubG,spokeG,capG].forEach(g=>SHARED_G.add(g));
+// ---- fewer pieces to draw ----
+// A car used to be about 42 separate meshes (three body shells, a dozen trim boxes, six parts in each wheel), and every
+// one is a separate job for the graphics card, done twice on Pretty graphics (once more for the shadow). Six cars came
+// to about 500 jobs a frame, which is what slow laptops choke on. The picture doesn't need them separate: joinGeoms()
+// welds shapes into one, and joinMeshes() welds every mesh in a group that shares a material, each kept exactly where
+// it was. A car is now about 6 body meshes and 3 per wheel, and looks the same.
+function joinGeoms(list){ // list of [geometry, Matrix4 or null]
+  const pos=[],nor=[],idx=[];
+  for(const [g0,mx] of list){
+    const g=g0.clone();if(mx)g.applyMatrix4(mx);
+    const P=g.attributes.position,N=g.attributes.normal,base=pos.length/3;
+    for(let i=0;i<P.count;i++){pos.push(P.getX(i),P.getY(i),P.getZ(i));nor.push(N.getX(i),N.getY(i),N.getZ(i))}
+    if(g.index)for(let i=0;i<g.index.count;i++)idx.push(base+g.index.getX(i));else for(let i=0;i<P.count;i++)idx.push(base+i);
+    g.dispose();
+  }
+  const out=new THREE.BufferGeometry();
+  out.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));out.setAttribute('normal',new THREE.Float32BufferAttribute(nor,3));out.setIndex(idx);
+  return out;
+}
+function joinMeshes(parent){ // welds parent's own meshes by material; returns the new meshes
+  const by=new Map();
+  for(const m of parent.children.slice()){if(!m.isMesh)continue;m.updateMatrix();let a=by.get(m.material);if(!a)by.set(m.material,a=[]);a.push(m)}
+  const out=[];
+  for(const [mat,ms] of by){
+    const mesh=new THREE.Mesh(joinGeoms(ms.map(m=>[m.geometry,m.matrix])),mat);
+    for(const m of ms){parent.remove(m);if(!SHARED_G.has(m.geometry))m.geometry.dispose()}
+    parent.add(mesh);out.push(mesh);
+  }
+  return out;
+}
+// the wheel's hub and cap share a material, and so do its three spokes: one shape each, shared by every wheel
+const hubCapG=joinGeoms([[hubG,null],[capG,null]]);
+const spokesG=joinGeoms([0,1,2].map(k=>[spokeG,new THREE.Matrix4().makeRotationX(k*Math.PI/3)]));
+[tyreG,hubG,spokeG,capG,hubCapG,spokesG].forEach(g=>SHARED_G.add(g));
 // loft(): a smooth solid through a row of cross-sections. keys are [z, half width, bottom y, top y] from tail to nose; each
 // cross-section is a rounded box (n sets how square), narrower toward the top by taper (the way a car's cabin leans in),
 // and the values are eased between keys so the surface flows. This is what shapes the body, the glass and the roof.
@@ -1607,16 +1640,18 @@ function buildCarModel(team,body,accent){
     box(inner,.09,sh,.12,-.5,wy-sh/2,wz+.02,mD);box(inner,.09,sh,.12,.5,wy-sh/2,wz+.02,mD);
   }
   if(B.bar){box(inner,1.5,.1,.08,0,-.14,zN+.03,mA);box(inner,.9,.05,.5,0,.82,-.3,mD)}
+  // Everything so far is fixed to the body: weld it into one mesh per material (see joinMeshes). The lights don't cast a
+  // shadow (they sit flush on the body, inside its outline).
+  for(const m of joinMeshes(inner))m.castShadow=m.material!==head&&m.material!==tail;
   const wheels=[];
   for(const [x,z] of [[.8,.78],[-.8,.78],[.8,-.78],[-.8,-.78]]){
     const w=new THREE.Group();w.position.set(x,-.26,z);
     const spin=new THREE.Group();w.add(spin);
-    spin.add(new THREE.Mesh(wheelG,mT));spin.add(new THREE.Mesh(hubG,mR));
-    for(let k=0;k<3;k++){const sp=new THREE.Mesh(spokeG,mD);sp.rotation.x=k*Math.PI/3;spin.add(sp)}
-    spin.add(new THREE.Mesh(capG,mR));
+    // the tyre and the hub that fills its middle cast the shadow; the spokes are inside their outline
+    const tyre=new THREE.Mesh(wheelG,mT),hub=new THREE.Mesh(hubCapG,mR);tyre.castShadow=hub.castShadow=true;
+    spin.add(tyre);spin.add(hub);spin.add(new THREE.Mesh(spokesG,mD));
     inner.add(w);wheels.push({g:w,spin,front:z>0});
   }
-  inner.traverse(o=>{if(o.isMesh)o.castShadow=true});
   const flame=new THREE.Mesh(new THREE.ConeGeometry(.24,1.4,10),new THREE.MeshBasicMaterial({color:T.flame[0],transparent:true,opacity:.85,blending:THREE.AdditiveBlending,depthWrite:false}));
   flame.rotation.x=-Math.PI/2;flame.position.set(0,.02,-1.6);flame.visible=false;inner.add(flame);
   let boostGlow=null;
@@ -3304,6 +3339,41 @@ setInterval(()=>{
   let r=Math.min(1,(p-last)/1000);last=p;
   try{while(r>0){const d=Math.min(.1,r);r-=d;step(d,true)}}catch(err){console.error(err)}
 },250);
+// ---- drawing between physics ticks ----
+// The physics moves in fixed 1/120 s ticks, but a frame is rarely a whole number of ticks long: a 60 Hz screen fits two,
+// give or take one whenever a frame runs a little early or late, a 144 Hz screen fits one or none, and a laptop at 45
+// frames a second fits two or three. Drawn straight from the last tick, your car and the ball then moved unevenly from
+// frame to frame, which read as stutter even at a full frame rate. So each frame is drawn part-way between the last two
+// ticks, by how much of the next tick's time has passed (acc/H_STEP): at most 8 ms behind, and even on any screen.
+// tweenMark() notes where your cars (yours and the bots this page runs) and the ball were before and after each tick;
+// tweenIn() puts them at the in-between spot for the drawing code (car models, camera, shadows, trails, HUD) and
+// tweenOut() puts the real values back before anything else runs. Only what is drawn changes: the physics, what is sent
+// to other players and what the bots see all use the real values. If something else moved a car or the ball since the
+// last tick, the earlier spot goes with it: a small nudge (a ball correction from the host) shifts it by the same amount, and
+// a big move (a kickoff, a respawn) is drawn at the new spot straight away, so nothing streaks across the pitch.
+// Other players' cars aren't touched: updateRemotes already moves them every frame.
+const tweens=[];
+function tweenMark(before){
+  if(before){tweens.length=0;for(const c of cars)if(!c.remote&&c.active!==false)tweens.push(c);tweens.push(ball)}
+  for(const o of tweens){
+    if(!o.pp){o.pp=new V3();o.pc=new V3();o.tp=new V3();if(o.q){o.pq=new QT();o.qc=new QT();o.tq=new QT()}}
+    if(before){o.pp.copy(o.pos);if(o.q)o.pq.copy(o.q)}else{o.pc.copy(o.pos);if(o.q)o.qc.copy(o.q);o.tw=true}
+  }
+}
+let tweened=false;
+function tweenIn(){
+  const a=clamp(acc/H_STEP,0,1);tweened=true;
+  for(const o of tweens){
+    if(!o.tw||o.remote||o.active===false)continue;
+    if(!o.pc.equals(o.pos)){if(o.pos.distanceToSquared(o.pc)>1)o.pp.copy(o.pos);else o.pp.add(o.pos).sub(o.pc);o.pc.copy(o.pos)}
+    o.ti=true;o.tp.copy(o.pos);o.pos.lerpVectors(o.pp,o.tp,a);
+    if(o.q){if(!o.qc.equals(o.q)){o.pq.copy(o.q);o.qc.copy(o.q)}o.tq.copy(o.q);o.q.copy(o.pq).slerp(o.tq,a)}
+  }
+}
+function tweenOut(){
+  if(!tweened)return;tweened=false;
+  for(const o of tweens){if(!o.ti)continue;o.ti=false;o.pos.copy(o.tp);if(o.q)o.q.copy(o.tq)}
+}
 function physStep(h,now,ph){
   const frozen=ph==='countdown'||ph==='over'||state==='end';
   const locals=localCars();
@@ -3335,7 +3405,7 @@ function simulate(dt,freeze){
     // other players' cars move first, so the ball is checked against where they are drawn this frame
     if(online)updateRemotes(dt);
     acc+=dt;let n=0;
-    while(acc>=H_STEP&&n<13){acc-=H_STEP;n++;physStep(H_STEP,nowMs(),ph)}
+    while(acc>=H_STEP&&n<13){acc-=H_STEP;n++;tweenMark(true);physStep(H_STEP,nowMs(),ph);tweenMark(false)}
     if(n>=13)acc=0;
     for(const c of localCars()){
       if(c.demo>0){c.demo-=dt;if(c.demo<=0){c.demo=0;if(ph!=='countdown')respawnCar(c);else{const [x,z]=kickoffSpot(c);placeCar(c,x,z,Math.atan2(-x,-z))}}}
@@ -3351,7 +3421,13 @@ function step(dt,bg){
   if(online)Net.tick(now);
   const freeze=paused&&mode!=='online';
   simulate(dt,freeze);
-  // visuals
+  // visuals, drawn part-way between the last two physics ticks (see tweenMark)
+  tweenIn();
+  try{stepVisuals(dt,now,freeze)}finally{tweenOut()}
+  if(!noRender&&!bg)drawScene();
+  if(state==='menu'&&!$('menu').hidden)renderGarage(dt);
+}
+function stepVisuals(dt,now,freeze){
   ballVisOff.multiplyScalar(Math.exp(-dt*9));
   lookSync();
   ballMesh.visible=!ballHidden;ballShadow.visible=!ballHidden;ballRing.visible=!ballHidden;
@@ -3380,8 +3456,6 @@ function step(dt,bg){
     wn.hidden=others>0;if(others===0)wn.textContent='Waiting for players · share the invite link from the pause menu';
   }
   audioTick(dt);
-  if(!noRender&&!bg)drawScene();
-  if(state==='menu'&&!$('menu').hidden)renderGarage(dt);
 }
 
 // An invite opens this page with #bb-<code>: fill in the room and point at the join button.
