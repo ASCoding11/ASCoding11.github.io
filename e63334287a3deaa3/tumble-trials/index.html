@@ -1114,8 +1114,8 @@ class Bean{
     this.limbMat=new THREE.MeshLambertMaterial({color:look.c});this.footMat=new THREE.MeshLambertMaterial({color:shade(look.c,-.3)});
     this.arms=[];this.legs=[];
     for(const s of [-1,1]){
-      const piv=new THREE.Group();piv.position.set(s*.4,.08,0);const a=new THREE.Mesh(limbGeo,this.limbMat);a.scale.set(.11,.2,.11);a.position.set(s*.06,-.16,0);a.castShadow=true;piv.add(a);this.tilt.add(piv);this.arms.push(piv);
-      const lp=new THREE.Group();lp.position.set(s*.17,-.66,0);const f=new THREE.Mesh(limbGeo,this.footMat);f.scale.set(.13,.1,.19);f.position.set(0,-.08,.05);f.castShadow=true;lp.add(f);this.tilt.add(lp);this.legs.push(lp);
+      const piv=new THREE.Group();piv.position.set(s*.4,.08,0);const a=new THREE.Mesh(limbGeo,this.limbMat);a.scale.set(.11,.2,.11);a.position.set(s*.06,-.16,0);piv.add(a);this.tilt.add(piv);this.arms.push(piv);
+      const lp=new THREE.Group();lp.position.set(s*.17,-.66,0);const f=new THREE.Mesh(limbGeo,this.footMat);f.scale.set(.13,.1,.19);f.position.set(0,-.08,.05);lp.add(f);this.tilt.add(lp);this.legs.push(lp);
     }
     this.shadow=new THREE.Mesh(shadowGeo,shadowMat.clone());this.shadow.renderOrder=1;
     this.tag=null;if(showTag)this.setTag(name,look.c);
@@ -3534,6 +3534,8 @@ function step(dt,bg){
     const turn=angDiff(b.yaw,e.lastYaw||b.yaw)/Math.max(dt,1e-3);e.lastYaw=b.yaw;
     if(b.onGround&&(b.st==='move'||b.st==='slide')){const sp2=b.vel.x*b.vel.x+b.vel.z*b.vel.z;e.dustT=(e.dustT||0)-dt;if(sp2>(b.st==='slide'?4:26)&&e.dustT<=0&&camera.position.distanceToSquared(b.pos)<900){e.dustT=.14;PUFF.spawn(b.pos.x+rand(-.15,.15),b.pos.y+.06,b.pos.z+rand(-.15,.15),-b.vel.x*.12,.5,-b.vel.z*.12,.32,.7)}}
     e.bean.update(b,dt,{turn,grab:e.isMe?!!b.grabbing:false,grabbed:e.isMe&&!!G.grabbedBy,cheer:e.cheer||(e.fin&&isRace(L))});
+    // with 16 on the course, a bean a long way off is drawn without its hands and feet (they are a few pixels there)
+    {const far=camera.position.distanceToSquared(b.pos)>1150;if(e.bean.far!==far){e.bean.far=far;for(const g of e.bean.arms)g.visible=!far;for(const g of e.bean.legs)g.visible=!far}}
     if(e.bean.tag){const d=camera.position.distanceTo(b.pos),k=clamp(d*.03,.26,.62);e.bean.tag.visible=!e.isMe&&G.mode!=='menu'&&d<40&&d>1.5;e.bean.tag.scale.set(k*4,k,1);e.bean.tag.position.y=1.55+k*.4+(e.bean.crown?.35:0)}
     if(gfx!=='high'||!e.bean.body.castShadow)e.bean.place(groundBelow(b.pos.x,b.pos.y+.5,b.pos.z,30),true);else e.bean.shadow.visible=false;
   }
