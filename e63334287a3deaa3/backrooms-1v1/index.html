@@ -1131,6 +1131,8 @@ function tryBuild(s,owner){
   const pc=makePiece(s);
   // a wall or floor that lands on you (or the Entity) shoves you out of it rather than trapping you inside
   if(pc.solid)for(const e of [player,opp])if(e.alive&&e.present&&overlap(e.pos.x,e.pos.y,e.pos.z,pc.solid))pushOut(e);
+  // a ramp that lands on you lifts you onto it (or moves you out from inside it some other way: see rampOut)
+  if(pc.ramp)for(const e of [player,opp])if(e.alive&&e.present&&inRamp(pc.ramp,e.pos.x,e.pos.y,e.pos.z))rampOut(e,true);
   sfxBuild(owner===player?1:1/(1+camera.position.distanceTo(pc.obj.position)*.08));
   if(online&&owner===player)Net.send({type:'b',k:s.kind,x:s.x,z:s.z,L:s.L,o:s.o||'',dir:s.dir||0,r:roundNo()});
   return true;
@@ -1159,9 +1161,10 @@ for(const k in ghosts){ghosts[k].visible=false;scene.add(ghosts[k])}
 function hideGhosts(){for(const k in ghosts)ghosts[k].visible=false}
 
 /* ---------- collision & rays ---------- */
-// Players are boxes R wide either way and H tall. Walls, posts, pillars and build walls/floors are solid boxes; ramps are
-// walkable surfaces (see groundAt), not solids. Movement never enters a solid, so the only way to end up inside one is a
-// build landing on you, and pushOut moves you back out the shortest way instead of letting you walk through it.
+// Players are boxes R wide either way and H tall. Walls, posts, pillars and build walls/floors are solid boxes; a ramp is
+// a solid sloping sheet (see inRamp) whose top you walk on (see groundAt). Movement never enters a solid or a ramp, so
+// the only way to end up inside one is a build landing on you, and pushOut / rampOut move you back out instead of
+// letting you walk or jump through it.
 function overlap(x,y,z,s){return x+R>s.min[0]&&x-R<s.max[0]&&z+R>s.min[2]&&z-R<s.max[2]&&y+H>s.min[1]+.01&&y<s.max[1]-.01}
 function blockedAt(nx,y,nz,ox,oz){for(const s of solids)if(overlap(nx,y,nz,s)&&!overlap(ox,y,oz,s))return s;return null}
 function solidAt(x,y,z){for(const s of solids)if(overlap(x,y,z,s))return s;return null}
@@ -1194,10 +1197,44 @@ function pushOut(e){
   }
   return moved;
 }
+// how far up the ramp a point is: 0 at the low edge, 1 at the high edge
+function rampT(r,x,z){switch(r.dir){case 0:return (x-r.x0)/4;case 1:return (z-r.z0)/4;case 2:return (r.x0+4-x)/4;default:return (r.z0+4-z)/4}}
 function rampH(r,x,z){
   if(x<r.x0||x>r.x0+4||z<r.z0||z>r.z0+4)return -1;
-  let t;switch(r.dir){case 0:t=(x-r.x0)/4;break;case 1:t=(z-r.z0)/4;break;case 2:t=(r.x0+4-x)/4;break;default:t=(r.z0+4-z)/4}
-  return r.base+.15+4*clamp(t,0,1);
+  return r.base+.15+4*clamp(rampT(r,x,z),0,1);
+}
+// Ramps are solid: nothing walks or jumps through one, from any side. The sheet is RAMP_UNDER thick below the surface you
+// walk on (as drawn). With the middle of a body over a ramp, the body is clear of it in two cases only: on top (feet no
+// more than a step below the surface, which is how you step onto the low end or land on it from a jump), or underneath
+// with its head below the underside at the lowest point over the body (rampUnder: R further down the slope than the
+// middle). Anything in between is inside the ramp.
+const RAMP_UNDER=.33;
+function rampUnder(r,x,z){return r.base+.15+4*clamp(rampT(r,x,z)-R/4,0,1)-RAMP_UNDER}
+function inRamp(r,x,y,z){const h=rampH(r,x,z);return h>=0&&y<h-STEP-.01&&y+H>rampUnder(r,x,z)+.01}
+function rampAt(x,y,z){for(const r of ramps)if(inRamp(r,x,y,z))return r;return null}
+// a move into a ramp (one you were not already inside)
+function rampBlocks(nx,y,nz,ox,oz){for(const r of ramps)if(inRamp(r,nx,y,nz)&&!inRamp(r,ox,y,oz))return true;return false}
+// A body inside a ramp (one was built where it stands) is moved out the shortest way that is free: up onto the ramp, down
+// under it, along the slope to where there is head room underneath or to where the ramp is low enough to step onto, or out
+// of either side. lift (a ramp just built on you): up onto it first if that is no more than 2 m, so a ramp placed in
+// the cell you are standing in puts you on it, ready to climb.
+function rampOut(e,lift){
+  const p=e.pos;let moved=false;
+  for(let i=0;i<4;i++){
+    const r=rampAt(p.x,p.y,p.z);if(!r)break;
+    const t=rampT(r,p.x,p.z),a=r.dir%2===0?0:2,o=2-a,sg=r.dir<2?1:-1,rel=p.y-r.base-.15,po=o===0?p.x:p.z,o0=o===0?r.x0:r.z0;
+    const up=[rampH(r,p.x,p.z)-p.y,1];
+    const c=[up,[rampUnder(r,p.x,p.z)-H-p.y,1],
+      [sg*(4*(Math.min(1,(rel+H+RAMP_UNDER)/4+R/4)-t)+.004),a],[-sg*(4*(t-Math.max(0,(rel+STEP)/4))+.004),a],
+      [o0-.004-po,o],[o0+4.004-po,o]].sort((x,y)=>Math.abs(x[0])-Math.abs(y[0]));
+    if(lift&&up[0]<=2)c.unshift(up);
+    const [d,ax]=c.find(k=>shoveClear(p,k[0],k[1],[])&&!rampAt(p.x+(k[1]===0?k[0]:0),p.y+(k[1]===1?k[0]:0),p.z+(k[1]===2?k[0]:0)))||c[0];
+    if(ax===0){p.x+=d;e.vel.x=0}
+    else if(ax===2){p.z+=d;e.vel.z=0}
+    else{p.y+=d;if(d>0){e.vel.y=0;e.onGround=true}else if(e.vel.y>0)e.vel.y=0}
+    clampToMap(p);moved=true;
+  }
+  return moved;
 }
 // The highest surface under the box (same footprint as the collision box, so you stand on anything your box overlaps
 // and fall only once you're clear of it) up to maxY: the floor, solid tops and ramp surfaces.
@@ -1210,18 +1247,19 @@ function groundAt(x,z,maxY){
 // One axis at a time (x, then z), so you slide along walls; a move that would enter a solid is dropped unless it's a
 // step of up to STEP onto something with head room. Long moves (a slow frame) are split into steps of at most 0.25 m,
 // shorter than the thinnest wall, so nothing can be skipped over; at normal frame rates that's the one step as before.
+// Ramps block the same way (rampBlocks), and a jump under one stops at its underside.
 function moveEntity(e,dt){
   const p=e.pos;e.blocked=false;
-  pushOut(e);
+  pushOut(e);rampOut(e);
   const sx=p.x,sz=p.z;
   const n=Math.min(16,Math.max(1,Math.ceil(Math.hypot(e.vel.x,e.vel.z)*dt/.25)));
   for(let i=0;i<n;i++)for(const ax of [0,2]){
     const delta=(ax===0?e.vel.x:e.vel.z)*dt/n;if(!delta)continue;
     const nx=ax===0?p.x+delta:p.x,nz=ax===2?p.z+delta:p.z;
     const s=blockedAt(nx,p.y,nz,p.x,p.z);
-    if(!s){p.x=nx;p.z=nz;continue}
-    const up=s.max[1]-p.y;
-    if(up>0&&up<=STEP&&e.onGround&&!solidAt(nx,s.max[1]+.001,nz)){p.x=nx;p.z=nz;p.y=s.max[1]+.001;continue}
+    if(!s&&!rampBlocks(nx,p.y,nz,p.x,p.z)){p.x=nx;p.z=nz;continue}
+    const up=s?s.max[1]-p.y:0;
+    if(up>0&&up<=STEP&&e.onGround&&!solidAt(nx,s.max[1]+.001,nz)&&!rampAt(nx,s.max[1]+.001,nz)){p.x=nx;p.z=nz;p.y=s.max[1]+.001;continue}
     if(ax===0)e.vel.x=0;else e.vel.z=0;e.blocked=true;
   }
   p.x=clamp(p.x,R+.15,W-R-.15);p.z=clamp(p.z,R+.15,W-R-.15);
@@ -1232,7 +1270,7 @@ function moveEntity(e,dt){
     if(ny<=ground||(e.onGround&&ground>p.y-STEP&&e.vel.y>-5)){
       // a ramp or step rising into something overhead (a floor built over a ramp): don't go up into it. Walking further
       // up is stopped; if a floor dropped on you already pushed you down below the ramp, you can still walk downhill out
-      if(ground>p.y&&solidAt(p.x,ground,p.z)){
+      if(ground>p.y&&(solidAt(p.x,ground,p.z)||rampAt(p.x,ground,p.z))){
         if(groundAt(sx,sz,p.y+H)<ground){p.x=sx;p.z=sz;e.vel.x=e.vel.z=0;e.blocked=true}
         ny=p.y;
       }else ny=ground;
@@ -1242,10 +1280,11 @@ function moveEntity(e,dt){
   }else{
     e.onGround=false;let lim=CEIL-H;
     for(const s of solids){if(p.x+R>s.min[0]&&p.x-R<s.max[0]&&p.z+R>s.min[2]&&p.z-R<s.max[2]&&s.min[1]>=p.y+H-.05&&s.min[1]-H<lim)lim=s.min[1]-H}
+    for(const r of ramps){if(rampH(r,p.x,p.z)<0)continue;const u=rampUnder(r,p.x,p.z)-H;if(u>=p.y-.05&&u<lim)lim=u}   // the underside of a ramp overhead
     if(ny>lim){ny=lim;e.vel.y=0}
   }
   p.y=ny;
-  pushOut(e);
+  pushOut(e);rampOut(e);
 }
 function rayBox(o,d,mn,mx,maxT){
   let t0=0,t1=maxT;
@@ -2713,7 +2752,7 @@ if(navigator.webdriver)window.__br={get state(){return state},get online(){retur
   Net,player,opp,remotes,names,kills,setMyTeam,hostStart,hostRandomize,hostSetTarget,hostToLobby,cellFor,camTarget,cycleSpectate,isSpectating,handleEvent,damageEntity,raycast,startPractice,toMenu,joinPrivate,liveHumans,
   hitboxes,solids:()=>solids,ramps:()=>ramps,pieces,walls:()=>({h:hWall,v:vWall}),keys,renderer,scene,camera,
   // collision audit: the real movement, building and interpolation code, driven step by step
-  moveEntity,tryBuild,specValid,damagePiece,generateMap,spawn,soloCell,teamCells,wallSpec,playerBuildSpec,updateRemotes,makeRemote,updateBot,
+  moveEntity,tryBuild,specValid,damagePiece,inRamp,rampAt,generateMap,spawn,soloCell,teamCells,wallSpec,playerBuildSpec,updateRemotes,makeRemote,updateBot,
   mapSizeV2,roundSeed,fairV2,MAP_V,get mapKey(){return mapKey},
   mapInfo(){const L=mapInfo;if(!L)return null;const fl=[];for(let x=0;x<N;x++)for(let z=0;z<N;z++)if(L.group[x][z]>=0)(fl[L.group[x][z]]=fl[L.group[x][z]]||[]).push([x,z]);
     return{v:L.v,light:L.light,tint:L.tint.map((c,x)=>c.map((t,z)=>L.ftint[x][z]||t)),voids:voidC,flick:fl.filter(Boolean),special:L.special,spawns:L.spawns,styles:L.styles,regs:L.regs,mirrored:!!L.mirrored,tries:L.tries,low:{h:lowH,v:lowV},jambs:L.jambs||[],rid:L.rid||null}},
