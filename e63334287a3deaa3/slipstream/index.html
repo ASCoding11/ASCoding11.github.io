@@ -144,8 +144,9 @@ body.touch #lights{top:22%}
 }
 /* Phones held sideways are short: the sound, pause and camera buttons go in a row under the lap box, with the map below them. */
 @media (max-height:500px){
-  body.touch #mute{top:60px;right:10px} body.touch #pauseBtn{top:60px;right:56px} body.touch #camBtn{top:60px;right:102px}
-  body.touch #mini{top:108px;right:10px;width:90px;height:90px}
+  body.touch #mute{top:84px;right:10px} body.touch #pauseBtn{top:84px;right:56px} body.touch #camBtn{top:84px;right:102px}
+  body.touch #mini{top:130px;right:10px;width:90px;height:90px}
+  body.touch #lapbox #times{display:none}   /* as on an upright phone: with the three times showing, the lap box ran down behind the buttons and the map */
 }
 
 /* ---------- Menus ---------- */
@@ -1245,6 +1246,7 @@ function buildWorld(ti){
   sun.color.set(D.sunCol);sun.intensity=D.night?1.05:1.3;renderer.toneMappingExposure=D.night?1.15:1.05;
   hemi.color.set(D.sky[1]);hemi.groundColor.set(D.ground);hemi.intensity=D.hemiI*.82;
   const sh=Math.hypot(D.sun[0],D.sun[2])||1,sunLen=clamp(Math.hypot(D.sun[0],D.sun[2])/Math.max(.05,D.sun[1]),0,2.4);
+  {const k=new THREE.Color(D.ground).lerp(new THREE.Color('#cbb994'),.6);fxGround=[k.r,k.g,k.b];fxDim=D.night?.55:1}   // dust takes the colour of the ground
   world.shadowDir=[-D.sun[0]/sh*sunLen,-D.sun[2]/sh*sunLen];   // where a shadow falls, in metres along the ground per metre of height
   const [mnx,mxx,mnz,mxz]=T.box,cx=(mnx+mxx)/2,cz=(mnz+mxz)/2,span=Math.max(mxx-mnx,mxz-mnz);
   world.center=[cx,cz];
@@ -1545,6 +1547,63 @@ function makeCarMesh(c){
   wheel.visible=false;g.add(wheel);
   return {g,wheels,pivots,light,hel,flame,flap,wheel,sh};
 }
+// ---------- dust, tyre smoke and sparks ----------
+// Only for the picture: nothing here is read by the driving code or sent to other players. All of it is one pool of
+// points drawn in one call; phones get half as many. It has its own random numbers so the bots' stay as they were.
+const FX_N=touchUI?260:520,fxr=mulberry(90210);
+const fx={n:0,pos:new Float32Array(FX_N*3),col:new Float32Array(FX_N*4),size:new Float32Array(FX_N),vel:new Float32Array(FX_N*3),life:new Float32Array(FX_N),max:new Float32Array(FX_N),a0:new Float32Array(FX_N),grow:new Float32Array(FX_N),grav:new Float32Array(FX_N)};
+const fxGeo=new THREE.BufferGeometry();
+fxGeo.setAttribute('position',new THREE.BufferAttribute(fx.pos,3).setUsage(THREE.DynamicDrawUsage));
+fxGeo.setAttribute('aCol',new THREE.BufferAttribute(fx.col,4).setUsage(THREE.DynamicDrawUsage));
+fxGeo.setAttribute('aSize',new THREE.BufferAttribute(fx.size,1).setUsage(THREE.DynamicDrawUsage));
+fxGeo.setDrawRange(0,0);
+const fxMat=new THREE.ShaderMaterial({transparent:true,depthWrite:false,premultipliedAlpha:true,uniforms:{uScale:{value:600}},
+  vertexShader:'attribute vec4 aCol;attribute float aSize;uniform float uScale;varying vec4 vCol;varying float vAdd;void main(){vCol=aCol;vAdd=step(aSize,0.);vec4 mv=modelViewMatrix*vec4(position,1.);gl_Position=projectionMatrix*mv;gl_PointSize=min(220.,abs(aSize)*uScale/max(.5,-mv.z));}',
+  fragmentShader:'varying vec4 vCol;varying float vAdd;void main(){float d=length(gl_PointCoord-.5)*2.;float a=smoothstep(1.,.2,d)*vCol.a;if(a<.004)discard;gl_FragColor=vec4(vCol.rgb*a,a*(1.-vAdd));}'});
+const fxPts=new THREE.Points(fxGeo,fxMat);fxPts.frustumCulled=false;fxPts.renderOrder=2;scene.add(fxPts);
+// size below zero marks a spark: it glows (adds light) instead of covering what is behind it
+function fxEmit(x,y,z,vx,vy,vz,life,size,grow,grav,r,g,b,a){
+  if(fx.n>=FX_N)return;const i=fx.n++;
+  fx.pos[i*3]=x;fx.pos[i*3+1]=y;fx.pos[i*3+2]=z;fx.vel[i*3]=vx;fx.vel[i*3+1]=vy;fx.vel[i*3+2]=vz;
+  fx.life[i]=fx.max[i]=life;fx.size[i]=size;fx.grow[i]=grow;fx.grav[i]=grav;fx.a0[i]=a;fx.col[i*4]=r;fx.col[i*4+1]=g;fx.col[i*4+2]=b;fx.col[i*4+3]=a;
+}
+const FXC={smoke:[.9,.9,.92],gravel:[.8,.72,.56],spark:[1,.72,.28]};let fxGround=[.5,.45,.3],fxDim=1;
+function fxCar(c,dt){ // what this car throws up this frame
+  const dx=c.x-camera.position.x,dz=c.z-camera.position.z;if(dx*dx+dz*dz>150*150)return;
+  const v=Math.abs(c.v),ch=Math.cos(c.h),sn=Math.sin(c.h),R=fxr;
+  const at=(lx,lz)=>[c.x+lx*ch-lz*sn,c.z+lx*sn+lz*ch];
+  let rate=0,kind=0;
+  if(c.surf>=2&&v>5){rate=14+Math.min(30,v*.6);kind=c.surf===3?2:1}          // grass or gravel: dust from the rear wheels
+  else if(v>.8&&v<15&&c.thr>.5&&!c.fin){rate=26;kind=3}                        // pulling away: wheelspin smoke
+  else if(c.brk>.8&&v>42){rate=16;kind=4}                                      // heavy braking: a wisp from the front tyres
+  if(rate){
+    c.fxA=(c.fxA||0)+rate*dt;
+    while(c.fxA>=1){c.fxA-=1;const s=R()<.5?-1:1,[x,z]=at(kind===4?1.85:-1.72,s*.87),k=kind===1?fxGround:kind===2?FXC.gravel:FXC.smoke,d=kind>=3?1:.9+R()*.2;
+      const back=kind>=3?-.5-R():-1-v*.12;
+      fxEmit(x,.15,z,ch*back+(R()-.5)*1.5,.5+R()*(kind>=3?.9:1.6),sn*back+(R()-.5)*1.5,kind===4?.4+R()*.25:.7+R()*.5,kind===4?.5:.8,kind===4?2:2.6,-.4,k[0]*d*fxDim,k[1]*d*fxDim,k[2]*d*fxDim,kind===4?.2:kind===3?.3:.5)}
+  }
+  // sparks from under the floor: the first moment of a boost, and riding a kerb at speed
+  if((c.boost&&(c.boostT||0)<.6&&v>35)||(c.surf===1&&v>48&&Math.abs(c.lat)<=HALF_W+KERB_W)){
+    c.fxS=(c.fxS||0)+70*dt;
+    while(c.fxS>=1){c.fxS-=1;const [x,z]=at(-1.6-R()*.8,(R()-.5)*.9),f=v*(.35+R()*.3);
+      fxEmit(x,.08,z,ch*f+(R()-.5)*3,1+R()*3.2,sn*f+(R()-.5)*3,.22+R()*.3,-.15-R()*.1,0,9,FXC.spark[0],FXC.spark[1]*(.7+R()*.5),FXC.spark[2],1)}
+  }
+}
+function fxStep(dt){
+  let i=0;
+  while(i<fx.n){
+    fx.life[i]-=dt;
+    if(fx.life[i]<=0){const j=--fx.n;if(j!==i){for(const [a,k] of [[fx.pos,3],[fx.vel,3],[fx.col,4]])for(let q=0;q<k;q++)a[i*k+q]=a[j*k+q];for(const a of [fx.size,fx.life,fx.max,fx.a0,fx.grow,fx.grav])a[i]=a[j]}continue}
+    const o=i*3;fx.vel[o+1]-=fx.grav[i]*dt;
+    fx.pos[o]+=fx.vel[o]*dt;fx.pos[o+1]+=fx.vel[o+1]*dt;fx.pos[o+2]+=fx.vel[o+2]*dt;
+    if(fx.pos[o+1]<.04){fx.pos[o+1]=.04;fx.vel[o+1]*=-.35}
+    if(fx.size[i]>0){fx.size[i]+=fx.grow[i]*dt;const k=Math.exp(-dt*1.6);fx.vel[o]*=k;fx.vel[o+2]*=k}
+    fx.col[i*4+3]=fx.a0[i]*Math.min(1,fx.life[i]/fx.max[i]*1.6);i++;
+  }
+  fxGeo.setDrawRange(0,fx.n);fxPts.visible=fx.n>0;
+  if(fx.n){fxGeo.attributes.position.needsUpdate=fxGeo.attributes.aCol.needsUpdate=fxGeo.attributes.aSize.needsUpdate=true;
+    fxMat.uniforms.uScale.value=renderer.domElement.height/(2*Math.tan(camera.fov*Math.PI/360))}
+}
 let carMeshes=[];
 function buildCars(){
   for(const m of carMeshes)scene.remove(m.g);
@@ -1572,7 +1631,9 @@ function syncCarMeshes(dt){
     m.wheel.visible=c===race.me&&cam.mode===3&&state==='race';
     if(m.wheel.visible)m.wheel.rotation.x=clamp(c.steer,-1,1)*1.4;
     if(m.flame.visible){const f=c.bvis*(.85+Math.random()*.35);m.flame.scale.set(f*(1+Math.min(1,c.boostT||0)*.4),.7+f*.5,.7+f*.5)}
+    if(!paused)fxCar(c,dt);
   }
+  if(!paused)fxStep(dt);
 }
 
 const trackCache={};
