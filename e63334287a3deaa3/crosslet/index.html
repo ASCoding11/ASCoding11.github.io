@@ -106,6 +106,10 @@ body.sideways .kb button{height:34px}
 'use strict';
 (function () {
 const K = Kit, h = K.h, $ = K.$, P = window.CROSSLET || [];
+// Thanksgiving Day 2026 has its own puzzle. It sits after the end of the list and is never counted in the list's
+// length (NP), so the daily order and Unlimited are exactly what they were; only that one day is replaced.
+const NP = P.length, TG_DAY = '20261126';
+P.push({g:["FARM","ARIA","LEGS","LASH"],a:["Where a Thanksgiving turkey is raised","Solo song in an opera","Turkey drumsticks, really","Eye hair, or to tie down tightly"],d:["Thanksgiving's season","Region, or length times width","Big trucks, or sets up unfairly","Turn boiled potatoes into a Thanksgiving side"]});
 const SLUG = 'crosslet', NAME = 'Crosslet';
 const HOW = '<p>Fill the little grid so every row and column spells the answer to its clue.</p>' +
   '<ul><li>Tap a square to pick it; tap it again (or the clue bar) to switch between <b>across</b> and <b>down</b>.</li>' +
@@ -158,10 +162,10 @@ function start(m) {
   let idx, saved = null;
   if (m === 'daily') {
     const day = K.today(); saved = K.store.get(SLUG + ':day', null);
-    idx = K.pick(SLUG, P.length, day, true);
+    idx = day === TG_DAY ? NP : K.pick(SLUG, NP, day, true);
     if (saved && saved.day === day && P[saved.idx]) idx = saved.idx; else saved = null;
     st = { mode: 'daily', day, idx };
-  } else st = { mode: 'free', day: '', idx: K.randomIndex(P.length, st && st.idx) };
+  } else st = { mode: 'free', day: '', idx: K.randomIndex(NP, st && st.idx) };
   Z = model(P[st.idx]);
   const N = Z.cells.length;
   Object.assign(st, { L: Array(N).fill(''), rev: Array(N).fill(0), chk: Array(N).fill(0), t: 0, started: false, done: false, win: false, revealed: false, checks: 0, cur: Z.slots[0].cells[0], dir: 'a' });
