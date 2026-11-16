@@ -87,28 +87,41 @@ button:disabled{opacity:.45;cursor:default}
 #center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:calc(var(--cw)*.16);pointer-events:none}
 #pot{font:800 calc(11px + var(--cw)*.1) var(--f-u);color:var(--ink);background:rgba(0,0,0,.32);border:1px solid rgba(244,220,150,.18);border-radius:999px;padding:3px 12px;white-space:nowrap;font-variant-numeric:tabular-nums;display:flex;gap:10px;align-items:center;min-height:1.9em}
 #pot:empty{visibility:hidden}
+#pot::before{content:'';flex:none;width:.95em;height:.95em;border-radius:50%;margin:0 -2px .28em 0;
+  background:radial-gradient(circle,#e0b23e 0 44%,rgba(255,255,255,.85) 45% 52%,transparent 53%),repeating-conic-gradient(from 15deg,#e0b23e 0 34deg,#f6f0df 34deg 60deg);
+  box-shadow:0 .12em 0 #b98d34,0 .24em 0 #7b4fd0,0 .36em 0 #1f8a4c,0 .46em 0 rgba(0,0,0,.6)}
+#pot span{animation:potpop .24s cubic-bezier(.2,.8,.3,1.4)}
+@keyframes potpop{from{transform:scale(1.18)}}
 #pot small{font-weight:700;color:var(--ink-2)}
 #board{display:flex;gap:calc(var(--cw)*.1);min-height:calc(var(--cw)*1.4)}
 #board .slot{width:var(--cw);height:calc(var(--cw)*1.4);border-radius:calc(var(--cw)*.1);border:1.5px dashed rgba(244,220,150,.12)}
 #tmsg{font:700 calc(11px + var(--cw)*.08) var(--f-u);color:var(--gold-2);text-align:center;max-width:min(80vw,calc(var(--cw)*8));min-height:1.3em;text-shadow:0 1px 3px rgba(0,0,0,.6)}
 
 /* cards */
-.cd{position:relative;width:var(--w,var(--cw));height:calc(var(--w,var(--cw))*1.4);border-radius:calc(var(--w,var(--cw))*.1);background:var(--card);
-  box-shadow:0 2px 0 rgba(0,0,0,.18),0 4px 10px rgba(0,0,0,.35);color:var(--c-s);flex:none;overflow:hidden}
+.cd{position:relative;width:var(--w,var(--cw));height:calc(var(--w,var(--cw))*1.4);border-radius:calc(var(--w,var(--cw))*.1);
+  background:linear-gradient(168deg,#fffefa 0%,var(--card) 48%,#ece5d2 100%);
+  box-shadow:0 1px 0 rgba(0,0,0,.3),0 3px 5px rgba(0,0,0,.28),0 9px 16px rgba(0,0,0,.24),inset 0 0 0 1px rgba(60,40,10,.10),inset 0 1px 0 rgba(255,255,255,.9);color:var(--c-s);flex:none;overflow:hidden}
 .cd .r{position:absolute;left:8%;top:3%;font:800 calc(var(--w,var(--cw))*.36)/1 var(--f-u);letter-spacing:-.04em}
 .cd .s1{position:absolute;left:9%;top:32%;font:calc(var(--w,var(--cw))*.26)/1 system-ui,sans-serif}
 .cd .s2{position:absolute;right:6%;bottom:2%;font:calc(var(--w,var(--cw))*.62)/1 system-ui,sans-serif}
 .cd.h{color:var(--c-h)}.cd.d{color:var(--c-d)}.cd.c{color:var(--c-c)}
 .four .cd.d{background:#eef4ff}.four .cd.c{background:#effaf2}
+/* The back: an ivory border, a fine lattice on oxblood, and a brass-edged lozenge in the middle. */
 .cd.back{background:
-  repeating-linear-gradient(45deg,rgba(255,255,255,.09) 0 2px,transparent 2px 7px),
-  repeating-linear-gradient(-45deg,rgba(255,255,255,.09) 0 2px,transparent 2px 7px),
-  linear-gradient(160deg,#9b2335,#5e1220);
-  box-shadow:inset 0 0 0 calc(var(--w,var(--cw))*.06) var(--card),0 3px 8px rgba(0,0,0,.4)}
+  repeating-linear-gradient(45deg,rgba(255,236,200,.13) 0 1.5px,transparent 1.5px 6px),
+  repeating-linear-gradient(-45deg,rgba(255,236,200,.13) 0 1.5px,transparent 1.5px 6px),
+  linear-gradient(160deg,#a62a3e,#5a0f1e);
+  box-shadow:inset 0 0 0 calc(var(--w,var(--cw))*.065) var(--card),inset 0 0 0 calc(var(--w,var(--cw))*.065 + 1px) rgba(40,0,8,.55),0 1px 0 rgba(0,0,0,.3),0 3px 5px rgba(0,0,0,.28),0 8px 14px rgba(0,0,0,.26)}
+.cd.back::after{content:'';position:absolute;left:50%;top:50%;width:36%;aspect-ratio:1;transform:translate(-50%,-50%) rotate(45deg);border-radius:12%;
+  background:linear-gradient(135deg,#7d1b2c,#4a0c18);box-shadow:0 0 0 1.5px var(--gold),0 0 0 calc(1.5px + var(--w,var(--cw))*.045) #5a0f1e}
 .cd.dim{filter:brightness(.55) saturate(.6)}
-.cd.hi{box-shadow:0 0 0 2px var(--win),0 0 16px rgba(255,211,107,.6)}
+/* A card in the winning hand lifts off the felt with a gold edge. The lift uses the translate property so it
+   can run alongside the flip, which uses transform. */
+.cd.hi{translate:0 -7%;box-shadow:0 0 0 2px var(--win),0 0 18px rgba(255,211,107,.6),0 12px 16px rgba(0,0,0,.35);animation:rise .36s cubic-bezier(.2,.8,.3,1.35) backwards}
+@keyframes rise{from{translate:0 0;box-shadow:0 0 0 0 rgba(255,211,107,0),0 0 0 rgba(255,211,107,0),0 6px 12px rgba(0,0,0,.3)}}
 .cd.in{animation:flip .38s cubic-bezier(.2,.8,.3,1.2) both}
-@keyframes flip{from{transform:rotateY(90deg) translateY(-6px);opacity:.2}}
+.cd.in.hi{animation:flip .38s cubic-bezier(.2,.8,.3,1.2) both,rise .36s cubic-bezier(.2,.8,.3,1.35) backwards}
+@keyframes flip{from{transform:perspective(420px) rotateY(90deg) translateY(-6px);opacity:.2}to{transform:perspective(420px) rotateY(0)}}
 .cd.dl{animation:deal .42s cubic-bezier(.2,.75,.3,1) both}
 @keyframes deal{from{transform:translate(var(--dx,0),var(--dy,0)) rotate(-25deg) scale(.55);opacity:0}}
 
@@ -128,10 +141,18 @@ button:disabled{opacity:.45;cursor:default}
 .meta b{display:block;font:700 calc(10px + var(--pw)*.025) var(--f-u);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .meta span{display:block;font:800 calc(10px + var(--pw)*.03) var(--f-u);color:var(--gold-2);font-variant-numeric:tabular-nums;white-space:nowrap}
 .meta i{font-style:normal;font-size:9px;font-weight:800;letter-spacing:.1em;color:var(--ink-3);border:1px solid var(--line);border-radius:4px;padding:0 3px;margin-left:4px;vertical-align:1px}
-.seat.folded .plate{opacity:.5}
-.seat.out .plate{opacity:.45}
-.seat.turn .plate{border-color:var(--gold);box-shadow:0 0 0 2px rgba(217,178,92,.35),0 0 24px rgba(217,178,92,.35),0 6px 16px rgba(0,0,0,.45)}
-.seat.won .plate{border-color:var(--win);box-shadow:0 0 0 2px rgba(255,211,107,.5),0 0 30px rgba(255,211,107,.45)}
+.plate{box-shadow:0 6px 16px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.07)}
+.av{box-shadow:inset 0 2px 2px rgba(255,255,255,.4),inset 0 -4px 6px rgba(0,0,0,.22),0 0 0 2px rgba(0,0,0,.45)}
+.seat.folded .plate{opacity:.5;filter:saturate(.45)}
+.seat.out .plate{opacity:.45;filter:saturate(.45)}
+/* Whose turn it is: a gold edge, a brighter name, and a soft halo that breathes behind the plate. */
+.seat.turn .plate{border-color:var(--gold-2);background:linear-gradient(180deg,rgba(44,40,24,.97),rgba(18,17,10,.97));box-shadow:0 0 0 2px rgba(217,178,92,.5),0 6px 16px rgba(0,0,0,.45)}
+.seat.turn .plate::after{content:'';position:absolute;inset:-7px;border-radius:999px;z-index:-1;pointer-events:none;
+  box-shadow:0 0 0 2px rgba(244,220,150,.45),0 0 26px 6px rgba(217,178,92,.5);animation:halo 1.5s ease-in-out infinite alternate}
+@keyframes halo{from{opacity:.35}to{opacity:1}}
+.seat.turn .meta b{color:#fff}
+.seat.won .plate{border-color:var(--win);background:linear-gradient(180deg,rgba(58,46,16,.97),rgba(24,19,8,.97));box-shadow:0 0 0 2px rgba(255,211,107,.6),0 0 30px rgba(255,211,107,.5);animation:wonpop .5s cubic-bezier(.2,.8,.3,1.5)}
+@keyframes wonpop{from{transform:scale(.92)}}
 .tag{position:absolute;top:calc(100% + 4px);left:50%;transform:translateX(-50%);font:800 11px var(--f-u);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;padding:2px 8px;border-radius:6px;background:rgba(0,0,0,.55);color:var(--ink-2);z-index:2}
 .seat.down .tag{top:auto;bottom:calc(100% + 4px)}
 .tag:empty{display:none}
@@ -143,13 +164,21 @@ button:disabled{opacity:.45;cursor:default}
 @keyframes gain{0%{opacity:0;transform:translate(-6px,-50%)}12%{opacity:1;transform:translate(0,-50%)}80%{opacity:1}100%{opacity:0;transform:translate(0,-130%)}}
 .bubble{position:absolute;bottom:calc(100% + 34px);left:50%;transform:translateX(-50%);max-width:180px;background:var(--card);color:#1c1c1c;font:700 13px var(--f-u);padding:5px 10px;border-radius:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:6;box-shadow:0 4px 12px rgba(0,0,0,.4);animation:fadein .2s}
 @keyframes fadein{from{opacity:0}}
-.btn-d{position:absolute;width:22px;height:22px;border-radius:50%;background:#fff;color:#111;font:800 12px/22px var(--f-u);text-align:center;transform:translate(-50%,-50%);box-shadow:0 2px 4px rgba(0,0,0,.5),inset 0 0 0 2px #ddd;transition:left .5s ease,top .5s ease;z-index:3}
+.btn-d{position:absolute;width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 36% 30%,#fff 0%,#f1ecde 55%,#cfc7b2 100%);color:#2a1b02;font:800 12px/22px var(--f-u);text-align:center;transform:translate(-50%,-50%);box-shadow:0 2px 0 #8f8873,0 4px 5px rgba(0,0,0,.5),inset 0 0 0 2px rgba(217,178,92,.75);transition:left .5s cubic-bezier(.45,0,.2,1),top .5s cubic-bezier(.45,0,.2,1);z-index:3}
 .bet{position:absolute;transform:translate(-50%,-50%);display:flex;align-items:center;gap:5px;font:800 13px var(--f-u);color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap;z-index:3;pointer-events:none;text-shadow:0 1px 2px rgba(0,0,0,.8)}
-.bet.pop{animation:pop .25s ease-out}
+.bet.pop{animation:pop .26s cubic-bezier(.2,.8,.3,1.3)}
 @keyframes pop{from{transform:translate(-50%,-50%) scale(1.35)}}
-.chip{width:18px;height:18px;border-radius:50%;flex:none;background:radial-gradient(circle,var(--cc,#d33) 0 42%,#fff 43% 52%,var(--cc,#d33) 53%);box-shadow:0 2px 0 rgba(0,0,0,.45),inset 0 0 0 1.5px rgba(255,255,255,.35)}
+/* A clay chip seen from above: six ivory inserts round the edge, a thin ring, and the colour in the middle.
+   The shadow underneath is the chip's own edge, so a stack shows a sliver of each chip below the top one. */
+.chip{position:relative;width:18px;height:18px;border-radius:50%;flex:none;
+  background:
+    radial-gradient(circle,rgba(255,255,255,.22) 0 22%,transparent 23%),
+    radial-gradient(circle,var(--cc,#d33) 0 44%,rgba(255,255,255,.85) 45% 52%,transparent 53%),
+    repeating-conic-gradient(from 15deg,var(--cc,#d33) 0 34deg,#f6f0df 34deg 60deg);
+  box-shadow:0 1.5px 0 var(--cc,#d33),0 3px 0 rgba(0,0,0,.6),0 4px 4px rgba(0,0,0,.35),inset 0 0 0 1px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.35)}
 .chips{display:flex;flex-direction:column-reverse}
-.chips .chip+.chip{margin-bottom:-14px}
+.chips .chip+.chip{margin-bottom:-14.5px}
+.bet>span:last-child{background:rgba(0,0,0,.34);border-radius:999px;padding:1px 7px}
 .fly{position:absolute;transform:translate(-50%,-50%);transition:left .42s cubic-bezier(.3,.7,.3,1),top .42s cubic-bezier(.3,.7,.3,1),opacity .2s .4s;z-index:8;pointer-events:none}
 
 /* action bar */
@@ -159,6 +188,8 @@ button:disabled{opacity:.45;cursor:default}
 .ab{flex:1;min-width:96px;max-width:220px;height:52px;border-radius:12px;border:1px solid var(--line);cursor:pointer;font:800 16px var(--f-u);letter-spacing:.02em;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1;background:rgba(255,255,255,.07);color:var(--ink)}
 .ab small{font-size:12px;font-weight:700;opacity:.8;font-variant-numeric:tabular-nums}
 .ab:hover{background:rgba(255,255,255,.12)}
+.ab{transition:transform .07s ease-out;box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 3px 8px rgba(0,0,0,.3)}
+.ab:active{transform:translateY(1px) scale(.985)}
 .ab.fold{color:#ffb1b1}
 .ab.call{background:linear-gradient(180deg,#2f9a68,#1e7650);border-color:#3cc184;color:#f2fff7}
 .ab.call:hover{background:linear-gradient(180deg,#36ab74,#228259)}
@@ -274,6 +305,16 @@ details.how[open] summary::before{content:'– '}
   .tag{font-size:10px}
   .meta i{display:none}
 }
+
+/* People who ask their device for less motion: nothing slides, flips, pops or pulses. Cards and chips just
+   appear, and the turn halo and winning cards hold still in their end state. */
+@media (prefers-reduced-motion:reduce){
+  .cd.in,.cd.dl,.cd.hi,.cd.in.hi,.bet.pop,.seat.won .plate,#pot span,.seat.turn .plate::after,.bubble{animation:none}
+  .gain{animation:gainfade 2.4s linear both}
+  .fly{transition:opacity .2s .4s}
+  .btn-d,.ab,.cta{transition:none}
+}
+@keyframes gainfade{0%{opacity:0}10%{opacity:1}80%{opacity:1}100%{opacity:0}}
 
 /* A phone held sideways is too short for a bar under the table, so the bar becomes a column on the right
    (layout() adds .dock and gives the table the space to its left). Same buttons, same order. */
