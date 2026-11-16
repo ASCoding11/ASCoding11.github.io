@@ -203,6 +203,7 @@ details.how[open] summary::before{content:'– '}
         </div>
         <span id="skinName"></span>
       </div>
+      <div class="row"><button class="ghost" id="turkeyBtn" type="button" hidden>Turkey Week on</button></div>
 
       <div class="group">
         <span class="label">Online</span>
@@ -278,6 +279,7 @@ details.how[open] summary::before{content:'– '}
 
 <script src="../keybinds.js"></script>
 <script src="../netsmooth.js"></script>
+<script src="../events.js"></script>
 <script>
 (function(){
 'use strict';
@@ -378,6 +380,27 @@ function glow(col){
   let s=glowCache.get(col);if(s)return s;
   s=sprite(64,(g,S)=>{const gr=g.createRadialGradient(S/2,S/2,0,S/2,S/2,S/2);gr.addColorStop(0,rgba(col,.8));gr.addColorStop(.45,rgba(col,.32));gr.addColorStop(1,rgba(col,0));g.fillStyle=gr;g.fillRect(0,0,S,S)});
   glowCache.set(col,s);return s;
+}
+// Turkey Week (../events.js): the food is drawn as corn kernels and cranberries and every snake wears a pilgrim hat
+// (seen from above). Only the drawing changes: where the food is, what it is worth and what is sent to the room are
+// the same. The Turkey Week button on the menu switches it off for this browser.
+const EVT=window.BackRoomEvents&&BackRoomEvents.turkey;let TKON=!!(EVT&&EVT.on());
+const tkFood=(()=>{const mk=paint=>{const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d');g.translate(32,32);
+    const h=g.createRadialGradient(0,0,6,0,0,32);h.addColorStop(0,paint.glow);h.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=h;g.fillRect(-32,-32,64,64);paint.draw(g);return c};
+  return[
+    mk({glow:'rgba(255,214,90,.55)',draw(g){const gr=g.createRadialGradient(-3,-5,1,0,0,15);gr.addColorStop(0,'#fff6b8');gr.addColorStop(.6,'#f7cf3c');gr.addColorStop(1,'#d99a12');
+      g.fillStyle=gr;g.beginPath();g.moveTo(0,-14);g.bezierCurveTo(12,-14,13,2,7,12);g.quadraticCurveTo(0,17,-7,12);g.bezierCurveTo(-13,2,-12,-14,0,-14);g.fill();
+      g.fillStyle='#fff8d8';g.beginPath();g.ellipse(0,11,4.5,2.6,0,0,TAU);g.fill()}}),
+    mk({glow:'rgba(255,80,100,.55)',draw(g){const gr=g.createRadialGradient(-4,-5,1,0,0,13);gr.addColorStop(0,'#ff8a96');gr.addColorStop(.6,'#d4213f');gr.addColorStop(1,'#8e0d27');
+      g.fillStyle=gr;g.beginPath();g.arc(0,0,12.5,0,TAU);g.fill();g.fillStyle='rgba(255,255,255,.55)';g.beginPath();g.ellipse(-4.5,-5.5,3.4,2,-.6,0,TAU);g.fill()}})
+  ]})();
+function tkHat(s){                                      // the hat from above: brim, crown, band and a buckle at the front
+  const r=s.r,c=Math.cos(s.h),si=Math.sin(s.h),x=s.x-c*r*.28,y=s.y-si*r*.28;
+  ctx.fillStyle='#241812';ctx.beginPath();ctx.arc(x,y,r*.78,0,TAU);ctx.fill();
+  ctx.fillStyle='#3a2a22';ctx.beginPath();ctx.arc(x,y,r*.7,0,TAU);ctx.fill();
+  ctx.fillStyle='#8a5a2b';ctx.beginPath();ctx.arc(x,y,r*.47,0,TAU);ctx.fill();
+  ctx.fillStyle='#4a362c';ctx.beginPath();ctx.arc(x,y,r*.38,0,TAU);ctx.fill();
+  ctx.save();ctx.translate(x+c*r*.44,y+si*r*.44);ctx.rotate(s.h);ctx.fillStyle='#ffc93c';ctx.fillRect(-r*.08,-r*.13,r*.16,r*.26);ctx.restore();
 }
 function dot(col){
   let s=dotCache.get(col);if(s)return s;
@@ -819,19 +842,19 @@ function render(){
   ctx.lineWidth=4;ctx.strokeStyle='#ff4d6d';ctx.stroke();
   // food
   const now=performance.now(),T=worldNow();
-  ctx.globalCompositeOperation='lighter';
+  if(!TKON)ctx.globalCompositeOperation='lighter';
   for(let i=0;i<FOOD_N;i++){
     const x=FX[i]+FOX[i],y=FY[i]+FOY[i];if(x<vx0||x>vx1||y<vy0||y>vy1)continue;
     let a=Math.min(1,(now-FA[i])/700);const left=FOOD_LIFE-((T+PH[i])%FOOD_LIFE);if(left<1500)a*=left/1500;
     if(a<=0)continue;
     const R=FOOD_R[FV[i]]*(3.2+.35*Math.sin(now/260+i));
-    ctx.globalAlpha=a;ctx.drawImage(dot(FOOD_COLS[FC[i]]),x-R,y-R,R*2,R*2);
+    ctx.globalAlpha=a;if(TKON)ctx.drawImage(tkFood[FC[i]%3?0:1],x-R*.8,y-R*.8,R*1.6,R*1.6);else ctx.drawImage(dot(FOOD_COLS[FC[i]]),x-R,y-R,R*2,R*2);
   }
   for(const p of extra.values()){
     if(p.x<vx0||p.x>vx1||p.y<vy0||p.y>vy1)continue;
     const age=now-p.born;let a=Math.min(1,age/250);if(p.life-age<2000)a*=Math.max(0,(p.life-age)/2000);
     const R=p.r*(3+.35*Math.sin(now/200+p.r*7));
-    ctx.globalAlpha=a;ctx.drawImage(dot(p.col),p.x-R,p.y-R,R*2,R*2);
+    ctx.globalAlpha=a;if(TKON)ctx.drawImage(tkFood[(p.x*7+p.y*3|0)%3?0:1],p.x-R*.62,p.y-R*.62,R*1.24,R*1.24);else ctx.drawImage(dot(p.col),p.x-R,p.y-R,R*2,R*2);
   }
   ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';
   // crashed snakes flash and fade
@@ -872,6 +895,7 @@ function drawSnake(s,now){
   if(fresh)ctx.globalAlpha=.55+.45*Math.sin(now/60);
   for(let i=n-1;i>=0;i--){const q=tap(i);ctx.drawImage(ball(pat[(i>>1)%pat.length]),sx[i]-q,sy[i]-q,q*2,q*2)}
   ctx.globalAlpha=1;
+  if(TKON)tkHat(s);
   // eyes
   const h=s.h,look=s===player&&input.aim!=null&&!input.kb?aimA:h,c=Math.cos(h),si=Math.sin(h);
   for(const side of [-1,1]){
@@ -881,6 +905,7 @@ function drawSnake(s,now){
     ctx.fillStyle='rgba(255,255,255,.9)';ctx.beginPath();ctx.arc(ex+Math.cos(look)*er*.42-er*.18,ey+Math.sin(look)*er*.42-er*.2,er*.16,0,TAU);ctx.fill();
   }
 }
+if(EVT)EVT.button($('turkeyBtn'),on=>{TKON=on});
 const mini=$('mini'),mctx=mini.getContext('2d');
 function drawMini(){
   const S=mini.width,c=S/2,k=(S/2-8)/ARENA;
