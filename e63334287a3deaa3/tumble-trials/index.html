@@ -2227,6 +2227,10 @@ function loadLevel(i,seed){
   return L;
 }
 const isRace=L=>L&&L.def.kind==='race';
+// how far along a race someone is (bigger is further): every race runs toward -z unless the level gives its own measure
+function raceProgress(L,e){return L.prog?L.prog(e.b.pos):-e.b.pos.z}
+// roster ids: bots are b0, b1, ... and have an entry in rs.bm (a player's id can begin with a b too)
+const isBotId=(rs,id)=>/^b\d{1,2}$/.test(id)&&!!(rs&&rs.bm&&rs.bm[id]);
 // ---------- the show plan ----------
 // How many reach the final: about a third of the starters, at least 2 and at most 6.
 function finalSize(n){return n<=2?2:clamp(Math.round(n/3),2,6)}
@@ -2267,16 +2271,15 @@ function newShow(prev){
   return rs;
 }
 function nextRound(rs){
-  const n=Object.assign({},rs),rn=rs.rn+1,pl=rs.q.slice();
-  let p=rs.plan[rn];
-  // fewer came through than planned: a survival needs someone to knock out (it ends as soon as only qn are left),
-  // so with two left it becomes a race neither has played yet; a round before the final never sends fewer than 2 on
-  if(p.kind==='survival'&&pl.length<=2){
-    const used=rs.plan.map(o=>o.lv),free=RACES.filter(i=>!used.includes(i)),lv=(free.length?free:RACES)[Math.floor(Math.random()*(free.length||RACES.length))];
-    p={lv,kind:'race',q:pl.length};n.plan=rs.plan.slice();n.plan[rn]=p;
-  }
+  const n=Object.assign({},rs),pl=rs.q.slice();
+  const fin=rs.plan.length-1,F=fin>0?rs.plan[fin-1].q:2;
+  // Fewer came through than planned (players who left): a round that could knock nobody out is not worth playing.
+  // With no more left than the final was planned for, the show goes straight to the final; otherwise the round is
+  // played and knocks out at least one.
+  let rn=rs.rn+1;if(rn<fin&&(pl.length<=2||pl.length<=F))rn=fin;
+  const p=rs.plan[rn];
   n.rn=rn;n.lv=p.lv;n.seed=Math.floor(Math.random()*1e9);n.go=now()+8600;n.pl=pl;n.q=[];n.x=[];n.te=0;
-  n.qn=p.kind==='final'?1:p.kind==='survival'?clamp(p.q,2,pl.length-1):clamp(p.q,Math.min(2,pl.length),pl.length);
+  n.qn=p.kind==='final'?1:clamp(p.q,2,Math.max(2,pl.length-1));
   n.ph='round';return n;
 }
 function setRS(rs){
@@ -2329,12 +2332,14 @@ function hostTick(){
     if(alive.length<=1||rt>=L.def.time){end=true;if(alive.length)for(const i of alive)q.push(i);else if(x.length)q.push(x.pop())}
     win=q.slice();
   }
-  // a round before the final sends at least 2 through, so the final always has a contest: if fewer made it (a race that
-  // ran out of time, or the last few falling together), the last knocked out, or in a race whoever got furthest, go too
-  if(end&&kind!=='final'&&q.length<2){
+  // a round before the final sends on the number it promised (and never fewer than 2, so the final always has a contest):
+  // if fewer made it (a race that ran out of time, or several falling in the same moment of a survival), the places left
+  // go to the last knocked out, or in a race to whoever got furthest
+  const want=Math.max(2,rs.qn);
+  if(end&&kind!=='final'&&q.length<want){
     const back=x.filter(i=>!report(rs,idOf(rs,i)).gone);
-    if(kind==='race'){const far=i=>{const e=ents.get(idOf(rs,i));return e?-(e.hidden?e.b.lastSafe.z:e.b.pos.z):-1e9};back.sort((a,b)=>far(b)-far(a))}else back.reverse();
-    for(const i of back){if(q.length>=2)break;q.push(i);x.splice(x.indexOf(i),1)}
+    if(kind==='race'){const far=i=>{const e=ents.get(idOf(rs,i));return e?raceProgress(L,e):-1e9};back.sort((a,b)=>far(b)-far(a))}else back.reverse();
+    for(const i of back){if(q.length>=want)break;q.push(i);x.splice(x.indexOf(i),1)}
   }
   if(end)setRS(Object.assign({},rs,{q,x,ph:'results',te:t+(kind==='final'?3800:7200),win:win||rs.win,end:t}));
   else if(ch)setRS(Object.assign({},rs,{q,x}));
@@ -2343,7 +2348,7 @@ function hostTick(){
 function report(rs,id){
   const key=rs.id+':'+rs.rn,r={fin:null,out:null,gone:false};
   if(id==='me'||id===myId()){if(G.myFin&&G.myFin.k===key)r.fin=G.myFin.t;if(G.myOut&&G.myOut.k===key)r.out=G.myOut.t;return r}
-  if(id[0]==='b'&&rs.bm[id]){const b=G.botRep.get(id);if(b&&b.k===key){r.fin=b.fin;r.out=b.out}return r}
+  if(isBotId(rs,id)){const b=G.botRep.get(id);if(b&&b.k===key){r.fin=b.fin;r.out=b.out}return r}
   const o=Net.others.get(id);
   if(!o||!Net.live(id)){r.gone=true;return r}
   const pf=s=>{const f=String(s||'').split(':');return f.length===3&&f[0]+':'+f[1]===key&&isFinite(+f[2])?+f[2]:null};
@@ -2363,7 +2368,7 @@ function applyRS(rs){
   renderLobby();
 }
 function rosterEntry(rs,id){
-  if(id[0]==='b'&&rs.bm[id]){const m=rs.bm[id];return{name:m[0],look:parseLook(m[1],m[2]),bot:true,skill:(m[3]||75)/100}}
+  if(isBotId(rs,id)){const m=rs.bm[id];return{name:m[0],look:parseLook(m[1],m[2]),bot:true,skill:(m[3]||75)/100}}
   if(id===myId())return{name:myName||'Bean',look:myLook};
   const o=Net.others.get(id);return{name:o?o.n:'Player',look:o?parseLook(o.c,o.lk):parseLook('#ff4f9a','')};
 }
@@ -2382,7 +2387,7 @@ function enterPhase(rs){
     clearEnts(false);loadLevel('podium',1);
     const win=(rs.win||[]).map(i=>idOf(rs,i)).filter(Boolean),others=rs.ro.filter(id=>!win.includes(id));
     const order=win.concat(others);let k=0;
-    for(const id of order){const re=rosterEntry(rs,id);if(id!==myIdNow&&id[0]!=='b'&&!(G.mode==='online'&&Net.live(id)))continue;
+    for(const id of order){const re=rosterEntry(rs,id);if(id!==myIdNow&&!isBotId(rs,id)&&!(G.mode==='online'&&Net.live(id)))continue;
       const e=makeEnt({id,name:re.name,look:re.look,bot:false,local:false,isMe:id===myIdNow});placeAt(e,G.L.spawns[Math.min(k,G.L.spawns.length-1)],0);e.b.onGround=true;e.podium=true;e.winner=win.includes(id);e.cheer=e.winner;if(e.winner)e.bean.addCrown();k++;if(e.isMe)me=e}
     showPodium(rs,win);camSnap();return;
   }
