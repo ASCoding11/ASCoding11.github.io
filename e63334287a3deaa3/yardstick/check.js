@@ -6,7 +6,8 @@
  *      must sit on the ground line (y = 0) and the left edge on x = 0, all within TOL units (0.02 = 0.002% of the
  *      measurement, the rounding of the saved path numbers). The game draws 1000 units as the stated metres.
  *   2. Proportions. Where the source also gave the other side's real size (`also`), the drawing must agree within 5%.
- *   3. Facts. Every object has a size, a qualifier, a source with an address, a date and a fact.
+ *   3. Facts. Every object has a size, a description of exactly what is measured (with no measurement in it, because
+ *      players see it before they guess), a source with an address, the date it was checked and a fact.
  *   4. Pairs. Both objects exist and are measured along the same axis, the real sizes are between 1.12 and 40 times
  *      apart, no pair is listed twice.
  *   5. Days. 60 days of five rounds; no target twice in a day or on two days running (the last day and the first
@@ -44,7 +45,8 @@ OBJ.forEach(o => {
   if (o.lo != null && o.hi / o.lo > 1.4) bad(o.id, 'real range is wider than 1.4 times: pick something more definite');
   const other = (o.axis === 'v' ? w : h) / 1000 * o.m; // the other side's real size as drawn
   if (o.also != null && Math.abs(other / o.also - 1) > 0.05) bad(o.id, 'drawn ' + (o.axis === 'v' ? 'width' : 'height') + ' works out at ' + fmt(other) + ' but the source says ' + fmt(o.also));
-  ['name', 'qual', 'fact'].forEach(k => { if (typeof o[k] !== 'string' || o[k].trim().length < 3) bad(o.id, 'missing ' + k); });
+  if (/\d[\d.,]*\s*(mm|cm|m|km|in|inch|inches|ft|feet|foot|metres?|meters?|yd|yards?|miles?)\b/i.test(o.what || '')) bad(o.id, '`what` is shown before the reveal and must not contain a measurement');
+  ['name', 'what', 'fact'].forEach(k => { if (typeof o[k] !== 'string' || o[k].trim().length < 3) bad(o.id, 'missing ' + k); });
   if (!Array.isArray(o.src) || !o.src[0] || !/^https:\/\/\S+$/.test(o.src[1] || '')) bad(o.id, 'source needs a name and an https address');
   if (!/^\d{4}-\d\d-\d\d$/.test(o.checked || '')) bad(o.id, 'missing the date the number was checked');
   if (['animals', 'vehicles', 'buildings', 'everyday', 'sports'].indexOf(o.cat) < 0) bad(o.id, 'unknown category ' + o.cat);
