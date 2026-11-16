@@ -3,13 +3,17 @@
  *
  * Loaded by seasons.js, and only during the holidays (the day after Thanksgiving to January 6, by the viewer's own
  * date: seasons.js's holidayFor) on the pages that list the games: the Back Room page, its copy on the home page and
- * the phone page. Nothing else loads it. seasons.js calls BackRoomHoliday.start() when the winter look starts and
- * stop() when it ends or is switched off with the ❄ button in the footer.
+ * the phone page. Nothing else loads it. seasons.js calls BackRoomHoliday.start(used) when the winter look starts
+ * (used: the visitor has already clicked, typed or scrolled on the page) and stop() when it ends or is switched off
+ * with the ❄ button in the footer.
  *
  * 1. The cabin. Once per browser tab (sessionStorage "holiday:seen"), the page opens on a log cabin at night: a
  *    fireplace, a tree, a window with snow falling outside, and in the middle an old TV showing the Back Room's
  *    title. Click the TV (or press Enter or Space, or use Skip) and the picture zooms into the screen and the page
  *    is there. It is one <canvas> drawn in code as chunky pixel art (no image files), covering the page.
+ *    The cabin opens the page: it never drops onto a page that is already being used, is being typed in, or has a
+ *    game open over it (then it waits for the next load of the tab). While it is up it has the keyboard: Tab stays
+ *    between the TV and Skip, Esc skips, and keys do not reach the page behind.
  * 2. The retro TV look ("Retro TV" switch, top right of the page, on by default; localStorage "holiday:tv" = "0"
  *    when switched off). The page looks as if it is on that old TV: pixel fonts, square corners, the game pictures
  *    in big pixels, faint scan lines with a slow band rolling down, and the snow and decorations behind the page
@@ -297,7 +301,10 @@
     // the corners of the room are darker; the fire warms its side
     cg.fillStyle='rgba(10,4,0,.28)';cg.fillRect(0,0,W,11);
     for(i=0;i<5;i++){cg.fillStyle='rgba(10,4,0,'+(.07)+')';cg.fillRect(0,0,Math.round(W*.05*(5-i)),H);cg.fillRect(W-Math.round(W*.05*(5-i)),0,Math.round(W*.05*(5-i)),H)}
-    if(fx<W+20){cg.fillStyle='rgba(255,150,60,'+(.07+.03*Math.sin(t*8))+')';cg.fillRect(fx-30,fl-70,fw+60,90)}
+    // (its glow falls off in two steps, like the TV's light, and flickers on the flames' own two beats, not one even pulse)
+    if(fx<W+20){var fk=.011*(Math.sin(t*9)+Math.sin(t*5.3));
+      cg.fillStyle='rgba(255,150,60,'+(.032+fk)+')';cg.fillRect(fx-44,fl-84,fw+88,112);
+      cg.fillStyle='rgba(255,150,60,'+(.042+fk)+')';cg.fillRect(fx-24,fl-62,fw+48,80)}
     // the words under the TV
     var say=touch?'TAP THE TV':'CLICK THE TV';
     if(Math.floor(t*1.6)%2===0||still.matches){txt(say,cx+1,fl+33,1,'#3a140f',true);txt(say,cx,fl+32,1,'#ffe9bf',true)}
