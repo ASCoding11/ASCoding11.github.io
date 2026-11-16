@@ -327,6 +327,7 @@ function rgba(h,a){const x=hexRgb(h);return'rgba('+x[0]+','+x[1]+','+x[2]+','+a+
 //  World tuning
 // =====================================================================
 const ARENA=3600;                 // arena radius
+const EDGE_GLOW=180;              // how far the edge's red glow reaches into the floor (drawing only)
 const FOOD_N=3400;                // pellets scattered in the arena
 const FOOD_LIFE=150000;           // each pellet moves to a new spot every 150 s
 const PSTEP=2.5;                  // path resolution
@@ -365,17 +366,45 @@ const DIFFS={
 // =====================================================================
 //  Sprites
 // =====================================================================
-const ballCache=new Map(),glowCache=new Map(),dotCache=new Map();
+const ballCache=new Map(),glowCache=new Map(),dotCache=new Map(),headCache=new Map(),underCache=new Map();
 function sprite(size,draw){const c=document.createElement('canvas');c.width=c.height=size;draw(c.getContext('2d'),size);return c}
+// How a snake is drawn (all sprites, made once per colour): under every other segment goes under() (a soft shadow, a
+// faint halo of the snake's colour and a dark outline disc), then one ball() per segment, then a line of sheen dots
+// up and to the left of the spine, then head() and the face. Only the tail-side sliver of each ball shows, so ball()
+// is flat colour with a thin shaded rim: the rims read as scales and the outline and sheen make the body a tube.
+const SHADE='#070b24';            // shadows lean toward this cool navy, not black
+const UNDER=1.6;                  // under() is drawn this many radii wide (each way) so the halo and shadow fit
 function ball(col){
   let s=ballCache.get(col);if(s)return s;
   s=sprite(64,(g,S)=>{
-    const gr=g.createRadialGradient(S*.36,S*.32,S*.03,S/2,S/2,S/2);
-    gr.addColorStop(0,mix(col,'#ffffff',.6));gr.addColorStop(.32,col);gr.addColorStop(.82,mix(col,'#000000',.3));gr.addColorStop(1,mix(col,'#000000',.6));
+    const gr=g.createRadialGradient(S/2,S/2,0,S/2,S/2,S/2);
+    gr.addColorStop(0,mix(col,'#ffffff',.12));gr.addColorStop(.6,col);gr.addColorStop(.86,mix(col,SHADE,.16));gr.addColorStop(1,mix(col,SHADE,.42));
     g.fillStyle=gr;g.beginPath();g.arc(S/2,S/2,S/2-.5,0,TAU);g.fill();
   });
   ballCache.set(col,s);return s;
 }
+function head(col){
+  let s=headCache.get(col);if(s)return s;
+  s=sprite(96,(g,S)=>{
+    const gr=g.createRadialGradient(S*.38,S*.34,S*.03,S/2,S/2,S/2);
+    gr.addColorStop(0,mix(col,'#ffffff',.5));gr.addColorStop(.4,col);gr.addColorStop(.88,mix(col,SHADE,.2));gr.addColorStop(1,mix(col,SHADE,.42));
+    g.fillStyle=gr;g.beginPath();g.arc(S/2,S/2,S/2-.5,0,TAU);g.fill();
+  });
+  headCache.set(col,s);return s;
+}
+function under(col){
+  let s=underCache.get(col);if(s)return s;
+  s=sprite(96,(g,S)=>{
+    const c=S/2,r=c/UNDER,ox=c+r*.18,oy=c+r*.28;
+    let gr=g.createRadialGradient(ox,oy,0,ox,oy,r*1.25);gr.addColorStop(0,'rgba(0,0,0,.28)');gr.addColorStop(.6,'rgba(0,0,0,.15)');gr.addColorStop(1,'rgba(0,0,0,0)');
+    g.fillStyle=gr;g.fillRect(0,0,S,S);
+    gr=g.createRadialGradient(c,c,r*.9,c,c,r*UNDER);gr.addColorStop(0,rgba(col,.17));gr.addColorStop(1,rgba(col,0));
+    g.fillStyle=gr;g.fillRect(0,0,S,S);
+    g.fillStyle=mix(col,SHADE,.74);g.beginPath();g.arc(c,c,r*1.13,0,TAU);g.fill();
+  });
+  underCache.set(col,s);return s;
+}
+const sheen=sprite(32,(g,S)=>{const gr=g.createRadialGradient(S/2,S/2,0,S/2,S/2,S/2);gr.addColorStop(0,'rgba(255,255,255,.3)');gr.addColorStop(.5,'rgba(255,255,255,.12)');gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.fillRect(0,0,S,S)});
 function glow(col){
   let s=glowCache.get(col);if(s)return s;
   s=sprite(64,(g,S)=>{const gr=g.createRadialGradient(S/2,S/2,0,S/2,S/2,S/2);gr.addColorStop(0,rgba(col,.8));gr.addColorStop(.45,rgba(col,.32));gr.addColorStop(1,rgba(col,0));g.fillStyle=gr;g.fillRect(0,0,S,S)});
@@ -404,32 +433,52 @@ function tkHat(s){                                      // the hat from above: b
 }
 function dot(col){
   let s=dotCache.get(col);if(s)return s;
-  s=sprite(64,(g,S)=>{const gr=g.createRadialGradient(S/2,S/2,0,S/2,S/2,S/2);gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(.1,rgba(col,1));gr.addColorStop(.24,rgba(col,.55));gr.addColorStop(.5,rgba(col,.14));gr.addColorStop(1,rgba(col,0));g.fillStyle=gr;g.fillRect(0,0,S,S)});
+  s=sprite(64,(g,S)=>{const gr=g.createRadialGradient(S/2,S/2,0,S/2,S/2,S/2);gr.addColorStop(0,rgba(col,.62));gr.addColorStop(.3,rgba(col,.34));gr.addColorStop(.55,rgba(col,.12));gr.addColorStop(1,rgba(col,0));g.fillStyle=gr;g.fillRect(0,0,S,S);
+    const o=g.createRadialGradient(S*.46,S*.45,0,S/2,S/2,S*.17);o.addColorStop(0,'#ffffff');o.addColorStop(.35,mix(col,'#ffffff',.45));o.addColorStop(1,col);g.fillStyle=o;g.beginPath();g.arc(S/2,S/2,S*.17,0,TAU);g.fill()});
   dotCache.set(col,s);return s;
 }
 const shadow=sprite(64,(g,S)=>{const gr=g.createRadialGradient(S/2,S/2,0,S/2,S/2,S/2);gr.addColorStop(0,'rgba(0,0,0,.55)');gr.addColorStop(.6,'rgba(0,0,0,.3)');gr.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=gr;g.fillRect(0,0,S,S)});
-function hexTile(){
-  const s=34,w=Math.round(Math.sqrt(3)*s),h=s*3;
-  const c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d');
-  g.fillStyle='#090e1f';g.fillRect(0,0,w,h);
-  const hex=(cx,cy)=>{
+// The floor: one big repeating tile of hexagons. Inside the arena (out=false) each cell gets its own slight
+// brightness, a few are faintly lit, and wide pools of teal and violet light lie over them, so the floor isn't one
+// flat pattern; it wraps at its edges. Outside the arena (out=true) a small plain tile in dim crimson.
+function hexTile(out){
+  const s=34,w=Math.round(Math.sqrt(3)*s),h=s*3,NX=out?2:16,NY=out?1:6,TW=w*NX,TH=h*NY;
+  const c=document.createElement('canvas');c.width=TW;c.height=TH;const g=c.getContext('2d');
+  g.fillStyle=out?'#070308':'#080c1c';g.fillRect(0,0,TW,TH);
+  for(let j=-1;j<=NY*2;j++)for(let i=-1;i<=NX;i++){
+    const cx=i*w+(j&1?w/2:0),cy=j*s*1.5,hh=h32((i+NX)%NX,(j+NY*2)%(NY*2),5),t=(hh&255)/255,lit=!out&&(hh>>>8)%23===0;
     g.beginPath();for(let k=0;k<6;k++){const a=Math.PI/6+k*Math.PI/3,x=cx+Math.cos(a)*(s-2.2),y=cy+Math.sin(a)*(s-2.2);k?g.lineTo(x,y):g.moveTo(x,y)}g.closePath();
-    const gr=g.createRadialGradient(cx-6,cy-8,2,cx,cy,s);gr.addColorStop(0,'#141c38');gr.addColorStop(1,'#0d1329');
-    g.fillStyle=gr;g.fill();g.strokeStyle='#050812';g.lineWidth=2.2;g.stroke();
-  };
-  for(const [x,y] of [[0,0],[w,0],[w/2,-s*1.5],[w/2,s*1.5],[0,s*3],[w,s*3],[w/2,s*4.5]])hex(x,y);
+    const gr=g.createRadialGradient(cx-6,cy-8,2,cx,cy,s);
+    if(out){gr.addColorStop(0,mix('#1c0b14','#26101b',t));gr.addColorStop(1,'#12070d')}
+    else{gr.addColorStop(0,lit?'#1d2f5c':mix('#121a35','#19234a',t));gr.addColorStop(1,lit?'#111a3a':mix('#0c1126','#0f1630',t))}
+    g.fillStyle=gr;g.fill();g.strokeStyle=out?'#040105':'#050812';g.lineWidth=2.2;g.stroke();
+  }
+  if(!out){
+    g.globalCompositeOperation='lighter';
+    for(const [fx,fy,fr,col] of [[.18,.3,.34,'#0f5a6e'],[.68,.2,.3,'#4a2f96'],[.45,.78,.36,'#16407a'],[.9,.7,.28,'#0f5a6e']])
+      for(let ox=-1;ox<=1;ox++)for(let oy=-1;oy<=1;oy++){
+        const x=(fx+ox)*TW,y=(fy+oy)*TH,R=fr*TW,gr=g.createRadialGradient(x,y,0,x,y,R);
+        gr.addColorStop(0,rgba(col,.17));gr.addColorStop(1,rgba(col,0));g.fillStyle=gr;g.fillRect(x-R,y-R,R*2,R*2);
+      }
+  }
   return c;
 }
 
 // =====================================================================
 //  Canvas and camera
 // =====================================================================
-const cv=$('view'),ctx=cv.getContext('2d');
-let W=0,H=0,DPR=1,hexPat=null;
+// alpha:false: the canvas is opaque (every frame paints all of it), which is cheaper for the browser to put on screen
+const cv=$('view'),ctx=cv.getContext('2d',{alpha:false});
+let W=0,H=0,DPR=1,hexPat=null,outPat=null,vig=null;
 function resize(){
   const r=cv.getBoundingClientRect();W=Math.max(1,r.width);H=Math.max(1,r.height);
   DPR=Math.min(2,window.devicePixelRatio||1);
   cv.width=Math.round(W*DPR);cv.height=Math.round(H*DPR);
+  // the dark corners, drawn once at an eighth of the size and stretched over the frame
+  const vw=Math.max(2,Math.round(W/8)),vh=Math.max(2,Math.round(H/8));
+  vig=document.createElement('canvas');vig.width=vw;vig.height=vh;const g=vig.getContext('2d');
+  const vg=g.createRadialGradient(vw/2,vh/2,Math.min(vw,vh)*.35,vw/2,vh/2,Math.max(vw,vh)*.75);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.5)');
+  g.fillStyle=vg;g.fillRect(0,0,vw,vh);
 }
 addEventListener('resize',resize);
 const cam={x:0,y:0,z:1,follow:null};
@@ -831,17 +880,26 @@ function render(){
   const rr=f?f.r:12;const zt=base*clamp(1.12-.34*Math.log2(rr/10),.56,1.12);
   cam.z=lerp(cam.z,zt,.04);
   const z=cam.z,sc=z*DPR;
-  ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#04060d';ctx.fillRect(0,0,cv.width,cv.height);
   ctx.setTransform(sc,0,0,sc,cv.width/2-cam.x*sc,cv.height/2-cam.y*sc);
   const hw=W/2/z+60,hh=H/2/z+60,vx0=cam.x-hw,vy0=cam.y-hh,vx1=cam.x+hw,vy1=cam.y+hh;
-  if(!hexPat)hexPat=ctx.createPattern(hexTile(),'repeat');
-  ctx.save();ctx.beginPath();ctx.arc(0,0,ARENA,0,TAU);ctx.clip();ctx.fillStyle=hexPat;ctx.fillRect(vx0,vy0,vx1-vx0,vy1-vy0);ctx.restore();
-  // arena edge
-  ctx.lineWidth=40;ctx.strokeStyle='rgba(255,77,109,.10)';ctx.beginPath();ctx.arc(0,0,ARENA,0,TAU);ctx.stroke();
-  ctx.lineWidth=12;ctx.strokeStyle='rgba(255,77,109,.28)';ctx.stroke();
-  ctx.lineWidth=4;ctx.strokeStyle='#ff4d6d';ctx.stroke();
-  // food
+  if(!hexPat)hexPat=ctx.createPattern(hexTile(false),'repeat');
   const now=performance.now(),T=worldNow();
+  if(Math.hypot(Math.abs(cam.x)+hw,Math.abs(cam.y)+hh)<ARENA-EDGE_GLOW){
+    // the whole view is inside the arena: one fill, nothing to clip
+    ctx.fillStyle=hexPat;ctx.fillRect(vx0,vy0,vx1-vx0,vy1-vy0);
+  }else{
+    if(!outPat)outPat=ctx.createPattern(hexTile(true),'repeat');
+    ctx.fillStyle=outPat;ctx.fillRect(vx0,vy0,vx1-vx0,vy1-vy0);
+    ctx.save();ctx.beginPath();ctx.arc(0,0,ARENA,0,TAU);ctx.clip();ctx.fillStyle=hexPat;ctx.fillRect(vx0,vy0,vx1-vx0,vy1-vy0);ctx.restore();
+    // arena edge: a red glow that reaches into the floor, a hard line, and light running along it
+    ctx.beginPath();ctx.arc(0,0,ARENA,0,TAU);
+    ctx.strokeStyle='rgba(255,77,109,.028)';for(let k=5;k>0;k--){ctx.lineWidth=EDGE_GLOW*.4*k;ctx.stroke()}
+    ctx.lineWidth=40;ctx.strokeStyle='rgba(255,77,109,.1)';ctx.stroke();
+    ctx.lineWidth=12;ctx.strokeStyle='rgba(255,77,109,.3)';ctx.stroke();
+    ctx.lineWidth=4;ctx.strokeStyle='#ff4d6d';ctx.stroke();
+    ctx.lineWidth=2;ctx.strokeStyle='#ffd9e0';ctx.setLineDash([30,54]);ctx.lineDashOffset=-now/30;ctx.stroke();ctx.setLineDash([]);
+  }
+  // food
   if(!TKON)ctx.globalCompositeOperation='lighter';
   for(let i=0;i<FOOD_N;i++){
     const x=FX[i]+FOX[i],y=FY[i]+FOY[i];if(x<vx0||x>vx1||y<vy0||y>vy1)continue;
@@ -861,12 +919,16 @@ function render(){
   ctx.globalCompositeOperation='lighter';
   for(const d of dying){
     const k=d.t/.5,pat=SKINS[d.skin].c;ctx.globalAlpha=(1-k)*.9;
+    if(!d.fx){d.fx=1;burst(d,vx0,vy0,vx1,vy1)}
     for(let i=d.n-1;i>=0;i-=2){const r=d.r*(1.4+k*1.6);ctx.drawImage(glow(pat[(i>>1)%pat.length]),d.sx[i]-r,d.sy[i]-r,r*2,r*2)}
+    const e=1-(1-k)*(1-k);ctx.strokeStyle=pat[0];ctx.lineWidth=d.r*.5*(1-k)+.5;ctx.beginPath();ctx.arc(d.sx[0],d.sy[0],d.r*(1.2+e*4.5),0,TAU);ctx.stroke();
   }
   ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';
   // snakes, smallest first, you on top
   const order=[...snakes.values()].filter(s=>s.alive&&s.n&&s.maxx>vx0&&s.minx<vx1&&s.maxy>vy0&&s.miny<vy1).sort((a,b)=>(a===player)-(b===player)||a.score-b.score);
+  fxDt=paused?0:Math.min(.05,Math.max(0,(now-fxLast)/1000));fxLast=now;
   for(const s of order)drawSnake(s,now);
+  if(sparkN)drawSparks();
   // names (screen space)
   ctx.setTransform(DPR,0,0,DPR,0,0);
   ctx.font='700 13px Nunito,system-ui,sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';
@@ -876,34 +938,83 @@ function render(){
     ctx.fillStyle='rgba(0,0,0,.45)';ctx.fillText(s.name,x+1,y+1);ctx.fillStyle='rgba(238,243,255,.82)';ctx.fillText(s.name,x,y);
   }
   // vignette
-  const vg=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*.35,W/2,H/2,Math.max(W,H)*.75);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.5)');
-  ctx.fillStyle=vg;ctx.fillRect(0,0,W,H);
+  ctx.drawImage(vig,0,0,W,H);
+}
+// The body of a snake on any canvas (the arena and the menu's skin preview): see the note above ball().
+function paintBody(g,sx,sy,n,r,pat,alpha){
+  const k=n>1?1/(n-1):0,tap=i=>{const f=i*k;return r*(f>.7?1-(f-.7)*1.3:1)};
+  for(let i=0;i<n;i+=2){const q=tap(i)*UNDER;g.drawImage(under(pat[(i>>1)%pat.length]),sx[i]-q,sy[i]-q,q*2,q*2)}
+  if(!(n&1)){const i=n-1,q=tap(i)*UNDER;g.drawImage(under(pat[(i>>1)%pat.length]),sx[i]-q,sy[i]-q,q*2,q*2)}
+  if(alpha<1)g.globalAlpha=alpha;
+  for(let i=n-1;i>0;i--){const q=tap(i);g.drawImage(ball(pat[(i>>1)%pat.length]),sx[i]-q,sy[i]-q,q*2,q*2)}
+  for(let i=1;i<n;i+=2){const t=tap(i),q=t*.6;g.drawImage(sheen,sx[i]-t*.24-q,sy[i]-t*.28-q,q*2,q*2)}
+  g.drawImage(head(pat[0]),sx[0]-r,sy[0]-r,r*2,r*2);
+  g.globalAlpha=1;
+}
+// Eyes with a dark rim; they blink now and then (seed keeps the snakes out of step).
+const EYE_RIM='#0a0e22';
+function paintFace(g,x,y,h,look,r,now,seed,lid){
+  const c=Math.cos(h),si=Math.sin(h),er=r*.34,ax=x+c*r*.36-si*r*.47,ay=y+si*r*.36+c*r*.47,bx=x+c*r*.36+si*r*.47,by=y+si*r*.36-c*r*.47;
+  const two=q=>{g.beginPath();g.arc(ax,ay,q,0,TAU);g.moveTo(bx+q,by);g.arc(bx,by,q,0,TAU);g.fill()};
+  g.fillStyle=EYE_RIM;two(er*1.17);
+  if((now+seed)%4700<120){g.fillStyle=lid;two(er*.98);return}
+  g.fillStyle='#ffffff';two(er);
+  const px=Math.cos(look)*er*.4,py=Math.sin(look)*er*.4,q=er*.56;
+  g.fillStyle='#10131f';g.beginPath();g.arc(ax+px,ay+py,q,0,TAU);g.moveTo(bx+px+q,by+py);g.arc(bx+px,by+py,q,0,TAU);g.fill();
+  const gx=px-er*.2,gy=py-er*.22,gq=er*.19;
+  g.fillStyle='#ffffff';g.beginPath();g.arc(ax+gx,ay+gy,gq,0,TAU);g.moveTo(bx+gx+gq,by+gy);g.arc(bx+gx,by+gy,gq,0,TAU);g.fill();
 }
 function drawSnake(s,now){
   const n=s.n,r=s.r,pat=SKINS[s.skin].c,sx=s.sx,sy=s.sy;
-  const tap=i=>{const f=n>1?i/(n-1):0;return r*(f>.7?1-(f-.7)*1.3:1)};
-  ctx.globalAlpha=.5;
-  for(let i=n-1;i>=0;i-=2){const q=tap(i)*1.25;ctx.drawImage(shadow,sx[i]-q+r*.18,sy[i]-q+r*.28,q*2,q*2)}
-  ctx.globalAlpha=1;
+  const seed=s.fz||(s.fz=1+(Math.random()*9000|0));
   if(s.boost){
-    ctx.globalCompositeOperation='lighter';
-    const pulse=.55+.45*Math.sin(now/70);
-    for(let i=n-1;i>=0;i-=2){const q=tap(i)*2.4;ctx.globalAlpha=pulse*.8;ctx.drawImage(glow(pat[(i>>1)%pat.length]),sx[i]-q,sy[i]-q,q*2,q*2)}
+    const k=n>1?1/(n-1):0;
+    ctx.globalCompositeOperation='lighter';ctx.globalAlpha=(.55+.45*Math.sin(now/70))*.8;
+    for(let i=n-1;i>=0;i-=2){const f=i*k,q=r*(f>.7?1-(f-.7)*1.3:1)*2.4;ctx.drawImage(glow(pat[(i>>1)%pat.length]),sx[i]-q,sy[i]-q,q*2,q*2)}
     ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';
+    // sparks shed backward off the rear half while boosting
+    s.fxT=(s.fxT||0)+fxDt*(touchUI?14:30);
+    while(s.fxT>=1){
+      s.fxT-=1;if(n<3)continue;
+      const i=Math.max(1,Math.min(n-1,(n*(.4+Math.random()*.6))|0)),dx=sx[i]-sx[i-1],dy=sy[i]-sy[i-1],d=Math.hypot(dx,dy)||1,v=50+Math.random()*90,j=(Math.random()-.5)*1.1;
+      spark(sx[i]+(Math.random()-.5)*r,sy[i]+(Math.random()-.5)*r,(dx/d-dy/d*j)*v,(dy/d+dx/d*j)*v,.28+Math.random()*.3,r*(.12+Math.random()*.14),dot(pat[(i>>1)%pat.length]));
+    }
   }
-  const fresh=clock-s.born<1.2&&s.local;
-  if(fresh)ctx.globalAlpha=.55+.45*Math.sin(now/60);
-  for(let i=n-1;i>=0;i--){const q=tap(i);ctx.drawImage(ball(pat[(i>>1)%pat.length]),sx[i]-q,sy[i]-q,q*2,q*2)}
-  ctx.globalAlpha=1;
+  // the tongue flicks out now and then
+  const tf=((now+seed*3)%2900)/300;
+  if(tf<1){
+    const c=Math.cos(s.h),si=Math.sin(s.h),L=r*(.95+.75*Math.sin(tf*Math.PI)),tx=s.x+c*L,ty=s.y+si*L,fk=r*.3;
+    ctx.strokeStyle='#ff5f7e';ctx.lineWidth=Math.max(1,r*.11);ctx.lineCap='round';ctx.beginPath();
+    ctx.moveTo(s.x+c*r*.7,s.y+si*r*.7);ctx.lineTo(tx,ty);ctx.lineTo(tx+Math.cos(s.h+.5)*fk,ty+Math.sin(s.h+.5)*fk);ctx.moveTo(tx,ty);ctx.lineTo(tx+Math.cos(s.h-.5)*fk,ty+Math.sin(s.h-.5)*fk);ctx.stroke();
+  }
+  paintBody(ctx,sx,sy,n,r,pat,clock-s.born<1.2&&s.local?.55+.45*Math.sin(now/60):1);
   if(TKON)tkHat(s);
-  // eyes
-  const h=s.h,look=s===player&&input.aim!=null&&!input.kb?aimA:h,c=Math.cos(h),si=Math.sin(h);
-  for(const side of [-1,1]){
-    const ex=s.x+c*r*.38-si*r*.46*side,ey=s.y+si*r*.38+c*r*.46*side,er=r*.33;
-    ctx.fillStyle='#ffffff';ctx.beginPath();ctx.arc(ex,ey,er,0,TAU);ctx.fill();
-    ctx.fillStyle='#10131f';ctx.beginPath();ctx.arc(ex+Math.cos(look)*er*.42,ey+Math.sin(look)*er*.42,er*.55,0,TAU);ctx.fill();
-    ctx.fillStyle='rgba(255,255,255,.9)';ctx.beginPath();ctx.arc(ex+Math.cos(look)*er*.42-er*.18,ey+Math.sin(look)*er*.42-er*.2,er*.16,0,TAU);ctx.fill();
+  paintFace(ctx,s.x,s.y,s.h,s===player&&input.aim!=null&&!input.kb?aimA:s.h,r,now,seed,pat[0]);
+}
+// Sparks (a snake breaking up, boost): one fixed pool, drawn with the food's orb sprites. Drawing only.
+const SPARKS=360,PX=new Float32Array(SPARKS),PY=new Float32Array(SPARKS),PVX=new Float32Array(SPARKS),PVY=new Float32Array(SPARKS),PL=new Float32Array(SPARKS),PM=new Float32Array(SPARKS),PS=new Float32Array(SPARKS),PI=new Array(SPARKS);
+let sparkN=0,fxDt=0,fxLast=0;
+function spark(x,y,vx,vy,life,size,img){
+  if(sparkN>=SPARKS)return;const i=sparkN++;PX[i]=x;PY[i]=y;PVX[i]=vx;PVY[i]=vy;PL[i]=PM[i]=life;PS[i]=size;PI[i]=img;
+}
+function burst(d,vx0,vy0,vx1,vy1){
+  const pat=SKINS[d.skin].c,want=Math.min(touchUI?36:72,d.n*2),m=d.r*2;
+  for(let j=0;j<want;j++){
+    const i=Math.min(d.n-1,(j*d.n/want)|0),x=d.sx[i],y=d.sy[i];if(x<vx0-m||x>vx1+m||y<vy0-m||y>vy1+m)continue;
+    const a=Math.random()*TAU,v=(70+Math.random()*230)*(.6+d.r/40);
+    spark(x+Math.cos(a)*d.r*.5,y+Math.sin(a)*d.r*.5,Math.cos(a)*v,Math.sin(a)*v,.45+Math.random()*.5,d.r*(.3+Math.random()*.4),j%4?glow(pat[(i>>1)%pat.length]):dot(pat[(i>>1)%pat.length]));
   }
+}
+function drawSparks(){
+  const dt=fxDt,drag=Math.max(0,1-2.4*dt);
+  ctx.globalCompositeOperation='lighter';
+  for(let i=sparkN-1;i>=0;i--){
+    if((PL[i]-=dt)<=0){const l=--sparkN;PX[i]=PX[l];PY[i]=PY[l];PVX[i]=PVX[l];PVY[i]=PVY[l];PL[i]=PL[l];PM[i]=PM[l];PS[i]=PS[l];PI[i]=PI[l];PI[l]=null;continue}
+    PX[i]+=PVX[i]*dt;PY[i]+=PVY[i]*dt;PVX[i]*=drag;PVY[i]*=drag;
+    const f=PL[i]/PM[i],R=PS[i]*(1.2+1.6*f);
+    ctx.globalAlpha=f<.5?f*2:1;ctx.drawImage(PI[i],PX[i]-R,PY[i]-R,R*2,R*2);
+  }
+  ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';
 }
 if(EVT)EVT.button($('turkeyBtn'),on=>{TKON=on});
 const mini=$('mini'),mctx=mini.getContext('2d');
@@ -917,8 +1028,9 @@ function drawMini(){
     mctx.beginPath();mctx.arc(c+s.x*k,c+s.y*k,big?4:2.6,0,TAU);mctx.fill();
   }
   if(player&&player.alive){
-    mctx.fillStyle='#3ff0b6';mctx.shadowColor='#3ff0b6';mctx.shadowBlur=10;
-    mctx.beginPath();mctx.arc(c+player.x*k,c+player.y*k,6,0,TAU);mctx.fill();mctx.shadowBlur=0;
+    const mx=c+player.x*k,my=c+player.y*k;
+    mctx.drawImage(glow('#3ff0b6'),mx-17,my-17,34,34);
+    mctx.fillStyle='#3ff0b6';mctx.beginPath();mctx.arc(mx,my,6,0,TAU);mctx.fill();
   }
 }
 
@@ -1140,7 +1252,7 @@ function sanitizeRoom(s){return String(s||'').toLowerCase().replace(/^cl-/,'').r
 function randomRoom(){return pick(['noodle','coil','hiss','fang','scale','venom','loop','twist'])+'-'+Math.floor(100+Math.random()*900)}
 function busy(on){for(const id of ['quick','joinRoom','practice'])$(id).disabled=on}
 function clearWorld(seed){
-  snakes.clear();bots.length=0;dying.length=0;player=null;
+  snakes.clear();bots.length=0;dying.length=0;sparkN=0;player=null;
   resetFood(seed);foodFirst=true;updateFood(worldNow(),true);foodFirst=false;
   $('feed').innerHTML='';
 }
@@ -1235,14 +1347,15 @@ function openPause(){
 function closePause(){$('pause').hidden=true;paused=false}
 
 // skin picker preview
-const skv=$('skinCv'),skx=skv.getContext('2d');
+const skv=$('skinCv'),skx=skv.getContext('2d'),pvx=[],pvy=[];
 function drawSkinPreview(t){
   const w=skv.width,h=skv.height;skx.clearRect(0,0,w,h);
   const pat=SKINS[mySkin].c,r=22,n=44,pts=[];
   for(let i=0;i<n;i++){const x=w-70-i*(w-140)/n,y=h/2+Math.sin(i*.28-t*3)*20;pts.push([x,y])}
-  for(let i=n-1;i>=0;i--){const f=i/(n-1),q=r*(f>.7?1-(f-.7)*1.3:1);skx.drawImage(ball(pat[(i>>1)%pat.length]),pts[i][0]-q,pts[i][1]-q,q*2,q*2)}
-  const [x,y]=pts[0],a=Math.atan2(y-pts[1][1],x-pts[1][0]),c=Math.cos(a),s=Math.sin(a);
-  for(const side of [-1,1]){const ex=x+c*r*.38-s*r*.46*side,ey=y+s*r*.38+c*r*.46*side,er=r*.33;skx.fillStyle='#fff';skx.beginPath();skx.arc(ex,ey,er,0,TAU);skx.fill();skx.fillStyle='#10131f';skx.beginPath();skx.arc(ex+c*er*.42,ey+s*er*.42,er*.55,0,TAU);skx.fill()}
+  for(let i=0;i<n;i++){pvx[i]=pts[i][0];pvy[i]=pts[i][1]}
+  paintBody(skx,pvx,pvy,n,r,pat,1);
+  const [x,y]=pts[0],a=Math.atan2(y-pts[1][1],x-pts[1][0]);
+  paintFace(skx,x,y,a,a,r,t*1000,0,pat[0]);
   $('skinName').textContent=SKINS[mySkin].name;
 }
 $('skinPrev').onclick=()=>{mySkin=(mySkin+SKINS.length-1)%SKINS.length;store.set('skin',mySkin)};
@@ -1344,6 +1457,9 @@ setInterval(()=>{
   let r=Math.min(1,(p-last)/1000);last=p;
   try{while(r>0){const d=Math.min(.05,r);r-=d;step(d,true)}}catch(err){console.error(err)}
 },250);
+
+// For automated tests only (Playwright sets navigator.webdriver): a way to reach the arena from outside.
+if(navigator.webdriver)window.__coil={snakes,bots,cam,kill:s=>killLocal(s,null),get player(){return player}};
 
 // boot
 resize();
