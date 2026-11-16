@@ -35,7 +35,13 @@
 html,body{height:100%;margin:0;overflow:hidden;background:var(--navy);color:var(--ink);overscroll-behavior:none}
 body{font-family:var(--f-u);-webkit-font-smoothing:antialiased;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;touch-action:none}
 [hidden]{display:none!important}
-#app{position:fixed;inset:0;overflow:hidden;background:radial-gradient(120% 90% at 50% 18%,#18275e 0%,#0e1840 48%,#080f28 100%)}
+/* Backdrop: a faint grid of dots (the board's rhythm carried out to the edges) over two soft washes of colour.
+   It is plain CSS behind the canvas, so it costs nothing per frame. */
+#app{position:fixed;inset:0;overflow:hidden;background:
+  radial-gradient(circle at 50% 50%,rgba(170,195,255,.11) 0 1.4px,transparent 1.9px) 0 0/34px 34px,
+  radial-gradient(70% 55% at 12% 0%,rgba(91,108,255,.30) 0%,transparent 70%),
+  radial-gradient(60% 50% at 100% 100%,rgba(176,92,255,.20) 0%,transparent 70%),
+  radial-gradient(120% 90% at 50% 18%,#18275e 0%,#0e1840 48%,#080f28 100%)}
 #cv{position:absolute;left:0;top:0;width:100%;height:100%;display:block;touch-action:none}
 button{font:inherit;color:inherit;cursor:pointer}
 button:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
@@ -57,6 +63,8 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offse
 /* Score */
 #scorebox{position:absolute;z-index:1;pointer-events:none;display:flex;align-items:center;justify-content:center;flex-direction:column}
 #score{font:700 44px/1 var(--f-d);font-variant-numeric:tabular-nums;text-shadow:0 3px 0 rgba(0,0,0,.25);letter-spacing:.01em}
+#score.hop{animation:hop .32s cubic-bezier(.3,1.6,.5,1)}
+@keyframes hop{0%{transform:scale(1)}35%{transform:scale(1.16);color:var(--gold)}100%{transform:scale(1)}}
 .best{display:flex;align-items:center;gap:6px;font:800 14px var(--f-u);color:var(--gold);letter-spacing:.04em}
 .best svg{width:16px;height:16px;fill:var(--gold)}
 #app.v #scorebox{flex-direction:row;justify-content:center}
@@ -76,7 +84,13 @@ html.touch .kbonly{display:none!important}
 
 /* Menus */
 .ov{position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;padding:12px;background:rgba(5,9,26,.62);-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px)}
-.panel{width:min(420px,100%);max-height:100%;overflow:auto;overscroll-behavior:contain;touch-action:pan-y;background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:20px 22px 18px;box-shadow:0 20px 60px rgba(0,0,0,.45);text-align:center}
+.panel{width:min(420px,100%);max-height:100%;overflow:auto;overscroll-behavior:contain;touch-action:pan-y;border:1px solid var(--line);border-radius:22px;padding:24px 22px 18px;box-shadow:0 20px 60px rgba(0,0,0,.45),inset 0 1px 0 rgba(190,210,255,.12);text-align:center;
+  background:linear-gradient(90deg,#ff4d5e 0 12.5%,#ff9f1c 0 25%,#ffd23f 0 37.5%,#3ddc84 0 50%,#2ec4ff 0 62.5%,#5b6cff 0 75%,#b05cff 0 87.5%,#ff5fb7 0) top/100% 6px no-repeat,
+    linear-gradient(180deg,#26367a 0%,#131c46 34%,#0f1738 60%)}
+/* Wordmark on the How to play panel: a little board with one full line, and the name */
+.mark{display:flex;align-items:center;justify-content:center;gap:9px;margin:0 0 8px;font:700 21px/1 var(--f-d);letter-spacing:.02em;color:var(--ink)}
+.mark svg{width:26px;height:26px;filter:drop-shadow(0 2px 0 rgba(0,0,0,.3))}
+.mark i{font-style:normal;color:var(--sky)}
 .panel h2{margin:0 0 10px;font:700 30px/1.1 var(--f-d);color:var(--gold)}
 .panel p{margin:0 0 10px;color:var(--ink-2);font-size:15px;line-height:1.45}
 .panel ul{margin:0 0 12px;padding:0 0 0 18px;text-align:left;color:var(--ink-2);font-size:14.5px;line-height:1.45}
@@ -98,11 +112,11 @@ html.touch .kbonly{display:none!important}
 .pts b{color:var(--gold)}
 .final{margin:4px 0 6px}
 .final small{display:block;font:800 12px var(--f-u);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
-.final b{display:block;font:700 56px/1.05 var(--f-d);font-variant-numeric:tabular-nums}
+.final b{display:block;font:700 60px/1.05 var(--f-d);font-variant-numeric:tabular-nums;text-shadow:0 4px 0 rgba(0,0,0,.28)}
 .newbest{display:inline-block;margin:0 0 10px;padding:5px 14px;border-radius:999px;background:linear-gradient(90deg,#ff5fb7,#ffd23f);color:#2a1030;font:700 17px var(--f-d);animation:nb 1.2s ease-in-out infinite alternate}
 @keyframes nb{from{transform:scale(1)}to{transform:scale(1.07)}}
 .fbest{font-weight:800;color:var(--gold)!important}
-#helpOv .btns{position:sticky;bottom:-18px;margin:0 -4px -4px;padding:8px 4px 4px;background:var(--panel)}
+#helpOv .btns{position:sticky;bottom:-18px;margin:0 -4px -4px;padding:8px 4px 4px;background:#0f1738}
 @media (max-height:520px) and (min-width:600px){
   #helpOv .panel{width:min(720px,100%)}
   #helpOv ul{columns:2;column-gap:22px}
@@ -110,9 +124,11 @@ html.touch .kbonly{display:none!important}
   #helpOv .btns{flex-direction:row}
   #helpOv .btns>*{flex:1}
 }
+@media (max-height:520px){.mark{display:none}}
+@media (prefers-reduced-motion:reduce){.newbest,#score.hop{animation:none}}
 @media (max-height:420px){
   #helpOv .btns{bottom:-12px}
-  .panel{padding:14px 16px 12px;border-radius:18px}
+  .panel{padding:18px 16px 12px;border-radius:18px}
   .panel h2{font-size:24px;margin-bottom:6px}
   .panel ul{font-size:13.5px}
   .final b{font-size:40px}
@@ -156,6 +172,7 @@ html.touch .kbonly{display:none!important}
 
   <div class="ov" id="helpOv" hidden>
     <div class="panel" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+      <div class="mark" aria-hidden="true"><svg viewBox="0 0 26 26"><rect x="1" y="1" width="7" height="7" rx="2" fill="#2a3a78"/><rect x="9.5" y="1" width="7" height="7" rx="2" fill="#ff5fb7"/><rect x="18" y="1" width="7" height="7" rx="2" fill="#2a3a78"/><rect x="1" y="9.5" width="7" height="7" rx="2" fill="#ffd23f"/><rect x="9.5" y="9.5" width="7" height="7" rx="2" fill="#ffd23f"/><rect x="18" y="9.5" width="7" height="7" rx="2" fill="#ffd23f"/><rect x="1" y="18" width="7" height="7" rx="2" fill="#2ec4ff"/><rect x="9.5" y="18" width="7" height="7" rx="2" fill="#2a3a78"/><rect x="18" y="18" width="7" height="7" rx="2" fill="#2a3a78"/></svg><span>Grid<i>pop</i></span></div>
       <h2 id="helpTitle">How to play</h2>
       <ul>
         <li><b>Drag a piece</b> from the tray onto the board. Pieces can't be turned, so every shape has to go in the way it comes.</li>
@@ -452,55 +469,146 @@ const app=$('app'),cv=$('cv'),ctx=cv.getContext('2d');
 const L={mode:'v',W:0,H:0,dpr:1,bx:0,by:0,bs:0,gx:0,gy:0,pitch:0,cell:0,gap:0,tc:0,tp:0,tg:0,slots:[{x:0,y:0,w:0,h:0},{x:0,y:0,w:0,h:0},{x:0,y:0,w:0,h:0}],hit:[{x:0,y:0,w:0,h:0},{x:0,y:0,w:0,h:0},{x:0,y:0,w:0,h:0}],rad:0,ox:0,oy:0};
 let touchUI=matchMedia('(pointer:coarse)').matches;
 if(touchUI)document.documentElement.classList.add('touch');
-const spr=[],sprT=[];let sprRed=null,sprWhite=null,sprGrey=null,sprShadow=null,boardBg=null,glowSpr=null;const GLOW=36;
+const spr=[],sprT=[],pip=[];let sprRed=null,sprWhite=null,sprGrey=null,sprShadow=null,boardBg=null,glowSpr=null,dockSpr=null,beamH=null,beamV=null;const GLOW=36;
+let BM=0;                                   // margin round the board picture, for its baked shadow
+const dock={x:0,y:0,w:0,h:0};               // where the tray picture goes
+const wells=[0,1,2].map(()=>({x:0,y:0,w:0,h:0}));
+// Players who ask their device for less motion get no shake, no bouncing and far fewer sparks.
+const RM=matchMedia('(prefers-reduced-motion: reduce)');
+const calm=()=>RM.matches;
 
+// ---- Art direction (one place) ----
+// Light comes from the top-left everywhere: blocks, the board frame, the wells and the tray.
+// Shading shifts hue as well as brightness (highlights lean warm, shadows lean cool), so no colour goes muddy.
+// Every colour also has its own stamped mark, so pieces can be told apart without relying on hue.
+const ART={
+  rad:0.2,            // block corner, as a share of its size
+  lip:0.085,          // the block's thickness, seen along its bottom and right edges
+  inset:0.19,         // where the pressed centre panel starts
+  markMin:15,         // blocks smaller than this many device pixels get no mark
+  frameHi:'#42589f',frameMid:'#243368',frameLo:'#131b45',
+  bed:'#101a44',wellA:'#0a1231',wellB:'#0e1840',
+  dockFill:'rgba(9,16,44,0.55)',dockEdge:'rgba(150,178,255,0.13)',
+  beam:'255,240,190'
+};
 function shade(hex,amt){
   const n=parseInt(hex.slice(1),16);let r=n>>16,g=(n>>8)&255,b=n&255;
   if(amt>=0){r+=(255-r)*amt;g+=(255-g)*amt;b+=(255-b)*amt}else{r*=1+amt;g*=1+amt;b*=1+amt}
   return 'rgb('+Math.round(r)+','+Math.round(g)+','+Math.round(b)+')';
 }
+// hex colour, lighter or darker by dl (-1..1); lighter tones turn towards yellow, darker ones towards blue-violet
+function tint(hex,dl,ds){
+  const n=parseInt(hex.slice(1),16),r=(n>>16)/255,g=((n>>8)&255)/255,b=(n&255)/255,mx=Math.max(r,g,b),mn=Math.min(r,g,b);
+  let h=0,s=0,l=(mx+mn)/2;
+  if(mx!==mn){const q=mx-mn;s=l>0.5?q/(2-mx-mn):q/(mx+mn);h=(mx===r?(g-b)/q+(g<b?6:0):mx===g?(b-r)/q+2:(r-g)/q+4)*60}
+  const target=dl>=0?52:255,turn=Math.min(18,Math.abs(dl)*70);
+  let diff=((target-h+540)%360)-180;h=(h+Math.max(-turn,Math.min(turn,diff))+360)%360;
+  l=Math.max(0,Math.min(1,l+dl));s=Math.max(0,Math.min(1,s+(ds||0)));
+  return 'hsl('+h.toFixed(1)+','+(s*100).toFixed(1)+'%,'+(l*100).toFixed(1)+'%)';
+}
 function rr(g,x,y,w,h,r){r=Math.min(r,w/2,h/2);g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath()}
-// A glossy, bevelled block: dark rim, lit face, a soft top highlight and a bright top edge.
-function makeBlock(hex,s){
+// The mark stamped into each colour's blocks (1..8), as a path centred on (0, 0) fitting a circle of radius u.
+function markPath(g,k,u){
+  g.beginPath();
+  if(k===1)g.arc(0,0,u*0.62,0,Math.PI*2);                                                              // disc
+  else if(k===2){g.moveTo(0,-u*0.82);g.lineTo(u*0.8,u*0.62);g.lineTo(-u*0.8,u*0.62);g.closePath()}      // triangle
+  else if(k===3){for(let i=0;i<8;i++){const a=i*Math.PI/4-Math.PI/2,q=i%2?u*0.36:u;g.lineTo(Math.cos(a)*q,Math.sin(a)*q)}g.closePath()} // four-point spark
+  else if(k===4){g.moveTo(0,-u*0.9);g.lineTo(u*0.72,0);g.lineTo(0,u*0.9);g.lineTo(-u*0.72,0);g.closePath()} // diamond
+  else if(k===5){g.arc(0,0,u*0.8,0,Math.PI*2);g.moveTo(u*0.38,0);g.arc(0,0,u*0.38,0,Math.PI*2,true)}     // ring
+  else if(k===6){const a=u*0.3,b=u*0.85;g.moveTo(-a,-b);g.lineTo(a,-b);g.lineTo(a,-a);g.lineTo(b,-a);g.lineTo(b,a);g.lineTo(a,a);g.lineTo(a,b);g.lineTo(-a,b);g.lineTo(-a,a);g.lineTo(-b,a);g.lineTo(-b,-a);g.lineTo(-a,-a);g.closePath()} // plus
+  else if(k===7){g.rect(-u*0.8,-u*0.62,u*1.6,u*0.44);g.rect(-u*0.8,u*0.18,u*1.6,u*0.44)}                 // two bars
+  else if(k===8){g.rect(-u*0.72,-u*0.72,u*1.44,u*1.44);g.rect(u*0.3,-u*0.3,-u*0.6,u*0.6)}                 // hollow square
+}
+// A pressed tile: its thickness shows along the bottom and right, the top face runs from a warm light corner
+// to a cool dark one, and the centre is a shallow dish with the colour's mark stamped into it.
+function makeBlock(hex,s,mark){
   const d=Math.max(2,Math.round(s*L.dpr)),c=document.createElement('canvas');c.width=c.height=d;
-  const g=c.getContext('2d'),R=d*0.2;
-  rr(g,0,0,d,d,R);g.fillStyle=shade(hex,-0.42);g.fill();
-  const gr=g.createLinearGradient(0,0,0,d);gr.addColorStop(0,shade(hex,0.28));gr.addColorStop(0.55,hex);gr.addColorStop(1,shade(hex,-0.1));
-  rr(g,d*0.055,d*0.035,d*0.89,d*0.83,R*0.85);g.fillStyle=gr;g.fill();
-  const gl=g.createLinearGradient(0,d*0.07,0,d*0.46);gl.addColorStop(0,'rgba(255,255,255,0.55)');gl.addColorStop(1,'rgba(255,255,255,0.04)');
-  rr(g,d*0.15,d*0.08,d*0.7,d*0.33,R*0.55);g.fillStyle=gl;g.fill();
-  g.fillStyle='rgba(255,255,255,0.35)';rr(g,d*0.2,d*0.035,d*0.6,Math.max(1,d*0.035),d*0.02);g.fill();
+  const g=c.getContext('2d'),R=d*ART.rad,lip=Math.max(1,d*ART.lip),w=d-lip;
+  const hi=tint(hex,0.2,0.05),lo=tint(hex,-0.12,0.04),side=tint(hex,-0.3,-0.05),deep=tint(hex,-0.2,0.02);
+  rr(g,0,0,d,d,R);g.fillStyle=side;g.fill();
+  const gr=g.createLinearGradient(0,0,w,w);gr.addColorStop(0,hi);gr.addColorStop(0.45,hex);gr.addColorStop(1,lo);
+  rr(g,0,0,w,w,R*0.92);g.fillStyle=gr;g.fill();
+  // lit rim along the top and left edges
+  g.save();rr(g,0,0,w,w,R*0.92);g.clip();
+  const eg=g.createLinearGradient(0,0,w*0.8,w*0.8);eg.addColorStop(0,'rgba(255,255,255,0.85)');eg.addColorStop(0.5,'rgba(255,255,255,0.22)');eg.addColorStop(1,'rgba(255,255,255,0)');
+  const lw=Math.max(1,d*0.045);g.lineWidth=lw;g.strokeStyle=eg;rr(g,lw/2,lw/2,w-lw,w-lw,R*0.92-lw/2);g.stroke();g.restore();
+  // the dish: shaded the other way round, so it reads as pressed in
+  const m=w*ART.inset,iw=w-2*m;
+  if(iw>=4){
+    const gi=g.createLinearGradient(m,m,m+iw,m+iw);gi.addColorStop(0,lo);gi.addColorStop(0.55,hex);gi.addColorStop(1,tint(hex,0.1,0.03));
+    rr(g,m,m,iw,iw,R*0.5);g.fillStyle=gi;g.fill();
+    if(mark&&d>=ART.markMin){
+      const u=iw*0.3,o=Math.max(0.5,d*0.012);
+      g.save();g.translate(m+iw/2+o,m+iw/2+o);markPath(g,mark,u);g.fillStyle='rgba(255,255,255,0.34)';g.fill('evenodd');g.restore();
+      g.save();g.translate(m+iw/2,m+iw/2);markPath(g,mark,u);g.fillStyle=deep;g.fill('evenodd');g.restore();
+    }
+  }
   return c;
 }
 function makeFlat(color,s,rad){
   const d=Math.max(2,Math.round(s*L.dpr)),c=document.createElement('canvas');c.width=c.height=d;
   const g=c.getContext('2d');rr(g,0,0,d,d,d*rad);g.fillStyle=color;g.fill();return c;
 }
+// A round spark for clears, one per colour.
+function makePip(hex){
+  const d=Math.max(8,Math.round(L.cell*0.24*L.dpr)),c=document.createElement('canvas');c.width=c.height=d;
+  const g=c.getContext('2d');g.beginPath();g.arc(d/2,d/2,d/2,0,Math.PI*2);g.fillStyle=hex;g.fill();
+  g.beginPath();g.arc(d*0.38,d*0.36,d*0.2,0,Math.PI*2);g.fillStyle='rgba(255,255,255,0.7)';g.fill();return c;
+}
+// A sunken square: dark along its top and left, a thin catch of light along its bottom and right.
+function well(g,x,y,w,h,r,fill){
+  rr(g,x,y,w,h,r);g.fillStyle=fill;g.fill();
+  const ig=g.createLinearGradient(x,y,x+w,y+h);ig.addColorStop(0,'rgba(0,0,0,0.5)');ig.addColorStop(0.3,'rgba(0,0,0,0)');ig.addColorStop(0.82,'rgba(0,0,0,0)');ig.addColorStop(1,'rgba(130,160,255,0.13)');
+  rr(g,x,y,w,h,r);g.fillStyle=ig;g.fill();
+}
 function buildSprites(){
-  for(let i=1;i<=NCOL;i++){spr[i]=makeBlock(COLORS[i],L.cell);sprT[i]=makeBlock(COLORS[i],L.tc)}
-  sprRed=makeFlat('rgba(255,59,79,0.62)',L.cell,0.2);
-  sprWhite=makeFlat('#ffffff',L.cell,0.2);
-  sprGrey=makeBlock('#4a5577',L.cell);
+  for(let i=1;i<=NCOL;i++){spr[i]=makeBlock(COLORS[i],L.cell,i);sprT[i]=makeBlock(COLORS[i],L.tc,i);pip[i]=makePip(COLORS[i])}
+  sprRed=makeFlat('rgba(255,59,79,0.62)',L.cell,ART.rad);
+  sprWhite=makeFlat('#ffffff',L.cell,ART.rad);
+  sprGrey=makeBlock('#4a5577',L.cell,0);
   sprShadow=makeFlat('rgba(0,0,0,0.32)',L.cell,0.22);
-  // board panel and its empty, slightly sunken cells, drawn once per layout
-  const d=L.dpr,bs=L.bs,c=document.createElement('canvas');c.width=Math.round(bs*d)+2;c.height=Math.round(bs*d)+2;
-  const g=c.getContext('2d');g.scale(d,d);
-  const pg=g.createLinearGradient(0,0,0,bs);pg.addColorStop(0,'#1a2858');pg.addColorStop(1,'#121d46');
-  rr(g,0,0,bs,bs,L.rad);g.fillStyle=pg;g.fill();
-  g.lineWidth=1;g.strokeStyle='rgba(160,185,255,0.16)';rr(g,0.5,0.5,bs-1,bs-1,L.rad);g.stroke();
-  const off=L.gx-L.bx,cs=L.cell,cr=cs*0.18;
-  for(let r=0;r<N;r++)for(let k=0;k<N;k++){
-    const x=off+k*L.pitch,y=off+r*L.pitch;
-    rr(g,x,y,cs,cs,cr);g.fillStyle='#0a1332';g.fill();
-    const ig=g.createLinearGradient(0,y,0,y+cs);ig.addColorStop(0,'rgba(0,0,0,0.45)');ig.addColorStop(0.28,'rgba(0,0,0,0)');ig.addColorStop(0.9,'rgba(0,0,0,0)');ig.addColorStop(1,'rgba(120,150,255,0.09)');
-    rr(g,x,y,cs,cs,cr);g.fillStyle=ig;g.fill();
-  }
+  // board: a framed bed with a baked shadow under it and 64 wells, drawn once per layout
+  const d=L.dpr,bs=L.bs,c=document.createElement('canvas');BM=Math.max(10,Math.round(bs*0.05));
+  c.width=Math.round((bs+2*BM)*d);c.height=Math.round((bs+2*BM)*d);
+  const g=c.getContext('2d');g.scale(d,d);g.translate(BM,BM);
+  g.save();g.shadowColor='rgba(0,0,0,0.5)';g.shadowBlur=BM*0.8*d;g.shadowOffsetY=BM*0.3*d;rr(g,0,0,bs,bs,L.rad);g.fillStyle=ART.frameLo;g.fill();g.restore();
+  const fg=g.createLinearGradient(0,0,bs,bs);fg.addColorStop(0,ART.frameHi);fg.addColorStop(0.45,ART.frameMid);fg.addColorStop(1,ART.frameLo);
+  rr(g,0,0,bs,bs,L.rad);g.fillStyle=fg;g.fill();
+  const off=L.gx-L.bx,fw=Math.max(2,Math.round(off*0.42)),cs=L.cell,cr=cs*0.18;
+  rr(g,fw,fw,bs-2*fw,bs-2*fw,Math.max(2,L.rad-fw));g.fillStyle=ART.bed;g.fill();
+  // the four quarters of the board alternate between two close tones, which makes rows and columns easier to count
+  for(let r=0;r<N;r++)for(let k=0;k<N;k++)well(g,off+k*L.pitch,off+r*L.pitch,cs,cs,cr,((r>>2)+(k>>2))&1?ART.wellB:ART.wellA);
   boardBg=c;
   // gold glow round the board for big clears, blurred once here rather than every frame
   const gc=document.createElement('canvas'),gw=bs+2*GLOW;gc.width=Math.round(gw*d);gc.height=Math.round(gw*d);
   const gg=gc.getContext('2d');gg.scale(d,d);gg.shadowColor='rgba(255,210,63,0.9)';gg.shadowBlur=GLOW*0.8;
   rr(gg,GLOW,GLOW,bs,bs,L.rad);gg.fillStyle='#16224d';gg.fill();
   glowSpr=gc;
+  // tray: one shallow well per piece, drawn once per layout
+  const s0=L.slots[0],s2=L.slots[2];
+  dock.x=Math.floor(s0.x);dock.y=Math.floor(s0.y);dock.w=Math.ceil(s2.x+s2.w)-dock.x;dock.h=Math.ceil(s2.y+s2.h)-dock.y;
+  const dc=document.createElement('canvas');dc.width=Math.max(2,Math.round(dock.w*d));dc.height=Math.max(2,Math.round(dock.h*d));
+  const dg=dc.getContext('2d');dg.scale(d,d);dg.translate(-dock.x,-dock.y);
+  for(let i=0;i<3;i++){
+    const s=L.slots[i],q=wells[i],in_=L.mode==='v'?3:5;
+    q.h=s.h-2*in_;q.w=Math.min(s.w-2*in_,L.mode==='v'?s.w:q.h*1.5);q.x=s.x+(s.w-q.w)/2;q.y=s.y+in_;
+    const wr=Math.min(16,q.h*0.16);
+    well(dg,q.x,q.y,q.w,q.h,wr,ART.dockFill);
+    dg.lineWidth=1;dg.strokeStyle=ART.dockEdge;rr(dg,q.x+0.5,q.y+0.5,q.w-1,q.h-1,wr);dg.stroke();
+  }
+  dockSpr=dc;
+  // the streak of light along a cleared line: bright in the middle, fading across and towards both ends
+  const bw=128,bh=32,bc=document.createElement('canvas');bc.width=bw;bc.height=bh;
+  const bg=bc.getContext('2d'),vg=bg.createLinearGradient(0,0,0,bh);
+  vg.addColorStop(0,'rgba('+ART.beam+',0)');vg.addColorStop(0.5,'rgba(255,255,255,0.95)');vg.addColorStop(1,'rgba('+ART.beam+',0)');
+  bg.fillStyle=vg;bg.fillRect(0,0,bw,bh);
+  bg.globalCompositeOperation='destination-in';
+  const hg=bg.createLinearGradient(0,0,bw,0);hg.addColorStop(0,'rgba(0,0,0,0)');hg.addColorStop(0.12,'#000');hg.addColorStop(0.88,'#000');hg.addColorStop(1,'rgba(0,0,0,0)');
+  bg.fillStyle=hg;bg.fillRect(0,0,bw,bh);
+  beamH=bc;
+  const vc=document.createElement('canvas');vc.width=bh;vc.height=bw;
+  const vx=vc.getContext('2d');vx.translate(bh,0);vx.rotate(Math.PI/2);vx.drawImage(bc,0,0);
+  beamV=vc;
 }
 
 function layout(){
@@ -575,9 +683,10 @@ let pN=0;
 const texts=[];for(let i=0;i<8;i++)texts.push({on:false,txt:'',x:0,y:0,t0:0,dur:0,size:0,color:'#fff',rise:0});
 let shakeT0=0,shakeEnd=0,shakeAmp=0,glowEnd=0,overT0=0,animUntil=0,dirty=true;
 const ret=[0,1,2].map(()=>({on:false,x:0,y:0,p:0,t0:0}));
+const BEAM_MS=420,beamRow=new Uint8Array(2*N),beamIx=new Uint8Array(2*N),beamT0=new Float64Array(2*N);let beamN=0;   // streaks along cleared lines
 
 function resetFx(){
-  placeAt.fill(0);clrAt.fill(0);clrBurst.fill(0);pN=0;for(const t of texts)t.on=false;shakeEnd=0;glowEnd=0;for(const r of ret)r.on=false;
+  placeAt.fill(0);clrAt.fill(0);clrBurst.fill(0);pN=0;for(const t of texts)t.on=false;shakeEnd=0;glowEnd=0;beamN=0;for(const r of ret)r.on=false;
 }
 function bump(ms){const t=performance.now()+ms;if(t>animUntil)animUntil=t;dirty=true}
 function spawn(x,y,col,count,speed){
@@ -640,6 +749,10 @@ function commitMove(slot,r,c){
       sx+=L.gx+c_*L.pitch+L.cell/2;sy+=L.gy+rr_*L.pitch+L.cell/2;
     }
     sx/=res.cleared.length;sy/=res.cleared.length;
+    beamN=0;
+    for(const q of res.rows){beamRow[beamN]=1;beamIx[beamN]=q;beamT0[beamN++]=now+90}
+    for(const q of res.cols){beamRow[beamN]=0;beamIx[beamN]=q;beamT0[beamN++]=now+90}
+    popScore();
     sfx.clear(res.lines);
     if(res.combo>=2)sfx.combo(res.combo);
     const big=res.lines>=2||res.combo>=2;
@@ -651,7 +764,7 @@ function commitMove(slot,r,c){
       floatText('+'+res.lineGain,cx,cy+L.cell*(0.85+tier*0.08),Math.round(L.cell*0.55),'#ffe27a',1150,L.cell*0.6);
       if(res.combo>=2)floatText('Combo ×'+res.combo,cx,cy+L.cell*(1.5+tier*0.08),Math.round(L.cell*0.4),'#ffc2e2',1150,L.cell*0.6);
     }else floatText('+'+res.lineGain,sx,sy,Math.round(L.cell*0.52),'#ffe27a',1000,L.cell*1.1);
-    if(big){shakeT0=now;shakeEnd=now+340;shakeAmp=Math.min(11,2.5+res.lines*1.6+res.combo*0.8);glowEnd=now+650}
+    if(big){shakeT0=now;shakeEnd=now+340;shakeAmp=calm()?0:Math.min(11,2.5+res.lines*1.6+res.combo*0.8);glowEnd=now+650}
     window.BackRoomStats&&BackRoomStats.add('lines',res.lines);
     resolveUntil=now+430+res.cleared.length*2;
     setState('resolving');
@@ -688,6 +801,8 @@ function showOver(){
 }
 
 let shownScore=0;
+// the score gives a small hop when a clear pays out
+function popScore(){const e=$('score');e.classList.remove('hop');void e.offsetWidth;e.classList.add('hop')}
 function updateHud(snap){
   if(snap)shownScore=st.score;
   $('best').textContent=String(best);
@@ -989,6 +1104,7 @@ function draw(now){
   ctx.setTransform(d,0,0,d,0,0);
   ctx.clearRect(0,0,L.W,L.H);
   if(!st)return;
+  ctx.drawImage(dockSpr,dock.x,dock.y,dock.w,dock.h);
   // shake
   let ox=0,oy=0;
   if(now<shakeEnd){const k=(shakeEnd-now)/(shakeEnd-shakeT0),a=shakeAmp*k*k;ox=Math.sin(now*0.11)*a;oy=Math.cos(now*0.137)*a*0.8}
@@ -998,7 +1114,7 @@ function draw(now){
     ctx.globalAlpha=(glowEnd-now)/650;
     ctx.drawImage(glowSpr,L.bx-GLOW,L.by-GLOW,L.bs+2*GLOW,L.bs+2*GLOW);ctx.globalAlpha=1;
   }
-  ctx.drawImage(boardBg,L.bx,L.by,boardBg.width/d,boardBg.height/d);
+  ctx.drawImage(boardBg,L.bx-BM,L.by-BM,boardBg.width/d,boardBg.height/d);
   const cs=L.cell,P=L.pitch;
   const overK=state==='over'?Math.max(0,Math.min(1,(now-overT0)/900)):0;
   // placed squares
@@ -1008,7 +1124,7 @@ function draw(now){
     let img=spr[v];
     if(overK>0&&r<overK*N+0.001)img=sprGrey;
     const pa=placeAt[i];
-    if(pa&&now-pa<200){const t=(now-pa)/200,s=1.16-0.16*easeOutBack(t);const sz=cs*s;x-=(sz-cs)/2;y-=(sz-cs)/2;ctx.drawImage(img,x,y,sz,sz);ctx.globalAlpha=0.5*(1-t);ctx.drawImage(sprWhite,x,y,sz,sz);ctx.globalAlpha=1;continue}
+    if(pa&&now-pa<200){const t=(now-pa)/200,s=calm()?1:1.16-0.16*easeOutBack(t);const sz=cs*s;x-=(sz-cs)/2;y-=(sz-cs)/2;ctx.drawImage(img,x,y,sz,sz);ctx.globalAlpha=0.5*(1-t);ctx.drawImage(sprWhite,x,y,sz,sz);ctx.globalAlpha=1;continue}
     ctx.drawImage(img,x,y,cs,cs);
   }
   // where the piece would land
@@ -1047,11 +1163,26 @@ function draw(now){
     const r=i>>3,c=i&7,x=cellX(c),y=cellY(r),el=now-t0;
     if(el<0){ctx.drawImage(spr[clrCol[i]],x,y,cs,cs);continue}
     if(el<110){ctx.drawImage(spr[clrCol[i]],x,y,cs,cs);ctx.globalAlpha=0.35+0.65*Math.sin(el/110*Math.PI);ctx.drawImage(sprWhite,x,y,cs,cs);ctx.globalAlpha=1;continue}
-    if(!clrBurst[i]){clrBurst[i]=1;spawn(x+cs/2,y+cs/2,clrCol[i],6,L.cell*7)}
+    if(!clrBurst[i]){clrBurst[i]=1;spawn(x+cs/2,y+cs/2,clrCol[i],calm()?1:6,L.cell*(calm()?3:7))}
     const t=(el-110)/240;
     if(t>=1){clrAt[i]=0;continue}
     const s=1+0.25*t-1.25*t*t,sz=cs*Math.max(0,s);
     ctx.globalAlpha=1-t;ctx.drawImage(spr[clrCol[i]],x+(cs-sz)/2,y+(cs-sz)/2,sz,sz);ctx.globalAlpha=1;
+  }
+  // a streak of light along each cleared row and column
+  if(beamN){
+    let live=0;
+    ctx.globalCompositeOperation='lighter';
+    for(let i=0;i<beamN;i++){
+      const el=now-beamT0[i];if(el>=BEAM_MS)continue;
+      live++;if(el<0)continue;
+      const t=el/BEAM_MS,th=cs*(calm()?0.7:1.5-1.1*t),ln=L.bs*(calm()?1:0.55+0.45*easeOut(Math.min(1,t*3)));
+      ctx.globalAlpha=(1-t)*(1-t)*0.9;
+      if(beamRow[i])ctx.drawImage(beamH,L.bx+(L.bs-ln)/2,cellY(beamIx[i])+cs/2-th/2,ln,th);
+      else ctx.drawImage(beamV,cellX(beamIx[i])+cs/2-th/2,L.by+(L.bs-ln)/2,th,ln);
+    }
+    ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;
+    if(!live)beamN=0;
   }
   ctx.setTransform(d,0,0,d,0,0);
   // tray
@@ -1071,9 +1202,9 @@ function draw(now){
     const fits=fitsAnywhere(st.board,sh);
     let a=fits?1:0.32,sc=1;
     const at=trayAt[i];
-    if(at&&now<at+260){const t=Math.max(0,(now-at)/260);if(t<=0){continue}sc=0.3+0.7*easeOutBack(t);a*=Math.min(1,t*2)}
+    if(at&&now<at+260){const t=Math.max(0,(now-at)/260);if(t<=0){continue}sc=calm()?1:0.3+0.7*easeOutBack(t);a*=Math.min(1,t*2)}
     if(kb.sel===i){
-      const s=L.slots[i];ctx.strokeStyle='rgba(255,210,63,0.85)';ctx.lineWidth=2;rr(ctx,s.x+4,s.y+4,s.w-8,s.h-8,12);ctx.stroke();
+      const s=wells[i];ctx.strokeStyle='rgba(255,210,63,0.85)';ctx.lineWidth=2;rr(ctx,s.x+1,s.y+1,s.w-2,s.h-2,Math.min(16,s.h*0.16));ctx.stroke();
     }
     if(sc!==1){
       const cx=tmpPos.x+(sh.w*L.tp-L.tg)/2,cy=tmpPos.y+(sh.h*L.tp-L.tg)/2;
@@ -1102,8 +1233,8 @@ function draw(now){
   }
   // particles
   for(let i=0;i<pN;i++){
-    ctx.globalAlpha=Math.max(0,pL[i]/pM[i]);ctx.fillStyle=COLORS[pC[i]];
-    const s=pS[i];ctx.fillRect(pX[i]-s/2,pY[i]-s/2,s,s);
+    const k=pL[i]/pM[i],s=pS[i]*(0.55+0.45*k);
+    ctx.globalAlpha=k>0.5?1:Math.max(0,k*2);ctx.drawImage(pip[pC[i]],pX[i]-s/2,pY[i]-s/2,s,s);
   }
   ctx.globalAlpha=1;
   // floating text
