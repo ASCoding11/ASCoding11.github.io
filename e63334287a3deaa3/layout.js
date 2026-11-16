@@ -53,6 +53,12 @@
  * page's .wrap, before #lists. party.js, social.js and leaderboard.js add their panels after this runs and
  * social.js moves the Online panel back under the Party panel once, so a MutationObserver puts any block that
  * lands out of place back in order before the page is drawn again.
+ *
+ * The row of game types (.gs-nav on the Back Room page, .gnav on the phone page) isn't a block of its own: it
+ * belongs to the games. In a different order it goes right above the first games block that comes after the
+ * Online panel, so it's never above Online (or Party) while there are games below them; if every games block is
+ * above Online (or the page has no Online panel), it goes right above the first games block. In the default
+ * order it stays where the page has it, at the top of the games, which is under Online already.
  */
 (function () {
   'use strict';
@@ -167,6 +173,9 @@
     '.br-games.lay-on > [data-lay] + [data-lay]{margin-top:44px}' +
     '.br-games.lay-on > #party + #online{margin-top:14px}' +
     '@media (max-width:560px){.br-games.lay-on > [data-lay] + [data-lay]{margin-top:34px}.br-games.lay-on > #party + #online{margin-top:14px}}' +
+    // the row of game types, when it sits under a panel in a custom order
+    '.br-games.lay-on > [data-lay] + .gs-nav{margin-top:44px}' +
+    '@media (max-width:560px){.br-games.lay-on > [data-lay] + .gs-nav{margin-top:34px}}' +
     // a custom order on the phone page: the rows sit outside #lists, so their headings get #lists h3's look here
     'html.lay-m-on .wrap > h3[data-lay]{font-family:var(--f-m);font-weight:600;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);margin:18px 0 10px}' +
     'html.lay-m-on .wrap > .grid + #party,html.lay-m-on .wrap > .grid + #online{margin-top:26px}' +
@@ -378,6 +387,17 @@
     }
   }
   function before(e, ref) { if (e && ref && ref.parentNode && e.nextElementSibling !== ref) ref.parentNode.insertBefore(e, ref); }
+  // The row of game types (see the top of this file) and where it goes in a different order: `at` is called
+  // with seq.length just before each games block is added, `online` when the Online panel is added.
+  function typeNav() { return phone ? wrap.querySelector(':scope > .gnav') : games.querySelector(':scope > .gs-nav'); }
+  function navSpot() {
+    var first = -1, after = -1, seen = false;
+    return {
+      online: function () { seen = true; },
+      at: function (i) { if (first < 0) first = i; if (seen && after < 0) after = i; },
+      pos: function () { return after >= 0 ? after : first; }
+    };
+  }
 
   function apply(order) {
     var b = scan(), ids = presentIds(b);
@@ -402,11 +422,12 @@
       if (card.parentNode !== dailyBox.firstChild) dailyBox.firstChild.appendChild(card);
       if (puzN) puzN.textContent = puzNText.replace(/\s*\+\s*daily\s*$/i, '');
     }
-    var party = byId('party'), online = byId('online'), lb = byId('leaderboards');
+    var party = byId('party'), online = byId('online'), lb = byId('leaderboards'), nav = typeNav(), spot = navSpot();
     if (def) {
       on = false; games.classList.remove('lay-on');
       var gs = DEFAULT.map(function (id) { return id !== 'daily' && b[id] && b[id][0].parentNode === games ? b[id][0] : null; }).filter(Boolean);
       genres().forEach(function (g) { if (gs.indexOf(g) < 0) gs.push(g); });
+      if (nav) gs.unshift(nav);
       if (ask) gs.push(ask);
       arrange(games, gs, null);
       if (online) before(online, games);
@@ -417,17 +438,20 @@
     on = true; games.classList.add('lay-on');
     var seq = [], last = -1;
     order.forEach(function (id) {
-      if (id === 'daily') { if (inside) return; seq.push(dailyBox); last = seq.length - 1; return; }
+      if (id === 'daily') { if (inside) return; spot.at(seq.length); seq.push(dailyBox); last = seq.length - 1; return; }
       if (!b[id]) return;
+      if (id === 'online') spot.online(); else if (!PANEL[id]) spot.at(seq.length);
       seq.push(b[id][0]);
       if (!PANEL[id]) last = seq.length - 1;
     });
     if (ask) seq.splice(last + 1, 0, ask);
+    if (nav && spot.pos() >= 0) seq.splice(spot.pos(), 0, nav);
     arrange(games, seq, null);
   }
 
   function applyPhone(order, def, b) {
     var party = byId('party'), online = byId('online'), lb = byId('leaderboards'), seq = [], used = {}, run = null, runs = [];
+    var nav = typeNav(), spot = navSpot();
     function head(mode) {
       var h;
       if (!used[mode]) { used[mode] = 0; h = modeHeads[mode]; }
@@ -439,12 +463,12 @@
     ids.forEach(function (id) {
       var r = rowBy[id];
       if (r) {
-        if (!run || run.mode !== r.mode) { run = { mode: r.mode, head: head(r.mode), n: 0, p: 0, d: false }; runs.push(run); seq.push(run.head); }
+        if (!run || run.mode !== r.mode) { run = { mode: r.mode, head: head(r.mode), n: 0, p: 0, d: false }; runs.push(run); spot.at(seq.length); seq.push(run.head); }
         if (r.id === 'daily') run.d = true;
         else if (r.grid.classList.contains('pz')) run.p += r.grid.children.length - r.grid.querySelectorAll('img[src*="thumbs/daily."]').length;   // puzzle tiles, less the Daily Puzzles page's own
         else run.n += r.grid.children.length;
         seq.push(r.h3, r.grid);
-      } else if (b[id]) { run = null; seq.push(b[id][0]); }
+      } else if (b[id]) { run = null; if (id === 'online') spot.online(); seq.push(b[id][0]); }
     });
     // the "Want more games?" note under the last row
     var lastRow = -1;
@@ -463,6 +487,7 @@
       on = false; root.classList.remove('lay-m-on');
       if (bar) seq.unshift(bar);
       arrange(lists, seq, null);
+      if (nav) before(nav, lists);
       var anchor = byId('tip') || byId('cont') || lists;
       if (online) before(online, anchor);
       if (party) before(party, online || anchor);
@@ -470,6 +495,7 @@
       return;
     }
     on = true; root.classList.add('lay-m-on');
+    if (nav && spot.pos() >= 0) seq.splice(spot.pos(), 0, nav);
     if (bar) seq.unshift(bar);
     if (ed) seq.unshift(ed);
     arrange(wrap, seq, lists);
