@@ -1,0 +1,673 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
+<title>Yardstick</title>
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#04111f">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
+<link rel="stylesheet" href="/e63334287a3deaa3/wordplay/kit.css">
+<style>
+/* Yardstick: two silhouettes on one drawing surface. The blue one is the reference (its real size is given); the yellow
+   one is the target, which the player stretches until it looks the right real size, then locks in. */
+:root{--ref:#7fa8ee;--tgt:#ffd166;--truth:#5ef08f;--paper:#071b36}
+#game{background:radial-gradient(ellipse at 50% 30%,#0c2547 0%,#04111f 75%)}
+#wrap{width:100%;max-width:980px;height:100%;margin:0 auto;display:flex;flex-direction:column;gap:8px;padding:8px 12px 10px;min-height:0}
+#modeSlot{flex:none}
+.mode .info{display:flex;align-items:center;gap:8px;min-width:0}
+#catSel{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:6px 8px;font:700 13px var(--f-u);max-width:44vw}
+#pips{display:inline-flex;gap:5px;align-items:center}
+#pips i{width:22px;height:8px;border-radius:4px;background:rgba(241,247,255,.14);display:block}
+#pips i.now{background:var(--ink);box-shadow:0 0 0 2px rgba(241,247,255,.2)}
+#pips i.s4{background:var(--green)}#pips i.s3{background:#b6e86a}#pips i.s2{background:var(--sun)}#pips i.s1{background:var(--coral)}#pips i.s0{background:var(--red)}
+
+/* the two labels */
+#labels{flex:none;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.lab{min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:7px 10px 8px;border-left:5px solid var(--ref)}
+.lab.t{border-left-color:var(--tgt)}
+.lab small{display:block;font:800 10.5px var(--f-u);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+.lab b{display:block;font:700 17px/1.15 var(--f-d);overflow-wrap:anywhere}
+.lab .sz{display:block;font:800 14px/1.25 var(--f-u);color:var(--ref);font-variant-numeric:tabular-nums}
+.lab.t .sz{color:var(--tgt)}
+.lab .wh{display:block;font:600 12px/1.3 var(--f-u);color:var(--ink-2);margin-top:2px}
+
+/* the drawing surface */
+#stageBox{position:relative;flex:1 1 0;min-height:120px;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--paper)}
+#stage{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;user-select:none;-webkit-user-select:none;cursor:default}
+#stage text{font:800 12px var(--f-u);fill:var(--ink-2);font-variant-numeric:tabular-nums;paint-order:stroke;stroke:var(--paper);stroke-width:4px;stroke-linejoin:round}
+#refG{fill:var(--ref)}#tgtG{fill:var(--tgt);cursor:grab}
+#stage.drag,#stage.drag #tgtG,#stage.drag #handle{cursor:grabbing}
+#stage.pan{cursor:move}
+#handle{cursor:grab}
+#handle circle.k{fill:var(--ink);stroke:var(--night);stroke-width:2}
+#handle path{fill:none;stroke:var(--night);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+#zoomBar{position:absolute;right:8px;top:8px;display:flex;gap:5px;z-index:2}
+#zoomBar button{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:rgba(4,17,31,.78);color:var(--ink);font:700 18px/1 var(--f-d);cursor:pointer;padding:0;touch-action:manipulation}
+#zoomBar button#zFit{width:auto;padding:0 10px;font-size:13px}
+#zoomBar button:hover{background:rgba(20,45,85,.9)}
+#scaleNote{position:absolute;left:10px;top:9px;font:800 11.5px var(--f-u);color:var(--ink-3);letter-spacing:.04em;pointer-events:none;display:flex;align-items:center;gap:6px}
+#scaleNote i{display:block;height:7px;border:2px solid var(--ink-3);border-top:0;box-sizing:border-box}
+
+/* controls under the stage */
+#controls{flex:none;display:grid;grid-template-columns:auto 1fr auto auto;gap:8px;align-items:center}
+.nudge{width:46px;height:46px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.07);font:700 24px/1 var(--f-d);cursor:pointer;touch-action:manipulation;user-select:none;-webkit-user-select:none;padding:0}
+.nudge:hover{background:rgba(255,255,255,.13)}
+.nudge:active{background:rgba(255,209,102,.3)}
+#size{width:100%;min-width:0;height:46px;margin:0;accent-color:var(--tgt);cursor:pointer;touch-action:pan-y}
+#lockBtn{padding:11px 20px}
+#hint{flex:none;margin:-2px 0 0;font:600 12px/1.3 var(--f-u);color:var(--ink-3);text-align:center}
+
+/* after locking in */
+#result{flex:none;background:var(--panel-3);border:1px solid var(--line);border-radius:16px;padding:10px 12px;display:grid;grid-template-columns:auto 1fr auto;gap:4px 14px;align-items:center}
+#result .pts{grid-row:1 / span 2;font:700 44px/1 var(--f-d);font-variant-numeric:tabular-nums;min-width:74px;text-align:center}
+#result .pts small{display:block;font:800 11px var(--f-u);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin-top:3px}
+#result .cmp{font:700 15px/1.3 var(--f-u);color:var(--ink-2);font-variant-numeric:tabular-nums}
+#result .cmp b{color:var(--ink)}#result .cmp .g{color:var(--tgt)}#result .cmp .a{color:var(--truth)}
+#result .fact{font:600 13.5px/1.35 var(--f-u);color:var(--ink-2)}
+#result .fact a{color:var(--ink-3)}
+#result .cmp{grid-column:2;grid-row:1}#result .fact{grid-column:2;grid-row:2}
+#result .cta{grid-row:1 / span 2;grid-column:3}
+.c4{color:var(--green)}.c3{color:#b6e86a}.c2{color:var(--sun)}.c1{color:var(--coral)}.c0{color:var(--red)}
+
+/* the end of the day */
+#summary{flex:1 1 0;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:10px;padding-bottom:4px}
+#summary .head{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap}
+#summary .tot{font:700 54px/1 var(--f-d);font-variant-numeric:tabular-nums}
+#summary .tot em{font-style:normal;font-size:22px;color:var(--ink-3)}
+#summary .head p{margin:0 0 6px;font:600 14px/1.35 var(--f-u);color:var(--ink-2);flex:1 1 200px}
+#rows{display:flex;flex-direction:column;gap:5px}
+.row5{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1.4fr) 86px 40px;gap:8px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:7px 10px;font:700 13.5px/1.25 var(--f-u)}
+.row5 .nm{font:700 15px/1.15 var(--f-d);overflow-wrap:anywhere}
+.row5 .nm small{display:block;font:600 11.5px var(--f-u);color:var(--ink-3)}
+.row5 .gv{color:var(--ink-2);font-variant-numeric:tabular-nums}
+.row5 .gv b{color:var(--ink)}
+.row5 .bar{height:9px;border-radius:5px;background:rgba(241,247,255,.1);overflow:hidden}
+.row5 .bar i{display:block;height:100%;border-radius:5px;background:currentColor}
+.row5 .sc{text-align:right;font:700 18px var(--f-d);font-variant-numeric:tabular-nums}
+#galBox{position:relative;flex:none;height:clamp(170px,30vh,300px);border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--paper)}
+#gal{position:absolute;inset:0;width:100%;height:100%;display:block}
+#gal g.it{fill:var(--ref)}#gal g.it.on{fill:var(--tgt)}
+#galCap{margin:0;font:600 12.5px/1.35 var(--f-u);color:var(--ink-3)}
+#galChips{display:flex;gap:6px;flex-wrap:wrap}
+#galChips button{border:1px solid var(--line);background:rgba(255,255,255,.06);border-radius:999px;padding:6px 11px;font:700 12.5px var(--f-u);color:var(--ink-2);cursor:pointer}
+#galChips button.on{background:var(--tgt);color:#2a1d00;border-color:var(--tgt)}
+#summary .acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+#summary .next{font:700 13px var(--f-u);color:var(--ink-3);font-variant-numeric:tabular-nums}
+
+@media (min-width:900px) and (min-height:521px){
+  #summary{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto auto auto 1fr;gap:10px 16px;align-content:start}
+  #summary .head,#summary #rows,#summary .acts{grid-column:1}
+  #summary #galCap{grid-column:2;grid-row:1;align-self:end}#summary #galChips{grid-column:2;grid-row:2;align-self:start}
+  #summary #rows{grid-row:2 / span 2}#summary .acts{grid-row:4;align-self:start}
+  #summary #galBox{grid-column:2;grid-row:3 / span 2;height:auto;min-height:240px;max-height:520px}
+  .row5{grid-template-columns:minmax(0,1.2fr) minmax(0,1.5fr) 60px 40px}
+}
+@media (max-width:560px){
+  #wrap{padding:6px 8px 8px;gap:6px}
+  .lab{padding:6px 8px 7px}.lab b{font-size:15px}.lab .sz{font-size:13px}.lab .wh{font-size:11.5px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  #controls{grid-template-columns:auto 1fr auto;grid-template-areas:"m s p" "l l l"}
+  #minus{grid-area:m}#size{grid-area:s}#plus{grid-area:p}#lockBtn{grid-area:l;width:100%}
+  #result{grid-template-columns:auto 1fr;gap:4px 10px}
+  #result .pts{font-size:36px;min-width:60px}
+  #result .cta{grid-row:3;grid-column:1 / -1;width:100%}
+  .row5{grid-template-columns:minmax(0,1.3fr) minmax(0,1.3fr) 36px}.row5 .bar{display:none}
+  #hint{display:none}
+}
+/* a phone held sideways: the drawing on the left, everything else in a column on the right */
+@media (max-height:520px) and (min-aspect-ratio:6/5){
+  #wrap{max-width:none;display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,34%);grid-template-rows:auto minmax(0,1fr) auto;gap:6px 10px;padding:6px 10px 6px}
+  #modeSlot{grid-column:2;grid-row:1}
+  #stageBox{grid-column:1;grid-row:1 / span 3;min-height:0}
+  #labels{grid-column:2;grid-row:2;grid-template-columns:1fr;grid-auto-rows:min-content;gap:5px;min-height:0;overflow:hidden}
+  .lab{padding:4px 8px 5px}.lab b{font-size:14px}.lab .sz{font-size:12.5px}.lab .wh{font-size:11px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  #controls,#result{grid-column:2;grid-row:3;align-self:end}
+  #wrap.rev .lab.r{display:none}
+  #pips i{width:14px}
+  #controls{grid-template-columns:auto 1fr auto;grid-template-areas:"m s p" "l l l";gap:6px}
+  #minus{grid-area:m}#size{grid-area:s}#plus{grid-area:p}#lockBtn{grid-area:l;width:100%;padding:8px 14px}
+  .nudge{width:40px;height:40px}#size{height:40px}
+  #result{grid-template-columns:auto 1fr;gap:3px 8px;padding:7px 9px}
+  #result .pts{font-size:30px;min-width:52px}#result .fact{font-size:12px;max-height:5.4em;overflow:auto}#result .cmp{font-size:13px}
+  #result .cta{grid-row:3;grid-column:1 / -1;width:100%;padding:7px 14px}
+  #hint{display:none}
+  #summary{grid-column:1 / -1;grid-row:2 / span 2}
+  #summary .tot{font-size:40px}
+  #galBox{height:150px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<main id="game">
+  <div id="wrap">
+    <div id="modeSlot"></div>
+    <div id="labels">
+      <div class="lab r"><small>Reference</small><b id="refName"></b><span class="sz" id="refSize"></span><span class="wh" id="refWhat"></span></div>
+      <div class="lab t"><small>Resize this one</small><b id="tgtName"></b><span class="sz" id="tgtSize"></span><span class="wh" id="tgtWhat"></span></div>
+    </div>
+    <div id="stageBox">
+      <svg id="stage" role="img" aria-label="Drawing surface: the reference shape and the target shape standing on one ground line">
+        <defs><mask id="tm" maskUnits="userSpaceOnUse" x="0" y="0" width="10" height="10"><g id="tmG"><g id="tmS" fill="none" stroke="#fff" stroke-linejoin="round"></g><g id="tmF" fill="#000" fill-rule="evenodd"></g></g></mask></defs>
+        <path id="grid" fill="none" stroke="rgba(140,185,255,.09)" stroke-width="1"/>
+        <path id="grid5" fill="none" stroke="rgba(140,185,255,.17)" stroke-width="1"/>
+        <rect id="soil" fill="rgba(2,8,18,.5)"/>
+        <path id="ticks" fill="none" stroke="rgba(241,247,255,.45)" stroke-width="1.5"/>
+        <line id="ground" stroke="rgba(241,247,255,.75)" stroke-width="2"/>
+        <g id="refG" fill-rule="evenodd"></g>
+        <g id="refDim"><path fill="none" stroke="var(--ref)" stroke-width="1.5"/><text style="fill:var(--ref)"></text></g>
+        <g id="tgtG" fill-rule="evenodd"></g>
+        <rect id="truth" mask="url(#tm)" fill="var(--truth)" x="0" y="0" width="0" height="0"/>
+        <g id="marks"><path id="mG" fill="none" stroke="var(--tgt)" stroke-width="1.5" stroke-dasharray="5 4"/><path id="mA" fill="none" stroke="var(--truth)" stroke-width="1.5" stroke-dasharray="5 4"/><text id="tG"></text><text id="tA"></text></g>
+        <g id="handle"><circle r="24" fill="transparent"/><circle class="k" r="13"/><path d=""/></g>
+      </svg>
+      <div id="scaleNote" aria-hidden="true"><i></i><span></span></div>
+      <div id="zoomBar"><button type="button" id="zOut" aria-label="Zoom the view out" title="Zoom the view out">−</button><button type="button" id="zFit" title="Fit both shapes in view">Fit</button><button type="button" id="zIn" aria-label="Zoom the view in" title="Zoom the view in">+</button></div>
+    </div>
+    <div id="controls">
+      <button type="button" class="nudge" id="minus" aria-label="A little smaller" title="A little smaller (hold to keep going)">−</button>
+      <input type="range" id="size" min="0" max="1000" step="1" value="500" aria-label="Size of the target shape">
+      <button type="button" class="nudge" id="plus" aria-label="A little bigger" title="A little bigger (hold to keep going)">+</button>
+      <button type="button" class="cta" id="lockBtn">Lock it in</button>
+    </div>
+    <p id="hint">Drag the yellow shape or its handle, use the slider, or press the arrow keys (Shift for tiny steps). Scroll or pinch to zoom the view.</p>
+    <div id="result" hidden></div>
+    <div id="summary" hidden></div>
+  </div>
+</main>
+<script src="/e63334287a3deaa3/wordplay/kit.js"></script>
+<script src="/e63334287a3deaa3/yardstick/objects.js"></script>
+<script src="/e63334287a3deaa3/yardstick/pairs.js"></script>
+<script>
+'use strict';
+(function () {
+const K = Kit, h = K.h, $ = K.$;
+const SLUG = 'yardstick', NAME = 'Yardstick', ROUNDS = 5;
+const OBJ = window.YARDSTICK_OBJECTS || [], PAIRS = window.YARDSTICK_PAIRS || [], DAYS = window.YARDSTICK_DAYS || [];
+const BY = {}; OBJ.forEach(o => { BY[o.id] = o; });
+const NS = 'http://www.w3.org/2000/svg';
+const CATS = [['', 'Everything'], ['animals', 'Animals'], ['vehicles', 'Vehicles'], ['buildings', 'Buildings and landmarks'], ['everyday', 'Everyday things'], ['sports', 'Sports']];
+
+// ------------------------------------------------------------------ scoring (version 1)
+// error = how many times too big or too small the guess is (always 1 or more), measured from the nearest end of the
+// real range where the real thing has a range. Within 3% is full marks. Past that the score falls on a smooth curve in
+// log space, so twice too big and half the size score the same: exactly 20. Change SCORE_V if this ever changes.
+const SCORE_V = 1, TOL = 1.03, AT_DOUBLE = 0.2, SHAPE = 1.3, RANGE = 60;
+function nearest(o, g) { return Math.min(o.hi != null ? o.hi : o.m, Math.max(o.lo != null ? o.lo : o.m, g)); }
+function errorOf(o, g) { const a = nearest(o, g); return Math.max(g / a, a / g); }
+function scoreOf(e) {
+  const u = Math.log2(e / TOL); if (!(u > 0)) return 100;
+  return Math.round(100 * Math.pow(AT_DOUBLE, Math.pow(u / Math.log2(2 / TOL), SHAPE)));
+}
+const band = s => s >= 90 ? 4 : s >= 70 ? 3 : s >= 45 ? 2 : s >= 20 ? 1 : 0;
+const EMO = ['🟥', '🟧', '🟨', '🟩', '🎯'];
+const WORD = ['Way off', 'Not close', 'In the right area', 'Close', 'Spot on'];
+
+// ------------------------------------------------------------------ sizes as text
+function sig(v, n) { return String(+v.toPrecision(n)); }
+function metric(m, n) { n = n || 3; return m < 0.01 ? sig(m * 1000, n) + ' mm' : m < 1 ? sig(m * 100, n) + ' cm' : m < 1000 ? (m >= 100 && n < 4 ? Math.round(m) : sig(m, n)) + ' m' : sig(m / 1000, n) + ' km'; }
+function us(m) {
+  const inch = m / 0.0254;
+  if (inch < 12) return sig(inch, 3) + ' in';
+  if (inch < 120) { let f = Math.floor(inch / 12), i = Math.round(inch - f * 12); if (i === 12) { f++; i = 0; } return f + ' ft' + (i ? ' ' + i + ' in' : ''); }
+  const ft = inch / 12; return ft < 5280 * 2 ? Math.round(ft).toLocaleString('en-US') + ' ft' : sig(ft / 5280, 3) + ' mi';
+}
+const both = (m, n) => metric(m, n) + ' (' + us(m) + ')';
+const dimWord = o => o.dim === 'height' ? 'tall' : o.dim === 'diameter' ? 'across' : 'long';
+const dimNoun = o => o.dim;
+function realText(o) { return o.lo != null ? metric(o.lo, 4).replace(/ \S+$/, '') + ' to ' + metric(o.hi, 4) : both(o.m, 4); }
+const realShort = o => o.lo != null ? metric(o.lo, 4).replace(/ \S+$/, '') + '–' + metric(o.hi, 4) : metric(o.m, 4);
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+
+// ------------------------------------------------------------------ shell
+const HOW = '<p>Two shapes stand on one ground line, drawn to the <b>same scale</b>. The <b style="color:var(--ref)">blue</b> one is the reference, and you are told its real size. Stretch the <b style="color:var(--tgt)">yellow</b> one until it looks the right real-life size next to it, then <b>lock it in</b>.</p>' +
+  '<ul><li><b>Resize:</b> drag the yellow shape or its round handle, use the slider, tap − and + for small steps, or press the arrow keys (hold Shift for tiny steps).</li>' +
+  '<li><b>Zoom</b> (the buttons, the scroll wheel or a pinch) only changes how big both shapes are drawn. It never changes your answer.</li>' +
+  '<li>You never type a number. After you lock in you see the real size as a green outline, the real measurement and a fact.</li>' +
+  '<li><b>Five rounds</b>, up to <b>100 points</b> each. What counts is how many <i>times</i> too big or too small you were: within 3% is 100, 10% out is about 92, 25% out about 72, half as much again 46, and <b>twice too big scores the same as half the size: 20</b>.</li></ul>' +
+  '<p>Heights are only ever compared with heights, and lengths with lengths. Every size was looked up and its source is shown after each round.</p>';
+const DIST = [['5', '450+'], ['4', '400+'], ['3', '350+'], ['2', '300+'], ['1', '200+'], ['0', '<200']];
+const distKey = t => t >= 450 ? '5' : t >= 400 ? '4' : t >= 350 ? '3' : t >= 300 ? '2' : t >= 200 ? '1' : '0';
+let st = null, lastDist = null;
+const S = K.shell({
+  slug: SLUG, name: NAME, how: HOW, dist: DIST, distTitle: 'Daily totals (out of 500)',
+  foot: ' Each size has a source; tell Arjun if you spot one that is wrong.',
+  shareText: () => st && st.mode === 'daily' && st.phase === 'done' ? shareText() : null,
+  onModal: open => { // the shared Stats window shows "Win %"; a score game has no wins, so show the average instead
+    if (!open) return;
+    const box = document.querySelector('.modal .st4'); if (!box) return;
+    const rec = K.Daily.load(SLUG), sc = Object.keys(rec.days).map(k => rec.days[k].score).filter(v => typeof v === 'number');
+    box.children[1].innerHTML = '<b>' + (sc.length ? Math.round(sc.reduce((a, b) => a + b, 0) / sc.length) : '–') + '</b><small>Average score</small>';
+  }
+});
+const mb = K.modeBar($('modeSlot'), m => start(m));
+const pips = h('span', { id: 'pips', role: 'img' }), catSel = h('select', { id: 'catSel', 'aria-label': 'Practice category' }, CATS.map(c => h('option', { value: c[0], text: c[1] })));
+const freeInfo = h('span', { id: 'freeInfo' });
+mb.info.append(catSel, freeInfo, pips);
+catSel.value = K.store.get(SLUG + ':cat', '') || '';
+if (catSel.selectedIndex < 0) catSel.value = '';
+catSel.addEventListener('change', () => { K.store.set(SLUG + ':cat', catSel.value); if (st && st.mode === 'free') start('free'); });
+
+// ------------------------------------------------------------------ rounds
+function startSize(ref, tgt, r) {
+  // an arbitrary starting size, chosen from the REFERENCE's size (anywhere from a fifth of it to five times it), so it
+  // says nothing about the answer; if it lands on the answer by luck it is moved off it
+  let g = ref.m * Math.exp((r() * 2 - 1) * Math.log(5));
+  if (errorOf(tgt, g) < 1.15) g *= r() < 0.5 ? 1.6 : 1 / 1.6;
+  return g;
+}
+function dayPairs(day) { const n = K.dayNum(day) - 1, L = DAYS.length; return DAYS[((n % L) + L) % L].slice(); }
+function freePairs() {
+  const c = catSel.value, pool = []; PAIRS.forEach((p, i) => { if (!c || BY[p[1]].cat === c) pool.push(i); });
+  return pool;
+}
+function save() {
+  if (st.mode !== 'daily') return;
+  K.store.set(SLUG + ':day', { day: st.day, sv: SCORE_V, pairs: st.pairs, rounds: st.rounds, t0: st.t0, t1: st.t1, done: st.phase === 'done' });
+}
+function start(m) {
+  stopHold();
+  if (m === 'daily') {
+    const day = K.today(), saved = K.store.get(SLUG + ':day', null);
+    st = { mode: 'daily', day, pairs: dayPairs(day), rounds: [], i: 0, phase: 'play', g: 0, t0: 0, t1: 0 };
+    if (saved && saved.day === day && saved.sv === SCORE_V && Array.isArray(saved.pairs) && saved.pairs.length === ROUNDS && saved.pairs.every(x => PAIRS[x]) && Array.isArray(saved.rounds)) {
+      st.pairs = saved.pairs.slice();
+      st.rounds = saved.rounds.filter(r => r && r.g > 0 && r.s >= 0 && r.s <= 100).slice(0, ROUNDS).map(r => ({ g: +r.g, s: Math.round(+r.s) }));
+      st.t0 = saved.t0 || 0; st.t1 = saved.t1 || 0;
+    }
+    st.i = st.rounds.length;
+    if (st.i >= ROUNDS) { st.phase = 'done'; finishDaily(true); }
+  } else {
+    st = { mode: 'free', day: '', pairs: [], rounds: [], i: 0, phase: 'play', g: 0, sum: 0, n: 0, lastT: st && st.mode === 'free' ? st.lastT : '' };
+  }
+  mb.set(m, true);
+  if (st.phase === 'done') showSummary(); else beginRound();
+}
+function beginRound(forced) {
+  let pi, r;
+  if (forced != null) { pi = forced; r = Math.random; st.pairs[st.i] = pi; }
+  else if (st.mode === 'daily') { pi = st.pairs[st.i]; r = K.rng(SLUG + '-start-' + st.day + '-' + st.i); }
+  else {
+    const pool = freePairs(); let tries = 0;
+    do { pi = pool[Math.floor(Math.random() * pool.length)]; } while (++tries < 30 && pool.length > 5 && PAIRS[pi][1] === st.lastT);
+    st.lastT = PAIRS[pi][1]; r = Math.random; st.pairs[st.i] = pi;
+  }
+  st.ref = BY[PAIRS[pi][0]]; st.tgt = BY[PAIRS[pi][1]]; st.phase = 'play';
+  st.g = clampG(startSize(st.ref, st.tgt, r));
+  view.zoom = 1; view.panX = view.panY = 0;
+  $('summary').hidden = true; $('labels').hidden = false; $('stageBox').hidden = false;
+  $('result').hidden = true; $('controls').hidden = false; $('hint').hidden = false; $('wrap').classList.remove('rev');
+  fillShapes(); fillLabels(); syncSlider(); drawPips(); resize(true);
+  $('lockBtn').disabled = false;
+}
+const clampG = g => Math.min(st.ref.m * RANGE, Math.max(st.ref.m / RANGE, g));
+function setG(g, from) {
+  if (!st || st.phase !== 'play') return;
+  st.g = clampG(g); if (from !== 'slider') syncSlider(); dirty = true; kick();
+}
+function syncSlider() { $('size').value = String(Math.round(500 + 500 * Math.log(st.g / st.ref.m) / Math.log(RANGE))); }
+function lock() {
+  if (!st || st.phase !== 'play') return;
+  stopHold(); endDrag();
+  const e = errorOf(st.tgt, st.g), s = scoreOf(e);
+  if (st.mode === 'daily' && !st.t0) st.t0 = Date.now();
+  st.rounds[st.i] = { g: +st.g.toPrecision(6), s };
+  st.phase = 'reveal';
+  if (st.mode === 'free') { st.sum += s; st.n++; }
+  if (st.mode === 'daily' && st.i === ROUNDS - 1) { st.t1 = Date.now(); }
+  save(); showResult(); drawPips(); fillLabels(); view.zoom = 1; view.panX = view.panY = 0; dirty = true; kick();
+}
+function next() {
+  if (!st || st.phase !== 'reveal') return;
+  st.i++;
+  if (st.mode === 'daily' && st.i >= ROUNDS) { st.phase = 'done'; save(); finishDaily(false); showSummary(); return; }
+  if (st.mode === 'free') st.rounds = [];
+  beginRound();
+}
+const total = () => st.rounds.reduce((a, r) => a + r.s, 0);
+function finishDaily(quiet) {
+  const t = total(), rec0 = K.Daily.load(SLUG);
+  lastDist = distKey(t);
+  if (rec0.days[st.day] && rec0.days[st.day].done) return;
+  K.Daily.finish(SLUG, st.day, { win: true, score: t, tries: null, time: st.t0 && st.t1 ? (st.t1 - st.t0) / 1000 : null, dist: lastDist });
+  // keep the scoring version and the five round scores with the day's saved result
+  const rec = K.store.get('daily:' + SLUG, null);
+  if (rec && rec.days && rec.days[st.day]) { rec.days[st.day].sv = SCORE_V; rec.days[st.day].r = st.rounds.map(r => r.s); K.store.set('daily:' + SLUG, rec); }
+}
+
+// ------------------------------------------------------------------ labels, result, pips
+function fillLabels() {
+  const r = st.ref, t = st.tgt, shown = st.phase !== 'play';
+  $('refName').textContent = r.name; $('refSize').textContent = realText(r) + ' ' + dimWord(r); $('refWhat').textContent = cap(r.what);
+  $('tgtName').textContent = t.name; $('tgtWhat').textContent = cap(t.what);
+  $('tgtSize').textContent = shown ? realText(t) + ' ' + dimWord(t) : 'How ' + dimWord(t) + '? Make it look right';
+  $('stage').setAttribute('aria-label', 'Drawing surface. Reference: ' + r.name + ', ' + realText(r) + ' ' + dimWord(r) + '. Target: ' + t.name + '.');
+}
+function drawPips() {
+  const daily = st.mode === 'daily';
+  pips.hidden = !daily; catSel.hidden = daily; freeInfo.hidden = daily;
+  if (daily) {
+    pips.innerHTML = '';
+    for (let i = 0; i < ROUNDS; i++) pips.appendChild(h('i', { class: st.rounds[i] ? 's' + band(st.rounds[i].s) : i === st.i && st.phase === 'play' ? 'now' : '' }));
+    pips.setAttribute('aria-label', 'Round ' + Math.min(ROUNDS, st.i + 1) + ' of ' + ROUNDS);
+  } else freeInfo.textContent = st.n ? 'Avg ' + Math.round(st.sum / st.n) + ' · ' + st.n + (st.n === 1 ? ' round' : ' rounds') : 'Practice';
+}
+function offText(o, g) {
+  const a = nearest(o, g), e = Math.max(g / a, a / g);
+  if (e <= TOL) return o.lo != null && g >= o.lo && g <= o.hi ? 'inside the real range' : 'within 3%';
+  const big = g > a;
+  return e >= 1.95 ? sig(e, 2) + ' times too ' + (big ? 'big' : 'small') : Math.round(big ? (e - 1) * 100 : (1 - 1 / e) * 100) + '% too ' + (big ? 'big' : 'small');
+}
+function showResult() {
+  const t = st.tgt, rd = st.rounds[st.i], b = band(rd.s), box = $('result');
+  box.innerHTML = '';
+  const last = st.mode === 'daily' && st.i === ROUNDS - 1;
+  box.append(
+    h('div', { class: 'pts c' + b, html: rd.s + '<small>' + WORD[b] + '</small>' }),
+    h('div', { class: 'cmp', html: 'You made it <b class="g">' + both(rd.g) + '</b>. Really <b class="a">' + realText(t) + '</b> ' + dimWord(t) + ': ' + offText(t, rd.g) + '.' }),
+    h('button', { type: 'button', class: 'cta', id: 'nextBtn', text: last ? 'See your results' : 'Next round', onclick: next }),
+    h('div', { class: 'fact' }, [t.fact + (t.note ? ' (' + cap(t.note) + '.) ' : ' '), h('a', { href: t.src[1], target: '_blank', rel: 'noopener noreferrer', text: 'Source: ' + t.src[0] })]));
+  $('controls').hidden = true; $('hint').hidden = true; box.hidden = false; $('wrap').classList.add('rev');
+  resize(false);
+  setTimeout(() => { const n = $('nextBtn'); if (n && !S.isOpen()) n.focus({ preventScroll: true }); }, 60);
+}
+function shareText() {
+  const line = total() + '/500';
+  const grid = st.rounds.map(r => EMO[band(r.s)]).join('') + '\n' + st.rounds.map(r => r.s).join(' · ');
+  return K.shareText(NAME, K.dayNum(st.day), line, grid, 'daily');
+}
+
+// ------------------------------------------------------------------ the drawing surface
+const svg = $('stage'), refG = $('refG'), tgtG = $('tgtG'), handle = $('handle');
+const view = { W: 300, H: 300, ppm: 1, ox: 0, gy: 0, zoom: 1, panX: 0, panY: 0, snap: true };
+let dirty = true, raf = 0, drag = null, lastRevealG = null;
+const PAD = { l: 44, r: 50, t: 58, b: 34 }, HOFF = 21; // the handle floats HOFF pixels beyond the measured edge, so it never hides a small shape
+function fillShapes() {
+  const put = (g, o) => { g.innerHTML = ''; o.p.forEach(d => { const p = document.createElementNS(NS, 'path'); p.setAttribute('d', d); g.appendChild(p); }); };
+  put(refG, st.ref); put(tgtG, st.tgt); put($('tmS'), st.tgt); put($('tmF'), st.tgt);
+  lastRevealG = null;
+}
+// the scene in metres: reference from x = 0, a gap, then the target; everything stands on y = 0
+function scene(g) {
+  const r = st.ref, t = st.tgt, kr = r.m / 1000, kt = g / 1000;
+  const rw = r.w * kr, rh = r.h * kr, gap = 0.14 * Math.max(rw, rh), tx = rw + gap;
+  return { kr, kt, rw, rh, tx, tw: t.w * kt, th: t.h * kt };
+}
+function shownTruth() { return st.phase !== 'play' ? nearest(st.tgt, st.rounds[st.i].g) : 0; }
+function fitTarget() {
+  const g = st.phase === 'play' ? st.g : st.rounds[st.i].g, sc = scene(g), a = shownTruth(), big = Math.max(g, a);
+  const kb = big / 1000, cw = sc.tx + st.tgt.w * kb, chh = Math.max(sc.rh, st.tgt.h * kb);
+  const availW = Math.max(40, view.W - PAD.l - PAD.r), availH = Math.max(40, view.H - PAD.t - PAD.b);
+  const ppm = Math.min(availW / cw, availH / chh) * view.zoom;
+  return { ppm, ox: PAD.l + (availW - cw * ppm) / 2 + view.panX, gy: view.H - PAD.b + view.panY };
+}
+function resize(snap) {
+  const b = svg.getBoundingClientRect(); // the drawing itself (inside the box's border), so one unit is one pixel
+  view.W = Math.max(60, b.width); view.H = Math.max(60, b.height);
+  svg.setAttribute('viewBox', '0 0 ' + view.W + ' ' + view.H);
+  const m = $('tm'); m.setAttribute('width', view.W); m.setAttribute('height', view.H);
+  const tr = $('truth'); tr.setAttribute('width', view.W); tr.setAttribute('height', view.H);
+  if (snap) view.snap = true;
+  dirty = true; kick();
+}
+function kick() { if (!raf) raf = requestAnimationFrame(frame); }
+function frame() {
+  raf = 0;
+  if (!st || st.phase === 'done' || !st.ref) return;
+  let moving = false;
+  if (drag && drag.kind === 'size') edgeZoom();
+  if (!drag || drag.kind !== 'size') {
+    const f = fitTarget();
+    if (view.snap) { view.ppm = f.ppm; view.ox = f.ox; view.gy = f.gy; view.snap = false; }
+    else {
+      const k = 0.2, lp = Math.log(view.ppm) + (Math.log(f.ppm) - Math.log(view.ppm)) * k;
+      view.ppm = Math.exp(lp); view.ox += (f.ox - view.ox) * k; view.gy += (f.gy - view.gy) * k;
+      if (Math.abs(Math.log(f.ppm / view.ppm)) > 0.0015 || Math.abs(f.ox - view.ox) > 0.3 || Math.abs(f.gy - view.gy) > 0.3) moving = true;
+      else { view.ppm = f.ppm; view.ox = f.ox; view.gy = f.gy; }
+    }
+  } else moving = true;
+  draw();
+  if (moving || dirty) { dirty = false; if (moving) kick(); }
+}
+function niceStep(minPx) { // grid spacing in metres: 1, 2 or 5 times a power of ten, at least minPx on screen
+  const raw = minPx / view.ppm, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p;
+  return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p;
+}
+function draw() {
+  const V = view, g = st.phase === 'play' ? st.g : st.rounds[st.i].g, sc = scene(g), r = st.ref, t = st.tgt;
+  const X = x => V.ox + x * V.ppm, f1 = v => v.toFixed(1);
+  // grid: every step, with every fifth line stronger; it carries no numbers, only the note in the corner
+  const step = niceStep(26), x0 = Math.floor((0 - V.ox) / V.ppm / step) * step;
+  let a = '', b = '', tk = '';
+  for (let x = x0, n = 0; X(x) < V.W + 1 && n < 400; x += step, n++) { const px = f1(X(x)), major = Math.round(x / step) % 5 === 0; if (major) b += 'M' + px + ' 0V' + f1(V.gy); else a += 'M' + px + ' 0V' + f1(V.gy); tk += 'M' + px + ' ' + f1(V.gy) + 'v' + (major ? 9 : 5); }
+  for (let y = step, n = 0; V.gy - y * V.ppm > -1 && n < 400; y += step, n++) { const py = f1(V.gy - y * V.ppm); if (Math.round(y / step) % 5 === 0) b += 'M0 ' + py + 'H' + V.W; else a += 'M0 ' + py + 'H' + V.W; }
+  $('grid').setAttribute('d', a); $('grid5').setAttribute('d', b); $('ticks').setAttribute('d', tk);
+  const soil = $('soil'); soil.setAttribute('x', 0); soil.setAttribute('y', f1(V.gy)); soil.setAttribute('width', V.W); soil.setAttribute('height', Math.max(0, V.H - V.gy + 2));
+  const gr = $('ground'); gr.setAttribute('x1', 0); gr.setAttribute('x2', V.W); gr.setAttribute('y1', f1(V.gy)); gr.setAttribute('y2', f1(V.gy));
+  const note = $('scaleNote'); note.firstChild.style.width = f1(step * V.ppm) + 'px'; note.lastChild.textContent = 'one square = ' + metric(step, 1);
+  // the two shapes: 1000 drawing units = the object's size in metres, times pixels per metre
+  refG.setAttribute('transform', 'translate(' + f1(X(0)) + ' ' + f1(V.gy) + ') scale(' + (sc.kr * V.ppm) + ')');
+  const tx = X(sc.tx), ts = sc.kt * V.ppm;
+  tgtG.setAttribute('transform', 'translate(' + f1(tx) + ' ' + f1(V.gy) + ') scale(' + ts + ')');
+  tgtG.style.opacity = st.phase === 'play' ? 1 : 0.5;
+  // the reference's measured side, with its size
+  const dim = $('refDim'), dp = dim.firstChild, dt = dim.lastChild, rw = sc.rw * V.ppm, rh = sc.rh * V.ppm;
+  if (r.axis === 'v') {
+    const x = X(0) - 9, room = x - 4 >= 46;
+    dp.setAttribute('d', 'M' + f1(x + 5) + ' ' + f1(V.gy) + 'H' + f1(x) + 'V' + f1(V.gy - rh) + 'H' + f1(x + 5));
+    dt.setAttribute('text-anchor', room ? 'end' : 'start'); dt.setAttribute('x', f1(room ? x - 4 : Math.max(4, x)));
+    dt.setAttribute('y', f1(room ? V.gy - rh / 2 + 4 : Math.max(14, V.gy - rh - 7)));
+  } else {
+    const y = V.gy + 9; dp.setAttribute('d', 'M' + f1(X(0)) + ' ' + f1(y - 5) + 'V' + f1(y) + 'H' + f1(X(0) + rw) + 'V' + f1(y - 5));
+    dt.setAttribute('text-anchor', 'middle'); dt.setAttribute('x', f1(Math.min(V.W - 40, Math.max(40, X(0) + rw / 2)))); dt.setAttribute('y', f1(y + 15));
+  }
+  dt.textContent = realShort(r);
+  // the handle sits on the measured side of the target: on top for heights, at the far end for lengths
+  const tw = sc.tw * V.ppm, th = sc.th * V.ppm, play = st.phase === 'play';
+  handle.style.display = play ? '' : 'none';
+  if (play) {
+    const hx = t.axis === 'v' ? tx + tw / 2 : tx + tw + HOFF, hy = t.axis === 'v' ? V.gy - th - HOFF : V.gy - Math.max(th / 2, 15);
+    handle.setAttribute('transform', 'translate(' + f1(hx) + ' ' + f1(hy) + ')');
+    handle.lastChild.setAttribute('d', t.axis === 'v' ? 'M0 -6.5V6.5M-3.6 -3L0 -6.5L3.6 -3M-3.6 3L0 6.5L3.6 3' : 'M-6.5 0H6.5M-3 -3.6L-6.5 0L-3 3.6M3 -3.6L6.5 0L3 3.6');
+    $('mG').setAttribute('d', t.axis === 'v' ? 'M' + f1(tx - 8) + ' ' + f1(V.gy - th) + 'H' + f1(tx + tw + 8) + 'M' + f1(hx) + ' ' + f1(V.gy - th) + 'V' + f1(hy + 13) : 'M' + f1(tx + tw) + ' ' + f1(V.gy + 4) + 'V' + f1(V.gy - th - 8) + 'M' + f1(tx + tw) + ' ' + f1(hy) + 'H' + f1(hx - 13));
+    $('mA').setAttribute('d', ''); $('tG').textContent = ''; $('tA').textContent = '';
+    $('tmG').removeAttribute('transform'); $('truth').style.display = 'none';
+  } else {
+    // the real size: a green outline whose inner edge is exactly the real silhouette, and both measured sides marked
+    const A = shownTruth(), as = A / 1000 * V.ppm, aw = t.w * as, ah = t.h * as;
+    $('truth').style.display = '';
+    $('tmG').setAttribute('transform', 'translate(' + f1(tx) + ' ' + f1(V.gy) + ') scale(' + as + ')');
+    $('tmS').setAttribute('stroke-width', String(5 / as));
+    const tG = $('tG'), tA = $('tA');
+    if (t.axis === 'v') {
+      const xr = tx + Math.max(tw, aw) + 10;
+      $('mG').setAttribute('d', 'M' + f1(tx - 6) + ' ' + f1(V.gy - th) + 'H' + f1(xr)); $('mA').setAttribute('d', 'M' + f1(tx - 6) + ' ' + f1(V.gy - ah) + 'H' + f1(xr));
+      let yg = V.gy - th + 4, ya = V.gy - ah + 4; if (Math.abs(yg - ya) < 15) { if (yg <= ya) yg = ya - 15; else ya = yg - 15; }
+      const xt = Math.min(V.W - 4, xr + 4), anchor = xr + 70 > V.W ? 'end' : 'start', xx = anchor === 'end' ? V.W - 5 : xt;
+      [[tG, yg, 'you ' + metric(g), 'var(--tgt)'], [tA, ya, 'real ' + realShort(t), 'var(--truth)']].forEach(q => { q[0].setAttribute('x', f1(xx)); q[0].setAttribute('y', f1(Math.max(13, q[1] - (anchor === 'end' ? 8 : 0)))); q[0].setAttribute('text-anchor', anchor); q[0].style.fill = q[3]; q[0].textContent = q[2]; });
+    } else {
+      const yt = V.gy - Math.max(th, ah) - 10;
+      $('mG').setAttribute('d', 'M' + f1(tx + tw) + ' ' + f1(V.gy + 4) + 'V' + f1(yt)); $('mA').setAttribute('d', 'M' + f1(tx + aw) + ' ' + f1(V.gy + 4) + 'V' + f1(yt));
+      const gBig = tw >= aw;
+      [[tG, tx + tw, 'you ' + metric(g), 'var(--tgt)', gBig], [tA, tx + aw, 'real ' + realShort(t), 'var(--truth)', !gBig]].forEach(q => { const an = q[4] ? 'start' : 'end'; let x = q[1] + (q[4] ? 5 : -5); if (q[4] && x + 80 > V.W) x = V.W - 84; q[0].setAttribute('x', f1(Math.max(4, x))); q[0].setAttribute('y', f1(Math.max(13, yt + (q[4] ? 4 : 18)))); q[0].setAttribute('text-anchor', x < 60 && an === 'end' ? 'start' : an); q[0].style.fill = q[3]; q[0].textContent = q[2]; });
+    }
+  }
+}
+
+// ------------------------------------------------------------------ resizing: drag, slider, buttons, keys
+function local(e) { const b = svg.getBoundingClientRect(); return { x: e.clientX - b.left, y: e.clientY - b.top }; }
+// how far the pointer is from the target's fixed corner, along the measured side, in pixels
+function reach(p) { const sc = scene(st.g); return st.tgt.axis === 'v' ? view.gy - p.y : p.x - (view.ox + sc.tx * view.ppm); }
+const pts = new Map(); let pinch = null;
+function down(e, kind) {
+  if (!st || st.phase === 'done') return;
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  const p = local(e); pts.set(e.pointerId, p);
+  try { svg.setPointerCapture(e.pointerId); } catch (err) {}
+  if (pts.size === 2) { // a second finger: pinch to zoom the view
+    endDrag(); const [a, b] = [...pts.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, zoom: view.zoom }; return;
+  }
+  if ((kind === 'size' || kind === 'handle') && st.phase === 'play') {
+    // on the shape: the spot under the pointer stays under it (k = metres of target per metre of reach).
+    // on the handle: the measured edge follows the pointer, keeping the distance it had when grabbed (off).
+    const d = Math.max(14, reach(p));
+    drag = { kind: 'size', id: e.pointerId, k: st.g / (d / view.ppm), off: kind === 'handle' ? reach(p) - st.g * view.ppm : null, p, p0: p };
+    svg.classList.add('drag'); e.preventDefault(); kick();
+  } else { drag = { kind: 'pan', id: e.pointerId, p, panX: view.panX, panY: view.panY, moved: false }; }
+}
+function move(e) {
+  if (!pts.has(e.pointerId)) return;
+  const p = local(e); pts.set(e.pointerId, p);
+  if (pinch && pts.size >= 2) { const [a, b] = [...pts.values()]; setZoom(pinch.zoom * (Math.hypot(a.x - b.x, a.y - b.y) || 1) / pinch.d); return; }
+  if (!drag || drag.id !== e.pointerId) return;
+  if (drag.kind === 'size') { drag.p = p; setG(sizeAt(p)); }
+  else {
+    const dx = p.x - drag.p.x, dy = p.y - drag.p.y;
+    if (!drag.moved && Math.hypot(dx, dy) < 6) return;
+    drag.moved = true; svg.classList.add('pan');
+    view.panX = drag.panX + dx; view.panY = drag.panY + dy; view.snap = true; dirty = true; kick();
+  }
+}
+function up(e) {
+  pts.delete(e.pointerId); if (pts.size < 2) pinch = null;
+  if (drag && drag.id === e.pointerId) endDrag();
+}
+const sizeAt = p => drag.off != null ? Math.max(1.5, reach(p) - drag.off) / view.ppm : drag.k * Math.max(2, reach(p)) / view.ppm;
+function endDrag() { drag = null; svg.classList.remove('drag', 'pan'); dirty = true; kick(); }
+// while a resize drag is pushed against the edge of the drawing, the view backs away so the shape can keep growing
+function edgeZoom() {
+  const p = drag.p, t = st.tgt, near = t.axis === 'v' ? p.y < 22 && p.y < drag.p0.y - 4 : p.x > view.W - 22 && p.x > drag.p0.x + 4;
+  if (near && st.g < st.ref.m * RANGE) { view.ppm *= 0.975; setG(sizeAt(p)); }
+}
+tgtG.addEventListener('pointerdown', e => { down(e, 'size'); e.stopPropagation(); });
+handle.addEventListener('pointerdown', e => { down(e, 'handle'); e.stopPropagation(); });
+svg.addEventListener('pointerdown', e => down(e, 'pan'));
+svg.addEventListener('pointermove', move);
+svg.addEventListener('pointerup', up); svg.addEventListener('pointercancel', up);
+svg.addEventListener('wheel', e => { e.preventDefault(); setZoom(view.zoom * Math.exp(-Math.max(-60, Math.min(60, e.deltaY)) * 0.004)); }, { passive: false });
+function setZoom(z) {
+  view.zoom = Math.min(8, Math.max(0.3, z));
+  if (Math.abs(view.zoom - 1) < 0.04) view.zoom = 1;
+  dirty = true; kick();
+}
+$('zIn').addEventListener('click', () => setZoom(view.zoom * 1.35));
+$('zOut').addEventListener('click', () => setZoom(view.zoom / 1.35));
+$('zFit').addEventListener('click', () => { view.zoom = 1; view.panX = view.panY = 0; dirty = true; kick(); });
+
+const sizeEl = $('size');
+sizeEl.addEventListener('input', () => setG(st.ref.m * Math.pow(RANGE, (+sizeEl.value - 500) / 500), 'slider'));
+function step(pct) { setG(st.g * (1 + pct / 100)); }
+let holdT = 0, holdN = 0;
+function stopHold() { clearTimeout(holdT); holdT = 0; }
+function hold(dir) { // a tap is 1%; holding repeats, faster after a moment
+  stopHold(); holdN = 0;
+  const tick = () => { step(dir * (holdN > 14 ? 2.5 : 1)); holdN++; holdT = setTimeout(tick, holdN < 2 ? 380 : 70); };
+  tick();
+}
+[['minus', -1], ['plus', 1]].forEach(q => {
+  const b = $(q[0]);
+  b.addEventListener('pointerdown', e => { if (e.pointerType === 'mouse' && e.button !== 0) return; e.preventDefault(); hold(q[1]); });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => b.addEventListener(ev, stopHold));
+  b.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); step(q[1]); } });
+  b.addEventListener('contextmenu', e => e.preventDefault());
+});
+$('lockBtn').addEventListener('click', lock);
+document.addEventListener('keydown', e => {
+  if (S.isOpen() || e.ctrlKey || e.metaKey || e.altKey || !st) return;
+  const tag = document.activeElement && document.activeElement.tagName;
+  if (tag === 'SELECT') return;
+  const k = e.key;
+  if (st.phase === 'play') {
+    const amt = e.shiftKey ? 0.2 : 1;
+    if (k === 'ArrowUp' || k === 'ArrowRight') { e.preventDefault(); step(amt); }
+    else if (k === 'ArrowDown' || k === 'ArrowLeft') { e.preventDefault(); step(-amt / (1 + amt / 100)); }
+    else if (k === 'PageUp') { e.preventDefault(); step(10); }
+    else if (k === 'PageDown') { e.preventDefault(); step(-100 / 11); }
+    else if (k === 'Enter' && tag !== 'BUTTON' && tag !== 'A') { e.preventDefault(); lock(); }
+  } else if (st.phase === 'reveal' && k === 'Enter' && tag !== 'BUTTON' && tag !== 'A') { e.preventDefault(); next(); }
+  if (st.phase !== 'done') {
+    if (k === '+' || k === '=') setZoom(view.zoom * 1.35); else if (k === '-' || k === '_') setZoom(view.zoom / 1.35); else if (k === '0' || k === 'f' || k === 'F') $('zFit').click();
+  }
+});
+
+// ------------------------------------------------------------------ the end of the day: total, rounds, share, gallery
+let gal = null;
+function showSummary() {
+  const box = $('summary'), t = total(), b = t >= 450 ? 4 : t >= 350 ? 3 : t >= 225 ? 2 : t >= 100 ? 1 : 0;
+  $('labels').hidden = true; $('stageBox').hidden = true; $('controls').hidden = true; $('hint').hidden = true; $('result').hidden = true;
+  drawPips();
+  const items = st.pairs.map((pi, i) => ({ ref: BY[PAIRS[pi][0]], tgt: BY[PAIRS[pi][1]], rd: st.rounds[i] }));
+  box.innerHTML = '';
+  box.append(
+    h('div', { class: 'head' }, [h('div', { class: 'tot c' + b, html: t + ' <em>/ 500</em>' }),
+      h('p', { text: ['A tough day for the tape measure. Tomorrow is a new five.', 'Some of these were a long way out. That is how you learn them.', 'A decent eye. A couple of these fooled you.', 'A sharp eye for size.', 'Outstanding: you could measure by looking.'][b] })]),
+    h('div', { id: 'rows' }, items.map(it => h('div', { class: 'row5 c' + band(it.rd.s) }, [
+      h('div', { class: 'nm', html: '' }, [it.tgt.name, h('small', { text: 'next to ' + it.ref.name })]),
+      h('div', { class: 'gv', html: 'You <b>' + metric(it.rd.g) + '</b> · real <b>' + realShort(it.tgt) + '</b><br>' + offText(it.tgt, it.rd.g) }),
+      h('div', { class: 'bar' }, [h('i', { style: 'width:' + it.rd.s + '%' })]),
+      h('div', { class: 'sc', text: String(it.rd.s) })]))),
+    h('div', { class: 'acts' }, [
+      h('button', { type: 'button', class: 'cta', text: 'Share', onclick: () => S.share() }),
+      h('button', { type: 'button', class: 'ghost', text: 'Play unlimited', onclick: () => start('free') }),
+      h('button', { type: 'button', class: 'ghost', text: 'Stats', onclick: () => S.openStats(lastDist) }),
+      h('span', { class: 'next', id: 'nextIn', text: 'Next five in ' + K.countdown() })]),
+    h('p', { id: 'galCap', text: 'Today\'s five targets at their real sizes, all to one scale. Tap a name to zoom in on it.' }),
+    h('div', { id: 'galChips', role: 'group', 'aria-label': 'Zoom the gallery' }),
+    h('div', { id: 'galBox' }, [(() => { const s = document.createElementNS(NS, 'svg'); s.setAttribute('id', 'gal'); s.setAttribute('role', 'img'); s.setAttribute('aria-label', 'Today\'s five targets drawn at one true scale'); return s; })()]));
+  box.hidden = false; box.scrollTop = 0;
+  buildGallery(items.map(it => it.tgt));
+}
+function buildGallery(objs) {
+  // smallest to biggest, left to right, each at its real size (1000 units = its metres), on one ground line
+  const list = objs.slice().sort((a, b) => Math.max(a.w, a.h) * a.m - Math.max(b.w, b.h) * b.m);
+  const s = $('gal'), chips = $('galChips'); s.innerHTML = ''; chips.innerHTML = '';
+  let x = 0; const its = list.map(o => { const k = o.m / 1000, w = o.w * k, hh = o.h * k, it = { o, k, x, w, h: hh }; x += w * 1.22; return it; });
+  const line = document.createElementNS(NS, 'line'); line.setAttribute('stroke', 'rgba(241,247,255,.75)'); line.setAttribute('stroke-width', '2'); s.appendChild(line);
+  its.forEach(it => { const g = document.createElementNS(NS, 'g'); g.setAttribute('class', 'it'); g.setAttribute('fill-rule', 'evenodd'); it.o.p.forEach(d => { const p = document.createElementNS(NS, 'path'); p.setAttribute('d', d); g.appendChild(p); }); s.appendChild(g); it.g = g; });
+  gal = { its, line, focus: its.length - 1, ppm: 0, ox: 0, raf: 0, snap: true };
+  const mk = (label, i) => { const bt = h('button', { type: 'button', text: label, onclick: () => { gal.focus = i; galGo(); } }); chips.appendChild(bt); return bt; };
+  gal.btns = its.map((it, i) => mk(it.o.name, i));
+  galGo();
+}
+function galGo() {
+  if (!gal) return;
+  gal.btns.forEach((b, i) => { b.classList.toggle('on', i === gal.focus); b.setAttribute('aria-pressed', i === gal.focus); });
+  gal.its.forEach((it, i) => it.g.classList.toggle('on', i === gal.focus));
+  if (!gal.raf) gal.raf = requestAnimationFrame(galFrame);
+}
+function galFrame() {
+  gal.raf = 0;
+  const s = $('gal'), box = s.getBoundingClientRect(), W = Math.max(60, box.width), H = Math.max(60, box.height);
+  if (!box.width) return;
+  s.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+  // frame everything up to and including the chosen one; bigger ones run off the right-hand side
+  const f = gal.its[gal.focus], cw = f.x + f.w, chh = Math.max.apply(null, gal.its.slice(0, gal.focus + 1).map(it => it.h));
+  const ppm = Math.min((W - 28) / cw, (H - 34) / chh), ox = gal.focus === gal.its.length - 1 ? (W - cw * ppm) / 2 : 14, gy = H - 16;
+  let moving = false;
+  if (gal.snap) { gal.ppm = ppm; gal.ox = ox; gal.snap = false; }
+  else { gal.ppm = Math.exp(Math.log(gal.ppm) + (Math.log(ppm) - Math.log(gal.ppm)) * 0.16); gal.ox += (ox - gal.ox) * 0.16; if (Math.abs(Math.log(ppm / gal.ppm)) > 0.002 || Math.abs(ox - gal.ox) > 0.3) moving = true; else { gal.ppm = ppm; gal.ox = ox; } }
+  gal.line.setAttribute('x1', 0); gal.line.setAttribute('x2', W); gal.line.setAttribute('y1', gy); gal.line.setAttribute('y2', gy);
+  gal.its.forEach(it => it.g.setAttribute('transform', 'translate(' + (gal.ox + it.x * gal.ppm).toFixed(2) + ' ' + gy + ') scale(' + (it.k * gal.ppm) + ')'));
+  if (moving) gal.raf = requestAnimationFrame(galFrame);
+}
+
+addEventListener('resize', () => { if (st && st.phase !== 'done') resize(true); else if (gal) { gal.snap = true; galGo(); } });
+if (window.ResizeObserver) new ResizeObserver(() => { if (st && st.phase !== 'done') resize(false); }).observe($('stageBox'));
+setInterval(() => {
+  const e = $('nextIn'); if (e) e.textContent = 'Next five in ' + K.countdown();
+  if (st && st.mode === 'daily' && st.day !== K.today() && !drag && !S.isOpen()) start('daily');
+}, 1000);
+start('daily');
+if (navigator.webdriver) window.__ys = {
+  get st() { return st; }, view, OBJ, PAIRS, DAYS, BY, start, lock, next, setG, scoreOf, errorOf, nearest, scene, total, shareText, metric, us,
+  truth: () => st.tgt.m, setZoom,
+  play: (ref, tgt) => { const i = PAIRS.findIndex(p => p[0] === ref && p[1] === tgt); if (i < 0) return false; start('free'); st.rounds = []; beginRound(i); return true; }
+};
+})();
+</script>
+<script src="/analytics/tracker.js" data-site="yardstick" defer></script>
+</body>
+</html>
