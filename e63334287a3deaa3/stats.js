@@ -672,7 +672,9 @@
   // or data-board-in="<css selector>" (appended inside that element instead).
   function boardButton() {
     var where = (me0 && me0.getAttribute('data-board')) || '', into = (me0 && me0.getAttribute('data-board-in')) || '';
-    if (where === 'off' || window.top !== window) return;
+    // No check for being inside a frame: the home page, phone page and party layer all open games in one, and that is
+    // how nearly everyone plays, so the button has to be there too.
+    if (where === 'off') return;
     var b = document.createElement('button'), open = false, loading = null, lastPlay = 0, fixed = true, tail = false;
     var ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg>';
     var LOOK = 'align-items:center;justify-content:center;gap:7px;font:600 14px/1 system-ui,-apple-system,"Segoe UI",sans-serif;letter-spacing:0;text-transform:none;color:#1c1b19;background:rgba(255,255,255,.96);' +
@@ -685,7 +687,8 @@
       if (document.querySelector('canvas')) return !document.pointerLockElement && Date.now() - lastPlay > 8000;
       return true;
     }
-    function tick() { var w = want(); if ((b.style.display !== 'none') !== w) b.style.display = w ? 'inline-flex' : 'none'; }
+    var pin = null;
+    function tick() { var w = want(); if ((b.style.display !== 'none') !== w) b.style.display = w ? 'inline-flex' : 'none'; if (pin) pin(); }
     function script(src, attrs) {
       return new Promise(function (res, rej) {
         var s = document.createElement('script'); s.src = src; Object.keys(attrs || {}).forEach(function (k) { s.setAttribute(k, attrs[k]); });
@@ -702,6 +705,30 @@
         B.open(function () { open = false; tick(); try { b.focus(); } catch (e2) {} });
       }).catch(function () { loading = null; });
     });
+    // Most menus are taller than the screen, which leaves the button at the end of one out of sight. So while a menu's own
+    // button is laid out (the menu is showing) but scrolled out of view, a copy is pinned in the bottom right corner; it goes
+    // as soon as the real one scrolls into view, the menu closes or the panel opens. The observer catches scrolling and menus
+    // hidden with `hidden` or display:none; a light check twice a second also catches menus faded out with opacity or
+    // visibility (one checkVisibility call, nothing else).
+    function pill() {
+      if (!window.IntersectionObserver) return;
+      var p = document.createElement('button'), seen = true, laid = false;
+      p.type = 'button'; p.id = 'brlb-pin'; p.setAttribute('aria-haspopup', 'dialog'); p.setAttribute('data-no-ad-refresh', '');
+      p.innerHTML = ICON + '<span>Leaderboard</span>';
+      p.style.cssText = 'position:fixed;bottom:calc(12px + env(safe-area-inset-bottom,0px));right:calc(12px + env(safe-area-inset-right,0px));z-index:2147481000;display:none;' + LOOK + 'padding:9px 16px 9px 13px;min-height:38px';
+      p.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); b.click(); });
+      function shown() {
+        if (open || seen || !laid) return false;
+        try { if (b.checkVisibility && !b.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) return false; } catch (e) {}
+        return true;
+      }
+      pin = function () { var w = shown(); if ((p.style.display !== 'none') !== w) p.style.display = w ? 'inline-flex' : 'none'; };
+      new IntersectionObserver(function (es) {
+        var e = es[es.length - 1]; seen = e.intersectionRatio >= 0.6; laid = e.boundingClientRect.width > 0; pin();
+      }, { threshold: [0, 0.6] }).observe(b);
+      (document.body || document.documentElement).appendChild(p);
+      setInterval(pin, 500);
+    }
     function mount() {
       var host = null;
       if (!where) {
@@ -724,6 +751,7 @@
         b.innerHTML = ICON + '<span>Leaderboard</span>';
         b.style.cssText = 'display:inline-flex;position:static;' + LOOK + 'padding:9px 16px 9px 13px;min-height:38px';
         row.appendChild(b); host.appendChild(row);
+        if (!tail) pill();
       } else {
         var v = where.charAt(0) === 't' ? 'top' : 'bottom', h = where.charAt(1) === 'r' ? 'right' : 'left';
         var pos = 'position:fixed;' + v + ':calc(10px + env(safe-area-inset-' + v + ',0px));' + h + ':calc(10px + env(safe-area-inset-' + h + ',0px));z-index:2147481000;display:none;';

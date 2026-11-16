@@ -124,8 +124,8 @@ html:not(.touch) .touch-only{display:none!important}
     <div class="inner">
       <div class="kicker"><span><b>●</b> Back Room</span><span>Drop · merge · grow</span></div>
       <h1 class="title">Melon <b>Merge</b></h1>
-      <p class="lede">Drop fruit into the jar. Two of the same fruit squish together into the next one up, from a tiny cherry all the way to a watermelon. Keep the pile under the red line.</p>
-      <div class="row"><button class="cta" id="play" type="button">Play</button><button class="ghost" id="helpStart" type="button">How to play</button></div>
+      <p class="lede" id="ledeStart">Drop fruit into the jar. Two of the same fruit squish together into the next one up, from a tiny cherry all the way to a watermelon. Keep the pile under the red line.</p>
+      <div class="row"><button class="cta" id="play" type="button">Play</button><button class="ghost" id="helpStart" type="button">How to play</button><button class="ghost" id="turkeyS" type="button" hidden>Turkey Week on</button></div>
       <p class="foot">Best score on this device: <b id="bestStart">0</b></p>
     </div>
   </section>
@@ -134,7 +134,7 @@ html:not(.touch) .touch-only{display:none!important}
     <div class="inner">
       <div class="kicker"><span><b>❚❚</b> Paused</span><span id="pauseScore"></span></div>
       <div class="row" style="margin-top:14px"><button class="cta" id="resume" type="button">Resume</button><button class="ghost" id="restartP" type="button">Restart</button></div>
-      <div class="row"><button class="ghost" id="helpP" type="button">How to play</button><button class="ghost mouse-only" id="keysP" type="button">Controls</button><button class="ghost" id="facesP" type="button">Faces: on</button><a class="ghost" href="/e63334287a3deaa3/">Back to games</a></div>
+      <div class="row"><button class="ghost" id="helpP" type="button">How to play</button><button class="ghost mouse-only" id="keysP" type="button">Controls</button><button class="ghost" id="facesP" type="button">Faces: on</button><button class="ghost" id="turkeyP" type="button" hidden>Turkey Week on</button><a class="ghost" href="/e63334287a3deaa3/">Back to games</a></div>
     </div>
   </section>
 
@@ -167,10 +167,10 @@ html:not(.touch) .touch-only{display:none!important}
       <h3>The goal</h3>
       <p>Drop fruit into the jar. When two of the same fruit touch, they merge into the next fruit up. Merges set off more merges, and every merge in a chain scores.</p>
       <h3>Fruit, smallest to biggest</h3>
-      <p>Cherry, strawberry, grape, tangerine, persimmon, apple, pear, peach, pineapple, melon, watermelon. You only ever get the first five to drop.</p>
+      <p id="chainTxt">Cherry, strawberry, grape, tangerine, persimmon, apple, pear, peach, pineapple, melon, watermelon. You only ever get the first five to drop.</p>
       <h3>Points per merge</h3>
       <div class="pts" id="ptsList"></div>
-      <p style="margin-top:6px">Two watermelons that touch burst for a <b id="bonusTxt">+200</b> bonus and leave room in the jar.</p>
+      <p style="margin-top:6px">Two <span id="topName">watermelons</span> that touch burst for a <b id="bonusTxt">+200</b> bonus and leave room in the jar.</p>
       <h3>Game over</h3>
       <p>If any fruit sits above the red dashed line for a second and a half, the jar overflows. A fruit you just dropped doesn't count while it's falling in.</p>
       <h3>Controls</h3>
@@ -192,6 +192,7 @@ html:not(.touch) .touch-only{display:none!important}
 </div>
 
 <script src="../keybinds.js"></script>
+<script src="../events.js"></script>
 <script>
 (function(){
 'use strict';
@@ -559,6 +560,7 @@ function leaf(g,x,y,len,ang,c1,c2){
   g.restore();
 }
 function paintFruit(g,k,R){
+  if(TKON)return paintDinner(g,k,R);
   const P=FR[k],rnd=prng(k*977+13),lw=Math.max(1,R*.045);
   g.lineCap='round';g.lineJoin='round';
   // parts that sit behind the body
@@ -667,17 +669,140 @@ function paintFruit(g,k,R){
   }else if(k===11){ // watermelon curl
     g.strokeStyle='#4a6b22';g.lineWidth=R*.05;g.beginPath();g.moveTo(0,-R*.97);g.bezierCurveTo(R*.02,-R*1.12,R*.18,-R*1.12,R*.14,-R*1.02);g.stroke();
   }
-  if(faces){
-    const ey=R*(k===1?.1:.06),ex=R*.27,er=Math.max(1.1,R*.075);
+  paintFace(g,k,R);
+}
+
+/* Turkey Week (../events.js): for the event the same eleven stages are a Thanksgiving dinner, from a cranberry up to
+   the turkey. Only the names and the paint change (FR_DINNER, paintDinner): sizes, scores, physics and the saved best
+   are the fruit game's. The Turkey Week button on the start and pause panels switches back to fruit (setDinner). */
+const EVT=window.BackRoomEvents&&BackRoomEvents.turkey,FR_FRUIT=FR.slice();
+const FR_DINNER=[null,
+  {n:'Cranberry',   c:['#ff7a86','#d4213f','#8e0d27'], line:'#5a0818', ext:1.2},
+  {n:'Pecan',       c:['#d79a62','#a8683a','#6f3f1f'], line:'#45240f', ext:1.14},
+  {n:'Sprout',      c:['#cdeea0','#8fc45a','#56892f'], line:'#335a1a', ext:1.14},
+  {n:'Dinner roll', c:['#ffe2a6','#eeb256','#c07f2a'], line:'#7c4c12', ext:1.14},
+  {n:'Yam',         c:['#ffb072','#ee7a2e','#b9500f'], line:'#7a3208', ext:1.14},
+  {n:'Apple',       c:['#ff7466','#e5293c','#a4132a'], line:'#690c1b', ext:1.4},
+  {n:'Corn',        c:['#fff0a0','#f7cf3c','#d99a12'], line:'#8a5a06', ext:1.34},
+  {n:'Ham',         c:['#ffc2c0','#ef8a8f','#c4575f'], line:'#8a3038', ext:1.14},
+  {n:'Pumpkin',     c:['#ffb45c','#f4841f','#c25a08'], line:'#7a3704', ext:1.28},
+  {n:'Pumpkin pie', c:['#ffb864','#e88a2a','#c06a14'], line:'#7c4c12', ext:1.14},
+  {n:'Turkey',      c:['#c98a52','#9a5f2e','#6a3c18'], line:'#3f220c', ext:1.5}
+];
+let TKON=false;
+function setDinner(){
+  TKON=!!(EVT&&EVT.on());
+  for(let k=1;k<=11;k++)FR[k]=(TKON?FR_DINNER:FR_FRUIT)[k];
+}
+setDinner();
+function paintDinner(g,k,R){
+  const P=FR[k],rnd=prng(k*811+7),lw=Math.max(1,R*.045);
+  g.lineCap='round';g.lineJoin='round';
+  const faceZone=(x,y)=>faces&&Math.abs(x)<R*.56&&y>-R*.2&&y<R*.42;
+  // parts that sit behind the body
+  if(k===7){ // corn husk leaves
+    leaf(g,0,R*.98,R*1.5,-2.62,'#b9e07a','#5f9a35');leaf(g,0,R*.98,R*1.5,-.52,'#b9e07a','#5f9a35');
+  }
+  if(k===11){ // turkey tail fan
+    const cols=['#b5522a','#f4a41c','#d8392b','#ffc93c','#d8392b','#f4a41c','#b5522a'];
+    for(let i=0;i<7;i++){
+      g.save();g.rotate((i-3)*.36);
+      g.fillStyle=cols[i];g.beginPath();g.ellipse(0,-R*.95,R*.24,R*.5,0,0,TAU);g.fill();
+      g.strokeStyle=P.line;g.lineWidth=lw;g.stroke();g.restore();
+    }
+  }
+  // body
+  const gr=g.createRadialGradient(0,0,R*.08,0,0,R);
+  gr.addColorStop(0,P.c[0]);gr.addColorStop(.72,P.c[1]);gr.addColorStop(1,P.c[2]);
+  g.fillStyle=gr;g.beginPath();g.arc(0,0,R,0,TAU);g.fill();
+  // patterns, clipped to the body
+  g.save();g.beginPath();g.arc(0,0,R-lw*.5,0,TAU);g.clip();
+  if(k===1){ // cranberry: a soft highlight
+    g.fillStyle='rgba(255,255,255,.35)';g.beginPath();g.ellipse(-R*.35,-R*.45,R*.22,R*.13,-.6,0,TAU);g.fill();
+  }else if(k===2){ // pecan ridges
+    g.strokeStyle='rgba(70,36,14,.55)';g.lineWidth=lw*1.2;
+    for(const x of [-.5,0,.5]){g.beginPath();g.moveTo(x*R*.4,-R);g.quadraticCurveTo(x*R*1.5,0,x*R*.4,R);g.stroke()}
+  }else if(k===3){ // sprout leaves
+    g.strokeStyle='rgba(50,95,30,.55)';g.lineWidth=lw*1.1;
+    for(const sx of [-1,1]){g.beginPath();g.arc(sx*R*.75,-R*.2,R*.95,sx>0?Math.PI*.62:Math.PI*.02,sx>0?Math.PI*.98:Math.PI*.38);g.stroke();
+      g.beginPath();g.arc(sx*R*1.15,R*.1,R*.95,sx>0?Math.PI*.7:Math.PI*.02,sx>0?Math.PI*.98:Math.PI*.3);g.stroke()}
+  }else if(k===4){ // roll: a pale split across the top and a browner base
+    g.strokeStyle='rgba(255,246,214,.8)';g.lineWidth=R*.1;g.beginPath();g.moveTo(-R*.6,-R*.5);g.quadraticCurveTo(0,-R*.72,R*.6,-R*.5);g.stroke();
+    g.fillStyle='rgba(140,80,20,.22)';g.fillRect(-R,R*.55,2*R,R);
+  }else if(k===5){ // yam with toasted marshmallows on top
+    for(const [x,y] of [[-.42,-.52],[0,-.66],[.42,-.52]]){
+      g.fillStyle='#fff8ec';g.strokeStyle='rgba(150,90,40,.6)';g.lineWidth=lw*.8;
+      g.beginPath();g.ellipse(x*R,y*R,R*.19,R*.14,0,0,TAU);g.fill();g.stroke();
+      g.fillStyle='rgba(190,120,50,.5)';g.beginPath();g.ellipse(x*R,(y-.05)*R,R*.11,R*.05,0,0,TAU);g.fill();
+    }
+  }else if(k===6){ // apple, as in the fruit game
+    g.fillStyle='rgba(255,230,160,.35)';
+    for(let i=0;i<16;i++){const a=rnd()*TAU,d=Math.sqrt(rnd())*R*.95,x=Math.cos(a)*d,y=Math.sin(a)*d;if(faceZone(x,y))continue;g.beginPath();g.arc(x,y,R*.03,0,TAU);g.fill()}
+    const bl=g.createRadialGradient(-R*.55,R*.25,0,-R*.55,R*.25,R*.8);bl.addColorStop(0,'rgba(255,214,90,.75)');bl.addColorStop(1,'rgba(255,214,90,0)');
+    g.fillStyle=bl;g.fillRect(-R,-R,2*R,2*R);
+  }else if(k===7){ // corn kernels
+    const d=R*.25;g.fillStyle='rgba(200,140,10,.5)';
+    for(let y=-R;y<=R;y+=d)for(let x=-R;x<=R;x+=d){
+      const xx=x+((Math.round(y/d))%2?d/2:0);if(faceZone(xx,y))continue;
+      g.beginPath();g.ellipse(xx,y,d*.36,d*.3,0,0,TAU);g.fill();
+    }
+  }else if(k===8){ // ham: scored diamonds with a clove in each
+    g.save();g.rotate(Math.PI/4);
+    const d=R*.42;g.strokeStyle='rgba(150,50,60,.45)';g.lineWidth=lw;
+    for(let x=-R*1.5;x<=R*1.5;x+=d){g.beginPath();g.moveTo(x,-R*1.5);g.lineTo(x,R*1.5);g.stroke();g.beginPath();g.moveTo(-R*1.5,x);g.lineTo(R*1.5,x);g.stroke()}
+    g.fillStyle='rgba(110,50,30,.6)';
+    for(let x=-R*1.5;x<=R*1.5;x+=d)for(let y=-R*1.5;y<=R*1.5;y+=d){g.beginPath();g.arc(x+d/2,y+d/2,R*.035,0,TAU);g.fill()}
+    g.restore();
+    const gl=g.createRadialGradient(-R*.4,-R*.5,0,-R*.4,-R*.5,R*.9);gl.addColorStop(0,'rgba(255,220,150,.5)');gl.addColorStop(1,'rgba(255,220,150,0)');
+    g.fillStyle=gl;g.fillRect(-R,-R,2*R,2*R);
+  }else if(k===9){ // pumpkin ribs
+    g.strokeStyle='rgba(150,70,5,.5)';g.lineWidth=lw*1.2;
+    for(const x of [-.62,-.3,.3,.62]){g.beginPath();g.ellipse(0,0,Math.abs(x)*R,R*1.02,0,x<0?Math.PI*.5:-Math.PI*.5,x<0?Math.PI*1.5:Math.PI*.5);g.stroke()}
+  }else if(k===10){ // pie: crimped crust round the filling, whipped cream on top
+    g.strokeStyle='#e9c078';g.lineWidth=R*.2;g.beginPath();g.arc(0,0,R*.92,0,TAU);g.stroke();
+    g.strokeStyle='rgba(150,95,30,.55)';g.lineWidth=lw;
+    for(let i=0;i<28;i++){const a=i*TAU/28;g.beginPath();g.moveTo(Math.cos(a)*R*.83,Math.sin(a)*R*.83);g.lineTo(Math.cos(a)*R,Math.sin(a)*R);g.stroke()}
+    g.fillStyle='#fffaf0';g.strokeStyle='rgba(170,140,100,.6)';g.lineWidth=lw*.8;
+    g.beginPath();for(let i=0;i<=10;i++){const a=i*TAU/10,rr=R*(i%2?.17:.24);g.lineTo(Math.cos(a)*rr,-R*.5+Math.sin(a)*rr*.8)}g.closePath();g.fill();g.stroke();
+  }else if(k===11){ // turkey: a paler chest
+    const ch=g.createRadialGradient(0,R*.45,0,0,R*.45,R*.8);ch.addColorStop(0,'rgba(240,200,150,.45)');ch.addColorStop(1,'rgba(240,200,150,0)');
+    g.fillStyle=ch;g.fillRect(-R,-R,2*R,2*R);
+  }
+  g.restore();
+  g.strokeStyle=P.line;g.lineWidth=lw;g.beginPath();g.arc(0,0,R-lw*.5,0,TAU);g.stroke();
+  // parts on top
+  if(k===1){ // cranberry: the little crown where the flower was
+    g.fillStyle=P.line;g.beginPath();for(let i=0;i<8;i++){const a=i*TAU/8,rr=i%2?R*.07:R*.16;g.lineTo(Math.cos(a)*rr,-R*.9+Math.sin(a)*rr*.6)}g.closePath();g.fill();
+  }else if(k===3){ // sprout stalk end
+    g.fillStyle='#e9f6c8';g.strokeStyle=P.line;g.lineWidth=lw*.8;g.beginPath();g.ellipse(0,-R*.94,R*.16,R*.09,0,0,TAU);g.fill();g.stroke();
+  }else if(k===6){ // apple stem and leaf
+    g.strokeStyle='#6b4a22';g.lineWidth=R*.08;g.beginPath();g.moveTo(0,-R*.82);g.quadraticCurveTo(R*.04,-R*1.1,-R*.06,-R*1.28);g.stroke();
+    leaf(g,0,-R*1.08,R*.55,-.45,'#a2e36a','#4a9a3a');
+  }else if(k===9){ // pumpkin stem and tendril
+    g.fillStyle='#5f7a2a';g.strokeStyle='#33480f';g.lineWidth=lw*.8;
+    g.beginPath();g.moveTo(-R*.11,-R*.9);g.lineTo(-R*.07,-R*1.2);g.lineTo(R*.12,-R*1.22);g.lineTo(R*.11,-R*.9);g.closePath();g.fill();g.stroke();
+    g.strokeStyle='#5f7a2a';g.lineWidth=R*.04;g.beginPath();g.moveTo(R*.1,-R*1.0);g.bezierCurveTo(R*.35,-R*1.2,R*.42,-R*.95,R*.28,-R*.98);g.stroke();
+  }
+  paintFace(g,k,R);
+  if(k===11){ // beak and wattle, over the mouth
+    const ey=R*.06;
+    g.fillStyle='#f4a41c';g.strokeStyle='#8a5a06';g.lineWidth=Math.max(1,R*.03);
+    g.beginPath();g.moveTo(-R*.11,ey+R*.1);g.lineTo(R*.11,ey+R*.1);g.lineTo(0,ey+R*.3);g.closePath();g.fill();g.stroke();
+    g.fillStyle='#d8392b';g.strokeStyle='#7c1410';
+    g.beginPath();g.ellipse(R*.09,ey+R*.33,R*.06,R*.13,-.15,0,TAU);g.fill();g.stroke();
+  }
+}
+function paintFace(g,k,R){
+  if(!faces)return;
+    const ey=R*(k===1&&!TKON?.1:.06),ex=R*.27,er=Math.max(1.1,R*.075);
     g.fillStyle='#2a1414';
     g.beginPath();g.arc(-ex,ey,er,0,TAU);g.arc(ex,ey,er,0,TAU);g.fill();
     g.fillStyle='rgba(255,255,255,.9)';
     g.beginPath();g.arc(-ex+er*.35,ey-er*.35,er*.38,0,TAU);g.arc(ex+er*.35,ey-er*.35,er*.38,0,TAU);g.fill();
     g.strokeStyle='#2a1414';g.lineWidth=Math.max(1,R*.045);
     g.beginPath();g.arc(0,ey+R*.08,R*.11,Math.PI*.15,Math.PI*.85);g.stroke();
-    g.fillStyle=k===11||k===10||k===7?'rgba(255,120,140,.45)':'rgba(255,190,200,.5)';
+    g.fillStyle=!TKON&&(k===11||k===10||k===7)?'rgba(255,120,140,.45)':'rgba(255,190,200,.5)';
     g.beginPath();g.ellipse(-R*.45,ey+R*.16,R*.11,R*.065,0,0,TAU);g.ellipse(R*.45,ey+R*.16,R*.11,R*.065,0,0,TAU);g.fill();
-  }
 }
 
 /* =====================================================================
@@ -804,7 +929,7 @@ function handleEvents(){
       if(e.s===11){if(window.BackRoomStats){try{BackRoomStats.add('melons',1)}catch(x){}}}
     }else if(e.type==='firstmelon'){
       G.glowId=e.id;G.glowT=4;confetti(170);sfxFanfare();
-      banner('Watermelon!','Your first one this game. Touch two together for a +'+MELON_BONUS+' bonus.',3.4);
+      banner(FR[11].n+'!','Your first one this game. Touch two together for a +'+MELON_BONUS+' bonus.',3.4);
     }else if(e.type==='clear'){
       for(let i=0;i<3;i++)burst(e.x+(Math.random()-.5)*160,e.y+(Math.random()-.5)*120,11,26);
       part(2,e.x,e.y,0,0,RADII[11]*2.4,.7,'rgba(255,209,102,.95)');
@@ -1268,9 +1393,19 @@ btn('keysP',()=>KB.open());btn('keysH',()=>KB.open());
 function facesLabel(){$('facesP').textContent='Faces: '+(faces?'on':'off')}
 btn('facesP',()=>{faces=!faces;store.set(STORE_FACES,faces?'1':'0');facesLabel();buildSprites()});
 facesLabel();
+// Turkey Week: the words that name the fruit follow the look
+const TXT={lede:$('ledeStart').textContent,chain:$('chainTxt').textContent};
+function dinnerText(){
+  $('ledeStart').textContent=TKON?'Drop dinner into the jar. Two of the same dish squish together into the next one up, from a tiny cranberry all the way to the turkey. Keep the pile under the red line.':TXT.lede;
+  $('chainTxt').textContent=TKON?'Cranberry, pecan, sprout, dinner roll, yam, apple, corn, ham, pumpkin, pumpkin pie, turkey. You only ever get the first five to drop.':TXT.chain;
+  $('topName').textContent=TKON?'turkeys':'watermelons';
+  const el=$('ptsList');el.textContent='';for(let k=2;k<=11;k++){const s=document.createElement('span');const b=document.createElement('b');b.textContent=FR[k].n;s.append(b,' +'+SCORES[k]);el.append(s)}
+}
+if(EVT){const sync=()=>{setDinner();buildSprites();dinnerText();for(const id of ['turkeyP','turkeyS']){const b=$(id),on=EVT.on();b.textContent=on?'Turkey Week on':'Turkey Week off';b.setAttribute('aria-pressed',String(on))}};
+  EVT.button($('turkeyP'),sync);EVT.button($('turkeyS'),sync)}
 
 // help text
-(function(){const el=$('ptsList');for(let k=2;k<=11;k++){const s=document.createElement('span');const b=document.createElement('b');b.textContent=FR[k].n;s.append(b,' +'+SCORES[k]);el.append(s)}$('bonusTxt').textContent='+'+MELON_BONUS})();
+$('bonusTxt').textContent='+'+MELON_BONUS;dinnerText();
 $('bestStart').textContent=G.best;
 
 let rT=0;
