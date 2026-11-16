@@ -472,9 +472,9 @@ const $=id=>document.getElementById(id);
 const V3=THREE.Vector3;
 const PREFIX='dz';
 // The island is MAP metres square; builds sit on a grid of CELL-metre cells, as in Backrooms.
-// MAPV is the island's version: it went from 1 (320 m) to 2 (240 m), then to 3 for the slower pace. Every node carries it, and the host only puts people
+// MAPV is the island's version: it went from 1 (320 m) to 2 (240 m), then to 3 for the slower pace and 4 for the November 2026 fixes. Every node carries it, and the host only puts people
 // on the same version in a match, so nobody plays on a different island from everyone else.
-const MAPV=3;   // 3: the slower pace (November 2026). The island itself is as it was in 2, but speeds, damage and the storm's times changed, so the two must not share a match.
+const MAPV=4;   // 3: the slower pace (November 2026): speeds, damage and the storm's times changed. 4: solid ramps, the smaller characters, the pace part-way back and ten weapons (new item ids), so the two must not share a match.
 let mapV=MAPV;   // only a test changes this, to play the part of a page from before the change
 const nodeV=v=>+(v&&v.mv)||1;   // nodes from before map versions existed are on the old island
 const MAP=240,CELL=4,NC=MAP/CELL,MAX_ROOM=30,PRACTICE_BOTS=11,LIVE_MS=8000,MAXL=7,COST=10,MAX_MATS=500,EDGE=3;
@@ -1406,8 +1406,17 @@ function setPieceHp(pc,hp){if(pc&&pieces.has(pc.key)&&hp<pc.hp)damagePiece(pc,pc
 // owner: the entity that built it (its own builds online are sent to everyone else in the room)
 function tryBuild(s,owner,quiet){
   if(!specValid(s))return false;
+  // A piece built by this browser (you, a Practice bot) isn't placed if it would land on someone here who can't simply be nudged
+  // clear of it (a floor through the head of someone standing on a ramp used to pop them up through it). Builds that arrive from
+  // other players are always placed, so everyone has the same pieces.
+  if(owner&&owner.local){
+    const b=s.kind==='ramp'?null:pieceBox(s),r=b?null:{x0:s.x*4,z0:s.z*4,base:s.L*4,dir:s.dir};
+    for(const e of ents){if(!e.alive||!e.present||!e.local||e.st==='bus')continue;const q=e.pos;
+      if(b?overlap(q.x,q.y,q.z,b)&&!nudgeOk(q,b):rampIn(r,q.x,q.y,q.z)&&!rampLiftOk(r,q))return false}
+  }
   const pc=makePiece(s);if(!pc)return false;
   if(pc.solid)for(const e of ents)if(e.alive&&e.present&&e.local&&overlap(e.pos.x,e.pos.y,e.pos.z,pc.solid))pushOut(e);
+  if(pc.ramp)for(const e of ents)if(e.alive&&e.present&&e.local)rampLift(pc.ramp,e);
   if(!quiet)sfxBuild(owner===player?1:1/(1+camera.position.distanceTo(pieceCentre(s))*.08));
   return true;
 }
@@ -1419,10 +1428,36 @@ for(const k in ghosts){ghosts[k].visible=false;ghosts[k].matrixAutoUpdate=false;
 function hideGhosts(){for(const k in ghosts)ghosts[k].visible=false}
 
 /* ---------- collision & rays (Backrooms' rules, with the spatial hash) ---------- */
-// Players are boxes R wide either way and H tall. Map boxes and build walls/floors are solid; ramps are walkable surfaces.
-const NB1=[],NB2=[],NB3=[],NBR=[];
+// Players are boxes R wide either way and H tall. Map boxes and build walls/floors are solid. A ramp is a walkable surface on top
+// (rampH) and, since November 2026, a solid slab RT thick underneath it: a body can't walk into it from the side or from under its
+// high end, and can't jump up through it from below (it used to be a surface only, so people came up through stairs and ramp builds).
+const NB1=[],NB2=[],NB3=[],NBR=[],NBQ=[],RT=.36;
+// how far up the slope (0 to 1, may be outside) the point x,z is
+function rampT(r,x,z){switch(r.dir){case 0:return(x-r.x0)/4;case 1:return(z-r.z0)/4;case 2:return(r.x0+4-x)/4;default:return(r.z0+4-z)/4}}
+// the underside of the slab at the lowest point of a body's footprint
+function rampUnder(r,x,z){return r.base+.15+4*clamp(rampT(r,x,z)-R/4,0,1)-RT}
+// is a body at x,y,z inside the slab: its feet more than a step below the surface under its middle (exactly where groundAt stops
+// counting the ramp as ground, so there is no gap between "standing on it" and "inside it"), its head above the underside
+function rampIn(r,x,y,z){const h=rampH(r,x,z);return h>=0&&h>y+STEP&&y+H>rampUnder(r,x,z)+.01}
+// a move is blocked if it goes into a slab, or further up under one the body is somehow already inside (it may always back out)
+function rampBlocked(nx,y,nz,ox,oz){near(rhash,nx-R,nz-R,nx+R,nz+R,NBQ);for(const r of NBQ)if(rampIn(r,nx,y,nz)&&(!rampIn(r,ox,y,oz)||rampT(r,nx,nz)>rampT(r,ox,oz)+1e-9))return r;return null}
+function rampAt(x,y,z){near(rhash,x-R,z-R,x+R,z+R,NBQ);for(const r of NBQ)if(rampIn(r,x,y,z))return r;return null}
+// A ramp built where a body stands: can the body be stood on top of it (nothing solid and no other ramp in the way up there)?
+function rampLiftOk(r,p){const top=rampH(r,p.x,p.z);return top>=0&&!solidAt(p.x,top,p.z)&&!rampAt(p.x,top,p.z)}
+function rampLift(r,e){const p=e.pos;if(!rampIn(r,p.x,p.y,p.z)||!rampLiftOk(r,p))return;p.y=rampH(r,p.x,p.z);e.vel.y=0;e.onGround=true}
+// A wall or floor built where a body stands: is there a short, clear nudge (at most 0.6 m, not into a ramp) that gets it out of the box b?
+function nudgeOk(p,b){
+  for(const [d,ax] of [[(b.max[0]+R+.002)-p.x,0],[(b.min[0]-R-.002)-p.x,0],[(b.max[2]+R+.002)-p.z,2],[(b.min[2]-R-.002)-p.z,2],[b.max[1]-p.y,1],[(b.min[1]-H)-p.y,1]])
+    if(Math.abs(d)<=.6&&shoveClear(p,d,ax,NONE))return true;
+  return false;
+}
+const NONE=[];
 function overlap(x,y,z,s){return x+R>s.min[0]&&x-R<s.max[0]&&z+R>s.min[2]&&z-R<s.max[2]&&y+H>s.min[1]+.01&&y<s.max[1]-.01}
-function blockedAt(nx,y,nz,ox,oz){near(hash,nx-R-.05,nz-R-.05,nx+R+.05,nz+R+.05,NB1);for(const s of NB1)if(overlap(nx,y,nz,s)&&!overlap(ox,y,oz,s))return s;return null}
+// What stops a move from ox,oz to nx,nz: a solid the body would run into, or one it is somehow already inside (something was built
+// on it) unless the move takes it straight back out the side its middle is on. It used to move freely inside anything it overlapped.
+function blockedAt(nx,y,nz,ox,oz){near(hash,nx-R-.05,nz-R-.05,nx+R+.05,nz+R+.05,NB1);
+  for(const s of NB1)if(overlap(nx,y,nz,s)&&(!overlap(ox,y,oz,s)||(nx-ox)*(ox-(s.min[0]+s.max[0])/2)<0||(nz-oz)*(oz-(s.min[2]+s.max[2])/2)<0))return s;
+  return null}
 function solidAt(x,y,z){near(hash,x-R-.05,z-R-.05,x+R+.05,z+R+.05,NB2);for(const s of NB2)if(overlap(x,y,z,s))return s;return null}
 function clampToMap(p){p.x=clamp(p.x,EDGE,MAP-EDGE);p.z=clamp(p.z,EDGE,MAP-EDGE);p.y=clamp(p.y,0,TOPY)}
 function shoveClear(p,d,ax,skip){
@@ -1432,6 +1467,7 @@ function shoveClear(p,d,ax,skip){
     const f=d*j/n,x=p.x+(ax===0?f:0),y=p.y+(ax===1?f:0),z=p.z+(ax===2?f:0);
     if(x<EDGE||x>MAP-EDGE||z<EDGE||z>MAP-EDGE||y<0||y>TOPY)return false;
     for(const q of NB3)if(!skip.includes(q)&&overlap(x,y,z,q))return false;
+    if(rampAt(x,y,z))return false;   // never shove a body into a ramp
   }
   return true;
 }
@@ -1440,25 +1476,30 @@ function pushOut(e){
   for(let i=0;i<4;i++){
     const s=solidAt(p.x,p.y,p.z);if(!s)break;
     const skip=NB2.filter(q=>overlap(p.x,p.y,p.z,q));
-    const c=[[(s.max[0]+R+.002)-p.x,0],[(s.min[0]-R-.002)-p.x,0],[(s.max[2]+R+.002)-p.z,2],[(s.min[2]-R-.002)-p.z,2],[s.max[1]-p.y,1],[(s.min[1]-H)-p.y,1]]
-      .sort((a,b)=>Math.abs(a[0])-Math.abs(b[0]));
-    const [d,ax]=c.find(k=>shoveClear(p,k[0],k[1],skip))||c[0];
+    // one way out per axis: toward the side of the solid the body's middle is already on, never across it to the far side
+    const c=[p.x>=(s.min[0]+s.max[0])/2?[(s.max[0]+R+.002)-p.x,0]:[(s.min[0]-R-.002)-p.x,0],p.z>=(s.min[2]+s.max[2])/2?[(s.max[2]+R+.002)-p.z,2]:[(s.min[2]-R-.002)-p.z,2],
+      p.y+H/2>=(s.min[1]+s.max[1])/2?[s.max[1]-p.y,1]:[(s.min[1]-H)-p.y,1]].sort((a,b)=>Math.abs(a[0])-Math.abs(b[0]));
+    // the shortest clear one of no more than 1.2 m (enough to leave any wall or floor); failing that the shortest, and the next pass sorts out what it lands in
+    const [d,ax]=c.find(k=>Math.abs(k[0])<=1.2&&shoveClear(p,k[0],k[1],skip))||c[0];
     if(ax===0){p.x+=d;e.vel.x=0}else if(ax===2){p.z+=d;e.vel.z=0}
     else{p.y+=d;if(d>0){e.vel.y=0;e.onGround=true}else if(e.vel.y>0)e.vel.y=0}
     clampToMap(p);moved=true;
   }
+  // nudged a little way into a ramp's slope: stand on it
+  const r=rampAt(p.x,p.y,p.z);if(r&&rampH(r,p.x,p.z)-p.y<=1.2&&rampLiftOk(r,p)){p.y=rampH(r,p.x,p.z);e.vel.y=0;e.onGround=true;moved=true}
   return moved;
 }
+// The height of a ramp's surface under a body at x,z, or -1 if the body isn't over it. Like a box, a ramp carries a body whose
+// footprint overlaps it at all (so nobody slips down past its edge into the slab); the height is taken under the body's middle.
 function rampH(r,x,z){
-  if(x<r.x0||x>r.x0+4||z<r.z0||z>r.z0+4)return -1;
-  let t;switch(r.dir){case 0:t=(x-r.x0)/4;break;case 1:t=(z-r.z0)/4;break;case 2:t=(r.x0+4-x)/4;break;default:t=(r.z0+4-z)/4}
-  return r.base+.15+4*clamp(t,0,1);
+  if(x+R<=r.x0||x-R>=r.x0+4||z+R<=r.z0||z-R>=r.z0+4)return -1;
+  return r.base+.15+4*clamp(rampT(r,x,z),0,1);
 }
 function groundAt(x,z,maxY){
   let g=0;
   near(hash,x-R,z-R,x+R,z+R,NB2);
   for(const s of NB2){if(x+R>s.min[0]&&x-R<s.max[0]&&z+R>s.min[2]&&z-R<s.max[2]&&s.max[1]<=maxY&&s.max[1]>g)g=s.max[1]}
-  near(rhash,x,z,x,z,NBR);
+  near(rhash,x-R,z-R,x+R,z+R,NBR);
   for(const r of NBR){const h=rampH(r,x,z);if(h>=0&&h<=maxY&&h>g)g=h}
   return g;
 }
@@ -1473,9 +1514,13 @@ function moveEntity(e,dt){
     const delta=(ax===0?e.vel.x:e.vel.z)*dt/n;if(!delta)continue;
     const nx=ax===0?p.x+delta:p.x,nz=ax===2?p.z+delta:p.z;
     const s=blockedAt(nx,p.y,nz,p.x,p.z);
-    if(!s){p.x=nx;p.z=nz;continue}
+    if(!s){
+      if(rampBlocked(nx,p.y,nz,p.x,p.z)){if(ax===0)e.vel.x=0;else e.vel.z=0;e.blocked=true;continue}
+      // onto a ramp's slope: follow it up straight away (in the air too, once you're no longer rising), unless there's no headroom
+      if(e.onGround||e.vel.y<=0){const g=groundAt(nx,nz,p.y+STEP);if(g>p.y+.001){if(solidAt(nx,g,nz)||rampAt(nx,g,nz)){if(ax===0)e.vel.x=0;else e.vel.z=0;e.blocked=true;continue}p.y=g;e.vel.y=0;e.onGround=true}}
+      p.x=nx;p.z=nz;continue}
     const up=s.max[1]-p.y;
-    if(up>0&&up<=STEP&&e.onGround&&!solidAt(nx,s.max[1]+.001,nz)){p.x=nx;p.z=nz;p.y=s.max[1]+.001;continue}
+    if(up>0&&up<=STEP&&e.onGround&&!solidAt(nx,s.max[1]+.001,nz)&&!rampAt(nx,s.max[1]+.001,nz)){p.x=nx;p.z=nz;p.y=s.max[1]+.001;continue}
     if(ax===0)e.vel.x=0;else e.vel.z=0;e.blocked=true;
   }
   clampToMap(p);
@@ -1487,7 +1532,7 @@ function moveEntity(e,dt){
     if(e.vel.y<=0){
       const ground=groundAt(p.x,p.z,p.y+STEP);
       if(ny<=ground||(e.onGround&&ground>p.y-STEP&&e.vel.y>-5)){
-        if(ground>p.y&&solidAt(p.x,ground,p.z)){
+        if(ground>p.y&&(solidAt(p.x,ground,p.z)||rampAt(p.x,ground,p.z))){
           if(groundAt(sx,sz,p.y+H)<ground){p.x=sx;p.z=sz;e.vel.x=e.vel.z=0;e.blocked=true}
           ny=p.y;
         }else ny=ground;
@@ -1497,7 +1542,10 @@ function moveEntity(e,dt){
     }else{
       e.onGround=false;let lim=TOPY-H;
       near(hash,p.x-R,p.z-R,p.x+R,p.z+R,NB2);
-      for(const s of NB2){if(p.x+R>s.min[0]&&p.x-R<s.max[0]&&p.z+R>s.min[2]&&p.z-R<s.max[2]&&s.min[1]>=p.y+H-.05&&s.min[1]-H<lim)lim=s.min[1]-H}
+      for(const s of NB2){if(p.x+R>s.min[0]&&p.x-R<s.max[0]&&p.z+R>s.min[2]&&p.z-R<s.max[2]&&s.min[1]>=p.y+H-.05&&s.min[1]-H<lim)lim=s.min[1]-H;
+        else if(overlap(p.x,p.y,p.z,s)&&(s.min[1]+s.max[1])/2>p.y+H/2)lim=Math.min(lim,p.y)}   // already into something overhead: no higher
+      near(rhash,p.x-R,p.z-R,p.x+R,p.z+R,NBQ);
+      for(const r of NBQ){if(p.x+R>r.x0&&p.x-R<r.x0+4&&p.z+R>r.z0&&p.z-R<r.z0+4){const u=rampUnder(r,p.x,p.z);if(u>=p.y+H-.05){if(u-H<lim)lim=u-H}else if(rampIn(r,p.x,p.y,p.z))lim=Math.min(lim,p.y)}}
       if(ny>lim){ny=lim;e.vel.y=0}
     }
     p.y=ny;
@@ -3139,7 +3187,7 @@ if(navigator.webdriver)window.__dz={get state(){return state},get online(){retur
   give(t,r){takeItem(player,{t,r:r|0,n:WEAP[t]?WEAP[t].mag:HEALS[t]?1:t==='mt'?100:60})},
   fire(){const w=heldW(player),s=heldItem(player);updateCamera(0);playerShoot();if(s&&w)s.n=w.mag;player.cd=0},
   draws(){return renderer.info.render.calls},
-  setNoRender(v){window.__noRender=!!v},onNode,updateRemotes,renderOnce(){mpFlush();syncLimbs();drawScene()},get fxTier(){return fxTier},set fxTier(v){fxTier=v},get lookKey(){return lookKey},mpieces,mpBreak,mpSetHp,resetMap,mpAt,allRuns,brokenBits,applyBits,sendEv,get brokenN(){return brokenN},hash,setMapV(v){mapV=v},get mapV(){return mapV},mapSize:MAP};
+  setNoRender(v){window.__noRender=!!v},onNode,updateRemotes,renderOnce(){mpFlush();syncLimbs();drawScene()},get fxTier(){return fxTier},set fxTier(v){fxTier=v},get lookKey(){return lookKey},mpieces,mpBreak,mpSetHp,resetMap,mpAt,allRuns,brokenBits,applyBits,sendEv,get brokenN(){return brokenN},hash,setMapV(v){mapV=v},get mapV(){return mapV},mapSize:MAP,removePiece,wallSpec,pushOut,SPEED,AIR,BODY:{R,H},buildings,rampIn,updateBots,updatePlayer};
 
 requestAnimationFrame(t=>{last=t;frame(t)});
 })();
