@@ -322,6 +322,7 @@ body.touch #hint,body.touch #itemTip{bottom:calc(210px + var(--sab))}
       <div class="sticker menu-card">
         <div class="field"><label class="lbl" for="inName">Driver name</label><input class="inp" id="inName" maxlength="14" autocomplete="off" spellcheck="false"></div>
         <div class="field"><span class="lbl" id="swLbl">Kart paint</span><div id="swatches" role="radiogroup" aria-labelledby="swLbl"></div></div>
+        <div class="field" id="turkeyField" hidden><span class="lbl">Turkey Week</span><div class="row"><button id="bTurkey" class="chip" type="button" aria-pressed="true" style="white-space:nowrap;flex:0 0 auto">Turkey karts on</button><span class="mode-desc" id="turkeyNote" style="margin:0"></span></div></div>
         <div class="field"><label class="lbl" for="inRoom">Room code</label>
           <div class="row"><input class="inp" id="inRoom" maxlength="20" autocomplete="off" spellcheck="false"><button id="bNewRoom" class="chip" type="button">New code</button></div>
         </div>
@@ -343,6 +344,7 @@ body.touch #hint,body.touch #itemTip{bottom:calc(210px + var(--sab))}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="../keybinds.js"></script>
+<script src="../events.js"></script>
 <script>
 (() => {
 'use strict';
@@ -1070,10 +1072,79 @@ const spikeGeo = new THREE.ConeGeometry(.3, 1, 6), spikeMat = lam(0xf4f4f8), spi
 const dripGeo = new THREE.CylinderGeometry(.11, .17, 1, 6).translate(0, -.5, 0);      // hangs from its top, so scale.y makes it run down the kart
 const nooseGeo = new THREE.TorusGeometry(2.35, .14, 6, 28), nooseMat = new THREE.MeshBasicMaterial({ color: 0xff7a3d });
 
+// ---------- Turkey Week (../events.js) ----------
+// For one week every kart is drawn as a turkey on wheels: the usual body is swapped for a bird whose tail fan is in the
+// driver's paint colour, so players are still told apart the same way (and the hit flash still shows on the tail).
+// The bird is two meshes made once and shared by every kart: everything in fixed colours (vertex colours), and the
+// painted feathers. It is only a look on this computer: sizes for hits, items and what is sent to the room are the
+// same, and the Turkey Week button in the menu puts the karts back (dressKarts).
+const EVT = window.BackRoomEvents && BackRoomEvents.turkey;
+const TK = { base: 0x2e2942, body: 0x8a5a2b, chest: 0xa66b34, wing: 0x5a3219, beak: 0xf4a41c, red: 0xd8392b, eye: 0xffffff, ink: 0x1b1733, feather: 0xffc93c };
+const turkeyOn = () => !!(EVT && EVT.on());
+let turkeyGeos = null;
+const turkeyMat = lam(0xffffff, { vertexColors: true });
+// several shapes as one geometry: each is moved into place and (optionally) given a colour as vertex colours
+function mergeGeo(parts) {
+  const pos = [], nor = [], col = [], o = new THREE.Object3D(), v = new THREE.Vector3(), n3 = new THREE.Matrix3(), c = new THREE.Color();
+  for (const q of parts) {
+    const geo = q.g.index ? q.g.toNonIndexed() : q.g, P = geo.attributes.position, N = geo.attributes.normal;
+    o.position.set(q.p[0], q.p[1], q.p[2]); o.scale.set(q.s[0], q.s[1], q.s[2]); o.rotation.set(q.r ? q.r[0] : 0, q.r ? q.r[1] : 0, q.r ? q.r[2] : 0); o.updateMatrix();
+    n3.getNormalMatrix(o.matrix); c.set(q.c == null ? 0xffffff : q.c);
+    for (let i = 0; i < P.count; i++) {
+      v.fromBufferAttribute(P, i).applyMatrix4(o.matrix); pos.push(v.x, v.y, v.z);
+      v.fromBufferAttribute(N, i).applyMatrix3(n3).normalize(); nor.push(v.x, v.y, v.z);
+      col.push(c.r, c.g, c.b);
+    }
+    if (geo !== q.g) geo.dispose();
+  }
+  const out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); out.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  out.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); out.computeBoundingSphere();
+  return out;
+}
+function turkeyParts() {
+  if (turkeyGeos) return turkeyGeos;
+  const fixed = [], painted = [], cone = new THREE.ConeGeometry(1, 1, 10), tube = new THREE.CylinderGeometry(1, 1, 1, 10);
+  const F = (g, c, p, s, r) => fixed.push({ g, c, p, s, r });
+  F(cubeGeo, TK.base, [0, .55, 0], [2.2, .3, 3.3]);                                   // the low chassis the wheels sit on
+  F(ballGeo, TK.body, [0, 1.3, -.2], [1.1, .95, 1.5]);                                // body
+  F(ballGeo, TK.chest, [0, 1.25, .95], [.85, .8, .8]);                                // chest
+  F(tube, TK.body, [0, 2.0, 1.28], [.27, 1.1, .27], [.28, 0, 0]);                     // neck, leaning forward
+  F(ballGeo, TK.chest, [0, 2.62, 1.47], [.42, .42, .44]);                             // head
+  F(cone, TK.beak, [0, 2.58, 2.02], [.17, .5, .14], [Math.PI / 2, 0, 0]);             // beak
+  F(ballGeo, TK.red, [.07, 2.3, 1.84], [.1, .27, .11]);                               // wattle
+  F(ballGeo, TK.red, [0, 2.78, 1.86], [.07, .07, .16]);                               // snood over the beak
+  for (const sd of [-1, 1]) {
+    F(ballGeo, TK.eye, [.25 * sd, 2.76, 1.7], [.13, .13, .13]);
+    F(ballGeo, TK.ink, [.29 * sd, 2.77, 1.8], [.065, .065, .065]);
+    F(ballGeo, TK.wing, [1.1 * sd, 1.38, -.2], [.2, .6, 1.05], [0, 0, .12 * sd]);     // wings
+  }
+  // tail fan: nine feathers, the driver's paint and gold in turn
+  for (let i = 0; i < 9; i++) {
+    const a = (i - 4) * .33, q = { g: ballGeo, p: [Math.sin(a) * .9, 1.0 + Math.cos(a) * .9, -1.45], s: [.3, .85, .09], r: [0, 0, -a] };
+    if (i % 2) { q.c = TK.feather; fixed.push(q); } else painted.push(q);
+  }
+  turkeyGeos = { fixed: mergeGeo(fixed), painted: mergeGeo(painted) };
+  cone.dispose(); tube.dispose();
+  return turkeyGeos;
+}
+// show the bird or the usual body on one kart (the bird is only built the first time it is needed)
+function dressKart(P) {
+  const on = turkeyOn();
+  if (on && !P.turkey) {
+    const G = turkeyParts(); P.turkey = new THREE.Group();
+    for (const [geo, mat] of [[G.fixed, turkeyMat], [G.painted, P.paint]]) { const m = new THREE.Mesh(geo, mat); m.castShadow = true; if (P.ghosted) { m.userData.mat = mat; m.material = ghostMat; } P.turkey.add(m); }
+    P.body.add(P.turkey);
+  }
+  if (P.turkey) P.turkey.visible = on;
+  P.shellG.visible = !on;
+}
+function dressKarts() { for (const k of karts.values()) dressKart(k.parts); }
+
 function buildKart(color) {
-  const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
+  const g = new THREE.Group(), body = new THREE.Group(), shellG = new THREE.Group(); g.add(body); body.add(shellG);
   const paint = lam(new THREE.Color(color)); paint.emissive = new THREE.Color(0);
-  const add = (geo, mat, x, y, z, par = body) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; par.add(m); return m; };
+  const add = (geo, mat, x, y, z, par = shellG) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; par.add(m); return m; };
   add(new THREE.BoxGeometry(2.3, .32, 3.5), trimMat, 0, .55, 0);
   add(new THREE.BoxGeometry(2.0, .6, 2.2), paint, 0, .98, -.25);
   add(new THREE.BoxGeometry(1.7, .5, 1.3), paint, 0, .88, 1.3);
@@ -1112,7 +1183,9 @@ function buildKart(color) {
   }
   // The Angry Whip's lasso loop, shown while the kart hangs from it
   const noose = new THREE.Mesh(nooseGeo, nooseMat); noose.rotation.x = Math.PI / 2; noose.position.y = 1.1; noose.visible = false; g.add(noose);
-  return { group: g, body, paint, wheels, pivots, shield, spikes, bow, ice, goo, gooMat, drips, noose };
+  const P = { group: g, body, shellG, turkey: null, ghosted: false, paint, wheels, pivots, shield, spikes, bow, ice, goo, gooMat, drips, noose };
+  dressKart(P);
+  return P;
 }
 
 function makeLabel(name, color) {
@@ -1463,7 +1536,7 @@ class Kart {
     P.ice.visible = this.frozen > 0;
     const gh = this.ghost > 0;
     if (gh !== !!this.ghostOn) {
-      this.ghostOn = gh;
+      this.ghostOn = gh; P.ghosted = gh;
       const swap = m => { if (!m.isMesh) return; if (gh) { m.userData.mat = m.material; m.material = ghostMat; } else if (m.userData.mat) m.material = m.userData.mat; };
       P.body.traverse(swap); P.wheels.forEach(w => w.traverse(swap));
       this.label.visible = !this.isMe && !gh;
@@ -3305,6 +3378,15 @@ $('#bInvite').addEventListener('click', () => {
   const done = ok => { btn.textContent = ok ? 'Link copied' : url; setTimeout(() => { btn.textContent = 'Copy invite link'; }, 2500); };
   try { navigator.clipboard.writeText(url).then(() => done(true), () => done(false)); } catch (_) { done(false); }
 });
+// Turkey Week: the menu row only shows while the event is running; the choice is saved by events.js for both games.
+function paintTurkey() {
+  const live = !!(EVT && EVT.live()), on = turkeyOn();
+  $('#turkeyField').hidden = !live;
+  $('#bTurkey').textContent = on ? 'Turkey karts on' : 'Turkey karts off'; $('#bTurkey').setAttribute('aria-pressed', String(on));
+  $('#turkeyNote').textContent = live ? (on ? 'Every kart is a turkey until ' + EVT.until + '.' : 'Runs until ' + EVT.until + '.') : '';
+}
+$('#bTurkey').addEventListener('click', () => { if (!EVT) return; EVT.set(!turkeyOn()); dressKarts(); paintTurkey(); });
+paintTurkey();
 function toggleMute() { Snd.on = !Snd.on; if (!Snd.on) Snd.engineSet(null); store.set('sound', Snd.on ? '1' : '0'); $('#bMute').textContent = Snd.on ? 'Sound on' : 'Sound off'; }
 $('#bMute').textContent = Snd.on ? 'Sound on' : 'Sound off';
 $('#bMute').addEventListener('click', toggleMute);
