@@ -90,7 +90,17 @@ button:disabled{opacity:.5;cursor:default}
 .bar .fill{position:absolute;inset:0 auto 0 0;transition:width .12s}
 #shFill{background:var(--sh)} #hpFill{background:var(--hp)}
 #shNum{color:var(--sh)} #hpNum{color:var(--hp)}
-#mats{font-size:14px;font-weight:700;letter-spacing:.1em;color:#f2d29b;text-shadow:0 1px 2px #000}
+/* Scrap, the building material: a chip of its own next to the build pieces, with a stack of planks and the count in big figures.
+   It turns red when you can't afford a piece, and each piece shows what it costs with the same little plank. */
+.slot.scrap{width:88px;border-color:#a87a3c;background:rgba(58,38,12,.92)}
+.slot.scrap .pl,.slot.build .am::before{background:repeating-linear-gradient(#e2ad66 0 4px,#7a4a1c 4px 5px);border:1px solid #7a4a1c;border-radius:1px}
+.slot.scrap .pl{position:absolute;left:7px;top:10px;width:22px;height:19px}
+.slot.scrap b{position:absolute;right:7px;top:5px;font-size:30px;font-weight:800;line-height:1;color:#ffd79a;font-variant-numeric:tabular-nums;text-shadow:0 2px 2px rgba(0,0,0,.6)}
+.slot.scrap .nm{color:#f2d29b;letter-spacing:.1em}
+.slot.scrap.low{border-color:var(--bad)} .slot.scrap.low b{color:#ff9a8a}
+.slot.build .am{color:#ffd79a}
+.slot.build .am::before{content:"";display:inline-block;width:9px;height:9px;margin-right:3px;vertical-align:-1px}
+.slot.build.cant .am{color:#ff9a8a} .slot.build.cant .ic{opacity:.45}
 
 #slots{position:absolute;right:calc(16px + env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));display:flex;gap:5px;flex-wrap:nowrap;justify-content:flex-end}
 .slot{width:62px;height:60px;background:var(--panel);border:1px solid var(--line);position:relative;display:flex;flex-direction:column;justify-content:flex-end;padding:3px 5px;border-radius:5px;overflow:hidden}
@@ -211,7 +221,7 @@ details.ctrl[open] .keys{margin-top:10px}
 .rank li .k{color:var(--ink-dim);font-variant-numeric:tabular-nums}
 .rank li.me{color:var(--sun)}
 @media (max-width:960px){
-  body:not(.touch) .slot{width:54px;height:54px} body:not(.touch) .slot .nm{font-size:11px} body:not(.touch) .slot .ic{width:46px;height:23px;top:16px}
+  body:not(.touch) .slot{width:54px;height:54px} body:not(.touch) .slot .nm{font-size:11px} body:not(.touch) .slot.scrap{width:78px} body:not(.touch) .slot.scrap b{font-size:26px} body:not(.touch) .slot .ic{width:46px;height:23px;top:16px}
   body:not(.touch) #vitals{width:min(250px,34vw)} body:not(.touch) .bar.hp .num{font-size:28px;width:48px} body:not(.touch) .bar.sh .num{width:48px}
 }
 @media (max-width:820px){
@@ -223,6 +233,7 @@ details.ctrl[open] .keys{margin-top:10px}
   .slot{width:50px;height:50px}
   .slot .nm{font-size:11px}
   .slot .ic{width:42px;height:21px;top:15px}
+  .slot.scrap{width:72px} .slot.scrap b{font-size:24px}
   #mapBox{width:128px} #mini{width:128px;height:128px}
   #feed{top:calc(222px + env(safe-area-inset-top,0px))}
 }
@@ -250,7 +261,7 @@ body.touch.inlobby #hud,body.touch.inlobby #banner,body.touch.inlobby #dmg{visib
 body.touch #vitals{left:calc(60px + env(safe-area-inset-left,0px));bottom:auto;top:calc(8px + env(safe-area-inset-top,0px));width:132px;gap:2px;padding:3px 6px 5px;border-radius:6px}
 body.touch .bar .num{font-size:15px;width:30px}
 body.touch .bar .track{height:9px}
-body.touch #mats{font-size:11px}
+body.touch .slot.scrap{width:64px} body.touch .slot.scrap b{font-size:22px;top:3px;right:4px} body.touch .slot.scrap .pl{left:4px;top:6px;width:16px;height:14px}
 body.touch .slot.on{transform:none}
 body.touch #ammo .wn{display:none} body.touch #ammo b{font-size:20px}
 body.touch #info{font-size:11px;padding:1px 6px} body.touch #info b{font-size:15px}
@@ -277,9 +288,11 @@ body.touch #placeLbl{font-size:15px}
 body.touch #net{font-size:14px}
 @media (orientation:portrait){
   body.touch #slots{left:50%;transform:translateX(-50%);top:calc(184px + env(safe-area-inset-top,0px))}
-  body.touch .slot{width:40px;height:42px}
-  body.touch .slot .ic{width:36px;height:18px;top:11px}
+  body.touch .slot{width:36px;height:42px;padding:2px}
+  body.touch .slot .ic{width:34px;height:17px;top:12px}
+  body.touch .slot .nm{font-size:9px}
   body.touch .slot.gap{margin-left:4px}
+  body.touch .slot.scrap{width:48px} body.touch .slot.scrap b{font-size:17px;right:3px;top:5px} body.touch .slot.scrap .pl{width:10px;height:13px;left:3px}
   body.touch #ammo{left:50%;transform:translateX(-50%);top:calc(232px + env(safe-area-inset-top,0px))}
   body.touch #feed{top:calc(64px + env(safe-area-inset-top,0px));max-width:calc(100vw - 150px)}
   body.touch #topc{top:calc(262px + env(safe-area-inset-top,0px))}
@@ -326,7 +339,6 @@ body.touch #net{font-size:14px}
     <div id="prompt" hidden></div>
     <div id="hint" hidden></div>
     <div id="vitals">
-      <div id="mats">SCRAP 0</div>
       <div class="bar sh"><span class="num" id="shNum">0</span><div class="track"><div class="fill" id="shFill" style="width:0"></div></div></div>
       <div class="bar hp"><span class="num" id="hpNum">100</span><div class="track"><div class="fill" id="hpFill" style="width:100%"></div></div></div>
     </div>
@@ -337,7 +349,8 @@ body.touch #net{font-size:14px}
       <div class="slot" id="slot1"><i class="ic"></i><span class="k" data-kb="slot2" data-kb-short>2</span><span class="nm"></span><span class="am"></span><i class="rar"></i></div>
       <div class="slot" id="slot2"><i class="ic"></i><span class="k" data-kb="slot3" data-kb-short>3</span><span class="nm"></span><span class="am"></span><i class="rar"></i></div>
       <div class="slot" id="slot3"><i class="ic"></i><span class="k" data-kb="slot4" data-kb-short>4</span><span class="nm"></span><span class="am"></span><i class="rar"></i></div>
-      <div class="slot build gap" id="slotwall"><i class="ic"></i><span class="k" data-kb="wall" data-kb-short>Q</span><span class="nm">Wall</span><span class="am">10</span></div>
+      <div class="slot scrap gap" id="matsBox"><i class="pl"></i><b id="mats">0</b><span class="nm">Scrap</span></div>
+      <div class="slot build" id="slotwall"><i class="ic"></i><span class="k" data-kb="wall" data-kb-short>Q</span><span class="nm">Wall</span><span class="am">10</span></div>
       <div class="slot build" id="slotfloor"><i class="ic"></i><span class="k" data-kb="floor" data-kb-short>F</span><span class="nm">Floor</span><span class="am">10</span></div>
       <div class="slot build" id="slotramp"><i class="ic"></i><span class="k" data-kb="ramp" data-kb-short>C</span><span class="nm">Ramp</span><span class="am">10</span></div>
     </div>
@@ -2731,7 +2744,7 @@ function onlineTick(){
 
 /* ---------- HUD ---------- */
 const hud={root:$('hud'),feed:$('feed'),banner:$('banner'),hint:$('hint'),cross:$('cross'),cl:$('cl'),cr:$('cr'),ct:$('ct'),cb:$('cb'),hitm:$('hitm'),hurt:$('hurt'),scope:$('scope'),scopeR:$('scopeR'),sight:$('sight'),sightR:$('sightR'),
-  reload:$('reload'),reloadF:$('reloadFill'),hpN:$('hpNum'),hpF:$('hpFill'),shN:$('shNum'),shF:$('shFill'),tags:$('tags'),net:$('net'),mats:$('mats'),ammo:$('ammo'),prompt:$('prompt'),
+  reload:$('reload'),reloadF:$('reloadFill'),hpN:$('hpNum'),hpF:$('hpFill'),shN:$('shNum'),shF:$('shFill'),tags:$('tags'),net:$('net'),mats:$('mats'),matsBox:$('matsBox'),ammo:$('ammo'),prompt:$('prompt'),
   useBar:$('useBar'),useLbl:$('useLbl'),useFill:$('useFill'),alive:$('aliveN'),kills:$('killN'),stormT:$('stormT'),tint:$('stormTint'),place:$('placeLbl'),strip:$('compStrip'),safe:$('compSafe'),warn:$('stormWarn'),swT:$('swTitle'),swS:$('swSub')};
 // the compass strip: three turns of the dial side by side (3 px a degree), slid sideways as you turn
 (()=>{const N=['N','NE','E','SE','S','SW','W','NW'];let h='';for(let d=0;d<1080;d+=15){const x=d*3;h+=d%45?`<i style="left:${x}px"></i>`:`<span${d%90?' class="s"':''} style="left:${x}px">${N[d/45%8]}</span>`}hud.strip.innerHTML=h})();
@@ -2756,13 +2769,13 @@ function updateHud(dt){
   const key=[Math.ceil(p.hp),Math.ceil(p.sh),p.sel,mode,buildType,p.mats,p.inv.map(x=>x?x.t+x.r+x.n:'-').join(','),p.reloadT>0,w?p.ammo[w.am]:0,p.useT>0].join('|');
   if(key!==lastHud){lastHud=key;
     hud.hpN.textContent=Math.max(0,Math.ceil(p.hp));hud.hpF.style.width=Math.max(0,p.hp)+'%';
-    hud.shN.textContent=Math.ceil(p.sh);hud.shF.style.width=p.sh+'%';hud.mats.textContent='SCRAP '+p.mats;
+    hud.shN.textContent=Math.ceil(p.sh);hud.shF.style.width=p.sh+'%';if(hud.mats._n!==p.mats){const up=hud.mats._n!=null;hud.mats._n=p.mats;hud.mats.textContent=p.mats;if(up&&!RM&&hud.mats.animate)hud.mats.animate([{transform:'scale(1.35)'},{transform:'scale(1)'}],{duration:280,easing:'ease-out'})}   // a little jump when the count changeshud.matsBox.classList.toggle('low',p.mats<COST);
     for(let i=0;i<4;i++){const el=$('slot'+i),it=p.inv[i],[nm,am]=slotLabel(it);el.querySelector('.nm').textContent=nm;el.querySelector('.am').textContent=it&&WEAP[it.t]&&p.sel===i&&p.reloadT>0?'reload':am;
       el.querySelector('.rar').style.background=it&&WEAP[it.t]?RARH[it.r|0]:'transparent';slotIcon(el,it?(WEAP[it.t]?it.t:HEALS[it.t]&&HEALS[it.t].sh?'sh':'hp'):'');
       el.classList.toggle('empty',!it);el.classList.toggle('on',mode==='combat'&&p.sel===i)}
     $('vitals').classList.toggle('low',p.hp<=30);
     $('slotX').classList.toggle('on',mode==='combat'&&p.sel<0);$('slotX').querySelector('.nm').textContent=touchUI?'Bar':'Crowbar';slotIcon($('slotX'),'cb');
-    for(const k of ['wall','floor','ramp']){const el=$('slot'+k);el.classList.toggle('on',mode==='build'&&buildType===k);slotIcon(el,k);el.querySelector('.am').style.color=p.mats>=COST?'':'#ff9a8a'}
+    for(const k of ['wall','floor','ramp']){const el=$('slot'+k);el.classList.toggle('on',mode==='build'&&buildType===k);slotIcon(el,k);el.classList.toggle('cant',p.mats<COST)}
     hud.ammo.innerHTML=w?`<span class="wn" style="color:${RARH[s.r|0]}">${RAR[s.r|0]} ${w.name}</span><span><b>${s.n}</b><small> / ${p.ammo[w.am]}</small></span>`:'';hud.ammo.hidden=!w;if(w)hud.ammo.classList.toggle('low',s.n<=Math.max(1,w.mag*.25));
     hud.hint.hidden=mode!=='build';if(mode==='build')hud.hint.textContent='Build · '+buildType+(p.mats<COST?' · needs '+COST+' scrap':touchUI?' · tap Fire to place':' · click to place');
   }
