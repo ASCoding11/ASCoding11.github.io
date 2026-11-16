@@ -498,13 +498,18 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.75));
 renderer.domElement.id='view';renderer.domElement.tabIndex=-1;
 $('app').prepend(renderer.domElement);
 const scene=new THREE.Scene();
-const FOG=0xa49863;
+const FOG=0x8a7d4c;
 scene.background=new THREE.Color(FOG);
 scene.fog=new THREE.Fog(FOG,9,60);
 const camera=new THREE.PerspectiveCamera(72,1,0.05,200);
-const amb=new THREE.AmbientLight(0xfff0c4,0.55);scene.add(amb);
-scene.add(new THREE.HemisphereLight(0xfff8dc,0x5e4f22,0.78));
-const sun=new THREE.DirectionalLight(0xfff3cf,0.22);sun.position.set(0.3,1,0.2);scene.add(sun);
+// Light (the picture only, nothing here is sent to anyone): a soft overall fill, plus a warm light from one side and a
+// weak cool one from the other, so walls that face different ways, and the two sides of a character, come out in
+// different shades and corners can be read. The carpet is darker than the walls and has a pool of light per cell.
+const AMB=0.40;
+const amb=new THREE.AmbientLight(0xfff0c4,AMB);scene.add(amb);
+scene.add(new THREE.HemisphereLight(0xfff6d6,0x75643a,0.62));
+const sun=new THREE.DirectionalLight(0xfff0c8,0.38);sun.position.set(0.7,0.6,0.35);scene.add(sun);
+const fill=new THREE.DirectionalLight(0xc4d2c4,0.14);fill.position.set(-0.3,0.25,-0.9);scene.add(fill);
 let VW=innerWidth,VH=innerHeight;
 function resize(){const a=document.getElementById('app'),w=VW=a.clientWidth||innerWidth,h=VH=a.clientHeight||innerHeight;renderer.setSize(w,h,false);renderer.domElement.style.width='100%';renderer.domElement.style.height='100%';camera.aspect=w/h;camera.updateProjectionMatrix()}
 addEventListener('resize',resize);resize();
@@ -519,12 +524,16 @@ const wallTex=canvasTex(256,256,(g,w,h)=>{
   for(let x=0;x<w;x+=32){g.fillStyle='rgba(255,244,190,.16)';g.fillRect(x+9,0,14,h);g.fillStyle='rgba(110,85,25,.13)';g.fillRect(x+8,0,1,h);g.fillRect(x+23,0,1,h)}
   g.strokeStyle='rgba(120,92,28,.3)';g.lineWidth=1.4;
   for(let x=0;x<w;x+=32)for(let y=0;y<h;y+=32){const cx=x+16,cy=y+((x/32)%2?16:0);g.beginPath();g.moveTo(cx,cy-5);g.lineTo(cx+4,cy);g.lineTo(cx,cy+5);g.lineTo(cx-4,cy);g.closePath();g.stroke()}
-  noise(g,w,h,14);blot(g,w,h,3,'rgba(95,70,20,.10)');
+  noise(g,w,h,14);blot(g,w,h,3,'rgba(95,70,20,.06)');
 },2,6);
-const carpetTex=canvasTex(256,256,(g,w,h)=>{
-  g.fillStyle='#9a8748';g.fillRect(0,0,w,h);noise(g,w,h,30);
-  for(let i=0;i<2200;i++){g.fillStyle=Math.random()<.5?'rgba(190,170,100,.25)':'rgba(60,48,18,.25)';g.fillRect(Math.random()*w,Math.random()*h,1,2)}
-  blot(g,w,h,4,'rgba(60,45,15,.20)');
+const carpetTex=canvasTex(512,512,(g,w,h)=>{
+  g.fillStyle='#75673f';g.fillRect(0,0,w,h);noise(g,w,h,26);
+  for(let i=0;i<9000;i++){g.fillStyle=Math.random()<.5?'rgba(170,152,98,.22)':'rgba(40,32,12,.25)';g.fillRect(Math.random()*w,Math.random()*h,1,2+Math.random()*2)}
+  blot(g,w,h,5,'rgba(48,36,12,.15)');
+  // one repeat of this texture is one 4 m cell, so this is the pool of light under the cell's ceiling panel, fading
+  // towards the walls (which also grounds the walls: the carpet is darkest where it meets them)
+  const pl=g.createRadialGradient(w/2,h/2,w*.08,w/2,h/2,w*.74);pl.addColorStop(0,'#fff');pl.addColorStop(.5,'#dad3bf');pl.addColorStop(1,'#978e79');
+  g.globalCompositeOperation='multiply';g.fillStyle=pl;g.fillRect(0,0,w,h);g.globalCompositeOperation='source-over';
 },N,N);
 const ceilTex=canvasTex(256,256,(g,w,h)=>{
   g.fillStyle='#d8d1ae';g.fillRect(0,0,w,h);
@@ -551,10 +560,28 @@ const fabricTex=canvasTex(128,64,(g,w,h)=>{
 
 /* ---------- materials & shared geometry ---------- */
 function gradBox(w,h,d){const geo=new THREE.BoxGeometry(w,h,d);const p=geo.attributes.position;const c=new Float32Array(p.count*3);for(let i=0;i<p.count;i++){const k=.64+.36*((p.getY(i)+h/2)/h);c[i*3]=k;c[i*3+1]=k;c[i*3+2]=k*.97}geo.setAttribute('color',new THREE.BufferAttribute(c,3));return geo}
+// Joins box geometries into one (position, normal, uv, colour), so a wall and its skirting board, or all the parts of a
+// gun, are still a single draw call.
+function joinGeos(list){
+  const out=new THREE.BufferGeometry(),idx=[];let n=0;
+  for(const k of ['position','normal','uv','color']){
+    const size=k==='uv'?2:3,a=new Float32Array(list.reduce((t,g)=>t+g.attributes[k].array.length,0));let o=0;
+    for(const g of list){a.set(g.attributes[k].array,o);o+=g.attributes[k].array.length}
+    out.setAttribute(k,new THREE.BufferAttribute(a,size));
+  }
+  for(const g of list){const ix=g.index.array;for(let i=0;i<ix.length;i++)idx.push(ix[i]+n);n+=g.attributes.position.count}
+  out.setIndex(idx);return out;
+}
+function flatBox(w,h,d,col){const g=new THREE.BoxGeometry(w,h,d),c=new Float32Array(g.attributes.position.count*3);for(let i=0;i<c.length;i+=3){c[i]=col[0];c[i+1]=col[1];c[i+2]=col[2]}g.setAttribute('color',new THREE.BufferAttribute(c,3));return g}
+// boxes [w,h,d, x,y,z, turn about y, colour] joined into one geometry
+function parts(list){return joinGeos(list.map(([w,h,d,x,y,z,ry,col])=>{const g=flatBox(w,h,d,col||[1,1,1]);if(ry)g.rotateY(ry);g.translate(x,y,z);return g}))}
+// a dark skirting board round the foot of a wall, post or pillar (drawn only: the collision boxes are the same as before)
+const SKIRT=[.34,.26,.19];
 const wallMat=new THREE.MeshLambertMaterial({map:wallTex,vertexColors:true});
 const pillarTex=wallTex.clone();pillarTex.needsUpdate=true;pillarTex.repeat.set(.5,6);
 const pillarMat=new THREE.MeshLambertMaterial({map:pillarTex,vertexColors:true});
-const geoWallH=gradBox(4,CEIL,.3),geoWallV=gradBox(.3,CEIL,4),geoPost=gradBox(.36,CEIL,.36),geoPillar=gradBox(.9,CEIL,.9),geoBigPillar=gradBox(1.5,CEIL,1.5);
+const skirtW=(w,d)=>{const b=flatBox(w+(w<3?.1:0),w<3&&d<3?.176:.17,d+(d<3?.1:0),SKIRT);b.translate(0,-CEIL/2+.085,0);return joinGeos([gradBox(w,CEIL,d),b])};
+const geoWallH=skirtW(4,.3),geoWallV=skirtW(.3,4),geoPost=skirtW(.36,.36),geoPillar=skirtW(.9,.9),geoBigPillar=skirtW(1.5,1.5);
 const lowMat=new THREE.MeshLambertMaterial({map:fabricTex,vertexColors:true});
 const geoLowH=gradBox(4,1.25,.12),geoLowV=gradBox(.12,1.25,4);
 const plyMat=new THREE.MeshLambertMaterial({map:plyTex});
@@ -562,7 +589,12 @@ const geoPWall=new THREE.BoxGeometry(4,4,.25),geoPFloor=new THREE.BoxGeometry(4,
 const panelGeo=new THREE.BoxGeometry(1.1,.06,2.2);
 const panelOn=new THREE.MeshBasicMaterial({color:0xfffae6});
 const panelDead=new THREE.MeshBasicMaterial({color:0x6e6851});
-const SHARED=new Set([wallMat,pillarMat,lowMat,panelOn,panelDead]);
+// a soft glow on the ceiling round every working panel (one instanced mesh for the whole map)
+const haloTex=(()=>{const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d'),r=g.createRadialGradient(32,32,4,32,32,31);
+  r.addColorStop(0,'rgba(255,250,228,.85)');r.addColorStop(.4,'rgba(255,244,200,.38)');r.addColorStop(1,'rgba(255,240,190,0)');g.fillStyle=r;g.fillRect(0,0,64,64);return new THREE.CanvasTexture(c)})();
+const haloGeo=new THREE.PlaneGeometry(3.3,4.6);haloGeo.rotateX(Math.PI/2);
+const haloMat=new THREE.MeshBasicMaterial({map:haloTex,transparent:true,depthWrite:false});
+const SHARED=new Set([wallMat,pillarMat,lowMat,panelOn,panelDead,haloMat]);
 
 // floor and ceiling have a corner on every cell corner, coloured by the light of the cells around it (applyLight)
 function cellPlane(n){const g=new THREE.PlaneGeometry(1,1,n,n);g.setAttribute('color',new THREE.BufferAttribute(new Float32Array((n+1)*(n+1)*3).fill(1),3));return g}
@@ -969,7 +1001,8 @@ function doorsV3(L,cells){
    of the cells beside it, so dim and dark areas darken their walls, floor and ceiling too */
 const flickOn=[];
 // a doorway jamb: a short piece of wall, with the wallpaper scaled to match the walls beside it
-const geoJamb=(()=>{const g=gradBox(JAMB,CEIL,.3),uv=g.attributes.uv;for(let i=0;i<uv.count;i++){const f=Math.floor(i/4);uv.setX(i,uv.getX(i)*(f<2?.3/4:f>=4?JAMB/4:1))}return g})();
+const geoJamb=(()=>{const g=gradBox(JAMB,CEIL,.3),uv=g.attributes.uv;for(let i=0;i<uv.count;i++){const f=Math.floor(i/4);uv.setX(i,uv.getX(i)*(f<2?.3/4:f>=4?JAMB/4:1))}
+  const b=flatBox(JAMB,.17,.4,SKIRT);b.translate(0,-CEIL/2+.085,0);return joinGeos([g,b])})();
 function buildMap(L){
   mapInfo=L;mapSolids=[];litList=[];flickers=[];
   const m=new THREE.Matrix4();
@@ -1009,6 +1042,7 @@ function buildMap(L){
   }
   const panels=(list,mat)=>{if(!list.length)return;const im=new THREE.InstancedMesh(panelGeo,mat,list.length);list.forEach(([x,z],i)=>{m.makeTranslation(x*4+2,CEIL-.03,z*4+2);im.setMatrixAt(i,m)});mapGroup.add(im)};
   panels(on,panelOn);panels(dead,panelDead);
+  if(on.length){const im=new THREE.InstancedMesh(haloGeo,haloMat,on.length);on.forEach(([x,z],i)=>{m.makeTranslation(x*4+2,CEIL-.07,z*4+2);im.setMatrixAt(i,m)});mapGroup.add(im)}
   flickOn.length=0;
   banks.forEach((list,g)=>{flickOn[g]=1;if(!list)return;const mat=new THREE.MeshBasicMaterial({color:0xfffae6});panels(list,mat);
     const pos=new V3();for(const [x,z] of list)pos.x+=x*4+2,pos.z+=z*4+2;pos.divideScalar(list.length);pos.y=CEIL-.03;
@@ -1243,8 +1277,6 @@ function raycast(o,d,maxT,ignore,withEnts,skipTeam){
 }
 
 /* ---------- characters ---------- */
-const gunMat=new THREE.MeshLambertMaterial({color:0x26241e});
-const pumpMat=new THREE.MeshLambertMaterial({color:0x6b4a2a});
 function box(w,h,d,m){return new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m)}
 // Turkey Week (../events.js): a pilgrim hat on every suit. One shared geometry and material (events.js builds the
 // hat), so it is one more draw call each; only the look changes. The Turkey Week button on the menu switches it off.
@@ -1255,34 +1287,58 @@ function tkHat(parent,scale,y,z,ry){
   m.scale.setScalar(scale);m.position.set(0,y,z||0);if(ry)m.rotation.y=ry;m.visible=TKON;parent.add(m);tkHats.add(m);return m;
 }
 function tkToggle(on){TKON=on;for(const m of tkHats)m.visible=on}
+// A suit is a few meshes, each several boxes joined up (see parts), so the extra detail costs no extra draw calls.
 function makeSuit(suit,trim,visor){
   const g=new THREE.Group();
   const ms=new THREE.MeshLambertMaterial({color:suit}),mt=new THREE.MeshLambertMaterial({color:trim}),mv=new THREE.MeshBasicMaterial({color:visor});
-  const legs=[-.17,.17].map(x=>{const lg=new THREE.Group();lg.position.set(x,.86,0);const l=box(.28,.86,.3,ms);l.position.y=-.43;const b=box(.31,.16,.38,mt);b.position.set(0,-.78,-.03);lg.add(l,b);g.add(lg);return lg});
-  const torso=box(.74,.72,.44,ms);torso.position.y=1.22;
-  const belt=box(.77,.1,.47,mt);belt.position.y=.9;
-  const tank=box(.42,.52,.2,mt);tank.position.set(0,1.26,.31);
+  const P=(l,m)=>new THREE.Mesh(parts(l),m);
+  // legs: the leg, then the boot and a knee pad
+  const legs=[-.17,.17].map(x=>{const lg=new THREE.Group();lg.position.set(x,.86,0);lg.add(P([[.28,.86,.3,0,-.43,0]],ms),P([[.31,.16,.38,0,-.78,-.03],[.3,.14,.05,0,-.4,-.16]],mt));g.add(lg);return lg});
+  const torso=P([[.74,.72,.44,0,1.22,0]],ms);
+  const gear=P([[.77,.1,.47,0,.9,0],[.42,.52,.2,0,1.26,.31],[.09,.56,.03,-.2,1.28,-.225],[.09,.56,.03,.2,1.28,-.225],[.31,.07,.03,0,1.36,-.225],[.46,.06,.22,0,1.55,.3]],mt);   // belt, air tank, chest straps
+  const lamp=P([[.14,.07,.03,0,1.4,.42],[.05,.05,.03,0,1.16,.42]],mv);                                          // lamps on the tank, in the visor colour: what you see of yourself
   const head=new THREE.Group();head.position.y=1.78;
-  const hood=box(.54,.54,.54,ms);const vis=box(.42,.22,.04,mv);vis.position.set(0,.03,-.275);const filt=box(.17,.14,.12,mt);filt.position.set(0,-.17,-.3);head.add(hood,vis,filt);tkHat(head,.92,.27);
+  const hood=box(.54,.54,.54,ms);const vis=box(.42,.22,.04,mv);vis.position.set(0,.03,-.275);const filt=P([[.17,.14,.12,0,-.17,-.3],[.46,.05,.05,0,.17,-.27]],mt);head.add(hood,vis,filt);tkHat(head,.92,.27);
   const arms=new THREE.Group();arms.position.set(0,1.44,0);
-  const aL=box(.17,.17,.62,ms);aL.position.set(-.26,-.05,-.26);aL.rotation.y=-.35;
-  const aR=box(.17,.17,.62,ms);aR.position.set(.3,-.05,-.22);
-  const gun=new THREE.Group();gun.position.set(.16,-.04,-.62);arms.add(aL,aR,gun);
-  g.add(torso,belt,tank,head,arms);
+  const sleeves=P([[.17,.17,.62,-.26,-.05,-.26,-.35],[.17,.17,.62,.3,-.05,-.22]],ms);
+  const gloves=P([[.19,.19,.15,-.174,-.05,-.495,-.35],[.19,.19,.15,.3,-.05,-.47]],mt);
+  const gun=new THREE.Group();gun.position.set(.16,-.04,-.62);arms.add(sleeves,gloves,gun);
+  g.add(torso,gear,lamp,head,arms);
   g.userData={legs,arms,gun,head,gunId:-1,ms,mt,mv};
   return g;
 }
 // Suit colours: your practice suit, the Entity, and the two online teams.
 const SUITS={me:[0xe8e9e4,0x34536e,0x7fd3ff],entity:[0x1d1c19,0x3c3a33,0xff3b2e],r:[0xc8402f,0x5e1c14,0xffd2b8],b:[0x2f6ad6,0x15305f,0xbfe8ff]};
 function setSuit(model,key){const c=SUITS[key]||SUITS.me,u=model.userData;u.ms.color.setHex(c[0]);u.mt.color.setHex(c[1]);u.mv.color.setHex(c[2])}
+// The three guns: each is one mesh made of boxes coloured per corner (one draw call), shared by every character.
+// z is along the barrel, pointing away from the holder. GUN_TIP is how far the muzzle is from the hands.
+const gunVMat=new THREE.MeshLambertMaterial({vertexColors:true});
+const GC={steel:[.2,.2,.22],dark:[.09,.09,.1],grey:[.4,.41,.4],wood:[.52,.32,.16],tan:[.56,.48,.31],amber:[.96,.63,.16],red:[.82,.2,.15],lens:[.3,.82,.95]};
+const GUN_GEO=[
+  parts([[.1,.15,.4,0,0,.04,0,GC.steel],[.085,.11,.3,0,.005,-.3,0,GC.grey],[.04,.04,.2,0,.02,-.54,0,GC.dark],[.06,.06,.07,0,.02,-.63,0,GC.dark],
+    [.07,.11,.16,0,-.025,.3,0,GC.grey],[.085,.16,.04,0,-.04,.385,0,GC.dark],[.065,.2,.1,0,-.165,-.04,0,GC.dark],[.065,.08,.1,0,-.27,-.065,0,GC.dark],
+    [.055,.13,.07,0,-.13,.15,0,GC.dark],[.045,.025,.34,0,.088,-.06,0,GC.dark],[.05,.05,.03,0,.12,.12,0,GC.dark],[.03,.06,.03,0,.105,-.42,0,GC.dark],[.105,.035,.1,0,.03,.1,0,GC.amber]]),
+  parts([[.11,.15,.32,0,0,.08,0,GC.steel],[.055,.055,.56,0,.035,-.36,0,GC.dark],[.05,.05,.46,0,-.03,-.31,0,GC.dark],[.12,.1,.22,0,-.04,-.27,0,GC.wood],
+    [.09,.13,.2,0,-.03,.3,0,GC.wood],[.095,.16,.04,0,-.045,.4,0,GC.dark],[.06,.1,.07,0,-.11,.2,0,GC.wood],[.02,.03,.02,0,.075,-.62,0,GC.amber],
+    [.02,.06,.045,.062,0,.02,0,GC.red],[.02,.06,.045,.062,0,.08,0,GC.red],[.02,.06,.045,.062,0,.14,0,GC.red]]),
+  parts([[.085,.13,.38,0,0,.08,0,GC.steel],[.04,.04,.74,0,.015,-.48,0,GC.dark],[.065,.065,.1,0,.015,-.88,0,GC.dark],[.075,.08,.3,0,-.03,-.24,0,GC.tan],
+    [.075,.14,.2,0,-.03,.3,0,GC.tan],[.06,.04,.14,0,.06,.28,0,GC.dark],[.085,.17,.04,0,-.04,.4,0,GC.dark],[.06,.06,.34,0,.135,0,0,GC.dark],
+    [.085,.085,.08,0,.135,-.2,0,GC.dark],[.075,.075,.06,0,.135,.19,0,GC.dark],[.065,.065,.012,0,.135,-.245,0,GC.lens],[.03,.05,.04,0,.085,-.08,0,GC.steel],
+    [.03,.05,.04,0,.085,.1,0,GC.steel],[.06,.09,.1,0,-.1,.02,0,GC.dark],[.02,.02,.26,-.035,-.04,-.52,0,GC.grey],[.02,.02,.26,.035,-.04,-.52,0,GC.grey],[.05,.025,.025,.065,.03,.14,0,GC.grey]])
+];
+const GUN_TIP=[.67,.64,.93];
 function setGun(model,wi){
   const u=model.userData;if(u.gunId===wi)return;u.gunId=wi;
-  const gun=u.gun;while(gun.children.length){const c=gun.children[0];gun.remove(c);c.geometry.dispose()}
-  if(wi===0){const b=box(.1,.16,.78,gunMat);const m=box(.08,.2,.1,gunMat);m.position.set(0,-.15,-.05);gun.add(b,m)}
-  else if(wi===1){const b=box(.12,.14,.86,gunMat);const p=box(.14,.1,.26,pumpMat);p.position.set(0,-.1,-.24);gun.add(b,p)}
-  else{const b=box(.09,.12,1.18,gunMat);b.position.z=-.16;const s=box(.08,.08,.34,gunMat);s.position.set(0,.12,-.05);gun.add(b,s)}
+  const geo=GUN_GEO[wi]||GUN_GEO[0];
+  if(u.gunMesh)u.gunMesh.geometry=geo;else{u.gunMesh=new THREE.Mesh(geo,gunVMat);u.gun.add(u.gunMesh)}
 }
-function newEnt(model){return{pos:new V3(),vel:new V3(),onGround:false,hp:100,shield:50,alive:true,present:true,yaw:0,pitch:0,model,walk:0,wi:0,ammo:WEAPONS.map(w=>w.mag),cd:0,reloadT:0,switchT:0,dieT:0}}
+// the soft round shadow that sits on the ground under a character
+const shadowTex=(()=>{const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d'),r=g.createRadialGradient(32,32,3,32,32,31);
+  r.addColorStop(0,'rgba(20,14,2,.62)');r.addColorStop(.55,'rgba(20,14,2,.36)');r.addColorStop(1,'rgba(20,14,2,0)');g.fillStyle=r;g.fillRect(0,0,64,64);return new THREE.CanvasTexture(c)})();
+const shadowGeo=new THREE.PlaneGeometry(1.7,1.7);
+const shadowMat=new THREE.MeshBasicMaterial({map:shadowTex,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
+function makeShadow(){const m=new THREE.Mesh(shadowGeo,shadowMat);m.rotation.order='YXZ';m.visible=false;scene.add(m);return m}
+function newEnt(model){return{shadow:makeShadow(),kick:0,pos:new V3(),vel:new V3(),onGround:false,hp:100,shield:50,alive:true,present:true,yaw:0,pitch:0,model,walk:0,wi:0,ammo:WEAPONS.map(w=>w.mag),cd:0,reloadT:0,switchT:0,dieT:0}}
 const player=newEnt(makeSuit(...SUITS.me));
 const opp=newEnt(makeSuit(...SUITS.entity));   // the practice bot
 // ents: everything shots can hit. Practice: you and the Entity. Online: you and every remote player (remotes, by uid).
@@ -1294,21 +1350,73 @@ Object.assign(opp,{seen:0,lastSeen:99,path:null,repath:0,strafeDir:1,strafeT:0,b
 
 /* ---------- effects ---------- */
 const fx=[];
+// Tracers, muzzle flashes and impact sparks come from small pools made once, so a shot makes no new objects. When a
+// pool runs out, the oldest one is taken over.
+function pool(n,make){const a=[];let i=0;return()=>{let o=a[i];if(!o){o=a[i]=make();scene.add(o)}else if(o.userData.fx)o.userData.fx.gone=true;i=(i+1)%n;o.visible=true;return o}}
+function play(o,life,kind){const f={obj:o,life,max:life,kind,pooled:true};o.userData.fx=f;fx.push(f)}
+// a tracer is a thin glowing beam: four-sided, and as wide at each end as it needs to be to show about two pixels
+// across wherever it is, so it reads the same nearby and down a long corridor
+const TR_IDX=[0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7];
+const nextTracer=pool(40,()=>{const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(24),3));g.setIndex(TR_IDX);
+  const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,fog:false,side:THREE.DoubleSide}));m.frustumCulled=false;return m});
+const trD=new V3(),trU=new V3(),trV=new V3(),trA=new V3(),trUp=new V3(0,1,0),trX=new V3(1,0,0);
 function addTracer(a,b,color){
-  const geo=new THREE.BufferGeometry().setFromPoints([a,b]);
-  const mat=new THREE.LineBasicMaterial({color,transparent:true,opacity:.85});
-  const line=new THREE.Line(geo,mat);scene.add(line);fx.push({obj:line,life:.07,max:.07,kind:'line'});
+  trD.subVectors(b,a);const len=trD.length();if(len<.05)return;trD.divideScalar(len);
+  // drawn from the end of the barrel rather than from inside the arms (the shot itself starts where it always did)
+  trA.copy(a).addScaledVector(trD,len>1.6?.6:0);
+  trU.crossVectors(trD,Math.abs(trD.y)>.95?trX:trUp).normalize();trV.crossVectors(trD,trU);
+  const m=nextTracer(),p=m.geometry.attributes.position,cp=camera.position;
+  const ta=clamp(cp.distanceTo(trA)*.0022,.008,.12),tb=clamp(cp.distanceTo(b)*.0022,.008,.12);
+  for(let i=0;i<8;i++){const e=i<4?trA:b,t=i<4?ta:tb,su=(i&3)===0||(i&3)===3?-t:t,sv=(i&3)<2?-t:t;p.setXYZ(i,e.x+trU.x*su+trV.x*sv,e.y+trU.y*su+trV.y*sv,e.z+trU.z*su+trV.z*sv)}
+  p.needsUpdate=true;m.material.color.setHex(color);m.material.opacity=.9;
+  play(m,.09,'line');
 }
-const sparkMat=new THREE.MeshBasicMaterial({color:0xfff1b0});const sparkGeo=new THREE.BoxGeometry(.12,.12,.12);
-function spark(p){const m=new THREE.Mesh(sparkGeo,sparkMat);m.position.copy(p);scene.add(m);fx.push({obj:m,life:.09,max:.09,kind:'spark'})}
+// one small star-shaped glow, used for the muzzle flash and for the flash where a shot lands
+const flashTex=(()=>{const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d'),r=g.createRadialGradient(32,32,0,32,32,30);
+  r.addColorStop(0,'rgba(255,255,255,1)');r.addColorStop(.22,'rgba(255,238,170,.9)');r.addColorStop(.55,'rgba(255,170,60,.3)');r.addColorStop(1,'rgba(255,140,40,0)');g.fillStyle=r;g.fillRect(0,0,64,64);
+  g.globalCompositeOperation='lighter';g.fillStyle='rgba(255,236,180,.85)';g.translate(32,32);g.rotate(.4);
+  for(let i=0;i<4;i++){g.rotate(Math.PI/2);g.beginPath();g.moveTo(0,-3.5);g.lineTo(31,0);g.lineTo(0,3.5);g.closePath();g.fill()}
+  return new THREE.CanvasTexture(c)})();
+const glowSprite=()=>new THREE.Sprite(new THREE.SpriteMaterial({map:flashTex,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,fog:false}));
+const nextFlash=pool(8,glowSprite),nextPuff=pool(14,glowSprite);
+// the flash at the end of the shooter's barrel, and the gun's kick (not shown with reduced motion, or when your own
+// body is hidden because the camera is right behind it or you are looking down the scope)
+function muzzleFlash(e,wi){
+  if(!e||!e.model)return;e.kick=RM?0:1;
+  if(RM||!e.model.visible)return;
+  const g=e.model.userData.gun,s=nextFlash();g.updateWorldMatrix(true,false);
+  s.position.set(0,.02,-(GUN_TIP[wi]||GUN_TIP[0])-.05).applyMatrix4(g.matrixWorld);
+  s.material.rotation=Math.random()*6.283;s.material.opacity=1;s.userData.s=wi===1?.95:wi===2?.85:.55;s.scale.setScalar(s.userData.s);
+  play(s,.055,'flash');
+}
+// where a shot lands: a quick flash and a few sparks that fall away
+// (all the sparks in the air are one instanced mesh, so a shotgun blast is still one draw call of them)
+const BITS=48,bitIM=new THREE.InstancedMesh(new THREE.BoxGeometry(.05,.05,.05),new THREE.MeshBasicMaterial({color:0xffdc8c}),BITS);
+bitIM.count=0;bitIM.visible=false;bitIM.frustumCulled=false;scene.add(bitIM);
+const bits=Array.from({length:BITS},()=>({p:new V3(),v:new V3(),life:0,max:1})),bitM=new THREE.Matrix4();let bitNext=0;
+function spark(p){
+  const f=nextPuff();f.position.copy(p);f.material.rotation=Math.random()*6.283;f.material.opacity=.95;f.scale.setScalar(.22);play(f,.1,'puff');
+  if(RM)return;
+  for(let i=0;i<3;i++){const b=bits[bitNext];bitNext=(bitNext+1)%BITS;b.p.copy(p);b.v.set((Math.random()-.5)*5,.6+Math.random()*3.4,(Math.random()-.5)*5);b.life=b.max=.16+Math.random()*.14}
+}
+function updateBits(dt){
+  let n=0;
+  for(const b of bits){if(b.life<=0)continue;b.life-=dt;b.v.y-=16*dt;b.p.addScaledVector(b.v,dt);const k=.35+.65*Math.max(0,b.life)/b.max;bitM.makeScale(k,k,k).setPosition(b.p);bitIM.setMatrixAt(n++,bitM)}
+  if(n||bitIM.visible){bitIM.count=n;bitIM.visible=n>0;bitIM.instanceMatrix.needsUpdate=true}
+}
 const debrisGeo=new THREE.BoxGeometry(.5,.08,.5);
 function debris(p){for(let i=0;i<8;i++){const m=new THREE.Mesh(debrisGeo,plyMat);m.position.copy(p).add(new V3((Math.random()-.5)*2.4,(Math.random()-.5)*2,(Math.random()-.5)*2.4));m.rotation.set(Math.random()*3,Math.random()*3,0);scene.add(m);fx.push({obj:m,life:.7,max:.7,kind:'debris',v:new V3((Math.random()-.5)*5,Math.random()*4,(Math.random()-.5)*5),spin:(Math.random()-.5)*10})}}
 function updateFx(dt){
-  for(let i=fx.length-1;i>=0;i--){const f=fx[i];f.life-=dt;
-    if(f.kind==='line')f.obj.material.opacity=.85*Math.max(0,f.life)/f.max;
-    if(f.kind==='debris'){f.v.y-=18*dt;f.obj.position.addScaledVector(f.v,dt);f.obj.rotation.x+=f.spin*dt;f.obj.scale.setScalar(Math.max(.01,f.life/f.max))}
-    if(f.life<=0){scene.remove(f.obj);if(f.kind==='line'){f.obj.geometry.dispose();f.obj.material.dispose()}fx.splice(i,1)}
+  for(let i=fx.length-1;i>=0;i--){const f=fx[i];
+    if(f.gone){fx.splice(i,1);continue}
+    f.life-=dt;const k=Math.max(0,f.life)/f.max,o=f.obj;
+    if(f.kind==='line')o.material.opacity=.9*k;
+    else if(f.kind==='flash'){o.scale.setScalar(o.userData.s*(1.3-.3*k));o.material.opacity=k}
+    else if(f.kind==='puff'){o.scale.setScalar(.22+.4*(1-k));o.material.opacity=.95*k}
+    else if(f.kind==='debris'){f.v.y-=18*dt;o.position.addScaledVector(f.v,dt);o.rotation.x+=f.spin*dt;o.scale.setScalar(Math.max(.01,f.life/f.max))}
+    if(f.life<=0){if(f.pooled){o.visible=false;o.userData.fx=null}else scene.remove(o);fx.splice(i,1)}
   }
+  updateBits(dt);
   for(const pc of pieces.values()){if(pc.pop<1){pc.pop=Math.min(1,pc.pop+dt*9);pc.obj.scale.setScalar(.82+.18*pc.pop)}}
 }
 const dmgLayer=$('dmg');const dnums=[];
@@ -1502,13 +1610,14 @@ function muzzleOf(e){return e.pos.clone().add(new V3(0,1.38,0)).addScaledVector(
 function resolveShot(shooter,w,rays,color){
   const skip=online?shooter.team:null;
   const entAcc=new Map(),pcAcc=new Map(),ends=[];
+  muzzleFlash(shooter,WEAPONS.indexOf(w));
   for(const ry of rays){
     const res=raycast(arr(ry.o),arr(ry.d),ry.max,shooter,true,skip);
     const end=ry.o.clone().addScaledVector(ry.d,res.t);ends.push(end);
     addTracer(ry.o,end,color);
     if(!res.hit)continue;
     let dmg=w.dmg;if(w.falloff)dmg*=res.t<6?1:Math.max(.3,1-(res.t-6)/22);
-    if(res.hit.kind==='ent'){const a=entAcc.get(res.hit.ent)||{d:0,head:false,pt:end};a.d+=dmg*(res.hit.head?w.head:1);a.head=a.head||res.hit.head;entAcc.set(res.hit.ent,a)}
+    if(res.hit.kind==='ent'){spark(end);const a=entAcc.get(res.hit.ent)||{d:0,head:false,pt:end};a.d+=dmg*(res.hit.head?w.head:1);a.head=a.head||res.hit.head;entAcc.set(res.hit.ent,a)}
     else{spark(end);if(res.hit.kind==='piece')pcAcc.set(res.hit.piece,(pcAcc.get(res.hit.piece)||0)+dmg*w.build)}
   }
   const pd=[];
@@ -1717,7 +1826,7 @@ function makeRemote(uid){
   setGun(e.model,0);e.model.visible=false;scene.add(e.model);remotes.set(uid,e);rebuildEnts();return e;
 }
 function clearRemotes(){
-  for(const e of remotes.values()){scene.remove(e.model);e.model.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material&&o.material!==gunMat&&o.material!==pumpMat&&o.material!==tkHatMat)o.material.dispose()})}
+  for(const e of remotes.values()){scene.remove(e.model,e.shadow);e.model.traverse(o=>{if(o.geometry&&!GUN_GEO.includes(o.geometry))o.geometry.dispose();if(o.material&&o.material!==gunVMat&&o.material!==tkHatMat)o.material.dispose()})}
   remotes.clear();rebuildEnts();
 }
 // Make sure every roster member has a body in their team colour; anyone else is hidden.
@@ -1853,7 +1962,7 @@ function handleEvent(e){
     const mate=roster.get(e.by)&&roster.get(e.by)===myTeam();
     const o=Array.isArray(e.o)?new V3(e.o[0],e.o[1],e.o[2]):null;const ends=Array.isArray(e.e)?e.e:[];
     if(o){for(const p of ends)if(Array.isArray(p)){const v=new V3(p[0],p[1],p[2]);addTracer(o,v,mate?0x9fd4ff:0xff8a70);spark(v)}
-      const w=WEAPONS[e.w]||WEAPONS[0];sfxShot(w.id,1/(1+camera.position.distanceTo(o)*.06))}
+      const w=WEAPONS[e.w]||WEAPONS[0];sfxShot(w.id,1/(1+camera.position.distanceTo(o)*.06));muzzleFlash(remotes.get(e.by),WEAPONS.indexOf(w))}
     if(!sameRound)return;
     if(Array.isArray(e.pd))for(const it of e.pd)if(Array.isArray(it))damagePiece(pieces.get(String(it[0])),+it[1]||0);
     if(Array.isArray(e.hs)&&RD.ph==='fight'&&player.alive)for(const h of e.hs){
@@ -2241,7 +2350,8 @@ async function quickMatch(again){
 
 /* ---------- animation ---------- */
 function animModel(e,dt){
-  const m=e.model,u=m.userData;
+  const m=e.model,u=m.userData,sh=e.shadow;
+  if(!e.present||!e.alive)sh.visible=false;
   if(!e.present){m.visible=false;return}
   if(!e.alive){e.dieT+=dt;m.rotation.set(0,e.yaw,Math.min(1.5,e.dieT*5));m.position.set(e.pos.x,e.pos.y+Math.min(.25,e.dieT),e.pos.z);if(e.dieT>2.2)m.visible=false;return}
   if(e!==player)m.visible=true;
@@ -2251,6 +2361,13 @@ function animModel(e,dt){
   u.legs[0].rotation.x=sw;u.legs[1].rotation.x=-sw;
   u.arms.rotation.x=e.pitch*.9;u.head.rotation.x=e.pitch*.5;
   u.arms.position.y=1.44+(e.reloadT>0?-.12:0);
+  // the gun jumps back a little on each shot and settles again
+  if(e.kick>0){e.kick=Math.max(0,e.kick-dt*9)}u.gun.position.z=-.62+.07*e.kick;
+  // shadow: on the ground under the feet (smaller while in the air), lying along a ramp when standing on one
+  let gy=e.pos.y,tilt=0,yaw=0;
+  if(!e.onGround)gy=Math.min(e.pos.y,groundAt(e.pos.x,e.pos.z,e.pos.y+.05));
+  else for(const r of ramps){const h=rampH(r,e.pos.x,e.pos.z);if(h>=0&&Math.abs(h-e.pos.y)<.25){tilt=Math.PI/4;yaw=DIR_YAW[r.dir];break}}
+  sh.visible=true;sh.position.set(e.pos.x,gy+(tilt?.07:.03),e.pos.z);sh.rotation.set(-Math.PI/2-tilt,yaw,0);sh.scale.setScalar(clamp(1-(e.pos.y-gy)/6,.4,1));
 }
 
 /* ---------- camera ---------- */
@@ -2355,7 +2472,7 @@ function updateLights(dt){
     if(f.g>=0&&flickOn[f.g]!==(lit?1:.5)){flickOn[f.g]=lit?1:.5;dirty=true}
   }
   if(dirty)applyLight();
-  amb.intensity=.55+Math.sin(flickClock*37)*.004;
+  amb.intensity=AMB+Math.sin(flickClock*37)*.004;
 }
 
 /* ---------- ads ---------- */
