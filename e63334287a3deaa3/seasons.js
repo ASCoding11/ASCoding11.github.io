@@ -63,10 +63,18 @@
   // already clicking, typing or scrolling. Loaded with the page (a <script defer>), the browser can say whether
   // anything was pressed before this ran; loaded later (the home page adds this file once the Back Room is open,
   // which takes a click) only what happens from now on counts.
-  var used=false,USE=['pointerdown','mousedown','keydown','wheel','touchstart'];
-  try{used=!!(document.currentScript&&document.currentScript.defer&&navigator.userActivation&&navigator.userActivation.hasBeenActive)}catch(e){}
+  var used=false,USE=['pointerdown','mousedown','keydown','wheel','touchstart'],withPage=false,T0=performance.now();
+  try{withPage=!!(document.currentScript&&document.currentScript.defer);used=withPage&&!!(navigator.userActivation&&navigator.userActivation.hasBeenActive)}catch(e){}
   function noteUse(){used=true;USE.forEach(function(t){removeEventListener(t,noteUse,true)})}
   USE.forEach(function(t){addEventListener(t,noteUse,{capture:true,passive:true})});
+  // The same goes for someone who has simply been reading: if the page has already been on screen for LATE
+  // milliseconds when holiday.js is finally ready (a very slow connection), the cabin is left for the next load.
+  // On screen since: its first paint when this file came with the page, or since this file ran when it was added later.
+  var LATE=4000,boot=true;
+  function shownFor(){
+    try{if(withPage){var e=performance.getEntriesByName('first-contentful-paint')[0];return e?performance.now()-e.startTime:0}}catch(e){}
+    return performance.now()-T0;
+  }
   var phone=matchMedia('(pointer: coarse)').matches&&!matchMedia('(any-pointer: fine)').matches;
 
   /* ---------- colours ---------- */
@@ -667,8 +675,8 @@
     if(!document.querySelector('.br-games, #lists'))return;
     if(window.BackRoomHoliday){window.BackRoomHoliday.start(used);return}
     if(holidayAsked)return;holidayAsked=true;
-    var sc=document.createElement('script');sc.src=BASE+'holiday.js';
-    sc.onload=function(){if(holiday&&cv&&window.BackRoomHoliday)window.BackRoomHoliday.start(used)};
+    var sc=document.createElement('script'),atLoad=boot;sc.src=BASE+'holiday.js';
+    sc.onload=function(){if(holiday&&cv&&window.BackRoomHoliday)window.BackRoomHoliday.start(used||(atLoad&&shownFor()>LATE))};
     sc.onerror=function(){holidayAsked=false};
     document.head.appendChild(sc);
   }
@@ -729,6 +737,6 @@
       return (performance.now()-a)/n;
     }
   };
-  function init(){start(current())}
+  function init(){start(current());boot=false}
   if(document.body)init();else document.addEventListener('DOMContentLoaded',init);
 })();
