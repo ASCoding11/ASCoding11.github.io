@@ -105,8 +105,6 @@ details[open] summary::before{content:'－ '}
 /* Turkey Week (events.js): the menu egg wears the hat and tail too, and gets a little head room for the hat */
 .eggrow.turkey{padding-top:16px}
 .eggrow.turkey #eggPreview{margin:0 14px}
-#turkeyRow .seg button{padding:7px 13px}
-#turkeyNote{margin:6px 0 0}
 .swatches{display:flex;gap:8px;flex-wrap:wrap}
 .swatches button{width:34px;height:40px;border:3px solid var(--ink);border-radius:50% 50% 50% 50%/60% 60% 40% 40%;padding:0;box-shadow:0 3px 0 var(--ink)}
 .swatches button[aria-pressed="true"]{outline:3px solid var(--yolk-2);outline-offset:2px}
@@ -445,8 +443,6 @@ body.touch #hud.training #banner{top:calc(114px + env(safe-area-inset-top,0px))}
             <div class="field"><input id="name" maxlength="14" autocomplete="off" spellcheck="false" aria-label="Your name"></div>
           </div>
         </div>
-        <div class="setting" id="turkeyRow" hidden><span>Turkey Week</span><div class="seg" id="turkeySeg" role="group" aria-label="Turkey Week look"><button type="button" data-t="1">On</button><button type="button" data-t="0">Off</button></div></div>
-        <p class="note" id="turkeyNote" hidden></p>
         <div class="label">Shell</div>
         <div class="swatches" id="swatches" role="group" aria-label="Shell colour"></div>
         <div class="label">Weapon</div>
@@ -1351,10 +1347,11 @@ function makeEgg(color,name){
 // For one week every egg is drawn as a turkey in a pilgrim hat: a tail fan, wings, a beak with a wattle, feet and the
 // hat, all one geometry (made once, shared by every egg, colours as vertex colours like the guns), so a dressed egg is
 // one more draw call. It is only a look on this computer: hit boxes, headshots and what is sent to the room are the
-// same, and the Turkey Week switch in the menu takes it off again (dressEggs).
+// same. The Turkey Week switch on the Back Room page takes it off again; it is read once, when the game loads.
 const EVT=window.BackRoomEvents&&BackRoomEvents.turkey,TK={hat:0x3a2a22,band:0x8a5a2b,gold:0xffc93c,beak:0xf4a41c,red:0xd8392b,rust:0xb5522a,wing:0x8a5a2b,back:0x5a3219};
 let turkeyGeo=null;
-function turkeyOn(){return !!(EVT&&EVT.on())}
+const TKON=!!(EVT&&EVT.on());
+function turkeyOn(){return TKON}
 function turkeyKit(){
   if(turkeyGeo)return turkeyGeo;
   const g=[],taper=new THREE.CylinderGeometry(.72,1,1,14),cone=new THREE.ConeGeometry(1,1,10),ball=eyeGeo,B=1/.09;   // ball: a 1 m sphere once scaled by B
@@ -1384,7 +1381,6 @@ function dressEgg(m){
   if(on&&!m.fest){m.fest=new THREE.Mesh(turkeyKit(),gunMat);m.fest.castShadow=true;m.body.add(m.fest)}
   if(m.fest)m.fest.visible=on;
 }
-function dressEggs(){for(const e of ents)if(e.model)dressEgg(e.model)}
 function disposeEgg(m){scene.remove(m.g);m.tag.material.map.dispose();m.tag.material.dispose();m.mat.dispose()}
 
 // ---------- gun models ----------
@@ -3198,17 +3194,9 @@ $('sens').value=sens;$('sensOut').textContent=sens.toFixed(2);
 $('sens').addEventListener('input',()=>{sens=+$('sens').value;store.set('sens',sens);$('sensOut').textContent=sens.toFixed(2)});
 $('vol').value=volume;$('volOut').textContent=Math.round(volume*100);
 $('vol').addEventListener('input',()=>{volume=+$('vol').value;store.set('vol',volume);$('volOut').textContent=Math.round(volume*100);if(master)master.gain.value=volume});
-// Turkey Week: the row only shows while the event is running; the switch is saved by events.js for both games.
-function renderTurkey(){
-  const live=!!(EVT&&EVT.live()),on=turkeyOn();
-  $('turkeyRow').hidden=$('turkeyNote').hidden=!live;
-  for(const b of $('turkeySeg').children)b.setAttribute('aria-pressed',String((b.dataset.t==='1')===on));
-  $('turkeyNote').textContent=live?(on?'Every egg is a turkey in a pilgrim hat until '+EVT.until+'.':'Turkey Week is switched off for you. It runs until '+EVT.until+'.'):'';
-  $('eggPrevTail').toggleAttribute('hidden',!on);$('eggPrevHat').toggleAttribute('hidden',!on);
-  document.querySelector('.eggrow').classList.toggle('turkey',on);
-}
-$('turkeySeg').addEventListener('click',e=>{const t=e.target.dataset&&e.target.dataset.t;if(t&&EVT){EVT.set(t==='1');dressEggs();renderTurkey()}});
-renderTurkey();
+// Turkey Week: the menu egg wears the hat and tail too (the look is switched on the Back Room page, not in the game).
+$('eggPrevTail').toggleAttribute('hidden',!turkeyOn());$('eggPrevHat').toggleAttribute('hidden',!turkeyOn());
+document.querySelector('.eggrow').classList.toggle('turkey',turkeyOn());
 $('room').value=store.get('room','');
 $('practice').addEventListener('click',startPractice);
 $('training').addEventListener('click',startTraining);
