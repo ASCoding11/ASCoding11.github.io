@@ -319,6 +319,7 @@ body.touch #pips{left:calc(200px + env(safe-area-inset-left,0px));transform:none
         <input class="text" id="name" maxlength="16" autocomplete="off" spellcheck="false" style="max-width:260px">
       </div>
 
+      <div class="row"><button id="turkeyBtn" class="ghost-btn" type="button" hidden>Turkey Week on</button></div>
       <div class="group">
         <span class="label">Online</span>
         <div class="row">
@@ -424,6 +425,7 @@ body.touch #pips{left:calc(200px + env(safe-area-inset-left,0px));transform:none
 <script src="../autores.js"></script>
 <script src="../keybinds.js"></script>
 <script src="../netsmooth.js"></script>
+<script src="../events.js"></script>
 <script>
 (function(){
 'use strict';
@@ -1276,6 +1278,15 @@ function raycast(o,d,maxT,ignore,withEnts,skipTeam){
 
 /* ---------- characters ---------- */
 function box(w,h,d,m){return new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m)}
+// Turkey Week (../events.js): a pilgrim hat on every suit. One shared geometry and material (events.js builds the
+// hat), so it is one more draw call each; only the look changes. The Turkey Week button on the menu switches it off.
+const EVT=window.BackRoomEvents&&BackRoomEvents.turkey;let TKON=!!(EVT&&EVT.on()),tkHatMat=null;const tkHats=new Set();
+function tkHat(parent,scale,y,z,ry){
+  if(!EVT||!EVT.live())return null;
+  const m=new THREE.Mesh(EVT.hat(THREE),tkHatMat||(tkHatMat=new THREE.MeshLambertMaterial({vertexColors:true})));
+  m.scale.setScalar(scale);m.position.set(0,y,z||0);if(ry)m.rotation.y=ry;m.visible=TKON;parent.add(m);tkHats.add(m);return m;
+}
+function tkToggle(on){TKON=on;for(const m of tkHats)m.visible=on}
 // A suit is a few meshes, each several boxes joined up (see parts), so the extra detail costs no extra draw calls.
 function makeSuit(suit,trim,visor){
   const g=new THREE.Group();
@@ -1287,7 +1298,7 @@ function makeSuit(suit,trim,visor){
   const gear=P([[.77,.1,.47,0,.9,0],[.42,.52,.2,0,1.26,.31],[.09,.56,.03,-.2,1.28,-.225],[.09,.56,.03,.2,1.28,-.225],[.31,.07,.03,0,1.36,-.225],[.46,.06,.22,0,1.55,.3]],mt);   // belt, air tank, chest straps
   const lamp=P([[.14,.07,.03,0,1.4,.42],[.05,.05,.03,0,1.16,.42]],mv);                                          // lamps on the tank, in the visor colour: what you see of yourself
   const head=new THREE.Group();head.position.y=1.78;
-  const hood=box(.54,.54,.54,ms);const vis=box(.42,.22,.04,mv);vis.position.set(0,.03,-.275);const filt=P([[.17,.14,.12,0,-.17,-.3],[.46,.05,.05,0,.17,-.27]],mt);head.add(hood,vis,filt);
+  const hood=box(.54,.54,.54,ms);const vis=box(.42,.22,.04,mv);vis.position.set(0,.03,-.275);const filt=P([[.17,.14,.12,0,-.17,-.3],[.46,.05,.05,0,.17,-.27]],mt);head.add(hood,vis,filt);tkHat(head,.92,.27);
   const arms=new THREE.Group();arms.position.set(0,1.44,0);
   const sleeves=P([[.17,.17,.62,-.26,-.05,-.26,-.35],[.17,.17,.62,.3,-.05,-.22]],ms);
   const gloves=P([[.19,.19,.15,-.174,-.05,-.495,-.35],[.19,.19,.15,.3,-.05,-.47]],mt);
@@ -1815,7 +1826,7 @@ function makeRemote(uid){
   setGun(e.model,0);e.model.visible=false;scene.add(e.model);remotes.set(uid,e);rebuildEnts();return e;
 }
 function clearRemotes(){
-  for(const e of remotes.values()){scene.remove(e.model,e.shadow);e.model.traverse(o=>{if(o.geometry&&!GUN_GEO.includes(o.geometry))o.geometry.dispose();if(o.material&&o.material!==gunVMat)o.material.dispose()})}
+  for(const e of remotes.values()){scene.remove(e.model,e.shadow);e.model.traverse(o=>{if(o.geometry&&!GUN_GEO.includes(o.geometry))o.geometry.dispose();if(o.material&&o.material!==gunVMat&&o.material!==tkHatMat)o.material.dispose()})}
   remotes.clear();rebuildEnts();
 }
 // Make sure every roster member has a body in their team colour; anyone else is hidden.
@@ -2657,6 +2668,7 @@ nameEl.addEventListener('input',()=>{myName=nameEl.value.replace(/[<>]/g,'').tri
 $('room').value=store.get('room','')||randomRoom();
 $('play').addEventListener('click',startPractice);
 $('quick').addEventListener('click',()=>quickMatch(false));
+if(EVT)EVT.button($('turkeyBtn'),tkToggle);
 $('joinRoom').addEventListener('click',joinPrivate);
 $('room').addEventListener('keydown',e=>{if(e.key==='Enter')joinPrivate()});
 $('again').addEventListener('click',()=>{if(online)hostToLobby();else startPractice()});
