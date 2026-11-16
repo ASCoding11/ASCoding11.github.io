@@ -43,6 +43,7 @@ console.log('  by kind:', JSON.stringify(kinds), ' by difficulty:', JSON.stringi
 const reads = [['2500000', 2.5e6], ['2,500,000', 2.5e6], ['2.5 million', 2.5e6], ['40k', 4e4], ['3e6', 3e6], ['1.2 x 10^9', 1.2e9], ['1 234 567', 1234567], ['3.5bn', 3.5e9], ['42 litres', 42], ['.5', 0.5], ['10^6', 1e6]];
 for (const [t, v] of reads) { const r = C.parseGuess(t, 'litres'); if (r.err || Math.abs(r.v - v) > v * 1e-12) fail('parseGuess("' + t + '") gave ' + JSON.stringify(r)); }
 for (const t of ['0', '-3', '', 'lots', '2,5', '1e999', '12 zillion']) if (!C.parseGuess(t, 'litres').err) fail('parseGuess("' + t + '") should be refused');
+if (!C.parseGuess('5 m', 'metres').err || !C.parseGuess('500t', 'tonnes').err || C.parseGuess('5 m', 'litres').v !== 5e6 || C.parseGuess('5 metres', 'metres').v !== 5 || C.parseGuess('107000 km/h', 'km/h').v !== 107000) fail('units and one-letter shorthand are mixed up');
 const sums = [['70 × 60 × 24', 100800], ['(52*51*50*49*48)/120', 2598960], ['0.1 * 2^30 / 1e6', 107.3741824], ['sqrt(16) + cbrt(27)', 7], ['2 million ÷ 4', 5e5], ['√9 × 2', 6], ['-3 + 5', 2]];
 for (const [t, v] of sums) { let r; try { r = C.calcEval(t); } catch (e) { r = e.message; } if (typeof r !== 'number' || Math.abs(r - v) > Math.abs(v) * 1e-12) fail('calcEval("' + t + '") gave ' + r); }
 for (const t of ['1/0', '2 +', '(3', 'hello']) { let ok = false; try { C.calcEval(t); } catch (e) { ok = true; } if (!ok) fail('calcEval("' + t + '") should be refused'); }

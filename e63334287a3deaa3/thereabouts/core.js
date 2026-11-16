@@ -22,6 +22,7 @@
     q: 1e15, quad: 1e15, quadrillion: 1e15, quadrillions: 1e15,
     hundred: 100
   };
+  var WORD1 = { k: 'thousand', m: 'million', b: 'billion', t: 'trillion', q: 'quadrillion' };
   function sig(v, s) { return v === 0 ? 0 : Number(v.toPrecision(s)); }
   function commas(s) { // s: plain digits, maybe with a decimal part
     var neg = s[0] === '-'; if (neg) s = s.slice(1);
@@ -98,7 +99,10 @@
       v = p.v;
       if (m[2]) v *= Math.pow(10, +m[2]);
       if (m[3]) v *= Math.pow(10, +m[3]);
-      if (m[4]) { if (!MULT.hasOwnProperty(m[4])) return { err: 'I don\'t know the word "' + m[4] + '". You can use thousand, million, billion or trillion (or k, m, bn).' }; mul = MULT[m[4]]; }
+      if (m[4]) { if (!MULT.hasOwnProperty(m[4])) return { err: 'I don\'t know the word "' + m[4] + '". You can use thousand, million, billion or trillion (or k, m, bn).' }; mul = MULT[m[4]];
+        // "5 m" where the unit is metres, "500 t" where it is tonnes: ask, rather than guess which was meant
+        if (m[4].length === 1 && unit && String(unit).toLowerCase()[0] === m[4] && !(m[4] === 'k' && /\dk$/.test(t))) return { err: 'Is that "' + m[4] + '" short for ' + WORD1[m[4]] + ', or for ' + unit + '? Type the word ' + WORD1[m[4]] + ' in full, or leave the unit off.' };
+      }
       v *= mul;
     }
     if (!isFinite(v) || isNaN(v)) return { err: 'That number is too big for this game to score. Try something smaller.' };
