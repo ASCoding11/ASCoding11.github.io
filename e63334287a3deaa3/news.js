@@ -71,6 +71,14 @@
       'With it off you get the winter page: snow, a tree, a snowman, a menorah, a diya, gingerbread and lights. Buttons are blue for the season.',
       'It stays until January 6. The Cabin button shows the cabin again, and the ❄ button in the footer turns all of it off.'
     ]},
+    {date: '2026-11-15', version: '1.29.3', title: 'Turkey Week, until Thanksgiving', kind: 'feature',
+     tags: ['Thanksgiving', 'Shell Crackers', 'Rumble Karts', 'Melon Merge', 'Trivium'], items: [
+      'Until November 26: eggs in Shell Crackers are turkeys in pilgrim hats, karts in Rumble Karts are turkeys on wheels, and Melon Merge is a Thanksgiving dinner from a cranberry up to the turkey.',
+      'Coil has corn and cranberries to eat, the Boostball ball is a pumpkin, and Odd One Out hides pumpkins, pies, hay bales and a turkey among its props.',
+      'Pilgrim hats in Driftfall, Tumble Trials, Backrooms and Slipstream, and on the seekers in Chromaflage.',
+      'Trivium has a Thanksgiving category. On Thanksgiving Day the Daily ten, Hunch, Quartets, Crosslet and Poopdle are all Thanksgiving puzzles.',
+      'Every game has a Turkey Week button on its menu to switch the look off; switching it off in one game switches it off in all of them.'
+    ]},
     {date: '2026-11-14', version: '1.29.2', title: 'Fall buttons', kind: 'fix',
      tags: ['Back Room', 'Fall'], items: [
       'The green Play buttons, labels and links are harvest gold for the fall, so they match the rest of the page.'
