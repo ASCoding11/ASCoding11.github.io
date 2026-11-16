@@ -131,8 +131,8 @@ textarea.code{width:100%;min-height:76px;border:3px solid var(--ink);border-radi
 #info{position:absolute;left:max(14px,env(safe-area-inset-left));top:max(12px,env(safe-area-inset-top));display:grid;gap:5px;justify-items:start}
 #info .pill b{font-family:var(--f-d);font-weight:400}
 #targets{display:flex;gap:6px;align-items:center}
-#speed{position:absolute;right:max(16px,env(safe-area-inset-right));bottom:max(14px,env(safe-area-inset-bottom));font:400 30px var(--f-d);color:#fff;text-shadow:0 3px 0 var(--ink),2px 0 0 var(--ink),-2px 0 0 var(--ink);font-variant-numeric:tabular-nums;text-align:right;line-height:1}
-#speed small{display:block;font:900 12px var(--f-b);letter-spacing:.1em}
+#speed{position:absolute;right:max(16px,env(safe-area-inset-right));bottom:max(14px,env(safe-area-inset-bottom));font:400 30px var(--f-d);color:#fff;text-shadow:0 3px 0 var(--ink),0 0 2px var(--ink),2px 0 0 var(--ink),-2px 0 0 var(--ink),0 -2px 0 var(--ink);font-variant-numeric:tabular-nums;text-align:right;line-height:1}
+#speed small{display:block;width:max-content;margin:5px 0 0 auto;padding:2px 7px;border-radius:7px;background:var(--ink);color:#fff;text-shadow:none;font:900 11px var(--f-b);letter-spacing:.1em}
 #banner{position:absolute;left:50%;top:34%;transform:translate(-50%,-50%);font:400 64px var(--f-d);color:#fff;text-shadow:0 5px 0 var(--ink),3px 0 0 var(--ink),-3px 0 0 var(--ink),0 -2px 0 var(--ink);white-space:nowrap;opacity:0;transition:opacity .2s}
 #banner.show{opacity:1}
 #hint{position:absolute;left:50%;bottom:max(14px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;gap:12px;flex-wrap:wrap;justify-content:center;font:800 12.5px var(--f-b);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.6);max-width:calc(100% - 200px)}
@@ -1349,7 +1349,12 @@ function applyQuality(){
   scene.traverse(o=>{if(o.material){const ms=Array.isArray(o.material)?o.material:[o.material];ms.forEach(m=>m.needsUpdate=true)}});
   resize();
 }
-function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
+const fxScale={value:300};
+function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();fxScale.value=canvas.height*.5}
+// dust and exhaust are point clouds; this material gives every point its own colour, fade and size (aCol rgba, aSize in metres)
+function fxPointsMat(tex){return new THREE.ShaderMaterial({uniforms:{map:{value:tex},scale:fxScale},transparent:true,depthWrite:false,
+  vertexShader:'attribute vec4 aCol;attribute float aSize;varying vec4 vC;uniform float scale;void main(){vC=aCol;vec4 mv=modelViewMatrix*vec4(position,1.0);gl_PointSize=aSize*scale/max(.1,-mv.z);gl_Position=projectionMatrix*mv;}',
+  fragmentShader:'uniform sampler2D map;varying vec4 vC;void main(){gl_FragColor=vec4(vC.rgb,vC.a*texture2D(map,gl_PointCoord).a);}'})}
 addEventListener('resize',resize);
 
 // sky dome, ground, hills and clouds
@@ -1360,8 +1365,7 @@ addEventListener('resize',resize);
   const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.BackSide,fog:false,depthWrite:false}));m.renderOrder=-10;scene.add(m);
   scene.userData.sky=m;
 }
-const groundMat=new THREE.MeshLambertMaterial({color:0x7cc25a});
-const ground=new THREE.Mesh(new THREE.CircleGeometry(2400,48),groundMat);ground.rotation.x=-Math.PI/2;ground.position.y=RL.GROUND_Y-0.3;ground.receiveShadow=true;scene.add(ground);
+// the ground is one mesh made in buildScenery: a patchwork of flat triangles round the track, and four plain sheets out to the horizon
 let hills=null,clouds=null,patch=null;
 const patchMat=new THREE.MeshLambertMaterial({vertexColors:true});
 function triMesh(pos,colInts,opts){ // positions (flat array) and one colour per triangle
@@ -1383,19 +1387,23 @@ function buildScenery(bounds,seed){
       const m0=[x+Math.cos(a0+.3)*w*.55,G+h*.55,z+Math.sin(a0+.3)*w*.55],m1=[x+Math.cos(a1+.3)*w*.55,G+h*.55,z+Math.sin(a1+.3)*w*.55];
       const cc=cols[(i+k)%cols.length];addTri(P,Cc,p0,m1,m0,cc);addTri(P,Cc,p0,p1,m1,cc);addTri(P,Cc,m0,m1,top,i%3===0&&h>90?TT.cap:cols[(i+k+2)%cols.length])}}
   hills=triMesh(P,Cc);hills.material.emissive=new THREE.Color(TT.em);hills.receiveShadow=false;scene.add(hills);
-  // ground patchwork: flat triangles in slightly different tones of the ground colour, so the ground isn't one flat
-  // colour and you can see it move. Looks only: it is flat, at ground height, and fades into the plain ground at its edge.
+  // the ground: round the track a patchwork of flat triangles in slightly different tones of the ground colour, so it isn't
+  // one flat colour and you can see it move; its tones fade out towards its edge, where four plain sheets carry on to the
+  // horizon. Looks only: it is all flat, at ground height, and every bit of ground is drawn once.
   if(patch){scene.remove(patch);patch.geometry.dispose()}
-  {const span=Math.max(bounds.maxX-bounds.minX,bounds.maxZ-bounds.minZ)+360,N=clamp(Math.round(span/13),24,56),cs=span/N,x0=cx-span/2,z0=cz-span/2;
+  {const span=Math.max(bounds.maxX-bounds.minX,bounds.maxZ-bounds.minZ)+360,N=clamp(Math.round(span/18),18,32),cs=span/N,x0=cx-span/2,z0=cz-span/2;
     const pts=[];for(let j=0;j<=N;j++)for(let i=0;i<=N;i++){const e=i===0||j===0||i===N||j===N,jx=e?0:(rnd()-.5)*.7,jz=e?0:(rnd()-.5)*.7;pts.push(x0+(i+jx)*cs,z0+(j+jz)*cs)}
-    const pos=new Float32Array(N*N*18),col=new Float32Array(N*N*18),base=new THREE.Color(TT.ground),c=new THREE.Color(),ph1=rnd()*6,ph2=rnd()*6;let o=0;
+    const pos=new Float32Array(N*N*18+72),col=new Float32Array(N*N*18+72),base=new THREE.Color(TT.ground),c=new THREE.Color(),ph1=rnd()*6,ph2=rnd()*6;let o=0;
     const tri=(a,b,d)=>{const mx=(pts[a*2]+pts[b*2]+pts[d*2])/3,mz=(pts[a*2+1]+pts[b*2+1]+pts[d*2+1])/3;
       const fade=clamp((1-Math.max(Math.abs(mx-cx),Math.abs(mz-cz))/(span/2))*5,0,1),v=(.6*Math.sin(mx*.021+ph1)*Math.sin(mz*.017+ph2)+.4*(rnd()*2-1))*fade;
       c.copy(base).offsetHSL(v*.012,0,v*TT.tone);
       for(const q of [a,b,d]){pos[o]=pts[q*2];pos[o+1]=0;pos[o+2]=pts[q*2+1];col[o]=c.r;col[o+1]=c.g;col[o+2]=c.b;o+=3}};
     for(let j=0;j<N;j++)for(let i=0;i<N;i++){const a=j*(N+1)+i,b=a+N+1;if((i+j)&1){tri(a,b,a+1);tri(a+1,b,b+1)}else{tri(a,b,b+1);tri(a,b+1,a+1)}}
+    const x1=x0+span,z1=z0+span,F=3200,pt=(x,z)=>{pos[o]=x;pos[o+1]=0;pos[o+2]=z;col[o]=base.r;col[o+1]=base.g;col[o+2]=base.b;o+=3};
+    const sheet=(xa,za,xb,zb)=>{pt(xa,za);pt(xa,zb);pt(xb,za);pt(xb,za);pt(xa,zb);pt(xb,zb)};
+    sheet(cx-F,cz-F,cx+F,z0);sheet(cx-F,z1,cx+F,cz+F);sheet(cx-F,z0,x0,z1);sheet(x1,z0,cx+F,z1);
     const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));g.setAttribute('color',new THREE.BufferAttribute(col,3));g.computeVertexNormals();
-    patch=new THREE.Mesh(g,patchMat);patch.position.y=G-0.02;patch.receiveShadow=true;scene.add(patch)}
+    patch=new THREE.Mesh(g,patchMat);patch.name='patch';patch.position.y=G-0.02;patch.receiveShadow=true;scene.add(patch)}
   const Q=[],Qc=[];
   for(let i=0;i<16;i++){const a=rnd()*Math.PI*2,r=rad*.4+rnd()*rad*1.4,x=cx+Math.cos(a)*r,z=cz+Math.sin(a)*r,y=90+rnd()*90,n=3+Math.floor(rnd()*3);
     for(let k=0;k<n;k++){const ox=x+(k-n/2)*14+rnd()*6,oz=z+rnd()*10,rr=9+rnd()*9,oy=y+rnd()*5;const ico=new THREE.IcosahedronGeometry(rr,0),p=ico.attributes.position;
@@ -1426,7 +1434,7 @@ function makeRoadLines(pieces){
       const a=q(A0,sA,-hw),b=q(A0,sA,hw),c=q(Z,sZ,hw),d=q(Z,sZ,-hw);
       P.push(a[0],a[1],a[2],c[0],c[1],c[2],b[0],b[1],b[2],a[0],a[1],a[2],d[0],d[1],d[2],c[0],c[1],c[2])}}
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(P),3));g.computeVertexNormals();
-  const m=new THREE.Mesh(g,lineMat);m.receiveShadow=true;return m;
+  const m=new THREE.Mesh(g,lineMat);m.name='lines';m.receiveShadow=true;return m;
 }
 const gateTex={};
 function bannerTex(kind){
@@ -1534,6 +1542,25 @@ function poseCar(obj,p,f,u,steer,speedF,dt,air){
   obj.wm.instanceMatrix.needsUpdate=true;
 }
 let carObj=null,ghostObj=null;
+// On the Low graphics setting (phones start on it) nothing casts a shadow, so the car gets one soft dark patch under it:
+// on the road while it drives, on whatever is below while it flies (one ray a frame, only in the air), fading with height.
+const blob=(()=>{const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d'),r=g.createRadialGradient(32,32,4,32,32,32);r.addColorStop(0,'rgba(16,22,40,.55)');r.addColorStop(.6,'rgba(16,22,40,.32)');r.addColorStop(1,'rgba(16,22,40,0)');g.fillStyle=r;g.fillRect(0,0,64,64);
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(3.3,5.2),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(c),transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-3,polygonOffsetUnits:-6}));
+  m.visible=false;m.renderOrder=1;scene.add(m);return m})();
+const _DOWN=[0,-1,0];
+function blobStep(on,p,f,u,gr,B){
+  if(!on||hiQ()){blob.visible=false;return}
+  let q=null,n=u,h=0;
+  if(gr)q=[p[0]-u[0]*(RL.PH.ride-.05),p[1]-u[1]*(RL.PH.ride-.05),p[2]-u[2]*(RL.PH.ride-.05)];
+  else{const hit=RL.rayCast(B||G.B,p,_DOWN,40,false);
+    if(hit&&hit.fn[1]>.3){q=[hit.p[0],hit.p[1]+.05,hit.p[2]];n=hit.fn;h=hit.d}
+    else if(!hit&&p[1]-RL.GROUND_Y<40){q=[p[0],RL.GROUND_Y+.05,p[2]];n=[0,1,0];h=p[1]-RL.GROUND_Y}}
+  if(!q){blob.visible=false;return}
+  _by.set(n[0],n[1],n[2]);_bz.set(f[0],f[1],f[2]);_bx.crossVectors(_bz,_by);if(_bx.lengthSq()<1e-4){blob.visible=false;return}
+  _bx.normalize();_bz.crossVectors(_by,_bx);_m4.makeBasis(_bx,_bz,_by); // the plane's own up (its long side) along the car, its face along the surface
+  blob.quaternion.setFromRotationMatrix(_m4);blob.position.set(q[0],q[1],q[2]);
+  const k=clamp(1-h/40,0,1);blob.scale.setScalar(.7+.3*k);blob.material.opacity=.35+.65*k;blob.visible=true;
+}
 function rebuildCars(){
   if(carObj){scene.remove(carObj.grp);carObj.dispose()}if(ghostObj){scene.remove(ghostObj.grp);ghostObj.dispose()}
   carObj=makeCarObj(gar.car,PAINT[gar.col],false,gar);ghostObj=makeCarObj(gar.car,0xbfe6ff,true);scene.add(carObj.grp);scene.add(ghostObj.grp);ghostObj.grp.visible=false;
@@ -1541,23 +1568,25 @@ function rebuildCars(){
 }
 // exhaust trail (garage): off, smoke, flame or rainbow; one point cloud
 const TRAILS=['Off','Smoke','Flame','Rainbow'];
-const TRN=140,trPos=new Float32Array(TRN*3),trCol=new Float32Array(TRN*3),trLife=new Float32Array(TRN),trVel=new Float32Array(TRN*3);let trI=0,trAcc=0,trHue=0;
-const trGeo=new THREE.BufferGeometry();trGeo.setAttribute('position',new THREE.BufferAttribute(trPos,3));trGeo.setAttribute('color',new THREE.BufferAttribute(trCol,3));
-const trailPts=new THREE.Points(trGeo,new THREE.PointsMaterial({size:.75,map:puffTexEarly(),transparent:true,depthWrite:false,vertexColors:true,opacity:.8}));trailPts.frustumCulled=false;scene.add(trailPts);
+const TRN=140,trPos=new Float32Array(TRN*3),trCol=new Float32Array(TRN*4),trSize=new Float32Array(TRN),trLife=new Float32Array(TRN),trVel=new Float32Array(TRN*3),trFl=new Uint8Array(TRN);let trI=0,trAcc=0,trHue=0;
+const trGeo=new THREE.BufferGeometry();trGeo.setAttribute('position',new THREE.BufferAttribute(trPos,3));trGeo.setAttribute('aCol',new THREE.BufferAttribute(trCol,4));trGeo.setAttribute('aSize',new THREE.BufferAttribute(trSize,1));
+const trailPts=new THREE.Points(trGeo,fxPointsMat(puffTexEarly()));trailPts.frustumCulled=false;scene.add(trailPts);
 for(let i=0;i<TRN;i++)trPos[i*3+1]=-999;
 function puffTexEarly(){const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d'),r=g.createRadialGradient(32,32,0,32,32,32);r.addColorStop(0,'rgba(255,255,255,.95)');r.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=r;g.fillRect(0,0,64,64);return new THREE.CanvasTexture(c)}
 const _tc=new THREE.Color();
 function trailClear(){trLife.fill(0);for(let i=0;i<TRN;i++)trPos[i*3+1]=-999;trGeo.attributes.position.needsUpdate=true}
 function trailStep(p,f,u,car,dt){
-  const on=gar.trail>0&&car&&car.out<=0;trAcc+=dt;
-  if(on&&(G.lastInp&1||car.boost>0)&&trAcc>0.016){trAcc=0;
+  // the garage's trail, or, with none chosen, a flame while a boost pad's push lasts
+  const boost=car&&car.boost>0,mode=gar.trail||(boost?2:0),on=mode>0&&car&&car.out<=0;trAcc+=dt;
+  if(on&&(G.lastInp&1||boost)&&trAcc>0.016){trAcc=0;
     for(const sx of [-.45,.45]){const i=trI++%TRN,s=Vm.cross(u,f);const q=[p[0]-f[0]*2.05+s[0]*sx+u[0]*.05,p[1]-f[1]*2.05+s[1]*sx+u[1]*.05,p[2]-f[2]*2.05+s[2]*sx+u[2]*.05];
       trPos.set(q,i*3);trVel.set([-f[0]*2+(Math.random()-.5),-f[1]*2+Math.random()*.8,-f[2]*2+(Math.random()-.5)],i*3);trLife[i]=.55;
-      if(gar.trail===1)_tc.setRGB(.82,.82,.86);else if(gar.trail===2)_tc.setHSL(.08-Math.random()*.06,1,.55);else{trHue=(trHue+.012)%1;_tc.setHSL(trHue,.95,.6)}
-      trCol.set([_tc.r,_tc.g,_tc.b],i*3)}}
+      if(mode===1)_tc.setRGB(.82,.82,.86);else if(mode===2)_tc.setHSL(.1-Math.random()*.06,1,boost?.62:.55);else{trHue=(trHue+.012)%1;_tc.setHSL(trHue,.95,.6)}
+      trCol.set([_tc.r,_tc.g,_tc.b,.8],i*4);trSize[i]=mode===2?.8:.75;trFl[i]=mode===2?1:0}}
   for(let i=0;i<TRN;i++){if(trLife[i]<=0)continue;trLife[i]-=dt;if(trLife[i]<=0){trPos[i*3+1]=-999;continue}for(let k=0;k<3;k++)trPos[i*3+k]+=trVel[i*3+k]*dt;
-    if(gar.trail===2){trCol[i*3+1]*=0.97;trCol[i*3+2]*=0.95}}
-  trGeo.attributes.position.needsUpdate=true;trGeo.attributes.color.needsUpdate=true;
+    const k=trLife[i]/.55;trCol[i*4+3]=.8*Math.min(1,k*1.6); // fades out instead of popping
+    if(trFl[i]){trCol[i*4+1]*=0.97;trCol[i*4+2]*=0.95}} // flame cools from yellow to red
+  trGeo.attributes.position.needsUpdate=true;trGeo.attributes.aCol.needsUpdate=true;trGeo.attributes.aSize.needsUpdate=true;
 }
 // ---------- ghosts ----------
 // A ghost is a recording of inputs. GTrack drives it through the same physics once, a little ahead of where it's needed,
@@ -1624,20 +1653,30 @@ function applyTheme(th){
   th=THEME[th]?th:0;if(th===curTheme)return;curTheme=th;const T0=THEME[th];
   const sky=scene.userData.sky,p=sky.geometry.attributes.position,col=sky.geometry.attributes.color,a=new THREE.Color(T0.sky[0]),b=new THREE.Color(T0.sky[1]),c=new THREE.Color();
   for(let i=0;i<p.count;i++){const y=p.getY(i)/2200;c.copy(b).lerp(a,clamp(y*1.6,0,1));col.setXYZ(i,c.r,c.g,c.b)}col.needsUpdate=true;
-  scene.fog.color.setHex(T0.fog);groundMat.color.setHex(T0.ground);
+  scene.fog.color.setHex(T0.fog);
   hemi.color.setHex(T0.hs);hemi.groundColor.setHex(T0.hg);sun.color.setHex(T0.sun); // each look has its own light, so hills and trees take its colours
 }
 
-// dust puffs: one point cloud
-const PUFF=160,puffPos=new Float32Array(PUFF*3),puffLife=new Float32Array(PUFF),puffVel=new Float32Array(PUFF*3);let puffI=0;
-const puffGeo=new THREE.BufferGeometry();puffGeo.setAttribute('position',new THREE.BufferAttribute(puffPos,3));
-const puffTex=(()=>{const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d'),r=g.createRadialGradient(32,32,0,32,32,32);r.addColorStop(0,'rgba(255,255,255,.9)');r.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=r;g.fillRect(0,0,64,64);return new THREE.CanvasTexture(c)})();
-const puffs=new THREE.Points(puffGeo,new THREE.PointsMaterial({size:1.1,map:puffTex,transparent:true,depthWrite:false,color:0xf2efe6,opacity:.55}));puffs.frustumCulled=false;scene.add(puffs);
+// dust puffs: one point cloud. Each puff takes the look's dust colour, grows a little and fades out.
+const PUFF=160,puffPos=new Float32Array(PUFF*3),puffLife=new Float32Array(PUFF),puffMax=new Float32Array(PUFF),puffVel=new Float32Array(PUFF*3),puffCol=new Float32Array(PUFF*4),puffSize=new Float32Array(PUFF),puffS0=new Float32Array(PUFF);let puffI=0;
+const puffGeo=new THREE.BufferGeometry();puffGeo.setAttribute('position',new THREE.BufferAttribute(puffPos,3));puffGeo.setAttribute('aCol',new THREE.BufferAttribute(puffCol,4));puffGeo.setAttribute('aSize',new THREE.BufferAttribute(puffSize,1));
+const puffTex=(()=>{const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d'),r=g.createRadialGradient(32,32,0,32,32,32);r.addColorStop(0,'rgba(255,255,255,.95)');r.addColorStop(.4,'rgba(255,255,255,.55)');r.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=r;g.fillRect(0,0,64,64);return new THREE.CanvasTexture(c)})();
+const puffs=new THREE.Points(puffGeo,fxPointsMat(puffTex));puffs.frustumCulled=false;scene.add(puffs);
 for(let i=0;i<PUFF;i++)puffPos[i*3+1]=-999;
-function puff(p,n,spread){for(let k=0;k<n;k++){const i=puffI++%PUFF;puffPos[i*3]=p[0]+(Math.random()-.5)*spread;puffPos[i*3+1]=p[1]-.35;puffPos[i*3+2]=p[2]+(Math.random()-.5)*spread;
-  puffVel[i*3]=(Math.random()-.5)*2;puffVel[i*3+1]=1+Math.random()*1.5;puffVel[i*3+2]=(Math.random()-.5)*2;puffLife[i]=.6+Math.random()*.4}}
-function stepPuffs(dt){for(let i=0;i<PUFF;i++){if(puffLife[i]<=0)continue;puffLife[i]-=dt;if(puffLife[i]<=0){puffPos[i*3+1]=-999;continue}
-  for(let k=0;k<3;k++)puffPos[i*3+k]+=puffVel[i*3+k]*dt}puffGeo.attributes.position.needsUpdate=true}
+const _pc=new THREE.Color();
+// n puffs round p; out > 0 pushes them outwards in a ring (landings, in the look's dust colour); without it they are pale tyre smoke
+const _smoke=new THREE.Color(0xecebe8);
+function puff(p,n,spread,out){_pc.setHex((THEME[curTheme]||THEME[0]).dust);if(!out)_pc.lerp(_smoke,.7);
+  for(let k=0;k<n;k++){const i=puffI++%PUFF,a=Math.random()*Math.PI*2,r=Math.random()*spread*.5,o=out||0;
+    puffPos[i*3]=p[0]+Math.cos(a)*r;puffPos[i*3+1]=p[1]-.4;puffPos[i*3+2]=p[2]+Math.sin(a)*r;
+    puffVel[i*3]=Math.cos(a)*(o+Math.random());puffVel[i*3+1]=.5+Math.random()*1.3;puffVel[i*3+2]=Math.sin(a)*(o+Math.random());
+    puffLife[i]=puffMax[i]=.5+Math.random()*.4;puffS0[i]=.7+Math.random()*.5;const sh=.92+Math.random()*.08;puffCol[i*4]=_pc.r*sh;puffCol[i*4+1]=_pc.g*sh;puffCol[i*4+2]=_pc.b*sh}}
+let puffLive=false;
+function stepPuffs(dt){const dr=Math.max(0,1-dt*2.2);let live=false;for(let i=0;i<PUFF;i++){if(puffLife[i]<=0)continue;live=true;puffLife[i]-=dt;if(puffLife[i]<=0){puffPos[i*3+1]=-999;puffCol[i*4+3]=0;continue}
+  puffVel[i*3]*=dr;puffVel[i*3+2]*=dr;for(let k=0;k<3;k++)puffPos[i*3+k]+=puffVel[i*3+k]*dt;
+  const q=puffLife[i]/puffMax[i];puffCol[i*4+3]=.45*Math.min(1,q*1.8);puffSize[i]=puffS0[i]*(1+(1-q)*1.3)}
+  if(!live&&!puffLive)return;puffLive=live; // nothing in the air: nothing to send to the graphics card
+  puffGeo.attributes.position.needsUpdate=true;puffGeo.attributes.aCol.needsUpdate=true;puffGeo.attributes.aSize.needsUpdate=true}
 
 // ---------- game state ----------
 const G={mode:'menu',overlay:'menu',B:null,track:null,key:null,builtin:-1,car:null,gcar:null,grec:null,rec:[],acc:0,paused:false,
@@ -1750,10 +1789,10 @@ function tick(){
   RL.step(B,car,inp);
   if(!wasFin&&G.rec.length<72000)G.rec.push(inp);
   // events
-  if(car.land>3){sfx.land(car.land);puff(car.p,6,1.6)}
+  if(car.land>3){sfx.land(car.land);puff(car.p,Math.round(clamp(4+car.land*.5,6,14)),1.8,clamp(car.land*.35,1.5,5))} // harder landings kick up a wider ring
   if(car.hit>3){sfx.hit(car.hit)}
   if(car.resp>respBefore){sfx.resp();G.camInit=false;$('invPill').hidden=false}
-  if(car.gr&&car.slip>RL.PH.slideV+1&&Math.random()<.35)puff(car.p,1,1.4);
+  if(car.gr&&car.slip>RL.PH.slideV+1&&Math.random()<.35)puff([car.p[0]-car.f[0]*1.2,car.p[1]-car.f[1]*1.2,car.p[2]-car.f[2]*1.2],1,1.6); // from the back wheels
   const ncp=car.cpt.filter(t=>t>=0).length;
   if(ncp>ncpBefore){sfx.cp();paintGates(car);updateCpCount();
     const t=car.cpt[car.lastCp]*1000;showSplit(ncp-1,t);if(car.resp===0)G.splits.push(t)}
@@ -1867,17 +1906,17 @@ function camFollow(p,f,u,car,dt){
 // the faster you go, the wider the view (and a boost kicks it out a little more); with speed effects off it stays put
 const FOV0=64;
 function fovFor(sp,car){return set.fx?FOV0+clamp((sp-8)*0.36,0,24)+(car&&car.boost>0?5:0):FOV0}
-// speed lines: thin streaks rushing past the edges of the view, fading in above about 110 km/h
+// speed lines: thin streaks rushing past the edges of the view, fading in above about 90 km/h
 const SL=64,slPos=new Float32Array(SL*6),slSeed=new Float32Array(SL*3);
 const slGeo=new THREE.BufferGeometry();slGeo.setAttribute('position',new THREE.BufferAttribute(slPos,3));
 const slMat=new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0,depthWrite:false,depthTest:false,fog:false});
 const speedLines=new THREE.LineSegments(slGeo,slMat);speedLines.frustumCulled=false;speedLines.renderOrder=20;camera.add(speedLines);scene.add(camera);
-for(let i=0;i<SL;i++){slSeed[i*3]=Math.random()*Math.PI*2;slSeed[i*3+1]=1.2+Math.random()*1.6;slSeed[i*3+2]=Math.random()}
+for(let i=0;i<SL;i++){slSeed[i*3]=Math.random()*Math.PI*2;slSeed[i*3+1]=2+Math.random()*2;slSeed[i*3+2]=Math.random()}
 function speedLinesStep(sp,dt,on){
   const k=on&&set.fx?clamp((sp-25)/30,0,1):0;slMat.opacity+=(k*0.45-slMat.opacity)*Math.min(1,dt*6);speedLines.visible=slMat.opacity>0.01;if(!speedLines.visible)return;
-  const L=1.5+sp*0.06;
+  const L0=1.5+sp*0.06;
   for(let i=0;i<SL;i++){let z=slSeed[i*3+2];z-=dt*sp/40;if(z<0)z+=1;slSeed[i*3+2]=z;
-    const a=slSeed[i*3],r=slSeed[i*3+1],x=Math.cos(a)*r*1.5,y=Math.sin(a)*r*.9,zz=-2-z*16,o=i*6;
+    const a=slSeed[i*3],r=slSeed[i*3+1],x=Math.cos(a)*r*1.5,y=Math.sin(a)*r*.9,zz=-2-z*16,o=i*6,L=Math.min(L0,-zz*.22); // short enough that a streak stays near the edge and never crosses the car
     slPos[o]=x*(-zz)/4;slPos[o+1]=y*(-zz)/4;slPos[o+2]=zz;slPos[o+3]=x*(-zz-L)/4;slPos[o+4]=y*(-zz-L)/4;slPos[o+5]=zz-L}
   slGeo.attributes.position.needsUpdate=true;
 }
@@ -1911,7 +1950,7 @@ function updateMenu(dt){
   const b=G.B.bounds,cx=(b.minX+b.maxX)/2,cz=(b.minZ+b.maxZ)/2,sz=Math.max(b.maxX-b.minX,b.maxZ-b.minZ),r=sz*.42+50;
   camera.position.set(cx+Math.cos(MENU_ANG)*r,b.maxY+30+sz*.22,cz+Math.sin(MENU_ANG)*r);camera.up.set(0,1,0);camera.lookAt(cx,b.minY,cz);
   if(camera.fov!==60){camera.fov=60;camera.updateProjectionMatrix()}
-  const c=G.car;if(c){poseCar(carObj,c.p,c.f,c.u,0,0,dt,false);carObj.grp.visible=true}
+  const c=G.car;if(c){poseCar(carObj,c.p,c.f,c.u,0,0,dt,false);carObj.grp.visible=true;blobStep(true,c.p,c.f,c.u,true)}
   if(slMat.opacity>0)speedLinesStep(0,dt,false);
   sun.position.set(cx+60,b.maxY+110,cz+40);sun.target.position.set(cx,0,cz);
   sun.shadow.camera.left=sun.shadow.camera.bottom=-r;sun.shadow.camera.right=sun.shadow.camera.top=r;sun.shadow.camera.updateProjectionMatrix();
@@ -1931,7 +1970,7 @@ function updateRace(dt){
   const vf=Vm.dot(car.v,car.f);
   // suspension spring (looks only)
   carObj.suspV+=(-carObj.susp*90-carObj.suspV*9)*dt;if(car.land>0)carObj.suspV-=car.land*.05;carObj.susp+=carObj.suspV*dt;carObj.susp=clamp(carObj.susp,-.2,.15);
-  poseCar(carObj,p,f,u,car.steer,vf,dt,!car.gr);carObj.grp.visible=true;
+  poseCar(carObj,p,f,u,car.steer,vf,dt,!car.gr);carObj.grp.visible=true;blobStep(car.out<=0,p,f,u,car.gr);
   ghostsPose(car.step,a,dt);
   camFollow(p,f,u,car,dt);trailStep(p,f,u,car,dt);
   sun.position.set(p[0]+40,p[1]+90,p[2]+25);sun.target.position.set(p[0],p[1],p[2]);
@@ -2158,7 +2197,7 @@ function openEditor(slot,track,fresh){
   $('edName').value=ED.track.name;$('edTheme').value=String(ED.track.theme|0);applyTheme(ED.track.theme|0);
   if(!ED.grid){ED.grid=makeGrid();scene.add(ED.grid)}ED.grid.visible=true;
   edRebuild();buildScenery({minX:ED.cam.x-200,maxX:ED.cam.x+200,minZ:ED.cam.z-200,maxZ:ED.cam.z+200},7);slotSave();buildPalette();edTools();
-  ghostObj.grp.visible=false;carObj.grp.visible=false;engineSound(null,0,false);
+  ghostObj.grp.visible=false;carObj.grp.visible=false;blob.visible=false;engineSound(null,0,false);
   if(camera.fov!==60){camera.fov=60;camera.updateProjectionMatrix()}
 }
 function leaveEditor(){if(ED.grid)ED.grid.visible=false;ED.paste=null;ED.sel=new Set();ED.selKey=null;if(ED.selMesh){scene.remove(ED.selMesh);ED.selMesh.geometry.dispose();ED.selMesh=null}if(ED.arrows){ED.arrows.forEach(a=>scene.remove(a));ED.arrows=null}$('edRect').hidden=true;if(ED.preview){scene.remove(ED.preview);ED.preview.geometry.dispose();ED.preview=null}if(ED.hl){ED.hl.visible=false}if(footMesh)footMesh.visible=false;if(edMesh){scene.remove(edMesh);edMesh.geometry.dispose();edMesh=null}}
@@ -2664,7 +2703,7 @@ function openReplay(spec){
   if(G.mode==='edit')leaveEditor();
   RV.a=prepRun(spec.runs[0],spec.B);RV.b=null;RV.k=0;RV.acc=0;RV.play=true;RV.speed=1;G.mode='replay';
   if(RV.objA){scene.remove(RV.objA.grp);RV.objA.dispose()}RV.objA=makeCarObj(RV.a.car|0,PAINT[RV.a.col|0],false,RV.a.name==='You'?gar:null);scene.add(RV.objA.grp);
-  carObj.grp.visible=false;ghostsHide();
+  carObj.grp.visible=false;blob.visible=false;ghostsHide();
   const sel=$('rvCmp');sel.textContent='';const opts=rvOptions();RV.opts=opts;
   sel.append(new Option('Compare with: nobody','-1'));opts.forEach((r,i)=>sel.append(new Option('Compare with: '+r.name,String(i))));
   sel.value=opts.length&&spec.runs.length>1?'0':'-1';rvSetB(+sel.value);
@@ -2722,7 +2761,7 @@ function updateReplay(dt){
   const A=RV.a;if(!A)return;
   if(RV.play){RV.acc+=dt*RV.speed;let moved=false;while(RV.acc>=DT){RV.acc-=DT;if(RV.k<A.n-1){RV.k++;moved=true}else{RV.play=false;RV.acc=0;break}}if(moved||!RV.play)rvDraw()}
   const a=RV.play?clamp(RV.acc/DT,0,1):1,k=Math.max(1,RV.k),ps=A.tr.pose(k,a);
-  poseCar(RV.objA,ps.p,ps.f,ps.u,ps.steer,ps.vf,dt*RV.speed,!!(ps.fl&1));RV.objA.grp.visible=!(ps.fl&2);
+  poseCar(RV.objA,ps.p,ps.f,ps.u,ps.steer,ps.vf,dt*RV.speed,!!(ps.fl&1));RV.objA.grp.visible=!(ps.fl&2);blobStep(!(ps.fl&2),ps.p,ps.f,ps.u,!(ps.fl&1),RV.spec&&RV.spec.B);
   const p=ps.p.slice(),f=ps.f.slice(),u=ps.u.slice();_rvCar.v=[f[0]*ps.vf,f[1]*ps.vf,f[2]*ps.vf];_rvCar.gr=!(ps.fl&1);
   if(RV.b&&RV.objB){const q=RV.b.tr.pose(Math.min(k,RV.b.n-1),a);poseCar(RV.objB,q.p,q.f,q.u,q.steer,q.vf,dt*RV.speed,!!(q.fl&1));RV.objB.grp.visible=!(q.fl&2)}
   camFollow(p,f,u,_rvCar,dt);speedLinesStep(Math.abs(ps.vf),dt,false);
