@@ -179,9 +179,8 @@ add({ id: 'ostrich', name: 'Ostrich', cat: 'animals', axis: 'v', dim: 'height', 
   art: [smooth('64,-250 76,-246 90,-239! 76,-236 66,-232 60,-212 54,-184 52,-160 60,-140 58,-118 44,-102 26,-98! 32,-64 24,-12 44,-3 44,0! 12,0! 14,-12 18,-62 6,-96! -24,-98 -52,-106 -78,-112 -92,-128 -84,-150 -66,-166 -36,-176 0,-178 28,-172 40,-182 44,-206 48,-232 52,-246'),
     smooth('-16,-100! 2,-100! -4,-62 -14,-12 4,-3 4,0! -26,0! -24,-12 -18,-62')] });
 add({ id: 'great-white', name: 'Great white shark', cat: 'animals', axis: 'h', dim: 'length', m: 4.7, lo: 4.57, hi: 4.88,
-  what: 'an average adult female, snout to tail tip', note: '15 to 16 ft; males are smaller',
-  src: ['Smithsonian Ocean: How Big are Great White Sharks?', 'https://ocean.si.edu/ocean-life/sharks-rays/how-big-are-great-white-sharks'],
-  fact: 'The biggest ones reach about 20 ft, but most are well short of the monsters in films.',
+  what: 'a female that has just reached adult size, snout to tail tip', note: 'females are grown up at 15 to 16 ft, males at only 11 to 13 ft',
+  src: W('Great white shark'), fact: 'Females are the bigger sex, and the longest great white reliably measured in one Pacific study was just over 6 m.',
   art: [smooth('470,-64! 440,-82 390,-100 320,-110 298,-112! 276,-146 258,-170! 252,-140 238,-108! 180,-98 112,-80 100,-88! 92,-76 52,-68 30,-104 4,-152! 20,-104 34,-66 22,-34 12,-2! 40,-32 58,-52 110,-46 122,-32! 134,-44 200,-34 212,-18! 228,-28 280,-26 298,-28! 282,-6 270,2! 306,-14 338,-34 390,-38 430,-46 456,-54') +
     circ(424, -72, 3.5) + [352, 362, 372].map(x => `M${x} -80L${x + 3} -80L${x - 1} -48L${x - 4} -48Z`).join('')] });
 add({ id: 'orca', name: 'Orca', cat: 'animals', axis: 'h', dim: 'length', m: 7, lo: 6, hi: 8,
@@ -207,8 +206,8 @@ add({ id: 'lolong', name: 'Lolong the crocodile', cat: 'animals', axis: 'h', dim
     .map(q => poly([[q[0] - q[2] / 2, q[1] + 6], [q[0] - q[2] * 0.36, q[1] - q[3] * 0.55], [q[0], q[1] - q[3]], [q[0] + q[2] * 0.36, q[1] - q[3] * 0.55], [q[0] + q[2] / 2, q[1] + 6]]));
   add({ id: 'sophie', also: 2.9, name: 'Sophie the Stegosaurus', cat: 'animals', axis: 'h', dim: 'length', m: 5.6,
     what: 'the most complete Stegosaurus skeleton known, at London\'s Natural History Museum, snout to tail', note: 'she stands 2.9 m tall',
-    src: ['CNN Travel: World\'s most complete Stegosaurus (Natural History Museum figures)', 'https://www.cnn.com/travel/article/worlds-most-complete-stegosaurus/index.html'],
-    fact: 'Sophie is roughly the size of a big 4x4 car, and about 85% of the skeleton is real fossil bone.',
+    src: ['Natural History Museum press release: World\'s most complete Stegosaurus goes on show', 'https://www.nhm.ac.uk/press-office/press-releases/world_s-most-complete-stegosaurus-goes-on-show.html'],
+    fact: 'Sophie is about the size of a big 4x4 car, and nearly all of her was found: only the left arm and the base of the tail were missing.',
     art: [smooth('560,-78 542,-96 516,-100 472,-130 432,-170 372,-200 300,-216 240,-212 200,-200 120,-152 50,-112 0,-94! 50,-94 120,-110 190,-122 212,-122! 202,-62 198,-20 192,0! 242,0! 246,-20 252,-62 272,-100! 320,-90 380,-84 402,-82! 398,-30 394,0! 434,0! 436,-30 442,-72! 462,-90 500,-84 532,-74 554,-70'),
       ...plates, poly('28,-100 10,-152 42,-106'), poly('58,-112 44,-166 72,-118')] });
 }

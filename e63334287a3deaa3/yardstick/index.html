@@ -384,7 +384,7 @@ function shareText() {
 const svg = $('stage'), refG = $('refG'), tgtG = $('tgtG'), handle = $('handle');
 const view = { W: 300, H: 300, ppm: 1, ox: 0, gy: 0, zoom: 1, panX: 0, panY: 0, snap: true };
 let dirty = true, raf = 0, drag = null, lastRevealG = null;
-const PAD = { l: 44, r: 30, t: 54, b: 34 };
+const PAD = { l: 44, r: 50, t: 58, b: 34 }, HOFF = 21; // the handle floats HOFF pixels beyond the measured edge, so it never hides a small shape
 function fillShapes() {
   const put = (g, o) => { g.innerHTML = ''; o.p.forEach(d => { const p = document.createElementNS(NS, 'path'); p.setAttribute('d', d); g.appendChild(p); }); };
   put(refG, st.ref); put(tgtG, st.tgt); put($('tmS'), st.tgt); put($('tmF'), st.tgt);
@@ -405,7 +405,7 @@ function fitTarget() {
   return { ppm, ox: PAD.l + (availW - cw * ppm) / 2 + view.panX, gy: view.H - PAD.b + view.panY };
 }
 function resize(snap) {
-  const b = $('stageBox').getBoundingClientRect();
+  const b = svg.getBoundingClientRect(); // the drawing itself (inside the box's border), so one unit is one pixel
   view.W = Math.max(60, b.width); view.H = Math.max(60, b.height);
   svg.setAttribute('viewBox', '0 0 ' + view.W + ' ' + view.H);
   const m = $('tm'); m.setAttribute('width', view.W); m.setAttribute('height', view.H);
@@ -469,10 +469,10 @@ function draw() {
   const tw = sc.tw * V.ppm, th = sc.th * V.ppm, play = st.phase === 'play';
   handle.style.display = play ? '' : 'none';
   if (play) {
-    const hx = t.axis === 'v' ? tx + tw / 2 : tx + tw, hy = t.axis === 'v' ? V.gy - th : V.gy - Math.max(th / 2, Math.min(th, 16));
+    const hx = t.axis === 'v' ? tx + tw / 2 : tx + tw + HOFF, hy = t.axis === 'v' ? V.gy - th - HOFF : V.gy - Math.max(th / 2, 15);
     handle.setAttribute('transform', 'translate(' + f1(hx) + ' ' + f1(hy) + ')');
     handle.lastChild.setAttribute('d', t.axis === 'v' ? 'M0 -6.5V6.5M-3.6 -3L0 -6.5L3.6 -3M-3.6 3L0 6.5L3.6 3' : 'M-6.5 0H6.5M-3 -3.6L-6.5 0L-3 3.6M3 -3.6L6.5 0L3 3.6');
-    $('mG').setAttribute('d', t.axis === 'v' ? 'M' + f1(tx - 8) + ' ' + f1(V.gy - th) + 'H' + f1(tx + tw + 8) : 'M' + f1(tx + tw) + ' ' + f1(V.gy + 4) + 'V' + f1(V.gy - th - 8));
+    $('mG').setAttribute('d', t.axis === 'v' ? 'M' + f1(tx - 8) + ' ' + f1(V.gy - th) + 'H' + f1(tx + tw + 8) + 'M' + f1(hx) + ' ' + f1(V.gy - th) + 'V' + f1(hy + 13) : 'M' + f1(tx + tw) + ' ' + f1(V.gy + 4) + 'V' + f1(V.gy - th - 8) + 'M' + f1(tx + tw) + ' ' + f1(hy) + 'H' + f1(hx - 13));
     $('mA').setAttribute('d', ''); $('tG').textContent = ''; $('tA').textContent = '';
     $('tmG').removeAttribute('transform'); $('truth').style.display = 'none';
   } else {
@@ -510,9 +510,11 @@ function down(e, kind) {
   if (pts.size === 2) { // a second finger: pinch to zoom the view
     endDrag(); const [a, b] = [...pts.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, zoom: view.zoom }; return;
   }
-  if (kind === 'size' && st.phase === 'play') {
+  if ((kind === 'size' || kind === 'handle') && st.phase === 'play') {
+    // on the shape: the spot under the pointer stays under it (k = metres of target per metre of reach).
+    // on the handle: the measured edge follows the pointer, keeping the distance it had when grabbed (off).
     const d = Math.max(14, reach(p));
-    drag = { kind: 'size', id: e.pointerId, k: st.g / (d / view.ppm), p }; // metres of target per metre of reach
+    drag = { kind: 'size', id: e.pointerId, k: st.g / (d / view.ppm), off: kind === 'handle' ? reach(p) - st.g * view.ppm : null, p, p0: p };
     svg.classList.add('drag'); e.preventDefault(); kick();
   } else { drag = { kind: 'pan', id: e.pointerId, p, panX: view.panX, panY: view.panY, moved: false }; }
 }
@@ -521,7 +523,7 @@ function move(e) {
   const p = local(e); pts.set(e.pointerId, p);
   if (pinch && pts.size >= 2) { const [a, b] = [...pts.values()]; setZoom(pinch.zoom * (Math.hypot(a.x - b.x, a.y - b.y) || 1) / pinch.d); return; }
   if (!drag || drag.id !== e.pointerId) return;
-  if (drag.kind === 'size') { drag.p = p; setG(drag.k * Math.max(2, reach(p)) / view.ppm); }
+  if (drag.kind === 'size') { drag.p = p; setG(sizeAt(p)); }
   else {
     const dx = p.x - drag.p.x, dy = p.y - drag.p.y;
     if (!drag.moved && Math.hypot(dx, dy) < 6) return;
@@ -533,14 +535,15 @@ function up(e) {
   pts.delete(e.pointerId); if (pts.size < 2) pinch = null;
   if (drag && drag.id === e.pointerId) endDrag();
 }
+const sizeAt = p => drag.off != null ? Math.max(1.5, reach(p) - drag.off) / view.ppm : drag.k * Math.max(2, reach(p)) / view.ppm;
 function endDrag() { drag = null; svg.classList.remove('drag', 'pan'); dirty = true; kick(); }
 // while a resize drag is pushed against the edge of the drawing, the view backs away so the shape can keep growing
 function edgeZoom() {
-  const p = drag.p, t = st.tgt, near = t.axis === 'v' ? p.y < 30 : p.x > view.W - 30;
-  if (near && st.g < st.ref.m * RANGE) { view.ppm *= 0.975; setG(drag.k * Math.max(2, reach(p)) / view.ppm); }
+  const p = drag.p, t = st.tgt, near = t.axis === 'v' ? p.y < 22 && p.y < drag.p0.y - 4 : p.x > view.W - 22 && p.x > drag.p0.x + 4;
+  if (near && st.g < st.ref.m * RANGE) { view.ppm *= 0.975; setG(sizeAt(p)); }
 }
 tgtG.addEventListener('pointerdown', e => { down(e, 'size'); e.stopPropagation(); });
-handle.addEventListener('pointerdown', e => { down(e, 'size'); e.stopPropagation(); });
+handle.addEventListener('pointerdown', e => { down(e, 'handle'); e.stopPropagation(); });
 svg.addEventListener('pointerdown', e => down(e, 'pan'));
 svg.addEventListener('pointermove', move);
 svg.addEventListener('pointerup', up); svg.addEventListener('pointercancel', up);
@@ -637,7 +640,7 @@ function galGo() {
 }
 function galFrame() {
   gal.raf = 0;
-  const box = $('galBox').getBoundingClientRect(), W = Math.max(60, box.width), H = Math.max(60, box.height), s = $('gal');
+  const s = $('gal'), box = s.getBoundingClientRect(), W = Math.max(60, box.width), H = Math.max(60, box.height);
   if (!box.width) return;
   s.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
   // frame everything up to and including the chosen one; bigger ones run off the right-hand side
