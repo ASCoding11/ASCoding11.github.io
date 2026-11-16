@@ -258,7 +258,9 @@ const $=id=>document.getElementById(id);
 // ==CORE== the rules, with no drawing or input (tests call these through window.__gp)
 
 // Bright block colours; the board stores 1..8 (0 = empty).
-const COLORS=['','#ff4d5e','#ff9f1c','#ffd23f','#3ddc84','#2ec4ff','#5b6cff','#b05cff','#ff5fb7'];
+// Blocks are plain (no marks), so the eight colours differ in lightness as well as hue: blue is deep and purple is light,
+// orange is deeper than yellow, and so on, which keeps them apart for colour-blind players too. Keep that if you change one.
+const COLORS=['','#fe0047','#f48d00','#ffdc32','#7fe887','#62bfff','#4e56ff','#ac76ff','#ff3899'];
 const NCOL=COLORS.length-1;
 
 // Every orientation is its own piece (no turning or flipping). [id, rows, weight]
@@ -480,12 +482,11 @@ const calm=()=>RM.matches;
 // ---- Art direction (one place) ----
 // Light comes from the top-left everywhere: blocks, the board frame, the wells and the tray.
 // Shading shifts hue as well as brightness (highlights lean warm, shadows lean cool), so no colour goes muddy.
-// Every colour also has its own stamped mark, so pieces can be told apart without relying on hue.
+// Blocks are plain: nothing is drawn on them (see the note at COLORS about telling the colours apart).
 const ART={
   rad:0.2,            // block corner, as a share of its size
   lip:0.085,          // the block's thickness, seen along its bottom and right edges
   inset:0.19,         // where the pressed centre panel starts
-  markMin:15,         // blocks smaller than this many device pixels get no mark
   frameHi:'#42589f',frameMid:'#243368',frameLo:'#131b45',
   bed:'#101a44',wellA:'#0a1231',wellB:'#0e1840',
   dockFill:'rgba(9,16,44,0.55)',dockEdge:'rgba(150,178,255,0.13)',
@@ -507,24 +508,12 @@ function tint(hex,dl,ds){
   return 'hsl('+h.toFixed(1)+','+(s*100).toFixed(1)+'%,'+(l*100).toFixed(1)+'%)';
 }
 function rr(g,x,y,w,h,r){r=Math.min(r,w/2,h/2);g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath()}
-// The mark stamped into each colour's blocks (1..8), as a path centred on (0, 0) fitting a circle of radius u.
-function markPath(g,k,u){
-  g.beginPath();
-  if(k===1)g.arc(0,0,u*0.62,0,Math.PI*2);                                                              // disc
-  else if(k===2){g.moveTo(0,-u*0.82);g.lineTo(u*0.8,u*0.62);g.lineTo(-u*0.8,u*0.62);g.closePath()}      // triangle
-  else if(k===3){for(let i=0;i<8;i++){const a=i*Math.PI/4-Math.PI/2,q=i%2?u*0.36:u;g.lineTo(Math.cos(a)*q,Math.sin(a)*q)}g.closePath()} // four-point spark
-  else if(k===4){g.moveTo(0,-u*0.9);g.lineTo(u*0.72,0);g.lineTo(0,u*0.9);g.lineTo(-u*0.72,0);g.closePath()} // diamond
-  else if(k===5){g.arc(0,0,u*0.8,0,Math.PI*2);g.moveTo(u*0.38,0);g.arc(0,0,u*0.38,0,Math.PI*2,true)}     // ring
-  else if(k===6){const a=u*0.3,b=u*0.85;g.moveTo(-a,-b);g.lineTo(a,-b);g.lineTo(a,-a);g.lineTo(b,-a);g.lineTo(b,a);g.lineTo(a,a);g.lineTo(a,b);g.lineTo(-a,b);g.lineTo(-a,a);g.lineTo(-b,a);g.lineTo(-b,-a);g.lineTo(-a,-a);g.closePath()} // plus
-  else if(k===7){g.rect(-u*0.8,-u*0.62,u*1.6,u*0.44);g.rect(-u*0.8,u*0.18,u*1.6,u*0.44)}                 // two bars
-  else if(k===8){g.rect(-u*0.72,-u*0.72,u*1.44,u*1.44);g.rect(u*0.3,-u*0.3,-u*0.6,u*0.6)}                 // hollow square
-}
 // A pressed tile: its thickness shows along the bottom and right, the top face runs from a warm light corner
-// to a cool dark one, and the centre is a shallow dish with the colour's mark stamped into it.
-function makeBlock(hex,s,mark){
+// to a cool dark one, and the centre is a plain shallow dish.
+function makeBlock(hex,s){
   const d=Math.max(2,Math.round(s*L.dpr)),c=document.createElement('canvas');c.width=c.height=d;
   const g=c.getContext('2d'),R=d*ART.rad,lip=Math.max(1,d*ART.lip),w=d-lip;
-  const hi=tint(hex,0.2,0.05),lo=tint(hex,-0.12,0.04),side=tint(hex,-0.3,-0.05),deep=tint(hex,-0.2,0.02);
+  const hi=tint(hex,0.2,0.05),lo=tint(hex,-0.12,0.04),side=tint(hex,-0.3,-0.05);
   rr(g,0,0,d,d,R);g.fillStyle=side;g.fill();
   const gr=g.createLinearGradient(0,0,w,w);gr.addColorStop(0,hi);gr.addColorStop(0.45,hex);gr.addColorStop(1,lo);
   rr(g,0,0,w,w,R*0.92);g.fillStyle=gr;g.fill();
@@ -537,11 +526,6 @@ function makeBlock(hex,s,mark){
   if(iw>=4){
     const gi=g.createLinearGradient(m,m,m+iw,m+iw);gi.addColorStop(0,lo);gi.addColorStop(0.55,hex);gi.addColorStop(1,tint(hex,0.1,0.03));
     rr(g,m,m,iw,iw,R*0.5);g.fillStyle=gi;g.fill();
-    if(mark&&d>=ART.markMin){
-      const u=iw*0.3,o=Math.max(0.5,d*0.012);
-      g.save();g.translate(m+iw/2+o,m+iw/2+o);markPath(g,mark,u);g.fillStyle='rgba(255,255,255,0.34)';g.fill('evenodd');g.restore();
-      g.save();g.translate(m+iw/2,m+iw/2);markPath(g,mark,u);g.fillStyle=deep;g.fill('evenodd');g.restore();
-    }
   }
   return c;
 }
@@ -562,10 +546,10 @@ function well(g,x,y,w,h,r,fill){
   rr(g,x,y,w,h,r);g.fillStyle=ig;g.fill();
 }
 function buildSprites(){
-  for(let i=1;i<=NCOL;i++){spr[i]=makeBlock(COLORS[i],L.cell,i);sprT[i]=makeBlock(COLORS[i],L.tc,i);pip[i]=makePip(COLORS[i])}
+  for(let i=1;i<=NCOL;i++){spr[i]=makeBlock(COLORS[i],L.cell);sprT[i]=makeBlock(COLORS[i],L.tc);pip[i]=makePip(COLORS[i])}
   sprRed=makeFlat('rgba(255,59,79,0.62)',L.cell,ART.rad);
   sprWhite=makeFlat('#ffffff',L.cell,ART.rad);
-  sprGrey=makeBlock('#4a5577',L.cell,0);
+  sprGrey=makeBlock('#4a5577',L.cell);
   sprShadow=makeFlat('rgba(0,0,0,0.32)',L.cell,0.22);
   // board: a framed bed with a baked shadow under it and 64 wells, drawn once per layout
   const d=L.dpr,bs=L.bs,c=document.createElement('canvas');BM=Math.max(10,Math.round(bs*0.05));
