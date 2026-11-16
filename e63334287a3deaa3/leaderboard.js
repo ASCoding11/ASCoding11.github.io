@@ -642,11 +642,11 @@
   function rows(view, people) {
     var list = [], wk = view.span === 'week';
     people.forEach(function (p) {
-      var v, extra = '', h = 0;
-      if (view.g === 'all') { v = milesOf(p, view.span); h = wk ? p.week : p.total; var tp = wk ? p.wtop : p.top; extra = tp ? 'Most: ' + tp : ''; }
+      var v, extra = '';
+      if (view.g === 'all') { v = milesOf(p, view.span); var tp = wk ? p.wtop : p.top; extra = tp ? 'Most: ' + tp : ''; }
       else if (!view.st && wk) v = p.wk ? p.wk[view.g] : NaN;
       else { var o = p.g[view.g]; v = o ? o[view.st ? view.st.k : 's'] : NaN; }
-      if (v > 0) list.push({ p: p, v: v, extra: extra, h: h });
+      if (v > 0) list.push({ p: p, v: v, extra: extra });
     });
     var st = view.st, asc = st && low(st);
     list.sort(function (a, b) { return (asc ? a.v - b.v : b.v - a.v) || (a.p.n < b.p.n ? -1 : a.p.n > b.p.n ? 1 : (a.p.uid < b.p.uid ? -1 : 1)); });
@@ -693,7 +693,6 @@
     '.lbd-you{display:inline-block;margin-left:6px;font-family:var(--mono,var(--f-m,monospace));font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-ink);background:var(--accent);border-radius:4px;padding:1px 5px;vertical-align:2px}' +
     '.lbd-ex{font-family:var(--mono,var(--f-m,monospace));font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
     '.lbd-v{font-family:var(--mono,var(--f-m,monospace));font-size:15px;font-weight:600;text-align:right;white-space:nowrap}' +
-    '.lbd-v small{display:block;font-size:11px;font-weight:500;color:var(--ink-2);margin-top:1px}' +
     // This week / All time: one pill split in two.
     '.lbd-span{display:inline-flex;flex:none;gap:2px;padding:2px;border:1px solid var(--line);border-radius:999px;background:var(--panel-2)}.lbd-span[hidden]{display:none}' +
     '.lbd-span button{font:inherit;font-family:var(--body,var(--f-b,sans-serif));font-size:14px;font-weight:600;color:var(--ink-2);background:transparent;border:0;border-radius:999px;padding:5px 14px;min-height:32px;cursor:pointer;white-space:nowrap}' +
@@ -890,9 +889,7 @@
     if (badge || r.extra) who.append(ex);
     li.append(el('span', 'lbd-rk', String(r.rank)));
     if (window.BackRoomAvatar) { try { li.append(BackRoomAvatar.el(r.p.uid, 30)); li.classList.add('av'); } catch (e) {} }
-    var val = el('span', 'lbd-v', r.fmt);
-    if (r.sub) val.append(el('small', '', r.sub));   // the Miles board: hours played under the miles
-    li.append(who, val);
+    li.append(who, el('span', 'lbd-v', r.fmt));
     return li;
   }
   function trackRow(r) {
@@ -952,7 +949,7 @@
     }
     var list = rows(view, people), hours = !view.st;
     list.forEach(function (r) {
-      if (miles) { r.fmt = fmtN(r.v) + ' mi'; r.sub = r.h > 0 ? fmtHours(r.h) : ''; }
+      if (miles) r.fmt = fmtN(r.v) + ' mi';
       else r.fmt = hours ? fmtHours(r.v) : fmt(view.st, r.v);
     });
     var mine = -1; for (var j = 0; j < list.length; j++) if (isMe(list[j].p.uid)) { mine = j; break; }
