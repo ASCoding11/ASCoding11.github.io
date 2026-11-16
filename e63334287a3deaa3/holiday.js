@@ -72,29 +72,54 @@
     '#hol-bar [aria-checked="true"] .hol-knob{background:var(--accent,#2459c8)}'+
     '#hol-bar [aria-checked="true"] .hol-knob::after{transform:translateX(16px)}'+
     // the cabin
-    '#hol-cabin{position:fixed;inset:0;z-index:3000;background:#160c07;overflow:hidden;touch-action:manipulation}'+
-    '#hol-cabin canvas{position:absolute;left:50%;top:50%;image-rendering:pixelated;image-rendering:crisp-edges;transform:translate(-50%,-50%);transition:transform .85s cubic-bezier(.6,0,.9,.4),filter .85s ease-in}'+
+    '#hol-cabin{position:fixed;inset:0;z-index:3000;background:#160c07;overflow:hidden;touch-action:manipulation;outline:0;animation:hol-in .22s ease-out}'+
+    '@keyframes hol-in{from{opacity:0}}'+
+    '#hol-cabin canvas{position:absolute;left:0;top:0;image-rendering:pixelated;image-rendering:crisp-edges;transition:transform .85s cubic-bezier(.6,0,.9,.4),filter .85s ease-in}'+
     '#hol-cabin .hol-tv{position:absolute;background:none;border:0;padding:0;cursor:pointer;border-radius:8px}'+
     '#hol-cabin .hol-tv:focus-visible{outline:3px solid #fff;outline-offset:4px}'+
     '#hol-cabin .hol-skip{position:absolute;right:calc(14px + env(safe-area-inset-right,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));font:600 13px ui-monospace,Menlo,Consolas,monospace;letter-spacing:.08em;text-transform:uppercase;color:#f6e7cf;background:rgba(20,10,4,.7);border:1px solid rgba(246,231,207,.45);border-radius:999px;padding:9px 14px;cursor:pointer}'+
+    '#hol-cabin .hol-skip:focus-visible{outline:3px solid #fff;outline-offset:3px}'+
+    '@media (pointer: coarse){#hol-cabin .hol-skip{min-height:44px;padding:9px 18px}}'+
     '#hol-cabin .hol-flash{position:absolute;inset:0;background:#dff1ff;opacity:0;pointer-events:none;transition:opacity .5s ease-in .4s}'+
     '#hol-cabin.go .hol-flash{opacity:1}'+
+    // leaving: the page is already usable underneath while the white (through the TV) or the room (Skip) fades away
+    '#hol-cabin.out{pointer-events:none;animation:none;transition:opacity .16s ease-out;opacity:0}'+
+    '#hol-cabin.out.go{background:none;opacity:1;transition:none}'+
+    '#hol-cabin.out.go > :not(.hol-flash){display:none}'+
+    '#hol-cabin.out.go .hol-flash{opacity:0;transition:opacity .3s ease-out}'+
+    '@media (prefers-reduced-motion: reduce){#hol-cabin{animation:none}}'+
+    // nothing needs to move behind the cabin
+    'html.hol-lock #hol-crt{display:none}'+
     'html.hol-lock,html.hol-lock body{overflow:hidden!important}';
 
-  function addStyle(){
+  // the pixel fonts are only fetched once the TV look is on (the cabin and the plain winter page do not use them)
+  function addFonts(){
     if(!fontEl){fontEl=doc.createElement('link');fontEl.rel='stylesheet';fontEl.href='https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Pixelify+Sans:wght@400;500;600;700&display=swap';doc.head.appendChild(fontEl)}
+  }
+  function addStyle(){
     if(!styleEl){styleEl=doc.createElement('style');styleEl.id='hol-style';styleEl.textContent=CSS;doc.head.appendChild(styleEl)}
   }
 
   // Game pictures in big pixels: each is redrawn about a third of the size it is shown at and stretched back up.
   var PICS='.br-games .shot img,.br-games .pz img,#lists .tile img,#cont img';
+  // Shrinking a picture means the browser has to unpack the whole of it, which takes a slow laptop a moment; thirty at
+  // once froze the page (and the cabin in front of it) for a second or two. So they queue up and are done one at a
+  // time, each in its own turn with a pause before the next, and the page stays live in between.
+  var picQ=[],picT=0,picC=null;
   function pixelate(img){
-    if(!on||img.hasAttribute('data-hol-src')||!img.naturalWidth)return;
-    var shown=img.getBoundingClientRect().width||img.width||160,w=Math.max(40,Math.min(160,Math.round(shown/3.2))),h=Math.max(1,Math.round(w*img.naturalHeight/img.naturalWidth));
-    try{
-      var c=doc.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);
-      var u=c.toDataURL('image/png');img.setAttribute('data-hol-src',img.getAttribute('src'));img.src=u;
-    }catch(e){}
+    if(!on||img.hasAttribute('data-hol-src')||!img.naturalWidth||picQ.indexOf(img)>=0)return;
+    picQ.push(img);if(!picT)picT=setTimeout(picNext,0);
+  }
+  function picNext(){
+    picT=0;var img=picQ.shift();if(!img)return;
+    if(root.classList.contains('tv-on')&&img.isConnected&&!img.hasAttribute('data-hol-src')&&img.naturalWidth){
+      var shown=img.getBoundingClientRect().width||img.width||160,w=Math.max(40,Math.min(160,Math.round(shown/3.2))),h=Math.max(1,Math.round(w*img.naturalHeight/img.naturalWidth));
+      try{
+        var c=picC||(picC=doc.createElement('canvas'));c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);
+        var u=c.toDataURL('image/png');img.setAttribute('data-hol-src',img.getAttribute('src'));img.src=u;
+      }catch(e){}
+    }
+    if(picQ.length)picT=setTimeout(picNext,cabin?90:30);   // slower while the cabin is in front, so its fire and snow keep moving
   }
   function pixelateAll(){
     Array.prototype.forEach.call(doc.querySelectorAll(PICS),function(img){
@@ -104,13 +129,14 @@
     });
   }
   function unpixelate(){
+    picQ.length=0;clearTimeout(picT);picT=0;picC=null;
     Array.prototype.forEach.call(doc.querySelectorAll('img[data-hol-src]'),function(img){img.src=img.getAttribute('data-hol-src');img.removeAttribute('data-hol-src')});
   }
   var picTimer=0;
   function tvWanted(){return ls('holiday:tv')!=='0'}
   function applyTv(){
     var tv=on&&tvWanted();
-    root.classList.toggle('tv-on',tv);
+    root.classList.toggle('tv-on',tv);if(tv)addFonts();
     if(sw){sw.setAttribute('aria-checked',tv?'true':'false')}
     if(tv&&!crt){crt=doc.createElement('div');crt.id='hol-crt';crt.setAttribute('aria-hidden','true');doc.body.appendChild(crt)}
     if(!tv&&crt){crt.remove();crt=null}
@@ -144,7 +170,7 @@
     L:'1000010000100001000011111',M:'1000111011101011000110001',N:'1000111001101011001110001',O:'0111010001100011000101110',P:'1111010001111101000010000',
     R:'1111010001111101001010001',S:'0111110000011100000111110',T:'1111100100001000010000100',U:'1000110001100011000101110',V:'1000110001100010101000100',
     W:'1000110001101011101110001',Y:'1000101010001000010000100'};
-  var cg=null,CW=0,CH=0,cs=1,ctime=0,craf=0,clast=0,ckey=null,cres=null,goT=0;
+  var cg=null,CW=0,CH=0,cs=1,ctime=0,craf=0,clast=0,ckey=null,cres=null,goT=0,cback=null;
   function R(x,y,w,h,c){cg.fillStyle=c;cg.fillRect(Math.round(x),Math.round(y),w,h)}
   function txt(s,x,y,sc,col,center){
     var w=s.length*6*sc-sc;if(center)x-=w/2;x=Math.round(x);y=Math.round(y);cg.fillStyle=col;
@@ -154,15 +180,19 @@
   function hash(n){n=Math.sin(n*127.1)*43758.5453;return n-Math.floor(n)}
   var TV={x:0,y:0,w:148,h:106};
   function layoutCabin(){
-    var vw=innerWidth,vh=innerHeight;
-    cs=Math.max(1,Math.floor(Math.min(vh/236,vw/170)));
+    var vw=innerWidth,vh=innerHeight,dp=window.devicePixelRatio||1;
+    // One art pixel is a whole number of the screen's own pixels (not of CSS pixels), as many as fit: every art pixel is
+    // then the same size on any display, and on a phone held sideways or a laptop set to 125% the room is drawn up to
+    // half as big again as whole CSS pixels would allow. Never under one CSS pixel.
+    cs=Math.max(1,Math.floor(Math.min(vh/236,vw/170)*dp)/dp);
     CW=Math.ceil(vw/cs);CH=Math.ceil(vh/cs);
     var cv=cabin.querySelector('canvas');cv.width=CW;cv.height=CH;cv.style.width=CW*cs+'px';cv.style.height=CH*cs+'px';
     cg=cv.getContext('2d');cg.imageSmoothingEnabled=false;
     var cx=Math.floor(CW/2),fl=Math.round(CH*.66);
     TV.x=cx-74;TV.y=fl-30-TV.h;
     // the button over the TV, and where the zoom heads for (the middle of its screen)
-    var ox=(vw-CW*cs)/2,oy=(vh-CH*cs)/2,b=cabin.querySelector('.hol-tv');
+    var ox=Math.round((vw-CW*cs)/2*dp)/dp,oy=Math.round((vh-CH*cs)/2*dp)/dp,b=cabin.querySelector('.hol-tv');
+    cv.style.left=ox+'px';cv.style.top=oy+'px';
     b.style.left=ox+TV.x*cs+'px';b.style.top=oy+TV.y*cs+'px';b.style.width=TV.w*cs+'px';b.style.height=(TV.h+30)*cs+'px';
     cv.style.transformOrigin=((TV.x+12+52)/CW*100)+'% '+((TV.y+10+39)/CH*100)+'%';
   }
@@ -277,52 +307,85 @@
     if(now-clast<70)return;   // about 14 pictures a second is plenty for pixel art
     ctime+=Math.min(.2,(now-clast)/1000);clast=now;drawCabin(ctime);
   }
+  function holdSnow(v){if(window.BackRoomSeasons&&BackRoomSeasons.hold)BackRoomSeasons.hold(v)}
   function showCabin(){
     if(cabin||!on)return;
     addStyle();
+    cback=doc.activeElement;
     cabin=doc.createElement('div');cabin.id='hol-cabin';cabin.setAttribute('role','dialog');cabin.setAttribute('aria-modal','true');cabin.setAttribute('aria-label','A cabin at Christmas, with a TV showing the Back Room');
+    cabin.tabIndex=-1;
     var cv=doc.createElement('canvas');cv.setAttribute('aria-hidden','true');
     var b=doc.createElement('button');b.type='button';b.className='hol-tv';b.setAttribute('aria-label','Turn to the TV and go to the games');
     var sk=doc.createElement('button');sk.type='button';sk.className='hol-skip';sk.textContent='Skip';sk.setAttribute('aria-label','Skip the cabin and go to the games');
     var fl=doc.createElement('div');fl.className='hol-flash';
     cabin.append(cv,b,sk,fl);doc.body.appendChild(cabin);root.classList.add('hol-lock');
+    holdSnow(true);   // the room covers the page: the snow behind it waits
     layoutCabin();ctime=0;clast=performance.now();drawCabin(0);
     if(!still.matches)craf=requestAnimationFrame(cabinFrame);
     b.addEventListener('click',function(){leaveCabin(true)});
     sk.addEventListener('click',function(){leaveCabin(false)});
+    // The keyboard belongs to the cabin while it is up: Esc skips, Enter or Space goes through the TV, Tab moves between
+    // the TV and Skip and never to the page hidden behind. Keys stop here, so Esc does not also close a pop-up the page
+    // opened underneath, and the page's own shortcuts stay quiet.
     ckey=function(e){
+      if(e.ctrlKey||e.metaKey||e.altKey)return;
+      var a=doc.activeElement;
       if(e.key==='Escape'){e.preventDefault();leaveCabin(false)}
-      else if((e.key==='Enter'||e.key===' ')&&doc.activeElement!==sk){e.preventDefault();leaveCabin(true)}
+      else if(e.key==='Tab'){e.preventDefault();try{(e.shiftKey?(a===sk?b:sk):(a===b?sk:b)).focus()}catch(x){}}
+      else if((e.key==='Enter'||e.key===' ')&&a!==sk){e.preventDefault();if(!e.repeat)leaveCabin(true)}
+      e.stopImmediatePropagation();
     };
     doc.addEventListener('keydown',ckey,true);
     cres=function(){if(cabin&&!goT){layoutCabin();drawCabin(ctime)}};
     addEventListener('resize',cres);
+    // focus goes to the room itself, so a screen reader says what this is and Tab starts at the TV
+    try{cabin.focus({preventScroll:true})}catch(x){}
   }
-  function closeCabin(){
+  // fade: 0 goes at once; otherwise the layer stays that many milliseconds to fade away, already out of the page's way
+  function closeCabin(fade){
     if(!cabin)return;
     cancelAnimationFrame(craf);craf=0;clearTimeout(goT);goT=0;
     doc.removeEventListener('keydown',ckey,true);removeEventListener('resize',cres);
-    cabin.remove();cabin=null;root.classList.remove('hol-lock');
+    var el=cabin,back=cback,had=el.contains(doc.activeElement);
+    cabin=null;cg=null;cback=null;ckey=cres=null;
+    root.classList.remove('hol-lock');holdSnow(false);
+    // focus goes back to where it was (the Cabin button, when that opened it), or off the room
+    if(had){try{if(back&&back!==doc.body&&back.isConnected)back.focus({preventScroll:true});else doc.activeElement.blur()}catch(x){}}
+    if(fade&&!still.matches){
+      el.classList.add('out');el.setAttribute('aria-hidden','true');el.setAttribute('inert','');
+      setTimeout(function(){el.remove()},fade);
+    }else el.remove();
   }
-  // through the TV: the picture zooms into the screen, whites out, and the page is there
+  // through the TV: the picture zooms into the screen, whites out, and the page comes up out of the white
   function leaveCabin(zoom){
     if(!cabin||goT)return;
     ss('holiday:seen','1');
-    if(!zoom||still.matches){closeCabin();return}
+    if(still.matches){closeCabin(0);return}
+    if(!zoom){closeCabin(180);return}
     var cv=cabin.querySelector('canvas');
     cabin.classList.add('go');
-    cv.style.transform='translate(-50%,-50%) scale('+Math.max(4,Math.ceil(CW/104*1.15))+')';cv.style.filter='brightness(1.6)';
-    goT=setTimeout(function(){goT=0;closeCabin()},950);
+    cv.style.transform='scale('+Math.max(4,Math.ceil(CW/104*1.15))+')';cv.style.filter='brightness(1.6)';
+    goT=setTimeout(function(){goT=0;closeCabin(320)},950);
   }
 
-  function start(){
+  // A game open over the page, or the visitor in the middle of typing: no time for the cabin to arrive.
+  function inUse(){
+    try{
+      var a=doc.activeElement,e=doc.elementFromPoint(innerWidth/2,innerHeight/2);
+      return !!(e&&e.tagName==='IFRAME')||!!(a&&(/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)||a.isContentEditable));
+    }catch(x){return false}
+  }
+  // busy (from seasons.js): the visitor has already clicked, typed or scrolled on this page. The cabin opens the page;
+  // it never drops onto one that is being used or has a game open over it (it is kept for the next time the page loads).
+  function start(busy){
     if(on)return;on=true;
     addStyle();addBar();applyTv();
-    if(q.nocabin!=='1'&&(q.cabin==='1'||ss('holiday:seen')!=='1'))showCabin();
+    if(q.nocabin==='1')return;
+    if(q.cabin==='1'||(ss('holiday:seen')!=='1'&&!busy&&!inUse()))showCabin();
   }
   function stop(){
     if(!on)return;on=false;
-    closeCabin();applyTv();
+    closeCabin(0);applyTv();
     if(bar){bar.remove();bar=null;sw=null}
   }
   window.BackRoomHoliday={start:start,stop:stop,cabin:function(){showCabin()},tv:function(v){if(v===undefined)return on&&tvWanted();setTv(!!v)},get on(){return on},get inCabin(){return !!cabin}};

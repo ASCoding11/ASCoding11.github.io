@@ -58,6 +58,15 @@
   function setOff(v){try{if(v)localStorage.setItem('season:off','1');else localStorage.removeItem('season:off')}catch(e){}}
 
   var mqDark=matchMedia('(prefers-color-scheme: dark)'),mqStill=matchMedia('(prefers-reduced-motion: reduce)');
+  // Has the visitor started using the page? The cabin (holiday.js) covers the whole page, and on slow Wi-Fi this file
+  // and holiday.js can arrive seconds after the page is on screen, so the cabin must not land on someone who is
+  // already clicking, typing or scrolling. Loaded with the page (a <script defer>), the browser can say whether
+  // anything was pressed before this ran; loaded later (the home page adds this file once the Back Room is open,
+  // which takes a click) only what happens from now on counts.
+  var used=false,USE=['pointerdown','mousedown','keydown','wheel','touchstart'];
+  try{used=!!(document.currentScript&&document.currentScript.defer&&navigator.userActivation&&navigator.userActivation.hasBeenActive)}catch(e){}
+  function noteUse(){used=true;USE.forEach(function(t){removeEventListener(t,noteUse,true)})}
+  USE.forEach(function(t){addEventListener(t,noteUse,{capture:true,passive:true})});
   var phone=matchMedia('(pointer: coarse)').matches&&!matchMedia('(any-pointer: fine)').matches;
 
   /* ---------- colours ---------- */
@@ -410,7 +419,7 @@
   /* ---------- the effect ---------- */
   var cv=null,ctx=null,W=0,H=0,parts=[],rest=[],season='none',light=true,raf=0,last=0,t0=0,clock=0,still=false,ground=null,btn=null,covered=false;
   var bg=null,bgx=null,scene=null,seedA=0,seedB=0;   // the still canvas, where things stand, and the shape of the field or the snow
-  var holiday=false,pixelMode=false;
+  var holiday=false,pixelMode=false,held=false;   // held: the cabin (holiday.js) covers the page, so nothing is drawn behind it
   function rnd(a,b){return a+Math.random()*(b-a)}
 
   function size(){
@@ -624,7 +633,7 @@
     step(dt);draw();
   }
   function play(){
-    if(raf||!cv||still||document.hidden||covered)return;
+    if(raf||!cv||still||document.hidden||covered||held)return;
     last=performance.now();raf=requestAnimationFrame(frame);
   }
   function pause(){if(raf){cancelAnimationFrame(raf);raf=0}}
@@ -656,10 +665,10 @@
   var holidayAsked=false;
   function loadHoliday(){
     if(!document.querySelector('.br-games, #lists'))return;
-    if(window.BackRoomHoliday){window.BackRoomHoliday.start();return}
+    if(window.BackRoomHoliday){window.BackRoomHoliday.start(used);return}
     if(holidayAsked)return;holidayAsked=true;
     var sc=document.createElement('script');sc.src=BASE+'holiday.js';
-    sc.onload=function(){if(holiday&&cv&&window.BackRoomHoliday)window.BackRoomHoliday.start()};
+    sc.onload=function(){if(holiday&&cv&&window.BackRoomHoliday)window.BackRoomHoliday.start(used)};
     sc.onerror=function(){holidayAsked=false};
     document.head.appendChild(sc);
   }
@@ -679,7 +688,7 @@
       if(f)f.appendChild(btn);
       else{btn.style.cssText+=';position:fixed;left:calc(10px + env(safe-area-inset-left,0px));bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:5;margin:0';document.body.appendChild(btn)}
     }
-    var off=isOff(),what=s==='fall'?'fall scene':'snow';
+    var off=isOff(),what=s==='fall'?'fall scene':holiday?'holiday look and snow':'snow';
     btn.textContent=s==='fall'?'🍂':'❄';
     btn.style.opacity=off?'.45':'.85';
     btn.title=(off?'Turn on the ':'Turn off the ')+what+' (just for this browser)';
@@ -697,7 +706,8 @@
       var e=document.elementFromPoint(innerWidth/2,innerHeight/2),c=!!(e&&e.tagName==='IFRAME');
       if(c!==covered){covered=c;if(c)pause();else play()}
     }
-    if(!forced&&seasonFor(new Date())!==season)start(current());
+    // a tab left open: the season changes at midnight, and so do the holidays (winter carries on after January 6)
+    if(!forced&&(seasonFor(new Date())!==season||holidayNow()!==holiday))start(current());
   },1000);
 
   window.BackRoomSeasons={
@@ -710,6 +720,8 @@
     get off(){return isOff()},
     // the retro TV look (holiday.js) asks for the scene and the snow to be drawn in big pixels
     pixel:function(on){on=!!on;if(on===pixelMode)return;pixelMode=on;if(cv){size();if(still){step(0);draw()}}},
+    // holiday.js holds the snow still while its cabin covers the page, and lets it go as the cabin leaves
+    hold:function(on){held=!!on;if(held)pause();else play()},
     bench:function(n){
       if(!cv)return null;n=n||300;size();
       var a=performance.now();for(var i=0;i<n;i++){step(1/30);draw()}
