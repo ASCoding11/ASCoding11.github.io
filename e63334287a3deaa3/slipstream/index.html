@@ -1121,7 +1121,9 @@ function noise(g,w,h,base,amp,n){
   for(let i=0;i<n;i++){const v=Math.random()*amp*2-amp;g.fillStyle=v>0?`rgba(255,255,255,${v})`:`rgba(0,0,0,${-v})`;g.fillRect(Math.random()*w,Math.random()*h,1+Math.random()*2,1+Math.random()*2)}
 }
 const TEX={
-  asphalt:canvasTex(256,256,(g,w,h)=>noise(g,w,h,'#4a4d53',.08,9000)),
+  asphalt:canvasTex(256,256,(g,w,h)=>{noise(g,w,h,'#474a50',.1,12000);
+    for(let i=0;i<14;i++){const x=Math.random()*w,y=Math.random()*h,rad=14+Math.random()*30,q=g.createRadialGradient(x,y,0,x,y,rad);q.addColorStop(0,'rgba(0,0,0,.09)');q.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=q;g.fillRect(x-rad,y-rad,rad*2,rad*2)}
+    for(let i=0;i<500;i++){g.fillStyle='rgba(225,228,235,.16)';g.fillRect(Math.random()*w,Math.random()*h,1,1)}}),
   gravel:canvasTex(128,128,(g,w,h)=>noise(g,w,h,'#c9b48a',.16,5000)),
   kerb:canvasTex(4,64,(g)=>{g.fillStyle='#e8262f';g.fillRect(0,0,4,32);g.fillStyle='#f4f4f4';g.fillRect(0,32,4,32)}),
   checker:canvasTex(64,16,(g)=>{for(let x=0;x<16;x++)for(let y=0;y<4;y++){g.fillStyle=(x+y)%2?'#111':'#f4f4f4';g.fillRect(x*4,y*4,4,4)}}),
@@ -1132,7 +1134,45 @@ const TEX={
     g.fillStyle='rgba(0,0,0,.35)';g.fillRect(0,h-6,w,6);
   })
 };
-function grassTex(col){return canvasTex(256,256,(g,w,h)=>{noise(g,w,h,col,.07,7000);g.fillStyle='rgba(255,255,255,.035)';for(let i=0;i<4;i++)g.fillRect(0,i*64,w,32)})}
+// Colours written as #rrggbb are screen colours; the renderer lights in linear light, so convert them or they come out pale.
+const lin=c=>new THREE.Color(c).convertSRGBToLinear();
+// Ground: soft light and dark patches so it isn't one flat colour, fine grain, and on grass, mown stripes.
+function grassTex(col){return canvasTex(256,256,(g,w,h)=>{
+  const k=new THREE.Color(col),green=k.g>k.r*1.05,r=mulberry(strHash(col));
+  g.fillStyle=col;g.fillRect(0,0,w,h);
+  for(let i=0;i<26;i++){const x=r()*w,y=r()*h,rad=24+r()*46,d=r()<.5,a=.05+r()*.07;
+    for(const ox of [-w,0,w])for(const oy of [-h,0,h]){const q=g.createRadialGradient(x+ox,y+oy,0,x+ox,y+oy,rad);q.addColorStop(0,d?`rgba(0,0,0,${a})`:`rgba(255,255,210,${a})`);q.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=q;g.fillRect(x+ox-rad,y+oy-rad,rad*2,rad*2)}}
+  for(let i=0;i<9000;i++){const v=r()*.2-.1;g.fillStyle=v>0?`rgba(255,255,200,${v})`:`rgba(0,20,0,${-v})`;g.fillRect(r()*w,r()*h,1+r()*2,1+r()*2)}
+  if(green){g.fillStyle='rgba(255,255,190,.075)';g.fillRect(0,0,w,64);g.fillRect(0,128,w,64);g.fillStyle='rgba(0,30,0,.06)';g.fillRect(0,64,w,64);g.fillRect(0,192,w,64)}
+})}
+// The sky is one picture wrapped round a dome: a gradient, the sun (or moon) with its glow, and clouds or stars.
+function skyTex(D){
+  const w=1024,h=512,c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d'),hz=h/2,r=mulberry(strHash(D.id)+7);
+  const sl=Math.hypot(D.sun[0],D.sun[1],D.sun[2]),el=Math.asin(D.sun[1]/sl),kind=D.night?2:el<.6?1:0;   // day, dusk, night
+  const mixc=(a,b,t)=>'#'+new THREE.Color(a).lerp(new THREE.Color(b),t).getHexString();
+  const gr=g.createLinearGradient(0,0,0,hz);gr.addColorStop(0,D.sky[0]);gr.addColorStop(.5,mixc(D.sky[0],D.sky[1],kind===1?.3:.22));gr.addColorStop(.82,mixc(D.sky[0],D.sky[1],kind===1?.74:.66));gr.addColorStop(1,D.sky[1]);
+  g.fillStyle=gr;g.fillRect(0,0,w,hz);g.fillStyle=D.fog;g.fillRect(0,hz,w,hz);
+  const blob=(x,y,rad,sx,stops)=>{for(const ox of [-w,0,w]){g.save();g.translate(x+ox,y);g.scale(sx,1);const q=g.createRadialGradient(0,0,0,0,0,rad);for(const [o,cc] of stops)q.addColorStop(o,cc);g.fillStyle=q;g.fillRect(-rad,-rad,rad*2,rad*2);g.restore()}};
+  if(kind===2)for(let i=0;i<650;i++){const y=Math.pow(r(),1.3)*hz*.94;g.fillStyle=`rgba(${220+r()*35|0},${225+r()*30|0},255,${.25+r()*.7})`;const s=r()<.08?1.8:1.1;g.fillRect(r()*w,y,s/Math.max(.25,Math.sin(y/hz*Math.PI/2)),s)}
+  // sun or moon
+  const su=((Math.atan2(D.sun[2],-D.sun[0])/TAU)%1+1)%1*w,sy=(Math.PI/2-el)/Math.PI*h,sx=1/Math.max(.3,Math.cos(el));
+  g.globalCompositeOperation='lighter';
+  if(kind===0){blob(su,sy,170,sx,[[0,'rgba(255,246,214,.5)'],[.35,'rgba(255,246,214,.16)'],[1,'rgba(255,246,214,0)']]);blob(su,sy,20,sx,[[0,'rgba(255,255,255,1)'],[.6,'rgba(255,255,240,.9)'],[1,'rgba(255,250,220,0)']])}
+  else if(kind===1){blob(su,sy,300,sx*1.5,[[0,'rgba(255,170,90,.55)'],[.4,'rgba(255,120,70,.22)'],[1,'rgba(255,90,60,0)']]);blob(su,sy,26,sx,[[0,'rgba(255,255,235,1)'],[.55,'rgba(255,236,170,.95)'],[1,'rgba(255,190,110,0)']])}
+  else{blob(su,sy,110,sx,[[0,'rgba(150,175,255,.3)'],[1,'rgba(150,175,255,0)']]);blob(su,sy,13,sx,[[0,'rgba(245,248,255,1)'],[.8,'rgba(235,240,255,.95)'],[1,'rgba(200,215,255,0)']])}
+  g.globalCompositeOperation='source-over';
+  // clouds: a few soft puffs each, shaded underneath, bigger the higher they sit
+  const lit=['255,255,255','255,205,160','58,70,108'][kind],shade=['168,188,214','168,104,118','22,28,54'][kind],al=[.9,.6,.5][kind];
+  for(let n=[30,16,12][kind];n-->0;){
+    const e=4+Math.pow(r(),1.4)*(kind===1?26:40),cy=hz*(1-e/90),s=.45+e/(kind===1?60:36),cx=r()*w,W=(34+r()*60)*s,puffs=[];
+    for(let k=7+(r()*8|0);k-->0;){const dx=(r()*2-1)*W,up=1-Math.abs(dx)/W;puffs.push([cx+dx,cy-r()*W*.3*up,(9+r()*13)*s*(.6+up*.6)])}
+    for(const [x,y,rad] of puffs)blob(x,y+rad*.34,rad,1.5,[[0,`rgba(${shade},${al})`],[.55,`rgba(${shade},${al*.7})`],[1,`rgba(${shade},0)`]]);
+    for(const [x,y,rad] of puffs)blob(x,y,rad*.92,1.5,[[0,`rgba(${lit},${al})`],[.5,`rgba(${lit},${al*.75})`],[1,`rgba(${lit},0)`]]);
+  }
+  // haze just above the horizon, so far hills and the sky meet in the fog colour
+  const hzg=g.createLinearGradient(0,hz*.86,0,hz);const fc=new THREE.Color(D.fog),f=`${fc.r*255|0},${fc.g*255|0},${fc.b*255|0}`;hzg.addColorStop(0,`rgba(${f},0)`);hzg.addColorStop(1,`rgba(${f},1)`);g.fillStyle=hzg;g.fillRect(0,hz*.86,w,hz*.14+1);
+  const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;t.wrapS=THREE.RepeatWrapping;return t;
+}
 function shadowTex(){return canvasTex(64,64,(g,w,h)=>{const r=g.createRadialGradient(32,32,4,32,32,32);r.addColorStop(0,'rgba(0,0,0,.6)');r.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=r;g.fillRect(0,0,64,64)})}
 const SHADOW_TEX=shadowTex();
 
@@ -1189,22 +1229,23 @@ function buildWorld(ti){
   const rng=mulberry(strHash(D.id));
   world={g,lights:[]};
   // sky, fog, light
-  scene.fog=new THREE.Fog(new THREE.Color(D.fog),380,3400);
-  scene.background=new THREE.Color(D.sky[1]);
-  const skyG=new THREE.SphereGeometry(6000,24,12),top=new THREE.Color(D.sky[0]),hor=new THREE.Color(D.sky[1]),cols=[];
-  const sp=skyG.attributes.position;for(let i=0;i<sp.count;i++){const y=sp.getY(i)/6000,c=hor.clone().lerp(top,clamp(y*2.2,0,1));cols.push(c.r,c.g,c.b)}
-  skyG.setAttribute('color',new THREE.Float32BufferAttribute(cols,3));
-  const sky=new THREE.Mesh(skyG,new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.BackSide,fog:false,depthWrite:false}));
+  scene.fog=new THREE.Fog(lin(D.fog),D.night?420:560,D.night?3400:4000);
+  scene.background=lin(D.fog);
+  const sky=new THREE.Mesh(new THREE.SphereGeometry(6000,32,16),new THREE.MeshBasicMaterial({map:skyTex(D),side:THREE.BackSide,fog:false,depthWrite:false}));
   sky.renderOrder=-1;g.add(sky);world.sky=sky;
   sun.position.set(D.sun[0]*1000,D.sun[1]*1000,D.sun[2]*1000);
-  sun.color.set(D.sunCol);sun.intensity=D.night?.95:1.05;renderer.toneMappingExposure=D.night?1.15:1.05;
-  hemi.color.set(D.sky[1]);hemi.groundColor.set(D.ground);hemi.intensity=D.hemiI;
+  // a stronger sun and a weaker fill than before, so faces turned away from the sun fall into shade and shapes read
+  sun.color.set(D.sunCol);sun.intensity=D.night?1.05:1.3;renderer.toneMappingExposure=D.night?1.15:1.05;
+  hemi.color.set(D.sky[1]);hemi.groundColor.set(D.ground);hemi.intensity=D.hemiI*.82;
+  const sh=Math.hypot(D.sun[0],D.sun[2])||1,sunLen=clamp(Math.hypot(D.sun[0],D.sun[2])/Math.max(.05,D.sun[1]),0,2.4);
+  world.shadowDir=[-D.sun[0]/sh*sunLen,-D.sun[2]/sh*sunLen];   // where a shadow falls, in metres along the ground per metre of height
   const [mnx,mxx,mnz,mxz]=T.box,cx=(mnx+mxx)/2,cz=(mnz+mxz)/2,span=Math.max(mxx-mnx,mxz-mnz);
   world.center=[cx,cz];
   // ground
   const gw=span+5200;
   const gt=grassTex(D.ground);gt.repeat.set(gw/30,gw/30);
-  const ground=new THREE.Mesh(new THREE.PlaneGeometry(gw,gw),new THREE.MeshLambertMaterial({map:gt}));
+  // cut into squares and pushed back a little in depth: as two huge triangles it could win the depth test against the road lying 5 cm above it and hide it
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(gw,gw,24,24),new THREE.MeshLambertMaterial({map:gt,polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:4}));
   ground.rotation.x=-Math.PI/2;ground.position.set(cx,-.05,cz);g.add(ground);
   // road with darker rubber along the racing line
   const asphalt=TEX.asphalt.clone();asphalt.needsUpdate=true;asphalt.repeat.set(1.4,1);
@@ -1298,7 +1339,7 @@ function buildWorld(ti){
           for(let q=0;q<26&&ci<2600;q++){if(rng()<.18)continue;
             mm.makeTranslation(-9.5+q*.76,1.2+tier*1.3+.37,zz);
             st.updateMatrix();const wm2=new THREE.Matrix4().multiplyMatrices(st.matrix,mm);
-            crowd.setMatrixAt(ci,wm2);col.set(palette[(rng()*palette.length)|0]);crowd.setColorAt(ci,col);ci++}
+            crowd.setMatrixAt(ci,wm2);col.set(palette[(rng()*palette.length)|0]).convertSRGBToLinear();crowd.setColorAt(ci,col);ci++}
         }
         const roof=new THREE.Mesh(new THREE.BoxGeometry(20.4,.3,14),roofM);roof.position.set(0,10,-inSide*6.5);roof.rotation.x=inSide*.08;st.add(roof);
         for(const px of [-9.8,9.8]){const pole=new THREE.Mesh(new THREE.BoxGeometry(.3,10,.3),roofM);pole.position.set(px,5,-inSide*13);st.add(pole)}
@@ -1324,12 +1365,14 @@ function buildWorld(ti){
   if(D.props==='trees'||D.props==='park'){
     const n=Math.round((D.props==='trees'?1100:700)*dens),trunk=new THREE.InstancedMesh(new THREE.CylinderGeometry(.35,.5,3,6),new THREE.MeshLambertMaterial({color:0x5b3f2a}),n);
     const crown=new THREE.InstancedMesh(new THREE.ConeGeometry(3,9,7),new THREE.MeshLambertMaterial({color:0xffffff}),n);
+    const tsh=new THREE.InstancedMesh(new THREE.PlaneGeometry(1,1).rotateX(-Math.PI/2),MAT.treeShadow,n);tsh.renderOrder=1;   // a soft shadow under every tree: one draw call
     let c=0;
     for(let t=0;t<n*4&&c<n;t++){const x=lerp(area[0],area[1],rng()),z=lerp(area[2],area[3],rng());if(!far(x,z,WALL+9)||nearStands(x,z))continue;
       const s=rng()*.8+.7;mm.compose(ps.set(x,1.5*s,z),q.identity(),sc.set(s,s,s));trunk.setMatrixAt(c,mm);
       mm.compose(ps.set(x,(3+4.5)*s,z),q.identity(),sc.set(s,s*(rng()*.5+.8),s));crown.setMatrixAt(c,mm);
-      col.setHSL(.27+rng()*.08,.45+rng()*.2,.2+rng()*.12);crown.setColorAt(c,col);c++}
-    trunk.count=crown.count=c;g.add(trunk,crown);
+      col.setHSL(.27+rng()*.08,.5+rng()*.2,.24+rng()*.14).convertSRGBToLinear();crown.setColorAt(c,col);
+      mm.compose(ps.set(x+world.shadowDir[0]*3.2*s,.035,z+world.shadowDir[1]*3.2*s),q.identity(),sc.set(10*s,1,10*s));tsh.setMatrixAt(c,mm);c++}
+    trunk.count=crown.count=tsh.count=c;g.add(trunk,crown,tsh);
     // a lake off to one side
     if(D.props==='park'){const lake=new THREE.Mesh(new THREE.CircleGeometry(520,40),new THREE.MeshLambertMaterial({color:0x3d7fb8}));lake.rotation.x=-Math.PI/2;lake.position.set(mxx+700,.02,cz+80);g.add(lake)}
   }else if(D.props==='city'){
@@ -1338,7 +1381,7 @@ function buildWorld(ti){
     for(let t=0;t<n*5&&c<n;t++){const x=lerp(area[0],area[1],rng()),z=lerp(area[2],Math.min(area[3],waterZ-40),rng());if(!far(x,z,WALL+22)||nearStands(x,z))continue;
       const w=14+rng()*26,d=14+rng()*26,h=10+rng()*rng()*90;
       if(!far(x,z,WALL+6+Math.hypot(w,d)/2))continue;   // the whole footprint, corners included, stays behind the barriermm.compose(ps.set(x,0,z),q.setFromAxisAngle(new THREE.Vector3(0,1,0),rng()*.3),sc.set(w,h,d));bld.setMatrixAt(c,mm);
-      if(D.night)col.setHSL(.6+rng()*.1,.25,.12+rng()*.1);else col.setHSL(.55+rng()*.12,.12+rng()*.18,.28+rng()*.26);bld.setColorAt(c,col);c++}
+      if(D.night)col.setHSL(.6+rng()*.1,.25,.12+rng()*.1);else col.setHSL(.55+rng()*.12,.14+rng()*.2,.4+rng()*.3).convertSRGBToLinear();bld.setColorAt(c,col);c++}
     bld.count=c;g.add(bld);
     const water=new THREE.Mesh(new THREE.PlaneGeometry(gw,2400),new THREE.MeshLambertMaterial({color:0x2c6f9a}));water.rotation.x=-Math.PI/2;water.position.set(cx,.03,waterZ+1200);g.add(water);
     // boats
@@ -1350,7 +1393,7 @@ function buildWorld(ti){
     let c=0;
     for(let t=0;t<n*6&&c<n;t++){const x=lerp(area[0]-600,area[1]+600,rng()),z=lerp(area[2]-600,area[3]+600,rng());if(!far(x,z,170))continue;
       const r=20+rng()*70,h=15+rng()*60;if(!far(x,z,WALL+30+r*1.7))continue;mm.compose(ps.set(x,0,z),q.identity(),sc.set(r,h,r*(.7+rng()*.6)));mesa.setMatrixAt(c,mm);
-      col.setHSL(.04+rng()*.03,.55,.38+rng()*.12);mesa.setColorAt(c,col);c++}
+      col.setHSL(.04+rng()*.03,.6,.42+rng()*.12).convertSRGBToLinear();mesa.setColorAt(c,col);c++}
     mesa.count=c;g.add(mesa);
     const m2=Math.round(360*dens),cac=new THREE.InstancedMesh(new THREE.CylinderGeometry(.45,.5,1,6).translate(0,.5,0),new THREE.MeshLambertMaterial({color:0x4f7a3a}),m2);
     c=0;for(let t=0;t<m2*4&&c<m2;t++){const x=lerp(area[0],area[1],rng()),z=lerp(area[2],area[3],rng());if(!far(x,z,WALL+8)||nearStands(x,z))continue;
@@ -1431,6 +1474,7 @@ const MAT={
   lightOff:new THREE.MeshBasicMaterial({color:0x330608}),
   lightOn:new THREE.MeshBasicMaterial({color:0xff2030}),
   shadow:new THREE.MeshBasicMaterial({map:SHADOW_TEX,transparent:true,depthWrite:false,opacity:.85}),
+  treeShadow:new THREE.MeshBasicMaterial({map:SHADOW_TEX,transparent:true,depthWrite:false,opacity:.62,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}),
   tcam0:new THREE.MeshStandardMaterial({color:0x111111,roughness:.5}),
   tcam1:new THREE.MeshStandardMaterial({color:0xe8ff1a,roughness:.5,emissive:0x222200})
 };
