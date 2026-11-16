@@ -173,6 +173,12 @@ h1 span{color:var(--exit)}
 #inv .it.off{opacity:.38;box-shadow:none}
 #prompt{position:absolute;left:50%;top:64%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;background:rgba(27,24,64,.82);border-radius:14px;padding:6px 14px 6px 6px;font-weight:900;font-size:16px;white-space:nowrap}
 #prompt kbd{font:400 18px var(--f-d);background:var(--sun);color:var(--ink);border:2.5px solid var(--ink);border-radius:9px;min-width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;padding:0 6px;box-shadow:0 2px 0 var(--ink)}
+#prompt:not([hidden]){animation:promptIn .14s ease-out}
+@keyframes promptIn{from{opacity:0}}
+/* a locked door you walk up to: the same pill without the key, with the door's amber lamp */
+#prompt.info{padding:6px 14px;background:rgba(58,38,10,.88)}
+#prompt.info kbd{display:none}
+#prompt.info::before{content:'';flex:0 0 auto;width:10px;height:10px;border-radius:50%;background:#ffb21a;box-shadow:0 0 8px #ffb21a}
 #feed{position:absolute;top:calc(64px + env(safe-area-inset-top,0px));right:calc(12px + env(safe-area-inset-right,0px));display:flex;flex-direction:column;align-items:flex-end;gap:5px;font-weight:900;font-size:13.5px;max-width:46vw}
 #feed div{background:rgba(27,24,64,.78);color:#fff;padding:4px 10px;border-radius:10px;transition:opacity .6s}
 #feed .hl{color:var(--sun)}
@@ -184,12 +190,16 @@ h1 span{color:var(--exit)}
 #hint span{background:rgba(27,24,64,.72);border-radius:8px;padding:3px 8px;white-space:nowrap}
 #hint kbd{font:inherit;color:var(--sun);font-weight:900}
 #hint span.on{background:var(--violet)}
+#hint{transition:opacity .8s}
+#hint.dim{opacity:.5}
 #reticle{position:absolute;left:50%;top:50%;width:22px;height:22px;margin:-11px 0 0 -11px}
 #reticle svg{display:block;width:100%;height:100%;overflow:visible}
 #reticle .rx{stroke:#fff;stroke-width:2.2;stroke-linecap:round;fill:#fff}
 #reticle .ro{stroke:rgba(27,24,64,.8);stroke-width:4.6;stroke-linecap:round;fill:rgba(27,24,64,.8)}
 #reticle .big,#reticle.dot .arm,#reticle.dot .small{display:none}
 #reticle.dot .big{display:inline}
+/* the room's mood: a soft darkening toward the corners in the level's own colour (setMood) */
+#mood{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 46%,rgba(0,0,0,0) 52%,var(--mood,rgba(22,18,56,.36)) 118%)}
 #vig{position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(255,60,80,0) 45%,rgba(255,60,80,.55));opacity:0;transition:opacity .35s}
 #frost{position:absolute;inset:0;opacity:0;transition:opacity .3s;background:radial-gradient(ellipse at center,rgba(200,235,255,0) 50%,rgba(200,235,255,.55) 80%,rgba(255,255,255,.85));box-shadow:inset 0 0 60px rgba(150,210,255,.8)}
 #cold{position:absolute;top:calc(64px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:3px 10px 4px}
@@ -247,7 +257,9 @@ body.touch.playing #touch{display:block}
 .tb.on{background:var(--sun);transform:translateY(2px);box-shadow:0 2px 0 var(--ink)}
 #tJump{right:calc(26px + env(safe-area-inset-right,0px));bottom:calc(32px + env(safe-area-inset-bottom,0px));width:96px;height:96px;font-size:21px;background:rgba(255,207,61,.95)}
 #tUse{right:calc(132px + env(safe-area-inset-right,0px));bottom:calc(40px + env(safe-area-inset-bottom,0px));width:72px;height:72px;font-size:17px;background:rgba(255,250,242,.55);color:rgba(27,24,64,.55);border-color:rgba(27,24,64,.45);box-shadow:0 4px 0 rgba(27,24,64,.4)}
-#tUse.ready{background:var(--exit);color:#fff;border-color:var(--ink);box-shadow:0 4px 0 var(--ink)}
+#tUse.ready{background:var(--exit);color:#fff;border-color:var(--ink);box-shadow:0 4px 0 var(--ink);animation:usePulse .8s ease-in-out infinite alternate}
+@keyframes usePulse{to{box-shadow:0 4px 0 var(--ink),0 0 0 7px rgba(34,197,94,.34)}}
+@media (prefers-reduced-motion:reduce){#tUse.ready,#prompt:not([hidden]){animation:none}}
 #tPause{left:calc(10px + env(safe-area-inset-left,0px));top:calc(10px + env(safe-area-inset-top,0px));width:44px;height:44px;font-size:14px}
 body.touch #hint,body.touch #lockHint,body.touch #reticle,body.touch #prompt kbd{display:none}
 body.touch #keysMenu,body.touch #keysPause,body.touch .kbonly{display:none}
@@ -296,6 +308,7 @@ body.touch #banner span{font-size:15px}
 <body>
 <div id="app">
   <canvas id="view" aria-label="Escapade game view"></canvas>
+  <div id="mood"></div>
   <div id="tags"></div>
   <div id="hud" hidden>
     <div id="vig"></div>
@@ -2229,8 +2242,19 @@ TEX.conv=texFrom(cvs(128,128,(g,w,h)=>{g.fillStyle='#3f3f46';g.fillRect(0,0,w,h)
   for(let k=0;k<2;k++){const x=k*64;g.beginPath();g.moveTo(x+8,12);g.lineTo(x+40,64);g.lineTo(x+8,116);g.lineTo(x+24,116);g.lineTo(x+56,64);g.lineTo(x+24,12);g.fill()}}));
 TEX.water=texFrom(cvs(128,128,(g,w,h)=>{g.fillStyle='#2f8fd8';g.fillRect(0,0,w,h);g.strokeStyle='rgba(255,255,255,.55)';g.lineWidth=5;
   for(let k=0;k<2;k++){const x=k*64;g.beginPath();g.moveTo(x+14,16);g.lineTo(x+40,64);g.lineTo(x+14,112);g.stroke()}speckle(g,w,h,200,.1,.25)}));
-TEX.lava=texFrom(cvs(128,128,(g,w,h)=>{g.fillStyle='#ff4d1a';g.fillRect(0,0,w,h);
-  for(let i=0;i<60;i++){const x=Math.random()*w,y=Math.random()*h,r=6+Math.random()*16;for(const ox of [-w,0,w])for(const oy of [-h,0,h]){const gr=g.createRadialGradient(x+ox,y+oy,0,x+ox,y+oy,r);gr.addColorStop(0,'rgba(255,230,90,.9)');gr.addColorStop(1,'rgba(255,120,30,0)');g.fillStyle=gr;g.fillRect(x+ox-r,y+oy-r,r*2,r*2)}}}));
+// lava: not a picture but a map the lava shader reads (lavaHook): red is how hot (the glowing cracks between plates of
+// crust), green is the crust's own light and dark. Cells of a tiling Worley pattern, made once.
+TEX.lava=texFrom(cvs(256,256,(g,w,h)=>{
+  const r=rng(31),N=6,pts=[];for(let j=0;j<N;j++)for(let i=0;i<N;i++)pts.push([(i+.12+r()*.76)/N,(j+.12+r()*.76)/N,.35+r()*.65]);
+  const img=g.createImageData(w,h),sm=(a,b,x)=>{x=clamp((x-a)/(b-a),0,1);return x*x*(3-2*x)};
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+    const u=x/w,v=y/h,ci=Math.floor(u*N),cj=Math.floor(v*N);let d1=9,d2=9,sh=0;
+    for(let b=-1;b<=1;b++)for(let a=-1;a<=1;a++){const p=pts[((cj+b+N)%N)*N+(ci+a+N)%N];let dx=Math.abs(p[0]-u),dy=Math.abs(p[1]-v);if(dx>.5)dx=1-dx;if(dy>.5)dy=1-dy;
+      const d=Math.hypot(dx,dy);if(d<d1){d2=d1;d1=d;sh=p[2]}else if(d<d2)d2=d}
+    const e=(d2-d1)*N,k=(y*w+x)*4;
+    img.data[k]=Math.round(255*clamp((1-sm(.01,.12,e))+(1-sm(0,.7,e))*.3,0,1));
+    img.data[k+1]=Math.round(255*clamp(sh*(.55+.45*sm(0,.5,e))+(r()-.5)*.08,0,1));img.data[k+2]=0;img.data[k+3]=255}
+  g.putImageData(img,0,0)}));
 TEX.bounce=texFrom(cvs(128,128,(g,w,h)=>{const gr=g.createRadialGradient(64,64,4,64,64,90);gr.addColorStop(0,'#d08bff');gr.addColorStop(1,'#8b2cf5');g.fillStyle=gr;g.fillRect(0,0,w,h);g.strokeStyle='#fff';g.lineWidth=7;for(const r of [16,34,52]){g.beginPath();g.arc(64,64,r,0,TAU);g.stroke()}}));
 TEX.cp=texFrom(cvs(128,128,(g,w,h)=>{g.fillStyle='#fff';g.fillRect(0,0,w,h);g.fillStyle='rgba(0,0,0,.08)';for(let y=0;y<4;y++)for(let x=0;x<4;x++)if((x+y)%2)g.fillRect(x*32,y*32,32,32);g.strokeStyle='rgba(0,0,0,.2)';g.lineWidth=5;g.strokeRect(2,2,w-4,h-4)}));
 TEX.metal=texFrom(cvs(128,128,(g,w,h)=>{const gr=g.createLinearGradient(0,0,0,h);gr.addColorStop(0,'#ffffff');gr.addColorStop(1,'#dfe3e8');g.fillStyle=gr;g.fillRect(0,0,w,h);
@@ -2361,6 +2385,22 @@ function neonHook(sh){
     '{float e=min(min(vFe.x,vFe.z-vFe.x),min(vFe.y,vFe.w-vFe.y));float band=1.-smoothstep(0.,.14,e);float s=step(.5,fract((vFe.x+vFe.y)*1.3-uT*1.6));'+
     'diffuseColor.rgb=mix(diffuseColor.rgb*(.8+.2*s)*(.92+.08*sin(uT*7.)),vec3(1.,.84,.88),band*.6);}');
 }
+// Lava: plates of dark crust drifting on a glow, the cracks between them bright, and hot patches that wander and melt
+// the crust away. Drawn from where it is in the world, so slabs side by side join up. It takes the part's colour
+// (the sewer's sludge is pink), and it's still unlit and bright: red and glowing means it gets you. On Fast it
+// skips the wandering patches (one texture read instead of two).
+const lavaU={uHq:{value:1},uNoise:{value:TEX.clouds}};
+function lavaHook(sc){return function(sh){
+  sh.uniforms.uT=U.time;sh.uniforms.uHq=lavaU.uHq;sh.uniforms.uNoise=lavaU.uNoise;sh.uniforms.uSc={value:sc};
+  sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec2 vLw;varying float vLt;').replace('#include <begin_vertex>','#include <begin_vertex>\n{vec4 wp=modelMatrix*vec4(transformed,1.);vLt=step(.5,abs(normalize(mat3(modelMatrix)*normal).y));vLw=vLt>.5?wp.xz:vec2(wp.x+wp.z,wp.y*1.6);}');
+  sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nuniform float uT,uHq,uSc;uniform sampler2D uNoise;varying vec2 vLw;varying float vLt;float lvH;')
+    .replace('#include <map_fragment>','{vec2 q=vLw*uSc;float n=uHq>.5?texture2D(uNoise,q*.3+vec2(uT*.011,uT*.007)).r:.5;'+
+      'vec2 w=q+vec2(sin(q.y*5.+uT*.5),cos(q.x*5.-uT*.4))*.012+vec2(uT*.006,uT*.004);vec4 t=texture2D(map,w);'+
+      'lvH=clamp(t.r*(.5+1.1*n)+smoothstep(.56,.8,n)*.75,0.,1.)*(.9+.1*sin(uT*2.3+n*14.));'+
+      'diffuseColor.rgb*=mix(.46+.36*t.g,1.15,lvH)*mix(.82,1.,vLt);}')
+    .replace('#include <color_fragment>','#include <color_fragment>\ndiffuseColor.rgb=mix(diffuseColor.rgb,vec3(1.,.86,.5),lvH*lvH*.7);');
+}}
+function lavaMat(o,sc){const m=new THREE.MeshBasicMaterial(Object.assign({map:TEX.lava},o));m.onBeforeCompile=lavaHook(sc||.15);return m}
 function neonMat(o){const m=new THREE.MeshBasicMaterial(o);m.onBeforeCompile=neonHook;return m}
 function cloneMat(m){const c=m.clone();c.onBeforeCompile=m.onBeforeCompile;return c}
 const matCache=new Map();
@@ -2369,7 +2409,7 @@ function sharedMat(kind,col,vc){
   const o={color:new THREE.Color(col),vertexColors:!!vc};
   if(kind==='neon')m=neonMat(o);
   else if(kind==='glow')m=new THREE.MeshBasicMaterial(Object.assign(o,{transparent:true,opacity:.35,blending:THREE.AdditiveBlending,depthWrite:false}));
-  else if(kind==='lava')m=new THREE.MeshBasicMaterial(Object.assign(o,{map:TEX.lava}));
+  else if(kind==='lava')m=lavaMat(o);
   else if(kind==='truss')m=new THREE.MeshLambertMaterial(Object.assign(o,{map:TEX.truss,transparent:true,alphaTest:.4,side:THREE.DoubleSide}));
   else if(kind==='zone')m=new THREE.MeshBasicMaterial(Object.assign(o,{transparent:true,opacity:.07,depthWrite:false,side:THREE.DoubleSide}));
   else if(kind==='lit')m=bevel(new THREE.MeshBasicMaterial(Object.assign(o,{map:TEX.grid})));
@@ -2879,6 +2919,27 @@ function setSky(top,bot,space){
 }
 const mix3=(a,b,t)=>'#'+new THREE.Color(a).lerp(new THREE.Color(b),clamp(t,0,1)).getHexString();
 function shade(hex,k){const c=new THREE.Color(hex);if(k<0)c.multiplyScalar(1+k);else c.lerp(new THREE.Color('#ffffff'),k);return '#'+c.getHexString()}
+// Each level's own light. The sky light takes a little of the sky's colour and the light bouncing up off the floor takes
+// the floor's (and the lava's glow where there's a lot of it); the sun is warm by day, low and orange under a sunset
+// sky, a cool moon at night. Floors used to burn out to white under the old light (0.86 sky + 0.56 sun), so both
+// are a little lower and more of the light comes up off the floor instead: walls stay bright, floors keep their colour
+// and their tile lines, and the gold and green lights show up on them. Drawing only.
+const MOOD={heat:0};
+const _mA=new THREE.Color(),_mB=new THREE.Color(),_mC=new THREE.Color();
+function setMood(W){
+  const d=W.def,night=!!d.night,sp=!!d.space;
+  let lava=0,floor=0;
+  for(const p of W.parts){if(p.sign||p.zone||p.item||p.btn)continue;const a=p.shape==='cyl'?Math.PI*p.r*p.r:4*p.hx*p.hz;if(p.kill&&p.mat==='lava')lava+=a;else if(p.mat==='floor'||p.mat==='cp')floor+=a}
+  const heat=MOOD.heat=d.sea?1:clamp(lava/(lava+floor+1)*1.5,0,1);
+  const top=_mA.set(d.sky[0]),bot=_mB.set(d.sky[1]),sunset=!night&&!sp&&bot.r>bot.b*1.3&&bot.r>.6;
+  hemi.color.set('#ffffff').lerp(top,night?.3:sp?.1:.14);
+  hemi.groundColor.set(d.pal.floor).lerp(_mC.set('#ffffff'),.55).lerp(_mC.set('#ffa25e'),heat*.5);
+  sun.color.set(night?'#c6d2ff':'#fff1d8');if(sunset)sun.color.lerp(bot,.45);
+  hemi.intensity=night?.58:sp?.74:.74;sun.intensity=night?.32:.5;
+  // the corners of the picture: the sky's colour, very dark (warmer over lava)
+  const v=_mC.copy(top).lerp(bot,.25).multiplyScalar(.22).lerp(_mA.set('#3a0d06'),heat*.45);
+  $('mood').style.setProperty('--mood','rgba('+Math.round(v.r*255)+','+Math.round(v.g*255)+','+Math.round(v.b*255)+','+(night||sp?.44:.3)+')');
+}
 // The grounds around the building: a lawn, blocky trees and hills, far-off mountains (one mesh), centred on the level.
 const land=new THREE.Group();scene.add(land);
 (function(){
@@ -2923,8 +2984,7 @@ const spaceSet=new THREE.Group();spaceSet.visible=false;scene.add(spaceSet);
 // a molten sea to the horizon with dark sea stacks (level def sea: true; the level's own lava is what hurts)
 const seaSet=new THREE.Group();seaSet.visible=false;scene.add(seaSet);
 (function(){
-  const t=TEX.lava.clone();t.needsUpdate=true;t.repeat.set(160,160);
-  const g=new THREE.Mesh(new THREE.CircleGeometry(1300,64),new THREE.MeshBasicMaterial({map:t,color:'#d9d0c8'}));g.rotation.x=-Math.PI/2;g.position.y=-.2;seaSet.add(g);
+  const g=new THREE.Mesh(new THREE.CircleGeometry(1300,64),lavaMat({color:'#e8431a'},.035));g.rotation.x=-Math.PI/2;g.position.y=-.2;seaSet.add(g);
   const r=rng(7),items=[];for(let i=0;i<34;i++){const a=r()*TAU,d=90+r()*420,w=8+r()*26,h=6+r()*40;items.push({geo:boxGeo(w,h,w*(.6+r()*.6)),x:Math.cos(a)*d,y:h/2-1,z:Math.sin(a)*d,yaw:r()*TAU,colFn:k=>mix3('#3b3530','#6f6a5e',k)})}
   for(let i=0;i<24;i++){const a=i/24*TAU+r()*.1,d=620+r()*260,h=50+r()*110,rad=50+r()*70;items.push({geo:new THREE.ConeGeometry(1,1,7,1),x:Math.cos(a)*d,y:h/2-6,z:Math.sin(a)*d,yaw:r()*TAU,sx:rad,sy:h,sz:rad,colFn:k=>k>.82?'#ff7a3d':mix3('#2f2a27','#5a524a',k)})}
   seaSet.add(new THREE.Mesh(mergeInto(items),new THREE.MeshLambertMaterial({vertexColors:true})));
@@ -3126,6 +3186,7 @@ function partMesh(W,p){
       const icon=new THREE.MeshBasicMaterial({map:iconTexture(p.lock,'#fffaf2')});
       for(const s of [-1,1]){const pl=new THREE.Mesh(new THREE.PlaneGeometry(1.1,1.1),icon);const ax=p.hx>p.hz;pl.position.set(ax?0:s*(p.hx+.02),.3,ax?s*(p.hz+.02):0);pl.rotation.y=ax?(s>0?0:Math.PI):(s>0?Math.PI/2:-Math.PI/2);mesh.add(pl)}
     }
+    if(p.mat!=='gate'||p.hy>1.2){const ax=p.hx>p.hz,bw=Math.max(.5,(ax?p.hx:p.hz)*2-.5),bar=new THREE.Mesh(new THREE.BoxGeometry(ax?bw:p.hx*2+.08,.2,ax?p.hz*2+.08:bw),doorBarMat);bar.position.y=p.hy-.36;mesh.add(bar)}
     mesh.userData.open=0;return mesh;
   }
   if(p.btn&&p.mat==='btn'){
@@ -3152,6 +3213,26 @@ function partMesh(W,p){
   }
   return m;
 }
+// The glow off lava: a low see-through sheet of light standing along each edge of a lava pool, so the walls and
+// platforms beside it look lit by it. One mesh for the whole level. Edges between two pools get none.
+TEX.skirt=new THREE.CanvasTexture(cvs(4,64,(g,w,h)=>{const gr=g.createLinearGradient(0,0,0,h);gr.addColorStop(0,'#000');gr.addColorStop(.45,'#2a2a2a');gr.addColorStop(1,'#fff');g.fillStyle=gr;g.fillRect(0,0,w,h)}));
+const skirtMat=new THREE.MeshBasicMaterial({map:TEX.skirt,vertexColors:true,transparent:true,opacity:.42,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide});matCache.set('skirt',skirtMat);
+skirtMat.onBeforeCompile=sh=>{sh.fragmentShader=sh.fragmentShader.replace('#include <fog_fragment>','#ifdef USE_FOG\ngl_FragColor.rgb*=1.-smoothstep(fogNear,fogFar,fogDepth);\n#endif')};
+function lavaSkirts(W){
+  if(W.def.sea)return null;
+  const pools=W.parts.filter(p=>p.kill&&p.mat==='lava'&&p.shape!=='cyl'&&!isDyn(p)&&!p.yaw),items=[],tmp=[];
+  const inPool=(x,z,y,self)=>pools.some(q=>q!==self&&Math.abs(q.y+q.hy-y)<.3&&Math.abs(x-q.x)<q.hx&&Math.abs(z-q.z)<q.hz);
+  for(const p of pools){const y=p.y+p.hy,H=1.7,col=mix3(p.col,'#ffb45e',.45);
+    for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]){
+      const len=2*(dx?p.hz:p.hx),ex=p.x+dx*p.hx,ez=p.z+dz*p.hz;if(len<.8||inPool(ex+dx*.3,ez+dz*.3,y,p))continue;
+      const g=new THREE.PlaneGeometry(len,H);tmp.push(g);items.push({geo:g,x:ex-dx*.04,y:y+H/2-.02,z:ez-dz*.04,yaw:dx?Math.PI/2:0,col})}}
+  if(!items.length)return null;
+  const m=new THREE.Mesh(mergeInto(items),skirtMat);m.renderOrder=2;for(const g of tmp)g.dispose();return m;
+}
+// A locked door's light: a dark bar across the top of the door with an amber lamp in it (amber: locked, something
+// opens it; the door slides away when it does). One texture, one shared material that breathes.
+TEX.doorbar=new THREE.CanvasTexture(cvs(128,16,(g,w,h)=>{g.fillStyle='#2a2540';g.fillRect(0,0,w,h);g.fillStyle='#ffffff';rr(g,6,4,w-12,h-8,4);g.fill()}));
+const doorBarMat=new THREE.MeshBasicMaterial({map:TEX.doorbar,color:'#ffb21a'});matCache.set('doorbar',doorBarMat);
 let hands=[],beamFx=null;
 function buildWorldMeshes(W){
   G.W=W;worldGroup=new THREE.Group();dyn=[];hands=[];beamFx=null;
@@ -3194,12 +3275,13 @@ function buildWorldMeshes(W){
   }
   for(const b of buckets.values()){const m=new THREE.Mesh(mergeInto(b.items),sharedMat(b.kind,'#ffffff',true));m.castShadow=b.kind!=='truss'&&b.kind!=='lava'&&b.kind!=='floor';m.receiveShadow=true;worldGroup.add(m)}
   if(glows.length)worldGroup.add(new THREE.Mesh(mergeInto(glows),glowStatic));
+  {const sk=lavaSkirts(W);if(sk)worldGroup.add(sk)}
   const sp=!!W.def.space,sn=!!W.def.snow,se=!!W.def.sea;land.visible=!sp&&!sn&&!se;spaceSet.visible=sp;snowSet.visible=sn;seaSet.visible=se;
   if(sp){land.position.set(0,0,0)}else land.position.set(0,0,(W.box[1]+W.box[3])/2);
   snowSet.position.copy(land.position);seaSet.position.copy(land.position);
   setSky(W.def.sky[0],W.def.sky[1],sp);
   // the haunted manor is at night: dimmer light
-  hemi.intensity=W.def.night?.62:sp?.95:.86;sun.intensity=W.def.night?.32:.56;
+  setMood(W);
   w3scene(W); // W3 hook
   w5Scene(W); // W5 hook
   scene.add(worldGroup);
@@ -3235,9 +3317,16 @@ function updateParts(rt,dt){
     if(p.cp>=0&&p.cp<=me.cp&&p.cp>0&&!m.userData.tint){m.userData.tint=1;m.material.color.set('#7ef0b4')}
     if(p.finish){m.userData.fx.material.opacity=.2+.1*Math.sin(rt*4)}
     if(p.door){const open=flagOn(W,p.door,rt)?1:0;let o=m.userData.open+(open-m.userData.open)*Math.min(1,dt*(open?3.2:9));if(Math.abs(o-open)<.002)o=open;m.userData.open=o;
+      if(open&&m.userData.was===0&&!G.noRender&&Math.hypot(p.x-me.x,p.z-me.z)<60){for(let k=0;k<3;k++)glowBurst(p.x+(p.hx>p.hz?(k-1)*p.hx*.7:0),p.y-p.hy+.4+k*p.hy*.5,p.z+(p.hx>p.hz?0:(k-1)*p.hz*.7),k===1?'#ffffff':'#7ef0b4',10,3.4,1.6)}
+      m.userData.was=open;
       m.position.y=p.y+o*(p.hy*2-.05);m.visible=o<.995;
       if(p.btn===null&&typeof st.f[p.door]==='number'&&open){const left=st.f[p.door]-rt;if(left<2)m.position.y+=Math.sin(rt*40)*.03}}
     if(p.item){const got=st.got[p.name];m.visible=!got;if(!got){const b=cur(p,rt);m.position.set(b.x,b.y+Math.sin(rt*2.4+p.id)*.12,b.z);m.userData.spin.rotation.y+=dt*2}}
+    if(p.btn&&m.visible){ // a gold light on everything you can use, until it's done; it pings, and brightens when you're in reach
+      const a=p.btn,done=a.set&&flagOn(W,a.set,rt)||a.then&&flagOn(W,a.then,rt)||a.dial&&flagOn(W,W.dials[a.dial].set,rt)||a.mirror&&flagOn(W,W.beams[a.mirror].set,rt)||a.seq&&flagOn(W,W.seqs[a.seq].set,rt)||a.pad&&W.pads[a.pad]&&flagOn(W,W.pads[a.pad].set,rt);
+      if(!done&&(!p.onIf&&!p.offIf||present(W,p,rt))){const b=m.position,tg=G.useTarget===p,floorBtn=p.mat==='btn',o=floorBtn||p.mat==='mirror'?0:p.hz+.12,x=b.x+Math.sin(m.rotation.y)*o,z=b.z+Math.cos(m.rotation.y)*o,y=b.y+p.hy+(floorBtn?.3:.12),u=(rt*.55+p.id*.37)%1;
+        beacon(x,y,z,BEACON_USE,tg?2.3:1.7,tg?.62:.34+.08*Math.sin(rt*3+p.id),0);
+        beacon(x,y,z,BEACON_USE,.8+u*1.9,(1-u)*(1-u)*(tg?.95:.65),-1)}}
     if(p.btn){const used=st.used[p.name],a=p.btn,top=m.userData.top;let lit=0;
       if(a.timed&&flagOn(W,a.timed,rt))lit=.5+.5*Math.sin(rt*10);
       if(a.seq){const s=st.seq[a.seq]||[];if(s.indexOf(a.sym)>=0||flagOn(W,W.seqs[a.seq].set,rt))lit=.6}
@@ -3260,6 +3349,11 @@ function updateParts(rt,dt){
       d.rods.forEach((rod,k)=>{const s=k?1:-1,ox=mv.dx?0:s*o,oz=mv.dx?s*o:0;_ra.set(p.x+ox,p.y+mv.len,p.z+oz);const b=cur(p,rt);_rb.set(b.x+ox,b.y+p.hy,b.z+oz);
         _rd.subVectors(_rb,_ra);const L=_rd.length();rod.position.addVectors(_ra,_rb).multiplyScalar(.5);rod.scale.set(.12,L,.12);rod.quaternion.setFromUnitVectors(_up,_rd.normalize())})}
   }
+  // the next checkpoint and the way out show from across the room
+  {const nc=W.cps[me.cp+1],u=(rt*.5)%1;if(nc){beacon(nc.x,nc.y+.6,nc.z,BEACON_CP,2.6,.34+.08*Math.sin(rt*2.6),0);beacon(nc.x,nc.y+.3,nc.z,BEACON_CP,1.2+u*2.4,(1-u)*(1-u)*.8,-1)}
+    const f=W.finish;if(f)beacon(f.x,f.y,f.z,BEACON_CP,5,.2+.06*Math.sin(rt*2),0)}
+  doorBarMat.color.setRGB(1,.62+.1*Math.sin(rt*3),.1+.06*Math.sin(rt*3));
+  skirtMat.opacity=.38+.06*Math.sin(U.time.value*1.9);
   TEX.swirl.rotation=-rt*1.4;
   for(const h of hands){const s=st.dial,sg=h.p.sign,hh=s.h|0,mm=(s.m|0)*15,a=sg.n?(s[sg.hand]|0)/sg.n*TAU:sg.hand==='h'?((hh%12)+mm/60)/12*TAU:mm/60*TAU;
     const u=h.mesh.userData;u.a=u.a==null?a:u.a+angDiff(a,u.a)*Math.min(1,dt*8);h.mesh.rotation.set(0,h.p.yaw,-u.a)}
@@ -3274,7 +3368,6 @@ function updateParts(rt,dt){
   }
   beamGlow.opacity=.28+.1*Math.sin(rt*4);
   glowStatic.opacity=.24+.1*Math.sin(U.time.value*5);
-  TEX.lava.offset.x=(U.time.value*.03)%1;TEX.lava.offset.y=(U.time.value*.05)%1;
   if(W.w3)w3update(W,rt,dt); // W3 hook
 }
 
@@ -3620,19 +3713,30 @@ function updateBits(dt){
   for(let i=0;i<bits.length;i++){const b=bits[i];_be.set(b.rx,0,b.rz);_bq.setFromEuler(_be);_bs.setScalar(b.s*Math.min(1,b.life*3));_m4.compose(b.p,_bq,_bs);bitMesh.setMatrixAt(i,_m4);bitMesh.setColorAt(i,_bc.set(b.c))}
   if(bits.length||bitMesh.count){bitMesh.count=bits.length;bitMesh.instanceMatrix.needsUpdate=true;bitMesh.instanceColor.needsUpdate=true}
 }
-function makeFx(n,additive){
+function makeFx(n,additive,maxPx){
   const geo=new THREE.BufferGeometry(),A={};
   for(const [k,s] of [['position',3],['pcol',3],['psize',1],['palpha',1],['pshape',1]]){const a=new THREE.BufferAttribute(new Float32Array(n*s),s);a.setUsage(THREE.DynamicDrawUsage);geo.setAttribute(k,a);A[k]=a}
   geo.setDrawRange(0,0);
   const mat=new THREE.ShaderMaterial({uniforms:{scale:{value:500}},transparent:true,depthWrite:false,blending:additive?THREE.AdditiveBlending:THREE.NormalBlending,
-    vertexShader:'attribute vec3 pcol;attribute float psize,palpha,pshape;uniform float scale;varying vec3 vC;varying float vA,vS;void main(){vC=pcol;vA=palpha;vS=pshape;vec4 mv=modelViewMatrix*vec4(position,1.);gl_PointSize=clamp(psize*scale/max(.2,-mv.z),1.,120.);gl_Position=projectionMatrix*mv;}',
-    fragmentShader:'varying vec3 vC;varying float vA,vS;void main(){vec2 d=gl_PointCoord-.5;if(vS<.5){float r=dot(d,d)*4.;if(r>1.)discard;float f=1.-r;gl_FragColor=vec4(vC,vA*f*f);}else{if(abs(d.x)>.5||abs(d.y)>.5*max(vS-1.,.12))discard;gl_FragColor=vec4(vC,vA);}}'});
+    vertexShader:'attribute vec3 pcol;attribute float psize,palpha,pshape;uniform float scale;varying vec3 vC;varying float vA,vS;void main(){vC=pcol;vA=palpha;vS=pshape;vec4 mv=modelViewMatrix*vec4(position,1.);gl_PointSize=clamp(psize*scale/max(.2,-mv.z),1.,'+(maxPx||120)+'.);gl_Position=projectionMatrix*mv;}',
+    fragmentShader:'varying vec3 vC;varying float vA,vS;void main(){vec2 d=gl_PointCoord-.5;if(vS<-.5){float r=length(d)*2.;gl_FragColor=vec4(vC,vA*smoothstep(1.,.84,r)*smoothstep(.56,.76,r));}else if(vS<.5){float r=dot(d,d)*4.;if(r>1.)discard;float f=1.-r;gl_FragColor=vec4(vC,vA*f*f);}else{if(abs(d.x)>.5||abs(d.y)>.5*max(vS-1.,.12))discard;gl_FragColor=vec4(vC,vA);}}'});
   const pts=new THREE.Points(geo,mat);pts.frustumCulled=false;pts.renderOrder=3;scene.add(pts);
   const F=n=>new Float32Array(n);
   return{n,lim:n,cnt:0,was:false,A,geo,mat,pts,pos:A.position.array,col:A.pcol.array,siz:A.psize.array,alp:A.palpha.array,shp:A.pshape.array,
     vel:F(n*3),life:F(n),max:F(n),s0:F(n),s1:F(n),a0:F(n),grav:F(n),drag:F(n),kind:new Uint8Array(n),ph:F(n)};
 }
 const FXS=makeFx(800,false),FXG=makeFx(800,true);
+// Beacons: soft lights and rings that mark what can be used, the next checkpoint and the way out. Written afresh
+// every frame by updateParts (one draw call for all of them); things behind a wall are hidden by it like anything else.
+const FXB=makeFx(96,true,260);FXB.pts.renderOrder=4;
+const BEACON_USE=new THREE.Color('#ffd23d'),BEACON_CP=new THREE.Color('#5ff0a8');
+function beacon(x,y,z,c,size,a,shape){
+  const P=FXB;if(P.cnt>=P.n||G.noRender)return;
+  {const cp=camera.position,fg=scene.fog,d=Math.hypot(x-cp.x,y-cp.y,z-cp.z);a*=1-clamp((d-fg.near)/(fg.far-fg.near),0,1);if(a<.01)return}
+  const i=P.cnt++,i3=i*3;
+  P.pos[i3]=x;P.pos[i3+1]=y;P.pos[i3+2]=z;P.col[i3]=c.r;P.col[i3+1]=c.g;P.col[i3+2]=c.b;P.siz[i]=size;P.alp[i]=a;P.shp[i]=shape;
+}
+function flushBeacons(){const P=FXB;P.geo.setDrawRange(0,P.cnt);P.mat.uniforms.scale.value=fxScale;if(P.cnt||P.was)for(const a of Object.values(P.A))a.needsUpdate=true;P.was=P.cnt>0;P.cnt=0}
 function emit(P,x,y,z,vx,vy,vz,life,s0,s1,c,a0,grav,drag,kind){
   if(P.cnt>=P.lim)return;const i=P.cnt++,i3=i*3;
   P.pos[i3]=x;P.pos[i3+1]=y;P.pos[i3+2]=z;P.vel[i3]=vx;P.vel[i3+1]=vy;P.vel[i3+2]=vz;P.col[i3]=c.r;P.col[i3+1]=c.g;P.col[i3+2]=c.b;
@@ -3686,6 +3790,11 @@ function ambientFx(dt){
     const f=W.finish;if(f&&Math.hypot(f.x-cp.x,f.z-cp.z)<60){const x=f.x+(Math.random()-.5)*f.hx*2,z=f.z+(Math.random()-.5)*f.hz*2;sparkle(x,f.y-f.hy+.2+Math.random()*f.hy,z,Math.random()<.7?'#4ade80':'#ffffff',.26)}
     for(const p of W.items){if(W.st.got[p.name]||Math.random()<.6)continue;const b=cur(p,G.t);if(Math.hypot(b.x-cp.x,b.z-cp.z)>40)continue;sparkle(b.x+(Math.random()-.5)*.6,b.y-.3,b.z+(Math.random()-.5)*.6,p.item==='gem'?'#7dd3fc':'#fde68a',.18)}
     if(W.w5fx)w5Fx(W,cp); // W5 hook
+    // embers drifting up off the lava near the camera
+    if(!W._lava)W._lava=W.parts.filter(p=>p.kill&&p.mat==='lava'&&p.shape!=='cyl');
+    if(W._lava.length&&Math.random()<.7)for(let q=0;q<3;q++){const p=W._lava[(Math.random()*W._lava.length)|0],b=cur(p,G.t);if(!present(W,p,G.t))continue;
+      const x=clamp(cp.x+(Math.random()-.5)*44,b.x-p.hx,b.x+p.hx),z=clamp(cp.z+(Math.random()-.5)*44,b.z-p.hz,b.z+p.hz);if(Math.hypot(x-cp.x,z-cp.z)>Math.min(34,scene.fog.far*.6))continue;
+      _fc.set(p.col).lerp(_cc.set('#ffd27a'),.35+Math.random()*.4);emit(FXG,x,b.y+p.hy+.05,z,(Math.random()-.5)*.5,.7+Math.random()*1.3,(Math.random()-.5)*.5,1.1+Math.random()*1.1,.16,.04,_fc,.95,-.3,.5,2);break}
     const nc=W.cps[me.cp+1];if(nc&&Math.random()<.5&&Math.hypot(nc.x-cp.x,nc.z-cp.z)<50)sparkle(nc.x+(Math.random()-.5)*2.6,nc.y+.1,nc.z+(Math.random()-.5)*2.6,'#7ef0b4',.2);
     if(!W._fires)W._fires=W.parts.filter(p=>p.name==='brazier');
     for(const f of W._fires){if(Math.hypot(f.x-cp.x,f.z-cp.z)>45)continue;_fc.set(Math.random()<.5?'#ffb347':'#ff6a2a');emit(FXG,f.x+(Math.random()-.5)*.6,f.y+f.hy+.05,f.z+(Math.random()-.5)*.6,(Math.random()-.5)*.4,1.6+Math.random()*1.2,(Math.random()-.5)*.4,.55+Math.random()*.3,.42,.06,_fc,.95,-1.2,.6,2)}
@@ -3899,6 +4008,17 @@ const USE_TXT={pad:'Use the keypad',valve:'Turn the valve',clock:'Press: opens t
 Object.assign(USE_TXT,W3_USE); // W3 hook
 Object.assign(USE_TXT,W4_USE); // W4 hook
 Object.assign(USE_TXT,W5_USE); // W5 hook
+// The shut door you're right up against, if any (a real door, gate or vault door; not one you carry the key for).
+const _ld={d:0,nx:0,nz:0};
+function lockedDoorNear(W){
+  if(!W._doors)W._doors=W.parts.filter(p=>p.door&&p.solid&&(p.lock||p.mat==='door'||p.mat==='vaultdoor'||p.mat==='gate'));
+  for(const p of W._doors){
+    if(flagOn(W,p.door,G.t)||!present(W,p,G.t)||p.lock&&W.st.inv[p.lock])continue;
+    const b=cur(p,G.t);if(me.y>b.y+p.hy||me.y+PHYS.H<b.y-p.hy)continue;
+    if(xzDist(p,b,me.x,me.z,_ld)<PHYS.R+.75)return p;
+  }
+  return null;
+}
 function updateHud(){
   const pl=playing()&&!G.pauseOpen&&!G.overlay&&!G.kp;if(hudCache.playing!==pl){hudCache.playing=pl;document.body.classList.toggle('playing',pl)}
   if($('hud').hidden)return;
@@ -3916,6 +4036,11 @@ function updateHud(){
   const cw=!!W.cold;$('cold').hidden=!cw||G.finished;if(cw){const k=clamp(me.cold/PHYS.COLD,0,1),pc=Math.round(k*100);if(hudCache.cold!==pc){hudCache.cold=pc;$('coldBar').style.width=(100-pc)+'%';$('cold').classList.toggle('low',k>.6);$('frost').style.opacity=String(clamp((k-.35)/.65,0,1))}}
   else if(hudCache.cold!==-1){hudCache.cold=-1;$('frost').style.opacity='0'}
   w3hud(W); // W3 hook
+  // a locked door you're standing at says what it wants (nothing to press: the pill has no key on it)
+  let info=false;
+  if(!txt&&!G.finished&&!me.dead&&!G.kp){const dr=lockedDoorNear(W);if(dr){info=true;txt=dr.lock?'Locked. Needs '+(ITEM_NAME[dr.lock]||'a key'):'Locked. Something else opens it'}}
+  if(hudCache.info!==info){hudCache.info=info;$('prompt').classList.toggle('info',info)}
+  {const dim=!G.finished&&myTime()>20;if(hudCache.dim!==dim){hudCache.dim=dim;$('hint').classList.toggle('dim',dim)}}
   $('prompt').hidden=!txt;if(txt)setText('promptTxt',txt);
   $('tUse').classList.toggle('ready',!!p&&txt!=='Done');
   if(locked()&&(KB.busy()||G.kp))releaseLock();
@@ -4195,7 +4320,7 @@ $('mus').oninput=()=>setMus($('mus').value);$('mus2').oninput=()=>setMus($('mus2
 const renderGfx=()=>{for(const b of $('gfxSeg').children)b.setAttribute('aria-pressed',String(b.dataset.q===gfx))};
 $('gfxSeg').onclick=ev=>{const q=ev.target.dataset&&ev.target.dataset.q;if(!q)return;gfx=q;store.set('gfx',q);renderGfx();applyQuality()};
 function applyQuality(){
-  const hi=hiQ();renderer.shadowMap.enabled=hi;sun.castShadow=hi;skyMat.uniforms.hq.value=hi?1:0;FXS.lim=FXG.lim=hi?800:350;
+  const hi=hiQ();renderer.shadowMap.enabled=hi;sun.castShadow=hi;skyMat.uniforms.hq.value=hi?1:0;lavaU.uHq.value=hi?1:0;FXS.lim=FXG.lim=hi?800:350;
   const an=hi?Math.min(4,renderer.capabilities.getMaxAnisotropy()):1;for(const t of Object.values(TEX))if(t.anisotropy!==an&&t.wrapS===THREE.RepeatWrapping){t.anisotropy=an;t.needsUpdate=true}
   for(const m of matCache.values())m.needsUpdate=true;scene.traverse(o=>{if(o.material)for(const m of [].concat(o.material))m.needsUpdate=true});
   resize();
@@ -4241,7 +4366,7 @@ function update(dt){
   const av=G.av;
   if(!me.dead&&!G.respawnAt){av.root.visible=true;av.root.position.set(x,y,z);me.ryaw+=angDiff(me.yaw,me.ryaw)*Math.min(1,dt*20);av.root.rotation.y=me.ryaw;animate(av,animCode(me),Math.hypot(me.vx,me.vz),dt);placeBlob(av,x,y,z,rt)}
   else av.blob.visible=false;
-  updateParts(rt,dt);
+  updateParts(rt,dt);flushBeacons();
   updateBits(dt);
   if(G.mode==='menu'){
     attractCamA+=dt*.06;
@@ -4266,7 +4391,7 @@ if(inv){$('room').value=inv[1];setMsg('You were invited to room er-'+inv[1]+'. P
 if(touchUI)setTouchUI(true);
 
 // Test hook (automated browsers only): step the simulation without waiting for frames, play levels with the bot.
-if(navigator.webdriver)window.__er={G,PHYS,LEVELS,get me(){return me},ents,Net,onNode,KB,keys,tAct,tMove,buildLevel,runBot,makeBot,startLevel,toMenu,goOnline,applyRoom,startRoomRound,onlineTick,showPause,resume,setView,
+if(navigator.webdriver)window.__er={G,PHYS,LEVELS,fx:{FXS,FXG,FXB},updateParts,get me(){return me},ents,Net,onNode,KB,keys,tAct,tMove,buildLevel,runBot,makeBot,startLevel,toMenu,goOnline,applyRoom,startRoomRound,onlineTick,showPause,resume,setView,
   usable,useBtn,tryCode,flagOn,softReset,renderer,scene,camera,camRay,openKeypad,kpPress,renderLevels,renderWorlds,renderMenu,
   WORLDS,ensureWorld,ensureLevel,levelReady,unlocked,worldOpen,firstOpen,nextLevel,clearedCount,totalStars,worldTotal,prof,leaderStart,followRound,
   advance(s){G.noRender=true;try{const n=Math.round(s/PHYS.DT);for(let i=0;i<n;i++){tick();if(G.respawnAt&&performance.now()>=G.respawnAt)doRespawn()}if(G.mode!=='online')G.tBase=performance.now()/1000-G.t}finally{G.noRender=false}},
