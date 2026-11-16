@@ -478,8 +478,11 @@ const MAPV=4;   // 3: the slower pace (November 2026): speeds, damage and the st
 let mapV=MAPV;   // only a test changes this, to play the part of a page from before the change
 const nodeV=v=>+(v&&v.mv)||1;   // nodes from before map versions existed are on the old island
 const MAP=240,CELL=4,NC=MAP/CELL,MAX_ROOM=30,PRACTICE_BOTS=11,LIVE_MS=8000,MAXL=7,COST=10,MAX_MATS=500,EDGE=3;
-// Movement and size: jump, step and the collision box are the same numbers as Backrooms 1v1–4v4; running is slower (see Pace).
-const G=26,JUMP=9.4,STEP=0.6,R=0.36,H=1.95,TOPY=300;
+// Movement and size: jump and step are the same numbers as Backrooms 1v1–4v4. Characters were made a fifth smaller in November 2026
+// (they looked huge next to doors and builds): BS scales the model, and the collision box (R wide either way, H tall; was 0.36 and
+// 1.95), the hit areas, the eye and muzzle heights, the name tag and the camera all follow it.
+const BS=.8,EYE=1.3,MUZ_Y=1.1,AIM_Y=.9;
+const G=26,JUMP=9.4,STEP=0.6,R=0.3,H=1.6,TOPY=300;
 // ---- Pace. Everything that sets how fast a match feels is here (and in WEAP's dmg and STORM's times just below),
 // and players and Practice bots read the same numbers. November 2026: all slowed by about a sixth to a fifth.
 const SPEED=5.4;                                   // running, m/s (was 6.6); bots run at 0.92 of it as before
@@ -1443,7 +1446,8 @@ function rampIn(r,x,y,z){const h=rampH(r,x,z);return h>=0&&h>y+STEP&&y+H>rampUnd
 function rampBlocked(nx,y,nz,ox,oz){near(rhash,nx-R,nz-R,nx+R,nz+R,NBQ);for(const r of NBQ)if(rampIn(r,nx,y,nz)&&(!rampIn(r,ox,y,oz)||rampT(r,nx,nz)>rampT(r,ox,oz)+1e-9))return r;return null}
 function rampAt(x,y,z){near(rhash,x-R,z-R,x+R,z+R,NBQ);for(const r of NBQ)if(rampIn(r,x,y,z))return r;return null}
 // A ramp built where a body stands: can the body be stood on top of it (nothing solid and no other ramp in the way up there)?
-function rampLiftOk(r,p){const top=rampH(r,p.x,p.z);return top>=0&&!solidAt(p.x,top,p.z)&&!rampAt(p.x,top,p.z)}
+function rampLiftOk(r,p){const top=rampH(r,p.x,p.z);if(top<0||rampAt(p.x,top,p.z))return false;
+  for(let y=p.y;;y=Math.min(top,y+.2)){if(solidAt(p.x,y,p.z))return false;if(y>=top)return true}}   // nothing solid on the way up either
 function rampLift(r,e){const p=e.pos;if(!rampIn(r,p.x,p.y,p.z)||!rampLiftOk(r,p))return;p.y=rampH(r,p.x,p.z);e.vel.y=0;e.onGround=true}
 // A wall or floor built where a body stands: is there a short, clear nudge (at most 0.6 m, not into a ramp) that gets it out of the box b?
 function nudgeOk(p,b){
@@ -1517,7 +1521,7 @@ function moveEntity(e,dt){
     if(!s){
       if(rampBlocked(nx,p.y,nz,p.x,p.z)){if(ax===0)e.vel.x=0;else e.vel.z=0;e.blocked=true;continue}
       // onto a ramp's slope: follow it up straight away (in the air too, once you're no longer rising), unless there's no headroom
-      if(e.onGround||e.vel.y<=0){const g=groundAt(nx,nz,p.y+STEP);if(g>p.y+.001){if(solidAt(nx,g,nz)||rampAt(nx,g,nz)){if(ax===0)e.vel.x=0;else e.vel.z=0;e.blocked=true;continue}p.y=g;e.vel.y=0;e.onGround=true}}
+      {const g=groundAt(nx,nz,p.y+STEP);if(g>p.y+.001){if(solidAt(nx,g,nz)||rampAt(nx,g,nz)){if(ax===0)e.vel.x=0;else e.vel.z=0;e.blocked=true;continue}if(e.onGround||e.vel.y<=0){p.y=g;e.vel.y=0;e.onGround=true}}}
       p.x=nx;p.z=nz;continue}
     const up=s.max[1]-p.y;
     if(up>0&&up<=STEP&&e.onGround&&!solidAt(nx,s.max[1]+.001,nz)&&!rampAt(nx,s.max[1]+.001,nz)){p.x=nx;p.z=nz;p.y=s.max[1]+.001;continue}
@@ -1546,7 +1550,7 @@ function moveEntity(e,dt){
         else if(overlap(p.x,p.y,p.z,s)&&(s.min[1]+s.max[1])/2>p.y+H/2)lim=Math.min(lim,p.y)}   // already into something overhead: no higher
       near(rhash,p.x-R,p.z-R,p.x+R,p.z+R,NBQ);
       for(const r of NBQ){if(p.x+R>r.x0&&p.x-R<r.x0+4&&p.z+R>r.z0&&p.z-R<r.z0+4){const u=rampUnder(r,p.x,p.z);if(u>=p.y+H-.05){if(u-H<lim)lim=u-H}else if(rampIn(r,p.x,p.y,p.z))lim=Math.min(lim,p.y)}}
-      if(ny>lim){ny=lim;e.vel.y=0}
+      if(ny>lim){ny=Math.max(lim,p.y);e.vel.y=0}   // (a ceiling a hair below the head must not press the body down)
     }
     p.y=ny;
   }
@@ -1571,8 +1575,8 @@ function rayRamp(o,d,r,maxT){
 }
 // (two boxes kept on the entity and refilled, since every shot's rays check every player)
 function hitboxes(e){const p=e.pos,b=e.hbx||(e.hbx=[{head:true,min:[0,0,0],max:[0,0,0]},{head:false,min:[0,0,0],max:[0,0,0]}]),h=b[0],c=b[1];
-  h.min[0]=p.x-.28;h.min[1]=p.y+1.5;h.min[2]=p.z-.28;h.max[0]=p.x+.28;h.max[1]=p.y+2.08;h.max[2]=p.z+.28;
-  c.min[0]=p.x-.42;c.min[1]=p.y;c.min[2]=p.z-.42;c.max[0]=p.x+.42;c.max[1]=p.y+1.5;c.max[2]=p.z+.42;return b}
+  h.min[0]=p.x-.225;h.min[1]=p.y+1.2;h.min[2]=p.z-.225;h.max[0]=p.x+.225;h.max[1]=p.y+1.67;h.max[2]=p.z+.225;   // head (was 0.28 either way, 1.5 to 2.08)
+  c.min[0]=p.x-.335;c.min[1]=p.y;c.min[2]=p.z-.335;c.max[0]=p.x+.335;c.max[1]=p.y+1.2;c.max[2]=p.z+.335;return b}   // body (was 0.42 either way, up to 1.5)
 // Walks the hash cells the ray crosses (nearest first) and stops once the best hit is nearer than the next cell.
 function raycast(o,d,maxT,ignore,withEnts){
   let best=maxT,hit=null;
@@ -1667,7 +1671,7 @@ function syncLimbs(){
   for(const k in gunIM){const im=gunIM[k];im.visible=im.count>0;if(im.count)im.instanceMatrix.needsUpdate=true}
 }
 function makeModel(hex,skinIx){
-  const g=new THREE.Group();
+  const g=new THREE.Group();g.scale.setScalar(BS);
   const body=new THREE.Mesh(bodyGeo(hex,SKINS[(skinIx|0)%SKINS.length]),MAT);
   const legs=[-.17,.17].map(x=>{const l=new THREE.Object3D();l.position.set(x,.86,0);g.add(l);return l});
   const gun=new THREE.Object3D();gun.position.set(.3,1.36,-.62);
@@ -2016,7 +2020,7 @@ function killFeed(k,v,w){
   const how=w==='storm'||!k?(w==='storm'?' · storm':' · fell'):' · '+(WEAP[w]?WEAP[w].name:w==='cb'?'Crowbar':'');
   feed((k?nm(k)+' <b>⟶</b> ':'')+nm(v)+how,k===myId()?'you':v===myId()?'them':'info');
 }
-function muzzleOf(e){return e.pos.clone().add(new V3(0,1.38,0)).addScaledVector(rightOf(e.yaw),.3).addScaledVector(fwdOf(e.yaw,e.pitch),.5)}
+function muzzleOf(e){return e.pos.clone().add(new V3(0,MUZ_Y,0)).addScaledVector(rightOf(e.yaw),.3*BS).addScaledVector(fwdOf(e.yaw,e.pitch),.5*BS)}
 function resolveShot(shooter,w,r,rays,color){
   const entAcc=new Map(),pcAcc=new Map(),mpAcc=new Map(),ends=[];
   for(const ry of rays){
@@ -2263,8 +2267,8 @@ function updateBot(b,dt,t){
     const has=botPickWeapon(b,d);
     // face the target, with a little error that shrinks the longer it's been in sight
     const err=ai.aimErr*(1+Math.max(0,1.2-ai.seenT))+(tg.vel?Math.hypot(tg.vel.x,tg.vel.z)*.008:0);
-    const aim=tg.pos.clone().add(new V3((Math.random()-.5)*err*d,1.1+(Math.random()-.5)*err*d,(Math.random()-.5)*err*d));
-    const hd=b.pos.clone().add(new V3(0,1.62,0));b.yaw=yawTo(aim.x-hd.x,aim.z-hd.z);b.pitch=Math.atan2(aim.y-hd.y,Math.hypot(aim.x-hd.x,aim.z-hd.z));
+    const aim=tg.pos.clone().add(new V3((Math.random()-.5)*err*d,AIM_Y+(Math.random()-.5)*err*d,(Math.random()-.5)*err*d));
+    const hd=b.pos.clone().add(new V3(0,EYE,0));b.yaw=yawTo(aim.x-hd.x,aim.z-hd.z);b.pitch=Math.atan2(aim.y-hd.y,Math.hypot(aim.x-hd.x,aim.z-hd.z));
     ai.strafeT-=dt;if(ai.strafeT<=0){ai.strafeT=.6+Math.random()*1.2;ai.strafe=Math.random()<.5?-1:1}
     const r=rightOf(b.yaw),f=fwdOf(b.yaw,0);const want=has?(heldW(b)&&heldW(b).id==='sg'?6:heldW(b)&&heldW(b).id==='sr'?50:18):1.6;
     const fw=d>want+4?1:d<want-3?-.6:0;mx=f.x*fw+r.x*ai.strafe*.8;mz=f.z*fw+r.z*ai.strafe*.8;
@@ -2301,7 +2305,7 @@ function updateBot(b,dt,t){
   stormDamage(b,dt,t);
 }
 function botShoot(b,w,s){
-  const camF=fwdOf(b.yaw,b.pitch),cp=b.pos.clone().add(new V3(0,1.62,0));
+  const camF=fwdOf(b.yaw,b.pitch),cp=b.pos.clone().add(new V3(0,EYE,0));
   const saved=camDist;camDist=0;shootFrom(b,w||CROW,s?s.r:0,camF,cp,false,0xffb08a);camDist=saved;
 }
 function updateBots(dt){if(!inPlay()||!amHost())return;const t=matchT();for(const b of bots.values())if(b.local)updateBot(b,dt,t)}
@@ -2715,7 +2719,7 @@ function updateHud(dt){
   let ti=0;const tgt=camTarget();
   if(inPlay())for(const e of ents){
     if(e===player||e===tgt||!e.present||!e.alive||e.st==='bus')continue;
-    const top=_tag.set(e.pos.x,e.pos.y+(e.glide?4.3:2.4),e.pos.z);const dd=top.distanceTo(camera.position);if(dd>70)continue;
+    const top=_tag.set(e.pos.x,e.pos.y+(e.glide?3.5:2),e.pos.z);const dd=top.distanceTo(camera.position);if(dd>70)continue;
     const sc=toScreen(top);if(!sc.front)continue;
     if(check){const d=_tagD.copy(top).sub(camera.position);const L=d.length();d.divideScalar(L);e.tagVis=!raycast(arr(camera.position),arr(d),L-.4,null,false).hit}
     if(!e.tagVis)continue;
@@ -2876,11 +2880,11 @@ function updateCamera(dt){
     setNear(1);const far=camera.aspect<1?58:34;camera.position.copy(_bp).addScaledVector(f,-far).add(new V3(0,far*.33,0));camera.lookAt(_bp.clone().addScaledVector(f,24).add(new V3(0,-7,0)));camDist=3.5;return;
   }
   const f=fwdOf(tgt.yaw,tgt.pitch),r=rightOf(tgt.yaw);
-  const head=_ch.set(tgt.pos.x,tgt.pos.y+1.62,tgt.pos.z);
+  const head=_ch.set(tgt.pos.x,tgt.pos.y+EYE,tgt.pos.z);
   const airy=tgt.st==='fall'||tgt.st==='glide';
-  const side=raycast(arr(head),arr(r),.78,null,false);const so=airy?0:side.hit?Math.max(0,side.t-.25):.78;
+  const side=raycast(arr(head),arr(r),.7,null,false);const so=airy?0:side.hit?Math.max(0,side.t-.25):.7;
   const pivot=_cp.copy(head).addScaledVector(r,so);
-  const want=airy?7:ads?2.2:3.5,back=_cb.copy(f).negate();
+  const want=airy?7:ads?2.2:4,back=_cb.copy(f).negate();
   const res=raycast(arr(pivot),arr(back),want,null,false);
   const d=res.hit?Math.max(.3,res.t-.25):want;
   camDist=d<camDist?d:camDist+(d-camDist)*Math.min(1,dt*8);
@@ -3183,7 +3187,7 @@ if(navigator.webdriver)window.__dz={get state(){return state},get online(){retur
   damageEntity,die,raycast,groundAt,moveEntity,updateFx,drawItems,updateWorldFx,updateHud,openChest,addItem,nearestChest,nearestItem,canTake,dropFromBus,updateCamera,camTarget,cycleSpectate,rankRows,lineClear,stepAir,
   start(){startWanted=true;hostDuties()},now:()=>nowMs(),
   teleport(x,z,y){player.pos.set(x,y==null?groundAt(x,z,200):y,z);player.vel.set(0,0,0);player.st='ground';player.float=false;player.glide=false;player.onGround=true},
-  aimAt(e){const t=e.pos.clone().add(new V3(0,1.1,0));for(let i=0;i<4;i++){updateCamera(0);const c=camera.position;player.yaw=yawTo(t.x-c.x,t.z-c.z);player.pitch=Math.atan2(t.y-c.y,Math.hypot(t.x-c.x,t.z-c.z))}},
+  aimAt(e){const t=e.pos.clone().add(new V3(0,AIM_Y,0));for(let i=0;i<4;i++){updateCamera(0);const c=camera.position;player.yaw=yawTo(t.x-c.x,t.z-c.z);player.pitch=Math.atan2(t.y-c.y,Math.hypot(t.x-c.x,t.z-c.z))}},
   give(t,r){takeItem(player,{t,r:r|0,n:WEAP[t]?WEAP[t].mag:HEALS[t]?1:t==='mt'?100:60})},
   fire(){const w=heldW(player),s=heldItem(player);updateCamera(0);playerShoot();if(s&&w)s.n=w.mag;player.cd=0},
   draws(){return renderer.info.render.calls},
