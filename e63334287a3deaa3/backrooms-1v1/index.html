@@ -1131,6 +1131,8 @@ function tryBuild(s,owner){
   const pc=makePiece(s);
   // a wall or floor that lands on you (or the Entity) shoves you out of it rather than trapping you inside
   if(pc.solid)for(const e of [player,opp])if(e.alive&&e.present&&overlap(e.pos.x,e.pos.y,e.pos.z,pc.solid))pushOut(e);
+  // a ramp that lands on you lifts you onto it (or moves you out from inside it some other way: see rampOut)
+  if(pc.ramp)for(const e of [player,opp])if(e.alive&&e.present&&inRamp(pc.ramp,e.pos.x,e.pos.y,e.pos.z))rampOut(e,true);
   sfxBuild(owner===player?1:1/(1+camera.position.distanceTo(pc.obj.position)*.08));
   if(online&&owner===player)Net.send({type:'b',k:s.kind,x:s.x,z:s.z,L:s.L,o:s.o||'',dir:s.dir||0,r:roundNo()});
   return true;
@@ -1159,9 +1161,10 @@ for(const k in ghosts){ghosts[k].visible=false;scene.add(ghosts[k])}
 function hideGhosts(){for(const k in ghosts)ghosts[k].visible=false}
 
 /* ---------- collision & rays ---------- */
-// Players are boxes R wide either way and H tall. Walls, posts, pillars and build walls/floors are solid boxes; ramps are
-// walkable surfaces (see groundAt), not solids. Movement never enters a solid, so the only way to end up inside one is a
-// build landing on you, and pushOut moves you back out the shortest way instead of letting you walk through it.
+// Players are boxes R wide either way and H tall. Walls, posts, pillars and build walls/floors are solid boxes; a ramp is
+// a solid sloping sheet (see inRamp) whose top you walk on (see groundAt). Movement never enters a solid or a ramp, so
+// the only way to end up inside one is a build landing on you, and pushOut / rampOut move you back out instead of
+// letting you walk or jump through it.
 function overlap(x,y,z,s){return x+R>s.min[0]&&x-R<s.max[0]&&z+R>s.min[2]&&z-R<s.max[2]&&y+H>s.min[1]+.01&&y<s.max[1]-.01}
 function blockedAt(nx,y,nz,ox,oz){for(const s of solids)if(overlap(nx,y,nz,s)&&!overlap(ox,y,oz,s))return s;return null}
 function solidAt(x,y,z){for(const s of solids)if(overlap(x,y,z,s))return s;return null}
@@ -1194,10 +1197,44 @@ function pushOut(e){
   }
   return moved;
 }
+// how far up the ramp a point is: 0 at the low edge, 1 at the high edge
+function rampT(r,x,z){switch(r.dir){case 0:return (x-r.x0)/4;case 1:return (z-r.z0)/4;case 2:return (r.x0+4-x)/4;default:return (r.z0+4-z)/4}}
 function rampH(r,x,z){
   if(x<r.x0||x>r.x0+4||z<r.z0||z>r.z0+4)return -1;
-  let t;switch(r.dir){case 0:t=(x-r.x0)/4;break;case 1:t=(z-r.z0)/4;break;case 2:t=(r.x0+4-x)/4;break;default:t=(r.z0+4-z)/4}
-  return r.base+.15+4*clamp(t,0,1);
+  return r.base+.15+4*clamp(rampT(r,x,z),0,1);
+}
+// Ramps are solid: nothing walks or jumps through one, from any side. The sheet is RAMP_UNDER thick below the surface you
+// walk on (as drawn). With the middle of a body over a ramp, the body is clear of it in two cases only: on top (feet no
+// more than a step below the surface, which is how you step onto the low end or land on it from a jump), or underneath
+// with its head below the underside at the lowest point over the body (rampUnder: R further down the slope than the
+// middle). Anything in between is inside the ramp.
+const RAMP_UNDER=.33;
+function rampUnder(r,x,z){return r.base+.15+4*clamp(rampT(r,x,z)-R/4,0,1)-RAMP_UNDER}
+function inRamp(r,x,y,z){const h=rampH(r,x,z);return h>=0&&y<h-STEP-.01&&y+H>rampUnder(r,x,z)+.01}
+function rampAt(x,y,z){for(const r of ramps)if(inRamp(r,x,y,z))return r;return null}
+// a move into a ramp (one you were not already inside)
+function rampBlocks(nx,y,nz,ox,oz){for(const r of ramps)if(inRamp(r,nx,y,nz)&&!inRamp(r,ox,y,oz))return true;return false}
+// A body inside a ramp (one was built where it stands) is moved out the shortest way that is free: up onto the ramp, down
+// under it, along the slope to where there is head room underneath or to where the ramp is low enough to step onto, or out
+// of either side. lift (a ramp just built on you): up onto it first if that is no more than 2 m, so a ramp placed in
+// the cell you are standing in puts you on it, ready to climb.
+function rampOut(e,lift){
+  const p=e.pos;let moved=false;
+  for(let i=0;i<4;i++){
+    const r=rampAt(p.x,p.y,p.z);if(!r)break;
+    const t=rampT(r,p.x,p.z),a=r.dir%2===0?0:2,o=2-a,sg=r.dir<2?1:-1,rel=p.y-r.base-.15,po=o===0?p.x:p.z,o0=o===0?r.x0:r.z0;
+    const up=[rampH(r,p.x,p.z)-p.y,1];
+    const c=[up,[rampUnder(r,p.x,p.z)-H-p.y,1],
+      [sg*(4*(Math.min(1,(rel+H+RAMP_UNDER)/4+R/4)-t)+.004),a],[-sg*(4*(t-Math.max(0,(rel+STEP)/4))+.004),a],
+      [o0-.004-po,o],[o0+4.004-po,o]].sort((x,y)=>Math.abs(x[0])-Math.abs(y[0]));
+    if(lift&&up[0]<=2)c.unshift(up);
+    const [d,ax]=c.find(k=>shoveClear(p,k[0],k[1],[])&&!rampAt(p.x+(k[1]===0?k[0]:0),p.y+(k[1]===1?k[0]:0),p.z+(k[1]===2?k[0]:0)))||c[0];
+    if(ax===0){p.x+=d;e.vel.x=0}
+    else if(ax===2){p.z+=d;e.vel.z=0}
+    else{p.y+=d;if(d>0){e.vel.y=0;e.onGround=true}else if(e.vel.y>0)e.vel.y=0}
+    clampToMap(p);moved=true;
+  }
+  return moved;
 }
 // The highest surface under the box (same footprint as the collision box, so you stand on anything your box overlaps
 // and fall only once you're clear of it) up to maxY: the floor, solid tops and ramp surfaces.
@@ -1210,18 +1247,19 @@ function groundAt(x,z,maxY){
 // One axis at a time (x, then z), so you slide along walls; a move that would enter a solid is dropped unless it's a
 // step of up to STEP onto something with head room. Long moves (a slow frame) are split into steps of at most 0.25 m,
 // shorter than the thinnest wall, so nothing can be skipped over; at normal frame rates that's the one step as before.
+// Ramps block the same way (rampBlocks), and a jump under one stops at its underside.
 function moveEntity(e,dt){
   const p=e.pos;e.blocked=false;
-  pushOut(e);
+  pushOut(e);rampOut(e);
   const sx=p.x,sz=p.z;
   const n=Math.min(16,Math.max(1,Math.ceil(Math.hypot(e.vel.x,e.vel.z)*dt/.25)));
   for(let i=0;i<n;i++)for(const ax of [0,2]){
     const delta=(ax===0?e.vel.x:e.vel.z)*dt/n;if(!delta)continue;
     const nx=ax===0?p.x+delta:p.x,nz=ax===2?p.z+delta:p.z;
     const s=blockedAt(nx,p.y,nz,p.x,p.z);
-    if(!s){p.x=nx;p.z=nz;continue}
-    const up=s.max[1]-p.y;
-    if(up>0&&up<=STEP&&e.onGround&&!solidAt(nx,s.max[1]+.001,nz)){p.x=nx;p.z=nz;p.y=s.max[1]+.001;continue}
+    if(!s&&!rampBlocks(nx,p.y,nz,p.x,p.z)){p.x=nx;p.z=nz;continue}
+    const up=s?s.max[1]-p.y:0;
+    if(up>0&&up<=STEP&&e.onGround&&!solidAt(nx,s.max[1]+.001,nz)&&!rampAt(nx,s.max[1]+.001,nz)){p.x=nx;p.z=nz;p.y=s.max[1]+.001;continue}
     if(ax===0)e.vel.x=0;else e.vel.z=0;e.blocked=true;
   }
   p.x=clamp(p.x,R+.15,W-R-.15);p.z=clamp(p.z,R+.15,W-R-.15);
@@ -1232,7 +1270,7 @@ function moveEntity(e,dt){
     if(ny<=ground||(e.onGround&&ground>p.y-STEP&&e.vel.y>-5)){
       // a ramp or step rising into something overhead (a floor built over a ramp): don't go up into it. Walking further
       // up is stopped; if a floor dropped on you already pushed you down below the ramp, you can still walk downhill out
-      if(ground>p.y&&solidAt(p.x,ground,p.z)){
+      if(ground>p.y&&(solidAt(p.x,ground,p.z)||rampAt(p.x,ground,p.z))){
         if(groundAt(sx,sz,p.y+H)<ground){p.x=sx;p.z=sz;e.vel.x=e.vel.z=0;e.blocked=true}
         ny=p.y;
       }else ny=ground;
@@ -1242,10 +1280,11 @@ function moveEntity(e,dt){
   }else{
     e.onGround=false;let lim=CEIL-H;
     for(const s of solids){if(p.x+R>s.min[0]&&p.x-R<s.max[0]&&p.z+R>s.min[2]&&p.z-R<s.max[2]&&s.min[1]>=p.y+H-.05&&s.min[1]-H<lim)lim=s.min[1]-H}
+    for(const r of ramps){if(rampH(r,p.x,p.z)<0)continue;const u=rampUnder(r,p.x,p.z)-H;if(u>=p.y-.05&&u<lim)lim=u}   // the underside of a ramp overhead
     if(ny>lim){ny=lim;e.vel.y=0}
   }
   p.y=ny;
-  pushOut(e);
+  pushOut(e);rampOut(e);
 }
 function rayBox(o,d,mn,mx,maxT){
   let t0=0,t1=maxT;
@@ -1295,13 +1334,13 @@ function makeSuit(suit,trim,visor){
   // legs: the leg, then the boot and a knee pad
   const legs=[-.17,.17].map(x=>{const lg=new THREE.Group();lg.position.set(x,.86,0);lg.add(P([[.28,.86,.3,0,-.43,0]],ms),P([[.31,.16,.38,0,-.78,-.03],[.3,.14,.05,0,-.4,-.16]],mt));g.add(lg);return lg});
   const torso=P([[.74,.72,.44,0,1.22,0]],ms);
-  const gear=P([[.77,.1,.47,0,.9,0],[.42,.52,.2,0,1.26,.31],[.09,.56,.03,-.2,1.28,-.225],[.09,.56,.03,.2,1.28,-.225],[.31,.07,.03,0,1.36,-.225],[.46,.06,.22,0,1.55,.3]],mt);   // belt, air tank, chest straps
-  const lamp=P([[.14,.07,.03,0,1.4,.42],[.05,.05,.03,0,1.16,.42]],mv);                                          // lamps on the tank, in the visor colour: what you see of yourself
+  const gear=P([[.77,.1,.47,0,.9,0],[.42,.52,.2,0,1.26,.31],[.09,.56,.03,-.2,1.28,-.225],[.09,.56,.03,.2,1.28,-.225],[.31,.07,.03,0,1.36,-.225],[.44,.06,.22,0,1.5,.3]],mt);   // belt, air tank, chest straps
+  const lamp=P([[.14,.07,.02,0,1.4,.412],[.05,.05,.02,0,1.16,.412]],mv);                                          // lamps on the tank, in the visor colour: what you see of yourself
   const head=new THREE.Group();head.position.y=1.78;
   const hood=box(.54,.54,.54,ms);const vis=box(.42,.22,.04,mv);vis.position.set(0,.03,-.275);const filt=P([[.17,.14,.12,0,-.17,-.3],[.46,.05,.05,0,.17,-.27]],mt);head.add(hood,vis,filt);tkHat(head,.92,.27);
   const arms=new THREE.Group();arms.position.set(0,1.44,0);
   const sleeves=P([[.17,.17,.62,-.26,-.05,-.26,-.35],[.17,.17,.62,.3,-.05,-.22]],ms);
-  const gloves=P([[.19,.19,.15,-.174,-.05,-.495,-.35],[.19,.19,.15,.3,-.05,-.47]],mt);
+  const gloves=P([[.18,.18,.14,-.176,-.05,-.49,-.35],[.18,.18,.14,.3,-.05,-.465]],mt);
   const gun=new THREE.Group();gun.position.set(.16,-.04,-.62);arms.add(sleeves,gloves,gun);
   g.add(torso,gear,lamp,head,arms);
   g.userData={legs,arms,gun,head,gunId:-1,ms,mt,mv};
@@ -1312,30 +1351,35 @@ const SUITS={me:[0xe8e9e4,0x34536e,0x7fd3ff],entity:[0x1d1c19,0x3c3a33,0xff3b2e]
 function setSuit(model,key){const c=SUITS[key]||SUITS.me,u=model.userData;u.ms.color.setHex(c[0]);u.mt.color.setHex(c[1]);u.mv.color.setHex(c[2])}
 // The three guns: each is one mesh made of boxes coloured per corner (one draw call), shared by every character.
 // z is along the barrel, pointing away from the holder. GUN_TIP is how far the muzzle is from the hands.
+// gunFit squeezes a gun along its barrel so it runs from z0 to z1: each gun is exactly as long as the plain one it
+// replaced (rifle 0.78 m, shotgun 0.86 m, sniper 1.18 m), so a character holding it takes up the same space as before.
 const gunVMat=new THREE.MeshLambertMaterial({vertexColors:true});
 const GC={steel:[.2,.2,.22],dark:[.09,.09,.1],grey:[.4,.41,.4],wood:[.52,.32,.16],tan:[.56,.48,.31],amber:[.96,.63,.16],red:[.82,.2,.15],lens:[.3,.82,.95]};
+const gunFit=(l,z0,z1)=>{let a=1e9,b=-1e9;for(const p of l){a=Math.min(a,p[5]-p[2]/2);b=Math.max(b,p[5]+p[2]/2)}const k=(z1-z0)/(b-a);
+  return parts(l.map(p=>{const q=p.slice();q[2]=p[2]*k;q[5]=z0+(p[5]-p[2]/2-a)*k+q[2]/2;return q}))};
 const GUN_GEO=[
-  parts([[.1,.15,.4,0,0,.04,0,GC.steel],[.085,.11,.3,0,.005,-.3,0,GC.grey],[.04,.04,.2,0,.02,-.54,0,GC.dark],[.06,.06,.07,0,.02,-.63,0,GC.dark],
-    [.07,.11,.16,0,-.025,.3,0,GC.grey],[.085,.16,.04,0,-.04,.385,0,GC.dark],[.065,.2,.1,0,-.165,-.04,0,GC.dark],[.065,.08,.1,0,-.27,-.065,0,GC.dark],
-    [.055,.13,.07,0,-.13,.15,0,GC.dark],[.045,.025,.34,0,.088,-.06,0,GC.dark],[.05,.05,.03,0,.12,.12,0,GC.dark],[.03,.06,.03,0,.105,-.42,0,GC.dark],[.105,.035,.1,0,.03,.1,0,GC.amber]]),
-  parts([[.11,.15,.32,0,0,.08,0,GC.steel],[.055,.055,.56,0,.035,-.36,0,GC.dark],[.05,.05,.46,0,-.03,-.31,0,GC.dark],[.12,.1,.22,0,-.04,-.27,0,GC.wood],
+  gunFit([[.1,.15,.4,0,0,.04,0,GC.steel],[.085,.11,.3,0,.005,-.3,0,GC.grey],[.04,.04,.2,0,.02,-.54,0,GC.dark],[.06,.06,.07,0,.02,-.63,0,GC.dark],
+    [.07,.11,.16,0,-.025,.3,0,GC.grey],[.085,.16,.04,0,-.04,.385,0,GC.dark],[.065,.15,.1,0,-.14,-.04,0,GC.dark],[.065,.06,.1,0,-.22,-.065,0,GC.dark],
+    [.055,.13,.07,0,-.13,.15,0,GC.dark],[.045,.025,.34,0,.088,-.06,0,GC.dark],[.05,.05,.03,0,.12,.12,0,GC.dark],[.03,.06,.03,0,.105,-.42,0,GC.dark],[.105,.035,.1,0,.03,.1,0,GC.amber]],-.39,.39),
+  gunFit([[.11,.15,.32,0,0,.08,0,GC.steel],[.055,.055,.56,0,.035,-.36,0,GC.dark],[.05,.05,.46,0,-.03,-.31,0,GC.dark],[.12,.1,.22,0,-.04,-.27,0,GC.wood],
     [.09,.13,.2,0,-.03,.3,0,GC.wood],[.095,.16,.04,0,-.045,.4,0,GC.dark],[.06,.1,.07,0,-.11,.2,0,GC.wood],[.02,.03,.02,0,.075,-.62,0,GC.amber],
-    [.02,.06,.045,.062,0,.02,0,GC.red],[.02,.06,.045,.062,0,.08,0,GC.red],[.02,.06,.045,.062,0,.14,0,GC.red]]),
-  parts([[.085,.13,.38,0,0,.08,0,GC.steel],[.04,.04,.74,0,.015,-.48,0,GC.dark],[.065,.065,.1,0,.015,-.88,0,GC.dark],[.075,.08,.3,0,-.03,-.24,0,GC.tan],
+    [.02,.06,.045,.062,0,.02,0,GC.red],[.02,.06,.045,.062,0,.08,0,GC.red],[.02,.06,.045,.062,0,.14,0,GC.red]],-.43,.43),
+  gunFit([[.085,.13,.38,0,0,.08,0,GC.steel],[.04,.04,.74,0,.015,-.48,0,GC.dark],[.065,.065,.1,0,.015,-.88,0,GC.dark],[.075,.08,.3,0,-.03,-.24,0,GC.tan],
     [.075,.14,.2,0,-.03,.3,0,GC.tan],[.06,.04,.14,0,.06,.28,0,GC.dark],[.085,.17,.04,0,-.04,.4,0,GC.dark],[.06,.06,.34,0,.135,0,0,GC.dark],
     [.085,.085,.08,0,.135,-.2,0,GC.dark],[.075,.075,.06,0,.135,.19,0,GC.dark],[.065,.065,.012,0,.135,-.245,0,GC.lens],[.03,.05,.04,0,.085,-.08,0,GC.steel],
-    [.03,.05,.04,0,.085,.1,0,GC.steel],[.06,.09,.1,0,-.1,.02,0,GC.dark],[.02,.02,.26,-.035,-.04,-.52,0,GC.grey],[.02,.02,.26,.035,-.04,-.52,0,GC.grey],[.05,.025,.025,.065,.03,.14,0,GC.grey]])
+    [.03,.05,.04,0,.085,.1,0,GC.steel],[.06,.09,.1,0,-.1,.02,0,GC.dark],[.02,.02,.26,-.035,-.04,-.52,0,GC.grey],[.02,.02,.26,.035,-.04,-.52,0,GC.grey],[.05,.025,.025,.065,.03,.14,0,GC.grey]],-.75,.43)
 ];
-const GUN_TIP=[.67,.64,.93];
+const GUN_TIP=[.39,.43,.75];
 function setGun(model,wi){
   const u=model.userData;if(u.gunId===wi)return;u.gunId=wi;
   const geo=GUN_GEO[wi]||GUN_GEO[0];
   if(u.gunMesh)u.gunMesh.geometry=geo;else{u.gunMesh=new THREE.Mesh(geo,gunVMat);u.gun.add(u.gunMesh)}
 }
-// the soft round shadow that sits on the ground under a character
+// the soft round shadow that sits on the ground under a character: 1 m across, about the width of the figure, so it
+// grounds the feet without making the character read as bigger than it is
 const shadowTex=(()=>{const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d'),r=g.createRadialGradient(32,32,3,32,32,31);
   r.addColorStop(0,'rgba(20,14,2,.62)');r.addColorStop(.55,'rgba(20,14,2,.36)');r.addColorStop(1,'rgba(20,14,2,0)');g.fillStyle=r;g.fillRect(0,0,64,64);return new THREE.CanvasTexture(c)})();
-const shadowGeo=new THREE.PlaneGeometry(1.7,1.7);
+const shadowGeo=new THREE.PlaneGeometry(1,1);
 const shadowMat=new THREE.MeshBasicMaterial({map:shadowTex,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
 function makeShadow(){const m=new THREE.Mesh(shadowGeo,shadowMat);m.rotation.order='YXZ';m.visible=false;scene.add(m);return m}
 function newEnt(model){return{shadow:makeShadow(),kick:0,pos:new V3(),vel:new V3(),onGround:false,hp:100,shield:50,alive:true,present:true,yaw:0,pitch:0,model,walk:0,wi:0,ammo:WEAPONS.map(w=>w.mag),cd:0,reloadT:0,switchT:0,dieT:0}}
@@ -2708,7 +2752,7 @@ if(navigator.webdriver)window.__br={get state(){return state},get online(){retur
   Net,player,opp,remotes,names,kills,setMyTeam,hostStart,hostRandomize,hostSetTarget,hostToLobby,cellFor,camTarget,cycleSpectate,isSpectating,handleEvent,damageEntity,raycast,startPractice,toMenu,joinPrivate,liveHumans,
   hitboxes,solids:()=>solids,ramps:()=>ramps,pieces,walls:()=>({h:hWall,v:vWall}),keys,renderer,scene,camera,
   // collision audit: the real movement, building and interpolation code, driven step by step
-  moveEntity,tryBuild,specValid,damagePiece,generateMap,spawn,soloCell,teamCells,wallSpec,playerBuildSpec,updateRemotes,makeRemote,updateBot,
+  moveEntity,tryBuild,specValid,damagePiece,inRamp,rampAt,generateMap,spawn,soloCell,teamCells,wallSpec,playerBuildSpec,updateRemotes,makeRemote,updateBot,
   mapSizeV2,roundSeed,fairV2,MAP_V,get mapKey(){return mapKey},
   mapInfo(){const L=mapInfo;if(!L)return null;const fl=[];for(let x=0;x<N;x++)for(let z=0;z<N;z++)if(L.group[x][z]>=0)(fl[L.group[x][z]]=fl[L.group[x][z]]||[]).push([x,z]);
     return{v:L.v,light:L.light,tint:L.tint.map((c,x)=>c.map((t,z)=>L.ftint[x][z]||t)),voids:voidC,flick:fl.filter(Boolean),special:L.special,spawns:L.spawns,styles:L.styles,regs:L.regs,mirrored:!!L.mirrored,tries:L.tries,low:{h:lowH,v:lowV},jambs:L.jambs||[],rid:L.rid||null}},
