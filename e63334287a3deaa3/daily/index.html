@@ -182,6 +182,7 @@ h1{margin:4px 0 6px;font:700 clamp(40px,8vw,64px)/.95 var(--f-d);letter-spacing:
 //  show: how a win reads on the tile, when "Solved in <tries>" would be wrong for the game: {tries}, {score} and {time}
 //  are today's numbers from its record ({time} as m:ss); if one is missing the tile falls back to the default.
 //  {score|hint} adds the word after the number, plural unless it's 1 ("1 hint", "2 hints"); zero: the text when a number is 0.
+//  {score|x100} is for a score saved as a hundred times a decimal: 137 reads "1.37×" (Thereabouts' average miss).
 // =====================================================================
 const DAILY_GAMES=[
   // Word
@@ -193,6 +194,7 @@ const DAILY_GAMES=[
   {slug:'nearword',   name:'Nearword',     icon:'🧲', cat:'word',   blurb:'Find the secret word: every guess is ranked by meaning.', ready:true}, // like Contexto
   {slug:'warmer',     name:'Warmer',       icon:'🌡️', cat:'word',   blurb:'Find the secret word by getting warmer.', ready:true},            // like Semantle
   {slug:'deepword',   name:'Deepword',     icon:'🐡', cat:'word',   blurb:'Eight prompts. The rarer your answer, the deeper you dive.', ready:true, read:'deepword'}, // the Back Room's own daily dive
+  {slug:'mainstream', name:'Mainstream',   icon:'🌊', cat:'word',   blurb:'Ten prompts. Say what most people would say.', ready:true, show:'{score} points'}, // Deepword turned upside down: the most common answer scores most
   // Geography
   {slug:'hotspot',    name:'Hotspot',      icon:'🌍', cat:'geo',    blurb:'Find the mystery country on a globe that glows hotter the closer you get.', ready:true}, // like Globle
   {slug:'outline',    name:'Outline',      icon:'🗺️', cat:'geo',    blurb:'Name the country from its outline in six guesses.', ready:true},  // like Worldle
@@ -201,6 +203,7 @@ const DAILY_GAMES=[
   // Logic
   {slug:'ninefold',   name:'Ninefold',     icon:'🔢', cat:'logic',  blurb:'Three new sudokus every day: Easy, Medium and Hard.', ready:true, show:'{score} of 3 solved'}, // sudoku
   {slug:'poopdle',    name:'Poopdle',      icon:'💩', cat:'logic',  blurb:'Turn today\u2019s word into POOP, one letter at a time.', ready:true, show:'Solved in {tries} moves'}, // a word ladder to POOP (like Weaver)
+  {slug:'thereabouts',name:'Thereabouts',  icon:'✉️', cat:'logic',  blurb:'Three numbers to estimate a day. How many times out will you be?', ready:true, show:'Average {score|x100}'}, // estimation questions
   // Estimation
   {slug:'yardstick',  name:'Yardstick',    icon:'📏', cat:'est',    blurb:'Stretch a shape until it looks the right real-life size.', ready:true, show:'{score} / 500'}, // size by eye: five rounds, 100 points each
   // Soccer
@@ -216,7 +219,7 @@ const DAILY_GAMES=[
 const CATS={
   word:{name:'Word',sub:'Letters, clues and lucky guesses.',icon:'🔤',c:'#4fe3c1'},
   geo:{name:'Geography',sub:'Countries, shapes, flags and borders.',icon:'🌎',c:'#5aa9ff'},
-  logic:{name:'Logic',sub:'Grids and ladders.',icon:'🧩',c:'#ffd166'},
+  logic:{name:'Logic',sub:'Grids, ladders and good guesses.',icon:'🧩',c:'#ffd166'},
   est:{name:'Estimation',sub:'Trust your eye, then see the real answer.',icon:'📐',c:'#ff9d6c'},
   soccer:{name:'Soccer',sub:'Players, clubs and line-ups.',icon:'⚽',c:'#5ef08f'}
 };
@@ -264,7 +267,7 @@ function status(g,rec){
   if(g.read==='deepword')return ['win','Dived '+(r.depth||0).toLocaleString('en-US')+' m'];
   if(!r.win)return ['miss','Missed'];
   if(g.show){
-    let ok=true,zero=false;const txt=g.show.replace(/\{(tries|score|time)(?:\|([a-z]+))?\}/g,(m,k,w)=>{const v=r[k];if(v==null||v<0){ok=false;return ''}const n=Math.round(v);if(n===0)zero=true;return k==='time'?fmtTime(v):n+(w?' '+w+(n===1?'':'s'):'')});
+    let ok=true,zero=false;const txt=g.show.replace(/\{(tries|score|time)(?:\|([a-z0-9]+))?\}/g,(m,k,w)=>{const v=r[k];if(v==null||v<0){ok=false;return ''}if(w==='x100')return (v/100).toFixed(v>=1000?1:2)+'×';const n=Math.round(v);if(n===0)zero=true;return k==='time'?fmtTime(v):n+(w?' '+w+(n===1?'':'s'):'')});
     if(ok)return ['win',zero&&g.zero?g.zero:txt];
   }
   if(r.tries!=null&&r.tries>0)return ['win','Solved in '+r.tries];
