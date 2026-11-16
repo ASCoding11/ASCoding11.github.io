@@ -828,7 +828,9 @@ function nearCols(x,z,rad){
   return _cand;
 }
 // Sphere against one collider: returns the overlap depth and the push-out normal in n (world).
-function sphereHit(c,x,y,z,r,n){
+// up: the sphere is a body's feet. If its centre is already inside the collider (shoved in by a crowd, or by something
+// fast), the way out is never downward, or a block resting on the floor would push the body through the floor.
+function sphereHit(c,x,y,z,r,n,up){
   const dx=x-c.pos.x,dy=y-c.pos.y,dz=z-c.pos.z,m=c.m,R=c.br+r;
   if(dx*dx+dy*dy+dz*dz>R*R)return 0;
   const lx=m[0]*dx+m[1]*dy+m[2]*dz,ly=m[3]*dx+m[4]*dy+m[5]*dz,lz=m[6]*dx+m[7]*dy+m[8]*dz;
@@ -837,14 +839,14 @@ function sphereHit(c,x,y,z,r,n){
     const qx=clamp(lx,-c.hx,c.hx),qy=clamp(ly,-c.hy,c.hy),qz=clamp(lz,-c.hz,c.hz),ex=lx-qx,ey=ly-qy,ez=lz-qz,d2=ex*ex+ey*ey+ez*ez;
     if(d2>r*r)return 0;
     if(d2>1e-9){const d=Math.sqrt(d2);nx=ex/d;ny=ey/d;nz=ez/d;depth=r-d}
-    else{const px=c.hx-Math.abs(lx),py=c.hy-Math.abs(ly),pz=c.hz-Math.abs(lz);
-      if(py<=px&&py<=pz){nx=0;ny=ly<0?-1:1;nz=0;depth=py+r}else if(px<=pz){nx=lx<0?-1:1;ny=0;nz=0;depth=px+r}else{nx=0;ny=0;nz=lz<0?-1:1;depth=pz+r}}
+    else{const px=c.hx-Math.abs(lx),pz=c.hz-Math.abs(lz),dn=up&&ly<0&&m[4]>.7,py=dn?c.hy-ly:c.hy-Math.abs(ly);
+      if(py<=px&&py<=pz){nx=0;ny=ly<0&&!dn?-1:1;nz=0;depth=py+r}else if(px<=pz){nx=lx<0?-1:1;ny=0;nz=0;depth=px+r}else{nx=0;ny=0;nz=lz<0?-1:1;depth=pz+r}}
   }else if(c.type===1){
     const rad=Math.hypot(lx,lz),qy=clamp(ly,-c.hy,c.hy);let qx=lx,qz=lz;if(rad>c.r){qx=lx/rad*c.r;qz=lz/rad*c.r}
     const ex=lx-qx,ey=ly-qy,ez=lz-qz,d2=ex*ex+ey*ey+ez*ez;
     if(d2>r*r)return 0;
     if(d2>1e-9){const d=Math.sqrt(d2);nx=ex/d;ny=ey/d;nz=ez/d;depth=r-d}
-    else{const pr=c.r-rad,py=c.hy-Math.abs(ly);if(py<=pr){nx=0;ny=ly<0?-1:1;nz=0;depth=py+r}else{if(rad>1e-6){nx=lx/rad;nz=lz/rad}else{nx=1;nz=0}ny=0;depth=pr+r}}
+    else{const pr=c.r-rad,dn=up&&ly<0&&m[4]>.7,py=dn?c.hy-ly:c.hy-Math.abs(ly);if(py<=pr){nx=0;ny=ly<0&&!dn?-1:1;nz=0;depth=py+r}else{if(rad>1e-6){nx=lx/rad;nz=lz/rad}else{nx=1;nz=0}ny=0;depth=pr+r}}
   }else{
     const d=Math.hypot(lx,ly,lz);if(d>c.r+r)return 0;if(d>1e-6){nx=lx/d;ny=ly/d;nz=lz/d}depth=c.r+r-d;
   }
@@ -983,7 +985,7 @@ function resolve(b,dt){
       if(!c.solid)continue;
       for(let s=0;s<cnt;s++){
         const o=_s[s],cx=b.pos.x+o[0],cy=b.pos.y+o[1],cz=b.pos.z+o[2];
-        let d=sphereHit(c,cx,cy,cz,RAD,_n);if(d<=1e-5)continue;
+        let d=sphereHit(c,cx,cy,cz,RAD,_n,s===0||cnt===2);if(d<=1e-5)continue;
         any=true;if(it===2&&d>.12)b.deep=1;
         // a little slope is still floor; a wall is a wall
         let nx=_n.x,ny=_n.y,nz=_n.z;
