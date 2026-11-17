@@ -59,6 +59,19 @@
  * (localStorage `news:spot`, the spotlight's from|folder, removed again once the spotlight has ended), so a
  * new spotlight shows even to someone who closed the last one. Set SPOTLIGHT to null for none.
  *
+ * ---- Ad tile ----
+ * To change the ad, edit AD (below SPOTLIGHT): name, line, button, href, img, alt and four colours; `on: false`
+ * (or AD = null) removes the tile and the strip is full width again, exactly as without it.
+ * It's one house ad: a link in a tile next to the strip (under it on an upright phone), marked "Sponsored", opened
+ * in a new tab with rel="noopener sponsored". Nothing is loaded from the advertiser's site or anywhere else until
+ * someone clicks: no script, no tracker, no cookie. The tile never makes the strip taller: it takes the strip's
+ * height and arranges itself to fit (picture over text when there's room, one row when there isn't).
+ *   img   optional: a picture the advertiser has said we may use, saved inside the Back Room folder (say
+ *         'ads/<name>.png'): wide rather than tall, about 600 × 200 (twice its largest size on the page), a
+ *         transparent .png or a .jpg/.webp, under about 60 KB. Left empty (or if the file is missing), the tile
+ *         shows a little candy bar drawn in code instead. `alt` says what the picture shows.
+ *   href  an https:// address; anything else switches the tile off.
+ *
  * Several entries can share a date (say 1.7 and then 1.7.1 the same day); they're shown
  * under one day. Text is put on the page as plain text, never as HTML. Leave out anything
  * private or admin-only.
@@ -71,6 +84,12 @@
       'Retro TV look: the whole page as if on that old set, with pixel letters, big-pixel game pictures and faint scan lines. The Retro TV switch at the top right turns it off.',
       'With it off you get the winter page: snow, a tree, a snowman, a menorah, a diya, gingerbread and lights. Buttons are blue for the season.',
       'It stays until January 6. The Cabin button shows the cabin again, and the ❄ button in the footer turns all of it off.'
+    ]},
+    {date: '2026-11-17', version: '1.29.15', title: 'Flickerwood', kind: 'game', games: ['Flickerwood'],
+     img: 'm/thumbs/flickerwood.jpg', tags: ['Arcade', 'Maze chase', 'Solo', 'Pixel art'], items: [
+      'Flickerwood: an 8-bit maze chase by moonlight. Steer Glim the firefly through a hedge maze, gather every speck of pollen, and keep away from four night critters that each hunt in their own way.',
+      'A moonbloom dazzles them for a few seconds so you can send them home for points, a dash gets you out of a tight spot, and eating without a gap builds a chain worth up to five times as much.',
+      'Five glades of different shapes with tunnels that slow the critters, quicker every glade. Keyboard, or swipes and a pad on a phone. Your best score goes on the Leaderboards.'
     ]},
     {date: '2026-11-17', version: '1.29.14', title: 'Driftfall: ten weapons and real scopes', kind: 'feature',
      img: 'm/thumbs/drop-zone.jpg', tags: ['Driftfall', 'Ten weapons', 'Scopes', 'Storm'], items: [
@@ -398,6 +417,17 @@
     tags: ['Up to 30 players', 'Drop in · loot · build', 'Last one standing']
   };
 
+  // The ad tile next to the strip (see "Ad tile" above). To change the ad, edit these lines; on: false for no ad.
+  var AD = {
+    on: true,
+    name: 'Gigantic',                                       // the brand, as the company writes it
+    line: 'Dark chocolate caramel candy bars.',             // one short line, in our own words
+    button: 'Find a store',
+    href: 'https://giganticcandy.com/pages/store-locator',  // where the tile goes (https only), in a new tab
+    img: 'gigantic-256.png',    alt: 'A Gigantic Candy Deluxe bar in its wrapper',                                               // what that picture shows
+    bg: '#FFD23F', ink: '#2A1608', btn: '#C2185B', btnInk: '#FFFFFF'   // tile, text, button, button text
+  };
+
   var KIND = { game: 'New game', feature: 'Update', fix: 'Bug fix' };
   var ICON = { game: '🎮', feature: '✨', fix: '🔧' };
   var PAGE = 5;      // days shown at first, and added by each "Show older"...
@@ -471,6 +501,17 @@
   })();
   window.BackRoomNews.spotlight = spot ? { game: spot.g.n, folder: spot.g.d, kicker: spot.kicker, tags: spot.tags.slice() } : null;
 
+  // The ad, when it's on and well-formed: plain text, an https link, an optional picture from the site's own
+  // folders and hex colours (a bad colour falls back to the default). Anything else: no tile.
+  var ad = (function () {
+    var A = AD, txt = function (x, n) { return typeof x === 'string' ? x.trim().slice(0, n) : ''; };
+    var hex = function (x, d) { return typeof x === 'string' && /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(x) ? x : d; };
+    if (!A || A.on !== true || !txt(A.name, 28) || typeof A.href !== 'string' || !/^https:\/\/[a-z0-9][a-z0-9.-]*\.[a-z]{2,}(?:\/[\w\-./?=&%#]*)?$/i.test(A.href)) return null;
+    return { name: txt(A.name, 28), line: txt(A.line, 60), button: txt(A.button, 18) || 'Learn more', href: A.href, img: imgsOf(A)[0] || '', alt: txt(A.alt, 120),
+      bg: hex(A.bg, '#FFD23F'), ink: hex(A.ink, '#2A1608'), btn: hex(A.btn, '#C2185B'), btnInk: hex(A.btnInk, '#FFFFFF') };
+  })();
+  window.BackRoomNews.ad = ad ? { name: ad.name, href: ad.href } : null;
+
   // How many entries at the top haven't been opened in this browser. Nothing saved yet: just the latest.
   function unseen() {
     var s = store(SEEN);
@@ -527,6 +568,17 @@
     } else c.append(th, g.n);
     return c;
   }
+
+  // The ad tile's stand-in picture: a plain candy bar half out of its wrapper, drawn here in the ad's own colours.
+  var AD_ART = '<svg viewBox="0 0 200 70" aria-hidden="true" focusable="false"><g transform="rotate(-5 100 35)">' +
+    '<rect x="92" y="14" width="96" height="42" rx="7" fill="#5C311A"/>' +
+    '<path d="M120 14v42M143 14v42M166 14v42M108 35h80" fill="none" stroke="#3B1D0E" stroke-width="2.5"/>' +
+    '<path d="M125 20h13M148 20h13M171 20h11" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="3" stroke-linecap="round"/>' +
+    '<path d="M24 10h90l-7 6.25 7 6.25-7 6.25 7 6.25-7 6.25 7 6.25-7 6.25 7 6.25H24z" fill="var(--ad-btn)"/>' +
+    '<path d="M24 10l-13 3 5 5.5-5 5.5 5 5.5-5 5.5 5 5.5-5 5.5 5 5.5-5 5.5 13 3z" fill="var(--ad-btn)"/>' +
+    '<path d="M24 10l-13 3 5 5.5-5 5.5 5 5.5-5 5.5 5 5.5-5 5.5 5 5.5-5 5.5 13 3z" fill="#000" fill-opacity=".2"/>' +
+    '<path d="M44 10h22v50H44z" fill="#fff" fill-opacity=".88"/><path d="M72 10h6v50h-6z" fill="#fff" fill-opacity=".5"/>' +
+    '<path d="M28 17h74" fill="none" stroke="#fff" stroke-opacity=".3" stroke-width="3" stroke-linecap="round"/></g></svg>';
 
   function start() {
     if (document.getElementById('news')) return;
@@ -618,11 +670,38 @@
       '.nws-acts{display:flex;flex-wrap:wrap;gap:10px;padding-top:6px}' +
       '.nws-acts button{font:inherit;font-weight:600;font-size:14px;min-height:40px;padding:6px 16px;border-radius:999px;border:1px solid var(--line,#d3dad2);background:var(--panel-2,#f6f8f4);color:var(--ink,#16201b);cursor:pointer}' +
       '.nws-acts button:hover{border-color:var(--ink-2,#4a5751)}' +
-      '@media (prefers-reduced-motion:reduce){.nws-dot,.nws-fl,.nws-sk::before{animation:none}.nws-chip,.nws-sp{transition:none}}';
+      // the ad tile: beside the strip when the block is 960 px wide or more (800 on a screen under 500 px tall, where
+      // the spotlight is one compact row), a slim banner under it otherwise (so always on the phone page). It's a size container, so beside the
+      // strip it takes the strip's height (it never adds any) and its contents follow its own width and height.
+      '.nws-row{container:nwsrow/inline-size;margin:20px 0 0}#home > .nws-row{margin:0 0 18px}' +
+      '.nws-cols{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}.nws-cols > .nws{margin:0}' +
+      '.nws-ad{container:nwsad/size;display:block;height:44px;min-width:0;border-radius:14px;overflow:hidden;text-decoration:none;color:var(--ad-ink);border:1px solid color-mix(in srgb,var(--ad-ink) 24%,var(--ad-bg));' +
+        'background:linear-gradient(115deg,color-mix(in srgb,#fff 34%,var(--ad-bg)) 0%,var(--ad-bg) 58%);box-shadow:0 8px 22px -16px var(--ad-ink);font-family:var(--body,system-ui,sans-serif);-webkit-tap-highlight-color:transparent}' +
+      '.nws-ad:focus-visible{outline:3px solid var(--ink,#16201b);outline-offset:2px}' +
+      '.nws-ad-in{display:flex;align-items:center;gap:9px;height:100%;padding:5px 8px}' +
+      '.nws-ad-pic{flex:0 0 28%;align-self:stretch;min-width:0;display:block}' +
+      '.nws-ad-pic img,.nws-ad-pic svg{display:block;width:100%;height:100%;object-fit:contain}' +
+      '.nws-ad-tx{flex:0 1 auto;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:2px}' +
+      '.nws-ad-lab{font-family:var(--mono,monospace);font-size:9.5px;font-weight:700;line-height:1.1;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;color:color-mix(in srgb,var(--ad-ink) 82%,var(--ad-bg))}' +
+      '.nws-ad-n{font-family:var(--display,var(--f-d,"Arial Narrow",sans-serif));font-weight:800;font-size:22px;line-height:.95;letter-spacing:.02em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+      '.nws-ad-l{display:none;flex:1 1 0;min-width:0;font-size:12.5px;font-weight:600;line-height:1.2}' +
+      '.nws-ad-btn{flex:none;margin-left:auto;display:inline-flex;align-items:center;gap:5px;min-height:30px;padding:4px 12px;border-radius:999px;background:var(--ad-btn);color:var(--ad-bi);font-weight:700;font-size:13px;line-height:1.1;white-space:nowrap;' +
+        'box-shadow:0 6px 12px -8px var(--ad-ink);transition:filter .15s ease,transform .15s ease}' +
+      '.nws-ad:hover .nws-ad-btn{filter:brightness(1.12);transform:translateY(-1px)}.nws-ad:active .nws-ad-btn{transform:scale(.97)}' +
+      '@container nwsad (min-width:520px){.nws-ad-pic{flex-basis:20%}.nws-ad-l{display:block}}' +
+      '@container nwsad (min-height:84px){.nws-ad-in{display:grid;grid-template:minmax(0,1fr) auto auto/minmax(0,1fr) auto;align-items:end;gap:0 8px;padding:9px 10px}' +
+        '.nws-ad-pic{grid-area:1/1/2/3;margin-bottom:6px}.nws-ad-tx{grid-area:2/1}.nws-ad-l{grid-area:3/1;display:none;margin-top:3px}.nws-ad-btn{grid-area:2/2/4/3;margin:0}}' +
+      '@container nwsad (min-height:130px) and (min-width:270px){.nws-ad-l{display:block}}' +
+      '@container nwsad (max-height:83.98px) and (max-width:340px){.nws-ad-in{gap:7px}.nws-ad-pic{flex-basis:54px}.nws-ad-n{font-size:20px}.nws-ad-btn{font-size:12.5px;padding:4px 10px}}' +
+      '@container nwsad (max-height:83.98px) and (max-width:240px){.nws-ad-pic{display:none}}' +
+      '@container nwsad (min-height:84px) and (max-width:240px){.nws-ad-n{font-size:19px}.nws-ad-btn{font-size:12.5px;padding:4px 10px}}' +
+      '@container nwsrow (min-width:960px){.nws-cols{grid-template-columns:minmax(0,1fr) clamp(240px,27%,300px);gap:10px}.nws-cols > .nws-ad{height:auto}.nws-row.open .nws-ad{align-self:start;height:var(--adh,44px)}}' +
+      '@media (max-height:500px){@container nwsrow (min-width:800px) and (max-width:959.98px){.nws-cols{grid-template-columns:minmax(0,1fr) 210px;gap:10px}.nws-cols > .nws-ad{height:auto}.nws-row.open .nws-ad{align-self:start;height:var(--adh,44px)}}}' +
+      '@media (prefers-reduced-motion:reduce){.nws-dot,.nws-fl,.nws-sk::before{animation:none}.nws-chip,.nws-sp,.nws-ad-btn{transition:none}}';
     document.head.appendChild(css);
 
     var latest = list[0], fresh = unseen(), shown = 0, games = freshGames();
-    var box = el('div', 'nws' + (games.length || (spot && !spot.closed) ? ' hot' : '')); box.id = 'news'; box.setAttribute('role', 'region'); box.setAttribute('aria-label', 'What\'s new');
+    var box = el('div', 'nws' + (games.length || (spot && !spot.closed) ? ' hot' : '')); box.setAttribute('role', 'region'); box.setAttribute('aria-label', 'What\'s new');
     var bar = el('button', 'nws-bar'); bar.type = 'button'; bar.setAttribute('aria-expanded', 'false'); bar.setAttribute('aria-controls', 'nws-body');
     var k = el('span', 'nws-k'), dot = el('span', 'nws-dot'), dotTxt = el('span', '', ' (new)');
     dot.setAttribute('aria-hidden', 'true'); dotTxt.style.cssText = 'position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)';
@@ -690,6 +769,30 @@
     if (spotRow) box.append(spotRow);
     box.append(bar, row, body);
 
+    // The ad tile: one link, next to the strip in a row that takes the strip's place under the header (so the
+    // sign-in nudge and everything else still sit under "news"). No ad: the strip is the block, as before.
+    var outer = box, adEl = null;
+    if (ad) {
+      adEl = el('a', 'nws-ad'); adEl.href = ad.href; adEl.target = '_blank'; adEl.rel = 'noopener sponsored';
+      adEl.referrerPolicy = 'origin';  // the advertiser sees the site's name, never the page's address
+      adEl.setAttribute('aria-label', 'Ad for ' + ad.name + (ad.line ? ': ' + ad.line : '.') + ' ' + ad.button + ' (opens in a new tab)');
+      adEl.style.setProperty('--ad-bg', ad.bg); adEl.style.setProperty('--ad-ink', ad.ink); adEl.style.setProperty('--ad-btn', ad.btn); adEl.style.setProperty('--ad-bi', ad.btnInk);
+      var aIn = el('span', 'nws-ad-in'), aPic = el('span', 'nws-ad-pic'), aTx = el('span', 'nws-ad-tx'), aBtn = el('span', 'nws-ad-btn', ad.button), aGo = el('span', '', '\u2192');
+      var drawn = function () { aPic.innerHTML = AD_ART; };  // no picture (or it's missing): a candy bar drawn in code
+      if (ad.img) {
+        var aIm = el('img'); aIm.alt = ad.alt; aIm.decoding = 'async'; aIm.addEventListener('error', drawn); aIm.src = BASE + ad.img;
+        aPic.appendChild(aIm);
+      } else drawn();
+      aGo.setAttribute('aria-hidden', 'true'); aBtn.appendChild(aGo);
+      aTx.append(el('span', 'nws-ad-lab', 'Sponsored'), el('span', 'nws-ad-n', ad.name));
+      aIn.append(aPic, aTx);
+      if (ad.line) aIn.appendChild(el('span', 'nws-ad-l', ad.line));
+      aIn.appendChild(aBtn); adEl.appendChild(aIn);
+      var cols = el('div', 'nws-cols'); cols.append(box, adEl);
+      outer = el('div', 'nws-row'); outer.appendChild(cols);
+    }
+    outer.id = 'news';
+
     function showDot() { dot.hidden = dotTxt.hidden = fresh <= 0; }
     showDot();
 
@@ -752,6 +855,8 @@
     }
 
     function setOpen(o) {
+      // the ad tile keeps its size and place at the top while the list is open, instead of stretching down it
+      if (adEl) { if (o && body.hidden) adEl.style.setProperty('--adh', adEl.offsetHeight + 'px'); outer.classList.toggle('open', !!o); }
       if (o && !shown) drawMore();
       body.hidden = !o; box.toggleAttribute('data-open', o);
       bar.setAttribute('aria-expanded', o ? 'true' : 'false');
@@ -772,7 +877,7 @@
     // run after this, so move back above it whenever something lands in between.
     function place() {
       var h = document.querySelector('header');
-      if (h && h.parentNode && box.previousElementSibling !== h) h.parentNode.insertBefore(box, h.nextSibling);
+      if (h && h.parentNode && outer.previousElementSibling !== h) h.parentNode.insertBefore(outer, h.nextSibling);
     }
     place();
     if (window.MutationObserver) new MutationObserver(place).observe(head.parentNode, { childList: true });
