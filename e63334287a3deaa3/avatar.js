@@ -434,7 +434,7 @@
     '.bra-ed button:focus-visible,.bra-ed-hat input:focus-visible+i{outline:2px solid var(--accent,#1D6A4B);outline-offset:2px}' +
     '.bra-ed-body{display:grid;gap:12px;padding:6px 18px 12px;overflow:auto;overscroll-behavior:contain;min-height:0}' +
     '.bra-ed-prev{justify-self:center;width:112px;height:112px;border-radius:50%;overflow:hidden;line-height:0;box-shadow:0 0 0 1px rgba(0,0,0,.12),0 4px 14px rgba(0,0,0,.18)}.bra-ed-prev svg{display:block;width:100%;height:100%}' +
-    '.bra-ed-opts{display:grid;gap:12px;min-width:0}' +
+    '.bra-ed-opts{display:grid;gap:12px;min-width:0;padding-bottom:4px}' +
     '.bra-ed-f{border:0;margin:0;padding:0;min-width:0}' +
     '.bra-ed-f legend,.bra-ed-lbl{padding:0;margin:0 0 6px;font-family:var(--mono,var(--f-m,monospace));font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2,#5B5149)}' +
     '.bra-ed-sw{display:flex;flex-wrap:wrap;gap:8px}' +
@@ -454,9 +454,9 @@
     '.bra-ed-note{margin:0;font-size:13px;color:var(--ink-2,#5B5149)}' +
     '.bra-ed-foot{display:flex;align-items:center;gap:8px;padding:10px 18px 14px;border-top:1px solid var(--line,#D8CDB8)}.bra-ed-gap{flex:1}' +
     // A short, wide screen (a phone on its side): the preview beside the choices, which scroll.
-    '@media (min-width:600px) and (max-height:600px){.bra-ed-box{width:min(800px,100%)}.bra-ed-top{padding-bottom:2px}.bra-ed-body{grid-template-columns:150px minmax(0,1fr);grid-template-rows:auto auto 1fr;gap:8px 18px;align-items:start}' +
+    '@media (min-width:600px) and (max-height:600px){.bra-ed-box{width:min(820px,100%)}.bra-ed-top{padding:8px 12px 2px 18px}.bra-ed-body{grid-template-columns:136px minmax(0,1fr);grid-template-rows:auto auto 1fr;gap:8px 18px;align-items:start;padding-bottom:6px}' +
       '.bra-ed-prev{grid-column:1;grid-row:1}.bra-ed-opts{grid-column:2;grid-row:1/span 3;gap:8px}.bra-ed-hat{grid-column:1;grid-row:2;justify-self:center}.bra-ed-note{grid-column:1;grid-row:3;text-align:center}' +
-      '.bra-ed-f legend{margin-bottom:4px}.bra-ed-foot{padding:8px 18px 10px}}' +
+      '.bra-ed-f legend{margin-bottom:4px}.bra-ed-foot{padding:6px 18px 8px}}' +
     '@media (prefers-reduced-motion:reduce){.bra-ed-hat i::after{transition:none}}';
   (document.head || document.documentElement).appendChild(css);
 
