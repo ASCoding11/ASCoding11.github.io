@@ -302,8 +302,8 @@ const DECALS=[null,
     for(let j=0;j<=ny;j++){pt.push([]);for(let i=0;i<=nx;i++)pt[j].push([P.u0+i*c+(i&&i<nx?(P.r()-.5)*c*.6:0),P.v0+j*c+(j&&j<ny?(P.r()-.5)*c*.6:0)])}
     for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){
       const q=[pt[j][i],pt[j][i+1],pt[j+1][i+1],pt[j+1][i]],tris=P.r()>.5?[[q[0],q[1],q[2]],[q[0],q[2],q[3]]]:[[q[0],q[1],q[3]],[q[1],q[2],q[3]]];
-      for(const t of tris){const k=P.r();poly(g,t);if(k<.46){g.fillStyle=cols[Math.floor(P.r()*cols.length)];g.globalAlpha=.8;g.fill();g.globalAlpha=1}
-        else if(k<.7){g.fillStyle=k<.58?P.lt:P.dk;g.globalAlpha=.6;g.fill();g.globalAlpha=1}
+      for(const t of tris){const k=P.r();poly(g,t);if(k<.3){g.fillStyle=cols[Math.floor(P.r()*cols.length)];g.globalAlpha=.8;g.fill();g.globalAlpha=1}
+        else if(k<.66){g.fillStyle=k<.48?P.lt:P.dk;g.globalAlpha=.55;g.fill();g.globalAlpha=1}
         g.lineWidth=.03;g.strokeStyle='#15131c';g.lineJoin='round';g.stroke()}
     }
   },
@@ -391,11 +391,11 @@ const DECALS=[null,
   },
   // 27 Bubble Wrap
   (g,P)=>{
-    over(g,P,'#ffffff',.16);const c=.15;
+    const c=.15;
     for(let j=0;P.v0+j*c*.87<P.v1+c;j++)for(let i=0;P.u0+i*c<P.u1+c;i++){
       const x=P.u0+(i+(j%2?.5:0))*c,y=P.v0+j*c*.87,pop=P.r()<.13,r=c*.42;
       if(pop){g.beginPath();g.arc(x,y,r,0,TAU);g.lineWidth=.01;g.strokeStyle='rgba(255,255,255,.4)';g.stroke();line(g,[[x-r*.5,y-r*.2],[x+r*.4,y+r*.3]],.008,'rgba(255,255,255,.45)');line(g,[[x-r*.2,y+r*.5],[x+r*.1,y-r*.4]],.008,'rgba(255,255,255,.35)');continue}
-      const gr=g.createRadialGradient(x-r*.3,y+r*.3,r*.05,x,y,r);gr.addColorStop(0,'rgba(255,255,255,.75)');gr.addColorStop(.55,'rgba(255,255,255,.2)');gr.addColorStop(1,'rgba(255,255,255,.42)');g.fillStyle=gr;g.beginPath();g.arc(x,y,r,0,TAU);g.fill();
+      const gr=g.createRadialGradient(x-r*.3,y+r*.3,r*.05,x,y,r);gr.addColorStop(0,'rgba(255,255,255,.7)');gr.addColorStop(.4,'rgba(255,255,255,.08)');gr.addColorStop(1,'rgba(255,255,255,.3)');g.fillStyle=gr;g.beginPath();g.arc(x,y,r,0,TAU);g.fill();
       g.lineWidth=.008;g.strokeStyle='rgba(255,255,255,.7)';g.stroke();
     }
   },
@@ -428,7 +428,7 @@ const DECALS=[null,
       rect(g,-1.5,.2,3,.72,'#fff3d6');awn(-1.2,1.0,.13,.13,.14);
       rect(g,-.75,-.14,.82,.24,'#1b2233');g.lineWidth=.03;g.strokeStyle='#fff7ea';g.strokeRect(-.75,-.14,.82,.24);rect(g,-.8,-.19,.92,.05,'#ff8fc0');
       cone(.55,.0,.15);for(let i=0;i<14;i++)dot(g,-1.4+P.r()*2.8,-.38+P.r()*.2,.016,['#ff8fc0','#fff7ea','#8fd6a8'][i%3]);
-    }else if(P.panel==='top'){rect(g,-1.5,-1,3,2,'#fff3d6');for(const s of[-1,1])awn(-1.2,1.0,s>0?.6:-.76,.16,.14);cone(-.15,-.2,.26);g.fillStyle=P.base;g.fillRect(.62,-1,.9,2)}
+    }else if(P.panel==='top'){rect(g,-.95,-1,1.5,2,'#fff3d6');for(const s of[-1,1])awn(-.95,.55,s>0?.6:-.76,.16,.14);cone(-.2,-.2,.26)}
     else{rect(g,-1,.2,2,.72,'#fff3d6');awn(-1,1,.13,.13,.14);if(P.panel==='rear')cone(0,.02,.14)}
   },
   // 31 Autumn Leaves
@@ -1315,7 +1315,7 @@ function menu(){
     '#kit .kit-grid canvas{display:block;width:100%;aspect-ratio:3/1;border-radius:4px}#kit .kit-grid svg{width:26px;height:26px;flex:none}'+
     '#kit .kit-grid i{position:absolute;top:2px;right:2px;width:7px;height:7px;border-radius:50%}'+
     '#kit .kit-foot{display:flex;align-items:center;gap:10px;margin:8px 0 0;min-height:36px}#kit .kit-foot p{margin:0;flex:1;font-size:14px}#kit .kit-foot button{flex:none;min-height:36px;padding:6px 12px;font-weight:700;font-size:14px;border:1px solid var(--blue-2);border-radius:8px;background:rgba(47,140,255,.2)}'+
-    '#garage{position:sticky;top:0;z-index:3;background:rgba(10,16,38,.97);border-radius:10px}'+ // the preview stays in view while you scroll the pickers
+    '@media (min-height:600px){#garage{position:sticky;top:0;z-index:3;background:rgba(10,16,38,.97);border-radius:10px}}'+ // the preview stays in view while you scroll the pickers (not on a phone held sideways: too little room)
     '@media (max-width:420px){#kit .kit-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}';
   document.head.appendChild(st);
   const box=document.createElement('div');box.id='kit';
