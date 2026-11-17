@@ -288,7 +288,7 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
       var r = C.buy(id);
       if (!r.ok) { toast(r.reason === 'funds' ? 'Not enough emeralds yet.' : r.reason === 'owned' ? 'You already own everything in this pack.' : 'That didn’t work. Try again.'); draw(); return; }
       if (r.got.draws.length) reveal(r);
-      else { var n = r.got.skins.length + r.got.acc.length; toast('Added ' + n + (n === 1 ? ' item' : ' items') + ' to your locker' + (r.refund ? ', and ' + W.format(r.refund) + ' back for ones you had.' : '.')); }
+      else { var n = r.got.skins.length + r.got.acc.length + (r.got.items || []).length; toast('Added ' + n + (n === 1 ? ' item' : ' items') + ' to your locker' + (r.refund ? ', and ' + W.format(r.refund) + ' back for ones you had.' : '.')); }
       draw();
     });
 
@@ -298,6 +298,7 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
       var faces = '';
       if (p.contents.skins) faces = p.contents.skins.map(function (id) { return C.avatarSvg(uid, 48, { look: { skin: id, accessories: {} } }); }).join('');
       else if (p.contents.acc) faces = p.contents.acc.map(function (id) { var a = C.ACCESSORIES_BY_ID[id], o = {}; o[a.slot] = id; return C.avatarSvg(uid, 48, { look: { skin: null, accessories: o } }); }).join('');
+      else if (p.contents.items) faces = p.contents.items.map(function (id) { return C.itemSvg(id, 44); }).join('');
       else if (p.contents.draws) faces = '<span style="display:inline-flex;width:48px;height:48px">' + GEM + '</span><span class="nm" style="font-size:22px">&times;' + p.contents.draws + '</span>';
       else faces = '<span style="display:inline-flex;gap:2px">' + EM + EM + EM + '</span>';
       c.innerHTML = '<div class="faces">' + faces + '</div><div class="nm">' + esc(p.name) + '</div><div class="ds">' + esc(p.desc) + '</div>';
@@ -313,11 +314,11 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
     }
     function drawPacks() {
       var t = document.getElementById('t-packs'); t.innerHTML = '';
-      [['skins', 'Skin packs', 'Common and rare skins. Epic and legendary ones only come from draws.'], ['accessories', 'Accessory packs', 'Wear one of each kind with any skin.'], ['draws', 'Draw packs', ''], ['emeralds', 'Emerald packs', 'Buying emeralds isn’t available yet. Earn them by playing.']].forEach(function (g) {
+      [['skins', 'Skin packs', 'Common and rare skins. Epic and legendary ones only come from draws.'], ['accessories', 'Accessory packs', 'Wear one of each kind with any skin.']].concat(Object.keys(C.GAMES || {}).map(function (gm) { return ['items', C.GAMES[gm].name + ' packs', 'Things to wear in ' + C.GAMES[gm].name + '. Put them on here in your locker or in the game’s own garage.', gm]; }), [['draws', 'Draw packs', ''], ['emeralds', 'Emerald packs', 'Buying emeralds isn’t available yet. Earn them by playing.']]).forEach(function (g) {
         var h = el('h3', null, esc(g[1])); t.appendChild(h);
         if (g[2]) t.appendChild(el('p', 'note', esc(g[2])));
         var grid = el('div', 'grid'); grid.style.marginTop = '10px';
-        C.PACKS.filter(function (p) { return p.kind === g[0]; }).forEach(function (p) { grid.appendChild(packCard(p)); });
+        C.PACKS.filter(function (p) { return p.kind === g[0] && (!g[3] || p.game === g[3]); }).forEach(function (p) { grid.appendChild(packCard(p)); });
         t.appendChild(grid);
       });
     }
@@ -329,7 +330,7 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
     // ---------- Locker ----------
     var filter = 'skins';
     function sourceOf(id) {
-      var p = C.PACKS.filter(function (p) { return (p.contents.skins || []).concat(p.contents.acc || []).indexOf(id) >= 0; })[0];
+      var p = C.PACKS.filter(function (p) { return (p.contents.skins || []).concat(p.contents.acc || [], p.contents.items || []).indexOf(id) >= 0; })[0];
       return p ? p.name : 'Draws';
     }
     function drawLocker() {
@@ -338,15 +339,27 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
       var wear = [];
       if (sk) wear.push(['skin', sk.name]);
       C.SLOTS.forEach(function (k) { if (eq.accessories[k]) wear.push([k, C.ACCESSORIES_BY_ID[eq.accessories[k]].name]); });
+      // game items (worn inside one game, not on the avatar): a chip per game slot, filter keys 'g:<game>:<slot>'
+      var games = Object.keys(C.GAMES || {}), gchips = [];
+      games.forEach(function (gm) { var ge = C.gameEquipped(gm); C.GAMES[gm].slots.forEach(function (sl) { var all = C.gameItems(gm, sl[0]); if (!all.length) return; if (ge[sl[0]]) wear.push([gm + ':' + sl[0], C.GAMES[gm].name + ': ' + ge[sl[0]].name]);
+        gchips.push(['g:' + gm + ':' + sl[0], C.GAMES[gm].name + ' ' + sl[1].toLowerCase() + ' ' + all.filter(function (it) { return own.items.indexOf(it.id) >= 0; }).length + '/' + all.length]); }); });
       var html = '<div class="locker"><div class="stage"><span class="big">' + C.avatarSvg(uid, 180) + '</span><div><div class="sn">' + esc(sk ? sk.name : 'Your own look') + '</div>' +
         '<div class="sd">' + esc(sk ? sk.desc : 'Pick a skin and accessories from your locker.') + '</div><ul class="wearing">' +
         wear.map(function (w) { return '<li>' + esc(w[1]) + '<button type="button" data-off="' + w[0] + '" aria-label="Take off ' + esc(w[1]) + '">&times;</button></li>'; }).join('') + '</ul></div></div><div>';
       html += '<div class="chips" role="group" aria-label="Show">' + [['skins', 'Skins ' + own.skins.length + '/' + C.SKINS.length]].concat(C.SLOTS.map(function (k) {
         var all = C.ACCESSORIES.filter(function (a) { return a.slot === k; }), n = all.filter(function (a) { return own.accessories.indexOf(a.id) >= 0; }).length;
         return [k, C.SLOT_NAMES[k] + ' ' + n + '/' + all.length];
-      })).map(function (c) { return '<button type="button" data-filter="' + c[0] + '" aria-pressed="' + (filter === c[0]) + '">' + esc(c[1]) + '</button>'; }).join('') + '</div><div class="items">';
-      var list = filter === 'skins' ? C.SKINS : C.ACCESSORIES.filter(function (a) { return a.slot === filter; });
+      }), gchips).map(function (c) { return '<button type="button" data-filter="' + c[0] + '" aria-pressed="' + (filter === c[0]) + '">' + esc(c[1]) + '</button>'; }).join('') + '</div><div class="items">';
+      var gf = /^g:/.test(filter) ? filter.split(':') : null, gworn = gf ? C.gameEquipped(gf[1]) : {};
+      var list = filter === 'skins' ? C.SKINS : gf ? C.gameItems(gf[1], gf[2]) : C.ACCESSORIES.filter(function (a) { return a.slot === filter; });
       list.forEach(function (it) {
+        if (gf) {
+          var ghas = own.items.indexOf(it.id) >= 0, gon = !!gworn[it.slot] && gworn[it.slot].id === it.id, gr = RC[it.rarity];
+          html += '<div class="item' + (ghas ? '' : ' locked') + (gon ? ' on' : '') + '" role="button" tabindex="' + (ghas ? 0 : -1) + '" data-item="' + it.id + '" aria-pressed="' + gon + '" title="' + esc(it.desc) + '">' +
+            C.itemSvg(it.id, 72) + '<span class="in">' + esc(it.name) + '</span><span class="ir" style="color:' + gr.color + '">' + gr.name + '</span>' +
+            (gon ? '<span class="tick" aria-hidden="true">&#10003;</span>' : '') + (ghas ? '' : '<span class="lock">In ' + esc(sourceOf(it.id)) + '</span>') + '</div>';
+          return;
+        }
         var isSkin = filter === 'skins', has = (isSkin ? own.skins : own.accessories).indexOf(it.id) >= 0;
         var worn = isSkin ? eq.skin === it.id : eq.accessories[it.slot] === it.id, r = RC[it.rarity];
         var look = { skin: isSkin ? it.id : eq.skin, accessories: {} };

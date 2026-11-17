@@ -1237,6 +1237,7 @@ function menu(){
     '#kit .kit-grid canvas{display:block;width:100%;aspect-ratio:3/1;border-radius:4px}#kit .kit-grid svg{width:26px;height:26px;flex:none}'+
     '#kit .kit-grid i{position:absolute;top:2px;right:2px;width:7px;height:7px;border-radius:50%}'+
     '#kit .kit-foot{display:flex;align-items:center;gap:10px;margin:8px 0 0;min-height:36px}#kit .kit-foot p{margin:0;flex:1;font-size:14px}#kit .kit-foot button{flex:none;min-height:36px;padding:6px 12px;font-weight:700;font-size:14px;border:1px solid var(--blue-2);border-radius:8px;background:rgba(47,140,255,.2)}'+
+    '#garage{position:sticky;top:0;z-index:3;background:rgba(10,16,38,.97);border-radius:10px}'+ // the preview stays in view while you scroll the pickers
     '@media (max-width:420px){#kit .kit-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}';
   document.head.appendChild(st);
   const box=document.createElement('div');box.id='kit';
@@ -1279,7 +1280,7 @@ function paintSwatches(){
 let pv=null;
 function pvInit(Gr){
   const spr=Sprites(TRAIL_MAX+GOAL_MAX,Gr.sc,Gr.r,Gr.cam);spr.floor=-.2;
-  const cam=new THREE.PerspectiveCamera(30,2.6,.5,400);cam.position.set(0,9.5,60);cam.lookAt(0,8.5,3);
+  const cam=new THREE.PerspectiveCamera(30,2.6,.5,400);cam.position.set(0,8.5,43);cam.lookAt(0,7.6,3);
   const stage=Stage(Gr.sc,spr,{lo:TRAIL_MAX,hi:spr.n,i:TRAIL_MAX},false,cam);
   const set=new THREE.Group();set.visible=false;Gr.sc.add(set);
   const fl=new THREE.Mesh(new THREE.PlaneGeometry(400,400),new THREE.MeshLambertMaterial({color:0x1d5a34}));fl.rotation.x=-Math.PI/2;set.add(fl);
