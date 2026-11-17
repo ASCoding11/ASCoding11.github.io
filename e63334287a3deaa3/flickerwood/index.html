@@ -1,0 +1,1097 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Flickerwood</title>
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#070b1c">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one night-time page. A slim bar along the top, the game screen (a 252 x 312 picture shown at a whole number
+   of screen pixels per game pixel, placed by layout() in the script) in the middle, a key hint under it on computers,
+   and on touch screens a d-pad with a DASH button either side of it under the screen (pad left, DASH right when the
+   phone is sideways). Swipes anywhere turn, and a tap on the screen dashes. */
+:root{
+  color-scheme:dark;
+  --night:#070b1c;--panel:#141c3d;--edge:#2b3a78;--ink:#eef3ff;--dim:#93a0cf;--glow:#e8f25a;--amber:#f0a030;--red:#ff6b6b;
+  --display:"Press Start 2P",ui-monospace,monospace;
+  --body:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  /* Controls panel (../keybinds.js) in the wood's colours */
+  --kb-bg:#0f1632;--kb-fg:var(--ink);--kb-muted:var(--dim);--kb-line:var(--edge);--kb-accent:var(--glow);--kb-accent-ink:#1a1c00;--kb-warn:var(--red);
+  --kb-border:3px solid var(--edge);--kb-shadow:none;--kb-radius:8px;--kb-key-radius:4px;--kb-key-border:2px solid var(--edge);--kb-key-bg:var(--panel);--kb-key-shadow:none;
+  --kb-font:var(--body);--kb-font-display:var(--display);--kb-key-weight:600;--kb-title-size:14px;--kb-title-weight:400;--kb-backdrop:rgba(3,5,14,.7);--kb-blur:0px;--kb-pad:18px;--kb-width:440px;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;overflow:hidden}
+body{background:var(--night);color:var(--ink);font-family:var(--body);font-size:14px;line-height:1.45;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
+[hidden]{display:none!important}
+#app{position:fixed;inset:0;overflow:hidden;touch-action:none}
+#bar{position:absolute;left:0;right:0;top:0;height:calc(40px + env(safe-area-inset-top));display:flex;align-items:center;gap:8px;padding:env(safe-area-inset-top) max(10px,env(safe-area-inset-right)) 0 max(10px,env(safe-area-inset-left));z-index:5}
+#bar h1{font-family:var(--display);font-weight:400;font-size:clamp(8px,2.6vw,12px);letter-spacing:1px;color:var(--glow);margin:0 auto 0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#back{font-family:var(--display);font-size:16px;color:var(--dim);text-decoration:none;padding:6px 8px;border-radius:6px}
+#back:hover{color:var(--ink)}
+button{font-family:var(--display);color:var(--ink);background:var(--panel);border:2px solid var(--edge);border-radius:6px;font-size:10px;cursor:pointer;touch-action:manipulation}
+button:active{background:#22306a}
+button:focus-visible,a:focus-visible{outline:2px solid var(--glow);outline-offset:2px}
+.ib{height:30px;min-width:34px;padding:0 8px}
+.ib[aria-pressed="true"]{color:var(--dim);border-style:dashed}
+.ghost{padding:10px 14px}
+.cta{padding:10px 14px;background:var(--glow);color:#1a1c00;border-color:#f7ffb0}
+#c{position:absolute;left:0;top:0;display:block;transform-origin:0 0;image-rendering:pixelated;image-rendering:crisp-edges;background:#000;outline:4px solid var(--panel);touch-action:none}
+#hint{position:absolute;left:0;right:0;bottom:8px;margin:0;text-align:center;color:var(--dim);font-size:13px}
+#hint b{color:var(--ink);font-weight:600}
+body.touch #hint,body.touch #bKeys{display:none}
+/* touch controls: placed by layout() */
+#pad,.dash{position:absolute;display:none;touch-action:none}
+body.touch #pad,body.touch .dash{display:block}
+#pad{width:156px;height:156px}
+#pad i{position:absolute;width:50px;height:50px;display:grid;place-items:center;font-style:normal;font-family:var(--display);font-size:16px;background:var(--panel);border:2px solid var(--edge);border-radius:8px;color:var(--ink);pointer-events:none}
+#pad i.on{background:#2a3a86;border-color:var(--glow);color:var(--glow)}
+#pad .u{left:53px;top:0}#pad .l{left:0;top:53px}#pad .r{left:106px;top:53px}#pad .d{left:53px;top:106px}
+.dash{width:84px;height:84px;border-radius:50%;background:var(--amber);color:#2a1500;border:3px solid #ffd27a;font-size:11px;padding:0}
+.dash.on,.dash:active{background:#c97f1c}
+.dash.cool{background:var(--panel);color:var(--dim);border-color:var(--edge)}
+/* how to play: a column beside the screen when there is room, otherwise a sheet opened with the ? button */
+#how{position:absolute;z-index:6;width:290px;color:var(--dim);font-size:12.5px}
+#how h2{font-family:var(--display);font-weight:400;font-size:10px;color:var(--glow);margin:0 0 10px;letter-spacing:1px}
+#how .row{display:flex;gap:10px;align-items:center;margin:0 0 7px}
+#how .row p{margin:0}
+#how canvas{flex:none;width:32px;height:32px;image-rendering:pixelated;image-rendering:crisp-edges}
+#how b{color:var(--ink);font-weight:600}
+#how.sheet{left:50%;top:50%;transform:translate(-50%,-50%);width:min(350px,calc(100vw - 24px));max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px);overflow:auto;background:#0f1632;border:3px solid var(--edge);border-radius:8px;padding:14px;touch-action:pan-y}
+#how:not(.sheet) #howClose{display:none}
+#howClose{margin-top:4px}
+</style>
+<script src="/e63334287a3deaa3/stats.js" data-game="flickerwood" defer></script>
+</head>
+<body>
+<div id="app">
+  <div id="bar">
+    <a id="back" href="/e63334287a3deaa3/" aria-label="Back to the Back Room">‹</a>
+    <h1>FLICKERWOOD</h1>
+    <button class="ib" id="bHelp" aria-label="How to play">?</button>
+    <button class="ib" id="bKeys" aria-label="Change the keys">KEYS</button>
+    <button class="ib" id="bMute" aria-label="Sound" aria-pressed="false">SND</button>
+    <button class="ib" id="bPause" aria-label="Pause">II</button>
+  </div>
+  <canvas id="c" width="252" height="312" aria-label="Game screen"></canvas>
+  <div id="pad" aria-label="Turn"><i class="u">▲</i><i class="l">◀</i><i class="r">▶</i><i class="d">▼</i></div>
+  <button id="dashL" class="dash" aria-label="Dash">DASH</button>
+  <button id="dashR" class="dash" aria-label="Dash">DASH</button>
+  <p id="hint"><b data-kb="up left down right" data-kb-short data-kb-sep=" ">Arrows</b> turn · <b data-kb="dash" data-kb-short>Space</b> dash · <b data-kb="pause" data-kb-short>P</b> pause</p>
+  <div id="how" hidden>
+    <h2>HOW TO PLAY</h2>
+    <div class="row"><canvas data-pic="glim" width="16" height="16"></canvas><p>Steer <b>Glim the firefly</b> and gather every speck of pollen in the glade. Press a turn early and Glim takes it at the next gap.</p></div>
+    <div class="row"><canvas data-pic="bat" width="16" height="16"></canvas><p><b>Swoop</b> flies straight at you.</p></div>
+    <div class="row"><canvas data-pic="frog" width="16" height="16"></canvas><p><b>Gulp</b> leaps for the spot just ahead of you.</p></div>
+    <div class="row"><canvas data-pic="spider" width="16" height="16"></canvas><p><b>Tangle</b> goes for the far side of you from Swoop.</p></div>
+    <div class="row"><canvas data-pic="moth" width="16" height="16"></canvas><p><b>Dither</b> comes close, then loses its nerve.</p></div>
+    <div class="row"><canvas data-pic="bloom" width="16" height="16"></canvas><p>A <b>moonbloom</b> dazzles them for a few seconds. Touch a dazzled one to send it home: 100, 250, 500, 1000. They flicker before it wears off.</p></div>
+    <div class="row"><canvas data-pic="dash" width="16" height="16"></canvas><p><b>Dash</b> is a short burst of speed, then it has to recharge.</p></div>
+    <div class="row"><canvas data-pic="chain" width="16" height="16"></canvas><p>Keep eating without a gap to build a <b>chain</b>, up to 5 times the points.</p></div>
+    <div class="row"><canvas data-pic="find" width="16" height="16"></canvas><p>Grab the <b>find</b> under the stump before it goes. Tunnels at the edges slow the critters, not you.</p></div>
+    <button class="ghost" id="howClose">CLOSE</button>
+  </div>
+</div>
+<script src="../keybinds.js"></script>
+<script>
+(function(){
+"use strict";
+/* =====================================================================
+   Flickerwood: a maze chase by moonlight.
+   ==RULES== ... ==END RULES== is the game itself: it never touches the page, the clock, sound or Math.random, so the
+   same seed and the same presses always give the same game (the tests run it headless). It advances in fixed steps
+   of 1/120 s; the page draws between steps. Everything it wants heard or shown goes into g.ev as a word for the page.
+   Positions in the rules are in maze pixels (0,0 is the maze's top left corner; the page adds the score bar above).
+   ===================================================================== */
+// ==RULES==
+const COLS=21,ROWS=23,TILE=12,W=COLS*TILE,MH=ROWS*TILE,STEP=1/120;
+const DX=[1,0,-1,0],DY=[0,1,0,-1];   // directions: 0 right, 1 down, 2 left, 3 up
+const CUT=4;             // a turn may start this many pixels before the middle of the tile: Glim cuts the corner and gains them
+const LATE=3;            // and is still taken this many pixels after it (nothing gained)
+const DASH_T=0.32;       // seconds a dash lasts
+const DASH_X=2.1;        // times normal speed
+const DASH_CD=6;         // seconds until the next dash
+const CHAIN_WIN=1;       // a speck eaten within this long of the last one carries the chain on
+const CHAIN_STEP=12;     // specks in a chain for each step of the multiplier
+const CHAIN_MAX=5;       // the highest multiplier
+const EAT_DRAG=0.86;     // Glim's speed for EAT_T seconds after each speck: slower while eating
+const EAT_T=0.12;
+const SPECK=5,BLOOM=30;  // points
+const CATCH=[100,250,500,1000];   // each dazzled critter caught on one moonbloom
+const LIFE_AT=6000,LIFE_EVERY=15000,MAX_LIVES=5;
+const TOP_LEVEL=10;      // speeds and timings stop tightening here
+const HIT=7;             // Glim and a critter touch when both gaps are under this many pixels (the sprites are 14 to 16)
+const RECOVER=1.2;       // seconds a caught critter rests in the stump
+const NEAR=5;            // Dither turns back when this many tiles from Glim
+const AHEAD=3;           // Gulp aims this many tiles ahead of Glim
+// Tiles: # hedge, . pollen, o moonbloom, - path, ~ tunnel (critters crawl), H the stump, G its gate, P start, B the find,
+// space = outside the glade. Every glade is 21 x 23; the stump is three H in a row with G over the middle one.
+const MAZES=[
+  {name:'HEDGE COURT',rows:[
+    '#####################',
+    '#o....#.......#....o#',
+    '#.###.#.#####.#.###.#',
+    '#...................#',
+    '#.#.###.#.#.#.###.#.#',
+    '#.#.....#...#.....#.#',
+    '#.#.###.#####.###.#.#',
+    '#...#...........#...#',
+    '###.#.###.#.###.#.###',
+    '#...#.#-------#.#...#',
+    '#.###.#-##G##-#.###.#',
+    '~~~....-#HHH#-....~~~',
+    '#.###.#-#####-#.###.#',
+    '#...#.#--B----#.#...#',
+    '###.#.###.#.###.#.###',
+    '#...#...........#...#',
+    '#.###.###.#.###.###.#',
+    '#.....#...P...#.....#',
+    '#.#.#.#.#####.#.#.#.#',
+    '#o#.#...#...#...#.#o#',
+    '#.#.###.#.#.#.###.#.#',
+    '#...................#',
+    '#####################']},
+  {name:'LILY POND',rows:[
+    '    #~#########~#    ',
+    '    #.....#.....#    ',
+    '  ###.###.#.###.###  ',
+    '  #o.............o#  ',
+    '###.#.###.#.###.#.###',
+    '#...#.....#.....#...#',
+    '#.###.#.#####.#.###.#',
+    '#.....#.......#.....#',
+    '#.#.###.#.#.#.###.#.#',
+    '#.#...#-------#...#.#',
+    '#.###.#-##G##-#.###.#',
+    '#.....--#HHH#--.....#',
+    '#.#.###-#####-###.#.#',
+    '#.#...#--B----#...#.#',
+    '#.#.#.###.#.###.#.#.#',
+    '#...#...........#...#',
+    '#.###.#.#####.#.###.#',
+    '#.....#...P...#.....#',
+    '###.#.#.#.#.#.#.#.###',
+    '  #o..#...#...#..o#  ',
+    '  ###.###.#.###.###  ',
+    '    #.....#.....#    ',
+    '    #~#########~#    ']},
+  {name:'BRAMBLE WHEEL',rows:[
+    '#####################',
+    '#o........#.........#',
+    '#.###.###.#.#.#####.#',
+    '#...#...#...#.......#',
+    '###.#.#.###.#.###.#.#',
+    '~...#.#.....#.###.#o~',
+    '#.###.#.#####.###.#.#',
+    '#.....#...#.........#',
+    '#.###.###.#.###.###.#',
+    '#.#...#-------#.....#',
+    '#.#.###-##G##-#.###.#',
+    '#...#..-#HHH#-..#...#',
+    '#.###.#-#####-###.#.#',
+    '#.....#---B---#...#.#',
+    '#.###.###.#.###.###.#',
+    '#.........#...#.....#',
+    '#.#.###.#####.#.###.#',
+    '~o#.###.#.P...#.#...~',
+    '#.#.###.#.###.#.#.###',
+    '#.......#...#...#...#',
+    '#.#####.#.#.###.###.#',
+    '#.........#........o#',
+    '#####################']},
+  {name:'MOSSY RUIN',rows:[
+    '##########~##########',
+    '#o.................o#',
+    '#.#.#####.#.#####.#.#',
+    '#.#...............#.#',
+    '#.#.#.###.#.###.#.#.#',
+    '#...#.#...#...#.#...#',
+    '###.#.#.#.#.#.#.#.###',
+    '#.....#.#...#.#.....#',
+    '#.###.#.#####.#.###.#',
+    '#.#...#-------#...#.#',
+    '#.#.###-##G##-###.#.#',
+    '~~..#..-#HHH#-..#..~~',
+    '#.#.#.#-#####-#.#.#.#',
+    '#.#...#--B----#...#.#',
+    '#.###.###.#.###.###.#',
+    '#.....#.......#.....#',
+    '###.#.#.#####.#.#.###',
+    '#...#.#...P...#.#...#',
+    '#.###.###.#.###.###.#',
+    '#.#.......#.......#.#',
+    '#.#.#####.#.#####.#.#',
+    '#o.................o#',
+    '##########~##########']},
+  {name:'MOTH HOLLOW',rows:[
+    '#####################',
+    '#o.................o#',
+    '#.###.###.#.###.###.#',
+    '#.#...#.......#...#.#',
+    '#.#.#.#.#####.#.#.#.#',
+    '#...#...#...#...#...#',
+    '#.#####.#.#.#.#####.#',
+    '#.....#...#...#.....#',
+    '#####.###.#.###.#####',
+    '    #..-------..#    ',
+    '    #.#-##G##-#.#    ',
+    '    #..-#HHH#-..#    ',
+    '    #.#-#####-#.#    ',
+    '    #..--B----..#    ',
+    '#####.###.#.###.#####',
+    '#.....#...#...#.....#',
+    '#.#####.#.#.#.#####.#',
+    '#...#...#.P.#...#...#',
+    '#.#.#.#.#####.#.#.#.#',
+    '#.#...#.......#...#.#',
+    '#.###.###.#.###.###.#',
+    '#o.................o#',
+    '#####################']}
+];
+const WALL=0,PATH=1,PEN=2,GATE=3,VOID=4;
+const idx=(c,r)=>r*COLS+c,wc=c=>(c+COLS)%COLS,wr=r=>(r+ROWS)%ROWS;
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const rnd=(g,n)=>Math.floor(g.rand()*n);
+const compiled=[];
+// A glade ready to play: tile types, where the pollen starts, the stump, and how far every tile is from the gate
+// (caught critters follow that home).
+function compile(i){
+  if(compiled[i])return compiled[i];
+  const src=MAZES[i],M={i:i,name:src.name,t:new Uint8Array(COLS*ROWS),tun:new Uint8Array(COLS*ROWS),pol0:new Uint8Array(COLS*ROWS),total:0,specks:0,pen:[]};
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    const ch=src.rows[r][c],k=idx(c,r);
+    M.t[k]=ch==='#'?WALL:ch===' '?VOID:ch==='H'?PEN:ch==='G'?GATE:PATH;
+    if(ch==='~')M.tun[k]=1;
+    if(ch==='.'){M.pol0[k]=1;M.total++;M.specks++}
+    if(ch==='o'){M.pol0[k]=2;M.total++}
+    if(ch==='P')M.P=[c,r];if(ch==='B')M.B=[c,r];
+    if(ch==='G'){M.G=[c,r];M.exit=[c,r-1]}
+    if(ch==='H')M.pen.push([c,r]);
+  }
+  M.home=new Int16Array(COLS*ROWS).fill(-1);
+  const q=[M.exit];M.home[idx(M.exit[0],M.exit[1])]=0;
+  for(let n=0;n<q.length;n++){const c=q[n][0],r=q[n][1],v=M.home[idx(c,r)];
+    for(let d=0;d<4;d++){const cc=wc(c+DX[d]),rr=wr(r+DY[d]),k=idx(cc,rr);
+      if(M.t[k]===PATH&&M.home[k]<0){M.home[k]=v+1;q.push([cc,rr])}}}
+  return compiled[i]=M;
+}
+const isPath=(M,c,r)=>M.t[idx(wc(c),wr(r))]===PATH;
+const open=(M,c,r,d)=>isPath(M,c+DX[d],r+DY[d]);
+// Everything that tightens level by level, in one place. Speeds are pixels a second.
+function tune(L){
+  const t=Math.min(L,TOP_LEVEL)-1,ps=62+t*1.33,cs=ps*(0.78+t*0.021);
+  return {ps:ps,cs:cs,daz:Math.max(2,7-t*0.55),dazV:cs*0.6,tunV:cs*0.55,wispV:Math.max(120,cs*2.2),
+    roost:[6,6,4,3].map(x=>Math.max(1.5,x-t*0.45)),hunt:[16,18,22,1e9],
+    relT:[0,1.5,6,12].map(x=>x*(1-t*0.07)),relN:[0,0,18,45].map(x=>Math.round(x*(1-t*0.07))),
+    find:Math.min(1000,200+100*(L-1)),findT:9};
+}
+function create(seed){
+  const g={rand:mulberry(seed>>>0),state:'title',level:1,score:0,lives:3,nextLife:LIFE_AT,tick:0,msgT:0,ev:[],gone:[],pops:[],finds:0};
+  setupLevel(g);return g;
+}
+function setupLevel(g){
+  const M=g.M=compile((g.level-1)%MAZES.length);
+  g.T=tune(g.level);g.pol=M.pol0.slice();g.left=M.total;g.eaten=0;g.findN=0;g.find=null;g.flawless=true;g.bonus=0;
+  g.gone.length=0;g.fresh=true;   // the page redraws its maze and pollen pictures
+  resetActors(g);
+}
+function place(e){e.x=e.c*TILE+6+DX[e.dir<0?0:e.dir]*e.off+(e.lx||0);e.y=e.r*TILE+6+DY[e.dir<0?0:e.dir]*e.off+(e.ly||0)}
+function resetActors(g){
+  const M=g.M;
+  g.p={c:M.P[0],r:M.P[1],dir:2,off:0,lx:0,ly:0,want:-1,dashT:0,dashCd:0,drag:0,moving:false,x:0,y:0,ox:0,oy:0};
+  place(g.p);g.p.ox=g.p.x;g.p.oy=g.p.y;
+  // kinds: 0 Swoop the bat (starts outside), 1 Gulp the frog, 2 Tangle the spider, 3 Dither the moth
+  g.ch=[0,1,2,3].map(k=>{
+    const e={k:k,c:0,r:0,dir:2,off:0,mode:'pen',daz:false,wait:0,home:true,x:0,y:0,ox:0,oy:0,wp:null};
+    if(k===0){e.mode='out';e.c=M.exit[0];e.r=M.exit[1]}
+    else{const s=M.pen[k===1?1:k===2?0:2];e.c=s[0];e.r=s[1]}
+    place(e);e.ox=e.x;e.oy=e.y;return e});
+  g.dazT=0;g.wave=0;g.mode='roost';g.waveT=g.T.roost[0];g.relT=0;g.relN=0;g.chain=0;g.chainT=0;g.catchN=0;g.hit=0;g.find=null;
+}
+function startGame(g){
+  g.level=1;g.score=0;g.lives=3;g.nextLife=LIFE_AT;g.finds=0;g.pops.length=0;
+  setupLevel(g);g.state='ready';g.readyT=2;g.ev.push('start');
+}
+const mult=g=>1+Math.min(CHAIN_MAX-1,Math.floor(g.chain/CHAIN_STEP));
+function addScore(g,n){
+  g.score+=n;
+  if(g.score>=g.nextLife){g.nextLife+=LIFE_EVERY;if(g.lives<MAX_LIVES){g.lives++;g.ev.push('life');g.pops.push({x:g.p.x,y:g.p.y-10,t:1.1,s:'1UP',k:2})}}
+}
+
+// ----- input: turn(g, d) asks for a direction (remembered until it can be taken), dash(g) spends the dash -----
+function turn(g,d){
+  if(g.state==='title'||g.state==='over'){if(g.msgT<=0)startGame(g);return}
+  if(g.state==='ready'||g.state==='play')g.p.want=d;
+}
+function dash(g){
+  if(g.state==='title'||g.state==='over'){if(g.msgT<=0)startGame(g);return}
+  const p=g.p;
+  if(g.state!=='play'||p.dashCd>0)return;
+  p.dashT=DASH_T;p.dashCd=DASH_CD;g.ev.push('dash');
+}
+
+// Glim has just reached the middle of a tile: eat what is there
+function enter(g){
+  const p=g.p,k=idx(p.c,p.r),v=g.pol[k];
+  if(!v)return;
+  g.pol[k]=0;g.gone.push(k);g.left--;g.eaten++;g.relN++;
+  const m0=mult(g);
+  g.chain=g.chainT>0?g.chain+1:1;g.chainT=CHAIN_WIN;
+  const m=mult(g);
+  if(m>m0){g.ev.push('chainup');g.pops.push({x:p.c*TILE+6,y:p.r*TILE-4,t:0.9,s:'X'+m,k:1})}
+  if(v===1){addScore(g,SPECK*m);p.drag=EAT_T;g.ev.push('eat')}
+  else{
+    addScore(g,BLOOM);g.dazT=g.T.daz;g.catchN=0;g.warned=4;g.ev.push('bloom');
+    for(const e of g.ch)if(e.mode!=='wisp'&&e.mode!=='enter'){e.daz=true;if(e.mode==='out')flip(e)}
+  }
+  // the find shows up twice a glade, under the stump
+  if(g.findN<2&&g.eaten>=Math.floor(g.M.total*(g.findN?0.7:0.35))){g.findN++;g.find={t:g.T.findT,kind:(g.level-1)%8};g.ev.push('findshow')}
+  if(g.left<=0){
+    g.bonus=Math.min(1000,100*g.level)+(g.flawless?300:0);addScore(g,g.bonus);
+    g.state='clear';g.clearT=3;g.dazT=0;g.ev.push('clear');
+  }
+}
+// One step of Glim's movement. Turns are taken at the middle of a tile, a little early (cutting the corner: lx, ly hold
+// what is left of the diagonal and shrink as Glim moves on) or a little late; a reverse is taken anywhere.
+function movePlayer(g,dist){
+  const p=g.p,M=g.M;
+  for(let guard=0;dist>1e-9&&guard<8;guard++){
+    if(p.off===0){
+      if(p.want>=0&&open(M,p.c,p.r,p.want))p.dir=p.want;
+      if(!open(M,p.c,p.r,p.dir)){p.moving=false;break}
+      p.moving=true;
+    }else if(p.want>=0&&p.want!==p.dir){
+      if(p.want===(p.dir+2)%4){p.c=wc(p.c+DX[p.dir]);p.r=wr(p.r+DY[p.dir]);p.off=TILE-p.off;p.dir=p.want}
+      else{
+        const rem=TILE-p.off,nc=wc(p.c+DX[p.dir]),nr=wr(p.r+DY[p.dir]);
+        if(rem<=CUT&&open(M,nc,nr,p.want)){p.lx-=DX[p.dir]*rem;p.ly-=DY[p.dir]*rem;p.c=nc;p.r=nr;p.off=0;p.dir=p.want;enter(g);if(g.state!=='play')return;continue}
+        if(p.off<=LATE&&open(M,p.c,p.r,p.want)){p.lx+=DX[p.dir]*p.off;p.ly+=DY[p.dir]*p.off;p.off=0;p.dir=p.want;continue}
+      }
+    }
+    const st=Math.min(dist,TILE-p.off);
+    p.off+=st;dist-=st;
+    if(p.lx)p.lx=p.lx>0?Math.max(0,p.lx-st):Math.min(0,p.lx+st);
+    if(p.ly)p.ly=p.ly>0?Math.max(0,p.ly-st):Math.min(0,p.ly+st);
+    if(p.off>=TILE-1e-6){p.c=wc(p.c+DX[p.dir]);p.r=wr(p.r+DY[p.dir]);p.off=0;enter(g);if(g.state!=='play')return}
+  }
+}
+// the tile Glim is nearest to, and which way it faces
+function ptile(g){const p=g.p;return p.off>=TILE/2?[wc(p.c+DX[p.dir]),wr(p.r+DY[p.dir])]:[p.c,p.r]}
+const CORNER=[[COLS-1,0],[0,0],[COLS-1,ROWS-1],[0,ROWS-1]];
+const bold=g=>{const f=g.left/g.M.total;return f<=0.08?1.12:f<=0.2?1.06:1};   // Swoop when little pollen is left
+// Where a critter wants to be. This is all of its character: it never finds a path, it only leans toward this tile.
+function target(g,e){
+  if(g.mode==='roost'&&!(e.k===0&&bold(g)>1))return CORNER[e.k];
+  const t=ptile(g),p=g.p;
+  if(e.k===0)return t;                                               // Swoop: straight at Glim
+  if(e.k===1)return [t[0]+DX[p.dir]*AHEAD,t[1]+DY[p.dir]*AHEAD];     // Gulp: the spot ahead of Glim
+  if(e.k===2){const b=g.ch[0];return [2*t[0]-b.c,2*t[1]-b.r]}        // Tangle: the far side of Glim from Swoop
+  const dx=e.c-t[0],dy=e.r-t[1];                                     // Dither: Glim from afar, its corner up close
+  return dx*dx+dy*dy>NEAR*NEAR?t:CORNER[3];
+}
+// turn a critter straight round, wherever it is (a moonbloom, or the wave changing: the tell)
+function flip(e){
+  if(e.dir<0)return;
+  if(e.off>0){e.c=wc(e.c+DX[e.dir]);e.r=wr(e.r+DY[e.dir]);e.off=TILE-e.off}
+  e.dir=(e.dir+2)%4;
+}
+// at the middle of a tile: pick the way on. Never straight back (except a caught one heading home).
+function chooseDir(g,e){
+  const M=g.M;
+  if(e.mode==='wisp'){
+    let best=-1,bv=1e9;
+    for(let d=0;d<4;d++){if(!open(M,e.c,e.r,d))continue;const v=M.home[idx(wc(e.c+DX[d]),wr(e.r+DY[d]))];if(v>=0&&v<bv){bv=v;best=d}}
+    if(best>=0)e.dir=best;return;
+  }
+  const rev=e.dir<0?-1:(e.dir+2)%4,opts=[];
+  for(let d=0;d<4;d++)if(d!==rev&&open(M,e.c,e.r,d))opts.push(d);
+  if(!opts.length){e.dir=rev;return}
+  if(opts.length===1){e.dir=opts[0];return}
+  if(e.daz){   // dazzled: mostly away from Glim, sometimes anywhere
+    if(g.rand()<0.35){e.dir=opts[rnd(g,opts.length)];return}
+    const t=ptile(g);let best=opts[0],bv=-1;
+    for(const d of opts){const cc=wc(e.c+DX[d])-t[0],rr=wr(e.r+DY[d])-t[1],v=cc*cc+rr*rr;if(v>bv){bv=v;best=d}}
+    e.dir=best;return;
+  }
+  const t=target(g,e);let best=opts[0],bv=1e9;
+  for(const d of opts){const cc=wc(e.c+DX[d])-t[0],rr=wr(e.r+DY[d])-t[1],v=cc*cc+rr*rr;if(v<bv){bv=v;best=d}}
+  e.dir=best;
+}
+function moveChaser(g,e,dist){
+  const M=g.M;
+  for(let guard=0;dist>1e-9&&guard<8;guard++){
+    if(e.off===0){
+      if(e.mode==='wisp'&&M.home[idx(e.c,e.r)]===0){   // home: down through the gate to rest
+        e.mode='enter';const s=M.pen[e.k===1?1:e.k===2?0:e.k===3?2:1];
+        e.wp=[[M.G[0]*TILE+6,(M.G[1]+1)*TILE+6],[s[0]*TILE+6,s[1]*TILE+6]];return;
+      }
+      chooseDir(g,e);if(e.dir<0)return;
+    }
+    const st=Math.min(dist,TILE-e.off);
+    e.off+=st;dist-=st;
+    if(e.off>=TILE-1e-6){e.c=wc(e.c+DX[e.dir]);e.r=wr(e.r+DY[e.dir]);e.off=0}
+  }
+}
+// in and out of the stump: straight lines between a few points, not tiles
+function walk(e,v,dt){
+  let d=v*dt;
+  while(d>0&&e.wp.length){
+    const w=e.wp[0],dx=w[0]-e.x,dy=w[1]-e.y,L=Math.hypot(dx,dy);
+    if(L<=d){e.x=w[0];e.y=w[1];d-=L;e.wp.shift()}else{e.x+=dx/L*d;e.y+=dy/L*d;d=0}
+  }
+  return !e.wp.length;
+}
+function leave(g,e){const M=g.M;e.mode='leave';e.wp=[[M.G[0]*TILE+6,(M.G[1]+1)*TILE+6],[M.exit[0]*TILE+6,M.exit[1]*TILE+6]]}
+
+function step(g,dt){
+  g.tick+=dt;if(g.msgT>0)g.msgT-=dt;
+  for(const s of g.pops){s.t-=dt;s.y-=10*dt}
+  if(g.pops.length&&g.pops[0].t<=0)g.pops=g.pops.filter(s=>s.t>0);
+  const p=g.p,M=g.M,T=g.T;
+  p.ox=p.x;p.oy=p.y;for(const e of g.ch){e.ox=e.x;e.oy=e.y}
+  if(g.state==='ready'){g.readyT-=dt;if(g.readyT<=0){g.state='play';g.ev.push('go')}return}
+  if(g.state==='clear'){g.clearT-=dt;if(g.clearT<=0){g.level++;setupLevel(g);g.state='ready';g.readyT=1.8;g.ev.push('ready')}return}
+  if(g.state==='dying'){
+    g.dieT-=dt;
+    if(g.dieT<=0){
+      if(g.lives<=0){g.state='over';g.msgT=1;g.ev.push('over')}
+      else{resetActors(g);g.state='ready';g.readyT=1.4;g.ev.push('ready')}
+    }
+    return;
+  }
+  if(g.state!=='play')return;
+  if(g.hit>0){g.hit-=dt;return}   // a beat of stillness on every catch
+
+  // Glim
+  if(p.dashT>0)p.dashT-=dt;
+  if(p.dashCd>0){p.dashCd-=dt;if(p.dashCd<=0){p.dashCd=0;g.ev.push('dashready')}}
+  if(g.chainT>0){g.chainT-=dt;if(g.chainT<=0){if(mult(g)>1)g.ev.push('chainbreak');g.chain=0}}
+  const v=T.ps*(p.dashT>0?DASH_X:1)*(p.drag>0?EAT_DRAG:1);
+  if(p.drag>0)p.drag-=dt;
+  movePlayer(g,v*dt);place(p);
+  if(g.state!=='play')return;
+  if(g.find){
+    g.find.t-=dt;
+    const fx=M.B[0]*TILE+6,fy=M.B[1]*TILE+6;
+    if(Math.abs(p.x-fx)<HIT&&Math.abs(p.y-fy)<HIT){addScore(g,T.find);g.finds++;g.pops.push({x:fx,y:fy-6,t:1.1,s:String(T.find),k:2});g.find=null;g.ev.push('find')}
+    else if(g.find.t<=0)g.find=null;
+  }
+
+  // the moonbloom's clock, or else the waves: roost, hunt, roost, hunt ...
+  if(g.dazT>0){
+    g.dazT-=dt;
+    if(g.dazT<=0){g.dazT=0;for(const e of g.ch)e.daz=false;g.ev.push('dazend')}
+    else if(g.dazT<g.warned*0.5){g.warned--;g.ev.push('warn')}
+  }else{
+    g.waveT-=dt;
+    if(g.waveT<=0){
+      if(g.mode==='roost'){g.mode='hunt';g.waveT=T.hunt[Math.min(g.wave,3)]}
+      else{g.wave++;g.mode='roost';g.waveT=T.roost[Math.min(g.wave,3)]}
+      for(const e of g.ch)if(e.mode==='out'&&!e.daz)flip(e);
+      g.ev.push('wave');
+    }
+  }
+
+  // critters
+  g.relT+=dt;
+  const b=bold(g);
+  for(const e of g.ch){
+    if(e.mode==='pen'){
+      if(e.wait>0){e.wait-=dt;if(e.wait<=0)leave(g,e)}
+      else if(e.home&&(g.relT>=T.relT[e.k]||(T.relN[e.k]>0&&g.relN>=T.relN[e.k])))leave(g,e);
+      continue;
+    }
+    if(e.mode==='leave'){
+      if(walk(e,40,dt)){e.mode='out';e.c=M.exit[0];e.r=M.exit[1];e.off=0;e.dir=-1;e.home=false}
+      continue;
+    }
+    if(e.mode==='enter'){
+      if(walk(e,T.wispV,dt)){e.mode='pen';e.wait=RECOVER;e.c=M.pen[1][0];e.r=M.pen[1][1];g.ev.push('home')}
+      continue;
+    }
+    const k=idx(e.c,e.r);
+    let sp=e.mode==='wisp'?T.wispV:e.daz?T.dazV:M.tun[k]?T.tunV:e.k===0?T.cs*b:T.cs;
+    if(e.daz&&M.tun[k])sp=Math.min(sp,T.tunV);
+    moveChaser(g,e,sp*dt);
+    if(e.mode==='out'||e.mode==='wisp')place(e);
+  }
+
+  // touching
+  for(const e of g.ch){
+    if(e.mode!=='out')continue;
+    let dx=Math.abs(e.x-p.x),dy=Math.abs(e.y-p.y);
+    if(dx>W/2)dx=W-dx;if(dy>MH/2)dy=MH-dy;
+    if(dx>=HIT||dy>=HIT)continue;
+    if(e.daz){
+      const n=Math.min(g.catchN,CATCH.length-1),pts=CATCH[n];
+      g.catchN++;e.daz=false;e.mode='wisp';addScore(g,pts);g.hit=0.3;
+      g.pops.push({x:e.x,y:e.y-4,t:1,s:String(pts),k:0});g.ev.push('catch'+(n+1));
+    }else{
+      g.state='dying';g.dieT=1.7;g.lives--;g.flawless=false;g.dazT=0;p.dashT=0;g.ev.push('die');
+      break;
+    }
+  }
+}
+// ==END RULES==
+
+/* ---------- the page ---------- */
+const TOP=22,H=TOP+MH+14;
+const $=id=>document.getElementById(id);
+const body=document.body,cv=$('c'),vx=cv.getContext('2d');
+const mk=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c};
+const buf=mk(W,H),g2=buf.getContext('2d');
+const store={get(k,d){try{const v=localStorage.getItem(k);return v===null?d:v}catch(e){return d}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+let best=+store.get('flickerwood-best',0)||0,bestGlade=+store.get('flickerwood-glade',0)||0,muted=store.get('flickerwood-mute','0')==='1',paused=false,newBest=false;
+let G=create((Date.now()^(Math.random()*1e9))>>>0);
+
+/* ---------- sound: square, triangle and noise, made here. Every pitch, length and loudness is in SFX and TUNE. ---------- */
+let ac=null,master=null,sfxG=null,musG=null,noiseBuf=null;
+function wake(){
+  if(ac){if(ac.state==='suspended')ac.resume();return}
+  try{
+    ac=new (window.AudioContext||window.webkitAudioContext)();
+    const comp=ac.createDynamicsCompressor();comp.connect(ac.destination);
+    master=ac.createGain();master.gain.value=muted?0:0.55;master.connect(comp);
+    sfxG=ac.createGain();sfxG.gain.value=1;sfxG.connect(master);
+    musG=ac.createGain();musG.gain.value=0.5;musG.connect(master);
+    noiseBuf=ac.createBuffer(1,ac.sampleRate*0.3|0,ac.sampleRate);const d=noiseBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+  }catch(e){ac=null}
+}
+function tone(f,d,type,v,at,f2,out){
+  if(!ac)return;
+  try{const t=ac.currentTime+(at||0),o=ac.createOscillator(),a=ac.createGain();o.type=type||'square';o.frequency.setValueAtTime(f,t);
+    if(f2)o.frequency.exponentialRampToValueAtTime(f2,t+d);
+    a.gain.setValueAtTime(0.0001,t);a.gain.linearRampToValueAtTime(v||0.08,t+0.004);a.gain.exponentialRampToValueAtTime(0.0001,t+d);
+    o.connect(a);a.connect(out||sfxG);o.start(t);o.stop(t+d+0.02)}catch(e){}
+}
+function noise(d,v,at,cut,out){
+  if(!ac)return;
+  try{const t=ac.currentTime+(at||0),s=ac.createBufferSource(),a=ac.createGain(),f=ac.createBiquadFilter();s.buffer=noiseBuf;f.type='lowpass';f.frequency.value=cut||900;
+    a.gain.setValueAtTime(v,t);a.gain.exponentialRampToValueAtTime(0.0001,t+d);s.connect(f);f.connect(a);a.connect(out||sfxG);s.start(t);s.stop(t+d+0.02)}catch(e){}
+}
+let eatFlip=0;
+const SFX={
+  start(){[523,659,784,1047].forEach((f,i)=>tone(f,0.12,'square',0.07,i*0.11));tone(1319,0.3,'triangle',0.1,0.44)},
+  ready(){tone(523,0.1,'triangle',0.09);tone(784,0.16,'triangle',0.09,0.1)},
+  go(){tone(988,0.08,'square',0.05)},
+  eat(){eatFlip^=1;tone((eatFlip?590:470)*(1+0.07*(mult(G)-1)),0.045,'triangle',0.11)},
+  chainup(){const m=mult(G);tone(660+m*110,0.07,'square',0.06);tone(880+m*110,0.1,'square',0.06,0.06)},
+  chainbreak(){tone(330,0.1,'triangle',0.06,0,220)},
+  bloom(){[392,523,659,784,1047].forEach((f,i)=>tone(f,0.09,'square',0.07,i*0.05))},
+  warn(){tone(1568,0.05,'square',0.045)},
+  dazend(){tone(294,0.12,'triangle',0.08,0,196)},
+  wave(){tone(196,0.07,'triangle',0.07);tone(147,0.09,'triangle',0.07,0.07)},
+  catch1(){catchSnd(0)},catch2(){catchSnd(1)},catch3(){catchSnd(2)},catch4(){catchSnd(3)},
+  home(){tone(880,0.05,'triangle',0.05,0,1320)},
+  dash(){noise(0.16,0.09,0,2400);tone(300,0.16,'square',0.05,0,900)},
+  dashready(){tone(1175,0.05,'triangle',0.06);tone(1568,0.07,'triangle',0.06,0.05)},
+  findshow(){tone(1047,0.06,'triangle',0.07);tone(1319,0.06,'triangle',0.07,0.07);tone(1568,0.1,'triangle',0.07,0.14)},
+  find(){[784,988,1175,1568].forEach((f,i)=>tone(f,0.08,'square',0.07,i*0.06))},
+  life(){[659,784,988,1319,1568].forEach((f,i)=>tone(f,0.1,'triangle',0.1,i*0.08))},
+  die(){tone(520,0.5,'square',0.09,0.35,90);tone(260,0.5,'triangle',0.1,0.35,60);noise(0.25,0.08,0.9,600)},
+  clear(){[523,659,784,659,784,1047,988,1319].forEach((f,i)=>tone(f,0.13,'square',0.07,i*0.12));tone(1568,0.5,'triangle',0.1,0.96)},
+  over(){[440,392,330,262].forEach((f,i)=>tone(f,0.22,'square',0.08,i*0.2));tone(196,0.6,'triangle',0.1,0.8)}
+};
+function catchSnd(n){const f=[523,659,784,1047][n];tone(f,0.08,'square',0.09);tone(f*1.5,0.08,'square',0.09,0.07);tone(f*2,0.16,'square',0.09,0.14);noise(0.08,0.06,0,3000)}
+/* The tune: 16 bars in A minor, written here as numbers (MIDI notes, 0 = rest), eight steps to a bar. Bars 1 to 8 are
+   a bass line and a rolling chord; bars 9 to 16 add a melody. While a moonbloom is on, a quicker bright figure plays
+   instead. A timer looks a tenth of a second ahead and books the notes on the audio clock, so it never drifts. */
+const TUNE={bpm:132,
+  chords:[[57,60,64],[53,57,60],[60,64,67],[55,59,62],[57,60,64],[53,57,60],[50,53,57],[52,56,59]],
+  roll:[0,2,1,2,0,2,1,2],
+  mel:[[76,0,81,0,79,76,0,0],[77,0,81,0,84,81,0,0],[79,0,76,0,79,84,0,0],[83,0,79,0,74,79,0,0],
+       [76,0,81,0,84,83,81,0],[81,0,77,0,72,77,0,0],[74,0,77,0,81,86,0,0],[83,0,80,0,76,0,71,0]],
+  daz:[69,73,76,81,76,73,69,64]};
+const hz=n=>440*Math.pow(2,(n-69)/12);
+let musOn=false,musT=0,musI=0,musTimer=0;
+function musicTick(){
+  if(!ac||!musOn)return;
+  if(musT<ac.currentTime)musT=ac.currentTime+0.03;
+  while(musT<ac.currentTime+0.12){
+    const daz=G.dazT>0,len=60/TUNE.bpm/2*(daz?0.6:1),at=musT-ac.currentTime,s=musI%8,bar=Math.floor(musI/8)%16,ch=TUNE.chords[bar%8];
+    if(daz){
+      tone(hz(TUNE.daz[s]),len*0.9,'square',0.035,at,0,musG);
+      if(s%2===0)tone(hz(45),len*1.6,'triangle',0.11,at,0,musG);
+    }else{
+      if(s===0||s===4)tone(hz(ch[0]-24),len*1.8,'triangle',0.13,at,0,musG);
+      if(s===6)tone(hz(ch[2]-24),len*0.9,'triangle',0.1,at,0,musG);
+      tone(hz(ch[TUNE.roll[s]]),len*0.8,'square',bar<8?0.028:0.016,at,0,musG);
+      const m=bar>=8?TUNE.mel[bar-8][s]:0;
+      if(m)tone(hz(m),len*1.7,'square',0.04,at,0,musG);
+      if(s%2===1)noise(0.03,0.02,at,6000,musG);
+    }
+    musT+=len;musI++;
+  }
+}
+function music(on){
+  if(on===musOn)return;musOn=on;
+  if(on){musT=0;if(!musTimer)musTimer=setInterval(musicTick,25)}
+  else if(musTimer){clearInterval(musTimer);musTimer=0}
+}
+function setMute(m){muted=m;store.set('flickerwood-mute',m?'1':'0');if(master)master.gain.value=m?0:0.55;const b=$('bMute');b.setAttribute('aria-pressed',String(m));b.textContent=m?'MUTE':'SND'}
+function saveBest(){
+  if(G.score>best){best=G.score;newBest=true;store.set('flickerwood-best',String(best))}
+  if(G.level>bestGlade){bestGlade=G.level;store.set('flickerwood-glade',String(bestGlade))}
+  if(window.BackRoomStats){try{BackRoomStats.max('score',G.score);BackRoomStats.max('glade',G.level)}catch(e){}}
+}
+
+/* ---------- pictures: every sprite is rows of letters, turned into small canvases once ---------- */
+function bake(rows,pal){
+  const w=rows[0].length,c=mk(w,rows.length),x=c.getContext('2d');c.eyes=[];
+  for(let r=0;r<rows.length;r++)for(let i=0;i<w;i++){
+    const ch=rows[r][i];if(ch==='.')continue;
+    x.fillStyle=pal[ch]||'#f0f';x.fillRect(i,r,1,1);
+    if(ch==='W'&&rows[r][i-1]!=='W'&&(!rows[r-1]||rows[r-1][i]!=='W'))c.eyes.push([i,r]);   // top left of each 2 x 2 eye
+  }
+  return c;
+}
+const turnCW=rows=>rows.map((_,r)=>rows.map((__,c)=>rows[rows.length-1-c][r]).join(''));
+const flipH=rows=>rows.map(s=>s.split('').reverse().join(''));
+const flipV=rows=>rows.slice().reverse();
+const pad16=rows=>{const out=rows.slice();while(out.length<16)out.push('................');return out};
+// Glim, seen from above, facing right: a glowing tail, an amber middle, a red head and two pale wings
+const GLIM_A=pad16(['................','................','......www.......','.....wWWWw......','.....wWWWw....d.','......wWWw...d..',
+  '...gyyyooode....','..gyYYyoOodddd..','..gyYYyoOodddd..','...gyyyooode....','......wWWw...d..','.....wWWWw....d.','.....wWWWw......','......www.......']);
+const GLIM_B=pad16(['................','................','................','................','...wwwww......d.','..wWWWWWw....d..',
+  '...gyyyooode....','..gyYYyoOodddd..','..gyYYyoOodddd..','...gyyyooode....','..wWWWWWw....d..','...wwwww......d.']);
+const GLIM_PAL={g:'#7fbf3a',y:'#e8f25a',Y:'#ffffd8',o:'#f0a030',O:'#ffc86a',d:'#d2472f',e:'#ffffff',w:'#7fa8dc',W:'#d6ecff'};
+const CH_ROWS=[
+  // Swoop the bat
+  [pad16(['................','....pp....pp....','p...pkp..pkp...p','pp..pPPPPPPp..pp','pPp.pPPPPPPp.pPp','pPPppPPPPPPppPPp','pPPPPWWPPWWPPPPp',
+    '.pPPPWWPPWWPPPp.','.pPpPPPPPPPPpPp.','..p.pPfPPfPp.p..','....pPQQQQPp....','....pPQQQQPp....','.....pPPPPp.....','......p..p......']),
+   pad16(['................','....pp....pp....','....pkp..pkp....','....pPPPPPPp....','....pPPPPPPp....','.pppPPPPPPPPppp.','pPPPPWWPPWWPPPPp',
+    'pPPPPWWPPWWPPPPp','pPPpPPPPPPPPpPPp','pPp.pPfPPfPp.pPp','pp..pPQQQQPp..pp','p...pPQQQQPp...p','.....pPPPPp.....','......p..p......'])],
+  // Gulp the frog
+  [pad16(['................','................','..ggg......ggg..','.gWWGg....gGWWg.','.gWWGggggggGWWg.','.gGGGGGGGGGGGGg.','.gGGGGGGGGGGGGg.',
+    '.gGmGGGGGGGGmGg.','.gGGmmmmmmmmGGg.','.gGGLLLLLLLLGGg.','..gGLLLLLLLLGg..','.ggGGLLLLLLGGgg.','gGGgGGGGGGGGgGGg','gGGg.gggggg.gGGg','.gg..........gg.']),
+   pad16(['................','..ggg......ggg..','.gWWGg....gGWWg.','.gWWGggggggGWWg.','.gGGGGGGGGGGGGg.','.gGGGGGGGGGGGGg.','.gGmGGGGGGGGmGg.',
+    '.gGGmmmmmmmmGGg.','.gGGLLLLLLLLGGg.','..gGLLLLLLLLGg..','..gGGLLLLLLGGg..','..gGg.gggg.gGg..','..gGg......gGg..','.gGGg......gGGg.','.ggg........ggg.'])],
+  // Tangle the spider
+  [pad16(['................','................','.r....rrrr....r.','.r...rRRRRr...r.','..r.rRSSRRRr.r..','..rrRRSRRRRRrr..','....RWWRRWWR....',
+    '.rrrRWWRRWWRrrr.','r...RRRRRRRR...r','r..rrRRRRRRrr..r','..r..rRRRRr..r..','.r....rrrr....r.','.r............r.']),
+   pad16(['................','................','......rrrr......','r....rRRRRr....r','.r..rRSSRRRr..r.','..rrRRSRRRRRrr..','....RWWRRWWR....',
+    '..rrRWWRRWWRrr..','.r..RRRRRRRR..r.','.r.rrRRRRRRrr.r.','.r...rRRRRr...r.','...r..rrrr..r...','..r..........r..'])],
+  // Dither the moth
+  [pad16(['................','...a........a...','....a......a....','.cc..bbbbbb..cc.','cCCcbBBBBBBbcCCc','cCsCbWWBBWWbCsCc','cCCCbWWBBWWbCCCc',
+    'cCCCcbBBBBbcCCCc','.cCCCbBBBBbCCCc.','.cCsCbBBBBbCsCc.','..cCCcbBBbcCCc..','...cc.bBBb.cc...','......bBBb......','.......bb.......']),
+   pad16(['................','...a........a...','....a......a....','.....bbbbbb.....','..ccbBBBBBBbcc..','.cCCbWWBBWWbCCc.','.cCsbWWBBWWbsCc.',
+    '.cCCcbBBBBbcCCc.','.cCCCbBBBBbCCCc.','..cCCbBBBBbCCc..','..cCCcbBBbcCCc..','...cc.bBBb.cc...','......bBBb......','.......bb.......'])]
+];
+const CH_PAL=[
+  {p:'#5a3fb0',P:'#9274e8',Q:'#c3adfa',k:'#f29ac0',f:'#ffffff',W:'#ffffff'},
+  {g:'#2c7a3a',G:'#5cc24a',L:'#cdf08e',m:'#1c4a28',W:'#ffffff'},
+  {r:'#b3382c',R:'#f26a3c',S:'#ffb070',W:'#ffffff'},
+  {c:'#b0905e',C:'#f4e4ba',s:'#d9785a',b:'#8f6c48',B:'#dcbc8c',a:'#f4e4ba',W:'#ffffff'}];
+const CH_NAME=['SWOOP','GULP','TANGLE','DITHER'],CH_HZ=[7,3,8,9];
+// dazzled: the same shapes washed out to two pale tones
+const dazPal=pal=>{const o={};for(const k in pal)o[k]=k==='W'||k==='f'?'#ffffff':k===k.toUpperCase()?'#b4bef6':'#6f7bd0';return o};
+const SP={glim:[],ch:[],dz:[]};
+(function(){
+  for(const rows of [GLIM_A,GLIM_B]){
+    const down=turnCW(rows),set=[rows,down,flipH(rows),flipV(down)];
+    set.forEach((r,d)=>{(SP.glim[d]=SP.glim[d]||[]).push(bake(r,GLIM_PAL))});
+  }
+  CH_ROWS.forEach((fr,k)=>{SP.ch[k]=fr.map(r=>bake(r,CH_PAL[k]));SP.dz[k]=fr.map(r=>bake(r,dazPal(CH_PAL[k])))});
+})();
+SP.bloom=[['...WWWW...','...WWWW...','....bb....','WW.byyb.WW','WWbyYYybWW','WWbyYYybWW','WW.byyb.WW','....bb....','...WWWW...','...WWWW...'],
+  ['..........','....WW....','....WW....','...byyb...','.WWyYYyWW.','.WWyYYyWW.','...byyb...','....WW....','....WW....','..........']]
+  .map(r=>bake(r,{W:'#ffffff',b:'#9fd0ff',y:'#ffe27a',Y:'#fff8cf'}));
+// the finds, one kind a level: dewdrop, acorn, clover, toadstool, bluebell, feather, snail shell, moonstone
+SP.find=[
+  [['....b.....','....b.....','...bBb....','...bBb....','..bBBBb...','..bBWBb...','.bBBWBBb..','.bBBBBBb..','..bBBBb...','...bbb....'],{b:'#3f8fe0',B:'#8fd0ff',W:'#ffffff'}],
+  [['....k.....','...kk.....','..cccccc..','.cCcCcCcc.','.cccccccc.','..nNNNNn..','..nNWNNn..','..nNNNNn..','...nNNn...','....nn....'],{k:'#6b4a2a',c:'#8a5a30',C:'#b98448',n:'#c98a3c',N:'#f0c070',W:'#fff0c8'}],
+  [['....gg....','...gGGg...','...gGGg...','.gg.gg.gg.','gGGgssgGGg','gGGgssgGGg','.gg.s..gg.','....s.....','...ss.....','..........'],{g:'#2f8f3f',G:'#7fe06a',s:'#2f8f3f'}],
+  [['...rrrr...','..rRWRRr..','.rRRRRWRr.','.rWRRRRRr.','.rrrrrrrr.','...cCCc...','...cCCc...','...cCCc...','..cCCCCc..','..........'],{r:'#b8302a',R:'#f05a48',W:'#ffffff',c:'#c9b890',C:'#fff0d0'}],
+  [['.....gg...','....g.....','...g......','..vvvv....','.vVVVVv...','.vVVWVv...','.vVVVVv...','vVVVVVVv..','vv.vv.vv..','..........'],{g:'#4fb04f',v:'#5a4fd0',V:'#9a8fff',W:'#e0dcff'}],
+  [['.......fF.','......fFF.','.....fFFf.','....fFFf..','...fFFf...','..fFFf....','..fFf.....','.qff......','q.........','..........'],{f:'#9fc0e8',F:'#ffffff',q:'#c9a060'}],
+  [['...ssss...','..sSSSSs..','.sSssssSs.','.sSsSSsSs.','.sSsSssSs.','.sSsSSSSs.','.sSssssss.','..sSSSSSs.','...sssss..','..........'],{s:'#a8743c',S:'#f2cf8c'}],
+  [['....mm....','...mMMm...','..mMWMMm..','.mMWMMMMm.','.mMMMMMMm.','..mMMMMm..','...mMMm...','....mm....','..........','..........'],{m:'#5fb8c8',M:'#c8f6ff',W:'#ffffff'}]
+].map(a=>bake(a[0],a[1]));
+// soft light: flat discs of pale colour, drawn pixel by pixel so the edge stays crisp
+function disc(rad,layers){
+  const s=rad*2+1,c=mk(s,s),x=c.getContext('2d');
+  for(const [rr,col,al] of layers){x.globalAlpha=al;x.fillStyle=col;
+    for(let yy=-rr;yy<=rr;yy++){const w=Math.floor(Math.sqrt(rr*rr-yy*yy));x.fillRect(rad-w,rad+yy,w*2+1,1)}}
+  return c;
+}
+const HALO=disc(11,[[11,'#e8f25a',0.07],[8,'#e8f25a',0.09],[5,'#ffffd8',0.12]]);
+const HALO_BIG=[disc(15,[[15,'#cfe6ff',0.09],[11,'#e6f2ff',0.12],[7,'#ffffff',0.16]]),disc(15,[[13,'#cfe6ff',0.09],[9,'#e6f2ff',0.12],[6,'#ffffff',0.16]])];
+
+/* ---------- drawing: everything is whole pixels on a 252 x 312 picture ---------- */
+const R=(x,y,w,h,col)=>{g2.fillStyle=col;g2.fillRect(Math.round(x),Math.round(y),w,h)};
+// a 5 x 5 pixel alphabet (capitals, digits and + - : ! . only), so the words are as crisp as the sprites
+const FONT={A:'0111010001111111000110001',B:'1111010001111101000111110',C:'0111110000100001000001111',D:'1111010001100011000111110',E:'1111110000111101000011111',
+  F:'1111110000111101000010000',G:'0111110000100111000101111',H:'1000110001111111000110001',I:'0111000100001000010001110',J:'0011100001000011000101110',
+  K:'1000110010111001001010001',L:'1000010000100001000011111',M:'1000111011101011000110001',N:'1000111001101011001110001',O:'0111010001100011000101110',
+  P:'1111010001111101000010000',Q:'0111010001101011001001101',R:'1111010001111101001010001',S:'0111110000011100000111110',T:'1111100100001000010000100',
+  U:'1000110001100011000101110',V:'1000110001100010101000100',W:'1000110001101011101110001',X:'1000101010001000101010001',Y:'1000101010001000010000100',
+  Z:'1111100010001000100011111',0:'0111010011101011100101110',1:'0010001100001000010001110',2:'1111000001011101000011111',3:'1111000001011100000111110',
+  4:'1001010010111110001000010',5:'1111110000111100000111110',6:'0111010000111101000101110',7:'1111100001000100010000100',8:'0111010001011101000101110',
+  9:'0111010001011110000101110','+':'0000000100011100010000000','-':'0000000000011100000000000',':':'0000000100000000010000000','!':'0010000100001000000000100',
+  '.':'0000000000000000000000100'};
+function txt(x2,s,x,y,sc,col,align){
+  s=String(s);const w=s.length*6*sc-sc;
+  if(align==='center')x-=w/2;else if(align==='right')x-=w;
+  x=Math.round(x);y=Math.round(y);x2.fillStyle=col;
+  for(let i=0;i<s.length;i++){const m=FONT[s[i]];if(!m)continue;
+    for(let r=0;r<5;r++)for(let c=0;c<5;c++)if(m[r*5+c]==='1')x2.fillRect(x+(i*6+c)*sc,y+r*sc,sc,sc)}
+}
+// each glade's colours: night floor, hedge (base, lit edge, shaded edge), pollen
+const THEME=[
+  {bg:'#0a1022',out:'#05070f',wall:'#1f6b3a',hi:'#3fa258',lo:'#124526',speck:'#ffe9a0'},
+  {bg:'#081424',out:'#040a14',wall:'#1c6f78',hi:'#35a3ac',lo:'#0f474e',speck:'#ffe9a0'},
+  {bg:'#120d22',out:'#080612',wall:'#6b2f6e',hi:'#a352b0',lo:'#431d46',speck:'#ffe0b0'},
+  {bg:'#0d1117',out:'#06080b',wall:'#566664',hi:'#8fa398',lo:'#343f3e',speck:'#fff0a8'},
+  {bg:'#140e12',out:'#090608',wall:'#7a5230',hi:'#b07e48',lo:'#4e3320',speck:'#fff0b8'}];
+// The glade (hedges, stump, tunnel marks) is drawn once per level into mazeL, and again lit up into flashL for the
+// level-clear flash; the pollen sits on polL and each speck is wiped from it as it is eaten. Nothing here runs per frame.
+const mazeL=mk(W,MH),flashL=mk(W,MH),polL=mk(W,MH);
+function drawMaze(cnv,M,th,lit){
+  const x=cnv.getContext('2d'),Q=(a,b,w,h,col)=>{x.fillStyle=col;x.fillRect(a,b,w,h)};
+  const solid=(c,r)=>{if(c<0||r<0||c>=COLS||r>=ROWS)return true;const t=M.t[idx(c,r)];return t===WALL||t===VOID};
+  const wall=lit?th.hi:th.wall,hi=lit?'#ffffff':th.hi,lo=lit?th.wall:th.lo;
+  Q(0,0,W,MH,th.bg);
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    const t=M.t[idx(c,r)],x0=c*TILE,y0=r*TILE;
+    if(t===VOID){Q(x0,y0,TILE,TILE,th.out);if((c*7+r*13)%11===0)Q(x0+(c*5)%9+1,y0+(r*3)%9+1,1,1,th.lo);continue}
+    if(t===PEN){Q(x0,y0,TILE,TILE,'#1d1410');continue}
+    if(t===GATE){Q(x0,y0,TILE,TILE,'#1d1410');Q(x0,y0+3,TILE,2,'#d8c08a');Q(x0,y0+5,TILE,1,'#8a744a');continue}
+    if(t===PATH){if(M.tun[idx(c,r)]){Q(x0+2,y0+5,2,2,th.lo);Q(x0+8,y0+5,2,2,th.lo)}continue}
+    const l=solid(c-1,r)?0:2,rt=solid(c+1,r)?0:2,tp=solid(c,r-1)?0:2,bt=solid(c,r+1)?0:2,w=TILE-l-rt,h=TILE-tp-bt;
+    Q(x0+l,y0+tp,w,h,wall);
+    const hsh=(c*31+r*17)%7;   // a few leaves so the hedge is not flat
+    Q(x0+3+hsh%5,y0+3+(hsh*3)%5,1,1,hi);Q(x0+8-hsh%4,y0+7-(hsh*2)%4,1,1,lo);
+    if(tp)Q(x0+l,y0+tp,w,1,hi);if(l)Q(x0+l,y0+tp,1,h,hi);
+    if(bt)Q(x0+l,y0+TILE-bt-1,w,1,lo);if(rt)Q(x0+TILE-rt-1,y0+tp,1,h,lo);
+    // round the corners that stick out
+    if(l&&tp)Q(x0+l,y0+tp,1,1,th.bg);if(rt&&tp)Q(x0+TILE-rt-1,y0+tp,1,1,th.bg);
+    if(l&&bt)Q(x0+l,y0+TILE-bt-1,1,1,th.bg);if(rt&&bt)Q(x0+TILE-rt-1,y0+TILE-bt-1,1,1,th.bg);
+  }
+}
+function freshLevel(){
+  const M=G.M,th=THEME[M.i];
+  drawMaze(mazeL,M,th,false);drawMaze(flashL,M,th,true);
+  const x=polL.getContext('2d');x.clearRect(0,0,W,MH);x.fillStyle=th.speck;
+  for(let k=0;k<COLS*ROWS;k++)if(G.pol[k]===1)x.fillRect((k%COLS)*TILE+5,Math.floor(k/COLS)*TILE+5,2,2);
+  G.fresh=false;G.gone.length=0;hudSig='';
+}
+// sparks and after-images belong to the page: they are only for show
+let sparks=[],ghosts=[],flashT=0;
+function burst(x,y,n,col,sp){for(let i=0;i<n;i++){const a=Math.PI*2*i/n+Math.random(),v=(sp||40)*(0.5+Math.random()*0.7);sparks.push({x:x,y:y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,t:0.35+Math.random()*0.25,c:col})}}
+function drain(){
+  if(G.fresh)freshLevel();
+  if(G.gone.length){const x=polL.getContext('2d');for(const k of G.gone)x.clearRect((k%COLS)*TILE,Math.floor(k/COLS)*TILE,TILE,TILE);G.gone.length=0}
+  if(!G.ev.length)return;
+  const p=G.p;
+  for(const e of G.ev){
+    if(e==='start')newBest=false;
+    if(e==='clear'||e==='over')saveBest();
+    if(e==='bloom'){flashT=0.25;burst(p.x,p.y,12,'#ffffff',55)}
+    if(e==='find')burst(p.x,p.y,10,'#ffe27a',45);
+    if(e==='life')burst(p.x,p.y,14,'#e8f25a',60);
+    if(e==='die')burst(p.x,p.y,8,'#f0a030',30);
+    if(e.indexOf('catch')===0){const s=G.pops[G.pops.length-1];if(s)burst(s.x,s.y+4,10,'#b4bef6',50)}
+    if(SFX[e])SFX[e]();
+  }
+  G.ev.length=0;
+}
+// draw a sprite centred on a maze position, again on the far side when it is half way through a tunnel
+function spr(img,x,y){
+  const w=img.width,h=img.height,px=Math.round(x-w/2),py=Math.round(y-h/2)+TOP;
+  g2.drawImage(img,px,py);
+  if(px<0)g2.drawImage(img,px+W,py);else if(px+w>W)g2.drawImage(img,px-W,py);
+  if(py<TOP)g2.drawImage(img,px,py+MH);else if(py+h>TOP+MH)g2.drawImage(img,px,py-MH);
+}
+const lerp=(o,n,a)=>Math.abs(n-o)>TILE?n:o+(n-o)*a;
+function drawCritters(a){
+  const flick=G.dazT>0&&G.dazT<2&&Math.floor(G.dazT*6)%2===1;
+  for(const e of G.ch){
+    let x=lerp(e.ox,e.x,a),y=lerp(e.oy,e.y,a);
+    if(e.mode==='wisp'||e.mode==='enter'){   // a caught one: a puff of dust hurrying home
+      const d=e.dir<0?0:e.dir,f=Math.floor(G.tick*16)%2;
+      R(x-2,y-2+TOP,4,4,'#dfe6ff');R(x-1-DX[d]*5,y-1-DY[d]*5+TOP,2,2,'#aab6ee');if(f)R(x-DX[d]*9,y-DY[d]*9+TOP,1,1,'#7f8ccc');
+      continue;
+    }
+    const f=Math.floor(G.tick*CH_HZ[e.k]+e.k)%2,daz=e.daz&&!flick;
+    if(e.mode==='pen')y+=Math.floor(G.tick*3+e.k)%2;
+    if(e.daz)x+=Math.floor(G.tick*10+e.k)%2;
+    const img=(daz?SP.dz:SP.ch)[e.k][f];
+    spr(img,x,y);
+    // pupils look where the critter is going; dazzled ones roll
+    const d=e.dir<0?1:e.dir,px0=Math.round(x-8),py0=Math.round(y-8)+TOP;
+    for(const eye of img.eyes){
+      let ex=DX[d]>0?1:0,ey=DY[d]>0?1:0;
+      if(e.daz){const q=Math.floor(G.tick*8+eye[0])%4;ex=q===1||q===2?1:0;ey=q>=2?1:0}
+      R(px0+eye[0]+ex,py0+eye[1]+ey,1,1,'#141a36');
+    }
+  }
+}
+function drawGlim(a){
+  const p=G.p;let x=lerp(p.ox,p.x,a),y=lerp(p.oy,p.y,a);
+  if(G.state==='dying'){
+    const t=1.7-G.dieT;   // a beat of stillness, a spin, then the light goes out
+    if(t<0.35){spr(HALO,x,y);spr(SP.glim[p.dir][0],x,y);return}
+    if(t>1.25)return;
+    spr(SP.glim[(p.dir+Math.floor((t-0.35)*14))%4][1],x,y);return;
+  }
+  for(const s of ghosts)spr(HALO,s.x,s.y);
+  if(G.dazT>0)spr(HALO_BIG[Math.floor(G.tick*8)%2],x,y);else spr(HALO,x-DX[p.dir]*3,y-DY[p.dir]*3);
+  spr(SP.glim[p.dir][p.moving?Math.floor(G.tick*14)%2:Math.floor(G.tick*4)%2],x,y);
+}
+// the score bar and the strip under the maze change rarely: drawn into hudL only when something on them changes
+const hudL=mk(W,H),hx=hudL.getContext('2d');let hudSig='';
+function drawHud(){
+  const m=mult(G),sig=[G.score,best,G.level,G.lives,m,G.finds,G.M.i].join('|');
+  if(sig!==hudSig){
+    hudSig=sig;hx.clearRect(0,0,W,H);
+    const Q=(a,b,w,h,col)=>{hx.fillStyle=col;hx.fillRect(a,b,w,h)};
+    Q(0,0,W,TOP,'#070b1c');Q(0,TOP-1,W,1,'#2b3a78');Q(0,TOP+MH,W,14,'#070b1c');Q(0,TOP+MH,W,1,'#2b3a78');
+    txt(hx,'SCORE',4,2,1,'#93a0cf');txt(hx,String(G.score).padStart(6,'0'),4,9,2,'#eef3ff');
+    txt(hx,'GLADE '+G.level,W/2,2,1,'#93a0cf','center');
+    if(m>1)txt(hx,'CHAIN X'+m,W/2,10,1,'#e8f25a','center');else txt(hx,G.M.name,W/2,10,1,'#5d6aa0','center');
+    txt(hx,'BEST',W-4,2,1,'#93a0cf','right');txt(hx,String(Math.max(best,G.score)).padStart(6,'0'),W-4,11,1,'#eef3ff','right');
+    for(let i=0;i<G.lives-1;i++)hx.drawImage(SP.glim[0][1],2+i*14,TOP+MH-1);   // spare Glims
+    txt(hx,'DASH',W/2-30,TOP+MH+5,1,'#93a0cf','right');
+    Q(W/2-26,TOP+MH+4,52,7,'#2b3a78');
+    for(let i=0;i<Math.min(G.finds,6);i++)hx.drawImage(SP.find[(G.level-1)%8],W-12-i*11,TOP+MH+2);
+  }
+  g2.drawImage(hudL,0,0);
+  const p=G.p,f=1-p.dashCd/DASH_CD;
+  R(W/2-25,TOP+MH+5,Math.round(50*f),5,f>=1?(Math.floor(G.tick*3)%2?'#f0a030':'#ffc86a'):'#7a5a2a');
+}
+function panel(y,h){R(10,y,W-20,h,'#070b1c');R(10,y,W-20,2,'#e8f25a');R(10,y+h-2,W-20,2,'#e8f25a')}
+function banner(a,b,c,d){
+  panel(120,d?88:74);
+  txt(g2,a,W/2,132,2,'#e8f25a','center');
+  if(b)txt(g2,b,W/2,154,1,'#eef3ff','center');
+  if(d)txt(g2,d,W/2,166,1,'#eef3ff','center');
+  if(c&&Math.floor(performance.now()/500)%2===0)txt(g2,c,W/2,d?188:176,1,'#f0a030','center');
+}
+// the title: the cast, the bests and how to start, over the first glade. The still parts are drawn once into titleL.
+const titleL=mk(W,H);let titleSig='';
+function drawTitle(){
+  const sig=best+'|'+bestGlade+'|'+touchUI;
+  if(sig!==titleSig){
+    titleSig=sig;const x=titleL.getContext('2d');x.clearRect(0,0,W,H);
+    x.fillStyle='rgba(5,8,20,.82)';x.fillRect(0,TOP,W,MH);
+    txt(x,'FLICKERWOOD',W/2+2,48,3,'#5a3a0c','center');txt(x,'FLICKERWOOD',W/2,46,3,'#e8f25a','center');
+    txt(x,'A MAZE CHASE BY MOONLIGHT',W/2,70,1,'#93a0cf','center');
+    ['GLIM'].concat(CH_NAME).forEach((n,i)=>txt(x,n,26+i*50,122,1,i?'#93a0cf':'#e8f25a','center'));
+    txt(x,'BEST SCORE '+String(best).padStart(6,'0'),W/2,146,1,'#eef3ff','center');
+    txt(x,bestGlade?'BEST GLADE '+bestGlade:'GATHER ALL THE POLLEN',W/2,158,1,'#eef3ff','center');
+    const L=touchUI?['SWIPE OR USE THE PAD TO TURN','TAP THE SCREEN TO DASH']:['ARROWS OR WASD TURN','SPACE DASHES   P PAUSES'];
+    txt(x,L[0],W/2,214,1,'#93a0cf','center');txt(x,L[1],W/2,226,1,'#93a0cf','center');
+    txt(x,'A MOONBLOOM DAZZLES THE CRITTERS',W/2,246,1,'#5d6aa0','center');txt(x,'CATCH THEM WHILE THEY ARE PALE',W/2,258,1,'#5d6aa0','center');
+  }
+  g2.drawImage(titleL,0,0);
+  const t=performance.now()/1000;
+  spr(HALO,23,102-TOP);g2.drawImage(SP.glim[0][Math.floor(t*10)%2],18,94);
+  for(let k=0;k<4;k++){const img=SP.ch[k][Math.floor(t*CH_HZ[k]/2+k)%2],px=68+k*50,py=94+(Math.floor(t*2+k)%2);
+    g2.drawImage(img,px,py);for(const eye of img.eyes)R(px+eye[0],py+eye[1]+1,1,1,'#141a36')}
+  if(Math.floor(t*2)%2===0)txt(g2,touchUI?'TAP TO START':'PRESS SPACE TO START',W/2,184,1,'#f0a030','center');
+}
+function draw(a){
+  const M=G.M,st=G.state;
+  // the glade; it blinks light and dark when it has been cleared
+  const lit=st==='clear'&&G.clearT>1.5&&Math.floor(G.clearT*5)%2===0;
+  g2.drawImage(lit?flashL:mazeL,0,TOP);
+  g2.drawImage(polL,0,TOP);
+  const bf=Math.floor(G.tick*4)%2;
+  for(let k=0;k<COLS*ROWS;k++)if(G.pol[k]===2)spr(SP.bloom[bf],(k%COLS)*TILE+6,Math.floor(k/COLS)*TILE+6);
+  if(G.find&&(G.find.t>2.5||Math.floor(G.tick*8)%2))spr(SP.find[G.find.kind],M.B[0]*TILE+6,M.B[1]*TILE+6);
+  if(st!=='title'){
+    if(st!=='clear'&&!(st==='dying'&&G.dieT<1.35))drawCritters(a);
+    if(st!=='over')drawGlim(a);
+  }
+  for(const s of sparks)R(s.x,s.y+TOP,1,1,s.c);
+  for(const s of G.pops)txt(g2,s.s,s.x,s.y+TOP,1,s.k===1?'#e8f25a':s.k===2?'#ffc86a':'#ffffff','center');
+  if(flashT>0){g2.fillStyle='rgba(255,255,255,'+(flashT*0.5).toFixed(3)+')';g2.fillRect(0,TOP,W,MH)}
+  drawHud();
+  if(st==='title')drawTitle();
+  else if(paused)banner('PAUSED','',touchUI?'TAP TO GO ON':'PRESS SPACE TO GO ON');
+  else if(st==='ready'){txt(g2,'GLADE '+G.level+'  '+M.name,W/2,TOP+M.exit[1]*TILE-10,1,'#93a0cf','center');txt(g2,'READY!',W/2,TOP+M.B[1]*TILE+3,1,'#e8f25a','center')}
+  else if(st==='clear'&&G.clearT<=1.5)banner('GLADE CLEAR','BONUS +'+(G.bonus-(G.flawless?300:0)),'',G.flawless?'NOT A SCRATCH +300':'');
+  else if(st==='over')banner('GAME OVER',(newBest?'NEW BEST ':'SCORE ')+G.score+(newBest?'!':''),touchUI?'TAP TO PLAY AGAIN':'PRESS SPACE TO PLAY AGAIN','GLADE '+G.level+'   BEST '+best);
+  vx.imageSmoothingEnabled=false;vx.drawImage(buf,0,0,cv.width,cv.height);
+}
+// the little pictures on the how-to-play card
+(function(){
+  const pic={glim:SP.glim[0][0],bat:SP.ch[0][0],frog:SP.ch[1][0],spider:SP.ch[2][0],moth:SP.ch[3][0],bloom:SP.bloom[0],find:SP.find[1]};
+  for(const c of document.querySelectorAll('#how canvas')){
+    const x=c.getContext('2d'),k=c.getAttribute('data-pic'),img=pic[k];
+    if(img){x.drawImage(img,Math.floor((16-img.width)/2),Math.floor((16-img.height)/2));
+      if(img.eyes)for(const e of img.eyes){x.fillStyle='#141a36';x.fillRect(e[0],e[1]+1,1,1)}}
+    else if(k==='dash'){x.drawImage(SP.glim[0][1],2,0);x.fillStyle='#f0a030';x.fillRect(0,5,3,1);x.fillRect(0,8,5,1);x.fillRect(0,11,3,1)}
+    else if(k==='chain'){x.fillStyle='#ffe9a0';for(let i=0;i<4;i++)x.fillRect(1+i*4,12,2,2);txt(x,'X5',3,3,1,'#e8f25a')}
+  }
+})();
+
+/* ---------- layout: the screen at a whole number of device pixels per game pixel, controls around it ---------- */
+let touchUI=matchMedia('(pointer: coarse)').matches&&!matchMedia('(any-pointer: fine)').matches;
+const pad=$('pad'),dashL=$('dashL'),dashR=$('dashR'),how=$('how'),hint=$('hint'),bar=$('bar'),app=$('app');
+let howOpen=false;
+function layout(){
+  body.classList.toggle('touch',touchUI);
+  const vw=innerWidth,vh=innerHeight,dpr=window.devicePixelRatio||1,snap=v=>Math.round(v*dpr)/dpr;
+  const top=bar.offsetHeight+6;let ax=8,ay=top,aw=vw-16,ah=vh-top-8;
+  const wide=vw>vh*1.15;
+  if(touchUI){
+    if(wide){const side=Math.max(170,Math.min(240,(vw-252)/2));ax=side;aw=vw-side*2}
+    else ah-=Math.min(190,Math.max(172,vh*0.24));
+  }else ah-=hint.offsetHeight+10;
+  const k=Math.max(1,Math.floor(Math.min(aw*dpr/W,ah*dpr/H)));
+  const cw=W*k/dpr,ch=H*k/dpr,left=snap(ax+(aw-cw)/2),tp=snap(ay+Math.max(0,(ah-ch)/2));
+  if(cv.width!==W*k){cv.width=W*k;cv.height=H*k}
+  cv.style.width=W*k+'px';cv.style.height=H*k+'px';cv.style.transform='translate('+left+'px,'+tp+'px) scale('+(1/dpr)+')';
+  if(touchUI){
+    if(wide){   // sideways: pad on the left, one DASH on the right
+      const cy=top+(vh-top)/2;
+      pad.style.left=Math.max(8,(left-156)/2)+'px';pad.style.top=(cy-78)+'px';
+      dashL.style.display='none';dashR.style.display='';
+      dashR.style.width=dashR.style.height='84px';
+      dashR.style.left=(left+cw+Math.max(8,(vw-left-cw-84)/2))+'px';dashR.style.top=(cy-42)+'px';
+    }else{      // upright: pad in the middle, a DASH either side, so either thumb reaches both
+      const y0=tp+ch+(vh-(tp+ch))/2,ds=Math.max(56,Math.min(84,(vw-156)/2-18));
+      pad.style.left=(vw-156)/2+'px';pad.style.top=(y0-78)+'px';
+      for(const b of [dashL,dashR]){b.style.display='';b.style.width=b.style.height=ds+'px';b.style.top=(y0-ds/2-8)+'px'}
+      dashL.style.left=((vw-156)/2-ds)/2+'px';dashR.style.left=(vw-((vw-156)/2-ds)/2-ds)+'px';
+    }
+  }
+  // how to play: beside the screen if it fits, otherwise a sheet behind the ? button
+  const room=vw-(left+cw)-24;
+  if(!touchUI&&room>=300){how.classList.remove('sheet');how.hidden=false;how.style.left=(left+cw+24)+'px';how.style.top=tp+'px';how.style.transform='';$('bHelp').hidden=true}
+  else{how.classList.add('sheet');how.style.left='';how.style.top='';how.style.transform='';how.hidden=!howOpen;$('bHelp').hidden=false}
+}
+function setTouch(on){if(touchUI!==on){touchUI=on;layout()}}
+addEventListener('resize',layout);addEventListener('orientationchange',layout);
+if(window.visualViewport)visualViewport.addEventListener('resize',layout);
+
+/* ---------- input ---------- */
+const DIRN={right:0,down:1,left:2,up:3};
+const inPlay=()=>G.state==='play'||G.state==='ready'||G.state==='clear'||G.state==='dying';
+function setPaused(v){if(v&&!inPlay())return;paused=v;$('bPause').setAttribute('aria-pressed',String(v));if(!v)last=0}
+function go(d){wake();if(paused)return;turn(G,d)}
+function doDash(){wake();if(paused){setPaused(false);return}dash(G)}
+const KB=window.Keybinds?Keybinds.create({
+  game:'flickerwood',
+  actions:[
+    {id:'up',label:'Turn up',keys:['ArrowUp','KeyW']},
+    {id:'down',label:'Turn down',keys:['ArrowDown','KeyS']},
+    {id:'left',label:'Turn left',keys:['ArrowLeft','KeyA']},
+    {id:'right',label:'Turn right',keys:['ArrowRight','KeyD']},
+    {id:'dash',label:'Dash',keys:['Space','ShiftLeft']},
+    {id:'pause',label:'Pause',keys:['KeyP','Enter']},
+    {id:'mute',label:'Sound on / off',keys:['KeyM']},
+    {id:'esc',label:'Pause (always)',keys:['Escape'],fixed:true}
+  ],
+  classes:{button:'ghost',primary:'cta'}
+}):null;
+const FALLBACK={ArrowUp:['up'],KeyW:['up'],ArrowDown:['down'],KeyS:['down'],ArrowLeft:['left'],KeyA:['left'],ArrowRight:['right'],KeyD:['right'],Space:['dash'],ShiftLeft:['dash'],ShiftRight:['dash'],KeyP:['pause'],Enter:['pause'],KeyM:['mute'],Escape:['esc']};
+const actsFor=code=>KB?KB.actionsFor(code):(FALLBACK[code]||[]);
+addEventListener('keydown',e=>{
+  if(KB&&KB.busy())return;
+  if(e.ctrlKey||e.metaKey||e.altKey)return;
+  if(howOpen&&e.code==='Escape'){toggleHow(false);e.preventDefault();return}
+  let acts=actsFor(e.code);
+  if(e.code==='Escape'&&acts.indexOf('esc')<0)acts=acts.concat(['esc']);
+  if(!acts.length)return;
+  e.preventDefault();
+  if(e.repeat)return;
+  setTouch(false);
+  for(const a of acts){
+    if(a==='mute')setMute(!muted);
+    else if(a==='pause'||a==='esc'){wake();if(paused)setPaused(false);else if(inPlay())setPaused(true);else if(a==='pause')dash(G)}
+    else if(a==='dash')doDash();
+    else go(DIRN[a]);
+  }
+});
+// the pad: slide a thumb from one arrow to another without lifting it
+const PADK=['up','left','right','down'],padEls=pad.children;let padDir=null,padId=null;
+function padAt(e){const b=pad.getBoundingClientRect(),dx=e.clientX-(b.left+b.width/2),dy=e.clientY-(b.top+b.height/2);
+  if(Math.hypot(dx,dy)<12)return padDir;return Math.abs(dx)>Math.abs(dy)?(dx<0?'left':'right'):(dy<0?'up':'down')}
+function padSet(k){
+  if(k===padDir)return;
+  if(padDir)padEls[PADK.indexOf(padDir)].classList.remove('on');
+  padDir=k;
+  if(k){padEls[PADK.indexOf(k)].classList.add('on');if(paused)setPaused(false);go(DIRN[k])}
+}
+pad.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();if(padId!==null)return;padId=e.pointerId;try{pad.setPointerCapture(padId)}catch(x){}padSet(padAt(e))});
+pad.addEventListener('pointermove',e=>{if(e.pointerId===padId)padSet(padAt(e))});
+for(const t of ['pointerup','pointercancel','lostpointercapture'])pad.addEventListener(t,e=>{if(e.pointerId===padId){padId=null;padSet(null)}});
+for(const b of [dashL,dashR]){
+  b.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();b.classList.add('on');doDash()});
+  for(const t of ['pointerup','pointercancel','pointerleave'])b.addEventListener(t,()=>b.classList.remove('on'));
+  b.addEventListener('click',e=>{if(e.detail===0)doDash()});   // keyboard or switch activation
+}
+// swipes anywhere turn (keep sliding to turn again without lifting); a quick tap on the screen dashes
+const SWIPE=16;let sw=null;
+app.addEventListener('pointerdown',e=>{
+  if(e.target.closest('button,a,#pad,#how'))return;
+  if(e.pointerType==='mouse'){if(e.target===cv){e.preventDefault();wake();if(paused)setPaused(false);else if(G.state==='title'||G.state==='over')dash(G)}return}
+  if(sw)return;
+  wake();sw={id:e.pointerId,x:e.clientX,y:e.clientY,t:performance.now(),moved:false,onCv:e.target===cv};
+});
+app.addEventListener('pointermove',e=>{
+  if(!sw||e.pointerId!==sw.id)return;
+  const dx=e.clientX-sw.x,dy=e.clientY-sw.y;
+  if(Math.hypot(dx,dy)<SWIPE)return;
+  sw.moved=true;sw.x=e.clientX;sw.y=e.clientY;
+  if(paused)setPaused(false);
+  go(Math.abs(dx)>Math.abs(dy)?(dx<0?2:0):(dy<0?3:1));
+});
+for(const t of ['pointerup','pointercancel'])app.addEventListener(t,e=>{
+  if(!sw||e.pointerId!==sw.id)return;
+  const s=sw;sw=null;
+  if(t==='pointerup'&&!s.moved&&performance.now()-s.t<350&&(s.onCv||G.state==='title'||G.state==='over'||paused))doDash();
+});
+document.addEventListener('touchstart',()=>setTouch(true),{passive:true});
+document.addEventListener('contextmenu',e=>{if(e.target===cv||pad.contains(e.target)||e.target===dashL||e.target===dashR)e.preventDefault()});
+$('bMute').addEventListener('click',()=>{wake();setMute(!muted)});
+$('bPause').addEventListener('click',()=>{wake();setPaused(!paused)});
+function toggleHow(v){howOpen=v;if(v)setPaused(true);layout()}
+$('bHelp').addEventListener('click',()=>toggleHow(!howOpen));
+$('howClose').addEventListener('click',()=>toggleHow(false));
+if(KB)$('bKeys').addEventListener('click',()=>{setPaused(true);KB.open()});else $('bKeys').hidden=true;
+addEventListener('blur',()=>{if(G.state==='play'||G.state==='ready')setPaused(true)});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){if(inPlay())setPaused(true)}else if(ac&&ac.state==='suspended')ac.resume()});
+
+/* ---------- loop: fixed steps of the rules, drawn in between ---------- */
+let last=0,acc=0,cool=null;
+function frame(t){
+  requestAnimationFrame(frame);
+  if(!last)last=t;
+  let dt=(t-last)/1000;last=t;if(dt>0.1)dt=0.1;
+  if(!paused){
+    acc+=dt;while(acc>=STEP){step(G,STEP);acc-=STEP}
+    drain();
+    if(flashT>0)flashT-=dt;
+    for(const s of sparks){s.t-=dt;s.x+=s.vx*dt;s.y+=s.vy*dt}
+    if(sparks.length&&sparks.some(s=>s.t<=0))sparks=sparks.filter(s=>s.t>0);
+    for(const s of ghosts)s.t-=dt;
+    if(ghosts.length&&ghosts[0].t<=0)ghosts.shift();
+    if(G.state==='play'&&G.p.dashT>0&&(!ghosts.length||ghosts[ghosts.length-1].t<0.14))ghosts.push({x:G.p.x,y:G.p.y,t:0.18});
+  }
+  music(G.state==='play'&&!paused);
+  const c=G.p.dashCd>0;if(c!==cool){cool=c;dashL.classList.toggle('cool',c);dashR.classList.toggle('cool',c)}
+  draw(paused?1:acc/STEP);
+}
+setMute(muted);layout();drain();
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(layout);
+requestAnimationFrame(frame);
+
+// for automated tests only
+if(navigator.webdriver)window.__fw={create,step,turn,dash,startGame,tune,compile,mult,MAZES,COLS,ROWS,TILE,STEP,W,H,MH,TOP,DX,DY,SP,
+  get g(){return G},set g(v){G=v},get paused(){return paused},get best(){return best},get bestGlade(){return bestGlade},get touch(){return touchUI},
+  get audio(){return ac?ac.state:'none'},layout,setPaused,draw,
+  run(sec){const n=Math.round(sec/STEP);for(let i=0;i<n;i++)step(G,STEP);drain()}};
+})();
+</script>
+<script src="/analytics/tracker.js" data-site="flickerwood" defer></script>
+</body>
+</html>
