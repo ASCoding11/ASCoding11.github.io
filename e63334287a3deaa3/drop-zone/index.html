@@ -725,7 +725,7 @@ MAT.onBeforeCompile=sh=>{
   sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\n#ifdef FINE\nuniform sampler2D dzTex;varying vec3 dzP;varying vec3 dzN;\n#endif\n#ifdef WORLD\nvarying vec3 dzU;varying vec2 dzK;\n#ifdef KIT\nprecision highp sampler2DArray;uniform sampler2DArray dzArr;\n#endif\n#endif')
     .replace('#include <color_fragment>','#include <color_fragment>\n#ifdef WORLD\n{\n#ifdef KIT\n'
       // the surface texture: its colour times the paint (the vertex colour) where its alpha is 1, its own colour (mortar, nail heads, stripes) where it is 0
-      +'float ly=floor(dzU.z+.5);vec4 kt=texture(dzArr,vec3(dzU.xy,max(ly-1.,0.)));vec3 vc=diffuseColor.rgb;float mx=max(vc.r,max(vc.g,vc.b));diffuseColor.rgb=mix(vc,kt.rgb*mix(vec3(mx),vc,kt.a),step(.5,ly));\n#endif\n'
+      +'float ly=floor(dzU.z+.5);vec4 kt=texture(dzArr,vec3(dzU.xy,max(ly-1.,0.)));vec3 vc=diffuseColor.rgb;float mx=max(vc.r,max(vc.g,vc.b));diffuseColor.rgb=mix(vc,min(kt.rgb*1.1,1.)*mix(vec3(mx),vc,kt.a),step(.5,ly));\n#endif\n'
       // dirt and shade where a wall, a post or a trunk meets the ground, and the dimmer light indoors
       +'float gr=1.-smoothstep(0.,1.4,dzK.x);diffuseColor.rgb*=mix(vec3(1.),vec3(.64,.58,.5),gr*gr*.8);\n#ifdef FINE\ndiffuseColor.rgb*=1.-dzK.y*.26;\n#else\ndiffuseColor.rgb*=1.-dzK.y*.4;\n#endif\n}\n#endif\n#ifdef FINE\n{vec3 w=pow(abs(dzN),vec3(4.));w/=(w.x+w.y+w.z);vec3 q=dzP*.42;float f=texture2D(dzTex,q.zy).r*w.x+texture2D(dzTex,q.xz).r*w.y+texture2D(dzTex,q.xy).r*w.z;float b=texture2D(dzTex,dzP.xz*.023).g;float g2=texture2D(dzTex,dzP.xz*1.9).r;diffuseColor.rgb*=(.95+.1*f)*(1.+((b-.5)*.3+(g2-.5)*.22)*w.y);\n#ifdef WORLD\n'
       // the island only (WMAT): broad soft patches on walls, so a big wall isn't one flat colour
@@ -913,7 +913,7 @@ const chunks=[];for(let i=0;i<CH*CH;i++){const B=Bag();B.a=[];chunks.push(B)}
 // ground-level decorations stay. Pieces are numbered in build order, so every browser has the same ids.
 const mpieces=[];let curMP=null,BRK=0,brokenN=0;
 function mpGrow(P,a,b,c,d,e,f){P.min[0]=Math.min(P.min[0],a);P.min[1]=Math.min(P.min[1],b);P.min[2]=Math.min(P.min[2],c);P.max[0]=Math.max(P.max[0],d);P.max[1]=Math.max(P.max[1],e);P.max[2]=Math.max(P.max[2],f)}
-function mpBegin(hp,hv){if(curMP)return null;curMP={id:-1,hp,mhp:hp,hv:hv||0,parts:[],solids:[],min:[1e9,1e9,1e9],max:[-1e9,-1e9,-1e9],broken:false,stage:0,nb:[],gr:false,by:OFY};return curMP}
+function mpBegin(hp,hv){if(curMP)return null;curMP={id:-1,hp,mhp:hp,hv:hv||0,parts:[],solids:[],min:[1e9,1e9,1e9],max:[-1e9,-1e9,-1e9],broken:false,stage:0,nb:[],gr:false,by:OFY,sc:!!RUNC};return curMP}   // sc: part of a wall, floor or railing, which breaks with a ragged edge
 function mpEnd(P){if(!P||curMP!==P)return null;curMP=null;if(!P.solids.length&&!P.parts.length)return null;P.id=mpieces.length;mpieces.push(P);return P}
 function brk(hp,hv,fn){const P=mpBegin(hp,hv);try{fn()}finally{if(P)mpEnd(P)}return P}
 
@@ -989,8 +989,12 @@ function sbox(x0,y0,z0,x1,y1,z1,hex,hv,ghost){
 // Ramps (walkable 4 x 4 m slopes rising 4 m toward dir, as in Backrooms): the map's stairs and players' ramp builds.
 function addRamp(r){r.x0+=OFX;r.z0+=OFZ;r.base+=OFY;r.min=[r.x0,r.base,r.z0];r.max=[r.x0+4,r.base+4.3,r.z0+4];hashIn(rhash,r);ramps.push(r);return r}
 function rampMatrix(x0,z0,base,dir){_e.set(-Math.PI/4,DIR_YAW[dir],0,'YXZ');_q.setFromEuler(_e);return _m4.compose(_p.set(x0+2,base+2,z0+2),_q,_s.set(4,.25,Math.SQRT2*4))}
+// The map's stairs are drawn as sixteen steps over a soffit (the old slab, set a little lower); what is walked on is still the smooth ramp.
+let RLAY=0;
 function staticRamp(cx,cz,base,dir,hex){
-  const x0=cx*4,z0=cz*4;bagAdd(chunkOf(x0+2,z0+2),UNIT_BOX,rampMatrix(x0,z0,base,dir),hex,1);
+  const x0=cx*4,z0=cz*4,l=LAY;LAY=RLAY;bagAdd(chunkOf(x0+2,z0+2),UNIT_BOX,rampMatrix(x0,z0,base-.25,dir),hex,.8);LAY=l;
+  for(let k=0;k<16;k++){const t0=k/4,t1=(k+1)/4,top=base+(k+1)*.25,xa=dir===0?x0+t0:dir===2?x0+4-t1:x0,xb=dir===0?x0+t1:dir===2?x0+4-t0:x0+4,za=dir===1?z0+t0:dir===3?z0+4-t1:z0,zb=dir===1?z0+t1:dir===3?z0+4-t0:z0+4;
+    kb(xa,top-.3,za,xb,top,zb,hex,RLAY,4,0,1.06);kb(xa,top-.3,za,xb,top,zb,hex,RLAY,(dir&1?3:48)|[2,32,1,16][dir],0,.86)}
   return addRamp({x0,z0,base,dir,piece:null});
 }
 
@@ -1070,7 +1074,7 @@ function wk(W,u0,v0,w0,u1,v1,w1,hex,lay,mask,cov,sh){
 // fl upper floors, g ground floor, cl ceilings, sk skirting, mul a bar down each window, lamp a lamp over each door.
 const KS={
   barn:{w:[0xc04a33,TX.PV],iw:[0xb59468,TX.PV],t:0xf3eee2,pl:[0x9a968c,TX.SN,.5],cn:'board',fr:0xf3eee2,dr:'barn',dc:0xb8442f,dl:TX.PV,co:'eave',par:[0xc04a33,TX.PV],cp:0xf3eee2,rf:[0xa9b4ba,TX.CO],fl:[0xb89464,TX.PH],g:[0xb9a37c,TX.PH],cl:[0x9c7d54,TX.PH],sk:0x8a6c48,lamp:1},
-  farmhouse:{w:[0xf6e08c,TX.PH],iw:[0xefe6d2,TX.ST],t:0xfbf7ee,pl:[0xc0694c,TX.BR,.5],cn:'board',fr:0xfbf7ee,dr:'leaf',dc:0x3f8a5c,shc:0x3f8a5c,can:'porch',co:'eave',par:[0xf6e08c,TX.PH],cp:0xfbf7ee,rf:[0xa8483a,TX.SH],fl:[0xc49a62,TX.PH],g:[0xc49a62,TX.PH],cl:[0xe6dcc6,TX.ST],sk:0xfbf7ee,mul:1,lamp:1},
+  farmhouse:{w:[0xf6e08c,TX.PH],iw:[0xefe6d2,TX.ST],t:0xfbf7ee,pl:[0xc0694c,TX.BR,.5],cn:'board',fr:0xfbf7ee,dr:'leaf',dc:0x3f8a5c,shc:0x3f8a5c,can:'porch',fbox:1,co:'eave',par:[0xf6e08c,TX.PH],cp:0xfbf7ee,rf:[0xa8483a,TX.SH],fl:[0xc49a62,TX.PH],g:[0xc49a62,TX.PH],cl:[0xe6dcc6,TX.ST],sk:0xfbf7ee,mul:1,lamp:1},
   hut:{w:[0xe9edf0,TX.PN],iw:[0xd2d9de,TX.PN],t:0x56616c,pl:[0x8d959b,TX.CN,.4],cn:'angle',fr:0x56616c,dr:'steel',dc:0x6a7783,dl:TX.PN,can:'flat',co:'cope',par:[0xdfe4e8,TX.PN],cp:0x56616c,rf:[0x5c6873,TX.GR],g:[0xa7aeb3,TX.CN],cl:[0xc5ccd1,TX.PN],sk:0x56616c,lamp:1},
   mall:{w:[0xf0e3c8,TX.CN],iw:[0xece4d2,TX.ST],t:0x2f7a72,pl:[0xa39e92,TX.CN,.55],cn:'pil',pil:0xddd0b4,fr:0x2f7a72,dr:'none',can:'flat',co:'cope',par:[0xf0e3c8,TX.CN],cp:0x2f7a72,rf:[0x7c8f86,TX.GR],fl:[0xdcd5c6,TX.TI],g:[0xdcd5c6,TX.TI],cl:[0xe2dccd,TX.ST],sk:0x2f7a72,glass:0x3d6f7c,mul:1},
   pump:{w:[0xd6dbd0,TX.CN],iw:[0xc2c8bc,TX.CN],t:0x4b5a52,pl:[0x858c82,TX.CN,.5],cn:'angle',fr:0x4b5a52,dr:'steel',dc:0x5d7068,dl:TX.PN,can:'flat',co:'cope',par:[0xd6dbd0,TX.CN],cp:0x4b5a52,rf:[0x6c7a72,TX.GR],g:[0x9aa197,TX.CN],cl:[0xb9c0b4,TX.CN],sk:0x4b5a52,lamp:1},
@@ -1115,7 +1119,9 @@ function kitWall(S,W,a,b,y,lv,L,ops,cA,cB,par){
     wk(W,s0,lo,-.27,s0+F,hi,.03,S.fr,0,M_UP|M_O|M_I);wk(W,s1-F,lo,-.27,s1,hi,.03,S.fr,0,M_UN|M_O|M_I);wk(W,s0+F,hi-F,-.27,s1-F,hi,.03,S.fr,0,M_B|M_O|M_I);
     wk(W,s0-.1,lo-.06,-.34,s1+.1,lo+.05,.13,S.fr,0);
     if(S.mul)wk(W,win.at-.03,lo+.05,-.17,win.at+.03,hi-F,-.11,S.fr,0,M_RING);
-    if(S.shc)for(const [u0,u1] of [[s0-.5,s0-.03],[s1+.03,s1+.5]])if(u0>a+.02&&u1<b-.02)wk(W,u0,lo-.03,0,u1,hi+.03,.05,S.shc,TX.PH,63^M_I)}
+    if(S.shc)for(const [u0,u1] of [[s0-.5,s0-.03],[s1+.03,s1+.5]])if(u0>a+.02&&u1<b-.02)wk(W,u0,lo-.03,0,u1,hi+.03,.05,S.shc,TX.PH,63^M_I);
+    if(S.fbox){wk(W,s0+.08,lo-.3,.14,s1-.08,lo-.04,.34,0x8a5a34,TX.PV,63^M_I);wk(W,s0+.12,lo-.04,.17,s1-.12,lo+.1,.31,0x4f9a3c,0,63^M_I^M_B);
+      for(let k=0;k<4;k++)wk(W,s0+.25+k*.42,lo+.1,.2,s0+.37+k*.42,lo+.2,.28,[0xe8504a,0xffd84a,0xf7f3ea,0xe86fb0][k],0,63^M_I^M_B)}}
   // the mall's high strip of glass
   if(S.glass&&!door){wk(W,a+.35,y+2.95,0,b-.35,y+3.6,.015,S.glass,TX.GL,M_O);wk(W,a+.27,y+2.87,0,b-.27,y+2.95,.04,S.t,0,M_O|M_T|M_B|M_U);wk(W,a+.27,y+3.6,0,b-.27,y+3.68,.04,S.t,0,M_O|M_T|M_B|M_U)}
   // door: frame, threshold, leaf, canopy, lamp
@@ -1129,9 +1135,26 @@ function kitWall(S,W,a,b,y,lv,L,ops,cA,cB,par){
       wk(W,u0+.08,y+1.25,.07,u0+.16,y+1.37,.11,0xe9d28a,0,63^M_I);
       if(S.dr==='steel')wk(W,u0,y+1.55,.07,u1,y+1.75,.075,0xffffff,TX.HZ,M_O)}
     if(S.can==='flat'){wk(W,s0-.45,y+3.02,0,s1+.45,y+3.16,1.15,S.t,0,63^M_I);for(const u of [s0-.3,s1+.22])wk(W,u,y+2.7,0,u+.08,y+3.02,.45,S.t,0,63^M_I^M_T)}
-    else if(S.can==='porch'){wk(W,s0-.55,y+3,0,s1+.55,y+3.1,1.2,S.rf[0],S.rf[1],63^M_I);wk(W,s0-.55,y+2.9,1.1,s1+.55,y+3,1.2,S.t,0,63^M_I^M_T);for(const u of [s0-.5,s1+.4])wk(W,u,y+2.55,0,u+.1,y+3,.5,S.t,0,63^M_I^M_T)}
+    else if(S.can==='porch'){wk(W,s0-.55,y+3,0,s1+.55,y+3.1,1.2,S.rf[0],S.rf[1],63^M_I);wk(W,s0-.55,y+2.9,1.1,s1+.55,y+3,1.2,S.t,0,63^M_I^M_T);for(const u of [s0-.5,s1+.44])wk(W,u,y+2.7,0,u+.06,y+3,.34,S.t,0,63^M_I^M_T)}
     if(S.lamp){const lv_=S.can?hi+.04:S.dr==='barn'?hi+.3:hi+.2;wk(W,door.at-.13,lv_,0,door.at+.13,lv_+.14,.15,0xfff2bd,0,63^M_I)}}
 }
+// Detail that isn't a box (a cylinder, a cone, a tilted brace), turned any way; drawn with the piece being built without counting toward its size.
+function deco(geo,x,y,z,sx,sy,sz,hex,lay,rx,ry,rz,sh){const d=DECO,l=LAY;DECO=1;LAY=lay||0;_e.set(rx||0,ry||0,rz||0,'YXZ');_q.setFromEuler(_e);_m4.compose(_p.set(x,y,z),_q,_s.set(sx,sy,sz));bagAdd(chunkOf(x,z),geo,_m4,hex,sh||1);DECO=d;LAY=l;_e.order='XYZ'}
+// sixteen-sided, flat-faced (so each face takes its texture from one side)
+const CYL16=(()=>{const g=new THREE.CylinderGeometry(1,1,1,16,1).toNonIndexed();g.computeVertexNormals();return g})(),CONE16=(()=>{const g=new THREE.ConeGeometry(1,1,16,1).toNonIndexed();g.computeVertexNormals();return g})();
+// Raised block letters for signs, from a 5-row dot font; each letter is a few boxes.
+const FONT={A:'111101111101101',B:'110101110101110',C:'111100100100111',D:'110101101101110',E:'111100111100111',F:'111100111100100',G:'111100101101111',H:'101101111101101',I:'111010010010111',K:'101101110101101',L:'100100100100111',M:'1000111011101011000110001',N:'10011101101110011001',O:'111101101101111',P:'111101111100100',R:'110101110101101',S:'111100111001111',T:'111010010010010',U:'101101101101111',W:'1000110001101011101110001',Y:'101101010010010',Z:'111001010100111'},GLY={};
+function glyph(ch){if(GLY[ch])return GLY[ch];const b=FONT[ch];if(!b)return GLY[ch]={w:2,r:[]};const w=b.length/5,used=new Uint8Array(b.length),r=[];
+  for(let y=0;y<5;y++)for(let x=0;x<w;x++){if(b[y*w+x]!=='1'||used[y*w+x])continue;let x1=x;while(x1+1<w&&b[y*w+x1+1]==='1'&&!used[y*w+x1+1])x1++;let y1=y;
+    grow:while(y1+1<5){for(let k=x;k<=x1;k++)if(b[(y1+1)*w+k]!=='1'||used[(y1+1)*w+k])break grow;y1++}
+    for(let j=y;j<=y1;j++)for(let k=x;k<=x1;k++)used[j*w+k]=1;r.push([x,y,x1+1,y1+1])}
+  return GLY[ch]={w,r}}
+function signLen(text,h){let n=-1;for(const ch of text)n+=glyph(ch).w+1;return n*h/5}
+// text on a wall's outer face, starting at uL (its left end as you face it), letters h tall with their feet at v0. With a..b
+// given only the letters whose middle is in that stretch are drawn: a sign across several wall cells is drawn cell by
+// cell, so each letter breaks with the cell it is on.
+function sign(W,text,uL,v0,h,hex,a,b,w0){const px=h/5,dir=W.ns?W.out:-W.out;let u=uL;w0=w0||0;
+  for(const ch of text){const g=glyph(ch),wd=g.w*px,mid=u+dir*wd/2;if(a==null||(mid>=a&&mid<b))for(const [c0,r0,c1,r1] of g.r)wk(W,u+dir*c0*px,v0+(5-r1)*px,w0,u+dir*c1*px,v0+(5-r0)*px,w0+.07,hex,0,63^M_I);u+=dir*(wd+px)}}
 // A building of w x d cells and some levels of 4 m: outer walls with doors and windows, a floor slab each level,
 // zigzag stairs, a flat roof with a low parapet. Returns helpers to place chests and floor loot inside.
 function house(cx,cz,w,d,o){
@@ -1142,7 +1165,7 @@ function house(cx,cz,w,d,o){
   TINT=[1+(tr()-.5)*.08,1+(tr()-.5)*.08,1+(tr()-.5)*.08];
   const holes=new Map();
   if(o.holes)for(const k in o.holes){if(!holes.has(+k))holes.set(+k,new Set());for(const c of o.holes[k])holes.get(+k).add(c)}
-  if(o.stairs&&L>1){const s=o.stairs,hh=zigzag(s[0],s[1],s[2],0,o.roofStairs?L:L-1,trim);for(const k in hh){if(!holes.has(+k))holes.set(+k,new Set());holes.get(+k).add(hh[k])}}
+  if(o.stairs&&L>1){RLAY=S.fl?S.fl[1]:TX.CN;const s=o.stairs,hh=zigzag(s[0],s[1],s[2],0,o.roofStairs?L:L-1,S.stc||trim);RLAY=0;for(const k in hh){if(!holes.has(+k))holes.set(+k,new Set());holes.get(+k).add(hh[k])}}
   // walls level by level
   const doors=o.doors||[];   // [side ('n','s','e','w'), cell index along that side, level]
   const winP=o.win==null?.45:o.win,rnd=mulberry(hashStr('h'+cx+','+cz));
@@ -1228,8 +1251,9 @@ const OFS={farm:[-4,-8,LVL.farm],signal:[-40,-8,LVL.signal],plaza:[-48,-48,LVL.p
 function onLand(x,z,sink,fn){const y=OFY;OFY=terrainH(x+OFX,z+OFZ)-(sink||0);try{return fn()}finally{OFY=y}}
 const at=(k,x,z)=>[x+OFS[k][0],z+OFS[k][1]];
 // props
-function crate(x,z,y,s,hex){s=s||1.4;let r;const f=()=>brk(70,6,()=>{r=sbox(x-s/2,y||0,z-s/2,x+s/2,(y||0)+s,z+s/2,hex||0xa8783f,6)});if(y)f();else onLand(x,z,.05,f);return r}
-function bale(x,z,rot){const a=rot?[1.2,2.2]:[2.2,1.2];let r;onLand(x,z,.08,()=>brk(50,6,()=>{r=sbox(x-a[0]/2,0,z-a[1]/2,x+a[0]/2,1.3,z+a[1]/2,0xe7c35a,6)}));return r}
+function crate(x,z,y,s,hex){s=s||1.4;let r;const f=()=>brk(70,6,()=>{const y0=y||0,c=hex||0xa8783f;LAY=TX.PV;r=sbox(x-s/2,y0,z-s/2,x+s/2,y0+s,z+s/2,c,6);LAY=0;
+  for(const v of [y0+.04,y0+s-.2])kb(x-s/2-.025,v,z-s/2-.025,x+s/2+.025,v+.16,z+s/2+.025,c,0,v>y0+.1?55:51,0,.72)});if(y)f();else onLand(x,z,.05,f);return r}
+function bale(x,z,rot){const a=rot?[1.2,2.2]:[2.2,1.2];let r;onLand(x,z,.08,()=>brk(50,6,()=>{LAY=TX.HY;r=sbox(x-a[0]/2,0,z-a[1]/2,x+a[0]/2,1.3,z+a[1]/2,0xf0cf66,6);LAY=0}));return r}
 function car(x,z,rot,hex){brk(260,4,()=>car0(x,z,rot,hex))}
 function car0(x,z,rot,hex){const l=rot?[2,4.2]:[4.2,2];sbox(x-l[0]/2,.3,z-l[1]/2,x+l[0]/2,1.25,z+l[1]/2,hex,4);
   const k=.62;sbox(x-l[0]*k/2,1.25,z-l[1]*k/2,x+l[0]*k/2,1.85,z+l[1]*k/2,0x2d3a46,4);
@@ -1261,7 +1285,9 @@ function bush(x,z,s){shape(ICO,x,.5*s,z,1.1*s,.8*s,1.1*s,0x3f8a39,Math.random()*
 // and every floor and roof is at a multiple of 4 m, so a build lines up with the buildings it's built against.
 // railings break in pieces of up to 4 m
 function railing(x0,z0,x1,z1,y,hex){const sh0=SHADE;SHADE=sh0||.94+Math.random()*.1;const ax=x1-x0>z1-z0,a=ax?x0:z0,b=ax?x1:z1,n=Math.max(1,Math.ceil((b-a)/4-.01));
-  runs(()=>{for(let i=0;i<n;i++){const p=a+(b-a)*i/n,q=a+(b-a)*(i+1)/n;SEAMW={ax:ax?0:2,cuts:[i>0?p:NaN,i<n-1?q:NaN]};brk(60,2,()=>ax?sbox(p,y,z0,q,y+.95,z1,hex||0x55606a,2):sbox(x0,y,p,x1,y+.95,q,hex||0x55606a,2));SEAMW=null}});SHADE=sh0}
+  runs(()=>{for(let i=0;i<n;i++){const p=a+(b-a)*i/n,q=a+(b-a)*(i+1)/n;SEAMW={ax:ax?0:2,cuts:[i>0?p:NaN,i<n-1?q:NaN]};brk(60,2,()=>{const h_=hex||0x55606a,f=[h_,TX.PN];FK=[f,f,f,false,f,f];
+    if(ax){sbox(p,y,z0,q,y+.95,z1,h_,2);FK=null;kb(p,y+.95,z0-.03,q,y+1,z1+.03,h_,0,55,0,.7);kb(p,y,z0-.025,p+.09,y+.95,z1+.025,h_,0,49,0,.7)}
+    else{sbox(x0,y,p,x1,y+.95,q,h_,2);FK=null;kb(x0-.03,y+.95,p,x1+.03,y+1,q,h_,0,55,0,.7);kb(x0-.025,y,p,x1+.025,y+.95,p+.09,h_,0,19,0,.7)}});SEAMW=null}});SHADE=sh0}
 function buildWorld(){
   const RW=0xb79c6b;
   // ---- Haybale Farm (north-west) ----
@@ -1269,11 +1295,23 @@ function buildWorld(){
   place('Haybale Farm',58,68,44);
   paint({k:'rect',t:'field',x0:16,z0:28,x1:38,z1:52,col:[.55,.42,.27],stripe:[.47,.36,.22]});
   paint({k:'rect',t:'yard',x0:36,z0:48,x1:94,z1:94,col:[.6,.62,.36]});
-  const barn=house(10,13,6,5,{levels:2,col:0xb3412f,trim:0xf0ebe0,roof:0x5d3b2c,floorCol:0x9b7a52,stairs:[11,14,0],roofStairs:true,doors:[['s',2],['s',3],['n',4],['w',2]],win:.2,st:'barn'});
+  const barn=house(10,13,6,5,{levels:2,col:0xb3412f,trim:0xf0ebe0,roof:0x5d3b2c,floorCol:0x9b7a52,stairs:[11,14,0],roofStairs:true,doors:[['s',2],['s',3],['n',4],['w',2]],win:.2,st:'barn',
+    x(side,i,lv,W,a,b,y){const T=KS.barn.t;
+      if(side==='s'&&lv===1&&(i===2||i===3)){const e=i===2?b:a,d=i===2?-1:1;   // the hay loft's hatch over the doors, and the hoist beam above it
+        wk(W,e,y+.6,0,e+d*.95,y+2.8,.03,0xa53c2a,TX.PV,M_O);wk(W,e,y+.45,0,e+d*1.1,y+.6,.05,T,0,63^M_I);wk(W,e,y+2.8,0,e+d*1.1,y+2.95,.05,T,0,63^M_I);wk(W,e+d*.95,y+.6,0,e+d*1.1,y+2.8,.05,T,0,M_O|M_U);
+        if(i===2){wk(W,b-.09,y+3.25,0,b+.09,y+3.45,1.1,0x6b4a2f,0,63^M_I);wk(W,b-.04,y+2.95,.92,b+.04,y+3.25,1,0x3c4046,0,63^M_T)}}
+      if(side==='n'&&lv===1&&i===0){wk(W,a+.1,8.96,-.16,a+.16,10.7,-.1,0x3c4046,0,M_RING);wk(W,a-.3,10.36,-.15,a+.62,10.44,-.11,0x3c4046);wk(W,a+.42,10.28,-.15,a+.62,10.52,-.11,0xe8504a)}},
+    rx(ix,iz,yy){const x=40+ix*4,z=52+iz*4;kb(x,yy-.52,z+1.9,x+4,yy-.3,z+2.1,0x7a5a3a,TX.PV,56,1);   // a beam under the roof, and two low vents on it
+      if(iz===2&&(ix===1||ix===4)){kb(x+1.4,yy,z+1.4,x+2.6,yy+.28,z+2.6,0x9aa3a8,TX.CO,51);kb(x+1.3,yy+.28,z+1.3,x+2.7,yy+.34,z+2.7,0x7b848b,0,55)}},
+    fx(ix,iz,lv,yy){const x=40+ix*4,z=52+iz*4;kb(x,yy-.52,z+1.9,x+4,yy-.3,z+2.1,0x7a5a3a,TX.PV,56,1)}});
   barn.chest(4,1,0,0);barn.chest(1,3,1,Math.PI/2);barn.chest(5,3,1,-Math.PI/2);barn.floor(3,3,0);barn.floor(0,4,1);barn.floor(4,2,2);barn.floor(1,0,2);
   const fh=house(18,19,4,3,{levels:2,col:0xf2dd8a,trim:0x7a5a3a,roof:0x8c3a2e,stairs:[20,20,0],doors:[['w',1],['s',1],['n',3]],win:.6,st:'farmhouse'});
   fh.chest(3,2,1,Math.PI);fh.floor(2,2,0);fh.floor(0,0,1);fh.chest(0,2,0,0);
-  shape(CYL,32,7,86,3,14,3,0xc9cdd1);shape(ICO,32,14.2,86,3.05,1.6,3.05,0x9aa3ab);solid(29.4,0,83.4,34.6,14,88.6,6);
+  // the silo: ribbed sheet with hoops, a cone cap and vent, a ladder up the south side (the same solid box as ever)
+  LAY=TX.CO;shape(CYL16,32,7,86,3,14,3,0xd6dbdf);LAY=0;for(const yy of [.3,3.6,7.1,10.6,13.85])shape(CYL16,32,yy,86,3.07,.24,3.07,0x8f989f);
+  shape(CYL16,32,.25,86,3.25,.5,3.25,0x9a968c);shape(CONE16,32,15.1,86,3.2,2.2,3.2,0xb4bdc3);shape(CYL16,32,16.3,86,.45,.5,.45,0x7d868d);
+  for(const dx of [-.28,.25])kb(32+dx,0,88.96,32+dx+.05,14.3,89.04,0x5b646b);for(let yy=.5;yy<14.2;yy+=.5)kb(31.72,yy,88.98,32.3,yy+.04,89.02,0x5b646b,0,28);
+  solid(29.4,0,83.4,34.6,14,88.6,6);
   chestSpots.push({x:32,y:0,z:91,yaw:0});
   for(const [x,z,r] of [[48,42,0],[52,42,0],[50,40.8,0],[66,46,1],[70,46,1],[78,58,0],[30,62,1],[26,66,0],[86,70,1]])bale(x,z,r);
   fence(40,28,40,46);fence(40,50,40,54);fence(25,54,34,54);
@@ -1607,7 +1645,7 @@ function finishWorld(){
     // keep the original positions and colours, to restore broken and damaged pieces for the next match
     B.mesh=m;B.pos=m.geometry.attributes.position;B.col=m.geometry.attributes.color;B.pos.setUsage(THREE.DynamicDrawUsage);B.col.setUsage(THREE.DynamicDrawUsage);
     B.p0=B.pos.array.slice();B.c0=B.col.array.slice();B.p=B.n=B.c=B.a=null}
-  mpLink();
+  mpLink();shardInit();
   // clouds, all one mesh, above the Drifter's line
   // (bigger and fewer than before: each is a row of five to seven puffs with a flat, blue-grey underside and a white top)
   const cb=Bag(),rr=mulberry(99),CLD=ICO;
@@ -1677,7 +1715,7 @@ const grade=(function(){
   }
   return{run};
 })();
-function shadowFlags(){scene.traverse(o=>{if(o.isMesh&&(o.material===MAT||o.material===WMAT||o.material===GMAT||o.material===FLMAT)){o.castShadow=o!==groundMesh;o.receiveShadow=true}else if(o.isInstancedMesh&&o.material===plyMat){o.castShadow=true;o.receiveShadow=true}})}
+function shadowFlags(){scene.traverse(o=>{if(o.isMesh&&(o.material===MAT||o.material===WMAT||o.material===GMAT||o.material===FLMAT||o===shardIM)){o.castShadow=o!==groundMesh;o.receiveShadow=true}else if(o.isInstancedMesh&&o.material===plyMat){o.castShadow=true;o.receiveShadow=true}})}
 function lookSync(){
   const tier=gfxPref==='fast'||touchUI?0:fxTier;
   if(tier!==lookKey){
@@ -1708,6 +1746,54 @@ function fxWatch(){
   else{fxSlow=0;fxFast=0}
 }
 function drawScene(){lookSync();renderer.render(scene,camera);if(lookKey>=2)grade.run();fxWatch()}
+/* ---------- broken edges ---------- */
+// A piece of a wall, floor, roof or railing that breaks doesn't leave a clean hole: the pieces still standing round it
+// keep a ragged edge, a few jagged stubs of the broken piece left sticking out where it joined them, and a wall that
+// stood on the ground leaves rubble along its foot. The stubs are drawn only (nothing is solid, so movement, shots and
+// builds are exactly as before), all in one instanced mesh that costs a draw call only while something is broken. A stub
+// hangs on the piece it sticks out of and goes when that piece goes; which stubs exist depends only on what is broken, so
+// everyone sees the same and a late joiner gets them from the broken list.
+const SHARD_CAP=1200,shards=[];let shardIM=null;
+const TOOTH=(()=>{   // a chunk 1 wide (x), 1 deep (z), 1 long (y, from its root at 0), leaning and narrowing to a broken tip
+  const c=[[-.5,0,-.5],[.5,0,-.5],[.5,0,.5],[-.5,0,.5],[-.42,.55,-.5],[.2,1,-.5],[.2,1,.5],[-.42,.55,.5],[.5,.62,-.5],[.5,.62,.5]];
+  const q=[[0,1,2,3],[0,3,7,4],[4,7,6,5],[5,6,9,8],[8,9,2,1]],t=[[0,8,1],[0,5,8],[0,4,5],[3,2,9],[3,9,6],[3,6,7]],p=[];
+  for(const f of q)for(const i of [0,1,2,0,2,3])p.push(...c[f[i]]);for(const f of t)for(const i of f)p.push(...c[i]);
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(p,3));g.computeVertexNormals();return g})();
+function shardInit(){
+  shardIM=new THREE.InstancedMesh(TOOTH,new THREE.MeshLambertMaterial({color:0xffffff}),SHARD_CAP);shardIM.setColorAt(0,_col.setHex(0xffffff));
+  shardIM.count=0;shardIM.visible=false;shardIM.frustumCulled=false;scene.add(shardIM);
+}
+const _sx=new V3(),_sy=new V3(),_sz=new V3(),_sm=new THREE.Matrix4();
+function shardPut(P,Q,ax,n,sg,t,pos,len,wid){   // ax: along the edge, n: the way it points (sg), t: through the piece
+  if(shards.length>=SHARD_CAP)return;const i=shards.length;shards.push({P,Q});
+  const th=Math.max(.08,(P.max[t]-P.min[t])*.92);
+  _sx.set(0,0,0).setComponent(ax,wid);_sy.set(0,0,0).setComponent(n,sg*len);_sz.set(0,0,0).setComponent(t,th);
+  if(_sx.clone().cross(_sy).dot(_sz)<0)_sx.negate();
+  _sm.makeBasis(_sx,_sy,_sz);_sm.setPosition(pos[0],pos[1],pos[2]);shardIM.setMatrixAt(i,_sm);
+  _col.setHex(P.hex).multiplyScalar(.62+.2*lhash(P.id,i,7));shardIM.setColorAt(i,_col);
+}
+function shardsFor(P){
+  if(!shardIM||!P.sc)return;
+  const ex=[P.max[0]-P.min[0],P.max[1]-P.min[1],P.max[2]-P.min[2]],t=ex[0]<ex[2]?(ex[0]<ex[1]?0:1):(ex[2]<ex[1]?2:1),u=t===0?2:0,v=t===1?2:1,pos=[0,0,0];
+  const along=(Q,ax,n,sg,a0,a1,at,big)=>{const L=a1-a0;if(L<.3)return;const k=Math.max(1,Math.round(L/1.15));
+    for(let j=0;j<k;j++){const r=lhash(P.id*7+j,Q?Q.id:-1,3),r2=lhash(P.id*13+j,Q?Q.id:-1,4);if(r2<.16)continue;
+      const w=L/k*(.55+.4*r),c=a0+L*(j+.5)/k+(r2-.5)*L/k*.3;pos[ax]=c;pos[n]=at;pos[t]=(P.min[t]+P.max[t])/2;shardPut(P,Q,ax,n,sg,t,pos,big*(.35+.65*r2),w)}};
+  for(const Q of P.nb){if(Q.broken||!Q.sc)continue;
+    const o0=Math.min(P.max[u],Q.max[u])-Math.max(P.min[u],Q.min[u]),o1=Math.min(P.max[v],Q.max[v])-Math.max(P.min[v],Q.min[v]);
+    if(Math.max(o0,o1)<.5||Math.min(P.max[t],Q.max[t])-Math.max(P.min[t],Q.min[t])<-.07)continue;
+    const ax=o0>=o1?u:v,n=o0>=o1?v:u,at=clamp((Math.max(P.min[n],Q.min[n])+Math.min(P.max[n],Q.max[n]))/2,P.min[n],P.max[n]),sg=(P.min[n]+P.max[n])/2>at?1:-1;
+    along(Q,ax,n,sg,Math.max(P.min[ax],Q.min[ax]),Math.min(P.max[ax],Q.max[ax]),at,Math.min(.7,ex[n]*.3));
+  }
+  if(t!==1&&P.min[1]<=P.by+.05)along(null,u,1,1,P.min[u],P.max[u],P.min[1],.38);   // rubble along the foot of a wall that stood on the ground
+  shardIM.count=shards.length;shardIM.visible=shards.length>0;shardIM.instanceMatrix.needsUpdate=true;if(shardIM.instanceColor)shardIM.instanceColor.needsUpdate=true;
+}
+function shardsOff(Q){   // the stubs that hung on Q go with it
+  if(!shardIM)return;let ch=false;
+  for(let i=shards.length-1;i>=0;i--){if(shards[i].Q!==Q)continue;const l=shards.length-1;
+    if(i!==l){shards[i]=shards[l];shardIM.getMatrixAt(l,_sm);shardIM.setMatrixAt(i,_sm);shardIM.getColorAt(l,_col);shardIM.setColorAt(i,_col)}shards.pop();ch=true}
+  if(ch){shardIM.count=shards.length;shardIM.visible=shards.length>0;shardIM.instanceMatrix.needsUpdate=true;if(shardIM.instanceColor)shardIM.instanceColor.needsUpdate=true}
+}
+function shardsClear(){shards.length=0;if(shardIM){shardIM.count=0;shardIM.visible=false}}
 /* ---------- breaking the map ---------- */
 // Which pieces touch which, and which touch the ground or something that never breaks. A piece that loses every
 // path to the ground (a roof whose walls are all gone, a wall's upper storey with nothing beside or below it) falls too.
@@ -1739,6 +1825,7 @@ function mpBreak(P,fx,by,whole){
   for(const pt of P.parts){const a=pt.B.pos.array,s0=pt.start*3,e=(pt.start+pt.count)*3,x=a[s0],y=a[s0+1],z=a[s0+2];for(let i=s0;i<e;i+=3){a[i]=x;a[i+1]=y;a[i+2]=z}mpMark(pt.B,'pos',pt.start,pt.count)}
   for(const s of P.solids){hashOut(hash,s);s.gone=true}
   if(P.runs)for(const g of P.runs){g.dirty=true;runBuild(g)}
+  shardsOff(P);if(!whole)shardsFor(P);
   _mc.set((P.min[0]+P.max[0])/2,(P.min[1]+P.max[1])/2,(P.min[2]+P.max[2])/2);
   if(fx){const big=Math.max(P.max[0]-P.min[0],P.max[1]-P.min[1],P.max[2]-P.min[2])>2.5;debris(_mc,P.hex,big?12:6);sfxBreak(1/(1+camera.position.distanceTo(_mc)*.07))}
   if(by&&by.alive&&P.hv){by.mats=Math.min(MAX_MATS,by.mats+P.hv*2);if(by===player)hint2('+'+P.hv*2+' scrap','#f2d29b')}
@@ -1761,7 +1848,7 @@ function resetMap(){
     if(P.broken)for(const s of P.solids){hashIn(hash,s);s.gone=false}
     P.broken=false;P.hp=P.mhp;P.stage=0}
   for(const g of allRuns)if(g.dirty){g.dirty=false;runBuild(g)}
-  brokenN=0;mpBits='';mpBitsN=-1;
+  brokenN=0;mpBits='';mpBitsN=-1;shardsClear();
   for(const c of chests){c.y=chestSpots[c.id].y;drawChest(c)}
 }
 // the host's list of broken pieces: a bitset, base64, trailing zeros dropped (a few hundred characters at most)
