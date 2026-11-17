@@ -660,19 +660,24 @@
     return list;
   }
 
-  // Who is first on the Miles board, for the "#1 all time" / "#1 this week" tags miles.js puts by tier badges: the uids
-  // rows() ranks 1 for each span, so the same checked nodes, the same week and the same tie rule as the board (a tie for
+  // Who is first, second and third on the Miles board, for the "#1 all time" / "#2 this week" … tags miles.js puts by
+  // tier badges: the uids rows() ranks 1, 2 and 3 for each span, so the same checked nodes, the same week and the same tie rule as the board (a tie for
   // first: every tied player, and allTie / weekTie say so). people: a collapsed list. all: the list before collapse, to
   // add the entries shown as one row with a leader (the same person's other account). An empty board: an empty list.
   function tops(people, all) {
-    var out = { all: [], week: [], allTie: false, weekTie: false };
+    // all / week: the uids ranked 1; all2, all3, week2, week3: the uids ranked 2 and 3 (silver and bronze). The ranks
+    // are the board's own, so after a tie for first the next row is rank 3 and nobody is second, as the board shows it.
+    var out = { all: [], week: [], allTie: false, weekTie: false, all2: [], all3: [], week2: [], week3: [] };
     var list = (people || []).filter(function (p) { return p && !p.hidden && !p.into; });
     ['all', 'week'].forEach(function (span) {
-      var r = rows({ g: 'all', span: span }, list), ids = [];
-      for (var i = 0; i < r.length && r[i].rank === 1; i++) ids.push(r[i].p.uid);
-      out[span + 'Tie'] = ids.length > 1;
-      (all || []).forEach(function (p) { if (p && p.into && !p.hidden && ids.indexOf(p.into) >= 0 && ids.indexOf(p.uid) < 0) ids.push(p.uid); });
-      out[span] = ids;
+      var r = rows({ g: 'all', span: span }, list);
+      [1, 2, 3].forEach(function (place) {
+        var ids = [];
+        for (var i = 0; i < r.length && r[i].rank <= place; i++) if (r[i].rank === place) ids.push(r[i].p.uid);
+        if (place === 1) out[span + 'Tie'] = ids.length > 1;
+        (all || []).forEach(function (p) { if (p && p.into && !p.hidden && ids.indexOf(p.into) >= 0 && ids.indexOf(p.uid) < 0) ids.push(p.uid); });
+        out[span + (place === 1 ? '' : place)] = ids;
+      });
     });
     return out;
   }
