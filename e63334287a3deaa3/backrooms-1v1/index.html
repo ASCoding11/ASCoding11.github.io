@@ -228,10 +228,12 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
 #tJump{right:calc(130px + env(safe-area-inset-right,0px));bottom:calc(20px + env(safe-area-inset-bottom,0px))}
 #tAim{right:calc(126px + env(safe-area-inset-right,0px));bottom:calc(88px + env(safe-area-inset-bottom,0px))}
 #tReload{right:calc(52px + env(safe-area-inset-right,0px));bottom:calc(138px + env(safe-area-inset-bottom,0px))}
+#tEdit{right:calc(122px + env(safe-area-inset-right,0px));bottom:calc(156px + env(safe-area-inset-bottom,0px))}
+#tEdit.can{border-color:#bff3ff;color:#bff3ff}
 #tPause{left:calc(10px + env(safe-area-inset-left,0px));top:calc(10px + env(safe-area-inset-top,0px));width:42px;height:42px;font-size:13px}
 /* Out of the round (or watching a match): only look, pause and Next (watch the next player) stay. */
 #tNext{right:calc(28px + env(safe-area-inset-right,0px));bottom:calc(40px + env(safe-area-inset-bottom,0px));width:104px;height:56px;border-radius:28px;font-size:15px}
-#hud.spec #tStick,#hud.spec #tFire,#hud.spec #tJump,#hud.spec #tAim,#hud.spec #tReload{display:none}
+#hud.spec #tStick,#hud.spec #tFire,#hud.spec #tJump,#hud.spec #tAim,#hud.spec #tReload,#hud.spec #tEdit{display:none}
 /* With the lobby panel open over a match in progress, the match HUD and banners step aside so they don't overlap it on a small screen. */
 body.touch.inlobby #hud,body.touch.inlobby #banner,body.touch.inlobby #dmg{visibility:hidden}
 body.touch.inlobby #touch{display:none}
@@ -246,7 +248,7 @@ body.touch .slot .am{font-size:10px}
 body.touch .slot.gap{margin-left:6px}
 body.touch .osd{display:none}
 body.touch #feed{top:calc(64px + env(safe-area-inset-top,0px))}
-body.touch #hint{bottom:auto;top:calc(110px + env(safe-area-inset-top,0px));font-size:12px}
+body.touch #hint{bottom:auto;top:calc(110px + env(safe-area-inset-top,0px));font-size:12px;width:max-content;max-width:calc(100% - 24px);white-space:normal;text-align:center}
 body.touch #score{left:calc(200px + env(safe-area-inset-left,0px));transform:scale(.8);transform-origin:left top}
 body.touch #net{left:calc(200px + env(safe-area-inset-left,0px));transform:none;white-space:normal;width:max-content;max-width:calc(100vw - 220px);text-align:left}
 body.touch #pips{left:calc(200px + env(safe-area-inset-left,0px));transform:none;top:calc(56px + env(safe-area-inset-top,0px))}
@@ -311,6 +313,7 @@ body.touch #find{left:calc(60px + env(safe-area-inset-left,0px));transform:none;
       <button class="tb" id="tJump" type="button">JUMP</button>
       <button class="tb" id="tAim" type="button">AIM</button>
       <button class="tb" id="tReload" type="button">RELOAD</button>
+      <button class="tb" id="tEdit" type="button">EDIT</button>
       <button class="tb" id="tPause" type="button" aria-label="Pause">❚❚</button>
       <button class="tb" id="tNext" type="button" hidden>NEXT ▸</button>
     </div>
@@ -368,6 +371,7 @@ body.touch #find{left:calc(60px + env(safe-area-inset-left,0px));transform:none;
             <div><dt id="kAim2">R-CLICK</dt><dd>Also aims</dd></div>
             <div><dt data-kb="rifle shotgun sniper" data-kb-short data-kb-case="upper">1 2 3</dt><dd>Rifle, shotgun, sniper</dd></div>
             <div><dt data-kb="wall floor ramp" data-kb-short data-kb-case="upper">Q F C</dt><dd>Wall, floor, ramp</dd></div>
+            <div><dt data-kb="edit" data-kb-short data-kb-case="upper">G</dt><dd>Edit a build of yours (aim at it)</dd></div>
             <div><dt data-kb="reload" data-kb-short data-kb-case="upper">R</dt><dd>Reload</dd></div>
             <div><dt data-kb="pause" data-kb-sep=" · " data-kb-case="upper">ESC</dt><dd>Menu and invite link</dd></div>
             <div><dt>CLICK</dt><dd>When out: watch the next teammate</dd></div>
@@ -375,7 +379,7 @@ body.touch #find{left:calc(60px + env(safe-area-inset-left,0px));transform:none;
           <button class="ghost-btn" id="keysMenu" type="button">Change keys</button>
         </details>
       </div>
-      <p id="touchNote" class="note" hidden>Playing on a phone? Turn it sideways for the best view. Tap the slots at the top to switch weapons or build.</p>
+      <p id="touchNote" class="note" hidden>Playing on a phone? Turn it sideways for the best view. Tap the slots at the top to switch weapons or build. Edit reshapes a build of yours that you're aiming at.</p>
       <div class="adbox" id="adMenu" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
     </div>
   </section>
@@ -1227,12 +1231,12 @@ function tryBuild(s,owner,team,quiet){
 }
 // Change a piece's shape to ed (0: whole again). Refused if it would leave no tile. Tiles that come back can land on a
 // body, like a new build.
-function editPiece(pc,ed){
+function editPiece(pc,ed,quiet){
   if(!pc||!pieces.has(pc.key)||!edOk(pc.spec.kind,ed))return false;
   if(ed===pc.ed)return true;
   shapePiece(pc,ed);clearBodies(pc);
   pc.pop=.55;
-  sfxBuild(1/(1+camera.position.distanceTo(pc.obj.position)*.08));
+  if(!quiet)sfxBuild(1/(1+camera.position.distanceTo(pc.obj.position)*.08));
   return true;
 }
 function removePiece(pc,fx){
@@ -1641,6 +1645,7 @@ const KB=Keybinds.create({
     {id:'wall',label:'Build a wall',group:'Build',keys:['KeyQ','KeyZ']},
     {id:'floor',label:'Build a floor',group:'Build',keys:['KeyF','KeyX']},
     {id:'ramp',label:'Build a ramp',group:'Build',keys:['KeyC','KeyE']},
+    {id:'edit',label:'Edit a build',note:'Aim at one of yours. Again to confirm; Reload makes it whole, Aim cancels',group:'Build',keys:['KeyG']},
     {id:'lookUp',label:'Look up',group:LOOK,keys:['ArrowUp']},
     {id:'lookDown',label:'Look down',group:LOOK,keys:['ArrowDown']},
     {id:'lookLeft',label:'Look left',group:LOOK,keys:['ArrowLeft']},
@@ -1846,6 +1851,121 @@ function playerBuildSpec(type){
   }
   return{kind:'ramp',x:ax,z:az,L:Math.round(p.y/4),dir};
 }
+/* ---------- editing builds ---------- */
+// Aim at a build your team made (in practice, one you made) from within EDIT_RANGE and press Edit: the piece turns
+// into its grid of tiles. Shoot / place opens or closes the tile under the crosshair (hold and sweep for several), Edit
+// again confirms, Reload makes the piece whole again and Aim cancels. Nothing changes until you confirm, and the change
+// then takes EDIT_T seconds, during which you can't shoot or build, so an edit is never instant in a fight (and you can't
+// shoot while the grid is up). While you edit, only you see the grid: the tiles that will be left are tinted panels and
+// the cut ones are just outlines (three draw calls, in place of the piece's own).
+const EDIT_RANGE=6,EDIT_T=.4,EDIT_V=1;
+let edit=null,editJob=null,editAim=null,editAimT=0,editPaint=-1,editNote='',editNoteT=0;
+// Online, editing is on for a match only if every player's page could do it when the match began (the host writes ed
+// into the round node, the same way it picks the map version), so a mixed room always agrees on the shapes.
+const editOn=()=>!online||(!!RD&&RD.ed===1&&curMatch===RD.id);
+const canEdit=pc=>!!pc&&pieces.has(pc.key)&&pc.team!=null&&pc.team===myBuildTeam();
+function note(t){editNote=t;editNoteT=1.8}
+const editGroup=new THREE.Group();editGroup.visible=false;scene.add(editGroup);
+const editFill=new THREE.Mesh(new THREE.BufferGeometry(),new THREE.MeshBasicMaterial({color:0x8fe8ff,transparent:true,opacity:.4,depthWrite:false,side:THREE.DoubleSide,fog:false,polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:1}));
+const editHot=new THREE.Mesh(new THREE.BufferGeometry(),new THREE.MeshBasicMaterial({color:0xffe27a,transparent:true,opacity:.5,depthWrite:false,side:THREE.DoubleSide,fog:false}));
+const editGrid=new THREE.LineSegments(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0xeaffff,transparent:true,opacity:.95,fog:false}));
+{const quads=n=>{const ix=[];for(let i=0;i<n;i++)ix.push(i*4,i*4+1,i*4+2,i*4,i*4+2,i*4+3);return ix};
+  editFill.geometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array(9*12),3));editFill.geometry.setIndex(quads(9));
+  editHot.geometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array(12),3));editHot.geometry.setIndex(quads(1));
+  editGrid.geometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array(9*24),3));
+  for(const m of [editFill,editHot,editGrid]){m.frustumCulled=false;editGroup.add(m)}}
+// corner (u,v) of a piece's tile grid, in the world: on the middle of a wall, the top of a floor or the top of a ramp
+const edV=new V3();
+function edPoint(s,u,v){
+  const n=ED_N[s.kind],q=4/n,x0=s.x*4,z0=s.z*4,y0=s.L*4;
+  if(s.kind==='wall')return s.o==='H'?edV.set(x0+u*q,y0+v*q,z0):edV.set(x0,y0+v*q,z0+u*q);
+  if(s.kind==='floor')return edV.set(x0+u*q,y0+.13,z0+v*q);
+  const t=u/n,c=v*q,y=y0+.17+4*t;
+  return s.dir===0?edV.set(x0+4*t,y,z0+c):s.dir===1?edV.set(x0+c,y,z0+4*t):s.dir===2?edV.set(x0+4-4*t,y,z0+c):edV.set(x0+c,y,z0+4-4*t);
+}
+function edQuad(s,i,arr3,o){const n=ED_N[s.kind],u=i%n,v=Math.floor(i/n);[[u,v],[u+1,v],[u+1,v+1],[u,v+1]].forEach(([a,b],k)=>{const p=edPoint(s,a,b);arr3[o+k*3]=p.x;arr3[o+k*3+1]=p.y;arr3[o+k*3+2]=p.z})}
+function editDraw(){
+  const s=edit.pc.spec,n=ED_N[s.kind],fp=editFill.geometry.attributes.position;let k=0;
+  for(let i=0;i<n*n;i++)if(!(edit.mask>>i&1))edQuad(s,i,fp.array,12*k++);
+  fp.needsUpdate=true;editFill.geometry.setDrawRange(0,k*6);
+  editHot.visible=edit.hot>=0;
+  if(edit.hot>=0){const hp=editHot.geometry.attributes.position;edQuad(s,edit.hot,hp.array,0);hp.needsUpdate=true}
+}
+// the tile the crosshair is on (-1: none): where the line of sight meets the piece's own plane, cut tiles included
+function editTile(){
+  const s=edit.pc.spec,n=ED_N[s.kind],q=4/n,o=camera.position,d=fwdOf(player.yaw,player.pitch);let u,v,k;
+  if(s.kind==='wall'){
+    const H=s.o==='H',dn=H?d.z:d.x;if(Math.abs(dn)<1e-6)return -1;
+    k=((H?s.z*4-o.z:s.x*4-o.x))/dn;if(k<0)return -1;
+    u=((H?o.x+d.x*k-s.x*4:o.z+d.z*k-s.z*4))/q;v=(o.y+d.y*k-s.L*4)/q;
+  }else if(s.kind==='floor'){
+    if(Math.abs(d.y)<1e-6)return -1;k=(s.L*4-o.y)/d.y;if(k<0)return -1;
+    u=(o.x+d.x*k-s.x*4)/q;v=(o.z+d.z*k-s.z*4)/q;
+  }else{
+    k=rayRamp(arr(o),arr(d),edit.frame,60);if(k<0)return -1;
+    const x=o.x+d.x*k,z=o.z+d.z*k;u=rampT(edit.frame,x,z)*n;v=(s.dir%2===0?z-s.z*4:x-s.x*4)/q;
+  }
+  u=Math.floor(u);v=Math.floor(v);return u<0||v<0||u>=n||v>=n?-1:v*n+u;
+}
+// the build the crosshair is on, if it is close enough to edit
+function editTarget(){
+  const d=fwdOf(player.yaw,player.pitch),st=camera.position.clone().addScaledVector(d,camDist);
+  const r=raycast(arr(st),arr(d),EDIT_RANGE,player,false);
+  return r.hit&&r.hit.kind==='piece'?r.hit.piece:null;
+}
+function openEdit(){
+  if(edit||editJob)return;
+  if(!editOn()){note('Editing is off this match: a player here needs to refresh the page');return}
+  const pc=editTarget();
+  if(!pc){note('Aim at one of your builds, up close, to edit it');return}
+  if(!canEdit(pc)){note(online?'That build is the other team’s':'That build is the Entity’s');return}
+  const s=pc.spec,n=ED_N[s.kind],gp=editGrid.geometry.attributes.position;
+  edit={pc,mask:pc.ed,hot:-1,frame:s.kind==='ramp'?pieceShape(s,0).rps[0]:null};
+  for(let i=0;i<n*n;i++){const u=i%n,v=Math.floor(i/n);[[u,v],[u+1,v],[u+1,v],[u+1,v+1],[u+1,v+1],[u,v+1],[u,v+1],[u,v]].forEach(([a,b],k)=>{const p=edPoint(s,a,b);gp.setXYZ(i*8+k,p.x,p.y,p.z)})}
+  gp.needsUpdate=true;editGrid.geometry.setDrawRange(0,n*n*8);
+  mode='edit';editPaint=-1;editAim=null;player.reloadT=0;tAct.aim=false;
+  pc.obj.visible=false;editGroup.visible=true;editDraw();
+}
+function closeEdit(){
+  if(!edit)return;
+  if(pieces.has(edit.pc.key))edit.pc.obj.visible=true;
+  edit=null;editGroup.visible=false;if(mode==='edit')mode='combat';
+}
+// whole: put it back as built. The change itself lands EDIT_T seconds later (see updatePlayer).
+function confirmEdit(whole){
+  if(!edit)return;
+  const pc=edit.pc,m=whole?0:edit.mask;
+  if(!edOk(pc.spec.kind,m)){note('Leave at least one tile');return}
+  closeEdit();
+  if(m===pc.ed)return;
+  editJob={pc,mask:m,t:EDIT_T};player.cd=Math.max(player.cd,EDIT_T);buildCd=Math.max(buildCd,EDIT_T);
+}
+function editKey(){if(edit)confirmEdit(false);else openEdit()}
+// An edit travels as the build message for that spot again, with ed (the tiles cut out) added, so it stays inside the
+// build messages the room already carries.
+function sendEdit(pc){const s=pc.spec;Net.send({type:'b',k:s.kind,x:s.x,z:s.z,L:s.L,o:s.o||'',dir:s.dir||0,r:roundNo(),ed:pc.ed})}
+// every frame: an edit (or one about to land) is dropped if you are no longer in the round, or its piece is gone
+function editGuard(){
+  if(!edit&&!editJob)return;
+  const live=state==='playing'&&!lobbyShown&&player.alive&&(!online||activeOnline());
+  if(edit&&!(live&&mode==='edit'&&!paused&&pieces.has(edit.pc.key)&&edit.pc.obj.position.distanceTo(player.pos)<EDIT_RANGE+4))closeEdit();
+  if(editJob&&!(live&&pieces.has(editJob.pc.key)))editJob=null;
+}
+function updateEdit(dt){
+  if(editJob&&(editJob.t-=dt)<=0){const j=editJob;editJob=null;if(editPiece(j.pc,j.mask)&&online)sendEdit(j.pc)}
+  if(edit){
+    const i=editTile();let dirty=i!==edit.hot;edit.hot=i;
+    if(!firing())editPaint=-1;
+    else if(i>=0){
+      if(editPaint<0)editPaint=edit.mask>>i&1?0:1;
+      if((edit.mask>>i&1)!==editPaint){edit.mask^=1<<i;dirty=true;tone('square',editPaint?520:700,editPaint?400:820,.035,.05)}
+    }
+    if(dirty)editDraw();
+  }else if(mode==='combat'&&pieces.size&&editOn()){
+    // a few times a second: is the crosshair on a build of yours? (the hint, and the lit Edit button on a touch screen)
+    if((editAimT-=dt)<=0){editAimT=.12;const t=editTarget();editAim=canEdit(t)?t:null}
+  }else editAim=null;
+}
 function updatePlayer(dt){
   const p=player;tickWeapon(p,dt);
   if(!p.alive){hideGhosts();return}
@@ -1870,6 +1990,7 @@ function updatePlayer(dt){
   }
   if(p.ammo[p.wi]===0&&p.cd<=0)startReload(p);
   buildCd-=dt;
+  updateEdit(dt);
   hideGhosts();
   if(input&&mode==='build'){
     const s=playerBuildSpec(buildType);const ok=specValid(s);const g=ghosts[buildType];
@@ -1949,7 +2070,12 @@ function updateBot(dt){
   if(!frozen&&p.alive){
     if(los&&b.seen>D.react)aimT=Math.random()<D.head?p.pos.clone().add(new V3(0,1.78,0)):chest;
     else if(!los&&b.lastSeen<4&&dist<30&&diffKey!=='easy'){const r=raycast(arr(eye),arr(dirP),dist,b,true);if(r.hit&&r.hit.kind==='piece'&&r.t<28)aimT=eye.clone().addScaledVector(dirP,r.t)}
-    if(!aimT&&b.breakT>0&&ml>.3){const fd=new V3(mx,0,mz).normalize();const o=eye.clone().add(new V3(0,-.4,0));const r=raycast(arr(o),arr(fd),3,b,false);if(r.hit&&r.hit.kind==='piece')aimT=o.addScaledVector(fd,r.t)}
+    if(!aimT&&b.breakT>0&&ml>.3){const fd=new V3(mx,0,mz).normalize();const o=eye.clone().add(new V3(0,-.4,0));const r=raycast(arr(o),arr(fd),3,b,false);if(r.hit&&r.hit.kind==='piece')aimT=o.addScaledVector(fd,r.t)
+      // nothing straight ahead at chest height, but a build stopped it (the sill of a window, the side of a doorway, a
+      // low hole): aim at the nearest part of the piece it walked into
+      else if(b.bump&&pieces.has(b.bump.key)){let bd=1e9;const c=new V3(b.pos.x,b.pos.y+1.3,b.pos.z),q=new V3();
+        for(const k of b.bump.boxes){q.set(clamp(c.x,k.min[0],k.max[0]),clamp(c.y,k.min[1],k.max[1]),clamp(c.z,k.min[2],k.max[2]));const dq=q.distanceTo(c);if(dq<bd){bd=dq;aimT=q.clone()}}
+        for(const k of b.bump.rps){q.set(clamp(c.x,k.ax0,k.ax1),0,clamp(c.z,k.az0,k.az1));q.y=rampH(k,q.x,q.z)-.1;const dq=q.distanceTo(c);if(dq<bd){bd=dq;aimT=q.clone()}}}}
   }
   if(aimT){const dx=aimT.x-b.pos.x,dz=aimT.z-b.pos.z;b.yaw=yawTo(dx,dz);b.pitch=Math.atan2(aimT.y-(b.pos.y+1.38),Math.hypot(dx,dz))}
   else if(ml>.2){b.yaw=yawTo(mx,mz);b.pitch*=.9}
@@ -1974,8 +2100,8 @@ function parseDd(s){return new Set(typeof s==='string'&&s?s.split(';').filter(Bo
 function nameOf(uid){if(uid===Net.uid)return myName;const o=Net.others.get(uid);return o?cleanName(o.v.n):names.get(uid)||'Someone'}
 // Everyone in the room right now: you plus every player whose node is fresh.
 function liveHumans(){
-  const out=[{uid:Net.uid,n:myName,t:myTeamPref,j:Net.j,mv:MAP_V}],now=Net.now();
-  for(const [u,o] of Net.others)if(now-o.ts<LIVE_MS)out.push({uid:u,n:cleanName(o.v.n),t:o.v.t==='b'?'b':'r',j:+o.v.j||o.ts,mv:+o.v.mv||1});
+  const out=[{uid:Net.uid,n:myName,t:myTeamPref,j:Net.j,mv:MAP_V,ev:EDIT_V}],now=Net.now();
+  for(const [u,o] of Net.others)if(now-o.ts<LIVE_MS)out.push({uid:u,n:cleanName(o.v.n),t:o.v.t==='b'?'b':'r',j:+o.v.j||o.ts,mv:+o.v.mv||1,ev:+o.v.ev||0});
   return out;
 }
 function setMyTeam(t,quiet){myTeamPref=t==='b'?'b':'r';if(!quiet){Net.publishSoon();lobbyDirty=true;renderLobby()}}
@@ -2064,7 +2190,9 @@ function onRound(r){
       if(mv>1){const sd=roundSeed(r.seed,r.rn),ns=mapSizeV2(roster.size,sd);generateMap(sd,ns,allCells(roster,ns),mv)}
       else{const ns=clamp(r.ns|0,12,16);generateMap(r.seed>>>0,ns,allCells(roster,ns),1)}
     }
-    if(r.ph!=='end'&&(r.rn|0)!==curRound){curRound=r.rn|0;startOnlineRound()}
+    if(r.ph!=='end'&&(r.rn|0)!==curRound){curRound=r.rn|0;startOnlineRound();
+      // came in after this round began (joined late, or came back): ask the host what has been built and how it is shaped
+      if(r.ph!=='cd')Net.send({type:'bq',r:curRound})}
     applyDead(r);
   }else if(curMatch!=null){
     // back to the lobby: nobody is in a match until the host starts the next one
@@ -2140,8 +2268,31 @@ function handleEvent(e){
     }
   }else if(e.type==='b'){
     if(!sameRound)return;
-    const s={kind:e.k,x:e.x|0,z:e.z|0,L:e.L|0};if(e.k==='wall')s.o=e.o;if(e.k==='ramp')s.dir=e.dir|0;
-    tryBuild(s,null);
+    const s={kind:e.k,x:e.x|0,z:e.z|0,L:e.L|0},tm=roster.get(e.by)||null;if(e.k==='wall')s.o=e.o;if(e.k==='ramp')s.dir=e.dir|0;
+    if(typeof e.ed!=='number'){tryBuild(s,null,tm);return}
+    // an edit: the build message again with the tiles cut out (ed). Only the team that built a piece can reshape it.
+    // (A page from before editing sees a build for a spot that is taken and ignores it, so it keeps the whole piece;
+    // that is why editing is only on when no such page is in the match.)
+    if(!editOn()||!tm)return;
+    let pc=pieces.get(pieceKey(s));
+    if(!pc){if(!tryBuild(s,null,tm,true))return;pc=pieces.get(pieceKey(s))}
+    if(pc.team!==tm)return;
+    if(edit&&edit.pc===pc)closeEdit();
+    editPiece(pc,e.ed);
+  }else if(e.type==='bq'){
+    // someone came in after the round began: the host sends them every piece standing, with its health, shape and team
+    if(sameRound&&Net.amHost&&pieces.size)Net.send({type:'bs',r:curRound,to:String(e.by),p:[...pieces.values()].map(pc=>{const s=pc.spec;return[s.kind[0],s.x,s.z,s.L,s.kind==='wall'?s.o:s.dir|0,Math.ceil(pc.hp),pc.ed,pc.team||'-']})});
+  }else if(e.type==='bs'){
+    if(!sameRound||e.to!==Net.uid||!Array.isArray(e.p))return;
+    for(const it of e.p){
+      if(!Array.isArray(it))continue;
+      const k={w:'wall',f:'floor',r:'ramp'}[it[0]];if(!k)continue;
+      const s={kind:k,x:it[1]|0,z:it[2]|0,L:it[3]|0},tm=it[7]==='r'||it[7]==='b'?it[7]:null;if(k==='wall')s.o=it[4];else if(k==='ramp')s.dir=it[4]|0;
+      let pc=pieces.get(pieceKey(s));
+      if(!pc){if(!tryBuild(s,null,tm,true))continue;pc=pieces.get(pieceKey(s))}
+      if(it[6]!==pc.ed)editPiece(pc,it[6],true);
+      const hp=+it[5];if(hp>0&&hp<pc.hp)damagePiece(pc,pc.hp-hp);
+    }
   }else if(e.type==='kill'){
     const v=String(e.v||''),k=String(e.k||'');
     if(e.r!==curRound||v!==e.by)return;
@@ -2211,6 +2362,8 @@ function hostStart(){
   const now=Math.round(Net.now());
   // the newest layout everyone in the room has a page that can build: v3, v2, or (no mv) the original maze
   const lo=Math.min(...hs.map(h=>h.mv)),mv=lo>=3?{mv:3}:lo>=2?{mv:2}:{};
+  // editing builds is on for this match only if every page in the room can do it (see editOn)
+  if(hs.every(h=>h.ev>=EDIT_V))mv.ed=1;
   Net.tx(cur=>{if(!cur||cur.id!==r.id||cur.ph!=='lobby')return;
     return Object.assign({id:cur.id+1,ends:now,seed:randSeed(),ns:mapSizeFor(ro.size),ph:'cd',pt:now+3500,to:[3,5,10].includes(cur.to)?cur.to:5,rn:1,sr:0,sb:0,ro:fmtRo(ro),dd:'',rw:'',mw:'',fm:0,rz:cur.rz||''},mv)});
 }
@@ -2376,7 +2529,7 @@ const Net={
   // n, c, x, z, h and ts are always sent: the shared database rules expect that shape
   stateOf(){
     const p=player,act=activeOnline();
-    return{n:myName,c:TEAM_HEX[act?roster.get(this.uid):myTeamPref],x:r2(p.pos.x),y:r2(p.pos.y),z:r2(p.pos.z),h:r3(p.yaw),p:r3(p.pitch),hp:Math.max(0,Math.round(p.hp)),sh:Math.round(p.shield),wi:p.wi,rl:p.reloadT>0?1:0,d:act&&p.alive?0:1,rd:curRound,m:curMatch==null?-1:curMatch,t:myTeamPref,k:myKills,j:this.j,mv:MAP_V,ts:Math.round(this.now())};
+    return{n:myName,c:TEAM_HEX[act?roster.get(this.uid):myTeamPref],x:r2(p.pos.x),y:r2(p.pos.y),z:r2(p.pos.z),h:r3(p.yaw),p:r3(p.pitch),hp:Math.max(0,Math.round(p.hp)),sh:Math.round(p.shield),wi:p.wi,rl:p.reloadT>0?1:0,d:act&&p.alive?0:1,rd:curRound,m:curMatch==null?-1:curMatch,t:myTeamPref,k:myKills,j:this.j,mv:MAP_V,ev:EDIT_V,ts:Math.round(this.now())};
   },
   async peek(room){
     const s=await this.db.ref('rooms/'+room+'/players').once('value');let n=0,r=0;
@@ -2572,16 +2725,23 @@ function buildKeysText(){
 }
 function updateHud(dt){
   const p=player,w=WEAPONS[p.wi];
-  if(touchUI){$('tFire').textContent=mode==='build'?'PLACE':'FIRE';$('tAim').classList.toggle('on',!!tAct.aim)}
-  const key=[Math.ceil(p.hp),Math.ceil(p.shield),p.wi,mode,buildType,p.ammo.join(','),p.reloadT>0].join('|');
+  if(touchUI){$('tFire').textContent=mode==='build'?'PLACE':mode==='edit'?'TILE':'FIRE';$('tAim').classList.toggle('on',!!tAct.aim);$('tEdit').classList.toggle('can',!!editAim)}
+  if(editNoteT>0&&(editNoteT-=dt)<=0)editNote='';
+  const key=[Math.ceil(p.hp),Math.ceil(p.shield),p.wi,mode,buildType,p.ammo.join(','),p.reloadT>0,editAim?1:0,editNote].join('|');
   if(key!==lastHud){lastHud=key;
     hud.hpN.textContent=Math.max(0,Math.ceil(p.hp));hud.hpF.style.width=Math.max(0,p.hp)+'%';
     hud.shN.textContent=Math.ceil(p.shield);hud.shF.style.width=(p.shield/50*100)+'%';
     for(let i=0;i<3;i++){$('slot'+i).classList.toggle('on',mode==='combat'&&p.wi===i);$('am'+i).textContent=(p.wi===i&&p.reloadT>0)?'reload':p.ammo[i]+' / '+WEAPONS[i].mag}
     for(const t of ['wall','floor','ramp'])$('slot'+t).classList.toggle('on',mode==='build'&&buildType===t);
-    hud.hint.hidden=mode!=='build';if(mode==='build')hud.hint.textContent='Build · '+buildType+(touchUI?' · tap Place · tap a gun to fight':buildKeysText());
+    // the line of help: a short note (why an edit can't start), the build or edit keys, or "edit this build" while the crosshair is on one of yours
+    const kn=id=>{const c=KB.keys(id)[0];return c?(c==='Mouse0'?'click':KB.name(c)):''};
+    const ht=editNote||(mode==='build'?'Build · '+buildType+(touchUI?' · tap Place · tap a gun to fight':buildKeysText())
+      :mode==='edit'?(touchUI?'Edit · Tile opens or closes a tile · Done to finish':'Edit · '+(kn('fire')||'shoot')+' a tile to open or close it · '+kn('edit')+' done · '+kn('reload')+' whole again · '+(KB.keys('aim').map(KB.name)[0]||'aim')+' cancel')
+      :editAim&&!touchUI&&kn('edit')?kn('edit')+' · edit this build':'');
+    hud.hint.hidden=!ht;if(ht)hud.hint.textContent=ht;
+    if(touchUI){$('tEdit').textContent=mode==='edit'?'DONE':'EDIT';$('tReload').textContent=mode==='edit'?'WHOLE':'RELOAD';$('tAim').textContent=mode==='edit'?'CANCEL':'AIM'}
   }
-  hud.reload.hidden=!(p.reloadT>0);if(p.reloadT>0)hud.reloadF.style.width=(100*(1-p.reloadT/w.reload))+'%';
+  hud.reload.hidden=!(p.reloadT>0||editJob);if(p.reloadT>0)hud.reloadF.style.width=(100*(1-p.reloadT/w.reload))+'%';else if(editJob)hud.reloadF.style.width=(100*(1-editJob.t/EDIT_T))+'%';
   const ads=isADS();const scoped=ads&&w.id==='sr';hud.scope.hidden=!scoped;
   const sp=mode==='build'?.004:(w.pellets>1?(ads?w.ads:w.hip):curSpread(p,w,ads));
   const gap=4+sp*(VH/2)/Math.tan(camera.fov*Math.PI/360)*.9;
@@ -2712,6 +2872,7 @@ let last=performance.now();
 function frame(now){
   const raw=Math.min(1,Math.max(0,(now-last)/1000)),dt=Math.min(.05,raw);last=now;
   const running=state==='playing'&&(!paused||online);
+  editGuard();
   if(running&&!online){
     matchTime+=raw;
     // practice round timers run on the wall clock
@@ -2781,7 +2942,10 @@ function pressCode(c,key,repeat){
   const gi=GUNS.findIndex(a=>KB.is(a,c)),bi=BUILDS.findIndex(a=>KB.is(a,c));
   if(gi>=0){switchWeapon(player,gi);mode='combat'}
   else if(bi>=0){mode='build';buildType=BUILDS[bi];player.reloadT=0}
+  else if(KB.is('edit',c)){if(!repeat&&canAct())editKey()}
+  else if(KB.is('aim',c)&&mode==='edit'){if(!repeat)closeEdit()}
   else if(key&&KB.is('aim',c)&&mode==='build'&&!repeat)mode='combat';
+  else if(KB.is('reload',c)&&mode==='edit'){if(!repeat)confirmEdit(true)}
   else if(KB.is('reload',c)&&mode==='combat')startReload(player);
   else if(c==='Escape'){if(!locked)pauseGame()}
   else if(KB.is('pause',c))pauseGame();
@@ -2838,8 +3002,10 @@ function tButton(el,down,up){
 }
 tButton($('tFire'),()=>{if(canAct())tAct.fire=true},()=>{tAct.fire=false});
 tButton($('tJump'),()=>{if(canAct())tAct.jump=true},()=>{tAct.jump=false});
-tButton($('tAim'),()=>{if(canAct()){tAct.aim=!tAct.aim;if(tAct.aim)mode='combat'}},()=>{$('tAim').classList.toggle('on',!!tAct.aim)});
-tButton($('tReload'),()=>{if(canAct()&&mode==='combat')startReload(player)});
+tButton($('tAim'),()=>{if(!canAct())return;if(mode==='edit'){closeEdit();return}tAct.aim=!tAct.aim;if(tAct.aim)mode='combat'},()=>{$('tAim').classList.toggle('on',!!tAct.aim)});
+tButton($('tReload'),()=>{if(!canAct())return;if(mode==='edit')confirmEdit(true);else if(mode==='combat')startReload(player)});
+// Edit: start editing the build you're aiming at; while editing it reads Done (and Reload reads Whole, Aim reads Cancel)
+tButton($('tEdit'),()=>{if(canAct())editKey()});
 tButton($('tPause'),()=>{tAct.aim=false;pauseGame()});
 // Out of the round: Next, or a tap on the view (like a click with a mouse), watches the next living player.
 tButton($('tNext'),()=>{if(isSpectating())cycleSpectate()});
@@ -2913,6 +3079,7 @@ if(navigator.webdriver)window.__br={get state(){return state},get online(){retur
   fire(){const w=WEAPONS[player.wi];updateCamera(0);playerShoot();player.ammo[player.wi]=w.mag;player.cd=0},
   setWeapon(i){switchWeapon(player,i);player.switchT=0;mode='combat'},
   // find tags: the round clock they run on, and a shift (seconds) so a test need not wait a minute and a half
+  get edit(){return edit},get editJob(){return editJob},get editAim(){return editAim},openEdit,closeEdit,confirmEdit,editKey,editTile,editTarget,editOn,canEdit,updatePlayer,updateCamera,EDIT:{range:EDIT_RANGE,t:EDIT_T,v:EDIT_V},
   get findT(){return findClock()},get findShift(){return findShift},set findShift(v){findShift=+v||0},findEnv,tags:()=>tagEls,FIND:{at:FIND_AT,every:FIND_EVERY,show:FIND_SHOW}};
 
 setDiff(diffKey);setSens(sens);
