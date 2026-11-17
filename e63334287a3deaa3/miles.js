@@ -141,7 +141,10 @@
     // EARNED, not given (earned: true: a line for it in AWARDS is ignored): the Slipstream ace, whoever leads the most
     // Slipstream tracks, 3 or more (see "Earned awards" below). Slipstream's near-black and racing red: a chequered flag.
     slipstream: { earned: true, n: 'Slipstream ace', tip: 'Leads the most Slipstream tracks', disc: '#0B0D14', rim: '#FF2A36', band: 'linear-gradient(90deg,#C8102E,#E0162F)', ink: '#fff',
-      icon: '<path d="M4.4 3.4v9.4" stroke="#FFD21F" stroke-width="1.3" stroke-linecap="round"/><path d="M5 3.8h7.4v5.6H5z" fill="#fff"/><path d="M5 3.8h1.85v1.87H5zM8.7 3.8h1.85v1.87H8.7zM6.85 5.67H8.7v1.86H6.85zM10.55 5.67h1.85v1.86h-1.85zM5 7.53h1.85V9.4H5zM8.7 7.53h1.85V9.4H8.7z" fill="#0B0D14"/>' }
+      icon: '<path d="M4.4 3.4v9.4" stroke="#FFD21F" stroke-width="1.3" stroke-linecap="round"/><path d="M5 3.8h7.4v5.6H5z" fill="#fff"/><path d="M5 3.8h1.85v1.87H5zM8.7 3.8h1.85v1.87H8.7zM6.85 5.67H8.7v1.86H6.85zM10.55 5.67h1.85v1.86h-1.85zM5 7.53h1.85V9.4H5zM8.7 7.53h1.85V9.4H8.7z" fill="#0B0D14"/>' },
+    // Boostball's navy, blue and boost orange: the ball with a boost flame behind it.
+    boostball: { n: 'Boostball star', tip: 'Awarded for dedication to Boostball', disc: '#0E1B3A', rim: '#FF8A1F', band: 'linear-gradient(90deg,#2F7BFF,#6AA6FF)', ink: '#fff',
+      icon: '<path d="M2.4 12.9l3.4-4.6 2.2 2.6z" fill="#FF8A1F"/><path d="M3.9 11.7l2-2.6 1.2 1.5z" fill="#FFD23F"/><circle cx="9.6" cy="6.6" r="3.7" fill="#fff"/><path d="M9.6 4.9l1.55 1.13-.6 1.82H8.65l-.6-1.82z" fill="#0E1B3A"/>' }
   };
   // Who holds which, by account uid (the same public ids as OWNERS above: find one on the admin page or among the
   // leaderboard's rooms/lb-all/players keys; never match on names). One line per person: 'uid': ['kind', …], with a
@@ -149,7 +152,9 @@
   // Accounts the admin page has merged into one person share the award (see awardsOf), so list any one of them: the
   // one the Leaderboards show.
   var AWARDS = {
-    'EpYqfXPGCnR5PQ0X0iRcMTbuwzz2': ['updraft']   // Morgan ("morgan"): first on the Miles board, the most Updraft play time and the first to its Crown
+    'EpYqfXPGCnR5PQ0X0iRcMTbuwzz2': ['updraft'],   // Morgan ("morgan"): first on the Miles board, the most Updraft play time and the first to its Crown
+    '6QQvFAzdtMeJdAUSPwHd6v2zaDk1': ['boostball'],   // Nico (Google sign-in, "Negus"): a Boostball badge, asked for by Nico
+    'QaJlsT7SVnf85IK1PRHFpR9Zbln2': ['boostball']    // Nico ("nico"): the same person's other account
   };
   var LAP_PER_TRACK = 200, LAP_CAP = 2000, LAP_WINDOW = 2.5, REC_EACH = 100, REC_CAP = 1000;
 
