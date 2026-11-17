@@ -71,6 +71,13 @@
       'With it off you get the winter page: snow, a tree, a snowman, a menorah, a diya, gingerbread and lights. Buttons are blue for the season.',
       'It stays until January 6. The Cabin button shows the cabin again, and the ❄ button in the footer turns all of it off.'
     ]},
+    {date: '2026-11-17', title: 'Capture the flag in Shell Crackers', kind: 'feature',
+     tags: ['Shell Crackers'], items: [
+      'A new mode: two teams, Red and Blue, a flag each. Grab the other team\'s flag and carry it back to your own stand to score. First to 3 captures wins.',
+      'You can only score while your own flag is home. A dropped flag goes back when a team-mate touches it, or after 20 seconds.',
+      'Carrying a flag makes you a little slower, you can\'t scope, and everyone can see where you are.',
+      'Pick Capture the flag on the menu, then Practice (3 v 3 with bots), Play in room or Quick match. It works on all six maps and doesn\'t change your rating.'
+    ]},
     {date: '2026-11-17', title: 'Three new Shell Crackers maps', kind: 'feature',
      tags: ['Shell Crackers'], items: [
       'Deep Freeze: a cold store, all indoors. Tight corridors, a freezer hall, a catwalk over it and a control room above each corridor.',
