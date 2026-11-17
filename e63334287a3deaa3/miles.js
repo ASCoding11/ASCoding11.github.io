@@ -21,6 +21,7 @@
  *                       Leaderboards' Miles board it is a <span class="bra-tw"> holding the pill and a "#1 all time",
  *                       "#2 this week" … tag: gold, silver, bronze (see "#1 on the Miles board" below). For someone
  *                       with an award (AWARDS below) the wrapper also holds a ribbon for each, after the pill and the tags
+ *                       (given awards first, then the earned one, the Slipstream ace)
  *   awardsOf(result)    the awards (keys of AWARD_KINDS) a result's player was given, [] for most people; also takes a uid
  *   aceOf(result)       how many Slipstream tracks a result's player leads if they hold the Slipstream ace (the earned
  *                       award: see "Earned awards" below), else 0; also takes a uid
@@ -422,7 +423,7 @@
   // the same answer as the #1 tags (setTops: ace, the holders' uids with their merged accounts, and aceN, the tracks they
   // lead), so it is cached and shared the same way, costs no read and no write, and moves whenever the boards are read.
   // The number is the tooltip's ("Leads 4 Slipstream tracks"). Takes a result or a uid.
-  var ACE_MIN = 3;
+  var ACE_MIN = 3;   // the same number as leaderboard.js's ACE_MIN: an answer claiming fewer tracks is not believed
   function aceOf(res) {
     var c = liveTops(); if (!c || !c.aceN) return 0;
     return idsOf(res).some(function (u) { return c.ace.indexOf(u) >= 0; }) ? c.aceN : 0;
