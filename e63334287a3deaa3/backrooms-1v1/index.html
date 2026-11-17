@@ -573,6 +573,7 @@ function gradBox(w,h,d){const geo=new THREE.BoxGeometry(w,h,d);const p=geo.attri
 function joinGeos(list){
   const out=new THREE.BufferGeometry(),idx=[];let n=0;
   for(const k of ['position','normal','uv','color']){
+    if(!list[0].attributes[k])continue;
     const size=k==='uv'?2:3,a=new Float32Array(list.reduce((t,g)=>t+g.attributes[k].array.length,0));let o=0;
     for(const g of list){a.set(g.attributes[k].array,o);o+=g.attributes[k].array.length}
     out.setAttribute(k,new THREE.BufferAttribute(a,size));
@@ -1119,36 +1120,125 @@ function placeObj(obj,s){
   else if(s.kind==='floor')obj.position.set(s.x*4+2,s.L*4,s.z*4+2);
   else{obj.position.set(s.x*4+2,s.L*4+2,s.z*4+2);obj.rotation.y=DIR_YAW[s.dir]}
 }
-function makePiece(s){
-  const mat=plyMat.clone();let obj,solid=null,ramp=null;
-  if(s.kind==='wall'){obj=new THREE.Mesh(geoPWall,mat);
-    solid=s.o==='H'?{min:[s.x*4,s.L*4,s.z*4-.125],max:[s.x*4+4,s.L*4+4,s.z*4+.125]}:{min:[s.x*4-.125,s.L*4,s.z*4],max:[s.x*4+.125,s.L*4+4,s.z*4+4]}}
-  else if(s.kind==='floor'){obj=new THREE.Mesh(geoPFloor,mat);solid={min:[s.x*4,s.L*4-.125,s.z*4],max:[s.x*4+4,s.L*4+.125,s.z*4+4]}}
-  else{obj=new THREE.Group();const inner=new THREE.Mesh(geoPRamp,mat);inner.rotation.x=-Math.PI/4;obj.add(inner);ramp={x0:s.x*4,z0:s.z*4,base:s.L*4,dir:s.dir}}
+// Editing. A piece is a grid of tiles, and its edit (ed) has one bit for each tile that has been cut out; 0 is the whole
+// piece. A wall is 3 x 3 (u along the wall towards +x or +z, v up), a floor 2 x 2 (u along x, v along z) and a ramp
+// 2 x 2 (u up the slope, v across it towards +z or +x); tile (u,v) is bit v*n+u. The tiles that are left are joined into
+// as few rectangles as it takes (edRects), and each rectangle is one ordinary solid box, or for a ramp one ordinary ramp
+// sheet with a smaller footprint (pieceShape). So movement, pushOut / rampOut and shots treat an edited piece with the
+// very code they use for a whole one: you walk through a door and shoot through a window because no box is there, and
+// what is left blocks from every side. The picture is one mesh made of the same rectangles (pieceGeo).
+const ED_N={wall:3,floor:2,ramp:2};
+const edFull=k=>(1<<ED_N[k]*ED_N[k])-1;
+const edOk=(k,m)=>Number.isInteger(m)&&m>=0&&m<edFull(k);   // at least one tile has to stay
+// runs of tiles along u in each row, then equal runs in rows next to each other joined: [u0,v0,u1,v1), ends not included
+function edRects(n,mask){
+  const out=[];
+  for(let v=0;v<n;v++)for(let u=0;u<n;u++){
+    if(mask>>(v*n+u)&1)continue;
+    let e=u+1;while(e<n&&!(mask>>(v*n+e)&1))e++;
+    const q=out.find(k=>k[0]===u&&k[2]===e&&k[3]===v);
+    if(q)q[3]=v+1;else out.push([u,v,e,v+1]);
+    u=e-1;
+  }
+  return out;
+}
+function pieceShape(s,mask){
+  const n=ED_N[s.kind],x0=s.x*4,z0=s.z*4,y0=s.L*4,boxes=[],rps=[];
+  for(const [u0,v0,u1,v1] of edRects(n,mask)){
+    if(s.kind==='wall'){
+      const a0=u0*4/n,a1=u1*4/n,b0=y0+v0*4/n,b1=y0+v1*4/n;
+      boxes.push(s.o==='H'?{min:[x0+a0,b0,z0-.125],max:[x0+a1,b1,z0+.125]}:{min:[x0-.125,b0,z0+a0],max:[x0+.125,b1,z0+a1]});
+    }else if(s.kind==='floor')boxes.push({min:[x0+u0*2,y0-.125,z0+v0*2],max:[x0+u1*2,y0+.125,z0+v1*2]});
+    else{
+      // a ramp sheet: the whole ramp's slope (x0, z0, base, dir), over the part of its cell from t0 to t1 up the slope
+      // (ax0..ax1 by az0..az1 on the ground)
+      const t0=u0/2,t1=u1/2,lo=s.dir<2?t0*4:4-t1*4,hi=s.dir<2?t1*4:4-t0*4,r={x0,z0,base:y0,dir:s.dir,t0,t1};
+      if(s.dir%2===0){r.ax0=x0+lo;r.ax1=x0+hi;r.az0=z0+v0*2;r.az1=z0+v1*2}
+      else{r.az0=z0+lo;r.az1=z0+hi;r.ax0=x0+v0*2;r.ax1=x0+v1*2}
+      rps.push(r);
+    }
+  }
+  return{boxes,rps};
+}
+// One geometry for an edited piece, in the frame its whole mesh uses (see placeObj), with the plywood texture laid
+// over the piece as a whole so a cut board still reads as one board.
+function pieceGeo(s,mask){
+  const n=ED_N[s.kind],list=[];
+  for(const [u0,v0,u1,v1] of edRects(n,mask)){
+    const w=(u1-u0)*4/n,h=(v1-v0)*4/n,cu=(u0+u1)*2/n-2,cv=(v0+v1)*2/n-2;let g;
+    if(s.kind==='wall'){g=new THREE.BoxGeometry(w,h,.25);g.translate(s.o==='V'?-cu:cu,cv,0)}
+    else if(s.kind==='floor'){g=new THREE.BoxGeometry(w,.25,h);g.translate(cu,0,cv)}
+    else{g=new THREE.BoxGeometry(h,.25,w*Math.SQRT2);g.translate(s.dir===0||s.dir===3?-cv:cv,0,cu*Math.SQRT2)}
+    list.push(g);
+  }
+  const geo=joinGeos(list),p=geo.attributes.position,uv=geo.attributes.uv;
+  for(let i=0;i<p.count;i++)uv.setXY(i,(p.getX(i)+2)/4,s.kind==='wall'?(p.getY(i)+2)/4:s.kind==='floor'?(p.getZ(i)+2)/4:p.getZ(i)/(4*Math.SQRT2)+.5);
+  return geo;
+}
+const wholeGeo=k=>k==='wall'?geoPWall:k==='floor'?geoPFloor:geoPRamp;
+function dropShape(pc){
+  for(const b of pc.boxes){const i=solids.indexOf(b);if(i>=0)solids.splice(i,1)}
+  for(const r of pc.rps){const i=ramps.indexOf(r);if(i>=0)ramps.splice(i,1)}
+  pc.boxes=[];pc.rps=[];
+}
+// Give a piece its shape: the collision boxes or ramp sheets, and the one mesh. (solid / ramp: the first of them, which
+// for a whole piece is the only one.)
+function shapePiece(pc,ed){
+  dropShape(pc);
+  const sh=pieceShape(pc.spec,ed),whole=wholeGeo(pc.spec.kind);
+  pc.ed=ed;pc.boxes=sh.boxes;pc.rps=sh.rps;pc.solid=sh.boxes[0]||null;pc.ramp=sh.rps[0]||null;
+  for(const b of sh.boxes){b.piece=pc;solids.push(b)}
+  for(const r of sh.rps){r.piece=pc;ramps.push(r)}
+  if(pc.mesh.geometry!==whole)pc.mesh.geometry.dispose();
+  pc.mesh.geometry=ed?pieceGeo(pc.spec,ed):whole;
+}
+// team: whose build it is, which decides who may edit it. Online 'r' or 'b'; in practice 'me' or 'bot'.
+function makePiece(s,team){
+  const mat=plyMat.clone();let obj,mesh;
+  if(s.kind==='wall')obj=mesh=new THREE.Mesh(geoPWall,mat);
+  else if(s.kind==='floor')obj=mesh=new THREE.Mesh(geoPFloor,mat);
+  else{obj=new THREE.Group();mesh=new THREE.Mesh(geoPRamp,mat);mesh.rotation.x=-Math.PI/4;obj.add(mesh)}
   placeObj(obj,s);
-  const pc={key:pieceKey(s),spec:s,hp:PHP[s.kind],max:PHP[s.kind],obj,mat,solid,ramp,pop:0};
-  if(solid){solid.piece=pc;solids.push(solid)}
-  if(ramp){ramp.piece=pc;ramps.push(ramp)}
+  const pc={key:pieceKey(s),spec:s,hp:PHP[s.kind],max:PHP[s.kind],obj,mesh,mat,solid:null,ramp:null,boxes:[],rps:[],ed:0,team:team||null,pop:0};
+  shapePiece(pc,0);
   obj.scale.setScalar(.82);
   pieceGroup.add(obj);pieces.set(pc.key,pc);
   return pc;
 }
-// owner: the entity that built it. Your own builds online are sent to everyone else in the room.
-function tryBuild(s,owner){
+// a piece (or a part of one put back by an edit) that lands on a body moves the body out rather than trapping it: out
+// of a wall or floor the shortest way (pushOut), up onto a ramp or out from inside it some other way (rampOut)
+function clearBodies(pc){
+  for(const e of ents){
+    if(!e.alive||!e.present||e.snaps)continue;   // other players are moved by their own browser
+    if(pc.boxes.some(b=>overlap(e.pos.x,e.pos.y,e.pos.z,b)))pushOut(e);
+    if(pc.rps.some(r=>inRamp(r,e.pos.x,e.pos.y,e.pos.z)))rampOut(e,true);
+  }
+}
+function myBuildTeam(){return online?player.team||null:'me'}
+// owner: the entity that built it (null: another player, whose team is given). Your own builds online are sent to
+// everyone else in the room.
+function tryBuild(s,owner,team,quiet){
   if(!specValid(s))return false;
-  const pc=makePiece(s);
-  // a wall or floor that lands on you (or the Entity) shoves you out of it rather than trapping you inside
-  if(pc.solid)for(const e of [player,opp])if(e.alive&&e.present&&overlap(e.pos.x,e.pos.y,e.pos.z,pc.solid))pushOut(e);
-  // a ramp that lands on you lifts you onto it (or moves you out from inside it some other way: see rampOut)
-  if(pc.ramp)for(const e of [player,opp])if(e.alive&&e.present&&inRamp(pc.ramp,e.pos.x,e.pos.y,e.pos.z))rampOut(e,true);
-  sfxBuild(owner===player?1:1/(1+camera.position.distanceTo(pc.obj.position)*.08));
+  const pc=makePiece(s,owner===player?myBuildTeam():owner===opp?'bot':team);
+  clearBodies(pc);
+  if(!quiet)sfxBuild(owner===player?1:1/(1+camera.position.distanceTo(pc.obj.position)*.08));
   if(online&&owner===player)Net.send({type:'b',k:s.kind,x:s.x,z:s.z,L:s.L,o:s.o||'',dir:s.dir||0,r:roundNo()});
+  return true;
+}
+// Change a piece's shape to ed (0: whole again). Refused if it would leave no tile. Tiles that come back can land on a
+// body, like a new build.
+function editPiece(pc,ed){
+  if(!pc||!pieces.has(pc.key)||!edOk(pc.spec.kind,ed))return false;
+  if(ed===pc.ed)return true;
+  shapePiece(pc,ed);clearBodies(pc);
+  pc.pop=.55;
+  sfxBuild(1/(1+camera.position.distanceTo(pc.obj.position)*.08));
   return true;
 }
 function removePiece(pc,fx){
   pieceGroup.remove(pc.obj);pc.mat.dispose();
-  if(pc.solid){const i=solids.indexOf(pc.solid);if(i>=0)solids.splice(i,1)}
-  if(pc.ramp){const i=ramps.indexOf(pc.ramp);if(i>=0)ramps.splice(i,1)}
+  if(pc.mesh.geometry!==wholeGeo(pc.spec.kind))pc.mesh.geometry.dispose();
+  dropShape(pc);
   pieces.delete(pc.key);
   if(fx){debris(pc.obj.position);sfxBreak(1/(1+camera.position.distanceTo(pc.obj.position)*.07))}
 }
@@ -1208,20 +1298,21 @@ function pushOut(e){
 // how far up the ramp a point is: 0 at the low edge, 1 at the high edge
 function rampT(r,x,z){switch(r.dir){case 0:return (x-r.x0)/4;case 1:return (z-r.z0)/4;case 2:return (r.x0+4-x)/4;default:return (r.z0+4-z)/4}}
 function rampH(r,x,z){
-  if(x<r.x0||x>r.x0+4||z<r.z0||z>r.z0+4)return -1;
+  if(x<r.ax0||x>r.ax1||z<r.az0||z>r.az1)return -1;
   return r.base+.15+4*clamp(rampT(r,x,z),0,1);
 }
 // Ramps are solid: nothing walks or jumps through one, from any side. The sheet is RAMP_UNDER thick below the surface you
 // walk on (as drawn). With the middle of a body over a ramp, the body is clear of it in two cases only: on top (feet no
 // more than a step below the surface, which is how you step onto the low end or land on it from a jump), or underneath
 // with its head below the underside at the lowest point over the body (rampUnder: R further down the slope than the
-// middle). Anything in between is inside the ramp.
+// middle). Anything in between is inside the ramp. An edited ramp is one or two sheets of the same slope with a smaller
+// footprint (ax0..az1, from t0 to t1 up the slope): the same rules, each over its own part of the cell.
 const RAMP_UNDER=.33;
-function rampUnder(r,x,z){return r.base+.15+4*clamp(rampT(r,x,z)-R/4,0,1)-RAMP_UNDER}
+function rampUnder(r,x,z){return r.base+.15+4*clamp(rampT(r,x,z)-R/4,r.t0,r.t1)-RAMP_UNDER}
 function inRamp(r,x,y,z){const h=rampH(r,x,z);return h>=0&&y<h-STEP-.01&&y+H>rampUnder(r,x,z)+.01}
 function rampAt(x,y,z){for(const r of ramps)if(inRamp(r,x,y,z))return r;return null}
 // a move into a ramp (one you were not already inside)
-function rampBlocks(nx,y,nz,ox,oz){for(const r of ramps)if(inRamp(r,nx,y,nz)&&!inRamp(r,ox,y,oz))return true;return false}
+function rampBlocks(nx,y,nz,ox,oz){for(const r of ramps)if(inRamp(r,nx,y,nz)&&!inRamp(r,ox,y,oz))return r;return null}
 // A body inside a ramp (one was built where it stands) is moved out the shortest way that is free: up onto the ramp, down
 // under it, along the slope to where there is head room underneath or to where the ramp is low enough to step onto, or out
 // of either side. lift (a ramp just built on you): up onto it first if that is no more than 2 m, so a ramp placed in
@@ -1230,11 +1321,11 @@ function rampOut(e,lift){
   const p=e.pos;let moved=false;
   for(let i=0;i<4;i++){
     const r=rampAt(p.x,p.y,p.z);if(!r)break;
-    const t=rampT(r,p.x,p.z),a=r.dir%2===0?0:2,o=2-a,sg=r.dir<2?1:-1,rel=p.y-r.base-.15,po=o===0?p.x:p.z,o0=o===0?r.x0:r.z0;
+    const t=rampT(r,p.x,p.z),a=r.dir%2===0?0:2,o=2-a,sg=r.dir<2?1:-1,rel=p.y-r.base-.15,po=o===0?p.x:p.z,o0=o===0?r.ax0:r.az0,o1=o===0?r.ax1:r.az1;
     const up=[rampH(r,p.x,p.z)-p.y,1];
     const c=[up,[rampUnder(r,p.x,p.z)-H-p.y,1],
-      [sg*(4*(Math.min(1,(rel+H+RAMP_UNDER)/4+R/4)-t)+.004),a],[-sg*(4*(t-Math.max(0,(rel+STEP)/4))+.004),a],
-      [o0-.004-po,o],[o0+4.004-po,o]].sort((x,y)=>Math.abs(x[0])-Math.abs(y[0]));
+      [sg*(4*(Math.min(r.t1,(rel+H+RAMP_UNDER)/4+R/4)-t)+.004),a],[-sg*(4*(t-Math.max(r.t0,(rel+STEP)/4))+.004),a],
+      [o0-.004-po,o],[o1+.004-po,o]].sort((x,y)=>Math.abs(x[0])-Math.abs(y[0]));
     if(lift&&up[0]<=2)c.unshift(up);
     const [d,ax]=c.find(k=>shoveClear(p,k[0],k[1],[])&&!rampAt(p.x+(k[1]===0?k[0]:0),p.y+(k[1]===1?k[0]:0),p.z+(k[1]===2?k[0]:0)))||c[0];
     if(ax===0){p.x+=d;e.vel.x=0}
@@ -1257,18 +1348,18 @@ function groundAt(x,z,maxY){
 // shorter than the thinnest wall, so nothing can be skipped over; at normal frame rates that's the one step as before.
 // Ramps block the same way (rampBlocks), and a jump under one stops at its underside.
 function moveEntity(e,dt){
-  const p=e.pos;e.blocked=false;
+  const p=e.pos;e.blocked=false;e.bump=null;
   pushOut(e);rampOut(e);
   const sx=p.x,sz=p.z;
   const n=Math.min(16,Math.max(1,Math.ceil(Math.hypot(e.vel.x,e.vel.z)*dt/.25)));
   for(let i=0;i<n;i++)for(const ax of [0,2]){
     const delta=(ax===0?e.vel.x:e.vel.z)*dt/n;if(!delta)continue;
     const nx=ax===0?p.x+delta:p.x,nz=ax===2?p.z+delta:p.z;
-    const s=blockedAt(nx,p.y,nz,p.x,p.z);
-    if(!s&&!rampBlocks(nx,p.y,nz,p.x,p.z)){p.x=nx;p.z=nz;continue}
+    const s=blockedAt(nx,p.y,nz,p.x,p.z),rb=s?null:rampBlocks(nx,p.y,nz,p.x,p.z);
+    if(!s&&!rb){p.x=nx;p.z=nz;continue}
     const up=s?s.max[1]-p.y:0;
     if(up>0&&up<=STEP&&e.onGround&&!solidAt(nx,s.max[1]+.001,nz)&&!rampAt(nx,s.max[1]+.001,nz)){p.x=nx;p.z=nz;p.y=s.max[1]+.001;continue}
-    if(ax===0)e.vel.x=0;else e.vel.z=0;e.blocked=true;
+    if(ax===0)e.vel.x=0;else e.vel.z=0;e.blocked=true;e.bump=(s||rb).piece||e.bump;
   }
   p.x=clamp(p.x,R+.15,W-R-.15);p.z=clamp(p.z,R+.15,W-R-.15);
   e.vel.y-=G*dt;
@@ -1308,7 +1399,7 @@ function rayRamp(o,d,r,maxT){
   const den=d[1]-s*d[a];if(Math.abs(den)<1e-6)return -1;
   const k=-fo/den;if(k<0||k>maxT)return -1;
   const px=o[0]+d[0]*k,pz=o[2]+d[2]*k;
-  if(px<r.x0-.01||px>r.x0+4.01||pz<r.z0-.01||pz>r.z0+4.01)return -1;
+  if(px<r.ax0-.01||px>r.ax1+.01||pz<r.az0-.01||pz>r.az1+.01)return -1;
   return k;
 }
 function hitboxes(e){const p=e.pos;return[{head:true,min:[p.x-.28,p.y+1.5,p.z-.28],max:[p.x+.28,p.y+2.06,p.z+.28]},{head:false,min:[p.x-.42,p.y,p.z-.42],max:[p.x+.42,p.y+1.5,p.z+.42]}]}
@@ -2812,7 +2903,7 @@ if(navigator.webdriver)window.__br={get state(){return state},get online(){retur
   Net,player,opp,remotes,names,kills,setMyTeam,hostStart,hostRandomize,hostSetTarget,hostToLobby,cellFor,camTarget,cycleSpectate,isSpectating,handleEvent,damageEntity,raycast,startPractice,toMenu,joinPrivate,liveHumans,
   hitboxes,solids:()=>solids,ramps:()=>ramps,pieces,walls:()=>({h:hWall,v:vWall}),keys,renderer,scene,camera,
   // collision audit: the real movement, building and interpolation code, driven step by step
-  moveEntity,tryBuild,specValid,damagePiece,inRamp,rampAt,generateMap,spawn,soloCell,teamCells,wallSpec,playerBuildSpec,updateRemotes,makeRemote,updateBot,
+  moveEntity,tryBuild,specValid,damagePiece,inRamp,rampAt,editPiece,edRects,edFull,edOk,pieceShape,groundAt,pushOut,rampOut,resolveShot,generateMap,spawn,soloCell,teamCells,wallSpec,playerBuildSpec,updateRemotes,makeRemote,updateBot,
   mapSizeV2,roundSeed,fairV2,MAP_V,get mapKey(){return mapKey},
   mapInfo(){const L=mapInfo;if(!L)return null;const fl=[];for(let x=0;x<N;x++)for(let z=0;z<N;z++)if(L.group[x][z]>=0)(fl[L.group[x][z]]=fl[L.group[x][z]]||[]).push([x,z]);
     return{v:L.v,light:L.light,tint:L.tint.map((c,x)=>c.map((t,z)=>L.ftint[x][z]||t)),voids:voidC,flick:fl.filter(Boolean),special:L.special,spawns:L.spawns,styles:L.styles,regs:L.regs,mirrored:!!L.mirrored,tries:L.tries,low:{h:lowH,v:lowV},jambs:L.jambs||[],rid:L.rid||null}},
