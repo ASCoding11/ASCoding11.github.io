@@ -553,6 +553,9 @@
     // An anonymous account merged in just now brings its avatar along if this account has none of its own.
     var av = okAv(x.av) ? x.av : okAv(cur.av) ? cur.av : absAv;
     if (av && !(av === 'a0' && !okAv(cur.av))) nd.av = av;
+    // The colour of the player's name tile (avatar.js), kept the same way. Only a Google account publishes its own choice.
+    var nt = x.u && okNt(x.nt) ? x.nt : okNt(cur.nt) ? cur.nt : '';
+    if (nt && !(nt === 't0' && !okNt(cur.nt))) nd.nt = nt;
     // A Google account: say so, with its display name (never the email or photo), so the admin page can tell accounts apart.
     if (x.u) { nd.ga = 1; var gn = cleanName(x.u.displayName, 40); if (gn) nd.gn = gn; }
     // Keep the node small enough for leaderboard.js (8,000 characters): drop the oldest days first.
@@ -574,6 +577,13 @@
     if (n === AV2.length) return 'a2:' + AV2.map(val).join('.');
     // An edit from the first editor that avatar.js hasn't filled out yet (it does when a hub page next loads): its five.
     return !n ? 'a0' : n === AV1.length && AV1.every(set) ? 'a1:' + AV1.map(val).join('.') : '';
+  }
+  // The name tile's colour travels as nt: 't1:<index>' or 't0' (back to the default); avatar.js checks the index before
+  // painting. localNt: this browser's saved choice for this account (localStorage nametile:v1), or '' with nothing to say.
+  function okNt(t) { return typeof t === 'string' && (t === 't0' || /^t1:[1-9]\d?$/.test(t)); }
+  function localNt(uid) {
+    var o = sj('nametile:v1'); if (!obj(o) || o.v !== 1 || o.uid !== uid || !Number.isInteger(o.t) || o.t < 0 || o.t > 99) return '';
+    return o.t ? 't1:' + o.t : 't0';
   }
   function totals(nd) { var out = {}; Object.keys((nd && nd.g) || {}).forEach(function (gk) { if (nd.g[gk].s > 0) out[gk] = nd.g[gk].s; }); return out; }
   function readNode(c, uid) { return c.db.ref(PATH + '/' + uid).once('value').then(function (s) { return s.val(); }); }
@@ -607,7 +617,7 @@
     return pre2.then(function (batch) {
       var keep = Object.keys(o.lkd).filter(function (k) { return o.lkd[k] === uid; });
       var v1 = o.v1 && (!o.v1.u || o.v1.u === uid) ? o.v1 : null;
-      var x = { uid: uid, batch: batch, b: o.b, hw: hwOf(o, uid), v1: v1, abs: abs, keep: keep, n: n, u: u, now: c.now(), av: localAv(uid) };
+      var x = { uid: uid, batch: batch, b: o.b, hw: hwOf(o, uid), v1: v1, abs: abs, keep: keep, n: n, u: u, now: c.now(), av: localAv(uid), nt: localNt(uid) };
       return c.db.ref(PATH + '/' + uid).transaction(function (cur) {
         x.now = c.now();
         return c.J.parse(JSON.stringify(apply(cur, x)));

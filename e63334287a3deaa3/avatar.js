@@ -13,15 +13,25 @@
  *   svg(uid, size, opts)  the avatar as an inline <svg> string, size pixels square (opts.seed draws another set of features;
  *                         opts.box = [x, y, w, h] in the 64-unit drawing shows only that part, for the editor's close-ups)
  *   el(uid, size)         the same inside a <span class="bra-av">, ready to drop next to a name
- *   edit(uid, opener)     opens the editor for this browser's own account (opener gets the focus back when it closes)
- *   editButton(uid, size) the player's own avatar as a button that opens the editor (the Online and Party panels use it)
+ *   edit(uid, opener)     opens the editor for this browser's own account (opener gets the focus back when it closes).
+ *                         Google accounts only: for a guest it opens nothing, returns false and fires
+ *                         `backroom:avatar-locked` on document, which the Online panel answers with its sign-in line
+ *   editButton(uid, size) the player's own avatar as a button that opens the editor (the Online and Party panels use it);
+ *                         for a guest it carries a small padlock in place of the pencil
+ *   google(uid)           true when uid is the Google account this page is signed in as (see "Google only" below)
  *   close()               closes the editor without saving, if it is open
  *   save(uid, choice)     saves a choice (any of the features; the rest stay the uid's own) for that account in this
- *                         browser; null = back to the uid's own
+ *                         browser; null = back to the uid's own. Refused (false) for a guest
  *   mine(uid)             the code this browser should publish for its own uid: 'a2:…', 'a0' (reset) or '' (never edited)
  *   learn(uid, code)      remember the code another player published (checked first; anything odd is ignored)
  *   parse(code), rev      the checked contents of a code (or null); a counter that goes up whenever any avatar changes
  *   FEATURES, PALETTE     the option counts and the background colours
+ *   tile(uid)             the player's name tile colour: 0 (the page's own card colour) or an index into TILES
+ *   paint(el, uid)        colours a card or row (el) with that player's name tile, or takes the colour off; returns the index
+ *   saveTile(uid, i)      saves this browser's own choice (0 = default); Google accounts only, false otherwise
+ *   tileMine(uid)         the code this browser should publish as nt: 't1:<index>', 't0' (back to default) or ''
+ *   learnTile(uid, code)  remember the nt another player published (checked first); parseTile(code) is the check
+ *   TILES                 [{ n: name, bg: '#rrggbb', d: true when the text on it is dark }], TILES[0] the default
  * }
  * The features come from the same hash as the seat tag in social.js (hash('seat:' + uid)), and the drawing never contains
  * text from a node: it is built only from numbers. Some features are newer than the rest and are not drawn from the hash,
@@ -44,8 +54,26 @@
  * device), so it never erases what was learned. Learned codes are kept in localStorage `avatar:seen:v1` (300 people,
  * 30 days) so games in a frame and the next visit draw them straight away.
  * Every page that shows names calls BackRoomAvatar.el when it's there and falls back to a coloured initial when it isn't.
+ *
+ * Name tiles. A player's name sits on a card in the Online panel, the Party panel and the Leaderboards; a player signed
+ * in with Google can pick that card's colour from TILES (fifteen colours and the default). paint() gives the card the
+ * classes bra-nt and bra-nt-<index> (and bra-nt-d on a light colour, where the text goes dark), and the rules at the
+ * bottom of this file set the card's colours and, through the page's own --ink, --ink-2, --accent and --line on the
+ * card's children, everything written on it, so the name, seat, tags and badges stay readable on every colour; the same
+ * colours are used in light and dark mode. Only colours change, so a card keeps its size. The choice is kept in
+ * localStorage `nametile:v1` = { v: 1, uid, t: <index, 0 = default> } (account-nudge.js saves that key with the Google
+ * account) and travels like av, in a sibling field nt: 't1:<index>' (1 to TILES.length - 1, no leading zero) or 't0'
+ * ("I went back to the default"); no nt means "nothing to say". A page from before name tiles never reads nt, so it
+ * draws those players as it always did. Learned codes are kept in localStorage `nametile:seen:v1` (300 people, 30 days).
+ *
+ * Google only. Editing an avatar and choosing a name tile are for players signed in with Google: google(uid) is true
+ * when the site's sign-in (account/account.js, window.SiteAccount, or the parent page's when this is its phone frame)
+ * or a Firebase app on this page says uid is signed in and not anonymous. edit(), save() and saveTile() refuse a guest
+ * and tileMine() says nothing for one; an avatar a guest edited before this rule is still drawn and still published
+ * (mine() is unchanged). This is enforced in the page only: a node doesn't say what kind of account wrote it and the
+ * shared rules aren't checked for it, so readers take a valid av or nt from any node.
  * This file fires `backroom:avatar` on document when it has loaded and whenever an avatar changes (detail.mine when it
- * is this browser's own), so panels redraw and the scripts above publish.
+ * is this browser's own), so panels redraw and the scripts above publish. A name tile changing fires it too.
  */
 (function () {
   'use strict';
@@ -71,6 +99,17 @@
   var CODE_KEYS = ['bg', 'skin', 'face', 'hair', 'hairc', 'eyes', 'eyec', 'brows', 'mouth', 'glasses', 'freckles', 'blush', 'hat', 'hatc', 'shirt'];
   var A1_KEYS = ['skin', 'hairc', 'eyec', 'shirt', 'hat'];
   var KEY = 'avatar:v1', SEEN_KEY = 'avatar:seen:v1', SEEN_MAX = 300, SEEN_DAYS = 30;
+  // Name tiles: the colours a card can take. The order is part of the code that travels (nt: 't1:<index>'), so only add
+  // to the end. d: a light colour, so what is written on it is dark. Every one keeps the name at 5:1 or better and the
+  // small text at 4.5:1 or better against the tile.
+  var TILES = [
+    { n: 'Default', bg: '' },
+    { n: 'Red', bg: '#B3261E' }, { n: 'Orange', bg: '#AD4408' }, { n: 'Amber', bg: '#F2B33D', d: true }, { n: 'Lime', bg: '#A9D24A', d: true },
+    { n: 'Green', bg: '#1B7341' }, { n: 'Teal', bg: '#0B7272' }, { n: 'Sky', bg: '#8AD4F5', d: true }, { n: 'Blue', bg: '#1D5FD0' },
+    { n: 'Indigo', bg: '#4547C9' }, { n: 'Violet', bg: '#7A3FD1' }, { n: 'Pink', bg: '#B82073' }, { n: 'Rose', bg: '#F7A8B8', d: true },
+    { n: 'Brown', bg: '#7B4B2A' }, { n: 'Slate', bg: '#44546A' }, { n: 'Charcoal', bg: '#20242E' }
+  ];
+  var TKEY = 'nametile:v1', TSEEN_KEY = 'nametile:seen:v1';
   var n = 0, rev = 0;
 
   function hash(s) { var h = 2166136261; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h; }
@@ -175,6 +214,127 @@
     return true;
   }
 
+  // ---------------- Google only ----------------
+  // The site's sign-in: on this page, or on the home page when this is its phone frame (same origin).
+  function account() {
+    if (window.SiteAccount && window.SiteAccount.user) return window.SiteAccount;
+    try { var p = window.parent; if (p && p !== window && p.SiteAccount && p.SiteAccount.user) return p.SiteAccount; } catch (e) {}
+    return null;
+  }
+  // Is uid the Google account this page is signed in as? The games sign every browser in anonymously (a guest); a Google
+  // sign-in replaces that with an account whose isAnonymous is false. Asked of the site's sign-in first (it only ever
+  // reports Google accounts), then of the Firebase apps on the page (the phone page on its own has no SiteAccount, but
+  // shares the sign-in of the rest of the site).
+  var hook = null;
+  function google(uid) {
+    uid = String(uid == null ? '' : uid);
+    if (!uid) return false;
+    if (hook && hook.google != null) return !!hook.google;
+    try { var A = account(), u = A && A.user(); if (u && u.uid === uid && u.isAnonymous === false) return true; } catch (e) {}
+    try {
+      var apps = window.firebase && window.firebase.apps ? window.firebase.apps : [];
+      for (var i = 0; i < apps.length; i++) {
+        var a = typeof apps[i].auth === 'function' ? apps[i].auth() : null, cu = a && a.currentUser;
+        if (cu && cu.uid === uid && cu.isAnonymous === false) return true;
+      }
+    } catch (e) {}
+    return false;
+  }
+
+  // ---------------- Name tiles ----------------
+  // This browser's own choice (localStorage nametile:v1), read like the avatar's.
+  var tMem = null, tLastRaw = null, tLastObj = null;
+  function localTile() {
+    var raw = null;
+    try { raw = localStorage.getItem(TKEY); } catch (e) {}
+    if (raw == null) raw = tMem;
+    if (raw === tLastRaw) return tLastObj;
+    var o = null;
+    try { o = JSON.parse(raw || 'null'); } catch (e) { o = null; }
+    tLastRaw = raw; tLastObj = o && typeof o === 'object' && !Array.isArray(o) && o.v === 1 && typeof o.uid === 'string' && idx(o.t, TILES.length) >= 0 ? o : null;
+    return tLastObj;
+  }
+  // 't1:<index>' with the index a colour in TILES (never 0, no leading zero) -> the index; anything else -> 0.
+  function parseTile(code) {
+    if (typeof code !== 'string' || code.length > 5 || !/^t1:[1-9]\d?$/.test(code)) return 0;
+    var i = Number(code.slice(3));
+    return i < TILES.length ? i : 0;
+  }
+  // Codes learned from other players' nodes, kept like the avatars'.
+  var seenT = {}, seenTDay = {}, seenTT = 0;
+  function readSeenT() {
+    seenT = {}; seenTDay = {};
+    try {
+      var o = JSON.parse(localStorage.getItem(TSEEN_KEY) || 'null'), u = o && o.v === 1 && o.u, d = today();
+      if (!u || typeof u !== 'object' || Array.isArray(u)) return;
+      Object.keys(u).slice(0, SEEN_MAX * 2).forEach(function (k) {
+        var e = u[k]; if (!okUid(k) || !Array.isArray(e) || !parseTile(e[0])) return;
+        var day = Number(e[1]); if (!(day <= d + 1) || d - day > SEEN_DAYS) return;
+        seenT[k] = e[0]; seenTDay[k] = day;
+      });
+    } catch (e) {}
+  }
+  function writeSeenT() {
+    clearTimeout(seenTT);
+    seenTT = setTimeout(function () {
+      var keys = Object.keys(seenT), u = {};
+      if (keys.length > SEEN_MAX) {
+        keys.sort(function (a, b) { return seenTDay[b] - seenTDay[a]; });
+        keys.slice(SEEN_MAX).forEach(function (k) { delete seenT[k]; delete seenTDay[k]; });
+        keys = keys.slice(0, SEEN_MAX);
+      }
+      keys.forEach(function (k) { u[k] = [seenT[k], seenTDay[k]]; });
+      try { localStorage.setItem(TSEEN_KEY, JSON.stringify({ v: 1, u: u })); } catch (e) {}
+    }, 800);
+  }
+  // Another player's nt field. A valid code is remembered, 't0' forgets, anything else (missing, junk) changes nothing.
+  function learnTile(uid, code) {
+    if (!okUid(uid) || typeof code !== 'string') return false;
+    if (code === 't0') {
+      if (!seenT[uid]) return false;
+      delete seenT[uid]; delete seenTDay[uid];
+    } else {
+      if (!parseTile(code)) return false;
+      var d = today();
+      if (seenT[uid] === code) { if (seenTDay[uid] !== d) { seenTDay[uid] = d; writeSeenT(); } return false; }
+      seenT[uid] = code; seenTDay[uid] = d;
+    }
+    writeSeenT(); changed(false);
+    return true;
+  }
+  // The tile a uid has now: this browser's saved choice when it is for that account and the account is signed in with
+  // Google, else what its player published, else the default (0).
+  function tile(uid) {
+    uid = String(uid == null ? '' : uid);
+    var o = localTile();
+    if (o && o.uid === uid && google(uid)) return o.t;
+    return seenT[uid] ? parseTile(seenT[uid]) : 0;
+  }
+  // What this browser should publish as nt for its own uid. A guest publishes nothing.
+  function tileMine(uid) {
+    uid = String(uid == null ? '' : uid);
+    if (!uid || !google(uid)) return '';
+    var o = localTile();
+    if (o && o.uid === uid) return o.t ? 't1:' + o.t : 't0';
+    return seenT[uid] || '';
+  }
+  function saveTile(uid, i) {
+    uid = String(uid == null ? '' : uid);
+    if (!uid || !google(uid) || idx(i, TILES.length) < 0) return false;
+    var raw = JSON.stringify({ v: 1, uid: uid, t: Number(i) });
+    try { localStorage.setItem(TKEY, raw); tMem = null; } catch (e) { tMem = raw; }
+    changed(true);
+    return true;
+  }
+  // Colour a card or row with a player's tile (or take the colour off). Only classes change, never the size.
+  function paint(el, uid) {
+    var i = tile(uid);
+    if (!el || !el.classList) return i;
+    for (var j = el.classList.length - 1; j >= 0; j--) if (/^bra-nt(-|$)/.test(el.classList[j])) el.classList.remove(el.classList[j]);
+    if (i) { el.classList.add('bra-nt', 'bra-nt-' + i); if (TILES[i].d) el.classList.add('bra-nt-d'); }
+    return i;
+  }
+
   // Tell the page an avatar changed: at once for our own, a moment later for others' (their nodes arrive in bursts).
   var fireT = 0;
   function fire(mine) { try { document.dispatchEvent(new CustomEvent('backroom:avatar', { detail: { mine: !!mine } })); } catch (e) {} }
@@ -203,7 +363,7 @@
   // uid's own avatar (null).
   function save(uid, choice) {
     uid = String(uid == null ? '' : uid);
-    if (!uid) return false;
+    if (!uid || !google(uid)) return false;                // editing is for Google accounts
     var o = { v: 1, uid: uid }, g = gen(uid), same = true;
     if (choice && typeof choice === 'object') {
       CODE_KEYS.forEach(function (k) { var x = idx(choice[k], FEATURES[k]); o[k] = x >= 0 ? x : g[k]; if (o[k] !== g[k]) same = false; });
@@ -428,6 +588,8 @@
   function rowGet(r, pick) { return r.k === 'cheeks' ? pick.freckles + 2 * pick.blush : pick[r.k]; }
   function rowSet(r, pick, i) { if (r.k === 'cheeks') { pick.freckles = i & 1; pick.blush = i >> 1; } else pick[r.k] = i; }
   var ed = null;
+  // A small padlock, for what a guest can't open yet (numbers only, like every drawing here).
+  var LOCK = '<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" focusable="false"><path d="M5 7 V5 a3 3 0 0 1 6 0 V7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="3" y="7" width="10" height="7.5" rx="1.8" fill="currentColor"/></svg>';
   function mk(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
   function closeEditor() {
     if (!ed) return;
@@ -440,6 +602,8 @@
   function edit(uid, opener) {
     uid = String(uid == null ? '' : uid);
     if (!uid || !document.body) return false;
+    // A guest: nothing opens. The Online panel hears this and points at its "Sign in with Google" line.
+    if (!google(uid)) { try { document.dispatchEvent(new CustomEvent('backroom:avatar-locked')); } catch (e) {} return false; }
     closeEditor();
     // It starts from the avatar the player has now, whether that came from their uid or an earlier edit.
     var cur = seed(uid), base = gen(uid), pick = {}, rows = [];
@@ -518,9 +682,10 @@
 
   // The player's own avatar as a button that opens the editor (a small pencil marks it), for the panels' "You" spots.
   function editButton(uid, size) {
-    var b = mk('button', 'bra-edit'), pen = mk('span', 'bra-pen');
-    b.type = 'button'; b.title = 'Edit avatar'; b.setAttribute('aria-label', 'Edit your avatar');
-    pen.innerHTML = '<svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true" focusable="false"><path d="M2 14 L2.7 10.7 L10.7 2.7 L13.3 5.3 L5.3 13.3 Z" fill="currentColor"/></svg>';
+    var b = mk('button', 'bra-edit'), pen = mk('span', 'bra-pen'), open = google(uid);
+    b.type = 'button'; b.title = open ? 'Edit avatar' : 'Sign in with Google to edit your avatar'; b.setAttribute('aria-label', open ? 'Edit your avatar' : 'Edit your avatar (sign in with Google first)');
+    pen.innerHTML = open ? '<svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true" focusable="false"><path d="M2 14 L2.7 10.7 L10.7 2.7 L13.3 5.3 L5.3 13.3 Z" fill="currentColor"/></svg>' : LOCK.replace('width="12" height="12"', 'width="10" height="10"');
+    if (!open) b.classList.add('bra-locked');
     b.append(el(uid, size), pen);
     b.addEventListener('click', function (e) { e.stopPropagation(); edit(uid, b); });
     return b;
@@ -566,18 +731,31 @@
     '@media (min-width:600px) and (max-height:600px){.bra-ed-box{width:min(820px,100%)}.bra-ed-top{padding:8px 12px 2px 18px}.bra-ed-body{flex-direction:row;padding-top:2px}' +
       '.bra-ed-prev{align-self:flex-start;margin:8px 18px 8px 18px}.bra-ed-opts{border-top:0;border-left:1px solid var(--line,#D8CDB8);padding:8px 18px 10px;gap:10px}' +
       '.bra-ed-f legend{margin-bottom:5px}.bra-ed-foot{padding:6px 18px 8px}}' +
-    '';
+    // Name tiles. The card takes the colour; its children get the page's own colour names pointed at the tile's, so the
+    // name, seat, tags and plain badges written on it follow. Colours only: nothing here changes a size.
+    '.bra-nt.bra-nt.bra-nt{background:var(--nt-bg);border-color:var(--nt-line);color:var(--nt-ink);--nt-ink:#FFFFFF;--nt-ink2:rgba(255,255,255,.9);--nt-line:rgba(255,255,255,.5);--nt-ring:rgba(255,255,255,.92)}' +
+    '.bra-nt.bra-nt-d.bra-nt-d{--nt-ink:#1B1513;--nt-ink2:rgba(27,21,19,.8);--nt-line:rgba(27,21,19,.5);--nt-ring:rgba(27,21,19,.72)}' +
+    '.bra-nt>*{--ink:var(--nt-ink);--ink-2:var(--nt-ink2);--accent:var(--nt-ink2);--accent-ink:var(--nt-bg);--line:var(--nt-line);--panel:var(--nt-bg);--panel-2:var(--nt-bg)}' +
+    // The avatar gets a ring and the solid badges an edge, so neither melts into a tile of its own colour.
+    '.bra-nt .bra-av{box-shadow:0 0 0 2px var(--nt-ring)}' +
+    '.bra-nt .bra-tier-business,.bra-nt .bra-tier-first,.bra-nt .bra-tier-jet,.bra-nt .bra-top-all{border-color:var(--nt-line)}' +
+    TILES.map(function (t, i) { return i ? '.bra-nt-' + i + '{--nt-bg:' + t.bg + '}' : ''; }).join('');
   (document.head || document.documentElement).appendChild(css);
 
-  readSeen(); fillOut();
+  // The automated checks can't sign in with Google, so they can answer google() themselves: null = ask as usual.
+  if (navigator.webdriver) hook = window.__avatarT = { google: null, changed: function () { changed(true); } };
+  readSeen(); readSeenT(); fillOut();
   // Another tab or a game in a frame saved an edit or learned a code.
   try {
     addEventListener('storage', function (e) {
-      if (e.key === KEY) changed(true);
+      if (e.key === KEY || e.key === TKEY) changed(true);
       else if (e.key === SEEN_KEY) { readSeen(); changed(false); }
+      else if (e.key === TSEEN_KEY) { readSeenT(); changed(false); }
     });
   } catch (e) {}
 
-  window.BackRoomAvatar = { seed: seed, gen: gen, svg: svg, el: el, edit: edit, close: closeEditor, editButton: editButton, save: save, mine: mine, learn: learn, parse: parse, get rev() { return rev; }, FEATURES: FEATURES, PALETTE: PALETTE.slice() };
+  window.BackRoomAvatar = { seed: seed, gen: gen, svg: svg, el: el, edit: edit, close: closeEditor, editButton: editButton, save: save, mine: mine, learn: learn, parse: parse, get rev() { return rev; }, FEATURES: FEATURES, PALETTE: PALETTE.slice(),
+    google: google, lock: LOCK, tile: tile, paint: paint, saveTile: saveTile, tileMine: tileMine, learnTile: learnTile, parseTile: parseTile,
+    TILES: TILES.map(function (t) { return { n: t.n, bg: t.bg, d: !!t.d }; }) };
   try { document.dispatchEvent(new CustomEvent('backroom:avatar')); } catch (e) {}
 })();
