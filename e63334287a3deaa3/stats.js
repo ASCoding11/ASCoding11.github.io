@@ -19,6 +19,12 @@
  *   window.BackRoomStats && BackRoomStats.max('height', 812)     a best where higher wins (e.g. most kills in one match)
  * Stat names are short lowercase words (a-z, 0-9, ':' and '-'); a name starting with 'lap:' or 'rec:' (Slipstream's
  * fastest lap and course record per track) or listed in LOWER is a time, where lower wins.
+ * Record seasons (SEASON below): how a game's records are wiped for everyone. Nobody can delete other players' nodes, so
+ * a reset is done with names. Slipstream's lap and race records are kept under names with the season in them: the game
+ * says min('lap:monza', t) and it is stored and published as 'lap:s2:monza' (clap:, rec: and crec: the same way). The same
+ * names with no season or a lower one are from before the reset and are left out everywhere this file meets them (this
+ * browser's store, the node it writes, an account being merged in), so they free their places among the MAX_STATS names a
+ * game may have; leaderboard.js reads only the current season. Play time, Elo and every other game's stats are untouched.
  *
  * Counting once, and only up. Play seconds are kept in this browser as seconds not yet sent, and sent as a batch that is
  * ADDED to the node's totals in a Firebase transaction (an atomic read-modify-write), never as this browser's own idea of
@@ -107,6 +113,23 @@
   // fewest (Hunch, Fourcast), guesses (Hotspot, Nearword, Warmer), tries (Outline, Unfurl), fastest (Crosslet), fast-<level> (Ninefold).
   LOWER.fewest = 1; LOWER.guesses = 1; LOWER.tries = 1; LOWER.fastest = 1;
   LOWER['fast-easy'] = 1; LOWER['fast-medium'] = 1; LOWER['fast-hard'] = 1;
+  // Record seasons: { <folder>: season }. A game listed here has its record stats (SEASONED: names starting lap:, clap:,
+  // rec: or crec:) stored with the season after the prefix, 'lap:s2:<track>'. Slipstream is on season 2 since 17 Nov 2026
+  // (season 1, the names with no season, ended with the track fixes and the gentler barriers). TO RESET A GAME'S RECORDS
+  // AGAIN: raise its number here by one, and the same number in leaderboard.js (SLIP_SEASON, with its date); see README.
+  // Only ever raise it: a name from a season ABOVE this one (a newer copy of this file in another tab) is kept as it is.
+  var SEASON = { slipstream: 2 };
+  var SEASONED = /^(c?(?:lap|rec)):(?:s([1-9]\d?):)?(.+)$/;
+  // The name a game's stat is stored under: a record name given without a season gets the current one.
+  function seasonKey(gk, k) {
+    var n = SEASON[gk], m = n ? SEASONED.exec(k) : null;
+    return m && !m[2] ? m[1] + ':s' + n + ':' + m[3] : k;
+  }
+  // A stored record from before the game's last reset: no season in its name (season 1), or a lower one.
+  function retired(gk, k) {
+    var n = SEASON[gk], m = n ? SEASONED.exec(k) : null;
+    return !!m && (+m[2] || 1) < n;
+  }
   var CFG = {
     apiKey: 'AIzaSyDZD_Ku8cixteXfwkDYzGv3GKiZFF8sRSM',
     authDomain: 'rumblekarts.firebaseapp.com',
@@ -173,6 +196,8 @@
     return lower(k) ? Math.min(a, b) : Math.max(a, b);
   }
   // Rebuild a g object field by field (used on local data and on what we read from a node). noS: bests only.
+  // Records from before a game's last reset (retired) are left out here, which is what removes them from this browser's
+  // store and, at the next publish, from the player's node; so they can never use up the game's MAX_STATS names.
   function cleanG(g, noS) {
     var out = {}, n = 0;
     if (!obj(g)) return out;
@@ -181,7 +206,7 @@
       var src = g[gk], o = {}, m = 0;
       if (!obj(src)) return;
       Object.keys(src).slice(0, MAX_STATS * 2).forEach(function (k) {
-        if (m >= MAX_STATS || !(k === 's' ? !noS : okKey(k))) return;
+        if (m >= MAX_STATS || !(k === 's' ? !noS : okKey(k)) || retired(gk, k)) return;
         var v = k === 's' ? Math.floor(num(src[k])) : clean(k, src[k]);
         if (v > 0 && v < 1e9) { o[k] = v; m++; }
       });
@@ -790,10 +815,12 @@
 
   // ---------------- API ----------------
   if (LIB) {
-    window.BackRoomStatsLib = { link: link, apply: apply, PATH: PATH };
+    window.BackRoomStatsLib = { link: link, apply: apply, PATH: PATH, seasons: SEASON };
   } else {
     var bump = function (k, v, how) {
       if (!okKey(k) || k === 's') return;
+      k = seasonKey(GAME, k);                           // a record of a game with seasons: stored under this season's name
+      if (!okKey(k) || retired(GAME, k)) return;
       v = num(v); if (!(v > 0)) return;
       change(function (o) {
         var g = o.b[GAME]; if (!g) { if (Object.keys(o.b).length >= MAX_GAMES) return; g = o.b[GAME] = {}; }
@@ -804,6 +831,7 @@
     };
     window.BackRoomStats = {
       game: GAME,
+      seasons: SEASON,                                  // record seasons, for leaderboard.js to check its own against
       add: function (k, n) { bump(k, n == null ? 1 : n, 'add'); },
       min: function (k, v) { bump(k, v, 'min'); },
       max: function (k, v) { bump(k, v, 'max'); },
@@ -819,6 +847,6 @@
     load: load, flush: flush, publish: function () { return publish(false); }, engaged: function () { return engaged(Date.now()); },
     local: function (gk) { flush(); var t = load().tc; return gk ? t[gk] || 0 : t; }, apply: apply, cleanDays: cleanDays,
     setIdle: function (ms) { IDLE = ms; }, setGrace: function (ms) { GRACE = ms; }, setPub: function (ms) { PUB_MS = ms; }, setSave: function (ms) { SAVE_MS = ms; },
-    link: link, anyTarget: function () { anyTarget = true; }, localAv: localAv
+    link: link, anyTarget: function () { anyTarget = true; }, localAv: localAv, seasonKey: seasonKey, retired: retired, PATH: PATH
   };
 })();

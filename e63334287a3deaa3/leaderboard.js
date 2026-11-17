@@ -18,7 +18,8 @@
  * nodes that are too big, too old, from the future or the wrong shape are skipped, play time can't exceed 24 hours for
  * every day since the boards started (EPOCH), counts can't grow faster than RATE allows for the time played in that game,
  * each stat has a sane range (Elo 100–3000, a lap no quicker than its track allows, and so on), a best single round can't
- * beat the all-time count it's part of (le), and a course record can't beat that track's fastest lap times the laps. Names are cleaned and
+ * beat the all-time count it's part of (le), and a course record can't beat that track's fastest lap times the laps. Slipstream's
+ * lap and race records have a season (SLIP_SEASON): only the current season's names are read, so a reset wipes them for everyone. Names are cleaned and
  * always shown as text. It signs in through party.js (window.Party), so "You" is the same person as in the panels above.
  *
  * To add a board for a game: give the game a row in GAMES (folder, name, and its stats: key, label, format, unit, range,
@@ -328,6 +329,22 @@
     'us-2023': ['Las Vegas', 51], 'qa-2004': ['Lusail', 45], 'ae-2009': ['Abu Dhabi', 44], 'lakeside': ['Lakeside', 33], 'harbour': ['Harbour', 29], 'mesa': ['Mesa', 32]
   };
   var TRACK_IDS = Object.keys(TRACKS), STD_LAPS = [3, 5, 10];   // the race lengths the game offers
+  // Slipstream's record season. Its lap and race records were reset for everyone on 17 November 2026 (the tracks had been
+  // fixed and barrier touches made gentler, so older times no longer compared). stats.js stores the records with the
+  // season in the name ('lap:s2:<track>', 'rec:s2:<track>:<laps>', and clap: / crec: the same way) and parse() below reads
+  // ONLY this season's, handing them on under the plain names ('lap:<track>'…), so every board, the track counts,
+  // miles.js and the admin page see this season and nothing older. TO RESET AGAIN: raise SLIP_SEASON by one here and
+  // SEASON.slipstream to the same number in stats.js, and put the new date in SLIP_RESET (README: stats.js).
+  var SLIP_SEASON = 2, SLIP_RESET = '17 November 2026';
+  var SLIP_NAME = new RegExp('^(c?(?:lap|rec)):s' + SLIP_SEASON + ':(.+)$');
+  // stats.js writes the season and this file reads it, so the two numbers must match: warn in the console if they don't
+  // (checked whenever the boards are read, on a page that has stats.js).
+  function seasonCheck() {
+    try {
+      var S = window.BackRoomStats || window.BackRoomStatsLib, n = S && S.seasons && S.seasons.slipstream;
+      if (n && n !== SLIP_SEASON) console.warn('Leaderboards: Slipstream record season is ' + SLIP_SEASON + ' in leaderboard.js but ' + n + ' in stats.js. Set both to the same number (README: stats.js).');
+    } catch (e) {}
+  }
   var BY = {}; GAMES.forEach(function (g) { BY[g.d] = g; });
 
   // ---------------- Helpers ----------------
@@ -463,6 +480,11 @@
         if (k >= st.min) o[st.k] = Math.min(st.hi, Math.round(k / Math.max(1, d) * 100) / 100);
       });
       if (meta.laps) {
+        // This season's records only, under their names without the season ('lap:s2:monza' is read as 'lap:monza'). A
+        // time from before the last reset (no season in its name, or another season) is never read.
+        var cur = {};
+        sk.forEach(function (k) { var m = SLIP_NAME.exec(k); if (m) cur[m[1] + ':' + m[2]] = src[k]; });
+        sk = Object.keys(cur); src = cur;
         sk.forEach(function (k) {
           var m = /^lap:([a-z0-9-]{1,20})$/.exec(k), t = m && TRACKS[m[1]], x = num(src[k]);
           if (t && x >= t[1] && x <= 900) o[k] = x;
@@ -693,7 +715,7 @@
   }
 
   // For the admin page: the same checks and names, so what it shows is what the boards would show. With data-lib, that's all.
-  window.BackRoomBoards = { tops: tops, topsOf: topsOf, RS_PATH: RS_PATH, readResets: readResets, get resets() { return RESETS; }, showHidden: function (v) { SHOW_HIDDEN = !!v; }, parse: parse, collapse: collapse, GAMES: GAMES, BY: BY, TRACKS: TRACKS, trackRows: trackRows, EPOCH: EPOCH, PATH: PATH, MAX_NODES: MAX_NODES, NODE_MAX: NODE_MAX, fmt: fmt, fmtHours: fmtHours, cleanName: cleanName, mask: mask, seatOf: seatOf };
+  window.BackRoomBoards = { tops: tops, topsOf: topsOf, RS_PATH: RS_PATH, readResets: readResets, get resets() { return RESETS; }, showHidden: function (v) { SHOW_HIDDEN = !!v; }, parse: parse, collapse: collapse, GAMES: GAMES, BY: BY, TRACKS: TRACKS, SLIP_SEASON: SLIP_SEASON, SLIP_RESET: SLIP_RESET, trackRows: trackRows, EPOCH: EPOCH, PATH: PATH, MAX_NODES: MAX_NODES, NODE_MAX: NODE_MAX, fmt: fmt, fmtHours: fmtHours, cleanName: cleanName, mask: mask, seatOf: seatOf };
   if (me && me.hasAttribute('data-lib')) return;
 
   // ---------------- Styles ----------------
@@ -776,9 +798,11 @@
   var $note = el('p', 'lbd-note', 'Play time counts while a game is open and you’re playing. Scores are reported by each player’s own browser, so they’re for bragging rights, not prizes.');
   // Slipstream's course-record boards only: what the time includes.
   var $rule = el('p', 'lbd-note', 'Race times include any track-cut penalties (+2.5 s each).'); $rule.hidden = true;
+  // Slipstream's time boards only: the records were reset, and when (SLIP_RESET).
+  var $season = el('p', 'lbd-note', 'Season ' + SLIP_SEASON + ': Slipstream’s lap and race records were reset on ' + SLIP_RESET + ', after track fixes and gentler barriers made older times unfair to compare. Times set before then no longer count. Elo and hours played were kept.'); $season.hidden = true;
   // What This week / All time counts, on the boards with the toggle.
   var $spanNote = el('p', 'lbd-note'); $spanNote.hidden = true;
-  box.append(top, ctl, $chips, $h, $list, $msg, $rule, $spanNote, $note);
+  box.append(top, ctl, $chips, $h, $list, $msg, $rule, $season, $spanNote, $note);
   sec.append(box);
 
   // Game mode: the panel. Its own colours and type, since a game page has none of the hub's CSS variables.
@@ -866,6 +890,7 @@
     }
     people = collapse(out); everyone = out; lastLoad = Date.now();
     pushTops();
+    seasonCheck();
   }
 
   function waitParty() {
@@ -923,7 +948,7 @@
     if (sig !== trkSig) {
       trkSig = sig; $trk.textContent = '';
       var withT = el('optgroup'), without = el('optgroup');
-      withT.label = 'Tracks with times'; without.label = people ? 'No times yet' : 'Tracks';
+      withT.label = 'Tracks with times'; without.label = people ? 'No times yet this season' : 'Tracks';
       ts.order.forEach(function (id) {
         var n = ts.count[id] || 0;
         (n ? withT : without).append(new Option(TRACKS[id][0] + (n ? ' · ' + n + (n === 1 ? ' driver' : ' drivers') : ''), id));
@@ -989,6 +1014,7 @@
     view.st = st && st.k !== 's' ? st : null;
     $rule.hidden = !(view.st && (view.st.laps || view.st.cleanB));
     $rule.textContent = view.st && view.st.cleanB ? 'Clean times: no corner was cut on ' + (view.st.laps ? 'any lap of the race.' : 'the lap.') : 'Race times include any track-cut penalties (+2.5 s each).';
+    $season.hidden = !(slip && view.st && (view.st.all || view.st.track));   // the lap and record boards, not Hours or Elo
     var miles = view.g === 'all', spans = miles || !view.st, wk = spans && view.span === 'week';
     $span.hidden = !spans;
     [].forEach.call($span.children, function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-s') === view.span)); });
@@ -1004,7 +1030,7 @@
     if (view.st && view.st.all) {
       var trs = trackRows(people), have = trs.filter(function (r) { return r.p; }).length;
       trs.forEach(function (r) { $list.append(trackRow(r)); });
-      say(have ? 'Fastest lap on ' + have + ' of ' + trs.length + ' tracks so far. Pick a track for its full board.' : 'No lap times on any track yet. Race to set one.');
+      say(have ? 'Fastest lap on ' + have + ' of ' + trs.length + ' tracks so far this season. Pick a track for its full board.' : 'No lap times on any track yet this season. Race to set the first.');
       return;
     }
     var list = rows(view, people), hours = !view.st;
@@ -1017,9 +1043,9 @@
     if (mine >= TOP) { var gap = el('li', 'lbd-gap', '···'); gap.setAttribute('aria-hidden', 'true'); $list.append(gap, row(list[mine])); }
     if (!list.length) say(miles ? (wk ? 'Nobody has played this week yet. Play any game for a minute to get on it.' : 'Nobody’s on the board yet. Play any game for a minute to get on it.')
       : wk ? 'Nobody has played ' + BY[view.g].n + ' this week yet. Pick All time to see everyone.'
-      : view.st && view.st.cleanB ? 'No clean ' + (view.st.laps ? view.st.laps + '-lap race' : 'lap') + ' at ' + view.st.track + ' yet. Drive one without cutting a corner to set it.'
-      : view.st && view.st.laps ? 'No course record at ' + view.st.track + ' over ' + view.st.laps + (view.st.laps === 1 ? ' lap' : ' laps') + ' yet. Finish a race of that length there to set one.'
-      : view.st && view.st.track ? 'No lap times at ' + view.st.track + ' yet. Race there to set one.'
+      : view.st && view.st.cleanB ? 'No clean ' + (view.st.laps ? view.st.laps + '-lap race' : 'lap') + ' at ' + view.st.track + ' yet this season. Drive one without cutting a corner to set it.'
+      : view.st && view.st.laps ? 'No course record at ' + view.st.track + ' over ' + view.st.laps + (view.st.laps === 1 ? ' lap' : ' laps') + ' yet this season. Finish a race of that length there to set one.'
+      : view.st && view.st.track ? 'No lap times at ' + view.st.track + ' yet this season. Race there to set one.'
       : 'Nobody has a score here yet. Play ' + BY[view.g].n + ' to be the first.');
     else if (mine < 0 && myUid) say(list.length + (list.length === 1 ? ' player' : ' players') + '. You’re not on this board yet.');
     else say(list.length + (list.length === 1 ? ' player' : ' players') + (mine >= 0 ? '. You’re #' + list[mine].rank + '.' : '.'));
