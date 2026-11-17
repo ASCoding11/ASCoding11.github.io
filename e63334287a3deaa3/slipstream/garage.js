@@ -31,8 +31,19 @@ window.SlipstreamGarage=function(X){
 'use strict';
 const {THREE,C,renderer,TEAMS,SEATS,CAR_GEO,MAT,store,strHash,mulberry,esc,$,toast}=X;
 const GAME='slipstream',NF=window.NameFilter;
-const ITEMS=C.items(GAME),BY_NO=new Map(ITEMS.map(i=>[i.no,i])),BY_ID=C.ITEMS_BY_ID;
-const item=k=>BY_ID['ss-'+k]||null;                 // 'lv-flames' -> the catalogue item
+// The catalogue (../cosmetics.js, GAME_ITEMS) knows each item by its slot and number. In here each has a short key
+// ('lv-flames', 'hm-shark', 'sp-zoomi'): the names below are in the catalogue's number order, slot by slot.
+const SP=['zoomi','burnout','apex','taco','grandma','pitstop','slick','latebrake','draftpunk','gravel','blueflag','honk','chicane','podium','lapnap'];
+const NAMES={sponsor:['sp',SP],livery:['lv',['twotone','retro','neon','chrome','carbon','pastel','flames','checkered',...SP]],
+  helmet:['hm',['red','blue','yellow','green','orange','pink','black','white','flames','checkered','lightning','chromevisor','shark','skull','tiger','galaxy','disco','watermelon','eightball','eyeball','pumpkin','catears','pizza']],
+  effect:['fx',['streaks','flames','sparks','arcs','rainbow','vapor','confetti','plasma']],smoke:['sm',['pink','blue','green','purple','gold']],podium:['pd',['confetti','fireworks']]};
+const ITEM={},KEY={},BY_NO={},BY_ID=C.GAME_ITEMS_BY_ID;   // key -> item, item id -> key, 'slot:number' -> key
+for(const slot in NAMES)for(const it of C.gameItems(GAME,slot)){const n=NAMES[slot][1][it.no-1];if(n){const k=NAMES[slot][0]+'-'+n;ITEM[k]=it;KEY[it.id]=k;BY_NO[slot+':'+it.no]=k}}
+const item=k=>ITEM[k]||null;
+const worn=()=>{const e=C.gameEquipped(GAME),o={};for(const s in e)o[s]=e[s].id;return o};   // slot -> item id
+const owns=it=>it.give==='free'||C.owned().items.indexOf(it.id)>=0;
+const packOf=it=>C.PACKS.find(p=>p.kind==='items'&&p.contents.items.indexOf(it.id)>=0)||null;
+function wear(it){if(it.give==='free')C.grant(it.id);return C.equip(it.id)}   // free items go into the locker the first time they are worn
 const clamp=(v,a,b)=>v<a?a:v>b?b:v,lerp=(a,b,t)=>a+(b-a)*t;
 
 // =====================================================================
@@ -84,7 +95,7 @@ const EMPTY={sp:'',lv:'',hm:'',fx:'',sm:'',pd:'',st:null};
 let mine=null;                       // my own look, worked out again whenever something is equipped or the sticker changes
 function myLook(){
   if(mine)return mine;
-  const e=C.equipped().games[GAME]||{},k=s=>e[s]&&BY_ID[e[s]]?e[s].slice(3):'';
+  const e=worn(),k=s=>e[s]&&KEY[e[s]]||'';
   return mine={sp:k('sponsor'),lv:k('livery'),hm:k('helmet'),fx:k('effect'),sm:k('smoke'),pd:k('podium'),st:sticker(store.get('sticker',null))};
 }
 document.addEventListener('backroom:cosmetics',()=>{mine=null});
@@ -99,7 +110,7 @@ const WIRE_RE=/^1~(\d{1,3})~(\d{1,3})~(\d{1,3})~(\d{1,3})~(\d{1,3})~(?:(\d)\.(\d
 function readWire(s){ // a look, or null. Everything is checked again here: never trust what another browser sent.
   if(typeof s!=='string'||s.length>64)return null;
   const m=WIRE_RE.exec(s);if(!m)return null;
-  const it=(i,slot)=>{const x=BY_NO.get(+m[i]);return x&&x.slot===slot?x.id.slice(3):''};
+  const it=(i,slot)=>BY_NO[slot+':'+(+m[i])]||'';
   const L={sp:it(1,'sponsor'),lv:it(2,'livery'),hm:it(3,'helmet'),fx:it(4,'effect'),sm:it(5,'smoke'),pd:'',st:null};
   if(m[6]!==undefined&&m[11])L.st=sticker({t:m[11],f:+m[6],b:+m[7],a:+m[8],c:+m[9],m:+m[10]});
   return bare(L)?null:L;
@@ -518,7 +529,7 @@ function bump(stat,n){
   (prog.p[k]||(prog.p[k]={}))[stat]=Math.min(ch[1],have+n);progDirty=true;
   if(have+n>=ch[1]){
     toast(item('sp-'+k).name+' · '+STATS[stat](ch[1])+' · done');
-    if(doneAll(k)&&C.grant('ss-lv-'+k))toast(item('sp-'+k).name+' livery unlocked. It\'s in the Garage.','fl');
+    if(doneAll(k)&&C.grant(item('lv-'+k).id))toast(item('sp-'+k).name+' livery unlocked. It\'s in the Garage.','fl');
     saveProg();
   }
 }
@@ -766,13 +777,13 @@ function render(){
   renderAct();
 }
 function sponsorHtml(){
-  const cur=signed(),e=C.equipped().games[GAME]||{};
+  const cur=signed(),e=worn();
   let h='<p class="gn">Sign with one sponsor. Its sticker goes on your car, and its challenges count while you are signed with it. Finish them all and its full livery is yours to keep.</p>';
   for(const k of Object.keys(SPONSORS)){
-    const it=item('sp-'+k),s=SPONSORS[k],done=doneAll(k),lv=C.has('ss-lv-'+k),worn=e.livery==='ss-lv-'+k;
+    const it=item('sp-'+k),s=SPONSORS[k],done=doneAll(k),lvIt=item('lv-'+k),lv=owns(lvIt),on=e.livery===lvIt.id;
     h+='<div class="gsp'+(cur===k?' on':'')+'"><div><canvas data-th="sp-'+k+'" width="256" height="64"></canvas><div class="gbtn">'+
       '<button type="button" class="'+(cur===k?'ghost':'cta')+'" data-sign="'+k+'">'+(cur===k?'Signed · leave':'Sign')+'</button>'+
-      (lv?'<button type="button" class="ghost" data-wear="ss-lv-'+k+'">'+(worn?'Livery on · take off':'Wear the livery')+'</button>':'')+'</div></div>'+
+      (lv?'<button type="button" class="ghost" data-wear="'+lvIt.id+'">'+(on?'Livery on · take off':'Wear the livery')+'</button>':'')+'</div></div>'+
       '<div><h3>'+esc(it.name)+'</h3><span>'+esc(it.desc)+'</span></div><ul>'+
       s.ch.map(([st,n])=>{const v=Math.min(n,got(k,st));return '<li class="'+(v>=n?'ok':'')+'"><span>'+esc(STATS[st](n))+'<b>'+(v>=n?'Done':Math.floor(v)+' / '+n)+'</b></span><i><u style="width:'+(v/n*100).toFixed(1)+'%"></u></i></li>'}).join('')+
       (done?'<li class="ok">Livery unlocked</li>':'')+'</ul></div>';
@@ -793,16 +804,17 @@ function stickerHtml(){
 const PROBLEM={empty:'Type up to 16 characters, then Save.',long:'Keep it to 16 characters.',chars:'Letters, numbers, spaces and \' & ! . - only, please.',
   rude:'Sorry, that one can\'t go on a car. Try something else.',nofilter:'That text couldn\'t be checked just now, so nothing was changed.'};
 function itemsHtml(tab){
-  const e=C.equipped().games[GAME]||{},slots=tab==='extras'?['smoke','podium']:[tab];
+  const e=worn(),slots=tab==='extras'?['smoke','podium']:[tab];
   let h=tab==='livery'?'<p class="gn">A livery repaints the nose, tub, sidepods and engine cover. The wings, airbox and fin always stay in your team\'s colours, so everyone can still tell the teams apart.</p>':
     tab==='effect'?'<p class="gn">Shown when you boost or sit in a slipstream.</p>':tab==='extras'?'<p class="gn">Tyre smoke colour, and a celebration over the results when you finish in the top three (only you see that one).</p>':'';
   h+='<div class="ggrid">';
   for(const slot of slots){
     if(tab!=='extras')h+='<button type="button" class="gi'+(!e[slot]?' on':'')+(G.sel==='none:'+slot?' sel':'')+'" data-none="'+slot+'"><canvas data-th="none:'+slot+'" width="192" height="96" style="width:96px;height:48px"></canvas><b>'+(slot==='livery'?'Team colours':slot==='helmet'?'Plain helmet':'None')+'</b><small>&nbsp;</small><em>'+(!e[slot]?'Wearing':'Free')+'</em></button>';
-    for(const it of ITEMS.filter(i=>i.slot===slot).sort((a,b)=>(a.price===null)-(b.price===null))){
-      const has=C.has(it.id),on=e[slot]===it.id,r=rarity(it);
-      h+='<button type="button" class="gi'+(on?' on':'')+(G.sel===it.id?' sel':'')+'" data-id="'+it.id+'"><canvas data-th="'+it.id.slice(3)+'" width="192" height="96" style="width:96px;height:48px"></canvas><b>'+esc(it.name.replace(/ (helmet|livery|tyre smoke)$/,''))+'</b>'+
-        '<small style="color:'+r.color+'">'+r.name+'</small><em>'+(on?'Wearing':has?(it.price===0?'Free':'Owned'):it.price===null?'Locked':it.price+' emeralds')+'</em></button>';
+    for(const it of C.gameItems(GAME,slot).sort((a,b)=>(a.give==='earned')-(b.give==='earned'))){
+      if(!KEY[it.id])continue;
+      const has=owns(it),on=e[slot]===it.id,r=rarity(it),pk=packOf(it);
+      h+='<button type="button" class="gi'+(on?' on':'')+(G.sel===it.id?' sel':'')+'" data-id="'+it.id+'"><canvas data-th="'+KEY[it.id]+'" width="192" height="96" style="width:96px;height:48px"></canvas><b>'+esc(it.name.replace(/ (helmet|livery|tyre smoke)$/,''))+'</b>'+
+        '<small style="color:'+r.color+'">'+r.name+'</small><em>'+(on?'Wearing':has?(it.give?'Free':'Owned'):it.give?'Locked':pk?esc(pk.name)+' pack':'')+'</em></button>';
     }
   }
   return h+'</div>';
@@ -811,21 +823,23 @@ function renderAct(){
   const a=G.act,id=G.sel,it=BY_ID[id];
   if(G.tab==='sticker'){const s=myLook().st;a.innerHTML='<div></div><button type="button" class="ghost" data-act="st-remove"'+(s?'':' disabled')+'>Remove</button><button type="button" class="cta" data-act="st-save">Save sticker</button>';return}
   if(!it){a.innerHTML=G.tab==='sponsor'?'':'<div>Pick one to try it on the car.</div>';return}
-  const e=C.equipped().games[GAME]||{},on=e[it.slot]===id,has=C.has(id),w=wallet(),bal=w?Math.floor(w.balance()/13):0;
-  let btn;
+  const on=worn()[it.slot]===id,has=owns(it),w=wallet(),bal=w?Math.floor(w.balance()/13):0,pk=packOf(it);
+  let btn='',txt=it.desc;
   if(on)btn='<button type="button" class="ghost" data-act="off">Take off</button>';
   else if(has)btn='<button type="button" class="cta" data-act="wear">Wear</button>';
-  else if(it.price===null)btn='';
-  else btn='<button type="button" class="cta" data-act="buy"'+(bal<it.price?' disabled':'')+'>Buy · '+it.price+' emeralds</button>';
-  a.innerHTML='<div><b>'+esc(it.name)+'</b>'+esc(!has&&it.price===null?'Finish '+it.name.replace(/ livery$/,'')+'\'s challenges (Sponsor tab) to unlock it.':!has&&!on&&bal<it.price?'You have '+bal+' emeralds. Racing earns more.':it.desc)+'</div>'+btn;
+  else if(it.give)txt='Finish '+it.name.replace(/ livery$/,'')+'\'s challenges (Sponsor tab) to unlock it.';
+  else if(pk){ // sold the way the shop sells everything: in a pack
+    txt='In the '+pk.name+' pack ('+pk.contents.items.length+' items). '+(bal<pk.price?'You have '+bal+' emeralds; racing earns more.':'');
+    btn='<button type="button" class="cta" data-act="buy"'+(bal<pk.price?' disabled':'')+'>Buy pack · '+pk.price+' emeralds</button>'}
+  a.innerHTML='<div><b>'+esc(it.name)+'</b>'+esc(txt)+'</div>'+btn;
 }
 function onBodyClick(e){
   const t=e.target,q=s=>t.closest(s);let b;
-  if((b=q('[data-sign]'))){const k=b.dataset.sign;if(signed()===k)C.unequip('ss-sp-'+k);else C.equip('ss-sp-'+k);mine=null;keepScroll(render);refreshPv();return}
-  if((b=q('[data-wear]'))){const id=b.dataset.wear,e2=C.equipped().games[GAME]||{};if(e2.livery===id)C.unequip(id);else C.equip(id);mine=null;keepScroll(render);refreshPv();return}
-  if((b=q('.gi[data-id]'))){const it=BY_ID[b.dataset.id];G.sel=it.id;G.tryOn={};G.tryOn[{sponsor:'sp',livery:'lv',helmet:'hm',effect:'fx',smoke:'sm',podium:'pd'}[it.slot]]=it.id.slice(3);
-    if(it.slot==='podium')celebrate(it.id.slice(6),2.5);mark();renderAct();refreshPv();return}
-  if((b=q('.gi[data-none]'))){const slot=b.dataset.none,cur=(C.equipped().games[GAME]||{})[slot];if(cur)C.unequip(cur);mine=null;G.sel='';G.tryOn={};keepScroll(render);refreshPv();return}
+  if((b=q('[data-sign]'))){const k=b.dataset.sign,it=item('sp-'+k);if(signed()===k)C.unequip(it.id);else wear(it);mine=null;keepScroll(render);refreshPv();return}
+  if((b=q('[data-wear]'))){const id=b.dataset.wear;if(worn().livery===id)C.unequip(id);else C.equip(id);mine=null;keepScroll(render);refreshPv();return}
+  if((b=q('.gi[data-id]'))){const it=BY_ID[b.dataset.id];G.sel=it.id;G.tryOn={};G.tryOn[NAMES[it.slot][0]]=KEY[it.id];
+    if(it.slot==='podium')celebrate(KEY[it.id].slice(3),2.5);mark();renderAct();refreshPv();return}
+  if((b=q('.gi[data-none]'))){const slot=b.dataset.none;C.unequip(GAME+':'+slot);mine=null;G.sel='';G.tryOn={};keepScroll(render);refreshPv();return}
   if(G.tab==='sticker'){
     const d=G.draft;
     if((b=q('#gsFont button')))d.f=+b.dataset.i;else if((b=q('#gsBadge button')))d.b=+b.dataset.i;else if((b=q('#gsA button')))d.a=+b.dataset.i;else if((b=q('#gsC button')))d.c=+b.dataset.i;
@@ -855,8 +869,8 @@ function onActClick(e){
   }
   if(act==='st-remove'){setSticker(null);G.draft.t='';$('gsText').value='';m.className='msg';m.textContent='Sticker removed.';renderAct();refreshPv();return}
   const it=BY_ID[G.sel];if(!it)return;
-  if(act==='buy'){const r=C.buyItem(it.id);if(!r.ok){renderAct();return}C.equip(it.id)}
-  else if(act==='wear')C.equip(it.id);
+  if(act==='buy'){const pk=packOf(it),r=pk?C.buy(pk.id):{ok:false};if(!r.ok){renderAct();return}wear(it)}
+  else if(act==='wear')wear(it);
   else if(act==='off')C.unequip(it.id);
   mine=null;G.tryOn={};showBalance();keepScroll(render);refreshPv();
 }
