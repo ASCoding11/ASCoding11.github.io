@@ -670,7 +670,8 @@ function air(x,y,z){return vget(x,y,z)===0}
 
 // ---------- materials ----------
 const M_={AIR:0,GRASS:1,DIRT:2,PLANK:3,DARKWOOD:4,REDWOOD:5,SIDING:6,BRICK:7,CONCRETE:8,STONE:9,ROOF:10,SLATE:11,METAL:12,CRED:13,CBLUE:14,CYEL:15,CGRN:16,
-  CRATE:17,HAY:18,LEAVES:19,ASPHALT:20,SIDEWALK:21,TILE:22,LAMP:23,GRATE:24,HAZARD:25,STUCCO:26,PLASTER:27,CARPET:28,GRASSSIDE:29,WHITEWOOD:30,GREENWALL:31,FLOOR:32,AWNING:33,WATER:34,TRIM:35,BARRIER:36};
+  CRATE:17,HAY:18,LEAVES:19,ASPHALT:20,SIDEWALK:21,TILE:22,LAMP:23,GRATE:24,HAZARD:25,STUCCO:26,PLASTER:27,CARPET:28,GRASSSIDE:29,WHITEWOOD:30,GREENWALL:31,FLOOR:32,AWNING:33,WATER:34,TRIM:35,BARRIER:36,
+  SAND:37,SANDSTONE:38,REDROCK:39,SNOW:40,ICE:41,PANEL:42,SANDBAG:43};
 // BARRIER: the invisible wall that closes off the wings of a small arena. Eggs can't walk into it, but it is never drawn
 // and shots and sight lines pass through it (see smallArena).
 function texDirt(){return canvasTex(64,64,(g,w,h)=>{g.fillStyle='#8a6440';g.fillRect(0,0,w,h);noiseDots(g,w,h,90,['#7a5636','#9a7450','#6e4c2e','#a07a52'],1,3)})}
@@ -737,6 +738,14 @@ defMat(M_.FLOOR,{tex:'floor',c:0xcf9c62,s:[2,2]});
 defMat(M_.AWNING,{tex:'awning',c:0xe2574c,s:[1,1]});
 defMat(M_.WATER,{tex:'water',c:0x6cc3f0,s:[2,2]});
 defMat(M_.TRIM,{tex:'plain',c:0x5b4636,s:[1,1]});
+// the newer maps' own blocks: all tints of textures the others already use, so they add no draw calls of their own
+defMat(M_.SAND,{tex:'plain',c:0xe6cc8e,s:[4,4]});
+defMat(M_.SANDSTONE,{tex:'stone',c:0xdcb884,s:[3,3]});
+defMat(M_.REDROCK,{tex:'stone',c:0xc77b4f,s:[3,3]});
+defMat(M_.SNOW,{tex:'plain',c:0xf3f8fc,s:[4,4]});
+defMat(M_.ICE,{tex:'tile',c:0xbfe2f4,s:[2,2]});
+defMat(M_.PANEL,{tex:'metal',c:0xe4edf3,s:[1,2]});
+defMat(M_.SANDBAG,{tex:'hay',c:0xd9c79c,s:[1,1]});
 function faceMat(m,ax,sg){const d=MATV[m];if(!d)return m;if(ax===1&&sg>0&&d.top)return d.top;if(ax===1&&sg<0&&d.bottom)return d.bottom;if(ax!==1&&d.side)return d.side;return m}
 
 // ---------- turning the blocks into meshes (greedy meshing: one quad per run of identical faces) ----------
@@ -941,7 +950,8 @@ function vcyl(cx,cz,r,y0,h,m){for(let z=Math.floor(cz-r);z<=Math.ceil(cz+r);z++)
 function car(x,z,alongX,m){const L=4,Wd=2;const [x1,z1]=alongX?[x+L-1,z+Wd-1]:[x+Wd-1,z+L-1];fill(x,G,z,x1,G+1,z1,m);
   if(alongX)fill(x+1,G+2,z,x+2,G+2,z1,m);else fill(x,G+2,z+1,x1,G+2,z+2,m);}
 let mapSpawns=[];
-function spawn(x,z,y){mapSpawns.push({x,z,y:y==null?G:y});mapSpawns.push({x:W-1-x,z:W-1-z,y:y==null?G:y})}
+// A spawn faces the middle of the map unless it is given a point to face (fx,fz, in metres), mirrored like the spot itself.
+function spawn(x,z,y,fx,fz){const f=fx!=null;mapSpawns.push({x,z,y:y==null?G:y,fx:f?fx:null,fz:f?fz:null});mapSpawns.push({x:W-1-x,z:W-1-z,y:y==null?G:y,fx:f?W-fx:null,fz:f?W-fz:null})}
 
 // ---------- the maps ----------
 // Coordinates: x and z run 0..71 (metres), y is in half-metres; the ground surface is y = G (3 m).
@@ -1123,6 +1133,160 @@ function buildTown(){
   for(const [x,z] of [[2,14],[15,2],[2,31],[30,15],[36,2],[57,2],[68,15],[38,22],[22,14]])spawn(x,z);
 }
 
+// Deep Freeze: the tight indoor map. A cold store with a loading dock at each end and three lanes between them (a
+// corridor, the freezer hall, a corridor), a catwalk over the hall and a control room above each corridor. Nobody can
+// get outside: the snowy yard round it is only scenery.
+function buildFreezer(){
+  ground(M_.SNOW,M_.DIRT);
+  perimeter(6,M_.METAL);
+  const X0=8,X1=63,Z0=16,Z1=55,T=G+2*SH,L1=G+SH;
+  fill(X0,G,Z0,X1,T-1,Z1,M_.PANEL);clear(X0+1,G,Z0+1,X1-1,T-2,Z1-1);     // the shell; its roof is the slab at T-1
+  fill(X0+1,G-1,Z0+1,X1-1,G-1,Z1-1,M_.CONCRETE);
+  fill(21,G-1,26,50,G-1,45,M_.ICE);                                      // the hall's frosted floor
+  fill(X0,T,Z0,X1,T,Z0,M_.CBLUE);fill(X0,T,Z0,X0,T,Z1,M_.CBLUE);       // a blue lip round the roof
+  // --- inner walls: dock | lanes | dock, and corridor | hall | corridor ---
+  fill(20,G,17,20,T-2,54,M_.ICE);
+  fill(21,G,25,50,T-2,25,M_.ICE);
+  clear(20,G,33,20,G+4,38);clear(20,G,19,20,G+3,21);clear(20,G,50,20,G+3,52);   // dock doors
+  for(const x of [27,35,43])clear(x,G,25,x+1,G+3,25);                           // corridor doors
+  // --- the freezer hall: a row of pallet racks each side, and a catwalk cross over the middle ---
+  for(const x of [23,30,38,45]){fill(x,G,29,x+3,G+2,30,M_.CRATE);fill(x,G+3,29,x+3,G+4,30,M_.ICE)}
+  fill(26,L1-1,35,45,L1-1,36,M_.GRATE);fill(35,L1-1,26,36,L1-1,45,M_.GRATE);
+  stairs(21,35,1,0,G,5,2,M_.METAL);                                      // dock door -> catwalk
+  fill(28,L1,34,31,L1+1,34,M_.METAL);fill(34,L1,29,34,L1+1,32,M_.METAL);  // short rails to duck behind
+  fill(34,G,34,37,G+1,37,M_.ICE);                                        // the ice block under the crossing
+  for(const [x,z] of [[30,34],[30,37]])fill(x,G,z,x,L1-2,z,M_.METAL);    // catwalk legs
+  crate(24,33);crate(24,32,4);crate(32,39);crate(33,39,4);crate(41,27);
+  // --- control room over each corridor: stairs up from the corridor, a door onto the catwalk, windows on the hall ---
+  fill(30,L1-1,17,41,L1-1,24,M_.GRATE);
+  fill(30,L1,17,30,T-2,24,M_.PANEL);fill(41,L1,17,41,T-2,24,M_.PANEL);
+  stairs(25,17,1,0,G,5,2,M_.METAL);clear(30,L1,17,30,L1+3,18);
+  clear(35,L1,25,36,L1+3,25);clear(31,L1+2,25,33,L1+3,25);clear(38,L1+2,25,40,L1+3,25);clear(41,L1+2,19,41,L1+3,22);
+  fill(32,L1,18,34,L1+1,18,M_.CBLUE);fill(38,L1,23,39,L1,23,M_.CRATE);   // desk, boxes
+  // corridor clutter
+  crate(22,23);crate(23,23,4);crate(33,21);crate(34,21,4);crate(34,22);
+  vcyl(48.5,18.5,1.2,G,4,M_.CBLUE);vcyl(49,22.5,1.2,G,3,M_.CYEL);
+  fill(21,G+9,17,50,G+9,17,M_.CRED);                                     // a pipe along the outer wall
+  fill(38,G,17,38,G+4,19,M_.ICE);
+  // --- the docks: a loading platform along the end wall, containers and crates ---
+  fill(9,G,29,11,G+1,42,M_.CONCRETE);fill(11,G+1,29,11,G+1,42,M_.HAZARD);
+  stairs(13,31,-1,0,G,2,2,M_.CONCRETE);stairs(13,39,-1,0,G,2,2,M_.CONCRETE);
+  fill(14,G,23,17,G+4,24,M_.CBLUE);fill(14,G,47,17,G+4,48,M_.CRED);
+  crate(16,28);crate(16,29,4);crate(17,29);crate(17,45,4);crate(18,45);crate(18,44);crate(15,34);crate(15,37);
+  fill(8,G+2,31,8,G+6,34,M_.CYEL);fill(8,G+2,37,8,G+6,40,M_.CYEL);       // roller doors (shut)
+  // --- skylights and strip lights ---
+  clear(11,T-1,21,17,T-1,26);clear(11,T-1,45,17,T-1,50);
+  for(const x of [23,31,40,47])clear(x,T-1,28,x+3,T-1,32);
+  for(let z=19;z<=52;z+=6){put(8,G+8,z,M_.LAMP);put(20,G+8,z,M_.LAMP)}
+  for(let x=23;x<=48;x+=5)put(x,G+10,25,M_.LAMP);
+  for(let z=20;z<=52;z+=8)fill(13,T-1,z,15,T-1,z,M_.LAMP);               // ceiling strips: docks, corridors, hall
+  for(let x=23;x<=47;x+=8)fill(x,T-1,20,x+2,T-1,20,M_.LAMP);
+  for(let x=24;x<=46;x+=11)fill(x,T-1,35,x+1,T-1,35,M_.LAMP);
+  // --- the yard outside (scenery only) ---
+  fill(2,G,30,5,G+5,33,M_.CBLUE);fill(2,G,34,5,G+3,35,M_.PANEL);        // a lorry backed up to the dock
+  fill(2,G,6,7,G,10,M_.SNOW);fill(3,G+1,7,6,G+1,9,M_.SNOW);fill(24,G,4,30,G,8,M_.SNOW);fill(25,G+1,5,29,G+1,7,M_.SNOW);fill(26,G+2,6,28,G+2,6,M_.SNOW);
+  tree(14,6);tree(40,5);tree(4,48);
+  spawn(10,19);spawn(10,52);spawn(13,35);spawn(12,45);spawn(23,20);spawn(46,19);spawn(22,27,G,45,27.5);spawn(36,20,L1,45,20.5);
+}
+
+// Sunny Side Sands: the open map. A desert valley with a fort at each end of a straight road, a deep dry wash across the
+// middle (a plank bridge carries the road over it; ramps lead down in and back out), a rock mesa on each side to shoot
+// from, ruins and an oasis in the corners. Long sight lines along the road, the wash and the edges.
+function palm(x,z){fill(x,G,z,x,G+8,z,M_.DARKWOOD);for(const d of [1,2]){put(x-d,G+8,z,M_.LEAVES);put(x+d,G+8,z,M_.LEAVES);put(x,G+8,z-d,M_.LEAVES);put(x,G+8,z+d,M_.LEAVES)}put(x,G+9,z,M_.LEAVES)}
+function cactus(x,z,turn){fill(x,G,z,x,G+4,z,M_.CGRN);const a=turn?0:1,b=turn?1:0;fill(x-a,G+2,z-b,x-a,G+3,z-b,M_.CGRN);put(x+a,G+1,z+b,M_.CGRN)}
+function buildSands(){
+  ground(M_.SAND,M_.SANDSTONE);
+  perimeter(10,M_.REDROCK);
+  fill(1,G-1,34,70,G-1,37,M_.ASPHALT);                               // the road
+  // --- the wash: 2 m deep and 10 m wide, right across the map; four ramps each side ---
+  clear(31,G-4,1,40,G-1,70);fill(31,1,1,40,1,70,M_.DIRT);
+  fill(31,G-1,34,40,G-1,37,M_.PLANK);                                 // the bridge (you can walk under it)
+  for(const z of [9,25,44,60])stairs(34,z,-1,0,G-4,4,3,M_.SANDSTONE);
+  vcyl(36,17.5,1.4,G-4,3,M_.REDROCK);crate(33,30,2,G-4);crate(33,31,4,G-4);crate(38,5,2,G-4);
+  // --- the forts: one room, windows all round, stairs to a walled roof ---
+  building({x0:3,z0:29,x1:13,z1:42,stories:1,wall:M_.STUCCO,groundFloor:M_.SANDSTONE,roof:'flat',parapet:M_.STUCCO,roofMat:M_.SANDSTONE,winEvery:3,
+    doors:[['e',5,4,0,5],['n',5,2,0],['s',5,2,0]]});
+  stairs(5,31,0,1,G,5,2,M_.STUCCO);
+  crate(11,31);crate(11,32,4);crate(11,40);fill(4,G,39,6,G+1,40,M_.PLANK);
+  fill(7,G+SH,30,10,G+SH+1,30,M_.SANDBAG);
+  // --- the mesas: 2.5 m of rock with three ramps, and cover on top ---
+  fill(12,G,17,25,G+4,26,M_.REDROCK);
+  stairs(7,21,1,0,G,5,2,M_.REDROCK);stairs(30,20,-1,0,G,5,2,M_.REDROCK);stairs(18,31,0,-1,G,5,2,M_.REDROCK);
+  fill(14,G+5,26,17,G+6,26,M_.SANDBAG);fill(21,G+5,26,24,G+6,26,M_.SANDBAG);
+  fill(21,G+5,22,22,G+7,23,M_.REDROCK);fill(14,G+5,18,15,G+6,18,M_.REDROCK);
+  fill(23,G+5,18,23,G+10,18,M_.DARKWOOD);fill(22,G+9,18,24,G+9,18,M_.DARKWOOD);     // a dead tree
+  // --- the road: a broken-down bus, sandbags by the bridge ---
+  fill(20,G,35,25,G+4,36,M_.CYEL);fill(20,G+2,35,25,G+3,36,M_.TRIM);
+  fill(28,G,33,29,G+1,33,M_.SANDBAG);fill(28,G,38,29,G+1,38,M_.SANDBAG);
+  // --- ruins: broken walls, columns and a paved floor ---
+  fill(11,G-1,57,21,G-1,61,M_.SANDSTONE);
+  fill(10,G,56,10,G+4,62,M_.SANDSTONE);fill(10,G,56,16,G+3,56,M_.SANDSTONE);fill(19,G,56,22,G+5,56,M_.SANDSTONE);fill(22,G,56,22,G+4,60,M_.SANDSTONE);
+  fill(14,G,62,20,G+2,62,M_.SANDSTONE);clear(10,G,59,10,G+3,60);
+  for(const [x,h] of [[13,6],[17,6],[20,3]])fill(x,G,59,x,G+h-1,59,M_.STUCCO);
+  fill(13,G+6,59,17,G+6,59,M_.STUCCO);
+  // --- the oasis: a shallow pool and palms ---
+  clear(4,G-1,4,9,G-1,8);fill(4,G-2,4,9,G-2,8,M_.WATER);
+  palm(3,10);palm(11,5);palm(10,10);
+  fill(13,G,9,15,G+3,11,M_.AWNING);clear(14,G,9,14,G+2,11);          // a little tent
+  // --- rock spires, dunes and cactus ---
+  vcyl(21,45.5,1.6,G,9,M_.REDROCK);vcyl(9.5,50,1.3,G,6,M_.REDROCK);vcyl(26,53,2,G,11,M_.REDROCK);vcyl(24,8.5,1.5,G,8,M_.REDROCK);vcyl(27,65.5,1.3,G,5,M_.REDROCK);
+  fill(15,G,43,19,G+1,44,M_.SAND);fill(16,G+2,43,18,G+2,43,M_.SAND);fill(18,G,12,22,G+1,13,M_.SAND);fill(3,G,64,7,G+1,65,M_.SAND);fill(25,G,29,27,G+1,30,M_.SAND);
+  cactus(13,47);cactus(5,54,1);cactus(28,15);cactus(13,5,1);cactus(28,47,1);cactus(3,20);cactus(24,62);
+  crate(15,39);crate(16,39,4);crate(26,41);
+  spawn(6,26);spawn(6,45);spawn(2,13);spawn(2,58);spawn(17,3);spawn(16,68);spawn(16,48,G,26,53);spawn(20,10);spawn(15,58,G,22,58.5);
+}
+
+// Hardboil Heights: the map with height. A three-tier quarry hill in the middle (1.5, 3 and 4.5 m up) with stairs on
+// every face, and two tunnels through it at ground level that cross in a chamber under the summit. A hut at each end,
+// a watchtower in two corners, boulders and pines round the foot of the hill.
+function buildHeights(){
+  ground(M_.GRASS,M_.DIRT);
+  perimeter(10,M_.STONE);
+  fill(13,G-1,13,58,G-1,58,M_.DIRT);                                   // the dirt track round the hill
+  // --- the hill ---
+  fill(18,G,18,53,G+1,53,M_.STONE);fill(18,G+2,18,53,G+2,53,M_.GRASS);
+  fill(24,G+3,24,47,G+4,47,M_.STONE);fill(24,G+5,24,47,G+5,47,M_.GRASS);
+  fill(30,G+6,30,41,G+8,41,M_.STONE);
+  fill(24,G+2,24,47,G+2,47,M_.STONE);fill(30,G+5,30,41,G+5,41,M_.STONE);   // (turf only where it shows)
+  // --- the tunnels: an open cut through the bottom tier, then under the upper tiers to the chamber ---
+  clear(18,G,35,23,G+2,36);clear(24,G,35,47,G+3,36);
+  clear(35,G,18,36,G+2,23);clear(35,G,24,36,G+3,47);
+  clear(32,G,32,39,G+4,39);fill(32,G-1,32,39,G-1,39,M_.STONE);
+  fill(35,G,35,36,G+4,36,M_.STONE);                                    // the pillar: no shot straight through
+  fill(24,G+4,35,24,G+4,36,M_.HAZARD);fill(35,G+4,24,36,G+4,24,M_.HAZARD);
+  for(const x of [27,30])put(x,G+2,34,M_.LAMP);for(const z of [27,30])put(37,G+2,z,M_.LAMP);
+  put(31,G+3,33,M_.LAMP);put(33,G+3,31,M_.LAMP);
+  crate(33,38);crate(38,33,4);
+  // --- stairs: ground to tier 1, tier 1 to 2, tier 2 to the summit (each tier is three steps) ---
+  stairs(15,44,1,0,G,3,4,M_.STONE);stairs(24,15,0,1,G,3,4,M_.STONE);
+  stairs(21,26,1,0,G+3,3,3,M_.STONE);stairs(43,21,0,1,G+3,3,3,M_.STONE);
+  stairs(27,34,1,0,G+6,3,4,M_.STONE);stairs(34,27,0,1,G+6,3,4,M_.STONE);
+  // --- the summit: low walls at the corners and a shelter ---
+  fill(30,G+9,30,33,G+10,30,M_.STONE);fill(30,G+9,30,30,G+10,33,M_.STONE);fill(38,G+9,30,41,G+10,30,M_.STONE);fill(41,G+9,30,41,G+10,33,M_.STONE);
+  for(const [x,z] of [[33,33],[38,33]])fill(x,G+9,z,x,G+13,z,M_.DARKWOOD);
+  fill(32,G+14,32,39,G+14,39,M_.SLATE);
+  // --- cover on the tiers, and a crane ---
+  crate(20,20,2,G+3);crate(21,20,4,G+3);crate(50,23,2,G+3);fill(19,G+3,40,20,G+4,41,M_.STONE);fill(30,G+3,20,31,G+4,20,M_.STONE);fill(40,G+3,50,42,G+3,51,M_.CRATE);
+  fill(26,G+6,30,26,G+7,31,M_.STONE);crate(44,31,2,G+6);crate(44,32,4,G+6);fill(31,G+6,44,32,G+7,44,M_.STONE);fill(40,G+6,26,41,G+7,26,M_.STONE);
+  fill(45,G+6,25,45,G+17,25,M_.CYEL);fill(38,G+17,25,47,G+17,25,M_.CYEL);put(39,G+16,25,M_.TRIM);put(39,G+15,25,M_.TRIM);
+  // --- a hut at each end: door facing the cut, stairs up the outside to its roof ---
+  building({x0:3,z0:31,x1:11,z1:40,stories:1,wall:M_.WHITEWOOD,trim:M_.DARKWOOD,groundFloor:M_.PLANK,roof:'flat',parapet:M_.WHITEWOOD,roofMat:M_.PLANK,winEvery:3,
+    doors:[['e',3,4,0,5],['n',3,2,0]]});
+  stairs(11,41,-1,0,G,5,2,M_.DARKWOOD);clear(6,G+SH,40,7,G+SH+1,40);
+  crate(5,38);crate(5,39,4);fill(9,G,32,10,G+1,32,M_.PLANK);
+  fill(14,G,32,14,G+2,33,M_.STONE);fill(14,G,38,14,G+2,39,M_.STONE);     // cut blocks either side of the way in
+  // --- watchtowers: two flights to an open top ---
+  building({x0:4,z0:4,x1:11,z1:11,stories:2,wall:M_.DARKWOOD,floor:M_.PLANK,roof:'flat',parapet:M_.DARKWOOD,roofMat:M_.PLANK,winEvery:2,doors:[['s',3,2,0],['e',3,2,0]]});
+  stairs(5,5,0,1,G,5,2,M_.PLANK);stairs(9,10,0,-1,G+SH,5,2,M_.PLANK);
+  // --- round the foot of the hill ---
+  vcyl(14,24.5,1.5,G,3,M_.STONE);vcyl(8,20,1.2,G,4,M_.STONE);vcyl(22,9.5,1.6,G,4,M_.STONE);vcyl(27,8,1.3,G,3,M_.STONE);vcyl(53.5,9,1.5,G,5,M_.STONE);vcyl(60.5,14,1.4,G,3,M_.STONE);vcyl(10,52.5,1.5,G,4,M_.STONE);vcyl(16.5,62,1.3,G,3,M_.STONE);
+  tree(3,16);tree(18,6);tree(24,3);tree(44,4);tree(66,24);tree(13,58);tree(22,66);tree(8,47);
+  fill(40,G,10,45,G+2,12,M_.CYEL);fill(46,G,10,47,G+4,12,M_.CYEL);fill(46,G+3,10,47,G+3,12,M_.TRIM);    // a dump truck
+  fill(12,G,46,13,G+1,49,M_.DARKWOOD);put(12,G+2,47,M_.DARKWOOD);put(12,G+2,48,M_.DARKWOOD);           // logs
+  clear(3,G-1,61,7,G-1,66);fill(3,G-2,61,7,G-2,66,M_.WATER);                                           // a pond
+  crate(16,30);crate(16,29,4);crate(29,13);crate(55,16,4);crate(56,16);crate(20,56);
+  spawn(2,28);spawn(2,44);spawn(2,14);spawn(14,2);spawn(31,2);spawn(51,3);spawn(62,3);spawn(3,54);
+}
 // Small arena: an online round that starts with SMALL_MAX eggs or fewer closes off the far wings of the map (box x0..71-x0,
 // z0..71-z0 stays open; a wall of the map's own fence, h blocks high, runs round it) and uses its own spawns, nearer the
 // middle, so a few players find each other. Full rooms, practice and the training range always get the whole map.
@@ -1133,7 +1297,13 @@ const MAPS=[
   {name:'Yolk Works',build:buildFactory,small:{x0:6,z0:18,h:10,m:M_.BRICK,sp:[[8,20],[24,20],[40,21],[54,20],[14,30],[43,39]]},skyTop:'#4b3a8f',skyHor:'#ffb27a',fog:0xf2b88f,fogFar:160,sunC:0xffcf9a,sunI:.9,sunPos:[-46,40,70],hemiS:0xffd9b8,hemiG:0x6b4a3a,
    outer:['#c7b067','#d3bd72','#b89f5a','#dccb86'],hills:0x9b7a55,trees:0x5f7d3f,cloud:0xffd6c2},
   {name:'Eggsburg',build:buildTown,small:{x0:1,z0:16,h:12,m:M_.BRICK,sp:[[2,31],[16,17],[31,24],[40,18],[22,34],[6,35]]},skyTop:'#5b86c9',skyHor:'#e3e9f2',fog:0xdfe6ef,fogFar:170,sunC:0xfff0dc,sunI:.8,sunPos:[-40,66,-30],hemiS:0xe4ecff,hemiG:0x6c7a55,
-   outer:['#6aa34c','#76ad55','#5f9644','#80b65e'],hills:0x6c9a4a,trees:0x3f7f3a,cloud:0xffffff}
+   outer:['#6aa34c','#76ad55','#5f9644','#80b65e'],hills:0x6c9a4a,trees:0x3f7f3a,cloud:0xffffff},
+  {name:'Deep Freeze',build:buildFreezer,skyTop:'#6fa9df',skyHor:'#f2f8ff',fog:0xe9f2fa,fogFar:150,sunC:0xf2f7ff,sunI:.6,sunPos:[34,62,-40],hemiS:0xf3f8ff,hemiG:0x9db3c4,hemiI:.8,ambI:.24,
+   outer:['#f1f6fa','#e4edf4','#ffffff','#dbe6ee'],hills:0xe6eef5,trees:0x3e6f58,cloud:0xffffff},
+  {name:'Sunny Side Sands',build:buildSands,small:{x0:1,z0:15,h:10,m:M_.REDROCK,sp:[[6,26],[6,45],[16,48,G,26,53],[27,41,G,27.5,60],[15,30,G,16.5,39.5]]},skyTop:'#2f8fe8',skyHor:'#ffeec4',fog:0xf7e6bd,fogFar:190,sunC:0xfff0c8,sunI:.95,sunPos:[24,78,34],hemiS:0xfff3d6,hemiG:0xb08a55,
+   outer:['#e6cf96','#dcc487','#eed9a6','#d6bc7c'],hills:0xc99a62,trees:0x7d8f4a,cloud:0xffffff},
+  {name:'Hardboil Heights',build:buildHeights,small:{x0:12,z0:12,h:10,m:M_.STONE,sp:[[14,14,G,14.5,45],[44,14,G,57,14.5],[14,28,G,14.5,45],[14,44,G,14.5,20]]},skyTop:'#5a7fa8',skyHor:'#f3e3d0',fog:0xe9dccb,fogFar:175,sunC:0xffe7c2,sunI:.85,sunPos:[-60,48,-24],hemiS:0xf0e8e0,hemiG:0x6f7a58,
+   outer:['#7aa855','#86b25f','#6d9a4b','#8fba68'],hills:0x7c8f5c,trees:0x355f3a,cloud:0xfff1e0}
 ];
 let mapIdx=-1,mapSm=0;
 // Close off the wings for a small arena (after the map is built): every open block outside the box becomes BARRIER, and
@@ -1146,7 +1316,7 @@ function smallArena(a){
   const col=(x,z)=>{for(let y=1;y<HY;y++){const i=vIdx(x,y,z);if(y<top)vox[i]=a.m;else if(vox[i]===0)vox[i]=M_.BARRIER}};
   for(let x=Math.max(0,x0-1);x<=Math.min(W-1,x1+1);x++){col(x,z0-1);col(x,z1+1)}
   if(x0>1)for(let z=z0-1;z<=z1+1;z++){col(x0-1,z);col(x1+1,z)}
-  mapSpawns=[];mirrorOn=true;for(const [x,z] of a.sp)spawn(x,z);
+  mapSpawns=[];mirrorOn=true;for(const q of a.sp)spawn(q[0],q[1],q[2],q[3],q[4]);   // [x,z] or [x,z,y,faceX,faceZ]
 }
 
 // The training range is its own map, kept out of MAPS so it never comes up in practice or online rotation.
@@ -1280,17 +1450,17 @@ function buildMap(idx,sm){
   scene.fog=new THREE.Fog(M.fog,45,M.fogFar);scene.background=new THREE.Color(M.fog);
   matFloor.map=grassTex(M.outer);matFloor.map.repeat.set(225,225);matFloor.needsUpdate=true;
   sun.color.setHex(M.sunC);sun.intensity=M.sunI;sun.position.set(SPAN/2+M.sunPos[0],M.sunPos[1],SPAN/2+M.sunPos[2]);sun.target.position.set(SPAN/2,0,SPAN/2);
-  hemi.color.setHex(M.hemiS);hemi.groundColor.setHex(M.hemiG);
+  hemi.color.setHex(M.hemiS);hemi.groundColor.setHex(M.hemiG);hemi.intensity=M.hemiI||.55;amb.intensity=M.ambI||.1;   // an indoor map asks for more fill light
   _mv.set(M.sunPos[0],M.sunPos[1],M.sunPos[2]).normalize();sunSprite.position.set(SPAN/2+_mv.x*400,_mv.y*400,SPAN/2+_mv.z*400);
   sunSprite.material.color.setHex(M.sunC).lerp(_mc.setHex(0xffffff),.35);
   if(idx===RANGE_IDX)Range.build();
 }
 let navReach=null;
 function spawnSpot(s){
-  if(standV(s.x,s.y,s.z))return{x:s.x+.5,y:s.y*VY,z:s.z+.5};
+  if(standV(s.x,s.y,s.z))return{x:s.x+.5,y:s.y*VY,z:s.z+.5,fx:s.fx,fz:s.fz};
   for(let r=1;r<=3;r++)for(const dy of [0,1,-1])for(let dz=-r;dz<=r;dz++)for(let dx=-r;dx<=r;dx++){
     if(Math.max(Math.abs(dx),Math.abs(dz))!==r)continue;const x=s.x+dx,z=s.z+dz,y=s.y+dy;
-    if(standV(x,y,z)){console.warn('spawn moved',s,'to',x,y,z);return{x:x+.5,y:y*VY,z:z+.5}}}
+    if(standV(x,y,z)){console.warn('spawn moved',s,'to',x,y,z);return{x:x+.5,y:y*VY,z:z+.5,fx:s.fx,fz:s.fz}}}
   let y=s.y;while(y<HY-3&&!standV(s.x,y,s.z))y++;
   return standV(s.x,y,s.z)?{x:s.x+.5,y:y*VY,z:s.z+.5}:null;
 }
@@ -1531,7 +1701,7 @@ function respawn(e,at){
   e.pos.set(s.x,s.y==null?GROUND_Y:s.y,s.z);e.vel.set(0,0,0);
   // never hatch inside a block: shove clear the short way, or go to the nearest spot an egg can stand
   if(entHits(e.pos.x,e.pos.y,e.pos.z)&&!pushOutPos(e.pos))rescue(e);
-  e.yaw=Math.atan2(-(SPAN/2-s.x),-(SPAN/2-s.z));e.pitch=0;
+  e.yaw=Math.atan2(-((s.fx==null?SPAN/2:s.fx)-s.x),-((s.fz==null?SPAN/2:s.fz)-s.z));e.pitch=0;
   e.hp=100;e.alive=true;e.slot=0;e.wkey=e.loadout;fillAmmo(e);e.reloadT=0;e.switchT=0;e.fireCD=0;e.burstLeft=0;e.bloom=0;
   e.grenades=2;e.spawnShield=2;e.lastHurt=-99;e.streak=0;e.perch=null;e.holdT=0;e.onGround=true;e.path=null;e.target=null;e.stuckT=0;e.lastP.copy(e.pos);
   if(e.dummy){e.spawnShield=0;e.grenades=0}
@@ -1971,8 +2141,9 @@ function botThink(e,dt){
     if(d<.45&&Math.abs(dy)<1.6)e.pathI++;else{mx=dx/d;mz=dz/d;if(dy>.65&&e.onGround&&d<1.6)e.vel.y=JUMP}
   }
   const ml=Math.hypot(mx,mz);if(ml>1){mx/=ml;mz/=ml}
-  // stuck: hop and re-plan
-  e.stuckT+=dt;if(e.stuckT>1.1){if(ml>.3&&e.pos.distanceTo(e.lastP)<.4){if(e.onGround)e.vel.y=JUMP;e.pathT=0;e.strafe=-e.strafe;e.thinkT=0}e.stuckT=0;e.lastP.copy(e.pos)}
+  // stuck: hop and re-plan (the old path is dropped: a bot knocked off a ramp or a roof used to keep walking at its next
+  // waypoint, into the wall under it)
+  e.stuckT+=dt;if(e.stuckT>1.1){if(ml>.3&&e.pos.distanceTo(e.lastP)<.4){if(e.onGround)e.vel.y=JUMP;e.pathT=0;e.strafe=-e.strafe;e.thinkT=0;if(!(t&&e.tVis))e.path=null}e.stuckT=0;e.lastP.copy(e.pos)}
   // aim
   if(t&&e.tVis){
     const ax=t.pos.x-e.pos.x,ay=t.pos.y+.85-(e.pos.y+EYE),az=t.pos.z-e.pos.z,d3=Math.hypot(ax,ay,az);
@@ -2723,7 +2894,7 @@ const NET_BLOCKED='Couldn\'t reach the game database. If you\'re on a school or 
 function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('Could not load '+src));document.head.appendChild(s)})}
 function cleanName(n){return String(n||'Egg').replace(/[^\w \-.'!?]/g,'').trim().slice(0,14)||'Egg'}
 const Net={
-  peek:[],peekRoom:{},peekNew:{},cur:null,joining:false,checkT:0,fixT:0,growT:0,odd:0,ready:false,uid:null,db:null,offset:0,room:null,refs:null,isPublic:false,matchId:null,joinT:0,pubTimer:0,seen:new Set(),pruneTimer:0,
+  peek:[],peekRoom:{},peekNew:{},peekMaps:{},mapT:0,cur:null,joining:false,checkT:0,fixT:0,growT:0,odd:0,ready:false,uid:null,db:null,offset:0,room:null,refs:null,isPublic:false,matchId:null,joinT:0,pubTimer:0,seen:new Set(),pruneTimer:0,
   now(){return Date.now()+this.offset},
   async init(){
     if(this.ready)return;
@@ -2747,13 +2918,13 @@ const Net={
   stateOf(){
     const p=player;
     return{n:myName,c:myColor,x:r2(p.pos.x),y:r2(p.pos.y),z:r2(p.pos.z),h:r3(p.yaw),p:r3(p.pitch),hp:Math.max(0,Math.round(p.hp)),d:p.alive?0:1,
-      w:WKEYS.indexOf(p.wkey),sc:p.shotCount,k:p.kills,dt:p.deaths,r:Math.round(rank.r),sp:p.spawnShield>0?1:0,m:this.matchId==null?-1:this.matchId,mp:mapIdx,ar:mapSm,ts:Math.round(this.now())};
+      w:WKEYS.indexOf(p.wkey),sc:p.shotCount,k:p.kills,dt:p.deaths,r:Math.round(rank.r),sp:p.spawnShield>0?1:0,m:this.matchId==null?-1:this.matchId,mp:mapIdx,ar:mapSm,mc:MAPS.length,ts:Math.round(this.now())};
   },
   async count(room){
     const s=await this.db.ref('rooms/'+room+'/players').once('value');let n=0;const pk=[];
-    let allNew=true;
-    s.forEach(c=>{const v=c.val();if(c.key!==this.uid&&v&&this.now()-(+v.ts||0)<10000){n++;if(v.ar==null)allNew=false;if(!v.d&&isFinite(+v.x)&&isFinite(+v.z))pk.push({uid:c.key,x:+v.x,z:+v.z})}});
-    this.peekRoom[room]=pk;this.peekNew[room]=allNew;return n;
+    let allNew=true,mk=MAPS.length;
+    s.forEach(c=>{const v=c.val();if(c.key!==this.uid&&v&&this.now()-(+v.ts||0)<10000){n++;if(v.ar==null)allNew=false;mk=Math.min(mk,mapsOf(v));if(!v.d&&isFinite(+v.x)&&isFinite(+v.z))pk.push({uid:c.key,x:+v.x,z:+v.z})}});
+    this.peekRoom[room]=pk;this.peekNew[room]=allNew;this.peekMaps[room]=mk;return n;
   },
   async joinRoom(room,isPublic){
     await this.init();
@@ -2775,7 +2946,7 @@ const Net={
     // wins, and the transaction runs with applyLocally off so nobody sees, let alone builds, a losing guess. The join
     // never acts on the transaction's own result either (it can be older than what the listener has already delivered,
     // which used to put a late joiner back on the previous map); it waits for the listener.
-    this.claimRound(smallFor(others+1,this.peekNew[room]!==false));
+    this.claimRound(smallFor(others+1,this.peekNew[room]!==false),this.peekMaps[room]);
     const r=this.refs;
     const up=s=>{if(s.key===this.uid)return;onRemoteState(s.key,s.val())};
     r.players.on('child_added',up);r.players.on('child_changed',up);
@@ -2801,9 +2972,10 @@ const Net={
     await new Promise(res=>{const k=setInterval(()=>{if(!this.refs||this.matchId!=null||performance.now()-t0>8000){clearInterval(k);res()}},100)});
   },
   // Start the room's match if there is none, or the last one ended more than 20 s ago; otherwise keep it.
-  claimRound(sm){
-    this.roundErr=null;this.joining=true;const refs=this.refs;
-    refs.round.transaction(cur=>{const n=this.now();if(cur&&typeof cur.ends==='number'&&typeof cur.id==='number'&&n<roundEnd(cur)+20000)return;return{id:(cur&&+cur.id||0)+1,ends:n,len:MATCH_MS,map:Math.floor(Math.random()*MAPS.length),sm}},undefined,false)
+  // nm: how many of the maps every egg in the room can build (the map is picked from the first nm).
+  claimRound(sm,nm){
+    this.roundErr=null;this.joining=true;const refs=this.refs;nm=clamp(nm|0||MAPS.length,1,MAPS.length);
+    refs.round.transaction(cur=>{const n=this.now();if(cur&&typeof cur.ends==='number'&&typeof cur.id==='number'&&n<roundEnd(cur)+20000)return;return{id:(cur&&+cur.id||0)+1,ends:n,len:MATCH_MS,map:Math.floor(Math.random()*nm),sm}},undefined,false)
       .catch(err=>{this.roundErr=err}).then(()=>{if(this.refs!==refs)return;this.joining=false;if(this.cur)this.takeRound(this.cur)});
   },
   // A value of the room's match node from the server (the listener, or a fresh read). It becomes this browser's copy of
@@ -2832,14 +3004,20 @@ const Net={
     const v=this.cur;if(!v||this.joining||!this.refs)return;
     if(this.isNewRound(v)){onMatch(v);return}
     const t=performance.now();if(t-this.checkT<1000)return;this.checkT=t;
-    let same=0,diff=0,n=1,old=false;const now=this.now();
-    for(const e of remotes.values()){const q=e.net;if(!q||now-(+q.ts||0)>10000)continue;n++;if(q.ar==null)old=true;
+    let same=0,diff=0,n=1,old=false,mk=MAPS.length;const now=this.now();
+    for(const e of remotes.values()){const q=e.net;if(!q||now-(+q.ts||0)>10000)continue;n++;if(q.ar==null)old=true;mk=Math.min(mk,mapsOf(q));
       if(+q.m!==this.matchId||q.mp==null)continue;if(+q.mp===mapIdx&&(+q.ar||0)===mapSm)same++;else diff++}
     this.odd=diff>same?this.odd+1:0;
     if(this.odd>=2&&t-this.fixT>5000){this.fixT=t;this.odd=0;this.refs.round.once('value',s=>this.takeRound(s.val())).catch(()=>{})}
     if(v.sm&&v.id===this.matchId&&now-(+v.ends||0)<SMALL_GROW_MS&&(n>SMALL_MAX||old)&&t-this.growT>3000){this.growT=t;
       const id=v.id;this.refs.round.transaction(c=>c&&c.id===id&&c.sm?Object.assign({},c,{sm:0}):undefined,undefined,false).catch(()=>{})}
+    // Likewise for the map: if an egg that can't build this match's map (an older copy of the game knows fewer maps) is here
+    // in its first seconds, move the match to a map everyone has. After that it stays, and that egg sits out till the next.
+    if((v.map|0)>=mk&&v.id===this.matchId&&now-(+v.ends||0)<SMALL_GROW_MS&&t-this.mapT>3000){this.mapT=t;
+      const id=v.id;this.refs.round.transaction(c=>c&&c.id===id&&(c.map|0)>=mk?Object.assign({},c,{map:(c.map|0)%mk}):undefined,undefined,false).catch(()=>{})}
   },
+  // How many of the maps every egg now in the room can build.
+  mapsHere(){let mk=MAPS.length;const now=this.now();for(const e of remotes.values()){const q=e.net;if(q&&now-(+q.ts||0)<=10000)mk=Math.min(mk,mapsOf(q))}return mk},
   // After the last change, the same state goes out twice more at the usual rate: others then know at once that this egg
   // has stopped, instead of carrying it on (into the wall it stopped at, or through the floor it landed on) until the
   // next heartbeat.
@@ -2863,8 +3041,8 @@ const Net={
     // browser's own match so its listener (which ignores the match it already has) picks it up
     // the next match is a small arena if 4 or fewer eggs are here now (and all of them can build one)
     let n=1,allNew=true;const now=this.now();for(const e of remotes.values()){const q=e.net;if(!q||now-(+q.ts||0)>10000)continue;n++;if(q.ar==null)allNew=false}
-    const sm=smallFor(n,allNew);
-    this.refs.round.transaction(cur=>(!cur||cur.id===id)?{id:(+id||0)+1,ends:this.now(),len:MATCH_MS,map:((+(cur&&cur.map)||0)+1)%MAPS.length,sm}:undefined,undefined,false).catch(()=>{});
+    const sm=smallFor(n,allNew),mk=this.mapsHere();   // the next map in turn, among the ones every egg here can build
+    this.refs.round.transaction(cur=>(!cur||cur.id===id)?{id:(+id||0)+1,ends:this.now(),len:MATCH_MS,map:((+(cur&&cur.map)||0)+1)%mk,sm}:undefined,undefined,false).catch(()=>{});
   },
   // The last egg out takes the room's match with it, so a code nobody uses again doesn't keep a stale node. Only when
   // no other egg is here, and only the match this browser saw; an egg that was mid-join re-creates one (its own join
@@ -2880,6 +3058,10 @@ const Net={
 // A small arena for SMALL_MAX eggs or fewer, only if every egg in the room runs a version that can build one.
 const SMALL_GROW_MS=15000;
 function smallFor(n,allNew){return n<=SMALL_MAX&&allNew?1:0}
+// How many maps an egg can build: it says so in its node (mc). A copy of the game from before Deep Freeze, Sunny Side Sands
+// and Hardboil Heights says nothing and has only the first three, so a room with one in it stays on those (see check).
+const OLD_MAPS=3;
+function mapsOf(q){const n=q?+q.mc:0;return n>=1?Math.min(Math.floor(n),MAPS.length):OLD_MAPS}
 // the map and arena a round asks for (only maps with a small entry in MAPS can be small)
 function mapOf(v){return clamp(v.map|0,0,MAPS.length-1)}
 function smOf(v){return v.sm&&MAPS[mapOf(v)].small?1:0}
@@ -2893,7 +3075,7 @@ function enterRoom(){
   const room=Net.room;clearTimeout(Net.waitT);
   Net.waitT=setTimeout(()=>{
     if(!Net.refs||Net.room!==room||Net.matchId!=null)return;
-    Net.claimRound(smallFor(1+remotes.size,[...remotes.values()].every(e=>e.net&&e.net.ar!=null)));
+    Net.claimRound(smallFor(1+remotes.size,[...remotes.values()].every(e=>e.net&&e.net.ar!=null)),Net.mapsHere());
     Net.waitT=setTimeout(()=>{if(Net.refs&&Net.room===room&&Net.matchId==null){Net.leave();setupAttract();setMsg('Couldn\u2019t get this room\u2019s match from the game server. Try again, or play Practice.',true)}},15000);
   },12000);
 }
@@ -3222,7 +3404,7 @@ if(inv){$('room').value=inv[1];setMsg('You were invited to room sc-'+inv[1]+'. P
 
 if(navigator.webdriver)window.__sc={get state(){return state},get mode(){return mode},get noRender(){return noRender},set noRender(v){noRender=!!v},player,get ents(){return ents},get map(){return mapIdx},get arena(){return mapSm},get layout(){return mapIdx+(mapSm?"s":"")},findPath,rayWorld,floorBelow,buildMap,MAPS,W,HY,VY,G,GROUND_Y,vox,vget,standV,nodeFor,entHits,get navN(){return navN},get navReach(){return navReach},navAt,get navY(){return navY},get perches(){return perches},spawns:()=>spawns,Net,onRemoteState,handleEvent,onMatch,endMatch,standings,DIFF,WEAPONS,fireShot,damage,throwNade,nades,addFeed,respawn,spawnSplat,keys,setPaused:v=>{paused=v},get rank(){return rank},HUMAN_W,ratingChange,applyRating,get lastRated(){return lastRated},get clock(){return clock},toMenu,loadLeaderboard,renderer,scene,camera,vmScene,vmCam,advance:s=>{noRender=true;try{for(let t=0;t<s;t+=1/30)step(1/30)}finally{noRender=false}},get matchEnds(){return matchEnds},set matchEnds(v){matchEnds=v},get remotes(){return remotes},get range(){return Range},startTraining,tryFire,buildGun,WKEYS,get vmGun(){return vmGun},get tracers(){return tracers},startReload,setLoadout,switchSlot,mapInfo,RANGE_IDX,get paused(){return paused},get hudDirty(){return hudDirty},
   // collision audit: the real movement, push-out and remote-drawing code, driven step by step
-  moveEntity,steer,pushOutPos,rescue,boxSolid,updateRemotes,drawClamp,simulate,simSteps,FRAME_CAP,consts:{PR,PH,STEP,JUMP,GRAV,MAX_FALL},mapSpawns:()=>mapSpawns,los};
+  botMatch:(i,n)=>{clearBots();resetFx();buildMap(i);addBots(n)},moveEntity,steer,pushOutPos,rescue,boxSolid,updateRemotes,drawClamp,simulate,simSteps,FRAME_CAP,consts:{PR,PH,STEP,JUMP,GRAV,MAX_FALL},mapSpawns:()=>mapSpawns,los};
 
 renderSwatches();renderWeapons($('weapons'));renderDiff();renderGfx();renderRank();
 setupAttract();showAd('adMenu');
