@@ -71,6 +71,13 @@
       'With it off you get the winter page: snow, a tree, a snowman, a menorah, a diya, gingerbread and lights. Buttons are blue for the season.',
       'It stays until January 6. The Cabin button shows the cabin again, and the ❄ button in the footer turns all of it off.'
     ]},
+    {date: '2026-11-17', title: 'Three new Shell Crackers maps', kind: 'feature',
+     tags: ['Shell Crackers'], items: [
+      'Deep Freeze: a cold store, all indoors. Tight corridors, a freezer hall, a catwalk over it and a control room above each corridor.',
+      'Sunny Side Sands: a wide-open desert with a fort at each end of a long road, a deep dry wash to sneak along and a rock mesa on each side.',
+      'Hardboil Heights: a three-tier hill to fight up, with tunnels through the bottom of it that cross under the summit.',
+      'They join Farmstead, Yolk Works and Eggsburg in practice and in rooms.'
+    ]},
     {date: '2026-11-16', version: '1.29.4', title: 'One Turkey Week switch', kind: 'fix',
      tags: ['Back Room', 'Thanksgiving'], items: [
       'Turkey Week now has one switch, at the top of this page, in place of a button inside every game. Turn it off here and every game looks as usual the next time you open it.'
