@@ -60,6 +60,10 @@
  *   av the player's edited avatar as a short code (avatar.js: 'a2:' and fifteen numbers, the older 'a1:3.5.2.7.1', or 'a0' after a reset; absent if never edited).
  *      Taken from this browser's saved edit (localStorage avatar:v1) when it is for this account, else kept as the node has it
  *   ga 1 and gn the Google display name (40 characters, no email or photo) when the account is a Google sign-in, else neither
+ *   ge the Google account's email, sealed to the admin key (adminkey.js's BackRoomSeal of { k: 'ge', e: email, u: uid }), so
+ *      only the admin page (both admin codes) can open it; anyone else sees ciphertext. Sealed once per account in each
+ *      browser (localStorage 'lbs:ge' holds the last uid it was sealed for) and kept as the node has it otherwise. Only
+ *      on Google accounts.
  * Nodes written by the older version (v 1: n, c, x, z, h, ts, v, st, g, d, ga, gn) read the same way; that version overwrote
  * the whole node, so while one is still open it can briefly wipe q, lg and al (the totals come back on this browser's next
  * publish, from hw).
@@ -93,7 +97,23 @@
   if (!LIB && !/^[a-z0-9-]{1,30}$/.test(GAME)) GAME = ((/\/e63334287a3deaa3\/([a-z0-9-]{1,30})\//.exec(location.pathname)) || [])[1] || '';
   if (!LIB && !GAME) return;
 
-  var KEY = 'lbs:v2', OLD_KEY = 'lbs:v1', DEV_KEY = 'lbs:dev', TAB_KEY = 'lbs:tab', PATH = 'rooms/lb-all/players';
+  var KEY = 'lbs:v2', OLD_KEY = 'lbs:v1', DEV_KEY = 'lbs:dev', TAB_KEY = 'lbs:tab', PATH = 'rooms/lb-all/players', GE_KEY = 'lbs:ge';
+  var BASE = (me0 && me0.src ? new URL(me0.src, location.href).pathname : '/e63334287a3deaa3/stats.js').replace(/[^/]*$/, '');
+  // The admin public key and BackRoomSeal (adminkey.js), loaded the first time a Google account's email is sealed (ge).
+  var keyP = null;
+  function sealer() {
+    if (window.BackRoomSeal) return Promise.resolve(window.BackRoomSeal);
+    if (!keyP) {
+      keyP = new Promise(function (res, rej) {
+        var sc = document.createElement('script'); sc.src = BASE + 'adminkey.js';
+        sc.onload = function () { if (window.BackRoomSeal) res(window.BackRoomSeal); else rej(new Error('no key')); };
+        sc.onerror = function () { rej(new Error('no key')); };
+        document.head.appendChild(sc);
+      });
+      keyP.catch(function () { keyP = null; });
+    }
+    return keyP;
+  }
   var IDLE = 120000, GRACE = 30000, SAVE_MS = 15000, PUB_MS = 60000, DAY_MAX = 86400, TAB_FRESH = 3500;
   var MAX_GAMES = 80, MAX_STATS = 240;   // 80 games: the Back Room has 21, plus 21 daily puzzles and their hub (was 40)
   var DAYS = 30, DAY_GAMES = 8, NODE_CAP = 7000;    // per-day history: how many days and games a day are kept, and how big the node may get
@@ -579,7 +599,12 @@
     var av = okAv(x.av) ? x.av : okAv(cur.av) ? cur.av : absAv;
     if (av && !(av === 'a0' && !okAv(cur.av))) nd.av = av;
     // A Google account: say so, with its display name (never the email or photo), so the admin page can tell accounts apart.
-    if (x.u) { nd.ga = 1; var gn = cleanName(x.u.displayName, 40); if (gn) nd.gn = gn; }
+    if (x.u) {
+      nd.ga = 1; var gn = cleanName(x.u.displayName, 40); if (gn) nd.gn = gn;
+      // Its email, sealed so only the admin page can open it (ge): sealed just now, else as the node already has it.
+      var ge = okGe(x.ge) ? x.ge : okGe(cur.ge) ? cur.ge : '';
+      if (ge) nd.ge = ge;
+    }
     // Keep the node small enough for leaderboard.js (8,000 characters): drop the oldest days first.
     var days = Object.keys(nd.d).sort();
     while (days.length && JSON.stringify(nd).length > NODE_CAP) delete nd.d[days.shift()];
@@ -599,6 +624,13 @@
     if (n === AV2.length) return 'a2:' + AV2.map(val).join('.');
     // An edit from the first editor that avatar.js hasn't filled out yet (it does when a hub page next loads): its five.
     return !n ? 'a0' : n === AV1.length && AV1.every(set) ? 'a1:' + AV1.map(val).join('.') : '';
+  }
+  function okGe(v) { return typeof v === 'string' && /^1\.[A-Za-z0-9+/=]{20,120}\.[A-Za-z0-9+/=]{8,40}\.[A-Za-z0-9+/=]{20,600}$/.test(v); }
+  // A Google account's email, sealed to the admin key, when this browser hasn't sealed it for this account yet ('' otherwise).
+  function sealGe(u, uid) {
+    if (!u || !u.email || ls(GE_KEY) === uid || !window.crypto || !crypto.subtle) return Promise.resolve('');
+    return sealer().then(function (seal) { return seal({ k: 'ge', e: String(u.email).slice(0, 200), u: uid }); })
+      .then(function (b) { return okGe(b) ? b : ''; }, function () { return ''; });
   }
   function totals(nd) { var out = {}; Object.keys((nd && nd.g) || {}).forEach(function (gk) { if (nd.g[gk].s > 0) out[gk] = nd.g[gk].s; }); return out; }
   function readNode(c, uid) { return c.db.ref(PATH + '/' + uid).once('value').then(function (s) { return s.val(); }); }
@@ -629,10 +661,11 @@
         return readNode(c, xu).then(function (v) { if (obj(v) && v.to === uid) abs.push({ uid: xu, node: v }); else change(function (x) { delete x.lk[xu]; }); });
       })).then(function () { return batch; });
     });
-    return pre2.then(function (batch) {
+    return pre2.then(function (batch) { return sealGe(u, uid).then(function (ge) { return [batch, ge]; }); }).then(function (bg) {
+      var batch = bg[0], ge = bg[1];
       var keep = Object.keys(o.lkd).filter(function (k) { return o.lkd[k] === uid; });
       var v1 = o.v1 && (!o.v1.u || o.v1.u === uid) ? o.v1 : null;
-      var x = { uid: uid, batch: batch, b: o.b, hw: hwOf(o, uid), v1: v1, abs: abs, keep: keep, n: n, u: u, now: c.now(), av: localAv(uid) };
+      var x = { uid: uid, batch: batch, b: o.b, hw: hwOf(o, uid), v1: v1, abs: abs, keep: keep, n: n, u: u, now: c.now(), av: localAv(uid), ge: ge };
       return c.db.ref(PATH + '/' + uid).transaction(function (cur) {
         x.now = c.now();
         return c.J.parse(JSON.stringify(apply(cur, x)));
@@ -646,6 +679,7 @@
           y.hw = [[uid, totals(nd)]].concat(y.hw.filter(function (e) { return e[0] !== uid; })).slice(0, MAX_HW);
         });
         ls('lbs:uid', uid);
+        if (u && nd && okGe(nd.ge)) ls(GE_KEY, uid);              // sealed and saved: no need to seal it again in this browser
         lastSent = sig; merged = true;
         return true;
       });
@@ -847,6 +881,6 @@
     load: load, flush: flush, publish: function () { return publish(false); }, engaged: function () { return engaged(Date.now()); },
     local: function (gk) { flush(); var t = load().tc; return gk ? t[gk] || 0 : t; }, apply: apply, cleanDays: cleanDays,
     setIdle: function (ms) { IDLE = ms; }, setGrace: function (ms) { GRACE = ms; }, setPub: function (ms) { PUB_MS = ms; }, setSave: function (ms) { SAVE_MS = ms; },
-    link: link, anyTarget: function () { anyTarget = true; }, localAv: localAv, seasonKey: seasonKey, retired: retired, PATH: PATH
+    link: link, anyTarget: function () { anyTarget = true; }, localAv: localAv, seasonKey: seasonKey, retired: retired, PATH: PATH, sealGe: sealGe, okGe: okGe
   };
 })();
