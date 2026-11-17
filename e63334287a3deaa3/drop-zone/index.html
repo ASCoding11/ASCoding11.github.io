@@ -334,7 +334,7 @@ body.touch #net{font-size:14px}
   body.touch #feed{top:calc(64px + env(safe-area-inset-top,0px));max-width:calc(100vw - 150px)}
   body.touch #topc{top:calc(262px + env(safe-area-inset-top,0px))}
   body.touch #stormWarn{flex-direction:column;align-items:center;gap:0;text-align:center;font-size:12px}
-  body.touch #hint{top:auto;bottom:calc(196px + env(safe-area-inset-bottom,0px))}
+  body.touch #hint{top:auto;bottom:calc(226px + env(safe-area-inset-bottom,0px))}
   #banner{top:max(41%,330px)}
   #banner .small{font-size:13px;letter-spacing:.08em}
 }
@@ -533,9 +533,9 @@ const $=id=>document.getElementById(id);
 const V3=THREE.Vector3;
 const PREFIX='dz';
 // The island is MAP metres square; builds sit on a grid of CELL-metre cells, as in Backrooms.
-// MAPV is the island's version: it went from 1 (320 m) to 2 (240 m), then to 3 for the slower pace, 4 for the November 2026 fixes and 5 for real terrain. Every node carries it, and the host only puts people
+// MAPV is the island's version: it went from 1 (320 m) to 2 (240 m), then to 3 for the slower pace, 4 for the November 2026 fixes, 5 for real terrain and 6 for edited builds. Every node carries it, and the host only puts people
 // on the same version in a match, so nobody plays on a different island from everyone else.
-const MAPV=5;   // 5: real terrain (November 2026): the island has hills, cliffs and a shore, every place stands at its own height and loot, shots and builds follow the land, so a page with the flat island must not share a match. 3: the slower pace (November 2026): speeds, damage and the storm's times changed. 4: solid ramps, the smaller characters, the pace part-way back and ten weapons (new item ids), so the two must not share a match.
+const MAPV=6;   // 6: builds can be edited (November 2026): a page from before would keep the whole piece where a door or a window was cut, and the two would disagree about what is solid. 5: real terrain (November 2026): the island has hills, cliffs and a shore, every place stands at its own height and loot, shots and builds follow the land, so a page with the flat island must not share a match. 3: the slower pace (November 2026): speeds, damage and the storm's times changed. 4: solid ramps, the smaller characters, the pace part-way back and ten weapons (new item ids), so the two must not share a match.
 let mapV=MAPV;   // only a test changes this, to play the part of a page from before the change
 const nodeV=v=>+(v&&v.mv)||1;   // nodes from before map versions existed are on the old island
 const MAP=240,CELL=4,NC=MAP/CELL,MAX_ROOM=30,PRACTICE_BOTS=11,LIVE_MS=8000,MAXL=7,MAXL_TOP=13,COST=10,MAX_MATS=500,EDGE=3;
@@ -2283,6 +2283,31 @@ function wouldTrap(boxes,rps){
     for(const r of rps)if(rampIn(r,q.x,q.y,q.z)&&!rampLiftOk(r,q))return true}
   return false;
 }
+// The builds standing, as the host lists them in its node (bd) for someone who joins late and for anything a page missed:
+// nine characters a piece (what and which way, x, z, level, the tiles cut out, which edit of the piece that is, and who
+// built it as a place in the match's roster). A page adds the listed pieces it doesn't have and takes a listed shape that
+// is newer than its own (en); it never removes a piece because of the list (a piece the host missed stays where it is),
+// and it doesn't put back one it saw break in the last few seconds (the list is refreshed every couple of seconds at most).
+const B64='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_',BD_GRACE=8000,BD_EVERY=2000;
+function buildList(){
+  let out='';
+  for(const pc of pieces.values()){const s=pc.spec,o=roster.indexOf(pc.owner);
+    out+=(s.kind==='wall'?s.o:s.kind==='floor'?'F':'abcd'[s.dir])+B64[s.x]+B64[s.z]+B64[s.L]+B64[pc.ed>>6]+B64[pc.ed&63]+B64[pc.en>>6]+B64[pc.en&63]+B64[o>=0&&o<63?o:63]}
+  return out;
+}
+// true if every listed piece is now here in the listed (or a newer) shape
+function applyBuilds(str){
+  if(typeof str!=='string'||str.length%9||str.length>9*PCAP*3)return true;
+  let all=true;const now=performance.now();
+  for(let i=0;i<str.length;i+=9){
+    const c=str[i],v=[1,2,3,4,5,6,7,8].map(k=>B64.indexOf(str[i+k]));if(v.includes(-1))continue;
+    const s=c==='H'||c==='V'?{kind:'wall',o:c,x:v[0],z:v[1],L:v[2]}:c==='F'?{kind:'floor',x:v[0],z:v[1],L:v[2]}:'abcd'.includes(c)?{kind:'ramp',x:v[0],z:v[1],L:v[2],dir:'abcd'.indexOf(c)}:null;if(!s)continue;
+    const ed=v[3]*64+v[4],en=v[5]*64+v[6],k=pieceKey(s);let pc=pieces.get(k);
+    if(!pc){if(now-(bdGone.get(k)||-1e9)<BD_GRACE||!tryBuild(s,null,true,v[7]<roster.length?roster[v[7]]:null)){all=false;continue}pc=pieces.get(k)}
+    if(en>pc.en&&edOk(s.kind,ed))editPiece(pc,ed,true,en);
+  }
+  return all;
+}
 // owner: the entity that built it (its own builds online are sent to everyone else in the room); oid: its id, when the
 // entity isn't known here
 function tryBuild(s,owner,quiet,oid){
@@ -3881,7 +3906,7 @@ function resetEnt(e){
 function setupMatch(ms){
   curMatch=ms.id;seed=ms.sd>>>0;roster=String(ms.ro||'').split(',').filter(Boolean).slice(0,MAX_ROOM);
   busLine=makeBus(seed);storm=makeStorm(seed);
-  clearPieces();resetMap();Net.brApplied='';spawnLoot();bits.length=0;
+  clearPieces();resetMap();Net.brApplied='';Net.bdApplied='';Net.bdStr='';Net.bdAt=0;spawnLoot();bits.length=0;
   Net.oc=[];Net.pk=[];endShown=0;myResult=null;myKills=0;watchMode=false;specId=null;matchStartAt=performance.now();
   hud.feed.innerHTML='';
   inMatch=roster.includes(myId());
@@ -3963,7 +3988,15 @@ function handleEvent(from,e){
       const pt=[h[3],h[4],h[5]].every(n=>typeof n==='number'&&isFinite(n))?new V3(h[3],h[4],h[5]):victim.pos.clone().add(new V3(0,1.2,0));
       damageEntity(victim,d,!!h[2],actorId,pt,String(e.w));
     }
-  }else if(e.k==='b'){const s=cleanSpec(e.s);if(s)tryBuild(s,actor)}
+  }else if(e.k==='b'){const s=cleanSpec(e.s);if(s){
+    if(e.ed==null)tryBuild(s,actor,false,actorId);
+    else if(Number.isInteger(e.ed)&&Number.isInteger(e.n)&&e.n>0&&e.n<4096){
+      // an edit: only from whoever built the piece, and only one newer than the shape this page has. A piece this page never
+      // got (a missed build) is put up first, unless it was seen to break a moment ago.
+      const k=pieceKey(s);let pc=pieces.get(k);
+      if(!pc&&edOk(s.kind,e.ed)&&!(performance.now()-(bdGone.get(k)||-1e9)<BD_GRACE)&&tryBuild(s,actor,true,actorId))pc=pieces.get(k);
+      if(pc&&pc.owner===actorId&&e.n>pc.en)editPiece(pc,e.ed,false,e.n);
+    }}}
   else if(e.k==='o'){const c=chests[e.c|0];if(c)openChest(c)}
   else if(e.k==='u'){removeItem(String(e.id))}
   else if(e.k==='dr'){const it=cleanItem(e.it);if(it)addItem(it)}
@@ -4008,7 +4041,7 @@ function onNode(uid,v){
   Net.others.set(uid,{v,ts:+v.ts||0});
   const e=remotes.get(uid)||makeRemote(uid,v);
   applyNode(e,v);
-  if(uid===Net.hostUid&&!Net.amHost){if(validMS(v.ms))Net.lastMS=v.ms;if(v.br&&typeof v.br==='object')Net.lastBR=v.br}
+  if(uid===Net.hostUid&&!Net.amHost){if(validMS(v.ms))Net.lastMS=v.ms;if(v.br&&typeof v.br==='object')Net.lastBR=v.br;Net.lastBD=v.bd&&typeof v.bd==='object'?v.bd:null}
   if(fresh){Net.lastEv.set(uid,maxEv(v.ev));if(Net.now()-(+v.ts||0)<LIVE_MS&&performance.now()-Net.joinedAt>2500){feed(esc(cleanName(v.n))+' joined','info');sfxJoin()}}
   else if(v.ev&&typeof v.ev==='object'){
     const last=Net.lastEv.get(uid)||0;let any=false;for(const k in v.ev){const x=v.ev[k];if(x&&typeof x.i==='number'&&x.i>last){any=true;break}}
@@ -4087,7 +4120,7 @@ function loadScript(src){return new Promise((res,rej)=>{const s=document.createE
 const stCode=()=>!curMatch?'l':!inMatch?'o':ST_TO[player.st]||'o';
 const Net={
   ready:false,uid:null,db:null,offset:0,room:null,refs:null,loaded:false,quick:false,j:0,joinedAt:0,others:new Map(),amHost:false,hostUid:null,prevHost:null,
-  stale:false,oldN:0,lastBR:null,brApplied:'',pubTimer:0,tickTimer:0,lastPub:0,lastBeat:0,soon:false,evSeq:0,evOut:[],lastSent:{},lastEv:new Map(),recon:new Map(),oc:[],pk:[],lastMS:null,
+  stale:false,oldN:0,lastBR:null,brApplied:'',lastBD:null,bdApplied:'',bdTry:0,bdAt:0,bdStr:'',pubTimer:0,tickTimer:0,lastPub:0,lastBeat:0,soon:false,evSeq:0,evOut:[],lastSent:{},lastEv:new Map(),recon:new Map(),oc:[],pk:[],lastMS:null,
   now(){return Date.now()+this.offset},
   async init(){
     if(this.ready)return;
@@ -4113,6 +4146,7 @@ const Net={
     if(curMatch){o.oc=this.oc.join('.');o.pk=this.pk.slice(-400).join(',')}
     if(this.amHost&&MS)o.ms=MS.mv===mapV?MS:Object.assign({},MS,{mv:mapV});
     if(this.amHost&&curMatch&&brokenN)o.br={m:curMatch,b:brokenBits()};   // what's broken on the island, for late joiners and the next host
+    if(this.amHost&&curMatch){const t=performance.now();if(bdDirty&&t-this.bdAt>=BD_EVERY){bdDirty=false;this.bdAt=t;this.bdStr=buildList()}if(this.bdStr)o.bd={m:curMatch,s:this.bdStr}}   // the builds standing (see buildList)
     return o;
   },
   async peek(room){
@@ -4124,7 +4158,7 @@ const Net={
     await this.init();
     const info=await this.peek(room);
     if(info.n>=MAX_ROOM)throw new Error('That room is full ('+MAX_ROOM+' players). Pick another code.');
-    this.room=room;this.quick=!!quick;this.others.clear();this.lastEv.clear();this.recon.clear();this.amHost=false;this.hostUid=null;this.prevHost=null;this.lastMS=null;this.lastBR=null;this.brApplied='';this.lastSent={};this.evOut=[];
+    this.room=room;this.quick=!!quick;this.others.clear();this.lastEv.clear();this.recon.clear();this.amHost=false;this.hostUid=null;this.prevHost=null;this.lastMS=null;this.lastBR=null;this.brApplied='';this.lastBD=null;this.bdApplied='';this.bdStr='';this.bdAt=0;this.lastSent={};this.evOut=[];
     const roomRef=this.db.ref('rooms/'+room);
     this.refs={room:roomRef,players:roomRef.child('players'),me:roomRef.child('players/'+this.uid)};
     this.j=Math.round(this.now());this.evSeq=this.j;this.joinedAt=performance.now();
@@ -4194,6 +4228,10 @@ function onlineTick(){
   followMS();
   // the host's list of broken pieces (a late joiner, or anything this browser missed)
   const br=Net.lastBR;if(curMatch&&br&&br.m===curMatch&&typeof br.b==='string'&&br.b!==Net.brApplied){Net.brApplied=br.b;applyBits(br.b)}
+  // the host's list of builds (the same: a late joiner, or a build or an edit this browser missed); tried again for a while if
+  // a listed piece can't go up yet (the map piece in its way hasn't been taken down here yet, or it broke here a moment ago)
+  if(!Net.amHost){const bd=Net.lastBD;if(curMatch&&bd&&bd.m===curMatch&&typeof bd.s==='string'&&(bd.s!==Net.bdApplied||(Net.bdTry>0&&Net.bdTry<40))){
+    if(bd.s!==Net.bdApplied){Net.bdApplied=bd.s;Net.bdTry=0}Net.bdTry=applyBuilds(bd.s)?0:Net.bdTry+1}}
   // a player whose node stops updating counts as gone
   if(settled&&curMatch)for(const e of remotes.values())if(roster.includes(e.id)&&e.alive&&!Net.live(e.id,12000)&&performance.now()-matchStartAt>12000){e.alive=false;e.present=false;e.st='dead'}
   if(lobbyDirty)renderLobby();
@@ -4235,7 +4273,7 @@ function updateHud(dt){
     for(const k of ['wall','floor','ramp']){const el=$('slot'+k);el.classList.toggle('on',mode==='build'&&buildType===k);slotIcon(el,k);el.classList.toggle('cant',p.mats<COST)}
     hud.ammo.innerHTML=w?`<span class="wn" style="color:${RARH[s.r|0]}">${RAR[s.r|0]} ${w.name}</span><span><b>${s.n}</b><small> / ${p.ammo[w.am]}</small></span>`:'';hud.ammo.hidden=!w;if(w)hud.ammo.classList.toggle('low',s.n<=Math.max(1,w.mag*.25));
     hud.hint.hidden=mode==='combat';if(mode==='build')hud.hint.textContent='Build · '+buildType+(p.mats<COST?' · needs '+COST+' scrap':touchUI?' · hold Place':' · hold to place');
-    else if(mode==='edit'){const kn=a=>KB.name(KB.keys(a)[0]||'').toUpperCase();hud.hint.textContent=touchUI?'Edit · Tile opens or closes · Done · Whole · Cancel':'Edit · click tiles · '+kn('edit')+' done · '+kn('reload')+' whole · '+kn('aim')+' cancel'}
+    else if(mode==='edit'){const kn=a=>KB.name(KB.keys(a)[0]||'').toUpperCase();hud.hint.textContent=touchUI?'Edit · Tile cuts or fills · Done':'Edit · click tiles · '+kn('edit')+' done · '+kn('reload')+' whole · '+kn('aim')+' cancel'}
   }
   hud.reload.hidden=!(p.reloadT>0);if(p.reloadT>0&&w)hud.reloadF.style.width=(100*(1-p.reloadT/wReload(w,s.r)))+'%';
   hud.useBar.hidden=!(p.useT>0);if(p.useT>0){const it=p.inv[p.useSlot];if(it&&HEALS[it.t]){hud.useLbl.textContent='Using '+HEALS[it.t].name;hud.useFill.style.width=(100*(1-p.useT/HEALS[it.t].use))+'%'}}
@@ -4908,7 +4946,7 @@ if(navigator.webdriver)window.__dz={get state(){return state},get online(){retur
   setNoRender(v){window.__noRender=!!v},onNode,updateRemotes,renderOnce(){piecesTick(0);mpFlush();syncLimbs();drawScene()},get fxTier(){return fxTier},set fxTier(v){fxTier=v},get lookKey(){return lookKey},mpieces,mpBreak,mpSetHp,resetMap,mpAt,allRuns,brokenBits,applyBits,sendEv,get brokenN(){return brokenN},hash,setMapV(v){mapV=v},get mapV(){return mapV},mapSize:MAP,ICONS,paintControl,get mapBg(){if(!mapBg)buildMapBg();return mapBg},removePiece,wallSpec,pushOut,SPEED,AIR,BODY:{R,H},buildings,rampIn,updateBots,updatePlayer,
   GUN_GEO,GUN_TIP,GUN_OCT,RTAG,MAT,gunIM,itemIM,flashes,trs,bits,animModel,gunTip,startReload,tickWeapon,sfxShot,sfxReload,sfxPump,sfxBolt,sfxSwitch,isADS,KICK,
   STUCK_LOG,landPath,landClear,navShut,NAVN,updateBots,updatePlayer,step(dt){pClock+=dt*1000;practiceTick(dt);if(inPlay()){updatePlayer(dt);updateBots(dt)}},
-  landOk,landFit,landUnder,skirtOf,skirtList,pieceBox,ED_N,edRects,edOk,pieceShape,partsOf,partList,partIM,pieceInst,editPiece,wouldTrap,openEdit,closeEdit,confirmEdit,editKey,editTarget,editTile,updateEdit,canEdit,pieceMatrix,pieceCentre,EDIT_T,EDIT_RANGE,pressCode,get edit(){return edit},get editJob(){return editJob},get editAim(){return editAim},get buildCd(){return buildCd},rampH,rampAt,rampBlocked,solidAt,rayRamp,rhash,COST,JUMP,GRAV:G,STEP,RT,MAXL,terrainH,walkH,terrainSlope,rayTerrain,TH,TN,TS,TM,LVL,LAKE,PADS,SHED_Y,chestSpots,floorSpots,buildings,footprints,get groundMesh(){return groundMesh},
+  landOk,landFit,landUnder,skirtOf,skirtList,pieceBox,buildList,applyBuilds,handleEvent,get bdDirty(){return bdDirty},bdGone,ED_N,edRects,edOk,pieceShape,partsOf,partList,partIM,pieceInst,editPiece,wouldTrap,openEdit,closeEdit,confirmEdit,editKey,editTarget,editTile,updateEdit,canEdit,pieceMatrix,pieceCentre,EDIT_T,EDIT_RANGE,pressCode,get edit(){return edit},get editJob(){return editJob},get editAim(){return editAim},get buildCd(){return buildCd},rampH,rampAt,rampBlocked,solidAt,rayRamp,rhash,COST,JUMP,GRAV:G,STEP,RT,MAXL,terrainH,walkH,terrainSlope,rayTerrain,TH,TN,TS,TM,LVL,LAKE,PADS,SHED_Y,chestSpots,floorSpots,buildings,footprints,get groundMesh(){return groundMesh},
   Locker,LOCKER_ON,OUTFITS,bodyGeo,LEG_GEO,legIM,fitLegIM,fitLegGeo,makeModel,setModelColor,legSpec,STD_LEGS,fitOf,hitboxes,TKON,PCOLS,SKINS,get mySkin(){return mySkin}};
 
 requestAnimationFrame(t=>{last=t;frame(t)});
