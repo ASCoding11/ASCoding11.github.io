@@ -1236,6 +1236,58 @@ function buildSands(){
   crate(15,39);crate(16,39,4);crate(26,41);
   spawn(6,26);spawn(6,45);spawn(2,13);spawn(2,58);spawn(17,3);spawn(16,68);spawn(16,48);spawn(20,10);spawn(15,58,G,22,58.5);
 }
+
+// Hardboil Heights: the map with height. A three-tier quarry hill in the middle (1.5, 3 and 4.5 m up) with stairs on
+// every face, and two tunnels through it at ground level that cross in a chamber under the summit. A hut at each end,
+// a watchtower in two corners, boulders and pines round the foot of the hill.
+function buildHeights(){
+  ground(M_.GRASS,M_.DIRT);
+  perimeter(10,M_.STONE);
+  fill(13,G-1,13,58,G-1,58,M_.DIRT);                                   // the dirt track round the hill
+  // --- the hill ---
+  fill(18,G,18,53,G+1,53,M_.STONE);fill(18,G+2,18,53,G+2,53,M_.GRASS);
+  fill(24,G+3,24,47,G+4,47,M_.STONE);fill(24,G+5,24,47,G+5,47,M_.GRASS);
+  fill(30,G+6,30,41,G+8,41,M_.STONE);
+  fill(24,G+2,24,47,G+2,47,M_.STONE);fill(30,G+5,30,41,G+5,41,M_.STONE);   // (turf only where it shows)
+  // --- the tunnels: an open cut through the bottom tier, then under the upper tiers to the chamber ---
+  clear(18,G,35,23,G+2,36);clear(24,G,35,47,G+3,36);
+  clear(35,G,18,36,G+2,23);clear(35,G,24,36,G+3,47);
+  clear(32,G,32,39,G+4,39);fill(32,G-1,32,39,G-1,39,M_.STONE);
+  fill(35,G,35,36,G+4,36,M_.STONE);                                    // the pillar: no shot straight through
+  fill(24,G+4,35,24,G+4,36,M_.HAZARD);fill(35,G+4,24,36,G+4,24,M_.HAZARD);
+  for(const x of [27,30])put(x,G+2,34,M_.LAMP);for(const z of [27,30])put(37,G+2,z,M_.LAMP);
+  put(31,G+3,33,M_.LAMP);put(33,G+3,31,M_.LAMP);
+  crate(33,38);crate(38,33,4);
+  // --- stairs: ground to tier 1, tier 1 to 2, tier 2 to the summit (each tier is three steps) ---
+  stairs(15,44,1,0,G,3,4,M_.STONE);stairs(24,15,0,1,G,3,4,M_.STONE);
+  stairs(21,26,1,0,G+3,3,3,M_.STONE);stairs(43,21,0,1,G+3,3,3,M_.STONE);
+  stairs(27,34,1,0,G+6,3,4,M_.STONE);stairs(34,27,0,1,G+6,3,4,M_.STONE);
+  // --- the summit: low walls at the corners and a shelter ---
+  fill(30,G+9,30,33,G+10,30,M_.STONE);fill(30,G+9,30,30,G+10,33,M_.STONE);fill(38,G+9,30,41,G+10,30,M_.STONE);fill(41,G+9,30,41,G+10,33,M_.STONE);
+  for(const [x,z] of [[33,33],[38,33]])fill(x,G+9,z,x,G+13,z,M_.DARKWOOD);
+  fill(32,G+14,32,39,G+14,39,M_.SLATE);
+  // --- cover on the tiers, and a crane ---
+  crate(20,20,2,G+3);crate(21,20,4,G+3);crate(50,23,2,G+3);fill(19,G+3,40,20,G+4,41,M_.STONE);fill(30,G+3,20,31,G+4,20,M_.STONE);fill(40,G+3,50,42,G+3,51,M_.CRATE);
+  fill(26,G+6,30,26,G+7,31,M_.STONE);crate(44,31,2,G+6);crate(44,32,4,G+6);fill(31,G+6,44,32,G+7,44,M_.STONE);fill(40,G+6,26,41,G+7,26,M_.STONE);
+  fill(45,G+6,25,45,G+17,25,M_.CYEL);fill(38,G+17,25,47,G+17,25,M_.CYEL);put(39,G+16,25,M_.TRIM);put(39,G+15,25,M_.TRIM);
+  // --- a hut at each end: door facing the cut, stairs up the outside to its roof ---
+  building({x0:3,z0:31,x1:11,z1:40,stories:1,wall:M_.WHITEWOOD,trim:M_.DARKWOOD,groundFloor:M_.PLANK,roof:'flat',parapet:M_.WHITEWOOD,roofMat:M_.PLANK,winEvery:3,
+    doors:[['e',3,4,0,5],['n',3,2,0]]});
+  stairs(11,41,-1,0,G,5,2,M_.DARKWOOD);clear(6,G+SH,40,7,G+SH+1,40);
+  crate(5,38);crate(5,39,4);fill(9,G,32,10,G+1,32,M_.PLANK);
+  fill(14,G,32,14,G+2,33,M_.STONE);fill(14,G,38,14,G+2,39,M_.STONE);     // cut blocks either side of the way in
+  // --- watchtowers: two flights to an open top ---
+  building({x0:4,z0:4,x1:11,z1:11,stories:2,wall:M_.DARKWOOD,floor:M_.PLANK,roof:'flat',parapet:M_.DARKWOOD,roofMat:M_.PLANK,winEvery:2,doors:[['s',3,2,0],['e',3,2,0]]});
+  stairs(5,5,0,1,G,5,2,M_.PLANK);stairs(9,10,0,-1,G+SH,5,2,M_.PLANK);
+  // --- round the foot of the hill ---
+  vcyl(14,24.5,1.5,G,3,M_.STONE);vcyl(8,20,1.2,G,4,M_.STONE);vcyl(22,9.5,1.6,G,4,M_.STONE);vcyl(27,8,1.3,G,3,M_.STONE);vcyl(53.5,9,1.5,G,5,M_.STONE);vcyl(60.5,14,1.4,G,3,M_.STONE);vcyl(10,52.5,1.5,G,4,M_.STONE);vcyl(16.5,62,1.3,G,3,M_.STONE);
+  tree(3,16);tree(18,6);tree(24,3);tree(44,4);tree(66,24);tree(13,58);tree(22,66);tree(8,47);
+  fill(40,G,10,45,G+2,12,M_.CYEL);fill(46,G,10,47,G+4,12,M_.CYEL);fill(46,G+3,10,47,G+3,12,M_.TRIM);    // a dump truck
+  fill(12,G,46,13,G+1,49,M_.DARKWOOD);put(12,G+2,47,M_.DARKWOOD);put(12,G+2,48,M_.DARKWOOD);           // logs
+  clear(3,G-1,61,7,G-1,66);fill(3,G-2,61,7,G-2,66,M_.WATER);                                           // a pond
+  crate(16,30);crate(16,29,4);crate(29,13);crate(55,16,4);crate(56,16);crate(20,56);
+  spawn(2,28);spawn(2,44);spawn(2,14);spawn(14,2);spawn(31,2);spawn(51,3);spawn(62,3);spawn(3,54);
+}
 //MAPS_END
 
 // Small arena: an online round that starts with SMALL_MAX eggs or fewer closes off the far wings of the map (box x0..71-x0,
@@ -1252,7 +1304,9 @@ const MAPS=[
   {name:'Deep Freeze',build:buildFreezer,skyTop:'#6fa9df',skyHor:'#f2f8ff',fog:0xe9f2fa,fogFar:150,sunC:0xf2f7ff,sunI:.6,sunPos:[34,62,-40],hemiS:0xf3f8ff,hemiG:0x9db3c4,hemiI:.8,ambI:.24,
    outer:['#f1f6fa','#e4edf4','#ffffff','#dbe6ee'],hills:0xe6eef5,trees:0x3e6f58,cloud:0xffffff},
   {name:'Sunny Side Sands',build:buildSands,small:{x0:1,z0:15,h:10,m:M_.REDROCK,sp:[[6,26],[6,45],[16,48],[26,16],[27,41,G,27.5,60],[15,30,G,16.5,39.5]]},skyTop:'#2f8fe8',skyHor:'#ffeec4',fog:0xf7e6bd,fogFar:190,sunC:0xfff0c8,sunI:.95,sunPos:[24,78,34],hemiS:0xfff3d6,hemiG:0xb08a55,
-   outer:['#e6cf96','#dcc487','#eed9a6','#d6bc7c'],hills:0xc99a62,trees:0x7d8f4a,cloud:0xffffff}
+   outer:['#e6cf96','#dcc487','#eed9a6','#d6bc7c'],hills:0xc99a62,trees:0x7d8f4a,cloud:0xffffff},
+  {name:'Hardboil Heights',build:buildHeights,small:{x0:12,z0:12,h:10,m:M_.STONE,sp:[[14,14,G,14.5,45],[44,14,G,57,14.5],[14,28,G,14.5,45],[14,44,G,14.5,20]]},skyTop:'#5a7fa8',skyHor:'#f3e3d0',fog:0xe9dccb,fogFar:175,sunC:0xffe7c2,sunI:.85,sunPos:[-60,48,-24],hemiS:0xf0e8e0,hemiG:0x6f7a58,
+   outer:['#7aa855','#86b25f','#6d9a4b','#8fba68'],hills:0x7c8f5c,trees:0x355f3a,cloud:0xfff1e0}
 ];
 let mapIdx=-1,mapSm=0;
 // Close off the wings for a small arena (after the map is built): every open block outside the box becomes BARRIER, and
