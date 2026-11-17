@@ -24,6 +24,9 @@
  *   kind     'game'    a new game                  shows as "New game 1.7"
  *            'feature' a new feature or big update  shows as "Update 1.7"
  *            'fix'     bug fixes and small tweaks   shows as "Bug fix 1.7.1"
+ *            'soon'    a teaser for something on its way: shows as "Coming soon" with a "?" for its icon, on a
+ *                      dark card with a big picture. Its version is kept for the dot but not shown. Tease, never
+ *                      tell: no names, no dates. Take the entry out again when the real news goes in.
  *   version  a new game or a big feature bumps the minor number and drops the patch
  *            (1.6 -> 1.7, and 1.7.2 -> 1.8); a fix-only release adds or bumps a patch
  *            number (1.7 -> 1.7.1 -> 1.7.2). Never reuse a version.
@@ -87,6 +90,12 @@
       'Retro TV look: the whole page as if on that old set, with pixel letters, big-pixel game pictures and faint scan lines. The Retro TV switch at the top right turns it off.',
       'With it off you get the winter page: snow, a tree, a snowman, a menorah, a diya, gingerbread and lights. Buttons are blue for the season.',
       'It stays until January 6. The Cabin button shows the cabin again, and the ❄ button in the footer turns all of it off.'
+    ]},
+    {date: '2026-11-17', version: '1.29.16', title: 'Something is coming', kind: 'soon',
+     img: 'news-soon.jpg', tags: ['???', 'Top secret'], items: [
+      'Something is taking shape behind the curtain. We can\'t say what.',
+      'A few shapes in the dark and one big question mark. Guess all you like.',
+      'No more clues. Watch this space.'
     ]},
     {date: '2026-11-17', version: '1.29.15', title: 'Flickerwood', kind: 'game', games: ['Flickerwood'],
      img: 'm/thumbs/flickerwood.jpg', tags: ['Arcade', 'Maze chase', 'Solo', 'Pixel art'], items: [
@@ -444,8 +453,8 @@
     }
   ];
 
-  var KIND = { game: 'New game', feature: 'Update', fix: 'Bug fix' };
-  var ICON = { game: '🎮', feature: '✨', fix: '🔧' };
+  var KIND = { game: 'New game', feature: 'Update', fix: 'Bug fix', soon: 'Coming soon' };
+  var ICON = { game: '🎮', feature: '✨', fix: '🔧', soon: '?' };
   var PAGE = 5;      // days shown at first, and added by each "Show older"...
   var CARDS = 10;    // ...or fewer, once those days hold this many cards (a day is never split), so a busy day doesn't make a very long list
   var NEW_DAYS = 7;  // how long an entry's games get the "New games!" row on the strip
@@ -502,7 +511,8 @@
   }
   function rel(d) { var n = daysAgo(d); return n === 0 ? 'Today' : n === 1 ? 'Yesterday' : short(d); }
   function kindOf(e) { return KIND[e.kind] ? e.kind : 'feature'; }
-  function label(e) { return KIND[kindOf(e)] + (e.version ? ' ' + e.version : ''); }
+  function shownVer(e) { return kindOf(e) === 'soon' ? '' : e.version || ''; }  // a teaser shows no version: nothing has gone out yet
+  function label(e) { return KIND[kindOf(e)] + (shownVer(e) ? ' ' + shownVer(e) : ''); }
   function el(tag, cls, text) { var x = document.createElement(tag); if (cls) x.className = cls; if (text != null) x.textContent = text; return x; }
 
   // The spotlight, when it's on today: {g: {n, d}, id, kicker, img, tags}, or null. Closed in this browser: hidden.
@@ -637,6 +647,18 @@
       '.nws-chev{flex:none;font-family:var(--mono,monospace);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2,#4a5751);border:1px solid var(--line,#d3dad2);background:var(--panel,#fff);border-radius:999px;padding:3px 10px}' +
       '.nws-chev i{font-style:normal;display:none}' +
       '.nws-e.k-game,.nws-v.k-game{--kc:var(--nws-g)}.nws-e.k-feature,.nws-v.k-feature{--kc:#3E5BA9}.nws-e.k-fix,.nws-v.k-fix{--kc:#C0562F}' +
+      // a teaser (kind 'soon'): a dark pill on the strip and a dark card with a big picture in the list, in both themes;
+      // the "?" and a glow over the picture's question mark breathe slowly (opacity only, so nothing moves)
+      '.nws-e.k-soon,.nws-v.k-soon{--kc:#8E6BFF}' +
+      '.nws-v.k-soon{gap:6px;padding-left:9px;color:#ECE6FF;background:#15122E;border-color:#5B45C8}' +
+      '.k-soon .nws-ic{font-family:var(--display,var(--f-d,"Arial Narrow",sans-serif));font-weight:800;font-size:15px;color:#fff;text-shadow:0 0 6px #A88BFF;animation:nws-q 3s ease-in-out infinite}' +
+      '@keyframes nws-q{50%{opacity:.4}}' +
+      '.nws-bar .nws-snap.k-soon{background:#0B0A1C;box-shadow:0 0 0 1px #5B45C8,0 0 9px -1px #8E6BFF}' +
+      '.nws-e.k-soon{--ink:#F3EFFF;--ink-2:#CFC8EA;--panel:#15122E;color:var(--ink);background:radial-gradient(120% 90% at 50% 0%,#1F1846 0%,#0C0A1C 72%);border-color:#2F2860;border-left-color:var(--kc)}' +
+      '.nws-e.k-soon .nws-em{position:relative;display:block;width:min(100%,420px);border-radius:9px}' +
+      '.nws-e.k-soon .nws-em img{width:100%;background:#0B0A1C;box-shadow:0 0 0 1px #3A3176,0 10px 26px -14px #8E6BFF}' +
+      '.nws-e.k-soon .nws-em::after{content:"";position:absolute;inset:0;border-radius:9px;pointer-events:none;mix-blend-mode:screen;' +
+        'background:radial-gradient(ellipse 20% 36% at 50% 26%,rgba(196,178,255,.5),rgba(142,107,255,.16) 55%,transparent 75%);animation:nws-q 3s ease-in-out infinite}' +
       // "New games!" row
       '.nws-fresh{display:flex;flex-wrap:wrap;align-items:center;gap:7px 8px;padding:0 14px 11px}' +
       '.nws-fl{display:inline-flex;align-items:center;gap:6px;margin-right:2px;font-family:var(--display,var(--f-d,"Arial Narrow",sans-serif));font-weight:800;font-size:19px;line-height:1;letter-spacing:.03em;text-transform:uppercase;' +
@@ -730,7 +752,7 @@
       '@container nwsrow (min-width:960px){.nws-cols{grid-template-columns:minmax(0,1fr) clamp(240px,27%,300px);gap:10px}.nws-ads{gap:10px}.nws-ads.two{grid-template-columns:minmax(0,1fr);grid-auto-rows:minmax(0,1fr)}.nws-ads > .nws-ad{height:auto}.nws-row.open .nws-ads{align-self:start;height:var(--adh,44px)}}' +
       '@container nwsrow (min-width:1180px){.nws-cols.two{grid-template-columns:minmax(0,1fr) clamp(450px,44%,560px)}.nws-ads.two{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-auto-rows:auto}}' +
       '@media (max-height:500px){@container nwsrow (min-width:800px) and (max-width:959.98px){.nws-cols{grid-template-columns:minmax(0,1fr) 210px;gap:10px}.nws-ads.two{grid-template-columns:minmax(0,1fr);grid-auto-rows:minmax(0,1fr)}.nws-ads > .nws-ad{height:auto}.nws-row.open .nws-ads{align-self:start;height:var(--adh,44px)}}}' +
-      '@media (prefers-reduced-motion:reduce){.nws-dot,.nws-fl,.nws-sk::before{animation:none}.nws-chip,.nws-sp,.nws-ad-btn{transition:none}}';
+      '@media (prefers-reduced-motion:reduce){.nws-dot,.nws-fl,.nws-sk::before,.k-soon .nws-ic,.nws-e.k-soon .nws-em::after{animation:none}.nws-chip,.nws-sp,.nws-ad-btn{transition:none}}';
     document.head.appendChild(css);
 
     var latest = list[0], fresh = unseen(), shown = 0, games = freshGames();
@@ -741,7 +763,7 @@
     k.append(dot, 'What\'s new', dotTxt);
     var v = el('span', 'nws-v k-' + kindOf(latest)), vi = el('span', 'nws-ic', ICON[kindOf(latest)]);
     vi.setAttribute('aria-hidden', 'true');
-    v.append(vi, latest.version ? 'v' + latest.version : KIND[kindOf(latest)]);
+    v.append(vi, shownVer(latest) ? 'v' + shownVer(latest) : KIND[kindOf(latest)]);
     v.title = KIND[kindOf(latest)];
     var t = el('span', 'nws-t', latest.title);
     var d = el('span', 'nws-d', rel(latest.date)); d.title = short(latest.date);
@@ -749,7 +771,7 @@
     var chevB = el('b', '', 'Open'), chevI = el('i', '', '▾'); chev.append(chevB, chevI);
     var snap = imgsOf(latest)[0];
     bar.append(k, v, el('span', 'nws-brk'));
-    if (snap) bar.append(pic(snap, 'nws-snap'));
+    if (snap) bar.append(pic(snap, 'nws-snap k-' + kindOf(latest)));
     bar.append(t, d, chev);
 
     // The spotlight: one game pinned at the top, with its picture, keywords and a Play button; × hides it here.
