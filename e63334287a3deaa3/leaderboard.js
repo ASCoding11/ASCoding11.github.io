@@ -48,8 +48,9 @@
  * Miles board (the first board, 'all'): This week or All time (a toggle, This week unless this browser picked All time:
  * localStorage 'lb:span'; it also switches each game's Hours board). All time ranks by BackRoomMiles.of(node).miles, the
  * number behind the tier badge. This week is miles from play time only (miles.js's HOUR per hour), from the per-day history
- * d that stats.js keeps (seconds per game per local day, YYYYMMDD by the player's own browser): the 7 dates from 6 days ago
- * to today, by the viewer's clock, plus tomorrow for someone in a time zone ahead. Wins and bests have no date, so they
+ * d that stats.js keeps (seconds per game per local day, YYYYMMDD by the player's own browser): the dates from this week's
+ * Monday to today, by the viewer's clock (the week starts on Monday, so the board empties at midnight on Sunday night),
+ * plus tomorrow for someone in a time zone ahead. Wins and bests have no date, so they
  * only count in All time. Each day is checked like the hours (24 hours a day at most, games the boards know, at most
  * DAY_GAMES of them, plus d's '_': that day's time in games past stats.js's first eight, all together), each game's week
  * is no more than its all-time hours, and after an hours reset only the days from the reset's date count (and still no
@@ -74,7 +75,7 @@
   // stats; they are still downloaded).
   var TOP = 25, MAX_NODES = 3000, NODE_MAX = 8000, MAX_STATS = 240, STALE = 180 * 86400000;
   var EPOCH = Date.UTC(2026, 9, 21);            // the day stats.js started counting
-  var WEEK_DAYS = 7, DAY_GAMES = 12, DAY_REST = '_';   // This week: how many dates; games a day accepted (stats.js keeps 8); d's other-games key
+  var WEEK_DAYS = 7, DAY_GAMES = 12, DAY_REST = '_';   // This week: the most dates (Monday to Sunday); games a day accepted (stats.js keeps 8); d's other-games key
   var NAME_MAX = 14;
 
   // Stat formats: n (a count), elo, time (seconds to the millisecond, lower wins), dur (seconds, higher wins), m (metres), days, chips.
@@ -395,9 +396,11 @@
   // This week, from the node's per-day history (see the top of this file). since: an hours reset's time, or 0.
   function dayKey(d) { return String(d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate()); }
   function dayAgo(now, n) { var d = new Date(now); d.setDate(d.getDate() - n); return dayKey(d); }
+  // The week starts on Monday: how many days back this week's Monday is (0 on a Monday, 6 on a Sunday), by the viewer's clock.
+  function sinceMonday(now) { return (new Date(now).getDay() + 6) % 7; }
   function realDay(k) { return dayKey(new Date(+k.slice(0, 4), +k.slice(4, 6) - 1, +k.slice(6, 8))) === k; }
   function weekOf(p, src, now, since) {
-    var wk = {}, lo = dayAgo(now, WEEK_DAYS - 1), hi = dayAgo(now, -1);
+    var wk = {}, lo = dayAgo(now, Math.min(sinceMonday(now), WEEK_DAYS - 1)), hi = dayAgo(now, -1);
     if (since > 0) { var sd = dayKey(new Date(since)); if (sd > lo) lo = sd; }
     if (src && typeof src === 'object' && !Array.isArray(src)) Object.keys(src).slice(0, 40).forEach(function (k) {
       var g = src[k], tot = 0, m = 0;
@@ -986,9 +989,9 @@
     [].forEach.call($span.children, function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-s') === view.span)); });
     $spanNote.hidden = !spans;
     $spanNote.textContent = !spans ? '' : miles
-      ? (wk ? 'This week counts miles from play time in the last 7 days (today and the 6 before), ' + fmtN((window.BackRoomMiles && BackRoomMiles.HOUR) || 100) + ' an hour. Wins and bests count in All time.'
+      ? (wk ? 'This week counts miles from play time since Monday, ' + fmtN((window.BackRoomMiles && BackRoomMiles.HOUR) || 100) + ' an hour. Wins and bests count in All time.'
         : 'All time: miles for every hour played plus points for wins and bests, the same miles as each player’s status tier.')
-      : (wk ? 'This week counts time played in the last 7 days (today and the 6 before).' : '');
+      : (wk ? 'This week counts time played since Monday.' : '');
     if (!$spanNote.textContent) $spanNote.hidden = true;
     $h.textContent = (miles ? 'Miles · all games' : BY[view.g].n + ' · ' + st.l) + (spans ? (wk ? ' · this week' : ' · all time') : '');
     $list.textContent = '';
