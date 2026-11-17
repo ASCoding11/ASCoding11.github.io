@@ -783,7 +783,9 @@ function walls(c){
   if(vn<=0)return 0;
   if(c.v<0){c.v=0;return vn}
   const tx=vx-T.NX[i]*sg*vn,tz=vz-T.NZ[i]*sg*vn,tv=Math.hypot(tx,tz);
-  const loss=clamp(1-vn*.035,.35,.92);
+  // What is left of the speed along the wall. A light brush keeps 96% (it was 92%: every touch of a barrier cost a
+  // twelfth of the speed, which felt harsh once tight corners got proper inside barriers); a square hit keeps 40%.
+  const loss=clamp(1-vn*.028,.4,.96);
   c.v=tv*loss;if(tv>.5)c.h=Math.atan2(tz,tx);
   return vn;
 }
@@ -2413,6 +2415,10 @@ function drawTags(){
 // =====================================================================
 //  Race events
 // =====================================================================
+// Records go to the leaderboards through stats.js, which keeps them under the current record season: 'lap:<track>' here
+// is stored as 'lap:s2:<track>' (clap:, rec: and crec: the same). A reset of everyone's records is a new season number in
+// stats.js and leaderboard.js, not a change here (README: stats.js). The game itself saves no times: Best in the HUD and
+// the "personal best" in the lap toast are for the race being driven.
 // A lap with no shortcut also counts for the separate clean-lap board ('clap:<track>'), next to the fastest lap.
 function cleanLap(lt){if(window.BackRoomStats&&!race.attract)BackRoomStats.min('clap:'+TRACKS[race.track].id,lt)}
 function onMyLap(c,lt,pb,clean){

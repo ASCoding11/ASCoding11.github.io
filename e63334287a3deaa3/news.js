@@ -6,7 +6,8 @@
  * Puts a slim "What's new" strip under the page header (above the Party panel) with the
  * latest entry's kind, version, title and day, and, while there are games less than a week
  * old, a "New games!" row of chips that open them. Tapping the strip opens the list of
- * changes as a card per release, grouped by day, five days at a time ("Show older" for more).
+ * changes as a card per release, grouped by day, five days at a time, or fewer once they hold
+ * ten cards ("Show older" for more).
  * A dot on the strip marks entries you haven't opened yet; it's remembered only in this
  * browser (localStorage `news:seen`). It takes its colours from the page's CSS variables
  * (--accent, --panel, --ink…), so it fits the light Back Room page and the dark phone page.
@@ -71,6 +72,67 @@
       'With it off you get the winter page: snow, a tree, a snowman, a menorah, a diya, gingerbread and lights. Buttons are blue for the season.',
       'It stays until January 6. The Cabin button shows the cabin again, and the ❄ button in the footer turns all of it off.'
     ]},
+    {date: '2026-11-17', version: '1.29.15', title: 'Flickerwood', kind: 'game', games: ['Flickerwood'],
+     img: 'm/thumbs/flickerwood.jpg', tags: ['Arcade', 'Maze chase', 'Solo', 'Pixel art'], items: [
+      'Flickerwood: an 8-bit maze chase by moonlight. Steer Glim the firefly through a hedge maze, gather every speck of pollen, and keep away from four night critters that each hunt in their own way.',
+      'A moonbloom dazzles them for a few seconds so you can send them home for points, a dash gets you out of a tight spot, and eating without a gap builds a chain worth up to five times as much.',
+      'Five glades of different shapes with tunnels that slow the critters, quicker every glade. Keyboard, or swipes and a pad on a phone. Your best score goes on the Leaderboards.'
+    ]},
+    {date: '2026-11-17', version: '1.29.14', title: 'Driftfall: ten weapons and real scopes', kind: 'feature',
+     img: 'm/thumbs/drop-zone.jpg', tags: ['Driftfall', 'Ten weapons', 'Scopes', 'Storm'], items: [
+      'Ten weapons, two of every kind: Pistol and Heavy Pistol, SMG and Drum SMG, Pump and Auto Shotgun, Rifle and Heavy Rifle, Bolt Sniper and Scout Sniper. Each has its own shape, sound and punch.',
+      'Every weapon has its own view when you aim, and the two snipers have a real scope to look down.',
+      'The storm is a wall of thundercloud with rain and lightning. You get a warning when it is coming or you are in it, and the compass marks the safe zone.',
+      'The hotbar shows a picture of what is in each slot. Scrap has its own chip in big figures, and B (or a tap on the chip) brings out the build pieces.',
+      'Characters are a fifth smaller, ramps and stairs are solid so nobody comes up through them, and the ground is a painted map of the island: grass, tracks, sand and paving.',
+      'Fights last a little longer and the storm closes more slowly, while running is nearly as quick as it was.',
+      'A new look too: shadows, a sun in the sky and a sea that catches the light. Walls, trees, cars and fences break when you shoot them.'
+    ]},
+    {date: '2026-11-17', version: '1.29.13', title: 'Three new daily puzzles', kind: 'game', games: ['Mainstream', 'Thereabouts', 'Yardstick'],
+     img: ['m/thumbs/mainstream.jpg', 'm/thumbs/thereabouts.jpg', 'm/thumbs/yardstick.jpg'], tags: ['Daily puzzles', 'Estimation', 'Bigger Deepword'], items: [
+      'Mainstream: Deepword turned upside down. Ten prompts, 30 seconds each, and the best answer is the one most people would give.',
+      'Thereabouts: three numbers a day that nobody knows by heart, like heartbeats in a lifetime or trees on Earth. Work each one out roughly, lock it in and see how many times out you were.',
+      'Yardstick: judge sizes by eye. Stretch a shape until it looks right next to one whose size you are told, five rounds a day, then see the real size drawn over your guess.',
+      'That makes 24 daily puzzles, and each of the new ones has an Unlimited mode for practice.',
+      'Deepword and Puffer Party know a lot more: 500 new questions, about three times as many answers, and one wrong letter in a long answer still counts. Puffer Party has 45 new categories.'
+    ]},
+    {date: '2026-11-17', version: '1.29.12', title: 'Tumble Trials: 23 rounds and always 16 beans', kind: 'feature',
+     img: 'm/thumbs/tumble-trials.jpg', tags: ['Tumble Trials', '14 new rounds', '16 contestants'], items: [
+      'Fourteen new rounds, 23 in all. Ride lifts up a tower in Going Up, cross turning barrels in Barrel Roll Row, hop ferries in Ferry Frenzy, outrun the roller in Roller Rink, and race for the crown in Crown Dash, a new final.',
+      'Every show starts with 16 contestants. Bots take the empty places, so three friends play with 13 bots and a solo show is you and 15.',
+      'No two shows go the same way: the order of races and survivals, how many go through each round and how many reach the final all change.',
+      'A race shows the place you are running in, the intro card lists the show\'s rounds, and the camera stays clear of walls.',
+      'Each round has its own sky and colours. Fixed: bots that got stuck for good, and crowds pushing a bean down through the floor.'
+    ]},
+    {date: '2026-11-17', version: '1.29.11', title: 'Backrooms: edit your builds', kind: 'feature',
+     img: 'm/thumbs/backrooms-1v1.jpg', tags: ['Backrooms', 'Editing', 'Name tags'], items: [
+      'Aim at a wall, floor or ramp you built and press G (Edit on a phone). It turns into tiles: shoot the ones you want open to cut a door or a window, then press G again.',
+      'Reload makes the piece whole again, and Aim cancels.',
+      'Can\'t find each other? After 1:30 of a round, a name tag flashes over everyone still standing for two seconds in every 15, through walls.',
+      'Ramps are solid, so nothing walks or jumps up through a build.',
+      'New lighting that shows the rooms, new guns and shot effects, and a shadow under every character.'
+    ]},
+    {date: '2026-11-17', version: '1.29.10', title: 'Design your own avatar', kind: 'feature',
+     tags: ['Avatars', 'Online', 'Party'], items: [
+      'Press Edit avatar in your row of the Online panel, or tap your own face there or on your Party card.',
+      'Choose your skin tone, hair style and colour, eyes, eyebrows, mouth, cheeks, glasses, hat, shirt and background, and watch the preview change as you go.',
+      'Save, and everyone sees the new you in Online, Party and the Leaderboards. Reset gives back the face you started with.'
+    ]},
+    {date: '2026-11-17', version: '1.29.9', title: 'Leaderboards: medals, ratings and a button in every game', kind: 'feature',
+     tags: ['Leaderboards', 'Miles', 'Ranked'], items: [
+      'The top three on the Miles board wear a tag next to their badge wherever their name shows: #1, #2 and #3 all time in gold, silver and bronze, and the same three for this week.',
+      'Every game has a Leaderboard button that opens that game\'s boards without leaving the game.',
+      'Ranked ratings in twelve online games, Boostball, Rumble Karts, Backrooms and Driftfall among them. Everyone starts at 1000, beating real players moves you up, and each game has an Elo board. Matches against only bots don\'t count.',
+      'This week now runs from Monday to Sunday, and the Miles board shows miles alone, without the hours underneath.',
+      'Slipstream has new boards for clean laps and races, where no corner was cut.'
+    ]},
+    {date: '2026-11-17', version: '1.29.8', title: 'Public parties: join in one tap', kind: 'feature',
+     tags: ['Parties', 'Online', 'Playing now'], items: [
+      'A party is Public unless its leader picks Private. Public parties show in the Online panel with a Join party button, so you can get in without asking first.',
+      'Leaders choose Public or Private right under the party code, and everyone in the party is told when someone joins.',
+      'Playing now, above the Party panel, lists the online games you can join this minute, and anyone in a game you can join has a Join button on their row.',
+      'Rather be left alone? Switch off Let people join my games in the Online panel.'
+    ]},
     {date: '2026-11-17', title: 'Capture the flag in Shell Crackers', kind: 'feature',
      tags: ['Shell Crackers'], items: [
       'A new mode: two teams, Red and Blue, a flag each. Grab the other team\'s flag and carry it back to your own stand to score. First to 3 captures wins.',
@@ -84,6 +146,29 @@
       'Sunny Side Sands: a wide-open desert with a fort at each end of a long road, a deep dry wash to sneak along and a rock mesa on each side.',
       'Hardboil Heights: a three-tier hill to fight up, with tunnels through the bottom of it that cross under the summit.',
       'They join Farmstead, Yolk Works and Eggsburg in practice and in rooms.'
+    ]},
+    {date: '2026-11-16', version: '1.29.7', title: 'A new look for 21 games', kind: 'feature',
+     img: ['m/thumbs/slipstream.jpg', 'm/thumbs/turbo-trail.jpg', 'm/thumbs/melon-merge.jpg'], tags: ['Graphics', 'Cars', 'Parkour', 'Puzzles'], items: [
+      'Cars: Slipstream has true team colours, painted skies, reshaped cars and tyre smoke. Rumble Karts has skies, far hills, a panelled arena floor and glossier karts. Rampline has road markings, dust, smoke and boost flames. Boostball has sculpted cars, a stadium and shadows.',
+      'Parkour: every Turbo Trail world has its own sky and sea, with a redrawn runner and speed effects. Escapade has molten lava and a light of its own in every level. Updraft has a cloud sea and signs you can read.',
+      'Spire has a simpler menu with one big Play button, a coach for your first climb and an arrow that points the way.',
+      'Shooters and party games: six redrawn guns, muzzle flashes and tracers in Shell Crackers, a rebuilt hunter in Odd One Out, paint splats and a sparkle when someone is found in Chromaflage, smooth scaled snakes in Coil, and a leather-and-felt table with new cards and chips in Showdown.',
+      'Puzzles: fruit with faces in a glass jar in Melon Merge, keycap blocks in Stackfall, new tile colours on a walnut board in 2048, a framed board and sparks in Gridpop, and a new sea with redrawn creatures in Deepword.',
+      'Driftfall, Tumble Trials and Backrooms got theirs too.'
+    ]},
+    {date: '2026-11-16', version: '1.29.6', title: 'More Escapade, Asteroid Run and Rampline', kind: 'feature',
+     img: ['m/thumbs/escapade.jpg', 'm/thumbs/asteroid-run.jpg', 'm/thumbs/rampline.jpg'], tags: ['Escapade', 'Asteroid Run', 'Rampline', 'Edit layout'], items: [
+      'Catching up on the last two weeks. Escapade has six worlds, 48 levels in all: after Breakout and Lost and Found come Deep Down, Full Power, Sky High and The Last Door.',
+      'Asteroid Run has 57 levels and eight runners with their own tricks. Endless changes zone as you go, and its Daily run is the same tunnel for everyone.',
+      'Rampline has 30 tracks in four tiers, online boards with ghosts to race, and Community tracks that other players have published.',
+      'Edit layout, at the top of the games, lets you put the page in your own order and choose which games get big cards.'
+    ]},
+    {date: '2026-11-16', version: '1.29.5', title: 'Boostball bumps and other fixes', kind: 'fix',
+     tags: ['Boostball', 'Slipstream', 'Back Room'], items: [
+      'Boostball: ram a car and it is shoved away harder while you carry on, and bots get pushed properly. Cars, bots and the ball move more evenly on any screen, and cars come down with more weight.',
+      'Slipstream: Monaco\'s hairpin is fixed, and buildings and masts keep clear of the road.',
+      'The row of game types (Cars, Shooters, Parkour and the rest) stays right above the games, under Online, when you have put the page in your own order.',
+      'Gridpop blocks are plain again, with no marks stamped on them, and Showdown fits a phone held sideways.'
     ]},
     {date: '2026-11-16', version: '1.29.4', title: 'One Turkey Week switch', kind: 'fix',
      tags: ['Back Room', 'Thanksgiving'], items: [
@@ -150,11 +235,6 @@
         'New look: softer light, a sky with clouds, glowing ceiling lights, skirting boards and soft shadows under everything, disguised players included.',
         'Graphics setting is now Low, Medium or High.'],
       img: 'm/thumbs/odd-one-out.jpg', tags: ['Odd One Out', 'Anti-cheat', 'Graphics']},
-    {date: '2026-11-11', version: '1.23', title: 'Hivefix', kind: 'game',
-     img: 'm/thumbs/hivefix.jpg', tags: ['Arcade', 'Solo', 'Combos'], items: [
-      'Hivefix: a one-screen fix-it arcade game. Wax the worker bee hops around a honeycomb frame patching cracked and smashed cells while Bruno the bear pounds the top of the hive and shakes chunks of comb loose.',
-      'Fixing roots you to the spot, so watch his paws: when they go up, that column is about to get hit. Every couple of frames brings something new (resin ridges, royal jelly, wasps, sticky honey), and your best score goes on the Leaderboards.'
-    ]},
     {date: '2026-11-11', version: '1.22', title: 'Tidewick', kind: 'game', games: ['Tidewick'],
      img: 'm/thumbs/tidewick.jpg', tags: ['Platformer', '2 stages', 'Boss'], items: [
       'Tidewick: an 8-bit style side-scroller on a rainy harbour at dusk. Run and jump Pip across the quay, stomp Bilges and Whelks, knock lantern crates for brass buttons, find the cellar under the smoking chimney, and reach the signal mast.',
@@ -188,11 +268,6 @@
       'Updraft: 2,000 m more. The old summit at 1,000 m is now a milestone, and the climb goes on to the Crown at 3,000 m through five new zones.',
       'Aurora Drift, where platforms blink on and off in time; Storm Front, with rain, lightning and gusts that push you in mid-air; Skyport, a floating town at sunset with conveyor belts, barge traffic, cannons and a blimp; Orbit Yard, in low gravity over the curve of the world; and The Crown, with rising waves of steps, a giant pendulum and a carousel of moons.',
       'Your best time to the old summit still counts, and there\'s a new Leaderboard for the fastest climb to the Crown. A run saved at the old top carries on from there.'
-    ]},
-    {date: '2026-11-09', version: '1.17', title: 'Lunge Line', kind: 'game', games: ['Lunge Line'],
-     img: 'm/thumbs/lunge-line.jpg', tags: ['Sword duel', 'Online 1v1', 'Bots', 'Tournament'], items: [
-      'Lunge Line: a sword-duel tug-of-war. One touch wins the duel, and only the winner may run for their beacon while the other comes straight back in front of them. Three sword heights, disarms, parries, throws, rolls, and fists and feet when you lose your sword.',
-      'Four arenas with their own tricks (crumbling docks, low-ceilinged archive stacks, a glasshouse full of hiding leaves, a windy mountain pass), online 1v1 with friends or Quick match, a bot on three levels, two players on one keyboard, and a knockout tournament for up to 8.'
     ]},
     {date: '2026-11-06', version: '1.16', title: 'Rampline', kind: 'game', games: ['Rampline'],
      img: 'm/thumbs/rampline.jpg', tags: ['Stunt racer', 'Time trials', 'Track builder'], items: [
@@ -331,7 +406,8 @@
 
   var KIND = { game: 'New game', feature: 'Update', fix: 'Bug fix' };
   var ICON = { game: '🎮', feature: '✨', fix: '🔧' };
-  var PAGE = 5;      // days shown at first, and added by each "Show older"
+  var PAGE = 5;      // days shown at first, and added by each "Show older"...
+  var CARDS = 10;    // ...or fewer, once those days hold this many cards (a day is never split), so a busy day doesn't make a very long list
   var NEW_DAYS = 7;  // how long an entry's games get the "New games!" row on the strip
   var MAX_CHIPS = 6;
   var SEEN = 'news:seen', SPOT_X = 'news:spot';
@@ -632,9 +708,10 @@
     });
     var newUpTo = fresh;  // entries above this index get a "New" tag in the open list
     function drawMore() {
-      var end = Math.min(groups.length, shown + PAGE);
-      for (; shown < end; shown++) {
+      var end = Math.min(groups.length, shown + PAGE), drawn = 0;
+      for (; shown < end && drawn < CARDS; shown++) {
         var g = groups[shown], day = el('div', 'nws-day'), h = el('h3', 'nws-dh'), n = daysAgo(g.date), x = local(g.date);
+        drawn += g.entries.length;
         var full = DAY[x.getDay()] + ', ' + short(g.date);
         if (n === 0 || n === 1) { h.append(el('b', '', n === 0 ? 'Today' : 'Yesterday'), ' · ' + full); } else h.textContent = full;
         day.appendChild(h);

@@ -18,7 +18,8 @@
  * nodes that are too big, too old, from the future or the wrong shape are skipped, play time can't exceed 24 hours for
  * every day since the boards started (EPOCH), counts can't grow faster than RATE allows for the time played in that game,
  * each stat has a sane range (Elo 100–3000, a lap no quicker than its track allows, and so on), a best single round can't
- * beat the all-time count it's part of (le), and a course record can't beat that track's fastest lap times the laps. Names are cleaned and
+ * beat the all-time count it's part of (le), and a course record can't beat that track's fastest lap times the laps. Slipstream's
+ * lap and race records have a season (SLIP_SEASON): only the current season's names are read, so a reset wipes them for everyone. Names are cleaned and
  * always shown as text. It signs in through party.js (window.Party), so "You" is the same person as in the panels above.
  *
  * To add a board for a game: give the game a row in GAMES (folder, name, and its stats: key, label, format, unit, range,
@@ -44,6 +45,8 @@
  * badge wherever it is drawn (miles.js): after every read, tops() (the rank 1 rows of both spans) is handed to
  * BackRoomMiles.setTops; and when a badge is drawn elsewhere on the page before the boards were read, miles.js asks
  * for that read early (readTops), which the section then reuses for FRESH instead of reading again when it's scrolled to.
+ * The same answer carries the Slipstream ace (ace(), below tops()): whoever leads the most Slipstream tracks, 3 or more,
+ * worked out from the same rows; miles.js draws it as an earned award, and Slipstream's time boards say who holds it.
  *
  * Miles board (the first board, 'all'): This week or All time (a toggle, This week unless this browser picked All time:
  * localStorage 'lb:span'; it also switches each game's Hours board). All time ranks by BackRoomMiles.of(node).miles, the
@@ -223,6 +226,7 @@
     { d: 'stackfall', n: 'Stackfall', st: [{ k: 'classic', l: 'Best score (Classic)', chip: 'Classic', f: 'n', u: 'pt', hi: 1e8 }, { k: 'sand', l: 'Best score (Sand)', chip: 'Sand', f: 'n', u: 'pt', hi: 1e8 }, { k: 'lines', l: 'Most lines in a game (Classic)', chip: 'Most lines', f: 'n', u: 'line', hi: 100000 }] },
     { d: 'melon-merge', n: 'Melon Merge', st: [{ k: 'score', l: 'Best score', f: 'n', u: 'pt', hi: 1e7 }, { k: 'melons', l: 'Watermelons grown (all time)', chip: 'Watermelons', f: 'n', u: 'watermelon', rate: 0.05 }] },
     { d: 'patchwork-tower', n: 'Patchwork Tower', st: [{ k: 'score', l: 'Best score', f: 'n', u: 'pt', hi: 9999999 }] },
+    { d: 'flickerwood', n: 'Flickerwood', st: [{ k: 'score', l: 'Best score', f: 'n', u: 'pt', hi: 9999999 }] },
     // Daily Puzzles: grp puts them in their own group in the Board menu. The hub's `done` (one per puzzle finished, counted
     // on the hub page) is checked against the time played in every daily game together (rateOf), as the hub itself is only
     // open for a few seconds between puzzles.
@@ -329,6 +333,22 @@
     'us-2023': ['Las Vegas', 51], 'qa-2004': ['Lusail', 45], 'ae-2009': ['Abu Dhabi', 44], 'lakeside': ['Lakeside', 33], 'harbour': ['Harbour', 29], 'mesa': ['Mesa', 32]
   };
   var TRACK_IDS = Object.keys(TRACKS), STD_LAPS = [3, 5, 10];   // the race lengths the game offers
+  // Slipstream's record season. Its lap and race records were reset for everyone on 17 November 2026 (the tracks had been
+  // fixed and barrier touches made gentler, so older times no longer compared). stats.js stores the records with the
+  // season in the name ('lap:s2:<track>', 'rec:s2:<track>:<laps>', and clap: / crec: the same way) and parse() below reads
+  // ONLY this season's, handing them on under the plain names ('lap:<track>'…), so every board, the track counts,
+  // miles.js and the admin page see this season and nothing older. TO RESET AGAIN: raise SLIP_SEASON by one here and
+  // SEASON.slipstream to the same number in stats.js, and put the new date in SLIP_RESET (README: stats.js).
+  var SLIP_SEASON = 2, SLIP_RESET = '17 November 2026';
+  var SLIP_NAME = new RegExp('^(c?(?:lap|rec)):s' + SLIP_SEASON + ':(.+)$');
+  // stats.js writes the season and this file reads it, so the two numbers must match: warn in the console if they don't
+  // (checked whenever the boards are read, on a page that has stats.js).
+  function seasonCheck() {
+    try {
+      var S = window.BackRoomStats || window.BackRoomStatsLib, n = S && S.seasons && S.seasons.slipstream;
+      if (n && n !== SLIP_SEASON) console.warn('Leaderboards: Slipstream record season is ' + SLIP_SEASON + ' in leaderboard.js but ' + n + ' in stats.js. Set both to the same number (README: stats.js).');
+    } catch (e) {}
+  }
   var BY = {}; GAMES.forEach(function (g) { BY[g.d] = g; });
 
   // ---------------- Helpers ----------------
@@ -475,6 +495,11 @@
         if (k >= st.min) o[st.k] = Math.min(st.hi, Math.round(k / Math.max(1, d) * 100) / 100);
       });
       if (meta.laps) {
+        // This season's records only, under their names without the season ('lap:s2:monza' is read as 'lap:monza'). A
+        // time from before the last reset (no season in its name, or another season) is never read.
+        var cur = {};
+        sk.forEach(function (k) { var m = SLIP_NAME.exec(k); if (m) cur[m[1] + ':' + m[2]] = src[k]; });
+        sk = Object.keys(cur); src = cur;
         sk.forEach(function (k) {
           var m = /^lap:([a-z0-9-]{1,20})$/.exec(k), t = m && TRACKS[m[1]], x = num(src[k]);
           if (t && x >= t[1] && x <= 900) o[k] = x;
@@ -700,10 +725,42 @@
     return list;
   }
 
+  // The Slipstream ace: an award nobody hands out. It goes to whoever leads the most Slipstream tracks, and only while
+  // they lead ACE_MIN or more at once, so it changes hands as records fall and nobody holds it when nobody leads that many.
+  // Leading a track means holding its fastest lap this season: the driver the every-track board names for it (trackRows,
+  // so the same checked nodes and the same season; merged accounts are one driver, removed ones never count). One record
+  // per track, so the number is tracks led. Course records and clean laps don't count: a track has one of those for every
+  // race length, so one driver could reach the minimum on a single track, and every record needs a lap time there anyway.
+  // A tie for most (at ACE_MIN or more): everyone tied holds it, as with the #1 tags.
+  // people: a collapsed list; all: the list before collapse, to add the other accounts of a holder (as tops does).
+  // -> { n: tracks the holders lead (0 when unclaimed), who: the holders' entries, by name, ids: their uids and their
+  //      other accounts', best: the most tracks anyone leads (under ACE_MIN when unclaimed), min: ACE_MIN }
+  var ACE_MIN = 3;
+  function ace(people, all) {
+    var list = (people || []).filter(function (p) { return p && !p.hidden && !p.into; });
+    var led = {}, out = { n: 0, who: [], ids: [], best: 0, min: ACE_MIN };
+    trackRows(list).forEach(function (r) { if (r.p) led[r.p.uid] = (led[r.p.uid] || 0) + 1; });
+    Object.keys(led).forEach(function (u) { if (led[u] > out.best) out.best = led[u]; });
+    if (out.best < ACE_MIN) return out;
+    out.n = out.best;
+    out.who = list.filter(function (p) { return led[p.uid] === out.n; }).sort(function (a, b) { return a.n < b.n ? -1 : a.n > b.n ? 1 : a.uid < b.uid ? -1 : 1; });
+    out.ids = out.who.map(function (p) { return p.uid; });
+    (all || []).forEach(function (p) { if (p && p.into && !p.hidden && out.ids.indexOf(p.into) >= 0 && out.ids.indexOf(p.uid) < 0) out.ids.push(p.uid); });
+    return out;
+  }
+  // The line Slipstream's time boards carry about it. me(uid): whether that is the viewer.
+  function aceLine(a, me) {
+    var rule = ' It goes to whoever holds the fastest lap on the most tracks, ' + ACE_MIN + ' or more.';
+    if (!a || !a.n) return 'unclaimed. Nobody leads ' + ACE_MIN + ' tracks yet.' + rule;
+    var names = a.who.map(function (p) { return p.n + (me && me(p.uid) ? ' (you)' : ''); });
+    var who = names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0];
+    return who + ', leading ' + a.n + ' tracks' + (names.length > 1 ? ' each' : '') + '.' + rule;
+  }
   // Who is first, second and third on the Miles board, for the "#1 all time" / "#2 this week" … tags miles.js puts by
   // tier badges: the uids rows() ranks 1, 2 and 3 for each span, so the same checked nodes, the same week and the same tie rule as the board (a tie for
   // first: every tied player, and allTie / weekTie say so). people: a collapsed list. all: the list before collapse, to
   // add the entries shown as one row with a leader (the same person's other account). An empty board: an empty list.
+  // ace, aceN: the Slipstream ace's uids and how many tracks they lead (ace() above; [] and 0 when it is unclaimed).
   function tops(people, all) {
     // all / week: the uids ranked 1; all2, all3, week2, week3: the uids ranked 2 and 3 (silver and bronze). The ranks
     // are the board's own, so after a tie for first the next row is rank 3 and nobody is second, as the board shows it.
@@ -719,6 +776,7 @@
         out[span + (place === 1 ? '' : place)] = ids;
       });
     });
+    var a = ace(list, all); out.ace = a.ids; out.aceN = a.n;
     return out;
   }
   // The same from raw nodes, for the admin page (which also lists removed and merged accounts): read here as the boards
@@ -733,7 +791,7 @@
   }
 
   // For the admin page: the same checks and names, so what it shows is what the boards would show. With data-lib, that's all.
-  window.BackRoomBoards = { tops: tops, topsOf: topsOf, RS_PATH: RS_PATH, readResets: readResets, get resets() { return RESETS; }, showHidden: function (v) { SHOW_HIDDEN = !!v; }, parse: parse, collapse: collapse, GAMES: GAMES, BY: BY, TRACKS: TRACKS, trackRows: trackRows, EPOCH: EPOCH, PATH: PATH, MAX_NODES: MAX_NODES, NODE_MAX: NODE_MAX, fmt: fmt, fmtHours: fmtHours, cleanName: cleanName, mask: mask, seatOf: seatOf };
+  window.BackRoomBoards = { tops: tops, topsOf: topsOf, ace: ace, ACE_MIN: ACE_MIN, RS_PATH: RS_PATH, readResets: readResets, get resets() { return RESETS; }, showHidden: function (v) { SHOW_HIDDEN = !!v; }, parse: parse, collapse: collapse, GAMES: GAMES, BY: BY, TRACKS: TRACKS, SLIP_SEASON: SLIP_SEASON, SLIP_RESET: SLIP_RESET, trackRows: trackRows, EPOCH: EPOCH, PATH: PATH, MAX_NODES: MAX_NODES, NODE_MAX: NODE_MAX, fmt: fmt, fmtHours: fmtHours, cleanName: cleanName, mask: mask, seatOf: seatOf };
   if (me && me.hasAttribute('data-lib')) return;
 
   // ---------------- Styles ----------------
@@ -763,6 +821,8 @@
     '.lbd-r.av{grid-template-columns:2.6em 30px minmax(0,1fr) auto}' +
     '.lbd-ex .bra-tier,.lbd-ex .bra-tw{margin-right:6px;vertical-align:-1px}.lbd-ex .bra-tw .bra-tier{margin-right:0}' +
     '.lbd-r.me{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--panel))}' +
+    // Your own row on a name tile (avatar.js) keeps the tile's colour; a ring in the page's accent still marks it as yours.
+    '.lbd-r.me.bra-nt{box-shadow:0 0 0 2px var(--accent)}' +
     '.lbd-rk{font-family:var(--mono,var(--f-m,monospace));font-size:14px;font-weight:600;color:var(--ink-2);text-align:right}' +
     '.lbd-r:nth-child(-n+3) .lbd-rk{color:var(--accent)}' +
     '.lbd-who{display:grid;min-width:0;line-height:1.3}' +
@@ -782,6 +842,8 @@
     '.lbd-msg,.lbd-note{margin:0;font-size:14px;color:var(--ink-2);overflow-wrap:anywhere}' +
     '.lbd-msg:empty{display:none}.lbd-msg.err{color:var(--down,#B42318)}' +
     '.lbd-note{font-size:13px}' +
+    // Slipstream's time boards: who holds the Slipstream ace award, under the board's heading.
+    '.lbd-ace{margin:-4px 0 0;font-size:13px;color:var(--ink-2);overflow-wrap:anywhere}.lbd-ace[hidden]{display:none}.lbd-ace b{color:var(--ink);font-weight:700}' +
     '@media (max-width:600px){.lbd{padding:14px}.lbd-sub{font-size:14px;order:3;flex-basis:100%}.lbd-top > .lbd-b{margin-left:auto}.lbd-ctl label{max-width:none}.lbd-ctl label span{display:none}.lbd-chips{gap:6px}.lbd-chips button{font-size:13px;padding:5px 11px;min-height:34px}.lbd-r{gap:8px;padding:7px 10px;grid-template-columns:2.2em minmax(0,1fr) auto}.lbd-r.av{grid-template-columns:2.2em 28px minmax(0,1fr) auto}.lbd-v{font-size:14px}.lbd-span button{font-size:13px;padding:5px 12px}}' +
     '@media (max-width:420px){.lbd h2{font-size:24px}}';
   document.head.appendChild(css);
@@ -816,9 +878,13 @@
   var $note = el('p', 'lbd-note', 'Play time counts while a game is open and you’re playing. Scores are reported by each player’s own browser, so they’re for bragging rights, not prizes.');
   // Slipstream's course-record boards only: what the time includes.
   var $rule = el('p', 'lbd-note', 'Race times include any track-cut penalties (+2.5 s each).'); $rule.hidden = true;
+  // Slipstream's time boards only: the records were reset, and when (SLIP_RESET).
+  var $season = el('p', 'lbd-note', 'Season ' + SLIP_SEASON + ': Slipstream’s lap and race records were reset on ' + SLIP_RESET + ', after track fixes and gentler barriers made older times unfair to compare. Times set before then no longer count. Elo and hours played were kept.'); $season.hidden = true;
   // What This week / All time counts, on the boards with the toggle.
   var $spanNote = el('p', 'lbd-note'); $spanNote.hidden = true;
-  box.append(top, ctl, $chips, $h, $list, $msg, $rule, $spanNote, $note);
+  // Slipstream's time boards only: who holds the Slipstream ace (see ace) and the rule, or that it is unclaimed.
+  var $ace = el('p', 'lbd-ace'); $ace.hidden = true;
+  box.append(top, ctl, $chips, $h, $ace, $list, $msg, $rule, $season, $spanNote, $note);
   sec.append(box);
 
   // Game mode: the panel. Its own colours and type, since a game page has none of the hub's CSS variables.
@@ -903,9 +969,12 @@
       var p = parse(keys[i], val[keys[i]], now); if (!p) continue;
       out.push(p);
       if (BA && typeof val[keys[i]].av === 'string') { try { BA.learn(keys[i], val[keys[i]].av); } catch (e) {} }
+      // nt: the colour of their name tile, checked by avatar.js the same way (row() paints it).
+      if (BA && BA.learnTile && typeof val[keys[i]].nt === 'string') { try { BA.learnTile(keys[i], val[keys[i]].nt); } catch (e) {} }
     }
     people = collapse(out); everyone = out; lastLoad = Date.now();
     pushTops();
+    seasonCheck();
   }
 
   function waitParty() {
@@ -963,7 +1032,7 @@
     if (sig !== trkSig) {
       trkSig = sig; $trk.textContent = '';
       var withT = el('optgroup'), without = el('optgroup');
-      withT.label = 'Tracks with times'; without.label = people ? 'No times yet' : 'Tracks';
+      withT.label = 'Tracks with times'; without.label = people ? 'No times yet this season' : 'Tracks';
       ts.order.forEach(function (id) {
         var n = ts.count[id] || 0;
         (n ? withT : without).append(new Option(TRACKS[id][0] + (n ? ' · ' + n + (n === 1 ? ' driver' : ' drivers') : ''), id));
@@ -990,6 +1059,8 @@
     li.append(el('span', 'lbd-rk', String(r.rank)));
     if (window.BackRoomAvatar) { try { li.append(BackRoomAvatar.el(r.p.uid, 30)); li.classList.add('av'); } catch (e) {} }
     li.append(who, el('span', 'lbd-v', r.fmt));
+    // The row takes the colour of the player's name tile (avatar.js), if they chose one.
+    if (window.BackRoomAvatar && BackRoomAvatar.paint) { try { BackRoomAvatar.paint(li, r.p.uid); } catch (e) {} }
     return li;
   }
   function trackRow(r) {
@@ -1029,6 +1100,9 @@
     view.st = st && st.k !== 's' ? st : null;
     $rule.hidden = !(view.st && (view.st.laps || view.st.cleanB));
     $rule.textContent = view.st && view.st.cleanB ? 'Clean times: no corner was cut on ' + (view.st.laps ? 'any lap of the race.' : 'the lap.') : 'Race times include any track-cut penalties (+2.5 s each).';
+    $season.hidden = !(slip && view.st && (view.st.all || view.st.track));   // the lap and record boards, not Hours or Elo
+    $ace.hidden = $season.hidden || !people;
+    if (!$ace.hidden) { $ace.textContent = ''; $ace.append(el('b', '', 'Slipstream ace: '), aceLine(ace(people, everyone), isMe)); }
     var miles = view.g === 'all', spans = miles || !view.st, wk = spans && view.span === 'week';
     $span.hidden = !spans;
     [].forEach.call($span.children, function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-s') === view.span)); });
@@ -1044,7 +1118,7 @@
     if (view.st && view.st.all) {
       var trs = trackRows(people), have = trs.filter(function (r) { return r.p; }).length;
       trs.forEach(function (r) { $list.append(trackRow(r)); });
-      say(have ? 'Fastest lap on ' + have + ' of ' + trs.length + ' tracks so far. Pick a track for its full board.' : 'No lap times on any track yet. Race to set one.');
+      say(have ? 'Fastest lap on ' + have + ' of ' + trs.length + ' tracks so far this season. Pick a track for its full board.' : 'No lap times on any track yet this season. Race to set the first.');
       return;
     }
     var list = rows(view, people), hours = !view.st;
@@ -1057,9 +1131,9 @@
     if (mine >= TOP) { var gap = el('li', 'lbd-gap', '···'); gap.setAttribute('aria-hidden', 'true'); $list.append(gap, row(list[mine])); }
     if (!list.length) say(miles ? (wk ? 'Nobody has played this week yet. Play any game for a minute to get on it.' : 'Nobody’s on the board yet. Play any game for a minute to get on it.')
       : wk ? 'Nobody has played ' + BY[view.g].n + ' this week yet. Pick All time to see everyone.'
-      : view.st && view.st.cleanB ? 'No clean ' + (view.st.laps ? view.st.laps + '-lap race' : 'lap') + ' at ' + view.st.track + ' yet. Drive one without cutting a corner to set it.'
-      : view.st && view.st.laps ? 'No course record at ' + view.st.track + ' over ' + view.st.laps + (view.st.laps === 1 ? ' lap' : ' laps') + ' yet. Finish a race of that length there to set one.'
-      : view.st && view.st.track ? 'No lap times at ' + view.st.track + ' yet. Race there to set one.'
+      : view.st && view.st.cleanB ? 'No clean ' + (view.st.laps ? view.st.laps + '-lap race' : 'lap') + ' at ' + view.st.track + ' yet this season. Drive one without cutting a corner to set it.'
+      : view.st && view.st.laps ? 'No course record at ' + view.st.track + ' over ' + view.st.laps + (view.st.laps === 1 ? ' lap' : ' laps') + ' yet this season. Finish a race of that length there to set one.'
+      : view.st && view.st.track ? 'No lap times at ' + view.st.track + ' yet this season. Race there to set one.'
       : 'Nobody has a score here yet. Play ' + BY[view.g].n + ' to be the first.');
     else if (mine < 0 && myUid) say(list.length + (list.length === 1 ? ' player' : ' players') + '. You’re not on this board yet.');
     else say(list.length + (list.length === 1 ? ' player' : ' players') + (mine >= 0 ? '. You’re #' + list[mine].rank + '.' : '.'));
@@ -1115,5 +1189,5 @@
 
   // Test hook for the automated checks; harmless in normal play.
   if (navigator.webdriver) window.__lb = { get people() { return people; }, get view() { return view; }, get myUid() { return myUid; }, parse: parse, collapse: collapse, rows: rows, milesOf: milesOf, $span: $span, trackRows: trackRows, boardsFor: boardsFor, fmt: fmt, BY: BY, load: function () { lastLoad = 0; return load(); }, draw: draw, set top(n) { TOP = n; }, setResets: function (r) { RESETS = r || {}; }, PATH: PATH, EPOCH: EPOCH,
-    feed: function (val, now) { take(val || {}, now || Date.now()); say(''); draw(); }, tops: tops, get lastLoad() { return lastLoad; }, set lastLoad(t) { lastLoad = t; } };
+    feed: function (val, now) { take(val || {}, now || Date.now()); say(''); draw(); }, tops: tops, ace: ace, aceLine: aceLine, $ace: $ace, get lastLoad() { return lastLoad; }, set lastLoad(t) { lastLoad = t; } };
 })();
