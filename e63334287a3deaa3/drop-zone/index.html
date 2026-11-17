@@ -673,9 +673,16 @@ MAT.onBeforeCompile=sh=>{
 };
 // The island's own copy of that material (ground and buildings): the same shader with the wall detail above switched on.
 const WMAT=new THREE.MeshLambertMaterial({vertexColors:true});WMAT.onBeforeCompile=MAT.onBeforeCompile;WMAT.defines={WORLD:1};
-// The legs' own copy (LMAT): the same shader again. Every leg carries a tint (see legCol), and three.js can't share one material
-// between instanced meshes with and without a colour per instance.
-const LMAT=new THREE.MeshLambertMaterial({vertexColors:true});LMAT.onBeforeCompile=MAT.onBeforeCompile;LMAT.defines={};
+// Outfit legs (the Locker) have their own copy, FLMAT: the same shader, plus a few colours per leg that paint its bands
+// (trousers, shorts, socks, boots, spots, camouflage). Each face of that leg (FIT_LEG_GEO) knows which of the leg's four
+// colours it takes under each of four patterns (lzmap); each leg carries its four colours (legA), its shoe colour and
+// its pattern (legB), every colour packed into one number. The standard legs don't use any of this.
+const FLMAT=new THREE.MeshLambertMaterial({vertexColors:true});FLMAT.defines={};
+FLMAT.onBeforeCompile=sh=>{
+  MAT.onBeforeCompile(sh);
+  sh.vertexShader=sh.vertexShader.replace('void main() {','attribute vec4 lzmap;attribute vec4 legA;attribute vec4 legB;\nvec3 lunpack(float c){return vec3(floor(c/65536.),floor(mod(c,65536.)/256.),mod(c,256.))/255.;}\nvoid main() {')
+    .replace('#include <color_vertex>','#include <color_vertex>\n{float zi=legB.y<.5?lzmap.x:legB.y<1.5?lzmap.y:legB.y<2.5?lzmap.z:lzmap.w;vColor=lunpack(zi<.5?legA.x:zi<1.5?legA.y:zi<2.5?legA.z:zi<3.5?legA.w:legB.x);}');
+};
 // A unit box with rounded edges and smooth shading, for characters (a plain box pushed part of the way toward a ball).
 const ROUND_BOX=(()=>{
   const g=new THREE.BoxGeometry(1,1,1,4,4,4).toNonIndexed(),p=g.attributes.position,n=g.attributes.normal,v=new V3(),u=new V3(),f=new V3();
@@ -1266,7 +1273,7 @@ const grade=(function(){
   }
   return{run};
 })();
-function shadowFlags(){scene.traverse(o=>{if(o.isMesh&&(o.material===MAT||o.material===WMAT||o.material===GMAT||o.material===LMAT)){o.castShadow=o!==groundMesh;o.receiveShadow=true}else if(o.isInstancedMesh&&o.material===plyMat){o.castShadow=true;o.receiveShadow=true}})}
+function shadowFlags(){scene.traverse(o=>{if(o.isMesh&&(o.material===MAT||o.material===WMAT||o.material===GMAT||o.material===FLMAT)){o.castShadow=o!==groundMesh;o.receiveShadow=true}else if(o.isInstancedMesh&&o.material===plyMat){o.castShadow=true;o.receiveShadow=true}})}
 function lookSync(){
   const tier=gfxPref==='fast'||touchUI?0:fxTier;
   if(tier!==lookKey){
@@ -1274,7 +1281,7 @@ function lookSync(){
     if(lookOn)shadowFlags();
     sun.castShadow=lookOn;if(!lookOn){sun.position.set(SUN_V[0],SUN_V[1],SUN_V[2]);sun.target.position.set(0,0,0)}
     const want=lookOn?1:undefined;if(MAT.defines===undefined)MAT.defines={};
-    for(const M of [MAT,WMAT,GMAT,LMAT])if(M&&M.defines.FINE!==want){if(want)M.defines.FINE=1;else delete M.defines.FINE;M.needsUpdate=true}
+    for(const M of [MAT,WMAT,GMAT,FLMAT])if(M&&M.defines.FINE!==want){if(want)M.defines.FINE=1;else delete M.defines.FINE;M.needsUpdate=true}
     if(seaMesh&&seaFlat)seaMesh.material=lookOn?fineSea():seaFlat;
     if(!!stormMat.defines.LITE===lookOn){if(lookOn)delete stormMat.defines.LITE;else stormMat.defines.LITE=1;stormMat.needsUpdate=true}
   }
@@ -1749,7 +1756,7 @@ function bodyGeo(hex,skin,fit){
   const B=Bag(),dark=new THREE.Color(hex).multiplyScalar(.55).getHex(),lite=new THREE.Color(hex).lerp(new THREE.Color(0xffffff),.22).getHex();
   // an outfit from the Locker (OUTFITS, below): its own body pieces, then its headwear, or the event's hat in its place
   const O=fit?OUTFITS[fit]:null;
-  if(O&&O.body){const c={hex,dark,lite,skin,hair:HAIR[SKINS.indexOf(skin)%HAIR.length]||HAIR[0]};O.body(B,c);if(TKON)eventHat(B);else O.hat(B,c);return bagGeo(B)}
+  if(O&&O.body){const c={hex,dark,lite,skin:O.skin!=null?O.skin:skin,hair:HAIR[SKINS.indexOf(skin)%HAIR.length]||HAIR[0]};O.body(B,c);if(TKON)eventHat(B);else if(O.hat)O.hat(B,c);return bagGeo(B)}
   bagRBox(B,0,1.22,0,.7,.72,.42,hex);bagRBox(B,0,1.36,-.005,.62,.3,.44,lite);bagRBox(B,0,.9,0,.73,.1,.45,0x2b2f36);   // torso, chest panel, belt
   bagRBox(B,0,1.58,0,.24,.1,.24,skin);                                                                                // neck
   bagRBox(B,0,1.79,0,.48,.48,.48,skin);                                                                               // head
@@ -1853,10 +1860,60 @@ const SKINS=[0xf1c7a0,0xd9a77c,0xb98058,0x8a5a3c,0xf5d3b5,0x6e4630],HAIR=[0x5a3a
    same with fewer (48), X a plain box (12). */
 const fitOf=n=>Number.isInteger(n)&&n>0&&n<OUTFITS.length?n:0;   // anything that isn't a known outfit's number is the standard look
 const shadeOf=(hex,k)=>new THREE.Color(hex).multiplyScalar(k).getHex();
-function legTint(hex,fit){const O=OUTFITS[fit],t=O&&O.legs;if(t==null)return null;const n=typeof t==='function'?t(hex):t;return[(n>>16&255)/47,(n>>8&255)/58,(n&255)/74]}   // against the legs' own slate, 0x2f3a4a
-function fitBase(B,c,torso,sleeve,hand,shoulder){
-  bagRBox(B,0,1.22,0,.7,.72,.42,torso);
-  bagRLo(B,0,1.58,0,.24,.1,.24,c.skin);bagRBox(B,0,1.79,0,.48,.48,.48,c.skin);bagRBox(B,0,1.8,.2,.5,.4,.16,c.hair);
+// What an outfit's legs look like: null for the standard legs, else {pat, a: four colours, shoe}. `legs` in OUTFITS is a
+// trouser colour (or a function of the player's colour giving one): plain trousers with a darker shoe; or a function
+// (player colour, skin tone) giving [pattern, colour 0, 1, 2, 3, shoe]. Patterns (see fitLegGeo): 0 kit (shorts 0, knee 1,
+// sock top 2, sock 0 with a hoop 3), 1 two-part (thigh 0, shin 2, ankle 1), 2 spots (0 with spots 1, 2, 3), 3 camouflage
+// (blotches 0, 1, 2 over a boot 3).
+function legSpec(hex,skin,fit){const O=OUTFITS[fit],t=O&&O.legs;if(t==null)return null;const n=typeof t==='function'?t(hex,skin):t;
+  if(Array.isArray(n))return{pat:n[0],a:[n[1],n[2],n[3],n[4]],shoe:n[5]};
+  return{pat:1,a:[n,n,n,n],shoe:(Math.round((n>>16&255)*27/47)<<16)|(Math.round((n>>8&255)*29/58)<<8)|Math.round((n&255)*34/74)}}   // a shoe as much darker than the trousers as the standard shoe is
+// A rounded box cut into any number of squares (cached by its three counts), for parts painted square by square. raw keeps
+// the plain box's points, which say which face and which square each triangle belongs to.
+const RSEG={};
+function roundSeg(a,b,c){const k=a+','+b+','+c;if(RSEG[k])return RSEG[k];
+  const g=new THREE.BoxGeometry(1,1,1,a,b,c).toNonIndexed(),p=g.attributes.position,n=g.attributes.normal,v=new V3(),u=new V3(),f=new V3();g.userData.raw=new Float32Array(p.array);g.userData.seg=[a,b,c];
+  for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i);f.fromBufferAttribute(n,i);u.copy(v).normalize();v.lerp(u.clone().multiplyScalar(.62),.4);p.setXYZ(i,v.x,v.y,v.z);f.lerp(u,.55).normalize();n.setXYZ(i,f.x,f.y,f.z)}
+  return RSEG[k]=g}
+// which face ('x+', 'z-', ...) and which square (i across, j up or back) the q-th square of such a box is
+function segCell(g,q,out){const r=g.userData.raw,sg=g.userData.seg,o=q*18;let x=0,y=0,z=0;for(let k=0;k<18;k+=3){x+=r[o+k];y+=r[o+k+1];z+=r[o+k+2]}x/=6;y/=6;z/=6;
+  const ax=Math.abs(x),ay=Math.abs(y),az=Math.abs(z),fl=(v,n)=>Math.min(n-1,Math.max(0,Math.floor((v+.5)*n)));
+  if(ax>=ay&&ax>=az){out.f=x>0?'x+':'x-';out.i=fl(z,sg[2]);out.j=fl(y,sg[1])}else if(ay>=az){out.f=y>0?'y+':'y-';out.i=fl(x,sg[0]);out.j=fl(z,sg[2])}else{out.f=z>0?'z+':'z-';out.i=fl(x,sg[0]);out.j=fl(y,sg[1])}
+  return out}
+const _cell={f:'',i:0,j:0};
+// adds a rounded box of a x b x c squares and colours each square with paint(face, i, j) (a colour, or undefined to keep hex)
+function bagPaint(B,cx,cy,cz,sx,sy,sz,seg,hex,paint){const g=roundSeg(seg[0],seg[1],seg[2]),st=B.c.length;_q.set(0,0,0,1);_m4.compose(_p.set(cx,cy,cz),_q,_s.set(sx*1.12,sy*1.12,sz*1.12));bagAdd(B,g,_m4,hex);
+  for(let q=0,n=g.attributes.position.count/6;q<n;q++){segCell(g,q,_cell);const h=paint(_cell.f,_cell.i,_cell.j);if(h==null)continue;_col.setHex(h);for(let k=0;k<6;k++){const o=st+q*18+k*3;B.c[o]=_col.r;B.c[o+1]=_col.g;B.c[o+2]=_col.b}}}
+// a box turned any way round (rounded: kind 2 fine, 1 coarse, 0 plain)
+function bagTurn(B,kind,cx,cy,cz,sx,sy,sz,hex,rx,ry,rz){const k=kind?1.12:1;_e.set(rx||0,ry||0,rz||0);_q.setFromEuler(_e);_m4.compose(_p.set(cx,cy,cz),_q,_s.set(sx*k,sy*k,sz*k));bagAdd(B,kind===2?ROUND_BOX:kind?ROUND_LO:UNIT_BOX,_m4,hex)}
+// which of three camouflage colours a point gets: soft blotches that run across parts
+const camoAt=(x,y,z)=>{const f=Math.sin(x*7.3+y*3.1)+Math.sin(y*8.7-z*6.2+1.7)+Math.sin(z*9.1+x*4.4+.6);return f<-.55?2:f<.5?0:1};
+// repaints everything added to the bag since `st` in camouflage, square by square (every part here is made of squares of two triangles)
+function bagCamo(B,st,cols){for(let o=st;o<B.c.length;o+=18){let x=0,y=0,z=0;for(let k=0;k<18;k+=3){x+=B.p[o+k];y+=B.p[o+k+1];z+=B.p[o+k+2]}_col.setHex(cols[camoAt(x/6,y/6,z/6)]);for(let k=0;k<18;k+=3){B.c[o+k]=_col.r;B.c[o+k+1]=_col.g;B.c[o+k+2]=_col.b}}}
+// The outfit leg: the standard leg's shape (the same rounded column and shoe), cut into ten bands up its length so an outfit
+// can colour them, without the two ends nobody sees. 512 triangles (the standard leg has 384). Each call gives a geometry
+// with its own per-leg colours for n legs; the shape is shared.
+let FIT_LEG_SHAPE=null;
+function fitLegGeo(n){
+  if(!FIT_LEG_SHAPE){
+    const g=roundSeg(4,10,4),raw=g.userData.raw,P=g.attributes.position.array,N=g.attributes.normal.array,pos=[],nor=[],zm=[],cell={f:'',i:0,j:0};
+    const KIT=[0,0,0,3,0,2,1,0,0,0],TWO=[1,1,1,2,2,0,0,0,0,0];   // per band, from the ankle up: the kit pattern and the two-part pattern
+    const m=new THREE.Matrix4().compose(new V3(0,-.43,0),new THREE.Quaternion(),new V3(.26*1.12,.86*1.12,.28*1.12)),nm=new THREE.Matrix3().getNormalMatrix(m),v=new V3();
+    for(let q=0;q<P.length/18;q++){segCell(g,q,cell);if(cell.f[0]==='y')continue;const b=cell.j,side=cell.f==='x+'?0:cell.f==='x-'?1:cell.f==='z+'?2:3,h=(side*7+cell.i*13+b*5)%11;
+      let cx=0,cy=0,cz=0;for(let k=0;k<18;k+=3){cx+=raw[q*18+k]/6;cy+=raw[q*18+k+1]/6;cz+=raw[q*18+k+2]/6}
+      const spot=b>2&&b<9&&(h===0||h===4||h===7)?1+(side+cell.i+b)%3:0,cam=b<3?3:camoAt(cx*.3,cy*.9-.43,cz*.3);
+      for(let k=0;k<6;k++){const o=q*18+k*3;v.set(P[o],P[o+1],P[o+2]).applyMatrix4(m);pos.push(v.x,v.y,v.z);v.set(N[o],N[o+1],N[o+2]).applyMatrix3(nm).normalize();nor.push(v.x,v.y,v.z);zm.push(KIT[b],TWO[b],spot,cam)}}
+    const m2=new THREE.Matrix4().compose(new V3(0,-.79,-.03),new THREE.Quaternion(),new V3(.3*1.12,.16*1.12,.36*1.12)),nm2=new THREE.Matrix3().getNormalMatrix(m2),SP=ROUND_BOX.attributes.position,SN=ROUND_BOX.attributes.normal;
+    for(let i=0;i<SP.count;i++){v.fromBufferAttribute(SP,i).applyMatrix4(m2);pos.push(v.x,v.y,v.z);v.fromBufferAttribute(SN,i).applyMatrix3(nm2).normalize();nor.push(v.x,v.y,v.z);zm.push(4,4,4,4)}
+    FIT_LEG_SHAPE={pos:new THREE.Float32BufferAttribute(pos,3),nor:new THREE.Float32BufferAttribute(nor,3),col:new THREE.Float32BufferAttribute(new Float32Array(pos.length).fill(1),3),zm:new THREE.Float32BufferAttribute(zm,4)};
+  }
+  const S=FIT_LEG_SHAPE,g=new THREE.BufferGeometry();g.setAttribute('position',S.pos);g.setAttribute('normal',S.nor);g.setAttribute('color',S.col);g.setAttribute('lzmap',S.zm);
+  for(const k of ['legA','legB']){const a=new THREE.InstancedBufferAttribute(new Float32Array(n*4),4);a.setUsage(THREE.DynamicDrawUsage);g.setAttribute(k,a)}
+  g.computeBoundingSphere();return g}
+const STD_LEGS={pat:1,a:[0x2f3a4a,0x2f3a4a,0x2f3a4a,0x2f3a4a],shoe:0x1b1d22};   // the standard legs' colours, for the Locker's pictures
+function fitBase(B,c,torso,sleeve,hand,shoulder,o){   // o.hair false: no hair (hoods, bald costume heads); o.torso false: the outfit adds its own painted torso
+  if(!o||o.torso!==false)bagRBox(B,0,1.22,0,.7,.72,.42,torso);
+  bagRLo(B,0,1.58,0,.24,.1,.24,c.skin);bagRBox(B,0,1.79,0,.48,.48,.48,c.skin);if(!o||o.hair!==false)bagRBox(B,0,1.8,.2,.5,.4,.16,c.hair);
   bagRBox(B,-.41,1.46,0,.17,.2,.26,shoulder);bagRBox(B,.41,1.46,0,.17,.2,.26,shoulder);
   bagRBox(B,-.27,1.36,-.24,.16,.16,.6,sleeve,-.4);bagRBox(B,.3,1.36,-.22,.16,.16,.6,sleeve);
   bagRLo(B,-.1,1.36,-.5,.13,.13,.13,hand);bagRLo(B,.3,1.36,-.5,.13,.13,.13,hand);
@@ -1865,9 +1922,95 @@ const OUTFITS=(()=>{
   const R=bagRBox,L=bagRLo,X=bagBox,WHITE=0xf2efe8,CREAM=0xf1e6cf,STEEL=0xb9c2cc,IRON=0x8d96a0,INK=0x2b2f36,GLASS=0x1d2228,GOLD=0xffc93c,DENIM=0x4a78c2,STRAW=0xffd95a,WOOD=0x9a6a3c,LENS=0x8fe3ff,RED=0xe8483f,GREEN=0x7fe06d,VEST=0xd9f24a;
   const cuffs=(B,col)=>{L(B,-.184,1.36,-.443,.19,.19,.1,col,-.4);L(B,.3,1.36,-.44,.19,.19,.1,col)};
   const pack=(B,col,d)=>R(B,0,1.25,.31,.44,.5,d||.2,col);   // something on the back as deep as the standard backpack, so no outfit is slimmer from the side
+  const T=bagTurn,eyes=(B,y,z)=>{X(B,-.085,y||1.8,z||-.288,.045,.1,.03,INK);X(B,.085,y||1.8,z||-.288,.045,.1,.03,INK)};
+  const tee=(B,col)=>{L(B,-.336,1.36,-.083,.19,.19,.28,col,-.4);L(B,.3,1.36,-.05,.19,.19,.28,col)};   // short sleeves over the upper arms
+  // the owner's twelve (November 2026 sketches); their colours are the sketches', not the player's
+  const P_BLK=0x2b2b30,P_COAT=0x3d3e45,P_TRS=0x35363c,BROWN=0x8a5a2b,T_BODY=0x8f5a34,T_HOOD=0x7a4a2c,T_ORANGE=0xf08a24,T_TAN=0xd9a877,N_YEL=0xf7c531,N_BLUE=0x4078b8,N_TRS=0x49607f,SHOE=0x2a2d34,
+    F_GREEN=0x4f7a3a,F_DARK=0x34522a,F_TRS=0x6b4a33,A_LEATHER=0x7a4a2c,A_JACKET=0x8a5530,A_FLEECE=0xf3e2b8,A_TRS=0x3d4047,G_GOLD=0xf6c12c,G_SHEEN=0xffe98f,G_DEEP=0xe2a81c,
+    FI_ORANGE=0xf08030,FI_FIN=0xe0661f,FI_TEE=0x8fc9ea,FI_TRS=0x4f8fd0,S_CAMO=[0x6f8a42,0x9aa962,0x4a6335],S_VEST=0x5f7038,S_WEB=0x46552b,S_BOOT=0x2a2a2e,
+    NAVY=0x1f2a4d,NAVY_D=0x151a30,K_BLUE=0x2a3f9a,K_RED=0xb8262e,K_NAVY=0x1c2a66,K_SOCK=0xf0a030,R_RED=0xc0282c,R_DEEP=0xa32026,C_YEL=0xf7c81e,C_BLUE=0x2f5fd0,C_RED=0xe23a2e,C_GREEN=0x3fae49,C_PURPLE=0x8a4fd0,C_ORANGE=0xf58a1f;
+  const NEW=[
+  {id:'pilgrim',name:'Pilgrim',legs:()=>[1,P_TRS,P_TRS,P_TRS,P_TRS,0x1c1c20],
+    body(B,c){fitBase(B,c,P_COAT,P_COAT,c.skin,P_COAT);eyes(B);
+      L(B,-.13,1.56,-.2,.26,.14,.16,WHITE);L(B,.13,1.56,-.2,.26,.14,.16,WHITE);L(B,0,1.6,.17,.5,.1,.22,WHITE);   // collar: two flaps in front, a band behind
+      for(const y of [1.4,1.27,1.14])X(B,0,y,-.26,.05,.05,.03,GOLD);                                 // buttons
+      R(B,0,.92,0,.74,.11,.46,BROWN);X(B,0,.92,-.29,.15,.13,.03,GOLD);X(B,0,.92,-.3,.08,.06,.03,BROWN);   // belt and buckle
+      cuffs(B,WHITE)},
+    hat(B,c){R(B,0,2.04,0,.86,.05,.86,P_BLK);R(B,0,2.21,0,.44,.3,.44,P_BLK);L(B,0,2.11,0,.47,.08,.47,BROWN);X(B,0,2.11,-.3,.15,.12,.03,GOLD);X(B,0,2.11,-.31,.08,.05,.03,BROWN)}},   // brim, crown, band, buckle
+  {id:'turkey',name:'Turkey Person',legs:()=>[1,T_BODY,T_ORANGE,T_ORANGE,T_ORANGE,T_ORANGE],
+    body(B,c){fitBase(B,c,T_BODY,T_BODY,c.skin,T_BODY,{hair:false});
+      R(B,0,1.8,.01,.57,.52,.57,T_HOOD);L(B,0,1.74,-.29,.36,.26,.1,0xffc04a);eyes(B,1.93,-.335);          // the hood (it stays on under an event's hat), the face patch
+      T(B,1,0,1.78,-.37,.13,.13,.12,T_ORANGE,0,0,.785);L(B,0,1.6,-.35,.1,.2,.08,C_RED);             // beak and wattle
+      L(B,0,1.38,-.21,.46,.26,.12,T_TAN);for(const x of [-.15,0,.15])L(B,x,1.24,-.22,.16,.14,.1,T_TAN);   // chest bib with a scalloped edge
+      // the tail fan: three rows of feathers on the back, the outer row widest
+      const fan=(n,spread,rx,ry,z,w,cols)=>{for(let i=0;i<n;i++){const a=(i/(n-1)-.5)*2*spread,tx=Math.sin(a)*rx,ty=Math.cos(a)*ry,len=Math.hypot(tx,ty);T(B,1,tx*.58,1.02+ty*.58,z,w,len*.74,.05,cols[Math.min(i,n-1-i)],0,0,-Math.atan2(tx,ty))}};
+      fan(7,1.32,.74,1.02,.3,.27,[0xb5382a,T_ORANGE,0xf6a53a,0xf6a53a]);fan(5,1.1,.54,.76,.34,.25,[GOLD,GOLD,0xffd65a]);fan(5,1.05,.36,.5,.38,.2,[0xc23a2c,C_RED,C_RED])}},
+  {id:'noob',name:'Noob',skin:N_YEL,legs:()=>[1,N_TRS,N_TRS,N_TRS,N_TRS,SHOE],
+    body(B,c){fitBase(B,c,N_BLUE,N_YEL,N_YEL,N_YEL,{hair:false});eyes(B)}},
+  {id:'feathercap',name:'Feathercap',legs:()=>[1,F_TRS,F_TRS,F_TRS,F_TRS,0x3a2a22],
+    body(B,c){fitBase(B,c,F_GREEN,CREAM,c.skin,CREAM);eyes(B);
+      L(B,-.12,1.56,-.2,.22,.12,.16,CREAM);L(B,.12,1.56,-.2,.22,.12,.16,CREAM);L(B,0,1.6,.17,.44,.08,.2,CREAM);   // shirt collar
+      X(B,0,1.24,-.25,.03,.56,.05,F_DARK);for(const y of [1.38,1.24,1.1])X(B,0,y,-.26,.05,.05,.03,GOLD);   // waistcoat front and buttons
+      R(B,0,.92,0,.74,.1,.46,BROWN);X(B,0,.92,-.29,.14,.12,.03,GOLD);X(B,0,.92,-.3,.07,.05,.03,BROWN)},
+    hat(B,c){R(B,0,2.08,.03,.64,.2,.64,F_GREEN);L(B,0,2,-.24,.52,.07,.2,F_DARK);L(B,-.19,2.07,-.3,.08,.08,.08,GOLD);T(B,1,-.25,2.3,.06,.13,.4,.2,C_RED,-.2,0,.5);T(B,0,-.25,2.3,.05,.03,.44,.03,0xf6a08a,-.2,0,.5)}},   // soft cap, its band, a bead, the red feather
+  {id:'pilot',name:'Pilot',legs:()=>[1,A_TRS,0x1f2126,A_TRS,A_TRS,0x1f2126],
+    body(B,c){fitBase(B,c,A_JACKET,A_JACKET,c.skin,A_JACKET);eyes(B);
+      R(B,0,1.58,.02,.62,.13,.54,A_FLEECE);X(B,0,1.24,-.25,.035,.56,.05,0x5a3a22);                  // fleece collar, zip
+      X(B,-.2,1.3,-.25,.2,.14,.04,0x74481f);X(B,.2,1.3,-.25,.2,.14,.04,0x74481f);                   // chest pockets
+      R(B,0,.92,0,.74,.11,.46,0x6a4020);X(B,0,.92,-.29,.14,.11,.03,A_FLEECE);X(B,0,.92,-.3,.07,.05,.03,0x6a4020);cuffs(B,A_FLEECE)},   // waistband and buckle, fleece cuffs
+    hat(B,c){R(B,0,2.02,.02,.6,.22,.6,A_LEATHER);R(B,0,1.78,.15,.58,.4,.34,A_LEATHER);L(B,-.31,1.62,-.03,.12,.36,.3,A_LEATHER);L(B,.31,1.62,-.03,.12,.36,.3,A_LEATHER);   // flying cap: top, back, ear flaps
+      L(B,0,2,-.02,.63,.07,.6,0x4a3020);L(B,-.13,2,-.3,.22,.16,.1,IRON);L(B,.13,2,-.3,.22,.16,.1,IRON);X(B,-.13,2,-.36,.14,.09,.03,0xbfe0f2);X(B,.13,2,-.36,.14,.09,.03,0xbfe0f2)}},   // goggle strap, goggles
+  {id:'golden',name:'Golden',skin:G_GOLD,legs:()=>[1,G_GOLD,G_GOLD,G_GOLD,G_GOLD,G_DEEP],
+    body(B,c){fitBase(B,c,G_GOLD,G_GOLD,G_GOLD,G_GOLD,{hair:false,torso:false});eyes(B);
+      bagPaint(B,0,1.22,0,.7,.72,.42,[8,8,2],G_GOLD,(f,i,j)=>f[0]==='z'&&Math.abs((f==='z-'?7-i:i)-j)<2?G_SHEEN:undefined);   // the sheen: a lighter band from hip to shoulder, front and back
+      X(B,-.13,2.08,-.1,.16,.03,.16,G_SHEEN);X(B,-.41,1.585,-.03,.1,.03,.12,G_SHEEN);X(B,.41,1.585,-.03,.1,.03,.12,G_SHEEN)}},   // glints on the head and shoulders
+  {id:'fishface',name:'Fishface',skin:FI_ORANGE,legs:()=>[1,FI_TRS,FI_TRS,FI_TRS,FI_TRS,SHOE],
+    body(B,c){fitBase(B,c,FI_TEE,FI_ORANGE,FI_ORANGE,FI_TEE,{hair:false});eyes(B,1.9);tee(B,FI_TEE);
+      L(B,0,1.71,-.29,.4,.1,.14,N_YEL);L(B,0,1.61,-.28,.32,.09,.12,N_YEL);X(B,0,1.66,-.345,.3,.02,.03,0xb8791a);   // the pout: two lips and the line between
+      for(const s of [-1,1]){T(B,1,s*.38,1.87,.02,.24,.13,.07,FI_FIN,0,0,s*.4);T(B,1,s*.38,1.75,.02,.24,.13,.07,FI_FIN,0,0,s*-.4);T(B,1,s*.34,1.81,.02,.14,.16,.09,FI_ORANGE)}}},   // side fins
+  {id:'soldier',name:'Army Soldier',legs:()=>[3,S_CAMO[0],S_CAMO[1],S_CAMO[2],S_BOOT,S_BOOT],
+    body(B,c){const st=B.c.length;fitBase(B,c,S_CAMO[0],S_CAMO[0],c.skin,S_CAMO[0]);
+      // camouflage over the uniform (not over the head, hair or hands)
+      bagCamo(B,st,S_CAMO);{const sk=new THREE.Color(c.skin),hr=new THREE.Color(c.hair),put=(o,n,k)=>{for(let i=o;i<o+n*9;i+=3){B.c[i]=k.r;B.c[i+1]=k.g;B.c[i+2]=k.b}};
+        put(st+192*9,48,sk);put(st+240*9,192,sk);put(st+432*9,192,hr);put(st+1392*9,96,sk)}
+      eyes(B,1.76);L(B,0,1.27,-.2,.5,.46,.14,S_VEST);L(B,0,1.27,.2,.5,.46,.14,S_VEST);              // vest, front and back
+      X(B,-.17,1.56,0,.07,.2,.5,S_VEST);X(B,.17,1.56,0,.07,.2,.5,S_VEST);                           // its shoulder straps
+      for(const x of [-.16,0,.16])L(B,x,1.12,-.27,.13,.16,.08,S_WEB);                               // pouches
+      for(const y of [1.38,1.26,1.14])X(B,0,y,.285,.36,.035,.03,S_WEB);                             // webbing on the back
+      R(B,0,.9,0,.74,.1,.46,0x22252a);X(B,0,.9,-.29,.1,.08,.03,0x8a929c)},                          // belt
+    hat(B,c){const st=B.c.length;R(B,0,2.06,0,.66,.27,.68,S_CAMO[0]);L(B,0,1.93,0,.7,.05,.72,S_CAMO[0]);bagCamo(B,st,S_CAMO)}},   // helmet and its rim
+  {id:'airline',name:'Airline Pilot',legs:()=>[1,NAVY,NAVY,NAVY,NAVY,0x16181d],
+    body(B,c){fitBase(B,c,NAVY,NAVY,c.skin,NAVY);
+      L(B,0,1.46,-.2,.24,.3,.14,WHITE);X(B,0,1.42,-.28,.06,.24,.03,NAVY_D);X(B,0,1.55,-.28,.09,.05,.03,NAVY_D);   // shirt front, tie and its knot
+      X(B,.2,1.34,-.255,.15,.04,.03,GOLD);X(B,.2,1.36,-.255,.05,.07,.03,GOLD);                      // wings on the chest
+      for(const z of [-.05,.03]){X(B,-.41,1.585,z,.15,.03,.04,GOLD);X(B,.41,1.585,z,.15,.03,.04,GOLD)}   // shoulder bars
+      L(B,-.2,1.36,-.406,.2,.2,.05,GOLD,-.4);L(B,-.231,1.36,-.332,.2,.2,.05,GOLD,-.4);L(B,.3,1.36,-.4,.2,.2,.05,GOLD);L(B,.3,1.36,-.32,.2,.2,.05,GOLD);   // two gold stripes on each cuff
+      R(B,0,.9,0,.73,.08,.45,NAVY_D)},
+    hat(B,c){R(B,0,2.13,-.01,.68,.15,.68,NAVY);L(B,0,2.03,0,.55,.08,.55,GOLD);L(B,0,1.99,-.3,.5,.04,.2,NAVY_D);X(B,0,2.14,-.42,.22,.05,.03,GOLD);X(B,0,2.16,-.42,.07,.09,.03,GOLD)}},   // peaked cap: crown, gold band, peak, wings
+  {id:'soccer-rb',name:'Soccer Player (Red/Blue)',legs:(h,sk)=>[0,K_NAVY,sk,K_SOCK,WHITE,0x1a2452],
+    body(B,c){fitBase(B,c,K_BLUE,c.skin,c.skin,K_RED,{torso:false});tee(B,K_BLUE);
+      bagPaint(B,0,1.22,0,.7,.72,.42,[7,4,3],K_BLUE,(f,i)=>f[0]==='z'&&i%2?K_RED:undefined);        // seven stripes, front and back
+      L(B,0,1.6,0,.36,.08,.36,K_NAVY);R(B,0,.88,0,.72,.16,.44,K_NAVY);                              // collar, the top of the shorts
+      X(B,-.11,1.27,.245,.05,.3,.05,WHITE);X(B,.02,1.27,.245,.05,.3,.05,WHITE);X(B,.18,1.27,.245,.05,.3,.05,WHITE);X(B,.1,1.395,.245,.21,.05,.05,WHITE);X(B,.1,1.145,.245,.21,.05,.05,WHITE);   // 10 on the back
+      X(B,.13,.87,.27,.022,.1,.03,WHITE);X(B,.18,.87,.27,.022,.1,.03,WHITE);X(B,.24,.87,.27,.022,.1,.03,WHITE);X(B,.21,.91,.27,.08,.022,.03,WHITE);X(B,.21,.83,.27,.08,.022,.03,WHITE)}},   // and a small 10 on the shorts
+  {id:'soccer-red',name:'Soccer Player (All Red)',legs:(h,sk)=>[0,R_RED,sk,WHITE,WHITE,R_DEEP],
+    body(B,c){fitBase(B,c,R_RED,c.skin,c.skin,R_RED);tee(B,R_RED);
+      L(B,-.262,1.36,-.258,.205,.205,.05,WHITE,-.4);L(B,.3,1.36,-.225,.205,.205,.05,WHITE);                     // white bands at the sleeve ends
+      L(B,0,1.6,0,.36,.08,.36,R_DEEP);R(B,0,.88,0,.72,.16,.44,R_DEEP);                              // collar, the top of the shorts
+      X(B,.04,1.395,.245,.26,.05,.05,WHITE);X(B,.13,1.25,.245,.05,.3,.05,WHITE)}},                  // 7 on the back
+  {id:'clown',name:'Clown',legs:()=>[2,C_YEL,C_BLUE,C_RED,C_GREEN,C_RED],
+    body(B,c){fitBase(B,c,C_YEL,C_YEL,c.skin,C_YEL);
+      X(B,-.2,1.22,-.25,.14,.66,.05,C_BLUE);X(B,.2,1.22,-.25,.14,.66,.05,C_BLUE);X(B,-.2,1.22,.25,.14,.66,.05,C_BLUE);X(B,.2,1.22,.25,.14,.66,.05,C_BLUE);   // blue braces, front and back
+      L(B,0,1.38,-.25,.13,.13,.1,C_RED);L(B,0,1.16,-.25,.13,.13,.1,C_RED);                          // two big red buttons
+      for(let i=0;i<8;i++){const a=i/8*Math.PI*2;L(B,Math.sin(a)*.26,1.57,Math.cos(a)*.24,.24,.1,.24,WHITE)}   // ruffle collar
+      L(B,-.184,1.36,-.443,.21,.21,.12,C_RED,-.4);L(B,.3,1.36,-.44,.21,.21,.12,C_RED);R(B,0,.9,0,.73,.08,.45,C_YEL)},   // red cuffs
+    hat(B,c){const W=[C_RED,C_ORANGE,C_YEL,C_GREEN,C_BLUE];   // the wig: curls in an arc over the head, front row and back row, and two more behind the ears
+      for(let i=0;i<5;i++){const a=(i-2)*.62,x=Math.sin(a)*.34,y=1.86+Math.cos(a)*.3;L(B,x,y,-.1,.3,.3,.3,W[i]);L(B,x,y,.17,.3,.3,.3,W[i])}
+      L(B,-.3,1.72,.2,.26,.26,.26,C_RED);L(B,.3,1.72,.2,.26,.26,.26,C_PURPLE)}}
+  ];
   const bands=(B,col)=>{L(B,-.27,1.36,-.24,.19,.19,.14,col,-.4);L(B,.3,1.36,-.22,.19,.19,.14,col)};
   return[
-  {id:'std',name:'Standard'},
+  {id:'std',name:'Standard'},...NEW,
   {id:'hood',name:'Hooded Jacket',
     body(B,c){fitBase(B,c,c.hex,c.hex,c.skin,c.hex);
       R(B,0,.9,0,.74,.12,.46,INK);X(B,0,1.26,-.25,.035,.6,.05,WHITE);                               // ribbed hem, zip
@@ -1954,26 +2097,31 @@ const OUTFITS=(()=>{
 // Legs and held items: every player's are drawn together, one instanced mesh for all legs and one per kind of held
 // item (syncLimbs, just before each render), instead of three draw calls per player. In the model they're plain
 // Object3Ds that only carry the pose (position, rotation, visible).
-const LIMB_N=96,limbModels=new Set(),legIM=new THREE.InstancedMesh(LEG_GEO,LMAT,LIMB_N*2),gunIM={};
+const LIMB_N=96,limbModels=new Set(),legIM=new THREE.InstancedMesh(LEG_GEO,MAT,LIMB_N*2),gunIM={};
 for(const k in GUN_GEO)gunIM[k]=new THREE.InstancedMesh(GUN_GEO[k],MAT,LIMB_N);
 // the rarity band on a held weapon (when its rarity is known: yours, a bot's, or another player's once they've fired it)
 const rarIM=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshLambertMaterial({color:0xffffff}),LIMB_N);rarIM.setColorAt(0,new THREE.Color(1,1,1));
-// An outfit can colour its trousers: every leg has a tint that multiplies the leg's own colours (1, 1, 1 for the standard
-// slate trousers, so those are drawn exactly as before; a tint can be above 1 to make them lighter). Still one draw call.
-const legCol=new THREE.InstancedBufferAttribute(new Float32Array(LIMB_N*6).fill(1),3);legCol.setUsage(THREE.DynamicDrawUsage);legIM.instanceColor=legCol;
-const LEG_ONE=[1,1,1];let legColDirty=false;
-for(const im of [legIM,rarIM,...Object.values(gunIM)]){im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);im.frustumCulled=false;im.count=0;im.visible=false;scene.add(im)}
+// Outfit legs: everyone wearing an outfit that sets its legs is drawn by one more instanced mesh (one extra draw call
+// for all of them together, none while nobody in view wears one), so the standard legs above are left exactly alone.
+const fitLegIM=new THREE.InstancedMesh(fitLegGeo(LIMB_N*2),FLMAT,LIMB_N*2);
+// writes one leg's colours and pattern into slot i (only marks the buffers for upload when something changed)
+function legPut(geo,i,L){const A=geo.attributes.legA,Bt=geo.attributes.legB,a=A.array,b=Bt.array,o=i*4,c=L.a;
+  if(a[o]!==c[0]||a[o+1]!==c[1]||a[o+2]!==c[2]||a[o+3]!==c[3]){a[o]=c[0];a[o+1]=c[1];a[o+2]=c[2];a[o+3]=c[3];A.needsUpdate=true}
+  if(b[o]!==L.shoe||b[o+1]!==L.pat){b[o]=L.shoe;b[o+1]=L.pat;Bt.needsUpdate=true}}
+for(const im of [legIM,fitLegIM,rarIM,...Object.values(gunIM)]){im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);im.frustumCulled=false;im.count=0;im.visible=false;scene.add(im)}
 const _lm=new THREE.Matrix4(),_tm=new THREE.Matrix4(),_iq=new THREE.Quaternion();
 function syncLimbs(){
-  let nl=0,nr=0;for(const k in gunIM)gunIM[k].count=0;
+  let nl=0,nr=0,nf=0;for(const k in gunIM)gunIM[k].count=0;
   for(const g of limbModels){
     if(!g.visible||g.parent!==scene)continue;
     const u=g.userData;g.updateMatrix();
-    if(u.legs[0].visible&&nl+2<=LIMB_N*2){const t=u.lt||LEG_ONE,a=legCol.array;for(const l of u.legs){l.updateMatrix();const o=nl*3;if(a[o]!==t[0]||a[o+1]!==t[1]||a[o+2]!==t[2]){a[o]=t[0];a[o+1]=t[1];a[o+2]=t[2];legColDirty=true}legIM.setMatrixAt(nl++,_lm.multiplyMatrices(g.matrix,l.matrix))}}
+    if(u.leg){if(u.legs[0].visible&&nf+2<=LIMB_N*2)for(const l of u.legs){l.updateMatrix();fitLegIM.setMatrixAt(nf,_lm.multiplyMatrices(g.matrix,l.matrix));legPut(fitLegIM.geometry,nf++,u.leg)}}
+    else if(u.legs[0].visible&&nl+2<=LIMB_N*2)for(const l of u.legs){l.updateMatrix();legIM.setMatrixAt(nl++,_lm.multiplyMatrices(g.matrix,l.matrix))}
     const im=gunIM[u.gk];if(u.gun.visible&&im&&im.count<LIMB_N){u.gun.updateMatrix();im.setMatrixAt(im.count++,_lm.multiplyMatrices(g.matrix,u.gun.matrix));
       const T=RTAG[u.gk];if(T&&u.gr>=0&&nr<LIMB_N){rarIM.setMatrixAt(nr,_lm.multiply(_tm.compose(_p.set(0,T[0],T[1]),_iq,_s.set(T[2],T[3],T[4]))));rarIM.setColorAt(nr++,_col.setHex(RARC[u.gr]))}}
   }
-  legIM.count=nl;legIM.visible=nl>0;if(nl)legIM.instanceMatrix.needsUpdate=true;if(legColDirty){legCol.needsUpdate=true;legColDirty=false}
+  legIM.count=nl;legIM.visible=nl>0;if(nl)legIM.instanceMatrix.needsUpdate=true;
+  fitLegIM.count=nf;fitLegIM.visible=nf>0;if(nf)fitLegIM.instanceMatrix.needsUpdate=true;
   rarIM.count=nr;rarIM.visible=nr>0;if(nr){rarIM.instanceMatrix.needsUpdate=true;rarIM.instanceColor.needsUpdate=true}
   for(const k in gunIM){const im=gunIM[k];im.visible=im.count>0;if(im.count)im.instanceMatrix.needsUpdate=true}
 }
@@ -1984,10 +2132,10 @@ function makeModel(hex,skinIx,fit){
   const legs=[-.17,.17].map(x=>{const l=new THREE.Object3D();l.position.set(x,.86,0);g.add(l);return l});
   const gun=new THREE.Object3D();gun.position.set(.3,1.36,-.62);
   const glider=new THREE.Mesh(GLIDER_GEO,MAT);glider.position.set(0,3.4,0);glider.visible=false;
-  g.add(body,gun,glider);g.userData={body,legs,gun,glider,gk:'cb',gr:-1,hex,skinIx:skinIx|0,fit,lt:legTint(hex,fit)};limbModels.add(g);
+  g.add(body,gun,glider);g.userData={body,legs,gun,glider,gk:'cb',gr:-1,hex,skinIx:skinIx|0,fit,leg:legSpec(hex,SKINS[(skinIx|0)%SKINS.length],fit)};limbModels.add(g);
   return g;
 }
-function setModelColor(model,hex,skinIx,fit){const u=model.userData;fit=fitOf(fit);if(u.hex===hex&&u.fit===fit)return;u.hex=hex;u.skinIx=skinIx|0;u.fit=fit;u.lt=legTint(hex,fit);u.body.geometry.dispose();u.body.geometry=bodyGeo(hex,SKINS[(skinIx|0)%SKINS.length],fit)}
+function setModelColor(model,hex,skinIx,fit){const u=model.userData;fit=fitOf(fit);if(u.hex===hex&&u.fit===fit)return;u.hex=hex;u.skinIx=skinIx|0;u.fit=fit;u.leg=legSpec(hex,SKINS[(skinIx|0)%SKINS.length],fit);u.body.geometry.dispose();u.body.geometry=bodyGeo(hex,SKINS[(skinIx|0)%SKINS.length],fit)}
 function setHeldModel(model,key,rar){const u=model.userData;const k=GUN_GEO[key]?key:HEALS[key]?(HEALS[key].sh?'sh':'hp'):'cb';u.gr=WEAP[k]&&rar>=0&&rar<5?rar|0:-1;if(u.gk===k)return;u.gk=k}
 function disposeModel(m){if(m)limbModels.delete(m);if(m&&m.userData.body)m.userData.body.geometry.dispose()}
 // Entities: you, the other players (remotes) and, in Practice only, bots. local: moved by this browser's physics (you, and Practice bots).
@@ -3539,23 +3687,26 @@ if(LOCKER_ON)(function(){
   function mark(){cards.forEach((b,i)=>b.setAttribute('aria-pressed',i===mySkin?'true':'false'));$('lkName').textContent=OUTFITS[mySkin].name;$('lkNow').textContent='Wearing: '+OUTFITS[mySkin].name}
   function pick(i){mySkin=fitOf(i);store.set('skin',OUTFITS[mySkin].id);setModelColor(player.model,player.hex,tone6(),mySkin);if(model)setModelColor(model,player.hex,tone6(),mySkin);mark()}
   // a picture of every outfit in your colour, for the cards: 13 small renders the first time the Locker is opened
+  // pictures of outfits in your colour, drawn from their own geometry (front, or from behind): data URLs, in the order asked for
+  function pics(list,W,HH,back){
+    const out=[],rt=new THREE.WebGLRenderTarget(W,HH),sc=new THREE.Scene(),cam=new THREE.OrthographicCamera(-.9,.9,1.35,-1.35,.1,40);
+    sc.add(new THREE.HemisphereLight(0xffffff,0x9aa0aa,.95));const dl=new THREE.DirectionalLight(0xffffff,.55);dl.position.set(back?-3:3,6,back?5:-5);sc.add(dl);
+    cam.position.set(back?-2.3:2.3,2.1,back?6:-6);cam.lookAt(0,1.27,0);
+    const mat=new THREE.MeshLambertMaterial({vertexColors:true}),buf=new Uint8Array(W*HH*4),cv=document.createElement('canvas');cv.width=W;cv.height=HH;
+    const g=cv.getContext('2d'),img=g.createImageData(W,HH),oc=new THREE.Color(),oa=renderer.getClearAlpha();renderer.getClearColor(oc);renderer.setClearColor(0x000000,0);
+    const body=new THREE.Mesh(LEG_GEO,mat),lg=fitLegGeo(2),legs=new THREE.InstancedMesh(lg,FLMAT,2),lp=new THREE.Matrix4();legs.frustumCulled=false;sc.add(body,legs);
+    legs.setMatrixAt(0,lp.makeTranslation(-.17,.86,0));legs.setMatrixAt(1,lp.makeTranslation(.17,.86,0));
+    try{for(const i of list){
+      const geo=bodyGeo(player.hex,SKINS[tone6()%SKINS.length],i),L=legSpec(player.hex,SKINS[tone6()%SKINS.length],i)||STD_LEGS;body.geometry=geo;legPut(lg,0,L);legPut(lg,1,L);
+      renderer.setRenderTarget(rt);renderer.clear();renderer.render(sc,cam);renderer.readRenderTargetPixels(rt,0,0,W,HH,buf);
+      for(let y=0;y<HH;y++)img.data.set(buf.subarray((HH-1-y)*W*4,(HH-y)*W*4),y*W*4);
+      g.putImageData(img,0,0);out.push(cv.toDataURL('image/png'));geo.dispose();
+    }}finally{renderer.setRenderTarget(null);renderer.setClearColor(oc,oa);rt.dispose();mat.dispose()}
+    return out;
+  }
   function thumbs(){
     if(drawn)return;drawn=true;
-    try{
-      const W=180,HH=270,rt=new THREE.WebGLRenderTarget(W,HH),sc=new THREE.Scene(),cam=new THREE.OrthographicCamera(-.9,.9,1.35,-1.35,.1,40);
-      sc.add(new THREE.HemisphereLight(0xffffff,0x9aa0aa,.95));const dl=new THREE.DirectionalLight(0xffffff,.55);dl.position.set(3,6,-5);sc.add(dl);
-      cam.position.set(2.3,2.1,-6);cam.lookAt(0,1.27,0);
-      const mat=new THREE.MeshLambertMaterial({vertexColors:true}),lm=new THREE.MeshLambertMaterial({vertexColors:true}),buf=new Uint8Array(W*HH*4),cv=document.createElement('canvas');cv.width=W;cv.height=HH;
-      const g=cv.getContext('2d'),img=g.createImageData(W,HH),oc=new THREE.Color(),oa=renderer.getClearAlpha();renderer.getClearColor(oc);renderer.setClearColor(0x000000,0);
-      const body=new THREE.Mesh(LEG_GEO,mat),legs=[-.17,.17].map(x=>{const l=new THREE.Mesh(LEG_GEO,lm);l.position.set(x,.86,0);sc.add(l);return l});sc.add(body);
-      OUTFITS.forEach((o,i)=>{
-        const geo=bodyGeo(player.hex,SKINS[tone6()%SKINS.length],i),t=legTint(player.hex,i)||LEG_ONE;body.geometry=geo;lm.color.setRGB(t[0],t[1],t[2]);
-        renderer.setRenderTarget(rt);renderer.clear();renderer.render(sc,cam);renderer.readRenderTargetPixels(rt,0,0,W,HH,buf);
-        for(let y=0;y<HH;y++)img.data.set(buf.subarray((HH-1-y)*W*4,(HH-y)*W*4),y*W*4);
-        g.putImageData(img,0,0);const im=cards[i].firstChild;im.src=cv.toDataURL('image/png');im.hidden=false;geo.dispose();
-      });
-      renderer.setRenderTarget(null);renderer.setClearColor(oc,oa);rt.dispose();mat.dispose();lm.dispose();
-    }catch(e){try{renderer.setRenderTarget(null)}catch(_){}}   // no pictures is not worth a broken page: the cards keep their names
+    try{pics(OUTFITS.map((o,i)=>i),180,270,false).forEach((u,i)=>{const im=cards[i].firstChild;im.src=u;im.hidden=false})}catch(e){}   // no pictures is not worth a broken page: the cards keep their names
   }
   function measure(){const a=$('app').getBoundingClientRect(),r=stage.getBoundingClientRect();rect={cx:r.left-a.left+r.width/2,cy:r.top-a.top+r.height/2,w:Math.max(40,r.width),h:Math.max(40,r.height)};vo=''}
   function show(){
@@ -3579,7 +3730,7 @@ if(LOCKER_ON)(function(){
     const k=VW+','+VH+','+Math.round(VW/2-rect.cx)+','+(Math.round(VH/2-rect.cy)+up);
     if(k!==vo){vo=k;camera.setViewOffset(VW,VH,Math.round(VW/2-rect.cx),Math.round(VH/2-rect.cy)+up,VW,VH)}
   };
-  Locker.show=show;Locker.pick=pick;Locker.turn=y=>{yaw=y;hold=1e9};
+  Locker.show=show;Locker.pick=pick;Locker.turn=y=>{yaw=y;hold=1e9};Locker.pics=pics;
   $('lockerBtn').addEventListener('click',show);$('lkDone').addEventListener('click',()=>Locker.close());
   addEventListener('resize',()=>{if(Locker.open)measure()});
   addEventListener('keydown',e=>{if(Locker.open&&e.code==='Escape'){e.preventDefault();Locker.close()}});
@@ -3618,7 +3769,7 @@ if(navigator.webdriver)window.__dz={get state(){return state},get online(){retur
   fire(){const w=heldW(player),s=heldItem(player);updateCamera(0);playerShoot();if(s&&w)s.n=w.mag;player.cd=0},
   draws(){return renderer.info.render.calls},
   setNoRender(v){window.__noRender=!!v},onNode,updateRemotes,renderOnce(){mpFlush();syncLimbs();drawScene()},get fxTier(){return fxTier},set fxTier(v){fxTier=v},get lookKey(){return lookKey},mpieces,mpBreak,mpSetHp,resetMap,mpAt,allRuns,brokenBits,applyBits,sendEv,get brokenN(){return brokenN},hash,setMapV(v){mapV=v},get mapV(){return mapV},mapSize:MAP,ICONS,paintGround,removePiece,wallSpec,pushOut,SPEED,AIR,BODY:{R,H},buildings,rampIn,updateBots,updatePlayer,
-  Locker,LOCKER_ON,OUTFITS,bodyGeo,LEG_GEO,legIM,makeModel,setModelColor,legTint,fitOf,hitboxes,TKON,PCOLS,SKINS,get mySkin(){return mySkin}};
+  Locker,LOCKER_ON,OUTFITS,bodyGeo,LEG_GEO,legIM,fitLegIM,fitLegGeo,makeModel,setModelColor,legSpec,STD_LEGS,fitOf,hitboxes,TKON,PCOLS,SKINS,get mySkin(){return mySkin}};
 
 requestAnimationFrame(t=>{last=t;frame(t)});
 })();
