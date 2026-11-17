@@ -226,11 +226,15 @@
   // Looks worn inside one game instead of on the avatar. Each belongs to a game (its folder name, as in stats.js's data-game)
   // and to one of that game's slots; one per slot can be worn. `no` is permanent within its game and slot and is what the
   // game sends to other players, so never renumber or reuse one: add new ones at the end of their slot. The game draws them
-  // itself (Boostball: boostball/kit.js, by slot and number); here each has a name, a rarity (which sets its price, ITEM_PRICE
-  // emeralds, and so its pack's), two colours for the small picture itemSvg() draws in the shop, and a line of text.
-  // Ids are '<game prefix>-<slot>-<name>'. They are saved in the locker beside skins (g: owned, ge: worn per 'game:slot') and,
-  // unlike skins and accessories, are not mirrored into the Google account yet (w.a holds at most 128 item numbers).
-  var GAMES = { boostball: { name: 'Boostball', prefix: 'bb', slots: [['decal', 'Decals'], ['trail', 'Boost trails'], ['goal', 'Goal explosions'], ['topper', 'Antenna toppers'], ['hat', 'Roof hats'], ['wheels', 'Wheels'], ['engine', 'Engine sounds']] } };
+  // itself (Boostball: boostball/kit.js; Slipstream: slipstream/garage.js; by slot and number); here each has a name, a rarity
+  // (which sets its price, ITEM_PRICE emeralds, and so its pack's), two colours for the small picture itemSvg() draws in the shop,
+  // and a line of text. Ids are '<game prefix>-<slot>-<name>'. They are saved in the locker beside skins (g: owned, ge: worn per
+  // 'game:slot') and, unlike skins and accessories, are not mirrored into the Google account yet (w.a holds at most 128 item numbers).
+  // One GAMES entry per game: its name, the prefix of its ids, and its slots in the order the shop lists them.
+  var GAMES = {
+    boostball: { name: 'Boostball', prefix: 'bb', slots: [['decal', 'Decals'], ['trail', 'Boost trails'], ['goal', 'Goal explosions'], ['topper', 'Antenna toppers'], ['hat', 'Roof hats'], ['wheels', 'Wheels'], ['engine', 'Engine sounds']] },
+    slipstream: { name: 'Slipstream', prefix: 'ss', slots: [['sponsor', 'Sponsors'], ['livery', 'Liveries'], ['helmet', 'Helmets'], ['effect', 'Boost effects'], ['smoke', 'Tyre smoke'], ['podium', 'Podium celebrations']] }
+  };
   var ITEM_PRICE = { common: 6, rare: 10, epic: 16, legendary: 40 };
   var GAME_ITEMS = [], ITEM_BY_ID = {};
   function I(game, slot, no, name, rarity, c1, c2, desc) {
@@ -340,6 +344,76 @@
   I('boostball', 'engine', 2, 'Buzz', 'rare', '#FFD23F', '#FF8A1F', 'High and angry, like a go-kart.');
   I('boostball', 'engine', 3, 'Rumble', 'rare', '#7A5230', '#FF4D6D', 'A big lazy burble.');
   I('boostball', 'engine', 4, 'Whirr', 'epic', '#3EE6FF', '#FFFFFF', 'Electric: it sings as it speeds up.');
+  // Slipstream sponsors (all made up): signing with one is free, and its sticker goes on the car. c1 and c2 are its colours.
+  I('slipstream', 'sponsor', 1, 'Zoomi Cola', 'common', '#12B5A6', '#FFF3D6', 'Fizzy, fast and slightly too sweet.');
+  I('slipstream', 'sponsor', 2, 'Burnout Coffee', 'common', '#3B2416', '#FFB347', 'Roasted until the tyres smoke.');
+  I('slipstream', 'sponsor', 3, 'Apex Tires', 'common', '#1D2026', '#FF6A1F', 'Round, black and very keen on corners.');
+  I('slipstream', 'sponsor', 4, 'Turbo Taco', 'common', '#1F8A4C', '#FFD23F', 'Lunch that arrives before you order it.');
+  I('slipstream', 'sponsor', 5, "Grandma's Motor Oil", 'common', '#7A1F3D', '#FFE9C9', 'Made with love, and a secret recipe.');
+  I('slipstream', 'sponsor', 6, 'Pit Stop Pizza', 'common', '#E8543A', '#FFF1CF', 'Four slices changed in under two seconds.');
+  I('slipstream', 'sponsor', 7, "Slick's Hair Gel", 'common', '#0D2440', '#39D5FF', 'Holds your hair still at 300 km/h.');
+  I('slipstream', 'sponsor', 8, 'Late Brake Insurance', 'common', '#2A55D9', '#F2F5FA', 'For drivers who see the corner afterwards.');
+  I('slipstream', 'sponsor', 9, 'Draft Punk Records', 'common', '#15131C', '#FF3FA8', 'Loud music from the back of the pack.');
+  I('slipstream', 'sponsor', 10, 'Gravel Trap Granola', 'common', '#E9D3A3', '#5A3D22', 'Crunchy. Extremely crunchy.');
+  I('slipstream', 'sponsor', 11, 'Blue Flag Bottled Water', 'common', '#1F8FE0', '#FFFFFF', 'Kindly lets faster drinks through.');
+  I('slipstream', 'sponsor', 12, 'Honk Energy', 'common', '#FFE01F', '#17191E', 'One can and you hear it all day.');
+  I('slipstream', 'sponsor', 13, 'Chicane Chicken', 'common', '#FF8A1F', '#FFF7E0', 'Left, right, then straight to the table.');
+  I('slipstream', 'sponsor', 14, 'Podium Pickles', 'common', '#2F7D32', '#F3FFD2', 'Always in the top three jars.');
+  I('slipstream', 'sponsor', 15, 'Lap Nap Mattresses', 'common', '#34388F', '#FFE9A8', 'Fall asleep before the formation lap ends.');
+  // Slipstream liveries: a pattern and accents over the team's colours (1-8), then each sponsor's own livery (9-23, in the
+  // sponsors' order), which is not sold: the game grants it when that sponsor's challenges are finished.
+  I('slipstream', 'livery', 1, 'Two-Tone Classic', 'common', '#D61F2C', '#FFD21F', 'Team colour on top, second colour below, a pinstripe between.');
+  I('slipstream', 'livery', 2, 'Retro Stripes', 'common', '#2A6BFF', '#FFFFFF', 'Three long stripes from nose to tail, like the old posters.');
+  I('slipstream', 'livery', 3, 'Matte Black with Neon', 'rare', '#15171B', '#39FF88', 'A black car with glowing lines in the team colour.');
+  I('slipstream', 'livery', 4, 'Chrome', 'epic', '#DDE6F0', '#6B7785', 'A mirror with wheels. Mind the sun.');
+  I('slipstream', 'livery', 5, 'Carbon', 'rare', '#22262C', '#6B7785', 'Bare weave, no paint, a little lighter in spirit.');
+  I('slipstream', 'livery', 6, 'Pastel', 'common', '#FFC2DD', '#BDF0FF', 'The team colour after a very gentle wash.');
+  I('slipstream', 'livery', 7, 'Flames', 'rare', '#D61F2C', '#FFD84A', 'Fire painted from the nose back. Not real fire.');
+  I('slipstream', 'livery', 8, 'Checkered', 'common', '#F4F4F4', '#15171B', 'The flag, worn before the race is over.');
+  gameItems('slipstream', 'sponsor').forEach(function (sp) { I('slipstream', 'livery', 8 + sp.no, sp.name + ' livery', 'epic', sp.c1, sp.c2, 'The whole car in ' + sp.name + ' colours. Earned by finishing its challenges.'); });
+  // Slipstream helmets: eight plain ones anyone may wear (1-8), then the painted ones.
+  I('slipstream', 'helmet', 1, 'Red helmet', 'common', '#E02A2A', '#10131A', 'A plain red helmet.');
+  I('slipstream', 'helmet', 2, 'Blue helmet', 'common', '#2A6BFF', '#10131A', 'A plain blue helmet.');
+  I('slipstream', 'helmet', 3, 'Yellow helmet', 'common', '#FFD21F', '#10131A', 'A plain yellow helmet.');
+  I('slipstream', 'helmet', 4, 'Green helmet', 'common', '#2FB85A', '#10131A', 'A plain green helmet.');
+  I('slipstream', 'helmet', 5, 'Orange helmet', 'common', '#FF7A1A', '#10131A', 'A plain orange helmet.');
+  I('slipstream', 'helmet', 6, 'Pink helmet', 'common', '#FF5FA8', '#10131A', 'A plain pink helmet.');
+  I('slipstream', 'helmet', 7, 'Black helmet', 'common', '#1A1C21', '#5B6B7C', 'A plain black helmet.');
+  I('slipstream', 'helmet', 8, 'White helmet', 'common', '#F4F6F8', '#10131A', 'A plain white helmet.');
+  I('slipstream', 'helmet', 9, 'Flames helmet', 'common', '#15161A', '#FF7A1A', 'Fire up the sides.');
+  I('slipstream', 'helmet', 10, 'Checkered helmet', 'common', '#F4F4F4', '#B3141F', 'Black and white squares all round.');
+  I('slipstream', 'helmet', 11, 'Lightning helmet', 'common', '#2450D0', '#FFD21F', 'A yellow bolt on each side.');
+  I('slipstream', 'helmet', 12, 'Chrome Visor', 'rare', '#F4F6F8', '#FF86C0', 'A mirror visor nobody can see through.');
+  I('slipstream', 'helmet', 13, 'Shark helmet', 'rare', '#7D93A8', '#7A1420', 'Teeth at the front, fin on top in spirit.');
+  I('slipstream', 'helmet', 14, 'Skull helmet', 'rare', '#EFE9DA', '#15161A', 'A friendly cartoon skull.');
+  I('slipstream', 'helmet', 15, 'Tiger helmet', 'rare', '#FF8A1F', '#1B1612', 'Orange with black stripes.');
+  I('slipstream', 'helmet', 16, 'Galaxy helmet', 'epic', '#3A1A6E', '#FF5ABE', 'Deep purple space and a lot of stars.');
+  I('slipstream', 'helmet', 17, 'Disco Ball', 'legendary', '#C8D2DC', '#FFFFFF', 'Hundreds of little mirrors.');
+  I('slipstream', 'helmet', 18, 'Watermelon helmet', 'rare', '#2F9E44', '#FF5A6E', 'Green rind outside, summer inside.');
+  I('slipstream', 'helmet', 19, 'Eight Ball', 'rare', '#101114', '#F4F4F4', 'Black, shiny, with an 8 in a white circle.');
+  I('slipstream', 'helmet', 20, 'Eyeball', 'epic', '#F6F3EE', '#1F6AD9', 'It is always looking at the apex.');
+  I('slipstream', 'helmet', 21, 'Pumpkin helmet', 'rare', '#F08A1C', '#2A1206', 'Carved with a grin.');
+  I('slipstream', 'helmet', 22, 'Cat Ears', 'epic', '#8E99A6', '#FF8FB0', 'A helmet with two pointy ears.');
+  I('slipstream', 'helmet', 23, 'Pizza helmet', 'epic', '#FFCF5A', '#C23A2B', 'Cheese, tomato and pepperoni.');
+  // Slipstream boost and slipstream effects, tyre smoke colours, and podium celebrations (seen by their driver only).
+  I('slipstream', 'effect', 1, 'White Air Streaks', 'common', '#FFFFFF', '#C8D2DC', 'White lines of air off the car when boosting or in a slipstream.');
+  I('slipstream', 'effect', 2, 'Flames', 'common', '#FFD24A', '#FF5A14', 'A long orange flame behind the car.');
+  I('slipstream', 'effect', 3, 'Sparks', 'rare', '#FFF0B0', '#FFA020', 'A shower of sparks from under the floor.');
+  I('slipstream', 'effect', 4, 'Electric Arcs', 'rare', '#D8F6FF', '#2A8BFF', 'Blue crackles around the rear wing.');
+  I('slipstream', 'effect', 5, 'Rainbow', 'epic', '#FF5C5C', '#5CC8FF', 'Every colour, one after another.');
+  I('slipstream', 'effect', 6, 'Vapor Trail', 'common', '#FFFFFF', '#DFE9F5', 'Two thin white trails from the wing tips.');
+  I('slipstream', 'effect', 7, 'Confetti', 'rare', '#FF4FA3', '#FFD23F', 'A party out of the exhaust.');
+  I('slipstream', 'effect', 8, 'Purple Plasma', 'epic', '#FF8AFF', '#7A2BFF', 'A purple glow that looks faster than it is.');
+  I('slipstream', 'smoke', 1, 'Pink tyre smoke', 'common', '#FF6BB8', '#FFC2DD', 'Pink smoke from the tyres.');
+  I('slipstream', 'smoke', 2, 'Blue tyre smoke', 'common', '#5294FF', '#BDD8FF', 'Blue smoke from the tyres.');
+  I('slipstream', 'smoke', 3, 'Green tyre smoke', 'common', '#61EB7A', '#C8FFD2', 'Green smoke from the tyres.');
+  I('slipstream', 'smoke', 4, 'Purple tyre smoke', 'common', '#AD66FF', '#E0C8FF', 'Purple smoke from the tyres.');
+  I('slipstream', 'smoke', 5, 'Gold tyre smoke', 'common', '#FFCC47', '#FFF0B0', 'Gold smoke from the tyres.');
+  I('slipstream', 'podium', 1, 'Confetti Podium', 'common', '#FF4FA3', '#3FD2FF', 'Confetti over the results when you finish in the top three.');
+  I('slipstream', 'podium', 2, 'Fireworks Podium', 'rare', '#FFD21F', '#B06BFF', 'Fireworks over the results when you finish in the top three.');
+  // Items a game hands over itself are in no pack: give is 'free' (anyone may wear it; the game grants it the first time it
+  // is worn) or 'earned' (the game grants it when it is won). grant(id), below, only adds these.
+  GAME_ITEMS.forEach(function (it) { if (it.game !== 'slipstream') return; if (it.slot === 'sponsor' || (it.slot === 'helmet' && it.no <= 8)) it.give = 'free'; else if (it.slot === 'livery' && it.no > 8) it.give = 'earned'; });
   function gameItems(game, slot) { return GAME_ITEMS.filter(function (it) { return it.game === game && (!slot || it.slot === slot); }); }
   function itemIds(names) { return names.map(function (n) { if (!ITEM_BY_ID[n]) throw new Error('cosmetics: no item ' + n); return n; }); }
   function itemsPrice(ids) { return ids.reduce(function (t, id) { return t + ITEM_PRICE[ITEM_BY_ID[id].rarity]; }, 0); }
@@ -390,6 +464,14 @@
     itemPack('bb-hats', 'boostball', 'Roof Rack', 'Six hats for a car.', ['bb-hat-traffic-cone', 'bb-hat-top-hat', 'bb-hat-crown', 'bb-hat-propeller-beanie', 'bb-hat-cowboy-hat', 'bb-hat-chef-hat']),
     itemPack('bb-wheels', 'boostball', 'Tyre Fitter', 'Four sets of wheels.', ['bb-wheels-five-spoke', 'bb-wheels-discs', 'bb-wheels-cross', 'bb-wheels-gold-rims']),
     itemPack('bb-engines', 'boostball', 'Under the Bonnet', 'Four engine sounds. Only you hear yours.', ['bb-engine-purr', 'bb-engine-buzz', 'bb-engine-rumble', 'bb-engine-whirr']),
+    itemPack('ss-liveries-classic', 'slipstream', 'Paint Shop', 'Four liveries in your team colours.', ['ss-livery-two-tone-classic', 'ss-livery-retro-stripes', 'ss-livery-pastel', 'ss-livery-checkered']),
+    itemPack('ss-liveries-loud', 'slipstream', 'Show Car', 'Four liveries that get looked at.', ['ss-livery-matte-black-with-neon', 'ss-livery-chrome', 'ss-livery-carbon', 'ss-livery-flames']),
+    itemPack('ss-helmets-fast', 'slipstream', 'Helmet Rack', 'Four helmets that look quick.', ['ss-helmet-flames-helmet', 'ss-helmet-checkered-helmet', 'ss-helmet-lightning-helmet', 'ss-helmet-chrome-visor']),
+    itemPack('ss-helmets-wild', 'slipstream', 'Wild Lids', 'Five helmets with a face.', ['ss-helmet-shark-helmet', 'ss-helmet-skull-helmet', 'ss-helmet-tiger-helmet', 'ss-helmet-eyeball', 'ss-helmet-cat-ears']),
+    itemPack('ss-helmets-odd', 'slipstream', 'Odd Lids', 'Six helmets that are really something else.', ['ss-helmet-galaxy-helmet', 'ss-helmet-disco-ball', 'ss-helmet-watermelon-helmet', 'ss-helmet-eight-ball', 'ss-helmet-pumpkin-helmet', 'ss-helmet-pizza-helmet']),
+    itemPack('ss-effects-air', 'slipstream', 'Clean Air', 'Four boost effects.', ['ss-effect-white-air-streaks', 'ss-effect-vapor-trail', 'ss-effect-flames', 'ss-effect-sparks']),
+    itemPack('ss-effects-show', 'slipstream', 'Light Show', 'Four brighter boost effects.', ['ss-effect-electric-arcs', 'ss-effect-rainbow', 'ss-effect-confetti', 'ss-effect-purple-plasma']),
+    itemPack('ss-extras', 'slipstream', 'Pit Wall Party', 'Five tyre smoke colours and two podium celebrations.', ['ss-smoke-pink-tyre-smoke', 'ss-smoke-blue-tyre-smoke', 'ss-smoke-green-tyre-smoke', 'ss-smoke-purple-tyre-smoke', 'ss-smoke-gold-tyre-smoke', 'ss-podium-confetti-podium', 'ss-podium-fireworks-podium']),
     { id: 'emeralds-1', kind: 'emeralds', name: 'Emerald Pouch', desc: 'About 563 emeralds. Not available yet.', usd: 1, contents: { mangos: 7321 } },
     { id: 'emeralds-5', kind: 'emeralds', name: 'Emerald Chest', desc: 'About 2,815 emeralds. Not available yet.', usd: 5, contents: { mangos: 5 * 7321 } },
     { id: 'emeralds-10', kind: 'emeralds', name: 'Emerald Vault', desc: 'About 5,631 emeralds. Not available yet.', usd: 10, contents: { mangos: 10 * 7321 } }
@@ -475,6 +557,13 @@
     if (L.e.skin) { out.skin = L.e.skin; out.colors = Object.assign({}, SKINS_BY_ID[L.e.skin].colors); }
     SLOTS.forEach(function (k) { if (L.e[k]) out.accessories[k] = L.e[k]; });
     return out;
+  }
+  // grant(id): a game hands over an item it gives itself (give: 'free' or 'earned'; see Game items). True when it is new.
+  function grant(id) {
+    var it = ITEM_BY_ID[id];
+    if (!on() || !it || !it.give) return false;
+    var L = load(); if (L.g.indexOf(id) >= 0) return false;
+    L.g.push(id); save(L); return true;
   }
   // What is worn in one game: { slot: item } (the item objects, so the game has the number to send). Empty while switched off.
   function gameEquipped(game) {
@@ -740,6 +829,11 @@
       case 'topper': d = P('M32 58 L32 30', null, '#C8D2DC', 3) + C(32, 21, 12, a, ' stroke="' + INK + '" stroke-width="2"') + C(28, 17, 4, b); break;
       case 'hat': d = P('M8 46 C8 40 56 40 56 46 C56 51 8 51 8 46 Z', b, INK, 2) + P('M18 44 C18 18 46 18 46 44 Z', a, INK, 2); break;
       case 'wheels': d = C(32, 32, 24, INK) + C(32, 32, 15, a) + star(32, 32, 14, b, 5, .35) + C(32, 32, 4, INK); break;
+      case 'sponsor': d = R(4, 18, 56, 28, 7, a, ' stroke="' + INK + '" stroke-width="2"') + C(18, 32, 7, b) + R(29, 26, 24, 4, 2, b) + R(29, 34, 16, 3, 1.5, b, ' opacity=".7"'); break;
+      case 'livery': d = P('M4 40 L10 38 L30 26 L38 26 L42 32 L60 38 L60 42 L4 42 Z', a, INK, 2) + P('M22 40 L34 29 L40 32 L52 40 Z', b) + C(16, 43, 6, INK) + C(48, 43, 6, INK) + C(16, 43, 2.4, '#C8D2DC') + C(48, 43, 2.4, '#C8D2DC'); break;
+      case 'helmet': d = P('M10 38 C10 14 54 14 54 38 L54 46 L10 46 Z', a, INK, 2) + R(30, 28, 24, 10, 4, b, ' stroke="' + INK + '" stroke-width="1.5"'); break;
+      case 'effect': case 'smoke': d = C(50, 32, 9, a) + C(36, 32, 7, a, ' opacity=".8"') + C(24, 32, 5.5, b, ' opacity=".8"') + C(14, 32, 4, b, ' opacity=".6"') + C(7, 32, 2.6, b, ' opacity=".4"') + C(50, 32, 4, WH, ' opacity=".7"'); break;
+      case 'podium': d = star(32, 32, 27, a, 10, .55) + star(32, 32, 17, b, 8, .5) + C(32, 32, 6, WH); break;
       default: d = P('M10 26 L22 26 L34 14 L34 50 L22 38 L10 38 Z', a, INK, 2) + P('M41 22 C47 28 47 36 41 42 M47 16 C57 26 57 38 47 48', null, b, 3);
     }
     return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="' + (size || 64) + '" height="' + (size || 64) + '" aria-hidden="true" focusable="false">' + d + '</svg>';
@@ -802,6 +896,7 @@
     roll: roll, seeded: seeded, below: below,
     owned: function () { if (!on()) return { skins: [], accessories: [], items: [] }; var L = load(); return { skins: L.s.slice(), accessories: L.a.slice(), items: L.g.slice() }; },
     GAMES: GAMES, GAME_ITEMS: GAME_ITEMS, GAME_ITEMS_BY_ID: ITEM_BY_ID, ITEM_PRICE: ITEM_PRICE, gameItems: gameItems, gameEquipped: gameEquipped, itemSvg: itemSvg,
+    grant: grant,
     equip: equip, unequip: unequip, equipped: equipped,
     preview: preview, buy: buy, draw: function (n, opts) { return buy('draw-' + (n === 5 || n === 10 ? n : 1), opts); },
     avatarSvg: avatarSvg, texture: texture,

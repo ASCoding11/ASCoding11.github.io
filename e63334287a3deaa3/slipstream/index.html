@@ -264,6 +264,8 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
 <script src="/e63334287a3deaa3/elo.js" data-game="slipstream" defer></script>
 <script src="/e63334287a3deaa3/gamechat.js" defer></script>
 <script src="/adrefresh.js" defer></script>
+<script src="/e63334287a3deaa3/cosmetics.js" defer></script> <!-- switched off (see README): garage.js is only fetched when it is on -->
+<script src="/e63334287a3deaa3/wallet.js" defer></script>
 </head>
 <body>
 <div id="app">
@@ -404,6 +406,10 @@ const AD_SLOT='';
 window.SS_AD_SLOT=AD_SLOT;
 
 const $=id=>document.getElementById(id);
+// Cosmetics (../cosmetics.js; switched off for players): sponsors, stickers, liveries, helmets, boost effects and the
+// Garage are all in garage.js, which is only fetched when the cosmetics are switched on (see the boot code at the end).
+// Until then COS is null, every `if(COS)` in this file is skipped, and the game is exactly as it was.
+let COS=null;
 const TAU=Math.PI*2;
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 const lerp=(a,b,t)=>a+(b-a)*t;
@@ -1466,13 +1472,14 @@ const CAR_GEO=(()=>{
   const B=(w,h,d)=>new THREE.BoxGeometry(w,h,d),T=taperGeo;
   const halo=new THREE.TorusGeometry(.34,.035,6,14,Math.PI);halo.rotateX(Math.PI/2);halo.rotateY(Math.PI/2);
   const list=[
-    // team colour (0): nose, tub, cockpit sides, engine cover, roll hoop, airbox, fin, sidepods, rear wing endplates, mirrors
-    [T(3.08,[.2,.3,.1],1.4,[.2,.6,.33]),null,0],[T(1.4,[.2,.6,.33],.5,[.18,.7,.42]),null,0],[T(.5,[.18,.7,.42],-.5,[.18,.74,.44]),null,0],
-    [T(-.5,[.18,.92,.4],-2.4,[.3,.5,.13]),null,0],[B(.4,.38,.34),M4(-.25,1.05,0),0],[T(-.45,[.9,1.24,.17],-1.5,[.8,.86,.05]),null,0],
+    // team colour (0): roll hoop, airbox, fin, rear wing endplates, mirrors; and (4), the same colour, the panels a livery
+    // repaints when the cosmetics are on (garage.js): nose, tub, cockpit sides, engine cover, sidepods
+    [T(3.08,[.2,.3,.1],1.4,[.2,.6,.33]),null,4],[T(1.4,[.2,.6,.33],.5,[.18,.7,.42]),null,4],[T(.5,[.18,.7,.42],-.5,[.18,.74,.44]),null,4],
+    [T(-.5,[.18,.92,.4],-2.4,[.3,.5,.13]),null,4],[B(.4,.38,.34),M4(-.25,1.05,0),0],[T(-.45,[.9,1.24,.17],-1.5,[.8,.86,.05]),null,0],
     [T(-1,[.8,1.1,.02],-2.35,[.5,1.02,.02]),null,0]
   ];
   for(const s of [-1,1])list.push(
-    [T(.55,[.2,.68,.27,s*.68],-1.95,[.22,.42,.15,s*.42]),null,0],[B(.8,.68,.05),M4(-2.55,.84,s*.58),0],[B(.09,.1,.2),M4(.72,.8,s*.52),0],
+    [T(.55,[.2,.68,.27,s*.68],-1.95,[.22,.42,.15,s*.42]),null,4],[B(.8,.68,.05),M4(-2.55,.84,s*.58),0],[B(.09,.1,.2),M4(.72,.8,s*.52),0],
     // second colour (1): panels on top of the sidepods
     [T(.5,[.685,.715,.2,s*.68],-.9,[.535,.565,.14,s*.53]),null,1],
     // carbon (2): front wing endplates, sidepod inlets, suspension arms
@@ -1510,7 +1517,7 @@ const CARBON=lin('#2c2f36'),WHEEL_COLS=[lin('#38393e'),lin('#b4bac2'),lin('#565b
   paintCol=c=>{const k=lin(c),m=Math.max(k.r,k.g,k.b);return m<.075?k.multiplyScalar(.075/Math.max(m,.01)):k},   // very dark paint is lifted a little so the car's shape still shows
 POD=[lin('#101012'),lin('#e8ff1a')],BAND=[lin('#f2f2f2'),lin('#ffd21f')];
 const geoCache={};
-function bodyGeo(team,odd){const k='b'+team+odd,t=TEAMS[team];return geoCache[k]||(geoCache[k]=paintGeo(CAR_GEO.body,[paintCol(t.c),paintCol(t.c2),CARBON,POD[odd]]))}
+function bodyGeo(team,odd){const k='b'+team+odd,t=TEAMS[team];return geoCache[k]||(geoCache[k]=paintGeo(CAR_GEO.body,[paintCol(t.c),paintCol(t.c2),CARBON,POD[odd],paintCol(t.c)]))}
 function flapGeo(team){const k='f'+team;return geoCache[k]||(geoCache[k]=paintGeo(CAR_GEO.flapT,[paintCol(TEAMS[team].c2)]))}
 function wheelGeo(front,odd){const k='w'+front+odd;return geoCache[k]||(geoCache[k]=paintGeo(front?CAR_GEO.wf:CAR_GEO.wr,[...WHEEL_COLS,BAND[odd]]))}
 const helmetMats={};
@@ -1525,7 +1532,7 @@ function tkHat(parent,scale,y,z,ry){
 }
 function makeCarMesh(c){
   const g=new THREE.Group(),odd=c.seat&1;
-  g.add(new THREE.Mesh(bodyGeo(c.team,odd),MAT.paint));
+  const body=new THREE.Mesh(bodyGeo(c.team,odd),MAT.paint);g.add(body);
   const hel=new THREE.Mesh(CAR_GEO.helmet,helmetMat(c.bot?TEAMS[c.team].c2:'#ffffff'));hel.position.set(.12,.83,0);g.add(hel);
   {const h=tkHat(g,.66,1.29,0,-Math.PI/2);if(h)h.position.x=-.25}   // the hat sits on the roll hoop, over the camera pod, where it can be seen
   const light=new THREE.Mesh(CAR_GEO.light,MAT.lightOff);light.position.set(-2.95,.55,0);g.add(light);
@@ -1545,7 +1552,9 @@ function makeCarMesh(c){
   const rimW=new THREE.Mesh(CAR_GEO.swheel,MAT.carbon);wheel.add(rimW);const hub=new THREE.Mesh(CAR_GEO.shub,MAT.carbon);wheel.add(hub);
   const dot=new THREE.Mesh(CAR_GEO.sdot,MAT.lightOn);dot.position.set(0,.1,0);wheel.add(dot);
   wheel.visible=false;g.add(wheel);
-  return {g,wheels,pivots,light,hel,flame,flap,wheel,sh};
+  const m={g,wheels,pivots,light,hel,flame,flap,wheel,sh};
+  if(COS)COS.dress(c,m,{body,fm,fo,fi});   // cosmetics: swaps geometries and materials only, never adds a mesh
+  return m;
 }
 // ---------- dust, tyre smoke and sparks ----------
 // Only for the picture: nothing here is read by the driving code or sent to other players. All of it is one pool of
@@ -1578,7 +1587,7 @@ function fxCar(c,dt){ // what this car throws up this frame
   else if(c.brk>.8&&v>42){rate=16;kind=4}                                      // heavy braking: a wisp from the front tyres
   if(rate){
     c.fxA=(c.fxA||0)+rate*dt;
-    while(c.fxA>=1){c.fxA-=1;const s=R()<.5?-1:1,[x,z]=at(kind===4?1.85:-1.72,s*.87),k=kind===1?fxGround:kind===2?FXC.gravel:FXC.smoke,d=kind>=3?1:.9+R()*.2;
+    while(c.fxA>=1){c.fxA-=1;const s=R()<.5?-1:1,[x,z]=at(kind===4?1.85:-1.72,s*.87),k=kind===1?fxGround:kind===2?FXC.gravel:c.smokeCol||FXC.smoke,d=kind>=3?1:.9+R()*.2;
       const back=kind>=3?-.5-R():-1-v*.12;
       fxEmit(x,.15,z,ch*back+(R()-.5)*1.5,.5+R()*(kind>=3?.9:1.6),sn*back+(R()-.5)*1.5,kind===4?.4+R()*.25:.7+R()*.5,kind===4?.5:.8,kind===4?2:2.6,-.4,k[0]*d*fxDim,k[1]*d*fxDim,k[2]*d*fxDim,kind===4?.2:kind===3?.3:.5)}
   }
@@ -1588,6 +1597,7 @@ function fxCar(c,dt){ // what this car throws up this frame
     while(c.fxS>=1){c.fxS-=1;const [x,z]=at(-1.6-R()*.8,(R()-.5)*.9),f=v*(.35+R()*.3);
       fxEmit(x,.08,z,ch*f+(R()-.5)*3,1+R()*3.2,sn*f+(R()-.5)*3,.22+R()*.3,-.15-R()*.1,0,9,FXC.spark[0],FXC.spark[1]*(.7+R()*.5),FXC.spark[2],1)}
   }
+  if(c.cosFx)COS.fx(c,dt,v,ch,sn);
 }
 function fxStep(dt){
   let i=0;
@@ -1607,12 +1617,14 @@ function fxStep(dt){
 let carMeshes=[];
 function buildCars(){
   for(const m of carMeshes)scene.remove(m.g);
+  if(COS)COS.clear(carMeshes);
   carMeshes=[];
   if(!race)return;
   for(const c of race.cars){const m=makeCarMesh(c);c.mesh=m;scene.add(m.g);carMeshes.push(m)}
 }
 function refreshCarMesh(c){ // a seat changed hands (bot <-> human): repaint the helmet
   if(c.mesh)c.mesh.hel.material=helmetMat(c.bot?TEAMS[c.team].c2:'#ffffff');
+  if(COS&&c.mesh)COS.redress(c);
 }
 function syncCarMeshes(dt){
   if(!race)return;
@@ -1700,6 +1712,7 @@ const Net={
     const col=mySeat>=0&&mySeat<SEATS?TEAMS[mySeat>>1].c:'#f3f5f9';
     // n, c, x, z, h and ts are always sent (zeros until there's a car): the shared database rules expect that shape
     const o={n:myName||'Driver',c:col,x:0,z:0,h:0,j:this.j,ts:Math.round(this.now()),sd:mySeat,sdt:mySeatT,rd:myReady?1:0};
+    if(COS){const cs=COS.wire(o.ts);if(cs)o.cs=cs}   // cosmetics: what this car wears (garage.js checks it strictly on reading)
     if(race&&race.online&&!race.attract){
       o.rid=race.id;
       const c=race.me;
@@ -1793,6 +1806,7 @@ function onPlayerNode(uid,v){
   const ts=+v.ts||0;
   Net.others.set(uid,{v,ts});
   lobbyDirty=true;
+  if(COS)COS.heard(uid,v);
   if(!race||!race.online||race.attract||v.rid!==race.id)return;
   const seat=race.uidSeat.get(uid);
   if(seat!=null){
@@ -2412,6 +2426,7 @@ function onMyLap(c,lt,pb,clean){
   // clean: true or false, or null while an excursion at the line is still to be judged (judgeEx then records it).
   if(window.BackRoomStats&&!race.attract)BackRoomStats.min('lap:'+TRACKS[race.track].id,lt);
   if(clean)cleanLap(lt);
+  if(COS)COS.lap(c,lt,pb,clean);
   toast('Lap '+c.k+' · '+fmtTime(lt)+(pb&&c.k>1?' · personal best':'')+(clean?' · clean':clean===false?' · cut':''));
   if(c.k===race.laps-1&&!race.anyFin)banner('FINAL LAP',1800);
 }
@@ -2422,6 +2437,7 @@ function onFinish(c){
   // and, when every lap of the race was clean, the separate clean course record ('crec:<track>:<laps>')
   if(window.BackRoomStats&&!race.attract&&c.k>=race.laps&&!c.unclean&&!c.dirty)BackRoomStats.min('crec:'+TRACKS[race.track].id+':'+race.laps,raceTime(c));
   const p=order().indexOf(c)+1;
+  if(COS)COS.finish(c,p);
   banner((p===1?'YOU WIN!':'P'+p)+'<small>CHEQUERED FLAG</small>',3500);
   beep(660,.2,.2);setTimeout(()=>beep(990,.4,.2),180);
   $('touch').hidden=true;
@@ -2672,6 +2688,7 @@ function showResults(){
   $('toMenu').textContent=online?'Leave room':'Menu';
   $('resNext').textContent='';
   hideScreens();$('results').hidden=false;showHud(false);
+  if(COS)COS.results(me,myPos);
   showAd('adEnd');
 }
 $('again').onclick=()=>startPractice();
@@ -2716,7 +2733,7 @@ function frame(now){
     if(state==='lobby'&&(lobbyT<=0||lobbyDirty)){lobbyT=.25;lobbyDirty=false;renderLobby()}
     if(state==='results'&&mode==='online'&&Net.round&&Net.round.ph==='done'){const s=Math.max(0,Math.ceil(((+Net.round.end||0)+RESULTS_MS-Net.now())/1000));$('resNext').textContent='Back to the grid in '+s+'s'}
     if(race){updateCamera(dt);syncCarMeshes(dt)}
-    renderer.render(scene,camera);
+    if(!(COS&&COS.frame(dt)))renderer.render(scene,camera);   // COS.frame draws the Garage's turning car instead while the Garage is open
     updateHud(dt);drawTags();
     if(state==='race')drawMini();
     engineSound(race?camTarget():null,dt);
@@ -2743,6 +2760,16 @@ if(navigator.webdriver)window.__ss={get race(){return race},get track(){return t
   get world(){return world},set auto(v){testAuto=!!v},posAt,
   // a picture of the circuit from a camera at (px,py,pz) looking at (tx,ty,tz), for checking the scenery
   snap(px,py,pz,tx,ty,tz){const c=camera.clone();c.position.set(px,py,pz);c.up.set(0,1,0);c.lookAt(tx,ty,tz);c.far=9000;c.updateProjectionMatrix();c.updateMatrixWorld();const f=scene.fog;scene.fog=null;renderer.render(scene,c);scene.fog=f;return renderer.domElement.toDataURL('image/jpeg',.85)}};
+// Cosmetics: only when ../cosmetics.js says they are switched on is garage.js fetched and handed what it needs.
+addEventListener('DOMContentLoaded',()=>{
+  const C=window.BackRoomCosmetics;if(!C||!C.on||!C.on()||!window.NameFilter)return;
+  loadScript('garage.js').then(()=>{
+    COS=window.SlipstreamGarage({THREE,C,scene,renderer,camera,TEAMS,DRIVERS,SEATS,TRACKS,CAR_GEO,MAT,lin,paintCol,paintGeo,CARBON,POD,makeCarMesh,buildCars,helmetMat,
+      fxEmit,fxr,fxMat,store,strHash,mulberry,esc,$,toast,banner,Net,order,raceT,hideScreens,showHud,setupAttract,
+      get race(){return race},get state(){return state},set state(v){state=v},get mode(){return mode},get seat(){return mySeat},get W(){return W},get H(){return H},get touch(){return touchUI},get paused(){return paused}});
+    buildCars();
+  }).catch(e=>console.error(e));
+});
 requestAnimationFrame(frame);
 })();
 </script>
