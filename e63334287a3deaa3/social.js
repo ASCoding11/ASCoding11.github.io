@@ -28,6 +28,11 @@
  *   i  { <recipient uid>: { i, t, b } }    the latest party or room invite to each of the last 6 people
  *   av the player's edited avatar as a short code (avatar.js: 'a2:' and fifteen numbers, the older 'a1:3.5.2.7.1', or 'a0' after a reset; absent if never
  *      edited). Read with BackRoomAvatar.learn, which checks it; the "You" row has the Edit avatar button.
+ *   nt the colour of the player's name tile (avatar.js: 't1:<index>', or 't0' after going back to the default; absent if
+ *      never chosen). Read with BackRoomAvatar.learnTile, which checks it; BackRoomAvatar.paint colours the cards. The
+ *      "Name tile" row under the "You" row is the picker, with the player's own card as everyone else sees it. Both it
+ *      and Edit avatar are for players signed in with Google (BackRoomAvatar.google): a guest sees them locked, with one
+ *      line and a button that opens the site's own Google sign-in (SiteAccount.signIn); the editor opens once they're in.
  * b is sealed to the recipient like Showdown's hole cards: AES-GCM with a key from ECDH between the sender's
  * private key and the recipient's pk, so only those two browsers can open it. Inside is JSON:
  *   { f: sender uid, to: recipient uid, k: 'm', x: text } | { ..., k: 'p', c: party code } | { ..., k: 'r', g, r }
@@ -247,6 +252,25 @@
     '.onl-mi{font-size:12px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
     '.onl-dh h2 .bra-av,.onl-row .onl-who .bra-av,.onl-m .who .bra-av,.onl-t .bra-av{margin-right:6px;vertical-align:-5px}' +
     '.onl-m .who .bra-av{vertical-align:-4px}' +
+    // The Name tile row: your own card as others see it, then the colours. For a guest: small locked colours, one line, one button.
+    '.onl-nt{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;min-width:0;font-size:14px;color:var(--ink-2);border-radius:8px}.onl-nt[hidden],.onl-nt [hidden]{display:none}' +
+    '.onl-nt .onl-lbl{flex:none;font-family:var(--mono,monospace);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}' +
+    '.onl-ntc{display:flex;flex:1 1 200px;max-width:240px;min-width:0}.onl-ntc .onl-p{cursor:default}' +
+    '.onl-nts{display:flex;flex-wrap:wrap;gap:6px;flex:1 1 320px;min-width:0;border:0;margin:0;padding:0}' +
+    '.onl-nts label{position:relative;flex:none;width:30px;height:30px;cursor:pointer}' +
+    '.onl-nts input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}' +
+    '.onl-nts span{display:block;width:100%;height:100%;border-radius:8px;border:1px solid color-mix(in srgb,var(--ink) 38%,transparent)}' +
+    '.onl-nts .def span{background:linear-gradient(to top right,transparent calc(50% - 1px),color-mix(in srgb,var(--ink) 45%,transparent) calc(50% - 1px),color-mix(in srgb,var(--ink) 45%,transparent) calc(50% + 1px),transparent calc(50% + 1px)),var(--panel-2)}' +
+    '.onl-nts input:checked+span{box-shadow:0 0 0 2px var(--panel),0 0 0 4px var(--ink)}' +
+    '.onl-nts input:focus-visible+span{outline:2px solid var(--accent);outline-offset:5px}' +
+    '.onl-nt.lock .onl-nts{flex:none;gap:4px}.onl-nt.lock .onl-nts label{width:14px;height:14px;cursor:default}.onl-nt.lock .onl-nts .def{display:none}' +
+    '.onl-nt.lock .onl-nts input{cursor:default}.onl-nt.lock .onl-nts span{border-radius:4px}' +
+    '.onl-ntp{display:flex;align-items:center;gap:8px;flex:1 1 280px;min-width:0;margin:0;color:var(--ink)}.onl-lk{display:inline-flex;flex:none;line-height:0;color:var(--ink-2)}' +
+    '.onl-b.lock{color:var(--ink-2)}' +
+    '@keyframes onl-ntf{0%,100%{box-shadow:0 0 0 0 transparent}25%,60%{box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 55%,transparent)}}.onl-nt.flash{animation:onl-ntf 1.1s ease}' +
+    '@media (prefers-reduced-motion:reduce){.onl-nt.flash{animation:none}}' +
+    // On a name tile: the hover edge, and a ring so the unread count doesn't melt into a red tile.
+    '.onl-p.bra-nt.bra-nt.bra-nt:not(.me):hover{border-color:var(--nt-ink)}.bra-nt .onl-n{box-shadow:0 0 0 1.5px var(--nt-ring)}' +
     '.onl-empty{margin:0;color:var(--ink-2);font-size:14px}' +
     '.onl-msg{margin:0;font-size:14px;color:var(--ink-2);overflow-wrap:anywhere}' +
     '.onl-msg:empty{display:none}.onl-msg.err{color:var(--down)}' +
@@ -284,7 +308,8 @@
     '.onl-bar[hidden]{display:none}.onl-pbar:not([hidden]) + .onl-bar{margin-left:0}' +
     '.onl-wn{font:inherit;font-weight:700;color:var(--ink);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px}' +
     '@media (max-width:600px){.onl{padding:14px}.onl-list{grid-template-columns:minmax(0,1fr) minmax(0,1fr);max-height:252px}.onl-sub{font-size:14px;order:3;flex-basis:100%}.onl-top > .onl-b{margin-left:auto}}' +
-    '@media (max-width:420px){.onl-list{grid-template-columns:minmax(0,1fr)}.onl-me .onl-lbl{display:none}.onl-me input[type=text]{width:10ch}}' +
+    '@media (max-width:600px){.onl-nt:not(.lock) .onl-nts{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));flex-basis:100%;max-width:400px}.onl-nt:not(.lock) .onl-nts label{width:auto;height:auto;aspect-ratio:1}.onl-nt .onl-b{flex:1 1 100%}}' +
+    '@media (max-width:420px){.onl-list{grid-template-columns:minmax(0,1fr)}.onl-me .onl-lbl{display:none}.onl-me input[type=text]{width:10ch}.onl-nt.lock .onl-nts{gap:3px}.onl-nt.lock .onl-nts label{width:11px;height:11px}.onl-nt.lock .onl-nts span{border-radius:3px}}' +
     '@media (max-height:500px){.onl-ts{top:calc(40px + env(safe-area-inset-top,0px))}.onl-dh{padding:8px 12px}.onl-db{padding:8px 12px}.onl-df{padding:8px 12px}}';
   document.head.appendChild(css);
 
@@ -310,6 +335,15 @@
   // "Edit avatar" opens avatar.js's editor; both are filled in or shown once we know who you are and that script is here.
   var $meAv = el('span', 'onl-meav'), $tier = el('span', 'onl-tier'), $editAv = btn('Edit avatar'); $editAv.style.display = 'none';
   $editAv.addEventListener('click', function () { if (uid && window.BackRoomAvatar && BackRoomAvatar.edit) BackRoomAvatar.edit(uid, $editAv); });
+  // The Name tile row (filled in by drawTile): a label, your card as others see it, the colours, and for a guest the
+  // line and the button that opens the site's Google sign-in (or, on a page without it, a link to the main site).
+  var ntRow = el('div', 'onl-nt'); ntRow.hidden = true;
+  var $ntLbl = el('span', 'onl-lbl', 'Name tile'); $ntLbl.id = 'onl-nt-l';
+  var $ntCard = el('span', 'onl-ntc'); $ntCard.title = 'Your card, as everyone else sees it';
+  var $ntSw = el('fieldset', 'onl-nts'); $ntSw.setAttribute('role', 'radiogroup'); $ntSw.setAttribute('aria-labelledby', 'onl-nt-l');
+  var $ntLine = el('p', 'onl-ntp'), $ntGo = btn('Sign in with Google', 'pri'), $ntLink = el('a', 'onl-b', 'Main site');
+  $ntLink.href = '/'; $ntLink.target = '_top';
+  ntRow.append($ntLbl, $ntCard, $ntSw, $ntLine, $ntGo, $ntLink);
   var hideLbl = el('label'); var $hide = el('input'); $hide.type = 'checkbox'; hideLbl.append($hide, 'Hide me');
   var joinLbl = el('label'); var $join = el('input'); $join.type = 'checkbox'; joinLbl.append($join, 'Let people join my games');
   joinLbl.title = 'When you’re in an online game, people here can see it and join you (Playing now, and a Join button by your name)';
@@ -318,7 +352,7 @@
   var $msg = el('p', 'onl-msg'); $msg.setAttribute('role', 'status'); $msg.setAttribute('aria-live', 'polite');
   var fine = el('p', 'onl-fine'), plink = el('a', '', 'Privacy'); plink.href = '/privacy.html'; plink.target = '_blank'; plink.rel = 'noopener';
   fine.append(plink);
-  box.append(top, meRow, $list, $msg, fine);
+  box.append(top, meRow, ntRow, $list, $msg, fine);
   sec.append(box);
   function place() {
     var party = document.getElementById('party'), head = document.querySelector('header');
@@ -464,9 +498,10 @@
       g: typeof v.g === 'string' && gameOf(v.g) ? v.g : '',
       jg: typeof v.jg === 'string' && gameOf(v.jg) ? v.jg : '', jr: typeof v.jr === 'string' && ROOM.test(v.jr) ? v.jr : '', jt: when(v.jt, t) || 0,
       av: typeof v.av === 'string' && v.av.length <= 47 ? v.av : '',   // their avatar's code; avatar.js checks it before it is ever drawn
+      nt: typeof v.nt === 'string' && v.nt.length <= 5 ? v.nt : '',    // their name tile's code, checked the same way
       l: [], dm: [], pc: [], inv: null
     };
-    learnAv(k, p.av);
+    learnAv(k, p.av); learnNt(k, p.nt);
     arr(v.l, LOUNGE_KEEP).forEach(function (m) {
       if (!m || typeof m !== 'object') return;
       var mt = when(m.t, t), x = cleanText(m.x);
@@ -522,7 +557,7 @@
   function onGone(s) {
     if (s.key === uid) {
       // Our node went missing (another tab of ours closed, or a dropped connection); put it back.
-      if (published && !hidden && meRef) meRef.set(nodeState()).catch(function () {});
+      if (published && !hidden && meRef) meRef.set(sendState()).catch(function () {});
       return;
     }
     delete people[s.key]; schedule();
@@ -906,26 +941,34 @@
     if (Object.keys(mine.d).length) s.d = mine.d;
     if (Object.keys(mine.i).length) s.i = mine.i;
     if (Object.keys(mine.pc).length) s.pc = mine.pc;
-    var a = myAv(); if (a) s.av = a;
-    avSent = uid + '|' + a;
+    var a = myAv(), t = myNt(); if (a) s.av = a; if (t) s.nt = t;
     return s;
   }
+  // The node for a full write (set), which also notes the avatar and name tile it carries, so syncAvatar needn't send
+  // them again. (nodeState alone is also used just to measure the node, and mustn't note anything.)
+  function sendState() { var s = nodeState(); avSent = uid + '|' + (s.av || '') + '|' + (s.nt || ''); return s; }
   // Our avatar (avatar.js): the edit is saved in this browser, and av in our node is how everyone else gets to see it.
   // It also goes on our leaderboard entry (only one that exists, like the name), which is still there when we're offline.
   function myAv() { try { return uid && window.BackRoomAvatar && BackRoomAvatar.mine ? BackRoomAvatar.mine(uid) || '' : ''; } catch (e) { return ''; } }
   function learnAv(u, a) { if (typeof a === 'string' && window.BackRoomAvatar && BackRoomAvatar.learn) { try { BackRoomAvatar.learn(u, a); } catch (e) {} } }
+  // Our name tile's colour (avatar.js) travels the same way, as nt. Only a Google account has one to publish.
+  function myNt() { try { return uid && window.BackRoomAvatar && BackRoomAvatar.tileMine ? BackRoomAvatar.tileMine(uid) || '' : ''; } catch (e) { return ''; } }
+  function learnNt(u, t) { if (typeof t === 'string' && t && window.BackRoomAvatar && BackRoomAvatar.learnTile) { try { BackRoomAvatar.learnTile(u, t); } catch (e) {} } }
   var avSent = '', avBoard = '';
   function syncAvatar() {
     if (!uid || !db) return;
-    var a = myAv(), k = uid + '|' + a, u = uid;
-    if (published && !hidden && avSent !== k) { avSent = k; write({ av: a || null }).catch(function () { if (avSent === k) avSent = ''; }); }
-    if (!a || avBoard === k) return;
+    var a = myAv(), t = myNt(), k = uid + '|' + a + '|' + t, u = uid;
+    if (published && !hidden && avSent !== k) { avSent = k; write({ av: a || null, nt: t || null }).catch(function () { if (avSent === k) avSent = ''; }); }
+    if ((!a && !t) || avBoard === k) return;
     avBoard = k;
     var ref = db.ref('rooms/lb-all/players/' + u);
-    Promise.all([ref.child('n').once('value'), ref.child('av').once('value')]).then(function (r) {
-      // No entry yet: stats.js adds av when the first game makes one. Nothing to take back if it never had one.
-      if (!r[0].exists() || u !== uid || r[1].val() === a || (a === 'a0' && !r[1].exists())) return;
-      return ref.update({ av: a });
+    Promise.all([ref.child('n').once('value'), ref.child('av').once('value'), ref.child('nt').once('value')]).then(function (r) {
+      // No entry yet: stats.js adds av and nt when the first game makes one. Nothing to take back if it never had one.
+      if (!r[0].exists() || u !== uid) return;
+      var up = {};
+      if (a && r[1].val() !== a && !(a === 'a0' && !r[1].exists())) up.av = a;
+      if (t && r[2].val() !== t && !(t === 't0' && !r[2].exists())) up.nt = t;
+      if (Object.keys(up).length) return ref.update(up);
     }).catch(function () { if (avBoard === k) avBoard = ''; });
   }
   // A guest who edited their avatar and then signs in with Google keeps those choices, unless that account already has
@@ -950,7 +993,7 @@
     if (hidden || !meRef) return;
     published = true;
     try {
-      await meRef.set(nodeState());
+      await meRef.set(sendState());
       meRef.onDisconnect().remove();
     } catch (e) { published = false; say('The database didn’t accept your Online status (' + (e.code || e.message) + ').', true); return; }
     clearInterval(beat);
@@ -976,7 +1019,7 @@
     schedule();
   }
   function onConnected(s) {
-    if (s.val() === true && !wasConnected && published && !hidden && meRef) { meRef.onDisconnect().remove(); meRef.set(nodeState()).catch(function () {}); }
+    if (s.val() === true && !wasConnected && published && !hidden && meRef) { meRef.onDisconnect().remove(); meRef.set(sendState()).catch(function () {}); }
     wasConnected = s.val() === true;
   }
 
@@ -1354,9 +1397,12 @@
       .sort(function (a, b) { return a.n.localeCompare(b.n) || (a.uid < b.uid ? -1 : 1); });
   }
   function meEntry() { return { uid: uid, n: myName(), c: uid ? colorOf(uid) : COLORS[0], seat: uid ? seatOf(uid) : '', party: status.p, pl: status.pl, g: status.g }; }
-  function personBtn(p, isMe) {
-    var b = el('button', 'onl-p' + (isMe ? ' me' : '')); b.type = 'button';
+  // tag: the Name tile row shows your own card as a plain block ('div'); in the lists a card is a button.
+  function personBtn(p, isMe, tag) {
+    var b = el(tag || 'button', 'onl-p' + (isMe ? ' me' : '')); if (!tag) b.type = 'button';
     if (!isMe) { b.setAttribute('data-u', p.uid); b.setAttribute('aria-label', 'Open ' + label(p)); }
+    // The colour of their name tile (avatar.js), if they chose one.
+    if (window.BackRoomAvatar && BackRoomAvatar.paint && p.uid) { try { BackRoomAvatar.paint(b, p.uid); } catch (e) {} }
     var av = avatarEl(p.uid, p.n, p.c, 34);
     var who = el('span', 'onl-who'), nm = el('span', 'onl-nm');
     nm.append(mask(p.n) + ' ', el('small', '', '· ' + p.seat + (isMe ? ' · you' : '')));
@@ -1398,7 +1444,9 @@
     $title.lastChild.textContent = uid ? '(' + n + ')' : '';
     if (document.activeElement !== $name) $name.value = myName();
     $seat.textContent = uid ? 'Seat ' + seatOf(uid) + (hidden ? '' : ' · ' + statusText(meEntry())) : '';
-    var BA = window.BackRoomAvatar, canEdit = !!(uid && BA && BA.edit && BA.editButton), avKey = uid + (BA ? ':a' + (BA.rev || 0) : '');
+    var BA = window.BackRoomAvatar, canEdit = !!(uid && BA && BA.edit && BA.editButton);
+    // Editing is for Google accounts: a guest's button and avatar carry a padlock and lead to the sign-in line below.
+    var locked = canEdit && !!BA.google && !BA.google(uid), avKey = uid + (BA ? ':a' + (BA.rev || 0) : '') + (locked ? ':l' : '');
     if (uid && $meAv.getAttribute('data-u') !== avKey) {
       var hadFocus = $meAv.contains(document.activeElement), editB = null;
       if (canEdit) { try { editB = BA.editButton(uid, 34); } catch (e) { editB = null; } }
@@ -1406,6 +1454,14 @@
       if (hadFocus && editB) editB.focus();
     }
     $editAv.style.display = canEdit ? '' : 'none';
+    if ($editAv.classList.contains('lock') !== locked) {
+      $editAv.classList.toggle('lock', locked); $editAv.textContent = '';
+      if (locked) { var lk = el('span', 'onl-lk'); lk.innerHTML = BA.lock || ''; $editAv.append(lk); }   // avatar.js's own padlock drawing, no text from anyone
+      $editAv.append('Edit avatar');
+      $editAv.title = locked ? 'Sign in with Google to edit your avatar' : '';
+      if (locked) $editAv.setAttribute('aria-label', 'Edit avatar (sign in with Google first)'); else $editAv.removeAttribute('aria-label');
+    }
+    drawTile();
     var mt = uid ? tierOf(uid) : null;
     $tier.textContent = '';
     if (mt) { $tier.append(BackRoomMiles.badge(mt)); var ml = milesLine(mt); if (ml) $tier.append(el('span', '', ml)); }
@@ -1423,6 +1479,60 @@
     var pp = document.querySelector('#party [data-a="chat"]'); if (pp && pp.lastChild && pp.lastChild.className === 'onl-n') pp.lastChild.textContent = pus;
     if (dr.classList.contains('open')) drawDrawer();
   }
+
+  // ---------------- The Name tile row ----------------
+  // The site's sign-in: on this page, or on the home page when this is its phone frame (same origin), as account-nudge.js finds it.
+  function account() {
+    if (window.SiteAccount && window.SiteAccount.signIn) return window.SiteAccount;
+    try { var p = window.parent; if (p && p !== window && p.SiteAccount && p.SiteAccount.signIn) return p.SiteAccount; } catch (e) {}
+    return null;
+  }
+  var wantEdit = false;                    // a guest pressed our Sign in with Google: open the editor when they're in
+  function drawTile() {
+    var BA = window.BackRoomAvatar;
+    if (!uid || !BA || !BA.paint || !BA.saveTile || !BA.TILES) { ntRow.hidden = true; return; }   // nobody signed in at all, or no avatar.js
+    var open = BA.google(uid), cur = BA.tile(uid), A = open ? null : account();
+    ntRow.hidden = false; ntRow.classList.toggle('lock', !open);
+    if (!$ntSw.firstChild) {
+      BA.TILES.forEach(function (t, i) {
+        var lab = el('label', i ? '' : 'def'), inp = el('input'), dot = el('span');
+        inp.type = 'radio'; inp.name = 'onl-nt'; inp.value = String(i); inp.setAttribute('aria-label', t.n); lab.title = t.n;
+        if (i) dot.style.background = t.bg;
+        inp.addEventListener('change', function () { if (inp.checked && uid && !BackRoomAvatar.saveTile(uid, i)) schedule(); });
+        lab.append(inp, dot); $ntSw.append(lab);
+      });
+    }
+    Array.prototype.forEach.call($ntSw.querySelectorAll('input'), function (inp, i) { inp.checked = open && i === cur; inp.disabled = !open; });
+    if (open) $ntSw.removeAttribute('aria-hidden'); else $ntSw.setAttribute('aria-hidden', 'true');   // a guest's colours are only a picture of what's on offer
+    $ntCard.hidden = !open; $ntCard.textContent = '';
+    if (open) $ntCard.append(personBtn(meEntry(), true, 'div'));
+    $ntLine.hidden = open; $ntGo.hidden = open || !A; $ntLink.hidden = open || !!A;
+    var line = A ? 'Sign in with Google to choose your colour and edit your avatar.' : 'Sign in with Google on the main site to choose your colour and edit your avatar.';
+    if (!open && $ntLine.getAttribute('data-l') !== line) {
+      $ntLine.setAttribute('data-l', line); $ntLine.textContent = '';
+      var lk = el('span', 'onl-lk'); lk.innerHTML = BA.lock || ''; $ntLine.append(lk, el('span', '', line));
+    }
+  }
+  // The site's own Google sign-in, straight from the tap (its popup has to open from one).
+  $ntGo.addEventListener('click', function () {
+    var A = account(); if (!A) return;
+    var p; wantEdit = true; $ntGo.disabled = true;
+    try { p = A.signIn(); } catch (e) { p = Promise.reject(e); }
+    p.then(function (u) { if (!u) wantEdit = false; }, function (e) {
+      wantEdit = false;
+      // The sign-in script hadn't finished loading: get it ready, then a second tap opens the popup.
+      if (!e || e.message !== 'not-ready' || !A.boot) return;
+      return A.boot().then(function () { say('Sign-in is ready now. Tap Sign in with Google again.'); }, function () { say('Couldn’t load sign-in. Check your connection.', true); });
+    }).then(function () { $ntGo.disabled = false; });
+  });
+  // A guest tapped Edit avatar or their own avatar (avatar.js opens nothing for them): show them the way in.
+  document.addEventListener('backroom:avatar-locked', function () {
+    if (ntRow.hidden) return;
+    var b = !$ntGo.hidden ? $ntGo : !$ntLink.hidden ? $ntLink : null;
+    try { ntRow.scrollIntoView({ block: 'nearest' }); } catch (e) {}
+    ntRow.classList.remove('flash'); void ntRow.offsetWidth; ntRow.classList.add('flash');
+    if (b) { try { b.focus({ preventScroll: true }); } catch (e) {} }
+  });
 
   // A button in the open game's top bar, so the list, chats and invites are a tap away mid-game.
   function addBarButton(fr) {
@@ -1852,9 +1962,12 @@
   // half-typed message (and its focus) survives someone coming online or the tiers' 10-minute refresh.
   // avatar.js arrived (it may load after the list was read) or an avatar changed: hand over the codes we already hold,
   // publish our own if it changed, and redraw.
+  var avT = 0;
   document.addEventListener('backroom:avatar', function () {
-    Object.keys(people).forEach(function (u) { learnAv(u, people[u].av); });
-    syncAvatar(); schedule();
+    Object.keys(people).forEach(function (u) { learnAv(u, people[u].av); learnNt(u, people[u].nt); });
+    // A moment later, so stepping through the name tile colours with the arrow keys is one write, not one each.
+    clearTimeout(avT); avT = setTimeout(syncAvatar, 350);
+    schedule();
   });
   document.addEventListener('backroom:miles', function () { schedule(); });
 
@@ -1891,13 +2004,19 @@
     // Signing in with Google switches to another uid: show up under the new one.
     var wasAnon = !!(auth.currentUser && auth.currentUser.isAnonymous);
     auth.onAuthStateChanged(function (u) {
-      if (!u || u.uid === uid) return;
+      if (!u || u.uid === uid) { schedule(); return; }      // signed out, or the same account again: only the locks may have changed
       var from = wasAnon ? uid : ''; wasAnon = !!u.isAnonymous;
       try { if (window.BackRoomAvatar && BackRoomAvatar.close) BackRoomAvatar.close(); } catch (e) {}   // an open editor was for the old account
-      uid = u.uid; if (from) carryAvatar(from, u);
+      uid = u.uid; var carried = from ? carryAvatar(from, u) : Promise.resolve(false);
+      // They signed in with the Name tile row's button: open the editor they asked for, on the look they had as a guest.
+      if (wantEdit) {
+        wantEdit = false;
+        carried.then(function () { var A = window.BackRoomAvatar; if (uid === u.uid && A && A.edit && A.google(uid)) A.edit(uid, $editAv); });
+      }
       meRef = db.ref(PATH + '/' + uid); delete people[uid]; opened = {}; chains = {}; mine.d = {}; mine.i = {}; mine.pc = {};
       listRef.once('value', function (s) { s.forEach(function (c) { onNode(c); }); });
       if (!hidden) publish();
+      schedule();                                           // the "You" row and its locks are for the new account now
     });
     schedule();
   }
@@ -1920,5 +2039,5 @@
   };
 
   // Test hook for the automated checks; harmless in normal play.
-  if (navigator.webdriver) window.__social = { get uid() { return uid; }, get people() { return people; }, get threads() { return threads; }, get mine() { return mine; }, get published() { return published; }, get pub() { return keys.pub; }, get chats() { return chats; }, get sent() { return sent; }, get sblocked() { return sblocked; }, get status() { return status; }, seatOf: seatOf, mask: mask, loungeAll: loungeAll, PATH: PATH, transcript: transcript, get pchat() { return pchat; }, partyMembers: partyMembers, sendParty: sendParty, get muted() { return muted; }, carryAvatar: carryAvatar, nodeState: nodeState };
+  if (navigator.webdriver) window.__social = { get uid() { return uid; }, get people() { return people; }, get threads() { return threads; }, get mine() { return mine; }, get published() { return published; }, get pub() { return keys.pub; }, get chats() { return chats; }, get sent() { return sent; }, get sblocked() { return sblocked; }, get status() { return status; }, seatOf: seatOf, mask: mask, loungeAll: loungeAll, PATH: PATH, transcript: transcript, get pchat() { return pchat; }, partyMembers: partyMembers, sendParty: sendParty, get muted() { return muted; }, carryAvatar: carryAvatar, nodeState: nodeState, syncAvatar: syncAvatar, get wantEdit() { return wantEdit; } };
 })();
