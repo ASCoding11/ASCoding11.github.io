@@ -228,10 +228,12 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
 #tJump{right:calc(130px + env(safe-area-inset-right,0px));bottom:calc(20px + env(safe-area-inset-bottom,0px))}
 #tAim{right:calc(126px + env(safe-area-inset-right,0px));bottom:calc(88px + env(safe-area-inset-bottom,0px))}
 #tReload{right:calc(52px + env(safe-area-inset-right,0px));bottom:calc(138px + env(safe-area-inset-bottom,0px))}
+#tEdit{right:calc(122px + env(safe-area-inset-right,0px));bottom:calc(156px + env(safe-area-inset-bottom,0px))}
+#tEdit.can{border-color:#bff3ff;color:#bff3ff}
 #tPause{left:calc(10px + env(safe-area-inset-left,0px));top:calc(10px + env(safe-area-inset-top,0px));width:42px;height:42px;font-size:13px}
 /* Out of the round (or watching a match): only look, pause and Next (watch the next player) stay. */
 #tNext{right:calc(28px + env(safe-area-inset-right,0px));bottom:calc(40px + env(safe-area-inset-bottom,0px));width:104px;height:56px;border-radius:28px;font-size:15px}
-#hud.spec #tStick,#hud.spec #tFire,#hud.spec #tJump,#hud.spec #tAim,#hud.spec #tReload{display:none}
+#hud.spec #tStick,#hud.spec #tFire,#hud.spec #tJump,#hud.spec #tAim,#hud.spec #tReload,#hud.spec #tEdit{display:none}
 /* With the lobby panel open over a match in progress, the match HUD and banners step aside so they don't overlap it on a small screen. */
 body.touch.inlobby #hud,body.touch.inlobby #banner,body.touch.inlobby #dmg{visibility:hidden}
 body.touch.inlobby #touch{display:none}
@@ -246,7 +248,7 @@ body.touch .slot .am{font-size:10px}
 body.touch .slot.gap{margin-left:6px}
 body.touch .osd{display:none}
 body.touch #feed{top:calc(64px + env(safe-area-inset-top,0px))}
-body.touch #hint{bottom:auto;top:calc(110px + env(safe-area-inset-top,0px));font-size:12px}
+body.touch #hint{bottom:auto;top:calc(110px + env(safe-area-inset-top,0px));font-size:12px;width:max-content;max-width:calc(100% - 24px);white-space:normal;text-align:center}
 body.touch #score{left:calc(200px + env(safe-area-inset-left,0px));transform:scale(.8);transform-origin:left top}
 body.touch #net{left:calc(200px + env(safe-area-inset-left,0px));transform:none;white-space:normal;width:max-content;max-width:calc(100vw - 220px);text-align:left}
 body.touch #pips{left:calc(200px + env(safe-area-inset-left,0px));transform:none;top:calc(56px + env(safe-area-inset-top,0px))}
@@ -311,6 +313,7 @@ body.touch #find{left:calc(60px + env(safe-area-inset-left,0px));transform:none;
       <button class="tb" id="tJump" type="button">JUMP</button>
       <button class="tb" id="tAim" type="button">AIM</button>
       <button class="tb" id="tReload" type="button">RELOAD</button>
+      <button class="tb" id="tEdit" type="button">EDIT</button>
       <button class="tb" id="tPause" type="button" aria-label="Pause">❚❚</button>
       <button class="tb" id="tNext" type="button" hidden>NEXT ▸</button>
     </div>
@@ -368,6 +371,7 @@ body.touch #find{left:calc(60px + env(safe-area-inset-left,0px));transform:none;
             <div><dt id="kAim2">R-CLICK</dt><dd>Also aims</dd></div>
             <div><dt data-kb="rifle shotgun sniper" data-kb-short data-kb-case="upper">1 2 3</dt><dd>Rifle, shotgun, sniper</dd></div>
             <div><dt data-kb="wall floor ramp" data-kb-short data-kb-case="upper">Q F C</dt><dd>Wall, floor, ramp</dd></div>
+            <div><dt data-kb="edit" data-kb-short data-kb-case="upper">G</dt><dd>Edit a build of yours (aim at it)</dd></div>
             <div><dt data-kb="reload" data-kb-short data-kb-case="upper">R</dt><dd>Reload</dd></div>
             <div><dt data-kb="pause" data-kb-sep=" · " data-kb-case="upper">ESC</dt><dd>Menu and invite link</dd></div>
             <div><dt>CLICK</dt><dd>When out: watch the next teammate</dd></div>
@@ -375,7 +379,7 @@ body.touch #find{left:calc(60px + env(safe-area-inset-left,0px));transform:none;
           <button class="ghost-btn" id="keysMenu" type="button">Change keys</button>
         </details>
       </div>
-      <p id="touchNote" class="note" hidden>Playing on a phone? Turn it sideways for the best view. Tap the slots at the top to switch weapons or build.</p>
+      <p id="touchNote" class="note" hidden>Playing on a phone? Turn it sideways for the best view. Tap the slots at the top to switch weapons or build. Edit reshapes a build of yours that you're aiming at.</p>
       <div class="adbox" id="adMenu" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
     </div>
   </section>
@@ -573,6 +577,7 @@ function gradBox(w,h,d){const geo=new THREE.BoxGeometry(w,h,d);const p=geo.attri
 function joinGeos(list){
   const out=new THREE.BufferGeometry(),idx=[];let n=0;
   for(const k of ['position','normal','uv','color']){
+    if(!list[0].attributes[k])continue;
     const size=k==='uv'?2:3,a=new Float32Array(list.reduce((t,g)=>t+g.attributes[k].array.length,0));let o=0;
     for(const g of list){a.set(g.attributes[k].array,o);o+=g.attributes[k].array.length}
     out.setAttribute(k,new THREE.BufferAttribute(a,size));
@@ -1119,36 +1124,125 @@ function placeObj(obj,s){
   else if(s.kind==='floor')obj.position.set(s.x*4+2,s.L*4,s.z*4+2);
   else{obj.position.set(s.x*4+2,s.L*4+2,s.z*4+2);obj.rotation.y=DIR_YAW[s.dir]}
 }
-function makePiece(s){
-  const mat=plyMat.clone();let obj,solid=null,ramp=null;
-  if(s.kind==='wall'){obj=new THREE.Mesh(geoPWall,mat);
-    solid=s.o==='H'?{min:[s.x*4,s.L*4,s.z*4-.125],max:[s.x*4+4,s.L*4+4,s.z*4+.125]}:{min:[s.x*4-.125,s.L*4,s.z*4],max:[s.x*4+.125,s.L*4+4,s.z*4+4]}}
-  else if(s.kind==='floor'){obj=new THREE.Mesh(geoPFloor,mat);solid={min:[s.x*4,s.L*4-.125,s.z*4],max:[s.x*4+4,s.L*4+.125,s.z*4+4]}}
-  else{obj=new THREE.Group();const inner=new THREE.Mesh(geoPRamp,mat);inner.rotation.x=-Math.PI/4;obj.add(inner);ramp={x0:s.x*4,z0:s.z*4,base:s.L*4,dir:s.dir}}
+// Editing. A piece is a grid of tiles, and its edit (ed) has one bit for each tile that has been cut out; 0 is the whole
+// piece. A wall is 3 x 3 (u along the wall towards +x or +z, v up), a floor 2 x 2 (u along x, v along z) and a ramp
+// 2 x 2 (u up the slope, v across it towards +z or +x); tile (u,v) is bit v*n+u. The tiles that are left are joined into
+// as few rectangles as it takes (edRects), and each rectangle is one ordinary solid box, or for a ramp one ordinary ramp
+// sheet with a smaller footprint (pieceShape). So movement, pushOut / rampOut and shots treat an edited piece with the
+// very code they use for a whole one: you walk through a door and shoot through a window because no box is there, and
+// what is left blocks from every side. The picture is one mesh made of the same rectangles (pieceGeo).
+const ED_N={wall:3,floor:2,ramp:2};
+const edFull=k=>(1<<ED_N[k]*ED_N[k])-1;
+const edOk=(k,m)=>Number.isInteger(m)&&m>=0&&m<edFull(k);   // at least one tile has to stay
+// runs of tiles along u in each row, then equal runs in rows next to each other joined: [u0,v0,u1,v1), ends not included
+function edRects(n,mask){
+  const out=[];
+  for(let v=0;v<n;v++)for(let u=0;u<n;u++){
+    if(mask>>(v*n+u)&1)continue;
+    let e=u+1;while(e<n&&!(mask>>(v*n+e)&1))e++;
+    const q=out.find(k=>k[0]===u&&k[2]===e&&k[3]===v);
+    if(q)q[3]=v+1;else out.push([u,v,e,v+1]);
+    u=e-1;
+  }
+  return out;
+}
+function pieceShape(s,mask){
+  const n=ED_N[s.kind],x0=s.x*4,z0=s.z*4,y0=s.L*4,boxes=[],rps=[];
+  for(const [u0,v0,u1,v1] of edRects(n,mask)){
+    if(s.kind==='wall'){
+      const a0=u0*4/n,a1=u1*4/n,b0=y0+v0*4/n,b1=y0+v1*4/n;
+      boxes.push(s.o==='H'?{min:[x0+a0,b0,z0-.125],max:[x0+a1,b1,z0+.125]}:{min:[x0-.125,b0,z0+a0],max:[x0+.125,b1,z0+a1]});
+    }else if(s.kind==='floor')boxes.push({min:[x0+u0*2,y0-.125,z0+v0*2],max:[x0+u1*2,y0+.125,z0+v1*2]});
+    else{
+      // a ramp sheet: the whole ramp's slope (x0, z0, base, dir), over the part of its cell from t0 to t1 up the slope
+      // (ax0..ax1 by az0..az1 on the ground)
+      const t0=u0/2,t1=u1/2,lo=s.dir<2?t0*4:4-t1*4,hi=s.dir<2?t1*4:4-t0*4,r={x0,z0,base:y0,dir:s.dir,t0,t1};
+      if(s.dir%2===0){r.ax0=x0+lo;r.ax1=x0+hi;r.az0=z0+v0*2;r.az1=z0+v1*2}
+      else{r.az0=z0+lo;r.az1=z0+hi;r.ax0=x0+v0*2;r.ax1=x0+v1*2}
+      rps.push(r);
+    }
+  }
+  return{boxes,rps};
+}
+// One geometry for an edited piece, in the frame its whole mesh uses (see placeObj), with the plywood texture laid
+// over the piece as a whole so a cut board still reads as one board.
+function pieceGeo(s,mask){
+  const n=ED_N[s.kind],list=[];
+  for(const [u0,v0,u1,v1] of edRects(n,mask)){
+    const w=(u1-u0)*4/n,h=(v1-v0)*4/n,cu=(u0+u1)*2/n-2,cv=(v0+v1)*2/n-2;let g;
+    if(s.kind==='wall'){g=new THREE.BoxGeometry(w,h,.25);g.translate(s.o==='V'?-cu:cu,cv,0)}
+    else if(s.kind==='floor'){g=new THREE.BoxGeometry(w,.25,h);g.translate(cu,0,cv)}
+    else{g=new THREE.BoxGeometry(h,.25,w*Math.SQRT2);g.translate(s.dir===0||s.dir===3?-cv:cv,0,cu*Math.SQRT2)}
+    list.push(g);
+  }
+  const geo=joinGeos(list),p=geo.attributes.position,uv=geo.attributes.uv;
+  for(let i=0;i<p.count;i++)uv.setXY(i,(p.getX(i)+2)/4,s.kind==='wall'?(p.getY(i)+2)/4:s.kind==='floor'?(p.getZ(i)+2)/4:p.getZ(i)/(4*Math.SQRT2)+.5);
+  return geo;
+}
+const wholeGeo=k=>k==='wall'?geoPWall:k==='floor'?geoPFloor:geoPRamp;
+function dropShape(pc){
+  for(const b of pc.boxes){const i=solids.indexOf(b);if(i>=0)solids.splice(i,1)}
+  for(const r of pc.rps){const i=ramps.indexOf(r);if(i>=0)ramps.splice(i,1)}
+  pc.boxes=[];pc.rps=[];
+}
+// Give a piece its shape: the collision boxes or ramp sheets, and the one mesh. (solid / ramp: the first of them, which
+// for a whole piece is the only one.)
+function shapePiece(pc,ed){
+  dropShape(pc);
+  const sh=pieceShape(pc.spec,ed),whole=wholeGeo(pc.spec.kind);
+  pc.ed=ed;pc.boxes=sh.boxes;pc.rps=sh.rps;pc.solid=sh.boxes[0]||null;pc.ramp=sh.rps[0]||null;
+  for(const b of sh.boxes){b.piece=pc;solids.push(b)}
+  for(const r of sh.rps){r.piece=pc;ramps.push(r)}
+  if(pc.mesh.geometry!==whole)pc.mesh.geometry.dispose();
+  pc.mesh.geometry=ed?pieceGeo(pc.spec,ed):whole;
+}
+// team: whose build it is, which decides who may edit it. Online 'r' or 'b'; in practice 'me' or 'bot'.
+function makePiece(s,team){
+  const mat=plyMat.clone();let obj,mesh;
+  if(s.kind==='wall')obj=mesh=new THREE.Mesh(geoPWall,mat);
+  else if(s.kind==='floor')obj=mesh=new THREE.Mesh(geoPFloor,mat);
+  else{obj=new THREE.Group();mesh=new THREE.Mesh(geoPRamp,mat);mesh.rotation.x=-Math.PI/4;obj.add(mesh)}
   placeObj(obj,s);
-  const pc={key:pieceKey(s),spec:s,hp:PHP[s.kind],max:PHP[s.kind],obj,mat,solid,ramp,pop:0};
-  if(solid){solid.piece=pc;solids.push(solid)}
-  if(ramp){ramp.piece=pc;ramps.push(ramp)}
+  const pc={key:pieceKey(s),spec:s,hp:PHP[s.kind],max:PHP[s.kind],obj,mesh,mat,solid:null,ramp:null,boxes:[],rps:[],ed:0,team:team||null,pop:0};
+  shapePiece(pc,0);
   obj.scale.setScalar(.82);
   pieceGroup.add(obj);pieces.set(pc.key,pc);
   return pc;
 }
-// owner: the entity that built it. Your own builds online are sent to everyone else in the room.
-function tryBuild(s,owner){
+// a piece (or a part of one put back by an edit) that lands on a body moves the body out rather than trapping it: out
+// of a wall or floor the shortest way (pushOut), up onto a ramp or out from inside it some other way (rampOut)
+function clearBodies(pc){
+  for(const e of ents){
+    if(!e.alive||!e.present||e.snaps)continue;   // other players are moved by their own browser
+    if(pc.boxes.some(b=>overlap(e.pos.x,e.pos.y,e.pos.z,b)))pushOut(e);
+    if(pc.rps.some(r=>inRamp(r,e.pos.x,e.pos.y,e.pos.z)))rampOut(e,true);
+  }
+}
+function myBuildTeam(){return online?player.team||null:'me'}
+// owner: the entity that built it (null: another player, whose team is given). Your own builds online are sent to
+// everyone else in the room.
+function tryBuild(s,owner,team,quiet){
   if(!specValid(s))return false;
-  const pc=makePiece(s);
-  // a wall or floor that lands on you (or the Entity) shoves you out of it rather than trapping you inside
-  if(pc.solid)for(const e of [player,opp])if(e.alive&&e.present&&overlap(e.pos.x,e.pos.y,e.pos.z,pc.solid))pushOut(e);
-  // a ramp that lands on you lifts you onto it (or moves you out from inside it some other way: see rampOut)
-  if(pc.ramp)for(const e of [player,opp])if(e.alive&&e.present&&inRamp(pc.ramp,e.pos.x,e.pos.y,e.pos.z))rampOut(e,true);
-  sfxBuild(owner===player?1:1/(1+camera.position.distanceTo(pc.obj.position)*.08));
+  const pc=makePiece(s,owner===player?myBuildTeam():owner===opp?'bot':team);
+  clearBodies(pc);
+  if(!quiet)sfxBuild(owner===player?1:1/(1+camera.position.distanceTo(pc.obj.position)*.08));
   if(online&&owner===player)Net.send({type:'b',k:s.kind,x:s.x,z:s.z,L:s.L,o:s.o||'',dir:s.dir||0,r:roundNo()});
+  return true;
+}
+// Change a piece's shape to ed (0: whole again). Refused if it would leave no tile. Tiles that come back can land on a
+// body, like a new build.
+function editPiece(pc,ed,quiet){
+  if(!pc||!pieces.has(pc.key)||!edOk(pc.spec.kind,ed))return false;
+  if(ed===pc.ed)return true;
+  shapePiece(pc,ed);clearBodies(pc);
+  pc.pop=.55;
+  if(!quiet)sfxBuild(1/(1+camera.position.distanceTo(pc.obj.position)*.08));
   return true;
 }
 function removePiece(pc,fx){
   pieceGroup.remove(pc.obj);pc.mat.dispose();
-  if(pc.solid){const i=solids.indexOf(pc.solid);if(i>=0)solids.splice(i,1)}
-  if(pc.ramp){const i=ramps.indexOf(pc.ramp);if(i>=0)ramps.splice(i,1)}
+  if(pc.mesh.geometry!==wholeGeo(pc.spec.kind))pc.mesh.geometry.dispose();
+  dropShape(pc);
   pieces.delete(pc.key);
   if(fx){debris(pc.obj.position);sfxBreak(1/(1+camera.position.distanceTo(pc.obj.position)*.07))}
 }
@@ -1208,20 +1302,21 @@ function pushOut(e){
 // how far up the ramp a point is: 0 at the low edge, 1 at the high edge
 function rampT(r,x,z){switch(r.dir){case 0:return (x-r.x0)/4;case 1:return (z-r.z0)/4;case 2:return (r.x0+4-x)/4;default:return (r.z0+4-z)/4}}
 function rampH(r,x,z){
-  if(x<r.x0||x>r.x0+4||z<r.z0||z>r.z0+4)return -1;
+  if(x<r.ax0||x>r.ax1||z<r.az0||z>r.az1)return -1;
   return r.base+.15+4*clamp(rampT(r,x,z),0,1);
 }
 // Ramps are solid: nothing walks or jumps through one, from any side. The sheet is RAMP_UNDER thick below the surface you
 // walk on (as drawn). With the middle of a body over a ramp, the body is clear of it in two cases only: on top (feet no
 // more than a step below the surface, which is how you step onto the low end or land on it from a jump), or underneath
 // with its head below the underside at the lowest point over the body (rampUnder: R further down the slope than the
-// middle). Anything in between is inside the ramp.
+// middle). Anything in between is inside the ramp. An edited ramp is one or two sheets of the same slope with a smaller
+// footprint (ax0..az1, from t0 to t1 up the slope): the same rules, each over its own part of the cell.
 const RAMP_UNDER=.33;
-function rampUnder(r,x,z){return r.base+.15+4*clamp(rampT(r,x,z)-R/4,0,1)-RAMP_UNDER}
+function rampUnder(r,x,z){return r.base+.15+4*clamp(rampT(r,x,z)-R/4,r.t0,r.t1)-RAMP_UNDER}
 function inRamp(r,x,y,z){const h=rampH(r,x,z);return h>=0&&y<h-STEP-.01&&y+H>rampUnder(r,x,z)+.01}
 function rampAt(x,y,z){for(const r of ramps)if(inRamp(r,x,y,z))return r;return null}
 // a move into a ramp (one you were not already inside)
-function rampBlocks(nx,y,nz,ox,oz){for(const r of ramps)if(inRamp(r,nx,y,nz)&&!inRamp(r,ox,y,oz))return true;return false}
+function rampBlocks(nx,y,nz,ox,oz){for(const r of ramps)if(inRamp(r,nx,y,nz)&&!inRamp(r,ox,y,oz))return r;return null}
 // A body inside a ramp (one was built where it stands) is moved out the shortest way that is free: up onto the ramp, down
 // under it, along the slope to where there is head room underneath or to where the ramp is low enough to step onto, or out
 // of either side. lift (a ramp just built on you): up onto it first if that is no more than 2 m, so a ramp placed in
@@ -1230,11 +1325,11 @@ function rampOut(e,lift){
   const p=e.pos;let moved=false;
   for(let i=0;i<4;i++){
     const r=rampAt(p.x,p.y,p.z);if(!r)break;
-    const t=rampT(r,p.x,p.z),a=r.dir%2===0?0:2,o=2-a,sg=r.dir<2?1:-1,rel=p.y-r.base-.15,po=o===0?p.x:p.z,o0=o===0?r.x0:r.z0;
+    const t=rampT(r,p.x,p.z),a=r.dir%2===0?0:2,o=2-a,sg=r.dir<2?1:-1,rel=p.y-r.base-.15,po=o===0?p.x:p.z,o0=o===0?r.ax0:r.az0,o1=o===0?r.ax1:r.az1;
     const up=[rampH(r,p.x,p.z)-p.y,1];
     const c=[up,[rampUnder(r,p.x,p.z)-H-p.y,1],
-      [sg*(4*(Math.min(1,(rel+H+RAMP_UNDER)/4+R/4)-t)+.004),a],[-sg*(4*(t-Math.max(0,(rel+STEP)/4))+.004),a],
-      [o0-.004-po,o],[o0+4.004-po,o]].sort((x,y)=>Math.abs(x[0])-Math.abs(y[0]));
+      [sg*(4*(Math.min(r.t1,(rel+H+RAMP_UNDER)/4+R/4)-t)+.004),a],[-sg*(4*(t-Math.max(r.t0,(rel+STEP)/4))+.004),a],
+      [o0-.004-po,o],[o1+.004-po,o]].sort((x,y)=>Math.abs(x[0])-Math.abs(y[0]));
     if(lift&&up[0]<=2)c.unshift(up);
     const [d,ax]=c.find(k=>shoveClear(p,k[0],k[1],[])&&!rampAt(p.x+(k[1]===0?k[0]:0),p.y+(k[1]===1?k[0]:0),p.z+(k[1]===2?k[0]:0)))||c[0];
     if(ax===0){p.x+=d;e.vel.x=0}
@@ -1257,18 +1352,18 @@ function groundAt(x,z,maxY){
 // shorter than the thinnest wall, so nothing can be skipped over; at normal frame rates that's the one step as before.
 // Ramps block the same way (rampBlocks), and a jump under one stops at its underside.
 function moveEntity(e,dt){
-  const p=e.pos;e.blocked=false;
+  const p=e.pos;e.blocked=false;e.bump=null;
   pushOut(e);rampOut(e);
   const sx=p.x,sz=p.z;
   const n=Math.min(16,Math.max(1,Math.ceil(Math.hypot(e.vel.x,e.vel.z)*dt/.25)));
   for(let i=0;i<n;i++)for(const ax of [0,2]){
     const delta=(ax===0?e.vel.x:e.vel.z)*dt/n;if(!delta)continue;
     const nx=ax===0?p.x+delta:p.x,nz=ax===2?p.z+delta:p.z;
-    const s=blockedAt(nx,p.y,nz,p.x,p.z);
-    if(!s&&!rampBlocks(nx,p.y,nz,p.x,p.z)){p.x=nx;p.z=nz;continue}
+    const s=blockedAt(nx,p.y,nz,p.x,p.z),rb=s?null:rampBlocks(nx,p.y,nz,p.x,p.z);
+    if(!s&&!rb){p.x=nx;p.z=nz;continue}
     const up=s?s.max[1]-p.y:0;
     if(up>0&&up<=STEP&&e.onGround&&!solidAt(nx,s.max[1]+.001,nz)&&!rampAt(nx,s.max[1]+.001,nz)){p.x=nx;p.z=nz;p.y=s.max[1]+.001;continue}
-    if(ax===0)e.vel.x=0;else e.vel.z=0;e.blocked=true;
+    if(ax===0)e.vel.x=0;else e.vel.z=0;e.blocked=true;e.bump=(s||rb).piece||e.bump;
   }
   p.x=clamp(p.x,R+.15,W-R-.15);p.z=clamp(p.z,R+.15,W-R-.15);
   e.vel.y-=G*dt;
@@ -1308,7 +1403,7 @@ function rayRamp(o,d,r,maxT){
   const den=d[1]-s*d[a];if(Math.abs(den)<1e-6)return -1;
   const k=-fo/den;if(k<0||k>maxT)return -1;
   const px=o[0]+d[0]*k,pz=o[2]+d[2]*k;
-  if(px<r.x0-.01||px>r.x0+4.01||pz<r.z0-.01||pz>r.z0+4.01)return -1;
+  if(px<r.ax0-.01||px>r.ax1+.01||pz<r.az0-.01||pz>r.az1+.01)return -1;
   return k;
 }
 function hitboxes(e){const p=e.pos;return[{head:true,min:[p.x-.28,p.y+1.5,p.z-.28],max:[p.x+.28,p.y+2.06,p.z+.28]},{head:false,min:[p.x-.42,p.y,p.z-.42],max:[p.x+.42,p.y+1.5,p.z+.42]}]}
@@ -1550,6 +1645,7 @@ const KB=Keybinds.create({
     {id:'wall',label:'Build a wall',group:'Build',keys:['KeyQ','KeyZ']},
     {id:'floor',label:'Build a floor',group:'Build',keys:['KeyF','KeyX']},
     {id:'ramp',label:'Build a ramp',group:'Build',keys:['KeyC','KeyE']},
+    {id:'edit',label:'Edit a build',note:'Aim at one of yours. Again to confirm; Reload makes it whole, Aim cancels',group:'Build',keys:['KeyG']},
     {id:'lookUp',label:'Look up',group:LOOK,keys:['ArrowUp']},
     {id:'lookDown',label:'Look down',group:LOOK,keys:['ArrowDown']},
     {id:'lookLeft',label:'Look left',group:LOOK,keys:['ArrowLeft']},
@@ -1755,6 +1851,123 @@ function playerBuildSpec(type){
   }
   return{kind:'ramp',x:ax,z:az,L:Math.round(p.y/4),dir};
 }
+/* ---------- editing builds ---------- */
+// Aim at a build your team made (in practice, one you made) from within EDIT_RANGE and press Edit: the piece turns
+// into its grid of tiles. Shoot / place opens or closes the tile under the crosshair (hold and sweep for several), Edit
+// again confirms, Reload makes the piece whole again and Aim cancels. Nothing changes until you confirm, and the change
+// then takes EDIT_T seconds, during which you can't shoot or build, so an edit is never instant in a fight (and you can't
+// shoot while the grid is up). While you edit, only you see the grid: the tiles that will be left are tinted panels and
+// the cut ones are just outlines (three draw calls, in place of the piece's own).
+const EDIT_RANGE=6,EDIT_T=.4,EDIT_V=1;
+let edit=null,editJob=null,editAim=null,editAimT=0,editPaint=-1,editNote='',editNoteT=0;
+// Online, editing is on for a match only if every player's page could do it when the match began (the host writes ed
+// into the round node, the same way it picks the map version), so a mixed room always agrees on the shapes.
+const editOn=()=>!online||(!!RD&&RD.ed===1&&curMatch===RD.id);
+// asking the host for the pieces standing, after coming into a round that had already begun (see onRound, onlineTick)
+let pieceAsk=null;
+const canEdit=pc=>!!pc&&pieces.has(pc.key)&&pc.team!=null&&pc.team===myBuildTeam();
+function note(t){editNote=t;editNoteT=1.8}
+const editGroup=new THREE.Group();editGroup.visible=false;scene.add(editGroup);
+const editFill=new THREE.Mesh(new THREE.BufferGeometry(),new THREE.MeshBasicMaterial({color:0x8fe8ff,transparent:true,opacity:.4,depthWrite:false,side:THREE.DoubleSide,fog:false,polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:1}));
+const editHot=new THREE.Mesh(new THREE.BufferGeometry(),new THREE.MeshBasicMaterial({color:0xffe27a,transparent:true,opacity:.5,depthWrite:false,side:THREE.DoubleSide,fog:false}));
+const editGrid=new THREE.LineSegments(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0xeaffff,transparent:true,opacity:.95,fog:false}));
+{const quads=n=>{const ix=[];for(let i=0;i<n;i++)ix.push(i*4,i*4+1,i*4+2,i*4,i*4+2,i*4+3);return ix};
+  editFill.geometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array(9*12),3));editFill.geometry.setIndex(quads(9));
+  editHot.geometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array(12),3));editHot.geometry.setIndex(quads(1));
+  editGrid.geometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array(9*24),3));
+  for(const m of [editFill,editHot,editGrid]){m.frustumCulled=false;editGroup.add(m)}}
+// corner (u,v) of a piece's tile grid, in the world: on the middle of a wall, the top of a floor or the top of a ramp
+const edV=new V3();
+function edPoint(s,u,v){
+  const n=ED_N[s.kind],q=4/n,x0=s.x*4,z0=s.z*4,y0=s.L*4;
+  if(s.kind==='wall')return s.o==='H'?edV.set(x0+u*q,y0+v*q,z0):edV.set(x0,y0+v*q,z0+u*q);
+  if(s.kind==='floor')return edV.set(x0+u*q,y0+.13,z0+v*q);
+  const t=u/n,c=v*q,y=y0+.17+4*t;
+  return s.dir===0?edV.set(x0+4*t,y,z0+c):s.dir===1?edV.set(x0+c,y,z0+4*t):s.dir===2?edV.set(x0+4-4*t,y,z0+c):edV.set(x0+c,y,z0+4-4*t);
+}
+function edQuad(s,i,arr3,o){const n=ED_N[s.kind],u=i%n,v=Math.floor(i/n);[[u,v],[u+1,v],[u+1,v+1],[u,v+1]].forEach(([a,b],k)=>{const p=edPoint(s,a,b);arr3[o+k*3]=p.x;arr3[o+k*3+1]=p.y;arr3[o+k*3+2]=p.z})}
+function editDraw(){
+  const s=edit.pc.spec,n=ED_N[s.kind],fp=editFill.geometry.attributes.position;let k=0;
+  for(let i=0;i<n*n;i++)if(!(edit.mask>>i&1))edQuad(s,i,fp.array,12*k++);
+  fp.needsUpdate=true;editFill.geometry.setDrawRange(0,k*6);
+  editHot.visible=edit.hot>=0;
+  if(edit.hot>=0){const hp=editHot.geometry.attributes.position;edQuad(s,edit.hot,hp.array,0);hp.needsUpdate=true}
+}
+// the tile the crosshair is on (-1: none): where the line of sight meets the piece's own plane, cut tiles included
+function editTile(){
+  const s=edit.pc.spec,n=ED_N[s.kind],q=4/n,o=camera.position,d=fwdOf(player.yaw,player.pitch);let u,v,k;
+  if(s.kind==='wall'){
+    const H=s.o==='H',dn=H?d.z:d.x;if(Math.abs(dn)<1e-6)return -1;
+    k=((H?s.z*4-o.z:s.x*4-o.x))/dn;if(k<0)return -1;
+    u=((H?o.x+d.x*k-s.x*4:o.z+d.z*k-s.z*4))/q;v=(o.y+d.y*k-s.L*4)/q;
+  }else if(s.kind==='floor'){
+    if(Math.abs(d.y)<1e-6)return -1;k=(s.L*4-o.y)/d.y;if(k<0)return -1;
+    u=(o.x+d.x*k-s.x*4)/q;v=(o.z+d.z*k-s.z*4)/q;
+  }else{
+    k=rayRamp(arr(o),arr(d),edit.frame,60);if(k<0)return -1;
+    const x=o.x+d.x*k,z=o.z+d.z*k;u=rampT(edit.frame,x,z)*n;v=(s.dir%2===0?z-s.z*4:x-s.x*4)/q;
+  }
+  u=Math.floor(u);v=Math.floor(v);return u<0||v<0||u>=n||v>=n?-1:v*n+u;
+}
+// the build the crosshair is on, if it is close enough to edit
+function editTarget(){
+  const d=fwdOf(player.yaw,player.pitch),st=camera.position.clone().addScaledVector(d,camDist);
+  const r=raycast(arr(st),arr(d),EDIT_RANGE,player,false);
+  return r.hit&&r.hit.kind==='piece'?r.hit.piece:null;
+}
+function openEdit(){
+  if(edit||editJob)return;
+  if(!editOn()){note('Editing is off: a player needs to refresh');return}
+  const pc=editTarget();
+  if(!pc){note('Aim at a build of yours, up close');return}
+  if(!canEdit(pc)){note(online?'That build is the other team’s':'That build is the Entity’s');return}
+  const s=pc.spec,n=ED_N[s.kind],gp=editGrid.geometry.attributes.position;
+  edit={pc,mask:pc.ed,hot:-1,frame:s.kind==='ramp'?pieceShape(s,0).rps[0]:null};
+  for(let i=0;i<n*n;i++){const u=i%n,v=Math.floor(i/n);[[u,v],[u+1,v],[u+1,v],[u+1,v+1],[u+1,v+1],[u,v+1],[u,v+1],[u,v]].forEach(([a,b],k)=>{const p=edPoint(s,a,b);gp.setXYZ(i*8+k,p.x,p.y,p.z)})}
+  gp.needsUpdate=true;editGrid.geometry.setDrawRange(0,n*n*8);
+  mode='edit';editPaint=-1;editAim=null;player.reloadT=0;tAct.aim=false;
+  pc.obj.visible=false;editGroup.visible=true;editDraw();
+}
+function closeEdit(){
+  if(!edit)return;
+  if(pieces.has(edit.pc.key))edit.pc.obj.visible=true;
+  edit=null;editGroup.visible=false;if(mode==='edit')mode='combat';
+}
+// whole: put it back as built. The change itself lands EDIT_T seconds later (see updatePlayer).
+function confirmEdit(whole){
+  if(!edit)return;
+  const pc=edit.pc,m=whole?0:edit.mask;
+  if(!edOk(pc.spec.kind,m)){note('Leave at least one tile');return}
+  closeEdit();
+  if(m===pc.ed)return;
+  editJob={pc,mask:m,t:EDIT_T};player.cd=Math.max(player.cd,EDIT_T);buildCd=Math.max(buildCd,EDIT_T);
+}
+function editKey(){if(edit)confirmEdit(false);else openEdit()}
+// An edit travels as the build message for that spot again, with ed (the tiles cut out) added, so it stays inside the
+// build messages the room already carries.
+function sendEdit(pc){const s=pc.spec;Net.send({type:'b',k:s.kind,x:s.x,z:s.z,L:s.L,o:s.o||'',dir:s.dir||0,r:roundNo(),ed:pc.ed})}
+// every frame: an edit (or one about to land) is dropped if you are no longer in the round, or its piece is gone
+function editGuard(){
+  if(!edit&&!editJob)return;
+  const live=state==='playing'&&!lobbyShown&&player.alive&&(!online||activeOnline());
+  if(edit&&!(live&&mode==='edit'&&!paused&&pieces.has(edit.pc.key)&&edit.pc.obj.position.distanceTo(player.pos)<EDIT_RANGE+4))closeEdit();
+  if(editJob&&!(live&&pieces.has(editJob.pc.key)))editJob=null;
+}
+function updateEdit(dt){
+  if(editJob&&(editJob.t-=dt)<=0){const j=editJob;editJob=null;if(editPiece(j.pc,j.mask)&&online)sendEdit(j.pc)}
+  if(edit){
+    const i=editTile();let dirty=i!==edit.hot;edit.hot=i;
+    if(!firing())editPaint=-1;
+    else if(i>=0){
+      if(editPaint<0)editPaint=edit.mask>>i&1?0:1;
+      if((edit.mask>>i&1)!==editPaint){edit.mask^=1<<i;dirty=true;tone('square',editPaint?520:700,editPaint?400:820,.035,.05)}
+    }
+    if(dirty)editDraw();
+  }else if(mode==='combat'&&pieces.size&&editOn()){
+    // a few times a second: is the crosshair on a build of yours? (the hint, and the lit Edit button on a touch screen)
+    if((editAimT-=dt)<=0){editAimT=.12;const t=editTarget();editAim=canEdit(t)?t:null}
+  }else editAim=null;
+}
 function updatePlayer(dt){
   const p=player;tickWeapon(p,dt);
   if(!p.alive){hideGhosts();return}
@@ -1779,6 +1992,7 @@ function updatePlayer(dt){
   }
   if(p.ammo[p.wi]===0&&p.cd<=0)startReload(p);
   buildCd-=dt;
+  updateEdit(dt);
   hideGhosts();
   if(input&&mode==='build'){
     const s=playerBuildSpec(buildType);const ok=specValid(s);const g=ghosts[buildType];
@@ -1858,7 +2072,12 @@ function updateBot(dt){
   if(!frozen&&p.alive){
     if(los&&b.seen>D.react)aimT=Math.random()<D.head?p.pos.clone().add(new V3(0,1.78,0)):chest;
     else if(!los&&b.lastSeen<4&&dist<30&&diffKey!=='easy'){const r=raycast(arr(eye),arr(dirP),dist,b,true);if(r.hit&&r.hit.kind==='piece'&&r.t<28)aimT=eye.clone().addScaledVector(dirP,r.t)}
-    if(!aimT&&b.breakT>0&&ml>.3){const fd=new V3(mx,0,mz).normalize();const o=eye.clone().add(new V3(0,-.4,0));const r=raycast(arr(o),arr(fd),3,b,false);if(r.hit&&r.hit.kind==='piece')aimT=o.addScaledVector(fd,r.t)}
+    if(!aimT&&b.breakT>0&&ml>.3){const fd=new V3(mx,0,mz).normalize();const o=eye.clone().add(new V3(0,-.4,0));const r=raycast(arr(o),arr(fd),3,b,false);if(r.hit&&r.hit.kind==='piece')aimT=o.addScaledVector(fd,r.t)
+      // nothing straight ahead at chest height, but a build stopped it (the sill of a window, the side of a doorway, a
+      // low hole): aim at the nearest part of the piece it walked into
+      else if(b.bump&&pieces.has(b.bump.key)){let bd=1e9;const c=new V3(b.pos.x,b.pos.y+1.3,b.pos.z),q=new V3();
+        for(const k of b.bump.boxes){q.set(clamp(c.x,k.min[0],k.max[0]),clamp(c.y,k.min[1],k.max[1]),clamp(c.z,k.min[2],k.max[2]));const dq=q.distanceTo(c);if(dq<bd){bd=dq;aimT=q.clone()}}
+        for(const k of b.bump.rps){q.set(clamp(c.x,k.ax0,k.ax1),0,clamp(c.z,k.az0,k.az1));q.y=rampH(k,q.x,q.z)-.1;const dq=q.distanceTo(c);if(dq<bd){bd=dq;aimT=q.clone()}}}}
   }
   if(aimT){const dx=aimT.x-b.pos.x,dz=aimT.z-b.pos.z;b.yaw=yawTo(dx,dz);b.pitch=Math.atan2(aimT.y-(b.pos.y+1.38),Math.hypot(dx,dz))}
   else if(ml>.2){b.yaw=yawTo(mx,mz);b.pitch*=.9}
@@ -1883,8 +2102,8 @@ function parseDd(s){return new Set(typeof s==='string'&&s?s.split(';').filter(Bo
 function nameOf(uid){if(uid===Net.uid)return myName;const o=Net.others.get(uid);return o?cleanName(o.v.n):names.get(uid)||'Someone'}
 // Everyone in the room right now: you plus every player whose node is fresh.
 function liveHumans(){
-  const out=[{uid:Net.uid,n:myName,t:myTeamPref,j:Net.j,mv:MAP_V}],now=Net.now();
-  for(const [u,o] of Net.others)if(now-o.ts<LIVE_MS)out.push({uid:u,n:cleanName(o.v.n),t:o.v.t==='b'?'b':'r',j:+o.v.j||o.ts,mv:+o.v.mv||1});
+  const out=[{uid:Net.uid,n:myName,t:myTeamPref,j:Net.j,mv:MAP_V,ev:EDIT_V}],now=Net.now();
+  for(const [u,o] of Net.others)if(now-o.ts<LIVE_MS)out.push({uid:u,n:cleanName(o.v.n),t:o.v.t==='b'?'b':'r',j:+o.v.j||o.ts,mv:+o.v.mv||1,ev:+o.v.ev||0});
   return out;
 }
 function setMyTeam(t,quiet){myTeamPref=t==='b'?'b':'r';if(!quiet){Net.publishSoon();lobbyDirty=true;renderLobby()}}
@@ -1973,7 +2192,9 @@ function onRound(r){
       if(mv>1){const sd=roundSeed(r.seed,r.rn),ns=mapSizeV2(roster.size,sd);generateMap(sd,ns,allCells(roster,ns),mv)}
       else{const ns=clamp(r.ns|0,12,16);generateMap(r.seed>>>0,ns,allCells(roster,ns),1)}
     }
-    if(r.ph!=='end'&&(r.rn|0)!==curRound){curRound=r.rn|0;startOnlineRound()}
+    if(r.ph!=='end'&&(r.rn|0)!==curRound){curRound=r.rn|0;startOnlineRound();
+      // came in after this round began (joined late, or came back): ask the host what has been built and how it is shaped
+      pieceAsk=r.ph!=='cd'?{r:curRound,n:0,t:0}:null}
     applyDead(r);
   }else if(curMatch!=null){
     // back to the lobby: nobody is in a match until the host starts the next one
@@ -2049,8 +2270,33 @@ function handleEvent(e){
     }
   }else if(e.type==='b'){
     if(!sameRound)return;
-    const s={kind:e.k,x:e.x|0,z:e.z|0,L:e.L|0};if(e.k==='wall')s.o=e.o;if(e.k==='ramp')s.dir=e.dir|0;
-    tryBuild(s,null);
+    const s={kind:e.k,x:e.x|0,z:e.z|0,L:e.L|0},tm=roster.get(e.by)||null;if(e.k==='wall')s.o=e.o;if(e.k==='ramp')s.dir=e.dir|0;
+    if(typeof e.ed!=='number'){tryBuild(s,null,tm);return}
+    // an edit: the build message again with the tiles cut out (ed). Only the team that built a piece can reshape it.
+    // (A page from before editing sees a build for a spot that is taken and ignores it, so it keeps the whole piece;
+    // that is why editing is only on when no such page is in the match.)
+    if(!editOn()||!tm)return;
+    let pc=pieces.get(pieceKey(s));
+    if(!pc){if(!tryBuild(s,null,tm,true))return;pc=pieces.get(pieceKey(s))}
+    if(pc.team!==tm)return;
+    if(edit&&edit.pc===pc)closeEdit();
+    editPiece(pc,e.ed);
+  }else if(e.type==='bq'){
+    // someone came in after the round began: the host sends them every piece standing, with its health, shape and team
+    if(sameRound&&Net.amHost)Net.send({type:'bs',r:curRound,to:String(e.by),p:[...pieces.values()].map(pc=>{const s=pc.spec;return[s.kind[0],s.x,s.z,s.L,s.kind==='wall'?s.o:s.dir|0,Math.ceil(pc.hp),pc.ed,pc.team||'-']})});
+  }else if(e.type==='bs'){
+    if(e.to!==Net.uid)return;
+    pieceAsk=null;
+    if(!sameRound||!Array.isArray(e.p))return;   // (nothing standing: the list is left out)
+    for(const it of e.p){
+      if(!Array.isArray(it))continue;
+      const k={w:'wall',f:'floor',r:'ramp'}[it[0]];if(!k)continue;
+      const s={kind:k,x:it[1]|0,z:it[2]|0,L:it[3]|0},tm=it[7]==='r'||it[7]==='b'?it[7]:null;if(k==='wall')s.o=it[4];else if(k==='ramp')s.dir=it[4]|0;
+      let pc=pieces.get(pieceKey(s));
+      if(!pc){if(!tryBuild(s,null,tm,true))continue;pc=pieces.get(pieceKey(s))}
+      if(it[6]!==pc.ed)editPiece(pc,it[6],true);
+      const hp=+it[5];if(hp>0&&hp<pc.hp)damagePiece(pc,pc.hp-hp);
+    }
   }else if(e.type==='kill'){
     const v=String(e.v||''),k=String(e.k||'');
     if(e.r!==curRound||v!==e.by)return;
@@ -2120,6 +2366,8 @@ function hostStart(){
   const now=Math.round(Net.now());
   // the newest layout everyone in the room has a page that can build: v3, v2, or (no mv) the original maze
   const lo=Math.min(...hs.map(h=>h.mv)),mv=lo>=3?{mv:3}:lo>=2?{mv:2}:{};
+  // editing builds is on for this match only if every page in the room can do it (see editOn)
+  if(hs.every(h=>h.ev>=EDIT_V))mv.ed=1;
   Net.tx(cur=>{if(!cur||cur.id!==r.id||cur.ph!=='lobby')return;
     return Object.assign({id:cur.id+1,ends:now,seed:randSeed(),ns:mapSizeFor(ro.size),ph:'cd',pt:now+3500,to:[3,5,10].includes(cur.to)?cur.to:5,rn:1,sr:0,sb:0,ro:fmtRo(ro),dd:'',rw:'',mw:'',fm:0,rz:cur.rz||''},mv)});
 }
@@ -2257,6 +2505,11 @@ function onlineTick(){
     else if(!Net.aloneT)Net.aloneT=performance.now();
     else if(performance.now()-Net.aloneT>(Net.hadMate?5000:12000)){Net.aloneT=0;quickMatch(true);return}
   }
+  // the pieces of a round we came into late: ask the host, and twice more if no answer comes (the host may have just changed)
+  if(pieceAsk){
+    if(pieceAsk.r!==curRound||!inPlay()||pieceAsk.n>2)pieceAsk=null;
+    else if(t-pieceAsk.t>3000){pieceAsk.t=t;pieceAsk.n++;Net.send({type:'bq',r:curRound})}
+  }
   if(lobbyDirty)renderLobby();
   syncView();
 }
@@ -2285,7 +2538,7 @@ const Net={
   // n, c, x, z, h and ts are always sent: the shared database rules expect that shape
   stateOf(){
     const p=player,act=activeOnline();
-    return{n:myName,c:TEAM_HEX[act?roster.get(this.uid):myTeamPref],x:r2(p.pos.x),y:r2(p.pos.y),z:r2(p.pos.z),h:r3(p.yaw),p:r3(p.pitch),hp:Math.max(0,Math.round(p.hp)),sh:Math.round(p.shield),wi:p.wi,rl:p.reloadT>0?1:0,d:act&&p.alive?0:1,rd:curRound,m:curMatch==null?-1:curMatch,t:myTeamPref,k:myKills,j:this.j,mv:MAP_V,ts:Math.round(this.now())};
+    return{n:myName,c:TEAM_HEX[act?roster.get(this.uid):myTeamPref],x:r2(p.pos.x),y:r2(p.pos.y),z:r2(p.pos.z),h:r3(p.yaw),p:r3(p.pitch),hp:Math.max(0,Math.round(p.hp)),sh:Math.round(p.shield),wi:p.wi,rl:p.reloadT>0?1:0,d:act&&p.alive?0:1,rd:curRound,m:curMatch==null?-1:curMatch,t:myTeamPref,k:myKills,j:this.j,mv:MAP_V,ev:EDIT_V,ts:Math.round(this.now())};
   },
   async peek(room){
     const s=await this.db.ref('rooms/'+room+'/players').once('value');let n=0,r=0;
@@ -2481,16 +2734,23 @@ function buildKeysText(){
 }
 function updateHud(dt){
   const p=player,w=WEAPONS[p.wi];
-  if(touchUI){$('tFire').textContent=mode==='build'?'PLACE':'FIRE';$('tAim').classList.toggle('on',!!tAct.aim)}
-  const key=[Math.ceil(p.hp),Math.ceil(p.shield),p.wi,mode,buildType,p.ammo.join(','),p.reloadT>0].join('|');
+  if(touchUI){$('tFire').textContent=mode==='build'?'PLACE':mode==='edit'?'TILE':'FIRE';$('tAim').classList.toggle('on',!!tAct.aim);$('tEdit').classList.toggle('can',!!editAim)}
+  if(editNoteT>0&&(editNoteT-=dt)<=0)editNote='';
+  const key=[Math.ceil(p.hp),Math.ceil(p.shield),p.wi,mode,buildType,p.ammo.join(','),p.reloadT>0,editAim?1:0,editNote].join('|');
   if(key!==lastHud){lastHud=key;
     hud.hpN.textContent=Math.max(0,Math.ceil(p.hp));hud.hpF.style.width=Math.max(0,p.hp)+'%';
     hud.shN.textContent=Math.ceil(p.shield);hud.shF.style.width=(p.shield/50*100)+'%';
     for(let i=0;i<3;i++){$('slot'+i).classList.toggle('on',mode==='combat'&&p.wi===i);$('am'+i).textContent=(p.wi===i&&p.reloadT>0)?'reload':p.ammo[i]+' / '+WEAPONS[i].mag}
     for(const t of ['wall','floor','ramp'])$('slot'+t).classList.toggle('on',mode==='build'&&buildType===t);
-    hud.hint.hidden=mode!=='build';if(mode==='build')hud.hint.textContent='Build · '+buildType+(touchUI?' · tap Place · tap a gun to fight':buildKeysText());
+    // the line of help: a short note (why an edit can't start), the build or edit keys, or "edit this build" while the crosshair is on one of yours
+    const kn=id=>{const c=KB.keys(id)[0];return c?(c==='Mouse0'?'click':KB.name(c)):''};
+    const ht=editNote||(mode==='build'?'Build · '+buildType+(touchUI?' · tap Place · tap a gun to fight':buildKeysText())
+      :mode==='edit'?(touchUI?'Edit · Tile opens or closes · Done to finish':'Edit · '+(kn('fire')||'shoot')+' a tile to open or close it · '+kn('edit')+' done · '+kn('reload')+' whole again · '+(KB.keys('aim').map(KB.name)[0]||'aim')+' cancel')
+      :editAim&&!touchUI&&kn('edit')?kn('edit')+' · edit this build':'');
+    hud.hint.hidden=!ht;if(ht)hud.hint.textContent=ht;
+    if(touchUI){$('tEdit').textContent=mode==='edit'?'DONE':'EDIT';$('tReload').textContent=mode==='edit'?'WHOLE':'RELOAD';$('tAim').textContent=mode==='edit'?'CANCEL':'AIM'}
   }
-  hud.reload.hidden=!(p.reloadT>0);if(p.reloadT>0)hud.reloadF.style.width=(100*(1-p.reloadT/w.reload))+'%';
+  hud.reload.hidden=!(p.reloadT>0||editJob);if(p.reloadT>0)hud.reloadF.style.width=(100*(1-p.reloadT/w.reload))+'%';else if(editJob)hud.reloadF.style.width=(100*(1-editJob.t/EDIT_T))+'%';
   const ads=isADS();const scoped=ads&&w.id==='sr';hud.scope.hidden=!scoped;
   const sp=mode==='build'?.004:(w.pellets>1?(ads?w.ads:w.hip):curSpread(p,w,ads));
   const gap=4+sp*(VH/2)/Math.tan(camera.fov*Math.PI/360)*.9;
@@ -2621,6 +2881,7 @@ let last=performance.now();
 function frame(now){
   const raw=Math.min(1,Math.max(0,(now-last)/1000)),dt=Math.min(.05,raw);last=now;
   const running=state==='playing'&&(!paused||online);
+  editGuard();
   if(running&&!online){
     matchTime+=raw;
     // practice round timers run on the wall clock
@@ -2690,7 +2951,10 @@ function pressCode(c,key,repeat){
   const gi=GUNS.findIndex(a=>KB.is(a,c)),bi=BUILDS.findIndex(a=>KB.is(a,c));
   if(gi>=0){switchWeapon(player,gi);mode='combat'}
   else if(bi>=0){mode='build';buildType=BUILDS[bi];player.reloadT=0}
+  else if(KB.is('edit',c)){if(!repeat&&canAct())editKey()}
+  else if(KB.is('aim',c)&&mode==='edit'){if(!repeat)closeEdit()}
   else if(key&&KB.is('aim',c)&&mode==='build'&&!repeat)mode='combat';
+  else if(KB.is('reload',c)&&mode==='edit'){if(!repeat)confirmEdit(true)}
   else if(KB.is('reload',c)&&mode==='combat')startReload(player);
   else if(c==='Escape'){if(!locked)pauseGame()}
   else if(KB.is('pause',c))pauseGame();
@@ -2747,8 +3011,10 @@ function tButton(el,down,up){
 }
 tButton($('tFire'),()=>{if(canAct())tAct.fire=true},()=>{tAct.fire=false});
 tButton($('tJump'),()=>{if(canAct())tAct.jump=true},()=>{tAct.jump=false});
-tButton($('tAim'),()=>{if(canAct()){tAct.aim=!tAct.aim;if(tAct.aim)mode='combat'}},()=>{$('tAim').classList.toggle('on',!!tAct.aim)});
-tButton($('tReload'),()=>{if(canAct()&&mode==='combat')startReload(player)});
+tButton($('tAim'),()=>{if(!canAct())return;if(mode==='edit'){closeEdit();return}tAct.aim=!tAct.aim;if(tAct.aim)mode='combat'},()=>{$('tAim').classList.toggle('on',!!tAct.aim)});
+tButton($('tReload'),()=>{if(!canAct())return;if(mode==='edit')confirmEdit(true);else if(mode==='combat')startReload(player)});
+// Edit: start editing the build you're aiming at; while editing it reads Done (and Reload reads Whole, Aim reads Cancel)
+tButton($('tEdit'),()=>{if(canAct())editKey()});
 tButton($('tPause'),()=>{tAct.aim=false;pauseGame()});
 // Out of the round: Next, or a tap on the view (like a click with a mouse), watches the next living player.
 tButton($('tNext'),()=>{if(isSpectating())cycleSpectate()});
@@ -2812,7 +3078,7 @@ if(navigator.webdriver)window.__br={get state(){return state},get online(){retur
   Net,player,opp,remotes,names,kills,setMyTeam,hostStart,hostRandomize,hostSetTarget,hostToLobby,cellFor,camTarget,cycleSpectate,isSpectating,handleEvent,damageEntity,raycast,startPractice,toMenu,joinPrivate,liveHumans,
   hitboxes,solids:()=>solids,ramps:()=>ramps,pieces,walls:()=>({h:hWall,v:vWall}),keys,renderer,scene,camera,
   // collision audit: the real movement, building and interpolation code, driven step by step
-  moveEntity,tryBuild,specValid,damagePiece,inRamp,rampAt,generateMap,spawn,soloCell,teamCells,wallSpec,playerBuildSpec,updateRemotes,makeRemote,updateBot,
+  moveEntity,tryBuild,specValid,damagePiece,inRamp,rampAt,editPiece,edRects,edFull,edOk,pieceShape,groundAt,pushOut,rampOut,resolveShot,generateMap,spawn,soloCell,teamCells,wallSpec,playerBuildSpec,updateRemotes,makeRemote,updateBot,
   mapSizeV2,roundSeed,fairV2,MAP_V,get mapKey(){return mapKey},
   mapInfo(){const L=mapInfo;if(!L)return null;const fl=[];for(let x=0;x<N;x++)for(let z=0;z<N;z++)if(L.group[x][z]>=0)(fl[L.group[x][z]]=fl[L.group[x][z]]||[]).push([x,z]);
     return{v:L.v,light:L.light,tint:L.tint.map((c,x)=>c.map((t,z)=>L.ftint[x][z]||t)),voids:voidC,flick:fl.filter(Boolean),special:L.special,spawns:L.spawns,styles:L.styles,regs:L.regs,mirrored:!!L.mirrored,tries:L.tries,low:{h:lowH,v:lowV},jambs:L.jambs||[],rid:L.rid||null}},
@@ -2822,6 +3088,7 @@ if(navigator.webdriver)window.__br={get state(){return state},get online(){retur
   fire(){const w=WEAPONS[player.wi];updateCamera(0);playerShoot();player.ammo[player.wi]=w.mag;player.cd=0},
   setWeapon(i){switchWeapon(player,i);player.switchT=0;mode='combat'},
   // find tags: the round clock they run on, and a shift (seconds) so a test need not wait a minute and a half
+  get edit(){return edit},get editJob(){return editJob},get editAim(){return editAim},openEdit,closeEdit,confirmEdit,editKey,editTile,editTarget,editOn,canEdit,updatePlayer,updateCamera,EDIT:{range:EDIT_RANGE,t:EDIT_T,v:EDIT_V},
   get findT(){return findClock()},get findShift(){return findShift},set findShift(v){findShift=+v||0},findEnv,tags:()=>tagEls,FIND:{at:FIND_AT,every:FIND_EVERY,show:FIND_SHOW}};
 
 setDiff(diffKey);setSens(sens);
