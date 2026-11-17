@@ -798,6 +798,9 @@ const WMAT=new THREE.MeshLambertMaterial({vertexColors:true});WMAT.onBeforeCompi
 // colours it takes under each of four patterns (lzmap); each leg carries its four colours (legA), its shoe colour and
 // its pattern (legB), every colour packed into one number. The standard legs don't use any of this.
 const FLMAT=new THREE.MeshLambertMaterial({vertexColors:true});FLMAT.defines={};
+// Characters' bodies have one more copy, BMAT: the same shader with skinning on, so the arms and the upper body can move
+// inside the one merged mesh (four bones a body: hips, chest, left arm, right arm; see bodyRig and posePut).
+const BMAT=new THREE.MeshLambertMaterial({vertexColors:true,skinning:true});BMAT.onBeforeCompile=MAT.onBeforeCompile;BMAT.defines={};
 FLMAT.onBeforeCompile=sh=>{
   MAT.onBeforeCompile(sh);
   sh.vertexShader=sh.vertexShader.replace('void main() {','attribute vec4 lzmap;attribute vec4 legA;attribute vec4 legB;\nvec3 lunpack(float c){return vec3(floor(c/65536.),floor(mod(c,65536.)/256.),mod(c,256.))/255.;}\nvoid main() {')
@@ -821,7 +824,7 @@ let OFX=0,OFZ=0,OFY=0;
 // the foot of the thing it belongs to (for the dirt where things meet the ground) and COVER (1 indoors). DECO marks detail
 // that is drawn with a breakable piece but must not count toward its size (which decides what it touches and holds up).
 // TINT is a building's own slight colour cast, so two of the same kind don't look stamped.
-let LAY=0,COVER=0,DECO=0,TINT=null;
+let LAY=0,COVER=0,DECO=0,TINT=null,BW=0;   // BW 1: a body part bodyRig leaves alone (the neck, the head and its hair)
 const _nm3=new THREE.Matrix3(),_bv=new V3();
 function bagPart(B,count){const P=curMP;if(!P)return;const start=B.p.length/3,l=P.parts[P.parts.length-1];if(l&&l.B===B&&l.start+l.count===start)l.count+=count;else P.parts.push({B,start,count})}
 function bagAdd(B,geo,m,hex,shade){
@@ -829,6 +832,7 @@ function bagAdd(B,geo,m,hex,shade){
   const nm=_nm3.getNormalMatrix(m);_col.setHex(hex);if(shade)_col.multiplyScalar(shade);if(TINT&&B.a){_col.r*=TINT[0];_col.g*=TINT[1];_col.b*=TINT[2]}
   const v=_bv,P=curMP,grow=P&&!DECO;
   bagPart(B,pos.count);
+  if(B.pt)B.pt.push(B.p.length/3,pos.count,m.elements[12],m.elements[13],m.elements[14],BW);   // a body's parts, for bodyRig
   for(let i=0;i<pos.count;i++){
     v.fromBufferAttribute(pos,i).applyMatrix4(m);B.p.push(v.x+OFX,v.y+OFY,v.z+OFZ);if(grow)mpGrow(P,v.x+OFX,v.y+OFY,v.z+OFZ,v.x+OFX,v.y+OFY,v.z+OFZ);
     const ly=v.y;
@@ -1862,7 +1866,7 @@ const grade=(function(){
   }
   return{run};
 })();
-function shadowFlags(){scene.traverse(o=>{if(o.isMesh&&(o.material===MAT||o.material===WMAT||o.material===GMAT||o.material===FLMAT||o===shardIM)){o.castShadow=o!==groundMesh;o.receiveShadow=true}else if(o.isInstancedMesh&&(o.material===plyMat||o.material===partMat)){o.castShadow=true;o.receiveShadow=true}})}
+function shadowFlags(){scene.traverse(o=>{if(o.isMesh&&(o.material===MAT||o.material===WMAT||o.material===GMAT||o.material===FLMAT||o.material===BMAT||o===shardIM)){o.castShadow=o!==groundMesh;o.receiveShadow=true}else if(o.isInstancedMesh&&(o.material===plyMat||o.material===partMat)){o.castShadow=true;o.receiveShadow=true}})}
 function lookSync(){
   const tier=gfxPref==='fast'||touchUI?0:fxTier;
   if(tier!==lookKey){
@@ -1870,7 +1874,7 @@ function lookSync(){
     if(lookOn)shadowFlags();
     sun.castShadow=lookOn;if(!lookOn){sun.position.set(SUN_V[0],SUN_V[1],SUN_V[2]);sun.target.position.set(0,0,0)}
     const want=lookOn?1:undefined;if(MAT.defines===undefined)MAT.defines={};
-    for(const M of [MAT,WMAT,GMAT,FLMAT])if(M&&M.defines.FINE!==want){if(want)M.defines.FINE=1;else delete M.defines.FINE;M.needsUpdate=true}
+    for(const M of [MAT,WMAT,GMAT,FLMAT,BMAT])if(M&&M.defines.FINE!==want){if(want)M.defines.FINE=1;else delete M.defines.FINE;M.needsUpdate=true}
     if(seaMesh&&seaFlat)seaMesh.material=lakeMesh.material=lookOn?fineSea():seaFlat;
     if(!!stormMat.defines.LITE===lookOn){if(lookOn)delete stormMat.defines.LITE;else stormMat.defines.LITE=1;stormMat.needsUpdate=true}
   }
@@ -2588,24 +2592,58 @@ function bodyGeo(hex,skin,fit,face){
   face=faceOf(face);   // a drawn face (see "drawn faces", below), or '' for the outfit's own eyes and mouth
   // an outfit (OUTFITS, below): its own body pieces, then its headwear, or the event's hat in its place, then the drawn face
   const O=fit?OUTFITS[fit]:null;
-  if(O&&O.body){const c={hex,dark,lite,skin:O.skin!=null?O.skin:skin,hair:HAIR[SKINS.indexOf(skin)%HAIR.length]||HAIR[0],face:!!face};O.body(B,c);if(TKON)eventHat(B);else if(O.hat)O.hat(B,c);
-    if(face)bagFace(B,faceSpot(fit),face);return bagGeo(B)}
+  B.pt=[];BW=0;   // every part is recorded, so bodyRig can give the body its shape and its bones
+  if(O&&O.body){const c={hex,dark,lite,skin:O.skin!=null?O.skin:skin,hair:HAIR[SKINS.indexOf(skin)%HAIR.length]||HAIR[0],face:!!face};O.body(B,c);BW=0;const nb=B.p.length/3;if(TKON)eventHat(B);else if(O.hat)O.hat(B,c);
+    if(face)bagFace(B,faceSpot(fit),face);return bodyRig(B,nb)}
   bagRBox(B,0,1.22,0,.7,.72,.42,hex);bagRBox(B,0,1.36,-.005,.62,.3,.44,lite);bagRBox(B,0,.9,0,.73,.1,.45,0x2b2f36);   // torso, chest panel, belt
-  bagRBox(B,0,1.58,0,.24,.1,.24,skin);                                                                                // neck
+  BW=1;bagRBox(B,0,1.58,0,.24,.1,.24,skin);                                                                           // neck
   bagRBox(B,0,1.79,0,.48,.48,.48,skin);                                                                               // head
   if(TKON)eventHat(B);                                                                                               // pilgrim hat (Turkey Week)
   else{bagRBox(B,0,2.07,0,.52,.15,.52,dark);bagRBox(B,0,2.02,-.27,.5,.06,.16,dark)}                                   // cap and its peak
   bagRBox(B,0,1.8,.2,.5,.4,.16,HAIR[SKINS.indexOf(skin)%HAIR.length]||HAIR[0]);                                     // hair
-  if(face)bagFace(B,FACE0,face);else bagBox(B,0,1.83,-.262,.34,.08,.02,0x1d2228);                                    // a drawn face, or the visor
+  if(face)bagFace(B,FACE0,face);else bagBox(B,0,1.83,-.262,.34,.08,.02,0x1d2228);BW=0;                               // a drawn face, or the visor
   bagRBox(B,0,1.25,.31,.44,.5,.2,dark);bagRBox(B,0,1.52,.31,.46,.06,.22,0xffc93c);                                    // backpack and its roll
   bagRBox(B,-.41,1.46,0,.17,.2,.26,hex);bagRBox(B,.41,1.46,0,.17,.2,.26,hex);                                         // shoulders
   bagRBox(B,-.27,1.36,-.24,.16,.16,.6,hex,-.4);bagRBox(B,.3,1.36,-.22,.16,.16,.6,hex);                                // arms
   bagRBox(B,-.1,1.36,-.5,.13,.13,.13,skin);bagRBox(B,.3,1.36,-.5,.13,.13,.13,skin);                                   // hands
-  return bagGeo(B);
+  return bodyRig(B,B.p.length/3);
 }
+/* The body's shape and bones (November 2026). Outfits are still drawn as boxes on fitBase; bodyRig then shapes the torso
+   zone of whatever was drawn, so every outfit's coat, straps, vests, packs and belts follow the same body: the width is
+   multiplied by BODY_W at each height (a narrow waist widening to the chest and shoulders, a slightly wider band at the
+   hips where the belt sits), and everything above SQ_Y is pressed down, most near the neck and least at the
+   shoulders (sqK), so the top of the chest slopes down to a short neck. The neck, head and hair (drawn while BW is 1), the headwear (drawn after
+   the body), anything in front of the face (beards, beaks, masks) and anything on the back (packs, tanks, shields, the
+   tail fan) are left alone, so the face, the hats and the height
+   don't change. Then each corner gets its bone: the parts of an arm (sleeve, cuff, band, hand: anything centred on an arm's
+   line at shoulder height, ARM_SEG) follow that arm; the rest blends from the hips (below 0.96) to the chest (above 1.12),
+   so the chest can turn over the hips without a seam. The model's units are the unscaled ones (BS scales the group). */
+const BODY_W=[[.7,1],[.84,.99],[.93,.99],[1.0,.88],[1.08,.76],[1.2,.82],[1.32,.96],[1.44,1.06],[1.75,1.06]];
+const SQ_Y=1.42,sqK=x=>.2+.6*clamp((Math.abs(x)-.12)/.25,0,1),SPINE_Y=1.04,ARM_P=[[-.36,1.38,0],[.35,1.38,0]];
+const ARM_SEG=[[-.398,.064,-.142,-.544],[.3,.08,.3,-.57]];   // each arm's line seen from above (x, z to x, z), at y 1.36 (the left hand, at -0.1, -0.5, is just off its line)
+const tabAt=(T,y)=>{if(y<=T[0][0])return T[0][1];for(let i=1;i<T.length;i++)if(y<=T[i][0]){const a=T[i-1],b=T[i];return a[1]+(b[1]-a[1])*(y-a[0])/(b[0]-a[0])}return T[T.length-1][1]};
+function armOf(x,y,z){if(Math.abs(y-1.36)>.025)return 0;if(Math.abs(x+.1)<.02&&Math.abs(z+.5)<.02)return 2;
+  for(let k=0;k<2;k++){const A=ARM_SEG[k],dx=A[2]-A[0],dz=A[3]-A[1],t=clamp(((x-A[0])*dx+(z-A[1])*dz)/(dx*dx+dz*dz),0,1),ex=A[0]+dx*t-x,ez=A[1]+dz*t-z;if(ex*ex+ez*ez<.03*.03)return k+2}
+  return 0}
+function bodyRig(B,nb){
+  const n=B.p.length/3,bone=new Uint8Array(n).fill(1),warp=new Uint8Array(n),P=B.p,N=B.n,pt=B.pt||[];
+  for(let i=0;i<pt.length;i+=6){const s0=pt[i],c=pt[i+1],x=pt[i+2],y=pt[i+3],z=pt[i+4],a=pt[i+5]?0:armOf(x,y,z);
+    const w=!a&&!pt[i+5]&&s0<nb&&y<1.7&&z<.27&&!(y>1.5&&z<-.2&&Math.abs(x)<.22);
+    for(let v=s0;v<s0+c;v++){bone[v]=a||1;warp[v]=w?1:0}}
+  const si=new Uint16Array(n*4),sw=new Float32Array(n*4);
+  for(let v=0;v<n;v++){const o=v*3,y=P[o+1];
+    if(bone[v]>1){si[v*4]=bone[v];sw[v*4]=1;continue}
+    const t=clamp((y-.96)/.16,0,1),k=t*t*(3-2*t);si[v*4]=1;sw[v*4]=k;si[v*4+1]=0;sw[v*4+1]=1-k;   // chest, hips
+    if(!warp[v])continue;
+    const f=tabAt(BODY_W,y),kq=sqK(P[o]);P[o]*=f;let ny=N[o+1];if(y>SQ_Y){P[o+1]=SQ_Y+(y-SQ_Y)*kq;ny/=kq}
+    const nx=N[o]/f,nz=N[o+2],l=Math.hypot(nx,ny,nz)||1;N[o]=nx/l;N[o+1]=ny/l;N[o+2]=nz/l}
+  const g=bagGeo(B);g.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(si,4));g.setAttribute('skinWeight',new THREE.Float32BufferAttribute(sw,4));return g}
 // The event's headwear, the same for every outfit (it takes the place of the outfit's own): Turkey Week's pilgrim hat (brim, crown, band, buckle).
 function eventHat(B){bagRBox(B,0,2.05,0,.84,.07,.84,0x3a2a22);bagRBox(B,0,2.27,0,.46,.4,.46,0x3a2a22);bagRBox(B,0,2.13,0,.49,.1,.49,0x8a5a2b);bagBox(B,0,2.13,-.25,.15,.12,.02,0xffc93c)}
-const LEG_GEO=(()=>{const B=Bag();bagRBox(B,0,-.43,0,.26,.86,.28,0x2f3a4a);bagRBox(B,0,-.79,-.03,.3,.16,.36,0x1b1d22);return bagGeo(B)})();
+// Legs taper from the hip to the ankle (legTx, legTz: how much narrower at a height below the hip), to match the body.
+const legTx=y=>1.04-.2*clamp(-y/.8,0,1),legTz=y=>1-.1*clamp(-y/.8,0,1);
+const LEG_GEO=(()=>{const B=Bag();bagRBox(B,0,-.43,0,.26,.86,.28,0x2f3a4a);const n=B.p.length;for(let i=0;i<n;i+=3){const y=B.p[i+1];B.p[i]*=legTx(y);B.p[i+2]*=legTz(y)}
+  bagRBox(B,0,-.79,-.03,.3,.16,.36,0x1b1d22);return bagGeo(B)})();
 // Held items. Every weapon is a toy blaster with its own outline, its family's body colour (WEAP[id].col) and an
 // orange toy tip, so you can tell what someone is carrying from behind them, across a field or lying on the ground:
 // Pistol small and cream; Heavy Pistol silver with a fat cylinder, a long ribbed barrel and a wood grip; SMG a stubby
@@ -2780,8 +2818,18 @@ const ICONS={};
     renderer.setRenderTarget(null);renderer.setClearColor(oc,oa);rt.dispose();mat.dispose();
   }catch(e){}   // no icons is not worth a broken page: the hotbar falls back to names only
 })();
-const GLIDER_GEO=(()=>{const B=Bag();bagBox(B,0,0,0,3.6,.08,1.1,0xffc93c);bagBox(B,-1.2,-.02,0,1.2,.09,1.12,0xff6a3a);bagBox(B,1.2,-.02,0,1.2,.09,1.12,0x2f93bf);
-  bagBox(B,-1.1,-.75,0,.04,1.5,.04,0x333333);bagBox(B,1.1,-.75,0,.04,1.5,.04,0x333333);return bagGeo(B)})();
+// The glider, held by its two handles: its origin is between the handles, which are where the hands are while gliding
+// (GLIDE_Y up, in the model's unscaled units), so it turns about the hands. A strut runs up and out from each handle to the
+// wing, with a crossbar above the head (clear of the tallest hat); the wing is a yellow middle and two side panels tipped
+// up a little, orange on the left and blue on the right, with a dark front edge.
+const GLIDE_Y=1.9;
+const GLIDER_GEO=(()=>{const B=Bag(),K=0x2a2d34,M=0x5a606b,a=Math.atan2(.47,.8);
+  for(const s of [-1,1]){bagRLo(B,s*.48,0,0,.06,.17,.06,K);bagTurn(B,0,s*.715,.45,0,.035,.93,.035,M,0,0,-s*a)}   // handles, struts
+  bagBox(B,0,.62,0,1.62,.035,.035,M);                                                                           // crossbar
+  bagBox(B,0,.9,0,1.42,.07,1.15,0xffc93c);bagBox(B,0,.94,0,.12,.03,1.17,0xfff0b0);bagBox(B,0,.9,-.6,1.42,.1,.07,K);   // middle panel, its stripe, front edge
+  for(const s of [-1,1]){const t=s*.17,cx=s*(.7+.62*Math.cos(.17)),cy=.9+.62*Math.sin(.17);
+    bagTurn(B,0,cx,cy,0,1.25,.075,1.12,s<0?0xff6a3a:0x2f93bf,0,0,t);bagTurn(B,0,cx,cy,-.58,1.25,.1,.07,K,0,0,t);bagTurn(B,0,s*(.7+1.24*Math.cos(.17)),.9+1.24*Math.sin(.17),0,.06,.11,1.14,K,0,0,t)}   // side panels, front edge, tip
+  return bagGeo(B)})();
 const SKINS=[0xf1c7a0,0xd9a77c,0xb98058,0x8a5a3c,0xf5d3b5,0x6e4630],HAIR=[0x5a3a22,0x2b211c,0x1c1917,0x151312,0xc9a05a,0x1a1614];
 /* ---------- drawn faces ----------
    Everyone can draw their own face (the Face button on the menu): black cells on a grid 12 wide and 10 high, laid over the
@@ -2877,7 +2925,7 @@ function fitLegGeo(n){
     for(let q=0;q<P.length/18;q++){segCell(g,q,cell);if(cell.f[0]==='y')continue;const b=cell.j,side=cell.f==='x+'?0:cell.f==='x-'?1:cell.f==='z+'?2:3,h=(side*7+cell.i*13+b*5)%11;
       let cx=0,cy=0,cz=0;for(let k=0;k<18;k+=3){cx+=raw[q*18+k]/6;cy+=raw[q*18+k+1]/6;cz+=raw[q*18+k+2]/6}
       const spot=b>2&&b<9&&(h===0||h===4||h===7)?1+(side+cell.i+b)%3:0,cam=b<3?3:camoAt(cx*.3,cy*.9-.43,cz*.3);
-      for(let k=0;k<6;k++){const o=q*18+k*3;v.set(P[o],P[o+1],P[o+2]).applyMatrix4(m);pos.push(v.x,v.y,v.z);v.set(N[o],N[o+1],N[o+2]).applyMatrix3(nm).normalize();nor.push(v.x,v.y,v.z);zm.push(KIT[b],TWO[b],spot,cam)}}
+      for(let k=0;k<6;k++){const o=q*18+k*3;v.set(P[o],P[o+1],P[o+2]).applyMatrix4(m);pos.push(v.x*legTx(v.y),v.y,v.z*legTz(v.y));v.set(N[o],N[o+1],N[o+2]).applyMatrix3(nm).normalize();nor.push(v.x,v.y,v.z);zm.push(KIT[b],TWO[b],spot,cam)}}
     const m2=new THREE.Matrix4().compose(new V3(0,-.79,-.03),new THREE.Quaternion(),new V3(.3*1.12,.16*1.12,.36*1.12)),nm2=new THREE.Matrix3().getNormalMatrix(m2),SP=ROUND_BOX.attributes.position,SN=ROUND_BOX.attributes.normal;
     for(let i=0;i<SP.count;i++){v.fromBufferAttribute(SP,i).applyMatrix4(m2);pos.push(v.x,v.y,v.z);v.fromBufferAttribute(SN,i).applyMatrix3(nm2).normalize();nor.push(v.x,v.y,v.z);zm.push(4,4,4,4)}
     FIT_LEG_SHAPE={pos:new THREE.Float32BufferAttribute(pos,3),nor:new THREE.Float32BufferAttribute(nor,3),col:new THREE.Float32BufferAttribute(new Float32Array(pos.length).fill(1),3),zm:new THREE.Float32BufferAttribute(zm,4)};
@@ -2888,7 +2936,7 @@ function fitLegGeo(n){
 const STD_LEGS={pat:1,a:[0x2f3a4a,0x2f3a4a,0x2f3a4a,0x2f3a4a],shoe:0x1b1d22};   // the standard legs' colours, for the Locker's pictures
 function fitBase(B,c,torso,sleeve,hand,shoulder,o){   // o.hair false: no hair (hoods, bald costume heads); o.torso false: the outfit adds its own painted torso
   if(!o||o.torso!==false)bagRBox(B,0,1.22,0,.7,.72,.42,torso);
-  bagRLo(B,0,1.58,0,.24,.1,.24,c.skin);bagRBox(B,0,1.79,0,.48,.48,.48,c.skin);if(!o||o.hair!==false)bagRBox(B,0,1.8,.2,.5,.4,.16,c.hair);
+  BW=1;bagRLo(B,0,1.58,0,.24,.1,.24,c.skin);bagRBox(B,0,1.79,0,.48,.48,.48,c.skin);if(!o||o.hair!==false)bagRBox(B,0,1.8,.2,.5,.4,.16,c.hair);BW=0;   // neck, head, hair (bodyRig leaves them alone)
   bagRBox(B,-.41,1.46,0,.17,.2,.26,shoulder);bagRBox(B,.41,1.46,0,.17,.2,.26,shoulder);
   bagRBox(B,-.27,1.36,-.24,.16,.16,.6,sleeve,-.4);bagRBox(B,.3,1.36,-.22,.16,.16,.6,sleeve);
   bagRLo(B,-.1,1.36,-.5,.13,.13,.13,hand);bagRLo(B,.3,1.36,-.5,.13,.13,.13,hand);
@@ -3106,19 +3154,41 @@ function syncLimbs(){
   rarIM.count=nr;rarIM.visible=nr>0;if(nr){rarIM.instanceMatrix.needsUpdate=true;rarIM.instanceColor.needsUpdate=true}
   for(const k in gunIM){const im=gunIM[k];im.visible=im.count>0;if(im.count)im.instanceMatrix.needsUpdate=true}
 }
+/* Poses: [chest lean (forward is negative), chest turn (left is positive), left arm x, y, z, right arm x, y, z, crowbar
+   angle in the hand, left and right shoulder moved out]. An arm's numbers turn it about its shoulder: first y (round), then
+   x (up), then z (out to the side); the last two slide the shoulder out (a hanging arm then clears the hips standing straight);
+   0 is the pose the body is drawn in, both arms forward holding a weapon, which every weapon, aim, reload, pump and bolt
+   still uses, so the hands stay on every grip. The crowbar angle tips the bar up from straight along the forearm. */
+const POSE_N=11,LEG_L=.69;
+const POSES={rest:[0,0,0,0,0,0,0,0,0,0,0],
+  cb:[0,0,-1.3,.4,-.05,-1.3,-.08,.03,.5,-.06,.07],               // crowbar out: carried low at the right side, hook forward; the left arm hangs
+  fall:[.1,0,.35,1.55,-.55,.35,-1.15,.55,.5,0,0],          // skydiving: both arms out to the sides
+  glide:[0,0,1.6,.4,.3,1.6,0,-.36,.5,0,0]};             // holding the glider's handles over the shoulders
+// The crowbar's swing, keyed in seconds from the hit (null: the pose it starts from and goes back to): a quick wind-up up
+// and back over the right shoulder with the chest turning right, a fast arc across and down to the front where the hit
+// lands (at 0.1 s: the spark, the whack and your camera's shake are held back to then), a follow-through, and back.
+const SWING=[[0,null],[.055,[0,-.42,-1.1,.4,-.05,1.95,-.35,-.5,1.3,-.06,0]],[.1,[-.14,.14,-1.2,.4,-.05,-.22,.12,0,.18,-.06,0]],[.17,[-.17,.34,-1.25,.4,-.05,-.55,.45,.05,.3,-.06,0]],[.44,null]];
+const SWING_HIT=100;
 function makeModel(hex,skinIx,fit,face){
   fit=fitOf(fit);face=faceOf(face);
   const g=new THREE.Group();g.scale.setScalar(BS);
-  const body=new THREE.Mesh(bodyGeo(hex,SKINS[(skinIx|0)%SKINS.length],fit,face),MAT);
+  const body=new THREE.SkinnedMesh(bodyGeo(hex,SKINS[(skinIx|0)%SKINS.length],fit,face),BMAT);
+  // four bones, all at rest in the pose the body is drawn in (both arms forward, holding a weapon): hips, chest (turns and
+  // leans over the hips), left arm, right arm (both turn about the shoulder). posePut sets them from the pose numbers.
+  const bones=[0,1,2,3].map(()=>new THREE.Bone());bones[1].position.set(0,SPINE_Y,0);bones[0].add(bones[1]);
+  for(let k=0;k<2;k++){bones[k+2].position.set(ARM_P[k][0],ARM_P[k][1]-SPINE_Y,ARM_P[k][2]);bones[k+2].rotation.order='ZXY';bones[1].add(bones[k+2])}
+  bones[1].rotation.order='YXZ';body.add(bones[0]);
   const legs=[-.17,.17].map(x=>{const l=new THREE.Object3D();l.position.set(x,.86,0);g.add(l);return l});
   const gun=new THREE.Object3D();gun.position.set(.3,1.36,-.62);
-  const glider=new THREE.Mesh(GLIDER_GEO,MAT);glider.position.set(0,3.4,0);glider.visible=false;
-  g.add(body,gun,glider);g.userData={body,legs,gun,glider,gk:'cb',gr:-1,hex,skinIx:skinIx|0,fit,face,leg:legSpec(hex,SKINS[(skinIx|0)%SKINS.length],fit)};limbModels.add(g);
+  const glider=new THREE.Mesh(GLIDER_GEO,MAT);glider.position.set(0,GLIDE_Y,0);glider.visible=false;
+  g.add(body,gun,glider);g.updateMatrixWorld(true);body.bind(new THREE.Skeleton(bones));
+  g.userData={body,bones,legs,gun,glider,gk:'cb',gr:-1,hex,skinIx:skinIx|0,fit,face,leg:legSpec(hex,SKINS[(skinIx|0)%SKINS.length],fit),
+    pb:new Float32Array(POSE_N),pf:new Float32Array(POSE_N),pit:0,roll:0,glk:0};limbModels.add(g);
   return g;
 }
 function setModelColor(model,hex,skinIx,fit,face){const u=model.userData;fit=fitOf(fit);face=faceOf(face);if(u.hex===hex&&u.fit===fit&&u.face===face)return;u.hex=hex;u.skinIx=skinIx|0;u.fit=fit;u.face=face;u.leg=legSpec(hex,SKINS[(skinIx|0)%SKINS.length],fit);u.body.geometry.dispose();u.body.geometry=bodyGeo(hex,SKINS[(skinIx|0)%SKINS.length],fit,face)}   // (the body is built again only when something about it changed)
 function setHeldModel(model,key,rar){const u=model.userData;const k=GUN_GEO[key]?key:HEALS[key]?(HEALS[key].sh?'sh':'hp'):'cb';u.gr=WEAP[k]&&rar>=0&&rar<5?rar|0:-1;if(u.gk===k)return;u.gk=k;u.sw=1}   // sw: the new item swings up into the hands (animModel)
-function disposeModel(m){if(m)limbModels.delete(m);if(m&&m.userData.body)m.userData.body.geometry.dispose()}
+function disposeModel(m){if(m)limbModels.delete(m);if(m&&m.userData.body){m.userData.body.geometry.dispose();if(m.userData.body.skeleton)m.userData.body.skeleton.dispose()}}
 // Entities: you, the other players (remotes) and, in Practice only, bots. local: moved by this browser's physics (you, and Practice bots).
 function newEnt(model){return{pos:new V3(),vel:new V3(),onGround:false,hp:100,sh:0,alive:true,present:true,hittable:true,local:false,yaw:0,pitch:0,model,walk:0,
   inv:[null,null,null,null],sel:0,ammo:{L:0,M:0,S:0,H:0},mats:0,cd:0,reloadT:0,switchT:0,useT:0,useSlot:-1,st:'ground',float:false,glide:false,dieT:0,kills:0,dmg:0,place:0,name:'',id:'',hex:0xffffff}}
@@ -3521,19 +3591,19 @@ function killFeed(k,v,w){
 }
 function muzzleOf(e){return e.pos.clone().add(new V3(0,MUZ_Y,0)).addScaledVector(rightOf(e.yaw),.3*BS).addScaledVector(fwdOf(e.yaw,e.pitch),.5*BS)}
 function resolveShot(shooter,w,r,rays,color){
-  const entAcc=new Map(),pcAcc=new Map(),mpAcc=new Map(),ends=[];
+  const entAcc=new Map(),pcAcc=new Map(),mpAcc=new Map(),ends=[];let anyHit=false;
   const tp=w!==CROW?gunTip(shooter,w.id):null;let vo=tp?tp.clone():null;   // the streak is drawn from the end of the barrel (the shot itself is unchanged)
   if(!vo&&shooter===player&&w!==CROW&&player.alive&&rays.length){vo=camera.position.clone().addScaledVector(rays[0].d,1.3);vo.y-=.2}   // down your own sights: from just under the sight
   for(const ry of rays){
     const res=raycast(arr(ry.o),arr(ry.d),ry.max,shooter,true);
     const end=ry.o.clone().addScaledVector(ry.d,res.t);ends.push(end);
     if(w!==CROW)addTracer(vo&&res.t>1.5?vo:ry.o,end,color,w.id);
-    if(!res.hit)continue;
+    if(!res.hit)continue;anyHit=true;
     let dmg=w===CROW?CROW.dmg:wDmg(w,r);
     if(w.falloff)dmg*=res.t<6?1:Math.max(.3,1-(res.t-6)/22);
     else if(w.fall&&res.t>w.fall[0])dmg*=Math.max(w.fall[1],1-(res.t-w.fall[0])/(w.range-w.fall[0])*(1-w.fall[1]));
-    if(res.hit.kind==='ent'){hitPop(end,res.hit.ent.sh>0?0x5cc6ff:res.hit.ent.hex||0xffffff,res.hit.head&&w!==CROW);const a=entAcc.get(res.hit.ent)||{d:0,head:false,pt:end};a.d+=dmg*(res.hit.head&&w!==CROW?w.head:1);a.head=a.head||res.hit.head;entAcc.set(res.hit.ent,a)}
-    else{spark(end);const sdm=w===CROW?CROW.build:w.sd*(1+.07*(r|0))*(dmg/wDmg(w,r));   // structure damage, with the same falloff
+    if(res.hit.kind==='ent'){const hx=res.hit.ent.sh>0?0x5cc6ff:res.hit.ent.hex||0xffffff;if(w===CROW)setTimeout(()=>hitPop(end,hx,false),SWING_HIT);else hitPop(end,hx,res.hit.head);const a=entAcc.get(res.hit.ent)||{d:0,head:false,pt:end};a.d+=dmg*(res.hit.head&&w!==CROW?w.head:1);a.head=a.head||res.hit.head;entAcc.set(res.hit.ent,a)}
+    else{if(w===CROW)setTimeout(()=>spark(end),SWING_HIT);else spark(end);const sdm=w===CROW?CROW.build:w.sd*(1+.07*(r|0))*(dmg/wDmg(w,r));   // structure damage, with the same falloff
       if(res.hit.kind==='piece')pcAcc.set(res.hit.piece,(pcAcc.get(res.hit.piece)||0)+sdm);
       else{const mp=mpAt(res.hit.s,arr(end));if(mp)mpAcc.set(mp,(mpAcc.get(mp)||0)+sdm)}
       if(res.hit.kind!=='piece'&&w===CROW&&res.hit.s&&res.hit.s.hv&&shooter.alive){shooter.mats=Math.min(MAX_MATS,shooter.mats+res.hit.s.hv);if(shooter===player)hint2('+'+res.hit.s.hv+' scrap','#f2d29b')}}
@@ -3548,7 +3618,7 @@ function resolveShot(shooter,w,r,rays,color){
     if(e.local&&mine)damageEntity(e,amt,a.head,shooter===player?myId():shooter.id,a.pt,w.id);   // you or a bot this browser runs
     else hs.push([e.id,amt,a.head?1:0,r2(a.pt.x),r2(a.pt.y),r2(a.pt.z)]);
   }
-  return{ends,pd,md,hs};
+  return{ends,pd,md,hs,hit:anyHit};
 }
 // Sight pictures, one per weapon, in a 200 x 200 box centred on the aim point (SVG, so they stay sharp at any size).
 // Pistol: three white dots. Heavy Pistol: a fat front post in a notch. SMG: a small ring. Drum SMG: a ring with four ticks.
@@ -3585,9 +3655,9 @@ function shootFrom(e,w,r,camF,cp,ads,color){
     rays.push({o:mz.clone(),d:d2,max:w===CROW?Math.min(L+.3,CROW.range):L+.3});
   }
   const res=resolveShot(e,w,r,rays,color);
-  if(w!==CROW)muzzleFlash(e,mz,rays[0].d,w.id);else{e.kick=1;e.kj=0}
+  if(w!==CROW)muzzleFlash(e,mz,rays[0].d,w.id);else{e.kick=1;e.kj=0;e.swAt=performance.now()}
   sfxShot(w.id,e===player?1:1/(1+camera.position.distanceTo(mz)*.05));
-  if(w===CROW&&res.ends.length)sfxWhack(e===player?1:.4);
+  if(w===CROW&&res.ends.length){const v=e===player?1:.4;setTimeout(()=>sfxWhack(v),SWING_HIT);if(e===player&&res.hit)shakeAt=performance.now()+SWING_HIT}   // when the swing lands (see SWING)
   const ev={k:'s',w:w.id,r:r|0,o:arr(mz).map(r2),e:w===CROW?[]:res.ends.map(v=>arr(v).map(r1))};
   if(res.pd.length)ev.pd=res.pd;if(res.md.length)ev.md=res.md;if(res.hs.length)ev.hs=res.hs;
   sendEv(ev,e);
@@ -4096,7 +4166,7 @@ function handleEvent(from,e){
     const o=Array.isArray(e.o)&&e.o.length===3?new V3(+e.o[0],+e.o[1],+e.o[2]):null;
     if(o&&[o.x,o.y,o.z].every(isFinite)){
       let fd=null;if(actor&&WEAP[e.w])(actor.wr||(actor.wr={}))[e.w]=clamp(e.r|0,0,4);
-      if(actor&&e.w==='cb'){actor.kick=1;actor.kj=0}
+      if(actor&&e.w==='cb'){actor.kick=1;actor.kj=0;actor.swAt=performance.now()}
       const tp=actor&&o.distanceToSquared(actor.pos)<9?gunTip(actor,String(e.w)):null,vo=tp?tp.clone():o;   // drawn from the end of their barrel when they are in view
       if(Array.isArray(e.e))for(const p of e.e.slice(0,12))if(Array.isArray(p)){const v=new V3(+p[0],+p[1],+p[2]);if([v.x,v.y,v.z].every(isFinite)){addTracer(vo,v,0xffb08a,String(e.w));spark(v);if(!fd){fd=v.clone().sub(o).normalize();muzzleFlash(actor,o,fd,String(e.w))}}}
       sfxShot(String(e.w),1/(1+camera.position.distanceTo(o)*.05));
@@ -4612,16 +4682,43 @@ function animModel(e,dt){
   if(!e.alive){e.dieT+=dt;m.rotation.set(0,e.yaw,Math.min(1.5,e.dieT*5));m.position.set(e.pos.x,e.pos.y+Math.min(.25,e.dieT),e.pos.z);u.glider.visible=false;m.visible=e.dieT<2.2;return}
   if(e!==player)m.visible=true;
   m.position.copy(e.pos);
-  const air=e.st==='fall';m.rotation.set(air?-1.1:e.glide?-.25:0,e.yaw,0,'YXZ');
-  u.glider.visible=!!e.glide;
-  const far=camera.position.distanceTo(e.pos)>70;u.legs[0].visible=u.legs[1].visible=u.gun.visible=!far;
-  const sp=Math.hypot(e.vel.x,e.vel.z);
-  e.walk+=dt*sp*1.7;const sw=e.onGround?Math.sin(e.walk)*Math.min(1,sp/4)*.65:air?.5:.25;
-  u.legs[0].rotation.x=sw;u.legs[1].rotation.x=-sw;
+  const air=e.st==='fall',far=camera.position.distanceTo(e.pos)>70,now=performance.now(),k8=1-Math.exp(-dt*8);
+  // the whole body: face down while falling, hanging a little forward under the glider and leaning into turns (from how
+  // fast the heading turns and how fast it slides sideways, both already known for everyone), upright on the ground
+  const yr=dt>0?wrapAng(e.yaw-(u.py==null?e.yaw:u.py))/dt:0;u.py=e.yaw;
+  const lat=e.vel.x*Math.cos(e.yaw)-e.vel.z*Math.sin(e.yaw);
+  u.pit+=((air?-1.1:e.glide?-.3:0)-u.pit)*k8;u.roll+=((e.glide&&!RM?clamp(yr*.2-lat*.035,-.42,.42):0)-u.roll)*k8;
+  m.rotation.set(u.pit,e.yaw,u.roll,'YXZ');
+  // the glider unfolds over about a third of a second when it opens and folds away as you land
+  u.glk=clamp(u.glk+(e.glide?dt*5:-dt*6),0,1);const gl=u.glider,ge=u.glk*u.glk*(3-2*u.glk);gl.visible=u.glk>.01;
+  if(gl.visible){gl.scale.set(.08+.92*ge,.4+.6*ge,.3+.7*ge);gl.rotation.set(-u.pit*.8,0,u.roll*.4)}
+  u.legs[0].visible=u.legs[1].visible=!far;u.gun.visible=!far&&!air&&u.glk<.35;
+  // legs: on the ground each stride is as long as the ground covered, so the feet don't slide (A: how far a leg swings, at
+  // most 0.74 rad; LEG_L: hip to sole in metres); falling they scissor, gliding they trail behind
+  const sp=Math.hypot(e.vel.x,e.vel.z),A=.74*Math.min(1,Math.sqrt(sp/6));
+  if(e.onGround&&sp>.05)e.walk+=dt*sp*Math.PI/(2*LEG_L*Math.sin(Math.max(A,.02)));
+  const gw=e.glide?Math.sin(now*.005)*.06:0,sw=e.onGround?Math.sin(e.walk)*A:air?.5:0;
+  u.legs[0].rotation.set(e.glide?-.32+gw:sw,0,e.glide?-u.roll*.25:0);u.legs[1].rotation.set(e.glide?-.38-gw:-sw,0,e.glide?-u.roll*.25:0);
   if(e.local)setHeldModel(m,heldKey(e),heldItem(e)?heldItem(e).r:-1);
+  // ---- arms and chest (see POSES): the pose for what you're doing, blended over about a fifth of a second, then the
+  // crowbar's swing on top of it, on the real clock from when the swing started (yours, a bot's, or another player's shot
+  // event), so it agrees with the hit
+  const cb=u.gk==='cb'&&!air&&!e.glide,tg=air?POSES.fall:e.glide?POSES.glide:cb?POSES.cb:POSES.rest,pb=u.pb,k12=1-Math.exp(-dt*12);
+  for(let i=0;i<POSE_N;i++)pb[i]+=(tg[i]-pb[i])*k12;
+  u.cbw=(u.cbw||0)+((cb?1:0)-(u.cbw||0))*k12;
+  const pf=u.pf;pf.set(pb);
+  if(u.cbw>.01&&e.onGround){const a=sw*u.cbw;pf[2]-=a*.75;pf[5]+=a*.3;pf[1]+=a*.12}   // the free arm swings against the legs
+  const st=e.swAt?(now-e.swAt)/1000:9;
+  if(cb&&st<SWING[SWING.length-1][0]&&!RM){let i=1;while(SWING[i][0]<st)i++;const a=SWING[i-1],b=SWING[i],q=clamp((st-a[0])/(b[0]-a[0]),0,1),k=q*q*(3-2*q),A0=a[1]||pf,B0=b[1]||pf;
+    for(let j=0;j<POSE_N;j++)pf[j]=A0[j]+(B0[j]-A0[j])*k}
+  posePut(u,pf);
   // ---- the held item. A weapon sits with its grip in the right hand (HOLD), turned a little toward where the
   // crosshair is, and tips up and down with the aim; everything else here is added on top and turns about the hand.
+  // All of it is worked out as if the arm were at rest and then carried along with the right arm (heldFollow).
   const g=u.gun,gk=u.gk,wp=!!WEAP[gk],K=KICK[gk];
+  if(gk==='cb'){g.rotation.set(pf[8],0,0,'YXZ');_gh.set(0,0,.06).applyQuaternion(g.quaternion);g.position.set(.3-_gh.x,1.36-_gh.y,-.5-_gh.z);
+    if(u.sw>0){u.sw=Math.max(0,u.sw-dt*4.5);if(!RM){const q=u.sw*u.sw;g.position.y-=q*.2;g.rotateX(-q*.9)}}
+    heldFollow(u);return}
   let x=wp?HOLD[0]:.3,y=wp?HOLD[1]:1.36,z=-.62,rx=0,ry=wp?HOLD[2]:0,rz=0;
   // you, aiming: raised to that weapon's own aiming pose
   const aw=e===player&&isADS()?heldW(e):null;e.aimK=clamp((e.aimK||0)+(aw?dt*9:-dt*9),0,1);const ps=aw?(e.pose=aw.pose):e.pose,ak=ps&&wp?e.aimK*e.aimK*(3-2*e.aimK):0;
@@ -4652,13 +4749,21 @@ function animModel(e,dt){
   // just taken out: it swings up from below
   if(u.sw>0){u.sw=Math.max(0,u.sw-dt*4.5);if(!RM){const q=u.sw*u.sw;y-=q*.3;rx-=q*.9}}
   g.rotation.set(rx,ry,rz,'YXZ');_gh.set(0,0,.12).applyQuaternion(g.quaternion);g.position.set(x-_gh.x,y-_gh.y,z+.12-_gh.z);   // turned about the hand, which stays put
+  heldFollow(u);
 }
+function posePut(u,P){const b=u.bones;b[1].rotation.set(P[0],P[1],0);b[2].rotation.set(P[2],P[3],P[4]);b[3].rotation.set(P[5],P[6],P[7]);b[2].position.x=ARM_P[0][0]+P[9];b[3].position.x=ARM_P[1][0]+P[10]}
+// carries the held item along with the right arm and the chest: worked out at rest, it is moved by how far they have
+// turned (chest x arm x the shoulder's rest place undone); at rest that is nothing, so a weapon is where it always was
+const _hm=new THREE.Matrix4(),_hn=new THREE.Matrix4(),_h1=new V3(1,1,1);
+function heldFollow(u){const b=u.bones,g=u.gun;if(!b)return;
+  b[1].updateMatrix();b[3].updateMatrix();_hm.multiplyMatrices(b[1].matrix,b[3].matrix).multiply(_hn.makeTranslation(-ARM_P[1][0],-ARM_P[1][1],-ARM_P[1][2]));
+  _hn.compose(g.position,g.quaternion,_h1);_hm.multiply(_hn).decompose(g.position,g.quaternion,g.scale)}
 // Where a weapon's own origin is held (the hand is 0.12 behind it): a little outside and above the hand's centre, so the
 // top of it shows over your shoulder from behind. RELOAD_ST: when in a reload (0 to 1) each sound comes.
 const HOLD=[.37,1.44,-.07],_gh=new V3();
 const RELOAD_ST={mag:[[.2,'out'],[.58,'in'],[.85,'rack']],hc:[[.12,'open'],[.3,'shell'],[.42,'shell'],[.54,'shell'],[.82,'shut']],
   sg:[[.14,'shell'],[.28,'shell'],[.42,'shell'],[.56,'shell'],[.7,'shell'],[.88,'rack']],sr:[[.14,'open'],[.5,'in'],[.86,'shut']]};
-let attractYaw=0;const _bp=new V3(),_ch=new V3(),_cp=new V3(),_cb=new V3(),_cl=new V3();
+let attractYaw=0,shakeAt=0;const _bp=new V3(),_ch=new V3(),_cp=new V3(),_cb=new V3(),_cl=new V3();
 function updateCamera(dt){
   const tgt=camTarget();
   if(!tgt){
@@ -4690,6 +4795,8 @@ function updateCamera(dt){
   camera.position.copy(pivot).addScaledVector(back,camDist);
   {const gy=terrainH(camera.position.x,camera.position.z)+.25;if(camera.position.y<gy)camera.position.y=gy}   // never under the land
   camera.lookAt(_cl.copy(pivot).addScaledVector(f,20));
+  // a crowbar hit of yours: a small shake for about a sixth of a second (not with reduced motion)
+  if(self&&shakeAt){const st=(performance.now()-shakeAt)/1000;if(st>.17)shakeAt=0;else if(st>=0&&!RM){const a=(1-st/.17)*.045;camera.position.x+=(Math.random()-.5)*a;camera.position.y+=(Math.random()-.5)*a;camera.position.z+=(Math.random()-.5)*a}}
   if(self)player.model.visible=player.alive?camDist>.9&&!(ads&&w&&!w.ad):player.dieT<=2.2;
 }
 function updateWorldFx(){
