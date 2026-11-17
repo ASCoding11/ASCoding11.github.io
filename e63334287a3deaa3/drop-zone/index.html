@@ -661,18 +661,78 @@ const detailTex=(()=>{
   }
   g.putImageData(im,0,0);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;return t;
 })();
+// The building kit's surfaces: one small array texture with a layer per material (TX), each a 2 m tile drawn here in
+// code and laid on in metres, so planks, bricks and ribs are the same size on every wall. A layer is mostly a pale
+// pattern that the wall's paint (its vertex colour) tints; where its alpha is 0 it keeps its own colour (mortar, nail
+// heads, hazard stripes). One read a pixel on both looks. Needs WebGL 2; without it the island keeps its plain paint.
+const TX={PV:1,PH:2,BR:3,ST:4,CO:5,CN:6,SH:7,LG:8,TI:9,GR:10,GL:11,PN:12,HY:13,SN:14,HZ:15};
+const KIT_TEX=(()=>{
+  if(!renderer.capabilities.isWebGL2||!THREE.DataTexture2DArray)return null;
+  const N=matchMedia('(pointer: coarse)').matches?128:256,K=256/N,h=lhash,o=[0,0,0,1];
+  const set=(s,r,g,b,a)=>{o[0]=s*(r==null?1:r);o[1]=s*(g==null?1:g);o[2]=s*(b==null?1:b);o[3]=a==null?1:a};
+  const sm=(x,y,c,sd)=>pnoise(x/c,y/c,256/c,256/c,sd);     // smooth noise that tiles, c pixels a cell (the tile is 256 across here)
+  const F=[
+    // upright boards 25 cm wide: a dark joint, grain, nail heads, the odd butt joint
+    (x,y)=>{const b=x>>5,fx=x&31,t=.84+.16*h(b,3,1),gr=.96+.04*h(x,b,2)+.04*(sm(x*4,y,32,3)-.5);
+      if(fx>=14&&fx<17&&(y&127)>=22&&(y&127)<25)return set(.5,1,1,1,0);
+      set(t*gr*(Math.abs(y-((h(b,9,4)*256)|0))<1?.72:1)*(fx<2?.5:fx<4?.82:fx>29?1.04:1))},
+    // clapboard: boards laid flat, each lapping the one below
+    (x,y)=>{const b=y>>5,fy=y&31,t=.86+.14*h(b,5,5),gr=.97+.03*h(b,y,6)+.04*(sm(x,y*4,32,7)-.5);
+      set(t*gr*(Math.abs(x-((h(b,2,8)*256)|0))<1?.75:1)*(fy<3?.55:fy<6?.8:fy>28?1.05:1))},
+    // toy bricks, 50 x 25 cm, pale mortar
+    (x,y)=>{const r=y>>5,X=(x+(r&1)*32)&255,fx=X&63,fy=y&31;if(fx<3||fy<3)return set(.8,1,.97,.92,0);
+      set((.78+.22*h(X>>6,r,9))*(.96+.06*h(x,y,10))*(fx<5||fy<5?.9:1))},
+    // stucco
+    (x,y)=>set(.9+.06*(h(x,y,11)-.5)+.08*(sm(x,y,8,12)-.5)+.07*(sm(x,y,64,13)-.5)),
+    // corrugated sheet: a rib every 12.5 cm, a lap every 2 m, screws
+    (x,y)=>{if((x&63)>=6&&(x&63)<9&&(y&127)>=60&&(y&127)<63)return set(.55,1,1,1,0);set((.82+.17*Math.cos((x&15)/16*6.2832))*(y<3?.72:1)*(.95+.07*sm(x,y,64,14)))},
+    // concrete cast in 2 x 1 m lifts: board lines, tie holes, streaks
+    (x,y)=>{const fy=y&127,px=x&127;let s=.88+.07*(sm(x,y,32,15)-.5)+.04*(h(x,y,16)-.5)-.07*h(x>>2,3,17)*(fy/127);
+      if(fy<2||x<2)s*=.74;if(((px>=30&&px<34)||(px>=94&&px<98))&&fy>=62&&fy<66)s*=.62;set(s)},
+    // shingles
+    (x,y)=>{const r=y>>5,X=(x+(r&1)*16)&255,fx=X&31,fy=y&31;set((.78+.22*h(X>>5,r,18))*(fx<2?.62:1)*(fy<4?.6:.92+.08*fy/31)*(.97+.05*h(x,y,19)))},
+    // logs, six to a tile, each one round
+    (x,y)=>{const ly=y*6/256,k=Math.floor(ly),f=ly-k;let s=(.6+.4*Math.sin(f*3.1416))*(.86+.14*h(k,1,20))*(.95+.05*h(x>>3,y,21)+.05*(sm(x,y*4,32,22)-.5));
+      const kx=(h(k,7,23)*256)|0,dx=Math.min(Math.abs(x-kx),256-Math.abs(x-kx)),dy=(f-.5)*42;if(dx*dx+dy*dy*2<60)s*=.7;set(s)},
+    // floor tiles, 50 cm
+    (x,y)=>{const fx=x&63,fy=y&63;if(fx<2||fy<2)return set(.74);set((.9+.1*h(x>>6,y>>6,24))*(fx<4||fy<4?.95:1)*(.98+.03*h(x,y,25)))},
+    // roofing felt with grit
+    (x,y)=>set((.8+.16*h(x,y,26)+.08*(sm(x,y,16,27)-.5)+.08*(sm(x,y,128,28)-.5))*((y&127)<2?.8:1)),
+    // glass in 1 m panes: pale bars, a streak of sky across each
+    (x,y)=>{const fx=x&127,fy=y&127;if(fx<4||fy<4)return set(.86,1,1,1,0);const d=(fx+fy)&127;if(d>30&&d<50)return set(1,.8,.93,1,.45);if(d>58&&d<64)return set(1,.8,.93,1,.6);set(.8+.2*fy/127)},
+    // metal panels a metre wide, riveted
+    (x,y)=>{const fx=x&127;if(fx>=7&&fx<10&&(y&31)>=14&&(y&31)<17)return set(.66);set((.92+.05*h(x,4,29)+.04*(sm(x,y,64,30)-.5))*(fx<2?.7:fx<4?1.05:1)*(y<2?.8:1))},
+    // straw, with two bands of twine
+    (x,y)=>{const fy=y&127;if(fy>=40&&fy<45)return set(.55,.75,.5,.3,0);set(.74+.26*h(x>>3,y,31)*(.6+.4*h(x,y,32)))},
+    // stone blocks, 1 m x 50 cm
+    (x,y)=>{const r=y>>6,X=(x+(r&1)*64)&255,fx=X&127,fy=y&63;if(fx<3||fy<3)return set(.52);set((.76+.24*h(X>>7,r,33))*(.95+.07*h(x,y,34))*(fx<7||fy<7?.9:1)*(.96+.08*(sm(x,y,32,35)-.5)))},
+    // hazard stripes
+    (x,y)=>{if(((x+y)&63)<32)set(1,1,.8,.14,0);else set(1,.13,.13,.15,0)}
+  ];
+  const NL=F.length,D=new Uint8Array(N*N*4*NL);
+  for(let l=0;l<NL;l++)for(let j=0;j<N;j++)for(let i=0;i<N;i++){F[l](Math.floor((i+.5)*K),Math.floor((j+.5)*K));const q=((l*N+j)*N+i)*4;
+    for(let c=0;c<4;c++)D[q+c]=Math.max(0,Math.min(255,Math.round(o[c]*255)))}
+  const t=new THREE.DataTexture2DArray(D,N,N,NL);t.format=THREE.RGBAFormat;t.type=THREE.UnsignedByteType;t.minFilter=THREE.LinearMipmapLinearFilter;t.magFilter=THREE.LinearFilter;
+  t.wrapS=t.wrapT=THREE.RepeatWrapping;t.generateMipmaps=true;t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());t.needsUpdate=true;return t;
+})();
 MAT.onBeforeCompile=sh=>{
   sh.uniforms.dzTex={value:detailTex};
-  sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\n#ifdef FINE\nvarying vec3 dzP;varying vec3 dzN;\n#endif')
-    .replace('#include <begin_vertex>','#include <begin_vertex>\n#ifdef FINE\ndzP=transformed;dzN=objectNormal;\n#endif');
-  sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\n#ifdef FINE\nuniform sampler2D dzTex;varying vec3 dzP;varying vec3 dzN;\n#endif')
-    .replace('#include <color_fragment>','#include <color_fragment>\n#ifdef FINE\n{vec3 w=pow(abs(dzN),vec3(4.));w/=(w.x+w.y+w.z);vec3 q=dzP*.42;float f=texture2D(dzTex,q.zy).r*w.x+texture2D(dzTex,q.xz).r*w.y+texture2D(dzTex,q.xy).r*w.z;float b=texture2D(dzTex,dzP.xz*.023).g;float g2=texture2D(dzTex,dzP.xz*1.9).r;diffuseColor.rgb*=(.95+.1*f)*(1.+((b-.5)*.3+(g2-.5)*.22)*w.y);\n#ifdef WORLD\n'
-      // the island only (WMAT): walls get thin board lines every half metre that fade out with distance, broad soft
-      // patches, and a darker foot where they meet the ground, so a big wall isn't one flat colour
-      +'float side=1.-w.y;float near=clamp(1.5-.03/gl_FragCoord.w,0.,1.);float ln=fract(dzP.y*2.+.02);float b2=texture2D(dzTex,vec2(dzP.x+dzP.z,dzP.y*1.7)*.045).g;diffuseColor.rgb*=1.-side*(.13*near*step(.9,ln)+(.5-b2)*.16+.2*(1.-smoothstep(0.,2.4,dzP.y)));\n#endif\n}\n#endif');
+  if(KIT_TEX)sh.uniforms.dzArr={value:KIT_TEX};
+  // WORLD (the island's buildings and props): dzA carries each corner's surface (a layer of KIT_TEX, 0 for none), its height
+  // above the foot of the thing it belongs to, and how far indoors it is. The surface is laid on in metres (2 m a tile).
+  sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\n#ifdef FINE\nvarying vec3 dzP;varying vec3 dzN;\n#endif\n#ifdef WORLD\nattribute vec3 dzA;varying vec3 dzU;varying vec2 dzK;\n#endif')
+    .replace('#include <begin_vertex>','#include <begin_vertex>\n#ifdef FINE\ndzP=transformed;dzN=objectNormal;\n#endif\n#ifdef WORLD\n{vec3 an=abs(objectNormal);vec2 q=an.y>.5?transformed.xz:(an.x>an.z?transformed.zy:transformed.xy);dzU=vec3(q*.5,dzA.x);dzK=dzA.yz;}\n#endif');
+  sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\n#ifdef FINE\nuniform sampler2D dzTex;varying vec3 dzP;varying vec3 dzN;\n#endif\n#ifdef WORLD\nvarying vec3 dzU;varying vec2 dzK;\n#ifdef KIT\nprecision highp sampler2DArray;uniform sampler2DArray dzArr;\n#endif\n#endif')
+    .replace('#include <color_fragment>','#include <color_fragment>\n#ifdef WORLD\n{\n#ifdef KIT\n'
+      // the surface texture: its colour times the paint (the vertex colour) where its alpha is 1, its own colour (mortar, nail heads, stripes) where it is 0
+      +'float ly=floor(dzU.z+.5);vec4 kt=texture(dzArr,vec3(dzU.xy,max(ly-1.,0.)));vec3 vc=diffuseColor.rgb;float mx=max(vc.r,max(vc.g,vc.b));diffuseColor.rgb=mix(vc,kt.rgb*mix(vec3(mx),vc,kt.a),step(.5,ly));\n#endif\n'
+      // dirt and shade where a wall, a post or a trunk meets the ground, and the dimmer light indoors
+      +'float gr=1.-smoothstep(0.,1.4,dzK.x);diffuseColor.rgb*=mix(vec3(1.),vec3(.64,.58,.5),gr*gr*.8);\n#ifdef FINE\ndiffuseColor.rgb*=1.-dzK.y*.26;\n#else\ndiffuseColor.rgb*=1.-dzK.y*.4;\n#endif\n}\n#endif\n#ifdef FINE\n{vec3 w=pow(abs(dzN),vec3(4.));w/=(w.x+w.y+w.z);vec3 q=dzP*.42;float f=texture2D(dzTex,q.zy).r*w.x+texture2D(dzTex,q.xz).r*w.y+texture2D(dzTex,q.xy).r*w.z;float b=texture2D(dzTex,dzP.xz*.023).g;float g2=texture2D(dzTex,dzP.xz*1.9).r;diffuseColor.rgb*=(.95+.1*f)*(1.+((b-.5)*.3+(g2-.5)*.22)*w.y);\n#ifdef WORLD\n'
+      // the island only (WMAT): broad soft patches on walls, so a big wall isn't one flat colour
+      +'float side=1.-w.y;float b2=texture2D(dzTex,vec2(dzP.x+dzP.z,dzP.y*1.7)*.045).g;diffuseColor.rgb*=1.-side*(.5-b2)*.16;\n#endif\n}\n#endif');
 };
 // The island's own copy of that material (ground and buildings): the same shader with the wall detail above switched on.
-const WMAT=new THREE.MeshLambertMaterial({vertexColors:true});WMAT.onBeforeCompile=MAT.onBeforeCompile;WMAT.defines={WORLD:1};
+const WMAT=new THREE.MeshLambertMaterial({vertexColors:true});WMAT.onBeforeCompile=MAT.onBeforeCompile;WMAT.defines=KIT_TEX?{WORLD:1,KIT:1}:{WORLD:1};
 // Outfit legs (the Locker) have their own copy, FLMAT: the same shader, plus a few colours per leg that paint its bands
 // (trousers, shorts, socks, boots, spots, camouflage). Each face of that leg (FIT_LEG_GEO) knows which of the leg's four
 // colours it takes under each of four patterns (lzmap); each leg carries its four colours (legA), its shoe colour and
@@ -697,15 +757,24 @@ function Bag(){return{p:[],n:[],c:[]}}
 // While a place is being built (grp()), everything it adds is moved by OFX, OFZ metres (a multiple of 4, so the grid holds)
 // and raised by OFY: the height of the pad the place stands on, or of the land under a single tree or rock (onLand()).
 let OFX=0,OFZ=0,OFY=0;
+// The island's chunks also carry, for every corner, a surface (LAY: a layer of KIT_TEX, 0 for plain paint), its height above
+// the foot of the thing it belongs to (for the dirt where things meet the ground) and COVER (1 indoors). DECO marks detail
+// that is drawn with a breakable piece but must not count toward its size (which decides what it touches and holds up).
+// TINT is a building's own slight colour cast, so two of the same kind don't look stamped.
+let LAY=0,COVER=0,DECO=0,TINT=null;
+const _nm3=new THREE.Matrix3(),_bv=new V3();
+function bagPart(B,count){const P=curMP;if(!P)return;const start=B.p.length/3,l=P.parts[P.parts.length-1];if(l&&l.B===B&&l.start+l.count===start)l.count+=count;else P.parts.push({B,start,count})}
 function bagAdd(B,geo,m,hex,shade){
   const g=geo.index?geo.toNonIndexed():geo,pos=g.attributes.position,nor=g.attributes.normal;
-  const nm=new THREE.Matrix3().getNormalMatrix(m);_col.setHex(hex);if(shade)_col.multiplyScalar(shade);
-  const v=new V3(),P=curMP;
-  if(P){const start=B.p.length/3,l=P.parts[P.parts.length-1];if(l&&l.B===B&&l.start+l.count===start)l.count+=pos.count;else P.parts.push({B,start,count:pos.count})}
+  const nm=_nm3.getNormalMatrix(m);_col.setHex(hex);if(shade)_col.multiplyScalar(shade);if(TINT&&B.a){_col.r*=TINT[0];_col.g*=TINT[1];_col.b*=TINT[2]}
+  const v=_bv,P=curMP,grow=P&&!DECO;
+  bagPart(B,pos.count);
   for(let i=0;i<pos.count;i++){
-    v.fromBufferAttribute(pos,i).applyMatrix4(m);B.p.push(v.x+OFX,v.y+OFY,v.z+OFZ);if(P)mpGrow(P,v.x+OFX,v.y+OFY,v.z+OFZ,v.x+OFX,v.y+OFY,v.z+OFZ);
+    v.fromBufferAttribute(pos,i).applyMatrix4(m);B.p.push(v.x+OFX,v.y+OFY,v.z+OFZ);if(grow)mpGrow(P,v.x+OFX,v.y+OFY,v.z+OFZ,v.x+OFX,v.y+OFY,v.z+OFZ);
+    const ly=v.y;
     v.fromBufferAttribute(nor,i).applyMatrix3(nm).normalize();B.n.push(v.x,v.y,v.z);
     B.c.push(_col.r,_col.g,_col.b);
+    if(B.a)B.a.push(LAY,Math.abs(v.y)>.5?9:ly,COVER);
   }
 }
 function bagBox(B,cx,cy,cz,sx,sy,sz,hex,ry,shade){_e.set(0,ry||0,0);_q.setFromEuler(_e);_m4.compose(_p.set(cx,cy,cz),_q,_s.set(sx,sy,sz));bagAdd(B,UNIT_BOX,_m4,hex,shade)}
@@ -714,7 +783,7 @@ const ROUND_LO=(()=>{const g=new THREE.BoxGeometry(1,1,1,2,2,2).toNonIndexed(),p
   for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i);f.fromBufferAttribute(n,i);u.copy(v).normalize();v.lerp(u.clone().multiplyScalar(.62),.4);p.setXYZ(i,v.x,v.y,v.z);f.lerp(u,.55).normalize();n.setXYZ(i,f.x,f.y,f.z)}return g})();
 function bagRLo(B,cx,cy,cz,sx,sy,sz,hex,ry,shade){_e.set(0,ry||0,0);_q.setFromEuler(_e);_m4.compose(_p.set(cx,cy,cz),_q,_s.set(sx*1.12,sy*1.12,sz*1.12));bagAdd(B,ROUND_LO,_m4,hex,shade)}
 function bagRBox(B,cx,cy,cz,sx,sy,sz,hex,ry,shade){_e.set(0,ry||0,0);_q.setFromEuler(_e);_m4.compose(_p.set(cx,cy,cz),_q,_s.set(sx*1.12,sy*1.12,sz*1.12));bagAdd(B,ROUND_BOX,_m4,hex,shade)}
-function bagGeo(B){const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(B.p,3));g.setAttribute('normal',new THREE.Float32BufferAttribute(B.n,3));g.setAttribute('color',new THREE.Float32BufferAttribute(B.c,3));g.computeBoundingSphere();g.computeBoundingBox();return g}
+function bagGeo(B){const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(B.p,3));g.setAttribute('normal',new THREE.Float32BufferAttribute(B.n,3));g.setAttribute('color',new THREE.Float32BufferAttribute(B.c,3));if(B.a)g.setAttribute('dzA',new THREE.Float32BufferAttribute(B.a,3));g.computeBoundingSphere();g.computeBoundingBox();return g}
 
 /* ---------- the land: one height function that everything uses ---------- */
 // Gullrock Isle is a grid of heights, one every TS metres, reaching TM metres past the 240 m square on every side (the sea
@@ -834,7 +903,7 @@ designLand();
 
 /* ---------- the static island: merged geometry in chunks, solid boxes in a spatial hash ---------- */
 const CH=4,CHS=MAP/CH;
-const chunks=[];for(let i=0;i<CH*CH;i++)chunks.push(Bag());
+const chunks=[];for(let i=0;i<CH*CH;i++){const B=Bag();B.a=[];chunks.push(B)}
 // ---- breakable map pieces ----
 // Most of the island can be shot apart. Each breakable thing (a 4 m cell of a building's wall with its trim and parapet,
 // a 4 x 4 m cell of a floor or roof, a partition, a tree, a rock, a car, a crate, a fence section, a railing…) is a piece:
@@ -911,7 +980,9 @@ function sbox(x0,y0,z0,x1,y1,z1,hex,hv,ghost){
   let m=SEAMM;if(!m&&SEAMW){const on=v=>SEAMW.cuts.some(q=>Math.abs(q-v)<1e-4);m=SEAMW.ax===0?[on(X1),on(X0),false,false]:[false,false,on(Z1),on(Z0)]}
   if(m){const e=.02;if(m[0])X1+=e;if(m[1])X0-=e;if(m[2])Z1+=e;if(m[3])Z0-=e}
   const cx=(X0+X1)/2,cy=(y0+y1)/2,cz=(Z0+Z1)/2;
-  if(m&&(m[0]||m[1]||m[2]||m[3]))seamBox(chunkOf(cx,cz),cx,cy,cz,X1-X0,Math.abs(y1-y0),Z1-Z0,hex,sh,m);
+  if(NOVIS){if(curMP)mpGrow(curMP,X0+OFX,Math.min(y0,y1)+OFY,Z0+OFZ,X1+OFX,Math.max(y0,y1)+OFY,Z1+OFZ)}   // (its size counts, the kit draws it)
+  else if(FK)kfaces(chunkOf(cx,cz),X0,Math.min(y0,y1),Z0,X1,Math.max(y0,y1),Z1,hex,sh,m,FK);
+  else if(m&&(m[0]||m[1]||m[2]||m[3]))seamBox(chunkOf(cx,cz),cx,cy,cz,X1-X0,Math.abs(y1-y0),Z1-Z0,hex,sh,m);
   else bagBox(chunkOf(cx,cz),cx,cy,cz,X1-X0,Math.abs(y1-y0),Z1-Z0,hex,0,sh);
   return ghost?null:solid(x0,y0,z0,x1,y1,z1,hv);
 }
@@ -927,10 +998,11 @@ function staticRamp(cx,cz,base,dir,hex){
 // [{at, w, lo, hi}] (centre along the wall, width, bottom and top above y0) for doors and windows.
 function wallRun(axis,c,a,b,y0,h,hex,ops,hv,T){
   // breakable (BRK set, not already inside a piece): one piece per 4 m cell along the wall
-  if(BRK&&!curMP){const sh0=SHADE;SHADE=sh0||.94+Math.random()*.1;runs(()=>{for(let k=Math.floor(a/4);k*4<b-.01;k++){const ca=Math.max(a,k*4),cb=Math.min(b,k*4+4);if(cb-ca<.05)continue;
-    SEAMW={ax:axis,cuts:[ca>a?ca:NaN,cb<b?cb:NaN]};brk(BRK,hv,()=>wallRun(axis,c,ca,cb,y0,h,hex,(ops||[]).filter(o=>o.at>=ca&&o.at<cb),hv,T));SEAMW=null}});SHADE=sh0;return}
+  if(BRK&&!curMP){const sh0=SHADE;SHADE=sh0||.94+Math.random()*.1;const q=[hex,TX.ST,1],wk0=WKIT;WKIT={out:1,e:q,i:q,c:q};runs(()=>{for(let k=Math.floor(a/4);k*4<b-.01;k++){const ca=Math.max(a,k*4),cb=Math.min(b,k*4+4);if(cb-ca<.05)continue;
+    SEAMW={ax:axis,cuts:[ca>a?ca:NaN,cb<b?cb:NaN]};brk(BRK,hv,()=>wallRun(axis,c,ca,cb,y0,h,hex,(ops||[]).filter(o=>o.at>=ca&&o.at<cb),hv,T));SEAMW=null}});SHADE=sh0;WKIT=wk0;return}
   T=T||.3;ops=(ops||[]).slice().sort((p,q)=>p.at-q.at);
-  const seg=(s0,s1,ya,yb)=>{if(s1-s0<.05||yb-ya<.05)return;if(axis===0)sbox(s0,ya,c-T/2,s1,yb,c+T/2,hex,hv);else sbox(c-T/2,ya,s0,c+T/2,yb,s1,hex,hv)};
+  const K=WKIT,fk=K?(axis===0?[K.c,K.c,K.c,K.c,K.out>0?K.e:K.i,K.out>0?K.i:K.e]:[K.out>0?K.e:K.i,K.out>0?K.i:K.e,K.c,K.c,K.c,K.c]):null;
+  const seg=(s0,s1,ya,yb)=>{if(s1-s0<.05||yb-ya<.05)return;const f0=FK;if(fk)FK=fk;if(axis===0)sbox(s0,ya,c-T/2,s1,yb,c+T/2,hex,hv);else sbox(c-T/2,ya,s0,c+T/2,yb,s1,hex,hv);FK=f0};
   let cur=a;
   for(const o of ops){const s0=o.at-o.w/2,s1=o.at+o.w/2;seg(cur,s0,y0,y0+h);seg(s0,s1,y0,y0+o.lo);seg(s0,s1,y0+o.hi,y0+h);cur=s1}
   seg(cur,b,y0,y0+h);
@@ -943,7 +1015,7 @@ function slab(cx0,cz0,cx1,cz1,y,hex,holes,hv,ins,cellHp){
   // breakable: one piece per 4 x 4 m cell (a floor gives way a cell at a time)
   if(cellHp){const sh=SHADE;SHADE=sh||.94+Math.random()*.1;runs(()=>{for(let cz=cz0;cz<cz1;cz++)for(let cx=cx0;cx<cx1;cx++){if(holes&&holes.has(cx+','+cz))continue;
     const open=(i,j)=>i>=cx0&&i<cx1&&j>=cz0&&j<cz1&&!(holes&&holes.has(i+','+j));SEAMM=[open(cx+1,cz),open(cx-1,cz),open(cx,cz+1),open(cx,cz-1)];
-    brk(cellHp,hv,()=>sbox(Math.max(X0,cx*4),y-.3,cz===cz0?cz*4+ins:cz*4,Math.min(X1,cx*4+4),y,cz===cz1-1?cz*4+4-ins:cz*4+4,hex,hv));SEAMM=null}});SHADE=sh;return}
+    brk(cellHp,hv,()=>{if(curMP&&FK&&FK[2])curMP.hexv=FK[2][0];sbox(Math.max(X0,cx*4),y-.3,cz===cz0?cz*4+ins:cz*4,Math.min(X1,cx*4+4),y,cz===cz1-1?cz*4+4-ins:cz*4+4,hex,hv);if(SLABX){const m=SEAMM;SEAMM=null;SLABX(cx,cz,y);SEAMM=m}});SEAMM=null}});SHADE=sh;return}
   for(let cz=cz0;cz<cz1;cz++){let run=-1;const z0=cz===cz0?cz*4+ins:cz*4,z1=cz===cz1-1?cz*4+4-ins:cz*4+4;
     for(let cx=cx0;cx<=cx1;cx++){const open=cx<cx1&&!(holes&&holes.has(cx+','+cz));
       if(open&&run<0)run=cx;if(!open&&run>=0){sbox(Math.max(X0,run*4),y-.3,z0,Math.min(X1,cx*4),y,z1,hex,hv);run=-1}}}
@@ -955,11 +1027,119 @@ function zigzag(cx,cz,dir,L0,L1,hex){
   for(let k=L0+1;k<=L1;k++){const a=(k-L0-1)%2===0;const c=a?[cx,cz]:s1;staticRamp(c[0],c[1],(k-1)*4,a?dir:(dir+2)%4,hex);holes[k]=c[0]+','+c[1]}
   return holes;
 }
+/* ---------- the building kit ---------- */
+// Buildings are still made by house() on the 4 m grid, and what is solid is exactly what it was (the same boxes in the
+// same order, so pieces keep their numbers). The kit only changes what is drawn: each wall cell gets a textured outer and
+// inner face, a plinth, corner trim, a framed and silled window or a framed door with its leaf, a string course, a
+// cornice or eaves and a capped parapet; floors, ceilings and roofs get their own surfaces. All of it is detail drawn
+// with the breakable piece it sits on (so it goes when the piece goes) but not counted in the piece's size.
+// kb(): a detail box, drawn only, never solid; mask picks its faces (+x 1, -x 2, top 4, bottom 8, +z 16, -z 32).
+const UBP=UNIT_BOX.attributes.position.array,UBN=UNIT_BOX.attributes.normal.array;
+function kb(x0,y0,z0,x1,y1,z1,hex,lay,mask,cov,sh){
+  let t;if(x0>x1){t=x0;x0=x1;x1=t}if(y0>y1){t=y0;y0=y1;y1=t}if(z0>z1){t=z0;z0=z1;z1=t}
+  const B=chunkOf((x0+x1)/2,(z0+z1)/2);mask=mask==null?63:mask;let n=0;for(let f=0;f<6;f++)if(mask>>f&1)n+=6;if(!n)return;
+  _col.setHex(hex);if(sh)_col.multiplyScalar(sh);if(TINT){_col.r*=TINT[0];_col.g*=TINT[1];_col.b*=TINT[2]}const r=_col.r,g=_col.g,b=_col.b;
+  bagPart(B,n);
+  for(let f=0;f<6;f++){if(!(mask>>f&1))continue;const flat=f===2||f===3;
+    for(let i=f*18;i<f*18+18;i+=3){const y=UBP[i+1]<0?y0:y1;B.p.push((UBP[i]<0?x0:x1)+OFX,y+OFY,(UBP[i+2]<0?z0:z1)+OFZ);B.n.push(UBN[i],UBN[i+1],UBN[i+2]);B.c.push(r,g,b);B.a.push(lay||0,flat?9:y,cov||0)}}
+}
+// sbox() draws its box through this when FK is set: FK is a surface per face, [hex, layer, indoors, shade] (null: the
+// box's own colour; false: leave the face out). The box counts toward its piece's size exactly as it always did.
+let FK=null,NOVIS=0,WKIT=null,SLABX=null;
+function kfaces(B,x0,y0,z0,x1,y1,z1,hex,sh,m,F){
+  const e=.01,P=curMP;let n=0;for(let f=0;f<6;f++)if(F[f]!==false)n+=6;
+  if(P&&!DECO)mpGrow(P,x0+OFX,y0+OFY,z0+OFZ,x1+OFX,y1+OFY,z1+OFZ);
+  bagPart(B,n);
+  for(let f=0;f<6;f++){const st=F[f];if(st===false)continue;_col.setHex(st?st[0]:hex).multiplyScalar(sh*(st&&st[3]||1));if(TINT){_col.r*=TINT[0];_col.g*=TINT[1];_col.b*=TINT[2]}
+    const pin=m&&((f===0&&m[0])||(f===1&&m[1]))?1:m&&((f===4&&m[2])||(f===5&&m[3]))?2:0,flat=f===2||f===3;
+    for(let i=f*18;i<f*18+18;i+=3){let x=UBP[i]<0?x0:x1,y=UBP[i+1]<0?y0:y1,z=UBP[i+2]<0?z0:z1;
+      if(pin===1){y+=UBP[i+1]<0?e:-e;z+=UBP[i+2]<0?e:-e}else if(pin===2){x+=UBP[i]<0?e:-e;y+=UBP[i+1]<0?e:-e}
+      B.p.push(x+OFX,y+OFY,z+OFZ);B.n.push(UBN[i],UBN[i+1],UBN[i+2]);B.c.push(_col.r,_col.g,_col.b);B.a.push(st?st[1]|0:LAY,flat?9:y,st?st[2]||0:COVER)}}
+}
+// A box in a wall's own terms: u along the wall, v up, w out from its outer face (negative is into the building).
+// Faces: toward +u 1, -u 2, top 4, bottom 8, out 16, in 32.
+const M_UP=1,M_UN=2,M_T=4,M_B=8,M_O=16,M_I=32,M_U=3,M_RING=51;
+function wk(W,u0,v0,w0,u1,v1,w1,hex,lay,mask,cov,sh){
+  mask=mask==null?63:mask;let m=mask&12;const o=W.out>0;
+  if(W.ns){m|=mask&3;if(mask&16)m|=o?16:32;if(mask&32)m|=o?32:16;kb(u0,v0,W.fc+W.out*w0,u1,v1,W.fc+W.out*w1,hex,lay,m,cov,sh)}
+  else{if(mask&1)m|=16;if(mask&2)m|=32;if(mask&16)m|=o?1:2;if(mask&32)m|=o?2:1;kb(W.fc+W.out*w0,v0,u0,W.fc+W.out*w1,v1,u1,hex,lay,m,cov,sh)}
+}
+// Styles: w outer wall, iw inner wall, t trim, pl plinth [hex, layer, height], cn corner ('board', 'log', 'angle', 'pil'),
+// fr window and door frames, dr door ('barn', 'leaf', 'steel', 'none') and its colour dc and layer dl, shc shutters,
+// can canopy over doors ('flat', 'porch'), co roof edge ('cope', 'eave', 'fascia'), par parapet, cp its cap, rf roof,
+// fl upper floors, g ground floor, cl ceilings, sk skirting, mul a bar down each window, lamp a lamp over each door.
+const KS={
+  barn:{w:[0xc04a33,TX.PV],iw:[0xb59468,TX.PV],t:0xf3eee2,pl:[0x9a968c,TX.SN,.5],cn:'board',fr:0xf3eee2,dr:'barn',dc:0xb8442f,dl:TX.PV,co:'eave',par:[0xc04a33,TX.PV],cp:0xf3eee2,rf:[0xa9b4ba,TX.CO],fl:[0xb89464,TX.PH],g:[0xb9a37c,TX.PH],cl:[0x9c7d54,TX.PH],sk:0x8a6c48,lamp:1},
+  farmhouse:{w:[0xf6e08c,TX.PH],iw:[0xefe6d2,TX.ST],t:0xfbf7ee,pl:[0xc0694c,TX.BR,.5],cn:'board',fr:0xfbf7ee,dr:'leaf',dc:0x3f8a5c,shc:0x3f8a5c,can:'porch',co:'eave',par:[0xf6e08c,TX.PH],cp:0xfbf7ee,rf:[0xa8483a,TX.SH],fl:[0xc49a62,TX.PH],g:[0xc49a62,TX.PH],cl:[0xe6dcc6,TX.ST],sk:0xfbf7ee,mul:1,lamp:1},
+  hut:{w:[0xe9edf0,TX.PN],iw:[0xd2d9de,TX.PN],t:0x56616c,pl:[0x8d959b,TX.CN,.4],cn:'angle',fr:0x56616c,dr:'steel',dc:0x6a7783,dl:TX.PN,can:'flat',co:'cope',par:[0xdfe4e8,TX.PN],cp:0x56616c,rf:[0x5c6873,TX.GR],g:[0xa7aeb3,TX.CN],cl:[0xc5ccd1,TX.PN],sk:0x56616c,lamp:1},
+  mall:{w:[0xf0e3c8,TX.CN],iw:[0xece4d2,TX.ST],t:0x2f7a72,pl:[0xa39e92,TX.CN,.55],cn:'pil',pil:0xddd0b4,fr:0x2f7a72,dr:'none',can:'flat',co:'cope',par:[0xf0e3c8,TX.CN],cp:0x2f7a72,rf:[0x7c8f86,TX.GR],fl:[0xdcd5c6,TX.TI],g:[0xdcd5c6,TX.TI],cl:[0xe2dccd,TX.ST],sk:0x2f7a72,glass:0x3d6f7c,mul:1},
+  pump:{w:[0xd6dbd0,TX.CN],iw:[0xc2c8bc,TX.CN],t:0x4b5a52,pl:[0x858c82,TX.CN,.5],cn:'angle',fr:0x4b5a52,dr:'steel',dc:0x5d7068,dl:TX.PN,can:'flat',co:'cope',par:[0xd6dbd0,TX.CN],cp:0x4b5a52,rf:[0x6c7a72,TX.GR],g:[0x9aa197,TX.CN],cl:[0xb9c0b4,TX.CN],sk:0x4b5a52,lamp:1},
+  motel:{w:[0xf7cdbf,TX.ST],iw:[0xf5ead8,TX.ST],t:0x54467a,pl:[0x49a39b,TX.TI,.6],fr:0xfdf6ea,dr:'leaf',dc:0x3fb3a8,co:'fascia',neon:0xff6fb0,par:[0x5b4d83,TX.ST],cp:0x3e335c,rf:[0x6a5f8c,TX.GR],fl:[0x8f6fa0,TX.ST],g:[0x8f6fa0,TX.ST],cl:[0xf0e4d0,TX.ST],sk:0x54467a,lamp:1},
+  office:{w:[0xa6dcea,TX.ST],iw:[0xf5ead8,TX.ST],t:0x54467a,pl:[0x49a39b,TX.TI,.6],fr:0xfdf6ea,dr:'leaf',dc:0xe8627a,can:'flat',co:'fascia',neon:0x6fe9ff,par:[0xe2546b,TX.ST],cp:0x3e335c,rf:[0x8f5a78,TX.GR],g:[0xd8d0c0,TX.TI],cl:[0xf0e4d0,TX.ST],sk:0x54467a,mul:1,lamp:1},
+  mine:{w:[0xe2bb4e,TX.CO],iw:[0xc9a84c,TX.CO],t:0x51473a,pl:[0x8a8378,TX.CN,.4],cn:'angle',fr:0x51473a,dr:'steel',dc:0x5a5248,dl:TX.PN,can:'flat',co:'cope',par:[0xe2bb4e,TX.CO],cp:0x51473a,rf:[0x8a7c66,TX.CO],g:[0x9a9184,TX.CN],cl:[0xb39a4f,TX.CO],sk:0x51473a,lamp:1},
+  cabin:{w:[0xa9713f,TX.LG],iw:[0x9c6a3e,TX.LG],t:0x5a3a20,pl:[0x9a958a,TX.SN,.5],cn:'log',fr:0x6b4526,dr:'leaf',dc:0x7a4a26,dl:TX.PV,shc:0x3d6a45,can:'porch',co:'eave',par:[0xa9713f,TX.LG],cp:0x5a3a20,rf:[0x5f7f42,TX.SH],g:[0xa98558,TX.PH],cl:[0x8f6238,TX.PH],sk:0x5a3a20,mul:1},
+  shed:{w:[0xd2c2a2,TX.PV],iw:[0xbfae8e,TX.PV],t:0x6d5844,pl:[0x938d82,TX.SN,.4],cn:'board',fr:0x6d5844,dr:'leaf',dc:0x7d6650,dl:TX.PV,co:'eave',par:[0xd2c2a2,TX.PV],cp:0x6d5844,rf:[0x9a5a48,TX.CO],g:[0xb09a78,TX.PH],cl:[0xa8946f,TX.PH],sk:0x6d5844}
+};
+// the detail on one wall cell: W is the wall (ns, fc: its outer face, out), a..b the cell along it, y its foot
+function kitWall(S,W,a,b,y,lv,L,ops,cA,cB,par){
+  const T=.3,top=L*4,isTop=lv===L-1,ns=W.ns,o=ops[0],door=o&&o.lo===0?o:null,win=o&&o.lo>0?o:null;
+  // (a wall on the east or west stops short of the corner, which belongs to the north or south wall: its trim runs on to the corner)
+  const ea=!ns&&cA?a-T:a,eb=!ns&&cB?b+T:b;
+  // spans of a strip along the cell, with the doorway left out
+  const spans=(u0,u1)=>door?[[u0,door.at-door.w/2],[door.at+door.w/2,u1]]:[[u0,u1]];
+  // plinth: a course of stone or tile that stands out from the wall, with a chamfer step on top
+  if(lv===0&&S.pl){const h=S.pl[2],x=ns?.07:0;for(const [u0,u1] of spans(ea-(cA?x:0),eb+(cB?x:0))){if(u1-u0<.05)continue;
+    const m=M_O|M_T|(door&&u1<door.at||ns&&cB&&u1>b?M_UP:0)|(door&&u0>door.at||ns&&cA&&u0<a?M_UN:0);
+    wk(W,u0,y,0,u1,y+h,.07,S.pl[0],S.pl[1],m);wk(W,u0,y+h,0,u1,y+h+.05,.035,S.pl[0],S.pl[1],m,0,1.08)}}
+  // skirting indoors
+  if(S.sk)for(const [u0,u1] of spans(a,b))if(u1-u0>.05)wk(W,u0,y,-T-.025,u1,y+.13,-T,S.sk,0,M_I|M_T,1);
+  // corners
+  if(ns&&S.cn&&S.cn!=='pil')for(const e of [cA?a:null,cB?b:null]){if(e==null)continue;const d=e===a?1:-1;
+    if(S.cn==='board')wk(W,e-d*.05,y,-.25,e+d*.25,y+4,.05,S.t,0,M_RING);
+    else if(S.cn==='angle')wk(W,e-d*.03,y,-.16,e+d*.16,y+4,.03,S.t,0,M_RING);
+    else if(S.cn==='log')for(let k=0;k<6;k++){const v=y+k*.667+.03;if(k&1)wk(W,e,v,0,e+d*T,v+.3,.26,S.w[0],0,M_RING|M_T|M_B,0,.8);else wk(W,e-d*.26,v,-T,e,v+.3,0,S.w[0],0,M_RING|M_T|M_B,0,.8)}}
+  // pilasters between the cells of a long concrete wall
+  if(S.cn==='pil'){const e=ns||!cA?a:null;if(e!=null)wk(W,e-(ns&&cA?.08:.2),y,-.02,e+.2,y+4,.09,S.pil,S.w[1],M_O|M_U)
+    if(ns&&cB)wk(W,b-.2,y,-.02,b+.08,y+4,.09,S.pil,S.w[1],M_O|M_U)}
+  // string course between storeys
+  if(!isTop){const m=M_O|M_T|M_B|(ns&&cB?M_UP:0)|(ns&&cA?M_UN:0),x=ns?.07:0;wk(W,ea-(cA?x:0),y+3.86,0,eb+(cB?x:0),y+4.1,.07,S.t,0,m);wk(W,ea-(cA?x:0),y+4.1,0,eb+(cB?x:0),y+4.15,.035,S.t,0,m,0,1.06)}
+  // roof edge
+  if(isTop){const ce=(p)=>[ea-(cA&&ns?p:0),eb+(cB&&ns?p:0)],me=M_O|M_T|M_B|(ns&&cB?M_UP:0)|(ns&&cA?M_UN:0);
+    if(S.co==='eave'){const [u0,u1]=ce(.42);wk(W,u0,top-.06,0,u1,top+.1,.42,S.cp,0,me);
+      for(let u=Math.ceil((a-.01)/1)*1+.5;u<b;u+=1)wk(W,u-.06,top-.24,0,u+.06,top-.06,.36,S.cp,0,M_U|M_B|M_O,0,.9)}
+    else if(S.co==='fascia'){const [u0,u1]=ce(.1);wk(W,u0,top-.55,0,u1,top+.1,.1,S.t,0,me);if(S.neon)wk(W,u0,top-.33,.1,u1,top-.26,.135,S.neon,0,me)}
+    else{const [u0,u1]=ce(.12),[v0,v1]=ce(.06);wk(W,u0,top-.14,0,u1,top+.08,.12,S.cp,0,me);wk(W,v0,top-.26,0,v1,top-.14,.06,S.cp,0,me,0,.92)}
+    if(par)wk(W,a-(cA?.05:0),top+.9,-.29,b+(cB?.05:0),top+.96,.05,S.cp,0,M_O|M_I|M_T|(cB&&ns?M_UP:0)|(cA&&ns?M_UN:0))}
+  // window: a frame lining the hole, a sill that stands out, a bar, shutters
+  if(win){const s0=win.at-win.w/2,s1=win.at+win.w/2,lo=y+win.lo,hi=y+win.hi,F=.08;
+    wk(W,s0,lo,-.27,s0+F,hi,.03,S.fr,0,M_UP|M_O|M_I);wk(W,s1-F,lo,-.27,s1,hi,.03,S.fr,0,M_UN|M_O|M_I);wk(W,s0+F,hi-F,-.27,s1-F,hi,.03,S.fr,0,M_B|M_O|M_I);
+    wk(W,s0-.1,lo-.06,-.34,s1+.1,lo+.05,.13,S.fr,0);
+    if(S.mul)wk(W,win.at-.03,lo+.05,-.17,win.at+.03,hi-F,-.11,S.fr,0,M_RING);
+    if(S.shc)for(const [u0,u1] of [[s0-.5,s0-.03],[s1+.03,s1+.5]])if(u0>a+.02&&u1<b-.02)wk(W,u0,lo-.03,0,u1,hi+.03,.05,S.shc,TX.PH,63^M_I)}
+  // the mall's high strip of glass
+  if(S.glass&&!door){wk(W,a+.35,y+2.95,0,b-.35,y+3.6,.015,S.glass,TX.GL,M_O);wk(W,a+.27,y+2.87,0,b-.27,y+2.95,.04,S.t,0,M_O|M_T|M_B|M_U);wk(W,a+.27,y+3.6,0,b-.27,y+3.68,.04,S.t,0,M_O|M_T|M_B|M_U)}
+  // door: frame, threshold, leaf, canopy, lamp
+  if(door){const s0=door.at-door.w/2,s1=door.at+door.w/2,hi=y+door.hi,F=.1;
+    wk(W,s0,y,-.29,s0+F,hi,.04,S.fr,0,M_UP|M_O|M_I);wk(W,s1-F,y,-.29,s1,hi,.04,S.fr,0,M_UN|M_O|M_I);wk(W,s0+F,hi-F,-.29,s1-F,hi,.04,S.fr,0,M_B|M_O|M_I);
+    wk(W,s0,y,-.33,s1,y+.035,.2,0xb9b3a7,TX.CN,63^M_B);
+    if(S.dr==='barn'){for(const [u0,u1] of [[s0-.88,s0-.03],[s1+.03,s1+.88]]){wk(W,u0,y+.08,.04,u1,hi-.1,.1,S.dc,S.dl,63^M_I);
+        wk(W,u0,y+.08,.1,u1,y+.24,.125,S.t,0,M_O|M_T);wk(W,u0,hi-.26,.1,u1,hi-.1,.125,S.t,0,M_O|M_B);wk(W,u0,y+.24,.1,u0+.14,hi-.26,.125,S.t,0,M_O|M_UP);wk(W,u1-.14,y+.24,.1,u1,hi-.26,.125,S.t,0,M_O|M_UN)}
+      wk(W,a+.12,hi+.06,.02,b-.12,hi+.15,.15,0x4b4f55,0,63^M_I)}
+    else if(S.dr==='leaf'||S.dr==='steel'){const u0=s1+.03,u1=Math.min(b-.03,s1+.9);wk(W,u0,y+.05,.015,u1,hi-.12,.07,S.dc,S.dl,63^M_I^M_B);
+      wk(W,u0+.08,y+1.25,.07,u0+.16,y+1.37,.11,0xe9d28a,0,63^M_I);
+      if(S.dr==='steel')wk(W,u0,y+1.55,.07,u1,y+1.75,.075,0xffffff,TX.HZ,M_O)}
+    if(S.can==='flat'){wk(W,s0-.45,y+3.02,0,s1+.45,y+3.16,1.15,S.t,0,63^M_I);for(const u of [s0-.3,s1+.22])wk(W,u,y+2.7,0,u+.08,y+3.02,.45,S.t,0,63^M_I^M_T)}
+    else if(S.can==='porch'){wk(W,s0-.55,y+3,0,s1+.55,y+3.1,1.2,S.rf[0],S.rf[1],63^M_I);wk(W,s0-.55,y+2.9,1.1,s1+.55,y+3,1.2,S.t,0,63^M_I^M_T);for(const u of [s0-.5,s1+.4])wk(W,u,y+2.55,0,u+.1,y+3,.5,S.t,0,63^M_I^M_T)}
+    if(S.lamp){const lv_=S.can?hi+.04:S.dr==='barn'?hi+.3:hi+.2;wk(W,door.at-.13,lv_,0,door.at+.13,lv_+.14,.15,0xfff2bd,0,63^M_I)}}
+}
 // A building of w x d cells and some levels of 4 m: outer walls with doors and windows, a floor slab each level,
 // zigzag stairs, a flat roof with a low parapet. Returns helpers to place chests and floor loot inside.
 function house(cx,cz,w,d,o){
   const L=o.levels||1,col=o.col||0xd9c9a8,trim=o.trim||0x6d5844,roof=o.roof||0x8a4b3a,hv=o.hv==null?8:o.hv;
   const x0=cx*4,z0=cz*4,x1=x0+w*4,z1=z0+d*4,top=L*4;
+  // the kit's style for this building, and its own slight colour cast
+  const S=KS[o.st]||KS.shed,WC=[S.w[0],S.w[1],0,.82],IW=[S.iw[0],S.iw[1],1],CL=[S.cl[0],S.cl[1],1],tr=mulberry(hashStr('t'+cx+','+cz));
+  TINT=[1+(tr()-.5)*.08,1+(tr()-.5)*.08,1+(tr()-.5)*.08];
   const holes=new Map();
   if(o.holes)for(const k in o.holes){if(!holes.has(+k))holes.set(+k,new Set());for(const c of o.holes[k])holes.get(+k).add(c)}
   if(o.stairs&&L>1){const s=o.stairs,hh=zigzag(s[0],s[1],s[2],0,o.roofStairs?L:L-1,trim);for(const k in hh){if(!holes.has(+k))holes.set(+k,new Set());holes.get(+k).add(hh[k])}}
@@ -987,17 +1167,22 @@ function house(cx,cz,w,d,o){
       runs(()=>{for(let i=0;i<along;i++){
         brk(240,hv,()=>{
           SEAMW=ns?{ax:0,cuts:[i>0?x0+i*4:NaN,i<w-1?x0+i*4+4:NaN]}:{ax:2,cuts:[i>0?z0+i*4:NaN,i<d-1?z0+i*4+4:NaN]};
-          if(ns){const a=x0+i*4,b=a+4,zc=side==='n'?z0:z1,out=side==='n'?-1:1,cs=ops.filter(q=>q.at>=a&&q.at<b);
-            wallRun(0,zc-out*.15,a,b,y,4,col,cs,hv);
+          // (the boxes below are the ones there always were, so what is solid and each piece's size are unchanged; the kit decides how they are drawn)
+          if(curMP)curMP.hexv=S.w[0];
+          const PK=[S.par,S.par,[S.cp,0],false,S.par,S.par];
+          if(ns){const a=x0+i*4,b=a+4,zc=side==='n'?z0:z1,out=side==='n'?-1:1,cs=ops.filter(q=>q.at>=a&&q.at<b),W={ns:true,fc:zc,out};
+            WKIT={out,e:S.w,i:IW,c:WC};wallRun(0,zc-out*.15,a,b,y,4,col,cs,hv);WKIT=null;
             const ba=a-(i===0?.06:0),bb=b+(i===w-1?.06:0);
-            if(lv<L-1)sbox(ba,y+3.89,zc-out*.02-.08,bb,y+4.11,zc-out*.02+.08,trim,0,true);
-            if(lv===L-1&&par)sbox(a,top,side==='n'?z0:z1-.25,b,top+.9,side==='n'?z0+.25:z1,trim,hv);
-          }else{const a=Math.max(z0+.3,z0+i*4),b=Math.min(z1-.3,z0+i*4+4),xc=side==='w'?x0:x1,out=side==='w'?-1:1,cs=ops.filter(q=>q.at>=z0+i*4&&q.at<z0+i*4+4);
-            wallRun(2,xc-out*.15,a,b,y,4,col,cs,hv);
+            if(lv<L-1){NOVIS=1;sbox(ba,y+3.89,zc-out*.02-.08,bb,y+4.11,zc-out*.02+.08,trim,0,true);NOVIS=0}
+            if(lv===L-1&&par){FK=PK;sbox(a,top,side==='n'?z0:z1-.25,b,top+.9,side==='n'?z0+.25:z1,trim,hv);FK=null}
+            SEAMW=null;kitWall(S,W,a,b,y,lv,L,cs,i===0,i===w-1,par);if(o.x)o.x(side,i,lv,W,a,b,y,cs);
+          }else{const a=Math.max(z0+.3,z0+i*4),b=Math.min(z1-.3,z0+i*4+4),xc=side==='w'?x0:x1,out=side==='w'?-1:1,cs=ops.filter(q=>q.at>=z0+i*4&&q.at<z0+i*4+4),W={ns:false,fc:xc,out};
+            WKIT={out,e:S.w,i:IW,c:WC};wallRun(2,xc-out*.15,a,b,y,4,col,cs,hv);WKIT=null;
             const ba=Math.max(z0+.1,z0+i*4),bb=Math.min(z1-.1,z0+i*4+4);
-            if(lv<L-1)sbox(xc-out*.02-.08,y+3.89,ba,xc-out*.02+.08,y+4.11,bb,trim,0,true);
+            if(lv<L-1){NOVIS=1;sbox(xc-out*.02-.08,y+3.89,ba,xc-out*.02+.08,y+4.11,bb,trim,0,true);NOVIS=0}
             const pa=Math.max(z0+.25,z0+i*4),pb=Math.min(z1-.25,z0+i*4+4);
-            if(lv===L-1&&par)sbox(side==='w'?x0:x1-.25,top,pa,side==='w'?x0+.25:x1,top+.9,pb,trim,hv);
+            if(lv===L-1&&par){FK=PK;sbox(side==='w'?x0:x1-.25,top,pa,side==='w'?x0+.25:x1,top+.9,pb,trim,hv);FK=null}
+            SEAMW=null;kitWall(S,W,a,b,y,lv,L,cs,i===0,i===d-1,par);if(o.x)o.x(side,i,lv,W,a,b,y,cs);
           }
           SEAMW=null;
         });
@@ -1005,10 +1190,14 @@ function house(cx,cz,w,d,o){
     }
     SHADE=0;
     // floors between the walls (a floor shared the walls' outer faces once, and flickered)
-    if(lv>0)slab(cx,cz,cx+w,cz+d,y,o.floorCol||0x8f7a5c,holes.get(lv),hv,.3,200);
+    if(lv>0){FK=[CL,CL,[S.fl[0],S.fl[1],1],CL,CL,CL];SLABX=o.fx?(ix,iz,yy)=>o.fx(ix-cx,iz-cz,lv,yy):null;slab(cx,cz,cx+w,cz+d,y,o.floorCol||0x8f7a5c,holes.get(lv),hv,.3,200);FK=null;SLABX=null}
   }
   // roof
-  slab(cx,cz,cx+w,cz+d,top,roof,o.roofStairs?holes.get(L):null,hv,.3,200);
+  FK=[S.rf,S.rf,S.rf,CL,S.rf,S.rf];SLABX=o.rx?(ix,iz,yy)=>o.rx(ix-cx,iz-cz,yy):null;
+  slab(cx,cz,cx+w,cz+d,top,roof,o.roofStairs?holes.get(L):null,hv,.3,200);FK=null;SLABX=null;
+  // a floor laid on the ground indoors (drawn only: the land under it is what is stood on)
+  if(S.g)kb(x0+.3,.02,z0+.3,x1-.3,.05,z1-.3,S.g[0],S.g[1],4,1);
+  TINT=null;
   footprints.push({x0,z0,x1,z1,col:roof});
   // ground-floor doors, for the bots' way in and out: a point just outside and just inside each one
   const dl=[];for(const d of doors)if(!(d[2]|0)){const i=d[1],side=d[0];let cx_,cz_,ox,oz;
@@ -1080,9 +1269,9 @@ function buildWorld(){
   place('Haybale Farm',58,68,44);
   paint({k:'rect',t:'field',x0:16,z0:28,x1:38,z1:52,col:[.55,.42,.27],stripe:[.47,.36,.22]});
   paint({k:'rect',t:'yard',x0:36,z0:48,x1:94,z1:94,col:[.6,.62,.36]});
-  const barn=house(10,13,6,5,{levels:2,col:0xb3412f,trim:0xf0ebe0,roof:0x5d3b2c,floorCol:0x9b7a52,stairs:[11,14,0],roofStairs:true,doors:[['s',2],['s',3],['n',4],['w',2]],win:.2});
+  const barn=house(10,13,6,5,{levels:2,col:0xb3412f,trim:0xf0ebe0,roof:0x5d3b2c,floorCol:0x9b7a52,stairs:[11,14,0],roofStairs:true,doors:[['s',2],['s',3],['n',4],['w',2]],win:.2,st:'barn'});
   barn.chest(4,1,0,0);barn.chest(1,3,1,Math.PI/2);barn.chest(5,3,1,-Math.PI/2);barn.floor(3,3,0);barn.floor(0,4,1);barn.floor(4,2,2);barn.floor(1,0,2);
-  const fh=house(18,19,4,3,{levels:2,col:0xf2dd8a,trim:0x7a5a3a,roof:0x8c3a2e,stairs:[20,20,0],doors:[['w',1],['s',1],['n',3]],win:.6});
+  const fh=house(18,19,4,3,{levels:2,col:0xf2dd8a,trim:0x7a5a3a,roof:0x8c3a2e,stairs:[20,20,0],doors:[['w',1],['s',1],['n',3]],win:.6,st:'farmhouse'});
   fh.chest(3,2,1,Math.PI);fh.floor(2,2,0);fh.floor(0,0,1);fh.chest(0,2,0,0);
   shape(CYL,32,7,86,3,14,3,0xc9cdd1);shape(ICO,32,14.2,86,3.05,1.6,3.05,0x9aa3ab);solid(29.4,0,83.4,34.6,14,88.6,6);
   chestSpots.push({x:32,y:0,z:91,yaw:0});
@@ -1101,7 +1290,7 @@ function buildWorld(){
     for(const [x,z] of [[152.3,40.3],[167.7,40.3],[152.3,47.7],[167.7,47.7],[160,40.3],[160,47.7]])sbox(x-.32,0,z-.32,x+.32,20.9,z+.32,0xb64236,2);
     sbox(159.6,20.9,43.6,160.4,36,44.4,0xd8dde2,2,true);sbox(159.4,35.6,43.4,160.6,36.6,44.6,0xff4a3a,0,true);
     chestSpots.push({x:166,y:12,z:46,yaw:0},{x:154,y:20,z:46,yaw:Math.PI});floorSpots.push({x:154,y:8,z:46},{x:166,y:16,z:46},{x:158,y:20,z:46});}
-  const hut=house(43,12,3,2,{col:0xe4e7ea,trim:0x56616c,roof:0x3e4a55,doors:[['w',0],['s',2]],win:.5});
+  const hut=house(43,12,3,2,{col:0xe4e7ea,trim:0x56616c,roof:0x3e4a55,doors:[['w',0],['s',2]],win:.5,st:'hut'});
   hut.chest(2,0,0,Math.PI);hut.floor(0,1,0);
   crate(146,52);crate(147.5,53.4,0,1.2,0x5d6b78);crate(172,40,0,1.6,0x5d6b78);floorSpots.push({x:150,y:0,z:36});
   });
@@ -1110,7 +1299,7 @@ function buildWorld(){
   place('Pinecone Plaza',164,162,46);
   paint({k:'rect',t:'paved',x0:124,z0:132,x1:204,z1:192,col:[.42,.43,.45]});
   {const atr=new Set();for(let ix=3;ix<=8;ix++)for(let iz=2;iz<=4;iz++)atr.add((35+ix)+','+(37+iz));
-    const mall=house(35,37,12,7,{levels:2,col:0xe9dcc3,trim:0x2f6f68,roof:0x436a59,floorCol:0x8c8474,holes:{1:atr},doors:[['n',5],['n',6],['s',5],['s',6],['w',3],['e',3]],win:.35});
+    const mall=house(35,37,12,7,{levels:2,col:0xe9dcc3,trim:0x2f6f68,roof:0x436a59,floorCol:0x8c8474,holes:{1:atr},doors:[['n',5],['n',6],['s',5],['s',6],['w',3],['e',3]],win:.35,st:'mall'});
     staticRamp(38,40,0,2,0x2f6f68);staticRamp(43,40,0,0,0x2f6f68);
     // railings round the atrium on the upper floor (gaps where the ramps arrive)
     railing(152,155.85,176,156.1,4,0x2f6f68);railing(152,167.9,176,168.15,4,0x2f6f68);
@@ -1137,7 +1326,7 @@ function buildWorld(){
     for(let k=1;k<=3;k++)slab(64,cz0,65,cz0+4,k*4,0xa8a59b,new Set([holes[k]]),5);
     railing(256,cz0*4,256.3,cz0*4+16,4);railing(256,cz0*4,256.3,cz0*4+16,8);railing(256,cz0*4,256.3,cz0*4+16,12);
     for(const z of [cz0*4+.3,cz0*4+15.7])sbox(255.97,0,z-.32,256.63,12,z+.32,0x8f8c84,5)}
-  const pump=house(60,29,3,2,{col:0xcfd4c9,trim:0x4b5a52,roof:0x5b6b62,doors:[['w',0],['e',1],['n',2]],win:.5});
+  const pump=house(60,29,3,2,{col:0xcfd4c9,trim:0x4b5a52,roof:0x5b6b62,doors:[['w',0],['e',1],['n',2]],win:.5,st:'pump'});
   pump.chest(0,1,0,0);pump.chest(2,0,0,Math.PI);pump.floor(1,1,0);
   chestSpots.push({x:264,y:12,z:120,yaw:0});floorSpots.push({x:264,y:12,z:92},{x:264,y:12,z:140},{x:248,y:0,z:150});
   for(const [x,z] of [[250,90],[252,92.5],[246,138]])crate(x,z,0,1.6,0x6d7c86);
@@ -1148,7 +1337,7 @@ function buildWorld(){
   paint({k:'rect',t:'paved',x0:36,z0:212,x1:108,z1:258,col:[.44,.45,.47]});
   sbox(60,0,238,80,.07,250,0xa9dff0,0,true);   // the empty pool's tiled floor
   {const doorsA=[];for(let i=0;i<12;i++){doorsA.push(['s',i,0],['s',i,1])}
-    const wa=house(10,54,12,2,{levels:2,col:0xf3c6b8,trim:0x4b3f6b,roof:0x4b3f6b,floorCol:0x947f6e,doors:doorsA,win:0});
+    const wa=house(10,54,12,2,{levels:2,col:0xf3c6b8,trim:0x4b3f6b,roof:0x4b3f6b,floorCol:0x947f6e,doors:doorsA,win:0,st:'motel'});
     BRK=150;for(let i=1;i<12;i++){wallRun(2,40+i*4,216.3,223.7,0,3.7,0xe9b8a8,[],6,.2);wallRun(2,40+i*4,216.3,223.7,4,3.7,0xe9b8a8,[],6,.2)}BRK=0;
     SHADE=1;runs(()=>{for(let x=40;x<88;x+=4){SEAMM=[x<84,x>40,false,false];brk(180,6,()=>sbox(x,3.7,224,x+4,4,228,0xb9a08a,6));SEAMM=null}});SHADE=0;railing(40,227.75,88,228,4,0x4b3f6b);
     for(let x=40.3;x<88;x+=8)brk(70,2,()=>sbox(x-.15,0,227.6,x+.15,3.7,227.9,0x4b3f6b,2));
@@ -1156,10 +1345,10 @@ function buildWorld(){
     wa.chest(1,1,0,0);wa.chest(6,1,0,0);wa.chest(10,1,0,0);wa.chest(3,1,1,0);wa.chest(9,1,1,0);
     wa.floor(4,1,0);wa.floor(8,1,0);wa.floor(0,1,1);wa.floor(6,1,1);wa.floor(11,1,1);
     const doorsB=[];for(let i=0;i<6;i++)doorsB.push(['e',i,0]);
-    const wb=house(10,57,2,6,{col:0xf3c6b8,trim:0x4b3f6b,roof:0x4b3f6b,doors:doorsB,win:0});
+    const wb=house(10,57,2,6,{col:0xf3c6b8,trim:0x4b3f6b,roof:0x4b3f6b,doors:doorsB,win:0,st:'motel'});
     BRK=150;for(let i=1;i<6;i++)wallRun(0,228+i*4,40.3,47.7,0,3.7,0xe9b8a8,[],6,.2);BRK=0;
     wb.chest(0,2,0,Math.PI/2);wb.floor(1,4,0);
-    const off=house(24,59,2,2,{col:0x9fd7e6,trim:0x4b3f6b,roof:0xe2546b,doors:[['w',0],['n',1]],win:.7});
+    const off=house(24,59,2,2,{col:0x9fd7e6,trim:0x4b3f6b,roof:0xe2546b,doors:[['w',0],['n',1]],win:.7,st:'office'});
     off.chest(1,1,0,Math.PI);
     brk(120,2,()=>sbox(99.6,0,229.6,100.4,9,230.4,0x4b3f6b,2));brk(60,2,()=>{sbox(96,9,229.8,104,12,230.2,0xe2546b,2);sbox(96.4,9.4,229.6,103.6,11.6,229.8,0xffe9a8,0,true)});
     for(const [x,z] of [[60,237],[80,237],[60,251],[80,251]])sbox(x-.3,0,z-.3,x+.3,.25,z+.3,0xeeeeee,0,true);
@@ -1175,8 +1364,8 @@ function buildWorld(){
     for(let i=0;i<34;i++){const a=i/34*Math.PI*2;if([2,3,11,12,20,28,29].includes(i))continue;const d=29+rr()*4,s=3.4+rr()*2.2;const bx=248+Math.cos(a)*d,bz=248+Math.sin(a)*d,bc=rr()<.5?0x7d7470:0x8f8681;if(lrect(bx,bz,228,228,236,236)<s*.72+3)continue;   // (not across the shed's doors)
       onLand(bx,bz,.5,()=>rock(bx,bz,s,bc))}
     shape(ICO,248,3.2,248,4.6,4.2,4.2,0x40354d,.6);shape(ICO,248,5.8,248,2.2,2,2.2,0x9a7bff,.3);solid(244.2,0,244.2,251.8,6.8,251.8,6);
-    const s1=house(57,57,2,2,{col:0xd4b04a,trim:0x51473a,roof:0x51473a,doors:[['n',0],['e',1]],win:.5});s1.chest(0,1,0,0);s1.floor(1,0,0);
-    const s2=house(62,64,2,2,{col:0xd4b04a,trim:0x51473a,roof:0x51473a,doors:[['w',1],['n',1]],win:.5});s2.chest(1,1,0,Math.PI);
+    const s1=house(57,57,2,2,{col:0xd4b04a,trim:0x51473a,roof:0x51473a,doors:[['n',0],['e',1]],win:.5,st:'mine'});s1.chest(0,1,0,0);s1.floor(1,0,0);
+    const s2=house(62,64,2,2,{col:0xd4b04a,trim:0x51473a,roof:0x51473a,doors:[['w',1],['n',1]],win:.5,st:'mine'});s2.chest(1,1,0,Math.PI);
     chestSpots.push({x:240,y:0,z:252,yaw:Math.PI/2},{x:256,y:0,z:242,yaw:-Math.PI/2});
     for(const [x,z] of [[238,240],[239.4,241.6],[258,256],[244,262],[252,234]])crate(x,z,0,1.5,0x7a5f3c);
     floorSpots.push({x:248,y:0,z:238},{x:236,y:0,z:256},{x:262,y:0,z:248},{x:250,y:0,z:262},{x:248,y:6.8,z:248});}
@@ -1185,7 +1374,7 @@ function buildWorld(){
   grp(OFS.timber[0],OFS.timber[1],OFS.timber[2],()=>{
   place('Timber Camp',158,276,38);
   paint({k:'circle',t:'dirt',x:158,z:276,r:30,col:[.52,.44,.3]});
-  {for(const [cx,cz,dr] of [[34,66,'e'],[34,71,'e'],[43,66,'w'],[43,71,'w']]){const c=house(cx,cz,2,2,{col:0x8a5a34,trim:0x5a3a20,roof:0x4f6b36,doors:[[dr,1]],win:.5,hv:10});c.chest(dr==='e'?0:1,0,0,0);c.floor(1,1,0)}
+  {for(const [cx,cz,dr] of [[34,66,'e'],[34,71,'e'],[43,66,'w'],[43,71,'w']]){const c=house(cx,cz,2,2,{col:0x8a5a34,trim:0x5a3a20,roof:0x4f6b36,doors:[[dr,1]],win:.5,hv:10,st:'cabin'});c.chest(dr==='e'?0:1,0,0,0);c.floor(1,1,0)}
     for(const [x,z] of [[150,282],[158,282],[166,282],[150,294],[158,294],[166,294]])brk(100,10,()=>sbox(x-.3,0,z-.3,x+.3,5,z+.3,0x5a3a20,10));
     SHADE=1;runs(()=>{for(let x=148;x<168;x+=4)for(let z=280;z<296;z+=4){SEAMM=[x<164,x>148,z<292,z>280];brk(100,10,()=>sbox(x,5,z,x+4,5.3,z+4,0x6b4a2a,10));SEAMM=null}});SHADE=0;
     chestSpots.push({x:158,y:0,z:288,yaw:0});
@@ -1194,7 +1383,7 @@ function buildWorld(){
     floorSpots.push({x:158,y:0,z:272},{x:146,y:0,z:276},{x:170,y:0,z:276},{x:158,y:5.3,z:288});}
   });
   // ---- sheds along the tracks ----
-  SHEDS.forEach(([cx,cz],k)=>grp(0,0,SHED_Y[k],()=>{const s=house(cx,cz,2,2,{col:0xc8b89a,trim:0x6d5844,roof:0x7a4a3a,doors:[['s',0],['e',1]],win:.4});s.chest(1,0,0,0);s.floor(0,1,0)}));
+  SHEDS.forEach(([cx,cz],k)=>grp(0,0,SHED_Y[k],()=>{const s=house(cx,cz,2,2,{col:0xc8b89a,trim:0x6d5844,roof:0x7a4a3a,doors:[['s',0],['e',1]],win:.4,st:'shed'});s.chest(1,0,0,0);s.floor(0,1,0)}));
   // ---- tracks between the places ----
   const hub=at('plaza',164,192),F=at('farm',64,96),S=at('signal',160,60),D=at('dam',248,124),M=at('motel',100,226),C=at('crater',236,236),T=at('timber',158,250);
   for(const p of [F,S,D,M,C,T,[40,118],[204,146]])road([hub,p],5,[.62,.53,.37]);
@@ -1417,7 +1606,7 @@ function finishWorld(){
   for(const B of chunks){if(!B.p.length)continue;const m=new THREE.Mesh(bagGeo(B),WMAT);scene.add(m);staticMeshes.push(m);
     // keep the original positions and colours, to restore broken and damaged pieces for the next match
     B.mesh=m;B.pos=m.geometry.attributes.position;B.col=m.geometry.attributes.color;B.pos.setUsage(THREE.DynamicDrawUsage);B.col.setUsage(THREE.DynamicDrawUsage);
-    B.p0=B.pos.array.slice();B.c0=B.col.array.slice();B.p=B.n=B.c=null}
+    B.p0=B.pos.array.slice();B.c0=B.col.array.slice();B.p=B.n=B.c=B.a=null}
   mpLink();
   // clouds, all one mesh, above the Drifter's line
   // (bigger and fewer than before: each is a row of five to seven puffs with a flat, blue-grey underside and a white top)
@@ -1525,7 +1714,7 @@ function drawScene(){lookSync();renderer.render(scene,camera);if(lookKey>=2)grad
 function mpLink(){
   const E=.06,ph=new Map(),key=(i,j)=>i*4096+j;
   for(const P of mpieces){P.cells=[];for(let i=Math.floor((P.min[0]-E)/HS);i<=Math.floor((P.max[0]+E)/HS);i++)for(let j=Math.floor((P.min[2]-E)/HS);j<=Math.floor((P.max[2]+E)/HS);j++){const k=key(i,j);let a=ph.get(k);if(!a)ph.set(k,a=[]);a.push(P)}
-    const B=P.parts.length?P.parts[0].B:null;if(B){const i=P.parts[0].start*3;P.hex=new THREE.Color(B.c0[i],B.c0[i+1],B.c0[i+2]).getHex()}else P.hex=0x9a8f80}
+    const B=P.parts.length?P.parts[0].B:null;if(P.hexv!=null)P.hex=P.hexv;else if(B){const i=P.parts[0].start*3;P.hex=new THREE.Color(B.c0[i],B.c0[i+1],B.c0[i+2]).getHex()}else P.hex=0x9a8f80}
   const touch=(a,b)=>a.min[0]<=b.max[0]+E&&a.max[0]>=b.min[0]-E&&a.min[1]<=b.max[1]+E&&a.max[1]>=b.min[1]-E&&a.min[2]<=b.max[2]+E&&a.max[2]>=b.min[2]-E;
   const seen=new Set(),NB=[];
   for(const P of mpieces){
