@@ -221,7 +221,12 @@
     if (c && Date.now() - c.t < TTL) return Promise.resolve(c.r);
     if (loading[uid]) return loading[uid];
     loading[uid] = waitParty().then(function (P) { return P.boot().then(function (b) {
-      return b.db.ref(PATH + '/' + uid).once('value').then(function (s) { return of(s.val(), uid, P.now ? P.now() : Date.now()); });
+      return b.db.ref(PATH + '/' + uid).once('value').then(function (s) {
+        // The same node carries the player's edited avatar (av); avatar.js checks it before using it.
+        var v = s.val(), BA = window.BackRoomAvatar;
+        if (BA && BA.learn && v && typeof v.av === 'string') { try { BA.learn(uid, v.av); } catch (e) {} }
+        return of(v, uid, P.now ? P.now() : Date.now());
+      });
     }); }).then(function (r) { return r; }, function () { return of(null, uid); }).then(function (r) {
       cache[uid] = { r: r, t: Date.now() }; delete loading[uid];
       try { document.dispatchEvent(new CustomEvent('backroom:miles', { detail: { uid: uid } })); } catch (e) {}

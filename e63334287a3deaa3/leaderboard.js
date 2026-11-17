@@ -835,7 +835,13 @@
       var val = snap.val() || {}, now = P.now ? P.now() : Date.now(), out = [], keys = Object.keys(val);
       // MAX_NODES counts players shown, not nodes read: stale nodes (which pile up, as nothing removes them) cost one
       // comparison each in parse and mustn't crowd out current players further down the list.
-      for (var i = 0; i < keys.length && out.length < MAX_NODES; i++) { var p = parse(keys[i], val[keys[i]], now); if (p) out.push(p); }
+      // av: the player's edited avatar as a code; avatar.js checks it and draws their own avatar if it's anything else.
+      var BA = window.BackRoomAvatar && window.BackRoomAvatar.learn ? window.BackRoomAvatar : null;
+      for (var i = 0; i < keys.length && out.length < MAX_NODES; i++) {
+        var p = parse(keys[i], val[keys[i]], now); if (!p) continue;
+        out.push(p);
+        if (BA && typeof val[keys[i]].av === 'string') { try { BA.learn(keys[i], val[keys[i]].av); } catch (e) {} }
+      }
       people = collapse(out); lastLoad = Date.now();
       say('');
     } catch (e) {
