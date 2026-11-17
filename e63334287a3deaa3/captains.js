@@ -147,9 +147,10 @@
   }
   var again = 0;
   function recheck() { check(); clearTimeout(again); again = setTimeout(check, 1500); }   // once more, in case the sign-in was still being saved
+  var hooked = [];   // account.js's SiteAccount, on this page and on the page around this frame (the Back Room page, the phone page)
   function hook() {
     [window, (function () { try { return window.parent !== window ? window.parent : null; } catch (e) { return null; } })()].forEach(function (w) {
-      try { var A = w && w.SiteAccount; if (A && A.onChange && !A.__captains) { A.__captains = 1; A.onChange(recheck); } } catch (e) {}
+      try { var A = w && w.SiteAccount; if (A && A.onChange && hooked.indexOf(A) < 0) { hooked.push(A); A.onChange(recheck); } } catch (e) {}
     });
   }
   if (!SWITCHES_ONLY) {
