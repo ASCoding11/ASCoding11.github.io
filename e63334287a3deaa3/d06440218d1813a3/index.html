@@ -468,10 +468,13 @@ tr.prow .bra-tier{margin-left:6px;vertical-align:1px}
     }
     return p;
   }
+  // Who is first on the Miles board (all time, this week), for the "#1" tags miles.js puts by the tier badges: worked
+  // out from the nodes just read, as the boards themselves would (leaderboard.js topsOf: no removed or merged accounts).
+  function tellTops(nodes,now){try{if(LB&&LB.topsOf&&window.BackRoomMiles&&BackRoomMiles.setTops)BackRoomMiles.setTops(LB.topsOf(nodes,now))}catch(e){}}
   async function loadStats(){
     var seq=++S.seq;say('sStatus','Loading…');$('sRefresh').disabled=true;
     if(!LB){say('sStatus','Couldn\'t load leaderboard.js, which holds the checks for this data. Reload the page.',true);$('sRefresh').disabled=false;return}
-    try{var r=await api.lb();await LB.readResets(rtdb);if(seq!==S.seq)return;S.nodes=r.val&&typeof r.val==='object'?r.val:{};S.now=r.now;S.loadedAt=Date.now();say('sStatus','')}
+    try{var r=await api.lb();await LB.readResets(rtdb);if(seq!==S.seq)return;S.nodes=r.val&&typeof r.val==='object'?r.val:{};S.now=r.now;S.loadedAt=Date.now();tellTops(S.nodes,S.now);say('sStatus','')}
     catch(e){if(seq!==S.seq)return;S.nodes={};S.now=Date.now();S.loadedAt=Date.now();say('sStatus','Couldn\'t load the play-time data: '+((e&&e.message)||'error'),true)}
     var keys=Object.keys(S.nodes),out=[],skip=0;
     for(var i=0;i<keys.length;i++){if(i>=LB.MAX_NODES){skip++;continue}var p=person(keys[i],S.nodes[keys[i]],S.now);if(p)out.push(p);else skip++}
@@ -758,7 +761,7 @@ tr.prow .bra-tier{margin-left:6px;vertical-align:1px}
     var seq=++P.seq;say('pStatus','Loading…');$('pRefresh').disabled=true;
     if(!LB){say('pStatus','Couldn\'t load leaderboard.js, which holds the checks for this data. Reload the page.',true);$('pRefresh').disabled=false;return}
     var nodes={};
-    try{var r=await api.lb();if(rtdb)await LB.readResets(rtdb);if(seq!==P.seq)return;nodes=r.val&&typeof r.val==='object'?r.val:{};P.now=r.now;P.loadedAt=Date.now();say('pStatus','')}
+    try{var r=await api.lb();if(rtdb)await LB.readResets(rtdb);if(seq!==P.seq)return;nodes=r.val&&typeof r.val==='object'?r.val:{};P.now=r.now;P.loadedAt=Date.now();tellTops(nodes,P.now);say('pStatus','')}
     catch(e){if(seq!==P.seq)return;P.now=Date.now();P.loadedAt=Date.now();say('pStatus','Couldn\'t load the play-time data: '+((e&&e.message)||'error'),true)}
     P.nodes=nodes;
     P.rows=Object.keys(nodes).slice(0,LB.MAX_NODES).filter(function(u){return /^[A-Za-z0-9_-]{6,128}$/.test(u)}).map(function(u){return playerRow(u,nodes[u],P.now)});

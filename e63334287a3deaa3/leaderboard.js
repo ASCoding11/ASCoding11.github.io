@@ -40,7 +40,10 @@
  * someone's Online name changes, and the row for that uid takes the new name (cleaned and masked like any other) without
  * a new read. Your own rename also fixes n on your entry (social.js), so the next read has it too.
  * Rows show each player's avatar (avatar.js) and status tier badge (miles.js, worked out from the same checked node)
- * when those scripts are here.
+ * when those scripts are here. Whoever is first on the Miles board gets a "#1 all time" or "#1 this week" tag by that
+ * badge wherever it is drawn (miles.js): after every read, tops() (the rank 1 rows of both spans) is handed to
+ * BackRoomMiles.setTops; and when a badge is drawn elsewhere on the page before the boards were read, miles.js asks
+ * for that read early (readTops), which the section then reuses for FRESH instead of reading again when it's scrolled to.
  *
  * Miles board (the first board, 'all'): This week or All time (a toggle, This week unless this browser picked All time:
  * localStorage 'lb:span'; it also switches each game's Hours board). All time ranks by BackRoomMiles.of(node).miles, the
@@ -654,8 +657,35 @@
     return list;
   }
 
+  // Who is first on the Miles board, for the "#1 all time" / "#1 this week" tags miles.js puts by tier badges: the uids
+  // rows() ranks 1 for each span, so the same checked nodes, the same week and the same tie rule as the board (a tie for
+  // first: every tied player, and allTie / weekTie say so). people: a collapsed list. all: the list before collapse, to
+  // add the entries shown as one row with a leader (the same person's other account). An empty board: an empty list.
+  function tops(people, all) {
+    var out = { all: [], week: [], allTie: false, weekTie: false };
+    var list = (people || []).filter(function (p) { return p && !p.hidden && !p.into; });
+    ['all', 'week'].forEach(function (span) {
+      var r = rows({ g: 'all', span: span }, list), ids = [];
+      for (var i = 0; i < r.length && r[i].rank === 1; i++) ids.push(r[i].p.uid);
+      out[span + 'Tie'] = ids.length > 1;
+      (all || []).forEach(function (p) { if (p && p.into && !p.hidden && ids.indexOf(p.into) >= 0 && ids.indexOf(p.uid) < 0) ids.push(p.uid); });
+      out[span] = ids;
+    });
+    return out;
+  }
+  // The same from raw nodes, for the admin page (which also lists removed and merged accounts): read here as the boards
+  // read them, without those, so its tags are the boards' too.
+  function topsOf(val, now) {
+    var sh = SHOW_HIDDEN, out = [], keys = val && typeof val === 'object' ? Object.keys(val) : [];
+    SHOW_HIDDEN = false;
+    try {
+      for (var i = 0; i < keys.length && out.length < MAX_NODES; i++) { var p = parse(keys[i], val[keys[i]], now); if (p) out.push(p); }
+      return tops(collapse(out), out);
+    } finally { SHOW_HIDDEN = sh; }
+  }
+
   // For the admin page: the same checks and names, so what it shows is what the boards would show. With data-lib, that's all.
-  window.BackRoomBoards = { RS_PATH: RS_PATH, readResets: readResets, get resets() { return RESETS; }, showHidden: function (v) { SHOW_HIDDEN = !!v; }, parse: parse, collapse: collapse, GAMES: GAMES, BY: BY, TRACKS: TRACKS, trackRows: trackRows, EPOCH: EPOCH, PATH: PATH, MAX_NODES: MAX_NODES, NODE_MAX: NODE_MAX, fmt: fmt, fmtHours: fmtHours, cleanName: cleanName, mask: mask, seatOf: seatOf };
+  window.BackRoomBoards = { tops: tops, topsOf: topsOf, RS_PATH: RS_PATH, readResets: readResets, get resets() { return RESETS; }, showHidden: function (v) { SHOW_HIDDEN = !!v; }, parse: parse, collapse: collapse, GAMES: GAMES, BY: BY, TRACKS: TRACKS, trackRows: trackRows, EPOCH: EPOCH, PATH: PATH, MAX_NODES: MAX_NODES, NODE_MAX: NODE_MAX, fmt: fmt, fmtHours: fmtHours, cleanName: cleanName, mask: mask, seatOf: seatOf };
   if (me && me.hasAttribute('data-lib')) return;
 
   // ---------------- Styles ----------------
@@ -683,7 +713,7 @@
     '.lbd-list{list-style:none;margin:0;padding:0;display:grid;gap:6px}' +
     '.lbd-r{display:grid;grid-template-columns:2.6em minmax(0,1fr) auto;align-items:center;gap:10px;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:7px 12px;min-width:0}' +
     '.lbd-r.av{grid-template-columns:2.6em 30px minmax(0,1fr) auto}' +
-    '.lbd-ex .bra-tier{margin-right:6px;vertical-align:-1px}' +
+    '.lbd-ex .bra-tier,.lbd-ex .bra-tw{margin-right:6px;vertical-align:-1px}.lbd-ex .bra-tw .bra-tier{margin-right:0}' +
     '.lbd-r.me{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--panel))}' +
     '.lbd-rk{font-family:var(--mono,var(--f-m,monospace));font-size:14px;font-weight:600;color:var(--ink-2);text-align:right}' +
     '.lbd-r:nth-child(-n+3) .lbd-rk{color:var(--accent)}' +
@@ -806,6 +836,29 @@
   $sel.value = view.g;
   view.span = ls('lb:span') === 'all' ? 'all' : 'week';   // This week unless this browser picked All time
   var people = null, myUid = '', loading = false, lastLoad = 0;
+  // everyone: the entries before collapse (for tops). FRESH: how long a read that miles.js asked for early stands in for
+  // the section's own first read.
+  var everyone = null, pushing = false, FRESH = 5 * 60000;
+  // Tell miles.js who is first on the Miles board, from the rows just read (see tops).
+  function pushTops() {
+    var M = window.BackRoomMiles; if (!M || !M.setTops || !people) return;
+    pushing = true; try { M.setTops(tops(people, everyone)); } catch (e) {} pushing = false;
+  }
+  // The nodes as read -> people: each one checked, then one row per person.
+  function take(val, now) {
+    var out = [], keys = Object.keys(val);
+    // MAX_NODES counts players shown, not nodes read: stale nodes (which pile up, as nothing removes them) cost one
+    // comparison each in parse and mustn't crowd out current players further down the list.
+    // av: the player's edited avatar as a code; avatar.js checks it and draws their own avatar if it's anything else.
+    var BA = window.BackRoomAvatar && window.BackRoomAvatar.learn ? window.BackRoomAvatar : null;
+    for (var i = 0; i < keys.length && out.length < MAX_NODES; i++) {
+      var p = parse(keys[i], val[keys[i]], now); if (!p) continue;
+      out.push(p);
+      if (BA && typeof val[keys[i]].av === 'string') { try { BA.learn(keys[i], val[keys[i]].av); } catch (e) {} }
+    }
+    people = collapse(out); everyone = out; lastLoad = Date.now();
+    pushTops();
+  }
 
   function waitParty() {
     return new Promise(function (res) {
@@ -832,17 +885,7 @@
       }
       myUid = b.uid;
       var snap = (await timeout(Promise.all([b.db.ref(PATH).once('value'), readResets(b.db)]), 15000))[0];
-      var val = snap.val() || {}, now = P.now ? P.now() : Date.now(), out = [], keys = Object.keys(val);
-      // MAX_NODES counts players shown, not nodes read: stale nodes (which pile up, as nothing removes them) cost one
-      // comparison each in parse and mustn't crowd out current players further down the list.
-      // av: the player's edited avatar as a code; avatar.js checks it and draws their own avatar if it's anything else.
-      var BA = window.BackRoomAvatar && window.BackRoomAvatar.learn ? window.BackRoomAvatar : null;
-      for (var i = 0; i < keys.length && out.length < MAX_NODES; i++) {
-        var p = parse(keys[i], val[keys[i]], now); if (!p) continue;
-        out.push(p);
-        if (BA && typeof val[keys[i]].av === 'string') { try { BA.learn(keys[i], val[keys[i]].av); } catch (e) {} }
-      }
-      people = collapse(out); lastLoad = Date.now();
+      take(snap.val() || {}, P.now ? P.now() : Date.now());
       say('');
     } catch (e) {
       say(e && e.message && e.message !== 'timeout' ? e.message : 'Couldn’t reach the leaderboards. If you’re on a school or work network it may be blocking the game database.', true);
@@ -851,6 +894,9 @@
     }
   }
   function isMe(uid) { return uid === myUid || uid === ls('lbs:uid'); }
+  // miles.js, when a tier badge is drawn somewhere on the page and it has no recent answer for who is first: read the
+  // boards now (the same read as the section's own), or hand over the answer again if they were read a moment ago.
+  window.BackRoomBoards.readTops = function () { if (people && Date.now() - lastLoad < FRESH) pushTops(); else load(); };
 
   // ---------------- Drawing ----------------
   function bid(b) { return b.id || b.k; }
@@ -990,7 +1036,12 @@
   $refresh.addEventListener('click', function () { lastLoad = 0; load(); });
   // avatar.js and miles.js may load after the boards were drawn (the home page loads them alongside this file).
   document.addEventListener('backroom:avatar', function () { if (people) draw(); });
-  document.addEventListener('backroom:miles', function (e) { if (people && e.detail && !e.detail.uid) draw(); });
+  // The same event with detail.tops says who is first changed (the "#1" tags): redraw, unless it is our own answer.
+  document.addEventListener('backroom:miles', function (e) {
+    if (!people || !e.detail || e.detail.uid || pushing) return;
+    if (!e.detail.tops) pushTops();   // miles.js has just arrived: all-time miles now include wins and bests
+    draw();
+  });
 
   // A rename (ours, or someone's Online name changing): rename their row now rather than at the next read.
   var nameT = 0;
@@ -1007,11 +1058,14 @@
   if (GAME) { /* read when the panel opens */ }
   else if ('IntersectionObserver' in window) {
     var io = new IntersectionObserver(function (es) {
-      if (es.some(function (x) { return x.isIntersecting; })) { io.disconnect(); load(); }
+      if (es.some(function (x) { return x.isIntersecting; })) { io.disconnect(); if (!people || Date.now() - lastLoad > FRESH) load(); }
     }, { rootMargin: '200px 0px' });
     io.observe(sec);
   } else load();
+  // A badge was drawn before this file had loaded (the home page loads the scripts in any order): miles.js asks now.
+  try { if (window.BackRoomMiles && BackRoomMiles.needTops) BackRoomMiles.needTops(); } catch (e) {}
 
   // Test hook for the automated checks; harmless in normal play.
-  if (navigator.webdriver) window.__lb = { get people() { return people; }, get view() { return view; }, get myUid() { return myUid; }, parse: parse, collapse: collapse, rows: rows, milesOf: milesOf, $span: $span, trackRows: trackRows, boardsFor: boardsFor, fmt: fmt, BY: BY, load: function () { lastLoad = 0; return load(); }, draw: draw, set top(n) { TOP = n; }, setResets: function (r) { RESETS = r || {}; }, PATH: PATH, EPOCH: EPOCH };
+  if (navigator.webdriver) window.__lb = { get people() { return people; }, get view() { return view; }, get myUid() { return myUid; }, parse: parse, collapse: collapse, rows: rows, milesOf: milesOf, $span: $span, trackRows: trackRows, boardsFor: boardsFor, fmt: fmt, BY: BY, load: function () { lastLoad = 0; return load(); }, draw: draw, set top(n) { TOP = n; }, setResets: function (r) { RESETS = r || {}; }, PATH: PATH, EPOCH: EPOCH,
+    feed: function (val, now) { take(val || {}, now || Date.now()); say(''); draw(); }, tops: tops, get lastLoad() { return lastLoad; }, set lastLoad(t) { lastLoad = t; } };
 })();
