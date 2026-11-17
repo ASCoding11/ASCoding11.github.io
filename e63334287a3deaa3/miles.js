@@ -17,10 +17,11 @@
  *   tierOf(miles)       the tier for a number of miles (never Captain or Vice Captain: those come from the uid)
  *   isOwner(uid)        whether a uid is in OWNERS
  *   isVice(uid)         whether a uid is in VICE_CAPTAINS (and not in OWNERS: an owner is always Captain)
- *   badge(result, opts) a <span class="bra-tier"> pill for it (opts.miles: show the miles too). For whoever is first on the
- *                       Leaderboards' Miles board it is a <span class="bra-tw"> holding the pill and a "#1 all time" and/or
- *                       "#1 this week" tag (see "#1 on the Miles board" below)
- *   setTops(tops)       leaderboard.js hands over who is first ({ all: [uid…], week: [uid…], allTie, weekTie }) after each
+ *   badge(result, opts) a <span class="bra-tier"> pill for it (opts.miles: show the miles too). For the top three on the
+ *                       Leaderboards' Miles board it is a <span class="bra-tw"> holding the pill and a "#1 all time",
+ *                       "#2 this week" … tag: gold, silver, bronze (see "#1 on the Miles board" below)
+ *   setTops(tops)       leaderboard.js hands over the top three ({ all, week: [uid…] the firsts, allTie, weekTie, and
+ *                       all2, all3, week2, week3: [uid…] the seconds and thirds; topOf's all and week are the place, 1 to 3) after each
  *                       read of the boards; topOf(uid) is { all, week, allTie, weekTie } for a leader, else null;
  *                       needTops() asks the boards again if a badge wanted an answer before leaderboard.js had loaded
  *   line(result)        the progress line under your own name: "2,340 miles · 7,660 to First Class", "… · the top tier",
@@ -194,17 +195,20 @@
     if (res && res.uid) { wantTops(); top = topOf(res.uid); }
     if (!top) return s;
     var w = document.createElement('span'); w.className = 'bra-tw'; w.appendChild(s);
-    if (top.all) w.appendChild(topTag('all', top.allTie));
-    if (top.week) w.appendChild(topTag('week', top.weekTie));
+    if (top.all) w.appendChild(topTag('all', top.all, top.allTie));
+    if (top.week) w.appendChild(topTag('week', top.week, top.weekTie));
     fitSoon(w);
     return w;
   }
-  var TOP_TEXT = { all: ['all time', 'Ranked #1 in miles, all time'], week: ['this week', 'Ranked #1 in miles, this week'] };
-  function topTag(k, tie) {
+  var TOP_TEXT = { all: 'all time', week: 'this week' };
+  // place: 1, 2 or 3 (gold, silver, bronze). All time is a solid metal chip; this week is the same metal as an outline
+  // on slate, so a week's medal reads as a step below an all-time one.
+  function topTag(k, place, tie) {
     var s = document.createElement('span'), b = document.createElement('b'), l = document.createElement('span');
-    s.className = 'bra-top bra-top-' + k; b.textContent = '#1'; l.textContent = TOP_TEXT[k][0];   // fixed words, no text from anyone
+    place = place === 2 || place === 3 ? place : 1;
+    s.className = 'bra-top bra-top-' + k + ' bra-top-p' + place; b.textContent = '#' + place; l.textContent = TOP_TEXT[k];   // fixed words, no text from anyone
     s.appendChild(b); s.appendChild(l);
-    s.title = TOP_TEXT[k][1] + (tie ? ' (tied for first)' : '');
+    s.title = 'Ranked #' + place + ' in miles, ' + TOP_TEXT[k] + (tie && place === 1 ? ' (tied for first)' : '');
     return s;
   }
   // The tags say "#1 all time" where the row has room and just "#1" where it hasn't (a phone row, a narrow card): the
@@ -248,19 +252,25 @@
     // Vice Captain: silver on steel blue with a silver rim: Captain's shape and glow, clearly not gold.
     '.bra-tier-vice{color:#E3E9F2;background:linear-gradient(135deg,#2F4E7E,#13233F);border-color:#AEB9C9;box-shadow:0 0 0 1px rgba(208,217,230,.18),0 1px 4px rgba(120,150,200,.35);letter-spacing:.08em}' +
     '.bra-tier-captain{color:#F7C948;background:linear-gradient(135deg,#1F2A44,#0B1020);border-color:#D4A72C;box-shadow:0 0 0 1px rgba(247,201,72,.18),0 1px 4px rgba(212,167,44,.35);letter-spacing:.1em}' +
-    // "#1 all time" (gold) and "#1 this week" (teal) for whoever is first on the Miles board: squared chips, so they
+    // "#1 all time", "#2 …", "#3 …" and the same for this week, for the top three on the Miles board: squared chips, so they
     // don't read as a second tier pill (First Class is gold too), in fixed colours that carry their own background in
     // light and dark mode. No taller than the pill, so a row keeps its height. bra-tw-s: no room, just "#1".
     '.bra-tw{display:inline-flex;align-items:center;gap:3px;min-width:0;max-width:100%;vertical-align:middle}' +
     '.bra-tw>.bra-tier{flex:0 1 auto;min-width:0}' +
     '.bra-top{display:inline-flex;align-items:center;gap:.5em;flex:none;box-sizing:border-box;height:17px;padding:0 5px;border:1px solid;border-radius:5px;font-family:var(--mono,var(--f-m,ui-monospace,monospace));font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;line-height:1;white-space:nowrap}' +
     '.bra-top b{font-weight:700}.bra-tw-s .bra-top>span{display:none}' +
-    '.bra-top-all{color:#3B2600;background:linear-gradient(135deg,#FFE58A,#F0B429);border-color:#C98F00}' +
-    '.bra-top-week{color:#fff;background:#0B7285;border-color:#2FA4B8}';
+    // All time: solid gold, silver, bronze. This week: the same three metals as text and rim on slate (a matte medal).
+    '.bra-top-all.bra-top-p1{color:#3B2600;background:linear-gradient(135deg,#FFE58A,#F0B429);border-color:#C98F00}' +
+    '.bra-top-all.bra-top-p2{color:#1F2933;background:linear-gradient(135deg,#F4F6F8,#B4BDC9);border-color:#8792A2}' +
+    '.bra-top-all.bra-top-p3{color:#3A1E05;background:linear-gradient(135deg,#F3CDA4,#C27C3F);border-color:#96581F}' +
+    '.bra-top-week{background:#1E2633}' +
+    '.bra-top-week.bra-top-p1{color:#F7C948;border-color:#C9A227}' +
+    '.bra-top-week.bra-top-p2{color:#D8DEE6;border-color:#8E99A8}' +
+    '.bra-top-week.bra-top-p3{color:#E5A873;border-color:#A9682F}';
   (document.head || document.documentElement).appendChild(css);
 
   // ---------------- #1 on the Miles board ----------------
-  // Who is first on the Leaderboards' Miles board, all time and this week, as leaderboard.js worked it out the last time
+  // Who is first, second and third on the Leaderboards' Miles board, all time and this week, as leaderboard.js worked it out the last time
   // the boards were read (BackRoomBoards.tops: the board's own rows, so the same checked nodes, the same week and the
   // same tie rule: everyone tied for first is first). Nothing is read per badge and nothing is written to the database.
   // leaderboard.js hands the answer to setTops after every read of the boards; it is kept here and in this browser's
@@ -273,9 +283,12 @@
   function uidList(a) { return Array.isArray(a) ? a.filter(okUid).slice(0, TOPS_MAX) : []; }
   function cleanTops(o, t) {
     if (!o || typeof o !== 'object' || !(t > 0) || t > Date.now() + 60000) return null;
-    return { t: t, all: uidList(o.all), week: uidList(o.week), allTie: !!o.allTie, weekTie: !!o.weekTie };
+    // all / week are the firsts, as before; all2, all3, week2, week3 the seconds and thirds (absent in an answer saved
+    // by a page from before them: nobody is second or third until the boards are read again).
+    return { t: t, all: uidList(o.all), week: uidList(o.week), allTie: !!o.allTie, weekTie: !!o.weekTie,
+      all2: uidList(o.all2), all3: uidList(o.all3), week2: uidList(o.week2), week3: uidList(o.week3) };
   }
-  function topsSig(o) { return o ? o.all.join() + '|' + o.week.join() + '|' + (o.allTie ? 1 : 0) + (o.weekTie ? 1 : 0) : ''; }
+  function topsSig(o) { return o ? [o.all, o.week, o.all2, o.all3, o.week2, o.week3].map(function (a) { return a.join(); }).join('|') + '|' + (o.allTie ? 1 : 0) + (o.weekTie ? 1 : 0) : ''; }
   function liveTops() { return tops && Date.now() - tops.t < TOPS_KEEP ? tops : null; }
   function takeTops(c) {
     var was = topsSig(liveTops()); tops = c;
@@ -292,8 +305,10 @@
   }
   function topOf(uid) {
     var c = liveTops(); if (!c || !okUid(uid)) return null;
-    var a = c.all.indexOf(uid) >= 0, w = c.week.indexOf(uid) >= 0;
-    return a || w ? { all: a, week: w, allTie: a && c.allTie, weekTie: w && c.weekTie } : null;
+    // all, week: the place (1, 2 or 3), or 0 for nobody on that podium.
+    function place(k) { return c[k].indexOf(uid) >= 0 ? 1 : c[k + '2'].indexOf(uid) >= 0 ? 2 : c[k + '3'].indexOf(uid) >= 0 ? 3 : 0; }
+    var a = place('all'), w = place('week');
+    return a || w ? { all: a, week: w, allTie: a === 1 && c.allTie, weekTie: w === 1 && c.weekTie } : null;
   }
   function wantTops() {
     var now = Date.now();
