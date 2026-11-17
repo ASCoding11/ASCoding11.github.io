@@ -1140,6 +1140,9 @@ function kitWall(S,W,a,b,y,lv,L,ops,cA,cB,par){
 }
 // Detail that isn't a box (a cylinder, a cone, a tilted brace), turned any way; drawn with the piece being built without counting toward its size.
 function deco(geo,x,y,z,sx,sy,sz,hex,lay,rx,ry,rz,sh){const d=DECO,l=LAY;DECO=1;LAY=lay||0;_e.set(rx||0,ry||0,rz||0,'YXZ');_q.setFromEuler(_e);_m4.compose(_p.set(x,y,z),_q,_s.set(sx,sy,sz));bagAdd(chunkOf(x,z),geo,_m4,hex,sh||1);DECO=d;LAY=l;_e.order='XYZ'}
+// a box with its edges eased a little (for vehicles): much squarer than the characters' ROUND_BOX
+const SOFT_BOX=(()=>{const g=new THREE.BoxGeometry(1,1,1,2,2,2).toNonIndexed(),p=g.attributes.position,n=g.attributes.normal,v=new V3(),u=new V3(),f=new V3();
+  for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i);f.fromBufferAttribute(n,i);u.copy(v).normalize();v.lerp(u.clone().multiplyScalar(.7),.16);p.setXYZ(i,v.x,v.y,v.z);f.lerp(u,.3).normalize();n.setXYZ(i,f.x,f.y,f.z)}return g})();
 // sixteen-sided, flat-faced (so each face takes its texture from one side)
 const CYL16=(()=>{const g=new THREE.CylinderGeometry(1,1,1,16,1).toNonIndexed();g.computeVertexNormals();return g})(),CONE16=(()=>{const g=new THREE.ConeGeometry(1,1,16,1).toNonIndexed();g.computeVertexNormals();return g})();
 // Raised block letters for signs, from a 5-row dot font; each letter is a few boxes.
@@ -1155,6 +1158,10 @@ function signLen(text,h){let n=-1;for(const ch of text)n+=glyph(ch).w+1;return n
 // cell, so each letter breaks with the cell it is on.
 function sign(W,text,uL,v0,h,hex,a,b,w0){const px=h/5,dir=W.ns?W.out:-W.out;let u=uL;w0=w0||0;
   for(const ch of text){const g=glyph(ch),wd=g.w*px,mid=u+dir*wd/2;if(a==null||(mid>=a&&mid<b))for(const [c0,r0,c1,r1] of g.r)wk(W,u+dir*c0*px,v0+(5-r1)*px,w0,u+dir*c1*px,v0+(5-r0)*px,w0+.07,hex,0,63^M_I);u+=dir*(wd+px)}}
+// A lamp post, drawn only (the pole is 12 cm thick and nothing is solid): dx, dz is the way its arm points.
+function lampPost(x,z,dx,dz,h,hex){h=h||5;hex=hex||0x4a535b;onLand(x,z,.05,()=>{kb(x-.2,0,z-.2,x+.2,.35,z+.2,0x9a968c,TX.CN,55);kb(x-.06,.35,z-.06,x+.06,h,z+.06,hex,0,51);
+  kb(x-.06+Math.min(0,dx),h-.08,z-.06+Math.min(0,dz),x+.06+Math.max(0,dx),h+.04,z+.06+Math.max(0,dz),hex,0);
+  kb(x+dx-.22-Math.abs(dz)*.0,h-.2,z+dz-.22,x+dx+.22,h-.08,z+dz+.22,0xfff2bd,0)})}
 // A building of w x d cells and some levels of 4 m: outer walls with doors and windows, a floor slab each level,
 // zigzag stairs, a flat roof with a low parapet. Returns helpers to place chests and floor loot inside.
 function house(cx,cz,w,d,o){
@@ -1255,9 +1262,19 @@ function crate(x,z,y,s,hex){s=s||1.4;let r;const f=()=>brk(70,6,()=>{const y0=y|
   for(const v of [y0+.04,y0+s-.2])kb(x-s/2-.025,v,z-s/2-.025,x+s/2+.025,v+.16,z+s/2+.025,c,0,v>y0+.1?55:51,0,.72)});if(y)f();else onLand(x,z,.05,f);return r}
 function bale(x,z,rot){const a=rot?[1.2,2.2]:[2.2,1.2];let r;onLand(x,z,.08,()=>brk(50,6,()=>{LAY=TX.HY;r=sbox(x-a[0]/2,0,z-a[1]/2,x+a[0]/2,1.3,z+a[1]/2,0xf0cf66,6);LAY=0}));return r}
 function car(x,z,rot,hex){brk(260,4,()=>car0(x,z,rot,hex))}
-function car0(x,z,rot,hex){const l=rot?[2,4.2]:[4.2,2];sbox(x-l[0]/2,.3,z-l[1]/2,x+l[0]/2,1.25,z+l[1]/2,hex,4);
+function car0(x,z,rot,hex){const l=rot?[2,4.2]:[4.2,2];if(curMP)curMP.hexv=hex;
+  // (the boxes are the ones there always were, so what is solid is unchanged; they are no longer what is drawn)
+  NOVIS=1;sbox(x-l[0]/2,.3,z-l[1]/2,x+l[0]/2,1.25,z+l[1]/2,hex,4);
   const k=.62;sbox(x-l[0]*k/2,1.25,z-l[1]*k/2,x+l[0]*k/2,1.85,z+l[1]*k/2,0x2d3a46,4);
-  for(const [dx,dz] of [[-.34,-.4],[.34,-.4],[-.34,.4],[.34,.4]])sbox(x+dx*l[0]-.25,0,z+dz*l[1]-.25,x+dx*l[0]+.25,.55,z+dz*l[1]+.25,0x1b1d22,0,true)}
+  for(const [dx,dz] of [[-.34,-.4],[.34,-.4],[-.34,.4],[.34,.4]])sbox(x+dx*l[0]-.25,0,z+dz*l[1]-.25,x+dx*l[0]+.25,.55,z+dz*l[1]+.25,0x1b1d22,0,true);NOVIS=0;
+  // a rounded body, a glass cabin under a roof, bumpers, lights and four wheels; u runs along the car, v across it
+  const B=(u0,y0,v0,u1,y1,v1,c,lay,m,sh)=>rot?kb(x+v0,y0,z+u0,x+v1,y1,z+u1,c,lay,m==null?63:(m&12)|(m&1?16:0)|(m&2?32:0)|(m&16?1:0)|(m&32?2:0),0,sh):kb(x+u0,y0,z+v0,x+u1,y1,z+v1,c,lay,m,0,sh);
+  const R=(u,y,v,su,sy,sv,c,sh)=>deco(SOFT_BOX,rot?x+v:x+u,y,rot?z+u:z+v,(rot?sv:su)*1.05,sy*1.05,(rot?su:sv)*1.05,c,0,0,0,0,sh);
+  R(0,.74,0,4.2,.8,1.96,hex);R(-.12,1.42,0,2.35,.72,1.7,0x2b3945);B(-1.28,1.76,-.84,1.04,1.86,.84,hex,0,55,1.06);
+  for(const u of [-1.26,-.1,1.0])B(u,1.12,-.87,u+.1,1.78,.87,hex,0,48);
+  B(-2.16,.36,-.9,-2.04,.6,.9,0x3a3f46);B(2.04,.36,-.9,2.16,.6,.9,0x3a3f46);
+  for(const v of [-.62,.62]){B(2.06,.78,v-.2,2.12,.96,v+.2,0xfff2bd);B(-2.12,.78,v-.2,-2.06,.96,v+.2,0xe8443a)}
+  for(const [u,v] of [[-1.35,-.86],[1.35,-.86],[-1.35,.86],[1.35,.86]]){deco(CYL,rot?x+v:x+u,.38,rot?z+u:z+v,.38,.3,.38,0x1b1d22,0,rot?0:Math.PI/2,0,rot?Math.PI/2:0);deco(CYL,rot?x+v*1.14:x+u,.38,rot?z+u:z+v*1.14,.2,.08,.2,0xc9cdd1,0,rot?0:Math.PI/2,0,rot?Math.PI/2:0)}}
 function fence(x0,z0,x1,z1){
   // a section at a time (a post and the rails to the next one), each its own breakable piece
   const len=Math.hypot(x1-x0,z1-z0),n=Math.max(1,Math.round(len/3)),ax=Math.abs(x1-x0)>Math.abs(z1-z0);
@@ -1315,20 +1332,40 @@ function buildWorld(){
   chestSpots.push({x:32,y:0,z:91,yaw:0});
   for(const [x,z,r] of [[48,42,0],[52,42,0],[50,40.8,0],[66,46,1],[70,46,1],[78,58,0],[30,62,1],[26,66,0],[86,70,1]])bale(x,z,r);
   fence(40,28,40,46);fence(40,50,40,54);fence(25,54,34,54);
-  brk(220,4,()=>{sbox(66,0,62,70,1.6,64,0x3b7d3a,4);sbox(66.5,1.6,62.3,68,2.6,63.7,0x2d3a46,4);sbox(64.5,0,61.6,65.6,1.3,64.4,0x1c1d20,4)});
+  brk(220,4,()=>{if(curMP)curMP.hexv=0x3b8a3f;NOVIS=1;sbox(66,0,62,70,1.6,64,0x3b7d3a,4);sbox(66.5,1.6,62.3,68,2.6,63.7,0x2d3a46,4);sbox(64.5,0,61.6,65.6,1.3,64.4,0x1c1d20,4);NOVIS=0;
+    // the tractor: a green body and bonnet, a glass cab under a roof, big rear wheels, small front ones, an exhaust
+    deco(SOFT_BOX,68.3,1,63,3.6,1.25,1.9,0x3b8a3f);deco(SOFT_BOX,65.6,.95,63,2.3,.95,1.35,0x3b8a3f);kb(64.4,.6,62.45,64.5,1.2,63.55,0x2a2d31);
+    deco(SOFT_BOX,67.25,2.05,63,1.6,1.05,1.5,0x2b3945);kb(66.4,2.5,62.2,68.1,2.62,63.8,0x3b8a3f,0,55,0,1.08);
+    for(const zz of [61.95,64.05]){deco(CYL,68.6,.85,zz,.85,.5,.85,0x1b1d22,0,Math.PI/2);deco(CYL,68.6,.85,zz+(zz<63?-.22:.22),.42,.08,.42,0xe8c33a,0,Math.PI/2);
+      deco(CYL,65.05,.55,zz+(zz<63?-.05:.05),.55,.4,.55,0x1b1d22,0,Math.PI/2);deco(CYL,65.05,.55,zz+(zz<63?-.24:.24),.26,.08,.26,0xe8c33a,0,Math.PI/2)}
+    deco(CYL,65.9,1.9,63.4,.07,1.1,.07,0x2a2d31);for(const zz of [62.55,63.45])kb(64.38,.95,zz-.12,64.44,1.12,zz+.12,0xfff2bd)});
   floorSpots.push({x:44,y:0,z:84},{x:20,y:0,z:60},{x:82,y:0,z:52});
   });
   // ---- Signal Point (north): a lattice tower with zigzag ramps to a lookout 20 m up ----
   grp(OFS.signal[0],OFS.signal[1],OFS.signal[2],()=>{
   place('Signal Point',166,50,36);
   paint({k:'circle',t:'yard',x:164,z:48,r:24,col:[.5,.55,.38]});
-  {const holes=zigzag(39,10,0,0,5,0x7d8790);
-    for(let k=1;k<=5;k++){slab(38,10,42,12,k*4,0x9aa4ad,new Set([holes[k]]),2);
+  {RLAY=TX.PN;const holes=zigzag(39,10,0,0,5,0x8a949d);RLAY=0;
+    for(let k=1;k<=5;k++){LAY=TX.PN;slab(38,10,42,12,k*4,0xa6b0b9,new Set([holes[k]]),2);LAY=0;
       railing(152,40,168,40.25,k*4);railing(152,47.75,168,48,k*4);railing(152,40.25,152.25,47.75,k*4);railing(167.75,40.25,168,47.75,k*4)}
-    for(const [x,z] of [[152.3,40.3],[167.7,40.3],[152.3,47.7],[167.7,47.7],[160,40.3],[160,47.7]])sbox(x-.32,0,z-.32,x+.32,20.9,z+.32,0xb64236,2);
-    sbox(159.6,20.9,43.6,160.4,36,44.4,0xd8dde2,2,true);sbox(159.4,35.6,43.4,160.6,36.6,44.6,0xff4a3a,0,true);
+    for(const [x,z] of [[152.3,40.3],[167.7,40.3],[152.3,47.7],[167.7,47.7],[160,40.3],[160,47.7]]){LAY=TX.PN;sbox(x-.32,0,z-.32,x+.32,20.9,z+.32,0xc4483a,2);LAY=0;
+      kb(x-.6,0,z-.6,x+.6,.3,z+.6,0x9a968c,TX.CN,55);for(const yy of [8,16])kb(x-.335,yy,z-.335,x+.335,yy+4,z+.335,0xf1eee6,TX.PN,51)}   // footings, and the white bands of a mast
+    // cross braces on the outside of the frame, from the first floor up (nothing is solid: they are 12 cm thick)
+    for(let k=1;k<5;k++){const yy=k*4+2,sg=k&1?1:-1,a1=Math.atan2(4,7.7),a2=Math.atan2(4,7.4);
+      for(const z of [39.9,48.1])for(const [x,d] of [[156.15,1],[163.85,-1]])deco(UNIT_BOX,x,yy,z,8.68,.12,.12,0x8a949d,0,0,0,a1*sg*d);
+      for(const x of [151.9,168.1])deco(UNIT_BOX,x,yy,44,.12,.12,8.41,0x8a949d,0,a2*sg,0,0)}
+    // the mast: red and white, two drums, three panels and a beacon
+    for(let k=0;k<6;k++)kb(159.7,20.9+k*2.5,43.7,160.3,23.4+k*2.5,44.3,k&1?0xf1eee6:0xc4483a,TX.PN,51);
+    kb(159.1,28.3,43.1,160.9,28.42,44.9,0x8a949d,TX.PN);kb(159.1,33.3,43.1,160.9,33.42,44.9,0x8a949d,TX.PN);
+    deco(CYL,160.75,29.6,44,.85,.4,.85,0xf1eee6,0,0,0,Math.PI/2);deco(CYL,159.6,31.4,44.7,.7,.36,.7,0xf1eee6,0,Math.PI/2,0,0);
+    for(const [dx,dz] of [[-.5,-.5],[.38,-.5],[-.06,.5]])kb(160+dx,33.5,44+dz-.06,160+dx+.24,35.2,44+dz+.06,0xdfe4e8);
+    kb(159.95,35.9,43.95,160.05,37.4,44.05,0x8a949d,0,51);shape(ICO,160,36.3,44,.34,.34,.34,0xff4a3a);
     chestSpots.push({x:166,y:12,z:46,yaw:0},{x:154,y:20,z:46,yaw:Math.PI});floorSpots.push({x:154,y:8,z:46},{x:166,y:16,z:46},{x:158,y:20,z:46});}
-  const hut=house(43,12,3,2,{col:0xe4e7ea,trim:0x56616c,roof:0x3e4a55,doors:[['w',0],['s',2]],win:.5,st:'hut'});
+  const hut=house(43,12,3,2,{col:0xe4e7ea,trim:0x56616c,roof:0x3e4a55,doors:[['w',0],['s',2]],win:.5,st:'hut',
+    x(side,i,lv,W,a,b,y){
+      if(side==='n'&&i===1){wk(W,a+1.2,y+2.75,0,a+2.4,y+3.45,.42,0xcdd4d9,TX.PN,63^M_I);wk(W,a+1.3,y+2.85,.42,a+2.3,y+3.35,.43,0x4a545c,0,M_O)}   // a cooler on the wall
+      if(side==='e'&&i===0){wk(W,a+.5,y+2.6,.04,a+.58,y+6.4,.12,0x56616c,0,M_RING|M_T);const u=a+.54,q=W.fc+.5;deco(CYL,q,y+6,u,.7,.3,.7,0xf1eee6,0,0,0,Math.PI/2);wk(W,a+.3,y,0,a+.36,y+3.9,.05,0x56616c,0,M_O|M_U)}}});   // a dish on a pole, a cable run
+  lampPost(144,58,0,-1.2);
   hut.chest(2,0,0,Math.PI);hut.floor(0,1,0);
   crate(146,52);crate(147.5,53.4,0,1.2,0x5d6b78);crate(172,40,0,1.6,0x5d6b78);floorSpots.push({x:150,y:0,z:36});
   });
@@ -1337,8 +1374,15 @@ function buildWorld(){
   place('Pinecone Plaza',164,162,46);
   paint({k:'rect',t:'paved',x0:124,z0:132,x1:204,z1:192,col:[.42,.43,.45]});
   {const atr=new Set();for(let ix=3;ix<=8;ix++)for(let iz=2;iz<=4;iz++)atr.add((35+ix)+','+(37+iz));
-    const mall=house(35,37,12,7,{levels:2,col:0xe9dcc3,trim:0x2f6f68,roof:0x436a59,floorCol:0x8c8474,holes:{1:atr},doors:[['n',5],['n',6],['s',5],['s',6],['w',3],['e',3]],win:.35,st:'mall'});
-    staticRamp(38,40,0,2,0x2f6f68);staticRamp(43,40,0,0,0x2f6f68);
+    const mall=house(35,37,12,7,{levels:2,col:0xe9dcc3,trim:0x2f6f68,roof:0x436a59,floorCol:0x8c8474,holes:{1:atr},doors:[['n',5],['n',6],['s',5],['s',6],['w',3],['e',3]],win:.35,st:'mall',
+      // its name over both entrances, in raised letters (drawn cell by cell, so a letter goes with its piece of wall)
+      x(side,i,lv,W,a,b,y){if(lv===1&&(side==='s'||side==='n')){const L_=signLen('PINECONE PLAZA',.8);sign(W,'PINECONE PLAZA',164-W.out*L_/2,y+.22,.8,0x1f5d57,a,b,.1)}},
+      // on the roof: skylights over the atrium and four low coolers; under it and under the upper floor: strip lights
+      rx(ix,iz,yy){const x=140+ix*4,z=148+iz*4;if((ix+iz)%2===0)kb(x+1.2,yy-.36,z+1.75,x+2.8,yy-.3,z+2.25,0xfffbe6,0,59);
+        if(ix>=3&&ix<=8&&iz>=2&&iz<=4&&(ix+iz)%2===1){kb(x+.6,yy,z+.6,x+3.4,yy+.2,z+3.4,0x2f7a72,0,51);kb(x+.72,yy+.1,z+.72,x+3.28,yy+.17,z+3.28,0x4f8c9a,TX.GL,4)}
+        if((ix===1||ix===10)&&(iz===1||iz===5)){kb(x+1,yy,z+1.2,x+3,yy+.34,z+2.8,0xcdd4d9,TX.PN,55);deco(CYL,x+2,yy+.36,z+2,.62,.04,.62,0x4a545c);kb(x+3,yy,z+1.8,x+4,yy+.2,z+2.2,0xaab3b9,TX.PN,55)}},
+      fx(ix,iz,lv,yy){const x=140+ix*4,z=148+iz*4;if((ix+iz)%2===0)kb(x+1.2,yy-.36,z+1.75,x+2.8,yy-.3,z+2.25,0xfffbe6,0,59)}});
+    RLAY=TX.TI;staticRamp(38,40,0,2,0x2f6f68);staticRamp(43,40,0,0,0x2f6f68);RLAY=0;
     // railings round the atrium on the upper floor (gaps where the ramps arrive)
     railing(152,155.85,176,156.1,4,0x2f6f68);railing(152,167.9,176,168.15,4,0x2f6f68);
     railing(151.9,156.1,152.15,159.8,4,0x2f6f68);railing(151.9,164.2,152.15,167.9,4,0x2f6f68);railing(175.85,156.1,176.1,159.8,4,0x2f6f68);railing(175.85,164.2,176.1,167.9,4,0x2f6f68);
@@ -1349,9 +1393,14 @@ function buildWorld(){
     wallRun(0,156,168,187.7,0,3.7,SHC,[{at:170,w:2,lo:0,hi:2.8},{at:178,w:2.2,lo:0,hi:2.8},{at:186,w:2.2,lo:0,hi:2.8}],6,.25);BRK=0;
     mall.chest(0,0,0,0);mall.chest(3,0,0,0);mall.chest(7,0,0,0);mall.chest(10,0,0,0);mall.chest(1,5,1,Math.PI/2);mall.chest(10,1,1,-Math.PI/2);mall.chest(5,5,0,0);
     mall.floor(6,3,0);mall.floor(2,5,0);mall.floor(9,5,0);mall.floor(5,0,1);mall.floor(6,6,1);mall.floor(0,3,1);mall.floor(11,3,1);
-    for(const [x,z] of [[158,164],[168,160]])brk(70,4,()=>{sbox(x-1,0,z-1,x+1,.8,z+1,0x6f8f4a,4);shape(ICO,x,1.7,z,1.1,1.3,1.1,0x3f8a39)});
+    // planters with a timber seat round the rim
+    for(const [x,z] of [[158,164],[168,160]])brk(70,4,()=>{if(curMP)curMP.hexv=0xcfc8b8;LAY=TX.CN;sbox(x-1,0,z-1,x+1,.8,z+1,0xd6cfbf,4);LAY=0;shape(ICO,x,1.7,z,1.1,1.3,1.1,0x3f8a39);
+      kb(x-1.08,.62,z-1.08,x+1.08,.74,z+1.08,0x9a7448,TX.PH,63);kb(x-.86,.8,z-.86,x+.86,.83,z+.86,0x5a4530,0,4);deco(ICO,x+.35,1.25,z-.3,.7,.7,.7,0x4f9a3c,0,0,1)});
     for(const [x,z] of [[184,174],[146,174],[184,150]])crate(x,z,4,1.4,0x9a7a52);}
-  for(const [x,z,rot,c] of [[132,140,0,0xd44a3a],[132,148,0,0x3a76d4],[132,176,0,0xe8e2d4],[196,144,0,0x2e2e33],[196,170,0,0x4fa36a],[150,186,1,0xe0b13a],[176,186,1,0x7a4fd4],[160,138,1,0xd47a3a],[178,138,1,0x3ad4c4]])car(x,z,rot,c);
+  for(const [x,z,rot,c] of [[132,140,0,0xd44a3a],[132,148,0,0x3a76d4],[132,176,0,0xe8e2d4],[196,144,0,0x2e2e33],[196,170,0,0x4fa36a],[150,186,1,0xe0b13a],[176,186,1,0x7a4fd4],[160,138,1,0xd47a3a],[178,138,1,0x3ad4c4]]){car(x,z,rot,c);
+    // parking bays painted round each car, and an empty one either side
+    for(const o of [-4.5,-1.5,1.5,4.5])if(rot)kb(x+o-.06,.02,z-2.6,x+o+.06,.04,z+2.6,0xf2f0e6,0,4);else kb(x-2.6,.02,z+o-.06,x+2.6,.04,z+o+.06,0xf2f0e6,0,4)}
+  for(const [x,z,dx,dz] of [[127,136,1.2,0],[201,136,-1.2,0],[127,188,1.2,0],[201,188,-1.2,0],[164,190,0,-1.2],[142,134,0,1.2],[186,134,0,1.2]])lampPost(x,z,dx,dz,5.5);
   });
   // ---- Spillway Dam (east): a 12 m dam wall with a walkway on top, stair towers at both ends, a pump house ----
   grp(OFS.dam[0],OFS.dam[1],OFS.dam[2],()=>{
