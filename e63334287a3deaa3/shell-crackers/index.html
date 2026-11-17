@@ -1189,6 +1189,53 @@ function buildFreezer(){
   tree(14,6);tree(40,5);tree(4,48);
   spawn(10,19);spawn(10,52);spawn(13,35);spawn(12,45);spawn(23,20);spawn(46,19);spawn(22,27,G,45,27.5);spawn(32,21,L1);
 }
+
+// Sunny Side Sands: the open map. A desert valley with a fort at each end of a straight road, a deep dry wash across the
+// middle (a plank bridge carries the road over it; ramps lead down in and back out), a rock mesa on each side to shoot
+// from, ruins and an oasis in the corners. Long sight lines along the road, the wash and the edges.
+function palm(x,z){fill(x,G,z,x,G+8,z,M_.DARKWOOD);for(const d of [1,2]){put(x-d,G+8,z,M_.LEAVES);put(x+d,G+8,z,M_.LEAVES);put(x,G+8,z-d,M_.LEAVES);put(x,G+8,z+d,M_.LEAVES)}put(x,G+9,z,M_.LEAVES)}
+function cactus(x,z,turn){fill(x,G,z,x,G+4,z,M_.CGRN);const a=turn?0:1,b=turn?1:0;fill(x-a,G+2,z-b,x-a,G+3,z-b,M_.CGRN);put(x+a,G+1,z+b,M_.CGRN)}
+function buildSands(){
+  ground(M_.SAND,M_.SANDSTONE);
+  perimeter(10,M_.REDROCK);
+  fill(1,G-1,34,70,G-1,37,M_.ASPHALT);                               // the road
+  // --- the wash: 2 m deep and 10 m wide, right across the map; four ramps each side ---
+  clear(31,G-4,1,40,G-1,70);fill(31,1,1,40,1,70,M_.DIRT);
+  fill(31,G-1,34,40,G-1,37,M_.PLANK);                                 // the bridge (you can walk under it)
+  for(const z of [9,25,44,60])stairs(34,z,-1,0,G-4,4,3,M_.SANDSTONE);
+  vcyl(36,17.5,1.4,G-4,3,M_.REDROCK);crate(33,30,2,G-4);crate(33,31,4,G-4);crate(38,5,2,G-4);
+  // --- the forts: one room, windows all round, stairs to a walled roof ---
+  building({x0:3,z0:29,x1:13,z1:42,stories:1,wall:M_.STUCCO,groundFloor:M_.SANDSTONE,roof:'flat',parapet:M_.STUCCO,roofMat:M_.SANDSTONE,winEvery:3,
+    doors:[['e',5,4,0,5],['n',5,2,0],['s',5,2,0]]});
+  stairs(5,31,0,1,G,5,2,M_.STUCCO);
+  crate(11,31);crate(11,32,4);crate(11,40);fill(4,G,39,6,G+1,40,M_.PLANK);
+  fill(7,G+SH,30,10,G+SH+1,30,M_.SANDBAG);
+  // --- the mesas: 2.5 m of rock with three ramps, and cover on top ---
+  fill(12,G,17,25,G+4,26,M_.REDROCK);
+  stairs(7,21,1,0,G,5,2,M_.REDROCK);stairs(30,20,-1,0,G,5,2,M_.REDROCK);stairs(18,31,0,-1,G,5,2,M_.REDROCK);
+  fill(14,G+5,26,17,G+6,26,M_.SANDBAG);fill(21,G+5,26,24,G+6,26,M_.SANDBAG);
+  fill(21,G+5,22,22,G+7,23,M_.REDROCK);fill(14,G+5,18,15,G+6,18,M_.REDROCK);
+  fill(23,G+5,18,23,G+10,18,M_.DARKWOOD);fill(22,G+9,18,24,G+9,18,M_.DARKWOOD);     // a dead tree
+  // --- the road: a broken-down bus, sandbags by the bridge ---
+  fill(20,G,35,25,G+4,36,M_.CYEL);fill(20,G+2,35,25,G+3,36,M_.TRIM);
+  fill(28,G,33,29,G+1,33,M_.SANDBAG);fill(28,G,38,29,G+1,38,M_.SANDBAG);
+  // --- ruins: broken walls, columns and a paved floor ---
+  fill(11,G-1,57,21,G-1,61,M_.SANDSTONE);
+  fill(10,G,56,10,G+4,62,M_.SANDSTONE);fill(10,G,56,16,G+3,56,M_.SANDSTONE);fill(19,G,56,22,G+5,56,M_.SANDSTONE);fill(22,G,56,22,G+4,60,M_.SANDSTONE);
+  fill(14,G,62,20,G+2,62,M_.SANDSTONE);clear(10,G,59,10,G+3,60);
+  for(const [x,h] of [[13,6],[17,6],[20,3]])fill(x,G,59,x,G+h-1,59,M_.STUCCO);
+  fill(13,G+6,59,17,G+6,59,M_.STUCCO);
+  // --- the oasis: a shallow pool and palms ---
+  clear(4,G-1,4,9,G-1,8);fill(4,G-2,4,9,G-2,8,M_.WATER);
+  palm(3,10);palm(11,5);palm(10,10);
+  fill(13,G,9,15,G+3,11,M_.AWNING);clear(14,G,9,14,G+2,11);          // a little tent
+  // --- rock spires, dunes and cactus ---
+  vcyl(21,45.5,1.6,G,9,M_.REDROCK);vcyl(9.5,50,1.3,G,6,M_.REDROCK);vcyl(26,53,2,G,11,M_.REDROCK);vcyl(24,8.5,1.5,G,8,M_.REDROCK);vcyl(27,65.5,1.3,G,5,M_.REDROCK);
+  fill(15,G,43,19,G+1,44,M_.SAND);fill(16,G+2,43,18,G+2,43,M_.SAND);fill(18,G,12,22,G+1,13,M_.SAND);fill(3,G,64,7,G+1,65,M_.SAND);fill(25,G,29,27,G+1,30,M_.SAND);
+  cactus(13,47);cactus(5,54,1);cactus(28,15);cactus(13,5,1);cactus(28,47,1);cactus(3,20);cactus(24,62);
+  crate(15,39);crate(16,39,4);crate(26,41);
+  spawn(6,26);spawn(6,45);spawn(2,13);spawn(2,58);spawn(17,3);spawn(16,68);spawn(16,48);spawn(20,10);spawn(15,58,G,22,58.5);
+}
 //MAPS_END
 
 // Small arena: an online round that starts with SMALL_MAX eggs or fewer closes off the far wings of the map (box x0..71-x0,
@@ -1203,7 +1250,9 @@ const MAPS=[
   {name:'Eggsburg',build:buildTown,small:{x0:1,z0:16,h:12,m:M_.BRICK,sp:[[2,31],[16,17],[31,24],[40,18],[22,34],[6,35]]},skyTop:'#5b86c9',skyHor:'#e3e9f2',fog:0xdfe6ef,fogFar:170,sunC:0xfff0dc,sunI:.8,sunPos:[-40,66,-30],hemiS:0xe4ecff,hemiG:0x6c7a55,
    outer:['#6aa34c','#76ad55','#5f9644','#80b65e'],hills:0x6c9a4a,trees:0x3f7f3a,cloud:0xffffff},
   {name:'Deep Freeze',build:buildFreezer,skyTop:'#6fa9df',skyHor:'#f2f8ff',fog:0xe9f2fa,fogFar:150,sunC:0xf2f7ff,sunI:.6,sunPos:[34,62,-40],hemiS:0xf3f8ff,hemiG:0x9db3c4,hemiI:.8,ambI:.24,
-   outer:['#f1f6fa','#e4edf4','#ffffff','#dbe6ee'],hills:0xe6eef5,trees:0x3e6f58,cloud:0xffffff}
+   outer:['#f1f6fa','#e4edf4','#ffffff','#dbe6ee'],hills:0xe6eef5,trees:0x3e6f58,cloud:0xffffff},
+  {name:'Sunny Side Sands',build:buildSands,small:{x0:1,z0:15,h:10,m:M_.REDROCK,sp:[[6,26],[6,45],[16,48],[26,16],[27,41,G,27.5,60],[15,30,G,16.5,39.5]]},skyTop:'#2f8fe8',skyHor:'#ffeec4',fog:0xf7e6bd,fogFar:190,sunC:0xfff0c8,sunI:.95,sunPos:[24,78,34],hemiS:0xfff3d6,hemiG:0xb08a55,
+   outer:['#e6cf96','#dcc487','#eed9a6','#d6bc7c'],hills:0xc99a62,trees:0x7d8f4a,cloud:0xffffff}
 ];
 let mapIdx=-1,mapSm=0;
 // Close off the wings for a small arena (after the map is built): every open block outside the box becomes BARRIER, and
@@ -1216,7 +1265,7 @@ function smallArena(a){
   const col=(x,z)=>{for(let y=1;y<HY;y++){const i=vIdx(x,y,z);if(y<top)vox[i]=a.m;else if(vox[i]===0)vox[i]=M_.BARRIER}};
   for(let x=Math.max(0,x0-1);x<=Math.min(W-1,x1+1);x++){col(x,z0-1);col(x,z1+1)}
   if(x0>1)for(let z=z0-1;z<=z1+1;z++){col(x0-1,z);col(x1+1,z)}
-  mapSpawns=[];mirrorOn=true;for(const [x,z] of a.sp)spawn(x,z);
+  mapSpawns=[];mirrorOn=true;for(const q of a.sp)spawn(q[0],q[1],q[2],q[3],q[4]);   // [x,z] or [x,z,y,faceX,faceZ]
 }
 
 // The training range is its own map, kept out of MAPS so it never comes up in practice or online rotation.
@@ -2041,8 +2090,9 @@ function botThink(e,dt){
     if(d<.45&&Math.abs(dy)<1.6)e.pathI++;else{mx=dx/d;mz=dz/d;if(dy>.65&&e.onGround&&d<1.6)e.vel.y=JUMP}
   }
   const ml=Math.hypot(mx,mz);if(ml>1){mx/=ml;mz/=ml}
-  // stuck: hop and re-plan
-  e.stuckT+=dt;if(e.stuckT>1.1){if(ml>.3&&e.pos.distanceTo(e.lastP)<.4){if(e.onGround)e.vel.y=JUMP;e.pathT=0;e.strafe=-e.strafe;e.thinkT=0}e.stuckT=0;e.lastP.copy(e.pos)}
+  // stuck: hop and re-plan (the old path is dropped: a bot knocked off a ramp or a roof used to keep walking at its next
+  // waypoint, into the wall under it)
+  e.stuckT+=dt;if(e.stuckT>1.1){if(ml>.3&&e.pos.distanceTo(e.lastP)<.4){if(e.onGround)e.vel.y=JUMP;e.pathT=0;e.strafe=-e.strafe;e.thinkT=0;if(!(t&&e.tVis))e.path=null}e.stuckT=0;e.lastP.copy(e.pos)}
   // aim
   if(t&&e.tVis){
     const ax=t.pos.x-e.pos.x,ay=t.pos.y+.85-(e.pos.y+EYE),az=t.pos.z-e.pos.z,d3=Math.hypot(ax,ay,az);
