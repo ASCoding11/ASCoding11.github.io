@@ -13,7 +13,7 @@
  * Google account says so in its own node (to: <uid>), and the Google node lists it (al: { <uid>: ms }) once it has taken
  * its hours in. Only when both agree is the anonymous entry left out (so nobody can hide someone else's); the admin page
  * can also merge two entries it judges to be one person (a signed `a`, below), which shows them as one row: per game the
- * larger hours and the better bests.
+ * hours and counts each account earned added back, and the better bests (see fold).
  * Every value is self-reported by the player's own browser, so everything is checked here before it's shown:
  * nodes that are too big, too old, from the future or the wrong shape are skipped, play time can't exceed 24 hours for
  * every day since the boards started (EPOCH), counts can't grow faster than RATE allows for the time played in that game,
@@ -48,8 +48,9 @@
  * Miles board (the first board, 'all'): This week or All time (a toggle, This week unless this browser picked All time:
  * localStorage 'lb:span'; it also switches each game's Hours board). All time ranks by BackRoomMiles.of(node).miles, the
  * number behind the tier badge. This week is miles from play time only (miles.js's HOUR per hour), from the per-day history
- * d that stats.js keeps (seconds per game per local day, YYYYMMDD by the player's own browser): the 7 dates from 6 days ago
- * to today, by the viewer's clock, plus tomorrow for someone in a time zone ahead. Wins and bests have no date, so they
+ * d that stats.js keeps (seconds per game per local day, YYYYMMDD by the player's own browser): the dates from this week's
+ * Monday to today, by the viewer's clock (the week starts on Monday, so the board empties at midnight on Sunday night),
+ * plus tomorrow for someone in a time zone ahead. Wins and bests have no date, so they
  * only count in All time. Each day is checked like the hours (24 hours a day at most, games the boards know, at most
  * DAY_GAMES of them, plus d's '_': that day's time in games past stats.js's first eight, all together), each game's week
  * is no more than its all-time hours, and after an hours reset only the days from the reset's date count (and still no
@@ -74,7 +75,7 @@
   // stats; they are still downloaded).
   var TOP = 25, MAX_NODES = 3000, NODE_MAX = 8000, MAX_STATS = 240, STALE = 180 * 86400000;
   var EPOCH = Date.UTC(2026, 9, 21);            // the day stats.js started counting
-  var WEEK_DAYS = 7, DAY_GAMES = 12, DAY_REST = '_';   // This week: how many dates; games a day accepted (stats.js keeps 8); d's other-games key
+  var WEEK_DAYS = 7, DAY_GAMES = 12, DAY_REST = '_';   // This week: the most dates (Monday to Sunday); games a day accepted (stats.js keeps 8); d's other-games key
   var NAME_MAX = 14;
 
   // Stat formats: n (a count), elo, time (seconds to the millisecond, lower wins), dur (seconds, higher wins), m (metres), days, chips.
@@ -82,7 +83,8 @@
   // u: the unit a count is shown with ('kill' → '12 kills'). lo/hi: the sane range (anything outside is dropped).
   // rate: most per second played in that game (running counts only; rateOf: 'daily' uses the seconds of every game in the
   // Daily Puzzles group together). le: a best single round, which can't be more than
-  // this all-time count (and is dropped without it). hide: checked and kept (the admin page shows it) but not a board.
+  // this all-time count (and is dropped without it). sum: 1 marks a running count without a rate (one that only goes up as
+  // you play: hands, towers, crowns…), so an admin merge of two devices adds it up like the counts with a rate. hide: checked and kept (the admin page shows it) but not a board.
   // kd: a ratio worked out here from two checked counts, kills / max(1, deaths) to 2 decimals and at most `hi`, ranked
   // only with at least `min` kills; the node's own kd is never read. Its kills are `kdkills`, counted from the same
   // moment as deaths (so kills from before deaths were counted can't inflate it), and no more than the all-time count.
@@ -125,7 +127,7 @@
       { k: 'wins', l: 'Match wins', f: 'n', u: 'win', rate: 1 / 30 }] },
     { d: 'coil', n: 'Coil', st: [{ k: 'best', l: 'Longest snake', f: 'n', hi: 100000 }, { k: 'kills', l: 'Cut-offs (all time)', f: 'n', u: 'cut-off', rate: 0.5 }] },
     { d: 'trivium', n: 'Trivium', st: [{ k: 'daily', l: 'Best Daily score', f: 'n', u: 'pt', hi: 20000 }, { k: 'streak', l: 'Best Daily streak', f: 'days', hi: 3650 }] },
-    { d: 'showdown', n: 'Showdown', st: [{ k: 'pot', l: 'Biggest pot (practice)', f: 'chips', hi: 1e7 }, { k: 'hands', l: 'Hands played (practice)', f: 'n', u: 'hand', hi: 1e7 }] },
+    { d: 'showdown', n: 'Showdown', st: [{ k: 'pot', l: 'Biggest pot (practice)', f: 'chips', hi: 1e7 }, { k: 'hands', l: 'Hands played (practice)', f: 'n', u: 'hand', hi: 1e7, sum: 1 }] },
     { d: 'chromaflage', n: 'Chromaflage', st: [{ k: 'elo', l: 'Elo', f: 'elo', lo: 100, hi: 3000 },
       { k: 'rfound', l: 'Most hiders found in a round', f: 'n', u: 'hider', hi: 7, le: 'found' },
       { k: 'found', l: 'Hiders found (all time)', f: 'n', u: 'hider', rate: 0.2 },
@@ -133,7 +135,7 @@
     { d: 'spire', n: 'Spire', st: [
       { k: 'tower', l: 'Fastest tower', f: 'time', lo: 20, hi: 36000 },
       { k: 'obby', l: 'Fastest obby (all 49 stages)', chip: 'Fastest obby', f: 'time', lo: 120, hi: 360000 },
-      { k: 'towers', l: 'Towers climbed', f: 'n', u: 'tower', hi: 1e6 }] },
+      { k: 'towers', l: 'Towers climbed', f: 'n', u: 'tower', hi: 1e6, sum: 1 }] },
     { d: 'turbo-trail', n: 'Turbo Trail', st: [{ k: 'elo', l: 'Elo', f: 'elo', lo: 100, hi: 3000 },
       { k: 'obby', l: 'Fastest full run (all 25 levels)', chip: 'Fastest full run', f: 'time', lo: 150, hi: 360000 },
       { k: 'stars', l: 'Most stars', f: 'n', u: 'star', hi: 75 },
@@ -161,7 +163,7 @@
       { k: 'dist-clink', l: 'Longest Endless run · Clink', chip: 'Clink', f: 'm', hi: 100000 },
       { k: 'dist-spool', l: 'Longest Endless run · Spool', chip: 'Spool', f: 'm', hi: 100000 },
       { k: 'levels', l: 'Levels cleared (of 57)', chip: 'Levels', f: 'n', u: 'level', hi: 57 },
-      { k: 'crystals', l: 'Power crystals collected', chip: 'Crystals', f: 'n', u: 'crystal', hi: 100000 },
+      { k: 'crystals', l: 'Power crystals collected', chip: 'Crystals', f: 'n', u: 'crystal', hi: 100000, sum: 1 },
       { k: 'runs', l: 'Runs (all time)', chip: 'Runs', f: 'n', u: 'run', rate: 1 / 8 }] },
     { d: 'rampline', n: 'Rampline', st: [
       { k: 'medals', l: 'Medals (of 120)', chip: 'Medals', f: 'n', u: 'medal', hi: 120 },
@@ -203,9 +205,9 @@
       { k: 'found', l: 'Props found (all time)', f: 'n', u: 'prop', rate: 0.5 },
       { k: 'wins', l: 'Rounds won', f: 'n', u: 'round', rate: 1 / 20 }] },
     { d: 'tumble-trials', n: 'Tumble Trials', st: [{ k: 'elo', l: 'Elo', f: 'elo', lo: 100, hi: 3000 },
-      { k: 'crowns', l: 'Crowns', f: 'n', u: 'crown', hi: 1e5 },
+      { k: 'crowns', l: 'Crowns', f: 'n', u: 'crown', hi: 1e5, sum: 1 },
       { k: 'crownrun', l: 'Most crowns in a row', f: 'n', u: 'crown', hi: 1000, le: 'crowns' },
-      { k: 'shows', l: 'Shows played', f: 'n', u: 'show', hi: 1e6 }] },
+      { k: 'shows', l: 'Shows played', f: 'n', u: 'show', hi: 1e6, sum: 1 }] },
     { d: 'deepword', n: 'Deepword', st: [{ k: 'elo', l: 'Elo', f: 'elo', lo: 100, hi: 3000 },
       { k: 'depth', l: 'Deepest daily dive', f: 'm', hi: 10935 },
       { k: 'dives', l: 'Daily dives', f: 'n', u: 'dive', rate: 1 / 30 },
@@ -395,9 +397,11 @@
   // This week, from the node's per-day history (see the top of this file). since: an hours reset's time, or 0.
   function dayKey(d) { return String(d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate()); }
   function dayAgo(now, n) { var d = new Date(now); d.setDate(d.getDate() - n); return dayKey(d); }
+  // The week starts on Monday: how many days back this week's Monday is (0 on a Monday, 6 on a Sunday), by the viewer's clock.
+  function sinceMonday(now) { return (new Date(now).getDay() + 6) % 7; }
   function realDay(k) { return dayKey(new Date(+k.slice(0, 4), +k.slice(4, 6) - 1, +k.slice(6, 8))) === k; }
   function weekOf(p, src, now, since) {
-    var wk = {}, lo = dayAgo(now, WEEK_DAYS - 1), hi = dayAgo(now, -1);
+    var wk = {}, lo = dayAgo(now, Math.min(sinceMonday(now), WEEK_DAYS - 1)), hi = dayAgo(now, -1);
     if (since > 0) { var sd = dayKey(new Date(since)); if (sd > lo) lo = sd; }
     if (src && typeof src === 'object' && !Array.isArray(src)) Object.keys(src).slice(0, 40).forEach(function (k) {
       var g = src[k], tot = 0, m = 0;
@@ -428,6 +432,17 @@
     if (size > NODE_MAX || !v.g || typeof v.g !== 'object' || Array.isArray(v.g)) return null;
     var cap = Math.max(86400, (now - EPOCH) / 1000 + 86400);   // 24 hours a day since the boards started
     var p = { uid: uid, n: mask(cleanName(v.n)) || 'Player', seat: seatOf(uid), total: 0, top: '', topS: 0, g: {} };
+    // For admin merges (fold): a version-2 node's legacy time per game (lg, from before batches, which may overlap between
+    // accounts used in one browser) and the devices that have added time to it (q's keys; a browser's game counts are
+    // shared by every account used in it).
+    p.v2 = v.v === 2;
+    if (p.v2 && v.lg && typeof v.lg === 'object' && !Array.isArray(v.lg)) {
+      p.lg = {}; Object.keys(v.lg).slice(0, 80).forEach(function (k) { var x = Math.floor(num(v.lg[k])); if (BY[k] && x > 0) p.lg[k] = x; });
+    }
+    if (v.q && typeof v.q === 'object' && !Array.isArray(v.q)) {
+      var dv = Object.keys(v.q).filter(function (k) { return /^[A-Za-z0-9_-]{1,64}$/.test(k); }).slice(0, 16);
+      if (dv.length) { p.dev = {}; dv.forEach(function (k) { p.dev[k] = 1; }); }
+    }
     // Merged accounts (stats.js): the one this was merged into, by its owner, and the ones merged into this.
     if (okUid(v.to) && v.to !== uid) p.to = v.to;
     if (v.al && typeof v.al === 'object' && !Array.isArray(v.al)) {
@@ -502,25 +517,53 @@
   }
 
   // One row per person where that's proven: an entry whose owner merged it into another (its to, and the other's al) is left
-  // out (the other already has its hours); an entry the admin merged into another (a signed a) is folded into it, per game
-  // the larger hours and the better bests. Left-out entries are kept, marked with `into`, only when hidden ones are shown
-  // (the admin page). One step only: an entry that is itself merged into another isn't a target.
+  // out (the other already has its hours); an entry the admin merged into another (a signed a) is folded into it, adding back
+  // what each account earned on its own, the way stats.js merges an account at a Google sign-in:
+  //  - hours: each node's time from batches only ever counts play under that account, so it adds up; legacy time (lg, from
+  //    before batches, shared by every account used in one browser) counts once, the larger. A node from before version 2
+  //    has no lg, so all its time counts as legacy (the old rule: the larger).
+  //  - running counts (a stat with a rate, or sum: 1: kills, wins, goals, hands…): added up when the two accounts never shared
+  //    a device (q), since each browser keeps its own counts and publishes them under whichever account it uses; the larger
+  //    when they did or either can't say (an older node without q). K/D is worked out again from the merged counts.
+  //  - bests (Elo, best scores, fastest times, laps, "of N" collections): the better.
+  //  - this week: added up for two version-2 nodes (each counts its own play), else the larger.
+  // Left-out entries are kept, marked with `into`, only when hidden ones are shown (the admin page). One step only: an entry
+  // that is itself merged into another isn't a target.
   function better(st, a, b) { return !(a > 0) ? b : !(b > 0) ? a : low(st) ? Math.min(a, b) : Math.max(a, b); }
+  function running(st) { return !!(st && (st.rate || st.sum) && !st.kd); }
+  function apart(t, p) { if (!t.dev || !p.dev) return false; for (var k in p.dev) if (t.dev[k]) return false; return true; }
   function fold(t, p) {
+    var add = apart(t, p), tlg = t.v2 ? (t.lg || {}) : null, plg = p.v2 ? (p.lg || {}) : null, lg = {};
+    var sum = (t.wadd != null ? t.wadd : t.v2) && p.v2; t.wadd = sum;   // this week: added up only while every node is version 2
     Object.keys(p.g).forEach(function (k) {
       var o = p.g[k], to = t.g[k] || (t.g[k] = { s: 0 }), meta = BY[k];
-      to.s = Math.max(to.s, o.s);
+      var ts = to.s, ps = o.s, tl = tlg ? Math.min(ts, tlg[k] || 0) : ts, pl = plg ? Math.min(ps, plg[k] || 0) : ps;
+      to.s = ts + (ps - pl) + Math.max(0, pl - tl);
+      if (Math.max(tl, pl) > 0) lg[k] = Math.max(tl, pl);
       Object.keys(o).forEach(function (sk) {
         if (sk === 's') return;
         var st = meta && meta.st.filter(function (x) { return x.k === sk; })[0];
+        if (add && running(st) && to[sk] > 0 && o[sk] > 0) { to[sk] = Math.min(st.hi || 1e6, to[sk] + o[sk]); return; }
         to[sk] = better(st || { f: /^c?(lap|rec):/.test(sk) ? 'lap' : 'n' }, to[sk], o[sk]);
       });
+      // K/D from the merged counts (as parse does), and a best round can't be more than its all-time count.
+      if (meta) meta.st.forEach(function (st) {
+        if (st.le && to[st.k] != null && to[st.le] > 0) to[st.k] = Math.min(to[st.k], to[st.le]);
+        if (!st.kd) return;
+        var kk = to[st.kd[0]] || 0, dd = to[st.kd[1]] || 0;
+        delete to[st.k];
+        if (kk >= st.min) to[st.k] = Math.min(st.hi, Math.round(kk / Math.max(1, dd) * 100) / 100);
+      });
     });
+    // The merged entry's legacy time, so the next account folded into it overlaps with the right amount. It stays a
+    // version-2 entry only if both were.
+    Object.keys(t.g).forEach(function (k) { if (!lg[k]) { var x = tlg ? Math.min(t.g[k].s, tlg[k] || 0) : t.g[k].s; if (x > 0) lg[k] = x; } });
+    t.lg = lg; t.v2 = true;
+    if (p.dev) { t.dev = t.dev || {}; Object.keys(p.dev).forEach(function (k) { t.dev[k] = 1; }); }
     t.total = 0; t.top = ''; t.topS = 0;
     Object.keys(t.g).forEach(function (k) { var s = t.g[k].s; t.total += s; if (s > t.topS) { t.topS = s; t.top = BY[k].n; } });
-    // This week the same way: per game (and for the other-games time) the larger.
     var wk = t.wk || {};
-    Object.keys(p.wk || {}).forEach(function (k) { wk[k] = Math.max(wk[k] || 0, p.wk[k]); });
+    Object.keys(p.wk || {}).forEach(function (k) { wk[k] = sum ? (wk[k] || 0) + p.wk[k] : Math.max(wk[k] || 0, p.wk[k]); });
     weekSum(t, wk);
   }
   function collapse(list) {
@@ -657,19 +700,24 @@
     return list;
   }
 
-  // Who is first on the Miles board, for the "#1 all time" / "#1 this week" tags miles.js puts by tier badges: the uids
-  // rows() ranks 1 for each span, so the same checked nodes, the same week and the same tie rule as the board (a tie for
+  // Who is first, second and third on the Miles board, for the "#1 all time" / "#2 this week" … tags miles.js puts by
+  // tier badges: the uids rows() ranks 1, 2 and 3 for each span, so the same checked nodes, the same week and the same tie rule as the board (a tie for
   // first: every tied player, and allTie / weekTie say so). people: a collapsed list. all: the list before collapse, to
   // add the entries shown as one row with a leader (the same person's other account). An empty board: an empty list.
   function tops(people, all) {
-    var out = { all: [], week: [], allTie: false, weekTie: false };
+    // all / week: the uids ranked 1; all2, all3, week2, week3: the uids ranked 2 and 3 (silver and bronze). The ranks
+    // are the board's own, so after a tie for first the next row is rank 3 and nobody is second, as the board shows it.
+    var out = { all: [], week: [], allTie: false, weekTie: false, all2: [], all3: [], week2: [], week3: [] };
     var list = (people || []).filter(function (p) { return p && !p.hidden && !p.into; });
     ['all', 'week'].forEach(function (span) {
-      var r = rows({ g: 'all', span: span }, list), ids = [];
-      for (var i = 0; i < r.length && r[i].rank === 1; i++) ids.push(r[i].p.uid);
-      out[span + 'Tie'] = ids.length > 1;
-      (all || []).forEach(function (p) { if (p && p.into && !p.hidden && ids.indexOf(p.into) >= 0 && ids.indexOf(p.uid) < 0) ids.push(p.uid); });
-      out[span] = ids;
+      var r = rows({ g: 'all', span: span }, list);
+      [1, 2, 3].forEach(function (place) {
+        var ids = [];
+        for (var i = 0; i < r.length && r[i].rank <= place; i++) if (r[i].rank === place) ids.push(r[i].p.uid);
+        if (place === 1) out[span + 'Tie'] = ids.length > 1;
+        (all || []).forEach(function (p) { if (p && p.into && !p.hidden && ids.indexOf(p.into) >= 0 && ids.indexOf(p.uid) < 0) ids.push(p.uid); });
+        out[span + (place === 1 ? '' : place)] = ids;
+      });
     });
     return out;
   }
@@ -986,9 +1034,9 @@
     [].forEach.call($span.children, function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-s') === view.span)); });
     $spanNote.hidden = !spans;
     $spanNote.textContent = !spans ? '' : miles
-      ? (wk ? 'This week counts miles from play time in the last 7 days (today and the 6 before), ' + fmtN((window.BackRoomMiles && BackRoomMiles.HOUR) || 100) + ' an hour. Wins and bests count in All time.'
+      ? (wk ? 'This week counts miles from play time since Monday, ' + fmtN((window.BackRoomMiles && BackRoomMiles.HOUR) || 100) + ' an hour. Wins and bests count in All time.'
         : 'All time: miles for every hour played plus points for wins and bests, the same miles as each player’s status tier.')
-      : (wk ? 'This week counts time played in the last 7 days (today and the 6 before).' : '');
+      : (wk ? 'This week counts time played since Monday.' : '');
     if (!$spanNote.textContent) $spanNote.hidden = true;
     $h.textContent = (miles ? 'Miles · all games' : BY[view.g].n + ' · ' + st.l) + (spans ? (wk ? ' · this week' : ' · all time') : '');
     $list.textContent = '';
