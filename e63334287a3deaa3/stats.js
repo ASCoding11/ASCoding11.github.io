@@ -60,6 +60,9 @@
  *   av the player's edited avatar as a short code (avatar.js: 'a2:' and fifteen numbers, the older 'a1:3.5.2.7.1', or 'a0' after a reset; absent if never edited).
  *      Taken from this browser's saved edit (localStorage avatar:v1) when it is for this account, else kept as the node has it
  *   ga 1 and gn the Google display name (40 characters, no email or photo) when the account is a Google sign-in, else neither
+ *   sx miles kept from reset record seasons: { slipstream: { l: { <track>: best lap }, r: race records } }, the retired
+ *      names summarised before they are dropped (keepRetired), so a records reset never takes away miles; only added to.
+ *   ac, act an Avis miles claim (avismiles.js): the booking sealed to the admin key, and when it was sent; kept as they are.
  *   ge the Google account's email, sealed to the admin key (adminkey.js's BackRoomSeal of { k: 'ge', e: email, u: uid }), so
  *      only the admin page (both admin codes) can open it; anyone else sees ciphertext. Sealed once per account in each
  *      browser (localStorage 'lbs:ge' holds the last uid it was sealed for) and kept as the node has it otherwise. Only
@@ -539,8 +542,58 @@
   }
   // The node after this publish, from the node as it stands (cur, which may be null or from the older version).
   // x: { uid, dev, batch, b (bests), hw (watermark), v1, abs: [{ uid, node }] to merge in, keep: [uids] already merged, n, u, now, av }
+  // Miles kept from reset record seasons (sx): a record reset wipes the times from the boards, but never the miles they had
+  // earned (miles.js). Before the retired names are dropped, the node keeps a small summary of them for each game with
+  // seasons: { <folder>: { l: { <track>: best lap seconds }, r: number of race records } }. It is only ever added to (the
+  // quicker lap, the larger count) and is carried on in every write, so nothing earned before a reset is lost. leaderboard.js
+  // reads it (only for miles; the boards never show these times) and miles.js counts, per track, the better of the kept lap
+  // and this season's, and the larger of the two record counts.
+  var SX_TRACK = /^[a-z0-9-]{1,20}$/;
+  function cleanSx(v) {
+    var out = {};
+    if (!obj(v)) return out;
+    Object.keys(SEASON).forEach(function (gk) {
+      var e = v[gk]; if (!obj(e)) return;
+      var o = { l: {}, r: 0 };
+      if (obj(e.l)) Object.keys(e.l).slice(0, 60).forEach(function (t) { var x = num(e.l[t]); if (SX_TRACK.test(t) && x > 0 && x <= 900) o.l[t] = Math.round(x * 1000) / 1000; });
+      var r = Math.floor(num(e.r)); if (r > 0) o.r = Math.min(r, 500);
+      if (!has(o.l)) delete o.l;
+      if (!o.r) delete o.r;
+      if (o.l || o.r) out[gk] = o;
+    });
+    return out;
+  }
+  function addSx(sx, gk, l, r) {
+    var e = sx[gk] || {}, ll = e.l || {};
+    Object.keys(l || {}).forEach(function (t) { if (!(ll[t] > 0) || l[t] < ll[t]) ll[t] = l[t]; });
+    if (has(ll)) e.l = ll;
+    if ((r || 0) > (e.r || 0)) e.r = Math.min(r, 500);
+    if (e.l || e.r) sx[gk] = e;
+  }
+  // Add a node's (or an account being merged in's) retired record names to sx.
+  function keepRetired(sx, rawG) {
+    if (!obj(rawG)) return;
+    Object.keys(SEASON).forEach(function (gk) {
+      var o = rawG[gk]; if (!obj(o)) return;
+      var l = {}, recs = {}, n = 0;
+      Object.keys(o).forEach(function (k) {
+        if (!retired(gk, k)) return;
+        var m = SEASONED.exec(k), x = num(o[k]); if (!m || !(x > 0)) return;
+        if (m[1] === 'lap' && SX_TRACK.test(m[3]) && x <= 900) { if (!(l[m[3]] > 0) || x < l[m[3]]) l[m[3]] = Math.round(x * 1000) / 1000; }
+        else if (m[1] === 'rec' && /^[a-z0-9-]{1,20}:\d{1,3}$/.test(m[3]) && !recs[m[3]]) { recs[m[3]] = 1; n++; }
+      });
+      addSx(sx, gk, l, n);
+    });
+  }
   function apply(cur, x) {
     cur = obj(cur) ? cur : {};
+    var sx = cleanSx(cur.sx);
+    keepRetired(sx, cur.g);
+    (x.abs || []).forEach(function (a) {
+      if (!obj(a.node)) return;
+      var o = cleanSx(a.node.sx); Object.keys(o).forEach(function (gk) { addSx(sx, gk, o[gk].l, o[gk].r); });
+      keepRetired(sx, a.node.g);
+    });
     var g = cleanG(cur.g), d = cleanDays(cur.d), q = cleanStamps(cur.q, MAX_DEV, okDev), al = cleanStamps(cur.al, MAX_AL, okUid);
     var absAv = '';
     var lg = cur.v === 2 ? cleanSecs(cur.lg) : null;          // (an empty lg isn't stored: a v 2 node without one has no legacy time)
@@ -591,9 +644,12 @@
     Object.keys(lg).forEach(function (gk) { if (!g[gk]) delete lg[gk]; else lg[gk] = Math.min(lg[gk], S(gk)); });
     q = cleanStamps(q, MAX_DEV, okDev); al = cleanStamps(al, MAX_AL, okUid);
     var nd = { n: x.n, c: colorOf(x.uid), x: 0, z: 0, h: 0, ts: Math.round(x.now), v: 2, st: seatOf(x.uid), g: g, d: d, lg: lg, q: q };
+    if (has(sx)) nd.sx = sx;                                    // miles kept from before a record reset (see keepRetired)
     if (has(al)) nd.al = al;
     if (okUid(cur.to) && cur.to !== x.uid) nd.to = cur.to;     // this account was merged into another (its owner said so)
     if (obj(cur.w)) nd.w = cur.w;                               // the wallet's mirror (wallet.js), kept as it is
+    // An Avis miles claim (avismiles.js writes it straight to the node): ac, sealed to the admin key, and act, when it was sent.
+    if (okGe(cur.ac) && num(cur.act) > 0) { nd.ac = cur.ac; nd.act = Math.floor(num(cur.act)); }
     // The player's edited avatar (avatar.js): this browser's saved choice for this account, else what the node already says.
     // An anonymous account merged in just now brings its avatar along if this account has none of its own.
     var av = okAv(x.av) ? x.av : okAv(cur.av) ? cur.av : absAv;
@@ -891,6 +947,6 @@
     load: load, flush: flush, publish: function () { return publish(false); }, engaged: function () { return engaged(Date.now()); },
     local: function (gk) { flush(); var t = load().tc; return gk ? t[gk] || 0 : t; }, apply: apply, cleanDays: cleanDays,
     setIdle: function (ms) { IDLE = ms; }, setGrace: function (ms) { GRACE = ms; }, setPub: function (ms) { PUB_MS = ms; }, setSave: function (ms) { SAVE_MS = ms; },
-    link: link, anyTarget: function () { anyTarget = true; }, localAv: localAv, localNt: localNt, seasonKey: seasonKey, retired: retired, PATH: PATH, sealGe: sealGe, okGe: okGe
+    link: link, anyTarget: function () { anyTarget = true; }, localAv: localAv, localNt: localNt, seasonKey: seasonKey, retired: retired, PATH: PATH, sealGe: sealGe, okGe: okGe, cleanSx: cleanSx
   };
 })();

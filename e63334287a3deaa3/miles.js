@@ -189,20 +189,32 @@
     Object.keys(p.g).forEach(function (d) {
       var o = p.g[d], rules = RULES[d]; if (!o || typeof o !== 'object') return;
       if (rules) Object.keys(rules).forEach(function (k) { bonus += points(rules[k], num(o[k])); });
-      if (d === 'slipstream' && B && B.TRACKS) {
-        var laps = 0, recs = 0;
-        Object.keys(o).forEach(function (k) {
-          var m = /^lap:([a-z0-9-]+)$/.exec(k), t = m && B.TRACKS[m[1]], x = num(o[k]);
-          if (t && x > 0) laps += Math.max(0, Math.min(1, (LAP_WINDOW * t[1] - x) / ((LAP_WINDOW - 1) * t[1]))) * LAP_PER_TRACK;
-          else if (/^rec:[a-z0-9-]+:\d+$/.test(k) && num(o[k]) > 0) recs += REC_EACH;
-        });
-        bonus += Math.min(LAP_CAP, laps) + Math.min(REC_CAP, recs);
-      }
     });
+    // Slipstream lap times and race records. Miles earned before the records were reset are kept (p.sx, from stats.js):
+    // per track the better of the kept lap and this season's, and the larger of the two record counts, so a reset never
+    // takes miles away and a quicker lap this season still adds.
+    if (B && B.TRACKS && (p.g.slipstream || p.sx)) {
+      var so = p.g.slipstream || {}, best = {}, nrec = 0, laps = 0;
+      var credit = function (t, x) { return Math.max(0, Math.min(1, (LAP_WINDOW * t[1] - x) / ((LAP_WINDOW - 1) * t[1]))) * LAP_PER_TRACK; };
+      Object.keys(so).forEach(function (k) {
+        var m = /^lap:([a-z0-9-]+)$/.exec(k), t = m && B.TRACKS[m[1]], x = num(so[k]);
+        if (t && x > 0) best[m[1]] = Math.max(best[m[1]] || 0, credit(t, x));
+        else if (/^rec:[a-z0-9-]+:\d+$/.test(k) && num(so[k]) > 0) nrec++;
+      });
+      if (p.sx) {
+        Object.keys(p.sx.l || {}).forEach(function (k) { var t = B.TRACKS[k], x = num(p.sx.l[k]); if (t && x > 0) best[k] = Math.max(best[k] || 0, credit(t, x)); });
+        nrec = Math.max(nrec, num(p.sx.r) || 0);
+      }
+      Object.keys(best).forEach(function (k) { laps += best[k]; });
+      bonus += Math.min(LAP_CAP, laps) + Math.min(REC_CAP, nrec * REC_EACH);
+    }
+    // Avis miles: bonus miles the admin granted for car bookings (avismiles.js; signed, read by leaderboard.js as p.am).
+    var avis = Math.max(0, Math.min(1e6, num(p.am) || 0));
+    bonus += avis;
     var miles = Math.floor(play / 3600 * HOUR + bonus);
     out.miles = miles; out.real = tierOf(miles);
     if (!out.owner && !out.vice) { out.tier = out.real; out.next = nextOf(miles); }
-    out.hours = play / 3600; out.play = Math.floor(play / 3600 * HOUR); out.bonus = Math.floor(bonus); out.ok = true;
+    out.hours = play / 3600; out.play = Math.floor(play / 3600 * HOUR); out.bonus = Math.floor(bonus); out.avis = Math.floor(avis); out.ok = true;
     return out;
   }
 

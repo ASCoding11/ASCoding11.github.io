@@ -20,8 +20,6 @@
  *    never blocks anything: Not now, Esc, the close button or a click outside close it at once, and the small card
  *    above is there as usual afterwards (with its own 7-day quiet period). It waits while a game is open over the
  *    page (an invite link), closes itself if a game opens, and is never shown while signed in or without SiteAccount.
- *    On the Back Room page it first waits (at most 4 s) for the prize wheel (account/wheel.js), whose offer also asks a
- *    signed-out visitor to sign in; if the wheel's offer opens, that counts as this visit's prompt.
  *
  * 2. The save. While someone is signed in with Google, a whitelist of the games' localStorage keys
  *    (KEYS and PREFIXES below: names, skins and colours, bests and records, settings and keybinds)
@@ -277,22 +275,9 @@
     }
     return false;
   }
-  // The Back Room page also has the prize wheel (account/wheel.js), whose offer opens about a second after it boots and
-  // asks a signed-out visitor to sign in too. Two asks in a row would be pushy, so wait for its decision first; if it
-  // opened, that was this visit's ask.
-  var wheelT0 = 0;
-  function wheelBusy() {
-    if (!document.querySelector('script[src*="wheel.js"]')) return false;
-    if (!wheelT0) wheelT0 = Date.now();
-    var cta = document.getElementById('wheel-cta');
-    if (cta && !cta.__svSeen) cta.__svSeen = Date.now();
-    var since = cta ? Date.now() - cta.__svSeen : 0;
-    return Date.now() - wheelT0 < 4000 && (!cta || since < 1300);
-  }
   function maybePrompt() {
     if (modal || modalWait || prompted() || !A || (A.user && A.user())) return;
-    if (document.querySelector('.wh-bg')) { try { sessionStorage.setItem(PROMPTED, '1'); } catch (e) {} return; }
-    if (gameOpen() || wheelBusy()) { modalWait = setTimeout(function () { modalWait = 0; maybePrompt(); }, gameOpen() ? 1000 : 250); return; }
+    if (gameOpen()) { modalWait = setTimeout(function () { modalWait = 0; maybePrompt(); }, 1000); return; }
     try { sessionStorage.setItem(PROMPTED, '1'); } catch (e) { return; }   // no session storage: never risk showing it on every load
     openModal();
   }
