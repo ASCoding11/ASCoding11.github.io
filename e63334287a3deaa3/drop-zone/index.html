@@ -3155,19 +3155,19 @@ function syncLimbs(){
   for(const k in gunIM){const im=gunIM[k];im.visible=im.count>0;if(im.count)im.instanceMatrix.needsUpdate=true}
 }
 /* Poses: [chest lean (forward is negative), chest turn (left is positive), left arm x, y, z, right arm x, y, z, crowbar
-   angle in the hand, left and right shoulder moved out]. An arm's numbers turn it about its shoulder: first y (round), then
+   angle in the hand (up from straight along the forearm), left and right shoulder moved out, crowbar turned out]. An arm's numbers turn it about its shoulder: first y (round), then
    x (up), then z (out to the side); the last two slide the shoulder out (a hanging arm then clears the hips standing straight);
    0 is the pose the body is drawn in, both arms forward holding a weapon, which every weapon, aim, reload, pump and bolt
    still uses, so the hands stay on every grip. The crowbar angle tips the bar up from straight along the forearm. */
-const POSE_N=11,LEG_L=.69;
-const POSES={rest:[0,0,0,0,0,0,0,0,0,0,0],
-  cb:[0,0,-1.3,.4,-.05,-1.3,-.08,.03,.5,-.06,.07],               // crowbar out: carried low at the right side, hook forward; the left arm hangs
-  fall:[.1,0,.35,1.55,-.55,.35,-1.15,.55,.5,0,0],          // skydiving: both arms out to the sides
-  glide:[0,0,1.6,.4,.3,1.6,0,-.36,.5,0,0]};             // holding the glider's handles over the shoulders
+const POSE_N=12,LEG_L=.69;
+const POSES={rest:[0,0,0,0,0,0,0,0,0,0,0,0],
+  cb:[0,0,-1.3,.4,-.05,-.6,.3,.1,2.9,-.06,.03,.35],  // crowbar out: the right hand at the chest, the bar resting back over the right shoulder; the left arm hangs
+  fall:[.1,0,.35,1.55,-.55,.35,-1.15,.55,.5,0,0,0],          // skydiving: both arms out to the sides
+  glide:[0,0,1.6,.4,.3,1.6,0,-.36,.5,0,0,0]};             // holding the glider's handles over the shoulders
 // The crowbar's swing, keyed in seconds from the hit (null: the pose it starts from and goes back to): a quick wind-up up
 // and back over the right shoulder with the chest turning right, a fast arc across and down to the front where the hit
 // lands (at 0.1 s: the spark, the whack and your camera's shake are held back to then), a follow-through, and back.
-const SWING=[[0,null],[.055,[0,-.42,-1.1,.4,-.05,1.95,-.35,-.5,1.3,-.06,0]],[.1,[-.14,.14,-1.2,.4,-.05,-.22,.12,0,.18,-.06,0]],[.17,[-.17,.34,-1.25,.4,-.05,-.55,.45,.05,.3,-.06,0]],[.44,null]];
+const SWING=[[0,null],[.055,[0,-.42,-1.1,.4,-.05,1.95,-.35,-.5,1.3,-.06,0,0]],[.1,[-.14,.14,-1.2,.4,-.05,-.22,.12,0,.18,-.06,0,0]],[.17,[-.17,.46,-1.25,.4,-.05,-.48,.95,.05,.32,-.06,0,0]],[.44,null]];
 const SWING_HIT=100;
 function makeModel(hex,skinIx,fit,face){
   fit=fitOf(fit);face=faceOf(face);
@@ -4707,7 +4707,7 @@ function animModel(e,dt){
   for(let i=0;i<POSE_N;i++)pb[i]+=(tg[i]-pb[i])*k12;
   u.cbw=(u.cbw||0)+((cb?1:0)-(u.cbw||0))*k12;
   const pf=u.pf;pf.set(pb);
-  if(u.cbw>.01&&e.onGround){const a=sw*u.cbw;pf[2]-=a*.75;pf[5]+=a*.3;pf[1]+=a*.12}   // the free arm swings against the legs
+  if(u.cbw>.01&&e.onGround){const a=sw*u.cbw;pf[2]-=a*.75;pf[5]+=a*.1;pf[1]+=a*.12}   // the free arm swings against the legs
   const st=e.swAt?(now-e.swAt)/1000:9;
   if(cb&&st<SWING[SWING.length-1][0]&&!RM){let i=1;while(SWING[i][0]<st)i++;const a=SWING[i-1],b=SWING[i],q=clamp((st-a[0])/(b[0]-a[0]),0,1),k=q*q*(3-2*q),A0=a[1]||pf,B0=b[1]||pf;
     for(let j=0;j<POSE_N;j++)pf[j]=A0[j]+(B0[j]-A0[j])*k}
@@ -4716,7 +4716,7 @@ function animModel(e,dt){
   // crosshair is, and tips up and down with the aim; everything else here is added on top and turns about the hand.
   // All of it is worked out as if the arm were at rest and then carried along with the right arm (heldFollow).
   const g=u.gun,gk=u.gk,wp=!!WEAP[gk],K=KICK[gk];
-  if(gk==='cb'){g.rotation.set(pf[8],0,0,'YXZ');_gh.set(0,0,.06).applyQuaternion(g.quaternion);g.position.set(.3-_gh.x,1.36-_gh.y,-.5-_gh.z);
+  if(gk==='cb'){g.rotation.set(pf[8],pf[11],0,'YXZ');_gh.set(0,0,.06).applyQuaternion(g.quaternion);g.position.set(.3-_gh.x,1.36-_gh.y,-.5-_gh.z);
     if(u.sw>0){u.sw=Math.max(0,u.sw-dt*4.5);if(!RM){const q=u.sw*u.sw;g.position.y-=q*.2;g.rotateX(-q*.9)}}
     heldFollow(u);return}
   let x=wp?HOLD[0]:.3,y=wp?HOLD[1]:1.36,z=-.62,rx=0,ry=wp?HOLD[2]:0,rz=0;
@@ -5293,7 +5293,7 @@ if(navigator.webdriver)window.__dz={get state(){return state},get online(){retur
   STUCK_LOG,landPath,landClear,navShut,NAVN,updateBots,updatePlayer,step(dt){pClock+=dt*1000;practiceTick(dt);if(inPlay()){updatePlayer(dt);updateBots(dt)}},
   landOk,landFit,landUnder,skirtOf,skirtList,pieceBox,buildList,applyBuilds,handleEvent,get bdDirty(){return bdDirty},bdGone,ED_N,edRects,edOk,pieceShape,partsOf,partList,partIM,pieceInst,editPiece,wouldTrap,openEdit,closeEdit,confirmEdit,editKey,editTarget,editTile,updateEdit,canEdit,pieceMatrix,pieceCentre,EDIT_T,EDIT_RANGE,pressCode,get edit(){return edit},get editJob(){return editJob},get editAim(){return editAim},get buildCd(){return buildCd},rampH,rampAt,rampBlocked,solidAt,rayRamp,rhash,COST,JUMP,GRAV:G,STEP,RT,MAXL,terrainH,walkH,terrainSlope,rayTerrain,TH,TN,TS,TM,LVL,LAKE,PADS,SHED_Y,chestSpots,floorSpots,buildings,footprints,get groundMesh(){return groundMesh},
   Face,FACE_STARTS,FACE0,faceOf,faceBits,faceStr,faceRows,faceSpot,faceZ,bagFace,setShowFaces,NOOB,get myFace(){return myFace},get showFaces(){return showFaces},
-  Locker,get LOCKER_ON(){return lockerOn()},lockerSync,OUTFITS,bodyGeo,LEG_GEO,legIM,fitLegIM,fitLegGeo,makeModel,setModelColor,legSpec,STD_LEGS,fitOf,hitboxes,TKON,PCOLS,SKINS,get mySkin(){return mySkin}};
+  Locker,get LOCKER_ON(){return lockerOn()},lockerSync,OUTFITS,bodyGeo,LEG_GEO,legIM,fitLegIM,fitLegGeo,makeModel,setModelColor,legSpec,STD_LEGS,fitOf,hitboxes,POSES,SWING,posePut,heldFollow,GLIDER_GEO,bodyRig,TKON,PCOLS,SKINS,get mySkin(){return mySkin}};
 
 requestAnimationFrame(t=>{last=t;frame(t)});
 })();
