@@ -104,6 +104,12 @@ button:disabled{opacity:.5;cursor:default}
 #hurt{position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 45%,rgba(190,20,10,.75) 100%);opacity:0}
 #tags{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .ntag{position:absolute;left:0;top:0;font-weight:700;font-size:15px;letter-spacing:.06em;color:#ffb3a8;text-shadow:0 1px 2px #000;white-space:nowrap;pointer-events:none}
+/* Find tags: after 1:30 of a round every living player's tag flashes for 2 s every 15 s, through walls (see findClock). */
+.ntag.fl{font-size:16px;line-height:1.25;padding:1px 8px;background:rgba(14,12,5,.8);border:1px solid currentColor;will-change:transform,opacity}
+#find{position:absolute;top:calc(108px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);font-family:var(--f-osd);font-size:18px;line-height:1;letter-spacing:.08em;color:var(--ink-dim);background:var(--panel);border:1px solid var(--line);padding:3px 9px 5px;white-space:nowrap;overflow:hidden}
+#find i{position:absolute;left:0;bottom:0;width:100%;height:2px;background:var(--mustard);transform-origin:left center;transform:scaleX(0);transition:transform 1s linear}
+#find.on{color:var(--char);background:var(--mustard);border-color:var(--mustard)}
+#find.on i{opacity:0;transition:none}
 #feed .r{color:var(--red)} #feed .b{color:var(--blue)}
 
 #banner{position:absolute;left:0;right:0;top:30%;text-align:center;pointer-events:none;padding-inline:16px}
@@ -244,15 +250,17 @@ body.touch #hint{bottom:auto;top:calc(110px + env(safe-area-inset-top,0px));font
 body.touch #score{left:calc(200px + env(safe-area-inset-left,0px));transform:scale(.8);transform-origin:left top}
 body.touch #net{left:calc(200px + env(safe-area-inset-left,0px));transform:none;white-space:normal;width:max-content;max-width:calc(100vw - 220px);text-align:left}
 body.touch #pips{left:calc(200px + env(safe-area-inset-left,0px));transform:none;top:calc(56px + env(safe-area-inset-top,0px))}
+body.touch #find{left:calc(60px + env(safe-area-inset-left,0px));transform:none;top:calc(50px + env(safe-area-inset-top,0px));font-size:16px}
 @media (orientation:portrait){
   body.touch #slots{right:50%;transform:translateX(50%);top:calc(120px + env(safe-area-inset-top,0px))}
   body.touch #score{left:50%;transform:translateX(-50%) scale(.8);transform-origin:center top;top:calc(58px + env(safe-area-inset-top,0px))}
   body.touch #pips{left:50%;transform:translateX(-50%);top:calc(98px + env(safe-area-inset-top,0px))}
+  body.touch #find{left:auto;right:calc(10px + env(safe-area-inset-right,0px));top:calc(14px + env(safe-area-inset-top,0px))}
   body.touch #net{left:50%;transform:translateX(-50%);top:calc(170px + env(safe-area-inset-top,0px));max-width:calc(100vw - 32px);text-align:center}
   body.touch #hint{top:calc(198px + env(safe-area-inset-top,0px))}
   body.touch #feed{top:calc(232px + env(safe-area-inset-top,0px))}
 }
-@media (prefers-reduced-motion:reduce){.blink{animation:none}#banner.show{animation:none}}
+@media (prefers-reduced-motion:reduce){.blink{animation:none}#banner.show{animation:none}#find i{transition:none}}
 </style>
 <script src="/e63334287a3deaa3/stats.js" data-game="backrooms-1v1" defer></script>
 <script src="/e63334287a3deaa3/elo.js" data-game="backrooms-1v1" defer></script>
@@ -275,6 +283,7 @@ body.touch #pips{left:calc(200px + env(safe-area-inset-left,0px));transform:none
     </div>
     <div id="pips" hidden><span class="r" id="pipR"></span><span class="b" id="pipB"></span></div>
     <div id="net" hidden></div>
+    <div id="find" hidden><span id="findTxt"></span><i id="findBar"></i></div>
     <div id="feed"></div>
     <div id="tags"></div>
     <div id="scope" hidden></div>
@@ -1492,9 +1501,10 @@ function sfxHit(head){tone('square',head?1500:1050,head?1700:1000,.07,.06)}
 function sfxHurt(){tone('sine',90,40,.5,.25);burst('lowpass',500,.25,.15)}
 function sfxCrackle(v){burst('highpass',2500,.08*v,.14)}
 function sfxJoin(){tone('triangle',440,660,.12,.18)}
+function sfxFind(){tone('sine',880,1320,.05,.16)}
 
 /* ---------- HUD ---------- */
-const hud={root:$('hud'),sYou:$('sYou'),sBot:$('sBot'),sYouLbl:$('sYouLbl'),sBotLbl:$('sBotLbl'),round:$('roundLbl'),goal:$('goalLbl'),pips:$('pips'),pipR:$('pipR'),pipB:$('pipB'),hpN:$('hpNum'),hpF:$('hpFill'),shN:$('shNum'),shF:$('shFill'),hint:$('hint'),reload:$('reload'),reloadF:$('reloadFill'),scope:$('scope'),hurt:$('hurt'),hitm:$('hitm'),clock:$('clock'),feed:$('feed'),banner:$('banner'),cl:$('cl'),cr:$('cr'),ct:$('ct'),cb:$('cb'),cross:$('cross'),tags:$('tags'),net:$('net')};
+const hud={root:$('hud'),sYou:$('sYou'),sBot:$('sBot'),sYouLbl:$('sYouLbl'),sBotLbl:$('sBotLbl'),round:$('roundLbl'),goal:$('goalLbl'),pips:$('pips'),pipR:$('pipR'),pipB:$('pipB'),hpN:$('hpNum'),hpF:$('hpFill'),shN:$('shNum'),shF:$('shFill'),hint:$('hint'),reload:$('reload'),reloadF:$('reloadFill'),scope:$('scope'),hurt:$('hurt'),hitm:$('hitm'),clock:$('clock'),feed:$('feed'),banner:$('banner'),cl:$('cl'),cr:$('cr'),ct:$('ct'),cb:$('cb'),cross:$('cross'),tags:$('tags'),net:$('net'),find:$('find'),findTxt:$('findTxt'),findBar:$('findBar')};
 let hurtA=0,hitT=0;
 function hitmark(head){hitT=.14;hud.hitm.style.color=head?'#ffd84a':'#fff'}
 function feed(html,cls){const d=document.createElement('div');d.className=cls;d.innerHTML=html;hud.feed.prepend(d);while(hud.feed.children.length>5)hud.feed.lastChild.remove();setTimeout(()=>{d.style.opacity='0'},3800);setTimeout(()=>d.remove(),4500)}
@@ -1559,6 +1569,28 @@ let mapKey='';   // which match:round the current layout belongs to
 let RD=null,curMatch=null,curRound=0,roster=new Map(),myTeamPref='r',myKills=0,lobbyShown=false,lobbyDirty=false,watchMode=false,specUid=null,lastRz='';
 const names=new Map(),kills=new Map();   // uid -> name / kills this match, kept for players who leave mid-match
 const roundNo=()=>online?curRound:score.you+score.opp+1;
+// Find tags: once a round's fight has run for FIND_AT seconds, every FIND_EVERY seconds a name tag shows over every
+// living player for FIND_SHOW seconds, through walls, so players who can't find each other can (drawn in updateHud).
+// The clock is the round's own, so every browser flashes at the same moments and nothing new is sent: online, the
+// server-clock time since the fight began (the round node's pt is when the countdown ended, and it is left alone for the
+// whole fight phase); in practice, the seconds fought this round (roundT). findShift is only ever set by the test hook.
+const FIND_AT=90,FIND_EVERY=15,FIND_SHOW=2;
+let roundT=0,findShift=0,findSec=-1,findOn=false,findNoted=null;
+function findClock(){
+  if(state!=='playing')return -1;
+  if(!online)return phase==='fight'?roundT+findShift:-1;
+  return inPlay()&&RD.ph==='fight'&&curMatch===RD.id&&+RD.pt>0?Math.max(0,(Net.now()-RD.pt)/1000)+findShift:-1;
+}
+// How a tag looks u seconds into its flash: [opacity, size, white]. It pops in white and blinks once, holds in its team
+// colour, then blinks twice and is gone. With reduced motion it only fades in and out.
+function findEnv(u){
+  const e=FIND_SHOW-u;
+  if(RM)return[clamp(Math.min(u,e)/.2,0,1),1,0];
+  if(u<.1)return[u/.1,1.6-6*u,1];
+  if(u<.34)return[u>.18&&u<.26?.2:1,1,u<.18?1:0];
+  if(e>.5)return[1,1,0];
+  return[e>.38?1:e>.26?.2:e>.14?1:e/.14,1,0];
+}
 const matchTarget=()=>RD&&[3,5,10].includes(RD.to)?RD.to:5;
 const inPlay=()=>!!RD&&(RD.ph==='cd'||RD.ph==='fight'||RD.ph==='over');
 const myTeam=()=>online?roster.get(Net.uid)||null:null;
@@ -1577,7 +1609,7 @@ function practiceMap(){const sd=randSeed();generateMap(sd,mapSizeV2(2,sd))}
 function shiftFx(){if(RM)return;const el=$('shift');el.classList.remove('on');void el.offsetWidth;el.classList.add('on');sfxCrackle(.7)}
 // Practice rounds (online rounds start in startOnlineRound): every round is a new layout
 function newRound(){
-  practiceMap();if(roundNo()>1)shiftFx();
+  practiceMap();if(roundNo()>1)shiftFx();roundT=0;
   spawn(player,soloCell(0));spawn(opp,soloCell(1));
   player.wi=0;setGun(player.model,0);opp.wi=0;setGun(opp.model,0);
   Object.assign(opp,{seen:0,lastSeen:99,path:null,repath:0,buildCd:0,hurt:false,rampT:0,breakT:0,switchCd:0});
@@ -1585,7 +1617,7 @@ function newRound(){
   setScores();
   banner('ROUND '+roundNo(),score.you+' – '+score.opp,1.4);
 }
-function resetScores(){score={you:0,opp:0};matchTime=0;hud.feed.innerHTML=''}
+function resetScores(){score={you:0,opp:0};matchTime=0;hud.feed.innerHTML='';findNoted=null}
 function showHud(){state='playing';paused=false;$('osd').hidden=false;$('menu').hidden=true;$('end').hidden=true;$('pause').hidden=true;$('lobby').hidden=true;lobbyShown=false;$('hud').hidden=false;setScores()}
 
 function startPractice(){
@@ -2466,16 +2498,46 @@ function updateHud(dt){
   hud.cross.style.opacity=scoped?'0':'1';
   hitT-=dt;hud.hitm.style.opacity=hitT>0?'1':'0';
   hurtA=Math.max(0,hurtA-dt*1.2);hud.hurt.style.opacity=hurtA.toFixed(3);
-  // online: name tags in team colours (teammates always, enemies only when in sight), alive pips and status line
+  // Name tags. Online: teammates always, enemies only when in sight, in team colours. Find tags (see findClock): for
+  // FIND_SHOW seconds every FIND_EVERY, everyone alive but the player the camera is on gets a tag, through walls, with
+  // how far away they are; one that is off the screen is pinned to the nearest edge with an arrow. In practice that is
+  // the Entity. Outside a flash this costs what it did before; the chip under the score counts down to the next one.
+  const ft=findClock(),fu=ft>=FIND_AT?(ft-FIND_AT)%FIND_EVERY:-1,flash=fu>=0&&fu<FIND_SHOW;
+  if(flash!==findOn){findOn=flash;
+    if(flash){sfxFind();const nk=online?curMatch:'p';if(findNoted!==nk){findNoted=nk;feed('Name tags now flash every '+FIND_EVERY+' seconds','info')}}}
+  const fsec=ft<FIND_AT-10?-1:flash?0:Math.ceil(ft<FIND_AT?FIND_AT-ft:FIND_EVERY-fu);
+  if(fsec!==findSec){findSec=fsec;hud.find.hidden=fsec<0;
+    if(fsec>=0){hud.find.classList.toggle('on',!fsec);hud.findTxt.textContent=fsec?'TAGS IN '+fsec:'TAGS ON';hud.findBar.style.transform='scaleX('+(fsec?clamp(1-(fsec-1)/FIND_EVERY,0,1):0)+')'}}
   let ti=0;
-  if(online){
-    const my=myTeam(),tgt=camTarget();
-    for(const e of remotes.values()){
+  if(online||flash){
+    const my=myTeam(),tgt=camTarget(),env=flash?findEnv(fu):null;
+    for(const e of online?remotes.values():[opp]){
       if(!e.present||!e.alive||e===tgt)continue;
-      const top=e.pos.clone().add(new V3(0,2.35,0));const s=toScreen(top);if(!s.front)continue;
-      if(e.team!==my){const d=top.clone().sub(camera.position);const L=d.length();d.divideScalar(L);if(raycast(arr(camera.position),arr(d),L-.3,null,false).hit)continue}
-      const el=tagEl(ti++);el.hidden=false;el.textContent=e.name;el.style.color=TEAM_HEX[e.team]||'';el.style.transform=`translate(${s.x}px,${s.y}px) translate(-50%,-100%)`;
+      const top=tagV.copy(e.pos);top.y+=2.35;const s=toScreen(top);
+      let tf='translate(-50%,-100%)',txt=e.name||oppName;
+      if(flash){
+        const d=Math.round(top.distanceTo(camera.position));txt+=' · '+d+' m';
+        if(!s.front||s.x<0||s.x>VW||s.y<24||s.y>VH){
+          // off the screen (or behind the camera): pin it to the nearest edge, pointing the way to turn
+          tmpV.copy(top).applyMatrix4(camera.matrixWorldInverse);
+          if(tmpV.z>0){s.x=tmpV.x<0?-1:VW+1;s.y=VH*.45}
+          const lx=s.x<0,rx=s.x>VW,up=s.y<24;
+          s.x=clamp(s.x,12,VW-12);s.y=clamp(s.y,96,VH-116);
+          if(lx){txt='◂ '+txt;tf='translate(0,-50%)'}else if(rx){txt+=' ▸';tf='translate(-100%,-50%)'}else if(up){txt='▴ '+txt;tf='translate(-50%,0)'}else txt+=' ▾';
+        }
+        tf+=' scale('+env[1].toFixed(2)+')';
+      }else{
+        if(!s.front)continue;
+        if(e.team!==my){const d=top.clone().sub(camera.position);const L=d.length();d.divideScalar(L);if(raycast(arr(camera.position),arr(d),L-.3,null,false).hit)continue}
+      }
+      const el=tagEl(ti++);el.hidden=false;
+      if(el._t!==txt){el._t=txt;el.textContent=txt}
+      if(el._f!==flash){el._f=flash;el.className=flash?'ntag fl':'ntag'}
+      el.style.color=flash&&env[2]?'#fff':TEAM_HEX[e.team]||'';el.style.opacity=flash?env[0].toFixed(2):'';
+      el.style.transform=`translate(${s.x}px,${s.y}px) ${tf}`;
     }
+  }
+  if(online){
     const pk=inPlay()?[...roster].map(([u,t])=>u+t+((u===Net.uid?player:remotes.get(u))||{}).alive).join():'';
     if(pk!==lastPips){lastPips=pk;hud.pips.hidden=!pk;
       const dots=t=>[...roster].filter(x=>x[1]===t).map(x=>x[0]).sort().map(u=>{const e=u===Net.uid?player:remotes.get(u);return e&&e.alive?'●':'<i>●</i>'}).join('');
@@ -2495,7 +2557,7 @@ function updateHud(dt){
   }
   hud.net.hidden=!netTxt;if(netTxt)hud.net.textContent=netTxt;
 }
-const tagEls=[];let lastPips='';
+const tagEls=[],tagV=new V3();let lastPips='';
 function tagEl(i){while(tagEls.length<=i){const d=document.createElement('div');d.className='ntag';d.hidden=true;hud.tags.appendChild(d);tagEls.push(d)}return tagEls[i]}
 
 /* ---------- lights ---------- */
@@ -2563,6 +2625,7 @@ function frame(now){
     matchTime+=raw;
     // practice round timers run on the wall clock
     if(phase==='countdown'){phaseT-=raw;if(phaseT<=0)phase='fight'}
+    else if(phase==='fight')roundT+=raw;
     if(phase==='over'){phaseT-=raw;if(phaseT<=0){if(score.you>=FIRST_TO||score.opp>=FIRST_TO)endMatch();else newRound()}}
     if(state==='playing'){updatePlayer(dt);updateBot(dt)}
   }else if(running){
@@ -2757,7 +2820,9 @@ if(navigator.webdriver)window.__br={get state(){return state},get online(){retur
   teleport(x,z,y){player.pos.set(x,y||0,z);player.vel.set(0,0,0)},
   aimAt(e){const t=e.pos.clone().add(new V3(0,1.1,0));for(let i=0;i<4;i++){updateCamera(0);const c=camera.position;player.yaw=yawTo(t.x-c.x,t.z-c.z);player.pitch=Math.atan2(t.y-c.y,Math.hypot(t.x-c.x,t.z-c.z))}},
   fire(){const w=WEAPONS[player.wi];updateCamera(0);playerShoot();player.ammo[player.wi]=w.mag;player.cd=0},
-  setWeapon(i){switchWeapon(player,i);player.switchT=0;mode='combat'}};
+  setWeapon(i){switchWeapon(player,i);player.switchT=0;mode='combat'},
+  // find tags: the round clock they run on, and a shift (seconds) so a test need not wait a minute and a half
+  get findT(){return findClock()},get findShift(){return findShift},set findShift(v){findShift=+v||0},findEnv,tags:()=>tagEls,FIND:{at:FIND_AT,every:FIND_EVERY,show:FIND_SHOW}};
 
 setDiff(diffKey);setSens(sens);
 practiceMap();
