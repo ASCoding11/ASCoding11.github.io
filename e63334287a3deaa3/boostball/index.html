@@ -228,6 +228,7 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
 <script src="/e63334287a3deaa3/stats.js" data-game="boostball" defer></script>
 <script src="/e63334287a3deaa3/elo.js" data-game="boostball" defer></script>
 <script src="/e63334287a3deaa3/gamechat.js" defer></script>
+<script src="/e63334287a3deaa3/cosmetics.js" defer></script> <!-- the switched-off cosmetics catalogue: Boostball only asks it whether it is on (see KIT) -->
 <script src="/adrefresh.js" defer></script>
 </head>
 <body>
@@ -495,6 +496,24 @@ const garageOn=GARAGE_PUBLIC||(()=>{
 const bodyCount=()=>garageOn?BODIES.length:PUBLIC_BODIES;
 // a body id from the network or storage: any body this page knows, else the first (a newer page may know more)
 const bodyId=v=>{v=v|0;return v>=0&&v<BODIES.length?v:0};
+// ---- the kit: decals, boost trails, goal explosions and extras (hidden; README, "Kit") ----
+// A car's kit is six item numbers, [decal, boost trail, goal explosion, antenna topper, roof hat, wheels], 0 for none:
+// the numbers Boostball's items have in ../cosmetics.js. Everything that draws them is in kit.js beside this page, which
+// is fetched only when something needs it: hidden things are switched on in this browser (hiddenOn), or a car that
+// has a kit drives in. Until then KIT is null, every car's kit is null and each hook below does what it always did.
+// Hidden things are on with the garage switch above (then every item is free to wear, saved as boostball-kit) or with
+// the cosmetics switch in ../cosmetics.js (then you wear what your locker owns). A kit is looks only.
+const KIT_LEN=6;
+let KIT=null,myKit=null;
+const cosOn=()=>!!(window.BackRoomCosmetics&&BackRoomCosmetics.on());
+const hiddenOn=()=>garageOn||cosOn();
+// a kit from the network or storage: '3.0.12' or a list, as six whole numbers 0 to 255, or null when it is all zeros
+const kitOf=v=>{
+  const a=Array.isArray(v)?v:typeof v==='string'&&/^\d{1,3}(\.\d{1,3}){0,11}$/.test(v)?v.split('.'):null;if(!a)return null;
+  const k=[];let any=0;for(let i=0;i<KIT_LEN;i++){const n=+a[i]|0;k.push(n>0&&n<256?n:0);any|=k[i]}
+  return any?k:null;
+};
+const kitStr=k=>k?k.join('.').replace(/(\.0)+$/,''):'';
 // Bot names. Each match the bots get names picked at random from this list: no two the same, and never the name of
 // a human player in the room. Online, the host's bots send their name as a position in this list (bh), so other
 // players see the host's names: add new names at the end and don't reorder or remove any.
@@ -1904,9 +1923,9 @@ BODY_SHAPES.push(
     }
   }
 );
-function buildCarModel(team,body,accent){
+function buildCarModel(team,body,accent,kit){
   const g=new THREE.Group(),inner=new THREE.Group();g.add(inner);
-  const T=TEAM[team],gl=glossOn(),aHex=new THREE.Color(ACCENTS[accent]||ACCENTS[0]).getHex();
+  const T=TEAM[team],gl=glossOn(),aHex=new THREE.Color(ACCENTS[accent]||ACCENTS[0]).getHex(),K=KIT&&kit?kit:null;
   const mB=gl?paint(T.col):lam(T.col),mD=gl?std(0x161a28,.7,.1):lam(0x161a28),mA=gl?std(aHex,.36,.4):lam(aHex);
   const mT=gl?std(0x0c0e16,.92,0):lam(0x0c0e16),mR=gl?std(aHex,.25,.8):lam(aHex);
   const mG=gl?std(0x0b1222,.06,.9,{emissive:0x0c1c3a}):(matCache.glass||(matCache.glass=new THREE.MeshLambertMaterial({color:0x0b1222,emissive:0x0c1c3a})));
@@ -1939,6 +1958,9 @@ function buildCarModel(team,body,accent){
   // Everything so far is fixed to the body: weld it into one mesh per material (see joinMeshes). The lights don't cast a
   // shadow (they sit flush on the body, inside its outline).
   for(const m of joinMeshes(inner))m.castShadow=m.material!==head&&m.material!==tail;
+  // the kit: a decal on the paint, an antenna topper and a roof hat (welded in), other wheels (kit.js)
+  const skin=K?KIT.dress(inner,K,{team,body,aHex,gl,mB}):null,wk=K?KIT.wheel(K[5],{gl,aHex,mT,mR,mD}):null;
+  const wG=wk?wk.g:[wheelG,hubCapG,spokesG],wM=wk?wk.m:[mT,mR,mD];
   const wheels=[];
   // B.wheels (garage bodies): [x, z, size, width] for each wheel, the front pair first. Size and width only stretch
   // the shared wheel shape and keep the tyre on the ground; none of it is physics.
@@ -1946,8 +1968,8 @@ function buildCarModel(team,body,accent){
     const w=new THREE.Group(),sz=ws||1;w.position.set(x,sz===1?-.26:.36*sz-.62,z);if(sz!==1||ww)w.scale.set(sz*(ww||1),sz,sz);
     const spin=new THREE.Group();w.add(spin);
     // the tyre and the hub that fills its middle cast the shadow; the spokes are inside their outline
-    const tyre=new THREE.Mesh(wheelG,mT),hub=new THREE.Mesh(hubCapG,mR);tyre.castShadow=hub.castShadow=true;
-    spin.add(tyre);spin.add(hub);spin.add(new THREE.Mesh(spokesG,mD));
+    const tyre=new THREE.Mesh(wG[0],wM[0]),hub=new THREE.Mesh(wG[1],wM[1]);tyre.castShadow=hub.castShadow=true;
+    spin.add(tyre);spin.add(hub);spin.add(new THREE.Mesh(wG[2],wM[2]));
     inner.add(w);wheels.push({g:w,spin,front:z>0,y0:w.position.y,sz});
   }
   const flame=new THREE.Mesh(new THREE.ConeGeometry(.24,1.4,10),new THREE.MeshBasicMaterial({color:T.flame[0],transparent:true,opacity:.85,blending:THREE.AdditiveBlending,depthWrite:false}));
@@ -1959,18 +1981,23 @@ function buildCarModel(team,body,accent){
     const t=glowSprite(0xff3048,.45,1.5);t.position.set(0,ty,tz);inner.add(t);
     boostGlow=glowSprite(T.flame[0],.7,3.2);boostGlow.position.set(0,.02,-1.7);boostGlow.visible=false;inner.add(boostGlow);
   }
-  return{g,inner,wheels,flame,boostGlow};
+  return{g,inner,wheels,flame,boostGlow,skin,kitTrail:!!(K&&KIT.has(1,K[1]))};
 }
-function carKey(c){return c.team+':'+c.body+':'+c.accent+':'+schemeIdx+(glossOn()?':g':'')}
+// throws a car model away: its own shapes, and its share of a decal's texture
+function dropModel(m){
+  if(m.skin&&KIT)KIT.release(m.skin);
+  m.g.traverse(o=>{if(o.isSprite)o.material.dispose();else if(o.geometry&&!SHARED_G.has(o.geometry))o.geometry.dispose()});
+}
+function carKey(c){return c.team+':'+c.body+':'+c.accent+':'+schemeIdx+(glossOn()?':g':'')+(KIT&&c.kit?':k'+c.kit.join('.'):'')}
 function attachCarMesh(c){
   if(c.mesh)disposeCarMesh(c);
-  const m=buildCarModel(c.team,c.body,c.accent);
+  const m=buildCarModel(c.team,c.body,c.accent,c.kit);
   m.shadow=makeShadow(2.4,3.2);
   scene.add(m.g);c.mesh=m;c.meshKey=carKey(c);
 }
 function disposeCarMesh(c){
   if(!c.mesh)return;scene.remove(c.mesh.g);scene.remove(c.mesh.shadow);
-  c.mesh.g.traverse(o=>{if(o.isSprite)o.material.dispose();else if(o.geometry&&!SHARED_G.has(o.geometry))o.geometry.dispose()});
+  dropModel(c.mesh);
   c.mesh.shadow.geometry.dispose();c.mesh.shadow.material.dispose();c.mesh=null;
 }
 const _dq=new QT();
@@ -1999,7 +2026,7 @@ function updateCarMesh(c,dt,time){
   c.wheelSpin+=fwdSp*dt/.36;
   const steerT=(c.remote?0:-c.inp.steer)*.45;c.steerVis=lerp(c.steerVis,steerT,1-Math.exp(-dt*12));
   for(const w of m.wheels){w.spin.rotation.x=c.wheelSpin/w.sz;w.g.rotation.y=w.front?c.steerVis:0}
-  m.flame.visible=!!c.boosting;if(m.boostGlow)m.boostGlow.visible=!!c.boosting;
+  m.flame.visible=!!c.boosting&&!m.kitTrail;if(m.boostGlow)m.boostGlow.visible=!!c.boosting;
   if(c.boosting){const s=.8+Math.random()*.5;m.flame.scale.set(1,s,1);m.flame.position.z=-1.2-.7*s;if(m.boostGlow)m.boostGlow.scale.set(2.6+s,2.6+s,1)}
   const h=Math.max(0,c.pos.y-CAR_Y);
   m.shadow.position.set(c.pos.x,.03,c.pos.z);m.shadow.rotation.z=c.yaw||Math.atan2(_v1.x,_v1.z);
@@ -2099,7 +2126,8 @@ function fxUnit(up){ // a random direction (in _v1), tipped upward by `up`
   do{_v1.set(rand(-1,1),rand(-1,1),rand(-1,1))}while(_v1.lengthSq()>1||_v1.lengthSq()<.01);
   _v1.normalize();_v1.y=Math.abs(_v1.y)*(1-up)+up*.7;return _v1.normalize();
 }
-function goalExplosion(p,team){
+function goalExplosion(p,team,by){
+  if(KIT&&by&&by.kit&&KIT.goal(by.kit[2],p,team))return; // the scorer's own goal explosion (kit.js)
   fxColours();
   const low=touchIn.active||gfx==='fast',T=TEAM[team];
   const at=boom.at.copy(p),toField=at.z>0?-1:1;
@@ -2206,8 +2234,9 @@ function driftFx(c,dt,time){
     if(Math.random()<amt*.9)emit(_skW.x,_skW.y+.15,_skW.z,c.vel.x*.15+rand(-1,1),rand(.6,1.8),c.vel.z*.15+rand(-1,1),rand(.5,.9),rand(1.1,1.8),pick([0x5a5f6a,0x6d7280,0x4a4e58]),-.6,1.5);
   }
 }
-function boostTrail(c){
+function boostTrail(c,dt){
   if(!c.mesh||c.demo>0)return;
+  if(c.mesh.kitTrail&&KIT.trail(c,dt))return; // the car's own boost trail (kit.js)
   carAxes(c);
   const T=TEAM[c.team];
   for(let i=0;i<2;i++){
@@ -2238,13 +2267,14 @@ function renderGarage(dt){
   if(!garage)return;
   const cv=$('garage');const w=cv.clientWidth,h=cv.clientHeight;if(!w||!h)return;
   if(cv.width!==Math.round(w*Math.min(2,devicePixelRatio||1))){garage.r.setPixelRatio(Math.min(2,devicePixelRatio||1));garage.r.setSize(w,h,false);garage.cam.aspect=w/h;garage.cam.updateProjectionMatrix()}
-  const key=myBody+':'+myAccent+':'+schemeIdx+(glossOn()?':g':'');
+  const key=myBody+':'+myAccent+':'+schemeIdx+(glossOn()?':g':'')+(KIT&&myKit?':k'+myKit.join('.'):'');
   if(garage.key!==key){
-    if(garage.model){garage.sc.remove(garage.model.g);garage.model.g.traverse(o=>{if(o.isSprite)o.material.dispose();else if(o.geometry&&!SHARED_G.has(o.geometry))o.geometry.dispose()})}
-    garage.model=buildCarModel(0,myBody,myAccent);garage.model.g.position.y=.3;garage.sc.add(garage.model.g);garage.key=key;
+    if(garage.model){garage.sc.remove(garage.model.g);dropModel(garage.model)}
+    garage.model=buildCarModel(0,myBody,myAccent,myKit);garage.model.g.position.y=.3;garage.sc.add(garage.model.g);garage.key=key;
   }
   if(garageOn)drawThumbs();
   garage.rot+=dt*.5;garage.model.g.rotation.y=garage.rot;
+  if(KIT&&KIT.garageFrame(garage,dt))return; // the kit's previews: a boost trail behind the turning car, or a goal explosion
   garage.r.render(garage.sc,garage.cam);
 }
 // The garage picker's pictures (only with the garage switch on). Each is the real model, drawn once by the preview's
@@ -2267,7 +2297,7 @@ function drawThumbs(){
     const sw=Math.min(cv.width,cv.height*5/3);pic.getContext('2d').drawImage(cv,(cv.width-sw)/2,0,sw,cv.height,0,0,170,102);
     thumbs.pics[i]=pic;
     G.sc.remove(m.g);G.cam.zoom=1;G.cam.updateProjectionMatrix();for(const o of vis)o.visible=true;
-    m.g.traverse(o=>{if(o.isSprite)o.material.dispose();else if(o.geometry&&!SHARED_G.has(o.geometry))o.geometry.dispose()});
+    dropModel(m);
     const c=btns[i]&&btns[i].firstChild;if(c&&c.getContext){const g=c.getContext('2d');g.clearRect(0,0,170,102);g.drawImage(pic,0,0)}
   }
 }
@@ -2337,7 +2367,7 @@ function renameBots(){
 }
 function addBot(team,diff,name){
   const nm=name||botName(null);
-  return addCar({id:'b'+(++botSeq).toString(36)+Math.random().toString(36).slice(2,5),name:nm,team,isBot:true,diff,body:Math.floor(Math.random()*bodyCount()),accent:Math.floor(Math.random()*ACCENTS.length)});
+  return addCar({id:'b'+(++botSeq).toString(36)+Math.random().toString(36).slice(2,5),name:nm,team,isBot:true,diff,body:Math.floor(Math.random()*bodyCount()),accent:Math.floor(Math.random()*ACCENTS.length),kit:KIT&&hiddenOn()?KIT.botKit():null});
 }
 
 // ---------- match flow ----------
@@ -2401,7 +2431,7 @@ function kickoffSpot(c){
   return c.team===0?[x,z]:[-x,-z];
 }
 function setupKickoff(){
-  clearSkids();for(const c of cars)c.skid=null;
+  clearSkids();for(const c of cars)c.skid=null;if(KIT)KIT.clearGoal();
   ball.pos.set(0,BR,0);ball.vel.set(0,0,0);ball.ang.set(0,0,0);ballVisOff.set(0,0,0);ballHidden=false;ballBack=0;
   touches=[];lastTouchBt=R?R.ko:0;owner=online?Net.hostUid():'local';goalPending=false;
   for(const p of PADS)p.t=0;
@@ -2450,16 +2480,16 @@ function scoreGoal(team){
   if(online)Net.goal(nr);else applyRound(nr);
 }
 function freeGoal(team){
-  R.sb+=1;goalExplosion(ball.pos,team);
+  R.sb+=1;goalExplosion(ball.pos,team,me);
   banner('GOAL!',Math.round(ball.vel.length()*3.6)+' km/h',1.6,team);
   ballHidden=true;ballBack=1.8;goalPending=false;
 }
 function onGoal(v){
   const t=v.gt|0;
   const p=ballHidden?_v1.set(+v.gx||0,+v.gy||BR,+v.gz||0):_v1.copy(ball.pos).add(ballVisOff);
-  goalExplosion(p,t);ballHidden=true;goalPending=false;
-  sfx('goal',null,t);
   const sc=carById(v.sc),as=carById(v.as);
+  goalExplosion(p,t,sc);ballHidden=true;goalPending=false;
+  sfx('goal',null,t);
   if(sc&&!sc.remote)sc.stats.g++;
   if(sc&&sc===me&&mode!=='attract'&&window.BackRoomStats){BackRoomStats.add('goals',1);BackRoomStats.max('mgoals',me.stats.g)}
   if(as&&!as.remote)as.stats.a++;
@@ -3141,9 +3171,11 @@ function audioTick(dt){
   const t=actx.currentTime;
   const live=state==='playing'&&me&&me.demo<=0&&!paused;
   const sp=live?me.vel.length():0;
-  engO.frequency.setTargetAtTime(38+sp*2.6+(me&&me.boosting?8:0),t,.08);engO._sub.frequency.setTargetAtTime(19+sp*1.3,t,.08);
-  engF.frequency.setTargetAtTime(260+sp*22,t,.1);
-  engG.gain.setTargetAtTime(live?.045+sp*.0012:0,t,.12);
+  const E=KIT?KIT.engine():null; // your kit's engine sound, if you wear one (kit.js); else the usual tone
+  const ety=E?E.type:'sawtooth';if(engO.type!==ety)engO.type=ety;
+  engO.frequency.setTargetAtTime((E?E.f0:38)+sp*(E?E.fk:2.6)+(me&&me.boosting?8:0),t,.08);engO._sub.frequency.setTargetAtTime((E?E.s0:19)+sp*(E?E.sk:1.3),t,.08);
+  engF.frequency.setTargetAtTime((E?E.c0:260)+sp*(E?E.ck:22),t,.1);
+  engG.gain.setTargetAtTime(live?(.045+sp*.0012)*(E?E.g:1):0,t,.12);
   bstG.gain.setTargetAtTime(live&&me.boosting?.11:0,t,.05);
   skidG.gain.setTargetAtTime(live&&me.driftVis?.09*me.driftVis:0,t,.04);
   crowdG.gain.setTargetAtTime(state==='playing'?.035+(crowdBoost>0?.16*crowdBoost:0):state==='menu'?.015:0,t,.3);
@@ -3208,6 +3240,7 @@ const Net={
   stateOf(){
     const c=me;
     const o={n:myName||'Player',c:ACCENTS[myAccent],x:0,z:0,h:0,ts:Math.round(this.now()),j:this.j,tm:c?c.team:0,bd:myBody,ac:myAccent};
+    if(myKit)o.kt=kitStr(myKit); // only when you wear something: without a kit the node is what it always was
     if(c){
       o.x=r2(c.pos.x);o.z=r2(c.pos.z);o.y=r2(c.pos.y);o.h=r3(c.yaw);
       o.q=[r3(c.q.x),r3(c.q.y),r3(c.q.z),r3(c.q.w)].join(',');
@@ -3218,7 +3251,7 @@ const Net={
     if(owner===this.uid&&!ballHidden)o.b=lastTouchBt+'|'+Math.round(this.now())+'|'+packBall(ball);
     if(this.isHost()){
       const bots=cars.filter(b=>b.isBot&&!b.remote);
-      if(bots.length)o.bh=bots.map(b=>[b.id,b.team,r2(b.pos.x),r2(b.pos.y),r2(b.pos.z),r3(b.q.x),r3(b.q.y),r3(b.q.z),r3(b.q.w),r2(b.vel.x),r2(b.vel.y),r2(b.vel.z),b.boosting?1:0,Math.round(b.boost),b.demo>0?1:0,b.body,b.accent,b.stats.g,b.stats.a,b.stats.sv,b.stats.sh,b.stats.dm,BOT_NAMES.indexOf(b.name),b.placed?1:0,b.onGround?1:0].join(',')).join('|');
+      if(bots.length)o.bh=bots.map(b=>[b.id,b.team,r2(b.pos.x),r2(b.pos.y),r2(b.pos.z),r3(b.q.x),r3(b.q.y),r3(b.q.z),r3(b.q.w),r2(b.vel.x),r2(b.vel.y),r2(b.vel.z),b.boosting?1:0,Math.round(b.boost),b.demo>0?1:0,b.body,b.accent,b.stats.g,b.stats.a,b.stats.sv,b.stats.sh,b.stats.dm,BOT_NAMES.indexOf(b.name),b.placed?1:0,b.onGround?1:0].concat(b.kit||[]).join(',')).join('|');
     }
     return o;
   },
@@ -3359,6 +3392,7 @@ function onRemoteState(uid,v){
     if(state==='playing')addFeed(c.name+' joined '+TEAM[team].name,'t'+team);
   }
   c.name=cleanName(v.n)||c.name;c.team=team;c.body=bodyId(v.bd);c.accent=clamp(v.ac|0,0,ACCENTS.length-1);
+  c.kit=kitOf(v.kt);if(c.kit)kitLoad();
   setRemoteKin(c,+v.x,+v.y||CAR_Y,+v.z,parseVec(v.q,4),parseVec(v.v,3),ts);
   c.netGround=v.g===undefined?(+v.y||CAR_Y)<CAR_Y+.1:!!v.g;
   c.boosting=!!v.bo;c.boost=clamp(+v.bs||0,0,100);c.placed=v.pl!==0;
@@ -3380,7 +3414,7 @@ function onRemoteState(uid,v){
       let b=carById(id);
       if(b&&!b.remote)continue; // I'm running it
       if(!b)b=remoteCar(id,{name:BOT_NAMES[n[21]]||'Bot',team:n[0]?1:0,isBot:true,body:bodyId(n[14]),accent:clamp(n[15]|0,0,ACCENTS.length-1)});
-      b.team=n[0]?1:0;b.name=BOT_NAMES[n[21]]||b.name;
+      b.team=n[0]?1:0;b.name=BOT_NAMES[n[21]]||b.name;b.kit=n.length>=24+KIT_LEN?kitOf(n.slice(24,24+KIT_LEN)):null;if(b.kit)kitLoad();
       setRemoteKin(b,n[1],n[2],n[3],[n[4],n[5],n[6],n[7]],[n[8],n[9],n[10]],ts);
       b.boosting=!!n[11];b.boost=clamp(n[12],0,100);remoteDemo(b,!!n[13]);
       b.stats={g:n[16]|0,a:n[17]|0,sv:n[18]|0,sh:n[19]|0,dm:n[20]|0};b.placed=!!n[22];b.netGround=n.length>23?!!n[23]:b.pos.y<CAR_Y+.1;
@@ -3485,7 +3519,7 @@ function busy(on){for(const id of ['quick','joinRoom','practice','freeplay'])$(i
 function saveProfile(){myName=cleanName($('name').value);store.set('name',myName);if(myBody<PUBLIC_BODIES)store.set('body',myBody);if(garageOn)store.set('gbody',myBody<PUBLIC_BODIES?-1:myBody);store.set('accent',myAccent)}
 function makeMe(team){
   if(me)removeCar(me);
-  me=addCar({id:'me',name:myName||'You',team,isMe:true,body:myBody,accent:myAccent});
+  me=addCar({id:'me',name:myName||'You',team,isMe:true,body:myBody,accent:myAccent,kit:myKit});
   return me;
 }
 function showHud(){
@@ -3512,7 +3546,7 @@ function startLocal(m){
     :(tch?'Push the stick up to drive · <b>JUMP</b> twice with the stick tilted to flip · hold <b>BOOST</b> · hold <b>DRIFT</b> and steer':'<b>'+KB.short('forward')+'/'+KB.short('back')+'</b> drive · <b>'+KB.short('jump')+'</b> jump, again with a direction to flip · <b>'+KB.short('boost')+'</b> boost · hold <b>'+KB.short('slide')+'</b> and steer to drift · <b>'+KB.short('ballcam')+'</b> ball cam'),7);
 }
 function setupAttract(){
-  document.body.classList.remove('free');Net.leave();clearCars(false);mode='attract';state='menu';paused=false;R=null;me=null;
+  document.body.classList.remove('free');Net.leave();clearCars(false);mode='attract';state='menu';paused=false;R=null;me=null;if(KIT)KIT.clearGoal();
   for(let t=0;t<2;t++)for(let i=0;i<2;i++)addBot(t,'normal');
   applyRound(newRoundObj(null,nowMs(),2,1));R.rem=1e12;
   $('hud').hidden=true;$('menu').hidden=false;$('end').hidden=true;$('pause').hidden=true;
@@ -3776,12 +3810,12 @@ function stepVisuals(dt,now,freeze){
   updateLanding(state==='playing');
   for(const c of cars){
     updateCarMesh(c,dt,clock);
-    if(c.boosting&&c.demo<=0&&!freeze)boostTrail(c);
+    if(c.boosting&&c.demo<=0&&!freeze)boostTrail(c,dt);
     if(!freeze)driftFx(c,dt,clock);
     if(c.vel.length()>=SUPER&&c.demo<=0&&!freeze&&Math.random()<.6)superTrail(c);
   }
   padsVisual(now,clock);
-  if(!freeze){updateParts(dt);updateRings(dt);updateFx(dt)}
+  if(!freeze){updateParts(dt);updateRings(dt);updateFx(dt);if(KIT)KIT.update(dt)}
   updateSkids(clock);
   updateCamera(dt);
   updateHud(dt,now);
@@ -3798,7 +3832,20 @@ $('room').value=inv?inv[1]:store.get('room','')||'';
 $('name').value=myName;
 if(inv){setMsg('You were invited to room bb-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.remove('alt');$('quick').classList.add('alt')}
 
-if(navigator.webdriver)window.__bb={get fxTier(){return fxTier},get state(){return state},get mode(){return mode},get me(){return me},get cars(){return cars},ball,get R(){return R},set R(v){R=v},PADS,Net,stepCar,carCar,physStep,makeCar,newInput,stepBall,carBall,predictGoal,applyRound,onRemoteState,handleEvent,applyBallSnap,startLocal,setupAttract,keys,phaseOf,nowMs,
+// ---- fetching kit.js (see KIT near the top) ----
+// What the kit is lent from this page. It only draws: nothing here lets it touch the physics, the ball or the room.
+const KITAPI={THREE,scene,camera,renderer,TEAM,ACCENTS,BODY_SHAPES,SHARED_G,joinGeoms,loft,stadiumEnv,glossOn,wheelG,hubCapG,spokesG,BR,AW,AL,AH,GW,GH,ballMesh,store,garageOn,cosOn,hiddenOn,KIT_LEN,kitOf,
+  low:()=>touchIn.active||gfx==='fast',flash,shake,sfx,audio:()=>actx&&volume>0?{actx,master,tone,noise}:null,reduced:()=>REDUCED_MOTION,
+  get garage(){return garage},get state(){return state},get myKit(){return myKit},get myAccent(){return myAccent},
+  setKit(k){myKit=kitOf(k);if(me&&!me.remote)me.kit=myKit}};
+let kitAsked=false;
+function kitLoad(){
+  if(kitAsked)return;kitAsked=true;
+  loadScript('kit.js').then(()=>{KIT=window.BoostballKit(KITAPI);if(hiddenOn()){myKit=KIT.mine();KIT.menu();if(mode==='attract')for(const c of cars)if(c.isBot&&!c.remote)c.kit=KIT.botKit()}}).catch(e=>{console.error(e)});
+}
+// cosmetics.js is deferred, so its switch can only be read once the page has been parsed
+if(garageOn)kitLoad();else if(document.readyState==='loading')addEventListener('DOMContentLoaded',()=>{if(cosOn())kitLoad()});else if(cosOn())kitLoad();
+if(navigator.webdriver)window.__bb={get KIT(){return KIT},get myKit(){return myKit},kitOf,kitStr,kitLoad,get hiddenOn(){return hiddenOn()},get fxTier(){return fxTier},get state(){return state},get mode(){return mode},get me(){return me},get cars(){return cars},ball,get R(){return R},set R(v){R=v},PADS,Net,stepCar,carCar,physStep,makeCar,newInput,stepBall,carBall,predictGoal,applyRound,onRemoteState,handleEvent,applyBallSnap,startLocal,setupAttract,keys,phaseOf,nowMs,
   get owner(){return owner},fast(sec){for(let i=0;i<sec*60;i++){warp+=1000/60;simulate(1/60,false)}},get lastTouchBt(){return lastTouchBt},setPaused:v=>{paused=v},camera,renderer,scene,toggleBallCam,touches:()=>touches,scoreGoal,remainingAt,demolish,botThink,
   // fixed-step driving for tests: manual(true) stops the real-time loop; advance() runs whole frames (physics, camera,
   // HUD, landing marker) at 60 Hz without drawing; render() draws one frame.
