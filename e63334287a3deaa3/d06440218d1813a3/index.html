@@ -261,13 +261,14 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
         <p class="ro">Read-only. Everything here is what the play-time nodes (<code>rooms/lb-all</code>), the account saves (<code>rooms/sv-saves</code>, size only) and the Online panel's status fields already hold, all readable by any signed-in browser: no emails, no messages, nothing else.</p>
         <div class="filters">
           <label>Find<input type="search" id="pFind" placeholder="Name or account id"></label>
+          <label class="chk"><input type="checkbox" id="pMerged"> Show merged accounts</label>
           <button class="sm" id="pRefresh" type="button">Refresh</button>
         </div>
         <p class="status" id="pStatus" role="status" aria-live="polite"></p>
         <p class="sum" id="pSum"></p>
         <div class="card">
           <h2>Players</h2>
-          <p class="hint">One row per account. Type is Google when the node carries stats.js's Google mark, else Anonymous (nodes from before the mark was added count as Anonymous). Tap a row for their games, bests, the last 60 days, whether they're online now and the size of their account save.</p>
+          <p class="hint">One row per person: accounts merged into one person (on the Stats tab, or by their owner at a Google sign-in) are folded into the account kept, whose play time, tier and bests include them (tick Show merged accounts to list each one, marked). Type is Google when the node carries stats.js's Google mark, else Anonymous (nodes from before the mark was added count as Anonymous). Tap a row for their games, bests, the last 60 days, whether they're online now and the size of their account save.</p>
           <div class="scroll"><table id="pTable"></table></div>
           <button class="sm more" id="pMore" type="button" hidden>Show more</button>
         </div>
@@ -889,7 +890,7 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
     if(ab)ab.disabled=true;say('sStatus',msg);
     try{await setResets(changes)}
     catch(err){if(ab)ab.disabled=false;say('sStatus','Couldn\'t save the change: '+((err&&err.message)||'error'),true);return false}
-    say('sStatus','');await loadStats();return true;
+    say('sStatus','');await loadStats();if(loaded.players)loadPlayers();return true;
   }
   async function onAct(ab){
     var what=ab.dataset.a,r=byUid(ab.dataset.u),who=r?r.name+' · '+r.seat:'this account';
@@ -982,14 +983,34 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
     catch(e){if(seq!==P.seq)return;P.now=Date.now();P.loadedAt=Date.now();say('pStatus','Couldn\'t load the play-time data: '+((e&&e.message)||'error'),true)}
     P.nodes=nodes;
     P.rows=Object.keys(nodes).slice(0,LB.MAX_NODES).filter(function(u){return /^[A-Za-z0-9_-]{6,128}$/.test(u)}).map(function(u){return playerRow(u,nodes[u],P.now)});
+    foldPlayers();
     P.extra={};P.open='';P.show=PAGE;$('pRefresh').disabled=false;renderPlayers();
+  }
+  // Merged accounts, as the boards show them (leaderboard.js collapse): each account merged into another (by the admin, a
+  // signed a; or by its owner at a Google sign-in, to + al) is marked into, and the account kept gets its play time, this
+  // week, bests and miles folded in (the same rules the boards and the Online badges use) and a list of the merged ones (kids).
+  function foldPlayers(){
+    var by={};P.rows.forEach(function(r){by[r.uid]=r;r.into='';r.intoOwn=false;r.kids=[]});
+    var ps=P.rows.filter(function(r){return r.p}).map(function(r){return r.p});
+    try{if(LB.collapse)LB.collapse(ps)}catch(e){}
+    P.rows.forEach(function(r){var p=r.p;if(!p||!p.into)return;var t=by[p.into];if(!t)return;r.into=p.into;r.intoOwn=!!p.intoOwn;t.kids.push(r)});
+    P.rows.forEach(function(r){
+      if(!r.kids.length||!r.p)return;
+      var p=r.p;r.total=p.total;r.week=p.week||0;
+      var mi=null;if(window.BackRoomMiles){try{mi=BackRoomMiles.of(p,r.uid,P.now)}catch(e){mi=null}}
+      r.mi=mi;r.miles=mi?mi.miles:-1;r.tierK=mi?mi.tier.k:'';
+      // the latest last-seen of the person's accounts
+      r.kids.forEach(function(k){if(k.ts&&(!r.ts||k.ts>r.ts))r.ts=k.ts});
+    });
   }
   function typeText(r){return r.ga?'Google':'Anonymous'}
   function renderPlayers(){
-    var q=$('pFind').value.trim().toLowerCase(),rows=P.rows;
+    var q=$('pFind').value.trim().toLowerCase(),all=P.rows,showM=$('pMerged').checked;
+    var rows=all.filter(function(r){return !r.into}),mg=all.length-rows.length;
     var g=rows.filter(function(r){return r.ga}).length,act=rows.filter(function(r){return r.week>0}).length,sk=rows.filter(function(r){return !r.ok}).length;
-    $('pSum').textContent=rows.length?fmtN(rows.length)+(rows.length===1?' account':' accounts')+' · '+fmtN(g)+' Google · '+fmtN(rows.length-g)+' anonymous · '+fmtN(act)+' played this week'+(sk?' · '+fmtN(sk)+' the boards skip (stale or malformed)':''):'';
-    var list=rows.filter(function(r){return !q||(r.name+' '+r.n+' '+r.gn+' '+r.uid+' '+r.seat).toLowerCase().indexOf(q)>=0});
+    $('pSum').textContent=all.length?fmtN(rows.length)+(rows.length===1?' person':' people')+(mg?' ('+fmtN(all.length)+' accounts, '+fmtN(mg)+' merged into another)':'')+' · '+fmtN(g)+' Google · '+fmtN(rows.length-g)+' anonymous · '+fmtN(act)+' played this week'+(sk?' · '+fmtN(sk)+' the boards skip (stale or malformed)':''):'';
+    // A search also finds merged accounts (by their own name or id), shown marked.
+    var list=(showM||q?all:rows).filter(function(r){return !q||(r.name+' '+r.n+' '+r.gn+' '+r.uid+' '+r.seat).toLowerCase().indexOf(q)>=0});
     var dir=P.dir==='asc'?1:-1,key=P.sort;
     list.sort(function(a,b){
       var x,y;
@@ -1012,7 +1033,9 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
       who.appendChild(document.createTextNode(r.name));
       if(!r.ok){var sk=el('span','badge','Skipped');sk.title='The leaderboards skip this node (stale, malformed or over the caps)';who.appendChild(sk)}
       if(r.hidden){var hd=el('span','badge','Removed');hd.title='Removed from the leaderboards';who.appendChild(hd)}
-      if(r.to){var mg=el('span','badge','Merged');mg.title='Merged by its owner into another account at a Google sign-in';who.appendChild(mg)}
+      if(r.into){var into=P.rows.filter(function(y){return y.uid===r.into})[0],mg=el('span','badge','Merged');mg.title='Merged into '+(into?into.name+' · '+into.seat:'account '+r.into.slice(0,6))+(r.intoOwn?' by its owner at a Google sign-in':' on the Stats tab');who.appendChild(mg)}
+      else if(r.to){var mg2=el('span','badge','Merged');mg2.title='Merged by its owner into another account at a Google sign-in';who.appendChild(mg2)}
+      if(r.kids&&r.kids.length){var kb2=el('span','badge','+'+r.kids.length+' merged');kb2.title='Play time, tier and bests include '+r.kids.length+(r.kids.length===1?' account':' accounts')+' merged into this one (see details)';who.appendChild(kb2)}
       td.appendChild(who);
       td.appendChild(el('small',null,r.seat+(r.gn&&r.n!==r.gn?' · Online name: '+r.n:'')));
       // on a phone the Account, Type, Tier and This week columns are hidden: the type and tier go under the name
@@ -1056,9 +1079,30 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
     var cu=el('code','uid',r.uid);m.appendChild(cu);
     if(r.mi)m.appendChild(el('span',null,(r.mi.tier&&r.mi.tier.n||r.tierK)+' · '+fmtN(r.mi.miles)+' miles'));
     if(r.ts){var lsn=el('span',null,'Last seen ');lsn.appendChild(timeEl(r.ts));lsn.appendChild(document.createTextNode(' ('+r.ts.toLocaleString()+')'));m.appendChild(lsn)}
-    if(r.to)m.appendChild(el('span',null,'Merged by its owner into account '+r.to.slice(0,6)));
+    if(r.to&&!r.into)m.appendChild(el('span',null,'Merged by its owner into account '+r.to.slice(0,6)));
     if(r.reset)m.appendChild(el('span',null,'Hours counted from '+new Date(r.reset).toLocaleString()));
     s0.appendChild(m);box.appendChild(s0);
+    // Merged: into whom, or which accounts are folded into this one
+    if(r.into){
+      var t=P.rows.filter(function(y){return y.uid===r.into})[0],sm=el('div','acts');
+      sm.appendChild(el('span',null,'Merged into '+(t?t.name+' · '+t.seat:'account '+r.into.slice(0,6))+(r.intoOwn?' by its owner at a Google sign-in.':' on the Stats tab.')+' The numbers below are this account\'s own; that person\'s row includes them. '));
+      if(t){var ob=el('button','sm','Open '+t.name);ob.type='button';ob.dataset.open=t.uid;sm.appendChild(ob)}
+      box.appendChild(sm);
+    }
+    if(r.kids&&r.kids.length){
+      var sk0=el('div');sk0.appendChild(el('h3',null,'Merged accounts ('+r.kids.length+')'));
+      sk0.appendChild(el('p','hint','Play time, this week, tier and bests below include these accounts (added back as on the leaderboards). Each line is that account on its own.'));
+      var kl=el('div','matches');
+      r.kids.slice().sort(function(a,b){return b.total-a.total}).forEach(function(k){
+        var row=el('div','m'),tx=el('span');
+        tx.appendChild(el('b',null,k.name));
+        tx.appendChild(document.createTextNode(' · '+k.seat+' · '+typeText(k)+' · '+(k.ok?fmtDur(k.total):'skipped')+(k.mi?' · '+fmtN(k.mi.miles)+' mi':'')+' · '+(k.intoOwn?'by its owner':'by the admin')+' · seen '+(k.ts?ago(k.ts):'never')+' · '));
+        tx.appendChild(el('code','uid',k.uid));
+        var ob2=el('button','sm','Open');ob2.type='button';ob2.dataset.open=k.uid;
+        row.append(tx,ob2);kl.appendChild(row);
+      });
+      sk0.appendChild(kl);box.appendChild(sk0);
+    }
     // Online now
     var s1=el('div');s1.appendChild(el('h3',null,'Online now'));
     var ol=el('p','hint');ol.style.margin='0';
@@ -1100,6 +1144,15 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
     s3.appendChild(ul);box.appendChild(s3);
     // Day by day, last 60 days (a canvas, drawn by drawOpenChart once it's in the page)
     var days=daysOf(p,v&&v.d),s4=el('div');
+    // A person's chart adds the days of the accounts merged into them (each day at most 24 hours).
+    (r.kids||[]).forEach(function(k){
+      if(!k.p)return;var kd=daysOf(k.p,P.nodes[k.uid]&&P.nodes[k.uid].d);
+      Object.keys(kd).forEach(function(day){
+        var o=days[day]||(days[day]={$:0}),room=86400-o.$;
+        Object.keys(kd[day]).forEach(function(gk){if(gk==='$'||room<=0)return;var x=Math.min(kd[day][gk],room);o[gk]=(o[gk]||0)+x;o.$+=x;room-=x});
+        if(!o.$)delete days[day];
+      });
+    });
     var act=Object.keys(days).length,sum=Object.keys(days).reduce(function(a,k){return a+days[k].$},0);
     s4.appendChild(el('h3',null,'Play time per day · last '+P_DAYS+' days'));
     var wrap=el('div','pchart'),cv=el('canvas');cv.setAttribute('role','img');
@@ -1154,10 +1207,20 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
   var pRz=0;addEventListener('resize',function(){clearTimeout(pRz);pRz=setTimeout(drawOpenChart,150)});
   $('pRefresh').addEventListener('click',loadPlayers);
   $('pFind').addEventListener('input',function(){P.show=PAGE;renderPlayers()});
+  $('pMerged').addEventListener('change',function(){P.show=PAGE;renderPlayers()});
   $('pMore').addEventListener('click',function(){P.show+=PAGE;renderPlayers()});
   $('pTable').addEventListener('click',function(e){
     var sb=e.target.closest('button[data-sort]');
     if(sb){var k=sb.dataset.sort;if(P.sort===k)P.dir=P.dir==='asc'?'desc':'asc';else{P.sort=k;P.dir=k==='name'||k==='uid'||k==='type'?'asc':'desc'}renderPlayers();return}
+    // Open another account (a merged one, or the person it's merged into): shows merged accounts if needed.
+    var jb=e.target.closest('button[data-open]');
+    if(jb){
+      var u=jb.dataset.open,tr0=P.rows.filter(function(y){return y.uid===u})[0];if(!tr0)return;
+      if(tr0.into)$('pMerged').checked=true;
+      $('pFind').value='';P.open=u;P.show=Math.max(P.show,P.rows.length);renderPlayers();
+      var at=$('pTable').querySelector('tr.prow[data-k="'+CSS.escape(u)+'"]');if(at){at.scrollIntoView({block:'center'});at.focus({preventScroll:true})}
+      return;
+    }
     if(e.target.closest('.pdet'))return;
     var tr=e.target.closest('tr.prow');if(!tr)return;
     if(getSelection&&String(getSelection())&&tr.contains(getSelection().anchorNode))return;   // selecting a uid to copy it
@@ -1418,7 +1481,8 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
       get unlocked(){return !!PRIV},
       get stats(){return last&&{total:last.total,players:last.list.length,google:last.google,accounts:S.people.length,skipped:S.skipped,games:last.games.map(function(g){return [g.d,g.s,g.people]}),
         people:last.list.map(function(r){return {into:r.p.into||'',uid:r.p.uid,name:r.p.name,n:r.p.n,gn:r.p.gn,ga:r.p.ga,seat:r.p.seat,v:r.v,top:r.top,n_games:r.n,days:Object.keys(r.p.d).length,miles:r.miles,tier:r.mi?r.mi.tier.k:''}})}},
-      get players(){return {rows:P.rows.length,open:P.open,shown:$('pTable').querySelectorAll('tr.prow').length,list:P.rows.map(function(r){return {uid:r.uid,name:r.name,ga:r.ga,ok:r.ok,total:r.total,week:r.week,miles:r.miles,ts:r.ts?+r.ts:0}})}},
+      get players(){return {rows:P.rows.length,open:P.open,shown:$('pTable').querySelectorAll('tr.prow').length,list:P.rows.map(function(r){return {uid:r.uid,name:r.name,ga:r.ga,ok:r.ok,total:r.total,week:r.week,miles:r.miles,ts:r.ts?+r.ts:0,into:r.into||'',kids:(r.kids||[]).map(function(k){return k.uid})}}),
+        shownUids:[].map.call($('pTable').querySelectorAll('tr.prow'),function(t){return t.dataset.k})}},
       get dups(){return dupPairs().filter(function(d){return !d.no}).map(function(d){return [d.x.uid,d.t.uid,d.s]})},
       get chat(){return {rows:C.rows.length,shown:chatShown().length,capped:C.capped,unopened:C.rows.filter(function(r){return !r.opened}).length}},
       get feedback(){return F.rows.map(function(r){return {id:r.id,done:r.done,sealed:r.sealed,msg:r.msg}})}
