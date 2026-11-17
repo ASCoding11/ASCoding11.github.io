@@ -543,7 +543,7 @@ P({id:'bigramp',name:'Big ramp',fp:[[0,0],[0,1]],hh:3,ports:[[0,0,0,2]],launch:1
     fr:mkFrame({c:t=>[R-R*Math.cos(t*PI/2),0,-5+R*Math.sin(t*PI/2)],roll:rollTo(deg,nt===2?.45:.4),pivot:RW/2})})});
 P({id:'loopL',name:'Loop (left)',fp:[[0,0],[0,1],[0,2],[1,0],[1,1],[1,2]],hh:9,ports:[[0,0,0,2],[1,2,0,0]],side:C.loop,under:C.loop2,n:64,guide:1,split:2,fr:mkFrame({c:loopC(10),ref:()=>[1,0,0]})});
 P({id:'loopR',name:'Loop (right)',fp:[[0,0],[0,1],[0,2],[-1,0],[-1,1],[-1,2]],hh:9,ports:[[0,0,0,2],[-1,2,0,0]],side:C.loop,under:C.loop2,n:64,guide:1,split:2,fr:mkFrame({c:loopC(-10),ref:()=>[1,0,0]})});
-P({id:'wallride',name:'Wall ride',fp:[[0,0],[0,1],[0,2],[0,3],[0,4]],hh:4,ports:[[0,0,0,2],[0,4,0,0]],side:C.wall,under:C.wall2,n:48,split:3,tw:1,
+P({id:'wallride',name:'Wall ride',fp:[[0,0],[0,1],[0,2],[0,3],[0,4]],hh:4,ports:[[0,0,0,2],[0,4,0,0]],side:C.wall,under:C.wall2,n:48,split:3,tw:1,lane:1,
   fr:mkFrame({c:t=>[0,0,-5+50*t],roll:rollTo(90,.3),pivot:0,lift:1})});
 P({id:'narrow',name:'Narrow road',fp:[[0,0],[0,1]],hh:1,ports:[[0,0,0,2],[0,1,0,0]],n:10,fr:mkFrame({c:t=>[0,0,-5+20*t],w:t=>RW-(RW-3.6)*plateau(t,.14)})});
 { // gap: a little lip, 7 m of nothing, then the road again
@@ -582,20 +582,24 @@ function Ctx(B,pc,idx){
   this.tri=(a,b,c,col,type,want,na,nb,nc,gd,x3)=>{
     a=this.tp(a);b=this.tp(b);c=this.tp(c);
     let fn=cross(sub(b,a),sub(c,a));const fl=len(fn);if(fl<1e-7)return;fn=mul(fn,1/fl);
-    if(want){const w=rv(want);if(dot(fn,w)<0){const t=b;b=c;c=t;fn=mul(fn,-1);if(na){const tn=nb;nb=nc;nc=tn}if(x3)x3={n:[x3.n[0],x3.n[2],x3.n[1]],q:x3.q,dg:3-x3.dg}}}
+    if(want){const w=rv(want);if(dot(fn,w)<0){const t=b;b=c;c=t;fn=mul(fn,-1);if(na){const tn=nb;nb=nc;nc=tn}if(x3)x3={n:[x3.n[0],x3.n[2],x3.n[1]],l:[x3.l[0],x3.l[2],x3.l[1]],lane:x3.lane,r:x3.r,q:x3.q,dg:3-x3.dg}}}
     if(type!==3){B.rp.push(a[0],a[1],a[2],b[0],b[1],b[2],c[0],c[1],c[2]);B.rc.push(col);B.rpc.push(idx)}
     if(type!==2){
       const N=na?[rv(na),rv(nb),rv(nc)].map(n=>n.map(v=>Math.round(v*4096)/4096)):[fn,fn,fn];
       B.tris.push({a,b,c,fn,na:N[0],nb:N[1],nc:N[2],type:type===3?1:type,pc:idx,g:gd?rv(gd):null,gc:gd&&this.gcen?this.tp(this.gcen):null,fx:type===0?this.fx|0:this.cap|0,ck:this.cap?this.ck:null,
-        x3:x3&&type===0?{n:x3.n.map(n=>rv(n).map(v=>Math.round(v*4096)/4096)),q:x3.q,dg:x3.dg}:null});
+        x3:x3&&type===0?{n:x3.n.map(n=>rv(n).map(v=>Math.round(v*4096)/4096)),l:x3.l,lane:x3.lane,r:x3.r,q:x3.q,dg:x3.dg}:null});
     }
   };
-  // tn (four real normals, roads that twist only): the two triangles of a twisted quad make a ridge or a dip along the
-  // diagonal a-c; the smooth surface through the four corners is the triangle plus (weight of a) x (weight of c) x q
-  this.quad=(a,b,c,d,col,type,want,na,nb,nc,nd,gd,tn)=>{
+  // tw (roads that twist only: {n: the four real normals, l: how far across the road each corner is, lane}): the two
+  // triangles of a twisted quad make a ridge or a dip along the diagonal a-c; the smooth surface through the four corners
+  // is the triangle plus (weight of a) x (weight of c) x q
+  this.quad=(a,b,c,d,col,type,want,na,nb,nc,nd,gd,tw)=>{
+    const tn=tw&&tw.n,tl=tw&&tw.l;
     if(!tn){this.tri(a,b,c,col,type,want,na,nb,nc,gd);this.tri(a,c,d,col,type,want,na,nc,nd,gd);return}
     const A=this.tp(a),Bq=this.tp(b),Cq=this.tp(c),Dq=this.tp(d),q=[Bq[0]+Dq[0]-A[0]-Cq[0],Bq[1]+Dq[1]-A[1]-Cq[1],Bq[2]+Dq[2]-A[2]-Cq[2]];
-    this.tri(a,b,c,col,type,want,na,nb,nc,gd,{n:[tn[0],tn[1],tn[2]],q,dg:2});this.tri(a,c,d,col,type,want,na,nc,nd,gd,{n:[tn[0],tn[2],tn[3]],q,dg:1})};
+    // r: the way straight across the road on each triangle (its edge that lies along the cross-section)
+    this.tri(a,b,c,col,type,want,na,nb,nc,gd,{n:[tn[0],tn[1],tn[2]],l:[tl[0],tl[1],tl[2]],lane:tw.lane,r:norm(sub(Cq,Bq)),q,dg:2});
+    this.tri(a,c,d,col,type,want,na,nc,nd,gd,{n:[tn[0],tn[2],tn[3]],l:[tl[0],tl[2],tl[3]],lane:tw.lane,r:norm(sub(Dq,A)),q,dg:1})};
   this.box=(cx,cy,cz,sx,sy,sz,col,type,cols)=>{ // axis-aligned in the piece's frame
     const x0=cx-sx/2,x1=cx+sx/2,y0=cy,y1=cy+sy,z0=cz-sz/2,z1=cz+sz/2,k=cols||[col,col,col];
     this.quad([x0,y1,z0],[x1,y1,z0],[x1,y1,z1],[x0,y1,z1],k[0],type,[0,1,0]);
@@ -614,8 +618,8 @@ function sweep(ctx,fr,n,o){
   const xsOf=w=>{const a=[-w/2,-w/2+KW];for(let k=1;k<m;k++)a.push(-w/2+KW+(w-2*KW)*k/m);a.push(w/2-KW,w/2);return a};
   // a road that twists climbs or drops along the way you drive anywhere off the line it twists round, so the surface's
   // real normal isn't the frame's up: work it out from how the cross-section moves (the ends of a piece don't twist)
-  const tnAt=o.tw?(i,x)=>{if(i===0||i===n)return F[i].u;const e=4e-3,a=fr(i/n-e),b=fr(i/n+e);
-    const N=norm(cross(madd(sub(b.c,a.c),sub(b.s,a.s),x),F[i].s),F[i].u);return dot(N,F[i].u)<0?mul(N,-1):N}:null;
+  const dF=o.tw?F.map((f,i)=>{if(i===0||i===n)return null;const e=4e-3,a=fr(i/n-e),b=fr(i/n+e);return [sub(b.c,a.c),sub(b.s,a.s)]}):null;
+  const tnAt=o.tw?(i,x)=>{if(!dF[i])return F[i].u;const N=norm(cross(madd(dF[i][0],dF[i][1],x),F[i].s),F[i].u);return dot(N,F[i].u)<0?mul(N,-1):N}:null;
   for(let i=0;i<n;i++){
     const A=F[i],Z=F[i+1],xa=xsOf(A.w),xz=xsOf(Z.w),L=xa.length-1;
     ctx.gcen=o.guide?lerp3(A.c,Z.c,.5):null;
@@ -623,7 +627,7 @@ function sweep(ctx,fr,n,o){
       const mid=k>0&&k<L-1,col=mid?(o.boost?C.boost:C.road):(i%2?C.kerbA:C.kerbB);
       ctx.fx=o.boost&&mid?1:0;
       ctx.quad(PF(A,xa[k],0),PF(Z,xz[k],0),PF(Z,xz[k+1],0),PF(A,xa[k+1],0),col,0,A.u,A.u,Z.u,Z.u,A.u,o.guide?norm(add(A.t,Z.t)):null,
-        tnAt?[tnAt(i,xa[k]),tnAt(i+1,xz[k]),tnAt(i+1,xz[k+1]),tnAt(i,xa[k+1])]:null);
+        tnAt?{n:[tnAt(i,xa[k]),tnAt(i+1,xz[k]),tnAt(i+1,xz[k+1]),tnAt(i,xa[k+1])],l:[xa[k],xz[k],xz[k+1],xa[k+1]],lane:o.lane?1:0}:null);
       ctx.fx=0;
       ctx.quad(PF(A,xa[k],-SLAB),PF(Z,xz[k],-SLAB),PF(Z,xz[k+1],-SLAB),PF(A,xa[k+1],-SLAB),o.under||C.under,1,mul(A.u,-1));
     }
@@ -660,7 +664,7 @@ function hash2(a,b,c){let h=(a*73856093)^(b*19349663)^(c*83492791);h=Math.imul(h
 function buildPiece(B,pc,idx){
   const def=PIECES[pc.t],ctx=new Ctx(B,pc,idx);
   const walls=def.walls&&pc.w;
-  if(def.fr&&!def.parts&&!def.plat)sweep(ctx,def.fr,def.n,{walls,side:def.side,under:def.under,guide:def.guide,split:def.split,boost:def.boost,tw:def.tw});
+  if(def.fr&&!def.parts&&!def.plat)sweep(ctx,def.fr,def.n,{walls,side:def.side,under:def.under,guide:def.guide,split:def.split,boost:def.boost,tw:def.tw,lane:def.lane});
   if(def.boost)for(let k=0;k<3;k++){const z=-3.2+k*2.6; // chevrons painted on the pad (drawn only)
     for(const sd of [-1,1])ctx.quad([sd*0.25,.03,z+1.2],[sd*2.6,.03,z],[sd*2.6,.03,z-0.8],[sd*0.25,.03,z+0.4],C.chev,2,[0,1,0])}
   if(def.parts)for(const [fr,n] of def.parts)sweep(ctx,fr,n,{side:def.side});
@@ -752,10 +756,11 @@ function buildTrack(track){
       const k=ckey(x,y,z);let l=grid.get(k);if(!l){l=[];grid.set(k,l)}l.push(i)}
   });
   B.D=D;B.TY=TY;B.FX=FX;B.PC=PC;B.GC=GC;B.grid=grid;B.stamp=new Uint32Array(N);B.qid=0;
-  // roads that twist: per triangle, the three real normals, the quad's twist vector and which weight goes with it (PHYS_NOW only)
+  // roads that twist: per triangle, the three real normals, the quad's twist vector, which weight goes with it, how far
+  // across the road each corner is, whether the piece keeps cars in their lane (the wall ride), and the way across (PHYS_NOW only)
   const X3=new Int32Array(N).fill(-1);let nx=0;B.tris.forEach((t,i)=>{if(t.x3)X3[i]=nx++});
-  const XD=new Float64Array(nx*13);B.tris.forEach((t,i)=>{const j=X3[i];if(j<0)return;const o=j*13,x=t.x3;
-    for(let k=0;k<3;k++){XD[o+k]=x.n[0][k];XD[o+3+k]=x.n[1][k];XD[o+6+k]=x.n[2][k];XD[o+9+k]=x.q[k]}XD[o+12]=x.dg});
+  const XD=new Float64Array(nx*20);B.tris.forEach((t,i)=>{const j=X3[i];if(j<0)return;const o=j*20,x=t.x3;
+    for(let k=0;k<3;k++){XD[o+k]=x.n[0][k];XD[o+3+k]=x.n[1][k];XD[o+6+k]=x.n[2][k];XD[o+9+k]=x.q[k];XD[o+13+k]=x.l[k];XD[o+17+k]=Math.round(x.r[k]*4096)/4096}XD[o+12]=x.dg;XD[o+16]=x.lane});
   B.X3=X3;B.XD=XD;
   B.bounds=N?{minX,maxX,minY,maxY,minZ,maxZ}:{minX:-10,maxX:10,minY:0,maxY:0,minZ:-10,maxZ:10};
   B.cps=B.gates.filter(g=>g.k==='cp');B.fin=B.gates.find(g=>g.k==='fin')||null;
@@ -792,11 +797,12 @@ function rayCast(B,o,dir,maxT,onlyRoad,facing,pv){
   if(bi<0)return null;
   const b=bi*24,w=1-bu-bv;
   const n=norm([D[b+12]*w+D[b+15]*bu+D[b+18]*bv,D[b+13]*w+D[b+16]*bu+D[b+19]*bv,D[b+14]*w+D[b+17]*bu+D[b+20]*bv]);
-  let tn=n;const xi=pv>=3?B.X3[bi]:-1;
-  if(xi>=0){const X=B.XD,x=xi*13,k=w*(X[x+12]===1?bu:bv),den=dir[0]*D[b+9]+dir[1]*D[b+10]+dir[2]*D[b+11];
+  let tn=n,lat=null,lg=null;const xi=pv>=3?B.X3[bi]:-1;
+  if(xi>=0){const X=B.XD,x=xi*20,k=w*(X[x+12]===1?bu:bv),den=dir[0]*D[b+9]+dir[1]*D[b+10]+dir[2]*D[b+11];
     tn=norm([X[x]*w+X[x+3]*bu+X[x+6]*bv,X[x+1]*w+X[x+4]*bu+X[x+7]*bv,X[x+2]*w+X[x+5]*bu+X[x+8]*bv],n);
-    if(den<-0.05||den>0.05)best+=k*(X[x+9]*D[b+9]+X[x+10]*D[b+10]+X[x+11]*D[b+11])/den}
-  return {d:best,p:madd(o,dir,best),n,tn,fn:[D[b+9],D[b+10],D[b+11]],pc:B.PC[bi],type:B.TY[bi],fx:B.FX[bi],g:(D[b+21]||D[b+22]||D[b+23])?[D[b+21],D[b+22],D[b+23]]:null,gc:[B.GC[bi*3],B.GC[bi*3+1],B.GC[bi*3+2]]};
+    if(den<-0.05||den>0.05)best+=k*(X[x+9]*D[b+9]+X[x+10]*D[b+10]+X[x+11]*D[b+11])/den;
+    if(X[x+16]===1){lat=X[x+13]*w+X[x+14]*bu+X[x+15]*bv;lg=[X[x+17],X[x+18],X[x+19]]}} // how far across the road the hit is, and which way is across
+  return {d:best,p:madd(o,dir,best),n,tn,lat,lg,fn:[D[b+9],D[b+10],D[b+11]],pc:B.PC[bi],type:B.TY[bi],fx:B.FX[bi],g:(D[b+21]||D[b+22]||D[b+23])?[D[b+21],D[b+22],D[b+23]]:null,gc:[B.GC[bi*3],B.GC[bi*3+1],B.GC[bi*3+2]]};
 }
 // closest point on triangle i to p (Ericson); writes into out
 function closestOnTri(D,i,px,py,pz,out){
@@ -828,13 +834,25 @@ function newCar(B,pv){
   const sp=B.spawn;
   return {p:madd(sp.p,sp.u,PH.ride),v:[0,0,0],f:sp.f.slice(),u:sp.u.slice(),n:sp.u.slice(),gr:true,steer:0,air:0,slip:0,
     step:0,cpt:B.cps.map(()=>-1),last:null,fin:-1,out:0,hit:0,land:0,prevIn:0,resp:0,yaw:0,falls:0,drift:0,boost:0,w:[0,0,0],wg:[0,0,0],ab:false,
-    pv:pv===2?2:PHYS_NOW,bd:[0,0,0],tn:sp.u.slice(),gp:-1};
+    pv:pv===2?2:PHYS_NOW,bd:[0,0,0],tn:sp.u.slice(),gp:-1,lat:null,lp:-1};
 }
 // where to draw the car (and where its two spheres sit): p, f, u as arrays. With pv 2 that is the car's own p, f, u.
 function bodyPose(car){
   const d=car.bd;if(car.pv<3||(d[0]===0&&d[1]===0&&d[2]===0))return [car.p,car.f,car.u];
   const u=norm(add(car.u,d),car.u),f=norm(madd(car.f,u,-dot(car.f,u)),car.f);
   return [car.gr?madd(madd(car.p,car.n,-PH.ride),u,PH.ride):car.p,f,u];
+}
+// The wall ride lifts its middle as it rolls up, which used to slide the road about 2 m sideways under a car that wasn't
+// steering (towards the low edge, and off it for a car already on that side). With PHYS_NOW a car on it keeps its place
+// across the road: each step it is put back where its own sideways speed says it should be, along the surface.
+function laneKeep(car,hit,v){
+  if(!hit.lg){car.lat=null;return}
+  const g=hit.lg;
+  if(car.lat!=null&&car.lp===hit.pc){
+    const want=car.lat+dot(v,g)*DT,dr=clamp(hit.lat-want,-0.25,0.25);
+    car.p=madd(car.p,g,-dr);car.lat=hit.lat-dr;
+  }else car.lat=hit.lat;
+  car.lp=hit.pc;
 }
 // the lean eases towards its target (0.35 a step on the road, fading in the air) and stops dead at nothing
 function leanTo(car,tx,ty,tz,k){
@@ -846,7 +864,7 @@ function respawn(B,car){
   if(s){car.p=s.p.slice();car.v=s.v.slice();car.f=s.f.slice();car.u=s.u.slice();car.n=s.n.slice();car.gr=s.gr}
   else{const sp=B.spawn;car.p=madd(sp.p,sp.u,PH.ride);car.v=[0,0,0];car.f=sp.f.slice();car.u=sp.u.slice();car.n=sp.u.slice();car.gr=true}
   car.out=0;car.air=0;car.slip=0;car.drift=0;car.boost=0;car.w=s&&s.w?s.w.slice():[0,0,0];car.resp++;
-  car.bd=[0,0,0];car.tn=car.n.slice();
+  car.bd=[0,0,0];car.tn=car.n.slice();car.lat=null;
 }
 const _c=[0,0,0];
 function collide(B,car,v){
@@ -1001,6 +1019,7 @@ function step(B,car,inp){
       if(sep<=0.02){
         let vt=madd(v,car.n,-dot(v,car.n));vt=rotTo(vt,car.n,n2);vt=madd(vt,n2,-dot(vt,n2));
         v=vt;car.p=madd(hit.p,n2,PH.ride);car.n=n2;
+        if(car.pv>=3)laneKeep(car,hit,v);
         if(hit.g){ // loops steer you round them
           const sg=dot(car.f,hit.g)<0?-1:1,gt=norm(madd(mul(hit.g,sg),n2,-sg*dot(hit.g,n2)),car.f);
           car.f=norm(lerp3(car.f,gt,0.2),car.f);const sp=len(v);if(sp>1){const vd=norm(lerp3(mul(v,1/sp),gt,0.2),gt);v=mul(vd,sp)}
@@ -1013,6 +1032,8 @@ function step(B,car,inp){
       const fp=norm(madd(car.f,n2,-dot(car.f,n2)),car.f),head=sp>1?dot(vt,fp)/sp:1;
       const loss=clamp(1.1*(1-dot(car.u,n2))+0.5*(1-Math.max(0,head)),0,0.7)+Math.min(0.08,impact*0.004);
       v=mul(vt,1-loss);car.p=madd(hit.p,n2,PH.ride);car.n=n2;car.gr=true;car.land=impact+0.01;car.lloss=loss;car.w=[0,0,0];
+      if(car.pv>=3){if(hit.tn!==n2)car.bd=sub(hit.tn,n2); // touching down on a road that twists: the body takes the surface's lean at once
+        car.lat=hit.lg?hit.lat:null;car.lp=hit.pc}
       if(hit.fx===1)car.boost=PH.boostT;
     }
   }else if(car.gr)car.gr=false;
@@ -1165,7 +1186,9 @@ function scatter(tr,seed,dens){
 function framesWorld(pc,fr,t){const ctx=new Ctx({rp:[],rc:[],rpc:[],tris:[],gates:[],spawns:[]},pc,0),F=fr(t);return {c:ctx.tp(F.c),u:ctx.tv(F.u),t:ctx.tv(F.t),w:F.w}}
 function buildPath(track){
   const pts=[];let jump=false,vm=0;
-  const push=(c,u,j,pi,w,jv,jm)=>{const l=pts[pts.length-1];if(l&&len(sub(c,l.p))<0.3)return;pts.push({p:c,u:norm(u),j,pi,w,jv,jm})};
+  // ft: on a piece that keeps cars in their lane (the wall ride) the way the road runs, without the climb of its middle:
+  // with PHYS_NOW the road no longer slides under the car there, so the bot mustn't steer against a slide that isn't coming
+  const push=(c,u,j,pi,w,jv,jm,ft)=>{const l=pts[pts.length-1];if(l&&len(sub(c,l.p))<0.3)return;pts.push({p:c,u:norm(u),j,pi,w,jv,jm,ft:ft||null})};
   for(const r of track.route){
     if(r.jump){jump=true;vm=r.vm;if(vm&&pts.length)pts[pts.length-1].jm=vm;continue}
     const pc=track.pieces[r.i],def=PIECES[pc.t];
@@ -1176,9 +1199,9 @@ function buildPath(track){
         if(Math.abs(dot(A,Bp)+25)<1)c=lerp3(A,Bp,t);else{const a1=lerp3(A,[0,0,0],t),a2=lerp3([0,0,0],Bp,t);c=lerp3(a1,a2,t)}
         const ctx=new Ctx({rp:[],rc:[],rpc:[],tris:[],gates:[],spawns:[]},pc,0);samp.push({c:ctx.tp(c),u:[0,1,0]})}}
     else{const L=def.parts?20:(def.n||4)*2.5,n=Math.max(4,Math.ceil(L));samp=[];
-      for(let k=0;k<=n*2;k++){let t=k/(n*2);if(r.a>r.b&&r.b!=null)t=1-t;const F=framesWorld(pc,def.fr,t);samp.push({c:F.c,u:F.u,w:F.w})}}
+      for(let k=0;k<=n*2;k++){let t=k/(n*2);const back=r.a>r.b&&r.b!=null;if(back)t=1-t;const F=framesWorld(pc,def.fr,t);samp.push({c:F.c,u:F.u,w:F.w,ft:def.lane?mul(F.t,back?-1:1):null})}}
     const jv=def.id==='gap'?20:def.id==='ramp'?26:def.id==='bigramp'?28:0;
-    samp.forEach((s,k)=>push(s.c,s.u,jump&&k===0||!!jv,r.i,s.w||RW,jv,0));
+    samp.forEach((s,k)=>push(s.c,s.u,jump&&k===0||!!jv,r.i,s.w||RW,jv,0,s.ft));
     jump=false;
   }
   // tangents, distances and how fast each bit can be taken
@@ -1212,7 +1235,7 @@ function runBot(B,o){
     let ti=idx;while(ti<path.length-1&&path[ti].s-path[idx].s<look)ti++;
     const n=car.gr?car.n:car.u,f=norm(madd(car.f,n,-dot(car.f,n)),car.f),s=cross(n,f);
     // heading error to the line a little ahead, plus how far we are to the side of it
-    const ta=path[ti].t,psi=Math.atan2(dot(ta,s),dot(ta,f)),ex=dot(sub(car.p,path[idx].p),s);
+    const ta=car.pv>=3&&path[ti].ft?path[ti].ft:path[ti].t,psi=Math.atan2(dot(ta,s),dot(ta,f)),ex=dot(sub(car.p,path[idx].p),s);
     const ang=psi-Math.atan(1.8*ex/(spd+3));
     inp=0;
     const dz=car.gr?0.015+(car.steer*ang>0?0:0.02):0.5; // in the air, only steer to save a really crooked landing
