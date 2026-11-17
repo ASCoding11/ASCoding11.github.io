@@ -220,6 +220,7 @@
   }
   function fitRun() { fitT = 0; var q = fitQ; fitQ = []; q.forEach(function (w) { try { fit(w); } catch (e) {} }); }
   function fitSoon(w) {
+    if (fitQ.length >= 60) fitQ.shift();   // a tab in the background draws no frames: keep only the latest
     fitQ.push(w);
     if (!fitT) fitT = window.requestAnimationFrame ? requestAnimationFrame(fitRun) : setTimeout(fitRun, 0);
   }
@@ -255,7 +256,7 @@
     '.bra-top{display:inline-flex;align-items:center;gap:.5em;flex:none;box-sizing:border-box;height:17px;padding:0 5px;border:1px solid;border-radius:5px;font-family:var(--mono,var(--f-m,ui-monospace,monospace));font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;line-height:1;white-space:nowrap}' +
     '.bra-top b{font-weight:700}.bra-tw-s .bra-top>span{display:none}' +
     '.bra-top-all{color:#3B2600;background:linear-gradient(135deg,#FFE58A,#F0B429);border-color:#C98F00}' +
-    '.bra-top-week{color:#fff;background:#0B7285;border-color:#0B7285}';
+    '.bra-top-week{color:#fff;background:#0B7285;border-color:#2FA4B8}';
   (document.head || document.documentElement).appendChild(css);
 
   // ---------------- #1 on the Miles board ----------------
