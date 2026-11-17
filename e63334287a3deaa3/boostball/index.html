@@ -129,6 +129,8 @@ details[open] summary::before{content:"– "}
 .tbl th{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);font-weight:700;text-align:right;padding:2px 8px}
 .tbl th:first-child,.tbl td:first-child{text-align:left}
 .tbl td{padding:5px 8px;text-align:right;font-variant-numeric:tabular-nums;border-top:1px solid var(--line)}
+/* seven columns on a narrow phone: tighter cells and smaller headings so the table still fits */
+@media (max-width:520px){.tbl{font-size:13px}.tbl th,.tbl td{padding:4px 3px}.tbl th{font-size:9.5px;letter-spacing:0}.tbl td:first-child{max-width:118px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
 .tbl.t0 td{background:rgba(var(--t0-rgb),.1)} .tbl.t1 td{background:rgba(var(--t1-rgb),.1)}
 .tbl tr.me td{color:#fff;font-weight:700}
 .tbl .mvp{font-family:var(--f-d);font-size:10px;letter-spacing:.08em;background:#ffd34a;color:#2a1a00;border-radius:3px;padding:1px 4px;margin-left:6px;vertical-align:2px}
@@ -677,7 +679,7 @@ function makeCar(o){
     jumping:false,hasJumped:false,jumpT:0,airT:0,airSinceJump:0,hasDbl:false,hasFlipped:false,flipping:false,flipT:0,flipF:0,flipS:0,
     autoFlipT:0,autoFlipS:1,contact:false,hb:0,slideAmt:0,gN:new V3(0,1,0),cN:new V3(0,1,0),noLandT:0,prevJump:false,boosting:false,landQ:new QT(),landT:0,
     bl0:new V3(),blOk:false, // where the ball was in this car's frame last tick, for the swept ball check
-    demo:0,lastHit:0,lastTouchEv:0,inp:newInput(),stats:{g:0,a:0,sv:0,sh:0,dm:0},
+    demo:0,lastHit:0,lastTouchEv:0,inp:newInput(),stats:{g:0,a:0,sv:0,sh:0,dm:0,t:0},
     // remote smoothing
     tpos:new V3(0,CAR_Y,0),tvel:new V3(),tq:new QT(),tts:0,seen:0,tw:0,
     // bot brain
@@ -2350,7 +2352,9 @@ function carById(id){for(const c of cars)if(c.id===id)return c;return null}
 function localCars(){return cars.filter(c=>!c.remote&&c.active!==false)}
 function cleanName(n){return String(n||'').replace(/[^\w \-.'!?]/g,'').trim().slice(0,14)}
 function teamRoster(t){return cars.filter(c=>c.team===t&&c.active!==false).map(c=>c.id).sort()}
-function points(s){return s.g*100+s.a*50+s.sv*50+s.sh*20+s.dm*25}
+// Score: goal 100, assist 50, save 50, demolition 25, shot on goal 10, and 2 for every touch of the ball (t), so
+// a player who is in the play all match scores even without a goal or a save.
+function points(s){return s.g*100+s.a*50+s.sv*50+s.sh*10+s.dm*25+(s.t|0)*2}
 
 function addCar(o){const c=makeCar(o);cars.push(c);attachCarMesh(c);return c}
 function removeCar(c){disposeCarMesh(c);const t=tagEls.get(c.id);if(t){t.remove();tagEls.delete(c.id)}cars=cars.filter(x=>x!==c);if(c===me)me=null}
@@ -2412,7 +2416,7 @@ function applyRound(v){
   if((v.g|0)>(prev.g|0))onGoal(v);
 }
 function newMatch(){
-  for(const c of cars){if(!c.remote)c.stats={g:0,a:0,sv:0,sh:0,dm:0}}
+  for(const c of cars){if(!c.remote)c.stats={g:0,a:0,sv:0,sh:0,dm:0,t:0}}
   renameBots();
   touches=[];kickKey='';cdShown=-1;otShown=false;endShown=false;goalPending=false;bipShown=false;
   $('end').hidden=true;
@@ -2530,6 +2534,7 @@ function onLocalTouch(c,power,now){
   let sv=0;
   if(mode!=='free'&&mode!=='attract'){
     const d=TEAM[c.team].dir;
+    c.stats.t=(c.stats.t|0)+1;   // a touch (the same car again within 0.6 s is one touch, see fresh above)
     const before=predictGoal(_pre.pos,_pre.vel,2.6),after=predictGoal(ball.pos,ball.vel,3);
     if(after===d&&before!==d){c.stats.sh++}
     if(before===-d&&after!==-d){c.stats.sv++;sv=1;addFeed(c.name+' made a save!','t'+c.team);if(c===me)banner('SAVE!','',1,c.team)}
@@ -3136,8 +3141,8 @@ function renderTeams(el,end){
   const esc=s=>String(s).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
   el.innerHTML=[0,1].map(t=>{
     const rows=statsRows(t);
-    return '<table class="tbl t'+t+'"><caption>'+TEAM[t].name+(R?' · '+(t?R.so:R.sb):'')+'</caption><tr><th>Player</th><th>Score</th><th>Goals</th><th>Assists</th><th>Saves</th><th>Shots</th></tr>'+
-      (rows.length?rows.map(r=>'<tr class="'+(r.c===me?'me':'')+'"><td>'+esc(r.c.name)+(r.c.isBot?'<span class="bot">BOT</span>':'')+(r.c===mvp?'<span class="mvp">MVP</span>':'')+'</td><td>'+r.p+'</td><td>'+r.c.stats.g+'</td><td>'+r.c.stats.a+'</td><td>'+r.c.stats.sv+'</td><td>'+r.c.stats.sh+'</td></tr>').join(''):'<tr><td colspan="6">No one yet</td></tr>')+'</table>';
+    return '<table class="tbl t'+t+'"><caption>'+TEAM[t].name+(R?' · '+(t?R.so:R.sb):'')+'</caption><tr><th>Player</th><th>Score</th><th>Goals</th><th>Assists</th><th>Saves</th><th>Shots</th><th>Touches</th></tr>'+
+      (rows.length?rows.map(r=>'<tr class="'+(r.c===me?'me':'')+'"><td>'+esc(r.c.name)+(r.c.isBot?'<span class="bot">BOT</span>':'')+(r.c===mvp?'<span class="mvp">MVP</span>':'')+'</td><td>'+r.p+'</td><td>'+r.c.stats.g+'</td><td>'+r.c.stats.a+'</td><td>'+r.c.stats.sv+'</td><td>'+r.c.stats.sh+'</td><td>'+(r.c.stats.t|0)+'</td></tr>').join(''):'<tr><td colspan="7">No one yet</td></tr>')+'</table>';
   }).join('');
 }
 
@@ -3250,10 +3255,12 @@ const Net={
       o.v=[r2(c.vel.x),r2(c.vel.y),r2(c.vel.z)].join(',');
       o.bo=c.boosting?1:0;o.bs=Math.round(c.boost);o.dm=c.demo>0?1:0;o.pl=c.placed?1:0;o.g=c.onGround?1:0;
       o.st=[c.stats.g,c.stats.a,c.stats.sv,c.stats.sh,c.stats.dm].join(',');
+      o.tch=c.stats.t|0;   // touches travel beside st, not inside it: a page from before them reads st as exactly five numbers
     }
     if(owner===this.uid&&!ballHidden)o.b=lastTouchBt+'|'+Math.round(this.now())+'|'+packBall(ball);
     if(this.isHost()){
       const bots=cars.filter(b=>b.isBot&&!b.remote);
+      if(bots.length)o.bth=bots.map(b=>b.stats.t|0).join(',');   // the bots' touches, in the same order as bh
       if(bots.length)o.bh=bots.map(b=>[b.id,b.team,r2(b.pos.x),r2(b.pos.y),r2(b.pos.z),r3(b.q.x),r3(b.q.y),r3(b.q.z),r3(b.q.w),r2(b.vel.x),r2(b.vel.y),r2(b.vel.z),b.boosting?1:0,Math.round(b.boost),b.demo>0?1:0,b.body,b.accent,b.stats.g,b.stats.a,b.stats.sv,b.stats.sh,b.stats.dm,BOT_NAMES.indexOf(b.name),b.placed?1:0,b.onGround?1:0].concat(b.kit||[]).join(',')).join('|');
     }
     return o;
@@ -3400,7 +3407,7 @@ function onRemoteState(uid,v){
   c.netGround=v.g===undefined?(+v.y||CAR_Y)<CAR_Y+.1:!!v.g;
   c.boosting=!!v.bo;c.boost=clamp(+v.bs||0,0,100);c.placed=v.pl!==0;
   remoteDemo(c,!!v.dm);
-  const st=parseVec(v.st,5);if(st)c.stats={g:st[0]|0,a:st[1]|0,sv:st[2]|0,sh:st[3]|0,dm:st[4]|0};
+  const st=parseVec(v.st,5);if(st)c.stats={g:st[0]|0,a:st[1]|0,sv:st[2]|0,sh:st[3]|0,dm:st[4]|0,t:clamp(v.tch|0,0,9999)};
   if(typeof v.b==='string'){
     const p=v.b.split('|');const bt=+p[0],bst=+p[1];
     if(isFinite(bt)&&isFinite(bst)){
@@ -3410,9 +3417,9 @@ function onRemoteState(uid,v){
   }
   // bots run by whoever hosts the room
   if(typeof v.bh==='string'&&Net.hostUid()===uid){
-    const ids=new Set();
+    const ids=new Set(),bth=typeof v.bth==='string'?v.bth.split(','):[];let bi=-1;
     for(const row of v.bh.split('|')){
-      const a=row.split(',');if(a.length<24)continue;const id=String(a[0]).slice(0,20);const n=a.slice(1).map(Number);if(!n.every(isFinite))continue;
+      bi++;const a=row.split(',');if(a.length<24)continue;const id=String(a[0]).slice(0,20);const n=a.slice(1).map(Number);if(!n.every(isFinite))continue;
       ids.add(id);
       let b=carById(id);
       if(b&&!b.remote)continue; // I'm running it
@@ -3420,7 +3427,7 @@ function onRemoteState(uid,v){
       b.team=n[0]?1:0;b.name=BOT_NAMES[n[21]]||b.name;b.kit=n.length>=24+KIT_LEN?kitOf(n.slice(24,24+KIT_LEN)):null;if(b.kit)kitLoad();
       setRemoteKin(b,n[1],n[2],n[3],[n[4],n[5],n[6],n[7]],[n[8],n[9],n[10]],ts);
       b.boosting=!!n[11];b.boost=clamp(n[12],0,100);remoteDemo(b,!!n[13]);
-      b.stats={g:n[16]|0,a:n[17]|0,sv:n[18]|0,sh:n[19]|0,dm:n[20]|0};b.placed=!!n[22];b.netGround=n.length>23?!!n[23]:b.pos.y<CAR_Y+.1;
+      b.stats={g:n[16]|0,a:n[17]|0,sv:n[18]|0,sh:n[19]|0,dm:n[20]|0,t:clamp(bth[bi]|0,0,9999)};b.placed=!!n[22];b.netGround=n.length>23?!!n[23]:b.pos.y<CAR_Y+.1;
     }
     for(const b of cars.slice())if(b.isBot&&b.remote&&!ids.has(b.id))removeCar(b);
   }
