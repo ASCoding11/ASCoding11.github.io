@@ -3159,7 +3159,7 @@ function syncLimbs(){
    x (up), then z (out to the side); the last two slide the shoulder out (a hanging arm then clears the hips standing straight);
    0 is the pose the body is drawn in, both arms forward holding a weapon, which every weapon, aim, reload, pump and bolt
    still uses, so the hands stay on every grip. The crowbar angle tips the bar up from straight along the forearm. */
-const POSE_N=12,LEG_L=.69;
+const POSE_N=12,LEG_L=.76;
 const POSES={rest:[0,0,0,0,0,0,0,0,0,0,0,0],
   cb:[0,0,-1.3,.4,-.05,-.6,.3,.1,2.9,-.06,.03,.35],  // crowbar out: the right hand at the chest, the bar resting back over the right shoulder; the left arm hangs
   fall:[.1,0,.35,1.55,-.55,.35,-1.15,.55,.5,0,0,0],          // skydiving: both arms out to the sides
@@ -4694,7 +4694,7 @@ function animModel(e,dt){
   if(gl.visible){gl.scale.set(.08+.92*ge,.4+.6*ge,.3+.7*ge);gl.rotation.set(-u.pit*.8,0,u.roll*.4)}
   u.legs[0].visible=u.legs[1].visible=!far;u.gun.visible=!far&&!air&&u.glk<.35;
   // legs: on the ground each stride is as long as the ground covered, so the feet don't slide (A: how far a leg swings, at
-  // most 0.74 rad; LEG_L: hip to sole in metres); falling they scissor, gliding they trail behind
+  // most 0.74 rad; LEG_L: hip to sole in metres, 0.95 x BS); falling they scissor, gliding they trail behind
   const sp=Math.hypot(e.vel.x,e.vel.z),A=.74*Math.min(1,Math.sqrt(sp/6));
   if(e.onGround&&sp>.05)e.walk+=dt*sp*Math.PI/(2*LEG_L*Math.sin(Math.max(A,.02)));
   const gw=e.glide?Math.sin(now*.005)*.06:0,sw=e.onGround?Math.sin(e.walk)*A:air?.5:0;
@@ -4703,6 +4703,7 @@ function animModel(e,dt){
   // ---- arms and chest (see POSES): the pose for what you're doing, blended over about a fifth of a second, then the
   // crowbar's swing on top of it, on the real clock from when the swing started (yours, a bot's, or another player's shot
   // event), so it agrees with the hit
+  if(far&&!u.gun.visible&&u.pfar)return;u.pfar=far;   // past 70 m the arms keep their last pose
   const cb=u.gk==='cb'&&!air&&!e.glide,tg=air?POSES.fall:e.glide?POSES.glide:cb?POSES.cb:POSES.rest,pb=u.pb,k12=1-Math.exp(-dt*12);
   for(let i=0;i<POSE_N;i++)pb[i]+=(tg[i]-pb[i])*k12;
   u.cbw=(u.cbw||0)+((cb?1:0)-(u.cbw||0))*k12;
@@ -4755,7 +4756,8 @@ function posePut(u,P){const b=u.bones;b[1].rotation.set(P[0],P[1],0);b[2].rotati
 // carries the held item along with the right arm and the chest: worked out at rest, it is moved by how far they have
 // turned (chest x arm x the shoulder's rest place undone); at rest that is nothing, so a weapon is where it always was
 const _hm=new THREE.Matrix4(),_hn=new THREE.Matrix4(),_h1=new V3(1,1,1);
-function heldFollow(u){const b=u.bones,g=u.gun;if(!b)return;
+function heldFollow(u){const b=u.bones,g=u.gun,P=u.pf;if(!b||!g.visible)return;
+  if(Math.abs(P[0])+Math.abs(P[1])+Math.abs(P[5])+Math.abs(P[6])+Math.abs(P[7])+Math.abs(P[10])<1e-4)return;   // at rest: nothing to carry
   b[1].updateMatrix();b[3].updateMatrix();_hm.multiplyMatrices(b[1].matrix,b[3].matrix).multiply(_hn.makeTranslation(-ARM_P[1][0],-ARM_P[1][1],-ARM_P[1][2]));
   _hn.compose(g.position,g.quaternion,_h1);_hm.multiply(_hn).decompose(g.position,g.quaternion,g.scale)}
 // Where a weapon's own origin is held (the hand is 0.12 behind it): a little outside and above the hand's centre, so the
