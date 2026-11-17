@@ -222,8 +222,132 @@
   ACCESSORIES.forEach(function (a) { ACC_BY_ID[a.id] = a; ACC_BY_NO[a.no] = a; });
   var BY_RARITY = {}; RARITY.forEach(function (r) { BY_RARITY[r.id] = SKINS.filter(function (s) { return s.rarity === r.id; }); });
 
+  // ---------------- Game items ----------------
+  // Looks worn inside one game instead of on the avatar. Each belongs to a game (its folder name, as in stats.js's data-game)
+  // and to one of that game's slots; one per slot can be worn. `no` is permanent within its game and slot and is what the
+  // game sends to other players, so never renumber or reuse one: add new ones at the end of their slot. The game draws them
+  // itself (Boostball: boostball/kit.js, by slot and number); here each has a name, a rarity (which sets its price, ITEM_PRICE
+  // emeralds, and so its pack's), two colours for the small picture itemSvg() draws in the shop, and a line of text.
+  // Ids are '<game prefix>-<slot>-<name>'. They are saved in the locker beside skins (g: owned, ge: worn per 'game:slot') and,
+  // unlike skins and accessories, are not mirrored into the Google account yet (w.a holds at most 128 item numbers).
+  var GAMES = { boostball: { name: 'Boostball', prefix: 'bb', slots: [['decal', 'Decals'], ['trail', 'Boost trails'], ['goal', 'Goal explosions'], ['topper', 'Antenna toppers'], ['hat', 'Roof hats'], ['wheels', 'Wheels'], ['engine', 'Engine sounds']] } };
+  var ITEM_PRICE = { common: 6, rare: 10, epic: 16, legendary: 40 };
+  var GAME_ITEMS = [], ITEM_BY_ID = {};
+  function I(game, slot, no, name, rarity, c1, c2, desc) {
+    var it = { game: game, slot: slot, no: no, id: GAMES[game].prefix + '-' + slot + '-' + name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''), name: name, rarity: rarity, c1: c1, c2: c2, desc: desc };
+    GAME_ITEMS.push(it); ITEM_BY_ID[it.id] = it;
+  }
+  // Boostball decals: a pattern over the car's paint. The team colour stays the base; c1 and c2 here are only the shop picture.
+  I('boostball', 'decal', 1, 'Flames', 'common', '#FFB020', '#FF4A1C', 'Hot-rod flames licking back from the nose.');
+  I('boostball', 'decal', 2, 'Racing Stripes', 'common', '#FFFFFF', '#1B2233', 'Two stripes, nose to tail, in your accent colour.');
+  I('boostball', 'decal', 3, 'Lightning Bolts', 'common', '#FFE45C', '#FFFFFF', 'Jagged bolts down each side.');
+  I('boostball', 'decal', 4, 'Checkered Flag', 'common', '#FFFFFF', '#14161F', 'Finish-line checks sweeping over the tail.');
+  I('boostball', 'decal', 5, 'Shark Mouth', 'rare', '#FFFFFF', '#D93636', 'Teeth on the nose and one beady eye a side.');
+  I('boostball', 'decal', 6, 'Tiger Stripes', 'rare', '#14161F', '#FF9A3D', 'Dark stripes that taper to points.');
+  I('boostball', 'decal', 7, 'Dragon Scales', 'rare', '#3A7D5C', '#FFE45C', 'Rows of overlapping scales with a bright edge.');
+  I('boostball', 'decal', 8, 'Carbon Fiber', 'common', '#2A2F3A', '#4A5160', 'A dark weave over the bonnet, roof and sills.');
+  I('boostball', 'decal', 9, 'Pixel Camo', 'common', '#5C6B4A', '#2E3A2A', 'Blocky camouflage in shades of your team colour.');
+  I('boostball', 'decal', 10, 'Galaxy', 'epic', '#5B2A9E', '#FF7AE0', 'Purple clouds and far-off stars.');
+  I('boostball', 'decal', 11, 'Constellations', 'rare', '#FFFFFF', '#8FD6FF', 'Made-up star signs joined with thin lines.');
+  I('boostball', 'decal', 12, 'Circuit Board', 'rare', '#4FF0C0', '#123B36', 'Traces, pads and one very important chip.');
+  I('boostball', 'decal', 13, 'Graffiti Drips', 'rare', '#FF4FB4', '#38F2C8', 'Bright paint that ran before it dried.');
+  I('boostball', 'decal', 14, 'Honeycomb', 'common', '#FFC93C', '#7A5410', 'Six-sided cells, a few of them full.');
+  I('boostball', 'decal', 15, 'Lava Cracks', 'epic', '#FF5A1F', '#2A1410', 'Glowing cracks in a cooling crust.');
+  I('boostball', 'decal', 16, 'Frost', 'rare', '#DDF4FF', '#6FB7F0', 'Ice ferns creeping in from the edges.');
+  I('boostball', 'decal', 17, 'Comic Book Dots', 'common', '#FFFFFF', '#FFD23F', 'Printed dots, a burst and a thick outline.');
+  I('boostball', 'decal', 18, 'Topographic Lines', 'common', '#FFFFFF', '#8FA3B8', 'Contour lines from a map of nowhere.');
+  I('boostball', 'decal', 19, 'Stained Glass', 'epic', '#FF5C5C', '#5CC8FF', 'Coloured panes held in dark lead.');
+  I('boostball', 'decal', 20, 'Wireframe', 'rare', '#3EE6FF', '#0B1222', 'A glowing grid, as if the car was never finished.');
+  I('boostball', 'decal', 21, 'Skeleton Ribs', 'rare', '#F4F6FF', '#14161F', 'A spine on top and ribs down the sides.');
+  I('boostball', 'decal', 22, 'Duct Tape Patches', 'common', '#AEB6C2', '#6B7785', 'Held together with silver tape and hope.');
+  I('boostball', 'decal', 23, 'Rust Bucket', 'common', '#A5521E', '#5C2E12', 'Brown blooms round every edge.');
+  I('boostball', 'decal', 24, 'Wood Paneling', 'rare', '#B98A52', '#6E4A26', 'Planks along the doors, like an old estate car.');
+  I('boostball', 'decal', 25, 'Cow Print', 'common', '#FFFFFF', '#14161F', 'Big friendly blotches.');
+  I('boostball', 'decal', 26, 'Donut Sprinkles', 'rare', '#FF9AC8', '#FFE08A', 'Icing dripping over the top, sprinkles included.');
+  I('boostball', 'decal', 27, 'Bubble Wrap', 'common', '#E6F2FF', '#9FC4E8', 'Rows of bubbles. A few already popped.');
+  I('boostball', 'decal', 28, 'Taxi', 'rare', '#FFD21F', '#14161F', 'A checker band and a roof light. Fares not included.');
+  I('boostball', 'decal', 29, 'Police Cruiser', 'rare', '#FFFFFF', '#14161F', 'Light doors, dark ends and a made-up badge.');
+  I('boostball', 'decal', 30, 'Ice Cream Truck', 'epic', '#FFE9C9', '#FF9AC8', 'Cream top, pink awning stripes and a cone on the door.');
+  I('boostball', 'decal', 31, 'Autumn Leaves', 'common', '#E07A2E', '#B8481F', 'Leaves blown along the sides.');
+  // Boostball boost trails: what comes out of the back instead of the flame.
+  I('boostball', 'trail', 1, 'Classic Flame', 'common', '#FFD23F', '#FF5A1F', 'Orange fire, the way rockets were meant to be.');
+  I('boostball', 'trail', 2, 'Blue Plasma', 'common', '#8FD6FF', '#2E5FD9', 'Cold blue fire with a white-hot middle.');
+  I('boostball', 'trail', 3, 'Rainbow', 'epic', '#FF5C5C', '#5CC8FF', 'Six stripes, every colour, straight out the back.');
+  I('boostball', 'trail', 4, 'Lightning', 'rare', '#FFE45C', '#FFFFFF', 'Crackling sparks that jump about.');
+  I('boostball', 'trail', 5, 'Bubbles', 'common', '#BDF0FF', '#FFFFFF', 'Soap bubbles that wobble up and pop.');
+  I('boostball', 'trail', 6, 'Confetti', 'common', '#FF4FB4', '#FFD23F', 'A party every time you boost.');
+  I('boostball', 'trail', 7, 'Snowflakes', 'common', '#FFFFFF', '#BFE4FF', 'A flurry that drifts down behind you.');
+  I('boostball', 'trail', 8, 'Autumn Leaves', 'common', '#E07A2E', '#FFC46B', 'Leaves that tumble in your wake.');
+  I('boostball', 'trail', 9, 'Sparkles', 'rare', '#FFE45C', '#FFFFFF', 'Little four-point twinkles.');
+  I('boostball', 'trail', 10, 'Hearts', 'rare', '#FF5C9A', '#FFC2DD', 'Pink hearts that float away.');
+  I('boostball', 'trail', 11, 'Music Notes', 'rare', '#B46CFF', '#3EE6FF', 'A tune nobody can quite hear.');
+  I('boostball', 'trail', 12, 'Pixel Blocks', 'common', '#46E39A', '#3EE6FF', 'Square blocks from an older sort of game.');
+  I('boostball', 'trail', 13, 'Smoke Rings', 'rare', '#DADFEA', '#8FA3B8', 'Neat grey rings, one after another.');
+  I('boostball', 'trail', 14, 'Slime', 'common', '#6EDB5A', '#2E8A2E', 'Green goo that drips to the floor.');
+  I('boostball', 'trail', 15, 'Lava', 'rare', '#FF7A2E', '#FFD23F', 'Molten blobs that cool as they fall.');
+  I('boostball', 'trail', 16, 'Stardust', 'epic', '#B8A6FF', '#FFFFFF', 'A slow shimmer of tiny stars.');
+  I('boostball', 'trail', 17, 'Popcorn', 'rare', '#FFF2C2', '#FFD23F', 'Freshly popped and all over the pitch.');
+  I('boostball', 'trail', 18, 'Rubber Ducks', 'epic', '#FFD23F', '#FF8A3D', 'A line of bath ducks bobbing along behind.');
+  I('boostball', 'trail', 19, 'Feathers', 'common', '#FFFFFF', '#DADFEA', 'White feathers swaying down.');
+  I('boostball', 'trail', 20, 'Soap Suds', 'common', '#FFFFFF', '#CFE6FF', 'Foam from a very soapy car wash.');
+  I('boostball', 'trail', 21, 'Ink', 'rare', '#3B2A6E', '#8A6CFF', 'Dark ink blots with a purple edge.');
+  I('boostball', 'trail', 22, 'Ones and Zeros', 'rare', '#46E39A', '#C8FFE0', 'Green digits spilling out of the engine.');
+  I('boostball', 'trail', 23, 'Bats', 'rare', '#5A3A8A', '#B46CFF', 'A few small bats flapping out of the exhaust.');
+  I('boostball', 'trail', 24, 'Toast Slices', 'epic', '#E8B96A', '#8A5A2A', 'Breakfast, launched.');
+  I('boostball', 'trail', 25, 'Dollar Bills', 'epic', '#6EDB8A', '#1F7A4A', 'Play money fluttering away.');
+  I('boostball', 'trail', 26, 'Water Jet', 'common', '#5CC8FF', '#FFFFFF', 'A hose on full blast.');
+  I('boostball', 'trail', 27, 'Laser Beam', 'legendary', '#FF3048', '#FFFFFF', 'One straight red line. Very serious.');
+  // Boostball goal explosions: what happens in the goal when you score.
+  I('boostball', 'goal', 1, 'Fireworks', 'rare', '#FF5C9A', '#FFE45C', 'Rockets up from the goal line, then a sky full of stars.');
+  I('boostball', 'goal', 2, 'Confetti Cannon', 'rare', '#3EE6FF', '#FF4FB4', 'Two cannons, one loud pop, paper everywhere.');
+  I('boostball', 'goal', 3, 'Black Hole', 'epic', '#1B1030', '#B46CFF', 'The ball spirals in and does not come back out.');
+  I('boostball', 'goal', 4, 'Supernova', 'epic', '#FFFFFF', '#8FD6FF', 'A star goes off in the goal mouth.');
+  I('boostball', 'goal', 5, 'Lightning Strike', 'rare', '#FFE45C', '#FFFFFF', 'Three bolts from a clear sky.');
+  I('boostball', 'goal', 6, 'Tornado', 'epic', '#AEB6C2', '#6B7785', 'A twister carries the ball, and a cow, away.');
+  I('boostball', 'goal', 7, 'Volcano', 'epic', '#FF5A1F', '#5C3A2A', 'A small volcano grows out of the pitch and goes off.');
+  I('boostball', 'goal', 8, 'Meteor', 'epic', '#FF8A3D', '#5C4A4A', 'A rock from space lands exactly on the spot.');
+  I('boostball', 'goal', 9, 'Freeze and Shatter', 'rare', '#BFE4FF', '#FFFFFF', 'The ball freezes solid, then breaks to bits.');
+  I('boostball', 'goal', 10, 'Pixel Shatter', 'rare', '#46E39A', '#3EE6FF', 'The ball falls apart into square blocks.');
+  I('boostball', 'goal', 11, 'Disco Ball Drop', 'epic', '#DADFEA', '#FF4FB4', 'A mirror ball comes down and the lights come on.');
+  I('boostball', 'goal', 12, 'Giant Foot Stomp', 'legendary', '#F2B58A', '#D93636', 'A very large foot in a stripy sock. Squish.');
+  I('boostball', 'goal', 13, 'Pinata Burst', 'epic', '#FF4FB4', '#FFD23F', 'A paper donkey swings in and showers sweets.');
+  I('boostball', 'goal', 14, 'Popcorn Pop', 'rare', '#FFF2C2', '#D93636', 'A striped tub that will not stop popping.');
+  I('boostball', 'goal', 15, 'UFO Abduction', 'legendary', '#9AA8B6', '#6EDB5A', 'A saucer beams the ball up and leaves in a hurry.');
+  I('boostball', 'goal', 16, 'Shark Attack', 'legendary', '#7A8CA6', '#FFFFFF', 'A shark jumps out of the floor and swallows the ball.');
+  I('boostball', 'goal', 17, 'Giant Airhorn', 'epic', '#D93636', '#FFFFFF', 'HOOONK. Three times.');
+  I('boostball', 'goal', 18, 'Money Rain', 'epic', '#6EDB8A', '#FFD23F', 'Play money and gold coins from the roof.');
+  I('boostball', 'goal', 19, 'Pumpkin Splat', 'rare', '#FF8A1F', '#3E8A2E', 'A giant pumpkin lands and does what pumpkins do.');
+  I('boostball', 'goal', 20, 'Goal Letters', 'legendary', '#FFFFFF', '#FFD23F', 'G, O, A and L fall from the ceiling, one by one.');
+  I('boostball', 'goal', 21, 'Flock of Birds', 'epic', '#FFFFFF', '#5CC8FF', 'The ball turns into birds and flies off.');
+  // Boostball extras: antenna toppers, roof hats, wheels and engine sounds (the sound is heard by its driver only).
+  I('boostball', 'topper', 1, 'Tennis Ball', 'common', '#D8FF3F', '#FFFFFF', 'A fuzzy yellow ball on the end of the aerial.');
+  I('boostball', 'topper', 2, 'Gold Star', 'rare', '#FFD23F', '#FFF2A8', 'A little star to follow.');
+  I('boostball', 'topper', 3, 'Bath Duck', 'rare', '#FFD23F', '#FF8A1F', 'It bobs. It does not quack.');
+  I('boostball', 'topper', 4, 'Mini Pumpkin', 'common', '#FF8A1F', '#5F7A2A', 'A very small pumpkin, stem and all.');
+  I('boostball', 'topper', 5, 'Pennant', 'common', '#FF4D6D', '#FFFFFF', 'A small flag in your accent colour.');
+  I('boostball', 'topper', 6, 'Eyeball', 'epic', '#FFFFFF', '#2E7BFF', 'It is watching the ball. Probably.');
+  I('boostball', 'hat', 1, 'Traffic Cone', 'common', '#FF7A1F', '#FFFFFF', 'Borrowed from some roadworks.');
+  I('boostball', 'hat', 2, 'Top Hat', 'rare', '#22232B', '#C2384A', 'For cars with somewhere smart to be.');
+  I('boostball', 'hat', 3, 'Crown', 'epic', '#FFD23F', '#D93636', 'Gold, with points and red jewels.');
+  I('boostball', 'hat', 4, 'Propeller Beanie', 'rare', '#D93636', '#FFD23F', 'The propeller is only for show.');
+  I('boostball', 'hat', 5, 'Cowboy Hat', 'rare', '#8A5A36', '#E8C9A0', 'Wide brim, tall crown, yee-haw.');
+  I('boostball', 'hat', 6, 'Chef Hat', 'common', '#FFFFFF', '#DADFEA', 'Tall, white and puffy on top.');
+  I('boostball', 'wheels', 1, 'Five Spoke', 'common', '#9AA7C2', '#14161F', 'Five clean spokes.');
+  I('boostball', 'wheels', 2, 'Discs', 'common', '#F4F6FF', '#9AA7C2', 'Smooth covers in your accent colour.');
+  I('boostball', 'wheels', 3, 'Cross', 'rare', '#14161F', '#9AA7C2', 'Four chunky spokes in an X.');
+  I('boostball', 'wheels', 4, 'Gold Rims', 'epic', '#FFD23F', '#C98A12', 'Shiny gold, five spokes.');
+  I('boostball', 'engine', 1, 'Purr', 'common', '#8FA3B8', '#FFFFFF', 'A soft, low hum.');
+  I('boostball', 'engine', 2, 'Buzz', 'rare', '#FFD23F', '#FF8A1F', 'High and angry, like a go-kart.');
+  I('boostball', 'engine', 3, 'Rumble', 'rare', '#7A5230', '#FF4D6D', 'A big lazy burble.');
+  I('boostball', 'engine', 4, 'Whirr', 'epic', '#3EE6FF', '#FFFFFF', 'Electric: it sings as it speeds up.');
+  function gameItems(game, slot) { return GAME_ITEMS.filter(function (it) { return it.game === game && (!slot || it.slot === slot); }); }
+  function itemIds(names) { return names.map(function (n) { if (!ITEM_BY_ID[n]) throw new Error('cosmetics: no item ' + n); return n; }); }
+  function itemsPrice(ids) { return ids.reduce(function (t, id) { return t + ITEM_PRICE[ITEM_BY_ID[id].rarity]; }, 0); }
+  function itemPack(id, game, name, desc, ids) { ids = itemIds(ids); return { id: id, kind: 'items', game: game, name: name, desc: desc, price: itemsPrice(ids), contents: { items: ids } }; }
+
   // ---------------- Packs ----------------
-  // kind: 'draws' (contents.draws), 'skins' (contents.skins), 'accessories' (contents.acc), 'emeralds' (contents.mangos,
+  // kind: 'draws' (contents.draws), 'skins' (contents.skins), 'accessories' (contents.acc), 'items' (contents.items: game
+  // items, see above; game says which game; the price is the sum of the items' ITEM_PRICE), 'emeralds' (contents.mangos,
   // bought with money through BackRoomWallet.PAYMENTS: usd is the price; switched off). price: whole emeralds.
   function skinIds(theme, rarities) { return SKINS.filter(function (s) { return s.theme === theme && rarities.indexOf(s.rarity) >= 0; }).map(function (s) { return s.id; }); }
   function accIds(slot) { return ACCESSORIES.filter(function (a) { return a.slot === slot && a.rarity !== 'legendary'; }).map(function (a) { return a.id; }); }
@@ -247,6 +371,25 @@
     { id: 'acc-auras', kind: 'accessories', name: 'Glow Jar', desc: 'Three auras to float around you.', price: 34, contents: { acc: accIds('aura') } },
     { id: 'acc-pets', kind: 'accessories', name: 'Pet Carrier', desc: 'Four little friends to follow you about.', price: 44, contents: { acc: accIds('pet') } },
     { id: 'acc-drake', kind: 'accessories', name: 'Dragon Egg', desc: 'Hatches into the Baby Drake. Legendary.', price: 150, contents: { acc: ['baby-drake'] } },
+    itemPack('bb-decals-speed', 'boostball', 'Speed Shop', 'Five decals for going fast.', ['bb-decal-flames', 'bb-decal-racing-stripes', 'bb-decal-lightning-bolts', 'bb-decal-checkered-flag', 'bb-decal-carbon-fiber']),
+    itemPack('bb-decals-wild', 'boostball', 'Wild Side', 'Five decals with teeth, stripes or spots.', ['bb-decal-shark-mouth', 'bb-decal-tiger-stripes', 'bb-decal-dragon-scales', 'bb-decal-cow-print', 'bb-decal-skeleton-ribs']),
+    itemPack('bb-decals-tech', 'boostball', 'Late Night', 'Five decals from space and the workshop.', ['bb-decal-galaxy', 'bb-decal-constellations', 'bb-decal-circuit-board', 'bb-decal-wireframe', 'bb-decal-pixel-camo']),
+    itemPack('bb-decals-art', 'boostball', 'Art Class', 'Five decals in loud colours.', ['bb-decal-graffiti-drips', 'bb-decal-comic-book-dots', 'bb-decal-topographic-lines', 'bb-decal-stained-glass', 'bb-decal-honeycomb']),
+    itemPack('bb-decals-weather', 'boostball', 'Hot and Cold', 'Five decals the weather made.', ['bb-decal-lava-cracks', 'bb-decal-frost', 'bb-decal-autumn-leaves', 'bb-decal-rust-bucket', 'bb-decal-wood-paneling']),
+    itemPack('bb-decals-jobs', 'boostball', 'Odd Jobs', 'Six decals for cars with something to do.', ['bb-decal-duct-tape-patches', 'bb-decal-donut-sprinkles', 'bb-decal-bubble-wrap', 'bb-decal-taxi', 'bb-decal-police-cruiser', 'bb-decal-ice-cream-truck']),
+    itemPack('bb-trails-burn', 'boostball', 'Afterburners', 'Six trails that mean business.', ['bb-trail-classic-flame', 'bb-trail-blue-plasma', 'bb-trail-lightning', 'bb-trail-lava', 'bb-trail-water-jet', 'bb-trail-laser-beam']),
+    itemPack('bb-trails-party', 'boostball', 'Party Bag', 'Five trails for a celebration.', ['bb-trail-rainbow', 'bb-trail-confetti', 'bb-trail-hearts', 'bb-trail-music-notes', 'bb-trail-sparkles']),
+    itemPack('bb-trails-weather', 'boostball', 'Light and Fluffy', 'Six trails that float.', ['bb-trail-bubbles', 'bb-trail-snowflakes', 'bb-trail-autumn-leaves', 'bb-trail-feathers', 'bb-trail-soap-suds', 'bb-trail-smoke-rings']),
+    itemPack('bb-trails-odd', 'boostball', 'Odds and Ends', 'Five trails nobody asked for.', ['bb-trail-popcorn', 'bb-trail-rubber-ducks', 'bb-trail-toast-slices', 'bb-trail-dollar-bills', 'bb-trail-slime']),
+    itemPack('bb-trails-night', 'boostball', 'Night Shift', 'Five trails for after dark.', ['bb-trail-stardust', 'bb-trail-pixel-blocks', 'bb-trail-ink', 'bb-trail-ones-and-zeros', 'bb-trail-bats']),
+    itemPack('bb-goals-bang', 'boostball', 'Big Bangs', 'Five loud ways to score.', ['bb-goal-fireworks', 'bb-goal-supernova', 'bb-goal-lightning-strike', 'bb-goal-meteor', 'bb-goal-volcano']),
+    itemPack('bb-goals-party', 'boostball', 'Party Time', 'Five goal parties.', ['bb-goal-confetti-cannon', 'bb-goal-disco-ball-drop', 'bb-goal-pinata-burst', 'bb-goal-popcorn-pop', 'bb-goal-money-rain']),
+    itemPack('bb-goals-science', 'boostball', 'Strange Science', 'Five things that should not happen to a ball.', ['bb-goal-black-hole', 'bb-goal-tornado', 'bb-goal-freeze-and-shatter', 'bb-goal-pixel-shatter', 'bb-goal-flock-of-birds']),
+    itemPack('bb-goals-giant', 'boostball', 'Giant Trouble', 'Six very big surprises.', ['bb-goal-giant-foot-stomp', 'bb-goal-ufo-abduction', 'bb-goal-shark-attack', 'bb-goal-giant-airhorn', 'bb-goal-pumpkin-splat', 'bb-goal-goal-letters']),
+    itemPack('bb-toppers', 'boostball', 'Aerial Shop', 'Six things to stick on your aerial.', ['bb-topper-tennis-ball', 'bb-topper-gold-star', 'bb-topper-bath-duck', 'bb-topper-mini-pumpkin', 'bb-topper-pennant', 'bb-topper-eyeball']),
+    itemPack('bb-hats', 'boostball', 'Roof Rack', 'Six hats for a car.', ['bb-hat-traffic-cone', 'bb-hat-top-hat', 'bb-hat-crown', 'bb-hat-propeller-beanie', 'bb-hat-cowboy-hat', 'bb-hat-chef-hat']),
+    itemPack('bb-wheels', 'boostball', 'Tyre Fitter', 'Four sets of wheels.', ['bb-wheels-five-spoke', 'bb-wheels-discs', 'bb-wheels-cross', 'bb-wheels-gold-rims']),
+    itemPack('bb-engines', 'boostball', 'Under the Bonnet', 'Four engine sounds. Only you hear yours.', ['bb-engine-purr', 'bb-engine-buzz', 'bb-engine-rumble', 'bb-engine-whirr']),
     { id: 'emeralds-1', kind: 'emeralds', name: 'Emerald Pouch', desc: 'About 563 emeralds. Not available yet.', usd: 1, contents: { mangos: 7321 } },
     { id: 'emeralds-5', kind: 'emeralds', name: 'Emerald Chest', desc: 'About 2,815 emeralds. Not available yet.', usd: 5, contents: { mangos: 5 * 7321 } },
     { id: 'emeralds-10', kind: 'emeralds', name: 'Emerald Vault', desc: 'About 5,631 emeralds. Not available yet.', usd: 10, contents: { mangos: 10 * 7321 } }
@@ -289,30 +432,38 @@
   function json(s) { try { return JSON.parse(s); } catch (e) { return null; } }
   function obj(v) { return !!v && typeof v === 'object' && !Array.isArray(v); }
   function load() {
-    var o = json(ls(KEY)), L = { v: 1, s: [], a: [], e: { skin: '' } };
+    var o = json(ls(KEY)), L = { v: 1, s: [], a: [], g: [], e: { skin: '' }, ge: {} };
     SLOTS.forEach(function (k) { L.e[k] = ''; });
     if (!obj(o) || o.v !== 1) return L;
     if (Array.isArray(o.s)) o.s.forEach(function (id) { if (SKINS_BY_ID[id] && L.s.indexOf(id) < 0) L.s.push(id); });
     if (Array.isArray(o.a)) o.a.forEach(function (id) { if (ACC_BY_ID[id] && L.a.indexOf(id) < 0) L.a.push(id); });
+    if (Array.isArray(o.g)) o.g.forEach(function (id) { if (ITEM_BY_ID[id] && L.g.indexOf(id) < 0) L.g.push(id); });
+    if (obj(o.ge)) Object.keys(o.ge).forEach(function (k) { var it = ITEM_BY_ID[o.ge[k]]; if (it && it.game + ':' + it.slot === k && L.g.indexOf(it.id) >= 0) L.ge[k] = it.id; });
     if (obj(o.e)) {
       if (L.s.indexOf(o.e.skin) >= 0) L.e.skin = o.e.skin;
       SLOTS.forEach(function (k) { var a = ACC_BY_ID[o.e[k]]; if (a && a.slot === k && L.a.indexOf(a.id) >= 0) L.e[k] = a.id; });
     }
     return L;
   }
-  function save(L) { ls(KEY, JSON.stringify(L)); try { document.dispatchEvent(new CustomEvent('backroom:cosmetics', { detail: { equipped: equipped() } })); } catch (e) {} }
+  function save(L) {
+    if (!L.g.length) { delete L.g; delete L.ge; }      // no game items: the saved locker is exactly what it was before they existed
+    ls(KEY, JSON.stringify(L)); try { document.dispatchEvent(new CustomEvent('backroom:cosmetics', { detail: { equipped: equipped() } })); } catch (e) {} }
   function equip(id) {
     if (!on()) return false;
     var L = load();
     if (SKINS_BY_ID[id]) { if (L.s.indexOf(id) < 0) return false; L.e.skin = id; save(L); return true; }
     var a = ACC_BY_ID[id];
     if (a) { if (L.a.indexOf(id) < 0) return false; L.e[a.slot] = id; save(L); return true; }
+    var it = ITEM_BY_ID[id];
+    if (it) { if (L.g.indexOf(id) < 0) return false; L.ge[it.game + ':' + it.slot] = id; save(L); return true; }
     return false;
   }
   function unequip(slotOrId) {
     if (!on()) return false;
     var L = load(), k = slotOrId;
     if (SKINS_BY_ID[k]) k = 'skin'; else if (ACC_BY_ID[k]) k = ACC_BY_ID[k].slot;
+    else if (ITEM_BY_ID[k]) k = ITEM_BY_ID[k].game + ':' + ITEM_BY_ID[k].slot;
+    if (String(k).indexOf(':') > 0) { if (!L.ge[k]) return false; delete L.ge[k]; save(L); return true; }   // a game slot, as 'boostball:decal'
     if (k !== 'skin' && SLOTS.indexOf(k) < 0) return false;
     L.e[k] = ''; save(L); return true;
   }
@@ -323,6 +474,14 @@
     var L = load();
     if (L.e.skin) { out.skin = L.e.skin; out.colors = Object.assign({}, SKINS_BY_ID[L.e.skin].colors); }
     SLOTS.forEach(function (k) { if (L.e[k]) out.accessories[k] = L.e[k]; });
+    return out;
+  }
+  // What is worn in one game: { slot: item } (the item objects, so the game has the number to send). Empty while switched off.
+  function gameEquipped(game) {
+    var out = {};
+    if (!on()) return out;
+    var L = load();
+    Object.keys(L.ge).forEach(function (k) { var it = ITEM_BY_ID[L.ge[k]]; if (it && it.game === game) out[it.slot] = it; });
     return out;
   }
   // Mirror helpers for wallet.js: bitmasks by item number (hex, item 1 is the lowest bit of the first digit).
@@ -381,8 +540,8 @@
   // What buying a pack would give, before paying: how many of its items are already owned (skin and accessory packs).
   function preview(packId) {
     var p = PACKS_BY_ID[packId]; if (!p) return null;
-    var L = load(), items = (p.contents.skins || []).concat(p.contents.acc || []);
-    var have = items.filter(function (id) { return L.s.indexOf(id) >= 0 || L.a.indexOf(id) >= 0; }).length;
+    var L = load(), items = (p.contents.skins || []).concat(p.contents.acc || [], p.contents.items || []);
+    var have = items.filter(function (id) { return L.s.indexOf(id) >= 0 || L.a.indexOf(id) >= 0 || L.g.indexOf(id) >= 0; }).length;
     return { pack: p, items: items.length, have: have, all: items.length > 0 && have === items.length };
   }
   // buy(packId, opts) → { ok, reason?, spent (emeralds), got: { skins: [], acc: [], draws: [{ rarity, skin, dup }] }, refund (mangos), balance }
@@ -398,7 +557,8 @@
     var w = W(); if (!w) return { ok: false, reason: 'wallet' };
     if (w.balance() < p.price * MPE) return { ok: false, reason: 'funds', need: p.price * MPE - w.balance() };
     if (w.spend(p.price, 'Bought ' + p.name) === false) return { ok: false, reason: 'funds' };
-    var L = load(), got = { skins: [], acc: [], draws: [] }, dups = 0, next = opts && opts.next;
+    var L = load(), got = { skins: [], acc: [], items: [], draws: [] }, dups = 0, next = opts && opts.next;
+    (p.contents.items || []).forEach(function (id) { if (L.g.indexOf(id) < 0) { L.g.push(id); got.items.push(id); } else dups++; });
     (p.contents.skins || []).forEach(function (id) { if (L.s.indexOf(id) < 0) { L.s.push(id); got.skins.push(id); } else dups++; });
     (p.contents.acc || []).forEach(function (id) { if (L.a.indexOf(id) < 0) { L.a.push(id); got.acc.push(id); } else dups++; });
     for (var i = 0; i < (p.contents.draws || 0); i++) {
@@ -570,6 +730,21 @@
       '<g clip-path="url(#' + id + ')">' + bg + back + '<g>' + face + '</g>' + body + front + '</g></svg>';
   }
 
+  // A small picture of a game item for the shop and pickers: one simple shape per slot, in the item's two colours.
+  function itemSvg(id, size) {
+    var it = ITEM_BY_ID[id], a = it ? it.c1 : '#8FA3B8', b = it ? it.c2 : '#5B6B7C', d = '';
+    switch (it ? it.slot : '') {
+      case 'decal': d = P('M6 40 L8 31 L20 28 L27 19 L42 19 L50 28 L58 31 L58 40 Z', '#3B4A66', INK, 2) + P('M12 34 L20 30 L28 21 L36 21 L30 30 L44 30 L40 36 L14 37 Z', a) + P('M40 22 L44 22 L48 29 L44 29 Z', b) + C(19, 41, 6, INK) + C(47, 41, 6, INK) + C(19, 41, 2.4, '#C8D2DC') + C(47, 41, 2.4, '#C8D2DC'); break;
+      case 'trail': d = C(50, 32, 9, a) + C(36, 32, 7, a, ' opacity=".8"') + C(24, 32, 5.5, b, ' opacity=".8"') + C(14, 32, 4, b, ' opacity=".6"') + C(7, 32, 2.6, b, ' opacity=".4"') + C(50, 32, 4, WH, ' opacity=".7"'); break;
+      case 'goal': d = star(32, 32, 27, a, 10, .55) + star(32, 32, 17, b, 8, .5) + C(32, 32, 6, WH); break;
+      case 'topper': d = P('M32 58 L32 30', null, '#C8D2DC', 3) + C(32, 21, 12, a, ' stroke="' + INK + '" stroke-width="2"') + C(28, 17, 4, b); break;
+      case 'hat': d = P('M8 46 C8 40 56 40 56 46 C56 51 8 51 8 46 Z', b, INK, 2) + P('M18 44 C18 18 46 18 46 44 Z', a, INK, 2); break;
+      case 'wheels': d = C(32, 32, 24, INK) + C(32, 32, 15, a) + star(32, 32, 14, b, 5, .35) + C(32, 32, 4, INK); break;
+      default: d = P('M10 26 L22 26 L34 14 L34 50 L22 38 L10 38 Z', a, INK, 2) + P('M41 22 C47 28 47 36 41 42 M47 16 C57 26 57 38 47 48', null, b, 3);
+    }
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="' + (size || 64) + '" height="' + (size || 64) + '" aria-hidden="true" focusable="false">' + d + '</svg>';
+  }
+
   // ---------------- Textures for 3D games ----------------
   function texture(skinId, size) {
     size = Math.max(16, Math.min(1024, Math.round(Number(size) || 256)));
@@ -625,7 +800,8 @@
     RARITY: RARITY, RARITY_BY_ID: RARITY_BY_ID, RARITY_TOTAL: RARITY_TOTAL, PACKS: PACKS, PACKS_BY_ID: PACKS_BY_ID,
     DRAW_PRICE: DRAW_PRICE, DUP_REFUND: DUP_REFUND,
     roll: roll, seeded: seeded, below: below,
-    owned: function () { if (!on()) return { skins: [], accessories: [] }; var L = load(); return { skins: L.s.slice(), accessories: L.a.slice() }; },
+    owned: function () { if (!on()) return { skins: [], accessories: [], items: [] }; var L = load(); return { skins: L.s.slice(), accessories: L.a.slice(), items: L.g.slice() }; },
+    GAMES: GAMES, GAME_ITEMS: GAME_ITEMS, GAME_ITEMS_BY_ID: ITEM_BY_ID, ITEM_PRICE: ITEM_PRICE, gameItems: gameItems, gameEquipped: gameEquipped, itemSvg: itemSvg,
     equip: equip, unequip: unequip, equipped: equipped,
     preview: preview, buy: buy, draw: function (n, opts) { return buy('draw-' + (n === 5 || n === 10 ? n : 1), opts); },
     avatarSvg: avatarSvg, texture: texture,
