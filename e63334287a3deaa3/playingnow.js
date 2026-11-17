@@ -9,7 +9,9 @@
  * for every rooms/pt-<code>. Instead a public party's leader puts its game on its Online node (social.js, the shared
  * rooms/ol-lobby/players/<uid>, which everyone in the Back Room already reads): pp party code, pg game key, pr room,
  * pn party size, pt launch time. Those are written only while party.js's Party.pub says so: the leader has set the
- * party Public (pub: 1 in its own party node), and the game it launched the party into is the one open.
+ * party Public (pub: 1 in its own party node), and the game it launched the party into is the one open. (Outside that
+ * game a public party's leader still has pp and pn, for the Online panel's Join party button; without pg, pr and pt
+ * it isn't an entry here.)
  * Every entry is then checked against the party itself (rooms/pt-<pp>/players, read once every 15 s): the node that
  * advertises it must be the party's leader (the earliest join among nodes with a heartbeat in the last 2 minutes,
  * party.js's rule), with pub: 1 and go = that game and room. Anything else (a private party, a game not in party.js's

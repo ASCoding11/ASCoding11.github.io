@@ -179,7 +179,7 @@
     '.pty-pub[hidden]{display:none}' +
     '.pty-pub .pty-h{margin:0}' +
     '.pty-seg{display:inline-flex;gap:2px;padding:3px;background:var(--panel-2);border:1px solid var(--line);border-radius:999px;flex:none}' +
-    '.pty-seg button{font:inherit;font-size:14px;font-weight:600;color:var(--ink-2);background:none;border:0;border-radius:999px;padding:6px 16px;min-height:38px;cursor:pointer}' +
+    '.pty-seg button{font:inherit;font-size:14px;font-weight:600;color:var(--ink-2);background:none;border:0;border-radius:999px;padding:6px 16px;min-height:40px;cursor:pointer}' +
     '.pty-seg button:hover{color:var(--ink)}' +
     '.pty-seg button[aria-checked="true"]{background:var(--accent);color:var(--accent-ink)}' +
     '.pty-pub .pty-wait{font-size:14px;flex:1 1 260px}' +
@@ -204,6 +204,8 @@
   var handled = {}, wasConnected = false, connRef = null, lastLeader = '', kicked = [];
   // Public party: other Back Room visitors can see the game it's in and join (playingnow.js). pub is this browser's choice
   // (Public unless it was switched to Private), pubOn whether our node says so right now: only while we lead.
+  // A party that was Private under its last leader stays Private when the lead passes to us, until we choose: that is
+  // kept for the tab (sessionStorage party:keep, the party's code), not as this browser's choice.
   var pub = store('party:pub') !== '0', pubOn = false, pubN = 0;
   function now() { return Date.now() + offset; }
 
@@ -345,6 +347,7 @@
   }
   async function enter(c) {
     code = c; myJ = Math.round(now()); picked = ''; goId = 0; lastGo = null; handled = {}; pubOn = false;
+    pub = store('party:pub') !== '0' && sess('party:keep') !== c;
     var room = db.ref('rooms/pt-' + c);
     refs = { players: room.child('players'), me: room.child('players/' + uid) };
     try { await timeout(refs.me.set(myState()), 10000, NET); }
@@ -378,7 +381,7 @@
     if (connRef) { connRef.off('value', onConnected); connRef = null; }
     if (refs) { var r = refs; try { r.players.off('value', onPlayers); r.me.onDisconnect().cancel(); r.me.remove().catch(function () {}); } catch (e) {} }
     refs = null; code = ''; members = []; picked = ''; lastGo = null; goId = 0; lastLeader = ''; kicked = []; pubOn = false;
-    if (clear) sess('party:code', null);
+    if (clear) { sess('party:code', null); sess('party:keep', null); }
   }
   function leave() { teardown(true); say('You left the party.'); render(); }
 
@@ -396,10 +399,14 @@
       all.sort(function (a, b) { return a.j - b.j || (a.uid < b.uid ? -1 : 1); });
     }
     var had = members.map(function (m) { return m.uid; }), came = all.filter(function (m) { return m.uid !== uid && had.indexOf(m.uid) < 0; });
+    var was = members.filter(function (m) { return m.uid === lastLeader; })[0];
     members = all;
     var L = leader();
     if (had.length && came.length) say(came.map(function (m) { return m.n; }).join(', ') + ' joined the party.');
-    if (L && lastLeader && L.uid !== lastLeader) say(L.uid === uid ? 'You’re the party leader now. Pick a game.' : L.n + ' is the party leader now.');
+    // The lead passed to us from a leader who had the party Private: it stays Private until we choose.
+    var keep = !!(L && L.uid === uid && lastLeader && lastLeader !== uid && was && !was.pub && pub);
+    if (keep) { pub = false; sess('party:keep', code); }
+    if (L && lastLeader && L.uid !== lastLeader) say(L.uid === uid ? 'You’re the party leader now. Pick a game.' + (keep ? ' The party is still private.' : '') : L.n + ' is the party leader now.');
     lastLeader = L ? L.uid : '';
     syncPub();
     // A new launch from the leader that happened while we were in the party: go there too.
@@ -654,7 +661,7 @@
     else if (a === 'pub') {
       var L0 = leader(); if (!refs || !L0 || L0.uid !== uid) return;
       var v = t.getAttribute('data-v') === '1'; if (v === pub) return;
-      pub = v; store('party:pub', pub ? '1' : '0');
+      pub = v; store('party:pub', pub ? '1' : '0'); sess('party:keep', null);
       syncPub(function (e) { say('Couldn’t save that (' + (e.code || e.message) + ').', true); });
       say(pub ? 'Your party is public. Anyone in the Back Room can see it and join.' : 'Your party is private. Only people with your invite link or code can join, or people you let in.');
       drawParty();
