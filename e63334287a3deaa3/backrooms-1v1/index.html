@@ -1863,6 +1863,8 @@ let edit=null,editJob=null,editAim=null,editAimT=0,editPaint=-1,editNote='',edit
 // Online, editing is on for a match only if every player's page could do it when the match began (the host writes ed
 // into the round node, the same way it picks the map version), so a mixed room always agrees on the shapes.
 const editOn=()=>!online||(!!RD&&RD.ed===1&&curMatch===RD.id);
+// asking the host for the pieces standing, after coming into a round that had already begun (see onRound, onlineTick)
+let pieceAsk=null;
 const canEdit=pc=>!!pc&&pieces.has(pc.key)&&pc.team!=null&&pc.team===myBuildTeam();
 function note(t){editNote=t;editNoteT=1.8}
 const editGroup=new THREE.Group();editGroup.visible=false;scene.add(editGroup);
@@ -1915,9 +1917,9 @@ function editTarget(){
 }
 function openEdit(){
   if(edit||editJob)return;
-  if(!editOn()){note('Editing is off this match: a player here needs to refresh the page');return}
+  if(!editOn()){note('Editing is off: a player needs to refresh');return}
   const pc=editTarget();
-  if(!pc){note('Aim at one of your builds, up close, to edit it');return}
+  if(!pc){note('Aim at a build of yours, up close');return}
   if(!canEdit(pc)){note(online?'That build is the other team’s':'That build is the Entity’s');return}
   const s=pc.spec,n=ED_N[s.kind],gp=editGrid.geometry.attributes.position;
   edit={pc,mask:pc.ed,hot:-1,frame:s.kind==='ramp'?pieceShape(s,0).rps[0]:null};
@@ -2192,7 +2194,7 @@ function onRound(r){
     }
     if(r.ph!=='end'&&(r.rn|0)!==curRound){curRound=r.rn|0;startOnlineRound();
       // came in after this round began (joined late, or came back): ask the host what has been built and how it is shaped
-      if(r.ph!=='cd')Net.send({type:'bq',r:curRound})}
+      pieceAsk=r.ph!=='cd'?{r:curRound,n:0,t:0}:null}
     applyDead(r);
   }else if(curMatch!=null){
     // back to the lobby: nobody is in a match until the host starts the next one
@@ -2281,9 +2283,11 @@ function handleEvent(e){
     editPiece(pc,e.ed);
   }else if(e.type==='bq'){
     // someone came in after the round began: the host sends them every piece standing, with its health, shape and team
-    if(sameRound&&Net.amHost&&pieces.size)Net.send({type:'bs',r:curRound,to:String(e.by),p:[...pieces.values()].map(pc=>{const s=pc.spec;return[s.kind[0],s.x,s.z,s.L,s.kind==='wall'?s.o:s.dir|0,Math.ceil(pc.hp),pc.ed,pc.team||'-']})});
+    if(sameRound&&Net.amHost)Net.send({type:'bs',r:curRound,to:String(e.by),p:[...pieces.values()].map(pc=>{const s=pc.spec;return[s.kind[0],s.x,s.z,s.L,s.kind==='wall'?s.o:s.dir|0,Math.ceil(pc.hp),pc.ed,pc.team||'-']})});
   }else if(e.type==='bs'){
-    if(!sameRound||e.to!==Net.uid||!Array.isArray(e.p))return;
+    if(e.to!==Net.uid)return;
+    pieceAsk=null;
+    if(!sameRound||!Array.isArray(e.p))return;   // (nothing standing: the list is left out)
     for(const it of e.p){
       if(!Array.isArray(it))continue;
       const k={w:'wall',f:'floor',r:'ramp'}[it[0]];if(!k)continue;
@@ -2500,6 +2504,11 @@ function onlineTick(){
     if(liveHumans().length>=2){Net.aloneT=0;Net.hadMate=true}
     else if(!Net.aloneT)Net.aloneT=performance.now();
     else if(performance.now()-Net.aloneT>(Net.hadMate?5000:12000)){Net.aloneT=0;quickMatch(true);return}
+  }
+  // the pieces of a round we came into late: ask the host, and twice more if no answer comes (the host may have just changed)
+  if(pieceAsk){
+    if(pieceAsk.r!==curRound||!inPlay()||pieceAsk.n>2)pieceAsk=null;
+    else if(t-pieceAsk.t>3000){pieceAsk.t=t;pieceAsk.n++;Net.send({type:'bq',r:curRound})}
   }
   if(lobbyDirty)renderLobby();
   syncView();
@@ -2736,7 +2745,7 @@ function updateHud(dt){
     // the line of help: a short note (why an edit can't start), the build or edit keys, or "edit this build" while the crosshair is on one of yours
     const kn=id=>{const c=KB.keys(id)[0];return c?(c==='Mouse0'?'click':KB.name(c)):''};
     const ht=editNote||(mode==='build'?'Build · '+buildType+(touchUI?' · tap Place · tap a gun to fight':buildKeysText())
-      :mode==='edit'?(touchUI?'Edit · Tile opens or closes a tile · Done to finish':'Edit · '+(kn('fire')||'shoot')+' a tile to open or close it · '+kn('edit')+' done · '+kn('reload')+' whole again · '+(KB.keys('aim').map(KB.name)[0]||'aim')+' cancel')
+      :mode==='edit'?(touchUI?'Edit · Tile opens or closes · Done to finish':'Edit · '+(kn('fire')||'shoot')+' a tile to open or close it · '+kn('edit')+' done · '+kn('reload')+' whole again · '+(KB.keys('aim').map(KB.name)[0]||'aim')+' cancel')
       :editAim&&!touchUI&&kn('edit')?kn('edit')+' · edit this build':'');
     hud.hint.hidden=!ht;if(ht)hud.hint.textContent=ht;
     if(touchUI){$('tEdit').textContent=mode==='edit'?'DONE':'EDIT';$('tReload').textContent=mode==='edit'?'WHOLE':'RELOAD';$('tAim').textContent=mode==='edit'?'CANCEL':'AIM'}
