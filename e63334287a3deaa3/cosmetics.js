@@ -319,6 +319,27 @@
   I('boostball', 'goal', 19, 'Pumpkin Splat', 'rare', '#FF8A1F', '#3E8A2E', 'A giant pumpkin lands and does what pumpkins do.');
   I('boostball', 'goal', 20, 'Goal Letters', 'legendary', '#FFFFFF', '#FFD23F', 'G, O, A and L fall from the ceiling, one by one.');
   I('boostball', 'goal', 21, 'Flock of Birds', 'epic', '#FFFFFF', '#5CC8FF', 'The ball turns into birds and flies off.');
+  // Boostball extras: antenna toppers, roof hats, wheels and engine sounds (the sound is heard by its driver only).
+  I('boostball', 'topper', 1, 'Tennis Ball', 'common', '#D8FF3F', '#FFFFFF', 'A fuzzy yellow ball on the end of the aerial.');
+  I('boostball', 'topper', 2, 'Gold Star', 'rare', '#FFD23F', '#FFF2A8', 'A little star to follow.');
+  I('boostball', 'topper', 3, 'Bath Duck', 'rare', '#FFD23F', '#FF8A1F', 'It bobs. It does not quack.');
+  I('boostball', 'topper', 4, 'Mini Pumpkin', 'common', '#FF8A1F', '#5F7A2A', 'A very small pumpkin, stem and all.');
+  I('boostball', 'topper', 5, 'Pennant', 'common', '#FF4D6D', '#FFFFFF', 'A small flag in your accent colour.');
+  I('boostball', 'topper', 6, 'Eyeball', 'epic', '#FFFFFF', '#2E7BFF', 'It is watching the ball. Probably.');
+  I('boostball', 'hat', 1, 'Traffic Cone', 'common', '#FF7A1F', '#FFFFFF', 'Borrowed from some roadworks.');
+  I('boostball', 'hat', 2, 'Top Hat', 'rare', '#22232B', '#C2384A', 'For cars with somewhere smart to be.');
+  I('boostball', 'hat', 3, 'Crown', 'epic', '#FFD23F', '#D93636', 'Gold, with points and red jewels.');
+  I('boostball', 'hat', 4, 'Propeller Beanie', 'rare', '#D93636', '#FFD23F', 'The propeller is only for show.');
+  I('boostball', 'hat', 5, 'Cowboy Hat', 'rare', '#8A5A36', '#E8C9A0', 'Wide brim, tall crown, yee-haw.');
+  I('boostball', 'hat', 6, 'Chef Hat', 'common', '#FFFFFF', '#DADFEA', 'Tall, white and puffy on top.');
+  I('boostball', 'wheels', 1, 'Five Spoke', 'common', '#9AA7C2', '#14161F', 'Five clean spokes.');
+  I('boostball', 'wheels', 2, 'Discs', 'common', '#F4F6FF', '#9AA7C2', 'Smooth covers in your accent colour.');
+  I('boostball', 'wheels', 3, 'Cross', 'rare', '#14161F', '#9AA7C2', 'Four chunky spokes in an X.');
+  I('boostball', 'wheels', 4, 'Gold Rims', 'epic', '#FFD23F', '#C98A12', 'Shiny gold, five spokes.');
+  I('boostball', 'engine', 1, 'Purr', 'common', '#8FA3B8', '#FFFFFF', 'A soft, low hum.');
+  I('boostball', 'engine', 2, 'Buzz', 'rare', '#FFD23F', '#FF8A1F', 'High and angry, like a go-kart.');
+  I('boostball', 'engine', 3, 'Rumble', 'rare', '#7A5230', '#FF4D6D', 'A big lazy burble.');
+  I('boostball', 'engine', 4, 'Whirr', 'epic', '#3EE6FF', '#FFFFFF', 'Electric: it sings as it speeds up.');
   function gameItems(game, slot) { return GAME_ITEMS.filter(function (it) { return it.game === game && (!slot || it.slot === slot); }); }
   function itemIds(names) { return names.map(function (n) { if (!ITEM_BY_ID[n]) throw new Error('cosmetics: no item ' + n); return n; }); }
   function itemsPrice(ids) { return ids.reduce(function (t, id) { return t + ITEM_PRICE[ITEM_BY_ID[id].rarity]; }, 0); }
@@ -365,6 +386,10 @@
     itemPack('bb-goals-party', 'boostball', 'Party Time', 'Five goal parties.', ['bb-goal-confetti-cannon', 'bb-goal-disco-ball-drop', 'bb-goal-pinata-burst', 'bb-goal-popcorn-pop', 'bb-goal-money-rain']),
     itemPack('bb-goals-science', 'boostball', 'Strange Science', 'Five things that should not happen to a ball.', ['bb-goal-black-hole', 'bb-goal-tornado', 'bb-goal-freeze-and-shatter', 'bb-goal-pixel-shatter', 'bb-goal-flock-of-birds']),
     itemPack('bb-goals-giant', 'boostball', 'Giant Trouble', 'Six very big surprises.', ['bb-goal-giant-foot-stomp', 'bb-goal-ufo-abduction', 'bb-goal-shark-attack', 'bb-goal-giant-airhorn', 'bb-goal-pumpkin-splat', 'bb-goal-goal-letters']),
+    itemPack('bb-toppers', 'boostball', 'Aerial Shop', 'Six things to stick on your aerial.', ['bb-topper-tennis-ball', 'bb-topper-gold-star', 'bb-topper-bath-duck', 'bb-topper-mini-pumpkin', 'bb-topper-pennant', 'bb-topper-eyeball']),
+    itemPack('bb-hats', 'boostball', 'Roof Rack', 'Six hats for a car.', ['bb-hat-traffic-cone', 'bb-hat-top-hat', 'bb-hat-crown', 'bb-hat-propeller-beanie', 'bb-hat-cowboy-hat', 'bb-hat-chef-hat']),
+    itemPack('bb-wheels', 'boostball', 'Tyre Fitter', 'Four sets of wheels.', ['bb-wheels-five-spoke', 'bb-wheels-discs', 'bb-wheels-cross', 'bb-wheels-gold-rims']),
+    itemPack('bb-engines', 'boostball', 'Under the Bonnet', 'Four engine sounds. Only you hear yours.', ['bb-engine-purr', 'bb-engine-buzz', 'bb-engine-rumble', 'bb-engine-whirr']),
     { id: 'emeralds-1', kind: 'emeralds', name: 'Emerald Pouch', desc: 'About 563 emeralds. Not available yet.', usd: 1, contents: { mangos: 7321 } },
     { id: 'emeralds-5', kind: 'emeralds', name: 'Emerald Chest', desc: 'About 2,815 emeralds. Not available yet.', usd: 5, contents: { mangos: 5 * 7321 } },
     { id: 'emeralds-10', kind: 'emeralds', name: 'Emerald Vault', desc: 'About 5,631 emeralds. Not available yet.', usd: 10, contents: { mangos: 10 * 7321 } }

@@ -3171,9 +3171,11 @@ function audioTick(dt){
   const t=actx.currentTime;
   const live=state==='playing'&&me&&me.demo<=0&&!paused;
   const sp=live?me.vel.length():0;
-  engO.frequency.setTargetAtTime(38+sp*2.6+(me&&me.boosting?8:0),t,.08);engO._sub.frequency.setTargetAtTime(19+sp*1.3,t,.08);
-  engF.frequency.setTargetAtTime(260+sp*22,t,.1);
-  engG.gain.setTargetAtTime(live?.045+sp*.0012:0,t,.12);
+  const E=KIT?KIT.engine():null; // your kit's engine sound, if you wear one (kit.js); else the usual tone
+  const ety=E?E.type:'sawtooth';if(engO.type!==ety)engO.type=ety;
+  engO.frequency.setTargetAtTime((E?E.f0:38)+sp*(E?E.fk:2.6)+(me&&me.boosting?8:0),t,.08);engO._sub.frequency.setTargetAtTime((E?E.s0:19)+sp*(E?E.sk:1.3),t,.08);
+  engF.frequency.setTargetAtTime((E?E.c0:260)+sp*(E?E.ck:22),t,.1);
+  engG.gain.setTargetAtTime(live?(.045+sp*.0012)*(E?E.g:1):0,t,.12);
   bstG.gain.setTargetAtTime(live&&me.boosting?.11:0,t,.05);
   skidG.gain.setTargetAtTime(live&&me.driftVis?.09*me.driftVis:0,t,.04);
   crowdG.gain.setTargetAtTime(state==='playing'?.035+(crowdBoost>0?.16*crowdBoost:0):state==='menu'?.015:0,t,.3);

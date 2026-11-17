@@ -1,5 +1,6 @@
 /*
- * Boostball kit: decals, boost trails, goal explosions (and, later in this file, the extras). HIDDEN.
+ * Boostball kit: decals, boost trails, goal explosions, and the extras (antenna toppers, roof hats, wheels, engine
+ * sounds). HIDDEN.
  *
  * index.html fetches this file only when something needs it: hidden things are switched on in this browser (the garage
  * switch, ?garage=1 / GARAGE_PUBLIC, or the cosmetics switch in ../cosmetics.js), or another player's car arrives wearing
@@ -10,7 +11,7 @@
  *
  * A car's kit is six item numbers [decal, trail, goal explosion, topper, hat, wheels]; the numbers are the `no` of
  * Boostball's items in ../cosmetics.js (GAME_ITEMS), which also holds their names, rarity and price. What a number
- * LOOKS like is decided here: DECALS, TRAILS and GOALS below are in number order. A number this file does not know
+ * LOOKS like is decided here: DECALS, TRAILS, GOALS, TOPPERS, HATS, WHEELS and ENGINES below are in number order. A number this file does not know
  * draws nothing (the plain car, the plain flame, the plain fireball), so an older copy of this file copes with newer
  * items. Never reorder a list: add new ones at the end, and add the item with the same number to cosmetics.js.
  *
@@ -24,7 +25,7 @@ const sm=(a,b,x)=>{x=clamp((x-a)/(b-a),0,1);return x*x*(3-2*x)};
 const css=h=>'#'+(h>>>0).toString(16).padStart(6,'0');
 const mixHex=(a,b,t)=>{let o=0;for(let i=16;i>=0;i-=8)o=o<<8|Math.round(lerp(a>>i&255,b>>i&255,t));return o};
 function rng(seed){let s=(seed>>>0)||1;return()=>{s^=s<<13;s>>>=0;s^=s>>>17;s^=s<<5;s>>>=0;return s/4294967296}}
-const SLOTS=['decal','trail','goal','topper','hat','wheels'];
+const SLOTS=['decal','trail','goal','topper','hat','wheels','engine']; // the first six are the car's kit; the engine sound is its driver's alone
 
 // =====================================================================
 //  Decals
@@ -499,17 +500,94 @@ function decalSkin(no,team,aHex,gl){
 }
 function release(s){if(--s.n>0)return;skins.delete(s.key);s.tex.dispose();s.mat.dispose()}
 
-function has(slot,no){return !!no&&(slot===0?!!DECALS[no]:slot===1?!!TRAILS[no]:slot===2?!!GOALS[no]:false)}
-// while a car model is built: the decal goes on the paint mesh (the one whose material is the team paint)
+function has(slot,no){const L=LISTS[slot];return !!no&&!!L&&!!L[no]}
+// while a car model is built: the decal goes on the paint mesh (the one whose material is the team paint), and the
+// topper and hat are added as one more mesh
 function dress(inner,K,o){
   let skin=null;
   if(has(0,K[0])){
     const m=inner.children.find(x=>x.isMesh&&x.material===o.mB);
-    if(m){const old=m.geometry;m.geometry=decalGeometry(old);old.dispose();skin=decalSkin(K[0],o.team,o.aHex,o.gl);m.material=skin.mat}
+    if(m){const old=m.geometry;m.geometry=decalGeometry(old);old.dispose();skin=decalSkin(K[0],o.team,o.aHex,o.gl)}
+    if(m)m.material=skin.mat;
   }
+  extras(inner,K,o);
   return skin;
 }
-function wheel(){return null}
+
+// =====================================================================
+//  Extras: antenna toppers, roof hats, wheels, engine sounds
+// =====================================================================
+// A topper sits on a thin aerial at the back of the car and a hat sits on the roof. Where those are is worked out
+// from the body itself (the highest point near the middle; the top of the body near the back right corner), so they
+// fit all fifteen bodies without a table. Both are welded into ONE vertex-coloured mesh: one more draw call for a car
+// that wears either or both (and one more in the shadow pass on Pretty). Wheels swap the shared spoke and hub shapes
+// and cost nothing extra. Engine sounds only change the numbers the driver's own engine tone is made from.
+// In item-number order (cosmetics.js: boostball topper / hat / wheels / engine 1, 2, 3, ...).
+const anchors={};
+function anchor(inner,body){
+  if(anchors[body])return anchors[body];
+  const v=new V3();let top=-9,tz=0,tn=0;
+  const each=f=>{for(const m of inner.children){if(!m.isMesh)continue;const P=m.geometry.attributes.position;for(let i=0;i<P.count;i++)f(v.fromBufferAttribute(P,i))}};
+  each(p=>{if(Math.abs(p.x)<.28&&p.z>-.75&&p.z<.45&&p.y>top)top=p.y});
+  each(p=>{if(Math.abs(p.x)<.28&&p.z>-.75&&p.z<.45&&p.y>top-.04){tz+=p.z;tn++}});
+  const col=(x,z,r)=>{let y=-9;each(p=>{if(Math.hypot(p.x-x,p.z-z)<r&&p.y>y)y=p.y});return y};
+  let ax=.42,az=-.8,ay=col(ax,az,.16);
+  if(ay<-1){ax=.18;az=-.9;ay=col(ax,az,.22)}
+  if(ay<-1){ax=.22;az=tn?tz/tn:0;ay=top}
+  return anchors[body]={top,tz:tn?tz/tn:0,ax,ay,az};
+}
+let _xl=null,_xs=null;
+const extraMat=gl=>gl?(_xs||(_xs=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.55,metalness:.15,envMap:G.stadiumEnv(),envMapIntensity:1}))):(_xl||(_xl=new THREE.MeshLambertMaterial({vertexColors:true})));
+const TOPPERS=[null,
+  /* 1 Tennis Ball */ (b,x,y,z)=>{b.sph(.12,0xd8ff3f,x,y,z);b.tor(.118,.012,0xffffff,x,y,z,.5,0,.4)},
+  /* 2 Gold Star */ (b,x,y,z)=>{b.sph(.07,0xffd23f,x,y,z,1,1,.6);for(let i=0;i<5;i++){const a=i/5*TAU;b.add(new THREE.ConeGeometry(.055,.13,4),0xffd23f,x+Math.sin(a)*.1,y+Math.cos(a)*.1,z,0,0,-a,1,1,.6)}},
+  /* 3 Bath Duck */ (b,x,y,z)=>{b.sph(.11,0xffd23f,x,y,z,1,.8,1.25);b.sph(.075,0xffd23f,x,y+.1,z+.09);b.add(new THREE.ConeGeometry(.035,.08,6),0xff8a1f,x,y+.09,z+.18,Math.PI/2,0,0);b.add(new THREE.ConeGeometry(.05,.1,4),0xffd23f,x,y+.04,z-.15,-1,0,0);for(const s of[-1,1])b.sph(.014,0x14161f,x+s*.045,y+.125,z+.14)},
+  /* 4 Mini Pumpkin */ (b,x,y,z)=>{for(let i=0;i<6;i++){const a=i/6*TAU;b.sph(.07,i%2?0xff8a1f:0xf07a12,x+Math.cos(a)*.06,y,z+Math.sin(a)*.06,1,1.25,1)}b.cyl(.012,.02,.07,0x5f7a2a,x,y+.11,z,0,0,.3,5)},
+  /* 5 Pennant */ (b,x,y,z,ac)=>{b.add(new THREE.ConeGeometry(.11,.34,3),ac,x,y-.02,z-.18,-Math.PI/2,0,0,.12,1,1);b.sph(.03,0xffd23f,x,y+.1,z)},
+  /* 6 Eyeball */ (b,x,y,z)=>{b.sph(.12,0xffffff,x,y,z);b.sph(.06,0x2e7bff,x,y+.02,z+.085,1,1,.6);b.sph(.03,0x14161f,x,y+.025,z+.118,1,1,.5)}
+];
+const HATS=[null,
+  /* 1 Traffic Cone */ (b,y,z)=>{b.box(.56,.04,.56,0xff7a1f,0,y+.02,z);b.cyl(.05,.24,.58,0xff7a1f,0,y+.33,z,0,0,0,14);b.cyl(.125,.165,.12,0xffffff,0,y+.33,z,0,0,0,14)},
+  /* 2 Top Hat */ (b,y,z,ac)=>{b.cyl(.36,.36,.035,0x22232b,0,y+.02,z,0,0,0,18);b.cyl(.23,.21,.42,0x22232b,0,y+.24,z,0,0,0,18);b.cyl(.218,.218,.09,ac,0,y+.09,z,0,0,0,18)},
+  /* 3 Crown */ (b,y,z)=>{b.cyl(.27,.24,.16,0xffd23f,0,y+.08,z,0,0,0,10,true);b.cyl(.25,.25,.02,0xc98a12,0,y+.01,z,0,0,0,10);for(let i=0;i<5;i++){const a=i/5*TAU;b.add(new THREE.ConeGeometry(.07,.2,4),0xffd23f,Math.cos(a)*.24,y+.25,z+Math.sin(a)*.24);b.sph(.035,0xd93636,Math.cos(a)*.255,y+.09,z+Math.sin(a)*.255);b.sph(.03,0xffffff,Math.cos(a)*.24,y+.36,z+Math.sin(a)*.24)}},
+  /* 4 Propeller Beanie */ (b,y,z)=>{b.sph(.27,0xd93636,0,y,z,1,.75,1);b.cyl(.275,.275,.05,0x2e7bff,0,y+.025,z,0,0,0,16);b.cyl(.015,.015,.12,0xffd23f,0,y+.25,z);b.box(.46,.015,.07,0xffd23f,0,y+.3,z,0,.5,0);b.sph(.03,0xffd23f,0,y+.31,z)},
+  /* 5 Cowboy Hat */ (b,y,z)=>{b.cyl(.47,.47,.03,0x8a5a36,0,y+.02,z,0,0,0,18);for(const s of[-1,1])b.box(.1,.03,.66,0x8a5a36,s*.44,y+.07,z,0,0,s*.6);b.cyl(.17,.22,.3,0x8a5a36,0,y+.18,z,0,0,0,14);b.cyl(.225,.225,.05,0xe8c9a0,0,y+.07,z,0,0,0,14);b.box(.3,.04,.12,0x6b4428,0,y+.33,z)},
+  /* 6 Chef Hat */ (b,y,z)=>{b.cyl(.2,.2,.26,0xffffff,0,y+.13,z,0,0,0,14);for(let i=0;i<6;i++){const a=i/6*TAU;b.sph(.14,0xffffff,Math.cos(a)*.15,y+.33,z+Math.sin(a)*.15)}b.sph(.17,0xffffff,0,y+.38,z)}
+];
+function extras(inner,K,o){
+  const tp=TOPPERS[K[3]],ht=HATS[K[4]];if(!tp&&!ht)return;
+  const A=anchor(inner,o.body),b=Build();
+  if(ht)ht(b,A.top-.02,A.tz,o.aHex);
+  if(tp){b.cyl(.012,.02,.72,0xc8d2dc,A.ax,A.ay+.34,A.az,0,0,0,5);tp(b,A.ax,A.ay+.76,A.az,o.aHex)}
+  const m=b.mesh(extraMat(o.gl));m.castShadow=true;inner.add(m);
+}
+// wheels: [tyre, hub, spokes] shapes and their materials. The shapes are shared by every car (never disposed).
+let wg=null;
+function wheelGeo(){
+  if(wg)return wg;
+  const sp=(n,w,l,t)=>G.joinGeoms(Array.from({length:n},(_,k)=>{const g=new THREE.BoxGeometry(w,l,t);g.translate(0,l/2,0);return[g,new THREE.Matrix4().makeRotationX(k*TAU/n)]}));
+  const disc=new THREE.CylinderGeometry(.3,.3,.29,22);disc.rotateZ(Math.PI/2);
+  wg={five:sp(5,.31,.33,.075),cross:sp(4,.31,.34,.15),disc};
+  for(const k in wg)G.SHARED_G.add(wg[k]);
+  return wg;
+}
+const _wm={};
+const WHEELS=[null,
+  /* 1 Five Spoke */ o=>({g:[G.wheelG,G.hubCapG,wheelGeo().five],m:[o.mT,o.mR,o.mD]}),
+  /* 2 Discs */ o=>({g:[G.wheelG,wheelGeo().disc,G.spokesG],m:[o.mT,o.mR,o.mR]}),
+  /* 3 Cross */ o=>({g:[G.wheelG,G.hubCapG,wheelGeo().cross],m:[o.mT,o.mR,o.mD]}),
+  /* 4 Gold Rims */ o=>{const k=o.gl?'g':'l',gold=_wm[k]||(_wm[k]=o.gl?new THREE.MeshStandardMaterial({color:0xffc83a,roughness:.25,metalness:.9,envMap:G.stadiumEnv(),envMapIntensity:1}):new THREE.MeshLambertMaterial({color:0xffc83a}));return{g:[G.wheelG,G.hubCapG,wheelGeo().five],m:[o.mT,gold,gold]}}
+];
+function wheel(no,o){return WHEELS[no]?WHEELS[no](o):null}
+// engine sounds: the numbers index.html's audioTick builds the driver's engine tone from (type of wave, pitch at rest
+// and per unit of speed for the main and the lower tone, the filter's cut-off, and loudness). Yours only.
+const ENGINES=[null,
+  /* 1 Purr */ {type:'triangle',f0:30,fk:2,s0:15,sk:1,c0:420,ck:30,g:1.6},
+  /* 2 Buzz */ {type:'sawtooth',f0:72,fk:5.2,s0:36,sk:2.6,c0:620,ck:42,g:.7},
+  /* 3 Rumble */ {type:'square',f0:26,fk:1.5,s0:13,sk:.75,c0:170,ck:13,g:1.1},
+  /* 4 Whirr */ {type:'sine',f0:110,fk:9,s0:55,sk:4.5,c0:1500,ck:60,g:1.7}
+];
+function engine(){return ENGINES[cur[6]]||null}
 
 // =====================================================================
 //  Sprites: the little pictures that trails and goal explosions are made of
@@ -1202,17 +1280,17 @@ function clearGoal(){if(mainStage)mainStage.stop()}
 // With the cosmetics switch on, you wear what your locker there owns and the choice is saved in that locker.
 // With only the garage switch on, every item is free and the choice is saved here as boostball-kit ({slot: item id}).
 const CAT=()=>window.BackRoomCosmetics&&window.BackRoomCosmetics.gameItems?window.BackRoomCosmetics:null;
-const LISTS=[DECALS,TRAILS,GOALS],TABS=['Decal','Boost trail','Goal explosion'];
+const LISTS=[DECALS,TRAILS,GOALS,TOPPERS,HATS,WHEELS,ENGINES],TABS=['Decal','Boost trail','Goal explosion','Topper','Hat','Wheels','Engine'];
 function items(slot){
   const C=CAT(),L=C?C.gameItems('boostball',SLOTS[slot]).filter(it=>has(slot,it.no)):[];
   if(L.length||!LISTS[slot])return L;
   return LISTS[slot].map((d,i)=>i?{no:i,id:'bb-'+SLOTS[slot]+'-'+i,name:TABS[slot]+' '+i,desc:'',rarity:'common'}:null).filter(Boolean); // no catalogue: numbers only
 }
 const owns=it=>!G.cosOn()||CAT().owned().items.indexOf(it.id)>=0;
-let cur=[0,0,0,0,0,0];
+let cur=[0,0,0,0,0,0,0];
 function saved(){let o=null;try{o=JSON.parse(G.store.get('kit','')||'null')}catch(e){}return o&&typeof o==='object'?o:{}}
 function mine(){
-  const k=[0,0,0,0,0,0];
+  const k=[0,0,0,0,0,0,0];
   if(G.cosOn()){const e=CAT().gameEquipped('boostball');SLOTS.forEach((s,i)=>{if(e[s]&&has(i,e[s].no))k[i]=e[s].no})}
   else if(G.garageOn){const o=saved();SLOTS.forEach((s,i)=>{const it=items(i).find(x=>x.id===o[s]);if(it)k[i]=it.no})}
   cur=k;return G.kitOf(k);
@@ -1222,14 +1300,14 @@ function wear(slot,it){
   else{const o=saved();if(it)o[SLOTS[slot]]=it.id;else delete o[SLOTS[slot]];G.store.set('kit',JSON.stringify(o))}
   G.setKit(mine());paintMenu();
 }
-function botKit(){const r=(L,p)=>Math.random()<p?1+Math.floor(Math.random()*(L.length-1)):0;return G.kitOf([r(DECALS,.7),r(TRAILS,.7),r(GOALS,.8),0,0,0])}
+function botKit(){const r=(L,p)=>Math.random()<p?1+Math.floor(Math.random()*(L.length-1)):0;return G.kitOf([r(DECALS,.7),r(TRAILS,.7),r(GOALS,.8),r(TOPPERS,.3),r(HATS,.3),r(WHEELS,.4)])}
 let tab=0,note='',swKey='';
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function menu(){
   if(document.getElementById('kit'))return;
   const sw=document.getElementById('swatches');if(!sw)return;
   const st=document.createElement('style');
-  st.textContent='#kit .kit-tabs{display:flex;gap:6px;margin:0 0 8px}#kit .kit-tabs button{flex:1;min-height:36px;padding:6px 4px;font-size:13.5px;font-weight:700;border:1px solid var(--line);border-radius:8px;background:rgba(0,0,0,.25);color:var(--ink-2)}'+
+  st.textContent='#kit .kit-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}#kit .kit-tabs button{flex:1 0 22%;min-height:36px;padding:6px 4px;font-size:13.5px;font-weight:700;border:1px solid var(--line);border-radius:8px;background:rgba(0,0,0,.25);color:var(--ink-2)}'+
     '#kit .kit-tabs button[aria-selected="true"]{color:#fff;border-color:var(--blue-2);background:rgba(47,140,255,.2)}'+
     '#kit .kit-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;max-height:218px;overflow-y:auto;padding:2px;overscroll-behavior:contain}'+
     '#kit .kit-grid button{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:50px;min-width:0;padding:5px 3px;font-size:12px;line-height:1.15;font-weight:700;border:1px solid var(--line);border-radius:8px;background:rgba(0,0,0,.25);overflow:hidden;overflow-wrap:anywhere}'+
@@ -1266,7 +1344,7 @@ function paintMenu(){
       (tab===0?'<canvas width="96" height="32" aria-hidden="true"></canvas>':C&&C.itemSvg?C.itemSvg(it.id,26):'')+esc(it.name)+(r?'<i style="background:'+r.color+'" aria-hidden="true"></i>':'')+'</button>'}).join('');
   swKey='';
   const it=L.find(x=>x.no===cur[tab]);
-  document.getElementById('kitNote').innerHTML=note||(it?'<b>'+esc(it.name)+'.</b> '+esc(it.desc||''):tab===0?'No decal: plain team paint.':tab===1?'No trail: the usual boost flame.':'No goal explosion: the usual fireball.');
+  document.getElementById('kitNote').innerHTML=note||(it?'<b>'+esc(it.name)+'.</b> '+esc(it.desc||''):['No decal: plain team paint.','No trail: the usual boost flame.','No goal explosion: the usual fireball.','No topper.','No hat.','The usual wheels.','The usual engine sound.'][tab]);
   document.getElementById('kitPreview').hidden=!(tab===2&&cur[2]);
 }
 // the decal pictures on the buttons: the side panel, in blue and your accent colour (drawn again when the accent changes)
@@ -1311,7 +1389,7 @@ function garageFrame(Gr,dt){
   return false;
 }
 
-return{has,dress,wheel,release,trail,goal,update,clearGoal,garageFrame,mine,menu,botKit,preview,
+return{has,dress,wheel,release,trail,goal,update,clearGoal,garageFrame,mine,menu,botKit,preview,engine,TOPPERS,HATS,WHEELS,ENGINES,
   DECALS,TRAILS,GOALS,CELL,paintDecal,decalSwatch,sheet,get stage(){return mainStage},get sprites(){return mainSpr},get pv(){return pv},get cur(){return cur},setTab(i){tab=i;paintMenu()},
-  counts:()=>[DECALS.length-1,TRAILS.length-1,GOALS.length-1]};
+  counts:()=>LISTS.map(L=>L.length-1)};
 };
