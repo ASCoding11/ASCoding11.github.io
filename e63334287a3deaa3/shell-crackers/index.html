@@ -154,6 +154,17 @@ details[open] summary::before{content:'－ '}
 .tbox span{display:block;font-size:28px;line-height:1;font-variant-numeric:tabular-nums}
 .tbox small{display:block;font-family:var(--f-b);font-weight:900;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);max-width:13ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tbox.you{background:var(--yolk)}
+/* capture the flag: the two score boxes are the two teams, and a marker points at each flag */
+#hud.ctf .tbox small{max-width:16ch}
+#hud.ctf #myBox,#hud.ctf #leadBox{border-top:7px solid var(--tc,var(--ink))}
+.fmark{position:absolute;left:0;top:0;min-width:62px;height:26px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:5px;padding:0 7px;border:2px solid var(--ink);border-radius:999px;background:var(--bg,var(--cream));color:var(--ink);font-family:var(--f-b);font-weight:900;font-size:13px;line-height:1;pointer-events:none;will-change:transform;white-space:nowrap;box-shadow:0 2px 0 var(--ink);opacity:.94}
+.fmark[hidden]{display:none}
+.fmark i{display:block;position:relative;width:0;height:0;margin-left:3px;border-left:12px solid var(--fc);border-top:6px solid transparent;border-bottom:6px solid transparent}
+.fmark i::before{content:'';position:absolute;left:-15px;top:-8px;width:3px;height:18px;border-radius:2px;background:var(--ink)}
+.fmark b{font-weight:900}
+.fmark u{display:none;width:0;height:0;border-left:9px solid var(--ink);border-top:5px solid transparent;border-bottom:5px solid transparent}
+.moderow{display:flex;margin:0 0 12px}.moderow .seg{flex:1}.moderow .seg button{flex:1;padding:9px 6px}
+#modeNote{margin:-4px 0 12px}
 #netline{position:absolute;top:calc(84px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);font-family:var(--f-b);font-weight:900;font-size:14px;white-space:nowrap}
 #feed{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));right:14px;display:flex;flex-direction:column;align-items:flex-end;gap:5px;font-family:var(--f-b);font-weight:900;font-size:14px}
 #feed div{background:rgba(43,26,16,.72);color:#fff;padding:4px 10px;border-radius:10px;transition:opacity .5s;display:flex;gap:7px;align-items:center}
@@ -315,9 +326,11 @@ body.touch #hud.training #banner{top:calc(114px + env(safe-area-inset-top,0px))}
     <div id="rel" hidden><i></i></div>
     <div id="top">
       <div class="tbox"><span id="clock">5:00</span><small id="goal">First to 25</small></div>
-      <div class="tbox you"><span id="myK">0</span><small>Your cracks</small></div>
-      <div class="tbox"><span id="leadK">0</span><small id="leadN">Top rival</small></div>
+      <div class="tbox you" id="myBox"><span id="myK">0</span><small id="myL">Your cracks</small></div>
+      <div class="tbox" id="leadBox"><span id="leadK">0</span><small id="leadN">Top rival</small></div>
     </div>
+    <div id="fm0" class="fmark" style="--fc:#e2503f" hidden><i></i><b id="fm0t"></b><u id="fm0a"></u></div>
+    <div id="fm1" class="fmark" style="--fc:#4f8fe0" hidden><i></i><b id="fm1t"></b><u id="fm1a"></u></div>
     <div id="trainHud" hidden>
       <div class="trow">
         <div class="tbox you"><span id="tsAcc">–</span><small>Accuracy</small></div>
@@ -382,7 +395,9 @@ body.touch #hud.training #banner{top:calc(114px + env(safe-area-inset-top,0px))}
           <svg viewBox="0 0 68 80" aria-hidden="true"><path d="M34 3C17 3 5 31 5 48c0 17 13 29 29 29s29-12 29-29C63 31 51 3 34 3z" fill="#fffdf8" stroke="#2b1a10" stroke-width="4"/><path d="M8 40l9-5 6 7 8-9 7 8 8-8 7 7 9-6" fill="none" stroke="#2b1a10" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/><ellipse cx="34" cy="58" rx="10" ry="8" fill="#ffc93c" stroke="#2b1a10" stroke-width="3"/><circle cx="24" cy="24" r="3.5" fill="#2b1a10"/><circle cx="44" cy="24" r="3.5" fill="#2b1a10"/><path d="M19 17l9 3M49 17l-9 3" stroke="#2b1a10" stroke-width="3.5" stroke-linecap="round"/></svg>
           <h1>Shell<br>Crackers</h1>
         </div>
-        <p class="tag">A free-for-all egg shooter. Crack the most shells before the clock runs out.</p>
+        <p class="tag">An egg shooter. Crack the most shells before the clock runs out, or team up and capture the flag.</p>
+        <div class="moderow"><div class="seg" id="modeSeg" role="group" aria-label="Game mode"><button type="button" data-m="ffa">Free-for-all</button><button type="button" data-m="ctf">Capture the flag</button></div></div>
+        <p id="modeNote" class="note" hidden>Two teams, a flag each. Carry theirs back to your own stand to score: first to 3 captures wins. Unranked.</p>
         <button id="quick" class="btn big" type="button">Quick match</button>
         <div class="roomrow">
           <div class="prefix"><span>sc-</span><input id="room" maxlength="17" autocomplete="off" spellcheck="false" aria-label="Room code" placeholder="room code"></div>
@@ -553,6 +568,7 @@ let diffKey=store.get('diff','normal');if(!DIFF[diffKey])diffKey='normal';
 let sens=+store.get('sens','1');if(!(sens>0))sens=1;
 let volume=+store.get('vol','0.7');if(!(volume>=0))volume=.7;
 let gfx=store.get('gfx','high')==='fast'?'fast':'high';
+let gmode=store.get('gmode','ffa')==='ctf'?'ctf':'ffa';   // the mode the menu's buttons start: free-for-all or capture the flag
 
 // =====================================================================
 //  Renderer and scene
@@ -746,6 +762,8 @@ defMat(M_.SNOW,{tex:'plain',c:0xf3f8fc,s:[4,4]});
 defMat(M_.ICE,{tex:'tile',c:0xbfe2f4,s:[2,2]});
 defMat(M_.PANEL,{tex:'metal',c:0xe4edf3,s:[1,2]});
 defMat(M_.SANDBAG,{tex:'hay',c:0xd9c79c,s:[1,1]});
+// Capture the flag: the two teams (name, shell colour, and the block their flag stand is paved with).
+const TEAM=[{n:'Red',c:'#e2503f',hex:0xe2503f,m:M_.CRED},{n:'Blue',c:'#4f8fe0',hex:0x4f8fe0,m:M_.CBLUE}];
 function faceMat(m,ax,sg){const d=MATV[m];if(!d)return m;if(ax===1&&sg>0&&d.top)return d.top;if(ax===1&&sg<0&&d.bottom)return d.bottom;if(ax!==1&&d.side)return d.side;return m}
 
 // ---------- turning the blocks into meshes (greedy meshing: one quad per run of identical faces) ----------
@@ -1292,20 +1310,32 @@ function buildHeights(){
 // middle, so a few players find each other. Full rooms, practice and the training range always get the whole map.
 const SMALL_MAX=4;
 const MAPS=[
-  {name:'Farmstead',build:buildFarm,small:{x0:12,z0:17,h:8,m:M_.DARKWOOD,sp:[[14,19],[27,21],[38,24],[52,20],[16,28]]},skyTop:'#3a93f2',skyHor:'#d6efff',fog:0xd6efff,fogFar:170,sunC:0xfff1d6,sunI:.8,sunPos:[58,70,18],hemiS:0xe1ecff,hemiG:0x7a8a50,
+  {name:'Farmstead',build:buildFarm,ctf:[11,18],small:{x0:12,z0:17,h:8,m:M_.DARKWOOD,sp:[[14,19],[27,21],[38,24],[52,20],[16,28]]},skyTop:'#3a93f2',skyHor:'#d6efff',fog:0xd6efff,fogFar:170,sunC:0xfff1d6,sunI:.8,sunPos:[58,70,18],hemiS:0xe1ecff,hemiG:0x7a8a50,
    outer:['#5fa043','#6cae4d','#549238','#78b95a'],hills:0x6fb34a,trees:0x3f8f3a,cloud:0xffffff},
-  {name:'Yolk Works',build:buildFactory,small:{x0:6,z0:18,h:10,m:M_.BRICK,sp:[[8,20],[24,20],[40,21],[54,20],[14,30],[43,39]]},skyTop:'#4b3a8f',skyHor:'#ffb27a',fog:0xf2b88f,fogFar:160,sunC:0xffcf9a,sunI:.9,sunPos:[-46,40,70],hemiS:0xffd9b8,hemiG:0x6b4a3a,
+  {name:'Yolk Works',build:buildFactory,ctf:[8,16],small:{x0:6,z0:18,h:10,m:M_.BRICK,sp:[[8,20],[24,20],[40,21],[54,20],[14,30],[43,39]]},skyTop:'#4b3a8f',skyHor:'#ffb27a',fog:0xf2b88f,fogFar:160,sunC:0xffcf9a,sunI:.9,sunPos:[-46,40,70],hemiS:0xffd9b8,hemiG:0x6b4a3a,
    outer:['#c7b067','#d3bd72','#b89f5a','#dccb86'],hills:0x9b7a55,trees:0x5f7d3f,cloud:0xffd6c2},
-  {name:'Eggsburg',build:buildTown,small:{x0:1,z0:16,h:12,m:M_.BRICK,sp:[[2,31],[16,17],[31,24],[40,18],[22,34],[6,35]]},skyTop:'#5b86c9',skyHor:'#e3e9f2',fog:0xdfe6ef,fogFar:170,sunC:0xfff0dc,sunI:.8,sunPos:[-40,66,-30],hemiS:0xe4ecff,hemiG:0x6c7a55,
+  {name:'Eggsburg',build:buildTown,ctf:[7,13],small:{x0:1,z0:16,h:12,m:M_.BRICK,sp:[[2,31],[16,17],[31,24],[40,18],[22,34],[6,35]]},skyTop:'#5b86c9',skyHor:'#e3e9f2',fog:0xdfe6ef,fogFar:170,sunC:0xfff0dc,sunI:.8,sunPos:[-40,66,-30],hemiS:0xe4ecff,hemiG:0x6c7a55,
    outer:['#6aa34c','#76ad55','#5f9644','#80b65e'],hills:0x6c9a4a,trees:0x3f7f3a,cloud:0xffffff},
-  {name:'Deep Freeze',build:buildFreezer,skyTop:'#6fa9df',skyHor:'#f2f8ff',fog:0xe9f2fa,fogFar:150,sunC:0xf2f7ff,sunI:.6,sunPos:[34,62,-40],hemiS:0xf3f8ff,hemiG:0x9db3c4,hemiI:.8,ambI:.24,
+  {name:'Deep Freeze',build:buildFreezer,ctf:[10,35,G+2],skyTop:'#6fa9df',skyHor:'#f2f8ff',fog:0xe9f2fa,fogFar:150,sunC:0xf2f7ff,sunI:.6,sunPos:[34,62,-40],hemiS:0xf3f8ff,hemiG:0x9db3c4,hemiI:.8,ambI:.24,
    outer:['#f1f6fa','#e4edf4','#ffffff','#dbe6ee'],hills:0xe6eef5,trees:0x3e6f58,cloud:0xffffff},
-  {name:'Sunny Side Sands',build:buildSands,small:{x0:1,z0:15,h:10,m:M_.REDROCK,sp:[[6,26],[6,45],[16,48,G,26,53],[27,41,G,27.5,60],[15,30,G,16.5,39.5]]},skyTop:'#2f8fe8',skyHor:'#ffeec4',fog:0xf7e6bd,fogFar:190,sunC:0xfff0c8,sunI:.95,sunPos:[24,78,34],hemiS:0xfff3d6,hemiG:0xb08a55,
+  {name:'Sunny Side Sands',build:buildSands,ctf:[8,35],small:{x0:1,z0:15,h:10,m:M_.REDROCK,sp:[[6,26],[6,45],[16,48,G,26,53],[27,41,G,27.5,60],[15,30,G,16.5,39.5]]},skyTop:'#2f8fe8',skyHor:'#ffeec4',fog:0xf7e6bd,fogFar:190,sunC:0xfff0c8,sunI:.95,sunPos:[24,78,34],hemiS:0xfff3d6,hemiG:0xb08a55,
    outer:['#e6cf96','#dcc487','#eed9a6','#d6bc7c'],hills:0xc99a62,trees:0x7d8f4a,cloud:0xffffff},
-  {name:'Hardboil Heights',build:buildHeights,small:{x0:12,z0:12,h:10,m:M_.STONE,sp:[[14,14,G,14.5,45],[44,14,G,57,14.5],[14,28,G,14.5,45],[14,44,G,14.5,20]]},skyTop:'#5a7fa8',skyHor:'#f3e3d0',fog:0xe9dccb,fogFar:175,sunC:0xffe7c2,sunI:.85,sunPos:[-60,48,-24],hemiS:0xf0e8e0,hemiG:0x6f7a58,
+  {name:'Hardboil Heights',build:buildHeights,ctf:[7,35],small:{x0:12,z0:12,h:10,m:M_.STONE,sp:[[14,14,G,14.5,45],[44,14,G,57,14.5],[14,28,G,14.5,45],[14,44,G,14.5,20]]},skyTop:'#5a7fa8',skyHor:'#f3e3d0',fog:0xe9dccb,fogFar:175,sunC:0xffe7c2,sunI:.85,sunPos:[-60,48,-24],hemiS:0xf0e8e0,hemiG:0x6f7a58,
    outer:['#7aa855','#86b25f','#6d9a4b','#8fba68'],hills:0x7c8f5c,trees:0x355f3a,cloud:0xfff1e0}
 ];
 let mapIdx=-1,mapSm=0;
+// Capture the flag (see the section of that name): ctfOn says the next map built is for it, mapCtf that the one built is.
+// Each map's `ctf` entry is where team 0's flag stands ([x,z] or [x,z,y]); team 1's is the same spot turned 180 degrees.
+let ctfOn=false,mapCtf=false,ctfSpawns=[[],[]],ctfPosts=[[],[]];
+const ctfBase=[new V3(),new V3()];
+function ctfBases(c){
+  mirrorOn=false;
+  for(let t=0;t<2;t++){const x=t?W-1-c[0]:c[0],z=t?W-1-c[1]:c[1],y=c[2]==null?G:c[2];
+    for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++){const b=vget(x+dx,y-1,z+dz);if(b!==0&&b!==255&&air(x+dx,y,z+dz))put(x+dx,y-1,z+dz,TEAM[t].m)}   // the stand: a pad in the team's colour
+    if(!standV(x,y,z))console.warn('flag stand blocked',t,x,y,z);
+    ctfBase[t].set(x+.5,y*VY,z+.5)}
+  mirrorOn=true;
+}
 // Close off the wings for a small arena (after the map is built): every open block outside the box becomes BARRIER, and
 // a wall goes round the box from the tunnels up (so tunnels that cross it end at the wall), with BARRIER above it to the
 // sky so nobody jumps over from a roof. Buildings out in the wings stay as scenery.
@@ -1405,11 +1435,12 @@ function partM(x,y,z,sx,sy,sz,rx,ry,rz){_mo.position.set(x,y,z);_mo.scale.set(sx
 
 let spawns=[],perches=[];
 function buildMap(idx,sm){
-  mapIdx=idx;const M=idx===RANGE_IDX?RANGE_MAP:MAPS[idx];mapSm=sm&&M.small?1:0;
+  mapIdx=idx;const M=idx===RANGE_IDX?RANGE_MAP:MAPS[idx];mapCtf=ctfOn&&!!M.ctf;mapSm=sm&&M.small&&!mapCtf?1:0;   // capture the flag always plays the whole map
   Range.clear();
   vox.fill(0);mapSpawns=[];mirrorOn=true;
   M.build();
   if(mapSm)smallArena(M.small);
+  if(mapCtf)ctfBases(M.ctf);
   buildNav();
   // Spawn points stand where they were placed. If a map change has put something there, the nearest clear spot on the
   // same level (within 3 m, or a step up or down) is used instead, and only failing that the first spot above.
@@ -1421,6 +1452,13 @@ function buildMap(idx,sm){
     while(q.length){const c=q.pop();for(let k=0;k<8;k++){const j=navNb[c*8+k];if(j<0)break;if(!seen[j]){seen[j]=1;q.push(j)}}}
     for(let i=0;i<navN;i++)if(seen[i]&&navY[i]>=G+5)perches.push({x:navX[i]+.5,y:navY[i]*VY,z:navZ[i]+.5});
     navReach=seen}
+  // capture the flag: a team hatches at the spawns clearly on its own side, and its defenders stand guard at spots a few
+  // metres from its flag
+  ctfSpawns=[[],[]];ctfPosts=[[],[]];
+  if(mapCtf)for(let t=0;t<2;t++){const B=ctfBase[t],O=ctfBase[1-t],d=s=>Math.hypot(s.x-B.x,s.z-B.z);
+    ctfSpawns[t]=spawns.filter(s=>d(s)+8<Math.hypot(s.x-O.x,s.z-O.z));
+    if(ctfSpawns[t].length<3)ctfSpawns[t]=spawns.slice().sort((a,b)=>d(a)-d(b)).slice(0,Math.max(3,spawns.length>>1));
+    for(let i=0;i<navN&&navReach;i+=3){if(!navReach[i])continue;const x=navX[i]+.5,z=navZ[i]+.5,y=navY[i]*VY,q=Math.hypot(x-B.x,z-B.z);if(q>3.5&&q<11&&Math.abs(y-B.y)<3.2)ctfPosts[t].push({x,y,z})}}
   disposeGroup(mapGroup);disposeGroup(decoGroup);clouds.length=0;
   meshWorld(mapGroup);
   // scenery outside the walls
@@ -1661,7 +1699,8 @@ function makeEntity(o){
     loadout:o.loadout||'beater',slot:0,wkey:o.loadout||'beater',ammo:{},reloadT:0,switchT:0,fireCD:0,burstLeft:0,burstT:0,bloom:0,ads:false,adsK:0,
     grenades:2,meleeCD:0,spawnShield:0,lastHurt:-99,kills:0,deaths:0,streak:0,shotCount:0,walkPh:0,mspd:0,
     model:null,target:null,tVis:false,thinkT:0,react:0,path:null,pathI:0,pathT:0,strafe:1,strafeT:0,errT:0,errY:0,errP:0,trackT:0,semiT:0,stuckT:0,lastP:new V3(),wander:null,
-    tpos:new V3(),tyaw:0,tpitch:0,lastSc:-1,net:null,seen:0,snaps:[],lag:null};
+    tpos:new V3(),tyaw:0,tpitch:0,lastSc:-1,net:null,seen:0,snaps:[],lag:null,
+    team:0,carry:null,role:'att',goalP:null,goalRun:false,ctfHold:false,post:null,postT:0};   // capture the flag
   if(o.model!==false){e.model=makeEgg(e.color,e.name)}
   return e;
 }
@@ -1684,8 +1723,9 @@ function occupied(e){
 // The spawn farthest from everyone, picking at random among the near-ties so two eggs rarely land together.
 function pickSpawn(e){
   const occ=occupied(e);if(!spawns.length)return{x:SPAN/2,z:SPAN/2};
-  const sc=spawns.map(s=>{let md=99;for(const o of occ)md=Math.min(md,Math.hypot(o.x-s.x,o.z-s.z,((o.y==null?s.y:o.y)-s.y)*1.5));return md});
-  const top=Math.max(...sc),near=spawns.filter((s,i)=>sc[i]>=top-(top>20?6:2));
+  const own=mapCtf&&ctfSpawns[e.team]&&ctfSpawns[e.team].length?ctfSpawns[e.team]:spawns;   // capture the flag: your own side
+  const sc=own.map(s=>{let md=99;for(const o of occ)md=Math.min(md,Math.hypot(o.x-s.x,o.z-s.z,((o.y==null?s.y:o.y)-s.y)*1.5));return md});
+  const top=Math.max(...sc),near=own.filter((s,i)=>sc[i]>=top-(top>20?6:2));
   return pick(near);
 }
 // Spawns ordered so each next one is as far as possible from the ones before it.
@@ -1850,6 +1890,7 @@ function explode(n){
   for(const t of ents){
     if(!t.active||!t.alive)continue;if(online&&t!==player)continue;
     const c=centerOf(t),d=c.distanceTo(p);if(d>R_BLAST)continue;if(!los(o,c,false))continue;
+    if(mapCtf&&t.id!==n.owner&&att.team===t.team)continue;   // a yolk bomb spares team-mates (not whoever threw it)
     let dmg=115*Math.pow(1-d/R_BLAST,.8);if(t.id===n.owner)dmg*=.5;
     if(att.isBot)dmg*=DIFF[diffKey].dmg;
     damage(t,dmg,att,false,'nade');
@@ -1867,6 +1908,7 @@ function rayEnts(o,d,maxT,shooter){
   let best=null,bt=maxT,head=false;
   for(const e of ents){
     if(e===shooter||!e.active||!e.alive)continue;
+    if(mapCtf&&shooter&&e.team===shooter.team)continue;   // shots pass team-mates
     const th=raySphere(o,d,e.pos.x,e.pos.y+1.12,e.pos.z,.3),tb=raySphere(o,d,e.pos.x,e.pos.y+.62,e.pos.z,.45);
     const t=Math.min(th,tb);if(t<bt){bt=t;best=e;head=th<=tb+.12&&th<Infinity}
   }
@@ -1957,6 +1999,7 @@ function damage(t,amt,att,head,wkey){
   return false;
 }
 function die(t,att,head,wkey){
+  if(mapCtf&&t.carry!=null&&!t.remote)ctfDrop(t);
   t.alive=false;t.deaths++;t.respawnT=RESPAWN;t.streak=0;t.reloadT=0;t.burstLeft=0;
   if(t===player&&(mode==='practice'||mode==='online')&&window.BackRoomStats)BackRoomStats.add('deaths',1);
   const killerId=att?att.id:t.id;
@@ -2087,7 +2130,7 @@ function steer(e,wx,wz,dt,speed){
   const k=e.onGround?1-Math.exp(-14*dt):1-Math.exp(-2.6*dt);
   e.vel.x+= (wx*speed-e.vel.x)*k;e.vel.z+=(wz*speed-e.vel.z)*k;
 }
-function speedOf(e){return BASE_SPEED*WEAPONS[e.wkey].speed*(e.ads?.62:1)}
+function speedOf(e){return BASE_SPEED*WEAPONS[e.wkey].speed*(e.ads?.62:1)*(e.carry!=null?CTF_SLOW:1)}
 
 // common per-entity timers
 function tickWeapon(e,dt){
@@ -2110,13 +2153,14 @@ function botThink(e,dt){
   if(e.thinkT<=0){
     e.thinkT=.18+Math.random()*.12;
     let best=null,bs=1e9,vis=false;
-    for(const t of ents){if(t===e||!t.active||!t.alive)continue;
+    for(const t of ents){if(t===e||!t.active||!t.alive)continue;if(mapCtf&&t.team===e.team)continue;
       const d=t.pos.distanceTo(e.pos);if(d>90)continue;const v=los(eye,centerOf(t,_bc));
-      let s=d+(v?0:35)+(t.spawnShield>0?30:0)+(t===e.target?-6:0);if(s<bs){bs=s;best=t;vis=v}}
+      let s=d+(v?0:35)+(t.spawnShield>0?30:0)+(t===e.target?-6:0)+(t.carry!=null?-14:0);if(s<bs){bs=s;best=t;vis=v}}
     if(best!==e.target){e.target=best;e.react=D.react*rand(.7,1.3)}
     e.tVis=vis;
     if(e.perch==null)e.perch=Math.random()<(e.loadout==='sunny'||e.loadout==='poacher'?.65:.25);
-    if(best&&!vis&&e.perch&&perches.length){
+    if(mapCtf)ctfBotPlan(e);   // capture the flag: where to go is decided by the flags, not by the nearest enemy
+    else if(best&&!vis&&e.perch&&perches.length){
       // hold high ground for a while instead of chasing
       if(e.holdT>0){e.holdT-=.25;e.path=null;if(e.holdT<=0)e.perch=Math.random()<.5}
       else if((!e.path||e.pathI>=e.path.length)&&e.pathT<=0){
@@ -2125,11 +2169,11 @@ function botThink(e,dt){
       }
     }
     else if(best&&!vis&&e.pathT<=0){e.path=findPath(e.pos,best.pos);e.pathI=0;e.pathT=1+Math.random()*.6}
-    if(!best&&(!e.path||e.pathI>=e.path.length)&&e.pathT<=0){const goPerch=perches.length&&Math.random()<(e.loadout==='sunny'||e.loadout==='poacher'?.7:.35);const s=goPerch?pick(perches):pick(spawns);e.path=findPath(e.pos,s);e.pathI=0;e.pathT=goPerch?6:3}
+    if(!mapCtf&&!best&&(!e.path||e.pathI>=e.path.length)&&e.pathT<=0){const goPerch=perches.length&&Math.random()<(e.loadout==='sunny'||e.loadout==='poacher'?.7:.35);const s=goPerch?pick(perches):pick(spawns);e.path=findPath(e.pos,s);e.pathI=0;e.pathT=goPerch?6:3}
   }
   const t=e.target&&e.target.alive&&e.target.active?e.target:null;
   let mx=0,mz=0;
-  if(t&&e.tVis){
+  if(t&&e.tVis&&!(mapCtf&&e.goalRun)){
     const dx=t.pos.x-e.pos.x,dz=t.pos.z-e.pos.z,d=Math.hypot(dx,dz)||1,pref=BOT_PREF[e.loadout]||15;
     let f=0;if(d>pref*1.3)f=1;else if(d<pref*.55)f=-.8;
     e.strafeT-=dt;if(e.strafeT<=0){e.strafeT=rand(.45,1.4);e.strafe=Math.random()<.15?0:Math.random()<.5?-1:1}
@@ -2139,6 +2183,8 @@ function botThink(e,dt){
   }else if(e.path&&e.pathI<e.path.length){
     const wp=e.path[e.pathI],dx=wp.x-e.pos.x,dz=wp.z-e.pos.z,d=Math.hypot(dx,dz),dy=wp.y-e.pos.y;
     if(d<.45&&Math.abs(dy)<1.6)e.pathI++;else{mx=dx/d;mz=dz/d;if(dy>.65&&e.onGround&&d<1.6)e.vel.y=JUMP}
+  }else if(mapCtf&&e.goalP&&!e.ctfHold){
+    const dx=e.goalP.x-e.pos.x,dz=e.goalP.z-e.pos.z,d=Math.hypot(dx,dz);if(d>.3&&d<3){mx=dx/d;mz=dz/d}   // the last step onto a flag or a stand
   }
   const ml=Math.hypot(mx,mz);if(ml>1){mx/=ml;mz/=ml}
   // stuck: hop and re-plan (the old path is dropped: a bot knocked off a ramp or a roof used to keep walking at its next
@@ -2152,7 +2198,7 @@ function botThink(e,dt){
     const ty=dyaw+e.errY,tp=dp+e.errP,tr=D.turn*dt;
     e.yaw+=clamp(angDiff(ty,e.yaw),-tr,tr);e.pitch+=clamp(tp-e.pitch,-tr,tr);
     e.react-=dt;e.trackT+=dt;
-    e.ads=(e.loadout==='sunny'||e.loadout==='poacher')&&d3>12&&e.slot===0;
+    e.ads=(e.loadout==='sunny'||e.loadout==='poacher')&&d3>12&&e.slot===0&&e.carry==null;
     const off=Math.abs(angDiff(dyaw,e.yaw))+Math.abs(dp-e.pitch);
     const want=e.react<=0&&off<Math.max(.05,1.3/d3)+D.err*.4;
     if(want){const w=WEAPONS[e.wkey];e.semiT-=dt;if(w.auto||e.semiT<=0){if(tryFire(e))e.semiT=D.semi*rand(.6,1.4)+(w.auto?0:w.cd*.2)}}
@@ -2165,6 +2211,196 @@ function botThink(e,dt){
     if(e.ammo[e.wkey]<WEAPONS[e.wkey].mag*.5)startReload(e);
   }
   steer(e,mx,mz,dt,speedOf(e));
+}
+
+// =====================================================================
+//  Capture the flag
+// =====================================================================
+// Two teams, a flag each. Touch the other team's flag to pick it up and carry it to your own stand while your own flag
+// is home to score; a dropped flag goes home when one of its own team touches it, or after CTF_RETURN_MS. First to
+// CTF_CAPS captures wins, or most when the clock runs out (level is a draw). Whoever carries a flag moves at CTF_SLOW
+// speed, can't aim down sights or scope, and is marked for everyone: the flag rides above its head, its name tag shows
+// at any distance and the HUD marker follows it. Shots and yolk bombs don't hurt team-mates. It is unranked.
+// The flags and the score are one small object, ctfS = {s:[red,blue], f:[flag,flag]}; a flag is {st:0} at home,
+// {st:1,by} carried by that egg, or {st:2,x,y,z,t} dropped there at that time. Every change is one of five moves (take,
+// drop, ret, lost, cap) through ctfReduce, which refuses a move that no longer fits (the flag has already been taken,
+// the carrier isn't the carrier any more). In practice the moves are applied here. Online there is no host: the state
+// lives in the room's match node (round.ctf, missing = both home, 0-0), and each move is a transaction on that node by
+// the browser whose own egg did it, or, for a flag whose time is up or whose carrier has left, by whichever browser
+// notices first. So two eggs grabbing the same flag can't both get it, and the state outlives anyone leaving.
+const CTF_CAPS=3,CTF_RETURN_MS=20000,CTF_TOUCH=1.3,CTF_SLOW=.85,CTF_BOTS=5;
+function ctfFresh(){return{s:[0,0],f:[{st:0},{st:0}]}}
+let ctfS=ctfFresh();
+// whatever is in the match node, made safe to use
+function ctfNorm(r){
+  const o=ctfFresh();if(!r||typeof r!=='object')return o;
+  for(let k=0;k<2;k++){o.s[k]=clamp(Math.floor(+(r.s&&r.s[k])||0),0,CTF_CAPS);const q=r.f&&r.f[k];if(!q||typeof q!=='object')continue;
+    if(q.st===1&&typeof q.by==='string'&&q.by)o.f[k]={st:1,by:q.by.slice(0,64)};
+    else if(q.st===2&&[q.x,q.y,q.z,q.t].every(n=>typeof n==='number'&&isFinite(n)))o.f[k]={st:2,x:clamp(q.x,0,SPAN),y:clamp(q.y,0,HY*VY),z:clamp(q.z,0,SPAN),t:q.t}}
+  return o;
+}
+// One move on a state: the new state, or null if the move doesn't fit it. k is the flag (the team it belongs to).
+function ctfReduce(S,a){
+  const k=a.k,F=S.f[k];if(!F||S.s[0]>=CTF_CAPS||S.s[1]>=CTF_CAPS)return null;
+  const n={s:S.s.slice(),f:[S.f[0],S.f[1]]};
+  if(a.a==='take'){if(F.st===1)return null;n.f[k]={st:1,by:a.by}}
+  else if(a.a==='drop'){if(F.st!==1||F.by!==a.by)return null;n.f[k]={st:2,x:a.x,y:a.y,z:a.z,t:a.t}}
+  else if(a.a==='ret'){if(F.st!==2||a.late&&a.now-F.t<CTF_RETURN_MS)return null;n.f[k]={st:0}}
+  else if(a.a==='lost'){if(F.st!==1||F.by!==a.by)return null;n.f[k]={st:0}}
+  else if(a.a==='cap'){if(F.st!==1||F.by!==a.by||S.f[1-k].st!==0)return null;n.f[k]={st:0};n.s[1-k]++}
+  else return null;
+  return n;
+}
+// Make a move. Online it is a transaction on the match node and nothing changes here until the server's answer comes
+// back through the node's listener (takeRound -> ctfSync); the same move isn't sent again for 0.7 s.
+const ctfBusy={};
+function ctfDo(a){
+  if(!online){const n=ctfReduce(ctfS,a);if(n)ctfSync(n);return}
+  const key=a.a+a.k+(a.by||''),t=performance.now();if(ctfBusy[key]>t||!Net.refs||Net.matchId==null)return;ctfBusy[key]=t+700;
+  const id=Net.matchId;
+  Net.refs.round.transaction(c=>{if(!c||c.id!==id)return;const n=ctfReduce(ctfNorm(c.ctf),a);return n?Object.assign({},c,{ctf:n}):undefined},undefined,false).catch(()=>{});
+}
+function ctfName(id){const e=entById(id);return e?(e===player?'You':e.name):'Someone'}
+function ctfCarry(){for(const e of ents)e.carry=null;for(let k=0;k<2;k++){const F=ctfS.f[k];if(F.st===1){const e=entById(F.by);if(e)e.carry=k}}}
+// A new state (from a move here, or from the match node): keep it, and say what changed.
+function ctfSync(n,quiet){
+  const o=ctfS;ctfS=n;ctfCarry();hudDirty=true;
+  if(quiet||state!=='playing')return;
+  for(let k=0;k<2;k++){const A=o.f[k],B=n.f[k],T=TEAM[k].n,ours=k===player.team;
+    if(B.st===1&&(A.st!==1||A.by!==B.by)){
+      infoFeed(ctfName(B.by)+' took the '+T+' flag');
+      if(B.by===player.id){banner('YOU HAVE THE FLAG','Run it back to the '+TEAM[player.team].n+' stand',2.4);sfx('flagup')}
+      else if(ours){banner('','Your flag has been taken!',2);sfx('flagbad')}else sfx('flagup')}
+    else if(A.st===1&&B.st===2)infoFeed('The '+T+' flag was dropped');
+    else if(A.st===2&&B.st===0){infoFeed('The '+T+' flag is back home');if(ours)sfx('spawn')}
+    else if(A.st===1&&B.st===0){
+      if(n.s[1-k]>o.s[1-k]){infoFeed(ctfName(A.by)+' captured the '+T+' flag');banner(TEAM[1-k].n.toUpperCase()+' SCORES',TEAM[0].n+' '+n.s[0]+' – '+n.s[1]+' '+TEAM[1].n,2.4);sfx(1-k===player.team?'flagcap':'flagbad')}
+      else infoFeed('The '+T+' flag is back home')}
+  }
+}
+// Where flag k is now: on its stand, on its carrier, or where it was dropped.
+const ctfLast=[new V3(),new V3()],ctfSeen=[false,false],ctfGone=[0,0],_cf=new V3();
+function ctfPos(k,out){
+  const F=ctfS.f[k];
+  if(F.st===1){const e=entById(F.by);return out.copy(e&&(e===player||e.isBot||e.active)?e.pos:ctfSeen[k]?ctfLast[k]:ctfBase[k])}
+  if(F.st===2)return out.set(F.x,F.y,F.z);
+  return out.copy(ctfBase[k]);
+}
+function ctfNear(e,p){return Math.abs(e.pos.y-p.y)<1.7&&Math.hypot(e.pos.x-p.x,e.pos.z-p.z)<CTF_TOUCH}
+function ctfDrop(e){const k=e.carry;if(k==null)return;ctfDo({a:'drop',k,by:e.id,x:r2(e.pos.x),y:r2(floorBelow(e.pos.x,e.pos.y+.2,e.pos.z)),z:r2(e.pos.z),t:Math.round(nowMs())})}
+// Every frame of a match: the eggs this browser runs (you, and the bots in practice) pick up, return and capture by
+// touch; a dropped flag whose time is up goes home; and a flag whose carrier has been cracked or has left the room
+// without its own browser saying so (it closed the tab) is dropped where it was last seen, by whoever notices.
+let ctfT=0,ctfOdd=0;
+function ctfTick(dt){
+  const S=ctfS,now=nowMs();ctfCarry();
+  if(S.s[0]>=CTF_CAPS||S.s[1]>=CTF_CAPS)return;
+  for(const e of ents){
+    if(e.remote||e.dummy||!e.active||!e.alive)continue;
+    const foe=1-e.team,F=S.f[foe],M=S.f[e.team];
+    if(F.st!==1&&ctfNear(e,ctfPos(foe,_cf)))ctfDo({a:'take',k:foe,by:e.id});
+    if(M.st===2&&ctfNear(e,ctfPos(e.team,_cf)))ctfDo({a:'ret',k:e.team});
+    if(e.carry===foe&&M.st===0&&ctfNear(e,ctfBase[e.team]))ctfDo({a:'cap',k:foe,by:e.id});
+  }
+  for(let k=0;k<2;k++){const F=S.f[k];
+    if(F.st===2&&now-F.t>=CTF_RETURN_MS)ctfDo({a:'ret',k,late:1,now});
+    if(F.st!==1){ctfGone[k]=0;ctfSeen[k]=false;continue}
+    const e=entById(F.by);
+    if(e&&e.alive&&(e===player||e.isBot||e.active)){ctfLast[k].copy(e.pos);ctfSeen[k]=true;ctfGone[k]=0;continue}
+    ctfGone[k]+=dt;
+    if(ctfGone[k]<(online?2.5:.3)||online&&Net.now()-Net.joinT<6000)continue;
+    if(ctfSeen[k]){const p=ctfLast[k];ctfDo({a:'drop',k,by:F.by,x:r2(p.x),y:r2(floorBelow(p.x,p.y+.2,p.z)),z:r2(p.z),t:Math.round(now)})}
+    else ctfDo({a:'lost',k,by:F.by});
+  }
+  if(online){ctfT+=dt;if(ctfT>=1){ctfT=0;ctfBalance()}}
+}
+// Teams online. There is no lobby, so a team is picked for you: the smaller one when you arrive, and after that the
+// teams are kept even. If yours is two or more bigger for two seconds, one egg changes sides: the one with the highest id
+// that isn't carrying a flag (every browser works that out from the same list, so only one moves).
+function ctfPick(){
+  const n=[0,0],now=Net.now();let seen=0;for(const e of remotes.values()){const q=e.net;if(q&&(q.tm===0||q.tm===1)&&now-(+q.ts||0)<10000){n[q.tm]++;seen++}}
+  const pk=Net.peekTeams[Net.room];if(!seen&&pk){n[0]=pk[0];n[1]=pk[1]}   // (their nodes haven't arrived yet: the count taken on the way in)
+  player.team=n[0]<n[1]?0:n[1]<n[0]?1:Net.uid.charCodeAt(Net.uid.length-1)&1;
+}
+function ctfBalance(){
+  const n=[0,0];let mover=true;n[player.team]++;
+  for(const e of remotes.values()){if(!e.active)continue;n[e.team]++;if(e.team===player.team&&e.carry==null&&e.id>Net.uid)mover=false}
+  ctfOdd=n[player.team]-n[1-player.team]>=2&&mover&&player.carry==null?ctfOdd+1:0;
+  if(ctfOdd<2)return;ctfOdd=0;
+  player.team=1-player.team;hudDirty=true;infoFeed('Teams evened up: you are on '+TEAM[player.team].n+' now');
+  if(player.alive)respawn(player);
+}
+function ctfHello(){const t=player.team;setTimeout(()=>{if(mapCtf&&state==='playing'&&player.team===t)infoFeed('You are on the '+TEAM[t].n+' team')},2800)}
+// Bots: called from botThink in place of its usual "where next". A bot carrying a flag runs it home (and waits by the
+// stand if its own flag is away); one near a dropped flag goes to it; a team's guard chases whoever has its flag and
+// otherwise walks between spots near its stand; the rest go for the other flag, or stay by the team-mate who has it.
+// goalRun: keep running at the goal even with an enemy in view (it still shoots); ctfHold: stand here.
+function ctfBotPlan(e){
+  const S=ctfS,mine=e.team,foe=1-mine,F=S.f[foe],M=S.f[mine],P=e.pos,dist=q=>Math.hypot(q.x-P.x,q.z-P.z);
+  let g=null,run=false,hold=false,quick=false;
+  if(e.carry!=null){
+    if(M.st===2&&dist(M)<22){g=M;run=true}
+    else{g=ctfBase[mine];run=true;hold=M.st!==0}
+  }
+  else if(M.st===2&&(e.role==='def'||dist(M)<30)){g=M;run=dist(M)<9}
+  else if(F.st===2&&(e.role==='att'||dist(F)<18)){g=F;run=dist(F)<9}
+  else if(M.st===1&&(e.role==='def'||F.st===1||dist(ctfPos(mine,_cf))<32)){g=ctfPos(mine,_cf);quick=true}   // (both flags out: everyone hunts)
+  else if(e.role==='att'){
+    if(F.st===0){g=ctfBase[foe];run=dist(g)<10}
+    else if(F.st===1){g=ctfPos(foe,_cf);quick=true;hold=true}
+  }
+  if(!g){
+    e.postT-=.25;const L=ctfPosts[mine];
+    if(L.length&&(!e.post||e.postT<=0)){e.post=pick(L);e.postT=5+Math.random()*6}
+    g=e.post||ctfBase[mine];hold=true;
+  }
+  if(!e.goalP)e.goalP=new V3();e.goalP.set(g.x,g.y,g.z);
+  const d=dist(g);
+  e.ctfHold=hold&&d<(g===e.post?1.2:2.4)&&Math.abs(g.y-P.y)<1.6;e.goalRun=run&&!e.ctfHold;
+  if(e.ctfHold){e.path=null;return}
+  if(e.pathT<=0||!e.path||e.pathI>=e.path.length){e.path=d>1?findPath(P,e.goalP):null;e.pathI=0;e.pathT=quick?1+Math.random()*.5:1.8+Math.random()}
+}
+// The two flags: a pole and a cloth in the team's colour, one mesh each (so two draw calls in all). A carried flag is
+// drawn above its carrier, except your own view of the one you carry.
+let flagMeshes=null;
+function ctfDraw(dt){
+  const show=mapCtf&&(state==='playing'||state==='end');
+  if(!show){if(flagMeshes)for(const m of flagMeshes)m.visible=false;return}
+  if(!flagMeshes){const mat=new THREE.MeshLambertMaterial({vertexColors:true});
+    flagMeshes=TEAM.map(T=>{const m=new THREE.Mesh(mergeParts([{g:_cyl,c:0xf4efe2,m:partM(0,1.15,0,.035,2.3,.035)},{g:_cyl,c:0xffc93c,m:partM(0,2.34,0,.07,.08,.07)},
+      {g:_box,c:T.hex,m:partM(.37,1.98,0,.68,.5,.03)},{g:_box,c:hue(T.hex,1.45),m:partM(.37,1.98,0,.68,.12,.034)}]),mat);m.visible=false;scene.add(m);return m})}
+  for(let k=0;k<2;k++){const m=flagMeshes[k],F=ctfS.f[k];
+    if(F.st===1){const e=entById(F.by);
+      if(!e||e===player||!e.alive||!(e.isBot||e.active)){m.visible=false;continue}
+      m.visible=true;m.position.set(e.pos.x,e.pos.y+.8,e.pos.z);m.rotation.y=e.yaw+Math.PI/2}
+    else{m.visible=true;ctfPos(k,m.position);m.rotation.y+=dt*.9}
+  }
+}
+// HUD: the two score boxes become the two teams (yours first): captures, and where that team's flag is. A marker for
+// each flag sits over it on screen, or on the edge of the view with an arrow when it is out of sight, with how far it
+// is (or, for a dropped flag, how many seconds until it goes home). The flag you carry has no marker.
+function ctfWord(k){const st=ctfS.f[k].st;return st===0?'home':st===1?'taken':'dropped'}
+function ctfHud(){
+  const a=player.team,b=1-a;
+  setT('myK',String(ctfS.s[a]));setT('myL',TEAM[a].n+' · '+ctfWord(a));setT('leadK',String(ctfS.s[b]));setT('leadN',TEAM[b].n+' · '+ctfWord(b));
+  setSt('myBox','--tc',TEAM[a].c);setSt('leadBox','--tc',TEAM[b].c);
+  const Wd=view.clientWidth||innerWidth,Ht=view.clientHeight||innerHeight,now=nowMs();
+  const L=54,R=Wd-54,T=Ht*.2,B=Ht*(touchUI?.56:.84),cx=Wd/2,cy=(T+B)/2;
+  for(let k=0;k<2;k++){const id='fm'+k,F=ctfS.f[k];
+    if(F.st===1&&F.by===player.id){setHid(id,true);continue}
+    setHid(id,false);
+    ctfPos(k,_cf);const d=Math.round(Math.hypot(_cf.x-player.pos.x,_cf.z-player.pos.z));_cf.y+=F.st===1?2.9:2.7;
+    _cf.project(camera);const behind=_cf.z>1;let x=(_cf.x*.5+.5)*Wd,y=(-_cf.y*.5+.5)*Ht;
+    let dx=x-cx,dy=y-cy;if(behind){dx=-dx;dy=-dy}
+    const off=behind||x<L||x>R||y<T||y>B;
+    if(off){if(behind){const m=1e4/(Math.hypot(dx,dy)||1);dx*=m;dy*=m}
+      const s=Math.min((dx>0?R-cx:cx-L)/(Math.abs(dx)||1e-6),(dy>0?B-cy:cy-T)/(Math.abs(dy)||1e-6),1);x=cx+dx*s;y=cy+dy*s;
+      setSt(id+'a','transform','rotate('+Math.round(Math.atan2(dy,dx)*36/Math.PI)*5+'deg)')}
+    setSt(id+'a','display',off?'block':'none');
+    setSt(id,'transform','translate('+Math.round(x)+'px,'+Math.round(y)+'px) translate(-50%,-50%)');
+    setSt(id,'--bg',F.st===0?'var(--cream)':'var(--yolk)');
+    setT(id+'t',F.st===2?Math.max(0,Math.ceil((CTF_RETURN_MS-(now-F.t))/1000))+'s':d+'m');
+  }
 }
 
 // =====================================================================
@@ -2368,6 +2604,9 @@ function sfx(name,pos){
     case'step':tone(out,t,.035,'triangle',rand(380,460),200,.07);break;
     case'streak':[523,659,784,1047].forEach((f,i)=>tone(out,t+i*.07,.18,'triangle',f,f,.25));break;
     case'spawn':tone(out,t,.15,'sine',400,800,.2);break;
+    case'flagup':[659,880].forEach((f,i)=>tone(out,t+i*.09,.16,'triangle',f,f,.28));break;
+    case'flagbad':[392,330,262].forEach((f,i)=>tone(out,t+i*.11,.2,'square',f,f,.1));break;
+    case'flagcap':[523,659,784,1047,1319].forEach((f,i)=>tone(out,t+i*.08,.22,'triangle',f,f,.28));break;
     case'pop':noise(out,t,.07,'highpass',2600,.7,1);tone(out,t,.06,'square',1100,240,.25);break;
     case'ding':tone(out,t,.3,'triangle',1180,1170,.3);tone(out,t,.2,'sine',2360,2340,.1);break;
     case'bull':tone(out,t,.3,'triangle',1180,1170,.3);tone(out,t+.09,.35,'triangle',1770,1760,.3);break;
@@ -2441,9 +2680,12 @@ const held=id=>!!tAct[id]||KB.held(id,keys);
 function nowMs(){return online?Net.now():Date.now()}
 function clearBots(){for(const e of ents.slice())if(e.isBot)removeEntity(e)}
 function clearRemotes(){for(const e of ents.slice())if(e.remote)removeEntity(e);remotes.clear()}
-function addBots(n){
-  const names=BOT_NAMES.slice().sort(()=>Math.random()-.5);
-  for(let i=0;i<n;i++){const b=makeEntity({id:'b'+i,name:names[i],color:pick(SHELLS).c,bot:true,loadout:pick(PRIMARIES)});ents.push(b);setEggGun(b.model,b.wkey);b.respawnT=.2+i*.15;b.kills=0;b.deaths=0}
+// teams (capture the flag): one team number per bot; each team's first bot guards its flag, the rest go for the other one
+function addBots(n,teams){
+  const names=BOT_NAMES.slice().sort(()=>Math.random()-.5),seen=[0,0];
+  for(let i=0;i<n;i++){const tm=teams?teams[i]:0;
+    const b=makeEntity({id:'b'+i,name:names[i],color:teams?TEAM[tm].c:pick(SHELLS).c,bot:true,loadout:pick(PRIMARIES)});ents.push(b);setEggGun(b.model,b.wkey);b.respawnT=.2+i*.15;b.kills=0;b.deaths=0;
+    b.team=tm;b.role=teams&&seen[tm]++===0?'def':'att'}
 }
 function resetFx(){
   for(const n of nades)scene.remove(n.m);nades.length=0;
@@ -2453,7 +2695,7 @@ function resetFx(){
 }
 function setupAttract(){
   state='menu';mode='attract';online=false;paused=false;
-  clearBots();clearRemotes();resetFx();
+  clearBots();clearRemotes();resetFx();ctfOn=false;
   buildMap(Math.floor(Math.random()*MAPS.length));
   player.active=false;player.alive=false;
   addBots(5);
@@ -2462,18 +2704,22 @@ function setupAttract(){
 function startPractice(){
   initAudio();Net.leave();
   state='playing';mode='practice';online=false;paused=false;target=TARGET_PRACTICE;
-  clearBots();clearRemotes();resetFx();
+  clearBots();clearRemotes();resetFx();ctfOn=gmode==='ctf';
   buildMap(Math.floor(Math.random()*MAPS.length));
-  addBots(5);
   player.id='me';player.name=myName;player.color=myColor;player.loadout=myLoadout;player.active=true;player.kills=0;player.deaths=0;
+  // capture the flag: three a side, you and two bots against three
+  if(mapCtf){player.team=Math.random()<.5?0:1;const a=player.team,b=1-a;addBots(CTF_BOTS,[a,b,b,a,b]);ctfSync(ctfFresh(),true)}
+  else addBots(5);
   respawn(player);sfx('spawn');startRatedMatch();
-  matchEnds=Date.now()+MATCH_MS;$('goal').textContent='First to '+target;
-  showHud();requestLock();banner(mapInfo().name.toUpperCase(),'Practice · first to '+target+' cracks',2.4);
+  matchEnds=Date.now()+MATCH_MS;$('goal').textContent='First to '+(mapCtf?CTF_CAPS:target);
+  showHud();requestLock();
+  if(mapCtf){banner(mapInfo().name.toUpperCase(),'Capture the flag · first to '+CTF_CAPS,2.6);ctfHello()}
+  else banner(mapInfo().name.toUpperCase(),'Practice · first to '+target+' cracks',2.4);
 }
 function startTraining(){
   initAudio();Net.leave();
   state='playing';mode='training';online=false;paused=false;
-  clearBots();clearRemotes();resetFx();
+  clearBots();clearRemotes();resetFx();ctfOn=false;
   buildMap(RANGE_IDX);
   player.id='me';player.name=myName;player.color=myColor;player.loadout=myLoadout;player.active=true;player.kills=0;player.deaths=0;
   Range.resetStats();respawn(player);sfx('spawn');
@@ -2483,6 +2729,7 @@ function startTraining(){
 function showHud(){
   const tr=mode==='training';$('top').hidden=tr;$('trainHud').hidden=!tr;if(tr)setT('tKeys',trainKeysText());$('tsLast').textContent='';$('hud').classList.toggle('training',tr);
   $('menu').hidden=true;$('pause').hidden=true;$('end').hidden=true;$('hud').hidden=false;$('dead').hidden=true;hudDirty=true;
+  $('hud').classList.toggle('ctf',mapCtf);if(!mapCtf){setT('myL','Your cracks');setHid('fm0',true);setHid('fm1',true)}
   for(const k in hudCache)if(k.indexOf('.')>0)delete hudCache[k];
 }
 // Leaving an online match partway through counts as finishing last against the real players there.
@@ -2502,6 +2749,9 @@ function endMatch(){
   $('endTitle').textContent=myRank===1?'Champion egg!':ordinal(myRank)+' place';
   const lead=list[0];
   $('endSub').textContent=(myRank===1?'Most cracks in ':lead.name+' won ')+mapInfo().name+' with '+lead.k+'.';
+  if(mapCtf){const a=ctfS.s[0],b=ctfS.s[1],w=a===b?-1:a>b?0:1;
+    $('endTitle').textContent=w<0?'A draw':w===player.team?'Your team wins!':TEAM[w].n+' team wins';
+    $('endSub').textContent='Capture the flag on '+mapInfo().name+': '+TEAM[0].n+' '+a+' – '+b+' '+TEAM[1].n+'.'}
   fillTable($('endTable'),list);
   showEndRank(applyRating(list,false));
   $('hud').hidden=true;$('pause').hidden=true;$('end').hidden=false;
@@ -2516,9 +2766,9 @@ function standingsNow(){if(standFrame!==frameNo){standFrame=frameNo;standCache=s
 function standings(){
   const out=[];
   for(const e of ents){if(e.dummy||!e.active&&e!==player)continue;if(e===player&&!player.active)continue;
-    let k=e.kills,d=e.deaths;if(e.remote){const ok=e.net&&e.net.m===Net.matchId;if(!ok)continue;k=+e.net.k||0;d=+e.net.dt||0}
+    let k=e.kills,d=e.deaths;if(e.remote){const ok=e.net&&e.net.m===Net.wm();if(!ok)continue;k=+e.net.k||0;d=+e.net.dt||0}
     const r=e===player?rank.r:e.isBot?BOT_R[diffKey]:clamp(+(e.net&&e.net.r)||RATING_START,100,3000);
-    out.push({name:e.name,k,d,color:e.color,me:e===player,human:!e.isBot,r})}
+    out.push({name:e.name,k,d,color:mapCtf?TEAM[e.team].c:e.color,me:e===player,human:!e.isBot,r})}
   out.sort((a,b)=>b.k-a.k||a.d-b.d||(a.me?-1:1));return out;
 }
 function fillTable(tbl,list){
@@ -2574,7 +2824,7 @@ function ratingChange(list,leftEarly){
   return{delta:Math.round(K*w*sum/opp.length),humans,w,place:myPos+1,of:list.length};
 }
 function applyRating(list,leftEarly){
-  if(ratedThis||mode==='training')return null;   // the training range never touches the rating
+  if(ratedThis||mode==='training'||mapCtf)return null;   // the training range and capture the flag never touch the rating
   const online_=mode==='online',played=clock-matchJoinClock;
   const {humans}=rankedField(list);
   if(online_&&humans<1)return null;                 // alone in a room: nothing to rate
@@ -2591,6 +2841,7 @@ function applyRating(list,leftEarly){
 function startRatedMatch(){matchJoinClock=clock;ratedThis=false}
 function liveRankInfo(){
   if(mode==='training')return 'Unranked';
+  if(mapCtf)return 'Capture the flag is unranked';
   const list=standings();const {humans}=rankedField(list);
   if(mode==='online'&&humans<1)return 'Unranked until another real player joins';
   return 'Ranked '+fmtMult(HUMAN_W(humans))+' · '+(humans?humans+' real player'+(humans>1?'s':''):'bots only');
@@ -2629,7 +2880,7 @@ async function loadLeaderboard(){
 }
 function showEndRank(ch){
   const box=$('endRank');box.textContent='';
-  if(!ch){box.hidden=false;const m=document.createElement('span');m.textContent=mode==='online'?'Unranked: no other real players finished this match.':'Unranked: you joined too late in the match to count.';box.appendChild(m);return}
+  if(!ch){box.hidden=false;const m=document.createElement('span');m.textContent=mapCtf?'Capture the flag is unranked: your rating stays as it was.':mode==='online'?'Unranked: no other real players finished this match.':'Unranked: you joined too late in the match to count.';box.appendChild(m);return}
   box.hidden=false;
   const big=document.createElement('span');big.className='big';big.textContent=ch.before+' → '+ch.after;
   const d=document.createElement('span');d.className=ch.delta>=0?'up':'down';d.textContent=(ch.delta>=0?'+':'')+ch.delta;
@@ -2673,9 +2924,10 @@ function updateHud(dt){
   const w=WEAPONS[player.wkey];
   // clock and score
   const rem=Math.max(0,matchEnds-nowMs()),s=Math.ceil(rem/1000);setT('clock',Math.floor(s/60)+':'+String(s%60).padStart(2,'0'));
+  if(mapCtf)ctfHud();else{
   setT('myK',String(player.kills));
   let lead=null,lk=-1;for(const r of standingsNow()){if(r.me)continue;if(r.k>lk){lk=r.k;lead=r}}
-  setT('leadK',lead?String(lead.k):'–');setT('leadN',lead?lead.name:'No rivals yet');
+  setT('leadK',lead?String(lead.k):'–');setT('leadN',lead?lead.name:'No rivals yet');}
   // health
   const hp=Math.ceil(player.hp);
   if(hudCache.hp!==hp){hudCache.hp=hp;$('hpN').textContent=hp;const f=$('hpFill');f.style.width=hp+'%';f.style.background=hp>60?'var(--hp)':hp>30?'var(--yolk-2)':'var(--tomato)';$('hpEggFill').setAttribute('y',String(56-56*hp/100))}
@@ -2710,6 +2962,7 @@ function updateHud(dt){
   // network line
   let nl='';
   if(online){const others=ents.filter(e=>e.remote&&e.active).length;if(Net.matchId==null&&Net.roundErr)nl='The database wouldn\'t start this room\'s match ('+(Net.roundErr.code||Net.roundErr.message)+')';else if(!others)nl=Net.isPublic?'Waiting for other eggs to join this lobby…':'Waiting for friends · Esc for the invite link'}
+  if(mapCtf&&!nl&&player.carry!=null)nl=ctfS.f[player.team].st===0?'You have the flag: run it home':'You have the flag, but yours must be home to score';
   setT('netline',nl);
   setHid('lockHint',!!document.pointerLockElement||paused);
   if(touchUI)$('tAim').classList.toggle('on',!!tAct.aim);
@@ -2719,7 +2972,7 @@ function updateHud(dt){
   }
   // scoreboard
   const showBoard=held('board');setHid('board',!showBoard);
-  if(showBoard){fillTable($('boardTable'),standings());$('boardTitle').textContent=mode==='training'?mapInfo().name+' · unranked, nothing is saved':mapInfo().name+' · first to '+target+' · '+liveRankInfo()}
+  if(showBoard){fillTable($('boardTable'),standings());$('boardTitle').textContent=mode==='training'?mapInfo().name+' · unranked, nothing is saved':mapCtf?mapInfo().name+' · '+TEAM[0].n+' '+ctfS.s[0]+' – '+ctfS.s[1]+' '+TEAM[1].n+' · first to '+CTF_CAPS+' captures':mapInfo().name+' · first to '+target+' · '+liveRankInfo()}
 }
 
 // =====================================================================
@@ -2741,7 +2994,7 @@ function showPause(){
   if(tr)$('pauseSub').textContent='Training range · unranked, nothing is saved. '+(touchUI?'The gun buttons':'Keys 1–5')+' also switch guns.';
   else{
   $('pauseSub').textContent=online?(Net.isPublic?'Public lobby '+Net.room.replace(/^sc-/,'')+' · the match keeps going':'Room '+Net.room+' · the match keeps going'):'Practice on '+MAPS[mapIdx].name+' ('+diffKey+' bots)';
-  $('pauseSub').textContent+=' · '+liveRankInfo()+(mode==='online'?'. Leaving now counts as last place.':'.');
+  $('pauseSub').textContent+=' · '+liveRankInfo()+(mode==='online'&&!mapCtf?'. Leaving now counts as last place.':'.');
   }
   $('copyInvite').hidden=!online;$('inviteMsg').textContent='';renderWeapons($('weapons2'));
 }
@@ -2877,7 +3130,7 @@ function playerControl(dt){
   let mag=1;if(tMove.on){f=-tMove.y;r=tMove.x;mag=Math.min(1,Math.hypot(f,r))}
   let wx=fx*f+rx*r,wz=fz*f+rz*r;const l=Math.hypot(wx,wz);if(l>0){wx/=l;wz/=l}
   if(held('jump')&&p.onGround&&(document.pointerLockElement||touchUI)){p.vel.y=JUMP;p.onGround=false;sfx('jump')}
-  p.ads=held('aim')&&p.reloadT<=0&&p.switchT<=0&&vmMelee<=0;
+  p.ads=held('aim')&&p.reloadT<=0&&p.switchT<=0&&vmMelee<=0&&p.carry==null;   // no aiming or scoping with a flag
   steer(p,wx,wz,dt,speedOf(p)*mag);
   if(p.onGround&&l>0){stepT-=dt;if(stepT<=0){stepT=.34/WEAPONS[p.wkey].speed;sfx('step')}}
   clickQueued-=dt;
@@ -2894,8 +3147,12 @@ const NET_BLOCKED='Couldn\'t reach the game database. If you\'re on a school or 
 function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('Could not load '+src));document.head.appendChild(s)})}
 function cleanName(n){return String(n||'Egg').replace(/[^\w \-.'!?]/g,'').trim().slice(0,14)||'Egg'}
 const Net={
-  peek:[],peekRoom:{},peekNew:{},peekMaps:{},mapT:0,cur:null,joining:false,checkT:0,fixT:0,growT:0,odd:0,ready:false,uid:null,db:null,offset:0,room:null,refs:null,isPublic:false,matchId:null,joinT:0,pubTimer:0,seen:new Set(),pruneTimer:0,
+  peek:[],peekRoom:{},peekNew:{},peekMaps:{},peekTeams:{},mapT:0,cur:null,joining:false,checkT:0,fixT:0,growT:0,odd:0,ready:false,uid:null,db:null,offset:0,room:null,refs:null,isPublic:false,ctfRoom:false,matchId:null,joinT:0,pubTimer:0,seen:new Set(),pruneTimer:0,
   now(){return Date.now()+this.offset},
+  // The match id as it goes into this egg's node and its events. In a capture-the-flag room it is the round's id plus a
+  // half: a copy of the game from before capture the flag only draws, hits and hears eggs whose match id equals the
+  // round's, so in such a room it sees nobody and nobody sees it (it plays on alone), instead of shooting at teams.
+  wm(){return this.matchId==null?-1:this.matchId+(this.ctfRoom?.5:0)},
   async init(){
     if(this.ready)return;
     if(!window.firebase||!firebase.database){
@@ -2917,21 +3174,23 @@ const Net={
   },
   stateOf(){
     const p=player;
-    return{n:myName,c:myColor,x:r2(p.pos.x),y:r2(p.pos.y),z:r2(p.pos.z),h:r3(p.yaw),p:r3(p.pitch),hp:Math.max(0,Math.round(p.hp)),d:p.alive?0:1,
-      w:WKEYS.indexOf(p.wkey),sc:p.shotCount,k:p.kills,dt:p.deaths,r:Math.round(rank.r),sp:p.spawnShield>0?1:0,m:this.matchId==null?-1:this.matchId,mp:mapIdx,ar:mapSm,mc:MAPS.length,ts:Math.round(this.now())};
+    const s={n:myName,c:myColor,x:r2(p.pos.x),y:r2(p.pos.y),z:r2(p.pos.z),h:r3(p.yaw),p:r3(p.pitch),hp:Math.max(0,Math.round(p.hp)),d:p.alive?0:1,
+      w:WKEYS.indexOf(p.wkey),sc:p.shotCount,k:p.kills,dt:p.deaths,r:Math.round(rank.r),sp:p.spawnShield>0?1:0,m:this.wm(),mp:mapIdx,ar:mapSm,mc:MAPS.length,ts:Math.round(this.now())};
+    if(this.ctfRoom)s.tm=p.team;   // capture the flag: this egg's team
+    return s;
   },
   async count(room){
     const s=await this.db.ref('rooms/'+room+'/players').once('value');let n=0;const pk=[];
-    let allNew=true,mk=MAPS.length;
-    s.forEach(c=>{const v=c.val();if(c.key!==this.uid&&v&&this.now()-(+v.ts||0)<10000){n++;if(v.ar==null)allNew=false;mk=Math.min(mk,mapsOf(v));if(!v.d&&isFinite(+v.x)&&isFinite(+v.z))pk.push({uid:c.key,x:+v.x,z:+v.z})}});
-    this.peekRoom[room]=pk;this.peekNew[room]=allNew;this.peekMaps[room]=mk;return n;
+    let allNew=true,mk=MAPS.length;const tms=[0,0];
+    s.forEach(c=>{const v=c.val();if(c.key!==this.uid&&v&&this.now()-(+v.ts||0)<10000){n++;if(v.ar==null)allNew=false;mk=Math.min(mk,mapsOf(v));if(v.tm===0||v.tm===1)tms[v.tm]++;if(!v.d&&isFinite(+v.x)&&isFinite(+v.z))pk.push({uid:c.key,x:+v.x,z:+v.z})}});
+    this.peekRoom[room]=pk;this.peekNew[room]=allNew;this.peekMaps[room]=mk;this.peekTeams[room]=tms;return n;
   },
   async joinRoom(room,isPublic){
     await this.init();
     const others=await withTimeout(this.count(room),10000,NET_BLOCKED);
     if(others>=MAX_ROOM)throw new Error('That room is full (8 eggs). Try another code.');
     const roomRef=this.db.ref('rooms/'+room);
-    this.room=room;this.isPublic=!!isPublic;this.matchId=null;this.cur=null;this.seen.clear();this.peek=this.peekRoom[room]||[];
+    this.room=room;this.isPublic=!!isPublic;this.ctfRoom=/^sc-ctf-/.test(room);this.matchId=null;this.cur=null;this.seen.clear();this.peek=this.peekRoom[room]||[];
     this.refs={room:roomRef,players:roomRef.child('players'),events:roomRef.child('events'),round:roomRef.child('round'),me:roomRef.child('players/'+this.uid)};
     online=true;player.id=this.uid;
     try{await withTimeout(this.refs.me.set(this.stateOf()),10000,NET_BLOCKED)}
@@ -2994,6 +3253,7 @@ const Net={
     // a finished match that our own join is about to replace: wait for the new one rather than building the old map
     if(this.joining&&this.now()>=roundEnd(v)+20000)return;
     if(this.isNewRound(v))onMatch(v);
+    else if(mapCtf&&v.id===this.matchId)ctfSync(ctfNorm(v.ctf));   // the flags or the score changed
   },
   // Run with every send (about 12 times a second). The map built here must always be the one in cur; if anything ever
   // left them apart, rebuild now. Once a second, look at the other eggs in this match: if most of them report a different
@@ -3006,7 +3266,7 @@ const Net={
     const t=performance.now();if(t-this.checkT<1000)return;this.checkT=t;
     let same=0,diff=0,n=1,old=false,mk=MAPS.length;const now=this.now();
     for(const e of remotes.values()){const q=e.net;if(!q||now-(+q.ts||0)>10000)continue;n++;if(q.ar==null)old=true;mk=Math.min(mk,mapsOf(q));
-      if(+q.m!==this.matchId||q.mp==null)continue;if(+q.mp===mapIdx&&(+q.ar||0)===mapSm)same++;else diff++}
+      if(+q.m!==this.wm()||q.mp==null)continue;if(+q.mp===mapIdx&&(+q.ar||0)===mapSm)same++;else diff++}
     this.odd=diff>same?this.odd+1:0;
     if(this.odd>=2&&t-this.fixT>5000){this.fixT=t;this.odd=0;this.refs.round.once('value',s=>this.takeRound(s.val())).catch(()=>{})}
     if(v.sm&&v.id===this.matchId&&now-(+v.ends||0)<SMALL_GROW_MS&&(n>SMALL_MAX||old)&&t-this.growT>3000){this.growT=t;
@@ -3031,7 +3291,7 @@ const Net={
   send(e){
     if(!online||!this.refs)return;
     const ref=this.refs.events.push();this.seen.add(ref.key);
-    const data=JSON.parse(JSON.stringify(e));data.by=this.uid;data.m=this.matchId;data.t=firebase.database.ServerValue.TIMESTAMP;
+    const data=JSON.parse(JSON.stringify(e));data.by=this.uid;data.m=this.wm();data.t=firebase.database.ServerValue.TIMESTAMP;
     ref.set(data).catch(()=>{});
     setTimeout(()=>ref.remove().catch(()=>{}),5000);
   },
@@ -3051,7 +3311,7 @@ const Net={
   leave(){
     clearInterval(this.pubTimer);clearInterval(this.pruneTimer);
     if(this.refs){const r=this.refs;try{r.players.off();r.events.off();r.round.off();r.me.onDisconnect().cancel();r.me.remove();this.dropRound(r)}catch(e){}}
-    this.refs=null;this.room=null;this.matchId=null;this.cur=null;this.joining=false;clearTimeout(this.waitT);online=false;player.id='me';
+    this.refs=null;this.room=null;this.ctfRoom=false;this.matchId=null;this.cur=null;this.joining=false;clearTimeout(this.waitT);online=false;player.id='me';
     clearRemotes();
   }
 };
@@ -3064,7 +3324,7 @@ const OLD_MAPS=3;
 function mapsOf(q){const n=q?+q.mc:0;return n>=1?Math.min(Math.floor(n),MAPS.length):OLD_MAPS}
 // the map and arena a round asks for (only maps with a small entry in MAPS can be small)
 function mapOf(v){return clamp(v.map|0,0,MAPS.length-1)}
-function smOf(v){return v.sm&&MAPS[mapOf(v)].small?1:0}
+function smOf(v){return v.sm&&MAPS[mapOf(v)].small&&!Net.ctfRoom?1:0}   // (a capture-the-flag room always plays the whole map)
 function roundEnd(v){const st=+v.ends||Net.now(),len=+v.len;return st+(len>0&&len<=MATCH_MS?len:MATCH_MS)}
 // You're dropped into the room's match as soon as it arrives (onMatch). If it hasn't after the join's 8 s, keep waiting
 // rather than play on a map of this browser's own choosing: try to start it again after 12 s more, and give up after 15 s
@@ -3089,6 +3349,8 @@ function onRemoteState(uid,v){
     remotes.set(uid,e);ents.push(e);if(state==='playing')infoFeed(e.name+' joined');
   }
   e.net=v;e.seen=performance.now();
+  // capture the flag: its team, and its shell in the team's colour
+  if(Net.ctfRoom){const tm=v.tm===1?1:0;if(e.team!==tm||e.color!==TEAM[tm].c){e.team=tm;e.color=TEAM[tm].c;if(e.model)e.model.stage=-1}}
   e.active=inMyMatch(v);   // an egg still on another round or map is hidden, can't be hit and makes no sound
   e.tpos.set(clamp(+v.x,0,SPAN),clamp(+v.y||0,-1,20),clamp(+v.z,0,SPAN));e.tyaw=+v.h||0;e.tpitch=+v.p||0;e.hp=clamp(+v.hp||0,0,100);
   // keep a short history to draw them from (netsmooth.js); a jump of more than 6 m is a respawn, so start afresh there
@@ -3108,7 +3370,7 @@ function onRemoteState(uid,v){
 }
 // Same match, and (when it says) the same map and arena: an egg still on another layout is hidden and can't be hit until
 // it has switched, so nobody is shot through a wall that only one of the two can see.
-function inMyMatch(v){return Net.matchId!=null&&!!v&&+v.m===Net.matchId&&(v.mp==null||+v.mp===mapIdx&&(+v.ar||0)===mapSm)}
+function inMyMatch(v){return Net.matchId!=null&&!!v&&+v.m===Net.wm()&&(v.mp==null||+v.mp===mapIdx&&(+v.ar||0)===mapSm)&&(!Net.ctfRoom||v.tm===0||v.tm===1)}
 function remoteShotFx(e){
   if(!e.active||!e.alive||!e.model)return;
   const w=WEAPONS[e.wkey];eyeOf(e,_o);const d=dirOf(e.yaw,e.pitch);const t=rayWorld(_o,d,w.range*3+40);
@@ -3117,9 +3379,10 @@ function remoteShotFx(e){
   sfx(e.wkey,e.pos);
 }
 function handleEvent(ev){
-  if(Net.matchId==null||ev.m!==Net.matchId||state==='menu')return;
+  if(Net.matchId==null||ev.m!==Net.wm()||state==='menu')return;
   if(ev.type==='hit'&&ev.to===Net.uid){
     const att=entById(ev.by)||{id:ev.by,name:'Someone',pos:null};
+    if(mapCtf&&att.team===player.team)return;   // never from a team-mate
     damage(player,clamp(+ev.dmg||0,0,200),att,!!ev.hd,String(ev.w||''));
   }else if(ev.type==='died'){
     // by = the egg that was cracked (it sends its own death), kb = who cracked it
@@ -3133,14 +3396,18 @@ function handleEvent(ev){
   }
 }
 function onMatch(v){
-  Net.matchId=v.id;matchEnds=roundEnd(v);
+  const first=Net.matchId==null;
+  Net.matchId=v.id;matchEnds=roundEnd(v);ctfOn=Net.ctfRoom;
   const mi=mapOf(v),sm=smOf(v);
-  const sameMap=mi===mapIdx&&sm===mapSm;const wasIn=state==='playing'&&player.alive;
+  const sameMap=mi===mapIdx&&sm===mapSm&&mapCtf===ctfOn;const wasIn=state==='playing'&&player.alive;
   clearTimeout(Net.waitT);if(state!=='playing')setMsg('');
   resetFx();if(!sameMap)buildMap(mi,sm);
   for(const e of remotes.values())e.active=inMyMatch(e.net);
-  player.kills=0;player.deaths=0;player.streak=0;target=TARGET_ONLINE;$('goal').textContent='First to '+target;
-  if(!(wasIn&&sameMap)){
+  player.kills=0;player.deaths=0;player.streak=0;target=TARGET_ONLINE;$('goal').textContent='First to '+(mapCtf?CTF_CAPS:target);
+  // capture the flag: the flags and score as the match has them, and (on arriving) a team
+  if(mapCtf){if(first)ctfPick();ctfSync(ctfNorm(v.ctf),true);ctfGone[0]=ctfGone[1]=0;ctfSeen[0]=ctfSeen[1]=false}
+  if(mapCtf){if(!(wasIn&&sameMap)){respawn(player);sfx('spawn')}}
+  else if(!(wasIn&&sameMap)){
     const ids=[Net.uid,...remotes.keys()].sort();
     const order=spreadOrder(v.id*7+mi);
     respawn(player,ids.length>1?order[ids.indexOf(Net.uid)%order.length]:null);sfx('spawn');
@@ -3149,7 +3416,8 @@ function onMatch(v){
   if(!(wasIn&&sameMap&&!ratedThis&&clock-matchJoinClock<15))startRatedMatch();
   if(state!=='playing'){state='playing';showHud();if(!paused)requestLock()}
   else{$('end').hidden=true}
-  banner(MAPS[mapIdx].name.toUpperCase(),(Net.isPublic?'Public lobby':'Room '+Net.room)+' · first to '+target+' cracks',2.6);
+  if(mapCtf){banner(MAPS[mapIdx].name.toUpperCase(),'Capture the flag · '+(Net.isPublic?'public lobby':'room '+Net.room)+' · first to '+CTF_CAPS,2.6);ctfHello()}
+  else banner(MAPS[mapIdx].name.toUpperCase(),(Net.isPublic?'Public lobby':'Room '+Net.room)+' · first to '+target+' cracks',2.6);
   // after the banner has gone (on a phone held sideways they'd overlap)
   if(mapSm&&!sameMap){const id=v.id;setTimeout(()=>{if(Net.matchId===id&&mapSm)infoFeed('Small arena for '+SMALL_MAX+' or fewer')},2800)}
 }
@@ -3191,7 +3459,11 @@ function prepOnline(){
   mode='online';
 }
 async function joinPrivate(){
-  const code=sanitizeRoom($('room').value)||randomRoom();$('room').value=code;store.set('room',code);
+  // A capture-the-flag room is one whose code starts with ctf- (rooms/sc-ctf-…): the name alone says what the room
+  // plays, so nothing an older copy of the game writes there can change it.
+  let code=sanitizeRoom($('room').value)||randomRoom();
+  if(/^ctf-/.test(code))setMode('ctf');else if(gmode==='ctf')code=('ctf-'+code).slice(0,17).replace(/-+$/,'');
+  $('room').value=code;store.set('room',code);
   busy(true);setMsg('Connecting…');
   try{Net.leave();prepOnline();await Net.joinRoom('sc-'+code,false);enterRoom()}
   catch(err){Net.leave();setupAttract();setMsg(err.message||String(err),true)}
@@ -3201,7 +3473,7 @@ async function quickMatch(){
   busy(true);setMsg('Finding a lobby…');
   try{
     Net.leave();await Net.init();
-    const rooms=[1,2,3,4,5,6].map(i=>'sc-pub-'+i);
+    const rooms=gmode==='ctf'?[1,2,3].map(i=>'sc-ctf-pub-'+i):[1,2,3,4,5,6].map(i=>'sc-pub-'+i);
     const res=await Promise.all(rooms.map(r=>withTimeout(Net.count(r),8000,NET_BLOCKED).catch(e=>e)));
     if(res.every(x=>x instanceof Error))throw new Error(res[0].message===NET_BLOCKED?NET_BLOCKED:'Couldn\'t read the lobbies ('+(res[0].code||res[0].message)+').');
     const counts=res.map(x=>x instanceof Error?0:x);
@@ -3267,10 +3539,11 @@ function step(dt){
   if(!frozen){
     const n=simSteps(dt);for(let i=0;i<n;i++)simulate(dt/n);
     if(online)updateRemotes(dt);
-    // match end (the training range has none)
+    if(mapCtf&&state==='playing')ctfTick(dt);
+    // match end (the training range has none): the crack target or the clock; in capture the flag, the captures or the clock
     if(state==='playing'&&mode!=='training'){
-      let top=0;for(const r of standingsNow())top=Math.max(top,r.k);
-      if(top>=target||nowMs()>=matchEnds)endMatch();
+      let top=0;if(!mapCtf)for(const r of standingsNow())top=Math.max(top,r.k);
+      if(mapCtf?ctfS.s[0]>=CTF_CAPS||ctfS.s[1]>=CTF_CAPS||nowMs()>=matchEnds:top>=target||nowMs()>=matchEnds)endMatch();
     }
   }
   if(state==='end'&&online){
@@ -3280,6 +3553,7 @@ function step(dt){
   updateParts(dt);updateShards(dt);updateSplats(dt);updateTracers(dt);updateSparks(dt);updateBooms(dt);
   for(const c of clouds)c.rotation.y-=.007*dt;
   for(const e of ents)if(e.model)updateModel(e,dt);
+  ctfDraw(dt);
   updateCamera(dt);
   if(state==='playing'&&player.alive)updateViewmodel(dt);
   updateHud(dt);
@@ -3297,7 +3571,7 @@ function updateModel(e,dt){
   if(!e.dummy&&m.gunKey!==e.wkey)setEggGun(m,e.wkey);
   if(e.spawnShield>0){const p=.25+.25*Math.sin(clock*14);m.mat.emissive.setRGB(p*.6,p*.8,p)}else m.mat.emissive.setRGB(0,0,0);
   if(m.flashT>0){m.flashT-=dt;if(m.flashT<=0&&m.flash)m.flash.visible=false}
-  m.tag.visible=camera.position.distanceTo(e.pos)<45;
+  m.tag.visible=e.carry!=null||camera.position.distanceTo(e.pos)<45;
 }
 function updateCamera(dt){
   camPitchKick*=Math.exp(-dt*10);shake*=Math.exp(-dt*6);
@@ -3352,6 +3626,10 @@ function renderSwatches(){
   $('eggPrevShell').setAttribute('fill',myColor);
 }
 function renderDiff(){for(const b of $('diffSeg').children)b.setAttribute('aria-pressed',String(b.dataset.d===diffKey))}
+// Game mode: Quick match, Play in room and Practice all start the one picked here.
+function renderMode(){for(const b of $('modeSeg').children)b.setAttribute('aria-pressed',String(b.dataset.m===gmode));$('modeNote').hidden=gmode!=='ctf'}
+function setMode(m){gmode=m==='ctf'?'ctf':'ffa';store.set('gmode',gmode);renderMode()}
+$('modeSeg').addEventListener('click',e=>{const m=e.target.dataset&&e.target.dataset.m;if(m)setMode(m)});
 function renderGfx(){for(const b of $('gfxSeg').children)b.setAttribute('aria-pressed',String(b.dataset.q===gfx))}
 $('diffSeg').addEventListener('click',e=>{const d=e.target.dataset&&e.target.dataset.d;if(d&&DIFF[d]){diffKey=d;store.set('diff',d);renderDiff()}});
 function applyGfx(q){gfx=q;store.set('gfx',q);renderGfx();
@@ -3400,13 +3678,13 @@ addEventListener('pagehide',()=>{leaveCheck();Net.leave()});
 
 // An invite opens this page with #sc-<code>: fill in the room and point at the join button.
 const inv=/^#sc-([a-z0-9-]{1,17})$/.exec(location.hash);
-if(inv){$('room').value=inv[1];setMsg('You were invited to room sc-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.remove('alt');$('quick').classList.add('alt')}
+if(inv){if(/^ctf-/.test(inv[1]))setMode('ctf');$('room').value=inv[1];setMsg('You were invited to room sc-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.remove('alt');$('quick').classList.add('alt')}
 
 if(navigator.webdriver)window.__sc={get state(){return state},get mode(){return mode},get noRender(){return noRender},set noRender(v){noRender=!!v},player,get ents(){return ents},get map(){return mapIdx},get arena(){return mapSm},get layout(){return mapIdx+(mapSm?"s":"")},findPath,rayWorld,floorBelow,buildMap,MAPS,W,HY,VY,G,GROUND_Y,vox,vget,standV,nodeFor,entHits,get navN(){return navN},get navReach(){return navReach},navAt,get navY(){return navY},get perches(){return perches},spawns:()=>spawns,Net,onRemoteState,handleEvent,onMatch,endMatch,standings,DIFF,WEAPONS,fireShot,damage,throwNade,nades,addFeed,respawn,spawnSplat,keys,setPaused:v=>{paused=v},get rank(){return rank},HUMAN_W,ratingChange,applyRating,get lastRated(){return lastRated},get clock(){return clock},toMenu,loadLeaderboard,renderer,scene,camera,vmScene,vmCam,advance:s=>{noRender=true;try{for(let t=0;t<s;t+=1/30)step(1/30)}finally{noRender=false}},get matchEnds(){return matchEnds},set matchEnds(v){matchEnds=v},get remotes(){return remotes},get range(){return Range},startTraining,tryFire,buildGun,WKEYS,get vmGun(){return vmGun},get tracers(){return tracers},startReload,setLoadout,switchSlot,mapInfo,RANGE_IDX,get paused(){return paused},get hudDirty(){return hudDirty},
   // collision audit: the real movement, push-out and remote-drawing code, driven step by step
-  botMatch:(i,n)=>{clearBots();resetFx();buildMap(i);addBots(n)},moveEntity,steer,pushOutPos,rescue,boxSolid,updateRemotes,drawClamp,simulate,simSteps,FRAME_CAP,consts:{PR,PH,STEP,JUMP,GRAV,MAX_FALL},mapSpawns:()=>mapSpawns,los};
+  botMatch:(i,n)=>{clearBots();resetFx();buildMap(i);addBots(n)},get ctf(){return{on:mapCtf,S:ctfS,base:ctfBase,spawns:ctfSpawns,posts:ctfPosts,team:player.team}},ctfDo,ctfReduce,ctfNorm,ctfFresh,ctfSync,setMode,TEAM,startPractice,CTF_CAPS,ctfBotMatch:(i,n)=>{clearBots();resetFx();ctfOn=true;buildMap(i);const t=[];for(let k=0;k<n;k++)t.push(k&1);addBots(n,t);ctfSync(ctfFresh(),true);state='playing';mode='practice';player.active=false;player.alive=false;matchEnds=Date.now()+1e9},moveEntity,steer,pushOutPos,rescue,boxSolid,updateRemotes,drawClamp,simulate,simSteps,FRAME_CAP,consts:{PR,PH,STEP,JUMP,GRAV,MAX_FALL},mapSpawns:()=>mapSpawns,los};
 
-renderSwatches();renderWeapons($('weapons'));renderDiff();renderGfx();renderRank();
+renderSwatches();renderWeapons($('weapons'));renderDiff();renderGfx();renderMode();renderRank();
 setupAttract();showAd('adMenu');
 requestAnimationFrame(t=>{last=t;frame(t)});
 })();
