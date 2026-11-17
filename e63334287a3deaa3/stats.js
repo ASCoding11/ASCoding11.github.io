@@ -51,7 +51,7 @@
  *   lg { <folder>: seconds } the totals as they stood when this version first wrote the node ("legacy" time, from before
  *      batches; it may overlap between accounts used in one browser, so a merge keeps the larger of it instead of adding)
  *   al { <uid>: ms } anonymous accounts merged into this one (at most 8)    to <uid> this account was merged into that one
- *   av the player's edited avatar as a short code (avatar.js: 'a1:3.5.2.7.1', or 'a0' after a reset; absent if never edited).
+ *   av the player's edited avatar as a short code (avatar.js: 'a2:' and fifteen numbers, the older 'a1:3.5.2.7.1', or 'a0' after a reset; absent if never edited).
  *      Taken from this browser's saved edit (localStorage avatar:v1) when it is for this account, else kept as the node has it
  *   ga 1 and gn the Google display name (40 characters, no email or photo) when the account is a Google sign-in, else neither
  * Nodes written by the older version (v 1: n, c, x, z, h, ts, v, st, g, d, ga, gn) read the same way; that version overwrote
@@ -562,15 +562,18 @@
     if (!has(nd.lg)) delete nd.lg;
     return nd;
   }
-  // The avatar code that travels in the node as av (avatar.js checks it again before drawing): 'a1:<skin>.<hairc>.<eyec>.
-  // <shirt>.<hat>', or 'a0' once the player has gone back to their own. localAv: what this browser has saved for this account
+  // The avatar code that travels in the node as av (avatar.js checks it again before drawing): 'a2:' and fifteen numbers
+  // (every feature, in avatar.js's CODE_KEYS order), the older 'a1:<skin>.<hairc>.<eyec>.<shirt>.<hat>', or 'a0' once the player has gone back to their own. localAv: what this browser has saved for this account
   // (localStorage avatar:v1, written by the editor on the hub pages), or '' when it has nothing to say.
-  function okAv(a) { return typeof a === 'string' && (a === 'a0' || /^a1:\d{1,2}(\.\d{1,2}){4}$/.test(a)); }
+  function okAv(a) { return typeof a === 'string' && (a === 'a0' || /^a1:\d{1,2}(\.\d{1,2}){4}$/.test(a) || /^a2:\d{1,2}(\.\d{1,2}){14}$/.test(a)); }
+  var AV1 = ['skin', 'hairc', 'eyec', 'shirt', 'hat'], AV2 = ['bg', 'skin', 'face', 'hair', 'hairc', 'eyes', 'eyec', 'brows', 'mouth', 'glasses', 'freckles', 'blush', 'hat', 'hatc', 'shirt'];
   function localAv(uid) {
     var o = sj('avatar:v1'); if (!obj(o) || o.v !== 1 || o.uid !== uid) return '';
-    var a = ['skin', 'hairc', 'eyec', 'shirt', 'hat'].map(function (k) { return o[k]; });
-    var set = a.filter(function (v) { return Number.isInteger(v) && v >= 0 && v < 100; }).length;
-    return set === 5 ? 'a1:' + a.join('.') : set ? '' : 'a0';
+    var set = function (k) { return Number.isInteger(o[k]) && o[k] >= 0 && o[k] < 100; }, val = function (k) { return o[k]; };
+    var n = AV2.filter(set).length;
+    if (n === AV2.length) return 'a2:' + AV2.map(val).join('.');
+    // An edit from the first editor that avatar.js hasn't filled out yet (it does when a hub page next loads): its five.
+    return !n ? 'a0' : n === AV1.length && AV1.every(set) ? 'a1:' + AV1.map(val).join('.') : '';
   }
   function totals(nd) { var out = {}; Object.keys((nd && nd.g) || {}).forEach(function (gk) { if (nd.g[gk].s > 0) out[gk] = nd.g[gk].s; }); return out; }
   function readNode(c, uid) { return c.db.ref(PATH + '/' + uid).once('value').then(function (s) { return s.val(); }); }
