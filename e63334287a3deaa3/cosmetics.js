@@ -1,13 +1,19 @@
 /*
  * Back Room cosmetics: skins, accessories, skin draws and packs, and the player's locker.
  *
+ *   <script src="/e63334287a3deaa3/captains.js" defer></script>    (before this file: the shared "who may see it" answer)
  *   <script src="/e63334287a3deaa3/cosmetics.js" defer></script>   (data-hub on hub pages: adds the wallet + Shop chip)
  *   <script src="/e63334287a3deaa3/wallet.js" defer></script>      (the coins: see that file)
  *
  * THE SWITCH: ENABLED, just below. While it is false nothing here is shown or saved anywhere: no Shop chip, no wallet,
  * no draws, no skin picker, no element added to any page, no network; the shop page (shop/) only says it isn't open yet.
  * Set it to true to open everything. For testing only, ?cosmetics=1 in the page address turns it on, and only when the
- * page is on localhost or driven by an automated browser (navigator.webdriver).
+ * page is on localhost or driven by an automated browser (navigator.webdriver): that check is captains.js's, the one
+ * file every hidden cosmetic asks (without it on the page the address does nothing).
+ * The site's captains are NOT let in here early. captains.js lets them see the games' own screens (Driftfall's Locker,
+ * Boostball's garage and Kit, Slipstream's Garage), where every item is free to wear while this file is off; the
+ * shop, the wallet, earning and buying stay shut for them like everyone else, so on() asks captains.js's open(), which
+ * leaves captains out, not may().
  *
  * What there is:
  *   SKINS        30 full looks in four rarities. Each has an avatar look (drawn over avatar.js's face: a background pattern,
@@ -77,16 +83,8 @@
   var RARITY_TOTAL = 10000;
   var RARITY_BY_ID = {}; RARITY.forEach(function (r) { RARITY_BY_ID[r.id] = r; });
 
-  function testFlag() {
-    try {
-      var local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
-      if (!navigator.webdriver && !local) return false;
-      var q = location.search;
-      try { if (window.parent !== window) q += '&' + window.parent.location.search; } catch (e) {}
-      return /[?&]cosmetics=1(&|$)/.test(q);
-    } catch (e) { return false; }
-  }
-  var FLAG = testFlag();
+  var SHARED = window.BackRoomCaptains || null;      // captains.js: the test switch lives there, with the others
+  var FLAG = !!(SHARED && SHARED.open(false, 'cosmetics'));
   function on() { return !!(api.ENABLED || FLAG); }
 
   // ---------------- Skins ----------------

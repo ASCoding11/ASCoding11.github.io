@@ -3,7 +3,8 @@
  * sounds). HIDDEN.
  *
  * index.html fetches this file only when something needs it: hidden things are switched on in this browser (the garage
- * switch, ?garage=1 / GARAGE_PUBLIC, or the cosmetics switch in ../cosmetics.js), or another player's car arrives wearing
+ * switch: a captain's account, GARAGE_PUBLIC or the test address, see garageOn in index.html; or the cosmetics switch in
+ * ../cosmetics.js), or another player's car arrives wearing
  * a kit. Players with everything off never load it. The page calls window.BoostballKit(G) once, where G is the short
  * list of things it lends (KITAPI in index.html: three.js, the scene, the team colours, its shape helpers), and gets back
  * the hooks it calls: dress() and wheel() while a car model is built, trail() for a boosting car, goal() when someone
@@ -1278,7 +1279,8 @@ function clearGoal(){if(mainStage)mainStage.stop()}
 // =====================================================================
 // Names, rarity and who owns what come from ../cosmetics.js (its Boostball items); this file only knows numbers.
 // With the cosmetics switch on, you wear what your locker there owns and the choice is saved in that locker.
-// With only the garage switch on, every item is free and the choice is saved here as boostball-kit ({slot: item id}).
+// With only the garage switch on (as it is for a captain), every item is free and the choice is saved here as
+// boostball-kit ({slot: item id}).
 const CAT=()=>window.BackRoomCosmetics&&window.BackRoomCosmetics.gameItems?window.BackRoomCosmetics:null;
 const LISTS=[DECALS,TRAILS,GOALS,TOPPERS,HATS,WHEELS,ENGINES],TABS=['Decal','Boost trail','Goal explosion','Topper','Hat','Wheels','Engine'];
 function items(slot){
@@ -1319,7 +1321,7 @@ function menu(){
     '@media (max-width:420px){#kit .kit-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}';
   document.head.appendChild(st);
   const box=document.createElement('div');box.id='kit';
-  box.innerHTML='<div class="label">Kit <span style="text-transform:none;letter-spacing:0">· hidden for now</span></div><div class="kit-tabs" role="tablist" aria-label="Kit">'+TABS.map((t,i)=>'<button type="button" role="tab" data-tab="'+i+'">'+t+'</button>').join('')+
+  box.innerHTML='<div class="label">Kit <span style="text-transform:none;letter-spacing:0">· not public yet</span></div><div class="kit-tabs" role="tablist" aria-label="Kit">'+TABS.map((t,i)=>'<button type="button" role="tab" data-tab="'+i+'">'+t+'</button>').join('')+
     '</div><div class="kit-grid" id="kitGrid" role="group"></div><div class="kit-foot"><p class="note" id="kitNote"></p><button type="button" id="kitPreview" hidden>Preview</button></div>';
   sw.after(box);
   box.addEventListener('click',e=>{
