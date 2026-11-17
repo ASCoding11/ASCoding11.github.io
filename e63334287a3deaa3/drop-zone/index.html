@@ -242,12 +242,38 @@ details.ctrl[open] .keys{margin-top:10px}
 .lk-head .kicker{margin-bottom:8px}
 .lk-stage{position:relative;min-width:0;min-height:0;cursor:grab;touch-action:none}
 .lk-stage b{position:absolute;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);padding:4px 14px 3px;background:var(--panel);border-radius:6px;font-family:var(--f-big);font-weight:400;font-size:20px;letter-spacing:.04em;white-space:nowrap;pointer-events:none}
-/* the Outfits button sits beside the name box, so the rest of the menu doesn't move when it appears */
+/* The Face screen (everyone): the drawing grid and its tools on the left, your character's head on the right; on an
+   upright phone the head is on top. It shares the Locker's panel, heading and stage. */
+#face{display:grid;grid-template-columns:min(600px,54%) minmax(0,1fr);align-items:stretch;overflow:hidden}
+.fc-work{display:flex;gap:14px;align-items:flex-start}
+.fc-grid{flex:0 1 372px;min-width:0;display:grid;grid-template-columns:repeat(12,1fr);aspect-ratio:12/10;background:var(--fc-skin,#f7c531);border:2px solid var(--line);border-radius:8px;overflow:hidden;touch-action:none;cursor:crosshair;-webkit-user-select:none;user-select:none}
+.fc-grid i{border-right:1px solid rgba(0,0,0,.13);border-bottom:1px solid rgba(0,0,0,.13)}
+.fc-grid i.on{background:#15171b}
+.fc-grid:focus-visible{outline:3px solid var(--sun);outline-offset:3px}
+.fc-grid:focus-visible i.cur{box-shadow:inset 0 0 0 2px #fff,inset 0 0 0 4px #1d5fd0}
+.fc-tools{flex:1 1 120px;min-width:0;display:flex;flex-direction:column;gap:8px}
+.fc-seg{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.fc-tools .ghost-btn{padding:8px 4px;font-size:14px;letter-spacing:.04em;min-width:0}
+.fc-tools .ghost-btn[aria-pressed="true"]{border-color:var(--sun);background:rgba(255,201,60,.18)}
+.fc-tools .ghost-btn:disabled{opacity:.45;cursor:default}
+.fc-stamps{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.fc-stamp{padding:4px;background:var(--fc-skin,#f7c531);border:2px solid transparent;border-radius:6px;cursor:pointer;min-width:0}
+.fc-stamp:hover{border-color:var(--sun)}
+.fc-stamp canvas{display:block;width:100%;aspect-ratio:12/10;image-rendering:pixelated;pointer-events:none}
+.fc-hint{margin:0;font-size:14px;color:var(--ink-dim)}
+body.touch .fc-hint{display:none}
+.check{display:flex;gap:8px;align-items:center;font-size:16px;font-weight:600;cursor:pointer}
+.check input{width:18px;height:18px;flex:none;accent-color:var(--sun)}
+/* the Face button (and, for a captain, the Outfits button) sits beside the name box */
 .lk-row{display:flex;gap:10px;align-items:stretch}
 .lk-row .text{flex:0 1 260px}
 .lk-row .ghost-btn{flex:none;padding:8px 14px;font-size:16px}
 @media (max-width:420px){.lk-row .ghost-btn{padding:8px 8px;font-size:15px;letter-spacing:.04em}}   /* fits beside the full-width name box on a 390 px phone */
 @media (orientation:portrait) and (max-width:700px){
+  #face{grid-template-columns:minmax(0,1fr);grid-template-rows:30% 70%}
+  .fc-work{flex-direction:column;align-items:stretch} .fc-grid{flex:none} .fc-tools{flex:none}
+  .fc-seg{display:contents} .fc-tools{display:grid;grid-template-columns:repeat(4,1fr);gap:6px} .fc-tools .label,.fc-stamps{grid-column:1/-1}
+  .fc-stamps{grid-template-columns:repeat(6,1fr)}
   #locker{grid-template-columns:minmax(0,1fr);grid-template-rows:36% 64%}
   .lk-stage{order:-1}
   .lk-stage b{bottom:8px;font-size:17px}
@@ -256,6 +282,9 @@ details.ctrl[open] .keys{margin-top:10px}
   .lk-grid{grid-template-columns:repeat(auto-fill,minmax(84px,1fr))}
 }
 @media (orientation:landscape) and (max-height:480px){
+  #face{grid-template-columns:60% minmax(0,1fr)}
+  .fc-grid{flex:0 0 auto;height:min(250px,calc(100vh - 120px));height:min(250px,calc(100dvh - 120px))} .fc-hint{display:none}
+  .fc-stamps{grid-template-columns:repeat(3,1fr)}
   .lk-panel{padding-top:calc(10px + env(safe-area-inset-top,0px));gap:8px}
   .lk-title,.lk-lede{display:none} .lk-head .kicker{margin:0}
   .lk-grid{grid-template-columns:repeat(auto-fill,minmax(84px,1fr))}
@@ -420,7 +449,7 @@ body.touch #net{font-size:14px}
       <p class="lede">Ride the Drifter over the island, jump and glide down wherever you like. Grab what the chests hold, build cover, and be the last one standing as the storm closes in.</p>
       <div class="field">
         <label class="label" for="name">Your name</label>
-        <input class="text" id="name" maxlength="16" autocomplete="off" spellcheck="false" style="max-width:260px">
+        <div class="lk-row" id="lockerRow"><input class="text" id="name" maxlength="16" autocomplete="off" spellcheck="false"><button id="faceBtn" class="ghost-btn" type="button">Face</button></div>
       </div>
       <div class="group">
         <span class="label">Online</span>
@@ -450,6 +479,7 @@ body.touch #net{font-size:14px}
             <option value="fast">Fast</option>
           </select>
         </div>
+        <label class="check"><input type="checkbox" id="showFaces" checked> Show other players’ drawn faces</label>
         <details class="ctrl">
           <summary>Controls</summary>
           <dl class="keys">
@@ -491,12 +521,31 @@ body.touch #net{font-size:14px}
     </div>
   </section>
 
+  <section id="face" class="overlay" hidden>
+    <div class="lk-panel">
+      <div class="lk-head"><div><div class="kicker">Your character</div><h2 class="title lk-title">FA<span>CE</span></h2></div><button class="cta" id="fcDone" type="button">Done</button></div>
+      <p class="lede lk-lede">Draw your own eyes and mouth. Players in your matches see it. Clear it to get the usual face back.</p>
+      <div class="fc-work">
+        <div class="fc-grid" id="fcGrid" role="application" tabindex="0" aria-label="Face drawing grid, 12 squares wide and 10 high. Arrow keys move, Space fills or empties a square."></div>
+        <div class="fc-tools">
+          <div class="fc-seg" role="group" aria-label="Tool"><button class="ghost-btn" id="fcPen" type="button" aria-pressed="true">Pencil</button><button class="ghost-btn" id="fcRub" type="button" aria-pressed="false">Eraser</button></div>
+          <div class="fc-seg"><button class="ghost-btn" id="fcUndo" type="button" disabled>Undo</button><button class="ghost-btn" id="fcClear" type="button">Clear</button></div>
+          <span class="label" id="fcStartL">Start from</span>
+          <div class="fc-stamps" id="fcStamps" role="group" aria-labelledby="fcStartL"></div>
+        </div>
+      </div>
+      <p class="fc-hint">Keep it friendly. Keys: arrows move, Space fills or empties a square, P pencil, E eraser, Z undo.</p>
+    </div>
+    <div class="lk-stage" id="fcStage"></div>
+  </section>
+
   <section id="pause" class="overlay center" hidden>
     <div class="menu-inner">
       <div class="kicker" id="pauseRoom">Paused</div>
       <p class="lede" id="pauseMsg">The storm keeps moving while you're away.</p>
       <div class="row"><button class="cta" id="resume" type="button">Resume</button><button class="ghost-btn" id="copyInvite" type="button" hidden>Copy invite link</button><button class="ghost-btn" id="keysPause" type="button">Controls</button><button class="ghost-btn" id="leave" type="button">Leave</button></div>
       <p class="msg" id="inviteMsg"></p>
+      <label class="check"><input type="checkbox" id="showFacesP" checked> Show other players’ drawn faces</label>
     </div>
   </section>
 
@@ -605,8 +654,8 @@ function itemName(t){return WEAP[t]?WEAP[t].name:HEALS[t]?HEALS[t].name:t==='mt'
 
 const store={get(k,d){try{const v=localStorage.getItem('driftfall:'+k);return v===null?d:v}catch(e){return d}},set(k,v){try{localStorage.setItem('driftfall:'+k,String(v))}catch(e){}}};
 let sens=parseFloat(store.get('sens','1'))||1;
-// The Locker (outfits) is built but not public yet: nothing about it shows, is read from storage or is sent to other
-// players unless lockerOn() says this player may see it. That is true for the site's captains (../captains.js: the
+// The Locker (outfits) is built but not public yet: nothing about it shows or is read from storage unless lockerOn()
+// says this player may see it (everyone else wears, and sends, the Noob). That is true for the site's captains (../captains.js: the
 // account signed in is in miles.js's captain lists), and for testing with ?locker=1 on localhost or in an automated
 // browser only (remembered for the browser tab; ?locker=0 forgets it). On the live site the address does nothing.
 // To make it public for everyone, set LOCKER_PUBLIC to true: that one line is the whole switch.
@@ -2534,18 +2583,20 @@ function lineClear(a,b){const d=b.clone().sub(a),L=d.length();if(L<.01)return tr
 // Turkey Week (../events.js): everyone's cap is drawn as a pilgrim hat. It is part of the same body geometry, so it
 // costs no extra draw calls; only the look changes. The Turkey Week switch on the Back Room page turns it off (read once, when the game loads).
 const EVT=window.BackRoomEvents&&BackRoomEvents.turkey,TKON=!!(EVT&&EVT.on());
-function bodyGeo(hex,skin,fit){
+function bodyGeo(hex,skin,fit,face){
   const B=Bag(),dark=new THREE.Color(hex).multiplyScalar(.55).getHex(),lite=new THREE.Color(hex).lerp(new THREE.Color(0xffffff),.22).getHex();
-  // an outfit from the Locker (OUTFITS, below): its own body pieces, then its headwear, or the event's hat in its place
+  face=faceOf(face);   // a drawn face (see "drawn faces", below), or '' for the outfit's own eyes and mouth
+  // an outfit (OUTFITS, below): its own body pieces, then its headwear, or the event's hat in its place, then the drawn face
   const O=fit?OUTFITS[fit]:null;
-  if(O&&O.body){const c={hex,dark,lite,skin:O.skin!=null?O.skin:skin,hair:HAIR[SKINS.indexOf(skin)%HAIR.length]||HAIR[0]};O.body(B,c);if(TKON)eventHat(B);else if(O.hat)O.hat(B,c);return bagGeo(B)}
+  if(O&&O.body){const c={hex,dark,lite,skin:O.skin!=null?O.skin:skin,hair:HAIR[SKINS.indexOf(skin)%HAIR.length]||HAIR[0],face:!!face};O.body(B,c);if(TKON)eventHat(B);else if(O.hat)O.hat(B,c);
+    if(face)bagFace(B,faceSpot(fit),face);return bagGeo(B)}
   bagRBox(B,0,1.22,0,.7,.72,.42,hex);bagRBox(B,0,1.36,-.005,.62,.3,.44,lite);bagRBox(B,0,.9,0,.73,.1,.45,0x2b2f36);   // torso, chest panel, belt
   bagRBox(B,0,1.58,0,.24,.1,.24,skin);                                                                                // neck
   bagRBox(B,0,1.79,0,.48,.48,.48,skin);                                                                               // head
   if(TKON)eventHat(B);                                                                                               // pilgrim hat (Turkey Week)
   else{bagRBox(B,0,2.07,0,.52,.15,.52,dark);bagRBox(B,0,2.02,-.27,.5,.06,.16,dark)}                                   // cap and its peak
   bagRBox(B,0,1.8,.2,.5,.4,.16,HAIR[SKINS.indexOf(skin)%HAIR.length]||HAIR[0]);                                     // hair
-  bagBox(B,0,1.83,-.262,.34,.08,.02,0x1d2228);                                                                        // visor
+  if(face)bagFace(B,FACE0,face);else bagBox(B,0,1.83,-.262,.34,.08,.02,0x1d2228);                                    // a drawn face, or the visor
   bagRBox(B,0,1.25,.31,.44,.5,.2,dark);bagRBox(B,0,1.52,.31,.46,.06,.22,0xffc93c);                                    // backpack and its roll
   bagRBox(B,-.41,1.46,0,.17,.2,.26,hex);bagRBox(B,.41,1.46,0,.17,.2,.26,hex);                                         // shoulders
   bagRBox(B,-.27,1.36,-.24,.16,.16,.6,hex,-.4);bagRBox(B,.3,1.36,-.22,.16,.16,.6,hex);                                // arms
@@ -2732,6 +2783,45 @@ const ICONS={};
 const GLIDER_GEO=(()=>{const B=Bag();bagBox(B,0,0,0,3.6,.08,1.1,0xffc93c);bagBox(B,-1.2,-.02,0,1.2,.09,1.12,0xff6a3a);bagBox(B,1.2,-.02,0,1.2,.09,1.12,0x2f93bf);
   bagBox(B,-1.1,-.75,0,.04,1.5,.04,0x333333);bagBox(B,1.1,-.75,0,.04,1.5,.04,0x333333);return bagGeo(B)})();
 const SKINS=[0xf1c7a0,0xd9a77c,0xb98058,0x8a5a3c,0xf5d3b5,0x6e4630],HAIR=[0x5a3a22,0x2b211c,0x1c1917,0x151312,0xc9a05a,0x1a1614];
+/* ---------- drawn faces ----------
+   Everyone can draw their own face (the Face button on the menu): black cells on a grid 12 wide and 10 high, laid over the
+   face of whatever they wear in place of its own eyes and mouth. It is saved and sent as 20 characters: the 120 cells,
+   row by row from the top left, six to a character (FACE_ABC). faceOf() lets through exactly that and nothing else; the
+   empty drawing and anything it rejects are '', which means the outfit's own face.
+   In the world the black cells are flat squares a centimetre in front of the face, added to the body's own geometry
+   (bagFace): the same one mesh, vertex colours, no texture and no extra draw call. Cells side by side in a row are one
+   strip, cut every four cells so a strip follows the curve of the head: 120 triangles at the very most (a checkerboard),
+   usually 10 to 40. A body is only built again when its colour, outfit or face changes (setModelColor).
+   Where the grid sits is a spot: {y: the height of its middle, cell: the size of a square, box: [cy, cz, sx, sy, sz] the
+   rounded box (bagRBox / bagRLo) it lies on, or flat: z for a flat front, off: how far in front}. FACE0 is the bare head;
+   an outfit whose face is somewhere else says so with `face` (always) or `hatFace` (while its own headwear is on, which
+   is not during an event: the event's hat takes its place and the face goes back on the head). */
+const FACE_W=12,FACE_H=10,FACE_RE=/^[A-Za-z0-9_-]{20}$/,FACE_ABC='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_',FACE_NONE='AAAAAAAAAAAAAAAAAAAA';
+const faceOf=s=>typeof s==='string'&&FACE_RE.test(s)&&s!==FACE_NONE?s:'';
+function faceBits(s){const b=new Uint8Array(FACE_W*FACE_H);if(!faceOf(s))return b;for(let i=0;i<20;i++){const v=FACE_ABC.indexOf(s[i]);for(let k=0;k<6;k++)b[i*6+k]=v>>(5-k)&1}return b}
+function faceStr(b){let s='';for(let i=0;i<20;i++){let v=0;for(let k=0;k<6;k++)v=v<<1|(b[i*6+k]?1:0);s+=FACE_ABC[v]}return faceOf(s)}
+const faceRows=rows=>{const b=new Uint8Array(FACE_W*FACE_H);rows.forEach((r,j)=>{for(let i=0;i<FACE_W;i++)if(r[i]==='#')b[j*FACE_W+i]=1});return faceStr(b)};
+const FACE0={y:1.785,cell:.036,box:[1.79,0,.48,.48,.48]},FACE_INK=0x15171b;
+const faceSpot=fit=>{const O=OUTFITS[fit];return O&&((!TKON&&O.hat&&O.hatFace)||O.face)||FACE0};
+// how far forward the front of a rounded box is at (x, y): its middle bulges, its edges fall back (fitted to ROUND_BOX's own shape)
+function faceZ(S,x,y){if(S.flat!=null)return S.flat;const b=S.box||FACE0.box,xu=x/(b[2]*1.12),yu=(y-b[0])/(b[3]*1.12),r=Math.min(.5,xu*xu+yu*yu);return b[1]-b[4]*1.12*(.548-.385*r+.28*r*r)-(S.off||.012)}
+function bagFace(B,S,s){
+  const bits=faceBits(s),c=S.cell||FACE0.cell,x0=-c*FACE_W/2,y1=(S.y||FACE0.y)+c*FACE_H/2;_col.setHex(FACE_INK);
+  const put=(x,y)=>{B.p.push(x,y,faceZ(S,x,y));B.n.push(0,0,-1);B.c.push(_col.r,_col.g,_col.b)};
+  for(let r=0;r<FACE_H;r++)for(let q=0;q<FACE_W;q++){
+    if(!bits[r*FACE_W+q])continue;let e=q+1;while(e<FACE_W&&e%4&&bits[r*FACE_W+e])e++;
+    const xa=-x0-e*c,xb=-x0-q*c,ya=y1-r*c,yb=ya-c;put(xa,ya);put(xb,ya);put(xa,yb);put(xb,ya);put(xb,yb);put(xa,yb);q=e-1}   // (the grid's left is the left of the face as you look at it, which is the body's +x)
+}
+// Faces to start a drawing from (the Face screen stamps them); the Practice bots wear them too, picked by their number.
+const FACE_STARTS=[
+  ['Smile',['............','............','..##....##..','..##....##..','............','............','..#......#..','..##....##..','...######...','............']],
+  ['Sleepy',['............','............','............','.####..####.','............','............','............','....####....','............','............']],
+  ['Surprised',['............','..##....##..','..##....##..','..##....##..','............','....####....','....#..#....','....#..#....','....####....','............']],
+  ['Grumpy',['............','.##......##.','..##....##..','..##....##..','..##....##..','............','...######...','..##....##..','..#......#..','............']],
+  ['Wink',['............','............','........##..','.####...##..','............','............','..#......#..','..########..','...######...','............']],
+  ['Shades',['............','............','.##########.','.####..####.','..##....##..','............','............','......###...','...####.....','............']]
+].map(a=>({name:a[0],face:faceRows(a[1])}));
+
 /* ---------- outfits (the Locker) ----------
    An outfit is a different set of boxes on the same body: the same height, width and pose as the standard look, the same
    collision box and hit areas (those never look at the model), still one merged mesh per player and never more triangles
@@ -2743,7 +2833,7 @@ const SKINS=[0xf1c7a0,0xd9a77c,0xb98058,0x8a5a3c,0xf5d3b5,0x6e4630],HAIR=[0x5a3a
      legs       the trouser colour, or a function of the player's colour (left out: the standard slate)
    c is {hex: the player's own colour, dark, lite, skin, hair}. -z is the front. R is a rounded box (192 triangles), L the
    same with fewer (48), X a plain box (12). */
-const fitOf=n=>Number.isInteger(n)&&n>0&&n<OUTFITS.length?n:0;   // anything that isn't a known outfit's number is the standard look
+const fitOf=n=>Number.isInteger(n)&&n>=0&&n<OUTFITS.length?n:NOOB;   // anything that isn't a known outfit's number (and no number at all) is the Noob, the look everyone starts with
 const shadeOf=(hex,k)=>new THREE.Color(hex).multiplyScalar(k).getHex();
 // What an outfit's legs look like: null for the standard legs, else {pat, a: four colours, shoe}. `legs` in OUTFITS is a
 // trouser colour (or a function of the player's colour giving one): plain trousers with a darker shoe; or a function
@@ -2815,56 +2905,60 @@ const OUTFITS=(()=>{
     FI_ORANGE=0xf08030,FI_FIN=0xe0661f,FI_TEE=0x8fc9ea,FI_TRS=0x4f8fd0,S_CAMO=[0x4f9a5a,0x8fc98a,0x2f6f48],S_VEST=0x3f7f4f,S_WEB=0x2a5a3a,S_BOOT=0x2a2a2e,
     NAVY=0x1f2a4d,NAVY_D=0x151a30,K_BLUE=0x2a3f9a,K_RED=0xb8262e,K_NAVY=0x1c2a66,K_SOCK=0xf0a030,R_RED=0xc0282c,R_DEEP=0xa32026,C_YEL=0xf7c81e,C_BLUE=0x2f5fd0,C_RED=0xe23a2e,C_GREEN=0x3fae49,C_PURPLE=0x8a4fd0,C_ORANGE=0xf58a1f;
   const NEW=[
-  {id:'pilgrim',name:'Pilgrim',legs:()=>[1,P_TRS,P_TRS,P_TRS,P_TRS,0x1c1c20],
-    body(B,c){fitBase(B,c,P_COAT,P_COAT,c.skin,P_COAT);eyes(B);
+  {id:'pilgrim',name:'Pilgrim',face:{y:1.82,cell:.034},legs:()=>[1,P_TRS,P_TRS,P_TRS,P_TRS,0x1c1c20],
+    body(B,c){fitBase(B,c,P_COAT,P_COAT,c.skin,P_COAT);c.face||eyes(B);
       L(B,-.13,1.56,-.2,.26,.14,.16,WHITE);L(B,.13,1.56,-.2,.26,.14,.16,WHITE);L(B,0,1.6,.17,.5,.1,.22,WHITE);   // collar: two flaps in front, a band behind
       for(const y of [1.4,1.27,1.14])X(B,0,y,-.26,.05,.05,.03,GOLD);                                 // buttons
       R(B,0,.92,0,.74,.11,.46,BROWN);X(B,0,.92,-.29,.15,.13,.03,GOLD);X(B,0,.92,-.3,.08,.06,.03,BROWN);   // belt and buckle
       cuffs(B,WHITE)},
     hat(B,c){R(B,0,2.04,0,.84,.05,.84,P_BLK);R(B,0,2.21,0,.44,.3,.44,P_BLK);L(B,0,2.11,0,.47,.08,.47,BROWN);X(B,0,2.11,-.3,.15,.12,.03,GOLD);X(B,0,2.11,-.31,.08,.05,.03,BROWN)}},   // brim, crown, band, buckle
-  {id:'turkey',name:'Turkey Person',legs:()=>[1,T_BODY,T_ORANGE,T_ORANGE,T_ORANGE,T_ORANGE],
+  {id:'turkey',name:'Turkey Person',face:{y:1.82,box:[1.8,.01,.57,.52,.57],off:.03},legs:()=>[1,T_BODY,T_ORANGE,T_ORANGE,T_ORANGE,T_ORANGE],
     body(B,c){fitBase(B,c,T_BODY,T_BODY,c.skin,T_BODY,{hair:false});
-      R(B,0,1.8,.01,.57,.52,.57,T_HOOD);L(B,0,1.74,-.29,.36,.26,.1,0xffc04a);eyes(B,1.93,-.335);          // the hood (it stays on under an event's hat), the face patch
+      R(B,0,1.8,.01,.57,.52,.57,T_HOOD);L(B,0,1.74,-.29,.36,.26,.1,0xffc04a);c.face||eyes(B,1.93,-.335);   // the hood (it stays on under an event's hat), the face patch
       T(B,1,0,1.78,-.37,.13,.13,.12,T_ORANGE,0,0,.785);L(B,0,1.6,-.35,.1,.2,.08,C_RED);             // beak and wattle
       L(B,0,1.38,-.21,.46,.26,.12,T_TAN);for(const x of [-.15,0,.15])X(B,x,1.23,-.25,.13,.1,.06,T_TAN);   // chest bib with a scalloped edge
       // the tail fan: three rows of feathers on the back, the outer row widest
       const fan=(n,spread,rx,ry,z,w,cols,k)=>{for(let i=0;i<n;i++){const a=(i/(n-1)-.5)*2*spread,tx=Math.sin(a)*rx,ty=Math.cos(a)*ry,len=Math.hypot(tx,ty);T(B,k,tx*.58,1.02+ty*.58,z,w,len*(k?.74:.9),.05,cols[Math.min(i,n-1-i)],0,0,-Math.atan2(tx,ty))}};
       fan(7,1.32,.74,1.02,.3,.27,[0xb5382a,T_ORANGE,0xf6a53a,0xf6a53a],1);fan(5,1.1,.54,.76,.34,.25,[GOLD,GOLD,0xffd65a],1);fan(5,1.05,.36,.5,.38,.22,[0xc23a2c,C_RED,C_RED],0)}},
+  // The Noob is what everyone starts as. So that players can still be told apart, it carries the player's own colour where
+  // it shows from every side: a backpack (as deep as the standard one), its straps over the shoulders and a belt.
   {id:'noob',name:'Noob',skin:N_YEL,legs:()=>[1,N_TRS,N_TRS,N_TRS,N_TRS,SHOE],
-    body(B,c){fitBase(B,c,N_BLUE,N_YEL,N_YEL,N_YEL,{hair:false});eyes(B)}},
-  {id:'feathercap',name:'Feathercap',legs:()=>[1,F_TRS,F_TRS,F_TRS,F_TRS,0x3a2a22],
-    body(B,c){fitBase(B,c,F_GREEN,CREAM,c.skin,CREAM);eyes(B);
+    body(B,c){fitBase(B,c,N_BLUE,N_YEL,N_YEL,N_YEL,{hair:false});c.face||eyes(B);
+      pack(B,c.hex);L(B,0,1.52,.31,.46,.06,.22,CREAM);L(B,0,.9,0,.73,.1,.45,c.hex);                  // backpack, its roll, belt
+      for(const x of [-.17,.17]){X(B,x,1.34,-.25,.07,.52,.05,c.hex);X(B,x,1.52,.25,.07,.26,.05,c.hex);X(B,x,1.655,0,.07,.05,.5,c.hex)}}},   // straps: front, back, over the shoulder
+  {id:'feathercap',name:'Feathercap',face:{y:1.795,cell:.034},legs:()=>[1,F_TRS,F_TRS,F_TRS,F_TRS,0x3a2a22],
+    body(B,c){fitBase(B,c,F_GREEN,CREAM,c.skin,CREAM);c.face||eyes(B);
       L(B,-.12,1.56,-.2,.22,.12,.16,CREAM);L(B,.12,1.56,-.2,.22,.12,.16,CREAM);L(B,0,1.6,.17,.44,.08,.2,CREAM);   // shirt collar
       X(B,0,1.24,-.25,.03,.56,.05,F_DARK);for(const y of [1.38,1.24,1.1])X(B,0,y,-.26,.05,.05,.03,GOLD);   // waistcoat front and buttons
       R(B,0,.92,0,.74,.1,.46,BROWN);X(B,0,.92,-.29,.14,.12,.03,GOLD);X(B,0,.92,-.3,.07,.05,.03,BROWN)},
     hat(B,c){R(B,0,2.08,.03,.64,.2,.64,F_GREEN);L(B,0,2,-.24,.52,.07,.2,F_DARK);L(B,-.19,2.07,-.3,.08,.08,.08,GOLD);T(B,1,-.25,2.3,.06,.13,.4,.2,C_RED,-.2,0,.5);T(B,0,-.25,2.3,.05,.03,.44,.03,0xf6a08a,-.2,0,.5)}},   // soft cap, its band, a bead, the red feather
-  {id:'pilot',name:'Pilot',legs:()=>[1,A_TRS,0x1f2126,A_TRS,A_TRS,0x1f2126],
-    body(B,c){fitBase(B,c,A_JACKET,A_JACKET,c.skin,A_JACKET);eyes(B);
+  {id:'pilot',name:'Pilot',face:{y:1.82,cell:.034},hatFace:{y:1.765,cell:.028},legs:()=>[1,A_TRS,0x1f2126,A_TRS,A_TRS,0x1f2126],
+    body(B,c){fitBase(B,c,A_JACKET,A_JACKET,c.skin,A_JACKET);c.face||eyes(B);
       R(B,0,1.58,.02,.62,.13,.54,A_FLEECE);X(B,0,1.24,-.25,.035,.56,.05,0x5a3a22);                  // fleece collar, zip
       X(B,-.2,1.3,-.25,.2,.14,.04,0x74481f);X(B,.2,1.3,-.25,.2,.14,.04,0x74481f);                   // chest pockets
       R(B,0,.92,0,.74,.11,.46,0x6a4020);X(B,0,.92,-.29,.14,.11,.03,A_FLEECE);X(B,0,.92,-.3,.07,.05,.03,0x6a4020);cuffs(B,A_FLEECE)},   // waistband and buckle, fleece cuffs
     hat(B,c){R(B,0,2.02,.02,.6,.22,.6,A_LEATHER);R(B,0,1.78,.15,.58,.4,.34,A_LEATHER);L(B,-.31,1.62,-.03,.12,.36,.3,A_LEATHER);L(B,.31,1.62,-.03,.12,.36,.3,A_LEATHER);   // flying cap: top, back, ear flaps
       L(B,0,2,-.02,.63,.07,.6,0x4a3020);L(B,-.13,2,-.3,.22,.16,.1,IRON);L(B,.13,2,-.3,.22,.16,.1,IRON);X(B,-.13,2,-.36,.14,.09,.03,0xbfe0f2);X(B,.13,2,-.36,.14,.09,.03,0xbfe0f2)}},   // goggle strap, goggles
   {id:'golden',name:'Golden',skin:G_GOLD,legs:()=>[1,G_GOLD,G_GOLD,G_GOLD,G_GOLD,G_DEEP],
-    body(B,c){fitBase(B,c,G_GOLD,G_GOLD,G_GOLD,G_GOLD,{hair:false,torso:false});eyes(B);
+    body(B,c){fitBase(B,c,G_GOLD,G_GOLD,G_GOLD,G_GOLD,{hair:false,torso:false});c.face||eyes(B);
       bagPaint(B,0,1.22,0,.7,.72,.42,[8,8,2],G_GOLD,(f,i,j)=>f[0]==='z'&&Math.abs((f==='z-'?7-i:i)-j)<2?G_SHEEN:undefined);   // the sheen: a lighter band from hip to shoulder, front and back
       X(B,-.13,2.08,-.1,.16,.03,.16,G_SHEEN);X(B,-.41,1.585,-.03,.1,.03,.12,G_SHEEN);X(B,.41,1.585,-.03,.1,.03,.12,G_SHEEN)}},   // glints on the head and shoulders
   {id:'fishface',name:'Fishface',skin:FI_ORANGE,legs:()=>[1,FI_TRS,FI_TRS,FI_TRS,FI_TRS,SHOE],
-    body(B,c){fitBase(B,c,FI_TEE,FI_ORANGE,FI_ORANGE,FI_TEE,{hair:false});eyes(B,1.9);tee(B,FI_TEE);
-      L(B,0,1.71,-.29,.4,.1,.14,N_YEL);L(B,0,1.61,-.28,.32,.09,.12,N_YEL);X(B,0,1.66,-.345,.3,.02,.03,0xb8791a);   // the pout: two lips and the line between
+    body(B,c){fitBase(B,c,FI_TEE,FI_ORANGE,FI_ORANGE,FI_TEE,{hair:false});tee(B,FI_TEE);
+      if(!c.face){eyes(B,1.9);L(B,0,1.71,-.29,.4,.1,.14,N_YEL);L(B,0,1.61,-.28,.32,.09,.12,N_YEL);X(B,0,1.66,-.345,.3,.02,.03,0xb8791a)}   // its own face: eyes and the pout (two lips and the line between)
       for(const s of [-1,1]){T(B,1,s*.38,1.87,.02,.24,.13,.07,FI_FIN,0,0,s*.4);T(B,1,s*.38,1.75,.02,.24,.13,.07,FI_FIN,0,0,s*-.4);T(B,1,s*.34,1.81,.02,.14,.16,.09,FI_ORANGE)}}},   // side fins
-  {id:'soldier',name:'Army Soldier',legs:()=>[3,S_CAMO[0],S_CAMO[1],S_CAMO[2],S_BOOT,S_BOOT],
+  {id:'soldier',name:'Army Soldier',hatFace:{y:1.735,cell:.032},legs:()=>[3,S_CAMO[0],S_CAMO[1],S_CAMO[2],S_BOOT,S_BOOT],
     body(B,c){const st=B.c.length;fitBase(B,c,S_CAMO[0],S_CAMO[0],c.skin,S_CAMO[0]);
       // camouflage over the uniform (not over the head, hair or hands)
       bagCamo(B,st,S_CAMO);{const sk=new THREE.Color(c.skin),hr=new THREE.Color(c.hair),put=(o,n,k)=>{for(let i=o;i<o+n*9;i+=3){B.c[i]=k.r;B.c[i+1]=k.g;B.c[i+2]=k.b}};
         put(st+192*9,48,sk);put(st+240*9,192,sk);put(st+432*9,192,hr);put(st+1392*9,96,sk)}
-      eyes(B,1.76);L(B,0,1.27,-.2,.5,.46,.14,S_VEST);L(B,0,1.27,.2,.5,.46,.14,S_VEST);              // vest, front and back
+      c.face||eyes(B,1.76);L(B,0,1.27,-.2,.5,.46,.14,S_VEST);L(B,0,1.27,.2,.5,.46,.14,S_VEST);              // vest, front and back
       X(B,-.17,1.56,0,.07,.2,.5,S_VEST);X(B,.17,1.56,0,.07,.2,.5,S_VEST);                           // its shoulder straps
       for(const x of [-.16,0,.16])L(B,x,1.12,-.27,.13,.16,.08,S_WEB);                               // pouches
       for(const y of [1.38,1.26,1.14])X(B,0,y,.285,.36,.035,.03,S_WEB);                             // webbing on the back
       R(B,0,.9,0,.74,.1,.46,0x22252a);X(B,0,.9,-.29,.1,.08,.03,0x8a929c)},                          // belt
     hat(B,c){const st=B.c.length;R(B,0,2.06,0,.66,.27,.68,S_CAMO[0]);L(B,0,1.93,0,.7,.05,.72,S_CAMO[0]);bagCamo(B,st,S_CAMO)}},   // helmet and its rim
-  {id:'airline',name:'Airline Pilot',legs:()=>[1,NAVY,NAVY,NAVY,NAVY,0x16181d],
+  {id:'airline',name:'Airline Pilot',face:{y:1.78},legs:()=>[1,NAVY,NAVY,NAVY,NAVY,0x16181d],
     body(B,c){fitBase(B,c,NAVY,NAVY,c.skin,NAVY);
       L(B,0,1.46,-.2,.24,.3,.14,WHITE);X(B,0,1.42,-.28,.06,.24,.03,NAVY_D);X(B,0,1.55,-.28,.09,.05,.03,NAVY_D);   // shirt front, tie and its knot
       X(B,.2,1.34,-.255,.15,.04,.03,GOLD);X(B,.2,1.36,-.255,.05,.07,.03,GOLD);                      // wings on the chest
@@ -2883,7 +2977,7 @@ const OUTFITS=(()=>{
       L(B,-.262,1.36,-.258,.205,.205,.05,WHITE,-.4);L(B,.3,1.36,-.225,.205,.205,.05,WHITE);                     // white bands at the sleeve ends
       L(B,0,1.6,0,.36,.08,.36,R_DEEP);R(B,0,.88,0,.72,.16,.44,R_DEEP);                              // collar, the top of the shorts
       X(B,.04,1.395,.245,.26,.05,.05,WHITE);X(B,.13,1.25,.245,.05,.3,.05,WHITE)}},                  // 7 on the back
-  {id:'clown',name:'Clown',legs:()=>[2,C_YEL,C_BLUE,C_RED,C_GREEN,C_RED],
+  {id:'clown',name:'Clown',face:{y:1.82,cell:.034},hatFace:{y:1.795,cell:.033},legs:()=>[2,C_YEL,C_BLUE,C_RED,C_GREEN,C_RED],
     body(B,c){fitBase(B,c,C_YEL,C_YEL,c.skin,C_YEL);
       X(B,-.2,1.22,-.25,.14,.66,.05,C_BLUE);X(B,.2,1.22,-.25,.14,.66,.05,C_BLUE);X(B,-.2,1.22,.25,.14,.66,.05,C_BLUE);X(B,.2,1.22,.25,.14,.66,.05,C_BLUE);   // blue braces, front and back
       L(B,0,1.38,-.25,.13,.13,.1,C_RED);L(B,0,1.16,-.25,.13,.13,.1,C_RED);                          // two big red buttons
@@ -2903,13 +2997,13 @@ const OUTFITS=(()=>{
       X(B,-.07,1.5,-.25,.025,.2,.05,WHITE);X(B,.07,1.5,-.25,.025,.2,.05,WHITE);                     // drawstrings
       cuffs(B,c.lite);pack(B,c.dark);R(B,0,1.52,.31,.46,.06,.22,GOLD)},                             // cuffs, the standard backpack and roll
     hat(B,c){R(B,0,1.85,.08,.62,.62,.56,c.hex);L(B,0,1.54,.2,.52,.16,.3,c.hex)}},                   // the hood up, gathered at the neck
-  {id:'racer',name:'Racing Suit',legs:h=>h,
+  {id:'racer',name:'Racing Suit',hatFace:{y:1.81,cell:.034,flat:-.401},legs:h=>h,
     body(B,c){fitBase(B,c,c.hex,c.hex,INK,WHITE);
       R(B,0,1.38,-.005,.72,.14,.44,WHITE);R(B,0,.9,0,.73,.1,.45,WHITE);L(B,0,1.6,0,.36,.1,.36,INK); // chest band, belt, collar
       X(B,-.425,1.1,0,.05,.4,.22,WHITE);X(B,.425,1.1,0,.05,.4,.22,WHITE);                           // side stripes
       pack(B,WHITE,.22);X(B,-.055,1.28,.43,.05,.2,.04,INK);X(B,.055,1.28,.43,.05,.2,.04,INK);X(B,0,1.46,.43,.3,.05,.04,c.hex)},   // a cooling pack on the back with the number 11
-    hat(B,c){R(B,0,1.81,0,.62,.6,.62,WHITE);X(B,0,1.83,-.36,.46,.17,.06,GLASS);X(B,0,2.15,0,.16,.07,.5,c.hex);X(B,0,1.86,.35,.16,.4,.07,c.hex);L(B,0,1.6,-.2,.34,.12,.26,WHITE)}},   // helmet, visor, stripe, chin bar
-  {id:'overalls',name:'Overalls',legs:DENIM,
+    hat(B,c){R(B,0,1.81,0,.62,.6,.62,WHITE);if(c.face)X(B,0,1.81,-.365,.46,.37,.06,c.skin);else X(B,0,1.83,-.36,.46,.17,.06,GLASS);X(B,0,2.15,0,.16,.07,.5,c.hex);X(B,0,1.86,.35,.16,.4,.07,c.hex);L(B,0,1.6,-.2,.34,.12,.26,WHITE)}},   // helmet, visor (open on the face when one is drawn, since black would not show on dark glass), stripe, chin bar
+  {id:'overalls',name:'Overalls',face:{y:1.83,cell:.034},legs:DENIM,
     body(B,c){fitBase(B,c,c.hex,c.hex,c.skin,c.hex);
       R(B,0,1,0,.73,.36,.45,DENIM);L(B,0,1.33,-.2,.42,.34,.14,DENIM);L(B,0,1.3,.2,.42,.3,.14,DENIM);   // waist, bib front and back
       X(B,-.17,1.54,-.25,.07,.24,.05,DENIM);X(B,.17,1.54,-.25,.07,.24,.05,DENIM);X(B,-.17,1.52,.25,.07,.26,.05,DENIM);X(B,.17,1.52,.25,.07,.26,.05,DENIM);   // straps
@@ -2917,14 +3011,14 @@ const OUTFITS=(()=>{
       X(B,0,1.3,-.285,.2,.14,.03,shadeOf(DENIM,1.25));X(B,-.17,1.45,-.275,.05,.05,.03,GOLD);X(B,.17,1.45,-.275,.05,.05,.03,GOLD);   // bib pocket, buttons
       pack(B,c.dark);X(B,0,1.3,.43,.12,.1,.04,GOLD)},                                               // a satchel with a buckle
     hat(B,c){R(B,0,2.03,0,.78,.05,.78,STRAW);R(B,0,2.12,0,.5,.2,.5,STRAW);L(B,0,2.07,0,.53,.07,.53,c.hex)}},   // straw hat with a band
-  {id:'knight',name:'Toy Knight',legs:IRON,
+  {id:'knight',name:'Toy Knight',hatFace:{y:1.8,box:[1.81,0,.6,.6,.6]},legs:IRON,
     body(B,c){fitBase(B,c,STEEL,STEEL,IRON,STEEL);
       L(B,-.39,1.54,0,.2,.14,.34,0xdde3ea);L(B,.39,1.54,0,.2,.14,.34,0xdde3ea);L(B,0,1.6,0,.4,.1,.4,IRON);   // shoulder plates, neck guard
       L(B,0,1.2,-.2,.4,.7,.14,c.hex);X(B,0,1.38,-.285,.26,.06,.03,c.lite);X(B,0,1.26,-.285,.26,.06,.03,c.lite);   // tabard with two bars
       R(B,0,.9,0,.74,.09,.5,INK);X(B,0,.9,-.305,.12,.1,.04,GOLD);                                   // belt and buckle
       R(B,0,1.24,.32,.5,.56,.17,c.hex);L(B,0,1.24,.4,.2,.22,.08,GOLD)},                             // a shield on the back
-    hat(B,c){R(B,0,1.81,0,.6,.6,.6,STEEL);X(B,0,1.85,-.35,.42,.05,.06,GLASS);X(B,0,1.71,-.35,.04,.16,.06,GLASS);L(B,0,2.2,.04,.1,.2,.4,c.hex)}},   // helmet, eye slit, breather, crest
-  {id:'space',name:'Space Suit',legs:0xdfe4ea,
+    hat(B,c){R(B,0,1.81,0,.6,.6,.6,STEEL);if(!c.face){X(B,0,1.85,-.35,.42,.05,.06,GLASS);X(B,0,1.71,-.35,.04,.16,.06,GLASS)}L(B,0,2.2,.04,.1,.2,.4,c.hex)}},   // helmet, eye slit, breather, crest
+  {id:'space',name:'Space Suit',hatFace:{y:1.83,cell:.031,box:[1.83,-.17,.48,.34,.4]},legs:0xdfe4ea,
     body(B,c){fitBase(B,c,WHITE,WHITE,c.hex,WHITE);
       R(B,0,.9,0,.73,.1,.45,IRON);R(B,0,1.57,0,.56,.1,.5,IRON);                                     // belt, neck ring
       L(B,0,1.3,-.22,.36,.26,.14,0xc9d1da);X(B,-.09,1.34,-.305,.05,.05,.03,RED);X(B,0,1.34,-.305,.05,.05,.03,GOLD);X(B,.09,1.34,-.305,.05,.05,.03,GREEN);   // chest box and its buttons
@@ -2943,19 +3037,20 @@ const OUTFITS=(()=>{
       L(B,0,1.58,-.05,.36,.1,.36,c.hex);R(B,0,.92,0,.74,.07,.47,c.hex);L(B,0,.9,-.2,.6,.3,.16,c.hex);   // neckerchief, apron string, apron
       R(B,0,1.22,.3,.44,.42,.22,0xc3ccd6);X(B,0,1.46,.3,.52,.04,.05,INK);L(B,0,1.22,.44,.1,.1,.06,INK)},   // a cooking pot on the back: its rim handle and lid knob
     hat(B,c){R(B,0,2.05,0,.5,.14,.5,WHITE);R(B,0,2.22,0,.58,.26,.58,WHITE)}},                        // chef's hat: band and puff
-  {id:'diver',name:'Diver',legs:h=>shadeOf(h,.75),
+  {id:'diver',name:'Diver',face:{y:1.775,cell:.035,flat:-.359},legs:h=>shadeOf(h,.75),
     body(B,c){fitBase(B,c,c.hex,c.hex,INK,c.hex);
       X(B,-.425,1.2,0,.05,.6,.26,c.dark);X(B,.425,1.2,0,.05,.6,.26,c.dark);                         // side panels
       R(B,0,.9,0,.73,.1,.45,GOLD);X(B,-.2,.9,-.275,.1,.12,.05,IRON);X(B,.2,.9,-.275,.1,.12,.05,IRON);   // weight belt
       R(B,0,1.3,.3,.28,.62,.24,GOLD);L(B,0,1.66,.3,.12,.1,.12,IRON);X(B,.2,1.675,.08,.04,.04,.5,INK);   // air tank, valve, hose
-      L(B,.12,1.68,-.3,.16,.1,.1,IRON);L(B,0,1.86,-.27,.46,.2,.12,INK);X(B,0,1.86,-.335,.36,.12,.03,LENS)},   // mouthpiece, mask and its glass
+      if(c.face){L(B,0,1.775,-.27,.52,.42,.12,INK);X(B,0,1.775,-.338,.45,.38,.03,LENS)}   // a drawn face: a full-face mask, the drawing on its glass
+      else{L(B,.12,1.68,-.3,.16,.1,.1,IRON);L(B,0,1.86,-.27,.46,.2,.12,INK);X(B,0,1.86,-.335,.36,.12,.03,LENS)}},   // mouthpiece, mask and its glass
     hat(B,c){R(B,0,1.93,.02,.56,.36,.56,c.hex);X(B,-.34,2,.05,.05,.5,.05,GOLD);X(B,-.34,2.27,.05,.07,.06,.07,0xff6a3a)}},   // swim cap, snorkel
-  {id:'robot',name:'Robot',legs:0x9aa3ad,
+  {id:'robot',name:'Robot',hatFace:{y:1.8,box:[1.81,0,.62,.58,.6]},legs:0x9aa3ad,
     body(B,c){fitBase(B,c,0xc3ccd6,0xc3ccd6,IRON,c.hex);
       L(B,0,1.3,-.2,.44,.36,.14,c.hex);X(B,-.12,1.38,-.285,.06,.06,.03,RED);X(B,0,1.38,-.285,.06,.06,.03,GOLD);X(B,.12,1.38,-.285,.06,.06,.03,GREEN);X(B,0,1.24,-.285,.3,.05,.03,INK);   // chest plate, lights, slot
       bands(B,c.hex);R(B,0,.9,0,.73,.1,.45,IRON);
       R(B,0,1.28,.3,.46,.52,.22,IRON);X(B,0,1.3,.445,.05,.05,.04,GOLD);X(B,-.09,1.3,.47,.14,.16,.03,GOLD);X(B,.09,1.3,.47,.14,.16,.03,GOLD)},   // back box and a wind-up key
-    hat(B,c){R(B,0,1.81,0,.62,.58,.6,0xc3ccd6);X(B,-.13,1.86,-.355,.11,.09,.04,LENS);X(B,.13,1.86,-.355,.11,.09,.04,LENS);X(B,0,1.68,-.355,.26,.05,.04,INK);   // head casing, eyes, mouth
+    hat(B,c){R(B,0,1.81,0,.62,.58,.6,0xc3ccd6);if(!c.face){X(B,-.13,1.86,-.355,.11,.09,.04,LENS);X(B,.13,1.86,-.355,.11,.09,.04,LENS);X(B,0,1.68,-.355,.26,.05,.04,INK)}   // head casing, eyes, mouth
       X(B,-.385,1.8,0,.04,.14,.14,c.hex);X(B,.385,1.8,0,.04,.14,.14,c.hex);X(B,0,2.26,0,.03,.2,.03,IRON);L(B,0,2.38,0,.09,.09,.09,c.hex)}},   // ear knobs, aerial
   {id:'varsity',name:'Varsity Jacket',
     body(B,c){fitBase(B,c,c.hex,CREAM,c.skin,CREAM);
@@ -2963,22 +3058,23 @@ const OUTFITS=(()=>{
       X(B,.11,1.4,-.25,.04,.18,.05,CREAM);X(B,.17,1.47,-.25,.12,.04,.05,CREAM);X(B,.17,1.33,-.25,.12,.04,.05,CREAM);X(B,.24,1.4,-.25,.04,.12,.05,CREAM);   // a letter D on the chest
       pack(B,CREAM);X(B,0,1.38,.43,.24,.06,.04,c.hex);X(B,.09,1.24,.43,.06,.3,.04,c.hex)},            // a school bag with a 7 on it
     hat(B,c){R(B,0,2.07,0,.52,.15,.52,CREAM);R(B,0,2.02,.27,.5,.06,.16,c.hex);X(B,0,2.15,0,.08,.04,.08,c.hex)}},   // cap on backwards
-  {id:'builder',name:'Builder',legs:0x4f6f9e,
+  {id:'builder',name:'Builder',hatFace:{y:1.735,cell:.032},legs:0x4f6f9e,
     body(B,c){fitBase(B,c,VEST,c.hex,0xe0b13a,VEST);
       L(B,0,1.12,0,.72,.07,.44,0xe6ebf0);L(B,0,1.38,0,.72,.07,.44,0xe6ebf0);                        // two reflective bands
       R(B,0,.9,0,.74,.1,.47,INK);L(B,.3,.84,-.2,.2,.2,.14,c.dark);                                  // tool belt and pouch
       pack(B,c.dark);X(B,-.1,1.2,.43,.04,.3,.04,WOOD);X(B,-.1,1.36,.43,.14,.06,.05,IRON)},          // a tool bag with a hammer on it
     hat(B,c){R(B,0,2.04,0,.56,.26,.56,c.hex);R(B,0,1.99,-.04,.62,.05,.64,c.hex);X(B,0,2.18,0,.08,.05,.4,c.lite)}},   // hard hat: dome, brim, ridge
-  {id:'wizard',name:'Wizard',legs:h=>shadeOf(h,.75),
+  {id:'wizard',name:'Wizard',face:{y:1.845,cell:.03},legs:h=>shadeOf(h,.75),
     body(B,c){fitBase(B,c,c.hex,c.hex,c.skin,c.hex);
       R(B,0,.82,0,.76,.26,.5,c.hex);L(B,0,.71,0,.78,.05,.52,GOLD);L(B,0,.95,0,.74,.06,.47,GOLD);    // the robe's skirt, its hem, a rope belt
       X(B,0,1.34,-.25,.16,.05,.05,GOLD);X(B,0,1.34,-.25,.05,.16,.05,GOLD);                          // a sparkle on the chest
       L(B,-.184,1.36,-.443,.22,.22,.14,c.lite,-.4);L(B,.3,1.36,-.44,.22,.22,.14,c.lite);            // wide cuffs
-      L(B,0,1.62,-.24,.3,.24,.12,WHITE);                                                            // beard
+      if(c.face)L(B,0,1.585,-.24,.3,.17,.12,WHITE);else L(B,0,1.62,-.24,.3,.24,.12,WHITE);          // beard (trimmed under a drawn face, so a mouth shows)
       R(B,0,1.2,.31,.6,.7,.14,c.dark);X(B,-.14,1.38,.39,.07,.07,.03,GOLD);X(B,.12,1.1,.39,.07,.07,.03,GOLD)},   // cape with two stars
     hat(B,c){R(B,0,2.03,0,.72,.05,.72,c.hex);R(B,0,2.14,0,.42,.2,.42,c.hex);L(B,0,2.29,.02,.27,.16,.27,c.hex);L(B,0,2.4,.05,.15,.12,.15,c.hex);L(B,0,2.07,0,.45,.05,.45,GOLD)}}   // pointed hat in three steps, band
   ];
 })();
+const NOOB=OUTFITS.findIndex(o=>o.id==='noob');   // the look everyone starts with, and the only one for players without the Locker
 // Legs and held items: every player's are drawn together, one instanced mesh for all legs and one per kind of held
 // item (syncLimbs, just before each render), instead of three draw calls per player. In the model they're plain
 // Object3Ds that only carry the pose (position, rotation, visible).
@@ -3010,17 +3106,17 @@ function syncLimbs(){
   rarIM.count=nr;rarIM.visible=nr>0;if(nr){rarIM.instanceMatrix.needsUpdate=true;rarIM.instanceColor.needsUpdate=true}
   for(const k in gunIM){const im=gunIM[k];im.visible=im.count>0;if(im.count)im.instanceMatrix.needsUpdate=true}
 }
-function makeModel(hex,skinIx,fit){
-  fit=fitOf(fit);
+function makeModel(hex,skinIx,fit,face){
+  fit=fitOf(fit);face=faceOf(face);
   const g=new THREE.Group();g.scale.setScalar(BS);
-  const body=new THREE.Mesh(bodyGeo(hex,SKINS[(skinIx|0)%SKINS.length],fit),MAT);
+  const body=new THREE.Mesh(bodyGeo(hex,SKINS[(skinIx|0)%SKINS.length],fit,face),MAT);
   const legs=[-.17,.17].map(x=>{const l=new THREE.Object3D();l.position.set(x,.86,0);g.add(l);return l});
   const gun=new THREE.Object3D();gun.position.set(.3,1.36,-.62);
   const glider=new THREE.Mesh(GLIDER_GEO,MAT);glider.position.set(0,3.4,0);glider.visible=false;
-  g.add(body,gun,glider);g.userData={body,legs,gun,glider,gk:'cb',gr:-1,hex,skinIx:skinIx|0,fit,leg:legSpec(hex,SKINS[(skinIx|0)%SKINS.length],fit)};limbModels.add(g);
+  g.add(body,gun,glider);g.userData={body,legs,gun,glider,gk:'cb',gr:-1,hex,skinIx:skinIx|0,fit,face,leg:legSpec(hex,SKINS[(skinIx|0)%SKINS.length],fit)};limbModels.add(g);
   return g;
 }
-function setModelColor(model,hex,skinIx,fit){const u=model.userData;fit=fitOf(fit);if(u.hex===hex&&u.fit===fit)return;u.hex=hex;u.skinIx=skinIx|0;u.fit=fit;u.leg=legSpec(hex,SKINS[(skinIx|0)%SKINS.length],fit);u.body.geometry.dispose();u.body.geometry=bodyGeo(hex,SKINS[(skinIx|0)%SKINS.length],fit)}
+function setModelColor(model,hex,skinIx,fit,face){const u=model.userData;fit=fitOf(fit);face=faceOf(face);if(u.hex===hex&&u.fit===fit&&u.face===face)return;u.hex=hex;u.skinIx=skinIx|0;u.fit=fit;u.face=face;u.leg=legSpec(hex,SKINS[(skinIx|0)%SKINS.length],fit);u.body.geometry.dispose();u.body.geometry=bodyGeo(hex,SKINS[(skinIx|0)%SKINS.length],fit,face)}   // (the body is built again only when something about it changed)
 function setHeldModel(model,key,rar){const u=model.userData;const k=GUN_GEO[key]?key:HEALS[key]?(HEALS[key].sh?'sh':'hp'):'cb';u.gr=WEAP[k]&&rar>=0&&rar<5?rar|0:-1;if(u.gk===k)return;u.gk=k;u.sw=1}   // sw: the new item swings up into the hands (animModel)
 function disposeModel(m){if(m)limbModels.delete(m);if(m&&m.userData.body)m.userData.body.geometry.dispose()}
 // Entities: you, the other players (remotes) and, in Practice only, bots. local: moved by this browser's physics (you, and Practice bots).
@@ -3199,11 +3295,15 @@ let busLine=null,storm=null;
 const PCOLS=['#ff6a3a','#ffc93c','#5cc6ff','#7fe06d','#c37bff','#ff7fb0','#3ad4c4','#f2f2f2','#e0b13a','#4f7cff'];
 let myHex=store.get('col','')||PCOLS[Math.floor(Math.random()*PCOLS.length)];store.set('col',myHex);
 const hexNum=s=>{const n=parseInt(String(s||'').replace('#',''),16);return isFinite(n)?n:0xffffff};
-// Your outfit: its place in OUTFITS (0 is the standard look). Read from `driftfall:skin` only while the Locker is on
-// for this player; whenever it isn't, a saved outfit is left alone and the standard look is worn (see lockerSync).
-const savedSkin=()=>lockerOn()?Math.max(0,OUTFITS.findIndex(o=>o.id===store.get('skin',''))):0;
+// Your outfit: its place in OUTFITS. Everyone is the Noob (NOOB) unless the Locker is on for this player and they picked
+// something else there: `driftfall:skin` is read only while the Locker is on; whenever it isn't, a saved outfit is left
+// alone and the Noob is worn (see lockerSync).
+const savedSkin=()=>{if(!lockerOn())return NOOB;const i=OUTFITS.findIndex(o=>o.id===store.get('skin',''));return i<0?NOOB:i};
 let mySkin=savedSkin();
-const player=newEnt(makeModel(hexNum(myHex),hashStr(myName)%6,mySkin));player.local=true;player.id='me';player.hex=hexNum(myHex);
+// Your drawn face (`driftfall:face`, see "drawn faces"): '' for the outfit's own. showFaces is this viewer's own switch
+// (`driftfall:faces`, '0' when off): off, every other player is drawn with their outfit's own face on this screen.
+let myFace=faceOf(store.get('face','')),showFaces=store.get('faces','1')!=='0';
+const player=newEnt(makeModel(hexNum(myHex),hashStr(myName)%6,mySkin,myFace));player.local=true;player.id='me';player.hex=hexNum(myHex);
 scene.add(player.model);
 const remotes=new Map(),bots=new Map();
 let ents=[player];
@@ -3734,7 +3834,9 @@ function recordStats(place,win){
 const STUCK_LOG=navigator.webdriver?[]:null;   // (tests only: where a bot gave up on a goal)
 function makeBot(id){
   const i=parseInt(id.slice(1),10)|0,hex=hexNum(PCOLS[(i*3+2)%PCOLS.length]);
-  const b=newEnt(makeModel(hex,i,lockerOn()?1+(i*5+2)%(OUTFITS.length-1):0));b.id=id;b.bot=true;b.hex=hex;b.name=botName(id);b.snaps=[];b.lag=NetSmooth.lag();   // with the Locker on, the practice bots wear the outfits too, so each can be seen in a match
+  // bots are Noobs like everyone else, each with one of the starter faces (never a player's drawing); with the Locker on,
+  // the practice bots wear the outfits instead, so a captain can see each one, and a face on it, in a match
+  const b=newEnt(makeModel(hex,i,lockerOn()?1+(i*5+2)%(OUTFITS.length-1):NOOB,FACE_STARTS[i%FACE_STARTS.length].face));b.id=id;b.bot=true;b.hex=hex;b.name=botName(id);b.snaps=[];b.lag=NetSmooth.lag();
   scene.add(b.model);bots.set(id,b);rebuildEnts();return b;
 }
 function clearBots(){for(const b of bots.values()){scene.remove(b.model);disposeModel(b.model)}bots.clear();rebuildEnts()}
@@ -4034,13 +4136,20 @@ function handleEvent(from,e){
 
 /* ---------- other players ---------- */
 function makeRemote(uid,v){
-  const e=newEnt(makeModel(hexNum(v&&v.c),hashStr(uid)%6,v&&v.sk));
-  Object.assign(e,{id:uid,name:cleanName(v&&v.n),snaps:[],lag:NetSmooth.lag(),present:false,alive:false,hex:hexNum(v&&v.c),fit:fitOf(v&&v.sk)});
+  const fc=showFaces?faceOf(v&&v.fc):'';
+  const e=newEnt(makeModel(hexNum(v&&v.c),hashStr(uid)%6,v&&v.sk,fc));
+  Object.assign(e,{id:uid,name:cleanName(v&&v.n),snaps:[],lag:NetSmooth.lag(),present:false,alive:false,hex:hexNum(v&&v.c),fit:fitOf(v&&v.sk),face:fc,faceAt:performance.now()});
   e.model.visible=false;scene.add(e.model);remotes.set(uid,e);rebuildEnts();return e;
 }
+// the viewer's switch: draw other players' own faces, or everyone's default one (bots keep their starter faces: nobody drew those)
+const FACE_GAP=3000;
+function setShowFaces(on){showFaces=!!on;store.set('faces',showFaces?'1':'0');for(const el of [$('showFaces'),$('showFacesP')])if(el)el.checked=showFaces;
+  for(const e of remotes.values()){const o=Net.others.get(e.id),fc=showFaces?faceOf(o&&o.v&&o.v.fc):'';if(fc!==e.face){e.face=fc;e.faceAt=performance.now();setModelColor(e.model,e.hex,hashStr(e.id)%6,e.fit,fc)}}}
 function clearRemotes(){for(const e of remotes.values()){scene.remove(e.model);disposeModel(e.model)}remotes.clear();rebuildEnts()}
 function applyNode(e,v){
-  e.name=cleanName(v.n);const hx=hexNum(v.c),fit=fitOf(v.sk);if(hx!==e.hex||fit!==e.fit){e.hex=hx;e.fit=fit;setModelColor(e.model,hx,hashStr(e.id)%6,fit)}
+  e.name=cleanName(v.n);const hx=hexNum(v.c),fit=fitOf(v.sk);let fc=showFaces?faceOf(v.fc):'';
+  if(fc!==e.face){const t=performance.now();if(t-e.faceAt<FACE_GAP)fc=e.face;else e.faceAt=t}   // a face is taken at most once every few seconds (a body is rebuilt for it)
+  if(hx!==e.hex||fit!==e.fit||fc!==e.face){e.hex=hx;e.fit=fit;e.face=fc;setModelColor(e.model,hx,hashStr(e.id)%6,fit,fc)}
   if(!curMatch||v.m!==curMatch){e.present=false;if(!roster.includes(e.id))e.alive=false;return}
   const st=ST_FROM[v.st]||'out';
   const s={t:+v.ts||Net.now(),x:+v.x,y:+v.y||0,z:+v.z,h:+v.h||0,p:+v.p||0};
@@ -4166,7 +4275,9 @@ const Net={
     const p=player;
     const o={n:myName,c:myHex,x:r2(p.pos.x),z:r2(p.pos.z),h:r3(p.yaw),ts:Math.round(this.now()),y:r2(p.pos.y),p:r2(p.pitch),hp:Math.ceil(p.hp),sh:Math.ceil(p.sh),
       st:stCode(),w:heldKey(p),m:curMatch||0,j:this.j,k:myKills,pl:p.place|0,dm:Math.round(p.dmg),mv:mapV};
-    if(mySkin)o.sk=mySkin;   // your outfit's number (the Locker): only there when it isn't the standard one, so nothing new is sent while the Locker is hidden
+    if(mySkin!==NOOB)o.sk=mySkin;   // your outfit's number (its place in OUTFITS), left out for the Noob: a new page that gets none draws the Noob,
+                                    // and a page from before draws its standard look in your colour, so players there can still be told apart
+    if(myFace)o.fc=myFace;   // your drawn face, if you drew one (see "drawn faces"); left out for the outfit's own
     if(curMatch){o.oc=this.oc.join('.');o.pk=this.pk.slice(-400).join(',')}
     if(this.amHost&&MS)o.ms=MS.mv===mapV?MS:Object.assign({},MS,{mv:mapV});
     if(this.amHost&&curMatch&&brokenN)o.br={m:curMatch,b:brokenBits()};   // what's broken on the island, for late joiners and the next host
@@ -4422,7 +4533,7 @@ function updateMap(dt){mapClock-=dt;if(mapClock>0)return;mapClock=.12;if(!mapBg)
 function setBigMap(on){bigMap=on;$('bigmap').hidden=!on;if(on){mapClock=0;updateMap(0)}}
 
 /* ---------- lobby, pause and results ---------- */
-function showHud(){Locker.close();state='playing';paused=false;$('menu').hidden=true;$('end').hidden=true;$('pause').hidden=true;$('hud').hidden=false;lastHud=''}
+function showHud(){Locker.close();Face.close();state='playing';paused=false;$('menu').hidden=true;$('end').hidden=true;$('pause').hidden=true;$('hud').hidden=false;lastHud=''}
 function showLobby(){lobbyShown=true;$('lobby').hidden=false;$('hud').hidden=!inPlay();renderLobby();if(document.pointerLockElement)document.exitPointerLock()}
 function hideLobby(){lobbyShown=false;$('lobby').hidden=true;if(inMatch&&state==='playing'&&!touchUI)requestLock(false)}
 function renderLobby(){
@@ -4552,6 +4663,7 @@ function updateCamera(dt){
   const tgt=camTarget();
   if(!tgt){
     if(Locker.open){Locker.cam(dt);return}
+    if(Face.open){Face.cam(dt);return}
     attractYaw+=dt*.05;if(camera.fov!==60){camera.fov=60;camera.updateProjectionMatrix()}setNear(1);
     const r=MAP*.47;camera.position.set(MAP/2+Math.sin(attractYaw)*r,64,MAP/2+Math.cos(attractYaw)*r);camera.lookAt(MAP/2,6,MAP/2);
     return;
@@ -4801,7 +4913,7 @@ function sanitizeRoom(s){return String(s||'').toLowerCase().replace(/^dz-/,'').r
 function randomRoom(){const w=['gull','drift','glide','storm','isle','crate','loot','sky'];return w[Math.floor(Math.random()*w.length)]+'-'+Math.floor(100+Math.random()*900)}
 function busy(on){for(const id of ['quick','joinRoom','play'])$(id).disabled=on}
 function prepOnline(){initAudio();clearRemotes();clearBots();MS=null;curMatch=0;roster=[];inMatch=false;myKills=0;player.present=false;player.alive=false;player.st='out'}
-function showRoom(){Locker.close();state='playing';paused=false;$('menu').hidden=true;$('end').hidden=true;$('pause').hidden=true;$('hud').hidden=true;showLobby()}
+function showRoom(){Locker.close();Face.close();state='playing';paused=false;$('menu').hidden=true;$('end').hidden=true;$('pause').hidden=true;$('hud').hidden=true;showLobby()}
 async function goOnline(room,quick){Net.leave();prepOnline();await Net.joinRoom(room,quick);showRoom()}
 async function joinPrivate(){
   const code=sanitizeRoom($('room').value)||randomRoom();$('room').value=code;store.set('room',code);
@@ -4867,13 +4979,97 @@ if(inv){$('room').value=inv[1];setMsg('You were invited to room dz-'+inv[1]+'. P
    turning in front of the island. It reuses the game's one renderer: the character stands on the island and the camera
    goes to it, shifted so it lands in the free part of the screen. The choice is saved as `driftfall:skin` (the outfit's id). */
 const Locker={open:false,built:false,close(){},cam(){}};
+const STAGE={SPOT:[118,terrainH(118,151),151],CAM:[.5,.86],FOV:30};   // where the character stands for the Locker and the Face screen, and which way the camera looks from (x, z)
+
+/* ---------- the Face screen (everyone) ----------
+   Opened from the menu's Face button: a 12 x 10 grid to draw on in black (pencil, eraser, undo, clear, starter faces to
+   stamp) and your character's head on the island beside it, swaying so the drawing is seen from the front and a little
+   from each side (drag to turn it). Mouse or finger: press and drag (the right mouse button rubs out). Keyboard: the
+   grid takes the arrow keys and Space; P, E and Z pick the pencil, the eraser and undo; Escape is Done. Every change is
+   saved at once as `driftfall:face` and worn at once; an empty grid is the outfit's own face. It uses the game's one
+   renderer the way the Locker does. The outfit is never named here. */
+const Face={open:false,close(){},cam(){},sync(){}};
+(function buildFace(){
+  const sec=$('face'),grid=$('fcGrid'),stage=$('fcStage'),cells=[],SPOT=STAGE.SPOT,CAM=STAGE.CAM,FOV=STAGE.FOV,FRONT=Math.atan2(-CAM[0],-CAM[1]);
+  for(let i=0;i<FACE_W*FACE_H;i++){const c=document.createElement('i');grid.appendChild(c);cells.push(c)}
+  let bits=faceBits(myFace),tool=1,undo=[],cur=3*FACE_W+5,model=null,yaw=FRONT,hold=0,ph=0,rect=null,vo='',dirty=false,stroke=null,last=-1;
+  const tone6=()=>player.model.userData.skinIx;
+  function paint(){cells.forEach((c,i)=>{c.classList.toggle('on',!!bits[i]);c.classList.toggle('cur',i===cur)});$('fcUndo').disabled=!undo.length;$('fcClear').disabled=!bits.some(Boolean)}
+  // a change: saved, worn by you and shown on the head beside the grid (its body is rebuilt once, on the next frame)
+  function changed(){myFace=faceStr(bits);store.set('face',myFace);dirty=true;paint()}
+  const keep=()=>{undo.push(faceStr(bits));if(undo.length>60)undo.shift()};
+  const put=(i,v)=>bits[i]===v?false:(bits[i]=v,true);
+  const cellAt=e=>{const r=grid.getBoundingClientRect(),x=Math.floor((e.clientX-r.left)/r.width*FACE_W),y=Math.floor((e.clientY-r.top)/r.height*FACE_H);return x<0||y<0||x>=FACE_W||y>=FACE_H?-1:y*FACE_W+x};
+  // every square from a to b, so a fast drag leaves no gaps
+  function line(a,b,v){let x0=a%FACE_W,y0=a/FACE_W|0,ch=false;const x1=b%FACE_W,y1=b/FACE_W|0,dx=Math.abs(x1-x0),dy=-Math.abs(y1-y0),sx=x0<x1?1:-1,sy=y0<y1?1:-1;let err=dx+dy;
+    for(;;){if(put(y0*FACE_W+x0,v))ch=true;if(x0===x1&&y0===y1)break;const e2=2*err;if(e2>=dy){err+=dy;x0+=sx}if(e2<=dx){err+=dx;y0+=sy}}return ch}
+  function setTool(t){tool=t;$('fcPen').setAttribute('aria-pressed',t?'true':'false');$('fcRub').setAttribute('aria-pressed',t?'false':'true')}
+  function undoOne(){if(!undo.length)return;bits=faceBits(undo.pop());changed()}
+  grid.addEventListener('pointerdown',e=>{if(e.button!==0&&e.button!==2)return;const i=cellAt(e);if(i<0)return;e.preventDefault();grid.focus({preventScroll:true});
+    try{grid.setPointerCapture(e.pointerId)}catch(_){}
+    keep();stroke={v:e.button===2?0:tool,ch:false};last=cur=i;if(line(i,i,stroke.v))stroke.ch=true;changed()});
+  grid.addEventListener('pointermove',e=>{if(!stroke)return;const i=cellAt(e);if(i<0||i===last)return;if(line(last,i,stroke.v))stroke.ch=true;last=cur=i;changed()});
+  const lift=()=>{if(!stroke)return;if(!stroke.ch){undo.pop();paint()}stroke=null};
+  grid.addEventListener('pointerup',lift);grid.addEventListener('pointercancel',lift);grid.addEventListener('contextmenu',e=>e.preventDefault());
+  grid.addEventListener('keydown',e=>{let x=cur%FACE_W,y=cur/FACE_W|0;const k=e.key;
+    if(k==='ArrowLeft')x=Math.max(0,x-1);else if(k==='ArrowRight')x=Math.min(FACE_W-1,x+1);else if(k==='ArrowUp')y=Math.max(0,y-1);else if(k==='ArrowDown')y=Math.min(FACE_H-1,y+1);
+    else if(k===' '||k==='Enter'){e.preventDefault();keep();bits[cur]=bits[cur]?0:1;changed();return}else return;
+    e.preventDefault();cur=y*FACE_W+x;paint()});
+  $('fcPen').addEventListener('click',()=>setTool(1));$('fcRub').addEventListener('click',()=>setTool(0));
+  $('fcUndo').addEventListener('click',undoOne);
+  $('fcClear').addEventListener('click',()=>{if(!bits.some(Boolean))return;keep();bits.fill(0);changed()});
+  FACE_STARTS.forEach(st=>{const b=document.createElement('button');b.type='button';b.className='fc-stamp';b.title=st.name;b.setAttribute('aria-label',st.name+' face');
+    const cv=document.createElement('canvas');cv.width=FACE_W;cv.height=FACE_H;const g=cv.getContext('2d'),sb=faceBits(st.face);g.fillStyle='#15171b';for(let i=0;i<sb.length;i++)if(sb[i])g.fillRect(i%FACE_W,i/FACE_W|0,1,1);
+    b.appendChild(cv);b.addEventListener('click',()=>{if(faceStr(bits)===st.face)return;keep();bits=faceBits(st.face);changed()});$('fcStamps').appendChild(b)});
+  // the colour under the drawing (the face, a visor, a helmet), for the grid: looked up on the body itself
+  function tint(){let g=null;try{const S=faceSpot(mySkin);g=bodyGeo(player.hex,SKINS[tone6()%SKINS.length],mySkin,'gAAAAAAAAAAAAAAAAAAA');
+    const h=new THREE.Raycaster(new V3(.11,(S.y||FACE0.y)+.07,-3),new V3(0,0,1)).intersectObject(new THREE.Mesh(g,MAT))[0];
+    if(h){const c=g.attributes.color,i=h.face.a;sec.style.setProperty('--fc-skin','#'+_col.setRGB(c.getX(i),c.getY(i),c.getZ(i)).getHexString())}}catch(e){}if(g)g.dispose()}
+  function measure(){const a=$('app').getBoundingClientRect(),r=stage.getBoundingClientRect();rect={cx:r.left-a.left+r.width/2,cy:r.top-a.top+r.height/2,w:Math.max(40,r.width),h:Math.max(40,r.height)};vo=''}
+  function show(){
+    if(state!=='menu'||Face.open||Locker.open)return;
+    bits=faceBits(myFace);undo=[];stroke=null;
+    if(!model){model=makeModel(player.hex,tone6(),mySkin,myFace);model.position.set(SPOT[0],SPOT[1],SPOT[2])}else setModelColor(model,player.hex,tone6(),mySkin,myFace);
+    scene.add(model);tint();$('menu').hidden=true;sec.hidden=false;Face.open=true;hold=0;ph=0;yaw=FRONT;setTool(1);paint();measure();grid.focus({preventScroll:true});
+  }
+  Face.close=()=>{
+    if(!Face.open)return;Face.open=false;sec.hidden=true;scene.remove(model);camera.clearViewOffset();vo='';
+    setModelColor(player.model,player.hex,tone6(),mySkin,myFace);
+    if(state==='menu'){$('menu').hidden=false;$('faceBtn').focus({preventScroll:true})}
+  };
+  // the outfit changed under the screen (a captain's account became known, or signed out)
+  Face.sync=()=>{if(Face.open){dirty=true;tint()}};
+  // the camera while the Face screen is open: close enough for the head and shoulders to fill the free part of the screen
+  Face.cam=dt=>{
+    if(dirty){dirty=false;setModelColor(model,player.hex,tone6(),mySkin,myFace)}
+    if(hold>0)hold-=dt;else if(!RM){ph+=dt;yaw+=(FRONT+Math.sin(ph*.8)*.6-yaw)*Math.min(1,dt*4)}
+    model.rotation.y=yaw;
+    if(camera.fov!==FOV){camera.fov=FOV;camera.updateProjectionMatrix()}setNear(.3);
+    if(!rect)measure();
+    const t=Math.tan(FOV*Math.PI/360),d=Math.max(1.2*VH/(rect.h*2*t),1.15*VH/(rect.w*2*t));
+    camera.position.set(SPOT[0]+CAM[0]*d,SPOT[1]+1.5+d*.05,SPOT[2]+CAM[1]*d);camera.lookAt(SPOT[0],SPOT[1]+1.5,SPOT[2]);
+    const k=VW+','+VH+','+Math.round(VW/2-rect.cx)+','+Math.round(VH/2-rect.cy);
+    if(k!==vo){vo=k;camera.setViewOffset(VW,VH,Math.round(VW/2-rect.cx),Math.round(VH/2-rect.cy),VW,VH)}
+  };
+  Face.show=show;Face.turn=y=>{yaw=FRONT+y;hold=1e9};Face.set=f=>{keep();bits=faceBits(f);changed()};
+  $('faceBtn').addEventListener('click',show);$('fcDone').addEventListener('click',()=>Face.close());
+  addEventListener('resize',()=>{if(Face.open)measure()});
+  addEventListener('keydown',e=>{if(!Face.open)return;
+    if(e.code==='Escape'){e.preventDefault();Face.close();return}
+    if(e.ctrlKey||e.metaKey||e.altKey){if((e.ctrlKey||e.metaKey)&&e.code==='KeyZ'){e.preventDefault();undoOne()}return}
+    if(e.code==='KeyZ')undoOne();else if(e.code==='KeyP')setTool(1);else if(e.code==='KeyE')setTool(0)});
+  let dragX=null;
+  stage.addEventListener('pointerdown',e=>{dragX=e.clientX;hold=1e9;try{stage.setPointerCapture(e.pointerId)}catch(_){}});
+  stage.addEventListener('pointermove',e=>{if(dragX===null)return;yaw+=(e.clientX-dragX)*.012;dragX=e.clientX});
+  const drop=()=>{if(dragX!==null){dragX=null;hold=3}};stage.addEventListener('pointerup',drop);stage.addEventListener('pointercancel',drop);
+  for(const id of ['showFaces','showFacesP']){const el=$(id);el.checked=showFaces;el.addEventListener('change',()=>setShowFaces(el.checked))}
+})();
+
 function buildLocker(){
   Locker.built=true;
-  const SPOT=[118,terrainH(118,151),151],CAM=[.5,.86],FOV=30;   // where the character stands, and which way the camera looks from (x, z)
-  // the Outfits button goes beside the name box (the box is moved into a row with it), so nothing below moves
-  const row=document.createElement('div');row.className='lk-row';row.id='lockerRow';
-  row.innerHTML='<button id="lockerBtn" class="ghost-btn" type="button">Outfits</button>';
-  {const nm=$('name'),had=document.activeElement===nm;nm.style.maxWidth='';nm.after(row);row.prepend(nm);if(had)nm.focus({preventScroll:true})}
+  const SPOT=STAGE.SPOT,CAM=STAGE.CAM,FOV=STAGE.FOV;
+  // the Outfits button goes in the name box's row, after the Face button, so nothing below moves
+  $('lockerRow').insertAdjacentHTML('beforeend','<button id="lockerBtn" class="ghost-btn" type="button">Outfits</button>');
   const sec=document.createElement('section');sec.id='locker';sec.className='overlay';sec.hidden=true;
   sec.innerHTML='<div class="lk-panel"><div class="lk-head"><div><div class="kicker">Locker</div><h2 class="title lk-title">OUT<span>FITS</span></h2></div><button class="cta" id="lkDone" type="button">Done</button></div>'
     +'<p class="lede lk-lede">Pick what you wear. Every outfit is the same size and just as easy to hit as the standard one.</p>'
@@ -4886,10 +5082,10 @@ function buildLocker(){
   const tone6=()=>player.model.userData.skinIx;
   let model=null,yaw=.5,hold=0,rect=null,drawn=false,vo='';
   function mark(){cards.forEach((b,i)=>b.setAttribute('aria-pressed',i===mySkin?'true':'false'));$('lkName').textContent=OUTFITS[mySkin].name;$('lockerBtn').title='Wearing: '+OUTFITS[mySkin].name}
-  function pick(i){if(!lockerOn())return;mySkin=fitOf(i);store.set('skin',OUTFITS[mySkin].id);setModelColor(player.model,player.hex,tone6(),mySkin);if(model)setModelColor(model,player.hex,tone6(),mySkin);mark()}
+  function pick(i){if(!lockerOn())return;mySkin=fitOf(i);store.set('skin',OUTFITS[mySkin].id);setModelColor(player.model,player.hex,tone6(),mySkin,myFace);if(model)setModelColor(model,player.hex,tone6(),mySkin,myFace);mark()}
   // a picture of every outfit in your colour, for the cards: 13 small renders the first time the Locker is opened
   // pictures of outfits in your colour, drawn from their own geometry (front, or from behind): data URLs, in the order asked for
-  function pics(list,W,HH,back){
+  function pics(list,W,HH,back,faces){   // faces (tests only): a drawn face for each picture; the cards show each outfit's own
     const out=[],rt=new THREE.WebGLRenderTarget(W,HH),sc=new THREE.Scene(),cam=new THREE.OrthographicCamera(-.9,.9,1.35,-1.35,.1,40);
     sc.add(new THREE.HemisphereLight(0xffffff,0x9aa0aa,.95));const dl=new THREE.DirectionalLight(0xffffff,.55);dl.position.set(back?-3:3,6,back?5:-5);sc.add(dl);
     cam.position.set(back?-2.3:2.3,2.1,back?6:-6);cam.lookAt(0,1.27,0);
@@ -4897,8 +5093,8 @@ function buildLocker(){
     const g=cv.getContext('2d'),img=g.createImageData(W,HH),oc=new THREE.Color(),oa=renderer.getClearAlpha();renderer.getClearColor(oc);renderer.setClearColor(0x000000,0);
     const body=new THREE.Mesh(LEG_GEO,mat),lg=fitLegGeo(2),legs=new THREE.InstancedMesh(lg,FLMAT,2),lp=new THREE.Matrix4();legs.frustumCulled=false;sc.add(body,legs);
     legs.setMatrixAt(0,lp.makeTranslation(-.17,.86,0));legs.setMatrixAt(1,lp.makeTranslation(.17,.86,0));
-    try{for(const i of list){
-      const geo=bodyGeo(player.hex,SKINS[tone6()%SKINS.length],i),L=legSpec(player.hex,SKINS[tone6()%SKINS.length],i)||STD_LEGS;body.geometry=geo;legPut(lg,0,L);legPut(lg,1,L);
+    try{for(let n=0;n<list.length;n++){const i=list[n];
+      const geo=bodyGeo(player.hex,SKINS[tone6()%SKINS.length],i,faces?faces[n]:''),L=legSpec(player.hex,SKINS[tone6()%SKINS.length],i)||STD_LEGS;body.geometry=geo;legPut(lg,0,L);legPut(lg,1,L);
       renderer.setRenderTarget(rt);renderer.clear();renderer.render(sc,cam);renderer.readRenderTargetPixels(rt,0,0,W,HH,buf);
       for(let y=0;y<HH;y++)img.data.set(buf.subarray((HH-1-y)*W*4,(HH-y)*W*4),y*W*4);
       g.putImageData(img,0,0);out.push(cv.toDataURL('image/png'));geo.dispose();
@@ -4911,8 +5107,8 @@ function buildLocker(){
   }
   function measure(){const a=$('app').getBoundingClientRect(),r=stage.getBoundingClientRect();rect={cx:r.left-a.left+r.width/2,cy:r.top-a.top+r.height/2,w:Math.max(40,r.width),h:Math.max(40,r.height)};vo=''}
   function show(){
-    if(state!=='menu'||Locker.open||!lockerOn())return;
-    if(!model){model=makeModel(player.hex,tone6(),mySkin);model.position.set(SPOT[0],SPOT[1],SPOT[2])}else setModelColor(model,player.hex,tone6(),mySkin);
+    if(state!=='menu'||Locker.open||Face.open||!lockerOn())return;
+    if(!model){model=makeModel(player.hex,tone6(),mySkin,myFace);model.position.set(SPOT[0],SPOT[1],SPOT[2])}else setModelColor(model,player.hex,tone6(),mySkin,myFace);
     scene.add(model);thumbs();$('menu').hidden=true;sec.hidden=false;Locker.open=true;hold=0;mark();measure();$('lkDone').focus({preventScroll:true});
   }
   Locker.close=()=>{
@@ -4945,7 +5141,7 @@ function buildLocker(){
 }
 // Whether the Locker is on can change after the page has loaded: a captain's account becomes known a moment later, and
 // goes away if they sign out. On: the button is built (once) and shown, and the saved outfit is worn. Off: the button
-// is hidden, the Locker closes and the standard look is worn; the saved outfit stays saved for the next time.
+// is hidden, the Locker closes and the Noob is worn; the saved outfit stays saved for the next time.
 function lockerSync(){
   const on=lockerOn();
   if(on&&!Locker.built)buildLocker();
@@ -4953,7 +5149,7 @@ function lockerSync(){
   if(!on)Locker.close();
   $('lockerBtn').hidden=!on;
   const want=savedSkin();
-  if(want!==mySkin){mySkin=want;setModelColor(player.model,player.hex,player.model.userData.skinIx,mySkin);if(online)Net.publishSoon()}
+  if(want!==mySkin){mySkin=want;setModelColor(player.model,player.hex,player.model.userData.skinIx,mySkin,myFace);Face.sync();if(online)Net.publishSoon()}
   Locker.mark();
 }
 lockerSync();
@@ -4989,6 +5185,7 @@ if(navigator.webdriver)window.__dz={get state(){return state},get online(){retur
   GUN_GEO,GUN_TIP,GUN_OCT,RTAG,MAT,gunIM,itemIM,flashes,trs,bits,animModel,gunTip,startReload,tickWeapon,sfxShot,sfxReload,sfxPump,sfxBolt,sfxSwitch,isADS,KICK,
   STUCK_LOG,landPath,landClear,navShut,NAVN,updateBots,updatePlayer,step(dt){pClock+=dt*1000;practiceTick(dt);if(inPlay()){updatePlayer(dt);updateBots(dt)}},
   landOk,landFit,landUnder,skirtOf,skirtList,pieceBox,buildList,applyBuilds,handleEvent,get bdDirty(){return bdDirty},bdGone,ED_N,edRects,edOk,pieceShape,partsOf,partList,partIM,pieceInst,editPiece,wouldTrap,openEdit,closeEdit,confirmEdit,editKey,editTarget,editTile,updateEdit,canEdit,pieceMatrix,pieceCentre,EDIT_T,EDIT_RANGE,pressCode,get edit(){return edit},get editJob(){return editJob},get editAim(){return editAim},get buildCd(){return buildCd},rampH,rampAt,rampBlocked,solidAt,rayRamp,rhash,COST,JUMP,GRAV:G,STEP,RT,MAXL,terrainH,walkH,terrainSlope,rayTerrain,TH,TN,TS,TM,LVL,LAKE,PADS,SHED_Y,chestSpots,floorSpots,buildings,footprints,get groundMesh(){return groundMesh},
+  Face,FACE_STARTS,FACE0,faceOf,faceBits,faceStr,faceRows,faceSpot,faceZ,bagFace,setShowFaces,NOOB,get myFace(){return myFace},get showFaces(){return showFaces},
   Locker,get LOCKER_ON(){return lockerOn()},lockerSync,OUTFITS,bodyGeo,LEG_GEO,legIM,fitLegIM,fitLegGeo,makeModel,setModelColor,legSpec,STD_LEGS,fitOf,hitboxes,TKON,PCOLS,SKINS,get mySkin(){return mySkin}};
 
 requestAnimationFrame(t=>{last=t;frame(t)});
