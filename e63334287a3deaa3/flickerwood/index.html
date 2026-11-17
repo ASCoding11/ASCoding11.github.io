@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=IBM+Plex+Mono:wght@400;600&display=swap">
 <style>
-/* Layout: one night-time page. A slim bar along the top, the game screen (a 252 x 312 picture shown at a whole number
+/* Layout: one night-time page. A slim bar along the top, the game screen (a 252 x 300 picture shown at a whole number
    of screen pixels per game pixel, placed by layout() in the script) in the middle, a key hint under it on computers,
    and on touch screens a d-pad with a DASH button either side of it under the screen (pad left, DASH right when the
    phone is sideways). Swipes anywhere turn, and a tap on the screen dashes. */
@@ -43,7 +43,7 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--glow);outline-offse
 .ghost{padding:10px 14px}
 .cta{padding:10px 14px;background:var(--glow);color:#1a1c00;border-color:#f7ffb0}
 #c{position:absolute;left:0;top:0;display:block;transform-origin:0 0;image-rendering:pixelated;image-rendering:crisp-edges;background:#000;outline:4px solid var(--panel);touch-action:none}
-#hint{position:absolute;left:0;right:0;bottom:8px;margin:0;text-align:center;color:var(--dim);font-size:13px}
+#hint{position:absolute;left:50%;transform:translateX(-50%);bottom:8px;margin:0;white-space:nowrap;color:var(--dim);font-size:13px}
 #hint b{color:var(--ink);font-weight:600}
 body.touch #hint,body.touch #bKeys{display:none}
 /* touch controls: placed by layout() */
@@ -79,7 +79,7 @@ body.touch #pad,body.touch .dash{display:block}
     <button class="ib" id="bMute" aria-label="Sound" aria-pressed="false">SND</button>
     <button class="ib" id="bPause" aria-label="Pause">II</button>
   </div>
-  <canvas id="c" width="252" height="312" aria-label="Game screen"></canvas>
+  <canvas id="c" width="252" height="300" aria-label="Game screen"></canvas>
   <div id="pad" aria-label="Turn"><i class="u">▲</i><i class="l">◀</i><i class="r">▶</i><i class="d">▼</i></div>
   <button id="dashL" class="dash" aria-label="Dash">DASH</button>
   <button id="dashR" class="dash" aria-label="Dash">DASH</button>
@@ -452,7 +452,7 @@ function leave(g,e){const M=g.M;e.mode='leave';e.wp=[[M.G[0]*TILE+6,(M.G[1]+1)*T
 function step(g,dt){
   g.tick+=dt;if(g.msgT>0)g.msgT-=dt;
   for(const s of g.pops){s.t-=dt;s.y-=10*dt}
-  if(g.pops.length&&g.pops[0].t<=0)g.pops=g.pops.filter(s=>s.t>0);
+  if(g.pops.length&&g.pops.some(s=>s.t<=0))g.pops=g.pops.filter(s=>s.t>0);
   const p=g.p,M=g.M,T=g.T;
   p.ox=p.x;p.oy=p.y;for(const e of g.ch){e.ox=e.x;e.oy=e.y}
   if(g.state==='ready'){g.readyT-=dt;if(g.readyT<=0){g.state='play';g.ev.push('go')}return}
@@ -541,7 +541,7 @@ function step(g,dt){
 // ==END RULES==
 
 /* ---------- the page ---------- */
-const TOP=22,H=TOP+MH+14;
+const TOP=14,FOOT=10,H=TOP+MH+FOOT;   // a score bar above the maze and a strip under it: 252 x 300 in all
 const $=id=>document.getElementById(id);
 const body=document.body,cv=$('c'),vx=cv.getContext('2d');
 const mk=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c};
@@ -723,7 +723,7 @@ function disc(rad,layers){
 const HALO=disc(11,[[11,'#e8f25a',0.07],[8,'#e8f25a',0.09],[5,'#ffffd8',0.12]]);
 const HALO_BIG=[disc(15,[[15,'#cfe6ff',0.09],[11,'#e6f2ff',0.12],[7,'#ffffff',0.16]]),disc(15,[[13,'#cfe6ff',0.09],[9,'#e6f2ff',0.12],[6,'#ffffff',0.16]])];
 
-/* ---------- drawing: everything is whole pixels on a 252 x 312 picture ---------- */
+/* ---------- drawing: everything is whole pixels on a 252 x 300 picture ---------- */
 const R=(x,y,w,h,col)=>{g2.fillStyle=col;g2.fillRect(Math.round(x),Math.round(y),w,h)};
 // a 5 x 5 pixel alphabet (capitals, digits and + - : ! . only), so the words are as crisp as the sprites
 const FONT={A:'0111010001111111000110001',B:'1111010001111101000111110',C:'0111110000100001000001111',D:'1111010001100011000111110',E:'1111110000111101000011111',
@@ -854,28 +854,28 @@ function drawHud(){
   if(sig!==hudSig){
     hudSig=sig;hx.clearRect(0,0,W,H);
     const Q=(a,b,w,h,col)=>{hx.fillStyle=col;hx.fillRect(a,b,w,h)};
-    Q(0,0,W,TOP,'#070b1c');Q(0,TOP-1,W,1,'#2b3a78');Q(0,TOP+MH,W,14,'#070b1c');Q(0,TOP+MH,W,1,'#2b3a78');
-    txt(hx,'SCORE',4,2,1,'#93a0cf');txt(hx,String(G.score).padStart(6,'0'),4,9,2,'#eef3ff');
-    txt(hx,'GLADE '+G.level,W/2,2,1,'#93a0cf','center');
-    if(m>1)txt(hx,'CHAIN X'+m,W/2,10,1,'#e8f25a','center');else txt(hx,G.M.name,W/2,10,1,'#5d6aa0','center');
-    txt(hx,'BEST',W-4,2,1,'#93a0cf','right');txt(hx,String(Math.max(best,G.score)).padStart(6,'0'),W-4,11,1,'#eef3ff','right');
-    for(let i=0;i<G.lives-1;i++)hx.drawImage(SP.glim[0][1],2+i*14,TOP+MH-1);   // spare Glims
-    txt(hx,'DASH',W/2-30,TOP+MH+5,1,'#93a0cf','right');
-    Q(W/2-26,TOP+MH+4,52,7,'#2b3a78');
-    for(let i=0;i<Math.min(G.finds,6);i++)hx.drawImage(SP.find[(G.level-1)%8],W-12-i*11,TOP+MH+2);
+    Q(0,0,W,TOP,'#070b1c');Q(0,TOP-1,W,1,'#2b3a78');Q(0,TOP+MH,W,FOOT,'#070b1c');Q(0,TOP+MH,W,1,'#2b3a78');
+    txt(hx,String(G.score).padStart(6,'0'),3,2,2,'#eef3ff');
+    txt(hx,'GLADE '+G.level,W/2,1,1,'#93a0cf','center');
+    if(m>1)txt(hx,'CHAIN X'+m,W/2,8,1,'#e8f25a','center');else txt(hx,G.M.name,W/2,8,1,'#5d6aa0','center');
+    txt(hx,'BEST',W-3,1,1,'#93a0cf','right');txt(hx,String(Math.max(best,G.score)).padStart(6,'0'),W-3,8,1,'#eef3ff','right');
+    for(let i=0;i<G.lives-1;i++)hx.drawImage(SP.glim[0][1],1+i*14,TOP+MH-3);   // spare Glims
+    txt(hx,'DASH',W/2-30,TOP+MH+3,1,'#93a0cf','right');
+    Q(W/2-26,TOP+MH+2,52,7,'#2b3a78');
+    for(let i=0;i<Math.min(G.finds,6);i++)hx.drawImage(SP.find[(G.level-1)%8],W-11-i*11,TOP+MH);
   }
   g2.drawImage(hudL,0,0);
   const p=G.p,f=1-p.dashCd/DASH_CD;
-  R(W/2-25,TOP+MH+5,Math.round(50*f),5,f>=1?(Math.floor(G.tick*3)%2?'#f0a030':'#ffc86a'):'#7a5a2a');
-  if(G.chainT>0&&G.chain>=4&&G.state==='play')R(W/2-20,17,Math.ceil(40*G.chainT/CHAIN_WIN),2,m>1?'#e8f25a':'#5d6aa0');   // how long the chain has left
+  R(W/2-25,TOP+MH+3,Math.round(50*f),5,f>=1?(Math.floor(G.tick*3)%2?'#f0a030':'#ffc86a'):'#7a5a2a');
+  if(G.chainT>0&&G.chain>=4&&G.state==='play')R(W/2-20,TOP-1,Math.ceil(40*G.chainT/CHAIN_WIN),1,m>1?'#e8f25a':'#93a0cf');   // how long the chain has left
 }
 function panel(y,h){R(10,y,W-20,h,'#070b1c');R(10,y,W-20,2,'#e8f25a');R(10,y+h-2,W-20,2,'#e8f25a')}
 function banner(a,b,c,d){
-  panel(120,d?88:74);
-  txt(g2,a,W/2,132,2,'#e8f25a','center');
-  if(b)txt(g2,b,W/2,154,1,'#eef3ff','center');
-  if(d)txt(g2,d,W/2,166,1,'#eef3ff','center');
-  if(c&&Math.floor(performance.now()/500)%2===0)txt(g2,c,W/2,d?188:176,1,'#f0a030','center');
+  panel(112,d?88:74);
+  txt(g2,a,W/2,124,2,'#e8f25a','center');
+  if(b)txt(g2,b,W/2,146,1,'#eef3ff','center');
+  if(d)txt(g2,d,W/2,158,1,'#eef3ff','center');
+  if(c&&Math.floor(performance.now()/500)%2===0)txt(g2,c,W/2,d?180:168,1,'#f0a030','center');
 }
 // the title: the cast, the bests and how to start, over the first glade. The still parts are drawn once into titleL.
 const titleL=mk(W,H);let titleSig='';
@@ -884,21 +884,21 @@ function drawTitle(){
   if(sig!==titleSig){
     titleSig=sig;const x=titleL.getContext('2d');x.clearRect(0,0,W,H);
     x.fillStyle='rgba(5,8,20,.82)';x.fillRect(0,TOP,W,MH);
-    txt(x,'FLICKERWOOD',W/2+2,48,3,'#5a3a0c','center');txt(x,'FLICKERWOOD',W/2,46,3,'#e8f25a','center');
-    txt(x,'A MAZE CHASE BY MOONLIGHT',W/2,70,1,'#93a0cf','center');
-    ['GLIM'].concat(CH_NAME).forEach((n,i)=>txt(x,n,26+i*50,122,1,i?'#93a0cf':'#e8f25a','center'));
-    txt(x,'BEST SCORE '+String(best).padStart(6,'0'),W/2,146,1,'#eef3ff','center');
-    txt(x,bestGlade?'BEST GLADE '+bestGlade:'GATHER ALL THE POLLEN',W/2,158,1,'#eef3ff','center');
+    txt(x,'FLICKERWOOD',W/2+2,40,3,'#5a3a0c','center');txt(x,'FLICKERWOOD',W/2,38,3,'#e8f25a','center');
+    txt(x,'A MAZE CHASE BY MOONLIGHT',W/2,62,1,'#93a0cf','center');
+    ['GLIM'].concat(CH_NAME).forEach((n,i)=>txt(x,n,26+i*50,114,1,i?'#93a0cf':'#e8f25a','center'));
+    txt(x,'BEST SCORE '+String(best).padStart(6,'0'),W/2,138,1,'#eef3ff','center');
+    txt(x,bestGlade?'BEST GLADE '+bestGlade:'GATHER ALL THE POLLEN',W/2,150,1,'#eef3ff','center');
     const L=touchUI?['SWIPE OR USE THE PAD TO TURN','TAP THE SCREEN TO DASH']:['ARROWS OR WASD TURN','SPACE DASHES   P PAUSES'];
-    txt(x,L[0],W/2,214,1,'#93a0cf','center');txt(x,L[1],W/2,226,1,'#93a0cf','center');
-    txt(x,'A MOONBLOOM DAZZLES THE CRITTERS',W/2,246,1,'#5d6aa0','center');txt(x,'CATCH THEM WHILE THEY ARE PALE',W/2,258,1,'#5d6aa0','center');
+    txt(x,L[0],W/2,206,1,'#93a0cf','center');txt(x,L[1],W/2,218,1,'#93a0cf','center');
+    txt(x,'A MOONBLOOM DAZZLES THE CRITTERS',W/2,238,1,'#5d6aa0','center');txt(x,'CATCH THEM WHILE THEY ARE PALE',W/2,250,1,'#5d6aa0','center');
   }
   g2.drawImage(titleL,0,0);
   const t=performance.now()/1000;
-  spr(HALO,23,102-TOP);g2.drawImage(SP.glim[0][Math.floor(t*10)%2],18,94);
-  for(let k=0;k<4;k++){const img=SP.ch[k][Math.floor(t*CH_HZ[k]/2+k)%2],px=68+k*50,py=94+(Math.floor(t*2+k)%2);
+  spr(HALO,23,94-TOP);g2.drawImage(SP.glim[0][Math.floor(t*10)%2],18,86);
+  for(let k=0;k<4;k++){const img=SP.ch[k][Math.floor(t*CH_HZ[k]/2+k)%2],px=68+k*50,py=86+(Math.floor(t*2+k)%2);
     g2.drawImage(img,px,py);for(const eye of img.eyes)R(px+eye[0],py+eye[1]+1,1,1,'#141a36')}
-  if(Math.floor(t*2)%2===0)txt(g2,touchUI?'TAP TO START':'PRESS SPACE TO START',W/2,184,1,'#f0a030','center');
+  if(Math.floor(t*2)%2===0)txt(g2,touchUI?'TAP TO START':'PRESS SPACE TO START',W/2,176,1,'#f0a030','center');
 }
 function draw(a){
   const M=G.M,st=G.state;
@@ -947,16 +947,33 @@ let howOpen=false;
 function layout(){
   body.classList.toggle('touch',touchUI);
   const vw=innerWidth,vh=innerHeight,dpr=window.devicePixelRatio||1,snap=v=>Math.round(v*dpr)/dpr;
-  const top=bar.offsetHeight+6;let ax=8,ay=top,aw=vw-16,ah=vh-top-8;
-  const wide=vw>vh*1.15;
-  if(touchUI){
-    if(wide){const side=Math.max(170,Math.min(240,(vw-252)/2));ax=side;aw=vw-side*2}
-    else ah-=Math.min(190,Math.max(172,vh*0.24));
-  }else ah-=hint.offsetHeight+10;
-  const k=Math.max(1,Math.floor(Math.min(aw*dpr/W,ah*dpr/H)));
-  const cw=W*k/dpr,ch=H*k/dpr,left=snap(ax+(aw-cw)/2),tp=snap(ay+Math.max(0,(ah-ch)*(touchUI&&!wide?0.3:0.5)));
+  const top=bar.offsetHeight+6,wide=vw>vh*1.15;
+  hint.style.display='';$('bHelp').hidden=false;
+  let ax=8,aw=vw-16;
+  if(touchUI&&wide){const side=Math.max(170,Math.min(240,(vw-252)/2));ax=side;aw=vw-side*2}
+  const below=touchUI&&!wide?Math.min(190,Math.max(172,vh*0.24)):0;   // room kept under the screen for the pad
+  // The bar's title and buttons: when the window is short the screen may sit between them instead of under the bar.
+  const barL=bar.querySelector('h1').getBoundingClientRect().right+10;
+  let barR=vw;for(const b of bar.querySelectorAll('button'))if(!b.hidden&&b.offsetWidth)barR=Math.min(barR,b.getBoundingClientRect().left-10);
+  // Three places for the screen, most room around it first: under the bar with the key hint, under the bar without
+  // it, between the bar's title and buttons. The biggest picture wins. It is shown at a whole number of device pixels
+  // per game pixel; only when that would be 1 (a short laptop window) is it drawn at 2 and shrunk smoothly to fit.
+  const tries=[[top,vh-top-8-below-(touchUI?0:hint.offsetHeight+10),!touchUI,false]];
+  if(!touchUI)tries.push([top,vh-top-8,false,false]);
+  if(!touchUI||wide)tries.push([4,vh-8,false,true]);
+  let pick=null;
+  for(const [ay,ah,showHint,beside] of tries){
+    const fit=Math.min(aw*dpr/W,ah*dpr/H);let k=Math.max(1,Math.floor(fit)),sc=1;
+    if(k===1&&fit>=1.15){k=2;sc=fit/2}
+    const size=k*sc,cw=W*size/dpr,left=ax+(aw-cw)/2;
+    if(beside&&(left<barL||left+cw>barR))continue;
+    if(!pick||size>pick.size+0.01)pick={ay:ay,ah:ah,showHint:showHint,k:k,sc:sc,size:size};
+  }
+  const k=pick.k,cw=W*pick.size/dpr,ch=H*pick.size/dpr,left=snap(ax+(aw-cw)/2),tp=snap(pick.ay+Math.max(0,(pick.ah-ch)*(touchUI&&!wide?0.3:0.5)));
+  if(!pick.showHint)hint.style.display='none';
   if(cv.width!==W*k){cv.width=W*k;cv.height=H*k}
-  cv.style.width=W*k+'px';cv.style.height=H*k+'px';cv.style.transform='translate('+left+'px,'+tp+'px) scale('+(1/dpr)+')';
+  cv.style.width=W*k+'px';cv.style.height=H*k+'px';cv.style.transform='translate('+left+'px,'+tp+'px) scale('+(pick.sc/dpr)+')';
+  cv.style.imageRendering=pick.sc===1?'':'auto';
   if(touchUI){
     if(wide){   // sideways: pad on the left, one DASH on the right
       const cy=top+(vh-top)/2;
@@ -971,10 +988,11 @@ function layout(){
       dashL.style.left=((vw-156)/2-ds)/2+'px';dashR.style.left=(vw-((vw-156)/2-ds)/2-ds)+'px';
     }
   }
-  // how to play: beside the screen if it fits, otherwise a sheet behind the ? button
-  const room=vw-(left+cw)-24;
-  if(!touchUI&&room>=300){how.classList.remove('sheet');how.hidden=false;how.style.left=(left+cw+24)+'px';how.style.top=tp+'px';how.style.transform='';$('bHelp').hidden=true}
-  else{how.classList.add('sheet');how.style.left='';how.style.top='';how.style.transform='';how.hidden=!howOpen;$('bHelp').hidden=false}
+  // how to play: beside the screen if it fits there, otherwise a sheet behind the ? button
+  const room=vw-(left+cw)-24,hy=Math.max(tp,top);
+  how.classList.remove('sheet');how.hidden=false;how.style.transform='';
+  if(!touchUI&&room>=300&&how.offsetHeight<=vh-hy-8){how.style.left=(left+cw+24)+'px';how.style.top=hy+'px';$('bHelp').hidden=true}
+  else{how.classList.add('sheet');how.style.left='';how.style.top='';how.hidden=!howOpen;$('bHelp').hidden=false}
 }
 function setTouch(on){if(touchUI!==on){touchUI=on;layout()}}
 addEventListener('resize',layout);addEventListener('orientationchange',layout);
@@ -1070,7 +1088,7 @@ addEventListener('blur',()=>{if(G.state==='play'||G.state==='ready')setPaused(tr
 document.addEventListener('visibilitychange',()=>{if(document.hidden){if(inPlay())setPaused(true)}else if(ac&&ac.state==='suspended')ac.resume()});
 
 /* ---------- loop: fixed steps of the rules, drawn in between ---------- */
-let last=0,acc=0,cool=null;
+let last=0,acc=0,cool=null,popT=0;
 function frame(t){
   requestAnimationFrame(frame);
   if(!last)last=t;
@@ -1084,6 +1102,8 @@ function frame(t){
     for(const s of ghosts)s.t-=dt;
     if(ghosts.length&&ghosts[0].t<=0)ghosts.shift();
     if(G.state==='play'&&G.p.dashT>0&&(!ghosts.length||ghosts[ghosts.length-1].t<0.14))ghosts.push({x:G.p.x,y:G.p.y,t:0.18});
+    // a glade cleared: little bursts of light over the hedges while they blink
+    if(G.state==='clear'&&G.clearT>1.5&&(popT-=dt)<=0){popT=0.16;burst(20+Math.random()*(W-40),20+Math.random()*(MH-40),9,['#e8f25a','#ffffff','#ffc86a','#9fd0ff'][Math.floor(Math.random()*4)],45)}
   }
   music(G.state==='play'&&!paused);
   const c=G.p.dashCd>0;if(c!==cool){cool=c;dashL.classList.toggle('cool',c);dashR.classList.toggle('cool',c)}
@@ -1094,7 +1114,7 @@ if(document.fonts&&document.fonts.ready)document.fonts.ready.then(layout);
 requestAnimationFrame(frame);
 
 // for automated tests only
-if(navigator.webdriver)window.__fw={create,step,turn,dash,startGame,setupLevel,tune,compile,mult,MAZES,COLS,ROWS,TILE,STEP,W,H,MH,TOP,DX,DY,SP,
+if(navigator.webdriver)window.__fw={create,step,turn,dash,startGame,setupLevel,target,CORNER,CATCH,DASH_CD,DASH_T,DASH_X,CUT,LATE,tune,compile,mult,MAZES,COLS,ROWS,TILE,STEP,W,H,MH,TOP,DX,DY,SP,
   get g(){return G},set g(v){G=v},get paused(){return paused},get best(){return best},get bestGlade(){return bestGlade},get touch(){return touchUI},
   get audio(){return ac?ac.state:'none'},layout,setPaused,draw,
   run(sec){const n=Math.round(sec/STEP);for(let i=0;i<n;i++)step(G,STEP);drain()}};
