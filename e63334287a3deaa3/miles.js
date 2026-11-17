@@ -422,6 +422,7 @@
         // The same node carries the player's edited avatar (av); avatar.js checks it before using it.
         var v = s.val(), BA = window.BackRoomAvatar;
         if (BA && BA.learn && v && typeof v.av === 'string') { try { BA.learn(uid, v.av); } catch (e) {} }
+        if (BA && BA.learnTile && v && typeof v.nt === 'string') { try { BA.learnTile(uid, v.nt); } catch (e) {} }   // and the colour of their name tile
         return merged(b.db, uid, v, now).then(function (p) { return of(p || v, uid, now); }, function () { return of(v, uid, now); });
       });
     }); }).then(function (r) { return r; }, function () { return of(null, uid); }).then(function (r) {

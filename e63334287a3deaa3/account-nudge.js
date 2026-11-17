@@ -91,6 +91,7 @@
     'ol:join', 'party:pub',   // Let people join my games (social.js) and the party's Public / Private switch (party.js)
     'wallet:v1', 'cosmetics:v1',   // coins and the locker (wallet.js, cosmetics.js), switched off for now
     'layout:v1',   // Edit layout (layout.js): the order of the Back Room's blocks
+    'nametile:v1', // the colour of the player's name tile (avatar.js), which only a Google account can choose
     'wallet:v1', 'cosmetics:v1',   // coins and the locker (wallet.js, cosmetics.js), switched off for now
     // Rumble Karts
     'rk_name', 'rk_color', 'rk_mode', 'rk_sound',
@@ -503,6 +504,8 @@
         var changed = merge(cleanNode(s.val(), now), now);
         saveMeta();
         if (changed > 0 && !SY.restored) { SY.restored = true; showToast('Restored your skins and records from your account'); }
+        // A restored name tile colour (nametile:v1) should show and be published now, not after a reload: avatar.js's panels redraw on this.
+        if (changed > 0) { try { document.dispatchEvent(new CustomEvent('backroom:avatar', { detail: { mine: true } })); } catch (e) {} }
         return write(c, true).then(function () { watch(); });
       });
     }).catch(function (e) {
