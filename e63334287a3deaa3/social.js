@@ -1483,6 +1483,8 @@
     var mt = uid ? tierOf(uid) : null;
     $tier.textContent = '';
     if (mt) { $tier.append(BackRoomMiles.badge(mt)); var ml = milesLine(mt); if (ml) $tier.append(el('span', '', ml)); }
+    // Avis miles (avismiles.js): claim bonus miles for a car booked through Avis.
+    if (uid && window.BackRoomAvisMiles && BackRoomAvisMiles.button) { try { $tier.append(BackRoomAvisMiles.button()); } catch (e) {} }
     $hide.checked = hidden; $join.checked = joinable; $join.disabled = hidden;
     joinLbl.title = hidden ? 'You’re hidden, so nobody sees your games anyway' : 'When you’re in an online game, people here can see it and join you (Playing now, and a Join button by your name)';
     var lu = loungeUnread(); $loungeBtn.lastChild.textContent = lu ? String(lu) : '';

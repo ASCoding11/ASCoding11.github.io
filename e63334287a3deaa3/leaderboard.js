@@ -553,6 +553,7 @@
     if (p.total > cap) return null;
     // An hours reset: count from the zero point (personal bests stay; the checks above used the full totals).
     var rs = RESETS[uid];
+    if (rs && rs.m > 0) p.am = rs.m;                            // Avis miles granted (signed), added by miles.js
     // Removed from the boards by the admin (fake or junk accounts). The admin page still sees them, marked, to undo it.
     if (rs && rs.h) { if (!SHOW_HIDDEN) return null; p.hidden = rs.t; }
     if (rs && rs.b) {
@@ -610,6 +611,7 @@
     Object.keys(t.g).forEach(function (k) { if (!lg[k]) { var x = tlg ? Math.min(t.g[k].s, tlg[k] || 0) : t.g[k].s; if (x > 0) lg[k] = x; } });
     t.lg = lg; t.v2 = true;
     if (p.dev) { t.dev = t.dev || {}; Object.keys(p.dev).forEach(function (k) { t.dev[k] = 1; }); }
+    if (p.am > 0) t.am = (t.am || 0) + p.am;                   // Avis miles: each account's grants are separate, so they add
     // Kept Slipstream miles (sx): the quicker lap per track, the larger record count.
     if (p.sx) {
       var tx = t.sx || (t.sx = { l: {}, r: 0 });
@@ -672,6 +674,11 @@
         var b = null;
         if (e.b && typeof e.b === 'object' && !Array.isArray(e.b)) { b = {}; Object.keys(e.b).forEach(function (k) { var x = Math.floor(num(e.b[k])); if (BY[k] && x > 0) b[k] = x; }); }
         latest[u] = { t: t, b: b, h: e.h === 1, a: okUid(e.a) && e.a !== u ? e.a : '' };
+        // Avis miles (avismiles.js): m the bonus miles granted in all, mt the time of the last claim decided, mr 1 if it
+        // was approved, 0 if not. Only the admin key can sign these, so nobody can grant themselves miles.
+        var am = Math.floor(num(e.m)), amt = num(e.mt);
+        if (am > 0) latest[u].m = Math.min(am, 1e6);
+        if (amt > 0) { latest[u].mt = amt; latest[u].mr = e.mr === 1 ? 1 : 0; }
       });
     }
     return latest;

@@ -253,6 +253,12 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
           <div class="scroll"><table id="sPeople"></table></div>
           <button class="sm more" id="sMore" type="button" hidden>Show more</button>
         </div>
+        <div class="card" id="sAvisCard" hidden>
+          <h2 id="sAvisH">Avis miles claims</h2>
+          <p class="hint">Players who say they booked a car through Avis (avismiles.js, from the Online panel). Check the confirmation number with Avis (or ask for the confirmation email), then approve to add the miles or turn it down. Both are signed with the admin key like a merge, so only this page can grant miles; the player sees the result in their Avis miles box. The booking details are sealed to the admin key, so only this page can read them.</p>
+          <ul class="list" id="sAvis"></ul>
+          <div class="acts" style="margin-top:10px"><button class="sm" id="sAvisDone" type="button" hidden></button></div>
+        </div>
         <div class="card" id="sDupCard" hidden>
           <h2 id="sDupH">Same person?</h2>
           <p class="hint">Pairs of accounts that look like one person, best first, with the reasons under each. Names count most (the same name, the same name but for numbers or capitals, a Google name's first name, a typo apart), then the same custom avatar, one account stopping as the other started, and one holding nothing the other doesn't; both playing on the same days counts against. Merge keeps the second name (⇄ swaps which one stays) and shows them as one row on every board, with the hours, counts and miles each account earned added back (time and counts two accounts could share in one browser count once) and the better bests. Names aren't unique, so check before merging; you can undo it from the merged account's details. "Not the same" hides a pair in this browser.</p>
@@ -597,7 +603,7 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
       b.append(el('span','nm',g.n),tr,n);li.appendChild(b);ul.appendChild(li);
     });
     $('sPeopleHint').textContent='One row per account: the Google name when the account signed in with Google (the badge), else the Online name, with the seat tag the Online panel shows, and the status tier with its miles (all time, self-reported like everything here). Hours are '+when+(st.gv==='all'?'':' in '+where)+'. Tap a row for their games, bests and the last 30 days.';
-    renderPeople(st);renderDups();
+    renderPeople(st);renderDups();renderAvis();
   }
   // ---------- Same person? ----------
   // Pairs of accounts that look like one person, scored from what the nodes hold. Only suggestions: the admin decides, and
@@ -805,9 +811,9 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
   // that isn't itself merged, so a merge goes to the end of `to`'s chain, and accounts already merged into `uid` move with it.
   async function setResets(changes){
     if(!PRIVS)throw new Error('Unlock the page again to change resets.');
-    var all={},cur=LB.resets;Object.keys(cur).forEach(function(u){var e={t:cur[u].t};if(cur[u].b)e.b=cur[u].b;if(cur[u].h)e.h=1;if(cur[u].a)e.a=cur[u].a;all[u]=e});
+    var all={},cur=LB.resets;Object.keys(cur).forEach(function(u){var e={t:cur[u].t};if(cur[u].b)e.b=cur[u].b;if(cur[u].h)e.h=1;if(cur[u].a)e.a=cur[u].a;if(cur[u].m)e.m=cur[u].m;if(cur[u].mt){e.mt=cur[u].mt;e.mr=cur[u].mr?1:0}all[u]=e});
     var now=Math.round(S.now+(Date.now()-S.loadedAt)),by={};S.people.forEach(function(p){by[p.uid]=p});
-    function ent(u){var e=all[u]?{b:all[u].b,h:all[u].h,a:all[u].a}:{};all[u]=e;return e}
+    function ent(u){var e=all[u]?{b:all[u].b,h:all[u].h,a:all[u].a,m:all[u].m,mt:all[u].mt,mr:all[u].mr}:{};all[u]=e;return e}
     function rootOf(u){for(var i=0;i<10;i++){var p=by[u];if(p&&p.into&&p.intoOwn&&p.into!==u){u=p.into;continue}if(all[u]&&all[u].a&&all[u].a!==u){u=all[u].a;continue}break}return u}
     var touched={};
     changes.forEach(function(c){
@@ -825,11 +831,14 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
         else if(what==='unreset')delete e.b;
         else if(what==='hide')e.h=1;
         else if(what==='unmerge')delete e.a;
+        // Avis miles (avismiles.js): approve a claim (add c.miles) or turn it down; either way it's decided up to c.at.
+        else if(what==='avis'){var add=Math.floor(+c.miles);if(!(add>0&&add<=100000))throw new Error('Enter the miles to add (1 to 100,000).');e.m=Math.min(1e6,(e.m||0)+add);e.mt=+c.at;e.mr=1}
+        else if(what==='avisno'){e.mt=+c.at;e.mr=0}
         else delete e.h;
       }
       touched[uid]=1;
     });
-    Object.keys(touched).forEach(function(u){var e=all[u];if(!e)return;e.t=now;if(!e.b)delete e.b;if(!e.h)delete e.h;if(!e.a)delete e.a});
+    Object.keys(touched).forEach(function(u){var e=all[u];if(!e)return;e.t=now;if(!e.b)delete e.b;if(!e.h)delete e.h;if(!e.a)delete e.a;if(!e.m)delete e.m;if(!e.mt){delete e.mt;delete e.mr}});
     Object.keys(all).forEach(function(u){if(all[u].t==null)all[u].t=now});
     var r=JSON.stringify(all);
     var sig=new Uint8Array(await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},PRIVS,new TextEncoder().encode(r)));
@@ -908,6 +917,65 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
   $('sGames').addEventListener('click',function(e){
     var b=e.target.closest('button[data-game]');if(!b)return;
     $('sGame').value=$('sGame').value===b.dataset.game?'all':b.dataset.game;S.show=PAGE;renderStats();
+  });
+  // ---------- Avis miles claims ----------
+  // A node's claim (ac, sealed by avismiles.js; act, when it was sent), opened with the admin key; waiting while it's newer
+  // than the last decision in the signed resets (mt).
+  var AV={open:{},showDone:false};
+  function avisRows(){
+    var out=[];
+    Object.keys(S.nodes||{}).forEach(function(u){
+      var v=S.nodes[u];if(!v||typeof v.ac!=='string'||!(+v.act>0))return;
+      var r=LB.resets[u]||{},act=+v.act;
+      out.push({uid:u,ac:v.ac,act:act,done:+(r.mt||0)>=act,ok:r.mr===1,granted:r.m||0,ge:typeof v.ge==='string'?v.ge:'',name:cleanName(v.gn||v.n,40)||'Player'});
+    });
+    return out.sort(function(a,b){return b.act-a.act});
+  }
+  function renderAvis(){
+    var rows=avisRows(),wait=rows.filter(function(r){return !r.done}),done=rows.length-wait.length,ul=$('sAvis');ul.textContent='';
+    $('sAvisCard').hidden=!rows.length;
+    $('sAvisH').textContent='Avis miles claims'+(wait.length?' ('+fmtN(wait.length)+' waiting)':'');
+    var show=AV.showDone?rows:wait;
+    if(!show.length)ul.appendChild(el('li','empty-l','Nothing waiting. Every claim so far has been decided.'));
+    show.forEach(function(r){
+      var li=el('li','item'),m=el('div','meta'),acts=el('div','acts'),key=r.uid+':'+r.act,o=AV.open[key];
+      var head=el('span');head.appendChild(el('b',null,r.name));head.appendChild(document.createTextNode(' · '+LB.seatOf(r.uid)+' · account '+r.uid.slice(0,6)+' · sent '+new Date(r.act).toLocaleString()));
+      m.appendChild(head);
+      if(o===undefined){m.appendChild(el('span',null,'Opening…'))}
+      else if(!o||o.k!=='ac'){m.appendChild(el('span','err','Couldn\'t open this claim (it wasn\'t sealed to this admin key).'))}
+      else{
+        m.appendChild(el('span',null,'Confirmation number: '));m.lastChild.appendChild(el('code','uid',String(o.c||'').slice(0,24)));
+        m.appendChild(el('span',null,'Pick-up date: '+String(o.d||'').slice(0,10)));
+        if(o.em)m.appendChild(el('span',null,'Google account: '+o.em));
+        if(o.n)m.appendChild(el('span',null,'Note: '+String(o.n).slice(0,120)));
+        if(o.u!==r.uid)m.appendChild(el('span','err','This claim names a different account, so it may have been copied from someone else.'));
+      }
+      if(r.granted)m.appendChild(el('span',null,'Avis miles granted so far: '+fmtN(r.granted)));
+      if(r.done){m.appendChild(el('span','badge'+(r.ok?' ok':''),r.ok?'Approved':'Not approved'))}
+      else{
+        var lab=el('label',null,'Miles '),inp=el('input');inp.type='number';inp.min='1';inp.max='100000';inp.step='100';inp.value=String((window.BackRoomAvisMiles&&BackRoomAvisMiles.MILES)||1000);inp.style.width='7em';inp.id='avm-'+r.uid;lab.appendChild(inp);
+        var ap=el('button','sm','Approve');ap.type='button';ap.dataset.av='yes';ap.dataset.u=r.uid;ap.dataset.t=String(r.act);
+        var no=el('button','sm','Not approved');no.type='button';no.dataset.av='no';no.dataset.u=r.uid;no.dataset.t=String(r.act);
+        acts.append(lab,ap,no);
+      }
+      li.append(m,acts);ul.appendChild(li);
+      if(!(key in AV.open)){
+        AV.open[key]=undefined;                       // opening (shown as "Opening…" until it's done)
+        Promise.all([tryOpen(r.ac),r.ge?tryOpen(r.ge):Promise.resolve(null)]).then(function(x){
+          var c=x[0];if(c&&x[1]&&x[1].k==='ge'&&x[1].u===r.uid&&typeof x[1].e==='string')c.em=cleanName(x[1].e,200);
+          AV.open[key]=c||null;renderAvis();
+        });
+      }
+    });
+    $('sAvisDone').hidden=!done;$('sAvisDone').textContent=AV.showDone?'Hide decided claims':'Show decided claims ('+fmtN(done)+')';
+  }
+  $('sAvisDone').addEventListener('click',function(){AV.showDone=!AV.showDone;renderAvis()});
+  $('sAvis').addEventListener('click',async function(e){
+    var b=e.target.closest('button[data-av]');if(!b)return;
+    var u=b.dataset.u,at=+b.dataset.t,yes=b.dataset.av==='yes',n=yes?Math.floor(+($('avm-'+u)||{}).value):0,r=avisRows().filter(function(x){return x.uid===u})[0];
+    if(yes&&!(n>0&&n<=100000)){say('sStatus','Enter the miles to add (1 to 100,000).',true);return}
+    if(!confirm(yes?'Approve this Avis claim and add '+fmtN(n)+' miles to '+(r?r.name:'this player')+'?':'Turn down this Avis claim from '+(r?r.name:'this player')+'? They can send another.'))return;
+    await save([{uid:u,what:yes?'avis':'avisno',miles:n,at:at}],yes?'Adding the miles…':'Saving…',b);
   });
   function byUid(u){return S.people.filter(function(x){return x.uid===u})[0]}
   async function save(changes,msg,ab){

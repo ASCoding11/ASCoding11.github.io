@@ -208,10 +208,13 @@
       Object.keys(best).forEach(function (k) { laps += best[k]; });
       bonus += Math.min(LAP_CAP, laps) + Math.min(REC_CAP, nrec * REC_EACH);
     }
+    // Avis miles: bonus miles the admin granted for car bookings (avismiles.js; signed, read by leaderboard.js as p.am).
+    var avis = Math.max(0, Math.min(1e6, num(p.am) || 0));
+    bonus += avis;
     var miles = Math.floor(play / 3600 * HOUR + bonus);
     out.miles = miles; out.real = tierOf(miles);
     if (!out.owner && !out.vice) { out.tier = out.real; out.next = nextOf(miles); }
-    out.hours = play / 3600; out.play = Math.floor(play / 3600 * HOUR); out.bonus = Math.floor(bonus); out.ok = true;
+    out.hours = play / 3600; out.play = Math.floor(play / 3600 * HOUR); out.bonus = Math.floor(bonus); out.avis = Math.floor(avis); out.ok = true;
     return out;
   }
 

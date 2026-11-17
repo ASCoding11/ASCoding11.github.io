@@ -62,6 +62,7 @@
  *   ga 1 and gn the Google display name (40 characters, no email or photo) when the account is a Google sign-in, else neither
  *   sx miles kept from reset record seasons: { slipstream: { l: { <track>: best lap }, r: race records } }, the retired
  *      names summarised before they are dropped (keepRetired), so a records reset never takes away miles; only added to.
+ *   ac, act an Avis miles claim (avismiles.js): the booking sealed to the admin key, and when it was sent; kept as they are.
  *   ge the Google account's email, sealed to the admin key (adminkey.js's BackRoomSeal of { k: 'ge', e: email, u: uid }), so
  *      only the admin page (both admin codes) can open it; anyone else sees ciphertext. Sealed once per account in each
  *      browser (localStorage 'lbs:ge' holds the last uid it was sealed for) and kept as the node has it otherwise. Only
@@ -647,6 +648,8 @@
     if (has(al)) nd.al = al;
     if (okUid(cur.to) && cur.to !== x.uid) nd.to = cur.to;     // this account was merged into another (its owner said so)
     if (obj(cur.w)) nd.w = cur.w;                               // the wallet's mirror (wallet.js), kept as it is
+    // An Avis miles claim (avismiles.js writes it straight to the node): ac, sealed to the admin key, and act, when it was sent.
+    if (okGe(cur.ac) && num(cur.act) > 0) { nd.ac = cur.ac; nd.act = Math.floor(num(cur.act)); }
     // The player's edited avatar (avatar.js): this browser's saved choice for this account, else what the node already says.
     // An anonymous account merged in just now brings its avatar along if this account has none of its own.
     var av = okAv(x.av) ? x.av : okAv(cur.av) ? cur.av : absAv;
