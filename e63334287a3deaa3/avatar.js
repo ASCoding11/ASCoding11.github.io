@@ -10,7 +10,8 @@
  *   seed(uid)             the features a uid has now: { v: 1, bg, skin, hair, hairc, eyes, brows, mouth, glasses, freckles, blush, hat,
  *                         eyec, shirt, face, hatc } (each an index into the lists below; FEATURES says how many of each there are)
  *   gen(uid)              the features drawn from the uid alone, before anyone's edit
- *   svg(uid, size, opts)  the avatar as an inline <svg> string, size pixels square (opts.seed draws another set of features)
+ *   svg(uid, size, opts)  the avatar as an inline <svg> string, size pixels square (opts.seed draws another set of features;
+ *                         opts.box = [x, y, w, h] in the 64-unit drawing shows only that part, for the editor's close-ups)
  *   el(uid, size)         the same inside a <span class="bra-av">, ready to drop next to a name
  *   edit(uid, opener)     opens the editor for this browser's own account (opener gets the focus back when it closes)
  *   editButton(uid, size) the player's own avatar as a button that opens the editor (the Online and Party panels use it)
