@@ -1007,7 +1007,8 @@ function wallRun(axis,c,a,b,y0,h,hex,ops,hv,T){
     SEAMW={ax:axis,cuts:[ca>a?ca:NaN,cb<b?cb:NaN]};brk(BRK,hv,()=>wallRun(axis,c,ca,cb,y0,h,hex,(ops||[]).filter(o=>o.at>=ca&&o.at<cb),hv,T));SEAMW=null}});SHADE=sh0;WKIT=wk0;return}
   T=T||.3;ops=(ops||[]).slice().sort((p,q)=>p.at-q.at);
   const K=WKIT,fk=K?(axis===0?[K.c,K.c,K.c,K.c,K.out>0?K.e:K.i,K.out>0?K.i:K.e]:[K.out>0?K.e:K.i,K.out>0?K.i:K.e,K.c,K.c,K.c,K.c]):null;
-  const seg=(s0,s1,ya,yb)=>{if(s1-s0<.05||yb-ya<.05)return;const f0=FK;if(fk)FK=fk;if(axis===0)sbox(s0,ya,c-T/2,s1,yb,c+T/2,hex,hv);else sbox(c-T/2,ya,s0,c+T/2,yb,s1,hex,hv);FK=f0};
+  // (a kit wall leaves out the faces nothing can see: its top, which the storey, parapet or floor above covers, and its underside on the ground)
+  const seg=(s0,s1,ya,yb)=>{if(s1-s0<.05||yb-ya<.05)return;const f0=FK;if(fk){FK=fk.slice();if(yb>=y0+h-.01)FK[2]=false;if(ya<=y0+.01&&y0<.01)FK[3]=false}if(axis===0)sbox(s0,ya,c-T/2,s1,yb,c+T/2,hex,hv);else sbox(c-T/2,ya,s0,c+T/2,yb,s1,hex,hv);FK=f0};
   let cur=a;
   for(const o of ops){const s0=o.at-o.w/2,s1=o.at+o.w/2;seg(cur,s0,y0,y0+h);seg(s0,s1,y0,y0+o.lo);seg(s0,s1,y0+o.hi,y0+h);cur=s1}
   seg(cur,b,y0,y0+h);
@@ -1051,6 +1052,7 @@ function kb(x0,y0,z0,x1,y1,z1,hex,lay,mask,cov,sh){
 // sbox() draws its box through this when FK is set: FK is a surface per face, [hex, layer, indoors, shade] (null: the
 // box's own colour; false: leave the face out). The box counts toward its piece's size exactly as it always did.
 let FK=null,NOVIS=0,WKIT=null,SLABX=null;
+const KLITE=matchMedia('(pointer: coarse)').matches;   // phones and tablets: the kit without its smallest pieces (skirting, the second step of plinths and ledges, rafter ends, strip lights)
 function kfaces(B,x0,y0,z0,x1,y1,z1,hex,sh,m,F){
   const e=.01,P=curMP;let n=0;for(let f=0;f<6;f++)if(F[f]!==false)n+=6;
   if(P&&!DECO)mpGrow(P,x0+OFX,y0+OFY,z0+OFZ,x1+OFX,y1+OFY,z1+OFZ);
@@ -1095,9 +1097,9 @@ function kitWall(S,W,a,b,y,lv,L,ops,cA,cB,par){
   // plinth: a course of stone or tile that stands out from the wall, with a chamfer step on top
   if(lv===0&&S.pl){const h=S.pl[2],x=ns?.07:0;for(const [u0,u1] of spans(ea-(cA?x:0),eb+(cB?x:0))){if(u1-u0<.05)continue;
     const m=M_O|M_T|(door&&u1<door.at||ns&&cB&&u1>b?M_UP:0)|(door&&u0>door.at||ns&&cA&&u0<a?M_UN:0);
-    wk(W,u0,y,0,u1,y+h,.07,S.pl[0],S.pl[1],m);wk(W,u0,y+h,0,u1,y+h+.05,.035,S.pl[0],S.pl[1],m,0,1.08)}}
+    wk(W,u0,y,0,u1,y+h,.07,S.pl[0],S.pl[1],m);if(!KLITE)wk(W,u0,y+h,0,u1,y+h+.05,.035,S.pl[0],S.pl[1],m,0,1.08)}}
   // skirting indoors
-  if(S.sk)for(const [u0,u1] of spans(a,b))if(u1-u0>.05)wk(W,u0,y,-T-.025,u1,y+.13,-T,S.sk,0,M_I|M_T,1);
+  if(S.sk&&!KLITE)for(const [u0,u1] of spans(a,b))if(u1-u0>.05)wk(W,u0,y,-T-.025,u1,y+.13,-T,S.sk,0,M_I|M_T,1);
   // corners
   if(ns&&S.cn&&S.cn!=='pil')for(const e of [cA?a:null,cB?b:null]){if(e==null)continue;const d=e===a?1:-1;
     if(S.cn==='board')wk(W,e-d*.05,y,-.25,e+d*.25,y+4,.05,S.t,0,M_RING);
@@ -1107,13 +1109,13 @@ function kitWall(S,W,a,b,y,lv,L,ops,cA,cB,par){
   if(S.cn==='pil'){const e=ns||!cA?a:null;if(e!=null)wk(W,e-(ns&&cA?.08:.2),y,-.02,e+.2,y+4,.09,S.pil,S.w[1],M_O|M_U)
     if(ns&&cB)wk(W,b-.2,y,-.02,b+.08,y+4,.09,S.pil,S.w[1],M_O|M_U)}
   // string course between storeys
-  if(!isTop){const m=M_O|M_T|M_B|(ns&&cB?M_UP:0)|(ns&&cA?M_UN:0),x=ns?.07:0;wk(W,ea-(cA?x:0),y+3.86,0,eb+(cB?x:0),y+4.1,.07,S.t,0,m);wk(W,ea-(cA?x:0),y+4.1,0,eb+(cB?x:0),y+4.15,.035,S.t,0,m,0,1.06)}
+  if(!isTop){const m=M_O|M_T|M_B|(ns&&cB?M_UP:0)|(ns&&cA?M_UN:0),x=ns?.07:0;wk(W,ea-(cA?x:0),y+3.86,0,eb+(cB?x:0),y+4.1,.07,S.t,0,m);if(!KLITE)wk(W,ea-(cA?x:0),y+4.1,0,eb+(cB?x:0),y+4.15,.035,S.t,0,m,0,1.06)}
   // roof edge
   if(isTop){const ce=(p)=>[ea-(cA&&ns?p:0),eb+(cB&&ns?p:0)],me=M_O|M_T|M_B|(ns&&cB?M_UP:0)|(ns&&cA?M_UN:0);
     if(S.co==='eave'){const [u0,u1]=ce(.42);wk(W,u0,top-.06,0,u1,top+.1,.42,S.cp,0,me);
-      for(let u=Math.ceil((a-.01)/1)*1+.5;u<b;u+=1)wk(W,u-.06,top-.24,0,u+.06,top-.06,.36,S.cp,0,M_U|M_B|M_O,0,.9)}
+      if(!KLITE)for(let u=Math.ceil((a-.01)/2)*2+1;u<b;u+=2)for(const q of [-.5,.5])wk(W,u+q-.06,top-.24,0,u+q+.06,top-.06,.36,S.cp,0,M_U|M_B|M_O,0,.9)}
     else if(S.co==='fascia'){const [u0,u1]=ce(.1);wk(W,u0,top-.55,0,u1,top+.1,.1,S.t,0,me);if(S.neon)wk(W,u0,top-.33,.1,u1,top-.26,.135,S.neon,0,me)}
-    else{const [u0,u1]=ce(.12),[v0,v1]=ce(.06);wk(W,u0,top-.14,0,u1,top+.08,.12,S.cp,0,me);wk(W,v0,top-.26,0,v1,top-.14,.06,S.cp,0,me,0,.92)}
+    else{const [u0,u1]=ce(.12),[v0,v1]=ce(.06);wk(W,u0,top-.14,0,u1,top+.08,.12,S.cp,0,me);if(!KLITE)wk(W,v0,top-.26,0,v1,top-.14,.06,S.cp,0,me,0,.92)}
     if(par)wk(W,a-(cA?.05:0),top+.9,-.29,b+(cB?.05:0),top+.96,.05,S.cp,0,M_O|M_I|M_T|(cB&&ns?M_UP:0)|(cA&&ns?M_UN:0))}
   // window: a frame lining the hole, a sill that stands out, a bar, shutters
   if(win){const s0=win.at-win.w/2,s1=win.at+win.w/2,lo=y+win.lo,hi=y+win.hi,F=.08;
@@ -1122,7 +1124,7 @@ function kitWall(S,W,a,b,y,lv,L,ops,cA,cB,par){
     if(S.mul)wk(W,win.at-.03,lo+.05,-.17,win.at+.03,hi-F,-.11,S.fr,0,M_RING);
     if(S.shc)for(const [u0,u1] of [[s0-.5,s0-.03],[s1+.03,s1+.5]])if(u0>a+.02&&u1<b-.02)wk(W,u0,lo-.03,0,u1,hi+.03,.05,S.shc,TX.PH,63^M_I);
     if(S.fbox){wk(W,s0+.08,lo-.3,.14,s1-.08,lo-.04,.34,0x8a5a34,TX.PV,63^M_I);wk(W,s0+.12,lo-.04,.17,s1-.12,lo+.1,.31,0x4f9a3c,0,63^M_I^M_B);
-      for(let k=0;k<4;k++)wk(W,s0+.25+k*.42,lo+.1,.2,s0+.37+k*.42,lo+.2,.28,[0xe8504a,0xffd84a,0xf7f3ea,0xe86fb0][k],0,63^M_I^M_B)}}
+      for(let k=0;k<3;k++)wk(W,s0+.3+k*.56,lo+.1,.2,s0+.44+k*.56,lo+.2,.28,[0xe8504a,0xffd84a,0xe86fb0][k],0,63^M_I^M_B)}}
   // the mall's high strip of glass
   if(S.glass&&!door){wk(W,a+.35,y+2.95,0,b-.35,y+3.6,.015,S.glass,TX.GL,M_O);wk(W,a+.27,y+2.87,0,b-.27,y+2.95,.04,S.t,0,M_O|M_T|M_B|M_U);wk(W,a+.27,y+3.6,0,b-.27,y+3.68,.04,S.t,0,M_O|M_T|M_B|M_U)}
   // door: frame, threshold, leaf, canopy, lamp
@@ -1223,7 +1225,7 @@ function house(cx,cz,w,d,o){
     }
     SHADE=0;
     // floors between the walls (a floor shared the walls' outer faces once, and flickered)
-    if(lv>0){FK=[CL,CL,[S.fl[0],S.fl[1],1],CL,CL,CL];SLABX=o.fx?(ix,iz,yy)=>o.fx(ix-cx,iz-cz,lv,yy):null;slab(cx,cz,cx+w,cz+d,y,o.floorCol||0x8f7a5c,holes.get(lv),hv,.3,200);FK=null;SLABX=null}
+    if(lv>0){FK=[CL,CL,[S.fl[0],S.fl[1],1],CL,CL,CL];SLABX=o.fx&&!KLITE?(ix,iz,yy)=>o.fx(ix-cx,iz-cz,lv,yy):null;slab(cx,cz,cx+w,cz+d,y,o.floorCol||0x8f7a5c,holes.get(lv),hv,.3,200);FK=null;SLABX=null}
   }
   // roof
   FK=[S.rf,S.rf,S.rf,CL,S.rf,S.rf];SLABX=o.rx?(ix,iz,yy)=>o.rx(ix-cx,iz-cz,yy):null;
