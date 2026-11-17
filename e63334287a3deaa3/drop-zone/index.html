@@ -654,8 +654,8 @@ function itemName(t){return WEAP[t]?WEAP[t].name:HEALS[t]?HEALS[t].name:t==='mt'
 
 const store={get(k,d){try{const v=localStorage.getItem('driftfall:'+k);return v===null?d:v}catch(e){return d}},set(k,v){try{localStorage.setItem('driftfall:'+k,String(v))}catch(e){}}};
 let sens=parseFloat(store.get('sens','1'))||1;
-// The Locker (outfits) is built but not public yet: nothing about it shows, is read from storage or is sent to other
-// players unless lockerOn() says this player may see it. That is true for the site's captains (../captains.js: the
+// The Locker (outfits) is built but not public yet: nothing about it shows or is read from storage unless lockerOn()
+// says this player may see it (everyone else wears, and sends, the Noob). That is true for the site's captains (../captains.js: the
 // account signed in is in miles.js's captain lists), and for testing with ?locker=1 on localhost or in an automated
 // browser only (remembered for the browser tab; ?locker=0 forgets it). On the live site the address does nothing.
 // To make it public for everyone, set LOCKER_PUBLIC to true: that one line is the whole switch.
@@ -4275,7 +4275,8 @@ const Net={
     const p=player;
     const o={n:myName,c:myHex,x:r2(p.pos.x),z:r2(p.pos.z),h:r3(p.yaw),ts:Math.round(this.now()),y:r2(p.pos.y),p:r2(p.pitch),hp:Math.ceil(p.hp),sh:Math.ceil(p.sh),
       st:stCode(),w:heldKey(p),m:curMatch||0,j:this.j,k:myKills,pl:p.place|0,dm:Math.round(p.dmg),mv:mapV};
-    o.sk=mySkin;             // your outfit's number (its place in OUTFITS; a page that gets none draws the Noob)
+    if(mySkin!==NOOB)o.sk=mySkin;   // your outfit's number (its place in OUTFITS), left out for the Noob: a new page that gets none draws the Noob,
+                                    // and a page from before draws its standard look in your colour, so players there can still be told apart
     if(myFace)o.fc=myFace;   // your drawn face, if you drew one (see "drawn faces"); left out for the outfit's own
     if(curMatch){o.oc=this.oc.join('.');o.pk=this.pk.slice(-400).join(',')}
     if(this.amHost&&MS)o.ms=MS.mv===mapV?MS:Object.assign({},MS,{mv:mapV});
