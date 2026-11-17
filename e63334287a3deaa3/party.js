@@ -163,7 +163,7 @@
     '.pty-tl{display:flex;min-width:0;line-height:1}' +
     '.pty-tag b{color:var(--accent);font-weight:600}' +
     '.pty-kick{margin-left:auto;flex:none;width:32px;height:32px;border-radius:8px;border:1px solid var(--line);background:none;color:var(--ink-2);font:inherit;font-size:16px;line-height:1;cursor:pointer;display:grid;place-items:center;padding:0}' +
-    '.pty-kick:hover{color:var(--down);border-color:var(--down)}' +
+    '.pty-kick:hover{color:var(--down);border-color:var(--down)}.bra-nt .pty-kick:hover{color:var(--nt-ink);border-color:var(--nt-ink)}' +
     '.pty-h{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);margin:0 0 8px}' +
     '.pty-games{display:flex;flex-wrap:wrap;gap:8px}' +
     '.pty-games button{font:inherit;font-size:14px;font-weight:600;color:var(--ink);background:var(--panel-2);border:1px solid var(--line);border-radius:999px;padding:7px 14px;cursor:pointer;min-height:36px}' +
@@ -253,7 +253,7 @@
     Object.keys(val || {}).forEach(function (k) {
       var v = val[k];
       if (!v || typeof v !== 'object' || t - (+v.ts || 0) > STALE) return;
-      if (k !== uid) learnAv(k, v.av);
+      if (k !== uid) { learnAv(k, v.av); learnNt(k, v.nt); }
       out.push({ uid: k, n: cleanName(v.n) || 'Player', c: /^#[0-9a-f]{6}$/i.test(v.c) ? v.c : '#4A5751', j: +v.j || +v.ts || 0, pk: typeof v.pk === 'string' ? v.pk : '', go: v.go && typeof v.go === 'object' ? v.go : null, kick: kickList(v.kick, t), pub: v.pub === 1 });
     });
     out.sort(function (a, b) { return a.j - b.j || (a.uid < b.uid ? -1 : 1); });
@@ -281,20 +281,23 @@
     if (goId && lastGo) s.go = lastGo;
     if (kicked.length) s.kick = kicked;
     if (pubOn) { s.pub = 1; s.pn = pubN = members.length || 1; }
-    var a = myAv(); if (a) s.av = a;
-    avSent = uid + '|' + a;
+    var a = myAv(), t = myNt(); if (a) s.av = a; if (t) s.nt = t;
+    avSent = uid + '|' + a + '|' + t;
     return s;
   }
   // Avatars (avatar.js): our own edit goes in our node as av; other members' av is checked there before it is drawn.
+  // The colour of a name tile travels the same way, as nt ('t1:<index>' or 't0'); only a Google account has one to send.
   var avSent = '';
+  function myNt() { try { return uid && window.BackRoomAvatar && BackRoomAvatar.tileMine ? BackRoomAvatar.tileMine(uid) || '' : ''; } catch (e) { return ''; } }
+  function learnNt(u, t) { if (typeof t === 'string' && t.length <= 5 && window.BackRoomAvatar && BackRoomAvatar.learnTile) { try { BackRoomAvatar.learnTile(u, t); } catch (e) {} } }
   function myAv() { try { return uid && window.BackRoomAvatar && BackRoomAvatar.mine ? BackRoomAvatar.mine(uid) || '' : ''; } catch (e) { return ''; } }
   function learnAv(u, a) { if (typeof a === 'string' && a.length <= 47 && window.BackRoomAvatar && BackRoomAvatar.learn) { try { BackRoomAvatar.learn(u, a); } catch (e) {} } }
   function syncAvatar() {
     if (!refs || !uid) return;
-    var a = myAv(), k = uid + '|' + a;
+    var a = myAv(), t = myNt(), k = uid + '|' + a + '|' + t;
     if (avSent === k) return;
     avSent = k;
-    refs.me.update({ av: a || null, ts: Math.round(now()) }).catch(function () { if (avSent === k) avSent = ''; });
+    refs.me.update({ av: a || null, nt: t || null, ts: Math.round(now()) }).catch(function () { if (avSent === k) avSent = ''; });
   }
   var lastGo = null;
   function typedName() { return cleanName(store('ol:name')) || guessName(); }
@@ -614,6 +617,8 @@
       var m = members[i]; if (!m) return;
       // Your own avatar is a button that opens the editor (avatar.js).
       if (window.BackRoomAvatar) { try { li.replaceChild(m.uid === uid && BackRoomAvatar.editButton ? BackRoomAvatar.editButton(m.uid, 32) : BackRoomAvatar.el(m.uid, 32), li.firstChild); } catch (e) {} }
+      // The card takes the colour of that member's name tile (avatar.js), if they chose one.
+      if (window.BackRoomAvatar && BackRoomAvatar.paint) { try { BackRoomAvatar.paint(li, m.uid); } catch (e) {} }
       if (window.BackRoomMiles) { try { var t = BackRoomMiles.peek(m.uid), tag = li.querySelector('.pty-tag'); if (t) { var tl = document.createElement('span'); tl.className = 'pty-tl'; tl.appendChild(BackRoomMiles.badge(t)); tag.parentNode.insertBefore(tl, tag); } } catch (e) {} }
     });
 
