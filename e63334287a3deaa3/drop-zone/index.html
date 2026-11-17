@@ -289,10 +289,11 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
 #tAim{right:calc(126px + env(safe-area-inset-right,0px));bottom:calc(88px + env(safe-area-inset-bottom,0px))}
 #tReload{right:calc(52px + env(safe-area-inset-right,0px));bottom:calc(138px + env(safe-area-inset-bottom,0px))}
 #tUse{right:calc(124px + env(safe-area-inset-right,0px));bottom:calc(156px + env(safe-area-inset-bottom,0px));background:rgba(40,110,60,.85);border-color:var(--hp)}
+#tEdit{right:calc(192px + env(safe-area-inset-right,0px));bottom:calc(160px + env(safe-area-inset-bottom,0px));background:rgba(24,92,116,.88);border-color:#8fe8ff}
 #tPause{left:calc(10px + env(safe-area-inset-left,0px));top:calc(10px + env(safe-area-inset-top,0px));width:42px;height:42px;font-size:13px}
 #tNext{right:calc(28px + env(safe-area-inset-right,0px));bottom:calc(40px + env(safe-area-inset-bottom,0px));width:104px;height:56px;border-radius:28px;font-size:15px}
-#hud.spec #tStick,#hud.spec #tFire,#hud.spec #tJump,#hud.spec #tAim,#hud.spec #tReload,#hud.spec #tUse{display:none}
-#hud.air #tFire,#hud.air #tAim,#hud.air #tReload,#hud.air #tUse{display:none}
+#hud.spec #tStick,#hud.spec #tFire,#hud.spec #tJump,#hud.spec #tAim,#hud.spec #tReload,#hud.spec #tUse,#hud.spec #tEdit{display:none}
+#hud.air #tFire,#hud.air #tAim,#hud.air #tReload,#hud.air #tUse,#hud.air #tEdit{display:none}
 body.touch.inlobby #hud,body.touch.inlobby #banner,body.touch.inlobby #dmg{visibility:hidden}
 body.touch #vitals{left:calc(60px + env(safe-area-inset-left,0px));bottom:auto;top:calc(8px + env(safe-area-inset-top,0px));width:132px;gap:2px;padding:3px 6px 5px;border-radius:6px}
 body.touch .bar .num{font-size:15px;width:30px}
@@ -333,7 +334,7 @@ body.touch #net{font-size:14px}
   body.touch #feed{top:calc(64px + env(safe-area-inset-top,0px));max-width:calc(100vw - 150px)}
   body.touch #topc{top:calc(262px + env(safe-area-inset-top,0px))}
   body.touch #stormWarn{flex-direction:column;align-items:center;gap:0;text-align:center;font-size:12px}
-  body.touch #hint{top:auto;bottom:calc(196px + env(safe-area-inset-bottom,0px))}
+  body.touch #hint{top:auto;bottom:calc(226px + env(safe-area-inset-bottom,0px))}
   #banner{top:max(41%,330px)}
   #banner .small{font-size:13px;letter-spacing:.08em}
 }
@@ -398,6 +399,7 @@ body.touch #net{font-size:14px}
       <button class="tb" id="tAim" type="button">AIM</button>
       <button class="tb" id="tReload" type="button">RELOAD</button>
       <button class="tb" id="tUse" type="button" hidden>OPEN</button>
+      <button class="tb" id="tEdit" type="button" hidden>EDIT</button>
       <button class="tb" id="tPause" type="button" aria-label="Pause">❚❚</button>
       <button class="tb" id="tNext" type="button" hidden>NEXT ▸</button>
     </div>
@@ -454,6 +456,7 @@ body.touch #net{font-size:14px}
             <div><dt data-kb="crowbar" data-kb-short data-kb-case="upper">V</dt><dd>Crowbar: hit trees, rocks and walls for scrap</dd></div>
             <div><dt data-kb="build" data-kb-short data-kb-case="upper">B</dt><dd>Build mode on and off (shows the build pieces)</dd></div>
             <div><dt data-kb="wall floor ramp" data-kb-short data-kb-case="upper">Q F C</dt><dd>Wall, floor, ramp (10 scrap each)</dd></div>
+            <div><dt data-kb="edit" data-kb-short data-kb-case="upper">H</dt><dd>Edit a build of yours: cut a door, a window or half of it (free)</dd></div>
             <div><dt data-kb="use" data-kb-short data-kb-case="upper">G</dt><dd>Open a chest, pick up or swap</dd></div>
             <div><dt data-kb="reload" data-kb-short data-kb-case="upper">R</dt><dd>Reload</dd></div>
             <div><dt data-kb="map" data-kb-short data-kb-case="upper">M</dt><dd>Big map</dd></div>
@@ -463,7 +466,7 @@ body.touch #net{font-size:14px}
           <button class="ghost-btn" id="keysMenu" type="button">Change keys</button>
         </details>
       </div>
-      <p id="touchNote" class="note" hidden>On a phone? Turn it sideways for the best view. Tap the slots at the top to switch items, tap the scrap count to build, and tap the map to make it big.</p>
+      <p id="touchNote" class="note" hidden>On a phone? Turn it sideways for the best view. Tap the slots at the top to switch items, tap the scrap count to build, and tap the map to make it big. Aim at something you built and an Edit button appears: cut a door or a window in it.</p>
     </div>
   </section>
 
@@ -531,9 +534,9 @@ const $=id=>document.getElementById(id);
 const V3=THREE.Vector3;
 const PREFIX='dz';
 // The island is MAP metres square; builds sit on a grid of CELL-metre cells, as in Backrooms.
-// MAPV is the island's version: it went from 1 (320 m) to 2 (240 m), then to 3 for the slower pace, 4 for the November 2026 fixes and 5 for real terrain. Every node carries it, and the host only puts people
+// MAPV is the island's version: it went from 1 (320 m) to 2 (240 m), then to 3 for the slower pace, 4 for the November 2026 fixes, 5 for real terrain and 6 for edited builds. Every node carries it, and the host only puts people
 // on the same version in a match, so nobody plays on a different island from everyone else.
-const MAPV=5;   // 5: real terrain (November 2026): the island has hills, cliffs and a shore, every place stands at its own height and loot, shots and builds follow the land, so a page with the flat island must not share a match. 3: the slower pace (November 2026): speeds, damage and the storm's times changed. 4: solid ramps, the smaller characters, the pace part-way back and ten weapons (new item ids), so the two must not share a match.
+const MAPV=6;   // 6: builds can be edited (November 2026): a page from before would keep the whole piece where a door or a window was cut, and the two would disagree about what is solid. 5: real terrain (November 2026): the island has hills, cliffs and a shore, every place stands at its own height and loot, shots and builds follow the land, so a page with the flat island must not share a match. 3: the slower pace (November 2026): speeds, damage and the storm's times changed. 4: solid ramps, the smaller characters, the pace part-way back and ten weapons (new item ids), so the two must not share a match.
 let mapV=MAPV;   // only a test changes this, to play the part of a page from before the change
 const nodeV=v=>+(v&&v.mv)||1;   // nodes from before map versions existed are on the old island
 const MAP=240,CELL=4,NC=MAP/CELL,MAX_ROOM=30,PRACTICE_BOTS=11,LIVE_MS=8000,MAXL=7,MAXL_TOP=13,COST=10,MAX_MATS=500,EDGE=3;
@@ -988,7 +991,9 @@ function sbox(x0,y0,z0,x1,y1,z1,hex,hv,ghost){
   return ghost?null:solid(x0,y0,z0,x1,y1,z1,hv);
 }
 // Ramps (walkable 4 x 4 m slopes rising 4 m toward dir, as in Backrooms): the map's stairs and players' ramp builds.
-function addRamp(r){r.x0+=OFX;r.z0+=OFZ;r.base+=OFY;r.min=[r.x0,r.base,r.z0];r.max=[r.x0+4,r.base+4.3,r.z0+4];hashIn(rhash,r);ramps.push(r);return r}
+// A ramp is a sheet: its slope (x0, z0, base, dir: the 4 m cell it climbs across) over a footprint ax0..ax1 by az0..az1, from t0 to t1
+// up the slope. The map's stairs and a whole ramp build cover the cell (t 0 to 1); an edited ramp build is one or two smaller sheets.
+function addRamp(r){r.x0+=OFX;r.z0+=OFZ;r.base+=OFY;r.ax0=r.x0;r.ax1=r.x0+4;r.az0=r.z0;r.az1=r.z0+4;r.t0=0;r.t1=1;r.min=[r.x0,r.base,r.z0];r.max=[r.x0+4,r.base+4.3,r.z0+4];hashIn(rhash,r);ramps.push(r);return r}
 function rampMatrix(x0,z0,base,dir){_e.set(-Math.PI/4,DIR_YAW[dir],0,'YXZ');_q.setFromEuler(_e);return _m4.compose(_p.set(x0+2,base+2,z0+2),_q,_s.set(4,.25,Math.SQRT2*4))}
 // The map's stairs are drawn as sixteen steps over a soffit (the old slab, set a little lower); what is walked on is still the smooth ramp.
 let RLAY=0;
@@ -1801,7 +1806,7 @@ const grade=(function(){
   }
   return{run};
 })();
-function shadowFlags(){scene.traverse(o=>{if(o.isMesh&&(o.material===MAT||o.material===WMAT||o.material===GMAT||o.material===FLMAT||o===shardIM)){o.castShadow=o!==groundMesh;o.receiveShadow=true}else if(o.isInstancedMesh&&o.material===plyMat){o.castShadow=true;o.receiveShadow=true}})}
+function shadowFlags(){scene.traverse(o=>{if(o.isMesh&&(o.material===MAT||o.material===WMAT||o.material===GMAT||o.material===FLMAT||o===shardIM)){o.castShadow=o!==groundMesh;o.receiveShadow=true}else if(o.isInstancedMesh&&(o.material===plyMat||o.material===partMat)){o.castShadow=true;o.receiveShadow=true}})}
 function lookSync(){
   const tier=gfxPref==='fast'||touchUI?0:fxTier;
   if(tier!==lookKey){
@@ -2069,8 +2074,9 @@ const plyMat=new THREE.MeshLambertMaterial({map:plyTex});
 const geoPWall=new THREE.BoxGeometry(4,4,.25),geoPFloor=new THREE.BoxGeometry(4,.25,4),geoPRamp=new THREE.BoxGeometry(4,.25,Math.SQRT2*4);
 const PCAP=900,PHP={wall:150,floor:140,ramp:140};
 const pieceInst={};
-for(const [k,g] of [['wall',geoPWall],['floor',geoPFloor],['ramp',geoPRamp]]){const m=new THREE.InstancedMesh(g,plyMat,PCAP);m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);m.setColorAt(0,new THREE.Color(1,1,1));m.count=0;m.frustumCulled=false;scene.add(m);pieceInst[k]={mesh:m,list:[]}}
+for(const [k,g] of [['wall',geoPWall],['floor',geoPFloor],['ramp',geoPRamp]]){const m=new THREE.InstancedMesh(g,plyMat,PCAP);m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);m.setColorAt(0,new THREE.Color(1,1,1));m.count=0;m.frustumCulled=false;scene.add(m);pieceInst[k]={mesh:m,list:[],n:0}}
 const pieces=new Map();
+let bdDirty=false;const bdGone=new Map();   // (for the list of builds the host keeps for late joiners: see buildList)
 // skirts under walls on sloping ground: one instanced box each, darker planks (one more draw call, only while there are any)
 const skirtIM=new THREE.InstancedMesh(new THREE.BoxGeometry(4,1,.22),plyMat,PCAP),skirtList=[];
 skirtIM.instanceMatrix.setUsage(THREE.DynamicDrawUsage);skirtIM.setColorAt(0,new THREE.Color(.62,.58,.54));skirtIM.count=0;skirtIM.frustumCulled=false;skirtIM.visible=false;scene.add(skirtIM);
@@ -2144,50 +2150,189 @@ function specValid(s){
   if(pieces.has(pieceKey(s))||!landOk(s))return false;
   return !hitsStatic(pieceBox(s),s.kind==='ramp'?0:.13);
 }
-function makePiece(s){
-  const kind=s.kind,P=pieceInst[kind];if(P.list.length>=PCAP)return null;
-  const pc={key:pieceKey(s),spec:s,kind,hp:PHP[kind],max:PHP[kind],solid:null,ramp:null,ix:P.list.length};
-  if(kind!=='ramp'){const b=pieceBox(s);pc.solid={min:b.min,max:b.max,hv:0,piece:pc};hashIn(hash,pc.solid);if(kind==='wall')skirtAdd(pc)}
-  else pc.ramp=addRamp({x0:s.x*4,z0:s.z*4,base:s.L*4,dir:s.dir,piece:pc});
-  P.list.push(pc);P.mesh.setMatrixAt(pc.ix,pieceMatrix(s));P.mesh.setColorAt(pc.ix,_col.setRGB(1,1,1));
-  P.mesh.count=P.list.length;P.mesh.instanceMatrix.needsUpdate=true;if(P.mesh.instanceColor)P.mesh.instanceColor.needsUpdate=true;
-  pieces.set(pc.key,pc);return pc;
+// ---- Editing, as in Backrooms 1v1–4v4 (its ED_N, edRects and pieceShape, on Driftfall's hash and land). A piece is a
+// grid of tiles, and its edit (ed) has one bit for each tile cut out; 0 is the whole piece. A wall is 3 x 3 (u along the
+// wall towards +x or +z, v up), a floor 2 x 2 (u along x, v along z) and a ramp 2 x 2 (u up the slope, v across it towards
+// +z or +x); tile (u,v) is bit v*n+u. The tiles left are joined into as few rectangles as it takes (edRects), and each
+// rectangle is one ordinary solid box in the hash, or for a ramp one ordinary ramp sheet with a smaller footprint, so
+// movement, pushOut, rampIn and shots run the very code they run for a whole piece: you walk through a door and shoot
+// through a window because no box is there, and what is left blocks from every side. A wall's skirt (skirtOf) is not part
+// of the grid: under an edited wall it is a box of its own, the full width, from the land up to the wall's foot, so a
+// door cut where the land is lower has a sill to step or jump onto.
+const ED_N={wall:3,floor:2,ramp:2};
+const edFull=k=>(1<<ED_N[k]*ED_N[k])-1;
+const edOk=(k,m)=>Number.isInteger(m)&&m>=0&&m<edFull(k);   // at least one tile has to stay
+// runs of tiles along u in each row, then equal runs in rows next to each other joined: [u0,v0,u1,v1), ends not included
+function edRects(n,mask){
+  const out=[];
+  for(let v=0;v<n;v++)for(let u=0;u<n;u++){
+    if(mask>>(v*n+u)&1)continue;
+    let e=u+1;while(e<n&&!(mask>>(v*n+e)&1))e++;
+    const q=out.find(k=>k[0]===u&&k[2]===e&&k[3]===v);
+    if(q)q[3]=v+1;else out.push([u,v,e,v+1]);
+    u=e-1;
+  }
+  return out;
+}
+function pieceShape(s,mask){
+  const n=ED_N[s.kind],x0=s.x*4,z0=s.z*4,y0=s.L*4,boxes=[],rps=[];
+  if(!mask&&s.kind!=='ramp'){const b=pieceBox(s);boxes.push({min:b.min,max:b.max});return{boxes,rps}}   // whole: the one box it always was (a wall's skirt in it)
+  for(const [u0,v0,u1,v1] of edRects(n,mask)){
+    if(s.kind==='wall'){
+      const a0=u0*4/n,a1=u1*4/n,b0=y0+v0*4/n,b1=y0+v1*4/n;
+      boxes.push(s.o==='H'?{min:[x0+a0,b0,z0-.125],max:[x0+a1,b1,z0+.125]}:{min:[x0-.125,b0,z0+a0],max:[x0+.125,b1,z0+a1]});
+    }else if(s.kind==='floor')boxes.push({min:[x0+u0*2,y0-.125,z0+v0*2],max:[x0+u1*2,y0+.125,z0+v1*2]});
+    else{
+      const t0=u0/2,t1=u1/2,lo=s.dir<2?t0*4:4-t1*4,hi=s.dir<2?t1*4:4-t0*4,r={x0,z0,base:y0,dir:s.dir,t0,t1};
+      if(s.dir%2===0){r.ax0=x0+lo;r.ax1=x0+hi;r.az0=z0+v0*2;r.az1=z0+v1*2}
+      else{r.az0=z0+lo;r.az1=z0+hi;r.ax0=x0+v0*2;r.ax1=x0+v1*2}
+      r.min=[r.ax0,y0,r.az0];r.max=[r.ax1,y0+4.3,r.az1];rps.push(r);
+    }
+  }
+  if(s.kind==='wall'){const g=skirtOf(s);if(g>0)boxes.push(s.o==='H'?{min:[x0,y0-g,z0-.125],max:[x0+4,y0,z0+.125]}:{min:[x0-.125,y0-g,z0],max:[x0+.125,y0,z0+4]})}
+  return{boxes,rps};
+}
+// How an edited piece is drawn: its rectangles, as unit boxes in ONE instanced mesh for every edited piece of every kind
+// (partIM: one draw call however many there are, only while there are any), each stretched and placed inside the piece's
+// own frame (pieceMatrix) and given its own window of the plank texture (uvw), so a cut board still reads as one board.
+// Whole pieces stay in the three instanced meshes they always had.
+const PART_CAP=1600,partMat=plyMat.clone();
+partMat.onBeforeCompile=sh=>{sh.vertexShader='attribute vec4 uvw;\n'+sh.vertexShader.replace('#include <uv_vertex>','#ifdef USE_UV\n\tvUv=(uvTransform*vec3(uv*uvw.zw+uvw.xy,1.)).xy;\n#endif')};
+const partIM=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),partMat,PART_CAP),partUV=new THREE.InstancedBufferAttribute(new Float32Array(PART_CAP*4),4);
+partIM.geometry.setAttribute('uvw',partUV);partIM.instanceMatrix.setUsage(THREE.DynamicDrawUsage);partIM.setColorAt(0,new THREE.Color(1,1,1));partIM.count=0;partIM.frustumCulled=false;partIM.visible=false;scene.add(partIM);
+const partList=[],pops=new Set(),_pm=new THREE.Matrix4(),_pv=new V3();let partDirty=false;
+function partsOf(s,mask){
+  const n=ED_N[s.kind],out=[];
+  for(const [u0,v0,u1,v1] of edRects(n,mask)){
+    const w=(u1-u0)*4/n,h=(v1-v0)*4/n,cu=(u0+u1)*2/n-2,cv=(v0+v1)*2/n-2,m=new THREE.Matrix4();let uv;
+    if(s.kind==='wall'){m.makeScale(w,h,.25).setPosition(s.o==='V'?-cu:cu,cv,0);uv=[s.o==='V'?1-u1/n:u0/n,v0/n,(u1-u0)/n,(v1-v0)/n]}
+    else if(s.kind==='floor'){m.makeScale(w,.25,h).setPosition(cu,0,cv);uv=[u0/n,v0/n,(u1-u0)/n,(v1-v0)/n]}
+    else{m.makeScale(h,.25,w*Math.SQRT2).setPosition(s.dir===0||s.dir===3?-cv:cv,0,cu*Math.SQRT2);uv=[v0/n,u0/n,(v1-v0)/n,(u1-u0)/n]}
+    out.push({m,uv});
+  }
+  return out;
+}
+// a piece's own frame, a little small while it pops in (see piecesTick), nothing at all while you are editing it (the grid stands in)
+function pieceFrame(pc){const m=pieceMatrix(pc.spec);return pc.hide?m.scale(_pv.setScalar(0)):pc.pop<1?m.scale(_pv.setScalar(.82+.18*pc.pop)):m}
+function instSet(pc){const P=pieceInst[pc.kind];P.mesh.setMatrixAt(pc.ix,pieceFrame(pc));P.mesh.setColorAt(pc.ix,pieceTint(pc));P.mesh.instanceMatrix.needsUpdate=true;if(P.mesh.instanceColor)P.mesh.instanceColor.needsUpdate=true}
+function instIn(pc){const P=pieceInst[pc.kind];pc.ix=P.list.length;P.list.push(pc);P.mesh.count=P.list.length;instSet(pc)}
+function instOut(pc){if(pc.ix<0)return;const P=pieceInst[pc.kind],last=P.list.pop();if(last!==pc){P.list[pc.ix]=last;last.ix=pc.ix;instSet(last)}pc.ix=-1;P.mesh.count=P.list.length;P.mesh.instanceMatrix.needsUpdate=true}
+function partFlush(){
+  partDirty=false;let i=0;
+  for(const pc of partList){if(pc.hide)continue;const base=pieceFrame(pc),tint=pieceTint(pc);
+    for(const q of pc.parts){if(i>=PART_CAP)break;partIM.setMatrixAt(i,_pm.multiplyMatrices(base,q.m));partIM.setColorAt(i,tint);partUV.setXYZW(i,q.uv[0],q.uv[1],q.uv[2],q.uv[3]);i++}}
+  partIM.count=i;partIM.visible=i>0;partIM.instanceMatrix.needsUpdate=true;partIM.instanceColor.needsUpdate=true;partUV.needsUpdate=true;
+}
+const redraw=pc=>{if(pc.ix>=0)instSet(pc);else partDirty=true};
+// every frame: new and reshaped pieces pop in (Backrooms' pop: from 0.82 of full size, about a ninth of a second), and the
+// edited pieces' mesh is rewritten if any of them changed
+function piecesTick(dt){
+  editGuard();
+  for(const pc of pops){pc.pop=Math.min(1,pc.pop+dt*9);redraw(pc);if(pc.pop>=1)pops.delete(pc)}
+  if(partDirty)partFlush();
+}
+function dropShape(pc){
+  for(const b of pc.boxes)hashOut(hash,b);
+  for(const r of pc.rps){hashOut(rhash,r);const i=ramps.indexOf(r);if(i>=0)ramps.splice(i,1)}
+  pc.boxes=[];pc.rps=[];
+}
+// Give a piece its shape: the boxes or ramp sheets it is made of, and how it is drawn.
+function shapePiece(pc,ed){
+  dropShape(pc);
+  const sh=pieceShape(pc.spec,ed);pc.ed=ed;pc.boxes=sh.boxes;pc.rps=sh.rps;
+  for(const b of sh.boxes){b.hv=0;b.piece=pc;hashIn(hash,b)}
+  for(const r of sh.rps){r.piece=pc;hashIn(rhash,r);ramps.push(r)}
+  if(ed){instOut(pc);if(!pc.parts)partList.push(pc);pc.parts=partsOf(pc.spec,ed);partDirty=true}
+  else{if(pc.parts){partList.splice(partList.indexOf(pc),1);pc.parts=null;partDirty=true}if(pc.ix<0)instIn(pc)}
+}
+// oid: who built it (a player's uid, a Practice bot's id, 'me' in Practice), which decides who may edit it
+function makePiece(s,oid){
+  const kind=s.kind,P=pieceInst[kind];if(P.n>=PCAP)return null;P.n++;
+  const pc={key:pieceKey(s),spec:s,kind,hp:PHP[kind],max:PHP[kind],ed:0,en:0,owner:oid||null,boxes:[],rps:[],parts:null,ix:-1,pop:1,hide:false,born:performance.now()};
+  if(kind==='wall')skirtAdd(pc);
+  shapePiece(pc,0);
+  pieces.set(pc.key,pc);bdDirty=true;return pc;
 }
 function removePiece(pc,fx){
   if(!pc||!pieces.has(pc.key))return;
-  pieces.delete(pc.key);skirtDrop(pc);
-  if(pc.solid)hashOut(hash,pc.solid);
-  if(pc.ramp){hashOut(rhash,pc.ramp);const i=ramps.indexOf(pc.ramp);if(i>=0)ramps.splice(i,1)}
-  const P=pieceInst[pc.kind],last=P.list.pop();
-  if(last!==pc){P.list[pc.ix]=last;last.ix=pc.ix;P.mesh.setMatrixAt(last.ix,pieceMatrix(last.spec));P.mesh.setColorAt(last.ix,pieceTint(last))}
-  P.mesh.count=P.list.length;P.mesh.instanceMatrix.needsUpdate=true;if(P.mesh.instanceColor)P.mesh.instanceColor.needsUpdate=true;
+  pieces.delete(pc.key);skirtDrop(pc);dropShape(pc);pops.delete(pc);pieceInst[pc.kind].n--;
+  if(pc.parts){partList.splice(partList.indexOf(pc),1);pc.parts=null;partDirty=true}else instOut(pc);
+  bdGone.set(pc.key,performance.now());bdDirty=true;
   if(fx){const c=pieceCentre(pc.spec);debris(c,0xc7955a,10);sfxBreak(1/(1+camera.position.distanceTo(c)*.07))}
 }
 function pieceCentre(s){const b=pieceBox(s);return new V3((b.min[0]+b.max[0])/2,(b.min[1]+b.max[1])/2,(b.min[2]+b.max[2])/2)}
-function clearPieces(){for(const pc of [...pieces.values()])removePiece(pc,false)}
+function clearPieces(){closeEdit();editJob=null;for(const pc of [...pieces.values()])removePiece(pc,false);bdGone.clear();bdDirty=true}
 function damagePiece(pc,amt){
   if(!pc||!pieces.has(pc.key))return;
   pc.hp-=amt;if(pc.hp<=0){removePiece(pc,true);return}
-  const P=pieceInst[pc.kind];P.mesh.setColorAt(pc.ix,pieceTint(pc));if(P.mesh.instanceColor)P.mesh.instanceColor.needsUpdate=true;
+  redraw(pc);
 }
 // three damage stages: whole, worn (darker) and nearly gone (darker still)
 function pieceTint(pc){const f=pc.hp/pc.max,k=f>.66?1:f>.33?.74:.5;return _col.setRGB(k,k*.95,k*.92)}
 function setPieceHp(pc,hp){if(pc&&pieces.has(pc.key)&&hp<pc.hp)damagePiece(pc,pc.hp-hp)}
-// owner: the entity that built it (its own builds online are sent to everyone else in the room)
-function tryBuild(s,owner,quiet){
+// a piece (or tiles put back by an edit) that lands on a body here moves the body out: out of a wall or floor the shortest
+// way (pushOut), up onto a ramp (rampLift)
+function clearBodies(pc){
+  for(const e of ents){if(!e.alive||!e.present||!e.local)continue;
+    if(pc.boxes.some(b=>overlap(e.pos.x,e.pos.y,e.pos.z,b)))pushOut(e);
+    for(const r of pc.rps)rampLift(r,e)}
+}
+// would these boxes and ramp sheets land on someone here who can't simply be nudged clear of them?
+function wouldTrap(boxes,rps){
+  for(const e of ents){if(!e.alive||!e.present||!e.local||e.st==='bus')continue;const q=e.pos;
+    for(const b of boxes)if(overlap(q.x,q.y,q.z,b)&&!nudgeOk(q,b))return true;
+    for(const r of rps)if(rampIn(r,q.x,q.y,q.z)&&!rampLiftOk(r,q))return true}
+  return false;
+}
+// The builds standing, as the host lists them in its node (bd) for someone who joins late and for anything a page missed:
+// nine characters a piece (what and which way, x, z, level, the tiles cut out, which edit of the piece that is, and who
+// built it as a place in the match's roster). A page adds the listed pieces it doesn't have and takes a listed shape that
+// is newer than its own (en); it never removes a piece because of the list (a piece the host missed stays where it is),
+// and it doesn't put back one it saw break in the last few seconds (the list is refreshed every couple of seconds at most).
+const B64='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_',BD_GRACE=8000,BD_EVERY=2000;
+function buildList(){
+  let out='';
+  for(const pc of pieces.values()){const s=pc.spec,o=roster.indexOf(pc.owner);
+    out+=(s.kind==='wall'?s.o:s.kind==='floor'?'F':'abcd'[s.dir])+B64[s.x]+B64[s.z]+B64[s.L]+B64[pc.ed>>6]+B64[pc.ed&63]+B64[pc.en>>6]+B64[pc.en&63]+B64[o>=0&&o<63?o:63]}
+  return out;
+}
+// true if every listed piece is now here in the listed (or a newer) shape
+function applyBuilds(str){
+  if(typeof str!=='string'||str.length%9||str.length>9*PCAP*3)return true;
+  let all=true;const now=performance.now();
+  for(let i=0;i<str.length;i+=9){
+    const c=str[i],v=[1,2,3,4,5,6,7,8].map(k=>B64.indexOf(str[i+k]));if(v.includes(-1))continue;
+    const s=c==='H'||c==='V'?{kind:'wall',o:c,x:v[0],z:v[1],L:v[2]}:c==='F'?{kind:'floor',x:v[0],z:v[1],L:v[2]}:'abcd'.includes(c)?{kind:'ramp',x:v[0],z:v[1],L:v[2],dir:'abcd'.indexOf(c)}:null;if(!s)continue;
+    const ed=v[3]*64+v[4],en=v[5]*64+v[6],k=pieceKey(s);let pc=pieces.get(k);
+    if(!pc){if(now-(bdGone.get(k)||-1e9)<BD_GRACE||!tryBuild(s,null,true,v[7]<roster.length?roster[v[7]]:null)){all=false;continue}pc=pieces.get(k)}
+    if(en>pc.en&&edOk(s.kind,ed))editPiece(pc,ed,true,en);
+  }
+  return all;
+}
+// owner: the entity that built it (its own builds online are sent to everyone else in the room); oid: its id, when the
+// entity isn't known here
+function tryBuild(s,owner,quiet,oid){
   if(!specValid(s))return false;
   // A piece built by this browser (you, a Practice bot) isn't placed if it would land on someone here who can't simply be nudged
   // clear of it (a floor through the head of someone standing on a ramp used to pop them up through it). Builds that arrive from
   // other players are always placed, so everyone has the same pieces.
-  if(owner&&owner.local){
-    const b=s.kind==='ramp'?null:pieceBox(s),r=b?null:{x0:s.x*4,z0:s.z*4,base:s.L*4,dir:s.dir};
-    for(const e of ents){if(!e.alive||!e.present||!e.local||e.st==='bus')continue;const q=e.pos;
-      if(b?overlap(q.x,q.y,q.z,b)&&!nudgeOk(q,b):rampIn(r,q.x,q.y,q.z)&&!rampLiftOk(r,q))return false}
-  }
-  const pc=makePiece(s);if(!pc)return false;
-  if(pc.solid)for(const e of ents)if(e.alive&&e.present&&e.local&&overlap(e.pos.x,e.pos.y,e.pos.z,pc.solid))pushOut(e);
-  if(pc.ramp)for(const e of ents)if(e.alive&&e.present&&e.local)rampLift(pc.ramp,e);
+  if(owner&&owner.local){const sh=pieceShape(s,0);if(wouldTrap(sh.boxes,sh.rps))return false}
+  const pc=makePiece(s,oid||(owner?(owner===player?myId():owner.id):null));if(!pc)return false;
+  clearBodies(pc);
+  if(!quiet&&!RM){pc.pop=0;pops.add(pc);redraw(pc)}
   if(!quiet)sfxBuild(owner===player?1:1/(1+camera.position.distanceTo(pieceCentre(s))*.08));
+  return true;
+}
+// Change a piece's shape to ed (0: whole again). Refused if no tile would be left. Tiles that come back can land on a
+// body, like a new build. en: the number of this edit (each edit of a piece has the next number, so a list of builds that
+// is a moment out of date never undoes a newer shape: see the build list).
+function editPiece(pc,ed,quiet,en){
+  if(!pc||!pieces.has(pc.key)||!edOk(pc.kind,ed))return false;
+  pc.en=en!=null?en:Math.min(4095,pc.en+1);bdDirty=true;
+  if(ed===pc.ed)return true;
+  shapePiece(pc,ed);clearBodies(pc);
+  if(!quiet&&!RM){pc.pop=.55;pops.add(pc);redraw(pc)}
+  if(!quiet)sfxBuild(1/(1+camera.position.distanceTo(pieceCentre(pc.spec))*.08));
   return true;
 }
 const ghostMat=new THREE.MeshBasicMaterial({color:0x8fe8ff,transparent:true,opacity:.28,depthWrite:false});
@@ -2205,7 +2350,7 @@ const NB1=[],NB2=[],NB3=[],NBR=[],NBQ=[],RT=.36;
 // how far up the slope (0 to 1, may be outside) the point x,z is
 function rampT(r,x,z){switch(r.dir){case 0:return(x-r.x0)/4;case 1:return(z-r.z0)/4;case 2:return(r.x0+4-x)/4;default:return(r.z0+4-z)/4}}
 // the underside of the slab at the lowest point of a body's footprint
-function rampUnder(r,x,z){return r.base+.15+4*clamp(rampT(r,x,z)-R/4,0,1)-RT}
+function rampUnder(r,x,z){return r.base+.15+4*clamp(rampT(r,x,z)-R/4,r.t0,r.t1)-RT}
 // is a body at x,y,z inside the slab: its feet more than a step below the surface under its middle (exactly where groundAt stops
 // counting the ramp as ground, so there is no gap between "standing on it" and "inside it"), its head above the underside
 function rampIn(r,x,y,z){const h=rampH(r,x,z);return h>=0&&h>y+STEP&&y+H>rampUnder(r,x,z)+.01}
@@ -2263,8 +2408,8 @@ function pushOut(e){
 // The height of a ramp's surface under a body at x,z, or -1 if the body isn't over it. Like a box, a ramp carries a body whose
 // footprint overlaps it at all (so nobody slips down past its edge into the slab); the height is taken under the body's middle.
 function rampH(r,x,z){
-  if(x+R<=r.x0||x-R>=r.x0+4||z+R<=r.z0||z-R>=r.z0+4)return -1;
-  return r.base+.15+4*clamp(rampT(r,x,z),0,1);
+  if(x+R<=r.ax0||x-R>=r.ax1||z+R<=r.az0||z-R>=r.az1)return -1;
+  return r.base+.15+4*clamp(rampT(r,x,z),r.t0,r.t1);
 }
 // The highest thing under a body at x,z that is no higher than maxY: the land (always: nothing is ever under it), a box's top or a ramp.
 function groundAt(x,z,maxY){
@@ -2322,7 +2467,7 @@ function moveEntity(e,dt){
       for(const s of NB2){if(p.x+R>s.min[0]&&p.x-R<s.max[0]&&p.z+R>s.min[2]&&p.z-R<s.max[2]&&s.min[1]>=p.y+H-.05&&s.min[1]-H<lim)lim=s.min[1]-H;
         else if(overlap(p.x,p.y,p.z,s)&&(s.min[1]+s.max[1])/2>p.y+H/2)lim=Math.min(lim,p.y)}   // already into something overhead: no higher
       near(rhash,p.x-R,p.z-R,p.x+R,p.z+R,NBQ);
-      for(const r of NBQ){if(p.x+R>r.x0&&p.x-R<r.x0+4&&p.z+R>r.z0&&p.z-R<r.z0+4){const u=rampUnder(r,p.x,p.z);if(u>=p.y+H-.05){if(u-H<lim)lim=u-H}else if(rampIn(r,p.x,p.y,p.z))lim=Math.min(lim,p.y)}}
+      for(const r of NBQ){if(p.x+R>r.ax0&&p.x-R<r.ax1&&p.z+R>r.az0&&p.z-R<r.az1){const u=rampUnder(r,p.x,p.z);if(u>=p.y+H-.05){if(u-H<lim)lim=u-H}else if(rampIn(r,p.x,p.y,p.z))lim=Math.min(lim,p.y)}}
       if(ny>lim){ny=Math.max(lim,p.y);e.vel.y=0}   // (a ceiling a hair below the head must not press the body down)
     }
     p.y=ny;
@@ -2349,7 +2494,7 @@ function rayRamp(o,d,r,maxT){
   const den=d[1]-s*d[a];if(Math.abs(den)<1e-6)return -1;
   const k=-fo/den;if(k<0||k>maxT)return -1;
   const px=o[0]+d[0]*k,pz=o[2]+d[2]*k;
-  if(px<r.x0-.01||px>r.x0+4.01||pz<r.z0-.01||pz>r.z0+4.01)return -1;
+  if(px<r.ax0-.01||px>r.ax1+.01||pz<r.az0-.01||pz>r.az1+.01)return -1;
   return k;
 }
 // (two boxes kept on the entity and refilled, since every shot's rays check every player)
@@ -3400,6 +3545,122 @@ function playerBuildSpec(type){
   }
   return landFit({kind:'ramp',x:ax,z:az,L:Math.round(p.y/4),dir},p.y<=terrainH(p.x,p.z)+.06);
 }
+/* ---------- editing builds (Backrooms' edit, on Driftfall's pieces) ----------
+   Aim at a build of yours (Driftfall has no teams, so "yours" is the ones you placed) from within EDIT_RANGE and press
+   Edit: the piece turns into its grid of tiles. Fire opens or closes the tile under the crosshair (hold and sweep for
+   several), Edit again confirms, Reload makes the piece whole again and Aim cancels. Nothing changes until you confirm,
+   and the change then takes EDIT_T seconds, during which you can't shoot or build, so an edit is never instant in a fight
+   (and you can't shoot while the grid is up). An edit costs no scrap. While you edit, only you see the grid: the tiles
+   that will be left are tinted panels and the cut ones are just outlines (three draw calls, in place of the piece's own). */
+const EDIT_RANGE=6,EDIT_T=.4;
+let edit=null,editJob=null,editAim=null,editAimT=0,editPaint=-1;
+const canEdit=pc=>!!pc&&pieces.has(pc.key)&&pc.owner!=null&&pc.owner===myId();
+const editGroup=new THREE.Group();editGroup.visible=false;scene.add(editGroup);
+const editFill=new THREE.Mesh(new THREE.BufferGeometry(),new THREE.MeshBasicMaterial({color:0x8fe8ff,transparent:true,opacity:.4,depthWrite:false,side:THREE.DoubleSide,fog:false,polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:1}));
+const editHot=new THREE.Mesh(new THREE.BufferGeometry(),new THREE.MeshBasicMaterial({color:0xffe27a,transparent:true,opacity:.5,depthWrite:false,side:THREE.DoubleSide,fog:false}));
+const editGrid=new THREE.LineSegments(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0xeaffff,transparent:true,opacity:.95,fog:false}));
+{const quads=n=>{const ix=[];for(let i=0;i<n;i++)ix.push(i*4,i*4+1,i*4+2,i*4,i*4+2,i*4+3);return ix};
+  editFill.geometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array(9*12),3));editFill.geometry.setIndex(quads(9));
+  editHot.geometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array(12),3));editHot.geometry.setIndex(quads(1));
+  editGrid.geometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array(9*24),3));
+  for(const m of [editFill,editHot,editGrid]){m.frustumCulled=false;editGroup.add(m)}}
+// corner (u,v) of a piece's tile grid, in the world: on the middle of a wall, the top of a floor or the top of a ramp
+const edV=new V3();
+function edPoint(s,u,v){
+  const n=ED_N[s.kind],q=4/n,x0=s.x*4,z0=s.z*4,y0=s.L*4;
+  if(s.kind==='wall')return s.o==='H'?edV.set(x0+u*q,y0+v*q,z0):edV.set(x0,y0+v*q,z0+u*q);
+  if(s.kind==='floor')return edV.set(x0+u*q,y0+.13,z0+v*q);
+  const t=u/n,c=v*q,y=y0+.17+4*t;
+  return s.dir===0?edV.set(x0+4*t,y,z0+c):s.dir===1?edV.set(x0+c,y,z0+4*t):s.dir===2?edV.set(x0+4-4*t,y,z0+c):edV.set(x0+c,y,z0+4-4*t);
+}
+function edQuad(s,i,arr3,o){const n=ED_N[s.kind],u=i%n,v=Math.floor(i/n);[[u,v],[u+1,v],[u+1,v+1],[u,v+1]].forEach(([a,b],k)=>{const p=edPoint(s,a,b);arr3[o+k*3]=p.x;arr3[o+k*3+1]=p.y;arr3[o+k*3+2]=p.z})}
+function editDraw(){
+  const s=edit.pc.spec,n=ED_N[s.kind],fp=editFill.geometry.attributes.position;let k=0;
+  for(let i=0;i<n*n;i++)if(!(edit.mask>>i&1))edQuad(s,i,fp.array,12*k++);
+  fp.needsUpdate=true;editFill.geometry.setDrawRange(0,k*6);
+  editHot.visible=edit.hot>=0;
+  if(edit.hot>=0){const hp=editHot.geometry.attributes.position;edQuad(s,edit.hot,hp.array,0);hp.needsUpdate=true}
+}
+// the tile the crosshair is on (-1: none): where the line of sight meets the piece's own plane, cut tiles included
+function editTile(){
+  const s=edit.pc.spec,n=ED_N[s.kind],q=4/n,o=camera.position,d=fwdOf(player.yaw,player.pitch);let u,v,k;
+  if(s.kind==='wall'){
+    const H_=s.o==='H',dn=H_?d.z:d.x;if(Math.abs(dn)<1e-6)return -1;
+    k=((H_?s.z*4-o.z:s.x*4-o.x))/dn;if(k<0)return -1;
+    u=((H_?o.x+d.x*k-s.x*4:o.z+d.z*k-s.z*4))/q;v=(o.y+d.y*k-s.L*4)/q;
+  }else if(s.kind==='floor'){
+    if(Math.abs(d.y)<1e-6)return -1;k=(s.L*4-o.y)/d.y;if(k<0)return -1;
+    u=(o.x+d.x*k-s.x*4)/q;v=(o.z+d.z*k-s.z*4)/q;
+  }else{
+    k=rayRamp(arr(o),arr(d),edit.frame,60);if(k<0)return -1;
+    const x=o.x+d.x*k,z=o.z+d.z*k;u=rampT(edit.frame,x,z)*n;v=(s.dir%2===0?z-s.z*4:x-s.x*4)/q;
+  }
+  u=Math.floor(u);v=Math.floor(v);return u<0||v<0||u>=n||v>=n?-1:v*n+u;
+}
+// the build the crosshair is on, if it is close enough to edit (measured from you, not from the camera behind you)
+function editTarget(){
+  if(!player.alive||player.st!=='ground')return null;
+  const d=fwdOf(player.yaw,player.pitch),st=camera.position.clone().addScaledVector(d,camDist);
+  const r=raycast(arr(st),arr(d),EDIT_RANGE,player,false);
+  return r.hit&&r.hit.kind==='piece'?r.hit.piece:null;
+}
+// quiet: say nothing when there is nothing to edit (the Open / Take key doubles as Edit when nothing is in reach)
+function openEdit(quiet){
+  if(edit||editJob||!canLook())return false;
+  const pc=editTarget();
+  if(!pc){if(!quiet)hint2('Aim at a build of yours, up close');return false}
+  if(!canEdit(pc)){if(!quiet)hint2('That build is someone else’s');return false}
+  const s=pc.spec,n=ED_N[s.kind],gp=editGrid.geometry.attributes.position;
+  edit={pc,mask:pc.ed,hot:-1,frame:s.kind==='ramp'?pieceShape(s,0).rps[0]:null};
+  for(let i=0;i<n*n;i++){const u=i%n,v=Math.floor(i/n);[[u,v],[u+1,v],[u+1,v],[u+1,v+1],[u+1,v+1],[u,v+1],[u,v+1],[u,v]].forEach(([a,b],k)=>{const p=edPoint(s,a,b);gp.setXYZ(i*8+k,p.x,p.y,p.z)})}
+  gp.needsUpdate=true;editGrid.geometry.setDrawRange(0,n*n*8);
+  mode='edit';editPaint=-1;editAim=null;player.reloadT=0;player.useT=0;tAct.aim=false;lastHud='';
+  pc.hide=true;redraw(pc);editGroup.visible=true;editDraw();
+  return true;
+}
+function closeEdit(){
+  if(!edit)return;
+  const pc=edit.pc;pc.hide=false;if(pieces.has(pc.key))redraw(pc);
+  edit=null;editGroup.visible=false;if(mode==='edit')mode='combat';lastHud='';
+}
+// whole: put it back as built. The change itself lands EDIT_T seconds later (see updateEdit).
+function confirmEdit(whole){
+  if(!edit)return;
+  const pc=edit.pc,m=whole?0:edit.mask;
+  if(!edOk(pc.kind,m)){hint2('Leave at least one tile');return}
+  closeEdit();
+  if(m===pc.ed)return;
+  editJob={pc,mask:m,t:EDIT_T};player.cd=Math.max(player.cd,EDIT_T);buildCd=Math.max(buildCd,EDIT_T);
+}
+function editKey(){if(edit)confirmEdit(false);else openEdit(false)}
+// every frame: an edit (or one about to land) is dropped if you are no longer playing, or its piece is gone
+function editGuard(){
+  if(!edit&&!editJob)return;
+  const live=canLook()&&player.st==='ground';
+  if(edit&&!(live&&mode==='edit'&&!bigMap&&pieces.has(edit.pc.key)&&pieceCentre(edit.pc.spec).distanceTo(player.pos)<EDIT_RANGE+4))closeEdit();
+  if(editJob&&!(live&&pieces.has(editJob.pc.key)))editJob=null;
+}
+function updateEdit(dt){
+  if(editJob&&(editJob.t-=dt)<=0){
+    const j=editJob,pc=j.pc;editJob=null;
+    // the trap rule, as for a new piece: tiles are not put back onto someone here who can't simply be nudged clear
+    const sh=pieceShape(pc.spec,j.mask);
+    if(wouldTrap(sh.boxes,sh.rps))hint2('Someone is standing in the way');
+    else if(editPiece(pc,j.mask))sendEv({k:'b',s:pc.spec,ed:pc.ed,n:pc.en},player);   // an edit travels as the build message for that spot again, with ed (the tiles cut out) and n (which edit of the piece it is)
+  }
+  if(edit){
+    const i=editTile();let dirty=i!==edit.hot;edit.hot=i;
+    if(!firing())editPaint=-1;
+    else if(i>=0){
+      if(editPaint<0)editPaint=edit.mask>>i&1?0:1;
+      if((edit.mask>>i&1)!==editPaint){edit.mask^=1<<i;dirty=true;tone('square',editPaint?520:700,editPaint?400:820,.035,.05)}
+    }
+    if(dirty)editDraw();
+  }else if(mode==='combat'&&pieces.size){
+    // a few times a second: is the crosshair on a build of yours? (the hint, and the Edit button on a touch screen)
+    if((editAimT-=dt)<=0){editAimT=.12;const t=editTarget();editAim=canEdit(t)?t:null}
+  }else editAim=null;
+}
 function moveInput(e){
   const f=fwdOf(e.yaw,0),r=rightOf(e.yaw);
   let fw=(held('forward')?1:0)-(held('back')?1:0),st=(held('right')?1:0)-(held('left')?1:0),mag=1;
@@ -3426,10 +3687,11 @@ function updatePlayer(dt){
   if(input&&mode==='combat'&&firing())useHeld(p);
   const s=heldItem(p),w=heldW(p);if(w&&s.n===0&&p.cd<=0&&p.reloadT<=0)startReload(p);
   autoPickup(p,dt);
-  buildCd-=dt;hideGhosts();
+  buildCd-=dt;hideGhosts();updateEdit(input?dt:0);
   if(input&&mode==='build'){
     const sp=playerBuildSpec(buildType);const ok=specValid(sp)&&p.mats>=COST;const g=ghosts[buildType];
-    g.matrix.copy(pieceMatrix(sp));g.visible=true;ghostMat.color.setHex(ok?0x8fe8ff:0xff6a5a);ghostEdge.color.setHex(ok?0xbff3ff:0xffb0a6);
+    g.matrix.copy(pieceMatrix(sp));g.visible=true;
+    if(sp.kind==='wall'){const sk=skirtOf(sp);if(sk>0){g.matrix.scale(_pv.set(1,(4+sk)/4,1));g.matrix.elements[13]-=sk/2}}   // what you will get: the wall and the skirt under itghostMat.color.setHex(ok?0x8fe8ff:0xff6a5a);ghostEdge.color.setHex(ok?0xbff3ff:0xffb0a6);
     if(firing()&&ok&&buildCd<=0){if(tryBuild(sp,p)){p.mats-=COST;sendEv({k:'b',s:sp},p)}buildCd=.09}
   }
   stormDamage(p,dt,t);
@@ -3624,12 +3886,26 @@ function updateBot(b,dt,t){
   if((mx||mz)&&moved<spd*dt*.3){ai.stuck+=dt;if(ai.stuck>.35&&b.onGround&&ai.jumpCd<=0){b.vel.y=JUMP;b.onGround=false;ai.jumpCd=.8}
     if(ai.stuck>.5&&!(ai.dodge>0)){ai.dodgeDir=ai.dodgeDir>0?-1:1;ai.dodge=.55}
     // stuck against something breakable in the way: break through it (a few tries, then go another way as before)
-    if(ai.stuck>.7&&(ai.brk|0)<10&&b.cd<=0&&b.useT<=0){const L=Math.hypot(mx,mz),dr=[mx/L,0,mz/L],o=[b.pos.x,b.pos.y+1,b.pos.z],hr=raycast(o,dr,1.6,null,false),h=hr.hit;
-      if(h&&(h.kind==='piece'||mpAt(h.s,[o[0]+dr[0]*hr.t,o[1],o[2]+dr[2]*hr.t]))){ai.brk=(ai.brk|0)+1;b.yaw=yawTo(dr[0],dr[2]);b.pitch=-.2;const w=heldW(b),s=heldItem(b);
-        if(w&&s.n>0&&b.reloadT<=0){botShoot(b,w,s);s.n--;b.cd=w.rate*1.9+.08}else{botShoot(b,null,null);b.cd=CROW.rate*1.5}ai.stuck=.4}}
+    if(ai.stuck>.7&&(ai.brk|0)<10&&b.cd<=0&&b.useT<=0){const L=Math.hypot(mx,mz);if(botBreak(b,[mx/L,0,mz/L],1.6,false))ai.stuck=.4}
     if(ai.stuck>2.2){ai.stuck=0;if(STUCK_LOG)STUCK_LOG.push([b.id,r1(b.pos.x),r1(b.pos.y),r1(b.pos.z),r1(b.pos.y-terrainH(b.pos.x,b.pos.z)),r2(terrainSlope(b.pos.x,b.pos.z)),footprints.some(f=>b.pos.x>f.x0-1.5&&b.pos.x<f.x1+1.5&&b.pos.z>f.z0-1.5&&b.pos.z<f.z1+1.5)?'bld':'open',ai.goal?r1(ai.goal.x)+','+r1(ai.goal.z)+(ai.goal.chest?' chest':ai.goal.item?' item':ai.goal.storm?' storm':''):'']);const k=goalKey(ai.goal);if(k)ai.bad.set(k,performance.now()+25000);const a=Math.random()*Math.PI*2;setGoal(b,{x:clamp(b.pos.x+Math.cos(a)*14,10,MAP-10),z:clamp(b.pos.z+Math.sin(a)*14,10,MAP-10)});ai.wander=3}}
   else{ai.stuck=Math.max(0,ai.stuck-dt);if(moved>spd*dt*.6)ai.brk=0}
+  // sliding to and fro along a line of builds without getting any nearer the goal (stepping aside never comes to a stop, so
+  // the bot never counted as stuck): after two seconds of that, break through the build that is in the way
+  if(!tg&&ai.goal&&(mx||mz)){const g=ai.path.length?ai.path[0]:ai.goal,dG=Math.hypot(g.x-b.pos.x,g.z-b.pos.z);
+    if(g!==ai.pG||dG<ai.pD-.6){ai.pG=g;ai.pD=dG;ai.pT=0}
+    else if((ai.pT+=dt)>2&&b.cd<=0&&b.useT<=0&&dG>.1){if(botBreak(b,[(g.x-b.pos.x)/dG,0,(g.z-b.pos.z)/dG],2.4,true)){ai.dodge=0;ai.pT=1.3}else if(ai.pT>5)ai.pT=0}}
   stormDamage(b,dt,t);
+}
+// A bot hits or shoots the breakable thing in its way, dr (a build, or unless builds is set a wall, a tree...). An edited
+// build can hold a body by its upper or its lower part alone (a hole too low to walk through, a sill), so builds are
+// looked for at head and shin height too. True if it struck.
+function botBreak(b,dr,far,builds){
+  const o=[b.pos.x,b.pos.y+1,b.pos.z];let hr=raycast(o,dr,far,null,false),h=hr.hit,pt=-.2;
+  if(!h)for(const yy of [1.5,.3]){o[1]=b.pos.y+yy;const q=raycast(o,dr,far,null,false);if(q.hit&&q.hit.kind==='piece'){hr=q;h=q.hit;pt=Math.atan2(yy-EYE,Math.max(.4,q.t));break}}
+  if(!h||!(h.kind==='piece'||(!builds&&mpAt(h.s,[o[0]+dr[0]*hr.t,o[1],o[2]+dr[2]*hr.t]))))return false;
+  b.ai.brk=(b.ai.brk|0)+1;b.yaw=yawTo(dr[0],dr[2]);b.pitch=pt;const w=heldW(b),s=heldItem(b);
+  if(w&&s.n>0&&b.reloadT<=0){botShoot(b,w,s);s.n--;b.cd=w.rate*1.9+.08}else{botShoot(b,null,null);b.cd=CROW.rate*1.5}
+  return true;
 }
 function botShoot(b,w,s){
   const camF=fwdOf(b.yaw,b.pitch),cp=b.pos.clone().add(new V3(0,EYE,0));
@@ -3645,7 +3921,7 @@ function resetEnt(e){
 function setupMatch(ms){
   curMatch=ms.id;seed=ms.sd>>>0;roster=String(ms.ro||'').split(',').filter(Boolean).slice(0,MAX_ROOM);
   busLine=makeBus(seed);storm=makeStorm(seed);
-  clearPieces();resetMap();Net.brApplied='';spawnLoot();bits.length=0;
+  clearPieces();resetMap();Net.brApplied='';Net.bdApplied='';Net.bdStr='';Net.bdAt=0;spawnLoot();bits.length=0;
   Net.oc=[];Net.pk=[];endShown=0;myResult=null;myKills=0;watchMode=false;specId=null;matchStartAt=performance.now();
   hud.feed.innerHTML='';
   inMatch=roster.includes(myId());
@@ -3727,7 +4003,15 @@ function handleEvent(from,e){
       const pt=[h[3],h[4],h[5]].every(n=>typeof n==='number'&&isFinite(n))?new V3(h[3],h[4],h[5]):victim.pos.clone().add(new V3(0,1.2,0));
       damageEntity(victim,d,!!h[2],actorId,pt,String(e.w));
     }
-  }else if(e.k==='b'){const s=cleanSpec(e.s);if(s)tryBuild(s,actor)}
+  }else if(e.k==='b'){const s=cleanSpec(e.s);if(s){
+    if(e.ed==null)tryBuild(s,actor,false,actorId);
+    else if(Number.isInteger(e.ed)&&Number.isInteger(e.n)&&e.n>0&&e.n<4096){
+      // an edit: only from whoever built the piece, and only one newer than the shape this page has. A piece this page never
+      // got (a missed build) is put up first, unless it was seen to break a moment ago.
+      const k=pieceKey(s);let pc=pieces.get(k);
+      if(!pc&&edOk(s.kind,e.ed)&&!(performance.now()-(bdGone.get(k)||-1e9)<BD_GRACE)&&tryBuild(s,actor,true,actorId))pc=pieces.get(k);
+      if(pc&&pc.owner===actorId&&e.n>pc.en)editPiece(pc,e.ed,false,e.n);
+    }}}
   else if(e.k==='o'){const c=chests[e.c|0];if(c)openChest(c)}
   else if(e.k==='u'){removeItem(String(e.id))}
   else if(e.k==='dr'){const it=cleanItem(e.it);if(it)addItem(it)}
@@ -3772,7 +4056,7 @@ function onNode(uid,v){
   Net.others.set(uid,{v,ts:+v.ts||0});
   const e=remotes.get(uid)||makeRemote(uid,v);
   applyNode(e,v);
-  if(uid===Net.hostUid&&!Net.amHost){if(validMS(v.ms))Net.lastMS=v.ms;if(v.br&&typeof v.br==='object')Net.lastBR=v.br}
+  if(uid===Net.hostUid&&!Net.amHost){if(validMS(v.ms))Net.lastMS=v.ms;if(v.br&&typeof v.br==='object')Net.lastBR=v.br;Net.lastBD=v.bd&&typeof v.bd==='object'?v.bd:null}
   if(fresh){Net.lastEv.set(uid,maxEv(v.ev));if(Net.now()-(+v.ts||0)<LIVE_MS&&performance.now()-Net.joinedAt>2500){feed(esc(cleanName(v.n))+' joined','info');sfxJoin()}}
   else if(v.ev&&typeof v.ev==='object'){
     const last=Net.lastEv.get(uid)||0;let any=false;for(const k in v.ev){const x=v.ev[k];if(x&&typeof x.i==='number'&&x.i>last){any=true;break}}
@@ -3851,7 +4135,7 @@ function loadScript(src){return new Promise((res,rej)=>{const s=document.createE
 const stCode=()=>!curMatch?'l':!inMatch?'o':ST_TO[player.st]||'o';
 const Net={
   ready:false,uid:null,db:null,offset:0,room:null,refs:null,loaded:false,quick:false,j:0,joinedAt:0,others:new Map(),amHost:false,hostUid:null,prevHost:null,
-  stale:false,oldN:0,lastBR:null,brApplied:'',pubTimer:0,tickTimer:0,lastPub:0,lastBeat:0,soon:false,evSeq:0,evOut:[],lastSent:{},lastEv:new Map(),recon:new Map(),oc:[],pk:[],lastMS:null,
+  stale:false,oldN:0,lastBR:null,brApplied:'',lastBD:null,bdApplied:'',bdTry:0,bdAt:0,bdStr:'',pubTimer:0,tickTimer:0,lastPub:0,lastBeat:0,soon:false,evSeq:0,evOut:[],lastSent:{},lastEv:new Map(),recon:new Map(),oc:[],pk:[],lastMS:null,
   now(){return Date.now()+this.offset},
   async init(){
     if(this.ready)return;
@@ -3877,6 +4161,7 @@ const Net={
     if(curMatch){o.oc=this.oc.join('.');o.pk=this.pk.slice(-400).join(',')}
     if(this.amHost&&MS)o.ms=MS.mv===mapV?MS:Object.assign({},MS,{mv:mapV});
     if(this.amHost&&curMatch&&brokenN)o.br={m:curMatch,b:brokenBits()};   // what's broken on the island, for late joiners and the next host
+    if(this.amHost&&curMatch){const t=performance.now();if(bdDirty&&t-this.bdAt>=BD_EVERY){bdDirty=false;this.bdAt=t;this.bdStr=buildList()}if(this.bdStr)o.bd={m:curMatch,s:this.bdStr}}   // the builds standing (see buildList)
     return o;
   },
   async peek(room){
@@ -3888,7 +4173,7 @@ const Net={
     await this.init();
     const info=await this.peek(room);
     if(info.n>=MAX_ROOM)throw new Error('That room is full ('+MAX_ROOM+' players). Pick another code.');
-    this.room=room;this.quick=!!quick;this.others.clear();this.lastEv.clear();this.recon.clear();this.amHost=false;this.hostUid=null;this.prevHost=null;this.lastMS=null;this.lastBR=null;this.brApplied='';this.lastSent={};this.evOut=[];
+    this.room=room;this.quick=!!quick;this.others.clear();this.lastEv.clear();this.recon.clear();this.amHost=false;this.hostUid=null;this.prevHost=null;this.lastMS=null;this.lastBR=null;this.brApplied='';this.lastBD=null;this.bdApplied='';this.bdStr='';this.bdAt=0;this.lastSent={};this.evOut=[];
     const roomRef=this.db.ref('rooms/'+room);
     this.refs={room:roomRef,players:roomRef.child('players'),me:roomRef.child('players/'+this.uid)};
     this.j=Math.round(this.now());this.evSeq=this.j;this.joinedAt=performance.now();
@@ -3958,6 +4243,10 @@ function onlineTick(){
   followMS();
   // the host's list of broken pieces (a late joiner, or anything this browser missed)
   const br=Net.lastBR;if(curMatch&&br&&br.m===curMatch&&typeof br.b==='string'&&br.b!==Net.brApplied){Net.brApplied=br.b;applyBits(br.b)}
+  // the host's list of builds (the same: a late joiner, or a build or an edit this browser missed); tried again for a while if
+  // a listed piece can't go up yet (the map piece in its way hasn't been taken down here yet, or it broke here a moment ago)
+  if(!Net.amHost){const bd=Net.lastBD;if(curMatch&&bd&&bd.m===curMatch&&typeof bd.s==='string'&&(bd.s!==Net.bdApplied||(Net.bdTry>0&&Net.bdTry<40))){
+    if(bd.s!==Net.bdApplied){Net.bdApplied=bd.s;Net.bdTry=0}Net.bdTry=applyBuilds(bd.s)?0:Net.bdTry+1}}
   // a player whose node stops updating counts as gone
   if(settled&&curMatch)for(const e of remotes.values())if(roster.includes(e.id)&&e.alive&&!Net.live(e.id,12000)&&performance.now()-matchStartAt>12000){e.alive=false;e.present=false;e.st='dead'}
   if(lobbyDirty)renderLobby();
@@ -3998,7 +4287,8 @@ function updateHud(dt){
     $('slotX').classList.toggle('on',mode==='combat'&&p.sel<0);$('slotX').querySelector('.nm').textContent=touchUI?'Bar':'Crowbar';slotIcon($('slotX'),'cb');
     for(const k of ['wall','floor','ramp']){const el=$('slot'+k);el.classList.toggle('on',mode==='build'&&buildType===k);slotIcon(el,k);el.classList.toggle('cant',p.mats<COST)}
     hud.ammo.innerHTML=w?`<span class="wn" style="color:${RARH[s.r|0]}">${RAR[s.r|0]} ${w.name}</span><span><b>${s.n}</b><small> / ${p.ammo[w.am]}</small></span>`:'';hud.ammo.hidden=!w;if(w)hud.ammo.classList.toggle('low',s.n<=Math.max(1,w.mag*.25));
-    hud.hint.hidden=mode!=='build';if(mode==='build')hud.hint.textContent='Build · '+buildType+(p.mats<COST?' · needs '+COST+' scrap':touchUI?' · tap Fire to place':' · click to place');
+    hud.hint.hidden=mode==='combat';if(mode==='build')hud.hint.textContent='Build · '+buildType+(p.mats<COST?' · needs '+COST+' scrap':touchUI?' · hold Place':' · hold to place');
+    else if(mode==='edit'){const kn=a=>KB.name(KB.keys(a)[0]||'').toUpperCase();hud.hint.textContent=touchUI?'Edit · Tile cuts or fills · Done':'Edit · click tiles · '+kn('edit')+' done · '+kn('reload')+' whole · '+kn('aim')+' cancel'}
   }
   hud.reload.hidden=!(p.reloadT>0);if(p.reloadT>0&&w)hud.reloadF.style.width=(100*(1-p.reloadT/wReload(w,s.r)))+'%';
   hud.useBar.hidden=!(p.useT>0);if(p.useT>0){const it=p.inv[p.useSlot];if(it&&HEALS[it.t]){hud.useLbl.textContent='Using '+HEALS[it.t].name;hud.useFill.style.width=(100*(1-p.useT/HEALS[it.t].use))+'%'}}
@@ -4009,8 +4299,11 @@ function updateHud(dt){
     if(reach.c){pr=k+'Open chest';tl='OPEN'}
     else{const it=reach.it,nm=(WEAP[it.t]?RAR[it.r|0]+' ':'')+itemName(it.t)+(it.n>1&&!WEAP[it.t]?' ×'+it.n:'');const take=canTake(p,it);pr=k+(take?'Take ':'Swap for ')+`<span style="color:${WEAP[it.t]?RARH[it.r|0]:'inherit'}">${esc(nm)}</span>`;tl=take?'TAKE':'SWAP'}
   }
+  else if(editAim&&mode==='combat'&&!lobbyShown&&!touchUI)pr=`<kbd>${esc(KB.name(KB.keys('edit')[0]||KB.keys('use')[0]||''))}</kbd>Edit`;   // the crosshair is on a build of yours
   hud.prompt.hidden=!pr;if(pr&&hud.prompt.innerHTML!==pr)hud.prompt.innerHTML=pr;
-  if(touchUI){const u=$('tUse');u.hidden=!tl;if(tl&&u.textContent!==tl)u.textContent=tl;hudSet($('tFire'),'#tf',mode==='build'?'PLACE':(s&&HEALS[s.t]?'USE':!w?'HIT':'FIRE'));$('tAim').classList.toggle('on',!!tAct.aim)}
+  if(touchUI){const u=$('tUse');u.hidden=!tl;if(tl&&u.textContent!==tl)u.textContent=tl;const ed=mode==='edit';
+    hudSet($('tFire'),'#tf',ed?'TILE':mode==='build'?'PLACE':(s&&HEALS[s.t]?'USE':!w?'HIT':'FIRE'));hudSet($('tEdit'),'#te',ed?'DONE':'EDIT');hudSet($('tReload'),'#tr',ed?'WHOLE':'RELOAD');hudSet($('tAim'),'#ta',ed?'CANCEL':'AIM');
+    const te=$('tEdit'),sh=ed||(!!editAim&&mode==='combat');if(te.hidden===sh)te.hidden=!sh;$('tAim').classList.toggle('on',!!tAct.aim)}
   const ads=isADS(),scoped=ads&&w&&w.fam==='sr',sgt=ads&&w?w.id:'';
   if(sgt!==sightKey){sightKey=sgt;hud.scope.hidden=!scoped;hud.sight.hidden=!sgt||scoped;
     if(sgt){(scoped?hud.scopeR:hud.sightR).innerHTML=SIGHT[sgt]||'';if(scoped){const c=SCOPE[sgt]||SCOPE.sr;hud.scope.style.setProperty('--r',c[0]);hud.scope.style.setProperty('--rim',c[1]);hud.scope.style.setProperty('--tint',c[2])}}}
@@ -4328,7 +4621,7 @@ function frame(now){
   if(touchUI)document.body.classList.toggle('inlobby',lobbyShown);
   updateDnums(running?dt:0);
   if(bannerTimer>0){bannerTimer-=dt;if(bannerTimer<=0)hud.banner.hidden=true}
-  mpFlush();
+  piecesTick(dt);mpFlush();
   if(!window.__noRender){syncLimbs();drawScene()}
   cpuMs=cpuMs*.95+(performance.now()-t0)*.05;
   requestAnimationFrame(frame);
@@ -4357,6 +4650,7 @@ const KB=Keybinds.create({
     {id:'wall',label:'Build a wall',group:'Build',keys:['KeyQ','KeyZ']},
     {id:'floor',label:'Build a floor',group:'Build',keys:['KeyF','KeyX']},
     {id:'ramp',label:'Build a ramp',group:'Build',keys:['KeyC','KeyE']},
+    {id:'edit',label:'Edit a build of yours',note:'Aim at it up close: tiles appear. Fire opens or closes a tile, Edit again confirms, Reload makes it whole, Aim cancels. Open / pick up does it too when nothing is in reach',group:'Build',keys:['KeyH']},
     {id:'map',label:'Big map',group:'Match',keys:['KeyM']},
     {id:'lookUp',label:'Look up',group:LOOK,keys:['ArrowUp']},
     {id:'lookDown',label:'Look down',group:LOOK,keys:['ArrowDown']},
@@ -4416,9 +4710,12 @@ function pressCode(c,key,repeat){
   else if(KB.is('crowbar',c)){selectSlot(player,-1);mode='combat'}
   else if(bi>=0&&player.st==='ground'){mode='build';buildType=BUILDS[bi];player.reloadT=0;player.useT=0;lastHud=''}
   else if(KB.is('build',c)&&!repeat)toggleBuild();
+  else if(KB.is('edit',c)){if(!repeat)editKey()}
+  else if(KB.is('aim',c)&&mode==='edit'){if(!repeat)closeEdit()}
   else if(key&&KB.is('aim',c)&&mode==='build'&&!repeat){mode='combat';lastHud=''}
+  else if(KB.is('reload',c)&&mode==='edit'){if(!repeat)confirmEdit(true)}
   else if(KB.is('reload',c)&&mode==='combat')startReload(player);
-  else if(KB.is('use',c)&&!repeat)interact(player);
+  else if(KB.is('use',c)&&!repeat){if(edit)confirmEdit(false);else if(reachable(player)||!openEdit(true))interact(player)}   // Open / Take, or Edit when nothing is in reach
   else if(c==='Escape'){if(bigMap)setBigMap(false);else if(!locked)pauseGame()}
   else if(KB.is('pause',c))pauseGame();
 }
@@ -4468,8 +4765,10 @@ function tButton(el,down,up){
 }
 tButton($('tFire'),()=>{if(canAct())tAct.fire=true},()=>{tAct.fire=false});
 tButton($('tJump'),()=>{if(canAct())tAct.jump=true},()=>{tAct.jump=false});
-tButton($('tAim'),()=>{if(canAct()){tAct.aim=!tAct.aim;if(tAct.aim)mode='combat'}},()=>{$('tAim').classList.toggle('on',!!tAct.aim)});
-tButton($('tReload'),()=>{if(canAct()&&mode==='combat')startReload(player)});
+tButton($('tAim'),()=>{if(!canAct())return;if(mode==='edit'){closeEdit();return}tAct.aim=!tAct.aim;if(tAct.aim)mode='combat'},()=>{$('tAim').classList.toggle('on',!!tAct.aim)});
+tButton($('tReload'),()=>{if(!canAct())return;if(mode==='edit')confirmEdit(true);else if(mode==='combat')startReload(player)});
+// Edit: shown when the crosshair is on a build of yours; while editing it reads Done (and Fire reads Tile, Reload Whole, Aim Cancel)
+tButton($('tEdit'),()=>{if(canAct())editKey()});
 tButton($('tUse'),()=>{if(canAct())interact(player)});
 tButton($('tPause'),()=>{tAct.aim=false;pauseGame()});
 tButton($('tNext'),()=>{if(isSpectating())cycleSpectate()});
@@ -4659,10 +4958,10 @@ if(navigator.webdriver)window.__dz={get state(){return state},get online(){retur
   give(t,r){takeItem(player,{t,r:r|0,n:WEAP[t]?WEAP[t].mag:HEALS[t]?1:t==='mt'?100:60})},
   fire(){const w=heldW(player),s=heldItem(player);updateCamera(0);playerShoot();if(s&&w)s.n=w.mag;player.cd=0},
   draws(){return renderer.info.render.calls},
-  setNoRender(v){window.__noRender=!!v},onNode,updateRemotes,renderOnce(){mpFlush();syncLimbs();drawScene()},get fxTier(){return fxTier},set fxTier(v){fxTier=v},get lookKey(){return lookKey},mpieces,mpBreak,mpSetHp,resetMap,mpAt,allRuns,brokenBits,applyBits,sendEv,get brokenN(){return brokenN},hash,setMapV(v){mapV=v},get mapV(){return mapV},mapSize:MAP,ICONS,paintControl,get mapBg(){if(!mapBg)buildMapBg();return mapBg},removePiece,wallSpec,pushOut,SPEED,AIR,BODY:{R,H},buildings,rampIn,updateBots,updatePlayer,
+  setNoRender(v){window.__noRender=!!v},onNode,updateRemotes,renderOnce(){piecesTick(0);mpFlush();syncLimbs();drawScene()},get fxTier(){return fxTier},set fxTier(v){fxTier=v},get lookKey(){return lookKey},mpieces,mpBreak,mpSetHp,resetMap,mpAt,allRuns,brokenBits,applyBits,sendEv,get brokenN(){return brokenN},hash,setMapV(v){mapV=v},get mapV(){return mapV},mapSize:MAP,ICONS,paintControl,get mapBg(){if(!mapBg)buildMapBg();return mapBg},removePiece,wallSpec,pushOut,SPEED,AIR,BODY:{R,H},buildings,rampIn,updateBots,updatePlayer,
   GUN_GEO,GUN_TIP,GUN_OCT,RTAG,MAT,gunIM,itemIM,flashes,trs,bits,animModel,gunTip,startReload,tickWeapon,sfxShot,sfxReload,sfxPump,sfxBolt,sfxSwitch,isADS,KICK,
   STUCK_LOG,landPath,landClear,navShut,NAVN,updateBots,updatePlayer,step(dt){pClock+=dt*1000;practiceTick(dt);if(inPlay()){updatePlayer(dt);updateBots(dt)}},
-  landOk,landFit,landUnder,skirtOf,skirtList,pieceBox,terrainH,walkH,terrainSlope,rayTerrain,TH,TN,TS,TM,LVL,LAKE,PADS,SHED_Y,chestSpots,floorSpots,buildings,footprints,get groundMesh(){return groundMesh},
+  landOk,landFit,landUnder,skirtOf,skirtList,pieceBox,buildList,applyBuilds,handleEvent,get bdDirty(){return bdDirty},bdGone,ED_N,edRects,edOk,pieceShape,partsOf,partList,partIM,pieceInst,editPiece,wouldTrap,openEdit,closeEdit,confirmEdit,editKey,editTarget,editTile,updateEdit,canEdit,pieceMatrix,pieceCentre,EDIT_T,EDIT_RANGE,pressCode,get edit(){return edit},get editJob(){return editJob},get editAim(){return editAim},get buildCd(){return buildCd},rampH,rampAt,rampBlocked,solidAt,rayRamp,rhash,COST,JUMP,GRAV:G,STEP,RT,MAXL,terrainH,walkH,terrainSlope,rayTerrain,TH,TN,TS,TM,LVL,LAKE,PADS,SHED_Y,chestSpots,floorSpots,buildings,footprints,get groundMesh(){return groundMesh},
   Locker,LOCKER_ON,OUTFITS,bodyGeo,LEG_GEO,legIM,fitLegIM,fitLegGeo,makeModel,setModelColor,legSpec,STD_LEGS,fitOf,hitboxes,TKON,PCOLS,SKINS,get mySkin(){return mySkin}};
 
 requestAnimationFrame(t=>{last=t;frame(t)});
