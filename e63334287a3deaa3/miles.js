@@ -140,7 +140,7 @@
   // Accounts the admin page has merged into one person share the award (see awardsOf), so list any one of them: the
   // one the Leaderboards show.
   var AWARDS = {
-    'EpYqfXPGCnR5PQ0X0iRcMTbuwzz2': ['updraft']   // Morgan ("morgan"): the most Updraft play time on the boards and the first to its Crown
+    'EpYqfXPGCnR5PQ0X0iRcMTbuwzz2': ['updraft']   // Morgan ("morgan"): first on the Miles board, the most Updraft play time and the first to its Crown
   };
   var LAP_PER_TRACK = 200, LAP_CAP = 2000, LAP_WINDOW = 2.5, REC_EACH = 100, REC_CAP = 1000;
 
@@ -277,11 +277,20 @@
       for (var i = 0; i < kids.length && !t; i++) t = kids[i].tagName === 'SPAN' && kids[i].scrollWidth > kids[i].clientWidth;
       return t;
     }
-    if (!tight()) return;
+    var aw = !!w.querySelector('.bra-aw');
+    if (!tight()) {
+      // Room for everything, but a row that wraps (your own Online row) may have found it by taking a second line: an
+      // award's words must never make a row taller, so they go if the boxes around the badge are shorter without them.
+      if (!aw) return;
+      var was = heights(w); w.classList.add('bra-tw-a'); var now = heights(w);
+      if (!now.some(function (h, i) { return h < was[i]; })) w.classList.remove('bra-tw-a');
+      return;
+    }
     // An award's ribbon folds away first (bra-tw-a: just its medal), then the tags' words go as well.
-    if (w.querySelector('.bra-aw')) { w.classList.add('bra-tw-a'); if (!tight()) return; }
+    if (aw) { w.classList.add('bra-tw-a'); if (!tight()) return; }
     w.classList.add('bra-tw-s');
   }
+  function heights(w) { var out = [], e = w.parentNode; for (var i = 0; i < 4 && e && e.nodeType === 1 && e !== document.body; i++, e = e.parentNode) out.push(e.offsetHeight); return out; }
   function fitRun() { fitT = 0; var q = fitQ; fitQ = []; q.forEach(function (w) { try { fit(w); } catch (e) {} }); }
   function fitSoon(w) {
     if (fitQ.length >= 60) fitQ.shift();   // a tab in the background draws no frames: keep only the latest
