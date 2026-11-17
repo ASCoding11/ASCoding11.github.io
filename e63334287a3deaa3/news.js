@@ -6,7 +6,8 @@
  * Puts a slim "What's new" strip under the page header (above the Party panel) with the
  * latest entry's kind, version, title and day, and, while there are games less than a week
  * old, a "New games!" row of chips that open them. Tapping the strip opens the list of
- * changes as a card per release, grouped by day, five days at a time ("Show older" for more).
+ * changes as a card per release, grouped by day, five days at a time, or fewer once they hold
+ * ten cards ("Show older" for more).
  * A dot on the strip marks entries you haven't opened yet; it's remembered only in this
  * browser (localStorage `news:seen`). It takes its colours from the page's CSS variables
  * (--accent, --panel, --ink…), so it fits the light Back Room page and the dark phone page.
@@ -71,7 +72,7 @@
       'With it off you get the winter page: snow, a tree, a snowman, a menorah, a diya, gingerbread and lights. Buttons are blue for the season.',
       'It stays until January 6. The Cabin button shows the cabin again, and the ❄ button in the footer turns all of it off.'
     ]},
-    {date: '2026-11-17', version: '1.29.14', title: 'Driftfall: ten weapons, real scopes and a proper storm', kind: 'feature',
+    {date: '2026-11-17', version: '1.29.14', title: 'Driftfall: ten weapons and real scopes', kind: 'feature',
      img: 'm/thumbs/drop-zone.jpg', tags: ['Driftfall', 'Ten weapons', 'Scopes', 'Storm'], items: [
       'Ten weapons, two of every kind: Pistol and Heavy Pistol, SMG and Drum SMG, Pump and Auto Shotgun, Rifle and Heavy Rifle, Bolt Sniper and Scout Sniper. Each has its own shape, sound and punch.',
       'Every weapon has its own view when you aim, and the two snipers have a real scope to look down.',
@@ -79,7 +80,7 @@
       'The hotbar shows a picture of what is in each slot. Scrap has its own chip in big figures, and B (or a tap on the chip) brings out the build pieces.',
       'Characters are a fifth smaller, ramps and stairs are solid so nobody comes up through them, and the ground is a painted map of the island: grass, tracks, sand and paving.',
       'Fights last a little longer and the storm closes more slowly, while running is nearly as quick as it was.',
-      'A new look too, with shadows, a sun in the sky and a sea that catches the light. Walls, trees, cars and fences break when you shoot them.'
+      'A new look too: shadows, a sun in the sky and a sea that catches the light. Walls, trees, cars and fences break when you shoot them.'
     ]},
     {date: '2026-11-17', version: '1.29.13', title: 'Three new daily puzzles', kind: 'game', games: ['Mainstream', 'Thereabouts', 'Yardstick'],
      img: ['m/thumbs/mainstream.jpg', 'm/thumbs/thereabouts.jpg', 'm/thumbs/yardstick.jpg'], tags: ['Daily puzzles', 'Estimation', 'Bigger Deepword'], items: [
@@ -95,8 +96,7 @@
       'Every show starts with 16 contestants. Bots take the empty places, so three friends play with 13 bots and a solo show is you and 15.',
       'No two shows go the same way: the order of races and survivals, how many go through each round and how many reach the final all change.',
       'A race shows the place you are running in, the intro card lists the show\'s rounds, and the camera stays clear of walls.',
-      'Each round has its own sky and colours, with dust when beans land and stars on a hit.',
-      'Fixed: bots that got stuck for good, and crowds pushing a bean down through the floor.'
+      'Each round has its own sky and colours. Fixed: bots that got stuck for good, and crowds pushing a bean down through the floor.'
     ]},
     {date: '2026-11-17', version: '1.29.11', title: 'Backrooms: edit your builds', kind: 'feature',
      img: 'm/thumbs/backrooms-1v1.jpg', tags: ['Backrooms', 'Editing', 'Name tags'], items: [
@@ -109,7 +109,7 @@
     {date: '2026-11-17', version: '1.29.10', title: 'Design your own avatar', kind: 'feature',
      tags: ['Avatars', 'Online', 'Party'], items: [
       'Press Edit avatar in your row of the Online panel, or tap your own face there or on your Party card.',
-      'Choose your skin, hair style and colour, eyes, eyebrows, mouth, cheeks, glasses, hat, shirt and background, and watch the preview change as you go.',
+      'Choose your skin tone, hair style and colour, eyes, eyebrows, mouth, cheeks, glasses, hat, shirt and background, and watch the preview change as you go.',
       'Save, and everyone sees the new you in Online, Party and the Leaderboards. Reset gives back the face you started with.'
     ]},
     {date: '2026-11-17', version: '1.29.9', title: 'Leaderboards: medals, ratings and a button in every game', kind: 'feature',
@@ -400,7 +400,8 @@
 
   var KIND = { game: 'New game', feature: 'Update', fix: 'Bug fix' };
   var ICON = { game: '🎮', feature: '✨', fix: '🔧' };
-  var PAGE = 5;      // days shown at first, and added by each "Show older"
+  var PAGE = 5;      // days shown at first, and added by each "Show older"...
+  var CARDS = 10;    // ...or fewer, once those days hold this many cards (a day is never split), so a busy day doesn't make a very long list
   var NEW_DAYS = 7;  // how long an entry's games get the "New games!" row on the strip
   var MAX_CHIPS = 6;
   var SEEN = 'news:seen', SPOT_X = 'news:spot';
@@ -701,9 +702,10 @@
     });
     var newUpTo = fresh;  // entries above this index get a "New" tag in the open list
     function drawMore() {
-      var end = Math.min(groups.length, shown + PAGE);
-      for (; shown < end; shown++) {
+      var end = Math.min(groups.length, shown + PAGE), drawn = 0;
+      for (; shown < end && drawn < CARDS; shown++) {
         var g = groups[shown], day = el('div', 'nws-day'), h = el('h3', 'nws-dh'), n = daysAgo(g.date), x = local(g.date);
+        drawn += g.entries.length;
         var full = DAY[x.getDay()] + ', ' + short(g.date);
         if (n === 0 || n === 1) { h.append(el('b', '', n === 0 ? 'Today' : 'Yesterday'), ' · ' + full); } else h.textContent = full;
         day.appendChild(h);
