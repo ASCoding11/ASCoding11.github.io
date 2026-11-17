@@ -1859,6 +1859,7 @@
     auth.onAuthStateChanged(function (u) {
       if (!u || u.uid === uid) return;
       var from = wasAnon ? uid : ''; wasAnon = !!u.isAnonymous;
+      try { if (window.BackRoomAvatar && BackRoomAvatar.close) BackRoomAvatar.close(); } catch (e) {}   // an open editor was for the old account
       uid = u.uid; if (from) carryAvatar(from, u);
       meRef = db.ref(PATH + '/' + uid); delete people[uid]; opened = {}; chains = {}; mine.d = {}; mine.i = {}; mine.pc = {};
       listRef.once('value', function (s) { s.forEach(function (c) { onNode(c); }); });

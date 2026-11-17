@@ -13,6 +13,7 @@
  *   el(uid, size)         the same inside a <span class="bra-av">, ready to drop next to a name
  *   edit(uid, opener)     opens the editor for this browser's own account (opener gets the focus back when it closes)
  *   editButton(uid, size) the player's own avatar as a button that opens the editor (the Online and Party panels use it)
+ *   close()               closes the editor without saving, if it is open
  *   save(uid, choice)     saves { skin, hairc, eyec, shirt, hat } for that account in this browser; null = back to the uid's own
  *   mine(uid)             the code this browser should publish for its own uid: 'a1:…', 'a0' (reset) or '' (never edited)
  *   learn(uid, code)      remember the code another player published (checked first; anything odd is ignored)
@@ -469,6 +470,6 @@
     });
   } catch (e) {}
 
-  window.BackRoomAvatar = { seed: seed, gen: gen, svg: svg, el: el, edit: edit, editButton: editButton, save: save, mine: mine, learn: learn, parse: parse, get rev() { return rev; }, FEATURES: FEATURES, PALETTE: PALETTE.slice() };
+  window.BackRoomAvatar = { seed: seed, gen: gen, svg: svg, el: el, edit: edit, close: closeEditor, editButton: editButton, save: save, mine: mine, learn: learn, parse: parse, get rev() { return rev; }, FEATURES: FEATURES, PALETTE: PALETTE.slice() };
   try { document.dispatchEvent(new CustomEvent('backroom:avatar')); } catch (e) {}
 })();
