@@ -263,10 +263,10 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
 
       <!-- Players: every account in the Leaderboards' nodes, one at a time in detail. Read-only. -->
       <div role="tabpanel" id="p-players" aria-labelledby="t-players" hidden>
-        <p class="ro">Read-only. Everything here is what the play-time nodes (<code>rooms/lb-all</code>), the account saves (<code>rooms/sv-saves</code>, size only) and the Online panel's status fields already hold, all readable by any signed-in browser: no messages, nothing else. The one exception is the Google account behind a Google sign-in (its email, from Firestore <code>members</code>, the record the site's Google sign-in keeps), which only shows after you sign in below with the Google account your Firestore rules let read <code>members</code> (the one the analytics dashboard uses).</p>
+        <p class="ro">Read-only. Everything here is what the play-time nodes (<code>rooms/lb-all</code>), the account saves (<code>rooms/sv-saves</code>, size only) and the Online panel's status fields already hold, all readable by any signed-in browser: no messages, nothing else. The one exception is a Google player's email: their game stats carry it sealed to the admin key (only the two admin codes open it, like the chat log), so it shows here, under their name, and a search finds it. Accounts that haven't played signed in since this was added don't have it yet; their details can look it up in the site's sign-in records instead (that needs a Google sign-in with the account the analytics dashboard uses).</p>
         <div class="gbar" id="pG"></div>
         <div class="filters">
-          <label>Find<input type="search" id="pFind" placeholder="Name or account id"></label>
+          <label>Find<input type="search" id="pFind" placeholder="Name, email or account id"></label>
           <label class="chk"><input type="checkbox" id="pMerged"> Show merged accounts</label>
           <button class="sm" id="pRefresh" type="button">Refresh</button>
         </div>
@@ -996,7 +996,7 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
     var ts=v&&okNum(v.ts)&&v.ts>0&&v.ts<now+864e5?new Date(v.ts):null;
     var n=p?p.n:(LB.mask(LB.cleanName(v&&v.n))||'Player');
     var mi=null;if(p&&window.BackRoomMiles){try{mi=BackRoomMiles.of(p,uid,now)}catch(e){mi=null}}
-    return {uid:uid,p:p,ok:!!p,n:n,gn:gn,name:gn||n,ga:ga,seat:LB.seatOf(uid),ts:ts,total:p?p.total:0,week:p?(p.week||0):0,
+    return {uid:uid,p:p,ok:!!p,n:n,gn:gn,name:gn||n,ga:ga,seat:LB.seatOf(uid),ts:ts,total:p?p.total:0,week:p?(p.week||0):0,ge:ga&&v&&typeof v.ge==='string'&&v.ge.length<=900?v.ge:'',email:'',emailOk:true,
       mi:mi,miles:mi?mi.miles:-1,tierK:mi?mi.tier.k:'',to:p&&p.to?p.to:'',hidden:p?p.hidden:0,reset:p?p.reset:0};
   }
   async function loadPlayers(){
@@ -1009,8 +1009,9 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
     P.rows=Object.keys(nodes).slice(0,LB.MAX_NODES).filter(function(u){return /^[A-Za-z0-9_-]{6,128}$/.test(u)}).map(function(u){return playerRow(u,nodes[u],P.now)});
     foldPlayers();
     P.extra={};P.open='';P.show=PAGE;$('pRefresh').disabled=false;
-    if(G.who===null)gCheck();else renderG();
+    gCheckOnce();renderG();
     renderPlayers();
+    openEmails(seq);
   }
   // Merged accounts, as the boards show them (leaderboard.js collapse): each account merged into another (by the admin, a
   // signed a; or by its owner at a Google sign-in, to + al) is marked into, and the account kept gets its play time, this
@@ -1031,25 +1032,21 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
   }
   // ---- Google accounts (who signed in): the email and details from members/{uid}, one read per account opened ----
   var G={who:null,busy:false,err:'',cache:{}};
-  function gCheck(){api.gUser().then(function(w){G.who=w||'';renderG()},function(e){G.who='';G.err=(e&&e.message)||'error';renderG()})}
+  function gCheck(){api.gUser().then(function(w){G.who=w||'';renderG();if(P.open)renderPlayers()},function(){G.who='';renderG()})}
   function renderG(){
-    var b=$('pG');b.textContent='';
-    if(G.who===null){b.appendChild(el('span',null,'Google accounts: checking…'));return}
+    var b=$('pG');b.textContent='';b.hidden=!G.who&&!G.err;
     if(G.who){
-      var t=el('span',null,'Google accounts: signed in as ');t.appendChild(el('b',null,G.who));t.appendChild(document.createTextNode('. Open a Google player to see the account they signed in with.'));
+      var t=el('span',null,'Sign-in records: signed in as ');t.appendChild(el('b',null,G.who));t.appendChild(document.createTextNode(' (only needed for accounts whose email isn\'t in their game stats yet).'));
       var o=el('button','sm','Sign out');o.type='button';o.dataset.g='out';b.append(t,o);
-    }else{
-      b.appendChild(el('span',null,'See which Google account each Google player signed in with:'));
-      var i=el('button','sm',G.busy?'Signing in…':'Sign in with Google');i.type='button';i.dataset.g='in';i.disabled=G.busy;b.appendChild(i);
     }
     if(G.err)b.appendChild(el('span','err',G.err));
   }
-  $('pG').addEventListener('click',function(e){
-    var bt=e.target.closest('button[data-g]');if(!bt)return;
+  function gClick(bt){
     G.err='';
-    if(bt.dataset.g==='in'){G.busy=true;renderG();api.gSignIn().then(function(w){G.busy=false;G.who=w;G.cache={};renderG();renderPlayers()},function(err){G.busy=false;G.err=err&&err.code==='auth/popup-closed-by-user'?'':'Couldn\'t sign in: '+((err&&err.message)||'error');renderG()})}
+    if(bt.dataset.g==='in'){G.busy=true;renderPlayers();api.gSignIn().then(function(w){G.busy=false;G.who=w;G.cache={};renderG();renderPlayers()},function(err){G.busy=false;G.err=err&&err.code==='auth/popup-closed-by-user'?'':'Couldn\'t sign in: '+((err&&err.message)||'error');renderG();renderPlayers()})}
     else api.gSignOut().then(function(){G.who='';G.cache={};renderG();renderPlayers()});
-  });
+  }
+  $('pG').addEventListener('click',function(e){var bt=e.target.closest('button[data-g]');if(bt)gClick(bt)});
   function gNum(v){return v&&typeof v.toMillis==='function'?v.toMillis():typeof v==='number'?v:typeof v==='string'&&/^\d+$/.test(v)?+v:0}
   function memberOf(uid){
     if(G.cache[uid])return G.cache[uid];
@@ -1061,23 +1058,45 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
     },function(e){x.state='err';x.err=e&&e.code==='permission-denied'?'denied':((e&&e.message)||'error')}).then(function(){if(P.open)renderPlayers()});
     return x;
   }
-  // The "Google account" section of a player's details.
+  // The "Google account" section of a player's details: the email from their game stats (sealed, opened with the admin
+  // key), else, optionally, from the sign-in records (members/{uid}, which needs a Google sign-in the rules allow).
   function googleBox(r){
     var sec=el('div');sec.appendChild(el('h3',null,'Google account'));
     var d=el('div','gacct');sec.appendChild(d);
-    if(!G.who){d.appendChild(el('span',null,G.who===null?'Checking…':'Sign in with Google at the top of this tab to see which Google account this is.'));return sec}
+    if(r.email){
+      d.appendChild(el('span','em',r.email));
+      if(r.gn)d.appendChild(el('span',null,r.gn));
+      if(!r.emailOk)d.appendChild(el('span','err','This sealed email names a different account, so it may have been copied from someone else\'s stats.'));
+      return sec;
+    }
+    if(r.ge){d.appendChild(el('span',null,'Opening…'));return sec}
+    if(!G.who){
+      d.appendChild(el('span',null,'Their email isn\'t in their game stats yet: it\'s saved (sealed) the next time they play a Back Room game signed in with Google.'));
+      var lb=el('button','sm',G.busy?'Signing in…':'Look it up in the sign-in records');lb.type='button';lb.dataset.g='in';lb.disabled=G.busy;lb.title='Needs a Google sign-in with the account the analytics dashboard uses';d.appendChild(lb);
+      return sec;
+    }
     var x=memberOf(r.uid);
     if(x.state==='loading')d.appendChild(el('span',null,'Looking it up…'));
-    else if(x.state==='none')d.appendChild(el('span',null,'No sign-in record for this account: it was never signed in on a page with the site\'s Google sign-in (account.js), so its email was never saved. Its Google name is '+(r.gn||'not known')+'.'));
-    else if(x.state==='err')d.appendChild(el('span','err',x.err==='denied'?'Firestore said permission denied: '+G.who+' isn\'t allowed to read members. Sign in with the account the rules allow (the one the analytics dashboard uses).':'Couldn\'t read it: '+x.err));
+    else if(x.state==='none')d.appendChild(el('span',null,'No sign-in record either: this account was never signed in on a page with the site\'s Google sign-in. Its Google name is '+(r.gn||'not known')+'.'));
+    else if(x.state==='err')d.appendChild(el('span','err',x.err==='denied'?'Firestore said permission denied: '+G.who+' isn\'t allowed to read the sign-in records. Sign in with the account the analytics dashboard uses.':'Couldn\'t read it: '+x.err));
     else{
       d.appendChild(el('span','em',x.email||'(no email saved)'));
       if(x.name)d.appendChild(el('span',null,x.name));
       if(x.first)d.appendChild(el('span',null,'first signed in '+new Date(x.first).toLocaleDateString()));
       if(x.last){var l=el('span',null,'last on the site ');l.appendChild(timeEl(new Date(x.last)));d.appendChild(l)}
       if(x.visits)d.appendChild(el('span',null,fmtN(x.visits)+(x.visits===1?' page visit':' page visits')+' signed in'));
+      d.appendChild(el('span',null,'(from the sign-in records)'));
     }
     return sec;
+  }
+  // Google players' emails: the node's ge, sealed to the admin key by stats.js, opened here with the key unwrapped at the door.
+  // A box that names another account (copied from someone else's node) is shown with a warning.
+  function openEmails(seq){
+    var rows=P.rows.filter(function(r){return r.ge});if(!rows.length)return;
+    Promise.all(rows.map(function(r){return tryOpen(r.ge).then(function(o){
+      if(!o||o.k!=='ge'||typeof o.e!=='string')return;
+      r.email=cleanName(o.e,200);r.emailOk=o.u===r.uid;
+    })})).then(function(){if(seq===P.seq)renderPlayers()});
   }
   function typeText(r){return r.ga?'Google':'Anonymous'}
   function renderPlayers(){
@@ -1086,7 +1105,7 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
     var g=rows.filter(function(r){return r.ga}).length,act=rows.filter(function(r){return r.week>0}).length,sk=rows.filter(function(r){return !r.ok}).length;
     $('pSum').textContent=all.length?fmtN(rows.length)+(rows.length===1?' person':' people')+(mg?' ('+fmtN(all.length)+' accounts, '+fmtN(mg)+' merged into another)':'')+' · '+fmtN(g)+' Google · '+fmtN(rows.length-g)+' anonymous · '+fmtN(act)+' played this week'+(sk?' · '+fmtN(sk)+' the boards skip (stale or malformed)':''):'';
     // A search also finds merged accounts (by their own name or id), shown marked.
-    var list=(showM||q?all:rows).filter(function(r){return !q||(r.name+' '+r.n+' '+r.gn+' '+r.uid+' '+r.seat).toLowerCase().indexOf(q)>=0});
+    var list=(showM||q?all:rows).filter(function(r){return !q||(r.name+' '+r.n+' '+r.gn+' '+r.uid+' '+r.seat+' '+(r.emailOk?r.email:'')).toLowerCase().indexOf(q)>=0});
     var dir=P.dir==='asc'?1:-1,key=P.sort;
     list.sort(function(a,b){
       var x,y;
@@ -1113,7 +1132,7 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
       else if(r.to){var mg2=el('span','badge','Merged');mg2.title='Merged by its owner into another account at a Google sign-in';who.appendChild(mg2)}
       if(r.kids&&r.kids.length){var kb2=el('span','badge','+'+r.kids.length+' merged');kb2.title='Play time, tier and bests include '+r.kids.length+(r.kids.length===1?' account':' accounts')+' merged into this one (see details)';who.appendChild(kb2)}
       td.appendChild(who);
-      td.appendChild(el('small',null,r.seat+(r.gn&&r.n!==r.gn?' · Online name: '+r.n:'')));
+      td.appendChild(el('small',null,r.seat+(r.gn&&r.n!==r.gn?' · Online name: '+r.n:'')+(r.email&&r.emailOk?' · '+r.email:'')));
       // on a phone the Account, Type, Tier and This week columns are hidden: the type and tier go under the name
       var ph=el('small','ponly',typeText(r)+(r.mi?' · '+(r.mi.tier&&r.mi.tier.n||r.tierK)+' · '+fmtN(r.mi.miles)+' mi':''));td.appendChild(ph);
       var tu=el('td','opt'),cu=el('code','uid',r.uid);tu.appendChild(cu);
@@ -1175,7 +1194,8 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
         tx.appendChild(el('b',null,k.name));
         tx.appendChild(document.createTextNode(' · '+k.seat+' · '+typeText(k)+' · '+(k.ok?fmtDur(k.total):'skipped')+(k.mi?' · '+fmtN(k.mi.miles)+' mi':'')+' · '+(k.intoOwn?'by its owner':'by the admin')+' · seen '+(k.ts?ago(k.ts):'never')+' · '));
         tx.appendChild(el('code','uid',k.uid));
-        if(k.ga&&G.who){var km=memberOf(k.uid);if(km.state==='ok'&&km.email){tx.appendChild(document.createTextNode(' · '));tx.appendChild(el('span','em',km.email))}}
+        var kem=k.email;if(!kem&&k.ga&&G.who){var km=memberOf(k.uid);if(km.state==='ok')kem=km.email}
+        if(kem){tx.appendChild(document.createTextNode(' · '));tx.appendChild(el('span','em',kem))}
         var ob2=el('button','sm','Open');ob2.type='button';ob2.dataset.open=k.uid;
         row.append(tx,ob2);kl.appendChild(row);
       });
@@ -1286,10 +1306,12 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
   $('pRefresh').addEventListener('click',loadPlayers);
   $('pFind').addEventListener('input',function(){P.show=PAGE;renderPlayers()});
   $('pMerged').addEventListener('change',function(){P.show=PAGE;renderPlayers()});
+  var gChecked=false;function gCheckOnce(){if(gChecked)return;gChecked=true;gCheck()}
   $('pMore').addEventListener('click',function(){P.show+=PAGE;renderPlayers()});
   $('pTable').addEventListener('click',function(e){
     var sb=e.target.closest('button[data-sort]');
     if(sb){var k=sb.dataset.sort;if(P.sort===k)P.dir=P.dir==='asc'?'desc':'asc';else{P.sort=k;P.dir=k==='name'||k==='uid'||k==='type'?'asc':'desc'}renderPlayers();return}
+    var gb=e.target.closest('button[data-g]');if(gb){gClick(gb);return}
     // Open another account (a merged one, or the person it's merged into): shows merged accounts if needed.
     var jb=e.target.closest('button[data-open]');
     if(jb){
