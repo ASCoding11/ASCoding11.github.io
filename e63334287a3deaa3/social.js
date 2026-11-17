@@ -12,6 +12,10 @@
  *   v  format (1)        pk this browser's ECDH P-256 public key (raw, base64)
  *   p  party size (0 = not in a party)        g  game being played (a key from GAMES below), or absent
  *   pl the party leader's uid while in a party (so a join request can go to the leader), or absent
+ *   pp, pn  the code and size of the party we lead, while it is Public (party.js's Party.openParty): anyone here can then join
+ *      it with the Join party button on the leader's row and in the conversation with any of its members, no request
+ *      needed (party.js checks the party is still Public before letting them in). In a game the party launched, pg, pr
+ *      and pt go with them (see pubGame below, for Playing now). A Private party writes none of these.
  *   jg, jr, jt  the game room we're in, for anyone to join (playingnow.js): game key (party.js's GAMES), room code (what
  *      goes after the game's prefix, e.g. ab12 or pub-3) and when we got there (server time). Only while "Let people join
  *      my games" is on (localStorage ol:join, '0' = off, on by default) and we aren't in a party set to Private. The room
@@ -231,7 +235,7 @@
     '.onl-p{display:flex;align-items:center;gap:10px;width:100%;min-width:0;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font:inherit;color:inherit;text-align:left;cursor:pointer}' +
     '.onl-p:hover{border-color:var(--ink-2)}' +
     '.onl-p.me{cursor:default}.onl-p.me:hover{border-color:var(--line)}' +
-    '.onl-jl{position:relative}.onl-jl .onl-p{padding-right:76px}.onl-jb{position:absolute;right:8px;top:50%;transform:translateY(-50%);min-height:34px;padding:4px 12px}' +
+    '.onl-jl{position:relative}.onl-jl .onl-p{padding-right:76px}.onl-jlp .onl-p{padding-right:100px}.onl-jlp .onl-jb{padding:4px 9px}.onl-jb{position:absolute;right:8px;top:50%;transform:translateY(-50%);min-height:34px;padding:4px 12px}' +
     '.onl-av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:14px;color:#fff;flex:none}' +
     '.onl-who{display:grid;min-width:0;line-height:1.25;flex:1;gap:2px}' +
     '.onl-nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}' +
@@ -452,6 +456,7 @@
       pk: typeof v.pk === 'string' && PK_RE.test(v.pk) ? v.pk : '',
       party: Math.max(0, Math.min(99, Math.floor(num(v.p)) || 0)),
       pl: typeof v.pl === 'string' && /^[A-Za-z0-9_-]{6,64}$/.test(v.pl) ? v.pl : '',
+      pp: typeof v.pp === 'string' && /^[a-z0-9]{1,8}$/.test(v.pp) ? v.pp : '', pn: Math.max(0, Math.min(99, Math.floor(num(v.pn)) || 0)),
       g: typeof v.g === 'string' && gameOf(v.g) ? v.g : '',
       jg: typeof v.jg === 'string' && gameOf(v.jg) ? v.jg : '', jr: typeof v.jr === 'string' && ROOM.test(v.jr) ? v.jr : '', jt: when(v.jt, t) || 0,
       l: [], dm: [], pc: [], inv: null
@@ -724,6 +729,22 @@
     if (!p.pl || p.pl === p.uid) return p;
     var L = people[p.pl]; return L && visible(L) && L.pk ? L : p;
   }
+  // The code of the public party p is in, or '': its leader's node carries pp while the party is Public (ours: party.js).
+  function openCode(p) {
+    if (!p || !p.party) return '';
+    var lu = p.pl || p.uid;
+    if (lu === uid) { var o = openParty(); return o ? o.pp : ''; }
+    var L = lu === p.uid ? p : people[lu];
+    return L && visible(L) && L.party && L.pp ? L.pp : '';
+  }
+  // A Join party button for the public party with code c led by lu: no request needed. "Party full" when it has no room.
+  function openBtn(c, lu, cls) {
+    var L = people[lu], full = !!L && (L.pn || L.party) >= ((P && P.max) || 8);
+    var b = btn(full ? 'Party full' : 'Join party', cls + (full ? '' : ' pri'), 'joinp');
+    b.setAttribute('data-c', c); b.setAttribute('data-u', lu); b.setAttribute('data-pub', '1'); b.disabled = full;
+    if (L) b.setAttribute('aria-label', (full ? 'Party full: ' : 'Join ') + mask(L.n) + '’s public party');
+    return b;
+  }
   function inMyParty(u, p) {
     if (!P || !P.code) return false;
     if ((P.members || []).indexOf(u) >= 0) return true;
@@ -872,7 +893,7 @@
     var s = { n: myName(), c: colorOf(uid), x: 0, z: 0, h: 0, ts: Math.round(now()), v: 1, p: status.p };
     if (status.g) s.g = status.g;
     if (status.pl) s.pl = status.pl;
-    var q = pubGame(); if (q) { s.pp = q.pp; s.pg = q.pg; s.pr = q.pr; s.pn = q.pn; s.pt = q.pt; }
+    var q = pubGame(), o = q || openParty(); if (o) { s.pp = o.pp; s.pn = o.pn; } if (q) { s.pg = q.pg; s.pr = q.pr; s.pt = q.pt; }
     if (joinAd) { s.jg = joinAd.g; s.jr = joinAd.r; s.jt = joinAd.t; }
     if (keys.pub) s.pk = keys.pub;
     if (mine.l.length) s.l = mine.l;
@@ -937,6 +958,8 @@
   // pt launch time, for the Playing now panel (playingnow.js), which checks it against the party's own nodes.
   var pubSent = '';
   function pubGame() { var q = P && P.pub; return q && status.g && q.pg === status.g ? q : null; }
+  // A public party we lead, in a game or not: pp and pn alone, so people here can join the party itself.
+  function openParty() { return (P && P.openParty) || null; }
   function poll() {
     var gf = gameFrame(), p = P ? P.size : 0, g = gf ? gf.g.k : '', pl = p && P.leader ? P.leader.uid : '';
     if (gf) addBarButton(gf.fr);
@@ -945,10 +968,11 @@
       if (published) write({ p: p, g: g || null, pl: pl || null }).catch(function () {});
       schedule();
     }
-    var q = pubGame(), qs = q ? [q.pp, q.pg, q.pr, q.pn, q.pt].join('|') : '';
+    var q = pubGame(), o = q || openParty(), qs = o ? [o.pp, q ? q.pg : '', q ? q.pr : '', o.pn, q ? q.pt : ''].join('|') : '';
     if (qs !== pubSent) {
       pubSent = qs;
-      if (published) write(q ? { pp: q.pp, pg: q.pg, pr: q.pr, pn: q.pn, pt: q.pt } : { pp: null, pg: null, pr: null, pn: null, pt: null }).catch(function () {});
+      if (published) write({ pp: o ? o.pp : null, pn: o ? o.pn : null, pg: q ? q.pg : null, pr: q ? q.pr : null, pt: q ? q.pt : null }).catch(function () {});
+      schedule();
     }
     joinPoll();
     // The party's members changed (someone joined, left or was removed): new copies of the party chat follow the new list.
@@ -1237,12 +1261,13 @@
   }
 
   // Accepting invites.
-  async function joinParty(c, from) {
+  // pubOnly: a public party joined without an invite; party.js refuses if its leader has made it Private since.
+  async function joinParty(c, from, pubOnly) {
     if (!P) return say('The Party panel isn’t loaded.', true);
     if (P.code === c) return say('You’re already in that party.');
     if (!store('party:name')) store('party:name', myName());
     say('Joining ' + from + '’s party…');
-    var got = await P.join(c);
+    var got = await P.join(c, !!pubOnly);
     if (got === c) {
       say('You joined ' + from + '’s party. When the leader starts a game, you’ll go too.');
       var pe = document.getElementById('party'); if (pe && !gameFrame()) pe.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1263,7 +1288,7 @@
   function statusText(p) {
     var g = p.g && gameOf(p.g), bits = [];
     if (g) bits.push('In ' + g.n);
-    if (p.party) bits.push((p.party > 1 ? 'Party of ' + p.party : 'In a party') + (p.pl && p.pl === p.uid ? ' · leader' : ''));
+    if (p.party) { var op = openCode(p); bits.push((p.party > 1 ? (op ? 'Public party of ' : 'Party of ') + p.party : op ? 'In a public party' : 'In a party') + (p.pl && p.pl === p.uid ? ' · leader' : '')); }
     return bits.join(' · ') || 'Idle';
   }
   function unreadOf(u) {
@@ -1309,7 +1334,12 @@
   // A Join (or Queue) button on the row of someone in a game anyone can join, as Playing now (playingnow.js) checked it.
   function joinBtn(li, p) {
     var J = window.BackRoomPlaying, s = J && J.state ? J.state(p.uid) : null;
-    if (!s) return;
+    if (!s) {
+      // No game to join: on the row of a public party's leader, Join party instead.
+      var oc = (!p.pl || p.pl === p.uid) && !(P && P.code && P.code === p.pp) ? openCode(p) : '';
+      if (oc) { li.className = 'onl-jl onl-jlp'; li.append(openBtn(oc, p.uid, 'onl-jb')); }
+      return;
+    }
     var b = btn(s.label, 'onl-jb' + (s.pri ? ' pri' : ''), 'gjoin'); b.setAttribute('data-u', p.uid); b.disabled = !!s.off;
     b.setAttribute('aria-label', s.label + ': ' + mask(p.n) + ' in ' + s.game);
     li.className = 'onl-jl'; li.append(b);
@@ -1475,6 +1505,9 @@
       da.append(btn('Invite to party', 'pri', 'invite'));
       // Request to join their party: goes to its leader (them, or their leader when that person is online).
       var jt = p && visible(p) && p.party && !isBlocked(u) && !inMyParty(u, p) ? joinTarget(p) : null;
+      // A public party needs no request: Join party goes straight in.
+      var oc = jt ? openCode(p) : '';
+      if (oc) { da.append(openBtn(oc, p.pl || u, '')); jt = null; }
       if (jt) {
         var ja = joinAnswer(jt.uid), jwhy = canAskJoin(jt.uid);
         var jb = btn(pendingJoinOut(jt.uid) ? 'Join request sent' : ja === 'y' ? 'Let in' : ja && ja !== 'lead' ? 'Join declined' : 'Request to join', 'pri', 'joinreq');
@@ -1682,8 +1715,9 @@
     else if (a === 'reply') { var u0 = host && host.getAttribute('data-u'); if (host) host.remove(); if (u0) openDrawer({ v: 'dm', u: u0 }); }
     else if (a === 'joinp') {
       e.preventDefault(); if (host) host.remove();
-      var from = (host && host.getAttribute('data-u')) || (view && view.u), pp = from && people[from];
-      joinParty(b.getAttribute('data-c'), pp ? mask(pp.n) : 'their');
+      var from = b.getAttribute('data-u') || (host && host.getAttribute('data-u')) || (view && view.u), pp = from && people[from], open = b.getAttribute('data-pub') === '1';
+      if (open && P && P.code && !confirm('Leave your party and join ' + (pp ? mask(pp.n) + '’s' : 'theirs') + '?')) return;
+      joinParty(b.getAttribute('data-c'), pp ? mask(pp.n) : 'their', open);
     } else if (a === 'openroom') {
       if (e.button || e.metaKey || e.ctrlKey || e.shiftKey) return;
       e.preventDefault(); if (host) host.remove();
