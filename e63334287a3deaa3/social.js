@@ -238,6 +238,8 @@
     '.onl-seat{font-family:var(--mono,monospace);font-size:13px;font-weight:600;color:var(--accent)}' +
     '.onl-meav{display:inline-flex;flex:none;line-height:0}.onl-meav:empty{display:none}' +
     '.onl-tier{display:inline-flex;align-items:center;gap:6px;min-width:0;font-size:13px;color:var(--ink-2)}.onl-tier:empty{display:none}' +
+    '.onl-find{margin:0 0 8px}.onl-find input{width:100%;box-sizing:border-box;min-height:38px;padding:7px 12px;border-radius:10px;border:1px solid var(--line,#2a3442);background:var(--panel-2,rgba(255,255,255,.04));color:inherit;font:inherit;font-size:15px}' +
+    '.onl-nomatch{margin:4px 2px;font-size:14px;color:var(--ink-2,#9aa4b2);grid-column:1/-1}' +
     '.onl-list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;max-height:252px;overflow:auto;overscroll-behavior:contain}' +
     '.onl-p{display:flex;align-items:center;gap:10px;width:100%;min-width:0;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font:inherit;color:inherit;text-align:left;cursor:pointer}' +
     '.onl-p:hover{border-color:var(--ink-2)}' +
@@ -348,11 +350,16 @@
   var joinLbl = el('label'); var $join = el('input'); $join.type = 'checkbox'; joinLbl.append($join, 'Let people join my games');
   joinLbl.title = 'When you’re in an online game, people here can see it and join you (Playing now, and a Join button by your name)';
   meRow.append($meAv, nameLbl, $seat, $tier, hideLbl, joinLbl, $editAv);
+  // Find: filters the whole Online list (not just the part in view) by name, seat or what they're doing ("In Coil", "party").
+  var findRow = el('div', 'onl-find'), $find = el('input'); findRow.hidden = true;
+  $find.type = 'search'; $find.placeholder = 'Find someone online: name, seat or game'; $find.autocomplete = 'off'; $find.spellcheck = false;
+  $find.maxLength = 40; $find.setAttribute('aria-label', 'Find someone in the Online list'); $find.setAttribute('enterkeyhint', 'search');
+  findRow.append($find);
   var $list = el('ul', 'onl-list'); $list.setAttribute('aria-label', 'People online');
   var $msg = el('p', 'onl-msg'); $msg.setAttribute('role', 'status'); $msg.setAttribute('aria-live', 'polite');
   var fine = el('p', 'onl-fine'), plink = el('a', '', 'Privacy'); plink.href = '/privacy.html'; plink.target = '_blank'; plink.rel = 'noopener';
   fine.append(plink);
-  box.append(top, meRow, ntRow, $list, $msg, fine);
+  box.append(top, meRow, ntRow, findRow, $list, $msg, fine);
   sec.append(box);
   function place() {
     var party = document.getElementById('party'), head = document.querySelector('header');
@@ -1430,14 +1437,25 @@
     b.setAttribute('aria-label', s.label + ': ' + mask(p.n) + ' in ' + s.game);
     li.className = 'onl-jl'; li.append(b);
   }
-  function fillList(ul, withMe) {
+  // The Find box's words: every one must appear in the person's name, seat ("seat 23b" works too) or status line.
+  function findQ() { return $find.value.trim().toLowerCase().split(/\s+/).filter(Boolean); }
+  function matches(p, q) {
+    if (!q.length) return true;
+    var t = (p.n + ' seat ' + seatOf(p.uid) + ' ' + statusText(p)).toLowerCase();
+    return q.every(function (w) { return t.indexOf(w) >= 0; });
+  }
+  // all: ignore the Find box (the people view inside the chat window, which has no box of its own).
+  function fillList(ul, withMe, all0) {
     ul.textContent = '';
     var me = el('li'); me.append(personBtn(meEntry(), true));
-    if (uid && withMe) ul.append(me);
-    var os = others();
+    var q = all0 ? [] : findQ(), all = others(), os = all.filter(function (p) { return matches(p, q); });
+    if (uid && withMe && !q.length) ul.append(me);
     os.forEach(function (p) { var li = el('li'); li.append(personBtn(p, false)); joinBtn(li, p); ul.append(li); });
-    return os.length;
+    if (q.length && all.length && !os.length) ul.append(el('li', 'onl-nomatch', 'Nobody online matches \u201c' + $find.value.trim() + '\u201d.'));
+    return all.length;
   }
+  $find.addEventListener('input', function () { fillList($list); });
+  $find.addEventListener('keydown', function (e) { if (e.key === 'Escape' && $find.value) { $find.value = ''; fillList($list); e.stopPropagation(); } });
 
   function draw() {
     var os = others(), n = os.length + (published && !hidden ? 1 : 0);
@@ -1468,6 +1486,8 @@
     $hide.checked = hidden; $join.checked = joinable; $join.disabled = hidden;
     joinLbl.title = hidden ? 'You’re hidden, so nobody sees your games anyway' : 'When you’re in an online game, people here can see it and join you (Playing now, and a Join button by your name)';
     var lu = loungeUnread(); $loungeBtn.lastChild.textContent = lu ? String(lu) : '';
+    findRow.hidden = !uid || !os.length;           // nothing to search with nobody else here
+    if (findRow.hidden && $find.value) $find.value = '';
     fillList($list);
     if (uid && !os.length) { var li = el('li'); li.append(el('p', 'onl-empty', hidden ? 'You’re hidden, so nobody can see you. Nobody else is around right now either.' : 'Nobody else is here right now. Leave this open and you’ll see people as they arrive.')); $list.append(li); }
     var dmTotal = 0; Object.keys(threads).forEach(function (u) { dmTotal += unreadOf(u); });
@@ -1587,7 +1607,7 @@
       if (!hidden) { var jo = btn('Let people join: ' + (joinable ? 'On' : 'Off'), '', 'joinable'); jo.setAttribute('aria-pressed', String(joinable)); acts.append(jo); }
       sub.append(el('span', '', hidden ? 'You’re hidden. Others can’t see or message you.' : 'Tap someone to request a chat or invite them.'), acts);
       parts.push(sub);
-      var ul = el('ul', 'onl-list'); fillList(ul, true); body.append(ul);
+      var ul = el('ul', 'onl-list'); fillList(ul, true, true); body.append(ul);
       var bl = Object.keys(blocked).concat(Object.keys(sblocked).filter(function (u) { return !blocked[u]; }));
       if (bl.length) {
         body.append(el('p', 'onl-h', 'Blocked'));
