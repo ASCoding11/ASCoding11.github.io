@@ -459,6 +459,31 @@
     if (p.v2 && v.lg && typeof v.lg === 'object' && !Array.isArray(v.lg)) {
       p.lg = {}; Object.keys(v.lg).slice(0, 80).forEach(function (k) { var x = Math.floor(num(v.lg[k])); if (BY[k] && x > 0) p.lg[k] = x; });
     }
+    // Miles kept from before Slipstream's records reset (stats.js sx): only miles.js reads it; no board shows these times.
+    // A lap is checked like any lap (no quicker than its track allows); the record count is capped like the records.
+    if (v.sx && typeof v.sx === 'object' && v.sx.slipstream && typeof v.sx.slipstream === 'object') {
+      var sxe = v.sx.slipstream, sl = {}, sr = Math.floor(num(sxe.r));
+      if (sxe.l && typeof sxe.l === 'object') Object.keys(sxe.l).slice(0, 60).forEach(function (t) { var tt = TRACKS[t], x = num(sxe.l[t]); if (tt && x >= tt[1] && x <= 900) sl[t] = x; });
+      if (Object.keys(sl).length || sr > 0) p.sx = { l: sl, r: sr > 0 ? Math.min(sr, TRACK_IDS.length * STD_LAPS.length) : 0 };
+    }
+    // A node not written since the reset still has the old names (stats.js folds them into sx at its next write): count
+    // them the same way now, so those miles never disappear in between.
+    var sgo = v.g && typeof v.g === 'object' && v.g.slipstream;
+    if (sgo && typeof sgo === 'object') {
+      var ol = {}, orc = 0;
+      Object.keys(sgo).slice(0, 400).forEach(function (k) {
+        var m = /^(lap|rec):(?:s(\d{1,2}):)?([a-z0-9-]{1,20})(?::(\d{1,3}))?$/.exec(k), x = num(sgo[k]);
+        if (!m || (+m[2] || 1) >= SLIP_SEASON || !(x > 0)) return;
+        var tt = TRACKS[m[3]];
+        if (m[1] === 'lap' && !m[4] && tt && x >= tt[1] && x <= 900) { if (!(ol[m[3]] > 0) || x < ol[m[3]]) ol[m[3]] = x; }
+        else if (m[1] === 'rec' && m[4] && tt) orc++;
+      });
+      if (Object.keys(ol).length || orc) {
+        var px = p.sx || (p.sx = { l: {}, r: 0 });
+        Object.keys(ol).forEach(function (t) { if (!(px.l[t] > 0) || ol[t] < px.l[t]) px.l[t] = ol[t]; });
+        px.r = Math.max(px.r, Math.min(orc, TRACK_IDS.length * STD_LAPS.length));
+      }
+    }
     if (v.q && typeof v.q === 'object' && !Array.isArray(v.q)) {
       var dv = Object.keys(v.q).filter(function (k) { return /^[A-Za-z0-9_-]{1,64}$/.test(k); }).slice(0, 16);
       if (dv.length) { p.dev = {}; dv.forEach(function (k) { p.dev[k] = 1; }); }
@@ -585,6 +610,12 @@
     Object.keys(t.g).forEach(function (k) { if (!lg[k]) { var x = tlg ? Math.min(t.g[k].s, tlg[k] || 0) : t.g[k].s; if (x > 0) lg[k] = x; } });
     t.lg = lg; t.v2 = true;
     if (p.dev) { t.dev = t.dev || {}; Object.keys(p.dev).forEach(function (k) { t.dev[k] = 1; }); }
+    // Kept Slipstream miles (sx): the quicker lap per track, the larger record count.
+    if (p.sx) {
+      var tx = t.sx || (t.sx = { l: {}, r: 0 });
+      Object.keys(p.sx.l).forEach(function (k) { if (!(tx.l[k] > 0) || p.sx.l[k] < tx.l[k]) tx.l[k] = p.sx.l[k]; });
+      if (p.sx.r > tx.r) tx.r = p.sx.r;
+    }
     t.total = 0; t.top = ''; t.topS = 0;
     Object.keys(t.g).forEach(function (k) { var s = t.g[k].s; t.total += s; if (s > t.topS) { t.topS = s; t.top = BY[k].n; } });
     var wk = t.wk || {};
