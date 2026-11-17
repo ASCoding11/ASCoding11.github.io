@@ -99,6 +99,13 @@ details[open] summary::before{content:"– "}
 .bodies button[aria-pressed="true"]{border-color:var(--blue-2);background:rgba(47,140,255,.2)}
 .bodies svg{width:100%;height:42px}
 .bodies small{font-size:12px;color:var(--ink-2);font-weight:600}
+/* the hidden garage (?garage=1): fifteen bodies, each with a small picture drawn from its real model */
+.bodies.many{grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.bodies.many button{padding:4px 2px 5px;font-size:12px;gap:0;min-width:0}
+.bodies.many canvas{display:block;width:100%;aspect-ratio:5/3}
+.bodies.many small{display:none}
+#bodyCap{margin:8px 0 0;text-align:center}
+@media (max-width:420px){.bodies.many{grid-template-columns:repeat(4,minmax(0,1fr))}}
 .pairs{display:flex;flex-wrap:wrap;gap:6px}
 .pairs button{display:flex;gap:3px;padding:6px 7px;border:1px solid var(--line);border-radius:8px;background:rgba(0,0,0,.25)}
 .pairs button[aria-pressed="true"]{border-color:#fff;box-shadow:0 0 0 2px rgba(140,200,255,.5)}
@@ -459,8 +466,35 @@ const ACCENTS=['#f4f6ff','#14161f','#ffd34a','#46e39a','#ff4d6d','#b46cff','#3ee
 const BODIES=[
   {name:'Comet',sub:'All-rounder'},
   {name:'Viper',sub:'Long and low'},
-  {name:'Brick',sub:'Tall and boxy'}
+  {name:'Brick',sub:'Tall and boxy'},
+  // ---- the hidden garage: everything from here on is offered only when garageOn (see below) ----
+  {name:'Boulder',sub:'Lifted truck'},
+  {name:'Glide',sub:'Aero coupe'},
+  {name:'Pip',sub:'Little hatch'},
+  {name:'Sliver',sub:'Flat wedge'},
+  {name:'Growler',sub:'Long bonnet'},
+  {name:'Bounce',sub:'Open buggy'},
+  {name:'Gravel',sub:'Rally hatch'},
+  {name:'Hauler',sub:'Pickup'},
+  {name:'Loaf',sub:'Minibus'},
+  {name:'Needle',sub:'Open-wheel racer'},
+  {name:'Flare',sub:'Hot rod'},
+  {name:'Rhino',sub:'Plated truck'}
 ];
+// The hidden garage. The first PUBLIC_BODIES bodies are the ones everybody is offered. The rest are finished but kept
+// out of sight: the picker lists them, a saved choice of one is used, and bots drive them, only when garageOn is true.
+// It is true when the page is opened with ?garage=1 (remembered for this browser tab; ?garage=0 forgets it).
+// To make them public for everyone, change GARAGE_PUBLIC to true: that one line is all it takes.
+// Whatever the switch says, every page draws every body it knows, so other players see a hidden body when its owner drives it.
+const GARAGE_PUBLIC=false;
+const PUBLIC_BODIES=3;
+const garageOn=GARAGE_PUBLIC||(()=>{
+  let q=null;try{q=new URLSearchParams(location.search).get('garage')}catch(e){}
+  try{if(q==='1')sessionStorage.setItem('boostball-garage','1');else if(q==='0')sessionStorage.removeItem('boostball-garage');return sessionStorage.getItem('boostball-garage')==='1'}catch(e){return q==='1'}
+})();
+const bodyCount=()=>garageOn?BODIES.length:PUBLIC_BODIES;
+// a body id from the network or storage: any body this page knows, else the first (a newer page may know more)
+const bodyId=v=>{v=v|0;return v>=0&&v<BODIES.length?v:0};
 // Bot names. Each match the bots get names picked at random from this list: no two the same, and never the name of
 // a human player in the room. Online, the host's bots send their name as a position in this list (bh), so other
 // players see the host's names: add new names at the end and don't reorder or remove any.
@@ -1541,17 +1575,19 @@ const spokeG=new THREE.BoxGeometry(.3,.44,.06),capG=new THREE.CylinderGeometry(.
 // to about 500 jobs a frame, which is what slow laptops choke on. The picture doesn't need them separate: joinGeoms()
 // welds shapes into one, and joinMeshes() welds every mesh in a group that shares a material, each kept exactly where
 // it was. A car is now about 6 body meshes and 3 per wheel, and looks the same.
-function joinGeoms(list){ // list of [geometry, Matrix4 or null]
-  const pos=[],nor=[],idx=[];
-  for(const [g0,mx] of list){
+function joinGeoms(list){ // list of [geometry, Matrix4 or null, colour (hex) or nothing]; a colour on any row gives the result vertex colours
+  const pos=[],nor=[],idx=[],col=list.some(e=>e[2]!=null)?[]:null,_c=new THREE.Color();
+  for(const [g0,mx,vc] of list){
     const g=g0.clone();if(mx)g.applyMatrix4(mx);
     const P=g.attributes.position,N=g.attributes.normal,base=pos.length/3;
     for(let i=0;i<P.count;i++){pos.push(P.getX(i),P.getY(i),P.getZ(i));nor.push(N.getX(i),N.getY(i),N.getZ(i))}
+    if(col){_c.setHex(vc==null?0xffffff:vc);for(let i=0;i<P.count;i++)col.push(_c.r,_c.g,_c.b)}
     if(g.index)for(let i=0;i<g.index.count;i++)idx.push(base+g.index.getX(i));else for(let i=0;i<P.count;i++)idx.push(base+i);
     g.dispose();
   }
   const out=new THREE.BufferGeometry();
   out.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));out.setAttribute('normal',new THREE.Float32BufferAttribute(nor,3));out.setIndex(idx);
+  if(col)out.setAttribute('color',new THREE.Float32BufferAttribute(col,3));
   return out;
 }
 function joinMeshes(parent){ // welds parent's own meshes by material; returns the new meshes
@@ -1559,7 +1595,7 @@ function joinMeshes(parent){ // welds parent's own meshes by material; returns t
   for(const m of parent.children.slice()){if(!m.isMesh)continue;m.updateMatrix();let a=by.get(m.material);if(!a)by.set(m.material,a=[]);a.push(m)}
   const out=[];
   for(const [mat,ms] of by){
-    const mesh=new THREE.Mesh(joinGeoms(ms.map(m=>[m.geometry,m.matrix])),mat);
+    const mesh=new THREE.Mesh(joinGeoms(ms.map(m=>[m.geometry,m.matrix,m.userData.vc])),mat);
     for(const m of ms){parent.remove(m);if(!SHARED_G.has(m.geometry))m.geometry.dispose()}
     parent.add(mesh);out.push(mesh);
   }
@@ -1572,20 +1608,85 @@ const spokesG=joinGeoms([0,1,2].map(k=>[spokeG,new THREE.Matrix4().makeRotationX
 // loft(): a smooth solid through a row of cross-sections. keys are [z, half width, bottom y, top y] from tail to nose; each
 // cross-section is a rounded box (n sets how square), narrower toward the top by taper (the way a car's cabin leans in),
 // and the values are eased between keys so the surface flows. This is what shapes the body, the glass and the roof.
-function loft(parent,keys,mat,o){
-  o=o||{};const n=o.n||4,M=o.m||28,S=o.s||34,tp=o.taper||0,pos=[],idx=[],K=keys.length,z0=keys[0][0],z1=keys[K-1][0];
-  const at=(z,j)=>{let i=0;while(i<K-2&&z>keys[i+1][0])i++;const p1=keys[i][j],p2=keys[i+1][j],p0=keys[Math.max(0,i-1)][j],p3=keys[Math.min(K-1,i+2)][j],t=clamp((z-keys[i][0])/(keys[i+1][0]-keys[i][0]),0,1);
+function loftAt(keys,lin){
+  const K=keys.length;
+  return (z,j)=>{let i=0;while(i<K-2&&z>keys[i+1][0])i++;const p1=keys[i][j],p2=keys[i+1][j],p0=keys[Math.max(0,i-1)][j],p3=keys[Math.min(K-1,i+2)][j],t=clamp((z-keys[i][0])/(keys[i+1][0]-keys[i][0]),0,1);
+    if(lin)return p1+(p2-p1)*t;
     return .5*(2*p1+(-p0+p2)*t+(2*p0-5*p1+4*p2-p3)*t*t+(-p0+3*p1-3*p2+p3)*t*t*t)};
-  const pw=v=>Math.sign(v)*Math.pow(Math.abs(v),2/n);
+}
+// Options: n, taper, s and m (sections along and points around) as above. lin:1 joins the keys with straight lines
+// instead of easing (flat panels with soft creases: trucks, vans, wedges), putting a section at each key and one just
+// either side of it so the shading stays flat on the panels. from/to cut the solid short without changing its shape.
+function loft(parent,keys,mat,o){
+  o=o||{};const n=o.n||4,M=o.m||28,tp=o.taper||0,pos=[],idx=[],K=keys.length,z0=keys[0][0],z1=keys[K-1][0];
+  const at=loftAt(keys,o.lin),pw=v=>Math.sign(v)*Math.pow(Math.abs(v),2/n),zs=[];
+  if(o.lin){
+    const e=o.bevel||.035;
+    for(let i=0;i<K;i++){const z=keys[i][0];if(i>0)zs.push(z-Math.min(e,(z-keys[i-1][0])*.3));zs.push(z);if(i<K-1)zs.push(z+Math.min(e,(keys[i+1][0]-z)*.3))}
+  }else{
+    const S0=o.s||34,a=o.from==null?z0:o.from,b=o.to==null?z1:o.to;
+    for(let s=0;s<=S0;s++)zs.push(a+(b-a)*s/S0);
+  }
+  const S=zs.length-1;
   for(let s=0;s<=S;s++){
-    const z=z0+(z1-z0)*s/S,w=at(z,1),yb=at(z,2),yt=at(z,3);
+    const z=zs[s],w=at(z,1),yb=at(z,2),yt=at(z,3);
     for(let m=0;m<M;m++){const th=m/M*Math.PI*2,ex=pw(Math.cos(th)),ey=pw(Math.sin(th));pos.push(w*ex*(1-tp*(ey+1)/2),(yb+yt)/2+ey*(yt-yb)/2,z)}
   }
   for(let s=0;s<S;s++)for(let m=0;m<M;m++){const a=s*M+m,b=s*M+(m+1)%M,c=(s+1)*M+(m+1)%M,d=(s+1)*M+m;idx.push(a,b,c,a,c,d)}
-  const cb=pos.length/3;pos.push(0,(keys[0][2]+keys[0][3])/2,z0,0,(keys[K-1][2]+keys[K-1][3])/2,z1);
+  const cb=pos.length/3;
+  if(o.from==null&&o.to==null)pos.push(0,(keys[0][2]+keys[0][3])/2,z0,0,(keys[K-1][2]+keys[K-1][3])/2,z1);
+  else pos.push(0,(at(zs[0],2)+at(zs[0],3))/2,zs[0],0,(at(zs[S],2)+at(zs[S],3))/2,zs[S]);
   for(let m=0;m<M;m++){idx.push(cb,(m+1)%M,m,cb+1,S*M+m,S*M+(m+1)%M)}
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setIndex(idx);g.computeVertexNormals();
   const mesh=new THREE.Mesh(g,mat);parent.add(mesh);return mesh;
+}
+// patch(): a thin skin lying just outside a loft's surface, for what is painted or set into a body: windows, stripes,
+// bands, flames. lo is the loft's own options. p.z=[from,to]; p.side is 1 or -1 for a side of the car (then a and b are
+// the lower and upper edge, as heights when p.abs is set, else from -1 at the bottom to 1 at the top) or absent for the
+// top (then a and b are the left and right edge, -1 to 1 across). a and b may be functions of how far along it is
+// (0 to 1), which is how the flames taper. shear slants it; off is how far it stands off; fwd pushes it forward.
+function loftPatch(parent,keys,lo,mat,p){
+  const n=lo.n||4,tp=lo.taper||0,at=loftAt(keys,lo.lin),S=p.s||6,M=p.m||(p.side?6:4),off=p.off==null?.013:p.off,pos=[],idx=[],f=(v,t)=>typeof v==='function'?v(t):v;
+  for(let s=0;s<=S;s++){
+    const t=s/S;
+    for(let m=0;m<=M;m++){
+      const u=m/M,z=clamp(p.z[0]+(p.z[1]-p.z[0])*t+(p.shear||0)*u,keys[0][0],keys[keys.length-1][0]),w=at(z,1),yb=at(z,2),yt=at(z,3),h=Math.max(1e-4,(yt-yb)/2),mid=(yb+yt)/2;
+      let a=f(p.a,t),b=f(p.b,t),ex,ey;
+      if(p.side){
+        if(p.abs){a=(a-mid)/h;b=(b-mid)/h}
+        const hi=p.max||.84;a=clamp(a,-hi,hi);b=clamp(b,-hi,hi);ey=a+(b-a)*u;ex=p.side*Math.pow(1-Math.pow(Math.abs(ey),n),1/n);
+      }else{ex=clamp(a+(b-a)*u,-.96,.96);ey=Math.pow(1-Math.pow(Math.abs(ex),n),1/n)}
+      const nx=Math.sign(ex)*Math.pow(Math.abs(ex),n-1)/w,ny=Math.sign(ey)*Math.pow(Math.abs(ey),n-1)/h,l=Math.hypot(nx,ny)||1;
+      pos.push(w*ex*(1-tp*(ey+1)/2)+nx/l*off,mid+ey*h+ny/l*off,z+(p.fwd||0));
+    }
+  }
+  const W=M+1,flip=(p.side===1)!==(p.z[1]<p.z[0]);
+  for(let s=0;s<S;s++)for(let m=0;m<M;m++){const a=s*W+m,b=(s+1)*W+m,c=(s+1)*W+m+1,d=s*W+m+1;if(flip)idx.push(a,c,b,a,d,c);else idx.push(a,b,c,a,c,d)}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setIndex(idx);g.computeVertexNormals();
+  const mesh=new THREE.Mesh(g,mat);parent.add(mesh);return mesh;
+}
+// The kit a garage body is built with (its make(k) in BODY_SHAPES). Materials: k.B team paint, k.G glass, k.A the accent
+// colour, k.H headlight, k.T tail light; a plain colour number (k.D dark, k.M grey, k.C chrome) is trim, and all trim
+// is one vertex-coloured material, so however many colours a body has it is still six meshes. Shapes: loft and patch
+// (above), box, cyl (a cylinder along x, y or z), tube (a bar between two points, for cages and bull bars) and arch
+// (a mudguard over a wheel); the ones ending in 2 make a mirrored pair. Everything is welded by joinMeshes afterwards.
+function carKit(inner,mats){
+  const k=Object.assign({D:0x161a28,M:0x98a1b3,C:0xd6dbe4,K:0x0c0e16},mats);
+  const put=(g,mat)=>{const m=new THREE.Mesh(g,typeof mat==='number'?mats.trim:mat);if(typeof mat==='number')m.userData.vc=mat;inner.add(m);return m};
+  const tag=(m,mat)=>{if(typeof mat==='number'){m.material=mats.trim;m.userData.vc=mat}return m};
+  k.loft=(keys,mat,o)=>{const m=tag(loft(inner,keys,typeof mat==='number'?mats.trim:mat,o),mat);if(o&&o.x)m.position.x=o.x;return{keys,o:o||{},m}};
+  k.patch=(L,mat,p)=>{const m=tag(loftPatch(inner,L.keys,L.o,typeof mat==='number'?mats.trim:mat,p),mat);if(L.o.x)m.position.x=L.o.x;return m};
+  k.patch2=(L,mat,p)=>{k.patch(L,mat,Object.assign({},p,{side:1}));k.patch(L,mat,Object.assign({},p,{side:-1}))};
+  k.box=(w,h,d,x,y,z,mat,rx,ry,rz)=>{const m=put(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);m.rotation.set(rx||0,ry||0,rz||0);return m};
+  k.box2=(w,h,d,x,y,z,mat,rx,ry,rz)=>{k.box(w,h,d,x,y,z,mat,rx,ry,rz);k.box(w,h,d,-x,y,z,mat,rx,-(ry||0),-(rz||0))};
+  k.cyl=(r,len,x,y,z,mat,axis,seg,r2)=>{const g=new THREE.CylinderGeometry(r2==null?r:r2,r,len,seg||10);if(axis==='x')g.rotateZ(-Math.PI/2);else if(axis==='z')g.rotateX(Math.PI/2);const m=put(g,mat);m.position.set(x,y,z);return m};
+  k.cyl2=(r,len,x,y,z,mat,axis,seg,r2)=>{k.cyl(r,len,x,y,z,mat,axis,seg,r2);k.cyl(r,len,-x,y,z,mat,axis,seg,r2)};
+  const _a=new V3(),_b=new V3(),_up=new V3(0,1,0);
+  k.tube=(a,b,r,mat,seg)=>{_a.fromArray(a);_b.fromArray(b).sub(_a);const len=_b.length(),m=put(new THREE.CylinderGeometry(r,r,len+r,seg||6),mat);m.position.copy(_a).addScaledVector(_b,.5);m.quaternion.setFromUnitVectors(_up,_b.normalize());return m};
+  k.tube2=(a,b,r,mat,seg)=>{k.tube(a,b,r,mat,seg);k.tube([-a[0],a[1],a[2]],[-b[0],b[1],b[2]],r,mat,seg)};
+  k.arch=(x,y,z,R,t,mat,wide,from,arc)=>{const g=new THREE.TorusGeometry(R,t,6,10,arc||Math.PI);g.rotateZ(from||0);g.rotateY(-Math.PI/2);const m=put(g,mat);m.position.set(x,y,z);m.scale.x=wide||1;return m};
+  k.arch2=(x,y,z,R,t,mat,wide,from,arc)=>{k.arch(x,y,z,R,t,mat,wide,from,arc);k.arch(-x,y,z,R,t,mat,wide,from,arc)};
+  return k;
 }
 const BODY_SHAPES=[
   { // Comet: the all-rounder
@@ -1607,6 +1708,202 @@ const BODY_SHAPES=[
     bar:1,lightY:-.06,tailY:.0,lx:.46
   }
 ];
+// ---- the hidden garage bodies (see garageOn) ----
+// Looks only: every one drives, weighs and hits exactly like the three above (the one hitbox, CAR_HX/HY/HZ). Each has
+// make(k), which builds it from the kit in carKit; wheels, where the wheels are drawn and how big; and glow, where the
+// head and tail light glows sit on Pretty graphics: [x, y, z of a headlight, y and z of the tail light].
+// To add a body: add a row here and a name in BODIES at the same position. Keep it to the kit's materials (so it stays
+// six meshes), inside about 0.86 wide and 1.3 long from the middle, and put new ones at the end: the position is the
+// id that is saved and sent to other players.
+const BIG=(s,x,z)=>[[x||.82,z||.8,s],[-(x||.82),z||.8,s],[x||.82,-(z||.8),s],[-(x||.82),-(z||.8),s]];
+BODY_SHAPES.push(
+  { // Boulder: a lifted truck with a bull bar, a roof light bar and a roll bar over a short bed
+    wheels:BIG(1.22),glow:[.56,.12,1.26,.2,-1.26],
+    make(k){
+      const{B,G,H,T,D,M}=k;
+      k.loft([[-1.2,.74,-.08,.3],[-1.12,.79,-.12,.34],[.36,.79,-.12,.34],[.44,.79,-.12,.3],[1.1,.79,-.12,.27],[1.2,.75,-.08,.2]],B,{n:7,taper:.03,lin:1,m:24});
+      const cab=k.loft([[-.5,.69,.3,.7],[-.44,.71,.3,.76],[.02,.71,.3,.76],[.36,.69,.3,.37]],B,{n:7,taper:.1,lin:1,m:24});
+      k.patch(cab,G,{z:[.07,.33],a:-.84,b:.84});k.patch2(cab,G,{z:[-.38,.12],a:.43,b:.69,abs:1});k.box(1.02,.24,.03,0,.56,-.5,G); // windows
+      k.box(1.24,.04,.56,0,.345,-.82,D);k.box2(.1,.1,.66,.73,.385,-.83,B);k.box(1.56,.1,.09,0,.385,-1.16,B);   // the bed: dark floor, raised sides
+      k.box(.84,.1,.12,0,.83,-.1,D);k.box2(.06,.06,.08,.3,.78,-.1,D);for(const x of[-.27,0,.27])k.box(.2,.09,.04,x,.835,-.03,H); // roof lights
+      k.tube2([.6,.36,-.66],[.6,.72,-.66],.045,M);k.tube([-.6,.72,-.66],[.6,.72,-.66],.045,M);k.tube2([.6,.72,-.66],[.6,.4,-1.08],.04,M); // roll bar
+      k.box(1.6,.17,.16,0,-.03,1.24,M);k.tube2([.32,-.06,1.34],[.32,.3,1.3],.045,M);k.tube([-.36,.3,1.3],[.36,.3,1.3],.045,M);k.tube([-.32,.12,1.325],[.32,.12,1.325],.035,M); // bumper and bull bar
+      k.box(.78,.13,.03,0,.12,1.205,D);k.box2(.25,.11,.04,.56,.12,1.205,H);
+      k.box(1.56,.13,.1,0,-.04,-1.22,M);k.box2(.12,.14,.03,.64,.2,-1.205,T);
+      k.arch2(.84,-.18,.8,.52,.06,D,2.2,.45,2.24);k.arch2(.84,-.18,-.8,.52,.06,D,2.2,.45,2.24);k.box(1.3,.16,2.1,0,-.17,0,D);
+    }
+  },
+  { // Glide: a low aero coupe with twin stripes and a rear wing
+    glow:[.5,-.08,1.2,0,-1.3],
+    make(k){
+      const{B,G,A,H,T,D}=k;
+      const low=k.loft([[-1.26,.62,-.2,.1],[-1.12,.78,-.29,.19],[-.78,.84,-.3,.2],[-.25,.78,-.3,.12],[.3,.77,-.3,.06],[.78,.83,-.3,.05],[1.1,.74,-.29,-.07],[1.27,.56,-.25,-.17]],B,{n:4.5,taper:.08,s:28});
+      const cab=k.loft([[-.98,.48,.04,.12],[-.62,.58,.04,.36],[-.25,.6,.04,.43],[.1,.58,.04,.41],[.45,.53,.02,.2],[.68,.46,-.02,.04]],B,{n:3.4,taper:.24,s:20});
+      k.patch(cab,G,{z:[.14,.62],a:-.8,b:.8,s:8,m:6});k.patch(cab,G,{z:[-.9,-.36],a:-.72,b:.72,s:8,m:6});k.patch2(cab,G,{z:[-.5,.42],a:0,b:.78,s:8});
+      for(const s of[-1,1]){
+        k.patch(low,A,{z:[.5,1.25],a:s*.15-.07,b:s*.15+.07,s:10,m:1});k.patch(cab,A,{z:[-.36,.14],a:s*.2-.1,b:s*.2+.1,m:1});k.patch(low,A,{z:[-1.25,-.92],a:s*.15-.07,b:s*.15+.07,m:1}); // twin stripes
+        k.patch(low,H,{z:[.98,1.2],a:s*.64-.2,b:s*.64+.2,m:3});
+      }
+      k.patch2(low,D,{z:[-.62,-.3],a:-.3,b:.35});
+      k.box(1.56,.05,.36,0,.5,-1.08,A,-.08);k.box2(.05,.16,.4,.78,.52,-1.08,A);k.box2(.07,.34,.12,.42,.33,-1.04,D); // wing
+      k.box(.8,.09,.05,0,-.21,1.25,D);k.box(1.3,.04,.22,0,-.31,1.16,D);k.box2(.05,.07,1,.8,-.29,0,D);k.box(1.42,.1,2.2,0,-.33,0,D);
+      k.box(1,.06,.03,0,0,-1.262,T);k.box(1.1,.1,.1,0,-.2,-1.23,D);
+    }
+  },
+  { // Pip: a small rounded hatchback
+    glow:[.42,-.07,1.16,.1,-1.14],
+    make(k){
+      const{B,G,H,T,D,M}=k;
+      k.loft([[-1.1,.7,-.22,.2],[-.98,.8,-.3,.3],[-.5,.82,-.3,.3],[.2,.8,-.3,.25],[.7,.82,-.3,.2],[1,.78,-.3,.12],[1.12,.68,-.24,.03]],B,{n:4,taper:.06,s:28});
+      const cab=k.loft([[-1.02,.6,.2,.3],[-.86,.68,.2,.6],[-.4,.7,.2,.72],[.1,.69,.2,.7],[.45,.64,.2,.44],[.68,.56,.16,.22]],B,{n:3.6,taper:.16,s:20});
+      k.patch(cab,G,{z:[.17,.63],a:-.82,b:.82,s:8,m:6});k.patch(cab,G,{z:[-1,-.87],a:-.75,b:.75,m:6,fwd:-.012});
+      k.patch2(cab,G,{z:[-.74,-.2],a:.34,b:.64,abs:1});k.patch2(cab,G,{z:[-.12,.42],a:.34,b:.64,abs:1});
+      k.loft([[.96,.82,-.32,-.17],[1.1,.76,-.32,-.18],[1.17,.66,-.3,-.2]],M,{n:4,s:6,m:20});k.loft([[-1.15,.66,-.3,-.16],[-1.08,.74,-.32,-.14],[-.96,.8,-.32,-.14]],M,{n:4,s:6,m:20}); // bumpers
+      k.box2(.22,.12,.05,.42,-.07,1.11,H);k.box2(.12,.16,.04,.56,.1,-1.09,T);
+      k.box(1.42,.1,2,0,-.33,0,D);k.box2(.05,.07,.9,.8,-.29,0,D);
+    }
+  }
+,
+  { // Sliver: a flat wedge with a tall wing
+    glow:[.56,-.12,1.14,.02,-1.28],
+    make(k){
+      const{B,G,A,H,T,D}=k;
+      const low=k.loft([[-1.24,.72,-.2,.2],[-1.16,.82,-.3,.26],[-.3,.82,-.3,.22],[.45,.8,-.3,.03],[1.14,.76,-.3,-.16],[1.28,.7,-.28,-.22]],B,{n:8,taper:.1,lin:1,m:24});
+      const cab=k.loft([[-1,.58,.1,.28],[-.72,.62,.1,.46],[-.3,.62,.1,.48],[.52,.54,-.1,0]],B,{n:6,taper:.3,lin:1,m:24});
+      k.patch(cab,G,{z:[-.26,.48],a:-.86,b:.86});k.patch(cab,G,{z:[-.96,-.76],a:-.7,b:.7});k.patch2(cab,G,{z:[-.66,.3],a:.27,b:.44,abs:1});
+      for(const s of[-1,1])k.patch(low,H,{z:[.98,1.12],a:s*.56-.2,b:s*.56+.2,s:2});
+      k.patch2(low,D,{z:[-.8,-.34],a:-.3,b:.5,shear:.12});
+      k.box(1.6,.06,.34,0,.74,-1.08,A);k.box2(.06,.3,.44,.8,.66,-1.08,B);k.box2(.08,.46,.16,.46,.5,-1.04,D,.25); // the tall wing
+      k.box(1.46,.04,.2,0,-.31,1.2,D);k.box2(.05,.07,1,.8,-.29,0,D);k.box(1.42,.1,2.2,0,-.33,0,D);
+      k.box(1.2,.07,.03,0,.02,-1.245,T);k.box(1.2,.1,.08,0,-.2,-1.22,D);
+    }
+  },
+  { // Growler: a long-bonnet coupe with a bonnet scoop, stripes and a wing on the boot
+    glow:[.5,-.05,1.3,.05,-1.3],
+    make(k){
+      const{B,G,A,H,T,D}=k;
+      const low=k.loft([[-1.25,.72,-.2,.2],[-1.14,.8,-.29,.25],[-.7,.83,-.3,.25],[-.1,.79,-.3,.2],[.5,.79,-.3,.17],[.85,.82,-.3,.16],[1.14,.8,-.3,.12],[1.25,.74,-.26,.05]],B,{n:5.5,taper:.06,s:28});
+      const cab=k.loft([[-.98,.56,.14,.24],[-.72,.62,.14,.5],[-.42,.64,.14,.58],[-.06,.63,.14,.57],[.2,.6,.14,.36],[.4,.55,.12,.2]],B,{n:4,taper:.2,s:20});
+      k.patch(cab,G,{z:[-.02,.36],a:-.82,b:.82,m:6});k.patch(cab,G,{z:[-.94,-.5],a:-.74,b:.74,s:8,m:6});k.patch2(cab,G,{z:[-.62,.14],a:.33,b:.52,abs:1,s:8});
+      k.loft([[.36,.13,.12,.19],[.5,.15,.12,.27],[.92,.15,.12,.26]],B,{n:5,lin:1,m:16});k.box(.22,.07,.02,0,.215,.925,D); // bonnet scoop
+      for(const s of[-1,1]){k.patch(low,A,{z:[.4,1.24],a:s*.29-.09,b:s*.29+.09,s:10,m:1});k.patch(cab,A,{z:[-.5,-.02],a:s*.36-.11,b:s*.36+.11,m:1});k.patch(low,A,{z:[-1.24,-.96],a:s*.29-.09,b:s*.29+.09,m:1})}
+      k.box(1.5,.05,.3,0,.47,-1.1,B,-.1);k.box2(.08,.22,.2,.52,.36,-1.08,B);
+      k.box(1.34,.15,.04,0,-.06,1.245,D);k.box2(.3,.1,.05,.5,-.05,1.25,H);k.box(1.5,.07,.14,0,-.27,1.22,D);
+      k.box(1.24,.08,.03,0,.05,-1.252,T);k.box(1.4,.1,.08,0,-.2,-1.23,D);k.box2(.05,.07,1,.8,-.29,0,D);k.box(1.42,.1,2.2,0,-.33,0,D);
+    }
+  },
+  { // Bounce: an open buggy with a roll cage, roof lights and big tyres
+    wheels:BIG(1.22,.83,.82),glow:[.22,.02,1.3,.1,-1.22],
+    make(k){
+      const{B,H,T,D,M}=k,r=.045;
+      k.loft([[-1.12,.46,-.14,.16],[-.9,.56,-.2,.24],[-.2,.58,-.2,.2],[.3,.56,-.2,.2],[.9,.48,-.18,.1],[1.16,.4,-.12,-.02]],B,{n:6,taper:.08,lin:1,m:20});
+      k.box(.84,.06,.7,0,.2,-.28,D);k.box2(.3,.36,.12,.21,.36,-.56,D,-.12);k.box2(.3,.1,.3,.21,.24,-.4,D); // cockpit and seats
+      k.tube2([.52,.2,.36],[.46,.74,-.04],r,M);k.tube2([.46,.74,-.04],[.46,.74,-.66],r,M);k.tube2([.46,.74,-.66],[.5,.2,-1.06],r,M);k.tube2([.46,.74,-.66],[.54,.2,-.66],r,M);
+      k.tube([-.46,.74,-.04],[.46,.74,-.04],r,M);k.tube([-.46,.74,-.66],[.46,.74,-.66],r,M);                     // the cage
+      k.box(.74,.09,.1,0,.83,-.04,D);for(const x of[-.24,0,.24])k.box(.18,.1,.04,x,.835,.02,H);                   // roof lights
+      k.arch2(.83,-.18,.82,.51,.05,B,2.6,.5,1.9);k.arch2(.83,-.18,-.82,.51,.05,B,2.6,.75,1.9);                    // mudguards
+      k.tube([-.5,-.12,1.24],[.5,-.12,1.24],r,M);k.tube([-.5,.14,1.2],[.5,.14,1.2],r,M);k.tube2([.5,-.12,1.24],[.5,.14,1.2],r,M);
+      k.cyl2(.1,.08,.22,.02,1.2,M,'z');k.cyl2(.08,.03,.22,.02,1.25,H,'z');
+      k.box(.7,.24,.3,0,.2,-1.02,D);k.box(1.2,.05,.3,0,.64,-1.1,B,-.15);k.box2(.06,.1,.3,.6,.66,-1.1,B);k.tube2([.4,.3,-1.06],[.4,.62,-1.1],.035,D);k.box2(.1,.08,.03,.3,.1,-1.18,T);
+      k.tube2([.5,-.14,.82],[.78,-.18,.82],.04,D);k.tube2([.5,-.14,-.82],[.78,-.18,-.82],.04,D);k.box(.9,.1,1.9,0,-.2,0,D);
+    }
+  },
+  { // Gravel: a rally hatchback with a bonnet vent, side stripes and a roof wing
+    glow:[.48,-.06,1.29,.12,-1.25],
+    make(k){
+      const{B,G,A,H,T,D}=k;
+      const low=k.loft([[-1.2,.72,-.22,.22],[-1.1,.8,-.3,.3],[-.6,.83,-.3,.3],[0,.8,-.3,.27],[.6,.8,-.3,.2],[.85,.83,-.3,.17],[1.12,.79,-.3,.1],[1.24,.7,-.25,.02]],B,{n:5,taper:.06,s:28});
+      const cab=k.loft([[-1.12,.6,.2,.34],[-.96,.66,.2,.62],[-.5,.68,.2,.68],[0,.67,.2,.66],[.32,.62,.2,.4],[.52,.56,.18,.24]],B,{n:4.2,taper:.18,s:18});
+      k.patch(cab,G,{z:[.05,.48],a:-.82,b:.82,s:8,m:6});k.patch(cab,G,{z:[-1.1,-.98],a:-.75,b:.75,m:6,fwd:-.012});
+      k.patch2(cab,G,{z:[-.88,-.42],a:.36,b:.6,abs:1});k.patch2(cab,G,{z:[-.34,.26],a:.36,b:.6,abs:1});
+      k.box(1.36,.05,.26,0,.8,-1.06,B,-.1);k.box2(.05,.14,.3,.68,.8,-1.06,B);k.box2(.07,.2,.1,.4,.7,-1.02,B,.3);   // roof wing
+      k.loft([[.5,.2,.15,.2],[.62,.24,.15,.25],[.86,.24,.14,.24]],B,{n:5,lin:1,m:16});k.box(.4,.06,.02,0,.2,.865,D); // bonnet vent
+      k.patch2(low,A,{z:[-.3,-.16],a:-.5,b:.72,shear:.24});k.patch2(low,A,{z:[-.08,0],a:-.5,b:.72,shear:.24});      // side stripes
+      k.box2(.3,.12,.05,.48,-.06,1.235,H);k.box(.6,.1,.04,0,-.06,1.24,D);k.box(1.1,.08,.04,0,-.22,1.235,D);k.box(1.4,.04,.2,0,-.31,1.16,D);
+      k.box2(.2,.1,.04,.5,.12,-1.2,T);k.box(1.3,.1,.08,0,-.2,-1.19,D);k.box2(.05,.07,1,.8,-.29,0,D);k.box(1.42,.1,2.2,0,-.33,0,D);
+    }
+  }
+,
+  { // Hauler: a pickup with an open bed and roof bars
+    wheels:BIG(1.08),glow:[.54,.02,1.29,.1,-1.27],
+    make(k){
+      const{B,G,H,T,D,M}=k;
+      k.loft([[-1.24,.75,-.22,.24],[-1.18,.8,-.28,.3],[.56,.8,-.28,.3],[.64,.8,-.28,.25],[1.14,.8,-.28,.2],[1.24,.76,-.24,.12]],B,{n:7,taper:.03,lin:1,m:24});
+      const cab=k.loft([[-.2,.7,.26,.72],[-.14,.72,.26,.77],[.28,.72,.26,.77],[.62,.7,.26,.31]],B,{n:7,taper:.1,lin:1,m:24});
+      k.patch(cab,G,{z:[.33,.59],a:-.84,b:.84});k.patch2(cab,G,{z:[-.08,.38],a:.4,b:.7,abs:1});k.box(1.04,.26,.03,0,.56,-.2,G);
+      k.box(1.28,.04,.92,0,.305,-.68,D);k.box2(.1,.1,1.02,.73,.345,-.7,B);k.box(1.56,.1,.09,0,.345,-1.2,B);          // the open bed
+      for(const z of[-.04,.2]){k.tube([-.62,.86,z],[.62,.86,z],.04,M);k.tube2([.56,.76,z],[.56,.86,z],.035,M)}          // roof bars
+      k.tube2([.73,.5,-.26],[.73,.5,-1.2],.035,M);for(const z of[-.3,-1.16])k.tube2([.73,.38,z],[.73,.5,z],.03,M);      // bed rails
+      k.box(1.62,.14,.16,0,-.2,1.23,M);k.box(.78,.12,.03,0,.02,1.245,D);k.box2(.26,.12,.04,.54,.02,1.245,H);
+      k.box(1.58,.12,.1,0,-.2,-1.24,M);k.box2(.1,.2,.03,.66,.1,-1.245,T);k.box(1.4,.1,2.2,0,-.3,0,D);
+    }
+  },
+  { // Loaf: a boxy minibus with a band along the sides and roof rails
+    glow:[.5,-.02,1.28,.3,-1.26],
+    make(k){
+      const{B,G,A,H,T,D,M}=k;
+      const body=k.loft([[-1.22,.76,-.26,.7],[-1.16,.8,-.3,.78],[.68,.8,-.3,.78],[1.04,.8,-.3,.24],[1.2,.78,-.3,.18],[1.24,.74,-.26,.1]],B,{n:7,taper:.07,lin:1,m:24});
+      k.patch(body,G,{z:[.72,1],a:-.86,b:.86});for(const z of[[-1.02,-.5],[-.42,.1],[.18,.86]])k.patch2(body,G,{z,a:.38,b:.66,abs:1});k.box(1.1,.26,.03,0,.52,-1.222,G);
+      k.patch2(body,A,{z:[-1.18,1],a:.1,b:.26,abs:1,s:10,m:2});k.box(1.4,.16,.02,0,.18,-1.224,A);k.patch(body,A,{z:[-1.12,.64],a:-.9,b:.9,s:2,m:8}); // the band and the roof
+      k.tube2([.5,.9,-.95],[.5,.9,.45],.04,M);for(const z of[-.9,-.25,.4])k.tube2([.5,.78,z],[.5,.9,z],.035,M);          // roof rails
+      k.box(1.62,.16,.14,0,-.22,1.21,M);k.box2(.26,.14,.05,.5,-.02,1.235,H);k.box(.5,.06,.03,0,-.02,1.245,D);k.box2(.07,.12,.1,.84,.36,.8,D);
+      k.box(1.58,.12,.1,0,-.24,-1.22,M);k.box2(.1,.22,.03,.64,.3,-1.225,T);k.box(1.42,.1,2.2,0,-.33,0,D);
+    }
+  },
+  { // Needle: an open-wheel racer with front and rear wings and a centre stripe
+    wheels:[[.8,.84,.95],[-.8,.84,.95],[.78,-.8,1.12,1.3],[-.78,-.8,1.12,1.3]],glow:[.13,-.17,1.06,0,-1.14],
+    make(k){
+      const{B,A,H,T,D,M}=k;
+      const fus=k.loft([[-1.08,.26,-.26,.06],[-.7,.36,-.3,.2],[-.3,.36,-.3,.22],[.1,.3,-.3,.12],[.6,.19,-.28,-.02],[1.05,.11,-.26,-.14],[1.3,.07,-.24,-.2]],B,{n:3.6,taper:.2,s:26,m:20});
+      for(const x of[-.5,.5])k.loft([[-.92,.2,-.3,-.02],[-.5,.25,-.3,.08],[0,.23,-.3,.02],[.28,.14,-.3,-.12]],B,{n:4,taper:.1,s:12,m:16,x}); // side pods
+      k.box2(.2,.1,.02,.5,-.2,.285,D);k.patch(fus,D,{z:[-.32,.14],a:-.62,b:.62,off:.014});                                 // the cockpit
+      k.loft([[-1,.1,.1,.18],[-.66,.15,.1,.44],[-.42,.16,.1,.47],[-.34,.14,.1,.3]],B,{n:4,s:10,m:14});k.box(.2,.14,.02,0,.22,-.332,D);
+      k.box(1.74,.04,.3,0,-.44,1.2,M);k.box2(.04,.16,.34,.86,-.38,1.2,M);k.box2(.04,.2,.1,.07,-.34,1.22,D);k.box2(.5,.03,.14,.56,-.37,1.12,M,-.3); // front wing
+      k.box(1.4,.05,.34,0,.52,-1.12,B,-.1);k.box2(.05,.4,.44,.72,.38,-1.12,B);k.box(1.4,.04,.2,0,.22,-1.14,D);k.box(.1,.5,.24,0,.22,-1.06,D);       // rear wing
+      for(const s of[-1,1])k.patch(fus,A,{z:[.14,1.29],a:s*.34-.2,b:s*.34+.2,s:10,m:2});
+      k.tube2([.14,-.2,.74],[.72,-.28,.84],.03,D);k.tube2([.14,-.2,.94],[.72,-.28,.84],.03,D);k.tube2([.3,-.1,-.7],[.66,-.22,-.8],.035,D);k.tube2([.3,-.1,-.92],[.66,-.22,-.8],.035,D);
+      k.box2(.07,.05,.05,.13,-.17,1.02,H);k.box(.14,.1,.04,0,0,-1.1,T);k.box(.9,.05,1.7,0,-.33,-.1,D);
+    }
+  },
+  { // Flare: a hot rod with its engine out in the open, a tall grille, flames down the side and big rear wheels
+    wheels:[[.82,.9,.9],[-.82,.9,.9],[.8,-.72,1.3,1.2],[-.8,-.72,1.3,1.2]],glow:[.42,.04,1.22,.1,-1.2],
+    make(k){
+      const{B,G,A,H,T,D,M,C}=k;
+      const tub=k.loft([[-1.16,.5,-.24,.26],[-1,.6,-.3,.38],[-.5,.62,-.3,.4],[-.05,.58,-.3,.36],[.3,.4,-.3,.16],[.42,.34,-.28,.08]],B,{n:4.5,taper:.06,s:20,m:24});
+      const top=k.loft([[-.96,.5,.3,.46],[-.8,.56,.3,.72],[-.4,.57,.3,.75],[-.14,.55,.3,.72],[-.04,.5,.3,.42]],B,{n:4,taper:.12,s:16,m:24});
+      k.patch(top,G,{z:[-.13,-.05],a:-.8,b:.8,s:3,m:6,fwd:.016});k.patch2(top,G,{z:[-.7,-.2],a:.46,b:.66,abs:1});k.patch(top,G,{z:[-.95,-.82],a:-.7,b:.7,m:6,fwd:-.014});
+      for(const[c0,rise,len,h0]of[[.25,.3,.75,.16],[-.1,.1,.6,.14],[-.42,-.1,.45,.12]]){                                   // flames, each a tapering lick
+        const c=t=>c0+rise*t+.06*Math.sin(t*5),h=t=>h0*Math.pow(1-t,.7);
+        k.patch2(tub,A,{z:[.1,.1-len],a:t=>c(t)-h(t),b:t=>c(t)+h(t),s:8,m:1});
+      }
+      k.box(.5,.12,.9,0,-.24,.8,D);k.box(.34,.26,.5,0,0,.72,C);k.box(.26,.12,.36,0,.19,.72,C);                              // the engine
+      k.loft([[.5,.13,.24,.36],[.62,.15,.24,.42],[.92,.15,.24,.42]],C,{n:4,lin:1,m:12});k.box(.26,.13,.02,0,.33,.925,D);for(const x of[-.08,0,.08])k.cyl(.032,.02,x,.33,.94,H,'z',8);
+      for(let i=0;i<3;i++)k.tube2([.17,.06,.56+i*.14],[.4,-.12,.5+i*.14],.035,C);k.tube2([.42,-.14,.44],[.5,-.24,-.3],.05,C);  // pipes
+      k.box(.5,.52,.1,0,-.04,1.12,C);k.box(.4,.42,.03,0,-.04,1.175,D);for(const x of[-.12,0,.12])k.box(.03,.42,.02,x,-.04,1.19,C); // the grille
+      k.cyl2(.11,.14,.42,.04,1.1,C,'z');k.cyl2(.085,.03,.42,.04,1.18,H,'z');k.tube2([.25,0,1.1],[.42,.04,1.1],.03,C);
+      k.tube([-.8,-.3,.9],[.8,-.3,.9],.04,D);k.tube([-.62,-.36,1.24],[.62,-.36,1.24],.04,C);k.tube2([.2,-.3,1.1],[.2,-.36,1.24],.03,C);
+      k.arch2(.82,-.296,.9,.4,.045,B,2.8,.5,2);k.arch2(.8,-.152,-.72,.55,.06,B,3.2,.35,2.5);                                // mudguards
+      k.box2(.1,.1,.03,.4,.1,-1.165,T);k.tube([-.5,-.2,-1.2],[.5,-.2,-1.2],.04,C);k.box(.9,.1,2.2,0,-.3,-.05,D);
+    }
+  },
+  { // Rhino: an angular plated truck with a ram on the front and roof lights
+    wheels:BIG(1.22),glow:[.5,.08,1.22,.22,-1.26],
+    make(k){
+      const{B,G,H,T,D,M}=k;
+      k.loft([[-1.2,.74,-.08,.32],[-1.12,.8,-.12,.38],[-.5,.82,-.12,.38],[.3,.82,-.12,.34],[.95,.8,-.12,.26],[1.16,.74,-.08,.14]],B,{n:9,taper:.04,lin:1,m:24});
+      const cab=k.loft([[-1,.6,.3,.5],[-.72,.68,.3,.76],[-.1,.68,.3,.76],[.3,.6,.3,.4]],B,{n:8,taper:.16,lin:1,m:24});
+      k.patch(cab,G,{z:[-.04,.2],a:-.8,b:.8});k.patch2(cab,G,{z:[-.5,-.02],a:.54,b:.7,abs:1});k.patch(cab,G,{z:[-.95,-.78],a:-.6,b:.6});
+      k.box(.96,.04,.56,0,.32,.64,M,.123);for(const z of[.42,.86])k.box2(.05,.03,.05,.4,.385-.123*z,z,D);                   // bonnet plate and its bolts
+      k.box2(.04,.3,.62,.83,.14,-.3,M);for(const z of[-.54,-.06])for(const y of[.04,.24])k.box2(.03,.04,.04,.855,y,z,D);    // door plates
+      k.box2(.04,.2,.4,.65,.56,-.72,M,0,0,.1);k.box(.9,.03,.5,0,.775,-.42,M);
+      k.box(1.56,.14,.12,0,-.08,1.24,M);k.box2(.1,.12,.3,.5,-.08,1.12,M);for(const x of[-.57,-.19,.19,.57])k.box(.2,.34,.1,x,-.24,1.27,M,-.5); // the ram
+      k.box2(.28,.1,.04,.5,.08,1.17,H);k.box(.4,.08,.03,0,.08,1.165,D);
+      k.box(.86,.1,.12,0,.83,-.2,D);k.box2(.06,.06,.08,.3,.78,-.2,D);for(const x of[-.3,-.1,.1,.3])k.box(.15,.09,.04,x,.835,-.13,H); // roof lights
+      k.arch2(.84,-.18,.8,.53,.07,D,2.2,.45,2.24);k.arch2(.84,-.18,-.8,.53,.07,D,2.2,.45,2.24);
+      k.box(1.56,.14,.1,0,-.02,-1.22,M);k.box2(.14,.1,.03,.6,.22,-1.205,T);k.box(.9,.18,.03,0,.2,-1.205,M);k.box2(.04,.04,.03,.38,.2,-1.22,D);k.box(1.3,.16,2.1,0,-.17,0,D);
+    }
+  }
+);
 function buildCarModel(team,body,accent){
   const g=new THREE.Group(),inner=new THREE.Group();g.add(inner);
   const T=TEAM[team],gl=glossOn(),aHex=new THREE.Color(ACCENTS[accent]||ACCENTS[0]).getHex();
@@ -1614,7 +1911,12 @@ function buildCarModel(team,body,accent){
   const mT=gl?std(0x0c0e16,.92,0):lam(0x0c0e16),mR=gl?std(aHex,.25,.8):lam(aHex);
   const mG=gl?std(0x0b1222,.06,.9,{emissive:0x0c1c3a}):(matCache.glass||(matCache.glass=new THREE.MeshLambertMaterial({color:0x0b1222,emissive:0x0c1c3a})));
   const head=bas(0xfff3c4),tail=bas(0xff3048);
-  const B=BODY_SHAPES[body]||BODY_SHAPES[0],zN=B.low[B.low.length-1][0],zT=B.low[0][0];
+  const B=BODY_SHAPES[body]||BODY_SHAPES[0],zN=B.make?0:B.low[B.low.length-1][0],zT=B.make?0:B.low[0][0];
+  if(B.make){
+    // a garage body builds itself from the kit; its trim is one vertex-coloured material (see carKit)
+    const mTr=gl?(matCache.trimS||(matCache.trimS=new THREE.MeshStandardMaterial({color:0xffffff,vertexColors:true,roughness:.5,metalness:.3,envMap:stadiumEnv(),envMapIntensity:1}))):(matCache.trimL||(matCache.trimL=new THREE.MeshLambertMaterial({color:0xffffff,vertexColors:true})));
+    B.make(carKit(inner,{B:mB,G:mG,A:mA,H:head,T:tail,trim:mTr}));
+  }else{
   loft(inner,B.low,mB,{n:4.5,taper:.07});
   loft(inner,B.cab,mG,{n:3.2,taper:.2,s:24});
   loft(inner,B.roof,B.roofAccent?mA:mB,{n:4,taper:.06,s:10,m:20});
@@ -1633,24 +1935,28 @@ function buildCarModel(team,body,accent){
     box(inner,.09,sh,.12,-.5,wy-sh/2,wz+.02,mD);box(inner,.09,sh,.12,.5,wy-sh/2,wz+.02,mD);
   }
   if(B.bar){box(inner,1.5,.1,.08,0,-.14,zN+.03,mA);box(inner,.9,.05,.5,0,.82,-.3,mD)}
+  }
   // Everything so far is fixed to the body: weld it into one mesh per material (see joinMeshes). The lights don't cast a
   // shadow (they sit flush on the body, inside its outline).
   for(const m of joinMeshes(inner))m.castShadow=m.material!==head&&m.material!==tail;
   const wheels=[];
-  for(const [x,z] of [[.8,.78],[-.8,.78],[.8,-.78],[-.8,-.78]]){
-    const w=new THREE.Group();w.position.set(x,-.26,z);
+  // B.wheels (garage bodies): [x, z, size, width] for each wheel, the front pair first. Size and width only stretch
+  // the shared wheel shape and keep the tyre on the ground; none of it is physics.
+  for(const [x,z,ws,ww] of B.wheels||[[.8,.78],[-.8,.78],[.8,-.78],[-.8,-.78]]){
+    const w=new THREE.Group(),sz=ws||1;w.position.set(x,sz===1?-.26:.36*sz-.62,z);if(sz!==1||ww)w.scale.set(sz*(ww||1),sz,sz);
     const spin=new THREE.Group();w.add(spin);
     // the tyre and the hub that fills its middle cast the shadow; the spokes are inside their outline
     const tyre=new THREE.Mesh(wheelG,mT),hub=new THREE.Mesh(hubCapG,mR);tyre.castShadow=hub.castShadow=true;
     spin.add(tyre);spin.add(hub);spin.add(new THREE.Mesh(spokesG,mD));
-    inner.add(w);wheels.push({g:w,spin,front:z>0});
+    inner.add(w);wheels.push({g:w,spin,front:z>0,y0:w.position.y,sz});
   }
   const flame=new THREE.Mesh(new THREE.ConeGeometry(.24,1.4,10),new THREE.MeshBasicMaterial({color:T.flame[0],transparent:true,opacity:.85,blending:THREE.AdditiveBlending,depthWrite:false}));
   flame.rotation.x=-Math.PI/2;flame.position.set(0,.02,-1.6);flame.visible=false;inner.add(flame);
   let boostGlow=null;
   if(gl){
-    for(const sx of [-1,1]){const h=glowSprite(0xfff3c4,.5,.9);h.position.set(sx*B.lx,B.lightY+.06,zN+.05);inner.add(h)}
-    const t=glowSprite(0xff3048,.45,1.5);t.position.set(0,B.tailY+.04,zT-.05);inner.add(t);
+    const [hx,hy,hz,ty,tz]=B.glow||[B.lx,B.lightY+.06,zN+.05,B.tailY+.04,zT-.05]; // where the head and tail lights glow
+    for(const sx of [-1,1]){const h=glowSprite(0xfff3c4,.5,.9);h.position.set(sx*hx,hy,hz);inner.add(h)}
+    const t=glowSprite(0xff3048,.45,1.5);t.position.set(0,ty,tz);inner.add(t);
     boostGlow=glowSprite(T.flame[0],.7,3.2);boostGlow.position.set(0,.02,-1.7);boostGlow.visible=false;inner.add(boostGlow);
   }
   return{g,inner,wheels,flame,boostGlow};
@@ -1686,13 +1992,13 @@ function updateCarMesh(c,dt,time){
   if(c.sqV||c.sq){
     const h=Math.min(dt,.05);c.sqV=(c.sqV||0)+(-SQ_K*(c.sq||0)-SQ_D*c.sqV)*h;c.sq=clamp((c.sq||0)+c.sqV*h,-.16,.06);
     if(Math.abs(c.sq)<1e-4&&Math.abs(c.sqV)<1e-3)c.sq=c.sqV=0;
-    m.inner.position.y=c.sq;for(const w of m.wheels)w.g.position.y=-.26-c.sq; // the wheels stay on the ground
+    m.inner.position.y=c.sq;for(const w of m.wheels)w.g.position.y=w.y0-c.sq; // the wheels stay on the ground
   }
   if(c.landT>0){c.landT-=dt;if(c.landT>0)m.g.quaternion.copy(c.landQ).slerp(c.q,1-c.landT/(c.landDur||.14))}
   const fwdSp=_v1.set(0,0,1).applyQuaternion(c.q).dot(c.vel);
   c.wheelSpin+=fwdSp*dt/.36;
   const steerT=(c.remote?0:-c.inp.steer)*.45;c.steerVis=lerp(c.steerVis,steerT,1-Math.exp(-dt*12));
-  for(const w of m.wheels){w.spin.rotation.x=c.wheelSpin;w.g.rotation.y=w.front?c.steerVis:0}
+  for(const w of m.wheels){w.spin.rotation.x=c.wheelSpin/w.sz;w.g.rotation.y=w.front?c.steerVis:0}
   m.flame.visible=!!c.boosting;if(m.boostGlow)m.boostGlow.visible=!!c.boosting;
   if(c.boosting){const s=.8+Math.random()*.5;m.flame.scale.set(1,s,1);m.flame.position.z=-1.2-.7*s;if(m.boostGlow)m.boostGlow.scale.set(2.6+s,2.6+s,1)}
   const h=Math.max(0,c.pos.y-CAR_Y);
@@ -1937,8 +2243,33 @@ function renderGarage(dt){
     if(garage.model){garage.sc.remove(garage.model.g);garage.model.g.traverse(o=>{if(o.isSprite)o.material.dispose();else if(o.geometry&&!SHARED_G.has(o.geometry))o.geometry.dispose()})}
     garage.model=buildCarModel(0,myBody,myAccent);garage.model.g.position.y=.3;garage.sc.add(garage.model.g);garage.key=key;
   }
+  if(garageOn)drawThumbs();
   garage.rot+=dt*.5;garage.model.g.rotation.y=garage.rot;
   garage.r.render(garage.sc,garage.cam);
+}
+// The garage picker's pictures (only with the garage switch on). Each is the real model, drawn once by the preview's
+// own renderer at a three-quarter angle and copied into the button's small canvas: one body a frame, so the menu
+// never stalls, and again when the accent, the team colours or the graphics setting change.
+const thumbs={key:'',next:0,pics:[],paint:false};
+function drawThumbs(){
+  const key=myAccent+':'+schemeIdx+(glossOn()?':g':'');
+  if(thumbs.key!==key){thumbs.key=key;thumbs.next=0;thumbs.pics=[]}
+  const btns=$('bodies').children;
+  if(thumbs.paint){thumbs.paint=false;for(let i=0;i<btns.length;i++){const c=btns[i].firstChild,p=thumbs.pics[i];if(c&&c.getContext&&p)c.getContext('2d').drawImage(p,0,0)}}
+  if(thumbs.next>=BODIES.length)return;
+  const i=thumbs.next++,G=garage,cv=G.r.domElement;
+  {
+    const m=buildCarModel(0,i,myAccent);m.g.position.y=.3;m.g.rotation.y=.72;
+    const vis=[];for(const o of G.sc.children)if(o.isMesh||o===G.model.g){vis.push(o);o.visible=false}
+    G.sc.add(m.g);G.cam.zoom=1.72;G.cam.updateProjectionMatrix();
+    G.r.render(G.sc,G.cam);
+    const pic=document.createElement('canvas');pic.width=170;pic.height=102;
+    const sw=Math.min(cv.width,cv.height*5/3);pic.getContext('2d').drawImage(cv,(cv.width-sw)/2,0,sw,cv.height,0,0,170,102);
+    thumbs.pics[i]=pic;
+    G.sc.remove(m.g);G.cam.zoom=1;G.cam.updateProjectionMatrix();for(const o of vis)o.visible=true;
+    m.g.traverse(o=>{if(o.isSprite)o.material.dispose();else if(o.geometry&&!SHARED_G.has(o.geometry))o.geometry.dispose()});
+    const c=btns[i]&&btns[i].firstChild;if(c&&c.getContext){const g=c.getContext('2d');g.clearRect(0,0,170,102);g.drawImage(pic,0,0)}
+  }
 }
 
 // =====================================================================
@@ -1953,7 +2284,10 @@ let R=null;              // the match: {id,ends,len,sz,bo,sb,so,g,ko,rem,sc,as,g
 let touches=[];          // recent touches {id,team,t}, oldest first
 let owner='local',lastTouchBt=0,goalPending=false;
 let myName=store.get('name','')||'';
-let myBody=clamp(+store.get('body',0)||0,0,BODIES.length-1),myAccent=clamp(+store.get('accent',0)||0,0,ACCENTS.length-1);
+// The saved body. 'body' only ever holds a public body, exactly as before; a hidden one is saved beside it as 'gbody'
+// and is used only while the garage switch is on, so with the switch off the last public choice comes back.
+let myBody=clamp(+store.get('body',0)||0,0,PUBLIC_BODIES-1),myAccent=clamp(+store.get('accent',0)||0,0,ACCENTS.length-1);
+if(garageOn){const g=+store.get('gbody',-1);if(g>=PUBLIC_BODIES&&g<BODIES.length&&g===Math.floor(g))myBody=g}
 let teamSize=clamp(+store.get('size',2)||2,1,3),botsOn=store.get('bots','1')!=='0',practiceDiff=store.get('diff','normal');
 if(!DIFF[practiceDiff])practiceDiff='normal';
 let ballCam=store.get('ballcam','1')!=='0';
@@ -2003,7 +2337,7 @@ function renameBots(){
 }
 function addBot(team,diff,name){
   const nm=name||botName(null);
-  return addCar({id:'b'+(++botSeq).toString(36)+Math.random().toString(36).slice(2,5),name:nm,team,isBot:true,diff,body:Math.floor(Math.random()*3),accent:Math.floor(Math.random()*ACCENTS.length)});
+  return addCar({id:'b'+(++botSeq).toString(36)+Math.random().toString(36).slice(2,5),name:nm,team,isBot:true,diff,body:Math.floor(Math.random()*bodyCount()),accent:Math.floor(Math.random()*ACCENTS.length)});
 }
 
 // ---------- match flow ----------
@@ -3021,10 +3355,10 @@ function onRemoteState(uid,v){
   let c=carById(uid);
   if(!c){
     if(cars.filter(x=>x.remote&&!x.isBot).length>=MAX_ROOM-1)return;
-    c=remoteCar(uid,{name:cleanName(v.n)||'Player',team,body:clamp(v.bd|0,0,2),accent:clamp(v.ac|0,0,ACCENTS.length-1)});
+    c=remoteCar(uid,{name:cleanName(v.n)||'Player',team,body:bodyId(v.bd),accent:clamp(v.ac|0,0,ACCENTS.length-1)});
     if(state==='playing')addFeed(c.name+' joined '+TEAM[team].name,'t'+team);
   }
-  c.name=cleanName(v.n)||c.name;c.team=team;c.body=clamp(v.bd|0,0,2);c.accent=clamp(v.ac|0,0,ACCENTS.length-1);
+  c.name=cleanName(v.n)||c.name;c.team=team;c.body=bodyId(v.bd);c.accent=clamp(v.ac|0,0,ACCENTS.length-1);
   setRemoteKin(c,+v.x,+v.y||CAR_Y,+v.z,parseVec(v.q,4),parseVec(v.v,3),ts);
   c.netGround=v.g===undefined?(+v.y||CAR_Y)<CAR_Y+.1:!!v.g;
   c.boosting=!!v.bo;c.boost=clamp(+v.bs||0,0,100);c.placed=v.pl!==0;
@@ -3045,7 +3379,7 @@ function onRemoteState(uid,v){
       ids.add(id);
       let b=carById(id);
       if(b&&!b.remote)continue; // I'm running it
-      if(!b)b=remoteCar(id,{name:BOT_NAMES[n[21]]||'Bot',team:n[0]?1:0,isBot:true,body:clamp(n[14]|0,0,2),accent:clamp(n[15]|0,0,ACCENTS.length-1)});
+      if(!b)b=remoteCar(id,{name:BOT_NAMES[n[21]]||'Bot',team:n[0]?1:0,isBot:true,body:bodyId(n[14]),accent:clamp(n[15]|0,0,ACCENTS.length-1)});
       b.team=n[0]?1:0;b.name=BOT_NAMES[n[21]]||b.name;
       setRemoteKin(b,n[1],n[2],n[3],[n[4],n[5],n[6],n[7]],[n[8],n[9],n[10]],ts);
       b.boosting=!!n[11];b.boost=clamp(n[12],0,100);remoteDemo(b,!!n[13]);
@@ -3148,7 +3482,7 @@ function setMsg(t,err){const m=$('netMsg');m.textContent=t;m.classList.toggle('e
 function sanitizeRoom(s){return String(s||'').toLowerCase().replace(/^bb-/,'').replace(/[^a-z0-9-]/g,'').slice(0,17)}
 function randomRoom(){return pick(['nitro','kickoff','turbo','aerial','flip','boost','bicycle','ceiling'])+'-'+Math.floor(100+Math.random()*900)}
 function busy(on){for(const id of ['quick','joinRoom','practice','freeplay'])$(id).disabled=on}
-function saveProfile(){myName=cleanName($('name').value);store.set('name',myName);store.set('body',myBody);store.set('accent',myAccent)}
+function saveProfile(){myName=cleanName($('name').value);store.set('name',myName);if(myBody<PUBLIC_BODIES)store.set('body',myBody);if(garageOn)store.set('gbody',myBody<PUBLIC_BODIES?-1:myBody);store.set('accent',myAccent)}
 function makeMe(team){
   if(me)removeCar(me);
   me=addCar({id:'me',name:myName||'You',team,isMe:true,body:myBody,accent:myAccent});
@@ -3284,7 +3618,15 @@ segBind('markSeg','m',()=>markerOn?1:0,v=>{markerOn=v==='1';store.set('marker',m
 function renderGarageUI(){
   const bodies=$('bodies');
   const icons=['<path d="M6 30h68l-3-9-14-2-8-8H25l-9 8-8 2z"/>','<path d="M4 30h72l-2-6-20-3-9-7H28l-8 6-14 3z"/>','<path d="M8 30h64v-9l-6-2-3-10H22l-4 10-8 2z"/>'];
-  bodies.innerHTML=BODIES.map((b,i)=>'<button type="button" data-i="'+i+'" aria-pressed="'+(i===myBody)+'"><svg viewBox="0 0 80 40" aria-hidden="true"><g fill="#2f8cff" stroke="#0a1024" stroke-width="2" stroke-linejoin="round">'+icons[i]+'</g><circle cx="22" cy="31" r="5" fill="#0a1024"/><circle cx="58" cy="31" r="5" fill="#0a1024"/></svg>'+b.name+'<small>'+b.sub+'</small></button>').join('');
+  if(garageOn){
+    // the whole garage: a picture of each body, drawn from the model itself by drawThumbs (below)
+    bodies.classList.add('many');
+    bodies.innerHTML=BODIES.map((b,i)=>'<button type="button" data-i="'+i+'" aria-pressed="'+(i===myBody)+'" title="'+b.sub+'"><canvas width="170" height="102" aria-hidden="true"></canvas>'+b.name+'<small>'+b.sub+'</small></button>').join('');
+    let cap=$('bodyCap');if(!cap){cap=document.createElement('p');cap.id='bodyCap';cap.className='note';bodies.after(cap)}
+    cap.textContent=BODIES[myBody].name+': '+BODIES[myBody].sub.toLowerCase()+'.';
+    thumbs.paint=true;
+  }else
+  bodies.innerHTML=BODIES.slice(0,PUBLIC_BODIES).map((b,i)=>'<button type="button" data-i="'+i+'" aria-pressed="'+(i===myBody)+'"><svg viewBox="0 0 80 40" aria-hidden="true"><g fill="#2f8cff" stroke="#0a1024" stroke-width="2" stroke-linejoin="round">'+icons[i]+'</g><circle cx="22" cy="31" r="5" fill="#0a1024"/><circle cx="58" cy="31" r="5" fill="#0a1024"/></svg>'+b.name+'<small>'+b.sub+'</small></button>').join('');
   bodies.onclick=e=>{const b=e.target.closest('button');if(!b)return;myBody=+b.dataset.i;saveProfile();renderGarageUI();sfx('click')};
   const sw=$('swatches');
   sw.innerHTML=ACCENTS.map((c,i)=>'<button type="button" data-i="'+i+'" style="background:'+c+'" aria-label="Accent '+(i+1)+'" aria-pressed="'+(i===myAccent)+'"></button>').join('');
@@ -3464,7 +3806,7 @@ if(navigator.webdriver)window.__bb={get fxTier(){return fxTier},get state(){retu
   advance(sec,fps){const f=fps||60,n=Math.round(sec*f);const nr=noRender;noRender=true;try{for(let i=0;i<n;i++){if(!online)warp+=1000/f;step(1/f)}}finally{noRender=nr}},
   render(){drawScene()},physStep,carCar,ballVsCars,sdf,land,predictLanding,ballInPlay,get camUp(){return camUp},camFwd,camPos,camLook,get ballVisOff(){return ballVisOff},
   get ballHidden(){return ballHidden},set ballHidden(v){ballHidden=!!v},updateCamera,setupKickoff,landDecal,arcPts,
-  boom,fxMat,fxLight,goalExplosion,TEAM,SCHEMES,get schemeIdx(){return schemeIdx},get teamPref(){return teamPref}};
+  boom,fxMat,fxLight,goalExplosion,TEAM,SCHEMES,buildCarModel,BODY_SHAPES,BODIES,THREE,garageOn,get myBody(){return myBody},get garage(){return garage},get schemeIdx(){return schemeIdx},get teamPref(){return teamPref}};
 
 resize();renderGarageUI();initGarage();
 setupAttract();showAd('adMenu');
