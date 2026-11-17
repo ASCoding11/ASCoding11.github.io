@@ -32,6 +32,7 @@
  *   tileMine(uid)         the code this browser should publish as nt: 't1:<index>', 't0' (back to default) or ''
  *   learnTile(uid, code)  remember the nt another player published (checked first); parseTile(code) is the check
  *   TILES                 [{ n: name, bg: '#rrggbb', d: true when the text on it is dark }], TILES[0] the default
+ *   lock                  the small padlock drawing (an <svg> string) the panels put on what a guest can't open yet
  * }
  * The features come from the same hash as the seat tag in social.js (hash('seat:' + uid)), and the drawing never contains
  * text from a node: it is built only from numbers. Some features are newer than the rest and are not drawn from the hash,

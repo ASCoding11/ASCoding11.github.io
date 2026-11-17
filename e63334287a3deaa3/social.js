@@ -2016,6 +2016,7 @@
       meRef = db.ref(PATH + '/' + uid); delete people[uid]; opened = {}; chains = {}; mine.d = {}; mine.i = {}; mine.pc = {};
       listRef.once('value', function (s) { s.forEach(function (c) { onNode(c); }); });
       if (!hidden) publish();
+      schedule();                                           // the "You" row and its locks are for the new account now
     });
     schedule();
   }
