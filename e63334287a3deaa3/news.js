@@ -72,6 +72,12 @@
       'With it off you get the winter page: snow, a tree, a snowman, a menorah, a diya, gingerbread and lights. Buttons are blue for the season.',
       'It stays until January 6. The Cabin button shows the cabin again, and the ❄ button in the footer turns all of it off.'
     ]},
+    {date: '2026-11-17', version: '1.29.15', title: 'Flickerwood', kind: 'game', games: ['Flickerwood'],
+     img: 'm/thumbs/flickerwood.jpg', tags: ['Arcade', 'Maze chase', 'Solo', 'Pixel art'], items: [
+      'Flickerwood: an 8-bit maze chase by moonlight. Steer Glim the firefly through a hedge maze, gather every speck of pollen, and keep away from four night critters that each hunt in their own way.',
+      'A moonbloom dazzles them for a few seconds so you can send them home for points, a dash gets you out of a tight spot, and eating without a gap builds a chain worth up to five times as much.',
+      'Five glades of different shapes with tunnels that slow the critters, quicker every glade. Keyboard, or swipes and a pad on a phone. Your best score goes on the Leaderboards.'
+    ]},
     {date: '2026-11-17', version: '1.29.14', title: 'Driftfall: ten weapons and real scopes', kind: 'feature',
      img: 'm/thumbs/drop-zone.jpg', tags: ['Driftfall', 'Ten weapons', 'Scopes', 'Storm'], items: [
       'Ten weapons, two of every kind: Pistol and Heavy Pistol, SMG and Drum SMG, Pump and Auto Shotgun, Rifle and Heavy Rifle, Bolt Sniper and Scout Sniper. Each has its own shape, sound and punch.',
