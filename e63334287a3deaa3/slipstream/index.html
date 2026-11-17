@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
+<script src="/e63334287a3deaa3/captains.js"></script> <!-- who may see the Garage while it is not public (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Slipstream</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -264,7 +265,7 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
 <script src="/e63334287a3deaa3/elo.js" data-game="slipstream" defer></script>
 <script src="/e63334287a3deaa3/gamechat.js" defer></script>
 <script src="/adrefresh.js" defer></script>
-<script src="/e63334287a3deaa3/cosmetics.js" defer></script> <!-- switched off (see README): garage.js is only fetched when it is on -->
+<script src="/e63334287a3deaa3/cosmetics.js" defer></script> <!-- switched off (see README): garage.js is only fetched when something needs it -->
 <script src="/e63334287a3deaa3/wallet.js" defer></script>
 </head>
 <body>
@@ -406,9 +407,10 @@ const AD_SLOT='';
 window.SS_AD_SLOT=AD_SLOT;
 
 const $=id=>document.getElementById(id);
-// Cosmetics (../cosmetics.js; switched off for players): sponsors, stickers, liveries, helmets, boost effects and the
-// Garage are all in garage.js, which is only fetched when the cosmetics are switched on (see the boot code at the end).
-// Until then COS is null, every `if(COS)` in this file is skipped, and the game is exactly as it was.
+// Cosmetics (../cosmetics.js; not public yet): sponsors, stickers, liveries, helmets, boost effects and the Garage are
+// all in garage.js, which is only fetched when something needs it: this player may see the Garage, or another driver
+// in the room wears something (see the boot code at the end). Until then COS is null, every `if(COS)` in this file is
+// skipped, and the game is exactly as it was.
 let COS=null;
 const TAU=Math.PI*2;
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
@@ -1806,7 +1808,7 @@ function onPlayerNode(uid,v){
   const ts=+v.ts||0;
   Net.others.set(uid,{v,ts});
   lobbyDirty=true;
-  if(COS)COS.heard(uid,v);
+  if(COS)COS.heard(uid,v);else if(typeof v.cs==='string'&&v.cs)cosLoad();   // someone here wears something: fetch what draws it
   if(!race||!race.online||race.attract||v.rid!==race.id)return;
   const seat=race.uidSeat.get(uid);
   if(seat!=null){
@@ -2756,20 +2758,32 @@ if(inv&&!/^pub-/.test(inv[1])){$('room').value=inv[1];setMsg('You were invited t
 // test hook for automated browsers only (bots-only races, lap-time checks)
 if(navigator.webdriver)window.__ss={get race(){return race},get track(){return track},get state(){return state},get mode(){return mode},
   get clock(){return localClock},set clock(v){localClock=v},set paused(v){paused=v},
-  TRACKS,DIFF,PACE,AI,SEATS,HALF_W:()=>HALF_W,newRace,stepRace,setupAttract,startPractice,prefs,raceTime,order,
+  TRACKS,DIFF,PACE,AI,SEATS,HALF_W:()=>HALF_W,get garageOn(){return garageOn()},get COS(){return COS},Net,newRace,stepRace,setupAttract,startPractice,prefs,raceTime,order,
   get world(){return world},set auto(v){testAuto=!!v},posAt,
   // a picture of the circuit from a camera at (px,py,pz) looking at (tx,ty,tz), for checking the scenery
   snap(px,py,pz,tx,ty,tz){const c=camera.clone();c.position.set(px,py,pz);c.up.set(0,1,0);c.lookAt(tx,ty,tz);c.far=9000;c.updateProjectionMatrix();c.updateMatrixWorld();const f=scene.fog;scene.fog=null;renderer.render(scene,c);scene.fog=f;return renderer.domElement.toDataURL('image/jpeg',.85)}};
-// Cosmetics: only when ../cosmetics.js says they are switched on is garage.js fetched and handed what it needs.
-addEventListener('DOMContentLoaded',()=>{
-  const C=window.BackRoomCosmetics;if(!C||!C.on||!C.on()||!window.NameFilter)return;
+// Cosmetics. garageOn(): may this player see the Garage and wear things? True when the cosmetics are switched on in
+// ../cosmetics.js (ENABLED there; ?cosmetics=1 on localhost or in an automated browser), or the account signed in is one
+// of the site's captains (../captains.js). A captain's answer arrives a moment after the page loads and goes away if
+// they sign out, so it is asked again each time (cosSync). garage.js is fetched the first time it is true, or when
+// another driver in the room wears something (onPlayerNode), and handed what it needs.
+const CAPTAINS=window.BackRoomCaptains||null;
+const cosCat=()=>{const C=window.BackRoomCosmetics;return C&&C.on&&C.gameItems&&window.NameFilter?C:null};
+const garageOn=()=>{const C=cosCat();return !!C&&(CAPTAINS?CAPTAINS.may(C.ENABLED,'cosmetics'):C.on())};
+let cosAsked=false;
+function cosLoad(){
+  const C=cosCat();if(cosAsked||!C)return;cosAsked=true;
   loadScript('garage.js').then(()=>{
     COS=window.SlipstreamGarage({THREE,C,scene,renderer,camera,TEAMS,DRIVERS,SEATS,TRACKS,CAR_GEO,MAT,lin,paintCol,paintGeo,CARBON,POD,makeCarMesh,buildCars,helmetMat,
       fxEmit,fxr,fxMat,store,strHash,mulberry,esc,$,toast,banner,Net,order,raceT,hideScreens,showHud,setupAttract,
+      get on(){return garageOn()},
       get race(){return race},get state(){return state},set state(v){state=v},get mode(){return mode},get seat(){return mySeat},get W(){return W},get H(){return H},get touch(){return touchUI},get paused(){return paused}});
+    for(const [uid,o] of Net.others)COS.heard(uid,o.v);
     buildCars();
   }).catch(e=>console.error(e));
-});
+}
+function cosSync(){if(garageOn())cosLoad();if(COS)COS.access()}
+addEventListener('DOMContentLoaded',()=>{cosSync();if(CAPTAINS)CAPTAINS.onChange(cosSync)});
 requestAnimationFrame(frame);
 })();
 </script>
