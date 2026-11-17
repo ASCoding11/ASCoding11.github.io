@@ -829,6 +829,6 @@
     load: load, flush: flush, publish: function () { return publish(false); }, engaged: function () { return engaged(Date.now()); },
     local: function (gk) { flush(); var t = load().tc; return gk ? t[gk] || 0 : t; }, apply: apply, cleanDays: cleanDays,
     setIdle: function (ms) { IDLE = ms; }, setGrace: function (ms) { GRACE = ms; }, setPub: function (ms) { PUB_MS = ms; }, setSave: function (ms) { SAVE_MS = ms; },
-    link: link, anyTarget: function () { anyTarget = true; }, localAv: localAv
+    link: link, anyTarget: function () { anyTarget = true; }, localAv: localAv, localNt: localNt
   };
 })();

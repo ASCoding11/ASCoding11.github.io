@@ -557,7 +557,7 @@
   function onGone(s) {
     if (s.key === uid) {
       // Our node went missing (another tab of ours closed, or a dropped connection); put it back.
-      if (published && !hidden && meRef) meRef.set(nodeState()).catch(function () {});
+      if (published && !hidden && meRef) meRef.set(sendState()).catch(function () {});
       return;
     }
     delete people[s.key]; schedule();
@@ -942,9 +942,11 @@
     if (Object.keys(mine.i).length) s.i = mine.i;
     if (Object.keys(mine.pc).length) s.pc = mine.pc;
     var a = myAv(), t = myNt(); if (a) s.av = a; if (t) s.nt = t;
-    avSent = uid + '|' + a + '|' + t;
     return s;
   }
+  // The node for a full write (set), which also notes the avatar and name tile it carries, so syncAvatar needn't send
+  // them again. (nodeState alone is also used just to measure the node, and mustn't note anything.)
+  function sendState() { var s = nodeState(); avSent = uid + '|' + (s.av || '') + '|' + (s.nt || ''); return s; }
   // Our avatar (avatar.js): the edit is saved in this browser, and av in our node is how everyone else gets to see it.
   // It also goes on our leaderboard entry (only one that exists, like the name), which is still there when we're offline.
   function myAv() { try { return uid && window.BackRoomAvatar && BackRoomAvatar.mine ? BackRoomAvatar.mine(uid) || '' : ''; } catch (e) { return ''; } }
@@ -991,7 +993,7 @@
     if (hidden || !meRef) return;
     published = true;
     try {
-      await meRef.set(nodeState());
+      await meRef.set(sendState());
       meRef.onDisconnect().remove();
     } catch (e) { published = false; say('The database didn’t accept your Online status (' + (e.code || e.message) + ').', true); return; }
     clearInterval(beat);
@@ -1017,7 +1019,7 @@
     schedule();
   }
   function onConnected(s) {
-    if (s.val() === true && !wasConnected && published && !hidden && meRef) { meRef.onDisconnect().remove(); meRef.set(nodeState()).catch(function () {}); }
+    if (s.val() === true && !wasConnected && published && !hidden && meRef) { meRef.onDisconnect().remove(); meRef.set(sendState()).catch(function () {}); }
     wasConnected = s.val() === true;
   }
 
