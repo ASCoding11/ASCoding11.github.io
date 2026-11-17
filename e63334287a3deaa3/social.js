@@ -1370,10 +1370,10 @@
     $seat.textContent = uid ? 'Seat ' + seatOf(uid) + (hidden ? '' : ' · ' + statusText(meEntry())) : '';
     var BA = window.BackRoomAvatar, canEdit = !!(uid && BA && BA.edit && BA.editButton), avKey = uid + (BA ? ':a' + (BA.rev || 0) : '');
     if (uid && $meAv.getAttribute('data-u') !== avKey) {
-      var hadFocus = $meAv.contains(document.activeElement), mine = null;
-      if (canEdit) { try { mine = BA.editButton(uid, 34); } catch (e) { mine = null; } }
-      $meAv.textContent = ''; $meAv.append(mine || avatarEl(uid, myName(), colorOf(uid), 34)); $meAv.setAttribute('data-u', avKey);
-      if (hadFocus && mine) mine.focus();
+      var hadFocus = $meAv.contains(document.activeElement), editB = null;
+      if (canEdit) { try { editB = BA.editButton(uid, 34); } catch (e) { editB = null; } }
+      $meAv.textContent = ''; $meAv.append(editB || avatarEl(uid, myName(), colorOf(uid), 34)); $meAv.setAttribute('data-u', avKey);
+      if (hadFocus && editB) editB.focus();
     }
     $editAv.style.display = canEdit ? '' : 'none';
     var mt = uid ? tierOf(uid) : null;
