@@ -270,7 +270,7 @@ function frame(dt){
   return open;
 }
 // fonts arrive after the first cars are painted: paint the stickers again once the game's typeface is in
-try{Promise.all([document.fonts.load('900 40px "Titillium Web"'),document.fonts.load('italic 900 40px "Titillium Web"')]).then(()=>{stCells.clear();lvCells.clear();redressAll()},()=>{})}catch(e){}
+try{Promise.all([document.fonts.load('900 40px "Titillium Web"'),document.fonts.load('italic 900 40px "Titillium Web"')]).then(()=>{stCells.clear();lvCells.clear();redressAll();if(G&&G.open){render();refreshPv()}},()=>{})}catch(e){}
 
 // =====================================================================
 //  Sponsors. All fifteen are made up; every logo is a little mark drawn here plus the name in one of the page's fonts.
