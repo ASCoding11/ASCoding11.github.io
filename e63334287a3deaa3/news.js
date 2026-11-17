@@ -614,10 +614,12 @@
         'box-shadow:0 6px 12px -8px var(--ad-ink);transition:filter .15s ease,transform .15s ease}' +
       '.nws-ad:hover .nws-ad-btn{filter:brightness(1.12);transform:translateY(-1px)}.nws-ad:active .nws-ad-btn{transform:scale(.97)}' +
       '@container nwsad (min-width:520px){.nws-ad-pic{flex-basis:20%}.nws-ad-l{display:block}}' +
-      '@container nwsad (min-height:96px){.nws-ad-in{display:grid;grid-template:minmax(0,1fr) auto auto/minmax(0,1fr) auto;align-items:end;gap:0 8px;padding:9px 10px}' +
+      '@container nwsad (min-height:84px){.nws-ad-in{display:grid;grid-template:minmax(0,1fr) auto auto/minmax(0,1fr) auto;align-items:end;gap:0 8px;padding:9px 10px}' +
         '.nws-ad-pic{grid-area:1/1/2/3;margin-bottom:6px}.nws-ad-tx{grid-area:2/1}.nws-ad-l{grid-area:3/1;display:none;margin-top:3px}.nws-ad-btn{grid-area:2/2/4/3;margin:0}}' +
       '@container nwsad (min-height:130px) and (min-width:270px){.nws-ad-l{display:block}}' +
-      '@container nwsad (min-height:96px) and (max-width:235px){.nws-ad-n{font-size:19px}.nws-ad-btn{font-size:12.5px;padding:4px 10px}}' +
+      '@container nwsad (max-height:83.98px) and (max-width:340px){.nws-ad-in{gap:7px}.nws-ad-pic{flex-basis:54px}.nws-ad-n{font-size:20px}.nws-ad-btn{font-size:12.5px;padding:4px 10px}}' +
+      '@container nwsad (max-height:83.98px) and (max-width:240px){.nws-ad-pic{display:none}}' +
+      '@container nwsad (min-height:84px) and (max-width:240px){.nws-ad-n{font-size:19px}.nws-ad-btn{font-size:12.5px;padding:4px 10px}}' +
       '@container nwsrow (min-width:960px){.nws-cols{grid-template-columns:minmax(0,1fr) clamp(240px,27%,300px);gap:10px}.nws-cols > .nws-ad{height:auto}.nws-row.open .nws-ad{align-self:start;height:var(--adh,44px)}}' +
       '@media (max-height:500px){@container nwsrow (min-width:800px) and (max-width:959.98px){.nws-cols{grid-template-columns:minmax(0,1fr) 210px;gap:10px}.nws-cols > .nws-ad{height:auto}.nws-row.open .nws-ad{align-self:start;height:var(--adh,44px)}}}' +
       '@media (prefers-reduced-motion:reduce){.nws-dot,.nws-fl,.nws-sk::before{animation:none}.nws-chip,.nws-sp,.nws-ad-btn{transition:none}}';
