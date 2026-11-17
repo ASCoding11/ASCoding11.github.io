@@ -19,7 +19,9 @@
  *   isVice(uid)         whether a uid is in VICE_CAPTAINS (and not in OWNERS: an owner is always Captain)
  *   badge(result, opts) a <span class="bra-tier"> pill for it (opts.miles: show the miles too). For the top three on the
  *                       Leaderboards' Miles board it is a <span class="bra-tw"> holding the pill and a "#1 all time",
- *                       "#2 this week" … tag: gold, silver, bronze (see "#1 on the Miles board" below)
+ *                       "#2 this week" … tag: gold, silver, bronze (see "#1 on the Miles board" below). For someone
+ *                       with an award (AWARDS below) the wrapper also holds a ribbon for each, after the pill and the tags
+ *   awardsOf(result)    the awards (keys of AWARD_KINDS) a result's player holds, [] for most people; also takes a uid
  *   setTops(tops)       leaderboard.js hands over the top three ({ all, week: [uid…] the firsts, allTie, weekTie, and
  *                       all2, all3, week2, week3: [uid…] the seconds and thirds; topOf's all and week are the place, 1 to 3) after each
  *                       read of the boards; topOf(uid) is { all, week, allTie, weekTie } for a leader, else null;
@@ -31,7 +33,8 @@
  *   load(uid)           a promise of the result, read through party.js's sign-in; one read per uid, kept for 10 minutes
  *   fmt(n)              1,234
  *   TIERS, RULES        the tiers and the points table; CAPTAIN, the owners' tier; OWNERS, a copy of the list;
- *                       VICE_CAPTAIN and VICE_CAPTAINS the same for vice captains
+ *                       VICE_CAPTAIN and VICE_CAPTAINS the same for vice captains; AWARDS and AWARD_KINDS, copies of
+ *                       the awards table
  *   HOUR                miles per hour played (100); the Leaderboards' This week board uses it for the week's play time
  * }
  * A finished load fires `backroom:miles` on document (detail.uid), so panels can redraw; so does this file when it loads,
@@ -55,6 +58,7 @@
  *                    ÷ 200 (1,000 each); Melon Merge score ÷ 10 (1,500); Coil longest snake ÷ 10 (1,500); Trivium best Daily ÷ 10
  *                    (1,500); Showdown biggest pot ÷ 200 (500)
  * Tiers: Economy under 2,000 · Business Class 2,000–9,999 · First Class 10,000–39,999 · Private Jet 40,000+.
+ * Awards (AWARDS below) are honours the owners hand out by account uid, beside the tier and nothing to do with miles.
  * Captain isn't on the miles scale at all: it's the OWNERS list below, whatever their miles; Vice Captain is the
  * VICE_CAPTAINS list the same way.
  * So an hour a day for three weeks is Business; First takes about 100 hours, or 50 with a lot of winning; Private Jet is a year.
@@ -119,6 +123,25 @@
   var VICE_CAPTAIN = { k: 'vice', n: 'Vice Captain', min: Number.MAX_VALUE };   // above every miles tier, below Captain
   function isOwner(uid) { return typeof uid === 'string' && OWNERS.indexOf(uid) >= 0; }
   function isVice(uid) { return typeof uid === 'string' && !isOwner(uid) && VICE_CAPTAINS.indexOf(uid) >= 0; }
+  // ---- Awards: honours the owners give to particular players. Not a tier and not a rank: a small ribbon after the tier
+  // pill (and after any #1 tags), everywhere the badge is drawn, whatever the player's miles. ----
+  // The kinds of award. n: the words on the ribbon (short); tip: the tooltip; icon: the mark on the round medal, drawn
+  // here as SVG in a 16 x 16 box (the disc behind it is drawn for you, r 7.5 at 8,8); disc and rim: the medal's colours;
+  // band and ink: the ribbon's background and text. Use the game's own colours, and keep clear of gold, silver and
+  // bronze (the #1 tags) and of the tier pills' colours. A new kind is one line here.
+  var AWARD_KINDS = {
+    // Updraft's night sky, sky blue and sunrise orange: a summit with a rising arrow above it.
+    updraft: { n: 'Updraft devotee', tip: 'Awarded for dedication to Updraft', disc: '#0D1426', rim: '#5EC2FF', band: 'linear-gradient(90deg,#5EC2FF,#8FD9FF)', ink: '#0D1426',
+      icon: '<path d="M2.9 11.9L6.6 7.4l1.5 1.7 1.2-1.3 3.8 4.1z" fill="#A9ECFF"/><path d="M8 2.2l2.7 3.1H8.9v2.2H7.1V5.3H5.3z" fill="#FFB347"/>' }
+  };
+  // Who holds which, by account uid (the same public ids as OWNERS above: find one on the admin page or among the
+  // leaderboard's rooms/lb-all/players keys; never match on names). One line per person: 'uid': ['kind', …], with a
+  // comment saying whose it is and why. To take an award away, delete the line. Nothing is stored anywhere else.
+  // Accounts the admin page has merged into one person share the award (see awardsOf), so list any one of them: the
+  // one the Leaderboards show.
+  var AWARDS = {
+    'EpYqfXPGCnR5PQ0X0iRcMTbuwzz2': ['updraft']   // Morgan ("morgan"): first on the Miles board, the most Updraft play time and the first to its Crown
+  };
   var LAP_PER_TRACK = 200, LAP_CAP = 2000, LAP_WINDOW = 2.5, REC_EACH = 100, REC_CAP = 1000;
 
   function num(v) { return typeof v === 'number' && isFinite(v) ? v : NaN; }
@@ -139,7 +162,7 @@
   // One node → miles. Anything leaderboard.js wouldn't show (stale, oversized, from the future, impossible numbers) is Economy.
   // An owner (OWNERS) shows as Captain whatever the node says, even with no node at all; their miles stay real.
   function of(node, uid, now) {
-    var out = { miles: 0, tier: TIERS[0], next: nextOf(0), hours: 0, play: 0, bonus: 0, ok: false, owner: false, vice: false, real: TIERS[0], uid: '' };
+    var out = { miles: 0, tier: TIERS[0], next: nextOf(0), hours: 0, play: 0, bonus: 0, ok: false, owner: false, vice: false, real: TIERS[0], uid: '', ids: [] };
     var p = null, B = LB();
     try {
       if (parsed(node)) p = node;
@@ -147,6 +170,9 @@
     } catch (e) { p = null; }
     var who = typeof uid === 'string' && uid ? uid : p && typeof p.uid === 'string' ? p.uid : '';
     out.uid = who;
+    // Every account this result stands for (for awards): its own, the person's entry when this is one of their merged
+    // accounts (load hands that over), and the entry leaderboard.js's collapse folded it into.
+    [who, p && p.uid, p && p.into].forEach(function (u) { if (typeof u === 'string' && u && out.ids.indexOf(u) < 0) out.ids.push(u); });
     if (isOwner(who)) { out.owner = true; out.tier = CAPTAIN; out.next = null; }
     else if (isVice(who)) { out.vice = true; out.tier = VICE_CAPTAIN; out.next = null; }
     if (!p) return out;
@@ -191,14 +217,41 @@
     if (opts && opts.miles && res && res.ok) { var m = document.createElement('span'); m.className = 'bra-mi'; m.textContent = '· ' + fmt(res.miles) + ' mi'; s.appendChild(m); }
     s.title = t.n + (cap ? ' · flies the plane (site owner)' : vc ? ' · co-pilot' : '') + (res && res.ok ? ' · ' + fmt(res.miles) + ' miles' + ((cap || vc) && res.real ? ' (' + res.real.n + ' by miles alone)' : '') : '') + (res && res.next ? ' · ' + fmt(res.next.miles) + ' to ' + res.next.tier.n : '');
     // First on the Miles board: the pill and its "#1" tags in one wrapper. Everyone else gets the pill alone, as before.
-    var top = null;
+    // An award holder gets the same wrapper, with a ribbon for each award after the tags.
+    var top = null, aw = awardsOf(res);
     if (res && res.uid) { wantTops(); top = topOf(res.uid); }
-    if (!top) return s;
+    if (!top && !aw.length) return s;
     var w = document.createElement('span'); w.className = 'bra-tw'; w.appendChild(s);
-    if (top.all) w.appendChild(topTag('all', top.all, top.allTie));
-    if (top.week) w.appendChild(topTag('week', top.week, top.weekTie));
+    if (top && top.all) w.appendChild(topTag('all', top.all, top.allTie));
+    if (top && top.week) w.appendChild(topTag('week', top.week, top.weekTie));
+    aw.forEach(function (k) { w.appendChild(awardTag(k)); });
     fitSoon(w);
     return w;
+  }
+  // The awards a result's player holds: AWARDS lists their uid, or the uid of another account of the same person. The
+  // same person means what the Leaderboards show as one row: the accounts in the result (of's ids) and admin merges
+  // (the signed `a` in leaderboard.js's resets, once they have been read), so the award follows the row whichever
+  // account is on screen. Names are never looked at. Takes a result or a uid.
+  function mergedInto(u) { var B = LB(), rs = B && B.resets, a = rs && rs[u] && rs[u].a; return typeof a === 'string' && a ? a : ''; }
+  function awardsOf(res) {
+    var ids = (typeof res === 'string' ? [res] : res && Array.isArray(res.ids) && res.ids.length ? res.ids.slice() : res && res.uid ? [res.uid] : []).filter(okUid), out = [];
+    if (!ids.length) return out;
+    ids.slice().forEach(function (u) { var r = mergedInto(u); if (r && ids.indexOf(r) < 0) ids.push(r); });
+    Object.keys(AWARDS).forEach(function (u) {
+      if (ids.indexOf(u) < 0 && ids.indexOf(mergedInto(u)) < 0) return;
+      (AWARDS[u] || []).forEach(function (k) { if (AWARD_KINDS[k] && out.indexOf(k) < 0) out.push(k); });
+    });
+    return out;
+  }
+  // A medal on a ribbon: a round disc with the award's mark, and its name on a swallow-tailed band behind it. Not a
+  // pill (a tier) and not a squared metal chip (a rank).
+  function awardTag(k) {
+    var a = AWARD_KINDS[k], s = document.createElement('span'), l = document.createElement('span');
+    s.className = 'bra-aw bra-aw-' + k;
+    s.innerHTML = '<svg viewBox="0 0 16 16" width="17" height="17" aria-hidden="true" focusable="false"><circle cx="8" cy="8" r="7.5" fill="' + a.disc + '" stroke="' + a.rim + '"/>' + a.icon + '</svg>';   // fixed markup from the table above, no text from anyone
+    l.textContent = a.n; l.style.background = a.band; l.style.color = a.ink; s.appendChild(l);
+    s.title = a.n + ' · ' + a.tip;
+    return s;
   }
   var TOP_TEXT = { all: 'all time', week: 'this week' };
   // place: 1, 2 or 3 (gold, silver, bronze). All time is a solid metal chip; this week is the same metal as an outline
@@ -213,15 +266,31 @@
   }
   // The tags say "#1 all time" where the row has room and just "#1" where it hasn't (a phone row, a narrow card): the
   // pill is being squeezed, so the words go (bra-tw-s). Checked once the badge is on the page, before it is painted,
-  // and again when the window changes size or the fonts arrive. Only leaders' badges are ever looked at.
+  // and again when the window changes size or the fonts arrive. Only leaders' and award holders' badges are ever looked at.
   var fitQ = [], fitT = 0;
   function fit(w) {
     if (!w.isConnected) return;
-    w.classList.remove('bra-tw-s');
-    var kids = w.firstChild ? w.firstChild.children : [], tight = w.scrollWidth > w.clientWidth;
-    for (var i = 0; i < kids.length && !tight; i++) tight = kids[i].tagName === 'SPAN' && kids[i].scrollWidth > kids[i].clientWidth;
-    if (tight) w.classList.add('bra-tw-s');
+    w.classList.remove('bra-tw-s', 'bra-tw-a');
+    var kids = w.firstChild ? w.firstChild.children : [];
+    function tight() {
+      var t = w.scrollWidth > w.clientWidth;
+      for (var i = 0; i < kids.length && !t; i++) t = kids[i].tagName === 'SPAN' && kids[i].scrollWidth > kids[i].clientWidth;
+      return t;
+    }
+    var aw = !!w.querySelector('.bra-aw');
+    if (!tight()) {
+      // Room for everything, but a row that wraps (your own Online row) may have found it by taking a second line: an
+      // award's words must never make a row taller, so they go if the boxes around the badge are shorter without them.
+      if (!aw) return;
+      var was = heights(w); w.classList.add('bra-tw-a'); var now = heights(w);
+      if (!now.some(function (h, i) { return h < was[i]; })) w.classList.remove('bra-tw-a');
+      return;
+    }
+    // An award's ribbon folds away first (bra-tw-a: just its medal), then the tags' words go as well.
+    if (aw) { w.classList.add('bra-tw-a'); if (!tight()) return; }
+    w.classList.add('bra-tw-s');
   }
+  function heights(w) { var out = [], e = w.parentNode; for (var i = 0; i < 4 && e && e.nodeType === 1 && e !== document.body; i++, e = e.parentNode) out.push(e.offsetHeight); return out; }
   function fitRun() { fitT = 0; var q = fitQ; fitQ = []; q.forEach(function (w) { try { fit(w); } catch (e) {} }); }
   function fitSoon(w) {
     if (fitQ.length >= 60) fitQ.shift();   // a tab in the background draws no frames: keep only the latest
@@ -266,7 +335,14 @@
     '.bra-top-week{background:#1E2633}' +
     '.bra-top-week.bra-top-p1{color:#F7C948;border-color:#C9A227}' +
     '.bra-top-week.bra-top-p2{color:#D8DEE6;border-color:#8E99A8}' +
-    '.bra-top-week.bra-top-p3{color:#E5A873;border-color:#A9682F}';
+    '.bra-top-week.bra-top-p3{color:#E5A873;border-color:#A9682F}' +
+    // An award: a round medal (the svg) with its name on a ribbon tucked behind it, swallow-tailed at the far end. The
+    // colours come from AWARD_KINDS and carry their own background in light and dark mode. As tall as a tag, so a row
+    // keeps its height. bra-tw-a (no room): the medal alone.
+    '.bra-aw{display:inline-flex;align-items:center;flex:none;height:17px;font-family:var(--mono,var(--f-m,ui-monospace,monospace));font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;line-height:1;white-space:nowrap}' +
+    '.bra-aw svg{flex:none;display:block;position:relative;z-index:1}' +
+    '.bra-aw>span{display:inline-flex;align-items:center;box-sizing:border-box;height:13px;margin-left:-8px;padding:0 9px 0 12px;clip-path:polygon(0 0,100% 0,calc(100% - 4px) 50%,100% 100%,0 100%)}' +
+    '.bra-tw-a .bra-aw>span{display:none}';
   (document.head || document.documentElement).appendChild(css);
 
   // ---------------- #1 on the Miles board ----------------
@@ -391,10 +467,13 @@
 
   window.BackRoomMiles = { of: of, tierOf: tierOf, isOwner: isOwner, badge: badge, line: line, peek: peek, load: load, fmt: fmt, TIERS: TIERS, RULES: RULES, PATH: PATH, HOUR: HOUR,
     CAPTAIN: CAPTAIN, OWNERS: OWNERS.slice(), isVice: isVice, VICE_CAPTAIN: VICE_CAPTAIN, VICE_CAPTAINS: VICE_CAPTAINS.slice(), forget: function (uid) { if (uid) delete cache[uid]; else cache = {}; },
-    setTops: setTops, topOf: topOf, needTops: needTops };
+    setTops: setTops, topOf: topOf, needTops: needTops,
+    awardsOf: awardsOf, AWARD_KINDS: JSON.parse(JSON.stringify(AWARD_KINDS)), AWARDS: JSON.parse(JSON.stringify(AWARDS)) };
   // Test hook for the automated checks; harmless in normal play. put: a result for a uid without a read.
   if (navigator.webdriver) window.__miles = { get tops() { return tops; }, get asked() { return topsAsked; }, get wanted() { return topsWanted; }, TOPS_KEY: TOPS_KEY, TOPS_TTL: TOPS_TTL, TOPS_KEEP: TOPS_KEEP,
     age: function (ms) { if (tops) tops.t -= ms; topsAsked = 0; }, clear: function () { tops = null; topsAsked = 0; topsWanted = false; try { localStorage.removeItem(TOPS_KEY); } catch (e) {} },
-    put: function (uid, node, now) { var r = of(node, uid, now); cache[uid] = { r: r, t: Date.now() }; return r; }, fit: fit };
+    put: function (uid, node, now) { var r = of(node, uid, now); cache[uid] = { r: r, t: Date.now() }; return r; }, fit: fit,
+    // award(uid, ['updraft']) hands a uid an award for a test (award(uid) takes it away); awards() empties the table.
+    award: function (uid, kinds) { if (kinds) AWARDS[uid] = kinds; else delete AWARDS[uid]; }, awards: function () { Object.keys(AWARDS).forEach(function (u) { delete AWARDS[u]; }); } };
   try { document.dispatchEvent(new CustomEvent('backroom:miles', { detail: { uid: '' } })); } catch (e) {}
 })();
