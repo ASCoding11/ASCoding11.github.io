@@ -48,7 +48,7 @@
 
   // THE ONE LINE: who counts as a captain here. true: Captains and Vice Captains (everyone with a captain's badge).
   // false: Captains only (miles.js's OWNERS).
-  var VICE_CAPTAINS_TOO = true;
+  var VICE_CAPTAINS_TOO = false;   // Captains only: Vice Captains see nothing, like everyone else
 
   var API_KEY = 'AIzaSyDZD_Ku8cixteXfwkDYzGv3GKiZFF8sRSM';   // the site's Firebase project (public; the same one as in stats.js)
   var AUTH_KEY = 'firebase:authUser:' + API_KEY + ':[DEFAULT]';
