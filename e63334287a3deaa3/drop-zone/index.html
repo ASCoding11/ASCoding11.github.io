@@ -1137,7 +1137,7 @@ function buildWorld(){
   grp(OFS.motel[0],OFS.motel[1],OFS.motel[2],()=>{
   place('Moonbeam Motel',70,236,40);
   paint({k:'rect',t:'paved',x0:36,z0:212,x1:108,z1:258,col:[.44,.45,.47]});
-  paint({k:'rect',t:'pool',x0:60,z0:238,x1:80,z1:250,col:[.55,.8,.9]});
+  sbox(60,0,238,80,.07,250,0xa9dff0,0,true);   // the empty pool's tiled floor
   {const doorsA=[];for(let i=0;i<12;i++){doorsA.push(['s',i,0],['s',i,1])}
     const wa=house(10,54,12,2,{levels:2,col:0xf3c6b8,trim:0x4b3f6b,roof:0x4b3f6b,floorCol:0x947f6e,doors:doorsA,win:0});
     BRK=150;for(let i=1;i<12;i++){wallRun(2,40+i*4,216.3,223.7,0,3.7,0xe9b8a8,[],6,.2);wallRun(2,40+i*4,216.3,223.7,4,3.7,0xe9b8a8,[],6,.2)}BRK=0;
@@ -1213,77 +1213,128 @@ function buildWorld(){
   for(const a of [chestSpots,floorSpots])for(const q of a)if(q.g||q.y===0)q.y=terrainH(q.x,q.z);
 }
 function segDist(x,z,a,b){const dx=b[0]-a[0],dz=b[1]-a[1],L=dx*dx+dz*dz;let t=L?((x-a[0])*dx+(z-a[1])*dz)/L:0;t=clamp(t,0,1);return Math.hypot(x-a[0]-dx*t,z-a[1]-dz*t)}
-// ---- The ground's picture. The ground used to be coloured at its corners every 2 m, so everything on it was a soft blob.
-// It is now one picture of the whole island (GROUND_PX wide: 12 cm a dot on a computer, 23 cm on a phone or on Fast), painted once
-// when the page loads with the 2D canvas: grass with crisp darker and lighter patches, dirt tracks with worn edges and wheel
-// ruts, sand along a wavy shoreline with a strip of dry grass behind it, yards and clearings with ragged edges, paved areas with a
-// kerb and slab joints, a ploughed field, the reservoir and the pool, a darker foot round every building, and a fine speckle over
-// all of it. It costs one texture and one lookup per ground pixel; the mesh, the draw calls and the triangles are the same.
-// The minimap is drawn from the same picture. vnoise is also what keeps the shoreline wavy.
-function vnoise(x,z){const s=Math.sin(x*.071+z*.033)*.5+Math.sin(x*.019-z*.057)*.5+Math.sin((x+z)*.11)*.25;return s*.5}
-let groundCanvas=null;
-function paintGround(N){
-  const c=document.createElement('canvas');c.width=c.height=N;const g=c.getContext('2d'),K=N/MAP,rnd=mulberry(20261116);
-  const rgb=(c3,a,m)=>{m=m||1;return'rgba('+Math.min(255,c3[0]*m*255|0)+','+Math.min(255,c3[1]*m*255|0)+','+Math.min(255,c3[2]*m*255|0)+','+(a==null?1:a)+')'};
-  g.setTransform(K,0,0,K,0,0);g.lineJoin=g.lineCap='round';   // from here on everything is drawn in metres
+// ---- The ground's surface. It used to be one flat mesh wearing one 2048 px picture of the whole island (12 cm a dot:
+// a blur up close). Now the shader (GMAT) decides what each pixel of ground is from the land itself and a small map:
+//   grass everywhere, paler and drier in broad patches; sand below about 1.4 m, wet at the waterline, tinted under water;
+//   bare rock on faces steeper than about 40 degrees; dirt (tracks, yards, clearings, the field) and paving from
+//   the control map, a picture of the island drawn once at load (paintControl: red is dirt, green is paving, blue is
+//   how much darker: wheel ruts, furrows, stains, the foot of every building).
+// Every material takes its fine detail from one small tiling texture (landDetail: grass blades in red, grain and
+// pebbles in green, rock strata in blue, concrete in alpha), read once every 5 m (about 1 cm a dot, so it is sharp at
+// your feet) and once every 47 m (broad variation, so the tiling never shows from the air). Where two materials
+// meet, the fine grain decides which wins, so the edge of a track is a crisp ragged line of pebbles and tufts rather
+// than a soft gradient; it softens with distance so it doesn't shimmer. Paving joints are drawn by the shader on the
+// 4 m grid. Pretty adds a second, finer layer of detail and strata on the cliffs; Fast reads three textures a pixel.
+function pnoise(x,y,px,py,sd){const i=Math.floor(x),j=Math.floor(y),fx=x-i,fy=y-j,u=fx*fx*(3-2*fx),v=fy*fy*(3-2*fy),i0=((i%px)+px)%px,i1=(i0+1)%px,j0=((j%py)+py)%py,j1=(j0+1)%py,
+  a=lhash(i0,j0,sd),b=lhash(i1,j0,sd),c=lhash(i0,j1,sd),d=lhash(i1,j1,sd);return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v}
+function landDetail(N){
+  const out=new Uint8Array(N*N*4),f=new Float32Array(N*N),rnd=mulberry(77123),S=N/512;
+  const W=(x,y)=>(((y%N)+N)%N)*N+(((x%N)+N)%N);
+  const store=(ch,gain)=>{for(let i=0;i<N*N;i++){const v=128+f[i]*gain;out[i*4+ch]=v<0?0:v>255?255:v}};
+  const fill=fn=>{for(let y=0;y<N;y++)for(let x=0;x<N;x++)f[y*N+x]=fn(x/N,y/N)};
+  // grass: soft blotches, then thousands of short blades, light and dark
+  fill((u,v)=>(pnoise(u*6,v*6,6,6,21)-.5)*.42+(pnoise(u*14,v*14,14,14,22)-.5)*.3+(pnoise(u*40,v*40,40,40,23)-.5)*.24);
+  for(let k=0,n=N*N/26;k<n;k++){const x0=rnd()*N,y0=rnd()*N,len=(3+rnd()*7)*S,an=rnd()*6.283,val=(rnd()<.5?-1:1)*(.1+rnd()*.3),sx=Math.sin(an),cy=Math.cos(an);
+    for(let t=0;t<len;t++)f[W(Math.round(x0+sx*t),Math.round(y0-cy*t))]+=val*(1-t/len*.6)}
+  store(0,150);
+  // grain: speckle, small stones with a dark rim
+  fill((u,v)=>(rnd()-.5)*.5+(pnoise(u*26,v*26,26,26,31)-.5)*.5+(pnoise(u*5,v*5,5,5,32)-.5)*.3);
+  for(let k=0;k<300;k++){const x0=rnd()*N|0,y0=rnd()*N|0,r=(1.6+rnd()*4)*S,lt=.25+rnd()*.35;
+    for(let y=-Math.ceil(r)-1;y<=r+1;y++)for(let x=-Math.ceil(r)-1;x<=r+1;x++){const d=Math.sqrt(x*x+y*y);if(d<r)f[W(x0+x,y0+y)]=lt-(d/r)*.15+(y/r)*-.12;else if(d<r+1.2)f[W(x0+x,y0+y)]-=.3}}
+  store(1,170);
+  // rock: layers along one way, a few cracks across them
+  fill((u,v)=>(pnoise(u*3,v*22,3,22,41)-.5)*.9+(pnoise(u*9,v*46,9,46,42)-.5)*.5+(pnoise(u*30,v*30,30,30,43)-.5)*.3+(rnd()-.5)*.12);
+  for(let k=0;k<26;k++){let x=rnd()*N,y=rnd()*N;const len=(30+rnd()*90)*S;for(let t=0;t<len;t++){x+=(rnd()-.5)*1.6;y+=1;f[W(Math.round(x),Math.round(y))]-=.5;f[W(Math.round(x)+1,Math.round(y))]-=.2}}
+  store(2,150);
+  // concrete: fine speckle, soft stains, hairline cracks
+  fill((u,v)=>(rnd()-.5)*.26+(pnoise(u*9,v*9,9,9,51)-.5)*.34+(pnoise(u*3,v*3,3,3,52)-.5)*.2);
+  for(let k=0;k<10;k++){let x=rnd()*N,y=rnd()*N,an=rnd()*6.283;const len=(40+rnd()*120)*S;for(let t=0;t<len;t++){an+=(rnd()-.5)*.5;x+=Math.cos(an);y+=Math.sin(an);f[W(Math.round(x),Math.round(y))]-=.45}}
+  store(3,170);
+  const t=new THREE.DataTexture(out,N,N,THREE.RGBAFormat);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.generateMipmaps=true;t.minFilter=THREE.LinearMipmapLinearFilter;t.magFilter=THREE.LinearFilter;
+  t.anisotropy=Math.min(LITE_LAND?4:8,renderer.capabilities.getMaxAnisotropy());t.needsUpdate=true;return t;
+}
+let ctlCanvas=null;
+function paintControl(N){
+  const c=document.createElement('canvas');c.width=c.height=N;const g=c.getContext('2d'),K=N/TW,rnd=mulberry(20261117);
+  g.fillStyle='#000';g.fillRect(0,0,N,N);g.setTransform(K,0,0,K,TM*K,TM*K);g.lineJoin=g.lineCap='round';g.globalCompositeOperation='lighter';   // everything is drawn in metres, and adds up
+  const R_=a=>'rgba(255,0,0,'+a+')',G_=a=>'rgba(0,255,0,'+a+')',D_=a=>'rgba(0,0,255,'+a+')';
   const blob=(x,z,r,n,wob)=>{g.beginPath();const o=rnd()*6.283;for(let i=0;i<n;i++){const a=o+i/n*6.283,rr=r*(1-wob+rnd()*wob*2);if(i)g.lineTo(x+Math.cos(a)*rr,z+Math.sin(a)*rr);else g.moveTo(x+Math.cos(a)*rr,z+Math.sin(a)*rr)}g.closePath();g.fill()};
-  // grass: a base green, broad soft lighter and darker fields, then crisp-edged patches of clover and pale dry grass
-  const GRASS=[.3,.51,.2];g.fillStyle=rgb(GRASS);g.fillRect(0,0,MAP,MAP);
-  {const M=40,t=document.createElement('canvas');t.width=t.height=M;const tg=t.getContext('2d'),im=tg.createImageData(M,M);
-    for(let i=0;i<M*M;i++){const v=rnd(),lt=v>.5,o=i*4;im.data[o]=lt?190:18;im.data[o+1]=lt?215:70;im.data[o+2]=lt?90:38;im.data[o+3]=Math.abs(v-.5)*2*80}
-    tg.putImageData(im,0,0);g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';g.drawImage(t,0,0,MAP,MAP)}
-  for(let i=0;i<1500;i++){const x=rnd()*MAP,z=rnd()*MAP,dk=rnd()<.6;g.fillStyle=dk?'rgba(30,96,44,.34)':'rgba(170,200,84,.3)';blob(x,z,.7+rnd()*rnd()*4.2,9,.28)}
-  for(let i=0;i<5200;i++){const x=rnd()*MAP,z=rnd()*MAP;g.fillStyle=rnd()<.5?'rgba(24,84,40,.4)':'rgba(190,214,100,.34)';g.fillRect(x,z,.12+rnd()*.14,.3+rnd()*.3)}   // tufts
-  // soft ground: yards, clearings, bare earth and the crater's scorched ring, each with a ragged but sharp edge
-  const ragged=(x,z,r,col,a)=>{g.fillStyle=rgb(col,a,1.2);g.beginPath();const n=64,o=rnd()*9;for(let i=0;i<=n;i++){const an=i/n*6.283,rr=r*(1+.05*Math.sin(an*5+o)+.035*Math.sin(an*11+o*2)+.02*Math.sin(an*23+o*3));if(i)g.lineTo(x+Math.cos(an)*rr,z+Math.sin(an)*rr);else g.moveTo(x+Math.cos(an)*rr,z+Math.sin(an)*rr)}g.closePath();g.fill()};
-  const patchy=(x0,z0,x1,z1,col,n,r)=>{for(let i=0;i<n;i++){g.fillStyle=rnd()<.5?rgb(col,.5,1.02):rgb(col,.5,1.36);blob(x0+rnd()*(x1-x0),z0+rnd()*(z1-z0),r*(.4+rnd()),8,.3)}};
+  const ragged=(x,z,r)=>{g.beginPath();const n=64,o=rnd()*9;for(let i=0;i<=n;i++){const an=i/n*6.283,rr=r*(1+.05*Math.sin(an*5+o)+.035*Math.sin(an*11+o*2)+.02*Math.sin(an*23+o*3));if(i)g.lineTo(x+Math.cos(an)*rr,z+Math.sin(an)*rr);else g.moveTo(x+Math.cos(an)*rr,z+Math.sin(an)*rr)}g.closePath();g.fill()};
   for(const p of paints){
-    if(p.k==='circle'){ragged(p.x,p.z,p.r-1.5,p.col,.45);ragged(p.x,p.z,p.r-3,p.col);
-      g.save();g.beginPath();g.arc(p.x,p.z,p.r-3.4,0,6.283);g.clip();patchy(p.x-p.r,p.z-p.r,p.x+p.r,p.z+p.r,p.col,p.r*5,1.6);
-      if(p.t==='scorch'){g.strokeStyle='rgba(20,14,14,.3)';g.lineWidth=.22;for(let i=0;i<22;i++){const a=rnd()*6.283,r0=p.r*(.25+rnd()*.3),r1=r0+p.r*(.2+rnd()*.35);g.beginPath();g.moveTo(p.x+Math.cos(a)*r0,p.z+Math.sin(a)*r0);g.lineTo(p.x+Math.cos(a+.08)*((r0+r1)/2),p.z+Math.sin(a+.08)*((r0+r1)/2));g.lineTo(p.x+Math.cos(a-.05)*r1,p.z+Math.sin(a-.05)*r1);g.stroke()}}
-      g.restore()}
-    else if(p.t==='yard'){g.fillStyle=rgb(p.col,1,1.2);g.fillRect(p.x0,p.z0,p.x1-p.x0,p.z1-p.z0);
-      // a ragged edge: bites of grass taken out of it and tongues of it out into the grass
-      for(let u=0;u<=1;u+=.004){const side=Math.floor(rnd()*4),x=side<2?p.x0+u*(p.x1-p.x0):side===2?p.x0:p.x1,z=side<2?(side?p.z1:p.z0):p.z0+u*(p.z1-p.z0);g.fillStyle=rnd()<.5?rgb(GRASS,1,.97):rgb(p.col,1,1.2);blob(x,z,.5+rnd()*1.3,8,.3)}
-      g.save();g.beginPath();g.rect(p.x0,p.z0,p.x1-p.x0,p.z1-p.z0);g.clip();patchy(p.x0,p.z0,p.x1,p.z1,p.col,(p.x1-p.x0)*(p.z1-p.z0)/14,1.5);g.restore()}
+    if(p.k==='circle'){const a=p.t==='dirt'?.62:p.t==='scorch'?.7:.3;g.fillStyle=R_(a);ragged(p.x,p.z,p.r-2);g.fillStyle=R_(.2);ragged(p.x,p.z,p.r-5);
+      for(let i=0;i<p.r*4;i++){const an=rnd()*6.283,d=Math.sqrt(rnd())*(p.r-3);g.fillStyle=R_(.22);blob(p.x+Math.cos(an)*d,p.z+Math.sin(an)*d,.8+rnd()*2.2,8,.3)}
+      if(p.t==='scorch'){g.fillStyle=D_(.26);ragged(p.x,p.z,p.r-3);g.strokeStyle=D_(.3);g.lineWidth=.3;for(let i=0;i<22;i++){const an=rnd()*6.283,r0=p.r*(.25+rnd()*.3),r1=r0+p.r*(.2+rnd()*.35);g.beginPath();g.moveTo(p.x+Math.cos(an)*r0,p.z+Math.sin(an)*r0);g.lineTo(p.x+Math.cos(an+.08)*((r0+r1)/2),p.z+Math.sin(an+.08)*((r0+r1)/2));g.lineTo(p.x+Math.cos(an-.05)*r1,p.z+Math.sin(an-.05)*r1);g.stroke()}}}
+    else if(p.t==='yard'){const w=p.x1-p.x0,h=p.z1-p.z0;g.fillStyle=R_(.34);g.fillRect(p.x0+1,p.z0+1,w-2,h-2);
+      for(let i=0;i<w*h/9;i++){g.fillStyle=R_(.2);blob(p.x0+rnd()*w,p.z0+rnd()*h,.7+rnd()*2.4,8,.3)}}
+    else if(p.t==='field'){const w=p.x1-p.x0,h=p.z1-p.z0;g.fillStyle=R_(1);g.fillRect(p.x0,p.z0,w,h);g.fillStyle=D_(.3);for(let x=p.x0;x<p.x1;x+=1.2)g.fillRect(x,p.z0,.5,h)}   // furrows
+    else if(p.t==='paved'){const w=p.x1-p.x0,h=p.z1-p.z0;g.fillStyle=G_(1);g.fillRect(p.x0,p.z0,w,h);for(let i=0;i<w*h/90;i++){g.fillStyle=D_(.1);blob(p.x0+rnd()*w,p.z0+rnd()*h,.5+rnd()*1.6,8,.35)}}
   }
-  // dirt tracks: a worn verge, the track itself, two wheel ruts and stones; the edges wander a little
+  // dirt tracks: a worn verge, the track, two wheel ruts
   const seg=(a,b,w,style)=>{g.strokeStyle=style;g.lineWidth=w;g.beginPath();g.moveTo(a[0],a[1]);g.lineTo(b[0],b[1]);g.stroke()};
-  for(const rd of roads){const [a,b]=rd.pts,hw=rd.w-1.7;seg(a,b,hw*2+1.5,'rgba(150,148,80,.75)')}
-  for(const rd of roads){const [a,b]=rd.pts,hw=rd.w-1.7,dx=b[0]-a[0],dz=b[1]-a[1],L=Math.hypot(dx,dz),ux=dx/L,uz=dz/L,nx=-uz,nz=ux;
-    seg(a,b,hw*2,rgb(rd.col,1,1.16));
-    for(let d=0;d<L;d+=.7)for(const sgn of [-1,1]){const o=hw*sgn+(rnd()-.5)*.5;g.fillStyle=rnd()<.55?rgb(rd.col,1,1.16):'rgba(150,148,80,.9)';blob(a[0]+ux*d+nx*o,a[1]+uz*d+nz*o,.3+rnd()*.5,7,.3)}}
-  for(const rd of roads){const [a,b]=rd.pts,hw=rd.w-1.7,dx=b[0]-a[0],dz=b[1]-a[1],L=Math.hypot(dx,dz),ux=dx/L,uz=dz/L,nx=-uz,nz=ux;
-    for(const o of [-.85,.85])seg([a[0]+nx*o,a[1]+nz*o],[b[0]+nx*o,b[1]+nz*o],.5,'rgba(110,84,52,.38)');
-    seg(a,b,.5,'rgba(196,186,120,.3)');   // a strip of grass and pale earth down the middle
-    for(let i=0;i<L*1.6;i++){const d=rnd()*L,o=(rnd()-.5)*hw*1.8;g.fillStyle=rnd()<.5?'rgba(96,74,48,.5)':'rgba(214,196,150,.6)';g.fillRect(a[0]+ux*d+nx*o,a[1]+uz*d+nz*o,.12+rnd()*.22,.12+rnd()*.2)}}
-  // hard ground with straight, sharp edges: the ploughed field, paving with a kerb and slab joints, the reservoir, the pool
-  for(const p of paints){if(p.k!=='rect'||p.t==='yard')continue;const w=p.x1-p.x0,h=p.z1-p.z0;
-    g.save();g.beginPath();g.rect(p.x0,p.z0,w,h);g.clip();g.fillStyle=rgb(p.col,1,1.2);g.fillRect(p.x0,p.z0,w,h);
-    if(p.t==='field'){for(let x=Math.floor(p.x0/2)*2;x<p.x1;x+=2){g.fillStyle=rgb(p.stripe,1,1.2);g.fillRect(x,p.z0,1,h);g.fillStyle='rgba(60,40,22,.28)';g.fillRect(x+.92,p.z0,.16,h)}   // furrows
-      for(let i=0;i<w*h*.5;i++){g.fillStyle=rnd()<.5?'rgba(70,48,26,.4)':'rgba(190,150,100,.4)';g.fillRect(p.x0+rnd()*w,p.z0+rnd()*h,.15+rnd()*.2,.15+rnd()*.2)}}
-    else if(p.t==='paved'){patchy(p.x0,p.z0,p.x1,p.z1,p.col,w*h/40,2.4);
-      g.strokeStyle='rgba(20,22,26,.2)';g.lineWidth=.07;g.beginPath();for(let x=Math.ceil(p.x0/4)*4;x<p.x1;x+=4){g.moveTo(x,p.z0);g.lineTo(x,p.z1)}for(let z=Math.ceil(p.z0/4)*4;z<p.z1;z+=4){g.moveTo(p.x0,z);g.lineTo(p.x1,z)}g.stroke();   // joints on the 4 m grid
-      for(let i=0;i<w*h/160;i++){g.fillStyle='rgba(24,26,30,.2)';blob(p.x0+rnd()*w,p.z0+rnd()*h,.4+rnd()*.9,8,.35)}   // stains
-      g.strokeStyle=rgb(p.col,1,1.62);g.lineWidth=.9;g.strokeRect(p.x0,p.z0,w,h);g.strokeStyle='rgba(20,22,26,.4)';g.lineWidth=.12;g.strokeRect(p.x0+.5,p.z0+.5,w-1,h-1)}   // a pale kerb
-    else if(p.t==='water'){for(let i=0;i<w*h/26;i++){g.fillStyle=rnd()<.5?'rgba(255,255,255,.1)':'rgba(10,60,80,.14)';const x=p.x0+rnd()*w,z=p.z0+rnd()*h;g.fillRect(x,z,1.5+rnd()*3,.22)}
-      g.strokeStyle='rgba(225,245,250,.55)';g.lineWidth=1.1;g.strokeRect(p.x0,p.z0,w,h)}
-    else if(p.t==='pool'){g.strokeStyle='rgba(255,255,255,.4)';g.lineWidth=.06;g.beginPath();for(let x=p.x0;x<p.x1;x+=1){g.moveTo(x,p.z0);g.lineTo(x,p.z1)}for(let z=p.z0;z<p.z1;z+=1){g.moveTo(p.x0,z);g.lineTo(p.x1,z)}g.stroke();
-      g.strokeStyle='rgba(245,250,252,.95)';g.lineWidth=.8;g.strokeRect(p.x0,p.z0,w,h)}
-    g.restore()}
-  // the shore: a strip of dry grass, then sand up to a wavy line, a damp darker edge by the water and a few pebbles
-  const shore=(T,fill)=>{g.fillStyle=fill;for(let sd=0;sd<4;sd++){g.beginPath();
-    const P=(u,e)=>sd===0?[e,u]:sd===1?[MAP-e,u]:sd===2?[u,e]:[u,MAP-e];let q=P(0,0);g.moveTo(q[0],q[1]);
-    for(let u=0;u<=MAP;u+=.4){let e=T;for(let k=0;k<3;k++){q=P(u,e);e=T-vnoise(q[0]*3.1,q[1]*2.7)*5}q=P(u,Math.max(.5,e));g.lineTo(q[0],q[1])}
-    q=P(MAP,0);g.lineTo(q[0],q[1]);g.closePath();g.fill()}};
-  shore(14.6,'rgba(186,196,96,.9)');shore(13.2,rgb([.87,.77,.52]));shore(5.2,'rgba(198,170,112,.55)');
-  for(let i=0;i<2600;i++){const sd=Math.floor(rnd()*4),u=rnd()*MAP,e=rnd()*11,x=sd===0?e:sd===1?MAP-e:u,z=sd<2?u:sd===2?e:MAP-e;g.fillStyle=rnd()<.5?'rgba(150,120,70,.35)':'rgba(255,244,214,.5)';g.fillRect(x,z,.14+rnd()*.2,.14+rnd()*.2)}
-  // every building sits on a darker foot, so it looks planted rather than laid on top
-  for(const f of footprints){g.save();g.shadowColor='rgba(18,26,14,.55)';g.shadowBlur=1.6*K;g.fillStyle='rgba(74,70,62,1)';g.fillRect(f.x0+.1,f.z0+.1,f.x1-f.x0-.2,f.z1-f.z0-.2);g.restore()}
-  // a fine speckle over everything, so no surface is one flat colour up close
-  {const t=document.createElement('canvas');t.width=t.height=128;const tg=t.getContext('2d'),im=tg.createImageData(128,128);for(let i=0;i<128*128;i++){const v=rnd(),o=i*4,lt=v>.5;im.data[o]=im.data[o+1]=im.data[o+2]=lt?255:0;im.data[o+3]=Math.abs(v-.5)*2*(lt?26:34)}
-    tg.putImageData(im,0,0);g.setTransform(1,0,0,1,0,0);g.fillStyle=g.createPattern(t,'repeat');g.fillRect(0,0,N,N)}
+  for(const rd of roads){const [a,b]=rd.pts,hw=rd.w-1.9;seg(a,b,hw*2+2.6,R_(.3));seg(a,b,hw*2,R_(.5));
+    const dx=b[0]-a[0],dz=b[1]-a[1],L=Math.sqrt(dx*dx+dz*dz),nx=-dz/L,nz=dx/L;for(const o of [-.8,.8])seg([a[0]+nx*o,a[1]+nz*o],[b[0]+nx*o,b[1]+nz*o],.55,D_(.2))}
+  // every building stands on a hard floor with a darker foot round it, so it looks planted rather than laid on top
+  for(const f of footprints){g.fillStyle=G_(1);g.fillRect(f.x0,f.z0,f.x1-f.x0,f.z1-f.z0);g.save();g.shadowColor='rgba(0,0,255,.6)';g.shadowBlur=1.8*K;g.fillStyle=D_(.4);g.fillRect(f.x0,f.z0,f.x1-f.x0,f.z1-f.z0);g.restore()}
   return c;
+}
+const LITE_LAND=matchMedia('(pointer: coarse)').matches||store.get('gfx','auto')==='fast'||renderer.capabilities.maxTextureSize<2048;
+function landMaterial(){
+  ctlCanvas=paintControl(LITE_LAND?512:1024);
+  const ctl=new THREE.CanvasTexture(ctlCanvas);ctl.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());
+  const det=landDetail(LITE_LAND?256:512);
+  const M=new THREE.MeshLambertMaterial({vertexColors:true});M.defines={};
+  M.onBeforeCompile=sh=>{
+    sh.uniforms.lDet={value:det};sh.uniforms.lCtl={value:ctl};
+    sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 lP;varying vec3 lN;').replace('#include <begin_vertex>','#include <begin_vertex>\nlP=transformed;lN=objectNormal;');
+    sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nuniform sampler2D lDet;uniform sampler2D lCtl;varying vec3 lP;varying vec3 lN;')
+      .replace('#include <map_fragment>',`{
+      float dist=1./gl_FragCoord.w,soft=.035+min(.16,dist*.0012),h=lP.y,ny=normalize(lN).y;
+      vec4 dn=texture2D(lDet,lP.xz*.2),df=texture2D(lDet,lP.zx*.0213+.37);
+      vec3 ct=texture2D(lCtl,vec2(lP.x+${TM}.,${TW-TM}.-lP.z)/${TW}.).rgb;
+      #ifdef FINE
+      float fine=texture2D(lDet,lP.xz*.83).r,strata=texture2D(lDet,vec2(lP.x+lP.z,lP.y*2.2)*.09).b;
+      #else
+      float fine=.5,strata=dn.b;
+      #endif
+      // grass: lush, with broad paler and darker patches, and blades up close
+      vec3 col=mix(vec3(.26,.56,.16),vec3(.53,.64,.22),smoothstep(.36,.7,df.r+(h-7.)*.012));
+      col=mix(col,vec3(.15,.42,.15),smoothstep(.52,.74,df.g)*.5);
+      col*=(.74+.52*dn.r)*(.86+.28*fine);
+      // dirt, where the control map says so: the grain decides the edge
+      float kd=smoothstep(.5-soft,.5+soft,ct.r+(dn.g-.5)*.36+(df.b-.5)*.2);
+      col=mix(col,mix(vec3(.5,.4,.27),vec3(.74,.62,.43),dn.g)*(.88+.24*df.a)*(.9+.2*fine),kd);
+      // sand near sea level, wet at the waterline
+      float ks=1.-smoothstep(1.2-soft*3.,1.5+soft*3.,h+(df.r-.5)*1.2+(dn.g-.5)*.34);
+      vec3 sand=vec3(.9,.8,.56)*(.84+.3*dn.g)*(.93+.14*fine);
+      sand*=.72+.28*smoothstep(.04,.42,h+(dn.g-.5)*.1);
+      col=mix(col,sand,ks*(1.-kd*step(1.3,h)));
+      // rock on steep faces
+      float kr=1.-smoothstep(.7-soft,.79+soft,ny+(dn.b-.5)*.1);
+      col=mix(col,mix(vec3(.3,.29,.29),vec3(.6,.57,.53),strata)*(.85+.3*dn.g),kr);
+      // paving, with joints on the 4 m grid
+      float kp=smoothstep(.5-soft*.6,.5+soft*.6,ct.g+(dn.a-.5)*.06);
+      vec2 jv=(.5-abs(fract(lP.xz*.25)-.5))*4.;float jl=(1.-smoothstep(.03,.055+dist*.0025,min(jv.x,jv.y)))*clamp(1.6-dist*.02,0.,1.);
+      col=mix(col,vec3(.5,.51,.53)*(.8+.4*dn.a)*(.92+.16*df.a)*(1.-.5*jl),kp);
+      col*=1.-ct.b*.62;
+      // under water: the sea bed takes the water's colour with depth; a pale line of foam at the edge
+      float foam=(1.-smoothstep(.0,.07,abs(h-.03)-.02*dn.g))*step(h,3.);
+      col=mix(col,vec3(.13,.45,.56),clamp(-h*.8,0.,.82));
+      col=mix(col,vec3(.95,.97,.95),foam*.7);
+      diffuseColor.rgb=col;}`);
+  };
+  return M;
+}
+// Water: a flat sheet whose colour and clearness are set at each corner from how deep the land is under it: clear and
+// turquoise in the shallows, deep blue and solid further out, so the shore has an edge and the sea bed shows through near it.
+function waterGeo(x0,z0,x1,z1,cell,level,far,deep){
+  const xs=[],zs=[];for(let x=x0;x<x1+.01;x+=cell)xs.push(x);for(let z=z0;z<z1+.01;z+=cell)zs.push(z);
+  if(far){xs.unshift(x0-far);xs.push(x1+far);zs.unshift(z0-far);zs.push(z1+far)}
+  const nx=xs.length,nz=zs.length,pos=new Float32Array(nx*nz*3),col=new Float32Array(nx*nz*4),uv=new Float32Array(nx*nz*2),nor=new Float32Array(nx*nz*3),idx=[];
+  for(let j=0;j<nz;j++)for(let i=0;i<nx;i++){const o=j*nx+i,x=xs[i],z=zs[j],d=Math.max(0,(level-terrainH(x,z))*deep),k=clamp(d/2.6,0,1);
+    pos[o*3]=x;pos[o*3+1]=level;pos[o*3+2]=z;nor[o*3+1]=1;uv[o*2]=x/47;uv[o*2+1]=z/47;
+    col[o*4]=.36-.24*k;col[o*4+1]=.78-.31*k;col[o*4+2]=.76-.09*k;col[o*4+3]=.3+.7*sst(0,3,d);
+    if(i<nx-1&&j<nz-1)idx.push(o,o+nx,o+1,o+1,o+nx,o+nx+1)}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));g.setAttribute('normal',new THREE.BufferAttribute(nor,3));g.setAttribute('color',new THREE.BufferAttribute(col,4));g.setAttribute('uv',new THREE.BufferAttribute(uv,2));g.setIndex(idx);return g;
 }
 let groundMesh=null,seaMesh=null,lakeMesh=null,staticMeshes=[],cloudMesh=null,GMAT=null;
 function landGeo(){
@@ -1295,28 +1346,56 @@ function landGeo(){
     const hx=(H_(i+1,j)-H_(i-1,j))/(2*TS),hz=(H_(i,j+1)-H_(i,j-1))/(2*TS),l=Math.sqrt(hx*hx+hz*hz+1);nor[o*3]=-hx/l;nor[o*3+1]=1/l;nor[o*3+2]=-hz/l;
     // hollows: how far this corner is below the average of the land 4 m and 8 m around it
     let av=0;for(const [a,b] of LAND_RING)av+=H_(i+a,j+b);av/=LAND_RING.length;
-    const ao=clamp(1-(av-h)*.11,.6,1.07);
+    const ao=clamp(1-(av-h)*.09,.64,1.06);
     // sun: walk toward it; the nearer the land comes to the ray, the deeper the shade
     let lit=1;for(let k=1;k<=22&&lit>0;k++){const d=k*2.2,c=(h+.5+d*sy-terrainH(x+sx*d,z+sz*d))/d;if(c<lit*.22)lit=Math.max(0,c/.22)}
-    const sh=(.6+.4*lit)*ao;col[o*3]=col[o*3+1]=col[o*3+2]=sh}
+    const sh=(.7+.3*lit)*ao;col[o*3]=col[o*3+1]=col[o*3+2]=sh}
   let q=0;for(let j=0;j<n-1;j++)for(let i=0;i<n-1;i++){const a=j*n+i,b=a+1,c=a+n,d=c+1;idx[q++]=a;idx[q++]=c;idx[q++]=b;idx[q++]=b;idx[q++]=c;idx[q++]=d}
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));g.setAttribute('normal',new THREE.BufferAttribute(nor,3));g.setAttribute('color',new THREE.BufferAttribute(col,3));g.setIndex(new THREE.BufferAttribute(idx,1));
   g.computeBoundingSphere();g.computeBoundingBox();return g;
 }
+// Scatter that sells the land, two instanced meshes (two draw calls, nothing per frame): tufts of grass wherever the
+// ground is grass (a few of them pale, like flowering weeds), thicker in patches, and small stones on steep ground, on the
+// beaches, along the tracks and in the crater. Neither is solid. Tufts shrink away between 40 and 65 m (in the vertex
+// shader), where they would only shimmer. Pretty has 4,400 tufts and 420 stones; Fast and phones about a third of that.
+// (Trees, bushes and the boulders you can hide behind are part of the island's merged meshes, as before.)
+let tuftIM=null,stoneIM=null;
+function scatterLand(){
+  const rnd=mulberry(5150),N=ctlCanvas.width,cd=ctlCanvas.getContext('2d').getImageData(0,0,N,N).data,touch=matchMedia('(pointer: coarse)').matches;
+  const ctl=(x,z,ch)=>cd[((clamp((z+TM)/TW*N,0,N-1)|0)*N+(clamp((x+TM)/TW*N,0,N-1)|0))*4+ch]/255;
+  // a tuft: four blades leaning out of one root, darker at the foot; the normals point up so it is lit like the ground under it
+  const tp=[],tc=[],tn=[];for(let b=0;b<4;b++){const a=b/4*6.283+rnd(),w=.045+rnd()*.03,hh=.28+rnd()*.26,ln=.1+rnd()*.2,ca=Math.cos(a),sa=Math.sin(a),k=.62+rnd()*.2;
+    tp.push(ca*.05-sa*w,0,sa*.05+ca*w, ca*.05+sa*w,0,sa*.05-ca*w, ca*(.05+ln),hh,sa*(.05+ln));tc.push(k*.62,k*.7,k*.5, k*.62,k*.7,k*.5, 1.12,1.18,1);tn.push(0,1,0,0,1,0,0,1,0)}
+  const tg=new THREE.BufferGeometry();tg.setAttribute('position',new THREE.Float32BufferAttribute(tp,3));tg.setAttribute('color',new THREE.Float32BufferAttribute(tc,3));tg.setAttribute('normal',new THREE.Float32BufferAttribute(tn,3));
+  const tm=new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide});
+  tm.onBeforeCompile=sh=>{sh.vertexShader=sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\n#ifdef USE_INSTANCING\ntransformed*=1.-smoothstep(40.,65.,length((modelViewMatrix*instanceMatrix*vec4(0.,0.,0.,1.)).xyz));\n#endif')};
+  const NT=LITE_LAND?(touch?1200:1600):4400,NS=LITE_LAND?150:420;
+  tuftIM=new THREE.InstancedMesh(tg,tm,NT);stoneIM=new THREE.InstancedMesh(new THREE.OctahedronGeometry(1,0),new THREE.MeshLambertMaterial(),NS);
+  let n=0;for(let i=0;i<NT*14&&n<NT;i++){const x=4+rnd()*(MAP-8),z=4+rnd()*(MAP-8),h=terrainH(x,z),thick=lnoise(x/15,z/15,9);
+    if(h<1.9||rnd()>.25+thick*1.1||terrainSlope(x,z)>.68||ctl(x,z,0)>.24||ctl(x,z,1)>.2)continue;
+    const s=.7+rnd()*.9;_o.position.set(x,h-.03,z);_o.rotation.set(0,rnd()*6.283,0);_o.scale.set(s,s*(.8+rnd()*.6),s);_o.updateMatrix();tuftIM.setMatrixAt(n,_o.matrix);
+    const fl=rnd(),dry=lnoise(x/11,z/11,10);if(fl<.045)_col.setRGB(.95,.9,.55);else if(fl<.07)_col.setRGB(.9,.92,.95);else _col.setRGB(.3+.3*dry,.6+.08*dry,.18+.06*dry).multiplyScalar(.85+rnd()*.3);
+    tuftIM.setColorAt(n++,_col)}
+  tuftIM.count=n;
+  n=0;for(let i=0;i<NS*60&&n<NS;i++){const x=4+rnd()*(MAP-8),z=4+rnd()*(MAP-8),h=terrainH(x,z),sl=terrainSlope(x,z),dirt=ctl(x,z,0);
+    if(h<-.4||ctl(x,z,1)>.2||!(sl>.62||h<1.5||(dirt>.25&&dirt<.75)||rnd()<.012))continue;
+    const s=.1+rnd()*rnd()*.42;_o.position.set(x,h+s*.2,z);_o.rotation.set(rnd()*3,rnd()*6,rnd()*3);_o.scale.set(s*(1+rnd()*.6),s*.75,s*(1+rnd()*.4));_o.updateMatrix();stoneIM.setMatrixAt(n,_o.matrix);
+    const k=.42+rnd()*.3,warm=h<1.5?1:0;stoneIM.setColorAt(n++,_col.setRGB(k*(1+.14*warm),k*(1+.06*warm),k*(1-.08*warm)))}
+  stoneIM.count=n;_o.scale.set(1,1,1);_o.rotation.set(0,0,0);
+  for(const m of [tuftIM,stoneIM]){m.frustumCulled=false;m.instanceMatrix.needsUpdate=true;if(m.instanceColor)m.instanceColor.needsUpdate=true;scene.add(m)}
+}
 const LAND_RING=[[2,0],[-2,0],[0,2],[0,-2],[1,1],[-1,1],[1,-1],[-1,-1],[4,0],[-4,0],[0,4],[0,-4],[3,3],[-3,3],[3,-3],[-3,-3]];
-// the ground picture's size: 2048 on a computer, 1024 on a phone or tablet, on Fast graphics, or if the graphics card can't take more
-const GROUND_PX=matchMedia('(pointer: coarse)').matches||store.get('gfx','auto')==='fast'||renderer.capabilities.maxTextureSize<2048?1024:2048;
 function finishWorld(){
   // The ground: one mesh over the height grid (the very triangles terrainH reads), with smooth normals so the sun shows
   // the relief, and a shade baked into each corner: darker in hollows and at the foot of banks (how much lower the
   // corner is than the land around it) and where a cliff or a hill stands between it and the sun.
   const gg=landGeo();
-  {const uv=new Float32Array(TN*TN*2),pos=gg.attributes.position;for(let i=0;i<pos.count;i++){uv[i*2]=pos.getX(i)/MAP;uv[i*2+1]=1-pos.getZ(i)/MAP}gg.setAttribute('uv',new THREE.BufferAttribute(uv,2))}
-  groundCanvas=paintGround(GROUND_PX);const gt=new THREE.CanvasTexture(groundCanvas);gt.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
-  GMAT=new THREE.MeshLambertMaterial({map:gt,vertexColors:true});GMAT.onBeforeCompile=MAT.onBeforeCompile;GMAT.defines={WORLD:1};
+  GMAT=landMaterial();
   groundMesh=new THREE.Mesh(gg,GMAT);scene.add(groundMesh);
-  seaMesh=new THREE.Mesh(new THREE.PlaneGeometry(3000,3000).rotateX(-Math.PI/2),new THREE.MeshLambertMaterial({color:SEA}));seaMesh.position.set(MAP/2,SEA_Y,MAP/2);seaMesh.receiveShadow=true;scene.add(seaMesh);
-  {const L=LAKE,m=new THREE.Mesh(new THREE.PlaneGeometry(L.x1-L.x0+6.5,L.z1-L.z0+10).rotateX(-Math.PI/2),new THREE.MeshLambertMaterial({color:0x3f97b5,transparent:true,opacity:.86}));m.position.set((L.x0+L.x1)/2+1.75,L.y,(L.z0+L.z1)/2);scene.add(m);lakeMesh=m}
+  scatterLand();
+  seaFlat=new THREE.MeshLambertMaterial({vertexColors:true,transparent:true,depthWrite:false});
+  seaMesh=new THREE.Mesh(waterGeo(-TM,-TM,MAP+TM,MAP+TM,4,SEA_Y,1500,1),seaFlat);seaMesh.receiveShadow=true;seaMesh.renderOrder=1;scene.add(seaMesh);
+  {const L=LAKE;lakeMesh=new THREE.Mesh(waterGeo(L.x0-1.5,L.z0-5,L.x1+5,L.z1+5,3.25,L.y,0,2.6),seaFlat);lakeMesh.receiveShadow=true;lakeMesh.renderOrder=1;scene.add(lakeMesh)}
   for(const B of chunks){if(!B.p.length)continue;const m=new THREE.Mesh(bagGeo(B),WMAT);scene.add(m);staticMeshes.push(m);
     // keep the original positions and colours, to restore broken and damaged pieces for the next match
     B.mesh=m;B.pos=m.geometry.attributes.position;B.col=m.geometry.attributes.color;B.pos.setUsage(THREE.DynamicDrawUsage);B.col.setUsage(THREE.DynamicDrawUsage);
@@ -1329,7 +1408,6 @@ function finishWorld(){
     for(let k=0;k<n;k++){const u=(k-(n-1)/2)*11*s,m=1-Math.abs(k-(n-1)/2)/n;shape(CLD,x+Math.cos(a)*u+rr()*6,y+m*5*s,z+Math.sin(a)*u+rr()*6,(11+rr()*6)*s*(.6+m*.6),(4.5+rr()*2.5)*s*(.5+m),(9+rr()*5)*s*(.6+m*.6),0xffffff,rr()*3,1,cb)}}
   for(let i=0;i<cb.n.length;i+=3){const k=clamp(cb.n[i+1]*.75+.55,0,1);cb.c[i]=.68+.32*k;cb.c[i+1]=.76+.24*k;cb.c[i+2]=.88+.12*k}
   cloudMesh=new THREE.Mesh(bagGeo(cb),new THREE.MeshBasicMaterial({vertexColors:true,fog:false,transparent:true,opacity:.94}));scene.add(cloudMesh);
-  seaFlat=seaMesh.material;
 }
 
 /* ---------- Pretty graphics: sky, sun, real shadows, a shinier sea, a colour grade ---------- */
@@ -1367,8 +1445,8 @@ function fineSea(){
   const N=128,c=document.createElement('canvas');c.width=c.height=N;const g=c.getContext('2d'),im=g.createImageData(N,N),h=new Float32Array(N*N);
   for(let y=0;y<N;y++)for(let x=0;x<N;x++)h[y*N+x]=Math.sin(x/N*6.283*3+Math.sin(y/N*6.283*2)*1.3)*.5+Math.sin(y/N*6.283*5+x/N*6.283)*.3+Math.sin((x+y)/N*6.283*7)*.2;
   for(let y=0;y<N;y++)for(let x=0;x<N;x++){const dx=h[y*N+(x+1)%N]-h[y*N+(x+N-1)%N],dy=h[((y+1)%N)*N+x]-h[((y+N-1)%N)*N+x],l=Math.hypot(dx,dy,1),o=(y*N+x)*4;im.data[o]=(-dx/l*.5+.5)*255;im.data[o+1]=(-dy/l*.5+.5)*255;im.data[o+2]=(1/l*.5+.5)*255;im.data[o+3]=255}
-  g.putImageData(im,0,0);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(64,64);
-  t.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());return seaFine=new THREE.MeshPhongMaterial({color:SEA,specular:0x6fb4d8,shininess:36,normalMap:t,normalScale:new THREE.Vector2(.3,.3)});
+  g.putImageData(im,0,0);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;
+  t.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());return seaFine=new THREE.MeshPhongMaterial({vertexColors:true,transparent:true,depthWrite:false,specular:0x6fb4d8,shininess:36,normalMap:t,normalScale:new THREE.Vector2(.3,.3)});
 }
 // colour grade (level 2): the finished frame is copied to a texture and redrawn with a touch more colour and contrast and
 // slightly darker corners. (No bloom here: in full daylight most pale surfaces are already at full brightness, so a glow
@@ -1401,7 +1479,7 @@ function lookSync(){
     sun.castShadow=lookOn;if(!lookOn){sun.position.set(SUN_V[0],SUN_V[1],SUN_V[2]);sun.target.position.set(0,0,0)}
     const want=lookOn?1:undefined;if(MAT.defines===undefined)MAT.defines={};
     for(const M of [MAT,WMAT,GMAT,FLMAT])if(M&&M.defines.FINE!==want){if(want)M.defines.FINE=1;else delete M.defines.FINE;M.needsUpdate=true}
-    if(seaMesh&&seaFlat)seaMesh.material=lookOn?fineSea():seaFlat;
+    if(seaMesh&&seaFlat)seaMesh.material=lakeMesh.material=lookOn?fineSea():seaFlat;
     if(!!stormMat.defines.LITE===lookOn){if(lookOn)delete stormMat.defines.LITE;else stormMat.defines.LITE=1;stormMat.needsUpdate=true}
   }
   if(!lookOn){skyDome.visible=sunGlow.visible=false;return}
@@ -3367,8 +3445,21 @@ function updateHud(dt){
 const mini=$('mini'),mctx=mini.getContext('2d'),bigc=$('bigc'),bctx=bigc.getContext('2d');
 let mapBg=null,bigMap=false;
 function buildMapBg(){
-  const N=256,c=document.createElement('canvas');c.width=c.height=N;const g=c.getContext('2d');
-  g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';if(groundCanvas)g.drawImage(groundCanvas,0,0,N,N);else{g.fillStyle='#4d8233';g.fillRect(0,0,N,N)}   // the same picture the ground wears
+  // The island from above, drawn from the land itself: sea by depth, sand, grass that pales with height, rock on the steep
+  // faces, tracks and paving from the control map, lit from the north-west so slopes read, a darker line every 4 m of height.
+  const N=256,c=document.createElement('canvas');c.width=c.height=N;const g=c.getContext('2d'),im=g.createImageData(N,N),d=im.data,e=MAP/N;
+  let ct=null;if(ctlCanvas){const t=document.createElement('canvas');t.width=t.height=N;const tg=t.getContext('2d'),w=ctlCanvas.width;tg.drawImage(ctlCanvas,TM/TW*w,TM/TW*w,MAP/TW*w,MAP/TW*w,0,0,N,N);ct=tg.getImageData(0,0,N,N).data}
+  for(let j=0;j<N;j++)for(let i=0;i<N;i++){const x=(i+.5)*e,z=(j+.5)*e,h=terrainH(x,z),hE=terrainH(x+e,z),hS=terrainH(x,z+e),hx=(hE-terrainH(x-e,z))/(2*e),hz=(hS-terrainH(x,z-e))/(2*e),o=(j*N+i)*4;
+    let r,gr,b;
+    if(h<SEA_Y){const k=clamp(-h/2.6,0,1);r=.36-.24*k;gr=.78-.31*k;b=.76-.09*k}
+    else if(h<LAKE.y&&lrect(x,z,LAKE.x0,LAKE.z0,LAKE.x1,LAKE.z1)<9){r=.2;gr=.58;b=.72}
+    else{const sl=Math.sqrt(hx*hx+hz*hz),k=clamp(h/20,0,1);
+      if(h<1.4){r=.9;gr=.8;b=.56}else{r=.27+.2*k;gr=.5+.09*k;b=.17+.1*k}
+      if(ct){const kd=clamp((ct[o]/255-.3)*2.5,0,1),kp=clamp((ct[o+1]/255-.3)*3,0,1);r+=(.68-r)*kd;gr+=(.57-gr)*kd;b+=(.39-b)*kd;r+=(.62-r)*kp;gr+=(.63-gr)*kp;b+=(.66-b)*kp}
+      if(sl>.85){r=.56;gr=.54;b=.51}
+      const sh=clamp(1+(hx+hz)*.42,.5,1.45)*(Math.floor(h/4)!==Math.floor(hE/4)||Math.floor(h/4)!==Math.floor(hS/4)?.74:1);r*=sh;gr*=sh;b*=sh}
+    d[o]=clamp(r*255,0,255);d[o+1]=clamp(gr*255,0,255);d[o+2]=clamp(b*255,0,255);d[o+3]=255}
+  g.putImageData(im,0,0);
   for(const f of footprints){g.fillStyle='#'+new THREE.Color(f.col).multiplyScalar(.8).getHexString();g.fillRect(f.x0*N/MAP,f.z0*N/MAP,(f.x1-f.x0)*N/MAP,(f.z1-f.z0)*N/MAP)}
   mapBg=c;
 }
@@ -3899,7 +3990,7 @@ if(navigator.webdriver)window.__dz={get state(){return state},get online(){retur
   give(t,r){takeItem(player,{t,r:r|0,n:WEAP[t]?WEAP[t].mag:HEALS[t]?1:t==='mt'?100:60})},
   fire(){const w=heldW(player),s=heldItem(player);updateCamera(0);playerShoot();if(s&&w)s.n=w.mag;player.cd=0},
   draws(){return renderer.info.render.calls},
-  setNoRender(v){window.__noRender=!!v},onNode,updateRemotes,renderOnce(){mpFlush();syncLimbs();drawScene()},get fxTier(){return fxTier},set fxTier(v){fxTier=v},get lookKey(){return lookKey},mpieces,mpBreak,mpSetHp,resetMap,mpAt,allRuns,brokenBits,applyBits,sendEv,get brokenN(){return brokenN},hash,setMapV(v){mapV=v},get mapV(){return mapV},mapSize:MAP,ICONS,paintGround,removePiece,wallSpec,pushOut,SPEED,AIR,BODY:{R,H},buildings,rampIn,updateBots,updatePlayer,
+  setNoRender(v){window.__noRender=!!v},onNode,updateRemotes,renderOnce(){mpFlush();syncLimbs();drawScene()},get fxTier(){return fxTier},set fxTier(v){fxTier=v},get lookKey(){return lookKey},mpieces,mpBreak,mpSetHp,resetMap,mpAt,allRuns,brokenBits,applyBits,sendEv,get brokenN(){return brokenN},hash,setMapV(v){mapV=v},get mapV(){return mapV},mapSize:MAP,ICONS,paintControl,get mapBg(){if(!mapBg)buildMapBg();return mapBg},removePiece,wallSpec,pushOut,SPEED,AIR,BODY:{R,H},buildings,rampIn,updateBots,updatePlayer,
   terrainH,walkH,terrainSlope,rayTerrain,TH,TN,TS,TM,LVL,LAKE,PADS,SHED_Y,chestSpots,floorSpots,buildings,footprints,get groundMesh(){return groundMesh},
   Locker,LOCKER_ON,OUTFITS,bodyGeo,LEG_GEO,legIM,fitLegIM,fitLegGeo,makeModel,setModelColor,legSpec,STD_LEGS,fitOf,hitboxes,TKON,PCOLS,SKINS,get mySkin(){return mySkin}};
 
