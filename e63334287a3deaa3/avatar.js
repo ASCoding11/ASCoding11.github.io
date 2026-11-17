@@ -261,29 +261,29 @@
     return i < TILES.length ? i : 0;
   }
   // Codes learned from other players' nodes, kept like the avatars'.
-  var seenT = {}, seenTDay = {}, seenTT = 0;
+  var tiles = {}, tileDay = {}, tileT = 0;
   function readSeenT() {
-    seenT = {}; seenTDay = {};
+    tiles = {}; tileDay = {};
     try {
       var o = JSON.parse(localStorage.getItem(TSEEN_KEY) || 'null'), u = o && o.v === 1 && o.u, d = today();
       if (!u || typeof u !== 'object' || Array.isArray(u)) return;
       Object.keys(u).slice(0, SEEN_MAX * 2).forEach(function (k) {
         var e = u[k]; if (!okUid(k) || !Array.isArray(e) || !parseTile(e[0])) return;
         var day = Number(e[1]); if (!(day <= d + 1) || d - day > SEEN_DAYS) return;
-        seenT[k] = e[0]; seenTDay[k] = day;
+        tiles[k] = e[0]; tileDay[k] = day;
       });
     } catch (e) {}
   }
   function writeSeenT() {
-    clearTimeout(seenTT);
-    seenTT = setTimeout(function () {
-      var keys = Object.keys(seenT), u = {};
+    clearTimeout(tileT);
+    tileT = setTimeout(function () {
+      var keys = Object.keys(tiles), u = {};
       if (keys.length > SEEN_MAX) {
-        keys.sort(function (a, b) { return seenTDay[b] - seenTDay[a]; });
-        keys.slice(SEEN_MAX).forEach(function (k) { delete seenT[k]; delete seenTDay[k]; });
+        keys.sort(function (a, b) { return tileDay[b] - tileDay[a]; });
+        keys.slice(SEEN_MAX).forEach(function (k) { delete tiles[k]; delete tileDay[k]; });
         keys = keys.slice(0, SEEN_MAX);
       }
-      keys.forEach(function (k) { u[k] = [seenT[k], seenTDay[k]]; });
+      keys.forEach(function (k) { u[k] = [tiles[k], tileDay[k]]; });
       try { localStorage.setItem(TSEEN_KEY, JSON.stringify({ v: 1, u: u })); } catch (e) {}
     }, 800);
   }
@@ -291,13 +291,13 @@
   function learnTile(uid, code) {
     if (!okUid(uid) || typeof code !== 'string') return false;
     if (code === 't0') {
-      if (!seenT[uid]) return false;
-      delete seenT[uid]; delete seenTDay[uid];
+      if (!tiles[uid]) return false;
+      delete tiles[uid]; delete tileDay[uid];
     } else {
       if (!parseTile(code)) return false;
       var d = today();
-      if (seenT[uid] === code) { if (seenTDay[uid] !== d) { seenTDay[uid] = d; writeSeenT(); } return false; }
-      seenT[uid] = code; seenTDay[uid] = d;
+      if (tiles[uid] === code) { if (tileDay[uid] !== d) { tileDay[uid] = d; writeSeenT(); } return false; }
+      tiles[uid] = code; tileDay[uid] = d;
     }
     writeSeenT(); changed(false);
     return true;
@@ -308,7 +308,7 @@
     uid = String(uid == null ? '' : uid);
     var o = localTile();
     if (o && o.uid === uid && google(uid)) return o.t;
-    return seenT[uid] ? parseTile(seenT[uid]) : 0;
+    return tiles[uid] ? parseTile(tiles[uid]) : 0;
   }
   // What this browser should publish as nt for its own uid. A guest publishes nothing.
   function tileMine(uid) {
@@ -316,7 +316,7 @@
     if (!uid || !google(uid)) return '';
     var o = localTile();
     if (o && o.uid === uid) return o.t ? 't1:' + o.t : 't0';
-    return seenT[uid] || '';
+    return tiles[uid] || '';
   }
   function saveTile(uid, i) {
     uid = String(uid == null ? '' : uid);
@@ -738,7 +738,7 @@
     '.bra-nt>*{--ink:var(--nt-ink);--ink-2:var(--nt-ink2);--accent:var(--nt-ink2);--accent-ink:var(--nt-bg);--line:var(--nt-line);--panel:var(--nt-bg);--panel-2:var(--nt-bg)}' +
     // The avatar gets a ring and the solid badges an edge, so neither melts into a tile of its own colour.
     '.bra-nt .bra-av{box-shadow:0 0 0 2px var(--nt-ring)}' +
-    '.bra-nt .bra-tier-business,.bra-nt .bra-tier-first,.bra-nt .bra-tier-jet,.bra-nt .bra-top-all{border-color:var(--nt-line)}' +
+    '.bra-nt .bra-tier-business,.bra-nt .bra-tier-first,.bra-nt .bra-tier-jet,.bra-nt .bra-top.bra-top-all.bra-top-all{border-color:var(--nt-line)}' +
     TILES.map(function (t, i) { return i ? '.bra-nt-' + i + '{--nt-bg:' + t.bg + '}' : ''; }).join('');
   (document.head || document.documentElement).appendChild(css);
 
