@@ -531,9 +531,9 @@ const $=id=>document.getElementById(id);
 const V3=THREE.Vector3;
 const PREFIX='dz';
 // The island is MAP metres square; builds sit on a grid of CELL-metre cells, as in Backrooms.
-// MAPV is the island's version: it went from 1 (320 m) to 2 (240 m), then to 3 for the slower pace and 4 for the November 2026 fixes. Every node carries it, and the host only puts people
+// MAPV is the island's version: it went from 1 (320 m) to 2 (240 m), then to 3 for the slower pace, 4 for the November 2026 fixes and 5 for real terrain. Every node carries it, and the host only puts people
 // on the same version in a match, so nobody plays on a different island from everyone else.
-const MAPV=4;   // 3: the slower pace (November 2026): speeds, damage and the storm's times changed. 4: solid ramps, the smaller characters, the pace part-way back and ten weapons (new item ids), so the two must not share a match.
+const MAPV=5;   // 5: real terrain (November 2026): the island has hills, cliffs and a shore, every place stands at its own height and loot, shots and builds follow the land, so a page with the flat island must not share a match. 3: the slower pace (November 2026): speeds, damage and the storm's times changed. 4: solid ramps, the smaller characters, the pace part-way back and ten weapons (new item ids), so the two must not share a match.
 let mapV=MAPV;   // only a test changes this, to play the part of a page from before the change
 const nodeV=v=>+(v&&v.mv)||1;   // nodes from before map versions existed are on the old island
 const MAP=240,CELL=4,NC=MAP/CELL,MAX_ROOM=30,PRACTICE_BOTS=11,LIVE_MS=8000,MAXL=7,MAXL_TOP=13,COST=10,MAX_MATS=500,EDGE=3;
@@ -736,6 +736,8 @@ function terrainH(x,z){
   const d=TH[o+TN+1];return d+(c-d)*(1-fx)+(b-d)*(1-fz);
 }
 // where feet go: the land, or 1 m under the surface where the sea is deeper than that (nobody sinks further)
+// waist-deep in the sea or the reservoir: walking is slower there
+function wading(e){const p=e.pos;return p.y<-.45||(p.y<LAKE.y-.5&&p.y>LAKE.bed-.6&&lrect(p.x,p.z,LAKE.x0,LAKE.z0,LAKE.x1,LAKE.z1)<8)}
 function walkH(x,z){const h=terrainH(x,z);return h<WADE?WADE:h}
 // how steep the ground under x,z is (rise over run); _tg is left holding the uphill direction times that
 const _tg=[0,0];
@@ -754,11 +756,13 @@ function rayTerrain(o,d,maxT){
   else if(dy<-1e-9){if(oy>TMAX)t0=(TMAX-oy)/dy;t1=Math.min(t1,(TMIN-.5-oy)/dy)}
   else if(oy>TMAX)return -1;
   if(t0>t1)return -1;
-  let pt=t0;if(oy+dy*pt<terrainH(o[0]+d[0]*pt,o[2]+d[2]*pt))return pt;
+  let pt=t0,c=oy+dy*pt-terrainH(o[0]+d[0]*pt,o[2]+d[2]*pt);if(c<0)return pt;
   for(;;){
-    let t=pt+1;if(t>t1)t=t1;
-    if(oy+dy*t<terrainH(o[0]+d[0]*t,o[2]+d[2]*t)){let a=pt,b=t;for(let k=0;k<6;k++){const m=(a+b)/2;if(oy+dy*m<terrainH(o[0]+d[0]*m,o[2]+d[2]*m))b=m;else a=m}return a}
-    if(t>=t1)return -1;pt=t;
+    // a metre at a time near the land; well clear of it the steps are longer (no slope on the island is steeper than 5 in 1)
+    let t=pt+(c>9?Math.min(8,c/6):1);if(t>t1)t=t1;
+    const c2=oy+dy*t-terrainH(o[0]+d[0]*t,o[2]+d[2]*t);
+    if(c2<0){let a=pt,b=t;for(let k=0;k<8;k++){const m=(a+b)/2;if(oy+dy*m<terrainH(o[0]+d[0]*m,o[2]+d[2]*m))b=m;else a=m}return a}
+    if(t>=t1)return -1;pt=t;c=c2;
   }
 }
 // ---- the island's shape ----
@@ -1167,7 +1171,8 @@ function buildWorld(){
   place('Starfall Crater',248,248,40);
   paint({k:'circle',t:'scorch',x:248,z:248,r:34,col:[.42,.36,.33]});paint({k:'circle',t:'scorch',x:248,z:248,r:14,col:[.3,.26,.26]});
   {const rr=mulberry(77);
-    for(let i=0;i<34;i++){const a=i/34*Math.PI*2;if([2,3,11,12,20,28,29].includes(i))continue;const d=29+rr()*4,s=3.4+rr()*2.2;const bx=248+Math.cos(a)*d,bz=248+Math.sin(a)*d,bc=rr()<.5?0x7d7470:0x8f8681;onLand(bx,bz,.5,()=>rock(bx,bz,s,bc))}
+    for(let i=0;i<34;i++){const a=i/34*Math.PI*2;if([2,3,11,12,20,28,29].includes(i))continue;const d=29+rr()*4,s=3.4+rr()*2.2;const bx=248+Math.cos(a)*d,bz=248+Math.sin(a)*d,bc=rr()<.5?0x7d7470:0x8f8681;if(lrect(bx,bz,228,228,236,236)<s*.72+3)continue;   // (not across the shed's doors)
+      onLand(bx,bz,.5,()=>rock(bx,bz,s,bc))}
     shape(ICO,248,3.2,248,4.6,4.2,4.2,0x40354d,.6);shape(ICO,248,5.8,248,2.2,2,2.2,0x9a7bff,.3);solid(244.2,0,244.2,251.8,6.8,251.8,6);
     const s1=house(57,57,2,2,{col:0xd4b04a,trim:0x51473a,roof:0x51473a,doors:[['n',0],['e',1]],win:.5});s1.chest(0,1,0,0);s1.floor(1,0,0);
     const s2=house(62,64,2,2,{col:0xd4b04a,trim:0x51473a,roof:0x51473a,doors:[['w',1],['n',1]],win:.5});s2.chest(1,1,0,Math.PI);
@@ -1255,7 +1260,7 @@ function landDetail(N){
   for(let k=0;k<10;k++){let x=rnd()*N,y=rnd()*N,an=rnd()*6.283;const len=(40+rnd()*120)*S;for(let t=0;t<len;t++){an+=(rnd()-.5)*.5;x+=Math.cos(an);y+=Math.sin(an);f[W(Math.round(x),Math.round(y))]-=.45}}
   store(3,170);
   const t=new THREE.DataTexture(out,N,N,THREE.RGBAFormat);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.generateMipmaps=true;t.minFilter=THREE.LinearMipmapLinearFilter;t.magFilter=THREE.LinearFilter;
-  t.anisotropy=Math.min(LITE_LAND?4:8,renderer.capabilities.getMaxAnisotropy());t.needsUpdate=true;return t;
+  t.anisotropy=LITE_LAND?Math.min(4,renderer.capabilities.getMaxAnisotropy()):renderer.capabilities.getMaxAnisotropy();t.needsUpdate=true;return t;
 }
 let ctlCanvas=null;
 function paintControl(N){
@@ -1398,7 +1403,7 @@ function finishWorld(){
   groundMesh=new THREE.Mesh(gg,GMAT);scene.add(groundMesh);
   scatterLand();
   seaFlat=new THREE.MeshLambertMaterial({vertexColors:true,transparent:true,depthWrite:false});
-  seaMesh=new THREE.Mesh(waterGeo(-TM,-TM,MAP+TM,MAP+TM,4,SEA_Y,1500,1),seaFlat);seaMesh.receiveShadow=true;seaMesh.renderOrder=1;scene.add(seaMesh);
+  seaMesh=new THREE.Mesh(waterGeo(-TM,-TM,MAP+TM,MAP+TM,6.8,SEA_Y,1500,1),seaFlat);seaMesh.receiveShadow=true;seaMesh.renderOrder=1;scene.add(seaMesh);
   {const L=LAKE;lakeMesh=new THREE.Mesh(waterGeo(L.x0-1.5,L.z0-5,L.x1+5,L.z1+5,3.25,L.y,0,2.6),seaFlat);lakeMesh.receiveShadow=true;lakeMesh.renderOrder=1;scene.add(lakeMesh)}
   for(const B of chunks){if(!B.p.length)continue;const m=new THREE.Mesh(bagGeo(B),WMAT);scene.add(m);staticMeshes.push(m);
     // keep the original positions and colours, to restore broken and damaged pieces for the next match
@@ -1671,7 +1676,7 @@ function spawnLoot(){
   floorSpots.forEach((f,i)=>{const r=mulberry((seed^hashStr('f'+i))>>>0);if(r()>.72)return;
     const k=r();let it;if(k<.55)it=rollWeapon(r,FLOOR_R);else if(k<.85)it=rollHeal(r);else{const a='LMSH'[Math.floor(r()*4)];it={t:'a'+a,n:AMMO[a].n}}
     addItem(Object.assign(it,{id:'f'+i,x:f.x,y:f.y,z:f.z}));
-    if(WEAP[it.t])addItem({id:'f'+i+'a',t:'a'+WEAP[it.t].am,n:AMMO[WEAP[it.t].am].n,x:f.x+.9,y:f.y,z:f.z+.5});
+    if(WEAP[it.t])addItem({id:'f'+i+'a',t:'a'+WEAP[it.t].am,n:AMMO[WEAP[it.t].am].n,x:f.x+.9,y:f.g?terrainH(f.x+.9,f.z+.5):f.y,z:f.z+.5});
   });
 }
 // a chest opens the same way wherever it's opened: its loot comes out in front of it
@@ -2562,6 +2567,7 @@ function makeStorm(sd){
   const r=mulberry((sd^0x9e3779b9)>>>0);let cx=MAP/2,cz=MAP/2,rad=R0;const out=[{x:cx,z:cz,r:R0}];
   for(const ph of STORM){const room=Math.max(0,rad-ph.r),a=r()*Math.PI*2,d=Math.sqrt(r())*room*.8;
     let nx=cx+Math.cos(a)*d,nz=cz+Math.sin(a)*d;const m=Math.min(ph.r+18,MAP/2);nx=clamp(nx,m,MAP-m);nz=clamp(nz,m,MAP-m);
+    for(let k=0;k<24&&terrainH(nx,nz)<1;k++){nx+=(MAP/2-nx)*.125;nz+=(MAP/2-nz)*.125}   // (never centred out at sea: pulled toward the middle until it is on land)
     out.push({x:nx,z:nz,r:ph.r});cx=nx;cz=nz;rad=ph.r}
   return out;
 }
@@ -2882,7 +2888,7 @@ function updatePlayer(dt){
   if(p.st==='bus'){busPos(t,p.pos);hideGhosts();if(t>=busLine.tOut||(jumpEdge&&t>=busLine.tIn&&t>0))dropFromBus(p);return}
   const [ix,iz]=input?moveInput(p):[0,0];
   if(p.st==='fall'||p.st==='glide'){stepAir(p,dt,ix,iz,jumpEdge);hideGhosts();stormDamage(p,dt,t);return}
-  const spd=SPEED*(p.useT>0?.45:isADS()?.7:1);
+  const spd=SPEED*(p.useT>0?.45:isADS()?.7:1)*(wading(p)?.72:1);
   const k=Math.min(1,(p.onGround?14:3.2)*dt);
   p.vel.x+=(ix*spd-p.vel.x)*k;p.vel.z+=(iz*spd-p.vel.z)*k;
   if(jumpNow&&p.onGround){p.vel.y=JUMP;p.onGround=false}
@@ -2972,7 +2978,8 @@ function buildNav(){
   for(const s of statics){const w=s.max[0]-s.min[0],d=s.max[2]-s.min[2],cx=(s.min[0]+s.max[0])/2,cz=(s.min[2]+s.max[2])/2;
     if(Math.min(w,d)<2.4||s.max[1]<terrainH(cx,cz)+1.6||s.min[1]>terrainH(cx,cz)+.6||s.run||bldAt(cx,cz))continue;
     for(let j=Math.floor((s.min[2]-1)/4);j<=Math.floor((s.max[2]+1)/4);j++)for(let i=Math.floor((s.min[0]-1)/4);i<=Math.floor((s.max[0]+1)/4);i++){
-      if(i<0||j<0||i>=NAVN||j>=NAVN)continue;const x=i*4+2,z=j*4+2;if(x>s.min[0]-.9&&x<s.max[0]+.9&&z>s.min[2]-.9&&z<s.max[2]+.9)navShut[j*NAVN+i]=1}}
+      if(i<0||j<0||i>=NAVN||j>=NAVN)continue;const x=i*4+2,z=j*4+2;if(x>s.min[0]-2.3&&x<s.max[0]+2.3&&z>s.min[2]-2.3&&z<s.max[2]+2.3)navShut[j*NAVN+i]=1}}   // (any cell the thing reaches into)
+  for(const r of ramps)if(!r.piece&&r.base<terrainH(r.x0+2,r.z0+2)+.6)navShut[navCell(r.x0+2,r.z0+2)]=1;   // the foot of the map's stairs
 }
 const navCell=(x,z)=>clamp(Math.floor(z/4),0,NAVN-1)*NAVN+clamp(Math.floor(x/4),0,NAVN-1);
 function landClear(ax,az,bx,bz){const dx=bx-ax,dz=bz-az,L=Math.hypot(dx,dz),n=Math.ceil(L/1.5);for(let i=1;i<n;i++){const t=i/n;if(navShut[navCell(ax+dx*t,az+dz*t)])return false}return true}
@@ -3047,7 +3054,7 @@ function updateBot(b,dt,t){
   if(b.st==='fall'||b.st==='glide'){const dx=ai.land.x-b.pos.x,dz=ai.land.z-b.pos.z,L=Math.hypot(dx,dz);const k=L>3?1:L/3;b.yaw=yawTo(dx,dz);stepAir(b,dt,L?dx/L*k:0,L?dz/L*k:0,false);stormDamage(b,dt,t);return}
   ai.think-=dt;if(ai.think<=0){ai.think=.4+Math.random()*.2;botThink(b,t)}
   ai.hurt-=dt;ai.jumpCd-=dt;ai.buildCd-=dt;ai.healCd-=dt;
-  let mx=0,mz=0,spd=SPEED*.92;
+  let mx=0,mz=0,spd=SPEED*.92*(wading(b)?.72:1);
   const tg=ai.target&&ai.target.alive?ai.target:null;
   if(tg){
     const d=b.pos.distanceTo(tg.pos);
@@ -3077,12 +3084,15 @@ function updateBot(b,dt,t){
     const w=heldW(b),s=heldItem(b);if(w&&s.n<w.mag*.5&&b.ammo[w.am]>0)startReload(b);
   }
   autoPickup(b,dt);
+  // held up by something (a trunk, a boulder, a corner): step round it, one side then the other, before giving up on the goal
+  if(ai.dodge>0){ai.dodge-=dt;const c=Math.cos(1.15*ai.dodgeDir),s=Math.sin(1.15*ai.dodgeDir),x=mx*c-mz*s;mz=mx*s+mz*c;mx=x}
   const k=Math.min(1,(b.onGround?12:3)*dt);
   b.vel.x+=(mx*spd-b.vel.x)*k;b.vel.z+=(mz*spd-b.vel.z)*k;
   moveEntity(b,dt);
   // stuck: jump, then try another way
   const moved=Math.hypot(b.pos.x-ai.lastPos.x,b.pos.z-ai.lastPos.z);ai.lastPos.copy(b.pos);
   if((mx||mz)&&moved<spd*dt*.3){ai.stuck+=dt;if(ai.stuck>.35&&b.onGround&&ai.jumpCd<=0){b.vel.y=JUMP;b.onGround=false;ai.jumpCd=.8}
+    if(ai.stuck>.5&&!(ai.dodge>0)){ai.dodgeDir=ai.dodgeDir>0?-1:1;ai.dodge=.55}
     // stuck against something breakable in the way: break through it (a few tries, then go another way as before)
     if(ai.stuck>.7&&(ai.brk|0)<10&&b.cd<=0&&b.useT<=0){const L=Math.hypot(mx,mz),dr=[mx/L,0,mz/L],o=[b.pos.x,b.pos.y+1,b.pos.z],hr=raycast(o,dr,1.6,null,false),h=hr.hit;
       if(h&&(h.kind==='piece'||mpAt(h.s,[o[0]+dr[0]*hr.t,o[1],o[2]+dr[2]*hr.t]))){ai.brk=(ai.brk|0)+1;b.yaw=yawTo(dr[0],dr[2]);b.pitch=-.2;const w=heldW(b),s=heldItem(b);
@@ -3676,7 +3686,7 @@ function updateCamera(dt){
   if(!tgt){
     if(Locker.open){Locker.cam(dt);return}
     attractYaw+=dt*.05;if(camera.fov!==60){camera.fov=60;camera.updateProjectionMatrix()}setNear(1);
-    const r=MAP*.47;camera.position.set(MAP/2+Math.sin(attractYaw)*r,55,MAP/2+Math.cos(attractYaw)*r);camera.lookAt(MAP/2,0,MAP/2);
+    const r=MAP*.47;camera.position.set(MAP/2+Math.sin(attractYaw)*r,64,MAP/2+Math.cos(attractYaw)*r);camera.lookAt(MAP/2,6,MAP/2);
     return;
   }
   const self=tgt===player,ads=self&&isADS(),w=self?heldW(player):null;
