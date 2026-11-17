@@ -536,7 +536,7 @@ const PREFIX='dz';
 const MAPV=4;   // 3: the slower pace (November 2026): speeds, damage and the storm's times changed. 4: solid ramps, the smaller characters, the pace part-way back and ten weapons (new item ids), so the two must not share a match.
 let mapV=MAPV;   // only a test changes this, to play the part of a page from before the change
 const nodeV=v=>+(v&&v.mv)||1;   // nodes from before map versions existed are on the old island
-const MAP=240,CELL=4,NC=MAP/CELL,MAX_ROOM=30,PRACTICE_BOTS=11,LIVE_MS=8000,MAXL=7,COST=10,MAX_MATS=500,EDGE=3;
+const MAP=240,CELL=4,NC=MAP/CELL,MAX_ROOM=30,PRACTICE_BOTS=11,LIVE_MS=8000,MAXL=7,MAXL_TOP=13,COST=10,MAX_MATS=500,EDGE=3;
 // Movement and size: jump and step are the same numbers as Backrooms 1v1–4v4. Characters were made a fifth smaller in November 2026
 // (they looked huge next to doors and builds): BS scales the model, and the collision box (R wide either way, H tall; was 0.36 and
 // 1.95), the hit areas, the eye and muzzle heights, the name tag and the camera all follow it.
@@ -795,9 +795,13 @@ function designH(x,z){
   // The high ground, each a smooth mound, the highest one winning where they meet: Signal Point's hill, the ridge from it
   // to the dam, the plateau that holds the reservoir (these three meet the sea as cliffs), the farm's tableland, the knoll
   // on the west shore, a hillock south of the plaza and the timber shelf.
-  const f1=sst(50,16,ldist(x-124,z-40))*12.2,d1=lseg(x,z,124,40,154,26),d2=lseg(x,z,154,26,188,24),f2=d1<d2?sst(32,4,d1)*12.4:sst(32,4,d2)*(12.4+3.6*_lt),f3=sst(46,2,lseg(x,z,212,24,212,112))*13.8;
+  // (the mounds are measured from a point pushed a few metres about by noise, so none of them is a neat circle, and the
+  // high ground carries creased, ridged noise so it isn't a smooth dome)
+  const wx=x+(lnoise(x/29,z/29,5)-.5)*11,wz=z+(lnoise(x/29,z/29,6)-.5)*11;
+  const f1=sst(50,16,ldist(wx-124,wz-40))*12.2,d1=lseg(wx,wz,124,40,154,26),d2=lseg(wx,wz,154,26,188,24),f2=d1<d2?sst(32,4,d1)*12.4:sst(32,4,d2)*(12.4+3.6*_lt),f3=sst(46,2,lseg(wx,wz,212,24,212,112))*13.8;
   const hi=Math.max(f1,f2,f3);
-  B+=Math.max(hi,sst(26,0,lrect(x,z,14,20,84,84))*3.9,sst(30,0,ldist(x-24,z-120))*9.4,sst(22,0,ldist(x-99,z-171))*6,sst(46,0,ldist(x-122,z-204))*4);
+  const up=Math.max(hi,sst(26,0,lrect(wx,wz,14,20,84,84))*3.9,sst(30,0,ldist(wx-24,wz-120))*9.4,sst(22,0,ldist(wx-99,wz-171))*6,sst(46,0,ldist(wx-122,wz-204))*4);
+  B+=up+sst(2.5,8,up)*((1-Math.abs(2*lnoise(x/19,z/19,8)-1))*2-1.1)*.9;
   // the crater's rim, lower at its four gaps
   {const cx=x-184,cz=z-184,d=ldist(cx,cz);if(d>18&&d<56){const ux=cx/d,uz=cz/d;let gap=0;for(const g of CRATER_GAPS){const k=ux*g[0]+uz*g[1];if(k>gap)gap=k}
     B+=sst(14,0,Math.abs(d-40))*4.9*(1-.62*sst(.9,.985,gap))}}
@@ -815,7 +819,7 @@ function designLand(){
   SHEDS.forEach(([cx,cz],k)=>{let a=0;for(let i=-1;i<=1;i++)for(let j=-1;j<=1;j++){const x=cx*4+4+i*6,z=cz*4+4+j*6;let h=designH(x,z);for(const P of PADS)h=pad(P,x,z,h);a+=h/9}SHED_Y[k]=Math.max(4,Math.round(a/4)*4)});
   const all=PADS.concat(SHEDS.map(([cx,cz],k)=>({x0:cx*4-2.5,z0:cz*4-2.5,x1:cx*4+10.5,z1:cz*4+10.5,y:SHED_Y[k],bw:6})));
   all.push({x0:LAKE.x0,z0:LAKE.z0,x1:LAKE.x1,z1:LAKE.z1,y:LAKE.bed,bw:10});
-  all.push({x0:183,z0:22,x1:193,z1:31.6,y:LVL.dam+12,bw:4},{x0:183,z0:112.4,x1:193,z1:122,y:LVL.dam+12,bw:4});   // the hillside at each end of the dam's top, level with it
+  all.push({x0:183,z0:22,x1:193,z1:31.6,y:LVL.dam+12,bw:4},{x0:183,z0:112.4,x1:193,z1:122,y:LVL.dam+12,bw:9});   // the hillside at each end of the dam's top, level with it
   TMAX=-1e9;TMIN=1e9;
   for(let j=0;j<TN;j++)for(let i=0;i<TN;i++){const x=i*TS-TM,z=j*TS-TM;let h=designH(x,z);for(const P of all)h=pad(P,x,z,h);
     h=Math.round(h*32)/32;TH[j*TN+i]=h;if(h>TMAX)TMAX=h;if(h<TMIN)TMIN=h}
@@ -1292,7 +1296,7 @@ function landMaterial(){
       vec4 dn=texture2D(lDet,lP.xz*.2),df=texture2D(lDet,lP.zx*.0213+.37);
       vec3 ct=texture2D(lCtl,vec2(lP.x+${TM}.,${TW-TM}.-lP.z)/${TW}.).rgb;
       #ifdef FINE
-      float fine=texture2D(lDet,lP.xz*.83).r,strata=texture2D(lDet,vec2(lP.x+lP.z,lP.y*2.2)*.09).b;
+      vec3 an=abs(normalize(lN));float fine=texture2D(lDet,lP.xz*.83).r,strata=mix(texture2D(lDet,vec2(lP.z,lP.y*2.2)*.12).b,texture2D(lDet,vec2(lP.x,lP.y*2.2)*.12).b,an.z/(an.x+an.z+.0001));
       #else
       float fine=.5,strata=dn.b;
       #endif
@@ -1359,7 +1363,7 @@ function landGeo(){
 // beaches, along the tracks and in the crater. Neither is solid. Tufts shrink away between 40 and 65 m (in the vertex
 // shader), where they would only shimmer. Pretty has 4,400 tufts and 420 stones; Fast and phones about a third of that.
 // (Trees, bushes and the boulders you can hide behind are part of the island's merged meshes, as before.)
-let tuftIM=null,stoneIM=null;
+let tuftIM=null,stoneIM=null;const tuftT={value:0};   // (the wind's clock: only moves on the Pretty look)
 function scatterLand(){
   const rnd=mulberry(5150),N=ctlCanvas.width,cd=ctlCanvas.getContext('2d').getImageData(0,0,N,N).data,touch=matchMedia('(pointer: coarse)').matches;
   const ctl=(x,z,ch)=>cd[((clamp((z+TM)/TW*N,0,N-1)|0)*N+(clamp((x+TM)/TW*N,0,N-1)|0))*4+ch]/255;
@@ -1368,7 +1372,7 @@ function scatterLand(){
     tp.push(ca*.05-sa*w,0,sa*.05+ca*w, ca*.05+sa*w,0,sa*.05-ca*w, ca*(.05+ln),hh,sa*(.05+ln));tc.push(k*.62,k*.7,k*.5, k*.62,k*.7,k*.5, 1.12,1.18,1);tn.push(0,1,0,0,1,0,0,1,0)}
   const tg=new THREE.BufferGeometry();tg.setAttribute('position',new THREE.Float32BufferAttribute(tp,3));tg.setAttribute('color',new THREE.Float32BufferAttribute(tc,3));tg.setAttribute('normal',new THREE.Float32BufferAttribute(tn,3));
   const tm=new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide});
-  tm.onBeforeCompile=sh=>{sh.vertexShader=sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\n#ifdef USE_INSTANCING\ntransformed*=1.-smoothstep(40.,65.,length((modelViewMatrix*instanceMatrix*vec4(0.,0.,0.,1.)).xyz));\n#endif')};
+  tm.onBeforeCompile=sh=>{sh.uniforms.lT=tuftT;sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nuniform float lT;').replace('#include <begin_vertex>','#include <begin_vertex>\n#ifdef USE_INSTANCING\ntransformed*=1.-smoothstep(40.,65.,length((modelViewMatrix*instanceMatrix*vec4(0.,0.,0.,1.)).xyz));\ntransformed.xz+=vec2(.11,.07)*position.y*sin(lT*1.9+instanceMatrix[3].x*.6+instanceMatrix[3].z*.45);\n#endif')};
   const NT=LITE_LAND?(touch?1200:1600):4400,NS=LITE_LAND?150:420;
   tuftIM=new THREE.InstancedMesh(tg,tm,NT);stoneIM=new THREE.InstancedMesh(new THREE.OctahedronGeometry(1,0),new THREE.MeshLambertMaterial(),NS);
   let n=0;for(let i=0;i<NT*14&&n<NT;i++){const x=4+rnd()*(MAP-8),z=4+rnd()*(MAP-8),h=terrainH(x,z),thick=lnoise(x/15,z/15,9);
@@ -1488,6 +1492,7 @@ function lookSync(){
   skyDome.visible=sunGlow.visible=clear;
   if(clear){skyDome.position.copy(camera.position);sunGlow.position.copy(camera.position).addScaledVector(SUN_DIR,640)}
   if(seaFine)seaFine.normalMap.offset.set(performance.now()*.0000035,performance.now()*.0000021);
+  if(!RM)tuftT.value=(performance.now()*.001)%1000;
 }
 let fxAvg=14,fxSlow=0,fxFast=0,fxLast=0,fxNew=0;
 function fxWatch(){
@@ -1655,7 +1660,8 @@ function chestLoot(c){
   const w=rollWeapon(rnd,CHEST_R);out.push(w,{t:'a'+WEAP[w.t].am,n:AMMO[WEAP[w.t].am].n});
   if(rnd()<.7)out.push(rollHeal(rnd));if(rnd()<.45)out.push({t:'mt',n:30});
   const sp=[[-.9,-1.4],[.9,-1.4],[0,-1.9],[0,-1.1]];
-  return out.map((it,k)=>{const [ox,oz]=sp[k%4],c0=Math.cos(c.yaw),s0=Math.sin(c.yaw);const x=c.x+ox*c0+oz*s0,z=c.z-ox*s0+oz*c0;
+  const B=bldAt(c.x,c.z);   // a chest against a wall: its loot stays in the room (it used to land inside the wall, out of a bot's reach)
+  return out.map((it,k)=>{const [ox,oz]=sp[k%4],c0=Math.cos(c.yaw),s0=Math.sin(c.yaw);let x=c.x+ox*c0+oz*s0,z=c.z-ox*s0+oz*c0;if(B){x=clamp(x,B.x0+.8,B.x1-.8);z=clamp(z,B.z0+.8,B.z1-.8)}
     return Object.assign(it,{id:'c'+c.id+'.'+k,x,z,y:groundAt(x,z,c.y+1)})});
 }
 function spawnLoot(){
@@ -1688,6 +1694,14 @@ const PCAP=900,PHP={wall:150,floor:140,ramp:140};
 const pieceInst={};
 for(const [k,g] of [['wall',geoPWall],['floor',geoPFloor],['ramp',geoPRamp]]){const m=new THREE.InstancedMesh(g,plyMat,PCAP);m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);m.setColorAt(0,new THREE.Color(1,1,1));m.count=0;m.frustumCulled=false;scene.add(m);pieceInst[k]={mesh:m,list:[]}}
 const pieces=new Map();
+// skirts under walls on sloping ground: one instanced box each, darker planks (one more draw call, only while there are any)
+const skirtIM=new THREE.InstancedMesh(new THREE.BoxGeometry(4,1,.22),plyMat,PCAP),skirtList=[];
+skirtIM.instanceMatrix.setUsage(THREE.DynamicDrawUsage);skirtIM.setColorAt(0,new THREE.Color(.62,.58,.54));skirtIM.count=0;skirtIM.frustumCulled=false;skirtIM.visible=false;scene.add(skirtIM);
+function skirtSet(pc,i){const s=pc.spec,g=pc.skirt;_o.rotation.set(0,s.o==='H'?0:Math.PI/2,0);_o.scale.set(1,g,1);if(s.o==='H')_o.position.set(s.x*4+2,s.L*4-g/2,s.z*4);else _o.position.set(s.x*4,s.L*4-g/2,s.z*4+2);
+  _o.updateMatrix();skirtIM.setMatrixAt(i,_o.matrix);skirtIM.setColorAt(i,_col.setRGB(.62,.58,.54));_o.scale.set(1,1,1);_o.rotation.set(0,0,0);pc.skirtIx=i;
+  skirtIM.count=skirtList.length;skirtIM.visible=skirtList.length>0;skirtIM.instanceMatrix.needsUpdate=true;skirtIM.instanceColor.needsUpdate=true}
+function skirtAdd(pc){pc.skirt=skirtOf(pc.spec);if(!pc.skirt||skirtList.length>=PCAP)return;skirtList.push(pc);skirtSet(pc,skirtList.length-1)}
+function skirtDrop(pc){if(pc.skirtIx==null)return;const last=skirtList.pop();if(last!==pc){skirtList[pc.skirtIx]=last;skirtSet(last,pc.skirtIx)}pc.skirtIx=null;skirtIM.count=skirtList.length;skirtIM.visible=skirtList.length>0}
 function pieceKey(s){return s.kind==='wall'?`W${s.o}${s.x}_${s.z}_${s.L}`:(s.kind==='floor'?'F':'R')+`${s.x}_${s.z}_${s.L}`}
 function wallSpec(cx,cz,dir,L){if(dir===0)return{kind:'wall',o:'V',x:cx+1,z:cz,L};if(dir===2)return{kind:'wall',o:'V',x:cx,z:cz,L};if(dir===1)return{kind:'wall',o:'H',x:cx,z:cz+1,L};return{kind:'wall',o:'H',x:cx,z:cz,L}}
 function pieceMatrix(s){
@@ -1697,9 +1711,39 @@ function pieceMatrix(s){
   else _o.position.set(s.x*4+2,s.L*4,s.z*4+2);
   _o.updateMatrix();return _o.matrix.clone();
 }
+// How a build meets the land. The grid stays level, at multiples of 4 m (so builds still line up with the buildings, whose
+// floors are on it, and with each other); the land under a piece is whatever it is. So:
+//   a wall must show at least 1.5 m above the highest land along it (never buried), and where its foot is above the land a
+//     skirt of planks fills the gap down to the ground: part of the same solid, so nothing passes under it;
+//   a floor must not be more than 0.3 m under the land at the highest point of its cell;
+//   a ramp's top edge must stand at least 0.5 m clear of the land there; its foot may run into the hillside, and you
+//     walk onto it where it comes out of the ground;
+//   nothing more than MAXL + 1 levels above the land under it (it used to be 8 levels above the flat ground).
+// playerBuildSpec() and the bots pick the lowest level that passes (landFit). Every browser has the same land, so
+// everyone agrees which pieces are allowed without anything new being sent.
+const _lu=[0,0];
+function landUnder(s){
+  let lo=1e9,hi=-1e9;const x=s.x*4,z=s.z*4;
+  if(s.kind==='wall')for(let k=0;k<=4;k++){const h=s.o==='H'?terrainH(x+k,z):terrainH(x,z+k);if(h<lo)lo=h;if(h>hi)hi=h}
+  else for(let i=0;i<=2;i++)for(let j=0;j<=2;j++){const h=terrainH(x+i*2,z+j*2);if(h<lo)lo=h;if(h>hi)hi=h}
+  _lu[0]=lo;_lu[1]=hi;return _lu;
+}
+function landOk(s){
+  const u=landUnder(s),y=s.L*4;
+  if(s.L>Math.floor(Math.max(0,u[1])/4)+MAXL+(s.kind==='floor'?1:0))return false;
+  if(s.kind==='wall')return y+4>=u[1]+1.5;
+  if(s.kind==='floor')return y>=u[1]-.3;
+  const d=DV[s.dir],tx=s.x*4+2+d[0]*2,tz=s.z*4+2+d[1]*2;let hi=-1e9;
+  for(let k=-1;k<=1;k++){const h=terrainH(tx+(d[0]?0:k*1.8),tz+(d[1]?0:k*1.8));if(h>hi)hi=h}
+  return y+4.15>=hi+.5;
+}
+// the lowest level, from the one asked for (or the one below it, for a ramp built from the bare ground), that the land allows
+function landFit(s,down){const L0=s.L;for(let L=Math.max(s.kind==='floor'?1:0,down?L0-1:L0);L<=L0+1;L++){s.L=L;if(landOk(s))return s}s.L=L0;return s}
+// a wall's skirt: how far below its foot the land is at the lowest point along it (0 if the foot is in the ground)
+function skirtOf(s){if(s.kind!=='wall')return 0;const g=s.L*4-landUnder(s)[0];return g>.05?g+.3:0}
 function pieceBox(s){
   const x=s.x*4,z=s.z*4,y=s.L*4;
-  if(s.kind==='wall')return s.o==='H'?{min:[x,y,z-.125],max:[x+4,y+4,z+.125]}:{min:[x-.125,y,z],max:[x+.125,y+4,z+4]};
+  if(s.kind==='wall'){const y0=y-skirtOf(s);return s.o==='H'?{min:[x,y0,z-.125],max:[x+4,y+4,z+.125]}:{min:[x-.125,y0,z],max:[x+.125,y+4,z+4]}}
   if(s.kind==='floor')return{min:[x,y-.125,z],max:[x+4,y+.125,z+4]};
   return{min:[x+.5,y+.7,z+.5],max:[x+3.5,y+3.3,z+3.5]};
 }
@@ -1715,18 +1759,18 @@ function hitsStatic(b,sh){
 }
 function specValid(s){
   if(!s||typeof s!=='object')return false;
-  if(!(s.L>=0&&s.L<=MAXL+1)||s.L!==(s.L|0)||s.x!==(s.x|0)||s.z!==(s.z|0))return false;
-  if(s.kind==='wall'){if(s.L>MAXL)return false;if(s.o==='V'){if(s.x<1||s.x>NC-1||s.z<0||s.z>NC-1)return false}else if(s.o==='H'){if(s.z<1||s.z>NC-1||s.x<0||s.x>NC-1)return false}else return false}
+  if(!(s.L>=0&&s.L<=MAXL_TOP+1)||s.L!==(s.L|0)||s.x!==(s.x|0)||s.z!==(s.z|0))return false;
+  if(s.kind==='wall'){if(s.L>MAXL_TOP)return false;if(s.o==='V'){if(s.x<1||s.x>NC-1||s.z<0||s.z>NC-1)return false}else if(s.o==='H'){if(s.z<1||s.z>NC-1||s.x<0||s.x>NC-1)return false}else return false}
   else if(s.kind==='floor'){if(s.L<1||s.x<0||s.z<0||s.x>NC-1||s.z>NC-1)return false}
-  else if(s.kind==='ramp'){if(s.L>MAXL||!(s.dir>=0&&s.dir<=3)||s.x<0||s.z<0||s.x>NC-1||s.z>NC-1)return false}
+  else if(s.kind==='ramp'){if(s.L>MAXL_TOP||!(s.dir>=0&&s.dir<=3)||s.x<0||s.z<0||s.x>NC-1||s.z>NC-1)return false}
   else return false;
-  if(pieces.has(pieceKey(s)))return false;
+  if(pieces.has(pieceKey(s))||!landOk(s))return false;
   return !hitsStatic(pieceBox(s),s.kind==='ramp'?0:.13);
 }
 function makePiece(s){
   const kind=s.kind,P=pieceInst[kind];if(P.list.length>=PCAP)return null;
   const pc={key:pieceKey(s),spec:s,kind,hp:PHP[kind],max:PHP[kind],solid:null,ramp:null,ix:P.list.length};
-  if(kind!=='ramp'){const b=pieceBox(s);pc.solid={min:b.min,max:b.max,hv:0,piece:pc};hashIn(hash,pc.solid)}
+  if(kind!=='ramp'){const b=pieceBox(s);pc.solid={min:b.min,max:b.max,hv:0,piece:pc};hashIn(hash,pc.solid);if(kind==='wall')skirtAdd(pc)}
   else pc.ramp=addRamp({x0:s.x*4,z0:s.z*4,base:s.L*4,dir:s.dir,piece:pc});
   P.list.push(pc);P.mesh.setMatrixAt(pc.ix,pieceMatrix(s));P.mesh.setColorAt(pc.ix,_col.setRGB(1,1,1));
   P.mesh.count=P.list.length;P.mesh.instanceMatrix.needsUpdate=true;if(P.mesh.instanceColor)P.mesh.instanceColor.needsUpdate=true;
@@ -1734,7 +1778,7 @@ function makePiece(s){
 }
 function removePiece(pc,fx){
   if(!pc||!pieces.has(pc.key))return;
-  pieces.delete(pc.key);
+  pieces.delete(pc.key);skirtDrop(pc);
   if(pc.solid)hashOut(hash,pc.solid);
   if(pc.ramp){hashOut(rhash,pc.ramp);const i=ramps.indexOf(pc.ramp);if(i>=0)ramps.splice(i,1)}
   const P=pieceInst[pc.kind],last=P.list.pop();
@@ -2811,14 +2855,14 @@ function playerBuildSpec(type){
   const dir=Math.abs(fx)>Math.abs(fz)?(fx>0?0:2):(fz>0?1:3);
   const cx=Math.floor(p.x/4),cz=Math.floor(p.z/4);
   const lvl=Math.max(0,Math.floor((p.y+.4)/4));
-  if(type==='wall')return wallSpec(cx,cz,dir,lvl+(pitch>.6?1:0));
+  if(type==='wall')return landFit(wallSpec(cx,cz,dir,lvl+(pitch>.6?1:0)));
   const ax=Math.floor((p.x+fx*2.4)/4),az=Math.floor((p.z+fz*2.4)/4);
   if(type==='floor'){
-    if(pitch<-.55)return{kind:'floor',x:cx,z:cz,L:Math.max(1,lvl)};
-    if(pitch>.55)return{kind:'floor',x:cx,z:cz,L:lvl+1};
-    return{kind:'floor',x:ax,z:az,L:Math.max(1,lvl)};
+    if(pitch<-.55)return landFit({kind:'floor',x:cx,z:cz,L:Math.max(1,lvl)});
+    if(pitch>.55)return landFit({kind:'floor',x:cx,z:cz,L:lvl+1});
+    return landFit({kind:'floor',x:ax,z:az,L:Math.max(1,lvl)});
   }
-  return{kind:'ramp',x:ax,z:az,L:Math.round(p.y/4),dir};
+  return landFit({kind:'ramp',x:ax,z:az,L:Math.round(p.y/4),dir},p.y<=terrainH(p.x,p.z)+.06);
 }
 function moveInput(e){
   const f=fwdOf(e.yaw,0),r=rightOf(e.yaw);
@@ -2880,9 +2924,10 @@ function recordStats(place,win){
 
 /* ---------- Practice bots (offline only; online matches are people only) ----------
    Tuned to be beatable while you learn: they're slow to react, aim loosely, fire slower than they could and rarely build. */
+const STUCK_LOG=navigator.webdriver?[]:null;   // (tests only: where a bot gave up on a goal)
 function makeBot(id){
   const i=parseInt(id.slice(1),10)|0,hex=hexNum(PCOLS[(i*3+2)%PCOLS.length]);
-  const b=newEnt(makeModel(hex,i,LOCKER_ON?1+(i*5+2)%(OUTFITS.length-1):0));b.id=id;   // with the Locker on, the practice bots wear the outfits too, so each can be seen in a matchb.bot=true;b.hex=hex;b.name=botName(id);b.snaps=[];b.lag=NetSmooth.lag();
+  const b=newEnt(makeModel(hex,i,LOCKER_ON?1+(i*5+2)%(OUTFITS.length-1):0));b.id=id;b.bot=true;b.hex=hex;b.name=botName(id);b.snaps=[];b.lag=NetSmooth.lag();   // with the Locker on, the practice bots wear the outfits too, so each can be seen in a match
   scene.add(b.model);bots.set(id,b);rebuildEnts();return b;
 }
 function clearBots(){for(const b of bots.values()){scene.remove(b.model);disposeModel(b.model)}bots.clear();rebuildEnts()}
@@ -2911,6 +2956,45 @@ function botPickWeapon(b,d){
   if(bi>=0&&b.sel!==bi)selectSlot(b,bi);
   return bi>=0;
 }
+// ---- Finding a way over the land. Bots walk straight at things, which worked on a flat island; now a cliff, the dam's
+// valley or the reservoir's bank can lie in between. The island is cut into 4 m cells (NAVN each way); a cell is closed
+// if the land in it is too steep to walk (a cliff). When the straight line to a goal crosses a closed cell (landClear),
+// landPath() finds a way round over open cells (A*, eight ways, a few thousand cells at most, run only when a bot picks
+// a new goal) and hands back a few corner points to walk through. Deep water costs three times as much as land, so bots
+// keep out of the sea, and high ground a little less than low, so they tend to take the hill rather than the hollow.
+const NAVN=MAP/4,navShut=new Uint8Array(NAVN*NAVN),navCost=new Float32Array(NAVN*NAVN);
+function buildNav(){
+  for(let j=0;j<NAVN;j++)for(let i=0;i<NAVN;i++){const x=i*4+2,z=j*4+2;let s=0;
+    for(const [a,b] of [[0,0],[-1.2,-1.2],[1.2,-1.2],[-1.2,1.2],[1.2,1.2]]){const k=terrainSlope(x+a,z+b);if(k>s)s=k}
+    const h=terrainH(x,z);navShut[j*NAVN+i]=s>.93?1:0;navCost[j*NAVN+i]=(h<-.5?3:1)*(1+s*.6)*(1-.12*clamp((h-4)/12,0,1))}
+  for(const f of footprints)for(let j=Math.round(f.z0/4);j<Math.round(f.z1/4);j++)for(let i=Math.round(f.x0/4);i<Math.round(f.x1/4);i++)if(i>=0&&j>=0&&i<NAVN&&j<NAVN)navShut[j*NAVN+i]=1;   // buildings: in and out is by their doors (setGoal)
+  // big things standing on the land that aren't buildings (the crater's boulders, the dam's wall, the silo, the star) close the cells they fill, so a path goes round them
+  for(const s of statics){const w=s.max[0]-s.min[0],d=s.max[2]-s.min[2],cx=(s.min[0]+s.max[0])/2,cz=(s.min[2]+s.max[2])/2;
+    if(Math.min(w,d)<2.4||s.max[1]<terrainH(cx,cz)+1.6||s.min[1]>terrainH(cx,cz)+.6||s.run||bldAt(cx,cz))continue;
+    for(let j=Math.floor((s.min[2]-1)/4);j<=Math.floor((s.max[2]+1)/4);j++)for(let i=Math.floor((s.min[0]-1)/4);i<=Math.floor((s.max[0]+1)/4);i++){
+      if(i<0||j<0||i>=NAVN||j>=NAVN)continue;const x=i*4+2,z=j*4+2;if(x>s.min[0]-.9&&x<s.max[0]+.9&&z>s.min[2]-.9&&z<s.max[2]+.9)navShut[j*NAVN+i]=1}}
+}
+const navCell=(x,z)=>clamp(Math.floor(z/4),0,NAVN-1)*NAVN+clamp(Math.floor(x/4),0,NAVN-1);
+function landClear(ax,az,bx,bz){const dx=bx-ax,dz=bz-az,L=Math.hypot(dx,dz),n=Math.ceil(L/1.5);for(let i=1;i<n;i++){const t=i/n;if(navShut[navCell(ax+dx*t,az+dz*t)])return false}return true}
+const navG=new Float32Array(NAVN*NAVN),navFrom=new Int32Array(NAVN*NAVN),navSeen=new Int32Array(NAVN*NAVN),navHeap=[];let navStamp=0;
+function navOpen(c){if(!navShut[c])return c;const ci=c%NAVN,cj=(c-ci)/NAVN;for(let r=1;r<8;r++)for(let j=cj-r;j<=cj+r;j++)for(let i=ci-r;i<=ci+r;i++){if(i<0||j<0||i>=NAVN||j>=NAVN||(Math.abs(i-ci)!==r&&Math.abs(j-cj)!==r))continue;if(!navShut[j*NAVN+i])return j*NAVN+i}return -1}
+function landPath(ax,az,bx,bz){
+  if(!(ax===ax&&az===az&&bx===bx&&bz===bz))return null;
+  const s=navOpen(navCell(ax,az)),e=navOpen(navCell(bx,bz));if(s<0||e<0)return null;if(s===e)return[];
+  const st=++navStamp,H=navHeap,ei=e%NAVN,ej=(e-ei)/NAVN;H.length=0;
+  const push=(c,f)=>{let i=H.length;H.push([f,c]);while(i>0){const q=(i-1)>>1;if(H[q][0]<=H[i][0])break;const t=H[q];H[q]=H[i];H[i]=t;i=q}};
+  const pop=()=>{const top=H[0],last=H.pop();if(H.length){H[0]=last;let i=0;for(;;){const l=i*2+1,r=l+1;let m=i;if(l<H.length&&H[l][0]<H[m][0])m=l;if(r<H.length&&H[r][0]<H[m][0])m=r;if(m===i)break;const t=H[m];H[m]=H[i];H[i]=t;i=m}}return top};
+  navG[s]=0;navFrom[s]=-1;navSeen[s]=st;push(s,0);let found=false,guard=0;
+  while(H.length&&guard++<20000){const [f,c]=pop();if(c===e){found=true;break}const ci=c%NAVN,cj=(c-ci)/NAVN,g=navG[c];if(f>g+Math.hypot(ci-ei,cj-ej)*4*.88+.01)continue;
+    for(let dj=-1;dj<=1;dj++)for(let di=-1;di<=1;di++){if(!di&&!dj)continue;const i=ci+di,j=cj+dj;if(i<0||j<0||i>=NAVN||j>=NAVN)continue;const n=j*NAVN+i;if(navShut[n])continue;
+      if(di&&dj&&(navShut[cj*NAVN+i]||navShut[j*NAVN+ci]))continue;
+      const ng=g+(di&&dj?5.657:4)*navCost[n];if(navSeen[n]===st&&navG[n]<=ng)continue;navSeen[n]=st;navG[n]=ng;navFrom[n]=c;push(n,ng+Math.hypot(i-ei,j-ej)*4*.88)}}
+  if(!found)return null;
+  const pts=[];for(let c=e;c>=0&&c!==s;c=navFrom[c])pts.push({x:(c%NAVN)*4+2,z:Math.floor(c/NAVN)*4+2});pts.reverse();
+  // keep only the corners: from each point, skip ahead to the furthest one that can be walked to in a straight line
+  const out=[];let px=ax,pz=az,i=0;while(i<pts.length){let k=i;for(let q=Math.min(pts.length-1,i+14);q>i;q--)if(landClear(px,pz,pts[q].x,pts[q].z)){k=q;break}out.push(pts[k]);px=pts[k].x;pz=pts[k].z;i=k+1}
+  return out;
+}
 // Bots walk straight at things, so a goal inside a building goes by way of its nearest door (and out again by the
 // door nearest the bot); a goal they get stuck on is left alone for a while.
 function bldAt(x,z){for(const B of buildings)if(x>B.x0+.2&&x<B.x1-.2&&z>B.z0+.2&&z<B.z1-.2)return B;return null}
@@ -2921,7 +3005,15 @@ function routeTo(p,g){
   if(B&&B!==A&&B.doors.length){const d=nearDoor(B,g.x,g.z,'in');pts.push(d.out,d.in)}
   return pts;
 }
-function setGoal(b,g){b.ai.goal=g;b.ai.path=g?routeTo(b.pos,g):[];b.ai.goalT=0}
+function setGoal(b,g){b.ai.goal=g;b.ai.goalT=0;if(!g){b.ai.path=[];return}
+  // out by the nearest door of the building the bot is in, round whatever the land and the buildings put in the way
+  // (landPath's corners), in by the nearest door of the building the goal is in
+  const A=bldAt(b.pos.x,b.pos.z),B=bldAt(g.x,g.z),pre=[],post=[];
+  if(A&&A!==B&&A.doors.length){const d=nearDoor(A,b.pos.x,b.pos.z,'in');pre.push(d.in,d.out)}
+  if(B&&B!==A&&B.doors.length){const d=nearDoor(B,g.x,g.z,'in');post.push(d.out,d.in)}
+  const from=pre.length?pre[1]:b.pos,to=post.length?post[0]:g;let mid=[];
+  if(!landClear(from.x,from.z,to.x,to.z)){const lp=landPath(from.x,from.z,to.x,to.z);if(lp&&lp.length){if(!post.length&&!navShut[navCell(g.x,g.z)])lp.pop();mid=lp}}
+  b.ai.path=pre.concat(mid,post)}
 const goalKey=g=>g&&(g.chest?'c'+g.chest.id:g.item?'i'+g.item.id:'');
 function botThink(b,t){
   const ai=b.ai,S=stormAt(t);
@@ -2944,7 +3036,8 @@ function botThink(b,t){
   const c=nearestChest(b,hasGun?50:120,c=>!bad('c'+c.id));
   const pick=c&&(!it||Math.hypot(c.x-b.pos.x,c.z-b.pos.z)<Math.hypot(it.x-b.pos.x,it.z-b.pos.z))?{x:c.x,z:c.z,chest:c}:it?{x:it.x,z:it.z,item:it}:null;
   if(pick){if(goalKey(pick)!==goalKey(ai.goal))setGoal(b,pick);return}
-  if(!ai.goal||ai.goal.chest||ai.goal.item||Math.hypot(ai.goal.x-b.pos.x,ai.goal.z-b.pos.z)<3||(ai.wander-=.4)<0){const a=Math.random()*Math.PI*2,d=Math.random()*Math.max(8,S.nr*.7);setGoal(b,{x:clamp(S.nx+Math.cos(a)*d,10,MAP-10),z:clamp(S.nz+Math.sin(a)*d,10,MAP-10)});ai.wander=8+Math.random()*8}
+  if(!ai.goal||ai.goal.chest||ai.goal.item||Math.hypot(ai.goal.x-b.pos.x,ai.goal.z-b.pos.z)<3||(ai.wander-=.4)<0){const pick=()=>{const a=Math.random()*Math.PI*2,d=Math.random()*Math.max(8,S.nr*.7);return{x:clamp(S.nx+Math.cos(a)*d,10,MAP-10),z:clamp(S.nz+Math.sin(a)*d,10,MAP-10)}};let g1=pick();const g2=pick();
+    if(terrainH(g2.x,g2.z)>terrainH(g1.x,g1.z)&&Math.random()<.7)g1=g2;if(terrainH(g1.x,g1.z)<0)g1=g2;setGoal(b,g1);ai.wander=8+Math.random()*8}   // (of two places to go, usually the higher: bots like a hill)
 }
 function updateBot(b,dt,t){
   if(!b.alive)return;
@@ -2969,7 +3062,7 @@ function updateBot(b,dt,t){
     if(ai.seenT>ai.react&&(has||d<CROW.range+.5)){const w=heldW(b),s=heldItem(b);
       if(!w||d<(w.range||3)){if(w&&s.n<=0)startReload(b);else if(b.cd<=0&&b.reloadT<=0&&b.switchT<=0){botShoot(b,w,s);if(w){s.n--;b.cd=w.rate*2.1+.1}else b.cd=CROW.rate*1.5}}}
     // under fire with scrap: throw up a wall toward the shooter now and then
-    if(ai.hurt>0&&b.mats>=COST&&ai.buildCd<=0&&Math.random()<.006){const dir=Math.abs(f.x)>Math.abs(f.z)?(f.x>0?0:2):(f.z>0?1:3);const s=wallSpec(Math.floor(b.pos.x/4),Math.floor(b.pos.z/4),dir,Math.max(0,Math.floor((b.pos.y+.4)/4)));
+    if(ai.hurt>0&&b.mats>=COST&&ai.buildCd<=0&&Math.random()<.006){const dir=Math.abs(f.x)>Math.abs(f.z)?(f.x>0?0:2):(f.z>0?1:3);const s=landFit(wallSpec(Math.floor(b.pos.x/4),Math.floor(b.pos.z/4),dir,Math.max(0,Math.floor((b.pos.y+.4)/4))));
       if(tryBuild(s,b)){b.mats-=COST;sendEv({k:'b',s},b)}ai.buildCd=8+Math.random()*6}
   }else{
     // heal when it's quiet
@@ -2994,7 +3087,7 @@ function updateBot(b,dt,t){
     if(ai.stuck>.7&&(ai.brk|0)<10&&b.cd<=0&&b.useT<=0){const L=Math.hypot(mx,mz),dr=[mx/L,0,mz/L],o=[b.pos.x,b.pos.y+1,b.pos.z],hr=raycast(o,dr,1.6,null,false),h=hr.hit;
       if(h&&(h.kind==='piece'||mpAt(h.s,[o[0]+dr[0]*hr.t,o[1],o[2]+dr[2]*hr.t]))){ai.brk=(ai.brk|0)+1;b.yaw=yawTo(dr[0],dr[2]);b.pitch=-.2;const w=heldW(b),s=heldItem(b);
         if(w&&s.n>0&&b.reloadT<=0){botShoot(b,w,s);s.n--;b.cd=w.rate*1.9+.08}else{botShoot(b,null,null);b.cd=CROW.rate*1.5}ai.stuck=.4}}
-    if(ai.stuck>2.2){ai.stuck=0;const k=goalKey(ai.goal);if(k)ai.bad.set(k,performance.now()+25000);const a=Math.random()*Math.PI*2;setGoal(b,{x:clamp(b.pos.x+Math.cos(a)*14,10,MAP-10),z:clamp(b.pos.z+Math.sin(a)*14,10,MAP-10)});ai.wander=3}}
+    if(ai.stuck>2.2){ai.stuck=0;if(STUCK_LOG)STUCK_LOG.push([b.id,r1(b.pos.x),r1(b.pos.y),r1(b.pos.z),r1(b.pos.y-terrainH(b.pos.x,b.pos.z)),r2(terrainSlope(b.pos.x,b.pos.z)),footprints.some(f=>b.pos.x>f.x0-1.5&&b.pos.x<f.x1+1.5&&b.pos.z>f.z0-1.5&&b.pos.z<f.z1+1.5)?'bld':'open',ai.goal?r1(ai.goal.x)+','+r1(ai.goal.z)+(ai.goal.chest?' chest':ai.goal.item?' item':ai.goal.storm?' storm':''):'']);const k=goalKey(ai.goal);if(k)ai.bad.set(k,performance.now()+25000);const a=Math.random()*Math.PI*2;setGoal(b,{x:clamp(b.pos.x+Math.cos(a)*14,10,MAP-10),z:clamp(b.pos.z+Math.sin(a)*14,10,MAP-10)});ai.wander=3}}
   else{ai.stuck=Math.max(0,ai.stuck-dt);if(moved>spd*dt*.6)ai.brk=0}
   stormDamage(b,dt,t);
 }
@@ -3606,6 +3699,7 @@ function updateCamera(dt){
   camDist=d<camDist?d:camDist+(d-camDist)*Math.min(1,dt*8);
   setNear(airy?.5:camDist<1.2?.08:.15);   // pulled in against a wall: a nearer plane so the wall isn't cut open
   camera.position.copy(pivot).addScaledVector(back,camDist);
+  {const gy=terrainH(camera.position.x,camera.position.z)+.25;if(camera.position.y<gy)camera.position.y=gy}   // never under the land
   camera.lookAt(_cl.copy(pivot).addScaledVector(f,20));
   if(self)player.model.visible=player.alive?camDist>.9&&!(ads&&w&&!w.ad):player.dieT<=2.2;
 }
@@ -3965,7 +4059,7 @@ if(LOCKER_ON)(function(){
 })();
 
 /* ---------- start ---------- */
-buildWorld();finishWorld();setupChests();
+buildWorld();finishWorld();buildNav();setupChests();
 setSens(sens);
 // Compile every shader now, with the hidden things (the storm wall, builds, the build ghost, the glider…) shown for a
 // moment: three.js otherwise compiles one the first time it's drawn, which froze a frame when the storm first closed in.
@@ -3991,7 +4085,8 @@ if(navigator.webdriver)window.__dz={get state(){return state},get online(){retur
   fire(){const w=heldW(player),s=heldItem(player);updateCamera(0);playerShoot();if(s&&w)s.n=w.mag;player.cd=0},
   draws(){return renderer.info.render.calls},
   setNoRender(v){window.__noRender=!!v},onNode,updateRemotes,renderOnce(){mpFlush();syncLimbs();drawScene()},get fxTier(){return fxTier},set fxTier(v){fxTier=v},get lookKey(){return lookKey},mpieces,mpBreak,mpSetHp,resetMap,mpAt,allRuns,brokenBits,applyBits,sendEv,get brokenN(){return brokenN},hash,setMapV(v){mapV=v},get mapV(){return mapV},mapSize:MAP,ICONS,paintControl,get mapBg(){if(!mapBg)buildMapBg();return mapBg},removePiece,wallSpec,pushOut,SPEED,AIR,BODY:{R,H},buildings,rampIn,updateBots,updatePlayer,
-  terrainH,walkH,terrainSlope,rayTerrain,TH,TN,TS,TM,LVL,LAKE,PADS,SHED_Y,chestSpots,floorSpots,buildings,footprints,get groundMesh(){return groundMesh},
+  STUCK_LOG,landPath,landClear,navShut,NAVN,updateBots,updatePlayer,step(dt){pClock+=dt*1000;practiceTick(dt);if(inPlay()){updatePlayer(dt);updateBots(dt)}},
+  landOk,landFit,landUnder,skirtOf,skirtList,pieceBox,terrainH,walkH,terrainSlope,rayTerrain,TH,TN,TS,TM,LVL,LAKE,PADS,SHED_Y,chestSpots,floorSpots,buildings,footprints,get groundMesh(){return groundMesh},
   Locker,LOCKER_ON,OUTFITS,bodyGeo,LEG_GEO,legIM,fitLegIM,fitLegGeo,makeModel,setModelColor,legSpec,STD_LEGS,fitOf,hitboxes,TKON,PCOLS,SKINS,get mySkin(){return mySkin}};
 
 requestAnimationFrame(t=>{last=t;frame(t)});
