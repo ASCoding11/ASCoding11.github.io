@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
+<script src="/e63334287a3deaa3/captains.js"></script> <!-- who may see the hidden garage and the Kit while they are not public (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Boostball</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -99,7 +100,7 @@ details[open] summary::before{content:"– "}
 .bodies button[aria-pressed="true"]{border-color:var(--blue-2);background:rgba(47,140,255,.2)}
 .bodies svg{width:100%;height:42px}
 .bodies small{font-size:12px;color:var(--ink-2);font-weight:600}
-/* the hidden garage (?garage=1): fifteen bodies, each with a small picture drawn from its real model */
+/* the hidden garage (see garageOn): fifteen bodies, each with a small picture drawn from its real model */
 .bodies.many{grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
 .bodies.many button{padding:4px 2px 5px;font-size:12px;gap:0;min-width:0}
 .bodies.many canvas{display:block;width:100%;aspect-ratio:5/3}
@@ -483,17 +484,18 @@ const BODIES=[
   {name:'Rhino',sub:'Plated truck'}
 ];
 // The hidden garage. The first PUBLIC_BODIES bodies are the ones everybody is offered. The rest are finished but kept
-// out of sight: the picker lists them, a saved choice of one is used, and bots drive them, only when garageOn is true.
-// It is true when the page is opened with ?garage=1 (remembered for this browser tab; ?garage=0 forgets it).
+// out of sight: the picker lists them, a saved choice of one is used, and bots drive them, only while garageOn() is true.
+// It is true for the site's captains (../captains.js: the account signed in is in miles.js's captain lists), and for
+// testing with ?garage=1 on localhost or in an automated browser only (remembered for the browser tab; ?garage=0
+// forgets it). On the live site the address does nothing.
 // To make them public for everyone, change GARAGE_PUBLIC to true: that one line is all it takes.
+// The answer for a captain arrives a moment after the page loads, and goes away again if they sign out: see garageSync.
 // Whatever the switch says, every page draws every body it knows, so other players see a hidden body when its owner drives it.
 const GARAGE_PUBLIC=false;
 const PUBLIC_BODIES=3;
-const garageOn=GARAGE_PUBLIC||(()=>{
-  let q=null;try{q=new URLSearchParams(location.search).get('garage')}catch(e){}
-  try{if(q==='1')sessionStorage.setItem('boostball-garage','1');else if(q==='0')sessionStorage.removeItem('boostball-garage');return sessionStorage.getItem('boostball-garage')==='1'}catch(e){return q==='1'}
-})();
-const bodyCount=()=>garageOn?BODIES.length:PUBLIC_BODIES;
+const CAPTAINS=window.BackRoomCaptains||null;
+const garageOn=()=>GARAGE_PUBLIC||!!(CAPTAINS&&CAPTAINS.may(false,'garage','boostball-garage'));
+const bodyCount=()=>garageOn()?BODIES.length:PUBLIC_BODIES;
 // a body id from the network or storage: any body this page knows, else the first (a newer page may know more)
 const bodyId=v=>{v=v|0;return v>=0&&v<BODIES.length?v:0};
 // ---- the kit: decals, boost trails, goal explosions and extras (hidden; README, "Kit") ----
@@ -501,12 +503,13 @@ const bodyId=v=>{v=v|0;return v>=0&&v<BODIES.length?v:0};
 // the numbers Boostball's items have in ../cosmetics.js. Everything that draws them is in kit.js beside this page, which
 // is fetched only when something needs it: hidden things are switched on in this browser (hiddenOn), or a car that
 // has a kit drives in. Until then KIT is null, every car's kit is null and each hook below does what it always did.
-// Hidden things are on with the garage switch above (then every item is free to wear, saved as boostball-kit) or with
+// Hidden things are on with the garage switch above (a captain, the test address or GARAGE_PUBLIC: then every item is
+// free to wear, saved as boostball-kit) or with
 // the cosmetics switch in ../cosmetics.js (then you wear what your locker owns). A kit is looks only.
 const KIT_LEN=6;
 let KIT=null,myKit=null;
 const cosOn=()=>!!(window.BackRoomCosmetics&&BackRoomCosmetics.on());
-const hiddenOn=()=>garageOn||cosOn();
+const hiddenOn=()=>garageOn()||cosOn();
 // a kit from the network or storage: '3.0.12' or a list, as six whole numbers 0 to 255, or null when it is all zeros
 const kitOf=v=>{
   const a=Array.isArray(v)?v:typeof v==='string'&&/^\d{1,3}(\.\d{1,3}){0,11}$/.test(v)?v.split('.'):null;if(!a)return null;
@@ -2272,12 +2275,12 @@ function renderGarage(dt){
     if(garage.model){garage.sc.remove(garage.model.g);dropModel(garage.model)}
     garage.model=buildCarModel(0,myBody,myAccent,myKit);garage.model.g.position.y=.3;garage.sc.add(garage.model.g);garage.key=key;
   }
-  if(garageOn)drawThumbs();
+  if(garageOn())drawThumbs();
   garage.rot+=dt*.5;garage.model.g.rotation.y=garage.rot;
   if(KIT&&KIT.garageFrame(garage,dt))return; // the kit's previews: a boost trail behind the turning car, or a goal explosion
   garage.r.render(garage.sc,garage.cam);
 }
-// The garage picker's pictures (only with the garage switch on). Each is the real model, drawn once by the preview's
+// The garage picker's pictures (only while the garage is on). Each is the real model, drawn once by the preview's
 // own renderer at a three-quarter angle and copied into the button's small canvas: one body a frame, so the menu
 // never stalls, and again when the accent, the team colours or the graphics setting change.
 const thumbs={key:'',next:0,pics:[],paint:false};
@@ -2315,9 +2318,9 @@ let touches=[];          // recent touches {id,team,t}, oldest first
 let owner='local',lastTouchBt=0,goalPending=false;
 let myName=store.get('name','')||'';
 // The saved body. 'body' only ever holds a public body, exactly as before; a hidden one is saved beside it as 'gbody'
-// and is used only while the garage switch is on, so with the switch off the last public choice comes back.
-let myBody=clamp(+store.get('body',0)||0,0,PUBLIC_BODIES-1),myAccent=clamp(+store.get('accent',0)||0,0,ACCENTS.length-1);
-if(garageOn){const g=+store.get('gbody',-1);if(g>=PUBLIC_BODIES&&g<BODIES.length&&g===Math.floor(g))myBody=g}
+// and is used only while the garage is on for this player, so whenever it is off the last public choice comes back.
+const savedBody=()=>{const g=garageOn()?+store.get('gbody',-1):-1;return g>=PUBLIC_BODIES&&g<BODIES.length&&g===Math.floor(g)?g:clamp(+store.get('body',0)||0,0,PUBLIC_BODIES-1)};
+let myBody=savedBody(),myAccent=clamp(+store.get('accent',0)||0,0,ACCENTS.length-1);
 let teamSize=clamp(+store.get('size',2)||2,1,3),botsOn=store.get('bots','1')!=='0',practiceDiff=store.get('diff','normal');
 if(!DIFF[practiceDiff])practiceDiff='normal';
 let ballCam=store.get('ballcam','1')!=='0';
@@ -3516,7 +3519,7 @@ function setMsg(t,err){const m=$('netMsg');m.textContent=t;m.classList.toggle('e
 function sanitizeRoom(s){return String(s||'').toLowerCase().replace(/^bb-/,'').replace(/[^a-z0-9-]/g,'').slice(0,17)}
 function randomRoom(){return pick(['nitro','kickoff','turbo','aerial','flip','boost','bicycle','ceiling'])+'-'+Math.floor(100+Math.random()*900)}
 function busy(on){for(const id of ['quick','joinRoom','practice','freeplay'])$(id).disabled=on}
-function saveProfile(){myName=cleanName($('name').value);store.set('name',myName);if(myBody<PUBLIC_BODIES)store.set('body',myBody);if(garageOn)store.set('gbody',myBody<PUBLIC_BODIES?-1:myBody);store.set('accent',myAccent)}
+function saveProfile(){myName=cleanName($('name').value);store.set('name',myName);if(myBody<PUBLIC_BODIES)store.set('body',myBody);if(garageOn())store.set('gbody',myBody<PUBLIC_BODIES?-1:myBody);store.set('accent',myAccent)}
 function makeMe(team){
   if(me)removeCar(me);
   me=addCar({id:'me',name:myName||'You',team,isMe:true,body:myBody,accent:myAccent,kit:myKit});
@@ -3652,15 +3655,17 @@ segBind('markSeg','m',()=>markerOn?1:0,v=>{markerOn=v==='1';store.set('marker',m
 function renderGarageUI(){
   const bodies=$('bodies');
   const icons=['<path d="M6 30h68l-3-9-14-2-8-8H25l-9 8-8 2z"/>','<path d="M4 30h72l-2-6-20-3-9-7H28l-8 6-14 3z"/>','<path d="M8 30h64v-9l-6-2-3-10H22l-4 10-8 2z"/>'];
-  if(garageOn){
+  if(garageOn()){
     // the whole garage: a picture of each body, drawn from the model itself by drawThumbs (below)
     bodies.classList.add('many');
     bodies.innerHTML=BODIES.map((b,i)=>'<button type="button" data-i="'+i+'" aria-pressed="'+(i===myBody)+'" title="'+b.sub+'"><canvas width="170" height="102" aria-hidden="true"></canvas>'+b.name+'<small>'+b.sub+'</small></button>').join('');
     let cap=$('bodyCap');if(!cap){cap=document.createElement('p');cap.id='bodyCap';cap.className='note';bodies.after(cap)}
     cap.textContent=BODIES[myBody].name+': '+BODIES[myBody].sub.toLowerCase()+'.';
     thumbs.paint=true;
-  }else
+  }else{
+  bodies.classList.remove('many');{const cap=$('bodyCap');if(cap)cap.remove()}
   bodies.innerHTML=BODIES.slice(0,PUBLIC_BODIES).map((b,i)=>'<button type="button" data-i="'+i+'" aria-pressed="'+(i===myBody)+'"><svg viewBox="0 0 80 40" aria-hidden="true"><g fill="#2f8cff" stroke="#0a1024" stroke-width="2" stroke-linejoin="round">'+icons[i]+'</g><circle cx="22" cy="31" r="5" fill="#0a1024"/><circle cx="58" cy="31" r="5" fill="#0a1024"/></svg>'+b.name+'<small>'+b.sub+'</small></button>').join('');
+  }
   bodies.onclick=e=>{const b=e.target.closest('button');if(!b)return;myBody=+b.dataset.i;saveProfile();renderGarageUI();sfx('click')};
   const sw=$('swatches');
   sw.innerHTML=ACCENTS.map((c,i)=>'<button type="button" data-i="'+i+'" style="background:'+c+'" aria-label="Accent '+(i+1)+'" aria-pressed="'+(i===myAccent)+'"></button>').join('');
@@ -3834,17 +3839,37 @@ if(inv){setMsg('You were invited to room bb-'+inv[1]+'. Press Play in room to jo
 
 // ---- fetching kit.js (see KIT near the top) ----
 // What the kit is lent from this page. It only draws: nothing here lets it touch the physics, the ball or the room.
-const KITAPI={THREE,scene,camera,renderer,TEAM,ACCENTS,BODY_SHAPES,SHARED_G,joinGeoms,loft,stadiumEnv,glossOn,wheelG,hubCapG,spokesG,BR,AW,AL,AH,GW,GH,ballMesh,store,garageOn,cosOn,hiddenOn,KIT_LEN,kitOf,
+const KITAPI={THREE,scene,camera,renderer,TEAM,ACCENTS,BODY_SHAPES,SHARED_G,joinGeoms,loft,stadiumEnv,glossOn,wheelG,hubCapG,spokesG,BR,AW,AL,AH,GW,GH,ballMesh,store,get garageOn(){return garageOn()},cosOn,hiddenOn,KIT_LEN,kitOf,
   low:()=>touchIn.active||gfx==='fast',flash,shake,sfx,audio:()=>actx&&volume>0?{actx,master,tone,noise}:null,reduced:()=>REDUCED_MOTION,
   get garage(){return garage},get state(){return state},get myKit(){return myKit},get myAccent(){return myAccent},
   setKit(k){myKit=kitOf(k);if(me&&!me.remote)me.kit=myKit}};
 let kitAsked=false;
 function kitLoad(){
   if(kitAsked)return;kitAsked=true;
-  loadScript('kit.js').then(()=>{KIT=window.BoostballKit(KITAPI);if(hiddenOn()){myKit=KIT.mine();KIT.menu();if(mode==='attract')for(const c of cars)if(c.isBot&&!c.remote)c.kit=KIT.botKit()}}).catch(e=>{console.error(e)});
+  loadScript('kit.js').then(()=>{KIT=window.BoostballKit(KITAPI);kitSync()}).catch(e=>{console.error(e)});
 }
+// what this player's own kit is, and whether the Kit section shows: again whenever hiddenOn() may have changed
+function kitSync(){
+  if(!KIT)return;
+  const on=hiddenOn(),had=!!$('kit');
+  myKit=KIT.mine();if(me&&!me.remote)me.kit=myKit;   // mine() is null whenever the hidden things are off for this player
+  if(on)KIT.menu();
+  const box=$('kit');if(box)box.hidden=!on;
+  if(mode==='attract'&&(on||had))for(const c of cars)if(c.isBot&&!c.remote)c.kit=on?KIT.botKit():null;
+}
+// Whether the hidden garage is on can change after the page has loaded: a captain's account becomes known a moment later,
+// and goes away if they sign out. On: the picker lists every body, the saved hidden body and kit are worn. Off: the
+// picker is the public three, the last public body is worn and no kit; what was saved stays saved for the next time.
+function garageSync(){
+  const b=savedBody();
+  if(garageOn()||myBody>=PUBLIC_BODIES){if(b!==myBody){myBody=b;if(me&&!me.remote)me.body=myBody}}
+  renderGarageUI();
+  if(hiddenOn())kitLoad();
+  kitSync();
+}
+if(CAPTAINS)CAPTAINS.onChange(garageSync);
 // cosmetics.js is deferred, so its switch can only be read once the page has been parsed
-if(garageOn)kitLoad();else if(document.readyState==='loading')addEventListener('DOMContentLoaded',()=>{if(cosOn())kitLoad()});else if(cosOn())kitLoad();
+if(garageOn())kitLoad();else if(document.readyState==='loading')addEventListener('DOMContentLoaded',()=>{if(cosOn())kitLoad()});else if(cosOn())kitLoad();
 if(navigator.webdriver)window.__bb={get KIT(){return KIT},get myKit(){return myKit},kitOf,kitStr,kitLoad,get hiddenOn(){return hiddenOn()},get fxTier(){return fxTier},get state(){return state},get mode(){return mode},get me(){return me},get cars(){return cars},ball,get R(){return R},set R(v){R=v},PADS,Net,stepCar,carCar,physStep,makeCar,newInput,stepBall,carBall,predictGoal,applyRound,onRemoteState,handleEvent,applyBallSnap,startLocal,setupAttract,keys,phaseOf,nowMs,
   get owner(){return owner},fast(sec){for(let i=0;i<sec*60;i++){warp+=1000/60;simulate(1/60,false)}},get lastTouchBt(){return lastTouchBt},setPaused:v=>{paused=v},camera,renderer,scene,toggleBallCam,touches:()=>touches,scoreGoal,remainingAt,demolish,botThink,
   // fixed-step driving for tests: manual(true) stops the real-time loop; advance() runs whole frames (physics, camera,
@@ -3853,7 +3878,7 @@ if(navigator.webdriver)window.__bb={get KIT(){return KIT},get myKit(){return myK
   advance(sec,fps){const f=fps||60,n=Math.round(sec*f);const nr=noRender;noRender=true;try{for(let i=0;i<n;i++){if(!online)warp+=1000/f;step(1/f)}}finally{noRender=nr}},
   render(){drawScene()},physStep,carCar,ballVsCars,sdf,land,predictLanding,ballInPlay,get camUp(){return camUp},camFwd,camPos,camLook,get ballVisOff(){return ballVisOff},
   get ballHidden(){return ballHidden},set ballHidden(v){ballHidden=!!v},updateCamera,setupKickoff,landDecal,arcPts,
-  boom,fxMat,fxLight,goalExplosion,TEAM,SCHEMES,buildCarModel,BODY_SHAPES,BODIES,THREE,garageOn,get myBody(){return myBody},get garage(){return garage},get schemeIdx(){return schemeIdx},get teamPref(){return teamPref}};
+  boom,fxMat,fxLight,goalExplosion,TEAM,SCHEMES,buildCarModel,BODY_SHAPES,BODIES,THREE,get garageOn(){return garageOn()},garageSync,get myBody(){return myBody},get garage(){return garage},get schemeIdx(){return schemeIdx},get teamPref(){return teamPref}};
 
 resize();renderGarageUI();initGarage();
 setupAttract();showAd('adMenu');
