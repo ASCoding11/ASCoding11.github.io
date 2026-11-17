@@ -1,8 +1,10 @@
 /*
  * Back Room: who may see the cosmetics that are not public yet (one answer for every page).
  *
- *   <script src="/e63334287a3deaa3/captains.js"></script>   (in the <head> of a game, so the answer is ready early;
- *                                                             with defer, before cosmetics.js, on a hub page)
+ *   <script src="/e63334287a3deaa3/captains.js"></script>   in the <head> of a game, so the answer is ready early
+ *   <script src="/e63334287a3deaa3/captains.js" data-switches defer></script>   before cosmetics.js on a hub page or the
+ *                                                             shop: only the test switches are wanted there, so with
+ *                                                             data-switches the account is never looked up
  *
  * The site has cosmetics that are finished but not open to players: the shop and wallet (cosmetics.js, wallet.js,
  * shop/), Driftfall's Locker, Boostball's extra bodies and Kit, and Slipstream's Garage. Each has its own one-line
@@ -51,6 +53,7 @@
   var API_KEY = 'AIzaSyDZD_Ku8cixteXfwkDYzGv3GKiZFF8sRSM';   // the site's Firebase project (public; the same one as in stats.js)
   var AUTH_KEY = 'firebase:authUser:' + API_KEY + ':[DEFAULT]';
   var me0 = document.currentScript;
+  var SWITCHES_ONLY = !!(me0 && me0.hasAttribute('data-switches'));
   var MILES = me0 && /captains\.js(\?.*)?$/.test(me0.src || '') ? me0.src.replace(/captains\.js(\?.*)?$/, 'miles.js') : '/e63334287a3deaa3/miles.js';
 
   // ---------------- The test switches (localhost or an automated browser only) ----------------
@@ -149,11 +152,13 @@
       try { var A = w && w.SiteAccount; if (A && A.onChange && !A.__captains) { A.__captains = 1; A.onChange(recheck); } } catch (e) {}
     });
   }
-  window.addEventListener('storage', function (e) { if (e.key === 'acct' || e.key === AUTH_KEY || e.key === null) recheck(); });
-  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') check(); });
-  window.addEventListener('pageshow', function (e) { if (e.persisted) check(); });
-  window.addEventListener('load', hook);
-  document.addEventListener('DOMContentLoaded', hook);
+  if (!SWITCHES_ONLY) {
+    window.addEventListener('storage', function (e) { if (e.key === 'acct' || e.key === AUTH_KEY || e.key === null) recheck(); });
+    document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') check(); });
+    window.addEventListener('pageshow', function (e) { if (e.persisted) check(); });
+    window.addEventListener('load', hook);
+    document.addEventListener('DOMContentLoaded', hook);
+  }
 
   window.BackRoomCaptains = {
     may: function (open, name, remember) { return !!open || cap || test(name, remember); },
@@ -172,5 +177,5 @@
     real: function () { standIn = undefined; return check().then(function () { return cap; }); },
     peek: peek, AUTH_KEY: AUTH_KEY, get uid() { return uid; }, get viceToo() { return VICE_CAPTAINS_TOO; }
   };
-  check();
+  if (SWITCHES_ONLY) { known = true; readyDone(false); } else check();
 })();
