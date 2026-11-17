@@ -60,16 +60,19 @@
  * new spotlight shows even to someone who closed the last one. Set SPOTLIGHT to null for none.
  *
  * ---- Ad tile ----
- * To change the ad, edit AD (below SPOTLIGHT): name, line, button, href, img, alt and four colours; `on: false`
- * (or AD = null) removes the tile and the strip is full width again, exactly as without it.
- * It's one house ad: a link in a tile next to the strip (under it on an upright phone), marked "Sponsored", opened
+ * To change the ads, edit ADS (below SPOTLIGHT): one entry per tile, each with name, line, button, href, img, alt, art
+ * and four colours; `on: false` hides that tile, and with none on the strip is full width again, exactly as without them.
+ * Up to two tiles: side by side next to the strip on a wide screen, stacked beside it a little narrower, and side by side
+ * under it (stacked on the narrowest phones) otherwise.
+ * Each is a house ad: a link in a tile next to the strip (under it on an upright phone), marked "Sponsored", opened
  * in a new tab with rel="noopener sponsored". Nothing is loaded from the advertiser's site or anywhere else until
  * someone clicks: no script, no tracker, no cookie. The tile never makes the strip taller: it takes the strip's
  * height and arranges itself to fit (picture over text when there's room, one row when there isn't).
  *   img   optional: a picture the advertiser has said we may use, saved inside the Back Room folder (say
  *         'ads/<name>.png'): wide rather than tall, about 600 × 200 (twice its largest size on the page), a
  *         transparent .png or a .jpg/.webp, under about 60 KB. Left empty (or if the file is missing), the tile
- *         shows a little candy bar drawn in code instead. `alt` says what the picture shows.
+ *         shows a little drawing made in code instead, chosen by `art` ('candy', a candy bar, or 'car', a plain
+ *         car; never a company's logo). `alt` says what the picture shows.
  *   href  an https:// address; anything else switches the tile off.
  *
  * Several entries can share a date (say 1.7 and then 1.7.1 the same day); they're shown
@@ -417,16 +420,29 @@
     tags: ['Up to 30 players', 'Drop in · loot · build', 'Last one standing']
   };
 
-  // The ad tile next to the strip (see "Ad tile" above). To change the ad, edit these lines; on: false for no ad.
-  var AD = {
-    on: true,
-    name: 'Gigantic',                                       // the brand, as the company writes it
-    line: 'Dark chocolate caramel candy bars.',             // one short line, in our own words
-    button: 'Find a store',
-    href: 'https://giganticcandy.com/pages/store-locator',  // where the tile goes (https only), in a new tab
-    img: 'gigantic-256.png',    alt: 'A Gigantic Candy Deluxe bar in its wrapper',                                               // what that picture shows
-    bg: '#FFD23F', ink: '#2A1608', btn: '#C2185B', btnInk: '#FFFFFF'   // tile, text, button, button text
-  };
+  // The ad tiles next to the strip (see "Ad tile" above). To change an ad, edit its lines; on: false for no tile.
+  var ADS = [
+    {
+      on: true,
+      name: 'Gigantic',                                       // the brand, as the company writes it
+      line: 'Dark chocolate caramel candy bars.',             // one short line, in our own words
+      button: 'Find a store',
+      href: 'https://giganticcandy.com/pages/store-locator',  // where the tile goes (https only), in a new tab
+      img: 'gigantic-256.png',    alt: 'A Gigantic Candy Deluxe bar in its wrapper',                                               // what that picture shows
+      art: 'candy',                                           // the drawing used if there's no picture
+      bg: '#FFD23F', ink: '#2A1608', btn: '#C2185B', btnInk: '#FFFFFF'   // tile, text, button, button text
+    },
+    {
+      on: true,
+      name: 'Avis',
+      line: 'Rent a car for your next road trip.',
+      button: 'Book a car',
+      href: 'https://www.avis.com/',
+      img: '', alt: '',                                       // no picture: a plain car drawn in code (art), not Avis's logo
+      art: 'car',
+      bg: '#D4002A', ink: '#FFFFFF', btn: '#FFFFFF', btnInk: '#B00023'
+    }
+  ];
 
   var KIND = { game: 'New game', feature: 'Update', fix: 'Bug fix' };
   var ICON = { game: '🎮', feature: '✨', fix: '🔧' };
@@ -501,16 +517,18 @@
   })();
   window.BackRoomNews.spotlight = spot ? { game: spot.g.n, folder: spot.g.d, kicker: spot.kicker, tags: spot.tags.slice() } : null;
 
-  // The ad, when it's on and well-formed: plain text, an https link, an optional picture from the site's own
-  // folders and hex colours (a bad colour falls back to the default). Anything else: no tile.
-  var ad = (function () {
-    var A = AD, txt = function (x, n) { return typeof x === 'string' ? x.trim().slice(0, n) : ''; };
+  // The ads that are on and well-formed: plain text, an https link, an optional picture from the site's own folders,
+  // a known drawing and hex colours (a bad colour falls back to the default). Anything else: no tile. At most two.
+  var ads = (Array.isArray(ADS) ? ADS : []).map(function (A) {
+    var txt = function (x, n) { return typeof x === 'string' ? x.trim().slice(0, n) : ''; };
     var hex = function (x, d) { return typeof x === 'string' && /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(x) ? x : d; };
     if (!A || A.on !== true || !txt(A.name, 28) || typeof A.href !== 'string' || !/^https:\/\/[a-z0-9][a-z0-9.-]*\.[a-z]{2,}(?:\/[\w\-./?=&%#]*)?$/i.test(A.href)) return null;
     return { name: txt(A.name, 28), line: txt(A.line, 60), button: txt(A.button, 18) || 'Learn more', href: A.href, img: imgsOf(A)[0] || '', alt: txt(A.alt, 120),
+      art: A.art === 'car' ? 'car' : 'candy',
       bg: hex(A.bg, '#FFD23F'), ink: hex(A.ink, '#2A1608'), btn: hex(A.btn, '#C2185B'), btnInk: hex(A.btnInk, '#FFFFFF') };
-  })();
-  window.BackRoomNews.ad = ad ? { name: ad.name, href: ad.href } : null;
+  }).filter(Boolean).slice(0, 2);
+  window.BackRoomNews.ad = ads[0] ? { name: ads[0].name, href: ads[0].href } : null;
+  window.BackRoomNews.ads = ads.map(function (a) { return { name: a.name, href: a.href }; });
 
   // How many entries at the top haven't been opened in this browser. Nothing saved yet: just the latest.
   function unseen() {
@@ -569,7 +587,7 @@
     return c;
   }
 
-  // The ad tile's stand-in picture: a plain candy bar half out of its wrapper, drawn here in the ad's own colours.
+  // The ad tiles' stand-in pictures (art), drawn here in each ad's own colours. candy: a plain candy bar half out of its wrapper.
   var AD_ART = '<svg viewBox="0 0 200 70" aria-hidden="true" focusable="false"><g transform="rotate(-5 100 35)">' +
     '<rect x="92" y="14" width="96" height="42" rx="7" fill="#5C311A"/>' +
     '<path d="M120 14v42M143 14v42M166 14v42M108 35h80" fill="none" stroke="#3B1D0E" stroke-width="2.5"/>' +
@@ -579,6 +597,16 @@
     '<path d="M24 10l-13 3 5 5.5-5 5.5 5 5.5-5 5.5 5 5.5-5 5.5 5 5.5-5 5.5 13 3z" fill="#000" fill-opacity=".2"/>' +
     '<path d="M44 10h22v50H44z" fill="#fff" fill-opacity=".88"/><path d="M72 10h6v50h-6z" fill="#fff" fill-opacity=".5"/>' +
     '<path d="M28 17h74" fill="none" stroke="#fff" stroke-opacity=".3" stroke-width="3" stroke-linecap="round"/></g></svg>';
+  // car: a plain side-on hatchback on a road line, in the button colour (no make, no logo).
+  var CAR_ART = '<svg viewBox="0 0 200 70" aria-hidden="true" focusable="false">' +
+    '<path d="M14 62h172" stroke="var(--ad-ink)" stroke-opacity=".35" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="14 9"/>' +
+    '<path d="M30 50c0-9 4-14 12-16l20-4 20-15c4-3 8-4 13-4h38c6 0 11 2 15 7l13 13 12 3c6 2 9 6 9 12v6c0 3-2 5-5 5H35c-3 0-5-2-5-5z" fill="var(--ad-btn)"/>' +
+    '<path d="M88 19c3-2 6-3 9-3h20v16H75zM123 16h13c4 0 8 2 11 5l10 11h-34z" fill="var(--ad-bg)" fill-opacity=".78"/>' +
+    '<path d="M121 16v34" stroke="var(--ad-bg)" stroke-opacity=".35" stroke-width="2"/>' +
+    '<path d="M168 38h7M34 41h8" stroke="var(--ad-bg)" stroke-opacity=".55" stroke-width="4" stroke-linecap="round"/>' +
+    '<circle cx="66" cy="55" r="11" fill="#1d1d1f"/><circle cx="66" cy="55" r="4.5" fill="#c9ccd1"/>' +
+    '<circle cx="152" cy="55" r="11" fill="#1d1d1f"/><circle cx="152" cy="55" r="4.5" fill="#c9ccd1"/></svg>';
+  var ARTS = { candy: AD_ART, car: CAR_ART };
 
   function start() {
     if (document.getElementById('news')) return;
@@ -675,6 +703,9 @@
       // strip it takes the strip's height (it never adds any) and its contents follow its own width and height.
       '.nws-row{container:nwsrow/inline-size;margin:20px 0 0}#home > .nws-row{margin:0 0 18px}' +
       '.nws-cols{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}.nws-cols > .nws{margin:0}' +
+      // the ads' own grid: one tile, or two side by side under the strip (stacked on the narrowest phones)
+      '.nws-ads{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;min-width:0}' +
+      '@container nwsrow (min-width:520px){.nws-ads.two{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}' +
       '.nws-ad{container:nwsad/size;display:block;height:44px;min-width:0;border-radius:14px;overflow:hidden;text-decoration:none;color:var(--ad-ink);border:1px solid color-mix(in srgb,var(--ad-ink) 24%,var(--ad-bg));' +
         'background:linear-gradient(115deg,color-mix(in srgb,#fff 34%,var(--ad-bg)) 0%,var(--ad-bg) 58%);box-shadow:0 8px 22px -16px var(--ad-ink);font-family:var(--body,system-ui,sans-serif);-webkit-tap-highlight-color:transparent}' +
       '.nws-ad:focus-visible{outline:3px solid var(--ink,#16201b);outline-offset:2px}' +
@@ -694,9 +725,11 @@
       '@container nwsad (min-height:130px) and (min-width:270px){.nws-ad-l{display:block}}' +
       '@container nwsad (max-height:83.98px) and (max-width:340px){.nws-ad-in{gap:7px}.nws-ad-pic{flex-basis:54px}.nws-ad-n{font-size:20px}.nws-ad-btn{font-size:12.5px;padding:4px 10px}}' +
       '@container nwsad (max-height:83.98px) and (max-width:240px){.nws-ad-pic{display:none}}' +
-      '@container nwsad (min-height:84px) and (max-width:240px){.nws-ad-n{font-size:19px}.nws-ad-btn{font-size:12.5px;padding:4px 10px}}' +
-      '@container nwsrow (min-width:960px){.nws-cols{grid-template-columns:minmax(0,1fr) clamp(240px,27%,300px);gap:10px}.nws-cols > .nws-ad{height:auto}.nws-row.open .nws-ad{align-self:start;height:var(--adh,44px)}}' +
-      '@media (max-height:500px){@container nwsrow (min-width:800px) and (max-width:959.98px){.nws-cols{grid-template-columns:minmax(0,1fr) 210px;gap:10px}.nws-cols > .nws-ad{height:auto}.nws-row.open .nws-ad{align-self:start;height:var(--adh,44px)}}}' +
+      '@container nwsad (min-height:84px) and (max-width:240px){.nws-ad-n{font-size:17px}.nws-ad-btn{font-size:12px;padding:4px 9px}.nws-ad-btn > span{display:none}}' +
+      // beside the strip: the tiles take the strip's height (two stacked share it, or side by side on a wide screen)
+      '@container nwsrow (min-width:960px){.nws-cols{grid-template-columns:minmax(0,1fr) clamp(240px,27%,300px);gap:10px}.nws-ads{gap:10px}.nws-ads.two{grid-template-columns:minmax(0,1fr);grid-auto-rows:minmax(0,1fr)}.nws-ads > .nws-ad{height:auto}.nws-row.open .nws-ads{align-self:start;height:var(--adh,44px)}}' +
+      '@container nwsrow (min-width:1180px){.nws-cols.two{grid-template-columns:minmax(0,1fr) clamp(450px,44%,560px)}.nws-ads.two{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-auto-rows:auto}}' +
+      '@media (max-height:500px){@container nwsrow (min-width:800px) and (max-width:959.98px){.nws-cols{grid-template-columns:minmax(0,1fr) 210px;gap:10px}.nws-ads.two{grid-template-columns:minmax(0,1fr);grid-auto-rows:minmax(0,1fr)}.nws-ads > .nws-ad{height:auto}.nws-row.open .nws-ads{align-self:start;height:var(--adh,44px)}}}' +
       '@media (prefers-reduced-motion:reduce){.nws-dot,.nws-fl,.nws-sk::before{animation:none}.nws-chip,.nws-sp,.nws-ad-btn{transition:none}}';
     document.head.appendChild(css);
 
@@ -769,16 +802,14 @@
     if (spotRow) box.append(spotRow);
     box.append(bar, row, body);
 
-    // The ad tile: one link, next to the strip in a row that takes the strip's place under the header (so the
-    // sign-in nudge and everything else still sit under "news"). No ad: the strip is the block, as before.
-    var outer = box, adEl = null;
-    if (ad) {
-      adEl = el('a', 'nws-ad'); adEl.href = ad.href; adEl.target = '_blank'; adEl.rel = 'noopener sponsored';
-      adEl.referrerPolicy = 'origin';  // the advertiser sees the site's name, never the page's address
-      adEl.setAttribute('aria-label', 'Ad for ' + ad.name + (ad.line ? ': ' + ad.line : '.') + ' ' + ad.button + ' (opens in a new tab)');
-      adEl.style.setProperty('--ad-bg', ad.bg); adEl.style.setProperty('--ad-ink', ad.ink); adEl.style.setProperty('--ad-btn', ad.btn); adEl.style.setProperty('--ad-bi', ad.btnInk);
+    var outer = box, adEl = null;   // adEl: the ads' grid (one tile or two)
+    function tile(ad) {
+      var t = el('a', 'nws-ad'); t.href = ad.href; t.target = '_blank'; t.rel = 'noopener sponsored';
+      t.referrerPolicy = 'origin';  // the advertiser sees the site's name, never the page's address
+      t.setAttribute('aria-label', 'Ad for ' + ad.name + (ad.line ? ': ' + ad.line : '.') + ' ' + ad.button + ' (opens in a new tab)');
+      t.style.setProperty('--ad-bg', ad.bg); t.style.setProperty('--ad-ink', ad.ink); t.style.setProperty('--ad-btn', ad.btn); t.style.setProperty('--ad-bi', ad.btnInk);
       var aIn = el('span', 'nws-ad-in'), aPic = el('span', 'nws-ad-pic'), aTx = el('span', 'nws-ad-tx'), aBtn = el('span', 'nws-ad-btn', ad.button), aGo = el('span', '', '\u2192');
-      var drawn = function () { aPic.innerHTML = AD_ART; };  // no picture (or it's missing): a candy bar drawn in code
+      var drawn = function () { aPic.innerHTML = ARTS[ad.art] || AD_ART; };  // no picture (or it's missing): the drawing made in code
       if (ad.img) {
         var aIm = el('img'); aIm.alt = ad.alt; aIm.decoding = 'async'; aIm.addEventListener('error', drawn); aIm.src = BASE + ad.img;
         aPic.appendChild(aIm);
@@ -787,8 +818,15 @@
       aTx.append(el('span', 'nws-ad-lab', 'Sponsored'), el('span', 'nws-ad-n', ad.name));
       aIn.append(aPic, aTx);
       if (ad.line) aIn.appendChild(el('span', 'nws-ad-l', ad.line));
-      aIn.appendChild(aBtn); adEl.appendChild(aIn);
-      var cols = el('div', 'nws-cols'); cols.append(box, adEl);
+      aIn.appendChild(aBtn); t.appendChild(aIn);
+      return t;
+    }
+    // The ad tiles: links next to the strip in a row that takes the strip's place under the header (so the sign-in
+    // nudge and everything else still sit under "news"). No ads: the strip is the block, as before.
+    if (ads.length) {
+      adEl = el('div', 'nws-ads' + (ads.length > 1 ? ' two' : ''));
+      ads.forEach(function (ad) { adEl.appendChild(tile(ad)); });
+      var cols = el('div', 'nws-cols' + (ads.length > 1 ? ' two' : '')); cols.append(box, adEl);
       outer = el('div', 'nws-row'); outer.appendChild(cols);
     }
     outer.id = 'news';
