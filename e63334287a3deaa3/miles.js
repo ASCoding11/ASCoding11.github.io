@@ -283,10 +283,12 @@
   // The tags say "#1 all time" where the row has room and just "#1" where it hasn't (a phone row, a narrow card): the
   // pill is being squeezed, so the words go (bra-tw-s). Checked once the badge is on the page, before it is painted,
   // and again when the window changes size or the fonts arrive. Only leaders' and award holders' badges are ever looked at.
+  // In order, as room runs out: the awards' words go (bra-tw-a), then the tags' words, with two medals overlapping
+  // (bra-tw-s), then the tier's name if under half of it would show (bra-tw-p). Nothing ever makes a row taller.
   var fitQ = [], fitT = 0;
   function fit(w) {
     if (!w.isConnected) return;
-    w.classList.remove('bra-tw-s', 'bra-tw-a');
+    w.classList.remove('bra-tw-s', 'bra-tw-a', 'bra-tw-p');
     var kids = w.firstChild ? w.firstChild.children : [];
     function tight() {
       var t = w.scrollWidth > w.clientWidth;
@@ -306,6 +308,9 @@
     // well (bra-tw-s; two medals then also overlap like stacked coins, see the styles).
     if (aw) { w.classList.add('bra-tw-a'); if (!tight()) return; }
     w.classList.add('bra-tw-s');
+    // Still squeezed hard (place tags and two medals in a phone row): a tier name cut to under half ("VI…") says less
+    // than none, so the pill keeps just its icon and colours (bra-tw-p); its tooltip still names the tier.
+    for (var i = 0; i < kids.length; i++) if (kids[i].tagName === 'SPAN') { if (kids[i].clientWidth < kids[i].scrollWidth / 2) w.classList.add('bra-tw-p'); break; }
   }
   function heights(w) { var out = [], e = w.parentNode; for (var i = 0; i < 4 && e && e.nodeType === 1 && e !== document.body; i++, e = e.parentNode) out.push(e.offsetHeight); return out; }
   function fitRun() { fitT = 0; var q = fitQ; fitQ = []; q.forEach(function (w) { try { fit(w); } catch (e) {} }); }
@@ -361,7 +366,9 @@
     '.bra-aw>span{display:inline-flex;align-items:center;box-sizing:border-box;height:13px;margin-left:-8px;padding:0 9px 0 12px;clip-path:polygon(0 0,100% 0,calc(100% - 4px) 50%,100% 100%,0 100%)}' +
     '.bra-tw-a .bra-aw>span{display:none}' +
     // Two awards (one given, one earned) with no room even for the tags' words: the second medal tucks under the first.
-    '.bra-tw-s .bra-aw+.bra-aw{margin-left:-6px}.bra-tw-s .bra-aw+.bra-aw svg{z-index:0}';
+    '.bra-tw-s .bra-aw+.bra-aw{margin-left:-6px}.bra-tw-s .bra-aw+.bra-aw svg{z-index:0}' +
+    // And the tier name would be cut to under half: the pill is its icon alone.
+    '.bra-tw-p>.bra-tier{padding:3px 5px;gap:0;flex:none}.bra-tw-p>.bra-tier>span{display:none}';
   (document.head || document.documentElement).appendChild(css);
 
   // ---------------- #1 on the Miles board ----------------
