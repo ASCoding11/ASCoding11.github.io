@@ -442,8 +442,11 @@ tr.prow .bra-tier{margin-left:6px;vertical-align:1px}
   function dayDate(k){return new Date(+k.slice(0,4),+k.slice(4,6)-1,+k.slice(6,8))}
   function gameName(d){return LB&&LB.BY[d]?LB.BY[d].n:String(d)}
   // One account's node. Null for anything the boards would skip (stale, from the future, too big, over the caps, wrong shape).
+  // A node's av is the player's edited avatar as a code; avatar.js checks it and keeps their own avatar if it's anything else.
+  function learnAv(uid,v){var A=window.BackRoomAvatar;if(A&&A.learn&&v&&typeof v==='object'&&typeof v.av==='string'){try{A.learn(uid,v.av)}catch(e){}}}
   function person(uid,v,now){
     var p=LB.parse(uid,v,now);if(!p)return null;
+    learnAv(uid,v);
     p.ts=new Date(v.ts);p.ga=v.ga===1||v.ga===true;
     p.gn=p.ga?LB.mask(cleanName(v.gn,40)):'';
     p.name=p.gn||p.n;
@@ -742,6 +745,7 @@ tr.prow .bra-tier{margin-left:6px;vertical-align:1px}
   // only what can be read safely (name, last seen).
   function playerRow(uid,v,now){
     var p=null;try{p=LB.parse(uid,v,now)}catch(e){p=null}
+    if(p)learnAv(uid,v);
     var ga=!!(v&&typeof v==='object'&&(v.ga===1||v.ga===true));
     var gn=ga?LB.mask(cleanName(v.gn,40)):'';
     var ts=v&&okNum(v.ts)&&v.ts>0&&v.ts<now+864e5?new Date(v.ts):null;

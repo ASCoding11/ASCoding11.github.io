@@ -26,6 +26,8 @@
  *   l  lounge: [{ i, t, x }], the last 20 messages, 200 characters each, dropped after 30 minutes
  *   d  { <recipient uid>: [{ i, t, b }] }  private messages, the last 6 to each of the last 6 people
  *   i  { <recipient uid>: { i, t, b } }    the latest party or room invite to each of the last 6 people
+ *   av the player's edited avatar as a short code (avatar.js: 'a1:3.5.2.7.1', or 'a0' after a reset; absent if never
+ *      edited). Read with BackRoomAvatar.learn, which checks it; the "You" row has the Edit avatar button.
  * b is sealed to the recipient like Showdown's hole cards: AES-GCM with a key from ECDH between the sender's
  * private key and the recipient's pk, so only those two browsers can open it. Inside is JSON:
  *   { f: sender uid, to: recipient uid, k: 'm', x: text } | { ..., k: 'p', c: party code } | { ..., k: 'r', g, r }
@@ -305,11 +307,13 @@
   nameLbl.append($name);
   var $seat = el('span', 'onl-seat'); $seat.title = 'Your seat: a tag that tells people apart when names match';
   // Your avatar (filled in once we know who you are) and your status tier with your miles.
-  var $meAv = el('span', 'onl-meav'), $tier = el('span', 'onl-tier');
+  // "Edit avatar" opens avatar.js's editor; both are filled in or shown once we know who you are and that script is here.
+  var $meAv = el('span', 'onl-meav'), $tier = el('span', 'onl-tier'), $editAv = btn('Edit avatar'); $editAv.style.display = 'none';
+  $editAv.addEventListener('click', function () { if (uid && window.BackRoomAvatar && BackRoomAvatar.edit) BackRoomAvatar.edit(uid, $editAv); });
   var hideLbl = el('label'); var $hide = el('input'); $hide.type = 'checkbox'; hideLbl.append($hide, 'Hide me');
   var joinLbl = el('label'); var $join = el('input'); $join.type = 'checkbox'; joinLbl.append($join, 'Let people join my games');
   joinLbl.title = 'When you’re in an online game, people here can see it and join you (Playing now, and a Join button by your name)';
-  meRow.append($meAv, nameLbl, $seat, $tier, hideLbl, joinLbl);
+  meRow.append($meAv, nameLbl, $seat, $tier, hideLbl, joinLbl, $editAv);
   var $list = el('ul', 'onl-list'); $list.setAttribute('aria-label', 'People online');
   var $msg = el('p', 'onl-msg'); $msg.setAttribute('role', 'status'); $msg.setAttribute('aria-live', 'polite');
   var fine = el('p', 'onl-fine'), plink = el('a', '', 'Privacy'); plink.href = '/privacy.html'; plink.target = '_blank'; plink.rel = 'noopener';
@@ -459,8 +463,10 @@
       pp: typeof v.pp === 'string' && /^[a-z0-9]{1,8}$/.test(v.pp) ? v.pp : '', pn: Math.max(0, Math.min(99, Math.floor(num(v.pn)) || 0)),
       g: typeof v.g === 'string' && gameOf(v.g) ? v.g : '',
       jg: typeof v.jg === 'string' && gameOf(v.jg) ? v.jg : '', jr: typeof v.jr === 'string' && ROOM.test(v.jr) ? v.jr : '', jt: when(v.jt, t) || 0,
+      av: typeof v.av === 'string' && v.av.length <= 18 ? v.av : '',   // their avatar's code; avatar.js checks it before it is ever drawn
       l: [], dm: [], pc: [], inv: null
     };
+    learnAv(k, p.av);
     arr(v.l, LOUNGE_KEEP).forEach(function (m) {
       if (!m || typeof m !== 'object') return;
       var mt = when(m.t, t), x = cleanText(m.x);
@@ -900,7 +906,40 @@
     if (Object.keys(mine.d).length) s.d = mine.d;
     if (Object.keys(mine.i).length) s.i = mine.i;
     if (Object.keys(mine.pc).length) s.pc = mine.pc;
+    var a = myAv(); if (a) s.av = a;
+    avSent = uid + '|' + a;
     return s;
+  }
+  // Our avatar (avatar.js): the edit is saved in this browser, and av in our node is how everyone else gets to see it.
+  // It also goes on our leaderboard entry (only one that exists, like the name), which is still there when we're offline.
+  function myAv() { try { return uid && window.BackRoomAvatar && BackRoomAvatar.mine ? BackRoomAvatar.mine(uid) || '' : ''; } catch (e) { return ''; } }
+  function learnAv(u, a) { if (typeof a === 'string' && window.BackRoomAvatar && BackRoomAvatar.learn) { try { BackRoomAvatar.learn(u, a); } catch (e) {} } }
+  var avSent = '', avBoard = '';
+  function syncAvatar() {
+    if (!uid || !db) return;
+    var a = myAv(), k = uid + '|' + a, u = uid;
+    if (published && !hidden && avSent !== k) { avSent = k; write({ av: a || null }).catch(function () { if (avSent === k) avSent = ''; }); }
+    if (!a || avBoard === k) return;
+    avBoard = k;
+    var ref = db.ref('rooms/lb-all/players/' + u);
+    Promise.all([ref.child('n').once('value'), ref.child('av').once('value')]).then(function (r) {
+      // No entry yet: stats.js adds av when the first game makes one. Nothing to take back if it never had one.
+      if (!r[0].exists() || u !== uid || r[1].val() === a || (a === 'a0' && !r[1].exists())) return;
+      return ref.update({ av: a });
+    }).catch(function () { if (avBoard === k) avBoard = ''; });
+  }
+  // A guest who edited their avatar and then signs in with Google keeps those choices, unless that account already has
+  // its own (on its leaderboard entry, from another device), which then shows here too.
+  function carryAvatar(from, u) {
+    var A = window.BackRoomAvatar;
+    if (!A || !A.mine || !A.save || !db || !from || !u || u.isAnonymous || from === u.uid) return Promise.resolve(false);
+    var a = A.mine(from), c = A.parse(a);
+    if (!c || A.mine(u.uid)) return Promise.resolve(false);
+    return db.ref('rooms/lb-all/players/' + u.uid + '/av').once('value').then(function (s) {
+      if (u.uid !== uid) return false;
+      if (A.parse(s.val())) { A.learn(u.uid, s.val()); return false; }
+      return A.save(u.uid, c);
+    }).catch(function () { return false; });
   }
   function write(patch) {
     if (!published || hidden || !meRef) return Promise.reject(new Error('hidden'));
@@ -918,6 +957,7 @@
     beat = setInterval(heartbeat, BEAT);
     saveWho();
     syncBoardName();
+    syncAvatar();
     schedule();
   }
   function unpublish() {
@@ -1358,9 +1398,14 @@
     $title.lastChild.textContent = uid ? '(' + n + ')' : '';
     if (document.activeElement !== $name) $name.value = myName();
     $seat.textContent = uid ? 'Seat ' + seatOf(uid) + (hidden ? '' : ' · ' + statusText(meEntry())) : '';
-    if (uid && $meAv.getAttribute('data-u') !== uid + (window.BackRoomAvatar ? ':a' : '')) {
-      $meAv.textContent = ''; $meAv.append(avatarEl(uid, myName(), colorOf(uid), 34)); $meAv.setAttribute('data-u', uid + (window.BackRoomAvatar ? ':a' : ''));
+    var BA = window.BackRoomAvatar, canEdit = !!(uid && BA && BA.edit && BA.editButton), avKey = uid + (BA ? ':a' + (BA.rev || 0) : '');
+    if (uid && $meAv.getAttribute('data-u') !== avKey) {
+      var hadFocus = $meAv.contains(document.activeElement), editB = null;
+      if (canEdit) { try { editB = BA.editButton(uid, 34); } catch (e) { editB = null; } }
+      $meAv.textContent = ''; $meAv.append(editB || avatarEl(uid, myName(), colorOf(uid), 34)); $meAv.setAttribute('data-u', avKey);
+      if (hadFocus && editB) editB.focus();
     }
+    $editAv.style.display = canEdit ? '' : 'none';
     var mt = uid ? tierOf(uid) : null;
     $tier.textContent = '';
     if (mt) { $tier.append(BackRoomMiles.badge(mt)); var ml = milesLine(mt); if (ml) $tier.append(el('span', '', ml)); }
@@ -1805,7 +1850,12 @@
   // finished tier read is a redraw too.
   // A new avatar or tier only changes names and badges: redraw without dropping the open chat's message box, so a
   // half-typed message (and its focus) survives someone coming online or the tiers' 10-minute refresh.
-  document.addEventListener('backroom:avatar', function () { schedule(); });
+  // avatar.js arrived (it may load after the list was read) or an avatar changed: hand over the codes we already hold,
+  // publish our own if it changed, and redraw.
+  document.addEventListener('backroom:avatar', function () {
+    Object.keys(people).forEach(function (u) { learnAv(u, people[u].av); });
+    syncAvatar(); schedule();
+  });
   document.addEventListener('backroom:miles', function () { schedule(); });
 
   // ---------------- Start ----------------
@@ -1837,11 +1887,15 @@
     status = { p: P.size, g: (gameFrame() || { g: { k: '' } }).g.k, pl: P.size && P.leader ? P.leader.uid : '' };
     setInterval(poll, POLL);
     setInterval(schedule, 30000);
-    if (!hidden) publish(); else say('You’re hidden. Nobody can see you online, and you can’t chat until you turn this off.');
+    if (!hidden) publish(); else { say('You’re hidden. Nobody can see you online, and you can’t chat until you turn this off.'); syncAvatar(); }
     // Signing in with Google switches to another uid: show up under the new one.
+    var wasAnon = !!(auth.currentUser && auth.currentUser.isAnonymous);
     auth.onAuthStateChanged(function (u) {
       if (!u || u.uid === uid) return;
-      uid = u.uid; meRef = db.ref(PATH + '/' + uid); delete people[uid]; opened = {}; chains = {}; mine.d = {}; mine.i = {}; mine.pc = {};
+      var from = wasAnon ? uid : ''; wasAnon = !!u.isAnonymous;
+      try { if (window.BackRoomAvatar && BackRoomAvatar.close) BackRoomAvatar.close(); } catch (e) {}   // an open editor was for the old account
+      uid = u.uid; if (from) carryAvatar(from, u);
+      meRef = db.ref(PATH + '/' + uid); delete people[uid]; opened = {}; chains = {}; mine.d = {}; mine.i = {}; mine.pc = {};
       listRef.once('value', function (s) { s.forEach(function (c) { onNode(c); }); });
       if (!hidden) publish();
     });
@@ -1866,5 +1920,5 @@
   };
 
   // Test hook for the automated checks; harmless in normal play.
-  if (navigator.webdriver) window.__social = { get uid() { return uid; }, get people() { return people; }, get threads() { return threads; }, get mine() { return mine; }, get published() { return published; }, get pub() { return keys.pub; }, get chats() { return chats; }, get sent() { return sent; }, get sblocked() { return sblocked; }, get status() { return status; }, seatOf: seatOf, mask: mask, loungeAll: loungeAll, PATH: PATH, transcript: transcript, get pchat() { return pchat; }, partyMembers: partyMembers, sendParty: sendParty, get muted() { return muted; } };
+  if (navigator.webdriver) window.__social = { get uid() { return uid; }, get people() { return people; }, get threads() { return threads; }, get mine() { return mine; }, get published() { return published; }, get pub() { return keys.pub; }, get chats() { return chats; }, get sent() { return sent; }, get sblocked() { return sblocked; }, get status() { return status; }, seatOf: seatOf, mask: mask, loungeAll: loungeAll, PATH: PATH, transcript: transcript, get pchat() { return pchat; }, partyMembers: partyMembers, sendParty: sendParty, get muted() { return muted; }, carryAvatar: carryAvatar, nodeState: nodeState };
 })();

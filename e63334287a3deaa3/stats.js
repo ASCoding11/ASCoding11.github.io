@@ -51,6 +51,8 @@
  *   lg { <folder>: seconds } the totals as they stood when this version first wrote the node ("legacy" time, from before
  *      batches; it may overlap between accounts used in one browser, so a merge keeps the larger of it instead of adding)
  *   al { <uid>: ms } anonymous accounts merged into this one (at most 8)    to <uid> this account was merged into that one
+ *   av the player's edited avatar as a short code (avatar.js: 'a1:3.5.2.7.1', or 'a0' after a reset; absent if never edited).
+ *      Taken from this browser's saved edit (localStorage avatar:v1) when it is for this account, else kept as the node has it
  *   ga 1 and gn the Google display name (40 characters, no email or photo) when the account is a Google sign-in, else neither
  * Nodes written by the older version (v 1: n, c, x, z, h, ts, v, st, g, d, ga, gn) read the same way; that version overwrote
  * the whole node, so while one is still open it can briefly wipe q, lg and al (the totals come back on this browser's next
@@ -491,10 +493,11 @@
     });
   }
   // The node after this publish, from the node as it stands (cur, which may be null or from the older version).
-  // x: { uid, dev, batch, b (bests), hw (watermark), v1, abs: [{ uid, node }] to merge in, keep: [uids] already merged, n, u, now }
+  // x: { uid, dev, batch, b (bests), hw (watermark), v1, abs: [{ uid, node }] to merge in, keep: [uids] already merged, n, u, now, av }
   function apply(cur, x) {
     cur = obj(cur) ? cur : {};
     var g = cleanG(cur.g), d = cleanDays(cur.d), q = cleanStamps(cur.q, MAX_DEV, okDev), al = cleanStamps(cur.al, MAX_AL, okUid);
+    var absAv = '';
     var lg = cur.v === 2 ? cleanSecs(cur.lg) : null;          // (an empty lg isn't stored: a v 2 node without one has no legacy time)
     function S(gk) { return (g[gk] && g[gk].s) || 0; }
     function addS(gk, n) {
@@ -534,6 +537,7 @@
         Object.keys(xg[gk]).forEach(function (k) { if (k !== 's') best(gk, k, xg[gk][k]); });
       });
       d = addDays(d, cleanDays(a.node.d), 'max');
+      if (!absAv && okAv(a.node.av) && a.node.av !== 'a0') absAv = a.node.av;
       al[a.uid] = Math.round(x.now);
     });
     x.keep.forEach(function (u) { if (!al[u]) al[u] = Math.round(x.now); });
@@ -545,6 +549,10 @@
     if (has(al)) nd.al = al;
     if (okUid(cur.to) && cur.to !== x.uid) nd.to = cur.to;     // this account was merged into another (its owner said so)
     if (obj(cur.w)) nd.w = cur.w;                               // the wallet's mirror (wallet.js), kept as it is
+    // The player's edited avatar (avatar.js): this browser's saved choice for this account, else what the node already says.
+    // An anonymous account merged in just now brings its avatar along if this account has none of its own.
+    var av = okAv(x.av) ? x.av : okAv(cur.av) ? cur.av : absAv;
+    if (av && !(av === 'a0' && !okAv(cur.av))) nd.av = av;
     // A Google account: say so, with its display name (never the email or photo), so the admin page can tell accounts apart.
     if (x.u) { nd.ga = 1; var gn = cleanName(x.u.displayName, 40); if (gn) nd.gn = gn; }
     // Keep the node small enough for leaderboard.js (8,000 characters): drop the oldest days first.
@@ -553,6 +561,16 @@
     if (!has(nd.d)) delete nd.d;
     if (!has(nd.lg)) delete nd.lg;
     return nd;
+  }
+  // The avatar code that travels in the node as av (avatar.js checks it again before drawing): 'a1:<skin>.<hairc>.<eyec>.
+  // <shirt>.<hat>', or 'a0' once the player has gone back to their own. localAv: what this browser has saved for this account
+  // (localStorage avatar:v1, written by the editor on the hub pages), or '' when it has nothing to say.
+  function okAv(a) { return typeof a === 'string' && (a === 'a0' || /^a1:\d{1,2}(\.\d{1,2}){4}$/.test(a)); }
+  function localAv(uid) {
+    var o = sj('avatar:v1'); if (!obj(o) || o.v !== 1 || o.uid !== uid) return '';
+    var a = ['skin', 'hairc', 'eyec', 'shirt', 'hat'].map(function (k) { return o[k]; });
+    var set = a.filter(function (v) { return Number.isInteger(v) && v >= 0 && v < 100; }).length;
+    return set === 5 ? 'a1:' + a.join('.') : set ? '' : 'a0';
   }
   function totals(nd) { var out = {}; Object.keys((nd && nd.g) || {}).forEach(function (gk) { if (nd.g[gk].s > 0) out[gk] = nd.g[gk].s; }); return out; }
   function readNode(c, uid) { return c.db.ref(PATH + '/' + uid).once('value').then(function (s) { return s.val(); }); }
@@ -586,7 +604,7 @@
     return pre2.then(function (batch) {
       var keep = Object.keys(o.lkd).filter(function (k) { return o.lkd[k] === uid; });
       var v1 = o.v1 && (!o.v1.u || o.v1.u === uid) ? o.v1 : null;
-      var x = { uid: uid, batch: batch, b: o.b, hw: hwOf(o, uid), v1: v1, abs: abs, keep: keep, n: n, u: u, now: c.now() };
+      var x = { uid: uid, batch: batch, b: o.b, hw: hwOf(o, uid), v1: v1, abs: abs, keep: keep, n: n, u: u, now: c.now(), av: localAv(uid) };
       return c.db.ref(PATH + '/' + uid).transaction(function (cur) {
         x.now = c.now();
         return c.J.parse(JSON.stringify(apply(cur, x)));
@@ -798,6 +816,6 @@
     load: load, flush: flush, publish: function () { return publish(false); }, engaged: function () { return engaged(Date.now()); },
     local: function (gk) { flush(); var t = load().tc; return gk ? t[gk] || 0 : t; }, apply: apply, cleanDays: cleanDays,
     setIdle: function (ms) { IDLE = ms; }, setGrace: function (ms) { GRACE = ms; }, setPub: function (ms) { PUB_MS = ms; }, setSave: function (ms) { SAVE_MS = ms; },
-    link: link, anyTarget: function () { anyTarget = true; }
+    link: link, anyTarget: function () { anyTarget = true; }, localAv: localAv
   };
 })();

@@ -15,6 +15,7 @@
  *   pk game the leader has picked (leader only)
  *   go { id, g, r, t }        the leader's latest launch: game key, room code, server time
  *   kick [{ u, t }]           people the leader removed (uid, server time), up to 8, kept for 10 minutes
+ *   av the player's edited avatar as a short code (avatar.js; 'a0' after a reset, absent if never edited)
  *   pub 1, pn size            leader only, while the leader's party is Public. Parties are Public unless the leader
  *                             switches them to Private; that choice is remembered in this browser (localStorage
  *                             party:pub, '1' or '0', saved with the account by account-nudge.js)
@@ -252,6 +253,7 @@
     Object.keys(val || {}).forEach(function (k) {
       var v = val[k];
       if (!v || typeof v !== 'object' || t - (+v.ts || 0) > STALE) return;
+      if (k !== uid) learnAv(k, v.av);
       out.push({ uid: k, n: cleanName(v.n) || 'Player', c: /^#[0-9a-f]{6}$/i.test(v.c) ? v.c : '#4A5751', j: +v.j || +v.ts || 0, pk: typeof v.pk === 'string' ? v.pk : '', go: v.go && typeof v.go === 'object' ? v.go : null, kick: kickList(v.kick, t), pub: v.pub === 1 });
     });
     out.sort(function (a, b) { return a.j - b.j || (a.uid < b.uid ? -1 : 1); });
@@ -279,7 +281,20 @@
     if (goId && lastGo) s.go = lastGo;
     if (kicked.length) s.kick = kicked;
     if (pubOn) { s.pub = 1; s.pn = pubN = members.length || 1; }
+    var a = myAv(); if (a) s.av = a;
+    avSent = uid + '|' + a;
     return s;
+  }
+  // Avatars (avatar.js): our own edit goes in our node as av; other members' av is checked there before it is drawn.
+  var avSent = '';
+  function myAv() { try { return uid && window.BackRoomAvatar && BackRoomAvatar.mine ? BackRoomAvatar.mine(uid) || '' : ''; } catch (e) { return ''; } }
+  function learnAv(u, a) { if (typeof a === 'string' && a.length <= 18 && window.BackRoomAvatar && BackRoomAvatar.learn) { try { BackRoomAvatar.learn(u, a); } catch (e) {} } }
+  function syncAvatar() {
+    if (!refs || !uid) return;
+    var a = myAv(), k = uid + '|' + a;
+    if (avSent === k) return;
+    avSent = k;
+    refs.me.update({ av: a || null, ts: Math.round(now()) }).catch(function () { if (avSent === k) avSent = ''; });
   }
   var lastGo = null;
   function typedName() { return cleanName(store('ol:name')) || guessName(); }
@@ -597,7 +612,8 @@
     // The avatar (avatar.js) in place of the initial, and the status tier badge (miles.js) on its own line above Leader / Member.
     Array.prototype.forEach.call(mem.children, function (li, i) {
       var m = members[i]; if (!m) return;
-      if (window.BackRoomAvatar) { try { li.replaceChild(BackRoomAvatar.el(m.uid, 32), li.firstChild); } catch (e) {} }
+      // Your own avatar is a button that opens the editor (avatar.js).
+      if (window.BackRoomAvatar) { try { li.replaceChild(m.uid === uid && BackRoomAvatar.editButton ? BackRoomAvatar.editButton(m.uid, 32) : BackRoomAvatar.el(m.uid, 32), li.firstChild); } catch (e) {} }
       if (window.BackRoomMiles) { try { var t = BackRoomMiles.peek(m.uid), tag = li.querySelector('.pty-tag'); if (t) { var tl = document.createElement('span'); tl.className = 'pty-tl'; tl.appendChild(BackRoomMiles.badge(t)); tag.parentNode.insertBefore(tl, tag); } } catch (e) {} }
     });
 
@@ -689,7 +705,7 @@
   document.addEventListener('backroom:name', function (e) { if (e.detail && e.detail.mine && e.detail.from !== 'party') nameChanged(); });
   addEventListener('storage', function (e) { if (e.key === 'ol:name' || e.key === 'party:name') nameChanged(); });
   // avatar.js and miles.js may load after the list was drawn, and every finished tier read is a redraw.
-  document.addEventListener('backroom:avatar', function () { if (refs) drawParty(); });
+  document.addEventListener('backroom:avatar', function () { if (refs) { syncAvatar(); drawParty(); } });
   document.addEventListener('backroom:miles', function () { if (refs) drawParty(); });
   if (window.SiteAccount && SiteAccount.onChange) SiteAccount.onChange(function () { if (!code && !store('party:name') && !store('ol:name')) { drawn = ''; drawIdle(); } });
 
