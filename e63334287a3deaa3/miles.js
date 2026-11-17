@@ -21,9 +21,13 @@
  *                       Leaderboards' Miles board it is a <span class="bra-tw"> holding the pill and a "#1 all time",
  *                       "#2 this week" … tag: gold, silver, bronze (see "#1 on the Miles board" below). For someone
  *                       with an award (AWARDS below) the wrapper also holds a ribbon for each, after the pill and the tags
- *   awardsOf(result)    the awards (keys of AWARD_KINDS) a result's player holds, [] for most people; also takes a uid
+ *                       (given awards first, then the earned one, the Slipstream ace)
+ *   awardsOf(result)    the awards (keys of AWARD_KINDS) a result's player was given, [] for most people; also takes a uid
+ *   aceOf(result)       how many Slipstream tracks a result's player leads if they hold the Slipstream ace (the earned
+ *                       award: see "Earned awards" below), else 0; also takes a uid
  *   setTops(tops)       leaderboard.js hands over the top three ({ all, week: [uid…] the firsts, allTie, weekTie, and
- *                       all2, all3, week2, week3: [uid…] the seconds and thirds; topOf's all and week are the place, 1 to 3) after each
+ *                       all2, all3, week2, week3: [uid…] the seconds and thirds; topOf's all and week are the place, 1 to 3;
+ *                       and ace: [uid…], aceN: the Slipstream ace's holders and how many tracks they lead) after each
  *                       read of the boards; topOf(uid) is { all, week, allTie, weekTie } for a leader, else null;
  *                       needTops() asks the boards again if a badge wanted an answer before leaderboard.js had loaded
  *   line(result)        the progress line under your own name: "2,340 miles · 7,660 to First Class", "… · the top tier",
@@ -59,6 +63,7 @@
  *                    (1,500); Showdown biggest pot ÷ 200 (500)
  * Tiers: Economy under 2,000 · Business Class 2,000–9,999 · First Class 10,000–39,999 · Private Jet 40,000+.
  * Awards (AWARDS below) are honours the owners hand out by account uid, beside the tier and nothing to do with miles.
+ * One award is earned instead (the Slipstream ace): it follows the Slipstream boards, as the #1 tags follow the Miles board.
  * Captain isn't on the miles scale at all: it's the OWNERS list below, whatever their miles; Vice Captain is the
  * VICE_CAPTAINS list the same way.
  * So an hour a day for three weeks is Business; First takes about 100 hours, or 50 with a lot of winning; Private Jet is a year.
@@ -132,7 +137,11 @@
   var AWARD_KINDS = {
     // Updraft's night sky, sky blue and sunrise orange: a summit with a rising arrow above it.
     updraft: { n: 'Updraft devotee', tip: 'Awarded for dedication to Updraft', disc: '#0D1426', rim: '#5EC2FF', band: 'linear-gradient(90deg,#5EC2FF,#8FD9FF)', ink: '#0D1426',
-      icon: '<path d="M2.9 11.9L6.6 7.4l1.5 1.7 1.2-1.3 3.8 4.1z" fill="#A9ECFF"/><path d="M8 2.2l2.7 3.1H8.9v2.2H7.1V5.3H5.3z" fill="#FFB347"/>' }
+      icon: '<path d="M2.9 11.9L6.6 7.4l1.5 1.7 1.2-1.3 3.8 4.1z" fill="#A9ECFF"/><path d="M8 2.2l2.7 3.1H8.9v2.2H7.1V5.3H5.3z" fill="#FFB347"/>' },
+    // EARNED, not given (earned: true: a line for it in AWARDS is ignored): the Slipstream ace, whoever leads the most
+    // Slipstream tracks, 3 or more (see "Earned awards" below). Slipstream's near-black and racing red: a chequered flag.
+    slipstream: { earned: true, n: 'Slipstream ace', tip: 'Leads the most Slipstream tracks', disc: '#0B0D14', rim: '#FF2A36', band: 'linear-gradient(90deg,#C8102E,#E0162F)', ink: '#fff',
+      icon: '<path d="M4.4 3.4v9.4" stroke="#FFD21F" stroke-width="1.3" stroke-linecap="round"/><path d="M5 3.8h7.4v5.6H5z" fill="#fff"/><path d="M5 3.8h1.85v1.87H5zM8.7 3.8h1.85v1.87H8.7zM6.85 5.67H8.7v1.86H6.85zM10.55 5.67h1.85v1.86h-1.85zM5 7.53h1.85V9.4H5zM8.7 7.53h1.85V9.4H8.7z" fill="#0B0D14"/>' }
   };
   // Who holds which, by account uid (the same public ids as OWNERS above: find one on the admin page or among the
   // leaderboard's rooms/lb-all/players keys; never match on names). One line per person: 'uid': ['kind', …], with a
@@ -218,13 +227,15 @@
     s.title = t.n + (cap ? ' · flies the plane (site owner)' : vc ? ' · co-pilot' : '') + (res && res.ok ? ' · ' + fmt(res.miles) + ' miles' + ((cap || vc) && res.real ? ' (' + res.real.n + ' by miles alone)' : '') : '') + (res && res.next ? ' · ' + fmt(res.next.miles) + ' to ' + res.next.tier.n : '');
     // First on the Miles board: the pill and its "#1" tags in one wrapper. Everyone else gets the pill alone, as before.
     // An award holder gets the same wrapper, with a ribbon for each award after the tags.
-    var top = null, aw = awardsOf(res);
-    if (res && res.uid) { wantTops(); top = topOf(res.uid); }
-    if (!top && !aw.length) return s;
+    // The earned award (the Slipstream ace) comes last, after any award that was given.
+    var top = null, aw = awardsOf(res), led = 0;
+    if (res && res.uid) { wantTops(); top = topOf(res.uid); led = aceOf(res); }
+    if (!top && !aw.length && !led) return s;
     var w = document.createElement('span'); w.className = 'bra-tw'; w.appendChild(s);
     if (top && top.all) w.appendChild(topTag('all', top.all, top.allTie));
     if (top && top.week) w.appendChild(topTag('week', top.week, top.weekTie));
     aw.forEach(function (k) { w.appendChild(awardTag(k)); });
+    if (led) w.appendChild(awardTag('slipstream', 'Leads ' + led + ' Slipstream tracks'));
     fitSoon(w);
     return w;
   }
@@ -233,24 +244,30 @@
   // (the signed `a` in leaderboard.js's resets, once they have been read), so the award follows the row whichever
   // account is on screen. Names are never looked at. Takes a result or a uid.
   function mergedInto(u) { var B = LB(), rs = B && B.resets, a = rs && rs[u] && rs[u].a; return typeof a === 'string' && a ? a : ''; }
-  function awardsOf(res) {
-    var ids = (typeof res === 'string' ? [res] : res && Array.isArray(res.ids) && res.ids.length ? res.ids.slice() : res && res.uid ? [res.uid] : []).filter(okUid), out = [];
-    if (!ids.length) return out;
+  // Every account a result (or a uid) stands for: its own ids, and the entry each was merged into on the admin page.
+  function idsOf(res) {
+    var ids = (typeof res === 'string' ? [res] : res && Array.isArray(res.ids) && res.ids.length ? res.ids.slice() : res && res.uid ? [res.uid] : []).filter(okUid);
     ids.slice().forEach(function (u) { var r = mergedInto(u); if (r && ids.indexOf(r) < 0) ids.push(r); });
+    return ids;
+  }
+  function awardsOf(res) {
+    var ids = idsOf(res), out = [];
+    if (!ids.length) return out;
     Object.keys(AWARDS).forEach(function (u) {
       if (ids.indexOf(u) < 0 && ids.indexOf(mergedInto(u)) < 0) return;
-      (AWARDS[u] || []).forEach(function (k) { if (AWARD_KINDS[k] && out.indexOf(k) < 0) out.push(k); });
+      (AWARDS[u] || []).forEach(function (k) { if (AWARD_KINDS[k] && !AWARD_KINDS[k].earned && out.indexOf(k) < 0) out.push(k); });
     });
     return out;
   }
   // A medal on a ribbon: a round disc with the award's mark, and its name on a swallow-tailed band behind it. Not a
   // pill (a tier) and not a squared metal chip (a rank).
-  function awardTag(k) {
+  // tip: the tooltip's second half, for an earned award whose words carry a live number.
+  function awardTag(k, tip) {
     var a = AWARD_KINDS[k], s = document.createElement('span'), l = document.createElement('span');
     s.className = 'bra-aw bra-aw-' + k;
     s.innerHTML = '<svg viewBox="0 0 16 16" width="17" height="17" aria-hidden="true" focusable="false"><circle cx="8" cy="8" r="7.5" fill="' + a.disc + '" stroke="' + a.rim + '"/>' + a.icon + '</svg>';   // fixed markup from the table above, no text from anyone
     l.textContent = a.n; l.style.background = a.band; l.style.color = a.ink; s.appendChild(l);
-    s.title = a.n + ' · ' + a.tip;
+    s.title = a.n + ' · ' + (tip || a.tip);
     return s;
   }
   var TOP_TEXT = { all: 'all time', week: 'this week' };
@@ -267,10 +284,12 @@
   // The tags say "#1 all time" where the row has room and just "#1" where it hasn't (a phone row, a narrow card): the
   // pill is being squeezed, so the words go (bra-tw-s). Checked once the badge is on the page, before it is painted,
   // and again when the window changes size or the fonts arrive. Only leaders' and award holders' badges are ever looked at.
+  // In order, as room runs out: the awards' words go (bra-tw-a), then the tags' words, with two medals overlapping
+  // (bra-tw-s), then the tier's name if under half of it would show (bra-tw-p). Nothing ever makes a row taller.
   var fitQ = [], fitT = 0;
   function fit(w) {
     if (!w.isConnected) return;
-    w.classList.remove('bra-tw-s', 'bra-tw-a');
+    w.classList.remove('bra-tw-s', 'bra-tw-a', 'bra-tw-p');
     var kids = w.firstChild ? w.firstChild.children : [];
     function tight() {
       var t = w.scrollWidth > w.clientWidth;
@@ -286,9 +305,13 @@
       if (!now.some(function (h, i) { return h < was[i]; })) w.classList.remove('bra-tw-a');
       return;
     }
-    // An award's ribbon folds away first (bra-tw-a: just its medal), then the tags' words go as well.
+    // An award's ribbon folds away first (bra-tw-a: just its medal; with two awards, both), then the tags' words go as
+    // well (bra-tw-s; two medals then also overlap like stacked coins, see the styles).
     if (aw) { w.classList.add('bra-tw-a'); if (!tight()) return; }
     w.classList.add('bra-tw-s');
+    // Still squeezed hard (place tags and two medals in a phone row): a tier name cut to under half ("VI…") says less
+    // than none, so the pill keeps just its icon and colours (bra-tw-p); its tooltip still names the tier.
+    for (var i = 0; i < kids.length; i++) if (kids[i].tagName === 'SPAN') { if (kids[i].clientWidth < kids[i].scrollWidth / 2) w.classList.add('bra-tw-p'); break; }
   }
   function heights(w) { var out = [], e = w.parentNode; for (var i = 0; i < 4 && e && e.nodeType === 1 && e !== document.body; i++, e = e.parentNode) out.push(e.offsetHeight); return out; }
   function fitRun() { fitT = 0; var q = fitQ; fitQ = []; q.forEach(function (w) { try { fit(w); } catch (e) {} }); }
@@ -342,7 +365,11 @@
     '.bra-aw{display:inline-flex;align-items:center;flex:none;height:17px;font-family:var(--mono,var(--f-m,ui-monospace,monospace));font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;line-height:1;white-space:nowrap}' +
     '.bra-aw svg{flex:none;display:block;position:relative;z-index:1}' +
     '.bra-aw>span{display:inline-flex;align-items:center;box-sizing:border-box;height:13px;margin-left:-8px;padding:0 9px 0 12px;clip-path:polygon(0 0,100% 0,calc(100% - 4px) 50%,100% 100%,0 100%)}' +
-    '.bra-tw-a .bra-aw>span{display:none}';
+    '.bra-tw-a .bra-aw>span{display:none}' +
+    // Two awards (one given, one earned) with no room even for the tags' words: the second medal tucks under the first.
+    '.bra-tw-s .bra-aw+.bra-aw{margin-left:-6px}.bra-tw-s .bra-aw+.bra-aw svg{z-index:0}' +
+    // And the tier name would be cut to under half: the pill is its icon alone.
+    '.bra-tw-p>.bra-tier{padding:3px 5px;gap:0;flex:none}.bra-tw-p>.bra-tier>span{display:none}';
   (document.head || document.documentElement).appendChild(css);
 
   // ---------------- #1 on the Miles board ----------------
@@ -361,10 +388,13 @@
     if (!o || typeof o !== 'object' || !(t > 0) || t > Date.now() + 60000) return null;
     // all / week are the firsts, as before; all2, all3, week2, week3 the seconds and thirds (absent in an answer saved
     // by a page from before them: nobody is second or third until the boards are read again).
+    // ace, aceN: the Slipstream ace's holders and the tracks they lead (see "Earned awards" below). Absent in an answer
+    // saved by a page from before it, and dropped unless the number is ACE_MIN or more: then nobody holds it.
+    var aceN = Math.floor(num(o.aceN)), ace = aceN >= ACE_MIN && aceN <= 99 ? uidList(o.ace) : [];
     return { t: t, all: uidList(o.all), week: uidList(o.week), allTie: !!o.allTie, weekTie: !!o.weekTie,
-      all2: uidList(o.all2), all3: uidList(o.all3), week2: uidList(o.week2), week3: uidList(o.week3) };
+      all2: uidList(o.all2), all3: uidList(o.all3), week2: uidList(o.week2), week3: uidList(o.week3), ace: ace, aceN: ace.length ? aceN : 0 };
   }
-  function topsSig(o) { return o ? [o.all, o.week, o.all2, o.all3, o.week2, o.week3].map(function (a) { return a.join(); }).join('|') + '|' + (o.allTie ? 1 : 0) + (o.weekTie ? 1 : 0) : ''; }
+  function topsSig(o) { return o ? [o.all, o.week, o.all2, o.all3, o.week2, o.week3, o.ace].map(function (a) { return a.join(); }).join('|') + '|' + (o.allTie ? 1 : 0) + (o.weekTie ? 1 : 0) + '|' + o.aceN : ''; }
   function liveTops() { return tops && Date.now() - tops.t < TOPS_KEEP ? tops : null; }
   function takeTops(c) {
     var was = topsSig(liveTops()); tops = c;
@@ -385,6 +415,18 @@
     function place(k) { return c[k].indexOf(uid) >= 0 ? 1 : c[k + '2'].indexOf(uid) >= 0 ? 2 : c[k + '3'].indexOf(uid) >= 0 ? 3 : 0; }
     var a = place('all'), w = place('week');
     return a || w ? { all: a, week: w, allTie: a === 1 && c.allTie, weekTie: w === 1 && c.weekTie } : null;
+  }
+  // ---- Earned awards: the Slipstream ace ----
+  // An award nobody hands out: it belongs to whoever leads the most Slipstream tracks (holds the fastest lap this season
+  // on the most tracks), and only while they lead ACE_MIN or more at once; on a tie everyone tied holds it. leaderboard.js
+  // works that out from the boards it has just read (its ace(), which states the rule in full) and hands it over inside
+  // the same answer as the #1 tags (setTops: ace, the holders' uids with their merged accounts, and aceN, the tracks they
+  // lead), so it is cached and shared the same way, costs no read and no write, and moves whenever the boards are read.
+  // The number is the tooltip's ("Leads 4 Slipstream tracks"). Takes a result or a uid.
+  var ACE_MIN = 3;   // the same number as leaderboard.js's ACE_MIN: an answer claiming fewer tracks is not believed
+  function aceOf(res) {
+    var c = liveTops(); if (!c || !c.aceN) return 0;
+    return idsOf(res).some(function (u) { return c.ace.indexOf(u) >= 0; }) ? c.aceN : 0;
   }
   function wantTops() {
     var now = Date.now();
@@ -468,7 +510,7 @@
   window.BackRoomMiles = { of: of, tierOf: tierOf, isOwner: isOwner, badge: badge, line: line, peek: peek, load: load, fmt: fmt, TIERS: TIERS, RULES: RULES, PATH: PATH, HOUR: HOUR,
     CAPTAIN: CAPTAIN, OWNERS: OWNERS.slice(), isVice: isVice, VICE_CAPTAIN: VICE_CAPTAIN, VICE_CAPTAINS: VICE_CAPTAINS.slice(), forget: function (uid) { if (uid) delete cache[uid]; else cache = {}; },
     setTops: setTops, topOf: topOf, needTops: needTops,
-    awardsOf: awardsOf, AWARD_KINDS: JSON.parse(JSON.stringify(AWARD_KINDS)), AWARDS: JSON.parse(JSON.stringify(AWARDS)) };
+    awardsOf: awardsOf, aceOf: aceOf, ACE_MIN: ACE_MIN, AWARD_KINDS: JSON.parse(JSON.stringify(AWARD_KINDS)), AWARDS: JSON.parse(JSON.stringify(AWARDS)) };
   // Test hook for the automated checks; harmless in normal play. put: a result for a uid without a read.
   if (navigator.webdriver) window.__miles = { get tops() { return tops; }, get asked() { return topsAsked; }, get wanted() { return topsWanted; }, TOPS_KEY: TOPS_KEY, TOPS_TTL: TOPS_TTL, TOPS_KEEP: TOPS_KEEP,
     age: function (ms) { if (tops) tops.t -= ms; topsAsked = 0; }, clear: function () { tops = null; topsAsked = 0; topsWanted = false; try { localStorage.removeItem(TOPS_KEY); } catch (e) {} },
