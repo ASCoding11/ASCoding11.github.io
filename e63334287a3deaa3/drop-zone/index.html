@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
+<script src="/e63334287a3deaa3/captains.js"></script> <!-- who may see the Locker while it is not public (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Driftfall</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -224,7 +225,7 @@ details.ctrl[open] .keys{margin-top:10px}
 .rank li .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rank li .k{color:var(--ink-dim);font-variant-numeric:tabular-nums}
 .rank li.me{color:var(--sun)}
-/* The Locker (only built when the page is opened with ?locker=1, see LOCKER_ON): the outfits on the left and your
+/* The Locker (only built for a player who may see it, see lockerOn): the outfits on the left and your
    character turning on the right, over the island; on an upright phone the character is on top and the outfits scroll
    underneath. */
 #locker{display:grid;grid-template-columns:min(600px,54%) minmax(0,1fr);align-items:stretch;overflow:hidden}
@@ -241,7 +242,10 @@ details.ctrl[open] .keys{margin-top:10px}
 .lk-head .kicker{margin-bottom:8px}
 .lk-stage{position:relative;min-width:0;min-height:0;cursor:grab;touch-action:none}
 .lk-stage b{position:absolute;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);padding:4px 14px 3px;background:var(--panel);border-radius:6px;font-family:var(--f-big);font-weight:400;font-size:20px;letter-spacing:.04em;white-space:nowrap;pointer-events:none}
-#lockerRow .lk-now{color:var(--ink-dim);font-size:15px}
+/* the Outfits button sits beside the name box, so the rest of the menu doesn't move when it appears */
+.lk-row{display:flex;gap:10px;align-items:stretch}
+.lk-row .text{flex:0 1 260px}
+.lk-row .ghost-btn{flex:none;padding:8px 14px;font-size:16px}
 @media (orientation:portrait) and (max-width:700px){
   #locker{grid-template-columns:minmax(0,1fr);grid-template-rows:36% 64%}
   .lk-stage{order:-1}
@@ -600,13 +604,15 @@ function itemName(t){return WEAP[t]?WEAP[t].name:HEALS[t]?HEALS[t].name:t==='mt'
 
 const store={get(k,d){try{const v=localStorage.getItem('driftfall:'+k);return v===null?d:v}catch(e){return d}},set(k,v){try{localStorage.setItem('driftfall:'+k,String(v))}catch(e){}}};
 let sens=parseFloat(store.get('sens','1'))||1;
-// The Locker (outfits) is built but hidden for now: nothing about it shows, is read from storage or is sent to other
-// players unless the page is opened with ?locker=1, which is remembered for this browser tab only (?locker=0 forgets it).
-// To make it public, set LOCKER_PUBLIC to true: that one line is the whole switch.
+// The Locker (outfits) is built but not public yet: nothing about it shows, is read from storage or is sent to other
+// players unless lockerOn() says this player may see it. That is true for the site's captains (../captains.js: the
+// account signed in is in miles.js's captain lists), and for testing with ?locker=1 on localhost or in an automated
+// browser only (remembered for the browser tab; ?locker=0 forgets it). On the live site the address does nothing.
+// To make it public for everyone, set LOCKER_PUBLIC to true: that one line is the whole switch.
+// The answer for a captain arrives a moment after the page loads, and goes away again if they sign out: see lockerSync.
 const LOCKER_PUBLIC=false;
-const LOCKER_ON=LOCKER_PUBLIC||(()=>{let q=null,on=false;try{q=new URLSearchParams(location.search).get('locker')}catch(e){}
-  try{if(q==='1')sessionStorage.setItem('driftfall:locker','1');else if(q==='0')sessionStorage.removeItem('driftfall:locker');on=sessionStorage.getItem('driftfall:locker')==='1'}catch(e){on=q==='1'}
-  return on})();
+const CAPTAINS=window.BackRoomCaptains||null;
+const lockerOn=()=>LOCKER_PUBLIC||!!(CAPTAINS&&CAPTAINS.may(false,'locker','driftfall:locker'));
 let myName=store.get('name','')||('Glider'+Math.floor(100+Math.random()*900));
 
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
@@ -3192,8 +3198,10 @@ let busLine=null,storm=null;
 const PCOLS=['#ff6a3a','#ffc93c','#5cc6ff','#7fe06d','#c37bff','#ff7fb0','#3ad4c4','#f2f2f2','#e0b13a','#4f7cff'];
 let myHex=store.get('col','')||PCOLS[Math.floor(Math.random()*PCOLS.length)];store.set('col',myHex);
 const hexNum=s=>{const n=parseInt(String(s||'').replace('#',''),16);return isFinite(n)?n:0xffffff};
-// Your outfit: its place in OUTFITS (0 is the standard look). Read from `driftfall:skin` only while the Locker is on.
-let mySkin=LOCKER_ON?Math.max(0,OUTFITS.findIndex(o=>o.id===store.get('skin',''))):0;
+// Your outfit: its place in OUTFITS (0 is the standard look). Read from `driftfall:skin` only while the Locker is on
+// for this player; whenever it isn't, a saved outfit is left alone and the standard look is worn (see lockerSync).
+const savedSkin=()=>lockerOn()?Math.max(0,OUTFITS.findIndex(o=>o.id===store.get('skin',''))):0;
+let mySkin=savedSkin();
 const player=newEnt(makeModel(hexNum(myHex),hashStr(myName)%6,mySkin));player.local=true;player.id='me';player.hex=hexNum(myHex);
 scene.add(player.model);
 const remotes=new Map(),bots=new Map();
@@ -3725,7 +3733,7 @@ function recordStats(place,win){
 const STUCK_LOG=navigator.webdriver?[]:null;   // (tests only: where a bot gave up on a goal)
 function makeBot(id){
   const i=parseInt(id.slice(1),10)|0,hex=hexNum(PCOLS[(i*3+2)%PCOLS.length]);
-  const b=newEnt(makeModel(hex,i,LOCKER_ON?1+(i*5+2)%(OUTFITS.length-1):0));b.id=id;b.bot=true;b.hex=hex;b.name=botName(id);b.snaps=[];b.lag=NetSmooth.lag();   // with the Locker on, the practice bots wear the outfits too, so each can be seen in a match
+  const b=newEnt(makeModel(hex,i,lockerOn()?1+(i*5+2)%(OUTFITS.length-1):0));b.id=id;b.bot=true;b.hex=hex;b.name=botName(id);b.snaps=[];b.lag=NetSmooth.lag();   // with the Locker on, the practice bots wear the outfits too, so each can be seen in a match
   scene.add(b.model);bots.set(id,b);rebuildEnts();return b;
 }
 function clearBots(){for(const b of bots.values()){scene.remove(b.model);disposeModel(b.model)}bots.clear();rebuildEnts()}
@@ -4853,16 +4861,18 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden&&online)Net
 const inv=/^#dz-([a-z0-9-]{1,17})$/.exec(location.hash);
 if(inv){$('room').value=inv[1];setMsg('You were invited to room dz-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.replace('ghost-btn','cta');$('quick').classList.replace('cta','ghost-btn')}
 
-/* ---------- the Locker screen (only when LOCKER_ON; otherwise none of this exists on the page) ----------
+/* ---------- the Locker screen (built the first time lockerOn() is true; until then none of this exists on the page) ----------
    Opened from the menu: a grid of outfits (each picture is drawn once, from the outfit's own geometry) and your character
    turning in front of the island. It reuses the game's one renderer: the character stands on the island and the camera
    goes to it, shifted so it lands in the free part of the screen. The choice is saved as `driftfall:skin` (the outfit's id). */
-const Locker={open:false,close(){},cam(){}};
-if(LOCKER_ON)(function(){
+const Locker={open:false,built:false,close(){},cam(){}};
+function buildLocker(){
+  Locker.built=true;
   const SPOT=[118,terrainH(118,151),151],CAM=[.5,.86],FOV=30;   // where the character stands, and which way the camera looks from (x, z)
-  const row=document.createElement('div');row.className='group';row.id='lockerRow';
-  row.innerHTML='<span class="label">Locker</span><div class="row"><button id="lockerBtn" class="ghost-btn" type="button">Outfits</button><span class="lk-now" id="lkNow"></span></div>';
-  $('menu').querySelector('.field').after(row);
+  // the Outfits button goes beside the name box (the box is moved into a row with it), so nothing below moves
+  const row=document.createElement('div');row.className='lk-row';row.id='lockerRow';
+  row.innerHTML='<button id="lockerBtn" class="ghost-btn" type="button">Outfits</button>';
+  {const nm=$('name'),had=document.activeElement===nm;nm.style.maxWidth='';nm.after(row);row.prepend(nm);if(had)nm.focus({preventScroll:true})}
   const sec=document.createElement('section');sec.id='locker';sec.className='overlay';sec.hidden=true;
   sec.innerHTML='<div class="lk-panel"><div class="lk-head"><div><div class="kicker">Locker</div><h2 class="title lk-title">OUT<span>FITS</span></h2></div><button class="cta" id="lkDone" type="button">Done</button></div>'
     +'<p class="lede lk-lede">Pick what you wear. Every outfit is the same size and just as easy to hit as the standard one.</p>'
@@ -4874,8 +4884,8 @@ if(LOCKER_ON)(function(){
     b.innerHTML='<img alt="" hidden><span>'+esc(o.name)+'</span>';b.addEventListener('click',()=>pick(i));grid.appendChild(b);return b});
   const tone6=()=>player.model.userData.skinIx;
   let model=null,yaw=.5,hold=0,rect=null,drawn=false,vo='';
-  function mark(){cards.forEach((b,i)=>b.setAttribute('aria-pressed',i===mySkin?'true':'false'));$('lkName').textContent=OUTFITS[mySkin].name;$('lkNow').textContent='Wearing: '+OUTFITS[mySkin].name}
-  function pick(i){mySkin=fitOf(i);store.set('skin',OUTFITS[mySkin].id);setModelColor(player.model,player.hex,tone6(),mySkin);if(model)setModelColor(model,player.hex,tone6(),mySkin);mark()}
+  function mark(){cards.forEach((b,i)=>b.setAttribute('aria-pressed',i===mySkin?'true':'false'));$('lkName').textContent=OUTFITS[mySkin].name;$('lockerBtn').title='Wearing: '+OUTFITS[mySkin].name}
+  function pick(i){if(!lockerOn())return;mySkin=fitOf(i);store.set('skin',OUTFITS[mySkin].id);setModelColor(player.model,player.hex,tone6(),mySkin);if(model)setModelColor(model,player.hex,tone6(),mySkin);mark()}
   // a picture of every outfit in your colour, for the cards: 13 small renders the first time the Locker is opened
   // pictures of outfits in your colour, drawn from their own geometry (front, or from behind): data URLs, in the order asked for
   function pics(list,W,HH,back){
@@ -4900,8 +4910,8 @@ if(LOCKER_ON)(function(){
   }
   function measure(){const a=$('app').getBoundingClientRect(),r=stage.getBoundingClientRect();rect={cx:r.left-a.left+r.width/2,cy:r.top-a.top+r.height/2,w:Math.max(40,r.width),h:Math.max(40,r.height)};vo=''}
   function show(){
-    if(state!=='menu'||Locker.open)return;
-    if(!model){model=makeModel(player.hex,tone6(),mySkin);model.position.set(SPOT[0],SPOT[1],SPOT[2])}
+    if(state!=='menu'||Locker.open||!lockerOn())return;
+    if(!model){model=makeModel(player.hex,tone6(),mySkin);model.position.set(SPOT[0],SPOT[1],SPOT[2])}else setModelColor(model,player.hex,tone6(),mySkin);
     scene.add(model);thumbs();$('menu').hidden=true;sec.hidden=false;Locker.open=true;hold=0;mark();measure();$('lkDone').focus({preventScroll:true});
   }
   Locker.close=()=>{
@@ -4929,8 +4939,24 @@ if(LOCKER_ON)(function(){
   stage.addEventListener('pointerdown',e=>{dragX=e.clientX;hold=1e9;try{stage.setPointerCapture(e.pointerId)}catch(_){}});
   stage.addEventListener('pointermove',e=>{if(dragX===null)return;yaw+=(e.clientX-dragX)*.012;dragX=e.clientX});
   const drop=()=>{if(dragX!==null){dragX=null;hold=3}};stage.addEventListener('pointerup',drop);stage.addEventListener('pointercancel',drop);
+  Locker.mark=mark;
   mark();
-})();
+}
+// Whether the Locker is on can change after the page has loaded: a captain's account becomes known a moment later, and
+// goes away if they sign out. On: the button is built (once) and shown, and the saved outfit is worn. Off: the button
+// is hidden, the Locker closes and the standard look is worn; the saved outfit stays saved for the next time.
+function lockerSync(){
+  const on=lockerOn();
+  if(on&&!Locker.built)buildLocker();
+  if(!Locker.built)return;
+  if(!on)Locker.close();
+  $('lockerBtn').hidden=!on;
+  const want=savedSkin();
+  if(want!==mySkin){mySkin=want;setModelColor(player.model,player.hex,player.model.userData.skinIx,mySkin);if(online)Net.publishSoon()}
+  Locker.mark();
+}
+lockerSync();
+if(CAPTAINS)CAPTAINS.onChange(lockerSync);
 
 /* ---------- start ---------- */
 buildWorld();finishWorld();buildNav();setupChests();
@@ -4962,7 +4988,7 @@ if(navigator.webdriver)window.__dz={get state(){return state},get online(){retur
   GUN_GEO,GUN_TIP,GUN_OCT,RTAG,MAT,gunIM,itemIM,flashes,trs,bits,animModel,gunTip,startReload,tickWeapon,sfxShot,sfxReload,sfxPump,sfxBolt,sfxSwitch,isADS,KICK,
   STUCK_LOG,landPath,landClear,navShut,NAVN,updateBots,updatePlayer,step(dt){pClock+=dt*1000;practiceTick(dt);if(inPlay()){updatePlayer(dt);updateBots(dt)}},
   landOk,landFit,landUnder,skirtOf,skirtList,pieceBox,buildList,applyBuilds,handleEvent,get bdDirty(){return bdDirty},bdGone,ED_N,edRects,edOk,pieceShape,partsOf,partList,partIM,pieceInst,editPiece,wouldTrap,openEdit,closeEdit,confirmEdit,editKey,editTarget,editTile,updateEdit,canEdit,pieceMatrix,pieceCentre,EDIT_T,EDIT_RANGE,pressCode,get edit(){return edit},get editJob(){return editJob},get editAim(){return editAim},get buildCd(){return buildCd},rampH,rampAt,rampBlocked,solidAt,rayRamp,rhash,COST,JUMP,GRAV:G,STEP,RT,MAXL,terrainH,walkH,terrainSlope,rayTerrain,TH,TN,TS,TM,LVL,LAKE,PADS,SHED_Y,chestSpots,floorSpots,buildings,footprints,get groundMesh(){return groundMesh},
-  Locker,LOCKER_ON,OUTFITS,bodyGeo,LEG_GEO,legIM,fitLegIM,fitLegGeo,makeModel,setModelColor,legSpec,STD_LEGS,fitOf,hitboxes,TKON,PCOLS,SKINS,get mySkin(){return mySkin}};
+  Locker,get LOCKER_ON(){return lockerOn()},lockerSync,OUTFITS,bodyGeo,LEG_GEO,legIM,fitLegIM,fitLegGeo,makeModel,setModelColor,legSpec,STD_LEGS,fitOf,hitboxes,TKON,PCOLS,SKINS,get mySkin(){return mySkin}};
 
 requestAnimationFrame(t=>{last=t;frame(t)});
 })();
