@@ -288,7 +288,7 @@
   // Avatars (avatar.js): our own edit goes in our node as av; other members' av is checked there before it is drawn.
   var avSent = '';
   function myAv() { try { return uid && window.BackRoomAvatar && BackRoomAvatar.mine ? BackRoomAvatar.mine(uid) || '' : ''; } catch (e) { return ''; } }
-  function learnAv(u, a) { if (typeof a === 'string' && a.length <= 18 && window.BackRoomAvatar && BackRoomAvatar.learn) { try { BackRoomAvatar.learn(u, a); } catch (e) {} } }
+  function learnAv(u, a) { if (typeof a === 'string' && a.length <= 47 && window.BackRoomAvatar && BackRoomAvatar.learn) { try { BackRoomAvatar.learn(u, a); } catch (e) {} } }
   function syncAvatar() {
     if (!refs || !uid) return;
     var a = myAv(), k = uid + '|' + a;

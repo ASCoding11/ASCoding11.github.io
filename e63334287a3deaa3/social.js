@@ -26,7 +26,7 @@
  *   l  lounge: [{ i, t, x }], the last 20 messages, 200 characters each, dropped after 30 minutes
  *   d  { <recipient uid>: [{ i, t, b }] }  private messages, the last 6 to each of the last 6 people
  *   i  { <recipient uid>: { i, t, b } }    the latest party or room invite to each of the last 6 people
- *   av the player's edited avatar as a short code (avatar.js: 'a1:3.5.2.7.1', or 'a0' after a reset; absent if never
+ *   av the player's edited avatar as a short code (avatar.js: 'a2:' and fifteen numbers, the older 'a1:3.5.2.7.1', or 'a0' after a reset; absent if never
  *      edited). Read with BackRoomAvatar.learn, which checks it; the "You" row has the Edit avatar button.
  * b is sealed to the recipient like Showdown's hole cards: AES-GCM with a key from ECDH between the sender's
  * private key and the recipient's pk, so only those two browsers can open it. Inside is JSON:
@@ -463,7 +463,7 @@
       pp: typeof v.pp === 'string' && /^[a-z0-9]{1,8}$/.test(v.pp) ? v.pp : '', pn: Math.max(0, Math.min(99, Math.floor(num(v.pn)) || 0)),
       g: typeof v.g === 'string' && gameOf(v.g) ? v.g : '',
       jg: typeof v.jg === 'string' && gameOf(v.jg) ? v.jg : '', jr: typeof v.jr === 'string' && ROOM.test(v.jr) ? v.jr : '', jt: when(v.jt, t) || 0,
-      av: typeof v.av === 'string' && v.av.length <= 18 ? v.av : '',   // their avatar's code; avatar.js checks it before it is ever drawn
+      av: typeof v.av === 'string' && v.av.length <= 47 ? v.av : '',   // their avatar's code; avatar.js checks it before it is ever drawn
       l: [], dm: [], pc: [], inv: null
     };
     learnAv(k, p.av);
