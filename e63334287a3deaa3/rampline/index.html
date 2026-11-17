@@ -840,7 +840,7 @@ function newCar(B,pv){
 function bodyPose(car){
   const d=car.bd;if(car.pv<3||(d[0]===0&&d[1]===0&&d[2]===0))return [car.p,car.f,car.u];
   const u=norm(add(car.u,d),car.u),f=norm(madd(car.f,u,-dot(car.f,u)),car.f);
-  return [car.gr?madd(madd(car.p,car.n,-PH.ride),u,PH.ride):car.p,f,u];
+  return [madd(madd(car.p,car.gr?car.n:car.u,-PH.ride),u,PH.ride),f,u]; // the wheels stay where the car's own up put them
 }
 // The wall ride lifts its middle as it rolls up, which used to slide the road about 2 m sideways under a car that wasn't
 // steering (towards the low edge, and off it for a car already on that side). With PHYS_NOW a car on it keeps its place
@@ -869,8 +869,9 @@ function respawn(B,car){
 const _c=[0,0,0];
 function collide(B,car,v){
   const D=B.D,R=PH.sphR;let touched=false;
-  // pv 3 on the road: the spheres sit along the body, which follows the real surface (so the nose can't dig into a road that climbs as it twists)
-  const tilt=car.pv>=3&&car.gr&&(car.bd[0]!==0||car.bd[1]!==0||car.bd[2]!==0);
+  // pv 3: the spheres sit along the body, which follows the real surface (so the nose can't dig into a road that climbs
+  // as it twists); the lean fades over the first moments in the air, so nothing jumps when the car leaves the road
+  const tilt=car.pv>=3&&(car.bd[0]!==0||car.bd[1]!==0||car.bd[2]!==0);
   for(let k=0;k<2;k++){
     const off=k?-PH.sphF:PH.sphF;
     for(let it=0;it<3;it++){
