@@ -1400,7 +1400,7 @@ function setupChests(){
   chestMesh.frustumCulled=openMesh.frustumCulled=false;
 }
 function glowTex(){const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d'),gr=g.createRadialGradient(32,32,2,32,32,32);
-  gr.addColorStop(0,'rgba(255,255,255,.95)');gr.addColorStop(.35,'rgba(255,255,255,.5)');gr.addColorStop(.62,'rgba(255,255,255,.2)');gr.addColorStop(.7,'rgba(255,255,255,.34)');gr.addColorStop(1,'rgba(255,255,255,0)');
+  gr.addColorStop(0,'rgba(255,255,255,.95)');gr.addColorStop(.35,'rgba(255,255,255,.6)');gr.addColorStop(.6,'rgba(255,255,255,.28)');gr.addColorStop(.68,'rgba(255,255,255,.6)');gr.addColorStop(.74,'rgba(255,255,255,.3)');gr.addColorStop(1,'rgba(255,255,255,0)');
   g.fillStyle=gr;g.fillRect(0,0,64,64);return new THREE.CanvasTexture(c)}
 function drawChest(c){
   _o.position.set(c.x,c.y,c.z);_o.rotation.set(0,c.yaw,0);
@@ -1433,10 +1433,11 @@ function drawItems(dt){
   for(const it of itemList){
     const dx=it.x-c.x,dz=it.z-c.z,d2=dx*dx+dz*dz;if(d2>110*110)continue;          // too far to make out
     const m=itemIM[it.gk];if(m.count>=m.userData.cap)continue;
-    const w=!!WEAP[it.t],bob=RM?0:Math.sin(itemClock*2.2+it.ph)*.07,i=m.count++;
+    const w=!!WEAP[it.t],bob=RM?0:Math.sin(itemClock*2.2+it.ph)*.07;
+    if(!w||d2<75*75){const i=m.count++;   // past 75 m a weapon is only its glow (the model would be a few dots)
     _o.position.set(it.x,it.y+(w?.62:.4)+bob,it.z);_o.rotation.set(w?.2:0,RM?it.ph:itemClock*.9+it.ph,0,'YXZ');
     _o.scale.setScalar(w?1.45:ITEM_S[it.t]||.75);_o.updateMatrix();m.setMatrixAt(i,w?_lm.multiplyMatrices(_o.matrix,GUN_MID[it.t]):_o.matrix);   // a weapon turns about its own middle, nearly level
-    if(it.gk==='box')m.setColorAt(i,_col.setHex(it.col));
+    if(it.gk==='box')m.setColorAt(i,_col.setHex(it.col))}
     // the glow: bigger and brighter the rarer the weapon
     const r=w?it.r|0:0,gs=w?1.7+r*.3:1.2;
     _o.position.set(it.x,it.y+.05,it.z);_o.rotation.set(0,0,0);_o.scale.setScalar(gs*(RM?1:1+.06*Math.sin(itemClock*3+it.ph)));_o.updateMatrix();glowIM.setMatrixAt(ng,_o.matrix);
@@ -2262,7 +2263,7 @@ function addTracer(a,b,hex,wid){if(trs.length>=TR_CAP)trs.shift();const L=a.dist
 const FL_CAP=48;
 const flGeo=(()=>{const g=new THREE.BufferGeometry(),p=[],u=[],q=(a,b,c,d)=>{for(const v of [a,b,c,a,c,d])p.push(v[0],v[1],v[2]);u.push(0,0,1,0,1,1,0,0,1,1,0,1)};
   q([-.5,-.5,0],[.5,-.5,0],[.5,.5,0],[-.5,.5,0]);                       // facing along the shot (or you)
-  q([-.32,0,.25],[.32,0,.25],[.32,0,-1.5],[-.32,0,-1.5]);q([0,-.32,.25],[0,.32,.25],[0,.32,-1.5],[0,-.32,-1.5]);   // the tongue of the flash, seen from the side
+  q([-.32,0,.5],[.32,0,.5],[.32,0,-1.1],[-.32,0,-1.1]);q([0,-.32,.5],[0,.32,.5],[0,.32,-1.1],[0,-.32,-1.1]);   // the tongue of the flash, seen from the side (its bright middle just ahead of the muzzle)
   g.setAttribute('position',new THREE.Float32BufferAttribute(p,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(u,2));return g})();
 const flIM=new THREE.InstancedMesh(flGeo,new THREE.MeshBasicMaterial({map:(()=>{const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d'),gr=g.createRadialGradient(32,32,0,32,32,32);
   gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(.22,'rgba(255,255,255,.85)');gr.addColorStop(.5,'rgba(255,255,255,.25)');gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.fillRect(0,0,64,64);
@@ -2275,7 +2276,7 @@ function flash(p,dir,hex,size,life,len){if(flashes.length>=FL_CAP)flashes.shift(
 // The flash at the end of the barrel. FLASH: its size and how long its tongue is (shotguns a wide short burst, rifles and
 // snipers a long tongue, SMGs a small flicker). KICK: how a shot moves the weapon in the hands: how far it is shoved back,
 // how far the muzzle jumps (radians) and how quickly it settles (the crowbar's is its swing, forward and down).
-const FLASH={pi:[.5,.7],hc:[.85,1],sm:[.42,.8],ds:[.5,.9],sg:[1.1,.55],as:[.85,.6],ar:[.6,1.15],hr:[.85,1.25],sr:[1.15,1.6],ss:[.9,1.35]};
+const FLASH={pi:[.4,.7],hc:[.62,1],sm:[.34,.8],ds:[.4,.9],sg:[.8,.6],as:[.62,.65],ar:[.46,1.2],hr:[.6,1.3],sr:[.8,1.7],ss:[.62,1.45]};
 const KICK={pi:[.05,.3,20],hc:[.09,.55,12],sm:[.03,.07,24],ds:[.04,.09,20],sg:[.14,.36,9],as:[.09,.22,13],ar:[.045,.09,20],hr:[.08,.18,14],sr:[.16,.3,7],ss:[.1,.22,10],cb:[-.16,-.8,9]};
 // a point on the weapon someone is holding (in the weapon's own coordinates), in the world; null when it isn't drawn
 const _gt=new V3(),Y_AX=new V3(0,1,0);
@@ -2291,7 +2292,7 @@ function muzzleFlash(e,p,dir,wid){
   if(e===player&&!tip&&player.alive){   // looking down your own sights: a small flash under the sight, none in a scope
     if(fam==='sr')q=null;else{q=_gt.copy(camera.position).addScaledVector(dir,1.3);q.y-=.2;sz*=.45}}
   if(q){flash(q,dir,fam==='sg'?0xffb86a:0xffe9a8,sz,.07,F[1]);
-    if(!RM&&(fam==='sg'||fam==='sr'||wid==='hc'||wid==='hr')&&q.distanceToSquared(camera.position)<3600)for(let i=0;i<2;i++)bit(q,new V3(dir.x*1.2+(Math.random()-.5)*.8,.5+Math.random()*.6,dir.z*1.2+(Math.random()-.5)*.8),0xe6e2da,.13,.45,-1)}   // a puff of smoke from the big ones
+    if(fam==='sg'||fam==='sr'||wid==='hc'||wid==='hr')flash(q,null,0xc8702e,sz*1.25,.11)}   // the big ones also light up a wider, dimmer glow that lasts a moment longer
   if(e){e.kick=Math.min(1.3,(e.kick||0)*.4+1);e.kj=(Math.random()-.5)*(fam==='sm'?.3:.1);e.shotAge=0;e.shotW=wid;e.actS=0;
     if(wid!=='sg'&&wid!=='sr'&&wid!=='hc')shell(e,wid)}
 }
@@ -2636,7 +2637,8 @@ function killFeed(k,v,w){
 function muzzleOf(e){return e.pos.clone().add(new V3(0,MUZ_Y,0)).addScaledVector(rightOf(e.yaw),.3*BS).addScaledVector(fwdOf(e.yaw,e.pitch),.5*BS)}
 function resolveShot(shooter,w,r,rays,color){
   const entAcc=new Map(),pcAcc=new Map(),mpAcc=new Map(),ends=[];
-  const tp=w!==CROW?gunTip(shooter,w.id):null,vo=tp?tp.clone():null;   // the streak is drawn from the end of the barrel (the shot itself is unchanged)
+  const tp=w!==CROW?gunTip(shooter,w.id):null;let vo=tp?tp.clone():null;   // the streak is drawn from the end of the barrel (the shot itself is unchanged)
+  if(!vo&&shooter===player&&w!==CROW&&player.alive&&rays.length){vo=camera.position.clone().addScaledVector(rays[0].d,1.3);vo.y-=.2}   // down your own sights: from just under the sight
   for(const ry of rays){
     const res=raycast(arr(ry.o),arr(ry.d),ry.max,shooter,true);
     const end=ry.o.clone().addScaledVector(ry.d,res.t);ends.push(end);
@@ -3510,7 +3512,7 @@ function animModel(e,dt){
   // ---- the held item. A weapon sits with its grip in the right hand (HOLD), turned a little toward where the
   // crosshair is, and tips up and down with the aim; everything else here is added on top and turns about the hand.
   const g=u.gun,gk=u.gk,wp=!!WEAP[gk],K=KICK[gk];
-  let x=wp?HOLD[0]:.3,y=wp?HOLD[1]:1.36,z=-.62,rx=0,ry=wp?-.07:0,rz=0;
+  let x=wp?HOLD[0]:.3,y=wp?HOLD[1]:1.36,z=-.62,rx=0,ry=wp?HOLD[2]:0,rz=0;
   // you, aiming: raised to that weapon's own aiming pose
   const aw=e===player&&isADS()?heldW(e):null;e.aimK=clamp((e.aimK||0)+(aw?dt*9:-dt*9),0,1);const ps=aw?(e.pose=aw.pose):e.pose,ak=ps&&wp?e.aimK*e.aimK*(3-2*e.aimK):0;
   if(ak){x+=(ps[0]-x)*ak;y+=(ps[1]-y)*ak;z+=(ps[2]-z)*ak;ry*=1-ak}
@@ -3543,7 +3545,7 @@ function animModel(e,dt){
 }
 // Where a weapon's own origin is held (the hand is 0.12 behind it): a little outside and above the hand's centre, so the
 // top of it shows over your shoulder from behind. RELOAD_ST: when in a reload (0 to 1) each sound comes.
-const HOLD=[.35,1.41],_gh=new V3();
+const HOLD=[.37,1.44,-.07],_gh=new V3();
 const RELOAD_ST={mag:[[.2,'out'],[.58,'in'],[.85,'rack']],hc:[[.12,'open'],[.3,'shell'],[.42,'shell'],[.54,'shell'],[.82,'shut']],
   sg:[[.14,'shell'],[.28,'shell'],[.42,'shell'],[.56,'shell'],[.7,'shell'],[.88,'rack']],sr:[[.14,'open'],[.5,'in'],[.86,'shut']]};
 let attractYaw=0;const _bp=new V3(),_ch=new V3(),_cp=new V3(),_cb=new V3(),_cl=new V3();
@@ -3960,7 +3962,7 @@ if(navigator.webdriver)window.__dz={get state(){return state},get online(){retur
   fire(){const w=heldW(player),s=heldItem(player);updateCamera(0);playerShoot();if(s&&w)s.n=w.mag;player.cd=0},
   draws(){return renderer.info.render.calls},
   setNoRender(v){window.__noRender=!!v},onNode,updateRemotes,renderOnce(){mpFlush();syncLimbs();drawScene()},get fxTier(){return fxTier},set fxTier(v){fxTier=v},get lookKey(){return lookKey},mpieces,mpBreak,mpSetHp,resetMap,mpAt,allRuns,brokenBits,applyBits,sendEv,get brokenN(){return brokenN},hash,setMapV(v){mapV=v},get mapV(){return mapV},mapSize:MAP,ICONS,paintGround,removePiece,wallSpec,pushOut,SPEED,AIR,BODY:{R,H},buildings,rampIn,updateBots,updatePlayer,
-  GUN_GEO,GUN_TIP,GUN_OCT,RTAG,MAT,gunIM,itemIM,flashes,trs,bits,
+  GUN_GEO,GUN_TIP,GUN_OCT,RTAG,MAT,gunIM,itemIM,flashes,trs,bits,animModel,gunTip,startReload,tickWeapon,sfxShot,sfxReload,sfxPump,sfxBolt,sfxSwitch,isADS,KICK,
   Locker,LOCKER_ON,OUTFITS,bodyGeo,LEG_GEO,legIM,fitLegIM,fitLegGeo,makeModel,setModelColor,legSpec,STD_LEGS,fitOf,hitboxes,TKON,PCOLS,SKINS,get mySkin(){return mySkin}};
 
 requestAnimationFrame(t=>{last=t;frame(t)});
