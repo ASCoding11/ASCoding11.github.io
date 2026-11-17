@@ -5084,7 +5084,7 @@ function buildLocker(){
   function pick(i){if(!lockerOn())return;mySkin=fitOf(i);store.set('skin',OUTFITS[mySkin].id);setModelColor(player.model,player.hex,tone6(),mySkin,myFace);if(model)setModelColor(model,player.hex,tone6(),mySkin,myFace);mark()}
   // a picture of every outfit in your colour, for the cards: 13 small renders the first time the Locker is opened
   // pictures of outfits in your colour, drawn from their own geometry (front, or from behind): data URLs, in the order asked for
-  function pics(list,W,HH,back){
+  function pics(list,W,HH,back,faces){   // faces (tests only): a drawn face for each picture; the cards show each outfit's own
     const out=[],rt=new THREE.WebGLRenderTarget(W,HH),sc=new THREE.Scene(),cam=new THREE.OrthographicCamera(-.9,.9,1.35,-1.35,.1,40);
     sc.add(new THREE.HemisphereLight(0xffffff,0x9aa0aa,.95));const dl=new THREE.DirectionalLight(0xffffff,.55);dl.position.set(back?-3:3,6,back?5:-5);sc.add(dl);
     cam.position.set(back?-2.3:2.3,2.1,back?6:-6);cam.lookAt(0,1.27,0);
@@ -5092,8 +5092,8 @@ function buildLocker(){
     const g=cv.getContext('2d'),img=g.createImageData(W,HH),oc=new THREE.Color(),oa=renderer.getClearAlpha();renderer.getClearColor(oc);renderer.setClearColor(0x000000,0);
     const body=new THREE.Mesh(LEG_GEO,mat),lg=fitLegGeo(2),legs=new THREE.InstancedMesh(lg,FLMAT,2),lp=new THREE.Matrix4();legs.frustumCulled=false;sc.add(body,legs);
     legs.setMatrixAt(0,lp.makeTranslation(-.17,.86,0));legs.setMatrixAt(1,lp.makeTranslation(.17,.86,0));
-    try{for(const i of list){
-      const geo=bodyGeo(player.hex,SKINS[tone6()%SKINS.length],i),L=legSpec(player.hex,SKINS[tone6()%SKINS.length],i)||STD_LEGS;body.geometry=geo;legPut(lg,0,L);legPut(lg,1,L);
+    try{for(let n=0;n<list.length;n++){const i=list[n];
+      const geo=bodyGeo(player.hex,SKINS[tone6()%SKINS.length],i,faces?faces[n]:''),L=legSpec(player.hex,SKINS[tone6()%SKINS.length],i)||STD_LEGS;body.geometry=geo;legPut(lg,0,L);legPut(lg,1,L);
       renderer.setRenderTarget(rt);renderer.clear();renderer.render(sc,cam);renderer.readRenderTargetPixels(rt,0,0,W,HH,buf);
       for(let y=0;y<HH;y++)img.data.set(buf.subarray((HH-1-y)*W*4,(HH-y)*W*4),y*W*4);
       g.putImageData(img,0,0);out.push(cv.toDataURL('image/png'));geo.dispose();
