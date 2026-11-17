@@ -424,8 +424,7 @@
     line: 'Dark chocolate caramel candy bars.',             // one short line, in our own words
     button: 'Find a store',
     href: 'https://giganticcandy.com/pages/store-locator',  // where the tile goes (https only), in a new tab
-    img: '',                                                // a picture we're allowed to use, e.g. 'ads/gigantic.png'
-    alt: '',                                                // what that picture shows
+    img: 'gigantic-256.png',    alt: 'A Gigantic Candy Deluxe bar in its wrapper',                                               // what that picture shows
     bg: '#FFD23F', ink: '#2A1608', btn: '#C2185B', btnInk: '#FFFFFF'   // tile, text, button, button text
   };
 
