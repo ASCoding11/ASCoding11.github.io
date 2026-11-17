@@ -764,6 +764,8 @@
     '.lbd-r.av{grid-template-columns:2.6em 30px minmax(0,1fr) auto}' +
     '.lbd-ex .bra-tier,.lbd-ex .bra-tw{margin-right:6px;vertical-align:-1px}.lbd-ex .bra-tw .bra-tier{margin-right:0}' +
     '.lbd-r.me{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--panel))}' +
+    // Your own row on a name tile (avatar.js) keeps the tile's colour; a ring in the page's accent still marks it as yours.
+    '.lbd-r.me.bra-nt{box-shadow:0 0 0 2px var(--accent)}' +
     '.lbd-rk{font-family:var(--mono,var(--f-m,monospace));font-size:14px;font-weight:600;color:var(--ink-2);text-align:right}' +
     '.lbd-r:nth-child(-n+3) .lbd-rk{color:var(--accent)}' +
     '.lbd-who{display:grid;min-width:0;line-height:1.3}' +
@@ -904,6 +906,8 @@
       var p = parse(keys[i], val[keys[i]], now); if (!p) continue;
       out.push(p);
       if (BA && typeof val[keys[i]].av === 'string') { try { BA.learn(keys[i], val[keys[i]].av); } catch (e) {} }
+      // nt: the colour of their name tile, checked by avatar.js the same way (row() paints it).
+      if (BA && BA.learnTile && typeof val[keys[i]].nt === 'string') { try { BA.learnTile(keys[i], val[keys[i]].nt); } catch (e) {} }
     }
     people = collapse(out); everyone = out; lastLoad = Date.now();
     pushTops();
@@ -991,6 +995,8 @@
     li.append(el('span', 'lbd-rk', String(r.rank)));
     if (window.BackRoomAvatar) { try { li.append(BackRoomAvatar.el(r.p.uid, 30)); li.classList.add('av'); } catch (e) {} }
     li.append(who, el('span', 'lbd-v', r.fmt));
+    // The row takes the colour of the player's name tile (avatar.js), if they chose one.
+    if (window.BackRoomAvatar && BackRoomAvatar.paint) { try { BackRoomAvatar.paint(li, r.p.uid); } catch (e) {} }
     return li;
   }
   function trackRow(r) {

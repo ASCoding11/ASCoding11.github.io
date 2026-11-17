@@ -573,6 +573,9 @@
     // An anonymous account merged in just now brings its avatar along if this account has none of its own.
     var av = okAv(x.av) ? x.av : okAv(cur.av) ? cur.av : absAv;
     if (av && !(av === 'a0' && !okAv(cur.av))) nd.av = av;
+    // The colour of the player's name tile (avatar.js), kept the same way. Only a Google account publishes its own choice.
+    var nt = x.u && okNt(x.nt) ? x.nt : okNt(cur.nt) ? cur.nt : '';
+    if (nt && !(nt === 't0' && !okNt(cur.nt))) nd.nt = nt;
     // A Google account: say so, with its display name (never the email or photo), so the admin page can tell accounts apart.
     if (x.u) {
       nd.ga = 1; var gn = cleanName(x.u.displayName, 40); if (gn) nd.gn = gn;
@@ -599,6 +602,13 @@
     if (n === AV2.length) return 'a2:' + AV2.map(val).join('.');
     // An edit from the first editor that avatar.js hasn't filled out yet (it does when a hub page next loads): its five.
     return !n ? 'a0' : n === AV1.length && AV1.every(set) ? 'a1:' + AV1.map(val).join('.') : '';
+  }
+  // The name tile's colour travels as nt: 't1:<index>' or 't0' (back to the default); avatar.js checks the index before
+  // painting. localNt: this browser's saved choice for this account (localStorage nametile:v1), or '' with nothing to say.
+  function okNt(t) { return typeof t === 'string' && (t === 't0' || /^t1:[1-9]\d?$/.test(t)); }
+  function localNt(uid) {
+    var o = sj('nametile:v1'); if (!obj(o) || o.v !== 1 || o.uid !== uid || !Number.isInteger(o.t) || o.t < 0 || o.t > 99) return '';
+    return o.t ? 't1:' + o.t : 't0';
   }
   function okGe(v) { return typeof v === 'string' && /^1\.[A-Za-z0-9+/=]{20,120}\.[A-Za-z0-9+/=]{8,40}\.[A-Za-z0-9+/=]{20,600}$/.test(v); }
   // A Google account's email, sealed to the admin key, when this browser hasn't sealed it for this account yet ('' otherwise).
@@ -640,7 +650,7 @@
       var batch = bg[0], ge = bg[1];
       var keep = Object.keys(o.lkd).filter(function (k) { return o.lkd[k] === uid; });
       var v1 = o.v1 && (!o.v1.u || o.v1.u === uid) ? o.v1 : null;
-      var x = { uid: uid, batch: batch, b: o.b, hw: hwOf(o, uid), v1: v1, abs: abs, keep: keep, n: n, u: u, now: c.now(), av: localAv(uid), ge: ge };
+      var x = { uid: uid, batch: batch, b: o.b, hw: hwOf(o, uid), v1: v1, abs: abs, keep: keep, n: n, u: u, now: c.now(), av: localAv(uid), nt: localNt(uid), ge: ge };
       return c.db.ref(PATH + '/' + uid).transaction(function (cur) {
         x.now = c.now();
         return c.J.parse(JSON.stringify(apply(cur, x)));
@@ -853,6 +863,6 @@
     load: load, flush: flush, publish: function () { return publish(false); }, engaged: function () { return engaged(Date.now()); },
     local: function (gk) { flush(); var t = load().tc; return gk ? t[gk] || 0 : t; }, apply: apply, cleanDays: cleanDays,
     setIdle: function (ms) { IDLE = ms; }, setGrace: function (ms) { GRACE = ms; }, setPub: function (ms) { PUB_MS = ms; }, setSave: function (ms) { SAVE_MS = ms; },
-    link: link, anyTarget: function () { anyTarget = true; }, localAv: localAv, sealGe: sealGe, okGe: okGe
+    link: link, anyTarget: function () { anyTarget = true; }, localAv: localAv, localNt: localNt, sealGe: sealGe, okGe: okGe
   };
 })();
