@@ -15,9 +15,14 @@
  *   pk game the leader has picked (leader only)
  *   go { id, g, r, t }        the leader's latest launch: game key, room code, server time
  *   kick [{ u, t }]           people the leader removed (uid, server time), up to 8, kept for 10 minutes
- *   pub 1, pn size            leader only, while the leader's party is Public (playingnow.js lists it). Parties are
- *                             Public unless the leader switches them to Private; that choice is remembered in this
- *                             browser (localStorage party:pub, '1' or '0', saved with the account by account-nudge.js)
+ *   pub 1, pn size            leader only, while the leader's party is Public. Parties are Public unless the leader
+ *                             switches them to Private; that choice is remembered in this browser (localStorage
+ *                             party:pub, '1' or '0', saved with the account by account-nudge.js)
+ * Public means anyone in the Back Room can see the party and join it: the leader's Online node (social.js) carries the
+ * party code while the party is Public, so the Online panel shows a Join party button, and Playing now (playingnow.js)
+ * lists the game the party is in. A join from that button is checked against the party itself first (the leader's node
+ * must still say pub: 1), so a party switched to Private can't be joined that way. Private means invite only: the invite
+ * link or code, an invite from a member, or a request the leader accepts.
  * The leader is whoever has been in the party longest (smallest j), so when the leader leaves the next
  * person takes over with nothing to hand over. Closing the tab removes your node (onDisconnect).
  *
@@ -170,14 +175,14 @@
     '.pty-wait{margin:0;color:var(--ink-2);font-size:15px}' +
     '.pty-msg{margin:0;font-size:14px;color:var(--ink-2);overflow-wrap:anywhere}' +
     '.pty-msg:empty{display:none}' +
-    '.pty-pub{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin-top:12px}' +
-    '.pty-sw{font:inherit;font-size:14px;font-weight:600;color:var(--ink);background:var(--panel-2);border:1px solid var(--line);border-radius:999px;padding:4px 12px 4px 4px;min-height:36px;display:inline-flex;align-items:center;gap:8px;cursor:pointer;flex:none}' +
-    '.pty-sw i{width:34px;height:20px;border-radius:999px;background:var(--line);position:relative;flex:none;transition:background .15s}' +
-    '.pty-sw i::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--ink-2);transition:transform .15s,background .15s}' +
-    '.pty-sw[aria-checked="true"]{border-color:var(--accent)}' +
-    '.pty-sw[aria-checked="true"] i{background:var(--accent)}' +
-    '.pty-sw[aria-checked="true"] i::after{transform:translateX(14px);background:var(--accent-ink)}' +
-    '.pty-pub .pty-wait{font-size:14px;flex:1 1 220px}' +
+    '.pty-pub{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}' +
+    '.pty-pub[hidden]{display:none}' +
+    '.pty-pub .pty-h{margin:0}' +
+    '.pty-seg{display:inline-flex;gap:2px;padding:3px;background:var(--panel-2);border:1px solid var(--line);border-radius:999px;flex:none}' +
+    '.pty-seg button{font:inherit;font-size:14px;font-weight:600;color:var(--ink-2);background:none;border:0;border-radius:999px;padding:6px 16px;min-height:38px;cursor:pointer}' +
+    '.pty-seg button:hover{color:var(--ink)}' +
+    '.pty-seg button[aria-checked="true"]{background:var(--accent);color:var(--accent-ink)}' +
+    '.pty-pub .pty-wait{font-size:14px;flex:1 1 260px}' +
     '.pty-msg.err{color:var(--down)}' +
     '@media (max-width:600px){.pty{padding:16px 14px 14px}.pty-or{display:none}.pty label{max-width:none}.pty-acts{margin-left:0;width:100%}.pty-acts .btn{flex:1;justify-content:center}.pty-row > .btn{flex:1 1 auto;justify-content:center}.pty-mem{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}' +
     '@media (max-width:360px){.pty-mem{grid-template-columns:minmax(0,1fr)}}';
@@ -297,7 +302,8 @@
   }
 
   // ---------------- Join / leave ----------------
-  async function join(c, rejoin) {
+  // needPub: a join from the Online panel's Join party button (no invite), only allowed while the party is Public.
+  async function join(c, rejoin, needPub) {
     if (busy) return; busy = true; drawIdle(); say(rejoin ? 'Rejoining party ' + c + '…' : 'Connecting…');
     try {
       await boot();
@@ -305,7 +311,8 @@
       if (!c) throw new Error('Type a party code first.');
       var players = db.ref('rooms/pt-' + c + '/players');
       var cur = live((await timeout(players.once('value'), 10000, NET)).val()).filter(function (m) { return m.uid !== uid; });
-      if (!cur.length && !rejoin) throw new Error('No party is using the code ' + c + ' right now. Check the code, or create a party.');
+      if (!cur.length && !rejoin) throw new Error(needPub ? 'That party has ended.' : 'No party is using the code ' + c + ' right now. Check the code, or create a party.');
+      if (needPub && !cur[0].pub) throw new Error('That party is private now. Ask its leader for an invite.');
       if (cur.length >= MAX) throw new Error('That party is full (' + MAX + ' of ' + MAX + '). Ask them to make room, or create your own party.');
       var kt = kickedBy(cur[0], uid); if (kt) throw new Error(kickMsg(cur[0], kt));
       await enter(c);
@@ -330,7 +337,7 @@
       }
       if (!c) throw new Error('Couldn’t find a free party code. Try again.');
       await enter(c);
-      say('Party created. Send your friends the invite link or the code ' + c + '.');
+      say(pub ? 'Party created. It’s public: anyone in the Back Room can join it. Friends can also use the invite link or the code ' + c + '.' : 'Party created. It’s private: send your friends the invite link or the code ' + c + '.');
     } catch (err) {
       teardown(false);
       say(err.message || String(err), true);
@@ -388,8 +395,10 @@
       all.push({ uid: uid, n: myName(), c: colorOf(uid), j: myJ, pk: picked, go: lastGo });
       all.sort(function (a, b) { return a.j - b.j || (a.uid < b.uid ? -1 : 1); });
     }
+    var had = members.map(function (m) { return m.uid; }), came = all.filter(function (m) { return m.uid !== uid && had.indexOf(m.uid) < 0; });
     members = all;
     var L = leader();
+    if (had.length && came.length) say(came.map(function (m) { return m.n; }).join(', ') + ' joined the party.');
     if (L && lastLeader && L.uid !== lastLeader) say(L.uid === uid ? 'You’re the party leader now. Pick a game.' : L.n + ' is the party leader now.');
     lastLeader = L ? L.uid : '';
     syncPub();
@@ -435,7 +444,7 @@
     if (!confirm('Remove ' + m.n + ' from the party? They can\u2019t join it again for 10 minutes.')) return;
     var t = Math.round(now());
     kicked = kicked.filter(function (e) { return e.u !== u && e.t > t - KICK_TTL; }).concat({ u: u, t: t }).slice(-MAX);
-    refs.me.update({ kick: kicked, ts: t }).then(function () { say('Removed ' + m.n + ' from the party.'); }, function (e) { say('Couldn\u2019t remove them (' + (e.code || e.message) + ').', true); });
+    refs.me.update({ kick: kicked, ts: t }).then(function () { say('Removed ' + m.n + ' from the party.' + (pub ? ' Set the party to Private to stop other people joining.' : '')); }, function (e) { say('Couldn\u2019t remove them (' + (e.code || e.message) + ').', true); });
     drawParty();
   }
   // Room codes come from another member's node, so only accept the characters the games' invite links allow.
@@ -558,6 +567,9 @@
           '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span class="pty-h" style="margin:0">Code</span><span class="pty-code"></span><span class="pty-count"></span></div>' +
           '<div class="pty-acts"><button type="button" class="btn sm" data-a="chat" style="display:none">Party chat<span class="onl-n"></span></button><button type="button" class="btn sm" data-a="copy">Copy invite link</button><button type="button" class="btn sm" data-a="leave">Leave party</button></div>' +
         '</div>' +
+        '<div class="pty-pub" hidden><span class="pty-h" id="ptyWho">Who can join</span>' +
+          '<div class="pty-seg" role="radiogroup" aria-labelledby="ptyWho"><button type="button" role="radio" data-a="pub" data-v="1">Public</button><button type="button" role="radio" data-a="pub" data-v="0">Private</button></div>' +
+          '<span class="pty-wait"></span></div>' +
         '<ul class="pty-mem" aria-label="Party members"></ul>' +
         '<div class="pty-pick"></div>';
       $main.querySelector('.pty-code').textContent = code;
@@ -582,19 +594,22 @@
       if (window.BackRoomMiles) { try { var t = BackRoomMiles.peek(m.uid), tag = li.querySelector('.pty-tag'); if (t) { var tl = document.createElement('span'); tl.className = 'pty-tl'; tl.appendChild(BackRoomMiles.badge(t)); tag.parentNode.insertBefore(tl, tag); } } catch (e) {} }
     });
 
+    // Who can join: the leader's Public / Private choice, right under the party code.
+    var pubRow = $main.querySelector('.pty-pub');
+    pubRow.hidden = !lead;
+    if (lead) {
+      pubRow.querySelectorAll('[data-a="pub"]').forEach(function (b) { b.setAttribute('aria-checked', String((b.getAttribute('data-v') === '1') === pub)); });
+      pubRow.lastChild.textContent = 'Public: anyone in the Back Room can see this party and join it. Private: invite only, with your link or code.' +
+        (pub && store('ol:hidden') === '1' ? ' You’re hidden in Online, so nobody sees it until you show yourself there.' : '');
+    }
     var box = $main.querySelector('.pty-pick');
     if (lead) {
       if (box.getAttribute('data-mode') !== 'lead') {
         box.setAttribute('data-mode', 'lead');
         box.innerHTML = '<p class="pty-h">Pick a game</p><div class="pty-games" role="group" aria-label="Game">' +
           GAMES.map(function (g) { return '<button type="button" data-g="' + g.k + '" aria-pressed="false">' + esc(g.n) + (g.max < MAX ? ' <small>· up to ' + g.max + '</small>' : '') + '</button>'; }).join('') +
-          '</div><div class="pty-go"><button type="button" class="btn primary" data-a="play">▶ Play together</button><span class="pty-wait"></span></div>' +
-          '<div class="pty-pub"><button type="button" class="pty-sw" data-a="pub" role="switch" aria-checked="false"><i aria-hidden="true"></i><span></span></button><span class="pty-wait"></span></div>';
+          '</div><div class="pty-go"><button type="button" class="btn primary" data-a="play">▶ Play together</button><span class="pty-wait"></span></div>';
       }
-      var sw = box.querySelector('[data-a="pub"]');
-      sw.setAttribute('aria-checked', String(pub)); sw.lastChild.textContent = pub ? 'Public' : 'Private';
-      sw.nextSibling.textContent = (pub ? 'Public: other people in the Back Room can see what you’re playing and join in.' : 'Private: only your party can join its games.') +
-        (pub && store('ol:hidden') === '1' ? ' You’re hidden in Online, so nobody sees it until you show yourself there.' : '');
       if (picked && byKey(picked) && byKey(picked).max < n) picked = '';
       box.querySelectorAll('[data-g]').forEach(function (b) {
         var g = byKey(b.getAttribute('data-g'));
@@ -607,7 +622,7 @@
       box.setAttribute('data-mode', 'member');
       var g = L && byKey(L.pk), go = L && L.go, gg = go && byKey(go.g);
       var html = '<p class="pty-wait">' + (L ? esc(L.n) + (g ? ' has picked <b>' + esc(g.n) + '</b>.' : ' hasn’t picked a game yet.') : '') +
-        (L && L.pub ? ' This party is public: others in the Back Room can join your games.' : '') + '</p>';
+        (L ? (L.pub ? ' This party is public: anyone in the Back Room can join it.' : ' This party is private: invite only.') : '') + '</p>';
       if (gg && okRoom(go.r) && now() - (+go.t || 0) < 3 * 3600000)
         html += '<div class="pty-go"><button type="button" class="btn" data-a="rejoin">Join them in ' + esc(gg.n) + '</button><span class="pty-wait">Room ' + esc(go.r) + '</span></div>';
       box.innerHTML = html;
@@ -638,9 +653,10 @@
     } else if (a === 'play') playTogether();
     else if (a === 'pub') {
       var L0 = leader(); if (!refs || !L0 || L0.uid !== uid) return;
-      pub = !pub; store('party:pub', pub ? '1' : '0');
+      var v = t.getAttribute('data-v') === '1'; if (v === pub) return;
+      pub = v; store('party:pub', pub ? '1' : '0');
       syncPub(function (e) { say('Couldn’t save that (' + (e.code || e.message) + ').', true); });
-      say(pub ? 'Your party is public. People in the Back Room can see your game and join it.' : 'Your party is private. Only your party can join its games.');
+      say(pub ? 'Your party is public. Anyone in the Back Room can see it and join.' : 'Your party is private. Only people with your invite link or code can join, or people you let in.');
       drawParty();
     }
     else if (a === 'rejoin') {
@@ -715,15 +731,19 @@
       if (!pubOn || !L || L.uid !== uid || !lastGo || !lastRoom || lastRoom.k !== lastGo.g || lastRoom.r !== lastGo.r) return null;
       return { pp: code, pg: lastGo.g, pr: lastGo.r, pn: members.length, pt: lastGo.t };
     },
+    // A public party we lead, whether or not it's in a game: its code and size, for the Online node (social.js), so
+    // people in the Back Room get a Join party button.
+    get openParty() { var L = refs && leader(); return pubOn && L && L.uid === uid ? { pp: code, pn: members.length } : null; },
     // In a party its leader has set to Private: then nobody in it shows their game as joinable (social.js).
     get priv() { var L = refs && leader(); return !!(L && !(L.uid === uid ? pub : L.pub)); },
     games: GAMES.map(function (g) { return { k: g.k, n: g.n, d: g.d, pre: g.pre != null ? g.pre : g.k + '-', max: g.max }; }),
     create: function () { return (refs || busy ? Promise.resolve() : create()).then(function () { return refs ? code : ''; }); },
-    join: function (c) {
+    // pubOnly: joining a public party without an invite (the Online panel's Join party button); refused once it's Private.
+    join: function (c, pubOnly) {
       c = cleanCode(c);
       if (!c || busy || (refs && c === code)) return Promise.resolve(refs ? code : '');
       if (refs) teardown(true);
-      return join(c, false).then(function () { return refs ? code : ''; });
+      return join(c, false, !!pubOnly).then(function () { return refs ? code : ''; });
     },
     // Open a party game in room r and press its Play in room button, as a party launch does.
     launch: function (k, r) {
@@ -735,5 +755,5 @@
   };
 
   // Test hook for the automated checks; harmless in normal play.
-  if (navigator.webdriver) window.__party = { get code() { return code; }, get uid() { return uid; }, get members() { return members; }, get kicked() { return kicked; }, leader: leader, GAMES: GAMES, MAX: MAX, db: function () { return db; } };
+  if (navigator.webdriver) window.__party = { get code() { return code; }, get uid() { return uid; }, get members() { return members; }, get kicked() { return kicked; }, get pub() { return pub; }, get pubOn() { return pubOn; }, leader: leader, GAMES: GAMES, MAX: MAX, db: function () { return db; } };
 })();
