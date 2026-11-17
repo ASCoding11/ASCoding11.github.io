@@ -341,11 +341,12 @@
     if (c && Date.now() - c.t < TTL) return Promise.resolve(c.r);
     if (loading[uid]) return loading[uid];
     loading[uid] = waitParty().then(function (P) { return P.boot().then(function (b) {
+      var now = P.now ? P.now() : Date.now();
       return b.db.ref(PATH + '/' + uid).once('value').then(function (s) {
         // The same node carries the player's edited avatar (av); avatar.js checks it before using it.
         var v = s.val(), BA = window.BackRoomAvatar;
         if (BA && BA.learn && v && typeof v.av === 'string') { try { BA.learn(uid, v.av); } catch (e) {} }
-        return of(v, uid, P.now ? P.now() : Date.now());
+        return merged(b.db, uid, v, now).then(function (p) { return of(p || v, uid, now); }, function () { return of(v, uid, now); });
       });
     }); }).then(function (r) { return r; }, function () { return of(null, uid); }).then(function (r) {
       cache[uid] = { r: r, t: Date.now() }; delete loading[uid];
@@ -353,6 +354,32 @@
       return r;
     });
     return loading[uid];
+  }
+  // Accounts the admin merged into one person (a signed `a` in leaderboard.js's resets) earn miles together, as on the
+  // boards: the person's entry with every account merged into it folded in (leaderboard.js collapse). An account that was
+  // merged into another shows that person's miles. Resolves to null when nothing is merged (then the node alone counts).
+  // The resets are read at most once per TTL; each merged account's node is one more read.
+  var resetsAt = 0, resetsP = null;
+  function resets(db, B) {
+    if (!resetsP || Date.now() - resetsAt >= TTL) { resetsAt = Date.now(); resetsP = B.readResets(db).then(function (r) { return r || {}; }, function () { return B.resets || {}; }); }
+    return resetsP;
+  }
+  function merged(db, uid, v, now) {
+    var B = LB(); if (!B || !B.readResets || !B.collapse || !B.parse) return Promise.resolve(null);
+    return resets(db, B).then(function (rs) {
+      var root = rs[uid] && okUid(rs[uid].a) ? rs[uid].a : uid;
+      var kids = Object.keys(rs).filter(function (u) { return u !== root && rs[u].a === root; }).slice(0, 20);
+      if (root === uid && !kids.length) return null;
+      var ids = [root].concat(kids);
+      return Promise.all(ids.map(function (u) {
+        return u === uid ? Promise.resolve(v) : db.ref(PATH + '/' + u).once('value').then(function (s) { return s.val(); }, function () { return null; });
+      })).then(function (vals) {
+        var list = [];
+        vals.forEach(function (x, i) { var p = null; try { p = B.parse(ids[i], x, now); } catch (e) { p = null; } if (p) list.push(p); });
+        var out = B.collapse(list).filter(function (p) { return p.uid === root; })[0];
+        return out || null;
+      });
+    });
   }
   function peek(uid) {
     if (!okUid(uid)) return null;
