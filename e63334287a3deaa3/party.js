@@ -50,6 +50,7 @@
   if (document.getElementById('party')) return;
 
   var MAX = 8, STALE = 120000, BEAT = 15000, KICK_TTL = 10 * 60000;
+  var T = function (s, v) { return window.BackRoomLang ? BackRoomLang.t(s, v) : String(s).replace(/\{(\w+)\}/g, function (m, k) { return v && v[k] != null ? v[k] : m; }); };
   // Spanish (lang.js): this script's words.
   (function es(n) {
     if (!window.BackRoomLang) { if (n < 100) setTimeout(function () { es(n + 1); }, 100); return; }
@@ -87,7 +88,14 @@
       'Start with a surprise mix': 'Empezar con una mezcla sorpresa', 'Random': 'Al azar', 'You cancelled the vote.': 'Cancelaste la votación.',
       'Once someone joins, anyone in the party can start a vote on the next game.': 'Cuando alguien se una, cualquiera del grupo puede empezar una votación para el próximo juego.',
       'Anyone can start one: {n} seconds, most votes wins.': 'Cualquiera puede empezar una: {n} segundos, gana el más votado.',
-      'Everyone’s joining it now.': 'Todos están entrando.', 'to start the winner…': 'empiece el ganador…', 'Waiting for': 'Esperando a que',
+      '1 vote': '1 voto', '{c} votes': '{c} votos', ' · {a} of {b} voted': ' · votaron {a} de {b}', ' · tap a game to vote': ' · toca un juego para votar',
+      '. Most votes wins; a tie is picked at random.': '. Gana el más votado; un empate se decide al azar.',
+      'Random won, so the leader’s browser picked {g}.': 'Ganó Al azar, así que el navegador del líder eligió {g}.',
+      '{g} tied with 1 vote and was picked at random.': '{g} empató con 1 voto y salió elegido al azar.', '{g} tied with {n} votes and was picked at random.': '{g} empató con {n} votos y salió elegido al azar.',
+      '{g} won with 1 vote.': '{g} ganó con 1 voto.', '{g} won with {n} votes.': '{g} ganó con {n} votos.', ' Everyone’s joining it now.': ' Todos están entrando.',
+      'Waiting for your browser to start the winner…': 'Esperando que tu navegador empiece el ganador…', 'Waiting for {n}’s browser to start the winner…': 'Esperando que el navegador de {n} empiece el ganador…',
+      'Waiting for the leader to start the winner…': 'Esperando que el líder empiece el ganador…', '{n} started a vote on the next game.': '{n} empezó una votación para el próximo juego.',
+      '{n} started a vote first, so that one counts.': '{n} empezó una votación antes, así que cuenta esa.', 'No game fits a party of {n}.': 'Ningún juego entra para un grupo de {n}.',
       'You’re the leader: pick a game and press Play together to bring everyone in.': 'Eres el líder: elige un juego y toca Jugar juntos para traer a todos.',
       'Waiting for the leader to pick a game. When they start, you’ll join them automatically.': 'Esperando a que el líder elija un juego. Cuando empiece, entrarás automáticamente.',
       'Party chat': 'Chat del grupo', 'Copy invite link': 'Copiar enlace de invitación', 'Leave party': 'Salir del grupo', 'Who can join': 'Quién puede unirse',
@@ -99,7 +107,8 @@
         'Público: cualquiera en The Back Room puede ver este grupo y unirse. Privado: solo con invitación, con tu enlace o código. Estás oculto en En línea, así que nadie lo ve hasta que te muestres ahí.',
       'Pick a game': 'Elige un juego', 'Game': 'Juego', '· up to {n}': '· hasta {n}', '▶ Play together': '▶ Jugar juntos',
       'Everyone joins {g} in a new room.': 'Todos entran a {g} en una sala nueva.', 'Choose one of the games above.': 'Elige uno de los juegos de arriba.',
-      '{n} has picked': '{n} eligió', '{n} hasn’t picked a game yet.': '{n} todavía no eligió un juego.',
+      '{n} has picked {g}.': '{n} eligió {g}.', '{n} hasn’t picked a game yet.': '{n} todavía no eligió un juego.', 'Room {r}': 'Sala {r}',
+      ' This party is public: anyone in the Back Room can join it.': ' Este grupo es público: cualquiera en The Back Room puede unirse.', ' This party is private: invite only.': ' Este grupo es privado: solo con invitación.',
       '. This party is public: anyone in the Back Room can join it.': '. Este grupo es público: cualquiera en The Back Room puede unirse.', '. This party is private: invite only.': '. Este grupo es privado: solo con invitación.',
       '{n} hasn’t picked a game yet. This party is public: anyone in the Back Room can join it.': '{n} todavía no eligió un juego. Este grupo es público: cualquiera en The Back Room puede unirse.',
       '{n} hasn’t picked a game yet. This party is private: invite only.': '{n} todavía no eligió un juego. Este grupo es privado: solo con invitación.',
@@ -760,11 +769,18 @@
         '<div class="pty-vopts" role="group" aria-label="Vote on next game">' + V.o.map(function (k) {
           var c = cnt.c[k], win = res && (res.r ? k === 'rnd' : k === res.w);
           return '<button type="button" data-vo="' + esc(k) + '" aria-pressed="' + (k === mineC) + '"' + (open ? '' : ' disabled') + (win ? ' class="win"' : '') +
-            ' style="--p:' + (cnt.voted ? Math.round(c * 100 / cnt.voted) : 0) + '%" aria-label="' + esc(voteName(k)) + ', ' + c + (c === 1 ? ' vote' : ' votes') + '"><span>' + esc(voteName(k)) + '</span><b>' + c + '</b></button>';
+            ' style="--p:' + (cnt.voted ? Math.round(c * 100 / cnt.voted) : 0) + '%" aria-label="' + esc(voteName(k)) + ', ' + T(c === 1 ? '1 vote' : '{c} votes', { c: c }) + '"><span>' + esc(voteName(k)) + '</span><b>' + c + '</b></button>';
         }).join('') + '</div><div class="pty-go"><span class="pty-wait">';
-      if (open) html += (V.by === uid ? 'You started this vote' : esc(V.n) + ' started this vote') + ' · ' + cnt.voted + ' of ' + n + ' voted' + (mineC ? '' : ' · tap a game to vote') + '. Most votes wins; a tie is picked at random.';
-      else if (res) html += (res.r ? 'Random won, so the leader’s browser picked <b>' + esc(voteName(res.w)) + '</b>.' : '<b>' + esc(voteName(res.w)) + '</b> ' + (res.tie ? 'tied with ' + res.n + (res.n === 1 ? ' vote' : ' votes') + ' and was picked at random.' : 'won with ' + res.n + (res.n === 1 ? ' vote.' : ' votes.'))) + ' Everyone’s joining it now.';
-      else html += 'Waiting for ' + (L && L.uid === uid ? 'your browser' : (L ? esc(L.n) + '’s browser' : 'the leader')) + ' to start the winner…';
+      // (built with T(), so the names stay as they are and the words follow the language; redrawn when it changes)
+      if (open) html += (V.by === uid ? T('You started this vote') : T('{n} started this vote', { n: esc(V.n) })) + T(' · {a} of {b} voted', { a: cnt.voted, b: n }) +
+        (mineC ? '' : T(' · tap a game to vote')) + T('. Most votes wins; a tie is picked at random.');
+      else if (res) {
+        var wg = '<b>' + esc(voteName(res.w)) + '</b>';
+        html += (res.r ? T('Random won, so the leader’s browser picked {g}.', { g: wg })
+          : res.tie ? T(res.n === 1 ? '{g} tied with 1 vote and was picked at random.' : '{g} tied with {n} votes and was picked at random.', { g: wg, n: res.n })
+          : T(res.n === 1 ? '{g} won with 1 vote.' : '{g} won with {n} votes.', { g: wg, n: res.n })) + T(' Everyone’s joining it now.');
+      }
+      else html += L && L.uid === uid ? T('Waiting for your browser to start the winner…') : L ? T('Waiting for {n}’s browser to start the winner…', { n: esc(L.n) }) : T('Waiting for the leader to start the winner…');
       html += '</span>' + (open && V.by === uid ? '<button type="button" class="btn sm" data-a="vote-cancel">Cancel vote</button>' : '') + '</div>';
     } else if (vote.setup) {
       var s = vote.setup, fit = voteFit();
@@ -801,6 +817,8 @@
   var drawn = '';
   function render() { if (code && refs) drawParty(); else drawIdle(); }
 
+  // A change of language redraws the panel: the lines put together with T() are rebuilt in the new language.
+  document.addEventListener('backroom:lang', function () { drawn = ''; if (vote) vote.sig = ''; try { render(); } catch (e) {} });
   function drawIdle() {
     $sub.textContent = 'Group up with up to ' + MAX + ' friends, then the leader picks a game and everyone lands in the same room.';
     if (drawn !== 'idle') {
@@ -886,10 +904,10 @@
     } else {
       box.setAttribute('data-mode', 'member');
       var g = L && byKey(L.pk), go = L && L.go, gg = go && byKey(go.g);
-      var html = '<p class="pty-wait">' + (L ? esc(L.n) + (g ? ' has picked <b>' + esc(g.n) + '</b>.' : ' hasn’t picked a game yet.') : '') +
-        (L ? (L.pub ? ' This party is public: anyone in the Back Room can join it.' : ' This party is private: invite only.') : '') + '</p>';
+      var html = '<p class="pty-wait">' + (L ? (g ? T('{n} has picked {g}.', { n: esc(L.n), g: '<b>' + esc(g.n) + '</b>' }) : T('{n} hasn’t picked a game yet.', { n: esc(L.n) })) : '') +
+        (L ? T(L.pub ? ' This party is public: anyone in the Back Room can join it.' : ' This party is private: invite only.') : '') + '</p>';
       if (gg && okRoom(go.r) && now() - (+go.t || 0) < 3 * 3600000)
-        html += '<div class="pty-go"><button type="button" class="btn" data-a="rejoin">Join them in ' + esc(gg.n) + '</button><span class="pty-wait">' + (window.BackRoomLang && BackRoomLang.get() === 'es' ? 'Sala ' : 'Room ') + esc(go.r) + '</span></div>';
+        html += '<div class="pty-go"><button type="button" class="btn" data-a="rejoin">' + T('Join them in {g}', { g: esc(gg.n) }) + '</button><span class="pty-wait">' + T('Room {r}', { r: esc(go.r) }) + '</span></div>';
       box.innerHTML = html;
     }
     drawVote();
