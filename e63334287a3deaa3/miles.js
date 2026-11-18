@@ -114,7 +114,7 @@
     'puffer-party': { wins: [20, 2000], answers: [1, 1000] },
     'daily': { done: [5, 2000], streak: [10, 1000] }   // every daily puzzle at once, through the Daily Puzzles page's counts
   };
-  // The site's two owners, by account uid (public ids: the key of each person's leaderboard node and Online node),
+  // The site's owners, by account uid (public ids: the key of each person's leaderboard node and Online node),
   // always shown as Captain. To add someone, add their uid as a string with a comment saying whose it is; to remove
   // someone, delete their line. Find a uid on the admin page (Stats, the row's "Account" id, or the export) or in the
   // leaderboard's rooms/lb-all/players keys. Never match on names: anyone can type any name.
@@ -124,7 +124,10 @@
     'QaJlsT7SVnf85IK1PRHFpR9Zbln2',   // Nico ("nico")
     'lxvfrYnKqAQ7qcTCnh1hPX1nYxs2',   // Arjun (Google sign-in, "Ascoding")
     'dUdkRLW9dKfhchtQuNepDRrQ95n1',   // Arjun ("Ascoding")
-    'z3ATmlobzgfIp5suh8ITz5Im2dH2'    // Arjun ("Arjun")
+    'z3ATmlobzgfIp5suh8ITz5Im2dH2',   // Arjun ("Arjun")
+    'yFxY9DKD3YaFpNaKHs6MB0nFOc42',   // Ian ("Sxmpley")
+    'JCQ5JucUFNUw03DGVkXfbrPYmVz1',   // Ian ("Sxmpley")
+    'adtezwSQqGW1AQ6kB70JQicZy3A2'    // Ian ("sxmpley")
   ];
   // Vice captains, by account uid, the same way: always shown as Vice Captain (between Private Jet and Captain).
   // Add or remove them exactly like OWNERS above; someone in both lists shows as Captain.
