@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
+<script src="/e63334287a3deaa3/captains.js"></script> <!-- who may see the Garage while it is not public (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#8fd3ff">
 <title>Rumble Karts – Free Multiplayer Kart Battle Game Online</title>
@@ -1065,7 +1066,7 @@ function particle(o) {
   if (particles.length > 700) return;
   let m = ppool.pop();
   if (!m) m = new THREE.Mesh(cubeGeo, new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false }));
-  m.geometry = o.disc ? discGeo : o.ball ? ballGeo : cubeGeo;
+  m.geometry = o.geo || (o.disc ? discGeo : o.ball ? ballGeo : cubeGeo);
   m.material.color.set(o.color); m.material.opacity = o.op == null ? 1 : o.op;
   m.position.set(o.x, o.y, o.z); m.scale.setScalar(o.size); if (o.disc) m.rotation.set(0, 0, 0); else m.rotation.set(Math.random() * 3, Math.random() * 3, 0);
   scene.add(m);
@@ -1254,7 +1255,7 @@ function turkeyParts() {
 }
 // show the bird or the usual body on one kart (the bird is only built the first time it is needed)
 function dressKart(P) {
-  const on = turkeyOn();
+  const on = turkeyOn() && !P.cos;           // a kart dressed in the Garage keeps its own body
   if (on && !P.turkey) {
     const G = turkeyParts(); P.turkey = new THREE.Group();
     for (const [geo, mat] of [[G.fixed, turkeyMat], [G.painted, P.paint]]) { const m = new THREE.Mesh(geo, mat); m.castShadow = true; if (P.ghosted) { m.userData.mat = mat; m.material = ghostMat; } P.turkey.add(m); }
@@ -1351,6 +1352,49 @@ function drawLabel(s) {
   t.needsUpdate = true;
 }
 
+// ---------- Cosmetics: the Garage (hidden; README, "Garage") ----------
+// Drivers, kart bodies, wheels, horns and wreck effects, all drawn by garage.js beside this page. It is fetched only
+// when something needs it: the Garage is open to this player (garageOn), or a kart in the room wears something. Until
+// then GARAGE is null, every kart's cos is null and each hook below and in the game does what it always did.
+// garageOn() is true while RUMBLE_PUBLIC is, for the site's captains (../captains.js: the account signed in is in
+// miles.js's captain list), and for testing with ?garage=1 on localhost or in an automated browser only (remembered for
+// the browser tab; ?garage=0 forgets it). On the live site the address does nothing. To open it to everyone, set
+// RUMBLE_PUBLIC to true: that one line is all it takes. A captain's answer arrives a moment after the page loads and
+// goes away again if they sign out (garageSync). Captains get everything free to wear; nothing is bought here.
+const RUMBLE_PUBLIC = false;
+const CAPTAINS = window.BackRoomCaptains || null;
+const garageOn = () => RUMBLE_PUBLIC || !!(CAPTAINS && CAPTAINS.may(false, 'garage', 'rumble-garage'));
+// What a kart wears: [driver, kart, wheels, wreck effect, horn], 0 for the usual one, sent as the player's ck field
+// ('3.12.0.2.1'). COS_N is how many of each this page knows: a number from a newer page draws the usual one.
+const COS_N = [17, 15, 8, 8, 5];
+const cosOf = v => {
+  if (typeof v !== 'string' || !/^\d{1,2}(\.\d{1,2}){0,4}$/.test(v)) return null;
+  const a = v.split('.'), c = []; let any = 0;
+  for (let i = 0; i < 5; i++) { const n = +a[i] | 0; c.push(n > 0 && n <= COS_N[i] ? n : 0); any |= c[i]; }
+  return any ? c : null;
+};
+const cosStr = c => c ? c.join('.').replace(/(\.0)+$/, '') : '';
+let GARAGE = null, garageAsked = false;
+function garageLoad() {
+  if (garageAsked) return; garageAsked = true;
+  const s = document.createElement('script'); s.src = 'garage.js'; s.async = true;
+  s.onerror = () => { garageAsked = false; s.remove(); };
+  s.onload = () => {
+    try {
+      GARAGE = window.RumbleGarage({ THREE, cubeGeo, ballGeo, wheelGeo, mergeGeo, kartParts, turkeyMat, ghostMat, dressKart, particle, ringFX, Snd, S, Net, karts, rand, clamp, lerp, rrect, shakeFrom, store, cosOf, cosStr, setCos, renderer, player, COLORS, $, esc, showNote, KB,
+        get on() { return garageOn(); }, get isTouch() { return isTouch; } });
+      for (const k of karts.values()) if (k.cos) GARAGE.dress(k);
+      if (S.me && S.me.isMe && !S.me.cos) { const c = myCos(); if (c) setCos(S.me, c); }
+      garageSync();
+    } catch (err) { console.error(err); }
+  };
+  document.head.appendChild(s);
+}
+function setCos(k, c) { k.cos = c; if (GARAGE) GARAGE.dress(k); else if (c) garageLoad(); }
+const myCos = () => GARAGE && garageOn() ? GARAGE.mine() : null;
+function garageSync() { if (garageOn()) garageLoad(); if (GARAGE) GARAGE.access(); }
+addEventListener('DOMContentLoaded', () => { garageSync(); if (CAPTAINS) CAPTAINS.onChange(garageSync); });
+
 const karts = new Map();
 
 class Kart {
@@ -1368,6 +1412,7 @@ class Kart {
     this.whip = null; this.whipTele = 0; this.whipJolt = 0;                                            // The Angry Whip: lift in progress, telegraph glow, crack jolt
     this.gg = 0; this.ggCd = 0; this.ggTip = -1; this.zoneT = 0; this.spMask = 0;
     this.parts = buildKart(color); this.obj = this.parts.group; this.obj.visible = false; scene.add(this.obj);
+    this.cos = null; this.ck = ''; this.taunt = null; if (opts.cos) setCos(this, opts.cos);   // Garage looks (see Cosmetics below)
     this.blob = new THREE.Mesh(blobGeo, blobMat()); this.blob.visible = false; scene.add(this.blob);
     this.label = makeLabel(name, color); this.label.position.set(0, 3.6, 0); this.label.visible = !this.isMe; this.obj.add(this.label);
     karts.set(id, this);
@@ -1618,6 +1663,7 @@ class Kart {
       if (this.whip) { whipSlamFX(this.x, this.z); this.y = 0; }     // its own computer slammed it before this one's lift ran out (clocks differ a little): finish it here too
       this.whip = null; this.whipTele = 0; this.goo = 0;
     }
+    const ck = typeof v.ck === 'string' ? v.ck : ''; if (ck !== this.ck) { this.ck = ck; setCos(this, cosOf(ck)); }   // what it wears from the Garage
     if (typeof v.n === 'string' && v.n !== this.name) { this.name = v.n.slice(0, 16); this.label.userData.name = this.name; drawLabel(this.label); }
     // Measure how late updates arrive and keep just enough delay to always have two to blend between.
     const late = Net.now() - v.ts;
@@ -1654,6 +1700,7 @@ class Kart {
   }
   updateVisual(dt) {
     const o = this.obj, P = this.parts;
+    if (this.taunt && GARAGE) GARAGE.tauntStep(this, dt);
     o.visible = this.blob.visible = !this.dead;
     if (this.dead) return;
     // caught by the whip: hang in the air, jolt with each crack, then drop (every computer runs this from the lift's time stamp)
@@ -2741,7 +2788,9 @@ const Net = {
     this.refs.round.transaction(cur => { if (cur && cur.id !== id) return; return { id: id + 1, ends: now + ROUND_MS, st: now, m: S.selMode }; }).catch(() => {});
   },
   stateOf(k) {
-    return { n: k.name, c: k.color, x: r2(k.x), z: r2(k.z), h: r3(k.h), s: r2(k.fwd), st: r2(k.steerIn), hp: Math.max(0, Math.round(k.hp)), sh: k.shield > 0 ? 1 : 0, tb: k.turbo > 0 ? 1 : 0, sp: k.spikes > 0 ? 1 : 0, gv: (k.item === 'gandiva' || (S.gm === 'gun' && GG_LADDER[k.gg] === 'gandiva')) ? 1 : 0, fz: k.frozen > 0 ? 1 : 0, gh: k.ghost > 0 ? 1 : 0, tn: k.tiny > 0 ? 1 : 0, d: k.dead ? 1 : 0, sc: k.score, sm: k.spMask || 0, sr: S.round ? S.round.id : 0, ts: Math.round(this.now()) };
+    const o = { n: k.name, c: k.color, x: r2(k.x), z: r2(k.z), h: r3(k.h), s: r2(k.fwd), st: r2(k.steerIn), hp: Math.max(0, Math.round(k.hp)), sh: k.shield > 0 ? 1 : 0, tb: k.turbo > 0 ? 1 : 0, sp: k.spikes > 0 ? 1 : 0, gv: (k.item === 'gandiva' || (S.gm === 'gun' && GG_LADDER[k.gg] === 'gandiva')) ? 1 : 0, fz: k.frozen > 0 ? 1 : 0, gh: k.ghost > 0 ? 1 : 0, tn: k.tiny > 0 ? 1 : 0, d: k.dead ? 1 : 0, sc: k.score, sm: k.spMask || 0, sr: S.round ? S.round.id : 0, ts: Math.round(this.now()) };
+    if (k.cos) o.ck = cosStr(k.cos);           // only a kart dressed in the Garage sends this; older pages ignore it
+    return o;
   },
   publish(dt) {
     if (!this.online || !S.me) return;
@@ -2794,6 +2843,7 @@ function handleEvent(e) {
       break;
     }
     case 'box': hideBox(e.i); break;
+    case 'hn': if (GARAGE) GARAGE.heard(e); break;      // a horn from the Garage (older pages ignore it)
     case 'hit': {
       if (e.p) { const p = projectiles.find(q => q.id === e.p); if (p) projectileImpact(p, p.x, p.z, null, true); }
       const k = karts.get(e.v); if (k && k.local) {
@@ -2819,7 +2869,8 @@ function handleEvent(e) {
       break;
     }
     case 'kill': {
-      explodeFX(e.x, e.z, 1.35);
+      if (!(GARAGE && GARAGE.wreck(e))) explodeFX(e.x, e.z, 1.35);
+      if (GARAGE) GARAGE.onKill(e);
       addFeed(e);
       if (S.me && e.v === S.me.id && window.BackRoomStats) BackRoomStats.add('deaths', 1);
       if (S.me && e.v === S.me.id && S.round) S.me.rdK === S.round.id ? S.me.rdN++ : (S.me.rdK = S.round.id, S.me.rdN = 1);   // this round's deaths, for the results' K/D
@@ -3108,9 +3159,9 @@ function startAttract() {
 }
 function startOffline() {
   clearWorld(); S.mode = 'offline'; S.mapOff = Math.floor(Math.random() * MAPS.length);
-  S.me = new Kart('me', player.name, player.color, { local: true, me: true });
+  S.me = new Kart('me', player.name, player.color, { local: true, me: true, cos: myCos() });
   const others = COLORS.filter(c => c !== player.color);
-  pickBotNames(6).forEach((n, i) => new Kart('bot' + i, n, others[i % others.length], { local: true, ai: true }));
+  pickBotNames(6).forEach((n, i) => new Kart('bot' + i, n, others[i % others.length], { local: true, ai: true, cos: GARAGE && garageOn() ? GARAGE.botCos() : null }));
   enterHud();
 }
 async function startOnline() {
@@ -3121,7 +3172,7 @@ async function startOnline() {
     Snd.init();
     const uid = await Net.connect(room, player.name, player.color);
     clearWorld(); S.mode = 'online';
-    S.me = new Kart(uid, player.name, player.color, { local: true, me: true });
+    S.me = new Kart(uid, player.name, player.color, { local: true, me: true, cos: myCos() });
     Net.listen();
     setTimeout(() => { if (S.mode === 'online') Net.adoptMode(); }, 1600);
     try { history.replaceState(null, '', '#' + Net.room); } catch (_) {}
@@ -3191,6 +3242,7 @@ addEventListener('keydown', e => {
   keys.add(k);
   if (KB.is('fire', k) && !e.repeat && S.mode !== 'attract') { fireQueued = true; e.preventDefault(); }
   if (KB.is('mute', k)) toggleMute();
+  if (k === 'KeyH' && !e.repeat && GARAGE && garageOn() && !KB.actionsFor(k).length) GARAGE.honk();   // the Garage's horn (H, unless H is bound to something)
   if (k === 'Escape' && S.mode !== 'attract') leaveToMenu();
 });
 $('#bKeys').addEventListener('click', () => KB.open());
@@ -3539,7 +3591,7 @@ $('#bMute').addEventListener('click', toggleMute);
 addEventListener('pagehide', () => Net.disconnect());
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { for (const k of karts.values()) drawLabel(k.label); });
 
-window.__rumble = { scene, camera, whips, rollItem, whipTarget, drops, zone, zoneInfo, GG_LADDER, MODES, creditKill, tornadoes, GB_R, ITEMS, poppers, buffaloes, karts, S, mines, projectiles, simulate, Kart, Net, Q, booms, gbombs, setMap, MAPS, OB_BOX, OB_CIR, PADS, BOX_POS, SPAWNS, ZONES, pointBlocked, zoneAt, lavaNear, world };   // handy for debugging in the console
+window.__rumble = { get GARAGE() { return GARAGE; }, get garageOn() { return garageOn(); }, renderer, cosOf, cosStr, setCos, handleEvent, scene, camera, whips, rollItem, whipTarget, drops, zone, zoneInfo, GG_LADDER, MODES, creditKill, tornadoes, GB_R, ITEMS, poppers, buffaloes, karts, S, mines, projectiles, simulate, Kart, Net, Q, booms, gbombs, setMap, MAPS, OB_BOX, OB_CIR, PADS, BOX_POS, SPAWNS, ZONES, pointBlocked, zoneAt, lavaNear, world };   // handy for debugging in the console
 startAttract();
 requestAnimationFrame(frame);
 })();
