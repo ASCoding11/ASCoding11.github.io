@@ -4196,8 +4196,8 @@ const EDIT_RANGE=6,EDIT_TAP=.25;
 let edit=null,editAim=null,editAimT=0,editPaint=-1,editLatch=false,editFingers=0;
 // editHold: the edit being held open with Edit on release (when it opened, the shape it started from, what holds it: a
 // key code or 'touch', the tile picked as it opened and how many tiles changed since). A quick tap (under EDIT_TAP s) that
-// did no more than pick that first tile undoes it and leaves the grid open (Edit again confirms); a longer hold that
-// changed nothing cancels. The setting is saved as driftfall:editOnRelease ('1' / '0').
+// did no more than pick that first tile leaves the grid open, that tile still picked (Edit again confirms); a longer
+// hold that changed nothing cancels. The setting is saved as driftfall:editOnRelease ('1' / '0').
 let editRelease=store.get('editOnRelease','1')!=='0',editHold=null;
 let editHelp=store.get('editHelp','')==='1';   // the fuller help line has been shown (it goes after your first confirmed edit)
 function setEditRelease(on){editRelease=!!on;editHold=null;store.set('editOnRelease',editRelease?1:0);for(const el of [$('editRelease'),$('editReleaseP')])if(el)el.checked=editRelease;lastHud=''}
@@ -4333,7 +4333,7 @@ function editKeyUp(code){
   const h=editHold;
   if(!h||!edit||(code&&h.code!==code))return;
   editHold=null;lastHud='';
-  if((performance.now()-h.t0)/1000<EDIT_TAP&&h.n===0){if(edit.mask!==h.mask0){edit.mask=h.mask0;editDraw()}editPaint=-1}   // a tap: the grid stays open
+  if((performance.now()-h.t0)/1000<EDIT_TAP&&h.n===0)editPaint=-1;   // a tap: the grid stays open (with the first tile still picked)
   else if(edit.mask!==h.mask0)confirmEdit(false);
   else closeEdit();
 }

@@ -1872,8 +1872,8 @@ const EDIT_RANGE=6,EDIT_V=1;
 let edit=null,editAim=null,editAimT=0,editPaint=-1,editNote='',editNoteT=0,editLatch=false,editFingers=0;
 // editHold is the edit being held open (Edit on release): when it opened, the shape it started from, what holds it (a key
 // code, or 'touch' for the button), the tile picked as it opened (auto) and how many tiles have changed since (n). A quick
-// tap (under EDIT_TAP s) that did no more than pick that first tile undoes it and leaves the grid open as before (Edit
-// again confirms); a longer hold that changed nothing cancels. Saved as br1v1-editOnRelease ('1' / '0'); the first
+// tap (under EDIT_TAP s) that did no more than pick that first tile leaves the grid open as before, that tile still
+// picked (Edit again confirms); a longer hold that changed nothing cancels. Saved as br1v1-editOnRelease ('1' / '0'); the first
 // version's br1v1-editRelease is still read if the new key isn't there.
 let editRelease=store.get('editOnRelease',store.get('editRelease','1'))!=='0',editHold=null;
 const EDIT_TAP=.25;
@@ -2011,7 +2011,7 @@ function editKeyUp(code){
   const h=editHold;
   if(!h||!edit||(code&&h.code!==code))return;
   editHold=null;
-  if((performance.now()-h.t0)/1000<EDIT_TAP&&h.n===0){if(edit.mask!==h.mask0){edit.mask=h.mask0;editDraw()}editPaint=-1}   // a tap: the grid stays open
+  if((performance.now()-h.t0)/1000<EDIT_TAP&&h.n===0)editPaint=-1;   // a tap: the grid stays open (with the first tile still picked)
   else if(edit.mask!==h.mask0)confirmEdit(false);
   else closeEdit();
 }
@@ -3179,7 +3179,7 @@ if(navigator.webdriver)window.__br={get state(){return state},get online(){retur
   fire(){const w=WEAPONS[player.wi];updateCamera(0);playerShoot();player.ammo[player.wi]=w.mag;player.cd=0},
   setWeapon(i){switchWeapon(player,i);player.switchT=0;mode='combat'},
   // find tags: the round clock they run on, and a shift (seconds) so a test need not wait a minute and a half
-  get edit(){return edit},get editAim(){return editAim},get editHold(){return editHold},get editRelease(){return editRelease},get editLatch(){return editLatch},get editHelp(){return editHelp},set editHelp(v){editHelp=!!v},setEditRelease,edName,edTileAt,edPoint,screenRay,editKeyUp,openEdit,closeEdit,confirmEdit,editKey,editTile,editTarget,editOn,canEdit,updatePlayer,updateCamera,EDIT:{range:EDIT_RANGE,v:EDIT_V,tap:EDIT_TAP},
+  get edit(){return edit},get editAim(){return editAim},get editHold(){return editHold},get editRelease(){return editRelease},get editLatch(){return editLatch},get editHelp(){return editHelp},set editHelp(v){editHelp=!!v},tAct,setEditRelease,edName,edTileAt,edPoint,screenRay,editKeyUp,openEdit,closeEdit,confirmEdit,editKey,editTile,editTarget,editOn,canEdit,updatePlayer,updateCamera,EDIT:{range:EDIT_RANGE,v:EDIT_V,tap:EDIT_TAP},
   get findT(){return findClock()},get findShift(){return findShift},set findShift(v){findShift=+v||0},findEnv,tags:()=>tagEls,FIND:{at:FIND_AT,every:FIND_EVERY,show:FIND_SHOW}};
 
 setDiff(diffKey);setSens(sens);
