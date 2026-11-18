@@ -232,6 +232,8 @@
   var GAMES = {
     boostball: { name: 'Boostball', prefix: 'bb', slots: [['decal', 'Decals'], ['trail', 'Boost trails'], ['goal', 'Goal explosions'], ['topper', 'Antenna toppers'], ['hat', 'Roof hats'], ['wheels', 'Wheels'], ['engine', 'Engine sounds']] },
     slipstream: { name: 'Slipstream', prefix: 'ss', slots: [['sponsor', 'Sponsors'], ['livery', 'Liveries'], ['helmet', 'Helmets'], ['effect', 'Boost effects'], ['smoke', 'Tyre smoke'], ['podium', 'Podium celebrations']] },
+    coil: { name: 'Coil', prefix: 'cl', slots: [['color', 'Colours'], ['animal', 'Animal patterns'], ['design', 'Design patterns'], ['object', 'Object snakes'], ['head', 'Heads'], ['trail', 'Trails'], ['burst', 'Death bursts']] },
+    updraft: { name: 'Updraft', prefix: 'up', slots: [['skin', 'Skins'], ['pack', 'Backpacks'], ['reward', 'Height rewards'], ['scream', 'Fall screams'], ['trail', 'Plummet trails']] },
     'rumble-karts': { name: 'Rumble Karts', prefix: 'rk', slots: [['driver', 'Drivers'], ['kart', 'Karts'], ['wheels', 'Wheels'], ['horn', 'Horns'], ['wreck', 'Wreck effects']] },
   };
   var ITEM_PRICE = { common: 6, rare: 10, epic: 16, legendary: 40 };
@@ -410,6 +412,128 @@
   I('slipstream', 'smoke', 5, 'Gold tyre smoke', 'common', '#FFCC47', '#FFF0B0', 'Gold smoke from the tyres.');
   I('slipstream', 'podium', 1, 'Confetti Podium', 'common', '#FF4FA3', '#3FD2FF', 'Confetti over the results when you finish in the top three.');
   I('slipstream', 'podium', 2, 'Fireworks Podium', 'rare', '#FFD21F', '#B06BFF', 'Fireworks over the results when you finish in the top three.');
+  // ---- Coil items ----
+  // Coil: colours, patterns (one pattern at a time from animals, designs and object snakes), heads, a trail and death bursts,
+  // drawn by coil/wardrobe.js by slot and number. Captains wear them free in the game's Wardrobe; none is sold yet.
+  I('coil', 'color', 1, 'Cherry', 'common', '#FF4D5E', '#FF4D5E', 'A bright cherry red.');
+  I('coil', 'color', 2, 'Tangerine', 'common', '#FF8C2E', '#FF8C2E', 'Orange, like the fruit.');
+  I('coil', 'color', 3, 'Lemon', 'common', '#FFE14D', '#FFE14D', 'Sunny yellow from nose to tail.');
+  I('coil', 'color', 4, 'Grass', 'common', '#5FD65A', '#5FD65A', 'Fresh green.');
+  I('coil', 'color', 5, 'Aqua', 'common', '#3FE0D0', '#3FE0D0', 'Swimming-pool blue-green.');
+  I('coil', 'color', 6, 'Ocean', 'common', '#3F8CFF', '#3F8CFF', 'Deep, friendly blue.');
+  I('coil', 'color', 7, 'Violet', 'common', '#9A6BFF', '#9A6BFF', 'A soft purple.');
+  I('coil', 'color', 8, 'Bubblegum', 'common', '#FF7CC8', '#FF7CC8', 'Pink and a little bit chewy.');
+  I('coil', 'color', 9, 'Snow', 'common', '#EEF4FF', '#EEF4FF', 'Almost white, with a cool tint.');
+  I('coil', 'color', 10, 'Cocoa', 'common', '#C48452', '#C48452', 'Warm milk-chocolate brown.');
+  I('coil', 'color', 11, 'Gold', 'rare', '#FFC531', '#FFC531', 'Shiny and rich-looking.');
+  I('coil', 'color', 12, 'Slate', 'common', '#9AA8C4', '#9AA8C4', 'A calm blue-grey.');
+  I('coil', 'color', 13, 'Neon Green', 'rare', '#39FF6A', '#B8FFC8', 'Glows green, with a bright edge.');
+  I('coil', 'color', 14, 'Neon Pink', 'rare', '#FF3FD2', '#FFB8F0', 'Glows hot pink.');
+  I('coil', 'color', 15, 'Neon Blue', 'rare', '#2FD8FF', '#B8F2FF', 'Glows electric blue.');
+  I('coil', 'color', 16, 'Neon Orange', 'rare', '#FF7A1A', '#FFC89A', 'Glows like a traffic cone at night.');
+  I('coil', 'color', 17, 'Neon Yellow', 'rare', '#F4FF3A', '#FBFFB8', 'Glows highlighter yellow.');
+  I('coil', 'color', 18, 'Sunrise', 'rare', '#FFD84A', '#FF4D6D', 'Yellow at the head fading to pink at the tail.');
+  I('coil', 'color', 19, 'Deep Sea', 'rare', '#3FE6FF', '#4450E8', 'Shallow blue at the head, deep blue at the tail.');
+  I('coil', 'color', 20, 'Mint Grape', 'rare', '#3FF0B6', '#9B5BFF', 'Mint fading into grape.');
+  I('coil', 'color', 21, 'Fireball', 'rare', '#FFE14D', '#E8281E', 'Yellow-hot at the head, red at the tail.');
+  I('coil', 'color', 22, 'Cotton Candy', 'rare', '#FF9AD5', '#8FD8FF', 'Pink fading to sky blue.');
+  I('coil', 'color', 23, 'Forest', 'rare', '#C6F04A', '#1F9A5E', 'Lime at the head, pine at the tail.');
+  I('coil', 'color', 24, 'Rainbow', 'epic', '#FF5F5F', '#5FC8FF', 'Every colour in bands down the body.');
+  I('coil', 'color', 25, 'Rainbow Flow', 'epic', '#FFE45F', '#A77BFF', 'A rainbow that keeps flowing down to the tail.');
+  I('coil', 'animal', 1, 'Python', 'rare', '#D9B97A', '#7D5130', 'Tan with brown saddles down the back.');
+  I('coil', 'animal', 2, 'Rattlesnake', 'rare', '#C7AE82', '#5A3D24', 'A chain of diamonds, and a rattle at the end.');
+  I('coil', 'animal', 3, 'Coral Snake', 'rare', '#E8382F', '#FFD93A', 'Red, yellow and black bands.');
+  I('coil', 'animal', 4, 'Tiger', 'rare', '#FF8A1F', '#231A14', 'Orange with bold black stripes.');
+  I('coil', 'animal', 5, 'Zebra', 'rare', '#F6F4EE', '#1C1C24', 'Black and white chevrons.');
+  I('coil', 'animal', 6, 'Leopard', 'rare', '#E8B04A', '#3A2614', 'Gold with dark rosettes.');
+  I('coil', 'animal', 7, 'Cow', 'common', '#F7F7F3', '#22222A', 'White with black patches. Moo.');
+  I('coil', 'animal', 8, 'Bee', 'rare', '#FFD23F', '#2D2433', 'Fuzzy stripes and two tiny wings.');
+  I('coil', 'animal', 9, 'Caterpillar', 'epic', '#9BE04A', '#FFE14A', 'Round green segments and lots of little feet.');
+  I('coil', 'animal', 10, 'Centipede', 'epic', '#C85A34', '#FFB36B', 'Plates down the back and a pair of legs on every one.');
+  I('coil', 'animal', 11, 'Dragon', 'legendary', '#33B46C', '#FFB02E', 'Green scales and gold spines.');
+  I('coil', 'design', 1, 'Stripes', 'common', '#3FF0B6', '#FFFFFF', 'Your colour with white bands.');
+  I('coil', 'design', 2, 'Candy Cane', 'rare', '#E8283C', '#FFF4F4', 'Red twisting round white.');
+  I('coil', 'design', 3, 'Barber Pole', 'rare', '#E02A36', '#2A56D8', 'Red and blue spiralling round white.');
+  I('coil', 'design', 4, 'Checker', 'common', '#3FF0B6', '#1A1D2E', 'Your colour in squares, four across.');
+  I('coil', 'design', 5, 'Polka Dots', 'common', '#FF7CC8', '#FFFFFF', 'Your colour with white dots.');
+  I('coil', 'design', 6, 'Zigzag', 'common', '#3F8CFF', '#FFFFFF', 'A bright zigzag down the middle.');
+  I('coil', 'design', 7, 'Galaxy', 'epic', '#4B2AA0', '#FF6EDC', 'Deep space, nebula glow and twinkling stars.');
+  I('coil', 'design', 8, 'Lava', 'epic', '#CC3A18', '#FFD04A', 'Dark rock, glowing cracks, flowing heat.');
+  I('coil', 'design', 9, 'Ice', 'rare', '#BFE9FF', '#FFFFFF', 'Pale blue with cracks and frost.');
+  I('coil', 'design', 10, 'Circuit Board', 'epic', '#1D8A4E', '#FFD04A', 'Gold traces, pads and little chips.');
+  I('coil', 'design', 11, 'Pixel', 'rare', '#3FF0B6', '#2A8A6A', 'Your colour in chunky square pixels.');
+  I('coil', 'design', 12, 'Camo', 'common', '#6F7D3C', '#3F5228', 'Greens and browns in soft patches.');
+  I('coil', 'object', 1, 'Train Cars', 'epic', '#FF4D5E', '#FFF2B0', 'Cars in your colour with lit windows. The head is the engine.');
+  I('coil', 'object', 2, 'Sausage Links', 'rare', '#C2552E', '#FF9A6A', 'Plump sausages twisted together.');
+  I('coil', 'object', 3, 'Spaghetti Noodle', 'rare', '#F2CF74', '#D6342A', 'One very long noodle, a little saucy.');
+  I('coil', 'object', 4, 'Gummy Worm', 'epic', '#FF3F5F', '#5FE05A', 'Red to orange to green jelly, sugar on top.');
+  I('coil', 'object', 5, 'Licorice', 'rare', '#D41E2C', '#8A0F1A', 'A twisted red licorice rope.');
+  I('coil', 'object', 6, 'Garden Hose', 'rare', '#2FA84A', '#FFE14A', 'Green, a yellow stripe, brass couplings and a nozzle.');
+  I('coil', 'object', 7, 'Rope', 'common', '#C9A46A', '#7D5F34', 'Tan strands twisted together.');
+  I('coil', 'object', 8, 'Chain', 'rare', '#C4CCD8', '#3D4452', 'Steel links, one flat and the next on its edge.');
+  I('coil', 'object', 9, 'Measuring Tape', 'rare', '#FFD23F', '#1F1F26', 'Tick marks, numbers and a metal hook.');
+  I('coil', 'object', 10, 'Pencil', 'epic', '#FFD23F', '#FF8FA8', 'Sharpened at the head, eraser at the tail.');
+  I('coil', 'object', 11, 'Twinkling Lights', 'legendary', '#2E7D46', '#FFD84A', 'A string of bulbs in five colours that twinkle.');
+  I('coil', 'object', 12, 'Bead Necklace', 'rare', '#FF7AA8', '#7FE3FF', 'Round shiny beads in six colours.');
+  I('coil', 'object', 13, 'Piano Keys', 'epic', '#F7F7F2', '#1D1D26', 'White keys and black keys, in the right pattern.');
+  I('coil', 'object', 14, 'Film Strip', 'epic', '#26262F', '#8FD3FF', 'Frames with little pictures between the sprocket holes.');
+  I('coil', 'object', 15, 'Dominoes', 'epic', '#F6F1E2', '#1D1D26', 'Ivory dominoes end to end, each with its own pips.');
+  I('coil', 'object', 16, 'Scarf', 'rare', '#FF4D5E', '#FFF3D6', 'Knitted stripes in your colour, with a fringe.');
+  I('coil', 'object', 17, 'Skeleton Spine', 'legendary', '#F1EAD6', '#4A4F7A', 'Bone vertebrae and ribs. Spooky, but friendly.');
+  I('coil', 'head', 1, 'Sunglasses', 'rare', '#14182A', '#FF5FA2', 'Dark lenses in pink frames.');
+  I('coil', 'head', 2, 'Crown', 'epic', '#FFCF3A', '#C2283C', 'Gold points, red velvet and three jewels.');
+  I('coil', 'head', 3, 'Party Hat', 'rare', '#FF5FA2', '#FFD84A', 'A striped cone with a pompom on top.');
+  I('coil', 'head', 4, 'Googly Eyes', 'rare', '#FFFFFF', '#10131F', 'Big eyes that wobble round every turn.');
+  I('coil', 'head', 5, 'Tongue Out', 'common', '#FF5F7E', '#FFFFFF', 'The tongue stays out and wiggles.');
+  I('coil', 'head', 6, 'Tiny Cowboy Hat', 'rare', '#9A6634', '#2E1C10', 'Wide brim, creased crown, very small.');
+  I('coil', 'trail', 1, 'Sparkle Trail', 'epic', '#FFE27A', '#8FE8FF', 'Stars and sparkles drift off the tail.');
+  I('coil', 'burst', 1, 'Candy Burst', 'epic', '#FF5FA2', '#3FF0B6', 'Crash into a shower of wrapped sweets.');
+  I('coil', 'burst', 2, 'Coin Burst', 'legendary', '#FFCF3A', '#A8740A', 'Crash into a shower of spinning gold coins.');
+  // ---- Updraft items ----
+  // Drawn by updraft/gear.js (by slot and number; 0 there is the climber as before). Captains only for now and nothing is
+  // sold: the game's Gear screen lets them wear everything, except the height rewards, which carry give 'earned' and come
+  // from the player's own best height (1,000 m, 2,200 m where Orbit Yard and space start, and 3,000 m, the Crown).
+  I('updraft', 'skin', 1, 'Jungle Explorer', 'common', '#6B4428', '#C8B48A', 'Fedora, leather jacket and a satchel for the long way up.');
+  I('updraft', 'skin', 2, 'Mountaineer', 'common', '#E0402F', '#2A7FD1', 'A puffy jacket, a bobble hat, goggles and a coil of rope.');
+  I('updraft', 'skin', 3, 'Arctic Explorer', 'common', '#2F7FB8', '#F3EFE6', 'A parka with a fur-trimmed hood and big mittens.');
+  I('updraft', 'skin', 4, 'Safari Guide', 'common', '#C9B07A', '#EFE6CC', 'Pith helmet, khaki pockets, binoculars and knee socks.');
+  I('updraft', 'skin', 5, 'Deep-Sea Diver', 'rare', '#C9923A', '#2D4A5E', 'A brass helmet with portholes and lead boots. Not waterproof up here.');
+  I('updraft', 'skin', 6, 'Aviator', 'rare', '#7A4A2A', '#F6F2EA', 'Leather flying cap, goggles and a long white scarf.');
+  I('updraft', 'skin', 7, 'Cave Explorer', 'common', '#E8742A', '#F4C430', 'A hard hat with a headlamp, orange overalls and a harness.');
+  I('updraft', 'skin', 8, 'Treasure Hunter', 'rare', '#C8302E', '#EFE0B0', 'A red bandana, a vest and a map with an X on it.');
+  I('updraft', 'skin', 9, 'Dusty Archaeologist', 'common', '#E2D3B0', '#7A6A4E', 'Bucket hat, round glasses, a tool belt and a brush for the dust.');
+  I('updraft', 'skin', 10, 'Storm Chaser', 'rare', '#F2C81F', '#2A7A3A', 'A yellow slicker with the hood up, wellies and a wind gauge.');
+  I('updraft', 'skin', 11, 'Balloonist', 'rare', '#E8452F', '#FFD23F', 'A striped jacket, sandbags and a very small balloon for a hat.');
+  I('updraft', 'skin', 12, 'Old-Timey Explorer', 'epic', '#8A6A4A', '#E0B040', 'Bowler hat, monocle, moustache and a walking cane.');
+  I('updraft', 'skin', 13, 'Pirate', 'epic', '#A8232A', '#1D1F24', 'A three-cornered hat, an eye patch, a red coat and a spyglass.');
+  I('updraft', 'skin', 14, 'Park Ranger', 'common', '#9AA47A', '#A07A4A', 'A ranger hat with a pinched top, a badge and a radio.');
+  I('updraft', 'skin', 15, 'Astronaut', 'epic', '#F2F2EE', '#D8A62E', 'A white suit, a gold visor and a life support pack.');
+  I('updraft', 'skin', 16, 'Tourist', 'rare', '#2FB8A8', '#FFD23F', 'Flowery shirt, a camera, sunglasses, and socks with sandals.');
+  I('updraft', 'skin', 17, 'Pizza Delivery', 'rare', '#D8302A', '#FFCF5A', 'A red cap and an insulated pizza bag. Thirty minutes or less.');
+  I('updraft', 'skin', 18, 'Window Washer', 'rare', '#2F6FB8', '#F2C81F', 'Overalls, a harness, a squeegee and a bucket.');
+  I('updraft', 'skin', 19, 'Grandma', 'epic', '#A98BD6', '#C8CCD2', 'A bun, pearls, a cardigan, and her trusty walker.');
+  I('updraft', 'skin', 20, 'Knight', 'epic', '#C8CCD4', '#2A55C8', 'A great helm with a plume, armour and a blue tabard.');
+  I('updraft', 'skin', 21, 'Ninja', 'rare', '#2C2F45', '#E0342F', 'A dark suit, a red headband and a red sash.');
+  I('updraft', 'skin', 22, 'Chicken Suit', 'legendary', '#F6F2E6', '#E0342F', 'The whole chicken: comb, beak, wings and orange feet.');
+  I('updraft', 'pack', 1, 'Parachute Pack', 'common', '#5A6A3A', '#E8452F', 'A parachute pack with a harness and a red ripcord. Purely for show.');
+  I('updraft', 'pack', 2, 'Teddy Bear', 'rare', '#A8743A', '#E0B888', 'A teddy bear hanging on for the climb.');
+  I('updraft', 'pack', 3, 'Picnic Basket', 'common', '#C8995A', '#E8452F', 'A wicker picnic basket with a checked cloth peeking out.');
+  I('updraft', 'pack', 4, 'Giant Sandwich', 'rare', '#D89A4A', '#5AB83A', 'Bread, lettuce, tomato, cheese, ham, and a pick with an olive.');
+  I('updraft', 'pack', 5, 'Fake Jetpack', 'epic', '#C8CCD4', '#FF9A2A', 'Two cans and painted cardboard flames. It does not fly.');
+  I('updraft', 'pack', 6, 'Rolled-Up Tent', 'common', '#3A8A4A', '#8A6A3A', 'A rolled-up tent, its poles and a bag.');
+  I('updraft', 'reward', 1, '1,000 m Badge', 'rare', '#E8B830', '#2F7FD6', 'A gold medal for reaching the old summit, 1,000 m up.');
+  I('updraft', 'reward', 2, 'Space Helmet', 'epic', '#CFEAFF', '#FF5A5A', 'A glass bubble helmet for reaching Orbit Yard at 2,200 m, where space starts.');
+  I('updraft', 'reward', 3, 'Golden Crown', 'legendary', '#F2C443', '#FF4D6A', 'A golden crown for finishing the climb: the Crown at 3,000 m.');
+  I('updraft', 'scream', 1, 'Aaaah!', 'common', '#FFB347', '#F4F6FB', 'A long, falling "Aaaah!" when you drop a long way.');
+  I('updraft', 'scream', 2, 'Yodel', 'rare', '#5BE0A8', '#F4F6FB', 'Yo-de-lay-ee-oo, all the way down.');
+  I('updraft', 'scream', 3, 'Slide Whistle', 'common', '#5EC2FF', '#F4F6FB', 'A cartoon slide whistle, high to low.');
+  I('updraft', 'scream', 4, 'Opera Note', 'epic', '#A98BFF', '#F4F6FB', 'One grand, wobbling high note.');
+  I('updraft', 'scream', 5, 'Wheee!', 'common', '#FF5D8F', '#F4F6FB', 'A happy "Wheee!" that rises as you drop.');
+  I('updraft', 'trail', 1, 'Rainbow Streamer', 'rare', '#FF4D4D', '#4DB8FF', 'Every colour, streaming out above you as you plummet.');
+  I('updraft', 'trail', 2, 'Comet Tail', 'rare', '#FFFFFF', '#3A4AFF', 'A white-hot tail that cools to blue.');
+  I('updraft', 'trail', 3, 'Smoke Trail', 'common', '#F2F2F2', '#9AA0A8', 'A puffy grey smoke trail that spreads out.');
+  I('updraft', 'trail', 4, 'Gold Sparkles', 'epic', '#FFD23F', '#FFF8D0', 'A ribbon of twinkling gold.');
+  GAME_ITEMS.forEach(function (it) { if (it.game === 'updraft' && it.slot === 'reward') it.give = 'earned'; });
   // ---- Rumble Karts items ----
   // Rumble Karts: the Garage's drivers, karts, wheels, horns and wreck effects (rumble-karts/garage.js draws them by these numbers; each driver has its own knockout taunt).
   I('rumble-karts', 'driver', 1, 'Sir Honksalot', 'epic', '#FFFFFF', '#C9CBD8', 'A goose in knight armour. Taunt: a proud HONK.');
