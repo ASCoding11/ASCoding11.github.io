@@ -3212,25 +3212,37 @@ const pose=(o)=>{const P=new Array(POSE_N).fill(0);P[16]=HAND0[0];P[17]=HAND0[1]
   P[0]=o.lean||0;P[1]=o.turn||0;P[14]=o.roll||0;if(o.L){P[2]=o.L[0];P[3]=o.L[1];P[4]=o.L[2];P[12]=o.L[3]}if(o.R){P[5]=o.R[0];P[6]=o.R[1];P[7]=o.R[2];P[13]=o.R[3]}
   if(o.h){P[16]=o.h[0];P[17]=o.h[1];P[18]=o.h[2];P[19]=1}P[8]=o.bp!=null?o.bp:2.72;P[11]=o.by!=null?o.by:.1;P[15]=o.lw||0;P[9]=o.sl||0;P[10]=o.sr||0;return P};
 const POSES={rest:pose({}),
-  cb:pose({L:[-1.42,.4,-.14,.35],h:[.37,1.43,-.2],bp:2.72,by:.1,sl:-.04,sr:.03}),   // crowbar out: the right hand up by the chest, the bar back over the right shoulder; the left arm hangs
+  cb:pose({L:[-1.42,.4,-.14,.35],h:[.38,1.47,-.17],bp:2.42,by:.1,sl:-.04,sr:.03}),   // crowbar out: the right hand up by the chest, the bar back over the right shoulder (its head shows above it from behind); the left arm hangs
   fall:pose({L:[0,2.1,-.05,.95],R:[0,-1.7,.05,.95]}),      // skydiving: upper arms out to the sides, forearms bent up toward the head
   glide:pose({L:[1.25,.3,-.3,1],R:[1.25,0,.3,1]}),                    // reaching up (armIK then puts the hands on the handles)
   jump:pose({lean:.1,L:[2.05,.3,-.35,.5],R:[2.05,0,.35,.5]})};       // leaving the Drifter: arms up
-// The crowbar's swing, keyed in seconds from the hit, with how each stretch eases (0 in and out, 1 speeding up, 2 slowing
-// down); null is the pose it starts from and goes back to. From the carry over the shoulder, a wind-up lifts the bar up
-// beside the head and cocks it back, the chest turning right and leaning back, the left hand reaching up to it; then a
-// fast arc over the top and down to the front with both hands on the handle, the chest turning left and bending forward
-// and the arms straightening (contact at 0.14 s: the spark, the whack and your camera's shake are held back to then), a
-// follow-through down and across to the left, brought back up outside the right arm and back to the carry by 0.44 s, just inside the crowbar's 0.45 s between hits.
+// The crowbar's swing (November 2026, remade for weight), keyed in seconds from the press, with how each stretch eases (0 in
+// and out, 1 speeding up, 2 slowing down); null is the pose it starts from (whatever was showing, so swings chain without a
+// jump) and goes back to. The keys are joined by a smooth curve (Catmull-Rom through them), so the bar's head travels in
+// arcs rather than straight lines between keys. Read from the camera behind the right shoulder:
+//   anticipation 0 to 0.08 s: both hands bring the bar up over the right shoulder and cock it back behind the head (chest
+//     turned right and leaning back), and it hangs there a moment (0.10 s), cocked a little further;
+//   strike 0.10 to 0.14 s, speeding up: straight up over the head (0.12 s) and down in front (contact at 0.14 s, SWING_HIT:
+//     the chips, the sound and your camera's nudge; on a hit the swing holds there for HIT_STOP seconds);
+//   follow-through to 0.27 s: down and across to the left, the chest turned left and bent over;
+//   recovery: a small rebound (0.33 s), up outside the right arm (0.39 s) and back to the carry by 0.45 s, the crowbar's
+//     time between hits. With the button held the recovery goes to a half-cocked pose instead (SWING_CHAIN), so the next
+//     swing's wind-up has further to travel and the swings run into each other.
+// The damage itself still lands at the press, as before (nothing about the hit changed, only what you see and hear).
 const SWING=[[0,null],
-  [.085,pose({lean:.1,turn:-.45,roll:.05,L:[1.1,.5,-.2,1.3],h:[.43,1.8,.17],bp:3.44,by:.25,lw:.35,sl:-.04,sr:.03}),2],
-  [.115,pose({lean:-.05,turn:-.12,L:[1.2,.6,0,.8],h:[.18,1.9,-.22],bp:1.35,by:0,lw:1,sl:-.04,sr:.03}),1],
-  [.14,pose({lean:-.3,turn:.32,roll:-.04,L:[0,.7,0,.2],h:[.06,1.36,-.56],bp:-.12,by:.1,lw:1,sl:-.04,sr:.03}),1],
-  [.24,pose({lean:-.36,turn:.6,roll:-.06,L:[-.6,.9,0,.3],h:[-.12,1.02,-.36],bp:-1.05,by:.85,lw:1,sl:-.04,sr:.03}),2],
-  [.33,pose({lean:-.14,turn:.2,L:[-1.2,.5,-.1,.4],h:[.36,1.28,-.3],bp:1.7,by:-.45,sl:-.04,sr:.03}),0],   // brought back up outside the right arm, not across the face
-  [.44,null]];
+  [.08,pose({lean:.14,turn:-.55,roll:.08,L:[1.4,.4,-.2,1.2],h:[.36,1.84,.1],bp:3.7,by:.35,lw:.75,sl:-.04,sr:.05}),2],
+  [.10,pose({lean:.17,turn:-.62,roll:.09,L:[1.5,.4,-.2,1.2],h:[.34,1.88,.14],bp:3.92,by:.4,lw:1,sl:-.04,sr:.05}),0],
+  [.12,pose({lean:-.02,turn:-.2,roll:.03,L:[1.4,.5,0,.8],h:[.22,1.94,-.18],bp:1.75,by:.12,lw:1,sl:-.04,sr:.04}),1],
+  [.14,pose({lean:-.4,turn:.3,roll:-.05,L:[.2,.7,0,.3],h:[.08,1.3,-.58],bp:-.25,by:.15,lw:1,sl:-.04,sr:.03}),1],
+  [.27,pose({lean:-.47,turn:.62,roll:-.08,L:[-.6,.9,0,.3],h:[-.1,1.02,-.38],bp:-1.15,by:.9,lw:1,sl:-.04,sr:.03}),2],
+  [.33,pose({lean:-.32,turn:.46,roll:-.05,L:[-.6,.8,0,.35],h:[0,1.12,-.42],bp:-.78,by:.7,lw:.6,sl:-.04,sr:.03}),0],
+  [.39,pose({lean:-.1,turn:.1,L:[-1.2,.5,-.1,.4],h:[.42,1.27,-.3],bp:1.35,by:-.4,lw:0,sl:-.04,sr:.03}),0],
+  [.45,null,0]];
+const SWING_CHAIN=pose({lean:.06,turn:-.3,roll:.04,L:[.9,.4,-.15,1],h:[.4,1.66,.02],bp:3.2,by:.25,lw:.4,sl:-.04,sr:.04});
+const SWING_END=.45,SWING_HIT=140,HIT_STOP=.065,SWING_REL=.16;
+// Catmull-Rom through four values at t (0 to 1, between b and c)
+const crom=(a,b,c,d,t)=>b+.5*t*(c-a+t*(2*a-5*b+4*c-d+t*(3*(b-c)+d-a)));
 const CB_POLE=new V3(1,-.7,.25);
-const SWING_HIT=140;
 function makeModel(hex,skinIx,fit,face){
   fit=fitOf(fit);face=faceOf(face);
   const g=new THREE.Group();g.scale.setScalar(BS);
