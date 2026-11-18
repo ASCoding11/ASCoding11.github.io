@@ -87,6 +87,10 @@ h2{font-family:var(--f-m);font-weight:600;font-size:12px;letter-spacing:.14em;te
 .ask{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:30px;padding:14px;border-radius:14px;border:1px dashed rgba(255,201,60,.45);background:linear-gradient(115deg,rgba(255,201,60,.14),rgba(143,211,255,.08))}
 .ask p{margin:0;flex:1 1 220px;font-size:14px;line-height:1.45;color:var(--ink-2)}.ask b{color:var(--ink)}
 .ask button{flex:1 1 auto;min-height:44px;padding:8px 18px;border-radius:999px;border:0;background:var(--accent);color:var(--bg);font:inherit;font-weight:600;font-size:15px;cursor:pointer}
+/* the smaller one at the bottom of Puzzles: "Miss a puzzle we took away?", in the Puzzles colour */
+.ask.ask-sm{margin-top:14px;padding:10px 12px;gap:10px;border-color:rgba(183,168,255,.45);background:linear-gradient(115deg,rgba(183,168,255,.13),rgba(183,168,255,.04))}
+.ask.ask-sm p{font-size:13px}
+.ask.ask-sm button{min-height:40px;padding:6px 14px;font-size:14px;background:#b7a8ff}
 .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 @media (min-width:600px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .tile{display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;color:inherit;text-decoration:none;font:inherit;text-align:left;padding:0;cursor:pointer;transition:transform .12s}
@@ -147,7 +151,7 @@ body .pty h2{font-family:var(--f-d);font-weight:800;font-size:30px;letter-spacin
   // played game first: see the README's note on play-time order): keep groups of one mode together.
   // A game: [folder, name, one line, best sideways (1/0), its address if it lives outside the Back Room folder, for a
   // puzzle tile what it is in plain words (shown as the tile's heading with the name under it), and 1 if that tile
-  // is a game of its own (Deepword, Trivium, Boxed) and so counts towards the number of games].
+  // is a game of its own (Deepword, Trivium) and so counts towards the number of games].
   // daily (Daily Puzzles), the last puzzle tile, is the dashboard for every daily puzzle and the streak.
   var MODES={cars:['Cars','Racing, car soccer, kart battles and stunt time trials.'],shooters:['Shooters','Aim, build and outlast.'],parkour:['Parkour','Obbies, towers, climbs and runs.'],partygames:['Party games','Hide, bluff and shout out answers with friends.'],puzzles:['Puzzles','Every puzzle one tap away, then block and number games.'],arcade:['Arcade','Snakes, sword duels, platformers and more.']};
   var GROUPS=[
@@ -190,21 +194,6 @@ body .pty h2{font-family:var(--f-d);font-weight:800;font-size:30px;letter-spacin
       ['quartets','Quartets','Quartets',0,'','Sort words into 4 groups'],
       ['poopdle','Poopdle','Poopdle',0,'','Word ladder'],
       ['crosslet','Crosslet','Crosslet',0,'','Mini crossword'],
-      ['sleight','Sleight','Sleight',0,'','One cryptic clue'],
-      ['unfurl','Unfurl','Unfurl',0,'','Name the country by its flag'],
-      ['deadline-day','Deadline Day','Deadline Day',0,'','Soccer: guess the transfer'],
-      ['overland','Overland','Overland',0,'','Link two countries by land'],
-      ['outline','Outline','Outline',0,'','Name the country by its shape'],
-      ['teamsheet','Teamsheet','Teamsheet',0,'','Soccer: the missing player'],
-      ['journeyman','Journeyman','Journeyman',0,'','Soccer: guess the player by clubs'],
-      ['scout-report','Scout Report','Scout Report',0,'','Soccer: mystery player'],
-      ['crossbar','Crossbar','Crossbar',0,'','Soccer: fill the grid'],
-      ['back-four','Back Four','Back Four',0,'','Soccer: four hidden links'],
-      ['stat-duel','Stat Duel','Stat Duel',0,'','Soccer: higher or lower'],
-      ['mainstream','Mainstream','Mainstream',0,'','Say what most people would say'],
-      ['thereabouts','Thereabouts','Thereabouts',0,'','Estimate the big numbers'],
-      ['yardstick','Yardstick','Yardstick',0,'','Guess real-life sizes by eye'],
-      ['boxed','Boxed','Boxed',0,'/boxed/','Math contest problems',1],
       ['daily','Daily Puzzles','Daily Puzzles',0,'','All of today’s puzzles and your streak']
     ],'puzzles',1],
     ['Blocks and numbers',[
@@ -238,8 +227,18 @@ body .pty h2{font-family:var(--f-d);font-weight:800;font-size:30px;letter-spacin
     return b;
   }
   var mode='',modeN=null,modeCount=0,modePz=0;
+  // At the bottom of Puzzles: a small feedback tab (feedback.js opens the suggestion box for data-feedback-open and
+  // starts an empty box with "Puzzles: ", so the note says it's about puzzles).
+  function pzAsk(){
+    var a=document.createElement('div');a.className='ask ask-sm';
+    var p=document.createElement('p'),b=document.createElement('b');b.textContent='Miss a puzzle we took away, or want a new one?';
+    p.append(b,' Tell Arjun which in the suggestion box.');
+    var bt=document.createElement('button');bt.type='button';bt.setAttribute('data-feedback-open','Puzzles: ');bt.textContent='Tell Arjun ↑';
+    a.append(p,bt);return a;
+  }
   GROUPS.forEach(function(gr){
     if(gr[2]!==mode){
+      if(mode==='puzzles')$('lists').append(pzAsk());
       mode=gr[2];modeCount=0;modePz=0;var M=MODES[mode]||[mode,''];
       var mh=document.createElement('div');mh.className='mode '+mode;
       var mt=document.createElement('div');var h=document.createElement('h2');h.textContent=M[0];var mp=document.createElement('p');mp.textContent=M[1];mt.append(h,mp);
@@ -253,6 +252,7 @@ body .pty h2{font-family:var(--f-d);font-weight:800;font-size:30px;letter-spacin
     modeN.textContent=(modePz?modePz+' puzzles + ':'')+modeCount+(modeCount===1?' game':' games');
     $('lists').append(k,grid);
   });
+  if(mode==='puzzles')$('lists').append(pzAsk());
   $('count').textContent=total+' games · made for touch';
   // A row of game types above the lists, most played first: tap one to jump to its heading.
   var gnav=document.createElement('div');gnav.className='gnav';gnav.setAttribute('role','navigation');gnav.setAttribute('aria-label','Game types');
