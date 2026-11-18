@@ -12,7 +12,7 @@ const UA = 'DeepwordBankBuilder/1.0 (offline list build for a school-safe word g
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const JOBS = require('./sources.js').jobs;
 
-async function get(url, opts = {}, tries = 6) {
+async function get(url, opts = {}, tries = +process.env.FETCH_TRIES || 6) {
   for (let i = 0; i < tries; i++) {
     let res;
     try { res = await fetch(url, Object.assign({ headers: { 'User-Agent': UA, Accept: opts.accept || '*/*' }, signal: AbortSignal.timeout(opts.buffer ? 600000 : 90000) }, opts.init || {})); }
@@ -77,8 +77,8 @@ async function run(job) {
 
 (async () => {
   const args = process.argv.slice(2), force = args.includes('--force'), only = args.filter(a => !a.startsWith('--'));
-  for (const job of JOBS) {
-    if (only.length && !only.includes(job.id)) continue;
+  const list = only.length ? only.map(id => JOBS.find(j => j.id === id)).filter(Boolean) : JOBS; // in the order asked
+  for (const job of list) {
     if (!force && fs.existsSync(cachePath(job.id))) continue;
     process.stdout.write(job.id + ' ... ');
     const t = Date.now();

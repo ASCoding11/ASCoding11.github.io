@@ -369,7 +369,7 @@ const FEEDS = {
   muscles: () => things('muscles'),
   diseases: () => things('diseases'),
   units: () => ab('a unit of measurement').concat(things('units')),
-  scientists: () => ab('a famous scientist').concat(people('scientists')),
+  scientists: () => ab('a famous scientist').concat(...['sci_physicists', 'sci_chemists', 'sci_biologists', 'sci_astronomers', 'sci_inventors', 'mathematicians'].map(people)),
   rocks: () => ab('a gemstone or mineral').concat(things('minerals'), things('rocktypes')),
   gems: () => things('gems'),
   shapes: () => ab('a geometric shape'),
@@ -386,7 +386,7 @@ const FEEDS = {
   sports: () => things('sports'),
   nfl: () => ab('an NFL team'), nba: () => ab('an NBA team'), mlb: () => ab('an MLB team'),
   soccerclubs: () => ab('a European soccer club').concat(things('soccerclubs')),
-  athletes: () => ab('a famous athlete').concat(people('athletes')),
+  athletes: () => ab('a famous athlete').concat(...['ath_football', 'ath_basketball', 'ath_baseball', 'ath_amfootball', 'ath_hockey', 'ath_tennis', 'ath_track', 'ath_swim', 'ath_boxing', 'ath_racing', 'ath_golf', 'ath_cricket', 'ath_gymnast'].map(people)),
   stadiums: () => things('stadiums'),
   martialarts: () => things('martialarts'),
   yoga: () => ab('a yoga pose'),
@@ -409,7 +409,7 @@ const FEEDS = {
 };
 // New prompts at the end of prompts.js whose lists come only from here (written there as a short hand list).
 Object.assign(FEEDS, {
-  ab_presidents: () => ab('a U.S. president'),
+  ab_presidents: () => ab('a U.S. president').concat(people('presidents')),
   ab_mathematicians: () => ab('a mathematician').concat(people('mathematicians')),
   ab_collective: () => ab('a collective noun for animals'),
   ab_chess: () => ab('a chess opening').concat(things('chessopenings')),
@@ -456,6 +456,7 @@ function pctl(entries, key) { // percentile (0..1, 1 = largest) among entries th
   while (i < n) { let j = i; while (j + 1 < n && xs[j + 1][key] === xs[i][key]) j++; const p = n === 1 ? 1 : ((i + j) / 2) / (n - 1); for (let k = i; k <= j; k++) xs[k]['p_' + key] = p; i = j + 1; }
 }
 const WT = { pv: 3, w: 2, fam: 2, sl: 1, pop: 2 };
+const PV_FLOOR = 1; // median English Wikipedia views a day
 const enc = v => { const x = Math.max(0, Math.min(1294, Math.round(v * 1294))); return x.toString(36).padStart(2, '0'); };
 
 function buildList(key, coreStr) {
@@ -468,6 +469,7 @@ function buildList(key, coreStr) {
   for (const s of feed) {
     const ns = s.names.map(norm);
     let e = null; for (const n of ns) { e = byAlias.get(n); if (e) break; }
+    if (!e && s.last) e = byAlias.get(norm(s.last)) || null; // "Abraham Lincoln" is the hand-written "Lincoln"
     if (!e) { for (const n of ns) { e = fresh.get(n); if (e) break; } }
     if (!e) {
       e = { n: ns[0], al: [], raws: [], w: s.hand ? s.w : null, raw: s.names[0], core: false, hand: !!s.hand };
@@ -480,6 +482,9 @@ function buildList(key, coreStr) {
   // last names count when only one person in the list has that last name
   const lastCount = new Map(); for (const e of merged) if (e.lastCand) lastCount.set(e.lastCand, (lastCount.get(e.lastCand) || 0) + 1);
   for (const e of merged) if (e.lastCand && lastCount.get(e.lastCand) === 1 && !byAlias.has(e.lastCand)) { e.al.push(e.lastCand); e.raws.push(e.lastRaw); byAlias.set(e.lastCand, e); }
+  // Drop added answers almost nobody reads about (under one English Wikipedia view a day, as the research behind
+  // this suggested: about 30 a month): they make the files big and are not answers anyone could be expected to know.
+  for (let i = merged.length - 1; i >= 0; i--) { const e = merged[i]; if (!e.core && !e.hand && e.pv != null && e.pv < PV_FLOOR) merged.splice(i, 1); }
   for (const e of merged) { e.fam = famOf(e.al); if (e.pv != null) e.pv = Math.log1p(e.pv); }
   for (const k in WT) if (k !== 'w') pctl(merged, k);
   // The hand-written answers were chosen as the ones people say, so being on that list is itself a sign of fame:
