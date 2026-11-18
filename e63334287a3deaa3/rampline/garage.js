@@ -585,7 +585,7 @@ function snapCar(cv,x,side){
   try{snapGroup(cv,obj.grp,side?Math.PI+.72:.72,.32,9.6,.2)}finally{obj.dispose()}
 }
 const wheelMat=new THREE.MeshLambertMaterial({vertexColors:true});
-function snapWheel(cv,k){const m=k?new THREE.Mesh(wheelGeo(k),wheelMat):new THREE.Mesh(X.wheelGeoFor(X.gar.rim|0),wheelMat);m.rotation.y=.5;snapGroup(cv,m,0,0,4.2,0);m.rotation.y=-.5;}
+function snapWheel(cv,k){const m=k?new THREE.Mesh(wheelGeo(k),wheelMat):new THREE.Mesh(X.wheelGeoFor(X.gar.rim|0),wheelMat);m.rotation.y=1.05;snapGroup(cv,m,0,.15,6.4,0);}
 
 // ======================= the Captain's garage screen =======================
 const css=document.createElement('style');
@@ -604,6 +604,7 @@ css.textContent=`
 #garage .cg-it i.sw{border:2.5px solid var(--ink)}
 #garage .cg-it i.horn{aspect-ratio:8/3;display:flex;align-items:center;justify-content:center;background:#eef4ff}
 #garage .cg-it i.horn svg{width:38%;height:auto}
+@media (max-height:500px){#garage .cg-top{max-width:440px}}
 @media (max-width:480px){#garage .cg-tabs button{padding:6px 7px;font-size:12.5px}}
 #tHorn{left:calc(14px + env(safe-area-inset-left,0px));bottom:calc(112px + env(safe-area-inset-bottom,0px));width:56px;height:56px;border-radius:50%;background:rgba(255,207,51,.94)}
 #tHorn svg{width:30px;height:30px}`;
@@ -626,7 +627,7 @@ const lk=(car,paint,wheels)=>car||paint||wheels?'1.'+car+'.'+paint+'.'+wheels:''
 const hex=c=>'#'+c.toString(16).padStart(6,'0');
 function nowText(){const b=[cs.car?CARS[cs.car].name:X.CARS[X.gar.car].name+' (garage car)'];
   if(cs.paint)b.push(PAINTS[cs.paint].name+' paint');if(cs.wheels)b.push(WHEELS[cs.wheels].name);if(cs.smoke)b.push(SMOKES[cs.smoke].name+' smoke');
-  if(cs.horn)b.push(HORNS[cs.horn].name+' horn ('+(X.touch?'the horn button':'H')+')');return 'Wearing: '+b.join(' · ')}
+  if(cs.horn)b.push(HORNS[cs.horn].name+(/horn/i.test(HORNS[cs.horn].name)?'':' horn')+' ('+(X.touch?'the horn button':'H')+')');return 'Wearing: '+b.join(' · ')}
 function preview(){nowP.textContent=nowText();const x=wire();queue(pv[1],()=>snapCar(pv[1],x,1),1);queue(pv[0],()=>snapCar(pv[0],x,0),1)}
 function item(slot,n,label,pic){const b=document.createElement('button');b.type='button';b.className='cg-it';b.setAttribute('aria-pressed',String(cs[slot]===n));
   b.append(pic,document.createTextNode(label));b.addEventListener('click',()=>pick(slot,n));return b}
