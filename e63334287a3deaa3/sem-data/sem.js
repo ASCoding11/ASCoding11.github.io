@@ -14,6 +14,9 @@
   var LAUNCH = '20261101';
   var COUNT = 430;              // number of d/NNN.bin files (secret words); must match tools/build.py's output
   var BASE = '/e63334287a3deaa3/sem-data/';
+  // Language (lang.js): menus and messages follow the Back Room's English / Español setting. The words themselves (guesses,
+  // the secret, the closest words) are English by design and are kept out of translation (data-noi18n).
+  var T = window.BackRoomLang ? BackRoomLang.t : function (s, v) { return s.replace(/\{(\w+)\}/g, function (m, n) { return v && v[n] != null ? v[n] : m; }); };
   function $(id) { return document.getElementById(id); }
   function h(tag, attrs, kids) {
     var e = document.createElement(tag);
@@ -269,7 +272,7 @@
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && open) { e.preventDefault(); close(); } }, true);
     function openHelp() {
       store.set(o.slug + ':seen', 1);
-      modal('How to play', h('div', { html: o.how + '<p class="foot">' + FOOT + ' · <a href="/privacy.html">Privacy</a></p>' }));
+      modal('How to play', h('div', { html: (typeof o.how === 'function' ? o.how() : o.how) + '<p class="foot">' + T(FOOT) + ' · <a href="/privacy.html">Privacy</a></p>' }));
     }
     var cdTimer = 0;
     function openStats(meKey) {
@@ -355,7 +358,7 @@
   }
 
   function shareText(name, n, line, rest, mode) {
-    return name + (mode === 'free' ? ' (unlimited)' : n >= 1 ? ' #' + n : ' (preview)') + ' ' + line + (rest ? '\n' + rest : '') + '\nascoding11.github.io';
+    return name + (mode === 'free' ? ' ' + T('(unlimited)') : n >= 1 ? ' #' + n : ' ' + T('(preview)')) + ' ' + line + (rest ? '\n' + rest : '') + '\nascoding11.github.io';
   }
   function bucket(dist, n) { for (var i = 0; i < dist.length; i++) if (dist[i][2] != null && n <= dist[i][2]) return dist[i][0]; return dist[dist.length - 2][0]; }
 
@@ -369,13 +372,13 @@
     var SLUG = cfg.slug, st = null, P = null, gen = 0;
     var S = shell({ slug: SLUG, name: cfg.name, how: cfg.how, dist: cfg.dist, shareText: function () { return st && st.done && P ? shareNow() : null; } });
     var root = $('game');
-    var headEl = h('div', { class: 'head' }), listEl = h('div', { class: 'list', id: 'list', 'aria-live': 'polite' }), ctl = h('div', { class: 'ctl' });
+    var headEl = h('div', { class: 'head' }), listEl = h('div', { class: 'list', id: 'list', 'aria-live': 'polite', 'data-noi18n': '' }), ctl = h('div', { class: 'ctl' });
     root.append(headEl, h('div', { class: 'listbox' }, [listEl]), ctl);
     var bD = h('button', { type: 'button', text: 'Daily' }), bU = h('button', { type: 'button', text: 'Unlimited' });
     var info = h('span', { class: 'info' });
     headEl.append(h('div', { class: 'seg', role: 'group', 'aria-label': 'Mode' }, [bD, bU]), info);
     bD.onclick = function () { start('daily'); }; bU.onclick = function () { start('free'); };
-    var lastEl = h('div', { class: 'last', 'aria-live': 'polite' });
+    var lastEl = h('div', { class: 'last', 'aria-live': 'polite', 'data-noi18n': '' });
     var acts = h('div', { class: 'acts' }), hintB = h('button', { type: 'button', class: 'ghost', text: '💡 Hint' }), quitB = h('button', { type: 'button', class: 'ghost', text: 'Give up' });
     var newB = h('button', { type: 'button', class: 'ghost', text: 'New word', hidden: '' });
     acts.append(hintB, quitB, newB);
@@ -404,7 +407,7 @@
         if (file == null) { var avoid = fileFor(SLUG, today()), last = st && st.mode === 'free' ? st.file : -1; do { file = Math.floor(Math.random() * COUNT); } while ((file === avoid || file === last) && COUNT > 2); }
         st = { mode: 'free', day: '', file: file, g: [], done: false, win: false, t0: 0, t1: 0 };
       }
-      P = null; lastW = -1; box.clear(); render(); listEl.innerHTML = ''; listEl.appendChild(h('div', { class: 'hint', text: 'Loading the words…' }));
+      P = null; lastW = -1; box.clear(); render(); listEl.innerHTML = ''; listEl.appendChild(h('div', { class: 'hint', text: T('Loading the words…') }));
       loadPuzzle(st.file).then(function (p) {
         if (my !== gen) return;
         P = p;
@@ -418,7 +421,7 @@
       }).catch(function () {
         if (my !== gen) return;
         listEl.innerHTML = '';
-        listEl.appendChild(h('div', { class: 'hint' }, ['Couldn\'t load the words. Check your connection, then ', h('button', { type: 'button', class: 'ghost', text: 'Try again', onclick: function () { start(mode, file); } })]));
+        listEl.appendChild(h('div', { class: 'hint' }, [T('Couldn\'t load the words. Check your connection, then') + ' ', h('button', { type: 'button', class: 'ghost', text: T('Try again'), onclick: function () { start(mode, file); } })]));
       });
     }
     function used(n) { for (var i = 0; i < st.g.length; i++) if (st.g[i].w === n) return st.g[i]; return null; }
@@ -498,7 +501,7 @@
       if (lx && !done) { lastEl.appendChild(rowEl(lx, fresh)); lastEl.hidden = false; } else lastEl.hidden = true;
       if (!P) return;
       listEl.innerHTML = '';
-      if (!n && !done) listEl.appendChild(h('div', { class: 'hint', html: cfg.empty }));
+      if (!n && !done) listEl.appendChild(h('div', { class: 'hint', html: T(cfg.empty) }));
       var rows = st.g.slice().sort(cfg.order);
       if (done && st.reveal) rows.unshift({ w: P.secret, hint: false, info: P.info(P.secret), reveal: true });
       rows.forEach(function (x) { listEl.appendChild(rowEl(x, false)); });
@@ -506,7 +509,7 @@
       if (done) {
         var word = P.word;
         endBox.append(
-          h('h2', { class: st.win ? 'win' : 'lose', html: (st.win ? 'You found it: ' : 'The word was ') + '<u>' + word + '</u>' }),
+          h('h2', { class: st.win ? 'win' : 'lose', html: T(st.win ? 'You found it:' : 'The word was') + ' <u data-noi18n>' + word + '</u>' }),
           h('p', { html: cfg.endLine(st, P) }),
           h('div', { class: 'row' }, [
             h('button', { type: 'button', class: 'cta', text: 'Share', onclick: function () { S.share(); } }),
@@ -525,7 +528,8 @@
         var wn = P.top(i); if (P.words.hidden[wn]) continue; shown++;
         lst.appendChild(h('div', { class: 'cw' + (used(wn) ? ' had' : '') }, cfg.closest(i, P)));
       }
-      S.modal('Closest to “' + P.word + '”', h('div', null, [h('p', { text: cfg.closestNote }), lst]));
+      lst.setAttribute('data-noi18n', '');
+      S.modal(T('Closest to “{w}”', { w: P.word }), h('div', null, [h('p', { text: cfg.closestNote }), lst]));
     }
     setInterval(function () {
       var e = $('nextIn'); if (e) e.textContent = 'Next word in ' + countdown();
@@ -533,6 +537,8 @@
     }, 1000);
     start('daily');
     box.focus();
+    // a language switch redraws the list and the end box (their words come from T() in the page's row() and endLine())
+    document.addEventListener('backroom:lang', function () { if (st && P) render(); });
     return {
       get st() { return st; }, get P() { return P; }, start: start, guess: function (t) { box.submitText(t); }, hint: hint,
       giveUp: function () { if (st && !st.done && P) { finish(false); save(); render(); } }, shareText: function () { return st && st.done && P ? shareNow() : null; }, showClosest: showClosest
