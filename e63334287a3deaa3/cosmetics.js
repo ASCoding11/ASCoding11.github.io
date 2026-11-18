@@ -422,7 +422,7 @@
   I('odd-one-out', 'outfit', 6, 'Store Manager', 'common', '#3A7BD5', '#CDB88F', 'Name tag, headset, and a very close eye on the shelves.');
   I('odd-one-out', 'outfit', 7, 'Janitor', 'common', '#5C7D9C', '#F2CF2E', 'Coveralls, rubber gloves and a key for every door.');
   I('odd-one-out', 'outfit', 8, 'Park Ranger', 'rare', '#C9B27C', '#5D6B3B', 'A flat-brimmed hat for spotting what does not belong.');
-  I('odd-one-out', 'outfit', 9, 'Exterminator', 'rare', '#E9E6DA', '#C84A3A', 'Goggles, mask and a spray tank. Pests beware.');
+  I('odd-one-out', 'outfit', 9, 'Exterminator', 'rare', '#E9E6DA', '#C84A3A', 'Goggles, a mask and a red spray tank. Pests beware.');
   I('odd-one-out', 'outfit', 10, 'Construction Worker', 'common', '#FFCC1A', '#C6EC2F', 'Hard hat, hi-vis vest and a belt full of pouches.');
   I('odd-one-out', 'outfit', 11, 'Cowboy', 'rare', '#C9443A', '#7B4D2A', 'Waistcoat, bandana and a hat with the sides turned up.');
   I('odd-one-out', 'outfit', 12, 'Pirate', 'epic', '#B8323A', '#F0C445', 'Red coat, gold trim, a three-cornered hat and an eye patch.');

@@ -180,7 +180,7 @@ const OUTFITS=[null,
       P(cz(.016,.016,.06,8,0,1.29,.165),'#cfd6de');
       P(rb(.07,.1,.05,.015,.2,.93,.12),'#1c1d22');   // walkie-talkie on the belt
       // baseball cap
-      P(dome(.188,0,1.72,0,.75),'#2c3550');P(tf(rb(.22,.016,.17,.008,0,0,0),0,1.73,.2,.06),'#2c3550');P(box(.06,.035,.012,0,1.79,.178),'#cfd6de');
+      P(dome(.188,0,1.72,0,.75),'#2c3550');P(tf(rb(.2,.016,.15,.008,0,0,0),0,1.73,.18,.06),'#2c3550');P(box(.06,.035,.012,0,1.79,.178),'#cfd6de');
     },leg:{pants:'#2c3550',boot:'#16171c'},arms:{shirt:'#f3f1ea',hand:SKIN}},
   { // 4 Security Guard: hi-vis yellow vest over a grey shirt, black cap with a silver band, earpiece
     name:'Security Guard',body(P){
@@ -225,7 +225,7 @@ const OUTFITS=[null,
       P(box(.1,.08,.012,-.12,1.36,.146),'#4a6886');P(rb(.08,.035,.012,.01,.12,1.37,.147),'#f4f4f4');   // pocket and name patch
       P(tf(box(.09,.04,.1),-.06,1.48,.1,0,0,-.4),'#4a6886');P(tf(box(.09,.04,.1),.06,1.48,.1,0,0,.4),'#4a6886');
       P(torus(.035,.006,.2,.9,.11,0,0),'#d0d6dc');P(box(.012,.05,.008,.19,.86,.11),'#e2c060');P(box(.012,.045,.008,.215,.865,.11),'#d0d6dc');   // keys
-      P(dome(.186,0,1.72,0,.72),'#6b7480');P(tf(rb(.2,.016,.15,.008,0,0,0),0,1.73,.19,.05),'#6b7480');
+      P(dome(.186,0,1.72,0,.72),'#6b7480');P(tf(rb(.2,.016,.15,.008,0,0,0),0,1.73,.18,.05),'#6b7480');
     },leg:{pants:'#5c7d9c',boot:'#1c1d22',cuff:'#4a6886'},arms:{shirt:'#5c7d9c',hand:'#f2cf2e',cuffs:'#f2cf2e'}},
   { // 8 Park Ranger: khaki shirt, olive trousers, green tie, a flat-brimmed hat with a pinched crown
     name:'Park Ranger',body(P){
@@ -242,10 +242,10 @@ const OUTFITS=[null,
       P(tf(new THREE.CylinderGeometry(.05,.05,.014,16),-.12,1.36,.149,PI/2),'#3c8a4a');P(tf(box(.012,.09,.016),-.12,1.36,.152,0,0,.8),'#e0453a');
       P(rb(.28,.075,.06,.025,0,1.68,.15),'#2a3138');P(box(.3,.02,.02,0,1.68,.12),'#2a3138');   // goggles
       P(rb(.15,.095,.08,.035,0,1.595,.155),'#3a3d44');
-      P(tf(cyl(.032,.032,.04,12),-.075,1.585,.185,PI/2,-.6),'#c84a3a');P(tf(cyl(.032,.032,.04,12),.075,1.585,.185,PI/2,.6),'#c84a3a');
-      P(cyl(.09,.09,.36,16,0,1.23,-.22),'#b9c2cc');P(dome(.09,0,1.41,-.22,.5),'#b9c2cc');P(cyl(.03,.03,.04,10,0,1.47,-.22),'#c84a3a');   // tank
+      P(tf(cyl(.034,.034,.045,12),-.09,1.58,.17,PI/2,-.9),'#9aa63a');P(tf(cyl(.034,.034,.045,12),.09,1.58,.17,PI/2,.9),'#9aa63a');
+      P(cyl(.1,.1,.4,16,0,1.21,-.25),'#c84a3a');P(dome(.1,0,1.41,-.25,.5),'#c84a3a');P(cyl(.03,.03,.05,10,0,1.47,-.25),'#cfd6de');   // tank
       P(rb(.3,.04,.04,.015,0,1.42,-.16),'#2a2d33');P(tf(cyl(.012,.012,.5,6),.15,1.0,-.18,.3,0,.25),'#2a2d33');
-      P(dome(.188,0,1.72,0,.72),'#3c8a4a');P(tf(rb(.2,.016,.15,.008,0,0,0),0,1.73,.19,.05),'#3c8a4a');   // cap
+      P(dome(.188,0,1.72,0,.72),'#3c8a4a');P(tf(rb(.2,.016,.15,.008,0,0,0),0,1.73,.18,.05),'#3c8a4a');   // cap
     },leg:{pants:'#e9e6da',boot:'#222428'},arms:{shirt:'#e9e6da',hand:'#3c8a4a',cuffs:'#3c8a4a'}},
   { // 10 Construction Worker: yellow hard hat, lime hi-vis vest, jeans, a tool belt and work boots
     name:'Construction Worker',body(P){
@@ -300,7 +300,7 @@ const OUTFITS=[null,
 //  Tools (hunters only), in place of the rifle. Numbers: cosmetics.js odd-one-out tool 1, 2, 3, ...
 // =====================================================================
 // In the rifle's own space (index.html: the gun group, front +z, the muzzle at z 0.78): every tool stays within
-// x ±0.12, y -0.24 to 0.2, z -0.33 to 0.84, below the line of sight. body: coloured per vertex; acc: one accent part with
+// x ±0.12, y -0.26 to 0.2, z -0.33 to 0.84, below the line of sight. body: coloured per vertex; acc: one accent part with
 // its own material (mat). The muzzle (where tracers start) is the rifle's, so shots look and work the same.
 const TOOLS=[null,
   { // 1 Flashlight (no real light: a lit lens only)
@@ -328,8 +328,8 @@ const TOOLS=[null,
   { // 5 Broom: a long wooden handle, a red binding and a fan of straw
     name:'Broom',body(P){
       P(cz(.017,.017,.8,8,0,0,.08),'#b5834a');P(cz(.035,.03,.05,12,0,0,.5),'#d23c3c');
-      for(const z of [.6,.7])P(tf(new THREE.CylinderGeometry(.1+(z-.53)*.3,.1+(z-.53)*.3,.012,4).rotateX(PI/2),0,0,z,0,0,PI/4,.3,1,1),'#c99a3a');
-    },acc:()=>tf(new THREE.CylinderGeometry(.12,.035,.3,4,1).rotateX(PI/2),0,0,.68,0,0,PI/4,.28,1,1),mat:{color:'#e8c766',roughness:.9}},
+      for(const z of [.6,.7]){const r=.035+(z-.53)/.3*.085+.004;P(tf(new THREE.CylinderGeometry(r,r,.014,4).rotateX(PI/2),0,0,z,0,0,0,.3,1,1),'#b8862e')}
+    },acc:()=>tf(new THREE.CylinderGeometry(.12,.035,.3,4,1).rotateX(PI/2),0,0,.68,0,0,0,.28,1,1),mat:{color:'#e8c766',roughness:.9}},
   { // 6 Rubber Chicken: yellow, floppy, with a red comb
     name:'Rubber Chicken',body(P){
       P(sph(1,0,0,.3,.075,.08,.17,14,9),'#ffd23f');P(tf(cyl(.024,.034,.16,10),0,.04,.47,1.2),'#ffd23f');P(sph(.05,0,.08,.56,1,1,1.1,12,8),'#ffd23f');
@@ -606,8 +606,11 @@ function figShot(w,back,W,H){
 function toolShot(n){
   const g=new THREE.Group();
   if(n){const T=toolGeo(n);g.add(new THREE.Mesh(T.body,MAT),new THREE.Mesh(T.acc,T.mat))}else{g.add(new THREE.Mesh(A.HG.gun,A.HUNTER_MATS.gun),new THREE.Mesh(A.HG.gunTip,A.HUNTER_MATS.vest))}
-  g.rotation.set(.18,-1.25,0);g.position.set(0,0,0);
-  return shot(g,160,160,c=>{c.fov=30;c.position.set(0,.35,2.3);c.lookAt(0,0,0)});
+  // seen from its right side, front to the right, framed to its size
+  const h=new THREE.Group();h.add(g);g.rotation.set(0,PI/2-.35,0);h.rotation.x=.3;h.updateMatrixWorld(true);
+  const bb=new THREE.Box3().setFromObject(h),c0=bb.getCenter(new V3()),sz=bb.getSize(new V3());h.position.sub(c0);
+  const d=Math.max(sz.x,sz.y*1.2,.3)*.62/Math.tan(15*PI/180);
+  return shot(h,160,160,c=>{c.fov=30;c.position.set(0,0,d);c.lookAt(0,0,0)});
 }
 function img(url,tall){const i=document.createElement('img');i.alt='';i.src=url;if(tall)i.className='tall';return i}
 function thumb(slot,n){
