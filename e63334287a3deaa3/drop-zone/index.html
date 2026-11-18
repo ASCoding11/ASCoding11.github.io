@@ -362,6 +362,7 @@ body.touch #mapBox{width:112px;top:calc(8px + env(safe-area-inset-top,0px));righ
 body.touch #mini{width:112px;height:112px}
 body.touch #stormT{font-size:13px;padding:2px 6px}
 body.touch #feed{right:auto;left:calc(10px + env(safe-area-inset-left,0px));align-items:flex-start;top:calc(60px + env(safe-area-inset-top,0px));font-size:12px;max-width:250px}
+#hint.long{white-space:normal;width:max-content;max-width:min(calc(100% - 24px),720px);text-align:center;line-height:1.35}
 body.touch #hint{bottom:auto;top:calc(86px + env(safe-area-inset-top,0px));font-size:12px}
 body.touch #prompt{font-size:14px;top:calc(50% + 34px)}
 body.touch #topc{top:calc(58px + env(safe-area-inset-top,0px));gap:4px}
@@ -493,6 +494,7 @@ body.touch #net{font-size:14px}
           </select>
         </div>
         <label class="check"><input type="checkbox" id="showFaces" checked> Show other players’ drawn faces</label>
+        <label class="check"><input type="checkbox" id="editRelease" checked> Edit on release: hold Edit, sweep over the tiles, let go to confirm (off: tap Edit, pick tiles, Edit again)</label>
         <details class="ctrl">
           <summary>Controls</summary>
           <dl class="keys">
@@ -504,7 +506,7 @@ body.touch #net{font-size:14px}
             <div><dt data-kb="crowbar" data-kb-short data-kb-case="upper">V</dt><dd>Crowbar: hit trees, rocks and walls for scrap</dd></div>
             <div><dt data-kb="build" data-kb-short data-kb-case="upper">B</dt><dd>Build mode on and off (shows the build pieces)</dd></div>
             <div><dt data-kb="wall floor ramp" data-kb-short data-kb-case="upper">Q F C</dt><dd>Wall, floor, ramp (10 scrap each)</dd></div>
-            <div><dt data-kb="edit" data-kb-short data-kb-case="upper">H</dt><dd>Edit a build of yours: cut a door, a window or half of it (free)</dd></div>
+            <div><dt data-kb="edit" data-kb-short data-kb-case="upper">H</dt><dd>Edit a build of yours (free): hold, look across the tiles, let go; R while editing resets it</dd></div>
             <div><dt data-kb="use" data-kb-short data-kb-case="upper">G</dt><dd>Open a chest, pick up or swap</dd></div>
             <div><dt data-kb="reload" data-kb-short data-kb-case="upper">R</dt><dd>Reload</dd></div>
             <div><dt data-kb="map" data-kb-short data-kb-case="upper">M</dt><dd>Big map</dd></div>
@@ -514,7 +516,7 @@ body.touch #net{font-size:14px}
           <button class="ghost-btn" id="keysMenu" type="button">Change keys</button>
         </details>
       </div>
-      <p id="touchNote" class="note" hidden>On a phone? Turn it sideways for the best view. Tap the slots at the top to switch items, tap the scrap count to build, and tap the map to make it big. Aim at something you built and an Edit button appears: cut a door or a window in it.</p>
+      <p id="touchNote" class="note" hidden>On a phone? Turn it sideways for the best view. Tap the slots at the top to switch items, tap the scrap count to build, and tap the map to make it big. Aim at something you built and an Edit button appears: hold it, drag another finger over the tiles and let go to cut a door or a window.</p>
     </div>
   </section>
 
@@ -559,6 +561,7 @@ body.touch #net{font-size:14px}
       <div class="row"><button class="cta" id="resume" type="button">Resume</button><button class="ghost-btn" id="copyInvite" type="button" hidden>Copy invite link</button><button class="ghost-btn" id="keysPause" type="button">Controls</button><button class="ghost-btn" id="leave" type="button">Leave</button></div>
       <p class="msg" id="inviteMsg"></p>
       <label class="check"><input type="checkbox" id="showFacesP" checked> Show other players’ drawn faces</label>
+      <label class="check"><input type="checkbox" id="editReleaseP" checked> Edit on release</label>
     </div>
   </section>
 
@@ -678,6 +681,17 @@ let sens=parseFloat(store.get('sens','1'))||1;
 const LOCKER_PUBLIC=false;
 const CAPTAINS=window.BackRoomCaptains||null;
 const lockerOn=()=>LOCKER_PUBLIC||!!(CAPTAINS&&CAPTAINS.may(false,'locker','driftfall:locker'));
+// The Locker's extras (gliders, glider trails, gun skins, build skins and the rest: README, "Locker extras"). Everything
+// that draws them is in locker-extra.js beside this page, fetched only when something needs it: the Locker is on for this
+// player, or another player arrives wearing one (`lx` in their node). Until then LX is null and every hook that asks it
+// (look for `LX`) does exactly what it always did. What someone wears is one short string: a letter for each slot and the
+// item's number, 'g12t3w5b2' (g glider, t trail, w gun skin, b build skin; p, e, v, o kept for more slots), each letter
+// at most once, numbers 1 to 99, nothing else; lxOf lets exactly that through and turns anything else into '' (nothing).
+let LX=null,lxAsked=false,myLx='';
+const LX_SLOTS='gtwbpevo';
+function lxOf(v){if(typeof v!=='string'||!v||v.length>24||!/^([a-z][1-9][0-9]?)+$/.test(v))return '';const seen=new Set();for(const m of v.matchAll(/([a-z])([0-9]+)/g)){if(!LX_SLOTS.includes(m[1])||seen.has(m[1]))return '';seen.add(m[1])}return v}
+const savedLx=()=>lockerOn()?lxOf(store.get('lx','')):'';   // read only while the Locker is on, like the outfit
+function lxLoad(){if(lxAsked)return;lxAsked=true;loadScript('locker-extra.js').then(()=>{LX=window.DriftfallExtra(LXAPI);lxSync()}).catch(e=>{lxAsked=false;console.error(e)})}
 let myName=store.get('name','')||('Glider'+Math.floor(100+Math.random()*900));
 
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
@@ -2216,7 +2230,7 @@ let bdDirty=false;const bdGone=new Map();   // (for the list of builds the host 
 const skirtIM=new THREE.InstancedMesh(new THREE.BoxGeometry(4,1,.22),plyMat,PCAP),skirtList=[];
 skirtIM.instanceMatrix.setUsage(THREE.DynamicDrawUsage);skirtIM.setColorAt(0,new THREE.Color(.62,.58,.54));skirtIM.count=0;skirtIM.frustumCulled=false;skirtIM.visible=false;scene.add(skirtIM);
 function skirtSet(pc,i){const s=pc.spec,g=pc.skirt;_o.rotation.set(0,s.o==='H'?0:Math.PI/2,0);_o.scale.set(1,g,1);if(s.o==='H')_o.position.set(s.x*4+2,s.L*4-g/2,s.z*4);else _o.position.set(s.x*4,s.L*4-g/2,s.z*4+2);
-  _o.updateMatrix();skirtIM.setMatrixAt(i,_o.matrix);skirtIM.setColorAt(i,_col.setRGB(.62,.58,.54));_o.scale.set(1,1,1);_o.rotation.set(0,0,0);pc.skirtIx=i;
+  _o.updateMatrix();skirtIM.setMatrixAt(i,_o.matrix);skirtIM.setColorAt(i,_col.setRGB(.62,.58,.54));if(LX)LX.bsk(skirtIM,i,pc.bs);_o.scale.set(1,1,1);_o.rotation.set(0,0,0);pc.skirtIx=i;
   skirtIM.count=skirtList.length;skirtIM.visible=skirtList.length>0;skirtIM.instanceMatrix.needsUpdate=true;skirtIM.instanceColor.needsUpdate=true}
 function skirtAdd(pc){pc.skirt=skirtOf(pc.spec);if(!pc.skirt||skirtList.length>=PCAP)return;skirtList.push(pc);skirtSet(pc,skirtList.length-1)}
 function skirtDrop(pc){if(pc.skirtIx==null)return;const last=skirtList.pop();if(last!==pc){skirtList[pc.skirtIx]=last;skirtSet(last,pc.skirtIx)}pc.skirtIx=null;skirtIM.count=skirtList.length;skirtIM.visible=skirtList.length>0}
@@ -2349,13 +2363,13 @@ function partsOf(s,mask){
 }
 // a piece's own frame, a little small while it pops in (see piecesTick), nothing at all while you are editing it (the grid stands in)
 function pieceFrame(pc){const m=pieceMatrix(pc.spec);return pc.hide?m.scale(_pv.setScalar(0)):pc.pop<1?m.scale(_pv.setScalar(.82+.18*pc.pop)):m}
-function instSet(pc){const P=pieceInst[pc.kind];P.mesh.setMatrixAt(pc.ix,pieceFrame(pc));P.mesh.setColorAt(pc.ix,pieceTint(pc));P.mesh.instanceMatrix.needsUpdate=true;if(P.mesh.instanceColor)P.mesh.instanceColor.needsUpdate=true}
+function instSet(pc){const P=pieceInst[pc.kind];P.mesh.setMatrixAt(pc.ix,pieceFrame(pc));P.mesh.setColorAt(pc.ix,pieceTint(pc));if(LX)LX.bsk(P.mesh,pc.ix,pc.bs);P.mesh.instanceMatrix.needsUpdate=true;if(P.mesh.instanceColor)P.mesh.instanceColor.needsUpdate=true}
 function instIn(pc){const P=pieceInst[pc.kind];pc.ix=P.list.length;P.list.push(pc);P.mesh.count=P.list.length;instSet(pc)}
 function instOut(pc){if(pc.ix<0)return;const P=pieceInst[pc.kind],last=P.list.pop();if(last!==pc){P.list[pc.ix]=last;last.ix=pc.ix;instSet(last)}pc.ix=-1;P.mesh.count=P.list.length;P.mesh.instanceMatrix.needsUpdate=true}
 function partFlush(){
   partDirty=false;let i=0;
   for(const pc of partList){if(pc.hide)continue;const base=pieceFrame(pc),tint=pieceTint(pc);
-    for(const q of pc.parts){if(i>=PART_CAP)break;partIM.setMatrixAt(i,_pm.multiplyMatrices(base,q.m));partIM.setColorAt(i,tint);partUV.setXYZW(i,q.uv[0],q.uv[1],q.uv[2],q.uv[3]);i++}}
+    for(const q of pc.parts){if(i>=PART_CAP)break;partIM.setMatrixAt(i,_pm.multiplyMatrices(base,q.m));partIM.setColorAt(i,tint);partUV.setXYZW(i,q.uv[0],q.uv[1],q.uv[2],q.uv[3]);if(LX)LX.bsk(partIM,i,pc.bs);i++}}
   partIM.count=i;partIM.visible=i>0;partIM.instanceMatrix.needsUpdate=true;partIM.instanceColor.needsUpdate=true;partUV.needsUpdate=true;
 }
 const redraw=pc=>{if(pc.ix>=0)instSet(pc);else partDirty=true};
@@ -2383,7 +2397,7 @@ function shapePiece(pc,ed){
 // oid: who built it (a player's uid, a Practice bot's id, 'me' in Practice), which decides who may edit it
 function makePiece(s,oid){
   const kind=s.kind,P=pieceInst[kind];if(P.n>=PCAP)return null;P.n++;
-  const pc={key:pieceKey(s),spec:s,kind,hp:PHP[kind],max:PHP[kind],ed:0,en:0,owner:oid||null,boxes:[],rps:[],parts:null,ix:-1,pop:1,hide:false,born:performance.now()};
+  const pc={key:pieceKey(s),spec:s,kind,hp:PHP[kind],max:PHP[kind],ed:0,en:0,owner:oid||null,boxes:[],rps:[],parts:null,ix:-1,pop:1,hide:false,born:performance.now(),bs:LX?LX.bsOf(oid):0};   // bs: the builder's build skin (locker-extra.js), 0 for plywood
   if(kind==='wall')skirtAdd(pc);
   shapePiece(pc,0);
   pieces.set(pc.key,pc);bdDirty=true;return pc;
@@ -2393,10 +2407,10 @@ function removePiece(pc,fx){
   pieces.delete(pc.key);skirtDrop(pc);dropShape(pc);pops.delete(pc);pieceInst[pc.kind].n--;
   if(pc.parts){partList.splice(partList.indexOf(pc),1);pc.parts=null;partDirty=true}else instOut(pc);
   bdGone.set(pc.key,performance.now());bdDirty=true;
-  if(fx){const c=pieceCentre(pc.spec);debris(c,0xc7955a,10);sfxBreak(1/(1+camera.position.distanceTo(c)*.07))}
+  if(fx){const c=pieceCentre(pc.spec);debris(c,LX&&pc.bs?LX.bsCol(pc.bs):0xc7955a,10);sfxBreak(1/(1+camera.position.distanceTo(c)*.07))}
 }
 function pieceCentre(s){const b=pieceBox(s);return new V3((b.min[0]+b.max[0])/2,(b.min[1]+b.max[1])/2,(b.min[2]+b.max[2])/2)}
-function clearPieces(){closeEdit();editJob=null;for(const pc of [...pieces.values()])removePiece(pc,false);bdGone.clear();bdDirty=true}
+function clearPieces(){closeEdit();for(const pc of [...pieces.values()])removePiece(pc,false);bdGone.clear();bdDirty=true}
 function damagePiece(pc,amt){
   if(!pc||!pieces.has(pc.key))return;
   pc.hp-=amt;if(pc.hp<=0){removePiece(pc,true);return}
@@ -2662,13 +2676,17 @@ function lineClear(a,b){const d=b.clone().sub(a),L=d.length();if(L<.01)return tr
 // Turkey Week (../events.js): everyone's cap is drawn as a pilgrim hat. It is part of the same body geometry, so it
 // costs no extra draw calls; only the look changes. The Turkey Week switch on the Back Room page turns it off (read once, when the game loads).
 const EVT=window.BackRoomEvents&&BackRoomEvents.turkey,TKON=!!(EVT&&EVT.on());
-function bodyGeo(hex,skin,fit,face){
+// A backpack from the Locker's extras (locker-extra.js, `p` in a player's lx): while a body is built, PACK_NOW is its number; an
+// outfit's own pack (pack, back) gives way to it, and an outfit with none gets it added. 0 (and always, without LX): the outfit's own.
+let PACK_NOW=0,PACK_DONE=0;
+function bodyGeo(hex,skin,fit,face,pk){
   const B=Bag(),dark=new THREE.Color(hex).multiplyScalar(.55).getHex(),lite=new THREE.Color(hex).lerp(new THREE.Color(0xffffff),.22).getHex();
   face=faceOf(face);   // a drawn face (see "drawn faces", below), or '' for the outfit's own eyes and mouth
   // an outfit (OUTFITS, below): its own body pieces, then its headwear, or the event's hat in its place, then the drawn face
   const O=fit?OUTFITS[fit]:null;
   B.pt=[];BW=0;   // every part is recorded, so bodyRig can give the body its shape and its bones
-  if(O&&O.body){const c={hex,dark,lite,skin:O.skin!=null?O.skin:skin,hair:HAIR[SKINS.indexOf(skin)%HAIR.length]||HAIR[0],face:!!face};O.body(B,c);BW=0;const nb=B.p.length/3;if(TKON)eventHat(B);else if(O.hat)O.hat(B,c);
+  PACK_NOW=LX?pk|0:0;PACK_DONE=0;
+  if(O&&O.body){const c={hex,dark,lite,skin:O.skin!=null?O.skin:skin,hair:HAIR[SKINS.indexOf(skin)%HAIR.length]||HAIR[0],face:!!face};O.body(B,c);BW=0;if(PACK_NOW&&!PACK_DONE)LX.pack(B,PACK_NOW,hex);PACK_NOW=0;const nb=B.p.length/3;if(TKON)eventHat(B);else if(O.hat)O.hat(B,c);
     if(face)bagFace(B,faceSpot(fit),face);return bodyRig(B,nb)}
   bagRBox(B,0,1.22,0,.7,.72,.42,hex);bagRBox(B,0,1.36,-.005,.62,.3,.44,lite);bagRBox(B,0,.9,0,.73,.1,.45,0x2b2f36);   // torso, chest panel, belt
   BW=1;bagRBox(B,0,1.58,0,.24,.1,.24,skin);                                                                           // neck
@@ -2677,7 +2695,7 @@ function bodyGeo(hex,skin,fit,face){
   else{bagRBox(B,0,2.07,0,.52,.15,.52,dark);bagRBox(B,0,2.02,-.27,.5,.06,.16,dark)}                                   // cap and its peak
   hairOf(B,HAIR[SKINS.indexOf(skin)%HAIR.length]||HAIR[0],false);                                                  // hair
   if(face)bagFace(B,FACE0,face);else bagBox(B,0,1.83,-.262,.34,.08,.02,0x1d2228);BW=0;                               // a drawn face, or the visor
-  bagRBox(B,0,1.25,.31,.44,.5,.2,dark);bagRBox(B,0,1.52,.31,.46,.06,.22,0xffc93c);                                    // backpack and its roll
+  if(PACK_NOW){LX.pack(B,PACK_NOW,hex);PACK_NOW=0}else{bagRBox(B,0,1.25,.31,.44,.5,.2,dark);bagRBox(B,0,1.52,.31,.46,.06,.22,0xffc93c)}   // backpack and its roll
   bagRBox(B,-.41,1.46,0,.17,.2,.26,hex);bagRBox(B,.41,1.46,0,.17,.2,.26,hex);                                         // shoulders
   armsOf(B,hex,skin);                                                                                                // arms and hands
   return bodyRig(B,B.p.length/3);
@@ -3071,7 +3089,8 @@ function hairOf(B,col,top){const b0=BW;BW=1;
 const OUTFITS=(()=>{
   const R=bagRBox,L=bagRLo,X=bagBox,WHITE=0xf2efe8,CREAM=0xf1e6cf,STEEL=0xb9c2cc,IRON=0x8d96a0,INK=0x2b2f36,GLASS=0x1d2228,GOLD=0xffc93c,DENIM=0x4a78c2,STRAW=0xffd95a,WOOD=0x9a6a3c,LENS=0x8fe3ff,RED=0xe8483f,GREEN=0x7fe06d,VEST=0xd9f24a;
   const cuffs=(B,col)=>{L(B,-.184,1.36,-.443,.19,.19,.1,col,-.4);L(B,.3,1.36,-.44,.19,.19,.1,col)};
-  const pack=(B,col,d)=>R(B,0,1.25,.31,.44,.5,d||.2,col);   // something on the back as deep as the standard backpack, so no outfit is slimmer from the side
+  const pack=(B,col,d)=>{if(PACK_NOW){PACK_DONE=1;LX.pack(B,PACK_NOW,col)}else R(B,0,1.25,.31,.44,.5,d||.2,col)};
+  const back=(B,c,f)=>{if(PACK_NOW){PACK_DONE=1;LX.pack(B,PACK_NOW,c.hex)}else f()};   // an outfit's own thing on its back, or the Locker's backpack in its place   // something on the back as deep as the standard backpack, so no outfit is slimmer from the side
   const T=bagTurn,eyes=(B,y,z)=>{X(B,-.085,y||1.8,z||-.288,.045,.1,.03,INK);X(B,.085,y||1.8,z||-.288,.045,.1,.03,INK)};
   const tee=(B,col)=>{L(B,-.336,1.36,-.083,.19,.19,.28,col,-.4);L(B,.3,1.36,-.05,.19,.19,.28,col)};   // short sleeves over the upper arms
   // the owner's twelve (November 2026 sketches); their colours are the sketches', not the player's
@@ -3099,7 +3118,7 @@ const OUTFITS=(()=>{
   // it shows from every side: a backpack (as deep as the standard one), its straps over the shoulders and a belt.
   {id:'noob',name:'Noob',skin:N_YEL,legs:()=>[1,N_TRS,N_TRS,N_TRS,N_TRS,SHOE],
     body(B,c){fitBase(B,c,N_BLUE,N_YEL,N_YEL,N_YEL,{hair:false});c.face||eyes(B);
-      pack(B,c.hex);L(B,0,1.52,.31,.46,.06,.22,CREAM);L(B,0,.9,0,.73,.1,.45,c.hex);                  // backpack, its roll, belt
+      back(B,c,()=>{pack(B,c.hex);L(B,0,1.52,.31,.46,.06,.22,CREAM)});L(B,0,.9,0,.73,.1,.45,c.hex);                  // backpack, its roll, belt
       for(const x of [-.17,.17]){X(B,x,1.34,-.25,.07,.52,.05,c.hex);X(B,x,1.52,.25,.07,.26,.05,c.hex);X(B,x,1.655,0,.07,.05,.5,c.hex)}}},   // straps: front, back, over the shoulder
   {id:'feathercap',name:'Feathercap',face:{y:1.795,cell:.034},legs:()=>[1,F_TRS,F_TRS,F_TRS,F_TRS,0x3a2a22],
     body(B,c){fitBase(B,c,F_GREEN,CREAM,c.skin,CREAM);c.face||eyes(B);
@@ -3170,13 +3189,13 @@ const OUTFITS=(()=>{
       R(B,0,.9,0,.74,.12,.46,INK);X(B,0,1.26,-.25,.035,.6,.05,WHITE);                               // ribbed hem, zip
       L(B,0,1.06,-.2,.46,.2,.14,c.lite);                                                            // pouch pocket
       X(B,-.07,1.5,-.25,.025,.2,.05,WHITE);X(B,.07,1.5,-.25,.025,.2,.05,WHITE);                     // drawstrings
-      cuffs(B,c.lite);pack(B,c.dark);R(B,0,1.52,.31,.46,.06,.22,GOLD)},                             // cuffs, the standard backpack and roll
+      cuffs(B,c.lite);back(B,c,()=>{pack(B,c.dark);R(B,0,1.52,.31,.46,.06,.22,GOLD)})},                             // cuffs, the standard backpack and roll
     hat(B,c){R(B,0,1.85,.08,.62,.62,.56,c.hex);L(B,0,1.54,.2,.52,.16,.3,c.hex)}},                   // the hood up, gathered at the neck
   {id:'racer',name:'Racing Suit',hatFace:{y:1.81,cell:.034,flat:-.401},legs:h=>h,
     body(B,c){fitBase(B,c,c.hex,c.hex,INK,WHITE);
       R(B,0,1.38,-.005,.72,.14,.44,WHITE);R(B,0,.9,0,.73,.1,.45,WHITE);L(B,0,1.6,0,.36,.1,.36,INK); // chest band, belt, collar
       X(B,-.425,1.1,0,.05,.4,.22,WHITE);X(B,.425,1.1,0,.05,.4,.22,WHITE);                           // side stripes
-      pack(B,WHITE,.22);X(B,-.055,1.28,.43,.05,.2,.04,INK);X(B,.055,1.28,.43,.05,.2,.04,INK);X(B,0,1.46,.43,.3,.05,.04,c.hex)},   // a cooling pack on the back with the number 11
+      back(B,c,()=>{pack(B,WHITE,.22);X(B,-.055,1.28,.43,.05,.2,.04,INK);X(B,.055,1.28,.43,.05,.2,.04,INK);X(B,0,1.46,.43,.3,.05,.04,c.hex)})},   // a cooling pack on the back with the number 11
     hat(B,c){R(B,0,1.81,0,.62,.6,.62,WHITE);if(c.face)X(B,0,1.81,-.365,.46,.37,.06,c.skin);else X(B,0,1.83,-.36,.46,.17,.06,GLASS);X(B,0,2.15,0,.16,.07,.5,c.hex);X(B,0,1.86,.35,.16,.4,.07,c.hex);L(B,0,1.6,-.2,.34,.12,.26,WHITE)}},   // helmet, visor (open on the face when one is drawn, since black would not show on dark glass), stripe, chin bar
   {id:'overalls',name:'Overalls',face:{y:1.83,cell:.034},legs:DENIM,
     body(B,c){fitBase(B,c,c.hex,c.hex,c.skin,c.hex);
@@ -3184,39 +3203,39 @@ const OUTFITS=(()=>{
       X(B,-.17,1.54,-.25,.07,.24,.05,DENIM);X(B,.17,1.54,-.25,.07,.24,.05,DENIM);X(B,-.17,1.52,.25,.07,.26,.05,DENIM);X(B,.17,1.52,.25,.07,.26,.05,DENIM);   // straps
       X(B,-.17,1.655,0,.07,.05,.5,DENIM);X(B,.17,1.655,0,.07,.05,.5,DENIM);
       X(B,0,1.3,-.285,.2,.14,.03,shadeOf(DENIM,1.25));X(B,-.17,1.45,-.275,.05,.05,.03,GOLD);X(B,.17,1.45,-.275,.05,.05,.03,GOLD);   // bib pocket, buttons
-      pack(B,c.dark);X(B,0,1.3,.43,.12,.1,.04,GOLD)},                                               // a satchel with a buckle
+      back(B,c,()=>{pack(B,c.dark);X(B,0,1.3,.43,.12,.1,.04,GOLD)})},                                               // a satchel with a buckle
     hat(B,c){R(B,0,2.03,0,.78,.05,.78,STRAW);R(B,0,2.12,0,.5,.2,.5,STRAW);L(B,0,2.07,0,.53,.07,.53,c.hex)}},   // straw hat with a band
   {id:'knight',name:'Toy Knight',hatFace:{y:1.8,box:[1.81,0,.6,.6,.6]},legs:IRON,
     body(B,c){fitBase(B,c,STEEL,STEEL,IRON,STEEL);
       L(B,-.39,1.54,0,.2,.14,.34,0xdde3ea);L(B,.39,1.54,0,.2,.14,.34,0xdde3ea);L(B,0,1.6,0,.4,.1,.4,IRON);   // shoulder plates, neck guard
       L(B,0,1.2,-.2,.4,.7,.14,c.hex);X(B,0,1.38,-.285,.26,.06,.03,c.lite);X(B,0,1.26,-.285,.26,.06,.03,c.lite);   // tabard with two bars
       R(B,0,.9,0,.74,.09,.5,INK);X(B,0,.9,-.305,.12,.1,.04,GOLD);                                   // belt and buckle
-      R(B,0,1.24,.32,.5,.56,.17,c.hex);L(B,0,1.24,.4,.2,.22,.08,GOLD)},                             // a shield on the back
+      back(B,c,()=>{R(B,0,1.24,.32,.5,.56,.17,c.hex);L(B,0,1.24,.4,.2,.22,.08,GOLD)})},                             // a shield on the back
     hat(B,c){R(B,0,1.81,0,.6,.6,.6,STEEL);if(!c.face){X(B,0,1.85,-.35,.42,.05,.06,GLASS);X(B,0,1.71,-.35,.04,.16,.06,GLASS)}L(B,0,2.2,.04,.1,.2,.4,c.hex)}},   // helmet, eye slit, breather, crest
   {id:'space',name:'Space Suit',hatFace:{y:1.83,cell:.031,box:[1.83,-.17,.48,.34,.4]},legs:0xdfe4ea,
     body(B,c){fitBase(B,c,WHITE,WHITE,c.hex,WHITE);
       R(B,0,.9,0,.73,.1,.45,IRON);R(B,0,1.57,0,.56,.1,.5,IRON);                                     // belt, neck ring
       L(B,0,1.3,-.22,.36,.26,.14,0xc9d1da);X(B,-.09,1.34,-.305,.05,.05,.03,RED);X(B,0,1.34,-.305,.05,.05,.03,GOLD);X(B,.09,1.34,-.305,.05,.05,.03,GREEN);   // chest box and its buttons
-      bands(B,c.hex);R(B,0,1.28,.31,.56,.62,.24,WHITE);X(B,0,1.42,.45,.36,.06,.03,c.hex);X(B,0,1.2,.45,.2,.14,.03,IRON)},   // arm bands, life-support pack
+      bands(B,c.hex);back(B,c,()=>{R(B,0,1.28,.31,.56,.62,.24,WHITE);X(B,0,1.42,.45,.36,.06,.03,c.hex);X(B,0,1.2,.45,.2,.14,.03,IRON)})},   // arm bands, life-support pack
     hat(B,c){R(B,0,1.83,0,.64,.6,.64,WHITE);L(B,0,1.83,-.17,.48,.34,.4,GOLD);X(B,-.395,1.8,0,.03,.12,.12,IRON);X(B,.395,1.8,0,.03,.12,.12,IRON)}},   // helmet, gold visor
   {id:'rain',name:'Raincoat',
     body(B,c){fitBase(B,c,c.hex,c.hex,c.skin,c.hex);
       R(B,0,.82,0,.76,.26,.5,c.hex);L(B,0,1.6,0,.42,.12,.4,c.dark);                                 // the coat's skirt, collar
       X(B,0,1.24,-.25,.05,.6,.05,c.dark);X(B,0,1.44,-.265,.07,.07,.04,GOLD);X(B,0,1.2,-.265,.07,.07,.04,GOLD);X(B,0,.84,-.305,.07,.07,.04,GOLD);   // placket and buttons
       X(B,-.24,1.02,-.25,.2,.05,.06,c.dark);X(B,.24,1.02,-.25,.2,.05,.06,c.dark);cuffs(B,c.dark);  // pocket flaps, cuffs
-      pack(B,c.hex,.22);X(B,0,1.42,.43,.36,.05,.04,c.dark)},                                        // a pack under the coat, and its flap
+      back(B,c,()=>{pack(B,c.hex,.22);X(B,0,1.42,.43,.36,.05,.04,c.dark)})},                                        // a pack under the coat, and its flap
     hat(B,c){R(B,0,2.02,.04,.74,.05,.76,c.hex);R(B,0,2.1,0,.5,.2,.5,c.hex);L(B,0,2.05,0,.53,.05,.53,c.dark)}},   // sou'wester: brim longer at the back, crown, band
   {id:'chef',name:'Chef',
     body(B,c){fitBase(B,c,WHITE,WHITE,c.skin,WHITE);
       for(const y of [1.44,1.3,1.16]){X(B,-.1,y,-.255,.05,.05,.03,INK);X(B,.1,y,-.255,.05,.05,.03,INK)}   // two rows of buttons
       L(B,0,1.58,-.05,.36,.1,.36,c.hex);R(B,0,.92,0,.74,.07,.47,c.hex);L(B,0,.9,-.2,.6,.3,.16,c.hex);   // neckerchief, apron string, apron
-      R(B,0,1.22,.3,.44,.42,.22,0xc3ccd6);X(B,0,1.46,.3,.52,.04,.05,INK);L(B,0,1.22,.44,.1,.1,.06,INK)},   // a cooking pot on the back: its rim handle and lid knob
+      back(B,c,()=>{R(B,0,1.22,.3,.44,.42,.22,0xc3ccd6);X(B,0,1.46,.3,.52,.04,.05,INK);L(B,0,1.22,.44,.1,.1,.06,INK)})},   // a cooking pot on the back: its rim handle and lid knob
     hat(B,c){R(B,0,2.05,0,.5,.14,.5,WHITE);R(B,0,2.22,0,.58,.26,.58,WHITE)}},                        // chef's hat: band and puff
   {id:'diver',name:'Diver',face:{y:1.775,cell:.035,flat:-.359},legs:h=>shadeOf(h,.75),
     body(B,c){fitBase(B,c,c.hex,c.hex,INK,c.hex);
       X(B,-.425,1.2,0,.05,.6,.26,c.dark);X(B,.425,1.2,0,.05,.6,.26,c.dark);                         // side panels
       R(B,0,.9,0,.73,.1,.45,GOLD);X(B,-.2,.9,-.275,.1,.12,.05,IRON);X(B,.2,.9,-.275,.1,.12,.05,IRON);   // weight belt
-      R(B,0,1.3,.3,.28,.62,.24,GOLD);L(B,0,1.66,.3,.12,.1,.12,IRON);X(B,.2,1.675,.08,.04,.04,.5,INK);   // air tank, valve, hose
+      back(B,c,()=>{R(B,0,1.3,.3,.28,.62,.24,GOLD);L(B,0,1.66,.3,.12,.1,.12,IRON);X(B,.2,1.675,.08,.04,.04,.5,INK)});   // air tank, valve, hose
       if(c.face){L(B,0,1.775,-.27,.52,.42,.12,INK);X(B,0,1.775,-.338,.45,.38,.03,LENS)}   // a drawn face: a full-face mask, the drawing on its glass
       else{L(B,.12,1.68,-.3,.16,.1,.1,IRON);L(B,0,1.86,-.27,.46,.2,.12,INK);X(B,0,1.86,-.335,.36,.12,.03,LENS)}},   // mouthpiece, mask and its glass
     hat(B,c){R(B,0,1.93,.02,.56,.36,.56,c.hex);X(B,-.34,2,.05,.05,.5,.05,GOLD);X(B,-.34,2.27,.05,.07,.06,.07,0xff6a3a)}},   // swim cap, snorkel
@@ -3224,20 +3243,20 @@ const OUTFITS=(()=>{
     body(B,c){fitBase(B,c,0xc3ccd6,0xc3ccd6,IRON,c.hex);
       L(B,0,1.3,-.2,.44,.36,.14,c.hex);X(B,-.12,1.38,-.285,.06,.06,.03,RED);X(B,0,1.38,-.285,.06,.06,.03,GOLD);X(B,.12,1.38,-.285,.06,.06,.03,GREEN);X(B,0,1.24,-.285,.3,.05,.03,INK);   // chest plate, lights, slot
       bands(B,c.hex);R(B,0,.9,0,.73,.1,.45,IRON);
-      R(B,0,1.28,.3,.46,.52,.22,IRON);X(B,0,1.3,.445,.05,.05,.04,GOLD);X(B,-.09,1.3,.47,.14,.16,.03,GOLD);X(B,.09,1.3,.47,.14,.16,.03,GOLD)},   // back box and a wind-up key
+      back(B,c,()=>{R(B,0,1.28,.3,.46,.52,.22,IRON);X(B,0,1.3,.445,.05,.05,.04,GOLD);X(B,-.09,1.3,.47,.14,.16,.03,GOLD);X(B,.09,1.3,.47,.14,.16,.03,GOLD)})},   // back box and a wind-up key
     hat(B,c){R(B,0,1.81,0,.62,.58,.6,0xc3ccd6);if(!c.face){X(B,-.13,1.86,-.355,.11,.09,.04,LENS);X(B,.13,1.86,-.355,.11,.09,.04,LENS);X(B,0,1.68,-.355,.26,.05,.04,INK)}   // head casing, eyes, mouth
       X(B,-.385,1.8,0,.04,.14,.14,c.hex);X(B,.385,1.8,0,.04,.14,.14,c.hex);X(B,0,2.26,0,.03,.2,.03,IRON);L(B,0,2.38,0,.09,.09,.09,c.hex)}},   // ear knobs, aerial
   {id:'varsity',name:'Varsity Jacket',
     body(B,c){fitBase(B,c,c.hex,CREAM,c.skin,CREAM);
       R(B,0,.9,0,.74,.12,.46,INK);L(B,0,1.6,0,.4,.1,.38,c.dark);cuffs(B,c.hex);X(B,0,1.24,-.25,.035,.6,.04,WHITE);   // hem, collar, cuffs, snaps
       X(B,.11,1.4,-.25,.04,.18,.05,CREAM);X(B,.17,1.47,-.25,.12,.04,.05,CREAM);X(B,.17,1.33,-.25,.12,.04,.05,CREAM);X(B,.24,1.4,-.25,.04,.12,.05,CREAM);   // a letter D on the chest
-      pack(B,CREAM);X(B,0,1.38,.43,.24,.06,.04,c.hex);X(B,.09,1.24,.43,.06,.3,.04,c.hex)},            // a school bag with a 7 on it
+      back(B,c,()=>{pack(B,CREAM);X(B,0,1.38,.43,.24,.06,.04,c.hex);X(B,.09,1.24,.43,.06,.3,.04,c.hex)})},            // a school bag with a 7 on it
     hat(B,c){R(B,0,2.07,0,.52,.15,.52,CREAM);R(B,0,2.02,.27,.5,.06,.16,c.hex);X(B,0,2.15,0,.08,.04,.08,c.hex)}},   // cap on backwards
   {id:'builder',name:'Builder',hatFace:{y:1.735,cell:.032},legs:0x4f6f9e,
     body(B,c){fitBase(B,c,VEST,c.hex,0xe0b13a,VEST);
       L(B,0,1.12,0,.72,.07,.44,0xe6ebf0);L(B,0,1.38,0,.72,.07,.44,0xe6ebf0);                        // two reflective bands
       R(B,0,.9,0,.74,.1,.47,INK);L(B,.3,.84,-.2,.2,.2,.14,c.dark);                                  // tool belt and pouch
-      pack(B,c.dark);X(B,-.1,1.2,.43,.04,.3,.04,WOOD);X(B,-.1,1.36,.43,.14,.06,.05,IRON)},          // a tool bag with a hammer on it
+      back(B,c,()=>{pack(B,c.dark);X(B,-.1,1.2,.43,.04,.3,.04,WOOD);X(B,-.1,1.36,.43,.14,.06,.05,IRON)})},          // a tool bag with a hammer on it
     hat(B,c){R(B,0,2.04,0,.56,.26,.56,c.hex);R(B,0,1.99,-.04,.62,.05,.64,c.hex);X(B,0,2.18,0,.08,.05,.4,c.lite)}},   // hard hat: dome, brim, ridge
   {id:'wizard',name:'Wizard',face:{y:1.845,cell:.03},legs:h=>shadeOf(h,.75),
     body(B,c){fitBase(B,c,c.hex,c.hex,c.skin,c.hex);
@@ -3245,8 +3264,120 @@ const OUTFITS=(()=>{
       X(B,0,1.34,-.25,.16,.05,.05,GOLD);X(B,0,1.34,-.25,.05,.16,.05,GOLD);                          // a sparkle on the chest
       L(B,-.184,1.36,-.443,.22,.22,.14,c.lite,-.4);L(B,.3,1.36,-.44,.22,.22,.14,c.lite);            // wide cuffs
       if(c.face)L(B,0,1.585,-.24,.3,.17,.12,WHITE);else L(B,0,1.62,-.24,.3,.24,.12,WHITE);          // beard (trimmed under a drawn face, so a mouth shows)
-      R(B,0,1.2,.31,.6,.7,.14,c.dark);X(B,-.14,1.38,.39,.07,.07,.03,GOLD);X(B,.12,1.1,.39,.07,.07,.03,GOLD)},   // cape with two stars
-    hat(B,c){R(B,0,2.03,0,.72,.05,.72,c.hex);R(B,0,2.14,0,.42,.2,.42,c.hex);L(B,0,2.29,.02,.27,.16,.27,c.hex);L(B,0,2.4,.05,.15,.12,.15,c.hex);L(B,0,2.07,0,.45,.05,.45,GOLD)}}   // pointed hat in three steps, band
+      back(B,c,()=>{R(B,0,1.2,.31,.6,.7,.14,c.dark);X(B,-.14,1.38,.39,.07,.07,.03,GOLD);X(B,.12,1.1,.39,.07,.07,.03,GOLD)})},   // cape with two stars
+    hat(B,c){R(B,0,2.03,0,.72,.05,.72,c.hex);R(B,0,2.14,0,.42,.2,.42,c.hex);L(B,0,2.29,.02,.27,.16,.27,c.hex);L(B,0,2.4,.05,.15,.12,.15,c.hex);L(B,0,2.07,0,.45,.05,.45,GOLD)}},   // pointed hat in three steps, band
+  // The Locker extras' sixteen (November 2026, the owner's wishlist), held to the same rule as the twelve before them: as
+  // wide and deep as the standard (each has something on its back as deep as the backpack), never darker, no ground greens.
+  {id:'jet',name:'Jet Pilot',hatFace:{y:1.81,cell:.034,flat:-.401},legs:0xf28c28,
+    body(B,c){fitBase(B,c,0xf28c28,0xf28c28,0xe6ebf0,0xf28c28);
+      for(const x of [-.17,.17]){X(B,x,1.24,-.25,.07,.62,.05,0x8a96a6);X(B,x,1.3,.25,.07,.5,.05,0x8a96a6)}X(B,0,1.02,-.25,.5,.07,.05,0x8a96a6);   // harness straps
+      X(B,-.2,1.44,-.25,.16,.14,.04,0xd8731c);X(B,.2,1.44,-.25,.16,.14,.04,0xd8731c);X(B,-.24,1.1,-.25,.14,.18,.04,0xd8731c);X(B,-.425,1.0,0,.04,.24,.18,0xd8731c);X(B,.425,1.0,0,.04,.24,.18,0xd8731c);   // pockets
+      X(B,.2,1.48,-.28,.12,.07,.02,c.hex);R(B,0,.9,0,.74,.08,.46,0x8a96a6);cuffs(B,0xe6ebf0);
+      back(B,c,()=>{pack(B,0xc9d1da,.22);X(B,0,1.42,.43,.38,.06,.04,0xe8453c);X(B,0,1.12,.43,.06,.2,.04,0x8a96a6)})},   // parachute pack with a red pull tab
+    hat(B,c){R(B,0,1.83,0,.64,.62,.64,WHITE);if(c.face)X(B,0,1.81,-.365,.46,.37,.06,c.skin);else X(B,0,1.88,-.36,.48,.2,.06,0x6a4a9a);X(B,0,2.17,0,.18,.06,.56,c.hex);
+      if(!c.face)L(B,0,1.66,-.3,.22,.16,.14,0xb9c2cc);X(B,-.36,1.84,0,.05,.12,.14,c.hex);X(B,.36,1.84,0,.05,.12,.14,c.hex)}},   // helmet, tinted visor, stripe, mask, side bosses
+  {id:'lumberjack',name:'Lumberjack',face:{y:1.83,cell:.032},legs:DENIM,
+    body(B,c){const PL=0xe0463a,PD=0xa8382e,PY=0xf4bc5a;fitBase(B,c,PL,PL,c.skin,PL,{torso:false});
+      bagPaint(B,0,1.22,0,.7,.72,.42,[6,6,3],PL,(f,i,j)=>(i%2&&j%2)?PD:(i%3===1&&j%3===1)?PY:undefined);   // plaid
+      for(const s of [-1,1])bagPaint(B,s*.41,1.46,0,.17,.2,.26,[2,2,2],PL,(f,i,j)=>(i+j)%2?PD:undefined);
+      X(B,0,1.26,-.25,.035,.56,.05,PD);
+      if(!c.face){L(B,0,1.63,-.21,.42,.26,.16,0x8a4a22);X(B,0,1.6,-.29,.12,.04,.03,0xe9a08a)}   // beard (off under a drawn face)
+      R(B,0,.9,0,.74,.1,.46,0x6a4020);X(B,0,.9,-.29,.14,.11,.03,GOLD);cuffs(B,PD);
+      back(B,c,()=>{R(B,0,1.24,.31,.48,.54,.2,0xb98a52);for(const y of [1.06,1.24,1.42])T(B,0,0,y,.43,.5,.12,.12,0x9a6a3c);for(const y of [1.06,1.24,1.42])for(const s of [-1,1])X(B,s*.25,y,.43,.02,.1,.1,0xe8c48a)})},   // a frame with three logs
+    hat(B,c){R(B,0,2.0,0,.56,.3,.56,0xd23b2e);L(B,0,1.9,0,.6,.08,.6,0xf3e2b8);L(B,0,2.22,0,.16,.16,.16,0xf3e2b8)}},   // knitted hat, turned-up edge, bobble
+  {id:'ranger',name:'Park Ranger',face:{y:1.8,cell:.034},legs:0x9a8456,
+    body(B,c){const KH=0xd9c48a,KD=0xb8a064;fitBase(B,c,KH,KH,c.skin,KH);
+      L(B,-.13,1.56,-.2,.24,.12,.16,KD);L(B,.13,1.56,-.2,.24,.12,.16,KD);X(B,0,1.24,-.25,.035,.56,.05,KD);
+      X(B,-.2,1.34,-.25,.18,.16,.04,KD);X(B,.2,1.34,-.25,.18,.16,.04,KD);T(B,0,-.2,1.42,-.275,.08,.08,.02,GOLD,0,0,.785);   // pockets and a star badge
+      X(B,-.44,1.46,0,.03,.14,.12,0xe8742a);X(B,.44,1.46,0,.03,.14,.12,0xe8742a);R(B,0,.9,0,.74,.1,.46,0x7a5a32);X(B,0,.9,-.29,.12,.1,.03,GOLD);
+      back(B,c,()=>{pack(B,0xe8742a,.22);L(B,0,1.52,.31,.46,.07,.22,0x9a8456);X(B,0,1.24,.43,.24,.18,.04,0xf2a05a)})},   // an orange pack with a bedroll and pocket
+    hat(B,c){R(B,0,2.03,0,.86,.05,.86,0xc9a868);R(B,0,2.16,0,.46,.24,.46,0xc9a868);L(B,0,2.08,0,.49,.06,.49,0x7a5a32);X(B,0,2.28,0,.04,.04,.4,0xa88a50)}},   // ranger hat: wide brim, pinched crown, band
+  {id:'scuba',name:'Scuba Diver',face:{y:1.775,cell:.035,flat:-.359},legs:()=>[1,0x2fb8b0,0x2fb8b0,0xffd23f,0xffd23f,0xffd23f],
+    body(B,c){const Y=0xffd23f,TL=0x2fb8b0;fitBase(B,c,Y,TL,TL,Y);
+      X(B,-.425,1.2,0,.05,.6,.26,TL);X(B,.425,1.2,0,.05,.6,.26,TL);L(B,0,1.3,-.21,.4,.2,.12,TL);   // side panels, chest panel
+      R(B,0,.9,0,.73,.1,.45,0x5a606b);X(B,-.2,.9,-.275,.1,.12,.05,0xb9c2cc);X(B,.2,.9,-.275,.1,.12,.05,0xb9c2cc);   // weight belt
+      back(B,c,()=>{for(const s of [-1,1]){R(B,s*.13,1.28,.33,.22,.64,.22,0xdfe4ea);L(B,s*.13,1.66,.33,.1,.08,.1,0x8d96a0)}X(B,0,1.3,.33,.06,.3,.2,0x5a606b)});   // twin tanks, valves, the clamp
+      if(c.face){L(B,0,1.775,-.27,.52,.42,.12,TL);X(B,0,1.775,-.338,.45,.38,.03,LENS)}else{L(B,.12,1.68,-.3,.16,.1,.1,0x8d96a0);L(B,0,1.86,-.27,.46,.2,.12,TL);X(B,0,1.86,-.335,.36,.12,.03,LENS)}},
+    hat(B,c){R(B,0,1.93,.02,.56,.36,.56,0x2fb8b0);X(B,.34,2,.05,.05,.5,.05,0xffd23f);X(B,.34,2.27,.05,.07,.06,.07,0xff6a3a)}},   // hood and a snorkel
+  {id:'headchef',name:'Head Chef',legs:()=>[2,0xe8e8e2,0x4a4f5a,0x4a4f5a,0x4a4f5a,0x2a2d34],
+    body(B,c){fitBase(B,c,WHITE,WHITE,c.skin,WHITE);
+      L(B,-.12,1.32,-.21,.22,.5,.12,0xe8e4da);for(const y of [1.46,1.18])for(const x of [-.17,.06])X(B,x,y,-.285,.045,.045,.03,0xc9a24a);   // double-breasted front, two rows of buttons
+      L(B,0,1.58,-.06,.36,.12,.36,0xe8453c);X(B,0,1.5,-.25,.14,.12,.06,0xe8453c);X(B,-.22,1.42,-.27,.1,.08,.02,c.hex);   // neckerchief and its knot, a name tab
+      R(B,0,.9,0,.74,.08,.47,0xe8e4da);cuffs(B,0xe8e4da);
+      back(B,c,()=>{R(B,0,1.24,.31,.46,.56,.2,0xd9a65a);for(const x of [-.12,0,.12])T(B,1,x,1.62,.36,.1,.4,.1,0xe0a858,-.15,0,(x*3));X(B,0,1.1,.42,.4,.08,.03,0xb07a3c)})},   // a bread bag with three loaves
+    hat(B,c){R(B,0,2.04,0,.52,.14,.52,WHITE);for(let k=0;k<6;k++){const a=k/6*Math.PI*2;T(B,0,Math.cos(a)*.18,2.34,Math.sin(a)*.18,.2,.44,.2,WHITE,0,-a,0)}L(B,0,2.34,0,.42,.44,.42,WHITE);L(B,0,2.56,0,.56,.12,.56,WHITE)}},   // tall pleated hat
+  {id:'hazmat',name:'Hazmat Suit',hatFace:{y:1.79,cell:.033,flat:-.39},legs:0xf6d32a,
+    body(B,c){const Y=0xf6d32a;fitBase(B,c,Y,Y,0x3a7ad0,Y);
+      L(B,0,1.34,-.21,.36,.2,.1,0xf2f2f2);X(B,-.09,1.34,-.27,.06,.06,.02,0x2a2d34);X(B,.09,1.34,-.27,.06,.06,.02,0x2a2d34);X(B,0,1.3,-.27,.06,.06,.02,0x2a2d34);   // a warning patch
+      for(const y of [.9,1.06]){R(B,0,y,0,.74,.05,.46,0xf2f2f2)}cuffs(B,0x3a7ad0);
+      back(B,c,()=>{R(B,0,1.26,.31,.42,.5,.2,0xb9c2cc);for(const s of [-1,1])L(B,s*.12,1.56,.36,.14,.14,.14,0x3a7ad0);X(B,0,1.26,.42,.3,.06,.03,0xf6d32a)})},   // air filter pack and its two filters
+    hat(B,c){R(B,0,1.85,.04,.66,.66,.64,0xf6d32a);X(B,0,1.8,-.36,.46,.4,.05,c.face?c.skin:0xbfe8ff);L(B,0,1.58,-.3,.3,.12,.12,0xb9c2cc)}},   // hood, wide visor, breather
+  {id:'castleknight',name:'Castle Knight',hatFace:{y:1.82,box:[1.84,0,.6,.66,.6]},legs:0xb9c2cc,
+    body(B,c){fitBase(B,c,0xc3ccd6,0xb9c2cc,0xa3acb6,0xdde3ea);
+      L(B,0,1.18,-.21,.46,.78,.1,c.hex);L(B,0,1.18,.21,.46,.78,.1,c.hex);X(B,0,1.32,-.27,.06,.3,.02,GOLD);X(B,0,1.36,-.27,.22,.06,.02,GOLD);   // surcoat with a gold cross
+      L(B,-.41,1.56,0,.22,.12,.34,0xeef2f6);L(B,.41,1.56,0,.22,.12,.34,0xeef2f6);R(B,0,.9,0,.74,.08,.48,0x8a5a2b);X(B,0,.9,-.3,.12,.1,.03,GOLD);
+      back(B,c,()=>{R(B,0,1.12,.34,.62,.9,.1,c.lite);R(B,0,1.58,.26,.6,.12,.16,c.dark);L(B,0,1.32,.32,.4,.3,.2,c.lite)})},   // a cape, its collar and a rolled bedroll under it
+    hat(B,c){R(B,0,1.84,0,.6,.66,.6,0xdde3ea);if(!c.face){X(B,0,1.86,-.345,.44,.05,.04,0x5a606b);X(B,0,1.74,-.345,.04,.2,.04,0x5a606b)}X(B,0,2.0,-.34,.5,.04,.04,GOLD);T(B,1,0,2.3,.05,.12,.36,.3,0xe8453c,-.4,0,0)}},   // great helm, sight, gold band, plume
+  {id:'astronaut',name:'Astronaut',hatFace:{y:1.83,cell:.03,box:[1.83,-.22,.5,.4,.36]},legs:0xeef2f6,
+    body(B,c){fitBase(B,c,0xf4f6f8,0xf4f6f8,0xf4f6f8,0xf4f6f8);
+      R(B,0,.9,0,.73,.1,.45,0x3a7ad0);R(B,0,1.57,0,.58,.12,.52,0xb9c2cc);L(B,0,1.28,-.22,.34,.22,.12,0xdfe4ea);X(B,0,1.3,-.29,.18,.08,.02,0x3a7ad0);X(B,0,1.24,-.29,.18,.03,.02,0xe8453c);   // belt, neck ring, chest unit
+      X(B,-.2,1.44,-.27,.12,.12,.02,c.hex);bands(B,0xe8453c);
+      back(B,c,()=>{R(B,0,1.26,.33,.6,.66,.24,0xf4f6f8);X(B,-.14,1.4,.46,.12,.12,.03,0x3a7ad0);X(B,.14,1.4,.46,.12,.12,.03,0x3a7ad0);X(B,.25,1.62,.4,.03,.36,.03,0x8d96a0)})},   // life-support pack with an aerial
+    hat(B,c){R(B,0,1.84,0,.7,.68,.7,0xf4f6f8);L(B,0,1.83,-.22,.5,.4,.36,c.face?LENS:GOLD);X(B,0,2.2,0,.2,.04,.2,0xb9c2cc)}},   // round helmet, visor
+  {id:'farmer',name:'Farmer',face:{y:1.8,cell:.034},legs:DENIM,
+    body(B,c){const BL=0x5a9ad6,BW2=0xf2efe8;fitBase(B,c,BL,BL,c.skin,BL,{torso:false});
+      bagPaint(B,0,1.22,0,.7,.72,.42,[6,6,3],BL,(f,i,j)=>(i%2===0||j%2===0)?BW2:undefined);
+      R(B,0,1,0,.73,.36,.45,DENIM);L(B,0,1.33,-.2,.42,.34,.14,DENIM);L(B,0,1.3,.2,.42,.3,.14,DENIM);for(const x of [-.17,.17]){X(B,x,1.54,-.25,.07,.24,.05,DENIM);X(B,x,1.655,0,.07,.05,.5,DENIM);X(B,x,1.45,-.275,.05,.05,.03,GOLD)}
+      X(B,0,1.56,-.2,.3,.1,.14,0xe8453c);
+      back(B,c,()=>{R(B,0,1.2,.33,.48,.4,.22,0xc9a050);for(const x of [-.14,0,.14]){T(B,0,x,1.5,.33,.08,.3,.08,0xf58a1f,0,0,x);X(B,x,1.68,.33,.1,.1,.06,0x8ac04a)}})},   // a basket of carrots
+    hat(B,c){R(B,0,2.03,0,.9,.04,.9,STRAW);R(B,0,2.13,0,.5,.2,.5,STRAW);L(B,0,2.07,0,.53,.06,.53,0xe8453c)}},   // wide straw hat
+  {id:'mail',name:'Mail Carrier',face:{y:1.8,cell:.034},legs:(h,sk)=>[0,0x2a4f8a,sk,0xf2efe8,0x2a4f8a,0x2a2d34],
+    body(B,c){const SB=0x8ec0ec;fitBase(B,c,SB,SB,c.skin,0x2a4f8a);tee(B,SB);
+      X(B,0,1.26,-.25,.035,.56,.05,0x6a9ccb);X(B,-.2,1.4,-.25,.18,.14,.04,0x6a9ccb);X(B,.2,1.46,-.27,.12,.08,.02,0xe8453c);R(B,0,.9,0,.74,.1,.46,0x2a4f8a);
+      back(B,c,()=>{T(B,0,0,1.24,0,.08,.9,.48,0x8a5a2b,0,0,.78);R(B,.28,.98,.3,.36,.4,.22,0x9a6a3c);X(B,.28,1.14,.42,.38,.08,.03,0x7a4a22);for(const y of [1.22,1.25])X(B,.2+y*.05,y,.38,.14,.03,.12,WHITE)})},   // a satchel across the body, letters sticking out
+    hat(B,c){R(B,0,2.07,0,.52,.15,.52,0x2a4f8a);L(B,0,2.02,-.27,.5,.06,.16,0x1f3a6a);X(B,0,2.1,-.28,.1,.06,.03,GOLD)}},   // cap with a badge
+  {id:'lifeguard',name:'Lifeguard',face:{y:1.78,cell:.034},legs:(h,sk)=>[1,0xe8453c,sk,sk,sk,0xffd23f],
+    body(B,c){const RD=0xe8453c;fitBase(B,c,RD,c.skin,c.skin,RD);tee(B,RD);
+      X(B,0,1.36,-.25,.5,.1,.04,WHITE);X(B,0,1.14,-.25,.5,.04,.04,WHITE);R(B,0,.9,0,.74,.12,.46,RD);   // white bands
+      X(B,0,1.5,-.24,.03,.2,.03,0xffd23f);L(B,0,1.38,-.27,.08,.08,.06,0xb9c2cc);   // whistle on a cord
+      if(!c.face)X(B,0,1.76,-.272,.08,.05,.02,WHITE);
+      back(B,c,()=>{T(B,2,0,1.2,.33,.22,.82,.2,0xff6a3a,0,0,.5);X(B,0,1.2,.44,.06,.2,.03,WHITE)})},   // a rescue float across the back
+    hat(B,c){L(B,0,2.0,0,.54,.06,.54,0xffd23f);L(B,0,1.99,-.3,.5,.04,.24,0xffd23f);X(B,0,1.93,-.24,.42,.06,.04,0x2f6fd6)}},   // sun visor, sunglasses pushed up
+  {id:'ninja',name:'Ninja',face:{y:1.8,cell:.03,flat:-.322},legs:h=>h,
+    body(B,c){fitBase(B,c,c.hex,c.hex,c.hex,c.hex,{hair:false});
+      R(B,0,1.79,.01,.54,.52,.54,c.hex);if(c.face)X(B,0,1.8,-.3,.42,.36,.03,c.skin);else{L(B,0,1.83,-.27,.44,.14,.06,c.skin);eyes(B,1.83,-.306)}   // hood with an opening for the eyes
+      R(B,0,.92,0,.75,.12,.47,WHITE);L(B,.2,.86,-.27,.12,.2,.06,WHITE);T(B,0,0,1.24,-.215,.06,.72,.03,c.lite,0,0,.65);T(B,0,0,1.24,.215,.06,.72,.03,c.lite,0,0,-.65);   // white sash, its knot, wrap lines
+      cuffs(B,WHITE);back(B,c,()=>{R(B,0,1.24,.32,.18,.7,.18,0xc9a24a);L(B,0,1.62,.32,.22,.1,.22,0xe8453c);L(B,0,.88,.32,.22,.1,.22,0xe8453c)})},   // a scroll case on the back
+    hat(B,c){L(B,0,2.0,0,.58,.08,.58,0xe8453c);T(B,1,.08,1.9,.34,.06,.28,.08,0xe8453c,.4,0,.3);T(B,1,-.06,1.86,.34,.06,.26,.08,0xe8453c,.5,0,-.3)}},   // headband and its tails
+  {id:'scarecrow',name:'Scarecrow',face:{y:1.8,cell:.034},legs:0x6a8ac0,
+    body(B,c){const BU=0xd2b07a,ST=0xffd95a;fitBase(B,c,0xc98a4a,0xc98a4a,BU,0xc98a4a,{hair:false});
+      R(B,0,1.79,0,.5,.5,.5,BU);if(!c.face){X(B,-.09,1.83,-.28,.07,.07,.02,0x2a2d34);X(B,.09,1.83,-.28,.07,.07,.02,0x2a2d34);for(let k=-2;k<=2;k++)X(B,k*.05,1.68,-.28,.03,.03+(k%2?.02:0),.02,0x6a4020)}   // a sack head, button eyes, stitches
+      X(B,-.18,1.3,-.25,.16,.16,.03,0x5a9ad6);X(B,.15,1.06,-.25,.18,.12,.03,0xe8453c);X(B,.15,1.36,.25,.2,.16,.03,0x5a9ad6);   // patches
+      for(const s of [-1,1])for(let k=0;k<3;k++)T(B,0,s*.42+(k-1)*.03,1.5,-.05,.03,.18,.03,ST,0,0,s*(.5+k*.3));for(let k=0;k<5;k++)T(B,0,(k-2)*.06,1.6,-.18,.03,.16,.03,ST,-.3,0,(k-2)*.3);   // straw at the shoulders and collar
+      R(B,0,.9,0,.74,.1,.46,0x9a6a3c);cuffs(B,ST);
+      back(B,c,()=>{T(B,1,0,1.2,.32,.1,1.1,.1,0x9a6a3c,0,0,0);T(B,1,0,1.4,.32,.9,.1,.1,0x9a6a3c,0,0,0);L(B,0,1.4,.32,.16,.16,.14,0x7a5a32)})},   // the pole and crossbar
+    hat(B,c){R(B,0,2.04,0,.86,.05,.86,0xc9a050);R(B,0,2.16,0,.44,.22,.44,0xc9a050);T(B,0,.3,2.04,-.2,.2,.03,.14,0xc98a4a,0,.4,0);L(B,0,2.08,0,.47,.05,.47,0xe8453c)}},   // floppy hat with a patch
+  {id:'skeleton',name:'Skeleton',face:{y:1.8,cell:.034},legs:()=>[1,0x8a84b0,0x8a84b0,0xf2efe8,0x8a84b0,0x6a648f],
+    body(B,c){const SU=0x8a84b0,BN=0xf2efe8;fitBase(B,c,SU,SU,BN,SU,{hair:false});
+      R(B,0,1.79,0,.5,.5,.5,BN);if(!c.face){X(B,-.1,1.84,-.29,.13,.12,.02,0x4a4570);X(B,.1,1.84,-.29,.13,.12,.02,0x4a4570);X(B,0,1.74,-.29,.05,.05,.02,0x4a4570);for(let k=-2;k<=2;k++)X(B,k*.055,1.66,-.29,.035,.06,.02,0x4a4570)}   // a skull: eyes, nose, teeth
+      X(B,0,1.26,-.255,.06,.6,.03,BN);for(const y of [1.46,1.36,1.26,1.16])X(B,0,y,-.255,.44,.05,.03,BN);L(B,0,.94,-.24,.36,.12,.06,BN);   // breastbone, ribs, hips
+      X(B,0,1.24,.25,.07,.66,.03,BN);for(const y of [1.42,1.3,1.18,1.06])X(B,0,y,.25,.2,.04,.03,BN);   // the spine at the back
+      for(const [x,z,r] of [[-.27,-.24,-.4],[.3,-.22,0]])T(B,0,x,1.45,z,.04,.04,.4,BN,0,r,0);
+      back(B,c,()=>{pack(B,0xb0a9d6);for(const y of [1.38,1.24,1.1])X(B,0,y,.42,.36,.05,.04,BN)})},   // a pack with rib bones on it
+    hat(B,c){}},
+  {id:'banana',name:'Banana Suit',face:{y:1.78,cell:.03,flat:-.345},legs:0xffd23f,
+    body(B,c){const Y=0xffe14a,YD=0xe8c02a;fitBase(B,c,Y,Y,Y,Y,{hair:false});
+      if(TKON)R(B,0,1.38,.05,.78,1.18,.62,Y);else R(B,0,1.5,.05,.78,1.5,.62,Y);   // (shorter under an event's hat, so the hat sits on top)
+      if(c.face)X(B,0,1.78,-.325,.42,.38,.03,c.skin);else{L(B,0,1.78,-.3,.42,.36,.06,c.skin);eyes(B,1.82,-.336)}   // the peel round the body and head, the face hole
+      for(const x of [-.33,0,.33])X(B,x,1.5,x?.0:.37,.03,1.3,.03,YD);T(B,0,0,1.5,-.34,.03,.9,.03,YD,0,0,0);   // ridges
+      R(B,0,.85,0,.74,.12,.48,YD);if(!TKON)T(B,1,0,2.33,.08,.16,.22,.16,0x6a4a22,-.4,0,0)}},   // the bottom and the stalk on top
+  {id:'boxbot',name:'Cardboard Box Robot',hatFace:{y:1.8,box:[1.81,0,.64,.6,.62]},legs:0xc6955a,
+    body(B,c){const CB=0xc6955a,CD=0xa77a48;fitBase(B,c,CB,CB,0xd9c08a,CB);
+      X(B,0,1.22,0,.8,.8,.5,CB);X(B,0,1.62,0,.82,.03,.52,CD);X(B,0,1.22,-.252,.06,.82,.02,0xe0d1ab);   // a box body, its flap edge, tape
+      for(const [x,col] of [[-.2,0xe8453c],[0,0x3fa9f5],[.2,0xffd23f]])X(B,x,1.36,-.255,.12,.12,.02,col);X(B,0,1.12,-.255,.4,.06,.02,c.hex);   // drawn-on dials and a slot
+      back(B,c,()=>{X(B,0,1.24,.34,.5,.56,.18,CB);X(B,0,1.24,.435,.06,.58,.02,0xe0d1ab)})},   // another box on the back
+    hat(B,c){X(B,0,1.81,0,.64,.6,.62,0xc6955a);X(B,0,2.11,0,.66,.03,.64,0xa77a48);if(!c.face){X(B,-.13,1.86,-.315,.12,.12,.02,0x2a2d34);X(B,.13,1.86,-.315,.12,.12,.02,0x2a2d34);X(B,0,1.68,-.315,.28,.04,.02,0x2a2d34)}
+      T(B,0,.12,2.3,0,.04,.36,.04,0xff6fb5,0,0,-.3);L(B,.19,2.47,0,.08,.08,.08,0x3fa9f5)}}   // box head, drawn face, a bendy-straw aerial
   ];
 })();
 const NOOB=OUTFITS.findIndex(o=>o.id==='noob');   // the look everyone starts with, and the only one for players without the Locker
@@ -3269,20 +3400,20 @@ legIM.customDepthMaterial=fitLegIM.customDepthMaterial=LDEPTH;   // the shadow p
 const _lm=new THREE.Matrix4(),_tm=new THREE.Matrix4(),_iq=new THREE.Quaternion();
 const _vm=new THREE.Matrix4(),_vq=new THREE.Quaternion(),_ve=new THREE.Euler(),VIEWM={x:.17,y:-.2,z:-.48,s:.62,p:.06,yaw:.09,r:-.05},VMW=new THREE.Matrix4(),_vd=new V3();let vmAt=0,vmW=0;   // VMW: where it was last drawn (gunPoint: the flash, tracer and case come from it)
 function syncLimbs(){
-  let nl=0,nr=0,nf=0;const lk=legIM.geometry.attributes.legK.array,fk=fitLegIM.geometry.attributes.legK.array;for(const k in gunIM)gunIM[k].count=0;
+  let nl=0,nr=0,nf=0;const lk=legIM.geometry.attributes.legK.array,fk=fitLegIM.geometry.attributes.legK.array;for(const k in gunIM)gunIM[k].count=0;if(LX)LX.gunReset();
   for(const g of limbModels){
     if(!g.visible||g.parent!==scene)continue;
     const u=g.userData;g.updateMatrix();
     if(u.leg){if(u.legs[0].visible&&nf+2<=LIMB_N*2)for(const l of u.legs){l.updateMatrix();fitLegIM.setMatrixAt(nf,_lm.multiplyMatrices(g.matrix,l.matrix));fk[nf]=l.k;legPut(fitLegIM.geometry,nf++,u.leg)}}
     else if(u.legs[0].visible&&nl+2<=LIMB_N*2)for(const l of u.legs){l.updateMatrix();lk[nl]=l.k;legIM.setMatrixAt(nl++,_lm.multiplyMatrices(g.matrix,l.matrix))}
-    const im=gunIM[u.gk];if(u.gun.visible&&im&&im.count<LIMB_N){u.gun.updateMatrix();im.setMatrixAt(im.count++,_lm.multiplyMatrices(g.matrix,u.gun.matrix));
+    const im=u.gs&&LX?LX.gunIM(u.gk,u.gs):gunIM[u.gk];if(u.gun.visible&&im&&im.count<LIMB_N){u.gun.updateMatrix();im.setMatrixAt(im.count++,_lm.multiplyMatrices(g.matrix,u.gun.matrix));
       const T=RTAG[u.gk];if(T&&u.gr>=0&&nr<LIMB_N){rarIM.setMatrixAt(nr,_lm.multiply(_tm.compose(_p.set(0,T[0],T[1]),_iq,_s.set(T[2],T[3],T[4]))));rarIM.setColorAt(nr++,_col.setHex(RARC[u.gr]))}}
   }
   // (audit, November 2026) aiming an AR puts the camera at your eye and hides your body, which left nothing of the gun
   // on screen: it is drawn in front of the camera instead, low and to the right and turned in toward the middle of the
   // view, raised as you aim and shoved back by each shot (drawing only, nothing about the shot changes; not the snipers,
   // whose scope covers the view)
-  const vw=player.alive&&state==='playing'&&isADS()?heldW(player):null,vim=vw&&vw.fam==='ar'&&!vw.ad?gunIM[vw.id]:null;
+  const vw=player.alive&&state==='playing'&&isADS()?heldW(player):null,vgs=player.model.userData.gs,vim=vw&&vw.fam==='ar'&&!vw.ad?(vgs&&LX?LX.gunIM(vw.id,vgs):gunIM[vw.id]):null;   // (with your gun skin, if you wear one)
   if(vim&&vim.count<LIMB_N){const a=player.aimK||0,q=1-a*a*(3-2*a),kk=RM?0:player.kick||0;camera.updateMatrixWorld();
     const t=Math.tan(camera.fov*Math.PI/360)/.4245,V=VIEWM;   // (laid out for the AR's 46 degrees; a narrower view shrinks it to match)
     camera.getWorldDirection(_vd);const wr=raycast(arr(camera.position),arr(_vd),1.3,null,false),w=wr.hit?clamp((1.25-wr.t)/.7,0,1):0;   // up against a wall: the gun is pulled back and tipped down rather than poking through it
@@ -3293,6 +3424,7 @@ function syncLimbs(){
   fitLegIM.count=nf;fitLegIM.visible=nf>0;if(nf){fitLegIM.instanceMatrix.needsUpdate=true;fitLegIM.geometry.attributes.legK.needsUpdate=true}
   rarIM.count=nr;rarIM.visible=nr>0;if(nr){rarIM.instanceMatrix.needsUpdate=true;rarIM.instanceColor.needsUpdate=true}
   for(const k in gunIM){const im=gunIM[k];im.visible=im.count>0;if(im.count)im.instanceMatrix.needsUpdate=true}
+  if(LX)LX.gunDone();   // weapons with a gun skin (locker-extra.js)
 }
 /* Poses: twenty numbers. [0] chest lean (forward is negative), [1] chest turn (left is positive), [2-4] left upper arm
    x, y, z, [5-7] right upper arm x, y, z, [8, 11] the crowbar's pitch (up is positive) and turn (left is positive) in the
@@ -3358,10 +3490,10 @@ function makeModel(hex,skinIx,fit,face){
   const gb=[0,1,2,3,4,5,6].map(()=>new THREE.Bone());gb[1].position.set(-GL_HX,GL_HY,0);gb[2].position.set(GL_HX,GL_HY,0);for(let i=1;i<7;i++)gb[0].add(gb[i]);glider.add(gb[0]);
   g.add(body,gun,glider);g.updateMatrixWorld(true);body.bind(new THREE.Skeleton(bones));glider.bind(new THREE.Skeleton(gb));
   g.userData={body,bones,legs,gun,glider,gb,gO:0,gV:0,gk:'cb',gr:-1,hex,skinIx:skinIx|0,fit,face,leg:legSpec(hex,SKINS[(skinIx|0)%SKINS.length],fit),
-    pb:new Float32Array(POSE_N),pf:new Float32Array(POSE_N),pit:0,roll:0,glk:0};limbModels.add(g);
+    pk:0,pb:new Float32Array(POSE_N),pf:new Float32Array(POSE_N),pit:0,roll:0,glk:0};limbModels.add(g);
   return g;
 }
-function setModelColor(model,hex,skinIx,fit,face){const u=model.userData;fit=fitOf(fit);face=faceOf(face);if(u.hex===hex&&u.fit===fit&&u.face===face)return;u.hex=hex;u.skinIx=skinIx|0;u.fit=fit;u.face=face;u.leg=legSpec(hex,SKINS[(skinIx|0)%SKINS.length],fit);u.body.geometry.dispose();u.body.geometry=bodyGeo(hex,SKINS[(skinIx|0)%SKINS.length],fit,face)}   // (the body is built again only when something about it changed)
+function setModelColor(model,hex,skinIx,fit,face){const u=model.userData;fit=fitOf(fit);face=faceOf(face);const pk=LX?u.lxPk|0:0;if(u.hex===hex&&u.fit===fit&&u.face===face&&u.pk===pk)return;u.hex=hex;u.skinIx=skinIx|0;u.fit=fit;u.face=face;u.pk=pk;u.leg=legSpec(hex,SKINS[(skinIx|0)%SKINS.length],fit);u.body.geometry.dispose();u.body.geometry=bodyGeo(hex,SKINS[(skinIx|0)%SKINS.length],fit,face,pk)}   // (the body is built again only when something about it changed)
 function setHeldModel(model,key,rar){const u=model.userData;const k=GUN_GEO[key]?key:HEALS[key]?(HEALS[key].sh?'sh':'hp'):'cb';u.gr=WEAP[k]&&rar>=0&&rar<5?rar|0:-1;if(u.gk===k)return;u.gk=k;u.sw=1}   // sw: the new item swings up into the hands (animModel)
 function disposeModel(m){if(m)limbModels.delete(m);if(m&&m.userData.body){m.userData.body.geometry.dispose();if(m.userData.body.skeleton)m.userData.body.skeleton.dispose()}}
 // Entities: you, the other players (remotes) and, in Practice only, bots. local: moved by this browser's physics (you, and Practice bots).
@@ -3445,7 +3577,7 @@ const CB_FX={wood:{c:[0xb07a45,0xd9b07a,0x8a5a32],n:7,sp:4.5,sz:.07,fl:[0xfff0c8
   hay:{c:[0xf0cf66,0xe2b84a],n:8,sp:3,sz:.06,fl:null,du:0xe8d48a},
   dirt:{c:[0x8a6a48,0xa98a62],n:5,sp:3.2,sz:.06,fl:null,du:0xb59d7a}};
 // what a ray hit is made of: a build is planks, the ground dirt, a map piece what it was built from (MATK)
-function hitMat(hit,pt){if(!hit)return null;if(hit.kind==='ent')return 'body';if(hit.kind==='piece')return 'wood';if(hit.ground)return 'dirt';const P=mpAt(hit.s,pt);return P?P.mt:'stone'}
+function hitMat(hit,pt){if(!hit)return null;if(hit.kind==='ent')return 'body';if(hit.kind==='piece'){const pc=hit.piece;return LX&&pc&&pc.bs?LX.bsMat(pc.bs):'wood'}if(hit.ground)return 'dirt';const P=mpAt(hit.s,pt);return P?P.mt:'stone'}
 // p: the point, d: the swing's direction (chips come back off the face), v: how loud (1 for your own)
 function cbImpact(p,mt,d,v){const F=CB_FX[mt]||CB_FX.stone,near=p.distanceToSquared(camera.position)<1600;sfxCb(mt,v);if(!near)return;
   if(F.fl)flash(p,null,F.fl[0],F.fl[1],F.hot?.1:.08);
@@ -4347,17 +4479,27 @@ function playerBuildSpec(type){
 }
 /* ---------- editing builds (Backrooms' edit, on Driftfall's pieces) ----------
    Aim at a build of yours (Driftfall has no teams, so "yours" is the ones you placed) from within EDIT_RANGE and press
-   Edit: the piece turns into its grid of tiles. Fire opens or closes the tile under the crosshair (hold and sweep for
-   several), Edit again confirms, Reload makes the piece whole again and Aim cancels. Nothing changes until you confirm,
-   and the change then takes EDIT_T seconds, during which you can't shoot or build, so an edit is never instant in a fight
-   (and you can't shoot while the grid is up). An edit costs no scrap. While you edit, only you see the grid: the tiles
-   that will be left are tinted panels and the cut ones are just outlines (three draw calls, in place of the piece's own). */
-const EDIT_RANGE=6,EDIT_T=.4;
-let edit=null,editJob=null,editAim=null,editAimT=0,editPaint=-1;
+   Edit: the piece turns into its grid of tiles. With Edit on release (a setting, on unless the player turns it off) you
+   hold Edit, the tiles the crosshair sweeps across are picked (Fire held does the same), and letting go of Edit confirms.
+   Off, or after a quick tap of Edit: Fire opens or closes the tile under the crosshair (hold and sweep for several) and
+   Edit again confirms. Either way Reload resets the piece to whole and Aim cancels; on a touch screen a finger put down on
+   the grid picks the tiles it touches. Nothing changes until you confirm, and then the new shape is there at once (and
+   sent as before); a Fire still held from picking tiles doesn't fire until it is let go. An edit costs no scrap. While
+   you edit, only you see the grid: the tiles that will be left are tinted panels and the cut ones are just outlines
+   (three draw calls, in place of the piece's own), and your own body is hidden so it doesn't cover the tiles. */
+const EDIT_RANGE=6,EDIT_TAP=.25;
+let edit=null,editAim=null,editAimT=0,editPaint=-1,editLatch=false,editFingers=0;
+// editHold: the edit being held open with Edit on release (when it opened, the shape it started from, what holds it: a
+// key code or 'touch', the tile picked as it opened and how many tiles changed since). A quick tap (under EDIT_TAP s) that
+// did no more than pick that first tile leaves the grid open, that tile still picked (Edit again confirms); a longer
+// hold that changed nothing cancels. The setting is saved as driftfall:editOnRelease ('1' / '0').
+let editRelease=store.get('editOnRelease','1')!=='0',editHold=null;
+let editHelp=store.get('editHelp','')==='1';   // the fuller help line has been shown (it goes after your first confirmed edit)
+function setEditRelease(on){editRelease=!!on;editHold=null;store.set('editOnRelease',editRelease?1:0);for(const el of [$('editRelease'),$('editReleaseP')])if(el)el.checked=editRelease;lastHud=''}
 const canEdit=pc=>!!pc&&pieces.has(pc.key)&&pc.owner!=null&&pc.owner===myId();
 const editGroup=new THREE.Group();editGroup.visible=false;scene.add(editGroup);
-const editFill=new THREE.Mesh(new THREE.BufferGeometry(),new THREE.MeshBasicMaterial({color:0x8fe8ff,transparent:true,opacity:.4,depthWrite:false,side:THREE.DoubleSide,fog:false,polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:1}));
-const editHot=new THREE.Mesh(new THREE.BufferGeometry(),new THREE.MeshBasicMaterial({color:0xffe27a,transparent:true,opacity:.5,depthWrite:false,side:THREE.DoubleSide,fog:false}));
+const editFill=new THREE.Mesh(new THREE.BufferGeometry(),new THREE.MeshBasicMaterial({color:0x3aaee0,transparent:true,opacity:.55,depthWrite:false,side:THREE.DoubleSide,fog:false,polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:1}));
+const editHot=new THREE.Mesh(new THREE.BufferGeometry(),new THREE.MeshBasicMaterial({color:0xffe27a,transparent:true,opacity:.6,depthWrite:false,side:THREE.DoubleSide,fog:false}));
 const editGrid=new THREE.LineSegments(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0xeaffff,transparent:true,opacity:.95,fog:false}));
 {const quads=n=>{const ix=[];for(let i=0;i<n;i++)ix.push(i*4,i*4+1,i*4+2,i*4,i*4+2,i*4+3);return ix};
   editFill.geometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array(9*12),3));editFill.geometry.setIndex(quads(9));
@@ -4381,81 +4523,137 @@ function editDraw(){
   editHot.visible=edit.hot>=0;
   if(edit.hot>=0){const hp=editHot.geometry.attributes.position;edQuad(s,edit.hot,hp.array,0);hp.needsUpdate=true}
 }
-// the tile the crosshair is on (-1: none): where the line of sight meets the piece's own plane, cut tiles included
-function editTile(){
-  const s=edit.pc.spec,n=ED_N[s.kind],q=4/n,o=camera.position,d=fwdOf(player.yaw,player.pitch);let u,v,k;
-  if(s.kind==='wall'){
-    const H_=s.o==='H',dn=H_?d.z:d.x;if(Math.abs(dn)<1e-6)return -1;
-    k=((H_?s.z*4-o.z:s.x*4-o.x))/dn;if(k<0)return -1;
-    u=((H_?o.x+d.x*k-s.x*4:o.z+d.z*k-s.z*4))/q;v=(o.y+d.y*k-s.L*4)/q;
-  }else if(s.kind==='floor'){
-    if(Math.abs(d.y)<1e-6)return -1;k=(s.L*4-o.y)/d.y;if(k<0)return -1;
-    u=(o.x+d.x*k-s.x*4)/q;v=(o.z+d.z*k-s.z*4)/q;
-  }else{
-    k=rayRamp(arr(o),arr(d),edit.frame,60);if(k<0)return -1;
-    const x=o.x+d.x*k,z=o.z+d.z*k;u=rampT(edit.frame,x,z)*n;v=(s.dir%2===0?z-s.z*4:x-s.x*4)/q;
-  }
-  u=Math.floor(u);v=Math.floor(v);return u<0||v<0||u>=n||v>=n?-1:v*n+u;
+// The tile a line of sight from o along d points at (-1: none): where it meets the grid's own plane (the middle of a
+// wall, the top of a floor or a ramp), cut tiles included. A point just off the grid's edge (EDIT_EDGE of a tile) counts
+// as the edge tile, so a wall's bottom row or a floor's rim is still easy to pick up close.
+const EDIT_EDGE=.35,edA=new V3(),edU=new V3(),edW=new V3(),edN=new V3(),edR=new V3();
+function edTileAt(o,d){
+  const s=edit.pc.spec,n=ED_N[s.kind];
+  edA.copy(edPoint(s,0,0));edU.copy(edPoint(s,n,0)).sub(edA);edW.copy(edPoint(s,0,n)).sub(edA);
+  edN.crossVectors(edU,edW);const dn=edN.dot(d);if(Math.abs(dn)<1e-6)return -1;
+  const k=edN.dot(edR.copy(edA).sub(o))/dn;if(k<0)return -1;
+  edR.copy(o).addScaledVector(d,k).sub(edA);
+  let u=edR.dot(edU)/edU.lengthSq()*n,v=edR.dot(edW)/edW.lengthSq()*n;
+  if(u<-EDIT_EDGE||v<-EDIT_EDGE||u>n+EDIT_EDGE||v>n+EDIT_EDGE)return -1;
+  u=clamp(Math.floor(u),0,n-1);v=clamp(Math.floor(v),0,n-1);return v*n+u;
 }
-// the build the crosshair is on, if it is close enough to edit (measured from you, not from the camera behind you)
+// the tile the crosshair is on
+function editTile(){return edTileAt(camera.position,fwdOf(player.yaw,player.pitch))}
+// a screen point (a finger on a touch screen) as a line of sight from the camera
+const edF=new V3();
+function screenRay(x,y){const r=view.getBoundingClientRect();return edF.set((x-r.left)/r.width*2-1,-(y-r.top)/r.height*2+1,.5).unproject(camera).sub(camera.position).normalize()}
+// the build the crosshair is on, if it is close enough to edit (measured from you, not from the camera behind you).
+// Generous up close: when the line of sight itself finds none of yours (an edge, a seam, the floor at your feet), a few
+// lines just around it are tried (EDIT_FAN, radians).
+const EDIT_FAN=[[.06,0],[-.06,0],[0,.06],[0,-.06],[.13,0],[-.13,0],[0,.13],[0,-.13]];
 function editTarget(){
   if(!player.alive||player.st!=='ground')return null;
-  const d=fwdOf(player.yaw,player.pitch),st=camera.position.clone().addScaledVector(d,camDist);
-  const r=raycast(arr(st),arr(d),EDIT_RANGE,player,false);
-  return r.hit&&r.hit.kind==='piece'?r.hit.piece:null;
+  const f=fwdOf(player.yaw,player.pitch),st=camera.position.clone().addScaledVector(f,camDist);
+  const one=d=>{const r=raycast(arr(st),arr(d),EDIT_RANGE,player,false);return r.hit&&r.hit.kind==='piece'?r.hit.piece:null};
+  const o=arr(st),dd=arr(f),r=raycast(o,dd,EDIT_RANGE,player,false);let pc=r.hit&&r.hit.kind==='piece'?r.hit.piece:null,best=r.t;
+  // through an opening in an edited build of yours (a door you want to close): the whole piece's outline counts
+  for(const q of pieces.values()){if(!q.ed||!canEdit(q))continue;const w=q.whole||(q.whole=pieceShape(q.spec,0));
+    for(const b of w.boxes){const t=rayBox(o,dd,b.min,b.max,best);if(t>=0&&t<best){best=t;pc=q}}
+    for(const rp of w.rps){const t=rayRamp(o,dd,rp,best);if(t>=0&&t<best){best=t;pc=q}}}
+  if(pc)return pc;
+  for(const [a,b] of EDIT_FAN){const q=one(fwdOf(player.yaw+a,clamp(player.pitch+b,-1.5,1.5)));if(canEdit(q))return q}
+  return null;
 }
-// quiet: say nothing when there is nothing to edit (the Open / Take key doubles as Edit when nothing is in reach)
-function openEdit(quiet){
-  if(edit||editJob||!canLook())return false;
+// A name for the shape the tiles make, shown while you edit (only a guide: any set of tiles that leaves one is allowed).
+// Wall bits: v*3+u, v=0 the bottom row; floor and ramp: v*2+u, a ramp's u=0 the low half.
+function edName(k,m){
+  if(!m)return 'Whole';
+  const c=(m.toString(2).match(/1/g)||[]).length;
+  if(k==='wall'){
+    const W={18:'Door',9:'Door',36:'Door',27:'Wide door',54:'Wide door',146:'Tall door',73:'Side gap',292:'Side gap',23:'Arch',16:'Window',56:'Wide window',448:'Half wall',504:'Low wall',7:'Gap underneath',63:'High wall',511:'Gone'};
+    if(W[m])return W[m];
+    if(!(m&7))return c===1?'Window':'Windows';
+    return c+' tiles open';
+  }
+  if(k==='floor')return c===1?'Hole':c===3?'Corner':(m===5||m===10||m===3||m===12)?'Half floor':'Two holes';
+  return m===5?'Top half':m===10?'Bottom half':(m===3||m===12)?'Narrow ramp':c===1?'Ramp with a gap':c===3?'Ramp corner':'Two gaps';
+}
+// Open the grid on the build you're aiming at. quiet: say nothing when there is nothing to edit (the Open / Take key
+// doubles as Edit when nothing is in reach). hold: what holds it open with Edit on release (a key code or 'touch').
+function openEdit(quiet,hold){
+  if(edit||!canLook())return false;
   const pc=editTarget();
   if(!pc){if(!quiet)hint2('Aim at a build of yours, up close');return false}
   if(!canEdit(pc)){if(!quiet)hint2('That build is someone else’s');return false}
   const s=pc.spec,n=ED_N[s.kind],gp=editGrid.geometry.attributes.position;
-  edit={pc,mask:pc.ed,hot:-1,frame:s.kind==='ramp'?pieceShape(s,0).rps[0]:null};
+  edit={pc,mask:pc.ed,hot:-1};
   for(let i=0;i<n*n;i++){const u=i%n,v=Math.floor(i/n);[[u,v],[u+1,v],[u+1,v],[u+1,v+1],[u+1,v+1],[u,v+1],[u,v+1],[u,v]].forEach(([a,b],k)=>{const p=edPoint(s,a,b);gp.setXYZ(i*8+k,p.x,p.y,p.z)})}
   gp.needsUpdate=true;editGrid.geometry.setDrawRange(0,n*n*8);
   mode='edit';editPaint=-1;editAim=null;player.reloadT=0;player.useT=0;tAct.aim=false;lastHud='';
-  pc.hide=true;redraw(pc);editGroup.visible=true;editDraw();
+  pc.hide=true;redraw(pc);editGroup.visible=true;edit.hot=editTile();
+  tone('sine',660,990,.03,.05);
+  editHold=editRelease&&hold?{t0:performance.now(),mask0:edit.mask,code:hold,auto:-1,n:0}:null;
+  // holding Edit picks tiles straight away, starting with the one under the crosshair (a finger does it on a touch screen)
+  if(editHold&&hold!=='touch'&&edit.hot>=0){editHold.auto=edit.hot;paintTile(edit.hot);editHold.n=0}
+  editDraw();
   return true;
 }
 function closeEdit(){
+  editHold=null;editFingers=0;
   if(!edit)return;
   const pc=edit.pc;pc.hide=false;if(pieces.has(pc.key))redraw(pc);
   edit=null;editGroup.visible=false;if(mode==='edit')mode='combat';lastHud='';
+  editLatch=true;   // Fire held from picking tiles doesn't fire until it's let go
 }
-// whole: put it back as built. The change itself lands EDIT_T seconds later (see updateEdit).
+// Open or close one tile: the first tile of a stroke decides which (an uncut tile starts a stroke that cuts).
+function paintTile(i){
+  if(!edit||i<0)return;
+  if(editPaint<0)editPaint=edit.mask>>i&1?0:1;
+  if((edit.mask>>i&1)===editPaint)return;
+  edit.mask^=1<<i;if(editHold)editHold.n++;editDraw();
+  tone('square',editPaint?520:700,editPaint?400:820,.035,.05);
+}
+// Confirm (whole: reset the piece to whole). The new shape is in place at once, here and (sent as before) in the room.
 function confirmEdit(whole){
   if(!edit)return;
   const pc=edit.pc,m=whole?0:edit.mask;
-  if(!edOk(pc.kind,m)){hint2('Leave at least one tile');return}
+  if(!edOk(pc.kind,m)){hint2('Leave at least one tile');editHold=null;lastHud='';return}
   closeEdit();
   if(m===pc.ed)return;
-  editJob={pc,mask:m,t:EDIT_T};player.cd=Math.max(player.cd,EDIT_T);buildCd=Math.max(buildCd,EDIT_T);
+  // the trap rule, as for a new piece: tiles are not put back onto someone here who can't simply be nudged clear
+  const sh=pieceShape(pc.spec,m);
+  if(wouldTrap(sh.boxes,sh.rps)){hint2('Someone is standing in the way');return}
+  if(editPiece(pc,m))sendEv({k:'b',s:pc.spec,ed:pc.ed,n:pc.en},player);   // an edit travels as the build message for that spot again, with ed (the tiles cut out) and n (which edit of the piece it is)
+  if(!editHelp){editHelp=true;store.set('editHelp','1')}
 }
-function editKey(){if(edit)confirmEdit(false);else openEdit(false)}
-// every frame: an edit (or one about to land) is dropped if you are no longer playing, or its piece is gone
+// Edit pressed: open the grid, or (when it's open and not being held) confirm. code: the key, or 'touch'.
+function editKey(code){if(edit){if(!editHold)confirmEdit(false)}else openEdit(false,code||'key')}
+// Edit let go (key, mouse button or the touch button): with Edit on release, confirm the held edit
+function editKeyUp(code){
+  const h=editHold;
+  if(!h||!edit||(code&&h.code!==code))return;
+  editHold=null;lastHud='';
+  if((performance.now()-h.t0)/1000<EDIT_TAP&&h.n===0)editPaint=-1;   // a tap: the grid stays open (with the first tile still picked)
+  else if(edit.mask!==h.mask0)confirmEdit(false);
+  else closeEdit();
+}
+// A finger on a touch screen while editing: put down on the grid, it picks the tiles it passes over (and doesn't turn
+// the view); put down anywhere else, it turns the view as usual.
+function editFingerDown(e){
+  if(!edit||mode!=='edit')return false;
+  const i=edTileAt(camera.position,screenRay(e.clientX,e.clientY));if(i<0)return false;
+  editFingers++;paintTile(i);return true;
+}
+function editFingerMove(e){if(edit)paintTile(edTileAt(camera.position,screenRay(e.clientX,e.clientY)))}
+function editFingerUp(){editFingers=Math.max(0,editFingers-1);if(!editFingers&&!firing()&&!editHold)editPaint=-1}
+// every frame: an edit is dropped if you are no longer playing, or its piece is gone
 function editGuard(){
-  if(!edit&&!editJob)return;
+  if(!edit)return;
   const live=canLook()&&player.st==='ground';
-  if(edit&&!(live&&mode==='edit'&&!bigMap&&pieces.has(edit.pc.key)&&pieceCentre(edit.pc.spec).distanceTo(player.pos)<EDIT_RANGE+4))closeEdit();
-  if(editJob&&!(live&&pieces.has(editJob.pc.key)))editJob=null;
+  if(!(live&&mode==='edit'&&!bigMap&&pieces.has(edit.pc.key)&&pieceCentre(edit.pc.spec).distanceTo(player.pos)<EDIT_RANGE+4))closeEdit();
 }
 function updateEdit(dt){
-  if(editJob&&(editJob.t-=dt)<=0){
-    const j=editJob,pc=j.pc;editJob=null;
-    // the trap rule, as for a new piece: tiles are not put back onto someone here who can't simply be nudged clear
-    const sh=pieceShape(pc.spec,j.mask);
-    if(wouldTrap(sh.boxes,sh.rps))hint2('Someone is standing in the way');
-    else if(editPiece(pc,j.mask))sendEv({k:'b',s:pc.spec,ed:pc.ed,n:pc.en},player);   // an edit travels as the build message for that spot again, with ed (the tiles cut out) and n (which edit of the piece it is)
-  }
+  if(editLatch&&!firing())editLatch=false;
   if(edit){
-    const i=editTile();let dirty=i!==edit.hot;edit.hot=i;
-    if(!firing())editPaint=-1;
-    else if(i>=0){
-      if(editPaint<0)editPaint=edit.mask>>i&1?0:1;
-      if((edit.mask>>i&1)!==editPaint){edit.mask^=1<<i;dirty=true;tone('square',editPaint?520:700,editPaint?400:820,.035,.05)}
-    }
-    if(dirty)editDraw();
+    const i=editTile();if(i!==edit.hot){edit.hot=i;editDraw()}
+    // the crosshair picks tiles while Fire is held, or Edit is (with a key: on a touch screen a finger does it)
+    if(firing()||(editHold&&editHold.code!=='touch')){const m=edit.mask;paintTile(i);if(edit.mask!==m)lastHud='';if(editHold&&i!==editHold.auto&&i>=0)editHold.n=Math.max(editHold.n,1)}
+    else if(!editFingers)editPaint=-1;
   }else if(mode==='combat'&&pieces.size){
     // a few times a second: is the crosshair on a build of yours? (the hint, and the Edit button on a touch screen)
     if((editAimT-=dt)<=0){editAimT=.12;const t=editTarget();editAim=canEdit(t)?t:null}
@@ -4484,7 +4682,7 @@ function updatePlayer(dt){
   p.vel.x+=(ix*spd-p.vel.x)*k;p.vel.z+=(iz*spd-p.vel.z)*k;
   if(jumpNow&&p.onGround){p.vel.y=JUMP;p.onGround=false}
   moveEntity(p,dt);
-  if(input&&mode==='combat'&&firing())useHeld(p);
+  if(input&&mode==='combat'&&firing()&&!editLatch)useHeld(p);
   const s=heldItem(p),w=heldW(p);if(w&&s.n===0&&p.cd<=0&&p.reloadT<=0)startReload(p);
   autoPickup(p,dt);
   buildCd-=dt;hideGhosts();updateEdit(input?dt:0);
@@ -4529,6 +4727,7 @@ function makeBot(id){
   // bots are Noobs like everyone else, each with one of the starter faces (never a player's drawing); with the Locker on,
   // the practice bots wear the outfits instead, so a captain can see each one, and a face on it, in a match
   const b=newEnt(makeModel(hex,i,lockerOn()?1+(i*5+2)%(OUTFITS.length-1):NOOB,FACE_STARTS[i%FACE_STARTS.length].face));b.id=id;b.bot=true;b.hex=hex;b.name=botName(id);b.snaps=[];b.lag=NetSmooth.lag();
+  if(LX&&lockerOn()){b.lx=LX.botLx(i);LX.dress(b)}   // with the Locker on, practice bots show the extras too
   scene.add(b.model);bots.set(id,b);rebuildEnts();return b;
 }
 function clearBots(){for(const b of bots.values()){scene.remove(b.model);disposeModel(b.model)}bots.clear();rebuildEnts()}
@@ -4836,6 +5035,7 @@ function makeRemote(uid,v){
   const fc=showFaces?faceOf(v&&v.fc):'';
   const e=newEnt(makeModel(hexNum(v&&v.c),hashStr(uid)%6,v&&v.sk,fc));
   Object.assign(e,{id:uid,name:cleanName(v&&v.n),snaps:[],lag:NetSmooth.lag(),present:false,alive:false,hex:hexNum(v&&v.c),fit:fitOf(v&&v.sk),face:fc,faceAt:performance.now()});
+  e.lx=lxOf(v&&v.lx);if(e.lx){if(LX)LX.dress(e);else lxLoad()}   // the Locker's extras they wear
   e.model.visible=false;scene.add(e.model);remotes.set(uid,e);rebuildEnts();return e;
 }
 // the viewer's switch: draw other players' own faces, or everyone's default one (bots keep their starter faces: nobody drew those)
@@ -4847,6 +5047,7 @@ function applyNode(e,v){
   e.name=cleanName(v.n);const hx=hexNum(v.c),fit=fitOf(v.sk);let fc=showFaces?faceOf(v.fc):'';
   if(fc!==e.face){const t=performance.now();if(t-e.faceAt<FACE_GAP)fc=e.face;else e.faceAt=t}   // a face is taken at most once every few seconds (a body is rebuilt for it)
   if(hx!==e.hex||fit!==e.fit||fc!==e.face){e.hex=hx;e.fit=fit;e.face=fc;setModelColor(e.model,hx,hashStr(e.id)%6,fit,fc)}
+  {const lx=lxOf(v.lx);if(lx!==e.lx){e.lx=lx;if(LX)LX.dress(e);else if(lx)lxLoad()}}
   if(!curMatch||v.m!==curMatch){e.present=false;if(!roster.includes(e.id))e.alive=false;return}
   const st=ST_FROM[v.st]||'out';
   const s={t:+v.ts||Net.now(),x:+v.x,y:+v.y||0,z:+v.z,h:+v.h||0,p:+v.p||0};
@@ -4974,6 +5175,7 @@ const Net={
       st:stCode(),w:heldKey(p),m:curMatch||0,j:this.j,k:myKills,pl:p.place|0,dm:Math.round(p.dmg),mv:mapV};
     if(mySkin!==NOOB)o.sk=mySkin;   // your outfit's number (its place in OUTFITS), left out for the Noob: a new page that gets none draws the Noob,
                                     // and a page from before draws its standard look in your colour, so players there can still be told apart
+    if(myLx)o.lx=myLx;   // the Locker's extras you wear (see lxOf), left out when none: a page from before ignores it
     if(myFace)o.fc=myFace;   // your drawn face, if you drew one (see "drawn faces"); left out for the outfit's own
     if(curMatch){o.oc=this.oc.join('.');o.pk=this.pk.slice(-400).join(',')}
     if(this.amHost&&MS)o.ms=MS.mv===mapV?MS:Object.assign({},MS,{mv:mapV});
@@ -5097,10 +5299,22 @@ function slotLabel(s){if(!s)return[touchUI?'–':'Empty',''];const d=WEAP[s.t]||
 function fitSlotName(el,it){if(it&&WEAP[it.t]&&el.scrollWidth>el.clientWidth+.5)el.textContent=WEAP[it.t].short}
 addEventListener('resize',()=>{lastHud=''});   // the slots change size with the screen: fit the names again
 let tagClock=0;const _tag=new V3(),_tagD=new V3();
+// The line of help while editing: the shape so far, then what to do next. The first time (until your first edit is
+// confirmed) it says it all in full.
+function editHintText(){
+  const kn=a=>{const c=KB.keys(a)[0];return c?(c==='Mouse0'?'click':KB.name(c).toUpperCase()):''};
+  const nm=edName(edit.pc.spec.kind,edit.mask),fire=kn('fire')||'Fire',ek=kn('edit')||'Edit',rk=kn('reload')||'Reload',ak=kn('aim')||'Aim';
+  if(touchUI)return editHold?(editHelp?nm+' · drag over the tiles · let go of Edit':'Keep holding Edit and drag a finger over the tiles you want open, then let go of Edit. Reset makes it whole.')
+    :(editHelp?nm+' · tap tiles · Done · Reset':'Tap the tiles you want open (or aim and press Tile), then Done. Reset makes it whole, Cancel leaves it.');
+  if(editHold)return editHelp?nm+' · sweep the tiles · let go of '+ek+' · '+rk+' reset'
+    :'Keep holding '+ek+' and look across the tiles you want open, then let go to confirm. '+rk+' resets it to whole.';
+  return editHelp?nm+' · '+fire+' tiles · '+ek+' done · '+rk+' reset · '+ak+' cancel'
+    :(fire==='click'?'Click':fire)+' the tiles you want open (hold and sweep for several), then '+ek+' to confirm. '+rk+' resets it to whole, '+ak+' cancels.';
+}
 function updateHud(dt){
   const p=player,t=matchT(),S=stormAt(t),w=heldW(p),s=heldItem(p);
   const reach=reachable(p);
-  const key=[Math.ceil(p.hp),Math.ceil(p.sh),p.sel,mode,buildType,p.mats,p.inv.map(x=>x?x.t+x.r+x.n:'-').join(','),p.reloadT>0,w?p.ammo[w.am]:0,p.useT>0].join('|');
+  const key=[Math.ceil(p.hp),Math.ceil(p.sh),p.sel,mode,buildType,p.mats,p.inv.map(x=>x?x.t+x.r+x.n:'-').join(','),p.reloadT>0,w?p.ammo[w.am]:0,p.useT>0,edit?edit.mask:-1,editHold?1:0,editHelp,editRelease].join('|');
   if(key!==lastHud){lastHud=key;
     hud.hpN.textContent=Math.max(0,Math.ceil(p.hp));hud.hpF.style.width=Math.max(0,p.hp)+'%';
     hud.shN.textContent=Math.ceil(p.sh);hud.shF.style.width=p.sh+'%';if(hud.mats._n!==p.mats){const up=hud.mats._n!=null;hud.mats._n=p.mats;hud.mats.textContent=p.mats;if(up&&!RM&&hud.mats.animate)hud.mats.animate([{transform:'scale(1.35)'},{transform:'scale(1)'}],{duration:280,easing:'ease-out'})}hud.matsBox.classList.toggle('low',p.mats<COST);hud.slots.classList.toggle('building',mode==='build');hudSet(hud.matsNm,'#mn',touchUI?(mode==='build'?'Done':'Build'):'Scrap');   // (the count jumps a little when it changes)
@@ -5112,7 +5326,8 @@ function updateHud(dt){
     for(const k of ['wall','floor','ramp']){const el=$('slot'+k);el.classList.toggle('on',mode==='build'&&buildType===k);slotIcon(el,k);el.classList.toggle('cant',p.mats<COST)}
     hud.ammo.innerHTML=w?`<span class="wn" style="color:${RARH[s.r|0]}">${RAR[s.r|0]} ${w.name}</span><span><b>${s.n}</b><small> / ${p.ammo[w.am]}</small></span>`:'';hud.ammo.hidden=!w;if(w)hud.ammo.classList.toggle('low',s.n<=Math.max(1,w.mag*.25));
     hud.hint.hidden=mode==='combat';if(mode==='build')hud.hint.textContent='Build · '+buildType+(p.mats<COST?' · needs '+COST+' scrap':touchUI?' · hold Place':' · hold to place');
-    else if(mode==='edit'){const kn=a=>KB.name(KB.keys(a)[0]||'').toUpperCase();hud.hint.textContent=touchUI?'Edit · Tile cuts or fills · Done':'Edit · click tiles · '+kn('edit')+' done · '+kn('reload')+' whole · '+kn('aim')+' cancel'}
+    else if(mode==='edit'&&edit)hud.hint.textContent=editHintText();
+    hud.hint.classList.toggle('long',hud.hint.textContent.length>60);
   }
   hud.reload.hidden=!(p.reloadT>0);if(p.reloadT>0&&w)hud.reloadF.style.width=(100*(1-p.reloadT/wReload(w,s.r)))+'%';
   hud.useBar.hidden=!(p.useT>0);if(p.useT>0){const it=p.inv[p.useSlot];if(it&&HEALS[it.t]){hud.useLbl.textContent='Using '+HEALS[it.t].name;hud.useFill.style.width=(100*(1-p.useT/HEALS[it.t].use))+'%'}}
@@ -5123,10 +5338,10 @@ function updateHud(dt){
     if(reach.c){pr=k+'Open chest';tl='OPEN'}
     else{const it=reach.it,nm=(WEAP[it.t]?RAR[it.r|0]+' ':'')+itemName(it.t)+(it.n>1&&!WEAP[it.t]?' ×'+it.n:'');const take=canTake(p,it);pr=k+(take?'Take ':'Swap for ')+`<span style="color:${WEAP[it.t]?RARH[it.r|0]:'inherit'}">${esc(nm)}</span>`;tl=take?'TAKE':'SWAP'}
   }
-  else if(editAim&&mode==='combat'&&!lobbyShown&&!touchUI)pr=`<kbd>${esc(KB.name(KB.keys('edit')[0]||KB.keys('use')[0]||''))}</kbd>Edit`;   // the crosshair is on a build of yours
+  else if(editAim&&mode==='combat'&&!lobbyShown&&!touchUI)pr=`<kbd>${esc(KB.name(KB.keys('edit')[0]||KB.keys('use')[0]||''))}</kbd>${editRelease?'Hold to edit':'Edit'}`;   // the crosshair is on a build of yours
   hud.prompt.hidden=!pr;if(pr&&hud.prompt.innerHTML!==pr)hud.prompt.innerHTML=pr;
   if(touchUI){const u=$('tUse');u.hidden=!tl;if(tl&&u.textContent!==tl)u.textContent=tl;const ed=mode==='edit';
-    hudSet($('tFire'),'#tf',ed?'TILE':mode==='build'?'PLACE':(s&&HEALS[s.t]?'USE':!w?'HIT':'FIRE'));hudSet($('tEdit'),'#te',ed?'DONE':'EDIT');hudSet($('tReload'),'#tr',ed?'WHOLE':'RELOAD');hudSet($('tAim'),'#ta',ed?'CANCEL':'AIM');
+    hudSet($('tFire'),'#tf',ed?'TILE':mode==='build'?'PLACE':(s&&HEALS[s.t]?'USE':!w?'HIT':'FIRE'));hudSet($('tEdit'),'#te',ed&&!editHold?'DONE':'EDIT');hudSet($('tReload'),'#tr',ed?'RESET':'RELOAD');hudSet($('tAim'),'#ta',ed?'CANCEL':'AIM');
     const te=$('tEdit'),sh=ed||(!!editAim&&mode==='combat');if(te.hidden===sh)te.hidden=!sh;$('tAim').classList.toggle('on',!!tAct.aim)}
   const ads=isADS(),scoped=!!(ads&&w&&w.fam==='sr');
   if(hudLast.get('scp')!==scoped){hudLast.set('scp',scoped);hud.scope.hidden=!scoped;if(scoped)hud.scopeR.innerHTML=SNIPER_RET}
@@ -5332,6 +5547,7 @@ function animModel(e,dt){
   if(e.ai){const k=1-Math.exp(-dt*10);u.ey=u.ey==null?e.yaw:u.ey+wrapAng(e.yaw-u.ey)*k;u.ep=u.ep==null?e.pitch||0:u.ep+((e.pitch||0)-u.ep)*k}else{u.ey=e.yaw;u.ep=e.pitch||0}
   const ey=u.ey;
   const air=e.st==='fall',far=camera.position.distanceTo(e.pos)>70,now=performance.now(),k8=1-Math.exp(-dt*8),fl=RM?0:1;
+  const GS=LX&&e.lxo&&e.lxo.g?LX.gstyle(e.lxo.g):null;   // a Locker glider's own way of being held (locker-extra.js); null: the standard glider
   // just out of the Drifter: start from the jump (upright, arms up, knees tucked) and spread into the skydive (fT)
   if(air&&u.lst!==e.st){u.fT=u.lst==='bus'||u.lst==='out'||u.lst==null?0:.6;if(!u.fT){u.pb.set(POSES.jump);u.pit=-.25;u.roll=0}}
   if(e.st!==u.lst&&e.onGround&&(u.lst==='glide'||u.lst==='fall')){u.landT=u.landD=.36;u.landA=1;touchDown(e,u.lst==='fall')}   // touching down: a crouch, a puff of dust and a thump
@@ -5354,17 +5570,18 @@ function animModel(e,dt){
   u.dv=(u.dv||0)+((air?clamp((-(e.pitch||0)-.3)/.55,0,1):0)-(u.dv||0))*(1-Math.exp(-dt*4));
   // on the ground the body also leans into a speed-up and back out of a stop (u.acc, smoothed), and into turns while running
   u.acc=(u.acc||0)+(clamp(dt>0?(sp-(u.sp0||0))/dt:0,-40,40)-(u.acc||0))*(1-Math.exp(-dt*10));u.sp0=sp;
-  const ptg=air?-1.38-.62*u.dv+1.1*jumpK:e.glide?-.3:-.09*rk*Math.sign(fwd+.01)*Math.min(1,Math.abs(fwd)/(sp+.01)+.2)-(RM?0:clamp(u.acc*.006,-.07,.09));
+  const ptg=air?-1.38-.62*u.dv+1.1*jumpK:e.glide?(GS?GS.pit:-.3):-.09*rk*Math.sign(fwd+.01)*Math.min(1,Math.abs(fwd)/(sp+.01)+.2)-(RM?0:clamp(u.acc*.006,-.07,.09));
   u.pit+=(ptg-u.pit)*(air?1-Math.exp(-dt*5):k8);
   u.roll+=((RM?0:e.glide?clamp(yr*.2-lat*.035,-.42,.42):air?clamp(yr*.22-lat*.02,-.35,.35):e.onGround?clamp(yr*rk*.05,-.1,.1):0)-u.roll)*k8;
-  m.rotation.set(u.pit,ey,u.roll,'YXZ');
+  m.rotation.set(u.pit,ey,u.roll,'YXZ');if(GS&&u.glk>.01)GS.body(m,u,dt,fl);
   // the glider unfolds over about a fifth of a second when it opens and folds away as you land
   // (a spring, a little under-damped on the way out so it snaps open past its size and settles; folding is quicker and
   // doesn't bounce). The side panels fold down against the struts while it is closed, flex in the air and load up: the
   // outside of a turn lifts and the inside drops, more than the body banks.
   {const ks=e.glide?230:900,ze=e.glide&&!RM?.4:1,n=Math.ceil(Math.min(dt,.1)/.008),h=Math.min(dt,.1)/n;for(let i=0;i<n;i++){u.gV+=(ks*((e.glide?1:0)-u.gO)-2*ze*Math.sqrt(ks)*u.gV)*h;u.gO+=u.gV*h}if(!e.glide&&u.gO<.05){u.gO=0;u.gV=0}}
   u.glk=clamp(u.gO,0,1);const gl=u.glider,go=Math.max(0,u.gO),ge=u.glk*u.glk*(3-2*u.glk);gl.visible=u.glk>.01;
-  if(gl.visible){gl.scale.set(.08+.92*go,.4+.6*ge,.3+.7*go);gl.rotation.set(-u.pit*.8,0,u.roll*.55);
+  if(gl.visible&&GS)GS.place(gl,ge,u,e);   // a Locker glider opens its own way (locker-extra.js)
+  else if(gl.visible){gl.position.set(0,GLIDE_Y,0);gl.scale.set(.08+.92*go,.4+.6*ge,.3+.7*go);gl.rotation.set(-u.pit*.8,0,u.roll*.55);
     const gb=u.gb,fold=(1-ge)*1.35,fx=fl*(.035*Math.sin(now*.012+e.yaw)+.02*Math.sin(now*.029)),ld=u.roll*.38;
     if(gb){gb[1].rotation.z=fold-.06-fx+ld;gb[2].rotation.z=-fold+.06+fx+ld;gb[0].rotation.x=fl*.03*Math.sin(now*.007)}}
   u.legs[0].visible=u.legs[1].visible=!far;u.gun.visible=!far&&!air&&!e.glide&&u.glk<.35;   // (not while the glider is opening or open; it comes back as the glider folds away)
@@ -5395,6 +5612,7 @@ function animModel(e,dt){
   else if(hop){   // a jump on foot: one knee comes up on the way up, both legs reach down for the ground on the way down
     const up=clamp(e.vel.y/4,-1,1),t=clamp(u.hopT/.12,0,1),k=t*t*(3-2*t);
     L0.rotation.set((.2+.62*Math.max(0,up))*k,0,0,'XYZ');L1.rotation.set((-.14+.2*Math.max(0,up))*k,0,0,'XYZ');L0.k=(.25+1.15*Math.max(0,up))*k;L1.k=(.15+.35*Math.max(0,up))*k}
+  else if(GS&&u.glk>.01)GS.legs(L0,L1,u,now,fl,e.glide);
   else{const gw=e.glide?Math.sin(now*.005)*.06*fl:0,h=Math.min(dt,.033);
     // gliding, the legs hang and trail; they swing like a pendulum out of a turn (u.ls), lagging the bank, and kick slowly
     u.lsV=(u.lsV||0)+((-u.roll*1.3-(u.ls||0))*26-(u.lsV||0)*3.6)*h;u.ls=(u.ls||0)+u.lsV*h;const sw=e.glide?u.ls*fl:0,kc=e.glide?Math.sin(now*.0037)*.09*fl:0;
@@ -5406,7 +5624,7 @@ function animModel(e,dt){
   // crowbar's handle (armIK)
   if(far&&!u.gun.visible&&u.pfar)return;u.pfar=far;   // past 70 m the arms keep their last pose
   const cb=u.gk==='cb'&&!air&&!e.glide,gh=!air&&!e.glide&&WEAP[u.gk]?GHOLD[famOf(u.gk)==='pi'?'one':'two']:null,hh=!air&&!e.glide&&HHOLD.w[u.gk]?HHOLD:null,
-    tg=air?POSES.fall:e.glide?POSES.glide:cb?POSES.cb:gh?(gh.one&&e.aimK>.5?gh.PA:gh.P):hh?hh.P:POSES.rest,pb=u.pb,k12=1-Math.exp(-dt*(air?7:12));
+    tg=air?POSES.fall:e.glide?(GS?GS.pose:POSES.glide):cb?POSES.cb:gh?(gh.one&&e.aimK>.5?gh.PA:gh.P):hh?hh.P:POSES.rest,pb=u.pb,k12=1-Math.exp(-dt*(air?7:12));
   for(let i=0;i<POSE_N;i++)pb[i]+=(tg[i]-pb[i])*k12;
   u.cbw=(u.cbw||0)+((cb||gh&&gh.one?1:0)-(u.cbw||0))*k12;   // (the arms free to swing when running: the crowbar's left arm, and the pistol's)
   const pf=u.pf;pf.set(pb);
@@ -5439,8 +5657,9 @@ function animModel(e,dt){
   if(u.relT<SWING_REL&&!RM){u.relT+=dt;const r=clamp(u.relT/SWING_REL,0,1),k=r*r*(3-2*r);for(let j=0;j<POSE_N;j++)pf[j]=u.sr[j]+(pf[j]-u.sr[j])*k}
   if(dip&&e.onGround){m.position.y-=dip*.045*BS;L0.k+=dip*.22;L1.k+=dip*.3;L0.rotation.x+=dip*.1;L1.rotation.x+=dip*.12}
   u.po.set(pf);
+  if(LX&&(e.lxo||e.lxForce))LX.emote(e,u,pf,m,now);   // an emote or a victory pose from the Locker's extras (locker-extra.js)
   posePut(u,pf);
-  if(u.glk>.01&&!u.gun.visible){u.glider.updateMatrix();const w=ge*(e.glide?1:clamp(u.glk*2-.6,0,1));for(let k=0;k<2;k++){_ht.set(k?.48:-.48,0,0).applyMatrix4(u.glider.matrix);armIK(u,k,_ht,GLIDE_POLE[k],w)}}
+  if(u.glk>.01&&!u.gun.visible){u.glider.updateMatrix();const w=ge*(e.glide?1:clamp(u.glk*2-.6,0,1));for(let k=0;k<2;k++){const h=GS?GS.hands[k]:null;if(GS&&!h)continue;if(h)_ht.set(h[0],h[1],h[2]);else _ht.set(k?.48:-.48,0,0);_ht.applyMatrix4(u.glider.matrix);armIK(u,k,_ht,GS&&GS.pole?GS.pole[k]:GLIDE_POLE[k],w)}}
   // ---- the held item. A weapon sits with its grip in the right hand (HOLD), turned a little toward where the
   // crosshair is, and tips up and down with the aim; everything else here is added on top and turns about the hand.
   // All of it is worked out as if the arm were at rest and then carried along with the right arm (heldFollow).
@@ -5593,7 +5812,7 @@ function updateCamera(dt){
     camera.position.addScaledVector(f,.1*a);camera.position.y-=.05*a-j;camera.position.addScaledVector(r,j);camera.rotateZ(-.012*a)}}
   // landing: the view dips with the knees (a little more the harder the landing; not with reduced motion)
   if(self&&!RM){const u=player.model.userData;if(u.landT>0)camera.position.y-=.07*(u.landA||1)*Math.sin(Math.PI*clamp(u.landT/(u.landD||.32),0,1))}
-  if(self)player.model.visible=player.alive?camDist>.9&&!(ads&&w&&!w.ad):player.dieT<=2.2;
+  if(self)player.model.visible=player.alive?camDist>.9&&!(ads&&w&&!w.ad)&&mode!=='edit':player.dieT<=2.2;
 }
 function updateWorldFx(){
   const ip=inPlay();
@@ -5670,6 +5889,7 @@ function frame(now){
   if(touchUI)document.body.classList.toggle('inlobby',lobbyShown);
   updateDnums(running?dt:0);
   if(bannerTimer>0){bannerTimer-=dt;if(bannerTimer<=0)hud.banner.hidden=true}
+  if(LX)LX.tick(dt);   // glider trails, moving gliders (locker-extra.js)
   piecesTick(dt);mpFlush();
   if(!window.__noRender){syncLimbs();drawScene()}
   cpuMs=cpuMs*.95+(performance.now()-t0)*.05;
@@ -5699,7 +5919,7 @@ const KB=Keybinds.create({
     {id:'wall',label:'Build a wall',group:'Build',keys:['KeyQ','KeyZ']},
     {id:'floor',label:'Build a floor',group:'Build',keys:['KeyF','KeyX']},
     {id:'ramp',label:'Build a ramp',group:'Build',keys:['KeyC','KeyE']},
-    {id:'edit',label:'Edit a build of yours',note:'Aim at it up close: tiles appear. Fire opens or closes a tile, Edit again confirms, Reload makes it whole, Aim cancels. Open / pick up does it too when nothing is in reach',group:'Build',keys:['KeyH']},
+    {id:'edit',label:'Edit a build of yours',note:'Aim at it up close. Hold, look across the tiles, let go to confirm (Edit on release; off, or a quick tap: Fire picks tiles, Edit again confirms). Reload resets it, Aim cancels. Open / pick up does it too when nothing is in reach',group:'Build',keys:['KeyH']},
     {id:'map',label:'Big map',group:'Match',keys:['KeyM']},
     {id:'lookUp',label:'Look up',group:LOOK,keys:['ArrowUp']},
     {id:'lookDown',label:'Look down',group:LOOK,keys:['ArrowDown']},
@@ -5713,7 +5933,7 @@ const KB=Keybinds.create({
 const keys=new Set(),tAct={};
 const held=id=>!!tAct[id]||KB.held(id,keys);
 const firing=()=>lmb||!!tAct.fire;
-function clearInput(){lmb=false;keys.clear();for(const k in tAct)tAct[k]=false}
+function clearInput(){lmb=false;keys.clear();for(const k in tAct)tAct[k]=false;editHold=null}
 const view=renderer.domElement;
 let lockFromClick=false;
 function requestLock(fromClick){
@@ -5759,16 +5979,16 @@ function pressCode(c,key,repeat){
   else if(KB.is('crowbar',c)){selectSlot(player,-1);mode='combat'}
   else if(bi>=0&&player.st==='ground'){mode='build';buildType=BUILDS[bi];player.reloadT=0;player.useT=0;lastHud=''}
   else if(KB.is('build',c)&&!repeat)toggleBuild();
-  else if(KB.is('edit',c)){if(!repeat)editKey()}
+  else if(KB.is('edit',c)){if(!repeat)editKey(c)}
   else if(KB.is('aim',c)&&mode==='edit'){if(!repeat)closeEdit()}
   else if(key&&KB.is('aim',c)&&mode==='build'&&!repeat){mode='combat';lastHud=''}
   else if(KB.is('reload',c)&&mode==='edit'){if(!repeat)confirmEdit(true)}
   else if(KB.is('reload',c)&&mode==='combat')startReload(player);
-  else if(KB.is('use',c)&&!repeat){if(edit)confirmEdit(false);else if(reachable(player)||!openEdit(true))interact(player)}   // Open / Take, or Edit when nothing is in reach
+  else if(KB.is('use',c)&&!repeat){if(edit){if(!editHold)confirmEdit(false)}else if(reachable(player)||!openEdit(true,c))interact(player)}   // Open / Take, or Edit when nothing is in reach
   else if(c==='Escape'){if(bigMap)setBigMap(false);else if(!locked)pauseGame()}
   else if(KB.is('pause',c))pauseGame();
 }
-function releaseCode(c){keys.delete(c);if(KB.is('fire',c)&&!KB.held('fire',keys))lmb=false}
+function releaseCode(c){keys.delete(c);if(KB.is('fire',c)&&!KB.held('fire',keys))lmb=false;if(editHold&&editHold.code===c)editKeyUp(c)}
 addEventListener('keydown',e=>{
   if(e.target&&e.target.closest&&e.target.closest('input,textarea,select,[contenteditable]'))return;
   if(state!=='playing'||paused||KB.busy())return;
@@ -5789,11 +6009,12 @@ function setTouchUI(on){touchUI=on;document.body.classList.toggle('touch',on);$(
 addEventListener('pointerdown',e=>{if(e.pointerType==='touch'&&!touchUI)setTouchUI(true)},true);
 const canAct=()=>canLook();
 function touchLook(dx,dy){if(!canAct())return;const k=.0042*sens*(camera.fov/72);player.yaw-=dx*k;player.pitch=clamp(player.pitch-dy*k,-1.45,1.45)}
+// While editing, a finger put down on the grid picks tiles instead (editFingerDown).
 function dragLook(el){
-  const pts=new Map();
-  el.addEventListener('pointerdown',e=>{e.preventDefault();pts.set(e.pointerId,[e.clientX,e.clientY]);try{el.setPointerCapture(e.pointerId)}catch(_){}});
-  el.addEventListener('pointermove',e=>{const q=pts.get(e.pointerId);if(!q)return;touchLook(e.clientX-q[0],e.clientY-q[1]);q[0]=e.clientX;q[1]=e.clientY});
-  const end=e=>pts.delete(e.pointerId);
+  const pts=new Map(),paint=el.id==='tLook';
+  el.addEventListener('pointerdown',e=>{e.preventDefault();pts.set(e.pointerId,[e.clientX,e.clientY,paint&&editFingerDown(e)]);try{el.setPointerCapture(e.pointerId)}catch(_){}});
+  el.addEventListener('pointermove',e=>{const q=pts.get(e.pointerId);if(!q)return;if(q[2])editFingerMove(e);else touchLook(e.clientX-q[0],e.clientY-q[1]);q[0]=e.clientX;q[1]=e.clientY});
+  const end=e=>{const q=pts.get(e.pointerId);if(q&&q[2])editFingerUp();pts.delete(e.pointerId)};
   el.addEventListener('pointerup',end);el.addEventListener('pointercancel',end);
 }
 dragLook($('tLook'));dragLook($('tFire'));
@@ -5816,8 +6037,9 @@ tButton($('tFire'),()=>{if(canAct())tAct.fire=true},()=>{tAct.fire=false});
 tButton($('tJump'),()=>{if(canAct())tAct.jump=true},()=>{tAct.jump=false});
 tButton($('tAim'),()=>{if(!canAct())return;if(mode==='edit'){closeEdit();return}tAct.aim=!tAct.aim;if(tAct.aim)mode='combat'},()=>{$('tAim').classList.toggle('on',!!tAct.aim)});
 tButton($('tReload'),()=>{if(!canAct())return;if(mode==='edit')confirmEdit(true);else if(mode==='combat')startReload(player)});
-// Edit: shown when the crosshair is on a build of yours; while editing it reads Done (and Fire reads Tile, Reload Whole, Aim Cancel)
-tButton($('tEdit'),()=>{if(canAct())editKey()});
+// Edit: shown when the crosshair is on a build of yours. Hold it and drag another finger over the tiles, let go to confirm
+// (Edit on release); after a tap, or with the setting off, it reads Done (and Fire reads Tile, Reload Reset, Aim Cancel).
+tButton($('tEdit'),()=>{if(canAct())editKey('touch')},()=>editKeyUp('touch'));
 tButton($('tUse'),()=>{if(canAct())interact(player)});
 tButton($('tPause'),()=>{tAct.aim=false;pauseGame()});
 tButton($('tNext'),()=>{if(isSpectating())cycleSpectate()});
@@ -5865,6 +6087,7 @@ async function quickMatch(){
 const sensEl=$('sens');
 {const ge=$('gfx');ge.value=gfxPref;ge.addEventListener('change',()=>{gfxPref=ge.value==='fast'?'fast':'auto';store.set('gfx',gfxPref);if(gfxPref==='auto'){fxTier=1;fxMax=2}})}
 function setSens(v){sens=v;sensEl.value=v;$('sensOut').textContent=v.toFixed(2);store.set('sens',v)}
+for(const el of [$('editRelease'),$('editReleaseP')]){el.checked=editRelease;el.addEventListener('change',()=>setEditRelease(el.checked))}
 sensEl.addEventListener('input',()=>setSens(parseFloat(sensEl.value)));
 const nameEl=$('name');nameEl.value=myName;
 nameEl.addEventListener('input',()=>{myName=nameEl.value.replace(/[<>]/g,'').trim().slice(0,16)||'Glider';store.set('name',myName)});
@@ -6013,7 +6236,7 @@ function buildLocker(){
   function pick(i){if(!lockerOn())return;mySkin=fitOf(i);store.set('skin',OUTFITS[mySkin].id);setModelColor(player.model,player.hex,tone6(),mySkin,myFace);if(model)setModelColor(model,player.hex,tone6(),mySkin,myFace);mark()}
   // a picture of every outfit in your colour, for the cards: 13 small renders the first time the Locker is opened
   // pictures of outfits in your colour, drawn from their own geometry (front, or from behind): data URLs, in the order asked for
-  function pics(list,W,HH,back,faces){   // faces (tests only): a drawn face for each picture; the cards show each outfit's own
+  function pics(list,W,HH,back,faces,pk){   // faces (tests only): a drawn face for each picture; the cards show each outfit's own
     const out=[],rt=new THREE.WebGLRenderTarget(W,HH),sc=new THREE.Scene(),cam=new THREE.OrthographicCamera(-.9,.9,1.35,-1.35,.1,40);
     sc.add(new THREE.HemisphereLight(0xffffff,0x9aa0aa,.95));const dl=new THREE.DirectionalLight(0xffffff,.55);dl.position.set(back?-3:3,6,back?5:-5);sc.add(dl);
     cam.position.set(back?-2.3:2.3,2.1,back?6:-6);cam.lookAt(0,1.27,0);
@@ -6022,7 +6245,7 @@ function buildLocker(){
     const body=new THREE.Mesh(LEG_GEO,mat),lg=fitLegGeo(2),legs=new THREE.InstancedMesh(lg,FLMAT,2),lp=new THREE.Matrix4();legs.frustumCulled=false;sc.add(body,legs);
     legs.setMatrixAt(0,lp.makeTranslation(-.17,.86,0));legs.setMatrixAt(1,lp.makeTranslation(.17,.86,0));
     try{for(let n=0;n<list.length;n++){const i=list[n];
-      const geo=bodyGeo(player.hex,SKINS[tone6()%SKINS.length],i,faces?faces[n]:''),L=legSpec(player.hex,SKINS[tone6()%SKINS.length],i)||STD_LEGS;body.geometry=geo;legPut(lg,0,L);legPut(lg,1,L);
+      const geo=bodyGeo(player.hex,SKINS[tone6()%SKINS.length],i,faces?faces[n]:'',pk),L=legSpec(player.hex,SKINS[tone6()%SKINS.length],i)||STD_LEGS;body.geometry=geo;legPut(lg,0,L);legPut(lg,1,L);
       renderer.setRenderTarget(rt);renderer.clear();renderer.render(sc,cam);renderer.readRenderTargetPixels(rt,0,0,W,HH,buf);
       for(let y=0;y<HH;y++)img.data.set(buf.subarray((HH-1-y)*W*4,(HH-y)*W*4),y*W*4);
       g.putImageData(img,0,0);out.push(cv.toDataURL('image/png'));geo.dispose();
@@ -6037,7 +6260,7 @@ function buildLocker(){
   function show(){
     if(state!=='menu'||Locker.open||Face.open||!lockerOn())return;
     if(!model){model=makeModel(player.hex,tone6(),mySkin,myFace);model.position.set(SPOT[0],SPOT[1],SPOT[2])}else setModelColor(model,player.hex,tone6(),mySkin,myFace);
-    scene.add(model);thumbs();$('menu').hidden=true;sec.hidden=false;Locker.open=true;hold=0;mark();measure();$('lkDone').focus({preventScroll:true});
+    scene.add(model);thumbs();$('menu').hidden=true;sec.hidden=false;Locker.open=true;hold=0;mark();measure();$('lkDone').focus({preventScroll:true});if(LX)LX.shown();
   }
   Locker.close=()=>{
     if(!Locker.open)return;Locker.open=false;sec.hidden=true;scene.remove(model);camera.clearViewOffset();vo='';
@@ -6047,15 +6270,19 @@ function buildLocker(){
   // picture shifted so it stands in the middle of that part (a view offset; taken off again in close)
   Locker.cam=dt=>{
     if(hold>0)hold-=dt;else if(!RM)yaw+=dt*.7;
+    const V=Locker.view;if(LX)LX.stage(dt,model,yaw);   // the extras' tabs pose the character and frame it (V)
     model.rotation.y=yaw;
     if(camera.fov!==FOV){camera.fov=FOV;camera.updateProjectionMatrix()}setNear(.3);
     if(!rect)measure();
-    const t=Math.tan(FOV*Math.PI/360),d=Math.max(2.95*VH/(rect.h*2*t),1.7*VH/(rect.w*2*t)),up=Math.round(rect.h*.035);
-    camera.position.set(SPOT[0]+CAM[0]*d,SPOT[1]+.95+d*.1,SPOT[2]+CAM[1]*d);camera.lookAt(SPOT[0],SPOT[1]+.82,SPOT[2]);
+    const t=Math.tan(FOV*Math.PI/360),d=Math.max(2.95*VH/(rect.h*2*t),1.7*VH/(rect.w*2*t))*V.zoom,up=Math.round(rect.h*.035);
+    camera.position.set(SPOT[0]+CAM[0]*d,SPOT[1]+.95+d*.1+V.y,SPOT[2]+CAM[1]*d);camera.lookAt(SPOT[0],SPOT[1]+.82+V.y,SPOT[2]);
     const k=VW+','+VH+','+Math.round(VW/2-rect.cx)+','+(Math.round(VH/2-rect.cy)+up);
     if(k!==vo){vo=k;camera.setViewOffset(VW,VH,Math.round(VW/2-rect.cx),Math.round(VH/2-rect.cy)+up,VW,VH)}
   };
   Locker.show=show;Locker.pick=pick;Locker.turn=y=>{yaw=y;hold=1e9};Locker.pics=pics;
+  Locker.view={zoom:1,y:0};Locker.sec=sec;Locker.model=()=>model;
+  // a new character for the stage, in the pose it is drawn in (after an extras tab has posed it)
+  Locker.fresh=()=>{if(!model)return;const on=model.parent===scene;scene.remove(model);disposeModel(model);model=makeModel(player.hex,tone6(),mySkin,myFace);model.position.set(SPOT[0],SPOT[1],SPOT[2]);if(on)scene.add(model)};
   $('lockerBtn').addEventListener('click',show);$('lkDone').addEventListener('click',()=>Locker.close());
   addEventListener('resize',()=>{if(Locker.open)measure()});
   addEventListener('keydown',e=>{if(Locker.open&&e.code==='Escape'){e.preventDefault();Locker.close()}});
@@ -6079,7 +6306,24 @@ function lockerSync(){
   const want=savedSkin();
   if(want!==mySkin){mySkin=want;setModelColor(player.model,player.hex,player.model.userData.skinIx,mySkin,myFace);Face.sync();if(online)Net.publishSoon()}
   Locker.mark();
+  if(on)lxLoad();
+  const wl=savedLx();if(wl!==myLx){myLx=wl;if(online)Net.publishSoon()}
+  lxSync();
 }
+// The extras: what you wear (only while the Locker is on), everyone dressed again, and the Locker's tabs. Run when
+// locker-extra.js arrives and whenever the Locker's switch may have changed.
+function lxSync(){
+  player.lx=myLx;if(!LX)return;
+  for(const e of ents)LX.dress(e);
+  LX.menu(lockerOn()&&Locker.built);
+}
+// What the extras are lent from this page (locker-extra.js only draws: nothing here lets it touch the physics or the room).
+const LXAPI={THREE,scene,camera,renderer,MAT,store,player,gunIM,GUN_GEO,GUN_TIP,WIDS,WEAP,LIMB_N,plyMat,partMat,pieceInst,partIM,skirtIM,pieces,Locker,STAGE,
+  GLIDER_GEO,GLIDE_Y,GLU,ROUND_LO,pose,BMAT,setModelColor,makeModel,disposeModel,LEG_GEO,NOOB,bagRBox,bagRLo,bagBox,bagTurn,POSES,POSE_N,GLIDE_POLE,UNIT_BOX,BS,ICONS,geoPWall,geoPFloor,geoPRamp,animModel,setHeldModel,newEnt,esc,$,lockerOn,myId,RM,
+  get ents(){return ents},get state(){return state},get touchUI(){return touchUI},get low(){return touchUI||gfxPref==='fast'},get lookOn(){return lookOn},
+  get myLx(){return myLx},setLx(v){myLx=lockerOn()?lxOf(v):'';store.set('lx',myLx);player.lx=myLx;if(LX)LX.dress(player);if(online)Net.publishSoon()},
+  setLxNet(v){myLx=lockerOn()?lxOf(v):'';player.lx=myLx;if(LX)LX.dress(player);if(online)Net.publishSoon()},   // the same, not saved (an emote while it plays)
+  get MS(){return MS},canLook:()=>canLook(),kbUsed:c=>KB.actions().some(a=>a.keys.includes(c)),get SPEED(){return SPEED}};
 lockerSync();
 if(CAPTAINS)CAPTAINS.onChange(lockerSync);
 
@@ -6112,9 +6356,9 @@ if(navigator.webdriver)window.__dz={get state(){return state},get online(){retur
   setNoRender(v){window.__noRender=!!v},onNode,updateRemotes,renderOnce(){piecesTick(0);mpFlush();syncLimbs();drawScene()},get fxTier(){return fxTier},set fxTier(v){fxTier=v},get lookKey(){return lookKey},mpieces,mpBreak,mpSetHp,resetMap,mpAt,allRuns,brokenBits,applyBits,sendEv,get brokenN(){return brokenN},hash,setMapV(v){mapV=v},get mapV(){return mapV},mapSize:MAP,ICONS,paintControl,get mapBg(){if(!mapBg)buildMapBg();return mapBg},removePiece,wallSpec,pushOut,SPEED,AIR,BODY:{R,H},buildings,rampIn,updateBots,updatePlayer,
   GUN_GEO,GUN_TIP,GUN_OCT,RTAG,RET,SNIPER_RET,SCOPE,killFeed,MAT,gunIM,itemIM,flashes,trs,bits,animModel,gunTip,startReload,tickWeapon,sfxShot,sfxReload,sfxPump,sfxBolt,sfxSwitch,isADS,KICK,
   STUCK_LOG,landPath,landClear,navShut,NAVN,updateBots,updatePlayer,step(dt){pClock+=dt*1000;practiceTick(dt);if(inPlay()){updatePlayer(dt);updateBots(dt)}},
-  landOk,landFit,landUnder,skirtOf,skirtList,pieceBox,buildList,applyBuilds,handleEvent,get bdDirty(){return bdDirty},bdGone,ED_N,edRects,edOk,pieceShape,partsOf,partList,partIM,pieceInst,editPiece,wouldTrap,openEdit,closeEdit,confirmEdit,editKey,editTarget,editTile,updateEdit,canEdit,pieceMatrix,pieceCentre,EDIT_T,EDIT_RANGE,pressCode,get edit(){return edit},get editJob(){return editJob},get editAim(){return editAim},get buildCd(){return buildCd},rampH,rampAt,rampBlocked,solidAt,rayRamp,rhash,COST,JUMP,GRAV:G,STEP,RT,MAXL,terrainH,walkH,terrainSlope,rayTerrain,TH,TN,TS,TM,LVL,LAKE,PADS,SHED_Y,chestSpots,floorSpots,buildings,footprints,get groundMesh(){return groundMesh},
+  landOk,landFit,landUnder,skirtOf,skirtList,pieceBox,buildList,applyBuilds,handleEvent,get bdDirty(){return bdDirty},bdGone,ED_N,edRects,edOk,pieceShape,partsOf,partList,partIM,pieceInst,editPiece,wouldTrap,openEdit,closeEdit,confirmEdit,editKey,editKeyUp,editTarget,editTile,edTileAt,edPoint,edName,screenRay,setEditRelease,get editRelease(){return editRelease},get editHold(){return editHold},get editLatch(){return editLatch},get editHelp(){return editHelp},set editHelp(v){editHelp=!!v},updateEdit,canEdit,pieceMatrix,pieceCentre,EDIT_TAP,EDIT_RANGE,pressCode,get edit(){return edit},get editAim(){return editAim},get buildCd(){return buildCd},rampH,rampAt,rampBlocked,solidAt,rayRamp,rhash,COST,JUMP,GRAV:G,STEP,RT,MAXL,terrainH,walkH,terrainSlope,rayTerrain,TH,TN,TS,TM,LVL,LAKE,PADS,SHED_Y,chestSpots,floorSpots,buildings,footprints,get groundMesh(){return groundMesh},
   Face,FACE_STARTS,FACE0,faceOf,faceBits,faceStr,faceRows,faceSpot,faceZ,bagFace,setShowFaces,NOOB,get myFace(){return myFace},get showFaces(){return showFaces},
-  Locker,get LOCKER_ON(){return lockerOn()},lockerSync,OUTFITS,bodyGeo,LEG_GEO,legIM,fitLegIM,fitLegGeo,makeModel,setModelColor,legSpec,STD_LEGS,fitOf,hitboxes,POSES,SWING,posePut,heldFollow,GLIDER_GEO,bodyRig,ARM_H,ARM_E,ARM_P,armIK,GHOLD,GH_POLE,ARM_K,VIEWM,get windN(){return windIM.count},TKON,PCOLS,SKINS,get mySkin(){return mySkin},Plane,get droneV(){return droneV}};
+  Locker,get LOCKER_ON(){return lockerOn()},lockerSync,get LX(){return LX},lxLoad,lxOf,lxSync,get myLx(){return myLx},syncLimbs,newEnt,OUTFITS,bodyGeo,LEG_GEO,legIM,fitLegIM,fitLegGeo,makeModel,setModelColor,legSpec,STD_LEGS,fitOf,hitboxes,POSES,SWING,posePut,heldFollow,GLIDER_GEO,bodyRig,ARM_H,ARM_E,ARM_P,armIK,GHOLD,GH_POLE,ARM_K,VIEWM,get windN(){return windIM.count},TKON,PCOLS,SKINS,get mySkin(){return mySkin},Plane,get droneV(){return droneV}};
 
 requestAnimationFrame(t=>{last=t;frame(t)});
 })();
