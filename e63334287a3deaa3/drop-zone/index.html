@@ -796,7 +796,18 @@ const WMAT=new THREE.MeshLambertMaterial({vertexColors:true});WMAT.onBeforeCompi
 const FLMAT=new THREE.MeshLambertMaterial({vertexColors:true});FLMAT.defines={};
 // Characters' bodies have one more copy, BMAT: the same shader with skinning on, so the arms and the upper body can move
 // inside the one merged mesh (six bones a body: hips, chest, each upper arm and each forearm; see bodyRig and posePut).
-const BMAT=new THREE.MeshLambertMaterial({vertexColors:true,skinning:true});BMAT.onBeforeCompile=MAT.onBeforeCompile;BMAT.defines={};
+const BMAT=new THREE.MeshLambertMaterial({vertexColors:true,skinning:true});BMAT.defines={};
+// Flutter (November 2026): in the air the back of the clothes, the hair and anything worn on the back ripple in the wind.
+// How hard is the seventh bone's distance from the hips (set by animModel, 0 on the ground, so nothing else moves); which
+// parts is decided here from where a corner sits on the body as drawn (behind the shoulders' line, more on the head's back),
+// so every outfit flutters without being changed. flutT is the clock. The glider has seven bones too, the seventh never
+// moved, so it never flutters.
+const flutT={value:0};
+BMAT.onBeforeCompile=sh=>{MAT.onBeforeCompile(sh);sh.uniforms.flutT=flutT;
+  sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nuniform float flutT;').replace('#include <skinning_vertex>',`#include <skinning_vertex>
+  {float fa=length(getBoneMatrix(6.)[3].xyz-getBoneMatrix(0.)[3].xyz)*1.25;
+  if(fa>.001){float w=smoothstep(.06,.26,position.z)*(.55+.9*smoothstep(1.5,1.75,position.y));
+    float ph=flutT*29.+position.y*13.+position.x*7.;transformed.z+=fa*w*(.022+.022*sin(ph));transformed.x+=fa*w*.014*sin(ph*.83+1.7);transformed.y+=fa*w*.01*sin(ph*1.31);}}`)};
 // Knees: every leg (standard and outfit) carries one more number per leg, legK, the knee's bend. The vertex shader turns
 // the part below the knee (KNEE_Y in the leg's own units) back about the knee by that angle, easing in over a few
 // centimetres so the knee bends rather than breaks. Same draw calls: the legs stay one instanced mesh each, and the shadow
@@ -2856,6 +2867,16 @@ const GLIDER_GEO=(()=>{const B=Bag(),K=0x2a2d34,M=0x5a606b,a=Math.atan2(.47,.8+G
   for(const s of [-1,1]){const t=s*.17,cx=s*(.7+.62*Math.cos(.17)),cy=.9+GLU+.62*Math.sin(.17);
     bagTurn(B,0,cx,cy,0,1.25,.075,1.12,s<0?0xff6a3a:0x2f93bf,0,0,t);bagTurn(B,0,cx,cy,-.58,1.25,.1,.07,K,0,0,t);bagTurn(B,0,s*(.7+1.24*Math.cos(.17)),.9+GLU+1.24*Math.sin(.17),0,.06,.11,1.14,K,0,0,t)}   // side panels, front edge, tip
   return bagGeo(B)})();
+// The glider bends (November 2026): each side panel turns about its own hinge (GL_HX out, GL_HY up from the handles), so
+// it can snap open, flex in the air, load up on the outside of a turn and fold away; the middle, the struts' feet and the
+// crossbar stay with the handles. One skinned mesh (BMAT) with seven bones (0 the middle, 1 and 2 the side panels, the rest
+// unused), still one draw call. gliderSkin weights any glider shape by where its corners are, so another glider drawn the
+// same way bends the same way.
+const GL_HX=.7,GL_HY=.9+GLU;
+function gliderSkin(geo){if(geo.attributes.skinIndex)return geo;const P=geo.attributes.position.array,n=P.length/3,si=new Float32Array(n*4),sw=new Float32Array(n*4);
+  const ss=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t)};
+  for(let i=0;i<n;i++){const x=P[i*3],y=P[i*3+1],w=ss(.6,.82,Math.abs(x))*ss(GL_HY-.22,GL_HY-.06,y);si[i*4+1]=x<0?1:2;sw[i*4]=1-w;sw[i*4+1]=w}
+  geo.setAttribute('skinIndex',new THREE.BufferAttribute(si,4));geo.setAttribute('skinWeight',new THREE.BufferAttribute(sw,4));return geo}
 const SKINS=[0xf1c7a0,0xd9a77c,0xb98058,0x8a5a3c,0xf5d3b5,0x6e4630],HAIR=[0x5a3a22,0x2b211c,0x1c1917,0x151312,0xc9a05a,0x1a1614];
 /* ---------- drawn faces ----------
    Everyone can draw their own face (the Face button on the menu): black cells on a grid 12 wide and 10 high, laid over the
@@ -3221,7 +3242,8 @@ const POSES={rest:pose({}),
   cb:pose({L:[-1.42,.4,-.14,.35],h:[.38,1.47,-.17],bp:2.1,by:.45,sl:-.04,sr:.03}),   // crowbar out: the right hand up by the chest, the bar back over the right shoulder (its head shows above it from behind); the left arm hangs
   fall:pose({L:[0,2.1,-.05,.95],R:[0,-1.7,.05,.95]}),      // skydiving: upper arms out to the sides, forearms bent up toward the head
   glide:pose({L:[1.25,.3,-.3,1],R:[1.25,0,.3,1]}),                    // reaching up (armIK then puts the hands on the handles)
-  jump:pose({lean:.1,L:[2.05,.3,-.35,.5],R:[2.05,0,.35,.5]})};       // leaving the Drifter: arms up
+  jump:pose({lean:.1,L:[2.05,.3,-.35,.5],R:[2.05,0,.35,.5]}),        // leaving the Drifter: arms up
+  dive:pose({L:[-2.2,.25,-.22,.2],R:[-2.2,-.25,.22,.2]})};            // diving head first: the arms swept back along the body
 // The crowbar's swing (November 2026, remade for weight), keyed in seconds from the press, with how each stretch eases (0 in
 // and out, 1 speeding up, 2 slowing down); null is the pose it starts from (whatever was showing, so swings chain without a
 // jump) and goes back to. The keys are joined by a smooth curve (Catmull-Rom through them), so the bar's head travels in
@@ -3256,15 +3278,17 @@ function makeModel(hex,skinIx,fit,face){
   // six bones, all at rest in the pose the body is drawn in (both arms forward, holding a weapon): hips, chest (turns and
   // leans over the hips), left and right upper arm (about the shoulder), left and right forearm (about the elbow).
   // posePut sets them from the pose numbers.
-  const bones=[0,1,2,3,4,5].map(()=>new THREE.Bone());bones[1].position.set(0,SPINE_Y,0);bones[0].add(bones[1]);
+  // (a seventh bone, never weighted, carries how hard the clothes flutter: its distance from the hips; see flutVS)
+  const bones=[0,1,2,3,4,5,6].map(()=>new THREE.Bone());bones[1].position.set(0,SPINE_Y,0);bones[0].add(bones[1],bones[6]);
   for(let k=0;k<2;k++){bones[k+2].position.set(ARM_P[k][0],ARM_P[k][1]-SPINE_Y,ARM_P[k][2]);bones[1].add(bones[k+2]);
     bones[k+4].position.set(ARM_E[k][0]-ARM_P[k][0],ARM_E[k][1]-ARM_P[k][1],ARM_E[k][2]-ARM_P[k][2]);bones[k+2].add(bones[k+4])}
   bones[1].rotation.order='YXZ';body.add(bones[0]);
   const legs=[-.17,.17].map(x=>{const l=new THREE.Object3D();l.position.set(x,.86,0);l.k=0;g.add(l);return l});   // k: the knee's bend
   const gun=new THREE.Object3D();gun.position.set(.3,1.36,-.62);
-  const glider=new THREE.Mesh(GLIDER_GEO,MAT);glider.position.set(0,GLIDE_Y,0);glider.visible=false;
-  g.add(body,gun,glider);g.updateMatrixWorld(true);body.bind(new THREE.Skeleton(bones));
-  g.userData={body,bones,legs,gun,glider,gk:'cb',gr:-1,hex,skinIx:skinIx|0,fit,face,leg:legSpec(hex,SKINS[(skinIx|0)%SKINS.length],fit),
+  const glider=new THREE.SkinnedMesh(gliderSkin(GLIDER_GEO),BMAT);glider.position.set(0,GLIDE_Y,0);glider.visible=false;glider.frustumCulled=false;
+  const gb=[0,1,2,3,4,5,6].map(()=>new THREE.Bone());gb[1].position.set(-GL_HX,GL_HY,0);gb[2].position.set(GL_HX,GL_HY,0);for(let i=1;i<7;i++)gb[0].add(gb[i]);glider.add(gb[0]);
+  g.add(body,gun,glider);g.updateMatrixWorld(true);body.bind(new THREE.Skeleton(bones));glider.bind(new THREE.Skeleton(gb));
+  g.userData={body,bones,legs,gun,glider,gb,gO:0,gV:0,gk:'cb',gr:-1,hex,skinIx:skinIx|0,fit,face,leg:legSpec(hex,SKINS[(skinIx|0)%SKINS.length],fit),
     pb:new Float32Array(POSE_N),pf:new Float32Array(POSE_N),pit:0,roll:0,glk:0};limbModels.add(g);
   return g;
 }
@@ -3452,6 +3476,14 @@ function sfxCb(mt,v){vKeep=v>=1;const r=.94+Math.random()*.12;
   else if(mt==='body'){tone('sine',140*r,55,.42*v,.11);burst('lowpass',900*r,.34*v,.08)}
   else{burst('lowpass',750*r,.42*v,.13,0,0,200);tone('sine',115*r,55,.26*v,.09)}
   vKeep=false}
+// Landing from the sky: a soft thump (heavier straight from the skydive) and a ring of dust kicked out from the feet;
+// the glider opening: a rising whoosh of cloth and a snap as it fills. Heard and seen by anyone close.
+function touchDown(e,hard){const d=camera.position.distanceTo(e.pos);if(d>45)return;const v=e===player?1:1/(1+d*.08);
+  vKeep=e===player;burst('lowpass',hard?520:720,(hard?.5:.3)*v,.18,0,0,170);tone('sine',hard?95:125,40,(hard?.42:.22)*v,.14);burst('bandpass',2300,.06*v,.05,2);vKeep=false;
+  if(RM||d>35)return;const n=gfxPref==='fast'||touchUI?7:12;
+  for(let i=0;i<n;i++){const a=i/n*6.283+Math.random()*.5,sp=1.1+Math.random()*1.1;bit(_p.set(e.pos.x+Math.cos(a)*.22,e.pos.y+.05,e.pos.z+Math.sin(a)*.22),new V3(Math.cos(a)*sp,.2+Math.random()*.45,Math.sin(a)*sp),i%2?0xcfc2a4:0xb9aa8a,.09+Math.random()*.07,.45+Math.random()*.25,-.3)}}
+function gliderOut(e){const d=camera.position.distanceTo(e.pos);if(d>50)return;const v=e===player?1:1/(1+d*.07);vKeep=e===player;
+  burst('bandpass',360,.42*v,.26,1.1,0,1700);burst('lowpass',900,.26*v,.12,0,.05);tone('sine',72,140,.26*v,.12,.04);burst('highpass',2600,.16*v,.05,0,.11);vKeep=false}
 // the bar cutting the air on the way down (every swing, hit or miss), timed to the strike
 function sfxSwoosh(v,dl){burst('bandpass',650,.2*v,.14,1.4,dl,2800)}
 function sfxStorm(){burst('lowpass',300,.18,.4)}
@@ -3467,11 +3499,11 @@ function stormHum(k){
   humGain.gain.setTargetAtTime(k*.5,AC.currentTime,.25);
 }
 // the rush of air while you fall (and, quieter, glide): the same kind of loop, lighter and higher
-let windGain=null,windKq=-1;
-function windHum(k){
-  if(!AC)return;k=Math.round(k*20)/20;if(k===windKq)return;windKq=k;
+let windGain=null,windKq=-1,windF=null;
+function windHum(k,f){
+  if(!AC)return;k=Math.round(k*20)/20;if(windF&&f)windF.frequency.setTargetAtTime(f,AC.currentTime,.4);if(k===windKq)return;windKq=k;
   if(!windGain){if(!k)return;try{const b=AC.createBuffer(1,AC.sampleRate*2,AC.sampleRate),d=b.getChannelData(0);let v=0;for(let i=0;i<d.length;i++){v+=(Math.random()*2-1-v)*.35;d[i]=v}
-      const s=AC.createBufferSource();s.buffer=b;s.loop=true;const f=AC.createBiquadFilter();f.type='bandpass';f.frequency.value=900;f.Q.value=.6;windGain=AC.createGain();windGain.gain.value=0;s.connect(f);f.connect(windGain);windGain.connect(master);s.start()}catch(e){windGain=null;return}}
+      const s=AC.createBufferSource();s.buffer=b;s.loop=true;const f=windF=AC.createBiquadFilter();f.type='bandpass';f.frequency.value=900;f.Q.value=.6;windGain=AC.createGain();windGain.gain.value=0;s.connect(f);f.connect(windGain);windGain.connect(master);s.start()}catch(e){windGain=null;return}}
   windGain.gain.setTargetAtTime(k*.16,AC.currentTime,.3);
 }
 
@@ -5201,7 +5233,8 @@ function animModel(e,dt){
   const air=e.st==='fall',far=camera.position.distanceTo(e.pos)>70,now=performance.now(),k8=1-Math.exp(-dt*8),fl=RM?0:1;
   // just out of the Drifter: start from the jump (upright, arms up, knees tucked) and spread into the skydive (fT)
   if(air&&u.lst!==e.st){u.fT=u.lst==='bus'||u.lst==='out'||u.lst==null?0:.6;if(!u.fT){u.pb.set(POSES.jump);u.pit=-.25;u.roll=0}}
-  if(e.st!==u.lst&&e.onGround&&(u.lst==='glide'||u.lst==='fall'))u.landT=.32;   // touching down: a short crouch
+  if(e.st!==u.lst&&e.onGround&&(u.lst==='glide'||u.lst==='fall')){u.landT=.36;touchDown(e,u.lst==='fall')}   // touching down: a crouch, a puff of dust and a thump
+  if(e.glide&&u.lst==='fall'&&!u.gO)gliderOut(e);                                                        // the glider snaps open with a whoosh
   u.lst=e.st;u.fT=(u.fT||0)+dt;
   const jk=air?clamp(u.fT/.55,0,1):1,jumpK=1-jk*jk*(3-2*jk);
   // the whole body: belly to the ground in the skydive (from the jump), hanging a little forward under the glider, leaning
@@ -5210,13 +5243,22 @@ function animModel(e,dt){
   const yr=dt>0?wrapAng(e.yaw-(u.py==null?e.yaw:u.py))/dt:0;u.py=e.yaw;
   const sy=Math.sin(e.yaw),cy=Math.cos(e.yaw),lat=e.vel.x*cy-e.vel.z*sy,fwd=-e.vel.x*sy-e.vel.z*cy;
   const sp=e.onGround?Math.hypot(e.vel.x,e.vel.z):0,rk=Math.min(1,sp/SPEED);
-  const ptg=air?-1.38+1.1*jumpK:e.glide?-.3:-.09*rk*Math.sign(fwd+.01)*Math.min(1,Math.abs(fwd)/(sp+.01)+.2);
+  // diving (looking well down) tips the skydive head-first with the arms swept back; looking ahead it is the spread-out
+  // slow fall (dv, from the pitch everyone already sends; the fall itself is the same speed either way)
+  u.dv=(u.dv||0)+((air?clamp((-(e.pitch||0)-.3)/.55,0,1):0)-(u.dv||0))*(1-Math.exp(-dt*4));
+  const ptg=air?-1.38-.62*u.dv+1.1*jumpK:e.glide?-.3:-.09*rk*Math.sign(fwd+.01)*Math.min(1,Math.abs(fwd)/(sp+.01)+.2);
   u.pit+=(ptg-u.pit)*(air?1-Math.exp(-dt*5):k8);
   u.roll+=((RM?0:e.glide?clamp(yr*.2-lat*.035,-.42,.42):air?clamp(yr*.22-lat*.02,-.35,.35):0)-u.roll)*k8;
   m.rotation.set(u.pit,e.yaw,u.roll,'YXZ');
   // the glider unfolds over about a fifth of a second when it opens and folds away as you land
-  u.glk=clamp(u.glk+(e.glide?dt*5:-dt*6),0,1);const gl=u.glider,ge=u.glk*u.glk*(3-2*u.glk);gl.visible=u.glk>.01;
-  if(gl.visible){gl.scale.set(.08+.92*ge,.4+.6*ge,.3+.7*ge);gl.rotation.set(-u.pit*.8,0,u.roll*.4)}
+  // (a spring, a little under-damped on the way out so it snaps open past its size and settles; folding is quicker and
+  // doesn't bounce). The side panels fold down against the struts while it is closed, flex in the air and load up: the
+  // outside of a turn lifts and the inside drops, more than the body banks.
+  {const ks=e.glide?230:900,ze=e.glide&&!RM?.4:1,n=Math.ceil(Math.min(dt,.1)/.008),h=Math.min(dt,.1)/n;for(let i=0;i<n;i++){u.gV+=(ks*((e.glide?1:0)-u.gO)-2*ze*Math.sqrt(ks)*u.gV)*h;u.gO+=u.gV*h}if(!e.glide&&u.gO<.05){u.gO=0;u.gV=0}}
+  u.glk=clamp(u.gO,0,1);const gl=u.glider,go=Math.max(0,u.gO),ge=u.glk*u.glk*(3-2*u.glk);gl.visible=u.glk>.01;
+  if(gl.visible){gl.scale.set(.08+.92*go,.4+.6*ge,.3+.7*go);gl.rotation.set(-u.pit*.8,0,u.roll*.65);
+    const gb=u.gb,fold=(1-ge)*1.35,fx=fl*(.035*Math.sin(now*.012+e.yaw)+.02*Math.sin(now*.029)),ld=u.roll*.5;
+    if(gb){gb[1].rotation.z=fold-.06-fx+ld;gb[2].rotation.z=-fold+.06+fx+ld;gb[0].rotation.x=fl*.03*Math.sin(now*.007)}}
   u.legs[0].visible=u.legs[1].visible=!far;u.gun.visible=!far&&!air&&!e.glide&&u.glk<.35;   // (not while the glider is opening or open; it comes back as the glider folds away)
   // ---- legs. On the ground each stride is as long as the ground it covers, so a planted foot doesn't slide (A: how far a
   // leg swings, at most 0.74 rad; LEG_L: hip to sole in metres). The legs swing the way the body is moving (forward,
@@ -5236,8 +5278,13 @@ function animModel(e,dt){
       L.rotation.set(a*cf+lt*.35-u.pit,0,a*cl,'XYZ');L.k=st+(p<.5?0:kb*Math.sin(2*Math.PI*(p-.5)))+lt*.75;if(p<.5)drop=.9*(1-Math.cos(a))}
     m.position.y-=(drop+lt*.09)*BS}
   else if(air){const f=Math.sin(now*.017)*.07*fl,g=Math.sin(now*.021+1)*.07*fl;
-    L0.rotation.set((1-jumpK)*-.18+jumpK*.32+f,0,-.32*(1-jumpK)-.08*jumpK,'XYZ');L1.rotation.set((1-jumpK)*-.18-jumpK*.12+g,0,.32*(1-jumpK)+.08*jumpK,'XYZ');L0.k=1.25*(1-jumpK)+.95*jumpK+f;L1.k=1.15*(1-jumpK)+.5*jumpK-g}
-  else{const gw=e.glide?Math.sin(now*.005)*.06*fl:0;L0.rotation.set(-.28+gw,0,-u.roll*.25,'XYZ');L1.rotation.set(-.36-gw,0,-u.roll*.25,'XYZ');L0.k=.35+gw;L1.k=.45-gw}
+    const dv=u.dv*(1-jumpK),sf=1-dv;
+    L0.rotation.set(((1-jumpK)*-.18+jumpK*.32)*sf+f*(1+dv),0,(-.32*(1-jumpK)-.08*jumpK)*sf-.05*dv,'XYZ');L1.rotation.set(((1-jumpK)*-.18-jumpK*.12)*sf+g*(1+dv),0,(.32*(1-jumpK)+.08*jumpK)*sf+.05*dv,'XYZ');
+    L0.k=(1.25*(1-jumpK)+.95*jumpK)*sf+.1*dv+f;L1.k=(1.15*(1-jumpK)+.5*jumpK)*sf+.1*dv-g}
+  else{const gw=e.glide?Math.sin(now*.005)*.06*fl:0,h=Math.min(dt,.033);
+    // gliding, the legs hang and trail; they swing like a pendulum out of a turn (u.ls), lagging the bank, and kick slowly
+    u.lsV=(u.lsV||0)+((-u.roll*1.3-(u.ls||0))*26-(u.lsV||0)*3.6)*h;u.ls=(u.ls||0)+u.lsV*h;const sw=e.glide?u.ls*fl:0,kc=e.glide?Math.sin(now*.0037)*.09*fl:0;
+    L0.rotation.set(-.28+gw+kc,0,-u.roll*.25+sw*.55,'XYZ');L1.rotation.set(-.36-gw-kc,0,-u.roll*.25+sw*.55,'XYZ');L0.k=.35+gw+Math.max(0,kc);L1.k=.45-gw+Math.max(0,-kc)}
   if(e.local)setHeldModel(m,heldKey(e),heldItem(e)?heldItem(e).r:-1);
   // ---- arms and chest (see POSES): the pose for what you're doing, blended over about a fifth of a second (the skydive
   // over half a second, from the jump), then running, the crowbar's swing on the real clock from when it started (yours,
@@ -5248,7 +5295,10 @@ function animModel(e,dt){
   for(let i=0;i<POSE_N;i++)pb[i]+=(tg[i]-pb[i])*k12;
   u.cbw=(u.cbw||0)+((cb?1:0)-(u.cbw||0))*k12;
   const pf=u.pf;pf.set(pb);
+  if(air&&u.dv>.005)for(let i=0;i<POSE_N;i++)pf[i]+=(POSES.dive[i]-pf[i])*u.dv;
   if(air&&jumpK>0)for(let i=0;i<POSE_N;i++)pf[i]+=(POSES.jump[i]-pf[i])*jumpK;
+  // the clothes flutter in the air (flutVS): hardest in a dive, gently under the glider
+  u.fa=(u.fa||0)+((RM?0:air?.75+.5*u.dv:e.glide?.4*ge:0)-(u.fa||0))*k8;u.bones[6].position.x=u.fa<.01?0:u.fa;
   if(air&&fl){const t=now*.001;pf[2]+=Math.sin(t*19)*.05;pf[5]+=Math.sin(t*17+2)*.05;pf[12]+=Math.sin(t*23+1)*.08;pf[13]+=Math.sin(t*21)*.08;pf[14]+=Math.sin(t*13)*.03}   // the air shaking the arms
   u.hipT=0;
   if(e.onGround&&sp>.05){const c=Math.sin(ph),s=Math.cos(ph)*Math.min(1,A/.5);
@@ -5375,7 +5425,7 @@ function updateCamera(dt){
     return;
   }
   const self=tgt===player,ads=self&&isADS(),w=self?heldW(player):null;
-  const tf=ads&&w?w.fov:72;if(Math.abs(camera.fov-tf)>.05){camera.fov+=(tf-camera.fov)*Math.min(1,dt*14);camera.updateProjectionMatrix()}
+  const tf=(ads&&w?w.fov:72)+(self&&player.st==='fall'&&!RM?7*(player.model.userData.dv||0):0);   // a dive widens the view a littleif(Math.abs(camera.fov-tf)>.05){camera.fov+=(tf-camera.fov)*Math.min(1,dt*14);camera.updateProjectionMatrix()}
   if(self&&player.st==='bus'){
     // riding the Drifter: look around it from a little above and to one side of its tail, so the open ramp, the tail and
     // the lettering are in view (the plane is drawn by updateWorldFx just before this, so it doesn't lag a frame)
@@ -5450,15 +5500,16 @@ const _wd=new V3(),_wq=new THREE.Quaternion(),_wy=new V3(0,1,0),_wa=new V3(),_wb
 let windK=0;
 function windFx(dt){
   const tg=camTarget(),fall=!!tg&&tg.alive&&tg.st==='fall';windK=clamp(windK+(fall?dt*2.5:-dt*4),0,1);
-  windHum(tg===player&&tg.alive?(tg.st==='fall'?1:tg.st==='glide'?.35:0):0);
+  const dv=tg&&tg.model?tg.model.userData.dv||0:0;   // (diving: louder, higher, and more streaks, brighter)
+  windHum(tg===player&&tg.alive?(tg.st==='fall'?.8+.45*dv:tg.st==='glide'?.35:0):0,tg&&tg.st==='fall'?800+700*dv:900);
   const n=RM||!tg?0:Math.round((touchUI?8:gfxPref==='fast'||lookKey<1?12:WIND_N)*windK);
   windIM.count=n;windIM.visible=n>0;if(!n)return;
   const sp=Math.max(8,tg.vel.length());_wd.copy(tg.vel).multiplyScalar(-1/sp);if(tg.vel.lengthSq()<1)_wd.set(0,1,0);   // the way the air rushes past
   _wq.setFromUnitVectors(_wy,_wd);_wa.set(1,0,0).addScaledVector(_wd,-_wd.x);if(_wa.lengthSq()<.01)_wa.set(0,0,1).addScaledVector(_wd,-_wd.z);_wa.normalize();_wb.crossVectors(_wd,_wa);
   for(let i=0;i<n;i++){const w=windS[i];w.t+=dt*sp/9;
     if(w.t<0||w.t>1){w.t=w.t>1?0:Math.random();w.a=Math.random()*Math.PI*2;w.r=.9+Math.random()*2.6;w.o=Math.random()*1.2-.6;w.l=1+Math.random()*1.4;w.w=.012+Math.random()*.01}
-    const along=(w.t-.5)*9;_wp.copy(tg.pos).addScaledVector(_wd,along+w.o).addScaledVector(_wa,Math.cos(w.a)*w.r).addScaledVector(_wb,Math.sin(w.a)*w.r);_wp.y+=.4;
-    windIM.setMatrixAt(i,_m4.compose(_wp,_wq,_ws.set(w.w,w.l,w.w)));const f=Math.sin(Math.PI*w.t)*.42*windK;windIM.setColorAt(i,_col.setRGB(f,f,f))}
+    const along=(w.t-.5)*9*(1+.4*dv);_wp.copy(tg.pos).addScaledVector(_wd,along+w.o).addScaledVector(_wa,Math.cos(w.a)*w.r).addScaledVector(_wb,Math.sin(w.a)*w.r);_wp.y+=.4;
+    windIM.setMatrixAt(i,_m4.compose(_wp,_wq,_ws.set(w.w,w.l,w.w)));const f=Math.sin(Math.PI*w.t)*.42*windK*(1+.7*dv);windIM.setColorAt(i,_col.setRGB(f,f,f))}
   windIM.instanceMatrix.needsUpdate=true;windIM.instanceColor.needsUpdate=true}
 /* ---------- main loop ---------- */
 let last=performance.now(),cpuMs=0;
@@ -5472,6 +5523,7 @@ function frame(now){
     // play in slow motion against the storm and the Drifter, which run on the clock
     if(inPlay()){const sim=Math.min(raw,.25),n=Math.max(1,Math.ceil(sim/.05));for(let i=0;i<n;i++){updatePlayer(sim/n);updateBots(sim/n)}updateRemotes(dt)}else hideGhosts();
   }
+  flutT.value=(now*.001)%1000;
   if(running||state==='menu'){for(const e of ents)animModel(e,dt);updateFx(dt);drawItems(dt)}
   updateWorldFx();updateCamera(dt);windFx(dt);
   if(state!=='menu'){updateHud(dt);updateMap(dt)}
