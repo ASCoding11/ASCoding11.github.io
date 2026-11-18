@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script src="/e63334287a3deaa3/lang.js"></script>
+<script src="es.js"></script>
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Updraft</title>
@@ -256,7 +258,7 @@ body.touch #spec{bottom:calc(160px + env(safe-area-inset-bottom,0px))}
       </div>
     </div>
     <div id="bar" aria-hidden="true"><div class="fill" id="barFill"></div><div class="best" id="barBest"></div></div>
-    <div id="board" hidden><h4><span id="boardTitle">Room</span><span id="boardN"></span></h4><ol id="boardList"></ol></div>
+    <div id="board" hidden><h4><span id="boardTitle">Room</span><span id="boardN"></span></h4><ol id="boardList" data-noi18n></ol></div>
     <div id="toast" class="sh"><b></b><span></span></div>
     <div id="feed"></div>
     <div id="hint"></div>
@@ -355,6 +357,7 @@ body.touch #spec{bottom:calc(160px + env(safe-area-inset-bottom,0px))}
       <div class="setting"><span>Quality</span><div class="seg" id="gfxSeg"><button type="button" data-q="low">Fast</button><button type="button" data-q="high">Pretty</button></div></div>
       <div class="setting"><span>Invert look</span><div class="seg" id="invSeg"><button type="button" data-v="0">Off</button><button type="button" data-v="1">On</button></div></div>
       <div class="setting"><span>Screen</span><button class="btn sm" id="fsBtn" type="button">Full screen</button></div>
+      <div class="setting"><span>Language</span><div data-lang-toggle></div></div>
       <div class="row" style="margin-top:18px;justify-content:flex-end"><button class="btn go" id="setDone" type="button">Done</button></div>
     </div>
   </section>
@@ -1806,6 +1809,9 @@ const MAX_ROOM=12;
 const U=UpCore,C=U.C,SUMMIT=U.SUMMIT,TOP=U.TOP;   // SUMMIT: the old summit (1000 m, a milestone now); TOP: the Crown (3000 m)
 const V3=THREE.Vector3;
 const $=id=>document.getElementById(id);
+// Spanish: es.js holds this game's words; TX() is for text drawn on a canvas or built in code (../lang.js). (T is the textures.)
+const TX=window.BackRoomLang?BackRoomLang.t:(s,v)=>s.replace(/\{(\w+)\}/g,(m,n)=>v&&v[n]!=null?v[n]:m);
+const NUM=n=>window.BackRoomLang?BackRoomLang.num(n):n.toLocaleString('en-US');
 const clamp=U.clamp,lerp=(a,b,t)=>a+(b-a)*t;
 const rand=(a,b)=>a+Math.random()*(b-a);
 const pick=a=>a[Math.floor(Math.random()*a.length)];
@@ -2343,7 +2349,7 @@ function drawDeco(d){
   if(d.s==='spire'){}
   // the old summit's marker: a post with a plaque, where the new climb leaves it
   if(d.s==='milestone'){addGeo(get('metal'),cylG(8),M(d.x,d.y+.7,d.z,0,.07,1.4,.07),'#555');
-    const t=signTex('OLD SUMMIT','1,000 m · the climb goes on',512,192,'#2a1d4a');const m=new THREE.Mesh(SIGN_GEO,new THREE.MeshBasicMaterial({map:t}));m.scale.set(.5,.5,1);
+    const t=signTex(TX('OLD SUMMIT'),TX('1,000 m · the climb goes on'),512,192,'#2a1d4a');const m=new THREE.Mesh(SIGN_GEO,new THREE.MeshBasicMaterial({map:t}));m.scale.set(.5,.5,1);
     m.position.set(d.x,d.y+1.6,d.z);m.rotation.y=d.yaw;scene.add(m);addGeo(get('glow'),new THREE.TorusGeometry(1,.05,6,32),M(d.x,d.y+.02,d.z,0,.6,.6,.6,Math.PI/2),'#ffd36b');return}
   if(d.s==='windsock'){addGeo(get('metal'),cylG(6),M(d.x,d.y+1.5,d.z,0,.05,3,.05),'#9aa3ad');addGeo(get('plain'),frustG(.12,.3,10),M(d.x+.6,d.y+2.9,d.z,0,1,1.2,1,0,Math.PI/2),'#ff7a3d');return}
   // the Crown: eight gold spires round the top and jewels on them, all below the rim so they're never in the way
@@ -2359,7 +2365,7 @@ function drawDeco(d){
     return}
   if(d.s==='poster'){const t=signTex(d.text,'',1024,192,'#e9dfc4','#3b3540');const m=new THREE.Mesh(new THREE.PlaneGeometry(2,.375),new THREE.MeshLambertMaterial({map:t,side:THREE.DoubleSide}));
     m.position.set(d.x,1.72,d.z);m.rotation.y=d.yaw;m.rotation.z=.03;scene.add(m);addGeo(sb('metal',0),cylG(6),M(d.x,.76,d.z,0,.035,1.52,.035),'#55595f');return}
-  if(d.s==='billboard'){const t=signTex(d.text,'',1024,384,'#f7f2e8','#2b2b33');const m=new THREE.Mesh(new THREE.PlaneGeometry(d.w,d.h),new THREE.MeshLambertMaterial({map:t,side:THREE.DoubleSide}));
+  if(d.s==='billboard'){const t=signTex(TX(d.text),'',1024,384,'#f7f2e8','#2b2b33');const m=new THREE.Mesh(new THREE.PlaneGeometry(d.w,d.h),new THREE.MeshLambertMaterial({map:t,side:THREE.DoubleSide}));
     const ux=Math.cos(d.yaw),uz=-Math.sin(d.yaw);m.position.set(d.x-ux*.6,d.y+d.h/2+.6,d.z-uz*.6);m.rotation.y=d.yaw+Math.PI/2;scene.add(m);
     addBox(k=>sb(k,d.y),M(d.x-ux*.65,d.y+d.h/2+.6,d.z-uz*.65,d.yaw),.08,d.w/2+.1,d.h+.2,0,{top:'metal',side:'metal'},'#444',1);return}
   if(d.s==='keyboard'){const m=M(d.x,d.y,d.z,d.yaw,1,1,1,-Math.atan(d.sl));addBox(k=>sb(k,d.y),m,d.w/2,d.len/2,.6,0,{top:'plain',side:'plain'},'#3b3f4a',2,'#2b2e36',.8);return}
@@ -2397,7 +2403,7 @@ const SIGN_GEO=(()=>{const f=new THREE.PlaneGeometry(3.2,1.2),b=f.clone().rotate
   const ix=Array.from(f.index.array);g.setIndex(ix.concat(ix.map(v=>v+n)));return g})();
 function drawSign(s){
   // the old summit's sign: it's a milestone now, not the top
-  const old=s.text==='The Top'&&s.y===SUMMIT,t=old?signTex('Old summit','1,000 m · keep climbing'):signTex(s.text,s.sub);const m=new THREE.Mesh(SIGN_GEO,new THREE.MeshBasicMaterial({map:t}));
+  const old=s.text==='The Top'&&s.y===SUMMIT,t=old?signTex(TX('Old summit'),TX('1,000 m · keep climbing')):signTex(TX(s.text),TX(s.sub));const m=new THREE.Mesh(SIGN_GEO,new THREE.MeshBasicMaterial({map:t}));
   m.position.set(s.x,s.y+2.4,s.z);m.rotation.y=(s.yaw||0)+Math.PI;scene.add(m);
   addGeo(sb('metal',s.y),cylG(6),M(s.x,s.y+.9,s.z,0,.06,1.8,.06),'#555');
 }
@@ -2916,7 +2922,7 @@ function ridePlan(kind){
 function foundSecret(kind,name){
   if(secretsFound[kind])return;secretsFound[kind]=1;store.set('secrets',secretsFound);
   try{if(window.BackRoomStats)BackRoomStats.add('secrets',1)}catch(e){}
-  feed('Secret found: '+name);
+  feed(TX('Secret found: {n}',{n:TX(name)}));
 }
 // Where the lift key works, if you're there: by the foot of the crane's mast on the street, within L.r of its middle
 // ('lift'), or in front of the elevator's door on the terrace ('elev'). Holding the lift key there for a second calls
@@ -3285,7 +3291,7 @@ function afterSteps(dt){
   // standing on a pulse platform that's about to go dark: it ticks
   if(me.gnd&&me.gnd.kind==='blink'){const c=me.gnd,left=(c.blink.on-U.blinkU(c,W.t))*c.blink.T,q=Math.floor(left*4);if(left<1.2&&q!==G.tickQ){G.tickQ=q;sfx('tick')}}
   // a new zone (the new ones say what's special about them; not over the old summit's banner: it waits)
-  const z=U.zoneAt(run.maxY);if(z>G.lastZone&&me.gnd&&!(performance.now()<(G.toastHold||0))){G.lastZone=z;if(z>run.zone){run.zone=z;const Z=U.ZONES[z];toast(Z.name,Z.intro?Math.round(Z.y0).toLocaleString('en-US')+' m · '+Z.intro:Math.round(Z.y0)+' m',Z.intro?4.5:3);sfx('zone')}}
+  const z=U.zoneAt(run.maxY);if(z>G.lastZone&&me.gnd&&!(performance.now()<(G.toastHold||0))){G.lastZone=z;if(z>run.zone){run.zone=z;const Z=U.ZONES[z];toast(Z.name,Z.intro?NUM(Math.round(Z.y0))+' m · '+TX(Z.intro):Math.round(Z.y0)+' m',Z.intro?4.5:3);sfx('zone')}}
   // a new best height
   if(run.maxY>best.h+.5){const was=best.h;best.h=Math.round(run.maxY*10)/10;if(was>25&&!G.pbShown){G.pbShown=true;feed('New best height! You\'re past '+Math.round(was)+' m');sfx('best')}if(performance.now()-(G.bestSaved||0)>3000){G.bestSaved=performance.now();saveBest()}}
   // save where you are (only standing on something that stays put)
@@ -3313,7 +3319,7 @@ function onSummit(){
   sfx('fanfare');confetti(me.x,me.y,me.z);fireworks(me.x,me.y,me.z);
   best.w2=(best.w2|0)+1;const pbT=!best.t2||run.fin<best.t2;if(pbT)best.t2=Math.round(run.fin*10)/10;best.h=Math.max(best.h,TOP);saveBest();saveRun();
   $('wTime').innerHTML=esc(fmtT(run.fin))+(pbT?'<span class="pb">Best!</span>':'');$('wMax').textContent=Math.min(TOP,Math.round(run.maxY))+' m';$('wFalls').textContent=String(me.falls);$('wJumps').textContent=String(me.jumps);
-  $('winSub').textContent=(pbT&&best.w2>1?'A new best time.':best.w2>1?'Best time '+fmtT(best.t2)+'.':'Your first time up here. 3000 metres, every one of them.')+(run.mile?' Old summit at '+fmtT(run.mile)+'.':'');
+  $('winSub').textContent=(pbT&&best.w2>1?TX('A new best time.'):best.w2>1?TX('Best time {t}.',{t:fmtT(best.t2)}):TX('Your first time up here. 3000 metres, every one of them.'))+(run.mile?' '+TX('Old summit at {t}.',{t:fmtT(run.mile)}):'');
   $('winSpec').hidden=!(Net.refs&&[...others.values()].some(o=>o.live()));
   G.winShown=true;$('win').hidden=false;unlock();showAd('adEnd');
   if(Net.refs)Net.pub(true);
@@ -3359,12 +3365,12 @@ function renderBoard(){
   let md=bar.querySelector('.dot.me');if(!md){md=document.createElement('div');md.className='dot me';bar.appendChild(md)}md.style.background=myColor;md.style.bottom=clamp(me.y/TOP*100,0,100)+'%';
   for(const [id,o] of others)if(o.dot&&!want.has(id)){o.dot.remove();o.dot=null}
   if(!on)return;
-  const rows=[{id:Net.uid||'me',n:(myName||'You'),c:myColor,y:me.y,f:run.fin,me:1}];
+  const rows=[{id:Net.uid||'me',n:(myName||TX('You')),c:myColor,y:me.y,f:run.fin,me:1}];
   for(const [id,o] of others)if(o.live())rows.push({id,n:o.n,c:o.c,y:o.ent.y,f:o.f});
   rows.sort((a,b)=>(b.f?1e6-b.f:b.y)-(a.f?1e6-a.f:a.y));
   const key=rows.map(r=>r.id+Math.floor(r.y)+r.f+r.n).join('|');if(hudCache.board===key)return;hudCache.board=key;
   setText('boardTitle',Net.isPublic?'Public room':'Room '+(Net.room||'up-test').replace(/^up-/,''));setText('boardN',rows.length+'/'+MAX_ROOM);
-  $('boardList').innerHTML=rows.map((r,i)=>'<li class="'+(r.me?'me':'')+'"><span class="r">'+(i+1)+'</span><span class="d" style="background:'+r.c+'"></span><span class="n">'+esc(r.n)+(r.me?' (you)':'')+'</span><span class="h">'+(r.f?'★ '+fmtT(r.f):Math.floor(Math.max(0,r.y))+' m')+'</span></li>').join('');
+  $('boardList').innerHTML=rows.map((r,i)=>'<li class="'+(r.me?'me':'')+'"><span class="r">'+(i+1)+'</span><span class="d" style="background:'+r.c+'"></span><span class="n">'+esc(r.n)+(r.me?' '+TX('(you)'):'')+'</span><span class="h">'+(r.f?'★ '+fmtT(r.f):Math.floor(Math.max(0,r.y))+' m')+'</span></li>').join('');
 }
 
 // =====================================================================
