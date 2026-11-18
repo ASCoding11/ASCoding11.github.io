@@ -945,6 +945,9 @@
   var groups = {}, gorder = [];
   GAMES.forEach(function (g) { var k = g.grp || 'Games'; if (!groups[k]) { groups[k] = el('optgroup'); groups[k].label = k; gorder.push(k); } groups[k].append(new Option(g.n, g.d)); });
   gorder.forEach(function (k) { $sel.append(groups[k]); });
+  // The Aisle boards (aisles.js draws them from these same rows), not in a game's own panel.
+  var AISLE = GAME ? {} : { 'aisle-miles': 'Aisle Miles', 'aisle-elo': 'Aisle Elo' };
+  if (!GAME) { var ag = el('optgroup'); ag.label = 'Aisles'; Object.keys(AISLE).forEach(function (k) { ag.append(new Option(AISLE[k], k)); }); $sel.append(ag); }
   lbl.append($sel); ctl.append(lbl);
   // Slipstream only: which track's course records and fastest lap to show.
   var tlbl = el('label'); tlbl.append(el('span', '', 'Track')); tlbl.hidden = true;
@@ -1028,7 +1031,7 @@
   var VIEW_KEY = GAME ? 'lb:view:' + GAME : 'lb:view';
   try {
     var sv = JSON.parse(ls(VIEW_KEY) || 'null');
-    if (sv && (sv.g === 'all' || BY[sv.g])) view = { g: sv.g, b: typeof sv.b === 'string' ? sv.b.slice(0, 40) : 's', t: typeof sv.t === 'string' && TRACKS[sv.t] ? sv.t : '' };
+    if (sv && (sv.g === 'all' || BY[sv.g] || AISLE[sv.g])) view = { g: sv.g, b: typeof sv.b === 'string' ? sv.b.slice(0, 40) : 's', t: typeof sv.t === 'string' && TRACKS[sv.t] ? sv.t : '' };
   } catch (e) {}
   if (GAME && BY[GAME] && view.g !== GAME) view = { g: GAME, b: '', t: '' };
   $sel.value = view.g;
@@ -1059,6 +1062,7 @@
     people = collapse(out); everyone = out; lastLoad = Date.now();
     pushTops();
     seasonCheck();
+    try { document.dispatchEvent(new CustomEvent('backroom:boards')); } catch (e) {}   // aisles.js: merged accounts, Aisle boards
   }
 
   function waitParty() {
@@ -1097,6 +1101,9 @@
   function isMe(uid) { return uid === myUid || uid === ls('lbs:uid'); }
   // miles.js, when a tier badge is drawn somewhere on the page and it has no recent answer for who is first: read the
   // boards now (the same read as the section's own), or hand over the answer again if they were read a moment ago.
+  // aisles.js: the checked, merged rows (people) and every entry before merging (all), for the Aisle boards and page.
+  window.BackRoomBoards.data = function () { return people ? { people: people, all: everyone, me: myUid } : null; };
+  document.addEventListener('backroom:aisles', function () { if (AISLE[view.g]) draw(); });
   window.BackRoomBoards.readTops = function () { if (people && Date.now() - lastLoad < FRESH) pushTops(); else load(); };
 
   // ---------------- Drawing ----------------
@@ -1131,7 +1138,7 @@
   function row(r) {
     var li = el('li', 'lbd-r' + (isMe(r.p.uid) ? ' me' : ''));
     var who = el('span', 'lbd-who'), nm = el('span', 'lbd-nm');
-    nm.append(r.p.n + ' ', el('small', '', '· ' + r.p.seat));
+    nm.append(r.p.n + ' ', el('small', '', '· ' + r.p.seat)); nm.setAttribute('data-aisle-u', r.p.uid);   // aisles.js puts the Aisle tag in front
     if (isMe(r.p.uid)) nm.append(el('b', 'lbd-you', 'You'));
     who.append(nm);
     // The status tier (miles.js) from this same checked node, then "Most: <game>" on the Miles board.
@@ -1167,6 +1174,13 @@
   var picked = false;
   function draw() {
     $chips.textContent = '';
+    $list.classList.remove('ais-lb');
+    if (AISLE[view.g]) {   // an Aisle board: aisles.js fills the heading, list, note and message
+      tlbl.hidden = $span.hidden = $rule.hidden = $season.hidden = $ace.hidden = true; $list.textContent = ''; $spanNote.hidden = true;
+      if (window.BackRoomAisles && BackRoomAisles.board) BackRoomAisles.board({ g: view.g, list: $list, h: $h, chips: $chips, note: $spanNote, say: say });
+      else { $h.textContent = AISLE[view.g]; say('Loading the Aisles…'); }
+      return;
+    }
     var slip = view.g !== 'all' && BY[view.g].laps;
     tlbl.hidden = !slip;
     if (slip) fillTracks();
@@ -1230,7 +1244,7 @@
   }
   function save() { ls(VIEW_KEY, JSON.stringify({ g: view.g, b: view.b, t: view.t || '' })); }
 
-  $sel.addEventListener('change', function () { view.g = $sel.value === 'all' || BY[$sel.value] ? $sel.value : 'all'; view.b = view.g === 'all' ? 's' : ''; save(); draw(); if (!people) load(); });
+  $sel.addEventListener('change', function () { view.g = $sel.value === 'all' || BY[$sel.value] || AISLE[$sel.value] ? $sel.value : 'all'; view.b = view.g === 'all' ? 's' : ''; save(); draw(); if (!people) load(); });
   $trk.addEventListener('change', function () { if (TRACKS[$trk.value]) { view.t = $trk.value; if (view.b === 'laps') view.b = 'lap'; picked = true; save(); draw(); } });
   $span.addEventListener('click', function (e) {
     var b = e.target.closest('button[data-s]'); if (!b) return;

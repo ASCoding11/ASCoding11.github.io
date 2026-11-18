@@ -1417,6 +1417,7 @@
     var av = avatarEl(p.uid, p.n, p.c, 34);
     var who = el('span', 'onl-who'), nm = el('span', 'onl-nm');
     nm.append(mask(p.n) + ' ', el('small', '', '· ' + p.seat + (isMe ? ' · you' : '')));
+    if (p.uid) nm.setAttribute('data-aisle-u', p.uid);   // aisles.js puts the Aisle tag in front of the name
     var badge = tierBadge(p.uid);
     if (badge) { var tl = el('span', 'onl-tl'); tl.append(badge); who.append(nm, tl); } else who.append(nm);
     who.append(el('span', 'onl-st', (isMe && hidden) ? 'Hidden' : (muted[p.uid] ? 'Muted · ' : '') + statusText(p)));
@@ -1684,6 +1685,8 @@
         da.append(rq);
       }
       da.append(btn('Invite to party', 'pri', 'invite'));
+      // Invite to Aisle (aisles.js), for an Aisle's leader.
+      if (window.BackRoomAisles && BackRoomAisles.inviteBtn) { try { var aib = BackRoomAisles.inviteBtn(u); if (aib) da.append(aib); } catch (e) {} }
       // Request to join their party: goes to its leader (them, or their leader when that person is online).
       var jt = p && visible(p) && p.party && !isBlocked(u) && !inMyParty(u, p) ? joinTarget(p) : null;
       // A public party needs no request: Join party goes straight in.
