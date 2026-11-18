@@ -222,7 +222,7 @@ const TOOL_BUILD=[
     b.add(Cyl(1,1,10),'#A0673C',[0,.03,0],[.018,.2,.018]);
     b.add(Cyl(1,1,10),'#FF4F8B',[0,-.065,0],[.022,.03,.022]);
     b.add(Sph(10,8),'#FFC83D',[0,.145,0],[.045,.05,.045]);
-    for(let i=0;i<10;i++){const a=i/10*TAU,ring=i%2?.75:.42;b.add(Sph(8,6),F[i%F.length],[Math.cos(a)*.035,.205,Math.sin(a)*.035],[.032,.1,.032],[Math.sin(a)*ring,0,-Math.cos(a)*ring])}
+    for(let i=0;i<10;i++){const a=i/10*TAU,ring=i%2?.75:.42;b.add(Sph(7,5),F[i%F.length],[Math.cos(a)*.035,.205,Math.sin(a)*.035],[.032,.1,.032],[Math.sin(a)*ring,0,-Math.cos(a)*ring])}
     b.add(Sph(8,6),'#FFFFFF',[0,.245,0],[.035,.085,.035]);
     return b.done()},
 ];
