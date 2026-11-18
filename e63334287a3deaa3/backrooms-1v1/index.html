@@ -353,6 +353,7 @@ body.touch #find{left:calc(60px + env(safe-area-inset-left,0px));transform:none;
             <button type="button" role="radio" data-m="l0">Level 0</button>
             <button type="button" role="radio" data-m="pool">Pools</button>
             <button type="button" role="radio" data-m="office">Office</button>
+            <button type="button" role="radio" data-m="garage">Garage</button>
             <button type="button" role="radio" data-m="mix">Mix</button>
           </div>
         </div>
@@ -411,6 +412,7 @@ body.touch #find{left:calc(60px + env(safe-area-inset-left,0px));transform:none;
             <button type="button" role="radio" data-m="l0">Level 0</button>
             <button type="button" role="radio" data-m="pool">Pools</button>
             <button type="button" role="radio" data-m="office">Office</button>
+            <button type="button" role="radio" data-m="garage">Garage</button>
             <button type="button" role="radio" data-m="mix">Mix</button>
           </div>
         </div>
@@ -626,7 +628,15 @@ const haloTex=(()=>{const c=document.createElement('canvas');c.width=c.height=64
   r.addColorStop(0,'rgba(255,250,228,.85)');r.addColorStop(.4,'rgba(255,244,200,.38)');r.addColorStop(1,'rgba(255,240,190,0)');g.fillStyle=r;g.fillRect(0,0,64,64);return new THREE.CanvasTexture(c)})();
 const haloGeo=new THREE.PlaneGeometry(3.3,4.6);haloGeo.rotateX(Math.PI/2);
 const haloMat=new THREE.MeshBasicMaterial({map:haloTex,transparent:true,depthWrite:false});
-const SHARED=new Set([wallMat,pillarMat,lowMat,panelOn,panelDead,haloMat]);
+// v4 parked cars: one shared geometry per paint colour, all its parts joined (one draw call per colour)
+const carMat=new THREE.MeshLambertMaterial({vertexColors:true}),carGeos={};
+function carGeo(c){if(carGeos[c])return carGeos[c];const P=c===1?[.74,.73,.69]:[.5,.2,.18],Q=P.map(v=>v*.86),gl=[.1,.12,.14],ty=[.06,.06,.06],dk=[.16,.16,.17];
+  const l=[[3.76,.62,1.84,0,.5,0,0,P],[3.5,.14,1.76,0,.86,0,0,Q],[2.0,.52,1.6,-.1,1.19,0,0,gl],[1.76,.07,1.52,-.1,1.48,0,0,P],
+    [.12,.22,1.8,1.88,.4,0,0,dk],[.12,.22,1.8,-1.88,.4,0,0,dk],[.04,.12,.38,1.95,.62,.62,0,[1,.95,.75]],[.04,.12,.38,1.95,.62,-.62,0,[1,.95,.75]],
+    [.04,.12,.38,-1.95,.62,.62,0,[.7,.08,.06]],[.04,.12,.38,-1.95,.62,-.62,0,[.7,.08,.06]]];
+  for(const sx of [-1.2,1.2])for(const sz of [-.84,.84])l.push([.64,.64,.26,sx,.32,sz,0,ty]);
+  return carGeos[c]=parts(l)}
+const SHARED=new Set([wallMat,pillarMat,lowMat,panelOn,panelDead,haloMat,carMat]);
 
 // floor and ceiling have a corner on every cell corner, coloured by the light of the cells around it (applyLight)
 function cellPlane(n){const g=new THREE.PlaneGeometry(1,1,n,n);g.setAttribute('color',new THREE.BufferAttribute(new Float32Array((n+1)*(n+1)*3).fill(1),3));return g}
@@ -645,10 +655,10 @@ setMapSize(12);
 // A theme swaps the textures on the shared wall, pillar, partition, floor and ceiling materials and sets the fog, the
 // lights and the panel colours. Nothing here changes collision or is sent to anyone. Each theme's textures are made
 // the first time it is used, so a player who only ever sees Level 0 pays nothing for the others.
-const MAPS=['l0','pool','office'];
-const MAP_NAME={l0:'Level 0',pool:'Poolrooms',office:'Office',mix:'Mix'};
+const MAPS=['l0','pool','office','garage'];
+const MAP_NAME={l0:'Level 0',pool:'Poolrooms',office:'Office',garage:'Garage',mix:'Mix'};
 const mapOk=m=>m==='mix'||MAPS.includes(m);
-// a "mix" match picks one of the places for every round, from the round's seed (so every player picks the same)
+// a "mix" match picks one of the four for every round, from the round's seed (so every player picks the same)
 const mixPick=seed=>MAPS[Math.floor(mulberry((seed^0x51ed270b)>>>0)()*MAPS.length)];
 // square tiles with grout (pool walls, floor and ceiling)
 function tileDraw(t,base,grout,shade,gloss){return(g,w,h)=>{
@@ -688,7 +698,23 @@ const THEMES={
       const ceil=canvasTex(256,256,(g,w,h)=>{g.fillStyle='#e2e1d8';g.fillRect(0,0,w,h);
         for(let i=0;i<1300;i++){g.fillStyle='rgba(110,110,96,.3)';g.fillRect(Math.random()*w,Math.random()*h,1.3,1.3)}
         g.fillStyle='#a3a397';g.fillRect(0,0,w,4);g.fillRect(0,128,w,4);g.fillRect(0,0,4,h);g.fillRect(128,0,4,h);noise(g,w,h,6);blot(g,w,h,2,'rgba(150,120,60,.12)')},N,N);
-      return{wall,pillar,low:fabricTex,floor,ceil}}}
+      return{wall,pillar,low:fabricTex,floor,ceil}}},
+  // Garage: bare concrete, painted bay lines, rows of parked cars, dim orange sodium lamps and a dark haze
+  garage:{fog:0x2a2823,near:6,far:46,amb:[0xffdcb0,.34],hemi:[0xffe2b4,0x2e2b24,.5],sun:[0xffd6a0,.32],fill:[0x8ea2b8,.14],on:0xffd896,dead:0x4b4539,off:0x3a352b,halo:0xffc77a,low:.3,
+    tex(){const conc=(base,lines)=>(g,w,h)=>{g.fillStyle=base;g.fillRect(0,0,w,h);noise(g,w,h,24);
+        for(let i=0;i<2400;i++){g.fillStyle=Math.random()<.5?'rgba(255,255,255,.07)':'rgba(0,0,0,.1)';g.fillRect(Math.random()*w,Math.random()*h,1.5,1.5)}
+        if(lines){g.fillStyle='rgba(40,38,34,.28)';for(let y=0;y<h;y+=64)g.fillRect(0,y,w,2);
+          g.fillStyle='rgba(30,28,24,.4)';for(let x=24;x<w;x+=64)for(let y=20;y<h;y+=64){g.beginPath();g.arc(x,y,2.2,0,7);g.fill()}
+          for(let k=0;k<5;k++){const x=Math.random()*w,l=30+Math.random()*120;const gr=g.createLinearGradient(0,0,0,l);gr.addColorStop(0,'rgba(30,26,20,.22)');gr.addColorStop(1,'rgba(30,26,20,0)');g.fillStyle=gr;g.fillRect(x,0,3+Math.random()*5,l)}}
+        blot(g,w,h,3,'rgba(30,26,20,.14)')};
+      const wall=canvasTex(256,256,conc('#8b8982',true),2,6);
+      const pillar=wall.clone();pillar.needsUpdate=true;pillar.repeat.set(.5,6);
+      const low=canvasTex(128,64,(g,w,h)=>{conc('#9a978e',false)(g,w,h);g.fillStyle='#c9a227';g.fillRect(0,0,w,7);g.fillStyle='rgba(20,18,14,.55)';g.fillRect(0,7,w,2)},2,1);
+      const floor=canvasTex(512,512,(g,w,h)=>{conc('#55534e',false)(g,w,h);
+        g.fillStyle='rgba(222,214,186,.75)';g.fillRect(0,0,w,9);g.fillRect(0,0,9,64);g.fillRect(0,h-64,9,64);   // bay lines
+        blot(g,w,h,2,'rgba(10,10,8,.3)');lightPool(g,w,h,'#c8c4ba','#7c776d')},N,N);
+      const ceil=canvasTex(256,256,(g,w,h)=>{conc('#76736c',false)(g,w,h);g.fillStyle='rgba(20,18,15,.45)';g.fillRect(0,0,w,22);g.fillStyle='rgba(255,255,255,.06)';g.fillRect(0,22,w,3)},N,N);
+      return{wall,pillar,low,floor,ceil}}}
 };
 // ripples that tile (one repeat per cell, so neighbouring cells of water join without a seam)
 const waterTex=canvasTex(128,128,(g,w,h)=>{g.fillStyle='#fff';g.fillRect(0,0,w,h);g.strokeStyle='rgba(120,190,200,.55)';g.lineWidth=1.6;
@@ -720,7 +746,7 @@ function setTheme(id){
 //    reached is opened up, and the layout is checked for fairness (see fairV2) and redrawn if it fails.
 //  - layoutV1: the original maze (one per match). Online it's still used whenever someone in the room is on an older
 //    copy of the page, which only knows this one, so everyone in a room always builds the same walls.
-//  - layoutV4 (MAP_V 4): the other places, Poolrooms and Office (see layoutV4), drawn with their own theme
+//  - layoutV4 (MAP_V 4): the other places, Poolrooms, Office and Garage (see layoutV4), drawn with their own theme
 //    (setTheme). A v4 match names its place in round.mp; Level 0 in a v4 page is still layoutV3.
 // Online, a match uses the newest layout every player in the room can build (round.mv: 4, 3, 2, or none for v1).
 const MAP_V=4,LOW_H=1.25;
@@ -733,7 +759,7 @@ function mapSizeV2(players,seed){const r=mulberry((seed^0x2c1b3c6d)>>>0)();const
 function roundSeed(seed,rn){let h=(seed>>>0)^Math.imul((rn|0)+1,0x9E3779B1);h=Math.imul(h^h>>>16,0x85ebca6b);h=Math.imul(h^h>>>13,0xc2b2ae35);return(h^h>>>16)>>>0}
 // n: maze size in cells; cells: spawn cells, each cleared to an open 3 x 3 area (defaults to the two 1v1 corners);
 // v: which layout (1 or true: the original v1 maze from this seed; 2: layoutV2; anything else: layoutV3);
-// mp: with v 4 only, the place ('pool', 'office', 'mix', or Level 0 for anything else)
+// mp: with v 4 only, the place ('pool', 'office', 'garage', 'mix', or Level 0 for anything else)
 function generateMap(seed,n,cells,v,mp){
   setMapSize(n||12);
   cells=cells&&cells.length?cells:[soloCell(0),soloCell(1)];
@@ -1107,6 +1133,8 @@ function doorsV3(L,cells){
       ankle-deep, with colonnades of tiled pillars or low tiled pool edges for cover;
     - office: open-plan floors of cubicles behind low partitions, small offices and meeting rooms behind full walls,
       and one-cell corridors between them;
+    - garage: parking bays back to back with a low barrier and a line of big concrete pillars between them, driving
+      lanes and cross aisles, parked cars (a solid cell each), and a few free-standing concrete walls.
    The whole floor is furnished, then the west half is copied onto the east half turned 180 degrees about the middle
    (mirrorV4), which puts every Red spawn on a Blue one, so it is fair by construction for any roster. Then the spawns
    are cleared and anything sealed off is opened, both halves alike (connectSym). */
@@ -1119,7 +1147,7 @@ function layoutV4(seed,cells,th){
     if(!best||bad<best.bad)best={L,bad,g:[hWall,vWall,lowH,lowV,voidC].map(q=>q.map(r=>r.slice()))};
   }
   [hWall,vWall,lowH,lowV,voidC]=best.g;const L=best.L;
-  connectV2(rnd,cells);
+  connectV2(rnd,cells);for(let x=0;x<N;x++)for(let z=0;z<N;z++)if(!voidC[x][z])L.car[x][z]=0;
   L.tries=0;return L;
 }
 function attemptV4(rnd,cells,th){
@@ -1127,14 +1155,15 @@ function attemptV4(rnd,cells,th){
   const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=ri(i+1);[a[i],a[j]]=[a[j],a[i]]}return a};
   hWall=grid(N+1,N,false);vWall=grid(N+1,N,false);lowH=grid(N+1,N,false);lowV=grid(N+1,N,false);voidC=grid(N,N,false);
   for(let i=0;i<N;i++){hWall[0][i]=hWall[N][i]=true;vWall[0][i]=vWall[N][i]=true}
-  const L={v:4,theme:th,lit:true,pillars:new Map(),panel:grid(N,N,1),next:grid(N,N,0),group:grid(N,N,-1),groups:0,light:grid(N,N,1),tint:grid(N,N,null),ftint:grid(N,N,null),styles:null,special:null,water:grid(N,N,false)};
+  const L={v:4,theme:th,lit:true,pillars:new Map(),panel:grid(N,N,1),next:grid(N,N,0),group:grid(N,N,-1),groups:0,light:grid(N,N,1),tint:grid(N,N,null),ftint:grid(N,N,null),styles:null,special:null,water:grid(N,N,false),car:grid(N,N,0)};
   // every spawn and the spot it lands on when turned about the middle (so uneven teams still get a mirrored map)
   const sym=cells.concat(cells.map(([x,z])=>[N-1-x,N-1-z]));
   const spawnC=grid(N,N,false);for(const c of sym){const [sx,sz]=spawnArea(c);for(let x=sx;x<sx+3;x++)for(let z=sz;z<sz+3;z++)spawnC[x][z]=true}
   const near=(x,z,m)=>sym.some(c=>{const [sx,sz]=spawnArea(c);return x>=sx-m&&x<sx+3+m&&z>=sz-m&&z<sz+3+m});
   const T={rnd,ri,chance,shuffle,L,spawnC,near};
-  (th==='pool'?furnishPool:furnishOffice)(T);
+  (th==='pool'?furnishPool:th==='office'?furnishOffice:furnishGarage)(T);
   mirrorV4(L);clearSpawns(L,sym);
+  for(const c of sym){const [sx,sz]=spawnArea(c);for(let x=sx;x<sx+3;x++)for(let z=sz;z<sz+3;z++)L.car[x][z]=0}
   // no straight line of sight longer than V4_RUN cells along a row or column: a full wall across it near the middle
   // (and the same on the other half); these places are more open than Level 0, so the limit is longer than V3_RUN
   const cuts=new Set();
@@ -1157,7 +1186,7 @@ function attemptV4(rnd,cells,th){
 }
 function mirrorV4(L){
   mirrorV2(L);
-  for(let x=0;x<N;x++)for(let z=0;z<N;z++){if(2*x+1<N||(2*x+1===N&&2*z+1<=N))continue;L.water[x][z]=L.water[N-1-x][N-1-z]}
+  for(let x=0;x<N;x++)for(let z=0;z<N;z++){if(2*x+1<N||(2*x+1===N&&2*z+1<=N))continue;L.water[x][z]=L.water[N-1-x][N-1-z];L.car[x][z]=L.car[N-1-x][N-1-z]}
 }
 // connectV2, but every opening is made on both halves, so the map stays the same both ways round; false if something
 // is sealed off by solid cells alone (the attempt is then thrown away)
@@ -1273,6 +1302,37 @@ function furnishOffice(T){
   flickerV4(T,1+(chance(.5)?1:0),3,()=>{const rs=regs.filter(r=>r.style!=='rooms');const r=rs.length?rs[ri(rs.length)]:regs[ri(regs.length)];return r.cells.slice(0,8)});
   L.regs=regs.map(r=>[r.x,r.z,r.w,r.d,r.style]);
 }
+function furnishGarage(T){
+  const {ri,rnd,chance,L,near,spawnC}=T;
+  // across the floor (x): two rows of bays back to back, then a lane, over and over, counted out from the middle so
+  // the pattern runs on unbroken where the halves meet; the spawn ends are open lanes. Cross aisles every four rows
+  // (z) have no cars, so every bay can be reached.
+  const kind=x=>{if(x<3||x>N-4)return'lane';const k=Math.abs(x-(N-1)/2);return N%2?(k%3===0?'lane':'bay'):((k-.5)%3===1?'lane':'bay')};
+  const zo=ri(4),aisle=z=>z===0||z===N-1||(Math.floor(Math.abs(z-(N-1)/2))+zo)%4===0;
+  const mid=(x,z)=>Math.abs(x+.5-N/2)<=1.5&&Math.abs(z+.5-N/2)<=1.5;
+  for(let x=0;x<N;x++){
+    for(let z=0;z<N;z++)if(kind(x)==='bay'&&!aisle(z)&&!near(x,z,0)&&!mid(x,z)&&chance(.5)){voidC[x][z]=true;L.car[x][z]=1+ri(2)}
+    if(kind(x)==='bay'&&kind(x+1)==='bay'){
+      // between two rows of bays: a low barrier (with gaps) and a line of big pillars
+      for(let z=0;z<N;z++)if(!aisle(z)&&chance(.75))lowV[x+1][z]=true;
+      for(let z=2;z<N;z+=2)L.pillars.set((x+1)*64+z,1.5);
+    }
+  }
+  // a few free-standing concrete walls (the sides of the ramps and the stair cores)
+  for(let k=2+ri(2),t=0;k>0&&t<40;t++){const len=2+ri(2);
+    if(chance(.5)){const X=2+ri(Math.max(1,Math.floor(N/2)-2)),z0=ri(N-len+1);let ok=true;
+      for(let z=z0;z<z0+len;z++)if(near(X-1,z,1)||near(X,z,1)||voidC[X-1][z]||voidC[X][z])ok=false;
+      if(!ok)continue;for(let z=z0;z<z0+len;z++){vWall[X][z]=true;lowV[X][z]=false}k--}
+    else{const Z=2+ri(N-3),x0=2+ri(Math.max(1,Math.floor(N/2)-len-1));let ok=true;
+      for(let x=x0;x<x0+len;x++)if(near(x,Z-1,1)||near(x,Z,1))ok=false;
+      if(!ok)continue;for(let x=x0;x<x0+len;x++){hWall[Z][x]=true;lowH[Z][x]=false}k--}
+  }
+  // dim orange sodium light, lots of dead lamps leaving dark patches
+  for(let x=0;x<N;x++)for(let z=0;z<N;z++){L.light[x][z]=.82+rnd()*.12;L.tint[x][z]=[1.06,.93,.74];L.ftint[x][z]=[1.04,.93,.76];
+    if(!spawnC[x][z]&&chance(.2)){L.panel[x][z]=2;L.light[x][z]=.58}}
+  flickerV4(T,chance(.6)?2:1,3,()=>{const x=ri(Math.ceil(N/2)),z0=ri(N-3);return[[x,z0],[x,z0+1],[x,z0+2],[x,z0+3]].filter(([a,b])=>b<N&&!voidC[a][b])});
+  L.regs=[];
+}
 
 /* building the meshes: every kind of piece is one instanced mesh (one draw call), coloured per piece by the light
    of the cells beside it, so dim and dark areas darken their walls, floor and ceiling too */
@@ -1299,7 +1359,7 @@ function buildMap(L){
   if(L.jambs)inst(geoJamb,wallMat,L.jambs,(m,[o,x,z,e])=>{const t=e?4-JAMB/2:JAMB/2;if(o==='H')m.makeTranslation(x*4+t,CEIL/2,z*4);else m.makeRotationY(Math.PI/2).setPosition(x*4,CEIL/2,z*4+t)},
     ([o,x,z,e])=>{const a=e?4-JAMB:0;return o==='H'?{min:[x*4+a,0,z*4-.15],max:[x*4+a+JAMB,CEIL,z*4+.15]}:{min:[x*4-.15,0,z*4+a],max:[x*4+.15,CEIL,z*4+a+JAMB]}},
     ([o,x,z])=>o==='H'?[[x,z-1],[x,z]]:[[x-1,z],[x,z]]);
-  // low walls: thin cubicle partitions, or (pool edges) thicker ones, which are thicker to bump into too
+  // low walls: thin cubicle partitions, or (pool edges, garage barriers) thicker ones, which are thicker to bump into too
   const lt=L.v===4?TH.low:.12,lw=lt/2,thick=lt>.2;
   inst(thick?geoLowH3:geoLowH,lowMat,lhList,(m,[x,z])=>m.makeTranslation(x*4+2,LOW_H/2,z*4),([x,z])=>({min:[x*4,0,z*4-lw],max:[x*4+4,LOW_H,z*4+lw],k:1}),([x,z])=>[[x,z-1],[x,z]]);
   inst(thick?geoLowV3:geoLowV,lowMat,lvList,(m,[x,z])=>m.makeTranslation(x*4,LOW_H/2,z*4+2),([x,z])=>({min:[x*4-lw,0,z*4],max:[x*4+lw,LOW_H,z*4+4],k:1}),([x,z])=>[[x-1,z],[x,z]]);
@@ -1312,7 +1372,14 @@ function buildMap(L){
   inst(geoPost,wallMat,posts,(m,[x,z])=>m.makeTranslation(x*4,CEIL/2,z*4),([x,z])=>({min:[x*4-.18,0,z*4-.18],max:[x*4+.18,CEIL,z*4+.18]}),vc);
   inst(geoPillar,pillarMat,pillars,(m,[x,z])=>m.makeTranslation(x*4,CEIL/2,z*4),([x,z])=>({min:[x*4-.45,0,z*4-.45],max:[x*4+.45,CEIL,z*4+.45]}),vc);
   inst(geoBigPillar,pillarMat,bigs,(m,[x,z])=>m.makeTranslation(x*4,CEIL/2,z*4),([x,z])=>({min:[x*4-.75,0,z*4-.75],max:[x*4+.75,CEIL,z*4+.75],k:1}),vc);
-  // v4 extra: ankle-deep water (drawn only: you wade through it as on any floor)
+  // v4 extras: parked cars (two solid boxes each, body and cabin; their cell is solid for the bot and for building)
+  // and ankle-deep water (drawn only: you wade through it as on any floor)
+  if(L.car){const nb=([x,z])=>[[x-1,z],[x+1,z],[x,z-1],[x,z+1]];
+    for(const c of [1,2]){const list=[];for(let x=0;x<N;x++)for(let z=0;z<N;z++)if(L.car[x][z]===c&&voidC[x][z])list.push([x,z]);
+      if(!list.length)continue;
+      inst(carGeo(c),carMat,list,(m,[x,z])=>m.makeTranslation(x*4+2,0,z*4+2),([x,z])=>({min:[x*4+.1,0,z*4+1.07],max:[x*4+3.9,.93,z*4+2.93],k:1}),nb);
+      for(const [x,z] of list)mapSolids.push({min:[x*4+.85,0,z*4+1.18],max:[x*4+2.95,1.52,z*4+2.82],k:1});
+    }}
   if(L.water){const gs=[];for(let x=0;x<N;x++)for(let z=0;z<N;z++)if(L.water[x][z]){const g=new THREE.PlaneGeometry(4,4);g.rotateX(-Math.PI/2);g.translate(x*4+2,.07,z*4+2);gs.push(g)}
     if(gs.length){const w=new THREE.Mesh(joinGeos(gs),waterMat);w.userData.ownGeo=true;mapGroup.add(w);for(const g of gs)g.dispose()}}
   // ceiling panels: working ones, dead ones, banks that flicker together (one material each) and a few lone flickers
@@ -1970,7 +2037,7 @@ function spawn(e,cell){
   pushOut(e);
 }
 // A fresh v3 layout for practice (and the menu backdrop); round > 1 shows the lights going out as the rooms change.
-// The practice map is the one picked on the menu (saved in this browser); Mix picks one of the places each round.
+// The practice map is the one picked on the menu (saved in this browser); Mix picks one of the four each round.
 let practicePick=mapOk(store.get('map','l0'))?store.get('map','l0'):'l0';
 function practiceMap(){const sd=randSeed();generateMap(sd,mapSizeV2(2,sd),null,MAP_V,practicePick)}
 function shiftFx(){if(RM)return;const el=$('shift');el.classList.remove('on');void el.offsetWidth;el.classList.add('on');sfxCrackle(.7)}
@@ -3386,7 +3453,7 @@ if(navigator.webdriver)window.__br={get state(){return state},get online(){retur
   // collision audit: the real movement, building and interpolation code, driven step by step
   moveEntity,tryBuild,specValid,damagePiece,inRamp,rampAt,editPiece,edRects,edFull,edOk,pieceShape,groundAt,pushOut,rampOut,resolveShot,generateMap,spawn,soloCell,teamCells,wallSpec,playerBuildSpec,updateRemotes,makeRemote,updateBot,
   mapSizeV2,roundSeed,fairV2,MAP_V,get mapKey(){return mapKey},get theme(){return theme},hostSetMap,setPracticeMap,layoutV4,mixPick,
-  map4(){const L=mapInfo;return L&&L.v===4?{theme:L.theme,water:L.water,pillars:[...L.pillars],tries:L.tries,joined:L.joined}:null},
+  map4(){const L=mapInfo;return L&&L.v===4?{theme:L.theme,water:L.water,car:L.car,pillars:[...L.pillars],tries:L.tries,joined:L.joined}:null},
   mapInfo(){const L=mapInfo;if(!L)return null;const fl=[];for(let x=0;x<N;x++)for(let z=0;z<N;z++)if(L.group[x][z]>=0)(fl[L.group[x][z]]=fl[L.group[x][z]]||[]).push([x,z]);
     return{v:L.v,light:L.light,tint:L.tint.map((c,x)=>c.map((t,z)=>L.ftint[x][z]||t)),voids:voidC,flick:fl.filter(Boolean),special:L.special,spawns:L.spawns,styles:L.styles,regs:L.regs,mirrored:!!L.mirrored,tries:L.tries,low:{h:lowH,v:lowV},jambs:L.jambs||[],rid:L.rid||null}},
   consts:{R,H,STEP,CELL,CEIL,SPEED,JUMP},
