@@ -107,6 +107,13 @@
       { k: 'kdkills', l: 'Kills counted for K/D', f: 'n', u: 'kill', rate: 0.5, le: 'kills', hide: true },
       { k: 'deaths', l: 'Deaths', f: 'n', u: 'death', rate: 0.5, hide: true },
       { k: 'kd', l: 'K/D (all time)', chip: 'K/D', f: 'kd', kd: ['kdkills', 'deaths'], min: 20, hi: 100 }] },
+    { d: 'blockstorm', n: 'Blockstorm', st: [
+      { k: 'mkills', l: 'Most kills in a match', f: 'n', u: 'kill', hi: 150, le: 'kills' },
+      { k: 'kills', l: 'Kills (all time)', f: 'n', u: 'kill', rate: 0.5 },
+      { k: 'kdkills', l: 'Kills counted for K/D', f: 'n', u: 'kill', rate: 0.5, le: 'kills', hide: true },
+      { k: 'deaths', l: 'Deaths', f: 'n', u: 'death', rate: 0.5, hide: true },
+      { k: 'kd', l: 'K/D (all time)', chip: 'K/D', f: 'kd', kd: ['kdkills', 'deaths'], min: 20, hi: 100 },
+      { k: 'wins', l: 'Online match wins', f: 'n', u: 'win', rate: 1 / 60 }] },
     { d: 'backrooms-1v1', n: 'Backrooms 1v1–4v4', st: [{ k: 'elo', l: 'Elo', f: 'elo', lo: 100, hi: 3000 },
       { k: 'mkills', l: 'Most kills in a match', f: 'n', u: 'kill', hi: 80, le: 'kills' },
       { k: 'kills', l: 'Kills (all time)', f: 'n', u: 'kill', rate: 0.5 },
