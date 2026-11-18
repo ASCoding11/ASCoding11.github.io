@@ -22,7 +22,8 @@
  *     Every outfit keeps an orange hunter band on both arms, and none is darker overall than the usual hunter.
  *   - Taunts are a prop's own choice: nothing plays unless the prop presses T (or taps Taunt). A taunt plays from where
  *     the prop is for everyone in range, like a ping, so it gives the prop away on purpose; hunters still in the waiting
- *     room don't hear it (like every prop sound), and in Hide practice the hunter bots go after it as after a ping.
+ *     room don't hear it (like every prop sound), and in Hide practice the hunter bots go after it as after a ping
+ *     once the hunt is on.
  *     One every TAUNT_CD seconds; other pages ignore a player's taunts closer together than TAUNT_GAP.
  *   - A poof plays only when a prop is caught (index.html's onElim, in place of the usual burst), chosen by the hunter
  *     who caught it.
