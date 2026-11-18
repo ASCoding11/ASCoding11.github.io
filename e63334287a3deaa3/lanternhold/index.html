@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
+<script src="/e63334287a3deaa3/lang.js"></script> <!-- English / Español (see README) -->
+<script src="es.js"></script> <!-- Lanternhold's Spanish words -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Lanternhold</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -302,6 +304,7 @@ details.how ul{margin:8px 0 0;padding-left:18px;font-size:13px;font-weight:700;c
       <div class="row"><span class="small" style="font-weight:900">Graphics</span><div class="seg" id="gfxSeg"><button data-q="high" type="button">Pretty</button><button data-q="low" type="button">Fast</button></div></div>
       <div class="row"><span class="small" style="font-weight:900">Sound</span><div class="seg" id="sndSeg"><button data-s="1" type="button">On</button><button data-s="0" type="button">Off</button></div></div>
     </div>
+    <div class="row" style="margin-top:12px"><div data-lang-toggle></div></div>
     <details class="how">
       <summary>How to play</summary>
       <ul>
@@ -346,6 +349,7 @@ details.how ul{margin:8px 0 0;padding-left:18px;font-size:13px;font-weight:700;c
       <button class="big ghost" id="pQuit" type="button">Quit to menu</button>
     </div>
     <div class="row" style="justify-content:center;margin-top:14px"><span class="small" style="font-weight:900">Sound</span><div class="seg" id="sndSeg2"><button data-s="1" type="button">On</button><button data-s="0" type="button">Off</button></div></div>
+    <div class="row" style="justify-content:center;margin-top:10px"><div data-lang-toggle></div></div>
   </div>
 </div>
 
@@ -369,6 +373,7 @@ details.how ul{margin:8px 0 0;padding-left:18px;font-size:13px;font-weight:700;c
 <script>
 (()=>{
 'use strict';
+const LT=window.BackRoomLang?BackRoomLang.t:(s,v)=>s.replace(/\{(\w+)\}/g,(m,n)=>v&&v[n]!=null?v[n]:m);
 // =====================================================================
 //  Helpers
 // =====================================================================
@@ -1534,7 +1539,7 @@ function renderSel(){
   if(key===selKey)return;selKey=key;
   $('selIc').innerHTML=ICON[t.k];
   $('selName').innerHTML=esc(D.n)+'<span>Lv '+t.lv+'</span>';
-  $('selOwn').textContent=(G.mode==='online'?own+' · ':'')+D.d;
+  $('selOwn').textContent=(G.mode==='online'?LT(own)+' · ':'')+LT(D.d);
   const rate=v=>(1/v).toFixed(1)+'/s';
   const st=[];const add=(l,a,b,f)=>st.push(l+' '+f(a)+(b!=null&&f(b)!==f(a)?' <em>→ '+f(b)+'</em>':''));
   add('Damage',L.dm,N&&N.dm,v=>String(v));add('Range',L.r,N&&N.r,v=>(v/T).toFixed(1)+' tiles');
@@ -1568,7 +1573,7 @@ function tapCell(p,isTouch){
     if(!cellFree(S,gx,gz)){toast('You can\'t build on the road or scenery');sfx('err');return}
     const D=TW[G.placing];
     if(isTouch&&!(G.ghostAt&&G.ghostAt.gx===gx&&G.ghostAt.gz===gz)){G.ghostAt={gx,gz};G.hover={x:wx(gx),z:wz(gz),gx,gz};sfx('click');return}
-    if(myMoney()<D.c){toast('Not enough gold for a '+D.n);sfx('err');return}
+    if(myMoney()<D.c){toast(LT('Not enough gold for a {t}',{t:LT(D.n)}));sfx('err');return}
     const k=G.placing;
     if(sendAct({k:'b',t:k,x:gx,z:gz})){if(!(G.keyShift&&myMoney()-D.c>=D.c))startPlacing(null)}
     return;
@@ -1661,7 +1666,7 @@ function renderMenu(){
   renderDiff($('diffSeg'),menuDiff,i=>{menuDiff=i;store.set('diff',i);renderMenu()});
   $('diffNote').textContent=DIFFS[menuDiff].note;
   const b=+store.get(bestKey(menuMap,menuDiff),0)||0;
-  $('bestLine').textContent=b?'Your best on '+MAPS[menuMap].n+' ('+DIFFS[menuDiff].n+'): wave '+b+(b>=CAMPAIGN?' (won!)':''):'';
+  $('bestLine').textContent=b?LT('Your best on {m} ({d}): wave {b}',{m:MAPS[menuMap].n,d:LT(DIFFS[menuDiff].n),b})+(b>=CAMPAIGN?' '+LT('(won!)'):''):'';
   const sw=$('swatches');sw.innerHTML='';COLORS.forEach(c=>{const b=document.createElement('button');b.type='button';b.style.background=c;b.setAttribute('aria-label','Colour '+c);if(c===myColor)b.className='on';b.onclick=()=>{myColor=c;store.set('color',c);renderMenu();if(Net.refs)Net.upd({c})};sw.appendChild(b)});
   for(const seg of [$('gfxSeg')])for(const b of seg.children)b.classList.toggle('on',b.dataset.q===gfx);
   for(const seg of [$('sndSeg'),$('sndSeg2')])for(const b of seg.children)b.classList.toggle('on',(b.dataset.s==='1')===sound);
@@ -1735,7 +1740,7 @@ function checkEnd(){
     if(G.ended===key)return;G.ended=key;recordBest(S);
     const won=S.ph==='won';
     $('endH').textContent=won?'The lantern held!':'The lantern went out';
-    $('endSub').textContent=won?'You held off all '+CAMPAIGN+' waves on '+MAPS[S.m].n+' ('+DIFFS[S.df].n+').':'On '+MAPS[S.m].n+' ('+DIFFS[S.df].n+').';
+    $('endSub').textContent=won?LT('You held off all {n} waves on {m} ({d}).',{n:CAMPAIGN,m:MAPS[S.m].n,d:LT(DIFFS[S.df].n)}):LT('On {m} ({d}).',{m:MAPS[S.m].n,d:LT(DIFFS[S.df].n)});
     const best=+store.get(bestKey(S.m,S.df),0)||0;
     $('endStats').innerHTML='<div><b>'+S.cw+'</b><span>Waves held</span></div><div><b>'+S.kills+'</b><span>Gloom</span></div><div><b>'+best+'</b><span>Your best</span></div>';
     const online=G.mode==='online';
@@ -1789,7 +1794,7 @@ function renderLobby(){
   $('lobList').innerHTML=ids.map(u=>{const me=u===Net.uid,o=me?{n:myName||'You',c:myColor}:Net.others.get(u);return '<li><i style="background:'+o.c+'"></i>'+esc(o.n)+(me?' (you)':'')+(u===G.hostUid?'<span>host</span>':'')+'</li>'}).join('');
   $('lobHost').hidden=!G.host;$('lobStart').hidden=!G.host;
   if(G.host&&S){renderMaps($('lobMaps'),S.m,i=>{S.m=i;buildWorld(i);lobKey='';hostPublish(true);renderLobby()});renderDiff($('lobDiff'),S.df,i=>{S.df=i;lobKey='';hostPublish(true);renderLobby()})}
-  $('lobWait').textContent=!S?'Connecting to the room…':G.host?'You pick the map. '+(ids.length<2?'Waiting for friends (you can also start on your own).':''):'Waiting for '+((Net.others.get(G.hostUid)||{}).n||'the host')+' to start. Map: '+MAPS[S.m].n+', '+DIFFS[S.df].n+'.';
+  $('lobWait').textContent=!S?'Connecting to the room…':G.host?'You pick the map. '+(ids.length<2?'Waiting for friends (you can also start on your own).':''):LT('Waiting for {n} to start. Map: {m}, {d}.',{n:(Net.others.get(G.hostUid)||{}).n||LT('the host'),m:MAPS[S.m].n,d:LT(DIFFS[S.df].n)});
 }
 $('lobStart').onclick=()=>{if(!G.host||!G.S)return;hostRoster(G.S);hostNewGame(G.S.m,G.S.df);enterGame()};
 $('lobLeave').onclick=()=>toMenu();
