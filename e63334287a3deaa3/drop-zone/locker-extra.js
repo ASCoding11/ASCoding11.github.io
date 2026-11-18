@@ -43,10 +43,11 @@ const TRAIL_NAMES=['Smoke','Sparkles','Rainbow','Feathers','Leaves','Bubbles'];
 const WRAP_NAMES=['Gold','Chrome','Wood Grain','Forest Camo','Desert Camo','Arctic Camo','Pixel Camo','Neon Outline','Toy Blaster','Cardboard',
   'Candy Cane','Lava','Ice','Galaxy','Rust','Graffiti','Bubblegum Pink','Hazard Stripes','Plastic Brick'];
 const BUILD_NAMES=['Cardboard','Frosted Glass','Ice','Candy','Stone','Scrap Metal'];
-const SLOT={g:GLIDER_NAMES,t:TRAIL_NAMES,w:WRAP_NAMES,b:BUILD_NAMES};
+const PACK_NAMES=['Rucksack','Jetpack','Teddy Bear','Tortoise Shell','Treasure Chest','Lunchbox','Guitar Case','Fishbowl'];
+const SLOT={g:GLIDER_NAMES,t:TRAIL_NAMES,w:WRAP_NAMES,b:BUILD_NAMES,p:PACK_NAMES};
 // a worn string ('g12t3') as {g:12,t:3}; numbers this file does not know are left out
 function parse(s){const o={};if(typeof s!=='string')return o;for(const m of s.matchAll(/([a-z])([0-9]+)/g)){const L=SLOT[m[1]],n=+m[2];if(L&&n>=1&&n<=L.length)o[m[1]]=n}return o}
-function str(o){let s='';for(const k of 'gtwb')if(o[k])s+=k+o[k];return s}
+function str(o){let s='';for(const k of 'gtwbp')if(o[k])s+=k+o[k];return s}
 
 // =====================================================================
 //  Gliders
@@ -523,6 +524,26 @@ for(const k in G.pieceInst)bskAttr(G.pieceInst[k].mesh);bskAttr(G.partIM);bskAtt
 patchBuildMat(G.plyMat);patchBuildMat(G.partMat);
 
 // =====================================================================
+//  Backpacks: built into the body's own merged mesh (index.html's bodyGeo asks pack() for them), so they bend with the
+//  chest and cost no draw call. Each is at least as big as the standard backpack and no deeper than about 0.3 behind it.
+//  accent is the player's own colour, kept on every pack somewhere so players can still be told apart.
+// =====================================================================
+const lite=(h,k)=>_c2.setHex(h).lerp(_c.setHex(0xffffff),k).getHex();
+function pack(B,n,a){const R=(...v)=>G.bagRBox(B,...v),L=(...v)=>G.bagRLo(B,...v),X=(...v)=>G.bagBox(B,...v),T=(...v)=>G.bagTurn(B,...v),dk=dim(a,.62),lt=lite(a,.3);
+  switch(n){
+    case 1:R(0,1.22,.34,.48,.58,.25,a);L(0,1.5,.36,.5,.12,.28,dk);L(0,1.06,.48,.34,.22,.1,lt);X(0,1.5,.5,.08,.12,.03,0xffc93c);for(const s of [-1,1])L(s*.3,1.08,.34,.1,.26,.18,0x3fa9f5);break;   // rucksack: flap, pocket, buckle, two side bottles
+    case 2:for(const s of [-1,1]){R(s*.13,1.24,.36,.22,.6,.24,0xdfe4ea);L(s*.13,1.62,.36,.2,.14,.2,0xe8453c);L(s*.13,.88,.36,.16,.1,.16,0x5a606b);T(0,s*.27,1.0,.36,.14,.2,.03,0xe8453c,0,0,s*.5)}X(0,1.24,.36,.12,.5,.2,a);X(0,1.3,.48,.08,.08,.02,0xffd23f);break;   // jetpack: two tanks, nose cones, nozzles, fins
+    case 3:R(0,1.2,.36,.42,.52,.26,0xc48a52);R(0,1.58,.38,.36,.32,.28,0xc48a52);for(const s of [-1,1]){L(s*.15,1.76,.38,.12,.12,.08,0xc48a52);T(1,s*.24,1.34,.2,.1,.32,.12,0xc48a52,0,0,s*.6)}L(0,1.54,.53,.16,.12,.06,0xf2dfc0);X(0,1.57,.565,.05,.04,.02,0x3a2a22);
+      for(const s of [-1,1])X(s*.08,1.63,.53,.04,.05,.02,0x3a2a22);L(0,1.08,.5,.2,.2,.06,0xf2dfc0);X(0,1.34,.5,.24,.06,.02,a);break;   // teddy bear: body, head, ears, arms round your shoulders, muzzle, eyes, tummy, a bow
+    case 4:R(0,1.2,.36,.58,.66,.28,0xc98a3a);for(const [x,y] of [[0,1.2],[-.17,1.38],[.17,1.38],[-.17,1.02],[.17,1.02],[0,1.46],[0,.94]])X(x,y,.505,.14,.14,.02,0x8a5a22);L(0,.86,.36,.6,.08,.3,a);break;   // tortoise shell with plates and a rim in your colour
+    case 5:X(0,1.2,.36,.52,.42,.3,0xa0663a);R(0,1.44,.36,.54,.14,.32,0x8a5226);for(const x of [-.18,.18])X(x,1.26,.36,.06,.62,.32,0xffc93c);X(0,1.32,.52,.1,.12,.03,0xffc93c);X(0,1.3,.535,.03,.05,.02,0x3a2a22);X(0,1.02,.36,.54,.05,.32,a);break;   // treasure chest: box, lid, gold bands, lock
+    case 6:X(0,1.2,.36,.5,.44,.26,a);X(0,1.44,.36,.52,.05,.28,dk);T(1,0,1.52,.36,.24,.04,.06,0x5a606b);X(0,1.2,.495,.3,.18,.02,lt);X(0,1.21,.5,.18,.06,.02,0xffd23f);L(.3,1.18,.36,.12,.36,.12,0xf2f2f2);L(.3,1.38,.36,.13,.06,.13,0xe8453c);break;   // lunchbox: box, lid, handle, a sticker, a flask
+    case 7:T(2,0,1.25,.36,.42,1.0,.22,0xe8453c,0,0,.25);T(1,.14,1.72,.36,.18,.3,.18,0xe8453c,0,0,.25);for(const y of [1.0,1.25,1.5])T(0,(y-1.25)*.25,y,.48,.44,.04,.02,0xffc93c,0,0,.25);X(0,1.26,.49,.12,.12,.02,a);break;   // guitar case: body, neck end, catches, a sticker
+    case 8:R(0,1.22,.38,.52,.52,.32,0x9fdcff);X(0,1.48,.38,.42,.04,.26,0xdff4ff);L(.06,1.18,.5,.16,.1,.06,0xff8a1f);L(-.06,1.18,.5,.06,.1,.03,0xff8a1f);X(.1,1.2,.535,.02,.02,.01,0x15171b);L(-.14,1.02,.42,.06,.06,.04,0xffffff);L(.16,1.3,.44,.05,.05,.04,0xffffff);L(0,.96,.38,.5,.08,.32,a);break;   // fishbowl: glass, rim, a goldfish, bubbles, a base in your colour
+  }
+}
+
+// =====================================================================
 //  Dressing an entity, the frame's work
 // =====================================================================
 function dress(e){
@@ -530,6 +551,7 @@ function dress(e){
   const g=o.g?gliderOf(o.g):null;
   if(g){u.glider.geometry=g;u.glider.material=GLX;u.glider.castShadow=true}else if(u.glider.material===GLX){u.glider.geometry=G.GLIDER_GEO;u.glider.material=G.MAT}
   u.gs=o.w||0;
+  const pk=o.p||0;if((u.lxPk|0)!==pk){u.lxPk=pk;G.setModelColor(e.model,u.hex,u.skinIx,u.fit,u.face)}
 }
 function gliderSkin(model,n){const u=model.userData,g=n?gliderOf(n):null;if(g){u.glider.geometry=g;u.glider.material=GLX}else{u.glider.geometry=G.GLIDER_GEO;u.glider.material=G.MAT}}
 function tick(dt){
@@ -557,13 +579,13 @@ function bsOf(oid){if(oid==null)return 0;let e=null;if(oid===G.myId()||oid==='me
   const o=e?parse(e.lx||''):null;return o&&o.b||0}
 function bsk(mesh,i,bs){const a=mesh.geometry.attributes.bsk;if(!a||i<0||i>=a.count)return;const v=bs|0;if(a.array[i]!==v){a.array[i]=v;a.needsUpdate=true}}
 const bsCol=bs=>BS_DEBRIS[bs]||BS_DEBRIS[0];
-const botLx=i=>'g'+(1+(i*7)%24)+'t'+(1+i%6)+'w'+(1+(i*5)%19)+'b'+(1+i%6);
+const botLx=i=>'g'+(1+(i*7)%24)+'t'+(1+i%6)+'w'+(1+(i*5)%19)+'b'+(1+i%6)+'p'+(1+(i*3)%8);
 
 // =====================================================================
 //  The Locker's tabs
 // =====================================================================
-const TABS=[['outfits','Outfits','OUT','FITS'],['g','Gliders','GLI','DERS'],['t','Trails','TRA','ILS'],['w','Gun skins','GUN ','SKINS'],['b','Builds','BUI','LDS']];
-const LEDE={g:'Pick how you glide down. Every glider is held its own way, but you are the same size and fall at the same speed.',t:'A trail follows you while you skydive and glide. It never hides anyone: it fades out close to the camera.',w:'Your weapons in a pattern. The orange tip, the muzzle flash, the rarity band and the crosshair stay the same.',b:'What your walls, floors and ramps look like to everyone. They are just as strong, and just as hard to see through.'};
+const TABS=[['outfits','Outfits','OUT','FITS'],['p','Backpacks','BACK','PACKS'],['g','Gliders','GLI','DERS'],['t','Trails','TRA','ILS'],['w','Gun skins','GUN ','SKINS'],['b','Builds','BUI','LDS']];
+const LEDE={g:'Pick how you glide down. Every glider is held its own way, but you are the same size and fall at the same speed.',t:'A trail follows you while you skydive and glide. It never hides anyone: it fades out close to the camera.',p:'A backpack goes on over any outfit. It keeps your colour on it, so you can still be told apart.',w:'Your weapons in a pattern. The orange tip, the muzzle flash, the rarity band and the crosshair stay the same.',b:'What your walls, floors and ramps look like to everyone. They are just as strong, and just as hard to see through.'};
 let lede0=null,tab='outfits',built=false,drawnPics=false,stageEnt=null,stageTrail=0,posed=false,disp=null;
 const cards={};
 function worn(){return parse(G.myLx)}
@@ -581,12 +603,12 @@ function buildMenu(){
   grid0.before(bar);
   for(const [id] of TABS.slice(1)){const gr=document.createElement('div');gr.className='lk-grid';gr.id='lkGrid-'+id;gr.hidden=true;grid0.after(gr);const L=SLOT[id];cards[id]=[];
     for(let n=0;n<=L.length;n++){const b=document.createElement('button');b.type='button';b.className='lk-card';
-      b.innerHTML=(n?'<img alt="" hidden>':'<span class="lk-none">'+(id==='g'?'Standard':'None')+'</span>')+'<span>'+G.esc(n?L[n-1]:id==='w'?'No skin':id==='t'?'No trail':id==='b'?'Plywood':'Standard')+'</span>';
+      b.innerHTML=(n?'<img alt="" hidden>':'<span class="lk-none">'+(id==='g'?'Standard':'None')+'</span>')+'<span>'+G.esc(n?L[n-1]:id==='w'?'No skin':id==='t'?'No trail':id==='b'?'Plywood':id==='p'?'Outfit\'s own':'Standard')+'</span>';
       b.addEventListener('click',()=>pick(id,n));gr.appendChild(b);cards[id].push(b)}}
   setTab('outfits');
 }
 function pick(id,n){if(!G.lockerOn())return;const o=worn();if(n)o[id]=n;else delete o[id];G.setLx(str(o));mark()}
-function nameOf(id){const o=worn(),n=o[id];return n?SLOT[id][n-1]:id==='w'?'No skin':id==='t'?'No trail':id==='b'?'Plywood':'Standard glider'}
+function nameOf(id){const o=worn(),n=o[id];return n?SLOT[id][n-1]:id==='w'?'No skin':id==='t'?'No trail':id==='b'?'Plywood':id==='p'?'The outfit\'s own':'Standard glider'}
 function mark(){if(!built)return;const o=worn();for(const id in cards)cards[id].forEach((b,n)=>b.setAttribute('aria-pressed',(o[id]||0)===n?'true':'false'));
   if(tab!=='outfits')G.$('lkName').textContent=nameOf(tab)}
 function setTab(id){tab=id;const sec=G.Locker.sec;
@@ -619,11 +641,15 @@ function trailPic(n){const W=180,H=270,c=document.createElement('canvas');c.widt
     g.globalAlpha=(T.a)*(1-f*.7);g.drawImage(tmp,x-s/2+(r()-.5)*20,y-s/2,s,s)}
   return c.toDataURL('image/png')}
 function pics(){if(drawnPics||tab==='outfits')return;drawnPics=true;
-  try{for(const id of ['g','t','w','b'])cards[id].forEach((b,n)=>{if(!n)return;const im=b.firstChild;im.src=id==='g'?gliderPic(n,180,270):id==='w'?gunPic(n,180,270):id==='b'?buildPic(n):trailPic(n);im.hidden=false})}catch(e){console.error(e)}}
+  try{for(const id of ['g','t','w','b'])cards[id].forEach((b,n)=>{if(!n)return;const im=b.firstChild;im.src=id==='g'?gliderPic(n,180,270):id==='w'?gunPic(n,180,270):id==='b'?buildPic(n):trailPic(n);im.hidden=false});
+    const pp=packPics();cards.p.forEach((b,n)=>{if(!n||!pp[n-1])return;const im=b.firstChild;im.src=pp[n-1];im.hidden=false})}catch(e){console.error(e)}}
+// backpacks: the Noob from behind, wearing each (Locker.pics renders the body; the pack goes in through pk)
+function packPics(){const out=[];for(let n=1;n<=PACK_NAMES.length;n++)out.push(G.Locker.pics([G.NOOB],180,270,true,null,n)[0]);return out}
 // ---- the stage: the character holding the glider, gliding with the trail, holding a rifle, or beside three pieces ----
 function stage(dt,model,yaw){
   const V=G.Locker.view,o=worn(),S=G.STAGE.SPOT;
-  if(tab==='outfits'||!built){V.zoom=1;V.y=0;stageTrail=0;if(disp)disp.visible=false;if(posed){posed=false;stageEnt=null;G.Locker.fresh()}return}
+  {const u=model.userData,pk=o.p||0;if((u.lxPk|0)!==pk){u.lxPk=pk;G.setModelColor(model,u.hex,u.skinIx,u.fit,u.face)}}
+  if(tab==='outfits'||tab==='p'||!built){V.zoom=1;V.y=0;stageTrail=0;if(disp)disp.visible=false;if(posed){posed=false;stageEnt=null;G.Locker.fresh()}return}
   if(!stageEnt||stageEnt.model!==model){stageEnt=G.newEnt(model);Object.assign(stageEnt,{id:'stage',present:true,alive:true,local:false})}
   const e=stageEnt;posed=true;const air=tab==='g'||tab==='t';e.pos.set(S[0],S[1]+(air?.55:0),S[2]);e.vel.set(0,0,0);e.yaw=yaw;
   e.st=air?'glide':'ground';e.glide=air;e.onGround=!air;
@@ -640,7 +666,7 @@ function dispMat(n){if(!dmats[n]){const t=new THREE.CanvasTexture(tileCanvas(n))
 function makeDisp(){const g=new THREE.Group();const w=new THREE.Mesh(G.geoPWall,G.plyMat);w.position.set(-1.2,2,1.6);const f=new THREE.Mesh(G.geoPFloor,G.plyMat);f.position.set(.4,.12,1.6);f.scale.set(.6,1,.6);
   const r=new THREE.Mesh(G.geoPRamp,G.plyMat);r.position.set(2.4,1.2,0);r.rotation.set(-Math.PI/4,Math.PI/2,0,'YXZ');r.scale.set(.6,1,.6);g.add(w,f,r);g.visible=false;G.scene.add(g);return g}
 
-return{dress,tick,gunReset,gunIM,gunDone,bsOf,bsk,bsCol,botLx,menu,shown,stage,gstyle,HOLDS,
+return{pack,dress,tick,gunReset,gunIM,gunDone,bsOf,bsk,bsCol,botLx,menu,shown,stage,gstyle,HOLDS,
   // for tests and contact sheets
   parse,str,GLIDER_NAMES,TRAIL_NAMES,WRAP_NAMES,BUILD_NAMES,gliderOf,gliderSkin,gunMesh,GLX,GSK,tp,TRAILS,emit,buildTex,tileCanvas,setTab,get tab(){return tab},gT,uT,gliderPic,gunPic};
 };

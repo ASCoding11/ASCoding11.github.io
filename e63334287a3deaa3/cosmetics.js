@@ -232,7 +232,7 @@
   var GAMES = {
     boostball: { name: 'Boostball', prefix: 'bb', slots: [['decal', 'Decals'], ['trail', 'Boost trails'], ['goal', 'Goal explosions'], ['topper', 'Antenna toppers'], ['hat', 'Roof hats'], ['wheels', 'Wheels'], ['engine', 'Engine sounds']] },
     slipstream: { name: 'Slipstream', prefix: 'ss', slots: [['sponsor', 'Sponsors'], ['livery', 'Liveries'], ['helmet', 'Helmets'], ['effect', 'Boost effects'], ['smoke', 'Tyre smoke'], ['podium', 'Podium celebrations']] },
-    'drop-zone': { name: 'Driftfall', prefix: 'dz', slots: [['glider', 'Gliders'], ['trail', 'Glider trails'], ['wrap', 'Gun skins'], ['build', 'Build skins']] },
+    'drop-zone': { name: 'Driftfall', prefix: 'dz', slots: [['outfit', 'Outfits'], ['pack', 'Backpacks'], ['glider', 'Gliders'], ['trail', 'Glider trails'], ['wrap', 'Gun skins'], ['build', 'Build skins'], ['emote', 'Emotes'], ['victory', 'Victory poses']] },
   };
   var ITEM_PRICE = { common: 6, rare: 10, epic: 16, legendary: 40 };
   var GAME_ITEMS = [], ITEM_BY_ID = {};
@@ -411,7 +411,33 @@
   I('slipstream', 'podium', 1, 'Confetti Podium', 'common', '#FF4FA3', '#3FD2FF', 'Confetti over the results when you finish in the top three.');
   I('slipstream', 'podium', 2, 'Fireworks Podium', 'rare', '#FFD21F', '#B06BFF', 'Fireworks over the results when you finish in the top three.');
   // ---- Driftfall items ----
-  // Driftfall (drop-zone/locker-extra.js draws them by number): gliders, glider trails, gun skins and build skins. Hidden: worn from the game's Locker by captains only.
+  // Driftfall (drop-zone/locker-extra.js draws them by number, the outfits are in drop-zone/index.html): outfits, backpacks, gliders, glider trails, gun skins,
+  // build skins, emotes and victory poses. Hidden: worn from the game's Locker by captains only.
+  // Driftfall outfits: no is the outfit's place in the game's OUTFITS (sent as sk), so the first is 25.
+  I('drop-zone', 'outfit', 25, 'Jet Pilot', 'rare', '#F28C28', '#FFFFFF', 'An orange flight suit, a white helmet and a parachute pack.');
+  I('drop-zone', 'outfit', 26, 'Lumberjack', 'common', '#E0463A', '#A8382E', 'A plaid shirt, a bobble hat and a frame of logs.');
+  I('drop-zone', 'outfit', 27, 'Park Ranger', 'common', '#D9C48A', '#E8742A', 'A wide hat, a star badge and an orange pack.');
+  I('drop-zone', 'outfit', 28, 'Scuba Diver', 'rare', '#FFD23F', '#2FB8B0', 'A bright wetsuit, a mask and twin tanks.');
+  I('drop-zone', 'outfit', 29, 'Head Chef', 'rare', '#FFFFFF', '#E8453C', 'A tall pleated hat and a bag of fresh loaves.');
+  I('drop-zone', 'outfit', 30, 'Hazmat Suit', 'rare', '#F6D32A', '#3A7AD0', 'Yellow from head to toe, with a wide visor.');
+  I('drop-zone', 'outfit', 31, 'Castle Knight', 'epic', '#DDE3EA', '#E8453C', 'A great helm with a plume and a cape in your colour.');
+  I('drop-zone', 'outfit', 32, 'Astronaut', 'epic', '#F4F6F8', '#FFC93C', 'A round helmet with a gold visor and a life-support pack.');
+  I('drop-zone', 'outfit', 33, 'Farmer', 'common', '#5A9AD6', '#4A78C2', 'Overalls, a straw hat and a basket of carrots.');
+  I('drop-zone', 'outfit', 34, 'Mail Carrier', 'common', '#8EC0EC', '#2A4F8A', 'A cap, shorts and a satchel full of letters.');
+  I('drop-zone', 'outfit', 35, 'Lifeguard', 'common', '#E8453C', '#FFD23F', 'A whistle, a sun visor and a rescue float.');
+  I('drop-zone', 'outfit', 36, 'Ninja', 'rare', '#3A9BDC', '#FFFFFF', 'A hooded suit in your colour, a sash and a scroll case.');
+  I('drop-zone', 'outfit', 37, 'Scarecrow', 'rare', '#C98A4A', '#FFD95A', 'A sack head, patches and straw poking out.');
+  I('drop-zone', 'outfit', 38, 'Skeleton', 'rare', '#8A84B0', '#F2EFE8', 'Bones on a lavender suit, and a grinning skull.');
+  I('drop-zone', 'outfit', 39, 'Banana Suit', 'epic', '#FFE14A', '#6A4A22', 'A whole banana, with a hole for your face.');
+  I('drop-zone', 'outfit', 40, 'Cardboard Box Robot', 'epic', '#C6955A', '#FF6FB5', 'Boxes, tape and a bendy-straw aerial.');
+  I('drop-zone', 'pack', 1, 'Rucksack', 'common', '#3A9BDC', '#3FA9F5', 'A roomy pack with two water bottles.');
+  I('drop-zone', 'pack', 2, 'Jetpack', 'epic', '#DFE4EA', '#E8453C', 'Two shiny tanks and fins. For looks only.');
+  I('drop-zone', 'pack', 3, 'Teddy Bear', 'rare', '#C48A52', '#F2DFC0', 'A bear that hugs you from behind.');
+  I('drop-zone', 'pack', 4, 'Tortoise Shell', 'rare', '#C98A3A', '#8A5A22', 'A shell with plates, carried like a pack.');
+  I('drop-zone', 'pack', 5, 'Treasure Chest', 'epic', '#A0663A', '#FFC93C', 'Banded in gold, lock and all.');
+  I('drop-zone', 'pack', 6, 'Lunchbox', 'common', '#E8453C', '#F2F2F2', 'A metal lunchbox and a flask.');
+  I('drop-zone', 'pack', 7, 'Guitar Case', 'rare', '#E8453C', '#FFC93C', 'A red case with gold catches.');
+  I('drop-zone', 'pack', 8, 'Fishbowl', 'epic', '#9FDCFF', '#FF8A1F', 'A goldfish comes along for the drop.');
   I('drop-zone', 'glider', 1, 'Umbrella', 'common', '#E23D3D', '#FFFFFF', 'Red and white panels, held up in one hand. It pops open.');
   I('drop-zone', 'glider', 2, 'Paper Airplane', 'common', '#FBFBF6', '#9CC3EA', 'Folded from a page of ruled notebook paper.');
   I('drop-zone', 'glider', 3, 'Hang Glider', 'rare', '#E8453C', '#FFCC33', 'A striped delta sail; you hang flat under it.');

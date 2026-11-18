@@ -2607,13 +2607,17 @@ function lineClear(a,b){const d=b.clone().sub(a),L=d.length();if(L<.01)return tr
 // Turkey Week (../events.js): everyone's cap is drawn as a pilgrim hat. It is part of the same body geometry, so it
 // costs no extra draw calls; only the look changes. The Turkey Week switch on the Back Room page turns it off (read once, when the game loads).
 const EVT=window.BackRoomEvents&&BackRoomEvents.turkey,TKON=!!(EVT&&EVT.on());
-function bodyGeo(hex,skin,fit,face){
+// A backpack from the Locker's extras (locker-extra.js, `p` in a player's lx): while a body is built, PACK_NOW is its number; an
+// outfit's own pack (pack, back) gives way to it, and an outfit with none gets it added. 0 (and always, without LX): the outfit's own.
+let PACK_NOW=0,PACK_DONE=0;
+function bodyGeo(hex,skin,fit,face,pk){
   const B=Bag(),dark=new THREE.Color(hex).multiplyScalar(.55).getHex(),lite=new THREE.Color(hex).lerp(new THREE.Color(0xffffff),.22).getHex();
   face=faceOf(face);   // a drawn face (see "drawn faces", below), or '' for the outfit's own eyes and mouth
   // an outfit (OUTFITS, below): its own body pieces, then its headwear, or the event's hat in its place, then the drawn face
   const O=fit?OUTFITS[fit]:null;
   B.pt=[];BW=0;   // every part is recorded, so bodyRig can give the body its shape and its bones
-  if(O&&O.body){const c={hex,dark,lite,skin:O.skin!=null?O.skin:skin,hair:HAIR[SKINS.indexOf(skin)%HAIR.length]||HAIR[0],face:!!face};O.body(B,c);BW=0;const nb=B.p.length/3;if(TKON)eventHat(B);else if(O.hat)O.hat(B,c);
+  PACK_NOW=LX?pk|0:0;PACK_DONE=0;
+  if(O&&O.body){const c={hex,dark,lite,skin:O.skin!=null?O.skin:skin,hair:HAIR[SKINS.indexOf(skin)%HAIR.length]||HAIR[0],face:!!face};O.body(B,c);BW=0;if(PACK_NOW&&!PACK_DONE)LX.pack(B,PACK_NOW,hex);PACK_NOW=0;const nb=B.p.length/3;if(TKON)eventHat(B);else if(O.hat)O.hat(B,c);
     if(face)bagFace(B,faceSpot(fit),face);return bodyRig(B,nb)}
   bagRBox(B,0,1.22,0,.7,.72,.42,hex);bagRBox(B,0,1.36,-.005,.62,.3,.44,lite);bagRBox(B,0,.9,0,.73,.1,.45,0x2b2f36);   // torso, chest panel, belt
   BW=1;bagRBox(B,0,1.58,0,.24,.1,.24,skin);                                                                           // neck
@@ -2622,7 +2626,7 @@ function bodyGeo(hex,skin,fit,face){
   else{bagRBox(B,0,2.07,0,.52,.15,.52,dark);bagRBox(B,0,2.02,-.27,.5,.06,.16,dark)}                                   // cap and its peak
   hairOf(B,HAIR[SKINS.indexOf(skin)%HAIR.length]||HAIR[0],false);                                                  // hair
   if(face)bagFace(B,FACE0,face);else bagBox(B,0,1.83,-.262,.34,.08,.02,0x1d2228);BW=0;                               // a drawn face, or the visor
-  bagRBox(B,0,1.25,.31,.44,.5,.2,dark);bagRBox(B,0,1.52,.31,.46,.06,.22,0xffc93c);                                    // backpack and its roll
+  if(PACK_NOW){LX.pack(B,PACK_NOW,hex);PACK_NOW=0}else{bagRBox(B,0,1.25,.31,.44,.5,.2,dark);bagRBox(B,0,1.52,.31,.46,.06,.22,0xffc93c)}   // backpack and its roll
   bagRBox(B,-.41,1.46,0,.17,.2,.26,hex);bagRBox(B,.41,1.46,0,.17,.2,.26,hex);                                         // shoulders
   armsOf(B,hex,skin);                                                                                                // arms and hands
   return bodyRig(B,B.p.length/3);
@@ -2998,7 +3002,8 @@ function hairOf(B,col,top){const b0=BW;BW=1;
 const OUTFITS=(()=>{
   const R=bagRBox,L=bagRLo,X=bagBox,WHITE=0xf2efe8,CREAM=0xf1e6cf,STEEL=0xb9c2cc,IRON=0x8d96a0,INK=0x2b2f36,GLASS=0x1d2228,GOLD=0xffc93c,DENIM=0x4a78c2,STRAW=0xffd95a,WOOD=0x9a6a3c,LENS=0x8fe3ff,RED=0xe8483f,GREEN=0x7fe06d,VEST=0xd9f24a;
   const cuffs=(B,col)=>{L(B,-.184,1.36,-.443,.19,.19,.1,col,-.4);L(B,.3,1.36,-.44,.19,.19,.1,col)};
-  const pack=(B,col,d)=>R(B,0,1.25,.31,.44,.5,d||.2,col);   // something on the back as deep as the standard backpack, so no outfit is slimmer from the side
+  const pack=(B,col,d)=>{if(PACK_NOW){PACK_DONE=1;LX.pack(B,PACK_NOW,col)}else R(B,0,1.25,.31,.44,.5,d||.2,col)};
+  const back=(B,c,f)=>{if(PACK_NOW){PACK_DONE=1;LX.pack(B,PACK_NOW,c.hex)}else f()};   // an outfit's own thing on its back, or the Locker's backpack in its place   // something on the back as deep as the standard backpack, so no outfit is slimmer from the side
   const T=bagTurn,eyes=(B,y,z)=>{X(B,-.085,y||1.8,z||-.288,.045,.1,.03,INK);X(B,.085,y||1.8,z||-.288,.045,.1,.03,INK)};
   const tee=(B,col)=>{L(B,-.336,1.36,-.083,.19,.19,.28,col,-.4);L(B,.3,1.36,-.05,.19,.19,.28,col)};   // short sleeves over the upper arms
   // the owner's twelve (November 2026 sketches); their colours are the sketches', not the player's
@@ -3181,7 +3186,7 @@ const OUTFITS=(()=>{
       for(const x of [-.17,.17]){X(B,x,1.24,-.25,.07,.62,.05,0x8a96a6);X(B,x,1.3,.25,.07,.5,.05,0x8a96a6)}X(B,0,1.02,-.25,.5,.07,.05,0x8a96a6);   // harness straps
       X(B,-.2,1.44,-.25,.16,.14,.04,0xd8731c);X(B,.2,1.44,-.25,.16,.14,.04,0xd8731c);X(B,-.24,1.1,-.25,.14,.18,.04,0xd8731c);X(B,-.425,1.0,0,.04,.24,.18,0xd8731c);X(B,.425,1.0,0,.04,.24,.18,0xd8731c);   // pockets
       X(B,.2,1.48,-.28,.12,.07,.02,c.hex);R(B,0,.9,0,.74,.08,.46,0x8a96a6);cuffs(B,0xe6ebf0);
-      pack(B,0xc9d1da,.22);X(B,0,1.42,.43,.38,.06,.04,0xe8453c);X(B,0,1.12,.43,.06,.2,.04,0x8a96a6)},   // parachute pack with a red pull tab
+      back(B,c,()=>{pack(B,0xc9d1da,.22);X(B,0,1.42,.43,.38,.06,.04,0xe8453c);X(B,0,1.12,.43,.06,.2,.04,0x8a96a6)})},   // parachute pack with a red pull tab
     hat(B,c){R(B,0,1.83,0,.64,.62,.64,WHITE);if(c.face)X(B,0,1.81,-.365,.46,.37,.06,c.skin);else X(B,0,1.88,-.36,.48,.2,.06,0x6a4a9a);X(B,0,2.17,0,.18,.06,.56,c.hex);
       if(!c.face)L(B,0,1.66,-.3,.22,.16,.14,0xb9c2cc);X(B,-.36,1.84,0,.05,.12,.14,c.hex);X(B,.36,1.84,0,.05,.12,.14,c.hex)}},   // helmet, tinted visor, stripe, mask, side bosses
   {id:'lumberjack',name:'Lumberjack',face:{y:1.83,cell:.032},legs:DENIM,
@@ -3191,20 +3196,20 @@ const OUTFITS=(()=>{
       X(B,0,1.26,-.25,.035,.56,.05,PD);
       if(!c.face){L(B,0,1.63,-.21,.42,.26,.16,0x8a4a22);X(B,0,1.6,-.29,.12,.04,.03,0xe9a08a)}   // beard (off under a drawn face)
       R(B,0,.9,0,.74,.1,.46,0x6a4020);X(B,0,.9,-.29,.14,.11,.03,GOLD);cuffs(B,PD);
-      R(B,0,1.24,.31,.48,.54,.2,0xb98a52);for(const y of [1.06,1.24,1.42])T(B,0,0,y,.43,.5,.12,.12,0x9a6a3c);for(const y of [1.06,1.24,1.42])for(const s of [-1,1])X(B,s*.25,y,.43,.02,.1,.1,0xe8c48a)},   // a frame with three logs
+      back(B,c,()=>{R(B,0,1.24,.31,.48,.54,.2,0xb98a52);for(const y of [1.06,1.24,1.42])T(B,0,0,y,.43,.5,.12,.12,0x9a6a3c);for(const y of [1.06,1.24,1.42])for(const s of [-1,1])X(B,s*.25,y,.43,.02,.1,.1,0xe8c48a)})},   // a frame with three logs
     hat(B,c){R(B,0,2.0,0,.56,.3,.56,0xd23b2e);L(B,0,1.9,0,.6,.08,.6,0xf3e2b8);L(B,0,2.22,0,.16,.16,.16,0xf3e2b8)}},   // knitted hat, turned-up edge, bobble
   {id:'ranger',name:'Park Ranger',face:{y:1.8,cell:.034},legs:0x9a8456,
     body(B,c){const KH=0xd9c48a,KD=0xb8a064;fitBase(B,c,KH,KH,c.skin,KH);
       L(B,-.13,1.56,-.2,.24,.12,.16,KD);L(B,.13,1.56,-.2,.24,.12,.16,KD);X(B,0,1.24,-.25,.035,.56,.05,KD);
       X(B,-.2,1.34,-.25,.18,.16,.04,KD);X(B,.2,1.34,-.25,.18,.16,.04,KD);T(B,0,-.2,1.42,-.275,.08,.08,.02,GOLD,0,0,.785);   // pockets and a star badge
       X(B,-.44,1.46,0,.03,.14,.12,0xe8742a);X(B,.44,1.46,0,.03,.14,.12,0xe8742a);R(B,0,.9,0,.74,.1,.46,0x7a5a32);X(B,0,.9,-.29,.12,.1,.03,GOLD);
-      pack(B,0xe8742a,.22);L(B,0,1.52,.31,.46,.07,.22,0x9a8456);X(B,0,1.24,.43,.24,.18,.04,0xf2a05a)},   // an orange pack with a bedroll and pocket
+      back(B,c,()=>{pack(B,0xe8742a,.22);L(B,0,1.52,.31,.46,.07,.22,0x9a8456);X(B,0,1.24,.43,.24,.18,.04,0xf2a05a)})},   // an orange pack with a bedroll and pocket
     hat(B,c){R(B,0,2.03,0,.86,.05,.86,0xc9a868);R(B,0,2.16,0,.46,.24,.46,0xc9a868);L(B,0,2.08,0,.49,.06,.49,0x7a5a32);X(B,0,2.28,0,.04,.04,.4,0xa88a50)}},   // ranger hat: wide brim, pinched crown, band
   {id:'scuba',name:'Scuba Diver',face:{y:1.775,cell:.035,flat:-.359},legs:()=>[1,0x2fb8b0,0x2fb8b0,0xffd23f,0xffd23f,0xffd23f],
     body(B,c){const Y=0xffd23f,TL=0x2fb8b0;fitBase(B,c,Y,TL,TL,Y);
       X(B,-.425,1.2,0,.05,.6,.26,TL);X(B,.425,1.2,0,.05,.6,.26,TL);L(B,0,1.3,-.21,.4,.2,.12,TL);   // side panels, chest panel
       R(B,0,.9,0,.73,.1,.45,0x5a606b);X(B,-.2,.9,-.275,.1,.12,.05,0xb9c2cc);X(B,.2,.9,-.275,.1,.12,.05,0xb9c2cc);   // weight belt
-      for(const s of [-1,1]){R(B,s*.13,1.28,.33,.22,.64,.22,0xdfe4ea);L(B,s*.13,1.66,.33,.1,.08,.1,0x8d96a0)}X(B,0,1.3,.33,.06,.3,.2,0x5a606b);   // twin tanks, valves, the clamp
+      back(B,c,()=>{for(const s of [-1,1]){R(B,s*.13,1.28,.33,.22,.64,.22,0xdfe4ea);L(B,s*.13,1.66,.33,.1,.08,.1,0x8d96a0)}X(B,0,1.3,.33,.06,.3,.2,0x5a606b)});   // twin tanks, valves, the clamp
       if(c.face){L(B,0,1.775,-.27,.52,.42,.12,TL);X(B,0,1.775,-.338,.45,.38,.03,LENS)}else{L(B,.12,1.68,-.3,.16,.1,.1,0x8d96a0);L(B,0,1.86,-.27,.46,.2,.12,TL);X(B,0,1.86,-.335,.36,.12,.03,LENS)}},
     hat(B,c){R(B,0,1.93,.02,.56,.36,.56,0x2fb8b0);X(B,.34,2,.05,.05,.5,.05,0xffd23f);X(B,.34,2.27,.05,.07,.06,.07,0xff6a3a)}},   // hood and a snorkel
   {id:'headchef',name:'Head Chef',legs:()=>[2,0xe8e8e2,0x4a4f5a,0x4a4f5a,0x4a4f5a,0x2a2d34],
@@ -3212,50 +3217,50 @@ const OUTFITS=(()=>{
       L(B,-.12,1.32,-.21,.22,.5,.12,0xe8e4da);for(const y of [1.46,1.18])for(const x of [-.17,.06])X(B,x,y,-.285,.045,.045,.03,0xc9a24a);   // double-breasted front, two rows of buttons
       L(B,0,1.58,-.06,.36,.12,.36,0xe8453c);X(B,0,1.5,-.25,.14,.12,.06,0xe8453c);X(B,-.22,1.42,-.27,.1,.08,.02,c.hex);   // neckerchief and its knot, a name tab
       R(B,0,.9,0,.74,.08,.47,0xe8e4da);cuffs(B,0xe8e4da);
-      R(B,0,1.24,.31,.46,.56,.2,0xd9a65a);for(const x of [-.12,0,.12])T(B,1,x,1.62,.36,.1,.4,.1,0xe0a858,-.15,0,(x*3));X(B,0,1.1,.42,.4,.08,.03,0xb07a3c)},   // a bread bag with three loaves
+      back(B,c,()=>{R(B,0,1.24,.31,.46,.56,.2,0xd9a65a);for(const x of [-.12,0,.12])T(B,1,x,1.62,.36,.1,.4,.1,0xe0a858,-.15,0,(x*3));X(B,0,1.1,.42,.4,.08,.03,0xb07a3c)})},   // a bread bag with three loaves
     hat(B,c){R(B,0,2.04,0,.52,.14,.52,WHITE);for(let k=0;k<6;k++){const a=k/6*Math.PI*2;T(B,0,Math.cos(a)*.18,2.34,Math.sin(a)*.18,.2,.44,.2,WHITE,0,-a,0)}L(B,0,2.34,0,.42,.44,.42,WHITE);L(B,0,2.56,0,.56,.12,.56,WHITE)}},   // tall pleated hat
   {id:'hazmat',name:'Hazmat Suit',hatFace:{y:1.79,cell:.033,flat:-.39},legs:0xf6d32a,
     body(B,c){const Y=0xf6d32a;fitBase(B,c,Y,Y,0x3a7ad0,Y);
       L(B,0,1.34,-.21,.36,.2,.1,0xf2f2f2);X(B,-.09,1.34,-.27,.06,.06,.02,0x2a2d34);X(B,.09,1.34,-.27,.06,.06,.02,0x2a2d34);X(B,0,1.3,-.27,.06,.06,.02,0x2a2d34);   // a warning patch
       for(const y of [.9,1.06]){R(B,0,y,0,.74,.05,.46,0xf2f2f2)}cuffs(B,0x3a7ad0);
-      R(B,0,1.26,.31,.42,.5,.2,0xb9c2cc);for(const s of [-1,1])L(B,s*.12,1.56,.36,.14,.14,.14,0x3a7ad0);X(B,0,1.26,.42,.3,.06,.03,0xf6d32a)},   // air filter pack and its two filters
+      back(B,c,()=>{R(B,0,1.26,.31,.42,.5,.2,0xb9c2cc);for(const s of [-1,1])L(B,s*.12,1.56,.36,.14,.14,.14,0x3a7ad0);X(B,0,1.26,.42,.3,.06,.03,0xf6d32a)})},   // air filter pack and its two filters
     hat(B,c){R(B,0,1.85,.04,.66,.66,.64,0xf6d32a);X(B,0,1.8,-.36,.46,.4,.05,c.face?c.skin:0xbfe8ff);L(B,0,1.58,-.3,.3,.12,.12,0xb9c2cc)}},   // hood, wide visor, breather
   {id:'castleknight',name:'Castle Knight',hatFace:{y:1.82,box:[1.84,0,.6,.66,.6]},legs:0xb9c2cc,
     body(B,c){fitBase(B,c,0xc3ccd6,0xb9c2cc,0xa3acb6,0xdde3ea);
       L(B,0,1.18,-.21,.46,.78,.1,c.hex);L(B,0,1.18,.21,.46,.78,.1,c.hex);X(B,0,1.32,-.27,.06,.3,.02,GOLD);X(B,0,1.36,-.27,.22,.06,.02,GOLD);   // surcoat with a gold cross
       L(B,-.41,1.56,0,.22,.12,.34,0xeef2f6);L(B,.41,1.56,0,.22,.12,.34,0xeef2f6);R(B,0,.9,0,.74,.08,.48,0x8a5a2b);X(B,0,.9,-.3,.12,.1,.03,GOLD);
-      R(B,0,1.12,.34,.62,.9,.1,c.lite);R(B,0,1.58,.26,.6,.12,.16,c.dark);L(B,0,1.32,.32,.4,.3,.2,c.lite)},   // a cape, its collar and a rolled bedroll under it
+      back(B,c,()=>{R(B,0,1.12,.34,.62,.9,.1,c.lite);R(B,0,1.58,.26,.6,.12,.16,c.dark);L(B,0,1.32,.32,.4,.3,.2,c.lite)})},   // a cape, its collar and a rolled bedroll under it
     hat(B,c){R(B,0,1.84,0,.6,.66,.6,0xdde3ea);if(!c.face){X(B,0,1.86,-.345,.44,.05,.04,0x5a606b);X(B,0,1.74,-.345,.04,.2,.04,0x5a606b)}X(B,0,2.0,-.34,.5,.04,.04,GOLD);T(B,1,0,2.3,.05,.12,.36,.3,0xe8453c,-.4,0,0)}},   // great helm, sight, gold band, plume
   {id:'astronaut',name:'Astronaut',hatFace:{y:1.83,cell:.03,box:[1.83,-.22,.5,.4,.36]},legs:0xeef2f6,
     body(B,c){fitBase(B,c,0xf4f6f8,0xf4f6f8,0xf4f6f8,0xf4f6f8);
       R(B,0,.9,0,.73,.1,.45,0x3a7ad0);R(B,0,1.57,0,.58,.12,.52,0xb9c2cc);L(B,0,1.28,-.22,.34,.22,.12,0xdfe4ea);X(B,0,1.3,-.29,.18,.08,.02,0x3a7ad0);X(B,0,1.24,-.29,.18,.03,.02,0xe8453c);   // belt, neck ring, chest unit
       X(B,-.2,1.44,-.27,.12,.12,.02,c.hex);bands(B,0xe8453c);
-      R(B,0,1.26,.33,.6,.66,.24,0xf4f6f8);X(B,-.14,1.4,.46,.12,.12,.03,0x3a7ad0);X(B,.14,1.4,.46,.12,.12,.03,0x3a7ad0);X(B,.25,1.62,.4,.03,.36,.03,0x8d96a0)},   // life-support pack with an aerial
+      back(B,c,()=>{R(B,0,1.26,.33,.6,.66,.24,0xf4f6f8);X(B,-.14,1.4,.46,.12,.12,.03,0x3a7ad0);X(B,.14,1.4,.46,.12,.12,.03,0x3a7ad0);X(B,.25,1.62,.4,.03,.36,.03,0x8d96a0)})},   // life-support pack with an aerial
     hat(B,c){R(B,0,1.84,0,.7,.68,.7,0xf4f6f8);L(B,0,1.83,-.22,.5,.4,.36,c.face?LENS:GOLD);X(B,0,2.2,0,.2,.04,.2,0xb9c2cc)}},   // round helmet, visor
   {id:'farmer',name:'Farmer',face:{y:1.8,cell:.034},legs:DENIM,
     body(B,c){const BL=0x5a9ad6,BW2=0xf2efe8;fitBase(B,c,BL,BL,c.skin,BL,{torso:false});
       bagPaint(B,0,1.22,0,.7,.72,.42,[6,6,3],BL,(f,i,j)=>(i%2===0||j%2===0)?BW2:undefined);
       R(B,0,1,0,.73,.36,.45,DENIM);L(B,0,1.33,-.2,.42,.34,.14,DENIM);L(B,0,1.3,.2,.42,.3,.14,DENIM);for(const x of [-.17,.17]){X(B,x,1.54,-.25,.07,.24,.05,DENIM);X(B,x,1.655,0,.07,.05,.5,DENIM);X(B,x,1.45,-.275,.05,.05,.03,GOLD)}
       X(B,0,1.56,-.2,.3,.1,.14,0xe8453c);
-      R(B,0,1.2,.33,.48,.4,.22,0xc9a050);for(const x of [-.14,0,.14]){T(B,0,x,1.5,.33,.08,.3,.08,0xf58a1f,0,0,x);X(B,x,1.68,.33,.1,.1,.06,0x8ac04a)}},   // a basket of carrots
+      back(B,c,()=>{R(B,0,1.2,.33,.48,.4,.22,0xc9a050);for(const x of [-.14,0,.14]){T(B,0,x,1.5,.33,.08,.3,.08,0xf58a1f,0,0,x);X(B,x,1.68,.33,.1,.1,.06,0x8ac04a)}})},   // a basket of carrots
     hat(B,c){R(B,0,2.03,0,.9,.04,.9,STRAW);R(B,0,2.13,0,.5,.2,.5,STRAW);L(B,0,2.07,0,.53,.06,.53,0xe8453c)}},   // wide straw hat
   {id:'mail',name:'Mail Carrier',face:{y:1.8,cell:.034},legs:(h,sk)=>[0,0x2a4f8a,sk,0xf2efe8,0x2a4f8a,0x2a2d34],
     body(B,c){const SB=0x8ec0ec;fitBase(B,c,SB,SB,c.skin,0x2a4f8a);tee(B,SB);
       X(B,0,1.26,-.25,.035,.56,.05,0x6a9ccb);X(B,-.2,1.4,-.25,.18,.14,.04,0x6a9ccb);X(B,.2,1.46,-.27,.12,.08,.02,0xe8453c);R(B,0,.9,0,.74,.1,.46,0x2a4f8a);
-      T(B,0,0,1.24,0,.08,.9,.48,0x8a5a2b,0,0,.78);R(B,.28,.98,.3,.36,.4,.22,0x9a6a3c);X(B,.28,1.14,.42,.38,.08,.03,0x7a4a22);for(const y of [1.22,1.25])X(B,.2+y*.05,y,.38,.14,.03,.12,WHITE)},   // a satchel across the body, letters sticking out
+      back(B,c,()=>{T(B,0,0,1.24,0,.08,.9,.48,0x8a5a2b,0,0,.78);R(B,.28,.98,.3,.36,.4,.22,0x9a6a3c);X(B,.28,1.14,.42,.38,.08,.03,0x7a4a22);for(const y of [1.22,1.25])X(B,.2+y*.05,y,.38,.14,.03,.12,WHITE)})},   // a satchel across the body, letters sticking out
     hat(B,c){R(B,0,2.07,0,.52,.15,.52,0x2a4f8a);L(B,0,2.02,-.27,.5,.06,.16,0x1f3a6a);X(B,0,2.1,-.28,.1,.06,.03,GOLD)}},   // cap with a badge
   {id:'lifeguard',name:'Lifeguard',face:{y:1.78,cell:.034},legs:(h,sk)=>[1,0xe8453c,sk,sk,sk,0xffd23f],
     body(B,c){const RD=0xe8453c;fitBase(B,c,RD,c.skin,c.skin,RD);tee(B,RD);
       X(B,0,1.36,-.25,.5,.1,.04,WHITE);X(B,0,1.14,-.25,.5,.04,.04,WHITE);R(B,0,.9,0,.74,.12,.46,RD);   // white bands
       X(B,0,1.5,-.24,.03,.2,.03,0xffd23f);L(B,0,1.38,-.27,.08,.08,.06,0xb9c2cc);   // whistle on a cord
       if(!c.face)X(B,0,1.76,-.272,.08,.05,.02,WHITE);
-      T(B,2,0,1.2,.33,.22,.82,.2,0xff6a3a,0,0,.5);X(B,0,1.2,.44,.06,.2,.03,WHITE)},   // a rescue float across the back
+      back(B,c,()=>{T(B,2,0,1.2,.33,.22,.82,.2,0xff6a3a,0,0,.5);X(B,0,1.2,.44,.06,.2,.03,WHITE)})},   // a rescue float across the back
     hat(B,c){L(B,0,2.0,0,.54,.06,.54,0xffd23f);L(B,0,1.99,-.3,.5,.04,.24,0xffd23f);X(B,0,1.93,-.24,.42,.06,.04,0x2f6fd6)}},   // sun visor, sunglasses pushed up
   {id:'ninja',name:'Ninja',face:{y:1.83,cell:.032},legs:h=>h,
     body(B,c){fitBase(B,c,c.hex,c.hex,c.hex,c.hex,{hair:false});
       R(B,0,1.79,.01,.54,.52,.54,c.hex);L(B,0,1.83,-.27,.44,.14,.06,c.skin);if(!c.face)eyes(B,1.83,-.306);   // hood with an opening for the eyes
       R(B,0,.92,0,.75,.12,.47,WHITE);L(B,.2,.86,-.27,.12,.2,.06,WHITE);T(B,0,0,1.24,-.215,.06,.72,.03,c.lite,0,0,.65);T(B,0,0,1.24,.215,.06,.72,.03,c.lite,0,0,-.65);   // white sash, its knot, wrap lines
-      cuffs(B,WHITE);R(B,0,1.24,.32,.18,.7,.18,0xc9a24a);L(B,0,1.62,.32,.22,.1,.22,0xe8453c);L(B,0,.88,.32,.22,.1,.22,0xe8453c)},   // a scroll case on the back
+      cuffs(B,WHITE);back(B,c,()=>{R(B,0,1.24,.32,.18,.7,.18,0xc9a24a);L(B,0,1.62,.32,.22,.1,.22,0xe8453c);L(B,0,.88,.32,.22,.1,.22,0xe8453c)})},   // a scroll case on the back
     hat(B,c){L(B,0,2.0,0,.58,.08,.58,0xe8453c);T(B,1,.08,1.9,.34,.06,.28,.08,0xe8453c,.4,0,.3);T(B,1,-.06,1.86,.34,.06,.26,.08,0xe8453c,.5,0,-.3)}},   // headband and its tails
   {id:'scarecrow',name:'Scarecrow',face:{y:1.8,cell:.034},legs:0x6a8ac0,
     body(B,c){const BU=0xd2b07a,ST=0xffd95a;fitBase(B,c,0xc98a4a,0xc98a4a,BU,0xc98a4a,{hair:false});
@@ -3263,7 +3268,7 @@ const OUTFITS=(()=>{
       X(B,-.18,1.3,-.25,.16,.16,.03,0x5a9ad6);X(B,.15,1.06,-.25,.18,.12,.03,0xe8453c);X(B,.15,1.36,.25,.2,.16,.03,0x5a9ad6);   // patches
       for(const s of [-1,1])for(let k=0;k<3;k++)T(B,0,s*.42+(k-1)*.03,1.5,-.05,.03,.18,.03,ST,0,0,s*(.5+k*.3));for(let k=0;k<5;k++)T(B,0,(k-2)*.06,1.6,-.18,.03,.16,.03,ST,-.3,0,(k-2)*.3);   // straw at the shoulders and collar
       R(B,0,.9,0,.74,.1,.46,0x9a6a3c);cuffs(B,ST);
-      T(B,1,0,1.2,.32,.1,1.1,.1,0x9a6a3c,0,0,0);T(B,1,0,1.4,.32,.9,.1,.1,0x9a6a3c,0,0,0);L(B,0,1.4,.32,.16,.16,.14,0x7a5a32)},   // the pole and crossbar
+      back(B,c,()=>{T(B,1,0,1.2,.32,.1,1.1,.1,0x9a6a3c,0,0,0);T(B,1,0,1.4,.32,.9,.1,.1,0x9a6a3c,0,0,0);L(B,0,1.4,.32,.16,.16,.14,0x7a5a32)})},   // the pole and crossbar
     hat(B,c){R(B,0,2.04,0,.86,.05,.86,0xc9a050);R(B,0,2.16,0,.44,.22,.44,0xc9a050);T(B,0,.3,2.04,-.2,.2,.03,.14,0xc98a4a,0,.4,0);L(B,0,2.08,0,.47,.05,.47,0xe8453c)}},   // floppy hat with a patch
   {id:'skeleton',name:'Skeleton',face:{y:1.8,cell:.034},legs:()=>[1,0x8a84b0,0x8a84b0,0xf2efe8,0x8a84b0,0x6a648f],
     body(B,c){const SU=0x8a84b0,BN=0xf2efe8;fitBase(B,c,SU,SU,BN,SU,{hair:false});
@@ -3271,7 +3276,7 @@ const OUTFITS=(()=>{
       X(B,0,1.26,-.255,.06,.6,.03,BN);for(const y of [1.46,1.36,1.26,1.16])X(B,0,y,-.255,.44,.05,.03,BN);L(B,0,.94,-.24,.36,.12,.06,BN);   // breastbone, ribs, hips
       X(B,0,1.24,.25,.07,.66,.03,BN);for(const y of [1.42,1.3,1.18,1.06])X(B,0,y,.25,.2,.04,.03,BN);   // the spine at the back
       for(const [x,z,r] of [[-.27,-.24,-.4],[.3,-.22,0]])T(B,0,x,1.45,z,.04,.04,.4,BN,0,r,0);
-      pack(B,0xb0a9d6);for(const y of [1.38,1.24,1.1])X(B,0,y,.42,.36,.05,.04,BN)},   // a pack with rib bones on it
+      back(B,c,()=>{pack(B,0xb0a9d6);for(const y of [1.38,1.24,1.1])X(B,0,y,.42,.36,.05,.04,BN)})},   // a pack with rib bones on it
     hat(B,c){}},
   {id:'banana',name:'Banana Suit',face:{y:1.78,cell:.032},legs:0xffd23f,
     body(B,c){const Y=0xffe14a,YD=0xe8c02a;fitBase(B,c,Y,Y,Y,Y,{hair:false});
@@ -3282,7 +3287,7 @@ const OUTFITS=(()=>{
     body(B,c){const CB=0xc6955a,CD=0xa77a48;fitBase(B,c,CB,CB,0xd9c08a,CB);
       X(B,0,1.22,0,.8,.8,.5,CB);X(B,0,1.62,0,.82,.03,.52,CD);X(B,0,1.22,-.252,.06,.82,.02,0xe0d1ab);   // a box body, its flap edge, tape
       for(const [x,col] of [[-.2,0xe8453c],[0,0x3fa9f5],[.2,0xffd23f]])X(B,x,1.36,-.255,.12,.12,.02,col);X(B,0,1.12,-.255,.4,.06,.02,c.hex);   // drawn-on dials and a slot
-      X(B,0,1.24,.34,.5,.56,.18,CB);X(B,0,1.24,.435,.06,.58,.02,0xe0d1ab)},   // another box on the back
+      back(B,c,()=>{X(B,0,1.24,.34,.5,.56,.18,CB);X(B,0,1.24,.435,.06,.58,.02,0xe0d1ab)})},   // another box on the back
     hat(B,c){X(B,0,1.81,0,.64,.6,.62,0xc6955a);X(B,0,2.11,0,.66,.03,.64,0xa77a48);if(!c.face){X(B,-.13,1.86,-.315,.12,.12,.02,0x2a2d34);X(B,.13,1.86,-.315,.12,.12,.02,0x2a2d34);X(B,0,1.68,-.315,.28,.04,.02,0x2a2d34)}
       T(B,0,.12,2.3,0,.04,.36,.04,0xff6fb5,0,0,-.3);L(B,.19,2.47,0,.08,.08,.08,0x3fa9f5)}}   // box head, drawn face, a bendy-straw aerial
   ];
@@ -3370,10 +3375,10 @@ function makeModel(hex,skinIx,fit,face){
   const glider=new THREE.Mesh(GLIDER_GEO,MAT);glider.position.set(0,GLIDE_Y,0);glider.visible=false;
   g.add(body,gun,glider);g.updateMatrixWorld(true);body.bind(new THREE.Skeleton(bones));
   g.userData={body,bones,legs,gun,glider,gk:'cb',gr:-1,hex,skinIx:skinIx|0,fit,face,leg:legSpec(hex,SKINS[(skinIx|0)%SKINS.length],fit),
-    pb:new Float32Array(POSE_N),pf:new Float32Array(POSE_N),pit:0,roll:0,glk:0};limbModels.add(g);
+    pk:0,pb:new Float32Array(POSE_N),pf:new Float32Array(POSE_N),pit:0,roll:0,glk:0};limbModels.add(g);
   return g;
 }
-function setModelColor(model,hex,skinIx,fit,face){const u=model.userData;fit=fitOf(fit);face=faceOf(face);if(u.hex===hex&&u.fit===fit&&u.face===face)return;u.hex=hex;u.skinIx=skinIx|0;u.fit=fit;u.face=face;u.leg=legSpec(hex,SKINS[(skinIx|0)%SKINS.length],fit);u.body.geometry.dispose();u.body.geometry=bodyGeo(hex,SKINS[(skinIx|0)%SKINS.length],fit,face)}   // (the body is built again only when something about it changed)
+function setModelColor(model,hex,skinIx,fit,face){const u=model.userData;fit=fitOf(fit);face=faceOf(face);const pk=LX?u.lxPk|0:0;if(u.hex===hex&&u.fit===fit&&u.face===face&&u.pk===pk)return;u.hex=hex;u.skinIx=skinIx|0;u.fit=fit;u.face=face;u.pk=pk;u.leg=legSpec(hex,SKINS[(skinIx|0)%SKINS.length],fit);u.body.geometry.dispose();u.body.geometry=bodyGeo(hex,SKINS[(skinIx|0)%SKINS.length],fit,face,pk)}   // (the body is built again only when something about it changed)
 function setHeldModel(model,key,rar){const u=model.userData;const k=GUN_GEO[key]?key:HEALS[key]?(HEALS[key].sh?'sh':'hp'):'cb';u.gr=WEAP[k]&&rar>=0&&rar<5?rar|0:-1;if(u.gk===k)return;u.gk=k;u.sw=1}   // sw: the new item swings up into the hands (animModel)
 function disposeModel(m){if(m)limbModels.delete(m);if(m&&m.userData.body){m.userData.body.geometry.dispose();if(m.userData.body.skeleton)m.userData.body.skeleton.dispose()}}
 // Entities: you, the other players (remotes) and, in Practice only, bots. local: moved by this browser's physics (you, and Practice bots).
@@ -5873,7 +5878,7 @@ function buildLocker(){
   function pick(i){if(!lockerOn())return;mySkin=fitOf(i);store.set('skin',OUTFITS[mySkin].id);setModelColor(player.model,player.hex,tone6(),mySkin,myFace);if(model)setModelColor(model,player.hex,tone6(),mySkin,myFace);mark()}
   // a picture of every outfit in your colour, for the cards: 13 small renders the first time the Locker is opened
   // pictures of outfits in your colour, drawn from their own geometry (front, or from behind): data URLs, in the order asked for
-  function pics(list,W,HH,back,faces){   // faces (tests only): a drawn face for each picture; the cards show each outfit's own
+  function pics(list,W,HH,back,faces,pk){   // faces (tests only): a drawn face for each picture; the cards show each outfit's own
     const out=[],rt=new THREE.WebGLRenderTarget(W,HH),sc=new THREE.Scene(),cam=new THREE.OrthographicCamera(-.9,.9,1.35,-1.35,.1,40);
     sc.add(new THREE.HemisphereLight(0xffffff,0x9aa0aa,.95));const dl=new THREE.DirectionalLight(0xffffff,.55);dl.position.set(back?-3:3,6,back?5:-5);sc.add(dl);
     cam.position.set(back?-2.3:2.3,2.1,back?6:-6);cam.lookAt(0,1.27,0);
@@ -5882,7 +5887,7 @@ function buildLocker(){
     const body=new THREE.Mesh(LEG_GEO,mat),lg=fitLegGeo(2),legs=new THREE.InstancedMesh(lg,FLMAT,2),lp=new THREE.Matrix4();legs.frustumCulled=false;sc.add(body,legs);
     legs.setMatrixAt(0,lp.makeTranslation(-.17,.86,0));legs.setMatrixAt(1,lp.makeTranslation(.17,.86,0));
     try{for(let n=0;n<list.length;n++){const i=list[n];
-      const geo=bodyGeo(player.hex,SKINS[tone6()%SKINS.length],i,faces?faces[n]:''),L=legSpec(player.hex,SKINS[tone6()%SKINS.length],i)||STD_LEGS;body.geometry=geo;legPut(lg,0,L);legPut(lg,1,L);
+      const geo=bodyGeo(player.hex,SKINS[tone6()%SKINS.length],i,faces?faces[n]:'',pk),L=legSpec(player.hex,SKINS[tone6()%SKINS.length],i)||STD_LEGS;body.geometry=geo;legPut(lg,0,L);legPut(lg,1,L);
       renderer.setRenderTarget(rt);renderer.clear();renderer.render(sc,cam);renderer.readRenderTargetPixels(rt,0,0,W,HH,buf);
       for(let y=0;y<HH;y++)img.data.set(buf.subarray((HH-1-y)*W*4,(HH-y)*W*4),y*W*4);
       g.putImageData(img,0,0);out.push(cv.toDataURL('image/png'));geo.dispose();
@@ -5956,7 +5961,7 @@ function lxSync(){
 }
 // What the extras are lent from this page (locker-extra.js only draws: nothing here lets it touch the physics or the room).
 const LXAPI={THREE,scene,camera,renderer,MAT,store,player,gunIM,GUN_GEO,GUN_TIP,WIDS,WEAP,LIMB_N,plyMat,partMat,pieceInst,partIM,skirtIM,pieces,Locker,STAGE,
-  GLIDER_GEO,GLIDE_Y,GLU,ROUND_LO,pose,POSES,POSE_N,GLIDE_POLE,UNIT_BOX,BS,ICONS,geoPWall,geoPFloor,geoPRamp,animModel,setHeldModel,newEnt,esc,$,lockerOn,myId,RM,
+  GLIDER_GEO,GLIDE_Y,GLU,ROUND_LO,pose,setModelColor,NOOB,bagRBox,bagRLo,bagBox,bagTurn,POSES,POSE_N,GLIDE_POLE,UNIT_BOX,BS,ICONS,geoPWall,geoPFloor,geoPRamp,animModel,setHeldModel,newEnt,esc,$,lockerOn,myId,RM,
   get ents(){return ents},get state(){return state},get touchUI(){return touchUI},get low(){return touchUI||gfxPref==='fast'},get lookOn(){return lookOn},
   get myLx(){return myLx},setLx(v){myLx=lockerOn()?lxOf(v):'';store.set('lx',myLx);player.lx=myLx;if(LX)LX.dress(player);if(online)Net.publishSoon()}};
 lockerSync();
