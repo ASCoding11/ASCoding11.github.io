@@ -485,7 +485,7 @@ function taunt(){
   if(cdLeft()>0){A.popup('TAUNT IN '+Math.ceil(cdLeft())+'s','bad');return false}
   A.initAudio();tauntT=A.clock;tauntN=(tauntN+1)%1000;
   const m=A.me;m.wear=mine();play(pick4[2],null,.8);A.popup('TAUNT!','good');
-  const c=m.pos.clone();c.y+=m.form?m.form.h*.6:.4;if(A.mode==='practice'&&A.ph==='hunt')A.heard(c);   // bots in the waiting room don't hear it, like hunters
+  if(A.mode==='practice'&&A.ph==='hunt')A.heard(m.pos);   // bots in the waiting room don't hear it, like hunters
   A.push();A.hudDirty();return true;
 }
 function hint(){
