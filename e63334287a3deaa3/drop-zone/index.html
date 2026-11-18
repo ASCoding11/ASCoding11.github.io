@@ -5265,6 +5265,10 @@ function animModel(e,dt){
   if(u.poof||m.scale.x!==BS){u.poof=0;m.scale.setScalar(BS)}
   if(e!==player)m.visible=true;
   m.position.copy(e.pos);
+  // a Practice bot's aim is re-rolled every frame (its error), which made its body and gun shiver while it fought: what
+  // is drawn turns toward where it aims over about a tenth of a second instead (drawing only; its shots are unchanged)
+  if(e.ai){const k=1-Math.exp(-dt*10);u.ey=u.ey==null?e.yaw:u.ey+wrapAng(e.yaw-u.ey)*k;u.ep=u.ep==null?e.pitch||0:u.ep+((e.pitch||0)-u.ep)*k}else{u.ey=e.yaw;u.ep=e.pitch||0}
+  const ey=u.ey;
   const air=e.st==='fall',far=camera.position.distanceTo(e.pos)>70,now=performance.now(),k8=1-Math.exp(-dt*8),fl=RM?0:1;
   // just out of the Drifter: start from the jump (upright, arms up, knees tucked) and spread into the skydive (fT)
   if(air&&u.lst!==e.st){u.fT=u.lst==='bus'||u.lst==='out'||u.lst==null?0:.6;if(!u.fT){u.pb.set(POSES.jump);u.pit=-.25;u.roll=0}}
@@ -5280,8 +5284,8 @@ function animModel(e,dt){
   // the whole body: belly to the ground in the skydive (from the jump), hanging a little forward under the glider, leaning
   // into turns (from how fast the heading turns and how fast it slides sideways, both already known for everyone), and on
   // the ground leaning forward a little more the faster it runs
-  const yr=dt>0?wrapAng(e.yaw-(u.py==null?e.yaw:u.py))/dt:0;u.py=e.yaw;
-  const sy=Math.sin(e.yaw),cy=Math.cos(e.yaw),lat=e.vel.x*cy-e.vel.z*sy,fwd=-e.vel.x*sy-e.vel.z*cy;
+  const yr=dt>0?wrapAng(ey-(u.py==null?ey:u.py))/dt:0;u.py=ey;
+  const sy=Math.sin(ey),cy=Math.cos(ey),lat=e.vel.x*cy-e.vel.z*sy,fwd=-e.vel.x*sy-e.vel.z*cy;
   const sp=e.onGround?Math.hypot(e.vel.x,e.vel.z):0,rk=Math.min(1,sp/SPEED);
   // diving (looking well down) tips the skydive head-first with the arms swept back; looking ahead it is the spread-out
   // slow fall (dv, from the pitch everyone already sends; the fall itself is the same speed either way)
@@ -5291,7 +5295,7 @@ function animModel(e,dt){
   const ptg=air?-1.38-.62*u.dv+1.1*jumpK:e.glide?-.3:-.09*rk*Math.sign(fwd+.01)*Math.min(1,Math.abs(fwd)/(sp+.01)+.2)-(RM?0:clamp(u.acc*.006,-.07,.09));
   u.pit+=(ptg-u.pit)*(air?1-Math.exp(-dt*5):k8);
   u.roll+=((RM?0:e.glide?clamp(yr*.2-lat*.035,-.42,.42):air?clamp(yr*.22-lat*.02,-.35,.35):e.onGround?clamp(yr*rk*.05,-.1,.1):0)-u.roll)*k8;
-  m.rotation.set(u.pit,e.yaw,u.roll,'YXZ');
+  m.rotation.set(u.pit,ey,u.roll,'YXZ');
   // the glider unfolds over about a fifth of a second when it opens and folds away as you land
   // (a spring, a little under-damped on the way out so it snaps open past its size and settles; folding is quicker and
   // doesn't bounce). The side panels fold down against the struts while it is closed, flex in the air and load up: the
@@ -5404,7 +5408,7 @@ function animModel(e,dt){
   // you, aiming: raised to the eye line (with the hands on it, a lift and a pull toward the middle; otherwise that weapon's own aiming pose)
   const aw=e===player&&isADS()?heldW(e):null;e.aimK=clamp((e.aimK||0)+(aw?dt*9:-dt*9),0,1);const ps=aw?(e.pose=aw.pose):e.pose,ak=ps&&wp?e.aimK*e.aimK*(3-2*e.aimK):0;
   if(ak&&H){y+=.07*ak;x-=.05*ak;z-=(H.one?.06:.03)*ak}else if(ak){x+=(ps[0]-x)*ak;y+=(ps[1]-y)*ak;z+=(ps[2]-z)*ak;ry*=1-ak}
-  if(wp&&e.st==='ground')rx+=clamp(e.pitch||0,-.6,.6)*.55;
+  if(wp&&e.st==='ground')rx+=clamp(u.ep,-.6,.6)*.55;
   // a shot: shoved back, muzzle up, settling at that weapon's own speed (the crowbar: its swing)
   const kk=e.kick>0?(e.kick=e.kick<.012?0:e.kick*Math.exp(-dt*(K?K[2]:12))):0;
   if(kk&&K&&!RM){z+=kk*K[0];rx+=kk*K[1];rz+=kk*(e.kj||0)}
