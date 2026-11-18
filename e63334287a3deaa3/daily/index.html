@@ -6,6 +6,7 @@
 <title>Daily Puzzles</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
+<script src="/e63334287a3deaa3/lang.js"></script> <!-- English / Español for the whole Back Room (see README) -->
 <meta name="theme-color" content="#04111f">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -174,6 +175,36 @@ h1{margin:4px 0 6px;font:700 clamp(40px,8vw,64px)/.95 var(--f-d);letter-spacing:
 <script>
 (function(){
 'use strict';
+// Spanish (lang.js): this page's words. Each puzzle's own page has its own; the puzzles' names stay in English, and the
+// word games' content is English by design (their tiles get an "En inglés" tag while Spanish is on).
+if(window.BackRoomLang)BackRoomLang.add({
+  '‹ Back Room':'‹ Back Room','New every midnight':'Nuevos cada medianoche','Daily Puzzles':'Puzles diarios',
+  'A fresh set every day, the same for everyone. Word games, geography, logic and estimation: play one or play them all, and keep your streak going.':
+    'Un juego nuevo cada día, igual para todos. Palabras, geografía, lógica y cálculo a ojo: juega uno o todos, y mantén tu racha.',
+  'Done today':'Hechos hoy','of {n}':'de {n}','Pick any puzzle to start.':'Elige cualquier puzle para empezar.','Every puzzle done. Nice!':'¡Todos los puzles hechos. Bien!',
+  '{n} left today.':'Quedan {n} hoy.','Daily streak':'Racha diaria','day in a row':'día seguido','days in a row':'días seguidos','days in a row · play today to keep it':'días seguidos · juega hoy para mantenerla',
+  'New puzzles in':'Nuevos puzles en','at midnight, your time':'a la medianoche, tu hora','All done today!':'¡Todo hecho por hoy!',
+  'Every puzzle solved or played. Come back after midnight for a new set.':'Todos los puzles resueltos o jugados. Vuelve después de la medianoche para un juego nuevo.',
+  'All {n} solved. Come back after midnight for a new set.':'Los {n} resueltos. Vuelve después de la medianoche para un juego nuevo.',
+  '{a} of {b} solved. Come back after midnight for a new set.':'{a} de {b} resueltos. Vuelve después de la medianoche para un juego nuevo.',
+  'Word':'Palabras','Letters, clues and lucky guesses.':'Letras, pistas y corazonadas.','{a} / {b} done':'{a} / {b} hechos','Coming soon':'Muy pronto',
+  'Geography':'Geografía','Countries, shapes, flags and borders.':'Países, formas, banderas y fronteras.','Logic':'Lógica','Grids, ladders and good guesses.':'Grillas, escaleras y buenas deducciones.',
+  'Estimation':'Cálculo a ojo','Trust your eye, then see the real answer.':'Confía en tu ojo y después mira la respuesta real.','Play together':'Jueguen juntos','Word games with friends, live.':'Juegos de palabras con amigos, en vivo.',
+  'Players, clubs and line-ups.':'Jugadores, clubes y formaciones.',
+  'Guess the five-letter word in six tries.':'Adivina la palabra de cinco letras en seis intentos.','Four words at once, nine guesses.':'Cuatro palabras a la vez, nueve intentos.',
+  'Find the secret word: every guess is ranked by meaning.':'Encuentra la palabra secreta: cada intento se ordena por significado.','Find the secret word by getting warmer.':'Encuentra la palabra secreta acercándote: frío o caliente.',
+  'Eight prompts. The rarer your answer, the deeper you dive.':'Ocho consignas. Cuanto más rara tu respuesta, más hondo buceas.','Ten prompts. Say what most people would say.':'Diez consignas. Di lo que diría la mayoría.',
+  'Find the mystery country on a globe that glows hotter the closer you get.':'Encuentra el país misterioso en un globo que brilla más caliente cuanto más te acercas.',
+  'Three new sudokus every day: Easy, Medium and Hard.':'Tres sudokus nuevos cada día: Fácil, Medio y Difícil.','Turn today’s word into POOP, one letter at a time.':'Convierte la palabra de hoy en POOP, de a una letra.',
+  'Three numbers to estimate a day. How many times out will you be?':'Tres números para calcular por día. ¿Por cuántas veces le vas a errar?',
+  'Stretch a shape until it looks the right real-life size.':'Estira una forma hasta que parezca de su tamaño real.',
+  'Name something in the category before the pufferfish pops.':'Di algo de la categoría antes de que explote el pez globo.','Online · 2 to 12, or bots':'En línea · 2 a 12, o bots',
+  'Your results stay in this browser. Each puzzle has its own stats and share button. ·':'Tus resultados quedan en este navegador. Cada puzle tiene sus estadísticas y su botón para compartir. ·',
+  'Privacy':'Privacidad','Not played':'Sin jugar','In progress':'En curso','Missed':'Fallado','Done':'Hecho','Dived {n} m':'Buceaste {n} m',
+  'Solved in {n} moves':'Resuelto en {n} movimientos','Solved in {n}':'Resuelto en {n}','Score {n}':'Puntaje {n}','Average {n}':'Promedio {n}',', streak {n}':', racha de {n}',
+  '1 more puzzle on the way':'1 puzle más en camino','{n} more puzzles on the way':'{n} puzles más en camino','Being built right now. Check back soon.':'Se está armando ahora. Vuelve pronto.',
+  'Turn off the fall scene (just for this browser)':'Apagar la escena de otoño (solo en este navegador)'
+});
 // =====================================================================
 //  Every daily game, in the order shown. To add one: a line here, with ready:true once its folder exists.
 //  slug = the folder in e63334287a3deaa3/ and the storage key daily:<slug> the game writes when a daily ends:
@@ -318,7 +349,7 @@ function tile(g,rec,c){
   const st=el('span','st');st.append(el('span','chip '+cls,txt));
   if(rec.streak>0)st.append(el('span','chip fire','🔥 '+rec.streak));
   tx.append(st);a.append(ic,tx);
-  a.setAttribute('aria-label',g.name+': '+txt+(rec.streak>0?', streak '+rec.streak:''));
+  const T=window.BackRoomLang?BackRoomLang.t:(x=>x);a.setAttribute('aria-label',g.name+': '+T(txt)+(rec.streak>0?T(', streak {n}',{n:rec.streak}).replace('{n}',rec.streak):''));
   return a;
 }
 let lastSig='';
@@ -331,7 +362,7 @@ function render(force){
 
   // header and summary
   const d=new Date(+t.slice(0,4),+t.slice(4,6)-1,+t.slice(6,8));
-  $('date').textContent=d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+  $('date').textContent=d.toLocaleDateString(window.BackRoomLang?BackRoomLang.locale():'en-US',{weekday:'long',month:'long',day:'numeric'});
   const n=doneSlugs.length,tot=ready.length;
   $('doneN').innerHTML='';$('doneN').append(String(n)+' ',el('em',null,'of '+tot));
   $('doneSub').textContent=n===0?'Pick any puzzle to start.':n===tot?'Every puzzle done. Nice!':(tot-n)+' left today.';
@@ -381,6 +412,7 @@ function tick(){
 }
 render(true);tick();setInterval(tick,1000);
 // another tab finishing a puzzle, or coming back from a game
+document.addEventListener('backroom:lang',()=>render(true));   // the date line follows the language
 addEventListener('storage',e=>{if(!e.key||/^daily:|^deepword:days/.test(e.key))render(true)});
 addEventListener('pageshow',()=>render(true));
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)render(true)});
