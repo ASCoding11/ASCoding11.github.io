@@ -3346,7 +3346,8 @@ function muzzleFlash(e,p,dir,wid){
   if(e===player&&!tip&&player.alive){   // looking down your own sights: a small flash under the sight, none in a scope
     if(fam==='sr')q=null;else{q=_gt.copy(camera.position).addScaledVector(dir,1.3);q.y-=.2;sz*=.45}}
   if(q){flash(q,dir,fam==='sg'?0xffb86a:0xffe9a8,sz,.07,F[1]);
-    if(fam==='sg'||fam==='sr'||wid==='hc'||wid==='hr')flash(q,null,0xc8702e,sz*1.25,.11)}   // the big ones also light up a wider, dimmer glow that lasts a moment longer
+    if(fam==='sg'||fam==='sr'||wid==='hc'||wid==='hr'){flash(q,null,0xc8702e,sz*1.25,.11);
+      if(!RM&&q.distanceToSquared(camera.position)<900)for(let i=0;i<(fam==='sg'?3:2);i++)bit(q,new V3(dir.x*1.2+(Math.random()-.5)*.5,.5+Math.random()*.5,dir.z*1.2+(Math.random()-.5)*.5),0xd8d4cc,.07+Math.random()*.05,.5+Math.random()*.3,-.8)}}   // and a wisp of smoke   // the big ones also light up a wider, dimmer glow that lasts a moment longer
   if(e){e.kick=Math.min(1.3,(e.kick||0)*.4+1);e.kj=(Math.random()-.5)*(fam==='sm'?.3:.1);e.shotAt=performance.now();e.shotW=wid;e.actS=0;
     if(wid!=='sg'&&wid!=='sr'&&wid!=='hc')shell(e,wid)}
 }
@@ -3382,7 +3383,13 @@ function cbImpact(p,mt,d,v){const F=CB_FX[mt]||CB_FX.stone,near=p.distanceToSqua
 function hitPop(p,hex,head){flash(p,null,head?0xffe36a:0xffffff,head?1.15:.85,.11);for(let i=0;i<(head?8:5);i++)bit(p,rv(6,5),i%2?hex:0xffffff,.1,.38,13)}
 function debris(p,hex,n){for(let i=0;i<(n||8);i++)bit(p.clone().add(new V3((Math.random()-.5)*2.4,(Math.random()-.5)*2,(Math.random()-.5)*2.4)),new V3((Math.random()-.5)*5,Math.random()*5,(Math.random()-.5)*5),hex||0xc7955a,.35,.9,14)}
 // a knockout: a burst of stars, confetti in the player's colour and a few pale puffs that drift up (no mess)
-function puff(p,hex){flash(p,null,0xffffff,2.2,.16);for(let i=0;i<12;i++)bit(p.clone(),rv(7,6),i%3?hex:0xffffff,.16,.75,11);for(let i=0;i<5;i++)bit(p.clone().add(rv(.8)),rv(1.4,1.8),0xf2f2ee,.4,.9,-1.5)}
+// (November 2026: a bigger pop: a white star inside a wider flash of the player's colour, confetti thrown up and a ring of
+// it out flat, pale puffs, and a slow column of gold sparkles rising where they were; fewer bits on Fast and on phones)
+function puff(p,hex){const lo=gfxPref==='fast'||touchUI;flash(p,null,0xffffff,2.4,.18);flash(p,null,hex,3.8,.32);
+  for(let i=0;i<(lo?12:18);i++)bit(p.clone(),rv(8,7),i%3?hex:i%2?0xffd84a:0xffffff,.15,.8+Math.random()*.3,11);
+  for(let i=0;i<(lo?6:10);i++){const a=i/(lo?6:10)*6.283;bit(p.clone(),new V3(Math.cos(a)*6,.6,Math.sin(a)*6),i%2?hex:0xffffff,.12,.45,3)}
+  for(let i=0;i<5;i++)bit(p.clone().add(rv(.8)),rv(1.4,1.8),0xf2f2ee,.4,.9,-1.5);
+  if(!RM)for(let i=0;i<(lo?4:7);i++)bit(p.clone().add(rv(.6,0)),new V3((Math.random()-.5)*.4,1.2+Math.random()*1.4,(Math.random()-.5)*.4),0xffe27a,.07,1.1+Math.random()*.5,-.6)}
 function updateFx(dt){
   for(let i=trs.length-1;i>=0;i--){trs[i].life-=dt;if(trs[i].life<=0)trs.splice(i,1)}
   if(trs.length||trIM.count){
@@ -3403,7 +3410,7 @@ function updateFx(dt){
   bitMesh.count=bits.length;bitMesh.instanceMatrix.needsUpdate=true;if(bitMesh.instanceColor)bitMesh.instanceColor.needsUpdate=true;
 }
 const dmgLayer=$('dmg');const dnums=[];
-function dmgNumber(pt,amt,head,sh){if(dnums.length>24)return;const el=document.createElement('div');el.className='dn'+(head?' head':sh?' sh':'');el.textContent=amt;dmgLayer.appendChild(el);dnums.push({el,p:pt.clone(),t:0,dx:(Math.random()-.5)*30})}
+function dmgNumber(pt,amt,head,sh){if(dnums.length>24)return;const el=document.createElement('div');el.className='dn'+(head?' head':sh?' sh':'');el.textContent=amt;dmgLayer.appendChild(el);dnums.push({el,p:pt.clone(),t:0,dx:(Math.random()-.5)*36,big:head?1:0})}
 const tmpV=new V3();
 const _scr={x:0,y:0,front:false};
 function toScreen(p){tmpV.copy(p).project(camera);_scr.x=(tmpV.x*.5+.5)*VW;_scr.y=(-tmpV.y*.5+.5)*VH;_scr.front=tmpV.z<1;return _scr}
@@ -3413,7 +3420,9 @@ function hudSet(el,k,v){if(hudLast.get(k)===v)return;hudLast.set(k,v);if(k.charC
 function updateDnums(dt){
   for(let i=dnums.length-1;i>=0;i--){const d=dnums[i];d.t+=dt;if(d.t>.8){d.el.remove();dnums.splice(i,1);continue}
     const s=toScreen(d.p);if(!s.front){d.el.style.opacity='0';continue}
-    d.el.style.opacity=String(1-Math.max(0,d.t-.45)/.35);d.el.style.transform=`translate(${s.x+d.dx*d.t}px,${s.y-40*d.t}px) translate(-50%,-50%)`}
+    // each number pops in large (more for a headshot), then rises on an arc that slows, drifting aside, and fades
+    const pop=RM?1:1+(d.big?.9:.55)*Math.max(0,1-d.t/.12)**2;
+    d.el.style.opacity=String(1-Math.max(0,d.t-.45)/.35);d.el.style.transform=`translate(${s.x+d.dx*d.t}px,${s.y-70*d.t+40*d.t*d.t}px) translate(-50%,-50%) scale(${pop.toFixed(3)})`}
 }
 
 /* ---------- sound (Web Audio, made on the spot) ---------- */
@@ -3465,6 +3474,7 @@ function sfxHit(head){vKeep=true;tone('square',head?1500:1050,head?1700:1000,.07
 function sfxHurt(){vKeep=true;tone('sine',90,40,.5,.25);burst('lowpass',500,.25,.15);vKeep=false}
 function sfxChest(v){tone('triangle',520,1040,.14*v,.25);tone('triangle',780,1560,.1*v,.3)}
 function sfxPick(){vKeep=true;tone('triangle',660,990,.08,.09);vKeep=false}
+function sfxKO(){vKeep=true;tone('triangle',660,660,.12,.09);tone('triangle',990,990,.12,.16,.075);tone('sine',120,50,.3,.2);vKeep=false}   // a knockout of yours: two bright notes up and a thump
 function sfxJoin(){tone('triangle',440,660,.12,.18)}
 // A crowbar hit sounds like what it hit (each a little different every time): wood a dry tok, stone a hard chink with
 // grit, metal a ringing clang (inharmonic partials), a crate a hollow bonk, hay and dirt a soft thud, a body a thump.
@@ -4094,7 +4104,7 @@ function die(e,killerId,wkey){
   if(e===player)onMyDeath(killerId);
 }
 let myKills=0;
-function gotKill(victim){myKills++;player.kills=myKills;banner((victim.name||'Someone').toUpperCase()+' DOWN',myKills+' knockout'+(myKills===1?'':'s'),1.8);Net.publishSoon()}
+function gotKill(victim){myKills++;hitmark(false,true);sfxKO();player.kills=myKills;banner((victim.name||'Someone').toUpperCase()+' DOWN',myKills+' knockout'+(myKills===1?'':'s'),1.8);Net.publishSoon()}
 function killFeed(k,v,w){
   const nm=u=>u===myId()?'You':esc(nameOf(u))+(isBotId(u)?'<span class="bt">BOT</span>':'');
   const how=w==='storm'||!k?(w==='storm'?' · storm':' · fell'):' · '+(WEAP[w]?WEAP[w].name:w==='cb'?'Crowbar':'');
@@ -4989,7 +4999,11 @@ const hud={root:$('hud'),feed:$('feed'),banner:$('banner'),hint:$('hint'),cross:
 // the compass strip: three turns of the dial side by side (3 px a degree), slid sideways as you turn
 (()=>{const N=['N','NE','E','SE','S','SW','W','NW'];let h='';for(let d=0;d<1080;d+=15){const x=d*3;h+=d%45?`<i style="left:${x}px"></i>`:`<span${d%90?' class="s"':''} style="left:${x}px">${N[d/45%8]}</span>`}hud.strip.innerHTML=h})();
 let hurtA=0,hitT=0,lastHud='',bannerTimer=0,placeT=0,stormSeen='';
-function hitmark(head){hitT=.14;hud.hitm.style.color=head?'#ffd84a':'#fff'}
+// The hit marker pops in a little large and settles (bigger and gold for a headshot); a knockout of yours gets a big red
+// one that holds a moment, with its own sound. Web Animations, so restarting it costs no layout; reduced motion: no pop.
+function hitmark(head,kill){const el=hud.hitm;el.style.color=kill?'#ff4a3a':head?'#ffd84a':'#fff';
+  if(RM||!el.animate){hitT=kill?.45:.14;return}hitT=0;
+  el.animate([{opacity:1,transform:`scale(${kill?2:head?1.6:1.35})`},{opacity:1,transform:`scale(${kill?1.25:1})`,offset:kill?.3:.4},{opacity:kill?1:.9,transform:`scale(${kill?1.25:1})`,offset:kill?.75:.6},{opacity:0,transform:`scale(${kill?1.15:.95})`}],{duration:kill?620:head?280:210,easing:'cubic-bezier(.2,.8,.3,1)'})}
 function feed(html,cls){const d=document.createElement('div');d.className=cls;d.innerHTML=html;hud.feed.prepend(d);while(hud.feed.children.length>(touchUI?4:6))hud.feed.lastChild.remove();setTimeout(()=>{d.style.opacity='0';setTimeout(()=>d.remove(),700)},6000)}
 function hint2(t,col){const d=document.createElement('div');d.className='info';d.textContent=t;if(col)d.style.color=col;hud.feed.prepend(d);while(hud.feed.children.length>(touchUI?4:6))hud.feed.lastChild.remove();setTimeout(()=>{d.style.opacity='0';setTimeout(()=>d.remove(),700)},2600)}
 // (the slide-in restarts without reading offsetWidth, which made the browser lay out the whole page there and then)
@@ -5481,6 +5495,8 @@ function updateCamera(dt){
   // over about a fifth of a second, with a little jolt (not with reduced motion; the aim itself doesn't move)
   if(self&&shakeAt){const st=(performance.now()-shakeAt)/1000;if(st>.24)shakeAt=0;else if(st>=0&&!RM){const a=st<.03?st/.03:Math.exp(-(st-.03)*17),j=(Math.random()-.5)*.016*a;
     camera.position.addScaledVector(f,.1*a);camera.position.y-=.05*a-j;camera.position.addScaledVector(r,j);camera.rotateZ(-.012*a)}}
+  // landing: the view dips with the knees (a little more the harder the landing; not with reduced motion)
+  if(self&&!RM){const u=player.model.userData;if(u.landT>0)camera.position.y-=.07*(u.landA||1)*Math.sin(Math.PI*clamp(u.landT/(u.landD||.32),0,1))}
   if(self)player.model.visible=player.alive?camDist>.9&&!(ads&&w&&!w.ad):player.dieT<=2.2;
 }
 function updateWorldFx(){
