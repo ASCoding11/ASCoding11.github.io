@@ -342,6 +342,7 @@ css.textContent=`
 #kitBtnRow .btn small{font-family:var(--f-b);font-weight:800;font-size:12px;color:var(--ink-2);margin-top:3px}
 #kit{position:absolute;inset:0;padding:0;overflow:hidden;touch-action:none}
 #kit .kcard{position:absolute;right:14px;top:calc(14px + env(safe-area-inset-top,0px));bottom:14px;width:min(380px,calc(100% - 28px));display:flex;flex-direction:column;padding:0;overflow:hidden;touch-action:auto}
+#kit .khead,#kit .ksub,#kit .ktabs{flex:0 0 auto}
 #kit .khead{display:flex;align-items:center;gap:8px;padding:14px 16px 0}
 #kit h2{font-family:var(--f-d);font-weight:700;font-size:23px;margin:0}
 #kit .kbadge{font-family:var(--f-b);font-weight:900;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;background:var(--sun);border:2px solid var(--ink);border-radius:8px;padding:1px 6px}
