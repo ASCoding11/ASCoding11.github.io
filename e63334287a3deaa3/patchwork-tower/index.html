@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
+<script src="/e63334287a3deaa3/lang.js"></script> <!-- English / Español (see README) -->
+<script src="es.js"></script> <!-- Patchwork Tower's Spanish words -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Patchwork Tower</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -86,6 +88,7 @@ body.touch #pad,body.touch #fix{display:block}
     <p><b>Bats</b> cross the rows: an arrow at the edge shows where one is coming from.</p>
     <p>Grab the <b>cocoa</b> for a few seconds of invincibility and one-tap repairs. <b>Planters</b> block climbing and <b>shutters</b> block side steps.</p>
     <p>Finish a floor quickly for a bigger bonus.</p>
+    <div style="margin:10px 0" data-lang-toggle></div>
     <button class="ghost" id="howClose">CLOSE</button>
   </div>
 </div>
@@ -93,6 +96,7 @@ body.touch #pad,body.touch #fix{display:block}
 <script>
 (function(){
 "use strict";
+const T=window.BackRoomLang?BackRoomLang.t:(s,v)=>s.replace(/\{(\w+)\}/g,(m,n)=>v&&v[n]!=null?v[n]:m);
 /* =====================================================================
    Patchwork Tower: a one-screen fix-it arcade game.
    ==RULES== ... ==END RULES== is the game itself: it never touches the page, the clock, sound or Math.random, so the
@@ -484,10 +488,10 @@ function drawThings(a){
 }
 function drawHud(){
   R(0,0,W,22,'#0a0e2a');R(0,22,W,1,'#2c356f');
-  txt('SCORE',6,3,1,'#9aa3d6');txt(String(G.score).padStart(6,'0'),6,10,2,'#eef0ff');
-  txt('FLOOR '+G.level,W/2+18,3,1,'#9aa3d6','center');
+  txt(T('SCORE'),6,3,1,'#9aa3d6');txt(String(G.score).padStart(6,'0'),6,10,2,'#eef0ff');
+  txt(T('FLOOR {n}',{n:G.level}),W/2+18,3,1,'#9aa3d6','center');
   txt('+'+String(Math.floor(G.timeLeft)*10).padStart(3,'0'),W/2+18,10,2,'#ffd35a','center');
-  txt('BOTS',W-6,3,1,'#9aa3d6','right');
+  txt(T('BOTS'),W-6,3,1,'#9aa3d6','right');
   for(let i=0;i<G.lives;i++){R(W-13-i*10,11,7,7,'#3fd6c0');R(W-12-i*10,13,5,2,'#16203f')}
 }
 function banner(a,b,c){
@@ -506,10 +510,10 @@ function draw(a){
   drawGargoyle(a);drawThings(a);drawBot(a);
   g2.setTransform(1,0,0,1,0,0);
   drawHud();
-  if(paused)banner('PAUSED','','FIX TO GO ON');
-  else if(G.state==='title')banner('PATCHWORK TOWER','BEST '+String(best).padStart(6,'0'),'PRESS FIX TO START');
-  else if(G.state==='clear')banner('FLOOR CLEAR','BONUS +'+G.bonus);
-  else if(G.state==='over')banner('GAME OVER',(newBest?'NEW BEST ':'SCORE ')+G.score+(newBest?'!':'   BEST '+best),'PRESS FIX TO RETRY');
+  if(paused)banner(T('PAUSED'),'',T('FIX TO GO ON'));
+  else if(G.state==='title')banner('PATCHWORK TOWER',T('BEST {s}',{s:String(best).padStart(6,'0')}),T('PRESS FIX TO START'));
+  else if(G.state==='clear')banner(T('FLOOR CLEAR'),T('BONUS +{n}',{n:G.bonus}));
+  else if(G.state==='over')banner(T('GAME OVER'),newBest?T('NEW BEST {s}!',{s:G.score}):T('SCORE {s}   BEST {b}',{s:G.score,b:best}),T('PRESS FIX TO RETRY'));
   vx.imageSmoothingEnabled=false;vx.drawImage(buf,0,0,cv.width,cv.height);
 }
 
