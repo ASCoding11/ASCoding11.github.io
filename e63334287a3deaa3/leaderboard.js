@@ -333,6 +333,10 @@
     'us-2023': ['Las Vegas', 51], 'qa-2004': ['Lusail', 45], 'ae-2009': ['Abu Dhabi', 44], 'lakeside': ['Lakeside', 33], 'harbour': ['Harbour', 29], 'mesa': ['Mesa', 32]
   };
   var TRACK_IDS = Object.keys(TRACKS), STD_LAPS = [3, 5, 10];   // the race lengths the game offers
+  // Laps with a corner cut count for the fastest lap too, and a cut can skip a good part of a lap, so a real cut lap can
+  // be quicker than the floor above. The floor for fastest laps and course records is therefore CUT_FLOOR of it: it
+  // still throws out impossible times, but never a real lap, cut or not. (The clean boards keep their own checks.)
+  var CUT_FLOOR = 0.5;
   // Slipstream's record season. Its lap and race records were reset for everyone on 17 November 2026 (the tracks had been
   // fixed and barrier touches made gentler, so older times no longer compared). stats.js stores the records with the
   // season in the name ('lap:s2:<track>', 'rec:s2:<track>:<laps>', and clap: / crec: the same way) and parse() below reads
@@ -527,14 +531,14 @@
         sk = Object.keys(cur); src = cur;
         sk.forEach(function (k) {
           var m = /^lap:([a-z0-9-]{1,20})$/.exec(k), t = m && TRACKS[m[1]], x = num(src[k]);
-          if (t && x >= t[1] && x <= 900) o[k] = x;
+          if (t && x >= t[1] * CUT_FLOOR && x <= 900) o[k] = x;
         });
         // Course records: 1–20 laps, no quicker than the track allows, and no quicker than this driver's own fastest lap
         // there times the laps (every lap of a race also counts as a lap, so a record with no lap time is dropped).
         sk.forEach(function (k) {
           var m = /^rec:([a-z0-9-]{1,20}):([1-9]|1[0-9]|20)$/.exec(k), t = m && TRACKS[m[1]], x = num(src[k]);
           var n = m ? +m[2] : 0, lap = m ? o['lap:' + m[1]] : 0;
-          if (t && lap > 0 && x >= t[1] * n && x >= (lap - 0.001) * n && x <= 900 * n) o[k] = x;
+          if (t && lap > 0 && x >= t[1] * CUT_FLOOR * n && x >= (lap - 0.001) * n && x <= 900 * n) o[k] = x;
         });
         // The clean twins (no corner cut): a clean lap can't beat the driver's own fastest lap there, and a clean course
         // record can't beat their course record over the same laps (every clean lap or race also counts for those).
@@ -1141,8 +1145,8 @@
     }
     boards.forEach(function (b) { $chips.append(chip(b)); });
     view.st = st && st.k !== 's' ? st : null;
-    $rule.hidden = !(view.st && (view.st.laps || view.st.cleanB));
-    $rule.textContent = view.st && view.st.cleanB ? 'Clean times: no corner was cut on ' + (view.st.laps ? 'any lap of the race.' : 'the lap.') : 'Race times include any track-cut penalties (+2.5 s each).';
+    $rule.hidden = !(view.st && (view.st.laps || view.st.cleanB || view.st.id === 'lap'));
+    $rule.textContent = view.st && view.st.cleanB ? 'Clean times: no corner was cut on ' + (view.st.laps ? 'any lap of the race.' : 'the lap.') : view.st && view.st.laps ? 'Race times include any track-cut penalties (+2.5 s each).' : 'Every lap counts, corner cuts included. Clean lap has the times with no cut.';
     $season.hidden = !(slip && view.st && (view.st.all || view.st.track));   // the lap and record boards, not Hours or Elo
     $ace.hidden = $season.hidden || !people;
     if (!$ace.hidden) { $ace.textContent = ''; $ace.append(el('b', '', 'Slipstream ace: '), aceLine(ace(people, everyone), isMe)); }
