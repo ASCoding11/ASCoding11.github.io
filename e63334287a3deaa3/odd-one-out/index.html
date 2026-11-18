@@ -1059,6 +1059,8 @@ function buildProps(){
   defProp('crabPot','Crab pot',[['crabPot',b(.7,.4,.5,0,.2,0)],['steelDark',b(.72,.03,.52,0,.415,0)],['buoyWhite',sph(.07,.36,.22,0)]]);
   defProp('lantern','Camp lantern',[['steelDark',cyl(.09,.1,.04,0,.02,0,12)],['lanternGlass',cyl(.07,.07,.2,0,.14,0,12)],['steelDark',cone(.1,.08,0,.28,0,12)],['steelDark',tor(.05,.008,0,.33,0,0,0,Math.PI)]]);
   defProp('stump','Log stump',[['bark',cyl(.26,.3,.45,0,.225,0,14)],['stumpTop',cyl(.255,.255,.012,0,.456,0,14)]]);
+  defProp('sleepBag','Sleeping bag',[['sleepBag',cyl(.17,.17,.62,0,.17,0,16,0,Math.PI/2)],['strapB',cyl(.176,.176,.04,-.18,.17,0,16,0,Math.PI/2)],['strapB',cyl(.176,.176,.04,.18,.17,0,16,0,Math.PI/2)]]);
+  defProp('backpack','Backpack',[['pack',b(.34,.44,.2,0,.22,0)],['pack2',b(.26,.18,.07,0,.15,.13)],['pack',sph(.17,0,.44,0,1,.35,.6)]]);
   defProp('campCooler','Camping cooler',[['coolerBox',b(.62,.36,.38,0,.18,0)],['white',b(.64,.06,.4,0,.39,0)],['black',b(.2,.025,.04,0,.43,0)]]);
   // things that are part of the furniture: not on the transform list
   defProp('tray','Food tray',[['chairTeal',b(.44,.02,.32,0,.01,0)],['chairTeal',b(.44,.03,.02,0,.025,.15)],['chairTeal',b(.44,.03,.02,0,.025,-.15)]],{elig:false,ns:true});
@@ -1838,9 +1840,103 @@ function buildHarbor(){
   },room));
 }
 
+// ---------- map 5: Camp Pinecrest (a summer camp in the woods) ----------
+function buildCamp(){
+  const B=new Builder(705),K=kit(B,3),r=B.r,G0={ghost:true,ns:true,solid:false},T=forest(B);
+  for(const [a,b2,c,d] of [[14,0,52,6],[14,6,36,15],[48,6,52,15],[0,12,14,15],[0,15,52,28],[0,28,4,44],[22,28,32,44],[44,28,52,44],[4,41,22,44],[32,28,44,30],[32,40,44,44]])K.floor(a,b2,c,d,'grass');
+  K.floor(4,28,22,41,'woodFloor2');K.floor(32,30,44,40,'woodPale');K.floor(36,6,48,15,'woodFloor');
+  // paths and the sandy fire circle, drawn on the grass
+  const decal=(x0,z0,x1,z1,m)=>B.box(x0,.004,z0,x1,.007,z1,m,Object.assign({skip:'-y+x-x+z-z'},G0));
+  decal(12,15.5,40,17.5,'dirt');decal(25,17.5,27,28,'dirt');decal(12,17.5,14,28,'dirt');decal(36,17.5,38,30,'dirt');decal(40,15,42,15.5,'dirt');decal(22.4,16.4,29.6,23.6,'sand');decal(19,9.8,33,11.2,'dirt');decal(25,11.2,27,15.5,'dirt');
+  // the lake (south-west corner, past a railing) with a little dock
+  B.mesh(new THREE.PlaneGeometry(60,50).rotateX(-Math.PI/2),'sea',-16,-.3,-13,{ns:true});
+  B.mesh(new THREE.PlaneGeometry(250,138).rotateX(-Math.PI/2),'landGrass',26,-.03,81,{ns:true});B.mesh(new THREE.PlaneGeometry(136,112).rotateX(-Math.PI/2),'landGrass',82,-.03,-44,{ns:true});
+  B.box(-1,-.6,11.8,14,0,12.3,'sand',G0);B.box(13.8,-.6,-1,14.3,0,12.3,'sand',G0);B.box(5.5,-.12,3,7.5,.02,11.8,'deck',G0);
+  railing(B,0,11.9,14.1,12.1,'trunk','logFence');railing(B,13.9,0,14.1,12,'trunk','logFence');
+  railing(B,14,0,52,.2,'trunk','logFence');railing(B,51.8,0,52,44,'trunk','logFence');railing(B,0,43.8,52,44,'trunk','logFence');railing(B,0,12,.2,44,'trunk','logFence');
+  // woods all round, outside the fence
+  for(let x=-6;x<60;x+=4.2){T.tree(x+r()*1.5,-3.5-r()*3,1+r()*.4);T.tree(x+r()*1.5,47.5+r()*3,1+r()*.4)}
+  for(let z=0;z<46;z+=4.2){if(z>14&&z<30){}else T.tree(-3.5-r()*2,z+r()*1.5,1+r()*.4);T.tree(55.5+r()*3,z+r()*1.5,1+r()*.4)}
+  for(const [x,z] of [[17,13.6],[33,21.6],[48.6,24],[46.8,42.2],[28.6,42],[1.6,41.8],[2,17],[19.6,26.4],[50.4,2.4]])T.tree(x,z,1.05,true);
+  // ---- the mess hall ----
+  K.wallX(28,3.9,22.1,'logWall',[[11,14]],{dh:2.6});K.wallX(41,3.9,22.1,'logWall',[[5.4,6.8]]);K.wallZ(4,28,41,'logWall');K.wallZ(22,28,41,'logWall',[[33,34.4]]);
+  K.ceil(4,28,22,41);K.lights(7,31,19,38,4,3.5);K.deco(10.6,2.62,27.86,14.4,2.95,27.9,'sMess','-z');
+  for(const [a,b2] of [[6,9],[16,19]])K.deco(a,1.1,27.86,b2,2.2,27.9,'win','-z');for(const [a,b2] of [[30,32],[36,38.4]])K.deco(22.1,1.1,a,22.14,2.2,b2,'win','+x');
+  for(const z of [31.4,34.6,37.8]){
+    B.box(9.6,.72,z-.45,16.4,.78,z+.45,'woodLight');for(const x of [9.9,16.1])B.box(x-.06,0,z-.38,x+.06,.72,z+.38,'woodDark');
+    for(const x of [11.2,14.8]){B.place('bench',x,z-.85,0);B.place('bench',x,z+.85,Math.PI)}
+    for(let i=0;i<4;i++){const x=10.2+i*1.75+(r()-.5)*.3;B.place(pick2(r,['cup','cup','lantern','books','tray']),x,z+(r()-.5)*.4,r()*6,.78)}
+  }
+  B.box(13,0,40.25,21.9,.92,40.9,{all:'cabinet','+y':'counterTop'});B.box(21.15,0,36.6,21.9,1.9,37.5,{all:'fridge'},{fit:'all'});
+  for(const [x,id] of [[13.6,'microwave'],[15,'cup'],[15.4,'cup'],[16.6,'bucket'],[18.2,'boxS'],[19.6,'lantern'],[21.1,'bucket2']])B.place(id,x,40.58,Math.PI,.92);
+  B.box(4.1,0,32.6,4.9,1.1,35.6,{all:'stoneRing','+x':'stoneRing'});B.box(4.2,.15,33.4,4.92,.75,34.8,'ember',{ghost:true,ns:true});B.box(4.1,1.1,33,4.7,3,35.2,'stoneRing',{kind:'wall'});
+  B.box(5.2,0,32,8.8,.012,36.4,'rugA',{fit:'+y',solid:false,ghost:true,ns:true});
+  B.place('armchair',7.6,33,-Math.PI/2+.25);B.place('armchair',7.6,35.4,-Math.PI/2-.25);B.place('stump',5.8,31.8,0);B.place('stump',5.9,36.6,0);B.place('lampF',4.6,31.4,0);B.place('pillow2',7.6,33,-Math.PI/2+.25,.54);
+  for(const [x,z,id] of [[16.8,30.1,'campCooler'],[17.6,30.1,'campCooler'],[20.8,29,'trash'],[20.8,29.8,'recycle'],[15.6,39.5,'boxM'],[14.8,39.6,'boxS'],[21.3,39.1,'trashBag'],[4.7,40.3,'plantT'],[4.7,28.7,'plantS'],[18.6,30.1,'backpack'],[19.2,30.2,'backpack'],[19.8,30,'backpack'],[17.2,39.5,'boxT'],[21.4,31.6,'ext'],[18.6,37.2,'stool'],[19.8,37.2,'stool'],[20.8,38.4,'basket']])B.place(id,x,z,id==='ext'?-Math.PI/2:(r()-.5)*.6);
+  B.box(18,.72,35.6,20.6,.78,36.6,'woodLight');for(const x of [18.2,20.4])B.box(x-.06,0,35.7,x+.06,.72,36.5,'woodDark');B.place('lantern',18.6,36.1,0,.78);B.place('books',20,36,.4,.78);
+  // ---- the bunk cabin ----
+  K.wallX(30,31.9,44.1,'logWall',[[37,38.4]]);K.wallX(40,31.9,44.1,'logWall');K.wallZ(32,30,40,'logWall');K.wallZ(44,30,40,'logWall',[[34,35.4]]);
+  K.ceil(32,30,44,40);K.lights(35,33,41,37,6,4);K.deco(36.4,2.6,29.86,39,2.92,29.9,'sBunk','-z');
+  for(const [a,b2] of [[33.2,35.6],[40,42.6]])K.deco(a,1.1,40.1,b2,2.1,40.14,'win','+z');
+  for(const [x0,x1,side] of [[32.15,33.05,1],[42.95,43.85,-1]])for(const z of [30.8,32.9,36.2,38.1]){if(side<0&&z>33&&z<37)continue;
+    B.box(x0,0,z,x1,.42,z+1.85,{all:'steelDark','+y':'blanket'});const cx=(x0+x1)/2;
+    const k=r();if(k<.45)B.place('sleepBag',cx,z+.9,Math.PI/2+(r()-.5)*.3,.42);else if(k<.7)B.place('pillow',cx,z+1.5,Math.PI/2,.42);else B.place('teddy',cx,z+1.4,side>0?Math.PI/2:-Math.PI/2,.42);
+    B.place(pick2(r,['backpack','suitcase','campCooler','boxM']),cx+side*1.05,z+.9,side>0?Math.PI/2:-Math.PI/2)}
+  B.box(36.6,.72,34,39.4,.78,35.6,'woodLight');for(const [x,z] of [[36.75,34.15],[39.25,34.15],[36.75,35.45],[39.25,35.45]])B.box(x-.05,0,z-.05,x+.05,.72,z+.05,'woodDark');
+  B.place('lantern',37.4,34.8,0,.78);B.place('books',38.6,34.9,.3,.78);B.place('cup',38,35.2,0,.78);
+  for(const [x,z,id] of [[36,34.3,'stump'],[40,35.4,'stump'],[38,36.6,'stump'],[35.2,39.3,'rack'],[40.6,39.4,'boxL'],[41.4,39.4,'backpack'],[34.2,39.4,'plantS'],[41.6,30.5,'trash'],[38.3,31.2,'sleepBag'],[39.5,31.4,'backpack']])B.place(id,x,z,(r()-.5)*.5);
+  // ---- the craft cabin ----
+  K.wallX(6,35.9,48.1,{all:'wallCream','-z':'logWall'});K.wallX(15,35.9,48.1,{all:'wallCream','+z':'logWall'},[[40,41.4]]);K.wallZ(36,6,15,{all:'wallCream','-x':'logWall'},[[9.6,11]]);K.wallZ(48,6,15,{all:'wallCream','+x':'logWall'});
+  K.ceil(36,6,48,15);K.lights(39,8.5,45,12.5,6,4);K.deco(42.4,2.5,15.1,46.6,2.95,15.14,'sCraft','+z');
+  for(const [a,b2] of [[37.5,40],[44,46.5]])K.deco(a,1.1,6.1,b2,2.2,6.14,'win','+z');K.deco(47.86,1.2,7.5,47.9,2.3,10,'art1','-x');K.deco(47.86,1.2,11,47.9,2.3,13.5,'art2','-x');
+  for(const [x0,x1] of [[38.4,41.6],[43.4,46.6]]){B.box(x0,.72,9.4,x1,.78,10.8,{all:'woodDark','+y':'woodLight'});for(const x of [x0+.15,x1-.15])for(const z of [9.55,10.65])B.box(x-.05,0,z-.05,x+.05,.72,z+.05,'woodDark');
+    for(let i=0;i<4;i++)B.place(pick2(r,['paint','paint2','bucket','bucket2','block','block2','books','wcan','basket','cup']),x0+.45+i*.8,10.1+(r()-.5)*.6,r()*6,.78);
+    for(const x of [x0+.8,x1-.8]){B.place('chairT',x,8.75,0);B.place('chairT',x,11.45,Math.PI)}}
+  B.box(36.6,0,6.12,47.4,1.2,6.6,{all:'woodPale','+z':'shelfToy'},{fit:'+z'});
+  for(let i=0;i<7;i++){if(r()<.2)continue;B.place(pick2(r,['boxS','paint','block','basket','books','gift2']),37.3+i*1.5,6.36,0,1.2)}
+  for(const [x,z,id] of [[47.4,14.4,'trash'],[46.6,14.4,'recycle'],[36.6,14.4,'crate'],[37.4,14.5,'boxM'],[36.5,12.4,'ext'],[47.4,7.2,'bucket'],[42.3,13.4,'mannequin'],[39,13.6,'boxT'],[45,13.8,'basket'],[42.5,7.4,'wcan']])B.place(id,x,z,id==='ext'?Math.PI/2:(r()-.5)*.5);
+  // ---- the fire circle ----
+  for(const [a,b2,c,d] of [[24.8,18.8,27.2,19.2],[24.8,20.8,27.2,21.2],[24.8,19.2,25.2,20.8],[26.8,19.2,27.2,20.8]])B.box(a,0,b2,c,.3,d,'stoneRing');
+  B.box(25.25,0,19.25,26.75,.14,20.75,{all:'trunk','+y':'ember'});
+  {const lg=[];for(let i=0;i<5;i++){const a=i/5*TAU;lg.push(cyl(.07,.07,.9,26+Math.cos(a)*.18,.3,20+Math.sin(a)*.18,8,Math.sin(a)*.9,-Math.cos(a)*.9))}B.mesh(mergeGeos(lg),'trunk',0,0,0)}
+  for(const [a,b2,c,d] of [[22.6,18.8,23.2,21.2],[28.8,18.8,29.4,21.2],[24.8,16.6,27.2,17.2],[24.8,22.8,27.2,23.4]])B.box(a,0,b2,c,.42,d,{all:'trunk','+y':'stumpTop'});
+  for(const [x,z,id] of [[22.9,17.6,'stump'],[29.1,17.6,'stump'],[22.9,22.4,'stump'],[29.1,22.4,'stump'],[23.6,23.6,'lantern'],[28.6,16.4,'lantern'],[30.2,20,'bucket'],[21.6,19.4,'sleepBag'],[21.6,21,'backpack'],[30.4,21.6,'campCooler']])B.place(id,x,z,(r()-.5)*.8);
+  // ---- tents ----
+  for(const [x,m] of [[18.5,'canvasTent'],[23,'canvasTent2'],[29,'canvasTent'],[33.5,'canvasTent2']]){
+    B.mesh(new THREE.CylinderGeometry(1.1,1.1,2.8,3).rotateX(-Math.PI/2),m,x,.55,6.4);B.box(x-.95,0,5,x+.95,1.6,7.8,m,{invis:true});
+    B.place(pick2(r,['backpack','sleepBag','campCooler','lantern']),x-.6,8.4,r()*6);B.place(pick2(r,['backpack','stump','bucket','lantern']),x+.7,8.6,r()*6)}
+  for(const [x,z,id] of [[16,3,'chairT'],[16.8,2.4,'chairT'],[26,3,'campCooler'],[27.1,2.2,'stump'],[31,2.6,'chairT'],[36,3.4,'barrel'],[40,2.2,'crate'],[41,2.4,'boxL'],[48,3,'tire'],[44,4.4,'trash']])B.place(id,x,z,(r()-.5)*1.2);
+  // ---- picnic tables by the mess hall ----
+  for(const [x,z] of [[6,18.6],[10.6,18.6],[6,23.4],[10.6,23.4],[17,20.8]]){
+    B.box(x-1,.72,z-.4,x+1,.78,z+.4,'woodSlat');for(const s of [-1,1])B.box(x-1,.4,z+s*.62-.13,x+1,.45,z+s*.62+.13,'woodSlat');for(const s of [-1,1])B.box(x+s*.85-.05,0,z-.75,x+s*.85+.05,.72,z+.75,'woodDark');
+    B.place(pick2(r,['cup','lantern','campCooler','books','bucket']),x-.4,z+(r()-.5)*.3,r()*6,.78);if(r()<.6)B.place(pick2(r,['cup','backpack','lantern']),x+.5,z+(r()-.5)*.3,r()*6,.78)}
+  for(const [x,z,id] of [[2,19,'trash'],[2,19.9,'recycle'],[8.2,26.4,'plantS'],[15.6,26.4,'plantS'],[3.6,26.6,'ball'],[14.6,23.6,'bench'],[1.2,24,'wcan'],[19.2,18,'backpack']])B.place(id,x,z,id==='bench'?Math.PI/2:(r()-.5)*.6);
+  // ---- canoe rack by the lake ----
+  for(const x of [2.2,6.8,7.6,12.2])B.box(x-.1,0,13.2,x+.1,.55,13.9,'woodDark');B.box(1.8,.55,13.1,6.9,.85,14,{all:'canoe','-y':'black'});B.box(7.5,.55,13.1,12.6,.85,14,{all:'canoe2','-y':'black'});
+  for(const [x,z,id] of [[4,14.6,'lifeRing'],[9.4,14.8,'bucket2'],[1,14.6,'stump'],[13,14.4,'rope'],[5,13.5,'rope']])B.place(id,x,z,(r()-.5)*.6);
+  // ---- woodpile, flagpole and the sports field ----
+  B.box(48.6,0,16.4,51.6,.9,17.6,{all:'trunk','+x':'stumpTop','-x':'stumpTop'});B.place('stump',48,17.8,0);B.place('stump',47.6,16.4,0);
+  B.box(26.9,0,30.9,27.1,6,31.1,'chrome');B.box(27.1,4.9,30.98,28.6,5.8,31.02,'buoyRed',{ghost:true,ns:true});
+  for(const [x,z,id] of [[44.6,20,'ball'],[45.4,21.2,'ball'],[46,19.4,'ball'],[42,19,'cone'],[42,23,'cone'],[48,23,'cone'],[49.6,26.6,'bench'],[40.6,26.4,'crate'],[41.4,26.6,'boxM'],[24,30.4,'bench'],[29.6,33.2,'trash'],[24.4,38.4,'campCooler'],[30.4,42,'wcan'],[46.6,30.6,'barrel'],[47.4,31.2,'barrel'],[48.8,35,'tire'],[50.6,38.6,'crate'],[23.2,43,'backpack'],[34.4,42.6,'bucket'],[45.2,41.2,'stump']])B.place(id,x,z,id==='bench'?(x>45?-Math.PI/2:0):(r()-.5)*.6);
+  // more camp clutter
+  for(const [x,z,id] of [[20.6,4,'lantern'],[21.2,3.2,'backpack'],[24.6,3.8,'sleepBag'],[30,4.2,'stump'],[34.8,4.4,'campCooler'],[38.6,3.6,'wcan'],[39.4,4.4,'bucket'],[46,2,'ball'],[50,5,'cone'],
+    [22,13,'stump'],[22.8,13.6,'stump'],[23.5,12.9,'lantern'],[31,12.6,'backpack'],[32.4,13.2,'sleepBag'],[34.6,13.6,'campCooler'],[40,29,'trash'],[42.6,41.2,'backpack'],[43.2,41.5,'backpack'],[33,42.6,'tire'],
+    [9,42.2,'trash'],[9.8,42.2,'recycle'],[14,42.5,'crate'],[15,42.6,'barrel'],[15.8,42.9,'barrel'],[19,42.4,'stump'],[1.2,30,'stump'],[1.4,33,'stump'],[2.2,31.6,'lantern'],[1.2,36,'bucket2'],[1.3,38.5,'tire'],
+    [49,33,'sleepBag'],[50.2,33.6,'backpack'],[47,37,'campCooler'],[48.4,38.2,'chairT'],[49.4,38.9,'chairT']])B.place(id,x,z,(r()-.5)*1.2);
+  B.place('bench',34,28.9,0);
+  T.done();
+  const room=hunterRoom(B,-15,20);
+  return B.finish(Object.assign({
+    name:'Camp Pinecrest',short:'Camp',bounds:[0,0,52,44],height:3,outLid:1,sky:'#bfe0f2',fog:['#cfe6ef',50,200],skyCols:['#2f78c8','#80bde8','#d2ecf6'],
+    light:{sky:0xeaf6ff,ground:0x6f8a4a,hemi:.72,sun:1.05,sunColor:0xfff3d8,dir:[.45,1,-.35],amb:.2,exp:1},
+    propSpawns:[[26,25.5],[9,26],[20,15],[31,14],[42,24],[46,34],[27,36],[13,32.9],[38,32.5],[42,12],[16,4.4],[49,10]],
+    hunterSpawns:[[50,18.6],[50,20],[50,21.4],[50,22.8],[48.6,18.6],[48.6,20],[48.6,21.4],[48.6,22.8]],
+  },room));
+}
+
 // menu: where the menu's backdrop camera stands inside the map [x, y, z, the way it faces, how far it turns each way]
 const MAPS=[{name:'Starlight Galleria',short:'Mall',build:buildMall,menu:[30,2.6,22,4.71,.55]},{name:'Willow Lane',short:'House',build:buildHouse,menu:[20,2.1,17,4.71,.4]},{name:'Brightside Office',short:'Office',build:buildOffice,menu:[24,2.2,18,1.57,.5]},
-  {name:'Saltwind Harbor',short:'Harbor',build:buildHarbor,menu:[9,2.3,27,1.1,.6]}];
+  {name:'Saltwind Harbor',short:'Harbor',build:buildHarbor,menu:[9,2.3,27,1.1,.6]},{name:'Camp Pinecrest',short:'Camp',build:buildCamp,menu:[26,2.2,26,3.3,.6]}];
 // Older copies of the page know only the first OLD_MAPS maps (and clamp any other map number to the last of those), so
 // the host only picks a newer map when every page in the room knows it: each page says how many maps it knows in its
 // node (mv; a node without it is an older page, which knows OLD_MAPS).
