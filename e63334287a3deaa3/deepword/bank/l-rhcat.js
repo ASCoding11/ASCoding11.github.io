@@ -1,0 +1,2 @@
+/* Deepword answer data, built by tools/build.js from prompts.js and free data (see tools/SOURCES.md). Do not edit by hand. */
+DW_EXT.add("rhcat","hat;bat;mat;rat;sat;fat;pat;flat;chat;that;splat;spat;brat;vat;gnat;scat;slat;tat;combat;format;acrobat;habitat;thermostat;diplomat;doormat;wombat;cravat;democrat;aristocrat;copycat;bobcat;tomcat;wildcat;nonfat;begat","zfywuow9viuzs4w1uswdm3kimmhvjzepfjasptn5lkfrlwh5mye6bbdfeho8ief0j9hobu");

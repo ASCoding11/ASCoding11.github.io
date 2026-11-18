@@ -1,0 +1,2 @@
+/* Deepword answer data, built by tools/build.js from prompts.js and free data (see tools/SOURCES.md). Do not edit by hand. */
+DW_EXT.add("rhnice","mice;rice;ice;dice;price;slice;twice;spice;lice;vice;advice;device;entice;suffice;splice;thrice;sacrifice;paradise;merchandise;concise;precise;allspice;head lice;dry ice;black ice;shaved ice;on ice;fried rice;brown rice;wild rice;list price;cut price;half price;full price;asking price","xbydzfugy5uzx3r2iekiu8qcf0cwbubbptorjsg2lwcdh5j9hodfi7kukbdyehasmfldfj");

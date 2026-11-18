@@ -1,0 +1,2 @@
+/* Deepword answer data, built by tools/build.js from prompts.js and free data (see tools/SOURCES.md). Do not edit by hand. */
+DW_EXT.add("~532","ice cream;ice;peas;pizza;chicken nuggets;fish fingers;ice lollies;chips;meat;fish;vegetables;fruit;bread;ready meal;hash browns;chicken tenders;ice cream sandwich;ice pack;butter;chocolate;spoon;paratha;venison;batteries;gum;mouse","mawdp6qmlkjfipn0qzwdw0rbvnogh9kvuxgjrooto3clq9ickilx");

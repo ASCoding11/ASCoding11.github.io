@@ -1,0 +1,2 @@
+/* Deepword answer data, built by tools/build.js from prompts.js and free data (see tools/SOURCES.md). Do not edit by hand. */
+DW_EXT.add("countries_8","portugal;thailand;pakistan;colombia;ethiopia;malaysia;bulgaria;slovakia;slovenia;mongolia;sri lanka;cambodia;maldives;tanzania;zimbabwe;botswana;cameroon;djibouti;eswatini;paraguay;suriname;honduras;barbados;dominica;kiribati","xcy5twsat3uqn7j4ibo1e8pnhhlkfvjygoaslkkrd8ouklbmlk");
