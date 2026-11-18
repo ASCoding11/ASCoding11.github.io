@@ -38,7 +38,7 @@
     "Today's mystery country is hidden somewhere on the globe. Make a first guess anywhere.": 'El país misterioso de hoy está escondido en algún lugar del globo. Prueba con cualquier país para empezar.',
     'A random mystery country. Make a first guess anywhere.': 'Un país misterioso al azar. Prueba con cualquier país para empezar.',
     'Show {c} on the globe': 'Mostrar {c} en el globo', 'Found it!': '¡Lo encontraste!', 'Tap again to give up': 'Toca otra vez para rendirte', 'Give up and show it': 'Rendirse y mostrarlo',
-    '<b>{n}</b> guess': '<b>{n}</b> intento', '<b>{n}</b> guesses': '<b>{n}</b> intentos', ' · nearest <b>{d}</b>': ' · el más cerca a <b>{d}</b>',
+    '<b>{n}</b> guess': '<b>{n}</b> intento', '<b>{n}</b> guesses': '<b>{n}</b> intentos', ' · nearest <b>{d}</b>': ' · mín. <b>{d}</b>', 'far': 'lejos', 'near': 'cerca',
     'Found it in {n} guess!': '¡Lo encontraste en {n} intento!', 'Found it in {n} guesses!': '¡Lo encontraste en {n} intentos!', 'It was {c}': 'Era {c}',
     'The mystery country was <b>{c}</b> ({k}).': 'El país misterioso era <b>{c}</b> ({k}).', 'You made {n} guesses. The nearest was {d} away.': 'Hiciste {n} intentos. El más cercano estaba a {d}.',
     'Play unlimited': 'Jugar ilimitado', 'Next country': 'Siguiente país', 'Next in {t}': 'Próximo en {t}',
