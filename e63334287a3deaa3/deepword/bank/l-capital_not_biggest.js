@@ -1,0 +1,2 @@
+/* Deepword answer data, built by tools/build.js from prompts.js and free data (see tools/SOURCES.md). Do not edit by hand. */
+DW_EXT.add("capital_not_biggest","Washington;Canberra;Ottawa;Brasilia;Wellington;Ankara;Bern;New Delhi;Beijing;Abuja;Pretoria;Rabat;Islamabad;Hanoi;Dodoma;Yamoussoukro;Naypyidaw;Astana;Sucre;La Paz;Yaounde;Abu Dhabi;Manila;Valletta;Vaduz;San Marino;Belmopan;Porto-Novo;Gitega;Malabo;Ngerulmud;Palikir;Port of Spain;Mbabane","zyqzuyozo6l6k6w5x5g6j6wdi6s6srsrsrsrsrpdsrsdtdfesrmkp6p6p6p6p6p6ilp6");

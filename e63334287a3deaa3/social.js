@@ -125,6 +125,7 @@
     { k: 'dw', n: 'Deepword', d: 'deepword', room: ROOM },
     { k: 'pf', n: 'Puffer Party', d: 'puffer-party', room: ROOM },
     { k: 'bs', n: 'Blockstorm', d: 'blockstorm', room: ROOM },
+    { k: 'lh', n: 'Lanternhold', d: 'lanternhold', room: ROOM },
     { k: 'tv', n: 'Trivium', d: 'trivium', room: /^[a-z]{5}$/ },
     { k: 'hm', n: 'Hail Mary', d: 'hail-mary' },
     { k: 'qy', n: 'Quarry', d: 'quarry' },

@@ -1,0 +1,2 @@
+/* Deepword answer data, built by tools/build.js from prompts.js and free data (see tools/SOURCES.md). Do not edit by hand. */
+DW_EXT.add("flag_rwb","united states;united kingdom;france;netherlands;russia;australia;new zealand;norway;iceland;thailand;cuba;chile;czech republic;slovakia;luxembourg;costa rica;panama;north korea;taiwan;croatia;serbia;cambodia;laos;nepal;samoa;liberia;slovenia;paraguay;dominican republic","zyy1vgptt0xiuyubsdvlp6wvongyeepyktpamqivjikaeijndvggd8fsid");

@@ -1,0 +1,2 @@
+/* Deepword answer data, built by tools/build.js from prompts.js and free data (see tools/SOURCES.md). Do not edit by hand. */
+DW_EXT.add("w_novowels","cry;dry;fly;sky;try;why;shy;fry;gym;rhythm;spy;thy;hymn;lynx;myth;crypt;cyst;hmm;hymns;lymph;myths;nymph;ply;rhythms;sly;sync;cysts;nymphs;pry;psych;pygmy;wry;crypts;dryly;flyby;gyms;myrrh;nth;shh;shyly;slyly;spry;ssh;synth;synths;wryly","jlyrzkzyycz5w5ukvdtdvrprn6j6t6msl6pzorgsryislzqrsdodhsiznrkkdslsesdzeenkblgdmslkhzdlasgsb7cs");

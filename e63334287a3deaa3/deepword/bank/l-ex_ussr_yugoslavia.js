@@ -1,0 +1,2 @@
+/* Deepword answer data, built by tools/build.js from prompts.js and free data (see tools/SOURCES.md). Do not edit by hand. */
+DW_EXT.add("ex_ussr_yugoslavia","russia;ukraine;croatia;serbia;kazakhstan;georgia;belarus;estonia;latvia;lithuania;slovenia;bosnia and herzegovina;uzbekistan;armenia;azerbaijan;moldova;montenegro;north macedonia;kosovo;turkmenistan;kyrgyzstan;tajikistan","z3vorbs6iruqqgntjir8m3unhtiokdmydgrzjfebcluk");
