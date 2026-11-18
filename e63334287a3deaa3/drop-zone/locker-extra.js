@@ -371,7 +371,7 @@ const tTex=(()=>{const S=64,c=document.createElement('canvas');c.width=S*4;c.hei
 const tMat=new THREE.ShaderMaterial({transparent:true,depthWrite:false,fog:true,
   uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{map:{value:null},uScale:{value:400}}]),
   vertexShader:'attribute float size;attribute vec4 pdat;attribute vec3 pcol;uniform float uScale;varying vec3 vC;varying vec4 vD;\n#include <fog_pars_vertex>\nvoid main(){vec4 mvPosition=modelViewMatrix*vec4(position,1.);gl_Position=projectionMatrix*mvPosition;float d=-mvPosition.z;'
-    +'gl_PointSize=clamp(size*uScale/max(d,.1),1.,180.);vC=pcol;vD=pdat;vD.z*=smoothstep(2.,5.,d);\n#include <fog_vertex>\n}',
+    +'gl_PointSize=clamp(size*uScale/max(d,.1),1.,180.);vC=pcol;vD=pdat;vD.z*=smoothstep(1.2,3.,d);\n#include <fog_vertex>\n}',
   fragmentShader:'uniform sampler2D map;varying vec3 vC;varying vec4 vD;\n#include <fog_pars_fragment>\nvoid main(){vec2 q=gl_PointCoord-.5;float c=cos(vD.y),s=sin(vD.y);q=vec2(c*q.x-s*q.y,s*q.x+c*q.y)+.5;'
     +'if(q.x<0.||q.y<0.||q.x>1.||q.y>1.)discard;vec2 o=vec2(mod(vD.x,4.),floor(vD.x/4.));vec4 t=texture2D(map,(o+vec2(q.x,1.-q.y))/vec2(4.,2.));gl_FragColor=vec4(vC*t.rgb,t.a*vD.z);if(gl_FragColor.a<.01)discard;\n#include <fog_fragment>\n}'});
 tMat.uniforms.map.value=tTex;
@@ -385,9 +385,9 @@ const TRAILS=[null,
   {sp:3,cols:[0xffffff,0xf4efe2,0xe6e8ee],s0:.55,s1:.55,life:2.2,rate:12,a:1,spread:.5,vy:-1.2,spin:3},
   {sp:4,cols:[0xe8782e,0xd9442f,0xf2b632,0x8bb04a],s0:.5,s1:.5,life:2.2,rate:12,a:1,spread:.5,vy:-1.4,spin:4},
   {sp:5,cols:[0xcff6ff,0xffffff,0xd9ecff,0xf2d9ff],s0:.25,s1:.48,life:1.6,rate:20,a:.95,spread:.45,vy:1.2,pop:1}];
-function emit(T,x,y,z,col,vx,vy,vz){
+function emit(T,x,y,z,col,vx,vy,vz,cx,cy,cz){
   if(tp.n>=TCAP)return;const i=tp.n++;_c.setHex(col);
-  tp.x[i*3]=x;tp.x[i*3+1]=y;tp.x[i*3+2]=z;tp.v[i*3]=vx;tp.v[i*3+1]=vy;tp.v[i*3+2]=vz;tp.c[i*3]=_c.r;tp.c[i*3+1]=_c.g;tp.c[i*3+2]=_c.b;
+  tp.x[i*3]=x;tp.x[i*3+1]=y;tp.x[i*3+2]=z;tp.v[i*3]=vx+(cx||0);tp.v[i*3+1]=vy+(cy||0);tp.v[i*3+2]=vz+(cz||0);tp.c[i*3]=_c.r;tp.c[i*3+1]=_c.g;tp.c[i*3+2]=_c.b;
   tp.age[i]=0;tp.life[i]=T.life*(.8+Math.random()*.4);tp.s0[i]=T.s0;tp.s1[i]=T.s1;tp.a0[i]=T.a;tp.vr[i]=T.spin?(Math.random()-.5)*T.spin:0;tp.k[i]=TRAILS.indexOf(T);
   tp.d[i*4]=T.sp;tp.d[i*4+1]=Math.random()*TAU;tp.d[i*4+2]=0;tp.s[i]=T.s0;
 }
@@ -396,6 +396,7 @@ function tStep(dt){
   for(let i=0;i<tp.n;i++){const a=tp.age[i]+dt;if(a>=tp.life[i])continue;
     if(w!==i){for(const [A,n] of [[tp.x,3],[tp.v,3],[tp.c,3],[tp.d,4]])for(let k=0;k<n;k++)A[w*n+k]=A[i*n+k];tp.life[w]=tp.life[i];tp.s0[w]=tp.s0[i];tp.s1[w]=tp.s1[i];tp.a0[w]=tp.a0[i];tp.vr[w]=tp.vr[i];tp.k[w]=tp.k[i]}
     const T=TRAILS[tp.k[w]],f=a/tp.life[w];tp.age[w]=a;
+    const dr=Math.exp(-dt*2.2);tp.v[w*3]*=dr;tp.v[w*3+1]*=dr;tp.v[w*3+2]*=dr;   // drag: they set off with most of the body's speed and fall behind
     tp.x[w*3]+=tp.v[w*3]*dt;tp.x[w*3+1]+=tp.v[w*3+1]*dt;tp.x[w*3+2]+=tp.v[w*3+2]*dt;
     if(T.spin){tp.x[w*3]+=Math.sin(a*3+w)*dt*.6;tp.d[w*4+1]+=tp.vr[w]*dt}
     tp.s[w]=tp.s0[w]+(tp.s1[w]-tp.s0[w])*f;
@@ -409,10 +410,10 @@ function trailFrom(e,T,dt,acc,wing){
   e.lxAcc=(e.lxAcc||0)+dt*T.rate*(G.low?.6:1);
   const m=e.model,yaw=e.yaw||0,rx=Math.cos(yaw),rz=-Math.sin(yaw);
   while(e.lxAcc>=1){e.lxAcc-=1;
-    const pts=wing?[-1.45,1.45]:[0];
+    const pts=wing?[-1.45,1.45]:[-.55,.55],k=.8,cx=e.vel.x*k,cy=e.vel.y*k,cz=e.vel.z*k;
     for(const o of pts){const bx=e.pos.x+rx*o*G.BS,by=e.pos.y+(wing?2.2:1.0),bz=e.pos.z+rz*o*G.BS;
-      if(T.band){for(let k=0;k<6;k++){const off=(k-2.5)*.16;emit(T,bx+rx*off,by-(wing?0:0),bz+rz*off,T.cols[k],0,.1,0)}continue}
-      const sp=T.spread;emit(T,bx+(Math.random()-.5)*sp,by+(Math.random()-.5)*sp,bz+(Math.random()-.5)*sp,T.cols[Math.floor(Math.random()*T.cols.length)],(Math.random()-.5)*.8,T.vy+(Math.random()-.5)*.4,(Math.random()-.5)*.8)}
+      if(T.band){for(let j=0;j<6;j++){const off=(j-2.5)*.16;emit(T,bx+rx*off,by,bz+rz*off,T.cols[j],0,.1,0,cx,cy,cz)}continue}
+      const sp=T.spread;emit(T,bx+(Math.random()-.5)*sp,by+(Math.random()-.5)*sp,bz+(Math.random()-.5)*sp,T.cols[Math.floor(Math.random()*T.cols.length)],(Math.random()-.5)*.8,T.vy+(Math.random()-.5)*.4,(Math.random()-.5)*.8,cx,cy,cz)}
   }
 }
 
@@ -728,7 +729,7 @@ function dispMat(n){if(!dmats[n]){const t=new THREE.CanvasTexture(tileCanvas(n))
 function makeDisp(){const g=new THREE.Group();const w=new THREE.Mesh(G.geoPWall,G.plyMat);w.position.set(-1.2,2,1.6);const f=new THREE.Mesh(G.geoPFloor,G.plyMat);f.position.set(.4,.12,1.6);f.scale.set(.6,1,.6);
   const r=new THREE.Mesh(G.geoPRamp,G.plyMat);r.position.set(2.4,1.2,0);r.rotation.set(-Math.PI/4,Math.PI/2,0,'YXZ');r.scale.set(.6,1,.6);g.add(w,f,r);g.visible=false;G.scene.add(g);return g}
 
-return{emote,EMOTES,VICTORIES,startEmote,stopEmote,pack,dress,tick,gunReset,gunIM,gunDone,bsOf,bsk,bsCol,botLx,menu,shown,stage,gstyle,HOLDS,
+return{pick,emote,EMOTES,VICTORIES,startEmote,stopEmote,pack,dress,tick,gunReset,gunIM,gunDone,bsOf,bsk,bsCol,botLx,menu,shown,stage,gstyle,HOLDS,
   // for tests and contact sheets
   parse,str,GLIDER_NAMES,TRAIL_NAMES,WRAP_NAMES,BUILD_NAMES,gliderOf,gliderSkin,gunMesh,GLX,GSK,tp,TRAILS,emit,buildTex,tileCanvas,setTab,get tab(){return tab},gT,uT,gliderPic,gunPic};
 };
