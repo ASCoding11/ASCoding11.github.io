@@ -461,7 +461,7 @@
       'What\'s new': 'Novedades', ' (new)': ' (nuevo)', 'New game': 'Juego nuevo', 'Update': 'Actualización', 'Bug fix': 'Arreglos',
       'Coming soon': 'Muy pronto', 'Today': 'Hoy', 'Yesterday': 'Ayer', 'New game!': '¡Juego nuevo!', 'New games!': '¡Juegos nuevos!', 'New games': 'Juegos nuevos',
       'Show older': 'Ver anteriores', 'Show older (1 more day)': 'Ver anteriores (1 día más)', 'Show older ({n} more days)': 'Ver anteriores ({n} días más)',
-      'At a glance': 'De un vistazo', 'Hide this': 'Ocultar', 'Sponsored': 'Patrocinado', 'Learn more': 'Más info',
+      'At a glance': 'De un vistazo', 'Hide this': 'Ocultar', 'Open': 'Abrir', 'Sponsored': 'Patrocinado', 'Learn more': 'Más info',
       'Ad for {n}: {l} {b} (opens in a new tab)': 'Anuncio de {n}: {l} {b} (se abre en una pestaña nueva)',
       'Ad for {n}. {b} (opens in a new tab)': 'Anuncio de {n}. {b} (se abre en una pestaña nueva)',
       // The spotlight and the ads' own words (brand names stay as they are).
