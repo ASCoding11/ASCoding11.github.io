@@ -50,7 +50,12 @@
     // The top bar's theme switch (theme.js) and sign-in link (account/account.js) show on this page too.
     'Auto': 'Auto', 'follows this device': 'sigue a este dispositivo', 'Light': 'Claro', 'Dark': 'Oscuro',
     'Theme: Auto (follows this device)': 'Tema: Auto (sigue a este dispositivo)', 'Theme: Light': 'Tema: Claro', 'Theme: Dark': 'Tema: Oscuro',
-    'Sign in': 'Iniciar sesión', 'Main site': 'Sitio principal', 'Privacy': 'Privacidad'
+    'Sign in': 'Iniciar sesión', 'Main site': 'Sitio principal', 'Privacy': 'Privacidad', 'Signed in': 'Sesión iniciada',
+    'Your browser blocked the sign-in window. Allow pop-ups for this site and try again.': 'Tu navegador bloqueó la ventana para iniciar sesión. Permite las ventanas emergentes de este sitio y vuelve a intentarlo.',
+    'Sign-in isn’t set up for this address yet.': 'El inicio de sesión todavía no está configurado para esta dirección.',
+    'Couldn’t reach Google. Check your connection and try again.': 'No se pudo llegar a Google. Revisa tu conexión y vuelve a intentarlo.',
+    'Sign-in didn’t work. Please try again.': 'No se pudo iniciar sesión. Vuelve a intentarlo.', 'Ready — tap Sign in again.': 'Listo: vuelve a tocar Iniciar sesión.',
+    'Couldn’t load sign-in. Check your connection.': 'No se pudo cargar el inicio de sesión. Revisa tu conexión.'
   });
   // "4 games", "57 levels"... as exact words for every number up to 99, not a {n} pattern, which would also match any
   // sentence that ends in "games".
