@@ -290,7 +290,7 @@ body.touch #ctfBar{top:calc(76px + env(safe-area-inset-top,0px));transform:trans
 body.touch #feed{top:calc(96px + env(safe-area-inset-top,0px));right:calc(10px + env(safe-area-inset-right,0px));font-size:12px;max-width:46vw}
 body.touch #feed .k:nth-child(n+4){display:none}
 @media (orientation:landscape) and (max-height:440px){body.touch #feed .k:nth-child(n+3){display:none}}
-body.touch #spawnProt,body.touch #lowhp{bottom:auto;top:40%}
+body.touch #spawnProt,body.touch #lowhp{bottom:auto;top:40%;white-space:nowrap}
 body.touch #centerMsg{top:24%;font-size:13px;white-space:normal;width:min(92vw,520px)}
 body.touch #tabboard{max-height:calc(100% - 20px);overflow:auto}
 body.touch #death h2{font-size:16px}
@@ -1877,7 +1877,8 @@ async function netJoin(room, isPublic) {
   r.players.once('value').then(() => { if (NET.refs === r) NET.loaded = true; }, () => { });
   clearInterval(NET.pubTimer); NET.pubTimer = setInterval(netPubTick, 25);
   clearInterval(NET.tickTimer); NET.tickTimer = setInterval(netTick250, 250);
-  try { if (!isPublic) history.replaceState(null, '', '#' + room); } catch (e) { }
+  // the room goes in the address (#bs-<code>), public lobbies too, so the Back Room's Online panel can find it and let people join
+  try { history.replaceState(null, '', '#' + room); } catch (e) { }
 }
 async function netCount(room) {
   const s = await NET.db.ref('rooms/' + room + '/players').once('value'); let n = 0;
@@ -3900,7 +3901,7 @@ async function boot() {
   showScreen('main'); updateBadge();
   addEventListener('pagehide', () => netLeave());
   frame();
-  if (navigator.webdriver) window.__bs = { G, NET, startMatch, hostStartMatch, NODES, BRIDGES, COL, findPath, nearestNode, get renderer() { return renderer; }, get scene() { return scene; }, get camera() { return camera; }, updateBot, joinRoomCode, quickMatch, setTouchUI, charById, CTF };
+  if (navigator.webdriver) window.__bs = { G, NET, startMatch, hostStartMatch, NODES, BRIDGES, COL, findPath, nearestNode, get renderer() { return renderer; }, get scene() { return scene; }, get camera() { return camera; }, updateBot, joinRoomCode, quickMatch, setTouchUI, charById, CTF, losClear, onFloor, TOWERS };
 }
 boot().catch(e => { console.error(e); const l = $('#loading'); if (l) l.innerHTML = '<div>COULD NOT START: ' + esc(e.message) + '</div>'; });
 
