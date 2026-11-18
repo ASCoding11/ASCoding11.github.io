@@ -1,0 +1,36 @@
+/* Melon Merge: Spanish words for this game (see /e63334287a3deaa3/lang.js). English stays exactly as it is when the language is English. */
+window.BackRoomLang && BackRoomLang.add({
+  'Melon Merge jar': 'Frasco de Melon Merge', '‹ Back': '‹ Volver', 'Sound on': 'Sonido activado', 'Sound off': 'Sonido desactivado',
+  'Sound (M)': 'Sonido (M)', 'Pause (Esc)': 'Pausa (Esc)', 'Restart': 'Reiniciar', 'Restart (R)': 'Reiniciar (R)',
+  'Drop · merge · grow': 'Suelta · une · crece',
+  'Drop fruit into the jar. Two of the same fruit squish together into the next one up, from a tiny cherry all the way to a watermelon. Keep the pile under the red line.': 'Suelta frutas en el frasco. Dos frutas iguales se aplastan y forman la siguiente, desde una cerecita hasta una sandía. Mantén la pila debajo de la línea roja.',
+  'Drop dinner into the jar. Two of the same dish squish together into the next one up, from a tiny cranberry all the way to the turkey. Keep the pile under the red line.': 'Suelta la cena en el frasco. Dos platos iguales se aplastan y forman el siguiente, desde un arándano rojo hasta el pavo. Mantén la pila debajo de la línea roja.',
+  'Best score on this device:': 'Récord en este dispositivo:', 'Paused': 'En pausa', 'Score {n}': 'Puntos {n}', 'Back to games': 'Volver a los juegos',
+  'Faces: on': 'Caritas: sí', 'Faces: off': 'Caritas: no', 'Start over?': '¿Empezar de nuevo?', 'This jar and its score of': 'Se perderán este frasco y sus',
+  'will be lost.': 'puntos.', 'Start over': 'Empezar de nuevo', 'Keep playing': 'Seguir jugando', 'Game over': 'Fin del juego',
+  'The jar overflowed': 'El frasco se desbordó', "Jar's full!": '¡Frasco lleno!', 'Biggest:': 'La más grande:', 'New best': 'Nuevo récord', 'Merges': 'Uniones',
+  'The goal': 'El objetivo',
+  'Drop fruit into the jar. When two of the same fruit touch, they merge into the next fruit up. Merges set off more merges, and every merge in a chain scores.': 'Suelta frutas en el frasco. Cuando dos frutas iguales se tocan, se unen en la fruta siguiente. Una unión desata otras, y cada unión de la cadena suma puntos.',
+  'Fruit, smallest to biggest': 'Frutas, de la más chica a la más grande',
+  'Cherry, strawberry, grape, tangerine, persimmon, apple, pear, peach, pineapple, melon, watermelon. You only ever get the first five to drop.': 'Cereza, frutilla, uva, mandarina, caqui, manzana, pera, durazno, ananá, melón, sandía. Solo te tocan las primeras cinco para soltar.',
+  'Cranberry, pecan, sprout, dinner roll, yam, apple, corn, ham, pumpkin, pumpkin pie, turkey. You only ever get the first five to drop.': 'Arándano rojo, nuez pecán, repollito, pancito, batata, manzana, choclo, jamón, calabaza, pastel de calabaza, pavo. Solo te tocan los primeros cinco para soltar.',
+  'Points per merge': 'Puntos por unión', 'Two': 'Dos', 'watermelons': 'sandías', 'turkeys': 'pavos', 'that touch burst for a': 'que se tocan explotan y dan un bono de',
+  'bonus and leave room in the jar.': 'y dejan lugar en el frasco.',
+  "If any fruit sits above the red dashed line for a second and a half, the jar overflows. A fruit you just dropped doesn't count while it's falling in.": 'Si alguna fruta queda encima de la línea roja punteada durante un segundo y medio, el frasco se desborda. La fruta que acabas de soltar no cuenta mientras cae.',
+  'MOUSE': 'MOUSE', 'Move to aim, click to drop': 'Muévelo para apuntar, haz clic para soltar', 'Aim with the keyboard': 'Apunta con el teclado',
+  'Drop': 'Soltar', 'SPACE': 'ESPACIO', 'Sound on / off': 'Sonido sí / no', 'DRAG': 'ARRASTRA', 'Slide your finger to aim': 'Desliza el dedo para apuntar',
+  'LIFT': 'LEVANTA', 'Let go to drop': 'Suelta el dedo para soltar', 'Got it': 'Entendido', 'Change keys': 'Cambiar teclas',
+  'Aim left': 'Apuntar a la izquierda', 'Aim right': 'Apuntar a la derecha',
+  'Drag to aim · lift your finger to drop': 'Arrastra para apuntar · levanta el dedo para soltar',
+  'Move to aim · click or {k} to drop': 'Mueve para apuntar · clic o {k} para soltar',
+  'Melon burst!': '¡Explotó el melón!', '+{n} bonus': 'bono +{n}',
+  'Your first one this game. Touch two together for a +{n} bonus.': 'Tu primera en esta partida. Junta dos para un bono de +{n}.',
+  'Language': 'Idioma',
+  // drawn on the canvas
+  'SCORE': 'PUNTOS', 'BEST': 'RÉCORD', 'NEXT': 'SIGUE',
+  // fruit and dinner
+  'Cherry': 'Cereza', 'Strawberry': 'Frutilla', 'Grape': 'Uva', 'Tangerine': 'Mandarina', 'Persimmon': 'Caqui', 'Apple': 'Manzana', 'Pear': 'Pera',
+  'Peach': 'Durazno', 'Pineapple': 'Ananá', 'Melon': 'Melón', 'Watermelon': 'Sandía',
+  'Cranberry': 'Arándano rojo', 'Pecan': 'Nuez pecán', 'Sprout': 'Repollito', 'Dinner roll': 'Pancito', 'Yam': 'Batata', 'Corn': 'Choclo', 'Ham': 'Jamón',
+  'Pumpkin': 'Calabaza', 'Pumpkin pie': 'Pastel de calabaza', 'Turkey': 'Pavo'
+});

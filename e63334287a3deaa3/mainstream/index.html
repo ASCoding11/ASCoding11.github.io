@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script src="/e63334287a3deaa3/lang.js"></script>
+<script src="/e63334287a3deaa3/mainstream/es.js"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
 <title>Mainstream</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -91,6 +93,7 @@
 .board li.me i{background:linear-gradient(90deg,rgba(255,209,102,.42),rgba(255,209,102,.14))}
 .board li.me .rk,.board li.me em{color:var(--sun)}
 .board li.me .an::after{content:' · you';color:var(--sun);letter-spacing:.08em;font-size:11px}
+html[lang="es"] .board li.me .an::after{content:' · tú'} /* Spanish (lang.js sets <html lang>) */
 .board li.off{background:none;box-shadow:inset 0 0 0 1px var(--line)}
 .board.in li{animation:row .28s ease-out backwards}
 @keyframes row{from{opacity:0;transform:translateY(6px)}}
@@ -203,7 +206,10 @@ const PASS = 1000;                                       // a daily run at or ab
 const BANDS = [[1900, 'Pure mainstream'], [1700, 'Full flow'], [1400, 'Main current'], [1000, 'In the flow'], [500, 'Backwater'], [0, 'Up the creek']];
 const bandOf = t => BANDS.findIndex(b => t >= b[0]);     // 0 is the best band
 const EMO = r => r === 1 ? '🌊' : r >= 2 && r <= 3 ? '🔵' : r >= 4 && r <= 6 ? '🟢' : r >= 7 ? '🟡' : r === 0 ? '⚪' : '⚫';
-const fmt = n => Math.round(n).toLocaleString('en-US');
+// Language (lang.js): Mainstream's own words are in es.js and text built in code goes through TR(); the prompts and
+// answers come from Deepword's English bank and stay English (data-noi18n). The page is redrawn on a language switch.
+const TR = window.BackRoomLang ? BackRoomLang.t : (s, v) => s.replace(/\{(\w+)\}/g, (m, n) => v && v[n] != null ? v[n] : m);
+const fmt = n => Math.round(n).toLocaleString(window.BackRoomLang ? BackRoomLang.locale() : 'en-US');
 const reduced = () => { try { return matchMedia('(prefers-reduced-motion:reduce)').matches; } catch (e) { return false; } };
 
 // =====================================================================
@@ -363,21 +369,21 @@ function cleanRes(a, n) {
 // =====================================================================
 //  The page
 // =====================================================================
-const HOW = '<p>Ten prompts. For each one, type the answer you think <b>most people</b> would give.</p>' +
-  '<ul><li>You get <b>' + SECS + ' seconds</b> a prompt. If your answer isn\'t one we accept, try another while the clock runs. Your <b>first accepted answer is final</b>. You can pass.</li>' +
-  '<li>Every prompt has a board of its <b>ten most common answers</b>. Here is what each place scores:</li></ul>' +
+const HOW = () => TR('<p>Ten prompts. For each one, type the answer you think <b>most people</b> would give.</p>') +
+  TR('<ul><li>You get <b>{s} seconds</b> a prompt. If your answer isn\'t one we accept, try another while the clock runs. Your <b>first accepted answer is final</b>. You can pass.</li>', { s: SECS }) +
+  TR('<li>Every prompt has a board of its <b>ten most common answers</b>. Here is what each place scores:</li></ul>') +
   '<div class="pts">' + PTS.map((p, i) => '<span>#' + (i + 1) + '<b>' + p + '</b></span>').join('') + '</div>' +
-  '<ul><li>An accepted answer that isn\'t on the board scores <b>' + OFF + '</b>. A pass, or running out of time, scores <b>0</b>.</li>' +
-  '<li>The river gets wider as it goes: prompts 1 to 3 count <b>×1</b>, 4 to 7 <b>×2</b> and 8 to 10 <b>×3</b>, so the ending matters most. A perfect run is <b>' + fmt(MAX) + '</b>.</li>' +
-  '<li>Score <b>' + fmt(PASS) + '</b> or more in the daily run to keep your streak going.</li></ul>' +
-  '<p><b>The boards are our own prepared estimates</b> of what most people would say. They are not survey results, and they are not what other players answered.</p>' +
-  '<p>The clock stops while this window is open or the tab is hidden. If time runs out with an accepted answer still in the box, it counts.</p>' +
-  '<p>Would you sooner find the answer nobody else thinks of? <a href="/e63334287a3deaa3/deepword/">Deepword</a> is this game turned upside down.</p>';
+  TR('<ul><li>An accepted answer that isn\'t on the board scores <b>{o}</b>. A pass, or running out of time, scores <b>0</b>.</li>', { o: OFF }) +
+  TR('<li>The river gets wider as it goes: prompts 1 to 3 count <b>×1</b>, 4 to 7 <b>×2</b> and 8 to 10 <b>×3</b>, so the ending matters most. A perfect run is <b>{m}</b>.</li>', { m: fmt(MAX) }) +
+  TR('<li>Score <b>{p}</b> or more in the daily run to keep your streak going.</li></ul>', { p: fmt(PASS) }) +
+  TR('<p><b>The boards are our own prepared estimates</b> of what most people would say. They are not survey results, and they are not what other players answered.</p>') +
+  TR('<p>The clock stops while this window is open or the tab is hidden. If time runs out with an accepted answer still in the box, it counts.</p>') +
+  TR('<p>Would you sooner find the answer nobody else thinks of? <a href="/e63334287a3deaa3/deepword/">Deepword</a> is this game turned upside down.</p>');
 const DIST = BANDS.map((b, i) => [String(i), b[1]]);
 let st = null;
 const T = { left: SECS * 1000, last: 0, raf: 0, shown: -1 };
 const S = K.shell({
-  slug: SLUG, name: NAME, how: HOW, dist: DIST, distTitle: 'Daily runs by result', winLabel: fmt(PASS) + '+ %',
+  slug: SLUG, name: NAME, how: { toString: HOW }, dist: DIST, distTitle: 'Daily runs by result', winLabel: fmt(PASS) + '+ %',
   foot: ' Here that means the prompts and the boards: the boards are estimates, not survey results.',
   extra: () => { const s = loadStats(); return h('div', { class: 'st3' }, [
     h('div', { html: '<b>' + fmt(s.best) + '</b><small>Best daily score</small>' }),
@@ -410,14 +416,14 @@ function drawRiver(fresh) {
     if (r) {
       if (r.r >= 0) svg += '<polygon class="w' + (fresh === k && !reduced() ? ' in' : '') + '" points="' + seg(k, Math.max(.1, (r.r >= 1 ? PTS[r.r - 1] : OFF) / PTS[0])) + '"/>';
       else svg += '<polyline class="dry" points="' + mid(k) + '"/>';
-      said.push(r.r >= 1 ? 'number ' + r.r : r.r === 0 ? 'off the board' : r.r === -1 ? 'passed' : 'out of time');
+      said.push(r.r >= 1 ? TR('number {n}', { n: r.r }) : TR(r.r === 0 ? 'off the board' : r.r === -1 ? 'passed' : 'out of time'));
     }
   }
   river.innerHTML = svg;
-  river.setAttribute('aria-label', 'Your run: ' + (said.length ? said.length + ' of ' + RUN + ' prompts answered. Places so far: ' + said.join(', ') + '.' : 'not started. The river widens as later prompts are worth more.'));
+  river.setAttribute('aria-label', said.length ? TR('Your run: {a} of {b} prompts answered. Places so far: {c}.', { a: said.length, b: RUN, c: said.join(', ') }) : TR('Your run: not started. The river widens as later prompts are worth more.'));
   reach.innerHTML = '';
   let from = 0;
-  REACH.forEach(z => { const on = cur >= from && cur < from + z[2]; reach.appendChild(h('span', { class: on ? 'on' : '', style: 'flex:' + z[2], html: z[0] + ' <b>×' + z[1] + '</b>' })); from += z[2]; });
+  REACH.forEach(z => { const on = cur >= from && cur < from + z[2]; reach.appendChild(h('span', { class: on ? 'on' : '', style: 'flex:' + z[2], html: TR(z[0]) + ' <b>×' + z[1] + '</b>' })); from += z[2]; });
 }
 
 // ---- the clock: only counts while the page is on screen and no window is open
@@ -437,7 +443,7 @@ function paintClock() {
   c.querySelector('i').style.transform = 'scaleX(' + (left / (SECS * 1000)).toFixed(4) + ')';
   if (secs !== T.shown) {
     T.shown = secs; c.querySelector('.secs').textContent = secs; c.classList.toggle('low', secs <= 10);
-    c.setAttribute('aria-label', secs + ' seconds left');
+    c.setAttribute('aria-label', TR('{n} seconds left', { n: secs }));
     saveDay();
   }
 }
@@ -482,7 +488,7 @@ function submit() {
   const hit = judge(p, text);
   if (!hit) {
     st.tries++;
-    $('msg').textContent = '“' + text.trim().slice(0, 40) + '” isn\'t an answer we accept here. Try another.';
+    $('msg').textContent = TR('“{a}” isn\'t an answer we accept here. Try another.', { a: text.trim().slice(0, 40) });
     inp.classList.remove('no'); void inp.offsetWidth; inp.classList.add('no');
     focusAns(); try { inp.select(); } catch (e) {}
     return;
@@ -524,48 +530,48 @@ function finish() {
 }
 function shareText() {
   const t = total();
-  return K.shareText(NAME, K.dayNum(st.day || K.today()), fmt(t) + '/' + fmt(MAX) + ' · ' + BANDS[bandOf(t)][1], st.res.map(x => EMO(x.r)).join(''), st.mode);
+  return K.shareText(NAME, K.dayNum(st.day || K.today()), fmt(t) + '/' + fmt(MAX) + ' · ' + TR(BANDS[bandOf(t)][1]), st.res.map(x => EMO(x.r)).join(''), st.mode).replace(' (unlimited)', ' ' + TR('(unlimited)')).replace(' (preview)', ' ' + TR('(preview)'));
 }
 
 // ---- drawing
-const placeText = r => r === 1 ? 'Top answer' : r >= 2 ? '#' + r + ' on the board' : r === 0 ? 'Accepted, but not on the board' : r === -1 ? 'Passed' : 'Out of time';
+const placeText = r => r >= 2 ? TR('#{n} on the board', { n: r }) : TR(r === 1 ? 'Top answer' : r === 0 ? 'Accepted, but not on the board' : r === -1 ? 'Passed' : 'Out of time');
 function boardEl(p, k, res, anim) {
-  const ol = h('ol', { class: 'board' + (anim && !reduced() ? ' in' : ''), 'aria-label': 'The board: the ten most common answers, by our estimate' });
+  const ol = h('ol', { class: 'board' + (anim && !reduced() ? ' in' : ''), 'aria-label': TR('The board: the ten most common answers, by our estimate'), 'data-noi18n': '' });
   p.board.forEach((a, i) => {
     const li = h('li', { class: res && res.r === i + 1 ? 'me' : '', style: '--w:' + PTS[i] + '%' + (anim ? ';animation-delay:' + ((RUN - 1 - i) * 55) + 'ms' : '') }, [
       h('i'), h('span', { class: 'rk', text: String(i + 1) }), h('span', { class: 'an', text: a }), h('em', { text: fmt(PTS[i] * MULT[k]) })]);
-    if (res && res.r === i + 1) li.setAttribute('aria-label', (i + 1) + ', ' + a + ', your answer, ' + PTS[i] * MULT[k] + ' points');
+    if (res && res.r === i + 1) li.setAttribute('aria-label', TR('{n}, {a}, your answer, {p} points', { n: i + 1, a: a, p: PTS[i] * MULT[k] }));
     ol.appendChild(li);
   });
   if (res && res.r === 0) ol.appendChild(h('li', { class: 'off me', style: '--w:0%' + (anim ? ';animation-delay:' + (RUN * 55) + 'ms' : '') }, [h('i'), h('span', { class: 'rk', text: '–' }), h('span', { class: 'an', text: res.a }), h('em', { text: fmt(OFF * MULT[k]) })]));
   return ol;
 }
-const EST = 'The board is our prepared estimate of what most people would say, not a survey.';
+const EST = () => TR('The board is our prepared estimate of what most people would say, not a survey.');
 function render(fresh) {
   drawRiver(fresh);
   stage.innerHTML = '';
   wrap.classList.toggle('asking', st.phase === 'ask');
   const n = st.picks.length;
   if (n < RUN) { stage.appendChild(h('div', { class: 'card intro' }, [h('h2', { text: 'The prompts didn\'t load' }), h('p', { text: 'Check your connection and reload the page.' })])); mb.info.textContent = ''; return; }
-  mb.info.innerHTML = st.phase === 'intro' && !st.res.length ? '' : '<b>' + fmt(total()) + '</b> pts';
+  mb.info.innerHTML = st.phase === 'intro' && !st.res.length ? '' : '<b>' + fmt(total()) + '</b> ' + TR('pts');
 
   if (st.phase === 'intro') {
     const daily = st.mode === 'daily', going = st.res.length > 0 || st.left != null;
     const btn = h('button', { type: 'button', class: 'cta', id: 'go', text: going ? 'Carry on' : daily ? 'Start today\'s run' : 'Start a practice run' });
     btn.addEventListener('click', () => ask(st.res.length));
     stage.appendChild(h('div', { class: 'card intro' }, [
-      h('div', { class: 'meta' }, [h('span', { text: daily ? 'Daily run' : 'Practice run' }), h('span', { text: RUN + ' prompts · ' + SECS + ' s each' })]),
-      h('h2', { text: going ? 'Prompt ' + (st.res.length + 1) + ' of ' + RUN + ' is next' : 'What would most people say?' }),
-      going ? h('p', { html: (st.left != null ? 'You left in the middle of a prompt. Its clock picks up with <b>' + Math.ceil(st.left / 1000) + ' seconds</b> left. ' : '') + 'You have <b>' + fmt(total()) + '</b> points so far.' })
-        : h('p', { html: 'Type the answer you think <b>most people</b> would give. The top answer on each board scores most, and later prompts count double, then triple.' + (daily ? '' : ' Practice runs are random and never touch your daily record.') }),
+      h('div', { class: 'meta' }, [h('span', { text: daily ? 'Daily run' : 'Practice run' }), h('span', { text: TR('{n} prompts · {s} s each', { n: RUN, s: SECS }) })]),
+      h('h2', { text: TR(going ? 'Prompt {a} of {b} is next' : 'What would most people say?', { a: st.res.length + 1, b: RUN }) }),
+      going ? h('p', { html: (st.left != null ? TR('You left in the middle of a prompt. Its clock picks up with <b>{n} seconds</b> left.', { n: Math.ceil(st.left / 1000) }) + ' ' : '') + TR('You have <b>{p}</b> points so far.', { p: fmt(total()) }) })
+        : h('p', { html: TR('Type the answer you think <b>most people</b> would give. The top answer on each board scores most, and later prompts count double, then triple.') + (daily ? '' : ' ' + TR('Practice runs are random and never touch your daily record.')) }),
       btn,
-      h('p', { class: 'note', html: 'The boards are our own estimates, not survey results. After the rarest answer, not the most common? Play <a href="/e63334287a3deaa3/deepword/">Deepword</a>.' })]));
+      h('p', { class: 'note', html: TR('The boards are our own estimates, not survey results. After the rarest answer, not the most common? Play <a href="/e63334287a3deaa3/deepword/">Deepword</a>.') })]));
     return;
   }
 
   const k = st.k, p = st.picks[k];
   if (st.phase === 'ask') {
-    const inp = h('input', { id: 'ans', type: 'text', inputmode: 'text', enterkeyhint: 'go', autocomplete: 'off', autocorrect: 'off', autocapitalize: 'off', spellcheck: 'false', maxlength: '60', placeholder: 'Type an answer', 'aria-label': p.q + '. Your answer' });
+    const inp = h('input', { id: 'ans', type: 'text', inputmode: 'text', enterkeyhint: 'go', autocomplete: 'off', autocorrect: 'off', autocapitalize: 'off', spellcheck: 'false', maxlength: '60', placeholder: TR('Type an answer'), 'aria-label': TR('{q}. Your answer', { q: p.q }) });
     const form = h('form', { id: 'f', novalidate: '' }, [inp, h('button', { type: 'submit', class: 'cta', text: 'Enter' })]);
     form.addEventListener('submit', e => { e.preventDefault(); submit(); });
     const pass = h('button', { type: 'button', class: 'ghost', id: 'pass', text: 'Pass' });
@@ -574,8 +580,8 @@ function render(fresh) {
     [form.querySelector('button'), pass].forEach(b => b.addEventListener('pointerdown', e => e.preventDefault()));
     inp.addEventListener('input', () => { if ($('msg').textContent) $('msg').textContent = ''; inp.classList.remove('no'); });
     stage.appendChild(h('div', { class: 'card' }, [
-      h('div', { class: 'meta' }, [h('span', { text: 'Prompt ' + (k + 1) + ' of ' + RUN }), h('span', { html: 'Top answer <b>' + fmt(PTS[0] * MULT[k]) + '</b>' })]),
-      h('h2', { class: 'q live', text: p.q }),
+      h('div', { class: 'meta' }, [h('span', { text: TR('Prompt {a} of {b}', { a: k + 1, b: RUN }) }), h('span', { html: TR('Top answer <b>{p}</b>', { p: fmt(PTS[0] * MULT[k]) }) })]),
+      h('h2', { class: 'q live', text: p.q, 'data-noi18n': '' }),
       h('div', { class: 'clock', id: 'clock', role: 'timer' }, [h('div', { class: 'track' }, [h('i')]), h('span', { class: 'secs', text: String(Math.ceil(Math.max(0, T.left) / 1000)) })]),
       form,
       h('p', { id: 'msg', role: 'status', 'aria-live': 'polite' }),
@@ -589,14 +595,14 @@ function render(fresh) {
     const btn = h('button', { type: 'button', class: 'cta', id: 'next', text: last ? 'See your result' : 'Next prompt' });
     btn.addEventListener('click', next);
     stage.appendChild(h('div', { class: 'card' }, [
-      h('div', { class: 'meta' }, [h('span', { text: 'Prompt ' + (k + 1) + ' of ' + RUN }), h('span', { html: 'Counts <b>×' + MULT[k] + '</b>' })]),
-      h('h2', { class: 'q sm', text: p.q }),
+      h('div', { class: 'meta' }, [h('span', { text: TR('Prompt {a} of {b}', { a: k + 1, b: RUN }) }), h('span', { html: TR('Counts <b>×{m}</b>', { m: MULT[k] }) })]),
+      h('h2', { class: 'q sm', text: p.q, 'data-noi18n': '' }),
       h('div', { class: 'verdict ' + vc, role: 'status' }, [
-        h('div', null, [h('b', { text: placeText(r.r) }), h('span', { text: r.r >= 0 ? 'You said ' + r.a : r.r === -1 ? 'No answer given' : 'The clock ran out' })]),
+        h('div', null, [h('b', { text: placeText(r.r) }), h('span', { 'data-noi18n': '', text: r.r >= 0 ? TR('You said {a}', { a: r.a }) : TR(r.r === -1 ? 'No answer given' : 'The clock ran out') })]),
         h('em', { text: '+' + fmt(r.p) })]),
       boardEl(p, k, r, fresh != null),
-      h('div', { class: 'nx' }, [btn, h('span', { html: 'Total <b>' + fmt(total()) + '</b>' })]),
-      h('p', { class: 'note', text: EST })]));
+      h('div', { class: 'nx' }, [btn, h('span', { html: TR('Total <b>{t}</b>', { t: fmt(total()) }) })]),
+      h('p', { class: 'note', text: EST() })]));
     if (!K.touch) try { btn.focus({ preventScroll: true }); } catch (e) {}
     return;
   }
@@ -607,24 +613,24 @@ function render(fresh) {
   st.picks.forEach((pp, i) => {
     const r = st.res[i];
     const d = h('details', null, [
-      h('summary', { 'aria-label': 'Prompt ' + (i + 1) + ', ' + pp.q + ': ' + (r.r >= 0 ? r.a + ', ' : '') + placeText(r.r) + ', ' + r.p + ' points. Open to see the board.' }, [
+      h('summary', { 'aria-label': TR('Prompt {n}, {q}: {a}{p}, {s} points. Open to see the board.', { n: i + 1, q: pp.q, a: r.r >= 0 ? r.a + ', ' : '', p: placeText(r.r), s: r.p }) }, [
         h('span', { class: 'n', text: String(i + 1) }),
-        h('span', { class: 'qa' }, [h('small', { text: pp.q }), h('span', { class: r.r >= 0 ? '' : 'none', text: r.r >= 0 ? r.a : r.r === -1 ? 'Passed' : 'Out of time' })]),
+        h('span', { class: 'qa', 'data-noi18n': '' }, [h('small', { text: pp.q }), h('span', { class: r.r >= 0 ? '' : 'none', text: r.r >= 0 ? r.a : TR(r.r === -1 ? 'Passed' : 'Out of time') })]),
         h('span', { class: 'chip ' + (r.r === 1 ? 'c1' : r.r >= 2 ? 'c2' : ''), text: r.r >= 1 ? '#' + r.r : r.r === 0 ? 'Off board' : '–' }),
         h('b', { text: '+' + fmt(r.p) })])]);
     d.addEventListener('toggle', () => { if (d.open && !d.querySelector('.board')) d.appendChild(boardEl(pp, i, r, false)); });
     sum.appendChild(d);
   });
   stage.appendChild(h('div', { class: 'end' }, [
-    h('div', { class: 'meta' }, [h('span', { text: daily ? 'Daily run #' + K.dayNum(st.day) : 'Practice run' }), h('span', { text: st.res.filter(x => x.r >= 1).length + ' of ' + RUN + ' on the board' })]),
-    h('h2', { class: 'band' + (t < PASS ? ' low' : ''), text: BANDS[b][1] }),
-    h('div', { class: 'big' }, [h('b', { text: fmt(t) }), h('span', { text: 'of ' + fmt(MAX) + (daily ? (t >= PASS ? ' · streak kept' : ' · ' + fmt(PASS) + ' keeps a streak') : ' · practice, not counted') })]),
+    h('div', { class: 'meta' }, [h('span', { text: daily ? TR('Daily run #{n}', { n: K.dayNum(st.day) }) : TR('Practice run') }), h('span', { text: TR('{a} of {b} on the board', { a: st.res.filter(x => x.r >= 1).length, b: RUN }) })]),
+    h('h2', { class: 'band' + (t < PASS ? ' low' : ''), text: TR(BANDS[b][1]) }),
+    h('div', { class: 'big' }, [h('b', { text: fmt(t) }), h('span', { text: TR('of {m}', { m: fmt(MAX) }) + ' · ' + (daily ? (t >= PASS ? TR('streak kept') : TR('{p} keeps a streak', { p: fmt(PASS) })) : TR('practice, not counted')) })]),
     h('div', { class: 'row' }, [
       h('button', { type: 'button', class: 'cta', text: 'Share', onclick: () => S.share() }),
       h('button', { type: 'button', class: 'ghost', text: daily ? 'Play a practice run' : 'Another run', onclick: () => start('free') }),
       daily ? h('span', { class: 'next', id: 'nextIn', text: 'Next in ' + K.countdown() }) : null]),
     sum,
-    h('p', { class: 'note', html: 'Tap a prompt to see its board. ' + EST + ' Want the opposite game? <a href="/e63334287a3deaa3/deepword/">Deepword</a> rewards the rarest answer.' })]));
+    h('p', { class: 'note', html: TR('Tap a prompt to see its board.') + ' ' + EST() + ' ' + TR('Want the opposite game? <a href="/e63334287a3deaa3/deepword/">Deepword</a> rewards the rarest answer.') })]));
 }
 setInterval(() => { const e = $('nextIn'); if (e) e.textContent = 'Next in ' + K.countdown(); }, 1000);
 
@@ -646,6 +652,8 @@ document.addEventListener('keydown', e => {
 document.addEventListener('visibilitychange', () => { if (!document.hidden && st && st.mode === 'daily' && st.day !== K.today() && (st.phase === 'intro' || st.phase === 'done')) start('daily'); });
 
 start('daily');
+if (window.BackRoomLang) BackRoomLang.englishOnly(mb.info.parentNode);
+document.addEventListener('backroom:lang', () => { if (st && st.phase !== 'ask') render(); });
 
 if (navigator.webdriver) window.__ms = {
   get st() { return st; }, T, ALL, build, judge, dailyPicks, freePicks, pointsFor, total, start, submit, next, lock,

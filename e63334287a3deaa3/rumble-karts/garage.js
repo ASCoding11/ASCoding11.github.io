@@ -861,6 +861,7 @@
   'use strict';
   window.RumbleGarageUI = function (G, A) {
     const THREE = G.THREE, TAU = Math.PI * 2, $ = G.$, esc = G.esc;
+    const T = window.BackRoomLang ? BackRoomLang.t : (s, v) => s.replace(/\{(\w+)\}/g, (m, n) => v && v[n] != null ? v[n] : m);   // Spanish (../lang.js, es.js)
     const SLOTS = [
       { key: 0, tab: 'Drivers', list: A.DRIVERS, none: 'Classic driver' },
       { key: 1, tab: 'Karts', list: A.KARTS, none: 'Classic kart' },
@@ -993,7 +994,7 @@
     function style() { if (styled) return; styled = true; const st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st); }
     function summary() {
       const c = cur(), D = A.DRIVERS[c[0]];
-      return `<b>${esc(D.name)}</b> in the <b>${esc(A.KARTS[c[1]].name.replace(/^Classic kart$/, 'classic kart'))}</b><br>${esc(A.WHEELS[c[2]].name)} · ${esc(A.HORNS[c[4]].name)} · ${esc(A.WRECKS[c[3]].name)}` + (c[0] ? `<br><span class="g-cap">Knockout taunt</span> “${esc(D.taunt)}”` : '');
+      return `<b>${esc(T(D.name))}</b> ${T('in the')} <b>${esc(T(A.KARTS[c[1]].name.replace(/^Classic kart$/, 'classic kart')))}</b><br>${esc(T(A.WHEELS[c[2]].name))} · ${esc(T(A.HORNS[c[4]].name))} · ${esc(T(A.WRECKS[c[3]].name))}` + (c[0] ? `<br><span class="g-cap">Knockout taunt</span> “${esc(D.taunt)}”` : '');
     }
     function open() {
       style(); G.Snd.init();
@@ -1066,8 +1067,9 @@
     }
     function refreshChip() {
       if (!chip) return; const c = cur();
-      chip.innerHTML = `Garage <span>· ${esc(A.DRIVERS[c[0]].name)}${c[1] ? ' · ' + esc(A.KARTS[c[1]].name) : ''}</span>`;
+      chip.innerHTML = `${T('Garage')} <span>· ${esc(T(A.DRIVERS[c[0]].name))}${c[1] ? ' · ' + esc(T(A.KARTS[c[1]].name)) : ''}</span>`;
     }
+    document.addEventListener('backroom:lang', () => { refreshChip(); if (wrap) paintSum(); });   // the names in them are put together here
     function refreshHonk() { if (honkBtn) honkBtn.hidden = !(G.on && G.isTouch && cur()[4]); }
     // show or hide everything the Garage adds, as garageOn() says now
     function access() {

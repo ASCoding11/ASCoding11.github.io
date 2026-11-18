@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script src="/e63334287a3deaa3/lang.js"></script>
+<script src="es.js"></script>
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Escapade</title>
@@ -309,7 +311,7 @@ body.touch #banner span{font-size:15px}
 <div id="app">
   <canvas id="view" aria-label="Escapade game view"></canvas>
   <div id="mood"></div>
-  <div id="tags"></div>
+  <div id="tags" data-noi18n></div>
   <div id="hud" hidden>
     <div id="vig"></div>
     <div id="frost"></div>
@@ -373,7 +375,7 @@ body.touch #banner span{font-size:15px}
         <div class="setting"><span>Sound</span><input id="vol" type="range" min="0" max="1" step=".05" aria-label="Sound volume"><output id="volOut">70</output></div>
         <div class="setting"><span>Music</span><input id="mus" type="range" min="0" max="1" step=".05" aria-label="Music volume"><output id="musOut">40</output></div>
         <div class="row" style="margin-top:12px"><span style="font-weight:800;font-size:14px;min-width:92px">Graphics</span><div class="seg" id="gfxSeg"><button type="button" data-q="low">Fast</button><button type="button" data-q="high">Pretty</button></div></div>
-        <div class="row" style="margin-top:12px"><button class="btn sm alt" id="keysMenu" type="button">Controls</button></div>
+        <div class="row" style="margin-top:12px"><button class="btn sm alt" id="keysMenu" type="button">Controls</button><div data-lang-toggle></div></div>
         <details>
           <summary>How to play</summary>
           <ul class="how">
@@ -418,7 +420,7 @@ body.touch #banner span{font-size:15px}
       <div class="setting"><span>Invert Y</span><div class="seg" id="invY2"><button type="button" data-v="0">Off</button><button type="button" data-v="1">On</button></div></div>
       <div class="setting"><span>Sound</span><input id="vol2" type="range" min="0" max="1" step=".05" aria-label="Sound volume"></div>
       <div class="setting"><span>Music</span><input id="mus2" type="range" min="0" max="1" step=".05" aria-label="Music volume"></div>
-      <div class="row" style="margin-top:12px"><button class="btn sm alt" id="keysPause" type="button">Controls</button></div>
+      <div class="row" style="margin-top:12px"><button class="btn sm alt" id="keysPause" type="button">Controls</button><div data-lang-toggle></div></div>
     </div>
   </section>
 
@@ -2052,6 +2054,10 @@ const PREFIX='er';
 const MAX_ROOM=12;
 const V3=THREE.Vector3;
 const $=id=>document.getElementById(id);
+// Spanish: es.js holds this game's words (../lang.js). TX() is for text built in code; every canvas made by cvs() (signs,
+// notes, boards) passes its fillText/strokeText through TX() while the language is Spanish, so the world files need nothing.
+const TX=window.BackRoomLang?BackRoomLang.t:(s,v)=>s.replace(/\{(\w+)\}/g,(m,n)=>v&&v[n]!=null?v[n]:m);
+const esLang=()=>!!(window.BackRoomLang&&BackRoomLang.get()==='es');
 const rand=(a,b)=>a+Math.random()*(b-a);
 const pick=a=>a[Math.floor(Math.random()*a.length)];
 const r2=v=>Math.round(v*100)/100,r3=v=>Math.round(v*1000)/1000;
@@ -2224,7 +2230,13 @@ function resize(){
   fxScale=h*renderer.getPixelRatio()/(2*Math.tan(camera.fov*Math.PI/360));
 }
 addEventListener('resize',resize);resize();
-function cvs(w,h,draw){const c=document.createElement('canvas');c.width=w;c.height=h;draw(c.getContext('2d'),w,h);return c}
+function cvs(w,h,draw){const c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d');
+  if(esLang()){   // Spanish runs longer: a translated line that would spill off its canvas is squeezed to fit (fillText's maxWidth)
+    const fit=(fn,t,x,y,mw)=>{const tr=/[A-Za-z]{2}/.test(t)?TX(String(t)):t;
+      if(mw==null&&tr!==t){const room=(g.textAlign==='center'?2*Math.min(x,w-x):g.textAlign==='right'||g.textAlign==='end'?x:w-x)*.96;if(room>0&&g.measureText(tr).width>room)mw=room}
+      return mw==null?fn.call(g,tr,x,y):fn.call(g,tr,x,y,mw)};
+    const f=g.fillText,s=g.strokeText;g.fillText=(t,x,y,mw)=>fit(f,t,x,y,mw);g.strokeText=(t,x,y,mw)=>fit(s,t,x,y,mw)}
+  draw(g,w,h);return c}
 function texFrom(c,rep){const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());if(rep)t.repeat.set(rep,rep);return t}
 function speckle(g,w,h,n,dark,light){for(let i=0;i<n;i++){const d=Math.random()<.6;g.fillStyle=d?'rgba(0,0,0,'+(Math.random()*dark)+')':'rgba(255,255,255,'+(Math.random()*light)+')';g.fillRect(Math.random()*w,Math.random()*h,2,2)}}
 function rr(g,x,y,w,h,r){g.beginPath();if(g.roundRect)g.roundRect(x,y,w,h,r);else g.rect(x,y,w,h)}
@@ -2660,7 +2672,7 @@ function w4Sign(g,sg,W,w,h,font,ink){
     g.fillStyle=ink;g.font=font(h*.13);g.fillText(sg.label||'Code',w/2,h*.13);
     const cells=[0,1,2,3].map(i=>i===sg.k?code[i]:'·');g.fillStyle='#1d4ed8';g.font=font(h*.42);
     cells.forEach((c,i)=>{g.fillStyle=i===sg.k?'#1d4ed8':'#94a3b8';g.fillText(c,w*(.2+i*.2),h*.62)});
-    g.fillStyle='#475569';g.font=font(h*.1);g.fillText(['1st','2nd','3rd','4th'][sg.k]+' digit',w/2,h*.89);return true}
+    g.fillStyle='#475569';g.font=font(h*.1);g.fillText(TX(['1st','2nd','3rd','4th'][sg.k]+' digit'),w/2,h*.89);return true}
   // the thermostat's face (its hand is a {hand, dial, n: 8} sign on top) and a plant's care card
   if(sg.w4==='gauge'){const R=Math.min(w,h)*.47;g.fillStyle='#334155';rr(g,0,0,w,h,w*.12);g.fill();g.save();g.translate(w/2,h/2);g.fillStyle='#fff7ed';g.beginPath();g.arc(0,0,R,0,TAU);g.fill();g.lineWidth=R*.06;g.strokeStyle=ink;g.stroke();
     g.fillStyle=ink;g.font=font(R*.2);W4_TEMPS.forEach((v,i)=>{const a=i/8*TAU;g.fillText(v+'°',Math.sin(a)*R*.72,-Math.cos(a)*R*.72)});g.restore();return true}
@@ -2705,7 +2717,7 @@ function w5Sign(g,sg,W,w,h,font){
   if(sg.w5==='vane'){const k=sg.to,n=sg.n||8,R=Math.min(w,h)*.33;g.fillStyle='#f4e8c8';g.fillRect(0,0,w,h);g.strokeStyle='#6b4f2a';g.lineWidth=12;g.strokeRect(6,6,w-12,h-12);
     g.fillStyle=ink;g.font=font(h*.1);g.fillText(sg.title||'Point it this way',w/2,h*.12);
     g.save();g.translate(w/2,h*.58);g.fillStyle='#fffaf0';g.beginPath();g.arc(0,0,R,0,TAU);g.fill();g.lineWidth=5;g.strokeStyle=ink;g.stroke();g.fillStyle=ink;g.font=font(R*.3);
-    ['N','E','S','W'].forEach((c,i)=>{const a=i*Math.PI/2;g.fillText(c,Math.sin(a)*R*.75,-Math.cos(a)*R*.75)});
+    (esLang()?['N','E','S','O']:['N','E','S','W']).forEach((c,i)=>{const a=i*Math.PI/2;g.fillText(c,Math.sin(a)*R*.75,-Math.cos(a)*R*.75)});
     g.rotate(k/n*TAU);g.fillStyle='#ef4444';g.beginPath();g.moveTo(0,-R*.58);g.lineTo(R*.14,0);g.lineTo(-R*.14,0);g.closePath();g.fill();g.restore();return}
   if(sg.w5==='flags'){g.fillStyle='#fffaf0';g.fillRect(0,0,w,h);g.strokeStyle='#6b4f2a';g.lineWidth=10;g.strokeRect(5,5,w-10,h-10);
     g.fillStyle=ink;g.font=font(h*.13);g.fillText(sg.title||'In this order',w/2,h*.16);const cs=sg.cols||W.w5order||[],n=cs.length;
@@ -3102,13 +3114,13 @@ function signTex(sg,W,wpx,hpx){
     // World 2's last three: the ship's log (the bearing the lens must point), a compass rose with N E S W (a hand sign
     // turns over it, like the clock's)
     if(sg.log){const d=W.dials[sg.log],k=d.target[d.keys[0]],R=Math.min(w,h)*.3;g.fillStyle='#f4e8c8';g.fillRect(0,0,w,h);g.strokeStyle='#6b4f2a';g.lineWidth=12;g.strokeRect(6,6,w-12,h-12);
-      g.fillStyle=ink;g.font=font(h*.1);g.fillText('Keeper\'s log',w/2,h*.12);g.fillStyle='#575377';g.font=font(h*.065);g.fillText('Ship sighted! Point the lamp\'s lens to the '+COMPASS[k],w/2,h*.23);
+      g.fillStyle=ink;g.font=font(h*.1);g.fillText('Keeper\'s log',w/2,h*.12);g.fillStyle='#575377';g.font=font(h*.065);g.fillText(TX('Ship sighted! Point the lamp\'s lens to the {d}',{d:TX(COMPASS[k])}),w/2,h*.23);
       g.save();g.translate(w/2,h*.6);g.fillStyle='#fffaf0';g.beginPath();g.arc(0,0,R,0,TAU);g.fill();g.lineWidth=5;g.strokeStyle=ink;g.stroke();g.fillStyle=ink;g.font=font(R*.3);
-      ['N','E','S','W'].forEach((c,i)=>{const a=i*Math.PI/2;g.fillText(c,Math.sin(a)*R*.75,-Math.cos(a)*R*.75)});
+      (esLang()?['N','E','S','O']:['N','E','S','W']).forEach((c,i)=>{const a=i*Math.PI/2;g.fillText(c,Math.sin(a)*R*.75,-Math.cos(a)*R*.75)});
       g.rotate(k/8*TAU);g.fillStyle='#ef4444';g.beginPath();g.moveTo(0,-R*.55);g.lineTo(R*.13,0);g.lineTo(-R*.13,0);g.closePath();g.fill();g.restore();
       g.save();g.translate(w*.86,h*.86);g.font=font(h*.07);g.fillStyle='#6b4f2a';g.fillText('⚓',0,0);g.restore();return}
     if(sg.rose){const R=Math.min(w,h)*.47;g.clearRect(0,0,w,h);g.save();g.translate(w/2,h/2);g.fillStyle='#fff7e0';g.beginPath();g.arc(0,0,R,0,TAU);g.fill();g.lineWidth=R*.06;g.strokeStyle=ink;g.stroke();
-      g.fillStyle=ink;g.font=font(R*.26);['N','E','S','W'].forEach((c,i)=>{const a=i*Math.PI/2;g.fillText(c,Math.sin(a)*R*.74,-Math.cos(a)*R*.74)});
+      g.fillStyle=ink;g.font=font(R*.26);(esLang()?['N','E','S','O']:['N','E','S','W']).forEach((c,i)=>{const a=i*Math.PI/2;g.fillText(c,Math.sin(a)*R*.74,-Math.cos(a)*R*.74)});
       for(let i=0;i<8;i++){if(i%2===0)continue;const a=i*TAU/8;g.beginPath();g.arc(Math.sin(a)*R*.78,-Math.cos(a)*R*.78,R*.05,0,TAU);g.fill()}g.restore();return}
     // a title sign
     g.fillStyle=ink;rr(g,4,4,w-8,h-8,22);g.fill();g.fillStyle='#ffcf3d';g.font=font(h*(sg.sub?.36:.5));g.fillText(sg.title,w/2,h*(sg.sub?.36:.52));
@@ -3590,7 +3602,7 @@ function handleEvents(t){
     else if(e==='cp'){sfx('cp');const c=G.W.cps[me.cp];if(c)glowBurst(me.x,c.y+.3,me.z,'#7ef0b4',30,6,3);banner('Checkpoint','',1.2)}
     else if(e.startsWith('pick:')){const p=G.W.byName.get(e.slice(5));if(!p)continue;const b=cur(p,t);
       if(p.item==='gem'){G.gemRun=true;sfx('gem');banner('Gem found!','A star for finding it, once you escape',2.4);glowBurst(b.x,b.y,b.z,'#7dd3fc',40,6,3)}
-      else{sfx('pick');banner('Got '+ITEM_NAME[p.item],p.item==='fuse'?'Find the fuse box':'Find the door it opens',2.2);glowBurst(b.x,b.y,b.z,'#fde68a',30,5,2.5)}
+      else{sfx('pick');banner(TX('Got {i}',{i:TX(ITEM_NAME[p.item])}),p.item==='fuse'?'Find the fuse box':'Find the door it opens',2.2);glowBurst(b.x,b.y,b.z,'#fde68a',30,5,2.5)}
       renderInv()}
     else if(e.startsWith('open:')){const f=e.slice(5);sfx('open');const msg=flagMsg(f);if(msg)feed('<span class="hl">'+esc(msg)+'</span>');if(bigUnlock(f))banner('Unlocked!','',1.4);
       if(G.kp&&G.kp.ok==null){kpResult(true)}}
@@ -3600,7 +3612,7 @@ function handleEvents(t){
     else if(e==='dial'){sfx('tick')}
     else if(e==='turn'){sfx('turn')}
     else if(e.startsWith('toggle:')){const f=e.slice(7),on=flagOn(G.W,f,t);sfx('turn');const msg=flagMsg(f+(on?':on':':off'));if(msg)feed(esc(msg))}
-    else if(e.startsWith('need:')){sfx('buzz');banner('Something\'s missing','You need '+ITEM_NAME[e.slice(5)]+' for this',2)}
+    else if(e.startsWith('need:')){sfx('buzz');banner('Something\'s missing',TX('You need {i} for this',{i:TX(ITEM_NAME[e.slice(5)])}),2)}
     else if(e.startsWith('pad:')){if(!G.auto)openKeypad(e.slice(4))}
     else if(e.startsWith('phase:')){const n=+e.slice(6);sfx('open');banner(n<3?'Switch '+n+' of 3':'Warden down!',n<3?'The Warden gets angrier…':'The exit is open',2.2)}
   }
@@ -3985,7 +3997,7 @@ function onlineTick(){
 function renderRoomList(ol){
   ol.innerHTML='';const rows=liveIds().map(u=>{const f=finOf(u),e=ents.get(u),mine=u===Net.uid,o=Net.others.get(u)||{};return{n:mine?(myName||'You')+' (you)':e?e.name:o.n||'Escaper',c:mine?myColor:e?e.color:'#ccc',f,mine,old:!mine&&!o.v}});
   rows.sort((a,b)=>(a.f?a.f.ms:1e12)-(b.f?b.f.ms:1e12));
-  rows.forEach((r,i)=>{const li=document.createElement('li');if(r.mine)li.className='me';li.innerHTML='<span class="pl">'+(r.f?i+1:'·')+'</span><i style="background:'+r.c+'"></i><span class="nm"></span><span class="tm">'+(r.f?fmtTime(r.f.ms/1000):r.old&&G.room&&G.room.rl>=WPL?'needs to reload':'still escaping')+'</span>';li.querySelector('.nm').textContent=r.n;ol.appendChild(li)});
+  rows.forEach((r,i)=>{const li=document.createElement('li');if(r.mine)li.className='me';li.innerHTML='<span class="pl">'+(r.f?i+1:'·')+'</span><i style="background:'+r.c+'"></i><span class="nm" data-noi18n></span><span class="tm">'+(r.f?fmtTime(r.f.ms/1000):r.old&&G.room&&G.room.rl>=WPL?'needs to reload':'still escaping')+'</span>';li.querySelector('.nm').textContent=r.n;ol.appendChild(li)});
   ol.hidden=!rows.length;
 }
 
@@ -4030,7 +4042,7 @@ function updateHud(){
   // the prompt for whatever you can use from here
   const p=G.finished||me.dead||G.kp?null:usable(W,me,G.t);G.useTarget=p;
   let txt='';
-  if(p){const a=p.btn;txt=a.seq?'Press the '+a.sym:a.pad?USE_TXT.pad:USE_TXT[p.icon]||'Press the button';if(a.need&&!W.st.inv[a.need])txt='Needs '+ITEM_NAME[a.need];
+  if(p){const a=p.btn;txt=a.seq?TX('Press the {s}',{s:TX(String(a.sym))}):a.pad?USE_TXT.pad:USE_TXT[p.icon]||'Press the button';if(a.need&&!W.st.inv[a.need])txt=TX('Needs {i}',{i:TX(ITEM_NAME[a.need])});
     if(a.set&&flagOn(W,a.set,G.t)||a.then&&flagOn(W,a.then,G.t)||a.dial&&flagOn(W,W.dials[a.dial].set,G.t)||a.mirror&&flagOn(W,W.beams[a.mirror].set,G.t))txt='Done'}
   // the cold (the ice cave): a meter under the clock, frost round the edges as it builds
   const cw=!!W.cold;$('cold').hidden=!cw||G.finished;if(cw){const k=clamp(me.cold/PHYS.COLD,0,1),pc=Math.round(k*100);if(hudCache.cold!==pc){hudCache.cold=pc;$('coldBar').style.width=(100-pc)+'%';$('cold').classList.toggle('low',k>.6);$('frost').style.opacity=String(clamp((k-.35)/.65,0,1))}}
@@ -4038,7 +4050,7 @@ function updateHud(){
   w3hud(W); // W3 hook
   // a locked door you're standing at says what it wants (nothing to press: the pill has no key on it)
   let info=false;
-  if(!txt&&!G.finished&&!me.dead&&!G.kp){const dr=lockedDoorNear(W);if(dr){info=true;txt=dr.lock?'Locked. Needs '+(ITEM_NAME[dr.lock]||'a key'):'Locked. Something else opens it'}}
+  if(!txt&&!G.finished&&!me.dead&&!G.kp){const dr=lockedDoorNear(W);if(dr){info=true;txt=dr.lock?TX('Locked. Needs {i}',{i:TX(ITEM_NAME[dr.lock]||'a key')}):'Locked. Something else opens it'}}
   if(hudCache.info!==info){hudCache.info=info;$('prompt').classList.toggle('info',info)}
   {const dim=!G.finished&&myTime()>20;if(hudCache.dim!==dim){hudCache.dim=dim;$('hint').classList.toggle('dim',dim)}}
   $('prompt').hidden=!txt;if(txt)setText('promptTxt',txt);
@@ -4205,7 +4217,7 @@ function renderWorlds(forRoom){
     const status=soon?'Coming soon':!open?'Locked · escape '+lvTag((n-1)*WPL-1)+' to open':cl===WPL?'All escaped'+(worldTotal(n)?' · total '+fmtTime(worldTotal(n)):''):worldSoon(n)?cl+' of '+w.ids.length+' escaped · more coming soon':cl+' of '+WPL+' escaped';
     b.innerHTML='<span class="band" style="background:linear-gradient(120deg,'+w.col+','+shade(w.col,-.35)+')"><span><span>World '+n+'</span><b></b></span><em><i class="star"></i> '+st+'/'+WPL*3+'</em></span><p></p><div class="bar"><i style="width:'+Math.round(cl/WPL*100)+'%"></i></div><small></small>';
     b.querySelector('.band b').textContent=w.name;b.querySelector('p').textContent=w.blurb;b.querySelector('small').textContent=status;
-    b.disabled=soon||!open;b.setAttribute('aria-label','World '+n+': '+w.name+'. '+status+'. '+st+' of '+WPL*3+' stars');
+    b.disabled=soon||!open;b.setAttribute('aria-label',TX('World {n}: {w}. {s}. {a} of {b} stars',{n,w:w.name,s:TX(status),a:st,b:WPL*3}));
     b.onclick=()=>{sfx('ui');b.disabled=true;$('lvInfo').textContent='Loading World '+n+'…';ensureWorld(n).then(()=>{if(G.overlay==='levels')renderLevels(n,pickForRoom)},e=>{b.disabled=false;$('lvInfo').textContent='';needUpdate(e.message)})};
     box.appendChild(b);
   }

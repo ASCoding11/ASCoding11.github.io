@@ -64,6 +64,40 @@
   'use strict';
   if (window.BackRoomLayout) return;
   var KEY = 'layout:v1', ID_RE = /^[a-z0-9-]{1,48}$/;
+  // Spanish (lang.js): this script's words, and T() for the labels put together here.
+  var T = function (s, v) { return window.BackRoomLang ? BackRoomLang.t(s, v) : String(s).replace(/\{(\w+)\}/g, function (m, k) { return v && v[k] != null ? v[k] : m; }); };
+  (function es(n) {
+    if (!window.BackRoomLang) { if (n < 100) setTimeout(function () { es(n + 1); }, 100); return; }
+    BackRoomLang.add({
+      'Edit layout': 'Editar diseño', 'Put the sections of this page in your own order, and choose which games are big':
+        'Ordena las secciones de esta página a tu gusto y elige qué juegos se ven grandes',
+      'Make or join a party and play together': 'Crea un grupo o únete a uno y jueguen juntos', 'Who’s here, chat and invites': 'Quién está, chat e invitaciones',
+      'Miles and every game’s best': 'Millas y los récords de cada juego', 'Daily Puzzles': 'Puzles diarios', 'Today’s puzzles and your streak': 'Los puzles de hoy y tu racha',
+      'Drag a bar, or use the arrows, to put this page in your order. Done saves it in this browser.':
+        'Arrastra una barra, o usa las flechas, para ordenar esta página a tu gusto. Listo lo guarda en este navegador.',
+      'Tap a game to make it big or small. Each section below is laid out the way it will look on this screen. Done saves it.':
+        'Toca un juego para hacerlo grande o chico. Cada sección de abajo se ve como quedará en esta pantalla. Listo lo guarda.',
+      'What to edit': 'Qué editar', 'Order': 'Orden', 'Game sizes': 'Tamaños', 'Sections, top to bottom': 'Secciones, de arriba abajo',
+      'Every game is back to its usual size.': 'Todos los juegos volvieron a su tamaño normal.', 'Back to the default order.': 'Volvió al orden de siempre.',
+      'Every game back to its usual size': 'Todos los juegos a su tamaño normal', 'Back to the default order': 'Volver al orden de siempre',
+      'At this window width every game takes one column; big games are wider on bigger and smaller screens.':
+        'Con este ancho de ventana cada juego ocupa una columna; los juegos grandes son más anchos en pantallas más grandes y más chicas.',
+      'All small': 'Todos chicos', 'All big': 'Todos grandes', 'Default': 'Normal', 'Big': 'Grande', 'Small': 'Chico', 'Fills gap': 'Llena hueco',
+      'Make every game in {s} small': 'Hacer chicos todos los juegos de {s}', 'Make every game in {s} big': 'Hacer grandes todos los juegos de {s}',
+      'Put {s} back to its usual sizes': 'Volver {s} a sus tamaños normales',
+      '{n}: big{usual}{fill}. Tap to make it small.': '{n}: grande{usual}{fill}. Toca para hacerlo chico.',
+      '{n}: small{usual}{fill}. Tap to make it big.': '{n}: chico{usual}{fill}. Toca para hacerlo grande.',
+      ' (usual size)': ' (tamaño normal)', ', stretched to fill its row': ', estirado para llenar su fila',
+      'This row has a gap, so {n} stretches to fill it.': 'Esta fila tiene un hueco, así que {n} se estira para llenarlo.',
+      'Some rows have gaps, so {a} and {b} stretch to fill them.': 'Algunas filas tienen huecos, así que {a} y {b} se estiran para llenarlos.',
+      '{n} is big now.': '{n} ahora es grande.', '{n} is small now.': '{n} ahora es chico.',
+      'Every game in this section is big now.': 'Todos los juegos de esta sección ahora son grandes.',
+      'Every game in this section is small now.': 'Todos los juegos de esta sección ahora son chicos.',
+      'This section is back to its usual sizes.': 'Esta sección volvió a sus tamaños normales.',
+      'Move {s}, position {i} of {n}. Drag, or use the up and down arrow keys.': 'Mover {s}, posición {i} de {n}. Arrastra o usa las flechas arriba y abajo.',
+      'Move {s} up': 'Subir {s}', 'Move {s} down': 'Bajar {s}', '{s} moved to position {i} of {n}.': '{s} pasó a la posición {i} de {n}.'
+    });
+  })(0);
   var doc = document, root = doc.documentElement;
 
   function ls(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
@@ -693,7 +727,8 @@
         var big = pv.want[i] === 'big', ext = custom ? p.extra[i] : 0;
         var t = el('button', 'lay-tl' + (big ? ' big' : '') + (ext ? ' fill' : '')); t.type = 'button';
         t.setAttribute('data-key', c.key); t.setAttribute('aria-pressed', big ? 'true' : 'false');
-        t.setAttribute('aria-label', c.name + ': ' + (big ? 'big' : 'small') + (wsize[c.key] ? '' : ' (usual size)') + (ext ? ', stretched to fill its row' : '') + '. Tap to make it ' + (big ? 'small' : 'big') + '.');
+        t.setAttribute('aria-label', T(big ? '{n}: big{usual}{fill}. Tap to make it small.' : '{n}: small{usual}{fill}. Tap to make it big.',
+          { n: c.name, usual: wsize[c.key] ? '' : T(' (usual size)'), fill: ext ? T(', stretched to fill its row') : '' }));
         if (spans[i] + ext > 1) t.style.gridColumn = 'span ' + Math.min(C, spans[i] + ext);
         var im = el('img'); im.alt = ''; im.decoding = 'async';
         if (c.img2) im.addEventListener('error', function () { if (im.getAttribute('src') !== c.img2) im.src = c.img2; });
@@ -723,12 +758,12 @@
       // back to the size the site gives it (and nothing was saved for it before): no choice is kept
       if (card && !wsize0[k] && to === siteSize(card)) delete wsize[k]; else wsize[k] = to;
       renderSizes('.lay-tl[data-key="' + k + '"]'); updateReset();
-      say(nm + ' is ' + to + ' now.');
+      say(T(to === 'big' ? '{n} is big now.' : '{n} is small now.', { n: nm }));
     } else if (a && !a.disabled) {
       var id = a.closest('[data-sec]').getAttribute('data-sec'), w = a.getAttribute('data-all');
       sizeSections().forEach(function (s) { if (s.id === id) s.cards.forEach(function (c) { if (w) wsize[c.key] = w; else delete wsize[c.key]; }); });
       renderSizes('[data-sec="' + id + '"] [data-all="' + w + '"]:not(:disabled)'); updateReset();
-      say(w ? 'Every game in this section is ' + w + ' now.' : 'This section is back to its usual sizes.');
+      say(T(!w ? 'This section is back to its usual sizes.' : w === 'big' ? 'Every game in this section is big now.' : 'Every game in this section is small now.'));
     }
   }
   function firstBlock() {

@@ -79,6 +79,52 @@
   // STALE: an entry nobody has updated for 180 days is skipped before anything else is read from it (entries are never
   // removed from the database, so this is what keeps old ones cheap to parse: a timestamp check, no JSON.stringify or
   // stats; they are still downloaded).
+  // Spanish (lang.js): this script's words.
+  (function es(n) {
+    if (!window.BackRoomLang) { if (n < 100) setTimeout(function () { es(n + 1); }, 100); return; }
+    BackRoomLang.add({
+      'Most miles flown across the Back Room, and the best in each game.': 'Las millas más voladas en The Back Room, y lo mejor de cada juego.',
+      'Refresh': 'Actualizar', 'Board': 'Tabla', 'Track': 'Pista', 'Time span': 'Período', 'This week': 'Esta semana', 'All time': 'Histórico',
+      'Miles (all games)': 'Millas (todos los juegos)', 'Miles · all games · this week': 'Millas · todos los juegos · esta semana', 'Miles · all games · all time': 'Millas · todos los juegos · histórico',
+      'The boards load when you scroll down to them.': 'Las tablas cargan cuando bajas hasta ellas.',
+      'Every lap counts, corner cuts included. Clean lap has the times with no cut.': 'Cuenta cada vuelta, incluso con curvas cortadas. Vuelta limpia tiene los tiempos sin cortes.',
+      'Race times include any track-cut penalties (+2.5 s each).': 'Los tiempos de carrera incluyen las penalizaciones por cortar pista (+2,5 s cada una).',
+      'This week counts miles from play time since Monday, 100 an hour. Wins and bests count in All time.': 'Esta semana cuenta millas por tiempo de juego desde el lunes, 100 por hora. Las victorias y récords cuentan en Histórico.',
+      'Play time counts while a game is open and you’re playing. Scores are reported by each player’s own browser, so they’re for bragging rights, not prizes.':
+        'El tiempo de juego cuenta mientras un juego está abierto y estás jugando. Los puntajes los informa el navegador de cada jugador, así que son para presumir, no para premios.',
+      'Season {n}: Slipstream’s lap and race records were reset on {d}, after track fixes and gentler barriers made older times unfair to compare. Times set before then no longer count. Elo and hours played were kept.':
+        'Temporada {n}: los récords de vuelta y carrera de Slipstream se reiniciaron el {d}, después de que arreglos de pista y barreras más suaves hicieran injusto comparar con tiempos viejos. Los tiempos anteriores ya no cuentan. Se mantuvieron el Elo y las horas jugadas.',
+      'Refreshing…': 'Actualizando…', 'Loading the leaderboards…': 'Cargando las tablas…',
+      'The leaderboards need the Party panel, which didn’t load. Reload the page to try again.': 'Las tablas necesitan el panel de Grupo, que no cargó. Recarga la página para reintentar.',
+      'Couldn’t reach the leaderboards. If you’re on a school or work network it may be blocking the game database.': 'No se pudo llegar a las tablas. Si estás en la red de la escuela o del trabajo, puede que bloquee la base de datos del juego.',
+      'Tracks with times': 'Pistas con tiempos', 'No times yet this season': 'Todavía no hay tiempos esta temporada', 'no times yet': 'sin tiempos todavía',
+      '· {n} driver': '· {n} piloto', '· {n} drivers': '· {n} pilotos', 'Hours played': 'Horas jugadas', 'Fastest lap · every track': 'Vuelta más rápida · todas las pistas', 'All tracks': 'Todas las pistas',
+      'Fastest lap': 'Vuelta más rápida', 'Clean lap': 'Vuelta limpia', 'Fastest clean lap': 'Vuelta limpia más rápida', 'Most: {n}': 'Más: {n}',
+      'Clean times: no corner was cut on': 'Tiempos limpios: no se cortó ninguna curva en', 'any lap of the race.': 'ninguna vuelta de la carrera.', 'the lap.': 'la vuelta.',
+      // Board names (game names stay in English).
+      'Best score': 'Mejor puntaje', 'Best streak': 'Mejor racha', 'Daily wins': 'Victorias diarias', 'Best daily streak': 'Mejor racha diaria', 'Fewest guesses': 'Menos intentos',
+      'Fewest guesses (daily)': 'Menos intentos (diario)', 'Fewest guesses in a daily win': 'Menos intentos en una victoria diaria', 'Match wins': 'Partidas ganadas',
+      'Online match wins': 'Partidas en línea ganadas', 'Online wins': 'Victorias en línea', 'Round wins': 'Rondas ganadas', 'Rounds won': 'Rondas ganadas', 'Races won': 'Carreras ganadas',
+      'Most kills in a match': 'Más bajas en una partida', 'Kills (all time)': 'Bajas (histórico)', 'Kills counted for K/D': 'Bajas para K/D', 'K/D (all time)': 'K/D (histórico)',
+      'Most wrecks in a round': 'Más choques en una ronda', 'Wrecks (all time)': 'Choques (histórico)', 'Wrecks counted for K/D': 'Choques para K/D', 'Times wrecked': 'Veces chocado',
+      'Most knockouts in a match': 'Más derribos en una partida', 'Best placing': 'Mejor puesto', 'Matches played': 'Partidas jugadas', 'Touches (all time)': 'Toques (histórico)',
+      'Longest touch streak': 'Racha de toques más larga', 'Most goals in a match': 'Más goles en una partida', 'Goals (all time)': 'Goles (histórico)', 'Longest snake': 'Serpiente más larga',
+      'Cut-offs (all time)': 'Cortes (histórico)', 'Best Daily score': 'Mejor puntaje diario', 'Best Daily streak': 'Mejor racha diaria', 'Biggest pot (practice)': 'Bote más grande (práctica)',
+      'Hands played (practice)': 'Manos jugadas (práctica)', 'Most hiders found in a round': 'Más escondidos encontrados en una ronda', 'Hiders found (all time)': 'Escondidos encontrados (histórico)',
+      'Rounds stayed hidden': 'Rondas sin ser encontrado', 'Fastest tower': 'Torre más rápida', 'Fastest obby (all 49 stages)': 'Obby más rápido (las 49 etapas)', 'Fastest obby': 'Obby más rápido',
+      'Towers climbed': 'Torres escaladas', 'Fastest full run (all 25 levels)': 'Recorrido completo más rápido (los 25 niveles)', 'Fastest full run': 'Recorrido completo más rápido',
+      'Most stars': 'Más estrellas', 'Levels cleared (all time)': 'Niveles superados (histórico)', 'Levels cleared': 'Niveles superados', 'Best height': 'Mayor altura',
+      'Fastest to the Crown (3000 m)': 'Más rápido a la Corona (3000 m)', 'The Crown': 'La Corona', 'Fastest to the old summit (1000 m)': 'Más rápido a la vieja cumbre (1000 m)', 'Old summit': 'Vieja cumbre',
+      'Longest Endless run': 'Carrera infinita más larga', 'Power crystals collected': 'Cristales de poder juntados', 'Runs (all time)': 'Carreras (histórico)',
+      'Most props found in a round': 'Más objetos encontrados en una ronda', 'Longest survival as a prop': 'Más tiempo sobreviviendo como objeto', 'Props found (all time)': 'Objetos encontrados (histórico)',
+      'Most crowns in a row': 'Más coronas seguidas', 'Shows played': 'Shows jugados', 'Answers given (all time)': 'Respuestas dadas (histórico)', 'Longest answer streak': 'Racha de respuestas más larga',
+      'Lines cleared (all time)': 'Líneas borradas (histórico)', 'Biggest tile': 'Ficha más grande', 'Most lines': 'Más líneas', 'Watermelons grown (all time)': 'Sandías logradas (histórico)',
+      'Most waves held': 'Más oleadas aguantadas', 'Daily puzzles finished': 'Puzles diarios terminados', 'Best daily streak (any puzzle)': 'Mejor racha diaria (cualquier puzle)',
+      'Perfect days': 'Días perfectos', 'Perfect days (no mistakes)': 'Días perfectos (sin errores)', 'Clean daily solves': 'Resueltos limpios diarios', 'Daily clues solved': 'Pistas diarias resueltas',
+      'No hints': 'Sin pistas', 'Solved with no hints': 'Resuelto sin pistas', 'Daily puzzles solved': 'Puzles diarios resueltos', 'Guesses to spare': 'Intentos de sobra', 'Mistakes to spare': 'Errores de sobra',
+      'Par days': 'Días en par', 'Par days (no hints)': 'Días en par (sin pistas)', 'Perfect routes': 'Rutas perfectas', 'Most entries found': 'Más respuestas encontradas'
+    });
+  })(0);
   var TOP = 25, MAX_NODES = 3000, NODE_MAX = 8000, MAX_STATS = 240, STALE = 180 * 86400000;
   var EPOCH = Date.UTC(2026, 9, 21);            // the day stats.js started counting
   var WEEK_DAYS = 7, DAY_GAMES = 12, DAY_REST = '_';   // This week: the most dates (Monday to Sunday); games a day accepted (stats.js keeps 8); d's other-games key
@@ -407,7 +453,7 @@
     return out;
   }
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
-  function fmtN(v) { try { return Math.round(v).toLocaleString('en-US'); } catch (e) { return String(Math.round(v)); } }
+  function fmtN(v) { try { return window.BackRoomLang ? BackRoomLang.num(Math.round(v)) : Math.round(v).toLocaleString('en-US'); } catch (e) { return String(Math.round(v)); } }
   function fmtHours(s) { return s < 3600 ? Math.max(1, Math.round(s / 60)) + ' min' : (s / 3600).toFixed(s < 360000 ? 1 : 0) + ' h'; }
   function fmtTime(s, ms) {
     var h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, sec = s - Math.floor(s / 60) * 60;

@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script src="/e63334287a3deaa3/lang.js"></script>
+<script src="/e63334287a3deaa3/melon-merge/es.js"></script>
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Melon Merge</title>
@@ -121,7 +123,7 @@ html:not(.touch) .touch-only{display:none!important}
 <div id="app">
   <canvas id="cv" aria-label="Melon Merge jar"></canvas>
 
-  <div id="topL"><a id="back" href="/e63334287a3deaa3/">‹ Back</a><span class="brand">Melon <b>Merge</b></span></div>
+  <div id="topL"><a id="back" href="/e63334287a3deaa3/">‹ Back</a><span class="brand" data-noi18n>Melon <b>Merge</b></span></div>
   <div id="topR">
     <button class="ib" id="bHelp" type="button" aria-label="How to play" title="How to play">?</button>
     <button class="ib" id="bMute" type="button" aria-label="Sound on" title="Sound (M)">♪</button>
@@ -134,7 +136,7 @@ html:not(.touch) .touch-only{display:none!important}
   <section id="ovStart" class="overlay">
     <div class="inner">
       <div class="kicker"><span><b>●</b> Back Room</span><span>Drop · merge · grow</span></div>
-      <h1 class="title">Melon <b>Merge</b></h1>
+      <h1 class="title" data-noi18n>Melon <b>Merge</b></h1>
       <canvas id="parade" aria-hidden="true"></canvas>
       <p class="lede" id="ledeStart">Drop fruit into the jar. Two of the same fruit squish together into the next one up, from a tiny cherry all the way to a watermelon. Keep the pile under the red line.</p>
       <div class="row"><button class="cta" id="play" type="button">Play</button><button class="ghost" id="helpStart" type="button">How to play</button></div>
@@ -147,6 +149,7 @@ html:not(.touch) .touch-only{display:none!important}
       <div class="kicker"><span><b>❚❚</b> Paused</span><span id="pauseScore"></span></div>
       <div class="row" style="margin-top:14px"><button class="cta" id="resume" type="button">Resume</button><button class="ghost" id="restartP" type="button">Restart</button></div>
       <div class="row"><button class="ghost" id="helpP" type="button">How to play</button><button class="ghost mouse-only" id="keysP" type="button">Controls</button><button class="ghost" id="facesP" type="button">Faces: on</button><a class="ghost" href="/e63334287a3deaa3/">Back to games</a></div>
+      <div class="row"><div data-lang-toggle></div></div>
     </div>
   </section>
 
@@ -990,7 +993,7 @@ function handleEvents(){
       if(e.s===11){if(window.BackRoomStats){try{BackRoomStats.add('melons',1)}catch(x){}}}
     }else if(e.type==='firstmelon'){
       G.glowId=e.id;G.glowT=4;confetti(170);sfxFanfare();
-      banner(FR[11].n+'!','Your first one this game. Touch two together for a +'+MELON_BONUS+' bonus.',3.4);
+      banner((T('Melon')==='Melon'?'':'¡')+T(FR[11].n)+'!','Your first one this game. Touch two together for a +'+MELON_BONUS+' bonus.',3.4);
     }else if(e.type==='clear'){
       for(let i=0;i<3;i++)burst(e.x+(Math.random()-.5)*160,e.y+(Math.random()-.5)*120,11,26);
       part(2,e.x,e.y,0,0,RADII[11]*2.4,.7,'rgba(255,209,102,.95)');
@@ -1353,7 +1356,9 @@ function render(alpha){
 const FONT_U=[],FONT_D=[],PTS=SCORES.map(v=>'+'+v);
 function fontU(n){n=n|0;return FONT_U[n]||(FONT_U[n]='800 '+n+'px Nunito, system-ui, sans-serif')}
 function fontD(n){n=n|0;return FONT_D[n]||(FONT_D[n]='700 '+n+'px Fredoka, system-ui, sans-serif')}
-function label(txt,x,y,size,col,align){ctx.font=fontU(size);ctx.fillStyle=col;ctx.textAlign=align||'center';ctx.fillText(txt,x,y)}
+// Language (lang.js): the HUD words drawn on the canvas go through T().
+const T=window.BackRoomLang?BackRoomLang.t:(s,v)=>s.replace(/\{(\w+)\}/g,(m,n)=>v&&v[n]!=null?v[n]:m);
+function label(txt,x,y,size,col,align){ctx.font=fontU(size);ctx.fillStyle=col;ctx.textAlign=align||'center';ctx.fillText(T(txt),x,y)}
 function big(txt,x,y,size,col,align){ctx.font=fontD(size);ctx.fillStyle=col;ctx.textAlign=align||'center';ctx.fillText(txt,x,y)}
 function drawHud(t){
   const d=L.dpr,sim=G.sim;
@@ -1388,7 +1393,7 @@ function drawHud(t){
       ctx.setTransform(d,0,0,d,0,0);
       if(withName){
         const fs2=Math.round(Math.min(16,rowH*.4));
-        big(FR[k].n,nameX,y,fs2,'#fff6ea','left');
+        big(T(FR[k].n),nameX,y,fs2,'#fff6ea','left');
         label(PTS[k],gx0+cw-18,y,Math.round(fs2*.8),'rgba(255,246,234,.45)','right');
       }
     }
@@ -1396,7 +1401,8 @@ function drawHud(t){
     const y0=L.hudY,hh=L.hudH,fs=Math.round(Math.min(34,hh*.52));
     label('SCORE',14,y0+hh*.2,11,'rgba(255,246,234,.5)','left');
     big(scoreStr,14,y0+hh*.58,fs,'#fff6ea','left');
-    const sw=ctx.measureText(scoreStr).width;
+    // (Spanish: the SCORE label is wider than a short score, so BEST moves over to clear it; English is unchanged)
+    const sw=Math.max(ctx.measureText(scoreStr).width,T('SCORE')==='SCORE'?0:(ctx.font=fontU(11),ctx.measureText(T('SCORE')).width));
     label('BEST',sw+28,y0+hh*.2,11,'rgba(255,246,234,.45)','left');
     big(bestStr,sw+28,y0+hh*.6,Math.round(fs*.6),'#ffd166','left');
     const nr=HG.nr,nx=HG.nx,ny=HG.ny;

@@ -83,6 +83,36 @@
   if (window.BackRoomMiles) return;
 
   var PATH = 'rooms/lb-all/players', TTL = 10 * 60000, HOUR = 100;
+  // Spanish (lang.js): this script's words.
+  (function es(n) {
+    if (!window.BackRoomLang) { if (n < 100) setTimeout(function () { es(n + 1); }, 100); return; }
+    BackRoomLang.add({
+      // The status tiers (Economy, Business Class, First Class, Private Jet), the crew (Captain, Vice Captain) and the
+      // awards' names stay in English: they're names, like an airline's. The words around them are translated.
+      'Every badge': 'Todas las insignias', 'Badges': 'Insignias',
+      'The badge next to a name shows that player’s status tier, plus any places and awards they hold. On a computer, hover over any badge on the site to see what it is.':
+        'La insignia junto a un nombre muestra el nivel de ese jugador, más los puestos y premios que tenga. En la computadora, pasa el mouse por cualquier insignia del sitio para ver qué es.',
+      'Status tiers': 'Niveles', 'Earned with miles: {n} for every hour you play any game, plus points for wins and personal bests in each one (capped per game, so no single game carries you).':
+        'Se ganan con millas: {n} por cada hora que juegas cualquier juego, más puntos por victorias y récords personales en cada uno (con tope por juego, así que ningún juego solo te lleva).',
+      'Where everyone starts. Under 2,000 miles.': 'Donde empiezan todos. Menos de 2.000 millas.', '2,000 miles. About an hour a day for three weeks.': '2.000 millas. Más o menos una hora por día durante tres semanas.',
+      '10,000 miles. About 100 hours, or 50 with a lot of winning.': '10.000 millas. Unas 100 horas, o 50 ganando mucho.', '40,000 miles. Roughly a year of play.': '40.000 millas. Más o menos un año de juego.',
+      'Crew': 'Tripulación', 'Given, not earned: these sit above every miles tier, whatever someone’s miles.': 'Se otorgan, no se ganan: están por encima de todos los niveles de millas, tenga las millas que tenga.',
+      'The co-pilot. Given by the Captains.': 'El copiloto. Lo otorgan los Captains.', 'Flies the plane: the people who run the site.': 'Pilotea el avión: la gente que maneja el sitio.',
+      'The site founder. There is only one.': 'El fundador del sitio. Hay uno solo.', 'Miles board places': 'Puestos en la tabla de millas',
+      'Shown after the tier for the top three on the Leaderboards’ Miles board. They change hands as the board does.': 'Se muestran después del nivel para los tres primeros de la tabla de Millas. Cambian de dueño cuando cambia la tabla.',
+      'All time': 'Histórico', 'This week': 'Esta semana', 'all time': 'histórico', 'this week': 'esta semana',
+      'First, second or third in miles of all time.': 'Primero, segundo o tercero en millas de todos los tiempos.', 'First, second or third in miles from play time since Monday.': 'Primero, segundo o tercero en millas por tiempo de juego desde el lunes.',
+      'Awards': 'Premios', 'Medals on a ribbon, after the tier and any places.': 'Medallas con cinta, después del nivel y de los puestos.',
+      'Awarded for dedication to Updraft. Given by the Captains.': 'Por su dedicación a Updraft. Lo otorgan los Captains.', 'Awarded for dedication to Boostball. Given by the Captains.': 'Por su dedicación a Boostball. Lo otorgan los Captains.',
+      'Earned: hold the fastest lap this season on more Slipstream tracks than anyone else, {n} or more at once. It moves to whoever takes the lead.':
+        'Se gana: ten la vuelta más rápida de la temporada en más pistas de Slipstream que nadie, {n} o más a la vez. Pasa a quien tome la delantera.',
+      'Earned: have more Shell Crackers kills of all time than anyone else, {n} or more. It moves to whoever takes the lead.':
+        'Se gana: ten más bajas históricas en Shell Crackers que nadie, {n} o más. Pasa a quien tome la delantera.',
+      'Leads {n} Slipstream tracks': 'Lidera {n} pistas de Slipstream', 'Most Shell Crackers kills: {n}': 'Más bajas en Shell Crackers: {n}',
+      'Ranked #{p} in miles, all time': 'Puesto #{p} en millas, histórico', 'Ranked #{p} in miles, this week': 'Puesto #{p} en millas, esta semana',
+      'Ranked #{p} in miles, all time (tied for first)': 'Puesto #{p} en millas, histórico (empatado en el primero)', 'Ranked #{p} in miles, this week (tied for first)': 'Puesto #{p} en millas, esta semana (empatado en el primero)'
+    });
+  })(0);
   var TIERS = [
     { k: 'economy', n: 'Economy', min: 0 },
     { k: 'business', n: 'Business Class', min: 2000 },
@@ -185,7 +215,7 @@
   var LAP_PER_TRACK = 200, LAP_CAP = 2000, LAP_WINDOW = 2.5, REC_EACH = 100, REC_CAP = 1000;
 
   function num(v) { return typeof v === 'number' && isFinite(v) ? v : NaN; }
-  function fmt(n) { try { return Math.round(n).toLocaleString('en-US'); } catch (e) { return String(Math.round(n)); } }
+  function fmt(n) { try { return window.BackRoomLang ? BackRoomLang.num(Math.round(n)) : Math.round(n).toLocaleString('en-US'); } catch (e) { return String(Math.round(n)); } }
   function tierOf(miles) { var t = TIERS[0]; for (var i = 0; i < TIERS.length; i++) if (miles >= TIERS[i].min) t = TIERS[i]; return t; }
   function nextOf(miles) { for (var i = 0; i < TIERS.length; i++) if (miles < TIERS[i].min) return { tier: TIERS[i], miles: TIERS[i].min - miles }; return null; }
   function points(rule, x) {

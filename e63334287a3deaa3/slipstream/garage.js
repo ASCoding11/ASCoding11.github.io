@@ -41,6 +41,7 @@ window.SlipstreamGarage=function(X){
 'use strict';
 const {THREE,C,renderer,TEAMS,SEATS,CAR_GEO,MAT,store,strHash,mulberry,esc,$,toast}=X;
 const GAME='slipstream',NF=window.NameFilter;
+const T=window.BackRoomLang?BackRoomLang.t:(s,v)=>s.replace(/\{(\w+)\}/g,(m,n)=>v&&v[n]!=null?v[n]:m);   // Spanish (../lang.js, es.js)
 // The catalogue (../cosmetics.js, GAME_ITEMS) knows each item by its slot and number. In here each has a short key
 // ('lv-flames', 'hm-shark', 'sp-zoomi'): the names below are in the catalogue's number order, slot by slot.
 const SP=['zoomi','burnout','apex','taco','grandma','pitstop','slick','latebrake','draftpunk','gravel','blueflag','honk','chicane','podium','lapnap'];
@@ -549,7 +550,7 @@ function bump(stat,n){
   const have=got(k,stat);if(have>=ch[1])return;
   (prog.p[k]||(prog.p[k]={}))[stat]=Math.min(ch[1],have+n);progDirty=true;
   if(have+n>=ch[1]){
-    toast(item('sp-'+k).name+' · '+STATS[stat](ch[1])+' · done');
+    toast(item('sp-'+k).name+' · '+T(STATS[stat](ch[1]))+' · '+T('done'));
     if(doneAll(k)&&C.grant(item('lv-'+k).id))toast(item('sp-'+k).name+' livery unlocked. It\'s in the Garage.','fl');
     saveProg();
   }

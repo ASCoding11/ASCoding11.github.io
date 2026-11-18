@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
 <script src="/e63334287a3deaa3/captains.js"></script> <!-- who may open the hidden Seeker kit (see README) -->
+<script src="/e63334287a3deaa3/lang.js"></script> <!-- English / Español (see README) -->
+<script src="es.js"></script> <!-- Chromaflage's Spanish words -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chromaflage</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -319,7 +321,7 @@ body.touch #lobby{top:calc(150px + env(safe-area-inset-top,0px));left:12px;right
   <div id="hud" hidden>
     <div id="vig"></div>
     <div id="xh" hidden></div>
-    <div id="hitPop" class="out"></div>
+    <div id="hitPop" class="out" data-noi18n></div>
     <div id="top">
       <div class="pill" id="phaseBox"><span id="clock">0:00</span><small id="phaseName">Lobby</small></div>
       <div class="pill" id="roleBox"><small>You are</small><b id="roleName">Waiting</b></div>
@@ -330,14 +332,14 @@ body.touch #lobby{top:calc(150px + env(safe-area-inset-top,0px));left:12px;right
       <div class="bar"><i id="eyeFill"></i></div><span id="eyeTxt">Not seen</span>
     </div>
     <div id="feed"></div>
-    <div id="banner"><b></b><span class="out"></span></div>
+    <div id="banner" data-noi18n><b></b><span class="out"></span></div>
     <div id="tauntRing" class="out" hidden>
       <svg viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="14" fill="rgba(31,27,51,.6)" stroke="rgba(255,255,255,.3)" stroke-width="4"/><circle id="tauntArc" cx="17" cy="17" r="14" fill="none" stroke="#ffc83d" stroke-width="4" stroke-dasharray="88" stroke-dashoffset="0" transform="rotate(-90 17 17)" stroke-linecap="round"/><text x="17" y="22" text-anchor="middle" font-size="14" font-weight="900" fill="#fff">♪</text></svg>
       <span id="tauntTxt">Squeak in 30</span>
     </div>
     <div id="hint" class="out"></div>
     <div id="ink" class="out" hidden><div class="lbl">Tag blaster</div><div class="bar"><i id="inkFill"></i></div><div class="sub" id="inkSub">Misses cost ink</div></div>
-    <div id="spec" hidden></div>
+    <div id="spec" hidden data-noi18n></div>
     <div id="lockHint" class="out" hidden>Click to look around</div>
     <div id="blind" hidden>
       <div class="big">Eyes shut!</div>
@@ -496,6 +498,7 @@ body.touch #lobby{top:calc(150px + env(safe-area-inset-top,0px));left:12px;right
           <label class="setting"><span>Mouse speed</span><input type="range" id="sens" min="0.2" max="3" step="0.05"><output id="sensOut"></output></label>
           <label class="setting"><span>Volume</span><input type="range" id="vol" min="0" max="1" step="0.05"><output id="volOut"></output></label>
           <div class="setting"><span>Graphics</span><div class="seg" id="gfxSeg" role="group" aria-label="Graphics quality"><button type="button" data-q="high">Pretty</button><button type="button" data-q="fast">Fast</button></div></div>
+          <div class="setting"><span>Language</span><div data-lang-toggle></div></div>
         </details>
         <div class="adbox" id="adMenu" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
       </div>
@@ -515,6 +518,7 @@ body.touch #lobby{top:calc(150px + env(safe-area-inset-top,0px));left:12px;right
       <p class="msg" id="inviteMsg"></p>
       <label class="setting"><span>Mouse speed</span><input type="range" id="sens2" min="0.2" max="3" step="0.05"></label>
       <label class="setting"><span>Volume</span><input type="range" id="vol2" min="0" max="1" step="0.05"></label>
+      <div class="setting"><span>Language</span><div data-lang-toggle></div></div>
       <details>
         <summary>Controls</summary>
         <dl class="keys">
@@ -551,6 +555,7 @@ body.touch #lobby{top:calc(150px + env(safe-area-inset-top,0px));left:12px;right
 <script>
 (function(){
 'use strict';
+var T=window.BackRoomLang?BackRoomLang.t:function(s,v){return s.replace(/\{(\w+)\}/g,function(m,n){return v&&v[n]!=null?v[n]:m})};
 // =====================================================================
 //  Firebase (same project and Realtime Database rules as Rumble Karts).
 //  Online rooms live under rooms/cf-<code>; every player writes only their
@@ -3720,8 +3725,8 @@ function applyRS(rs){
 function onFound(u,by,rs){
   const e=ents.get(u),infect=rs.set.mode==='infect';
   if(e){if(CK)CK.found(e,by);confetti(e.pos.clone().add(new V3(0,.8,0)));sfx('found',e.pos);if(!infect){e.av.root.visible=false;puff(e.pos.clone().add(new V3(0,.5,0)),'#ffffff')}}
-  feed('<span class="hl">'+esc(nameOf(by))+'</span> found '+esc(nameOf(u)));
-  if(u===myId()){banner(infect?'TAGGED!':'FOUND!',infect?'You\'ve turned. Now help find the rest.':'By '+nameOf(by)+'. You can watch the rest of the round.',3);flashVig();if(G.studio)closeStudio();if(G.mode==='practice'&&G.pmode==='hide'){}}
+  feed(T('{a} found {b}',{a:'<span class="hl">'+esc(nameOf(by))+'</span>',b:esc(nameOf(u))}));
+  if(u===myId()){banner(infect?'TAGGED!':'FOUND!',infect?'You\'ve turned. Now help find the rest.':T('By {n}. You can watch the rest of the round.',{n:nameOf(by)}),3);flashVig();if(G.studio)closeStudio();if(G.mode==='practice'&&G.pmode==='hide'){}}
   if(by===myId()){showHit(nameOf(u));}
   if(by===myId()&&window.BackRoomStats){BackRoomStats.add('found',1);BackRoomStats.max('rfound',Object.values(rs.fd||{}).filter(f=>f[0]===by).length)}
 }
@@ -4296,7 +4301,7 @@ function onNode(uid,v){
     if(Net.now()-o.ts>LIVE_MS||!finN(+v.x)||!finN(+v.z)||!MAP)return;
     e=makeEnt({id:uid,name:o.n,color:o.c,remote:true,shape:v.s,size:v.sz,rough:numIn(+v.rf,0,100,85)/100});
     remoteTarget(e,v);e.pos.copy(e.tpos);e.yaw=e.tyaw;
-    if(performance.now()-G.joinedAt>2500)feed(esc(o.n)+' joined');
+    if(performance.now()-G.joinedAt>2500)feed(T('{n} joined',{n:esc(o.n)}));
     refreshRoles();
   }
   e.seen=performance.now();
@@ -4341,7 +4346,7 @@ function pushSnap(e,ts,JUMP){
 }
 const _rs={};
 function onNodeGone(uid){
-  const e=ents.get(uid);if(e){feed(esc(e.name)+' left');removeEnt(e)}
+  const e=ents.get(uid);if(e){feed(T('{n} left',{n:esc(e.name)}));removeEnt(e)}
   Net.others.delete(uid);if(uid===G.hostUid)G.hostUid=null;renderLobby();
 }
 function remoteShot(e,sh){
@@ -4374,7 +4379,7 @@ function becomeHost(){
   G.host=true;G.he=Math.min(HE_MAX,G.maxHe+1);G.maxHe=G.he;
   const base=G.lastRS?Object.assign({},G.lastRS):lobbyRS(null,defaultSet());
   if(!G.lastRS)base.map=base.set.map>=0?base.set.map:rotMap(now());
-  if(G.lastRS&&G.rs&&G.rs.id===base.id)feed('You\'re the host now');
+  if(G.lastRS&&G.rs&&G.rs.id===base.id)feed(T('You\'re the host now'));
   setRS(base);
 }
 function stopHost(){G.host=false;G.he=0;Net.rsStr='';Net.upd({rs:'',he:0})}
@@ -4382,17 +4387,17 @@ function stopHost(){G.host=false;G.he=0;Net.rsStr='';Net.upd({rs:'',he:0})}
 // =====================================================================
 //  HUD
 // =====================================================================
-const hudCache={};
+const hudCache={};document.addEventListener('backroom:lang',()=>{for(const k in hudCache)delete hudCache[k]});   // re-set HUD text (names stay out of translation, see es.js)
 function setText(id,t){if(hudCache[id]!==t){hudCache[id]=t;$(id).textContent=t}}
 function setHidden(id,h){const k='h_'+id;if(hudCache[k]!==h){hudCache[k]=h;$(id).hidden=h}}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function feed(html){const box=$('feed'),d=document.createElement('div');d.innerHTML=html;box.appendChild(d);while(box.children.length>5)box.firstChild.remove();setTimeout(()=>{d.style.opacity='0';setTimeout(()=>d.remove(),700)},4500)}
+function feed(html){const box=$('feed'),d=document.createElement('div');d.setAttribute('data-noi18n','');d.innerHTML=html;box.appendChild(d);while(box.children.length>5)box.firstChild.remove();setTimeout(()=>{d.style.opacity='0';setTimeout(()=>d.remove(),700)},4500)}
 const toast=t=>feed(esc(t));
 // small pops for HUD pieces; skipped when the player's device asks for less motion
 const calm=matchMedia('(prefers-reduced-motion: reduce)').matches;
 function hudPop(el,frames,ms){if(!calm&&el.animate)el.animate(frames,{duration:ms,easing:'cubic-bezier(.2,.9,.3,1.25)'})}
-let bannerT=0;function banner(t,s,sec){const b=$('banner');b.querySelector('b').textContent=t;b.querySelector('span').textContent=s||'';b.style.opacity='1';hudPop(b.querySelector('b'),[{transform:'scale(.55) rotate(-4deg)'},{transform:'scale(1) rotate(0)'}],380);clearTimeout(bannerT);bannerT=setTimeout(()=>b.style.opacity='0',(sec||2.5)*1000)}
-let hitT=0;function showHit(n){const h=$('hitPop');h.textContent='Found '+n+'!';h.style.opacity='1';hudPop(h,[{transform:'translate(-50%,-50%) scale(.5)'},{transform:'translate(-50%,-50%) scale(1)'}],320);hudPop($('xh'),[{transform:'scale(1.9)',borderColor:'#ffc83d'},{transform:'scale(1)',borderColor:'#fff'}],360);clearTimeout(hitT);hitT=setTimeout(()=>h.style.opacity='0',1400)}
+let bannerT=0;function banner(t,s,sec){const b=$('banner');b.querySelector('b').textContent=T(t);b.querySelector('span').textContent=s?T(s):'';b.style.opacity='1';hudPop(b.querySelector('b'),[{transform:'scale(.55) rotate(-4deg)'},{transform:'scale(1) rotate(0)'}],380);clearTimeout(bannerT);bannerT=setTimeout(()=>b.style.opacity='0',(sec||2.5)*1000)}
+let hitT=0;function showHit(n){const h=$('hitPop');h.textContent=T('Found {n}!',{n});h.style.opacity='1';hudPop(h,[{transform:'translate(-50%,-50%) scale(.5)'},{transform:'translate(-50%,-50%) scale(1)'}],320);hudPop($('xh'),[{transform:'scale(1.9)',borderColor:'#ffc83d'},{transform:'scale(1)',borderColor:'#fff'}],360);clearTimeout(hitT);hitT=setTimeout(()=>h.style.opacity='0',1400)}
 function flashVig(){const v=$('vig');v.style.opacity='1';setTimeout(()=>v.style.opacity='0',600)}
 const ROLE_TXT={free:['Warming up',''],hider:['Hiding','hider'],seeker:['Seeking','seeker'],out:['Found','spec'],spec:['Watching','spec']};
 function updateHud(){
@@ -4425,7 +4430,7 @@ function updateHud(){
   if(hudCache.hint!==hint){hudCache.hint=hint;$('hint').innerHTML=hint}
   // spectating
   const watching=(role==='out'||role==='spec')&&ph!=='end';
-  setHidden('spec',!watching);if(watching){const t=specTarget();setText('spec',t?'Watching '+t.name+' ('+(roleOf(t.id)==='seeker'?'seeker':'hider')+') · '+(isTouch?'tap to switch':'← → to switch'):'Watching')}
+  setHidden('spec',!watching);if(watching){const t=specTarget();setText('spec',t?T('Watching {n} ('+(roleOf(t.id)==='seeker'?'seeker':'hider')+') · '+(isTouch?'tap to switch':'← → to switch'),{n:t.name}):T('Watching'))}
   // squeak timer
   const tn=rs&&rs.set?rs.set.tn|0:0,tOn=role==='hider'&&ph==='seek'&&tn>0&&G.nextTaunt>0;
   setHidden('tauntRing',!tOn);if(tOn){const s=Math.max(0,(G.nextTaunt-now())/1000);setText('tauntTxt','Squeak in '+Math.ceil(s));$('tauntArc').setAttribute('stroke-dashoffset',String(88*(1-s/tn)))}
@@ -4477,7 +4482,7 @@ function renderLobby(){
   const ul=$('plist');ul.textContent='';
   const ids=[Net.uid,...[...Net.others.keys()].filter(k=>Net.live(k))];
   for(const id of ids){const li=document.createElement('li'),dot=document.createElement('span'),nm=document.createElement('span'),t=document.createElement('span');
-    const e=ents.get(id);dot.className='dot';dot.style.background=id===Net.uid?myColor:(e?e.color:'#ccc');nm.className='nm';nm.textContent=id===Net.uid?(myName||'You')+' (you)':nameOf(id);t.className='t';
+    const e=ents.get(id);dot.className='dot';dot.style.background=id===Net.uid?myColor:(e?e.color:'#ccc');nm.className='nm';nm.setAttribute('data-noi18n','');nm.textContent=id===Net.uid?T('{n} (you)',{n:myName||T('You')}):nameOf(id);t.className='t';
     t.textContent=[id===G.hostUid?'host':'',(rs.sc&&rs.sc[id])?rs.sc[id]+' pts':''].filter(Boolean).join(' · ');li.append(dot,nm,t);ul.appendChild(li)}
   const set=rs.set||defaultSet();segSet($('setMode'),set.mode);$('setMap').value=String(set.map);$('setMap').disabled=!G.host;segSet($('setHide'),set.hide);segSet($('setSeek'),set.seek);segSet($('setSk'),set.sk);segSet($('setTn'),set.tn);
   $('lobby').classList.toggle('guest',!G.host);$('hostNote').textContent=G.host?'(you\'re the host)':'(host picks)';
@@ -4506,15 +4511,15 @@ function showResults(rs){
     const wasSeeker=rs.sk.indexOf(u)>=0,fd=rs.fd&&rs.fd[u];
     const role=wasSeeker?'Seeker':fd&&rs.set.mode==='infect'?'Hider → seeker':'Hider';
     let result;if(wasSeeker){const n=Object.values(rs.fd||{}).filter(f=>f[0]===u).length;result='Found '+n}
-    else if(fd)result='<span class="bad">Found by '+esc(nameOf(fd[0]))+' at '+esc(fmtT(Number(fd[1])))+'</span>';else result='<span class="ok">Stayed hidden</span>';
-    tr.innerHTML='<td><span class="nm"><span class="dot" style="background:'+col+'"></span>'+esc(nm)+(u===mine&&nm!=='You'?' (you)':'')+'</span></td><td>'+role+'</td><td>'+result+'</td><td>+'+intTxt((res.pts||{})[u])+'</td><td>'+intTxt((rs.sc||{})[u])+'</td>';
+    else if(fd)result='<span class="bad" data-noi18n>'+T('Found by {n} at {t}',{n:esc(nameOf(fd[0])),t:esc(fmtT(Number(fd[1])))})+'</span>';else result='<span class="ok">Stayed hidden</span>';
+    tr.innerHTML='<td><span class="nm" data-noi18n><span class="dot" style="background:'+col+'"></span>'+(u===mine&&nm!=='You'?T('{n} (you)',{n:esc(nm)}):esc(nm))+'</span></td><td>'+role+'</td><td>'+result+'</td><td>+'+intTxt((res.pts||{})[u])+'</td><td>'+intTxt((rs.sc||{})[u])+'</td>';
     tb.appendChild(tr);
   }
   const ai=ents.get('ai');
   if(G.mode==='practice'&&G.pmode==='hide'&&ai){
     const b=ai.bot;$('saw').hidden=false;
     if(b.bestImg){$('sawImg').src=b.bestImg;$('sawImg').hidden=false;const sc=Math.round((1-b.bestVis)*100);$('sawScore').textContent='Blend '+sc+'%';
-      $('sawTxt').textContent='This is the closest look the seeker got at you, from '+b.closest.toFixed(1)+' m away. It had you in view '+(b.visN===1?'once':b.visN+' times')+'. '+(sc>=75?'Your paint matched what was behind you very well.':sc>=45?'Close, but the colours or pattern didn\'t quite line up.':'You stood out against the background. Try the eyedropper on what\'s right behind you.')}
+      $('sawTxt').textContent=T('This is the closest look the seeker got at you, from {d} m away.',{d:b.closest.toFixed(1)})+' '+(b.visN===1?T('It had you in view once.'):T('It had you in view {n} times.',{n:b.visN}))+' '+T(sc>=75?'Your paint matched what was behind you very well.':sc>=45?'Close, but the colours or pattern didn\'t quite line up.':'You stood out against the background. Try the eyedropper on what\'s right behind you.')}
     else{$('sawImg').hidden=true;$('sawScore').textContent='Never seen';$('sawTxt').textContent='The seeker never even got you in view. A good spot is half the battle.'}
   }else $('saw').hidden=true;
   $('again').hidden=G.mode==='online';$('toMenu').textContent=G.mode==='online'?'Leave room':'Menu';

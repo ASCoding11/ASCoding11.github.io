@@ -23,6 +23,9 @@
 (function () {
   'use strict';
   if (window.UpdraftGear) return;
+  // Spanish: the words are in es.js (../lang.js); TX() for text built here, NUM() for numbers.
+  var TX = window.BackRoomLang ? BackRoomLang.t : function (s, v) { return s.replace(/\{(\w+)\}/g, function (m, k) { return v && v[k] != null ? v[k] : m; }); };
+  var NUM = function (n) { return window.BackRoomLang ? BackRoomLang.num(n) : n.toLocaleString('en-US'); };
 
   // ---------------- Names (the same as ../cosmetics.js) ----------------
   var NAMES = {
@@ -715,13 +718,14 @@
       scream: ['No scream: falls are quiet, apart from the wind.', 'A long, falling "Aaaah!"', 'Yo-de-lay-ee-oo, all the way down.', 'A cartoon slide whistle, high to low.', 'One grand, wobbling high note.', 'A happy "Wheee!" that rises as you drop.'],
       trail: ['No trail.', 'Every colour, streaming out above you.', 'A white-hot tail that cools to blue.', 'A puffy grey smoke trail that spreads out.', 'A ribbon of twinkling gold.']
     };
+    document.addEventListener('backroom:lang', function () { if (ui && !ui.sec.hidden) render(); });
     var TABS = [['skin', 'Skins'], ['pack', 'Packs'], ['reward', 'Height'], ['extra', 'Extras']];
     function el(tag, cls, html) { var e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
     function makeUI() {
       if (ui) return;
       var st = el('style'); st.id = 'gearCss'; st.textContent = CSS; document.head.appendChild(st);
       var sec = el('section'); sec.id = 'gear'; sec.hidden = true; sec.setAttribute('aria-label', 'Gear');
-      sec.innerHTML = '<div class="ghint">Drag to turn</div><div class="gp card" role="dialog" aria-label="Gear"><div class="gh"><h2>Gear</h2><span class="gcap">Captains only</span></div><div class="seg gtabs" role="tablist"></div><div class="gscroll"></div><p class="gdesc"></p><div class="gfoot"><button class="btn go" type="button" data-done>Done</button></div></div>';
+      sec.setAttribute('aria-label', TX('Gear')); sec.innerHTML = '<div class="ghint">Drag to turn</div><div class="gp card" role="dialog" aria-label="Gear"><div class="gh"><h2>Gear</h2><span class="gcap">Captains only</span></div><div class="seg gtabs" role="tablist"></div><div class="gscroll"></div><p class="gdesc"></p><div class="gfoot"><button class="btn go" type="button" data-done>Done</button></div></div>';
       X.$('app').appendChild(sec);
       var tabs = sec.querySelector('.gtabs');
       TABS.forEach(function (t) { var b = el('button', '', t[1]); b.type = 'button'; b.dataset.tab = t[0]; b.setAttribute('role', 'tab'); tabs.appendChild(b); });
@@ -756,8 +760,8 @@
     }
     function showDesc(k, n) {
       var txt = DESC[k][n], nm = NAMES[k][n];
-      if (k === 'reward' && n) { var need = REWARD_AT[n], h = Math.floor(X.best.h); txt += n > earned(X.best.h) ? ' Reach ' + need.toLocaleString('en-US') + ' m (' + REWARD_WHERE[n] + ') to earn it. Your best: ' + h.toLocaleString('en-US') + ' m.' : ' Earned.'; }
-      ui.desc.innerHTML = '<b>' + esc(nm) + '.</b> ' + esc(txt);
+      if (k === 'reward' && n) { var need = REWARD_AT[n], h = Math.floor(X.best.h); txt = TX(txt) + ' ' + (n > earned(X.best.h) ? TX('Reach {a} m ({w}) to earn it. Your best: {b} m.', { a: NUM(need), w: TX(REWARD_WHERE[n]), b: NUM(h) }) : TX('Earned.')); } else txt = TX(txt);
+      ui.desc.innerHTML = '<b>' + esc(TX(nm)) + '.</b> ' + esc(txt);
     }
     function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
     function tile(k, n, label, lock) {
@@ -781,13 +785,13 @@
         g = grid(''); for (i = 0; i <= MAX.p; i++) g.appendChild(tile('p', i, NAMES.pack[i]));
         showDesc('pack', mine.p);
       } else if (ui.tab === 'reward') {
-        S.appendChild(el('div', 'glab', 'Earned by your best height: ' + Math.floor(X.best.h).toLocaleString('en-US') + ' m'));
-        g = grid(''); for (i = 0; i <= 3; i++) g.appendChild(tile('r', i, NAMES.reward[i], i > lv ? REWARD_AT[i].toLocaleString('en-US') + ' m' : ''));
+        S.appendChild(el('div', 'glab', esc(TX('Earned by your best height: {h} m', { h: NUM(Math.floor(X.best.h)) }))));
+        g = grid(''); for (i = 0; i <= 3; i++) g.appendChild(tile('r', i, NAMES.reward[i], i > lv ? NUM(REWARD_AT[i]) + ' m' : ''));
         showDesc('reward', mine.r);
       } else {
         g = grid('Fall scream'); for (i = 0; i <= MAX.x; i++) g.appendChild(tile('x', i, NAMES.scream[i]));
         g = grid('Plummet trail'); for (i = 0; i <= MAX.t; i++) g.appendChild(tile('t', i, NAMES.trail[i]));
-        ui.desc.innerHTML = '<b>' + esc(NAMES.scream[mine.x]) + '</b> and <b>' + esc(NAMES.trail[mine.t]) + '.</b> They happen when you drop a long way. Tap one to try it.';
+        ui.desc.innerHTML = esc(TX('{a} and {b}. They happen when you drop a long way. Tap one to try it.', { a: TX(NAMES.scream[mine.x]), b: TX(NAMES.trail[mine.t]) }));
       }
     }
     // ---- thumbnails: the real figure, drawn once each with the game's own renderer ----

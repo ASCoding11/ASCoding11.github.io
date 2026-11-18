@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script src="/e63334287a3deaa3/lang.js"></script> <!-- English / Español (see README) -->
+<script src="es.js"></script> <!-- this game's Spanish words -->
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Sky Duel</title>
@@ -221,8 +223,8 @@ body.touch #banner{top:30%}
 
   <div id="hud" hidden>
     <div id="vign"></div><div id="white"></div>
-    <div id="marks"></div>
-    <div id="lockRing" class="hm" hidden><span></span></div>
+    <div id="marks" data-noi18n></div>
+    <div id="lockRing" class="hm" hidden data-noi18n><span></span></div>
     <div id="lead" class="hm" hidden><i></i></div>
     <div id="nose" class="hm"></div>
     <div id="reticle" class="hm"></div>
@@ -233,14 +235,14 @@ body.touch #banner{top:30%}
     <div id="status">
       <div class="bar hp"><b>HULL</b><u><i id="hpF"></i></u><span id="hpN">100</span></div>
       <div class="bar bo"><b>BOOST</b><u><i id="boF"></i></u><span></span></div>
-      <div class="bar he" id="heB"><b>GUNS</b><u><i id="heF"></i></u><span id="heN"></span></div>
+      <div class="bar he" id="heB"><b>GUNS</b><u><i id="heF"></i></u><span id="heN" data-noi18n></span></div>
       <div id="strip"><span id="mslS">MISSILES <b id="mslN">2</b></span><span id="flS">FLARES <b id="flN">2</b></span><span>SPD <b id="spd">0</b></span><span>ALT <b id="alt">0</b></span><span>THR <b id="thrN">0</b></span></div>
     </div>
-    <div id="warn"></div>
-    <div id="banner"></div>
+    <div id="warn" data-noi18n></div>
+    <div id="banner" data-noi18n></div>
     <div id="hint"></div>
     <div id="clickPlay" hidden>Click to take the controls</div>
-    <div id="board" hidden><table id="boardT"></table></div>
+    <div id="board" hidden data-noi18n><table id="boardT"></table></div>
   </div>
 
   <div id="touch" hidden>
@@ -258,7 +260,7 @@ body.touch #banner{top:30%}
       <div class="card">
         <div class="logo">
           <svg viewBox="0 0 70 56" aria-hidden="true"><path d="M4 30l40-9 20-13-8 17 6 5-9 2-6 16-7-13-28 2z" fill="#3d8bff" stroke="#0d1b2e" stroke-width="3" stroke-linejoin="round"/><path d="M40 22l13-2" stroke="#0d1b2e" stroke-width="3" stroke-linecap="round"/><path d="M6 44h14M26 48h10" stroke="#ffc23d" stroke-width="4" stroke-linecap="round"/></svg>
-          <h1>Sky <span>Duel</span></h1>
+          <h1 data-noi18n>Sky <span>Duel</span></h1>
         </div>
         <p class="tag">Little planes, big sky. Chase each other through clouds, peaks and red-rock canyons with guns, homing missiles and flares. First to the kill target wins.</p>
         <div class="label" style="margin-top:4px">Play with friends</div>
@@ -321,6 +323,7 @@ body.touch #banner{top:30%}
           <label class="setting"><span>Invert up/down</span><input type="checkbox" id="invY"></label>
           <label class="setting"><span>Volume</span><input type="range" id="vol" min="0" max="1" step="0.05"></label>
           <div class="setting"><span>Graphics</span><span class="seg" id="gfxSeg"><button type="button" data-v="high">Pretty</button><button type="button" data-v="low">Fast</button></span></div>
+          <div class="setting"><span>Language</span><div data-lang-toggle></div></div>
         </details>
       </div>
     </div>
@@ -330,7 +333,7 @@ body.touch #banner{top:30%}
     <div class="card mini">
       <h2>Briefing room</h2>
       <p class="tag" id="lobbySub" style="margin:2px 0 6px"></p>
-      <ul class="plist" id="lobbyList"></ul>
+      <ul class="plist" id="lobbyList" data-noi18n></ul>
       <div class="label">Match</div>
       <div class="opts" id="lobbyOpts">
         <span>Mode</span><span class="seg" id="setMode"><button type="button" data-v="0">Duel 1v1</button><button type="button" data-v="1">Free-for-all</button><button type="button" data-v="2">2v2</button></span>
@@ -365,6 +368,7 @@ body.touch #banner{top:30%}
       <label class="setting"><span>Invert up/down</span><input type="checkbox" id="invY2"></label>
       <label class="setting"><span>Volume</span><input type="range" id="vol2" min="0" max="1" step="0.05"></label>
       <div class="setting"><span>Graphics</span><span class="seg" id="gfxSeg2"><button type="button" data-v="high">Pretty</button><button type="button" data-v="low">Fast</button></span></div>
+      <div class="setting"><span>Language</span><div data-lang-toggle></div></div>
     </div>
   </section>
 
@@ -390,6 +394,8 @@ body.touch #banner{top:30%}
 <script>
 (function(){
 'use strict';
+// Spanish (lang.js + es.js): words put together here go through TX; fixed page text is translated by lang.js itself.
+const TX=window.BackRoomLang?BackRoomLang.t:(s,v)=>String(s).replace(/\{(\w+)\}/g,(m,n)=>v&&v[n]!=null?v[n]:m);
 // =====================================================================
 //  Firebase (same project and Realtime Database rules as Rumble Karts).
 //  Online rooms live under rooms/vq-<code>; every player writes only their
@@ -913,7 +919,7 @@ function handleEvent(ev,mine){
       if(t.hp<=0)kill(t,t.lastHitBy,ev.w===1?1:0);break}
     case 'k':{const v=G.ents.get(ev.v),by=G.ents.get(ev.by);if(!v)break;
       boom(v.pos,true);if(!v.local){v.alive=false;v.mesh.visible=false}
-      if(by&&by!==v&&by.local&&G.phase==='play'){by.kills++;if(by===G.me){banner('You shot down '+v.name,ev.w===1?'Missile':ev.w===2?'They hit the ground running from you':'Guns',1800);sfx('kill');stat('add','kills',1);stat('add','kdkills',1)}}
+      if(by&&by!==v&&by.local&&G.phase==='play'){by.kills++;if(by===G.me){banner(TX('You shot down {n}',{n:v.name}),ev.w===1?'Missile':ev.w===2?'They hit the ground running from you':'Guns',1800);sfx('kill');stat('add','kills',1);stat('add','kdkills',1)}}
       feedLine(by&&by!==v?by:null,v,ev.w);
       if(v===G.me&&by&&by!==v)G.spec=by;
       break}
@@ -1335,7 +1341,7 @@ function beginMatch(){
   $('hud').hidden=false;$('touch').hidden=!touchUI;$('clickPlay').hidden=touchUI||!!document.pointerLockElement;
   $('rule').textContent=(rs.md===2?'Teams, first to ':'First to ')+rs.kl;
   const me=G.me;
-  banner(MODE_NAME[rs.md],me&&me.out?'This match is full: you fly in the next one':rs.md===2&&me?'You are on '+TEAM_NAME[me.team<0?0:me.team]:'Most kills wins',3200);
+  banner(MODE_NAME[rs.md],me&&me.out?'This match is full: you fly in the next one':rs.md===2&&me?'You are on '+TEAM_NAME[me.team<0?0:me.team]:'Most kills wins',3200);   // (banner() translates them)
   if(G.online)Net.sendState();
 }
 function endMatch(){
@@ -1347,9 +1353,9 @@ function endMatch(){
     // a win only counts online with at least one other person flying
     if(won&&G.online&&humanIds().some(id=>id!==me.id&&G.ents.has(id)&&!G.ents.get(id).out))stat('add','wins',1);
   }
-  let who='';if(rs.md===1){const w=G.ents.get(rs.win);who=w?w.name:''}else if(rs.win)who=TEAM_NAME[rs.win==='t1'?1:0]+' team';
+  let who='';if(rs.md===1){const w=G.ents.get(rs.win);who=w?w.name:''}else if(rs.win)who=TEAM_NAME[rs.win==='t1'?1:0];
   $('endTitle').textContent=me&&me.out?'Match over':draw?'Draw':won?'Victory':'Shot down';
-  $('endSub').textContent=draw?'Nobody came out ahead.':won?(rs.md===2?'Your team wins.':'You win the match.'):who+(rs.md===2?' wins.':' wins the match.');
+  $('endSub').textContent=draw?'Nobody came out ahead.':won?(rs.md===2?'Your team wins.':'You win the match.'):rs.md===2?TX(who+' team wins.'):TX('{w} wins the match.',{w:who});
   $('endTable').innerHTML=tableHTML();
   $('end').hidden=false;$('touch').hidden=true;$('pause').hidden=true;
   sfx(won?'win':'lose');showAd('adEnd');endButtons();
@@ -1361,9 +1367,9 @@ function endButtons(){
   else{b.disabled=!host;b.textContent=host?'Fly again':'Waiting for the host';$('endMsg').textContent=host?'You are the host: Fly again starts the next match with the same settings.':''}
 }
 function tableHTML(){
-  const rs=G.rs,rows=standings();let h='<tr><th>Pilot</th><th class="n">Kills</th><th class="n">Lost</th></tr>';
-  const row=e=>'<tr'+(e===G.me?' class="me"':'')+'><td><i class="dot" style="background:'+entColor(e)+'"></i>'+esc(e.name)+(e.bot?' <small>bot</small>':'')+'</td><td class="n">'+e.kills+'</td><td class="n">'+e.deaths+'</td></tr>';
-  if(rs&&rs.md===2){for(let t=0;t<2;t++){h+='<tr><th colspan="2">'+TEAM_NAME[t]+'</th><th class="n">'+teamScore(t)+'</th></tr>';for(const e of rows)if(e.team===t)h+=row(e)}}
+  const rs=G.rs,rows=standings();let h='<tr><th>'+esc(TX('Pilot'))+'</th><th class="n">'+esc(TX('Kills'))+'</th><th class="n">'+esc(TX('Lost'))+'</th></tr>';
+  const row=e=>'<tr'+(e===G.me?' class="me"':'')+'><td><i class="dot" style="background:'+entColor(e)+'"></i>'+esc(e.name)+(e.bot?' <small>'+esc(TX('bot'))+'</small>':'')+'</td><td class="n">'+e.kills+'</td><td class="n">'+e.deaths+'</td></tr>';
+  if(rs&&rs.md===2){for(let t=0;t<2;t++){h+='<tr><th colspan="2">'+esc(TX(TEAM_NAME[t]))+'</th><th class="n">'+teamScore(t)+'</th></tr>';for(const e of rows)if(e.team===t)h+=row(e)}}
   else for(const e of rows)h+=row(e);
   return h;
 }
@@ -1548,7 +1554,7 @@ const put=(el,x,y)=>{el.style.transform='translate('+x.toFixed(1)+'px,'+y.toFixe
 const marks=[];
 (function(){const box=$('marks');for(let i=0;i<8;i++){const d=document.createElement('div');d.className='mark';d.hidden=true;d.innerHTML='<u><i></i></u><span></span>';box.appendChild(d);marks.push({el:d,name:d.querySelector('span'),hp:d.querySelector('i'),txt:'',hpv:-1,cls:''})}})();
 let hudT=0,bannerT=0,hitT=0;
-function banner(t,sub,ms){const b=$('banner');b.textContent=t;if(sub){const s=document.createElement('small');s.textContent=sub;b.appendChild(s)}b.classList.add('on');bannerT=(ms||1500)/1000}
+function banner(t,sub,ms){const b=$('banner');b.textContent=TX(t);if(sub){const s=document.createElement('small');s.textContent=TX(sub);b.appendChild(s)}b.classList.add('on');bannerT=(ms||1500)/1000}
 function hitMark(){hitT=.12;$('hitm').classList.add('on')}
 function feedLine(by,v,w){
   if(G.mode==='menu')return;
@@ -1599,7 +1605,7 @@ function updateHud(dt){
     m.el.hidden=false;
     if(isT){
       const lk=fly&&me.lock.id===e.id?me.lock.t/LOCK_T:0;
-      if(lk>0&&on){lr.hidden=false;put(lr,s.x,s.y);const full=lk>=1;lr.classList.toggle('locked',full);lr.firstElementChild.textContent=full?'LOCKED':'LOCKING';lr.style.opacity=full?1:(.4+lk*.6).toFixed(2)}else lr.hidden=true;
+      if(lk>0&&on){lr.hidden=false;put(lr,s.x,s.y);const full=lk>=1;lr.classList.toggle('locked',full);const lt=TX(full?'LOCKED':'LOCKING');if(lr.firstElementChild.textContent!==lt)lr.firstElementChild.textContent=lt;lr.style.opacity=full?1:(.4+lk*.6).toFixed(2)}else lr.hidden=true;
     }
   }
   if(!tg)lr.hidden=true;
@@ -1613,12 +1619,12 @@ function updateHud(dt){
     const left=now<rs.t0?rs.tl:rs.tl-(now-rs.t0)/1000;$('clock').textContent=fmtClock(left);
     let a=0,b=0;if(rs.md===1){a=me?me.kills:0;for(const e of G.ents.values())if(e!==me&&!e.out&&e.kills>b)b=e.kills}else{const t=me&&me.team===1?1:0;a=teamScore(t);b=teamScore(1-t)}
     $('scoreL').textContent=a;$('scoreR').textContent=b;
-    if(G.phase==='play'&&now<rs.t0)banner('Take off in '+Math.ceil((rs.t0-now)/1000),MODE_NAME[rs.md]+', first to '+rs.kl,400);
+    if(G.phase==='play'&&now<rs.t0)banner(TX('Take off in {n}',{n:Math.ceil((rs.t0-now)/1000)}),TX(MODE_NAME[rs.md]+', first to {n}',{n:rs.kl}),400);
   }
   $('status').style.visibility=fly?'visible':'hidden';
   if(fly){
     $('hpN').textContent=Math.max(0,Math.round(me.hp));$('hpF').style.background=me.hp<30?'var(--red)':me.hp<60?'var(--amber)':'';
-    $('heB').classList.toggle('hot',me.jam||me.heat>.8);$('heN').textContent=me.jam?'HOT':'';
+    $('heB').classList.toggle('hot',me.jam||me.heat>.8);$('heN').textContent=me.jam?TX('HOT'):'';
     $('mslN').textContent=me.msl;$('flN').textContent=me.flares;$('tMsN').textContent=me.msl;$('tFlN').textContent=me.flares;
     $('mslS').classList.toggle('out',me.msl===0);$('flS').classList.toggle('out',me.flares===0);
     $('spd').textContent=Math.round(me.speed*3.6);$('alt').textContent=Math.round(me.pos.y);$('thrN').textContent=Math.round(me.thr*100);
@@ -1636,7 +1642,7 @@ function updateHud(dt){
   }else if(me&&!me.out&&G.phase==='play'&&rs&&now>=rs.t0)w.push(['Back in the air in '+Math.max(1,Math.ceil(me.respT)),1]);
   else if(me&&me.out&&G.phase==='play')w.push(['Watching: you fly in the next match',1]);
   const key=w.map(q=>q[0]).join('|');const we=$('warn');
-  if(we.dataset.k!==key){we.dataset.k=key;we.textContent='';for(const q of w){const d=document.createElement('div');d.textContent=q[0];if(q[1])d.className='soft';we.appendChild(d)}}
+  if(we.dataset.k!==key){we.dataset.k=key;we.textContent='';for(const q of w){const d=document.createElement('div');d.textContent=TX(q[0]);if(q[1])d.className='soft';we.appendChild(d)}}
   $('board').hidden=!G.board;if(G.board)$('boardT').innerHTML=tableHTML();
   drawRadar();
   if(G.phase==='end'&&G.online)endButtons();
@@ -1692,7 +1698,7 @@ function showMenu(){
 }
 function startSolo(){
   saveName();initAudio();clearEnts();G.mode='solo';G.online=false;G.matchId=0;G.rs=null;
-  G.me=mkEnt('me',{name:myName||'You',color:myColor,frame:myFrame,local:true});
+  G.me=mkEnt('me',{name:myName||TX('You'),color:myColor,frame:myFrame,local:true});
   G.cfg={md:solo.mode,kl:solo.kl,tl:solo.tl,lvl:solo.lvl,fill:solo.mode===1?6:1};
   hostStart();
 }
@@ -1730,13 +1736,13 @@ function renderLobby(){
   const host=Net.hostUid(),mine=host===Net.uid,ids=humanIds(),ul=$('lobbyList');ul.textContent='';
   for(const id of ids){
     const o=id===Net.uid?{name:myName||'Pilot',color:myColor}:Net.others.get(id),li=document.createElement('li');
-    li.innerHTML='<i class="dot" style="display:inline-block;width:12px;height:12px;border-radius:50%;border:1.5px solid var(--ink);background:'+esc(o.color)+'"></i>'+esc(o.name)+' <small>'+(id===host?'host':'')+(id===Net.uid?(id===host?', you':'you'):'')+'</small>';
+    li.innerHTML='<i class="dot" style="display:inline-block;width:12px;height:12px;border-radius:50%;border:1.5px solid var(--ink);background:'+esc(o.color)+'"></i>'+esc(o.name)+' <small>'+esc(TX((id===host?'host':'')+(id===Net.uid?(id===host?', you':'you'):'')))+'</small>';
     ul.appendChild(li);
   }
-  $('lobbySub').textContent='Room '+Net.room+' · '+ids.length+' of '+MAX_ROOM+' pilots';
+  $('lobbySub').textContent=TX('Room {r} · {n} of {m} pilots',{r:Net.room,n:ids.length,m:MAX_ROOM});
   for(const b of $('lobbyOpts').querySelectorAll('button'))b.disabled=!mine;
   $('startMatch').disabled=!mine||Net.isPublic;
-  const hn=mine?'':(Net.others.get(host)||{}).name||'the host';
+  const hn=mine?'':(Net.others.get(host)||{}).name||TX('the host');
   $('lobbyNote').textContent=Net.isPublic?'The match starts by itself in a moment.':G.rs&&G.rs.st===2?(mine?'The last match is over. Take off when everyone is ready.':'The last match is over. Waiting for '+hn+' to start the next one.'):mine?'You are the host. A duel is for two pilots and 2v2 for four; with more in the room it becomes a free-for-all. Bots take the empty seats.':'Waiting for '+hn+' to start the match.';
   segs.forEach(f=>f());
 }
@@ -1808,6 +1814,8 @@ function syncSettings(){
   if(inv){$('room').value=inv[1];setMsg('You were invited to room vq-'+inv[1]+'. Press Play in room to join.')}
   else $('room').value=store.get('room','')||'';
   if(touchUI)setTouch(true);
+  // English / Español switched (lang.js): redo what this page put together itself (fixed text switches by itself)
+  document.addEventListener('backroom:lang',()=>{$('warn').dataset.k='';if(G.online&&G.phase==='lobby')renderLobby();if(G.phase==='end'&&$('end').hidden===false)$('endTable').innerHTML=tableHTML()});
   addEventListener('pointerdown',initAudio,{once:true});
 })();
 

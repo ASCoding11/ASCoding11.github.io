@@ -39,6 +39,28 @@
   'use strict';
   if (document.getElementById('playingnow')) return;
 
+  // Spanish (lang.js): this script's words, and T() for the rows put together here (the row text with names is kept out of the automatic translation).
+  var T = function (s, v) { return window.BackRoomLang ? BackRoomLang.t(s, v) : String(s).replace(/\{(\w+)\}/g, function (m, k) { return v && v[k] != null ? v[k] : m; }); };
+  (function es(n) {
+    if (!window.BackRoomLang) { if (n < 100) setTimeout(function () { es(n + 1); }, 100); return; }
+    BackRoomLang.add({
+      'Playing now': 'Jugando ahora', 'Online games people are in right now. Join in, no invite or party needed.': 'Juegos en línea con gente jugando ahora mismo. Súmate, sin invitación ni grupo.',
+      'Public games': 'Juegos públicos', 'Connecting…': 'Conectando…', 'Couldn’t connect.': 'No se pudo conectar.',
+      'just started': 'recién empieza', '{m} min in': 'hace {m} min', '{h} h {m} min in': 'hace {h} h {m} min',
+      'Leave queue': 'Salir de la fila', 'Join': 'Unirse', 'Queue for next game': 'Hacer fila para la próxima', 'Queue': 'Fila', 'Full': 'Llena',
+      'That game has ended or nobody there lets people join any more, so you’re out of the queue.': 'Esa partida terminó o ya nadie deja entrar, así que saliste de la fila.',
+      'Nobody is in an online game anyone can join right now. When you play one, people here can join you (turn that off with “Let people join my games” in Online).':
+        'Ahora no hay nadie en un juego en línea al que se pueda entrar. Cuando juegues uno, la gente de aquí podrá unirse (lo apagas con “Dejar que se unan a mis juegos” en En línea).',
+      'Checking the room…': 'Revisando la sala…', 'Starting the game…': 'Empezando la partida…', '<b>{a} of {b}</b> in the room': '<b>{a} de {b}</b> en la sala',
+      'You’re queued · joining as soon as there’s a spot': 'Estás en la fila · entras apenas haya lugar', ' · party of {n}': ' · grupo de {n}',
+      'Led by {n}': 'Lo lidera {n}', ' · with {w}': ' · con {w}', 'Room with {w}': 'Sala con {w}',
+      'Joining {n}’s {g} (room {r})…': 'Entrando a {g} de {n} (sala {r})…', 'Couldn’t open that game. Reload the page to update.': 'No se pudo abrir ese juego. Recarga la página para actualizar.',
+      'That game just ended.': 'Esa partida acaba de terminar.', 'That room just filled up ({a} of {b}).': 'Esa sala se acaba de llenar ({a} de {b}).',
+      'That room just filled up ({a} of {b}). You can queue for a spot.': 'Esa sala se acaba de llenar ({a} de {b}). Puedes hacer fila para un lugar.',
+      'You’re in the queue for {g}. Keep this page open; you’ll join as soon as a spot opens.': 'Estás en la fila para {g}. Deja esta página abierta; entras apenas se libere un lugar.',
+      'You left the queue.': 'Saliste de la fila.', 'No spot opened in 30 minutes, so the queue stopped. Queue again any time.': 'No se liberó ningún lugar en 30 minutos, así que la fila se detuvo. Vuelve a hacer fila cuando quieras.'
+    });
+  })(0);
   var STALE = 120000, PARTY_TTL = 15000, ROOM_TTL = 5000, QPOLL = 3000, QUEUE_MAX = 30 * 60000;
   var PATH = 'rooms/ol-lobby/players';
   // Each game's own room limit (its join check), how long a player node counts as live there, and whether it plays
@@ -253,8 +275,8 @@
   }
   function ago(t0) {
     var m = Math.floor(Math.max(0, now() - t0) / 60000);
-    if (m < 1) return 'just started';
-    return m < 60 ? m + ' min in' : Math.floor(m / 60) + ' h ' + (m % 60) + ' min in';
+    if (m < 1) return T('just started');
+    return m < 60 ? T('{m} min in', { m: m }) : T('{h} h {m} min in', { h: Math.floor(m / 60), m: m % 60 });
   }
   // What a row's button does right now: Join while there's space, Queue for next game when it's full (games with rounds).
   function action(e) {
@@ -267,9 +289,11 @@
   // "Ava", "Ava and Ben", "Ava, Ben and 3 others"
   function names(e) {
     var ns = e.who.slice(0, 2).map(function (w) { return w.n; }), more = Math.max(e.n, e.who.length) - ns.length;
-    if (!ns.length) return more + (more === 1 ? ' other' : ' others');
-    if (!more) return ns.length > 1 ? ns[0] + ' and ' + ns[1] : ns[0];
-    return ns.join(', ') + ' and ' + more + (more === 1 ? ' other' : ' others');
+    // (the joining words are picked here, not through the dictionary, whose patterns would also match ordinary sentences)
+    var es = window.BackRoomLang && BackRoomLang.get() === 'es', and = es ? ' y ' : ' and ', other = es ? ' más' : more === 1 ? ' other' : ' others';
+    if (!ns.length) return more + other;
+    if (!more) return ns.length > 1 ? ns[0] + and + ns[1] : ns[0];
+    return ns.join(', ') + and + more + other;
   }
   var lastSig = '';
   function draw() {
@@ -280,13 +304,13 @@
     var html = list.map(function (e) {
       var ac = action(e), btn = ac.a ? '<button type="button" class="btn sm' + (ac.pri ? ' primary' : '') + '" data-' + ac.a + '="' + esc(e.id) + '">' + ac.label + '</button>'
         : '<button type="button" class="btn sm" disabled>' + ac.label + '</button>';
-      var room = e.n < 0 ? 'Checking the room…' : e.n === 0 ? 'Starting the game…' : '<b>' + e.n + ' of ' + e.cap + '</b> in the room';
+      var room = e.n < 0 ? 'Checking the room…' : e.n === 0 ? 'Starting the game…' : T('<b>{a} of {b}</b> in the room', { a: e.n, b: e.cap });
       if (queued && queued.id === e.id) room = 'You’re queued · joining as soon as there’s a spot';
       var avs = e.who.slice(0, 3).map(function (w) { return '<span class="pn-av" style="background:' + esc(w.c) + '" data-u="' + esc(w.uid) + '">' + esc(w.n.charAt(0).toUpperCase()) + '</span>'; }).join('');
       return '<li class="pn-it" data-id="' + esc(e.id) + '"><img class="pn-th" alt="" loading="lazy" src="' + esc(BASE + 'm/thumbs/' + e.g.d + '.jpg') + '">' +
-        '<span class="pn-who"><span class="pn-g">' + esc(e.g.n) + (e.p ? ' · party of ' + e.p.size : '') + '</span>' +
+        '<span class="pn-who" data-noi18n><span class="pn-g">' + esc(e.g.n) + (e.p ? T(' · party of {n}', { n: e.p.size }) : '') + '</span>' +
         '<span class="pn-l"><span class="pn-avs">' + avs + '</span>' +
-        '<span>' + (e.p ? 'Led by ' + esc(e.p.L.n) + (Math.max(e.n, e.who.length) > 1 ? ' · with ' + esc(names({ who: e.who.slice(1), n: Math.max(0, e.n - 1) })) : '') : 'Room with ' + esc(names(e))) +
+        '<span>' + (e.p ? T('Led by {n}', { n: esc(e.p.L.n) }) + (Math.max(e.n, e.who.length) > 1 ? T(' · with {w}', { w: esc(names({ who: e.who.slice(1), n: Math.max(0, e.n - 1) })) }) : '') : T('Room with {w}', { w: esc(names(e)) })) +
         (e.t0 ? ' · ' + esc(ago(e.t0)) : '') + '</span></span>' +
         '<span class="pn-r">' + room + '</span></span>' + btn + '</li>';
     }).join('');
@@ -305,9 +329,9 @@
   function find(id) { return entries().filter(function (e) { return e.id === id; })[0] || null; }
   function go(e) {
     queued = null;
-    say('Joining ' + (e.p ? e.p.L.n : e.who[0].n) + '’s ' + e.g.n + ' (room ' + e.r + ')…');
+    say(T('Joining {n}’s {g} (room {r})…', { n: e.p ? e.p.L.n : e.who[0].n, g: e.g.n, r: e.r })); var joining = $msg.textContent;
     if (!P.launch(e.k, e.r)) say('Couldn’t open that game. Reload the page to update.', true);
-    setTimeout(function () { if ($msg.textContent.indexOf('Joining') === 0) say(''); }, 8000);
+    setTimeout(function () { if ($msg.textContent === joining) say(''); }, 8000);
     draw();
   }
   function join(id) {
