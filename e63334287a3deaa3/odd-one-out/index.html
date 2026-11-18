@@ -67,6 +67,7 @@ button:disabled{opacity:.45;cursor:default}
 .seg button{border:0;background:transparent;padding:6px 10px;font-weight:900;font-size:13px;min-width:0}
 .seg button+button{border-left:2px solid var(--ink)}
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.seg button:disabled{opacity:.35;cursor:not-allowed}
 .field{display:flex;align-items:center;border:2.5px solid var(--ink);border-radius:12px;background:#fff;padding:0 12px;min-width:0}
 .field span{font-weight:900;color:var(--ink-3)}
 .field input{flex:1;min-width:0;border:0;background:transparent;font:800 17px var(--f-b);padding:9px 2px;outline:0;color:var(--ink)}
@@ -107,6 +108,8 @@ h1 .o{color:var(--hunt)}h1 .t{color:var(--prop)}
 .optrow{display:flex;gap:8px 10px;flex-wrap:wrap;align-items:center;margin-top:10px;font-weight:800;font-size:13.5px;color:var(--ink-2)}
 .optrow .seg button{padding:6px 9px;font-size:12.5px}
 .optrow .opt{display:inline-flex;gap:8px;align-items:center;white-space:nowrap}
+/* six maps don't fit in a row on a phone held upright: three to a row */
+@media (max-width:600px){#pracMap{display:inline-grid;grid-template-columns:repeat(3,auto)}#pracMap button:nth-child(3n+1){border-left:0}#pracMap button:nth-child(n+4){border-top:2px solid var(--ink)}}
 .how{margin:10px 0 0;padding:0 0 0 18px;font-weight:700;font-size:14px;line-height:1.5;color:var(--ink-2)}
 .how b{color:var(--ink)}
 
@@ -896,6 +899,43 @@ addMats({
   fridge:{draw:(x,w,h)=>P.fridge(x,w,h,'#eef1f4'),h:512,rough:.3},
 });
 
+// Materials for the harbour, camp and school maps and their object types (made in code like the rest)
+addMats({
+  buoyRed:{hex:'#e0452b',rough:.45},buoyWhite:{hex:'#f4f1ea',rough:.45},
+  rope:{draw:(x,w,h)=>{x.fillStyle='#c9a66b';x.fillRect(0,0,w,h);x.strokeStyle='rgba(110,80,40,.45)';x.lineWidth=w*.03;for(let i=-8;i<16;i++){x.beginPath();x.moveTo(i*w/8,0);x.lineTo(i*w/8+w*.5,h);x.stroke()}},w:64,h:64,rough:1},
+  fishCrate:{draw:(x,w,h)=>P.ribbed(x,w,h,'#2f7fd6',8),rough:.5},ice:{draw:(x,w,h)=>P.noise(x,w,h,'#e3f3fa',21,.08),rough:.15},
+  crabPot:{draw:(x,w,h)=>{x.fillStyle='#24443c';x.fillRect(0,0,w,h);x.strokeStyle='#6f9c8a';x.lineWidth=2;for(let i=0;i<=w;i+=w/10){x.beginPath();x.moveTo(i,0);x.lineTo(i,h);x.stroke();x.beginPath();x.moveTo(0,i*h/w);x.lineTo(w,i*h/w);x.stroke()}},w:128,h:128,rough:.6},
+  lanternGlass:{hex:'#ffe2a0',glow:'#ffcf6b',gi:.9,rough:.2},
+  stumpTop:{draw:(x,w,h)=>{x.fillStyle='#d6b27e';x.fillRect(0,0,w,h);x.strokeStyle='rgba(120,80,40,.5)';x.lineWidth=2;for(let r=4;r<w/2;r+=6){x.beginPath();x.arc(w/2,h/2,r,0,TAU);x.stroke()}},w:128,h:128,rough:.9},
+  sleepBag:{draw:(x,w,h)=>P.fabric(x,w,h,'#2f7a6a',31),rough:.9},strapB:{hex:'#2a2d33',rough:.7},
+  pack:{draw:(x,w,h)=>P.fabric(x,w,h,'#e0662f',32),rough:.85},pack2:{draw:(x,w,h)=>P.fabric(x,w,h,'#2b3a55',33),rough:.85},
+  coolerBox:{hex:'#2f8fd0',rough:.45},
+  deskTop:{hex:'#e3d2b2',rough:.5},chairOrange:{hex:'#f08a24',rough:.5},
+  globe:{draw:(x,w,h)=>{x.fillStyle='#3b8fd1';x.fillRect(0,0,w,h);const r=rng(41);for(let i=0;i<14;i++){x.fillStyle=pk(r,['#6fb25a','#8cc46b','#d9c27a']);x.beginPath();x.ellipse(r()*w,h*(.2+r()*.6),w*(.03+r()*.06),h*(.05+r()*.1),r()*TAU,0,TAU);x.fill()}x.fillStyle='rgba(255,255,255,.35)';x.fillRect(0,h*.49,w,1)},w:256,h:128,rough:.35},
+  bball:{draw:(x,w,h)=>{x.fillStyle='#d9692a';x.fillRect(0,0,w,h);grain(x,w,h,42,1600,.07);x.strokeStyle='#2a1a10';x.lineWidth=3;for(const f of [.25,.5,.75]){x.beginPath();x.moveTo(w*f,0);x.lineTo(w*f,h);x.stroke()}x.beginPath();x.moveTo(0,h/2);x.lineTo(w,h/2);x.stroke()},w:128,h:64,rough:.7},
+  // map surfaces
+  quay:{draw:(x,w,h)=>P.concrete(x,w,h,'#a3a097',22),tile:3,rough:.9},deck:{draw:(x,w,h)=>P.planks(x,w,h,['#8d7860','#7e6a53','#9a856b'],6,23),tile:2.2,rough:.8},
+  sea:{hex:'#2e7c9e',rough:.08,metal:.1},landQuay:{hex:'#b3ad9f',rough:.95},landGrass:{hex:'#4f8834',rough:1},hull:{hex:'#f1eee6',rough:.4},hullBlue:{hex:'#1f4f8f',rough:.4},hullRed:{hex:'#b8322f',rough:.45},cabinWin:{hex:'#2a3a4a',rough:.1},
+  shedTeal:{draw:(x,w,h)=>P.siding(x,w,h,'#5c9c98',8),tile:2},shedRed:{draw:(x,w,h)=>P.siding(x,w,h,'#b5523b',8),tile:2},brickH:{draw:(x,w,h)=>P.brick(x,w,h,['#8f5a44','#7f4d3a','#9c6650'],'#d6c7b0',24),tile:1.6},
+  contRed:{draw:(x,w,h)=>P.ribbed(x,w,h,'#b33a2e',12),tile:2.4,rough:.6,metal:.2},contBlue:{draw:(x,w,h)=>P.ribbed(x,w,h,'#2b5d9a',12),tile:2.4,rough:.6,metal:.2},
+  contGreen:{draw:(x,w,h)=>P.ribbed(x,w,h,'#3d7a52',12),tile:2.4,rough:.6,metal:.2},contYellow:{draw:(x,w,h)=>P.ribbed(x,w,h,'#d9a42b',12),tile:2.4,rough:.6,metal:.2},
+  iceTop:{draw:(x,w,h)=>P.noise(x,w,h,'#dcecf2',25,.1),tile:1,rough:.2},bollard:{hex:'#2c2f36',rough:.5,metal:.3},
+  logWall:{draw:(x,w,h)=>{x.fillStyle='#5a3a22';x.fillRect(0,0,w,h);const r=rng(26);for(let i=0;i<6;i++){const y=i*h/6,g=x.createLinearGradient(0,y,0,y+h/6);g.addColorStop(0,'#6b4529');g.addColorStop(.5,jit('#8b5e3a',r,.08));g.addColorStop(1,'#5a3a22');x.fillStyle=g;x.fillRect(0,y+1,w,h/6-2)}},tile:1.8,rough:.9},
+  logFence:{draw:(x,w,h)=>P.planks(x,w,h,['#7a5534','#6b4a2c','#86603c'],1,27),tile:1.4,rough:.9},
+  dirt:{draw:(x,w,h)=>P.noise(x,w,h,'#a3825a',28,.1),tile:2.4,rough:1},sand:{draw:(x,w,h)=>P.noise(x,w,h,'#dcc79a',29,.07),tile:2.4,rough:1},
+  stoneRing:{draw:(x,w,h)=>P.noise(x,w,h,'#8d8a84',30,.15),tile:.8,rough:.9},ember:{hex:'#ff8a2a',glow:'#ff6a1a',gi:1.2,rough:.8},canvasTent:{hex:'#d9a94a',rough:.9,side:1},canvasTent2:{hex:'#4f8a6a',rough:.9,side:1},
+  pine:{draw:(x,w,h)=>P.leaves(x,w,h,['#244f33','#2d5e3c','#1f4529','#3a6e47'],34),tile:1,rough:.95},canoe:{hex:'#c4472d',rough:.4},canoe2:{hex:'#2f7a8a',rough:.4},
+  lino:{draw:(x,w,h)=>P.tiles(x,w,h,'#c9c4b8',['#e8e4da','#dcd6c8','#e8e4da','#b9c9d6'],4,35,2),tile:2.4,rough:.35},
+  gymFloor:{draw:(x,w,h)=>P.planks(x,w,h,['#e0b779','#d6aa6b','#e6c088'],8,36),tile:2.4,rough:.3},gymLine:{hex:'#d9382b',rough:.4},
+  chalk:{draw:(x,w,h)=>{x.fillStyle='#2f4a3c';x.fillRect(0,0,w,h);const r=rng(37);x.strokeStyle='rgba(240,240,230,.75)';x.lineWidth=2;for(let i=0;i<7;i++){x.beginPath();const y=h*(.15+i*.1);x.moveTo(w*(.06+r()*.1),y);x.lineTo(w*(.3+r()*.5),y+r()*3);x.stroke()}x.strokeStyle='#8a6a3a';x.lineWidth=w*.02;x.strokeRect(0,0,w,h)},w:512,h:256,tile:0,rough:.9},
+  wallSage:{draw:(x,w,h)=>P.noise(x,w,h,'#bcd3b4',38,.03),tile:2},wallPeach:{draw:(x,w,h)=>P.noise(x,w,h,'#f2cfae',39,.03),tile:2},wallSky:{draw:(x,w,h)=>P.noise(x,w,h,'#b9d6ea',40,.03),tile:2},
+  lockersS:{draw:(x,w,h)=>{x.fillStyle='#b8402f';x.fillRect(0,0,w,h);const n=4,dw=w/n;for(let i=0;i<n;i++){const x0=i*dw+2;x.fillStyle='#d9533f';x.fillRect(x0,4,dw-4,h-8);x.fillStyle='rgba(0,0,0,.35)';for(let k=0;k<5;k++)x.fillRect(x0+dw*.2,h*(.06+k*.025),dw*.55,h*.008);x.fillStyle='#e9e4da';x.fillRect(x0+dw*.35,h*.2,dw*.3,h*.03);x.fillStyle='#2c2f36';x.fillRect(x0+dw*.72,h*.45,dw*.08,h*.07)}},w:256,h:512,tile:0,rough:.4,metal:.2},mat:{hex:'#2f6fb5',rough:.8},bleacher:{draw:(x,w,h)=>P.planks(x,w,h,['#c99a63','#b8864f'],2,43),tile:1.2,rough:.6},
+  hoop:{hex:'#f4f2ec',rough:.4},hoopRim:{hex:'#e8551a',rough:.4,metal:.3},
+});
+sign('sHarbor','SALTWIND HARBOR','#173a5a','#f4f1ea','#e0452b');sign('sFish','FRESH CATCH','#f4f1ea','#1f4f8f','#e0452b');sign('sBoat','BOAT SHED','#2c2f36','#ffd23f');
+sign('sCamp','CAMP PINECREST','#3b2a1e','#f6e7c4','#4f8a6a');sign('sMess','MESS HALL','#5a3a22','#ffe9c7');sign('sCraft','CRAFT CABIN','#f6e7c4','#5a3a22','#e0662f');sign('sBunk','BUNKS','#4f8a6a','#ffffff');
+sign('sSchool','HOLLOW HILL SCHOOL','#1f3b5a','#ffd23f','#d9533f');sign('sGym','GYM','#d9533f','#ffffff');sign('sLib','LIBRARY','#2f5d4e','#f3ead6');sign('sArt','ART','#f6dd8c','#d9533f');sign('sLab','SCIENCE','#1f4fa3','#ffffff');
+
 const PT={},PT_LIST=[];
 // Turkey Week (../events.js): five object types are drawn as Thanksgiving things, both the real ones on the maps and
 // players disguised as them: beach ball -> pumpkin, the two gift boxes -> pumpkin pie and a basket of apples, wooden
@@ -1011,6 +1051,15 @@ function buildProps(){
   defProp('rack','Clothes rack',[['chrome',cyl(.015,.015,1.4,-.6,.7,0,8)],['chrome',cyl(.015,.015,1.4,.6,.7,0,8)],['chrome',cyl(.015,.015,1.24,0,1.4,0,8,0,Math.PI/2)],['chrome',b(.04,.03,.5,-.6,.02,0)],['chrome',b(.04,.03,.5,.6,.02,0)],['rack',b(1.12,.85,.34,0,.95,0)]]);
   defProp('laptop','Laptop',[['laptop',b(.34,.02,.24,0,.01,0)],['laptop',b(.34,.22,.012,0,.12,-.12,0,-.25)],['screenB',b(.31,.19,.004,0,.12,-.112,0,-.25)]]);
   defProp('fridgeMini','Mini fridge',[['fridge',b(.5,.85,.52,0,.425,0)]]);
+  // harbour, camp and school things (only placed on those maps, which older copies of the page never load: see mapsFor)
+  defProp('buoy','Buoy',[['buoyRed',cyl(.2,.24,.5,0,.25,0,16)],['buoyWhite',cyl(.207,.207,.12,0,.33,0,16)],['buoyRed',cone(.2,.3,0,.65,0,16)],['steelDark',cyl(.015,.015,.14,0,.86,0,6)]]);
+  {const ring=[];for(let i=0;i<8;i++)ring.push([i%2?'buoyWhite':'buoyRed',tor(.28,.065,0,.065,0,Math.PI/2,0,TAU/8,i*TAU/8)]);defProp('lifeRing','Life ring',ring)}
+  defProp('rope','Coil of rope',[['rope',tor(.22,.045,0,.045,0,Math.PI/2)],['rope',tor(.2,.045,0,.13,0,Math.PI/2)],['rope',tor(.15,.04,0,.205,0,Math.PI/2)]]);
+  defProp('fishCrate','Fish crate',[['fishCrate',b(.62,.28,.42,0,.14,0)],['ice',b(.56,.03,.36,0,.27,0)]]);
+  defProp('crabPot','Crab pot',[['crabPot',b(.7,.4,.5,0,.2,0)],['steelDark',b(.72,.03,.52,0,.415,0)],['buoyWhite',sph(.07,.36,.22,0)]]);
+  defProp('lantern','Camp lantern',[['steelDark',cyl(.09,.1,.04,0,.02,0,12)],['lanternGlass',cyl(.07,.07,.2,0,.14,0,12)],['steelDark',cone(.1,.08,0,.28,0,12)],['steelDark',tor(.05,.008,0,.33,0,0,0,Math.PI)]]);
+  defProp('stump','Log stump',[['bark',cyl(.26,.3,.45,0,.225,0,14)],['stumpTop',cyl(.255,.255,.012,0,.456,0,14)]]);
+  defProp('campCooler','Camping cooler',[['coolerBox',b(.62,.36,.38,0,.18,0)],['white',b(.64,.06,.4,0,.39,0)],['black',b(.2,.025,.04,0,.43,0)]]);
   // things that are part of the furniture: not on the transform list
   defProp('tray','Food tray',[['chairTeal',b(.44,.02,.32,0,.01,0)],['chairTeal',b(.44,.03,.02,0,.025,.15)],['chairTeal',b(.44,.03,.02,0,.025,-.15)]],{elig:false,ns:true});
 }
@@ -1684,8 +1733,119 @@ function buildOffice(){
     hunterSpawns:[[10.5,4],[11.5,4],[12.5,4],[10.5,6],[11.5,6],[12.5,6],[10.5,2],[11.5,2]],
   },room));
 }
+// ---------- helpers for the outdoor maps ----------
+// A see-through railing: an invisible fence 1.6 m high stops players (its top is a cap, like any fence, and shots
+// pass through it), with posts and rails drawn over it. Lay it along x or along z.
+function railing(B,x0,z0,x1,z1,post,bar){
+  B.box(x0,0,z0,x1,1.6,z1,bar,{invis:true,kind:'fence',noRay:true});
+  const GH={ghost:true,solid:false},alongX=x1-x0>z1-z0,L=alongX?x1-x0:z1-z0,n=Math.max(1,Math.round(L/2.2)),c=alongX?(z0+z1)/2:(x0+x1)/2;
+  for(let i=0;i<=n;i++){const t=(alongX?x0:z0)+i*L/n;if(alongX)B.box(t-.06,0,c-.06,t+.06,1.25,c+.06,post,GH);else B.box(c-.06,0,t-.06,c+.06,1.25,t+.06,post,GH)}
+  for(const y of [.6,1.2]){if(alongX)B.box(x0,y-.045,c-.04,x1,y+.045,c+.04,bar,GH);else B.box(c-.04,y-.045,z0,c+.04,y+.045,z1,bar,GH)}
+}
+// trees drawn as a few merged meshes; trees inside the map get a trunk you bump into (taller than the outdoor height
+// limit, so nobody stands on it)
+function forest(B){
+  const trunk=[],crown=[];
+  return{
+    tree(x,z,s,solid){s=s||1;trunk.push(cyl(.14*s,.22*s,1.6*s,x,.8*s,z,8));
+      for(const [r,h,y] of [[1.25,1.9,1.9],[1,1.6,2.8],[.7,1.3,3.6]])crown.push(cone(r*s,h*s,x,y*s,z,10));
+      if(solid)B.box(x-.25,0,z-.25,x+.25,2.6,z+.25,'trunk',{invis:true})},
+    done(){if(trunk.length){B.mesh(mergeGeos(trunk),'trunk',0,0,0);B.mesh(mergeGeos(crown),'pine',0,0,0)}}
+  };
+}
+function shelfRack(B,x0,z0,x1,z1,levels){for(const lx of [x0,x1])for(const lz of [z0,z1])B.box(lx-.04,0,lz-.04,lx+.04,levels[levels.length-1]+.04,lz+.04,'steelRack');for(const y of levels)B.box(x0,y-.04,z0,x1,y,z1,'rackShelf')}
+function stackOn(B,r,x,z,ids,yaw,y){y=y||0;for(const id of ids){B.place(id,x+(r()-.5)*.08,z+(r()-.5)*.08,(yaw||0)+(r()-.5)*.25,y);y+=PT[id].h}}
+
+// ---------- map 4: Saltwind Harbor (a fishing quay, a fish market, a boat shed and a container yard) ----------
+function buildHarbor(){
+  const B=new Builder(604),K=kit(B,3.2),r=B.r,G0={ghost:true,ns:true,solid:false};
+  // the quay, the boardwalk along the water and a jetty out into it
+  for(const [a,b2,c,d] of [[0,0,50,4],[0,4,2,18],[20,4,30,18],[46,4,50,16],[0,18,30,34],[30,16,50,34]])K.floor(a,b2,c,d,'quay');
+  K.floor(2,4,20,18,'kitchenTile');K.floor(30,4,46,16,'concrete');K.floor(0,34,50,38,'deck');K.floor(21,38,27,46,'deck');
+  B.mesh(new THREE.PlaneGeometry(170,80).rotateX(-Math.PI/2),'sea',25,-.55,78,{ns:true});B.mesh(new THREE.PlaneGeometry(250,138).rotateX(-Math.PI/2),'landQuay',25,-.03,-31.1,{ns:true});
+  B.box(0,-1.4,37.9,21,-.2,38.15,'deck',G0);B.box(27,-1.4,37.9,50,-.2,38.15,'deck',G0);
+  {const pil=[];for(let z=39;z<46;z+=2)for(const x of [21.3,26.7])pil.push(cyl(.14,.14,1.6,x,-.9,z,8));for(let x=1;x<50;x+=3)pil.push(cyl(.16,.16,1.4,x,-.9,38.1,8));B.mesh(mergeGeos(pil),'woodDark',0,0,0)}
+  // railings along the water and round the jetty, a fence round the landward sides
+  railing(B,0,37.85,21,38.05,'steelDark','buoyWhite');railing(B,27,37.85,50,38.05,'steelDark','buoyWhite');
+  railing(B,20.95,38,21.15,46,'steelDark','buoyWhite');railing(B,26.85,38,27.05,46,'steelDark','buoyWhite');railing(B,21,45.8,27,46,'steelDark','buoyWhite');
+  K.wallX(.05,0,50,'fence',null,{h:1.6});K.wallZ(.05,0,37.9,'fence',null,{h:1.6});K.wallZ(49.95,0,37.9,'fence',null,{h:1.6});
+  // two boats tied up beside the jetty (out on the water, past the railings)
+  for(const [x0,x1,m] of [[15.6,19.6,'hullBlue'],[28.4,32.4,'hullRed']]){
+    B.box(x0,-.3,39.4,x1,1,45.4,{all:m,'+y':'deck'});B.box(x0+.8,1,41,x1-.8,2.1,43.6,{all:'hull','+z':'cabinWin','-z':'cabinWin'});B.box(x0+.6,2.1,40.8,x1-.6,2.2,43.8,'hullBlue',{ns:true})}
+  // ---- the fish market ----
+  K.wallX(4,1.9,20.1,{all:'wallWhite','-z':'brickH'},[[9,13]]);K.wallX(18,1.9,20.1,{all:'wallWhite','+z':'brickH'},[[4,6],[15,17]]);
+  K.wallZ(2,4,18,{all:'wallWhite','-x':'brickH'});K.wallZ(20,4,18,{all:'wallWhite','+x':'brickH'},[[9,11]]);
+  K.ceil(2,4,20,18);K.lights(5,7,17,15,4,4);
+  K.deco(8.5,2.62,3.86,13.5,3.1,3.9,'sFish','-z');K.deco(6.6,2.6,18.1,14.4,3.12,18.14,'sHarbor','+z');
+  for(const z of [7.6,12.4]){B.box(5,0,z,17,.9,z+1,{all:'counter','+y':'iceTop'});
+    for(let i=0;i<8;i++){if(r()<.2)continue;B.place('fishCrate',5.7+i*1.5+(r()-.5)*.2,z+.5,(r()-.5)*.3,.9)}}
+  B.box(2.1,0,5,2.8,.9,16.6,{all:'cabinet','+y':'counterTop'});
+  for(const [z,id] of [[5.6,'bucket'],[6.6,'microwave'],[8.4,'boxS'],[10,'cup'],[10.4,'cup'],[12.2,'bucket2'],[14,'lantern'],[15.6,'boxS']])B.place(id,2.45,z,Math.PI/2,.9);
+  B.box(7,0,16.9,10.6,.85,17.9,{all:'appliance','+y':'iceTop'});B.box(11.2,0,16.9,14.8,.85,17.9,{all:'appliance','+y':'iceTop'});
+  B.place('fishCrate',8,17.4,0,.85);B.place('fishCrate',13,17.4,.1,.85);B.place('rope',9.8,17.4,0,.85);
+  stackOn(B,r,18.9,5,['crate','fishCrate']);stackOn(B,r,18.9,6.3,['fishCrate','fishCrate','fishCrate']);stackOn(B,r,17.6,5,['crabPot','crabPot']);
+  for(const [x,z] of [[19.3,12.4],[19.3,13.5],[18.5,12.95]])B.place('barrel',x,z,r()*6);
+  B.place('wetSign',11,10.6,.4);B.place('wetSign',6,15.2,-.3);B.place('cone',15.6,10.3,0);B.place('bucket',16.4,10.8,0);B.place('trash',2.6,17.4,0);B.place('recycle',3.4,17.4,0);
+  B.place('cooler',19.5,16.2,-Math.PI/2);B.place('ext',19.65,8.4,-Math.PI/2);B.place('trashBag',19.3,17.3,0);B.place('trashBag',18.7,17.5,1);
+  for(const [x,z] of [[15.2,15.2],[17.8,15.2]]){B.place('tableR',x,z,0);B.place('stool',x-.7,z,0);B.place('stool',x+.7,z,0);B.place('cup',x,z,0,.76)}
+  for(const x of [5.5,9,14.5])B.place('stool',x,9.2,0);B.place('boxT',3.4,4.6,.1);B.place('boxM',4.2,4.6,0);B.place('fishCrate',7.4,11,.3);B.place('rope',16.8,4.6,0);
+  // ---- the boat shed ----
+  K.wallX(4,29.9,46.1,{all:'wallGrey','-z':'shedTeal'},[[35,40]],{dh:2.8});K.wallX(16,29.9,46.1,{all:'wallGrey','+z':'shedTeal'},[[42,43.4]]);
+  K.wallZ(30,4,16,{all:'wallGrey','-x':'shedTeal'},[[9,10.4]]);K.wallZ(46,4,16,{all:'wallGrey','+x':'shedTeal'});
+  K.ceil(30,4,46,16);K.lights(33,7,43,13,5,3);K.deco(35.6,2.86,3.86,39.4,3.16,3.9,'sBoat','-z');
+  B.box(33.5,.55,8.8,41.5,1.35,10.8,{all:'hullRed','+y':'deck'});B.box(34.4,0,9,34.7,.55,10.6,'woodSlat');B.box(40.3,0,9,40.6,.55,10.6,'woodSlat');
+  B.place('rope',36,9.6,0);B.place('paint',38.6,10.2,0);B.place('lifeRing',37.4,10,0);
+  shelfRack(B,31,14.7,45,15.6,[.1,.9,1.7]);
+  for(const y of [.1,.9,1.7])for(let i=0;i<7;i++){if(r()<.15)continue;const id=y>1?pick2(r,['buoy','fishCrate','rope','boxS']):pick2(r,['rope','paint','paint2','lifeRing','lantern','bucket','boxS','fishCrate']);B.place(id,31.9+i*2+(r()-.5)*.3,15.15,(r()-.5)*.4,y)}
+  B.box(44.8,0,5,45.9,.9,12,{all:'woodDark','+y':'woodLight'});
+  for(const [z,id] of [[5.6,'paint'],[6.2,'paint2'],[7.3,'bucket2'],[8.6,'lantern'],[9.8,'rope'],[11.2,'boxS']])B.place(id,45.35,z,-Math.PI/2,.9);
+  for(const [x,z,n] of [[31,5,3],[31.8,5.5,2],[43.6,13.4,2]])for(let k=0;k<n;k++)B.place('tire',x,z,0,k*.2);
+  for(const [x,z,id] of [[32.5,12.8,'barrel'],[33.2,13.2,'barrel'],[42.2,5.2,'crate'],[43.2,5.3,'boxL'],[41,13.5,'buoy'],[39.8,13.6,'buoy'],[30.6,8.2,'ext'],[36,6.6,'cone'],[36.6,6.3,'cone'],[44,9.8,'crabPot'],[42.8,11.4,'lifeRing'],[31.4,11.2,'campCooler'],[38.4,12.8,'boxM']])B.place(id,x,z,id==='ext'?Math.PI/2:(r()-.5)*.5);
+  stackOn(B,r,43.6,7,['crabPot','crabPot']);stackOn(B,r,42.6,5.2,['boxM'],0,.8);
+  // ---- the container yard ----
+  for(const [x0,z0,x1,z1,m,y] of [[34,20,40,22.4,'contRed',0],[34.1,20.05,39.9,22.35,'contBlue',2.6],[41.5,20,47.5,22.4,'contGreen',0],[34,26,40,28.4,'contYellow',0],[41.5,26.5,47.5,28.9,'contBlue',0],[42,31,48,33.4,'contRed',0]])
+    B.box(x0,y,z0,x1,y+2.6,z1,m);
+  for(const [x,z] of [[36,24.2],[44.6,24.4],[38,30.4]]){B.box(x-.8,0,z-.5,x+.8,.14,z+.5,'woodSlat');B.place(pick2(r,['boxL','crate','boxM']),x-.38,z,(r()-.5)*.1,.14);B.place(pick2(r,['boxS','boxT','fishCrate']),x+.45,z+.1,(r()-.5)*.2,.14)}
+  for(const [x,z,id] of [[48.9,20.4,'barrel'],[48.9,21.5,'barrel'],[48.1,20.95,'barrel'],[33,20.6,'tire'],[33,24,'cone'],[33,28,'cone'],[40.6,23.2,'crabPot'],[49,25,'crate'],[48.6,26.2,'boxL'],[40.8,29.6,'buoy'],[34.8,32.4,'campCooler'],[49,29.8,'trash'],[41,32.8,'rope'],[46,30,'boxM']])B.place(id,x,z,(r()-.5)*.5);
+  B.place('tire',33,20.6,0,.2);stackOn(B,r,49,23.2,['crabPot','crabPot']);stackOn(B,r,36.4,29.6,['crate','boxM']);
+  // ---- the open quay, the lanes and the delivery van ----
+  B.box(22.4,.38,22,24.6,2.1,27,{all:'white','+z':'carGlass'});B.box(22.4,.38,27,24.6,1.3,28.1,'white');B.box(22.4,0,22.2,24.6,.38,27.9,'black',{invis:true});
+  {const w=[];for(const [x,z] of [[22.45,23],[24.55,23],[22.45,27.2],[24.55,27.2]])w.push(cyl(.36,.36,.24,x,.36,z,16,0,Math.PI/2));B.mesh(mergeGeos(w),'black',0,0,0)}
+  for(const [x,z] of [[5,22],[12,30],[28,20],[14,20.5],[45,36]]){B.box(x-.08,0,z-.08,x+.08,3.4,z+.08,'steelDark');B.box(x-.25,3.25,z-.18,x+.25,3.35,z+.18,'lightPanel',{ghost:true,ns:true})}
+  for(let x=3;x<50;x+=6)B.box(x-.16,0,34.45,x+.16,.42,34.77,'bollard');
+  for(const x of [7.5,14,34,41])B.place('bench',x,36.9,0);
+  for(const [x,z,id] of [[4.5,36.6,'lifeRing'],[17.6,37.1,'buoy'],[30.6,37,'rope'],[47.5,36.6,'lifeRing'],[11,35.4,'fishCrate'],[24,35.6,'bucket'],[38,36.9,'trash'],[20.4,36.8,'trash'],[44.4,35.6,'crabPot']])B.place(id,x,z,(r()-.5)*.6);
+  for(const [x,z,id] of [[22,41.1,'crabPot'],[26,40.5,'rope'],[22.2,44.6,'buoy'],[25.8,44.6,'fishCrate'],[25.8,43.6,'bucket2'],[24,45.2,'lifeRing'],[22.1,42.6,'campCooler'],[25.9,42,'stump']])B.place(id,x,z,(r()-.5)*.5);
+  stackOn(B,r,22,40,['crabPot','crabPot']);
+  for(const [x,z] of [[4,24],[4.8,24.6],[5.6,24]])B.place('barrel',x,z,r()*6);stackOn(B,r,9,25.6,['crate','fishCrate']);stackOn(B,r,10,25.4,['fishCrate','fishCrate']);
+  for(const [x,z,id] of [[16,24,'crabPot'],[17,24.4,'crabPot'],[16.4,25.3,'rope'],[18,27,'buoy'],[18.7,27.4,'buoy'],[8,30,'tire'],[27.8,31,'boxL'],[28.4,30.2,'boxM'],[11,32.6,'campCooler'],[2,31,'trash'],[2,32,'recycle'],[26,19.4,'cone'],[27,19.4,'cone'],[1.4,20.6,'plantT'],[29,25,'barrel'],[3.6,28.6,'bucket'],[19.6,31,'lifeRing'],[14,33,'bench']])B.place(id,x,z,id==='bench'?Math.PI:(r()-.5)*.6);
+  stackOn(B,r,8,30,['tire'],0,.2);stackOn(B,r,15.2,30.4,['crate','boxS']);B.place('fishCrate',6.4,32.3,.3);B.place('stump',20.8,23.4,0);
+  for(const [x,z,id] of [[21.5,6,'barrel'],[22.2,6.4,'barrel'],[28.6,9,'crate'],[28.8,10,'boxL'],[21,14.6,'tire'],[24.8,16.5,'bench'],[28.6,15.6,'crabPot'],[21.4,10.6,'trashBag'],[22,10.9,'trashBag'],[25.6,12,'bucket']])B.place(id,x,z,id==='bench'?Math.PI/2:(r()-.5)*.5);
+  stackOn(B,r,28.6,9,['crate'],0,.8);B.place('tire',21,14.6,0,.2);
+  for(const [x,z,id] of [[1,1,'trash'],[1.8,1,'recycle'],[16,1,'bench'],[19.6,1.6,'cone'],[33,1.2,'cone'],[34,1.4,'cone'],[44,1.4,'barrel'],[47.6,1.4,'boxM'],[48.6,1.6,'crate'],[48.6,8,'buoy'],[48.4,12.4,'tire'],[7,2.4,'plantS'],[3,2.6,'plantT']])B.place(id,x,z,(r()-.5)*.4);
+  // more clutter along the walls and lanes
+  for(const [x,z,id] of [[1,6,'barrel'],[1,6.8,'barrel'],[1.05,11.5,'crabPot'],[1,16.5,'cone'],[48.4,10.4,'rope'],[48.8,14.8,'barrel'],[48.1,15.3,'barrel'],[11,19.3,'tire'],[12.1,19.2,'bucket'],[18.4,20.4,'cone'],[3.2,33.2,'boxL'],[6,33.5,'fishCrate'],
+    [29,5,'buoy'],[29.2,5.8,'buoy'],[25,6.5,'rope'],[21.2,8.2,'fishCrate'],[26.5,14,'lifeRing'],[24,10,'cone'],[3.4,10.5,'bucket2'],[3.5,14.6,'crabPot'],[9.4,11.3,'barrel'],[32,7.2,'rope'],[43,9.3,'bucket'],[35.2,13.2,'fishCrate'],[41.2,6.6,'boxS'],[33,6.2,'lantern'],
+    [33.2,30.6,'crate'],[47.6,24.6,'barrel']])B.place(id,x,z,id==='crabPot'&&x<2?Math.PI/2:(r()-.5)*.5);
+  stackOn(B,r,1,9,['fishCrate','fishCrate']);stackOn(B,r,1,14,['tire','tire','tire']);stackOn(B,r,48.6,5.6,['crabPot','crabPot']);stackOn(B,r,8.5,19.2,['fishCrate','fishCrate','fishCrate']);
+  stackOn(B,r,19.3,19.4,['crate','boxM']);stackOn(B,r,2,33,['crate']);stackOn(B,r,13.2,11.2,['fishCrate','fishCrate']);stackOn(B,r,40.7,24.6,['tire','tire']);
+  const room=hunterRoom(B,-15,18);
+  return B.finish(Object.assign({
+    name:'Saltwind Harbor',short:'Harbor',bounds:[0,0,50,46],height:3.2,outLid:1,sky:'#f3cfa0',fog:['#f0d9bc',55,200],skyCols:['#3f73b8','#9fbfe0','#f6d4a8'],
+    light:{sky:0xffe9cc,ground:0x8a8070,hemi:.62,sun:1.15,sunColor:0xffd29a,dir:[-.55,.75,.35],amb:.2,exp:1},
+    propSpawns:[[11,6],[11,15.4],[25,11],[37.5,6.5],[37.5,12.4],[13,27],[6,28],[27,33],[38.6,24.2],[44,30],[24,42],[10,36.2]],
+    hunterSpawns:[[23,2],[24.5,2],[26,2],[27.5,2],[23,3],[24.5,3],[26,3],[27.5,3]],
+  },room));
+}
+
 // menu: where the menu's backdrop camera stands inside the map [x, y, z, the way it faces, how far it turns each way]
-const MAPS=[{name:'Starlight Galleria',short:'Mall',build:buildMall,menu:[30,2.6,22,4.71,.55]},{name:'Willow Lane',short:'House',build:buildHouse,menu:[20,2.1,17,4.71,.4]},{name:'Brightside Office',short:'Office',build:buildOffice,menu:[24,2.2,18,1.57,.5]}];
+const MAPS=[{name:'Starlight Galleria',short:'Mall',build:buildMall,menu:[30,2.6,22,4.71,.55]},{name:'Willow Lane',short:'House',build:buildHouse,menu:[20,2.1,17,4.71,.4]},{name:'Brightside Office',short:'Office',build:buildOffice,menu:[24,2.2,18,1.57,.5]},
+  {name:'Saltwind Harbor',short:'Harbor',build:buildHarbor,menu:[9,2.3,27,1.1,.6]}];
+// Older copies of the page know only the first OLD_MAPS maps (and clamp any other map number to the last of those), so
+// the host only picks a newer map when every page in the room knows it: each page says how many maps it knows in its
+// node (mv; a node without it is an older page, which knows OLD_MAPS).
+const OLD_MAPS=3;
+function mapsFor(){let n=MAPS.length;if(G.mode!=='online')return n;for(const [k,o] of Net.others)if(Net.live(k))n=Math.min(n,o.mv);return n}
 function loadMap(i){
   i=clamp(i|0,0,MAPS.length-1);if(i===mapIdx&&MAP)return;
   if(MAP){mapRoot.remove(MAP.group);MAP.group.traverse(o=>{if(o.geometry&&!o.isInstancedMesh&&!o.userData.shared)o.geometry.dispose()})}
@@ -2039,7 +2199,7 @@ function makeTag(e){
 //   k: {uid: eliminations}, sc: match points, hn: times each player has hunted, res: last result}
 // =====================================================================
 const G={
-  mode:'menu',pmode:null,rs:null,role:'free',rid:-1,ph:'',paused:false,host:false,diff:clamp(+store.get('diff',2)|0,1,3),pracMap:clamp(+store.get('pmap',0)|0,0,2),
+  mode:'menu',pmode:null,rs:null,role:'free',rid:-1,ph:'',paused:false,host:false,diff:clamp(+store.get('diff',2)|0,1,3),pracMap:clamp(+store.get('pmap',0)|0,0,MAPS.length-1),
   nm:new Map(),lock:false,rotOff:0,tfCd:0,ammo:25,reloadT:0,shootCd:0,spread:0,aim:false,hits:{},wrong:0,shotSeq:0,hdStr:'',
   target:null,pingIdx:0,pingTimes:[],specId:null,endShown:'',seenEl:{},hitSeen:new Map(),lastTick:-1,hurry:false,
   hostUid:null,he:0,maxHe:0,lastRS:null,rsSeen:'',joinedAt:0,intentUnlock:false,hfSeen:{},boardHeld:false,
@@ -2071,7 +2231,7 @@ function newRound(prev,fresh){
   const ids=liveIds(),set=prev.set,hn=fresh?{}:Object.assign({},prev.hn||{}),rn=fresh?1:(prev.rn|0)+1,mid=fresh?(prev.mid|0)+1:prev.mid|0;
   const order=ids.slice().sort((a,b)=>((hn[a]||0)-(hn[b]||0))||((hashStr(a+':'+mid+':'+rn)%9973)-(hashStr(b+':'+mid+':'+rn)%9973)));
   const hu=order.slice(0,huntersFor(ids.length,set));for(const u of hu)hn[u]=(hn[u]||0)+1;
-  const map=set.map>=0?set.map:fresh?(prev.map|0):((prev.map|0)+1)%MAPS.length;
+  const nm=mapsFor(),pm=prev.map|0,map=set.map>=0&&set.map<nm?set.map:fresh?(pm<nm?pm:0):(pm+1)%nm;
   return{id:(prev.id|0)+1,mid,rn,ph:'hide',t0:now(),dur:set.hide*1000,map,set,hu,pr:ids.filter(u=>hu.indexOf(u)<0),hf:{},el:{},k:{},sc:fresh?{}:prev.sc||{},hn,res:null,as:0};
 }
 function setRS(rs){G.rs=rs;if(G.mode==='online'&&G.host)G.rsDirty=true;applyRS(rs)}
@@ -2598,7 +2758,7 @@ const Net={
     this.db.ref('.info/serverTimeOffset').on('value',s=>{this.offset=s.val()||0});
     this.ready=true;
   },
-  base(){const e=me;return{n:myName||'Mystery Box',c:myColor,x:r2(e.pos.x),z:r2(e.pos.z),h:r3(e.yaw),ts:Math.round(this.now()),y:r2(e.pos.y),j:this.j,d:e.form?e.form.id:DEFAULT_FORM,p:0}},
+  base(){const e=me;return{n:myName||'Mystery Box',c:myColor,x:r2(e.pos.x),z:r2(e.pos.z),h:r3(e.yaw),ts:Math.round(this.now()),y:r2(e.pos.y),j:this.j,d:e.form?e.form.id:DEFAULT_FORM,p:0,mv:MAPS.length}},
   async count(room){
     const s=await this.db.ref('rooms/'+room+'/players').once('value');let n=0;
     s.forEach(c=>{const v=c.val();if(c.key!==this.uid&&v&&this.now()-(+v.ts||0)<LIVE_MS)n++});
@@ -2673,7 +2833,7 @@ function sanitizeRS(p){
 }
 function onNode(uid,v){
   if(!v||typeof v!=='object')return;
-  const o={n:cleanName(v.n)||'Player',c:/^#[0-9a-f]{6}$/i.test(v.c)?v.c:'#ff7a1a',j:+v.j||+v.ts||0,ts:Math.min(+v.ts||0,Net.now()+5000),rs:typeof v.rs==='string'?v.rs:'',he:Math.min(Math.max(+v.he||0,0),1e9),hd:typeof v.hd==='string'?v.hd:''};
+  const o={n:cleanName(v.n)||'Player',c:/^#[0-9a-f]{6}$/i.test(v.c)?v.c:'#ff7a1a',j:+v.j||+v.ts||0,ts:Math.min(+v.ts||0,Net.now()+5000),rs:typeof v.rs==='string'?v.rs:'',he:Math.min(Math.max(+v.he||0,0),1e9),hd:typeof v.hd==='string'?v.hd:'',mv:finN(+v.mv)?clamp(Math.floor(+v.mv),OLD_MAPS,99):OLD_MAPS};
   const prev=Net.others.get(uid);
   Net.others.set(uid,o);G.nm.set(uid,o.n);
   if(o.rs&&o.he>G.maxHe)G.maxHe=o.he;
@@ -2830,7 +2990,7 @@ function updateHud(){
   // lobby panel
   setHidden('lobby',!(G.mode==='online'&&rs&&ph==='lobby'));
   if(G.mode==='online'&&rs&&ph==='lobby'){const lm=rs.as?'Starting in '+Math.max(0,Math.ceil((rs.as-now())/1000))+'…':Net.isPublic?'Starts by itself once 2 players are here.':liveIds().length<2?'Waiting for at least one more player. Send them the invite link.':G.host?'Press Start match when everyone is in.':'Waiting for the host to start.';setText('lobbyMsg',lm);
-    const pk=[...Net.others.keys()].filter(k=>Net.live(k)).join()+G.hostUid+JSON.stringify(rs.set)+G.host;if(hudCache.lobby!==pk){hudCache.lobby=pk;renderLobby()}}
+    const pk=[...Net.others.keys()].filter(k=>Net.live(k)).join()+G.hostUid+JSON.stringify(rs.set)+G.host+mapsFor();if(hudCache.lobby!==pk){hudCache.lobby=pk;renderLobby()}}
   if(G.mode==='online'&&(ph==='end'||ph==='over')&&!$('end').hidden)setText('endMsg',ph==='over'?'Back to the lobby in '+Math.max(0,Math.ceil(left))+'…':(rs.rn<rs.set.rounds?'Next round in ':'Final scores in ')+Math.max(0,Math.ceil(left))+'…');
   // scoreboard
   const showBoard=(held('board')||G.boardHeld)&&ph!=='end'&&ph!=='over';setHidden('board',!showBoard);if(showBoard)renderBoard();
@@ -2872,11 +3032,12 @@ function renderLobby(){
     const e=ents.get(id);dot.className='dot';dot.style.background=id===Net.uid?myColor:(e?e.color:'#ccc');nm.className='nm';nm.textContent=id===Net.uid?(myName||'You')+' (you)':nameOf(id);t.className='t';
     t.textContent=[id===G.hostUid?'host':'',(rs.sc&&rs.sc[id])?rs.sc[id]+' pts':''].filter(Boolean).join(' · ');li.append(dot,nm,t);ul.appendChild(li)}
   const set=rs.set||defaultSet();segSet($('setMap'),set.map);segSet($('setRounds'),set.rounds);segSet($('setHide'),set.hide);segSet($('setHunt'),set.hunt);segSet($('setRatio'),set.ratio);segSet($('setPing'),set.ping);segSet($('setPen'),set.pen);segSet($('setHp'),set.hps);
+  const nm=mapsFor();for(const b2 of $('setMap').children){const no=+b2.dataset.v>=nm;b2.disabled=no;b2.title=no?'Someone here has an older copy of the game: this map is back once they reload':''}
   $('lobby').classList.toggle('guest',!G.host);$('hostNote').textContent=G.host?'(you\'re the host)':'(host picks)';
   const sb=$('startRound');sb.hidden=Net.isPublic;sb.disabled=!G.host||ids.length<2;sb.textContent=G.host?'Start match':'Host starts';
 }
 function hostSet(key,val){
-  if(!G.host||!G.rs||G.rs.ph!=='lobby')return;const set=Object.assign({},G.rs.set,{[key]:val});store.set('hostset',set);if(key==='pen')store.set('hostpen',1);
+  if(!G.host||!G.rs||G.rs.ph!=='lobby')return;if(key==='map'&&val>=mapsFor()){sfx('ui');return}const set=Object.assign({},G.rs.set,{[key]:val});store.set('hostset',set);if(key==='pen')store.set('hostpen',1);
   const rs=Object.assign({},G.rs,{set});if(key==='map'&&val>=0)rs.map=val;setRS(rs);renderLobby();sfx('ui');
 }
 // ---------- results ----------
