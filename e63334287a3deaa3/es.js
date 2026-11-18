@@ -2,8 +2,10 @@
  * Spanish for the Back Room page (e63334287a3deaa3/index.html): the header, the game types, every game card (blurb,
  * chips, genre badge, the "i" description and features, Play buttons), the puzzle tiles and the notes. Game names stay
  * in English. lang.js does the translating (see the comment at its top); this file only gives the words.
- * Loaded right after lang.js by the Back Room page, and by the home page's reveal() once lang.js has loaded, because
- * reveal() copies this page's header and games section but not its scripts.
+ * Loaded only while Spanish is on (English players never download it): the Back Room page and the phone page load it
+ * right after lang.js when the language is already Spanish, or on the first switch to Spanish (a small inline loader
+ * after the lang.js line); the home page's reveal() does the same once lang.js has loaded, because reveal() copies
+ * this page's header and games section but not its scripts. BackRoomLang.add() translates the page as it arrives.
  * The shared scripts (news.js, party.js, social.js, leaderboard.js...) add their own words themselves.
  */
 (function () {
