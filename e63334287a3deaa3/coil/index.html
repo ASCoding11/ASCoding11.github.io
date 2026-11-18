@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
+<script src="/e63334287a3deaa3/captains.js"></script> <!-- who may open the Wardrobe while it is not public (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Coil</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -514,6 +515,7 @@ function newSnake(o){
     minx:0,miny:0,maxx:0,maxy:0,born:clock,drop:0,dropT:0,
     think:0,goalA:o.h||0,wander:Math.random()*TAU,brain:o.brain||null,
     snaps:[],lag:NetSmooth.lag(),coarse:null,coarseStr:'',sp:o.sp||0,deadSp:-1,seen:performance.now(),peak:o.score||START,
+    look:o.look||null,  // what it wears from the Wardrobe (lookOf), null for the plain skin
   };
 }
 function layPath(s){
@@ -673,7 +675,7 @@ function sid(){return online&&Net.uid?Net.uid.replace(/[^a-zA-Z0-9]/g,'').slice(
 function spawnPlayer(){
   const p=safeSpot();spawnSeq++;
   if(player)snakes.delete(player.id);
-  player=newSnake({id:online?Net.uid:'me',name:myName||(online?'Guest':'You'),skin:mySkin,x:p.x,y:p.y,h:p.h,score:START,local:true,sp:spawnSeq});
+  player=newSnake({id:online?Net.uid:'me',name:myName||(online?'Guest':'You'),skin:mySkin,x:p.x,y:p.y,h:p.h,score:START,local:true,sp:spawnSeq,look:myLook});
   layPath(player);buildSegs(player);snakes.set(player.id,player);
   run={t0:clock,peak:START,best:99,kills:0};
   cam.follow=player;state='playing';
@@ -694,7 +696,7 @@ let dropSeq=0;
 // A local snake crashed: spill its length as food along its body and tell the room.
 function killLocal(s,killer){
   if(!s.alive)return;
-  s.alive=false;dying.push({sx:s.sx.slice(0,s.n),sy:s.sy.slice(0,s.n),n:s.n,r:s.r,skin:s.skin,t:0});
+  s.alive=false;dying.push({sx:s.sx.slice(0,s.n),sy:s.sy.slice(0,s.n),n:s.n,r:s.r,skin:s.skin,lk:s.look,t:0});
   const pat=SKINS[s.skin].c,total=Math.max(4,s.score*.62),step=Math.max(1,Math.round(s.n/Math.max(4,Math.min(90,s.score/3)))),pts=[];
   for(let i=0;i<s.n;i+=step)pts.push(i);
   const v=Math.round(total/pts.length*10)/10,base=sid()+'d'+(++dropSeq).toString(36);
@@ -922,8 +924,8 @@ function render(){
   // crashed snakes flash and fade
   ctx.globalCompositeOperation='lighter';
   for(const d of dying){
-    const k=d.t/.5,pat=SKINS[d.skin].c;ctx.globalAlpha=(1-k)*.9;
-    if(!d.fx){d.fx=1;burst(d,vx0,vy0,vx1,vy1)}
+    const k=d.t/.5,pat=d.lk&&WR?WR.pal(d.lk,d.skin):SKINS[d.skin].c;ctx.globalAlpha=(1-k)*.9;
+    if(!d.fx){d.fx=1;if(!(d.lk&&WR&&WR.burst(d,vx0,vy0,vx1,vy1)))burst(d,vx0,vy0,vx1,vy1)}
     for(let i=d.n-1;i>=0;i-=2){const r=d.r*(1.4+k*1.6);ctx.drawImage(glow(pat[(i>>1)%pat.length]),d.sx[i]-r,d.sy[i]-r,r*2,r*2)}
     const e=1-(1-k)*(1-k);ctx.strokeStyle=pat[0];ctx.lineWidth=d.r*.5*(1-k)+.5;ctx.beginPath();ctx.arc(d.sx[0],d.sy[0],d.r*(1.2+e*4.5),0,TAU);ctx.stroke();
   }
@@ -933,6 +935,7 @@ function render(){
   fxDt=paused?0:Math.min(.05,Math.max(0,(now-fxLast)/1000));fxLast=now;
   for(const s of order)drawSnake(s,now);
   if(sparkN)drawSparks();
+  if(WR)WR.fx(ctx,fxDt);
   // names (screen space)
   ctx.setTransform(DPR,0,0,DPR,0,0);
   ctx.font='700 13px Nunito,system-ui,sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';
@@ -969,7 +972,7 @@ function paintFace(g,x,y,h,look,r,now,seed,lid){
   g.fillStyle='#ffffff';g.beginPath();g.arc(ax+gx,ay+gy,gq,0,TAU);g.moveTo(bx+gx+gq,by+gy);g.arc(bx+gx,by+gy,gq,0,TAU);g.fill();
 }
 function drawSnake(s,now){
-  const n=s.n,r=s.r,pat=SKINS[s.skin].c,sx=s.sx,sy=s.sy;
+  const L=WR&&s.look,n=s.n,r=s.r,pat=L?WR.pal(L,s.skin):SKINS[s.skin].c,sx=s.sx,sy=s.sy;
   const seed=s.fz||(s.fz=1+(Math.random()*9000|0));
   if(s.boost){
     const k=n>1?1/(n-1):0;
@@ -986,14 +989,20 @@ function drawSnake(s,now){
   }
   // the tongue flicks out now and then
   const tf=((now+seed*3)%2900)/300;
-  if(tf<1){
+  if(L&&L.h===5)WR.tongue(ctx,s.x,s.y,s.h,r,now);
+  else if(tf<1){
     const c=Math.cos(s.h),si=Math.sin(s.h),L=r*(.95+.75*Math.sin(tf*Math.PI)),tx=s.x+c*L,ty=s.y+si*L,fk=r*.3;
     ctx.strokeStyle='#ff5f7e';ctx.lineWidth=Math.max(1,r*.11);ctx.lineCap='round';ctx.beginPath();
     ctx.moveTo(s.x+c*r*.7,s.y+si*r*.7);ctx.lineTo(tx,ty);ctx.lineTo(tx+Math.cos(s.h+.5)*fk,ty+Math.sin(s.h+.5)*fk);ctx.moveTo(tx,ty);ctx.lineTo(tx+Math.cos(s.h-.5)*fk,ty+Math.sin(s.h-.5)*fk);ctx.stroke();
   }
-  paintBody(ctx,sx,sy,n,r,pat,clock-s.born<1.2&&s.local?.55+.45*Math.sin(now/60):1);
+  const fade=clock-s.born<1.2&&s.local?.55+.45*Math.sin(now/60):1,look=s===player&&input.aim!=null&&!input.kb?aimA:s.h;
+  if(L){
+    WR.body(ctx,sx,sy,n,r,L,s.skin,fade,now);WR.face(ctx,s,s.x,s.y,s.h,look,r,now,seed,L,s.skin,TKON?()=>tkHat(s):null);
+    if(L.t)WR.trail(s,fxDt);return;
+  }
+  paintBody(ctx,sx,sy,n,r,pat,fade);
   if(TKON)tkHat(s);
-  paintFace(ctx,s.x,s.y,s.h,s===player&&input.aim!=null&&!input.kb?aimA:s.h,r,now,seed,pat[0]);
+  paintFace(ctx,s.x,s.y,s.h,look,r,now,seed,pat[0]);
 }
 // Sparks (a snake breaking up, boost): one fixed pool, drawn with the food's orb sprites. Drawing only.
 const SPARKS=360,PX=new Float32Array(SPARKS),PY=new Float32Array(SPARKS),PVX=new Float32Array(SPARKS),PVY=new Float32Array(SPARKS),PL=new Float32Array(SPARKS),PM=new Float32Array(SPARKS),PS=new Float32Array(SPARKS),PI=new Array(SPARKS);
@@ -1114,6 +1123,7 @@ const Net={
     const o={n:myName||'Guest',c:SKINS[mySkin].c[0],x:p?Math.round(p.x):0,z:p?Math.round(p.y):0,h:p?Math.round(p.h*1000)/1000:0,ts:Math.round(this.now()),
       j:this.j,sk:mySkin,sc:alive?Math.round(p.score*10)/10:0,bo:alive&&p.boost?1:0,d:alive?0:1,sp:spawnSeq,k:run?run.kills:0};
     if(alive)o.s=spawnSeq+':'+encBody(p);
+    if(p&&p.look)o.lk=p.look.str;   // the Wardrobe (only sent when something is worn; older pages ignore it)
     if(this.amHost&&bots.length){
       const live=bots.filter(b=>b.alive);
       o.bh=live.map(b=>b.id+','+Math.round(b.x)+','+Math.round(b.y)+','+Math.round(b.h*1000)+','+Math.round(b.score*10)/10+','+(b.boost?1:0)+','+b.kills).join('|');
@@ -1195,7 +1205,8 @@ function remoteUpsert(id,o,owner){
     s=newSnake({id,name:o.n,skin:o.sk,x:o.x,y:o.y,h:o.h,score:o.sc,remote:true,owner,sp:o.sp});
     snakes.set(id,s);
   }
-  if(o.d){if(s.alive&&s.n)dying.push({sx:s.sx.slice(0,s.n),sy:s.sy.slice(0,s.n),n:s.n,r:s.r,skin:s.skin,t:0});s.alive=false;s.seen=performance.now();return}
+  s.look=o.lk||null;
+  if(o.d){if(s.alive&&s.n)dying.push({sx:s.sx.slice(0,s.n),sy:s.sy.slice(0,s.n),n:s.n,r:s.r,skin:s.skin,lk:s.look,t:0});s.alive=false;s.seen=performance.now();return}
   if(o.sp!==s.sp||!s.alive){
     if(!s.alive&&o.sp<=s.deadSp)return;
     s.sp=o.sp;s.alive=true;s.snaps.length=0;s.px.length=0;s.py.length=0;s.coarse=null;s.coarseStr='';s.x=o.x;s.y=o.y;s.born=clock;
@@ -1212,7 +1223,7 @@ function onPlayerNode(uid,v){
   if(Net.now()-ts>10000)return;
   let body=null;
   if(typeof v.s==='string'){const i=v.s.indexOf(':');if(i>0&&+v.s.slice(0,i)===(+v.sp|0))body=v.s.slice(i+1)}
-  remoteUpsert(uid,{n:cleanName(v.n)||'Snake',sk:v.sk|0,x:+v.x,y:+v.z,h:+v.h||0,sc:+v.sc||START,bo:v.bo,d:!!v.d,sp:+v.sp|0,k:+v.k|0,ts,body},uid);
+  remoteUpsert(uid,{n:cleanName(v.n)||'Snake',sk:v.sk|0,x:+v.x,y:+v.z,h:+v.h||0,sc:+v.sc||START,bo:v.bo,d:!!v.d,sp:+v.sp|0,k:+v.k|0,ts,body,lk:v.lk==null?null:lookOf(v.lk)},uid);
   // bots run by this player (when they're the host)
   const seen=new Set();
   if(typeof v.bh==='string'&&v.bh){
@@ -1239,7 +1250,7 @@ function handleEvent(e){
   }else if(e.type==='die'){
     const s=snakes.get(e.v);
     if(s&&!s.local){
-      if(s.alive){dying.push({sx:s.sx.slice(0,s.n),sy:s.sy.slice(0,s.n),n:s.n,r:s.r,skin:s.skin,t:0});if(player&&player.alive&&Math.hypot(s.x-player.x,s.y-player.y)<900)sfx('crash')}
+      if(s.alive){dying.push({sx:s.sx.slice(0,s.n),sy:s.sy.slice(0,s.n),n:s.n,r:s.r,skin:s.skin,lk:s.look,t:0});if(player&&player.alive&&Math.hypot(s.x-player.x,s.y-player.y)<900)sfx('crash')}
       s.alive=false;s.deadSp=s.sp;
     }
     const pat=SKINS[clamp(e.sk|0,0,SKINS.length-1)].c,v=clamp(+e.pv||1,.1,200);
@@ -1255,7 +1266,7 @@ function sanitizeRoom(s){return String(s||'').toLowerCase().replace(/^cl-/,'').r
 function randomRoom(){return pick(['noodle','coil','hiss','fang','scale','venom','loop','twist'])+'-'+Math.floor(100+Math.random()*900)}
 function busy(on){for(const id of ['quick','joinRoom','practice'])$(id).disabled=on}
 function clearWorld(seed){
-  snakes.clear();bots.length=0;dying.length=0;sparkN=0;player=null;
+  snakes.clear();bots.length=0;dying.length=0;sparkN=0;player=null;if(WR)WR.clearFx();
   resetFood(seed);foodFirst=true;updateFood(worldNow(),true);foodFirst=false;
   $('feed').innerHTML='';
 }
@@ -1350,15 +1361,15 @@ function openPause(){
 function closePause(){$('pause').hidden=true;paused=false}
 
 // skin picker preview
-const skv=$('skinCv'),skx=skv.getContext('2d'),pvx=[],pvy=[];
+const skv=$('skinCv'),skx=skv.getContext('2d'),pvx=[],pvy=[],pvLook={};
 function drawSkinPreview(t){
   const w=skv.width,h=skv.height;skx.clearRect(0,0,w,h);
   const pat=SKINS[mySkin].c,r=22,n=44,pts=[];
   for(let i=0;i<n;i++){const x=w-70-i*(w-140)/n,y=h/2+Math.sin(i*.28-t*3)*20;pts.push([x,y])}
   for(let i=0;i<n;i++){pvx[i]=pts[i][0];pvy[i]=pts[i][1]}
-  paintBody(skx,pvx,pvy,n,r,pat,1);
   const [x,y]=pts[0],a=Math.atan2(y-pts[1][1],x-pts[1][0]);
-  paintFace(skx,x,y,a,a,r,t*1000,0,pat[0]);
+  if(myLook&&WR){if(myLook.h===5)WR.tongue(skx,x,y,a,r,t*1000);WR.body(skx,pvx,pvy,n,r,myLook,mySkin,1,t*1000);WR.face(skx,pvLook,x,y,a,a,r,t*1000,0,myLook,mySkin,null)}
+  else{paintBody(skx,pvx,pvy,n,r,pat,1);paintFace(skx,x,y,a,a,r,t*1000,0,pat[0])}
   $('skinName').textContent=SKINS[mySkin].name;
 }
 $('skinPrev').onclick=()=>{mySkin=(mySkin+SKINS.length-1)%SKINS.length;store.set('skin',mySkin)};
@@ -1461,8 +1472,49 @@ setInterval(()=>{
   try{while(r>0){const d=Math.min(.05,r);r-=d;step(d,true)}}catch(err){console.error(err)}
 },250);
 
+// =====================================================================
+//  Wardrobe (captains only for now; README, "Coil")
+// =====================================================================
+// Colours, patterns, object snakes, heads, a sparkle trail and candy or coin bursts, all drawn by wardrobe.js beside this
+// page. wardrobeOn() says whether this player may open it: COIL_PUBLIC (the one line that opens it to everyone), one of
+// the site's captains (../captains.js), or ?wardrobe=1 on localhost or in an automated browser (remembered for the tab;
+// ?wardrobe=0 forgets it). wardrobe.js is fetched only when it is true or a snake in the room wears something; until
+// then WR is null, every look is null and the game draws exactly as before. A look is looks only: the same segments,
+// radius and hit area as any snake. It is saved in this browser as coil:look and sent to the room as lk.
+const COIL_PUBLIC=false;
+const CAPTAINS=window.BackRoomCaptains||null;
+const wardrobeOn=()=>COIL_PUBLIC||!!(CAPTAINS&&CAPTAINS.may(false,'wardrobe','coil-wardrobe'));
+let WR=null,wrAsked=false,myLook=null;
+// a look from the network or storage: 'c18.o1.h2', tokens of a slot letter and a 1-2 digit item number; anything else is null
+const LOOK_RE=/^[cadohtb]\d{1,2}(\.[cadohtb]\d{1,2}){0,6}$/,looks=new Map();
+function lookOf(v){
+  if(typeof v!=='string'||!v||v.length>27||!LOOK_RE.test(v))return null;
+  let L=looks.get(v);
+  if(!L){L={str:v,c:0,a:0,d:0,o:0,h:0,t:0,b:0};for(const t of v.split('.'))L[t[0]]=+t.slice(1);if(looks.size>200)looks.clear();looks.set(v,L)}
+  if(!WR)wrLoad();
+  return L;
+}
+function wrLoad(){
+  if(wrAsked)return;wrAsked=true;
+  loadScript('/e63334287a3deaa3/coil/wardrobe.js').then(()=>{
+    WR=window.CoilWardrobe({UNDER,ball,head,under,sheen,SKINS,paintFace,loadScript,get touch(){return touchUI},
+      look:()=>myLook,skin:()=>mySkin,setLook(v){store.set('look',v);wrSync()},
+      paintPreview(g,xs,ys,n,r,a,t){const pat=SKINS[mySkin].c;paintBody(g,xs,ys,n,r,pat,1);paintFace(g,xs[0],ys[0],a,a,r,t,0,pat[0])}});
+    wrSync();
+  }).catch(e=>{wrAsked=false;console.error(e)});
+}
+function wrSync(){
+  const on=wardrobeOn();
+  myLook=on?lookOf(store.get('look','')):null;
+  if(on&&!WR)wrLoad();
+  if(player&&player.local)player.look=myLook;
+  if(WR)WR.access(on);
+}
+addEventListener('DOMContentLoaded',()=>{wrSync();if(CAPTAINS)CAPTAINS.onChange(wrSync)});
+
 // For automated tests only (Playwright sets navigator.webdriver): a way to reach the arena from outside.
-if(navigator.webdriver)window.__coil={snakes,bots,cam,kill:s=>killLocal(s,null),get player(){return player}};
+if(navigator.webdriver)window.__coil={snakes,bots,cam,kill:s=>killLocal(s,null),get player(){return player},
+  get WR(){return WR},lookOf,wardrobeOn,get myLook(){return myLook},setLook(v){store.set('look',v);wrSync()},startPractice,get ctx(){return ctx},Net};
 
 // boot
 resize();
