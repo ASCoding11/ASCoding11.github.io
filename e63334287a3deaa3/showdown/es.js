@@ -44,6 +44,8 @@
     'Button (small blind)': 'Botón (ciega chica)', 'Button': 'Botón', 'Small blind': 'Ciega chica', 'Big blind': 'Ciega grande', 'Cutoff': 'Cutoff', 'Hijack': 'Hijack',
     'Under the gun': 'Primero en hablar', 'Middle position': 'Posición media',
     // log lines (from the table, in English)
+    '{a} posts {x}, {b} posts {y}': '{a} pone {x}, {b} pone {y}', 'Hand #{n} · blinds {s} / {b}': 'Mano #{n} · ciegas {s} / {b}', '{n} left': '{n} se fue',
+    '{n} mucks': '{n} tira sus cartas', '{n} shows {c} · {h}': '{n} muestra {c} · {h}',
     '{n} sits down': '{n} se sienta', '{n} leaves the table': '{n} deja la mesa', '{n} rebuys for {a}': '{n} recompra por {a}', '{n} folds': '{n} se retira',
     '{n} checks': '{n} pasa', '{n} calls {a} and is all-in': '{n} iguala {a} y va all-in', '{n} calls {a}': '{n} iguala {a}',
     '{n} bets {a} (all-in)': '{n} apuesta {a} (all-in)', '{n} bets {a}': '{n} apuesta {a}', '{n} raises to {a} (all-in)': '{n} sube a {a} (all-in)', '{n} raises to {a}': '{n} sube a {a}',
@@ -51,6 +53,9 @@
     'Flop: {c}': 'Flop: {c}', 'Turn: {c}': 'Turn: {c}', 'River: {c}': 'River: {c}',
     '{n} wins the main pot ({a}) with {h}': '{n} gana el pozo principal ({a}) con {h}', '{n} split the main pot ({a}) with {h}': '{n} reparten el pozo principal ({a}) con {h}',
     '{n} wins side pot {k} ({a}) with {h}': '{n} gana el pozo secundario {k} ({a}) con {h}', '{n} split side pot {k} ({a}) with {h}': '{n} reparten el pozo secundario {k} ({a}) con {h}',
+    '{n} and {m} split the main pot ({a}) with {h}': '{n} y {m} reparten el pozo principal ({a}) con {h}',
+    '{n} and {m} split side pot {k} ({a}) with {h}': '{n} y {m} reparten el pozo secundario {k} ({a}) con {h}',
+    '{n} and {m} split ({a}) with {h}': '{n} y {m} reparten ({a}) con {h}',
     '{n} wins ({a}) with {h}': '{n} gana ({a}) con {h}', '{n} split ({a}) with {h}': '{n} reparten ({a}) con {h}',
     'The dealer changed hands. Hand #{n} was called off and the chips went back.': 'Cambió quien reparte. La mano #{n} se anuló y se devolvieron las fichas.',
     // menu
