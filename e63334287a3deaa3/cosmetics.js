@@ -231,7 +231,8 @@
   // One GAMES entry per game: its name, the prefix of its ids, and its slots in the order the shop lists them.
   var GAMES = {
     boostball: { name: 'Boostball', prefix: 'bb', slots: [['decal', 'Decals'], ['trail', 'Boost trails'], ['goal', 'Goal explosions'], ['topper', 'Antenna toppers'], ['hat', 'Roof hats'], ['wheels', 'Wheels'], ['engine', 'Engine sounds']] },
-    slipstream: { name: 'Slipstream', prefix: 'ss', slots: [['sponsor', 'Sponsors'], ['livery', 'Liveries'], ['helmet', 'Helmets'], ['effect', 'Boost effects'], ['smoke', 'Tyre smoke'], ['podium', 'Podium celebrations']] }
+    slipstream: { name: 'Slipstream', prefix: 'ss', slots: [['sponsor', 'Sponsors'], ['livery', 'Liveries'], ['helmet', 'Helmets'], ['effect', 'Boost effects'], ['smoke', 'Tyre smoke'], ['podium', 'Podium celebrations']] },
+    'rumble-karts': { name: 'Rumble Karts', prefix: 'rk', slots: [['driver', 'Drivers'], ['kart', 'Karts'], ['wheels', 'Wheels'], ['horn', 'Horns'], ['wreck', 'Wreck effects']] },
   };
   var ITEM_PRICE = { common: 6, rare: 10, epic: 16, legendary: 40 };
   var GAME_ITEMS = [], ITEM_BY_ID = {};
@@ -409,6 +410,61 @@
   I('slipstream', 'smoke', 5, 'Gold tyre smoke', 'common', '#FFCC47', '#FFF0B0', 'Gold smoke from the tyres.');
   I('slipstream', 'podium', 1, 'Confetti Podium', 'common', '#FF4FA3', '#3FD2FF', 'Confetti over the results when you finish in the top three.');
   I('slipstream', 'podium', 2, 'Fireworks Podium', 'rare', '#FFD21F', '#B06BFF', 'Fireworks over the results when you finish in the top three.');
+  // ---- Rumble Karts items ----
+  // Rumble Karts: the Garage's drivers, karts, wheels, horns and wreck effects (rumble-karts/garage.js draws them by these numbers; each driver has its own knockout taunt).
+  I('rumble-karts', 'driver', 1, 'Sir Honksalot', 'epic', '#FFFFFF', '#C9CBD8', 'A goose in knight armour. Taunt: a proud HONK.');
+  I('rumble-karts', 'driver', 2, 'Captain Crumb', 'rare', '#F0C27A', '#B5763A', 'A slice of pirate toast with an eye patch.');
+  I('rumble-karts', 'driver', 3, 'Granny Vroom', 'rare', '#E8E6F0', '#8A6AD0', 'Cardigan, pearls and no patience for slowcoaches.');
+  I('rumble-karts', 'driver', 4, 'Bolt', 'common', '#B8BCCF', '#5EE8FF', 'A boxy robot that dances in right angles.');
+  I('rumble-karts', 'driver', 5, 'Wasabi', 'rare', '#5CCF5A', '#4A4563', 'A ninja frog who flips after every knockout.');
+  I('rumble-karts', 'driver', 6, 'Professor Pickle', 'common', '#6DBB3C', '#F6F4FF', 'A very clever pickle in a lab coat.');
+  I('rumble-karts', 'driver', 7, 'DJ Raccoon', 'epic', '#9A96A8', '#A66BFF', 'Headphones on, tail up, always on the beat.');
+  I('rumble-karts', 'driver', 8, 'Chef Meatball', 'common', '#8A4A2B', '#FFFFFF', 'A meatball in a tall chef hat.');
+  I('rumble-karts', 'driver', 9, 'Yeti Betty', 'rare', '#F2F4FF', '#9FB6D8', 'Fluffy, friendly and very hard to cool down.');
+  I('rumble-karts', 'driver', 10, 'Count Dracoola', 'epic', '#3A3550', '#D8392B', 'A vampire in sunglasses and a big collared cape.');
+  I('rumble-karts', 'driver', 11, 'Tiny Rex', 'legendary', '#4FBF6A', '#FFC93C', 'A T. rex on two cushions who can barely reach the wheel.');
+  I('rumble-karts', 'driver', 12, 'Sergeant Sprinkles', 'rare', '#FF8FC0', '#E0A35A', 'A donut on patrol, cap and badge included.');
+  I('rumble-karts', 'driver', 13, 'Moolissa', 'common', '#F6F4FF', '#3A3550', 'A cow with a flower and a cow bell.');
+  I('rumble-karts', 'driver', 14, 'Astro Hamster', 'epic', '#F2A65A', '#D6ECFF', 'A hamster in a spacesuit and bubble helmet.');
+  I('rumble-karts', 'driver', 15, 'Cactus Jack', 'rare', '#3FA35A', '#A4733D', 'A cactus in a cowboy hat. Do not hug.');
+  I('rumble-karts', 'driver', 16, 'Waddles', 'rare', '#3A3552', '#FFFFFF', 'A penguin in a top hat and monocle.');
+  I('rumble-karts', 'driver', 17, 'Turkey Tom', 'common', '#8A5A2B', '#FFC93C', 'A turkey with a fanned-out tail.');
+  I('rumble-karts', 'kart', 1, 'Bathtub', 'rare', '#F6F4FF', '#BFE8FF', 'A tub full of bubbles, with a tap at the front.');
+  I('rumble-karts', 'kart', 2, 'Shopping Cart', 'common', '#D4D8E6', '#FF4D6D', 'Wire basket, plastic handle, one wobbly ride.');
+  I('rumble-karts', 'kart', 3, 'Lawnmower', 'common', '#5CCF5A', '#4A4563', 'A ride-on mower with a grass bag.');
+  I('rumble-karts', 'kart', 4, 'Hot Dog Cart', 'rare', '#C8553D', '#FFD23F', 'A hot dog stand with a striped umbrella.');
+  I('rumble-karts', 'kart', 5, 'Bumper Car', 'common', '#FF4D6D', '#3A3550', 'A fairground bumper car with its pole.');
+  I('rumble-karts', 'kart', 6, 'Giant Shoe', 'rare', '#3FB8FF', '#FFFFFF', 'One very big sneaker.');
+  I('rumble-karts', 'kart', 7, 'Banana', 'epic', '#FFD84A', '#6B4423', 'A banana with a saddle and handlebars.');
+  I('rumble-karts', 'kart', 8, 'Rubber Duck', 'epic', '#FFD23F', '#F4A41C', 'A giant bath duck in a sailor cap.');
+  I('rumble-karts', 'kart', 9, 'Couch', 'rare', '#A66BFF', '#FFC93C', 'The comfiest seat in the arena.');
+  I('rumble-karts', 'kart', 10, 'Bed', 'rare', '#A4733D', '#FFFFFF', 'Headboard, pillow, blanket and a teddy.');
+  I('rumble-karts', 'kart', 11, 'Toilet', 'rare', '#F6F4FF', '#D4D8E6', 'A spotless porcelain throne.');
+  I('rumble-karts', 'kart', 12, 'Pumpkin Carriage', 'legendary', '#FF8A1F', '#FFC93C', 'A pumpkin with golden doors.');
+  I('rumble-karts', 'kart', 13, 'Ice Cream Truck', 'epic', '#FFFFFF', '#FF9FC0', 'With a giant cone on the roof.');
+  I('rumble-karts', 'kart', 14, 'Rocket Sled', 'legendary', '#C8874A', '#FF6A2B', 'A wooden sled with a rocket strapped on.');
+  I('rumble-karts', 'kart', 15, 'Cardboard Box', 'common', '#C8955A', '#E8C48A', 'Flaps open, racing stripes drawn on in marker.');
+  I('rumble-karts', 'wheels', 1, 'Chrome Spokes', 'common', '#D4D8E6', '#23202E', 'Shiny rims with thin spokes.');
+  I('rumble-karts', 'wheels', 2, 'Monster Treads', 'rare', '#2A2638', '#FFC93C', 'Chunky knobbly tyres.');
+  I('rumble-karts', 'wheels', 3, 'Wagon Wheels', 'common', '#A4733D', '#6B4423', 'Wooden wheels with spokes.');
+  I('rumble-karts', 'wheels', 4, 'Donut Wheels', 'epic', '#E0A35A', '#FF8FC0', 'Iced donuts with sprinkles.');
+  I('rumble-karts', 'wheels', 5, 'Whitewalls', 'common', '#FFFFFF', '#D8392B', 'Old-school white sidewalls.');
+  I('rumble-karts', 'wheels', 6, 'Golden Stars', 'rare', '#FFC93C', '#FFF3B0', 'Gold rims with a star on each.');
+  I('rumble-karts', 'wheels', 7, 'Peppermint Swirls', 'rare', '#FF4D6D', '#FFFFFF', 'Red and white candy wheels.');
+  I('rumble-karts', 'wheels', 8, 'Button Wheels', 'common', '#2ED19A', '#FFFFFF', 'Giant sewing buttons.');
+  I('rumble-karts', 'horn', 1, 'Goose Honk', 'rare', '#FFFFFF', '#F4A41C', 'Two loud honks.');
+  I('rumble-karts', 'horn', 2, 'Clown Horn', 'common', '#FF4D6D', '#FFC93C', 'A squeezy honk-honk.');
+  I('rumble-karts', 'horn', 3, 'Air Horn', 'epic', '#FF4D6D', '#F6F4FF', 'One big long blast.');
+  I('rumble-karts', 'horn', 4, 'Kazoo', 'rare', '#FFC93C', '#FF8A3D', 'A buzzy little tune.');
+  I('rumble-karts', 'horn', 5, 'Bike Bell', 'common', '#D4D8E6', '#FFC93C', 'Ring ring.');
+  I('rumble-karts', 'wreck', 1, 'Confetti Pop', 'rare', '#FF4D6D', '#3FB8FF', 'Your kart bursts into confetti.');
+  I('rumble-karts', 'wreck', 2, 'Feather Poof', 'rare', '#FFFFFF', '#E8E0D0', 'A pillow fight of feathers, and a honk.');
+  I('rumble-karts', 'wreck', 3, 'Bubble Burst', 'common', '#BFE8FF', '#E4D4FF', 'Soap bubbles float up.');
+  I('rumble-karts', 'wreck', 4, 'Jelly Splat', 'rare', '#5EE88A', '#FF7AB8', 'Wobbly jelly everywhere.');
+  I('rumble-karts', 'wreck', 5, 'Nuts and Bolts', 'common', '#FFC93C', '#8D8AA0', 'Gears, springs and bolts fly off.');
+  I('rumble-karts', 'wreck', 6, 'Fireworks', 'epic', '#FFE45C', '#A66BFF', 'A rocket goes up and bursts.');
+  I('rumble-karts', 'wreck', 7, 'Popcorn', 'rare', '#FFFAF0', '#FFE08A', 'Pop, pop, pop.');
+  I('rumble-karts', 'wreck', 8, 'Snow Globe', 'epic', '#BFE8FF', '#FFFFFF', 'Snow drifts down where you were.');
   // Items a game hands over itself are in no pack: give is 'free' (anyone may wear it; the game grants it the first time it
   // is worn) or 'earned' (the game grants it when it is won). grant(id), below, only adds these.
   GAME_ITEMS.forEach(function (it) { if (it.game !== 'slipstream') return; if (it.slot === 'sponsor' || (it.slot === 'helmet' && it.no <= 8)) it.give = 'free'; else if (it.slot === 'livery' && it.no > 8) it.give = 'earned'; });
