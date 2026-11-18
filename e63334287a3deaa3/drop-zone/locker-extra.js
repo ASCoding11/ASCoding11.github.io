@@ -213,8 +213,8 @@ const GLIDERS=[null,
     put(B,PR.box,.62,FEET+.13,.55,.46,.24,.32,0xb07a3c);put(B,PR.box,.62,FEET+.26,.55,.5,.03,.36,0x8a5a2a);bar(B,.44,FEET+.26,.55,.62,FEET+.44,.55,.02,0x8a5a2a);bar(B,.8,FEET+.26,.55,.62,FEET+.44,.55,.02,0x8a5a2a);
     put(B,PR.slo,-.6,FEET+.06,.6,.16,.12,.16,0xe8453c);put(B,PR.cyl8,-.66,FEET+.06,-.6,.12,.12,.12,0xf2f2f2)},
   // 14 Surfboard: a long white board with a teal stripe and an orange nose band; you ride it crouched, arms out
-  B=>{const hw=v=>.4*Math.pow(Math.max(0,Math.sin(Math.PI*Math.min(1,v*1.05+.02))),.7);
-    board(B,6,18,(u,v)=>[(u-.5)*2*hw(v),(v-.5)*2.6,.16*Math.pow(1-v,2)],(u,v)=>Math.abs(u-.5)<.09?0x1aa7a0:v<.16&&v>.1?0xff8a3d:WH,()=>0xe4ecec,.07);
+  B=>{const hw=v=>.52*Math.pow(Math.max(0,Math.sin(Math.PI*Math.min(1,v*1.05+.02))),.7);
+    board(B,6,18,(u,v)=>[(u-.5)*2*hw(v),(v-.5)*2.9,.16*Math.pow(1-v,2)],(u,v)=>Math.abs(u-.5)<.09?0x1aa7a0:v<.16&&v>.1?0xff8a3d:WH,()=>0xe4ecec,.07);
     tri2(B,v3(0,FEET-.07,.9),v3(0,FEET-.3,1.08),v3(0,FEET-.07,1.2),0x1aa7a0)},
   // 15 Pizza Slice: cheese, pepperoni and a crust; you crouch on it, the tip drooping forward
   B=>{const pep=[[-.35,.25],[.4,.4],[0,-.35],[-.15,.7],[.15,-.85],[.65,.82],[-.7,.8]];
@@ -231,8 +231,8 @@ const GLIDERS=[null,
     sheet(B,10,18,(u,v)=>{const x=(u-.5)*2*hw(v);return [x,1.1+.28*x*x/1.3-.15*Math.pow(v-.5,2),(v-.6)*3.1]},(u,v)=>{const d=Math.abs(u-.5);if(d<.06)return 0xb5df7a;return (((v*8-d*1.6)%1)+1)%1<.14?0x7cc75a:0x46a64a},()=>0x5fb85d);AN=null},
   // 18 Spinning Maple Seed: one seed and its long papery wing whirling over your head; you hold on and turn slowly with it
   B=>{bar(B,-.16,.16,-.04,.16,.16,-.04,.03,0x7a4a2a);bar(B,0,.16,-.04,0,.86,0,.035,0x7a4a2a);
-    anim(1,7);put(B,PR.slo,0,.98,0,.34,.26,.48,0x8b3a2a);
-    sheet(B,16,4,(u,v)=>{const w=.2+.26*Math.sin(Math.PI*Math.min(1,u*1.05));return [.12+u*1.85,.98+.05*u,(v-.5)*2*w-.05*u]},(u,v,i,j)=>j===0||j===3?0xc46a3a:i%3===1?0xc78a4a:0xd8a65a,()=>0xc9965a);anim(0)},
+    anim(1,7);put(B,PR.slo,0,.98,0,.42,.32,.58,0x8b3a2a);put(B,PR.slo,.02,1.04,-.08,.16,.1,.2,0xa8503a);
+    sheet(B,16,4,(u,v)=>{const w=.28+.34*Math.sin(Math.PI*Math.min(1,u*1.05)),c=(v-.5)*2*w;return [.14+u*1.9,.98+.05*u+c*.36,c*.93-.06*u]},(u,v,i,j)=>j===0||j===3?0xc46a3a:i%3===1?0xc78a4a:0xd8a65a,()=>0xc9965a);anim(0)},
   // 19 Rubber Duck Float: a yellow inflatable duck ring round your middle, head, beak and tail and all, your hands on its rim
   B=>{const y=HIP+.22;put(B,PR.tor,0,y,0,.6,.6,.6,0xffd23f);put(B,PR.sph,0,y+.32,-.72,.42,.42,.42,0xffd23f);put(B,PR.box,0,y+.26,-.96,.18,.06,.16,0xff8a1f);
     for(const s of [-1,1]){put(B,PR.slo,s*.11,y+.39,-.86,.08,.08,.05,WH);put(B,PR.slo,s*.11,y+.39,-.89,.04,.05,.03,0x15171b);put(B,PR.slo,s*.62,y+.08,.1,.12,.2,.4,0xffc21f)}
@@ -243,7 +243,7 @@ const GLIDERS=[null,
     put(B,PR.sph,0,y,.05,.78,.6,1.2,GR);put(B,PR.sph,0,y+.18,-.62,.5,.52,.5,0x5d8a6e);put(B,PR.sph,0,y+.2,-.55,.46,.46,.42,0x7a5b8f);
     put(B,PR.sph,0,y+.42,-.92,.38,.36,.4,0x9aa3b0);put(B,PR.cone,0,y+.38,-1.18,.08,.18,.08,0x2f3238,-Math.PI/2);put(B,PR.slo,0,y+.44,-1.08,.08,.05,.06,0xf2f2f2);
     for(const s of [-1,1]){put(B,PR.slo,s*.15,y+.47,-1.0,.09,.09,.06,0xff8a1f);put(B,PR.slo,s*.17,y+.47,-1.02,.045,.05,.03,0x15171b)}
-    for(const s of [-1,1]){anim(2,.35,.34);sheet(B,8,4,(u,v)=>{const x=s*(.35+u*1.7),z=-.3+v*(.7+.4*u);return [x,y+.12+.08*u-.1*u*u,z]},(u,v,i)=>i===2||i===4?0x3a3f47:u>.82?0x4a505a:GR,()=>0x9aa3b0);anim(0)}
+    for(const s of [-1,1]){anim(2,.35,.34);sheet(B,8,4,(u,v)=>{const x=s*(.35+u*1.7),z=-.3+v*(.7+.4*u);return [x,y+.12+.08*u-.1*u*u,z]},(u,v)=>u>.78?(v>.3?0x4a505a:0x6a717c):u<.5&&((v>.42&&v<.52)||(v>.66&&v<.76))?0x3a3f47:GR,()=>0x9aa3b0);anim(0)}
     sheet(B,6,3,(u,v)=>{const a=(u-.5)*1.2;return [Math.sin(a)*(.2+v*.7),y-.08*v,.75+Math.cos(a)*(.2+v*.7)]},(u,v,i,j)=>j===2?0x3a3f47:GR,()=>0x9aa3b0)},
   // 21 Pterodactyl: leathery orange wings on long fingers, a long beak and a red crest; it carries you by the shoulders
   B=>{const BR=0xb8743a,y=.85;
