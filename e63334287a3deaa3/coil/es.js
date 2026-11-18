@@ -39,5 +39,5 @@ if (window.BackRoomLang) BackRoomLang.add({
   'Everything is free to wear. Everyone in your room sees it. It only changes how your snake looks, never its size, speed or hit area.': 'Todo es gratis. Todos en tu sala lo ven. Solo cambia cómo se ve tu serpiente, nunca su tamaño, velocidad ni zona de choque.',
   'Colour': 'Color', 'Pattern': 'Diseño', 'Head': 'Cabeza', 'Extras': 'Extras', 'Colours': 'Colores', 'Skin colours': 'Colores de piel', 'Animal patterns': 'Diseños de animales',
   'No pattern': 'Sin diseño', 'Design patterns': 'Diseños', 'Object snakes': 'Serpientes objeto', 'Heads': 'Cabezas', 'Plain head': 'Cabeza simple', 'Trail': 'Estela',
-  'No trail': 'Sin estela', 'Death burst': 'Estallido final', 'Sparks': 'Chispas', 'No. {n}': 'N.º {n}', 'Language': 'Idioma'
+  'No trail': 'Sin estela', 'Death burst': 'Estallido final', 'Sparks': 'Chispas', 'No. {n}': 'N.º {n}', 'Language': 'Idioma', '{a} cut off {b}': '{a} cortó a {b}', '{n} hit the edge': '{n} chocó con el borde'
 });
