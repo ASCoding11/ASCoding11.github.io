@@ -11,6 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Russo+One&family=Nunito:wght@600;700;800;900&display=swap">
 <script src="/namefilter.js"></script>
+<script src="/e63334287a3deaa3/captains.js"></script> <!-- who may see the hidden garage while it is not public (see README) -->
 <style>
 /* Layout: a full-bleed WebGL scene. Menus are cards over a still view of a track; while racing the HUD hugs
    the top edge and the touch buttons the bottom corners; the editor has a bar on top and the piece palette at the bottom. */
@@ -1350,6 +1351,23 @@ const gar=Object.assign({v:1,car:set.car,col:set.col,pat:0,acc:6,rim:0,trail:0,n
 gar.car=[0,1,2].includes(gar.car)?gar.car:0;gar.col=clamp(gar.col|0,0,7);gar.pat=clamp(gar.pat|0,0,3);gar.acc=clamp(gar.acc|0,0,7);gar.rim=clamp(gar.rim|0,0,3);gar.trail=clamp(gar.trail|0,0,3);
 gar.name=typeof gar.name==='string'?gar.name.slice(0,14):'';set.car=gar.car;set.col=gar.col;
 const saveGar=()=>{set.car=gar.car;set.col=gar.col;saveSet();store.set('garage',gar)};
+// ---------- the hidden garage (not public yet) ----------
+// 31 more cars, paints, wheels, tyre smoke and horns, drawn by garage.js beside this page (items numbered as in
+// ../cosmetics.js). garageOn(): may this player see it? RAMPLINE_PUBLIC (false: nobody yet), or the account signed in on
+// the site is one of its captains (../captains.js), or ?garage=1 on localhost or in an automated browser only
+// (remembered for the tab; ?garage=0 forgets it). Captains wear everything free: what they wear is saved as rampline:cos
+// and rides on their board entries as `lk`, so their ghost shows their car to everyone. garage.js is fetched only when
+// garageOn() is true or a board row has a look to draw; until then GX is null and every hook does what it always did.
+// To open it to everyone, change RAMPLINE_PUBLIC to true: that one line is all it takes.
+const RAMPLINE_PUBLIC=false;
+const CAPTAINS=window.BackRoomCaptains||null;
+const garageOn=()=>RAMPLINE_PUBLIC||!!(CAPTAINS&&CAPTAINS.may(false,'garage','rampline-garage'));
+let GX=null,gxP=null;
+// a look from a board entry: "1.<car>.<paint>.<wheels>" (item numbers); garage.js checks each number again before drawing
+const lkOf=v=>typeof v==='string'&&v.length<=16&&/^1\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(v)?v:'';
+// what you wear on your own car ('' for nothing from the hidden garage), and your car's look for makeCarObj
+const myLk=()=>GX&&garageOn()?GX.wire():'';
+const myLook=()=>{const x=myLk();return x?Object.assign({},gar,{x}):gar};
 function statsHook(kind,k,v){if(window.BackRoomStats){try{BackRoomStats[kind](k,v)}catch(e){}}}
 const fmt=ms=>{if(!(ms>=0))return '–:––.–––';ms=Math.round(ms);const m=Math.floor(ms/60000),s=Math.floor(ms/1000)%60,r=ms%1000;return m+':'+String(s).padStart(2,'0')+'.'+String(r).padStart(3,'0')};
 const fmtD=ms=>(ms<0?'−':'+')+(Math.abs(ms)/1000).toFixed(3);
@@ -1603,11 +1621,12 @@ function makeCarObj(kind,paint,ghost,look){
   look=look||{};
   const grp=new THREE.Group(),body=new THREE.Group();grp.add(body);
   const mat=ghost?new THREE.MeshLambertMaterial({vertexColors:true,transparent:true,opacity:.42,depthWrite:false,emissive:0x2a4a66}):new THREE.MeshLambertMaterial({vertexColors:true});
-  const bm=new THREE.Mesh(carGeo(kind,paint,look.pat|0,look.acc!=null?PAINT[look.acc]:null),mat);bm.castShadow=!ghost;body.add(bm);
-  const wm=new THREE.InstancedMesh(wheelGeoFor(look.rim|0),ghost?new THREE.MeshLambertMaterial({vertexColors:true,transparent:true,opacity:.38,depthWrite:false}):new THREE.MeshLambertMaterial({vertexColors:true}),4);
+  const cx=GX&&look.x?GX.build(kind,paint,look):null; // the hidden garage: {geo, wgeo, W (its wheels, or null), hood}
+  const bm=new THREE.Mesh(cx?cx.geo:carGeo(kind,paint,look.pat|0,look.acc!=null?PAINT[look.acc]:null),mat);bm.castShadow=!ghost;body.add(bm);
+  const wm=new THREE.InstancedMesh(cx&&cx.wgeo||wheelGeoFor(look.rim|0),ghost?new THREE.MeshLambertMaterial({vertexColors:true,transparent:true,opacity:.38,depthWrite:false}):new THREE.MeshLambertMaterial({vertexColors:true}),cx&&cx.W?cx.W.length:4);
   wm.castShadow=!ghost;wm.frustumCulled=false;grp.add(wm);
   if(ghost)grp.renderOrder=2;
-  return {grp,body,wm,kind,spin:0,susp:0,suspV:0,dispose(){bm.geometry.dispose();mat.dispose();wm.material.dispose();wm.dispose&&wm.dispose()}};
+  return {grp,body,bm,wm,kind,W:cx&&cx.W,hood:!!(cx&&cx.hood),spin:0,susp:0,suspV:0,dispose(){bm.geometry.dispose();mat.dispose();wm.material.dispose();wm.dispose&&wm.dispose()}};
 }
 const _m4=new THREE.Matrix4(),_q=new THREE.Quaternion(),_v=new THREE.Vector3(),_s=new THREE.Vector3(1,1,1),_e=new THREE.Euler();
 const _bx=new THREE.Vector3(),_by=new THREE.Vector3(),_bz=new THREE.Vector3();
@@ -1617,6 +1636,10 @@ function poseCar(obj,p,f,u,steer,speedF,dt,air){
   const W=WHEEL[obj.kind];obj.spin+=speedF*dt/W.r;
   // a little body roll and dip from a spring, for looks only
   obj.body.rotation.z=-steer*Math.min(1,Math.abs(speedF)/25)*0.05;obj.body.position.y=obj.susp;
+  if(obj.W){for(let i=0;i<obj.W.length;i++){const w=obj.W[i]; // [x, z, radius, width, steers]
+      _e.set(obj.spin*W.r/w[2],w[4]?steer*0.42:0,0,'YXZ');_q.setFromEuler(_e);_v.set(w[0],w[2]-RL.PH.ride-(air?0.08:0),w[1]);_s.set(w[3],w[2],w[2]);
+      _m4.compose(_v,_q,_s);obj.wm.setMatrixAt(i,_m4)}
+    obj.wm.instanceMatrix.needsUpdate=true;return}
   for(let i=0;i<4;i++){const sx=i&1?-1:1,sz=i<2?1:-1;
     _e.set(obj.spin,i<2?steer*0.42:0,0,'YXZ');_q.setFromEuler(_e);_v.set(sx*W.x,W.r-RL.PH.ride-(air?0.08:0),sz*W.z);_s.set(W.w,W.r,W.r);
     _m4.compose(_v,_q,_s);obj.wm.setMatrixAt(i,_m4)}
@@ -1644,7 +1667,7 @@ function blobStep(on,p,f,u,gr,B){
 }
 function rebuildCars(){
   if(carObj){scene.remove(carObj.grp);carObj.dispose()}if(ghostObj){scene.remove(ghostObj.grp);ghostObj.dispose()}
-  carObj=makeCarObj(gar.car,PAINT[gar.col],false,gar);ghostObj=makeCarObj(gar.car,0xbfe6ff,true);scene.add(carObj.grp);scene.add(ghostObj.grp);ghostObj.grp.visible=false;
+  carObj=makeCarObj(gar.car,PAINT[gar.col],false,myLook());ghostObj=makeCarObj(gar.car,0xbfe6ff,true);scene.add(carObj.grp);scene.add(ghostObj.grp);ghostObj.grp.visible=false;
   G.gcache&&G.gcache.forEach(g=>{if(g.id==='pb'&&g.obj){scene.remove(g.obj.grp);g.obj.dispose();g.obj=null}});
 }
 // exhaust trail (garage): off, smoke, flame or rainbow; one point cloud
@@ -1699,8 +1722,8 @@ function labelSprite(text,col){
 function pbGhost(key){const gs=store.get(ghostKey(key),null);if(gs&&(gs.v===RL.PHYS_V||gs.v===RL.PHYS_NOW)&&typeof gs.g==='string'){const r=tagRec(RL.decInputs(gs.g,72000,gs.f||1),gs.v);if(r)return {rec:r,t:gs.t,g:gs.g,v:gs.v}}return null}
 function wantedGhosts(){
   const out=[];
-  if(set.ghost&&G.key){const pg=pbGhost(G.key);if(pg)out.push({id:'pb',name:'Your best',rec:pg.rec,car:gar.car,col:-1,sig:pg.g.length+':'+pg.t})}
-  const sel=G.key&&G.gsel[G.key];if(sel)for(const uid in sel){if(out.length>=MAX_GHOSTS)break;const e=sel[uid];out.push({id:uid,name:e.name,rec:e.rec,car:e.car,col:e.col,sig:e.t+':'+e.rec.length})}
+  if(set.ghost&&G.key){const pg=pbGhost(G.key);if(pg)out.push({id:'pb',name:'Your best',rec:pg.rec,car:gar.car,col:-1,lk:myLk(),sig:pg.g.length+':'+pg.t})}
+  const sel=G.key&&G.gsel[G.key];if(sel)for(const uid in sel){if(out.length>=MAX_GHOSTS)break;const e=sel[uid];out.push({id:uid,name:e.name,rec:e.rec,car:e.car,col:e.col,lk:e.lk||'',sig:e.t+':'+e.rec.length})}
   return out;
 }
 function dropGhost(g){if(g.obj){scene.remove(g.obj.grp);g.obj.dispose();g.obj=null}if(g.lab){scene.remove(g.lab);g.lab.material.map.dispose();g.lab.material.dispose();g.lab=null}}
@@ -1709,7 +1732,8 @@ function ghostsReset(){
   const want=wantedGhosts(),keep=new Set();
   for(const w of want){const ck=w.id+'|'+w.sig;keep.add(ck);let g=G.gcache.get(ck);
     if(!g){g={id:w.id,name:w.name,tr:new GTrack(G.B,w.rec),obj:null,lab:null,car:w.car,col:w.col};G.gcache.set(ck,g)}
-    if(!g.obj){g.obj=makeCarObj(g.car,g.col>=0?PAINT[g.col]:0xbfe6ff,true);scene.add(g.obj.grp)}
+    if(g.lk!==w.lk&&g.obj){scene.remove(g.obj.grp);g.obj.dispose();g.obj=null}g.lk=w.lk;
+    if(!g.obj){g.obj=makeCarObj(g.car,g.col>=0?PAINT[g.col]:0xbfe6ff,true,g.lk?{x:g.lk,tint:g.col<0}:null);scene.add(g.obj.grp)}
     if(g.id!=='pb'&&!g.lab){g.lab=labelSprite(g.name);scene.add(g.lab)}}
   G.gcache.forEach((g,ck)=>{if(!keep.has(ck)){dropGhost(g);G.gcache.delete(ck)}});
   G.ghosts=[...G.gcache.values()];
@@ -1750,7 +1774,7 @@ for(let i=0;i<PUFF;i++)puffPos[i*3+1]=-999;
 const _pc=new THREE.Color();
 // n puffs round p; out > 0 pushes them outwards in a ring (landings, in the look's dust colour); without it they are pale tyre smoke
 const _smoke=new THREE.Color(0xecebe8);
-function puff(p,n,spread,out){_pc.setHex((THEME[curTheme]||THEME[0]).dust);if(!out)_pc.lerp(_smoke,.7);
+function puff(p,n,spread,out){_pc.setHex((THEME[curTheme]||THEME[0]).dust);if(!out){if(GX&&GX.smoke)GX.smoke(_pc);else _pc.lerp(_smoke,.7)}
   for(let k=0;k<n;k++){const i=puffI++%PUFF,a=Math.random()*Math.PI*2,r=Math.random()*spread*.5,o=out||0;
     puffPos[i*3]=p[0]+Math.cos(a)*r;puffPos[i*3+1]=p[1]-.4;puffPos[i*3+2]=p[2]+Math.sin(a)*r;
     puffVel[i*3]=Math.cos(a)*(o+Math.random());puffVel[i*3+1]=.5+Math.random()*1.3;puffVel[i*3+2]=Math.sin(a)*(o+Math.random());
@@ -2060,7 +2084,8 @@ function updateRace(dt){
   carObj.suspV+=(-carObj.susp*90-carObj.suspV*9)*dt;if(car.land>0)carObj.suspV-=car.land*.05;carObj.susp+=carObj.suspV*dt;carObj.susp=clamp(carObj.susp,-.2,.15);
   poseCar(carObj,p,bf,bu,car.steer,vf,dt,!car.gr);carObj.grp.visible=true;blobStep(car.out<=0,p,bf,bu,car.gr);
   ghostsPose(car.step,a,dt);
-  const hood=set.cam===2;camFollow(p,hood?bf:f,hood?bu:u,car,dt);trailStep(p,bf,bu,car,dt);
+  const hood=set.cam===2;if(carObj.hood)carObj.body.visible=!hood; // a tall hidden-garage car would sit in front of the hood camera
+  camFollow(p,hood?bf:f,hood?bu:u,car,dt);trailStep(p,bf,bu,car,dt);
   sun.position.set(p[0]+40,p[1]+90,p[2]+25);sun.target.position.set(p[0],p[1],p[2]);
   if(sun.shadow.camera.right!==60){sun.shadow.camera.left=sun.shadow.camera.bottom=-60;sun.shadow.camera.right=sun.shadow.camera.top=60;sun.shadow.camera.updateProjectionMatrix()}
   // HUD
@@ -2099,6 +2124,7 @@ addEventListener('keydown',e=>{
   keys[c]=true;if(e.repeat)return;
   if(G.overlay==='results'&&KB.is('restart',c)){restart(false);return}
   if(G.overlay)return;
+  if(c==='KeyH'&&GX&&!KB.actionsFor(c).length)GX.honk(); // the hidden garage's horn (does nothing when none is worn)
   if(KB.is('restart',c))restart(false);
   else if(KB.is('checkpoint',c))G.wantCp=true;
   else if(KB.is('camera',c))cycleCam();
@@ -2198,6 +2224,7 @@ function renderCars(){
   inp.placeholder=myName();inp.value=gar.name;inp.setAttribute('aria-label','Your name on the boards');inp.spellcheck=false;
   inp.addEventListener('change',()=>{gar.name=nf(inp.value).slice(0,14);inp.value=gar.name;saveGar()});r.append(l,inp);gb.appendChild(r);
   const n=document.createElement('p');n.className='note';n.textContent='Your name and car show on the online boards and as your ghost.';gb.appendChild(n);
+  if(GX&&garageOn())GX.button(gb); // the hidden garage's way in (captains only while it is not public)
 }
 function drawCarIcon(cv,kind){ // a flat side view, drawn on a canvas
   const g=cv.getContext('2d'),w=cv.width,h=cv.height,col='#'+PAINT[gar.col].toString(16).padStart(6,'0');
@@ -2545,7 +2572,8 @@ function updateEditor(dt){
 // online feature is first used. The shared rules let a player write only their own node, rooms/<room>/players/<uid>,
 // which must hold n (name, under 20 characters), c, x, z, h and ts; everything else rides along in that node. Rooms
 // (prefix rl):
-//   rl-b2-<key>  the board of a track: { n, c, x:0, z:0, h:0, ts, t: best ms, k: car, p: paint, pa: pattern, a: accent }
+//   rl-b2-<key>  the board of a track: { n, c, x:0, z:0, h:0, ts, t: best ms, k: car, p: paint, pa: pattern, a: accent,
+//                lk: the hidden garage's look, only when one is worn: see lkOf; pages from before it ignore it }
 //   rl-g2-<key>  the ghost behind it:  { n, c, x:0, z:0, h:0, ts, t: ms, g: the run's inputs (format 2), f: 2, v: 2 or PHYS_NOW }
 //                (<key> is a built-in track's id or a custom track's trackKey; "2" is PHYS_V, so new physics gets new boards.
 //                 v says which contact rules the run was driven with: it is checked, and raced as a ghost, with those)
@@ -2586,7 +2614,7 @@ const Online={
     try{await this.init();const k2='b'+RL.PHYS_V+'-'+key,mine=await this.ref(k2,this.uid).once('value');const v=mine.val();
       if(v&&+v.t>0&&+v.t<=ms)return;
       await this.ref('g'+RL.PHYS_V+'-'+key,this.uid).set(Object.assign(this.base(),{t:ms,g,f:2,v:pv===RL.PHYS_NOW?RL.PHYS_NOW:RL.PHYS_V}));
-      await this.ref(k2,this.uid).set(Object.assign(this.base(),{t:ms,k:gar.car,p:gar.col,pa:gar.pat,a:gar.acc}));
+      const lk=myLk();await this.ref(k2,this.uid).set(Object.assign(this.base(),{t:ms,k:gar.car,p:gar.col,pa:gar.pat,a:gar.acc},lk?{lk}:{}));
       delete this.boards[key];if(G.overlay==='results'&&G.key===key)renderResBoard();
     }catch(e){console.warn('Rampline: upload failed',e&&e.message||e)}
   },
@@ -2596,7 +2624,8 @@ const Online={
     const cached=this.boards[key];if(cached&&Date.now()-cached.at<20000){if(onRow)onRow(cached.rows);return cached.rows}
     const snap=await withTimeout(this.ref('b'+RL.PHYS_V+'-'+key).once('value'),15000);const list=[];
     snap.forEach(c=>{const v=c.val();if(!v||typeof v!=='object')return;const t=Math.round(+v.t);if(!(t>=3000&&t<=600000))return;
-      list.push({uid:c.key,n:nf(v.n).slice(0,14)||'Racer',t,k:[0,1,2].includes(v.k)?v.k:0,p:clamp(v.p|0,0,7),me:c.key===this.uid})});
+      list.push({uid:c.key,n:nf(v.n).slice(0,14)||'Racer',t,k:[0,1,2].includes(v.k)?v.k:0,p:clamp(v.p|0,0,7),lk:lkOf(v.lk),me:c.key===this.uid})});
+    if(list.some(e=>e.lk))gxLoad(); // someone on it wears something from the hidden garage: fetch what draws it
     list.sort((a,b)=>a.t-b.t||(a.uid<b.uid?-1:1));
     const rows=[];let tries=0;
     for(const e of list){if(rows.length>=10||tries>=24)break;tries++;
@@ -2670,7 +2699,7 @@ function toggleGhost(key,r){
   const sel=G.gsel[key]||(G.gsel[key]={});
   if(sel[r.uid]){delete sel[r.uid];return true}
   if(ghostCount(key)>=MAX_GHOSTS){return false}
-  sel[r.uid]={name:r.me?'You (online)':r.n,rec:r.rec,car:r.k,col:r.p,t:r.t};return true;
+  sel[r.uid]={name:r.me?'You (online)':r.n,rec:r.rec,car:r.k,col:r.p,lk:r.lk||'',t:r.t};return true;
 }
 function renderBoard(box,key,B,trackName){
   box.textContent='';const h=el('div','label','Top 10');h.style.marginTop='12px';box.append(h);
@@ -2683,7 +2712,7 @@ function renderBoard(box,key,B,trackName){
     const on=!!(G.gsel[key]&&G.gsel[key][r.uid]);
     const gb=mkBtn(on?'Ghost on':'Ghost','sm '+(on?'on':'alt'),()=>{if(!toggleGhost(key,r)){st.textContent='Up to '+MAX_GHOSTS+' ghosts at once (your best counts as one).';return}draw(rows);ghostNote()});
     gb.setAttribute('aria-pressed',String(on));gb.title='Race this run as a ghost';
-    const wb=mkBtn('Watch','sm alt',()=>openReplay({B,key,name:trackName,runs:[{name:r.n,rec:r.rec,col:r.p,car:r.k}]}));
+    const wb=mkBtn('Watch','sm alt',()=>openReplay({B,key,name:trackName,runs:[{name:r.n,rec:r.rec,col:r.p,car:r.k,lk:r.lk||''}]}));
     li.append(gb,wb);ol.append(li)});
     st.textContent=rows.length?'Checked: every time here was driven again on this device and matches.':'';};
   const ghostNote=()=>{const n=ghostCount(key);st.textContent=n?n+' ghost'+(n>1?'s':'')+' will race with you.':''};
@@ -2778,13 +2807,13 @@ const RV={a:null,b:null,k:0,acc:0,play:true,speed:1,objA:null,objB:null,spec:nul
 function prepRun(r,B){
   const tr=new GTrack(B,r.rec).all(),n=tr.n,P=tr.P,dist=new Float32Array(n),sp=new Float32Array(n);let d=0;
   for(let i=0;i<n;i++){const o=i*GF;if(i){const dx=P[o]-P[o-GF],dy=P[o+1]-P[o-GF+1],dz=P[o+2]-P[o-GF+2];d+=Math.sqrt(dx*dx+dy*dy+dz*dz)}dist[i]=d;sp[i]=Math.abs(P[o+10])*3.6}
-  return {name:r.name,tr,n,dist,sp,col:r.col,car:r.car,fin:tr.fin};
+  return {name:r.name,tr,n,dist,sp,col:r.col,car:r.car,lk:r.lk||'',fin:tr.fin};
 }
 function rvOptions(){ // runs you can lay over the first: your best, the other runs passed in, and the board's checked runs
   const o=[],sp=RV.spec;
   sp.runs.slice(1).forEach(r=>o.push(r));
-  const pg=pbGhost(sp.key);if(pg)o.push({name:'Your best',rec:pg.rec,col:gar.col,car:gar.car});
-  const bd=Online.boards[sp.key];if(bd)bd.rows.forEach((r,i)=>{if(r.rec)o.push({name:'#'+(i+1)+' '+r.n,rec:r.rec,col:r.p,car:r.k})});
+  const pg=pbGhost(sp.key);if(pg)o.push({name:'Your best',rec:pg.rec,col:gar.col,car:gar.car,lk:myLk()});
+  const bd=Online.boards[sp.key];if(bd)bd.rows.forEach((r,i)=>{if(r.rec)o.push({name:'#'+(i+1)+' '+r.n,rec:r.rec,col:r.p,car:r.k,lk:r.lk||''})});
   return o;
 }
 function openReplay(spec){
@@ -2792,7 +2821,7 @@ function openReplay(spec){
   RV.prev={mode:G.mode,overlay:G.overlay};RV.spec=spec;
   if(G.mode==='edit')leaveEditor();
   RV.a=prepRun(spec.runs[0],spec.B);RV.b=null;RV.k=0;RV.acc=0;RV.play=true;RV.speed=1;G.mode='replay';
-  if(RV.objA){scene.remove(RV.objA.grp);RV.objA.dispose()}RV.objA=makeCarObj(RV.a.car|0,PAINT[RV.a.col|0],false,RV.a.name==='You'?gar:null);scene.add(RV.objA.grp);
+  if(RV.objA){scene.remove(RV.objA.grp);RV.objA.dispose()}RV.objA=makeCarObj(RV.a.car|0,PAINT[RV.a.col|0],false,RV.a.name==='You'?myLook():RV.a.lk?{x:RV.a.lk}:null);scene.add(RV.objA.grp);
   carObj.grp.visible=false;blob.visible=false;ghostsHide();
   const sel=$('rvCmp');sel.textContent='';const opts=rvOptions();RV.opts=opts;
   sel.append(new Option('Compare with: nobody','-1'));opts.forEach((r,i)=>sel.append(new Option('Compare with: '+r.name,String(i))));
@@ -2804,7 +2833,7 @@ function openReplay(spec){
 function rvSetB(i){
   if(RV.objB){scene.remove(RV.objB.grp);RV.objB.dispose();RV.objB=null}
   RV.b=i>=0&&RV.opts[i]?prepRun(RV.opts[i],RV.spec.B):null;
-  if(RV.b){RV.objB=makeCarObj(RV.b.car|0,PAINT[RV.b.col|0],true);scene.add(RV.objB.grp)}
+  if(RV.b){RV.objB=makeCarObj(RV.b.car|0,PAINT[RV.b.col|0],true,RV.b.lk?{x:RV.b.lk}:null);scene.add(RV.objB.grp)}
   $('rvLegend').textContent=RV.b?'━ '+RV.a.name+'   ┅ '+RV.b.name+(RV.b.fin>=0&&RV.a.fin>=0?'  ('+fmtD((RV.a.fin-RV.b.fin)*1000)+')':''):'';
   rvGraph();
 }
@@ -2862,6 +2891,7 @@ function updateReplay(dt){
 // ---------- start ----------
 // Test hook (automated browsers only): step the game without waiting for frames, drive it, read its state.
 if(navigator.webdriver)window.__rl={RL,G,ED,KB,keys,tIn,RV,Online,gar,get save(){return save},set save(v){save=v},startRace,restart,toMenu,openTracks,openMine,openEditor,testDrive,backToEditor,showPause,builtinTrack,renderer,scene,camera,
+  get GX(){return GX},gxLoad,garageOn,myLk,lkOf,makeCarObj,poseCar,carObj:()=>carObj,
   openSheet,openComm,openReplay,closeReplay,publishSlot,slotsGet,edCopy,edPaste,edMove,edPickUp,edCancelPaste,edSelChanged,updateRace,
   advance(sec){G.noRender=true;try{const n=Math.round(sec/DT);for(let i=0;i<n;i++){if(G.paused||G.overlay)break;if(G.wait){G.wait=false;$('waitHint').hidden=true}tick()}}finally{G.noRender=false}},
   frame(n){for(let i=0;i<(n||1);i++)update(1/60);return {frame:perf.frame,phys:perf.phys,render:perf.render}},
@@ -2872,7 +2902,30 @@ if(navigator.webdriver)window.__rl={RL,G,ED,KB,keys,tIn,RV,Online,gar,get save()
   tileToScreen(x,z,layer){update(1/60);const v=new THREE.Vector3(x*T,(layer||0)*H,z*T).project(camera);return {x:(v.x+1)/2*innerWidth,y:(1-v.y)/2*innerHeight}},
   edUndo:()=>edUndo(),edRedo:()=>edRedo(),
   edClick(x,y,btn){edPick(x,y);if(btn===2){if(ED.hover!=null)edDelete(ED.hover)}else edPlace()},edPick};
+// The hidden garage (see RAMPLINE_PUBLIC): garage.js is fetched the first time it is needed and handed what it uses.
+function gxLoad(){
+  if(gxP)return gxP;
+  gxP=loadScript('garage.js').then(()=>{
+    GX=window.RamplineGarage({THREE,RL,G,PAINT,RIMS,WHEEL,COLS,CARS,carGeo,wheelGeoFor,makeCarObj,poseCar,rebuildCars,renderCars,ghostsReset,store,set,gar,$,el,mkBtn,
+      showOverlay,OVERLAYS,renderer,initAudio,tone,noise,sfx,get ac(){return ac},get master(){return master},get touch(){return touchUI},get on(){return garageOn()}});
+    gxRedraw();
+  }).catch(e=>{gxP=null;console.warn('Rampline: garage.js',e&&e.message||e)});
+  return gxP;
+}
+// draw again everything that can wear a look: your car, the ghosts and the replay's cars, and the garage card
+function gxRedraw(){
+  renderCars();rebuildCars();
+  G.gcache.forEach(g=>{if(g.obj&&(g.lk||g.id==='pb')){scene.remove(g.obj.grp);g.obj.dispose();g.obj=null}});
+  if(G.mode==='race'&&G.B)ghostsReset();
+  if(G.mode==='replay'&&RV.a){const k=RV.k;if(RV.objA){scene.remove(RV.objA.grp);RV.objA.dispose()}RV.objA=makeCarObj(RV.a.car|0,PAINT[RV.a.col|0],false,RV.a.name==='You'?myLook():RV.a.lk?{x:RV.a.lk}:null);scene.add(RV.objA.grp);
+    if(RV.b&&RV.objB){scene.remove(RV.objB.grp);RV.objB.dispose();RV.objB=makeCarObj(RV.b.car|0,PAINT[RV.b.col|0],true,RV.b.lk?{x:RV.b.lk}:null);scene.add(RV.objB.grp)}rvSeek(k)}
+  if(GX)GX.access();
+}
+// a captain's answer arrives a moment after the page loads, and goes away again on sign-out
+function gxSync(){if(garageOn())gxLoad();else if(GX)gxRedraw()}
+if(CAPTAINS)CAPTAINS.onChange(gxSync);
 setTouchUI(touchUI);renderSegs();renderCars();rebuildCars();applyVol();syncVol();applyQuality();
+gxSync();
 setTrack(builtinTrack(menuTrack),TRACKS[menuTrack].id,menuTrack);G.car=RL.newCar(G.B);
 renderMenu();showOverlay('menu');
 requestAnimationFrame(t=>{last=t;frame(t)});
