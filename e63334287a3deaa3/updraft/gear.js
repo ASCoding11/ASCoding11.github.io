@@ -605,7 +605,9 @@
       g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(1, t + .05); g.gain.setValueAtTime(1, t + dur - .25); g.gain.linearRampToValueAtTime(0, t + dur);
       g.connect(out); o.start(t); lfo.start(t); o.stop(t + dur + .05); lfo.stop(t + dur + .05);
     }
+    var screams = 0;
     function scream(n, vol) {
+      screams++;
       var A = X.audio(); if (!A || !n) return;
       var ac = A.ac, t = ac.currentTime + .01, out = ac.createGain(); out.gain.value = vol; out.connect(A.bus);
       if (n === 1) { out.gain.value = vol * 2.4; voice(ac, out, t, 1.5, [[0, 500, 'a'], [.12, 580, 'a'], [1.5, 300, 'a']], [6, .025]); }
@@ -621,7 +623,7 @@
       for (var i = 0; i < 64; i++) for (var j = 0; j < 16; j++) { var u = i / 63, v = j / 15, a = Math.pow(1 - u, 1.3) * Math.sin(Math.PI * v); var q = (j * 64 + i) * 4; d.data[q] = d.data[q + 1] = d.data[q + 2] = 255; d.data[q + 3] = Math.round(255 * Math.min(1, a * 1.25)); }
       x.putImageData(d, 0, 0); return new THREE.CanvasTexture(c);
     })();
-    var TMAT = new THREE.MeshBasicMaterial({ map: fade, vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide });
+    var TMAT = new THREE.MeshBasicMaterial({ map: fade, vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
     var RAINBOW = ['#ff4d4d', '#ff9a2a', '#ffe14a', '#4ddf6a', '#4db8ff', '#8a6aff', '#ff6ad5'].map(function (h) { return new THREE.Color(h); });
     function trailColor(n, i, f, t, out) {   // f: 0 at the climber, 1 at the end
       if (n === 1) { var x = (f * 6 + t * 2) % 7, a = Math.floor(x), k = x - a; out.copy(RAINBOW[a]).lerp(RAINBOW[(a + 1) % 7], k); }
@@ -630,7 +632,7 @@
       else { var s = .55 + .45 * Math.sin(t * 22 + i * 2.6); out.set('#ffd23f').lerp(_c.set('#fff8d0'), s > .9 ? 1 : s * .4).multiplyScalar(.75 + .25 * s); }
       return out;
     }
-    function trailWidth(n, f) { return n === 2 ? .6 - .5 * f : n === 3 ? .3 + .8 * f : n === 4 ? .4 : .45; }
+    function trailWidth(n, f) { return n === 2 ? .65 - .5 * f : n === 3 ? .3 + .8 * f : n === 4 ? .45 : .6; }
     function makeTrail() {
       var g = new THREE.BufferGeometry(), idx = [];
       for (var i = 0; i < TN - 1; i++) { var a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
@@ -808,7 +810,7 @@
       } else {
         x.fillStyle = '#f4f6fb'; x.beginPath(); x.moveTo(30, 40); x.lineTo(46, 40); x.lineTo(62, 26); x.lineTo(62, 102); x.lineTo(46, 88); x.lineTo(30, 88); x.closePath(); x.fill();
         x.strokeStyle = '#ffb347'; x.lineWidth = 5; x.lineCap = 'round'; for (var r = 0; r < 3; r++) { x.beginPath(); x.arc(64, 64, 16 + r * 13, -.7, .7); x.stroke(); }
-        x.fillStyle = '#ffb347'; x.font = '800 15px Outfit, Arial, sans-serif'; x.textAlign = 'center'; x.fillText(['', 'AAA!', 'YO-DE', 'WHEEW', 'LA~', 'WHEE'][n], 64, 122);
+        x.fillStyle = '#ffb347'; x.font = '800 15px Outfit, Arial, sans-serif'; x.textAlign = 'center'; x.fillText(['', 'AAAH!', 'YODEL', 'WHISTLE', 'LA-LA', 'WHEE!'][n], 64, 122);
       }
     }
     function drawPending() {
@@ -889,7 +891,8 @@
       // tests (automated browsers): every item by slot and number, the screen, a look by hand
       NAMES: NAMES, REWARD_AT: REWARD_AT, earned: earned, clean: clean, codeOf: code, partsFor: partsFor, scream: scream,
       set: function (L) { mine = clean(L, X.best.h); save(); apply(); if (ui && !ui.sec.hidden) render(); },
-      demo: function (t) { demo.until = performance.now() / 1000 + 2.2; demo.t = t; }
+      demo: function (t) { demo.until = performance.now() / 1000 + 2.2; demo.t = t; },
+      _trails: function () { var n = 0; states.forEach(function (S) { if (S.mesh && S.mesh.visible) n++; }); return n; }, get _screams() { return screams; }
     };
   }
   window.UpdraftGear = { init: init, NAMES: NAMES, REWARD_AT: REWARD_AT, parse: parse, code: code, earned: earned };
