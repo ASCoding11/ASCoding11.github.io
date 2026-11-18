@@ -266,7 +266,9 @@
         ox = Math.min(0, Math.max(VIEW - W * s, ox)); oy = Math.min(0, Math.max(VIEW - Hh * s, oy));
       }
       function layout() {
-        VIEW = Math.max(160, Math.min(260, Math.floor(Math.min(innerWidth - 80, innerHeight - 260))));
+        // A phone held sideways (short and wide): the picture sits beside the controls (the CSS below), so it can be taller.
+        var side = innerHeight <= 520 && innerWidth >= 560;
+        VIEW = side ? Math.max(140, Math.min(260, Math.floor(innerHeight - 80))) : Math.max(160, Math.min(260, Math.floor(Math.min(innerWidth - 80, innerHeight - 260))));
         var old = base; base = VIEW / Math.min(W, Hh);
         if (old !== base && old) { ox *= base / old; oy *= base / old; }
         dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -564,15 +566,17 @@
     '.bra-pc-box,.bra-pv-box{width:min(400px,100%);max-height:100%;overflow:auto;display:flex;flex-direction:column;align-items:stretch;gap:10px;padding:16px 18px;background:var(--panel,#FFF8EC);color:var(--ink,#1B1513);border:1px solid var(--line,#D8CDB8);border-radius:14px;box-shadow:0 18px 48px rgba(0,0,0,.4)}' +
     '.bra-pc h2,.bra-pv h2{margin:0;font-family:var(--display,var(--f-d,sans-serif));font-weight:800;font-size:22px;line-height:1.1;letter-spacing:.02em;text-transform:uppercase;color:inherit;overflow-wrap:anywhere}' +
     '.bra-pc-tip,.bra-pv-tip{margin:0;font-size:13.5px;color:var(--ink-2,#5B5149)}.bra-pc-st,.bra-pv-st{margin:0;font-size:13.5px;font-weight:600}.bra-pc-st:empty,.bra-pv-st:empty{display:none}' +
-    '.bra-pc-view{align-self:center;line-height:0;border-radius:8px;overflow:hidden;background:#222}.bra-pc-view canvas{display:block;touch-action:none;cursor:grab}.bra-pc-view canvas:active{cursor:grabbing}.bra-pc-view canvas:focus-visible{outline:3px solid var(--accent,#1D6A4B);outline-offset:-3px}' +
+    '.bra-pc-view{flex:none;align-self:center;line-height:0;border-radius:8px;overflow:hidden;background:#222}.bra-pc-view canvas{display:block;touch-action:none;cursor:grab}.bra-pc-view canvas:active{cursor:grabbing}.bra-pc-view canvas:focus-visible{outline:3px solid var(--accent,#1D6A4B);outline-offset:-3px}' +
     '.bra-pc-zoom{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600}.bra-pc-zoom input{flex:1;min-width:0;accent-color:var(--accent,#1D6A4B);min-height:32px}' +
     '.bra-pc-foot,.bra-pv-foot{display:flex;align-items:center;flex-wrap:wrap;gap:8px}' +
     '.bra-pc .bra-ed-b,.bra-pv .bra-ed-b{font:inherit;font-weight:600;font-size:14px;color:inherit;background:var(--panel-2,#F6E9D2);border:1px solid var(--line,#D8CDB8);border-radius:8px;min-height:40px;padding:6px 14px;cursor:pointer}' +
     '.bra-pc .bra-ed-b.pri{background:var(--accent,#1D6A4B);border-color:var(--accent,#1D6A4B);color:var(--accent-ink,#FFFFFF)}' +
     '.bra-pv .bra-ed-b.warn{color:#B3261E;border-color:#B3261E}.bra-pc button:focus-visible,.bra-pv button:focus-visible{outline:2px solid var(--accent,#1D6A4B);outline-offset:2px}' +
-    '.bra-pv-pic{align-self:center;width:160px;height:160px;border-radius:50%;overflow:hidden;line-height:0;box-shadow:0 0 0 1px rgba(0,0,0,.12),0 4px 14px rgba(0,0,0,.18)}.bra-pv-pic img,.bra-pv-pic .bra-av{display:block;width:100%!important;height:100%!important;object-fit:cover}' +
+    '.bra-pv-pic{flex:none;align-self:center;width:160px;height:160px;border-radius:50%;overflow:hidden;line-height:0;box-shadow:0 0 0 1px rgba(0,0,0,.12),0 4px 14px rgba(0,0,0,.18)}.bra-pv-pic img,.bra-pv-pic .bra-av{display:block;width:100%!important;height:100%!important;object-fit:cover}' +
     '.bra-ed-gap{flex:1}' +
-    '@media (max-height:520px){.bra-pv-pic{width:96px;height:96px}}';
+    '@media (max-height:520px){.bra-pv-pic{width:96px;height:96px}}' +
+    '@media (max-height:520px) and (min-width:560px){.bra-pc-box{width:min(600px,100%);display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:18px;row-gap:10px;align-content:start}' +
+      '.bra-pc-view{grid-column:1;grid-row:1/span 5;align-self:start}.bra-pc-box>:not(.bra-pc-view){grid-column:2}}';
   (document.head || document.documentElement).appendChild(css);
 
   // Start reading only on pages that draw avatars of other people or open the editor (want() and row() connect).
