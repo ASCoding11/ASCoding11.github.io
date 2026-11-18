@@ -2055,12 +2055,28 @@ let chests=[],chestMesh=null,openMesh=null,glowIM=null;const itemIM={};
 const ITEM_CAP=700;
 const items=new Map(),itemList=[],picked=new Set();
 const _o=new THREE.Object3D();
+// A chest (remade in the November 2026 audit so it reads as a chest at a glance, not as one of the island's crates): a
+// planked wooden box on a dark plinth with gold corner caps, a rounded lid with two gold straps over it, a big gold
+// lock plate; the open one has its lid thrown back and gold light inside. Same footprint and size as before (it is
+// drawn only; what is solid and where loot lands are unchanged), still one instanced mesh each.
 function chestGeos(){
-  const a=Bag(),b=Bag();
-  for(const B of [a,b]){bagBox(B,0,.38,0,1.3,.76,.86,0x8a5a2b);bagBox(B,-.5,.38,0,.1,.8,.9,0xffc93c);bagBox(B,.5,.38,0,.1,.8,.9,0xffc93c)}
-  bagBox(a,0,.88,0,1.36,.26,.92,0x6e4520);bagBox(a,0,.66,-.47,.22,.26,.06,0xffd860);
-  _e.set(-1.05,0,0);_q.setFromEuler(_e);_m4.compose(_p.set(0,1.08,.5),_q,_s.set(1.36,.12,.92));bagAdd(b,UNIT_BOX,_m4,0x6e4520,1);
-  bagBox(b,0,.77,0,1.12,.04,.7,0xfff2a0);
+  const a=Bag(),b=Bag(),W=0x8a5a2b,D=0x5e3a1a,G=0xffc93c,G2=0xffe07a;
+  const ARCH=new THREE.CylinderGeometry(1,1,1,10,1,false,0,Math.PI).toNonIndexed();   // half a cylinder: the rounded lid and its straps
+  const lid=(B,y,z,rx,oz)=>{const m=new THREE.Matrix4(),q=new THREE.Quaternion(),k=new THREE.Matrix4();
+    const put=(geo,ox,sx,r,hex)=>{_e.set(0,0,Math.PI/2);_q.setFromEuler(_e);m.compose(_p.set(ox,0,oz),_q,_s.set(r*.62,sx,r));   // axis along x, the curve up
+      _e.set(rx,0,0);q.setFromEuler(_e);k.compose(_p.set(0,y,z),q,_s.set(1,1,1));bagAdd(B,geo,k.clone().multiply(m),hex,1)};
+    put(ARCH,0,1.3,.43,W);put(ARCH,-.42,.1,.455,G);put(ARCH,.42,.1,.455,G);
+    const bx=(cx,cy,cz,sx,sy,sz,hex)=>{_e.set(0,0,0);_q.setFromEuler(_e);m.compose(_p.set(cx,cy,cz+oz),_q,_s.set(sx,sy,sz));_e.set(rx,0,0);q.setFromEuler(_e);k.compose(_p.set(0,y,z),q,_s.set(1,1,1));bagAdd(B,UNIT_BOX,k.clone().multiply(m),hex,1)};
+    bx(0,.01,0,1.34,.05,.9,D);bx(0,.06,-.43,.24,.16,.05,G2)};
+  for(const B of [a,b]){
+    bagBox(B,0,.05,0,1.36,.1,.9,D);bagBox(B,0,.4,0,1.26,.62,.82,W);                                  // plinth and box
+    for(const yy of [.26,.47])for(const zz of [-.415,.415])bagBox(B,0,yy,zz,1.22,.025,.012,D);          // plank seams front and back
+    for(const xx of [-.42,.42])bagBox(B,xx,.4,0,.1,.66,.86,G);                                          // the straps down the sides
+    for(const xx of [-.62,.62])for(const zz of [-.4,.4])bagBox(B,xx,.4,zz,.08,.7,.08,G2);              // corner caps
+    bagBox(B,0,.7,0,1.3,.05,.86,D)}                                                                     // the rim
+  lid(a,.72,0,0,0);bagBox(a,0,.6,-.43,.26,.24,.05,G2);bagBox(a,0,.56,-.46,.08,.1,.02,0x3a2a12);             // closed: lid down, lock plate and keyhole
+  lid(b,.74,.43,1.9,-.43);                                                                                  // open: the lid thrown back on its hinge
+  bagBox(b,0,.738,0,1.14,.02,.72,0xffe27a);bagBox(b,0,.75,0,.86,.02,.5,0xfff6c0);                       // gold light inside
   return[bagGeo(a),bagGeo(b)];
 }
 function setupChests(){
@@ -2128,6 +2144,9 @@ function drawItems(dt){
   }
   _o.scale.set(1,1,1);
   for(const k in itemIM){const m=itemIM[k];m.visible=m.count>0;if(m.count){m.instanceMatrix.needsUpdate=true;if(k==='box')m.instanceColor.needsUpdate=true}}
+  // unopened chests glow gold underneath, so they stand out from the island's crates
+  for(const ch of chests){if(!ch.present||ch.open||ng>=ITEM_CAP)continue;const dx=ch.x-c.x,dz=ch.z-c.z;if(dx*dx+dz*dz>90*90)continue;
+    _o.position.set(ch.x,ch.y+.04,ch.z);_o.rotation.set(0,0,0);_o.scale.setScalar(2.9*(RM?1:1+.07*Math.sin(itemClock*2.4+ch.id)));_o.updateMatrix();glowIM.setMatrixAt(ng,_o.matrix);glowIM.setColorAt(ng++,_col.setHex(0xffc93c))}
   glowIM.count=ng;glowIM.visible=ng>0;if(ng){glowIM.instanceMatrix.needsUpdate=true;glowIM.instanceColor.needsUpdate=true}
 }
 // Loot is decided by the match seed, so every browser rolls the same chests and floor spots without sending them.
