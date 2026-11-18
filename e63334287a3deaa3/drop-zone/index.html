@@ -3490,8 +3490,9 @@ function sfxCb(mt,v){vKeep=v>=1;const r=.94+Math.random()*.12;
 // the glider opening: a rising whoosh of cloth and a snap as it fills. Heard and seen by anyone close.
 function touchDown(e,hard){const d=camera.position.distanceTo(e.pos);if(d>45)return;const v=e===player?1:1/(1+d*.08);
   vKeep=e===player;burst('lowpass',hard?520:720,(hard?.5:.3)*v,.18,0,0,170);tone('sine',hard?95:125,40,(hard?.42:.22)*v,.14);burst('bandpass',2300,.06*v,.05,2);vKeep=false;
-  if(RM||d>35)return;const n=gfxPref==='fast'||touchUI?7:12;
-  for(let i=0;i<n;i++){const a=i/n*6.283+Math.random()*.5,sp=1.1+Math.random()*1.1;bit(_p.set(e.pos.x+Math.cos(a)*.22,e.pos.y+.05,e.pos.z+Math.sin(a)*.22),new V3(Math.cos(a)*sp,.2+Math.random()*.45,Math.sin(a)*sp),i%2?0xcfc2a4:0xb9aa8a,.09+Math.random()*.07,.45+Math.random()*.25,-.3)}}
+  if(RM||d>35)return;const n=gfxPref==='fast'||touchUI?7:12,wet=e.pos.y<SEA_Y-.05;   // (in the sea: a splash instead)
+  for(let i=0;i<n;i++){const a=i/n*6.283+Math.random()*.5,sp=1.1+Math.random()*1.1,y0=wet?SEA_Y+.02:e.pos.y+.05;bit(_p.set(e.pos.x+Math.cos(a)*.22,y0,e.pos.z+Math.sin(a)*.22),
+    wet?new V3(Math.cos(a)*sp*.6,1.6+Math.random()*1.6,Math.sin(a)*sp*.6):new V3(Math.cos(a)*sp,.2+Math.random()*.45,Math.sin(a)*sp),wet?(i%2?0xeaf8ff:0xbfe6f5):(i%2?0xcfc2a4:0xb9aa8a),wet?.06+Math.random()*.05:.09+Math.random()*.07,.45+Math.random()*.25,wet?9:-.3)}}
 function gliderOut(e){const d=camera.position.distanceTo(e.pos);if(d>50)return;const v=e===player?1:1/(1+d*.07);vKeep=e===player;
   burst('bandpass',360,.42*v,.26,1.1,0,1700);burst('lowpass',900,.26*v,.12,0,.05);tone('sine',72,140,.26*v,.12,.04);burst('highpass',2600,.16*v,.05,0,.11);vKeep=false}
 // the bar cutting the air on the way down (every swing, hit or miss), timed to the strike
