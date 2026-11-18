@@ -1,0 +1,2 @@
+/* Deepword answer data, built by tools/build.js from prompts.js and free data (see tools/SOURCES.md). Do not edit by hand. */
+DW_EXT.add("mexstates","jalisco;yucatan;oaxaca;chihuahua;baja california;baja california sur;sonora;sinaloa;durango;nuevo leon;tamaulipas;veracruz;puebla;guanajuato;michoacan;guerrero;chiapas;quintana roo;tabasco;campeche;hidalgo;queretaro;morelos;tlaxcala;mexico state;mexico city;zacatecas;san luis potosi;aguascalientes;nayarit;colima;coahuila","jxr8iju0y5p6srfcp1cllkmoo2jip6p6srsrq0lkc6p6lklklkuzlklklklklklk");

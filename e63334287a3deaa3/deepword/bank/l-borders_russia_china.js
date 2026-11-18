@@ -1,0 +1,2 @@
+/* Deepword answer data, built by tools/build.js from prompts.js and free data (see tools/SOURCES.md). Do not edit by hand. */
+DW_EXT.add("borders_russia_china","russia;china;india;mongolia;north korea;kazakhstan;ukraine;finland;pakistan;vietnam;nepal;norway;poland;belarus;georgia;afghanistan;myanmar;laos;estonia;latvia;lithuania;azerbaijan;kyrgyzstan;tajikistan;bhutan","xpz7t7phtoifofsxqov5p6uvsmkdqdo4fwivhufljcgcdcukcl");

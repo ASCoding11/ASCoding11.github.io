@@ -1,0 +1,2 @@
+/* Deepword answer data, built by tools/build.js from prompts.js and free data (see tools/SOURCES.md). Do not edit by hand. */
+DW_EXT.add("ligue1","psg;marseille;lyon;monaco;lille;nice;rennes;lens;strasbourg;nantes;toulouse;brest;reims;montpellier;saint-etienne;bordeaux;angers;auxerre;le havre;le mans;lorient;paris fc;troyes;metz;clermont;ajaccio;nimes;dijon;amiens;caen;guingamp;bastia;nancy;sochaux;valenciennes;sedan;grenoble;red star;cannes;evian","y2nnqlopeewdp6tmgdp6ffp6p6djp6k5ozlklkk9lklklklklklklkn3lklklklko1lklkpxcom5fihf");

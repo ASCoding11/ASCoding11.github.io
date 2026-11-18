@@ -1,0 +1,2 @@
+/* Deepword answer data, built by tools/build.js from prompts.js and free data (see tools/SOURCES.md). Do not edit by hand. */
+DW_EXT.add("~441","crust;mantle;core;atmosphere;inner core;outer core;ozone layer;stratosphere;troposphere;mesosphere;thermosphere;exosphere;ionosphere;lithosphere;tectonic plates;asthenosphere;magnetosphere;hydrosphere;biosphere;upper mantle;lower mantle;oceanic crust;continental crust;bedrock;topsoil;subsoil;cryosphere;geosphere;moho;mesopause;tropopause;stratopause","z5tfybxipzuwu2qtnjjak3hnkxihwdclf1e8lkp6p6p6p6pnoukrlkbmlklklklk");
