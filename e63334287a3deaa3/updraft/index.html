@@ -1537,17 +1537,16 @@ function build(seed){
     for(let z=5;z<10;z++){const Z=ZONES[z];for(let i=0;i<26;i++){const a=fr()*TAU,r=fq(80,200),y=fq(Z.y0+10,Z.y1+(z===9?80:0));dec({s:'far',k:fp(kinds[z-5]),x:Math.sin(a)*r,y,z:Math.cos(a)*r,sc:fq(.7,1.6)*(r/110),yaw:fq(0,6.3),tilt:fq(-.5,.5),col:fp(['#ffffff','#ffd36b','#9fd6ff','#ff9fd0'])})}}
   }
   // The express lift (a secret, drawn and run by the page script; added after everything else, uses no random
-  // numbers, so nothing above moves): a plain door at the dead end of an alley on the far west side of the city,
-  // about 190 m from the start, where the block that closes the alley (its -z face) meets the one beside it, with
-  // two crates stacked in the corner. Holding the lift key in front of it takes you through a short dark ride
+  // numbers, so nothing above moves): a stretch of plain wall at the dead end of an alley on the far west side of the
+  // city, about 190 m from the start, in the -z face of the block that closes the alley. Nothing marks it and it adds
+  // no colliders; the page script opens a section of that wall when it's used. Holding the lift key in front of it
+  // takes you through a short dark ride
   // straight to the Crown. It's the only secret that comes out above the route, so a run that uses it stops
   // counting for best heights and times (the page script, `run.sc`).
   {
     const B=cols.find(q=>q.deco&&q.v==='facade'&&Math.hypot(q.x+158.8,q.z+36.6)<1),P=path[path.length-1];
     if(B&&P&&P.summit===2){
       const fz=B.z-(Math.abs(B.sn)*B.hx+Math.abs(B.cs)*B.hz),dx=-162.8;
-      add({t:'box',x:-165.55,z:fz-.9,top:1.7,h:1.7,w:1.7,d:1.7,yaw:.08,v:'crate2',col:'#8fa65a',surf:'wood'});
-      add({t:'box',x:-165.5,z:fz-.95,top:3.4,h:1.7,w:1.7,d:1.7,yaw:-.12,v:'crate2',col:'#c9955a',surf:'wood'});
       secrets.express={door:[dx,fz],n:[0,-1],tg:[1,0],y0:0,face:B.id,top:P.path,exit:[0,P.y1,5],yaw:Math.PI};
     }
   }
@@ -2815,8 +2814,8 @@ function updateCamera(dt,fdt){
 //    inside the block to a lift room on the roof, skipping the ledges round the block;
 //  - the hidden updraft: jump off the first stack of books on its far side, away from the tower, and a rising
 //    current a few metres out catches you and carries you about 100 m up, round the middle, onto a book on the route;
-//  - the express lift: hold the lift key at a plain door at the dead end of an alley on the far west side of the
-//    city, down on the street; you walk in, the door shuts, a short dark ride, and you step out on the Crown. It's the
+//  - the express lift: hold the lift key at the plain end wall of an alley on the far west side of the city, down
+//    on the street (nothing marks the spot); a section of wall sinks into the street, you walk in, it shuts, a short dark ride, and you step out on the Crown. It's the
 //    only one that comes out above the route, so from then on the run doesn't count for records (`run.sc`).
 //  On a ride the climber follows a scripted path (`ride`) with the physics switched off, so there is nothing to
 //  fall off and slow motion never starts. Every ride but the express comes out on the normal route, no higher than it. Positions are
@@ -2905,18 +2904,27 @@ const secretMesh={};
   }
   const X=SEC.express;
   if(X){
-    // a plain service door in the alley's end wall: a frame, a dark doorway, two dull green leaves that slide apart, a
-    // kick plate, and a small caged bulb over it (no sign: it's a secret; the bulb is what catches your eye down the alley)
+    // Nothing to see: while it's shut the alley's end wall is just the building's own facade. When someone uses it, a
+    // section of that wall (painted exactly like the facade, its windows lined up with the ones round it) shows in
+    // front of the wall and sinks into the street, opening onto a dark doorway; it rises again and goes away once
+    // they're through. Both are hidden while it's shut, so there's not even a seam.
     const g=new THREE.Group();g.position.set(X.door[0],X.y0,X.door[1]);g.rotation.y=Math.atan2(X.n[0],X.n[1]);
-    const fr=LM('#4a4f4c'),lf=LM('#5f6f62'),lfD=LM('#46544a'),B=course.cols.find(q=>q.id===X.face);
-    g.add(bx(LM(shade(B?B.col:'#86766a',1.1),T.concrete),2.1,3,.02,0,1.5,.01));   // a plain panel round it (the facade's windows come down to the street)
-    g.add(bx(fr,1.5,.1,.08,0,2.32,.04));g.add(bx(fr,.1,2.36,.08,-.7,1.18,.04));g.add(bx(fr,.1,2.36,.08,.7,1.18,.04));g.add(bx(fr,1.5,.05,.12,0,.025,.06));
-    const dw=new THREE.Mesh(new THREE.PlaneGeometry(1.3,2.27),LMB('#0b0c10'));dw.position.set(0,1.135,.024);g.add(dw);
-    const leaf=x=>{const l=new THREE.Group();l.position.set(x,0,.05);l.add(bx(lf,.65,2.25,.04,0,1.125,0));l.add(bx(lfD,.58,.3,.05,0,.2,0));l.add(bx(lfD,.04,.04,.06,x<0?.26:-.26,1.05,.01));g.add(l);return l};
-    const l1=leaf(-.325),l2=leaf(.325);
-    g.add(bx(fr,.34,.05,.24,0,2.62,.12));g.add(bx(LMB('#ffe2a0'),.13,.13,.13,0,2.53,.15));
-    for(const s of [-1,1])g.add(bx(fr,.02,.17,.02,s*.08,2.53,.23));
-    scene.add(g);secretMesh.xDoor={g,l1,l2};
+    const B=course.cols.find(q=>q.id===X.face),SW=1.3,SH=2.3,TL=6;   // TL: the facade's texture tile (drawCollider's box(…, 6))
+    const dw=new THREE.Mesh(new THREE.PlaneGeometry(SW,SH),LMB('#07080b'));dw.position.set(0,SH/2,.004);g.add(dw);
+    const sec=new THREE.Mesh(new THREE.PlaneGeometry(SW,SH),new THREE.MeshLambertMaterial({map:T.facade,color:B?B.col:'#86766a'}));
+    sec.position.set(0,SH/2,.008);g.add(sec);scene.add(g);g.updateMatrixWorld(true);
+    if(B){
+      // the facade's UVs on this face: u is metres along the face from its starting corner / TL, v is metres up / TL
+      // (addBox's sides), so find which side of the building box this is and where it starts
+      const fm=M(B.x,B.y1,B.z,B.yaw),h=B.y1-B.y0,hx=B.hx,hz=B.hz,w=(lx,lz)=>new V3(lx,0,lz).applyMatrix4(fm);
+      const sides=[[[hx,hz],[hx,-hz]],[[-hx,-hz],[-hx,hz]],[[-hx,hz],[hx,hz]],[[hx,-hz],[-hx,-hz]]];let a=null,d=null,bd=-2;
+      for(const [p,q] of sides){const A=w(p[0],p[1]),Bq=w(q[0],q[1]),mx=(A.x+Bq.x)/2-B.x,mz=(A.z+Bq.z)/2-B.z,l=Math.hypot(mx,mz),dot=(mx*X.n[0]+mz*X.n[1])/l;
+        if(dot>bd){bd=dot;a=A;d=new V3(Bq.x-A.x,0,Bq.z-A.z).normalize()}}
+      const P=sec.geometry.attributes.position,UV=sec.geometry.attributes.uv,v=new V3();
+      for(let i=0;i<P.count;i++){v.set(P.getX(i),P.getY(i),P.getZ(i));sec.localToWorld(v);UV.setXY(i,((v.x-a.x)*d.x+(v.z-a.z)*d.z)/TL,(v.y-B.y0)/TL)}
+      UV.needsUpdate=true;
+    }
+    dw.visible=sec.visible=false;secretMesh.xDoor={g,sec,dw,SH};
   }
 })();
 // where the player goes on each ride, in order: name, seconds, from, to (x, y, z), facing from/to, eased or steady
@@ -2947,7 +2955,7 @@ function ridePlan(kind){
     P('ding',.7,c1,c1,yin);P('out',1,c1,out,yin);
     const nx=PATH[E.roof+1];if(nx)P('face',.45,out,out,yin,Math.atan2(nx.x-out[0],nx.z-out[2]));
   }else if(kind==='express'){
-    // up to the door, open it, step into the dark doorway, it shuts behind you, a dark rush upward (the screen goes
+    // up to the wall, a section of it opens, step into the dark doorway, it shuts behind you, a dark rush upward (the screen goes
     // black, then white), and you're standing on the Crown facing its sign
     const X=SEC.express,n=X.n,yin=Math.atan2(-n[0],-n[1]);
     const F=[X.door[0]+n[0]*.75,X.y0,X.door[1]+n[1]*.75],I=[X.door[0]-n[0]*.9,X.y0,X.door[1]-n[1]*.9],A=X.exit;
@@ -3082,10 +3090,11 @@ function updateSecrets(dt){
   if(E)for(const [,o] of others){if(!o.live())continue;const e=o.ent,dx=e.x-E.cab[0],dz=e.z-E.cab[1],a=dx*E.n[0]+dz*E.n[1];
     if(Math.abs(dx*E.tg[0]+dz*E.tg[1])>1.4)continue;
     if(Math.abs(e.y-E.y0)<1&&a>-1.4&&a<E.D/2+.45)doorOther.ef=1;else if(Math.abs(e.y-E.y1)<1&&a>-E.D/2-.45&&a<1.4)doorOther.eb=1}
-  // the express door opens for anyone else walking up to it, and shuts once they're through
+  // the express wall opens for anyone else only while they're going through it (closer to the wall than a body can stand,
+  // so someone just leaning on it doesn't open it), and shuts once they're in
   const X=SEC.express;doorOther.xd=0;
   if(X)for(const [,o] of others){if(!o.live())continue;const e=o.ent,dx=e.x-X.door[0],dz=e.z-X.door[1],a=dx*X.n[0]+dz*X.n[1];
-    if(e.y<X.y0+1&&a>-.2&&a<1.3&&Math.abs(dx*X.tg[0]+dz*X.tg[1])<1){doorOther.xd=1;break}}
+    if(e.y<X.y0+1&&a>-.5&&a<C.R-.06&&Math.abs(dx*X.tg[0]+dz*X.tg[1])<.8){doorOther.xd=1;break}}
   for(const key in doorK)doorK[key]+=(Math.max(doorWant[key],doorOther[key]||0)-doorK[key])*k;
   if(M.liftDoor){M.liftDoor.l1.position.z=-.26-doorK.lift*.5;M.liftDoor.l2.position.z=.26+doorK.lift*.5;
     M.cab.leaves[0].position.z=-.28-doorK.cab*.55;M.cab.leaves[1].position.z=.28+doorK.cab*.55;
@@ -3101,7 +3110,7 @@ function updateSecrets(dt){
     const lv=M.ecab.leaves;lv.ef[0].position.x=-.31-f*.6;lv.ef[1].position.x=.31+f*.6;lv.eb[0].position.x=-.31-b*.6;lv.eb[1].position.x=.31+b*.6;
     M.ecab.position.y=ecabY;
   }
-  if(M.xDoor){const f=doorK.xd;M.xDoor.l1.position.x=-.325-f*.64;M.xDoor.l2.position.x=.325+f*.64}
+  if(M.xDoor){const D=M.xDoor,f=doorK.xd,on=f>.002;D.sec.visible=D.dw.visible=on;if(on)D.sec.position.y=D.SH/2-f*(D.SH+.05)}   // the wall section sinks into the street
   // the express ride's screen: darkening as the door shuts behind you, black turning to white on the way up, and
   // white clearing again on the Crown
   let wf=0,wc=0;
