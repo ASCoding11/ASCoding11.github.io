@@ -231,7 +231,8 @@
   // One GAMES entry per game: its name, the prefix of its ids, and its slots in the order the shop lists them.
   var GAMES = {
     boostball: { name: 'Boostball', prefix: 'bb', slots: [['decal', 'Decals'], ['trail', 'Boost trails'], ['goal', 'Goal explosions'], ['topper', 'Antenna toppers'], ['hat', 'Roof hats'], ['wheels', 'Wheels'], ['engine', 'Engine sounds']] },
-    slipstream: { name: 'Slipstream', prefix: 'ss', slots: [['sponsor', 'Sponsors'], ['livery', 'Liveries'], ['helmet', 'Helmets'], ['effect', 'Boost effects'], ['smoke', 'Tyre smoke'], ['podium', 'Podium celebrations']] }
+    slipstream: { name: 'Slipstream', prefix: 'ss', slots: [['sponsor', 'Sponsors'], ['livery', 'Liveries'], ['helmet', 'Helmets'], ['effect', 'Boost effects'], ['smoke', 'Tyre smoke'], ['podium', 'Podium celebrations']] },
+    'tumble-trials': { name: 'Tumble Trials', prefix: 'tt', slots: [['colour', 'Colours'], ['premium', 'Premium colours'], ['pattern', 'Patterns'], ['pants', 'Underpants'], ['hat', 'Hats'], ['face', 'Faces'], ['costume', 'Costumes'], ['dance', 'Victory dances'], ['scream', 'Fall screams'], ['splash', 'Knockout splashes']] },
   };
   var ITEM_PRICE = { common: 6, rare: 10, epic: 16, legendary: 40 };
   var GAME_ITEMS = [], ITEM_BY_ID = {};
@@ -409,6 +410,92 @@
   I('slipstream', 'smoke', 5, 'Gold tyre smoke', 'common', '#FFCC47', '#FFF0B0', 'Gold smoke from the tyres.');
   I('slipstream', 'podium', 1, 'Confetti Podium', 'common', '#FF4FA3', '#3FD2FF', 'Confetti over the results when you finish in the top three.');
   I('slipstream', 'podium', 2, 'Fireworks Podium', 'rare', '#FFD21F', '#B06BFF', 'Fireworks over the results when you finish in the top three.');
+  // ---- Tumble Trials items ----
+  // Worn on the bean in Tumble Trials (tumble-trials/closet.js draws them, by slot and number). Captains only for now and in no
+  // pack: the game's Closet gives captains every one free to wear, and nothing is sold.
+  I('tumble-trials', 'colour', 1, 'Red', 'common', '#ff3b3b', '#ffd0d0', 'A bright tomato red.');
+  I('tumble-trials', 'colour', 2, 'Orange', 'common', '#ff8a1f', '#ffe0bf', 'Orange, like a traffic cone on a sunny day.');
+  I('tumble-trials', 'colour', 3, 'Yellow', 'common', '#ffd93d', '#fff6c9', 'Sunshine yellow.');
+  I('tumble-trials', 'colour', 4, 'Lime', 'common', '#9be84a', '#e5ffc9', 'A zingy lime green.');
+  I('tumble-trials', 'colour', 5, 'Teal', 'common', '#19b3a6', '#c4f3ee', 'Teal, somewhere between the sea and a swimming pool.');
+  I('tumble-trials', 'colour', 6, 'Sky Blue', 'common', '#6cc8ff', '#dff3ff', 'A clear sky blue.');
+  I('tumble-trials', 'colour', 7, 'Purple', 'common', '#9b5cff', '#e6d8ff', 'A rich grape purple.');
+  I('tumble-trials', 'colour', 8, 'Pink', 'common', '#ff7ac3', '#ffe0f1', 'Bubblegum pink.');
+  I('tumble-trials', 'colour', 9, 'White', 'common', '#f7f7fb', '#c9c6d8', 'Fresh-snow white.');
+  I('tumble-trials', 'colour', 10, 'Black', 'common', '#34323c', '#8a8798', 'A soft charcoal black, so your face still pops.');
+  I('tumble-trials', 'premium', 1, 'Gold', 'epic', '#f5c43a', '#fff0a0', 'Shiny gold from top to toes.');
+  I('tumble-trials', 'premium', 2, 'Chrome', 'epic', '#c9d1da', '#ffffff', 'A mirror finish with the sky in it.');
+  I('tumble-trials', 'premium', 3, 'Glow in the Dark', 'rare', '#b8ffc4', '#3cff7a', 'A pale green bean that glows a little.');
+  I('tumble-trials', 'premium', 4, 'See-through Jelly', 'rare', '#ff9ad5', '#ffffff', 'A wobbly see-through jelly bean.');
+  I('tumble-trials', 'premium', 5, 'Rainbow Shift', 'legendary', '#ff5c5c', '#5cc8ff', 'Every colour, slowly, one after another.');
+  I('tumble-trials', 'premium', 6, 'Bubblegum Sprinkles', 'rare', '#ff9ccc', '#ffe14d', 'Pink bubblegum covered in sprinkles.');
+  I('tumble-trials', 'pattern', 1, 'Polka Dots', 'common', '#ff4f9a', '#ffffff', 'Big round dots in your pattern colour.');
+  I('tumble-trials', 'pattern', 2, 'Stripes', 'common', '#2ec5ff', '#ffffff', 'Candy stripes that wind round the bean.');
+  I('tumble-trials', 'pattern', 3, 'Cow Print', 'rare', '#fbfaf5', '#1c1a20', 'Black patches on white, with a pink bottom.');
+  I('tumble-trials', 'pattern', 4, 'Tie-Dye', 'rare', '#ff5cc8', '#4fd8ff', 'A swirly tie-dye bullseye front and back.');
+  I('tumble-trials', 'pattern', 5, 'Checkerboard', 'common', '#ffffff', '#24163f', 'A checkerboard in your two colours.');
+  I('tumble-trials', 'pattern', 6, 'Leopard', 'rare', '#e9b35c', '#3b2416', 'Spotty rosettes on tan.');
+  I('tumble-trials', 'pattern', 7, 'Camo', 'common', '#6f7f45', '#2f3a1f', 'Woodland camouflage. You can still be seen.');
+  I('tumble-trials', 'pattern', 8, 'Plaid', 'common', '#d9312b', '#1f3b73', 'A tartan of your two colours.');
+  I('tumble-trials', 'pattern', 9, 'Watermelon', 'rare', '#ff5d6c', '#3f9a3a', 'Red with seeds on top, green rind below.');
+  I('tumble-trials', 'pants', 1, 'Heart Boxers', 'common', '#fff4f7', '#ff3b5c', 'White boxers covered in little red hearts.');
+  I('tumble-trials', 'pants', 2, 'Tighty Whities', 'common', '#fbfbf8', '#6b8bd6', 'Classic white briefs with a blue waistband.');
+  I('tumble-trials', 'pants', 3, 'Polka Dot Briefs', 'common', '#7cc8ff', '#ffffff', 'Sky blue briefs with white dots.');
+  I('tumble-trials', 'pants', 4, 'Banana Boxers', 'rare', '#9fe8c4', '#ffd84a', 'Mint boxers with a pattern of bananas.');
+  I('tumble-trials', 'pants', 5, 'Leopard Print', 'rare', '#e9b35c', '#3b2416', 'Leopard print briefs, very bold.');
+  I('tumble-trials', 'pants', 6, 'Long Johns', 'rare', '#d9312b', '#f2e6c9', 'Red long johns with buttons and a back flap.');
+  I('tumble-trials', 'pants', 7, 'Diaper', 'rare', '#ffffff', '#9fd8ff', 'A puffy diaper with tiny stars and side tabs.');
+  I('tumble-trials', 'pants', 8, 'Super Undies', 'epic', '#e8282b', '#ffd23f', 'Red undies over the top, with a gold star.');
+  I('tumble-trials', 'pants', 9, 'Undies on Head', 'epic', '#fbfbf8', '#6b8bd6', 'A clean pair of briefs worn on the head. Do not ask.');
+  I('tumble-trials', 'hat', 1, 'Traffic Cone', 'common', '#ff7a1a', '#ffffff', 'An orange cone with white stripes.');
+  I('tumble-trials', 'hat', 2, 'Propeller Beanie', 'rare', '#ff3b3b', '#ffd23f', 'A four-colour cap with a spinning propeller.');
+  I('tumble-trials', 'hat', 3, 'Chef Hat', 'common', '#ffffff', '#e6e6ee', 'A tall puffy white chef hat.');
+  I('tumble-trials', 'hat', 4, 'Crown', 'epic', '#c9d1da', '#7a3cff', 'A silver crown with gems and a velvet top.');
+  I('tumble-trials', 'hat', 5, 'Pirate Hat', 'rare', '#1e1b24', '#e8b923', 'A black pirate hat with gold trim.');
+  I('tumble-trials', 'hat', 6, 'Viking Helmet', 'rare', '#9aa4b0', '#f2e6c9', 'A dome helmet with two curly horns.');
+  I('tumble-trials', 'hat', 7, 'Cowboy Hat', 'common', '#a8652e', '#5a3416', 'A wide brown hat with a curled brim.');
+  I('tumble-trials', 'hat', 8, 'Plunger', 'rare', '#d9312b', '#c9925a', 'A rubber plunger stuck to the top of the head.');
+  I('tumble-trials', 'hat', 9, 'Fishbowl', 'epic', '#bfe6ff', '#ff8a1f', 'A bowl of water with a goldfish, balanced on top.');
+  I('tumble-trials', 'hat', 10, 'Cooking Pot', 'common', '#a9b3bf', '#2a2a33', 'An upside-down cooking pot with handles.');
+  I('tumble-trials', 'hat', 11, 'Birthday Cone', 'common', '#ff4f9a', '#ffd23f', 'A striped party cone with a pom-pom.');
+  I('tumble-trials', 'hat', 12, 'Rubber Duck', 'rare', '#ffd93d', '#ff8a1f', 'A rubber duck sitting on your head.');
+  I('tumble-trials', 'hat', 13, 'Toilet Paper Roll', 'rare', '#fbfbf8', '#c9a46a', 'A whole roll of toilet paper, one sheet hanging.');
+  I('tumble-trials', 'hat', 14, 'Tiny Top Hat', 'common', '#1e1b24', '#d9312b', 'A very small top hat, worn at an angle.');
+  I('tumble-trials', 'face', 1, 'Mustache', 'common', '#5a3a22', '#fff8ee', 'A curly brown mustache.');
+  I('tumble-trials', 'face', 2, 'Monocle', 'rare', '#e8b923', '#cfe9ff', 'A gold monocle on a chain.');
+  I('tumble-trials', 'face', 3, 'Googly Eyes', 'common', '#ffffff', '#1b1430', 'Big wobbly googly eyes.');
+  I('tumble-trials', 'face', 4, 'Unibrow', 'common', '#2a1a12', '#fff8ee', 'One long eyebrow across both eyes.');
+  I('tumble-trials', 'face', 5, 'Braces', 'common', '#ffffff', '#b8c2cc', 'A big grin full of braces.');
+  I('tumble-trials', 'face', 6, 'Sunglasses', 'rare', '#ff4f9a', '#2a1850', 'Round pink sunglasses.');
+  I('tumble-trials', 'costume', 1, 'Hot Dog', 'epic', '#c4553a', '#e7a85a', 'A sausage in a bun with a mustard squiggle.');
+  I('tumble-trials', 'costume', 2, 'Banana', 'epic', '#ffd84a', '#6b4a1f', 'A banana, peel half down.');
+  I('tumble-trials', 'costume', 3, 'Pickle', 'epic', '#5f9e2f', '#7dbb45', 'A bumpy green pickle.');
+  I('tumble-trials', 'costume', 4, 'Chicken', 'epic', '#fbf8f0', '#e8282b', 'A chicken with a comb, a beak and wings.');
+  I('tumble-trials', 'costume', 5, 'Dinosaur Onesie', 'epic', '#58c46a', '#ffb03a', 'A green onesie with spikes, a tail and hood eyes.');
+  I('tumble-trials', 'costume', 6, 'Shark', 'epic', '#7d93a8', '#f2f4f6', 'A shark, with your face in its toothy mouth.');
+  I('tumble-trials', 'costume', 7, 'Cactus', 'epic', '#3f9a4a', '#ff7ac3', 'A cactus with two arms and a pink flower.');
+  I('tumble-trials', 'costume', 8, 'Sushi Roll', 'epic', '#fbfaf2', '#1f2e22', 'A sushi roll in seaweed, salmon on top.');
+  I('tumble-trials', 'costume', 9, 'Astronaut', 'epic', '#f2f4f7', '#2e8bff', 'A space suit, a bubble helmet and a backpack.');
+  I('tumble-trials', 'costume', 10, 'Knight', 'epic', '#c3cad3', '#2e5ad9', 'Armour, a raised visor and a red plume.');
+  I('tumble-trials', 'costume', 11, 'Toilet Paper Mummy', 'epic', '#f7f5ee', '#d9d3c3', 'Wrapped head to toe in toilet paper.');
+  I('tumble-trials', 'costume', 12, 'Turkey', 'epic', '#8a5a34', '#ff8a1f', 'A turkey with a big tail fan.');
+  I('tumble-trials', 'dance', 1, 'Wiggle Wobble', 'rare', '#ff4f9a', '#ffd23f', 'A side-to-side wiggle with flappy arms.');
+  I('tumble-trials', 'dance', 2, 'Robot', 'rare', '#9aa4b0', '#2ec5ff', 'Stiff robot arm moves.');
+  I('tumble-trials', 'dance', 3, 'Spin Cycle', 'rare', '#2ec5ff', '#ffffff', 'Spin round and round.');
+  I('tumble-trials', 'dance', 4, 'Chicken Flap', 'rare', '#ffa23a', '#fbf8f0', 'Flap and peck like a chicken.');
+  I('tumble-trials', 'dance', 5, 'Jelly Jump', 'epic', '#6fdc4a', '#ff9ad5', 'Big squashy jelly jumps.');
+  I('tumble-trials', 'dance', 6, 'Disco Point', 'rare', '#8a5cff', '#ffd23f', 'Point up, point down, repeat.');
+  I('tumble-trials', 'scream', 1, 'Wheee!', 'common', '#ffd23f', '#ff4f9a', 'A rising "wheee!"');
+  I('tumble-trials', 'scream', 2, 'Aaaah!', 'common', '#ff6b3d', '#ffffff', 'A long falling "aaaah!"');
+  I('tumble-trials', 'scream', 3, 'Yodel Drop', 'common', '#46d37a', '#fff8ee', 'A wobbly yodel all the way down.');
+  I('tumble-trials', 'scream', 4, 'Slide Whistle', 'common', '#2ec5ff', '#ffffff', 'A slide whistle from high to low.');
+  I('tumble-trials', 'scream', 5, 'Kazoo Wail', 'common', '#8a5cff', '#ffd23f', 'A buzzy kazoo wail.');
+  I('tumble-trials', 'scream', 6, 'Squeaky Toy', 'common', '#ff9ad5', '#ffffff', 'Three squeaks and a slow deflate.');
+  I('tumble-trials', 'splash', 1, 'Confetti Pop', 'rare', '#ff4f9a', '#ffd23f', 'A pop of confetti when you are knocked out.');
+  I('tumble-trials', 'splash', 2, 'Bubble Burst', 'rare', '#bfe6ff', '#ffffff', 'A cloud of bubbles.');
+  I('tumble-trials', 'splash', 3, 'Rainbow Splat', 'rare', '#ff5c5c', '#5cc8ff', 'A ring of rainbow splats.');
+  I('tumble-trials', 'splash', 4, 'Star Shower', 'rare', '#ffd23f', '#ffffff', 'A fountain of stars.');
+  I('tumble-trials', 'splash', 5, 'Glitter Geyser', 'epic', '#ffcf3d', '#ff7ac3', 'A tall geyser of glitter.');
   // Items a game hands over itself are in no pack: give is 'free' (anyone may wear it; the game grants it the first time it
   // is worn) or 'earned' (the game grants it when it is won). grant(id), below, only adds these.
   GAME_ITEMS.forEach(function (it) { if (it.game !== 'slipstream') return; if (it.slot === 'sponsor' || (it.slot === 'helmet' && it.no <= 8)) it.give = 'free'; else if (it.slot === 'livery' && it.no > 8) it.give = 'earned'; });
