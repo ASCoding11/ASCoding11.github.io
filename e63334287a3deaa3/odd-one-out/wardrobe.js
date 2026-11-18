@@ -550,11 +550,13 @@ function build(){
 }
 let open_=false;
 function open(){
-  build();open_=true;$('wd').hidden=false;
+  build();open_=true;$('wd').hidden=false;lbChip(true);
   if(!window.BackRoomCosmetics&&!document.querySelector('script[src$="/cosmetics.js"]')){const s=document.createElement('script');s.src='/e63334287a3deaa3/cosmetics.js';s.onload=()=>{if(open_)fill()};document.head.appendChild(s)}
   fill();preview();setTimeout(()=>{const b=$('wdGrid').querySelector('[aria-pressed="true"]')||$('wdDone');try{b.focus({preventScroll:true})}catch(e){}},0);
 }
-function close(){if(!open_)return;open_=false;$('wd').hidden=true;const b=$('wdOpen');if(b&&!$('menu').hidden)try{b.focus()}catch(e){}}
+// stats.js's floating Leaderboard button would sit over the Wardrobe's bottom edge on a phone: out of sight while it's open
+function lbChip(hide){const b=document.getElementById('brlb-open');if(b)b.style.visibility=hide?'hidden':''}
+function close(){if(!open_)return;open_=false;$('wd').hidden=true;lbChip(false);const b=$('wdOpen');if(b&&!$('menu').hidden)try{b.focus()}catch(e){}}
 function choose(slot,n){
   pick4[SLOT_I[slot]]=n;A.store.set('wear',pick4.slice());
   const m=A.me;if(m&&!m.remote){m.wear=mine()}
