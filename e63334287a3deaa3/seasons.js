@@ -124,7 +124,8 @@
     // fall only replaces a green accent (the phone page's yellow already fits); winter makes every accent blue
     if(ac&&A&&(season==='winter'||(ac[1]>ac[0]&&ac[1]>ac[2]))){out.push('--accent:'+A[0]);if(cs.getPropertyValue('--accent-ink').trim())out.push('--accent-ink:'+A[1])}
     styleEl=document.createElement('style');styleEl.id='season-style';
-    styleEl.textContent='html:root{'+out.join(';')+'}body{isolation:isolate}'+
+    // html:root:root outranks the dark-mode rules (:root:not([data-theme="light"]), :root[data-theme="dark"]; theme.js)
+    styleEl.textContent='html:root:root{'+out.join(';')+'}body{isolation:isolate}'+
       '#season-fx,#season-bg{position:fixed;left:0;right:0;bottom:0;width:100%;height:100vh;height:100lvh;z-index:-1;pointer-events:none;display:block}'+
       'html.tv-on #season-fx,html.tv-on #season-bg,html.tv-on .season-foot{image-rendering:pixelated;image-rendering:crisp-edges}';
     document.head.appendChild(styleEl);
@@ -707,6 +708,7 @@
   document.addEventListener('visibilitychange',function(){if(document.hidden)pause();else play()});
   window.addEventListener('resize',function(){if(cv&&size()){if(still){step(0);draw()}}else if(bg){layoutScene();drawScene()}});
   mqDark.addEventListener&&mqDark.addEventListener('change',function(){if(cv){spriteCache={};start(season)}});
+  window.addEventListener('site-theme',function(){if(cv){spriteCache={};start(season)}});   // the theme switch (theme.js)
   mqStill.addEventListener&&mqStill.addEventListener('change',function(){if(season!=='none')start(season)});
   // A game opened over the page (the home page's and phone page's full-screen layers) hides the canvas: stop drawing.
   setInterval(function(){

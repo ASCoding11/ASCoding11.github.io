@@ -1,0 +1,2 @@
+/* Deepword answer data, built by tools/build.js from prompts.js and free data (see tools/SOURCES.md). Do not edit by hand. */
+DW_EXT.add("flag_two_colours","japan;canada;switzerland;china;poland;denmark;sweden;greece;turkey;israel;ukraine;vietnam;finland;austria;indonesia;monaco;nigeria;pakistan;saudi arabia;qatar;singapore;peru;morocco;tunisia;bangladesh;georgia;albania;bahrain;latvia;somalia;micronesia;palau;north macedonia;tonga;honduras;kazakhstan;kyrgyzstan","vyxgzgyyt6wnw5v5y5oonounsomopvhdldpdodidmdovndivjvqdkde3f3g3hlclq2dlm2eld3");

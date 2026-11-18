@@ -1,0 +1,2 @@
+/* Deepword answer data, built by tools/build.js from prompts.js and free data (see tools/SOURCES.md). Do not edit by hand. */
+DW_EXT.add("central_caribbean","cuba;jamaica;costa rica;panama;haiti;dominican republic;bahamas;guatemala;honduras;nicaragua;el salvador;belize;barbados;trinidad and tobago;grenada;dominica;saint lucia;antigua and barbuda;saint kitts and nevis;saint vincent and the grenadines","vywyyysyp6n6w5t6s6mdodjdkdiddlclflelp6uk");

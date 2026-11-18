@@ -1,0 +1,2 @@
+/* Deepword answer data, built by tools/build.js from prompts.js and free data (see tools/SOURCES.md). Do not edit by hand. */
+DW_EXT.add("~533","milk;eggs;cheese;butter;yogurt;juice;ketchup;lettuce;leftovers;meat;vegetables;fruit;water;soda;mayonnaise;mustard;jam;cream;margarine;pickles;salad dressing;hot sauce;hummus;cream cheese;tofu;fish;pasta;cake;oat milk;baking soda;medicine;ice pack;garlic;nut butter;dog food;pizza box","r8zgvcubmls9oerhj9rzv2r8mvnwh7ihsrn4ndgyd3jig6e4clt0tjrzi8enmcukjssiirqg");

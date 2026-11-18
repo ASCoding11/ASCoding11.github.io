@@ -44,7 +44,7 @@
     ['slipstream', 'Slipstream'], ['boostball', 'Boostball'], ['coil', 'Coil'], ['trivium', 'Trivium'],
     ['showdown', 'Showdown'], ['chromaflage', 'Chromaflage'], ['spire', 'Spire'], ['turbo-trail', 'Turbo Trail'],
     ['escapade', 'Escapade'], ['updraft', 'Updraft'], ['odd-one-out', 'Odd One Out'], ['tumble-trials', 'Tumble Trials'],
-    ['puffer-party', 'Puffer Party'], ['blockstorm', 'Blockstorm'], ['putterby', 'Putterby'], ['daily', 'Daily Puzzles (any daily puzzle)'], ['other', 'Something else (the site, parties…)']
+    ['puffer-party', 'Puffer Party'], ['blockstorm', 'Blockstorm'], ['lanternhold', 'Lanternhold'], ['putterby', 'Putterby'], ['daily', 'Daily Puzzles (any daily puzzle)'], ['other', 'Something else (the site, parties…)']
   ];
   var KINDS = [['idea', 'Idea or change'], ['bug', 'Bug'], ['other', 'Something else']];
   var MAX = { msg: 1000, name: 40, contact: 80, page: 200 };
@@ -136,16 +136,22 @@
     count(); say(''); show();
 
     // "Tell Arjun" buttons elsewhere on the page (data-feedback-open) bring the box into view and put the cursor in it.
-    function openHere() {
+    // A value on the attribute (data-feedback-open="Puzzles: ") starts an empty box with that text, so the note says
+    // what it's about; it isn't saved as a draft until they type, and a note that is only that text isn't sent.
+    var preset = '';
+    function openHere(start) {
       var still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
       box.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'start' });
       if (form.hidden) { done.hidden = true; form.hidden = false; }
-      ta.focus({ preventScroll: true }); show();
+      if (typeof start === 'string' && start && !ta.value.trim()) { preset = String(start).slice(0, 60); ta.value = preset; count(); }
+      ta.focus({ preventScroll: true });
+      try { ta.setSelectionRange(ta.value.length, ta.value.length); } catch (e) {}
+      show();
     }
     window.BackRoomFeedback.open = openHere;
     document.addEventListener('click', function (e) {
       var t = e.target && e.target.closest && e.target.closest('[data-feedback-open]');
-      if (t) { e.preventDefault(); openHere(); }
+      if (t) { e.preventDefault(); openHere(t.getAttribute('data-feedback-open') || ''); }
     });
     ta.addEventListener('focus', show);
     ta.addEventListener('blur', function () { setTimeout(show, 150); });   // after a click on Send has landed
@@ -157,7 +163,7 @@
       e.preventDefault();
       if (send.disabled) return;
       var text = cut(ta.value, MAX.msg);
-      if (!text) { say('Write a few words first.', true); ta.value = ''; count(); ta.focus(); show(); return; }
+      if (!text || (preset && text === cut(preset, MAX.msg))) { say('Write a few words first.', true); ta.value = ''; count(); ta.focus(); show(); return; }
       var t = sentTimes(), now = Date.now();
       if (t.length >= PER_DAY) { say('That\'s ' + PER_DAY + ' notes from this browser today. Thanks! Try again tomorrow.', true); show(); return; }
       if (t.length && now - t[t.length - 1] < GAP) { say('You just sent one. Wait ' + Math.ceil((GAP - (now - t[t.length - 1])) / 1000) + ' seconds and try again.', true); show(); return; }

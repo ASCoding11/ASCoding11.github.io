@@ -1,0 +1,2 @@
+/* Deepword answer data, built by tools/build.js from prompts.js and free data (see tools/SOURCES.md). Do not edit by hand. */
+DW_EXT.add("rhgame","name;same;came;fame;flame;frame;blame;shame;tame;claim;aim;lame;dame;became;exclaim;proclaim;acclaim;reclaim;inflame;rename;nickname;surname;first name;last name;birth name;pen name;ball game;board game;video game;endgame;mainframe;timeframe;picture frame;hall of fame;maim;defame;overcame","zgzyygsou6s6vnrvnvudsvo2cltkk2hacsgsbsjsl2fsnrpreafakshslsgadacaisesdsbala");

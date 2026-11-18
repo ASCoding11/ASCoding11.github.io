@@ -84,6 +84,7 @@
     { k: 'ko', n: 'Tumble Trials', d: 'tumble-trials', max: 16, nk: 'tumble-name' },
     { k: 'dz', n: 'Driftfall', d: 'drop-zone', max: 30, nk: 'driftfall:name' },
     { k: 'bs', n: 'Blockstorm', d: 'blockstorm', max: 12, nk: 'blockstorm:name' },
+    { k: 'lh', n: 'Lanternhold', d: 'lanternhold', max: 4, nk: 'lanternhold:name' },
     { k: 'gd', n: 'Lokop', d: 'lunge-line', max: 8, nk: 'lungeline:name' },
     { k: 'dw', n: 'Deepword', d: 'deepword', max: 12, nk: 'deepword-name' },
     { k: 'pf', n: 'Puffer Party', d: 'puffer-party', max: 12, nk: 'pufferparty:name' },
@@ -257,6 +258,7 @@
       if (!v || typeof v !== 'object' || t - (+v.ts || 0) > STALE) return;
       if (k !== uid) { learnAv(k, v.av); learnNt(k, v.nt); }
       out.push({ uid: k, n: cleanName(v.n) || 'Player', c: /^#[0-9a-f]{6}$/i.test(v.c) ? v.c : '#4A5751', j: +v.j || +v.ts || 0, pk: typeof v.pk === 'string' ? v.pk : '', go: v.go && typeof v.go === 'object' ? v.go : null, kick: kickList(v.kick, t), pub: v.pub === 1 });
+      voteRead(out[out.length - 1], v, t);
     });
     out.sort(function (a, b) { return a.j - b.j || (a.uid < b.uid ? -1 : 1); });
     return out;
@@ -284,6 +286,7 @@
     if (kicked.length) s.kick = kicked;
     if (pubOn) { s.pub = 1; s.pn = pubN = members.length || 1; }
     var a = myAv(), t = myNt(); if (a) s.av = a; if (t) s.nt = t;
+    voteState(s);
     avSent = uid + '|' + a + '|' + t;
     return s;
   }
@@ -401,6 +404,7 @@
     if (connRef) { connRef.off('value', onConnected); connRef = null; }
     if (refs) { var r = refs; try { r.players.off('value', onPlayers); r.me.onDisconnect().cancel(); r.me.remove().catch(function () {}); } catch (e) {} }
     refs = null; code = ''; members = []; picked = ''; lastGo = null; goId = 0; lastLeader = ''; kicked = []; pubOn = false;
+    voteReset();
     if (clear) { sess('party:code', null); sess('party:keep', null); }
   }
   function leave() { teardown(true); say('You left the party.'); render(); }
@@ -562,6 +566,176 @@
     ownOverlay(u.pathname + u.hash, g.n);
   });
 
+  // ================ Vote on next game ================
+  // Any member can start a short vote on the next game; everyone votes from the Party panel, and when time is up the
+  // leader's browser counts and launches the winner exactly like Play together (pk + go). Most votes wins; a tie (or no
+  // votes at all) is picked at random, and "Random" picks any game that fits the party. The leader's own pick still works:
+  // a Play together during the vote wins over it. One vote at a time: if two start at once, the earlier one counts.
+  // Stored in each member's own party node, like everything else here:
+  //   vt { t, e, o }      a vote this member started: start and end (server time), 3-5 options (game keys, 'rnd' = Random)
+  //   vv { v, c }         this member's vote: the vote's key ('<starter uid>:<t>') and the option chosen
+  //   vw { v, w, n, tie, r } leader only: the result it launched (game key, its votes, 1 if a tie was broken at random,
+  //                       1 if Random won); all three are removed about 10 s after the vote ends.
+  var VOTE_MS = 20000, VOTE_KEEP = 10000;
+  var vote = { mine: null, ballot: null, won: null, setup: null, done: {}, seen: '', timer: 0, sig: '' };
+  var vcss = document.createElement('style');
+  vcss.textContent =
+    '.pty-vote{display:grid;gap:8px;border-top:1px solid var(--line);padding-top:12px}' +
+    '.pty-vote .pty-h{margin:0}.pty-vote .pty-go{margin-top:0}' +
+    '.pty-vt-s{color:var(--accent)}' +
+    '.pty-vopts{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,170px),1fr));gap:8px}' +
+    '.pty-vopts button{--p:0%;font:inherit;font-size:15px;font-weight:600;color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:8px 12px;min-height:44px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;' +
+      'background:linear-gradient(90deg,color-mix(in srgb,var(--accent) 22%,transparent) var(--p),var(--panel-2) var(--p))}' +
+    '.pty-vopts button:hover{border-color:var(--ink-2)}' +
+    '.pty-vopts button[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}' +
+    '.pty-vopts button[disabled]{cursor:default}.pty-vopts button.win{border-color:var(--accent);box-shadow:inset 0 0 0 2px var(--accent)}' +
+    '.pty-vopts b{font-family:var(--mono);font-size:14px;flex:none}' +
+    '.pty-vote .pty-wait{font-size:14px}';
+  document.head.appendChild(vcss);
+
+  function voteFit() { var n = members.length; return GAMES.filter(function (g) { return g.max >= n; }).map(function (g) { return g.k; }); }
+  function voteName(k) { return k === 'rnd' ? 'Random' : (byKey(k) || {}).n || k; }
+  // Someone's vote fields, checked before use (live() calls this for every node).
+  function voteRead(m, v, t) {
+    var a = v.vt, b = v.vv, w = v.vw;
+    if (a && typeof a === 'object' && Array.isArray(a.o)) {
+      var st = +a.t || 0, en = +a.e || 0;
+      var o = a.o.filter(function (k, i) { return typeof k === 'string' && (k === 'rnd' || byKey(k)) && a.o.indexOf(k) === i; });
+      if (o.length >= 3 && o.length <= 5 && o.length === a.o.length && en - st >= 5000 && en - st <= 30000 && st < t + 30000 && en > t - 60000) m.vt = { t: st, e: en, o: o };
+    }
+    if (b && typeof b === 'object' && typeof b.v === 'string' && b.v.length <= 80 && typeof b.c === 'string' && b.c.length <= 4) m.vv = { v: b.v, c: b.c };
+    if (w && typeof w === 'object' && typeof w.v === 'string' && w.v.length <= 80 && byKey(w.w)) m.vw = { v: w.v, w: w.w, n: Math.max(0, Math.min(MAX, +w.n || 0)), tie: w.tie === 1, r: w.r === 1 };
+  }
+  function voteState(s) { if (vote.mine) s.vt = vote.mine; if (vote.ballot) s.vv = vote.ballot; if (vote.won) s.vw = vote.won; }
+  function voteReset() { vote.mine = vote.ballot = vote.won = vote.setup = null; vote.sig = ''; voteTimer(false); }
+  // The members, with our own vote fields from this tab (our node can lag a moment behind).
+  function voteMembers() { return members.map(function (m) { return m.uid === uid ? { uid: uid, n: m.n, vt: vote.mine, vv: vote.ballot, vw: vote.won } : m; }); }
+  // The vote that counts: the earliest one started by someone still in the party, until VOTE_KEEP after it ends.
+  function curVote() {
+    var best = null, t = now();
+    voteMembers().forEach(function (m) {
+      var a = m.vt; if (!a || t > a.e + VOTE_KEEP) return;
+      if (!best || a.t < best.t || (a.t === best.t && m.uid < best.by)) best = { key: m.uid + ':' + a.t, by: m.uid, n: m.n, t: a.t, e: a.e, o: a.o };
+    });
+    return best;
+  }
+  function voteCount(V) {
+    var c = {}, voted = 0; V.o.forEach(function (k) { c[k] = 0; });
+    voteMembers().forEach(function (m) { if (m.vv && m.vv.v === V.key && Object.prototype.hasOwnProperty.call(c, m.vv.c)) { c[m.vv.c]++; voted++; } });
+    return { c: c, voted: voted };
+  }
+  function voteStart(list) {
+    if (!refs || curVote()) return;
+    var fit = voteFit(), o = (list || []).filter(function (k) { return fit.indexOf(k) >= 0; }).slice(0, 4);
+    if (o.length < 2) { o = fit.slice(); for (var i = o.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)), x = o[i]; o[i] = o[j]; o[j] = x; } o = o.slice(0, 4); }
+    o.push('rnd');
+    var t = Math.round(now());
+    vote.mine = { t: t, e: t + VOTE_MS, o: o }; vote.setup = null; vote.seen = uid + ':' + t;
+    refs.me.update({ vt: vote.mine, ts: t }).catch(function (e) { vote.mine = null; say('Couldn’t start the vote (' + (e.code || e.message) + ').', true); drawVote(); });
+    say('Vote started: everyone has ' + Math.round(VOTE_MS / 1000) + ' seconds to pick the next game.');
+    drawVote();
+  }
+  function voteCast(k) {
+    var V = curVote(); if (!refs || !V || now() >= V.e || V.o.indexOf(k) < 0) return;
+    vote.ballot = { v: V.key, c: k };
+    refs.me.update({ vv: vote.ballot, ts: Math.round(now()) }).catch(function (e) { say('Couldn’t send your vote (' + (e.code || e.message) + ').', true); });
+    drawVote();
+  }
+  // Time's up: the leader's browser counts and launches the winner, once per vote.
+  function voteFinish(V) {
+    var L = leader(); if (!refs || !L || L.uid !== uid || now() < V.e || vote.done[V.key]) return;
+    vote.done[V.key] = 1;
+    if (now() > V.e + VOTE_KEEP - 2000) return;   // we only just became leader, long after it ended
+    if (lastGo && lastGo.t >= V.t) return;        // the leader started a game by hand during the vote
+    var fit = voteFit(), C = voteCount(V).c, top = -1, best = [];
+    V.o.forEach(function (k) {
+      if (k !== 'rnd' && fit.indexOf(k) < 0) return;   // the party grew past that game's room size
+      if (C[k] > top) { top = C[k]; best = [k]; } else if (C[k] === top) best.push(k);
+    });
+    if (!best.length) best = ['rnd'];
+    var w = best[Math.floor(Math.random() * best.length)], r = w === 'rnd';
+    if (r) w = fit[Math.floor(Math.random() * fit.length)];
+    if (!w) return say('No game fits a party of ' + members.length + '.', true);
+    vote.won = { v: V.key, w: w, n: Math.max(0, top), tie: best.length > 1 ? 1 : 0, r: r ? 1 : 0 };
+    picked = w;
+    refs.me.update({ vw: vote.won, pk: w, ts: Math.round(now()) }).catch(function () {});
+    playTogether();
+  }
+  // Take our own fields down once their vote is over (or lost to an earlier one).
+  function voteClean() {
+    if (!refs) return;
+    var V = curVote(), t = now(), p = {};
+    if (vote.mine && (t > vote.mine.e + VOTE_KEEP || (V && V.by !== uid))) {
+      if (V && V.by !== uid && t < vote.mine.e) say(V.n + ' started a vote first, so that one counts.');
+      vote.mine = null; p.vt = null;
+    }
+    if (vote.ballot && (!V || V.key !== vote.ballot.v)) { vote.ballot = null; p.vv = null; }
+    if (vote.won && (!V || V.key !== vote.won.v)) { vote.won = null; p.vw = null; }
+    if (Object.keys(p).length) { p.ts = Math.round(t); refs.me.update(p).catch(function () {}); }
+  }
+  function voteTimer(on) {
+    if (on && !vote.timer) vote.timer = setInterval(function () { if (refs) drawVote(); else voteTimer(false); }, 500);
+    else if (!on && vote.timer) { clearInterval(vote.timer); vote.timer = 0; }
+  }
+  function drawVote() {
+    if (!refs) return voteTimer(false);
+    var box = $main.querySelector('.pty-vote');
+    if (!box) {
+      var pick = $main.querySelector('.pty-pick'); if (!pick) return;
+      box = document.createElement('div'); box.className = 'pty-vote'; pick.parentNode.insertBefore(box, pick.nextSibling); vote.sig = '';
+    }
+    voteClean();
+    var V = curVote(); if (V) { vote.setup = null; voteFinish(V); }
+    voteTimer(!!(V || vote.mine || vote.ballot || vote.won));
+    var t = now(), n = members.length, html, left = 0;
+    if (V && vote.seen !== V.key) { vote.seen = V.key; if (V.by !== uid && t < V.e) say(V.n + ' started a vote on the next game.'); }
+    if (V) {
+      var cnt = voteCount(V), open = t < V.e, L = leader(), res = null, most = 0;
+      voteMembers().forEach(function (m) { if (L && m.uid === L.uid && m.vw && m.vw.v === V.key) res = m.vw; });
+      V.o.forEach(function (k) { most = Math.max(most, cnt.c[k]); });
+      left = Math.max(0, Math.ceil((V.e - t) / 1000));
+      var mineC = vote.ballot && vote.ballot.v === V.key ? vote.ballot.c : '';
+      html = '<p class="pty-h">' + (open ? 'Vote on next game · <span class="pty-vt-s"></span>' : 'Vote over') + '</p>' +
+        '<div class="pty-vopts" role="group" aria-label="Vote on next game">' + V.o.map(function (k) {
+          var c = cnt.c[k], win = res && (res.r ? k === 'rnd' : k === res.w);
+          return '<button type="button" data-vo="' + esc(k) + '" aria-pressed="' + (k === mineC) + '"' + (open ? '' : ' disabled') + (win ? ' class="win"' : '') +
+            ' style="--p:' + (cnt.voted ? Math.round(c * 100 / cnt.voted) : 0) + '%" aria-label="' + esc(voteName(k)) + ', ' + c + (c === 1 ? ' vote' : ' votes') + '"><span>' + esc(voteName(k)) + '</span><b>' + c + '</b></button>';
+        }).join('') + '</div><div class="pty-go"><span class="pty-wait">';
+      if (open) html += (V.by === uid ? 'You started this vote' : esc(V.n) + ' started this vote') + ' · ' + cnt.voted + ' of ' + n + ' voted' + (mineC ? '' : ' · tap a game to vote') + '. Most votes wins; a tie is picked at random.';
+      else if (res) html += (res.r ? 'Random won, so the leader’s browser picked <b>' + esc(voteName(res.w)) + '</b>.' : '<b>' + esc(voteName(res.w)) + '</b> ' + (res.tie ? 'tied with ' + res.n + (res.n === 1 ? ' vote' : ' votes') + ' and was picked at random.' : 'won with ' + res.n + (res.n === 1 ? ' vote.' : ' votes.'))) + ' Everyone’s joining it now.';
+      else html += 'Waiting for ' + (L && L.uid === uid ? 'your browser' : (L ? esc(L.n) + '’s browser' : 'the leader')) + ' to start the winner…';
+      html += '</span>' + (open && V.by === uid ? '<button type="button" class="btn sm" data-a="vote-cancel">Cancel vote</button>' : '') + '</div>';
+    } else if (vote.setup) {
+      var s = vote.setup, fit = voteFit();
+      html = '<p class="pty-h">Vote on next game</p><p class="pty-wait">Choose 2 to 4 games, or none for a surprise mix. Random is always an option too.</p>' +
+        '<div class="pty-games" role="group" aria-label="Games to vote on">' + GAMES.filter(function (g) { return fit.indexOf(g.k) >= 0; }).map(function (g) {
+          var on = s.indexOf(g.k) >= 0;
+          return '<button type="button" data-vg="' + g.k + '" aria-pressed="' + on + '"' + (!on && s.length >= 4 ? ' disabled' : '') + '>' + esc(g.n) + '</button>';
+        }).join('') + '</div><div class="pty-go"><button type="button" class="btn primary" data-a="vote-go"' + (s.length === 1 ? ' disabled' : '') + '>' +
+        (s.length >= 2 ? 'Start vote (' + s.length + ' games + Random)' : s.length ? 'Choose one more' : 'Start with a surprise mix') + '</button><button type="button" class="btn" data-a="vote-x">Cancel</button></div>';
+    } else {
+      html = '<div class="pty-go"><button type="button" class="btn sm" data-a="vote-new"' + (n < 2 ? ' disabled' : '') + '>Vote on next game</button><span class="pty-wait">' +
+        (n < 2 ? 'Once someone joins, anyone in the party can start a vote on the next game.' : 'Anyone can start one: ' + Math.round(VOTE_MS / 1000) + ' seconds, most votes wins.') + '</span></div>';
+    }
+    // Only rebuild when something changed (keeps keyboard focus); the countdown is updated on its own.
+    if (vote.sig !== html) { vote.sig = html; box.innerHTML = html; }
+    var cd = box.querySelector('.pty-vt-s'); if (cd) cd.textContent = left + ' s';
+  }
+  function voteClick(b) {
+    var a = b.getAttribute('data-a') || '', vg = b.getAttribute('data-vg'), vo = b.getAttribute('data-vo');
+    if (vo) voteCast(vo);
+    else if (vg) { var s = vote.setup || [], i = s.indexOf(vg); if (i >= 0) s.splice(i, 1); else if (s.length < 4) s.push(vg); vote.setup = s; drawVote(); }
+    else if (a === 'vote-new') { vote.setup = []; drawVote(); }
+    else if (a === 'vote-x') { vote.setup = null; drawVote(); }
+    else if (a === 'vote-go') voteStart(vote.setup);
+    else if (a === 'vote-cancel') {
+      if (refs && vote.mine) { vote.mine = null; refs.me.update({ vt: null, ts: Math.round(now()) }).catch(function () {}); say('You cancelled the vote.'); }
+      drawVote();
+    } else return false;
+    return true;
+  }
+  // ================ end of Vote on next game ================
+
   // ---------------- Drawing ----------------
   var drawn = '';
   function render() { if (code && refs) drawParty(); else drawIdle(); }
@@ -657,11 +831,13 @@
         html += '<div class="pty-go"><button type="button" class="btn" data-a="rejoin">Join them in ' + esc(gg.n) + '</button><span class="pty-wait">Room ' + esc(go.r) + '</span></div>';
       box.innerHTML = html;
     }
+    drawVote();
   }
 
   // ---------------- Events ----------------
   sec.addEventListener('click', function (e) {
     var t = e.target.closest('button'); if (!t || t.disabled) return;
+    if (voteClick(t)) return;
     var a = t.getAttribute('data-a'), gk = t.getAttribute('data-g'), ku = t.getAttribute('data-k');
     if (ku) kick(ku);
     else if (a === 'create' || a === 'join') {
