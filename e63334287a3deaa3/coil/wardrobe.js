@@ -612,13 +612,13 @@ function save() { G.setLook(lookStr(sel)); }
 function thumb(L, kind) {
   const cv = document.createElement('canvas'); cv.width = 200; cv.height = 100; const g = cv.getContext('2d'), skin = G.skin();
   if (kind === 'b') { const ims = L.b === 2 ? [coinSpr, coinSpr, coinSpr, coinSpr, coinSpr] : L.b === 1 ? candySpr : starSpr.concat(starSpr[0]); ims.forEach((im, j) => { const a = j / 5 * TAU + .3, s = 22 + (j % 2) * 6; g.drawImage(im, 100 + Math.cos(a) * 52 - s, 50 + Math.sin(a) * 28 - s, s * 2, s * 2); }); return cv; }
-  const head = kind === 'h', n = head ? 10 : 22, r = head ? 26 : 13, xs = [], ys = [];
-  for (let i = 0; i < n; i++) { xs.push(head ? 150 - i * r * .42 : 182 - i * 7.4); ys.push(50 + (head ? Math.sin(i * .3) * 6 : Math.sin(i * .45) * 16)); }
+  const head = kind === 'h', n = head ? 10 : 22, r = head ? 38 : 13, xs = [], ys = [];
+  for (let i = 0; i < n; i++) { xs.push(head ? 128 - i * r * .42 : 182 - i * 7.4); ys.push(50 + (head ? Math.sin(i * .3) * 6 : Math.sin(i * .45) * 16)); }
   const o = {}; if (L.t === 1) for (let j = 0; j < 7; j++) { const a = j * 1.7; g.drawImage(starSpr[j % 4], 28 - j * 3 + Math.cos(a) * 12 - 9, 50 + Math.sin(a) * 18 - 9, 18, 18); }
   const a = Math.atan2(ys[0] - ys[1], xs[0] - xs[1]);
   if (L.h === 5) tongue(g, xs[0], ys[0], a, r, 0);
   body(g, xs, ys, n, r, L, skin, 1, 0);
-  face(g, o, xs[0], ys[0], a, a, r, 0, 1, L, skin, null);
+  face(g, o, xs[0], ys[0], a, a, r, 1000, 1, L, skin, null);   // (at time 0 the eyes would be mid-blink)
   return cv;
 }
 function item(l, no, nm, kind) {
