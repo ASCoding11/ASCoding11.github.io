@@ -90,6 +90,7 @@
     'wallet:v1', 'cosmetics:v1',   // coins and the locker (wallet.js, cosmetics.js), switched off for now
     'layout:v1',   // Edit layout (layout.js): the order of the Back Room's blocks
     'nametile:v1', // the colour of the player's name tile (avatar.js), which only a Google account can choose
+    'school:v1',   // Your school (school.js): the school the player picked
     'wallet:v1', 'cosmetics:v1',   // coins and the locker (wallet.js, cosmetics.js), switched off for now
     // Rumble Karts
     'rk_name', 'rk_color', 'rk_mode', 'rk_sound',

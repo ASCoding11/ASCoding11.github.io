@@ -236,6 +236,8 @@
     { d: 'melon-merge', n: 'Melon Merge', st: [{ k: 'score', l: 'Best score', f: 'n', u: 'pt', hi: 1e7 }, { k: 'melons', l: 'Watermelons grown (all time)', chip: 'Watermelons', f: 'n', u: 'watermelon', rate: 0.05 }] },
     { d: 'patchwork-tower', n: 'Patchwork Tower', st: [{ k: 'score', l: 'Best score', f: 'n', u: 'pt', hi: 9999999 }] },
     { d: 'flickerwood', n: 'Flickerwood', st: [{ k: 'score', l: 'Best score', f: 'n', u: 'pt', hi: 9999999 }] },
+    { d: 'lanternhold', n: 'Lanternhold', st: [{ k: 'wave', l: 'Most waves held', f: 'n', u: 'wave', hi: 1000 },
+      { k: 'bosses', l: 'Gloomwardens beaten (all time)', chip: 'Gloomwardens', f: 'n', u: 'Gloomwarden', rate: 1 / 60 }] },
     // Daily Puzzles: grp puts them in their own group in the Board menu. The hub's `done` (one per puzzle finished, counted
     // on the hub page) is checked against the time played in every daily game together (rateOf), as the hub itself is only
     // open for a few seconds between puzzles.
