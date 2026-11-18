@@ -231,7 +231,8 @@
   // One GAMES entry per game: its name, the prefix of its ids, and its slots in the order the shop lists them.
   var GAMES = {
     boostball: { name: 'Boostball', prefix: 'bb', slots: [['decal', 'Decals'], ['trail', 'Boost trails'], ['goal', 'Goal explosions'], ['topper', 'Antenna toppers'], ['hat', 'Roof hats'], ['wheels', 'Wheels'], ['engine', 'Engine sounds']] },
-    slipstream: { name: 'Slipstream', prefix: 'ss', slots: [['sponsor', 'Sponsors'], ['livery', 'Liveries'], ['helmet', 'Helmets'], ['effect', 'Boost effects'], ['smoke', 'Tyre smoke'], ['podium', 'Podium celebrations']] }
+    slipstream: { name: 'Slipstream', prefix: 'ss', slots: [['sponsor', 'Sponsors'], ['livery', 'Liveries'], ['helmet', 'Helmets'], ['effect', 'Boost effects'], ['smoke', 'Tyre smoke'], ['podium', 'Podium celebrations']] },
+    'odd-one-out': { name: 'Odd One Out', prefix: 'oo', slots: [['outfit', 'Hunter outfits'], ['tool', 'Hunter tools'], ['taunt', 'Prop taunts'], ['poof', 'Catch poofs']] },
   };
   var ITEM_PRICE = { common: 6, rare: 10, epic: 16, legendary: 40 };
   var GAME_ITEMS = [], ITEM_BY_ID = {};
@@ -409,6 +410,43 @@
   I('slipstream', 'smoke', 5, 'Gold tyre smoke', 'common', '#FFCC47', '#FFF0B0', 'Gold smoke from the tyres.');
   I('slipstream', 'podium', 1, 'Confetti Podium', 'common', '#FF4FA3', '#3FD2FF', 'Confetti over the results when you finish in the top three.');
   I('slipstream', 'podium', 2, 'Fireworks Podium', 'rare', '#FFD21F', '#B06BFF', 'Fireworks over the results when you finish in the top three.');
+  // ---- Odd One Out items ----
+  // Drawn and played by odd-one-out/wardrobe.js (by slot and number). Outfits and tools are worn by hunters only (a prop
+  // always looks exactly like the real object); a taunt plays only when a prop presses its key; a poof plays where a prop
+  // was caught, chosen by the hunter who caught it.
+  I('odd-one-out', 'outfit', 1, 'Police Officer', 'common', '#7FA6DC', '#26325E', 'Light blue shirt, navy peaked cap and a shiny badge.');
+  I('odd-one-out', 'outfit', 2, 'Sheriff', 'rare', '#D7B06E', '#FFCF3F', 'A big gold star, a cream hat and a serious moustache.');
+  I('odd-one-out', 'outfit', 3, 'Mall Cop', 'common', '#F3F1EA', '#2C3550', 'Sunglasses indoors and a whistle for the food court.');
+  I('odd-one-out', 'outfit', 4, 'Security Guard', 'common', '#E8F13A', '#1F2128', 'Bright vest, black cap and an earpiece that hears everything.');
+  I('odd-one-out', 'outfit', 5, 'Detective', 'rare', '#C49A5C', '#5B4A3C', 'Trench coat, collar up, hat down. Something is out of place.');
+  I('odd-one-out', 'outfit', 6, 'Store Manager', 'common', '#3A7BD5', '#CDB88F', 'Name tag, headset, and a very close eye on the shelves.');
+  I('odd-one-out', 'outfit', 7, 'Janitor', 'common', '#5C7D9C', '#F2CF2E', 'Coveralls, rubber gloves and a key for every door.');
+  I('odd-one-out', 'outfit', 8, 'Park Ranger', 'rare', '#C9B27C', '#5D6B3B', 'A flat-brimmed hat for spotting what does not belong.');
+  I('odd-one-out', 'outfit', 9, 'Exterminator', 'rare', '#E9E6DA', '#C84A3A', 'Goggles, mask and a spray tank. Pests beware.');
+  I('odd-one-out', 'outfit', 10, 'Construction Worker', 'common', '#FFCC1A', '#C6EC2F', 'Hard hat, hi-vis vest and a belt full of pouches.');
+  I('odd-one-out', 'outfit', 11, 'Cowboy', 'rare', '#C9443A', '#7B4D2A', 'Waistcoat, bandana and a hat with the sides turned up.');
+  I('odd-one-out', 'outfit', 12, 'Pirate', 'epic', '#B8323A', '#F0C445', 'Red coat, gold trim, a three-cornered hat and an eye patch.');
+  I('odd-one-out', 'outfit', 13, 'Top Hat', 'epic', '#1F1D24', '#FF7A1A', 'The usual hunter, very tall and very fancy, with a monocle.');
+  I('odd-one-out', 'outfit', 14, 'Traffic Cone', 'legendary', '#FF6A1A', '#F6F6F2', 'The usual hunter with a traffic cone for a hat.');
+  I('odd-one-out', 'tool', 1, 'Flashlight', 'common', '#FFD23F', '#23252C', 'A yellow torch with a glowing lens. Shoots like the rifle.');
+  I('odd-one-out', 'tool', 2, 'Price Scanner', 'rare', '#E4E7EC', '#FF4A3A', 'Beep. That item is not in the system.');
+  I('odd-one-out', 'tool', 3, 'Flyswatter', 'common', '#3FBF6A', '#FF5A4A', 'For anything that buzzes, or anything that moves.');
+  I('odd-one-out', 'tool', 4, 'Butterfly Net', 'rare', '#C9955A', '#F4F4F0', 'Catch them gently.');
+  I('odd-one-out', 'tool', 5, 'Broom', 'common', '#B5834A', '#E8C766', 'Sweep the room, one prop at a time.');
+  I('odd-one-out', 'tool', 6, 'Rubber Chicken', 'epic', '#FFD23F', '#E23B3B', 'Nobody knows why. It works just the same.');
+  I('odd-one-out', 'taunt', 1, 'Bike Horn', 'common', '#FF7A1A', '#171A2E', 'Honk honk. Over here.');
+  I('odd-one-out', 'taunt', 2, 'Squeaky Duck', 'common', '#FFD23F', '#FF8A1A', 'Two squeaks from somewhere nearby.');
+  I('odd-one-out', 'taunt', 3, 'Slide Whistle', 'common', '#3F7CFF', '#FFFFFF', 'All the way up, and back down.');
+  I('odd-one-out', 'taunt', 4, 'Boing', 'common', '#14B89A', '#FFFFFF', 'A spring that has had enough of sitting still.');
+  I('odd-one-out', 'taunt', 5, 'Cuckoo', 'rare', '#8A5A33', '#FFD23F', 'It is time. It is always time.');
+  I('odd-one-out', 'taunt', 6, 'Kazoo', 'rare', '#EC4899', '#FFD23F', 'A short, buzzy tune of victory.');
+  I('odd-one-out', 'taunt', 7, 'Doorbell', 'rare', '#C9D0D8', '#3A3F4A', 'Ding dong. Is anybody home?');
+  I('odd-one-out', 'taunt', 8, 'Party Blower', 'epic', '#FF5A4A', '#3FD2FF', 'Brrrt. Somebody is having fun.');
+  I('odd-one-out', 'poof', 1, 'Cloud Poof', 'common', '#FFFFFF', '#C8D2DC', 'A big soft cloud where the prop was.');
+  I('odd-one-out', 'poof', 2, 'Feather Poof', 'rare', '#FFFFFF', '#FFE1EC', 'Feathers that drift down slowly.');
+  I('odd-one-out', 'poof', 3, 'Bubble Poof', 'rare', '#BFE9FF', '#D8C8FF', 'Bubbles that float up and pop.');
+  I('odd-one-out', 'poof', 4, 'Star Poof', 'epic', '#FFD23F', '#FFFFFF', 'A ring of spinning gold stars.');
+  I('odd-one-out', 'poof', 5, 'Price Tag Poof', 'epic', '#FFE24A', '#FF5A4A', 'Clearance. Everything must go.');
   // Items a game hands over itself are in no pack: give is 'free' (anyone may wear it; the game grants it the first time it
   // is worn) or 'earned' (the game grants it when it is won). grant(id), below, only adds these.
   GAME_ITEMS.forEach(function (it) { if (it.game !== 'slipstream') return; if (it.slot === 'sponsor' || (it.slot === 'helmet' && it.no <= 8)) it.give = 'free'; else if (it.slot === 'livery' && it.no > 8) it.give = 'earned'; });
