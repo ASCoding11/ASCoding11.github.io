@@ -370,18 +370,18 @@ const POOFS=[null,
     const r=part(A.ringGeo,'#ffffff',.8,true,c,{life:.35,grow:3,sc:.25*s});r.m.rotation.x=-PI/2;r.m.material.side=THREE.DoubleSide;
   }},
   {name:'Feather Poof',go(c,s){
-    for(let i=0;i<26;i++){const a=Math.random()*TAU;part(FEATHER_G,pick(['#ffffff','#fff4e2','#ffe1ec','#e9f3ff']),null,false,c.clone(),{life:rand(1.8,2.6),v:new V3(Math.cos(a)*rand(.8,2.4),rand(1.5,3.5),Math.sin(a)*rand(.8,2.4)),drag:2.6,grav:-.55,sway:rand(.6,1.2),spin:new V3(rand(-3,3),rand(-5,5),rand(-3,3)),sc:rand(.07,.11),fade:0})}
+    for(let i=0;i<26;i++){const a=Math.random()*TAU;part(FEATHER_G,pick(['#ffffff','#fff4e2','#ffe1ec','#e9f3ff']),null,false,c.clone(),{life:rand(1.8,2.6),v:new V3(Math.cos(a)*rand(.8,2.4),rand(1.5,3.5),Math.sin(a)*rand(.8,2.4)),drag:2.6,grav:-.55,sway:rand(.6,1.2),spin:new V3(rand(-3,3),rand(-5,5),rand(-3,3)),sc:rand(.1,.15)*Math.max(1,s*.7),fade:0})}
     A.puff(c,clamp(s,.6,1.6),'#ffffff');
   }},
   {name:'Bubble Poof',go(c,s){
-    for(let i=0;i<22;i++){const a=Math.random()*TAU,r=rand(0,.3)*s;part(A.fxSphere,pick(['#bfe9ff','#d8c8ff','#c8ffe9','#ffffff']),.4,true,c.clone().add(new V3(Math.cos(a)*r,rand(-.2,.2),Math.sin(a)*r)),{life:rand(1,2.2),v:new V3(Math.cos(a)*rand(.2,.9),rand(.6,1.6),Math.sin(a)*rand(.2,.9)),drag:.8,sway:rand(.4,.9),sc:rand(.05,.14),pop:1})}
+    for(let i=0;i<22;i++){const a=Math.random()*TAU,r=rand(0,.3)*s;part(A.fxSphere,pick(['#3fb4ff','#9a7bff','#2fd6a0','#ff7ac8']),.6,false,c.clone().add(new V3(Math.cos(a)*r,rand(-.2,.2),Math.sin(a)*r)),{life:rand(1,2.2),v:new V3(Math.cos(a)*rand(.2,.9),rand(.6,1.6),Math.sin(a)*rand(.2,.9)),drag:.8,sway:rand(.4,.9),sc:rand(.08,.18)*Math.max(1,s*.7),pop:1})}
   }},
   {name:'Star Poof',go(c,s){
-    for(let i=0;i<18;i++){const a=i/18*TAU+rand(-.1,.1);part(STAR_G,pick(['#ffd23f','#ffe98a','#ffb21f','#ffffff']),.95,true,c.clone(),{life:rand(.8,1.2),v:new V3(Math.cos(a)*rand(2,3.6)*s,rand(1,3),Math.sin(a)*rand(2,3.6)*s),drag:2.4,grav:3,spin:new V3(0,0,rand(-8,8)),face:1,sc:rand(.06,.1)*Math.max(1,s*.8)})}
+    for(let i=0;i<18;i++){const a=i/18*TAU+rand(-.1,.1);part(STAR_G,pick(['#ffd23f','#ffc21f','#ffb21f','#ffe066']),null,false,c.clone(),{life:rand(.8,1.2),v:new V3(Math.cos(a)*rand(2,3.6)*s,rand(1,3),Math.sin(a)*rand(2,3.6)*s),drag:2.4,grav:3,spin:new V3(0,0,rand(-8,8)),face:1,sc:rand(.11,.16)*Math.max(1,s*.7),fade:0})}
     part(A.fxSphere,'#fff3b0',.7,true,c,{life:.25,grow:3,sc:.18*s});
   }},
   {name:'Price Tag Poof',go(c,s){
-    for(let i=0;i<16;i++){const a=Math.random()*TAU;part(TAG_G,pick(['#ffffff','#fff3c4','#ffe24a','#ff5a4a','#ffffff']),null,false,c.clone(),{life:rand(1.4,2),v:new V3(Math.cos(a)*rand(1,2.6),rand(2.5,4.5),Math.sin(a)*rand(1,2.6)),drag:1.2,grav:5,sway:rand(.3,.7),spin:new V3(rand(-6,6),rand(-6,6),rand(-6,6)),sc:rand(.07,.1),fade:0})}
+    for(let i=0;i<16;i++){const a=Math.random()*TAU;part(TAG_G,pick(['#ffffff','#ffe24a','#ff5a4a','#3f7cff','#14b89a']),null,false,c.clone(),{life:rand(1.4,2),v:new V3(Math.cos(a)*rand(1,2.6),rand(1.5,3),Math.sin(a)*rand(1,2.6)),drag:1.2,grav:6,sway:rand(.3,.7),spin:new V3(rand(-6,6),rand(-6,6),rand(-6,6)),sc:rand(.15,.2)*Math.max(1,s*.7),fade:0})}
     A.puff(c,clamp(s,.6,1.6),'#fff6e0');
   }},
 ];
@@ -516,7 +516,7 @@ const CSS=`
 .wd-grid img,.wd-grid canvas{width:100%;max-width:96px;aspect-ratio:1;border-radius:8px;background:#e8edf2;object-fit:cover}
 .wd-grid .tall{aspect-ratio:3/4}
 #wdOpen,#wdPause{margin-top:10px}
-#tTaunt{background:var(--prop)!important;color:#fff}
+#tTaunt{background:var(--sun)!important;color:var(--ink)}
 #tTaunt.cd{opacity:.55}
 @media (max-width:640px){.wd-body{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}.wd-pics img{max-width:84px}.wd-prev small{display:none}.wd-grid{grid-template-columns:repeat(auto-fill,minmax(86px,1fr))}}
 @media (max-height:500px){#wd .card{padding:10px 14px}.wd-head h2{font-size:22px}.wd-sub{margin:2px 0 6px}.wd-body{grid-template-columns:150px minmax(0,1fr)}.wd-pics img{max-width:72px}.wd-prev small{display:none}.wd-grid{grid-template-columns:repeat(auto-fill,minmax(84px,1fr))}}
