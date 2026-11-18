@@ -48,8 +48,8 @@ button:disabled{opacity:.5;cursor:default}
 
 #stormTint{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,rgba(20,30,52,0) 38%,rgba(8,14,30,.62) 100%);opacity:0;transition:opacity .4s}
 #hud{position:absolute;inset:0;pointer-events:none}
-#hud.spec #vitals,#hud.spec #slots,#hud.spec #cross,#hud.spec #reload,#hud.spec #hint,#hud.spec #scope,#hud.spec #sight,#hud.spec #ammo,#hud.spec #prompt,#hud.spec #useBar{display:none}
-#hud.air #cross,#hud.air #ammo,#hud.air #sight{display:none}
+#hud.spec #vitals,#hud.spec #slots,#hud.spec #cross,#hud.spec #reload,#hud.spec #hint,#hud.spec #scope,#hud.spec #ammo,#hud.spec #prompt,#hud.spec #useBar{display:none}
+#hud.air #cross,#hud.air #ammo{display:none}
 
 #mapBox{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:calc(12px + env(safe-area-inset-right,0px));width:168px;display:flex;flex-direction:column;gap:4px;align-items:stretch}
 #mini{width:168px;height:168px;display:block;border:2px solid rgba(255,248,234,.5);background:#164a63;border-radius:6px;pointer-events:auto;cursor:pointer}
@@ -126,10 +126,8 @@ button:disabled{opacity:.5;cursor:default}
 #ammo.low b{color:var(--bad)}
 #ammo small{font-size:20px;color:var(--ink-dim);font-weight:700}
 
-#cross{position:absolute;left:50%;top:50%;width:0;height:0}
-#cross i{position:absolute;background:#fff;box-shadow:0 0 2px #000}
-#cross .h{width:9px;height:2px;top:-1px} #cross .v{width:2px;height:9px;left:-1px}
-#cross .dot{width:2px;height:2px;left:-1px;top:-1px}
+/* the reticle (RET): an SVG one CSS pixel per unit, its origin put on a whole pixel in the middle of the view by updateHud */
+#cross{position:absolute;left:50%;top:50%;width:2px;height:2px;margin:-1px 0 0 -1px;overflow:visible;pointer-events:none}
 #hitm{position:absolute;left:50%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;opacity:0}
 #hitm::before,#hitm::after{content:"";position:absolute;left:50%;top:0;width:2px;height:100%;background:currentColor;margin-left:-1px;transform:rotate(45deg);clip-path:polygon(0 0,100% 0,100% 30%,0 30%,0 70%,100% 70%,100% 100%,0 100%)}
 #hitm::after{transform:rotate(-45deg)}
@@ -146,9 +144,6 @@ button:disabled{opacity:.5;cursor:default}
 #scope{position:absolute;inset:0;--r:min(36vh,36vw);--rim:#1a2530;--tint:rgba(120,190,255,.05);
   background:radial-gradient(circle at center,var(--tint) 0 calc(var(--r)*.72),rgba(0,6,12,.34) calc(var(--r) - 7px),var(--rim) calc(var(--r) - 5px) var(--r),rgba(2,5,8,.985) calc(var(--r) + 2px))}
 #scopeR{position:absolute;left:50%;top:50%;width:calc(var(--r)*2);height:calc(var(--r)*2);transform:translate(-50%,-50%);overflow:visible}
-/* every other weapon's sight picture, drawn over the middle of the view while aiming */
-#sight{position:absolute;left:50%;top:50%;width:clamp(170px,34vh,300px);height:clamp(170px,34vh,300px);transform:translate(-50%,-50%);filter:drop-shadow(0 0 1.5px rgba(0,0,0,.9))}
-#sightR{display:block;width:100%;height:100%;overflow:visible}
 #hurt{position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 45%,rgba(200,30,20,.7) 100%);opacity:0}
 #tags{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .ntag{position:absolute;left:0;top:0;font-weight:700;font-size:14px;letter-spacing:.04em;color:#fff;text-shadow:0 1px 2px #000;white-space:nowrap;pointer-events:none}
@@ -401,9 +396,8 @@ body.touch #net{font-size:14px}
     <div id="feed"></div>
     <div id="tags"></div>
     <div id="scope" hidden><svg id="scopeR" viewBox="-100 -100 200 200" aria-hidden="true"></svg></div>
-    <div id="sight" hidden><svg id="sightR" viewBox="-100 -100 200 200" aria-hidden="true"></svg></div>
     <div id="hurt"></div>
-    <div id="cross"><i class="h" id="cl"></i><i class="h" id="cr"></i><i class="v" id="ct"></i><i class="v" id="cb"></i><i class="dot"></i></div>
+    <svg id="cross" viewBox="-1 -1 2 2" aria-hidden="true"></svg>
     <div id="hitm"></div>
     <div id="reload" hidden><i id="reloadFill"></i></div>
     <div id="useBar" hidden><span id="useLbl"></span><i><b id="useFill"></b></i></div>
@@ -3622,27 +3616,51 @@ function resolveShot(shooter,w,r,rays,color){
   }
   return{ends,pd,md,hs,hit:anyHit};
 }
-// Sight pictures, one per weapon, in a 200 x 200 box centred on the aim point (SVG, so they stay sharp at any size).
-// Pistol: three white dots. Heavy Pistol: a fat front post in a notch. SMG: a small ring. Drum SMG: a ring with four ticks.
-// Pump Shotgun: a wide dashed circle (about its spread) with a bead. Auto Shotgun: wide brackets. Rifle: a red dot in a small square
-// window. Heavy Rifle: a red chevron with drop marks in a round tube. Bolt Sniper: fine cross hairs with mil dots and thick outer
-// posts. Scout Sniper: a green duplex cross with an open centre and a ring.
-const SIGHT=(()=>{const W='stroke="#fff" fill="none" stroke-linecap="round"',R='#ff4a3a',o={};
-  o.pi=`<circle r="2" fill="#fff"/><circle cx="-13" r="2" fill="#fff"/><circle cx="13" r="2" fill="#fff"/><path ${W} stroke-width="1.5" d="M-22 0h-7M22 0h7"/>`;
-  o.hc=`<path ${W} stroke-width="5" d="M0 3v17"/><path ${W} stroke-width="2.2" d="M-17 20v-13h9M17 20v-13h-9"/><circle r="1.6" fill="${R}"/>`;
-  o.sm=`<circle r="11" ${W} stroke-width="1.8"/><circle r="1.6" fill="#fff"/>`;
-  o.ds=`<circle r="15" ${W} stroke-width="1.8"/><path ${W} stroke-width="2.2" d="M0-15v-8M0 15v8M-15 0h-8M15 0h8"/><circle r="1.8" fill="#fff"/>`;
-  o.sg=`<circle r="30" ${W} stroke-width="1.8" stroke-dasharray="7 6"/><circle r="2.6" fill="#fff"/>`;
-  o.as=`<path ${W} stroke-width="2.4" d="M-30-22h-10v44h10M30-22h10v44h-10"/><path ${W} stroke-width="1.6" d="M-6 0h12M0-6v12"/>`;
-  o.ar=`<rect x="-46" y="-34" width="92" height="68" rx="9" fill="rgba(120,200,255,.07)" stroke="#161b22" stroke-width="7"/><path stroke="#161b22" stroke-width="9" fill="none" d="M-16 37v14h32v-14"/><circle r="6" fill="${R}" opacity=".28"/><circle r="2.6" fill="${R}"/>`;
-  o.hr=`<circle r="74" fill="rgba(120,200,255,.06)" stroke="#12171d" stroke-width="12"/><circle r="67" fill="none" stroke="#2a323b" stroke-width="2"/><path stroke="${R}" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round" d="M-9 9L0 0l9 9"/><path stroke="${R}" stroke-width="1.8" fill="none" d="M-6 20h12M-4 31h8M-2.5 42h5M0 12v40"/><path stroke="#12171d" stroke-width="2.4" fill="none" d="M-62 0h-12M62 0h12M0-62v-12"/>`;
-  let dots='';for(const k of [-4,-3,-2,-1,1,2,3,4])dots+=`<circle cx="${k*12}" r="1.5"/><circle cy="${k*12}" r="1.5"/>`;
-  o.sr=`<g stroke="#0a0d10" fill="#0a0d10"><path stroke-width=".7" d="M-58 0h58M0 0h58M0-58v116"/><path stroke-width="4.5" d="M-99 0h39M60 0h39M0 60v39M0-99v39"/>${dots}</g>`;
-  o.ss=`<g stroke="#0d2a16" fill="none"><path stroke-width="3.6" d="M-99 0h74M25 0h74M0 25v74"/><path stroke-width="1" d="M-25 0h18M7 0h18M0 7v18M0-99v92"/><circle r="7" stroke-width="1.2"/></g><circle r="1.2" fill="#0d2a16"/>`;
-  return o})();
+// Reticles: one style per family, the same when firing from the hip and when aiming (aiming only pulls it in, because the spread is
+// smaller and the view is zoomed), so the family is obvious at a glance:
+//   Pistol: a dot in a thin ring.   SMG: a small ring with four short ticks outside it.   Shotgun: a wide ring broken into four
+//   arcs, as wide as the pellets spread.   AR: the classic four lines and a dot (aimed, the dot turns red, like a red-dot sight).
+//   Sniper (from the hip): a ring with cross hairs through it, like a little scope; aimed, the scope (#scope, SNIPER_RET).
+// Crowbar, heals and building: just a dot. Drawn in #cross, an SVG one CSS pixel per unit with its origin on a whole pixel in the
+// middle of the view, so straight lines are 2 px white over a 1 px dark edge each side (crisp, and readable on bright sky and in dark
+// rooms). The rings and gaps follow the real spread of the shot in pixels (RET.size), plus a short kick after each of your shots.
+const RET=(()=>{const OUT='rgba(8,10,14,.62)',RED='#ff4a3a';
+  // one layer of a style: o is the dark edge under the white. Parts that move: .rr rings (r), .tk ticks (transform).
+  // (an odd width sits half a pixel over, so its edges fall on whole pixels too)
+  const tick=(a,len,w,o)=>`<path class="tk" data-a="${a}" d="M${o?-1:0} ${w%2?.5:0}h${len+(o?2:0)}" stroke-width="${w+(o?2:0)}"/>`,
+    ticks=(len,w,o)=>[0,1,2,3].map(a=>tick(a,len,w,o)).join(''),
+    ring=(w,o,dash)=>`<circle class="rr" data-h="${w%2?.5:0}" r="10" fill="none" stroke-width="${w+(o?2:0)}"${dash?` pathLength="100" stroke-dasharray="${o?'20.8 4.2':'20 5'}" stroke-dashoffset="${o?22.9:22.5}"`:''}/>`,
+    dot=(r,o,col)=>`<circle r="${r+(o?1:0)}" stroke="none"${!o&&col?` fill="${col}"`:''}/>`;
+  const STY={
+    pi:(o,ad)=>ring(1,o)+dot(1.5,o),
+    sm:(o,ad)=>ring(2,o)+ticks(4,2,o)+dot(1.5,o),
+    sg:(o,ad)=>ring(2,o,1)+dot(2,o),
+    ar:(o,ad)=>ticks(7,2,o)+dot(ad?2:1.5,o,ad?RED:''),
+    sr:(o,ad)=>ring(1,o)+ticks(11,1,o)+dot(1.5,o),
+    dot:(o)=>dot(2,o)};
+  // where the moving parts go for a spread radius R (px): the ring's radius and how far out the ticks start
+  const FIT={pi:R=>[Math.max(6,R+2),0],sm:R=>{const r=Math.max(7,R);return[r,r+3]},sg:R=>[Math.max(14,R),0],ar:R=>[0,Math.max(4,R)],
+    sr:R=>{const r=Math.max(10,R);return[r,r-5]},dot:()=>[0,0]};
+  let key='',el=null,rr=[],tk=[],last='';
+  return{
+    // style: a family ('pi', 'sm', 'sg', 'ar', 'sr') or 'dot'; ad: aiming
+    set(e,style,ad){const k=style+(ad?'+':'');if(k===key&&e===el)return;el=e;key=k;last='';const f=STY[style]||STY.dot;
+      e.innerHTML=`<g stroke="${OUT}" fill="${OUT}">${f(1,ad)}</g><g stroke="#fff" fill="#fff">${f(0,ad)}</g>`;rr=[...e.querySelectorAll('.rr')];tk=[...e.querySelectorAll('.tk')]},
+    // R: the spread radius in px
+    size(R){const [r,d]=(FIT[key.replace('+','')]||FIT.dot)(R),s=Math.round(r)+'|'+Math.round(d);if(s===last)return;last=s;
+      for(const c of rr)c.setAttribute('r',Math.round(r)+ +c.dataset.h);for(const t of tk)t.setAttribute('transform',`rotate(${t.dataset.a*90}) translate(${Math.round(d)} 0)`)}
+  }})();
+let retKick=0;   // a short widening of the reticle after each of your shots, in px (eases back in updateHud)
+const RET_KICK={pi:3,sm:2,sg:5,ar:3,sr:6};
+// The snipers' scope reticle, in the lens's own units (radius 100): thin cross hairs (1.5 px whatever the screen) with an open middle and
+// a red centre point, two small marks on each arm, and thick posts from the edge (a duplex), all with a faint pale edge so they show
+// in a dark room too. Both snipers use it; the Scout's lens is wider and green-rimmed (SCOPE).
+const SNIPER_RET=(()=>{const NS='vector-effect="non-scaling-stroke"',D='#0b0e12',HALO='rgba(255,255,255,.32)';
+  const thin='M-62 0H-4M4 0H62M0-62V-4M0 4V62',marks='M-20-2.5v5M-40-2.5v5M20-2.5v5M40-2.5v5M-2.5-20h5M-2.5-40h5M-2.5 20h5M-2.5 40h5',posts='M-100 0H-62M62 0H100M0-100V-62M0 62V100';
+  return`<g fill="none"><path stroke="${HALO}" stroke-width="3.5" ${NS} d="${thin} ${marks}"/><path stroke="${HALO}" stroke-width="5.4" d="${posts}"/>`+
+    `<path stroke="${D}" stroke-width="1.5" ${NS} d="${thin} ${marks}"/><path stroke="${D}" stroke-width="4" d="${posts}"/></g><circle r="1.4" fill="#ff4a3a" stroke="${HALO}" stroke-width="1" ${NS}/>`})();
 // what the scope looks like for each sniper: [lens radius, rim colour, glass tint]
 const SCOPE={sr:['min(34vh,34vw)','#1a2530','rgba(120,190,255,.06)'],ss:['min(41vh,41vw)','#22382a','rgba(140,255,170,.06)']};
-let sightKey='';
 // Right-click or hold Shift to aim. Every weapon has its own aim view; with the snipers that is the scope.
 function isADS(){return state==='playing'&&!paused&&mode==='combat'&&held('aim')&&player.alive&&player.st==='ground'&&player.reloadT<=0&&!!heldW(player)}
 function curSpread(e,w,ads){const moving=Math.hypot(e.vel.x,e.vel.z)>1.2||!e.onGround;let s=ads?w.ads:w.hip;if(moving&&w.pellets===1)s=s*1.7+.004;return s}
@@ -3670,7 +3688,7 @@ function playerShoot(){
   const s=heldItem(player),w=heldW(player)||CROW,ads=isADS();
   const camF=fwdOf(player.yaw,player.pitch),cp=camera.position.clone().addScaledVector(camF,camDist*.98);
   shootFrom(player,w,s?s.r:0,camF,cp,ads,0xfff6c8);
-  if(w!==CROW){player.pitch=clamp(player.pitch+(RECOIL[w.id]||.007),-1.45,1.45);player.yaw+=(Math.random()-.5)*(w.fam==='ar'?.006:.012);
+  if(w!==CROW){retKick=RET_KICK[w.fam]||3;player.pitch=clamp(player.pitch+(RECOIL[w.id]||.007),-1.45,1.45);player.yaw+=(Math.random()-.5)*(w.fam==='ar'?.006:.012);
     if(!RM){camera.fov+=PUNCH[w.id]||.4;camera.updateProjectionMatrix()}}
 }
 function startReload(e){const w=heldW(e),s=heldItem(e);if(!w||e.reloadT>0||s.n>=w.mag)return;
@@ -4445,7 +4463,7 @@ function onlineTick(){
 }
 
 /* ---------- HUD ---------- */
-const hud={root:$('hud'),feed:$('feed'),banner:$('banner'),hint:$('hint'),cross:$('cross'),cl:$('cl'),cr:$('cr'),ct:$('ct'),cb:$('cb'),hitm:$('hitm'),hurt:$('hurt'),scope:$('scope'),scopeR:$('scopeR'),sight:$('sight'),sightR:$('sightR'),
+const hud={root:$('hud'),feed:$('feed'),banner:$('banner'),hint:$('hint'),cross:$('cross'),hitm:$('hitm'),hurt:$('hurt'),scope:$('scope'),scopeR:$('scopeR'),
   reload:$('reload'),reloadF:$('reloadFill'),hpN:$('hpNum'),hpF:$('hpFill'),shN:$('shNum'),shF:$('shFill'),tags:$('tags'),net:$('net'),mats:$('mats'),matsBox:$('matsBox'),matsNm:$('matsBox').querySelector('.nm'),slots:$('slots'),ammo:$('ammo'),prompt:$('prompt'),
   useBar:$('useBar'),useLbl:$('useLbl'),useFill:$('useFill'),alive:$('aliveN'),kills:$('killN'),stormT:$('stormT'),tint:$('stormTint'),place:$('placeLbl'),strip:$('compStrip'),safe:$('compSafe'),warn:$('stormWarn'),swT:$('swTitle'),swS:$('swSub')};
 // the compass strip: three turns of the dial side by side (3 px a degree), slid sideways as you turn
@@ -4499,13 +4517,16 @@ function updateHud(dt){
   if(touchUI){const u=$('tUse');u.hidden=!tl;if(tl&&u.textContent!==tl)u.textContent=tl;const ed=mode==='edit';
     hudSet($('tFire'),'#tf',ed?'TILE':mode==='build'?'PLACE':(s&&HEALS[s.t]?'USE':!w?'HIT':'FIRE'));hudSet($('tEdit'),'#te',ed?'DONE':'EDIT');hudSet($('tReload'),'#tr',ed?'WHOLE':'RELOAD');hudSet($('tAim'),'#ta',ed?'CANCEL':'AIM');
     const te=$('tEdit'),sh=ed||(!!editAim&&mode==='combat');if(te.hidden===sh)te.hidden=!sh;$('tAim').classList.toggle('on',!!tAct.aim)}
-  const ads=isADS(),scoped=ads&&w&&w.fam==='sr',sgt=ads&&w?w.id:'';
-  if(sgt!==sightKey){sightKey=sgt;hud.scope.hidden=!scoped;hud.sight.hidden=!sgt||scoped;
-    if(sgt){(scoped?hud.scopeR:hud.sightR).innerHTML=SIGHT[sgt]||'';if(scoped){const c=SCOPE[sgt]||SCOPE.sr;hud.scope.style.setProperty('--r',c[0]);hud.scope.style.setProperty('--rim',c[1]);hud.scope.style.setProperty('--tint',c[2])}}}
-  const sp=mode==='build'||!w?.004:(w.pellets>1?(ads?w.ads:w.hip):curSpread(p,w,ads));
-  const gap=Math.round((4+sp*(VH/2)/Math.tan(camera.fov*Math.PI/360)*.9)*4)/4;
-  if(hudLast.get('gap')!==gap){hudLast.set('gap',gap);hud.cl.style.transform=`translate(${-gap-9}px,0)`;hud.cr.style.transform=`translate(${gap}px,0)`;hud.ct.style.transform=`translate(0,${-gap-9}px)`;hud.cb.style.transform=`translate(0,${gap}px)`}
-  hudSet(hud.cross,'c:opacity',sgt?'0':'1');   // while aiming, the weapon's own sight replaces the crosshair
+  const ads=isADS(),scoped=!!(ads&&w&&w.fam==='sr');
+  if(hudLast.get('scp')!==scoped){hudLast.set('scp',scoped);hud.scope.hidden=!scoped;if(scoped)hud.scopeR.innerHTML=SNIPER_RET}
+  if(scoped&&hudLast.get('scw')!==w.id){hudLast.set('scw',w.id);const c=SCOPE[w.id]||SCOPE.sr;hud.scope.style.setProperty('--r',c[0]);hud.scope.style.setProperty('--rim',c[1]);hud.scope.style.setProperty('--tint',c[2])}
+  // the reticle: the held weapon's family style, sized to the real spread of its shot in pixels at the current zoom
+  const rs=mode==='build'||mode==='edit'||!w?'dot':w.fam;RET.set(hud.cross,rs,ads);
+  retKick=Math.max(0,retKick-dt*retKick*14-dt*4);
+  const sp=!w?0:w.pellets>1?(ads?w.ads:w.hip):curSpread(p,w,ads);
+  RET.size(sp*(VH/2)/Math.tan(camera.fov*Math.PI/360)+retKick);
+  hudSet(hud.cross,'c:transform',`translate(${Math.floor(VW/2)-VW/2}px,${Math.floor(VH/2)-VH/2}px)`);   // on a whole pixel, so the lines are sharp
+  hudSet(hud.cross,'c:visibility',scoped?'hidden':'visible');
   hitT-=dt;hudSet(hud.hitm,'h:opacity',hitT>0?'1':'0');
   hurtA=Math.max(0,hurtA-dt*1.2);hudSet(hud.hurt,'u:opacity',hurtA.toFixed(2));
   // match info: players left, your knockouts, the storm clock
@@ -5296,7 +5317,7 @@ if(navigator.webdriver)window.__dz={get state(){return state},get online(){retur
   fire(){const w=heldW(player),s=heldItem(player);updateCamera(0);playerShoot();if(s&&w)s.n=w.mag;player.cd=0},
   draws(){return renderer.info.render.calls},
   setNoRender(v){window.__noRender=!!v},onNode,updateRemotes,renderOnce(){piecesTick(0);mpFlush();syncLimbs();drawScene()},get fxTier(){return fxTier},set fxTier(v){fxTier=v},get lookKey(){return lookKey},mpieces,mpBreak,mpSetHp,resetMap,mpAt,allRuns,brokenBits,applyBits,sendEv,get brokenN(){return brokenN},hash,setMapV(v){mapV=v},get mapV(){return mapV},mapSize:MAP,ICONS,paintControl,get mapBg(){if(!mapBg)buildMapBg();return mapBg},removePiece,wallSpec,pushOut,SPEED,AIR,BODY:{R,H},buildings,rampIn,updateBots,updatePlayer,
-  GUN_GEO,GUN_TIP,GUN_OCT,RTAG,MAT,gunIM,itemIM,flashes,trs,bits,animModel,gunTip,startReload,tickWeapon,sfxShot,sfxReload,sfxPump,sfxBolt,sfxSwitch,isADS,KICK,
+  GUN_GEO,GUN_TIP,GUN_OCT,RTAG,RET,SNIPER_RET,SCOPE,killFeed,MAT,gunIM,itemIM,flashes,trs,bits,animModel,gunTip,startReload,tickWeapon,sfxShot,sfxReload,sfxPump,sfxBolt,sfxSwitch,isADS,KICK,
   STUCK_LOG,landPath,landClear,navShut,NAVN,updateBots,updatePlayer,step(dt){pClock+=dt*1000;practiceTick(dt);if(inPlay()){updatePlayer(dt);updateBots(dt)}},
   landOk,landFit,landUnder,skirtOf,skirtList,pieceBox,buildList,applyBuilds,handleEvent,get bdDirty(){return bdDirty},bdGone,ED_N,edRects,edOk,pieceShape,partsOf,partList,partIM,pieceInst,editPiece,wouldTrap,openEdit,closeEdit,confirmEdit,editKey,editTarget,editTile,updateEdit,canEdit,pieceMatrix,pieceCentre,EDIT_T,EDIT_RANGE,pressCode,get edit(){return edit},get editJob(){return editJob},get editAim(){return editAim},get buildCd(){return buildCd},rampH,rampAt,rampBlocked,solidAt,rayRamp,rhash,COST,JUMP,GRAV:G,STEP,RT,MAXL,terrainH,walkH,terrainSlope,rayTerrain,TH,TN,TS,TM,LVL,LAKE,PADS,SHED_Y,chestSpots,floorSpots,buildings,footprints,get groundMesh(){return groundMesh},
   Face,FACE_STARTS,FACE0,faceOf,faceBits,faceStr,faceRows,faceSpot,faceZ,bagFace,setShowFaces,NOOB,get myFace(){return myFace},get showFaces(){return showFaces},
