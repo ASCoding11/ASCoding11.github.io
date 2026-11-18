@@ -798,7 +798,7 @@
       const D = P.drv; D.position.set(0, T.A.y, T.A.z); D.rotation.set(0, 0, 0); D.scale.setScalar(T.A.s);
       (MOVES[DRIVERS[T.d].anim] || MOVES.bounce)(D, u);
       const pop = Math.min(1, T.t / .15), fade = u > .8 ? 1 - (u - .8) / .2 : 1;
-      P.emote.position.set(0, 4.7 + u * .6, 0); P.emote.scale.set(5.6 * (.6 + .4 * pop), 1.4 * (.6 + .4 * pop), 1); P.emote.material.opacity = fade;
+      P.emote.position.set(0, (k.isMe ? 3.4 : 4.7) + u * .6, 0);   // your own sits lower, under the banner P.emote.scale.set(5.6 * (.6 + .4 * pop), 1.4 * (.6 + .4 * pop), 1); P.emote.material.opacity = fade;
     }
 
     // ---------------- hooks the game calls ----------------
@@ -859,7 +859,7 @@
       { key: 3, tab: 'Wrecks', list: A.WRECKS, none: 'Classic explosion' }
     ];
     const CSS = `
-#garageWrap{position:fixed;inset:0;z-index:60;background:rgba(27,23,51,.55);display:flex;align-items:center;justify-content:center;padding:calc(12px + var(--sat)) calc(12px + var(--sar)) calc(12px + var(--sab)) calc(12px + var(--sal));box-sizing:border-box}
+#garageWrap{position:fixed;inset:0;z-index:2147482500;background:rgba(27,23,51,.55);display:flex;align-items:center;justify-content:center;padding:calc(12px + var(--sat)) calc(12px + var(--sar)) calc(12px + var(--sab)) calc(12px + var(--sal));box-sizing:border-box}
 #garage{width:min(900px,100%);height:min(620px,100%);display:grid;grid-template-columns:310px minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);gap:12px 16px;padding:14px 16px 16px;box-sizing:border-box}
 #garage .g-head{grid-column:1/-1;display:flex;align-items:center;gap:10px}
 #garage h2{margin:0;font:400 30px var(--f-display);color:var(--ink);flex:1}
@@ -873,14 +873,14 @@
 #garage .g-tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
 #garage .g-tabs button{font:700 15px var(--f-ui);padding:7px 2px;border:2.5px solid var(--ink);border-radius:10px;background:var(--paper);box-shadow:0 3px 0 var(--ink);color:var(--ink)}
 #garage .g-tabs button[aria-selected="true"]{background:var(--sun)}
-#garage .g-grid{flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px;align-content:start;padding:2px 4px 6px 2px}
-#garage .g-tile{display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 4px 6px;border:2.5px solid var(--ink);border-radius:12px;background:#f3f1fb;box-shadow:0 3px 0 var(--ink);font:700 13px/1.15 var(--f-ui);color:var(--ink);text-align:center;min-height:0}
+#garage .g-grid{flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));grid-auto-rows:max-content;gap:8px;align-content:start;padding:2px 4px 6px 2px}
+#garage .g-tile{display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 4px 6px;border:2.5px solid var(--ink);border-radius:12px;background:#f3f1fb;box-shadow:0 3px 0 var(--ink);font:700 13px/1.15 var(--f-ui);color:var(--ink);text-align:center}
 #garage .g-tile canvas{width:100%;height:auto;display:block}
 #garage .g-tile[aria-pressed="true"]{background:var(--sun);outline:3px solid var(--ink);outline-offset:1px}
 #garage .g-tile:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
 #bGarage{align-self:flex-start;margin-top:2px;font-size:14px}
 #bGarage span{font-weight:600;color:var(--muted)}
-#honk{position:absolute;right:calc(40px + var(--sar));bottom:calc(182px + var(--sab));width:62px;height:62px;border-radius:50%;background:var(--sun);border:3px solid var(--ink);box-shadow:0 4px 0 var(--ink);color:var(--ink);font:400 15px var(--f-display);pointer-events:auto;touch-action:none}
+#honk{position:absolute;right:calc(130px + var(--sar));bottom:calc(96px + var(--sab));width:58px;height:58px;border-radius:50%;background:var(--sun);border:3px solid var(--ink);box-shadow:0 4px 0 var(--ink);color:var(--ink);font:400 15px var(--f-display);pointer-events:auto;touch-action:none}
 #honk:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
 @media (max-width:640px){
   #garage{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr);height:100%;padding:12px;gap:10px}
@@ -895,7 +895,6 @@
   #garage h2{font-size:24px}
   #garage .g-sum{font-size:13px}
   #garage .g-grid{grid-template-columns:repeat(auto-fill,minmax(100px,1fr))}
-  body.touch #honk{bottom:calc(150px + var(--sab));right:calc(32px + var(--sar));width:54px;height:54px}
 }`;
 
     // ---------------- off-screen pictures ----------------
