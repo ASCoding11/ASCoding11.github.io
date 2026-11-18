@@ -1,7 +1,7 @@
 /*
- * Daily English Wikipedia pageviews (human readers) for every article the Wikidata caches name, through the
- * Wikipedia API (prop=pageviews: the last 60 days, 50 articles a request). Saves the MEDIAN day for each title in
- * cache/pageviews.json, so one news spike doesn't make an answer look common. Run after fetch.js:
+ * English Wikipedia pageviews (human readers, Wikimedia REST API, CC0) for every article the Wikidata caches name.
+ * Saves each title's MEDIAN month of the last twelve (as views a day) in cache/pageviews.json, so one news spike
+ * doesn't make an answer look common. Run after fetch.js:
  *     node pageviews.js
  * It keeps what it already has, so it can be stopped and run again.
  */
@@ -22,27 +22,26 @@ for (const f of fs.readdirSync(CACHE)) {
 const todo = [...titles].filter(t => !(t in have));
 console.log(titles.size + ' titles, ' + todo.length + ' to fetch');
 const median = a => { a = a.filter(x => x != null).sort((x, y) => x - y); return a.length ? a[a.length >> 1] : 0; };
-(async () => {
-  let n = 0;
-  for (let i = 0; i < todo.length; i += 50) {
-    const batch = todo.slice(i, i + 50);
-    const url = 'https://en.wikipedia.org/w/api.php?action=query&format=json&formatversion=2&redirects=1&prop=pageviews&pvipdays=60&titles=' + encodeURIComponent(batch.join('|'));
-    let j = null;
-    for (let t = 0; t < 5 && !j; t++) {
-      try { const r = await fetch(url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(60000) }); if (r.ok) j = await r.json(); else { console.log('  ' + r.status); await sleep(5000 * (t + 1)); } }
-      catch (e) { await sleep(5000 * (t + 1)); }
-    }
-    if (!j || !j.query) continue;
-    const back = {}; // redirected or normalised titles -> the title we asked for
-    for (const x of (j.query.normalized || [])) back[x.to] = x.from;
-    for (const x of (j.query.redirects || [])) back[x.to] = back[x.from] || x.from;
-    for (const pg of j.query.pages || []) {
-      const asked = back[pg.title] || pg.title;
-      have[asked] = pg.pageviews ? median(Object.values(pg.pageviews)) : 0;
-    }
-    for (const t of batch) if (!(t in have)) have[t] = 0;
-    if (++n % 20 === 0) { fs.writeFileSync(OUT, JSON.stringify(have)); console.log('  ' + (i + 50) + ' / ' + todo.length); }
-    await sleep(250);
+// The Wikimedia REST API, one article a request, a few at a time (well under its limit of 100 a second):
+// monthly human views for the last 12 full months, saved as the median month divided by 30.
+const now = new Date(), end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)), start = new Date(Date.UTC(end.getUTCFullYear() - 1, end.getUTCMonth(), 1));
+const ymd = d => d.toISOString().slice(0, 10).replace(/-/g, '') + '00';
+async function one(t) {
+  const url = 'https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/' + encodeURIComponent(t.replace(/ /g, '_')) + '/monthly/' + ymd(start) + '/' + ymd(end);
+  for (let k = 0; k < 4; k++) {
+    try {
+      const r = await fetch(url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(30000) });
+      if (r.status === 404) return 0;
+      if (r.status === 429 || r.status >= 500) { await sleep(3000 * (k + 1)); continue; }
+      if (!r.ok) return null;
+      const j = await r.json(); return Math.round(median((j.items || []).map(x => x.views)) / 30 * 10) / 10;
+    } catch (e) { await sleep(2000 * (k + 1)); }
   }
+  return null;
+}
+(async () => {
+  let i = 0, done = 0; const N = 14;
+  async function worker() { while (i < todo.length) { const t = todo[i++]; const v = await one(t); if (v != null) have[t] = v; if (++done % 2000 === 0) { fs.writeFileSync(OUT, JSON.stringify(have)); console.log('  ' + done + ' / ' + todo.length); } } }
+  await Promise.all(Array.from({ length: N }, worker));
   fs.writeFileSync(OUT, JSON.stringify(have)); console.log('done');
 })();

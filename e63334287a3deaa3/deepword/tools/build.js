@@ -21,7 +21,7 @@
  *   hand-written commonness weight in prompts.js or Abyssal   weight 2  (what people say first, which views miss)
  *   Linguabase familiarity of the name (plain words)          weight 2
  *   Wikidata sitelinks (how many Wikipedias have it)          weight 1
- *   population (places)                                       weight 1
+ *   population (places, from GeoNames)                        weight 2
  * The game turns fame into a rank inside the prompt and the rank into points (see `rarity` in index.html).
  */
 'use strict';
@@ -120,15 +120,14 @@ function ancestors(q) {
   while (p && guard++ < 80) { if (ANC.has(p)) { for (const a of ANC.get(p)) out.add(a); out.add(p); break; } out.add(p); p = TAXA.parent[p]; }
   ANC.set(q, out); return out;
 }
-const RANK_OK = new Set(['Q7432', 'Q34740', 'Q35409', 'Q36602', 'Q68947', 'Q37517', 'Q2136103', 'Q164280', 'Q2455704', 'Q5867959', 'Q3965313', 'Q3238261', 'Q279749']);
-// species, genus, family, order, subspecies, class, superfamily, subfamily, subfamily/tribe ranks, infraorder...
-const GENERIC = /\b(family|order|genus|subfamily|tribe|class|allies|group|complex|clade|species|superfamily|infraorder)\b|\bs$|-like\b/;
+const RANK_OK = new Set(['Q7432', 'Q34740', 'Q68947']); // species, genus, subspecies: the group names ("true bugs") are in prompts.js already
+const GENERIC = /\b(family|order|genus|subfamily|tribe|class|allies|group|complex|clade|species|superfamily|infraorder|and)\b|-like\b/;
 function taxa(under, opts) {
   opts = opts || {};
   if (!TAXA) { missing.push('Wikidata: taxa'); return []; }
   const out = [];
   for (const q in TAXA.sl) {
-    const rank = TAXA.rank[q]; if (rank && !RANK_OK.has(rank)) continue;
+    const rank = TAXA.rank[q]; if (!RANK_OK.has(rank) || (TAXA.sl[q] || 0) < (opts.minSl || 12)) continue;
     const anc = ancestors(q); if (!under.some(c => anc.has(c) || q === c)) continue;
     if (opts.not && opts.not.some(c => anc.has(c))) continue;
     let names = (TAXA.names[q] || []).map(clean).filter(n => n && !GENERIC.test(n.toLowerCase()));
@@ -153,21 +152,40 @@ const T = {
 };
 const tx = (...ks) => ks.map(k => T[k]);
 
-// ------------------------------------------------------------------ places
-const COUNTRY_CONT = {};
+// ------------------------------------------------------------------ places (GeoNames, CC BY 4.0: towns of 5,000+)
+const COUNTRY_CONT = {}; // Wikidata country QID -> continent QIDs (for the country lists)
 for (const r of rows('countries')) COUNTRY_CONT[r.item] = String(r.conts || '');
-const CONT = { africa: 'Q15', europe: 'Q46', asia: 'Q48', na: 'Q49', sa: 'Q18', oceania: 'Q55643', oceania2: 'Q538', antarctica: 'Q51' };
-const inCont = (c, ...ks) => ks.some(k => has(COUNTRY_CONT[c], CONT[k]));
-const allPlaces = () => rows('cities_big').concat(rows('cities_small'));
-const placesWhere = (fn, opts) => allPlaces().filter(fn).map(r => fromRow(r, opts)).filter(Boolean);
-const C = { us: 'Q30', uk: 'Q145', canada: 'Q16', australia: 'Q408', nz: 'Q664', ireland: 'Q27', italy: 'Q38', nl: 'Q55', be: 'Q31', lu: 'Q32',
-  ch: 'Q39', at: 'Q40', se: 'Q34', fi: 'Q33', no: 'Q20', dk: 'Q35', is: 'Q189', de: 'Q183', fr: 'Q142', es: 'Q29', jp: 'Q17', in: 'Q668',
-  cn: 'Q148', br: 'Q155', mx: 'Q96', ru: 'Q159' };
-const SEASIA = ['Q869', 'Q881', 'Q252', 'Q928', 'Q833', 'Q334', 'Q424', 'Q819', 'Q836', 'Q921', 'Q574'];
-const MIDEAST = ['Q43', 'Q794', 'Q796', 'Q851', 'Q878', 'Q801', 'Q810', 'Q822', 'Q858', 'Q817', 'Q846', 'Q398', 'Q842', 'Q805', 'Q79', 'Q219060'];
-const EASTEU = ['Q36', 'Q213', 'Q214', 'Q28', 'Q218', 'Q219', 'Q212', 'Q184', 'Q403', 'Q224', 'Q215', 'Q225', 'Q37', 'Q211', 'Q191', 'Q217', 'Q221', 'Q222', 'Q236', 'Q1246'];
-const STATE = { texas: 'Q1439', california: 'Q99', florida: 'Q812' };
-const inState = (r, s) => r.adm1 === STATE[s] || r.adm2 === STATE[s];
+const CONT = { africa: 'Q15', europe: 'Q46', asia: 'Q48', na: 'Q49', sa: 'Q18', oceania: 'Q55643', oceania2: 'Q538' };
+const ISO_CONT = {}; // ISO country code -> GeoNames continent code (AF AS EU NA OC SA AN)
+{
+  const f = path.join(CACHE, 'countryInfo.txt');
+  if (fs.existsSync(f)) for (const line of fs.readFileSync(f, 'utf8').split('\n')) { if (line[0] === '#') continue; const c = line.split('\t'); if (c.length > 8) ISO_CONT[c[0]] = c[8]; }
+  else missing.push('GeoNames countryInfo');
+}
+const CITIES = [];
+{
+  const f = path.join(CACHE, 'cities5000.txt');
+  if (fs.existsSync(f)) for (const line of fs.readFileSync(f, 'utf8').split('\n')) {
+    const c = line.split('\t'); if (c.length < 15 || c[6] !== 'P' || /^PPL[XHQWZ]|^PPLCH/.test(c[7])) continue; // not parts of towns or lost places
+    const name = c[1], pop = +c[14] || 0;
+    // other names: only ones written in Latin letters that start with a capital (English and local spellings,
+    // not every language's transliteration), at most four
+    const alts = [];
+    for (const a of String(c[3] || '').split(',')) {
+      if (alts.length >= 4) break;
+      if (!/^[A-Z][A-Za-z\u00C0-\u024F' .-]{3,29}$/.test(a) || norm(a) === norm(name)) continue;
+      alts.push(a);
+    }
+    CITIES.push({ label: name, alts: [c[2]].concat(alts).join('|'), pop, cc: c[8], a1: c[10] });
+  } else missing.push('GeoNames cities5000');
+}
+const cityEntry = r => { const names = namesOf(r.label, r.alts, { maxAlts: 4 }); if (!names.length || names.blocked) return null; return { names, pop: r.pop }; };
+const placesWhere = fn => CITIES.filter(fn).map(cityEntry).filter(Boolean);
+const inCont = (cc, ...ks) => ks.includes(ISO_CONT[cc]);
+const SEASIA = ['TH', 'VN', 'ID', 'PH', 'MY', 'SG', 'KH', 'LA', 'MM', 'BN', 'TL'];
+const MIDEAST = ['TR', 'IR', 'IQ', 'SA', 'AE', 'IL', 'JO', 'LB', 'SY', 'KW', 'QA', 'BH', 'OM', 'YE', 'EG', 'PS'];
+const EASTEU = ['PL', 'CZ', 'SK', 'HU', 'RO', 'BG', 'UA', 'BY', 'RS', 'HR', 'SI', 'BA', 'LT', 'LV', 'EE', 'MD', 'MK', 'AL', 'ME', 'XK'];
+const NI = /^(belfast|derry|londonderry|newry|lisburn|armagh|bangor|craigavon|ballymena|newtownabbey|enniskillen|omagh|coleraine|carrickfergus|antrim|larne|portadown|lurgan|banbridge|strabane|dungannon|cookstown|limavady|ballymoney|downpatrick|holywood|newtownards|comber|portrush|magherafelt)$/;
 
 // ------------------------------------------------------------------ people: last names as extra spellings
 function people(id) {
@@ -222,36 +240,36 @@ const FEEDS = {
   landlocked: () => ab('a landlocked country'),
   capitals: () => ab('a European capital city').concat(ab('a capital city in Asia')),
   usstatecaps: () => ab('a U.S. state capital'),
-  cities: () => placesWhere(r => +r.pop >= 500000),
-  uscities: () => placesWhere(r => r.country === C.us && +r.pop >= 25000),
-  '~13': () => placesWhere(r => r.country === C.us && inState(r, 'texas')),
-  '~14': () => placesWhere(r => r.country === C.us && inState(r, 'california')),
-  '~15': () => placesWhere(r => r.country === C.us && inState(r, 'florida')),
-  ukcities: () => placesWhere(r => r.country === C.uk),
-  eucities: () => placesWhere(r => inCont(r.country, 'europe') && +r.pop >= 50000),
-  asiacities: () => placesWhere(r => inCont(r.country, 'asia') && +r.pop >= 200000),
-  '~19': () => placesWhere(r => r.country === C.italy),
-  aussie: () => placesWhere(r => r.country === C.australia),
-  '~21': () => placesWhere(r => r.country === C.canada),
-  cities_india: () => placesWhere(r => r.country === C.in),
-  cities_china: () => placesWhere(r => r.country === C.cn),
-  cities_japan: () => placesWhere(r => r.country === C.jp),
-  cities_seasia: () => placesWhere(r => SEASIA.includes(r.country)),
-  cities_mideast: () => placesWhere(r => MIDEAST.includes(r.country)),
-  cities_germany: () => placesWhere(r => r.country === C.de),
-  cities_france: () => placesWhere(r => r.country === C.fr),
-  cities_spain: () => placesWhere(r => r.country === C.es),
-  cities_nordic: () => placesWhere(r => [C.se, C.fi, C.no, C.dk, C.is].includes(r.country)),
-  cities_benelux: () => placesWhere(r => [C.nl, C.be, C.lu].includes(r.country)),
-  cities_alpine: () => placesWhere(r => [C.ch, C.at].includes(r.country)),
-  cities_easteurope: () => placesWhere(r => EASTEU.includes(r.country)),
-  cities_ireland: () => placesWhere(r => r.country === C.ireland || (r.country === C.uk && /belfast|derry|newry|lisburn|armagh|bangor|craigavon|ballymena|newtownabbey|enniskillen|omagh|coleraine/i.test(r.label))),
-  cities_africa: () => placesWhere(r => inCont(r.country, 'africa')),
-  cities_southamerica: () => placesWhere(r => inCont(r.country, 'sa')),
-  cities_brazil: () => placesWhere(r => r.country === C.br),
-  cities_mexico: () => placesWhere(r => r.country === C.mx),
-  cities_russia: () => placesWhere(r => r.country === C.ru),
-  cities_nz: () => placesWhere(r => r.country === C.nz),
+  cities: () => placesWhere(r => r.pop >= 500000),
+  uscities: () => placesWhere(r => r.cc === 'US' && r.pop >= 25000),
+  '~13': () => placesWhere(r => r.cc === 'US' && r.a1 === 'TX'),
+  '~14': () => placesWhere(r => r.cc === 'US' && r.a1 === 'CA'),
+  '~15': () => placesWhere(r => r.cc === 'US' && r.a1 === 'FL'),
+  ukcities: () => placesWhere(r => r.cc === 'GB' && r.pop >= 10000),
+  eucities: () => placesWhere(r => inCont(r.cc, 'EU') && r.pop >= 50000),
+  asiacities: () => placesWhere(r => inCont(r.cc, 'AS') && r.pop >= 200000),
+  '~19': () => placesWhere(r => r.cc === 'IT' && r.pop >= 10000),
+  aussie: () => placesWhere(r => r.cc === 'AU'),
+  '~21': () => placesWhere(r => r.cc === 'CA'),
+  cities_india: () => placesWhere(r => r.cc === 'IN' && r.pop >= 50000),
+  cities_china: () => placesWhere(r => r.cc === 'CN' && r.pop >= 100000),
+  cities_japan: () => placesWhere(r => r.cc === 'JP' && r.pop >= 20000),
+  cities_seasia: () => placesWhere(r => SEASIA.includes(r.cc) && r.pop >= 50000),
+  cities_mideast: () => placesWhere(r => MIDEAST.includes(r.cc) && r.pop >= 50000),
+  cities_germany: () => placesWhere(r => r.cc === 'DE' && r.pop >= 10000),
+  cities_france: () => placesWhere(r => r.cc === 'FR' && r.pop >= 10000),
+  cities_spain: () => placesWhere(r => r.cc === 'ES' && r.pop >= 10000),
+  cities_nordic: () => placesWhere(r => ['SE', 'FI', 'NO', 'DK', 'IS'].includes(r.cc)),
+  cities_benelux: () => placesWhere(r => ['NL', 'BE', 'LU'].includes(r.cc)),
+  cities_alpine: () => placesWhere(r => ['CH', 'AT'].includes(r.cc)),
+  cities_easteurope: () => placesWhere(r => EASTEU.includes(r.cc) && r.pop >= 20000),
+  cities_ireland: () => placesWhere(r => r.cc === 'IE' || (r.cc === 'GB' && r.a1 === 'NIR')),
+  cities_africa: () => placesWhere(r => inCont(r.cc, 'AF') && r.pop >= 50000),
+  cities_southamerica: () => placesWhere(r => inCont(r.cc, 'SA') && r.pop >= 50000),
+  cities_brazil: () => placesWhere(r => r.cc === 'BR' && r.pop >= 30000),
+  cities_mexico: () => placesWhere(r => r.cc === 'MX' && r.pop >= 20000),
+  cities_russia: () => placesWhere(r => r.cc === 'RU' && r.pop >= 30000),
+  cities_nz: () => placesWhere(r => r.cc === 'NZ'),
   rivers: () => ab('a river').concat(things('rivers')),
   mountains: () => ab('a mountain or volcano').concat(things('mountains'), things('volcanoes')),
   ranges: () => things('ranges'),
@@ -304,8 +322,8 @@ const FEEDS = {
   biscuits: () => things('desserts', r => /cookie|biscuit/i.test(r.label + ' ' + r.alts)),
   sandwiches: () => ab('a sandwich').concat(things('sandwiches')),
   salads: () => things('salads'),
-  italian: () => things('dishes', r => has(r.origins, C.italy) || has(r.cuisines, 'Q192786')),
-  mexican: () => things('dishes', r => has(r.origins, C.mx) || has(r.cuisines, 'Q207965')),
+  italian: () => things('dishes', r => has(r.origins, 'Q38') || has(r.cuisines, 'Q192786')),
+  mexican: () => things('dishes', r => has(r.origins, 'Q96') || has(r.cuisines, 'Q207965')),
   asianfood: () => things('dishes', r => ['Q148', 'Q17', 'Q884', 'Q869', 'Q881', 'Q668', 'Q252', 'Q928', 'Q833', 'Q865', 'Q843'].some(c => has(r.origins, c))),
   pizza: () => ab('a pizza topping'),
   cereal: () => ab('a breakfast cereal').concat(things('cereal')),
@@ -437,7 +455,7 @@ function pctl(entries, key) { // percentile (0..1, 1 = largest) among entries th
   let i = 0;
   while (i < n) { let j = i; while (j + 1 < n && xs[j + 1][key] === xs[i][key]) j++; const p = n === 1 ? 1 : ((i + j) / 2) / (n - 1); for (let k = i; k <= j; k++) xs[k]['p_' + key] = p; i = j + 1; }
 }
-const WT = { pv: 3, w: 2, fam: 2, sl: 1, pop: 1 };
+const WT = { pv: 3, w: 2, fam: 2, sl: 1, pop: 2 };
 const enc = v => { const x = Math.max(0, Math.min(1294, Math.round(v * 1294))); return x.toString(36).padStart(2, '0'); };
 
 function buildList(key, coreStr) {
@@ -463,7 +481,11 @@ function buildList(key, coreStr) {
   const lastCount = new Map(); for (const e of merged) if (e.lastCand) lastCount.set(e.lastCand, (lastCount.get(e.lastCand) || 0) + 1);
   for (const e of merged) if (e.lastCand && lastCount.get(e.lastCand) === 1 && !byAlias.has(e.lastCand)) { e.al.push(e.lastCand); e.raws.push(e.lastRaw); byAlias.set(e.lastCand, e); }
   for (const e of merged) { e.fam = famOf(e.al); if (e.pv != null) e.pv = Math.log1p(e.pv); }
-  for (const k in WT) pctl(merged, k);
+  for (const k in WT) if (k !== 'w') pctl(merged, k);
+  // The hand-written answers were chosen as the ones people say, so being on that list is itself a sign of fame:
+  // weight 5..1 -> 1.0..0.6, and an answer only the data knows about -> 0.25 (when the list has hand answers).
+  const anyHand = merged.some(e => e.w != null);
+  for (const e of merged) e.p_w = e.w != null ? 0.5 + e.w * 0.1 : anyHand ? 0.25 : null;
   for (const e of merged) {
     let s = 0, wsum = 0;
     for (const k in WT) if (e['p_' + k] != null) { s += WT[k] * e['p_' + k]; wsum += WT[k]; }

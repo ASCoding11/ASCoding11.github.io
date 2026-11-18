@@ -25,23 +25,10 @@ function people(id, occs, min) {
   ${TAIL.replace('MIN', min)} FILTER NOT EXISTS { ?item wdt:P1399 ?crime }
   OPTIONAL { ?item wdt:P734 ?f . ?f rdfs:label ?fl . FILTER(lang(?fl)="en") } } GROUP BY ?item ?sl ?label ?en` };
 }
-// places with a population (and their country and the two levels of region above them)
-function places(id, filter, min) {
-  return { id, q: `SELECT ${HEAD} (MAX(?p) AS ?pop) (SAMPLE(?c) AS ?country) (SAMPLE(?a1) AS ?adm1) (SAMPLE(?a2) AS ?adm2) WHERE {
-  ?item wdt:P1082 ?p . ${filter}
-  ?item wdt:P17 ?c . ?item wdt:P625 ?coord .
-  FILTER NOT EXISTS { ?item wdt:P31 wd:Q6256 } FILTER NOT EXISTS { ?item wdt:P31 wd:Q3624078 }
-  OPTIONAL { ?item wdt:P131 ?a1 . OPTIONAL { ?a1 wdt:P131 ?a2 } }
-  ${TAIL.replace('MIN', min)} } GROUP BY ?item ?sl ?label ?en` };
-}
-const SETTLE = 'VALUES ?k { wd:Q515 wd:Q1549591 wd:Q1637706 wd:Q200250 wd:Q5119 wd:Q1093829 wd:Q3957 wd:Q15284 wd:Q747074 wd:Q484170 wd:Q262166 wd:Q2989398 wd:Q1115575 wd:Q7930989 wd:Q42744322 wd:Q486972 wd:Q532 wd:Q1867183 wd:Q13218690 wd:Q1307214 wd:Q15127012 wd:Q2039348 wd:Q1059478 wd:Q22865 wd:Q17343829 wd:Q15078955 wd:Q1066984 wd:Q2264924 wd:Q3184121 wd:Q1520223 wd:Q5154047 wd:Q5153359 wd:Q3327873 wd:Q12813115 wd:Q1394476 wd:Q605291 wd:Q2074737 wd:Q11618417 wd:Q1640628 wd:Q50330360 wd:Q748149 wd:Q1763214 wd:Q1906268 wd:Q3558970 wd:Q29946056 wd:Q1145012 wd:Q11828004 wd:Q2590631 wd:Q4286337 wd:Q2154459 wd:Q105390172 wd:Q1093829 wd:Q62049 wd:Q2555896 wd:Q1548525 wd:Q1076486 wd:Q17468533 wd:Q3191695 wd:Q1137272 wd:Q956318 wd:Q1500350 } ?item wdt:P31 ?k .';
-
 const jobs = [
   { id: 'taxa' },
   // ---------------------------------------------------------------- geography
   things('countries', ['Q3624078', 'Q6256'], 40, 'inst', 'OPTIONAL { ?item wdt:P30 ?cont }', '(GROUP_CONCAT(DISTINCT ?cont; separator="|") AS ?conts)'),
-  places('cities_big', SETTLE + ' FILTER(?p >= 80000)', 12),
-  places('cities_small', SETTLE + ' FILTER(?p >= 8000 && ?p < 80000) VALUES ?c0 { wd:Q30 wd:Q145 wd:Q16 wd:Q408 wd:Q664 wd:Q27 wd:Q38 wd:Q31 wd:Q55 wd:Q32 wd:Q39 wd:Q40 wd:Q34 wd:Q35 wd:Q20 wd:Q33 wd:Q189 wd:Q183 wd:Q142 wd:Q29 wd:Q17 } ?item wdt:P17 ?c0 .', 6),
   things('rivers', ['Q4022'], 14),
   things('mountains', ['Q8502'], 14),
   things('ranges', ['Q46831'], 10),
@@ -140,6 +127,9 @@ const jobs = [
   things('colleges', ['Q3918', 'Q189004', 'Q23002054', 'Q902104'], 18, 'inst', '?item wdt:P17 wd:Q30 .'),
   // ---------------------------------------------------------------- word data (not Wikidata)
   { id: 'gwordlist', url: 'https://raw.githubusercontent.com/hackerb9/gwordlist/master/frequency-alpha-alldicts.txt', file: 'gw.txt' },
+  // places: GeoNames (CC BY 4.0), towns and cities of 5,000 people or more, with their other names
+  { id: 'geonames', url: 'https://download.geonames.org/export/dump/cities5000.zip', file: 'cities5000.zip' },
+  { id: 'geonames_admin1', url: 'https://download.geonames.org/export/dump/admin1CodesASCII.txt', file: 'admin1.txt' },
   { id: 'linguabase', url: 'https://huggingface.co/datasets/linguabase/linguabase/resolve/main/vocabulary/vocabulary.core.tsv.gz', file: 'lb_vocab_core.tsv.gz' },
 ];
 module.exports = { jobs };
