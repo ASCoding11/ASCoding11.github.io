@@ -3223,12 +3223,13 @@ const POSES={rest:pose({}),
 // beside the head and cocks it back, the chest turning right and leaning back, the left hand reaching up to it; then a
 // fast arc over the top and down to the front with both hands on the handle, the chest turning left and bending forward
 // and the arms straightening (contact at 0.14 s: the spark, the whack and your camera's shake are held back to then), a
-// follow-through down and across to the left, and back to the carry by 0.44 s, just inside the crowbar's 0.45 s between hits.
+// follow-through down and across to the left, brought back up outside the right arm and back to the carry by 0.44 s, just inside the crowbar's 0.45 s between hits.
 const SWING=[[0,null],
   [.085,pose({lean:.1,turn:-.45,roll:.05,L:[1.1,.5,-.2,1.3],h:[.43,1.8,.17],bp:3.44,by:.25,lw:.35,sl:-.04,sr:.03}),2],
   [.115,pose({lean:-.05,turn:-.12,L:[1.2,.6,0,.8],h:[.18,1.9,-.22],bp:1.35,by:0,lw:1,sl:-.04,sr:.03}),1],
   [.14,pose({lean:-.3,turn:.32,roll:-.04,L:[0,.7,0,.2],h:[.06,1.36,-.56],bp:-.12,by:.1,lw:1,sl:-.04,sr:.03}),1],
   [.24,pose({lean:-.36,turn:.6,roll:-.06,L:[-.6,.9,0,.3],h:[-.12,1.02,-.36],bp:-1.05,by:.85,lw:1,sl:-.04,sr:.03}),2],
+  [.33,pose({lean:-.14,turn:.2,L:[-1.2,.5,-.1,.4],h:[.36,1.28,-.3],bp:1.7,by:-.45,sl:-.04,sr:.03}),0],   // brought back up outside the right arm, not across the face
   [.44,null]];
 const CB_POLE=new V3(1,-.7,.25);
 const SWING_HIT=140;
@@ -4774,7 +4775,7 @@ function animModel(e,dt){
   // the glider unfolds over about a fifth of a second when it opens and folds away as you land
   u.glk=clamp(u.glk+(e.glide?dt*5:-dt*6),0,1);const gl=u.glider,ge=u.glk*u.glk*(3-2*u.glk);gl.visible=u.glk>.01;
   if(gl.visible){gl.scale.set(.08+.92*ge,.4+.6*ge,.3+.7*ge);gl.rotation.set(-u.pit*.8,0,u.roll*.4)}
-  u.legs[0].visible=u.legs[1].visible=!far;u.gun.visible=!far&&!air&&u.glk<.35;
+  u.legs[0].visible=u.legs[1].visible=!far;u.gun.visible=!far&&!air&&!e.glide&&u.glk<.35;   // (not while the glider is opening or open; it comes back as the glider folds away)
   // ---- legs. On the ground each stride is as long as the ground it covers, so a planted foot doesn't slide (A: how far a
   // leg swings, at most 0.74 rad; LEG_L: hip to sole in metres). The legs swing the way the body is moving (forward,
   // backward or sideways), the knee of the leg moving with the body bends to lift its foot, and the body drops by as much
@@ -4782,11 +4783,16 @@ function animModel(e,dt){
   // the knee, fluttering; gliding: trailing behind, bent a little.
   const A=.74*Math.min(1,Math.sqrt(sp/6));
   if(e.onGround&&sp>.05)e.walk+=dt*sp*Math.PI/(2*LEG_L*Math.sin(Math.max(A,.02)));
-  const ph=e.walk,sw=e.onGround?Math.sin(ph)*A:0,cf=sp>.05?fwd/sp:1,cl=sp>.05?lat/sp:0,L0=u.legs[0],L1=u.legs[1];
+  const ph=e.walk,cf=sp>.05?fwd/sp:1,cl=sp>.05?lat/sp:0,L0=u.legs[0],L1=u.legs[1];
   const lt=u.landT>0?(u.landT-=dt,Math.sin(Math.PI*clamp(u.landT/.32,0,1))):0;
-  if(e.onGround){const kb=.12+.9*rk,c=Math.cos(ph),st=.05+.18*rk;   // the knee bends while its foot is lifted (moving with the body)
-    L0.rotation.set(sw*cf+lt*.35,0,sw*cl,'XYZ');L1.rotation.set(-sw*cf+lt*.35,0,-sw*cl,'XYZ');L0.k=st*(A>.05?1:0)+kb*Math.max(0,c)*(A>.05?1:0)+lt*.75;L1.k=st*(A>.05?1:0)+kb*Math.max(0,-c)*(A>.05?1:0)+lt*.75;
-    m.position.y-=(.9*(1-Math.cos(Math.abs(sw)))+.03*rk*Math.abs(Math.sin(2*ph))+lt*.09)*BS}
+  if(e.onGround){
+    // each leg's half-cycle on the ground moves its foot back under the hip at a steady pace (the angle whose sine runs
+    // evenly from sin A to -sin A, measured from straight down rather than from the leaning body), so the planted foot stays
+    // put; the other half swings it forward again with the knee bent
+    const on=A>.05?1:0,kb=(.15+.95*rk)*on,st=(.03+.07*rk)*on,sA=Math.sin(A);let drop=0;
+    for(let j=0;j<2;j++){const L=j?L1:L0,p=((ph/(2*Math.PI)+j*.5)%1+1)%1,x=p<.5?1-4*p:-Math.cos(2*Math.PI*(p-.5)),a=Math.asin(clamp(x*sA,-1,1));
+      L.rotation.set(a*cf+lt*.35-u.pit,0,a*cl,'XYZ');L.k=st+(p<.5?0:kb*Math.sin(2*Math.PI*(p-.5)))+lt*.75;if(p<.5)drop=.9*(1-Math.cos(a))}
+    m.position.y-=(drop+lt*.09)*BS}
   else if(air){const f=Math.sin(now*.017)*.07*fl,g=Math.sin(now*.021+1)*.07*fl;
     L0.rotation.set((1-jumpK)*-.18+jumpK*.32+f,0,-.32*(1-jumpK)-.08*jumpK,'XYZ');L1.rotation.set((1-jumpK)*-.18-jumpK*.12+g,0,.32*(1-jumpK)+.08*jumpK,'XYZ');L0.k=1.25*(1-jumpK)+.95*jumpK+f;L1.k=1.15*(1-jumpK)+.5*jumpK-g}
   else{const gw=e.glide?Math.sin(now*.005)*.06*fl:0;L0.rotation.set(-.28+gw,0,-u.roll*.25,'XYZ');L1.rotation.set(-.36-gw,0,-u.roll*.25,'XYZ');L0.k=.35+gw;L1.k=.45-gw}
@@ -4803,7 +4809,7 @@ function animModel(e,dt){
   if(air&&jumpK>0)for(let i=0;i<POSE_N;i++)pf[i]+=(POSES.jump[i]-pf[i])*jumpK;
   if(air&&fl){const t=now*.001;pf[2]+=Math.sin(t*19)*.05;pf[5]+=Math.sin(t*17+2)*.05;pf[12]+=Math.sin(t*23+1)*.08;pf[13]+=Math.sin(t*21)*.08;pf[14]+=Math.sin(t*13)*.03}   // the air shaking the arms
   u.hipT=0;
-  if(e.onGround&&sp>.05){const c=Math.cos(ph),s=Math.sin(ph)*Math.min(1,A/.5);
+  if(e.onGround&&sp>.05){const c=Math.sin(ph),s=Math.cos(ph)*Math.min(1,A/.5);
     // running: the chest turns against the hips, leans in more the faster, and bobs; with the crowbar out (both arms free
     // of a weapon) the arms swing from the shoulders against the legs, elbows bent, the bar arm less
     u.hipT=s*.14*cf;pf[1]-=s*(.22*u.cbw+.12*(1-u.cbw))*cf;pf[0]-=(.05+.09*u.cbw)*rk*cf;pf[14]+=c*.03*rk;
