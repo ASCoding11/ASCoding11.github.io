@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
+<script src="/e63334287a3deaa3/lang.js"></script> <!-- English / Español (see README) -->
+<script src="es.js"></script> <!-- Lokop's Spanish words -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Lokop</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -290,6 +292,7 @@ details.how[open] summary::before{content:'- '}
           <div id="howBody"></div>
         </details>
       </div>
+      <div style="margin-top:14px" data-lang-toggle></div>
       <p class="foot">Made for the Back Room: characters, arenas, pixel art and music are all its own. &middot; <a href="/privacy.html">Privacy</a></p>
     </div>
   </section>
@@ -353,6 +356,7 @@ details.how[open] summary::before{content:'- '}
       <div id="pauseKeys"></div>
       <div class="row" style="margin-top:12px"><button id="resume" class="cta" type="button">Resume</button><button id="pKeys" class="ghost" type="button">Change keys</button><button id="pQuit" class="ghost" type="button">Quit match</button></div>
       <p class="msg" id="pauseMsg"></p>
+      <div style="margin-top:12px" data-lang-toggle></div>
     </div>
   </section>
 
@@ -3676,6 +3680,7 @@ function keysTable() {
     '<p class="msg" style="margin-top:0">Playing alone, both sets work at once: move with either hand and jump or attack with the other. Gamepads: stick or d-pad, A jumps, X or B attacks, Start pauses.</p>';
 }
 function howHTML() {
+  if (window.LOKOP_HOW_ES && window.BackRoomLang && BackRoomLang.get() === 'es') return LOKOP_HOW_ES(document.body.classList.contains('touch')) + keysTable();
   return '<ul class="rules">' +
     '<li><b>New here?</b> Press <b>Practice</b> on the menu to try every move on your own first.</li>' +
     '<li><b>One touch wins the duel.</b> A blade kills anything it reaches: thrust, lunge, or just walk or jump into an opponent’s point.</li>' +
@@ -3718,6 +3723,7 @@ function initMenu() {
   for (const k of OPTS) $(k).addEventListener('change', () => { const o = {}; for (const q of OPTS) o[q] = $(q).checked ? 1 : 0; store.set('opts', o); lobbyDirty = true; });
   $('howBody').innerHTML = howHTML(); $('helpBody').innerHTML = howHTML();
   KB.onChange(() => { $('howBody').innerHTML = howHTML(); $('helpBody').innerHTML = howHTML(); });
+  document.addEventListener('backroom:lang', () => { $('howBody').innerHTML = howHTML(); $('helpBody').innerHTML = howHTML(); });
   $('mBot').onclick = () => { saveName(); const lv = botLevel(); const bn = BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
     G.lastStart = () => begin(optsFromMenu(), {mode: 'bot', names: [myName || 'You', bn + ' (bot)'], ctrl: ['all', null], bots: [null, lv], me: 0, statSeat: 0});
     G.lastStart(); };
