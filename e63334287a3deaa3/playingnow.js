@@ -48,7 +48,8 @@
     sc: { m: 8, q: 1 }, rk: { m: 12, q: 1 }, ss: { m: 22, q: 1 }, bb: { m: 6, q: 1, bb: 1 }, cl: { m: 10, q: 1 },
     sd: { m: 10, l: 12000, q: 1 }, br: { m: 8, l: 8000, q: 1 }, cf: { m: 8, l: 12000, q: 1 }, tw: { m: 12, l: 12000, q: 1 },
     sr: { m: 12, l: 12000, q: 1 }, er: { m: 12, l: 12000, q: 1 }, up: { m: 12, l: 12000, q: 1 }, ph: { m: 16, l: 12000, q: 1 },
-    ko: { m: 16, l: 10000, q: 1 }, dw: { m: 12, l: 12000 }, pf: { m: 12, l: 12000 }, bs: { m: 12, l: 10000, q: 1 }
+    ko: { m: 16, l: 10000, q: 1 }, dw: { m: 12, l: 12000 }, pf: { m: 12, l: 12000 }, bs: { m: 12, l: 10000, q: 1 },
+    vq: { m: 8, l: 7000, q: 1 }
   };
 
   var me0 = document.currentScript && document.currentScript.src;
