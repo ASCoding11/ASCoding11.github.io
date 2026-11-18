@@ -231,7 +231,8 @@
   // One GAMES entry per game: its name, the prefix of its ids, and its slots in the order the shop lists them.
   var GAMES = {
     boostball: { name: 'Boostball', prefix: 'bb', slots: [['decal', 'Decals'], ['trail', 'Boost trails'], ['goal', 'Goal explosions'], ['topper', 'Antenna toppers'], ['hat', 'Roof hats'], ['wheels', 'Wheels'], ['engine', 'Engine sounds']] },
-    slipstream: { name: 'Slipstream', prefix: 'ss', slots: [['sponsor', 'Sponsors'], ['livery', 'Liveries'], ['helmet', 'Helmets'], ['effect', 'Boost effects'], ['smoke', 'Tyre smoke'], ['podium', 'Podium celebrations']] }
+    slipstream: { name: 'Slipstream', prefix: 'ss', slots: [['sponsor', 'Sponsors'], ['livery', 'Liveries'], ['helmet', 'Helmets'], ['effect', 'Boost effects'], ['smoke', 'Tyre smoke'], ['podium', 'Podium celebrations']] },
+    rampline: { name: 'Rampline', prefix: 'rl', slots: [['car', 'Cars'], ['paint', 'Paints'], ['wheels', 'Wheels'], ['smoke', 'Tyre smoke'], ['horn', 'Horns']] },
   };
   var ITEM_PRICE = { common: 6, rare: 10, epic: 16, legendary: 40 };
   var GAME_ITEMS = [], ITEM_BY_ID = {};
@@ -409,6 +410,89 @@
   I('slipstream', 'smoke', 5, 'Gold tyre smoke', 'common', '#FFCC47', '#FFF0B0', 'Gold smoke from the tyres.');
   I('slipstream', 'podium', 1, 'Confetti Podium', 'common', '#FF4FA3', '#3FD2FF', 'Confetti over the results when you finish in the top three.');
   I('slipstream', 'podium', 2, 'Fireworks Podium', 'rare', '#FFD21F', '#B06BFF', 'Fireworks over the results when you finish in the top three.');
+  // ---- Rampline items ----
+  // Rampline: cars (31: normal, work, toy and silly), paints, wheels, tyre smoke and horns. rampline/garage.js draws them by
+  // slot and number (Captain's garage, captains only while it is not public; everything free to wear while the shop is shut).
+  I('rampline', 'car', 1, 'Muscle Car', 'common', '#FF5A4E', '#1D2333', 'A long bonnet with a scoop, a fastback roof and chrome bumpers.');
+  I('rampline', 'car', 2, 'Rally Hatch', 'common', '#FF5A4E', '#FFF6C8', 'A boxy hatch with a roof wing, mud flaps and four lamps on the bumper.');
+  I('rampline', 'car', 3, 'Hot Rod', 'rare', '#FF5A4E', '#D5DCE6', 'A chopped cab, big back wheels and a shiny engine out front.');
+  I('rampline', 'car', 4, 'Pickup', 'common', '#FF5A4E', '#1D2333', 'A cab, an open bed and a roll bar with two lamps.');
+  I('rampline', 'car', 5, 'Dune Buggy', 'common', '#FF5A4E', '#D5DCE6', 'An open tub with a roll hoop and the engine on show at the back.');
+  I('rampline', 'car', 6, 'Monster Truck', 'epic', '#FF5A4E', '#24262E', 'A pickup on giant knobbly tyres, with a light bar on the roof.');
+  I('rampline', 'car', 7, 'Retro Wedge', 'rare', '#FF5A4E', '#9FD8FF', 'A flat doorstop of a sports car with pop-up lamps and louvres.');
+  I('rampline', 'car', 8, 'Go-Kart', 'common', '#FF5A4E', '#F6F7F9', 'A tiny frame, side pods and a driver in a white helmet.');
+  I('rampline', 'car', 9, 'Limo', 'rare', '#FF5A4E', '#D5DCE6', 'A very long car with a lot of windows and chrome trim.');
+  I('rampline', 'car', 10, 'School Bus', 'rare', '#F7B500', '#1D2333', 'Yellow, rows of windows and a stop sign that folds out.');
+  I('rampline', 'car', 11, 'Taxi', 'common', '#FFC21A', '#1D2333', 'A checker band down each side and a sign on the roof.');
+  I('rampline', 'car', 12, 'Police Cruiser', 'rare', '#232A3D', '#F6F7F9', 'Dark ends, light doors, a made-up star and a red and blue light bar.');
+  I('rampline', 'car', 13, 'Fire Truck', 'epic', '#D7262B', '#D5DCE6', 'A ladder on top, shiny lockers and six wheels.');
+  I('rampline', 'car', 14, 'Ice Cream Truck', 'epic', '#FFF0DC', '#FF7FB8', 'A striped awning over the serving hatch and a cone on the roof.');
+  I('rampline', 'car', 15, 'Garbage Truck', 'rare', '#2F8F4E', '#F6F7F9', 'A ribbed body, a hopper at the back and a bin on the lifter.');
+  I('rampline', 'car', 16, 'Tractor', 'rare', '#2E8B3A', '#FFC21A', 'Huge back wheels, little front ones and a sun roof on poles.');
+  I('rampline', 'car', 17, 'Golf Cart', 'common', '#2F8F4E', '#F6F7F9', 'A canopy on four poles and a golf bag strapped on the back.');
+  I('rampline', 'car', 18, 'Lunar Rover', 'epic', '#D9DDE4', '#E0B23A', 'Mesh wheels, gold foil and a dish antenna for calling home.');
+  I('rampline', 'car', 19, 'Wooden Toy', 'rare', '#D9A86C', '#E0453C', 'A block of wood on wooden wheels with a peg driver.');
+  I('rampline', 'car', 20, 'Wind-Up Car', 'epic', '#4AA3DF', '#E8BF4A', 'A tin toy with a bubble roof and a big key in the back.');
+  I('rampline', 'car', 21, 'RC Car', 'rare', '#FF5A1F', '#1D2333', 'A buggy shell, springy shocks and a whippy antenna.');
+  I('rampline', 'car', 22, 'Soapbox Crate', 'rare', '#C8945A', '#E0453C', 'A fruit crate on pram wheels with a painted number seven.');
+  I('rampline', 'car', 23, 'Cardboard Box', 'common', '#C89B68', '#E0453C', 'A box with its flaps open, paper plate wheels and a door drawn in marker.');
+  I('rampline', 'car', 24, 'Shopping Cart', 'epic', '#D5DCE6', '#E0453C', 'A wire basket on squeaky casters. Please return it after use.');
+  I('rampline', 'car', 25, 'Bathtub', 'epic', '#F4F2EC', '#7CC8FF', 'A claw-foot tub full to the brim, with bubbles and a duck.');
+  I('rampline', 'car', 26, 'Couch', 'epic', '#5B7FC7', '#8B5A2B', 'A comfy sofa with a footstool and a lamp, on wheels.');
+  I('rampline', 'car', 27, 'Hot Dog', 'epic', '#E0A85A', '#B5462F', 'A bun, a sausage and a zigzag of mustard on top.');
+  I('rampline', 'car', 28, 'Banana', 'epic', '#FFD84A', '#6B4A22', 'A big curved banana with a seat in the middle.');
+  I('rampline', 'car', 29, 'Rubber Duck', 'legendary', '#FFD21F', '#FF8A1F', 'A bath duck the size of a car. Squeak not included.');
+  I('rampline', 'car', 30, 'Giant Shoe', 'legendary', '#E0453C', '#F6F7F9', 'A trainer with a thick white sole and its laces done up.');
+  I('rampline', 'car', 31, 'Rocket Car', 'legendary', '#F2F4F8', '#E0453C', 'A rocket on wheels with fins, a bubble cockpit and a big nozzle.');
+  I('rampline', 'paint', 1, 'Candy Apple Paint', 'common', '#D8202F', '#D8202F', 'Repaints the car\'s own paintwork candy apple.');
+  I('rampline', 'paint', 2, 'Tangerine Paint', 'common', '#FF8A1F', '#FF8A1F', 'Repaints the car\'s own paintwork tangerine.');
+  I('rampline', 'paint', 3, 'Lemon Drop Paint', 'common', '#FFF04A', '#FFF04A', 'Repaints the car\'s own paintwork lemon drop.');
+  I('rampline', 'paint', 4, 'Lime Fizz Paint', 'common', '#9BE22D', '#9BE22D', 'Repaints the car\'s own paintwork lime fizz.');
+  I('rampline', 'paint', 5, 'Mint Paint', 'common', '#7FE8C4', '#7FE8C4', 'Repaints the car\'s own paintwork mint.');
+  I('rampline', 'paint', 6, 'Teal Paint', 'common', '#14A3A3', '#14A3A3', 'Repaints the car\'s own paintwork teal.');
+  I('rampline', 'paint', 7, 'Sky Paint', 'common', '#7CC8FF', '#7CC8FF', 'Repaints the car\'s own paintwork sky.');
+  I('rampline', 'paint', 8, 'Midnight Paint', 'common', '#23408F', '#23408F', 'Repaints the car\'s own paintwork midnight.');
+  I('rampline', 'paint', 9, 'Lavender Paint', 'common', '#B9A3FF', '#B9A3FF', 'Repaints the car\'s own paintwork lavender.');
+  I('rampline', 'paint', 10, 'Grape Paint', 'common', '#7339D9', '#7339D9', 'Repaints the car\'s own paintwork grape.');
+  I('rampline', 'paint', 11, 'Bubblegum Paint', 'common', '#FF9ED1', '#FF9ED1', 'Repaints the car\'s own paintwork bubblegum.');
+  I('rampline', 'paint', 12, 'Magenta Paint', 'common', '#E0279A', '#E0279A', 'Repaints the car\'s own paintwork magenta.');
+  I('rampline', 'paint', 13, 'Copper Paint', 'rare', '#C8743C', '#C8743C', 'Repaints the car\'s own paintwork copper.');
+  I('rampline', 'paint', 14, 'Sand Paint', 'common', '#E8CF9A', '#E8CF9A', 'Repaints the car\'s own paintwork sand.');
+  I('rampline', 'paint', 15, 'Gold Paint', 'rare', '#E8B93A', '#E8B93A', 'Repaints the car\'s own paintwork gold.');
+  I('rampline', 'paint', 16, 'Silver Paint', 'rare', '#C5CCD6', '#C5CCD6', 'Repaints the car\'s own paintwork silver.');
+  I('rampline', 'wheels', 1, 'Whitewalls', 'common', '#F4F4F0', '#24262E', 'A white ring round a shiny hub.');
+  I('rampline', 'wheels', 2, 'Wire Spokes', 'rare', '#D5DCE6', '#33384A', 'Twelve thin chrome spokes.');
+  I('rampline', 'wheels', 3, 'Gold Star', 'rare', '#FFC61A', '#3A3F50', 'Five gold arms on a dark wheel.');
+  I('rampline', 'wheels', 4, 'Off-Road', 'common', '#24262E', '#BFC6D2', 'Chunky tread blocks for rough ground.');
+  I('rampline', 'wheels', 5, 'Neon Rings', 'epic', '#3DFFB0', '#15172A', 'Glowing green rings on a dark wheel.');
+  I('rampline', 'wheels', 6, 'Wooden', 'rare', '#C8945A', '#8B5A2B', 'Turned wood, like a toy.');
+  I('rampline', 'wheels', 7, 'Red Steelies', 'common', '#D8202F', '#5A0D14', 'Plain red steel with five holes.');
+  I('rampline', 'wheels', 8, 'Turbine', 'rare', '#D5DCE6', '#2A2F3C', 'A ring of fan blades.');
+  I('rampline', 'wheels', 9, 'Candy Swirl', 'rare', '#FF5FA8', '#FFFFFF', 'Pink and white like a sweet.');
+  I('rampline', 'wheels', 10, 'Flower Caps', 'rare', '#FF7AB8', '#FFD21F', 'Petals round a yellow middle.');
+  I('rampline', 'wheels', 11, 'Race Slicks', 'common', '#FFD21F', '#30343F', 'Yellow sidewall lettering band and gold centre locks.');
+  I('rampline', 'wheels', 12, 'Rainbow Rings', 'epic', '#FF4D4D', '#3B82F6', 'Every colour, ring inside ring.');
+  I('rampline', 'smoke', 1, 'Pink Tyre Smoke', 'common', '#FF7AB8', '#ECEBE8', 'Pink smoke from the back wheels in a slide.');
+  I('rampline', 'smoke', 2, 'Sky Blue Tyre Smoke', 'common', '#6CC4FF', '#ECEBE8', 'Sky Blue smoke from the back wheels in a slide.');
+  I('rampline', 'smoke', 3, 'Lime Tyre Smoke', 'common', '#A3F05A', '#ECEBE8', 'Lime smoke from the back wheels in a slide.');
+  I('rampline', 'smoke', 4, 'Purple Tyre Smoke', 'common', '#B07AFF', '#ECEBE8', 'Purple smoke from the back wheels in a slide.');
+  I('rampline', 'smoke', 5, 'Gold Tyre Smoke', 'common', '#FFCF4A', '#ECEBE8', 'Gold smoke from the back wheels in a slide.');
+  I('rampline', 'smoke', 6, 'Orange Tyre Smoke', 'common', '#FF9442', '#ECEBE8', 'Orange smoke from the back wheels in a slide.');
+  I('rampline', 'smoke', 7, 'Red Tyre Smoke', 'common', '#FF5A5A', '#ECEBE8', 'Red smoke from the back wheels in a slide.');
+  I('rampline', 'smoke', 8, 'Mint Tyre Smoke', 'common', '#7FE8C4', '#ECEBE8', 'Mint smoke from the back wheels in a slide.');
+  I('rampline', 'smoke', 9, 'Rainbow Tyre Smoke', 'epic', '#FF5A5A', '#ECEBE8', 'A different colour every moment.');
+  I('rampline', 'smoke', 10, 'Confetti Tyre Smoke', 'epic', '#FF5FA8', '#ECEBE8', 'Every puff a different colour.');
+  I('rampline', 'horn', 1, 'Beep Beep', 'common', '#FFCF33', '#16213A', 'Two quick friendly beeps.');
+  I('rampline', 'horn', 2, 'Clown Honk', 'rare', '#FFCF33', '#16213A', 'A squashy rubber honk.');
+  I('rampline', 'horn', 3, 'Air Horn', 'rare', '#FFCF33', '#16213A', 'A big three-note blast.');
+  I('rampline', 'horn', 4, 'Little Tune', 'rare', '#FFCF33', '#16213A', 'Five notes that go up.');
+  I('rampline', 'horn', 5, 'Duck Quack', 'epic', '#FFCF33', '#16213A', 'Quack quack.');
+  I('rampline', 'horn', 6, 'Bike Bell', 'common', '#FFCF33', '#16213A', 'Ring ring.');
+  I('rampline', 'horn', 7, 'Squeaky Toy', 'rare', '#FFCF33', '#16213A', 'Squeak, then squeak back.');
+  I('rampline', 'horn', 8, 'Space Zap', 'epic', '#FFCF33', '#16213A', 'A falling laser sound.');
+  I('rampline', 'horn', 9, 'Foghorn', 'rare', '#FFCF33', '#16213A', 'Low and long, like a ship in the mist.');
+  I('rampline', 'horn', 10, 'Ice Cream Jingle', 'epic', '#FFCF33', '#16213A', 'A made-up jingle for the ice cream van.');
+  I('rampline', 'horn', 11, 'Train Whistle', 'rare', '#FFCF33', '#16213A', 'Three notes at once, like a little steam train.');
   // Items a game hands over itself are in no pack: give is 'free' (anyone may wear it; the game grants it the first time it
   // is worn) or 'earned' (the game grants it when it is won). grant(id), below, only adds these.
   GAME_ITEMS.forEach(function (it) { if (it.game !== 'slipstream') return; if (it.slot === 'sponsor' || (it.slot === 'helmet' && it.no <= 8)) it.give = 'free'; else if (it.slot === 'livery' && it.no > 8) it.give = 'earned'; });

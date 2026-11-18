@@ -602,8 +602,9 @@ css.textContent=`
 #garage .cg-it[aria-pressed="true"]{background:var(--sun)}
 #garage .cg-it canvas,#garage .cg-it i{width:100%;height:auto;aspect-ratio:8/5;display:block;border-radius:8px}
 #garage .cg-it i.sw{border:2.5px solid var(--ink)}
-#garage .cg-it i.horn{display:flex;align-items:center;justify-content:center;background:#eef4ff}
+#garage .cg-it i.horn{aspect-ratio:8/3;display:flex;align-items:center;justify-content:center;background:#eef4ff}
 #garage .cg-it i.horn svg{width:38%;height:auto}
+@media (max-width:480px){#garage .cg-tabs button{padding:6px 7px;font-size:12.5px}}
 #tHorn{left:calc(14px + env(safe-area-inset-left,0px));bottom:calc(112px + env(safe-area-inset-bottom,0px));width:56px;height:56px;border-radius:50%;background:rgba(255,207,51,.94)}
 #tHorn svg{width:30px;height:30px}`;
 document.head.appendChild(css);
@@ -619,14 +620,14 @@ ov.querySelector('[data-back]').addEventListener('click',()=>{X.sfx.click();X.sh
 const pv=ov.querySelectorAll('.cg-pv canvas'),nowP=ov.querySelector('.cg-now'),tabs=ov.querySelector('.cg-tabs'),list=ov.querySelector('.cg-list');
 const TABS=[['car','Cars'],['paint','Paint'],['wheels','Wheels'],['smoke','Tyre smoke'],['horn','Horn']];
 let tab='car',jobs=[],jobT=0;
-function queue(cv,fn){jobs.push([cv,fn]);if(!jobT)jobT=requestAnimationFrame(runJobs)}
+function queue(cv,fn,first){jobs=jobs.filter(j=>j[0]!==cv);if(first)jobs.unshift([cv,fn]);else jobs.push([cv,fn]);if(!jobT)jobT=requestAnimationFrame(runJobs)}
 function runJobs(){jobT=0;const t0=performance.now();while(jobs.length&&performance.now()-t0<24){const [cv,fn]=jobs.shift();if(cv.isConnected)try{fn()}catch(e){console.warn(e)}}if(jobs.length)jobT=requestAnimationFrame(runJobs)}
 const lk=(car,paint,wheels)=>car||paint||wheels?'1.'+car+'.'+paint+'.'+wheels:'';
 const hex=c=>'#'+c.toString(16).padStart(6,'0');
 function nowText(){const b=[cs.car?CARS[cs.car].name:X.CARS[X.gar.car].name+' (garage car)'];
   if(cs.paint)b.push(PAINTS[cs.paint].name+' paint');if(cs.wheels)b.push(WHEELS[cs.wheels].name);if(cs.smoke)b.push(SMOKES[cs.smoke].name+' smoke');
   if(cs.horn)b.push(HORNS[cs.horn].name+' horn ('+(X.touch?'the horn button':'H')+')');return 'Wearing: '+b.join(' · ')}
-function preview(){nowP.textContent=nowText();const x=wire();queue(pv[0],()=>snapCar(pv[0],x,0));queue(pv[1],()=>snapCar(pv[1],x,1))}
+function preview(){nowP.textContent=nowText();const x=wire();queue(pv[1],()=>snapCar(pv[1],x,1),1);queue(pv[0],()=>snapCar(pv[0],x,0),1)}
 function item(slot,n,label,pic){const b=document.createElement('button');b.type='button';b.className='cg-it';b.setAttribute('aria-pressed',String(cs[slot]===n));
   b.append(pic,document.createTextNode(label));b.addEventListener('click',()=>pick(slot,n));return b}
 function canvas(){const c=document.createElement('canvas');c.width=160;c.height=100;return c}
@@ -681,7 +682,8 @@ Object.assign(api,{build,parse,wire,honk,access,open,
     const b=X.mkBtn('Captain’s garage','sm coral',open);b.title='Hidden for now: only the site’s captains see this';r.appendChild(b);
     if(cs.car||cs.paint||cs.wheels||cs.smoke||cs.horn){const s=document.createElement('span');s.className='note';s.textContent=cs.car?CARS[cs.car].name:'Extras on';r.appendChild(s)}
     box.appendChild(r)},
-  CARS,PAINTS,WHEELS,SMOKES,HORNS,GROUPS,get worn(){return Object.assign({},cs)}});
+  CARS,PAINTS,WHEELS,SMOKES,HORNS,GROUPS});
+Object.defineProperty(api,'worn',{get(){return Object.assign({},cs)}});
 // for tests (automated browsers only): pictures of every car and wheel, triangle counts, the hood check
 if(navigator.webdriver)Object.assign(api,{snapCar,snapWheel,hoodOf,Geo,
   tris(n){const g=Geo();CARS[n].draw(g,0xff5a4e);return g.tris},
