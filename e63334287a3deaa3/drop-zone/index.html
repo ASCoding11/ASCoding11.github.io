@@ -145,6 +145,8 @@ button:disabled{opacity:.5;cursor:default}
   background:radial-gradient(circle at center,var(--tint) 0 calc(var(--r)*.72),rgba(0,6,12,.34) calc(var(--r) - 7px),var(--rim) calc(var(--r) - 5px) var(--r),rgba(2,5,8,.985) calc(var(--r) + 2px))}
 #scopeR{position:absolute;left:50%;top:50%;width:calc(var(--r)*2);height:calc(var(--r)*2);transform:translate(-50%,-50%);overflow:visible}
 #hurt{position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 45%,rgba(200,30,20,.7) 100%);opacity:0}
+/* out in the storm: the edges of the view go a cold violet that breathes (updateWorldFx) */
+#stormv{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 50%,rgba(96,70,190,.55) 100%);opacity:0}
 #tags{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .ntag{position:absolute;left:0;top:0;font-weight:700;font-size:14px;letter-spacing:.04em;color:#fff;text-shadow:0 1px 2px #000;white-space:nowrap;pointer-events:none}
 .ntag em{font-style:normal;font-size:10px;letter-spacing:.12em;color:var(--ink-dim);margin-left:4px}
@@ -397,6 +399,7 @@ body.touch #net{font-size:14px}
     <div id="tags"></div>
     <div id="scope" hidden><svg id="scopeR" viewBox="-100 -100 200 200" aria-hidden="true"></svg></div>
     <div id="hurt"></div>
+    <div id="stormv"></div>
     <svg id="cross" viewBox="-1 -1 2 2" aria-hidden="true"></svg>
     <div id="hitm"></div>
     <div id="reload" hidden><i id="reloadFill"></i></div>
@@ -807,7 +810,18 @@ const WMAT=new THREE.MeshLambertMaterial({vertexColors:true});WMAT.onBeforeCompi
 const FLMAT=new THREE.MeshLambertMaterial({vertexColors:true});FLMAT.defines={};
 // Characters' bodies have one more copy, BMAT: the same shader with skinning on, so the arms and the upper body can move
 // inside the one merged mesh (six bones a body: hips, chest, each upper arm and each forearm; see bodyRig and posePut).
-const BMAT=new THREE.MeshLambertMaterial({vertexColors:true,skinning:true});BMAT.onBeforeCompile=MAT.onBeforeCompile;BMAT.defines={};
+const BMAT=new THREE.MeshLambertMaterial({vertexColors:true,skinning:true});BMAT.defines={};
+// Flutter (November 2026): in the air the back of the clothes, the hair and anything worn on the back ripple in the wind.
+// How hard is the seventh bone's distance from the hips (set by animModel, 0 on the ground, so nothing else moves); which
+// parts is decided here from where a corner sits on the body as drawn (behind the shoulders' line, more on the head's back),
+// so every outfit flutters without being changed. flutT is the clock. The glider has seven bones too, the seventh never
+// moved, so it never flutters.
+const flutT={value:0};
+BMAT.onBeforeCompile=sh=>{MAT.onBeforeCompile(sh);sh.uniforms.flutT=flutT;
+  sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nuniform float flutT;').replace('#include <skinning_vertex>',`#include <skinning_vertex>
+  {float fa=length(getBoneMatrix(6.)[3].xyz-getBoneMatrix(0.)[3].xyz)*1.25;
+  if(fa>.001){float w=smoothstep(.06,.26,position.z)*(.55+.9*smoothstep(1.5,1.75,position.y));
+    float ph=flutT*29.+position.y*13.+position.x*7.;transformed.z+=fa*w*(.022+.022*sin(ph));transformed.x+=fa*w*.014*sin(ph*.83+1.7);transformed.y+=fa*w*.01*sin(ph*1.31);}}`)};
 // Knees: every leg (standard and outfit) carries one more number per leg, legK, the knee's bend. The vertex shader turns
 // the part below the knee (KNEE_Y in the leg's own units) back about the knee by that angle, easing in over a few
 // centimetres so the knee bends rather than breaks. Same draw calls: the legs stay one instanced mesh each, and the shadow
@@ -995,9 +1009,9 @@ const chunks=[];for(let i=0;i<CH*CH;i++){const B=Bag();B.a=[];chunks.push(B)}
 // draw calls, just a small buffer update) and takes its boxes out of the hash, so players, shots, builds and bots go
 // through. The ground, the dam's wall, ribs and stair towers, the tower's frame, the silo, the star, stairs and the
 // ground-level decorations stay. Pieces are numbered in build order, so every browser has the same ids.
-const mpieces=[];let curMP=null,BRK=0,brokenN=0;
+const mpieces=[];let curMP=null,BRK=0,brokenN=0,MATK=null;   // MATK: what the piece being built is made of (for the crowbar's chips and sound; see matFn)
 function mpGrow(P,a,b,c,d,e,f){P.min[0]=Math.min(P.min[0],a);P.min[1]=Math.min(P.min[1],b);P.min[2]=Math.min(P.min[2],c);P.max[0]=Math.max(P.max[0],d);P.max[1]=Math.max(P.max[1],e);P.max[2]=Math.max(P.max[2],f)}
-function mpBegin(hp,hv){if(curMP)return null;curMP={id:-1,hp,mhp:hp,hv:hv||0,parts:[],solids:[],min:[1e9,1e9,1e9],max:[-1e9,-1e9,-1e9],broken:false,stage:0,nb:[],gr:false,by:OFY,sc:!!RUNC};return curMP}   // sc: part of a wall, floor or railing, which breaks with a ragged edge
+function mpBegin(hp,hv){if(curMP)return null;curMP={id:-1,hp,mhp:hp,hv:hv||0,mt:MATK||'stone',parts:[],solids:[],min:[1e9,1e9,1e9],max:[-1e9,-1e9,-1e9],broken:false,stage:0,nb:[],gr:false,by:OFY,sc:!!RUNC};return curMP}   // sc: part of a wall, floor or railing, which breaks with a ragged edge
 function mpEnd(P){if(!P||curMP!==P)return null;curMP=null;if(!P.solids.length&&!P.parts.length)return null;P.id=mpieces.length;mpieces.push(P);return P}
 function brk(hp,hv,fn){const P=mpBegin(hp,hv);try{fn()}finally{if(P)mpEnd(P)}return P}
 
@@ -1395,6 +1409,12 @@ function railing(x0,z0,x1,z1,y,hex){const sh0=SHADE;SHADE=sh0||.94+Math.random()
   runs(()=>{for(let i=0;i<n;i++){const p=a+(b-a)*i/n,q=a+(b-a)*(i+1)/n;SEAMW={ax:ax?0:2,cuts:[i>0?p:NaN,i<n-1?q:NaN]};brk(60,2,()=>{const h_=hex||0x55606a,f=[h_,TX.PN];FK=[f,f,f,false,f,f];
     if(ax){sbox(p,y,z0,q,y+.95,z1,h_,2);FK=null;kb(p,y+.95,z0-.03,q,y+1,z1+.03,h_,0,55,0,.7);kb(p,y,z0-.025,p+.09,y+.95,z1+.025,h_,0,49,0,.7)}
     else{sbox(x0,y,p,x1,y+.95,q,h_,2);FK=null;kb(x0-.03,y+.95,p,x1+.03,y+1,q,h_,0,55,0,.7);kb(x0-.025,y,p,x1+.025,y+.95,p+.09,h_,0,19,0,.7)}});SEAMW=null}});SHADE=sh0}
+// What each kind of thing is made of, for how a crowbar hit on it looks and sounds (CB_FX, sfxCb): only the effect
+// changes, never the piece itself. A building takes its style's (HOUSE_MT); anything not listed is stone.
+const HOUSE_MT={barn:'wood',farmhouse:'wood',cabin:'wood',shed:'wood',hut:'metal',mine:'metal',mall:'stone',pump:'stone',motel:'stone',office:'stone'};
+const matFn=(f,m)=>function(){const m0=MATK;MATK=typeof m==='function'?m(...arguments):m;try{return f.apply(this,arguments)}finally{MATK=m0}};
+pine=matFn(pine,'wood');oak=matFn(oak,'wood');fence=matFn(fence,'wood');rock=matFn(rock,'stone');crate=matFn(crate,'crate');bale=matFn(bale,'hay');
+car=matFn(car,'metal');railing=matFn(railing,'metal');house=matFn(house,(cx,cz,w,d,o)=>HOUSE_MT[o&&o.st]||'stone');
 function buildWorld(){
   const RW=0xb79c6b;
   // ---- Haybale Farm (north-west) ----
@@ -2865,6 +2885,16 @@ const GLIDER_GEO=(()=>{const B=Bag(),K=0x2a2d34,M=0x5a606b,a=Math.atan2(.47,.8+G
   for(const s of [-1,1]){const t=s*.17,cx=s*(.7+.62*Math.cos(.17)),cy=.9+GLU+.62*Math.sin(.17);
     bagTurn(B,0,cx,cy,0,1.25,.075,1.12,s<0?0xff6a3a:0x2f93bf,0,0,t);bagTurn(B,0,cx,cy,-.58,1.25,.1,.07,K,0,0,t);bagTurn(B,0,s*(.7+1.24*Math.cos(.17)),.9+GLU+1.24*Math.sin(.17),0,.06,.11,1.14,K,0,0,t)}   // side panels, front edge, tip
   return bagGeo(B)})();
+// The glider bends (November 2026): each side panel turns about its own hinge (GL_HX out, GL_HY up from the handles), so
+// it can snap open, flex in the air, load up on the outside of a turn and fold away; the middle, the struts' feet and the
+// crossbar stay with the handles. One skinned mesh (BMAT) with seven bones (0 the middle, 1 and 2 the side panels, the rest
+// unused), still one draw call. gliderSkin weights any glider shape by where its corners are, so another glider drawn the
+// same way bends the same way.
+const GL_HX=.7,GL_HY=.9+GLU;
+function gliderSkin(geo){if(geo.attributes.skinIndex)return geo;const P=geo.attributes.position.array,n=P.length/3,si=new Float32Array(n*4),sw=new Float32Array(n*4);
+  const ss=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t)};
+  for(let i=0;i<n;i++){const x=P[i*3],y=P[i*3+1],w=ss(.6,.82,Math.abs(x))*ss(GL_HY-.22,GL_HY-.06,y);si[i*4+1]=x<0?1:2;sw[i*4]=1-w;sw[i*4+1]=w}
+  geo.setAttribute('skinIndex',new THREE.BufferAttribute(si,4));geo.setAttribute('skinWeight',new THREE.BufferAttribute(sw,4));return geo}
 const SKINS=[0xf1c7a0,0xd9a77c,0xb98058,0x8a5a3c,0xf5d3b5,0x6e4630],HAIR=[0x5a3a22,0x2b211c,0x1c1917,0x151312,0xc9a05a,0x1a1614];
 /* ---------- drawn faces ----------
    Everyone can draw their own face (the Face button on the menu): black cells on a grid 12 wide and 10 high, laid over the
@@ -3341,25 +3371,38 @@ const pose=(o)=>{const P=new Array(POSE_N).fill(0);P[16]=HAND0[0];P[17]=HAND0[1]
   P[0]=o.lean||0;P[1]=o.turn||0;P[14]=o.roll||0;if(o.L){P[2]=o.L[0];P[3]=o.L[1];P[4]=o.L[2];P[12]=o.L[3]}if(o.R){P[5]=o.R[0];P[6]=o.R[1];P[7]=o.R[2];P[13]=o.R[3]}
   if(o.h){P[16]=o.h[0];P[17]=o.h[1];P[18]=o.h[2];P[19]=1}P[8]=o.bp!=null?o.bp:2.72;P[11]=o.by!=null?o.by:.1;P[15]=o.lw||0;P[9]=o.sl||0;P[10]=o.sr||0;return P};
 const POSES={rest:pose({}),
-  cb:pose({L:[-1.42,.4,-.14,.35],h:[.37,1.43,-.2],bp:2.72,by:.1,sl:-.04,sr:.03}),   // crowbar out: the right hand up by the chest, the bar back over the right shoulder; the left arm hangs
+  cb:pose({L:[-1.42,.4,-.14,.35],h:[.38,1.47,-.17],bp:2.1,by:.45,sl:-.04,sr:.03}),   // crowbar out: the right hand up by the chest, the bar back over the right shoulder (its head shows above it from behind); the left arm hangs
   fall:pose({L:[0,2.1,-.05,.95],R:[0,-1.7,.05,.95]}),      // skydiving: upper arms out to the sides, forearms bent up toward the head
   glide:pose({L:[1.25,.3,-.3,1],R:[1.25,0,.3,1]}),                    // reaching up (armIK then puts the hands on the handles)
-  jump:pose({lean:.1,L:[2.05,.3,-.35,.5],R:[2.05,0,.35,.5]})};       // leaving the Drifter: arms up
-// The crowbar's swing, keyed in seconds from the hit, with how each stretch eases (0 in and out, 1 speeding up, 2 slowing
-// down); null is the pose it starts from and goes back to. From the carry over the shoulder, a wind-up lifts the bar up
-// beside the head and cocks it back, the chest turning right and leaning back, the left hand reaching up to it; then a
-// fast arc over the top and down to the front with both hands on the handle, the chest turning left and bending forward
-// and the arms straightening (contact at 0.14 s: the spark, the whack and your camera's shake are held back to then), a
-// follow-through down and across to the left, brought back up outside the right arm and back to the carry by 0.44 s, just inside the crowbar's 0.45 s between hits.
+  jump:pose({lean:.1,L:[2.05,.3,-.35,.5],R:[2.05,0,.35,.5]}),        // leaving the Drifter: arms up
+  dive:pose({L:[-2.2,.25,-.22,.2],R:[-2.2,-.25,.22,.2]})};            // diving head first: the arms swept back along the body
+// The crowbar's swing (November 2026, remade for weight), keyed in seconds from the press, with how each stretch eases (0 in
+// and out, 1 speeding up, 2 slowing down); null is the pose it starts from (whatever was showing, so swings chain without a
+// jump) and goes back to. The keys are joined by a smooth curve (Catmull-Rom through them), so the bar's head travels in
+// arcs rather than straight lines between keys. Read from the camera behind the right shoulder:
+//   anticipation 0 to 0.08 s: both hands bring the bar up over the right shoulder and cock it back behind the head (chest
+//     turned right and leaning back), and it hangs there a moment (0.10 s), cocked a little further;
+//   strike 0.10 to 0.14 s, speeding up: straight up over the head (0.12 s) and down in front (contact at 0.14 s, SWING_HIT:
+//     the chips, the sound and your camera's nudge; on a hit the swing holds there for HIT_STOP seconds);
+//   follow-through to 0.27 s: down and across to the left, the chest turned left and bent over;
+//   recovery: a small rebound (0.33 s), up outside the right arm (0.39 s) and back to the carry by 0.45 s, the crowbar's
+//     time between hits. With the button held the recovery goes to a half-cocked pose instead (SWING_CHAIN), so the next
+//     swing's wind-up has further to travel and the swings run into each other.
+// The damage itself still lands at the press, as before (nothing about the hit changed, only what you see and hear).
 const SWING=[[0,null],
-  [.085,pose({lean:.1,turn:-.45,roll:.05,L:[1.1,.5,-.2,1.3],h:[.43,1.8,.17],bp:3.44,by:.25,lw:.35,sl:-.04,sr:.03}),2],
-  [.115,pose({lean:-.05,turn:-.12,L:[1.2,.6,0,.8],h:[.18,1.9,-.22],bp:1.35,by:0,lw:1,sl:-.04,sr:.03}),1],
-  [.14,pose({lean:-.3,turn:.32,roll:-.04,L:[0,.7,0,.2],h:[.06,1.36,-.56],bp:-.12,by:.1,lw:1,sl:-.04,sr:.03}),1],
-  [.24,pose({lean:-.36,turn:.6,roll:-.06,L:[-.6,.9,0,.3],h:[-.12,1.02,-.36],bp:-1.05,by:.85,lw:1,sl:-.04,sr:.03}),2],
-  [.33,pose({lean:-.14,turn:.2,L:[-1.2,.5,-.1,.4],h:[.36,1.28,-.3],bp:1.7,by:-.45,sl:-.04,sr:.03}),0],   // brought back up outside the right arm, not across the face
-  [.44,null]];
+  [.08,pose({lean:.14,turn:-.55,roll:.08,L:[1.4,.4,-.2,1.2],h:[.36,1.84,.1],bp:3.7,by:.35,lw:.75,sl:-.04,sr:.05}),2],
+  [.10,pose({lean:.17,turn:-.62,roll:.09,L:[1.5,.4,-.2,1.2],h:[.34,1.88,.14],bp:3.92,by:.4,lw:1,sl:-.04,sr:.05}),0],
+  [.12,pose({lean:-.02,turn:-.2,roll:.03,L:[1.4,.5,0,.8],h:[.22,1.94,-.18],bp:1.75,by:.12,lw:1,sl:-.04,sr:.04}),1],
+  [.14,pose({lean:-.32,turn:.3,roll:-.05,L:[.2,.7,0,.3],h:[.08,1.34,-.58],bp:.12,by:.15,lw:1,sl:-.04,sr:.03}),1],
+  [.27,pose({lean:-.47,turn:.62,roll:-.08,L:[-.6,.9,0,.3],h:[-.1,1.02,-.38],bp:-1.15,by:.9,lw:1,sl:-.04,sr:.03}),2],
+  [.33,pose({lean:-.32,turn:.46,roll:-.05,L:[-.6,.8,0,.35],h:[0,1.12,-.42],bp:-.78,by:.7,lw:.6,sl:-.04,sr:.03}),0],
+  [.39,pose({lean:-.1,turn:.1,L:[-1.2,.5,-.1,.4],h:[.42,1.27,-.3],bp:1.35,by:-.4,lw:0,sl:-.04,sr:.03}),0],
+  [.45,null,0]];
+const SWING_CHAIN=pose({lean:.06,turn:-.3,roll:.04,L:[.9,.4,-.15,1],h:[.4,1.66,.02],bp:3.2,by:.25,lw:.4,sl:-.04,sr:.04});
+const SWING_END=.45,SWING_HIT=140,HIT_STOP=.065,SWING_REL=.16;
+// Catmull-Rom through four values at t (0 to 1, between b and c)
+const crom=(a,b,c,d,t)=>b+.5*t*(c-a+t*(2*a-5*b+4*c-d+t*(3*(b-c)+d-a)));
 const CB_POLE=new V3(1,-.7,.25);
-const SWING_HIT=140;
 function makeModel(hex,skinIx,fit,face){
   fit=fitOf(fit);face=faceOf(face);
   const g=new THREE.Group();g.scale.setScalar(BS);
@@ -3367,15 +3410,17 @@ function makeModel(hex,skinIx,fit,face){
   // six bones, all at rest in the pose the body is drawn in (both arms forward, holding a weapon): hips, chest (turns and
   // leans over the hips), left and right upper arm (about the shoulder), left and right forearm (about the elbow).
   // posePut sets them from the pose numbers.
-  const bones=[0,1,2,3,4,5].map(()=>new THREE.Bone());bones[1].position.set(0,SPINE_Y,0);bones[0].add(bones[1]);
+  // (a seventh bone, never weighted, carries how hard the clothes flutter: its distance from the hips; see flutVS)
+  const bones=[0,1,2,3,4,5,6].map(()=>new THREE.Bone());bones[1].position.set(0,SPINE_Y,0);bones[0].add(bones[1],bones[6]);
   for(let k=0;k<2;k++){bones[k+2].position.set(ARM_P[k][0],ARM_P[k][1]-SPINE_Y,ARM_P[k][2]);bones[1].add(bones[k+2]);
     bones[k+4].position.set(ARM_E[k][0]-ARM_P[k][0],ARM_E[k][1]-ARM_P[k][1],ARM_E[k][2]-ARM_P[k][2]);bones[k+2].add(bones[k+4])}
   bones[1].rotation.order='YXZ';body.add(bones[0]);
   const legs=[-.17,.17].map(x=>{const l=new THREE.Object3D();l.position.set(x,.86,0);l.k=0;g.add(l);return l});   // k: the knee's bend
   const gun=new THREE.Object3D();gun.position.set(.3,1.36,-.62);
-  const glider=new THREE.Mesh(GLIDER_GEO,MAT);glider.position.set(0,GLIDE_Y,0);glider.visible=false;
-  g.add(body,gun,glider);g.updateMatrixWorld(true);body.bind(new THREE.Skeleton(bones));
-  g.userData={body,bones,legs,gun,glider,gk:'cb',gr:-1,hex,skinIx:skinIx|0,fit,face,leg:legSpec(hex,SKINS[(skinIx|0)%SKINS.length],fit),
+  const glider=new THREE.SkinnedMesh(gliderSkin(GLIDER_GEO),BMAT);glider.position.set(0,GLIDE_Y,0);glider.visible=false;glider.frustumCulled=false;
+  const gb=[0,1,2,3,4,5,6].map(()=>new THREE.Bone());gb[1].position.set(-GL_HX,GL_HY,0);gb[2].position.set(GL_HX,GL_HY,0);for(let i=1;i<7;i++)gb[0].add(gb[i]);glider.add(gb[0]);
+  g.add(body,gun,glider);g.updateMatrixWorld(true);body.bind(new THREE.Skeleton(bones));glider.bind(new THREE.Skeleton(gb));
+  g.userData={body,bones,legs,gun,glider,gb,gO:0,gV:0,gk:'cb',gr:-1,hex,skinIx:skinIx|0,fit,face,leg:legSpec(hex,SKINS[(skinIx|0)%SKINS.length],fit),
     pk:0,pb:new Float32Array(POSE_N),pf:new Float32Array(POSE_N),pit:0,roll:0,glk:0};limbModels.add(g);
   return g;
 }
@@ -3432,8 +3477,12 @@ function muzzleFlash(e,p,dir,wid){
   const F=FLASH[wid]||[.6,1],fam=famOf(wid),tip=gunTip(e,wid);let q=tip||p,sz=F[0];
   if(e===player&&!tip&&player.alive){   // looking down your own sights: a small flash under the sight, none in a scope
     if(fam==='sr')q=null;else{q=_gt.copy(camera.position).addScaledVector(dir,1.3);q.y-=.2;sz*=.45}}
-  if(q){flash(q,dir,fam==='sg'?0xffb86a:0xffe9a8,sz,.07,F[1]);
-    if(fam==='sg'||fam==='sr'||wid==='hc'||wid==='hr')flash(q,null,0xc8702e,sz*1.25,.11)}   // the big ones also light up a wider, dimmer glow that lasts a moment longer
+  // (each flash a little different in size and length, and the long ones with a second, smaller burst further out
+  // along the shot, so a burst of fire flickers instead of stamping the same star)
+  if(q){const vr=.82+Math.random()*.36;flash(q,dir,fam==='sg'?0xffb86a:0xffe9a8,sz*vr,.07,F[1]*(.85+Math.random()*.3));
+    if(F[1]>=1&&!RM)flash(q.clone().addScaledVector(dir,sz*F[1]*.9),dir,0xfff3cf,sz*.55*vr,.05,F[1]*.7);
+    if(fam==='sg'||fam==='sr'||wid==='hc'||wid==='hr'){flash(q,null,0xc8702e,sz*1.25,.11);
+      if(!RM&&q.distanceToSquared(camera.position)<900)for(let i=0;i<(fam==='sg'?3:2);i++)bit(q,new V3(dir.x*1.2+(Math.random()-.5)*.5,.5+Math.random()*.5,dir.z*1.2+(Math.random()-.5)*.5),0xd8d4cc,.07+Math.random()*.05,.5+Math.random()*.3,-.8)}}   // and a wisp of smoke   // the big ones also light up a wider, dimmer glow that lasts a moment longer
   if(e){e.kick=Math.min(1.3,(e.kick||0)*.4+1);e.kj=(Math.random()-.5)*(fam==='sm'?.3:.1);e.shotAt=performance.now();e.shotW=wid;e.actS=0;
     if(wid!=='sg'&&wid!=='sr'&&wid!=='hc')shell(e,wid)}
 }
@@ -3447,11 +3496,35 @@ function bit(p,v,hex,size,life,grav){if(bits.length>=BIT_CAP)bits.shift();bits.p
 const rv=(a,up)=>new V3((Math.random()-.5)*a,up==null?(Math.random()-.5)*a:Math.random()*up,(Math.random()-.5)*a);
 // a shot landing on a wall, the ground or a tree: a star, a few sparks and a little dust
 function spark(p){flash(p,null,0xffe2a0,.5,.09);for(let i=0;i<3;i++)bit(p,rv(7,4),0xffe9b0,.07,.16,12);for(let i=0;i<2;i++)bit(p,rv(1.6,1.6),0xcfc6b8,.16,.4,-1)}
+// A crowbar landing (at the contact moment of the swing): what it hit decides the chips, the flash and the sound.
+// c: chip colours, n: how many, sp: how fast they fly back toward the swinger, sz: chip size, fl: the flash's colour and size
+// (metal throws hot sparks: small, fast, short-lived), du: a puff of dust. All from the shared bit and flash pools.
+const CB_FX={wood:{c:[0xb07a45,0xd9b07a,0x8a5a32],n:7,sp:4.5,sz:.07,fl:[0xfff0c8,.32],du:0xcdb89a},
+  stone:{c:[0x9a9ea3,0xc9c6bd,0x7d8288],n:6,sp:5.5,sz:.06,fl:[0xffffff,.42],du:0xd8d2c4},
+  metal:{c:[0xffe08a,0xfff6d0,0xffb347],n:10,sp:8,sz:.035,fl:[0xfff2b0,.75],hot:1},
+  crate:{c:[0xb98a52,0xe0c08a,0x8e6638],n:8,sp:4.5,sz:.075,fl:[0xfff0c8,.35],du:0xd2bc96},
+  hay:{c:[0xf0cf66,0xe2b84a],n:8,sp:3,sz:.06,fl:null,du:0xe8d48a},
+  dirt:{c:[0x8a6a48,0xa98a62],n:5,sp:3.2,sz:.06,fl:null,du:0xb59d7a}};
+// what a ray hit is made of: a build is planks, the ground dirt, a map piece what it was built from (MATK)
+function hitMat(hit,pt){if(!hit)return null;if(hit.kind==='ent')return 'body';if(hit.kind==='piece'){const pc=hit.piece;return LX&&pc&&pc.bs?LX.bsMat(pc.bs):'wood'}if(hit.ground)return 'dirt';const P=mpAt(hit.s,pt);return P?P.mt:'stone'}
+// p: the point, d: the swing's direction (chips come back off the face), v: how loud (1 for your own)
+function cbImpact(p,mt,d,v){const F=CB_FX[mt]||CB_FX.stone,near=p.distanceToSquared(camera.position)<1600;sfxCb(mt,v);if(!near)return;
+  if(F.fl)flash(p,null,F.fl[0],F.fl[1],F.hot?.1:.08);
+  const n=gfxPref==='fast'||touchUI?Math.ceil(F.n*.6):F.n;
+  for(let i=0;i<n;i++){const v_=new V3(-d.x*F.sp+(Math.random()-.5)*F.sp,F.sp*(.25+Math.random()*.6),-d.z*F.sp+(Math.random()-.5)*F.sp);
+    bit(p,v_,F.c[i%F.c.length],F.sz*(.7+Math.random()*.6),F.hot?.18+Math.random()*.12:.45+Math.random()*.3,F.hot?16:13)}
+  if(F.du&&!RM)for(let i=0;i<2;i++)bit(p.clone().addScaledVector(d,-.1),rv(1.2,1.1),F.du,.2+Math.random()*.1,.5,-1)}
 // a shot landing on a player: a bigger star and a pop of confetti (blue off a shield, the player's own colour otherwise)
 function hitPop(p,hex,head){flash(p,null,head?0xffe36a:0xffffff,head?1.15:.85,.11);for(let i=0;i<(head?8:5);i++)bit(p,rv(6,5),i%2?hex:0xffffff,.1,.38,13)}
 function debris(p,hex,n){for(let i=0;i<(n||8);i++)bit(p.clone().add(new V3((Math.random()-.5)*2.4,(Math.random()-.5)*2,(Math.random()-.5)*2.4)),new V3((Math.random()-.5)*5,Math.random()*5,(Math.random()-.5)*5),hex||0xc7955a,.35,.9,14)}
 // a knockout: a burst of stars, confetti in the player's colour and a few pale puffs that drift up (no mess)
-function puff(p,hex){flash(p,null,0xffffff,2.2,.16);for(let i=0;i<12;i++)bit(p.clone(),rv(7,6),i%3?hex:0xffffff,.16,.75,11);for(let i=0;i<5;i++)bit(p.clone().add(rv(.8)),rv(1.4,1.8),0xf2f2ee,.4,.9,-1.5)}
+// (November 2026: a bigger pop: a white star inside a wider flash of the player's colour, confetti thrown up and a ring of
+// it out flat, pale puffs, and a slow column of gold sparkles rising where they were; fewer bits on Fast and on phones)
+function puff(p,hex){const lo=gfxPref==='fast'||touchUI;flash(p,null,0xffffff,2.4,.18);flash(p,null,hex,3,.3);
+  for(let i=0;i<(lo?12:18);i++)bit(p.clone(),rv(8,7),i%3?hex:i%2?0xffd84a:0xffffff,.15,.8+Math.random()*.3,11);
+  for(let i=0;i<(lo?6:10);i++){const a=i/(lo?6:10)*6.283;bit(p.clone(),new V3(Math.cos(a)*6,.6,Math.sin(a)*6),i%2?hex:0xffffff,.12,.45,3)}
+  for(let i=0;i<6;i++)bit(p.clone().add(rv(.8)),rv(1.4,1.8),0xf2f2ee,.22+Math.random()*.1,.9,-1.5);
+  if(!RM)for(let i=0;i<(lo?4:7);i++)bit(p.clone().add(rv(.6,0)),new V3((Math.random()-.5)*.4,1.2+Math.random()*1.4,(Math.random()-.5)*.4),0xffe27a,.07,1.1+Math.random()*.5,-.6)}
 function updateFx(dt){
   for(let i=trs.length-1;i>=0;i--){trs[i].life-=dt;if(trs[i].life<=0)trs.splice(i,1)}
   if(trs.length||trIM.count){
@@ -3472,7 +3545,7 @@ function updateFx(dt){
   bitMesh.count=bits.length;bitMesh.instanceMatrix.needsUpdate=true;if(bitMesh.instanceColor)bitMesh.instanceColor.needsUpdate=true;
 }
 const dmgLayer=$('dmg');const dnums=[];
-function dmgNumber(pt,amt,head,sh){if(dnums.length>24)return;const el=document.createElement('div');el.className='dn'+(head?' head':sh?' sh':'');el.textContent=amt;dmgLayer.appendChild(el);dnums.push({el,p:pt.clone(),t:0,dx:(Math.random()-.5)*30})}
+function dmgNumber(pt,amt,head,sh){if(dnums.length>24)return;const el=document.createElement('div');el.className='dn'+(head?' head':sh?' sh':'');el.textContent=amt;dmgLayer.appendChild(el);dnums.push({el,p:pt.clone(),t:0,dx:(Math.random()-.5)*36,big:head?1:0})}
 const tmpV=new V3();
 const _scr={x:0,y:0,front:false};
 function toScreen(p){tmpV.copy(p).project(camera);_scr.x=(tmpV.x*.5+.5)*VW;_scr.y=(-tmpV.y*.5+.5)*VH;_scr.front=tmpV.z<1;return _scr}
@@ -3482,7 +3555,9 @@ function hudSet(el,k,v){if(hudLast.get(k)===v)return;hudLast.set(k,v);if(k.charC
 function updateDnums(dt){
   for(let i=dnums.length-1;i>=0;i--){const d=dnums[i];d.t+=dt;if(d.t>.8){d.el.remove();dnums.splice(i,1);continue}
     const s=toScreen(d.p);if(!s.front){d.el.style.opacity='0';continue}
-    d.el.style.opacity=String(1-Math.max(0,d.t-.45)/.35);d.el.style.transform=`translate(${s.x+d.dx*d.t}px,${s.y-40*d.t}px) translate(-50%,-50%)`}
+    // each number pops in large (more for a headshot), then rises on an arc that slows, drifting aside, and fades
+    const pop=RM?1:1+(d.big?.9:.55)*Math.max(0,1-d.t/.12)**2;
+    d.el.style.opacity=String(1-Math.max(0,d.t-.45)/.35);d.el.style.transform=`translate(${s.x+d.dx*d.t}px,${s.y-70*d.t+40*d.t*d.t}px) translate(-50%,-50%) scale(${pop.toFixed(3)})`}
 }
 
 /* ---------- sound (Web Audio, made on the spot) ---------- */
@@ -3513,6 +3588,7 @@ function sfxShot(id,v){
   else if(id==='hr'){burst('lowpass',2100,.6*v,.21,0,0,560);tone('sine',112,35,.5*v,.2);tone('triangle',310,120,.08*v,.1)}                   // a heavy thwack
   else if(id==='sr'){burst('highpass',2400,.46*v,.05);burst('lowpass',1600,.6*v,.75,0,0,170);tone('sine',102,29,.6*v,.34)}                   // a crack and a long rolling tail
   else if(id==='ss'){burst('highpass',3000,.36*v,.04);burst('lowpass',2700,.42*v,.3,0,0,380);tone('sine',195,55,.4*v,.16)}                   // a lighter, higher snap
+  else if(id==='cb')sfxSwoosh(v,.085);
   else{burst('bandpass',900,.3*v,.1,2)}}
 // working the weapon: the pump (back, then forward), the bolt (up and back, then home), the stages of a reload, a swap, an empty click
 function sfxPump(v,n){burst('bandpass',n?2100:1500,.34*v,.06,2.2);tone('square',n?240:170,n?150:110,.05*v,.05)}
@@ -3533,8 +3609,29 @@ function sfxHit(head){vKeep=true;tone('square',head?1500:1050,head?1700:1000,.07
 function sfxHurt(){vKeep=true;tone('sine',90,40,.5,.25);burst('lowpass',500,.25,.15);vKeep=false}
 function sfxChest(v){tone('triangle',520,1040,.14*v,.25);tone('triangle',780,1560,.1*v,.3)}
 function sfxPick(){vKeep=true;tone('triangle',660,990,.08,.09);vKeep=false}
+function sfxKO(){vKeep=true;tone('triangle',660,660,.12,.09);tone('triangle',990,990,.12,.16,.075);tone('sine',120,50,.3,.2);vKeep=false}   // a knockout of yours: two bright notes up and a thump
 function sfxJoin(){tone('triangle',440,660,.12,.18)}
-function sfxWhack(v){burst('bandpass',1200,.4*v,.08,3);tone('square',180,90,.08*v,.06)}
+// A crowbar hit sounds like what it hit (each a little different every time): wood a dry tok, stone a hard chink with
+// grit, metal a ringing clang (inharmonic partials), a crate a hollow bonk, hay and dirt a soft thud, a body a thump.
+function sfxCb(mt,v){vKeep=v>=1;const r=.94+Math.random()*.12;
+  if(mt==='wood'){tone('triangle',270*r,150*r,.36*v,.09);burst('lowpass',1500*r,.42*v,.09,0,0,500);burst('bandpass',2700*r,.16*v,.03,3)}
+  else if(mt==='stone'){burst('highpass',2600*r,.36*v,.05);tone('triangle',1250*r,980*r,.13*v,.06);tone('sine',150*r,70,.3*v,.08);burst('bandpass',4200*r,.1*v,.14,5,.012)}
+  else if(mt==='metal'){const f=520*r;for(const [k,a,d] of [[1,.15,.55],[2.76,.09,.38],[5.4,.05,.24],[1.51,.06,.32]])tone('triangle',f*k,f*k*.985,a*v,d);burst('highpass',3600*r,.32*v,.04);tone('sine',170*r,80,.2*v,.07)}
+  else if(mt==='crate'){tone('sine',200*r,120*r,.42*v,.16);burst('bandpass',520*r,.5*v,.15,5);burst('bandpass',2300*r,.15*v,.03,3)}
+  else if(mt==='body'){tone('sine',140*r,55,.42*v,.11);burst('lowpass',900*r,.34*v,.08)}
+  else{burst('lowpass',750*r,.42*v,.13,0,0,200);tone('sine',115*r,55,.26*v,.09)}
+  vKeep=false}
+// Landing from the sky: a soft thump (heavier straight from the skydive) and a ring of dust kicked out from the feet;
+// the glider opening: a rising whoosh of cloth and a snap as it fills. Heard and seen by anyone close.
+function touchDown(e,hard){const d=camera.position.distanceTo(e.pos);if(d>45)return;const v=e===player?1:1/(1+d*.08);
+  vKeep=e===player;burst('lowpass',hard?520:720,(hard?.5:.3)*v,.18,0,0,170);tone('sine',hard?95:125,40,(hard?.42:.22)*v,.14);burst('bandpass',2300,.06*v,.05,2);vKeep=false;
+  if(RM||d>35)return;const n=gfxPref==='fast'||touchUI?7:12,wet=e.pos.y<SEA_Y-.05;   // (in the sea: a splash instead)
+  for(let i=0;i<n;i++){const a=i/n*6.283+Math.random()*.5,sp=1.1+Math.random()*1.1,y0=wet?SEA_Y+.02:e.pos.y+.05;bit(_p.set(e.pos.x+Math.cos(a)*.22,y0,e.pos.z+Math.sin(a)*.22),
+    wet?new V3(Math.cos(a)*sp*.6,1.6+Math.random()*1.6,Math.sin(a)*sp*.6):new V3(Math.cos(a)*sp,.2+Math.random()*.45,Math.sin(a)*sp),wet?(i%2?0xeaf8ff:0xbfe6f5):(i%2?0xcfc2a4:0xb9aa8a),wet?.06+Math.random()*.05:.09+Math.random()*.07,.45+Math.random()*.25,wet?9:-.3)}}
+function gliderOut(e){const d=camera.position.distanceTo(e.pos);if(d>50)return;const v=e===player?1:1/(1+d*.07);vKeep=e===player;
+  burst('bandpass',360,.42*v,.26,1.1,0,1700);burst('lowpass',900,.26*v,.12,0,.05);tone('sine',72,140,.26*v,.12,.04);burst('highpass',2600,.16*v,.05,0,.11);vKeep=false}
+// the bar cutting the air on the way down (every swing, hit or miss), timed to the strike
+function sfxSwoosh(v,dl){burst('bandpass',650,.2*v,.14,1.4,dl,2800)}
 function sfxStorm(){burst('lowpass',300,.18,.4)}
 function sfxThunder(v){if(v<.05||!AC||!voice(v))return;   // a long low rumble: the short noise buffer, looped and filtered
   const t=AC.currentTime,s=AC.createBufferSource();s.buffer=noiseBuf;s.loop=true;const f=AC.createBiquadFilter();f.type='lowpass';f.frequency.setValueAtTime(260,t);f.frequency.exponentialRampToValueAtTime(60,t+1.8);
@@ -3548,11 +3645,11 @@ function stormHum(k){
   humGain.gain.setTargetAtTime(k*.5,AC.currentTime,.25);
 }
 // the rush of air while you fall (and, quieter, glide): the same kind of loop, lighter and higher
-let windGain=null,windKq=-1;
-function windHum(k){
-  if(!AC)return;k=Math.round(k*20)/20;if(k===windKq)return;windKq=k;
+let windGain=null,windKq=-1,windF=null;
+function windHum(k,f){
+  if(!AC)return;k=Math.round(k*20)/20;if(windF&&f)windF.frequency.setTargetAtTime(f,AC.currentTime,.4);if(k===windKq)return;windKq=k;
   if(!windGain){if(!k)return;try{const b=AC.createBuffer(1,AC.sampleRate*2,AC.sampleRate),d=b.getChannelData(0);let v=0;for(let i=0;i<d.length;i++){v+=(Math.random()*2-1-v)*.35;d[i]=v}
-      const s=AC.createBufferSource();s.buffer=b;s.loop=true;const f=AC.createBiquadFilter();f.type='bandpass';f.frequency.value=900;f.Q.value=.6;windGain=AC.createGain();windGain.gain.value=0;s.connect(f);f.connect(windGain);windGain.connect(master);s.start()}catch(e){windGain=null;return}}
+      const s=AC.createBufferSource();s.buffer=b;s.loop=true;const f=windF=AC.createBiquadFilter();f.type='bandpass';f.frequency.value=900;f.Q.value=.6;windGain=AC.createGain();windGain.gain.value=0;s.connect(f);f.connect(windGain);windGain.connect(master);s.start()}catch(e){windGain=null;return}}
   windGain.gain.setTargetAtTime(k*.16,AC.currentTime,.3);
 }
 
@@ -4143,7 +4240,7 @@ function die(e,killerId,wkey){
   if(e===player)onMyDeath(killerId);
 }
 let myKills=0;
-function gotKill(victim){myKills++;player.kills=myKills;banner((victim.name||'Someone').toUpperCase()+' DOWN',myKills+' knockout'+(myKills===1?'':'s'),1.8);Net.publishSoon()}
+function gotKill(victim){myKills++;hitmark(false,true);sfxKO();player.kills=myKills;banner((victim.name||'Someone').toUpperCase()+' DOWN',myKills+' knockout'+(myKills===1?'':'s'),1.8);Net.publishSoon()}
 function killFeed(k,v,w){
   const nm=u=>u===myId()?'You':esc(nameOf(u))+(isBotId(u)?'<span class="bt">BOT</span>':'');
   const how=w==='storm'||!k?(w==='storm'?' · storm':' · fell'):' · '+(WEAP[w]?WEAP[w].name:w==='cb'?'Crowbar':'');
@@ -4162,8 +4259,9 @@ function resolveShot(shooter,w,r,rays,color){
     let dmg=w===CROW?CROW.dmg:wDmg(w,r);
     if(w.falloff)dmg*=res.t<6?1:Math.max(.3,1-(res.t-6)/22);
     else if(w.fall&&res.t>w.fall[0])dmg*=Math.max(w.fall[1],1-(res.t-w.fall[0])/(w.range-w.fall[0])*(1-w.fall[1]));
-    if(res.hit.kind==='ent'){const hx=res.hit.ent.sh>0?0x5cc6ff:res.hit.ent.hex||0xffffff;if(w===CROW)setTimeout(()=>hitPop(end,hx,false),SWING_HIT);else hitPop(end,hx,res.hit.head);const a=entAcc.get(res.hit.ent)||{d:0,head:false,pt:end};a.d+=dmg*(res.hit.head&&w!==CROW?w.head:1);a.head=a.head||res.hit.head;entAcc.set(res.hit.ent,a)}
-    else{if(w===CROW)setTimeout(()=>spark(end),SWING_HIT);else spark(end);const sdm=w===CROW?CROW.build:w.sd*(1+.07*(r|0))*(dmg/wDmg(w,r));   // structure damage, with the same falloff
+    const cv=w===CROW?(shooter===player?1:1/(1+camera.position.distanceTo(end)*.06)):0;
+    if(res.hit.kind==='ent'){const hx=res.hit.ent.sh>0?0x5cc6ff:res.hit.ent.hex||0xffffff;if(w===CROW)setTimeout(()=>{hitPop(end,hx,false);sfxCb('body',cv)},SWING_HIT);else hitPop(end,hx,res.hit.head);const a=entAcc.get(res.hit.ent)||{d:0,head:false,pt:end};a.d+=dmg*(res.hit.head&&w!==CROW?w.head:1);a.head=a.head||res.hit.head;entAcc.set(res.hit.ent,a)}
+    else{if(w===CROW){const mt=hitMat(res.hit,arr(end)),d=ry.d.clone();setTimeout(()=>cbImpact(end,mt,d,cv),SWING_HIT)}else spark(end);const sdm=w===CROW?CROW.build:w.sd*(1+.07*(r|0))*(dmg/wDmg(w,r));   // structure damage, with the same falloff
       if(res.hit.kind==='piece')pcAcc.set(res.hit.piece,(pcAcc.get(res.hit.piece)||0)+sdm);
       else{const mp=mpAt(res.hit.s,arr(end));if(mp)mpAcc.set(mp,(mpAcc.get(mp)||0)+sdm)}
       if(res.hit.kind!=='piece'&&w===CROW&&res.hit.s&&res.hit.s.hv&&shooter.alive){shooter.mats=Math.min(MAX_MATS,shooter.mats+res.hit.s.hv);if(shooter===player)hint2('+'+res.hit.s.hv+' scrap','#f2d29b')}}
@@ -4241,7 +4339,7 @@ function shootFrom(e,w,r,camF,cp,ads,color){
   const res=resolveShot(e,w,r,rays,color);
   if(w!==CROW)muzzleFlash(e,mz,rays[0].d,w.id);else{e.kick=1;e.kj=0;e.swAt=performance.now()}
   sfxShot(w.id,e===player?1:1/(1+camera.position.distanceTo(mz)*.05));
-  if(w===CROW&&res.ends.length){const v=e===player?1:.4;setTimeout(()=>sfxWhack(v),SWING_HIT);if(e===player&&res.hit)shakeAt=performance.now()+SWING_HIT}   // when the swing lands (see SWING)
+  if(w===CROW){e.swHit=!!res.hit;if(e===player&&res.hit)shakeAt=performance.now()+SWING_HIT}   // the swing holds at contact on a hit, and your camera is nudged then (see SWING)
   const ev={k:'s',w:w.id,r:r|0,o:arr(mz).map(r2),e:w===CROW?[]:res.ends.map(v=>arr(v).map(r1))};
   if(res.pd.length)ev.pd=res.pd;if(res.md.length)ev.md=res.md;if(res.hs.length)ev.hs=res.hs;
   sendEv(ev,e);
@@ -4751,7 +4849,11 @@ function handleEvent(from,e){
     const o=Array.isArray(e.o)&&e.o.length===3?new V3(+e.o[0],+e.o[1],+e.o[2]):null;
     if(o&&[o.x,o.y,o.z].every(isFinite)){
       let fd=null;if(actor&&WEAP[e.w])(actor.wr||(actor.wr={}))[e.w]=clamp(e.r|0,0,4);
-      if(actor&&e.w==='cb'){actor.kick=1;actor.kj=0;actor.swAt=performance.now()}
+      if(actor&&e.w==='cb'){actor.kick=1;actor.kj=0;actor.swAt=performance.now();actor.swHit=!!(e.pd||e.md||e.hs);
+        // where their bar lands isn't sent, so it is worked out here from where they are and look (only for the effect)
+        if(actor.alive&&actor.pos.distanceToSquared(camera.position)<1600){const d=fwdOf(actor.yaw,actor.pitch),mz=muzzleOf(actor),r=raycast(arr(mz),arr(d),CROW.range,actor,true);
+          if(r.hit){const p=mz.addScaledVector(d,r.t),mt=hitMat(r.hit,arr(p)),v=1/(1+camera.position.distanceTo(p)*.06);actor.swHit=true;
+            setTimeout(()=>{if(mt==='body'){hitPop(p,0xffffff,false);sfxCb('body',v)}else cbImpact(p,mt,d,v)},SWING_HIT)}}}
       const tp=actor&&o.distanceToSquared(actor.pos)<9?gunTip(actor,String(e.w)):null,vo=tp?tp.clone():o;   // drawn from the end of their barrel when they are in view
       if(Array.isArray(e.e))for(const p of e.e.slice(0,12))if(Array.isArray(p)){const v=new V3(+p[0],+p[1],+p[2]);if([v.x,v.y,v.z].every(isFinite)){addTracer(vo,v,0xffb08a,String(e.w));spark(v);if(!fd){fd=v.clone().sub(o).normalize();muzzleFlash(actor,o,fd,String(e.w))}}}
       sfxShot(String(e.w),1/(1+camera.position.distanceTo(o)*.05));
@@ -4860,7 +4962,7 @@ function updateRemotes(dt){
     e.pos.set(_rs.x,_rs.y,_rs.z);e.yaw=_rs.h;e.pitch=_rs.p;
     clampToMap(e.pos);if(e.st==='ground')pushOut(e);
     if(dt>0){e.vel.set((e.pos.x-px)/dt,(e.pos.y-py)/dt,(e.pos.z-pz)/dt);if(e.vel.length()>40)e.vel.set(0,0,0)}
-    e.onGround=e.st==='ground'&&Math.abs(e.vel.y)<.5;
+    e.onGround=e.st==='ground'&&(Math.abs(e.vel.y)<.5||e.pos.y-groundAt(e.pos.x,e.pos.z,e.pos.y+.4)<.15);   // (only for how they're drawn: walking up a ramp or a slope is still on the ground)
   }
 }
 
@@ -5037,7 +5139,11 @@ const hud={root:$('hud'),feed:$('feed'),banner:$('banner'),hint:$('hint'),cross:
 // the compass strip: three turns of the dial side by side (3 px a degree), slid sideways as you turn
 (()=>{const N=['N','NE','E','SE','S','SW','W','NW'];let h='';for(let d=0;d<1080;d+=15){const x=d*3;h+=d%45?`<i style="left:${x}px"></i>`:`<span${d%90?' class="s"':''} style="left:${x}px">${N[d/45%8]}</span>`}hud.strip.innerHTML=h})();
 let hurtA=0,hitT=0,lastHud='',bannerTimer=0,placeT=0,stormSeen='';
-function hitmark(head){hitT=.14;hud.hitm.style.color=head?'#ffd84a':'#fff'}
+// The hit marker pops in a little large and settles (bigger and gold for a headshot); a knockout of yours gets a big red
+// one that holds a moment, with its own sound. Web Animations, so restarting it costs no layout; reduced motion: no pop.
+function hitmark(head,kill){const el=hud.hitm;el.style.color=kill?'#ff4a3a':head?'#ffd84a':'#fff';
+  if(RM||!el.animate){hitT=kill?.45:.14;return}hitT=0;
+  el.animate([{opacity:1,transform:`scale(${kill?2:head?1.6:1.35})`},{opacity:1,transform:`scale(${kill?1.25:1})`,offset:kill?.3:.4},{opacity:kill?1:.9,transform:`scale(${kill?1.25:1})`,offset:kill?.75:.6},{opacity:0,transform:`scale(${kill?1.15:.95})`}],{duration:kill?620:head?280:210,easing:'cubic-bezier(.2,.8,.3,1)'})}
 function feed(html,cls){const d=document.createElement('div');d.className=cls;d.innerHTML=html;hud.feed.prepend(d);while(hud.feed.children.length>(touchUI?4:6))hud.feed.lastChild.remove();setTimeout(()=>{d.style.opacity='0';setTimeout(()=>d.remove(),700)},6000)}
 function hint2(t,col){const d=document.createElement('div');d.className='info';d.textContent=t;if(col)d.style.color=col;hud.feed.prepend(d);while(hud.feed.children.length>(touchUI?4:6))hud.feed.lastChild.remove();setTimeout(()=>{d.style.opacity='0';setTimeout(()=>d.remove(),700)},2600)}
 // (the slide-in restarts without reading offsetWidth, which made the browser lay out the whole page there and then)
@@ -5275,14 +5381,26 @@ function startPractice(){
 function animModel(e,dt){
   const m=e.model,u=m.userData;
   if(!e.present||e.st==='bus'||e.st==='out'){m.visible=false;u.lst=e.st;return}
-  if(!e.alive){e.dieT+=dt;m.rotation.set(0,e.yaw,Math.min(1.5,e.dieT*5));m.position.set(e.pos.x,e.pos.y+Math.min(.25,e.dieT),e.pos.z);u.glider.visible=false;m.visible=e.dieT<2.2;return}
+  // knocked out: a little hop as they topple over (overshooting a touch and settling), then after a second they shrink
+  // away into a puff (reduced motion: they just topple and stay until they go, as before)
+  if(!e.alive){e.dieT+=dt;const t=e.dieT,k=Math.min(1,t/.38),bk=1+2.2*(k-1)**3+1.2*(k-1)**2,sc=RM||t<1.15?1:Math.max(0,1-(t-1.15)/.2);
+    m.rotation.set(0,e.yaw,RM?Math.min(1.5,t*5):1.5*bk);m.position.set(e.pos.x,e.pos.y+(RM?Math.min(.25,t):.25*Math.min(1,t*4)+.3*Math.sin(Math.PI*Math.min(1,t/.38))),e.pos.z);
+    m.scale.setScalar(BS*Math.max(.001,sc));if(sc<.4&&!u.poof){u.poof=1;if(m.visible&&e.pos.distanceToSquared(camera.position)<1600)for(let i=0;i<9;i++)bit(_p.set(e.pos.x,e.pos.y+.5,e.pos.z).add(rv(.7)),rv(1.4,1.5),i%3?0xf2f2ee:e.hex||0xffffff,.14+Math.random()*.08,.6,-1.2)}
+    u.glider.visible=false;m.visible=e.dieT<2.2&&sc>0;return}
+  if(u.poof||m.scale.x!==BS){u.poof=0;m.scale.setScalar(BS)}
   if(e!==player)m.visible=true;
   m.position.copy(e.pos);
   const air=e.st==='fall',far=camera.position.distanceTo(e.pos)>70,now=performance.now(),k8=1-Math.exp(-dt*8),fl=RM?0:1;
   const GS=LX&&e.lxo&&e.lxo.g?LX.gstyle(e.lxo.g):null;   // a Locker glider's own way of being held (locker-extra.js); null: the standard glider
   // just out of the Drifter: start from the jump (upright, arms up, knees tucked) and spread into the skydive (fT)
   if(air&&u.lst!==e.st){u.fT=u.lst==='bus'||u.lst==='out'||u.lst==null?0:.6;if(!u.fT){u.pb.set(POSES.jump);u.pit=-.25;u.roll=0}}
-  if(e.st!==u.lst&&e.onGround&&(u.lst==='glide'||u.lst==='fall'))u.landT=.32;   // touching down: a short crouch
+  if(e.st!==u.lst&&e.onGround&&(u.lst==='glide'||u.lst==='fall')){u.landT=u.landD=.36;u.landA=1;touchDown(e,u.lst==='fall')}   // touching down: a crouch, a puff of dust and a thump
+  // on foot: off the ground (a jump or a drop) and back down: the knees take it, more the harder the landing (u.vyA, the
+  // fastest fall since leaving the ground)
+  // (others' height is smoothed, so for them only a real jump counts)
+  const hop=e.st==='ground'&&!e.onGround&&(e.local||u.hopT>0||e.vel.y>1.5);if(hop){u.hopT=(u.hopT||0)+dt;u.vyA=Math.min(u.vyA||0,e.vel.y)}
+  else{if(u.hopT>.12&&e.onGround&&e.st==='ground'){u.landA=clamp(-(u.vyA||0)/10,.3,1);u.landT=u.landD=.18+.1*u.landA}u.hopT=0;u.vyA=0}
+  if(e.glide&&u.lst==='fall'&&!u.gO)gliderOut(e);                                                        // the glider snaps open with a whoosh
   u.lst=e.st;u.fT=(u.fT||0)+dt;
   const jk=air?clamp(u.fT/.55,0,1):1,jumpK=1-jk*jk*(3-2*jk);
   // the whole body: belly to the ground in the skydive (from the jump), hanging a little forward under the glider, leaning
@@ -5291,23 +5409,38 @@ function animModel(e,dt){
   const yr=dt>0?wrapAng(e.yaw-(u.py==null?e.yaw:u.py))/dt:0;u.py=e.yaw;
   const sy=Math.sin(e.yaw),cy=Math.cos(e.yaw),lat=e.vel.x*cy-e.vel.z*sy,fwd=-e.vel.x*sy-e.vel.z*cy;
   const sp=e.onGround?Math.hypot(e.vel.x,e.vel.z):0,rk=Math.min(1,sp/SPEED);
-  const ptg=air?-1.38+1.1*jumpK:e.glide?(GS?GS.pit:-.3):-.09*rk*Math.sign(fwd+.01)*Math.min(1,Math.abs(fwd)/(sp+.01)+.2);
+  // diving (looking well down) tips the skydive head-first with the arms swept back; looking ahead it is the spread-out
+  // slow fall (dv, from the pitch everyone already sends; the fall itself is the same speed either way)
+  u.dv=(u.dv||0)+((air?clamp((-(e.pitch||0)-.3)/.55,0,1):0)-(u.dv||0))*(1-Math.exp(-dt*4));
+  // on the ground the body also leans into a speed-up and back out of a stop (u.acc, smoothed), and into turns while running
+  u.acc=(u.acc||0)+(clamp(dt>0?(sp-(u.sp0||0))/dt:0,-40,40)-(u.acc||0))*(1-Math.exp(-dt*10));u.sp0=sp;
+  const ptg=air?-1.38-.62*u.dv+1.1*jumpK:e.glide?(GS?GS.pit:-.3):-.09*rk*Math.sign(fwd+.01)*Math.min(1,Math.abs(fwd)/(sp+.01)+.2)-(RM?0:clamp(u.acc*.006,-.07,.09));
   u.pit+=(ptg-u.pit)*(air?1-Math.exp(-dt*5):k8);
-  u.roll+=((RM?0:e.glide?clamp(yr*.2-lat*.035,-.42,.42):air?clamp(yr*.22-lat*.02,-.35,.35):0)-u.roll)*k8;
+  u.roll+=((RM?0:e.glide?clamp(yr*.2-lat*.035,-.42,.42):air?clamp(yr*.22-lat*.02,-.35,.35):e.onGround?clamp(yr*rk*.05,-.1,.1):0)-u.roll)*k8;
   m.rotation.set(u.pit,e.yaw,u.roll,'YXZ');if(GS&&u.glk>.01)GS.body(m,u,dt,fl);
   // the glider unfolds over about a fifth of a second when it opens and folds away as you land
-  u.glk=clamp(u.glk+(e.glide?dt*5:-dt*6),0,1);const gl=u.glider,ge=u.glk*u.glk*(3-2*u.glk);gl.visible=u.glk>.01;
-  if(gl.visible){if(GS)GS.place(gl,ge,u,e);else{gl.position.set(0,GLIDE_Y,0);gl.scale.set(.08+.92*ge,.4+.6*ge,.3+.7*ge);gl.rotation.set(-u.pit*.8,0,u.roll*.4)}}
+  // (a spring, a little under-damped on the way out so it snaps open past its size and settles; folding is quicker and
+  // doesn't bounce). The side panels fold down against the struts while it is closed, flex in the air and load up: the
+  // outside of a turn lifts and the inside drops, more than the body banks.
+  {const ks=e.glide?230:900,ze=e.glide&&!RM?.4:1,n=Math.ceil(Math.min(dt,.1)/.008),h=Math.min(dt,.1)/n;for(let i=0;i<n;i++){u.gV+=(ks*((e.glide?1:0)-u.gO)-2*ze*Math.sqrt(ks)*u.gV)*h;u.gO+=u.gV*h}if(!e.glide&&u.gO<.05){u.gO=0;u.gV=0}}
+  u.glk=clamp(u.gO,0,1);const gl=u.glider,go=Math.max(0,u.gO),ge=u.glk*u.glk*(3-2*u.glk);gl.visible=u.glk>.01;
+  if(gl.visible&&GS)GS.place(gl,ge,u,e);   // a Locker glider opens its own way (locker-extra.js)
+  else if(gl.visible){gl.position.set(0,GLIDE_Y,0);gl.scale.set(.08+.92*go,.4+.6*ge,.3+.7*go);gl.rotation.set(-u.pit*.8,0,u.roll*.55);
+    const gb=u.gb,fold=(1-ge)*1.35,fx=fl*(.035*Math.sin(now*.012+e.yaw)+.02*Math.sin(now*.029)),ld=u.roll*.38;
+    if(gb){gb[1].rotation.z=fold-.06-fx+ld;gb[2].rotation.z=-fold+.06+fx+ld;gb[0].rotation.x=fl*.03*Math.sin(now*.007)}}
   u.legs[0].visible=u.legs[1].visible=!far;u.gun.visible=!far&&!air&&!e.glide&&u.glk<.35;   // (not while the glider is opening or open; it comes back as the glider folds away)
   // ---- legs. On the ground each stride is as long as the ground it covers, so a planted foot doesn't slide (A: how far a
   // leg swings, at most 0.74 rad; LEG_L: hip to sole in metres). The legs swing the way the body is moving (forward,
   // backward or sideways), the knee of the leg moving with the body bends to lift its foot, and the body drops by as much
   // as the straight standing leg would otherwise lift it, so both feet stay on the ground. Falling: legs out and bent at
   // the knee, fluttering; gliding: trailing behind, bent a little.
-  const A=.74*Math.min(1,Math.sqrt(sp/6));
+  let A=.74*Math.min(1,Math.sqrt(sp/6)),cf=sp>.05?fwd/sp:1,cl=sp>.05?lat/sp:0;
   if(e.onGround&&sp>.05)e.walk+=dt*sp*Math.PI/(2*LEG_L*Math.sin(Math.max(A,.02)));
-  const ph=e.walk,cf=sp>.05?fwd/sp:1,cl=sp>.05?lat/sp:0,L0=u.legs[0],L1=u.legs[1];
-  const lt=u.landT>0?(u.landT-=dt,Math.sin(Math.PI*clamp(u.landT/.32,0,1))):0;
+  // turning on the spot: small sideways steps, as many as the turn needs, instead of the feet sliding round
+  u.tip_=(u.tip_||0)+((e.onGround&&sp<.6&&Math.abs(yr)>.5&&!RM?1:0)-(u.tip_||0))*k8;
+  if(u.tip_>.05){e.walk+=dt*Math.min(Math.abs(yr),6)*1.5;A=Math.max(A,.17*u.tip_*Math.min(1,Math.abs(yr)/2));cf=sp>.05?cf*(1-u.tip_):0;cl=sp>.05?cl:Math.sign(yr)*-1}
+  const ph=e.walk,L0=u.legs[0],L1=u.legs[1];
+  const lt=u.landT>0?(u.landT-=dt,Math.sin(Math.PI*clamp(u.landT/(u.landD||.32),0,1))*(u.landA||1)):0;
   if(e.onGround){
     // each leg's half-cycle on the ground moves its foot back under the hip at a steady pace (the angle whose sine runs
     // evenly from sin A to -sin A, measured from straight down rather than from the leaning body), so the planted foot stays
@@ -5317,20 +5450,32 @@ function animModel(e,dt){
       L.rotation.set(a*cf+lt*.35-u.pit,0,a*cl,'XYZ');L.k=st+(p<.5?0:kb*Math.sin(2*Math.PI*(p-.5)))+lt*.75;if(p<.5)drop=.9*(1-Math.cos(a))}
     m.position.y-=(drop+lt*.09)*BS}
   else if(air){const f=Math.sin(now*.017)*.07*fl,g=Math.sin(now*.021+1)*.07*fl;
-    L0.rotation.set((1-jumpK)*-.18+jumpK*.32+f,0,-.32*(1-jumpK)-.08*jumpK,'XYZ');L1.rotation.set((1-jumpK)*-.18-jumpK*.12+g,0,.32*(1-jumpK)+.08*jumpK,'XYZ');L0.k=1.25*(1-jumpK)+.95*jumpK+f;L1.k=1.15*(1-jumpK)+.5*jumpK-g}
+    const dv=u.dv*(1-jumpK),sf=1-dv;
+    L0.rotation.set(((1-jumpK)*-.18+jumpK*.32)*sf+f*(1+dv),0,(-.32*(1-jumpK)-.08*jumpK)*sf-.05*dv,'XYZ');L1.rotation.set(((1-jumpK)*-.18-jumpK*.12)*sf+g*(1+dv),0,(.32*(1-jumpK)+.08*jumpK)*sf+.05*dv,'XYZ');
+    L0.k=(1.25*(1-jumpK)+.95*jumpK)*sf+.1*dv+f;L1.k=(1.15*(1-jumpK)+.5*jumpK)*sf+.1*dv-g}
+  else if(hop){   // a jump on foot: one knee comes up on the way up, both legs reach down for the ground on the way down
+    const up=clamp(e.vel.y/4,-1,1),t=clamp(u.hopT/.12,0,1),k=t*t*(3-2*t);
+    L0.rotation.set((.2+.62*Math.max(0,up))*k,0,0,'XYZ');L1.rotation.set((-.14+.2*Math.max(0,up))*k,0,0,'XYZ');L0.k=(.25+1.15*Math.max(0,up))*k;L1.k=(.15+.35*Math.max(0,up))*k}
   else if(GS&&u.glk>.01)GS.legs(L0,L1,u,now,fl,e.glide);
-  else{const gw=e.glide?Math.sin(now*.005)*.06*fl:0;L0.rotation.set(-.28+gw,0,-u.roll*.25,'XYZ');L1.rotation.set(-.36-gw,0,-u.roll*.25,'XYZ');L0.k=.35+gw;L1.k=.45-gw}
+  else{const gw=e.glide?Math.sin(now*.005)*.06*fl:0,h=Math.min(dt,.033);
+    // gliding, the legs hang and trail; they swing like a pendulum out of a turn (u.ls), lagging the bank, and kick slowly
+    u.lsV=(u.lsV||0)+((-u.roll*1.3-(u.ls||0))*26-(u.lsV||0)*3.6)*h;u.ls=(u.ls||0)+u.lsV*h;const sw=e.glide?u.ls*fl:0,kc=e.glide?Math.sin(now*.0037)*.09*fl:0;
+    L0.rotation.set(-.28+gw+kc,0,-u.roll*.25+sw*.55,'XYZ');L1.rotation.set(-.36-gw-kc,0,-u.roll*.25+sw*.55,'XYZ');L0.k=.35+gw+Math.max(0,kc);L1.k=.45-gw+Math.max(0,-kc)}
   if(e.local)setHeldModel(m,heldKey(e),heldItem(e)?heldItem(e).r:-1);
   // ---- arms and chest (see POSES): the pose for what you're doing, blended over about a fifth of a second (the skydive
   // over half a second, from the jump), then running, the crowbar's swing on the real clock from when it started (yours,
   // a bot's, or another player's shot event, so it agrees with the hit), and the hands put on the glider's handles or the
   // crowbar's handle (armIK)
   if(far&&!u.gun.visible&&u.pfar)return;u.pfar=far;   // past 70 m the arms keep their last pose
-  const cb=u.gk==='cb'&&!air&&!e.glide,tg=air?POSES.fall:e.glide?(GS?GS.pose:POSES.glide):cb?POSES.cb:POSES.rest,pb=u.pb,k12=1-Math.exp(-dt*(air?7:12));
+  const cb=u.gk==='cb'&&!air&&!e.glide,gh=!air&&!e.glide&&WEAP[u.gk]?GHOLD[famOf(u.gk)==='pi'?'one':'two']:null,
+    tg=air?POSES.fall:e.glide?(GS?GS.pose:POSES.glide):cb?POSES.cb:gh?gh.P:POSES.rest,pb=u.pb,k12=1-Math.exp(-dt*(air?7:12));
   for(let i=0;i<POSE_N;i++)pb[i]+=(tg[i]-pb[i])*k12;
-  u.cbw=(u.cbw||0)+((cb?1:0)-(u.cbw||0))*k12;
+  u.cbw=(u.cbw||0)+((cb||gh&&gh.one?1:0)-(u.cbw||0))*k12;   // (the arms free to swing when running: the crowbar's left arm, and the pistol's)
   const pf=u.pf;pf.set(pb);
+  if(air&&u.dv>.005)for(let i=0;i<POSE_N;i++)pf[i]+=(POSES.dive[i]-pf[i])*u.dv;
   if(air&&jumpK>0)for(let i=0;i<POSE_N;i++)pf[i]+=(POSES.jump[i]-pf[i])*jumpK;
+  // the clothes flutter in the air (flutVS): hardest in a dive, gently under the glider
+  u.fa=(u.fa||0)+((RM?0:air?.75+.5*u.dv:e.glide?.4*ge:0)-(u.fa||0))*k8;u.bones[6].position.x=u.fa<.01?0:u.fa;
   if(air&&fl){const t=now*.001;pf[2]+=Math.sin(t*19)*.05;pf[5]+=Math.sin(t*17+2)*.05;pf[12]+=Math.sin(t*23+1)*.08;pf[13]+=Math.sin(t*21)*.08;pf[14]+=Math.sin(t*13)*.03}   // the air shaking the arms
   u.hipT=0;
   if(e.onGround&&sp>.05){const c=Math.sin(ph),s=Math.cos(ph)*Math.min(1,A/.5);
@@ -5339,9 +5484,23 @@ function animModel(e,dt){
     u.hipT=s*.14*cf;pf[1]-=s*(.22*u.cbw+.12*(1-u.cbw))*cf;pf[0]-=(.05+.09*u.cbw)*rk*cf;pf[14]+=c*.03*rk;
     if(u.cbw>.01){const a=u.cbw;pf[2]-=s*.95*a*cf;pf[12]+=(.55+.75*rk+.35*s*cf)*a;pf[4]-=.08*a;pf[5]+=s*.18*a;pf[13]+=s*.12*a}}
   if(lt){pf[0]-=lt*.25;if(u.cbw>.01){pf[2]+=lt*.4*u.cbw;pf[12]+=lt*.5*u.cbw}}
-  const st=e.swAt?(now-e.swAt)/1000:9;
-  if(cb&&st<SWING[SWING.length-1][0]&&!RM){let i=1;while(SWING[i][0]<st)i++;const a=SWING[i-1],b=SWING[i],q=clamp((st-a[0])/(b[0]-a[0]),0,1),ty=b[2]||0,k=ty===1?q*q:ty===2?1-(1-q)*(1-q):q*q*(3-2*q),A0=a[1]||pf,B0=b[1]||pf;
-    for(let j=0;j<POSE_N;j++)pf[j]=A0[j]+(B0[j]-A0[j])*k}
+  // the swing: from whatever was showing when it started (u.sf), through the keys on a smooth curve, held at contact for
+  // HIT_STOP on a hit (e.swHit), and after it ends (or is cut short) blended back over SWING_REL from where it stopped (u.sr)
+  if(!u.sf){u.sf=new Float32Array(POSE_N);u.sr=new Float32Array(POSE_N);u.po=new Float32Array(POSE_N);u.pq=new Float32Array(POSE_N);u.relT=9}
+  let st=e.swAt?(now-e.swAt)/1000:9,dip=0;
+  if(e.swAt!==u.swSeen){u.chain=u.swSeen&&e.swAt-u.swSeen<750;u.swSeen=e.swAt;u.sf.set(u.swOn?u.po:pf)}
+  if(e.swHit&&st>.14)st=Math.max(.14,st-HIT_STOP);
+  if(cb&&st<SWING_END&&!RM){
+    const hold=e===player?cb&&firing():u.chain;let i=1;while(SWING[i][0]<st)i++;
+    const a=SWING[i-1],b=SWING[i],q=clamp((st-a[0])/(b[0]-a[0]),0,1),ty=b[2]||0,k=ty===1?q*q:ty===2?1-(1-q)*(1-q):q*q*(3-2*q),pq=u.pq;pq.set(pf);
+    const end=hold?SWING_CHAIN:pq,at=j=>j<1?u.sf:j>=SWING.length-1?end:SWING[j][1],A0=at(Math.max(0,i-2)),A1=at(i-1),B1=at(i),B2=at(Math.min(SWING.length-1,i+1));
+    for(let j=0;j<POSE_N;j++)pf[j]=crom(A0[j],A1[j],B1[j],B2[j],k);
+    // the weight goes into it: the hips turn with the chest, and the body dips and the knees give at contact
+    u.hipT+=pf[1]*.3;dip=st<.14?Math.max(0,(st-.06)/.08)**2:Math.max(0,1-(st-.14)/.22);u.swOn=true;u.relT=9}
+  else if(u.swOn){u.swOn=false;u.relT=0;u.sr.set(u.po)}
+  if(u.relT<SWING_REL&&!RM){u.relT+=dt;const r=clamp(u.relT/SWING_REL,0,1),k=r*r*(3-2*r);for(let j=0;j<POSE_N;j++)pf[j]=u.sr[j]+(pf[j]-u.sr[j])*k}
+  if(dip&&e.onGround){m.position.y-=dip*.045*BS;L0.k+=dip*.22;L1.k+=dip*.3;L0.rotation.x+=dip*.1;L1.rotation.x+=dip*.12}
+  u.po.set(pf);
   if(LX&&(e.lxo||e.lxForce))LX.emote(e,u,pf,m,now);   // an emote or a victory pose from the Locker's extras (locker-extra.js)
   posePut(u,pf);
   if(u.glk>.01&&!u.gun.visible){u.glider.updateMatrix();const w=ge*(e.glide?1:clamp(u.glk*2-.6,0,1));for(let k=0;k<2;k++){const h=GS?GS.hands[k]:null;if(GS&&!h)continue;if(h)_ht.set(h[0],h[1],h[2]);else _ht.set(k?.48:-.48,0,0);_ht.applyMatrix4(u.glider.matrix);armIK(u,k,_ht,GS&&GS.pole?GS.pole[k]:GLIDE_POLE[k],w)}}
@@ -5358,11 +5517,22 @@ function animModel(e,dt){
     _pe.set(bp,pf[11],0,'YXZ');g.quaternion.setFromEuler(_pe).premultiply(_cq);g.scale.set(1,1,1);
     _gh.set(0,0,.06).applyQuaternion(g.quaternion);g.position.copy(_ht).sub(_gh);
     if(pf[15]>.01&&g.visible){_gh.set(0,0,-.14).applyQuaternion(g.quaternion);_ht.add(_gh);armIK(u,0,_ht,BAR_POLE,clamp(pf[15],0,1))}   // the left hand joins on the bar for the swing
+    // the strike leaves a pale streak behind the bar's head for a tenth of a second (a short arc about the shoulder each
+    // frame, in the tracers' mesh, so no extra draw call), close to the camera only and not with reduced motion
+    if(st>.095&&st<.3&&!RM&&g.visible&&camera.position.distanceToSquared(e.pos)<625){m.updateMatrix();
+      const tp=_sw1.set(0,.1,-.8).applyQuaternion(g.quaternion).add(g.position).applyMatrix4(m.matrix),sh=_sw2.set(ARM_P[1][0],ARM_P[1][1],0).applyMatrix4(m.matrix);
+      if(u.tipOk){const a0=_sw3.copy(u.tip).sub(sh),a1=_sw4.copy(tp).sub(sh),r0=a0.length(),r1=a1.length();let pv=u.tip;
+        for(let k=1;k<=3;k++){const t=k/3,q=_sw5.copy(a0).lerp(a1,t).setLength(r0+(r1-r0)*t).add(sh);if(trs.length>=TR_CAP)trs.shift();
+          const L=pv.distanceTo(q);if(L>.01)trs.push({a:pv.clone(),b:q.clone(),hex:0xfff1d6,life:.09,max:.09,wide:3.4,L,sr:true,tl:0});pv=q.clone()}}
+      u.tip=(u.tip||new V3()).copy(tp);u.tipOk=true}else u.tipOk=false;
     return}
-  let x=wp?HOLD[0]:.3,y=wp?HOLD[1]:1.36,z=-.62,rx=0,ry=wp?HOLD[2]:0,rz=0;
-  // you, aiming: raised to that weapon's own aiming pose
+  // weapons are held by the hands (GHOLD, armIK): the grip pulled in so the elbows bend, a rifle-type weapon two-handed
+  // with the chest bladed a little to the right and the left hand under the front of it, a pistol in the right hand alone
+  const H=wp&&gh?gh:null;
+  let x=H?H.h[0]:wp?HOLD[0]:.3,y=H?H.h[1]:wp?HOLD[1]:1.36,z=H?H.h[2]-.12:-.62,rx=0,ry=H?0:wp?HOLD[2]:0,rz=0;
+  // you, aiming: raised to the eye line (with the hands on it, a lift and a pull toward the middle; otherwise that weapon's own aiming pose)
   const aw=e===player&&isADS()?heldW(e):null;e.aimK=clamp((e.aimK||0)+(aw?dt*9:-dt*9),0,1);const ps=aw?(e.pose=aw.pose):e.pose,ak=ps&&wp?e.aimK*e.aimK*(3-2*e.aimK):0;
-  if(ak){x+=(ps[0]-x)*ak;y+=(ps[1]-y)*ak;z+=(ps[2]-z)*ak;ry*=1-ak}
+  if(ak&&H){y+=.07*ak;x-=.05*ak;z-=(H.one?.06:.03)*ak}else if(ak){x+=(ps[0]-x)*ak;y+=(ps[1]-y)*ak;z+=(ps[2]-z)*ak;ry*=1-ak}
   if(wp&&e.st==='ground')rx+=clamp(e.pitch||0,-.6,.6)*.55;
   // a shot: shoved back, muzzle up, settling at that weapon's own speed (the crowbar: its swing)
   const kk=e.kick>0?(e.kick=e.kick<.012?0:e.kick*Math.exp(-dt*(K?K[2]:12))):0;
@@ -5389,8 +5559,18 @@ function animModel(e,dt){
   // just taken out: it swings up from below
   if(u.sw>0){u.sw=Math.max(0,u.sw-dt*4.5);if(!RM){const q=u.sw*u.sw;y-=q*.3;rx-=q*.9}}
   g.rotation.set(rx,ry,rz,'YXZ');_gh.set(0,0,.12).applyQuaternion(g.quaternion);g.position.set(x-_gh.x,y-_gh.y,z+.12-_gh.z);   // turned about the hand, which stays put
-  heldFollow(u);
+  if(!H||!g.visible){heldFollow(u);return}
+  // with the hands on it: the weapon goes with the hips (so the chest's lean and sway don't tip the aim), then each hand
+  // reaches for its place on it: the right for the grip, the left for the front (to the magazine during a reload)
+  const b=u.bones;b[0].updateMatrix();g.updateMatrix();_hm.multiplyMatrices(b[0].matrix,g.matrix).decompose(g.position,g.quaternion,g.scale);g.updateMatrix();
+  _ht.set(0,0,.12).applyMatrix4(g.matrix);armIK(u,1,_ht,GH_POLE[1],1);
+  if(!H.one){const rl=e.reloadT>0?Math.min(1,(1-e.reloadT/Math.max(.1,wReload(WEAP[gk],0)))*6,e.reloadT*4):0;
+    _ht.set(0,-.04-.06*rl,.12-H.f*(1-rl*.6)).applyMatrix4(g.matrix);armIK(u,0,_ht,GH_POLE[0],1)}
 }
+// Holding a weapon (November 2026): P is the pose for the rest of the body, h where the right hand grips (the body's
+// units, before the hips turn), f how far in front of the grip the left hand holds. GH_POLE: where the elbows point.
+const GHOLD={two:{P:pose({turn:-.35,lean:-.03,sl:.12}),h:[.33,1.53,-.3],f:.12},one:{one:true,P:pose({turn:-.18,L:[-1.3,.35,-.12,.4]}),h:[.3,1.44,-.42],f:0}};
+const GH_POLE=[new V3(-.5,-1,.15),new V3(.7,-1,.25)];
 function posePut(u,P){const b=u.bones;b[0].rotation.y=u.hipT||0;b[1].rotation.set(P[0],P[1],P[14]);
   for(let k=0;k<2;k++){_pe.set(P[2+3*k],P[3+3*k],P[4+3*k],'ZXY');b[2+k].quaternion.setFromEuler(_pe);b[2+k].position.x=ARM_P[k][0]+P[9+k];b[4+k].quaternion.setFromAxisAngle(ARM_AX[k],P[12+k])}}
 // carries the held item along with the right hand (hips x chest x upper arm x forearm, the elbow's rest place undone); at
@@ -5422,7 +5602,7 @@ function armIK(u,k,T,pole,w){
   _iQ.setFromRotationMatrix(_iN);b[2+k].quaternion.slerp(_iQ,w);_iQ.setFromAxisAngle(h0,bend);b[4+k].quaternion.slerp(_iQ,w)}
 // Where a weapon's own origin is held (the hand is 0.12 behind it): a little outside and above the hand's centre, so the
 // top of it shows over your shoulder from behind. RELOAD_ST: when in a reload (0 to 1) each sound comes.
-const HOLD=[.37,1.44,-.07],_gh=new V3();
+const HOLD=[.37,1.44,-.07],_gh=new V3(),_sw1=new V3(),_sw2=new V3(),_sw3=new V3(),_sw4=new V3(),_sw5=new V3();
 const RELOAD_ST={mag:[[.2,'out'],[.58,'in'],[.85,'rack']],hc:[[.12,'open'],[.3,'shell'],[.42,'shell'],[.54,'shell'],[.82,'shut']],
   sg:[[.14,'shell'],[.28,'shell'],[.42,'shell'],[.56,'shell'],[.7,'shell'],[.88,'rack']],sr:[[.14,'open'],[.5,'in'],[.86,'shut']]};
 let attractYaw=0,shakeAt=0;const _bp=new V3(),_ch=new V3(),_cp=new V3(),_cb=new V3(),_cl=new V3();
@@ -5436,7 +5616,7 @@ function updateCamera(dt){
     return;
   }
   const self=tgt===player,ads=self&&isADS(),w=self?heldW(player):null;
-  const tf=ads&&w?w.fov:72;if(Math.abs(camera.fov-tf)>.05){camera.fov+=(tf-camera.fov)*Math.min(1,dt*14);camera.updateProjectionMatrix()}
+  const tf=(ads&&w?w.fov:72)+(self&&player.st==='fall'&&!RM?7*(player.model.userData.dv||0):0);   // a dive widens the view a littleif(Math.abs(camera.fov-tf)>.05){camera.fov+=(tf-camera.fov)*Math.min(1,dt*14);camera.updateProjectionMatrix()}
   if(self&&player.st==='bus'){
     // riding the Drifter: look around it from a little above and to one side of its tail, so the open ramp, the tail and
     // the lettering are in view (the plane is drawn by updateWorldFx just before this, so it doesn't lag a frame)
@@ -5461,7 +5641,12 @@ function updateCamera(dt){
   {const gy=terrainH(camera.position.x,camera.position.z)+.25;if(camera.position.y<gy)camera.position.y=gy}   // never under the land
   camera.lookAt(_cl.copy(pivot).addScaledVector(f,20));
   // a crowbar hit of yours: a small shake for about a sixth of a second (not with reduced motion)
-  if(self&&shakeAt){const st=(performance.now()-shakeAt)/1000;if(st>.17)shakeAt=0;else if(st>=0&&!RM){const a=(1-st/.17)*.045;camera.position.x+=(Math.random()-.5)*a;camera.position.y+=(Math.random()-.5)*a;camera.position.z+=(Math.random()-.5)*a}}
+  // a crowbar hit of yours: the view is nudged the way the blow went (in and down, with a slight roll) in 30 ms and settles
+  // over about a fifth of a second, with a little jolt (not with reduced motion; the aim itself doesn't move)
+  if(self&&shakeAt){const st=(performance.now()-shakeAt)/1000;if(st>.24)shakeAt=0;else if(st>=0&&!RM){const a=st<.03?st/.03:Math.exp(-(st-.03)*17),j=(Math.random()-.5)*.016*a;
+    camera.position.addScaledVector(f,.1*a);camera.position.y-=.05*a-j;camera.position.addScaledVector(r,j);camera.rotateZ(-.012*a)}}
+  // landing: the view dips with the knees (a little more the harder the landing; not with reduced motion)
+  if(self&&!RM){const u=player.model.userData;if(u.landT>0)camera.position.y-=.07*(u.landA||1)*Math.sin(Math.PI*clamp(u.landT/(u.landD||.32),0,1))}
   if(self)player.model.visible=player.alive?camDist>.9&&!(ads&&w&&!w.ad):player.dieT<=2.2;
 }
 function updateWorldFx(){
@@ -5491,9 +5676,10 @@ function updateWorldFx(){
   if(k>.02){rainCover-=dt;if(rainCover<=0){rainCover=.3;const c=camera.position;rainRoof=raycast([c.x,c.y+.3,c.z],[0,1,0],40,null,false).hit?.2:1}
     rainA+=(rainRoof-rainA)*Math.min(1,dt*5);rainMesh.visible=true;const u=rainMesh.material.uniforms;u.time.value=RM?0:(now*.001)%600;u.cam.value.copy(camera.position);u.op.value=.75*k*rainA}
   else rainMesh.visible=false;
+  {const sv=stormV||(stormV=$('stormv'));if(sv)hudSet(sv,'sv:opacity',k<.01?'0':(k*(RM?.7:.62+.18*Math.sin(now*.0042))).toFixed(2))}   // (the HUD isn't shown in the menu, so this is only seen in a match)
   stormHum(k);
 }
-let wfLast=performance.now(),stormK=0,rainCover=0,rainRoof=1,rainA=1;
+let stormV=null,wfLast=performance.now(),stormK=0,rainCover=0,rainRoof=1,rainA=1;
 const _skyC=new THREE.Color(),_stormC=new THREE.Color(STORM_SKY),_flashC=new THREE.Color(0xc4d2ea);
 
 /* ---------- wind in the skydive ----------
@@ -5508,15 +5694,16 @@ const _wd=new V3(),_wq=new THREE.Quaternion(),_wy=new V3(0,1,0),_wa=new V3(),_wb
 let windK=0;
 function windFx(dt){
   const tg=camTarget(),fall=!!tg&&tg.alive&&tg.st==='fall';windK=clamp(windK+(fall?dt*2.5:-dt*4),0,1);
-  windHum(tg===player&&tg.alive?(tg.st==='fall'?1:tg.st==='glide'?.35:0):0);
+  const dv=tg&&tg.model?tg.model.userData.dv||0:0;   // (diving: louder, higher, and more streaks, brighter)
+  windHum(tg===player&&tg.alive?(tg.st==='fall'?.8+.45*dv:tg.st==='glide'?.35:0):0,tg&&tg.st==='fall'?800+700*dv:900);
   const n=RM||!tg?0:Math.round((touchUI?8:gfxPref==='fast'||lookKey<1?12:WIND_N)*windK);
   windIM.count=n;windIM.visible=n>0;if(!n)return;
   const sp=Math.max(8,tg.vel.length());_wd.copy(tg.vel).multiplyScalar(-1/sp);if(tg.vel.lengthSq()<1)_wd.set(0,1,0);   // the way the air rushes past
   _wq.setFromUnitVectors(_wy,_wd);_wa.set(1,0,0).addScaledVector(_wd,-_wd.x);if(_wa.lengthSq()<.01)_wa.set(0,0,1).addScaledVector(_wd,-_wd.z);_wa.normalize();_wb.crossVectors(_wd,_wa);
   for(let i=0;i<n;i++){const w=windS[i];w.t+=dt*sp/9;
     if(w.t<0||w.t>1){w.t=w.t>1?0:Math.random();w.a=Math.random()*Math.PI*2;w.r=.9+Math.random()*2.6;w.o=Math.random()*1.2-.6;w.l=1+Math.random()*1.4;w.w=.012+Math.random()*.01}
-    const along=(w.t-.5)*9;_wp.copy(tg.pos).addScaledVector(_wd,along+w.o).addScaledVector(_wa,Math.cos(w.a)*w.r).addScaledVector(_wb,Math.sin(w.a)*w.r);_wp.y+=.4;
-    windIM.setMatrixAt(i,_m4.compose(_wp,_wq,_ws.set(w.w,w.l,w.w)));const f=Math.sin(Math.PI*w.t)*.42*windK;windIM.setColorAt(i,_col.setRGB(f,f,f))}
+    const along=(w.t-.5)*9*(1+.4*dv);_wp.copy(tg.pos).addScaledVector(_wd,along+w.o).addScaledVector(_wa,Math.cos(w.a)*w.r).addScaledVector(_wb,Math.sin(w.a)*w.r);_wp.y+=.4;
+    windIM.setMatrixAt(i,_m4.compose(_wp,_wq,_ws.set(w.w,w.l,w.w)));const f=Math.sin(Math.PI*w.t)*.42*windK*(1+.7*dv);windIM.setColorAt(i,_col.setRGB(f,f,f))}
   windIM.instanceMatrix.needsUpdate=true;windIM.instanceColor.needsUpdate=true}
 /* ---------- main loop ---------- */
 let last=performance.now(),cpuMs=0;
@@ -5530,6 +5717,7 @@ function frame(now){
     // play in slow motion against the storm and the Drifter, which run on the clock
     if(inPlay()){const sim=Math.min(raw,.25),n=Math.max(1,Math.ceil(sim/.05));for(let i=0;i<n;i++){updatePlayer(sim/n);updateBots(sim/n)}updateRemotes(dt)}else hideGhosts();
   }
+  flutT.value=(now*.001)%1000;
   if(running||state==='menu'){for(const e of ents)animModel(e,dt);updateFx(dt);drawItems(dt)}
   updateWorldFx();updateCamera(dt);windFx(dt);
   if(state!=='menu'){updateHud(dt);updateMap(dt)}
@@ -5963,7 +6151,7 @@ function lxSync(){
 }
 // What the extras are lent from this page (locker-extra.js only draws: nothing here lets it touch the physics or the room).
 const LXAPI={THREE,scene,camera,renderer,MAT,store,player,gunIM,GUN_GEO,GUN_TIP,WIDS,WEAP,LIMB_N,plyMat,partMat,pieceInst,partIM,skirtIM,pieces,Locker,STAGE,
-  GLIDER_GEO,GLIDE_Y,GLU,ROUND_LO,pose,setModelColor,makeModel,disposeModel,LEG_GEO,NOOB,bagRBox,bagRLo,bagBox,bagTurn,POSES,POSE_N,GLIDE_POLE,UNIT_BOX,BS,ICONS,geoPWall,geoPFloor,geoPRamp,animModel,setHeldModel,newEnt,esc,$,lockerOn,myId,RM,
+  GLIDER_GEO,GLIDE_Y,GLU,ROUND_LO,pose,BMAT,setModelColor,makeModel,disposeModel,LEG_GEO,NOOB,bagRBox,bagRLo,bagBox,bagTurn,POSES,POSE_N,GLIDE_POLE,UNIT_BOX,BS,ICONS,geoPWall,geoPFloor,geoPRamp,animModel,setHeldModel,newEnt,esc,$,lockerOn,myId,RM,
   get ents(){return ents},get state(){return state},get touchUI(){return touchUI},get low(){return touchUI||gfxPref==='fast'},get lookOn(){return lookOn},
   get myLx(){return myLx},setLx(v){myLx=lockerOn()?lxOf(v):'';store.set('lx',myLx);player.lx=myLx;if(LX)LX.dress(player);if(online)Net.publishSoon()},
   setLxNet(v){myLx=lockerOn()?lxOf(v):'';player.lx=myLx;if(LX)LX.dress(player);if(online)Net.publishSoon()},   // the same, not saved (an emote while it plays)

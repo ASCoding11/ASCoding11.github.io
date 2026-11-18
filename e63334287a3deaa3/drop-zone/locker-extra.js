@@ -631,11 +631,11 @@ function emoteTick(){
 function dress(e){
   if(!e||!e.model)return;const o=parse(e.lx||''),u=e.model.userData;e.lxo=o;
   const g=o.g?gliderOf(o.g):null;
-  if(g){u.glider.geometry=g;u.glider.material=GLX;u.glider.castShadow=true}else if(u.glider.material===GLX){u.glider.geometry=G.GLIDER_GEO;u.glider.material=G.MAT}
+  if(g){u.glider.geometry=g;u.glider.material=GLX;u.glider.castShadow=true}else if(u.glider.material===GLX){u.glider.geometry=G.GLIDER_GEO;u.glider.material=G.BMAT}   // (a Locker glider is drawn unskinned: it opens its own way, PLACE)
   u.gs=o.w||0;
   const pk=o.p||0;if((u.lxPk|0)!==pk){u.lxPk=pk;G.setModelColor(e.model,u.hex,u.skinIx,u.fit,u.face)}
 }
-function gliderSkin(model,n){const u=model.userData,g=n?gliderOf(n):null;if(g){u.glider.geometry=g;u.glider.material=GLX}else{u.glider.geometry=G.GLIDER_GEO;u.glider.material=G.MAT}}
+function setGlider(model,n){const u=model.userData,g=n?gliderOf(n):null;if(g){u.glider.geometry=g;u.glider.material=GLX}else{u.glider.geometry=G.GLIDER_GEO;u.glider.material=G.BMAT}}
 function tick(dt){
   emoteTick();
   gT.value+=G.RM?0:dt;uT.value+=G.RM?0:dt;
@@ -662,6 +662,7 @@ function bsOf(oid){if(oid==null)return 0;let e=null;if(oid===G.myId()||oid==='me
   const o=e?parse(e.lx||''):null;return o&&o.b||0}
 function bsk(mesh,i,bs){const a=mesh.geometry.attributes.bsk;if(!a||i<0||i>=a.count)return;const v=bs|0;if(a.array[i]!==v){a.array[i]=v;a.needsUpdate=true}}
 const bsCol=bs=>BS_DEBRIS[bs]||BS_DEBRIS[0];
+const bsMat=bs=>['wood','crate','stone','stone','crate','stone','metal'][bs]||'wood';   // what a skinned piece's crowbar chips and sound are
 const botLx=i=>'g'+(1+(i*7)%24)+'t'+(1+i%6)+'w'+(1+(i*5)%19)+'b'+(1+i%6)+'p'+(1+(i*3)%8)+'v'+(1+i%4);
 
 // =====================================================================
@@ -756,7 +757,7 @@ function stage(dt,model,yaw){
   e.st=air?'glide':'ground';e.glide=air;e.onGround=!air;
   const em=tab==='e'?myEmote():tab==='v'?o.v||0:0;   // an emote (played again and again) or the victory pose
   if(em){const now=performance.now(),D=tab==='e'?EMOTES[em]:null;if(D&&now-stageA>D.dur*1000+700)stageA=now;e.lxForce={k:tab,n:em,t0:stageA}}else e.lxForce=null;
-  e.lxo={g:air?o.g||0:0};gliderSkin(model,air?o.g||0:0);model.userData.gs=tab==='w'?o.w||0:0;
+  e.lxo={g:air?o.g||0:0};setGlider(model,air?o.g||0:0);model.userData.gs=tab==='w'?o.w||0:0;
   G.setHeldModel(model,tab==='w'?'ar':'cb',tab==='w'?3:-1);
   G.animModel(e,dt);model.visible=true;
   stageTrail=tab==='t'?o.t||0:0;
@@ -769,7 +770,7 @@ function dispMat(n){if(!dmats[n]){const t=new THREE.CanvasTexture(tileCanvas(n))
 function makeDisp(){const g=new THREE.Group();const w=new THREE.Mesh(G.geoPWall,G.plyMat);w.position.set(-1.2,2,1.6);const f=new THREE.Mesh(G.geoPFloor,G.plyMat);f.position.set(.4,.12,1.6);f.scale.set(.6,1,.6);
   const r=new THREE.Mesh(G.geoPRamp,G.plyMat);r.position.set(2.4,1.2,0);r.rotation.set(-Math.PI/4,Math.PI/2,0,'YXZ');r.scale.set(.6,1,.6);g.add(w,f,r);g.visible=false;G.scene.add(g);return g}
 
-return{pick,emote,EMOTES,VICTORIES,startEmote,stopEmote,pack,dress,tick,gunReset,gunIM,gunDone,bsOf,bsk,bsCol,botLx,menu,shown,stage,gstyle,HOLDS,
+return{pick,emote,EMOTES,VICTORIES,startEmote,stopEmote,pack,dress,tick,gunReset,gunIM,gunDone,bsOf,bsk,bsCol,bsMat,botLx,menu,shown,stage,gstyle,HOLDS,
   // for tests and contact sheets
-  parse,str,GLIDER_NAMES,TRAIL_NAMES,WRAP_NAMES,BUILD_NAMES,gliderOf,gliderSkin,gunMesh,GLX,GSK,tp,TRAILS,emit,buildTex,tileCanvas,setTab,get tab(){return tab},gT,uT,gliderPic,gunPic};
+  parse,str,GLIDER_NAMES,TRAIL_NAMES,WRAP_NAMES,BUILD_NAMES,gliderOf,setGlider,gunMesh,GLX,GSK,tp,TRAILS,emit,buildTex,tileCanvas,setTab,get tab(){return tab},gT,uT,gliderPic,gunPic};
 };
