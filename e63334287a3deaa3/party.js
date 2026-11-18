@@ -863,7 +863,7 @@
     mem.innerHTML = members.map(function (m, i) {
       var going = lead && kicked.some(function (e) { return e.u === m.uid; });
       return '<li><span class="pty-av" style="background:' + esc(m.c) + '" aria-hidden="true">' + esc(m.n.charAt(0).toUpperCase()) + '</span>' +
-        '<span class="pty-who"><span class="pty-nm">' + esc(m.n) + '</span><span class="pty-tag">' +
+        '<span class="pty-who"><span class="pty-nm" data-aisle-u="' + esc(m.uid) + '">' + esc(m.n) + '</span><span class="pty-tag">' +
         [i === 0 ? '<b>Leader</b>' : 'Member', m.uid === uid ? 'You' : '', going ? 'Removing…' : ''].filter(Boolean).join(' · ') + '</span></span>' +
         (lead && m.uid !== uid && !going ? '<button type="button" class="pty-kick" data-k="' + esc(m.uid) + '" title="Remove from the party" aria-label="Remove ' + esc(m.n) + ' from the party">✕</button>' : '') + '</li>';
     }).join('');
