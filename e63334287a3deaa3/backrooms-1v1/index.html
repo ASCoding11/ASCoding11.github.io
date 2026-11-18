@@ -145,10 +145,6 @@ button:disabled{opacity:.5;cursor:default}
 .seg button:hover:not([aria-checked="true"]){color:var(--ink)}
 .range{display:flex;align-items:center;gap:12px}
 .range input{width:200px;max-width:60%;accent-color:var(--mustard)}
-.check{display:grid;grid-template-columns:auto 1fr;column-gap:10px;row-gap:2px;align-items:center;cursor:pointer;max-width:46ch}
-.check input{width:20px;height:20px;margin:0;accent-color:var(--mustard);cursor:pointer}
-.check span{font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-dim);font-weight:600}
-.check small{grid-column:2;font-size:14px;color:var(--ink-dim);line-height:1.35}
 .range output{font-variant-numeric:tabular-nums;font-weight:700;font-size:17px;min-width:3ch}
 .cta{background:var(--mustard);color:var(--char);border:0;padding:11px 24px 10px;font-size:20px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;box-shadow:4px 4px 0 var(--mustard-deep);white-space:nowrap}
 .cta:hover:not(:disabled){filter:brightness(1.08)}
@@ -365,7 +361,6 @@ body.touch #find{left:calc(60px + env(safe-area-inset-left,0px));transform:none;
           <label class="label" for="sens">Look sensitivity</label>
           <div class="range"><input type="range" id="sens" min="0.3" max="2.5" step="0.05" value="1"><output id="sensOut" for="sens">1.00</output></div>
         </div>
-        <label class="check"><input type="checkbox" id="editRelease"><span>Edit on release</span><small>Hold Edit, pick the tiles, let go to confirm. Off: press Edit again to confirm.</small></label>
         <details class="ctrl">
           <summary>Controls</summary>
           <dl class="keys">
@@ -1650,7 +1645,7 @@ const KB=Keybinds.create({
     {id:'wall',label:'Build a wall',group:'Build',keys:['KeyQ','KeyZ']},
     {id:'floor',label:'Build a floor',group:'Build',keys:['KeyF','KeyX']},
     {id:'ramp',label:'Build a ramp',group:'Build',keys:['KeyC','KeyE']},
-    {id:'edit',label:'Edit a build',note:'Aim at one of yours. Let go to confirm (Edit on release), or press again; Reload makes it whole, Aim cancels',group:'Build',keys:['KeyG']},
+    {id:'edit',label:'Edit a build',note:'Aim at one of yours. Let go to confirm, or tap and press again; Reload makes it whole, Aim cancels',group:'Build',keys:['KeyG']},
     {id:'lookUp',label:'Look up',group:LOOK,keys:['ArrowUp']},
     {id:'lookDown',label:'Look down',group:LOOK,keys:['ArrowDown']},
     {id:'lookLeft',label:'Look left',group:LOOK,keys:['ArrowLeft']},
@@ -1865,11 +1860,11 @@ function playerBuildSpec(type){
 // the cut ones are just outlines (three draw calls, in place of the piece's own).
 const EDIT_RANGE=6,EDIT_T=.4,EDIT_V=1;
 let edit=null,editJob=null,editAim=null,editAimT=0,editPaint=-1,editNote='',editNoteT=0;
-// Edit on release (a setting, on unless the player turns it off; saved as br1v1-editRelease): hold Edit, sweep the
+// Edit on release (always on; the Edit key itself is rebindable in Change keys like any other): hold Edit, sweep the
 // tiles with Shoot / place held, and letting go of Edit confirms, like Fortnite's setting of that name. editHold is the
 // edit being held open: when it opened and the shape it started from. A quick tap that changed nothing leaves the grid
-// open as before (Edit again confirms); a longer hold that changed nothing cancels. Off: Edit opens, Edit confirms.
-let editRelease=store.get('editRelease','1')!=='0',editHold=null;
+// open as before (Edit again confirms); a longer hold that changed nothing cancels.
+const editRelease=true;let editHold=null;
 const EDIT_TAP=.25;
 // Online, editing is on for a match only if every player's page could do it when the match began (the host writes ed
 // into the round node, the same way it picks the map version), so a mixed room always agrees on the shapes.
@@ -3056,8 +3051,6 @@ $('diffSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(
 const sensEl=$('sens');
 function setSens(v){sens=v;sensEl.value=v;$('sensOut').textContent=v.toFixed(2);store.set('sens',v)}
 sensEl.addEventListener('input',()=>setSens(parseFloat(sensEl.value)));
-const relEl=$('editRelease');relEl.checked=editRelease;
-relEl.addEventListener('change',()=>{editRelease=relEl.checked;editHold=null;store.set('editRelease',editRelease?1:0)});
 const nameEl=$('name');nameEl.value=myName;
 nameEl.addEventListener('input',()=>{myName=nameEl.value.replace(/[<>]/g,'').trim().slice(0,16)||'Wanderer';store.set('name',myName)});
 $('room').value=store.get('room','')||randomRoom();
