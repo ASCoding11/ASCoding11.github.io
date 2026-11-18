@@ -37,10 +37,19 @@
     // Each look is built from parts: F(shape, colour, position, scale, rotation) in fixed colours, P(shape, position, scale,
     // rotation) in the driver's paint. A driver is built around its hips (on the seat, facing +z); a kart around the
     // kart's own centre, with `seat` saying where the hips go ({y, z, s: size}).
+    // Small parts are swapped for rounder-looking but cheaper shapes, so a whole driver costs about as much as the usual kart.
+    const tiny = new THREE.SphereGeometry(1, 7, 5), small = new THREE.SphereGeometry(1, 8, 6), torLow = new THREE.TorusGeometry(1, .1, 4, 14), cylLow = new THREE.CylinderGeometry(1, 1, 1, 8);
+    const lod = (g, s) => {
+      const m = Math.max(s[0], s[1], s[2]);
+      if (g === ball || g === sb) return m < .09 ? tiny : m < .2 ? small : g === ball && m < .4 ? sb : g;
+      if (g === torThin && m < .15) return torLow;
+      if ((g === cyl || g === cyl16) && m < .12) return cylLow;
+      return g;
+    };
     function parts(build) {
       const fixed = [], painted = [];
-      const F = (g, c, p, s, r) => fixed.push({ g, c, p, s: s || [1, 1, 1], r });
-      const P = (g, p, s, r) => painted.push({ g, p, s: s || [1, 1, 1], r });
+      const F = (g, c, p, s, r) => { s = s || [1, 1, 1]; fixed.push({ g: lod(g, s), c, p, s, r }); };
+      const P = (g, p, s, r) => { s = s || [1, 1, 1]; painted.push({ g: lod(g, s), p, s, r }); };
       const out = build(F, P) || {};
       return Object.assign(out, { fixed, painted });
     }
@@ -607,8 +616,9 @@
         F(cyl8, C.darkwood, [0, 0, 0], [.13, .4, .13], [0, 0, H]);
       }) },
       { name: 'Donut Wheels', parts: () => parts(F => {
-        F(donut, 0xe0a35a, [0, 0, 0], [.36, .36, .55], [0, H, 0]);
-        for (const sd of [-1, 1]) F(donut, 0xff8fc0, [.05 * sd, 0, 0], [.35, .35, .45], [0, H, 0]);
+        const dl = new THREE.TorusGeometry(1, .45, 7, 16);
+        F(dl, 0xe0a35a, [0, 0, 0], [.36, .36, .55], [0, H, 0]);
+        for (const sd of [-1, 1]) F(dl, 0xff8fc0, [.05 * sd, 0, 0], [.35, .35, .45], [0, H, 0]);
         const sp = [0xffffff, 0xffc93c, 0x3fb8ff, 0x2ed19a];
         for (const sd of [-1, 1]) for (let i = 0; i < 8; i++) { const a = i / 8 * TAU + sd; F(box, sp[i % 4], [.26 * sd, Math.sin(a) * .36, Math.cos(a) * .36], [.02, .1, .03], [a * 3, 0, 0]); }
       }) },
