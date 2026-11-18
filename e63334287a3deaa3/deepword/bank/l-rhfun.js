@@ -1,0 +1,2 @@
+/* Deepword answer data, built by tools/build.js from prompts.js and free data (see tools/SOURCES.md). Do not edit by hand. */
+DW_EXT.add("rhfun","ton;sun;run;bun;gun;one;done;none;son;won;spun;stun;nun;pun;shun;begun;outdone;undone;someone;anyone;everyone;no one;homerun;hot cross bun;honeybun;rerun;outrun;overrun;hon;dun;hun;shotgun;handgun;popgun;squirt gun;bunn;tonne;kiloton;megaton;skeleton;cinnamon;comparison;unison;mastodon;galleon","qxz4zjpds6y5t0sltfpommoad0kyhhpyhwmxs2swtbqongezdqjkiqgnftasekibh2c1g8lkbme5dal8nrkefecvcg");

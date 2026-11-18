@@ -1,0 +1,2 @@
+/* Deepword answer data, built by tools/build.js from prompts.js and free data (see tools/SOURCES.md). Do not edit by hand. */
+DW_EXT.add("pop_50m","china;india;united states;indonesia;brazil;russia;japan;mexico;nigeria;pakistan;bangladesh;germany;philippines;egypt;ethiopia;vietnam;iran;turkey;united kingdom;france;italy;thailand;south africa;congo;tanzania;kenya;myanmar;colombia;south korea;sudan;uganda","vrprzyp6srs6qdprjsmshdwdkdsrjsprilvrtyqzv5tdndezd6kzclhdprclds");

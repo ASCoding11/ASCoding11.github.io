@@ -1,0 +1,2 @@
+/* Deepword answer data, built by tools/build.js from prompts.js and free data (see tools/SOURCES.md). Do not edit by hand. */
+DW_EXT.add("~32","sicily;crete;corsica;sardinia;cyprus;malta;majorca;ibiza;santorini;mykonos;rhodes;capri;minorca;elba;gozo;corfu;kos;naxos;paros;lesbos;ischia;formentera;zakynthos;kefalonia;lampedusa;djerba;hydra;milos;ios;sardegna;aegina;chios;samos;karpathos;lipari;stromboli;pantelleria;hvar;korcula;brac","z0tfospqudvbl0ugj4ffk5m1asbqlkgdghlklkcolklklklklklkn3lksrlklklklklklkjblklklklk");
