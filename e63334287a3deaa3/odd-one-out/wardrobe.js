@@ -346,7 +346,7 @@ const TOOLS=[null,
 // =====================================================================
 // Each plays into o (index.html's out3d: from where the prop is) at time t, using its tone() and noise().
 const TAUNTS=[null,
-  {name:'Bike Horn',play(S,o,t){for(const d of [0,.24]){S.tone(o,330,.16,.3,t+d,'square',300);S.tone(o,415,.16,.18,t+d,'sawtooth',390);S.noise(o,.14,700,1,.12,t+d,'lowpass')}}},
+  {name:'Bike Horn',play(S,o,t){for(const d of [0,.24]){S.tone(o,330,.16,.22,t+d,'square',300);S.tone(o,415,.16,.13,t+d,'sawtooth',390);S.noise(o,.14,700,1,.12,t+d,'lowpass')}}},
   {name:'Squeaky Duck',play(S,o,t){for(const d of [0,.2]){S.tone(o,900,.07,.24,t+d,'sine',1600);S.tone(o,1600,.1,.2,t+d+.07,'sine',1150)}}},
   {name:'Slide Whistle',play(S,o,t){S.tone(o,520,.5,.24,t,'sine',1900);S.tone(o,1900,.4,.22,t+.5,'sine',700)}},
   {name:'Boing',play(S,o,t){S.tone(o,110,.5,.32,t,'triangle',520);S.tone(o,160,.45,.14,t+.04,'sine',700);S.tone(o,520,.35,.1,t+.45,'triangle',380)}},
@@ -484,7 +484,7 @@ function taunt(){
   if(cdLeft()>0){A.popup('TAUNT IN '+Math.ceil(cdLeft())+'s','bad');return false}
   A.initAudio();tauntT=A.clock;tauntN=(tauntN+1)%1000;
   const m=A.me;m.wear=mine();play(pick4[2],null,.8);A.popup('TAUNT!','good');
-  const c=m.pos.clone();c.y+=m.form?m.form.h*.6:.4;if(A.mode==='practice')A.heard(c);
+  const c=m.pos.clone();c.y+=m.form?m.form.h*.6:.4;if(A.mode==='practice'&&A.ph==='hunt')A.heard(c);   // bots in the waiting room don't hear it, like hunters
   A.push();A.hudDirty();return true;
 }
 function hint(){
