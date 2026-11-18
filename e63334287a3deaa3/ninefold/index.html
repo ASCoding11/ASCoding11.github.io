@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script src="/e63334287a3deaa3/lang.js"></script>
+<script src="/e63334287a3deaa3/ninefold/es.js"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
 <title>Ninefold</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -206,6 +208,8 @@ button:disabled{opacity:.45;cursor:default}
 const SLUG = 'ninefold', NAME = 'Ninefold', LAUNCH = '20261101', SU = window.Sudoku;
 const LEVELS = SU.LEVELS, LVNAME = { easy: 'Easy', medium: 'Medium', hard: 'Hard' };
 const $ = (id) => document.getElementById(id);
+// Language (lang.js): menus, help and messages follow the Back Room's English / Español setting (Spanish words in es.js).
+const T = window.BackRoomLang ? BackRoomLang.t : (s, v) => s.replace(/\{(\w+)\}/g, (m, n) => v && v[n] != null ? v[n] : m);
 function h(tag, attrs, kids) {
   const e = document.createElement(tag);
   if (attrs) for (const k in attrs) {
@@ -348,16 +352,16 @@ function copyText(t) {
   if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(t).then(() => true, () => fallback());
   return Promise.resolve(fallback());
 }
-const HOW = '<p>Fill the grid so every <b>row</b>, every <b>column</b> and every <b>3×3 box</b> has each number from 1 to 9 exactly once. Every puzzle has exactly one answer, and you never need to guess.</p>' +
+const HOW = () => T('<p>Fill the grid so every <b>row</b>, every <b>column</b> and every <b>3×3 box</b> has each number from 1 to 9 exactly once. Every puzzle has exactly one answer, and you never need to guess.</p>') +
   '<div class="ex"><span class="g">5</span><span class="p">3</span><span class="q"><i>1</i><i></i><i>2</i><i></i><i></i><i></i><i>7</i><i></i><i></i></span><span class="g">6</span><span class="g">9</span><span class="p">8</span><span class="g">4</span><span class="q"><i>1</i><i>2</i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="g">7</span></div>' +
-  '<ul><li>White numbers come with the puzzle; yours are <b style="color:var(--aqua)">aqua</b>.</li>' +
+  T('<ul><li>White numbers come with the puzzle; yours are <b style="color:var(--aqua)">aqua</b>.</li>' +
   '<li>Pick a cell, then a number. Turn on <b>Notes</b> to pencil in small numbers you\'re not sure about.</li>' +
   '<li><b>Hint</b> fills in one cell and explains the trick that finds it. <b>Undo</b> takes back your last move.</li>' +
   '<li>Three new puzzles every day: <b>Easy</b> needs only the basics, <b>Medium</b> needs pairs and pointing, <b>Hard</b> needs trickier patterns like X-Wings. Finish any one to keep your streak. Unlimited gives you as many more as you like.</li>' +
-  '<li>On a keyboard: arrows move, 1–9 fill in, Shift + number or N for notes, Backspace erases, Z undoes, H gives a hint.</li></ul>';
+  '<li>On a keyboard: arrows move, 1–9 fill in, Shift + number or N for notes, Backspace erases, Z undoes, H gives a hint.</li></ul>');
 function openHelp() {
   store.set(SLUG + ':seen', 1);
-  modal('How to play', h('div', { html: HOW + '<p class="foot">The daily puzzles change at midnight, your time, and are the same for everyone. Unlimited puzzles don\'t count towards your daily stats. Best times only count puzzles finished without hints. · <a href="/privacy.html">Privacy</a></p>' }));
+  modal('How to play', h('div', { html: HOW() + '<p class="foot">' + T('The daily puzzles change at midnight, your time, and are the same for everyone. Unlimited puzzles don\'t count towards your daily stats. Best times only count puzzles finished without hints.') + ' · <a href="/privacy.html">Privacy</a></p>' }));
 }
 let cdTimer = 0;
 function openStats() {
@@ -396,6 +400,7 @@ function setRow(key, label, sub) {
 }
 function openSettings() {
   modal('Settings', h('div', null, [
+    h('div', { class: 'set' }, [h('div', null, [h('label', { text: 'Language' })]), h('div', { 'data-lang-toggle': '' })]),
     setRow('check', 'Show mistakes', 'Numbers that don\'t match the answer turn red.'),
     setRow('autoNotes', 'Tidy notes', 'Placing a number removes it from the notes in its row, column and box.'),
     setRow('same', 'Highlight matching numbers', 'Light up every copy of the number you picked, in cells and notes.'),
@@ -477,7 +482,7 @@ function load(m, lv, newOne) {
   const my = ++gen;
   closeHint();
   const busy = $('busy');
-  busy.textContent = m === 'daily' ? 'Making today\'s ' + LVNAME[lv] + ' puzzle…' : 'Making a new ' + LVNAME[lv] + ' puzzle…';
+  busy.textContent = m === 'daily' ? T('Making today\'s {l} puzzle…', { l: T(LVNAME[lv]) }) : T('Making a new {l} puzzle…', { l: T(LVNAME[lv]) });
   const saved = store.get(progKey(m, lv), null), day = today();
   let quick = null;
   if (m === 'daily') {
@@ -658,14 +663,14 @@ function shareText() {
   const day = today(), rec = dayRec(day), n = dayNum(day);
   if (mode === 'free') {
     if (!st || !st.done) return null;
-    return NAME + ' (unlimited) ' + LVNAME[st.lv] + ' ✅ ' + fmtTime(st.t) + (st.hints ? ' 💡' + st.hints : '') + '\nascoding11.github.io';
+    return NAME + ' ' + T('(unlimited)') + ' ' + T(LVNAME[st.lv]) + ' ✅ ' + fmtTime(st.t) + (st.hints ? ' 💡' + st.hints : '') + '\nascoding11.github.io';
   }
   if (!rec || !Object.keys(rec).length) return null;
   const prog = {}; LEVELS.forEach((l) => { prog[l] = store.get(progKey('daily', l), null); });
   const lines = LEVELS.map((l) => {
-    if (rec[l] == null) return '⬛ ' + LVNAME[l];
+    if (rec[l] == null) return '⬛ ' + T(LVNAME[l]);
     const hints = prog[l] && prog[l].day === day ? prog[l].hints : 0;
-    return (hints ? '🟨 ' : '🟩 ') + LVNAME[l] + ' ' + fmtTime(rec[l]) + (hints ? ' 💡' + hints : '');
+    return (hints ? '🟨 ' : '🟩 ') + T(LVNAME[l]) + ' ' + fmtTime(rec[l]) + (hints ? ' 💡' + hints : '');
   });
   return NAME + (n >= 1 ? ' #' + n : ' (preview)') + ' ' + Object.keys(rec).length + '/3\n' + lines.join('\n') + '\nascoding11.github.io';
 }
@@ -679,7 +684,7 @@ function endCard() {
     h('p', { html: '<b>' + LVNAME[st.lv] + '</b>' + (st.mode === 'daily' ? ' daily' : '') + ' · ' + (st.hints ? st.hints + ' hint' + (st.hints > 1 ? 's' : '') : 'no hints') + (settings.check ? ' · ' + st.miss + ' mistake' + (st.miss === 1 ? '' : 's') : '') + (L.best ? ' · best ' + fmtTime(L.best) : '') }),
     h('div', { class: 'row' }, [
       h('button', { type: 'button', class: 'cta', text: 'Share', onclick: share }),
-      left.length ? h('button', { type: 'button', class: 'ghost', text: 'Play ' + LVNAME[left[0]], onclick: () => setLevel(left[0]) }) : null,
+      left.length ? h('button', { type: 'button', class: 'ghost', text: T('Play {l}', { l: T(LVNAME[left[0]]) }), onclick: () => setLevel(left[0]) }) : null,
       h('button', { type: 'button', class: 'ghost', text: st.mode === 'daily' ? 'Unlimited' : 'New puzzle', onclick: () => { if (st.mode === 'daily') setMode('free'); else newFree(); } }),
       st.mode === 'daily' && !left.length ? h('span', { class: 'next', id: 'nextIn', text: 'Next in ' + countdown() }) : null]));
 }
