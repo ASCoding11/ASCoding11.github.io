@@ -57,7 +57,9 @@ const ctx = { window: {} }; vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(path.join(HERE, '..', 'prompts.js'), 'utf8'), ctx);
 const BANK = ctx.window.DW_BANK;
 const cache = id => { const f = path.join(CACHE, id + '.json'); return fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : null; };
-const PV = Object.assign({}, cache('pageviews-tail') || {}, cache('pageviews') || {}); // -tail: a second run from the other end of the list
+// pageviews*.json from pageviews.js (several runs can share the work); 0 means no data came back, not no readers
+const PV = {};
+for (const f of fs.existsSync(CACHE) ? fs.readdirSync(CACHE) : []) if (/^pageviews.*\.json$/.test(f)) { const d = JSON.parse(fs.readFileSync(path.join(CACHE, f), 'utf8')); for (const k in d) if (d[k] > 0) PV[k] = d[k]; }
 const missing = [];
 
 // Linguabase familiarity (0-1) by normalised word or phrase, and Google Books ranks
@@ -109,7 +111,7 @@ function fromRow(r, opts) {
   return { names, sl: +r.sl || 0, pv: t && PV[t] != null ? PV[t] : null, pop: r.pop ? +r.pop : null, q: r.item };
 }
 const rows = id => { const d = cache(id); if (!d) { missing.push('Wikidata: ' + id); return []; } return d; };
-const has = (field, q) => String(field || '').split('|').indexOf(q) >= 0;
+const has = (field, q) => String(field || '').replace(/http:\/\/www\.wikidata\.org\/entity\//g, '').split('|').indexOf(q) >= 0;
 
 // ------------------------------------------------------------------ taxa (wild animals) from the parent chains
 const TAXA = cache('taxa');
@@ -198,7 +200,7 @@ function people(id) {
   return out;
 }
 const things = (id, fn, opts) => rows(id).filter(r => !fn || fn(r)).map(r => fromRow(r, opts)).filter(Boolean);
-const R = { esrbM: ['Q14864331', 'Q14864330'], pegi18: ['Q18680823'], mpaR: ['Q18665330', 'Q18665344', 'Q23660208'] };
+const R = { esrbM: ['Q14864331', 'Q14864332'], pegi18: ['Q14915517'], mpaR: ['Q18665344', 'Q18665349'] }; // ESRB Mature 17+ and Adults Only, PEGI 18, MPA R and NC-17
 const okGame = r => !R.esrbM.some(q => has(r.esrbs, q)) && !R.pegi18.some(q => has(r.pegis, q));
 const okFilm = r => !R.mpaR.some(q => has(r.mpas, q));
 const ANIMATED = ['Q202866', 'Q581714', 'Q29168811', 'Q17013749'];
