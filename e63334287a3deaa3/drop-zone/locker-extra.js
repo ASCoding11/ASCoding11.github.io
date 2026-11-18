@@ -148,8 +148,8 @@ const GLIDERS=[null,
     sheet(B,32,7,polar(v=>1.6*v,(v,u)=>top-.66*v*v-.07*Math.pow(v,5)*Math.abs(Math.sin(u*Math.PI*8)),cx,0),(u)=>Math.floor(u*8)%2?0xe23d3d:WH,(u)=>Math.floor(u*8)%2?0xb52f2f:0xd8d6d0,outward(cx,1.0,0));
     for(let k=0;k<8;k++){const a=k/8*TAU,x=Math.cos(a)*1.6,z=Math.sin(a)*1.6;bar(B,cx+x*.5,top-.66*.25-.02,z*.5,cx+x,top-.66-.02,z,.011,DK);bar(B,cx,top-.6,0,cx+x*.5,top-.66*.25-.02,z*.5,.009,0x8a8f98);put(B,PR.slo,cx+x,top-.68,z,.06,.06,.06,DK)}},
   // 2 Paper Airplane: a folded dart of ruled notebook paper, nose forward, held up by a paper loop under the fold
-  B=>{const N=v3(0,.94,-1.75),T=v3(0,.96,1.05),K=v3(0,.5,.95),Kn=v3(0,.86,-1.6);
-    for(const s of [-1,1]){const W=v3(s*1.5,1.1,1.05);
+  B=>{const N=v3(0,.98,-2.1),T=v3(0,1.0,1.3),K=v3(0,.5,1.2),Kn=v3(0,.9,-1.9);
+    for(const s of [-1,1]){const W=v3(s*1.85,1.16,1.3);
       sheet(B,6,24,(u,v)=>{const a=N.clone().lerp(T,v),b=N.clone().lerp(W,v);const p=a.lerp(b,u);return [p.x,p.y,p.z]},(u,v,i,j)=>i===0?0xe8a0a0:(j%3===1?0x9cc3ea:0xfbfbf6),(u,v,i,j)=>j%3===1?0x8fb2d6:0xe9e7dd);
       sheet(B,2,12,(u,v)=>{const a=Kn.clone().lerp(T,v),b=Kn.clone().lerp(K,v);const p=a.lerp(b,u);p.x+=s*.012;return [p.x,p.y,p.z]},()=>0xefede4,()=>0xe2dfd2,()=>v3(s,0,0))}
     for(const s of [-1,1]){bar(B,s*.03,.6,-.1,s*.24,.2,-.06,.018,0xefede4);bar(B,s*.24,.2,-.06,s*.24,.12,-.06,.03,0xefede4)}},
@@ -161,12 +161,12 @@ const GLIDERS=[null,
       bar(B,0,1.05,-.15,s*.44,-.05,-.12,.02,SIL);put(B,PR.rbox,s*.44,-.05,-.12,.067,.19,.067,0x3a3f48)}
     bar(B,nose.x,nose.y-.04,nose.z,tr.x,tr.y-.04,tr.z,.03,MT);bar(B,-1.05,1.08,-.2,1.05,1.08,-.2,.02,MT)},
   // 4 Kite: a diamond in four colours on crossed sticks, flown on two lines, with a tail of bows streaming behind
-  B=>{const C=v3(0,1.18,.08),pts=[v3(0,1.4,-1.3),v3(1.15,1.2,.05),v3(0,1.04,1.45),v3(-1.15,1.2,.05)],cols=[0xe8453c,0xffcc33,0x2f8fd6,0x4cc05a];
+  B=>{const a=.6,K3=(u,v)=>v3(u,1.5-v*Math.sin(a),v*Math.cos(a)),C=K3(0,0),pts=[K3(0,-1.5),K3(1.2,-.22),K3(0,1.4),K3(-1.2,-.22)],cols=[0xe8453c,0xffcc33,0x2f8fd6,0x4cc05a];
     for(let i=0;i<4;i++)tri2(B,C,pts[i],pts[(i+1)%4],cols[i]);
     bar(B,pts[0].x,pts[0].y-.02,pts[0].z,pts[2].x,pts[2].y-.02,pts[2].z,.02,0x9a6a3c);bar(B,pts[1].x,pts[1].y-.02,pts[1].z,pts[3].x,pts[3].y-.02,pts[3].z,.02,0x9a6a3c);
-    for(const s of [-1,1]){rope(B,s*.38,.12,-.06,0,1.15,-.5,0xf4f0e6);rope(B,s*.38,.12,-.06,0,1.1,.5,0xf4f0e6);put(B,PR.cyl8,s*.38,.12,-.06,.06,.12,.06,0x9a6a3c,0,0,Math.PI/2)}
-    AN=(x,y,z)=>[4,.14*clamp((z-1.45)/1.5,0,1),0];
-    for(let k=0;k<7;k++){const z0=1.45+k*.24,z1=z0+.24,y0=1.04-k*.08,y1=y0-.08;bar(B,0,y0,z0,0,y1,z1,.008,0xeeeeee);if(k%2)for(const s of [-1,1])put(B,PR.box,s*.06,y1,z1,.12,.03,.07,cols[k%4],0,s*.5,0)}
+    for(const s of [-1,1]){rope(B,s*.38,.12,-.06,C.x,C.y-.25,C.z-.6,0xf4f0e6);rope(B,s*.38,.12,-.06,0,C.y-.5,C.z+.5,0xf4f0e6);put(B,PR.cyl8,s*.38,.12,-.06,.06,.12,.06,0x9a6a3c,0,0,Math.PI/2)}
+    const tl=pts[2];AN=(x,y,z)=>[4,.14*clamp((z-tl.z)/1.5,0,1),0];
+    for(let k=0;k<7;k++){const z0=tl.z+k*.24,z1=z0+.24,y0=tl.y-k*.1,y1=y0-.1;bar(B,0,y0,z0,0,y1,z1,.008,0xeeeeee);if(k%2)for(const s of [-1,1])put(B,PR.box,s*.06,y1,z1,.12,.03,.07,cols[k%4],0,s*.5,0)}
     AN=null},
   // 5 Bedsheet Parachute: a pale blue sheet with little white flowers and a white hem, its corners knotted round your fists
   B=>{AN=(x,y,z)=>[4,.06*Math.pow(Math.max(Math.abs(x),Math.abs(z))/1.3,3),0];

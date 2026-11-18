@@ -493,6 +493,16 @@
   I('drop-zone', 'build', 4, 'Candy', 'epic', '#FF9FC7', '#9FF0D0', 'Pastel stripes with sprinkles.');
   I('drop-zone', 'build', 5, 'Stone', 'common', '#8D8F94', '#6B6E73', 'Grey blocks and mortar.');
   I('drop-zone', 'build', 6, 'Scrap Metal', 'rare', '#8E9499', '#9A5A32', 'Patched plates, rivets and a little rust.');
+  I('drop-zone', 'emote', 1, 'Wave', 'common', '#FFD23F', '#3A9BDC', 'A big friendly wave.');
+  I('drop-zone', 'emote', 2, 'Dance', 'rare', '#FF6FB5', '#3EE6D0', 'Side to side with the arms going.');
+  I('drop-zone', 'emote', 3, 'Clap', 'common', '#FFC93C', '#FFFFFF', 'A round of applause.');
+  I('drop-zone', 'emote', 4, 'Jumping Jacks', 'common', '#5FD068', '#FFFFFF', 'Arms up, feet apart, again.');
+  I('drop-zone', 'emote', 5, 'Robot', 'rare', '#B9C2CC', '#3A7AD0', 'Stiff arms, sharp turns.');
+  I('drop-zone', 'emote', 6, 'Twirl', 'rare', '#B46CFF', '#FFD23F', 'Arms out, spin round, one foot up.');
+  I('drop-zone', 'victory', 1, 'Champion', 'epic', '#FFC93C', '#E8453C', 'Both fists up, bouncing.');
+  I('drop-zone', 'victory', 2, 'Flex', 'rare', '#E8742A', '#FFFFFF', 'Show those arms.');
+  I('drop-zone', 'victory', 3, 'Take a Bow', 'rare', '#8A5A2B', '#F2EFE8', 'A deep, slow bow to the crowd.');
+  I('drop-zone', 'victory', 4, 'Jump for Joy', 'epic', '#5FD068', '#FFD23F', 'Jumping up and down with arms wide.');
   // Items a game hands over itself are in no pack: give is 'free' (anyone may wear it; the game grants it the first time it
   // is worn) or 'earned' (the game grants it when it is won). grant(id), below, only adds these.
   GAME_ITEMS.forEach(function (it) { if (it.game !== 'slipstream') return; if (it.slot === 'sponsor' || (it.slot === 'helmet' && it.no <= 8)) it.give = 'free'; else if (it.slot === 'livery' && it.no > 8) it.give = 'earned'; });
