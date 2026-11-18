@@ -373,14 +373,14 @@ const tMat=new THREE.ShaderMaterial({transparent:true,depthWrite:false,fog:true,
   vertexShader:'attribute float size;attribute vec4 pdat;attribute vec3 pcol;uniform float uScale;varying vec3 vC;varying vec4 vD;\n#include <fog_pars_vertex>\nvoid main(){vec4 mvPosition=modelViewMatrix*vec4(position,1.);gl_Position=projectionMatrix*mvPosition;float d=-mvPosition.z;'
     +'gl_PointSize=clamp(size*uScale/max(d,.1),1.,180.);vC=pcol;vD=pdat;vD.z*=smoothstep(1.2,3.,d);\n#include <fog_vertex>\n}',
   fragmentShader:'uniform sampler2D map;varying vec3 vC;varying vec4 vD;\n#include <fog_pars_fragment>\nvoid main(){vec2 q=gl_PointCoord-.5;float c=cos(vD.y),s=sin(vD.y);q=vec2(c*q.x-s*q.y,s*q.x+c*q.y)+.5;'
-    +'if(q.x<0.||q.y<0.||q.x>1.||q.y>1.)discard;vec2 o=vec2(mod(vD.x,4.),floor(vD.x/4.));vec4 t=texture2D(map,(o+vec2(q.x,1.-q.y))/vec2(4.,2.));gl_FragColor=vec4(vC*t.rgb,t.a*vD.z);if(gl_FragColor.a<.01)discard;\n#include <fog_fragment>\n}'});
+    +'if(q.x<0.||q.y<0.||q.x>1.||q.y>1.)discard;vec2 o=vec2(mod(vD.x,4.),1.-floor(vD.x/4.));vec4 t=texture2D(map,(o+vec2(q.x,1.-q.y))/vec2(4.,2.));gl_FragColor=vec4(vC*t.rgb,t.a*vD.z);if(gl_FragColor.a<.01)discard;\n#include <fog_fragment>\n}'});
 tMat.uniforms.map.value=tTex;
 const tPts=new THREE.Points(tGeo,tMat);tPts.frustumCulled=false;tPts.visible=false;tPts.renderOrder=5;G.scene.add(tPts);
 // each trail: sprite, colours, size from and to, life, how many a second, and how they move
 const RAINBOW=[0xff4f4f,0xff9a3c,0xffe14f,0x5fd068,0x3fa9f5,0x9b6cff];
 const TRAILS=[null,
   {sp:0,cols:[0xf2f2f2,0xe2e4e8,0xd2d6dc],s0:.7,s1:2.4,life:1.7,rate:22,a:.5,spread:.25,vy:.4},
-  {sp:1,cols:[0xffe45c,0xffffff,0xbff3ff,0xffc2f0],s0:.42,s1:.15,life:1.1,rate:30,a:1,spread:.55,vy:0,tw:1},
+  {sp:1,cols:[0xffe45c,0xffffff,0xbff3ff,0xffc2f0],s0:.6,s1:.25,life:1.1,rate:30,a:1,spread:.55,vy:0,tw:1},
   {sp:2,cols:RAINBOW,s0:.5,s1:.62,life:1.3,rate:26,a:.85,spread:0,vy:0,band:1},
   {sp:3,cols:[0xffffff,0xf4efe2,0xe6e8ee],s0:.55,s1:.55,life:2.2,rate:12,a:1,spread:.5,vy:-1.2,spin:3},
   {sp:4,cols:[0xe8782e,0xd9442f,0xf2b632,0x8bb04a],s0:.5,s1:.5,life:2.2,rate:12,a:1,spread:.5,vy:-1.4,spin:4},
@@ -639,7 +639,7 @@ function bsOf(oid){if(oid==null)return 0;let e=null;if(oid===G.myId()||oid==='me
   const o=e?parse(e.lx||''):null;return o&&o.b||0}
 function bsk(mesh,i,bs){const a=mesh.geometry.attributes.bsk;if(!a||i<0||i>=a.count)return;const v=bs|0;if(a.array[i]!==v){a.array[i]=v;a.needsUpdate=true}}
 const bsCol=bs=>BS_DEBRIS[bs]||BS_DEBRIS[0];
-const botLx=i=>'g'+(1+(i*7)%24)+'t'+(1+i%6)+'w'+(1+(i*5)%19)+'b'+(1+i%6)+'p'+(1+(i*3)%8);
+const botLx=i=>'g'+(1+(i*7)%24)+'t'+(1+i%6)+'w'+(1+(i*5)%19)+'b'+(1+i%6)+'p'+(1+(i*3)%8)+'v'+(1+i%4);
 
 // =====================================================================
 //  The Locker's tabs
