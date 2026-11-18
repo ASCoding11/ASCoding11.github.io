@@ -5354,8 +5354,8 @@ function animModel(e,dt){
   // a bot's, or another player's shot event, so it agrees with the hit), and the hands put on the glider's handles or the
   // crowbar's handle (armIK)
   if(far&&!u.gun.visible&&u.pfar)return;u.pfar=far;   // past 70 m the arms keep their last pose
-  const cb=u.gk==='cb'&&!air&&!e.glide,gh=!air&&!e.glide&&WEAP[u.gk]?GHOLD[famOf(u.gk)==='pi'?'one':'two']:null,
-    tg=air?POSES.fall:e.glide?POSES.glide:cb?POSES.cb:gh?gh.P:POSES.rest,pb=u.pb,k12=1-Math.exp(-dt*(air?7:12));
+  const cb=u.gk==='cb'&&!air&&!e.glide,gh=!air&&!e.glide&&WEAP[u.gk]?GHOLD[famOf(u.gk)==='pi'?'one':'two']:null,hh=!air&&!e.glide&&HHOLD.w[u.gk]?HHOLD:null,
+    tg=air?POSES.fall:e.glide?POSES.glide:cb?POSES.cb:gh?gh.P:hh?hh.P:POSES.rest,pb=u.pb,k12=1-Math.exp(-dt*(air?7:12));
   for(let i=0;i<POSE_N;i++)pb[i]+=(tg[i]-pb[i])*k12;
   u.cbw=(u.cbw||0)+((cb||gh&&gh.one?1:0)-(u.cbw||0))*k12;   // (the arms free to swing when running: the crowbar's left arm, and the pistol's)
   const pf=u.pf;pf.set(pb);
@@ -5441,14 +5441,18 @@ function animModel(e,dt){
     else if(gk==='sr'){y-=.05*sm;rx-=.18*sm;rz+=.5*sm;y-=.03*bump(.5,.07);z+=.05*bump(.88,.06)}
     else{y-=.07*sm;rx-=.42*sm;rz+=.5*sm;y-=.04*bump(.24,.07);y+=.035*bump(.6,.06);z+=.05*bump(.87,.06)}                                // magazine out, magazine in, rack
     while((e.rlS|0)<st.length&&p>=st[e.rlS|0][0]){const d=e===player?0:camera.position.distanceTo(e.pos);if(d<40)sfxReload(st[e.rlS|0][1],1/(1+d*.1));e.rlS=(e.rlS|0)+1}
-  }else if(e.useT>0)y-=.14;
+  }else if(e.useT>0&&!hh)y-=.14;
   // just taken out: it swings up from below
   if(u.sw>0){u.sw=Math.max(0,u.sw-dt*4.5);if(!RM){const q=u.sw*u.sw;y-=q*.3;rx-=q*.9}}
   g.rotation.set(rx,ry,rz,'YXZ');_gh.set(0,0,.12).applyQuaternion(g.quaternion);g.position.set(x-_gh.x,y-_gh.y,z+.12-_gh.z);   // turned about the hand, which stays put
-  if(!H||!g.visible){heldFollow(u);return}
+  if(hh){u.hk=(u.hk||0)+((e.useT>0?1:0)-(u.hk||0))*k8;const q=u.hk;   // a heal: in both hands before the chest, lifted toward the face while it's used
+    x=hh.h[0]-.05*q;y=hh.h[1]+.13*q-(u.sw>0&&!RM?u.sw*u.sw*.3:0);z=hh.h[2]-.12+.1*q;rx=-.25*q;ry=0;rz=RM?0:Math.sin(now*.011)*.14*q;
+    g.rotation.set(rx,ry,rz,'YXZ');_gh.set(0,0,.12).applyQuaternion(g.quaternion);g.position.set(x-_gh.x,y-_gh.y,z+.12-_gh.z)}
+  if((!H&&!hh)||!g.visible){heldFollow(u);return}
   // with the hands on it: the weapon goes with the hips (so the chest's lean and sway don't tip the aim), then each hand
   // reaches for its place on it: the right for the grip, the left for the front (to the magazine during a reload)
   const b=u.bones;b[0].updateMatrix();g.updateMatrix();_hm.multiplyMatrices(b[0].matrix,g.matrix).decompose(g.position,g.quaternion,g.scale);g.updateMatrix();
+  if(hh){const w=hh.w[gk];_ht.set(w,-.02,-.1).applyMatrix4(g.matrix);armIK(u,1,_ht,GH_POLE[1],1);_ht.set(-w,-.02,-.1).applyMatrix4(g.matrix);armIK(u,0,_ht,GH_POLE[0],1);return}
   _ht.set(0,0,.12).applyMatrix4(g.matrix);armIK(u,1,_ht,GH_POLE[1],1);
   if(!H.one){const rl=e.reloadT>0?Math.min(1,(1-e.reloadT/Math.max(.1,wReload(WEAP[gk],0)))*6,e.reloadT*4):0;
     _ht.set(0,-.04-.06*rl,.12-H.f*(1-rl*.6)).applyMatrix4(g.matrix);armIK(u,0,_ht,GH_POLE[0],1)}
@@ -5457,6 +5461,9 @@ function animModel(e,dt){
 // units, before the hips turn), f how far in front of the grip the left hand holds. GH_POLE: where the elbows point.
 const GHOLD={two:{P:pose({turn:-.55,lean:-.03,sl:.12}),h:[.52,1.44,-.3],f:.36},one:{one:true,P:pose({turn:-.18,L:[-1.3,.35,-.12,.4]}),h:[.3,1.44,-.42],f:0}};
 const GH_POLE=[new V3(-.5,-1,.15),new V3(.7,-1,.25)];
+// Heals (audit, November 2026): held in both hands in front of the chest, one on each side of the box or bottle (w: how far
+// out from its middle), instead of on the straight arms the body is drawn with; lifted toward the face while being used.
+const HHOLD={P:pose({lean:.03}),h:[.08,1.2,-.36],w:{hp:.18,sh:.12}};
 function posePut(u,P){const b=u.bones;b[0].rotation.y=u.hipT||0;b[1].rotation.set(P[0],P[1],P[14]);
   for(let k=0;k<2;k++){_pe.set(P[2+3*k],P[3+3*k],P[4+3*k],'ZXY');b[2+k].quaternion.setFromEuler(_pe);b[2+k].position.x=ARM_P[k][0]+P[9+k];b[4+k].quaternion.setFromAxisAngle(ARM_AX[k],P[12+k])}}
 // carries the held item along with the right hand (hips x chest x upper arm x forearm, the elbow's rest place undone); at
