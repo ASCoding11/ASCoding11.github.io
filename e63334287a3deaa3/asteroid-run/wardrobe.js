@@ -19,6 +19,8 @@
  */
 (function () {
 'use strict';
+// Spanish: the words are in es.js; TX() for the preview's canvas labels (../lang.js).
+const TX = window.BackRoomLang ? BackRoomLang.t : s => s;
 window.AsteroidWardrobe = function (X) {
 const { THREE, C, G, T, ENDZ, TCOL, canvasTex, OUT, store, sfx, $ } = X;
 const GAME = 'asteroid-run';
@@ -754,7 +756,7 @@ function drawPreview(t) {
   if (tab === 'a') {
     if (!look.a) { body(W / 2, H - 2, 176, true, fr); return; }
     body(W * .27, H - 2, 176, false, fr); body(W * .73, H - 2, 176, true, fr);
-    g.fillStyle = 'rgba(185,189,234,.85)'; g.font = '900 20px Nunito,sans-serif'; g.textAlign = 'center'; g.fillText('front', W * .27, 24); g.fillText('in the game', W * .73, 24);
+    g.fillStyle = 'rgba(185,189,234,.85)'; g.font = '900 20px Nunito,sans-serif'; g.textAlign = 'center'; g.fillText(TX('front'), W * .27, 24); g.fillText(TX('in the game'), W * .73, 24);
   } else if (tab === 't') {
     g.fillStyle = '#4f68ff'; g.beginPath(); g.moveTo(W * .3, H * .3); g.lineTo(W * .7, H * .3); g.lineTo(W, H); g.lineTo(0, H); g.closePath(); g.fill();
     const fx = TRAIL_FX[look.t];

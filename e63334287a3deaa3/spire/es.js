@@ -1,0 +1,122 @@
+/* Spire in Spanish: this game's own words for lang.js (see the comment at the top of ../lang.js).
+   Tower names ("The Crimson Steeple") stay in English as names; sections, worlds, hats, menus, HUD and messages are translated. */
+if (window.BackRoomLang) BackRoomLang.add({
+  // HUD
+  'Spire game view': 'Vista del juego Spire', 'of {n}': 'de {n}', 'Time': 'Tiempo', 'Tower': 'Torre',
+  'Finished · Section {a} of {b}': 'Llegaste · Sección {a} de {b}', 'Section {a} of {b}': 'Sección {a} de {b}',
+  'Stage {a} of {b}': 'Etapa {a} de {b}', 'Easy · try {n}': 'Fácil · intento {n}', 'Normal · try {n}': 'Normal · intento {n}', 'Hard · try {n}': 'Difícil · intento {n}',
+  'Starts in': 'Empieza en', 'Time left · 2×': 'Queda · 2×', 'Time left': 'Tiempo restante', 'Next tower': 'Próxima torre', 'Joining': 'Entrando', 'This stage': 'Esta etapa',
+  'Watching': 'Mirando', 'Watching {n}': 'Mirando a {n}', 'Everyone else is done or gone': 'Los demás ya terminaron o se fueron',
+  'Next': 'Siguiente', 'Climb again': 'Volver a escalar', 'Click to aim': 'Haz clic para apuntar',
+  'to move · the mouse looks around': 'para moverte · el mouse mira', 'Push the': 'Empuja el', 'stick': 'joystick',
+  'to move · drag to look around': 'para moverte · arrastra para mirar', 'Space': 'Espacio', 'to jump': 'para saltar', 'Tap': 'Toca', 'JUMP': 'SALTA',
+  'Follow the': 'Sigue la', 'gold arrow': 'flecha dorada', 'up · red sends you back': 'hacia arriba · lo rojo te hace volver',
+  'Find the way up · red sends you back': 'Busca el camino hacia arriba · lo rojo te hace volver',
+  'shift lock on': 'shift lock', 'first person': 'primera persona', 'third person': 'tercera persona', 'restart': 'reiniciar', 'checkpoint': 'punto de control', 'menu': 'menú',
+  'Pause': 'Pausa', 'First person': 'Primera persona', 'Third person': 'Tercera persona',
+  'Climb the truss': 'Trepa la torre de vigas', 'Push the stick toward it and hold': 'Empuja el joystick hacia ella y mantén',
+  'Walk into it and keep holding forward': 'Camina hacia ella y sigue manteniendo adelante',
+  'Checkpoint!': '¡Punto de control!', 'Only the summit left': 'Solo falta la cima', 'Checkpoint saved': 'Punto de control guardado',
+  'Last stretch ·': 'Último tramo ·', 'Section {n} ·': 'Sección {n} ·',
+  'World {n}': 'Mundo {n}', 'Stage {n}': 'Etapa {n}',
+  'Easy tower · 5 sections · checkpoints': 'Torre fácil · 5 secciones · puntos de control', 'Easy tower · 5 sections': 'Torre fácil · 5 secciones',
+  '8 sections · the clock is running · checkpoints': '8 secciones · el reloj corre · puntos de control', '8 sections · the clock is running': '8 secciones · el reloj corre',
+  'Easy · reach the gold zone': 'Fácil · llega a la zona dorada', 'Normal · reach the gold zone': 'Normal · llega a la zona dorada', 'Hard · reach the gold zone': 'Difícil · llega a la zona dorada',
+  '{n} sections · {m} minutes · checkpoints': '{n} secciones · {m} minutos · puntos de control', '{n} sections · {m} minutes': '{n} secciones · {m} minutos',
+  'Joined {t} · climb!': 'Entraste a {t} · ¡a escalar!', 'Clock at double speed!': '¡El reloj va al doble!', '{n} made it to the top': '{n} llegó a la cima',
+  'reached the top · {p}': 'llegó a la cima · {p}', 'You made it!': '¡Lo lograste!', 'New best!': '¡Récord!', 'Cleared!': '¡Superado!',
+  '{t} · best {b}': '{t} · récord {b}', 'GO!': '¡YA!',
+  '+{n} coins': '+{n} monedas', '· Stage {n} cleared': '· Etapa {n} superada', '· {w} done': '· {w} completado', '· {p} to the top': '· {p} en llegar a la cima',
+  'New hat to wear:': 'Nuevo sombrero para usar:', 'You': 'Tú', 'Someone': 'Alguien', 'Climber': 'Escalador',
+  '{n} joined': '{n} se unió', '{n} left': '{n} se fue', "You're the host now": 'Ahora eres el anfitrión', '{n} (you)': '{n} (tú)',
+  // canvas signs
+  'FINISH': 'META', 'SHORTCUT': 'ATAJO',
+  // sections
+  'Step Stones': 'Piedras de paso', 'Tightrope': 'Cuerda floja', 'Truss Tower': 'Torre de vigas', 'Spin Cycle': 'Centrifugado', 'Turnstiles': 'Molinetes',
+  'Crumble Path': 'Camino que se desmorona', 'Blink Blocks': 'Bloques intermitentes', 'Elevator Shaft': 'Hueco del ascensor', 'Conveyor Climb': 'Cintas transportadoras',
+  'Bounce House': 'Castillo inflable', 'Laser Hall': 'Pasillo láser', 'Lava Floor': 'Piso de lava', 'Pillar Spiral': 'Espiral de pilares', 'Wall Ledges': 'Cornisas',
+  'Sweeper Bridges': 'Puentes con barredoras', 'Low Gravity': 'Gravedad baja', 'Carousel': 'Calesita', 'Piston Stairs': 'Escalera de pistones', 'Zigzag Beams': 'Vigas en zigzag',
+  'Gust Gaps': 'Ráfagas', 'Ice Steps': 'Escalones de hielo', 'Launch Pads': 'Lanzadores', 'Fork in the Road': 'Bifurcación',
+  // obby worlds
+  'Rainbow Road': 'Camino Arcoíris', 'Sky Isles': 'Islas del Cielo', 'Gearworks': 'Engranajes', 'Magma Keep': 'Fortaleza de Magma', 'Neon Lab': 'Laboratorio Neón',
+  'Bounce Belt': 'Cinturón Rebote', 'The Summit': 'La Cima',
+  '1 · Rainbow Road': '1 · Camino Arcoíris', '2 · Sky Isles': '2 · Islas del Cielo', '3 · Gearworks': '3 · Engranajes', '4 · Magma Keep': '4 · Fortaleza de Magma', '5 · Neon Lab': '5 · Laboratorio Neón', '6 · Bounce Belt': '6 · Cinturón Rebote', '7 · The Summit': '7 · La Cima',
+  // hats
+  'No hat': 'Sin sombrero', 'Cap': 'Gorra', 'Party hat': 'Gorro de fiesta', 'Beanie': 'Gorro de lana', 'Top hat': 'Galera', 'Crown': 'Corona', 'Traffic cone': 'Cono de tránsito',
+  'Halo': 'Aureola', 'Viking helmet': 'Casco vikingo', 'Propeller cap': 'Gorra con hélice', 'Wizard hat': 'Sombrero de mago',
+  '{h}, {c} coins': '{h}, {c} monedas', ', {c} coins': ', {c} monedas', ', level {l}': ', nivel {l}', 'Lv {l}': 'Nv {l}',
+  "Reach level {l} to wear the {h}. You're level {m}.": 'Llega al nivel {l} para usar: {h}. Estás en el nivel {m}.',
+  'The {h} costs {c} coins and you have {m}. Grab the coins on the way up, and finish towers for more.': '{h} cuesta {c} monedas y tienes {m}. Junta monedas mientras subes y termina torres para ganar más.',
+  'Buy the {h} for {c} coins?': '¿Comprar {h} por {c} monedas?', 'Buy': 'Comprar', 'The {h} is yours.': '¡{h} ya es tuyo!',
+  // menu
+  'Climb to the top of the tower. Anything glowing red sends you back.': 'Escala hasta la cima de la torre. Todo lo que brilla en rojo te hace volver.',
+  'Quick match': 'Partida rápida', 'race anyone online': 'compite con quien esté en línea', 'Friends': 'Amigos', 'play in a room': 'juega en una sala',
+  'room code': 'código de sala', 'Join': 'Unirse', 'Share one code with your friends (up to 12). Leave it empty to make a new room.': 'Comparte un código con tus amigos (hasta 12). Déjalo vacío para crear una sala nueva.',
+  'Your climber': 'Tu escalador', 'Level': 'Nivel', 'More': 'Más', 'Advertisement': 'Publicidad', 'Modes': 'Modos', 'Help': 'Ayuda',
+  '8 sections · time trial': '8 secciones · contrarreloj', 'Easy tower': 'Torre fácil', '5 gentle sections': '5 secciones tranquilas', 'Obby': 'Obby',
+  '49 stages · checkpoints': '49 etapas · puntos de control', '{n} stages · checkpoints': '{n} etapas · puntos de control', 'Practice': 'Práctica', 'pick a section': 'elige una sección',
+  'Easy tower · 5 gentle sections': 'Torre fácil · 5 secciones tranquilas', 'Tower · 8 sections · best {t}': 'Torre · 8 secciones · récord {t}', 'Tower · 8 sections': 'Torre · 8 secciones',
+  'Checkpoints': 'Puntos de control', 'Every landing': 'En cada descanso', 'Off': 'No', 'On': 'Sí',
+  'With checkpoints off, red sends you to the bottom.': 'Sin puntos de control, lo rojo te manda al principio.',
+  '{a} / {b} XP to level {c}': '{a} / {b} XP para el nivel {c}', 'Towers': 'Torres', 'Best tower': 'Mejor torre', 'Falls': 'Caídas',
+  'Your colour': 'Tu color', 'Colour {c}': 'Color {c}', 'Hat': 'Sombrero', 'Your hat': 'Tu sombrero', 'Sensitivity': 'Sensibilidad', 'Camera sensitivity': 'Sensibilidad de la cámara',
+  'Invert Y': 'Invertir Y', 'Graphics': 'Gráficos', 'Fast': 'Rápidos', 'Pretty': 'Lindos', 'Guide arrow': 'Flecha guía',
+  'Move': 'Muévete', 'with WASD,': 'con WASD,', 'jump': 'salta',
+  'with Space (hold it to keep jumping). Click the game and the mouse turns the camera; Esc lets it go.': 'con Espacio (mantenlo para seguir saltando). Haz clic en el juego y el mouse gira la cámara; Esc lo suelta.',
+  'with the stick and tap JUMP. Drag anywhere else to turn the camera, pinch to zoom.': 'con el joystick y toca SALTA. Arrastra en cualquier otro lado para girar la cámara; pellizca para hacer zoom.',
+  'Go up.': '¡Sube!', 'A gold arrow floats over the next platform. Walk into a truss and keep pushing to climb it.': 'Una flecha dorada flota sobre la próxima plataforma. Camina hacia una torre de vigas y sigue empujando para treparla.',
+  ': every landing between sections saves your place. Red, or a long fall, puts you back on it.': ': cada descanso entre secciones guarda tu lugar. Lo rojo, o una caída larga, te devuelve ahí.',
+  'Watch for': 'Cuidado con', 'ice (you slide), launch pads (they throw you where the arrows point), gusts (wait for a lull) and gold': 'el hielo (resbalas), los lanzadores (te tiran hacia donde apuntan las flechas), las ráfagas (espera una pausa) y los',
+  'shortcuts': 'atajos', '(quicker but harder).': 'dorados (más rápidos pero más difíciles).', 'Coins': 'Las monedas', 'buy hats; levelling up unlocks more.': 'compran sombreros; al subir de nivel desbloqueas más.',
+  'Racing': 'Carreras', ': once someone reaches the top the clock runs twice as fast.': ': cuando alguien llega a la cima, el reloj corre el doble de rápido.',
+  ': 49 stages over seven worlds, saved as you go.': ': 49 etapas en siete mundos; se guarda tu avance.', ': any section on its own.': ': cualquier sección por separado.',
+  'More keys': 'Más teclas', ": R goes back to your checkpoint, the wheel zooms, V is first person, Shift keeps you facing the camera's way. Change them under Settings, Controls.": ': R te devuelve al punto de control, la rueda hace zoom, V es primera persona y Shift te mantiene mirando hacia donde mira la cámara. Cámbialas en Configuración, Controles.',
+  'Also': 'Además', ': the eye button switches to first person, and the pause button has a way back to your checkpoint.': ': el botón del ojo cambia a primera persona, y en pausa puedes volver a tu punto de control.',
+  "Pick a stage you've reached. Checkpoints save as you go.": 'Elige una etapa a la que hayas llegado. Los puntos de control se guardan solos.',
+  'Continue': 'Continuar', 'Continue at stage {n}': 'Continuar en la etapa {n}', 'Start at stage 1': 'Empezar en la etapa 1',
+  "You've reached stage {a} of {b}. Pick any stage up to there.": 'Llegaste a la etapa {a} de {b}. Elige cualquier etapa hasta ahí.',
+  'Seven worlds, {n} stages. Every stage starts on a checkpoint.': 'Siete mundos, {n} etapas. Cada etapa empieza en un punto de control.',
+  'Easy': 'Fácil', 'Normal': 'Normal', 'Hard': 'Difícil', '{d} · best {t}': '{d} · récord {t}', '· best {t}': '· récord {t}',
+  'Every tower section on its own, as many tries as you like. A fall drops you back to the floor, and the clock shows your time.': 'Cada sección de la torre por separado, todos los intentos que quieras. Si te caes vuelves al piso, y el reloj muestra tu tiempo.',
+  // pause, host, results
+  'Paused': 'En pausa', 'Back to the start': 'Volver al inicio', 'Back to the checkpoint': 'Volver al punto de control', 'Copy invite link': 'Copiar enlace de invitación',
+  'Leave room': 'Salir de la sala', 'Quit to menu': 'Salir al menú', 'Host options · next tower': 'Opciones del anfitrión · próxima torre', 'Clock': 'Reloj', 'Sections': 'Secciones',
+  'New tower now': 'Nueva torre ya', 'New tower': 'Nueva torre', 'Menu': 'Menú', 'Language': 'Idioma',
+  'Public tower': 'Torre pública', 'Room {r}': 'Sala {r}', 'Public tower · the clock keeps running': 'Torre pública · el reloj sigue corriendo', 'Room {r} · the clock keeps running': 'Sala {r} · el reloj sigue corriendo',
+  'Obby · stage {n} · the clock is stopped': 'Obby · etapa {n} · el reloj está detenido', 'Practice · {n}': 'Práctica · {n}', '{n} · the clock is stopped': '{n} · el reloj está detenido',
+  'Next tower: {a}, {m} minutes, {c}': 'Próxima torre: {a}, {m} minutos, {c}', 'easy, 5 sections': 'fácil, 5 secciones', '{n} sections': '{n} secciones',
+  'checkpoints': 'con puntos de control', 'no checkpoints': 'sin puntos de control',
+  'You reached the top!': '¡Llegaste a la cima!', '{n} · {t} · new best!': '{n} · {t} · ¡récord!', '{n} · {t} · best {b}': '{n} · {t} · récord {b}',
+  'Obby complete!': '¡Obby completo!', 'All {n} stages · {t} this run': 'Las {n} etapas · {t} en esta partida',
+  'Round over': 'Ronda terminada', "Time's up!": '¡Se acabó el tiempo!', 'Nobody reached the top this time.': 'Esta vez nadie llegó a la cima.',
+  '{a} of {b} reached the top · you were {p}': 'Llegaron {a} de {b} a la cima · quedaste {p}', '{a} of {b} reached the top': 'Llegaron {a} de {b} a la cima',
+  'Next tower in a few seconds…': 'La próxima torre empieza en unos segundos…',
+  // online
+  'Getting the tower…': 'Cargando la torre…', 'Connecting…': 'Conectando…', 'Finding a tower…': 'Buscando una torre…',
+  'Invite link copied. Your friend opens it and enters the code to join.': 'Enlace copiado. Tu amigo lo abre e ingresa el código para unirse.',
+  'You were invited to room tw-{r}. Press Join.': 'Te invitaron a la sala tw-{r}. Toca Unirse.',
+  "Couldn't reach the game database. If you're on a school or work network it may be blocking it; try another network, or play on your own.":
+    'No se pudo llegar a la base de datos del juego. Si estás en la red de la escuela o del trabajo, puede estar bloqueada; prueba otra red o juega solo.',
+  'Could not reach the game server. Check your connection, or play on your own.': 'No se pudo llegar al servidor del juego. Revisa tu conexión o juega solo.',
+  'Still signing in…': 'Todavía iniciando sesión…',
+  'Signing in to the game server timed out. Check your connection, or play on your own.': 'Se agotó el tiempo para conectarse al servidor. Revisa tu conexión o juega solo.',
+  'That room is full ({n} climbers). Try another code.': 'Esa sala está llena ({n} escaladores). Prueba otro código.',
+  // controls panel
+  'Move forward': 'Avanzar', 'Move back': 'Retroceder', 'Move left': 'Ir a la izquierda', 'Move right': 'Ir a la derecha', 'Jump': 'Saltar', 'Hold to keep jumping': 'Mantén para seguir saltando',
+  'Shift lock': 'Shift lock', 'Keeps you facing where the camera looks': 'Te mantiene mirando hacia donde mira la cámara', 'Camera': 'Cámara',
+  'First / third person': 'Primera / tercera persona', 'Zooming all the way in or out switches too': 'Acercar o alejar del todo también cambia',
+  'Zoom in': 'Acercar', 'The mouse wheel zooms too': 'La rueda del mouse también hace zoom', 'Zoom out': 'Alejar', 'Or your last checkpoint': 'O tu último punto de control',
+  'Game': 'Juego', 'Watch the next climber': 'Mirar al siguiente escalador', 'After you finish': 'Después de terminar'
+});
+// Tower names ("The Sunlit Spire") are made from two word lists in the game; their Spanish, with the adjective agreeing.
+if (window.BackRoomLang) (function () {
+  var A = { Crimson: ['Carmesí', 'Carmesí'], Dizzy: ['Mareado', 'Mareada'], Frosted: ['Escarchado', 'Escarchada'], Wobbly: ['Tambaleante', 'Tambaleante'],
+    Neon: ['de Neón', 'de Neón'], Rusty: ['Oxidado', 'Oxidada'], Sunlit: ['Soleado', 'Soleada'], Gilded: ['Dorado', 'Dorada'], Stormy: ['Tormentoso', 'Tormentosa'],
+    Mossy: ['Musgoso', 'Musgosa'], Velvet: ['de Terciopelo', 'de Terciopelo'], Cobalt: ['Cobalto', 'Cobalto'], Jade: ['de Jade', 'de Jade'], Amber: ['Ámbar', 'Ámbar'],
+    Twisted: ['Retorcido', 'Retorcida'], Breezy: ['Ventoso', 'Ventosa'], Cinder: ['de Ceniza', 'de Ceniza'], Lucky: ['de la Suerte', 'de la Suerte'] };
+  var N = { Spire: ['Torre', 1], Stack: ['Pila', 1], Steeple: ['Chapitel', 0], Needle: ['Aguja', 1], Column: ['Columna', 1], Beacon: ['Baliza', 1], Pinnacle: ['Pináculo', 0],
+    Lighthouse: ['Faro', 0], Obelisk: ['Obelisco', 0], Chimney: ['Chimenea', 1], Belfry: ['Campanario', 0], Turret: ['Torreta', 1] };
+  var d = {};
+  Object.keys(A).forEach(function (a) { Object.keys(N).forEach(function (n) { var f = N[n][1]; d['The ' + a + ' ' + n] = (f ? 'La ' : 'El ') + N[n][0] + ' ' + A[a][f]; }); });
+  BackRoomLang.add(d);
+})();

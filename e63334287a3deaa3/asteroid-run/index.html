@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script src="/e63334287a3deaa3/lang.js"></script>
+<script src="es.js"></script>
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Asteroid Run</title>
@@ -236,7 +238,7 @@ body.touch #hint,body.touch .kbonly{display:none}
       <div class="col1">
         <div class="logo">
           <svg viewBox="0 0 60 60" aria-hidden="true"><rect x="2" y="2" width="56" height="56" rx="15" fill="#1b1f52"/><path d="M14 46 22 14h16l8 32" fill="none" stroke="#5a6cff" stroke-width="4" stroke-linejoin="round"/><path d="M18 32h24M20 24h20M16 40h28" stroke="#8fa0ff" stroke-width="2"/><ellipse cx="30" cy="36" rx="7" ry="8" fill="#7dff6a" stroke="#0b0d26" stroke-width="2"/><path d="M30 28v-5" stroke="#0b0d26" stroke-width="2"/><circle cx="30" cy="22" r="2.4" fill="#ff4fa0"/></svg>
-          <h1>Asteroid <span>Run</span></h1>
+          <h1 data-noi18n>Asteroid <span>Run</span></h1>
         </div>
         <p class="tag">Run the tunnels at full speed. Jump the holes, or step onto a wall and the whole tunnel turns with you.</p>
         <div class="play">
@@ -259,7 +261,7 @@ body.touch #hint,body.touch .kbonly{display:none}
           <div class="row" style="margin-top:10px"><span style="font-weight:800;font-size:14px;min-width:80px">Graphics</span><div class="seg" id="gfxSeg"><button type="button" data-q="low">Fast</button><button type="button" data-q="high">Sharp</button></div></div>
           <div class="row" style="margin-top:10px"><span style="font-weight:800;font-size:14px;min-width:80px">Jump</span><div class="seg" id="jumpSeg"><button type="button" data-v="hold">Hold for higher</button><button type="button" data-v="fixed">Always full</button></div></div>
           <div class="row" id="tmRow" style="margin-top:10px" hidden><span style="font-weight:800;font-size:14px;min-width:80px">Touch</span><div class="seg" id="tmSeg"><button type="button" data-v="buttons">Arrow buttons</button><button type="button" data-v="halves">Screen halves</button></div></div>
-          <div class="row" style="margin-top:10px"><button class="btn sm alt kbonly" id="keysMenu" type="button">Controls</button></div>
+          <div class="row" style="margin-top:10px"><button class="btn sm alt kbonly" id="keysMenu" type="button">Controls</button><div data-lang-toggle></div></div>
           <ul class="how">
             <li><b>You run on your own.</b> Sidestep left and right and jump. Tap jump for a small hop, hold it for a big one (or set Jump to Always full). You can steer in the air, and the dark spot under you shows where you'll land.</li>
             <li><b>Walls</b>: run off the side of the floor and you walk up the wall, and the tunnel turns so the wall is your new floor. A wall is often the way round a hole.</li>
@@ -297,7 +299,7 @@ body.touch #hint,body.touch .kbonly{display:none}
         <button class="btn alt" id="quit" type="button">Quit to menu</button>
       </div>
       <div class="setting"><span>Sound</span><input id="vol2" type="range" min="0" max="1" step=".05" aria-label="Sound volume"></div>
-      <div class="row" style="margin-top:10px"><button class="btn sm alt kbonly" id="keysPause" type="button">Controls</button></div>
+      <div class="row" style="margin-top:10px"><button class="btn sm alt kbonly" id="keysPause" type="button">Controls</button><div data-lang-toggle></div></div>
     </div>
   </section>
 
@@ -993,6 +995,9 @@ return {DT,TL,T,TCH,CHARS,SHAPES,SHAPE_NAME,THEMES,LEVELS,ZONES,SIDES,ZONE_BY_ID
 (()=>{
 'use strict';
 const $=id=>document.getElementById(id);
+// Spanish: es.js holds this game's words; TX() is for text drawn in the SVG map or a canvas, or built in code (../lang.js).
+const TX=window.BackRoomLang?BackRoomLang.t:(s,v)=>s.replace(/\{(\w+)\}/g,(m,n)=>v&&v[n]!=null?v[n]:m);
+const NUM=n=>window.BackRoomLang?BackRoomLang.num(n):n.toLocaleString('en-US');
 const {DT,TL,T,CHARS,THEMES,LEVELS,MAP,PRED,EV,ZONES,SIDES,ENDZ}=AR;
 const NL=LEVELS.length;
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
@@ -1047,7 +1052,7 @@ const wallet=()=>Math.max(0,crystalTotal()-save.spent);
 const isOpen=i=>i===0||!!save.lv[i]||PRED[i].some(p=>!!save.lv[p]);
 const freeMet=ch=>!!ch.free&&(ch.free.lv!=null?clearedCount()>=ch.free.lv:!!save.lv[ch.free.at]);
 const unlocked=ch=>ch.id==='pip'||save.own.includes(ch.id)||freeMet(ch);
-const freeText=ch=>!ch.free?'':ch.free.lv!=null?'clear '+ch.free.lv+' levels':'clear level '+LABEL[ch.free.at]+' ('+LEVELS[ch.free.at].n+')';
+const freeText=ch=>!ch.free?'':ch.free.lv!=null?TX('clear {n} levels',{n:ch.free.lv}):TX('clear level {l} ({n})',{l:LABEL[ch.free.at],n:LEVELS[ch.free.at].n});
 function statsHook(kind,k,v){if(window.BackRoomStats){try{BackRoomStats[kind](k,v)}catch(e){}}}
 const todayKey=()=>{const d=new Date();return d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')};
 const dailySeed=k=>{let h=2166136261;for(const c of 'asteroid-daily-'+k){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0};
@@ -1442,7 +1447,7 @@ function endEndless(quiet){
   statsHook('max','distance',d);statsHook('max','dist-'+id,d);if(!G.contUsed)statsHook('add','runs',1);statsHook('max','crystals',crystalTotal());
   return {d,got,best:save.best,mine:save.bestBy[id]||0,newBest:d>old,newMine:d>oldMine,chars0,dailyNew};
 }
-const fmtM=m=>m>0?Math.floor(m).toLocaleString('en-US')+' m':'–';
+const fmtM=m=>m>0?NUM(Math.floor(m))+' m':'–';
 const fmtT=t=>t>0?t.toFixed(2)+' s':'–';
 
 // ---------- overlays ----------
@@ -1465,7 +1470,7 @@ function resume(){if(G.overlay!=='pause')return;G.paused=false;showOverlay(null)
 let storyGo=null;
 function showStory(z,go){
   storyGo=go;G.paused=true;
-  $('storyZone').textContent=zoneName(z)+(z.gift?' · side tunnel':'')+' · '+z.idea;
+  $('storyZone').textContent=zoneName(z)+(z.gift?' · '+TX('side tunnel'):'')+' · '+TX(z.idea);
   const box=$('storyLines');box.innerHTML='';z.say.forEach(t=>{const p=document.createElement('p');p.textContent=t;box.append(p)});
   $('storyGo').textContent=go?'Let’s go':'Got it';
   showOverlay('story');G.storyZ=z;G.resAt=performance.now();
@@ -1501,7 +1506,7 @@ function showResults(){
     addBtn(row,'Menu','btn alt',toMenu);
     if(G.cont){const ok=wallet()>=CONT_COST;const cb=addBtn(row,'Continue ◆'+CONT_COST,'btn cyan',continueRun);cb.disabled=!ok;if(!ok)cb.title='Not enough crystals'}
   }
-  $('resKey').textContent=touchUI?'Tap outside the card to retry':'Space or Enter: '+(b.firstChild?b.firstChild.textContent:'')+' · R: retry';
+  $('resKey').textContent=touchUI?'Tap outside the card to retry':'Space or Enter: '+(b.firstChild?TX(b.firstChild.textContent):'')+' · R: retry';
   G.resAt=performance.now();showOverlay('results');
 }
 // Endless: one continue per run, for a few crystals, straight from the score
@@ -1546,7 +1551,7 @@ function renderChars(){
   const info=$('charInfo');
   info.innerHTML='<b></b> <em></em> <span></span><div class="bars">'+bar('Speed',(ch.speed-10.5)/4.5)+bar('Sidestep',(ch.lat-6)/3.8)+bar('Grip',ch.accG/110)+bar('Jump',(ch.jh-1.6)/1.8)+'</div><div class="buy"></div>';
   info.querySelector('b').textContent=ch.name;info.querySelector('em').textContent=abilityOf(ch);
-  info.querySelector('span').textContent=ch.desc+(ok?'':' Unlock free: '+freeText(ch)+'.');
+  info.querySelector('span').textContent=TX(ch.desc)+(ok?'':' '+TX('Unlock free: {x}.',{x:freeText(ch)}));
   if(!ok){const can=wallet()>=ch.cost,bb=addBtn(info.querySelector('.buy'),'Unlock now for ◆'+ch.cost,'btn sm '+(can?'lime':'alt'),()=>{
       if(wallet()<ch.cost)return;save.own.push(ch.id);save.spent+=ch.cost;save.ch=ch.id;saveNow();sfx.unlock();renderMenu();if(G.mode==='menu')startDemo()});
     bb.disabled=!can;if(!can){const sm=document.createElement('small');sm.textContent=' you have ◆'+wallet();info.querySelector('.buy').append(sm)}}
@@ -1555,7 +1560,7 @@ function renderChars(){
 function renderTrails(){
   const box=$('trails');box.innerHTML='';
   for(const t of TRAILS){const own=save.trails.includes(t.id),b=document.createElement('button');b.type='button';
-    b.textContent=t.name+(own?'':' ◆'+t.cost);b.setAttribute('aria-pressed',String(save.trail===t.id));if(!own&&wallet()<t.cost)b.disabled=true;
+    b.textContent=TX(t.name)+(own?'':' ◆'+t.cost);b.setAttribute('aria-pressed',String(save.trail===t.id));if(!own&&wallet()<t.cost)b.disabled=true;
     b.addEventListener('click',()=>{sfx.click();if(!own){if(wallet()<t.cost)return;save.trails.push(t.id);save.spent+=t.cost;sfx.unlock()}save.trail=t.id;saveNow();renderMenu()});box.append(b)}
 }
 function nextLevel(){for(const i of ORDER)if(isOpen(i)&&!save.lv[i]&&!zoneOf(i).gift)return i;for(const i of ORDER)if(isOpen(i)&&!save.lv[i])return i;return -1}
@@ -1570,8 +1575,10 @@ function renderMenu(){
 // the map: a big scrollable picture; on a tall screen it's drawn top to bottom
 let mapSel=0;
 function openMap(sel){G.paused=true;if(sel==null){const n=nextLevel();sel=n>=0?n:0}mapSel=sel;showOverlay('mapMenu');drawMap(true)}
+// Text built in code (runner info, the map) is rebuilt when the language changes (lang.js).
+document.addEventListener('backroom:lang',()=>{try{renderMenu();if(G.overlay==='mapMenu')drawMap()}catch(e){}});
 function drawMap(scroll){
-  const svg=$('mapSvg'),tall=innerWidth<640&&innerHeight>innerWidth,W0=AR.MAP_W,H0=AR.MAP_H;
+  const svg=$('mapSvg');svg.setAttribute('aria-label',TX('Level map'));const tall=innerWidth<640&&innerHeight>innerWidth,W0=AR.MAP_W,H0=AR.MAP_H;
   const P=i=>tall?[MAP[i][1],MAP[i][0]]:[MAP[i][0],MAP[i][1]];
   const vw=tall?H0:W0,vh=tall?W0:H0,sc=tall?.62:innerWidth<900?.62:.72;
   svg.setAttribute('viewBox','0 0 '+vw+' '+vh);svg.style.width=Math.round(vw*sc)+'px';svg.style.height=Math.round(vh*sc)+'px';
@@ -1580,10 +1587,10 @@ function drawMap(scroll){
   for(const z of ZONES.concat(SIDES)){const [x,y]=tall?[z.at[1],z.at[0]]:[z.at[0],z.at[1]];const first=Array.isArray(z.lv[0])?z.lv[0][0]:z.lv[0];
     const op=isOpen(first),c=hex(THEMES[LEVELS[first].th].a);
     h+='<text class="zl'+(op?'':' lock')+'" x="'+(tall?x+44:x-24)+'" y="'+(tall?y-34:y-(z.gift?44:84))+'" fill="'+c+'"'+(tall?' text-anchor="start"':'')+'>'+esc(zoneName(z))+'</text>';
-    h+='<text class="zi" x="'+(tall?x+44:x-24)+'" y="'+(tall?y-14:y-(z.gift?26:66))+'">'+esc(z.gift?'Side tunnel: '+z.idea+' · frees '+charById(z.gift).name:z.idea)+'</text>'}
+    h+='<text class="zi" x="'+(tall?x+44:x-24)+'" y="'+(tall?y-14:y-(z.gift?26:66))+'">'+esc(z.gift?TX('Side tunnel: {i} · frees {n}',{i:TX(z.idea),n:charById(z.gift).name}):TX(z.idea))+'</text>'}
   MAP.forEach((m,i)=>m[2].forEach(j=>{const a=P(i),b=P(j);h+='<line class="lnk'+(save.lv[i]?' on':'')+(zoneOf(j).gift?' side':'')+'" x1="'+a[0]+'" y1="'+a[1]+'" x2="'+b[0]+'" y2="'+b[1]+'"/>'}));
   MAP.forEach((m,i)=>{const [x,y]=P(i),op=isOpen(i),done=!!save.lv[i],th=THEMES[LEVELS[i].th],c=hex(th.a);
-    h+='<g class="nd'+(op?'':' lock')+(i===mapSel?' sel':'')+'" data-i="'+i+'" tabindex="0" role="button" aria-label="Level '+LABEL[i]+' '+esc(LEVELS[i].n)+(op?'':' (locked)')+'"><circle cx="'+x+'" cy="'+y+'" r="26" fill="'+(done?'#b6ff3b':c)+'"/><text x="'+x+'" y="'+y+'">'+LABEL[i]+'</text>';
+    h+='<g class="nd'+(op?'':' lock')+(i===mapSel?' sel':'')+'" data-i="'+i+'" tabindex="0" role="button" aria-label="'+esc(TX('Level {l}',{l:LABEL[i]})+' '+LEVELS[i].n+(op?'':' '+TX('(locked)')))+'"><circle cx="'+x+'" cy="'+y+'" r="26" fill="'+(done?'#b6ff3b':c)+'"/><text x="'+x+'" y="'+y+'">'+LABEL[i]+'</text>';
     if(done){const cb=save.lv[i].c;for(let k=0;k<3;k++){const gx=x-12+k*12,gy=y+36;h+='<path class="gem'+(cb>>k&1?'':' no')+'" d="M'+gx+' '+(gy-6)+'l5 6-5 6-5-6z"/>'}}
     h+='</g>'});
   svg.innerHTML=h;
@@ -1592,7 +1599,7 @@ function drawMap(scroll){
   const i=mapSel,L=LEVELS[i],e=save.lv[i],op=isOpen(i),z=zoneOf(i);
   const info=$('lvInfo');info.innerHTML='<small class="eyebrow"></small><h3></h3><p class="sub"></p><div class="gems"></div><div class="stack" style="margin-top:8px"></div>';
   info.querySelector('small').textContent='Level '+LABEL[i]+' · '+zoneName(z);info.querySelector('h3').textContent=L.n;
-  info.querySelector('p').textContent=op?(e?'Best '+fmtT(e.t)+' · cleared '+e.n+'×':'Not cleared yet')+' · '+AR.SHAPE_NAME[L.s]+' tunnel':'Locked: clear '+PRED[i].map(p=>LABEL[p]).join(' or ')+' to open it.';
+  info.querySelector('p').textContent=op?(e?TX('Best {t} · cleared {n}×',{t:fmtT(e.t),n:e.n}):TX('Not cleared yet'))+' · '+TX('{s} tunnel',{s:TX(AR.SHAPE_NAME[L.s])}):TX('Locked: clear {x} to open it.',{x:PRED[i].map(p=>LABEL[p]).join(' '+TX('or')+' ')});
   info.querySelector('.gems').innerHTML=[0,1,2].map(k=>'<i class="'+(e&&(e.c>>k&1)?'':'no')+'">◆</i>').join('');
   const st=info.querySelector('.stack');
   if(op)addBtn(st,'Play '+LABEL[i],'btn big lime',()=>startLevel(i));
@@ -1612,7 +1619,7 @@ function updateHud(force){
   let key;
   if(G.mode==='level'){const p=clamp(s.d/W.len,0,1);key=Math.round(p*200)+'|'+s.got;
     if(key!==hudLast||force){$('bar').firstChild.style.width=(p*100).toFixed(1)+'%';$('gems').textContent=s.got+'/3'}}
-  else{const m=Math.floor(s.d),best=G.daily?dailyBest():(save.bestBy[G.ch.id]||0);key=m+'|'+s.got+'|'+G.bonus;if(key!==hudLast||force){$('lvlName').textContent=m.toLocaleString('en-US')+' m';$('gems').textContent=s.got+G.bonus;
+  else{const m=Math.floor(s.d),best=G.daily?dailyBest():(save.bestBy[G.ch.id]||0);key=m+'|'+s.got+'|'+G.bonus;if(key!==hudLast||force){$('lvlName').textContent=NUM(m)+' m';$('gems').textContent=s.got+G.bonus;
     $('bar').firstChild.style.width=(best>0?clamp(s.d/best,0,1)*100:0).toFixed(1)+'%'}}
   hudLast=key;
   if(G.ch.bridge){const k=s.brC>0?1-s.brC/AR.BRIDGE_CD:1;$('abil').firstChild.style.width=(k*100).toFixed(0)+'%';$('abil').classList.toggle('ready',k>=1);$('tA').classList.toggle('ready',k>=1)}
