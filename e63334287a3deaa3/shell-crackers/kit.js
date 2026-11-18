@@ -339,7 +339,7 @@ const SKINS=[null,
   {pal:{D:0xc2261c,AD:0x8a160e,M:0xe0482c,K:0x5a0e0a,A:0xff9a2e,AL:0xffc46a,L:0xffd27a,WD:0x8a160e,WK:0x5a0e0a,CR:0xffe27a,YK:0xff9a2e},
    extra(L,a){const sec=a.secs[0],[z0,z1,yc,hw,hh]=sec,len=Math.min(.16,(z1-z0)*.6)*a.s/(a.s<1?.8:1);
      for(const q of [-1,1])for(let i=0;i<4;i++){const y=yc+hh*(-.6+i*.4),l=len*(.6+.4*((i*5)%3)/2);
-       P(L,'cone',0xff7a1a,q*(hw+.003),y,z0+.01+l/2,.003,l,.018*a.s,Math.PI/2);P(L,'cone',0xffd23f,q*(hw+.005),y,z0+.01+l*.4,.003,l*.6,.009*a.s,Math.PI/2)}}},
+       P(L,'cone',0xff7a1a,q*(hw+.003),y,z0+.01+l/2,.003,l,.012*a.s,Math.PI/2);P(L,'cone',0xffd23f,q*(hw+.005),y,z0+.01+l*.4,.003,l*.6,.006*a.s,Math.PI/2)}}},
   // 8 Toaster Chrome: polished, with two bread slots and a lever on the side
   {mat:'chrome',pal:{D:0xc9d2dc,AD:0x9aa4ae,M:0xe6ecf2,L:0xf6f9fc,K:0x2a2e34,A:0xdfe6ee,AL:0xffffff,WD:0x2a2e34,WK:0x1e2226,CR:0xffffff,YK:0xff7a3a,RED:0xff7a3a},
    extra(L,a){const [z0,z1,yc,hw,hh]=a.secs[0],l=(z1-z0)*.35;for(const q of [-1,1])for(const dz of [-.55,.05])P(L,'box',0x1a1c20,q*(hw+.001),yc+hh*.35,z0+(z1-z0)*.5+dz*l,.004,.008*a.s,l*.8);
@@ -606,7 +606,8 @@ function css(){
   .kit-pv{flex-direction:row;align-items:center;gap:10px}
   .kit-stage{width:150px;flex:0 0 150px}
   .kit-info{min-height:0;font-size:13px}
-  .kit-grid{grid-template-columns:repeat(auto-fill,minmax(82px,1fr));gap:6px}
+  .kit-grid{grid-template-columns:repeat(auto-fill,minmax(82px,1fr));gap:6px;padding-bottom:58px}
+  .kit-note{display:none}
 }
 @media (max-height:520px) and (min-width:641px){
   #kitLocker{padding:8px}
@@ -617,7 +618,7 @@ function css(){
   .kit-body{grid-template-columns:minmax(0,190px) minmax(0,1fr);gap:10px}
   .kit-info{font-size:12px;min-height:0}
   .kit-note{display:none}
-  .kit-grid{grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:6px}
+  .kit-grid{grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:6px;padding-bottom:58px}   /* the last row scrolls clear of the Leaderboard chip */
 }`;document.head.appendChild(st);
 }
 function build(){
