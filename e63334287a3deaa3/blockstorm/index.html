@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script src="/e63334287a3deaa3/lang.js"></script> <!-- English / Español (see README) -->
+<script src="es.js"></script> <!-- this game's Spanish words -->
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Blockstorm</title>
@@ -330,9 +332,9 @@ body.touch #death p{font-size:15px;text-align:center;padding:0 16px}
   </div>
   <canvas id="minimap" width="150" height="150"></canvas>
   <div id="timer">5:00</div>
-  <div id="mykills"></div>
+  <div id="mykills" data-noi18n></div>
   <div id="ctfBar" hidden></div>
-  <div id="board"></div>
+  <div id="board" data-noi18n></div>
   <div id="feed"></div>
   <div id="scope"></div>
   <div id="vig"></div>
@@ -359,7 +361,7 @@ body.touch #death p{font-size:15px;text-align:center;padding:0 16px}
 
 <div id="menu" hidden>
   <div id="topbar">
-    <div id="logo">BLOCKSTORM<small>SKY TOWER BRAWL</small></div>
+    <div id="logo"><span data-noi18n>BLOCKSTORM</span><small>SKY TOWER BRAWL</small></div>
     <button class="navbtn on" data-scr="main">Play</button>
     <button class="navbtn" data-scr="loadouts">Loadouts</button>
     <button class="navbtn" data-scr="shop">Shop<span class="badge">NEW</span></button>
@@ -380,6 +382,7 @@ body.touch #death p{font-size:15px;text-align:center;padding:0 16px}
       <button class="btn green big" id="btnResume">Resume</button>
       <button class="btn gray" id="btnQuit">Leave match</button>
     </div>
+    <div data-lang-toggle style="margin-top:14px"></div>
   </div>
 </div>
 
@@ -445,6 +448,9 @@ window.THREE = Object.assign({}, T);
 <script src="../netsmooth.js" defer></script>
 <script type="module">
 const THREE = window.THREE;
+// Spanish (lang.js + es.js): almost all text is translated by lang.js on the page itself; TX is for the few lines put
+// together from parts here. Lines the host sends to the room stay English and are translated where they are shown.
+const TX = window.BackRoomLang ? BackRoomLang.t : (s, v) => String(s).replace(/\{(\w+)\}/g, (m, n) => v && v[n] != null ? v[n] : m);
 
 /* ================= utilities ================= */
 const $ = (s, r = document) => r.querySelector(s);
@@ -2205,7 +2211,7 @@ function renderLobby() {
   $('#lobbyBotsWrap').hidden = !(host && !NET.isPublic);
   $('#lobbyMode').value = rs.md === 'ctf' ? 'ctf' : 'ffa'; $('#lobbyBots').value = String(rs.bl ?? botLevelSetting());
   $('#lobbyBotsText').hidden = host && !NET.isPublic;
-  $('#lobbyBotsText').textContent = (rs.md === 'ctf' ? 'Capture the flag' : 'Free-for-all') + ' · Bots: ' + ((rs.bl | 0) ? BOT_LEVELS[rs.bl | 0] : 'none, players only');
+  $('#lobbyBotsText').textContent = TX((rs.md === 'ctf' ? 'Capture the flag' : 'Free-for-all') + ' · Bots: {b}', { b: TX((rs.bl | 0) ? BOT_LEVELS[rs.bl | 0] : 'none, players only') });
   const html = list.map(p => `<li><span>${esc(p.name)}${p.id === NET.uid ? ' <span class="muted">(you)</span>' : ''}</span>${p.id === NET.hostUid ? '<b>HOST</b>' : ''}</li>`).join('');
   if ($('#lobbyList')._h !== html) { $('#lobbyList')._h = html; $('#lobbyList').innerHTML = html; }
 }
@@ -2266,6 +2272,8 @@ async function refreshPublic(force) {
   finally { _pubBusy = false; }
 }
 setInterval(() => refreshPublic(false), 2000);
+// English / Español switched (lang.js): redraw the menu screen (its countdown and lists) and the HUD line built here
+document.addEventListener('backroom:lang', () => { if (!$('#menu').hidden) showScreen(curScreen); if (G.state === 'play') hudBoard(); });
 
 /* clicks: copy links, join a public lobby */
 document.addEventListener('click', e => {
@@ -3270,7 +3278,7 @@ function hudBoard() {
   const sorted = G.chars.slice().sort((a, b) => b.kills - a.kills || a.deaths - b.deaths);
   const top = sorted.slice(0, 8); if (!top.includes(G.player)) top[7] = G.player;
   $('#board').innerHTML = top.map(c => `<div class="r ${c.isPlayer ? 'me' : ''}"><span>${sorted.indexOf(c) + 1}</span><span class="n" style="${c.team >= 0 && !c.isPlayer ? 'color:' + (c.team ? '#ff7088' : '#7cbcff') : ''}">${esc(c.name)}</span><b>${c.kills}</b></div>`).join('');
-  $('#mykills').textContent = (isCTF() && G.player.team >= 0 ? TEAM_NAMES[G.player.team] + ' TEAM · ' : '') + `GUNS: ${RARITIES[G.player.tier || 0].name.toUpperCase()} · ` + (netActive() ? (NET.isPublic ? 'PUBLIC LOBBY · ' : `ROOM ${NET.room.toUpperCase()} · `) : '') + `${G.player.kills} KILLS · LEADER ${sorted[0].kills}`;
+  $('#mykills').textContent = (isCTF() && G.player.team >= 0 ? TX(TEAM_NAMES[G.player.team] + ' TEAM · ') : '') + TX('GUNS: {r} · ', { r: TX(RARITIES[G.player.tier || 0].name.toUpperCase()) }) + (netActive() ? (NET.isPublic ? TX('PUBLIC LOBBY · ') : TX('ROOM {c} · ', { c: NET.room.toUpperCase() })) : '') + TX('{k} KILLS · LEADER {l}', { k: G.player.kills, l: sorted[0].kills });
   if ($('#tabboard').style.display === 'block') $('#tabTable').innerHTML = scoreTable(sorted);
 }
 function drawMinimap() {
@@ -3866,6 +3874,7 @@ function renderSettings() {
     <div class="field"><label for="sBots">Bots in the match</label><select id="sBots">${[5, 7, 9, 11, 13].map(m => opt(m, S.bots, m + ' bots')).join('')}</select></div>
     <div class="field"><label for="sQ">Graphics</label><select id="sQ">${opt(0, S.quality, 'Fast (lower resolution, less rain)')}${opt(1, S.quality, 'Balanced')}${opt(2, S.quality, 'Sharp (high-DPI)')}</select></div>
   </div>
+  <div class="field" style="margin-top:14px"><label>Language</label><div data-lang-toggle></div></div>
   <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap"><button class="btn gray" id="sReset">Reset guns and loadouts</button><span class="muted" id="resetNote" style="align-self:center"></span></div></div>`;
   const bind = (id, key, fmt, num = true) => $(id).oninput = e => { S[key] = num ? +e.target.value : e.target.value; if (fmt) fmt(); saveProfile(); };
   bind('#sSens', 'sens', () => $('#vSens').textContent = S.sens.toFixed(2));
