@@ -57,7 +57,7 @@ const ctx = { window: {} }; vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(path.join(HERE, '..', 'prompts.js'), 'utf8'), ctx);
 const BANK = ctx.window.DW_BANK;
 const cache = id => { const f = path.join(CACHE, id + '.json'); return fs.existsSync(f) ? JSON.parse(fs.readFileSync(f, 'utf8')) : null; };
-const PV = cache('pageviews') || {};
+const PV = Object.assign({}, cache('pageviews-tail') || {}, cache('pageviews') || {}); // -tail: a second run from the other end of the list
 const missing = [];
 
 // Linguabase familiarity (0-1) by normalised word or phrase, and Google Books ranks
@@ -365,7 +365,7 @@ const FEEDS = {
   cardgames: () => ab('a card game').concat(things('cardgames')),
   genres: () => things('genres'),
   painters: () => people('painters'),
-  composers: () => people('composers'),
+  composers: () => [], // "composer" on Wikidata takes in every singer-songwriter; the prompt asks for classical or film composers
   mythgods: () => ab('a Greek god, goddess, or Titan').concat(things('deities')),
   mythcreatures: () => things('creatures'),
   musicals: () => ab('a Broadway musical').concat(things('musicals')),
@@ -428,7 +428,7 @@ const FEEDS = {
 };
 // New prompts at the end of prompts.js whose lists come only from here (written there as a short hand list).
 Object.assign(FEEDS, {
-  ab_presidents: () => ab('a U.S. president').concat(people('presidents')),
+  ab_presidents: () => ab('a U.S. president').concat(people('presidents').filter(e => e.sl >= 40)), // the real ones have many Wikipedias; a few film characters hold the office on Wikidata
   ab_mathematicians: () => ab('a mathematician').concat(people('mathematicians')),
   ab_collective: () => ab('a collective noun for animals'),
   ab_chess: () => ab('a chess opening').concat(things('chessopenings')),

@@ -66,8 +66,28 @@ async function taxa() {
   return { parent, names, sl, label, rank, en };
 }
 
+// People by occupation in two steps (one query that does both runs past the 60 s limit): the people with the
+// occupation and enough sitelinks, then their names in batches, leaving out anyone listed as convicted of a crime.
+async function people(job) {
+  const { occs, min } = job.people;
+  const ids = await sparql(`SELECT DISTINCT ?item WHERE { VALUES ?occ { ${occs.map(q => 'wd:' + q).join(' ')} } ?item wdt:P106 ?occ . ?item wikibase:sitelinks ?sl . FILTER(?sl >= ${min}) }`);
+  const out = [];
+  for (let i = 0; i < ids.length; i += 400) {
+    const v = ids.slice(i, i + 400).map(r => 'wd:' + r.item).join(' ');
+    out.push(...await sparql(`SELECT ?item ?sl ?label ?en (GROUP_CONCAT(DISTINCT ?alt; separator="|") AS ?alts) (SAMPLE(?fl) AS ?fam) WHERE { VALUES ?item { ${v} }
+      ?item wdt:P31 wd:Q5 . ?item wikibase:sitelinks ?sl . ?item rdfs:label ?label . FILTER(lang(?label)="en")
+      FILTER NOT EXISTS { ?item wdt:P1399 ?crime }
+      OPTIONAL { ?item skos:altLabel ?alt . FILTER(lang(?alt)="en") }
+      OPTIONAL { ?en schema:about ?item; schema:isPartOf <https://en.wikipedia.org/> }
+      OPTIONAL { ?item wdt:P734 ?f . ?f rdfs:label ?fl . FILTER(lang(?fl)="en") } } GROUP BY ?item ?sl ?label ?en`));
+    await sleep(1000);
+  }
+  return out;
+}
+
 async function run(job) {
   if (job.id === 'taxa') return taxa();
+  if (job.people) return people(job);
   if (job.url) {
     const buf = await get(job.url, { buffer: true });
     fs.writeFileSync(path.join(CACHE, job.file), buf); return { file: job.file, bytes: buf.length };

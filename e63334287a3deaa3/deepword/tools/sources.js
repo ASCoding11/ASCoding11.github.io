@@ -20,12 +20,7 @@ function things(id, classes, min, how, extra, extraVars) {
   ${TAIL.replace('MIN', min)} ${extra || ''} } GROUP BY ?item ?sl ?label ?en` };
 }
 // people: humans with one of the occupations, leaving out anyone Wikidata lists as convicted of a crime.
-function people(id, occs, min) {
-  return { id, q: `SELECT ${HEAD} (SAMPLE(?fl) AS ?fam) WHERE {
-  { SELECT DISTINCT ?item WHERE { VALUES ?occ { ${V(occs)} } ?item wdt:P106 ?occ . ?item wikibase:sitelinks ?s0 . FILTER(?s0 >= ${min}) } }
-  ?item wdt:P31 wd:Q5 . ${TAIL.replace('MIN', min)} FILTER NOT EXISTS { ?item wdt:P1399 ?crime }
-  OPTIONAL { ?item wdt:P734 ?f . ?f rdfs:label ?fl . FILTER(lang(?fl)="en") } } GROUP BY ?item ?sl ?label ?en` };
-}
+function people(id, occs, min) { return { id, people: { occs, min } }; } // two steps, see fetch.js
 const jobs = [
   { id: 'taxa' },
   // ---------------------------------------------------------------- geography
@@ -77,11 +72,11 @@ const jobs = [
   { id: 'presidents', q: `SELECT ${HEAD} (SAMPLE(?fl) AS ?fam) WHERE { ?item p:P39/ps:P39 wd:Q11696 . ${TAIL.replace('MIN', 1)}
   OPTIONAL { ?item wdt:P734 ?f . ?f rdfs:label ?fl . FILTER(lang(?fl)="en") } } GROUP BY ?item ?sl ?label ?en` },
   people('astronauts', ['Q11631'], 12),
-  people('ath_football', ['Q937857'], 90), people('ath_basketball', ['Q3665646'], 45), people('ath_baseball', ['Q10871364'], 35),
-  people('ath_amfootball', ['Q19204627'], 35), people('ath_hockey', ['Q11774891'], 45), people('ath_tennis', ['Q10833314'], 50),
-  people('ath_track', ['Q11513337'], 60), people('ath_swim', ['Q10843402'], 50), people('ath_boxing', ['Q11338576'], 45),
-  people('ath_racing', ['Q378622'], 50), people('ath_golf', ['Q11303721'], 40), people('ath_cricket', ['Q12299841'], 45),
-  people('ath_gymnast', ['Q16029547'], 40),
+  people('ath_football', ['Q937857'], 45), people('ath_basketball', ['Q3665646'], 18), people('ath_baseball', ['Q10871364'], 10),
+  people('ath_amfootball', ['Q19204627'], 10), people('ath_hockey', ['Q11774891'], 14), people('ath_tennis', ['Q10833314'], 22),
+  people('ath_track', ['Q11513337'], 22), people('ath_swim', ['Q10843402'], 18), people('ath_boxing', ['Q11338576'], 18),
+  people('ath_racing', ['Q378622'], 18), people('ath_golf', ['Q11303721'], 12), people('ath_cricket', ['Q12299841'], 14),
+  people('ath_gymnast', ['Q16029547'], 14),
   things('deities', ['Q178885', 'Q22989102', 'Q11688446', 'Q24249', 'Q16513881', 'Q205985'], 10, 'both'),
   things('creatures', ['Q2239243'], 10, 'deep'),
   things('musicals', ['Q2743'], 8),
