@@ -232,7 +232,7 @@ const hatGeo=n=>geoOf('h'+n,HAT_BUILD[n-1]);
 const toolNat=n=>geoOf('n'+n,()=>TOOL_BUILD[n-1]().scale(1.2,1.2,1.2));   // a fifth bigger than drawn, to read at a distance
 const toolGeo=(n,kind)=>!n?geoOf('b'+kind,blasterBuild(kind)):kind?toolNat(n):geoOf('t'+n,()=>toolNat(n).clone().rotateX(Math.PI/2));
 // where the head is in the gear's own space, per body shape: [x,y,z], scale [x,y,z] (head units to metres)
-const HEAD=[{p:[0,.97,0],s:[.205,.205,.205]},{p:[0,.86,.005],s:[.36,.24,.27]}];   // the Block's is wide enough to cover its corners
+const HEAD=[{p:[0,.97,0],s:[.205,.205,.205]},{p:[0,.9,.005],s:[.3,.22,.24]}];   // the Block's just wide enough to cover its top corners
 
 // =====================================================================
 //  Dressing a body (only its seeker gear: the page shows the gear only while it is a seeker)
@@ -374,12 +374,11 @@ css.textContent=`
   #kit .ktile img,#kit .ktile canvas,#kit .ktile .knone{width:58px;height:58px}
 }
 `;
-document.head.appendChild(css);
 
 const UI={open:false,tab:'hat',yaw:0,drag:null,auto:true,ent:null,thumbs:{},built:false,demoT:0};
 function el(tag,cls,html){const e=document.createElement(tag);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e}
 function buildUI(){
-  if(UI.built)return;UI.built=true;
+  if(UI.built)return;UI.built=true;document.head.appendChild(css);
   // the button in the menu, under the body choices
   const row=el('div','',`<button class="btn alt" type="button" id="kitOpen">Seeker kit<small>Hats, tools and catch effects</small></button>`);row.id='kitBtnRow';row.hidden=true;
   const note=$('sizeSeg')&&$('sizeSeg').closest('.card').querySelector('p.note');
@@ -492,17 +491,23 @@ function cam(camera){
 // =====================================================================
 //  Every frame, and when kitOn() may have changed
 // =====================================================================
-const _w=new V3();
+const _w=new V3(),_sph=new THREE.Sphere();
 function frame(dt){
   if(anims.length)tickAnims(dt);
   if(UI.open){
     if(X.G.mode!=='menu'||!X.kitOn())closeKit();
     else{if(UI.auto)UI.yaw+=dt*.4;if(UI.demoT>0){UI.demoT-=dt;if(UI.demoT<=0&&UI.ent)UI.ent.av.root.visible=true}}
   }
-  // your own hat and tool never cover your view: hidden while the camera is pulled in close to them
+  // your own hat and tool never cover your view: each is hidden while the camera is pulled in close to it, or while
+  // it would come within 2.5% of the screen's width of the crosshair (its bounding ball, so a little before it would)
   const me=X.me,ck=me&&me.av.ck;
-  if(ck&&(ck.hat||ck.tool)){const cp=X.camera.position;
-    for(const m of [ck.hat,ck.tool])if(m){m.getWorldPosition(_w);const near=_w.distanceToSquared(cp)<.8*.8;if(m.visible===near)m.visible=!near}}
+  if(ck&&(ck.hat||ck.tool)){
+    const cam=X.camera,cp=cam.position,W=X.canvas.clientWidth||1,H=X.canvas.clientHeight||1,tf=Math.tan(cam.fov*Math.PI/360);
+    for(const m of [ck.hat,ck.tool]){if(!m)continue;
+      _sph.copy(m.geometry.boundingSphere).applyMatrix4(m.matrixWorld);const d=_sph.center.distanceTo(cp);let hide=d-_sph.radius<.6;
+      if(!hide){_w.copy(_sph.center).project(cam);if(_w.z<1){const rpx=_sph.radius/(d*tf)*H/2;hide=Math.hypot(_w.x*W/2,_w.y*H/2)-rpx<.025*W}}
+      if(m.visible===hide)m.visible=!hide}
+  }
 }
 // what this player's node says it wears is Net.ktSent (index.html sets it when joining a room); send a change only
 function publish(){
@@ -510,8 +515,8 @@ function publish(){
   if(s!==(X.Net.ktSent||'')){X.Net.ktSent=s;X.Net.upd({kt:s||null})}
 }
 function access(){
-  buildUI();
-  const on=X.kitOn();$('kitBtnRow').hidden=!on;
+  const on=X.kitOn();if(on)buildUI();   // a page that only dresses other players never builds the screen
+  if(UI.built)$('kitBtnRow').hidden=!on;
   if(!on&&UI.open)closeKit();
   if(X.me)dress(X.me.av);
   publish();
