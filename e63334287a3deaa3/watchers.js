@@ -25,7 +25,8 @@
       try { ref.onDisconnect().remove(); } catch (e) {}
       put();
       var t = setInterval(put, BEAT);
-      return function () { on = false; clearInterval(t); try { ref.onDisconnect().cancel(); ref.remove().catch(function () {}); } catch (e) {} };
+      // (the onDisconnect stays set: if the page is closed before the remove reaches the database, it still goes)
+      return function () { on = false; clearInterval(t); try { ref.remove().catch(function () {}); } catch (e) {} };
     },
     count: function (db, pre, room, now, cb) {
       if (!db || !room) return function () {};
