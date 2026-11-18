@@ -690,12 +690,12 @@ function buildMenu(){
   grid0.before(bar);
   for(const [id] of TABS.slice(1)){const gr=document.createElement('div');gr.className='lk-grid';gr.id='lkGrid-'+id;gr.hidden=true;grid0.after(gr);const L=SLOT[id];cards[id]=[];
     for(let n=id==='e'?1:0;n<=L.length;n++){const b=document.createElement('button');b.type='button';b.className='lk-card';
-      b.innerHTML=(id==='e'||id==='v')?'<span class="lk-none lk-big">'+(n?'&#9654;':'&ndash;')+'</span><span>'+G.esc(n?L[n-1]:'None')+'</span>':(n?'<img alt="" hidden>':'<span class="lk-none">'+(id==='g'?'Standard':'None')+'</span>')+'<span>'+G.esc(n?L[n-1]:id==='w'?'No skin':id==='t'?'No trail':id==='b'?'Plywood':id==='p'?'Outfit\'s own':'Standard')+'</span>';
+      b.innerHTML=(id==='e'||id==='v')&&!n?'<span class="lk-none lk-big">&ndash;</span><span>None</span>':(n?'<img alt="" hidden>':'<span class="lk-none">'+(id==='g'?'Standard':'None')+'</span>')+'<span>'+G.esc(n?L[n-1]:id==='w'?'No skin':id==='t'?'No trail':id==='b'?'Plywood':id==='p'?'Outfit\'s own':'Standard')+'</span>';
       b.addEventListener('click',()=>pick(id,n));gr.appendChild(b);cards[id][n]=b}}
   setTab('outfits');
 }
 function pick(id,n){if(!G.lockerOn())return;if(id==='e'){G.store.set('em',String(n||1));stageA=performance.now();mark();return}const o=worn();delete o.e;if(n)o[id]=n;else delete o[id];if(id==='v')stageA=performance.now();G.setLx(str(o));mark()}
-function nameOf(id){const o=worn();o.e=myEmote();const n=o[id];return n?SLOT[id][n-1]:id==='w'?'No skin':id==='t'?'No trail':id==='b'?'Plywood':id==='p'?'The outfit\'s own':'Standard glider'}
+function nameOf(id){const o=worn();o.e=myEmote();const n=o[id];return n?SLOT[id][n-1]:id==='w'?'No skin':id==='t'?'No trail':id==='b'?'Plywood':id==='p'?'The outfit\'s own':id==='v'?'No victory pose':'Standard glider'}
 function mark(){if(!built)return;const o=worn();o.e=myEmote();for(const id in cards)cards[id].forEach((b,n)=>b.setAttribute('aria-pressed',(o[id]||0)===n?'true':'false'));
   if(tab!=='outfits')G.$('lkName').textContent=nameOf(tab)}
 function setTab(id){tab=id;const sec=G.Locker.sec;
@@ -730,7 +730,20 @@ function trailPic(n){const W=180,H=270,c=document.createElement('canvas');c.widt
   return c.toDataURL('image/png')}
 function pics(){if(drawnPics||tab==='outfits')return;drawnPics=true;
   try{for(const id of ['g','t','w','b'])cards[id].forEach((b,n)=>{if(!n)return;const im=b.firstChild;im.src=id==='g'?gliderPic(n,180,270):id==='w'?gunPic(n,180,270):id==='b'?buildPic(n):trailPic(n);im.hidden=false});
-    const pp=packPics();cards.p.forEach((b,n)=>{if(!n||!pp[n-1])return;const im=b.firstChild;im.src=pp[n-1];im.hidden=false})}catch(e){console.error(e)}}
+    const pp=packPics();cards.p.forEach((b,n)=>{if(!n||!pp[n-1])return;const im=b.firstChild;im.src=pp[n-1];im.hidden=false});
+    for(const k of ['e','v']){const pp=posePics(k);cards[k].forEach((b,n)=>{if(!n||!pp[n-1])return;const im=b.firstChild;im.src=pp[n-1];im.hidden=false})}}catch(e){console.error(e)}}
+// emotes and victory poses: your character caught in the middle of each (a model posed by the page's own animModel, its
+// legs as plain meshes for the picture), from the front
+function posePics(kind){
+  const out=[],W=180,H=270,L=kind==='e'?EMOTES:VICTORIES,T=kind==='e'?[0,.32,.36,.5,.48,.1,.3]:[0,.4,.5,1.2,.25];
+  const sc=new THREE.Scene();lights(sc);const cam=new THREE.OrthographicCamera(-.95,.95,1.42,-1.42,.1,40);cam.position.set(2.3,2.1,-6);cam.lookAt(0,1.27,0);
+  const u0=G.player.model.userData,cp=G.camera.position;
+  for(let n=1;n<L.length;n++){const m=G.makeModel(G.player.hex,u0.skinIx,u0.fit,'');
+    try{const e=G.newEnt(m);Object.assign(e,{id:'pic',present:true,alive:true,local:false,st:'ground',onGround:true,glide:false,yaw:0});e.pos.set(cp.x,cp.y,cp.z-3);
+      e.lxForce={k:kind,n,t0:performance.now()-T[n]*1000};for(let i=0;i<8;i++)G.animModel(e,1/30);
+      m.position.set(0,m.position.y-e.pos.y,0);m.rotation.y=0;m.userData.glider.visible=false;for(const l of m.userData.legs)l.add(new THREE.Mesh(G.LEG_GEO,G.MAT));
+      m.updateMatrixWorld(true);sc.add(m);out.push(render(sc,cam,W,H));sc.remove(m)}finally{G.disposeModel(m)}}
+  return out}
 // backpacks: the Noob from behind, wearing each (Locker.pics renders the body; the pack goes in through pk)
 function packPics(){const out=[];for(let n=1;n<=PACK_NAMES.length;n++)out.push(G.Locker.pics([G.NOOB],180,270,true,null,n)[0]);return out}
 // ---- the stage: the character holding the glider, gliding with the trail, holding a rifle, or beside three pieces ----
