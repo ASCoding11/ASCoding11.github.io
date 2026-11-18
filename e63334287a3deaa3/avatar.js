@@ -79,6 +79,7 @@
 (function () {
   'use strict';
   if (window.BackRoomAvatar) return;
+  var ME = document.currentScript;   // to find avatarphoto.js next to this file
 
   var PALETTE = ['#F59E0B', '#EF4444', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316', '#84CC16', '#06B6D4', '#A855F7', '#EAB308'];
   var SKIN = ['#F8D9BC', '#EBB98F', '#D09A6C', '#AE7247', '#86502C', '#6B4428'];
@@ -545,9 +546,76 @@
     e.className = 'bra-av'; e.setAttribute('aria-hidden', 'true');
     size = Math.max(8, Math.min(512, Math.round(Number(size) || 32)));
     e.style.width = e.style.height = size + 'px';
+    uid = String(uid == null ? '' : uid);
+    wantPhoto(uid);
+    var p = photo(uid);
+    if (p) {
+      // A profile picture: only ever an <img> with a checked data:image/jpeg or data:image/webp URL (okPhoto). If it
+      // won't load, the drawing takes its place, here and everywhere after.
+      var img = document.createElement('img');
+      e.classList.add('bra-ph'); e.setAttribute('data-bra-uid', uid);
+      img.alt = ''; img.width = img.height = size; img.draggable = false; img.decoding = 'async'; img.referrerPolicy = 'no-referrer';
+      img.addEventListener('error', function () {
+        photoBad[p] = 1; e.classList.remove('bra-ph'); e.removeAttribute('data-bra-uid');
+        e.innerHTML = svg(uid, size);
+      });
+      img.src = p;
+      e.appendChild(img);
+      return e;
+    }
     e.innerHTML = svg(uid, size);   // built above from numbers only; no text from anyone goes in
     return e;
   }
+
+  // ---------------- Profile pictures (drawing side; avatarphoto.js does the rest) ----------------
+  // A player signed in with Google can use a small picture of their own instead of the drawing. avatarphoto.js (loaded
+  // by this file) does the choosing, cropping, uploading, reading and moderation, and hands what it reads to _photo.set;
+  // this part only decides what el() draws. A picture is accepted only as a data:image/jpeg or data:image/webp URL of at
+  // most PHOTO_MAX characters whose first bytes really are a JPEG or WebP (no other URL, no SVG, no HTML), and it is only
+  // ever put in the page as an <img> src. Nothing is shown until avatarphoto.js has read the captains' block lists
+  // (_photo.on), and never for a blocked account or one this browser chose to hide.
+  var PHOTO_MAX = 8192, PHOTO_RE = /^data:image\/(jpeg|webp);base64,([A-Za-z0-9+\/]+={0,2})$/;
+  var photos = {}, photoBad = {}, photoOn = false, photoBlocked = {}, photoHidden = {}, photoWant = null, photoQueue = {}, photoDb = null;
+  function okPhoto(s) {
+    if (typeof s !== 'string' || s.length < 64 || s.length > PHOTO_MAX) return false;
+    var m = PHOTO_RE.exec(s);
+    if (!m || m[2].length % 4) return false;
+    var h;
+    try { h = atob(m[2].slice(0, 16)); } catch (e) { return false; }
+    if (m[1] === 'jpeg') return h.charCodeAt(0) === 0xFF && h.charCodeAt(1) === 0xD8 && h.charCodeAt(2) === 0xFF;
+    return h.slice(0, 4) === 'RIFF' && h.slice(8, 12) === 'WEBP';
+  }
+  // The picture to show for uid now, or '' for the drawing.
+  function photo(uid) {
+    uid = String(uid == null ? '' : uid);
+    if (!photoOn || photoBlocked[uid] || photoHidden[uid]) return '';
+    var u = photos[uid];
+    return u && !photoBad[u] ? u : '';
+  }
+  function wantPhoto(uid) {
+    if (!okUid(uid)) return;
+    if (photoWant) { try { photoWant(uid); } catch (e) {} } else photoQueue[uid] = 1;
+  }
+  function sameSet(a, b) { var ka = Object.keys(a), kb = Object.keys(b); return ka.length === kb.length && ka.every(function (k) { return b[k]; }); }
+  function flags(o) { var r = {}; if (o && typeof o === 'object') Object.keys(o).forEach(function (k) { if (okUid(k) && o[k]) r[k] = 1; }); return r; }
+  // For avatarphoto.js only.
+  var photoHooks = {
+    set: function (uid, url) {
+      if (!okUid(uid)) return;
+      url = okPhoto(url) ? url : '';
+      if ((photos[uid] || '') === url) return;
+      if (url) photos[uid] = url; else delete photos[uid];
+      changed(false);
+    },
+    on: function (v) { v = !!v; if (photoOn !== v) { photoOn = v; changed(false); } },
+    blocked: function (o) { o = flags(o); if (!sameSet(o, photoBlocked)) { photoBlocked = o; changed(false); } },
+    hidden: function (o) { o = flags(o); if (!sameSet(o, photoHidden)) { photoHidden = o; changed(false); } },
+    want: function (fn) { photoWant = fn; var q = Object.keys(photoQueue); photoQueue = {}; q.forEach(wantPhoto); },
+    raw: function (uid) { return photos[uid] || ''; },
+    get db() { return photoDb; }
+  };
+  // A page with its own Firebase connection (the admin page) hands it over: fn() -> Promise<{ db, uid, app }>.
+  function usePhotoDb(fn, opts) { photoDb = typeof fn === 'function' ? { get: fn, admin: !!(opts && opts.admin) } : null; }
 
   // ---------------- The editor ----------------
   var COLOURS = ['Amber', 'Red', 'Green', 'Blue', 'Violet', 'Pink', 'Teal', 'Orange', 'Lime', 'Cyan', 'Purple', 'Yellow', 'White', 'Charcoal'];
@@ -653,6 +721,9 @@
       rows.push({ r: r, fs: fs, now: now, inputs: inputs, pics: pics, order: order });
       opts.append(fs);
     });
+    // "Use a photo" (avatarphoto.js), above the drawing's rows.
+    var PH = window.BackRoomAvatarPhoto;
+    if (PH && PH.row) { try { var phr = PH.row(uid); if (phr) opts.insertBefore(phr, opts.firstChild); } catch (er) {} }
     opts.append(mk('p', 'bra-ed-note', 'Other players see your avatar too, next to your name.'));
     body.append(prev, opts);
     var foot = mk('div', 'bra-ed-foot'), reset = mk('button', 'bra-ed-b', 'Reset'), cancel = mk('button', 'bra-ed-b', 'Cancel'), ok = mk('button', 'bra-ed-b pri', 'Save');
@@ -666,6 +737,7 @@
     cancel.addEventListener('click', closeEditor); x.addEventListener('click', closeEditor);
     root.addEventListener('mousedown', function (e) { if (e.target === root) closeEditor(); });
     function key(e) {
+      if (document.querySelector('.bra-pc,.bra-pv')) return;   // the picture crop panel (avatarphoto.js) is on top: its keys
       if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeEditor(); return; }
       if (e.key !== 'Tab') return;
       // Keep Tab inside the panel: one stop per row (the arrow keys move within a row), then the buttons.
@@ -694,6 +766,7 @@
 
   var css = document.createElement('style');
   css.textContent = '.bra-av{display:inline-flex;flex:none;align-items:center;justify-content:center;border-radius:50%;overflow:hidden;line-height:0;vertical-align:middle;box-shadow:0 0 0 1px rgba(0,0,0,.08)}.bra-av svg{display:block;width:100%;height:100%}' +
+    '.bra-av.bra-ph{background:#8C96A3;cursor:zoom-in}.bra-av.bra-ph img{display:block;width:100%;height:100%;object-fit:cover;border:0;margin:0;padding:0;max-width:none}.bra-edit .bra-av.bra-ph{cursor:pointer}' +
     '.bra-edit{position:relative;display:inline-flex;flex:none;padding:0;margin:0;border:0;background:none;border-radius:50%;cursor:pointer;line-height:0;color:inherit;-webkit-tap-highlight-color:transparent}' +
     '.bra-edit:focus-visible{outline:2px solid var(--accent,#1D6A4B);outline-offset:2px}' +
     '.bra-pen{position:absolute;right:-4px;bottom:-4px;width:17px;height:17px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--panel,#FFF8EC);color:var(--ink,#1B1513);border:1px solid var(--line,#D8CDB8)}' +
@@ -757,6 +830,15 @@
 
   window.BackRoomAvatar = { seed: seed, gen: gen, svg: svg, el: el, edit: edit, close: closeEditor, editButton: editButton, save: save, mine: mine, learn: learn, parse: parse, get rev() { return rev; }, FEATURES: FEATURES, PALETTE: PALETTE.slice(),
     google: google, lock: LOCK, tile: tile, paint: paint, saveTile: saveTile, tileMine: tileMine, learnTile: learnTile, parseTile: parseTile,
-    TILES: TILES.map(function (t) { return { n: t.n, bg: t.bg, d: !!t.d }; }) };
+    TILES: TILES.map(function (t) { return { n: t.n, bg: t.bg, d: !!t.d }; }),
+    photo: photo, okPhoto: okPhoto, usePhotoDb: usePhotoDb, PHOTO_MAX: PHOTO_MAX, _photo: photoHooks };
+  // Profile pictures: avatarphoto.js, from the same folder as this file.
+  try {
+    if (!window.BackRoomAvatarPhoto) {
+      var src = ME && /avatar\.js(\?.*)?$/.test(ME.src || '') ? ME.src.replace(/avatar\.js(\?.*)?$/, 'avatarphoto.js') : '/e63334287a3deaa3/avatarphoto.js';
+      var ps = document.createElement('script'); ps.src = src; ps.async = true;
+      (document.head || document.documentElement).appendChild(ps);
+    }
+  } catch (e) {}
   try { document.dispatchEvent(new CustomEvent('backroom:avatar')); } catch (e) {}
 })();

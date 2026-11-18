@@ -1699,6 +1699,8 @@
       if (isBlocked(u)) { var ub2 = btn('Unblock', 'warn', 'unblock'); ub2.setAttribute('data-u', u); da.append(ub2); }
       else da.append(btn('Block', 'warn', 'block'), btn('Block for this session', 'warn', 'sblock'));
       da.append(btn('Report', 'warn', 'report'));
+      // Their profile picture (avatarphoto.js): the viewer has Report picture and Hide for me.
+      if (window.BackRoomAvatarPhoto && window.BackRoomAvatar && BackRoomAvatar._photo && BackRoomAvatar._photo.raw(u)) da.append(btn('Report picture', 'warn', 'reportpic'));
       dsub.append(da);
       if (view.room) { if (!view.roomEl) view.roomEl = roomForm(); dsub.append(view.roomEl); } else view.roomEl = null;
       parts.push(dsub);
@@ -1941,6 +1943,7 @@
       } else if (a === 'mute') { if (muted[u]) delete muted[u]; else muted[u] = 1; saveSets(); drawnView = ''; schedule(); }
       else if (a === 'block') { blocked[u] = 1; saveSets(); drawnView = ''; schedule(); }
       else if (a === 'sblock') { sblocked[u] = 1; saveSets(); drawnView = ''; schedule(); }
+      else if (a === 'reportpic') { if (window.BackRoomAvatarPhoto) BackRoomAvatarPhoto.view(u, b, mask(cleanName(people[u] ? people[u].n : threads[u] && threads[u].n) || '')); }
       else if (a === 'report') {
         b.disabled = true;
         report(u).then(function (done) {

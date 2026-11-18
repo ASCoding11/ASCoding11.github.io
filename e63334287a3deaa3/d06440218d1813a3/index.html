@@ -184,6 +184,18 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
 .pchart-tip{margin:6px 0 0;font-family:var(--mono);font-size:12px;color:var(--ink);min-height:1.4em;overflow-wrap:anywhere}
 .pchart-note{margin:2px 0 0;font-size:12.5px;color:var(--ink-2)}
 .empty-l{background:var(--panel);border:1px dashed var(--line);border-radius:12px;padding:22px;color:var(--ink-2);text-align:center}
+/* Pictures: players' profile pictures (avatarphoto.js), the reports about them and the captains' blocks. */
+.pics{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.pic{display:flex;gap:12px;align-items:flex-start;min-width:0}
+.pic img,.rimg img{display:block;width:64px;height:64px;border-radius:50%;object-fit:cover;flex:none;background:#8C96A3}
+.pic .meta{flex-direction:column;align-items:flex-start;gap:3px}
+.pic .acts{margin-top:6px}
+.rimg{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;font-size:12.5px;color:var(--ink-2)}
+.rimg figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:4px}
+.badge.blk{color:var(--down);border-color:var(--down)}
+#xG{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;font-size:14px;color:var(--ink-2)}
+#xG b{color:var(--ink)}
+#xG .err{color:var(--down)}
 @media (max-width:600px){
   header{padding:26px 0 18px}
   .filters label{flex:1 1 40%}
@@ -227,6 +239,7 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
         <button type="button" role="tab" id="t-players" aria-controls="p-players" data-tab="players">Players</button>
         <button type="button" role="tab" id="t-chat" aria-controls="p-chat" data-tab="chat">Chat</button>
         <button type="button" role="tab" id="t-fb" aria-controls="p-fb" data-tab="fb">Feedback</button>
+        <button type="button" role="tab" id="t-pics" aria-controls="p-pics" data-tab="pics">Pictures</button>
       </div>
 
       <!-- Stats: the Leaderboards' data (rooms/lb-all/players, written by stats.js inside each game), one read, checked like leaderboard.js. -->
@@ -323,6 +336,16 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
         <p class="status" id="fStatus" role="status" aria-live="polite"></p>
         <ol class="list" id="fList"></ol>
       </div>
+
+      <!-- Pictures: players' profile pictures (avatarphoto.js), picture reports, and the captains' blocks. -->
+      <div role="tabpanel" id="p-pics" aria-labelledby="t-pics" hidden>
+        <p class="hint">Players signed in with Google can use their own picture instead of the drawn avatar. Everyone sees a picture as soon as it's added, and nobody checks it first: this tab is where reported ones are looked at. <b>Remove and block</b> hides the account's picture everywhere and stops it adding another; it needs a Captain (miles.js <code>OWNERS</code>) signed in with Google on this page. The picture stays in the database, hidden, until that player's browser deletes it (it does on their next visit) or someone deletes <code>rooms/ap-pics/players/&lt;uid&gt;</code> in the Firebase console.</p>
+        <div class="filters"><div id="xG"></div><button class="sm" id="xRefresh" type="button">Refresh</button></div>
+        <p class="status" id="xStatus" role="status" aria-live="polite"></p>
+        <div class="card"><h2>Reported pictures</h2><p class="hint">Picture reports from the last 30 days, newest first, with the copy the reporter saw and the picture now.</p><ol class="list" id="xReports"></ol></div>
+        <div class="card"><h2>Every picture</h2><p class="hint" id="xSum"></p><ul class="pics" id="xAll"></ul></div>
+        <div class="card"><h2>Blocked accounts</h2><p class="hint">A captain can unblock only the accounts they blocked themselves.</p><ol class="list" id="xBlocked"></ol></div>
+      </div>
     </div>
   </section>
 </div>
@@ -410,7 +433,8 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
     x=x||{};var o=await tryOpen(x.box)||{};
     return {id:String(id),kind:x.kind==='report'?'report':'cabin',uid:str(x.uid,128),ts:toDate(x.ts),opened:!!o.text||!!o.name,
       name:str(o.name,60),seat:str(o.seat,4),text:typeof o.text==='string'?str(o.text,5000):'(couldn\'t open this entry)',
-      about:str(o.about,128),aboutName:str(o.aboutName,60),aboutSeat:str(o.aboutSeat,4)};
+      about:str(o.about,128),aboutName:str(o.aboutName,60),aboutSeat:str(o.aboutSeat,4),
+      pic:o.pic===1,img:okPic(o.img)?o.img:''};
   }
   async function openFb(id,x){
     x=x||{};var sealed=typeof x.box==='string',o=sealed?(await tryOpen(x.box)):x;
@@ -418,6 +442,9 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
     return {id:String(id),sealed:sealed,msg:bad?'(couldn\'t open this note)':str(o.msg,5000),game:str(x.game,60)||'other',kind:str(x.kind,20)||'other',
       name:str(o.name,120),contact:str(o.contact,200),page:str(o.page,200),uid:str(x.uid,128),ts:toDate(x.ts),done:x.done===true};
   }
+  // A profile picture is only ever shown as an <img> with a checked data:image/jpeg or data:image/webp URL (avatar.js).
+  function okPic(u){var A=window.BackRoomAvatar;return !!(A&&A.okPhoto&&A.okPhoto(u))}
+  function picEl(u,alt){if(!okPic(u))return el('span','badge','Not a valid picture (never shown)');var i=el('img');i.alt=alt||'';i.width=i.height=64;i.decoding='async';i.src=u;return i}
   function all(docs,fn){return Promise.all(docs.map(function(d){return fn(d.id,d.data())}))}
 
   // ---------- Firestore and the Realtime Database, with the same anonymous account the games use in this browser ----------
@@ -473,15 +500,31 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
     gSignOut:function(){return gApp().then(function(a){return a.auth().signOut()})},
     member:function(uid){return gApp().then(function(a){return a.firestore().collection('members').doc(uid).get()}).then(function(d){return d.exists?d.data():null})},
     // The signed resets (hours resets, removals, merges), saved in this browser's own admin node.
-    saveResets:async function(r,sig,now){var me=await boot();await rtdb.ref(LB.RS_PATH+'/'+me).set({n:'Admin',c:'#7dd3fc',x:0,z:0,h:0,ts:now,v:1,r:r,sig:sig})}
+    saveResets:async function(r,sig,now){var me=await boot();await rtdb.ref(LB.RS_PATH+'/'+me).set({n:'Admin',c:'#7dd3fc',x:0,z:0,h:0,ts:now,v:1,r:r,sig:sig})},
+    // Profile pictures (avatarphoto.js): every picture node, and each captain's block list.
+    pics:function(){return api.one(PICS_PATH).then(function(v){return v&&typeof v==='object'?v:{}})},
+    mods:function(){return Promise.all(owners().map(function(o){return api.one(MOD_PATH+'/'+o+'/b').then(function(v){return [o,v]},function(){return [o,null]})}))
+      .then(function(r){var m={};r.forEach(function(x){m[x[0]]=x[1]&&typeof x[1]==='object'?x[1]:{}});return m})},
+    // The Google account signed in on this page ('admin-google'), if it's a captain: its uid, else ''.
+    captain:function(){return gApp().then(function(a){var u=a.auth().currentUser;return u&&!u.isAnonymous&&owners().indexOf(u.uid)>=0?u.uid:''})},
+    // Block (or unblock) an account in the signed-in captain's own node. The shared rules let only that captain write it.
+    modSet:function(uid,on){return gApp().then(function(a){
+      var u=a.auth().currentUser;if(!u||u.isAnonymous||owners().indexOf(u.uid)<0)throw new Error('Sign in with a Captain\'s Google account first.');
+      var up={n:'Captain',c:'#7dd3fc',x:0,z:0,h:0,ts:firebase.database.ServerValue.TIMESTAMP,v:1};up['b/'+uid]=on?firebase.database.ServerValue.TIMESTAMP:null;
+      return a.database(CFG.databaseURL).ref(MOD_PATH+'/'+u.uid).update(up);
+    })}
   };
+  var PICS_PATH='rooms/ap-pics/players',MOD_PATH='rooms/ap-mod/players';
+  function owners(){return window.BackRoomMiles&&BackRoomMiles.OWNERS?BackRoomMiles.OWNERS.filter(function(u){return typeof u==='string'}):[]}
+  // Pictures drawn in this page's tables come over the same connection (avatar.js / avatarphoto.js).
+  if(window.BackRoomAvatar&&BackRoomAvatar.usePhotoDb)BackRoomAvatar.usePhotoDb(function(){return boot().then(function(u){return {db:rtdb,uid:u,app:auth&&auth.app}})},{admin:true});
 
   // ---------- Tabs ----------
-  var TABS=['stats','players','chat','fb'],tab=TABS.indexOf(store('bra:tab'))>=0?store('bra:tab'):'stats',loaded={};
+  var TABS=['stats','players','chat','fb','pics'],tab=TABS.indexOf(store('bra:tab'))>=0?store('bra:tab'):'stats',loaded={};
   function showTab(t){
     tab=t;store('bra:tab',t);
     TABS.forEach(function(x){var b=$('t-'+x),on=x===t;b.setAttribute('aria-selected',on?'true':'false');b.tabIndex=on?0:-1;$('p-'+x).hidden=!on});
-    if(!loaded[t]){loaded[t]=1;({stats:loadStats,players:loadPlayers,chat:loadChat,fb:loadFb})[t]()}
+    if(!loaded[t]){loaded[t]=1;({stats:loadStats,players:loadPlayers,chat:loadChat,fb:loadFb,pics:loadPics})[t]()}
   }
   document.querySelector('.tabs').addEventListener('click',function(e){var b=e.target.closest('[data-tab]');if(b)showTab(b.dataset.tab)});
   document.querySelector('.tabs').addEventListener('keydown',function(e){
@@ -1450,6 +1493,7 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
       meta.appendChild(timeEl(r.ts));
       li.appendChild(meta);
       li.appendChild(el('p','text',r.text||'(empty)'));
+      if(r.pic&&r.img){var fg=el('div','rimg'),f1=el('figure');f1.append(picEl(r.img,'The reported picture'),el('figcaption',null,'What they saw'));fg.appendChild(f1);li.appendChild(fg)}
       var from=el('div','from');
       if(r.uid){var s1=el('span');s1.append('Account ',shortId(r.uid));from.appendChild(s1)}
       if(r.about){var s2=el('span');s2.append('Reported account ',shortId(r.about));from.appendChild(s2)}
@@ -1470,6 +1514,104 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
   $('cList').addEventListener('click',function(e){
     var b=e.target.closest('button[data-a="who"]');if(!b)return;
     $('cWho').value=b.dataset.u;if($('cWho').value!==b.dataset.u)$('cWho').value='all';C.show=PAGE;renderChat();
+  });
+
+  // ================= Pictures =================
+  // Every picture node (one read of rooms/ap-pics/players), the captains' block lists, and picture reports (chatlog,
+  // kind report with pic: 1, last 30 days). Remove and block / Unblock write the signed-in captain's own block list.
+  var X={pics:{},mods:{},reports:[],me:'',who:'',seq:0,busy:false,err:''};
+  function blockedBy(uid){return Object.keys(X.mods).filter(function(o){return X.mods[o]&&X.mods[o][uid]})}
+  async function loadPics(){
+    var seq=++X.seq;say('xStatus','Loading…');$('xRefresh').disabled=true;
+    var out=await Promise.all([
+      api.pics().catch(function(e){return {err:e}}),
+      api.mods().catch(function(e){return {err:e}}),
+      api.chat(since('30'),CHAT_CAP).then(function(r){return r.filter(function(x){return x.kind==='report'&&x.pic})},function(e){return {err:e}}),
+      api.gUser().catch(function(){return ''}),
+      api.captain().catch(function(){return ''})
+    ]);
+    if(seq!==X.seq)return;
+    var errs=[];
+    X.pics=out[0].err?(errs.push('pictures'),{}):out[0];
+    X.mods=out[1].err?(errs.push('block lists'),{}):out[1];
+    X.reports=out[2].err?(errs.push(isDenied(out[2].err)?'reports (the chatlog rules aren\'t in yet)':'reports'),[]):out[2];
+    X.who=out[3]||'';X.me=out[4]||'';
+    say('xStatus',errs.length?'Couldn\'t load the '+errs.join(', ')+'.':'',!!errs.length);
+    $('xRefresh').disabled=false;renderPics();
+  }
+  function renderXG(){
+    var b=$('xG');b.textContent='';
+    if(X.me){b.append('Removing as ',el('b',null,X.who||'a captain'),' (Captain).');var o=el('button','sm','Sign out');o.type='button';o.dataset.x='out';b.appendChild(o)}
+    else if(X.who){b.append('Signed in as ',el('b',null,X.who),', which isn\'t a Captain, so you can look but not remove.');var o2=el('button','sm','Sign out');o2.type='button';o2.dataset.x='out';b.appendChild(o2)}
+    else{b.append('To remove pictures, sign in with a Captain\'s Google account.');var i=el('button','sm','Sign in with Google');i.type='button';i.dataset.x='in';i.disabled=X.busy;b.appendChild(i)}
+    if(X.err)b.appendChild(el('span','err',X.err));
+  }
+  function picMeta(uid,v){
+    var m=el('div','meta'),n=cleanName(v&&v.n,14)||'Player';
+    var w=el('span');w.append(el('b',null,LB&&LB.mask?LB.mask(n):n),' · '+(LB&&LB.seatOf?LB.seatOf(uid):''));m.appendChild(w);
+    var a=el('span');a.append('Account ',shortId(uid));m.appendChild(a);
+    if(v&&typeof v.ts==='number'){var t=el('span');t.append('Added ',timeEl(new Date(v.ts)));m.appendChild(t)}
+    var by=blockedBy(uid);if(by.length)m.appendChild(el('span','badge blk','Blocked'));
+    var nr=X.reports.filter(function(r){return r.about===uid}).length;if(nr)m.appendChild(el('span','badge report',nr+' report'+(nr===1?'':'s')));
+    return m;
+  }
+  function modBtn(uid){
+    var by=blockedBy(uid),mine=X.me&&by.indexOf(X.me)>=0,b;
+    if(by.length){b=el('button','sm','Unblock');b.dataset.x='unblock';b.disabled=!mine;if(!mine)b.title=X.me?'Another captain blocked this account.':'Sign in as a Captain first.'}
+    else{b=el('button','sm danger','Remove and block');b.dataset.x='block';b.disabled=!X.me;if(!X.me)b.title='Sign in as a Captain first.'}
+    b.type='button';b.dataset.u=uid;return b;
+  }
+  function renderPics(){
+    renderXG();
+    var rl=$('xReports');rl.textContent='';
+    if(!X.reports.length)rl.appendChild(el('li','empty-l','No picture reports in the last 30 days.'));
+    X.reports.forEach(function(r){
+      var li=el('li','item report'),m=el('div','meta');
+      m.appendChild(el('span','badge report','Picture'));
+      var w=el('span');w.append(el('b',null,r.name||'Guest'),(r.seat?' · '+r.seat:'')+' reported ',el('b',null,r.aboutName||'Player'),r.aboutSeat?' · '+r.aboutSeat:'');m.appendChild(w);
+      m.appendChild(timeEl(r.ts));li.appendChild(m);
+      var fg=el('div','rimg'),f1=el('figure'),f2=el('figure'),now=X.pics[r.about];
+      f1.append(r.img?picEl(r.img,'What the reporter saw'):el('span','badge','No copy'),el('figcaption',null,'What they saw'));
+      f2.append(now&&now.p?picEl(now.p,'The picture now'):el('span','badge','None now'),el('figcaption',null,'Now'));
+      fg.append(f1,f2);li.appendChild(fg);
+      var from=el('div','from'),s1=el('span'),s2=el('span');s1.append('Reporter ',shortId(r.uid||'?'));s2.append('Reported account ',shortId(r.about||'?'));from.append(s1,s2);li.appendChild(from);
+      if(r.about){var acts=el('div','acts');acts.appendChild(modBtn(r.about));li.appendChild(acts)}
+      rl.appendChild(li);
+    });
+    var al=$('xAll');al.textContent='';
+    var ids=Object.keys(X.pics).filter(function(u){return /^[A-Za-z0-9_-]{6,128}$/.test(u)&&X.pics[u]&&typeof X.pics[u]==='object'});
+    ids.sort(function(a,b){return (X.pics[b].ts||0)-(X.pics[a].ts||0)});
+    $('xSum').textContent=ids.length?fmtN(ids.length)+' picture'+(ids.length===1?'':'s')+', newest first.':'';
+    if(!ids.length)al.appendChild(el('li','empty-l','Nobody has a picture.'));
+    ids.forEach(function(u){
+      var v=X.pics[u],li=el('li','item pic'),body=el('div');
+      li.appendChild(picEl(v.p,'Picture of account '+u.slice(0,6)));
+      body.appendChild(picMeta(u,v));
+      var acts=el('div','acts');acts.appendChild(modBtn(u));body.appendChild(acts);
+      li.appendChild(body);al.appendChild(li);
+    });
+    var bl=$('xBlocked');bl.textContent='';
+    var bs={};Object.keys(X.mods).forEach(function(o){Object.keys(X.mods[o]||{}).forEach(function(u){if(/^[A-Za-z0-9_-]{6,128}$/.test(u))bs[u]=1})});
+    if(!Object.keys(bs).length)bl.appendChild(el('li','empty-l','Nobody is blocked.'));
+    Object.keys(bs).forEach(function(u){
+      var li=el('li','item dup'),m=el('div','meta'),a=el('span');a.append('Account ',shortId(u));m.appendChild(a);
+      var by=blockedBy(u).map(function(o){return o===X.me?'you':o.slice(0,6)});m.appendChild(el('span',null,'Blocked by '+by.join(', ')));
+      if(X.pics[u])m.appendChild(el('span','badge','Picture still stored'));
+      li.append(m,modBtn(u));bl.appendChild(li);
+    });
+  }
+  $('xRefresh').addEventListener('click',loadPics);
+  $('p-pics').addEventListener('click',function(e){
+    var b=e.target.closest('button[data-x]');if(!b)return;
+    var a=b.dataset.x,u=b.dataset.u;X.err='';
+    if(a==='in'){X.busy=true;renderXG();api.gSignIn().then(function(){X.busy=false;loadPics()},function(err){X.busy=false;X.err=err&&err.code==='auth/popup-closed-by-user'?'':'Couldn\'t sign in: '+((err&&err.message)||'error');renderXG()});return}
+    if(a==='out'){api.gSignOut().then(function(){X.me='';X.who='';renderPics()});return}
+    if(!u)return;
+    if(a==='block'&&!confirm('Remove this account\'s picture and stop it adding another?\n\nIt disappears for everyone within a few seconds. You can unblock it later.'))return;
+    b.disabled=true;
+    api.modSet(u,a==='block').then(function(){return loadPics().then(function(){say('xStatus',a==='block'?'Removed and blocked. It disappears for everyone within a few seconds.':'Unblocked.')})},function(err){
+      say('xStatus',isDenied(err)?'The database refused the change (permission denied).':'Couldn\'t change it: '+((err&&err.message)||'error'),true);b.disabled=false;
+    });
   });
 
   // ================= Feedback =================
@@ -1645,7 +1787,12 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
           gUser:function(){return Promise.resolve(gUserT)},
           gSignIn:function(){gUserT=data.gUser||'admin@example.com';return Promise.resolve(gUserT)},
           gSignOut:function(){gUserT='';return Promise.resolve()},
-          member:function(uid){if(o.denyMembers)return deny();var m=(data.members||{})[uid];return Promise.resolve(m?JSON.parse(JSON.stringify(m)):null)}
+          member:function(uid){if(o.denyMembers)return deny();var m=(data.members||{})[uid];return Promise.resolve(m?JSON.parse(JSON.stringify(m)):null)},
+          pics:function(){return Promise.resolve(JSON.parse(JSON.stringify(data.pics||{})))},
+          mods:function(){var m={};owners().forEach(function(ow){m[ow]=JSON.parse(JSON.stringify((data.mods||{})[ow]||{}))});return Promise.resolve(m)},
+          captain:function(){return Promise.resolve(gUserT&&data.captain?data.captain:'')},
+          modSet:function(uid,on){if(o.denyWrite)return deny();if(!gUserT||!data.captain)return Promise.reject(new Error('Sign in with a Captain\'s Google account first.'));
+            data.mods=data.mods||{};var l=data.mods[data.captain]=data.mods[data.captain]||{};if(on)l[uid]=Date.now();else delete l[uid];return Promise.resolve()}
         };
         var gUserT='';
         stubbed=true;
@@ -1658,7 +1805,8 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
         shownUids:[].map.call($('pTable').querySelectorAll('tr.prow'),function(t){return t.dataset.k})}},
       get dups(){return dupPairs().filter(function(d){return !d.no}).map(function(d){return [d.x.uid,d.t.uid,d.s]})},
       get chat(){return {rows:C.rows.length,shown:chatShown().length,capped:C.capped,unopened:C.rows.filter(function(r){return !r.opened}).length}},
-      get feedback(){return F.rows.map(function(r){return {id:r.id,done:r.done,sealed:r.sealed,msg:r.msg}})}
+      get feedback(){return F.rows.map(function(r){return {id:r.id,done:r.done,sealed:r.sealed,msg:r.msg}})},
+      get pictures(){return {pics:Object.keys(X.pics),reports:X.reports.length,me:X.me,blocked:Object.keys(X.mods).reduce(function(a,o){return a.concat(Object.keys(X.mods[o]||{}))},[])}}
     };
   }
 })();
