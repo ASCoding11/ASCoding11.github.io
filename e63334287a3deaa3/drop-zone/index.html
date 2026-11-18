@@ -3570,7 +3570,7 @@ const Plane=(()=>{
     const FH=512,pxz=TW/ZL;          // px per metre along it
     const rowOf=v=>(1-v)*FH;
     for(let y=0;y<FH;y++){const v=1-(y+.5)/FH,h=-Math.cos(v*Math.PI*2);
-      g.fillStyle=h<-.5?'#aecbe8':h<-.42?'#ffffff':h<-.36?'#35c8ef':h<.52?'#2c68b0':h<.6?'#224f91':'#1d4280';g.fillRect(0,y,TW,1)}
+      g.fillStyle=h<-.62?'#aecbe8':h<-.56?'#ffffff':h<-.5?'#35c8ef':h<.52?'#2c68b0':h<.6?'#224f91':'#1d4280';g.fillRect(0,y,TW,1)}
     // panel lines (the joins between skin panels) every 1.6 m, two lengthwise, with rivets along them
     for(let z=Z0+.9;z<Z1-.8;z+=1.6){const x=(z-Z0)*pxz;g.fillStyle='rgba(8,20,48,.28)';g.fillRect(x,0,2,FH);g.fillStyle='rgba(8,20,48,.35)';for(let y=3;y<FH;y+=7)g.fillRect(x+4,y,2,2)}
     for(const v of [.12,.38,.62,.88,.5]){const y=rowOf(v);g.fillStyle='rgba(8,20,48,.25)';g.fillRect(0,y,TW,2);g.fillStyle='rgba(8,20,48,.3)';for(let x=4;x<TW;x+=9)g.fillRect(x,y+4,2,2)}
@@ -3596,9 +3596,10 @@ const Plane=(()=>{
     const sideFrame=(s,z,hm)=>g.setTransform(-s*pxz*(c.width/TW),0,0,s*RPM*(c.height/TH),(z-Z0)*pxz*(c.width/TW),(rowOf(.5-s*.25)-hm*RPM*s*(s>0?1:1))*(c.height/TH));
     for(const s of [1,-1]){
       const nd=-s;      // which way the nose is in this frame (+1: to the viewer's right)
-      // ASCODING along the side, big white stencil letters, a little chipped
-      sideFrame(s,-.4,.05);stencil('ASCODING',0,0,1.75,'#f3f6fa','#2c68b0','rgba(6,16,40,.55)');
-      g.fillStyle='#2c68b0';for(let i=0;i<70;i++)g.fillRect((r()-.5)*11.4,(r()-.5)*1.7,.03+r()*.06,.02+r()*.04);
+      // ASCODING along the side, big white stencil letters, a little chipped. Low on the side, under the line of the
+      // engines, so the nacelles don't cover it when seen from the side or from above
+      sideFrame(s,-1.1,-.6);stencil('ASCODING',0,0,1.3,'#f3f6fa','#2c68b0','rgba(6,16,40,.55)');
+      g.fillStyle='#2c68b0';for(let i=0;i<60;i++)g.fillRect((r()-.5)*8.8,(r()-.5)*1.3,.03+r()*.06,.02+r()*.04);
       // the shark mouth on the nose
       sideFrame(s,15.6,0);g.save();g.scale(nd,1);
       g.beginPath();g.moveTo(-.25,.15);g.quadraticCurveTo(-1.6,.15,-3.3,-.25);g.quadraticCurveTo(-2.2,1.35,-.3,1.25);g.closePath();g.fillStyle='#16161c';g.fill();
@@ -3651,6 +3652,10 @@ const Plane=(()=>{
     // ASCO on the right wing and DING on the left, big and dark under the wings, to read from below
     {const p=wBot(-17.1,.75);g.setTransform(wpx*(c.width/TW),0,0,wpz*(c.height/TH),p[0]*(c.width/TW),p[1]*(c.height/TH));stencil('ASCO',0,0,2.1,'#1d4280','#b6d0ea')}
     {const p=wBot(17.1,.75);g.setTransform(wpx*(c.width/TW),0,0,wpz*(c.height/TH),p[0]*(c.width/TW),p[1]*(c.height/TH));stencil('DING',0,0,2.1,'#1d4280','#b6d0ea')}
+    // and on top of the wings, white, to read from the riding camera behind the plane (seen from above and behind,
+    // the left wing is on the left of the picture here)
+    {const p=wTop(17.1,.75);g.setTransform(wpx*(c.width/TW),0,0,wpz*(c.height/TH),p[0]*(c.width/TW),p[1]*(c.height/TH));stencil('ASCO',0,0,2.1,'#e9eff7','#22508f','rgba(4,10,24,.5)')}
+    {const p=wTop(-17.1,.75);g.setTransform(wpx*(c.width/TW),0,0,wpz*(c.height/TH),p[0]*(c.width/TW),p[1]*(c.height/TH));stencil('DING',0,0,2.1,'#e9eff7','#22508f','rgba(4,10,24,.5)')}
     g.setTransform(c.width/TW,0,0,c.height/TH,0,0);
     g.fillStyle='#fff';g.fillRect(440,952,72,72);
     const t=new THREE.CanvasTexture(c);t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());t.minFilter=THREE.LinearMipmapLinearFilter;t.magFilter=THREE.LinearFilter;t.generateMipmaps=true;
@@ -3748,8 +3753,8 @@ const Plane=(()=>{
     shape(BOX,x,y-.9,2.6,.5,.3,2.2,0x274e86);                                                           // the oil cooler scoop under it
     kind=[5,x,y,dir*23];
     for(let b=0;b<4;b++){const a=b*Math.PI/2+.4,ca=Math.cos(a),sa=Math.sin(a);
-      shape(BOX,x+ca*1.45,y+sa*1.45,5.62,2.25,.34,.07,DARK,0,0,a);_e.set(0,0,0);
-      shape(BOX,x+ca*2.42,y+sa*2.42,5.63,.32,.35,.08,0xffc21a,0,0,a)}
+      shape(BOX,x+ca*1.45,y+sa*1.45,5.62,2.25,.22,.06,DARK,0,0,a);
+      shape(BOX,x+ca*2.42,y+sa*2.42,5.63,.3,.23,.07,0xffc21a,0,0,a)}
     kind=[0,0,0,0]}
   // the tail: a tall fin with a fillet at its foot, a T-tail on top, a cone at the very back
   {const FS_=[[1.7,-4.6,8.8,.55],[2.9,-7.9,5.6,.5],[5,-9.4,4.3,.42],[8.7,-10.8,3,.32],[8.85,-10.9,2.9,.3]];
@@ -3802,20 +3807,29 @@ const Plane=(()=>{
     const q=(t,s)=>{const w=(w0+(w1-w0)*t)*s;FP.push(x+(ax?0:w),y+(ax?w:0),z-len*t);FD.push(0,t,s,a)};
     q(t0,-1);q(t1,-1);q(t1,1);q(t0,-1);q(t1,1);q(t0,1)}}
   for(const x of ENG)trail(x,wingY(x)-.4,-2.2,26,.5,3.2,.18,6);
+  // a faint blur disc in front of each engine, so the spinning blades read as a propeller (kind 8; aD.yz: where on the
+  // disc, -1 to 1 across; aD.w: which way the prop turns)
+  ENG.forEach((x,e)=>{const y=wingY(x)-.62,R=2.62,n=24;for(let i=0;i<n;i++){const a0=i/n*Math.PI*2,a1=(i+1)/n*Math.PI*2;
+    for(const [c,sn] of [[0,0],[Math.cos(a0),Math.sin(a0)],[Math.cos(a1),Math.sin(a1)]]){FP.push(x+c*R,y+sn*R,5.6);FD.push(8,c,sn,e<2?1:-1)}}});
   trail(21.1,wingY(21),-.6,70,.12,1.6,.5,10);trail(-21.1,wingY(21),-.6,70,.12,1.6,.5,10);
   function flare(k,x,y,z,s){for(const [cx,cy] of [[-1,-1],[1,-1],[1,1],[-1,-1],[1,1],[-1,1]]){FP.push(x,y,z);FD.push(k,cx,cy,s)}}
   flare(1,21.4,wingY(21)+.02,1.2,1.1);flare(2,-21.4,wingY(21)+.02,1.2,1.1);flare(3,0,9.2,-11.6,1.7);flare(3,0,Bm(Z0)/2+T(Z0)/2,-14.1,1.4);
   flare(6,0,3.5,-.8,1.2);flare(6,0,-2.95,1.5,1.2);flare(4,0,-.25,-11.25,1.1);
   const fg=new THREE.BufferGeometry();fg.setAttribute('position',new THREE.Float32BufferAttribute(FP,3));fg.setAttribute('aD',new THREE.Float32BufferAttribute(FD,4));
-  const fxMat=new THREE.ShaderMaterial({transparent:true,depthWrite:false,fog:false,blending:THREE.CustomBlending,blendSrc:THREE.OneFactor,blendDst:THREE.OneMinusSrcAlphaFactor,
+  const fxMat=new THREE.ShaderMaterial({transparent:true,depthWrite:false,side:THREE.DoubleSide,fog:false,blending:THREE.CustomBlending,blendSrc:THREE.OneFactor,blendDst:THREE.OneMinusSrcAlphaFactor,
     uniforms:Object.assign({tx:{value:detailTex}},PU),
     vertexShader:`attribute vec4 aD;uniform float pT,pJ,pRM;varying vec4 vC;varying vec2 vQ;varying float vK;\n${GLOW}
       void main(){vec4 mv=modelViewMatrix*vec4(position,1.);vK=aD.x;
-        if(aD.x>.5){vec4 g=plGlow(aD.x,pT,pJ,pRM);vC=g;vQ=aD.yz;mv.xy+=aD.yz*aD.w*(.35+.65*g.a);mv.z+=.8;}
+        if(aD.x>7.5){vC=vec4(aD.w,0.,0.,1.);vQ=aD.yz;}
+        else if(aD.x>.5){vec4 g=plGlow(aD.x,pT,pJ,pRM);vC=g;vQ=aD.yz;mv.xy+=aD.yz*aD.w*(.35+.65*g.a);mv.z+=.8;}
         else{vC=vec4(1.,1.,1.,aD.w);vQ=vec2(aD.z,aD.y);}
         gl_Position=projectionMatrix*mv;}`,
-    fragmentShader:`uniform sampler2D tx;uniform float pT;varying vec4 vC;varying vec2 vQ;varying float vK;
+    fragmentShader:`uniform sampler2D tx;uniform float pT,pRM;varying vec4 vC;varying vec2 vQ;varying float vK;
       void main(){
+        if(vK>7.5){float r=length(vQ),an=atan(vQ.y,vQ.x),sp=pT*(1.-pRM)*2.1*vC.r;
+          float a=.13*smoothstep(.12,.3,r)*(1.-smoothstep(.93,1.,r))*(.75+.25*cos(8.*(an-sp)))*(.8+.4*r);
+          float tip=.22*smoothstep(.86,.9,r)*(1.-smoothstep(.95,1.,r));
+          vec3 c=(vec3(.16,.18,.21)*a+vec3(1.,.78,.15)*tip);gl_FragColor=vec4(c,a+tip*.7);return;}
         if(vK>.5){float r=length(vQ);float a=vC.a*pow(max(0.,1.-r),2.4);gl_FragColor=vec4(vC.rgb*a*1.2+vec3(a*a*.3),0.);return;}
         float n=texture2D(tx,vec2(vQ.x*.18+.5,vQ.y*4.-pT*.55)).g,e=1.-vQ.x*vQ.x;
         float a=vC.a*e*pow(1.-vQ.y,1.6)*(.45+n)*smoothstep(0.,.05,vQ.y);gl_FragColor=vec4(vec3(.94,.96,1.)*a,a);}`});
@@ -5129,7 +5143,7 @@ function updateCamera(dt){
     // the lettering are in view (the plane is drawn by updateWorldFx just before this, so it doesn't lag a frame)
     const f=fwdOf(player.yaw,player.pitch),G_=busMesh.position;_bp.set(busLine.dx,0,busLine.dz);
     _bp.multiplyScalar(-5).add(G_);_bp.y+=1.2;
-    setNear(1);const tall=camera.aspect<1,far=tall?58:26;camera.position.copy(_bp).addScaledVector(f,-far).addScaledVector(rightOf(player.yaw),far*(tall?.1:.3));camera.position.y+=far*.2;
+    setNear(1);const tall=camera.aspect<1,far=tall?58:26;camera.position.copy(_bp).addScaledVector(f,-far).addScaledVector(rightOf(player.yaw),far*(tall?.1:.55));camera.position.y+=far*.15;
     camera.lookAt(_cl.copy(_bp).addScaledVector(f,20).add(_ch.set(0,-4,0)));camDist=3.5;return;
   }
   const f=fwdOf(tgt.yaw,tgt.pitch),r=rightOf(tgt.yaw);
