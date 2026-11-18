@@ -85,8 +85,39 @@ async function people(job) {
   return out;
 }
 
+// Safety scan: for every Wikidata item the other jobs fetched (not species), its English description and any
+// sign it doesn't belong in a school game: an adult-film or similar occupation, an adult or erotic genre, a hate
+// group or neo-Nazi ideology, or a criminal conviction. build.js drops what this flags (see UNSAFE_DESC there).
+async function safety() {
+  const ids = new Set();
+  for (const f of fs.readdirSync(CACHE)) {
+    if (!f.endsWith('.json') || /^(pageviews|safety|taxa)/.test(f)) continue;
+    const d = JSON.parse(fs.readFileSync(path.join(CACHE, f), 'utf8'));
+    if (Array.isArray(d)) for (const r of d) if (r && /^Q\d+$/.test(r.item || '')) ids.add(r.item);
+  }
+  const all = [...ids], out = {};
+  for (let i = 0; i < all.length; i += 300) {
+    const v = all.slice(i, i + 300).map(q => 'wd:' + q).join(' ');
+    const rs = await sparql(`SELECT ?item ?desc ?o ?g ?c ?x ?k WHERE { VALUES ?item { ${v} }
+      OPTIONAL { ?item schema:description ?desc . FILTER(lang(?desc)="en") }
+      OPTIONAL { ?item wdt:P106 ?o . VALUES ?o { wd:Q488111 wd:Q161850 wd:Q852857 wd:Q1141526 wd:Q151092 } }
+      OPTIONAL { ?item wdt:P136 ?g . VALUES ?g { wd:Q185529 wd:Q599558 wd:Q1046788 wd:Q172067 wd:Q2292320 wd:Q3362070 wd:Q1361392 } }
+      OPTIONAL { ?item wdt:P31 ?c . VALUES ?c { wd:Q3233801 } }
+      OPTIONAL { ?item wdt:P1142 ?x . VALUES ?x { wd:Q151250 } }
+      OPTIONAL { ?item wdt:P1399 ?k } }`);
+    for (const r of rs) {
+      const o = out[r.item] || (out[r.item] = { d: r.desc || '', f: [] });
+      for (const [k, why] of [['o', 'adult occupation'], ['g', 'adult genre'], ['c', 'hate group'], ['x', 'neo-Nazi'], ['k', 'convicted']]) if (r[k] && o.f.indexOf(why) < 0) o.f.push(why);
+    }
+    if ((i / 300) % 20 === 0) console.log('  safety', i, '/', all.length);
+    await sleep(800);
+  }
+  return out;
+}
+
 async function run(job) {
   if (job.id === 'taxa') return taxa();
+  if (job.id === 'safety') return safety();
   if (job.people) return people(job);
   if (job.url) {
     const buf = await get(job.url, { buffer: true });

@@ -104,8 +104,20 @@ function namesOf(label, alts, opts) {
   return out;
 }
 const enTitle = r => r.en ? decodeURIComponent(String(r.en).replace('https://en.wikipedia.org/wiki/', '')).replace(/_/g, ' ') : null;
+// Safety scan (fetch.js safety): drop items Wikidata flags (adult occupation or genre, hate group, neo-Nazi,
+// criminal conviction) or whose English description says they are mainly known for something a school game
+// shouldn't ask about. DROPPED counts what this took out of each list, for the report.
+const SAFETY = cache('safety') || {};
+if (!Object.keys(SAFETY).length) missing.push('Wikidata: safety scan');
+const UNSAFE_DESC = /\b(porn\w*|adult (film|video|entertainment|model|actress|actor)|erotic\w*|sex (worker|offender|symbol|scandal)|murder(er|ers|ess)?|serial killer|criminal|convicted|fraudster|con artist|swindler|terroris[mt]\w*|nazi\w*|neo-nazi|white supremac\w*|ku klux|gangster|mobster|mafi\w*|drug (lord|trafficker|dealer)|cartel|assassin\w*|rapist|child (abuse|molest)\w*|p(a)?edophil\w*|cult leader|mass shooter|spree killer|kidnapp\w*|war criminal|hate group|stripper|onlyfans|camgirl|glamour model|playboy|penthouse pet|disgraced)\b/i;
+let CUR = '', DROPPED = {};
+// checked by hand and kept: a US president (the prompt asks for every one), an anti-Nazi physicist, and two holidays
+// marking the end of the war in Europe
+const KEEP = new Set(['Donald Trump', 'Max von Laue', 'Victory in Europe Day', 'Liberation Day']);
+const unsafe = (q, label) => { const x = q && SAFETY[q]; return !!x && !KEEP.has(label) && (x.f.length > 0 || UNSAFE_DESC.test(x.d)); };
 // one source answer: {names: [display, spellings...], sl, pv, pop, w}
 function fromRow(r, opts) {
+  if (unsafe(r.item, r.label)) { DROPPED[CUR] = (DROPPED[CUR] || 0) + 1; return null; }
   const names = namesOf(r.label, r.alts, opts); if (!names.length || names.blocked) return null;
   const t = enTitle(r);
   return { names, sl: +r.sl || 0, pv: t && PV[t] != null ? PV[t] : null, pop: r.pop ? +r.pop : null, q: r.item };
@@ -496,6 +508,7 @@ function buildList(key, coreStr) {
   for (const e of core) e.coreAl = e.al.length; // spellings prompts.js already has; only new ones are written again
   const byAlias = new Map(); for (const e of core) for (const a of e.al) if (!byAlias.has(a)) byAlias.set(a, e);
   const merged = core.slice();
+  CUR = key;
   const feed = FEEDS[key] ? FEEDS[key]() : [];
   const fresh = new Map(); // first spelling of a new answer -> entry
   for (const s of feed) {
@@ -584,5 +597,7 @@ for (const [key, coreStr] of used) {
 const idx = header + 'window.DW_EXT=window.DW_EXT||{};DW_EXT.index=' + JSON.stringify(index) + ';\n';
 fs.writeFileSync(path.join(OUT, 'index.js'), idx); bytes += idx.length;
 if (REPORT) fs.writeFileSync(path.join(CACHE, 'report.txt'), report.join('\n') + '\n');
+const dropped = Object.entries(DROPPED).filter(([, n]) => n).sort((a, b) => b[1] - a[1]);
+console.log('safety scan dropped: ' + (dropped.length ? dropped.map(([k, n]) => k + ' ' + n).join(', ') : 'nothing'));
 console.log('lists: ' + used.size + ', answers in those lists ' + totalBefore + ' -> ' + totalAfter + ', bank/ ' + (bytes / 1024 / 1024).toFixed(2) + ' MB');
 if (missing.length) console.log('MISSING (not in cache, left out): ' + [...new Set(missing)].join('; '));

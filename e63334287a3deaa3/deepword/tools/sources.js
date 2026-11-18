@@ -129,6 +129,7 @@ const jobs = [
   things('knots', ['Q1076532', 'Q1361838'], 3, 'both'),
   things('ships', ['Q11446', 'Q2811', 'Q17205', 'Q174736', 'Q182531', 'Q170013'], 30, 'inst'),
   things('colleges', ['Q3918', 'Q189004', 'Q23002054', 'Q902104'], 18, 'inst', '?item wdt:P17 wd:Q30 .'),
+  { id: 'safety' }, // after everything above: descriptions and adult/hate/crime flags for every item (see fetch.js)
   // ---------------------------------------------------------------- word data (not Wikidata)
   { id: 'gwordlist', url: 'https://raw.githubusercontent.com/hackerb9/gwordlist/master/frequency-alpha-alldicts.txt', file: 'gw.txt' },
   // places: GeoNames (CC BY 4.0), towns and cities of 5,000 people or more, with their other names
