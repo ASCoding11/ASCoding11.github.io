@@ -409,19 +409,19 @@ function alienCanvas(no, w, back, f) {
 // it keeps (always under 1, so it drops back behind the runner, never ahead), fall: pull towards the floor (m/s²), spin (turns/s, random either way), grow (size added per second, times the size), fade: 0 keeps full
 // opacity to the end, 1 fades all the way, twinkle: flickers, h: how high above the floor it starts (m).
 const TRAIL_FX = [null,
-  { sh: 2, cols: [0xffe9a0, 0xffffff, 0xfff3c8, 0xffd860], sz: [.07, .13], life: .8, every: .03, up: .35, side: .45, follow: 0.55, spin: .6, fade: 1, twinkle: 1, h: .35 },
-  { sh: 8, cols: [0x7cf29a, 0x4fd47a, 0xb0ffc4], sz: [.09, .14], life: .55, every: .045, up: .4, side: .25, follow: 0.45, fall: 5, fade: .4, h: .25 },
-  { sh: 4, cols: [0xbdf4ff, 0xffffff, 0x9fe0ff], sz: [.09, .17], life: 1.1, every: .07, up: .7, side: .35, follow: 0.6, fade: .7, wob: 1, h: .4 },
-  { sh: 3, cols: [0xff6fa8, 0xff9cc6, 0xffc2dd, 0xff4f8a], sz: [.11, .16], life: .9, every: .065, up: .65, side: .3, follow: 0.6, fade: .8, wob: .6, h: .45 },
-  { sh: 0, cols: [0xff4fa3, 0xffd23f, 0x3fe0ff, 0xb6ff3b, 0xffffff, 0x8a70ff], sz: [.06, .09], life: .9, every: .025, up: 1.6, side: 1.1, follow: 0.5, fall: 4, spin: 2.5, fade: .3, h: .4 },
-  { sh: 0, cols: 'hue', sz: [.11, .11], life: .55, every: .05, up: 0, side: 0, follow: 0.55, fade: 0, h: .2, pixel: 1 },
-  { sh: 7, cols: [0xffffff, 0xd8f0ff, 0xbde6ff], sz: [.11, .17], life: 1.1, every: .07, up: .25, side: .35, follow: 0.6, fall: .5, spin: .5, fade: .8, h: .5 },
-  { sh: 9, cols: [0xffb7d5, 0xffd6e6, 0xffffff, 0xff9cc6], sz: [.09, .13], life: 1.1, every: .05, up: .45, side: .6, follow: 0.55, fall: .6, spin: 1.4, fade: .6, h: .45 },
-  { sh: 6, cols: [0xd8f6ff, 0x3fa9ff, 0x9fe0ff, 0xffffff], sz: [.1, .2], life: .2, every: .028, up: .2, side: .6, follow: 0.35, fade: .5, jit: .22, h: .4 },
-  { sh: 4, cols: [0x7dff6a, 0xc8ffd2, 0x5fe85a], sz: [.12, .12], life: .75, every: .11, up: 0, side: 0, follow: 0.5, fade: 1, grow: 2.2, h: .06 }
+  { sh: 2, cols: [0xffe066, 0xffffff, 0xffd23f, 0xfff3c8], sz: [.1, .18], life: .8, every: .022, up: .35, side: .45, follow: 0.55, spin: .6, fade: 1, twinkle: 1, h: .35 },
+  { sh: 8, cols: [0x7cf29a, 0x4fd47a, 0xb0ffc4], sz: [.12, .18], life: .55, every: .035, up: .4, side: .25, follow: 0.45, fall: 3, fade: .4, h: .25 },
+  { sh: 4, cols: [0xbdf4ff, 0xffffff, 0x9fe0ff], sz: [.14, .24], life: 1.1, every: .06, up: .7, side: .35, follow: 0.6, fade: .7, wob: 1, h: .4 },
+  { sh: 3, cols: [0xff6fa8, 0xff9cc6, 0xffc2dd, 0xff4f8a], sz: [.15, .22], life: .9, every: .055, up: .65, side: .3, follow: 0.6, fade: .8, wob: .6, h: .45 },
+  { sh: 0, cols: [0xff4fa3, 0xffd23f, 0x3fe0ff, 0xb6ff3b, 0xffffff, 0x8a70ff], sz: [.08, .12], life: .9, every: .02, up: 1.6, side: 1.1, follow: 0.5, fall: 4, spin: 2.5, fade: .3, h: .4 },
+  { sh: 0, cols: 'hue', sz: [.14, .14], life: .55, every: .045, up: 0, side: 0, follow: 0.55, fade: 0, h: .2, pixel: 1 },
+  { sh: 7, cols: [0xffffff, 0xd8f0ff, 0xbde6ff], sz: [.15, .22], life: 1.1, every: .05, up: .25, side: .35, follow: 0.6, fall: .5, spin: .5, fade: .8, h: .5 },
+  { sh: 9, cols: [0xffb7d5, 0xffd6e6, 0xffffff, 0xff9cc6], sz: [.12, .18], life: 1.1, every: .04, up: .45, side: .6, follow: 0.55, fall: .6, spin: 1.4, fade: .6, h: .45 },
+  { sh: 6, cols: [0xd8f6ff, 0x3fa9ff, 0x9fe0ff, 0xffffff], sz: [.14, .26], life: .3, every: .022, up: .2, side: .6, follow: 0.35, fade: .5, jit: .22, h: .4 },
+  { sh: 4, cols: [0x7dff6a, 0xc8ffd2, 0x5fe85a], sz: [.16, .16], life: .75, every: .1, up: 0, side: 0, follow: 0.5, fade: 1, grow: 2.2, h: .06 }
 ];
 const TN = 120;
-let trailPts = null, tp = null, tAt = 0, tHue = 0;
+let trailPts = null, tp = null, tAt = 0, tHue = 0, lastZ = null, moved = true, asked = false;
 function trailMesh() {
   if (trailPts) return trailPts;
   const pos = new Float32Array(TN * 3), col = new Float32Array(TN * 3), ext = new Float32Array(TN * 4);
@@ -716,6 +716,7 @@ function wear(k, no) {
   X.apply(); render(); menuWorn();
 }
 function render() {
+  if (!built) return;
   const list = TABS.find(x => x[0] === tab)[2], grid = $('wrGrid');
   $('wrTabs').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.k === tab)));
   grid.innerHTML = ''; grid.setAttribute('aria-label', TABS.find(x => x[0] === tab)[1]);
@@ -799,9 +800,13 @@ return {
     if (!on() || !look.t) return false;
     const s = X.G.s; if (!s || s.dead) return true;
     if (X.G.mode === 'menu' && X.G.overlay !== 'wardrobe') return true;   // like the crystal trails: none behind the menu, but try one on here
-    tAt -= dt; if (tAt > 0) return true; tAt = TRAIL_FX[look.t].every; emit(look.t, P, s.vd || 0); return true;
+    // the runner's real speed this frame: nothing is dropped (and the shapes hold still) while it stands still, as when
+    // paused or waiting to start, so a shape can never drift ahead of it
+    const v = lastZ == null || dt <= 0 ? 0 : (lastZ - P.z) / dt; lastZ = P.z; asked = true; moved = v > .5 && v < 60;
+    if (!moved) return true;
+    tAt -= dt; if (tAt > 0) return true; tAt = TRAIL_FX[look.t].every; emit(look.t, P, v); return true;
   },
-  step(dt) { stepTrail(dt); },
+  step(dt) { const hold = asked && !moved; asked = false; if (!hold) stepTrail(dt); },
   access,
   get look() { return Object.assign({}, look); },
   // tests
