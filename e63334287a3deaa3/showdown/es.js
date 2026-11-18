@@ -85,6 +85,6 @@
     'Could not reach the game server. Check your connection, or play Practice.': 'No se pudo llegar al servidor del juego. Revisa tu conexión o juega Práctica.',
     'Signing in to the game server timed out. Check your connection, or play Practice.': 'Se agotó el tiempo para entrar al servidor. Revisa tu conexión o juega Práctica.',
     "This browser can't keep cards secret here (it needs a secure https page). Try another browser, or play Practice.": 'Este navegador no puede ocultar las cartas aquí (necesita una página https segura). Prueba otro navegador o juega Práctica.',
-    'That table is full ({n} people). Try another code.': 'Esa mesa está llena ({n} personas). Prueba otro código.', 'Language': 'Idioma', 'You': 'Tú', 'C / SPACE': 'C / ESPACIO', 'Practice · Easy bots': 'Práctica · bots fáciles', 'Practice · Normal bots': 'Práctica · bots normales', 'Practice · Hard bots': 'Práctica · bots difíciles'
+    'That table is full ({n} people). Try another code.': 'Esa mesa está llena ({n} personas). Prueba otro código.', 'Language': 'Idioma', 'Room {r}': 'Sala {r}', 'You': 'Tú', 'C / SPACE': 'C / ESPACIO', 'Practice · Easy bots': 'Práctica · bots fáciles', 'Practice · Normal bots': 'Práctica · bots normales', 'Practice · Hard bots': 'Práctica · bots difíciles'
   });
 })();

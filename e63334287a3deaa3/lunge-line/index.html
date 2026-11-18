@@ -1707,6 +1707,7 @@ root.LLCore = {W, H, BASE, TICK, K, ST, BAND, PIT, VIEW, HW, HANG_D, REACH, AREN
 <script>
 (function () {
 'use strict';
+const LT = window.BackRoomLang ? BackRoomLang.t : (s, v) => s.replace(/\{(\w+)\}/g, (m, n) => v && v[n] != null ? v[n] : m);
 // =====================================================================
 //  Lokop: drawing (one small pixel canvas, scaled up crisp) and sound (Web Audio chip voices, all made here).
 //  The duel is drawn at 2 world units per pixel: a 640 x 360 room is 320 x 180 pixels.
@@ -2815,7 +2816,7 @@ function parseCfg(s) {
 function cfgText(c) {
   const v = [];
   if (!c.thr) v.push('no throwing'); if (c.lowg) v.push('low gravity'); if (c.bounce) v.push('bouncing throws'); if (c.turbo) v.push('turbo');
-  return C.ARENAS[c.arena].name + ' · ' + c.N + ' stages' + (v.length ? ' · ' + v.join(', ') : '');
+  return C.ARENAS[c.arena].name + ' · ' + LT('{n} stages', { n: c.N }) + (v.length ? ' · ' + v.map(x => LT(x)).join(', ') : '');
 }
 
 function begin(cfg, o) {
@@ -3405,7 +3406,7 @@ function showBracket() {
     box.appendChild(col);
   });
   $('brkTitle').textContent = T.champ ? T.champ.n + ' wins!' : 'Bracket';
-  $('brkSub').textContent = store.get('arena', -1) < 0 ? cfgText(T.cfg).replace(/^[^\u00B7]*/, 'Random arenas ') : cfgText(T.cfg);
+  $('brkSub').textContent = store.get('arena', -1) < 0 ? cfgText(T.cfg).replace(/^[^\u00B7]*/, LT('Random arenas') + ' ') : cfgText(T.cfg);
   $('brkPlay').hidden = !!T.champ;
   $('brkMsg').textContent = T.champ ? 'Champion of the line. Start another from the menu.' : nx ? 'Next: ' + nx.a.n + ' (Tide, ' + (nx.a.k === 'human' ? keyHint(nx.b.k === 'human' ? 'p1' : 'all') : 'bot') + ') vs ' + nx.b.n + ' (Bloom, ' + (nx.b.k === 'human' ? keyHint(nx.a.k === 'human' ? 'p2' : 'all') : 'bot') + ')' : '';
   show('brk');

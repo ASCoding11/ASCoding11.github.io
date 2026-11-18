@@ -88,7 +88,7 @@ if (window.BackRoomLang) BackRoomLang.add({
   'Prop: line up': 'Objeto: alinear', 'Hunter: shoot': 'Cazador: disparar', 'Hunter: aim': 'Cazador: apuntar', 'Hunter: reload': 'Cazador: recargar', 'Watch someone else': 'Mirar a otro',
   'Change keys': 'Cambiar teclas', 'Settings': 'Ajustes', 'Look speed': 'Velocidad de vista', 'Invert look up/down': 'Invertir vista arriba/abajo', 'Volume': 'Volumen',
   'Effects': 'Efectos', 'Music': 'Música', 'Graphics': 'Gráficos', 'Graphics quality': 'Calidad gráfica', 'High': 'Alta', 'Medium': 'Media', 'Low': 'Baja', 'Advertisement': 'Publicidad',
-  'Language': 'Idioma', 'Mall': 'Shopping', 'House': 'Casa', 'Office': 'Oficina',
+  'Language': 'Idioma', 'host': 'anfitrión', '{n} joined': '{n} entró', '{n} left': '{n} se fue', 'Mall': 'Shopping', 'House': 'Casa', 'Office': 'Oficina',
   // keybinds panel labels
   'Move forward': 'Avanzar', 'Move back': 'Retroceder', 'Move left': 'Izquierda', 'Move right': 'Derecha', 'Hold': 'Mantener', 'Match': 'Partida',
   'Pause, invite, settings': 'Pausa, invitar, ajustes', 'Become what you aim at': 'Convertirte en lo que apuntas', 'As a prop': 'Como objeto', 'Look around without turning': 'Mirar sin girar',

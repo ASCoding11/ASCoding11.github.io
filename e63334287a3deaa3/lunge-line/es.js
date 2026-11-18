@@ -80,6 +80,6 @@
     'Game': 'Juego', 'Sound on / off': 'Sonido sí / no', 'Pause, close': 'Pausa, cerrar',
     "Couldn’t reach the game database. A school or work network may be blocking it; try another network, or play the bot.": 'No se pudo llegar a la base de datos del juego. La red de la escuela o del trabajo puede estar bloqueándola; prueba otra red o juega contra el bot.',
     'Could not reach the game server. Check your connection, or play the bot.': 'No se pudo llegar al servidor del juego. Revisa tu conexión o juega contra el bot.',
-    'Signing in to the game server timed out. Check your connection.': 'Se agotó el tiempo para entrar al servidor. Revisa tu conexión.', 'Language': 'Idioma'
+    'Signing in to the game server timed out. Check your connection.': 'Se agotó el tiempo para entrar al servidor. Revisa tu conexión.', 'Language': 'Idioma', '{n} (you)': '{n} (tú)', '{n} stages': '{n} etapas', 'no throwing': 'sin lanzar', 'low gravity': 'gravedad baja', 'bouncing throws': 'lanzamientos con rebote', 'turbo': 'turbo', 'Random arenas': 'Arenas al azar', '{n} joined': '{n} entró', '{n} left': '{n} se fue'
   });
 })();

@@ -99,7 +99,7 @@ if (window.BackRoomLang) BackRoomLang.add({
   'That room is full ({n} players). Try another code.': 'Esa sala está llena ({n} jugadores). Prueba otro código.',
   'Invite link copied. Your friend opens it and enters the code to join.': 'Invitación copiada. Tu amigo la abre y pone el código para entrar.',
   // pause
-  'Language': 'Idioma', "I'm hidden, start the search": 'Ya me escondí, empieza la búsqueda',
+  'Language': 'Idioma', 'host': 'anfitrión', '{n} joined': '{n} entró', '{n} left': '{n} se fue', "I'm hidden, start the search": 'Ya me escondí, empieza la búsqueda',
   'Paused': 'Pausa', 'Resume': 'Seguir', 'Copy invite link': 'Copiar invitación', 'Back to lobby': 'Volver a la sala', 'Leave': 'Salir',
   'Hide practice · {m} · the clock is stopped': 'Práctica: esconderse · {m} · el reloj está parado',
   'Seek practice · {m} · the clock is stopped': 'Práctica: buscar · {m} · el reloj está parado',

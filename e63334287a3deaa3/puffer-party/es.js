@@ -51,5 +51,5 @@ if (window.BackRoomLang) BackRoomLang.add({
   'Pop!': '¡Pum!', "If the puffer is still swelling when your time runs out, it pops on you and you lose a life. Lose all three and you're out.": 'Si el pez sigue inflándose cuando se acaba tu tiempo, te explota y pierdes una vida. Si pierdes las tres, quedas fuera.',
   'Shorter fuses:': 'Mechas más cortas:', 'each answer makes the next turn a bit quicker. After a pop, the next round starts with a new category and the full fuse again.': 'cada respuesta hace el turno siguiente un poco más rápido. Después de una explosión, la ronda siguiente empieza con otra categoría y la mecha completa.',
   'Online:': 'Online:', 'Quick match, or a room code your friends type in (or the invite link). Bots can fill a small room. Solo practice plays against bots on this device.': 'Partida rápida, o un código de sala que tus amigos escriben (o la invitación). Los bots pueden completar una sala chica. La práctica solo es contra bots en este dispositivo.',
-  'Got it': 'Entendido', 'Language': 'Idioma'
+  'Got it': 'Entendido', 'Language': 'Idioma', 'host': 'anfitrión', '{n} joined': '{n} entró'
 });
