@@ -474,6 +474,7 @@ body.touch #net{font-size:14px}
           </select>
         </div>
         <label class="check"><input type="checkbox" id="showFaces" checked> Show other players’ drawn faces</label>
+        <label class="check"><input type="checkbox" id="editRelease" checked> Edit on release: hold Edit, sweep over the tiles, let go to confirm (off: tap Edit, pick tiles, Edit again)</label>
         <details class="ctrl">
           <summary>Controls</summary>
           <dl class="keys">
@@ -485,7 +486,7 @@ body.touch #net{font-size:14px}
             <div><dt data-kb="crowbar" data-kb-short data-kb-case="upper">V</dt><dd>Crowbar: hit trees, rocks and walls for scrap</dd></div>
             <div><dt data-kb="build" data-kb-short data-kb-case="upper">B</dt><dd>Build mode on and off (shows the build pieces)</dd></div>
             <div><dt data-kb="wall floor ramp" data-kb-short data-kb-case="upper">Q F C</dt><dd>Wall, floor, ramp (10 scrap each)</dd></div>
-            <div><dt data-kb="edit" data-kb-short data-kb-case="upper">H</dt><dd>Edit a build of yours: cut a door, a window or half of it (free)</dd></div>
+            <div><dt data-kb="edit" data-kb-short data-kb-case="upper">H</dt><dd>Edit a build of yours (free): hold, look across the tiles, let go; R while editing resets it</dd></div>
             <div><dt data-kb="use" data-kb-short data-kb-case="upper">G</dt><dd>Open a chest, pick up or swap</dd></div>
             <div><dt data-kb="reload" data-kb-short data-kb-case="upper">R</dt><dd>Reload</dd></div>
             <div><dt data-kb="map" data-kb-short data-kb-case="upper">M</dt><dd>Big map</dd></div>
@@ -495,7 +496,7 @@ body.touch #net{font-size:14px}
           <button class="ghost-btn" id="keysMenu" type="button">Change keys</button>
         </details>
       </div>
-      <p id="touchNote" class="note" hidden>On a phone? Turn it sideways for the best view. Tap the slots at the top to switch items, tap the scrap count to build, and tap the map to make it big. Aim at something you built and an Edit button appears: cut a door or a window in it.</p>
+      <p id="touchNote" class="note" hidden>On a phone? Turn it sideways for the best view. Tap the slots at the top to switch items, tap the scrap count to build, and tap the map to make it big. Aim at something you built and an Edit button appears: hold it, drag another finger over the tiles and let go to cut a door or a window.</p>
     </div>
   </section>
 
@@ -540,6 +541,7 @@ body.touch #net{font-size:14px}
       <div class="row"><button class="cta" id="resume" type="button">Resume</button><button class="ghost-btn" id="copyInvite" type="button" hidden>Copy invite link</button><button class="ghost-btn" id="keysPause" type="button">Controls</button><button class="ghost-btn" id="leave" type="button">Leave</button></div>
       <p class="msg" id="inviteMsg"></p>
       <label class="check"><input type="checkbox" id="showFacesP" checked> Show other players’ drawn faces</label>
+      <label class="check"><input type="checkbox" id="editReleaseP" checked> Edit on release</label>
     </div>
   </section>
 
@@ -2330,7 +2332,7 @@ function removePiece(pc,fx){
   if(fx){const c=pieceCentre(pc.spec);debris(c,0xc7955a,10);sfxBreak(1/(1+camera.position.distanceTo(c)*.07))}
 }
 function pieceCentre(s){const b=pieceBox(s);return new V3((b.min[0]+b.max[0])/2,(b.min[1]+b.max[1])/2,(b.min[2]+b.max[2])/2)}
-function clearPieces(){closeEdit();editJob=null;for(const pc of [...pieces.values()])removePiece(pc,false);bdGone.clear();bdDirty=true}
+function clearPieces(){closeEdit();for(const pc of [...pieces.values()])removePiece(pc,false);bdGone.clear();bdDirty=true}
 function damagePiece(pc,amt){
   if(!pc||!pieces.has(pc.key))return;
   pc.hp-=amt;if(pc.hp<=0){removePiece(pc,true);return}
@@ -4181,17 +4183,27 @@ function playerBuildSpec(type){
 }
 /* ---------- editing builds (Backrooms' edit, on Driftfall's pieces) ----------
    Aim at a build of yours (Driftfall has no teams, so "yours" is the ones you placed) from within EDIT_RANGE and press
-   Edit: the piece turns into its grid of tiles. Fire opens or closes the tile under the crosshair (hold and sweep for
-   several), Edit again confirms, Reload makes the piece whole again and Aim cancels. Nothing changes until you confirm,
-   and the change then takes EDIT_T seconds, during which you can't shoot or build, so an edit is never instant in a fight
-   (and you can't shoot while the grid is up). An edit costs no scrap. While you edit, only you see the grid: the tiles
-   that will be left are tinted panels and the cut ones are just outlines (three draw calls, in place of the piece's own). */
-const EDIT_RANGE=6,EDIT_T=.4;
-let edit=null,editJob=null,editAim=null,editAimT=0,editPaint=-1;
+   Edit: the piece turns into its grid of tiles. With Edit on release (a setting, on unless the player turns it off) you
+   hold Edit, the tiles the crosshair sweeps across are picked (Fire held does the same), and letting go of Edit confirms.
+   Off, or after a quick tap of Edit: Fire opens or closes the tile under the crosshair (hold and sweep for several) and
+   Edit again confirms. Either way Reload resets the piece to whole and Aim cancels; on a touch screen a finger put down on
+   the grid picks the tiles it touches. Nothing changes until you confirm, and then the new shape is there at once (and
+   sent as before); a Fire still held from picking tiles doesn't fire until it is let go. An edit costs no scrap. While
+   you edit, only you see the grid: the tiles that will be left are tinted panels and the cut ones are just outlines
+   (three draw calls, in place of the piece's own), and your own body is hidden so it doesn't cover the tiles. */
+const EDIT_RANGE=6,EDIT_TAP=.25;
+let edit=null,editAim=null,editAimT=0,editPaint=-1,editLatch=false,editFingers=0;
+// editHold: the edit being held open with Edit on release (when it opened, the shape it started from, what holds it: a
+// key code or 'touch', the tile picked as it opened and how many tiles changed since). A quick tap (under EDIT_TAP s) that
+// did no more than pick that first tile undoes it and leaves the grid open (Edit again confirms); a longer hold that
+// changed nothing cancels. The setting is saved as driftfall:editOnRelease ('1' / '0').
+let editRelease=store.get('editOnRelease','1')!=='0',editHold=null;
+let editHelp=store.get('editHelp','')==='1';   // the fuller help line has been shown (it goes after your first confirmed edit)
+function setEditRelease(on){editRelease=!!on;editHold=null;store.set('editOnRelease',editRelease?1:0);for(const el of [$('editRelease'),$('editReleaseP')])if(el)el.checked=editRelease;lastHud=''}
 const canEdit=pc=>!!pc&&pieces.has(pc.key)&&pc.owner!=null&&pc.owner===myId();
 const editGroup=new THREE.Group();editGroup.visible=false;scene.add(editGroup);
 const editFill=new THREE.Mesh(new THREE.BufferGeometry(),new THREE.MeshBasicMaterial({color:0x8fe8ff,transparent:true,opacity:.4,depthWrite:false,side:THREE.DoubleSide,fog:false,polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:1}));
-const editHot=new THREE.Mesh(new THREE.BufferGeometry(),new THREE.MeshBasicMaterial({color:0xffe27a,transparent:true,opacity:.5,depthWrite:false,side:THREE.DoubleSide,fog:false}));
+const editHot=new THREE.Mesh(new THREE.BufferGeometry(),new THREE.MeshBasicMaterial({color:0xffe27a,transparent:true,opacity:.6,depthWrite:false,side:THREE.DoubleSide,fog:false}));
 const editGrid=new THREE.LineSegments(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0xeaffff,transparent:true,opacity:.95,fog:false}));
 {const quads=n=>{const ix=[];for(let i=0;i<n;i++)ix.push(i*4,i*4+1,i*4+2,i*4,i*4+2,i*4+3);return ix};
   editFill.geometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array(9*12),3));editFill.geometry.setIndex(quads(9));
@@ -4215,81 +4227,132 @@ function editDraw(){
   editHot.visible=edit.hot>=0;
   if(edit.hot>=0){const hp=editHot.geometry.attributes.position;edQuad(s,edit.hot,hp.array,0);hp.needsUpdate=true}
 }
-// the tile the crosshair is on (-1: none): where the line of sight meets the piece's own plane, cut tiles included
-function editTile(){
-  const s=edit.pc.spec,n=ED_N[s.kind],q=4/n,o=camera.position,d=fwdOf(player.yaw,player.pitch);let u,v,k;
-  if(s.kind==='wall'){
-    const H_=s.o==='H',dn=H_?d.z:d.x;if(Math.abs(dn)<1e-6)return -1;
-    k=((H_?s.z*4-o.z:s.x*4-o.x))/dn;if(k<0)return -1;
-    u=((H_?o.x+d.x*k-s.x*4:o.z+d.z*k-s.z*4))/q;v=(o.y+d.y*k-s.L*4)/q;
-  }else if(s.kind==='floor'){
-    if(Math.abs(d.y)<1e-6)return -1;k=(s.L*4-o.y)/d.y;if(k<0)return -1;
-    u=(o.x+d.x*k-s.x*4)/q;v=(o.z+d.z*k-s.z*4)/q;
-  }else{
-    k=rayRamp(arr(o),arr(d),edit.frame,60);if(k<0)return -1;
-    const x=o.x+d.x*k,z=o.z+d.z*k;u=rampT(edit.frame,x,z)*n;v=(s.dir%2===0?z-s.z*4:x-s.x*4)/q;
-  }
-  u=Math.floor(u);v=Math.floor(v);return u<0||v<0||u>=n||v>=n?-1:v*n+u;
+// The tile a line of sight from o along d points at (-1: none): where it meets the grid's own plane (the middle of a
+// wall, the top of a floor or a ramp), cut tiles included. A point just off the grid's edge (EDIT_EDGE of a tile) counts
+// as the edge tile, so a wall's bottom row or a floor's rim is still easy to pick up close.
+const EDIT_EDGE=.35,edA=new V3(),edU=new V3(),edW=new V3(),edN=new V3(),edR=new V3();
+function edTileAt(o,d){
+  const s=edit.pc.spec,n=ED_N[s.kind];
+  edA.copy(edPoint(s,0,0));edU.copy(edPoint(s,n,0)).sub(edA);edW.copy(edPoint(s,0,n)).sub(edA);
+  edN.crossVectors(edU,edW);const dn=edN.dot(d);if(Math.abs(dn)<1e-6)return -1;
+  const k=edN.dot(edR.copy(edA).sub(o))/dn;if(k<0)return -1;
+  edR.copy(o).addScaledVector(d,k).sub(edA);
+  let u=edR.dot(edU)/edU.lengthSq()*n,v=edR.dot(edW)/edW.lengthSq()*n;
+  if(u<-EDIT_EDGE||v<-EDIT_EDGE||u>n+EDIT_EDGE||v>n+EDIT_EDGE)return -1;
+  u=clamp(Math.floor(u),0,n-1);v=clamp(Math.floor(v),0,n-1);return v*n+u;
 }
-// the build the crosshair is on, if it is close enough to edit (measured from you, not from the camera behind you)
+// the tile the crosshair is on
+function editTile(){return edTileAt(camera.position,fwdOf(player.yaw,player.pitch))}
+// a screen point (a finger on a touch screen) as a line of sight from the camera
+const edF=new V3();
+function screenRay(x,y){const r=view.getBoundingClientRect();return edF.set((x-r.left)/r.width*2-1,-(y-r.top)/r.height*2+1,.5).unproject(camera).sub(camera.position).normalize()}
+// the build the crosshair is on, if it is close enough to edit (measured from you, not from the camera behind you).
+// Generous up close: when the line of sight itself finds none of yours (an edge, a seam, the floor at your feet), a few
+// lines just around it are tried (EDIT_FAN, radians).
+const EDIT_FAN=[[.06,0],[-.06,0],[0,.06],[0,-.06],[.13,0],[-.13,0],[0,.13],[0,-.13]];
 function editTarget(){
   if(!player.alive||player.st!=='ground')return null;
-  const d=fwdOf(player.yaw,player.pitch),st=camera.position.clone().addScaledVector(d,camDist);
-  const r=raycast(arr(st),arr(d),EDIT_RANGE,player,false);
-  return r.hit&&r.hit.kind==='piece'?r.hit.piece:null;
+  const f=fwdOf(player.yaw,player.pitch),st=camera.position.clone().addScaledVector(f,camDist);
+  const one=d=>{const r=raycast(arr(st),arr(d),EDIT_RANGE,player,false);return r.hit&&r.hit.kind==='piece'?r.hit.piece:null};
+  const pc=one(f);if(pc)return pc;
+  for(const [a,b] of EDIT_FAN){const q=one(fwdOf(player.yaw+a,clamp(player.pitch+b,-1.5,1.5)));if(canEdit(q))return q}
+  return null;
 }
-// quiet: say nothing when there is nothing to edit (the Open / Take key doubles as Edit when nothing is in reach)
-function openEdit(quiet){
-  if(edit||editJob||!canLook())return false;
+// A name for the shape the tiles make, shown while you edit (only a guide: any set of tiles that leaves one is allowed).
+// Wall bits: v*3+u, v=0 the bottom row; floor and ramp: v*2+u, a ramp's u=0 the low half.
+function edName(k,m){
+  if(!m)return 'Whole';
+  const c=(m.toString(2).match(/1/g)||[]).length;
+  if(k==='wall'){
+    const W={18:'Door',9:'Door',36:'Door',27:'Wide door',54:'Wide door',146:'Tall door',73:'Side gap',292:'Side gap',23:'Arch',16:'Window',56:'Wide window',448:'Half wall',504:'Low wall',7:'Gap underneath',63:'High wall',511:'Gone'};
+    if(W[m])return W[m];
+    if(!(m&7))return c===1?'Window':'Windows';
+    return c+' tiles open';
+  }
+  if(k==='floor')return c===1?'Hole':c===3?'Corner':(m===5||m===10||m===3||m===12)?'Half floor':'Two holes';
+  return m===5?'Top half':m===10?'Bottom half':(m===3||m===12)?'Narrow ramp':c===1?'Ramp with a gap':c===3?'Ramp corner':'Two gaps';
+}
+// Open the grid on the build you're aiming at. quiet: say nothing when there is nothing to edit (the Open / Take key
+// doubles as Edit when nothing is in reach). hold: what holds it open with Edit on release (a key code or 'touch').
+function openEdit(quiet,hold){
+  if(edit||!canLook())return false;
   const pc=editTarget();
   if(!pc){if(!quiet)hint2('Aim at a build of yours, up close');return false}
   if(!canEdit(pc)){if(!quiet)hint2('That build is someone else’s');return false}
   const s=pc.spec,n=ED_N[s.kind],gp=editGrid.geometry.attributes.position;
-  edit={pc,mask:pc.ed,hot:-1,frame:s.kind==='ramp'?pieceShape(s,0).rps[0]:null};
+  edit={pc,mask:pc.ed,hot:-1};
   for(let i=0;i<n*n;i++){const u=i%n,v=Math.floor(i/n);[[u,v],[u+1,v],[u+1,v],[u+1,v+1],[u+1,v+1],[u,v+1],[u,v+1],[u,v]].forEach(([a,b],k)=>{const p=edPoint(s,a,b);gp.setXYZ(i*8+k,p.x,p.y,p.z)})}
   gp.needsUpdate=true;editGrid.geometry.setDrawRange(0,n*n*8);
   mode='edit';editPaint=-1;editAim=null;player.reloadT=0;player.useT=0;tAct.aim=false;lastHud='';
-  pc.hide=true;redraw(pc);editGroup.visible=true;editDraw();
+  pc.hide=true;redraw(pc);editGroup.visible=true;edit.hot=editTile();
+  tone('sine',660,990,.03,.05);
+  editHold=editRelease&&hold?{t0:performance.now(),mask0:edit.mask,code:hold,auto:-1,n:0}:null;
+  // holding Edit picks tiles straight away, starting with the one under the crosshair (a finger does it on a touch screen)
+  if(editHold&&hold!=='touch'&&edit.hot>=0){editHold.auto=edit.hot;paintTile(edit.hot);editHold.n=0}
+  editDraw();
   return true;
 }
 function closeEdit(){
+  editHold=null;editFingers=0;
   if(!edit)return;
   const pc=edit.pc;pc.hide=false;if(pieces.has(pc.key))redraw(pc);
   edit=null;editGroup.visible=false;if(mode==='edit')mode='combat';lastHud='';
+  editLatch=true;   // Fire held from picking tiles doesn't fire until it's let go
 }
-// whole: put it back as built. The change itself lands EDIT_T seconds later (see updateEdit).
+// Open or close one tile: the first tile of a stroke decides which (an uncut tile starts a stroke that cuts).
+function paintTile(i){
+  if(!edit||i<0)return;
+  if(editPaint<0)editPaint=edit.mask>>i&1?0:1;
+  if((edit.mask>>i&1)===editPaint)return;
+  edit.mask^=1<<i;if(editHold)editHold.n++;editDraw();
+  tone('square',editPaint?520:700,editPaint?400:820,.035,.05);
+}
+// Confirm (whole: reset the piece to whole). The new shape is in place at once, here and (sent as before) in the room.
 function confirmEdit(whole){
   if(!edit)return;
   const pc=edit.pc,m=whole?0:edit.mask;
-  if(!edOk(pc.kind,m)){hint2('Leave at least one tile');return}
+  if(!edOk(pc.kind,m)){hint2('Leave at least one tile');editHold=null;lastHud='';return}
   closeEdit();
   if(m===pc.ed)return;
-  editJob={pc,mask:m,t:EDIT_T};player.cd=Math.max(player.cd,EDIT_T);buildCd=Math.max(buildCd,EDIT_T);
+  // the trap rule, as for a new piece: tiles are not put back onto someone here who can't simply be nudged clear
+  const sh=pieceShape(pc.spec,m);
+  if(wouldTrap(sh.boxes,sh.rps)){hint2('Someone is standing in the way');return}
+  if(editPiece(pc,m))sendEv({k:'b',s:pc.spec,ed:pc.ed,n:pc.en},player);   // an edit travels as the build message for that spot again, with ed (the tiles cut out) and n (which edit of the piece it is)
+  if(!editHelp){editHelp=true;store.set('editHelp','1')}
 }
-function editKey(){if(edit)confirmEdit(false);else openEdit(false)}
-// every frame: an edit (or one about to land) is dropped if you are no longer playing, or its piece is gone
+// Edit pressed: open the grid, or (when it's open and not being held) confirm. code: the key, or 'touch'.
+function editKey(code){if(edit){if(!editHold)confirmEdit(false)}else openEdit(false,code||'key')}
+// Edit let go (key, mouse button or the touch button): with Edit on release, confirm the held edit
+function editKeyUp(code){
+  const h=editHold;
+  if(!h||!edit||(code&&h.code!==code))return;
+  editHold=null;lastHud='';
+  if((performance.now()-h.t0)/1000<EDIT_TAP&&h.n===0){if(edit.mask!==h.mask0){edit.mask=h.mask0;editDraw()}editPaint=-1}   // a tap: the grid stays open
+  else if(edit.mask!==h.mask0)confirmEdit(false);
+  else closeEdit();
+}
+// A finger on a touch screen while editing: put down on the grid, it picks the tiles it passes over (and doesn't turn
+// the view); put down anywhere else, it turns the view as usual.
+function editFingerDown(e){
+  if(!edit||mode!=='edit')return false;
+  const i=edTileAt(camera.position,screenRay(e.clientX,e.clientY));if(i<0)return false;
+  editFingers++;paintTile(i);return true;
+}
+function editFingerMove(e){if(edit)paintTile(edTileAt(camera.position,screenRay(e.clientX,e.clientY)))}
+function editFingerUp(){editFingers=Math.max(0,editFingers-1);if(!editFingers&&!firing()&&!editHold)editPaint=-1}
+// every frame: an edit is dropped if you are no longer playing, or its piece is gone
 function editGuard(){
-  if(!edit&&!editJob)return;
+  if(!edit)return;
   const live=canLook()&&player.st==='ground';
-  if(edit&&!(live&&mode==='edit'&&!bigMap&&pieces.has(edit.pc.key)&&pieceCentre(edit.pc.spec).distanceTo(player.pos)<EDIT_RANGE+4))closeEdit();
-  if(editJob&&!(live&&pieces.has(editJob.pc.key)))editJob=null;
+  if(!(live&&mode==='edit'&&!bigMap&&pieces.has(edit.pc.key)&&pieceCentre(edit.pc.spec).distanceTo(player.pos)<EDIT_RANGE+4))closeEdit();
 }
 function updateEdit(dt){
-  if(editJob&&(editJob.t-=dt)<=0){
-    const j=editJob,pc=j.pc;editJob=null;
-    // the trap rule, as for a new piece: tiles are not put back onto someone here who can't simply be nudged clear
-    const sh=pieceShape(pc.spec,j.mask);
-    if(wouldTrap(sh.boxes,sh.rps))hint2('Someone is standing in the way');
-    else if(editPiece(pc,j.mask))sendEv({k:'b',s:pc.spec,ed:pc.ed,n:pc.en},player);   // an edit travels as the build message for that spot again, with ed (the tiles cut out) and n (which edit of the piece it is)
-  }
+  if(editLatch&&!firing())editLatch=false;
   if(edit){
-    const i=editTile();let dirty=i!==edit.hot;edit.hot=i;
-    if(!firing())editPaint=-1;
-    else if(i>=0){
-      if(editPaint<0)editPaint=edit.mask>>i&1?0:1;
-      if((edit.mask>>i&1)!==editPaint){edit.mask^=1<<i;dirty=true;tone('square',editPaint?520:700,editPaint?400:820,.035,.05)}
-    }
-    if(dirty)editDraw();
+    const i=editTile();if(i!==edit.hot){edit.hot=i;editDraw()}
+    // the crosshair picks tiles while Fire is held, or Edit is (with a key: on a touch screen a finger does it)
+    if(firing()||(editHold&&editHold.code!=='touch')){const m=edit.mask;paintTile(i);if(edit.mask!==m)lastHud='';if(editHold&&i!==editHold.auto&&i>=0)editHold.n=Math.max(editHold.n,1)}
+    else if(!editFingers)editPaint=-1;
   }else if(mode==='combat'&&pieces.size){
     // a few times a second: is the crosshair on a build of yours? (the hint, and the Edit button on a touch screen)
     if((editAimT-=dt)<=0){editAimT=.12;const t=editTarget();editAim=canEdit(t)?t:null}
@@ -4318,7 +4381,7 @@ function updatePlayer(dt){
   p.vel.x+=(ix*spd-p.vel.x)*k;p.vel.z+=(iz*spd-p.vel.z)*k;
   if(jumpNow&&p.onGround){p.vel.y=JUMP;p.onGround=false}
   moveEntity(p,dt);
-  if(input&&mode==='combat'&&firing())useHeld(p);
+  if(input&&mode==='combat'&&firing()&&!editLatch)useHeld(p);
   const s=heldItem(p),w=heldW(p);if(w&&s.n===0&&p.cd<=0&&p.reloadT<=0)startReload(p);
   autoPickup(p,dt);
   buildCd-=dt;hideGhosts();updateEdit(input?dt:0);
@@ -4921,10 +4984,22 @@ function slotLabel(s){if(!s)return[touchUI?'–':'Empty',''];const d=WEAP[s.t]||
 function fitSlotName(el,it){if(it&&WEAP[it.t]&&el.scrollWidth>el.clientWidth+.5)el.textContent=WEAP[it.t].short}
 addEventListener('resize',()=>{lastHud=''});   // the slots change size with the screen: fit the names again
 let tagClock=0;const _tag=new V3(),_tagD=new V3();
+// The line of help while editing: the shape so far, then what to do next. The first time (until your first edit is
+// confirmed) it says it all in full.
+function editHintText(){
+  const kn=a=>{const c=KB.keys(a)[0];return c?(c==='Mouse0'?'click':KB.name(c).toUpperCase()):''};
+  const nm=edName(edit.pc.spec.kind,edit.mask),fire=kn('fire')||'Fire',ek=kn('edit')||'Edit',rk=kn('reload')||'Reload',ak=kn('aim')||'Aim';
+  if(touchUI)return editHold?(editHelp?nm+' · drag over the tiles · let go of Edit':'Keep holding Edit and drag a finger over the tiles you want open, then let go of Edit. Reset makes it whole.')
+    :(editHelp?nm+' · tap tiles · Done · Reset':'Tap the tiles you want open (or aim and press Tile), then Done. Reset makes it whole, Cancel leaves it.');
+  if(editHold)return editHelp?nm+' · sweep the tiles · let go of '+ek+' · '+rk+' reset'
+    :'Keep holding '+ek+' and look across the tiles you want open, then let go to confirm. '+rk+' resets it to whole.';
+  return editHelp?nm+' · '+fire+' tiles · '+ek+' done · '+rk+' reset · '+ak+' cancel'
+    :(fire==='click'?'Click':fire)+' the tiles you want open (hold and sweep for several), then '+ek+' to confirm. '+rk+' resets it to whole, '+ak+' cancels.';
+}
 function updateHud(dt){
   const p=player,t=matchT(),S=stormAt(t),w=heldW(p),s=heldItem(p);
   const reach=reachable(p);
-  const key=[Math.ceil(p.hp),Math.ceil(p.sh),p.sel,mode,buildType,p.mats,p.inv.map(x=>x?x.t+x.r+x.n:'-').join(','),p.reloadT>0,w?p.ammo[w.am]:0,p.useT>0].join('|');
+  const key=[Math.ceil(p.hp),Math.ceil(p.sh),p.sel,mode,buildType,p.mats,p.inv.map(x=>x?x.t+x.r+x.n:'-').join(','),p.reloadT>0,w?p.ammo[w.am]:0,p.useT>0,edit?edit.mask:-1,editHold?1:0,editHelp,editRelease].join('|');
   if(key!==lastHud){lastHud=key;
     hud.hpN.textContent=Math.max(0,Math.ceil(p.hp));hud.hpF.style.width=Math.max(0,p.hp)+'%';
     hud.shN.textContent=Math.ceil(p.sh);hud.shF.style.width=p.sh+'%';if(hud.mats._n!==p.mats){const up=hud.mats._n!=null;hud.mats._n=p.mats;hud.mats.textContent=p.mats;if(up&&!RM&&hud.mats.animate)hud.mats.animate([{transform:'scale(1.35)'},{transform:'scale(1)'}],{duration:280,easing:'ease-out'})}hud.matsBox.classList.toggle('low',p.mats<COST);hud.slots.classList.toggle('building',mode==='build');hudSet(hud.matsNm,'#mn',touchUI?(mode==='build'?'Done':'Build'):'Scrap');   // (the count jumps a little when it changes)
@@ -4936,7 +5011,7 @@ function updateHud(dt){
     for(const k of ['wall','floor','ramp']){const el=$('slot'+k);el.classList.toggle('on',mode==='build'&&buildType===k);slotIcon(el,k);el.classList.toggle('cant',p.mats<COST)}
     hud.ammo.innerHTML=w?`<span class="wn" style="color:${RARH[s.r|0]}">${RAR[s.r|0]} ${w.name}</span><span><b>${s.n}</b><small> / ${p.ammo[w.am]}</small></span>`:'';hud.ammo.hidden=!w;if(w)hud.ammo.classList.toggle('low',s.n<=Math.max(1,w.mag*.25));
     hud.hint.hidden=mode==='combat';if(mode==='build')hud.hint.textContent='Build · '+buildType+(p.mats<COST?' · needs '+COST+' scrap':touchUI?' · hold Place':' · hold to place');
-    else if(mode==='edit'){const kn=a=>KB.name(KB.keys(a)[0]||'').toUpperCase();hud.hint.textContent=touchUI?'Edit · Tile cuts or fills · Done':'Edit · click tiles · '+kn('edit')+' done · '+kn('reload')+' whole · '+kn('aim')+' cancel'}
+    else if(mode==='edit'&&edit)hud.hint.textContent=editHintText();
   }
   hud.reload.hidden=!(p.reloadT>0);if(p.reloadT>0&&w)hud.reloadF.style.width=(100*(1-p.reloadT/wReload(w,s.r)))+'%';
   hud.useBar.hidden=!(p.useT>0);if(p.useT>0){const it=p.inv[p.useSlot];if(it&&HEALS[it.t]){hud.useLbl.textContent='Using '+HEALS[it.t].name;hud.useFill.style.width=(100*(1-p.useT/HEALS[it.t].use))+'%'}}
@@ -4947,10 +5022,10 @@ function updateHud(dt){
     if(reach.c){pr=k+'Open chest';tl='OPEN'}
     else{const it=reach.it,nm=(WEAP[it.t]?RAR[it.r|0]+' ':'')+itemName(it.t)+(it.n>1&&!WEAP[it.t]?' ×'+it.n:'');const take=canTake(p,it);pr=k+(take?'Take ':'Swap for ')+`<span style="color:${WEAP[it.t]?RARH[it.r|0]:'inherit'}">${esc(nm)}</span>`;tl=take?'TAKE':'SWAP'}
   }
-  else if(editAim&&mode==='combat'&&!lobbyShown&&!touchUI)pr=`<kbd>${esc(KB.name(KB.keys('edit')[0]||KB.keys('use')[0]||''))}</kbd>Edit`;   // the crosshair is on a build of yours
+  else if(editAim&&mode==='combat'&&!lobbyShown&&!touchUI)pr=`<kbd>${esc(KB.name(KB.keys('edit')[0]||KB.keys('use')[0]||''))}</kbd>${editRelease?'Hold to edit':'Edit'}`;   // the crosshair is on a build of yours
   hud.prompt.hidden=!pr;if(pr&&hud.prompt.innerHTML!==pr)hud.prompt.innerHTML=pr;
   if(touchUI){const u=$('tUse');u.hidden=!tl;if(tl&&u.textContent!==tl)u.textContent=tl;const ed=mode==='edit';
-    hudSet($('tFire'),'#tf',ed?'TILE':mode==='build'?'PLACE':(s&&HEALS[s.t]?'USE':!w?'HIT':'FIRE'));hudSet($('tEdit'),'#te',ed?'DONE':'EDIT');hudSet($('tReload'),'#tr',ed?'WHOLE':'RELOAD');hudSet($('tAim'),'#ta',ed?'CANCEL':'AIM');
+    hudSet($('tFire'),'#tf',ed?'TILE':mode==='build'?'PLACE':(s&&HEALS[s.t]?'USE':!w?'HIT':'FIRE'));hudSet($('tEdit'),'#te',ed&&!editHold?'DONE':'EDIT');hudSet($('tReload'),'#tr',ed?'RESET':'RELOAD');hudSet($('tAim'),'#ta',ed?'CANCEL':'AIM');
     const te=$('tEdit'),sh=ed||(!!editAim&&mode==='combat');if(te.hidden===sh)te.hidden=!sh;$('tAim').classList.toggle('on',!!tAct.aim)}
   const ads=isADS(),scoped=!!(ads&&w&&w.fam==='sr');
   if(hudLast.get('scp')!==scoped){hudLast.set('scp',scoped);hud.scope.hidden=!scoped;if(scoped)hud.scopeR.innerHTML=SNIPER_RET}
@@ -5326,7 +5401,7 @@ function updateCamera(dt){
   camera.lookAt(_cl.copy(pivot).addScaledVector(f,20));
   // a crowbar hit of yours: a small shake for about a sixth of a second (not with reduced motion)
   if(self&&shakeAt){const st=(performance.now()-shakeAt)/1000;if(st>.17)shakeAt=0;else if(st>=0&&!RM){const a=(1-st/.17)*.045;camera.position.x+=(Math.random()-.5)*a;camera.position.y+=(Math.random()-.5)*a;camera.position.z+=(Math.random()-.5)*a}}
-  if(self)player.model.visible=player.alive?camDist>.9&&!(ads&&w&&!w.ad):player.dieT<=2.2;
+  if(self)player.model.visible=player.alive?camDist>.9&&!(ads&&w&&!w.ad)&&mode!=='edit':player.dieT<=2.2;
 }
 function updateWorldFx(){
   const ip=inPlay();
@@ -5429,7 +5504,7 @@ const KB=Keybinds.create({
     {id:'wall',label:'Build a wall',group:'Build',keys:['KeyQ','KeyZ']},
     {id:'floor',label:'Build a floor',group:'Build',keys:['KeyF','KeyX']},
     {id:'ramp',label:'Build a ramp',group:'Build',keys:['KeyC','KeyE']},
-    {id:'edit',label:'Edit a build of yours',note:'Aim at it up close: tiles appear. Fire opens or closes a tile, Edit again confirms, Reload makes it whole, Aim cancels. Open / pick up does it too when nothing is in reach',group:'Build',keys:['KeyH']},
+    {id:'edit',label:'Edit a build of yours',note:'Aim at it up close. Hold, look across the tiles, let go to confirm (Edit on release; off, or a quick tap: Fire picks tiles, Edit again confirms). Reload resets it, Aim cancels. Open / pick up does it too when nothing is in reach',group:'Build',keys:['KeyH']},
     {id:'map',label:'Big map',group:'Match',keys:['KeyM']},
     {id:'lookUp',label:'Look up',group:LOOK,keys:['ArrowUp']},
     {id:'lookDown',label:'Look down',group:LOOK,keys:['ArrowDown']},
@@ -5443,7 +5518,7 @@ const KB=Keybinds.create({
 const keys=new Set(),tAct={};
 const held=id=>!!tAct[id]||KB.held(id,keys);
 const firing=()=>lmb||!!tAct.fire;
-function clearInput(){lmb=false;keys.clear();for(const k in tAct)tAct[k]=false}
+function clearInput(){lmb=false;keys.clear();for(const k in tAct)tAct[k]=false;editHold=null}
 const view=renderer.domElement;
 let lockFromClick=false;
 function requestLock(fromClick){
@@ -5489,16 +5564,16 @@ function pressCode(c,key,repeat){
   else if(KB.is('crowbar',c)){selectSlot(player,-1);mode='combat'}
   else if(bi>=0&&player.st==='ground'){mode='build';buildType=BUILDS[bi];player.reloadT=0;player.useT=0;lastHud=''}
   else if(KB.is('build',c)&&!repeat)toggleBuild();
-  else if(KB.is('edit',c)){if(!repeat)editKey()}
+  else if(KB.is('edit',c)){if(!repeat)editKey(c)}
   else if(KB.is('aim',c)&&mode==='edit'){if(!repeat)closeEdit()}
   else if(key&&KB.is('aim',c)&&mode==='build'&&!repeat){mode='combat';lastHud=''}
   else if(KB.is('reload',c)&&mode==='edit'){if(!repeat)confirmEdit(true)}
   else if(KB.is('reload',c)&&mode==='combat')startReload(player);
-  else if(KB.is('use',c)&&!repeat){if(edit)confirmEdit(false);else if(reachable(player)||!openEdit(true))interact(player)}   // Open / Take, or Edit when nothing is in reach
+  else if(KB.is('use',c)&&!repeat){if(edit){if(!editHold)confirmEdit(false)}else if(reachable(player)||!openEdit(true,c))interact(player)}   // Open / Take, or Edit when nothing is in reach
   else if(c==='Escape'){if(bigMap)setBigMap(false);else if(!locked)pauseGame()}
   else if(KB.is('pause',c))pauseGame();
 }
-function releaseCode(c){keys.delete(c);if(KB.is('fire',c)&&!KB.held('fire',keys))lmb=false}
+function releaseCode(c){keys.delete(c);if(KB.is('fire',c)&&!KB.held('fire',keys))lmb=false;if(editHold&&editHold.code===c)editKeyUp(c)}
 addEventListener('keydown',e=>{
   if(e.target&&e.target.closest&&e.target.closest('input,textarea,select,[contenteditable]'))return;
   if(state!=='playing'||paused||KB.busy())return;
@@ -5519,11 +5594,12 @@ function setTouchUI(on){touchUI=on;document.body.classList.toggle('touch',on);$(
 addEventListener('pointerdown',e=>{if(e.pointerType==='touch'&&!touchUI)setTouchUI(true)},true);
 const canAct=()=>canLook();
 function touchLook(dx,dy){if(!canAct())return;const k=.0042*sens*(camera.fov/72);player.yaw-=dx*k;player.pitch=clamp(player.pitch-dy*k,-1.45,1.45)}
+// While editing, a finger put down on the grid picks tiles instead (editFingerDown).
 function dragLook(el){
-  const pts=new Map();
-  el.addEventListener('pointerdown',e=>{e.preventDefault();pts.set(e.pointerId,[e.clientX,e.clientY]);try{el.setPointerCapture(e.pointerId)}catch(_){}});
-  el.addEventListener('pointermove',e=>{const q=pts.get(e.pointerId);if(!q)return;touchLook(e.clientX-q[0],e.clientY-q[1]);q[0]=e.clientX;q[1]=e.clientY});
-  const end=e=>pts.delete(e.pointerId);
+  const pts=new Map(),paint=el.id==='tLook';
+  el.addEventListener('pointerdown',e=>{e.preventDefault();pts.set(e.pointerId,[e.clientX,e.clientY,paint&&editFingerDown(e)]);try{el.setPointerCapture(e.pointerId)}catch(_){}});
+  el.addEventListener('pointermove',e=>{const q=pts.get(e.pointerId);if(!q)return;if(q[2])editFingerMove(e);else touchLook(e.clientX-q[0],e.clientY-q[1]);q[0]=e.clientX;q[1]=e.clientY});
+  const end=e=>{const q=pts.get(e.pointerId);if(q&&q[2])editFingerUp();pts.delete(e.pointerId)};
   el.addEventListener('pointerup',end);el.addEventListener('pointercancel',end);
 }
 dragLook($('tLook'));dragLook($('tFire'));
@@ -5546,8 +5622,9 @@ tButton($('tFire'),()=>{if(canAct())tAct.fire=true},()=>{tAct.fire=false});
 tButton($('tJump'),()=>{if(canAct())tAct.jump=true},()=>{tAct.jump=false});
 tButton($('tAim'),()=>{if(!canAct())return;if(mode==='edit'){closeEdit();return}tAct.aim=!tAct.aim;if(tAct.aim)mode='combat'},()=>{$('tAim').classList.toggle('on',!!tAct.aim)});
 tButton($('tReload'),()=>{if(!canAct())return;if(mode==='edit')confirmEdit(true);else if(mode==='combat')startReload(player)});
-// Edit: shown when the crosshair is on a build of yours; while editing it reads Done (and Fire reads Tile, Reload Whole, Aim Cancel)
-tButton($('tEdit'),()=>{if(canAct())editKey()});
+// Edit: shown when the crosshair is on a build of yours. Hold it and drag another finger over the tiles, let go to confirm
+// (Edit on release); after a tap, or with the setting off, it reads Done (and Fire reads Tile, Reload Reset, Aim Cancel).
+tButton($('tEdit'),()=>{if(canAct())editKey('touch')},()=>editKeyUp('touch'));
 tButton($('tUse'),()=>{if(canAct())interact(player)});
 tButton($('tPause'),()=>{tAct.aim=false;pauseGame()});
 tButton($('tNext'),()=>{if(isSpectating())cycleSpectate()});
@@ -5595,6 +5672,7 @@ async function quickMatch(){
 const sensEl=$('sens');
 {const ge=$('gfx');ge.value=gfxPref;ge.addEventListener('change',()=>{gfxPref=ge.value==='fast'?'fast':'auto';store.set('gfx',gfxPref);if(gfxPref==='auto'){fxTier=1;fxMax=2}})}
 function setSens(v){sens=v;sensEl.value=v;$('sensOut').textContent=v.toFixed(2);store.set('sens',v)}
+for(const el of [$('editRelease'),$('editReleaseP')]){el.checked=editRelease;el.addEventListener('change',()=>setEditRelease(el.checked))}
 sensEl.addEventListener('input',()=>setSens(parseFloat(sensEl.value)));
 const nameEl=$('name');nameEl.value=myName;
 nameEl.addEventListener('input',()=>{myName=nameEl.value.replace(/[<>]/g,'').trim().slice(0,16)||'Glider';store.set('name',myName)});
@@ -5842,7 +5920,7 @@ if(navigator.webdriver)window.__dz={get state(){return state},get online(){retur
   setNoRender(v){window.__noRender=!!v},onNode,updateRemotes,renderOnce(){piecesTick(0);mpFlush();syncLimbs();drawScene()},get fxTier(){return fxTier},set fxTier(v){fxTier=v},get lookKey(){return lookKey},mpieces,mpBreak,mpSetHp,resetMap,mpAt,allRuns,brokenBits,applyBits,sendEv,get brokenN(){return brokenN},hash,setMapV(v){mapV=v},get mapV(){return mapV},mapSize:MAP,ICONS,paintControl,get mapBg(){if(!mapBg)buildMapBg();return mapBg},removePiece,wallSpec,pushOut,SPEED,AIR,BODY:{R,H},buildings,rampIn,updateBots,updatePlayer,
   GUN_GEO,GUN_TIP,GUN_OCT,RTAG,RET,SNIPER_RET,SCOPE,killFeed,MAT,gunIM,itemIM,flashes,trs,bits,animModel,gunTip,startReload,tickWeapon,sfxShot,sfxReload,sfxPump,sfxBolt,sfxSwitch,isADS,KICK,
   STUCK_LOG,landPath,landClear,navShut,NAVN,updateBots,updatePlayer,step(dt){pClock+=dt*1000;practiceTick(dt);if(inPlay()){updatePlayer(dt);updateBots(dt)}},
-  landOk,landFit,landUnder,skirtOf,skirtList,pieceBox,buildList,applyBuilds,handleEvent,get bdDirty(){return bdDirty},bdGone,ED_N,edRects,edOk,pieceShape,partsOf,partList,partIM,pieceInst,editPiece,wouldTrap,openEdit,closeEdit,confirmEdit,editKey,editTarget,editTile,updateEdit,canEdit,pieceMatrix,pieceCentre,EDIT_T,EDIT_RANGE,pressCode,get edit(){return edit},get editJob(){return editJob},get editAim(){return editAim},get buildCd(){return buildCd},rampH,rampAt,rampBlocked,solidAt,rayRamp,rhash,COST,JUMP,GRAV:G,STEP,RT,MAXL,terrainH,walkH,terrainSlope,rayTerrain,TH,TN,TS,TM,LVL,LAKE,PADS,SHED_Y,chestSpots,floorSpots,buildings,footprints,get groundMesh(){return groundMesh},
+  landOk,landFit,landUnder,skirtOf,skirtList,pieceBox,buildList,applyBuilds,handleEvent,get bdDirty(){return bdDirty},bdGone,ED_N,edRects,edOk,pieceShape,partsOf,partList,partIM,pieceInst,editPiece,wouldTrap,openEdit,closeEdit,confirmEdit,editKey,editKeyUp,editTarget,editTile,edTileAt,edPoint,edName,screenRay,setEditRelease,get editRelease(){return editRelease},get editHold(){return editHold},get editLatch(){return editLatch},get editHelp(){return editHelp},set editHelp(v){editHelp=!!v},updateEdit,canEdit,pieceMatrix,pieceCentre,EDIT_TAP,EDIT_RANGE,pressCode,get edit(){return edit},get editAim(){return editAim},get buildCd(){return buildCd},rampH,rampAt,rampBlocked,solidAt,rayRamp,rhash,COST,JUMP,GRAV:G,STEP,RT,MAXL,terrainH,walkH,terrainSlope,rayTerrain,TH,TN,TS,TM,LVL,LAKE,PADS,SHED_Y,chestSpots,floorSpots,buildings,footprints,get groundMesh(){return groundMesh},
   Face,FACE_STARTS,FACE0,faceOf,faceBits,faceStr,faceRows,faceSpot,faceZ,bagFace,setShowFaces,NOOB,get myFace(){return myFace},get showFaces(){return showFaces},
   Locker,get LOCKER_ON(){return lockerOn()},lockerSync,OUTFITS,bodyGeo,LEG_GEO,legIM,fitLegIM,fitLegGeo,makeModel,setModelColor,legSpec,STD_LEGS,fitOf,hitboxes,POSES,SWING,posePut,heldFollow,GLIDER_GEO,bodyRig,ARM_H,ARM_E,ARM_P,armIK,get windN(){return windIM.count},TKON,PCOLS,SKINS,get mySkin(){return mySkin},Plane,get droneV(){return droneV}};
 
