@@ -484,7 +484,7 @@ function drawBuild(g,k){
     g.fillStyle='rgba(222,206,160,.9)';g.fillRect(S*.42,0,S*.17,S);g.fillStyle='rgba(255,255,255,.18)';for(let y=0;y<S;y+=18)g.fillRect(S*.42,y+R(0,8),S*.17,2);
     g.strokeStyle='rgba(40,30,20,.75)';g.lineWidth=4;g.strokeRect(S*.7,S*.58,S*.2,S*.24);g.beginPath();for(const x of [.76,.84]){g.moveTo(S*x,S*.78);g.lineTo(S*x,S*.63);g.moveTo(S*x-8,S*.69);g.lineTo(S*x,S*.62);g.lineTo(S*x+8,S*.69)}g.stroke();
     g.strokeStyle='rgba(60,40,20,.35)';g.lineWidth=6;g.strokeRect(3,3,S-6,S-6)}
-  else if(k===2){g.fillStyle='#cfe1e8';g.fillRect(0,0,S,S);const im=g.getImageData(0,0,S,S);for(let i=0;i<im.data.length;i+=4){const v=R(-14,14);im.data[i]+=v;im.data[i+1]+=v;im.data[i+2]+=v}g.putImageData(im,0,0);
+  else if(k===2){g.fillStyle='#d4eaf3';g.fillRect(0,0,S,S);const im=g.getImageData(0,0,S,S);for(let i=0;i<im.data.length;i+=4){const v=R(-14,14);im.data[i]+=v;im.data[i+1]+=v;im.data[i+2]+=v}g.putImageData(im,0,0);
     const gr=g.createLinearGradient(0,0,S,S);gr.addColorStop(0,'rgba(255,255,255,.25)');gr.addColorStop(.5,'rgba(255,255,255,0)');gr.addColorStop(1,'rgba(170,200,215,.25)');g.fillStyle=gr;g.fillRect(0,0,S,S);
     g.fillStyle='rgba(255,255,255,.38)';for(const [o,w] of [[.25,26],[.4,9],[.7,18]]){g.beginPath();g.moveTo(S*o,0);g.lineTo(S*o+w,0);g.lineTo(S*o+w-S*.4,S);g.lineTo(S*o-S*.4,S);g.fill()}
     g.strokeStyle='#94adb8';g.lineWidth=16;g.strokeRect(8,8,S-16,S-16);g.strokeStyle='rgba(255,255,255,.6)';g.lineWidth=2;g.strokeRect(17,17,S-34,S-34);g.strokeStyle='#94adb8';g.lineWidth=6;g.beginPath();g.moveTo(S/2,8);g.lineTo(S/2,S-8);g.moveTo(8,S/2);g.lineTo(S-8,S/2);g.stroke()}
@@ -515,7 +515,7 @@ function patchBuildMat(mat){const prev=mat.onBeforeCompile;
   mat.onBeforeCompile=function(sh,r){if(prev)prev.call(this,sh,r);sh.uniforms.bskTex={value:buildTex()};
     sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nattribute float bsk;varying float vBsk;').replace('#include <begin_vertex>','#include <begin_vertex>\nvBsk=bsk;');
     sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nuniform sampler2D bskTex;varying float vBsk;')
-      .replace('#include <map_fragment>','#ifdef USE_MAP\nvec4 texelColor;if(vBsk>.5){float t=floor(vBsk+.5)-1.;vec2 o=vec2(mod(t,4.),floor(t/4.));texelColor=texture2D(bskTex,(o+mix(vec2(.012),vec2(.988),clamp(vUv,0.,1.)))/vec2(4.,2.));}else texelColor=texture2D(map,vUv);\ntexelColor=mapTexelToLinear(texelColor);diffuseColor*=texelColor;\n#endif')};
+      .replace('#include <map_fragment>','#ifdef USE_MAP\nvec4 texelColor;if(vBsk>.5){float t=floor(vBsk+.5)-1.;vec2 o=vec2(mod(t,4.),1.-floor(t/4.));texelColor=texture2D(bskTex,(o+mix(vec2(.012),vec2(.988),clamp(vUv,0.,1.)))/vec2(4.,2.));}else texelColor=texture2D(map,vUv);\ntexelColor=mapTexelToLinear(texelColor);diffuseColor*=texelColor;\n#endif')};
   mat.needsUpdate=true}
 const bskMeshes=new Set();
 function bskAttr(mesh){let a=mesh.geometry.attributes.bsk;if(!a){a=new THREE.InstancedBufferAttribute(new Float32Array(mesh.instanceMatrix.count),1).setUsage(THREE.DynamicDrawUsage);mesh.geometry.setAttribute('bsk',a);bskMeshes.add(mesh)}return a}
