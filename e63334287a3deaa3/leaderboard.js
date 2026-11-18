@@ -60,7 +60,8 @@
  * DAY_GAMES of them, plus d's '_': that day's time in games past stats.js's first eight, all together), each game's week
  * is no more than its all-time hours, and after an hours reset only the days from the reset's date count (and still no
  * more than the hours since the reset, so a reset zeroes the week too). The week is parse's wk ({ <game>: seconds, _ }),
- * week (seconds) and wtop (the game played most this week).
+ * week (seconds) and wtop (the game played most this week). weekOf also keeps dy ({ YYYYMMDD: seconds }, the same checks)
+ * for every day from last week's Monday on, which the weekly Aisle contest uses (aisles.js).
  */
 (function () {
   'use strict';
@@ -442,19 +443,24 @@
   // The week starts on Monday: how many days back this week's Monday is (0 on a Monday, 6 on a Sunday), by the viewer's clock.
   function sinceMonday(now) { return (new Date(now).getDay() + 6) % 7; }
   function realDay(k) { return dayKey(new Date(+k.slice(0, 4), +k.slice(4, 6) - 1, +k.slice(6, 8))) === k; }
+  // Also dy: { YYYYMMDD: seconds } for every checked day from LAST week's Monday on (the same checks), for the weekly Aisle
+  // contest (aisles.js), which only counts a member's days from the day they joined.
   function weekOf(p, src, now, since) {
-    var wk = {}, lo = dayAgo(now, Math.min(sinceMonday(now), WEEK_DAYS - 1)), hi = dayAgo(now, -1);
-    if (since > 0) { var sd = dayKey(new Date(since)); if (sd > lo) lo = sd; }
+    var wk = {}, dy = {}, back = Math.min(sinceMonday(now), WEEK_DAYS - 1), lo = dayAgo(now, back), lo2 = dayAgo(now, back + 7), hi = dayAgo(now, -1);
+    if (since > 0) { var sd = dayKey(new Date(since)); if (sd > lo) lo = sd; if (sd > lo2) lo2 = sd; }
     if (src && typeof src === 'object' && !Array.isArray(src)) Object.keys(src).slice(0, 40).forEach(function (k) {
-      var g = src[k], tot = 0, m = 0;
-      if (!/^\d{8}$/.test(k) || k < lo || k > hi || !realDay(k) || !g || typeof g !== 'object' || Array.isArray(g)) return;
+      var g = src[k], tot = 0, m = 0, cur = k >= lo;
+      if (!/^\d{8}$/.test(k) || k < lo2 || k > hi || !realDay(k) || !g || typeof g !== 'object' || Array.isArray(g)) return;
       Object.keys(g).slice(0, 40).forEach(function (gk) {
         var r = gk === DAY_REST;
         if (tot >= 86400 || (!r && (!p.g[gk] || m >= DAY_GAMES))) return;
         var x = Math.min(Math.floor(num(g[gk])), 86400 - tot); if (!(x > 0)) return;
-        wk[gk] = (wk[gk] || 0) + x; tot += x; if (!r) m++;
+        if (cur) wk[gk] = (wk[gk] || 0) + x;
+        tot += x; if (!r) m++;
       });
+      if (tot > 0) dy[k] = tot;
     });
+    p.dy = dy;
     weekSum(p, wk);
   }
   // The week's caps and totals: a game's week no more than its hours, the whole week no more than all the hours.
@@ -645,6 +651,8 @@
     var wk = t.wk || {};
     Object.keys(p.wk || {}).forEach(function (k) { wk[k] = sum ? (wk[k] || 0) + p.wk[k] : Math.max(wk[k] || 0, p.wk[k]); });
     weekSum(t, wk);
+    var dy = t.dy || (t.dy = {});
+    Object.keys(p.dy || {}).forEach(function (k) { dy[k] = Math.min(86400, sum ? (dy[k] || 0) + p.dy[k] : Math.max(dy[k] || 0, p.dy[k])); });
   }
   function collapse(list) {
     var by = {};
@@ -958,6 +966,9 @@
   var groups = {}, gorder = [];
   GAMES.forEach(function (g) { var k = g.grp || 'Games'; if (!groups[k]) { groups[k] = el('optgroup'); groups[k].label = k; gorder.push(k); } groups[k].append(new Option(g.n, g.d)); });
   gorder.forEach(function (k) { $sel.append(groups[k]); });
+  // The Aisle boards (aisles.js draws them from these same rows), not in a game's own panel.
+  var AISLE = GAME ? {} : { 'aisle-miles': 'Aisle Miles', 'aisle-elo': 'Aisle Elo' };
+  if (!GAME) { var ag = el('optgroup'); ag.label = 'Aisles'; Object.keys(AISLE).forEach(function (k) { ag.append(new Option(AISLE[k], k)); }); $sel.append(ag); }
   lbl.append($sel); ctl.append(lbl);
   // Slipstream only: which track's course records and fastest lap to show.
   var tlbl = el('label'); tlbl.append(el('span', '', 'Track')); tlbl.hidden = true;
@@ -1041,7 +1052,7 @@
   var VIEW_KEY = GAME ? 'lb:view:' + GAME : 'lb:view';
   try {
     var sv = JSON.parse(ls(VIEW_KEY) || 'null');
-    if (sv && (sv.g === 'all' || BY[sv.g])) view = { g: sv.g, b: typeof sv.b === 'string' ? sv.b.slice(0, 40) : 's', t: typeof sv.t === 'string' && TRACKS[sv.t] ? sv.t : '' };
+    if (sv && (sv.g === 'all' || BY[sv.g] || AISLE[sv.g])) view = { g: sv.g, b: typeof sv.b === 'string' ? sv.b.slice(0, 40) : 's', t: typeof sv.t === 'string' && TRACKS[sv.t] ? sv.t : '' };
   } catch (e) {}
   if (GAME && BY[GAME] && view.g !== GAME) view = { g: GAME, b: '', t: '' };
   $sel.value = view.g;
@@ -1072,6 +1083,7 @@
     people = collapse(out); everyone = out; lastLoad = Date.now();
     pushTops();
     seasonCheck();
+    try { document.dispatchEvent(new CustomEvent('backroom:boards')); } catch (e) {}   // aisles.js: merged accounts, Aisle boards
   }
 
   function waitParty() {
@@ -1110,6 +1122,9 @@
   function isMe(uid) { return uid === myUid || uid === ls('lbs:uid'); }
   // miles.js, when a tier badge is drawn somewhere on the page and it has no recent answer for who is first: read the
   // boards now (the same read as the section's own), or hand over the answer again if they were read a moment ago.
+  // aisles.js: the checked, merged rows (people) and every entry before merging (all), for the Aisle boards and page.
+  window.BackRoomBoards.data = function () { return people ? { people: people, all: everyone, me: myUid } : null; };
+  document.addEventListener('backroom:aisles', function () { if (AISLE[view.g]) draw(); });
   window.BackRoomBoards.readTops = function () { if (people && Date.now() - lastLoad < FRESH) pushTops(); else load(); };
 
   // ---------------- Drawing ----------------
@@ -1144,7 +1159,7 @@
   function row(r) {
     var li = el('li', 'lbd-r' + (isMe(r.p.uid) ? ' me' : ''));
     var who = el('span', 'lbd-who'), nm = el('span', 'lbd-nm');
-    nm.append(r.p.n + ' ', el('small', '', '· ' + r.p.seat));
+    nm.append(r.p.n + ' ', el('small', '', '· ' + r.p.seat)); nm.setAttribute('data-aisle-u', r.p.uid);   // aisles.js puts the Aisle tag in front
     if (isMe(r.p.uid)) nm.append(el('b', 'lbd-you', 'You'));
     who.append(nm);
     // The status tier (miles.js) from this same checked node, then "Most: <game>" on the Miles board.
@@ -1180,6 +1195,13 @@
   var picked = false;
   function draw() {
     $chips.textContent = '';
+    $list.classList.remove('ais-lb');
+    if (AISLE[view.g]) {   // an Aisle board: aisles.js fills the heading, list, note and message
+      tlbl.hidden = $span.hidden = $rule.hidden = $season.hidden = $ace.hidden = true; $list.textContent = ''; $spanNote.hidden = true;
+      if (window.BackRoomAisles && BackRoomAisles.board) BackRoomAisles.board({ g: view.g, list: $list, h: $h, chips: $chips, note: $spanNote, say: say });
+      else { $h.textContent = AISLE[view.g]; say('Loading the Aisles…'); }
+      return;
+    }
     var slip = view.g !== 'all' && BY[view.g].laps;
     tlbl.hidden = !slip;
     if (slip) fillTracks();
@@ -1243,7 +1265,7 @@
   }
   function save() { ls(VIEW_KEY, JSON.stringify({ g: view.g, b: view.b, t: view.t || '' })); }
 
-  $sel.addEventListener('change', function () { view.g = $sel.value === 'all' || BY[$sel.value] ? $sel.value : 'all'; view.b = view.g === 'all' ? 's' : ''; save(); draw(); if (!people) load(); });
+  $sel.addEventListener('change', function () { view.g = $sel.value === 'all' || BY[$sel.value] || AISLE[$sel.value] ? $sel.value : 'all'; view.b = view.g === 'all' ? 's' : ''; save(); draw(); if (!people) load(); });
   $trk.addEventListener('change', function () { if (TRACKS[$trk.value]) { view.t = $trk.value; if (view.b === 'laps') view.b = 'lap'; picked = true; save(); draw(); } });
   $span.addEventListener('click', function (e) {
     var b = e.target.closest('button[data-s]'); if (!b) return;

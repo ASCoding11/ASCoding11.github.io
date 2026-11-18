@@ -341,12 +341,13 @@ body .pty h2{font-family:var(--f-d);font-weight:800;font-size:30px;letter-spacin
 
   // An invite link (#<room>) opens its game straight away. Room codes start with the game's prefix; any other code is a Rumble Karts room.
   var PREFIX={tv:'trivium',br:'backrooms-1v1',sc:'shell-crackers',hm:'hail-mary',cl:'coil',ss:'slipstream',bb:'boostball',qy:'quarry',kw:'kartwheel',sd:'showdown',cf:'chromaflage',tw:'spire',up:'updraft',ph:'odd-one-out',ko:'tumble-trials',dw:'deepword',sr:'turbo-trail',er:'escapade',pf:'puffer-party',dz:'drop-zone',gd:'lunge-line',bs:'blockstorm',lh:'lanternhold',vq:'sky-duel'};
-  // Party invites (#pt-<code>) don't open a game: they join the party in the Party panel below.
+  // Party invites (#pt-<code>) don't open a game: they join the party in the Party panel below. Aisle invites (#xj-) open the Aisle window (aisles.js).
   var inv=/^#([a-z0-9-]{1,20})$/.exec(location.hash),party='';
   if(inv){
     history.replaceState(null,'',location.pathname);
     var pre=/^([a-z]{2})-/.exec(inv[1]),g=byId[pre&&PREFIX[pre[1]]||'rumble-karts'];
     if(pre&&pre[1]==='pt')party=inv[1].slice(3);
+    else if(pre&&pre[1]==='xj'){try{sessionStorage.setItem('aisle:inv',inv[1].slice(3))}catch(e){}} // an Aisle invite: aisles.js picks it up
     else if(g)openGame({id:g.id,name:g.name,land:g.land,url:g.url,scope:g.scope,hash:'#'+inv[1]});
   }
   addEventListener('popstate',function(){closeGame()});
@@ -363,6 +364,7 @@ body .pty h2{font-family:var(--f-d);font-weight:800;font-size:30px;letter-spacin
   var ps=document.createElement('script');ps.src=B+'party.js';document.body.appendChild(ps);
   // Online (social.js): who else is here, private messages, invites and the cabin chat, under the Party panel.
   var os=document.createElement('script');os.src=B+'social.js';document.body.appendChild(os);
+  var ai=document.createElement('script');ai.src=B+'aisles.js';document.body.appendChild(ai); // Aisles (aisles.js): crews, tags by names, the Aisle boards
   // Avis miles (avismiles.js): the claim dialog, opened from the Online panel or #avis-miles.
   var avm=document.createElement('script');avm.src=B+'avismiles.js';document.body.appendChild(avm);
   var pn=document.createElement('script');pn.src=B+'playingnow.js';document.body.appendChild(pn);

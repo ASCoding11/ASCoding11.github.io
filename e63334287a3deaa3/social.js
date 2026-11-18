@@ -1420,6 +1420,7 @@
     var av = avatarEl(p.uid, p.n, p.c, 34);
     var who = el('span', 'onl-who'), nm = el('span', 'onl-nm');
     nm.append(mask(p.n) + ' ', el('small', '', '· ' + p.seat + (isMe ? ' · you' : '')));
+    if (p.uid) nm.setAttribute('data-aisle-u', p.uid);   // aisles.js puts the Aisle tag in front of the name
     var badge = tierBadge(p.uid);
     if (badge) { var tl = el('span', 'onl-tl'); tl.append(badge); who.append(nm, tl); } else who.append(nm);
     who.append(el('span', 'onl-st', (isMe && hidden) ? 'Hidden' : (muted[p.uid] ? 'Muted · ' : '') + statusText(p)));
@@ -1652,7 +1653,8 @@
       all.forEach(function (it) {
         var mineMsg = it.u === uid, p = it.p || meEntry();
         var m = el('div', 'onl-m' + (mineMsg ? ' mine' : ''));
-        var who = el('span', 'who'); who.append(avatarEl(it.u, p.n, p.c, 18), el('b', '', mask(p.n)), ' · ' + p.seat + ' · ' + clock(it.m.t));
+        var who = el('span', 'who'); var cbn = el('b', '', mask(p.n)); cbn.setAttribute('data-aisle-u', it.u);
+        who.append(avatarEl(it.u, p.n, p.c, 18), cbn, ' · ' + p.seat + ' · ' + clock(it.m.t));
         m.append(who, el('span', '', mask(it.m.x)));
         body.append(m);
       });
@@ -1675,7 +1677,7 @@
         var mm = el('div', 'onl-m' + (isMe ? ' mine' : '')), who = el('span', 'who');
         who.append(avatarEl(m.from, pn, isMe ? colorOf(uid) : pp ? pp.c : m.c, 18));
         if (isMe) who.append(el('b', '', 'You'));
-        else { var nb = el('button', 'onl-wn', mask(pn)); nb.type = 'button'; nb.setAttribute('data-act', 'opendm'); nb.setAttribute('data-u', m.from); nb.setAttribute('aria-label', 'Open ' + mask(pn) + '’s card'); who.append(nb); }
+        else { var nb = el('button', 'onl-wn', mask(pn)); nb.type = 'button'; nb.setAttribute('data-act', 'opendm'); nb.setAttribute('data-u', m.from); nb.setAttribute('data-aisle-u', m.from); nb.setAttribute('aria-label', 'Open ' + mask(pn) + '’s card'); who.append(nb); }
         who.append(' · ' + seatOf(m.from) + ' · ' + clock(m.t));
         mm.append(who, el('span', '', mask(m.x)));
         body.append(mm);
@@ -1688,7 +1690,8 @@
     } else if (view.v === 'dm') {
       var u = view.u, p = people[u], t = threads[u];
       var nm = p ? label(p) : (t ? mask(cleanName(t.n)) : 'Someone') + ' · ' + seatOf(u);
-      h.append(avatarEl(u, p ? p.n : t && t.n, p ? p.c : t && t.c, 26), nm);
+      var nms = el('span', '', nm); nms.setAttribute('data-aisle-u', u);   // aisles.js puts the Aisle tag in front
+      h.append(avatarEl(u, p ? p.n : t && t.n, p ? p.c : t && t.c, 26), nms);
       var dsub = el('div', 'onl-dsub'), dline = el('span'), dbadge = tierBadge(u);
       if (dbadge) dline.append(dbadge, ' ');
       dline.append((p && visible(p) ? statusText(p) : 'Not online') + ' · private: only the two of you can read this.');
@@ -1701,6 +1704,8 @@
         da.append(rq);
       }
       da.append(btn('Invite to party', 'pri', 'invite'));
+      // Invite to Aisle (aisles.js), for an Aisle's leader.
+      if (window.BackRoomAisles && BackRoomAisles.inviteBtn) { try { var aib = BackRoomAisles.inviteBtn(u); if (aib) da.append(aib); } catch (e) {} }
       // Request to join their party: goes to its leader (them, or their leader when that person is online).
       var jt = p && visible(p) && p.party && !isBlocked(u) && !inMyParty(u, p) ? joinTarget(p) : null;
       // A public party needs no request: Join party goes straight in.

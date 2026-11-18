@@ -227,6 +227,7 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
         <button type="button" role="tab" id="t-players" aria-controls="p-players" data-tab="players">Players</button>
         <button type="button" role="tab" id="t-chat" aria-controls="p-chat" data-tab="chat">Chat</button>
         <button type="button" role="tab" id="t-fb" aria-controls="p-fb" data-tab="fb">Feedback</button>
+        <button type="button" role="tab" id="t-aisles" aria-controls="p-aisles" data-tab="aisles">Aisles</button>
       </div>
 
       <!-- Stats: the Leaderboards' data (rooms/lb-all/players, written by stats.js inside each game), one read, checked like leaderboard.js. -->
@@ -323,6 +324,9 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
         <p class="status" id="fStatus" role="status" aria-live="polite"></p>
         <ol class="list" id="fList"></ol>
       </div>
+
+      <!-- Aisles (aisles.js): every Aisle, and Remove for an Aisle with a bad name (Captains only, signed with the admin key). -->
+      <div role="tabpanel" id="p-aisles" aria-labelledby="t-aisles" hidden></div>
     </div>
   </section>
 </div>
@@ -335,6 +339,8 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
 <script src="/e63334287a3deaa3/avatar.js"></script>
 <script src="/e63334287a3deaa3/miles.js"></script>
 <script src="/e63334287a3deaa3/adminkey.js"></script>
+<script src="/e63334287a3deaa3/captains.js"></script>
+<script src="/e63334287a3deaa3/aisles.js" data-admin></script>
 <script>
 (function(){
   'use strict';
@@ -477,17 +483,24 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
   };
 
   // ---------- Tabs ----------
-  var TABS=['stats','players','chat','fb'],tab=TABS.indexOf(store('bra:tab'))>=0?store('bra:tab'):'stats',loaded={};
+  var TABS=['stats','players','chat','fb','aisles'],tab=TABS.indexOf(store('bra:tab'))>=0?store('bra:tab'):'stats',loaded={};
   function showTab(t){
     tab=t;store('bra:tab',t);
     TABS.forEach(function(x){var b=$('t-'+x),on=x===t;b.setAttribute('aria-selected',on?'true':'false');b.tabIndex=on?0:-1;$('p-'+x).hidden=!on});
-    if(!loaded[t]){loaded[t]=1;({stats:loadStats,players:loadPlayers,chat:loadChat,fb:loadFb})[t]()}
+    if(!loaded[t]){loaded[t]=1;({stats:loadStats,players:loadPlayers,chat:loadChat,fb:loadFb,aisles:loadAisles})[t]()}
   }
   document.querySelector('.tabs').addEventListener('click',function(e){var b=e.target.closest('[data-tab]');if(b)showTab(b.dataset.tab)});
   document.querySelector('.tabs').addEventListener('keydown',function(e){
     if(e.key!=='ArrowRight'&&e.key!=='ArrowLeft')return;
     var i=(TABS.indexOf(tab)+(e.key==='ArrowRight'?1:TABS.length-1))%TABS.length;showTab(TABS[i]);$('t-'+TABS[i]).focus();
   });
+
+  // ================= Aisles (aisles.js draws the tab; removals are signed here with the admin key) =================
+  function loadAisles(){
+    var A=window.BackRoomAisles;if(!A||!A.admin){$('p-aisles').textContent='Couldn\'t load aisles.js.';return}
+    A.admin($('p-aisles'),{boot:function(){return boot().then(function(u){return {db:rtdb,uid:u}})},now:Date.now.bind(Date),
+      sign:async function(r){if(!PRIVS)throw new Error('Unlock the page again to remove or put back an Aisle.');var g=new Uint8Array(await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},PRIVS,new TextEncoder().encode(r)));var s='';for(var i=0;i<g.length;i++)s+=String.fromCharCode(g[i]);return btoa(s)}});
+  }
 
   // ================= Stats =================
   // From the Leaderboards' nodes (rooms/lb-all/players, written by stats.js inside each game): read once, checked the way
