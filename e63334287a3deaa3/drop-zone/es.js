@@ -261,7 +261,7 @@
     'You\'re inside the next circle': 'Estás dentro del próximo círculo', 'IN THE STORM': 'EN LA TORMENTA',
     '−{d} health a second · safe zone {m} m': '−{d} de vida por segundo · zona segura a {m} m', 'STORM MOVES IN {t}': 'LA TORMENTA AVANZA EN {t}', 'safe zone {m} m': 'zona segura a {m} m',
     'Build · {b}': 'Construir · {b}', ' · needs {n} scrap': ' · hacen falta {n} de chatarra', ' · hold Place': ' · mantén Poner', ' · hold to place': ' · mantén para colocar',
-    'Picking up {n}': 'Levantando a {n}', 'Using {n}': 'Usando {n}', 'Down · {n} left · crawl to a team-mate': 'Caído · te queda {n} · arrástrate hasta un compañero',
+    'Picking up {n}': 'Levantando a {n}', 'Using {n}': 'Usando {n}', 'Down · {n} left · crawl to a team-mate': 'Caído · {n} de vida · ve hacia un compañero',
     'Hold to pick up {n}': 'Mantén para levantar a {n}', 'Open chest': 'Abrir cofre', 'Take {x}': 'Tomar {x}', 'Swap for {x}': 'Cambiar por {x}',
     'Hold to edit': 'Mantén para editar', 'Edit': 'Editar', 'Fire': 'Disparar', 'Aim': 'Apuntar', 'Reload': 'Recargar', 'click': 'clic', 'Click': 'Haz clic en',
     'Watching {n}': 'Mirando a {n}', ' · tap Next': ' · toca Siguiente', ' · click for the next': ' · clic para el siguiente',
