@@ -105,6 +105,7 @@
     'Tool': 'Herramienta', 'Pencil': 'Lápiz', 'Eraser': 'Goma', 'Undo': 'Deshacer', 'Clear': 'Borrar', 'Start from': 'Empezar desde',
     'Keep it friendly. Keys: arrows move, Space fills or empties a square, P pencil, E eraser, Z undo.': 'Que sea amigable. Teclas: flechas para moverte, Espacio pinta o borra un cuadro, P lápiz, E goma, Z deshacer.',
     'Smile': 'Sonrisa', 'Sleepy': 'Con sueño', 'Surprised': 'Sorpresa', 'Grumpy': 'Enojado', 'Wink': 'Guiño', 'Shades': 'Lentes de sol',
+    'Smile face': 'Cara: sonrisa', 'Sleepy face': 'Cara: con sueño', 'Surprised face': 'Cara: sorpresa', 'Grumpy face': 'Cara: enojado', 'Wink face': 'Cara: guiño', 'Shades face': 'Cara: lentes de sol',
 
     // ---- pause ----
     'Paused': 'En pausa', 'The storm keeps moving while you\'re away.': 'La tormenta sigue avanzando mientras no estás.',
@@ -263,7 +264,7 @@
     'Build · {b}': 'Construir · {b}', ' · needs {n} scrap': ' · hacen falta {n} de chatarra', ' · hold Place': ' · mantén Poner', ' · hold to place': ' · mantén para colocar',
     'Picking up {n}': 'Levantando a {n}', 'Using {n}': 'Usando {n}', 'Down · {n} left · crawl to a team-mate': 'Caído · {n} de vida · ve hacia un compañero',
     'Hold to pick up {n}': 'Mantén para levantar a {n}', 'Open chest': 'Abrir cofre', 'Take {x}': 'Tomar {x}', 'Swap for {x}': 'Cambiar por {x}',
-    'Hold to edit': 'Mantén para editar', 'Edit': 'Editar', 'Fire': 'Disparar', 'Aim': 'Apuntar', 'Reload': 'Recargar', 'click': 'clic', 'Click': 'Haz clic en',
+    'Hold to edit': 'Mantén para editar', 'Edit': 'Editar', 'Fire': 'Disparar', 'Aim': 'Apuntar', 'Reload': 'Recargar', 'click': 'clic', 'Click': 'clic',
     'Watching {n}': 'Mirando a {n}', ' · tap Next': ' · toca Siguiente', ' · click for the next': ' · clic para el siguiente',
     'Watching · you\'ll drop in the next match': 'Mirando · saltarás en la próxima partida', 'Watching · you\'ll join at the next round': 'Mirando · entrarás en la próxima ronda',
     'Red light · green over the island in {n}': 'Luz roja · verde sobre la isla en {n}', 'Green light · {k} · auto-drop in {n}': 'Luz verde · {k} · caída automática en {n}',
@@ -279,7 +280,7 @@
     '{s} · sweep the tiles · let go of {e} · {r} reset': '{s} · pasa por las casillas · suelta {e} · {r} la deja entera',
     'Keep holding {e} and look across the tiles you want open, then let go to confirm. {r} resets it to whole.': 'Sigue manteniendo {e} y mira las casillas que quieras abrir; luego suelta para confirmar. {r} la deja entera.',
     '{s} · {f} tiles · {e} done · {r} reset · {a} cancel': '{s} · {f} casillas · {e} listo · {r} entera · {a} salir',
-    '{F} the tiles you want open (hold and sweep for several), then {e} to confirm. {r} resets it to whole, {a} cancels.': 'Usa {F} en las casillas que quieras abrir (mantén y pasa por varias); luego {e} para confirmar. {r} la deja entera, {a} cancela.',
+    '{F} the tiles you want open (hold and sweep for several), then {e} to confirm. {r} resets it to whole, {a} cancels.': 'Con {F}, marca las casillas que quieras abrir (mantén y pasa por varias); luego {e} para confirmar. {r} la deja entera, {a} cancela.',
     'Aim at a build of yours, up close': 'Apunta de cerca a una construcción tuya', 'That build is someone else’s': 'Esa construcción es de otra persona',
     'Leave at least one tile': 'Deja al menos una casilla', 'Someone is standing in the way': 'Hay alguien en el medio',
     '+{n} scrap': '+{n} de chatarra', '{n} DOWN': '¡{n} QUEDÓ FUERA!', 'Someone': 'Alguien', 'someone': 'alguien', '{n} knockout': '{n} KO', '{n} knockouts': '{n} KO',
