@@ -414,6 +414,68 @@
     "Ideas for new games": "Ideas para juegos nuevos"
   }  );
 
+  // The phone page (m/index.html) loads this file too: its own rows, tiles, tips and the frame bar.
+  L.add({
+    "Arjun's": "Los juegos",
+    "games": "de Arjun",
+    "Racing and car games": "Carreras y autos",
+    "22-car open-wheel races. Draft, brake late, pass.": "Carreras de monoplazas con 22 autos. Ve al rebufo, frena tarde, adelanta.",
+    "↻ Best sideways": "↻ Mejor en horizontal",
+    "Rocket-car soccer with a giant ball.": "Fútbol con autos cohete y una pelota gigante.",
+    "Three-minute kart brawls with weapons.": "Peleas de karts de tres minutos con armas.",
+    "Aim, build and outlast.": "Apunta, construye y sobrevive.",
+    "Shoot, build and outlast": "Dispara, construye y sobrevive",
+    "First-person egg shooter. Crack the most shells before the clock runs out.": "Shooter de huevos en primera persona. Rompe más cáscaras que nadie antes de que se acabe el tiempo.",
+    "Red vs Blue in Level 0. Build cover and wipe out the other team.": "Rojo contra Azul en el Nivel 0. Construye cobertura y elimina al otro equipo.",
+    "New battle royale for up to 30: jump, glide, loot and build. Last one standing wins.": "Nuevo battle royale para hasta 30: salta, planea, saquea y construye. Gana el último en pie.",
+    "Blocky FPS on five sky towers in the rain. Kills unlock better guns; capture the flag too.": "FPS de bloques sobre cinco torres en el cielo bajo la lluvia. Las bajas desbloquean mejores armas; también captura la bandera.",
+    "Dogfights in little planes over peaks and canyons: guns, homing missiles and flares.": "Combates aéreos en avioncitos sobre picos y cañones: ametralladoras, misiles teledirigidos y bengalas.",
+    "Obbies, towers, climbs and runs.": "Obbies, torres, escaladas y carreras.",
+    "Obbies, climbs and runs": "Obbies, escaladas y carreras",
+    "Climb three thousand metres of junk, clouds, storm and space. Miss a jump and you fall.": "Sube tres mil metros de chatarra, nubes, tormenta y espacio. Si fallas un salto, caes.",
+    "A wobbly knockout show for up to 16. Last bean standing wins.": "Un show de eliminación tambaleante para hasta 16. Gana el último frijol en pie.",
+    "A speedrun obby: 25 quick levels, medals, splits and online races.": "Un obby de speedrun: 25 niveles rápidos, medallas, parciales y carreras en línea.",
+    "Race up a random tower. Every landing saves your place, so mind the red.": "Carrera hacia la cima de una torre al azar. Cada descanso guarda tu lugar, así que cuidado con lo rojo.",
+    "Run tile tunnels in space. Take a wall and the tunnel turns.": "Corre por túneles de baldosas en el espacio. Pisa una pared y el túnel gira.",
+    "World after world of escape rooms. Find the key, crack the code.": "Mundo tras mundo de salas de escape. Encuentra la llave, descifra el código.",
+    "Hide, bluff and shout out answers with friends.": "Escóndete, blufea y grita respuestas con amigos.",
+    "Hide, bluff and shout": "Escóndete, blufea y grita",
+    "Paint yourself to match the room, then hide. Or hunt the painted.": "Píntate para camuflarte con la sala y escóndete. O caza a los pintados.",
+    "Props vs Hunters: turn into anything in the room, or shoot what doesn't belong.": "Objetos contra Cazadores: conviértete en cualquier cosa de la sala, o dispárale a lo que no encaja.",
+    "No-limit Hold'em with friends or bots.": "Hold'em sin límite con amigos o bots.",
+    "All of today’s puzzles and your streak": "Todos los puzles de hoy y tu racha",
+    "Daily Puzzles": "Puzles diarios",
+    "Blocks and numbers": "Bloques y números",
+    "Drop fruit, merge twins, grow a watermelon.": "Suelta frutas, une gemelas, haz crecer una sandía.",
+    "Join tiles to 2048: Classic, 6 × 6 Mega, or College and Dessert ladders.": "Une fichas hasta 2048: Clásico, Mega de 6 × 6, o escaleras de Universidades y Postres.",
+    "Drop blocks on an 8 × 8 grid and pop full rows and columns.": "Pon bloques en una grilla de 8 × 8 y haz explotar filas y columnas completas.",
+    "Tell Arjun ↑": "Dile a Arjun ↑",
+    "Snakes, sword duels, platformers and more.": "Serpientes, duelos de espadas, plataformas y más.",
+    "Snakes, duels, mazes and platformers": "Serpientes, duelos, laberintos y plataformas",
+    "A rainy-harbour platformer: stomp, jump, and get past the Tollkeeper.": "Un plataformas en un puerto lluvioso: aplasta, salta y supera al Tollkeeper.",
+    "Fix the windows while a gargoyle kicks bricks at you.": "Arregla las ventanas mientras una gárgola te patea ladrillos.",
+    "A maze chase by moonlight: gather pollen, outfly four night critters.": "Una persecución en laberinto a la luz de la luna: junta polen y escapa de cuatro bichos nocturnos.",
+    "Co-op tower defense for up to 4: build towers and keep the lantern lit.": "Defensa de torres cooperativa para hasta 4: construyan torres y mantengan encendida la linterna.",
+    "A stock market game: trade the rumors, beat the index.": "Un juego de bolsa: opera con los rumores, gánale al índice.",
+    "Every game works with touch: sticks, buttons and drag to look appear when you play.": "Todos los juegos funcionan con pantalla táctil: los sticks, botones y arrastrar para mirar aparecen cuando juegas.",
+    "© 2026 Arjun ·": "© 2026 Arjun ·",
+    "Privacy policy": "Política de privacidad",
+    "‹ Games": "‹ Juegos",
+    "Turn sideways ↻": "Gira el celular ↻",
+    "Hide tip": "Ocultar consejo",
+    "Game": "Juego",
+    "{n} games · made for touch": "{n} juegos · hechos para pantallas táctiles",
+    "Keep playing": "Seguir jugando",
+    "Party games": "Juegos de fiesta",
+    "Add this to your home screen": "Agrega esto a tu pantalla de inicio",
+    "to open the games like an app: tap Share, then": "para abrir los juegos como una app: toca Compartir y después",
+    "Add to Home Screen": "Agregar a inicio",
+    "to open the games like an app: open the browser menu, then": "para abrir los juegos como una app: abre el menú del navegador y después",
+    "Add to Home screen": "Agregar a la pantalla de inicio",
+    "Install app": "Instalar app",
+    "Main site": "Sitio principal"
+  });
+
   // Puzzles and games whose content is English by design (words, trivia, answers people type): an "En inglés" tag on
   // their tile or card while Spanish is on. Their own pages translate the buttons around the words.
   var EN_ONLY = ['deepword', 'trivium', 'nearword', 'fourcast', 'warmer', 'hunch', 'poopdle', 'mainstream', 'puffer-party'];
@@ -426,7 +488,7 @@
   // "Party" is both the party-games button in the row of game types and the Party panel (a group of friends, "Grupo",
   // given by party.js). The button says "Fiesta": it's kept out of the automatic translation and set here.
   function partyBtn() {
-    document.querySelectorAll('.gs-nb.gs-partygames b').forEach(function (b) {
+    document.querySelectorAll('.gs-nb.gs-partygames b, .gnav button.partygames').forEach(function (b) {
       b.setAttribute('data-noi18n', ''); b.textContent = L.get() === 'en' ? 'Party' : 'Fiesta';
     });
   }

@@ -465,7 +465,7 @@
       'Ad for {n}: {l} {b} (opens in a new tab)': 'Anuncio de {n}: {l} {b} (se abre en una pestaña nueva)',
       'Ad for {n}. {b} (opens in a new tab)': 'Anuncio de {n}. {b} (se abre en una pestaña nueva)',
       // The spotlight and the ads' own words (brand names stay as they are).
-      'New battle royale': 'Nuevo battle royale', 'Up to 30 players': 'Hasta 30 jugadores', 'Drop in · loot · build': 'Cae · saquea · construye',
+      'New battle royale': 'Nuevo battle royale', 'New battle royale: {g}': 'Nuevo battle royale: {g}', 'Up to 30 players': 'Hasta 30 jugadores', 'Drop in · loot · build': 'Cae · saquea · construye',
       'Last one standing': 'El último en pie', 'Dark chocolate caramel candy bars.': 'Barras de chocolate amargo con caramelo.', 'Find a store': 'Buscar tienda',
       'Souleymane’s YouTube channel. Go watch and subscribe.': 'El canal de YouTube de Souleymane. Míralo y suscríbete.', 'Watch': 'Ver',
       // Entry titles and tags shown on the strip (the entries' bullet points stay in English).
@@ -530,7 +530,7 @@
     if (window.BackRoomLang && BackRoomLang.get() !== 'en') return BackRoomLang.date(x, x.getFullYear() === new Date().getFullYear() ? { month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric', year: 'numeric' });
     return x.getFullYear() === new Date().getFullYear() ? s : s + ', ' + x.getFullYear();
   }
-  function rel(d) { var n = daysAgo(d); return n === 0 ? T('Today') : n === 1 ? T('Yesterday') : short(d); }
+  function rel(d) { var n = daysAgo(d); return n === 0 ? 'Today' : n === 1 ? 'Yesterday' : short(d); }
   function kindOf(e) { return KIND[e.kind] ? e.kind : 'feature'; }
   function shownVer(e) { return kindOf(e) === 'soon' ? '' : e.version || ''; }  // a teaser shows no version: nothing has gone out yet
   function label(e) { return T(KIND[kindOf(e)]) + (shownVer(e) ? ' ' + shownVer(e) : ''); }
@@ -899,7 +899,7 @@
         var g = groups[shown], day = el('div', 'nws-day'), h = el('h3', 'nws-dh'), n = daysAgo(g.date), x = local(g.date);
         drawn += g.entries.length;
         var full = window.BackRoomLang && BackRoomLang.get() !== 'en' ? BackRoomLang.date(x, { weekday: 'short' }) + ', ' + short(g.date) : DAY[x.getDay()] + ', ' + short(g.date);
-        if (n === 0 || n === 1) { h.append(el('b', '', n === 0 ? T('Today') : T('Yesterday')), ' · ' + full); } else h.textContent = full;
+        if (n === 0 || n === 1) { h.append(el('b', '', n === 0 ? 'Today' : 'Yesterday'), ' · ' + full); } else h.textContent = full;
         day.appendChild(h);
         g.entries.forEach(function (it) {
           var e = it.e, kd = kindOf(e), art = el('article', 'nws-e k-' + kd), eh = el('p', 'nws-eh');

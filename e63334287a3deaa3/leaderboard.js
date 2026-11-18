@@ -96,7 +96,7 @@
       'Refreshing…': 'Actualizando…', 'Loading the leaderboards…': 'Cargando las tablas…',
       'The leaderboards need the Party panel, which didn’t load. Reload the page to try again.': 'Las tablas necesitan el panel de Grupo, que no cargó. Recarga la página para reintentar.',
       'Couldn’t reach the leaderboards. If you’re on a school or work network it may be blocking the game database.': 'No se pudo llegar a las tablas. Si estás en la red de la escuela o del trabajo, puede que bloquee la base de datos del juego.',
-      'Tracks with times': 'Pistas con tiempos', 'No times yet this season': 'Todavía no hay tiempos esta temporada', 'no times yet': 'sin tiempos todavía', 'Show {t}': 'Ver {t}',
+      'Tracks with times': 'Pistas con tiempos', 'No times yet this season': 'Todavía no hay tiempos esta temporada', 'no times yet': 'sin tiempos todavía',
       '· {n} driver': '· {n} piloto', '· {n} drivers': '· {n} pilotos', 'Hours played': 'Horas jugadas', 'Fastest lap · every track': 'Vuelta más rápida · todas las pistas', 'All tracks': 'Todas las pistas',
       'Fastest lap': 'Vuelta más rápida', 'Clean lap': 'Vuelta limpia', 'Fastest clean lap': 'Vuelta limpia más rápida', 'Most: {n}': 'Más: {n}',
       'Clean times: no corner was cut on': 'Tiempos limpios: no se cortó ninguna curva en', 'any lap of the race.': 'ninguna vuelta de la carrera.', 'the lap.': 'la vuelta.',
