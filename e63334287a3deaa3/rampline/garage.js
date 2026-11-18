@@ -28,6 +28,7 @@
  * Tyre smoke and horns are your own only (ghosts make no smoke and no sound), so they are not sent.
  */
 window.RamplineGarage=function(X){
+const _t=window.BackRoomLang?BackRoomLang.t:(s,v)=>s.replace(/\{(\w+)\}/g,(m,n)=>v&&v[n]!=null?v[n]:m);   // Spanish (../lang.js, es.js)
 'use strict';
 const {THREE,PAINT,WHEEL,store}=X;
 const V3=THREE.Vector3;
@@ -625,9 +626,10 @@ function queue(cv,fn,first){jobs=jobs.filter(j=>j[0]!==cv);if(first)jobs.unshift
 function runJobs(){jobT=0;const t0=performance.now();while(jobs.length&&performance.now()-t0<24){const [cv,fn]=jobs.shift();if(cv.isConnected)try{fn()}catch(e){console.warn(e)}}if(jobs.length)jobT=requestAnimationFrame(runJobs)}
 const lk=(car,paint,wheels)=>car||paint||wheels?'1.'+car+'.'+paint+'.'+wheels:'';
 const hex=c=>'#'+c.toString(16).padStart(6,'0');
-function nowText(){const b=[cs.car?CARS[cs.car].name:X.CARS[X.gar.car].name+' (garage car)'];
-  if(cs.paint)b.push(PAINTS[cs.paint].name+' paint');if(cs.wheels)b.push(WHEELS[cs.wheels].name);if(cs.smoke)b.push(SMOKES[cs.smoke].name+' smoke');
-  if(cs.horn)b.push(HORNS[cs.horn].name+(/horn/i.test(HORNS[cs.horn].name)?'':' horn')+' ('+(X.touch?'the horn button':'H')+')');return 'Wearing: '+b.join(' · ')}
+function nowText(){const b=[cs.car?_t(CARS[cs.car].name):_t('{c} (garage car)',{c:X.CARS[X.gar.car].name})];
+  if(cs.paint)b.push(_t('{p} paint',{p:_t(PAINTS[cs.paint].name)}));if(cs.wheels)b.push(_t(WHEELS[cs.wheels].name));if(cs.smoke)b.push(_t('{s} smoke',{s:_t(SMOKES[cs.smoke].name)}));
+  if(cs.horn)b.push(/horn/i.test(HORNS[cs.horn].name)?_t('{h} ({k})',{h:_t(HORNS[cs.horn].name),k:X.touch?_t('the horn button'):'H'}):_t('{h} horn ({k})',{h:_t(HORNS[cs.horn].name),k:X.touch?_t('the horn button'):'H'}));return _t('Wearing: {w}',{w:b.join(' · ')})}
+document.addEventListener('backroom:lang',()=>{if(nowP)nowP.textContent=nowText()});
 function preview(){nowP.textContent=nowText();const x=wire();queue(pv[1],()=>snapCar(pv[1],x,1),1);queue(pv[0],()=>snapCar(pv[0],x,0),1)}
 function item(slot,n,label,pic){const b=document.createElement('button');b.type='button';b.className='cg-it';b.setAttribute('aria-pressed',String(cs[slot]===n));
   b.append(pic,document.createTextNode(label));b.addEventListener('click',()=>pick(slot,n));return b}
