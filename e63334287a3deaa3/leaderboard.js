@@ -47,6 +47,8 @@
  * for that read early (readTops), which the section then reuses for FRESH instead of reading again when it's scrolled to.
  * The same answer carries the Slipstream ace (ace(), below tops()): whoever leads the most Slipstream tracks, 3 or more,
  * worked out from the same rows; miles.js draws it as an earned award, and Slipstream's time boards say who holds it.
+ * And Top Cracker (cracker(), after ace()), the second earned award: whoever has the most all-time Shell Crackers kills,
+ * 25 or more, from the Kills board's own rows; Shell Crackers' Kills board says who holds it.
  *
  * Miles board (the first board, 'all'): This week or All time (a toggle, This week unless this browser picked All time:
  * localStorage 'lb:span'; it also switches each game's Hours board). All time ranks by BackRoomMiles.of(node).miles, the
@@ -107,6 +109,13 @@
       { k: 'kdkills', l: 'Kills counted for K/D', f: 'n', u: 'kill', rate: 0.5, le: 'kills', hide: true },
       { k: 'deaths', l: 'Deaths', f: 'n', u: 'death', rate: 0.5, hide: true },
       { k: 'kd', l: 'K/D (all time)', chip: 'K/D', f: 'kd', kd: ['kdkills', 'deaths'], min: 20, hi: 100 }] },
+    { d: 'blockstorm', n: 'Blockstorm', st: [
+      { k: 'mkills', l: 'Most kills in a match', f: 'n', u: 'kill', hi: 150, le: 'kills' },
+      { k: 'kills', l: 'Kills (all time)', f: 'n', u: 'kill', rate: 0.5 },
+      { k: 'kdkills', l: 'Kills counted for K/D', f: 'n', u: 'kill', rate: 0.5, le: 'kills', hide: true },
+      { k: 'deaths', l: 'Deaths', f: 'n', u: 'death', rate: 0.5, hide: true },
+      { k: 'kd', l: 'K/D (all time)', chip: 'K/D', f: 'kd', kd: ['kdkills', 'deaths'], min: 20, hi: 100 },
+      { k: 'wins', l: 'Online match wins', f: 'n', u: 'win', rate: 1 / 60 }] },
     { d: 'backrooms-1v1', n: 'Backrooms 1v1–4v4', st: [{ k: 'elo', l: 'Elo', f: 'elo', lo: 100, hi: 3000 },
       { k: 'mkills', l: 'Most kills in a match', f: 'n', u: 'kill', hi: 80, le: 'kills' },
       { k: 'kills', l: 'Kills (all time)', f: 'n', u: 'kill', rate: 0.5 },
@@ -794,11 +803,41 @@
     var who = names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0];
     return who + ', leading ' + a.n + ' tracks' + (names.length > 1 ? ' each' : '') + '.' + rule;
   }
+  // Top Cracker: the second earned award, built like the ace. It goes to whoever has the most Shell Crackers kills of all
+  // time, the board's own Kills (all time) rows (rows(), so the same checked counts, merged accounts as one player with
+  // their kills added as collapse adds them, removed ones never), and only with CRACK_MIN or more, so it isn't handed out
+  // for a handful. A tie for most: everyone tied holds it.
+  // -> { n: the holders' kills (0 when unclaimed), who, ids, best, min: CRACK_MIN }, as ace() gives.
+  var CRACK_MIN = 25;
+  function cracker(people, all) {
+    var list = (people || []).filter(function (p) { return p && !p.hidden && !p.into; });
+    var st = null; (BY['shell-crackers'] ? BY['shell-crackers'].st : []).forEach(function (s) { if (s.k === 'kills') st = s; });
+    var out = { n: 0, who: [], ids: [], best: 0, min: CRACK_MIN };
+    if (!st) return out;
+    var r = rows({ g: 'shell-crackers', st: st }, list);
+    if (!r.length) return out;
+    out.best = Math.floor(r[0].v);
+    if (out.best < CRACK_MIN) return out;
+    out.n = out.best;
+    out.who = r.filter(function (x) { return x.rank === 1; }).map(function (x) { return x.p; }).sort(function (a, b) { return a.n < b.n ? -1 : a.n > b.n ? 1 : a.uid < b.uid ? -1 : 1; });
+    out.ids = out.who.map(function (p) { return p.uid; });
+    (all || []).forEach(function (p) { if (p && p.into && !p.hidden && out.ids.indexOf(p.into) >= 0 && out.ids.indexOf(p.uid) < 0) out.ids.push(p.uid); });
+    return out;
+  }
+  // The line Shell Crackers' Kills board carries about it. me(uid): whether that is the viewer.
+  function crackerLine(a, me) {
+    var rule = ' It goes to whoever has the most Shell Crackers kills of all time, ' + CRACK_MIN + ' or more.';
+    if (!a || !a.n) return 'unclaimed. Nobody has ' + CRACK_MIN + ' kills yet.' + rule;
+    var names = a.who.map(function (p) { return p.n + (me && me(p.uid) ? ' (you)' : ''); });
+    var who = names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0];
+    return who + ', with ' + fmtN(a.n) + ' kills' + (names.length > 1 ? ' each' : '') + '.' + rule;
+  }
   // Who is first, second and third on the Miles board, for the "#1 all time" / "#2 this week" … tags miles.js puts by
   // tier badges: the uids rows() ranks 1, 2 and 3 for each span, so the same checked nodes, the same week and the same tie rule as the board (a tie for
   // first: every tied player, and allTie / weekTie say so). people: a collapsed list. all: the list before collapse, to
   // add the entries shown as one row with a leader (the same person's other account). An empty board: an empty list.
   // ace, aceN: the Slipstream ace's uids and how many tracks they lead (ace() above; [] and 0 when it is unclaimed).
+  // crack, crackN: Top Cracker's uids and their all-time Shell Crackers kills (cracker() above; [] and 0 when unclaimed).
   function tops(people, all) {
     // all / week: the uids ranked 1; all2, all3, week2, week3: the uids ranked 2 and 3 (silver and bronze). The ranks
     // are the board's own, so after a tie for first the next row is rank 3 and nobody is second, as the board shows it.
@@ -815,6 +854,7 @@
       });
     });
     var a = ace(list, all); out.ace = a.ids; out.aceN = a.n;
+    var c = cracker(list, all); out.crack = c.ids; out.crackN = c.n;
     return out;
   }
   // The same from raw nodes, for the admin page (which also lists removed and merged accounts): read here as the boards
@@ -829,7 +869,7 @@
   }
 
   // For the admin page: the same checks and names, so what it shows is what the boards would show. With data-lib, that's all.
-  window.BackRoomBoards = { tops: tops, topsOf: topsOf, ace: ace, ACE_MIN: ACE_MIN, RS_PATH: RS_PATH, readResets: readResets, get resets() { return RESETS; }, showHidden: function (v) { SHOW_HIDDEN = !!v; }, parse: parse, collapse: collapse, GAMES: GAMES, BY: BY, TRACKS: TRACKS, SLIP_SEASON: SLIP_SEASON, SLIP_RESET: SLIP_RESET, trackRows: trackRows, EPOCH: EPOCH, PATH: PATH, MAX_NODES: MAX_NODES, NODE_MAX: NODE_MAX, fmt: fmt, fmtHours: fmtHours, cleanName: cleanName, mask: mask, seatOf: seatOf };
+  window.BackRoomBoards = { tops: tops, topsOf: topsOf, ace: ace, ACE_MIN: ACE_MIN, cracker: cracker, CRACK_MIN: CRACK_MIN,RS_PATH: RS_PATH, readResets: readResets, get resets() { return RESETS; }, showHidden: function (v) { SHOW_HIDDEN = !!v; }, parse: parse, collapse: collapse, GAMES: GAMES, BY: BY, TRACKS: TRACKS, SLIP_SEASON: SLIP_SEASON, SLIP_RESET: SLIP_RESET, trackRows: trackRows, EPOCH: EPOCH, PATH: PATH, MAX_NODES: MAX_NODES, NODE_MAX: NODE_MAX, fmt: fmt, fmtHours: fmtHours, cleanName: cleanName, mask: mask, seatOf: seatOf };
   if (me && me.hasAttribute('data-lib')) return;
 
   // ---------------- Styles ----------------
@@ -880,7 +920,7 @@
     '.lbd-msg,.lbd-note{margin:0;font-size:14px;color:var(--ink-2);overflow-wrap:anywhere}' +
     '.lbd-msg:empty{display:none}.lbd-msg.err{color:var(--down,#B42318)}' +
     '.lbd-note{font-size:13px}' +
-    // Slipstream's time boards: who holds the Slipstream ace award, under the board's heading.
+    // Slipstream's time boards: who holds the Slipstream ace award, under the board's heading (Shell Crackers' Kills board: Top Cracker).
     '.lbd-ace{margin:-4px 0 0;font-size:13px;color:var(--ink-2);overflow-wrap:anywhere}.lbd-ace[hidden]{display:none}.lbd-ace b{color:var(--ink);font-weight:700}' +
     '@media (max-width:600px){.lbd{padding:14px}.lbd-sub{font-size:14px;order:3;flex-basis:100%}.lbd-top > .lbd-b{margin-left:auto}.lbd-top > .lbd-b+.lbd-b{margin-left:0}.lbd-ctl label{max-width:none}.lbd-ctl label span{display:none}.lbd-chips{gap:6px}.lbd-chips button{font-size:13px;padding:5px 11px;min-height:34px}.lbd-r{gap:8px;padding:7px 10px;grid-template-columns:2.2em minmax(0,1fr) auto}.lbd-r.av{grid-template-columns:2.2em 28px minmax(0,1fr) auto}.lbd-v{font-size:14px}.lbd-span button{font-size:13px;padding:5px 12px}}' +
     '@media (max-width:420px){.lbd h2{font-size:24px}}';
@@ -925,7 +965,8 @@
   var $season = el('p', 'lbd-note', 'Season ' + SLIP_SEASON + ': Slipstream’s lap and race records were reset on ' + SLIP_RESET + ', after track fixes and gentler barriers made older times unfair to compare. Times set before then no longer count. Elo and hours played were kept.'); $season.hidden = true;
   // What This week / All time counts, on the boards with the toggle.
   var $spanNote = el('p', 'lbd-note'); $spanNote.hidden = true;
-  // Slipstream's time boards only: who holds the Slipstream ace (see ace) and the rule, or that it is unclaimed.
+  // Slipstream's time boards only: who holds the Slipstream ace (see ace) and the rule, or that it is unclaimed. Shell
+  // Crackers' Kills (all time) board: the same for Top Cracker (see cracker).
   var $ace = el('p', 'lbd-ace'); $ace.hidden = true;
   box.append(top, ctl, $chips, $h, $ace, $list, $msg, $rule, $season, $spanNote, $note);
   sec.append(box);
@@ -1144,8 +1185,14 @@
     $rule.hidden = !(view.st && (view.st.laps || view.st.cleanB));
     $rule.textContent = view.st && view.st.cleanB ? 'Clean times: no corner was cut on ' + (view.st.laps ? 'any lap of the race.' : 'the lap.') : 'Race times include any track-cut penalties (+2.5 s each).';
     $season.hidden = !(slip && view.st && (view.st.all || view.st.track));   // the lap and record boards, not Hours or Elo
-    $ace.hidden = $season.hidden || !people;
-    if (!$ace.hidden) { $ace.textContent = ''; $ace.append(el('b', '', 'Slipstream ace: '), aceLine(ace(people, everyone), isMe)); }
+    // Shell Crackers' Kills (all time) board: the same line for Top Cracker (cracker), which that board decides.
+    var crackB = view.g === 'shell-crackers' && view.st && view.st.k === 'kills';
+    $ace.hidden = ($season.hidden && !crackB) || !people;
+    if (!$ace.hidden) {
+      $ace.textContent = '';
+      if (crackB) $ace.append(el('b', '', 'Top Cracker: '), crackerLine(cracker(people, everyone), isMe));
+      else $ace.append(el('b', '', 'Slipstream ace: '), aceLine(ace(people, everyone), isMe));
+    }
     var miles = view.g === 'all', spans = miles || !view.st, wk = spans && view.span === 'week';
     $span.hidden = !spans;
     [].forEach.call($span.children, function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-s') === view.span)); });
@@ -1232,5 +1279,5 @@
 
   // Test hook for the automated checks; harmless in normal play.
   if (navigator.webdriver) window.__lb = { get people() { return people; }, get view() { return view; }, get myUid() { return myUid; }, parse: parse, collapse: collapse, rows: rows, milesOf: milesOf, $span: $span, trackRows: trackRows, boardsFor: boardsFor, fmt: fmt, BY: BY, load: function () { lastLoad = 0; return load(); }, draw: draw, set top(n) { TOP = n; }, setResets: function (r) { RESETS = r || {}; }, PATH: PATH, EPOCH: EPOCH,
-    feed: function (val, now) { take(val || {}, now || Date.now()); say(''); draw(); }, tops: tops, ace: ace, aceLine: aceLine, $ace: $ace, get lastLoad() { return lastLoad; }, set lastLoad(t) { lastLoad = t; } };
+    feed: function (val, now) { take(val || {}, now || Date.now()); say(''); draw(); }, tops: tops, ace: ace, aceLine: aceLine, cracker: cracker, crackerLine: crackerLine, $ace: $ace, get lastLoad() { return lastLoad; }, set lastLoad(t) { lastLoad = t; } };
 })();
