@@ -126,6 +126,7 @@
     { k: 'pf', n: 'Puffer Party', d: 'puffer-party', room: ROOM },
     { k: 'bs', n: 'Blockstorm', d: 'blockstorm', room: ROOM },
     { k: 'lh', n: 'Lanternhold', d: 'lanternhold', room: ROOM },
+    { k: 'vq', n: 'Sky Duel', d: 'sky-duel', room: ROOM },
     { k: 'tv', n: 'Trivium', d: 'trivium', room: /^[a-z]{5}$/ },
     { k: 'hm', n: 'Hail Mary', d: 'hail-mary' },
     { k: 'qy', n: 'Quarry', d: 'quarry' },
@@ -242,7 +243,8 @@
     '.onl-tier{display:inline-flex;align-items:center;gap:6px;min-width:0;font-size:13px;color:var(--ink-2)}.onl-tier:empty{display:none}' +
     '.onl-find{margin:0 0 8px}.onl-find input{width:100%;box-sizing:border-box;min-height:38px;padding:7px 12px;border-radius:10px;border:1px solid var(--line,#2a3442);background:var(--panel-2,rgba(255,255,255,.04));color:inherit;font:inherit;font-size:15px}' +
     '.onl-nomatch{margin:4px 2px;font-size:14px;color:var(--ink-2,#9aa4b2);grid-column:1/-1}' +
-    '.onl-list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;max-height:252px;overflow:auto;overscroll-behavior:contain}' +
+    '.onl-more{grid-column:1/-1}.onl-more .onl-b{width:100%}' +
+    '.onl-list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;max-height:252px;overflow:auto}' +
     '.onl-p{display:flex;align-items:center;gap:10px;width:100%;min-width:0;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font:inherit;color:inherit;text-align:left;cursor:pointer}' +
     '.onl-p:hover{border-color:var(--ink-2)}' +
     '.onl-p.me{cursor:default}.onl-p.me:hover{border-color:var(--line)}' +
@@ -313,7 +315,7 @@
     '.onl-bar + #turn{margin-left:8px}' +
     '.onl-bar[hidden]{display:none}.onl-pbar:not([hidden]) + .onl-bar{margin-left:0}' +
     '.onl-wn{font:inherit;font-weight:700;color:var(--ink);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px}' +
-    '@media (max-width:600px){.onl{padding:14px}.onl-list{grid-template-columns:minmax(0,1fr) minmax(0,1fr);max-height:252px}.onl-sub{font-size:14px;order:3;flex-basis:100%}.onl-top > .onl-b{margin-left:auto}.onl-top > .onl-b ~ .onl-b{margin-left:0}.onl-top > h2{flex:1 0 calc(100% - 32px)}}' +
+    '@media (max-width:600px){.onl{padding:14px}.onl-list{grid-template-columns:minmax(0,1fr) minmax(0,1fr);max-height:none;overflow:visible}.onl-sub{font-size:14px;order:3;flex-basis:100%}.onl-top > .onl-b{margin-left:auto}.onl-top > .onl-b ~ .onl-b{margin-left:0}.onl-top > h2{flex:1 0 calc(100% - 32px)}}' +
     '@media (max-width:600px){.onl-nt:not(.lock) .onl-nts{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));flex-basis:100%;max-width:400px}.onl-nt:not(.lock) .onl-nts label{width:auto;height:auto;aspect-ratio:1}.onl-nt .onl-b{flex:1 1 100%}}' +
     '@media (max-width:420px){.onl-list{grid-template-columns:minmax(0,1fr)}.onl-me .onl-lbl{display:none}.onl-me input[type=text]{width:10ch}.onl-nt.lock .onl-nts{gap:3px}.onl-nt.lock .onl-nts label{width:11px;height:11px}.onl-nt.lock .onl-nts span{border-radius:3px}}' +
     '@media (max-height:500px){.onl-ts{top:calc(40px + env(safe-area-inset-top,0px))}.onl-dh{padding:8px 12px}.onl-db{padding:8px 12px}.onl-df{padding:8px 12px}}';
@@ -1460,16 +1462,30 @@
     return q.every(function (w) { return t.indexOf(w) >= 0; });
   }
   // all: ignore the Find box (the people view inside the chat window, which has no box of its own).
+  // On phones the panel's list isn't a scroll box of its own (a finger on it couldn't scroll the page past it), so
+  // it shows the first few people and a Show everyone button; Find still searches the whole list.
+  var PHONE_FEW = 6, showAll = false, phoneMq = window.matchMedia ? window.matchMedia('(max-width:600px)') : null;
   function fillList(ul, withMe, all0) {
     ul.textContent = '';
     var me = el('li'); me.append(personBtn(meEntry(), true));
     var q = all0 ? [] : findQ(), all = others(), os = all.filter(function (p) { return matches(p, q); });
     if (uid && withMe && !q.length) ul.append(me);
-    os.forEach(function (p) { var li = el('li'); li.append(personBtn(p, false)); joinBtn(li, p); ul.append(li); });
+    var cut = ul === $list && !q.length && phoneMq && phoneMq.matches && os.length > PHONE_FEW + 2;
+    (cut && !showAll ? os.slice(0, PHONE_FEW) : os).forEach(function (p) { var li = el('li'); li.append(personBtn(p, false)); joinBtn(li, p); ul.append(li); });
+    if (cut) {
+      var mli = el('li', 'onl-more'), mb = btn(showAll ? 'Show fewer' : 'Show everyone (' + os.length + ')');
+      mb.addEventListener('click', function () {
+        showAll = !showAll; fillList($list);
+        if (!showAll) { try { $list.scrollIntoView({ block: 'nearest' }); } catch (e) {} }
+        var nb = $list.querySelector('.onl-more button'); if (nb) { try { nb.focus({ preventScroll: true }); } catch (e) {} }
+      });
+      mli.append(mb); ul.append(mli);
+    }
     if (q.length && all.length && !os.length) ul.append(el('li', 'onl-nomatch', 'Nobody online matches \u201c' + $find.value.trim() + '\u201d.'));
     return all.length;
   }
   $find.addEventListener('input', function () { fillList($list); });
+  if (phoneMq) { var mqf = function () { fillList($list); }; if (phoneMq.addEventListener) phoneMq.addEventListener('change', mqf); else if (phoneMq.addListener) phoneMq.addListener(mqf); }
   $find.addEventListener('keydown', function (e) { if (e.key === 'Escape' && $find.value) { $find.value = ''; fillList($list); e.stopPropagation(); } });
 
   function draw() {
