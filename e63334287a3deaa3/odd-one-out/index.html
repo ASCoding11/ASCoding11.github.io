@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
 <script src="/e63334287a3deaa3/captains.js"></script> <!-- who may see the Wardrobe while it is not public (see README) -->
+<script src="/e63334287a3deaa3/lang.js"></script> <!-- English / Español (see README) -->
+<script src="es.js"></script> <!-- Odd One Out's Spanish words -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Odd One Out</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -359,7 +361,7 @@ body.touch #banner span{font-size:14px}
       <div class="card">
         <div class="logo">
           <svg viewBox="0 0 74 64" aria-hidden="true"><path d="M6 24l16-8 16 8v18l-16 8-16-8z" fill="#c9965c" stroke="#171a2e" stroke-width="3" stroke-linejoin="round"/><path d="M6 24l16 8 16-8M22 32v18" fill="none" stroke="#171a2e" stroke-width="3" stroke-linejoin="round"/><path d="M36 26l16-8 16 8v18l-16 8-16-8z" fill="#14b89a" stroke="#171a2e" stroke-width="3" stroke-linejoin="round"/><path d="M36 26l16 8 16-8M52 34v18" fill="none" stroke="#171a2e" stroke-width="3" stroke-linejoin="round"/><circle cx="45" cy="36" r="2.4" fill="#171a2e"/><circle cx="57" cy="36" r="2.4" fill="#171a2e"/><circle cx="52" cy="13" r="10" fill="none" stroke="#ff7a1a" stroke-width="3.5"/><path d="M52 0v7M52 19v7M39 13h7M58 13h7" stroke="#ff7a1a" stroke-width="3" stroke-linecap="round"/></svg>
-          <h1><span class="o">Odd</span> One <span class="t">Out</span></h1>
+          <h1 data-noi18n><span class="o">Odd</span> One <span class="t">Out</span></h1>
         </div>
         <p class="tag">Props vs Hunters. Props turn into anything in the room (a box, a chair, a potted plant) and blend in. Hunters get a rifle and four minutes to find them.</p>
         <div class="label" style="margin-top:4px">Play with friends</div>
@@ -421,6 +423,7 @@ body.touch #banner span{font-size:14px}
           <label class="setting"><span>Effects</span><input type="range" id="volFx" min="0" max="1" step="0.05"><output id="volFxOut"></output></label>
           <label class="setting"><span>Music</span><input type="range" id="volMu" min="0" max="1" step="0.05"><output id="volMuOut"></output></label>
           <div class="setting"><span>Graphics</span><div class="seg" id="gfxSeg" role="group" aria-label="Graphics quality"><button type="button" data-q="high">High</button><button type="button" data-q="med">Medium</button><button type="button" data-q="fast">Low</button></div></div>
+          <div class="setting"><span>Language</span><div data-lang-toggle></div></div>
         </details>
         <div class="adbox" id="adMenu" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
       </div>
@@ -443,6 +446,7 @@ body.touch #banner span{font-size:14px}
       <label class="setting"><span>Invert look up/down</span><input type="checkbox" id="invY2"></label>
       <label class="setting"><span>Volume</span><input type="range" id="vol2" min="0" max="1" step="0.05"></label>
       <label class="setting"><span>Music</span><input type="range" id="volMu2" min="0" max="1" step="0.05"></label>
+      <div class="setting"><span>Language</span><div data-lang-toggle></div></div>
     </div>
   </section>
 
@@ -469,6 +473,7 @@ body.touch #banner span{font-size:14px}
 <script>
 (function(){
 'use strict';
+var LT=window.BackRoomLang?BackRoomLang.t:function(s,v){return s.replace(/\{(\w+)\}/g,function(m,n){return v&&v[n]!=null?v[n]:m})};
 // =====================================================================
 //  Firebase (same project and Realtime Database rules as Rumble Karts).
 //  Online rooms live under rooms/ph-<code>; every player writes only their
@@ -2176,7 +2181,7 @@ function applyRS(rs){
 function onElim(u,by,rs){
   const e=ents.get(u),isH=rs.hu.indexOf(u)>=0;
   if(e){const c=e.pos.clone();c.y+=e.look==='hunter'?1:(e.form?e.form.h/2:.4);const fd=!isH&&WD?ents.get(by):null;if(!(fd&&fd.wear&&WD.poof(c,fd.wear,e.form)))burst(c,e.look==='prop'?e.form:null);sfx('elim',c)}
-  const fn=e&&e.form&&!isH?' <span class="y">('+esc(e.form.name)+')</span>':'';
+  const fn=e&&e.form&&!isH?' <span class="y">('+esc(LT(e.form.name))+')</span>':'';
   const ob=!!(rs.ob&&rs.ob[u]);
   if(ob)feed('<span class="'+(isH?'h':'p')+'">'+esc(nameOf(u))+'</span> was out of bounds'+fn);
   else if(isH)feed('<span class="h">'+esc(nameOf(u))+'</span> ran out of health');
@@ -2351,7 +2356,7 @@ function alignMe(){
       if(h&&h.box&&!h.prop&&h.t>half+.01){const gap=h.t-half-.01;me.pos.addScaledVector(d,gap);if(overlapping(me))me.pos.addScaledVector(d,-gap);else moved=true;break}
     }
   }
-  G.lock=true;sfx('lock');toast(best?'Lined up with the '+best.t.name.toLowerCase()+' nearby':'Squared up');hudDirty();
+  G.lock=true;sfx('lock');toast(best?LT('Lined up with the {p} nearby',{p:LT(best.t.name).toLowerCase()}):'Squared up');hudDirty();
 }
 // ---------- hunters: the rifle ----------
 function canShoot(){return me&&isHunter()&&me.alive&&!G.paused&&G.rs&&G.rs.ph==='hunt'}
@@ -2371,7 +2376,7 @@ function fire(){
   let kind=0;
   if(h){
     if(h.ent&&h.ent.look==='prop'&&teamOf(roleOf(h.ent.id))==='p'&&roleOf(h.ent.id)==='prop'){kind=1;G.hits[h.ent.id]=(G.hits[h.ent.id]||0)+1;hitMark(false);sfx('hit',null,.8);impact(end,h.n,'#ffd23f',false)}
-    else if(h.prop){kind=2;G.wrong++;const pen=G.rs.set.pen|0;impact(end,h.n,'#e0dccf',true);if(pen){popup('−'+pen+' HP · just a '+h.prop.t.name.toLowerCase(),'bad');sfx('wrong',null,.6)}else sfx('impact',end)}
+    else if(h.prop){kind=2;G.wrong++;const pen=G.rs.set.pen|0;impact(end,h.n,'#e0dccf',true);if(pen){popup(LT('−{n} HP · just a {p}',{n:pen,p:LT(h.prop.t.name).toLowerCase()}),'bad');sfx('wrong',null,.6)}else sfx('impact',end)}
     else{impact(end,h.n,null,!h.ent);sfx('impact',end,.6)}
   }
   G.shotSeq++;G.lastShot=[G.shotSeq,r2(muzzle.x),r2(muzzle.y),r2(muzzle.z),r2(end.x),r2(end.y),r2(end.z),kind].join(',');
@@ -2829,7 +2834,7 @@ function updateHud(){
   const showXh=alive&&ph!=='end'&&ph!=='over'&&!G.paused;setHidden('xh',!showXh);
   if(showXh)setClass('xh',role==='hunter'?(G.aim?'':''):('dot'+(G.target?' target':'')));
   const tg=alive&&isProp()&&G.target&&!G.paused;setHidden('tgt',!tg);
-  if(tg){const s=(touchUI?'Become: ':'<kbd>'+esc(keyName('transform'))+'</kbd> become: ')+esc(G.target.t.name.toLowerCase())+(G.tfCd>0?' (in '+Math.ceil(G.tfCd)+'s)':'');if(hudCache.tgt!==s){hudCache.tgt=s;$('tgt').innerHTML=s}}
+  if(tg){const s=(touchUI?'Become: ':'<kbd>'+esc(keyName('transform'))+'</kbd> become: ')+esc(LT(G.target.t.name).toLowerCase())+(G.tfCd>0?' (in '+Math.ceil(G.tfCd)+'s)':'');if(hudCache.tgt!==s){hudCache.tgt=s;$('tgt').innerHTML=s}}
   // hints
   let hint='';const K=id=>'<kbd>'+esc(keyName(id))+'</kbd>';
   if(ph==='end'||ph==='over')hint='';
@@ -2913,7 +2918,7 @@ function showResults(rs){
     ids.sort((a,b)=>((res.pts[b]||0)-(res.pts[a]||0)));
     for(const u of ids){const tr=document.createElement('tr');if(u===mine)tr.className='me';const e=ents.get(u),col=u===mine?myColor:e?e.color:'#ccc',nm=(res.names&&res.names[u])||nameOf(u),isH=rs.hu.indexOf(u)>=0,el=rs.el&&rs.el[u];
       let result;if(isH){const n=+(rs.k||{})[u]||0;result=(n?'Found '+n:'Found none')+(el?' · <span class="bad">out of health</span>':'')}
-      else if(el)result='<span class="bad">Found by '+esc(nameOf(el[0]))+' at '+fmtT(el[1])+'</span>';else{const ft=ptOf((res.forms||{})[u]);result='<span class="ok">Survived as '+esc(ft?ft.name.toLowerCase():'a prop')+'</span>'}
+      else if(el)result='<span class="bad">Found by '+esc(nameOf(el[0]))+' at '+fmtT(el[1])+'</span>';else{const ft=ptOf((res.forms||{})[u]);result='<span class="ok">Survived as '+esc(ft?LT(ft.name).toLowerCase():LT('a prop'))+'</span>'}
       tr.innerHTML='<td><span class="nm"><span class="dot" style="background:'+col+'"></span>'+esc(nm)+(u===mine?' (you)':'')+'</span></td><td class="'+(isH?'rh':'rp')+'">'+(isH?'Hunter':'Prop')+'</td><td>'+result+'</td><td>+'+(+(res.pts||{})[u]||0)+'</td><td>'+(+(rs.sc||{})[u]||0)+'</td>';tb.appendChild(tr)}}
   $('again').hidden=G.mode==='online';$('toMenu').textContent=G.mode==='online'?'Leave room':'Menu';
   hudCache.endMsg=null;$('endMsg').textContent='';$('end').hidden=false;
