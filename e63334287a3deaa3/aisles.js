@@ -1,6 +1,6 @@
 /*
  * Aisles (Back Room): the site's clans. "Miles with us" is an airline, so a group of players is an Aisle: a name, a
- * short tag of 2 to 4 letters or digits shown before each member's name, and a colour. Up to 20 seats (MAX).
+ * short tag of 2 to 4 letters or digits shown before each member's name, and a colour. Up to 6 seats (MAX).
  *
  * Loaded with one <script defer> on the Back Room page and by the home page's reveal() and the phone page, next to
  * party.js and social.js. With data-admin (the admin page) it only exposes window.BackRoomAisles and adds nothing.
@@ -44,7 +44,7 @@
   var me0 = document.currentScript, ADMIN = !!(me0 && me0.hasAttribute('data-admin'));
 
   var PATH = 'rooms/xj-all/players', BAN_PATH = 'rooms/xj-ban/players';
-  var MAX = 20, INV_TTL = 7 * 86400000, NAME_MAX = 24, NODE_MAX = 20000, L_MAX = 6, KX_MAX = 30, AD_MAX = 10;
+  var MAX = 6, INV_TTL = 7 * 86400000, NAME_MAX = 24, NODE_MAX = 20000, L_MAX = 6, KX_MAX = 30, AD_MAX = 10;
   var K_RE = /^[0-9a-z]{8}$/, CODE_RE = /^[a-hjkmnp-z2-9]{8}$/, TAG_RE = /^[A-Z0-9]{2,4}$/, HEX16 = /^[0-9a-f]{16}$/;
   // The Aisle colours: [background, text]. Only an index is stored, so nothing anyone writes becomes a style.
   var COLS = [['#1F3A5F', '#FFFFFF', 'Navy'], ['#1D6A4B', '#FFFFFF', 'Forest'], ['#B42318', '#FFFFFF', 'Red'], ['#B4501F', '#FFFFFF', 'Orange'],
@@ -351,18 +351,38 @@
     d.people.forEach(function (p) { byPeople[p.uid] = p; });
     return { people: d.people, all: d.all, byAll: byAll, byPeople: byPeople, me: d.me };
   }
+  // The weekly contest: which Aisle's members flew the most miles this week (Monday to Sunday, the viewer's clock, the same
+  // week as the Miles board's This week). Miles from play time only (miles.js's HOUR an hour), from leaderboard.js's checked
+  // per-day history dy, and each member's days only count from the day they joined this Aisle, so moving a big week into
+  // another Aisle doesn't carry it over. Last week is worked out the same way from the days before this Monday.
+  function dayKey(t) { var d = new Date(t); return String(d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate()); }
+  function dayAgo(t, n) { var d = new Date(t); d.setDate(d.getDate() - n); return dayKey(d.getTime()); }
+  function weeks(t) { var b = (new Date(t).getDay() + 6) % 7; return { lo: dayAgo(t, b), hi: dayAgo(t, -1), llo: dayAgo(t, b + 7), lhi: dayAgo(t, b + 1) }; }
+  function joinedAt(A, u) {
+    var r = A.rec, a = num(r.m[u]), b = nodes[u] ? num(nodes[u].aj) : NaN, t = Math.max(a > 0 ? a : 0, b > 0 ? b : 0);
+    return t > 0 ? t : (num(r.t0) > 0 ? r.t0 : 0);
+  }
+  function weekMiles(p, from, lo, hi) {
+    var dy = p && p.dy, s = 0; if (!dy) return 0;
+    if (from > lo) lo = from;
+    Object.keys(dy).forEach(function (k) { if (k >= lo && k <= hi && dy[k] > 0) s += dy[k]; });
+    return Math.floor(Math.min(s, p.total || s) / 3600 * ((window.BackRoomMiles && BackRoomMiles.HOUR) || 100));
+  }
   function statsOf(A, d) {
-    var seen = {}, per = [], miles = 0, elo = 0, rated = 0;
+    var seen = {}, per = [], miles = 0, elo = 0, rated = 0, wk = 0, lw = 0, W = weeks(now());
     A.members.forEach(function (u) {
       var p = personFor(u, d), key = p ? p.uid : u;
       if (seen[key]) return; seen[key] = 1;
-      var mi = p ? milesOfP(p) : 0, e = p ? eloOfP(p) : { avg: 0, n: 0 };
-      miles += mi; if (e.n) { elo += e.avg; rated++; }
-      per.push({ u: u, p: p, miles: mi, elo: e.avg, games: e.n });
+      var mi = p ? milesOfP(p) : 0, e = p ? eloOfP(p) : { avg: 0, n: 0 }, j = joinedAt(A, u), from = j ? dayKey(j) : '';
+      var w = weekMiles(p, from, W.lo, W.hi), l = weekMiles(p, from, W.llo, W.lhi);
+      miles += mi; wk += w; lw += l; if (e.n) { elo += e.avg; rated++; }
+      per.push({ u: u, p: p, miles: mi, week: w, elo: e.avg, games: e.n });
     });
     var n = per.length;
-    return { per: per, n: n, miles: miles, milesAvg: n ? miles / n : 0, elo: elo, rated: rated, eloAvg: rated ? elo / rated : 0 };
+    return { per: per, n: n, miles: miles, milesAvg: n ? miles / n : 0, wk: wk, lw: lw, elo: elo, rated: rated, eloAvg: rated ? elo / rated : 0 };
   }
+  // Last week's winner (or winners, on a tie): the Aisles ranked 1 on last week's miles, with at least 1 mile.
+  function lastWinners(d) { return ranked(allStats(d), 'lw').filter(function (x) { return x.rank === 1; }); }
   function ranked(list, key) {
     list = list.filter(function (x) { return x[key] > 0; });
     list.sort(function (a, b) { return (b[key] - a[key]) || (a.A.nm < b.A.nm ? -1 : a.A.nm > b.A.nm ? 1 : (a.A.K < b.A.K ? -1 : 1)); });
@@ -375,6 +395,7 @@
   // ---------------- The Aisle boards (drawn into leaderboard.js's section) ----------------
   // c: { g: 'aisle-miles' | 'aisle-elo', list, h, chips, note, say }
   var eloSort = ls('ais:elosort') === 'avg' ? 'avg' : 'total';
+  var milesSpan = ls('ais:span') === 'all' ? 'all' : 'week';   // the Aisle Miles board: This week (the weekly contest) unless this browser picked All time
   function board(c) {
     var elo = c.g === 'aisle-elo';
     c.h.textContent = elo ? 'Aisle Elo' : 'Aisle Miles';
@@ -387,24 +408,37 @@
         b.addEventListener('click', function () { eloSort = x[0]; ls('ais:elosort', eloSort); board(c); });
         c.chips.append(b);
       });
+    } else {
+      [['week', 'This week'], ['all', 'All time']].forEach(function (x) {
+        var b = el('button', '', x[1]); b.type = 'button'; b.setAttribute('aria-pressed', String(milesSpan === x[0]));
+        b.addEventListener('click', function () { milesSpan = x[0]; ls('ais:span', milesSpan); board(c); });
+        c.chips.append(b);
+      });
     }
+    var wkB = !elo && milesSpan === 'week';
     c.note.hidden = false;
     c.note.textContent = elo
       ? 'Aisle Elo: each member’s Elo is averaged over the rated games they have played (games they haven’t played don’t count). Total = those member averages added up; Average = Total ÷ members with a rating. Sorted by ' + (eloSort === 'avg' ? 'Average.' : 'Total.')
+      : wkB ? 'Weekly contest: the Aisle whose members fly the most miles this week wins it. Miles from play time since Monday (' + fmtN((window.BackRoomMiles && BackRoomMiles.HOUR) || 100) + ' an hour), and each member’s only count from the day they joined the Aisle. A new week starts at midnight on Sunday night.'
       : 'Aisle Miles: every member’s all-time miles (the number behind their tier badge) added up. Average = Total ÷ members.';
     if (!ready) { start().catch(function () {}); c.say('Loading the Aisles…'); return; }
     var d = boardsData();
     if (!d) { c.say('Loading the leaderboards…'); return; }
-    var key = elo ? (eloSort === 'avg' ? 'eloAvg' : 'elo') : 'miles', list = ranked(allStats(d), key), myK = (mine() || {}).K;
+    var key = elo ? (eloSort === 'avg' ? 'eloAvg' : 'elo') : wkB ? 'wk' : 'miles', list = ranked(allStats(d), key), myK = (mine() || {}).K;
+    if (wkB) {
+      var lw = lastWinners(d);
+      c.note.textContent += lw.length ? ' Last week’s winner' + (lw.length > 1 ? 's (a tie): ' : ': ') + lw.map(function (x) { return x.A.nm + ' [' + x.A.tg + '] with ' + fmtN(x.lw) + ' mi'; }).join(', ') + '.' : ' Nobody flew any miles last week.';
+    }
     list.forEach(function (s) {
       var A = s.A, li = el('li', 'lbd-r ais-ar' + (A.K === myK ? ' me' : ''));
       li.setAttribute('data-k', A.K); li.tabIndex = 0; li.setAttribute('role', 'button'); li.setAttribute('aria-label', 'Open the Aisle ' + A.nm);
       var who = el('span', 'lbd-who'), nm = el('span', 'lbd-nm', A.nm + ' '), ex = el('span', 'lbd-ex');
       nm.append(el('small', '', '· ' + s.n + (s.n === 1 ? ' seat' : ' seats')));
       if (A.K === myK) nm.append(el('b', 'lbd-you', 'Yours'));
-      ex.append(elo ? (eloSort === 'avg' ? 'Total ' + fmtN(s.elo) : 'Average ' + fmtN(s.eloAvg)) + ' · ' + s.rated + ' rated' : 'Average ' + fmtN(s.milesAvg) + ' mi a member');
+      if (wkB && s.rank === 1) nm.append(el('b', 'lbd-you', 'Leading this week'));
+      ex.append(elo ? (eloSort === 'avg' ? 'Total ' + fmtN(s.elo) : 'Average ' + fmtN(s.eloAvg)) + ' · ' + s.rated + ' rated' : wkB ? fmtN(s.miles) + ' mi all time' : 'Average ' + fmtN(s.milesAvg) + ' mi a member');
       who.append(nm, ex);
-      li.append(el('span', 'lbd-rk', String(s.rank)), tagEl(A, true), who, el('span', 'lbd-v', elo ? fmtN(s[key]) : fmtN(s.miles) + ' mi'));
+      li.append(el('span', 'lbd-rk', String(s.rank)), tagEl(A, true), who, el('span', 'lbd-v', elo ? fmtN(s[key]) : fmtN(s[key]) + ' mi'));
       c.list.append(li);
     });
     if (!c.list._ais) {
@@ -414,7 +448,7 @@
       c.list.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(e); } });
     }
     var n = Object.keys(aisles).length;
-    c.say(!n ? 'No Aisles yet. Open Aisles in the Online panel to start one.' : !list.length ? 'No Aisle has ' + (elo ? 'a rated member' : 'any miles') + ' yet.' : list.length + (list.length === 1 ? ' Aisle' : ' Aisles') + (myK ? (list.some(function (s) { return s.A.K === myK; }) ? '. Yours is #' + list.filter(function (s) { return s.A.K === myK; })[0].rank + '.' : '. Yours isn’t on this board yet.') : '.'));
+    c.say(!n ? 'No Aisles yet. Open Aisles in the Online panel to start one.' : !list.length ? (wkB ? 'No Aisle has flown any miles this week yet.' : 'No Aisle has ' + (elo ? 'a rated member' : 'any miles') + ' yet.') : list.length + (list.length === 1 ? ' Aisle' : ' Aisles') + (myK ? (list.some(function (s) { return s.A.K === myK; }) ? '. Yours is #' + list.filter(function (s) { return s.A.K === myK; })[0].rank + '.' : '. Yours isn’t on this board yet.') : '.'));
   }
   // leaderboard.js leaves the list to us while an Aisle board is showing; it clears the class when it draws its own.
   function unboard(list) { if (list) list.classList.remove('ais-lb'); }
@@ -720,7 +754,9 @@
       var rm = rankOf(A.K, d, 'miles'), re = rankOf(A.K, d, 'elo');
       var a = el('div', 'ais-st'); a.append(el('span', '', 'Aisle Miles'), el('b', '', fmtN(s.miles) + ' mi'), el('span', '', 'Average ' + fmtN(s.milesAvg) + ' a member' + (rm.r ? ' · #' + rm.r + ' of ' + rm.of + ' Aisles' : '')));
       var b = el('div', 'ais-st'); b.append(el('span', '', 'Aisle Elo'), el('b', '', fmtN(s.elo)), el('span', '', 'Average ' + fmtN(s.eloAvg) + ' (' + s.rated + ' rated)' + (re.r ? ' · #' + re.r + ' of ' + re.of + ' Aisles' : '')));
-      st.append(a, b); parts.push(st);
+      var rw = rankOf(A.K, d, 'wk'), won = lastWinners(d).some(function (x) { return x.A.K === A.K; });
+      var w = el('div', 'ais-st'); w.append(el('span', '', 'This week (weekly contest)'), el('b', '', fmtN(s.wk) + ' mi'), el('span', '', (rw.r ? (rw.r === 1 ? 'Leading · ' : '#' + rw.r + ' of ' + rw.of + ' · ') : 'No miles yet · ') + 'last week ' + fmtN(s.lw) + ' mi' + (won ? ', the winner' : '')));
+      st.append(w, a, b); parts.push(st);
     } else parts.push(el('p', 'ais-note', 'Loading miles and Elo from the Leaderboards…'));
     var ul = el('ul', 'ais-mem'); ul.setAttribute('aria-label', 'Members');
     s.per.forEach(function (x) { ul.append(memberRow(x, A, lead)); });

@@ -60,7 +60,8 @@
  * DAY_GAMES of them, plus d's '_': that day's time in games past stats.js's first eight, all together), each game's week
  * is no more than its all-time hours, and after an hours reset only the days from the reset's date count (and still no
  * more than the hours since the reset, so a reset zeroes the week too). The week is parse's wk ({ <game>: seconds, _ }),
- * week (seconds) and wtop (the game played most this week).
+ * week (seconds) and wtop (the game played most this week). weekOf also keeps dy ({ YYYYMMDD: seconds }, the same checks)
+ * for every day from last week's Monday on, which the weekly Aisle contest uses (aisles.js).
  */
 (function () {
   'use strict';
@@ -435,19 +436,24 @@
   // The week starts on Monday: how many days back this week's Monday is (0 on a Monday, 6 on a Sunday), by the viewer's clock.
   function sinceMonday(now) { return (new Date(now).getDay() + 6) % 7; }
   function realDay(k) { return dayKey(new Date(+k.slice(0, 4), +k.slice(4, 6) - 1, +k.slice(6, 8))) === k; }
+  // Also dy: { YYYYMMDD: seconds } for every checked day from LAST week's Monday on (the same checks), for the weekly Aisle
+  // contest (aisles.js), which only counts a member's days from the day they joined.
   function weekOf(p, src, now, since) {
-    var wk = {}, lo = dayAgo(now, Math.min(sinceMonday(now), WEEK_DAYS - 1)), hi = dayAgo(now, -1);
-    if (since > 0) { var sd = dayKey(new Date(since)); if (sd > lo) lo = sd; }
+    var wk = {}, dy = {}, back = Math.min(sinceMonday(now), WEEK_DAYS - 1), lo = dayAgo(now, back), lo2 = dayAgo(now, back + 7), hi = dayAgo(now, -1);
+    if (since > 0) { var sd = dayKey(new Date(since)); if (sd > lo) lo = sd; if (sd > lo2) lo2 = sd; }
     if (src && typeof src === 'object' && !Array.isArray(src)) Object.keys(src).slice(0, 40).forEach(function (k) {
-      var g = src[k], tot = 0, m = 0;
-      if (!/^\d{8}$/.test(k) || k < lo || k > hi || !realDay(k) || !g || typeof g !== 'object' || Array.isArray(g)) return;
+      var g = src[k], tot = 0, m = 0, cur = k >= lo;
+      if (!/^\d{8}$/.test(k) || k < lo2 || k > hi || !realDay(k) || !g || typeof g !== 'object' || Array.isArray(g)) return;
       Object.keys(g).slice(0, 40).forEach(function (gk) {
         var r = gk === DAY_REST;
         if (tot >= 86400 || (!r && (!p.g[gk] || m >= DAY_GAMES))) return;
         var x = Math.min(Math.floor(num(g[gk])), 86400 - tot); if (!(x > 0)) return;
-        wk[gk] = (wk[gk] || 0) + x; tot += x; if (!r) m++;
+        if (cur) wk[gk] = (wk[gk] || 0) + x;
+        tot += x; if (!r) m++;
       });
+      if (tot > 0) dy[k] = tot;
     });
+    p.dy = dy;
     weekSum(p, wk);
   }
   // The week's caps and totals: a game's week no more than its hours, the whole week no more than all the hours.
@@ -638,6 +644,8 @@
     var wk = t.wk || {};
     Object.keys(p.wk || {}).forEach(function (k) { wk[k] = sum ? (wk[k] || 0) + p.wk[k] : Math.max(wk[k] || 0, p.wk[k]); });
     weekSum(t, wk);
+    var dy = t.dy || (t.dy = {});
+    Object.keys(p.dy || {}).forEach(function (k) { dy[k] = Math.min(86400, sum ? (dy[k] || 0) + p.dy[k] : Math.max(dy[k] || 0, p.dy[k])); });
   }
   function collapse(list) {
     var by = {};
