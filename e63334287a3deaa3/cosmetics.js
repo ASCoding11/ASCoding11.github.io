@@ -424,7 +424,7 @@
   I('chromaflage', 'tool', 2, 'Paint Scraper', 'common', '#14B8A6', '#C9D1DA', 'A wide blade for scraping the camouflage off a suspicious wall.');
   I('chromaflage', 'tool', 3, 'Spray Bottle', 'common', '#7FE3D6', '#FF4F8B', 'A trigger spray for misting anything that looks too much like the wallpaper.');
   I('chromaflage', 'tool', 4, 'Feather Duster', 'rare', '#A0673C', '#FF4F8B', 'Fluffy rainbow feathers for dusting off whoever is hiding on the shelf.');
-  I('chromaflage', 'splash', 1, 'Paint Splash', 'epic', '#FF4F8B', '#FFC83D', 'A burst of every paint colour, and a big SPLAT!, when you catch someone.');
+  I('chromaflage', 'splash', 1, 'Paint Splash', 'epic', '#FF4F8B', '#FFC83D', 'A ring of paint droplets in every colour, and a little SPLAT! over their head, when you catch someone.');
   I('chromaflage', 'caught', 1, 'Surprise Spin', 'epic', '#FF4F8B', '#3F7CFF', 'The hider you catch jumps in surprise, spins round and pops in a puff of paint.');
   // Items a game hands over itself are in no pack: give is 'free' (anyone may wear it; the game grants it the first time it
   // is worn) or 'earned' (the game grants it when it is won). grant(id), below, only adds these.

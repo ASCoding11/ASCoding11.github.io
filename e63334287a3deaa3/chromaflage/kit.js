@@ -59,7 +59,7 @@ const ITEMS={
     ['Feather Duster','#A0673C','#FF4F8B','Fluffy rainbow feathers for dusting off whoever is hiding on the shelf.'],
   ],
   splash:[
-    ['Paint Splash','#FF4F8B','#FFC83D','A burst of every paint colour, and a big SPLAT!, when you catch someone.'],
+    ['Paint Splash','#FF4F8B','#FFC83D','A ring of paint droplets in every colour, and a little SPLAT! over their head, when you catch someone.'],
   ],
   caught:[
     ['Surprise Spin','#FF4F8B','#3F7CFF','The hider you catch jumps in surprise, spins round and pops in a puff of paint.'],
@@ -263,7 +263,7 @@ function redressAll(){for(const e of X.ents.values())dress(e.av)}
 // =====================================================================
 //  Effects when a seeker in a kit catches someone (drawn under fxRoot, gone in ~1.2 s)
 // =====================================================================
-let splashTex=null,wordTex=null,bangTex=null;
+let wordTex=null,bangTex=null;
 function texOf(draw,w,h){const c=X.cnv(w,h||w);draw(c.getContext('2d'),w,h||w);const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;return t}
 function splatPath(x,cx,cy,r,seed,lobes){
   x.beginPath();const n=48;
@@ -272,54 +272,74 @@ function splatPath(x,cx,cy,r,seed,lobes){
     const px=cx+Math.cos(a)*rr,py=cy+Math.sin(a)*rr;i?x.lineTo(px,py):x.moveTo(px,py)}
   x.closePath();
 }
-function splashPic(x,w){
-  const c=w/2;[['#8b5cf6',.42,7],['#3f7cff',.36,6],['#14b8a6',.3,7],['#ffc83d',.23,5],['#ff4f8b',.16,6]].forEach(([col,r,l],i)=>{x.fillStyle=col;splatPath(x,c,c,w*r*.62,i*1.7+.4,l);x.fill()});
-  for(let i=0;i<14;i++){const a=i/14*TAU+.2,d=w*(.4+hash(i)*.08);x.fillStyle=PAINT[i%PAINT.length];x.beginPath();x.arc(c+Math.cos(a)*d,c+Math.sin(a)*d,w*(.018+hash(i+40)*.02),0,TAU);x.fill()}
+function splashTile(x){   // the shop tile: a ring of droplets flying out from a little figure, and a small SPLAT! above it
+  x.save();x.translate(72,84);x.globalAlpha=.85;
+  for(let i=0;i<14;i++){const a=i/14*TAU,d=44+(i%3)*5;x.fillStyle=PAINT[i%PAINT.length];x.beginPath();x.ellipse(Math.cos(a)*d,Math.sin(a)*d*.55,6,4.5,a,0,TAU);x.fill();
+    x.globalAlpha=.35;x.beginPath();x.ellipse(Math.cos(a)*(d-12),Math.sin(a)*(d-12)*.55,3.5,2.5,a,0,TAU);x.fill();x.globalAlpha=.85}
+  x.globalAlpha=1;x.strokeStyle='#1f1b33';x.lineWidth=3.5;x.fillStyle='#e9e6f5';x.beginPath();x.ellipse(0,8,13,18,0,0,TAU);x.fill();x.stroke();x.beginPath();x.arc(0,-17,11,0,TAU);x.fill();x.stroke();
+  x.font='700 24px Fredoka,sans-serif';x.textAlign='center';x.lineWidth=5;x.lineJoin='round';x.strokeText('SPLAT!',0,-38);x.fillStyle='#ff4f8b';x.fillText('SPLAT!',0,-38);
+  x.restore();
 }
-function splash(p,n){
-  if(!splashTex){splashTex=texOf(splashPic,128);wordTex=texOf((x,w,h)=>{x.font='700 '+Math.round(h*.62)+'px Fredoka,"Arial Rounded MT Bold",sans-serif';x.textAlign='center';x.textBaseline='middle';x.lineJoin='round';x.lineWidth=h*.13;x.strokeStyle='#1f1b33';x.strokeText('SPLAT!',w/2,h*.54);const g=x.createLinearGradient(0,0,w,0);PAINT.slice(0,5).forEach((c,i)=>g.addColorStop(i/4,c));x.fillStyle=g;x.fillText('SPLAT!',w/2,h*.54)},256,96)}
-  const hi=X.fxHigh(),m0=hi?16:9;
-  for(let i=0;i<m0;i++){const m=X.fxMesh(X.fxSphere,PAINT[i%PAINT.length]);m.position.copy(p);const s=rand(.045,.085);m.scale.setScalar(s);
-    const a=i/m0*TAU+rand(-.2,.2),out=rand(1.8,3.8);X.fx.push({m,t:0,life:rand(.5,.8),v:new V3(Math.cos(a)*out,rand(1.6,4.2),Math.sin(a)*out),grav:1,shrink:s})}
-  X.burstSprite(splashTex,'#ffffff',p,.5,.5,4.2);
-  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:wordTex,transparent:true,depthWrite:false}));s.position.copy(p).add(new V3(0,.75,0));s.scale.set(1.15,.43,1);X.fxRoot.add(s);
-  X.fx.push({m:s,t:0,life:1,v:new V3(0,.7,0),grow:.25,fade:1});
+function splash(e,n){
+  if(!wordTex)wordTex=texOf((x,w,h)=>{x.font='700 '+Math.round(h*.62)+'px Fredoka,"Arial Rounded MT Bold",sans-serif';x.textAlign='center';x.textBaseline='middle';x.lineJoin='round';x.lineWidth=h*.13;x.strokeStyle='#1f1b33';x.strokeText('SPLAT!',w/2,h*.54);const g=x.createLinearGradient(0,0,w,0);PAINT.slice(0,5).forEach((c,i)=>g.addColorStop(i/4,c));x.fillStyle=g;x.fillText('SPLAT!',w/2,h*.54)},256,96);
+  const f=frameOf(e),p=f.c,m0=X.fxHigh()?14:9;
+  for(let i=0;i<m0;i++){const a=i/m0*TAU+rand(-.15,.15),dx=Math.cos(a),dz=Math.sin(a),m=X.fxMesh(X.fxSphere,PAINT[i%PAINT.length],.7);m.userData.kit=1;
+    const s=rand(.035,.055);m.scale.setScalar(s);m.position.set(p.x+dx*.22,p.y+rand(-.15,.15),p.z+dz*.22);
+    const sp=rand(3.4,4.4);X.fx.push({m,t:0,life:rand(.45,.6),v:new V3(dx*sp,rand(-.3,.5),dz*sp),shrink:s})}
+  const w=new THREE.Sprite(new THREE.SpriteMaterial({map:wordTex,transparent:true,depthWrite:false}));w.userData.kit=1;
+  w.position.copy(f.top).add(new V3(0,.6,0));w.scale.set(.52,.2,1);X.fxRoot.add(w);
+  X.fx.push({m:w,t:0,life:.7,v:new V3(0,.45,0),fade:1});
   X.sfx('splat',p);
 }
+// where a body is right now: its middle (c), the way its own head points (up), whether that is upright, and a spot just
+// above its head (top). A hider can be standing, crouching, lying down or stuck to a wall, upright or sideways.
+const _q=new THREE.Quaternion();
+function frameOf(e){
+  const av=e.av;av.root.updateMatrixWorld(true);
+  const box=new THREE.Box3();for(const m of av.parts)box.expandByObject(m);
+  const c=box.isEmpty()?e.pos.clone().add(new V3(0,.5,0)):box.getCenter(new V3());
+  const up=new V3(0,1,0).applyQuaternion(av.pose.getWorldQuaternion(_q)).normalize(),upright=up.y>.85;
+  const top=box.isEmpty()?c.clone():new V3(c.x,box.max.y,c.z);
+  return{c,up,upright,top,box};
+}
 // the caught animation: a copy of the hider's body (made the moment it is caught, so the page can hide or turn the
-// real one as it always has) hops, spins and pops. The copy shares the body's shapes; its material is its own.
+// real one as it always has) hops along its own up direction, spins if it is upright, and pops. The copy shares the
+// body's shapes; its material is its own.
 const anims=[];
 function caught(e,n){
   const av=e.av;if(!av.root.visible||!av.parts.length)return;
-  av.root.updateMatrixWorld(true);
-  const g=new THREE.Group(),inv=new THREE.Matrix4().copy(av.root.matrixWorld).invert(),mats=new Map();
-  g.position.copy(av.root.position);g.quaternion.copy(av.root.quaternion);g.scale.copy(av.root.scale);
+  const f=frameOf(e),g=new THREE.Group(),inv=new THREE.Matrix4().makeTranslation(-f.c.x,-f.c.y,-f.c.z),mats=new Map();
+  g.position.copy(f.c);g.userData.kit=2;   // the copy turns and shrinks about the body's middle, in the world's axes
   for(const m of av.parts){
     if(!m.visible)continue;let mt=mats.get(m.material);if(!mt){mt=m.material.clone();mats.set(m.material,mt)}
     const k=new THREE.Mesh(m.geometry,mt);k.matrixAutoUpdate=false;k.matrix.multiplyMatrices(inv,m.matrixWorld);g.add(k);
   }
   X.fxRoot.add(g);
   if(!bangTex)bangTex=texOf((x,w)=>{x.font='700 '+Math.round(w*.8)+'px Fredoka,"Arial Rounded MT Bold",sans-serif';x.textAlign='center';x.textBaseline='middle';x.lineWidth=w*.12;x.lineJoin='round';x.strokeStyle='#1f1b33';x.strokeText('!',w/2,w*.55);x.fillStyle='#ffc83d';x.fillText('!',w/2,w*.55)},64);
-  const h=X.heightOf(e),bang=new THREE.Sprite(new THREE.SpriteMaterial({map:bangTex,transparent:true,depthWrite:false}));bang.position.copy(e.pos).add(new V3(0,h+.3,0));bang.scale.setScalar(.45);X.fxRoot.add(bang);
+  const bang=new THREE.Sprite(new THREE.SpriteMaterial({map:bangTex,transparent:true,depthWrite:false}));bang.userData.kit=2;bang.position.copy(f.top).add(new V3(0,.25,0));bang.scale.setScalar(.4);X.fxRoot.add(bang);
   X.fx.push({m:bang,t:0,life:.55,v:new V3(0,.6,0),fade:1});
-  anims.push({g,mats:[...mats.values()],t:0,life:1.1,y0:g.position.y,ry:g.rotation.y,s0:g.scale.clone(),h,popped:false,pos:e.pos.clone()});
-  X.sfx('squeak',e.pos);
+  anims.push({g,mats:[...mats.values()],t:0,life:1.1,c:f.c.clone(),up:f.up.clone(),upright:f.upright,hop:f.upright?.75:.4,ry:0,popped:false,half:Math.max(.2,f.box.getSize(new V3()).length()*.3)});
+  X.sfx('squeak',f.c);
 }
 const ease=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
 function tickAnims(dt){
   for(let i=anims.length-1;i>=0;i--){const a=anims[i];a.t+=dt;const t=a.t,g=a.g;
-    // squash, hop with a stretch, spin twice, then shrink away while turning paint-pink
+    // upright: squash, hop with a stretch and spin twice; lying down or on a wall: just hop out along its own up.
+    // Then shrink away while turning paint-pink, and pop.
     let sy=1,sxz=1;
-    if(t<.12){const k=t/.12;sy=1-.28*Math.sin(k*Math.PI/2);sxz=1+.16*Math.sin(k*Math.PI/2)}
-    else if(t<.45){const k=(t-.12)/.33;sy=lerp(.72,1.16,Math.min(1,k*2))-.16*Math.max(0,k*2-1);sxz=lerp(1.16,.9,Math.min(1,k*2))+.1*Math.max(0,k*2-1)}
+    if(a.upright){
+      if(t<.12){const k=t/.12;sy=1-.28*Math.sin(k*Math.PI/2);sxz=1+.16*Math.sin(k*Math.PI/2)}
+      else if(t<.45){const k=(t-.12)/.33;sy=lerp(.72,1.16,Math.min(1,k*2))-.16*Math.max(0,k*2-1);sxz=lerp(1.16,.9,Math.min(1,k*2))+.1*Math.max(0,k*2-1)}
+      g.rotation.y=ease(Math.min(1,t/1))*TAU*2;
+    }
     const shrink=t<.62?1:Math.max(0,1-ease(Math.min(1,(t-.62)/.38)));
-    const up=t<.12?0:Math.sin(Math.min(1,(t-.12)/.6)*Math.PI/2)*.75+Math.max(0,t-.72)*.5;
-    g.position.y=a.y0+up;g.rotation.y=a.ry+ease(Math.min(1,t/1))*TAU*2;
-    g.scale.set(a.s0.x*sxz*shrink,a.s0.y*sy*shrink,a.s0.z*sxz*shrink);
+    const hop=t<.12?0:Math.sin(Math.min(1,(t-.12)/.6)*Math.PI/2)*a.hop+Math.max(0,t-.72)*a.hop*.6;
+    g.position.copy(a.c).addScaledVector(a.up,hop);
+    g.scale.set(sxz*shrink,sy*shrink,sxz*shrink);
     const pk=clamp((t-.3)/.5,0,1);for(const m of a.mats)if(m.emissive)m.emissive.setRGB(pk,pk*.31,pk*.55);
-    if(!a.popped&&t>.9){a.popped=true;const p=a.pos.clone();p.y=a.y0+up+a.h*.45;
-      for(let j=0,nd=X.fxHigh()?12:7;j<nd;j++){const m=X.fxMesh(X.fxDrop,PAINT[j%PAINT.length]);m.position.copy(p);const s=rand(.03,.055);m.scale.setScalar(s);const an=j/nd*TAU;
-        X.fx.push({m,t:0,life:rand(.3,.5),v:new V3(Math.cos(an)*rand(1.4,2.6),rand(.6,2.2),Math.sin(an)*rand(1.4,2.6)),grav:1,shrink:s})}
+    if(!a.popped&&t>.9){a.popped=true;const p=g.position.clone();
+      for(let j=0,nd=X.fxHigh()?12:7;j<nd;j++){const m=X.fxMesh(X.fxDrop,PAINT[j%PAINT.length]);m.userData.kit=2;m.position.copy(p);const s=rand(.03,.055);m.scale.setScalar(s);const an=j/nd*TAU;
+        X.fx.push({m,t:0,life:rand(.3,.45),v:new V3(Math.cos(an)*rand(1.4,2.6),rand(.6,2.2),Math.sin(an)*rand(1.4,2.6)),grav:1,shrink:s})}
       X.sfx('puff',p)}
     if(t>=a.life){X.fxRoot.remove(g);for(const m of a.mats)m.dispose();anims.splice(i,1)}
   }
@@ -327,9 +347,8 @@ function tickAnims(dt){
 // someone was caught (before the page hides them or turns them into a seeker): the catcher's effects, if any
 function found(e,by){
   const c=X.ents.get(by),k=c?kitOfEnt(c):null;if(!k||!e)return;
-  const p=e.pos.clone();p.y+=X.heightOf(e)*.55;
+  if(valid('splash',k[2]))splash(e,k[2]);
   if(valid('caught',k[3]))caught(e,k[3]);
-  if(valid('splash',k[2]))splash(p,k[2]);
 }
 
 // =====================================================================
@@ -406,7 +425,7 @@ function tileThumb(slot,n){
   let url='';
   if(slot==='hat'||slot==='tool')url=renderThumb(slot==='hat'?hatGeo(n):toolNat(n),slot);
   else{const c=X.cnv(144,144),x=c.getContext('2d');x.fillStyle='#f3ecdf';x.fillRect(0,0,144,144);
-    if(slot==='splash'){x.save();x.translate(8,8);splashPic(x,128);x.restore();x.font='700 30px Fredoka,sans-serif';x.textAlign='center';x.lineWidth=6;x.lineJoin='round';x.strokeStyle='#1f1b33';x.strokeText('SPLAT!',72,80);x.fillStyle='#fff';x.fillText('SPLAT!',72,80)}
+    if(slot==='splash')splashTile(x);
     else caughtPic(x);
     url=c.toDataURL('image/png')}
   return(UI.thumbs[key]=url);
@@ -458,8 +477,8 @@ function wear(slot,n){
 }
 // show an effect on the model: the splash at its feet, or the caught animation on a hider-coloured copy of it
 function demo(slot){
-  const e=UI.ent;if(!e)return;const k=myKit,p=e.pos.clone();p.y+=X.heightOf(e)*.55;
-  if(slot==='splash'&&k[2])splash(p,k[2]);
+  const e=UI.ent;if(!e)return;const k=myKit;
+  if(slot==='splash'&&k[2])splash(e,k[2]);
   if(slot==='caught'&&k[3]&&UI.demoT<=0){e.av.setSeeker(false);caught(e,k[3]);e.av.setSeeker(true);e.av.root.visible=false;UI.demoT=1.15}
 }
 function openKit(){
@@ -526,5 +545,5 @@ redressAll();
 
 return{dress,undress,found,frame,cam,access,wire:()=>wire(mine()),
   // for tests (index.html's __cf hook, automated browsers only)
-  test:{ITEMS,SLOTS,get kit(){return myKit.slice()},wear,openKit,closeKit,demo,splash,caught,hatGeo,toolGeo,HEAD,KMAT,UI,anims,renderThumb}};
+  test:{ITEMS,SLOTS,get kit(){return myKit.slice()},wear,openKit,closeKit,demo,splash,caught,frameOf,hatGeo,toolGeo,HEAD,KMAT,UI,anims,renderThumb}};
 };
