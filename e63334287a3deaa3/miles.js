@@ -515,8 +515,10 @@
   var CHAMP_KEY = 'tn:champs', CHAMP_TTL = 5 * 60000, CHAMP_DAYS = 7, CHAMP_PATH = 'rooms/tn-hall/players';
   var champs = null, champsAsked = 0;
   var LOCAL = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+  // A Captain as captains.js counts them: OWNERS, plus VICE_CAPTAINS while its VICE_CAPTAINS_TOO switch is on (off now).
   function hallCap(u) {
     if (isOwner(u)) return true;
+    try { if (window.BackRoomCaptains && window.BackRoomCaptains.viceToo && isVice(u)) return true; } catch (e) {}
     if (!LOCAL) return false;
     try { var l = JSON.parse(localStorage.getItem('tn:testcaps') || '[]'); return Array.isArray(l) && l.indexOf(u) >= 0; } catch (e) { return false; }
   }

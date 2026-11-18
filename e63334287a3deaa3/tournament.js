@@ -144,7 +144,7 @@
     '#tourney .tn-ev .btn.ghost{background:transparent;border-color:#C9BEFF;color:#fff}' +
     '#tourney .tn-ev .tn-names li{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.25);color:#fff}' +
     '#tourney .tn-ev .tn-names li.me{border-color:#7CF2D0}' +
-    '#tourney .tn-ev .tn-x{position:absolute;top:10px;right:10px}' +
+    '#tourney .tn-ev .tn-x{position:absolute;top:10px;right:10px}#tourney .tn-ev.has-x>.tn-h:first-child{padding-right:96px}' +
     // Your match
     '#tourney .tn-you{border:2px solid var(--accent);border-radius:12px;padding:12px 14px;display:grid;gap:8px;background:var(--panel-2)}' +
     '#tourney .tn-you b{font-size:17px}' +
@@ -163,9 +163,10 @@
     '#tourney .tn-mi{font-family:var(--mono);font-size:11px;color:var(--ink-2);padding:4px 10px;border-top:1px dashed var(--line);display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}' +
     '#tourney .tn-mi .btn.sm{min-height:30px;padding:2px 8px;font-size:12px}' +
     '#tourney .tn-champ{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:12px 14px;border-radius:12px;background:linear-gradient(120deg,#1E1747,#5B3FD1);color:#fff}' +
-    '#tourney .tn-champ b{font-size:20px}' +
+    '#tourney .tn-champ b{font-size:20px}#tourney .tn-champ .tn-h{color:#C9BEFF}' +
+    '#tourney .tn-champ .tn-bd{background:#FFFDF8;border-radius:999px;padding:3px 8px;display:inline-flex;align-items:center;max-width:100%;overflow:hidden}' +
     '@media (max-width:600px){#tourney .tn{padding:16px 14px 14px}#tourney .tn-br{grid-auto-flow:row;grid-auto-columns:auto;overflow:visible}' +
-    '#tourney .tn-rd{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,150px),1fr))}#tourney .tn-rd>.tn-h{grid-column:1/-1}' +
+    '#tourney .tn-rd{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr))}#tourney .tn-rd>.tn-h{grid-column:1/-1}' +
     '#tourney label.tn-f{max-width:none;flex-basis:100%}#tourney .tn-row>.btn{flex:1 1 auto;justify-content:center}#tourney .tn-cd{font-size:19px}}';
   document.head.appendChild(css);
 
@@ -174,10 +175,14 @@
   sec.innerHTML = '<div class="tn"><div class="tn-top"><h2>Tournaments</h2><p class="tn-sub">Knockout brackets for the 1v1 games. Winners of Captain-run events get the Tournament Champion badge for a week.</p></div>' +
     '<div class="tn-feat"></div><div class="tn-main"></div><p class="tn-msg" role="status" aria-live="polite"></p></div>';
   var $feat = sec.querySelector('.tn-feat'), $main = sec.querySelector('.tn-main'), $msg = sec.querySelector('.tn-msg');
-  function say(t, err) { $msg.textContent = t || ''; $msg.classList.toggle('err', !!err); }
+  // A status line under the panel; it clears itself after 15 s so an old message never sits under a newer state.
+  var sayT = 0;
+  function say(t, err) { $msg.textContent = t || ''; $msg.classList.toggle('err', !!err); clearTimeout(sayT); if (t) sayT = setTimeout(function () { $msg.textContent = ''; }, 15000); }
   // Right above Playing now (or the Party panel), so it is near the top under What's new. Placed once.
-  function place() {
+  // On the home page the scripts load in any order, so wait (up to 10 s) for one of those panels to exist first.
+  function place(n) {
     var a = document.getElementById('playingnow') || document.getElementById('party'), head = document.querySelector('header');
+    if (!a && (n || 0) < 100) { setTimeout(function () { place((n || 0) + 1); }, 100); return; }
     if (a && a.parentNode) a.parentNode.insertBefore(sec, a);
     else if (head && head.parentNode) head.parentNode.insertBefore(sec, head.nextSibling); else document.body.appendChild(sec);
   }
@@ -604,7 +609,9 @@
         if (ready) row.appendChild(su ? btn('Cancel sign-up', 'unsign', 'ghost', { c: e.id }) : btn(sign.length >= e.sz ? 'Sign up (waiting list)' : 'Sign up', 'sign', '', { c: e.id }));
         if (e.cu === uid && t >= e.t - 60000) row.appendChild(btn('Start now', 'evstart', 'ghost', { c: e.id }));
       }
-      if (e.cu === uid && !(b && b.st === 'live')) { var x = btn('Remove', 'unsched', 'ghost tn-x', { c: e.id }); card.appendChild(x); }
+      // The draw happens in the organising Captain's browser (only it can write the bracket), so say so if it's late.
+      if (!b && t > e.t + 30000 && e.cu !== uid) card.appendChild(el('p', '', 'Waiting for ' + e.by + ' to open the Back Room: the bracket is drawn from their browser.'));
+      if (e.cu === uid && !(b && b.st === 'live')) { var x = btn('Remove', 'unsched', 'ghost tn-x', { c: e.id }); card.appendChild(x); card.classList.add('has-x'); }
       card.appendChild(row);
       if (!b || b.st === 'reg') {
         card.appendChild(el('p', 'tn-h', sign.length + ' signed up' + (sign.length > e.sz ? ' · the first ' + e.sz + ' online at the start play' : '')));
@@ -672,9 +679,9 @@
     if (b.st === 'off') { $main.appendChild(el('p', 'tn-sub', 'This tournament was called off.')); return; }
     if (b.st === 'done') {
       var c = el('div', 'tn-champ');
-      c.appendChild(el('span', 'tn-h', 'Champion')); c.style.color = '#fff';
+      c.appendChild(el('span', 'tn-h', 'Champion'));
       c.appendChild(el('b', '', b.ch ? nameOf(b, b.ch) : 'Nobody (both finalists were no-shows)'));
-      var bd = b.ch && badgeFor(b.ch); if (bd) c.appendChild(bd);
+      var bd = b.ch && badgeFor(b.ch); if (bd) { var bw = el('span', 'tn-bd'); bw.appendChild(bd); c.appendChild(bw); }
       if (b.hu === uid && b.hw && isCap(uid)) c.appendChild(btn('Revoke badge', 'revoke', 'ghost'));
       $main.appendChild(c);
     }
