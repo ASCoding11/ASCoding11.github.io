@@ -39,6 +39,16 @@
     'Every lobby is full right now. Try a room code.': 'Todas las salas están llenas. Prueba con un código de sala.',
     'Could not load Firebase. Check your internet connection and reload, or use “Practice vs bots”.': 'No se pudo cargar Firebase. Revisa tu conexión y recarga, o usa “Práctica contra bots”.',
     'Sign-in failed: {e}': 'No se pudo iniciar sesión: {e}',
+    // messages put together in code (weapon names inside them stay as the game writes them)
+    'Get within {m} m of a kart ahead of you': 'Acércate a menos de {m} m de un kart de adelante', '{a} stole your {w}': '{a} te robó: {w}',
+    '{a} hit everyone with the Shrink Ray. Avoid full-size karts.': '{a} encogió a todos con el Rayo encogedor. Evita los karts de tamaño normal.',
+    '{a} covered you in cream · half speed for {s} s': '{a} te llenó de crema · mitad de velocidad por {s} s', '{a} is winding up The Angry Whip': '{a} está preparando The Angry Whip',
+    'This room is playing {m}': 'Esta sala está jugando {m}', 'Wrecked with all {n} weapons': 'Destrozó con las {n} armas', '{n} finished Gun Game': '{n} terminó Gun Game',
+    'Wreck someone with your {w} to level up': 'Destroza a alguien con tu {w} para subir de nivel', '{w} · {n} to go': '{w} · faltan {n}', '{w} landed on the map': 'Cayó {w} en el mapa',
+    '{n} got': '{n} agarró', 'You were furthest: level {l}': 'Llegaste más lejos: nivel {l}', '{n} was furthest: level {l}': '{n} llegó más lejos: nivel {l}',
+    'You win with {s} zone points': 'Ganaste con {s} puntos de zona', 'You win with {s} zone point': 'Ganaste con {s} punto de zona',
+    '{n} wins with {s} zone points': '{n} gana con {s} puntos de zona', '{n} wins with {s} zone point': '{n} gana con {s} punto de zona',
+    '· back in {s}': '· vuelves en {s}',
     // weapons (names that are just words are translated; invented names stay)
     'Rocket': 'Cohete', 'Mine': 'Mina', 'A mine': 'Una mina', 'Shockwave': 'Onda expansiva', 'Freeze Ray': 'Rayo congelante', 'Magnet': 'Imán',
     'Shrink Ray': 'Rayo encogedor', 'Boomerang': 'Bumerán', 'Ghost': 'Fantasma', 'Warp': 'Salto', 'Decoy Box': 'Caja trampa', 'Gravity': 'Gravedad',
