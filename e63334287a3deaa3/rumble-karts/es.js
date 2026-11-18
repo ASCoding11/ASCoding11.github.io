@@ -2,6 +2,12 @@
 // Map names (Rumble Yard, Frost Lake and the lava one) and the brand-like mode names Rumble and Gun Game stay as they are.
 (function () {
   if (!window.BackRoomLang) return;
+  // the round banner: '<map> · <tip>' (map names stay as they are)
+  var tips = { 'Grab a box, find a lane, fire': 'Agarra una caja, busca un carril y dispara', 'The frozen lake is slippery': 'El lago congelado resbala',
+    'Knock rivals into the lava for the wreck': 'Empuja a tus rivales a la lava para destrozarlos', 'Each wreck moves you to the next weapon': 'Cada choque te pasa a la siguiente arma',
+    'Hold the zone alone to score': 'Quédate solo en la zona para sumar', 'Most wrecks in 3 minutes wins': 'Gana quien haga más choques en 3 minutos' };
+  var more = {}; Object.keys(tips).forEach(function (k) { more['{m} · ' + k] = '{m} · ' + tips[k]; });
+  BackRoomLang.add(more);
   BackRoomLang.add({
     '3-minute kart brawls · three ways to win': 'Peleas de karts de 3 minutos · tres formas de ganar',
     'Driver name': 'Nombre del piloto', 'Kart paint': 'Color del kart', 'Paint {n}': 'Color {n}', 'New code': 'Código nuevo', 'Mode': 'Modo',
@@ -39,16 +45,38 @@
     'Every lobby is full right now. Try a room code.': 'Todas las salas están llenas. Prueba con un código de sala.',
     'Could not load Firebase. Check your internet connection and reload, or use “Practice vs bots”.': 'No se pudo cargar Firebase. Revisa tu conexión y recarga, o usa “Práctica contra bots”.',
     'Sign-in failed: {e}': 'No se pudo iniciar sesión: {e}',
+    'Rumble Karts arena': 'Arena de Rumble Karts', 'Lv': 'Nv', 'moves in {s}s': 'se mueve en {s}s', 'Round {n} ·': 'Ronda {n} ·', 'Classic': 'Clásico',
+    'by {n}': 'por {n}', 'knocked into the lava by {n}': '{n} te tiró a la lava', 'creamed by {n}': '{n} te llenó de crema', 'whipped by {n}': '{n} te dio un latigazo',
+    'Wrecked {n}': 'Destrozaste a {n}', 'got creamed by': 'recibió crema de', 'got whipped by': 'recibió un latigazo de', '{n} grabbed': '{n} agarró', 'dropped': 'apareció',
+    '{n} shots': '{n} disparos', '1 arrow': '1 flecha', '{n} arrows': '{n} flechas', '1 blob': '1 bola', '{n} blobs': '{n} bolas',
+    'This room is playing Classic': 'Esta sala está jugando Clásico', 'This room is playing Zone': 'Esta sala está jugando Zona',
+    'You win with {s} wrecks': 'Ganaste con {s} choques', 'You win with {s} wreck': 'Ganaste con {s} choque',
+    '{n} wins with {s} wrecks': '{n} gana con {s} choques', '{n} wins with {s} wreck': '{n} gana con {s} choque',
+    'Someone hit everyone with the Shrink Ray. Avoid full-size karts.': 'Alguien encogió a todos con el Rayo encogedor. Evita los karts de tamaño normal.',
+    'Someone covered you in cream · half speed for {s} s': 'Alguien te llenó de crema · mitad de velocidad por {s} s',
+    'Someone is winding up The Angry Whip': 'Alguien está preparando The Angry Whip',
     // messages put together in code (weapon names inside them stay as the game writes them)
     'Get within {m} m of a kart ahead of you': 'Acércate a menos de {m} m de un kart de adelante', '{a} stole your {w}': '{a} te robó: {w}',
     '{a} hit everyone with the Shrink Ray. Avoid full-size karts.': '{a} encogió a todos con el Rayo encogedor. Evita los karts de tamaño normal.',
     '{a} covered you in cream · half speed for {s} s': '{a} te llenó de crema · mitad de velocidad por {s} s', '{a} is winding up The Angry Whip': '{a} está preparando The Angry Whip',
-    'This room is playing {m}': 'Esta sala está jugando {m}', 'Wrecked with all {n} weapons': 'Destrozó con las {n} armas', '{n} finished Gun Game': '{n} terminó Gun Game',
+    'This room is playing {m}': 'Esta sala está jugando {m}', 'Wrecked with all {n} weapons': 'Con las {n} armas', '{n} finished Gun Game': '{n} terminó Gun Game',
     'Wreck someone with your {w} to level up': 'Destroza a alguien con tu {w} para subir de nivel', '{w} · {n} to go': '{w} · faltan {n}', '{w} landed on the map': 'Cayó {w} en el mapa',
     '{n} got': '{n} agarró', 'You were furthest: level {l}': 'Llegaste más lejos: nivel {l}', '{n} was furthest: level {l}': '{n} llegó más lejos: nivel {l}',
     'You win with {s} zone points': 'Ganaste con {s} puntos de zona', 'You win with {s} zone point': 'Ganaste con {s} punto de zona',
     '{n} wins with {s} zone points': '{n} gana con {s} puntos de zona', '{n} wins with {s} zone point': '{n} gana con {s} punto de zona',
     '· back in {s}': '· vuelves en {s}',
+    // Garage (driver names and taunts are characters' own and stay as they are)
+    'Garage': 'Garaje', 'Free to wear': 'Gratis', 'Done': 'Listo', 'Your kart': 'Tu kart', 'Try taunt': 'Probar burla', 'Honk': 'Bocina', 'in the': 'en',
+    'Knockout taunt': 'Burla al destrozar', 'Drivers': 'Pilotos', 'Wheels': 'Ruedas', 'Horns': 'Bocinas',
+    'Classic driver': 'Piloto clásico', 'Classic kart': 'Kart clásico', 'classic kart': 'kart clásico', 'Classic wheels': 'Ruedas clásicas', 'Classic explosion': 'Explosión clásica',
+    'Bathtub': 'Bañera', 'Shopping Cart': 'Carrito de compras', 'Lawnmower': 'Cortacésped', 'Hot Dog Cart': 'Carrito de hot dogs', 'Bumper Car': 'Autito chocador',
+    'Giant Shoe': 'Zapato gigante', 'Banana': 'Banana', 'Rubber Duck': 'Patito de goma', 'Couch': 'Sillón', 'Bed': 'Cama', 'Toilet': 'Inodoro',
+    'Pumpkin Carriage': 'Carroza de calabaza', 'Ice Cream Truck': 'Camión de helados', 'Rocket Sled': 'Trineo cohete', 'Cardboard Box': 'Caja de cartón',
+    'Chrome Spokes': 'Rayos cromados', 'Monster Treads': 'Ruedas monstruo', 'Wagon Wheels': 'Ruedas de carreta', 'Donut Wheels': 'Ruedas de dona',
+    'Whitewalls': 'Bandas blancas', 'Golden Stars': 'Estrellas doradas', 'Peppermint Swirls': 'Caramelos de menta', 'Button Wheels': 'Ruedas botón',
+    'Beep beep': 'Bip bip', 'Goose Honk': 'Graznido de ganso', 'Clown Horn': 'Bocina de payaso', 'Air Horn': 'Bocina de aire', 'Kazoo': 'Kazoo', 'Bike Bell': 'Timbre de bici',
+    'Confetti Pop': 'Lluvia de papelitos', 'Feather Poof': 'Nube de plumas', 'Bubble Burst': 'Explosión de burbujas', 'Jelly Splat': 'Salpicón de gelatina',
+    'Nuts and Bolts': 'Tuercas y tornillos', 'Fireworks': 'Fuegos artificiales', 'Popcorn': 'Palomitas', 'Snow Globe': 'Bola de nieve',
     // weapons (names that are just words are translated; invented names stay)
     'Rocket': 'Cohete', 'Mine': 'Mina', 'A mine': 'Una mina', 'Shockwave': 'Onda expansiva', 'Freeze Ray': 'Rayo congelante', 'Magnet': 'Imán',
     'Shrink Ray': 'Rayo encogedor', 'Boomerang': 'Bumerán', 'Ghost': 'Fantasma', 'Warp': 'Salto', 'Decoy Box': 'Caja trampa', 'Gravity': 'Gravedad',

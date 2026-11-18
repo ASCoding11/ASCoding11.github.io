@@ -286,7 +286,7 @@ body.touch #hint,body.touch #itemTip{bottom:calc(210px + var(--sab))}
   <div id="hud" hidden>
     <div id="lb" class="sticker" aria-label="Leaderboard"></div>
     <div id="timer" class="sticker"><span id="tRound">Round 1</span><b id="tClock">3:00</b></div>
-    <div id="obj" aria-live="off"></div>
+    <div id="obj" aria-live="off" data-noi18n></div>
     <div id="alone" hidden>Just you so far · share the invite link</div>
     <div id="side"><canvas id="mini" class="sticker" width="264" height="264"></canvas><div id="feed" aria-live="polite"></div></div>
     <div id="dock">
@@ -295,7 +295,7 @@ body.touch #hint,body.touch #itemTip{bottom:calc(210px + var(--sab))}
     </div>
     <div id="itemTip" hidden></div>
     <div id="hint" hidden>Drive through a ? box to grab a weapon</div>
-    <div id="banner" hidden><div id="bTitle"></div><div id="bSub"></div></div>
+    <div id="banner" data-noi18n hidden><div id="bTitle"></div><div id="bSub"></div></div>
     <div id="hudBtns">
       <button id="bLeave" class="chip" type="button">Leave</button>
       <button id="bInvite" class="chip" type="button" hidden>Copy invite link</button>
@@ -352,6 +352,8 @@ body.touch #hint,body.touch #itemTip{bottom:calc(210px + var(--sab))}
 <script>
 (() => {
 'use strict';
+// Spanish (../lang.js, es.js): T() gives the words in the player's language, for text the page can't leave to lang.js.
+const T = window.BackRoomLang ? BackRoomLang.t : (s, v) => s.replace(/\{(\w+)\}/g, (m, n) => v && v[n] != null ? v[n] : m);
 
 // =====================================================================
 //  Firebase config.
@@ -3095,7 +3097,7 @@ function announceDrop(d) {
 function pointerChip(target, icon, label, cls) {
   const me = S.me, dx = target.x - me.x, dz = target.z - me.z, d = Math.hypot(dx, dz);
   const rel = wrapAng(Math.atan2(dx, dz) - S.camH);
-  return `<div class="ptr ${cls || ''}">${icon}<span class="arr" style="transform:rotate(${(-rel).toFixed(2)}rad)">▲</span><b>${d < ZONE_R && cls === 'zone' ? 'Here' : Math.round(d) + ' m'}</b>${label ? `<span class="lab">${label}</span>` : ''}</div>`;
+  return `<div class="ptr ${cls || ''}">${icon}<span class="arr" style="transform:rotate(${(-rel).toFixed(2)}rad)">▲</span><b>${d < ZONE_R && cls === 'zone' ? T('Here') : Math.round(d) + ' m'}</b>${label ? `<span class="lab">${label}</span>` : ''}</div>`;
 }
 function renderObjectives() {
   const el = $('#obj'); if (!el) return;
@@ -3103,12 +3105,12 @@ function renderObjectives() {
   let html = '';
   if (S.gm === 'gun') {
     const lv = S.me.gg || 0;
-    html = `<div class="ladder">${GG_LADDER.map((w, i) => `<span class="${i < lv ? 'done' : i === lv ? 'cur' : ''}" title="${esc(ITEMS[w].full || ITEMS[w].name)}">${ICON[w]}</span>`).join('')}</div>`
-      + `<div class="ladmini">Lv ${Math.min(lv + 1, GG_LADDER.length)}/${GG_LADDER.length} ${ICON[GG_LADDER[Math.min(lv, GG_LADDER.length - 1)]]}${lv + 1 < GG_LADDER.length ? '<span class="nx">next</span>' + ICON[GG_LADDER[lv + 1]] : ''}</div>`;
+    html = `<div class="ladder">${GG_LADDER.map((w, i) => `<span class="${i < lv ? 'done' : i === lv ? 'cur' : ''}" title="${esc(T(ITEMS[w].full || ITEMS[w].name))}">${ICON[w]}</span>`).join('')}</div>`
+      + `<div class="ladmini">${T('Lv')} ${Math.min(lv + 1, GG_LADDER.length)}/${GG_LADDER.length} ${ICON[GG_LADDER[Math.min(lv, GG_LADDER.length - 1)]]}${lv + 1 < GG_LADDER.length ? '<span class="nx">' + T('next') + '</span>' + ICON[GG_LADDER[lv + 1]] : ''}</div>`;
   } else {
     const Z = zoneInfo();
     if (Z) {
-      const st = zone.inMe ? (zone.contested ? '<span class="lab bad">Contested</span>' : '<span class="lab good">+1 a second</span>') : `<span class="lab">moves in ${Math.max(0, Math.ceil(Z.left / 1000))}s</span>`;
+      const st = zone.inMe ? (zone.contested ? '<span class="lab bad">' + T('Contested') + '</span>' : '<span class="lab good">' + T('+1 a second') + '</span>') : `<span class="lab">${T('moves in {s}s', { s: Math.max(0, Math.ceil(Z.left / 1000)) })}</span>`;
       html += pointerChip(Z.cur, '<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="12" fill="none" stroke="#5ee8ff" stroke-width="4"/><circle cx="16" cy="16" r="4" fill="#5ee8ff"/></svg>', '', 'zone').replace('</div>', st + '</div>');
     }
     const up = drops.filter(d => d.up).sort((a, b) => Math.hypot(a.x - S.me.x, a.z - S.me.z) - Math.hypot(b.x - S.me.x, b.z - S.me.z))[0];
@@ -3295,7 +3297,7 @@ function showItemTip(it) {
   tipsSeen[it] = (tipsSeen[it] || 0) + 1;
   if (I.tier < 1 && tipsSeen[it] > 2) return;
   const el = $('#itemTip');
-  el.innerHTML = `<b class="t${I.tier}">${esc(I.full || I.name)}${I.tier ? ' · ' + TIERS[I.tier] : ''}</b>${esc(I.tip)}`;
+  el.innerHTML = `<b class="t${I.tier}">${esc(T(I.full || I.name))}${I.tier ? ' · ' + T(TIERS[I.tier]) : ''}</b>${esc(T(I.tip))}`;
   el.hidden = false; tipT = I.tier ? 3.2 : 2.4;
   if (I.tier >= 2) Snd.play('legend');
   S.hintDone = true; $('#hint').hidden = true;
@@ -3308,9 +3310,10 @@ function specialNote(e) {
   feed.prepend(row); while (feed.children.length > 5) feed.lastChild.remove();
   setTimeout(() => row.remove(), 6000);
 }
+let bSubEn = '';   // the banner's sub-line in English (what the respawn countdown is added to)
 function showBanner(title, sub, ms, bad) {
-  $('#bTitle').textContent = title; $('#bTitle').classList.toggle('bad', !!bad);
-  $('#bSub').textContent = sub || ''; $('#banner').hidden = false; bannerT = ms ? ms / 1000 : 0;
+  $('#bTitle').textContent = T(title); $('#bTitle').classList.toggle('bad', !!bad);
+  bSubEn = sub || ''; $('#bSub').textContent = T(bSubEn); $('#banner').hidden = false; bannerT = ms ? ms / 1000 : 0;
 }
 function hideBanner() { $('#banner').hidden = true; bannerT = 0; }
 let hitT = 0;
@@ -3340,7 +3343,7 @@ function renderLeaderboard() {
   const list = standings();
   let rows = list.slice(0, 6);
   if (S.me && !rows.includes(S.me)) rows = rows.slice(0, 5).concat(S.me);
-  const html = `<div class="lb-h">${MODES[S.gm].unit}</div>` + rows.map(k => `<div class="lb-row${k === S.me ? ' me' : ''}"><span class="rk">${list.indexOf(k) + 1}</span><span class="nm"><span class="dot" style="background:${esc(k.color)}"></span>${esc(k.name)}</span><span class="sc">${scoreCell(k)}</span></div>`).join('');
+  const html = `<div class="lb-h">${MODES[S.gm].unit}</div>` + rows.map(k => `<div class="lb-row${k === S.me ? ' me' : ''}"><span class="rk">${list.indexOf(k) + 1}</span><span class="nm" data-noi18n><span class="dot" style="background:${esc(k.color)}"></span>${esc(k.name)}</span><span class="sc">${scoreCell(k)}</span></div>`).join('');
   if (html !== lbHTML) { lbHTML = html; $('#lb').innerHTML = html; }
 }
 let lbHTML = '';
@@ -3361,13 +3364,13 @@ function renderResults() {
   $('#rWinner').textContent = msg;
   // my row also shows this round's K/D: wrecks I scored (rwN, kept by the stats hook) over times I was wrecked (rdN)
   const kd = k => { const rid = S.round ? S.round.id : 0, w = k.rwK === rid ? k.rwN : 0, d = k.rdK === rid ? k.rdN : 0; return `<small class="kd">K/D ${(w / Math.max(1, d)).toFixed(2)}</small>`; };
-  $('#rList').innerHTML = list.slice(0, 8).map((k, i) => `<li class="${k === S.me ? 'me' : ''}"><span class="rk">${i + 1}</span><span class="nm">${esc(k.name)}${k === S.me ? kd(k) : ''}</span><span class="sc">${scoreCell(k)}</span></li>`).join('');
+  $('#rList').innerHTML = list.slice(0, 8).map((k, i) => `<li class="${k === S.me ? 'me' : ''}"><span class="rk">${i + 1}</span><span class="nm" data-noi18n>${esc(k.name)}${k === S.me ? kd(k) : ''}</span><span class="sc">${scoreCell(k)}</span></li>`).join('');
 }
 function updateHud(dt) {
   if (S.mode === 'attract') return;
   if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0) hideBanner(); }
   const me = S.me;
-  if (me && me.dead && S.phase !== 'results') $('#bSub').textContent = ($('#bSub').textContent.split(' · ')[0] || '') + ` · back in ${Math.max(1, Math.ceil(me.respawnT))}`;
+  if (me && me.dead && S.phase !== 'results') $('#bSub').textContent = T(bSubEn.split(' · ')[0] || '') + ' ' + T('· back in {s}', { s: Math.max(1, Math.ceil(me.respawnT)) });
   // item slot: a short roulette after each pickup, then the item with its rarity frame
   const slot = $('#slot');
   if (me && me.pickN !== roll.n && me.item && me.itemHeld >= ROLL_T) { roll.n = me.pickN; lastItem = undefined; showItemTip(me.item); }   // map drops and Gun Game: no roulette
