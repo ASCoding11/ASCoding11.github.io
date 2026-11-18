@@ -55,6 +55,12 @@
   try{var q=new URLSearchParams(location.search).get('season');if(q==='fall'||q==='winter'||q==='holiday'||q==='none')forced=q}catch(e){}
   var meSrc=document.currentScript&&document.currentScript.src,BASE=(meSrc?new URL(meSrc,location.href).pathname:'/e63334287a3deaa3/seasons.js').replace(/[^/]*$/,'');
   function isOff(){try{return localStorage.getItem('season:off')==='1'}catch(e){return false}}
+  // Spanish (lang.js): the footer button's label.
+  (function es(n){if(!window.BackRoomLang){if(n<100)setTimeout(function(){es(n+1)},100);return}BackRoomLang.add({
+    'Turn off the fall scene (just for this browser)':'Apagar la escena de otoño (solo en este navegador)','Turn on the fall scene (just for this browser)':'Prender la escena de otoño (solo en este navegador)',
+    'Turn off the holiday look and snow (just for this browser)':'Apagar el estilo de fiestas y la nieve (solo en este navegador)','Turn on the holiday look and snow (just for this browser)':'Prender el estilo de fiestas y la nieve (solo en este navegador)',
+    'Turn off the snow (just for this browser)':'Apagar la nieve (solo en este navegador)','Turn on the snow (just for this browser)':'Prender la nieve (solo en este navegador)'
+  })})(0);
   function setOff(v){try{if(v)localStorage.setItem('season:off','1');else localStorage.removeItem('season:off')}catch(e){}}
 
   var mqDark=matchMedia('(prefers-color-scheme: dark)'),mqStill=matchMedia('(prefers-reduced-motion: reduce)');
