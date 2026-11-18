@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Asteroid Run</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
+<script src="/e63334287a3deaa3/captains.js"></script> <!-- who may open the Wardrobe while it is not public (see README) -->
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#05060f">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1228,6 +1229,7 @@ function drawRunner(g,ch,frame){
     g.strokeStyle='rgba(255,255,255,.55)';g.lineWidth=3;for(let y=54;y<104;y+=10){g.beginPath();g.moveTo(38,y);g.lineTo(90,y+4);g.stroke()}g.strokeStyle=OUT;g.lineWidth=6;
     g.beginPath();g.ellipse(64,110,40,12,0,0,7);g.fillStyle=c2;g.fill();g.stroke()}
 }
+let WR=null;   // the Wardrobe (wardrobe.js), null until a captain needs it: see the end of this script
 const runnerTex={};
 function texFor(ch){
   if(runnerTex[ch.id])return runnerTex[ch.id];
@@ -1239,7 +1241,7 @@ const runMat=new THREE.MeshBasicMaterial({transparent:true,alphaTest:.4,side:THR
 const runner=new THREE.Mesh(runGeo,runMat);runner.renderOrder=5;
 const runRoot=new THREE.Group();runRoot.add(runner);scene.add(runRoot);
 const sizeOf=ch=>ch.id==='twitch'?.85:ch.id==='brick'?1.08:ch.id==='wisp'?.92:1;
-function setModel(ch){runMat.map=texFor(ch);runMat.needsUpdate=true;G.modelCh=ch}
+function setModel(ch){runMat.map=(WR&&WR.tex(ch))||texFor(ch);runMat.needsUpdate=true;G.modelCh=ch}   // WR: a captain's alien (wardrobe.js), same plane and size
 
 // ---------- game state ----------
 const G={mode:'menu',W:null,s:null,ch:null,li:0,tries:1,paused:false,overlay:'menu',acc:0,hold:0,finAt:0,dying:null,
@@ -1303,13 +1305,13 @@ function rebuildTiles(){
   const W=G.W,s=G.s,r0=Math.floor(s.d/TL),from=Math.max(0,r0-6),to=r0+(hiQ()?50:42);
   let n=0,na=0,nc=0,ncr=0,ng=0,nr=0;
   for(let r=from;r<to&&r<W.rows.length;r++){
-    const row=W.rows[r],z=-(r+.5)*TL,lit=litAt(W,r,r0),base=W.endless?zoneCols[W.zr[r]%zoneCols.length]:G.colA;
+    const row=W.rows[r],z=-(r+.5)*TL,lit=litAt(W,r,r0),base0=W.endless?zoneCols[W.zr[r]%zoneCols.length]:G.colA,tc=WR&&WR.row(W,r),base=tc?tc[0]:base0,alt=tc?tc[1]:base;
     for(let j=0;j<W.P;j++){
       const ty=row[j];if(!ty)continue;
       if(ty===T.C&&W.cr.has(r*64+j))continue;     // shown by the falling-tile mesh
       if(n>=MAXI)break;
       const f=laneF[j];setBasis(_m,f,z,0);tiles.setMatrixAt(n,_m);
-      if(ty===T.N)_c.copy(base);else _c.set(TCOL[ty]);
+      if(ty===T.N)_c.copy((r+j)&1?alt:base);else _c.set(TCOL[ty]);
       if(lit<1&&ty!==T.L)_c.multiplyScalar(lit);
       tiles.setColorAt(n,_c);n++;
       if(lit<.5&&ty!==T.L)continue;
@@ -1718,7 +1720,7 @@ function draw(dt){
   {const zr=W.zr[r0]||0,dk=W.dk[r0];skyTo.copy(W.endless?zoneSky[zr%zoneSky.length]:G.sky0);if(dk)skyTo.copy(BLACK);
     skyCol.lerp(skyTo,Math.min(1,dt*3));scene.background.copy(skyCol);scene.fog.color.copy(skyCol);
     if(W.endless&&playing()&&zr!==G.zoneShown){if(G.zoneShown>=0){banner(ENDZ[zr%ENDZ.length].n,'Zone '+(zr+1),1.3);sfx.zone()}G.zoneShown=zr;G.colA.copy(zoneCols[zr%zoneCols.length])}}
-  stepParticles(dt);
+  stepParticles(dt);if(WR)WR.step(dt);
   if(playing())updateHud();
   if(gate)gateDiscMat.opacity=.12+.06*Math.sin(t*5);
   if(G.demo&&G.demo.still&&G.drawnStill&&!G.forceDraw)return;
@@ -1727,6 +1729,7 @@ function draw(dt){
 }
 // the cosmetic trail: a few sparks dropped behind the runner as it runs
 function trail(dt,P){
+  if(WR&&WR.trail(dt,P))return;   // a captain's trail from the Wardrobe, worn instead
   const tr=TRAILS.find(x=>x.id===save.trail);if(!tr||!tr.id||tr.id==='none'||G.mode==='menu'||!G.s||G.s.dead)return;
   G.trailAt-=dt;if(G.trailAt>0)return;G.trailAt=.035;
   burst(P.x+P.w.nx*.3,P.y+P.w.ny*.3,P.z+.25,1,.6,tr.col==null?'rainbow':tr.col,.45,G.s.vd*.25);
@@ -1800,8 +1803,36 @@ document.querySelectorAll('#gfxSeg button').forEach(b=>b.addEventListener('click
 document.querySelectorAll('#jumpSeg button').forEach(b=>b.addEventListener('click',()=>{set.fixed=b.dataset.v==='fixed';saveSet();renderGfx();if(G.s&&!G.demo)G.s.fixed=set.fixed}));
 addEventListener('resize',()=>{G.drawnStill=false;if(G.overlay==='mapMenu')drawMap()});
 
+// ---------- the Wardrobe (captains only for now; README, "Asteroid Run") ----------
+// Aliens to run as, run trails and tunnel colours, all drawn by wardrobe.js beside this page. wardrobeOn() says whether
+// this player may open it: ASTEROID_PUBLIC (the one line that opens it to everyone), one of the site's captains
+// (../captains.js), or ?wardrobe=1 on localhost or in an automated browser (remembered for the tab; ?wardrobe=0 forgets
+// it). wardrobe.js (and ../cosmetics.js, for the item names) is fetched only when it is true; until then WR is null and
+// the game draws exactly as before. Looks only: an alien is a new picture on the same plane at the runner's own size
+// (the physics never looks at the picture), and a tunnel colour never hides a hole or a special tile (see wardrobe.js).
+// It is saved in this browser as asteroid-run:look; nothing is sent anywhere (the game has no online players).
+const ASTEROID_PUBLIC=false;
+const CAPTAINS=window.BackRoomCaptains||null;
+const wardrobeOn=()=>ASTEROID_PUBLIC||!!(CAPTAINS&&CAPTAINS.may(false,'wardrobe','asteroid-run-wardrobe'));
+let wrAsked=false;
+function wrLoad(){
+  if(wrAsked)return;wrAsked=true;
+  const add=src=>new Promise((res,rej)=>{const e=document.createElement('script');e.src=src;e.onload=res;e.onerror=rej;document.head.appendChild(e)});
+  (window.BackRoomCosmetics?Promise.resolve():add('../cosmetics.js')).then(()=>add('wardrobe.js')).then(()=>{
+    if(!window.AsteroidWardrobe||!window.BackRoomCosmetics)throw new Error('wardrobe did not load');
+    WR=window.AsteroidWardrobe({THREE,C:window.BackRoomCosmetics,AR,G,T,CHARS,THEMES,ENDZ,TCOL,TL,scene,renderer,camera,canvasTex,hex,OUT,store,sfx,$,OVERLAYS,showOverlay,renderMenu,charById,drawRunner,
+      get save(){return save},get on(){return wardrobeOn()},get touch(){return touchUI},
+      // put the look on again: the runner's picture, the tiles (rebuilt next frame) and the still menu picture
+      apply(){if(G.ch)setModel(G.ch);G.lastRow=-99;G.drawnStill=false}});
+    wrSync();
+  }).catch(e=>{wrAsked=false;console.error(e)});
+}
+function wrSync(){if(wardrobeOn())wrLoad();if(WR)WR.access()}
+if(document.readyState==='loading')addEventListener('DOMContentLoaded',wrSync);else wrSync();
+if(CAPTAINS)CAPTAINS.onChange(wrSync);
+
 // Test hook (automated browsers only): step the game without waiting for frames, drive it, read its state.
-if(navigator.webdriver)window.__ar={AR,G,KB,keys,tIn,set,LABEL,ORDER,get save(){return save},set save(v){save=v},loadSave,wallet,unlocked,startLevel,startEndless,toMenu,openMap,showPause,resume,restart,renderer,scene,camera,showStory,continueRun,
+if(navigator.webdriver)window.__ar={AR,G,KB,keys,tIn,set,LABEL,ORDER,get save(){return save},set save(v){save=v},loadSave,wallet,unlocked,startLevel,startEndless,toMenu,openMap,showPause,resume,restart,renderer,scene,camera,showStory,continueRun,get WR(){return WR},wardrobeOn,wrSync,
   advance(sec){G.noRender=true;try{const n=Math.round(sec/DT);for(let i=0;i<n;i++){const s=G.s;if(G.paused||s.dead||s.fin||G.dying)break;if(G.hold>0){G.hold-=DT;continue}tick()}}finally{G.noRender=false}},
   autopilot(on,beam){G.auto=on?{q:[],inp:{x:0,j:false,a:false},a:null,i:0,beam:beam||48,ahead:24}:null},
   // one real 60 Hz frame (physics and drawing), timed
