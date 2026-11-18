@@ -6,7 +6,7 @@
  * <header>, so the home page's reveal(), which copies that header, gets it too; the phone page has one right under
  * its header). Nothing is moved by layout.js, because it isn't one of its blocks.
  *
- * The list of schools is SCHOOLS below. For now it's only Avenues (New York). Add a school by adding a row:
+ * The list of schools is SCHOOLS below: Avenues (New York) and St. Andrew's Scots School (Olivos, Buenos Aires). Add a school by adding a row:
  * { id: short lowercase id that never changes, name, place }. The last button is always "Not listed".
  *
  * Storage: localStorage `school:v1` = the chosen school's id ('avenues'), or 'other' for Not listed; no key means
@@ -35,7 +35,8 @@
 
   var KEY = 'school:v1';
   var SCHOOLS = [
-    { id: 'avenues', name: 'Avenues', place: 'New York' }
+    { id: 'avenues', name: 'Avenues', place: 'New York' },
+    { id: 'standrews', name: 'St. Andrew\u2019s Scots School', place: 'Buenos Aires' }
   ];
   var OTHER = { id: 'other', name: 'Not listed', place: 'My school isn’t here yet' };
 
