@@ -681,6 +681,7 @@ function setTab(id){tab=id;const sec=G.Locker.sec;
   const t=TABS.find(x=>x[0]===id),h=sec.querySelector('.lk-title');if(h)h.innerHTML=t[2]+'<span>'+t[3]+'</span>';
   const le=sec.querySelector('.lk-lede');if(le){if(lede0==null)lede0=le.textContent;le.textContent=id==='outfits'?lede0:LEDE[id]}
   if(id==='outfits'){if(G.Locker.mark)G.Locker.mark()}else{pics();mark()}
+  if(id==='w'&&G.Locker.turn){const C=G.STAGE.CAM;G.Locker.turn(Math.atan2(-C[1],C[0])-.45)}   // side on, so the rifle shows (drag still turns it)
 }
 function menu(on){if(on&&!built&&G.Locker.sec)buildMenu();if(built)mark()}
 function shown(){if(!built)return;setTab(tab)}
@@ -723,9 +724,9 @@ function stage(dt,model,yaw){
   G.setHeldModel(model,tab==='w'?'ar':'cb',tab==='w'?3:-1);
   G.animModel(e,dt);model.visible=true;
   stageTrail=tab==='t'?o.t||0:0;
-  V.zoom=air?1.85:tab==='w'?.55:tab==='b'?2.1:1.15;V.y=air?1.0:tab==='w'?.38:tab==='b'?1.1:.15;
+  V.zoom=air?1.85:tab==='w'?.8:tab==='b'?2.7:1.15;V.y=air?1.0:tab==='w'?.38:tab==='b'?1.3:.15;
   if(tab==='b'){if(!disp)disp=makeDisp();disp.visible=true;const n=o.b||0;if(disp.userData.n!==n){disp.userData.n=n;for(const m of disp.children)m.material=n?dispMat(n):G.plyMat}
-    disp.position.set(S[0],S[1],S[2]);disp.rotation.y=yaw}else if(disp)disp.visible=false;
+    const C=G.STAGE.CAM;disp.position.set(S[0],S[1],S[2]);disp.rotation.y=Math.atan2(-C[0],-C[1])}else if(disp)disp.visible=false;   // the pieces stay behind the character, facing the camera
 }
 const dmats=[];
 function dispMat(n){if(!dmats[n]){const t=new THREE.CanvasTexture(tileCanvas(n));t.anisotropy=4;dmats[n]=new THREE.MeshLambertMaterial({map:t})}return dmats[n]}
