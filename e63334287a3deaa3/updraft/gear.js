@@ -848,14 +848,13 @@
     function open() {
       if (!access) return;
       makeUI();
-      was = { menu: X.$('menu').hidden, pause: X.$('pause').hidden, touch: X.$('touch').hidden };
-      X.$('menu').hidden = true; X.$('pause').hidden = true; X.$('touch').hidden = true;
+      was = {}; ['menu', 'pause', 'touch', 'hud'].forEach(function (id) { was[id] = X.$(id).hidden; X.$(id).hidden = true; });
       ui.sec.hidden = false; ui.yaw = .5; X.G.gear = true; render(); drawPending(); X.sfx('ui');
     }
     function close() {
       if (!ui || ui.sec.hidden) return;
       ui.sec.hidden = true; X.G.gear = false; X.camera.clearViewOffset(); demo.until = 0;
-      if (was) { X.$('menu').hidden = was.menu; X.$('pause').hidden = was.pause; X.$('touch').hidden = was.touch; }
+      if (was) Object.keys(was).forEach(function (id) { X.$(id).hidden = was[id]; });
       if (X.changed) X.changed();
     }
     // the camera while Gear is open: close in on the climber, turning slowly, framed in the open part of the screen
