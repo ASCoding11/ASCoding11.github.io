@@ -22,7 +22,8 @@
  *     'You placed #{n} of {m}': 'Quedaste #{n} de {m}'
  *   });
  * Any text node, and the placeholder, title, aria-label and alt of any element, whose whole (trimmed) text is a key,
- * or matches a key with {name} parts, is shown in Spanish while the language is 'es'. Text added or changed later
+ * or matches a key with {name} parts (the one with the most fixed words wins, so keep patterns specific: avoid
+ * keys like '{a} and {b}' that would catch other sentences), is shown in Spanish while the language is 'es'. Text added or changed later
  * (menus built by script, scores, messages) is translated as it appears (a MutationObserver), and the English is
  * remembered, so switching back puts every word back exactly.
  *   - Inside an element with `data-noi18n` nothing is touched (use it for names players typed, chat, answers in
@@ -66,7 +67,9 @@
         var names = [], re = '^' + k.split(/(\{\w+\})/).map(function (p) {
           var m = p.match(/^\{(\w+)\}$/); if (m) { names.push(m[1]); return '(.+?)'; } return esc(p);
         }).join('') + '$';
-        pats.push({ re: new RegExp(re), names: names, es: es });
+        var lit = k.replace(/\{\w+\}/g, '').length;   // how much fixed text it has: more fixed text = more specific
+        pats.push({ key: k, re: new RegExp(re), names: names, es: es, lit: lit });
+        pats.sort(function (a, b) { return b.lit - a.lit; });   // the most specific pattern is tried first
       } else exact[k] = es;
     });
     if (lang !== 'en' && document.body) apply(document.body);
@@ -83,15 +86,16 @@
     }
     return null;
   }
+  // t(): the template's own entry first (exact, or the pattern added with this very template), and only then any
+  // pattern that matches the filled-in text, so a short pattern from another script can't catch it.
   function t(en, vars) {
     var s = String(en == null ? '' : en);
     if (lang === 'en') return fill(s, vars);
     var k = norm(s);
     if (exact[k] != null) return fill(exact[k], vars);
+    for (var i = 0; i < pats.length; i++) if (pats[i].key === k) return fill(pats[i].es, vars);
     var full = fill(s, vars), es = look(full);
-    if (es != null) return es;
-    for (var i = 0; i < pats.length; i++) if (pats[i].re.source === '^' + esc(k).replace(/\\\{\w+\\\}/g, '(.+?)') + '$') return fill(pats[i].es, vars);
-    return full;
+    return es != null ? es : full;
   }
 
   // ---------------- Translating the page ----------------
