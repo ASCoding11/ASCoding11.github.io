@@ -7,6 +7,7 @@
 <title>Updraft</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
+<script src="/e63334287a3deaa3/captains.js"></script> <!-- who may see Gear while it is not public (see README) -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap">
@@ -1827,6 +1828,7 @@ let sens=num(store.get('sens',1),1,.3,2.5),volume=num(store.get('vol',.8),.8,0,1
 let gfx=store.get('gfx',isTouch?'low':'high');if(gfx!=='low'&&gfx!=='high')gfx=isTouch?'low':'high';
 const COLORS=['#ff7a3d','#5ec2ff','#5be0a8','#ffd23f','#ff5d8f','#a98bff','#3dd6d0','#ff9f1c','#9be15d','#f15bb5','#00bbf9','#e9c46a'];
 let myName=cleanName(store.get('name','')),myColor=store.get('color','');if(!isColor(myColor))myColor=pick(COLORS);store.set('color',myColor);
+let GEAR=null,gearP=null;   // Gear (gear.js), loaded only when needed: see gearOn() near the end
 
 // =====================================================================
 //  Sound: everything is made with Web Audio, nothing is loaded.
@@ -2751,7 +2753,7 @@ function updateFp(dt){
   myAv.root.visible=false;
 }
 // the camera for this frame: first person, or the orbiting one
-function updateView(dt,fdt){if(fpOn())updateFp(dt);else if(ride&&ride.kind!=='gust'&&G.mode!=='menu'&&!G.spec)rideCamera(dt);else updateCamera(dt,fdt)}
+function updateView(dt,fdt){if(G.gear&&GEAR){GEAR.cam(dt);return}if(fpOn())updateFp(dt);else if(ride&&ride.kind!=='gust'&&G.mode!=='menu'&&!G.spec)rideCamera(dt);else updateCamera(dt,fdt)}
 // fdt: the time step for following the climber (shorter in slow motion, so the framing stays the same)
 function updateCamera(dt,fdt){
   if(fdt==null)fdt=dt;
@@ -3399,7 +3401,9 @@ const Net={
     this.db.ref('.info/serverTimeOffset').on('value',s=>{this.offset=s.val()||0});
     this.ready=true;
   },
-  node(){return{n:myName||'Climber',c:myColor,x:r2(me.x),z:r2(me.z),h:r3(me.yaw),ts:Math.round(this.now()),y:r2(me.y),a:animCode(),m:Math.floor(run.maxY),t:Math.floor(run.t),f:run.fin?Math.round(run.fin*10)/10:0,b:Math.floor(best.h),j:this.j}},
+  node(){const o={n:myName||'Climber',c:myColor,x:r2(me.x),z:r2(me.z),h:r3(me.yaw),ts:Math.round(this.now()),y:r2(me.y),a:animCode(),m:Math.floor(run.maxY),t:Math.floor(run.t),f:run.fin?Math.round(run.fin*10)/10:0,b:Math.floor(best.h),j:this.j};
+    // o: what a captain wears (gear.js), only while Gear is open to them and something is worn; null clears it again
+    const g=gearCode();if(g||this.oSent)o.o=g||null;this.oSent=!!g;return o},
   async count(room){
     const s=await this.db.ref('rooms/'+room+'/players').once('value');let n=0;
     s.forEach(c=>{const v=c.val();if(c.key!==this.uid&&v&&this.now()-(+v.ts||0)<LIVE_MS)n++});
@@ -3423,7 +3427,7 @@ const Net={
   },
   pub(force){
     if(!this.refs)return;
-    const o=this.node(),s=[o.x,o.y,o.z,o.h,o.a,o.m,o.f,o.n,o.c].join(',');
+    const o=this.node(),s=[o.x,o.y,o.z,o.h,o.a,o.m,o.f,o.n,o.c,o.o].join(',');
     // after a change, one more update once things stop changing: others' screens carry on the last movement for a
     // moment (netsmooth.js), so without it someone who stops turning (first person) is drawn over-turned until the heartbeat
     const same=s===this.last;
@@ -3432,7 +3436,7 @@ const Net={
   },
   leave(){
     if(this.refs){const r=this.refs;try{r.players.off();r.me.onDisconnect().cancel();r.me.remove()}catch(e){}}
-    this.refs=null;this.room=null;clearOthers();
+    this.refs=null;this.room=null;this.oSent=false;clearOthers();
   }
 };
 function animCode(){if(ride&&ride.kind==='gust')return 10;if(me.mantle)return 6;if(me.slide)return 7;if(!me.gnd)return me.vy>.5?3:me.vy<-10?5:4;if(me.stun>0)return 8;const s=Math.hypot(me.vx,me.vz);return s>C.WALK+.3?2:s>.35?1:0}
@@ -3459,6 +3463,9 @@ function onNode(uid,v){
   if(o.lag.note(ts,Net.now())){const l=o.snaps[o.snaps.length-1];if(l&&Math.hypot(e.tx-l.x,e.ty-l.y,e.tz-l.z)>25)o.snaps.length=0;o.snaps.push({t:ts,x:e.tx,y:e.ty,z:e.tz,h:e.tyaw})}o.m=fin(v.m,0,TOP+5);o.t=fin(v.t,0,1e7);
   // f is the time at the top: the Crown. (An older copy of this page still open somewhere sends its time at 1000 m as f; that isn't the top any more.)
   const f=o.m>=TOP-5?fin(v.f,0,1e7):0;if(f&&!o.f&&performance.now()-(G.joinedAt||0)>2500){feed(n+' reached the top in '+fmtT(f)+'!');sfx('best')}o.f=f;
+  // o: a captain's Gear (gear.js, fetched only when someone wears something); a reward is drawn only if their best height `b` reached it
+  const oc=typeof v.o==='string'&&v.o.length<=16?v.o:'';
+  if(oc!==(o.oc||'')){o.oc=oc;const b=fin(v.b,0,TOP+5);if(oc)gearLoad().then(g=>{if(others.get(uid)===o&&o.oc===oc)g.dress(o.av,g.parse(oc,b))}).catch(()=>{});else if(GEAR)GEAR.dress(o.av,null)}
 }
 function onGone(uid){const o=others.get(uid);if(!o)return;feed(o.n+' left');dropOther(uid)}
 function dropOther(uid){const o=others.get(uid);if(!o)return;scene.remove(o.av.root);scene.remove(o.tag);scene.remove(o.sh);freeAvatar(o.av);freeMesh(o.tag);freeMesh(o.sh);if(o.dot)o.dot.remove();others.delete(uid);if(G.spec===uid)stopSpectate()}
@@ -3652,7 +3659,7 @@ function tick(dt){
   const vp=viewPos();
   myAv.ph+=ds*st.spd*(st.sprint?1.35:1.9);poseAvatar(myAv,st,ds);setTumble(myAv,tumbleAngle());myAv.root.position.set(vp.x,vp.y,vp.z);myAv.root.rotation.y=me.yaw;
   placeShadow(myShadow,vp.x,vp.y,vp.z);if(ride)myShadow.visible=false;
-  updateOthers(dt);netTick(dt);updateSecrets(dt);
+  updateOthers(dt);if(GEAR)GEAR.frame(dt);netTick(dt);updateSecrets(dt);
   slowLook();
   updateView(dt,ds);
   const far=atmosphere();updateChunks(far);updateMovers(far);
@@ -3675,6 +3682,32 @@ if(isTouch)setTouchUI(true);
 const invite=/^#up-([a-z0-9-]{1,17})$/.exec(location.hash);
 if(invite){$('room').value=invite[1];setMsg('You were invited to room '+invite[1]+'. Press Play in room to join.');$('joinRoom').classList.add('go');$('quick').classList.remove('go')}
 refreshMenu();showAd('adMenu');renderView();
+// =====================================================================
+//  Gear: skins, backpacks, height rewards, fall screams and plummet trails (gear.js). CAPTAINS ONLY FOR NOW.
+//  gearOn(): may this player see Gear? True for the site's captains (../captains.js: the Google account signed in is
+//  in miles.js's captain list), for ?gear=1 on localhost or in an automated browser, or for everyone once GEAR_PUBLIC
+//  is true. For anyone else gear.js is never fetched and nothing changes, unless a captain wearing something is in
+//  their room: then it is fetched only to draw that captain.
+// =====================================================================
+const GEAR_PUBLIC=false;   // THE SWITCH: true opens Gear to everyone
+const CAPTAINS=window.BackRoomCaptains||null;
+const gearOn=()=>GEAR_PUBLIC||!!(CAPTAINS&&CAPTAINS.may(false,'gear','updraft-gear'));
+const gearCode=()=>GEAR&&gearOn()?GEAR.code():'';
+const GAPI={THREE,GEO,cylG,makeAvatar,myAv,scene,camera,renderer,store,best,G,$,feed,sfx,rayHit,resize,renderAll,initAudio,
+  myColor:()=>myColor,audio:()=>ac&&sfxBus?{ac,bus:sfxBus}:null,
+  changed(){if(Net.refs)Net.pub(true)},
+  poseIdle(A){for(let i=0;i<3;i++)poseAvatar(A,{spd:0,gnd:true,vy:0,landT:9,impact:0,stun:0,t:0},1)},
+  poseFall(A){poseAvatar(A,{spd:0,gnd:false,vy:-20,landT:9,impact:0,stun:0,t:performance.now()/1000},1)},
+  // everyone who might be wearing a scream or a trail, and whether they're plummeting
+  eachClimber(fn){fn(myAv,G.mode==='play'&&!G.paused&&!me.gnd&&!ride&&me.vy<-18,true,myAv.root.position);for(const o of others.values())if(o.av.root.visible)fn(o.av,o.ent.a===5,false,o.av.root.position)}};
+function gearLoad(){
+  if(!gearP)gearP=loadScript('/e63334287a3deaa3/updraft/gear.js').then(()=>GEAR=window.UpdraftGear.init(GAPI)).catch(e=>{gearP=null;throw e});
+  return gearP;
+}
+function gearSync(){if(gearOn())gearLoad().then(g=>g.access(gearOn())).catch(()=>{});else if(GEAR)GEAR.access(false)}
+if(CAPTAINS&&CAPTAINS.onChange)CAPTAINS.onChange(gearSync);
+gearSync();
+
 // Test hook (automated browsers only): step the game by hand, and let the climb bot play.
 // A tab in the background gets no animation frames, so a timer keeps the node's ts fresh; otherwise the others drop
 // the climber after 12 s and see them join again when they come back.
@@ -3694,7 +3727,9 @@ if(TEST)window.__up={U,C,course,W,PATH,G,run,best,keys,tAct,tMove,KB,Net,onNode,
   stepOnce,afterSteps,saveRun,loadRun,others,onSummit,onNode,physics,set wt(v){wt=v},
   // fake climbers for layout tests (no network)
   fake(n){G.fakeNet=true;Net.offset=0;for(let i=0;i<n;i++){const c=PATH[Math.min(PATH.length-1,40+i*60)];onNode('fake'+i,{n:['Ava','Bo','Cyrus','Dee','Eli','Fay','Gus','Hana','Ivo','Jun','Kit'][i%11],c:COLORS[(i+3)%COLORS.length],x:c.x,y:c.y1,z:c.z,h:0,ts:Date.now(),a:i%5,m:Math.floor(c.y1),t:100+i,f:i===0?1234:0})}},
-  unfake(){G.fakeNet=false;clearOthers()}
+  unfake(){G.fakeNet=false;clearOthers()},
+  // Gear (gear.js): whether it's open to this player, the loaded module, and loading it
+  gearOn,get GEAR(){return GEAR},gearLoad,gearCode,animCode
 };
 requestAnimationFrame(t=>{last=t;frame(t)});
 })();
