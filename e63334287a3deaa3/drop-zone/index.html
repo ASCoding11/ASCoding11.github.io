@@ -5390,7 +5390,7 @@ function animModel(e,dt){
   // crowbar's handle (armIK)
   if(far&&!u.gun.visible&&u.pfar)return;u.pfar=far;   // past 70 m the arms keep their last pose
   const cb=u.gk==='cb'&&!air&&!e.glide,gh=!air&&!e.glide&&WEAP[u.gk]?GHOLD[famOf(u.gk)==='pi'?'one':'two']:null,hh=!air&&!e.glide&&HHOLD.w[u.gk]?HHOLD:null,
-    tg=air?POSES.fall:e.glide?POSES.glide:cb?POSES.cb:gh?gh.P:hh?hh.P:POSES.rest,pb=u.pb,k12=1-Math.exp(-dt*(air?7:12));
+    tg=air?POSES.fall:e.glide?POSES.glide:cb?POSES.cb:gh?(gh.one&&e.aimK>.5?gh.PA:gh.P):hh?hh.P:POSES.rest,pb=u.pb,k12=1-Math.exp(-dt*(air?7:12));
   for(let i=0;i<POSE_N;i++)pb[i]+=(tg[i]-pb[i])*k12;
   u.cbw=(u.cbw||0)+((cb||gh&&gh.one?1:0)-(u.cbw||0))*k12;   // (the arms free to swing when running: the crowbar's left arm, and the pistol's)
   const pf=u.pf;pf.set(pb);
@@ -5489,12 +5489,13 @@ function animModel(e,dt){
   const b=u.bones;b[0].updateMatrix();g.updateMatrix();_hm.multiplyMatrices(b[0].matrix,g.matrix).decompose(g.position,g.quaternion,g.scale);g.updateMatrix();
   if(hh){const w=hh.w[gk];_ht.set(w,-.02,-.1).applyMatrix4(g.matrix);armIK(u,1,_ht,GH_POLE[1],1);_ht.set(-w,-.02,-.1).applyMatrix4(g.matrix);armIK(u,0,_ht,GH_POLE[0],1);return}
   _ht.set(0,0,.12).applyMatrix4(g.matrix);armIK(u,1,_ht,GH_POLE[1],1);
-  if(!H.one){const rl=e.reloadT>0?Math.min(1,(1-e.reloadT/Math.max(.1,wReload(WEAP[gk],0)))*6,e.reloadT*4):0;
+  if(H.one){if(ak>.01)armIK(u,0,_ht.set(-.045,-.07,.16).applyMatrix4(g.matrix),GH_POLE[0],ak)}
+  else{const rl=e.reloadT>0?Math.min(1,(1-e.reloadT/Math.max(.1,wReload(WEAP[gk],0)))*6,e.reloadT*4):0;
     const hf=H.ff&&H.ff[WEAP[gk].fam]!=null?H.ff[WEAP[gk].fam]:H.f;_ht.set(0,-.04-.06*rl,.12-hf*(1-rl*.6)).applyMatrix4(g.matrix);armIK(u,0,_ht,GH_POLE[0],1)}
 }
 // Holding a weapon (November 2026): P is the pose for the rest of the body, h where the right hand grips (the body's
 // units, before the hips turn), f how far in front of the grip the left hand holds (ff: per family, the SMGs' by the magazine). GH_POLE: where the elbows point.
-const GHOLD={two:{P:pose({turn:-.7,lean:-.03,sl:.22}),h:[.44,1.42,-.28],f:.3,ff:{sm:.17}},one:{one:true,P:pose({turn:-.18,L:[-1.3,.35,-.12,.4]}),h:[.3,1.44,-.42],f:0}};
+const GHOLD={two:{P:pose({turn:-.7,lean:-.03,sl:.22}),h:[.44,1.42,-.28],f:.3,ff:{sm:.17}},one:{one:true,P:pose({turn:-.18,L:[-1.3,.35,-.12,.4]}),PA:pose({turn:-.42,sl:.18}),h:[.3,1.44,-.42],f:0}};   // PA: aiming a pistol (you only: aiming isn't sent), the left hand comes up under the grip
 const GH_POLE=[new V3(-.5,-1,.15),new V3(.7,-1,.25)];
 // Heals (audit, November 2026): held in both hands in front of the chest, one on each side of the box or bottle (w: how far
 // out from its middle), instead of on the straight arms the body is drawn with; lifted toward the face while being used.
