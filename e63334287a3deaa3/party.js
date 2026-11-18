@@ -86,7 +86,8 @@
     { k: 'bs', n: 'Blockstorm', d: 'blockstorm', max: 12, nk: 'blockstorm:name' },
     { k: 'gd', n: 'Lokop', d: 'lunge-line', max: 8, nk: 'lungeline:name' },
     { k: 'dw', n: 'Deepword', d: 'deepword', max: 12, nk: 'deepword-name' },
-    { k: 'pf', n: 'Puffer Party', d: 'puffer-party', max: 12, nk: 'pufferparty:name' }
+    { k: 'pf', n: 'Puffer Party', d: 'puffer-party', max: 12, nk: 'pufferparty:name' },
+    { k: 'qg', n: 'Putterby', d: 'putterby', max: 8, nk: 'putterby:name' }
   ];
   var COLORS = ['#1D6A4B', '#C0562F', '#3E5BA9', '#9A3F8F', '#B07A12', '#2A8A8A', '#B42318', '#5B6B2E'];
 

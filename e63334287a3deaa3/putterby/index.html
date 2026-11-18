@@ -87,8 +87,8 @@ h2{font-family:var(--f-d);font-weight:400;font-size:28px;margin:6px 0 8px}
 .lead{margin:0 0 14px;color:var(--ink-2);font-weight:700;font-size:15px}
 label.f{display:block;font-weight:900;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);margin:10px 0 5px}
 input.t{width:100%;height:44px;border:2px solid var(--line);border-radius:12px;padding:0 12px;font:inherit;font-weight:800;font-size:16px;background:#fff;color:var(--ink)}
-.sw{display:flex;gap:8px;flex-wrap:wrap}
-.sw button{width:34px;height:34px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 2px var(--line)}
+.sw{display:flex;gap:6px;flex-wrap:wrap}
+.sw button{width:32px;height:32px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 2px var(--line)}
 .sw button.on{box-shadow:0 0 0 3px var(--ink)}
 .btns{display:grid;gap:8px;margin-top:14px}
 .row{display:flex;gap:8px}
@@ -134,13 +134,15 @@ table.sc td.tot{font-family:var(--f-d);font-weight:400;font-size:16px}
 body.touch .ib{height:46px;min-width:46px}
 body.touch #hint{font-size:13px}
 @media (max-width:420px){
-  #holeBox{max-width:calc(100% - 178px);padding:7px 11px}
+  #holeBox{max-width:calc(100% - 198px);padding:7px 11px}
   #holeBox b{font-size:17px}
   #tr{gap:6px}
   .ib{padding:0 10px;font-size:13px}
   #clock{top:calc(66px + env(safe-area-inset-top,0px))}
   #players{top:calc(74px + env(safe-area-inset-top,0px));max-width:150px}
   #feed{top:calc(112px + env(safe-area-inset-top,0px))}
+  table.sc th,table.sc td{padding:6px 3px;font-size:13px}
+  .card{padding:18px 14px 14px}
 }
 @media (orientation:landscape) and (max-height:480px){
   #holeBox{padding:6px 12px}
@@ -543,21 +545,20 @@ function relink(b){const f=floorAt(hole,b);if(f){b.piece=f.p;b.y=f.top+R}else b.
 const canvas=$('view');
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio||1,touchUI?1.5:2));
-renderer.outputEncoding=THREE.sRGBEncoding;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=0.92;
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 const scene=new THREE.Scene();
 const HORIZON=new THREE.Color('#cfe9f2');
 scene.fog=new THREE.Fog(HORIZON,45,150);
 const camera=new THREE.PerspectiveCamera(50,1,0.05,500);
-const hemi=new THREE.HemisphereLight('#d6ecff','#4a6b2c',0.6);scene.add(hemi);
-const sun=new THREE.DirectionalLight('#ffeacc',1.5);sun.castShadow=true;sun.shadow.mapSize.set(touchUI?1024:2048,touchUI?1024:2048);sun.shadow.bias=-0.0006;sun.shadow.normalBias=0.02;
+const hemi=new THREE.HemisphereLight('#e4f3ff','#5a7a3a',0.62);scene.add(hemi);
+const sun=new THREE.DirectionalLight('#fff0d8',0.85);sun.castShadow=true;sun.shadow.mapSize.set(touchUI?1024:2048,touchUI?1024:2048);sun.shadow.bias=-0.0006;sun.shadow.normalBias=0.02;
 scene.add(sun);scene.add(sun.target);
 // sky: a big sphere coloured from deep blue overhead to a warm haze at the horizon
 {const g=new THREE.SphereGeometry(400,24,12),cols=[],pos=g.attributes.position,top=new THREE.Color('#4aa6e6'),c=new THREE.Color();
   for(let i=0;i<pos.count;i++){const y=pos.getY(i)/400;c.copy(HORIZON).lerp(top,clamp(y*1.6,0,1));if(y<0)c.copy(HORIZON);cols.push(c.r,c.g,c.b)}
   g.setAttribute('color',new THREE.Float32BufferAttribute(cols,3));
   scene.add(new THREE.Mesh(g,new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.BackSide,fog:false,depthWrite:false})))}
-function canvasTex(size,draw,rep){const c=document.createElement('canvas');c.width=c.height=size;draw(c.getContext('2d'),size);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.encoding=THREE.sRGBEncoding;t.anisotropy=4;if(rep)t.repeat.set(rep,rep);return t}
+function canvasTex(size,draw,rep){const c=document.createElement('canvas');c.width=c.height=size;draw(c.getContext('2d'),size);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=4;if(rep)t.repeat.set(rep,rep);return t}
 function noise(ctx,s,base,amt,n){ctx.fillStyle=base;ctx.fillRect(0,0,s,s);for(let i=0;i<n;i++){const v=(Math.random()-0.5)*amt;ctx.fillStyle=v>0?'rgba(255,255,255,'+v+')':'rgba(0,0,0,'+(-v)+')';ctx.fillRect(Math.random()*s,Math.random()*s,2,2)}}
 const TEX={
   felt:canvasTex(256,(c,s)=>{noise(c,s,'#1f9a4f',0.14,9000);c.fillStyle='rgba(255,255,255,0.05)';for(let i=0;i<4;i++)c.fillRect(0,i*s/4,s,s/8)}),
@@ -800,8 +801,9 @@ function renderDaily(){const d=dailyState(),k=dayKey();let t;
 
 // ---- scorecard ----
 function cardRows(){
-  if(G.mode!=='online')return[{n:myName||'You',c:myColor,card:G.card,me:1}];
-  const rows=[{n:myName||'You',c:myColor,card:G.card,me:1}];
+  const mine={n:myName?myName+' (you)':'You',c:myColor,card:G.card,me:1};
+  if(G.mode!=='online')return[mine];
+  const rows=[mine];
   for(const [uid,o] of Net.others){if(o.r===G.rid&&G.rid&&Net.live(uid))rows.push({n:o.n,c:o.c,card:parseCard(o.sc)})}
   return rows;
 }
@@ -812,7 +814,7 @@ function renderCardTable(){
   let h='<tr><th class="nm">Hole</th>';for(let i=0;i<HOLES;i++)h+='<th>'+(i+1)+'</th>';h+='<th>Total</th></tr>';
   h+='<tr class="par"><td class="nm">Par</td>';let pt=0;for(let i=0;i<HOLES;i++){h+='<td>'+COURSE[i].par+'</td>';pt+=COURSE[i].par}h+='<td>'+pt+'</td></tr>';
   for(const r of rows){
-    h+='<tr><td class="nm"><span style="color:'+r.c+'">●</span> '+esc(r.n)+(r.me?' (you)':'')+'</td>';
+    h+='<tr><td class="nm"><span style="color:'+r.c+'">●</span> '+esc(r.n)+'</td>';
     for(let i=0;i<HOLES;i++){const v=r.card[i],cur=(G.mode!=='menu')&&i===G.holeIdx&&G.state!=='over'?' cur':'';
       h+='<td class="'+cur+'">'+(v==null?'–':'<span class="'+(v===1?'ace':v<COURSE[i].par?'u':v>COURSE[i].par?'o':'')+'">'+v+'</span>')+'</td>'}
     h+='<td class="tot">'+(r.k?r.s+' <small class="'+(r.d<0?'u':r.d>0?'o':'')+'">('+(r.d===0?'E':r.d>0?'+'+r.d:r.d)+')</small>':'–')+'</td></tr>';
@@ -1220,13 +1222,16 @@ show('menu');
 requestAnimationFrame(t=>{last=t;frame(t)});
 
 // Test hook (automated browsers only): step the physics without waiting for frames, aim and putt, inspect state.
-if(navigator.webdriver)window.__qg={G,Net,COURSE,cam,ballScreen,prepHole,dailyHole,simStep,floorAt,newBall,surfAt,startSolo,startDaily,startRound,joinRoom,toMenu,showCard,hideCard,shoot,loadHole,
+if(navigator.webdriver)window.__qg={G,Net,COURSE,cam,camera,ballScreen,prepHole,dailyHole,simStep,floorAt,newBall,surfAt,startSolo,startDaily,startRound,joinRoom,toMenu,showCard,hideCard,shoot,loadHole,
   get ball(){return ball},get hole(){return hole},
   advance(s){G.noRender=true;try{const n=Math.round(s/DT);for(let i=0;i<n;i++){stepBall(clockT());if(G.state==='done'&&G.mode==='solo'&&i===n-1){}}}finally{G.noRender=false}},
   frame(n){for(let i=0;i<(n||1);i++)update(1/60);renderer.render(scene,camera)},
   // a ghost putt on a copy of the ball: where would it end up? (for checking holes can be played)
   trial(H,from,dir,p,secs){const b=newBall(H);Object.assign(b,from||{});const f=floorAt(H,b);if(f){b.piece=f.p;b.y=f.top+R}b.vx=Math.sin(dir)*VMAX*p;b.vz=Math.cos(dir)*VMAX*p;b.rest=false;b.restT=0;let ev='';
     for(let i=0;i<(secs||25)/DT;i++){b.event='';simStep(H,b,DT,i*DT);if(b.event){ev=b.event;break}if(b.rest&&i>10)break}return{x:b.x,y:b.y,z:b.z,ev,mode:b.mode,rest:b.rest}},
+  autoPutt(){const H=hole,from={x:ball.x,z:ball.z,y:ball.y};let best=null;
+    for(let a=0;a<72;a++)for(let p=0.1;p<=1.001;p+=0.06){const r=this.trial(H,from,a/72*Math.PI*2,p,15);if(r.ev==='water'||r.ev==='out')continue;const d=r.ev==='cup'?-1:Math.hypot(r.x-H.cup[0],r.z-H.cup[1]);if(!best||d<best.d)best={d,a:a/72*Math.PI*2,p};if(d<0)break}
+    return best?shoot(Math.sin(best.a),Math.cos(best.a),best.p):false},
   decoys(list){(G.decoys||[]).forEach(m=>scene.remove(m,m.userData.blob));G.decoys=list.map(d=>{const m=makeBallMesh(d.c);placeBallMesh(m,d.x,surfAt(hole,d.x,d.z)+R,d.z,hole);return m})}};
 })();
 </script>
