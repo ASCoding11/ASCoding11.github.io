@@ -148,6 +148,7 @@
     if (start.nodeType === 1 && skipped(start)) return;
     var tw = document.createTreeWalker(start, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
       acceptNode: function (n) {
+        if (n.nodeType === 1 && n.tagName === 'TEXTAREA' && !n.hasAttribute('data-noi18n')) { fnEl(n); return NodeFilter.FILTER_REJECT; }   // its placeholder and title, never what's typed
         if (n.nodeType === 1 && (SKIP[n.tagName] || n.hasAttribute('data-noi18n') || n.isContentEditable)) return NodeFilter.FILTER_REJECT;
         return NodeFilter.FILTER_ACCEPT;
       }
@@ -173,7 +174,7 @@
       try {
         list.forEach(function (m) {
           if (m.type === 'characterData') { if (!skipped(m.target.parentNode)) doText(m.target); }
-          else if (m.type === 'attributes') { if (!skipped(m.target)) doAttrs(m.target); }
+          else if (m.type === 'attributes') { var tg = m.target; if (tg.tagName === 'TEXTAREA' ? !tg.hasAttribute('data-noi18n') && !skipped(tg.parentNode) : !skipped(tg)) doAttrs(tg); }
           else m.addedNodes.forEach(function (n) { walk(n, doText, doAttrs); });
         });
       } finally { busy = false; }
