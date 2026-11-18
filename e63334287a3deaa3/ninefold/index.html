@@ -599,7 +599,7 @@ function giveHint() {
     const d = st.v[i];
     change([[i, 0, 0, 0]]);
     sel = i; focusDigit = 0;
-    showHint('Something\'s not right', [{ html: 'The <b>' + d + '</b> in <b>' + SU.cellName(i) + '</b> (row ' + (Math.floor(i / 9) + 1) + ', column ' + (i % 9 + 1) + ') isn\'t part of the answer, so I took it out.' + (wrong.length > 1 ? ' There ' + (wrong.length === 2 ? 'is 1 more wrong number' : 'are ' + (wrong.length - 1) + ' more wrong numbers') + ' on the board.' : '') }], { cells: [i], units: [] });
+    showHint(T('Something\'s not right'), [{ html: T('The <b>{d}</b> in <b>{c}</b> (row {r}, column {k}) isn\'t part of the answer, so I took it out.', { d: d, c: SU.cellName(i), r: Math.floor(i / 9) + 1, k: i % 9 + 1 }) + (wrong.length > 1 ? ' ' + (wrong.length === 2 ? T('There is 1 more wrong number on the board.') : T('There are {n} more wrong numbers on the board.', { n: wrong.length - 1 })) : '') }], { cells: [i], units: [] });
     save(); render(); return;
   }
   const g = st.v.slice(), hn = SU.hint(g);
@@ -615,16 +615,16 @@ function giveHint() {
   const items = [];
   if (before.length) {
     const names = []; before.forEach((s) => { if (names.indexOf(s.t) < 0) names.push(s.t); });
-    items.push({ html: 'First, rule some numbers out with <b>' + names.join('</b>, <b>') + '</b>:' });
-    before.slice(0, 4).forEach((s) => items.push({ html: '<b>' + s.t + ':</b> ' + esc(s.why), sub: true }));
-    if (before.length > 4) items.push({ html: '…and ' + (before.length - 4) + ' more step' + (before.length === 5 ? '' : 's') + ' like those.', sub: true });
+    items.push({ html: T('First, rule some numbers out with {t}:', { t: '<b>' + names.map((n) => T(n)).join('</b>, <b>') + '</b>' }) });
+    before.slice(0, 4).forEach((s) => items.push({ html: '<b>' + T(s.t) + ':</b> ' + esc(s.why), sub: true }));
+    if (before.length > 4) items.push({ html: T(before.length === 5 ? '…and {n} more step like those.' : '…and {n} more steps like those.', { n: before.length - 4 }), sub: true });
   }
-  if (last) items.push({ html: before.length ? 'Then, <b>' + last.t + ':</b> ' + esc(last.why) : esc(last.why) });
-  else items.push({ html: SU.cellName(i) + ' is <b>' + d + '</b>.' });
+  if (last) items.push({ html: before.length ? T('Then, {t}', { t: '<b>' + T(last.t) + ':</b> ' }) + esc(last.why) : esc(last.why) });
+  else items.push({ html: T('{c} is <b>{d}</b>.', { c: SU.cellName(i), d: d }) });
   const pat = [], units = [];
   steps.forEach((s) => { (s.cells || []).forEach((c) => { if (pat.indexOf(c) < 0) pat.push(c); }); });
   if (last && last.units) last.units.forEach((u) => units.push(u));
-  showHint(last ? last.t + (before.length ? ' (with ' + before.length + ' step' + (before.length > 1 ? 's' : '') + ' first)' : '') : 'Revealed', items, { cells: pat, units: last && last.t === 'Hidden single' ? units : [], flash: i });
+  showHint(last ? T(last.t) + (before.length ? ' ' + T(before.length > 1 ? '(with {n} steps first)' : '(with {n} step first)', { n: before.length }) : '') : T('Revealed'), items, { cells: pat, units: last && last.t === 'Hidden single' ? units : [], flash: i });
   save(); render(); checkDone();
 }
 function esc(s) { return String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]); }
@@ -634,7 +634,7 @@ function showHint(title, items, view) {
   box.innerHTML = '';
   const ol = h('div');
   items.forEach((it) => ol.appendChild(h('p', { html: it.html, style: it.sub ? 'padding-left:14px;font-size:13px' : null })));
-  box.append(h('h3', { text: '💡 ' + title }), ol, h('div', { class: 'row' }, [h('button', { type: 'button', class: 'ghost', text: 'Got it', onclick: closeHint })]));
+  box.append(h('h3', { text: '💡 ' + title, 'data-noi18n': '' }), h('div', { 'data-noi18n': '' }, [ol]), h('div', { class: 'row' }, [h('button', { type: 'button', class: 'ghost', text: 'Got it', onclick: closeHint })]));
   box.hidden = false;
   box.querySelector('button').focus({ preventScroll: true });
   if (view.flash != null) { const c = cells[view.flash]; c.classList.remove('flash'); void c.offsetWidth; c.classList.add('flash'); }
