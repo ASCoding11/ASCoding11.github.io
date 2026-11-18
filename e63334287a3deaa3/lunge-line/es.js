@@ -19,7 +19,7 @@
   L.add({
     '‹ Back': '‹ Volver', '‹ Leave': '‹ Salir', 'Pause': 'Pausa', 'Pause (P)': 'Pausa (P)', 'Sound on': 'Sonido encendido', 'Sound off': 'Sonido apagado', 'Sound (M)': 'Sonido (M)',
     'Change keys': 'Cambiar teclas', 'How to play': 'Cómo jugar', 'The duel': 'El duelo', 'Practice moves': 'Movimientos de práctica', 'Practice': 'Práctica', 'Dummy': 'Muñeco',
-    'Off': 'No', 'Stands still': 'Quieto', 'Fights back': 'Pelea', 'slowly': 'despacio', 'Left': 'Izquierda', 'Right': 'Derecha', 'Sword up': 'Espada arriba', 'Jump': 'Saltar',
+    'Off': 'Ninguno', 'Stands still': 'Quieto', 'Fights back': 'Pelea', 'slowly': 'despacio', 'Left': 'Izquierda', 'Right': 'Derecha', 'Sword up': 'Espada arriba', 'Jump': 'Saltar',
     'Sword down, duck, roll': 'Espada abajo, agacharse, rodar', 'Attack': 'Atacar',
     'One-touch sword tug-of-war': 'Duelo de espadas a un toque', '1 to 8 players': 'De 1 a 8 jugadores',
     'One touch of the blade wins the duel. Win it and only you may run for your end of the line, while your rival comes back in front of you, again and again. Reach the pit at the very end and jump in to win.': 'Un toque de espada gana el duelo. Si lo ganas, solo tú puedes correr hacia tu lado, mientras tu rival reaparece delante de ti una y otra vez. Llega al pozo del final y salta adentro para ganar.',
@@ -80,6 +80,6 @@
     'Game': 'Juego', 'Sound on / off': 'Sonido sí / no', 'Pause, close': 'Pausa, cerrar',
     "Couldn’t reach the game database. A school or work network may be blocking it; try another network, or play the bot.": 'No se pudo llegar a la base de datos del juego. La red de la escuela o del trabajo puede estar bloqueándola; prueba otra red o juega contra el bot.',
     'Could not reach the game server. Check your connection, or play the bot.': 'No se pudo llegar al servidor del juego. Revisa tu conexión o juega contra el bot.',
-    'Signing in to the game server timed out. Check your connection.': 'Se agotó el tiempo para entrar al servidor. Revisa tu conexión.', 'Language': 'Idioma', '{n} (you)': '{n} (tú)', '{n} stages': '{n} etapas', 'no throwing': 'sin lanzar', 'low gravity': 'gravedad baja', 'bouncing throws': 'lanzamientos con rebote', 'turbo': 'turbo', 'Random arenas': 'Arenas al azar', '{n} joined': '{n} entró', '{n} left': '{n} se fue'
+    'Signing in to the game server timed out. Check your connection.': 'Se agotó el tiempo para entrar al servidor. Revisa tu conexión.', 'Language': 'Idioma', '{n} of {m} done': '{n} de {m} hechos', 'All {n} done!': '¡Los {n} hechos!', '{n} (you)': '{n} (tú)', '{n} stages': '{n} etapas', 'no throwing': 'sin lanzar', 'low gravity': 'gravedad baja', 'bouncing throws': 'lanzamientos con rebote', 'turbo': 'turbo', 'Random arenas': 'Arenas al azar', '{n} joined': '{n} entró', '{n} left': '{n} se fue'
   });
 })();
