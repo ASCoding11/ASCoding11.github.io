@@ -75,6 +75,25 @@
   'use strict';
   if (window.__acctNudge || document.getElementById('acct-nudge')) return;
   window.__acctNudge = true;
+  // Spanish (lang.js): this script's words.
+  (function es(n) {
+    if (!window.BackRoomLang) { if (n < 100) setTimeout(function () { es(n + 1); }, 100); return; }
+    BackRoomLang.add({
+      'Sign in to save your progress': 'Inicia sesión para guardar tu progreso', 'to save your skins, records and settings across devices.':
+        'para guardar tus skins, récords y configuración en todos tus dispositivos.', 'Sign in': 'Iniciar sesión',
+      'Save your progress': 'Guarda tu progreso',
+      'Sign in with Google to save your account, skins and records, so they’re here on any device you play on. You can keep playing without it.':
+        'Inicia sesión con Google para guardar tu cuenta, skins y récords, y tenerlos en cualquier dispositivo donde juegues. Puedes seguir jugando sin hacerlo.',
+      'Signing in…': 'Iniciando sesión…', 'Saved to your account · just now': 'Guardado en tu cuenta · recién',
+      'Saved to your account · 1 minute ago': 'Guardado en tu cuenta · hace 1 minuto', 'Saved to your account · {n} minutes ago': 'Guardado en tu cuenta · hace {n} minutos',
+      'Saved to your account · 1 hour ago': 'Guardado en tu cuenta · hace 1 hora', 'Saved to your account · {n} hours ago': 'Guardado en tu cuenta · hace {n} horas',
+      'Couldn’t save to your account. It’ll try again.': 'No se pudo guardar en tu cuenta. Lo volverá a intentar.',
+      'Restored your skins and records from your account': 'Recuperamos tus skins y récords de tu cuenta',
+      'Account save is paused: the panels are signed in as someone else.': 'El guardado está en pausa: los paneles tienen otra sesión iniciada.',
+      'Account save needs the Party panel, which didn’t load.': 'El guardado necesita el panel de Grupo, que no cargó.',
+      'Couldn’t reach your account save. Check your connection.': 'No se pudo llegar a tu guardado. Revisa tu conexión.'
+    });
+  })(0);
 
   var PATH = 'rooms/sv-saves/players';
   var DISMISS = 'sv:nudge', META = 'sv:meta', DAYS = 7, PROMPTED = 'sv:prompt';

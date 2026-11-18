@@ -62,7 +62,6 @@
     "Cars": "Autos",
     "Shooters": "Shooters",
     "Parkour": "Parkour",
-    "Party": "Fiesta",
     "Puzzles": "Puzles",
     "Arcade": "Arcade",
     "Racing, car soccer, kart battles and stunt time trials.": "Carreras, fútbol con autos, batallas de karts y contrarreloj acrobáticas.",
@@ -420,5 +419,14 @@
         .forEach(function (h) { L.englishOnly(h); });
     });
   }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', tag); else tag();
+  // "Party" is both the party-games button in the row of game types and the Party panel (a group of friends, "Grupo",
+  // given by party.js). The button says "Fiesta": it's kept out of the automatic translation and set here.
+  function partyBtn() {
+    document.querySelectorAll('.gs-nb.gs-partygames b').forEach(function (b) {
+      b.setAttribute('data-noi18n', ''); b.textContent = L.get() === 'en' ? 'Party' : 'Fiesta';
+    });
+  }
+  document.addEventListener('backroom:lang', partyBtn);
+  function ready() { tag(); partyBtn(); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready); else ready();
 })();

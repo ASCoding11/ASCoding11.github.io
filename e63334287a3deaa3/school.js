@@ -20,6 +20,19 @@
   'use strict';
   if (window.BackRoomSchool) { fill(); return; }
 
+  // Spanish (lang.js): this script's words, and T() for the line built here.
+  var T = function (s, v) { return window.BackRoomLang ? BackRoomLang.t(s, v) : String(s).replace(/\{(\w+)\}/g, function (m, k) { return v && v[k] != null ? v[k] : m; }); };
+  (function es(n) {
+    if (!window.BackRoomLang) { if (n < 100) setTimeout(function () { es(n + 1); }, 100); return; }
+    BackRoomLang.add({
+      'Your school': 'Tu escuela', 'Pick where you go. More schools are coming soon.': 'Elige a cuál vas. Pronto habrá más escuelas.',
+      'Not listed': 'No está', 'My school isn’t here yet': 'Mi escuela todavía no está',
+      'Not listed yet. More schools are coming soon.': 'Todavía no está en la lista. Pronto habrá más escuelas.',
+      'You go to {s}. More schools are coming soon.': 'Vas a {s}. Pronto habrá más escuelas.'
+    });
+    drawAll();
+  })(0);
+
   var KEY = 'school:v1';
   var SCHOOLS = [
     { id: 'avenues', name: 'Avenues', place: 'New York' }
@@ -105,8 +118,9 @@
     if (!any) { var f = el.querySelector('.sch-opt'); if (f) f.tabIndex = 0; }
     if (!c) sub.textContent = 'Pick where you go. More schools are coming soon.';
     else if (c === OTHER) sub.textContent = 'Not listed yet. More schools are coming soon.';
-    else sub.innerHTML = 'You go to <b>' + esc(c.name) + '</b>. More schools are coming soon.';
+    else sub.innerHTML = T('You go to {s}. More schools are coming soon.', { s: '<b>' + esc(c.name) + '</b>' });
   }
+  document.addEventListener('backroom:lang', function () { drawAll(); });
   function drawAll() { [].forEach.call(document.querySelectorAll('.sch[role="group"]'), draw); }
   function fill() {
     [].forEach.call(document.querySelectorAll('[data-school]'), function (el) {
