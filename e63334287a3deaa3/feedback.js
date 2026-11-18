@@ -44,7 +44,7 @@
     ['slipstream', 'Slipstream'], ['boostball', 'Boostball'], ['coil', 'Coil'], ['trivium', 'Trivium'],
     ['showdown', 'Showdown'], ['chromaflage', 'Chromaflage'], ['spire', 'Spire'], ['turbo-trail', 'Turbo Trail'],
     ['escapade', 'Escapade'], ['updraft', 'Updraft'], ['odd-one-out', 'Odd One Out'], ['tumble-trials', 'Tumble Trials'],
-    ['puffer-party', 'Puffer Party'], ['blockstorm', 'Blockstorm'], ['lanternhold', 'Lanternhold'], ['putterby', 'Putterby'], ['daily', 'Daily Puzzles (any daily puzzle)'], ['other', 'Something else (the site, parties…)']
+    ['puffer-party', 'Puffer Party'], ['blockstorm', 'Blockstorm'], ['lanternhold', 'Lanternhold'], ['sky-duel', 'Sky Duel'], ['putterby', 'Putterby'], ['daily', 'Daily Puzzles (any daily puzzle)'], ['other', 'Something else (the site, parties…)']
   ];
   var KINDS = [['idea', 'Idea or change'], ['bug', 'Bug'], ['other', 'Something else']];
   var MAX = { msg: 1000, name: 40, contact: 80, page: 200 };

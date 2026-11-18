@@ -116,6 +116,13 @@
       { k: 'deaths', l: 'Deaths', f: 'n', u: 'death', rate: 0.5, hide: true },
       { k: 'kd', l: 'K/D (all time)', chip: 'K/D', f: 'kd', kd: ['kdkills', 'deaths'], min: 20, hi: 100 },
       { k: 'wins', l: 'Online match wins', f: 'n', u: 'win', rate: 1 / 60 }] },
+    { d: 'sky-duel', n: 'Sky Duel', st: [
+      { k: 'mkills', l: 'Most kills in a match', f: 'n', u: 'kill', hi: 60, le: 'kills' },
+      { k: 'kills', l: 'Kills (all time)', f: 'n', u: 'kill', rate: 0.5 },
+      { k: 'kdkills', l: 'Kills counted for K/D', f: 'n', u: 'kill', rate: 0.5, le: 'kills', hide: true },
+      { k: 'deaths', l: 'Deaths', f: 'n', u: 'death', rate: 0.5, hide: true },
+      { k: 'kd', l: 'K/D (all time)', chip: 'K/D', f: 'kd', kd: ['kdkills', 'deaths'], min: 20, hi: 100 },
+      { k: 'wins', l: 'Online match wins', f: 'n', u: 'win', rate: 1 / 60 }] },
     { d: 'putterby', n: 'Putterby', st: [
       { k: 'card9', l: 'Best 9-hole card (fewest strokes)', chip: 'Best card', f: 'n', u: 'stroke', low: 1, lo: 9, hi: 72 },
       { k: 'aces', l: 'Holes in one', f: 'n', u: 'ace', rate: 0.25 },

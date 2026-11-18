@@ -85,6 +85,7 @@
     { k: 'dz', n: 'Driftfall', d: 'drop-zone', max: 30, nk: 'driftfall:name' },
     { k: 'bs', n: 'Blockstorm', d: 'blockstorm', max: 12, nk: 'blockstorm:name' },
     { k: 'lh', n: 'Lanternhold', d: 'lanternhold', max: 4, nk: 'lanternhold:name' },
+    { k: 'vq', n: 'Sky Duel', d: 'sky-duel', max: 8, nk: 'skyduel-name' },
     { k: 'gd', n: 'Lokop', d: 'lunge-line', max: 8, nk: 'lungeline:name' },
     { k: 'dw', n: 'Deepword', d: 'deepword', max: 12, nk: 'deepword-name' },
     { k: 'pf', n: 'Puffer Party', d: 'puffer-party', max: 12, nk: 'pufferparty:name' },
