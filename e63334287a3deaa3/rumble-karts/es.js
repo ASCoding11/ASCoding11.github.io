@@ -4,7 +4,7 @@
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
     '3-minute kart brawls · three ways to win': 'Peleas de karts de 3 minutos · tres formas de ganar',
-    'Driver name': 'Nombre del piloto', 'Kart paint': 'Color del kart', 'New code': 'Código nuevo', 'Mode': 'Modo',
+    'Driver name': 'Nombre del piloto', 'Kart paint': 'Color del kart', 'Paint {n}': 'Color {n}', 'New code': 'Código nuevo', 'Mode': 'Modo',
     'Play online': 'Jugar en línea', 'Practice vs bots': 'Práctica contra bots', 'Advertisement': 'Publicidad',
     'or arrows to drive ·': 'o flechas para manejar ·', 'use item ·': 'usar objeto ·', 'mute ·': 'silenciar ·', 'leave ·': 'salir ·',
     'Left stick drives · Fire uses your item': 'El stick izquierdo maneja · Disparar usa tu objeto', 'Space': 'Espacio', 'SPACE': 'ESPACIO',
