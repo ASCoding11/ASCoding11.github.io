@@ -452,7 +452,7 @@
     return out;
   }
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
-  function fmtN(v) { try { return Math.round(v).toLocaleString('en-US'); } catch (e) { return String(Math.round(v)); } }
+  function fmtN(v) { try { return window.BackRoomLang ? BackRoomLang.num(Math.round(v)) : Math.round(v).toLocaleString('en-US'); } catch (e) { return String(Math.round(v)); } }
   function fmtHours(s) { return s < 3600 ? Math.max(1, Math.round(s / 60)) + ' min' : (s / 3600).toFixed(s < 360000 ? 1 : 0) + ' h'; }
   function fmtTime(s, ms) {
     var h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, sec = s - Math.floor(s / 60) * 60;
