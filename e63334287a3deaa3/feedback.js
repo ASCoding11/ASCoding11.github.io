@@ -54,13 +54,13 @@
     if (!window.BackRoomLang) { if (n < 100) setTimeout(function () { es(n + 1); }, 100); return; }
     BackRoomLang.add({
       'Suggestions': 'Sugerencias', 'Add any suggestions or report any errors': 'Deja una sugerencia o avisa de un error', 'Suggestion here...': 'Escribe tu sugerencia...',
-      'Send': 'Enviar', 'Only Arjun and the site\'s admins can read these. Please don\'t put passwords or anything private in it.':
-        'Solo Arjun y los administradores del sitio pueden leerlas. No pongas contraseñas ni nada privado.',
-      'Thanks!': '¡Gracias!', 'Arjun will read it.': 'Arjun lo va a leer.', 'Send another': 'Enviar otra', 'Write a few words first.': 'Primero escribe algunas palabras.',
+      'Send': 'Enviar', 'Only the site\'s team can read these. Please don\'t put passwords or anything private in it.':
+        'Solo el equipo del sitio puede leerlas. No pongas contraseñas ni nada privado.',
+      'Thanks!': '¡Gracias!', 'We\'ll read it.': 'Lo vamos a leer.', 'Send another': 'Enviar otra', 'Write a few words first.': 'Primero escribe algunas palabras.',
       'That\'s {n} notes from this browser today. Thanks! Try again tomorrow.': 'Ya van {n} notas desde este navegador hoy. ¡Gracias! Vuelve a intentarlo mañana.',
       'You just sent one. Wait {n} seconds and try again.': 'Acabas de enviar una. Espera {n} segundos y vuelve a intentarlo.', 'Sending…': 'Enviando…',
-      'Suggestions aren\'t switched on yet. Arjun still has to turn them on, so nothing was sent. Your message is kept here; try again another day.':
-        'Las sugerencias todavía no están activadas. Arjun tiene que activarlas, así que no se envió nada. Tu mensaje queda guardado aquí; inténtalo otro día.',
+      'Suggestions aren\'t switched on yet. They still have to be turned on, so nothing was sent. Your message is kept here; try again another day.':
+        'Las sugerencias todavía no están activadas. Todavía hay que activarlas, así que no se envió nada. Tu mensaje queda guardado aquí; inténtalo otro día.',
       'Too many people are signing in right now. Wait a minute and try again.': 'Hay demasiada gente iniciando sesión ahora. Espera un minuto y vuelve a intentarlo.',
       'Couldn\'t send it. Check your connection and try again.': 'No se pudo enviar. Revisa tu conexión y vuelve a intentarlo.'
     });
@@ -128,7 +128,7 @@
 
     // One heading and one empty box: no kind or game to pick first. Notes are stored as before, with game and kind
     // both "other" (the admin page's filters still work), and no name or reply field.
-    var FINE = 'Only Arjun and the site\'s admins can read these. Please don\'t put passwords or anything private in it.';
+    var FINE = 'Only the site\'s team can read these. Please don\'t put passwords or anything private in it.';
     var box = document.createElement('div');
     box.id = 'fbk'; box.className = 'fbk'; box.setAttribute('role', 'region'); box.setAttribute('aria-label', 'Suggestions');
     box.innerHTML =
@@ -137,7 +137,7 @@
         '<textarea id="fbk-ta" name="msg" rows="1" maxlength="' + MAX.msg + '" placeholder="Suggestion here..."></textarea>' +
         '<div class="fbk-acts"><button type="submit" class="fbk-send">Send</button><p class="fbk-msg" role="status" aria-live="polite"></p></div>' +
       '</form>' +
-      '<div class="fbk-done" hidden><p><b>Thanks!</b> Arjun will read it.</p><div class="fbk-acts"><button type="button" class="fbk-again">Send another</button></div></div>';
+      '<div class="fbk-done" hidden><p><b>Thanks!</b> We\'ll read it.</p><div class="fbk-acts"><button type="button" class="fbk-again">Send another</button></div></div>';
 
     var $ = function (s) { return box.querySelector(s); };
     var form = $('form'), done = $('.fbk-done');
@@ -191,7 +191,7 @@
         form.hidden = true; done.hidden = false; done.querySelector('.fbk-again').focus({ preventScroll: true });
       }, function (err) {
         var c = (err && err.code) || '';
-        if (c === 'denied') say('Suggestions aren\'t switched on yet. Arjun still has to turn them on, so nothing was sent. Your message is kept here; try again another day.', true);
+        if (c === 'denied') say('Suggestions aren\'t switched on yet. They still have to be turned on, so nothing was sent. Your message is kept here; try again another day.', true);
         else if (c === 'busy') say('Too many people are signing in right now. Wait a minute and try again.', true);
         else say('Couldn\'t send it. Check your connection and try again.', true);
       }).then(function () { send.disabled = false; send.textContent = 'Send'; show(); });

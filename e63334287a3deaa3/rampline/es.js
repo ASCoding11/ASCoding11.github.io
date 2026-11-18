@@ -126,7 +126,7 @@
     'Everyone in the Back Room will see it under Community, with your name ({n}) and its own top 10. You can have {m} published at once and take any down later.': 'Todos en el Back Room la verán en Comunidad, con tu nombre ({n}) y su propio top 10. Puedes tener {m} publicadas a la vez y quitar cualquiera después.',
     'You can have {m} tracks published at once. Take one down first (Community → yours).': 'Puedes tener {m} pistas publicadas a la vez. Primero quita una (Comunidad → tuyas).',
     "Couldn't reach the game server. Boards and community tracks need a connection.": 'No se pudo conectar con el servidor del juego. Las tablas y las pistas de la comunidad necesitan conexión.',
-    '"{n}" is hidden for you now. To tell Arjun about it, use Tell Arjun on the Back Room page and mention the track\'s name and author ({a}).': '"{n}" ya no se muestra para ti. Para avisarle a Arjun, usa Tell Arjun en la página del Back Room y menciona el nombre de la pista y su autor ({a}).',
+    '"{n}" is hidden for you now. To tell us about it, use Tell us on the Back Room page and mention the track\'s name and author ({a}).': '"{n}" ya no se muestra para ti. Para avisarnos, usa Cuéntanos en la página del Back Room y menciona el nombre de la pista y su autor ({a}).',
     // captain's garage (garage.js; car, paint and wheel names that are just words are translated)
     "Captain’s garage": 'Garaje de capitanes', 'Front': 'Frente', 'Cars': 'Autos', 'Paint': 'Pintura', 'Wheels': 'Ruedas', 'Tyre smoke': 'Humo de gomas', 'Horn': 'Bocina',
     'Garage car': 'Auto del garaje', 'The car’s own': 'El del auto', 'Garage colour': 'Color del garaje', 'Garage rims': 'Llantas del garaje', 'No horn': 'Sin bocina',

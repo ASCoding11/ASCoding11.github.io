@@ -371,7 +371,7 @@
       'A new Online panel under Party shows who else has the Back Room open, and whether they\'re idle, in a party or in a game.',
       'Tap someone to send a private message, invite them to your party, or invite them into the room you\'re playing in.',
       'Cabin chat: one shared chat for everyone online, with Mute and Block if you need them.',
-      'Got an idea or found a bug? The "Tell Arjun" box at the top of the page sends it straight to him.',
+      'Got an idea or found a bug? The "Tell us" box at the top of the page sends it straight to us.',
       'Smoother online movement: other players glide instead of jumping around on slow school Wi-Fi, in Shell Crackers, Backrooms, Chromaflage, Odd One Out, Spire, Updraft and Coil.',
       'This What\'s new list, so you can see what changed since you last played.'
     ]},

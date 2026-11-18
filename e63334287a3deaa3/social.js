@@ -115,7 +115,7 @@
       'They aren’t in a party.': 'No está en un grupo.', 'You’re already in their party.': 'Ya estás en su grupo.', 'Waiting for them to answer.': 'Esperando su respuesta.',
       'You’re not in a party any more.': 'Ya no estás en un grupo.', 'Only the party leader can let people in.': 'Solo el líder del grupo puede dejar entrar.', 'The party is full.': 'El grupo está lleno.',
       'Not signed in.': 'No iniciaste sesión.', 'Too long.': 'Demasiado largo.', 'Not connected yet.': 'Todavía no estás conectado.',
-      'You just reported them. Arjun will see it.': 'Acabas de reportarlo. Arjun lo va a ver.', 'You can also Block them so you stop seeing their messages.': 'También puedes Bloquearlo para dejar de ver sus mensajes.',
+      'You just reported them. We\'ll see it.': 'Acabas de reportarlo. Lo vamos a ver.', 'You can also Block them so you stop seeing their messages.': 'También puedes Bloquearlo para dejar de ver sus mensajes.',
       'One moment: you can send a message every second and a half.': 'Un momento: puedes mandar un mensaje cada segundo y medio.',
       'Slow down a little: that’s {n} messages in ten seconds.': 'Más despacio: son {n} mensajes en diez segundos.',
       'You’re hidden. Turn off Hide me to chat.': 'Estás oculto. Apaga Ocultarme para chatear.', 'You blocked this person.': 'Bloqueaste a esta persona.',
@@ -161,7 +161,7 @@
       'Sent them the party code. They join when they press Join.': 'Le mandaste el código del grupo. Entra cuando toque Unirse.', 'Invite sent.': 'Invitación enviada.',
       'End this chat? You both stop seeing each other’s messages until one of you requests a chat again.': '¿Terminar este chat? Los dos dejan de ver los mensajes del otro hasta que alguien vuelva a pedir chat.',
       'Trivium codes are five letters.': 'Los códigos de Trivium tienen cinco letras.', 'Room codes are letters, numbers and dashes (up to 17).': 'Los códigos de sala son letras, números y guiones (hasta 17).',
-      'Reported. Thanks: Arjun will look at it.': 'Reportado. Gracias: Arjun lo va a revisar.', 'Reports aren’t switched on yet, so nothing was sent. Block them for now.': 'Los reportes todavía no están activados, así que no se envió nada. Por ahora, bloquéalo.',
+      'Reported. Thanks: we\'ll look at it.': 'Reportado. Gracias: lo vamos a revisar.', 'Reports aren’t switched on yet, so nothing was sent. Block them for now.': 'Los reportes todavía no están activados, así que no se envió nada. Por ahora, bloquéalo.',
       'Couldn’t send the report. Check your connection and try again.': 'No se pudo enviar el reporte. Revisa tu conexión y vuelve a intentarlo.',
       'You’re hidden. Nobody can see you online, and you can’t chat until you turn this off.': 'Estás oculto. Nadie te ve en línea, y no puedes chatear hasta que lo apagues.',
       'Online needs the Party panel, which didn’t load. Reload the page to try again.': 'En línea necesita el panel de Grupo, que no cargó. Recarga la página para reintentar.',
@@ -1379,12 +1379,12 @@
   }
   async function report(u) {
     if (!uid) throw new Error('Not connected yet.');
-    if (reported[u] && Date.now() - reported[u] < REPORT_GAP) throw new Error('You just reported them. Arjun will see it.');
+    if (reported[u] && Date.now() - reported[u] < REPORT_GAP) throw new Error('You just reported them. We\'ll see it.');
     var t = threads[u], p = people[u], who = (p ? label(p) : mask(cleanName(t && t.n) || 'Someone') + ' · ' + seatOf(u));
     var tr = transcript(u);
-    var ok = confirm('Report ' + who + ' to Arjun?\n\n' +
-      'This sends Arjun ' + (tr.n ? 'a copy of the last ' + tr.n + ' message' + (tr.n === 1 ? '' : 's') + (tr.party ? ' in this chat and your party chat, as they appear on your screen (yours, theirs and, from the party chat, the other members’)' : ' in this chat, as they appear on your screen (yours and theirs)') : 'a note that you reported them (there are no messages in this chat)') +
-      ', with both your names, seats and account IDs. Nothing else is sent. Only Arjun and the site\u2019s admins can read reports.\n\n' +
+    var ok = confirm('Report ' + who + '?\n\n' +
+      'This sends us ' + (tr.n ? 'a copy of the last ' + tr.n + ' message' + (tr.n === 1 ? '' : 's') + (tr.party ? ' in this chat and your party chat, as they appear on your screen (yours, theirs and, from the party chat, the other members’)' : ' in this chat, as they appear on your screen (yours and theirs)') : 'a note that you reported them (there are no messages in this chat)') +
+      ', with both your names, seats and account IDs. Nothing else is sent. Only the site\u2019s team can read reports.\n\n' +
       'You can also Block them so you stop seeing their messages.');
     if (!ok) return false;
     await logChat('report', { name: myName(), seat: seatOf(uid), about: u, aboutName: cleanName(p ? p.n : t && t.n) || 'Guest', aboutSeat: seatOf(u), text: tr.text });
@@ -2070,7 +2070,7 @@
       else if (a === 'report') {
         b.disabled = true;
         report(u).then(function (done) {
-          if (done && err) { err.textContent = 'Reported. Thanks: Arjun will look at it.'; err.classList.remove('err'); }
+          if (done && err) { err.textContent = 'Reported. Thanks: we\'ll look at it.'; err.classList.remove('err'); }
         }, function (x) {
           var why = x && x.status === 403 ? 'Reports aren’t switched on yet, so nothing was sent. Block them for now.'
             : x && /^(You just|Not connected)/.test(x.message || '') ? x.message : 'Couldn’t send the report. Check your connection and try again.';
