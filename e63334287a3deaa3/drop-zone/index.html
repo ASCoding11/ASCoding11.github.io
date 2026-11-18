@@ -145,6 +145,8 @@ button:disabled{opacity:.5;cursor:default}
   background:radial-gradient(circle at center,var(--tint) 0 calc(var(--r)*.72),rgba(0,6,12,.34) calc(var(--r) - 7px),var(--rim) calc(var(--r) - 5px) var(--r),rgba(2,5,8,.985) calc(var(--r) + 2px))}
 #scopeR{position:absolute;left:50%;top:50%;width:calc(var(--r)*2);height:calc(var(--r)*2);transform:translate(-50%,-50%);overflow:visible}
 #hurt{position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 45%,rgba(200,30,20,.7) 100%);opacity:0}
+/* out in the storm: the edges of the view go a cold violet that breathes (updateWorldFx) */
+#stormv{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 50%,rgba(96,70,190,.55) 100%);opacity:0}
 #tags{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .ntag{position:absolute;left:0;top:0;font-weight:700;font-size:14px;letter-spacing:.04em;color:#fff;text-shadow:0 1px 2px #000;white-space:nowrap;pointer-events:none}
 .ntag em{font-style:normal;font-size:10px;letter-spacing:.12em;color:var(--ink-dim);margin-left:4px}
@@ -397,6 +399,7 @@ body.touch #net{font-size:14px}
     <div id="tags"></div>
     <div id="scope" hidden><svg id="scopeR" viewBox="-100 -100 200 200" aria-hidden="true"></svg></div>
     <div id="hurt"></div>
+    <div id="stormv"></div>
     <svg id="cross" viewBox="-1 -1 2 2" aria-hidden="true"></svg>
     <div id="hitm"></div>
     <div id="reload" hidden><i id="reloadFill"></i></div>
@@ -5536,9 +5539,10 @@ function updateWorldFx(){
   if(k>.02){rainCover-=dt;if(rainCover<=0){rainCover=.3;const c=camera.position;rainRoof=raycast([c.x,c.y+.3,c.z],[0,1,0],40,null,false).hit?.2:1}
     rainA+=(rainRoof-rainA)*Math.min(1,dt*5);rainMesh.visible=true;const u=rainMesh.material.uniforms;u.time.value=RM?0:(now*.001)%600;u.cam.value.copy(camera.position);u.op.value=.75*k*rainA}
   else rainMesh.visible=false;
+  {const sv=stormV||(stormV=$('stormv'));if(sv)hudSet(sv,'sv:opacity',k<.01?'0':(k*(RM?.7:.62+.18*Math.sin(now*.0042))).toFixed(2))}   // (the HUD isn't shown in the menu, so this is only seen in a match)
   stormHum(k);
 }
-let wfLast=performance.now(),stormK=0,rainCover=0,rainRoof=1,rainA=1;
+let stormV=null,wfLast=performance.now(),stormK=0,rainCover=0,rainRoof=1,rainA=1;
 const _skyC=new THREE.Color(),_stormC=new THREE.Color(STORM_SKY),_flashC=new THREE.Color(0xc4d2ea);
 
 /* ---------- wind in the skydive ----------
