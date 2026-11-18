@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script src="/e63334287a3deaa3/lang.js"></script>
+<script src="/e63334287a3deaa3/stackfall/es.js"></script>
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Stackfall</title>
@@ -199,7 +201,7 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--cyan);outline-offse
           <div class="go"><span class="best">Best <b id="bestS">0</b></span><button class="cta sand" id="playS" type="button">Play Sand</button></div>
         </article>
       </div>
-      <div class="row mfoot"><button class="ghost" id="howMenu" type="button">How to play</button><button class="ghost" id="keysMenu" type="button">Controls</button><button class="ghost" id="soundMenu" type="button">Sound: on</button></div>
+      <div class="row mfoot"><button class="ghost" id="howMenu" type="button">How to play</button><button class="ghost" id="keysMenu" type="button">Controls</button><button class="ghost" id="soundMenu" type="button">Sound: on</button><div data-lang-toggle></div></div>
     </div>
   </section>
 
@@ -210,7 +212,7 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--cyan);outline-offse
       <p class="sub" id="pauseSub">Classic</p>
       <div class="row"><button class="cta" id="resume" type="button">Resume</button><button class="ghost" id="restartP" type="button">Restart</button></div>
       <div class="row" style="margin-top:10px"><button class="ghost" id="howPause" type="button">How to play</button><button class="ghost" id="keysPause" type="button">Controls</button><button class="ghost" id="soundPause" type="button">Sound: on</button></div>
-      <div class="row" style="margin-top:10px"><button class="ghost" id="modesP" type="button">Back to modes</button></div>
+      <div class="row" style="margin-top:10px"><button class="ghost" id="modesP" type="button">Back to modes</button><div data-lang-toggle></div></div>
     </div>
   </section>
 
@@ -235,14 +237,14 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--cyan);outline-offse
       <h2 class="h2">How to play</h2>
       <div class="tabs" role="tablist"><button type="button" role="tab" id="tabC" aria-selected="true">Classic</button><button type="button" role="tab" id="tabS" aria-selected="false">Sand</button></div>
       <div class="howtxt" id="howC">
-        <p>Pieces drop into a well ten squares wide. Slide and turn them so they fill <b>complete rows</b>: a full row vanishes and everything above it drops down.</p>
-        <p>Clear four rows with one piece for a <b>QUAD!</b> Twist the T piece into a snug gap for a <b>T-spin</b>, worth even more. Quads and T-spin clears in a row score <b>back-to-back &times;1.5</b>, and clearing with piece after piece builds a <b>combo</b>.</p>
-        <p>The faint outline shows where the piece will land. <b>Hold</b> stashes a piece for later (once per piece). Every 10 rows the level goes up and pieces fall faster. If a new piece has no room to appear, it's over.</p>
+        <p data-i18n-html data-noi18n>Pieces drop into a well ten squares wide. Slide and turn them so they fill <b>complete rows</b>: a full row vanishes and everything above it drops down.</p>
+        <p data-i18n-html data-noi18n>Clear four rows with one piece for a <b>QUAD!</b> Twist the T piece into a snug gap for a <b>T-spin</b>, worth even more. Quads and T-spin clears in a row score <b>back-to-back &times;1.5</b>, and clearing with piece after piece builds a <b>combo</b>.</p>
+        <p data-i18n-html data-noi18n>The faint outline shows where the piece will land. <b>Hold</b> stashes a piece for later (once per piece). Every 10 rows the level goes up and pieces fall faster. If a new piece has no room to appear, it's over.</p>
       </div>
       <div class="howtxt" id="howS" hidden>
-        <p>Every piece is made of sand in <b>one colour</b>. Steer it as usual, but the moment it touches the floor or the pile it <b>crumbles</b> into grains that tumble and slide downhill.</p>
-        <p>When sand of one colour joins up from the <b>left wall to the right wall</b> (grains touching side to side or top to bottom; corners don't count) that <b>whole patch dissolves</b>. Sand above falls in, and can finish another link: each extra clear in the same <b>chain</b> multiplies the points, and clearing several colours in one chain earns a bonus.</p>
-        <p>The level rises every 3,000 grains cleared. Keep the pile under the <b>red line</b>: if sand is still above it a second after the next piece is due, the game ends.</p>
+        <p data-i18n-html data-noi18n>Every piece is made of sand in <b>one colour</b>. Steer it as usual, but the moment it touches the floor or the pile it <b>crumbles</b> into grains that tumble and slide downhill.</p>
+        <p data-i18n-html data-noi18n>When sand of one colour joins up from the <b>left wall to the right wall</b> (grains touching side to side or top to bottom; corners don't count) that <b>whole patch dissolves</b>. Sand above falls in, and can finish another link: each extra clear in the same <b>chain</b> multiplies the points, and clearing several colours in one chain earns a bonus.</p>
+        <p data-i18n-html data-noi18n>The level rises every 3,000 grains cleared. Keep the pile under the <b>red line</b>: if sand is still above it a second after the next piece is due, the game ends.</p>
       </div>
       <dl class="keys">
         <dt data-kb="left right" data-kb-sep=" / " data-kb-case="upper">&larr; / &rarr;</dt><dd>Move (hold to slide)</dd>
@@ -767,7 +769,9 @@ function clearParticles(){PL.fill(0)}
 
 // ---------- callouts ----------
 const callouts=[];
-function callout(text,sub,color){callouts.length=0;callouts.push({text,sub:sub||'',color:color||'#ffd84a',t:0})}
+// Language (lang.js): words drawn on the canvas go through T(); the callouts are translated once, when they appear.
+const T=window.BackRoomLang?BackRoomLang.t:(s,v)=>s.replace(/\{(\w+)\}/g,(m,n)=>v&&v[n]!=null?v[n]:m);
+function callout(text,sub,color){callouts.length=0;callouts.push({text:T(text),sub:sub?sub.split(' · ').map(x=>T(x)).join(' · '):'',color:color||'#ffd84a',t:0})}
 const floaters=[];
 function floater(text,x,y){floaters.push({text,x,y,t:0});if(floaters.length>6)floaters.shift()}
 
@@ -778,7 +782,7 @@ function hudStr(i,v){if(hudV[i]!==v){hudV[i]=v;hudS[i]=fmt(v)}return hudS[i]}
 
 function panel(p,label){
   rr(ctx,p.x,p.y,p.w,p.h,Math.min(14,LY.cell*0.4));ctx.fillStyle='rgba(16,22,44,.78)';ctx.fill();ctx.lineWidth=1;ctx.strokeStyle='rgba(238,243,255,.12)';ctx.stroke();
-  if(label){ctx.font=FONT.label;ctx.fillStyle='rgba(238,243,255,.5)';ctx.textBaseline='top';ctx.textAlign='left';ctx.fillText(label,p.x+LY.cell*0.32,p.y+LY.cell*0.26)}
+  if(label){ctx.font=FONT.label;ctx.fillStyle='rgba(238,243,255,.5)';ctx.textBaseline='top';ctx.textAlign='left';ctx.fillText(T(label),p.x+LY.cell*0.32,p.y+LY.cell*0.26)}
 }
 function drawMini(t,cx,cy,m,sprites,ci,alpha){
   const bb=BBOX[t],w=(bb[1]-bb[0]+1)*m,h=(bb[3]-bb[2]+1)*m,x0=cx-w/2-bb[0]*m,y0=cy-h/2-bb[2]*m,s=SHAPES[t][0];
@@ -793,7 +797,7 @@ function drawStats(g,best){
   const pad=LY.cell*0.32;ctx.textAlign='left';ctx.textBaseline='top';
   for(let i=0;i<4;i++){
     const y=p.y+pad*0.7+i*LY.rowH;
-    ctx.font=FONT.label;ctx.fillStyle='rgba(238,243,255,.5)';ctx.fillText(labels[i],p.x+pad,y);
+    ctx.font=FONT.label;ctx.fillStyle='rgba(238,243,255,.5)';ctx.fillText(T(labels[i]),p.x+pad,y);
     ctx.font=FONT.value;ctx.fillStyle=i===1?'#ffd84a':'#eef3ff';ctx.fillText(hudStr(i,vals[i]),p.x+pad,y+LY.rowH*0.36);
   }
 }
@@ -937,7 +941,7 @@ function drawCallouts(dt){
 function drawReady(g){
   if(g.phase!=='ready')return;const c=LY.cell;
   ctx.textAlign='center';ctx.textBaseline='middle';ctx.font=FONT.big;ctx.lineWidth=Math.max(3,c*0.16);ctx.strokeStyle='rgba(6,8,20,.85)';
-  const t=g.readyT>420?'READY':'GO!';ctx.strokeText(t,LY.bx+5*c,LY.by+9*c);ctx.fillStyle=t==='GO!'?'#3ff0b6':'#3fe0ff';ctx.fillText(t,LY.bx+5*c,LY.by+9*c);
+  const t0=g.readyT>420?'READY':'GO!',t=T(t0);ctx.strokeText(t,LY.bx+5*c,LY.by+9*c);ctx.fillStyle=t0==='GO!'?'#3ff0b6':'#3fe0ff';ctx.fillText(t,LY.bx+5*c,LY.by+9*c);
 }
 function render(dt,now){
   ctx.setTransform(DPR,0,0,DPR,0,0);
