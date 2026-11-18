@@ -461,7 +461,7 @@
       'What\'s new': 'Novedades', ' (new)': ' (nuevo)', 'New game': 'Juego nuevo', 'Update': 'Actualización', 'Bug fix': 'Arreglos',
       'Coming soon': 'Muy pronto', 'Today': 'Hoy', 'Yesterday': 'Ayer', 'New game!': '¡Juego nuevo!', 'New games!': '¡Juegos nuevos!', 'New games': 'Juegos nuevos',
       'Show older': 'Ver anteriores', 'Show older (1 more day)': 'Ver anteriores (1 día más)', 'Show older ({n} more days)': 'Ver anteriores ({n} días más)',
-      'At a glance': 'De un vistazo', 'Hide this': 'Ocultar', 'Play {g}': 'Jugar {g}', 'Sponsored': 'Patrocinado', 'Learn more': 'Más info',
+      'At a glance': 'De un vistazo', 'Hide this': 'Ocultar', 'Sponsored': 'Patrocinado', 'Learn more': 'Más info',
       'Ad for {n}: {l} {b} (opens in a new tab)': 'Anuncio de {n}: {l} {b} (se abre en una pestaña nueva)',
       'Ad for {n}. {b} (opens in a new tab)': 'Anuncio de {n}. {b} (se abre en una pestaña nueva)',
       // The spotlight and the ads' own words (brand names stay as they are).
@@ -613,7 +613,7 @@
       opens(c, g);
       var tri = el('span', 'nws-play', '▶'); th.appendChild(tri);
       c.append(th, g.n);
-      c.setAttribute('aria-label', T('Play {g}', { g: g.n }));
+      c.setAttribute('aria-label', T('Play') + ' ' + g.n);
     } else c.append(th, g.n);
     return c;
   }
@@ -817,7 +817,7 @@
         stx.appendChild(kws);
       }
       var sp = opens(el('a', 'nws-sp'), spot.g), spT = el('span', '', '▶'); spT.setAttribute('aria-hidden', 'true');
-      sp.append(spT, 'Play'); sp.setAttribute('aria-label', T('Play {g}', { g: spot.g.n }));
+      sp.append(spT, 'Play'); sp.setAttribute('aria-label', T('Play') + ' ' + spot.g.n);
       var sx = el('button', 'nws-sx', '×'); sx.type = 'button'; sx.setAttribute('aria-label', 'Hide this');
       sx.title = 'Hide this';
       sx.addEventListener('click', function () {

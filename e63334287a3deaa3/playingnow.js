@@ -48,7 +48,6 @@
       'Public games': 'Juegos públicos', 'Connecting…': 'Conectando…', 'Couldn’t connect.': 'No se pudo conectar.',
       'just started': 'recién empieza', '{m} min in': 'hace {m} min', '{h} h {m} min in': 'hace {h} h {m} min',
       'Leave queue': 'Salir de la fila', 'Join': 'Unirse', 'Queue for next game': 'Hacer fila para la próxima', 'Queue': 'Fila', 'Full': 'Llena',
-      '{n} other': '{n} más', '{n} others': '{n} más', '{a} and {b}': '{a} y {b}', '{list} and {n} other': '{list} y {n} más', '{list} and {n} others': '{list} y {n} más',
       'That game has ended or nobody there lets people join any more, so you’re out of the queue.': 'Esa partida terminó o ya nadie deja entrar, así que saliste de la fila.',
       'Nobody is in an online game anyone can join right now. When you play one, people here can join you (turn that off with “Let people join my games” in Online).':
         'Ahora no hay nadie en un juego en línea al que se pueda entrar. Cuando juegues uno, la gente de aquí podrá unirse (lo apagas con “Dejar que se unan a mis juegos” en En línea).',
@@ -290,9 +289,11 @@
   // "Ava", "Ava and Ben", "Ava, Ben and 3 others"
   function names(e) {
     var ns = e.who.slice(0, 2).map(function (w) { return w.n; }), more = Math.max(e.n, e.who.length) - ns.length;
-    if (!ns.length) return T(more === 1 ? '{n} other' : '{n} others', { n: more });
-    if (!more) return ns.length > 1 ? T('{a} and {b}', { a: ns[0], b: ns[1] }) : ns[0];
-    return T(more === 1 ? '{list} and {n} other' : '{list} and {n} others', { list: ns.join(', '), n: more });
+    // (the joining words are picked here, not through the dictionary, whose patterns would also match ordinary sentences)
+    var es = window.BackRoomLang && BackRoomLang.get() === 'es', and = es ? ' y ' : ' and ', other = es ? ' más' : more === 1 ? ' other' : ' others';
+    if (!ns.length) return more + other;
+    if (!more) return ns.length > 1 ? ns[0] + and + ns[1] : ns[0];
+    return ns.join(', ') + and + more + other;
   }
   var lastSig = '';
   function draw() {

@@ -11,8 +11,7 @@
   var L = window.BackRoomLang; if (!L) return;
   L.add({
     // Counts in the game-type buttons, section heads and chips.
-    '{n} games': '{n} juegos', '1 game': '1 juego', '{n} puzzles': '{n} puzles', '{p} puzzles + {g} games': '{p} puzles + {g} juegos',
-    '{n} levels': '{n} niveles', '{n} modes': '{n} modos', '{n} tracks': '{n} pistas',
+    '{p} puzzles + {g} games': '{p} puzles + {g} juegos', '1 game': '1 juego',
     'Online · up to {n}': 'En línea · hasta {n}', 'Online': 'En línea',
     // Card links (aria-labels).
     "Open Slipstream": "Abrir Slipstream", "More about Slipstream": "Más sobre Slipstream",
@@ -53,6 +52,11 @@
     'Theme: Auto (follows this device)': 'Tema: Auto (sigue a este dispositivo)', 'Theme: Light': 'Tema: Claro', 'Theme: Dark': 'Tema: Oscuro',
     'Sign in': 'Iniciar sesión', 'Main site': 'Sitio principal', 'Privacy': 'Privacidad'
   });
+  // "4 games", "57 levels"... as exact words for every number up to 99, not a {n} pattern, which would also match any
+  // sentence that ends in "games".
+  var counts = {}, W = { games: 'juegos', puzzles: 'puzles', levels: 'niveles', modes: 'modos', tracks: 'pistas' };
+  for (var i = 2; i < 100; i++) Object.keys(W).forEach(function (w) { counts[i + ' ' + w] = i + ' ' + W[w]; });
+  L.add(counts);
   L.add(
   {
     "ou found it": "a lo encontraste",
