@@ -57,7 +57,7 @@
   //   arm    upper arm (shoulder at the origin, down to y -.27)    fore  forearm and hand (hand at y -.28)
   //   thigh  (down to y -.4)    shin  shin and foot (foot at y -.42)    body  the whole figure (only turns when tumbling)
   // arm/fore/thigh/shin are made for both sides (x mirrored); armL, foreR... for one side only (L is +x).
-  // tag 'hat': taken off for the Space Helmet and the Crown; 'helm': taken off for the Space Helmet; 'back': taken off when
+  // tag 'hat': taken off for the Space Helmet and the Crown; 'hair': only when no hat is on; 'helm': taken off for the Space Helmet; 'back': taken off when
   // a backpack is chosen. A colour starting with ! glows (drawn unlit); ~ is the helmet's glass.
   function figure(b, k) {
     b.k = k;   // the look's settings (crown height, chest front) for the rewards
@@ -66,7 +66,7 @@
     b.box('spine', [0, .25, 0], [.4, .46, .24], sh);
     b.ball('spine', [0, .44, 0], [.2, .12, .13], k.chest || sh);
     b.ball2('neck', [0, .14, 0], [.15, .16, .15], skin);
-    if (k.hair) b.hemi('neck', [0, .155, -.005], [.155, .118, .157], k.hair);
+    b.hemi('neck', [0, .16, -.005], [.158, .152, .16], k.hair || '#5a3c28', null, 'hair');
     b.ball('neck', [.05, .13, .14], [.018, .018, .018], k.eye || '#1d2230', null, k.eyeTag);
     b.ball('neck', [-.05, .13, .14], [.018, .018, .018], k.eye || '#1d2230', null, k.eyeTag);
     var sl = k.sleeve || sh, fo = k.fore || skin, ha = k.hand || skin, th = k.thigh || k.pants, sn = k.shin || k.pants;
@@ -246,10 +246,11 @@
     b.tor('spine', [0, .5, .02], [.12, .12, .1], '#5ec2ff', [Math.PI / 2, 0, 0]);
     belt(b, '#7a5a3a', '#c9a227');
     for (s = -1; s <= 1; s += 2) { b.ball('hips', [s * .2, -.09, .02], [.05, .065, .05], '#c9b07a'); b.cyl('hips', [s * .2, -.02, .02], [.012, .04, .012], '#7a5a3a'); }
-    b.cyl('neck', [0, .23, 0], [.11, .06, .11], '#b07a3a', null, 'hat');
-    for (var i = 0; i < 4; i++) { var a = i / 4 * Math.PI * 2 + .78; b.cyl('neck', [Math.sin(a) * .09, .3, Math.cos(a) * .09], [.006, .1, .006], '#5a3a1a', null, 'hat'); }
-    b.ball2('neck', [0, .43, 0], [.13, .15, .13], '#ffd23f', null, 'hat');
-    for (i = 0; i < 3; i++) b.box('neck', [0, .43, 0], [.262, .27, .03], '#e8452f', [0, i * Math.PI / 3, 0], 'hat');
+    b.cyl('neck', [0, .23, 0], [.1, .055, .1], '#b07a3a', null, 'hat');
+    b.cyl('neck', [0, .258, 0], [.104, .008, .104], '#8a5a2a', null, 'hat');
+    for (var i = 0; i < 4; i++) { var a = i / 4 * Math.PI * 2 + .78; b.cyl('neck', [Math.sin(a) * .075, .29, Math.cos(a) * .075], [.005, .07, .005], '#5a3a1a', null, 'hat'); }
+    b.ball2('neck', [0, .39, 0], [.1, .115, .1], '#ffd23f', null, 'hat');
+    for (i = 0; i < 3; i++) b.box('neck', [0, .39, 0], [.202, .21, .03], '#e8452f', [0, i * Math.PI / 3, 0], 'hat');
     goggles(b, .1, .12, '#5ec2ff', '#b08a3a', null, -.2);
   };
   SKIN[12] = function (b) {   // old-timey explorer: bowler, monocle, moustache, waistcoat, a cane
@@ -278,10 +279,10 @@
     b.box('neck', [.05, .13, .152], [.055, .05, .012], '#111');
     b.ring('neck', [0, .15, 0], [.16, .16, .16], '#111', [Math.PI / 2, 0, .35]);
     b.cyl('neck', [0, .25, 0], [.15, .1, .15], '#1d1f24', null, 'hat');
-    for (i = 0; i < 3; i++) {
-      var a = i / 3 * Math.PI * 2;
-      b.box('neck', [Math.sin(a) * .155, .27, Math.cos(a) * .155], [.27, .1, .025], '#1d1f24', [0, a, 0], 'hat');
-      b.box('neck', [Math.sin(a) * .16, .32, Math.cos(a) * .16], [.27, .012, .028], '#e0b040', [0, a, 0], 'hat');
+    for (i = 0; i < 3; i++) {   // three brims turned up, a corner at the front
+      var a = i / 3 * Math.PI * 2 + Math.PI / 3;
+      b.box('neck', [Math.sin(a) * .15, .275, Math.cos(a) * .15], [.31, .11, .025], '#1d1f24', [.45, a, 0, 'YXZ'], 'hat');
+      b.box('neck', [Math.sin(a) * .175, .325, Math.cos(a) * .175], [.31, .014, .03], '#e0b040', [.45, a, 0, 'YXZ'], 'hat');
     }
     b.cyl('foreL', [0, -.29, .1], [.025, .2, .025], '#b08a3a', [Math.PI / 2, 0, 0]); b.cyl('foreL', [0, -.29, .2], [.03, .03, .03], '#2a2d34', [Math.PI / 2, 0, 0]);
   };
@@ -369,14 +370,15 @@
     b.cyl('body', [0, .86, .54], [.016, .46, .016], M, [0, 0, Math.PI / 2]);
   };
   SKIN[20] = function (b) {   // knight: great helm with a plume, armour, a blue tabard
-    figure(b, { shirt: '#c8ccd4', sleeve: '#c8ccd4', fore: '#c8ccd4', hand: '#9aa0aa', handK: 1.15, pants: '#8a8f98', shin: '#c8ccd4', shoe: '#9aa0aa', hair: '#5a3c28', bag: '#6a4a2a', crownY: .34, front: .132 });
+    figure(b, { shirt: '#9aa3b0', sleeve: '#9aa3b0', fore: '#9aa3b0', hand: '#6a717c', handK: 1.15, pants: '#6a717c', shin: '#9aa3b0', shoe: '#6a717c', hair: '#5a3c28', bag: '#6a4a2a', crownY: .34, front: .132 });
     for (var z = -1; z <= 1; z += 2) b.box('spine', [0, .17, .126 * z], [.3, .42, .01], '#2a55c8');
     b.box('spine', [0, .22, .133], [.045, .24, .004], '#ffd23f'); b.box('spine', [0, .27, .133], [.17, .045, .004], '#ffd23f');
-    b.ball('arm', [0, .01, 0], [.095, .075, .095], '#d8dce2');
-    b.cyl('fore', [0, -.2, 0], [.06, .07, .06], '#d8dce2'); b.ball('shin', [0, -.01, .04], [.07, .08, .055], '#d8dce2');
+    b.ball('arm', [0, .01, 0], [.095, .075, .095], '#b8c0cc');
+    b.cyl('fore', [0, -.2, 0], [.06, .07, .06], '#b8c0cc'); b.ball('shin', [0, -.01, .04], [.07, .08, .055], '#b8c0cc');
     belt(b, '#5a3a22', '#c9a227');
-    b.cyl('neck', [0, .15, 0], [.175, .3, .175], '#c8ccd4', null, 'helm');
-    b.hemi('neck', [0, .3, 0], [.175, .06, .175], '#d8dce2', null, 'helm');
+    b.cyl('neck', [0, .15, 0], [.175, .3, .175], '#a8b0bc', null, 'helm');
+    b.hemi('neck', [0, .3, 0], [.175, .06, .175], '#b8c0cc', null, 'helm');
+    b.cyl('neck', [0, .02, 0], [.178, .02, .178], '#e0b040', null, 'helm');
     b.box('neck', [0, .15, .17], [.2, .025, .012], '#1d1f24', null, 'helm');
     b.box('neck', [0, .1, .17], [.012, .09, .012], '#9aa0aa', null, 'helm');
     b.cone('neck', [0, .43, -.03], [.05, .16, .05], '#e8452f', null, 'hat'); b.ball('neck', [0, .38, -.03], [.045, .045, .045], '#e8452f', null, 'hat');
@@ -536,10 +538,10 @@
       var k = b.k || {};
       if (L.p && PACK[L.p]) PACK[L.p](b, k);
       if (L.r && REWARD[L.r]) REWARD[L.r](b, k);
-      var out = {};
+      var out = {}, bare = L.r === 2 || L.r === 3 || !b.P.some(function (p) { return p.tag === 'hat'; });
       b.P.forEach(function (p) {
         var t = p.tag;
-        if ((t === 'hat' && (L.r === 2 || L.r === 3)) || (t === 'helm' && L.r === 2) || (t === 'back' && L.p)) return;
+        if ((t === 'hat' && (L.r === 2 || L.r === 3)) || (t === 'hair' && !bare) || (t === 'helm' && L.r === 2) || (t === 'back' && L.p)) return;
         var kind = p.col.charAt(0) === '!' ? 'glow' : p.col.charAt(0) === '~' ? 'glass' : 'lam', col = kind === 'lam' ? p.col : p.col.slice(1);
         var geo = p.geo === 'frust' ? frustG(p.extra[0], p.extra[1]) : geos[p.geo];
         var bones = SIDE[p.bone] ? [[SIDE[p.bone][0], false], [SIDE[p.bone][1], true]] : [[ONE[p.bone], false]];
