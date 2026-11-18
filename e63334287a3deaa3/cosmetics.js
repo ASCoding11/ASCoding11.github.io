@@ -231,7 +231,8 @@
   // One GAMES entry per game: its name, the prefix of its ids, and its slots in the order the shop lists them.
   var GAMES = {
     boostball: { name: 'Boostball', prefix: 'bb', slots: [['decal', 'Decals'], ['trail', 'Boost trails'], ['goal', 'Goal explosions'], ['topper', 'Antenna toppers'], ['hat', 'Roof hats'], ['wheels', 'Wheels'], ['engine', 'Engine sounds']] },
-    slipstream: { name: 'Slipstream', prefix: 'ss', slots: [['sponsor', 'Sponsors'], ['livery', 'Liveries'], ['helmet', 'Helmets'], ['effect', 'Boost effects'], ['smoke', 'Tyre smoke'], ['podium', 'Podium celebrations']] }
+    slipstream: { name: 'Slipstream', prefix: 'ss', slots: [['sponsor', 'Sponsors'], ['livery', 'Liveries'], ['helmet', 'Helmets'], ['effect', 'Boost effects'], ['smoke', 'Tyre smoke'], ['podium', 'Podium celebrations']] },
+    chromaflage: { name: 'Chromaflage', prefix: 'cf', slots: [['hat', 'Seeker hats'], ['tool', 'Seeker tools'], ['splash', 'Catch splashes'], ['caught', 'Caught animations']] },
   };
   var ITEM_PRICE = { common: 6, rare: 10, epic: 16, legendary: 40 };
   var GAME_ITEMS = [], ITEM_BY_ID = {};
@@ -409,6 +410,22 @@
   I('slipstream', 'smoke', 5, 'Gold tyre smoke', 'common', '#FFCC47', '#FFF0B0', 'Gold smoke from the tyres.');
   I('slipstream', 'podium', 1, 'Confetti Podium', 'common', '#FF4FA3', '#3FD2FF', 'Confetti over the results when you finish in the top three.');
   I('slipstream', 'podium', 2, 'Fireworks Podium', 'rare', '#FFD21F', '#B06BFF', 'Fireworks over the results when you finish in the top three.');
+  // ---- Chromaflage items ----
+  // Chromaflage: for seekers only (hiders' paint is the whole game, so they never wear any of it). Drawn by
+  // chromaflage/kit.js by slot and number; captains wear them free in the game's Seeker kit; none is sold yet.
+  I('chromaflage', 'hat', 1, 'Detective Deerstalker', 'rare', '#9A6B3F', '#5C3B22', 'A checked cap with a peak at both ends, for following clues in two directions.');
+  I('chromaflage', 'hat', 2, 'Safari Hat', 'common', '#D8C08A', '#8A6A3A', 'A khaki helmet for tracking rare painted creatures through the living room.');
+  I('chromaflage', 'hat', 3, "Painter's Beret", 'common', '#2E2A4A', '#FF4F8B', "A floppy beret already splattered with everyone else's paint.");
+  I('chromaflage', 'hat', 4, 'Museum Guard Cap', 'common', '#1E2B4A', '#E2B33C', 'A peaked cap with a gold badge. Please do not touch the exhibits.');
+  I('chromaflage', 'hat', 5, 'Hard Hat', 'common', '#FFC21A', '#FFFFFF', 'Safety first, even when the danger is a sofa that blinks.');
+  I('chromaflage', 'hat', 6, 'Exterminator Cap', 'rare', '#3E7D3A', '#E23B3B', 'A green cap with a no-bugs badge. Hiders are not bugs, but still.');
+  I('chromaflage', 'hat', 7, 'Goggles', 'common', '#3A3A46', '#5FD0E6', 'Big round lenses pushed up on the forehead, ready for a closer look.');
+  I('chromaflage', 'tool', 1, 'Magnifying Glass', 'rare', '#C9962E', '#BFEFFF', 'A brass-rimmed lens on a wooden handle. Very detective.');
+  I('chromaflage', 'tool', 2, 'Paint Scraper', 'common', '#14B8A6', '#C9D1DA', 'A wide blade for scraping the camouflage off a suspicious wall.');
+  I('chromaflage', 'tool', 3, 'Spray Bottle', 'common', '#7FE3D6', '#FF4F8B', 'A trigger spray for misting anything that looks too much like the wallpaper.');
+  I('chromaflage', 'tool', 4, 'Feather Duster', 'rare', '#A0673C', '#FF4F8B', 'Fluffy rainbow feathers for dusting off whoever is hiding on the shelf.');
+  I('chromaflage', 'splash', 1, 'Paint Splash', 'epic', '#FF4F8B', '#FFC83D', 'A burst of every paint colour, and a big SPLAT!, when you catch someone.');
+  I('chromaflage', 'caught', 1, 'Surprise Spin', 'epic', '#FF4F8B', '#3F7CFF', 'The hider you catch jumps in surprise, spins round and pops in a puff of paint.');
   // Items a game hands over itself are in no pack: give is 'free' (anyone may wear it; the game grants it the first time it
   // is worn) or 'earned' (the game grants it when it is won). grant(id), below, only adds these.
   GAME_ITEMS.forEach(function (it) { if (it.game !== 'slipstream') return; if (it.slot === 'sponsor' || (it.slot === 'helmet' && it.no <= 8)) it.give = 'free'; else if (it.slot === 'livery' && it.no > 8) it.give = 'earned'; });
