@@ -182,7 +182,7 @@
 
   // ---------------- State ----------------
   var P = null, db = null, uid = '', raw = {}, nodes = {}, aisles = {}, bans = {}, byUid = {}, started = null, ready = false;
-  var listeners = [];
+  var waitingK = '', listeners = [], readyRes = null, readyP = new Promise(function (r) { readyRes = r; });   // readyP: the first read is in
   function now() { return P && P.now ? P.now() : Date.now(); }
   function emit() {
     listeners.forEach(function (f) { try { f(); } catch (e) {} });
@@ -193,8 +193,10 @@
     aisles = resolve(nodes, bans, now());
     byUid = {};
     Object.keys(aisles).forEach(function (K) { aisles[K].members.forEach(function (u) { byUid[u] = K; }); });
-    ready = true;
+    ready = true; readyRes();
     paintAll();
+    // Waiting to be let in by code: once the leader's browser has, say so (instead of the "Code sent" line).
+    if (waitingK && aisles[waitingK] && aisles[waitingK].members.indexOf(uid) >= 0) { say('You’re in ' + aisles[waitingK].nm + '.'); waitingK = ''; }
     if (!ADMIN) { housekeep(); drawDlg(); toastInvites(); drawOpenBtn(); }
     emit();
   }
@@ -820,7 +822,7 @@
     inC.addEventListener('input', function () { form.code = inC.value; });
     f3.append('Invite code', inC);
     var jb = btn('Join', 'pri');
-    jb.addEventListener('click', function () { jb.disabled = true; run(joinCode(inC.value).then(function (A) { form.code = ''; notice = ''; return A; }), function (A) { return A && A.members.indexOf(uid) >= 0 ? 'You’re in ' + A.nm + '.' : 'Code sent. You’re in once the leader’s browser checks it.'; }); });
+    jb.addEventListener('click', function () { jb.disabled = true; run(joinCode(inC.value).then(function (A) { form.code = ''; notice = ''; return A; }), function (A) { if (A && A.members.indexOf(uid) >= 0) return 'You’re in ' + A.nm + '.'; waitingK = A ? A.K : ''; return 'Code sent. You’re in once the leader’s browser checks it.'; }); });
     inC.addEventListener('keydown', function (e) { if (e.key === 'Enter') jb.click(); });
     var r2 = el('div', 'ais-row'); r2.append(jb); jc.append(f3, r2); parts.push(jc);
     return parts;
@@ -893,7 +895,7 @@
     var s = ss('aisle:inv'); if (!c && s) c = s; ss('aisle:inv', null);
     if (!c || !parseInvite(c)) return;
     form.code = c;
-    start().then(function () {
+    start().then(function () { return readyP; }).then(function () {
       var k = parseInvite(c), A = aisles[k.K], cur = mine();
       if (A && cur && cur.K === A.K) return open();
       open(); say(A ? 'You have an invite code for ' + A.nm + '. Press Join to use it.' : 'That invite’s Aisle has gone.', !A);
