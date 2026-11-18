@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script src="/e63334287a3deaa3/lang.js"></script>
+<script src="/e63334287a3deaa3/2048/es.js"></script>
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>2048</title>
@@ -260,6 +262,7 @@ body.touch .kh{display:none} body.touch .th{display:inline}
     <h3>Settings</h3>
     <button id="classicRow" class="setrow" type="button" role="switch" aria-checked="true"><span class="t">Strict mode<small>The game as it should be played: no Undo. Turn it off for a one-step Undo button. Leaderboard bests only count games where Undo was never used.</small></span><span class="sw"></span></button>
     <button id="soundRow" class="setrow" type="button" role="switch" aria-checked="true"><span class="t">Sound</span><span class="sw"></span></button>
+    <div class="setrow"><span class="t">Language</span><div data-lang-toggle></div></div>
     <button id="keysRow" class="setrow" type="button"><span class="t">Controls<small>Change the keys for moving, Undo, New game and Sound.</small></span><span class="val">Edit ›</span></button>
     <div class="pfoot"><button id="resumeBtn" class="btn primary" type="button">Resume</button></div>
   </div>
@@ -629,7 +632,7 @@ function renderHud(){
   $('muteBtn').setAttribute('aria-label',opts.mute?'Sound off':'Sound on');
   if(G.state==='over')$('ovUndoBtn').hidden=opts.classic||!G.undo;
   document.querySelectorAll('.mode').forEach(b=>b.setAttribute('aria-checked',String(b.dataset.mode===mode.id)));
-  $('hintGoal').innerHTML=mode.hint;      // fixed text from MODES above, never user text
+  $('hintGoal').innerHTML=T(mode.hint);      // fixed text from MODES above, never user text
   $('modeDesc').textContent=mode.desc;
   document.body.dataset.mode=mode.id;
 }
@@ -715,6 +718,9 @@ function fitFont(txt,weight,fs,maxW){
   return fs;
 }
 const styles=new Map();
+// Language (lang.js): dessert names are drawn on the tiles, so the cached tile looks are rebuilt on a switch.
+const T=window.BackRoomLang?BackRoomLang.t:(s,v)=>s.replace(/\{(\w+)\}/g,(m,n)=>v&&v[n]!=null?v[n]:m);
+document.addEventListener('backroom:lang',()=>{styles.clear();renderHud();redraw()});
 function styleOf(v){
   let st=styles.get(v);
   if(st)return st;
@@ -722,7 +728,7 @@ function styleOf(v){
   const txt=String(v),d=txt.length;
   if(sk){
     const light=isLight(sk[0]);
-    const label=sk[2],icon=sk[3]?ICONS[sk[3]]:null;
+    const label=T(sk[2]),icon=sk[3]?ICONS[sk[3]]:null;
     const lfs=fitFont(label,'800',CELL*(icon?0.2:0.3),CELL*0.86);
     st={bg:sk[0],hi:tint(sk[0],0.1),edge:shade(sk[0],0.8),rim:null,ink:sk[1],txt,font:'800 '+(CELL*0.17).toFixed(1)+'px '+FONT_FAM,
       label,lfont:'800 '+lfs.toFixed(1)+'px '+FONT_FAM,icon,tsh:light?null:shade(sk[0],0.6),
