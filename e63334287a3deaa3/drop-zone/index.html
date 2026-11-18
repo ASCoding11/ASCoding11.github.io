@@ -3265,6 +3265,7 @@ function legPut(geo,i,L){const A=geo.attributes.legA,Bt=geo.attributes.legB,a=A.
 for(const im of [legIM,fitLegIM,rarIM,...Object.values(gunIM)]){im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);im.frustumCulled=false;im.count=0;im.visible=false;scene.add(im)}
 legIM.customDepthMaterial=fitLegIM.customDepthMaterial=LDEPTH;   // the shadow pass bends the knees too
 const _lm=new THREE.Matrix4(),_tm=new THREE.Matrix4(),_iq=new THREE.Quaternion();
+const _vm=new THREE.Matrix4(),_vq=new THREE.Quaternion(),_ve=new THREE.Euler(),VIEWM={x:.17,y:-.2,z:-.48,s:.62,p:.06,yaw:.09,r:-.05},VMW=new THREE.Matrix4();let vmAt=0;   // VMW: where it was last drawn (gunPoint: the flash, tracer and case come from it)
 function syncLimbs(){
   let nl=0,nr=0,nf=0;const lk=legIM.geometry.attributes.legK.array,fk=fitLegIM.geometry.attributes.legK.array;for(const k in gunIM)gunIM[k].count=0;
   for(const g of limbModels){
@@ -3275,6 +3276,15 @@ function syncLimbs(){
     const im=gunIM[u.gk];if(u.gun.visible&&im&&im.count<LIMB_N){u.gun.updateMatrix();im.setMatrixAt(im.count++,_lm.multiplyMatrices(g.matrix,u.gun.matrix));
       const T=RTAG[u.gk];if(T&&u.gr>=0&&nr<LIMB_N){rarIM.setMatrixAt(nr,_lm.multiply(_tm.compose(_p.set(0,T[0],T[1]),_iq,_s.set(T[2],T[3],T[4]))));rarIM.setColorAt(nr++,_col.setHex(RARC[u.gr]))}}
   }
+  // (audit, November 2026) aiming an AR puts the camera at your eye and hides your body, which left nothing of the gun
+  // on screen: it is drawn in front of the camera instead, low and to the right and turned in toward the middle of the
+  // view, raised as you aim and shoved back by each shot (drawing only, nothing about the shot changes; not the snipers,
+  // whose scope covers the view)
+  const vw=player.alive&&state==='playing'&&isADS()?heldW(player):null,vim=vw&&vw.fam==='ar'&&!vw.ad?gunIM[vw.id]:null;
+  if(vim&&vim.count<LIMB_N){const a=player.aimK||0,q=1-a*a*(3-2*a),kk=RM?0:player.kick||0;camera.updateMatrixWorld();
+    const t=Math.tan(camera.fov*Math.PI/360)/.4245,V=VIEWM;   // (laid out for the AR's 46 degrees; a narrower view shrinks it to match)
+    _p.set(V.x*t,(V.y-.12*q)*t,V.z+.06*kk);_vq.setFromEuler(_ve.set(V.p+.08*kk,V.yaw+.05*q,V.r,'YXZ'));_vm.compose(_p,_vq,_s.setScalar(V.s*BS*t));
+    vim.setMatrixAt(vim.count++,_lm.multiplyMatrices(camera.matrixWorld,_vm));VMW.copy(_lm);vmAt=performance.now()}
   legIM.count=nl;legIM.visible=nl>0;if(nl){legIM.instanceMatrix.needsUpdate=true;legIM.geometry.attributes.legK.needsUpdate=true}
   fitLegIM.count=nf;fitLegIM.visible=nf>0;if(nf){fitLegIM.instanceMatrix.needsUpdate=true;fitLegIM.geometry.attributes.legK.needsUpdate=true}
   rarIM.count=nr;rarIM.visible=nr>0;if(nr){rarIM.instanceMatrix.needsUpdate=true;rarIM.instanceColor.needsUpdate=true}
@@ -3389,7 +3399,8 @@ const FLASH={pi:[.4,.7],hc:[.62,1],sm:[.34,.8],ds:[.4,.9],sg:[.8,.6],as:[.62,.65
 const KICK={pi:[.05,.3,20],hc:[.09,.55,12],sm:[.03,.07,24],ds:[.04,.09,20],sg:[.14,.36,9],as:[.09,.22,13],ar:[.045,.09,20],hr:[.08,.18,14],sr:[.16,.3,7],ss:[.1,.22,10],cb:[-.16,-.8,9]};
 // a point on the weapon someone is holding (in the weapon's own coordinates), in the world; null when it isn't drawn
 const _gt=new V3(),Y_AX=new V3(0,1,0);
-function gunPoint(e,ly,lz,lx){const m=e&&e.model;if(!m||!m.visible||e.st!=='ground'||!e.alive)return null;const g=m.userData.gun;
+function gunPoint(e,ly,lz,lx){const m=e&&e.model;if(e===player&&m&&!m.visible&&e.alive&&performance.now()-vmAt<120)return _gt.set(lx||0,ly,lz).applyMatrix4(VMW);   // your gun drawn at the eye (syncLimbs)
+  if(!m||!m.visible||e.st!=='ground'||!e.alive)return null;const g=m.userData.gun;
   return _gt.set(lx||0,ly,lz).applyQuaternion(g.quaternion).add(g.position).multiplyScalar(BS).applyAxisAngle(Y_AX,e.yaw).add(e.pos)}
 const gunTip=(e,wid)=>GUN_TIP[wid]?gunPoint(e,GUN_TIP[wid][0],GUN_TIP[wid][1]):null;
 // a spent case hops out of the right-hand side (shotgun shells are red); only near the camera, and not with reduced motion
@@ -3400,14 +3411,15 @@ function muzzleFlash(e,p,dir,wid){
   const F=FLASH[wid]||[.6,1],fam=famOf(wid),tip=gunTip(e,wid);let q=tip||p,sz=F[0];
   if(e===player&&!tip&&player.alive){   // looking down your own sights: a small flash under the sight, none in a scope
     if(fam==='sr')q=null;else{q=_gt.copy(camera.position).addScaledVector(dir,1.3);q.y-=.2;sz*=.45}}
+  const vmf=e===player&&tip&&!e.model.visible;if(vmf)sz*=.13*Math.tan(camera.fov*Math.PI/360)/.4245;   // from your gun drawn at the eye, half a metre away: a flash its size
   // (each flash a little different in size and length, and the long ones with a second, smaller burst further out
   // along the shot, so a burst of fire flickers instead of stamping the same star)
   if(q){const vr=.82+Math.random()*.36;flash(q,dir,fam==='sg'?0xffb86a:0xffe9a8,sz*vr,.07,F[1]*(.85+Math.random()*.3));
     if(F[1]>=1&&!RM)flash(q.clone().addScaledVector(dir,sz*F[1]*.9),dir,0xfff3cf,sz*.55*vr,.05,F[1]*.7);
     if(fam==='sg'||fam==='sr'||wid==='hc'||wid==='hr'){flash(q,null,0xc8702e,sz*1.25,.11);
-      if(!RM&&q.distanceToSquared(camera.position)<900)for(let i=0;i<(fam==='sg'?3:2);i++)bit(q,new V3(dir.x*1.2+(Math.random()-.5)*.5,.5+Math.random()*.5,dir.z*1.2+(Math.random()-.5)*.5),0xd8d4cc,.07+Math.random()*.05,.5+Math.random()*.3,-.8)}}   // and a wisp of smoke   // the big ones also light up a wider, dimmer glow that lasts a moment longer
+      if(!RM&&!vmf&&q.distanceToSquared(camera.position)<900)for(let i=0;i<(fam==='sg'?3:2);i++)bit(q,new V3(dir.x*1.2+(Math.random()-.5)*.5,.5+Math.random()*.5,dir.z*1.2+(Math.random()-.5)*.5),0xd8d4cc,.07+Math.random()*.05,.5+Math.random()*.3,-.8)}}   // and a wisp of smoke   // the big ones also light up a wider, dimmer glow that lasts a moment longer
   if(e){e.kick=Math.min(1.3,(e.kick||0)*.4+1);e.kj=(Math.random()-.5)*(fam==='sm'?.3:.1);e.shotAt=performance.now();e.shotW=wid;e.actS=0;
-    if(wid!=='sg'&&wid!=='sr'&&wid!=='hc')shell(e,wid)}
+    if(wid!=='sg'&&wid!=='sr'&&wid!=='hc'&&!vmf)shell(e,wid)}
 }
 // the pump and the bolt being worked a moment after the shot (and the case that comes out), heard by anyone near
 function gunAct(e,kind){const d=e===player?0:camera.position.distanceTo(e.pos);if(d>50)return;const v=1/(1+d*.08);
@@ -6098,7 +6110,7 @@ if(navigator.webdriver)window.__dz={get state(){return state},get online(){retur
   STUCK_LOG,landPath,landClear,navShut,NAVN,updateBots,updatePlayer,step(dt){pClock+=dt*1000;practiceTick(dt);if(inPlay()){updatePlayer(dt);updateBots(dt)}},
   landOk,landFit,landUnder,skirtOf,skirtList,pieceBox,buildList,applyBuilds,handleEvent,get bdDirty(){return bdDirty},bdGone,ED_N,edRects,edOk,pieceShape,partsOf,partList,partIM,pieceInst,editPiece,wouldTrap,openEdit,closeEdit,confirmEdit,editKey,editTarget,editTile,updateEdit,canEdit,pieceMatrix,pieceCentre,EDIT_T,EDIT_RANGE,pressCode,get edit(){return edit},get editJob(){return editJob},get editAim(){return editAim},get buildCd(){return buildCd},rampH,rampAt,rampBlocked,solidAt,rayRamp,rhash,COST,JUMP,GRAV:G,STEP,RT,MAXL,terrainH,walkH,terrainSlope,rayTerrain,TH,TN,TS,TM,LVL,LAKE,PADS,SHED_Y,chestSpots,floorSpots,buildings,footprints,get groundMesh(){return groundMesh},
   Face,FACE_STARTS,FACE0,faceOf,faceBits,faceStr,faceRows,faceSpot,faceZ,bagFace,setShowFaces,NOOB,get myFace(){return myFace},get showFaces(){return showFaces},
-  Locker,get LOCKER_ON(){return lockerOn()},lockerSync,OUTFITS,bodyGeo,LEG_GEO,legIM,fitLegIM,fitLegGeo,makeModel,setModelColor,legSpec,STD_LEGS,fitOf,hitboxes,POSES,SWING,posePut,heldFollow,GLIDER_GEO,bodyRig,ARM_H,ARM_E,ARM_P,armIK,GHOLD,GH_POLE,ARM_K,get windN(){return windIM.count},TKON,PCOLS,SKINS,get mySkin(){return mySkin},Plane,get droneV(){return droneV}};
+  Locker,get LOCKER_ON(){return lockerOn()},lockerSync,OUTFITS,bodyGeo,LEG_GEO,legIM,fitLegIM,fitLegGeo,makeModel,setModelColor,legSpec,STD_LEGS,fitOf,hitboxes,POSES,SWING,posePut,heldFollow,GLIDER_GEO,bodyRig,ARM_H,ARM_E,ARM_P,armIK,GHOLD,GH_POLE,ARM_K,VIEWM,get windN(){return windIM.count},TKON,PCOLS,SKINS,get mySkin(){return mySkin},Plane,get droneV(){return droneV}};
 
 requestAnimationFrame(t=>{last=t;frame(t)});
 })();
