@@ -32,6 +32,8 @@
  *                       and ace: [uid…], aceN: the Slipstream ace's holders and how many tracks they lead) after each
  *                       read of the boards; topOf(uid) is { all, week, allTie, weekTie } for a leader, else null;
  *                       needTops() asks the boards again if a badge wanted an answer before leaderboard.js had loaded
+ *   guide()             opens a window listing every badge (tiers, crew, places, awards) and how to get each; drawn
+ *                       with the real badge code, names no holders, reads nothing
  *   line(result)        the progress line under your own name: "2,340 miles · 7,660 to First Class", "… · the top tier",
  *                       for an owner "12,000 miles · flies the plane" (it sits next to the badge, which says Captain),
  *                       for a vice captain "12,000 miles · co-pilot" ('' when there's nothing to say)
@@ -256,7 +258,7 @@
     s.innerHTML = '<svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true" focusable="false">' + ICON[t.k] + '</svg>';   // fixed markup, no text from anyone
     var label = document.createElement('span'); label.textContent = t.n; s.appendChild(label);
     if (opts && opts.miles && res && res.ok) { var m = document.createElement('span'); m.className = 'bra-mi'; m.textContent = '· ' + fmt(res.miles) + ' mi'; s.appendChild(m); }
-    s.title = t.n + (zs ? ' · site founder' : cap ? ' · flies the plane (site owner)' : vc ? ' · co-pilot' : '') + (res && res.ok ? ' · ' + fmt(res.miles) + ' miles' + ((cap || vc) && res.real ? ' (' + res.real.n + ' by miles alone)' : '') : '') + (res && res.next ? ' · ' + fmt(res.next.miles) + ' to ' + res.next.tier.n : '');
+    s.title = t.n + (zs ? ' · site founder' : cap ? ' · flies the plane' : vc ? ' · co-pilot' : '') + (res && res.ok ? ' · ' + fmt(res.miles) + ' miles' + ((cap || vc) && res.real ? ' (' + res.real.n + ' by miles alone)' : '') : '') + (res && res.next ? ' · ' + fmt(res.next.miles) + ' to ' + res.next.tier.n : '');
     // First on the Miles board: the pill and its "#1" tags in one wrapper. Everyone else gets the pill alone, as before.
     // An award holder gets the same wrapper, with a ribbon for each award after the tags.
     // The earned award (the Slipstream ace) comes last, after any award that was given.
@@ -547,7 +549,76 @@
     return c ? c.r : null;
   }
 
-  window.BackRoomMiles = { of: of, tierOf: tierOf, isOwner: isOwner, badge: badge, line: line, peek: peek, load: load, fmt: fmt, TIERS: TIERS, RULES: RULES, PATH: PATH, HOUR: HOUR,
+  // ---------------- Every badge ----------------
+  // guide(): a window listing every badge there is, drawn with the same code as the real ones (so it can't fall out of
+  // step), each with how you get it. The Leaderboards' "Badges" button opens it. It names no holders and reads nothing.
+  var guideEl = null;
+  function gEl(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function gRow(list, pills, name, text) {
+    var r = gEl('li', 'bra-g-r'), b = gEl('div', 'bra-g-b'), t = gEl('div', 'bra-g-t');
+    pills.forEach(function (p) { b.appendChild(p); });
+    t.appendChild(gEl('b', '', name)); t.appendChild(gEl('span', '', text));
+    r.appendChild(b); r.appendChild(t); list.appendChild(r);
+  }
+  function gSec(box, title, note) {
+    box.appendChild(gEl('h3', 'bra-g-h', title));
+    if (note) box.appendChild(gEl('p', 'bra-g-n', note));
+    var ul = gEl('ul', 'bra-g-l'); box.appendChild(ul); return ul;
+  }
+  function pill(t) { return badge({ tier: t, ok: false }); }
+  function buildGuide() {
+    var d = gEl('dialog', 'bra-guide'); d.setAttribute('aria-label', 'Every badge');
+    var box = gEl('div', 'bra-g-in'), head = gEl('div', 'bra-g-top'), x = gEl('button', 'bra-g-x', '×');
+    x.type = 'button'; x.setAttribute('aria-label', 'Close'); x.addEventListener('click', function () { d.close(); });
+    head.appendChild(gEl('h2', '', 'Badges')); head.appendChild(x); box.appendChild(head);
+    box.appendChild(gEl('p', 'bra-g-n', 'The badge next to a name shows that player’s status tier, plus any places and awards they hold. On a computer, hover over any badge on the site to see what it is.'));
+    var l = gSec(box, 'Status tiers', 'Earned with miles: ' + HOUR + ' for every hour you play any game, plus points for wins and personal bests in each one (capped per game, so no single game carries you).');
+    var how = { economy: 'Where everyone starts. Under 2,000 miles.', business: '2,000 miles. About an hour a day for three weeks.',
+      first: '10,000 miles. About 100 hours, or 50 with a lot of winning.', jet: '40,000 miles. Roughly a year of play.' };
+    TIERS.forEach(function (t) { gRow(l, [pill(t)], t.n, how[t.k]); });
+    l = gSec(box, 'Crew', 'Given, not earned: these sit above every miles tier, whatever someone’s miles.');
+    gRow(l, [pill(VICE_CAPTAIN)], 'Vice Captain', 'The co-pilot. Given by the Captains.');
+    gRow(l, [pill(CAPTAIN)], 'Captain', 'Flies the plane: the people who run the site.');
+    gRow(l, [pill(FOUNDER)], FOUNDER.n, 'The site founder. There is only one.');
+    l = gSec(box, 'Miles board places', 'Shown after the tier for the top three on the Leaderboards’ Miles board. They change hands as the board does.');
+    gRow(l, [topTag('all', 1), topTag('all', 2), topTag('all', 3)], 'All time', 'First, second or third in miles of all time.');
+    gRow(l, [topTag('week', 1), topTag('week', 2), topTag('week', 3)], 'This week', 'First, second or third in miles from play time since Monday.');
+    l = gSec(box, 'Awards', 'Medals on a ribbon, after the tier and any places.');
+    Object.keys(AWARD_KINDS).filter(function (k) { return !AWARD_KINDS[k].earned; }).forEach(function (k) { gRow(l, [awardTag(k)], AWARD_KINDS[k].n, AWARD_KINDS[k].tip + '. Given by the Captains.'); });
+    Object.keys(AWARD_KINDS).filter(function (k) { return AWARD_KINDS[k].earned; }).forEach(function (k) {
+      gRow(l, [awardTag(k)], AWARD_KINDS[k].n, k === 'slipstream' ? 'Earned: hold the fastest lap this season on more Slipstream tracks than anyone else, ' + ACE_MIN + ' or more at once. It moves to whoever takes the lead.' : AWARD_KINDS[k].tip + '.');
+    });
+    d.appendChild(box);
+    // A click on the dimmed area outside the window closes it.
+    d.addEventListener('click', function (e) { if (e.target === d) d.close(); });
+    return d;
+  }
+  function guide() {
+    try {
+      if (!guideEl) { guideEl = buildGuide(); document.body.appendChild(guideEl); }
+      if (guideEl.showModal) { if (!guideEl.open) guideEl.showModal(); } else guideEl.setAttribute('open', '');
+    } catch (e) {}
+    return guideEl;
+  }
+  var gcss = document.createElement('style');
+  gcss.textContent =
+    '.bra-guide{width:min(560px,calc(100vw - 24px));max-height:min(86vh,900px);padding:0;border:1px solid var(--line,#D3DAD2);border-radius:14px;background:var(--panel,#fff);color:var(--ink,#16201B);box-shadow:0 20px 60px rgba(0,0,0,.35)}' +
+    '.bra-guide::backdrop{background:rgba(8,12,10,.55)}' +
+    '.bra-g-in{padding:18px 20px 20px;font-family:var(--body,var(--f-b,system-ui,sans-serif))}' +
+    '.bra-g-top{display:flex;align-items:center;justify-content:space-between;gap:12px}' +
+    '.bra-g-top h2{margin:0;font-size:24px;line-height:1.1}' +
+    '.bra-g-x{font:inherit;font-size:22px;line-height:1;width:36px;height:36px;border-radius:8px;border:1px solid var(--line,#D3DAD2);background:var(--panel-2,#F6F8F4);color:var(--ink,#16201B);cursor:pointer;flex:none}' +
+    '.bra-g-h{margin:18px 0 4px;font-family:var(--mono,var(--f-m,ui-monospace,monospace));font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2,#4A5751)}' +
+    '.bra-g-n{margin:4px 0 0;font-size:13px;line-height:1.45;color:var(--ink-2,#4A5751)}' +
+    '.bra-g-l{list-style:none;margin:8px 0 0;padding:0;border:1px solid var(--line,#D3DAD2);border-radius:10px;overflow:hidden}' +
+    '.bra-g-r{display:grid;grid-template-columns:178px 1fr;gap:6px 14px;align-items:center;padding:10px 12px;background:var(--panel-2,#F6F8F4)}' +
+    '.bra-g-r+.bra-g-r{border-top:1px solid var(--line,#D3DAD2)}' +
+    '.bra-g-b{display:flex;flex-wrap:wrap;gap:4px;align-items:center}' +
+    '.bra-g-t{font-size:14px;line-height:1.4}.bra-g-t b{display:block;font-weight:700}.bra-g-t span{color:var(--ink-2,#4A5751)}' +
+    '@media (max-width:480px){.bra-g-in{padding:14px}.bra-g-r{grid-template-columns:1fr}}';
+  (document.head || document.documentElement).appendChild(gcss);
+
+  window.BackRoomMiles = { of: of, tierOf: tierOf, isOwner: isOwner, badge: badge, guide: guide, line: line, peek: peek, load: load, fmt: fmt, TIERS: TIERS, RULES: RULES, PATH: PATH, HOUR: HOUR,
     CAPTAIN: CAPTAIN, OWNERS: OWNERS.slice(), FOUNDER: FOUNDER, isFounder: isFounder, isVice: isVice, VICE_CAPTAIN: VICE_CAPTAIN, VICE_CAPTAINS: VICE_CAPTAINS.slice(), forget: function (uid) { if (uid) delete cache[uid]; else cache = {}; },
     setTops: setTops, topOf: topOf, needTops: needTops,
     awardsOf: awardsOf, aceOf: aceOf, ACE_MIN: ACE_MIN, AWARD_KINDS: JSON.parse(JSON.stringify(AWARD_KINDS)), AWARDS: JSON.parse(JSON.stringify(AWARDS)) };

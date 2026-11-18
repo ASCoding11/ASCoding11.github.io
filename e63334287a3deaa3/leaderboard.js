@@ -837,7 +837,7 @@
   css.textContent =
     '#leaderboards{padding-top:32px}' +
     '.lbd{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px 16px;display:grid;gap:12px;min-width:0;color:var(--ink)}' +
-    '.lbd-top{display:flex;align-items:center;gap:8px 14px;flex-wrap:wrap}' +
+    '.lbd-top{display:flex;align-items:center;gap:8px 14px;flex-wrap:wrap}.lbd-b[hidden]{display:none}' +
     '.lbd h2{margin:0;font-family:var(--display,var(--f-d,sans-serif));font-weight:800;font-size:28px;line-height:1;letter-spacing:.02em;text-transform:uppercase;color:var(--ink)}' +
     '.lbd-sub{margin:0;color:var(--ink-2);font-size:15px;flex:1 1 260px;min-width:0}' +
     '.lbd-b{font:inherit;font-family:var(--body,var(--f-b,sans-serif));font-size:14px;font-weight:600;color:var(--ink);background:var(--panel-2);border:1px solid var(--line);border-radius:8px;min-height:36px;padding:6px 12px;cursor:pointer;white-space:nowrap}' +
@@ -882,7 +882,7 @@
     '.lbd-note{font-size:13px}' +
     // Slipstream's time boards: who holds the Slipstream ace award, under the board's heading.
     '.lbd-ace{margin:-4px 0 0;font-size:13px;color:var(--ink-2);overflow-wrap:anywhere}.lbd-ace[hidden]{display:none}.lbd-ace b{color:var(--ink);font-weight:700}' +
-    '@media (max-width:600px){.lbd{padding:14px}.lbd-sub{font-size:14px;order:3;flex-basis:100%}.lbd-top > .lbd-b{margin-left:auto}.lbd-ctl label{max-width:none}.lbd-ctl label span{display:none}.lbd-chips{gap:6px}.lbd-chips button{font-size:13px;padding:5px 11px;min-height:34px}.lbd-r{gap:8px;padding:7px 10px;grid-template-columns:2.2em minmax(0,1fr) auto}.lbd-r.av{grid-template-columns:2.2em 28px minmax(0,1fr) auto}.lbd-v{font-size:14px}.lbd-span button{font-size:13px;padding:5px 12px}}' +
+    '@media (max-width:600px){.lbd{padding:14px}.lbd-sub{font-size:14px;order:3;flex-basis:100%}.lbd-top > .lbd-b{margin-left:auto}.lbd-top > .lbd-b+.lbd-b{margin-left:0}.lbd-ctl label{max-width:none}.lbd-ctl label span{display:none}.lbd-chips{gap:6px}.lbd-chips button{font-size:13px;padding:5px 11px;min-height:34px}.lbd-r{gap:8px;padding:7px 10px;grid-template-columns:2.2em minmax(0,1fr) auto}.lbd-r.av{grid-template-columns:2.2em 28px minmax(0,1fr) auto}.lbd-v{font-size:14px}.lbd-span button{font-size:13px;padding:5px 12px}}' +
     '@media (max-width:420px){.lbd h2{font-size:24px}}';
   document.head.appendChild(css);
 
@@ -891,7 +891,12 @@
   var box = el('div', 'lbd');
   var top = el('div', 'lbd-top');
   var $refresh = el('button', 'lbd-b', 'Refresh'); $refresh.type = 'button';
-  top.append(el('h2', '', 'Leaderboards'), el('p', 'lbd-sub', 'Most miles flown across the Back Room, and the best in each game.'), $refresh);
+  // Badges: miles.js's list of every badge and how to get it (shown once miles.js has loaded).
+  var $badges = el('button', 'lbd-b lbd-bg', 'Badges'); $badges.type = 'button'; $badges.hidden = true;
+  $badges.addEventListener('click', function () { if (window.BackRoomMiles && BackRoomMiles.guide) BackRoomMiles.guide(); });
+  function badgesReady() { $badges.hidden = !(window.BackRoomMiles && BackRoomMiles.guide); }
+  document.addEventListener('backroom:miles', badgesReady); badgesReady();
+  top.append(el('h2', '', 'Leaderboards'), el('p', 'lbd-sub', 'Most miles flown across the Back Room, and the best in each game.'), $badges, $refresh);
   var ctl = el('div', 'lbd-ctl');
   var lbl = el('label'); lbl.append(el('span', '', 'Board'));
   var $sel = el('select'); $sel.setAttribute('aria-label', 'Leaderboard');
