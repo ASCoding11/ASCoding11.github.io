@@ -153,9 +153,9 @@ const EGGS=[null,
     dots(g,r,300,['#b89e70','#f0e2c0'],1,2.4,.5,.9)}},
   // 14 Dragon Egg: rows of overlapping scales with a bright edge
   {shard:'#d8433a',mat:'shiny',spec:0x402018,shin:25,paint(g){grad(g,'#e0503c','#b83a2e');
-    const sw=32,sh=22;for(let row=-1;row<TH/sh+1;row++){const off=row%2?sw/2:0,y=row*sh;
+    const sw=46,sh=30;for(let row=-1;row<TH/sh+1;row++){const off=row%2?sw/2:0,y=row*sh;
       for(let x=-sw;x<TW+sw;x+=sw){const cx=x+off;g.fillStyle=row%3===0?'#d84434':'#c83c30';g.beginPath();g.moveTo(cx,y);g.quadraticCurveTo(cx,y+sh*1.5,cx+sw/2,y+sh*1.6);g.quadraticCurveTo(cx+sw,y+sh*1.5,cx+sw,y);g.closePath();g.fill();
-        g.strokeStyle='#ffb02e';g.lineWidth=2.5;g.beginPath();g.moveTo(cx+2,y+sh*.9);g.quadraticCurveTo(cx+sw/2,y+sh*1.75,cx+sw-2,y+sh*.9);g.stroke()}}}},
+        g.strokeStyle='#ffb02e';g.lineWidth=4;g.beginPath();g.moveTo(cx+2,y+sh*.9);g.quadraticCurveTo(cx+sw/2,y+sh*1.75,cx+sw-2,y+sh*.9);g.stroke()}}}},
   // 15 Alien Egg: pale green with bright veins (a faint glow all over, steady: never a pulse like the spawn shield)
   {shard:'#8be08b',emi:0x10260f,paint(g,r){grad(g,'#a6e8a0','#7ccf8e');
     dots(g,r,26,['#c79bff','#b46cff'],5,11,.55,.85);
@@ -183,10 +183,10 @@ const EGGS=[null,
     g.fillStyle='#ef5338';for(let x=0;x<TW;x+=4*P)g.fillRect(x+P,192,P,P),g.fillRect(x+3*P,208,P,P)}},
   // 19 Bandaged Egg: a mended crack with two crossed plasters, on the side so the face stays clear
   {shard:'#fbf6ea',paint(g,r){grad(g,'#fffaf0','#efe6d4');dots(g,r,100,['#d9cdb4'],.8,2,.3,.6);
-    g.strokeStyle='#5a4632';g.lineWidth=3;g.lineJoin='round';g.beginPath();let x=96,y=40;g.moveTo(x,y);for(let k=0;k<7;k++){x+=pr(4,12);y+=k%2?12:-4;g.lineTo(x,y+k*6)}g.stroke();
+    g.strokeStyle='#5a4632';g.lineWidth=3;g.lineJoin='round';g.beginPath();let x=300,y=30;g.moveTo(x,y);for(let k=0;k<7;k++){x+=pr(4,12);y+=k%2?12:-4;g.lineTo(x,y+k*6)}g.stroke();
     const plaster=(cx,cy,a)=>{g.save();g.translate(cx,cy);g.rotate(a);g.fillStyle='#f2c49a';g.fillRect(-46,-12,92,24);g.fillStyle='#e8b080';g.fillRect(-14,-12,28,24);
       g.fillStyle='rgba(150,100,60,.55)';for(const px of [-36,-26,26,36])for(const py of [-5,5]){g.beginPath();g.arc(px,py,1.8,0,7);g.fill()}g.strokeStyle='#c99064';g.lineWidth=2;g.strokeRect(-46,-12,92,24);g.restore()};
-    plaster(122,74,.6);plaster(122,74,-.6)}}
+    plaster(330,62,.6);plaster(330,62,-.6)}}
 ];
 // The same cracks as a plain egg's (index.html's eggTex), drawn over the type's picture as it is hurt.
 function crackOver(g,r,stage){
@@ -223,10 +223,10 @@ const HATS=[null,
     for(let i=0;i<6;i++){const a=i/6*Math.PI*2+Math.PI/6,x=Math.sin(a)*.25,z=-Math.cos(a)*.25;P(L,'cone',Gd,x,.73,z,.05,.13,.05);P(L,'sph',0xfff3b0,x,.805,z,.022,.022,.022)}
     const gems=[0xe2503f,0x58b4ff,0x36b37e];for(let i=0;i<6;i++){const a=i/6*Math.PI*2,x=Math.sin(a)*.268,z=-Math.cos(a)*.268;P(L,'sph',gems[i%3],x,.6,z,.03,.03,.016,0,-a,0)}},
   // 2 Frying Pan: tipped over the head, a fried egg still in it
-  L=>{const T=[0,.78,.02],rz=.22,rx=-.12;const M=new THREE.Matrix4().compose(new V3(...T),new THREE.Quaternion().setFromEuler(new THREE.Euler(rx,0,rz)),new V3(1,1,1));
-    const Q=[];P(Q,'cyl',0x3a3836,0,0,0,.3,.035,.3);P(Q,'tor',0x2a2826,0,.03,0,.3,.3,.3,Math.PI/2);P(Q,'cyl',0x55514c,0,.019,0,.26,.004,.26);
-    P(Q,'box',0x2a2826,.47,.03,0,.36,.035,.06);P(Q,'box',0x8a5a36,.6,.03,0,.16,.045,.07);
-    P(Q,'cyl',0xfffdf8,-.02,.03,.02,.17,.012,.15);P(Q,'sph',0xffc93c,-.04,.04,.03,.06,.035,.06);
+  L=>{const T=[.03,.7,.02],rz=.3,rx=-.1;const M=new THREE.Matrix4().compose(new V3(...T),new THREE.Quaternion().setFromEuler(new THREE.Euler(rx,0,rz)),new V3(1,1,1));
+    const Q=[];P(Q,'cyl',0x3a3836,0,0,0,.26,.035,.26);P(Q,'tor',0x2a2826,0,.03,0,.26,.26,.26,Math.PI/2);P(Q,'cyl',0x55514c,0,.019,0,.23,.004,.23);
+    P(Q,'box',0x2a2826,.38,.03,0,.26,.035,.055);P(Q,'box',0x8a5a36,.5,.03,0,.13,.045,.065);
+    P(Q,'cyl',0xfffdf8,-.02,.03,.02,.15,.012,.13);P(Q,'sph',0xffc93c,-.04,.04,.03,.055,.035,.055);
     for(const q of Q){q.m.premultiply(M);L.push(q)}},
   // 3 Nest: twigs and straw round a little bowl, three tiny eggs
   L=>{const r=X.mulberry(77),cols=[0x9a6a3a,0x7a4f28,0xb8894f,0xe0c070,0x8a6a3a];P(L,'cyl',0x7a5530,0,.68,0,.21,.06,.21);
@@ -236,18 +236,18 @@ const HATS=[null,
   L=>{const W=0xffffff,C=0xf1eee6;P(L,'band',C,0,.66,0,.235,.16,.235);P(L,'cyl',W,0,.74,0,.225,.02,.225);
     for(let i=0;i<6;i++){const a=i/6*Math.PI*2;P(L,'sph',i%2?W:C,Math.sin(a)*.13,.86,-Math.cos(a)*.13,.14,.13,.14)}P(L,'sph',W,0,.92,0,.16,.14,.16)},
   // 5 Bacon Headband: a wavy strip round the middle of the head (above the brows), tied at the back
-  L=>{const n=28,R=.322,cols=[0xc8443a,0xf6d2b8,0xe07a6a];
-    for(let i=0;i<n;i++){const a=i/n*Math.PI*2,x=Math.sin(a)*R,z=-Math.cos(a)*R,w=Math.sin(a*5)*.018,seg=2*Math.PI*R/n*1.15;
-      for(let k=0;k<3;k++)P(L,'box',cols[k],x,.425+w+(k-1)*.026,z,seg,.027,.02,0,-a,0)}
-    for(const s of [-1,1])for(let k=0;k<3;k++)P(L,'box',cols[k],s*.05,.36+(k-1)*.024,.33,.026,.13,.018,.2,0,s*.5)}
+  L=>{const n=32,R=.336,cols=[0xb8382e,0xf6d2b8,0xd8564a,0xf0c4a8];
+    for(let i=0;i<n;i++){const a=i/n*Math.PI*2,x=Math.sin(a)*R,z=-Math.cos(a)*R,w=Math.sin(a*4)*.02,seg=2*Math.PI*R/n*1.2;
+      for(let k=0;k<4;k++)P(L,'box',cols[k],x,.47+w+(k-1.5)*.026,z,seg,.027,.026,Math.cos(a*4)*.25,-a,0)}
+    for(const s of [-1,1])for(let k=0;k<4;k++)P(L,'box',cols[k],s*.06+s*(k-1.5)*.012,.39,.34,.014,.15,.02,.25,0,s*.45)}
   ,
   // 6 Baby Chick: sitting on top
   L=>{const Y=0xffd84a,O=0xf4a41c,K=0x2b1a10;P(L,'sph',Y,0,.8,.02,.14,.12,.15);P(L,'sph',Y,0,.94,-.05,.095,.095,.095);
     P(L,'cone',O,0,.93,-.15,.03,.06,.025,-Math.PI/2);for(const s of [-1,1]){P(L,'sph',K,s*.04,.965,-.13,.015,.018,.012);P(L,'sph',0xffc22a,s*.135,.8,.03,.03,.07,.09,0,0,s*.4)}
     for(const a of [-.4,0,.4])P(L,'cone',Y,Math.sin(a)*.03,1.05,-.04,.018,.06,.018,0,0,-a)},
   // 7 Sunny-Side-Up Beret: a floppy white beret with the yolk on top
-  L=>{const W=0xfffdf8,Wd=0xf3efe6;const M=new THREE.Matrix4().compose(new V3(.02,.72,.01),new THREE.Quaternion().setFromEuler(new THREE.Euler(-.1,0,.22)),new V3(1,1,1));
-    const Q=[];P(Q,'sph',W,0,0,0,.31,.075,.3);for(let i=0;i<9;i++){const a=i/9*Math.PI*2;P(Q,'sph',i%2?W:Wd,Math.sin(a)*.27,-.005,Math.cos(a)*.27,.09,.05,.09)}
+  L=>{const W=0xfffdf8,Wd=0xf3efe6;const M=new THREE.Matrix4().compose(new V3(.03,.635,.01),new THREE.Quaternion().setFromEuler(new THREE.Euler(-.08,0,.26)),new V3(1,1,1));
+    const Q=[];P(Q,'sph',W,0,0,0,.3,.1,.29);for(let i=0;i<9;i++){const a=i/9*Math.PI*2;P(Q,'sph',i%2?W:Wd,Math.sin(a)*.27,-.005,Math.cos(a)*.27,.09,.05,.09)}
     P(Q,'sph',0xffc93c,.05,.06,.02,.1,.06,.1);P(Q,'sph',0xffe27a,.03,.09,0,.035,.02,.035);P(Q,'cyl',Wd,.05,.11,.02,.012,.04,.012);
     for(const q of Q){q.m.premultiply(M);L.push(q)}}
 ];
@@ -402,8 +402,8 @@ function gunGeo(key,n){
 // =====================================================================
 let friedGeo=null,chickGeo=null;
 function fried(){if(friedGeo)return friedGeo;const L=[];P(L,'cyl',0xfffdf8,0,0,0,.4,.03,.36);
-  for(let i=0;i<9;i++){const a=i/9*Math.PI*2+.3,r=.34+(i%3)*.03;P(L,'cyl',i%2?0xfffdf8:0xfbf6ea,Math.cos(a)*r,0,Math.sin(a)*r*.92,.11,.028,.1)}
-  P(L,'sph',0xffc93c,.03,.035,.02,.13,.075,.13);P(L,'sph',0xffe7a0,-.01,.08,-.02,.04,.02,.035);return friedGeo=X.mergeParts(L)}
+  for(let i=0;i<9;i++){const a=i/9*Math.PI*2+.3,r=.3+(i%3)*.025;P(L,'cyl',0xfffdf8,Math.cos(a)*r,0,Math.sin(a)*r*.92,.13,.03,.12)}
+  P(L,'sph',0xffc93c,.03,.035,.02,.15,.08,.15);P(L,'sph',0xffe7a0,-.01,.08,-.02,.04,.02,.035);return friedGeo=X.mergeParts(L)}
 function chick(){if(chickGeo)return chickGeo;const L=[],Y=0xffd84a,O=0xf4a41c,K=0x2b1a10;
   P(L,'sph',Y,0,.17,0,.15,.14,.17);P(L,'sph',Y,0,.33,-.08,.1,.1,.1);P(L,'cone',O,0,.32,-.2,.032,.07,.026,-Math.PI/2);
   for(const s of [-1,1]){P(L,'sph',K,s*.045,.36,-.165,.016,.02,.012);P(L,'sph',0xffc22a,s*.14,.18,.02,.03,.08,.1,0,0,s*.35);
@@ -435,16 +435,16 @@ function makeFx(W){
     else if(kind===3){const o=getMesh('chick');let d=dir?Math.atan2(dir.x,dir.z):Math.random()*6;o.position.set(p.x,p.y+.2,p.z);o.rotation.set(0,d+Math.PI,0);o.scale.setScalar(.2);
       meshes.push({o,kind:'chick',t:0,d,vy:3.2,y:p.y+.2,fl:W.floor(p.x,p.y+.5,p.z),turned:0})}
     else if(kind===4){const cols=['#ff5c8a','#58b4ff','#ffd23f','#36b37e','#b46cff','#ff8a3d','#ffffff'];
-      for(let i=0;i<46;i++){const a=Math.random()*Math.PI*2,sp=rnd(1,2.8);add(flakes,cols[i%7],at(p,rnd(-.2,.2),.6+Math.random()*.4,rnd(-.2,.2)),{v:new V3(Math.cos(a)*sp,rnd(3,5.5),Math.sin(a)*sp),life:rnd(1.1,1.6),s:rnd(.9,1.4),g:6})}}
+      for(let i=0;i<56;i++){const a=Math.random()*Math.PI*2,sp=rnd(1,2.6);add(flakes,cols[i%7],at(p,rnd(-.2,.2),.5+Math.random()*.4,rnd(-.2,.2)),{v:new V3(Math.cos(a)*sp,rnd(2.2,4),Math.sin(a)*sp),life:rnd(1.1,1.5),s:rnd(1.1,1.6),g:6})}}
     else if(kind===5){const cols=['#a3b85e','#8fa04a','#c3d27a','#b6c86e'];
-      for(let i=0;i<9;i++)add(blobs,cols[i%4],at(p,rnd(-.25,.25),.35+Math.random()*.5,rnd(-.25,.25)),{k:1,v:new V3(rnd(-.3,.3),rnd(.6,1.1),rnd(-.3,.3)),life:rnd(.9,1.2),s:.08,s1:rnd(.22,.3)});
+      for(let i=0;i<10;i++){const a=i/10*Math.PI*2;add(blobs,cols[i%4],at(p,Math.cos(a)*.3,.3+Math.random()*.5,Math.sin(a)*.3),{k:1,v:new V3(Math.cos(a)*.45,rnd(.7,1.2),Math.sin(a)*.45),life:rnd(.9,1.1),s:.05,s1:rnd(.12,.16)})}
       for(let i=0;i<2;i++)add(blobs,'#262624',at(p,0,.9,0),{k:3,v:new V3(rnd(-2,2),rnd(.5,1.5),rnd(-2,2)),life:1.3,s:.035})}
   }
   function stepPool(Pl,dt){if(!Pl.m.visible)return;let any=false;
     for(let i=0;i<Pl.n;i++){const p=Pl.ps[i];if(!p.on)continue;p.t+=dt;if(p.t>=p.life){p.on=false;Pl.m.setMatrixAt(i,ZM);continue}any=true;
       const P_=p.P;
       if(p.k===2&&p.t<.55){p.a+=p.w*dt;p.rad+=dt*.55;P_.set(p.cx+Math.cos(p.a)*p.rad,p.y0+p.t*.9,p.cz+Math.sin(p.a)*p.rad);
-        if(p.t+dt>=.55){p.k=0;p.v.set(-Math.sin(p.a)*p.w*p.rad*.5,1.6,Math.cos(p.a)*p.w*p.rad*.5)}}
+        if(p.t+dt>=.55){p.k=0;p.v.set(-Math.sin(p.a)*p.w*p.rad*.22,1.2,Math.cos(p.a)*p.w*p.rad*.22)}}
       else if(p.k===1){P_.addScaledVector(p.v,dt);p.v.multiplyScalar(1-dt*.8)}
       else if(p.k===3){p.jt-=dt;if(p.jt<=0){p.jt=.12;p.v.x+=rnd(-2,2);p.v.z+=rnd(-2,2);p.v.y=rnd(-.4,1)}P_.addScaledVector(p.v,dt)}
       else{p.v.y-=p.g*dt;if(Pl===flakes){p.v.x*=1-dt*2.2;p.v.z*=1-dt*2.2;if(p.v.y<-1.4)p.v.y=-1.4}P_.addScaledVector(p.v,dt);
@@ -507,7 +507,7 @@ function pvInit(){
   const egg=eggModel();scene.add(egg.g);
   const gun=new THREE.Group();scene.add(gun);
   const still=new THREE.Mesh(new THREE.BufferGeometry(),X.gunMat);scene.add(still);
-  const floor=new THREE.Mesh(new THREE.CircleGeometry(1.1,40),new THREE.MeshLambertMaterial({color:0xf3e3c0}));floor.rotation.x=-Math.PI/2;floor.position.y=-.005;scene.add(floor);
+  const floor=new THREE.Mesh(new THREE.CircleGeometry(.8,40),new THREE.MeshLambertMaterial({color:0xc9b48a}));floor.rotation.x=-Math.PI/2;floor.position.y=-.005;scene.add(floor);
   const fx=makeFx({scene,floor:()=>0,solid:(x,y)=>y<0});
   return pv={scene,cam,egg,gun,still,floor,fx,rt:null,buf:null};
 }
@@ -534,10 +534,10 @@ function pvRender(w,h,cv){
 // the camera for each kind of picture; yaw turns the egg (0: its face, PI: its back)
 function pvShot(kind,yaw){
   const p=pvInit(),c=p.cam,m=p.egg;m.g.rotation.y=yaw||0;p.still.visible=kind==='crack';p.floor.visible=kind==='crack'||kind==='big';p.gun.visible=kind==='gun';
-  if(kind==='gun'){m.g.visible=false;const b=new THREE.Box3().setFromObject(p.gun),ctr=b.getCenter(new V3()),sz=b.getSize(new V3());const d=Math.max(sz.z,sz.y*1.6)*2.1;
-    c.position.set(ctr.x+d,ctr.y+d*.32,ctr.z-d*.18);c.lookAt(ctr)}
-  else if(kind==='hat'){c.position.set(-.85,1.75,-2.45);c.lookAt(0,1.0,0)}
-  else if(kind==='crack'){c.position.set(-1.6,1.9,-3.2);c.lookAt(0,.35,0)}
+  if(kind==='gun'){m.g.visible=false;const b=new THREE.Box3().setFromObject(p.gun),ctr=b.getCenter(new V3()),sz=b.getSize(new V3());const d=Math.max(sz.z,sz.y*2)*(c.aspect>1.2?1.6:2.1);
+    c.position.set(ctr.x+d,ctr.y+d*.3,ctr.z-d*.16);c.lookAt(ctr)}
+  else if(kind==='hat'){c.position.set(-.95,1.95,-2.95);c.lookAt(0,1.08,0)}
+  else if(kind==='crack'){c.position.set(-1.5,1.75,-3.1);c.lookAt(0,.45,0)}
   else if(kind==='big'){c.position.set(-1.15,1.35,-3.3);c.lookAt(0,.86,0)}
   else{c.position.set(-.8,1.05,-2.75);c.lookAt(0,.72,0)}
 }
@@ -560,7 +560,7 @@ function thumb(slot,no){
   const p=pvInit(),k=parse('');
   if(slot==='egg'){k.egg=no;pvSet(k);pvShot('egg',.5)}
   else if(slot==='hat'){k.hat=no;pvSet(k);pvShot('hat',.6)}
-  else if(slot==='gun'){pvSet(k);p.gun.clear();const gm=X.buildGun(X.loadout,false,no);p.gun.add(gm);pvShot('gun')}
+  else if(slot==='gun'){pvSet(k);p.gun.clear();const gm=X.buildGun(X.loadout,false,no);p.gun.add(gm);p.cam.aspect=1;pvShot('gun')}
   else{pvSet(k,{hideEgg:true});p.still.geometry.dispose();p.still.geometry=crackStill(no);if(!no){p.egg.g.visible=true}pvShot('crack')}
   const url=pvRender(160,160).toDataURL();thumbs.set(key,url);if(slot==='gun')p.gun.clear();return url;
 }
@@ -686,7 +686,7 @@ if(navigator.webdriver)window.__kit={parse,wireOf,wear,get mine(){return Object.
   sheet(slot,opt){opt=opt||{};const n=N[slot],cell=opt.cell||220,cols=slot==='crack'?3:opt.cols||(slot==='gun'?4:8),p=pvInit();
     const shots=[];for(let i=0;i<=n;i++){
       if(slot==='egg'||slot==='hat'){for(const yaw of [.5,Math.PI+.4]){const k=parse('');k[slot]=i;pvSet(k);pvShot(slot,yaw);shots.push([pvRender(cell,cell),(i?items(slot)[i-1].name:'Plain')+(yaw>1?' (back)':'')])}}
-      else if(slot==='gun'){const key=opt.key||'beater';for(const side of [1,-1]){const k=parse('');pvSet(k);p.gun.clear();p.gun.add(X.buildGun(key,false,i));pvShot('gun');if(side<0){const c=p.cam,b=new THREE.Box3().setFromObject(p.gun).getCenter(new V3());c.position.x=2*b.x-c.position.x;c.position.z=b.z-(c.position.z-b.z);c.lookAt(b)}
+      else if(slot==='gun'){const key=opt.key||'beater';for(const side of [1,-1]){const k=parse('');pvSet(k);p.gun.clear();p.gun.add(X.buildGun(key,false,i));p.cam.aspect=1.4;pvShot('gun');if(side<0){const c=p.cam,b=new THREE.Box3().setFromObject(p.gun).getCenter(new V3());c.position.x=2*b.x-c.position.x;c.position.z=b.z-(c.position.z-b.z);c.lookAt(b)}
         shots.push([pvRender(cell*1.4|0,cell),(i?items('gun')[i-1].name:'Plain')+(side<0?' (left)':'')]);p.gun.clear()}}
       else if(i){for(const t of [.2,.55,1.0]){const k=parse('');pvSet(k,{hideEgg:true});p.fx.clear();p.fx.play(i,new V3(0,0,0),'#fbf6ea',new V3(1,0,0));let s=0;while(s<t){p.fx.step(1/60);s+=1/60}
         pvShot('crack');p.still.visible=false;p.egg.g.visible=false;shots.push([pvRender(cell,cell),items('crack')[i-1].name+' '+t+'s'])}p.fx.clear()}}
