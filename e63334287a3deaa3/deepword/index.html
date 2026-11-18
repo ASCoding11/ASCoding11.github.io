@@ -640,7 +640,7 @@ window.DW_EXT=window.DW_EXT||{};
 DW_EXT.add=function(name,a,f,c){if(typeof name!=='string'||typeof a!=='string'||typeof f!=='string')return;EXT[name]={a,f,c:c|0};fullCache.delete(name);for(const p of P)if(p.L===name)p.ent=p.map=p.byn=p.rk=p.km=null;const w=extWait.get(name);if(w){extWait.delete(name);w()}};
 const extIndex=()=>(window.DW_EXT&&DW_EXT.index)||{};
 // Load a list's file once; resolves (never rejects) when it's in, failed or took too long.
-const extTried=new Map();
+const extTried=new Map(),extGaveUp=new Set(); // gave up: play that list from prompts.js alone
 function loadExt(name){
   if(EXT[name])return Promise.resolve(true);
   const ix=extIndex()[name];if(!ix)return Promise.resolve(false);
@@ -730,6 +730,7 @@ function knownMap(p){
 // The list entry a typed answer stands for, or null. Category prompts forgive a stray plural, British/American
 // spelling and a near miss; word prompts don't, because a word one letter out is a different word.
 // e.fix is set when the match was a guess, so the game can show what it was read as.
+const STRIP=/\b(mount|mt|river|lake|island|isle|cheese|bread|sauce|soup|breed|dog|fc|afc|cf|sushi|roll|knot|hat|font|typeface|bridge|park|museum|street|avenue|ave|game|the)\b/g;
 function check(p,text){
   const t=norm(text);if(!t)return null;const m=mapOf(p);
   let e=m.get(t);if(e)return e;
@@ -737,6 +738,9 @@ function check(p,text){
   if(t.length>3&&t.endsWith('es')&&(e=m.get(t.slice(0,-2))))return e;
   if(t.length>2&&t.endsWith('s')&&(e=m.get(t.slice(0,-1))))return e;
   if((e=m.get(t+'s'))||(e=m.get(t+'es')))return e;
+  // "cheddar cheese", "Mount Everest", "Labrador dog", "Arial font": the answer with a generic word around it
+  const bare=t.replace(STRIP,' ').replace(/\s+/g,' ').trim();
+  if(bare!==t&&bare.length>=3&&((e=m.get(bare))||(e=m.get(bare.replace(/s$/,'')))))return e;
   const km=knownMap(p);
   if(t.length>=5){const c=canon(t);let hit=null;for(const [a,x] of km)if(canon(a)===c){if(hit&&hit!==x){hit=null;break}hit=x}if(hit)return hit}
   return nearMiss(km,t);
@@ -1403,9 +1407,9 @@ function askPrompt(){
   $('askBox').hidden=false;$('reveal').hidden=true;$('airBar').style.transform='scaleX(1)';$('airBar').classList.remove('low');
   const inp=$('ans');inp.value='';inp.className='ans';$('ansHint').className='hint';
   // the clock starts once the prompt's answers are in (a few seconds at most; then it goes on with prompts.js alone)
-  if(extIndex()[p.L]&&!EXT[p.L]){
+  if(extIndex()[p.L]&&!EXT[p.L]&&!extGaveUp.has(p.L)){
     D.state='loading';inp.disabled=true;$('submit').disabled=true;$('ansHint').textContent='Loading the answers…';setText('pcount','');
-    const i=D.i;loadExt(p.L).then(()=>{if(D.state==='loading'&&D.i===i&&D.on)askPrompt()});return;
+    const i=D.i;loadExt(p.L).then(ok=>{if(!ok)extGaveUp.add(p.L);if(D.state==='loading'&&D.i===i&&D.on)askPrompt()});return;
   }
   D.state='typing';D.resolving=false;D.deadline=performance.now()+AIR_MS;D.left=AIR_MS;
   inp.disabled=false;$('submit').disabled=false;$('ansHint').textContent='';

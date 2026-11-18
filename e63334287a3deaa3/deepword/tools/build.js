@@ -227,6 +227,25 @@ const ABYSSAL = (() => {
 })();
 const ab = q => { if (!ABYSSAL[q]) { missing.push('Abyssal prompt: ' + q); return []; } return ABYSSAL[q]; };
 
+// ------------------------------------------------------------------ Linguabase categories (CC0): plain things
+// Only the members in Linguabase's core vocabulary (members_core), for lists Wikidata doesn't cover well.
+const LBCAT = new Map();
+{
+  const f = path.join(CACHE, 'lb_categories.tsv.gz');
+  if (fs.existsSync(f)) {
+    const lines = zlib.gunzipSync(fs.readFileSync(f)).toString('utf8').split('\n');
+    for (let i = 1; i < lines.length; i++) { const c = lines[i].split('\t'); if (c.length > 4 && c[3]) LBCAT.set(c[0].toLowerCase(), c[3]); }
+  } else missing.push('Linguabase categories');
+}
+const lb = (...cats) => {
+  const out = [];
+  for (const cat of cats) {
+    const m = LBCAT.get(cat.toLowerCase()); if (!m) { missing.push('Linguabase category: ' + cat); continue; }
+    for (const w of m.split(', ')) { const names = namesOf(w, ''); if (names.length && !names.blocked) out.push({ names }); }
+  }
+  return out;
+};
+
 // ------------------------------------------------------------------ which data feeds which list
 // key: list name in prompts.js, or '~<prompt index>' for a prompt with its answers written inline.
 const FEEDS = {
@@ -383,7 +402,7 @@ const FEEDS = {
   astronauts: () => people('astronauts'),
   compounds: () => things('compounds'),
   // sports
-  sports: () => things('sports'),
+  sports: () => [], // Wikidata's "kinds of sport" pulled in too much that isn't one; Linguabase's list is cleaner
   nfl: () => ab('an NFL team'), nba: () => ab('an NBA team'), mlb: () => ab('an MLB team'),
   soccerclubs: () => ab('a European soccer club').concat(things('soccerclubs')),
   athletes: () => ab('a famous athlete').concat(...['ath_football', 'ath_basketball', 'ath_baseball', 'ath_amfootball', 'ath_hockey', 'ath_tennis', 'ath_track', 'ath_swim', 'ath_boxing', 'ath_racing', 'ath_golf', 'ath_cricket', 'ath_gymnast'].map(people)),
@@ -399,7 +418,7 @@ const FEEDS = {
   clothing: () => things('clothing'),
   footwear: () => things('clothing', r => /shoe|boot|sandal|slipper|sneaker|trainer|clog|loafer|heel|moccasin|flip/i.test(r.label + ' ' + r.alts)),
   furniture: () => things('furniture'),
-  tools: () => things('tools'),
+  tools: () => [], // the same: "kinds of tool" on Wikidata is too wide
   holidays: () => things('holidays'),
   boynames: () => things('boynames'),
   girlnames: () => things('girlnames'),
@@ -446,6 +465,18 @@ Object.assign(FEEDS, {
   ab_minerals: () => things('minerals'),
   ab_moons: () => things('moons'),
 });
+// Plain things from Linguabase categories, added to whatever the lists above already get.
+const LBFEEDS = {
+  fruits: ['fruits'], vegetables: ['vegetables'], berries: ['berries'], herbs: ['herbs'], spices: ['spices', 'herbs'], flowers: ['flowers'],
+  trees: ['trees'], tools: ['tools'], clothing: ['clothing'], footwear: ['footwear'], ab_hats: ['hats'], furniture: ['furniture'],
+  kitchen: ['kitchen tools', 'kitchen utensils', 'kitchenware', 'appliances'], jobs: ['professions', 'jobs'], colors: ['colors'],
+  emotions: ['feelings'], hobbies: ['hobbies'], subjects: ['school subjects'], shapes: ['shapes'], dances: ['dances'],
+  toys: ['toys'], desserts: ['desserts', 'cakes', 'cookies', 'pies'], candy: ['candy'], drinks: [], pasta: ['pasta'],
+  nuts: ['nuts'], grains: ['grains'], bones: ['bones'], metals: ['metals'], gases: ['gases'], rocks: ['minerals'], stores: ['shops'],
+  rooms: ['rooms'], sports: ['sports'], buildings: ['buildings'], floats: ['things that float'], girlnames: ["girls' names"], biscuits: ['cookies'],
+  '~134': ['soups'], '~135': ['cookies'], '~136': ['pies'], '~138': ['sauces'], '~150': ['snacks'],
+};
+for (const k in LBFEEDS) { const prev = FEEDS[k]; FEEDS[k] = () => (prev ? prev() : []).concat(lb(...LBFEEDS[k])); }
 module.exports = { ABYSSAL, norm, parseList };
 
 // ------------------------------------------------------------------ merging and fame

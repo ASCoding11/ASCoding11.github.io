@@ -1,0 +1,2 @@
+/* Deepword answer data, built by tools/build.js from prompts.js and free data (see tools/SOURCES.md). Do not edit by hand. */
+DW_EXT.add("french","france;canada;belgium;switzerland;monaco;luxembourg;haiti;senegal;ivory coast;morocco;algeria;tunisia;madagascar;cameroon;congo;mali;niger;chad;burkina faso;benin;togo;gabon;guinea;rwanda;burundi;djibouti;seychelles;comoros;vanuatu;lebanon;central african republic;republic of the congo;equatorial guinea","ypy3v2xjltjyqsmglwplodl9quisnqgbfrhmc1cnlkd9lbkpqaasdwlkbfofsrlkf4");
