@@ -432,7 +432,14 @@ function pal(L, skin) { const key = L.str + '|' + skin; let p = pals.get(key); i
 // 1 sunglasses, 2 crown, 3 party hat, 4 googly eyes, 5 tongue out, 6 tiny cowboy hat. Hats are seen from above and sit
 // a little behind the eyes, like the pilgrim hat (which a hat replaces).
 const HATS = { 2: 1, 3: 1, 6: 1 };
-function hat(g, H, x, y, c, si, r, h) {
+// each hat is painted once into a sprite (pointing along +x) and drawn turned with the head: one drawImage per snake
+const HR = 64;
+function hat(g, H, x, y, c, si, r) {
+  const sp = spr('hat' + H, 128, q => hatPaint(q, H, 64 + HR * .4, 64, 1, 0, HR, 0)), m = g.getTransform(), k = r / HR, hx = x - c * r * .4, hy = y - si * r * .4;
+  g.setTransform((m.a * c + m.c * si) * k, (m.b * c + m.d * si) * k, (m.c * c - m.a * si) * k, (m.d * c - m.b * si) * k, m.a * hx + m.c * hy + m.e, m.b * hx + m.d * hy + m.f);
+  g.drawImage(sp, -64, -64, 128, 128); g.setTransform(m);
+}
+function hatPaint(g, H, x, y, c, si, r, h) {
   const hx = x - c * r * .4, hy = y - si * r * .4;
   if (H === 2) { // crown: red velvet inside a gold band, gold points all round, three jewels at the front
     const R = r * .66; dot(g, hx, hy, R * .78, '#c2283c'); dot(g, hx - c * R * .1, hy - si * R * .1, R * .3, '#e8506a');
@@ -486,7 +493,7 @@ function tongue(g, x, y, h, r, now) {
 // The whole face: a hat (or the pilgrim hat during Turkey Week), the eyes, then sunglasses.
 function face(g, o, x, y, h, la, r, now, seed, L, skin, tk) {
   const H = L.h | 0, c = Math.cos(h), si = Math.sin(h);
-  if (HATS[H]) hat(g, H, x, y, c, si, r, h); else if (tk) tk();
+  if (HATS[H]) hat(g, H, x, y, c, si, r); else if (tk) tk();
   if (H === 4) googly(g, o, x, y, h, la, r, now); else G.paintFace(g, x, y, h, la, r, now, seed, pal(L, skin)[0]);
   if (H === 1) shades(g, x, y, h, r);
 }
@@ -579,7 +586,8 @@ const CSS = '#wardrobe .inner{width:min(600px,calc(100% - 20px));padding:20px cl
   '.writ canvas{width:100%;height:auto;aspect-ratio:2/1;border-radius:7px;background:#0d1328}.writ:hover{background:rgba(255,255,255,.09)}' +
   '.writ[aria-pressed="true"]{border-color:var(--mint);background:rgba(63,240,182,.12);color:var(--mint)}' +
   '#wardrobeBtn{display:block;margin:8px auto 0;padding:7px 14px;font-size:14px}' +
-  '@media (max-height:480px){#wrList{max-height:none}#wrPrev{max-height:70px;width:auto;margin:6px auto 8px}}';
+  '@media (max-height:480px){#wardrobe .inner{height:calc(100% - 16px);display:flex;flex-direction:column;padding:10px 16px}#wardrobe .inner>.msg{display:none}' +
+  '#wrPrev{height:56px;width:auto;margin:6px auto 8px;flex:none}#wrList{flex:1;min-height:0;max-height:none}#wardrobe .row{flex:none;margin-top:8px!important}}';
 const TABS = [['c', 'Colour'], ['p', 'Pattern'], ['h', 'Head'], ['x', 'Extras']];
 function build() {
   if (ui) return ui;
