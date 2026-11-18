@@ -5233,7 +5233,12 @@ function animModel(e,dt){
   const air=e.st==='fall',far=camera.position.distanceTo(e.pos)>70,now=performance.now(),k8=1-Math.exp(-dt*8),fl=RM?0:1;
   // just out of the Drifter: start from the jump (upright, arms up, knees tucked) and spread into the skydive (fT)
   if(air&&u.lst!==e.st){u.fT=u.lst==='bus'||u.lst==='out'||u.lst==null?0:.6;if(!u.fT){u.pb.set(POSES.jump);u.pit=-.25;u.roll=0}}
-  if(e.st!==u.lst&&e.onGround&&(u.lst==='glide'||u.lst==='fall')){u.landT=.36;touchDown(e,u.lst==='fall')}   // touching down: a crouch, a puff of dust and a thump
+  if(e.st!==u.lst&&e.onGround&&(u.lst==='glide'||u.lst==='fall')){u.landT=u.landD=.36;u.landA=1;touchDown(e,u.lst==='fall')}   // touching down: a crouch, a puff of dust and a thump
+  // on foot: off the ground (a jump or a drop) and back down: the knees take it, more the harder the landing (u.vyA, the
+  // fastest fall since leaving the ground)
+  // (others' height is smoothed, so for them only a real jump counts)
+  const hop=e.st==='ground'&&!e.onGround&&(e.local||u.hopT>0||e.vel.y>1.5);if(hop){u.hopT=(u.hopT||0)+dt;u.vyA=Math.min(u.vyA||0,e.vel.y)}
+  else{if(u.hopT>.12&&e.onGround&&e.st==='ground'){u.landA=clamp(-(u.vyA||0)/10,.3,1);u.landT=u.landD=.18+.1*u.landA}u.hopT=0;u.vyA=0}
   if(e.glide&&u.lst==='fall'&&!u.gO)gliderOut(e);                                                        // the glider snaps open with a whoosh
   u.lst=e.st;u.fT=(u.fT||0)+dt;
   const jk=air?clamp(u.fT/.55,0,1):1,jumpK=1-jk*jk*(3-2*jk);
@@ -5246,9 +5251,11 @@ function animModel(e,dt){
   // diving (looking well down) tips the skydive head-first with the arms swept back; looking ahead it is the spread-out
   // slow fall (dv, from the pitch everyone already sends; the fall itself is the same speed either way)
   u.dv=(u.dv||0)+((air?clamp((-(e.pitch||0)-.3)/.55,0,1):0)-(u.dv||0))*(1-Math.exp(-dt*4));
-  const ptg=air?-1.38-.62*u.dv+1.1*jumpK:e.glide?-.3:-.09*rk*Math.sign(fwd+.01)*Math.min(1,Math.abs(fwd)/(sp+.01)+.2);
+  // on the ground the body also leans into a speed-up and back out of a stop (u.acc, smoothed), and into turns while running
+  u.acc=(u.acc||0)+(clamp(dt>0?(sp-(u.sp0||0))/dt:0,-40,40)-(u.acc||0))*(1-Math.exp(-dt*10));u.sp0=sp;
+  const ptg=air?-1.38-.62*u.dv+1.1*jumpK:e.glide?-.3:-.09*rk*Math.sign(fwd+.01)*Math.min(1,Math.abs(fwd)/(sp+.01)+.2)-(RM?0:clamp(u.acc*.006,-.07,.09));
   u.pit+=(ptg-u.pit)*(air?1-Math.exp(-dt*5):k8);
-  u.roll+=((RM?0:e.glide?clamp(yr*.2-lat*.035,-.42,.42):air?clamp(yr*.22-lat*.02,-.35,.35):0)-u.roll)*k8;
+  u.roll+=((RM?0:e.glide?clamp(yr*.2-lat*.035,-.42,.42):air?clamp(yr*.22-lat*.02,-.35,.35):e.onGround?clamp(yr*rk*.05,-.1,.1):0)-u.roll)*k8;
   m.rotation.set(u.pit,e.yaw,u.roll,'YXZ');
   // the glider unfolds over about a fifth of a second when it opens and folds away as you land
   // (a spring, a little under-damped on the way out so it snaps open past its size and settles; folding is quicker and
@@ -5265,10 +5272,13 @@ function animModel(e,dt){
   // backward or sideways), the knee of the leg moving with the body bends to lift its foot, and the body drops by as much
   // as the straight standing leg would otherwise lift it, so both feet stay on the ground. Falling: legs out and bent at
   // the knee, fluttering; gliding: trailing behind, bent a little.
-  const A=.74*Math.min(1,Math.sqrt(sp/6));
+  let A=.74*Math.min(1,Math.sqrt(sp/6)),cf=sp>.05?fwd/sp:1,cl=sp>.05?lat/sp:0;
   if(e.onGround&&sp>.05)e.walk+=dt*sp*Math.PI/(2*LEG_L*Math.sin(Math.max(A,.02)));
-  const ph=e.walk,cf=sp>.05?fwd/sp:1,cl=sp>.05?lat/sp:0,L0=u.legs[0],L1=u.legs[1];
-  const lt=u.landT>0?(u.landT-=dt,Math.sin(Math.PI*clamp(u.landT/.32,0,1))):0;
+  // turning on the spot: small sideways steps, as many as the turn needs, instead of the feet sliding round
+  u.tip_=(u.tip_||0)+((e.onGround&&sp<.6&&Math.abs(yr)>.5&&!RM?1:0)-(u.tip_||0))*k8;
+  if(u.tip_>.05){e.walk+=dt*Math.min(Math.abs(yr),6)*1.5;A=Math.max(A,.17*u.tip_*Math.min(1,Math.abs(yr)/2));cf=sp>.05?cf*(1-u.tip_):0;cl=sp>.05?cl:Math.sign(yr)*-1}
+  const ph=e.walk,L0=u.legs[0],L1=u.legs[1];
+  const lt=u.landT>0?(u.landT-=dt,Math.sin(Math.PI*clamp(u.landT/(u.landD||.32),0,1))*(u.landA||1)):0;
   if(e.onGround){
     // each leg's half-cycle on the ground moves its foot back under the hip at a steady pace (the angle whose sine runs
     // evenly from sin A to -sin A, measured from straight down rather than from the leaning body), so the planted foot stays
@@ -5281,6 +5291,9 @@ function animModel(e,dt){
     const dv=u.dv*(1-jumpK),sf=1-dv;
     L0.rotation.set(((1-jumpK)*-.18+jumpK*.32)*sf+f*(1+dv),0,(-.32*(1-jumpK)-.08*jumpK)*sf-.05*dv,'XYZ');L1.rotation.set(((1-jumpK)*-.18-jumpK*.12)*sf+g*(1+dv),0,(.32*(1-jumpK)+.08*jumpK)*sf+.05*dv,'XYZ');
     L0.k=(1.25*(1-jumpK)+.95*jumpK)*sf+.1*dv+f;L1.k=(1.15*(1-jumpK)+.5*jumpK)*sf+.1*dv-g}
+  else if(hop){   // a jump on foot: one knee comes up on the way up, both legs reach down for the ground on the way down
+    const up=clamp(e.vel.y/4,-1,1),t=clamp(u.hopT/.12,0,1),k=t*t*(3-2*t);
+    L0.rotation.set((.15+.45*Math.max(0,up))*k,0,0,'XYZ');L1.rotation.set((-.12+.18*Math.max(0,up))*k,0,0,'XYZ');L0.k=(.2+.95*Math.max(0,up))*k;L1.k=(.15+.25*Math.max(0,up))*k}
   else{const gw=e.glide?Math.sin(now*.005)*.06*fl:0,h=Math.min(dt,.033);
     // gliding, the legs hang and trail; they swing like a pendulum out of a turn (u.ls), lagging the bank, and kick slowly
     u.lsV=(u.lsV||0)+((-u.roll*1.3-(u.ls||0))*26-(u.lsV||0)*3.6)*h;u.ls=(u.ls||0)+u.lsV*h;const sw=e.glide?u.ls*fl:0,kc=e.glide?Math.sin(now*.0037)*.09*fl:0;
@@ -5291,9 +5304,10 @@ function animModel(e,dt){
   // a bot's, or another player's shot event, so it agrees with the hit), and the hands put on the glider's handles or the
   // crowbar's handle (armIK)
   if(far&&!u.gun.visible&&u.pfar)return;u.pfar=far;   // past 70 m the arms keep their last pose
-  const cb=u.gk==='cb'&&!air&&!e.glide,tg=air?POSES.fall:e.glide?POSES.glide:cb?POSES.cb:POSES.rest,pb=u.pb,k12=1-Math.exp(-dt*(air?7:12));
+  const cb=u.gk==='cb'&&!air&&!e.glide,gh=!air&&!e.glide&&WEAP[u.gk]?GHOLD[famOf(u.gk)==='pi'?'one':'two']:null,
+    tg=air?POSES.fall:e.glide?POSES.glide:cb?POSES.cb:gh?gh.P:POSES.rest,pb=u.pb,k12=1-Math.exp(-dt*(air?7:12));
   for(let i=0;i<POSE_N;i++)pb[i]+=(tg[i]-pb[i])*k12;
-  u.cbw=(u.cbw||0)+((cb?1:0)-(u.cbw||0))*k12;
+  u.cbw=(u.cbw||0)+((cb||gh&&gh.one?1:0)-(u.cbw||0))*k12;   // (the arms free to swing when running: the crowbar's left arm, and the pistol's)
   const pf=u.pf;pf.set(pb);
   if(air&&u.dv>.005)for(let i=0;i<POSE_N;i++)pf[i]+=(POSES.dive[i]-pf[i])*u.dv;
   if(air&&jumpK>0)for(let i=0;i<POSE_N;i++)pf[i]+=(POSES.jump[i]-pf[i])*jumpK;
@@ -5348,10 +5362,13 @@ function animModel(e,dt){
           const L=pv.distanceTo(q);if(L>.01)trs.push({a:pv.clone(),b:q.clone(),hex:0xfff1d6,life:.09,max:.09,wide:3.4,L,sr:true,tl:0});pv=q.clone()}}
       u.tip=(u.tip||new V3()).copy(tp);u.tipOk=true}else u.tipOk=false;
     return}
-  let x=wp?HOLD[0]:.3,y=wp?HOLD[1]:1.36,z=-.62,rx=0,ry=wp?HOLD[2]:0,rz=0;
-  // you, aiming: raised to that weapon's own aiming pose
+  // weapons are held by the hands (GHOLD, armIK): the grip pulled in so the elbows bend, a rifle-type weapon two-handed
+  // with the chest bladed a little to the right and the left hand under the front of it, a pistol in the right hand alone
+  const H=wp&&gh?gh:null;
+  let x=H?H.h[0]:wp?HOLD[0]:.3,y=H?H.h[1]:wp?HOLD[1]:1.36,z=H?H.h[2]-.12:-.62,rx=0,ry=H?0:wp?HOLD[2]:0,rz=0;
+  // you, aiming: raised to the eye line (with the hands on it, a lift and a pull toward the middle; otherwise that weapon's own aiming pose)
   const aw=e===player&&isADS()?heldW(e):null;e.aimK=clamp((e.aimK||0)+(aw?dt*9:-dt*9),0,1);const ps=aw?(e.pose=aw.pose):e.pose,ak=ps&&wp?e.aimK*e.aimK*(3-2*e.aimK):0;
-  if(ak){x+=(ps[0]-x)*ak;y+=(ps[1]-y)*ak;z+=(ps[2]-z)*ak;ry*=1-ak}
+  if(ak&&H){y+=.07*ak;x-=.05*ak;z-=(H.one?.06:.03)*ak}else if(ak){x+=(ps[0]-x)*ak;y+=(ps[1]-y)*ak;z+=(ps[2]-z)*ak;ry*=1-ak}
   if(wp&&e.st==='ground')rx+=clamp(e.pitch||0,-.6,.6)*.55;
   // a shot: shoved back, muzzle up, settling at that weapon's own speed (the crowbar: its swing)
   const kk=e.kick>0?(e.kick=e.kick<.012?0:e.kick*Math.exp(-dt*(K?K[2]:12))):0;
@@ -5378,8 +5395,18 @@ function animModel(e,dt){
   // just taken out: it swings up from below
   if(u.sw>0){u.sw=Math.max(0,u.sw-dt*4.5);if(!RM){const q=u.sw*u.sw;y-=q*.3;rx-=q*.9}}
   g.rotation.set(rx,ry,rz,'YXZ');_gh.set(0,0,.12).applyQuaternion(g.quaternion);g.position.set(x-_gh.x,y-_gh.y,z+.12-_gh.z);   // turned about the hand, which stays put
-  heldFollow(u);
+  if(!H||!g.visible){heldFollow(u);return}
+  // with the hands on it: the weapon goes with the hips (so the chest's lean and sway don't tip the aim), then each hand
+  // reaches for its place on it: the right for the grip, the left for the front (to the magazine during a reload)
+  const b=u.bones;b[0].updateMatrix();g.updateMatrix();_hm.multiplyMatrices(b[0].matrix,g.matrix).decompose(g.position,g.quaternion,g.scale);g.updateMatrix();
+  _ht.set(0,0,.12).applyMatrix4(g.matrix);armIK(u,1,_ht,GH_POLE[1],1);
+  if(!H.one){const rl=e.reloadT>0?Math.min(1,(1-e.reloadT/Math.max(.1,wReload(WEAP[gk],0)))*6,e.reloadT*4):0;
+    _ht.set(0,-.04-.06*rl,.12-H.f*(1-rl*.6)).applyMatrix4(g.matrix);armIK(u,0,_ht,GH_POLE[0],1)}
 }
+// Holding a weapon (November 2026): P is the pose for the rest of the body, h where the right hand grips (the body's
+// units, before the hips turn), f how far in front of the grip the left hand holds. GH_POLE: where the elbows point.
+const GHOLD={two:{P:pose({turn:-.35,lean:-.03,sl:.12}),h:[.33,1.53,-.3],f:.12},one:{one:true,P:pose({turn:-.18,L:[-1.3,.35,-.12,.4]}),h:[.3,1.44,-.42],f:0}};
+const GH_POLE=[new V3(-.5,-1,.15),new V3(.7,-1,.25)];
 function posePut(u,P){const b=u.bones;b[0].rotation.y=u.hipT||0;b[1].rotation.set(P[0],P[1],P[14]);
   for(let k=0;k<2;k++){_pe.set(P[2+3*k],P[3+3*k],P[4+3*k],'ZXY');b[2+k].quaternion.setFromEuler(_pe);b[2+k].position.x=ARM_P[k][0]+P[9+k];b[4+k].quaternion.setFromAxisAngle(ARM_AX[k],P[12+k])}}
 // carries the held item along with the right hand (hips x chest x upper arm x forearm, the elbow's rest place undone); at
