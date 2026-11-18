@@ -2658,7 +2658,12 @@ function armOf(x,y,z){if(Math.abs(y-1.36)>.025)return 0;if(Math.abs(x+.1)<.02&&M
 // follows the upper arm or the forearm by how far along the arm it is, easing from one to the other round the elbow, so
 // the sleeve bends rather than breaks. The elbow is a hinge: it bends about ARM_AX (across the arm, level), which at rest
 // tips the forearm up.
-const ARM_H=[[-.1,1.36,-.5],[.3,1.36,-.5]],ARM_E=ARM_H.map((h,k)=>h.map((v,i)=>(v+ARM_P[k][i])/2));
+// ARM_K (November 2026, audit): the arms as drawn were too short to hold a long weapon in both hands, so every arm is
+// stretched along its own line by this much when the body is rigged (bodyRig), whatever the outfit drew on it: the
+// sleeve and anything on it lengthen, the hand and the cuff at the wrist move out with the end of the arm unchanged in
+// shape. ARM_H0 is where the hands are drawn, ARM_H where they are after the stretch (the bones use that).
+const ARM_K=1.3,ARM_H0=[[-.1,1.36,-.5],[.3,1.36,-.5]];
+const ARM_H=ARM_H0.map((h,k)=>h.map((v,i)=>ARM_P[k][i]+(v-ARM_P[k][i])*ARM_K)),ARM_E=ARM_H.map((h,k)=>h.map((v,i)=>(v+ARM_P[k][i])/2));
 const ARM_AX=ARM_H.map((h,k)=>{const d=new V3(h[0]-ARM_E[k][0],0,h[2]-ARM_E[k][2]).normalize();return new V3(-d.z,0,d.x)});
 const ARM_L1=ARM_E.map((e,k)=>Math.hypot(e[0]-ARM_P[k][0],e[1]-ARM_P[k][1],e[2]-ARM_P[k][2])),ARM_L2=ARM_E.map((e,k)=>Math.hypot(e[0]-ARM_H[k][0],e[1]-ARM_H[k][1],e[2]-ARM_H[k][2]));
 function bodyRig(B,nb){
@@ -2668,7 +2673,10 @@ function bodyRig(B,nb){
     for(let v=s0;v<s0+c;v++){bone[v]=a||1;warp[v]=w?1:back?2:0}}
   const si=new Uint16Array(n*4),sw=new Float32Array(n*4);
   for(let v=0;v<n;v++){const o=v*3,y=P[o+1];
-    if(bone[v]>1){const k=bone[v]-2,S=ARM_P[k],H=ARM_H[k],hx=H[0]-S[0],hy=H[1]-S[1],hz=H[2]-S[2],t=((P[o]-S[0])*hx+(y-S[1])*hy+(P[o+2]-S[2])*hz)/(hx*hx+hy*hy+hz*hz),q=clamp((t-.38)/.24,0,1),f=q*q*(3-2*q);
+    if(bone[v]>1&&ARM_K!==1){const k=bone[v]-2,S=ARM_P[k],H=ARM_H0[k],ax=H[0]-S[0],ay=H[1]-S[1],az=H[2]-S[2],L2=ax*ax+ay*ay+az*az,t0=((P[o]-S[0])*ax+(y-S[1])*ay+(P[o+2]-S[2])*az)/L2,s=(ARM_K-1)*clamp(t0,0,1);
+      P[o]+=ax*s;P[o+1]+=ay*s;P[o+2]+=az*s;
+      if(t0>0&&t0<1){const L=Math.sqrt(L2),nd=(N[o]*ax+N[o+1]*ay+N[o+2]*az)/L*(1-1/ARM_K);N[o]-=ax/L*nd;N[o+1]-=ay/L*nd;N[o+2]-=az/L*nd;const l=Math.hypot(N[o],N[o+1],N[o+2])||1;N[o]/=l;N[o+1]/=l;N[o+2]/=l}}
+    if(bone[v]>1){const y=P[o+1],k=bone[v]-2,S=ARM_P[k],H=ARM_H[k],hx=H[0]-S[0],hy=H[1]-S[1],hz=H[2]-S[2],t=((P[o]-S[0])*hx+(y-S[1])*hy+(P[o+2]-S[2])*hz)/(hx*hx+hy*hy+hz*hz),q=clamp((t-.38)/.24,0,1),f=q*q*(3-2*q);
       si[v*4]=bone[v];sw[v*4]=1-f;si[v*4+1]=bone[v]+2;sw[v*4+1]=f;continue}
     const t=clamp((y-.96)/.16,0,1),k=t*t*(3-2*t);si[v*4]=1;sw[v*4]=k;si[v*4+1]=0;sw[v*4+1]=1-k;   // chest, hips
     if(!warp[v])continue;
@@ -3237,7 +3245,7 @@ function syncLimbs(){
    (round), then x (up), then z (out to the side). The crowbar's pitch runs on past straight up (pi/2) to point back, so
    the swing's arc is one number going down. 0 is the pose the body is drawn in, both arms forward holding a weapon,
    which every weapon, aim, reload, pump and bolt still uses, so the hands stay on every grip. */
-const POSE_N=20,LEG_L=.76,HAND0=[.3,1.36,-.5];
+const POSE_N=20,LEG_L=.76,HAND0=ARM_H[1];
 const pose=(o)=>{const P=new Array(POSE_N).fill(0);P[16]=HAND0[0];P[17]=HAND0[1];P[18]=HAND0[2];
   P[0]=o.lean||0;P[1]=o.turn||0;P[14]=o.roll||0;if(o.L){P[2]=o.L[0];P[3]=o.L[1];P[4]=o.L[2];P[12]=o.L[3]}if(o.R){P[5]=o.R[0];P[6]=o.R[1];P[7]=o.R[2];P[13]=o.R[3]}
   if(o.h){P[16]=o.h[0];P[17]=o.h[1];P[18]=o.h[2];P[19]=1}P[8]=o.bp!=null?o.bp:2.72;P[11]=o.by!=null?o.by:.1;P[15]=o.lw||0;P[9]=o.sl||0;P[10]=o.sr||0;return P};
@@ -5392,7 +5400,7 @@ function animModel(e,dt){
   // weapons are held by the hands (GHOLD, armIK): the grip pulled in so the elbows bend, a rifle-type weapon two-handed
   // with the chest bladed a little to the right and the left hand under the front of it, a pistol in the right hand alone
   const H=wp&&gh?gh:null;
-  let x=H?H.h[0]:wp?HOLD[0]:.3,y=H?H.h[1]:wp?HOLD[1]:1.36,z=H?H.h[2]-.12:-.62,rx=0,ry=H?0:wp?HOLD[2]:0,rz=0;
+  let x=H?H.h[0]:wp?HOLD[0]:ARM_H[1][0],y=H?H.h[1]:wp?HOLD[1]:ARM_H[1][1],z=H?H.h[2]-.12:ARM_H[1][2]-.12,rx=0,ry=H?0:wp?HOLD[2]:0,rz=0;
   // you, aiming: raised to the eye line (with the hands on it, a lift and a pull toward the middle; otherwise that weapon's own aiming pose)
   const aw=e===player&&isADS()?heldW(e):null;e.aimK=clamp((e.aimK||0)+(aw?dt*9:-dt*9),0,1);const ps=aw?(e.pose=aw.pose):e.pose,ak=ps&&wp?e.aimK*e.aimK*(3-2*e.aimK):0;
   if(ak&&H){y+=.07*ak;x-=.05*ak;z-=(H.one?.06:.03)*ak}else if(ak){x+=(ps[0]-x)*ak;y+=(ps[1]-y)*ak;z+=(ps[2]-z)*ak;ry*=1-ak}
@@ -5432,7 +5440,7 @@ function animModel(e,dt){
 }
 // Holding a weapon (November 2026): P is the pose for the rest of the body, h where the right hand grips (the body's
 // units, before the hips turn), f how far in front of the grip the left hand holds. GH_POLE: where the elbows point.
-const GHOLD={two:{P:pose({turn:-.35,lean:-.03,sl:.12}),h:[.33,1.53,-.3],f:.12},one:{one:true,P:pose({turn:-.18,L:[-1.3,.35,-.12,.4]}),h:[.3,1.44,-.42],f:0}};
+const GHOLD={two:{P:pose({turn:-.55,lean:-.03,sl:.12}),h:[.52,1.44,-.3],f:.36},one:{one:true,P:pose({turn:-.18,L:[-1.3,.35,-.12,.4]}),h:[.3,1.44,-.42],f:0}};
 const GH_POLE=[new V3(-.5,-1,.15),new V3(.7,-1,.25)];
 function posePut(u,P){const b=u.bones;b[0].rotation.y=u.hipT||0;b[1].rotation.set(P[0],P[1],P[14]);
   for(let k=0;k<2;k++){_pe.set(P[2+3*k],P[3+3*k],P[4+3*k],'ZXY');b[2+k].quaternion.setFromEuler(_pe);b[2+k].position.x=ARM_P[k][0]+P[9+k];b[4+k].quaternion.setFromAxisAngle(ARM_AX[k],P[12+k])}}
@@ -6032,7 +6040,7 @@ if(navigator.webdriver)window.__dz={get state(){return state},get online(){retur
   STUCK_LOG,landPath,landClear,navShut,NAVN,updateBots,updatePlayer,step(dt){pClock+=dt*1000;practiceTick(dt);if(inPlay()){updatePlayer(dt);updateBots(dt)}},
   landOk,landFit,landUnder,skirtOf,skirtList,pieceBox,buildList,applyBuilds,handleEvent,get bdDirty(){return bdDirty},bdGone,ED_N,edRects,edOk,pieceShape,partsOf,partList,partIM,pieceInst,editPiece,wouldTrap,openEdit,closeEdit,confirmEdit,editKey,editTarget,editTile,updateEdit,canEdit,pieceMatrix,pieceCentre,EDIT_T,EDIT_RANGE,pressCode,get edit(){return edit},get editJob(){return editJob},get editAim(){return editAim},get buildCd(){return buildCd},rampH,rampAt,rampBlocked,solidAt,rayRamp,rhash,COST,JUMP,GRAV:G,STEP,RT,MAXL,terrainH,walkH,terrainSlope,rayTerrain,TH,TN,TS,TM,LVL,LAKE,PADS,SHED_Y,chestSpots,floorSpots,buildings,footprints,get groundMesh(){return groundMesh},
   Face,FACE_STARTS,FACE0,faceOf,faceBits,faceStr,faceRows,faceSpot,faceZ,bagFace,setShowFaces,NOOB,get myFace(){return myFace},get showFaces(){return showFaces},
-  Locker,get LOCKER_ON(){return lockerOn()},lockerSync,OUTFITS,bodyGeo,LEG_GEO,legIM,fitLegIM,fitLegGeo,makeModel,setModelColor,legSpec,STD_LEGS,fitOf,hitboxes,POSES,SWING,posePut,heldFollow,GLIDER_GEO,bodyRig,ARM_H,ARM_E,ARM_P,armIK,get windN(){return windIM.count},TKON,PCOLS,SKINS,get mySkin(){return mySkin},Plane,get droneV(){return droneV}};
+  Locker,get LOCKER_ON(){return lockerOn()},lockerSync,OUTFITS,bodyGeo,LEG_GEO,legIM,fitLegIM,fitLegGeo,makeModel,setModelColor,legSpec,STD_LEGS,fitOf,hitboxes,POSES,SWING,posePut,heldFollow,GLIDER_GEO,bodyRig,ARM_H,ARM_E,ARM_P,armIK,GHOLD,GH_POLE,ARM_K,get windN(){return windIM.count},TKON,PCOLS,SKINS,get mySkin(){return mySkin},Plane,get droneV(){return droneV}};
 
 requestAnimationFrame(t=>{last=t;frame(t)});
 })();
