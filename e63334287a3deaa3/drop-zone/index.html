@@ -48,8 +48,8 @@ button:disabled{opacity:.5;cursor:default}
 
 #stormTint{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,rgba(20,30,52,0) 38%,rgba(8,14,30,.62) 100%);opacity:0;transition:opacity .4s}
 #hud{position:absolute;inset:0;pointer-events:none}
-#hud.spec #vitals,#hud.spec #slots,#hud.spec #cross,#hud.spec #reload,#hud.spec #hint,#hud.spec #scope,#hud.spec #sight,#hud.spec #ammo,#hud.spec #prompt,#hud.spec #useBar{display:none}
-#hud.air #cross,#hud.air #ammo,#hud.air #sight{display:none}
+#hud.spec #vitals,#hud.spec #slots,#hud.spec #cross,#hud.spec #reload,#hud.spec #hint,#hud.spec #scope,#hud.spec #ammo,#hud.spec #prompt,#hud.spec #useBar{display:none}
+#hud.air #cross,#hud.air #ammo{display:none}
 
 #mapBox{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:calc(12px + env(safe-area-inset-right,0px));width:168px;display:flex;flex-direction:column;gap:4px;align-items:stretch}
 #mini{width:168px;height:168px;display:block;border:2px solid rgba(255,248,234,.5);background:#164a63;border-radius:6px;pointer-events:auto;cursor:pointer}
@@ -126,10 +126,8 @@ button:disabled{opacity:.5;cursor:default}
 #ammo.low b{color:var(--bad)}
 #ammo small{font-size:20px;color:var(--ink-dim);font-weight:700}
 
-#cross{position:absolute;left:50%;top:50%;width:0;height:0}
-#cross i{position:absolute;background:#fff;box-shadow:0 0 2px #000}
-#cross .h{width:9px;height:2px;top:-1px} #cross .v{width:2px;height:9px;left:-1px}
-#cross .dot{width:2px;height:2px;left:-1px;top:-1px}
+/* the reticle (RET): an SVG one CSS pixel per unit, its origin put on a whole pixel in the middle of the view by updateHud */
+#cross{position:absolute;left:50%;top:50%;width:2px;height:2px;margin:-1px 0 0 -1px;overflow:visible;pointer-events:none}
 #hitm{position:absolute;left:50%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;opacity:0}
 #hitm::before,#hitm::after{content:"";position:absolute;left:50%;top:0;width:2px;height:100%;background:currentColor;margin-left:-1px;transform:rotate(45deg);clip-path:polygon(0 0,100% 0,100% 30%,0 30%,0 70%,100% 70%,100% 100%,0 100%)}
 #hitm::after{transform:rotate(-45deg)}
@@ -146,9 +144,6 @@ button:disabled{opacity:.5;cursor:default}
 #scope{position:absolute;inset:0;--r:min(36vh,36vw);--rim:#1a2530;--tint:rgba(120,190,255,.05);
   background:radial-gradient(circle at center,var(--tint) 0 calc(var(--r)*.72),rgba(0,6,12,.34) calc(var(--r) - 7px),var(--rim) calc(var(--r) - 5px) var(--r),rgba(2,5,8,.985) calc(var(--r) + 2px))}
 #scopeR{position:absolute;left:50%;top:50%;width:calc(var(--r)*2);height:calc(var(--r)*2);transform:translate(-50%,-50%);overflow:visible}
-/* every other weapon's sight picture, drawn over the middle of the view while aiming */
-#sight{position:absolute;left:50%;top:50%;width:clamp(170px,34vh,300px);height:clamp(170px,34vh,300px);transform:translate(-50%,-50%);filter:drop-shadow(0 0 1.5px rgba(0,0,0,.9))}
-#sightR{display:block;width:100%;height:100%;overflow:visible}
 #hurt{position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 45%,rgba(200,30,20,.7) 100%);opacity:0}
 #tags{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .ntag{position:absolute;left:0;top:0;font-weight:700;font-size:14px;letter-spacing:.04em;color:#fff;text-shadow:0 1px 2px #000;white-space:nowrap;pointer-events:none}
@@ -401,9 +396,8 @@ body.touch #net{font-size:14px}
     <div id="feed"></div>
     <div id="tags"></div>
     <div id="scope" hidden><svg id="scopeR" viewBox="-100 -100 200 200" aria-hidden="true"></svg></div>
-    <div id="sight" hidden><svg id="sightR" viewBox="-100 -100 200 200" aria-hidden="true"></svg></div>
     <div id="hurt"></div>
-    <div id="cross"><i class="h" id="cl"></i><i class="h" id="cr"></i><i class="v" id="ct"></i><i class="v" id="cb"></i><i class="dot"></i></div>
+    <svg id="cross" viewBox="-1 -1 2 2" aria-hidden="true"></svg>
     <div id="hitm"></div>
     <div id="reload" hidden><i id="reloadFill"></i></div>
     <div id="useBar" hidden><span id="useLbl"></span><i><b id="useFill"></b></i></div>
@@ -446,7 +440,7 @@ body.touch #net{font-size:14px}
     <div class="menu-inner">
       <div class="kicker">Gullrock Isle · up to 30 players</div>
       <h1 class="title">DRIFT<span>FALL</span></h1>
-      <p class="lede">Ride the Drifter over the island, jump and glide down wherever you like. Grab what the chests hold, build cover, and be the last one standing as the storm closes in.</p>
+      <p class="lede">Ride the Drifter, a big blue cargo plane, over the island, jump off its ramp and glide down wherever you like. Grab what the chests hold, build cover, and be the last one standing as the storm closes in.</p>
       <div class="field">
         <label class="label" for="name">Your name</label>
         <div class="lk-row" id="lockerRow"><input class="text" id="name" maxlength="16" autocomplete="off" spellcheck="false"><button id="faceBtn" class="ghost-btn" type="button">Face</button></div>
@@ -484,7 +478,7 @@ body.touch #net{font-size:14px}
           <summary>Controls</summary>
           <dl class="keys">
             <div><dt data-kb="forward left back right" data-kb-short data-kb-join="" data-kb-case="upper">WASD</dt><dd>Move (and steer the glider)</dd></div>
-            <div><dt data-kb="jump" data-kb-short data-kb-case="upper">SPACE</dt><dd>Jump, drop from the Drifter, open the glider</dd></div>
+            <div><dt data-kb="jump" data-kb-short data-kb-case="upper">SPACE</dt><dd>Jump, bail out of the Drifter, open the glider</dd></div>
             <div><dt data-kb="fire" data-kb-short data-kb-case="upper">L-CLICK</dt><dd>Shoot, place a build, use a heal</dd></div>
             <div><dt data-kb="aim" data-kb-short data-kb-case="upper">R-CLICK</dt><dd>Hold to aim / scope</dd></div>
             <div><dt data-kb="slot1 slot2 slot3 slot4" data-kb-short data-kb-case="upper">1 2 3 4</dt><dd>Item slots (or the mouse wheel)</dd></div>
@@ -604,7 +598,7 @@ const G=26,JUMP=9.4,STEP=0.6,R=0.3,H=1.6,TOPY=300;
 // sluggish) the movement speeds were brought most of the way back; weapon damage and the storm's times stayed at the slower pace.
 const SPEED=6;                                     // running, m/s (6.6 at first, then 5.4); bots run at 0.92 of it as before
 const AIR={fallH:15,fallV:-28,glideH:10.3,glideV:-6.1};   // steering and sink while falling and gliding (16, -30, 11, -6.5 at first, then 13.5, -25, 9.2, -5.5)
-// The Drifter (the airship everyone starts on): height and speed.
+// The Drifter (the cargo plane everyone starts on): height and speed. Its look is Plane, below the storm.
 const BUS_Y=110,BUS_V=22.5;                         // the Drifter's speed, m/s (24 at first, then 20)
 const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const DV=[[1,0],[0,1],[-1,0],[0,-1]];
@@ -619,18 +613,20 @@ const DIR_YAW=[Math.PI/2,0,-Math.PI/2,Math.PI];
 // col: the body colour of its model, also used for its HUD slot. Aiming (hold Aim) is different for each: fov is the zoom, ad how far
 // behind the camera sits and as how far to the side (pistols, SMGs and shotguns stay over the shoulder, each at its own distance;
 // 0 and 0 puts the camera at the eye, for the rifles' sights and the snipers' scopes), pose where the gun is held while aiming
-// (seen over the shoulder), and SIGHT[id] below is its sight picture.
+// (seen over the shoulder). The reticle is the family's own (RET), the snipers' the scope (SNIPER_RET).
+// name: what it is called everywhere ("<word> <type>", so the kind of gun is always in it); short: just its type (Pistol, SMG, Shotgun,
+// AR, Sniper), shown in a hotbar slot instead when the whole name doesn't fit there (phones). The ids never change (saved data, network).
 const WEAP={
   pi:{id:'pi',fam:'pi',name:'Pistol',short:'Pistol',dmg:20,head:1.75,rate:.2,mag:12,reload:1.3,hip:.02,ads:.011,range:80,pellets:1,fov:58,ad:3,as:.85,pose:[.33,1.47,-.7],am:'L',fall:[30,.6],sd:24,col:0xece4cf},
-  hc:{id:'hc',fam:'pi',name:'Heavy Pistol',short:'H.Pistol',dmg:42,head:1.75,rate:.55,mag:6,reload:1.7,hip:.026,ads:.007,range:95,pellets:1,fov:50,ad:3,as:.88,pose:[.33,1.47,-.7],am:'L',fall:[40,.65],sd:55,col:0xb9c2cc},
+  hc:{id:'hc',fam:'pi',name:'Heavy Pistol',short:'Pistol',dmg:42,head:1.75,rate:.55,mag:6,reload:1.7,hip:.026,ads:.007,range:95,pellets:1,fov:50,ad:3,as:.88,pose:[.33,1.47,-.7],am:'L',fall:[40,.65],sd:55,col:0xb9c2cc},
   sm:{id:'sm',fam:'sm',name:'SMG',short:'SMG',dmg:12,head:1.5,rate:.075,mag:28,reload:2,hip:.034,ads:.024,range:55,pellets:1,fov:62,ad:3.2,as:.9,pose:[.34,1.45,-.66],am:'L',fall:[18,.55],sd:12,col:0xf2902f},
-  ds:{id:'ds',fam:'sm',name:'Drum SMG',short:'Drum',dmg:15,head:1.5,rate:.11,mag:40,reload:2.6,hip:.03,ads:.018,range:65,pellets:1,fov:56,ad:3,as:.85,pose:[.34,1.45,-.66],am:'L',fall:[24,.6],sd:15,col:0xf2c230},
-  sg:{id:'sg',fam:'sg',name:'Pump Shotgun',short:'Pump',dmg:8,head:1.5,rate:.9,mag:5,reload:2.1,hip:.075,ads:.062,range:40,pellets:9,fov:60,ad:3,as:.9,pose:[.34,1.45,-.66],am:'S',falloff:true,sd:13,col:0xd9483b},
-  as:{id:'as',fam:'sg',name:'Auto Shotgun',short:'Auto SG',dmg:6,head:1.5,rate:.4,mag:8,reload:2.6,hip:.095,ads:.08,range:32,pellets:7,fov:66,ad:3.4,as:.95,pose:[.34,1.45,-.66],am:'S',falloff:true,sd:9,col:0x3d6fd9},
-  ar:{id:'ar',fam:'ar',name:'Rifle',short:'Rifle',dmg:18,head:1.5,rate:.12,mag:30,reload:1.9,hip:.022,ads:.006,range:150,pellets:1,fov:46,ad:0,as:0,pose:[.32,1.46,-.64],am:'M',fall:[60,.75],sd:22,col:0x1f9c8f},
-  hr:{id:'hr',fam:'ar',name:'Heavy Rifle',short:'H.Rifle',dmg:34,head:1.6,rate:.28,mag:18,reload:2.2,hip:.03,ads:.003,range:180,pellets:1,fov:34,ad:0,as:0,pose:[.32,1.46,-.64],am:'M',fall:[80,.8],sd:40,col:0x7a8f3a},
-  sr:{id:'sr',fam:'sr',name:'Bolt Sniper',short:'Bolt',dmg:82,head:2,rate:1.3,mag:4,reload:2.5,hip:.1,ads:0,range:320,pellets:1,fov:16,ad:0,as:0,pose:[.32,1.46,-.64],am:'H',sd:150,col:0x596078},
-  ss:{id:'ss',fam:'sr',name:'Scout Sniper',short:'Scout',dmg:44,head:2,rate:.5,mag:8,reload:2.8,hip:.07,ads:.002,range:260,pellets:1,fov:30,ad:0,as:0,pose:[.32,1.46,-.64],am:'H',sd:80,col:0xd9d2c0}
+  ds:{id:'ds',fam:'sm',name:'Drum SMG',short:'SMG',dmg:15,head:1.5,rate:.11,mag:40,reload:2.6,hip:.03,ads:.018,range:65,pellets:1,fov:56,ad:3,as:.85,pose:[.34,1.45,-.66],am:'L',fall:[24,.6],sd:15,col:0xf2c230},
+  sg:{id:'sg',fam:'sg',name:'Pump Shotgun',short:'Shotgun',dmg:8,head:1.5,rate:.9,mag:5,reload:2.1,hip:.075,ads:.062,range:40,pellets:9,fov:60,ad:3,as:.9,pose:[.34,1.45,-.66],am:'S',falloff:true,sd:13,col:0xd9483b},
+  as:{id:'as',fam:'sg',name:'Auto Shotgun',short:'Shotgun',dmg:6,head:1.5,rate:.4,mag:8,reload:2.6,hip:.095,ads:.08,range:32,pellets:7,fov:66,ad:3.4,as:.95,pose:[.34,1.45,-.66],am:'S',falloff:true,sd:9,col:0xa8322b},
+  ar:{id:'ar',fam:'ar',name:'AR',short:'AR',dmg:18,head:1.5,rate:.12,mag:30,reload:1.9,hip:.022,ads:.006,range:150,pellets:1,fov:46,ad:0,as:0,pose:[.32,1.46,-.64],am:'M',fall:[60,.75],sd:22,col:0x1f9c8f},
+  hr:{id:'hr',fam:'ar',name:'Heavy AR',short:'AR',dmg:34,head:1.6,rate:.28,mag:18,reload:2.2,hip:.03,ads:.003,range:180,pellets:1,fov:34,ad:0,as:0,pose:[.32,1.46,-.64],am:'M',fall:[80,.8],sd:40,col:0x17705f},
+  sr:{id:'sr',fam:'sr',name:'Bolt Sniper',short:'Sniper',dmg:82,head:2,rate:1.3,mag:4,reload:2.5,hip:.1,ads:0,range:320,pellets:1,fov:16,ad:0,as:0,pose:[.32,1.46,-.64],am:'H',sd:150,col:0x596078},
+  ss:{id:'ss',fam:'sr',name:'Scout Sniper',short:'Sniper',dmg:44,head:2,rate:.5,mag:8,reload:2.8,hip:.07,ads:.002,range:260,pellets:1,fov:30,ad:0,as:0,pose:[.32,1.46,-.64],am:'H',sd:80,col:0x8e98b4}
 };
 const WIDS=['pi','hc','sm','ds','sg','as','ar','hr','sr','ss'];
 const famOf=id=>WEAP[id]?WEAP[id].fam:'';
@@ -2668,14 +2664,15 @@ const LEG_TX=[[0,1.06],[.3,.99],[.47,.86],[.6,.94],[.72,.92],[.9,.78],[1,.8]],LE
 const legTx=y=>tabAt(LEG_TX,clamp(-y/.86,0,1)),legTz=y=>tabAt(LEG_TZ,clamp(-y/.86,0,1));
 // Held items. Every weapon is a toy blaster with its own outline, its family's body colour (WEAP[id].col) and an
 // orange toy tip, so you can tell what someone is carrying from behind them, across a field or lying on the ground:
-// Pistol small and cream; Heavy Pistol silver with a fat cylinder, a long ribbed barrel and a wood grip; SMG a stubby
-// orange box with a long straight magazine and a wire stock; Drum SMG yellow with a round drum that sticks out both
-// sides, a finned barrel and a wood stock; Pump Shotgun red with a barrel over a tube, a grooved wood pump and shells
-// on its wood stock; Auto Shotgun blue and square with a carry handle, a slotted heat shield and a big box magazine;
-// Rifle teal with a vented handguard, a curved magazine and a cream stock; Heavy Rifle olive with wood furniture, a
-// long barrel with a brake, a folded bipod and a small red-lensed sight; Bolt Sniper slate, very long, with a big
-// black scope, a bolt with a gold knob and a wood stock; Scout Sniper bone white, slimmer and shorter, with a green
-// scope and an open frame stock.
+// each shaped like the stereotype of its kind, the two of a family in a light and a dark shade of one colour:
+// Pistol short and cream, a slide on a frame; Heavy Pistol a silver revolver with a long ribbed barrel and a wood grip;
+// SMG a stubby orange box with a short barrel, a long straight magazine and a wire stock; Drum SMG yellow with a round
+// drum, a finned barrel and a wood stock; Pump Shotgun red, a thick barrel over a tube, a grooved wood pump and a wood
+// stock; Auto Shotgun dark red, short and chunky, a fat barrel with a big brake, a fat box magazine, a solid stock; AR
+// teal with a carry handle, a front sight post, a curved magazine and a stock; Heavy AR dark teal and longer, a rail
+// with a small red-dot sight, a front grip, a big curved magazine and a brake; Bolt Sniper slate, very long, a big
+// black scope, a bolt with a gold knob, a bipod and a wood stock with a cheek rest; Scout Sniper pale slate, slimmer
+// and shorter, with a green scope and an open stock with a cheek piece.
 // Each is still one merged mesh (one draw call for everyone holding that weapon, one for all of them on the ground),
 // built from a few kinds of part: bx a box (optionally tilted), ob a bar with its long edges cut off and shaded smooth
 // (so a body reads as rounded plastic, not a brick), cyl / pin / peg a cylinder along the barrel / across / upright,
@@ -2706,13 +2703,13 @@ const GUN_GEO=(()=>{const o={},TIP=0xff8a3a,DK=0x2a2d34,K=0x1b1d22,M=0x5a606b,L=
   const guard=zf=>{zf=zf==null?-.075:zf;bx(.022,.014,.05-zf,0,.012,(zf+.05)/2,K);bx(.022,.064,.014,0,.044,zf,K);bx(.012,.044,.014,0,.048,-.004,L,.3)};
   const mk=(id,tip,f)=>{B=Bag();f(TYPE_COL[id]);GUN_TIP[id]=tip;return bagGeo(B)};
 
-  // Pistol: a cream slide with grip ridges on a dark frame, a little lamp under the barrel.
-  o.pi=mk('pi',[.145,-.385],A=>{const AD=hue(A,.74);
-    ob(.1,.105,.45,0,.145,-.095,A);for(const z of [.04,.07,.1])bx(.105,.074,.013,0,.145,z,AD);       // slide and its ridges
-    bx(.05,.012,.1,.014,.2,-.1,K);bx(.03,.012,.2,0,.2,-.02,AD);for(const z of [-.23,-.265])bx(.105,.05,.014,0,.15,z,AD);bx(.06,.02,.05,0,.1,.13,DK,.35);   // ejection port, top rib, cuts by the muzzle, beaver tail
-    bx(.086,.052,.36,0,.07,-.075,DK);bx(.05,.044,.13,0,.03,-.18,K);bx(.034,.03,.012,0,.03,-.248,RED);   // frame, lamp and its lens
-    cyl(.03,.05,0,.145,-.34,K,6);cyl(.041,.034,0,.145,-.368,TIP);                                    // muzzle, toy tip
-    bx(.016,.022,.024,0,.207,-.285,TIP);for(const s of [-1,1])bx(.014,.022,.02,.022*s,.207,.1,K);bx(.028,.045,.028,0,.19,.14,K,.5);   // sights, hammer
+  // Pistol: short, a cream slide with grip ridges at the back on a dark frame, a dark grip.
+  o.pi=mk('pi',[.145,-.37],A=>{const AD=hue(A,.74);
+    ob(.1,.105,.44,0,.145,-.09,A);for(const z of [.04,.07,.1])bx(.105,.074,.013,0,.145,z,AD);       // slide and its ridges
+    bx(.05,.012,.1,.014,.2,-.1,K);bx(.03,.012,.2,0,.2,-.02,AD);bx(.06,.02,.05,0,.1,.13,DK,.35);    // ejection port, top rib, beaver tail
+    bx(.086,.052,.34,0,.07,-.075,DK);bx(.07,.02,.06,0,.05,-.21,K);                                    // frame and its nose
+    cyl(.03,.05,0,.145,-.33,K,6);cyl(.04,.032,0,.145,-.355,TIP);                                     // muzzle, toy tip
+    bx(.016,.022,.024,0,.207,-.28,TIP);for(const s of [-1,1])bx(.014,.022,.02,.022*s,.207,.1,K);bx(.028,.045,.028,0,.19,.14,K,.5);   // sights, hammer
     grip(DK,A);tl(.082,.09,.05,0,-.022,.132,AD,-.26,-.01);guard()});
   // Heavy Pistol: silver, a fat fluted cylinder, a long barrel with a rib on top and a lug under it, a wood grip.
   o.hc=mk('hc',[.16,-.575],A=>{const AD=hue(A,.72);
@@ -2743,47 +2740,48 @@ const GUN_GEO=(()=>{const o={},TIP=0xff8a3a,DK=0x2a2d34,K=0x1b1d22,M=0x5a606b,L=
     ex([[.13,.215],[.385,.205],[.385,.065],[.31,.082],[.13,.112]],.086,WOOD);bx(.096,.15,.022,0,.135,.398,K);   // stock and pad
     grip(K,A);guard()});
   // Pump Shotgun: red, a barrel over a magazine tube, a grooved wood pump, shells in a holder on the wood stock.
-  o.sg=mk('sg',[.185,-.855],A=>{const AD=hue(A,.7);
+  o.sg=mk('sg',[.188,-.855],A=>{const AD=hue(A,.7);
     ob(.12,.165,.38,0,.14,-.01,A);bx(.02,.05,.13,.056,.165,-.05,K);bx(.07,.014,.2,0,.05,-.07,K);       // receiver, ejection port, loading port
-    cyl(.043,.64,0,.185,-.5,M);bx(.02,.012,.6,0,.23,-.5,K);cyl(.053,.04,0,.185,-.835,TIP);bx(.014,.02,.014,0,.245,-.78,GOLD);   // barrel, rib, toy tip, bead
+    cyl(.052,.64,0,.188,-.5,M);bx(.022,.012,.6,0,.242,-.5,K);cyl(.06,.04,0,.188,-.835,TIP);bx(.014,.02,.014,0,.257,-.78,GOLD);   // barrel, rib, toy tip, bead
     cyl(.035,.5,0,.1,-.44,K);cyl(.039,.022,0,.1,-.7,A);bx(.05,.14,.028,0,.143,-.655,DK);              // tube, its cap, the clamp
     ob(.126,.106,.22,0,.097,-.42,WOOD);for(const z of [-.49,-.45,-.39,-.35])bx(.132,.07,.012,0,.097,z,WK);   // pump
     ex([[.16,.225],[.385,.218],[.385,.06],[.31,.078],[.16,.1]],.09,WOOD);bx(.1,.17,.022,0,.14,.398,AD);   // stock and pad
     bx(.012,.04,.15,.048,.15,.27,K);for(const z of [.22,.265,.31]){peg(.017,.07,.062,.15,z,RED);peg(.0175,.018,.062,.192,z,GOLD)}   // shell holder
     grip(WK);guard()});
-  // Auto Shotgun: blue and square, a fat barrel under a slotted heat shield, a carry handle, a big box magazine.
-  o.as=mk('as',[.165,-.85],A=>{const AD=hue(A,.66);
-    ob(.13,.17,.5,0,.15,-.08,A);bx(.134,.05,.4,0,.088,-.07,K);bx(.02,.045,.13,.061,.17,-.1,K);         // receiver, lower band, port
-    bx(.136,.05,.13,0,.165,.035,hue(A,1.25));for(const z of [-.005,.035,.075])bx(.139,.026,.018,0,.165,z,RED);   // a paler panel each side with three shell marks
-    cyl(.05,.42,0,.165,-.54,DK);bx(.086,.02,.3,0,.223,-.52,L);for(const z of [-.62,-.55,-.48,-.41])bx(.09,.024,.03,0,.223,z,K);   // barrel, heat shield and slots
-    ob(.126,.1,.24,0,.106,-.47,AD);for(const z of [-.53,-.47,-.41])bx(.131,.03,.014,0,.106,z,K);       // handguard
-    bx(.116,.096,.085,0,.165,-.775,K);for(const z of [-.795,-.76])bx(.122,.03,.012,0,.165,z,L);cyl(.047,.03,0,.165,-.832,TIP);   // muzzle brake, toy tip
-    bx(.086,.27,.15,0,-.06,-.175,DK,.1);tl(.091,.018,.155,0,-.06,-.175,M,.1,-.04);tl(.092,.026,.157,0,-.06,-.175,A,.1,-.135);   // magazine
-    for(const z of [-.2,.06])bx(.03,.055,.03,0,.255,z,K);bx(.036,.026,.33,0,.292,-.07,K);              // carry handle
-    ex([[.15,.232],[.385,.222],[.385,.06],[.3,.078],[.15,.1]],.096,DK);bx(.106,.175,.022,0,.143,.398,A);   // stock and pad
+  // Auto Shotgun: dark red, short and chunky: a fat barrel with a big square brake, a rib on top, a fat square box magazine, a solid stock.
+  o.as=mk('as',[.17,-.775],A=>{const C=.16,AD=hue(A,.7);
+    ob(.14,.19,.46,0,C,-.06,A);bx(.143,.05,.38,0,.09,-.06,K);bx(.02,.045,.13,.066,C+.02,-.09,K);       // receiver, lower band, port
+    bx(.145,.05,.12,0,C+.015,.04,hue(A,1.3));for(const z of [.005,.04,.075])bx(.148,.026,.018,0,C+.015,z,GOLD);   // a paler panel each side with three shell marks
+    bx(.04,.016,.28,0,C+.103,-.08,K);for(const z of [-.18,-.1,-.02,.06])bx(.046,.008,.014,0,C+.113,z,M);   // low top rail
+    cyl(.07,.36,0,C+.015,-.47,DK);for(const z of [-.4,-.56])cyl(.074,.022,0,C+.015,z,M);bx(.03,.014,.32,0,C+.09,-.47,K);   // fat barrel, its bands, rib
+    ob(.14,.1,.2,0,C-.07,-.4,AD);for(const z of [-.45,-.4,-.35])bx(.145,.03,.014,0,C-.07,z,K);         // handguard
+    bx(.15,.14,.09,0,C+.015,-.695,K);for(const z of [-.715,-.675])bx(.156,.03,.014,0,C+.015,z,L);cyl(.062,.03,0,C+.015,-.755,TIP);   // big square brake, toy tip
+    bx(.11,.22,.19,0,-.055,-.17,DK,.04);tl(.114,.016,.194,0,-.055,-.17,M,.04,.0);tl(.116,.026,.196,0,-.055,-.17,A,.04,-.11);   // fat box magazine
+    ex([[.15,.245],[.385,.235],[.385,.06],[.3,.076],[.15,.1]],.1,DK);bx(.11,.18,.022,0,.143,.398,A);   // solid stock and pad
     grip(K,A);guard(-.06)});
-  // Rifle: teal, a vented handguard, a rail with sights, a curved magazine and a cream stock.
-  o.ar=mk('ar',[.155,-.87],A=>{const C=.155,AD=hue(A,.74);
-    ob(.105,.15,.46,0,C,-.05,A);bx(.09,.05,.34,0,.088,-.04,K);bx(.02,.04,.1,.049,C+.012,-.08,K);pin(.014,.03,.062,C+.012,.06,L);   // receiver, lower, port, button
-    ob(.118,.126,.3,0,C,-.43,AD);for(const z of [-.36,-.42,-.48,-.54])bx(.123,.022,.03,0,C+.004,z,K);ob(.1,.106,.022,0,C,-.588,M);   // handguard, vents, cap
-    bx(.036,.016,.5,0,C+.08,-.2,M);for(const z of [-.4,-.33,-.26,-.19,-.12,-.05,.02])bx(.042,.008,.014,0,C+.09,z,K);   // top rail
-    cyl(.024,.2,0,C,-.69,L,6);cyl(.035,.07,0,C,-.81,K);cyl(.041,.03,0,C,-.855,TIP);                    // barrel, flash hider, toy tip
-    bx(.04,.02,.04,0,C+.09,-.56,K);bx(.016,.06,.02,0,C+.125,-.56,K);bx(.05,.02,.05,0,C+.098,.1,K);for(const s of [-1,1])bx(.012,.036,.03,.02*s,C+.124,.1,K);   // sights
+  // AR: teal, a black carry handle with the rear sight on it, a tall front sight post, a round handguard, a curved magazine, a stock.
+  o.ar=mk('ar',[.155,-.875],A=>{const C=.155,AD=hue(A,.74);
+    ob(.105,.15,.44,0,C,-.05,A);bx(.09,.05,.32,0,.088,-.04,K);bx(.02,.04,.1,.049,C+.012,-.08,K);pin(.014,.03,.062,C+.012,.06,L);   // receiver, lower, port, button
+    cyl(.062,.32,0,C-.005,-.43,AD);for(const z of [-.34,-.43,-.52])cyl(.065,.02,0,C-.005,z,K);         // round handguard and its rings
+    cyl(.022,.26,0,C,-.72,DK,6);cyl(.032,.06,0,C,-.82,K);cyl(.038,.03,0,C,-.86,TIP);                   // barrel, flash hider, toy tip
+    bx(.044,.03,.04,0,C+.035,-.665,K);bx(.03,.12,.03,0,C+.1,-.665,K,-.18);bx(.012,.028,.012,0,C+.165,-.676,TIP);   // front sight post
+    for(const z of [-.2,.09])bx(.032,.07,.034,0,C+.1,z,K);bx(.036,.03,.36,0,C+.145,-.055,K);bx(.044,.04,.05,0,C+.175,.08,K);   // carry handle, rear sight
     bx(.11,.016,.03,0,C+.045,.168,L);                                                                // charging handle
     bx(.064,.17,.1,0,0,-.13,M,.18);tl(.064,.12,.1,0,-.0836,-.1452,M,.45,-.055);tl(.07,.022,.106,0,-.0836,-.1452,A,.45,-.118);   // curved magazine
-    bx(.046,.046,.14,0,C+.012,.25,M);ex([[.27,.232],[.385,.226],[.385,.068],[.33,.068],[.27,.118]],.082,TYPE_COL.pi);bx(.092,.17,.02,0,.148,.397,K);   // stock tube, butt, pad
+    bx(.046,.046,.1,0,C+.012,.22,K);ex([[.25,.226],[.385,.215],[.385,.06],[.31,.07],[.25,.118]],.084,DK);bx(.092,.16,.02,0,.142,.397,K);   // buffer tube, stock, pad
     grip(K,A);guard(-.05)});
-  // Heavy Rifle: olive, wood handguard and stock, a long barrel with a brake, a folded bipod, a deep magazine, a small sight.
-  o.hr=mk('hr',[.16,-1.15],A=>{const C=.15,AD=hue(A,.68);
-    ob(.11,.16,.46,0,C,-.05,A);bx(.114,.05,.3,0,.088,-.06,AD);bx(.02,.045,.12,.052,C+.012,-.08,K);     // receiver, lower, port
-    ob(.118,.126,.36,0,.14,-.46,WOOD);for(const z of [-.36,-.56])bx(.124,.132,.024,0,.14,z,K);         // wood handguard and its bands
-    cyl(.03,.44,0,C+.01,-.86,DK);bx(.05,.07,.05,0,C+.02,-.72,M);bx(.014,.05,.014,0,C+.085,-.72,K);     // barrel, gas block, front sight
-    bx(.086,.072,.11,0,C+.01,-1.07,K);for(const z of [-1.095,-1.05])bx(.092,.024,.014,0,C+.01,z,L);cyl(.037,.03,0,C+.01,-1.138,TIP);   // brake, toy tip
-    for(const s of [-1,1])bx(.014,.014,.27,.036*s,.062,-.62,L);bx(.092,.03,.034,0,.07,-.49,K);        // folded bipod
-    bx(.075,.25,.13,0,-.055,-.14,DK,.08);for(const o2 of [.03,-.04])tl(.08,.014,.134,0,-.055,-.14,M,.08,o2);tl(.081,.026,.136,0,-.055,-.14,A,.08,-.125);   // magazine
-    for(const z of [-.1,.04])bx(.04,.045,.03,0,C+.1,z,K);cyl(.04,.2,0,C+.155,-.03,K);cyl(.034,.012,0,C+.155,-.134,0xff5a4a);cyl(.03,.012,0,C+.155,.074,LENS);peg(.018,.03,0,C+.205,-.03,M);   // sight
-    ex([[.16,.232],[.385,.248],[.385,.06],[.31,.078],[.16,.1]],.09,WOOD);bx(.06,.018,.13,0,.25,.3,K);bx(.1,.195,.022,0,.152,.398,K);   // stock, cheek pad, butt pad
-    grip(WK);guard(-.06)});
+  // Heavy AR: dark teal, longer, a top rail with a small boxy red-dot sight, a long square handguard with a front grip, a big
+  // curved magazine, a muzzle brake and a solid stock.
+  o.hr=mk('hr',[.15,-1.005],A=>{const C=.15,AD=hue(A,.72);
+    ob(.11,.16,.46,0,C,-.05,A);bx(.114,.05,.3,0,.088,-.06,K);bx(.02,.045,.12,.052,C+.012,-.08,K);      // receiver, lower, port
+    bx(.04,.018,.46,0,C+.088,-.13,K);for(const z of [-.32,-.24,-.16,-.08,0,.08])bx(.046,.008,.014,0,C+.098,z,M);   // top rail
+    bx(.074,.074,.11,0,C+.135,-.03,K);bx(.06,.054,.008,0,C+.138,-.087,LENS);bx(.016,.016,.006,0,C+.138,-.083,RED);bx(.03,.024,.034,.042,C+.135,-.02,M);   // red-dot sight: housing, glass, dot, knob
+    ob(.12,.12,.4,0,C-.005,-.48,AD);for(const z of [-.36,-.44,-.52,-.6])bx(.125,.024,.03,0,C-.005,z,K); // handguard and slots
+    bx(.05,.13,.055,0,C-.13,-.52,K);                                                                 // front grip
+    cyl(.034,.24,0,C,-.79,DK);bx(.09,.08,.1,0,C,-.935,K);for(const z of [-.96,-.915])bx(.096,.024,.014,0,C,z,L);cyl(.04,.03,0,C,-.99,TIP);   // barrel, brake, toy tip
+    bx(.07,.19,.11,0,-.005,-.14,K,.18);tl(.07,.13,.11,0,-.095,-.157,K,.45,-.06);tl(.076,.024,.116,0,-.095,-.157,A,.45,-.13);   // big curved magazine
+    ex([[.17,.235],[.385,.24],[.385,.06],[.3,.076],[.17,.105]],.09,DK);bx(.06,.018,.12,0,.247,.3,A);bx(.1,.19,.022,0,.152,.398,K);   // stock, cheek riser, pad
+    grip(K,A);guard(-.06)});
   // Bolt Sniper: slate, a very long barrel, a big black scope, a bolt with a gold knob, a bipod, a wood stock.
   o.sr=mk('sr',[.155,-1.345],A=>{const C=.145,SC=0x1b1d24;
     ob(.095,.13,.5,0,C,-.08,A);ob(.106,.09,.46,0,.085,-.3,WOOD);bx(.07,.06,.12,0,.03,-.14,DK);         // receiver, wood fore-end, magazine
@@ -2792,7 +2790,7 @@ const GUN_GEO=(()=>{const o={},TIP=0xff8a3a,DK=0x2a2d34,K=0x1b1d22,M=0x5a606b,L=
     cyl(.04,.46,0,C+.15,-.1,SC);cyl(.062,.13,0,C+.15,-.37,SC,12);cyl(.054,.012,0,C+.15,-.437,LENS,12);cyl(.052,.09,0,C+.15,.15,SC,12);cyl(.044,.012,0,C+.15,.197,LENS,12);   // scope and its lenses
     peg(.022,.045,0,C+.2,-.1,M);pin(.022,.04,.05,C+.15,-.1,M);for(const z of [-.22,.02])bx(.036,.06,.036,0,C+.09,z,K);   // turrets, mounts
     pin(.012,.07,.075,C+.01,.11,L);ob(.042,.042,.046,.118,C-.004,.11,GOLD);                           // bolt and knob
-    for(const s of [-1,1]){bx(.014,.014,.3,.03*s,.036,-.68,L);bx(.02,.02,.03,.03*s,.036,-.84,K)}bx(.08,.036,.036,0,.046,-.51,K);   // folded bipod
+    bx(.08,.04,.05,0,.06,-.6,K);for(const s of [-1,1]){tl(.018,.26,.018,.032*s,.05,-.6,L,.5,-.13);tl(.026,.03,.03,.032*s,.05,-.6,K,.5,-.26)}   // bipod: clamp, two legs down and forward, feet
     ex([[.15,.215],[.25,.215],[.27,.238],[.385,.238],[.385,.06],[.3,.078],[.15,.096]],.088,WOOD);bx(.07,.016,.1,0,.246,.325,K);bx(.098,.185,.022,0,.15,.398,K);   // stock, cheek pad, butt pad
     grip(WK);guard()});
   // Scout Sniper: bone white, slimmer and shorter, a green scope, a slotted fore-end, a box magazine, an open stock.
@@ -2813,7 +2811,7 @@ const GUN_GEO=(()=>{const o={},TIP=0xff8a3a,DK=0x2a2d34,K=0x1b1d22,M=0x5a606b,L=
 // where the rarity band sits on each weapon (a sleeve round the body, cut-edged like the body): y, z, then its width, height and depth
 const GUN_MID={};for(const k of WIDS){const b=GUN_GEO[k].boundingBox;GUN_MID[k]=new THREE.Matrix4().makeTranslation(0,-(b.min.y+b.max.y)/2,-(b.min.z+b.max.z)/2)}   // floor loot turns about the middle of the model
 const RTAG={pi:[.145,-.2,.112,.117,.04],hc:[.16,-.21,.084,.104,.04],sm:[.155,.115,.122,.157,.05],ds:[.155,.105,.127,.162,.05],sg:[.14,.135,.132,.177,.05],
-  as:[.15,.125,.142,.182,.05],ar:[.155,.135,.117,.162,.05],hr:[.15,.135,.122,.172,.05],sr:[.145,.125,.107,.142,.05],ss:[.145,.1,.102,.132,.05]};
+  as:[.16,.115,.147,.202,.05],ar:[.155,.135,.117,.162,.05],hr:[.15,.135,.122,.172,.05],sr:[.145,.125,.107,.142,.05],ss:[.145,.1,.102,.132,.05]};
 // ---- Icons. Every weapon, the crowbar, the two kinds of heal and the three build pieces are drawn once, when the page loads, from
 // the same geometry the game uses (so an icon can't drift from its model), side on with a little turn, onto a small transparent
 // picture: ICONS[key] is a data URL, used by the hotbar. 18 tiny renders, a few milliseconds.
@@ -3429,6 +3427,19 @@ function windHum(k){
   windGain.gain.setTargetAtTime(k*.16,AC.currentTime,.3);
 }
 
+// the Drifter's engines: a deep drone of two slightly mistuned notes (the four props beating against each other), a
+// buzz above it and rushing air, all through one filter; made the first time it's heard. Its volume and brightness
+// follow how far the camera is from the plane, so it fades and dulls as you fall away.
+let droneGain=null,droneF=null,droneV=-1;
+function planeDrone(v,f){
+  if(!AC)return;v=Math.round(v*200)/200;if(v===droneV)return;droneV=v;
+  if(!droneGain){if(!v)return;try{droneGain=AC.createGain();droneGain.gain.value=0;droneF=AC.createBiquadFilter();droneF.type='lowpass';droneF.Q.value=.8;droneF.frequency.value=f;droneF.connect(droneGain);droneGain.connect(master);
+      for(const [hz,ty,gv] of [[46,'sawtooth',.42],[46.8,'sawtooth',.38],[92.5,'square',.08],[139,'triangle',.16]]){const o=AC.createOscillator();o.type=ty;o.frequency.value=hz;const gg=AC.createGain();gg.gain.value=gv;o.connect(gg);gg.connect(droneF);o.start()}
+      const s=AC.createBufferSource();s.buffer=noiseBuf;s.loop=true;const nf=AC.createBiquadFilter();nf.type='bandpass';nf.frequency.value=620;nf.Q.value=.5;const ng=AC.createGain();ng.gain.value=.5;s.connect(nf);nf.connect(ng);ng.connect(droneF);s.start()}
+    catch(e){droneGain=null;return}}
+  droneGain.gain.setTargetAtTime(v,AC.currentTime,.35);droneF.frequency.setTargetAtTime(f,AC.currentTime,.35);
+}
+
 /* ---------- game state ---------- */
 let state='menu',paused=false,online=false,practice=false;
 let mode='combat',buildType='wall',lmb=false,buildCd=0,camDist=3.5,camSide=.7,locked=false,fallback=false,everLocked=false;
@@ -3504,7 +3515,7 @@ function stormAt(t){
   const k=(t-ph.at)/ph.dur;return setSt(a.x+(b.x-a.x)*k,a.z+(b.z-a.z)*k,a.r+(b.r-a.r)*k,b.x,b.z,b.r,ph.dps,ph.at+ph.dur-t,true,i,true);
 }
 const outsideStorm=(e,S)=>Math.hypot(e.pos.x-S.x,e.pos.z-S.z)>S.r;
-// the storm wall: an open cylinder, and the Drifter (an airship), both one mesh
+// the storm wall: an open cylinder, one mesh (the Drifter, the plane, is Plane below)
 // It is drawn as a bank of thundercloud: two layers of drifting cloud from the shared noise texture, rain streaks low
 // down, a ragged top, and a brightening when lightning strikes. One draw call. Phones and Fast graphics (LITE) get one
 // cloud layer and no streaks. Everything here is only how the storm looks: where it is comes from stormAt().
@@ -3557,11 +3568,357 @@ function drawBolt(S){
     _o.position.set((x+nx)/2,(y+ny)/2,(z+nz)/2);_o.lookAt(nx,ny,nz);_o.scale.set(.75,.75,Math.hypot(nx-x,ny-y,nz-z)+.4);_o.updateMatrix();boltMesh.setMatrixAt(i,_o.matrix);x=nx;y=ny;z=nz}
   _o.scale.set(1,1,1);boltMesh.instanceMatrix.needsUpdate=true;
 }
-const busMesh=(()=>{const B=Bag();
-  _m4.compose(_p.set(0,0,0),_q.identity(),_s.set(5.2,5.2,17));bagAdd(B,new THREE.SphereGeometry(1,14,10),_m4,0xffc93c,1);
-  bagBox(B,0,0,0,10.6,.6,22,0xff6a3a);bagBox(B,0,-6.2,1,3.6,2.2,8,0xf2ede2);bagBox(B,0,-6.2,-3.4,3.7,1,.6,0x2f93bf);bagBox(B,0,-4.6,1,.4,2.2,.4,0x6d5844);
-  bagBox(B,0,4.2,-13,.4,5,4,0x2f93bf);bagBox(B,0,0,-13.5,9,.4,3.4,0x2f93bf);bagBox(B,2.6,-6.2,4.8,.3,1.2,.4,0x333333);
-  const m=new THREE.Mesh(bagGeo(B),MAT);m.visible=false;scene.add(m);return m})();
+// The Drifter: a chunky blue cargo plane, our own design, built here from simple shapes. All of it is one mesh with one
+// material (vertex colours plus one texture drawn below for the paint: the lettering, the tail number, the graffiti, panel
+// lines and soot), and a second, see-through mesh carries the engines' haze, the wing-tip trails and the glow of the
+// lights: two draw calls. The props spin and the lights blink in the shaders, so a frame only moves the plane and sets
+// two numbers. It is only a look: where it is comes from busPos() (the end of its open ramp sits on that point, so
+// people drop off the end of the ramp), it banks and bobs from the match clock, and nothing about it is sent.
+// In its own coordinates +z is forward, +x is its left (port) side and y is up; sizes are in metres.
+const PLANE_LIP=new V3(0,-3.4,-11);   // the end of the rear ramp
+const Plane=(()=>{
+  const LO=matchMedia('(pointer: coarse)').matches||gfxPref==='fast';
+  const Z0=-13.6,Z1=15.6,ZL=Z1-Z0;
+  // ---- the paint: one 2048 x 1024 picture (half that on phones and Fast). Where things are on it:
+  // fuselage 0,0 to 2048,512 (along: tail to nose; down the picture: belly, right side, top, left side, belly),
+  // the fin's left side 0,512 (256 square) and its right side 256,512, the wing's top 512,512 (1536 x 256) and
+  // underside 512,768, and a white patch at 448,960 for the parts that are only vertex colour.
+  const TW=2048,TH=1024;
+  const tex=(()=>{
+    const K=LO?.5:1,c=document.createElement('canvas');c.width=TW*K;c.height=TH*K;const g=c.getContext('2d');g.scale(K,K);
+    const r=mulberry(9091);
+    g.fillStyle='#fff';g.fillRect(0,0,TW,TH);
+    // -- stencil letters: each glyph is a few thick strokes in a 4 x 6 box, with the bridges a stencil leaves cut through
+    const GL={A:[[[.65,6],[.65,1.6],[1.6,.65],[2.4,.65],[3.35,1.6],[3.35,6]],[[.65,3.6],[3.35,3.6]]],
+      S:[[[4,.65],[1.4,.65],[.65,1.4],[.65,2.25],[1.4,3],[2.6,3],[3.35,3.75],[3.35,4.6],[2.6,5.35],[0,5.35]]],
+      C:[[[4,.65],[1.4,.65],[.65,1.4],[.65,4.6],[1.4,5.35],[4,5.35]]],
+      O:[[[1.4,.65],[2.6,.65],[3.35,1.4],[3.35,4.6],[2.6,5.35],[1.4,5.35],[.65,4.6],[.65,1.4],[1.4,.65]]],
+      D:[[[.65,.65],[2.5,.65],[3.35,1.5],[3.35,4.5],[2.5,5.35],[.65,5.35],[.65,.65]]],
+      I:[[[.65,0],[.65,6]]],
+      N:[[[.65,6],[.65,.65],[3.35,5.35],[3.35,0]]],
+      G:[[[4,.65],[1.4,.65],[.65,1.4],[.65,4.6],[1.4,5.35],[3.35,5.35],[3.35,3.2],[2,3.2]]],
+      U:[[[.65,0],[.65,4.6],[1.4,5.35],[2.6,5.35],[3.35,4.6],[3.35,0]]],
+      L:[[[.65,0],[.65,5.35],[4,5.35]]],
+      R:[[[.65,6],[.65,.65],[2.6,.65],[3.35,1.4],[3.35,2.3],[2.6,3.05],[.65,3.05]],[[2.1,3.05],[3.4,6]]],
+      K:[[[.65,0],[.65,6]],[[3.6,0],[1,3.2]],[[1.9,2.3],[3.7,6]]],
+      1:[[[.3,1.5],[1.75,.65],[1.75,6]]]};
+    const BR={O:[[1.8,0,.4,1.4],[1.8,4.6,.4,1.4]],D:[[1.4,0,.4,1.4],[1.4,4.6,.4,1.4]],U:[[1.8,4.6,.4,1.4]],R:[[1.6,0,.4,1.4]]};
+    const GW=ch=>ch==='I'?1.3:ch==='1'?2.4:ch===' '?2:4;
+    // draw str centred on (x,y) (the middle of the line) in the current transform, h tall; bg paints the bridges
+    function stencil(str,x,y,h,col,bg,sh){
+      const k=h/6;let w=0;for(const ch of str)w+=GW(ch)+1.1;w-=1.1;let cx=x-w*k/2;const top=y-h/2;
+      for(const pass of sh?[0,1]:[1]){let px=cx;
+        for(const ch of str){const L=GL[ch];
+          if(L){g.save();g.translate(px+(pass?0:.05*h),top+(pass?0:.05*h));g.scale(k,k);g.lineWidth=1.3;g.lineJoin='bevel';g.lineCap='butt';g.strokeStyle=pass?col:sh;
+            for(const s of L){g.beginPath();g.moveTo(s[0][0],s[0][1]);for(let i=1;i<s.length;i++)g.lineTo(s[i][0],s[i][1]);g.stroke()}
+            if(pass&&BR[ch]){g.fillStyle=bg;for(const b of BR[ch])g.fillRect(b[0],b[1],b[2],b[3])}
+            g.restore()}
+          px+=(GW(ch)+1.1)*k}}
+    }
+    // -- spray paint: a soft overspray, a dark outline and the colour, with a few drips running down from it
+    function spray(path,col,w,out){
+      g.save();g.lineCap=g.lineJoin='round';
+      if(out){g.strokeStyle=out;g.lineWidth=w*1.9;path();g.stroke()}
+      g.shadowColor=col;g.shadowBlur=w*2.2;g.strokeStyle=col;g.lineWidth=w;path();g.stroke();g.restore()}
+    function drips(x0,x1,y,col,w,n,len){g.save();g.strokeStyle=col;g.lineCap='round';for(let i=0;i<n;i++){const x=x0+(x1-x0)*r(),l=len*(.3+r()*.7);g.lineWidth=w*(.5+r()*.5);g.beginPath();g.moveTo(x,y);g.lineTo(x,y+l);g.stroke();g.beginPath();g.arc(x,y+l,w*.55,0,6.283);g.fillStyle=col;g.fill()}g.restore()}
+    // a hand-written tag: a few loose letters as smooth strokes, slanted, with a swoosh under them
+    const TAG={A:[[[0,1],[.35,0],[.7,1]],[[.12,.62],[.62,.55]]],S:[[[.68,.12],[.35,0],[.06,.18],[.2,.45],[.52,.55],[.68,.8],[.4,1],[0,.88]]],
+      1:[[[.02,.22],[.3,0],[.3,1]]],Z:[[[0,.02],[.66,0],[.02,1],[.72,.98]]],O:[[[.36,0],[.04,.28],[.06,.76],[.38,1],[.68,.74],[.66,.24],[.36,0],[.2,.06]]],
+      M:[[[0,1],[.08,0],[.4,.62],[.72,0],[.82,1]]]};
+    function smooth(pts){g.moveTo(pts[0][0],pts[0][1]);if(pts.length<3){g.lineTo(pts[1][0],pts[1][1]);return}
+      for(let i=1;i<pts.length-1;i++){const m=[(pts[i][0]+pts[i+1][0])/2,(pts[i][1]+pts[i+1][1])/2];g.quadraticCurveTo(pts[i][0],pts[i][1],m[0],m[1])}
+      const e=pts[pts.length-1];g.lineTo(e[0],e[1])}
+    function tag(str,x,y,h,col,out){   // x,y: the left end of the baseline's middle
+      const path=()=>{g.beginPath();let px=0;for(const ch of str){const L=TAG[ch];if(L)for(const s of L){const q=s.map(p=>[x+(px+p[0])*h-(p[1]-.5)*h*.32,y+(p[1]-.5)*h]);smooth(q)}px+=ch==='1'?.5:ch==='M'?1:.85}
+        g.moveTo(x-h*.2,y+h*.72);g.quadraticCurveTo(x+px*h*.5,y+h*.98,x+px*h+h*.25,y+h*.52);g.lineTo(x+px*h,y+h*.42)};
+      spray(path,col,h*.13,out);
+      let px=0;for(const ch of str)px+=ch==='1'?.5:ch==='M'?1:.85;drips(x,x+px*h,y+h*.85,col,h*.06,3,h*.7)}
+    function star(x,y,R,col,out){spray(()=>{g.beginPath();for(let i=0;i<=10;i++){const a=-Math.PI/2+i*Math.PI/5,rr=i%2?R*.42:R;g.lineTo(x+Math.cos(a)*rr,y+Math.sin(a)*rr)}g.closePath()},out,R*.16);
+      g.save();g.fillStyle=col;g.shadowColor=col;g.shadowBlur=R*.3;g.beginPath();for(let i=0;i<=10;i++){const a=-Math.PI/2+i*Math.PI/5,rr=i%2?R*.42:R;g.lineTo(x+Math.cos(a)*rr,y+Math.sin(a)*rr)}g.closePath();g.fill();g.restore()}
+    function bolt(x,y,L,H,col,out){const P=[[0,-.5],[.62,-.1],[.5,0],[1,.5],[.36,.08],[.48,-.02]].map(p=>[x+p[0]*L,y+p[1]*H]);
+      const path=()=>{g.beginPath();P.forEach((p,i)=>i?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1]));g.closePath()};
+      g.save();g.lineJoin='round';g.strokeStyle=out;g.lineWidth=H*.14;path();g.stroke();g.fillStyle=col;g.shadowColor=col;g.shadowBlur=H*.3;path();g.fill();g.restore();drips(x+L*.15,x+L*.55,y+H*.1,col,H*.05,3,H*.6)}
+    // -- the fuselage. A row of the picture is one line round the body (v: 0 belly, .25 left side, .5 top, .75 right side).
+    const FH=512,pxz=TW/ZL;          // px per metre along it
+    const rowOf=v=>(1-v)*FH;
+    for(let y=0;y<FH;y++){const v=1-(y+.5)/FH,h=-Math.cos(v*Math.PI*2);
+      g.fillStyle=h<-.62?'#aecbe8':h<-.56?'#ffffff':h<-.5?'#35c8ef':h<.52?'#2c68b0':h<.6?'#224f91':'#1d4280';g.fillRect(0,y,TW,1)}
+    // panel lines (the joins between skin panels) every 1.6 m, two lengthwise, with rivets along them
+    for(let z=Z0+.9;z<Z1-.8;z+=1.6){const x=(z-Z0)*pxz;g.fillStyle='rgba(8,20,48,.28)';g.fillRect(x,0,2,FH);g.fillStyle='rgba(8,20,48,.35)';for(let y=3;y<FH;y+=7)g.fillRect(x+4,y,2,2)}
+    for(const v of [.12,.38,.62,.88,.5]){const y=rowOf(v);g.fillStyle='rgba(8,20,48,.25)';g.fillRect(0,y,TW,2);g.fillStyle='rgba(8,20,48,.3)';for(let x=4;x<TW;x+=9)g.fillRect(x,y+4,2,2)}
+    // airflow streaks and grime, darker toward the back of the belly
+    for(let i=0;i<260;i++){const v=r(),y=rowOf(v),x=r()*TW,l=40+r()*240;g.fillStyle=`rgba(10,18,30,${.03+r()*.06})`;g.fillRect(x,y,l,1+r()*2)}
+    {const gr=g.createLinearGradient(0,0,(-1-Z0)*pxz,0);gr.addColorStop(0,'rgba(30,26,20,.32)');gr.addColorStop(1,'rgba(30,26,20,0)');g.fillStyle=gr;g.fillRect(0,0,(-1-Z0)*pxz,FH*.1);g.fillRect(0,FH*.9,(-1-Z0)*pxz,FH*.1)}
+    for(let i=0;i<5000;i++){g.fillStyle=r()<.5?'rgba(255,255,255,.05)':'rgba(0,10,30,.06)';g.fillRect(r()*TW,r()*FH,1+r()*3,1+r()*3)}
+    // the cockpit: a windscreen of four panes over the nose and two side windows each side, dark glass with a streak of sky
+    const glass=(pts)=>{g.beginPath();pts.forEach((p,i)=>{const x=(p[0]-Z0)*pxz,y=rowOf(p[1]);i?g.lineTo(x,y):g.moveTo(x,y)});g.closePath();
+      const gr=g.createLinearGradient(0,rowOf(.62),0,rowOf(.38));gr.addColorStop(0,'#0b1626');gr.addColorStop(.45,'#1b3552');gr.addColorStop(.5,'#6f97bd');gr.addColorStop(.56,'#16304d');gr.addColorStop(1,'#0b1626');
+      g.fillStyle=gr;g.fill();g.lineWidth=5;g.strokeStyle='#14305c';g.stroke()};
+    for(const s of [1,-1]){const m=v=>.5+s*v;
+      glass([[12.55,m(.008)],[13.75,m(.008)],[13.65,m(.07)],[12.5,m(.075)]]);
+      glass([[12.45,m(.088)],[13.55,m(.083)],[13.25,m(.15)],[12.3,m(.155)]]);
+      glass([[11.2,m(.17)],[12.15,m(.168)],[12.05,m(.215)],[11.15,m(.22)]]);
+      glass([[10.05,m(.172)],[10.95,m(.172)],[10.9,m(.22)],[10.05,m(.222)]])}
+    // the crew doors and an escape hatch, outlined
+    g.strokeStyle='rgba(6,16,40,.55)';g.lineWidth=3;
+    for(const s of [1,-1]){const y=rowOf(.5-s*.25);g.strokeRect((7.6-Z0)*pxz,y-s*0-26,1.0*pxz,62);g.strokeRect((-3.9-Z0)*pxz,y-22,.9*pxz,50)}
+    // a frame per side: x is metres to the viewer's right, y metres down, so lettering reads the right way round on both
+    // sides (the paint's along-axis runs toward the nose; on the left side the nose is to a viewer's left)
+    const RPM=FH/17.2;
+    const sideFrame=(s,z,hm)=>g.setTransform(-s*pxz*(c.width/TW),0,0,s*RPM*(c.height/TH),(z-Z0)*pxz*(c.width/TW),(rowOf(.5-s*.25)-hm*RPM*s*(s>0?1:1))*(c.height/TH));
+    for(const s of [1,-1]){
+      const nd=-s;      // which way the nose is in this frame (+1: to the viewer's right)
+      // ASCODING along the side, big white stencil letters, a little chipped. Low on the side, under the line of the
+      // engines, so the nacelles don't cover it when seen from the side or from above
+      sideFrame(s,-1.1,-.6);stencil('ASCODING',0,0,1.3,'#f3f6fa','#2c68b0','rgba(6,16,40,.55)');
+      g.fillStyle='#2c68b0';for(let i=0;i<60;i++)g.fillRect((r()-.5)*8.8,(r()-.5)*1.3,.03+r()*.06,.02+r()*.04);
+      // the shark mouth on the nose
+      sideFrame(s,15.6,0);g.save();g.scale(nd,1);
+      g.beginPath();g.moveTo(-.25,.15);g.quadraticCurveTo(-1.6,.15,-3.3,-.25);g.quadraticCurveTo(-2.2,1.35,-.3,1.25);g.closePath();g.fillStyle='#16161c';g.fill();
+      g.lineWidth=.12;g.strokeStyle='#d8262f';g.lineJoin='round';g.stroke();
+      g.fillStyle='#f4f4f0';for(let i=0;i<9;i++){const t=i/9,x=-.4-t*2.7,y=.15+(-.4)*t*t,y2=1.25-.05*t-.0*t;g.beginPath();g.moveTo(x,y+.02);g.lineTo(x-.27,y+.02);g.lineTo(x-.14,y+.38-.18*t);g.closePath();g.fill();
+        if(i<7){const xb=-.5-t*2.4;g.beginPath();g.moveTo(xb,y2-.04);g.lineTo(xb-.25,y2-.04-.02*t);g.lineTo(xb-.13,y2-.34+.1*t);g.closePath();g.fill()}}
+      g.beginPath();g.arc(-3.0,-.75,.26,0,6.283);g.fillStyle='#f4f4f0';g.fill();g.beginPath();g.arc(-2.96,-.73,.14,0,6.283);g.fillStyle='#111';g.fill();
+      g.lineWidth=.08;g.strokeStyle='#d8262f';g.beginPath();g.moveTo(-3.38,-1.02);g.quadraticCurveTo(-3.0,-1.18,-2.62,-1.0);g.stroke();
+      g.restore();
+      // graffiti further back: a tag, a lightning bolt and a star, each in its own colours
+      sideFrame(s,-8.6,.15);if(s>0)tag('ZOOM',-1.9,-.1,1.05,'#a6f03a','#10240a');else tag('AS11',-1.6,-.1,1.05,'#ff5bc8','#2a0620');
+      sideFrame(s,7.2,-.75);g.save();g.scale(nd,1);bolt(-1.9,0,3.8,.95,'#ffd23f','#2a1a00');g.restore();
+      sideFrame(s,7.4,.95);star(0,0,.55,'#ffffff','#0b2048');
+      // scuffs by the ramp and the doors
+      sideFrame(s,-9.5,-1.2);g.strokeStyle='rgba(225,232,240,.35)';g.lineWidth=.03;for(let i=0;i<14;i++){const x=(r()-.5)*4,y=(r()-.5)*.8;g.beginPath();g.moveTo(x,y);g.lineTo(x+(r()-.5)*.9,y+(r()-.5)*.15);g.stroke()}
+      g.setTransform(c.width/TW,0,0,c.height/TH,0,0);
+    }
+    // little stencilled jump markers under the cockpit on the left side: one parachute per drop, like mission marks
+    // -- the fin, one region per side, x metres from the fin's front edge toward the tail, y metres down from its top
+    const FIN_Z=[-14,-5.5],FIN_Y=[1.4,9.4],fpx=256/(FIN_Z[1]-FIN_Z[0]),fpy=256/(FIN_Y[1]-FIN_Y[0]);
+    for(const s of [1,-1]){const ox=s>0?0:256;
+      g.save();g.beginPath();g.rect(ox,512,256,256);g.clip();
+      // the region's own frame: x along the fin toward the tail, y down
+      if(s>0)g.setTransform(fpx*(c.width/TW),0,0,fpy*(c.height/TH),ox*(c.width/TW),512*(c.height/TH));
+      else g.setTransform(-fpx*(c.width/TW),0,0,fpy*(c.height/TH),(ox+256)*(c.width/TW),512*(c.height/TH));
+      const W_=FIN_Z[1]-FIN_Z[0],H_=FIN_Y[1]-FIN_Y[0];
+      const gr=g.createLinearGradient(0,0,0,H_);gr.addColorStop(0,'#183a73');gr.addColorStop(1,'#2c68b0');g.fillStyle=gr;g.fillRect(0,0,W_,H_);
+      for(let x=.5;x<W_;x+=1.3){g.fillStyle='rgba(8,20,48,.28)';g.fillRect(x,0,.05,H_)}
+      // a sweeping stripe: white edge, cyan band, parallel to the leading edge
+      g.beginPath();g.moveTo(1.2,H_);g.lineTo(5.2,0);g.lineTo(6.6,0);g.lineTo(2.9,H_);g.closePath();g.fillStyle='#35c8ef';g.fill();
+      g.beginPath();g.moveTo(3.2,H_);g.lineTo(6.85,0);g.lineTo(7.15,0);g.lineTo(3.55,H_);g.closePath();g.fillStyle='#f3f6fa';g.fill();
+      // the tail number and a small line under it, upright for a viewer on this side
+      g.save();g.translate(5.4,4.1);if(s<0)g.scale(-1,1);stencil('11',0,0,1.9,'#f3f6fa','#24589c','rgba(6,16,40,.5)');stencil('GULLROCK',0,1.55,.42,'#d9e6f5','#2a63a8');g.restore();
+      g.fillStyle='rgba(20,20,20,.25)';g.fillRect(0,H_-.25,W_,.25);
+      g.restore();g.setTransform(c.width/TW,0,0,c.height/TH,0,0);
+    }
+    // -- the wing. Top, seen from above nose up: x runs from the right tip (left of the picture) to the left tip.
+    const WX=21,WZ=[-2.8,3.8],wpx=1536/(2*WX),wpz=256/(WZ[1]-WZ[0]);
+    const wTop=(x,z)=>[512+(WX-x)*wpx,512+(WZ[1]-z)*wpz],wBot=(x,z)=>[512+(x+WX)*wpx,768+(WZ[1]-z)*wpz];
+    g.fillStyle='#22508f';g.fillRect(512,512,1536,256);g.fillStyle='#b6d0ea';g.fillRect(512,768,1536,256);
+    for(let x=-WX;x<WX;x+=1.5){let p=wTop(x,0);g.fillStyle='rgba(8,20,48,.3)';g.fillRect(p[0],512,2,256);p=wBot(x,0);g.fillStyle='rgba(40,60,90,.18)';g.fillRect(p[0],768,2,256)}
+    for(const z of [-1.2,.8,2.6]){let p=wTop(0,z);g.fillStyle='rgba(8,20,48,.28)';g.fillRect(512,p[1],1536,2);p=wBot(0,z);g.fillStyle='rgba(40,60,90,.16)';g.fillRect(512,p[1],1536,2)}
+    // the flaps and ailerons along the trailing edge
+    for(const s of [1,-1])for(const [a,b] of [[2.6,13.5],[13.8,19.8]]){const p=wTop(s*a,-.4),q=wTop(s*b,-.4);g.fillStyle='rgba(6,16,40,.4)';g.fillRect(Math.min(p[0],q[0]),p[1],Math.abs(q[0]-p[0]),2)}
+    // soot from the engines over the top of the wing, and the walkway lines near the root
+    for(const ex of [-12.4,-6.4,6.4,12.4]){const p=wTop(ex,.4),q=wTop(ex,-2.8);const gr=g.createLinearGradient(0,p[1],0,q[1]);gr.addColorStop(0,'rgba(18,16,14,.0)');gr.addColorStop(.25,'rgba(18,16,14,.6)');gr.addColorStop(1,'rgba(18,16,14,.15)');
+      g.fillStyle=gr;g.beginPath();g.moveTo(p[0]-18,p[1]);g.lineTo(p[0]+18,p[1]);g.lineTo(q[0]+34,q[1]);g.lineTo(q[0]-34,q[1]);g.closePath();g.fill()}
+    for(const x of [-2.4,2.4]){const p=wTop(x,3.4),q=wTop(x,-2.2);g.fillStyle='rgba(10,10,14,.55)';g.fillRect(p[0]-1,p[1],3,q[1]-p[1])}
+    for(let i=0;i<900;i++){g.fillStyle=r()<.5?'rgba(255,255,255,.05)':'rgba(0,10,30,.07)';g.fillRect(512+r()*1536,512+r()*512,1+r()*3,1+r()*3)}
+    // ASCO on the right wing and DING on the left, big and dark under the wings, to read from below
+    {const p=wBot(-17.1,.75);g.setTransform(wpx*(c.width/TW),0,0,wpz*(c.height/TH),p[0]*(c.width/TW),p[1]*(c.height/TH));stencil('ASCO',0,0,2.1,'#1d4280','#b6d0ea')}
+    {const p=wBot(17.1,.75);g.setTransform(wpx*(c.width/TW),0,0,wpz*(c.height/TH),p[0]*(c.width/TW),p[1]*(c.height/TH));stencil('DING',0,0,2.1,'#1d4280','#b6d0ea')}
+    // and on top of the wings, white, to read from the riding camera behind the plane (seen from above and behind,
+    // the left wing is on the left of the picture here)
+    {const p=wTop(17.1,.75);g.setTransform(wpx*(c.width/TW),0,0,wpz*(c.height/TH),p[0]*(c.width/TW),p[1]*(c.height/TH));stencil('ASCO',0,0,2.1,'#e9eff7','#22508f','rgba(4,10,24,.5)')}
+    {const p=wTop(-17.1,.75);g.setTransform(wpx*(c.width/TW),0,0,wpz*(c.height/TH),p[0]*(c.width/TW),p[1]*(c.height/TH));stencil('DING',0,0,2.1,'#e9eff7','#22508f','rgba(4,10,24,.5)')}
+    g.setTransform(c.width/TW,0,0,c.height/TH,0,0);
+    g.fillStyle='#fff';g.fillRect(440,952,72,72);
+    const t=new THREE.CanvasTexture(c);t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());t.minFilter=THREE.LinearMipmapLinearFilter;t.magFilter=THREE.LinearFilter;t.generateMipmaps=true;
+    return t;
+  })();
+  const WHITE=[476/TW,1-988/TH];
+  // ---- geometry: positions, normals, colours, uv and pk (a light or a prop: kind, the hub's x and y, spin)
+  const P=[],N=[],C=[],U=[],K=[];
+  const _a=new V3(),_b=new V3(),_c=new V3(),_n=new V3(),_cl=new THREE.Color();
+  let kind=[0,0,0,0];
+  function vert(p,n,col,uv){P.push(p.x,p.y,p.z);N.push(n.x,n.y,n.z);C.push(col.r,col.g,col.b);U.push(uv[0],uv[1]);K.push(kind[0],kind[1],kind[2],kind[3])}
+  // a surface through rings of points (each ring the same number of points, closed round), with smooth normals that point
+  // away from each ring's middle (or into it, for the inside of the hold); col(p,n) gives a colour, uv(p,fn) a place in the paint
+  function loft(rings,o){
+    const R=rings.length,M=rings[0].length,nr=rings.map(rg=>rg.map(()=>new V3())),fns=[],mid=rings.map(rg=>rg.reduce((a,p)=>a.add(p),new V3()).multiplyScalar(1/rg.length));
+    for(let i=0;i<R-1;i++){fns.push([]);for(let j=0;j<M;j++){const j2=(j+1)%M;
+      _a.subVectors(rings[i+1][j2],rings[i][j]);_b.subVectors(rings[i][j2],rings[i+1][j]);const fn=new V3().crossVectors(_a,_b);
+      _c.copy(rings[i][j]).add(rings[i+1][j2]).multiplyScalar(.5).sub(_n.copy(mid[i]).add(mid[i+1]).multiplyScalar(.5));
+      if((fn.dot(_c)<0)!==!!o.inward)fn.negate();fns[i].push(fn);
+      for(const [a,b] of [[i,j],[i+1,j],[i+1,j2],[i,j2]])nr[a][b].add(fn)}}
+    for(let i=0;i<R;i++)for(let j=0;j<M;j++){const n=nr[i][j];if(n.lengthSq()<1e-12)n.copy(rings[i][j]).sub(mid[i]);if(n.lengthSq()<1e-12)n.set(0,1,0);n.normalize()}
+    for(let i=0;i<R-1;i++)for(let j=0;j<M;j++){if(o.skip&&o.skip(i,j))continue;const j2=(j+1)%M,fn=fns[i][j];if(fn.lengthSq()<1e-14)continue;
+      const q=[[i,j],[i+1,j],[i+1,j2],[i,j2]];
+      for(const tri of [[0,1,2],[0,2,3]]){let t=tri.map(k=>q[k]);const A=rings[t[0][0]][t[0][1]],B=rings[t[1][0]][t[1][1]],Cc=rings[t[2][0]][t[2][1]];
+        _a.subVectors(B,A);_b.subVectors(Cc,A);_c.crossVectors(_a,_b);if(_c.lengthSq()<1e-14)continue;if(_c.dot(fn)<0)t=[t[0],t[2],t[1]];
+        for(const [a,b] of t){const p=rings[a][b],n=o.flat?fn.clone().normalize():nr[a][b];const col=o.col(p,n,fn);_cl.setHex(col);vert(p,n,_cl,o.uv?o.uv(p,fn):WHITE)}}}
+  }
+  // a box or any small three.js shape, plain colour
+  const _m=new THREE.Matrix4(),_q=new THREE.Quaternion(),_e=new THREE.Euler(),_s=new V3(),_nm=new THREE.Matrix3();
+  function shape(geo,x,y,z,sx,sy,sz,hex,rx,ry,rz){_e.set(rx||0,ry||0,rz||0,'YXZ');_q.setFromEuler(_e);_m.compose(_a.set(x,y,z),_q,_s.set(sx,sy,sz));
+    const gg=geo.index?geo.toNonIndexed():geo,pp=gg.attributes.position,nn=gg.attributes.normal;_nm.getNormalMatrix(_m);_cl.setHex(hex);
+    for(let i=0;i<pp.count;i++){_b.fromBufferAttribute(pp,i).applyMatrix4(_m);_n.fromBufferAttribute(nn,i).applyMatrix3(_nm).normalize();vert(_b,_n,_cl,WHITE)}}
+  const BOX=UNIT_BOX,CYL=new THREE.CylinderGeometry(1,1,1,10,1),CYL6=new THREE.CylinderGeometry(1,1,1,6,1),RB=ROUND_LO;
+  // superellipse ring: half width a, half height b, around (x,y) at z; n points starting at the bottom, going up the left side
+  const se=(c,e)=>Math.sign(c)*Math.pow(Math.abs(c),e);
+  function ring(x,y,z,a,b,n,ex){const out=[];for(let j=0;j<n;j++){const f=-Math.PI/2+j/n*Math.PI*2;out.push(new V3(x+a*se(Math.cos(f),ex),y+b*se(Math.sin(f),ex),z))}return out}
+  // ---- the fuselage: its top, bottom and half width along its length (a rounded nose, an upswept tail)
+  const T=z=>z>9?2.7-2.25*Math.pow((z-9)/(Z1-9),1.7):z<-6?2.7-.62*Math.pow((-6-z)/(-6-Z0),1.2):2.7;
+  const Bm=z=>z>10.4?-2.6+2.45*Math.pow((z-10.4)/(Z1-10.4),2.1):z<-4.6?-2.6+3.95*Math.pow((-4.6-z)/(-4.6-Z0),1.25):-2.6;
+  const Aw=z=>z>10?2.5*Math.sqrt(Math.max(0,1-Math.pow((z-10)/(Z1-10),2.2))):z<-5?.5+2*Math.pow((z-Z0)/(-5-Z0),.75):2.5;
+  const FS=[-13.85,Z0,-13,-12.2,-11.2,-10.2,-9.2,-8.2,-7.2,-6.2,-5.4,-4.6,-3.2,-1.6,0,1.6,3.2,4.8,6.4,8,9.2,10.2,11.1,12,12.8,13.5,14.1,14.6,15,15.3,15.5,Z1],SEG=24;
+  const fring=z=>{const zz=Math.max(Z0,Math.min(Z1,z)),t=T(zz),b=Bm(zz);let a=Aw(zz);if(z<Z0||z>=Z1)a=0;
+    return ring(0,(t+b)/2,z,a,z<Z0||z>=Z1?0:(t-b)/2,SEG,2/2.6)};
+  // uv by ring index rather than angle, so the seam under the belly closes cleanly
+  {const rings=FS.map(fring);
+    for(let i=0;i<rings.length;i++)rings[i].push(rings[i][0].clone());   // a doubled point to close the seam with its own uv
+    const R=rings.length,M=SEG+1,uvs=rings.map((rg,i)=>rg.map((p,j)=>[(Math.max(Z0,Math.min(Z1,p.z))-Z0)/ZL,1-(1-j/SEG)*512/TH]));
+    // smooth normals around the ring (closed), the doubled point sharing the first's
+    const nr=rings.map(()=>Array.from({length:M},()=>new V3()));
+    for(let i=0;i<R-1;i++)for(let j=0;j<SEG;j++){_a.subVectors(rings[i+1][j+1],rings[i][j]);_b.subVectors(rings[i][j+1],rings[i+1][j]);const fn=new V3().crossVectors(_b,_a);
+      for(const [a,b] of [[i,j],[i+1,j],[i+1,j+1],[i,j+1]])nr[a][b%SEG].add(fn)}
+    for(let i=0;i<R;i++){for(let j=0;j<SEG;j++){const n=nr[i][j];if(n.lengthSq()<1e-10)n.set(0,0,i<2?-1:1);n.normalize()}nr[i][SEG]=nr[i][0]}
+    _cl.setHex(0xffffff);
+    for(let i=0;i<R-1;i++){const zc=(FS[i]+FS[i+1])/2;for(let j=0;j<SEG;j++){
+      if(zc>-11.2&&zc<-4.6&&(j<4||j>=SEG-4))continue;                     // the open ramp
+      for(const tri of [[[i,j],[i,j+1],[i+1,j+1]],[[i,j],[i+1,j+1],[i+1,j]]]){
+        _a.subVectors(rings[tri[1][0]][tri[1][1]],rings[tri[0][0]][tri[0][1]]);_b.subVectors(rings[tri[2][0]][tri[2][1]],rings[tri[0][0]][tri[0][1]]);if(_c.crossVectors(_a,_b).lengthSq()<1e-12)continue;
+        for(const [a,b] of tri)vert(rings[a][b],nr[a][b],_cl,[uvs[a][b][0]*1,uvs[a][b][1]])}}}
+  }
+  const DK=0x1d4280,MID=0x2c68b0,PALE=0xaecbe8,NAVY=0x14305c,METAL=0x7d8894,DARK=0x23272e;
+  const byNy=(top,side,bot)=>(p,n)=>n.y>.45?top:n.y<-.35?bot:side;
+  // the inside of the hold, seen through the open ramp: dark ribs, a floor, a bulkhead with a lit doorway
+  {const zs=[-11.3,-10.2,-9.2,-8.2,-7.2,-6.2,-5.4,-4.6,-3.2,-2.2];
+    const rings=zs.map(z=>{const zz=z,t=T(zz)-.15,b=Bm(zz)+.12;return ring(0,(t+b)/2,z,Aw(zz)-.15,Math.max(.1,(t-b)/2),16,2/2.6)});
+    loft(rings,{inward:true,col:(p)=>{const k=Math.round((p.z+11.3)/1);return k%2?0x39434f:0x2b333d}});
+    const zb=-2.2,t=T(zb)-.15,b=Bm(zb)+.12,rb=ring(0,(t+b)/2,zb,Aw(zb)-.15,(t-b)/2,16,2/2.6);
+    loft([rb,rb.map(p=>new V3(0,(t+b)/2,zb+.3))],{inward:true,col:()=>0x3a4452});
+    kind=[7,0,0,0];shape(BOX,0,-.65,-2.25,1.3,2.4,.04,0xffd88a);kind=[0,0,0,0];
+    shape(BOX,0,-2.12,-3.4,3.8,.12,2.4,0x4a525c);
+  }
+  // the ramp, lowered: a plate from the end of the hold's floor sloping down to its lip, its edge striped
+  {const ang=Math.atan2(-(PLANE_LIP.y+2.05),-(PLANE_LIP.z+4.6)),len=Math.hypot(PLANE_LIP.y+2.05,PLANE_LIP.z+4.6),mz=(-4.6+PLANE_LIP.z)/2,my=(-2.05+PLANE_LIP.y)/2;
+    shape(BOX,0,my,mz,3.2,.12,len,0x565e68,-ang);shape(BOX,0,my-.16,mz,3.3,.22,len,PALE,-ang);
+    for(let i=1;i<6;i++){const f=i/6,z=-4.6+(PLANE_LIP.z+4.6)*f,y=-2.05+(PLANE_LIP.y+2.05)*f+.07;shape(BOX,0,y,z,2.9,.04,.12,0x3a4048,-ang)}
+    for(let i=0;i<8;i++){const x=-1.6+i*.4+.2;shape(BOX,x,PLANE_LIP.y+.03,PLANE_LIP.z+.15,.4,.1,.32,i%2?0x1a1a1a:0xffc21a,-ang)}
+    for(const s of [1,-1])shape(BOX,s*1.6,my+.12,mz,.1,.28,len,0x3d454f,-ang);   // side rails
+  }
+  // the wing: high on the body, one piece from tip to tip, drooping a little outboard of the body
+  const AF=[[1,.02],[.75,.33],[.5,.48],[.28,.5],[.12,.42],[.03,.25],[0,0],[.03,-.18],[.12,-.26],[.28,-.28],[.5,-.24],[.75,-.14],[1,-.02]];
+  function airfoil(le,c,th,at,plane){return AF.map(([s,y])=>plane(le-s*c,y*th,at))}
+  const wingY=x=>2.98-Math.max(0,Math.abs(x)-2.6)*.042;
+  const WS=[[-21.2,2.3,3,.32],[-21,2.3,3,.34],[-13,3,4.4,.5],[-2.6,3.6,5.8,.66],[2.6,3.6,5.8,.66],[13,3,4.4,.5],[21,2.3,3,.34],[21.2,2.3,3,.32]];
+  {const rings=WS.map(([x,le,c,th],i)=>{const tip=i===0||i===WS.length-1;const rg=airfoil(le,c,th,x,(z,y,xx)=>new V3(xx,wingY(xx)+y,z));
+      if(!tip)return rg;const m=rg.reduce((a,p)=>a.add(p),new V3()).multiplyScalar(1/rg.length);return rg.map(p=>p.clone().lerp(m,.85))});
+    loft(rings,{col:()=>0xffffff,uv:(p,fn)=>{const top=fn.y>=0;const u=top?512+(21-p.x)*1536/42:512+(p.x+21)*1536/42,v=(top?512:768)+(3.8-p.z)*256/6.6;return[u/TW,1-v/TH]}})}
+  // the fairing where the wing meets the body
+  shape(RB,0,2.62,.8,3.3,1.0,8.6,DK);shape(RB,0,2.5,-3.8,2.2,.7,3.4,DK);
+  // four engines under the wing: a nacelle, a spinner and four spinning blades each, an exhaust on one side
+  const ENG=[-12.4,-6.4,6.4,12.4];
+  for(let e=0;e<4;e++){const x=ENG[e],y=wingY(x)-.62,dir=e<2?1:-1;
+    const prof=[[-3.7,0],[-3.3,.32],[-2.3,.6],[-.6,.8],[2.4,.88],[4.3,.9],[5,.84],[5.3,.74]];
+    loft(prof.map(([z,rr])=>ring(x,y-(z>-1&&z<4?.04:0),z,rr*.94,rr*1.08,12,1)),{col:(p,n)=>p.z>4.95?0xc8d3dd:(p.x-x)*dir>.3&&p.z<-.9&&n.y>-.5?0x29303a:n.y>.3?NAVY:n.y<-.4?0x8fb0cf:0x1f467f});   // soot behind the exhaust
+    loft([[5.25,.5],[5.7,.46],[6.2,.33],[6.55,.16],[6.7,0]].map(([z,rr])=>ring(x,y,z,rr,rr,10,1)),{col:()=>0x35c8ef});
+    shape(CYL6,x+dir*.78,y+.2,-1.2,.2,1.3,.2,0x55595f,Math.PI/2,0,0);shape(CYL6,x+dir*.78,y+.2,-1.95,.24,.25,.24,0x1b1b1b,Math.PI/2,0,0);
+    shape(BOX,x,y-.9,2.6,.5,.3,2.2,0x274e86);                                                           // the oil cooler scoop under it
+    kind=[5,x,y,dir*23];
+    for(let b=0;b<4;b++){const a=b*Math.PI/2+.4,ca=Math.cos(a),sa=Math.sin(a);
+      shape(BOX,x+ca*1.45,y+sa*1.45,5.62,2.25,.22,.06,DARK,0,0,a);
+      shape(BOX,x+ca*2.42,y+sa*2.42,5.63,.3,.23,.07,0xffc21a,0,0,a)}
+    kind=[0,0,0,0]}
+  // the tail: a tall fin with a fillet at its foot, a T-tail on top, a cone at the very back
+  {const FS_=[[1.7,-4.6,8.8,.55],[2.9,-7.9,5.6,.5],[5,-9.4,4.3,.42],[8.7,-10.8,3,.32],[8.85,-10.9,2.9,.3]];
+    // the same section on its side, made symmetric (the lower half mirrors the upper), its thickness across x
+    const rings=FS_.map(([y,le,c,th],i)=>{const rg=AF.map(([s],j)=>new V3((j<7?AF[j][1]:-AF[12-j][1])*th,y,le-s*c));if(i<FS_.length-1)return rg;const m=rg.reduce((a,p)=>a.add(p),new V3()).multiplyScalar(1/rg.length);return rg.map(p=>p.clone().lerp(m,.8))});
+    loft(rings,{col:()=>0xffffff,uv:(p,fn)=>{const L=fn.x>=0;const u=L?(-5.5-p.z)*256/8.5:256+(p.z+14)*256/8.5,v=512+(9.4-p.y)*256/8;return[u/TW,1-v/TH]}});
+    const HS=[[-6.9,-9.4,1.9,.2],[-6.7,-9.4,1.95,.22],[0,-10.0,3.1,.34],[6.7,-9.4,1.95,.22],[6.9,-9.4,1.9,.2]];
+    loft(HS.map(([x,le,c,th],i)=>{const rg=airfoil(le,c,th,x,(z,y,xx)=>new V3(xx,8.55+y,z));if(i&&i<HS.length-1)return rg;const m=rg.reduce((a,p)=>a.add(p),new V3()).multiplyScalar(1/rg.length);return rg.map(p=>p.clone().lerp(m,.8))}),
+      {col:(p,n)=>Math.abs(p.x)>5.9?0x35c8ef:n.y>.2?DK:n.y<-.3?PALE:MID});
+  }
+  // gear fairings low on each side of the body
+  for(const s of [1,-1]){const zs=[[-3.4,0],[-3.1,.55],[-2.5,.95],[2.8,1],[3.6,.8],[4.1,.3],[4.25,0]];
+    loft(zs.map(([z,k])=>ring(s*2.3,-2.0,z,.68*k,.72*k,12,.8)),{col:(p,n)=>n.y<-.25?PALE:n.y>.6?MID:(p.y<-1.95?PALE:MID)})}
+  // the refuelling probe over the cockpit, antennas, a pitot tube each side
+  shape(CYL,-1.05,2.0,13.6,.13,6.4,.13,METAL,Math.PI/2,0,0);shape(CYL,-1.05,2.0,16.85,.2,.4,.2,0x2a2d33,Math.PI/2,0,0);shape(RB,-1.0,1.95,10.7,.42,.36,1.8,DK);
+  for(let i=0;i<4;i++)shape(BOX,-1.05,2.0,13.6+(i-1.5)*.24,.28,.28,.12,i%2?0xd8262f:0xf3f6fa);
+  shape(BOX,0,3.35,5.6,.07,.7,.5,DARK,-.35);shape(BOX,0,3.15,-6.4,.07,.55,.45,DARK,-.35);shape(BOX,0,-2.75,7,.05,.35,.3,0x4a5058,.35);
+  for(const s of [1,-1])shape(BOX,s*1.55,.5,14.35,.05,.05,.6,METAL);
+  // lights: red on the left wing tip, green on the right, white strobes on the tail and the tail cone, red beacons top and
+  // bottom, and the jump light over the ramp (red, green when you can jump)
+  const light=(k,x,y,z,s)=>{kind=[k,0,0,0];shape(RB,x,y,z,s,s*.7,s);kind=[0,0,0,0]};
+  light(1,21.25,wingY(21)+.02,1.2,.32);light(2,-21.25,wingY(21)+.02,1.2,.32);light(3,0,9.0,-11.6,.3);light(3,0,Bm(Z0)/2+T(Z0)/2,-13.95,.28);
+  light(6,0,3.35,-.8,.32);light(6,0,-2.75,1.5,.32);
+  light(4,0,-.05,-11.15,.42);light(4,0,1.2,-2.32,.3);
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.Float32BufferAttribute(P,3));geo.setAttribute('normal',new THREE.Float32BufferAttribute(N,3));
+  geo.setAttribute('color',new THREE.Float32BufferAttribute(C,3));geo.setAttribute('uv',new THREE.Float32BufferAttribute(U,2));geo.setAttribute('pk',new THREE.Float32BufferAttribute(K,4));
+  geo.computeBoundingSphere();
+  const PU={pT:{value:0},pJ:{value:0},pRM:{value:RM?1:0}};
+  // how each light glows (the same in both meshes): rgb and how strongly, from its kind and the clock
+  const GLOW=`vec4 plGlow(float k,float t,float j,float rm){
+    if(k<.5)return vec4(0.);
+    if(k<1.5)return vec4(1.,.13,.08,mix(step(.32,fract(t*.8)),1.,rm));
+    if(k<2.5)return vec4(.15,1.,.32,mix(step(.32,fract(t*.8)),1.,rm));
+    if(k<3.5){float f=fract(t/1.5);return vec4(1.,1.,1.,mix((f<.05||(f>.13&&f<.18))?1.:0.,.35,rm));}
+    if(k<4.5)return vec4(mix(vec3(1.,.1,.05),vec3(.12,1.,.25),j),.75+.25*j*(1.-rm)*step(.5,fract(t*1.6)));
+    if(k>5.5&&k<6.5){float f=fract(t/1.2+.5);return vec4(1.,.16,.08,mix(f<.12?1.:0.,.4,rm));}
+    return vec4(0.);}`;
+  const mat=new THREE.MeshLambertMaterial({vertexColors:true,map:tex});
+  mat.onBeforeCompile=sh=>{Object.assign(sh.uniforms,PU);
+    sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nattribute vec4 pk;uniform float pT,pJ,pRM;varying vec4 vGl;varying float vUp;\n'+GLOW)
+      .replace('#include <beginnormal_vertex>','#include <beginnormal_vertex>\nfloat pa=pk.x>4.5&&pk.x<5.5?mod(pT,62.832)*pk.w:0.;mat2 pr=mat2(cos(pa),sin(pa),-sin(pa),cos(pa));objectNormal.xy=pr*objectNormal.xy;')
+      .replace('#include <begin_vertex>','#include <begin_vertex>\ntransformed.xy=pk.yz+pr*(transformed.xy-pk.yz);vGl=pk.x>6.5?vec4(color,1.):plGlow(pk.x,pT,pJ,pRM);vUp=max(0.,-normalize((modelMatrix*vec4(objectNormal,0.)).xyz).y);');
+    sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying vec4 vGl;varying float vUp;')
+      .replace('#include <tonemapping_fragment>','gl_FragColor.rgb+=diffuseColor.rgb*vec3(.3,.36,.42)*vUp;gl_FragColor.rgb=mix(gl_FragColor.rgb,vGl.rgb,vGl.a);\n#include <tonemapping_fragment>')};
+  const body=new THREE.Mesh(geo,mat);
+  // ---- the see-through part: haze behind each engine, a long thin trail from each wing tip, a glow round each light
+  const FP=[],FD=[];
+  function trail(x,y,z,len,w0,w1,a,n){for(const ax of [0,1])for(let i=0;i<n;i++){const t0=i/n,t1=(i+1)/n;
+    const q=(t,s)=>{const w=(w0+(w1-w0)*t)*s;FP.push(x+(ax?0:w),y+(ax?w:0),z-len*t);FD.push(0,t,s,a)};
+    q(t0,-1);q(t1,-1);q(t1,1);q(t0,-1);q(t1,1);q(t0,1)}}
+  for(const x of ENG)trail(x,wingY(x)-.4,-2.2,26,.5,3.2,.18,6);
+  // a faint blur disc in front of each engine, so the spinning blades read as a propeller (kind 8; aD.yz: where on the
+  // disc, -1 to 1 across; aD.w: which way the prop turns)
+  ENG.forEach((x,e)=>{const y=wingY(x)-.62,R=2.62,n=24;for(let i=0;i<n;i++){const a0=i/n*Math.PI*2,a1=(i+1)/n*Math.PI*2;
+    for(const [c,sn] of [[0,0],[Math.cos(a0),Math.sin(a0)],[Math.cos(a1),Math.sin(a1)]]){FP.push(x+c*R,y+sn*R,5.6);FD.push(8,c,sn,e<2?1:-1)}}});
+  trail(21.1,wingY(21),-.6,70,.12,1.6,.5,10);trail(-21.1,wingY(21),-.6,70,.12,1.6,.5,10);
+  function flare(k,x,y,z,s){for(const [cx,cy] of [[-1,-1],[1,-1],[1,1],[-1,-1],[1,1],[-1,1]]){FP.push(x,y,z);FD.push(k,cx,cy,s)}}
+  flare(1,21.4,wingY(21)+.02,1.2,1.1);flare(2,-21.4,wingY(21)+.02,1.2,1.1);flare(3,0,9.2,-11.6,1.7);flare(3,0,Bm(Z0)/2+T(Z0)/2,-14.1,1.4);
+  flare(6,0,3.5,-.8,1.2);flare(6,0,-2.95,1.5,1.2);flare(4,0,-.25,-11.25,1.1);
+  const fg=new THREE.BufferGeometry();fg.setAttribute('position',new THREE.Float32BufferAttribute(FP,3));fg.setAttribute('aD',new THREE.Float32BufferAttribute(FD,4));
+  const fxMat=new THREE.ShaderMaterial({transparent:true,depthWrite:false,side:THREE.DoubleSide,fog:false,blending:THREE.CustomBlending,blendSrc:THREE.OneFactor,blendDst:THREE.OneMinusSrcAlphaFactor,
+    uniforms:Object.assign({tx:{value:detailTex}},PU),
+    vertexShader:`attribute vec4 aD;uniform float pT,pJ,pRM;varying vec4 vC;varying vec2 vQ;varying float vK;\n${GLOW}
+      void main(){vec4 mv=modelViewMatrix*vec4(position,1.);vK=aD.x;
+        if(aD.x>7.5){vC=vec4(aD.w,0.,0.,1.);vQ=aD.yz;}
+        else if(aD.x>.5){vec4 g=plGlow(aD.x,pT,pJ,pRM);vC=g;vQ=aD.yz;mv.xy+=aD.yz*aD.w*(.35+.65*g.a);mv.z+=.8;}
+        else{vC=vec4(1.,1.,1.,aD.w);vQ=vec2(aD.z,aD.y);}
+        gl_Position=projectionMatrix*mv;}`,
+    fragmentShader:`uniform sampler2D tx;uniform float pT,pRM;varying vec4 vC;varying vec2 vQ;varying float vK;
+      void main(){
+        if(vK>7.5){float r=length(vQ),an=atan(vQ.y,vQ.x),sp=pT*(1.-pRM)*2.1*vC.r;
+          float a=.13*smoothstep(.12,.3,r)*(1.-smoothstep(.93,1.,r))*(.75+.25*cos(8.*(an-sp)))*(.8+.4*r);
+          float tip=.22*smoothstep(.86,.9,r)*(1.-smoothstep(.95,1.,r));
+          vec3 c=(vec3(.16,.18,.21)*a+vec3(1.,.78,.15)*tip);gl_FragColor=vec4(c,a+tip*.7);return;}
+        if(vK>.5){float r=length(vQ);float a=vC.a*pow(max(0.,1.-r),2.4);gl_FragColor=vec4(vC.rgb*a*1.2+vec3(a*a*.3),0.);return;}
+        float n=texture2D(tx,vec2(vQ.x*.18+.5,vQ.y*4.-pT*.55)).g,e=1.-vQ.x*vQ.x;
+        float a=vC.a*e*pow(1.-vQ.y,1.6)*(.45+n)*smoothstep(0.,.05,vQ.y);gl_FragColor=vec4(vec3(.94,.96,1.)*a,a);}`});
+  const fx=new THREE.Mesh(fg,fxMat);fx.frustumCulled=false;fx.renderOrder=3;
+  const group=new THREE.Group();group.add(body,fx);group.rotation.order='YXZ';group.visible=false;scene.add(group);
+  // put it on the line at match time t (not clamped: it flies in before the start and on out at the end)
+  const _f=new V3();
+  function place(t){const s=t*BUS_V,yaw=Math.atan2(busLine.dx,busLine.dz),m=RM?0:1;
+    _f.set(busLine.dx,0,busLine.dz);
+    group.position.set(busLine.ax+busLine.dx*s,BUS_Y+.2-PLANE_LIP.y-3.2+m*.3*Math.sin(t*.7),busLine.az+busLine.dz*s).addScaledVector(_f,-PLANE_LIP.z);
+    group.rotation.set(m*.014*Math.sin(t*.6),yaw+m*.012*Math.sin(t*.33),m*(.05*Math.sin(t*.42)+.018*Math.sin(t*1.13)));
+    PU.pT.value=(performance.now()/1000)%1000;PU.pJ.value=t>=busLine.tIn&&t>0&&t<busLine.tOut?1:0;
+  }
+  const tris=P.length/9+FP.length/9;
+  return{group,place,tex,tris};
+})();
+const busMesh=Plane.group;
 
 /* ---------- inventory ---------- */
 function canTake(e,it){
@@ -3694,27 +4051,51 @@ function resolveShot(shooter,w,r,rays,color){
   }
   return{ends,pd,md,hs,hit:anyHit};
 }
-// Sight pictures, one per weapon, in a 200 x 200 box centred on the aim point (SVG, so they stay sharp at any size).
-// Pistol: three white dots. Heavy Pistol: a fat front post in a notch. SMG: a small ring. Drum SMG: a ring with four ticks.
-// Pump Shotgun: a wide dashed circle (about its spread) with a bead. Auto Shotgun: wide brackets. Rifle: a red dot in a small square
-// window. Heavy Rifle: a red chevron with drop marks in a round tube. Bolt Sniper: fine cross hairs with mil dots and thick outer
-// posts. Scout Sniper: a green duplex cross with an open centre and a ring.
-const SIGHT=(()=>{const W='stroke="#fff" fill="none" stroke-linecap="round"',R='#ff4a3a',o={};
-  o.pi=`<circle r="2" fill="#fff"/><circle cx="-13" r="2" fill="#fff"/><circle cx="13" r="2" fill="#fff"/><path ${W} stroke-width="1.5" d="M-22 0h-7M22 0h7"/>`;
-  o.hc=`<path ${W} stroke-width="5" d="M0 3v17"/><path ${W} stroke-width="2.2" d="M-17 20v-13h9M17 20v-13h-9"/><circle r="1.6" fill="${R}"/>`;
-  o.sm=`<circle r="11" ${W} stroke-width="1.8"/><circle r="1.6" fill="#fff"/>`;
-  o.ds=`<circle r="15" ${W} stroke-width="1.8"/><path ${W} stroke-width="2.2" d="M0-15v-8M0 15v8M-15 0h-8M15 0h8"/><circle r="1.8" fill="#fff"/>`;
-  o.sg=`<circle r="30" ${W} stroke-width="1.8" stroke-dasharray="7 6"/><circle r="2.6" fill="#fff"/>`;
-  o.as=`<path ${W} stroke-width="2.4" d="M-30-22h-10v44h10M30-22h10v44h-10"/><path ${W} stroke-width="1.6" d="M-6 0h12M0-6v12"/>`;
-  o.ar=`<rect x="-46" y="-34" width="92" height="68" rx="9" fill="rgba(120,200,255,.07)" stroke="#161b22" stroke-width="7"/><path stroke="#161b22" stroke-width="9" fill="none" d="M-16 37v14h32v-14"/><circle r="6" fill="${R}" opacity=".28"/><circle r="2.6" fill="${R}"/>`;
-  o.hr=`<circle r="74" fill="rgba(120,200,255,.06)" stroke="#12171d" stroke-width="12"/><circle r="67" fill="none" stroke="#2a323b" stroke-width="2"/><path stroke="${R}" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round" d="M-9 9L0 0l9 9"/><path stroke="${R}" stroke-width="1.8" fill="none" d="M-6 20h12M-4 31h8M-2.5 42h5M0 12v40"/><path stroke="#12171d" stroke-width="2.4" fill="none" d="M-62 0h-12M62 0h12M0-62v-12"/>`;
-  let dots='';for(const k of [-4,-3,-2,-1,1,2,3,4])dots+=`<circle cx="${k*12}" r="1.5"/><circle cy="${k*12}" r="1.5"/>`;
-  o.sr=`<g stroke="#0a0d10" fill="#0a0d10"><path stroke-width=".7" d="M-58 0h58M0 0h58M0-58v116"/><path stroke-width="4.5" d="M-99 0h39M60 0h39M0 60v39M0-99v39"/>${dots}</g>`;
-  o.ss=`<g stroke="#0d2a16" fill="none"><path stroke-width="3.6" d="M-99 0h74M25 0h74M0 25v74"/><path stroke-width="1" d="M-25 0h18M7 0h18M0 7v18M0-99v92"/><circle r="7" stroke-width="1.2"/></g><circle r="1.2" fill="#0d2a16"/>`;
-  return o})();
+// Reticles: one style per family, the same when firing from the hip and when aiming (aiming only pulls it in, because the spread is
+// smaller and the view is zoomed), so the family is obvious at a glance:
+//   Pistol: a dot in a thin ring.   SMG: a small ring with four short ticks outside it.   Shotgun: a wide ring broken into four
+//   arcs, as wide as the pellets spread.   AR: the classic four lines and a dot (aimed, the dot turns red, like a red-dot sight).
+//   Sniper (from the hip): a ring with cross hairs through it, like a little scope; aimed, the scope (#scope, SNIPER_RET).
+// Crowbar, heals and building: just a dot. Drawn in #cross, an SVG one CSS pixel per unit with its origin on a whole pixel in the
+// middle of the view, so straight lines are 2 px white over a 1 px dark edge each side (crisp, and readable on bright sky and in dark
+// rooms). The rings and gaps follow the real spread of the shot in pixels (RET.size), plus a short kick after each of your shots.
+const RET=(()=>{const OUT='rgba(8,10,14,.62)',RED='#ff4a3a';
+  // one layer of a style: o is the dark edge under the white. Parts that move: .rr rings (r), .tk ticks (transform).
+  // (an odd width sits half a pixel over, so its edges fall on whole pixels too)
+  const tick=(a,len,w,o)=>`<path class="tk" data-a="${a}" d="M${o?-1:0} ${w%2?.5:0}h${len+(o?2:0)}" stroke-width="${w+(o?2:0)}"/>`,
+    ticks=(len,w,o)=>[0,1,2,3].map(a=>tick(a,len,w,o)).join(''),
+    ring=(w,o,dash)=>`<circle class="rr" data-h="${w%2?.5:0}" r="10" fill="none" stroke-width="${w+(o?2:0)}"${dash?` pathLength="100" stroke-dasharray="${o?'20.8 4.2':'20 5'}" stroke-dashoffset="${o?22.9:22.5}"`:''}/>`,
+    dot=(r,o,col)=>`<circle r="${r+(o?1:0)}" stroke="none"${!o&&col?` fill="${col}"`:''}/>`;
+  const STY={
+    pi:(o,ad)=>ring(1,o)+dot(1.5,o),
+    sm:(o,ad)=>ring(2,o)+ticks(4,2,o)+dot(1.5,o),
+    sg:(o,ad)=>ring(2,o,1)+dot(2,o),
+    ar:(o,ad)=>ticks(7,2,o)+dot(ad?2:1.5,o,ad?RED:''),
+    sr:(o,ad)=>ring(1,o)+ticks(11,1,o)+dot(1.5,o),
+    dot:(o)=>dot(2,o)};
+  // where the moving parts go for a spread radius R (px): the ring's radius and how far out the ticks start
+  const FIT={pi:R=>[Math.max(6,R+2),0],sm:R=>{const r=Math.max(7,R);return[r,r+3]},sg:R=>[Math.max(14,R),0],ar:R=>[0,Math.max(4,R)],
+    sr:R=>{const r=Math.max(10,R);return[r,r-5]},dot:()=>[0,0]};
+  let key='',el=null,rr=[],tk=[],last='';
+  return{
+    // style: a family ('pi', 'sm', 'sg', 'ar', 'sr') or 'dot'; ad: aiming
+    set(e,style,ad){const k=style+(ad?'+':'');if(k===key&&e===el)return;el=e;key=k;last='';const f=STY[style]||STY.dot;
+      e.innerHTML=`<g stroke="${OUT}" fill="${OUT}">${f(1,ad)}</g><g stroke="#fff" fill="#fff">${f(0,ad)}</g>`;rr=[...e.querySelectorAll('.rr')];tk=[...e.querySelectorAll('.tk')]},
+    // R: the spread radius in px
+    size(R){const [r,d]=(FIT[key.replace('+','')]||FIT.dot)(R),s=Math.round(r)+'|'+Math.round(d);if(s===last)return;last=s;
+      for(const c of rr)c.setAttribute('r',Math.round(r)+ +c.dataset.h);for(const t of tk)t.setAttribute('transform',`rotate(${t.dataset.a*90}) translate(${Math.round(d)} 0)`)}
+  }})();
+let retKick=0;   // a short widening of the reticle after each of your shots, in px (eases back in updateHud)
+const RET_KICK={pi:3,sm:2,sg:5,ar:3,sr:6};
+// The snipers' scope reticle, in the lens's own units (radius 100): thin cross hairs (1.5 px whatever the screen) with an open middle and
+// a red centre point, two small marks on each arm, and thick posts from the edge (a duplex), all with a faint pale edge so they show
+// in a dark room too. Both snipers use it; the Scout's lens is wider and green-rimmed (SCOPE).
+const SNIPER_RET=(()=>{const NS='vector-effect="non-scaling-stroke"',D='#0b0e12',HALO='rgba(255,255,255,.32)';
+  const thin='M-62 0H-4M4 0H62M0-62V-4M0 4V62',marks='M-20-2.5v5M-40-2.5v5M20-2.5v5M40-2.5v5M-2.5-20h5M-2.5-40h5M-2.5 20h5M-2.5 40h5',posts='M-100 0H-62M62 0H100M0-100V-62M0 62V100';
+  return`<g fill="none"><path stroke="${HALO}" stroke-width="3.5" ${NS} d="${thin} ${marks}"/><path stroke="${HALO}" stroke-width="5.4" d="${posts}"/>`+
+    `<path stroke="${D}" stroke-width="1.5" ${NS} d="${thin} ${marks}"/><path stroke="${D}" stroke-width="4" d="${posts}"/></g><circle r="1.4" fill="#ff4a3a" stroke="${HALO}" stroke-width="1" ${NS}/>`})();
 // what the scope looks like for each sniper: [lens radius, rim colour, glass tint]
 const SCOPE={sr:['min(34vh,34vw)','#1a2530','rgba(120,190,255,.06)'],ss:['min(41vh,41vw)','#22382a','rgba(140,255,170,.06)']};
-let sightKey='';
 // Right-click or hold Shift to aim. Every weapon has its own aim view; with the snipers that is the scope.
 function isADS(){return state==='playing'&&!paused&&mode==='combat'&&held('aim')&&player.alive&&player.st==='ground'&&player.reloadT<=0&&!!heldW(player)}
 function curSpread(e,w,ads){const moving=Math.hypot(e.vel.x,e.vel.z)>1.2||!e.onGround;let s=ads?w.ads:w.hip;if(moving&&w.pellets===1)s=s*1.7+.004;return s}
@@ -3742,7 +4123,7 @@ function playerShoot(){
   const s=heldItem(player),w=heldW(player)||CROW,ads=isADS();
   const camF=fwdOf(player.yaw,player.pitch),cp=camera.position.clone().addScaledVector(camF,camDist*.98);
   shootFrom(player,w,s?s.r:0,camF,cp,ads,0xfff6c8);
-  if(w!==CROW){player.pitch=clamp(player.pitch+(RECOIL[w.id]||.007),-1.45,1.45);player.yaw+=(Math.random()-.5)*(w.fam==='ar'?.006:.012);
+  if(w!==CROW){retKick=RET_KICK[w.fam]||3;player.pitch=clamp(player.pitch+(RECOIL[w.id]||.007),-1.45,1.45);player.yaw+=(Math.random()-.5)*(w.fam==='ar'?.006:.012);
     if(!RM){camera.fov+=PUNCH[w.id]||.4;camera.updateProjectionMatrix()}}
 }
 function startReload(e){const w=heldW(e),s=heldItem(e);if(!w||e.reloadT>0||s.n>=w.mag)return;
@@ -4191,7 +4572,7 @@ function setupMatch(ms){
   for(const [uid,o] of (online?Net.others:new Map()))reconcile(uid,o.v);
   rebuildEnts();
   hideLobby();$('end').hidden=true;showHud();
-  if(inMatch)banner('ALL ABOARD',practice?`Practice · you and ${roster.filter(isBotId).length} bots · jump when you like`:`${roster.length} players · jump when you like`,3);
+  if(inMatch)banner('WHEELS UP',practice?`Practice · you and ${roster.filter(isBotId).length} bots · jump on the green light`:`${roster.length} players · jump on the green light`,3);
   else if(online){watchMode=false;showLobby()}
   else{watchMode=true;banner('WATCHING','You\'ll drop in the next match',3)}
 }
@@ -4517,7 +4898,7 @@ function onlineTick(){
 }
 
 /* ---------- HUD ---------- */
-const hud={root:$('hud'),feed:$('feed'),banner:$('banner'),hint:$('hint'),cross:$('cross'),cl:$('cl'),cr:$('cr'),ct:$('ct'),cb:$('cb'),hitm:$('hitm'),hurt:$('hurt'),scope:$('scope'),scopeR:$('scopeR'),sight:$('sight'),sightR:$('sightR'),
+const hud={root:$('hud'),feed:$('feed'),banner:$('banner'),hint:$('hint'),cross:$('cross'),hitm:$('hitm'),hurt:$('hurt'),scope:$('scope'),scopeR:$('scopeR'),
   reload:$('reload'),reloadF:$('reloadFill'),hpN:$('hpNum'),hpF:$('hpFill'),shN:$('shNum'),shF:$('shFill'),tags:$('tags'),net:$('net'),mats:$('mats'),matsBox:$('matsBox'),matsNm:$('matsBox').querySelector('.nm'),slots:$('slots'),ammo:$('ammo'),prompt:$('prompt'),
   useBar:$('useBar'),useLbl:$('useLbl'),useFill:$('useFill'),alive:$('aliveN'),kills:$('killN'),stormT:$('stormT'),tint:$('stormTint'),place:$('placeLbl'),strip:$('compStrip'),safe:$('compSafe'),warn:$('stormWarn'),swT:$('swTitle'),swS:$('swSub')};
 // the compass strip: three turns of the dial side by side (3 px a degree), slid sideways as you turn
@@ -4535,7 +4916,10 @@ const tagEls=[];
 function tagEl(i){while(tagEls.length<=i){const d=document.createElement('div');d.className='ntag';d.hidden=true;hud.tags.appendChild(d);tagEls.push(d)}return tagEls[i]}
 // the picture in a hotbar slot: only set when it changes (the pictures are long data URLs)
 function slotIcon(el,k){if(el._ik===k)return;el._ik=k;el.querySelector('.ic').style.backgroundImage=k&&ICONS[k]?'url('+ICONS[k]+')':'none'}
-function slotLabel(s){if(!s)return[touchUI?'–':'Empty',''];const d=WEAP[s.t]||HEALS[s.t];return[touchUI||WEAP[s.t]?d.short:d.name.replace('Shield ','Sh. '),WEAP[s.t]?s.n+'':'×'+s.n]}
+function slotLabel(s){if(!s)return[touchUI?'–':'Empty',''];const d=WEAP[s.t]||HEALS[s.t];return[WEAP[s.t]?d.name:touchUI?d.short:d.name.replace('Shield ','Sh. '),WEAP[s.t]?s.n+'':'×'+s.n]}
+// a weapon's whole name if it fits its slot, else just its type (so the slot always says what kind of gun it is)
+function fitSlotName(el,it){if(it&&WEAP[it.t]&&el.scrollWidth>el.clientWidth+.5)el.textContent=WEAP[it.t].short}
+addEventListener('resize',()=>{lastHud=''});   // the slots change size with the screen: fit the names again
 let tagClock=0;const _tag=new V3(),_tagD=new V3();
 function updateHud(dt){
   const p=player,t=matchT(),S=stormAt(t),w=heldW(p),s=heldItem(p);
@@ -4544,9 +4928,9 @@ function updateHud(dt){
   if(key!==lastHud){lastHud=key;
     hud.hpN.textContent=Math.max(0,Math.ceil(p.hp));hud.hpF.style.width=Math.max(0,p.hp)+'%';
     hud.shN.textContent=Math.ceil(p.sh);hud.shF.style.width=p.sh+'%';if(hud.mats._n!==p.mats){const up=hud.mats._n!=null;hud.mats._n=p.mats;hud.mats.textContent=p.mats;if(up&&!RM&&hud.mats.animate)hud.mats.animate([{transform:'scale(1.35)'},{transform:'scale(1)'}],{duration:280,easing:'ease-out'})}hud.matsBox.classList.toggle('low',p.mats<COST);hud.slots.classList.toggle('building',mode==='build');hudSet(hud.matsNm,'#mn',touchUI?(mode==='build'?'Done':'Build'):'Scrap');   // (the count jumps a little when it changes)
-    for(let i=0;i<4;i++){const el=$('slot'+i),it=p.inv[i],[nm,am]=slotLabel(it);el.querySelector('.nm').textContent=nm;el.querySelector('.am').textContent=it&&WEAP[it.t]&&p.sel===i&&p.reloadT>0?'reload':am;
+    for(let i=0;i<4;i++){const el=$('slot'+i),it=p.inv[i],[nm,am]=slotLabel(it),ne=el.querySelector('.nm');ne.textContent=nm;el.querySelector('.am').textContent=it&&WEAP[it.t]&&p.sel===i&&p.reloadT>0?'reload':am;
       el.querySelector('.rar').style.background=it&&WEAP[it.t]?RARH[it.r|0]:'transparent';slotIcon(el,it?(WEAP[it.t]?it.t:HEALS[it.t]&&HEALS[it.t].sh?'sh':'hp'):'');
-      el.classList.toggle('empty',!it);el.classList.toggle('on',mode==='combat'&&p.sel===i)}
+      el.classList.toggle('empty',!it);el.classList.toggle('on',mode==='combat'&&p.sel===i);fitSlotName(ne,it)}
     $('vitals').classList.toggle('low',p.hp<=30);
     $('slotX').classList.toggle('on',mode==='combat'&&p.sel<0);$('slotX').querySelector('.nm').textContent=touchUI?'Bar':'Crowbar';slotIcon($('slotX'),'cb');
     for(const k of ['wall','floor','ramp']){const el=$('slot'+k);el.classList.toggle('on',mode==='build'&&buildType===k);slotIcon(el,k);el.classList.toggle('cant',p.mats<COST)}
@@ -4568,13 +4952,16 @@ function updateHud(dt){
   if(touchUI){const u=$('tUse');u.hidden=!tl;if(tl&&u.textContent!==tl)u.textContent=tl;const ed=mode==='edit';
     hudSet($('tFire'),'#tf',ed?'TILE':mode==='build'?'PLACE':(s&&HEALS[s.t]?'USE':!w?'HIT':'FIRE'));hudSet($('tEdit'),'#te',ed?'DONE':'EDIT');hudSet($('tReload'),'#tr',ed?'WHOLE':'RELOAD');hudSet($('tAim'),'#ta',ed?'CANCEL':'AIM');
     const te=$('tEdit'),sh=ed||(!!editAim&&mode==='combat');if(te.hidden===sh)te.hidden=!sh;$('tAim').classList.toggle('on',!!tAct.aim)}
-  const ads=isADS(),scoped=ads&&w&&w.fam==='sr',sgt=ads&&w?w.id:'';
-  if(sgt!==sightKey){sightKey=sgt;hud.scope.hidden=!scoped;hud.sight.hidden=!sgt||scoped;
-    if(sgt){(scoped?hud.scopeR:hud.sightR).innerHTML=SIGHT[sgt]||'';if(scoped){const c=SCOPE[sgt]||SCOPE.sr;hud.scope.style.setProperty('--r',c[0]);hud.scope.style.setProperty('--rim',c[1]);hud.scope.style.setProperty('--tint',c[2])}}}
-  const sp=mode==='build'||!w?.004:(w.pellets>1?(ads?w.ads:w.hip):curSpread(p,w,ads));
-  const gap=Math.round((4+sp*(VH/2)/Math.tan(camera.fov*Math.PI/360)*.9)*4)/4;
-  if(hudLast.get('gap')!==gap){hudLast.set('gap',gap);hud.cl.style.transform=`translate(${-gap-9}px,0)`;hud.cr.style.transform=`translate(${gap}px,0)`;hud.ct.style.transform=`translate(0,${-gap-9}px)`;hud.cb.style.transform=`translate(0,${gap}px)`}
-  hudSet(hud.cross,'c:opacity',sgt?'0':'1');   // while aiming, the weapon's own sight replaces the crosshair
+  const ads=isADS(),scoped=!!(ads&&w&&w.fam==='sr');
+  if(hudLast.get('scp')!==scoped){hudLast.set('scp',scoped);hud.scope.hidden=!scoped;if(scoped)hud.scopeR.innerHTML=SNIPER_RET}
+  if(scoped&&hudLast.get('scw')!==w.id){hudLast.set('scw',w.id);const c=SCOPE[w.id]||SCOPE.sr;hud.scope.style.setProperty('--r',c[0]);hud.scope.style.setProperty('--rim',c[1]);hud.scope.style.setProperty('--tint',c[2])}
+  // the reticle: the held weapon's family style, sized to the real spread of its shot in pixels at the current zoom
+  const rs=mode==='build'||mode==='edit'||!w?'dot':w.fam;RET.set(hud.cross,rs,ads);
+  retKick=Math.max(0,retKick-dt*retKick*14-dt*4);
+  const sp=!w?0:w.pellets>1?(ads?w.ads:w.hip):curSpread(p,w,ads);
+  RET.size(sp*(VH/2)/Math.tan(camera.fov*Math.PI/360)+retKick);
+  hudSet(hud.cross,'c:transform',`translate(${Math.floor(VW/2)-VW/2}px,${Math.floor(VH/2)-VH/2}px)`);   // on a whole pixel, so the lines are sharp
+  hudSet(hud.cross,'c:visibility',scoped?'hidden':'visible');
   hitT-=dt;hudSet(hud.hitm,'h:opacity',hitT>0?'1':'0');
   hurtA=Math.max(0,hurtA-dt*1.2);hudSet(hud.hurt,'u:opacity',hurtA.toFixed(2));
   // match info: players left, your knockouts, the storm clock
@@ -4625,7 +5012,7 @@ function updateHud(dt){
   let netTxt='';
   if(inPlay()){
     if(spec){const tg=camTarget();if(tg&&tg!==player)netTxt='Watching '+tg.name+(specCandidates().length>1?(touchUI?' · tap Next':' · click for the next'):'');else if(!inMatch)netTxt='Watching · you\'ll drop in the next match'}
-    else if(p.st==='bus')netTxt=t<0?'The Drifter sets off in '+Math.ceil(-t):t<busLine.tIn?'Over the sea · jump when you\'re over the island':'Press '+(touchUI?'Jump':KB.name(KB.keys('jump')[0]||'Space'))+' to jump · auto-drop in '+Math.ceil(busLine.tOut-t);
+    else if(p.st==='bus')netTxt=t<busLine.tIn||t<0?'Red light · green over the island in '+Math.ceil(Math.max(0,busLine.tIn)-t):'Green light · '+(touchUI?'tap Jump':KB.name(KB.keys('jump')[0]||'Space')+' to jump')+' · auto-drop in '+Math.ceil(busLine.tOut-t);
     else if(p.st==='fall')netTxt=(touchUI?'Jump':KB.name(KB.keys('jump')[0]||'Space'))+' opens the glider';
     else if(online&&!locked&&!fallback&&!touchUI&&!paused)netTxt='Click to play';
   }
@@ -4665,7 +5052,9 @@ function drawMap(g,W_,labels){
       const me=camTarget()||player,dx=S.nx-me.pos.x,dz=S.nz-me.pos.z,d=Math.hypot(dx,dz);
       if(me.st!=='bus'&&d>S.nr+1){g.strokeStyle='rgba(159,232,255,.95)';g.lineWidth=Math.max(1.5,W_/110);g.beginPath();g.moveTo(me.pos.x*k,me.pos.z*k);g.lineTo((me.pos.x+dx*(1-S.nr/d))*k,(me.pos.z+dz*(1-S.nr/d))*k);g.stroke()}}
     if(t<busLine.tOut+2){g.setLineDash([W_/60,W_/60]);g.strokeStyle='rgba(255,201,60,.95)';g.lineWidth=Math.max(1.5,W_/160);g.beginPath();g.moveTo(busLine.ax*k,busLine.az*k);const e=busPos(busLine.tEnd);g.lineTo(e.x*k,e.z*k);g.stroke();g.setLineDash([]);
-      const b=busPos(t);g.fillStyle='#ffc93c';g.beginPath();g.arc(b.x*k,b.z*k,W_/45,0,Math.PI*2);g.fill()}
+      // the Drifter: a little plane pointing along its line
+      const b=busPos(t),s=W_/34;g.save();g.translate(b.x*k,b.z*k);g.rotate(Math.atan2(busLine.dz,busLine.dx));g.fillStyle='#ffc93c';g.strokeStyle='#1a1200';g.lineWidth=Math.max(1,W_/300);g.lineJoin='round';
+      g.beginPath();for(const [x,y] of [[1,0],[.7,-.14],[.2,-.16],[.05,-1],[-.15,-1],[-.15,-.16],[-.7,-.12],[-.85,-.45],[-1,-.45],[-.95,0],[-1,.45],[-.85,.45],[-.7,.12],[-.15,.16],[-.15,1],[.05,1],[.2,.16],[.7,.14]])g.lineTo(x*s,y*s);g.closePath();g.fill();g.stroke();g.restore()}
   }
   if(labels){g.font=`700 ${Math.round(W_/36)}px "Barlow Condensed",sans-serif`;g.textAlign='center';for(const p of places){g.fillStyle='rgba(0,0,0,.55)';g.fillText(p.name,p.x*k+1,p.z*k+1-W_/40);g.fillStyle='#fff8ea';g.fillText(p.name,p.x*k,p.z*k-W_/40)}}
   const me=camTarget()||player;
@@ -4913,9 +5302,12 @@ function updateCamera(dt){
   const self=tgt===player,ads=self&&isADS(),w=self?heldW(player):null;
   const tf=ads&&w?w.fov:72;if(Math.abs(camera.fov-tf)>.05){camera.fov+=(tf-camera.fov)*Math.min(1,dt*14);camera.updateProjectionMatrix()}
   if(self&&player.st==='bus'){
-    // riding the Drifter: look around it
-    busPos(matchT(),_bp);const f=fwdOf(player.yaw,player.pitch);
-    setNear(1);const far=camera.aspect<1?58:34;camera.position.copy(_bp).addScaledVector(f,-far).add(new V3(0,far*.33,0));camera.lookAt(_bp.clone().addScaledVector(f,24).add(new V3(0,-7,0)));camDist=3.5;return;
+    // riding the Drifter: look around it from a little above and to one side of its tail, so the open ramp, the tail and
+    // the lettering are in view (the plane is drawn by updateWorldFx just before this, so it doesn't lag a frame)
+    const f=fwdOf(player.yaw,player.pitch),G_=busMesh.position;_bp.set(busLine.dx,0,busLine.dz);
+    _bp.multiplyScalar(-5).add(G_);_bp.y+=1.2;
+    setNear(1);const tall=camera.aspect<1,far=tall?58:26;camera.position.copy(_bp).addScaledVector(f,-far).addScaledVector(rightOf(player.yaw),far*(tall?.1:.55));camera.position.y+=far*.15;
+    camera.lookAt(_cl.copy(_bp).addScaledVector(f,20).add(_ch.set(0,-4,0)));camDist=3.5;return;
   }
   const f=fwdOf(tgt.yaw,tgt.pitch),r=rightOf(tgt.yaw);
   const head=_ch.set(tgt.pos.x,tgt.pos.y+EYE,tgt.pos.z);
@@ -4949,8 +5341,8 @@ function updateWorldFx(){
     if(shown){const B=boltFor(t,S.phase);glow=B.on?boltGlow(t-B.t)*B.str:0;
       if(B.on&&t>=B.t&&t<B.t+.6){if(!B.heard){B.heard=true;drawBolt(S);const d=Math.hypot(ce.x-B.x,ce.z-B.z);setTimeout(()=>sfxThunder(1/(1+d*.012)),Math.min(1500,d*3))}boltMesh.visible=t-B.t<.24}else boltMesh.visible=false}
     else boltMesh.visible=false;
-    busMesh.visible=t<busLine.tEnd+1;if(busMesh.visible){busPos(Math.max(0,t),busMesh.position);busMesh.rotation.set(0,Math.atan2(busLine.dx,busLine.dz),0)}}
-  else{stormMesh.visible=false;busMesh.visible=false;boltMesh.visible=false}
+    busMesh.visible=t>-12&&t<busLine.tEnd+4;if(busMesh.visible){Plane.place(t);const d=inMatch&&player.st==='bus'?30:ce.distanceTo(busMesh.position);planeDrone(.3/(1+Math.max(0,d-30)*.022),240+700/(1+d*.012))}else planeDrone(0,300)}
+  else{stormMesh.visible=false;busMesh.visible=false;boltMesh.visible=false;planeDrone(0,300)}
   // Out in the storm the light drops, the sky and the haze turn slate, the haze closes in and it rains. stormK eases
   // between the two looks over about half a second as the camera crosses the wall.
   stormK+=(want-stormK)*Math.min(1,dt*4);if(Math.abs(want-stormK)<.004)stormK=want;
@@ -5448,11 +5840,11 @@ if(navigator.webdriver)window.__dz={get state(){return state},get online(){retur
   fire(){const w=heldW(player),s=heldItem(player);updateCamera(0);playerShoot();if(s&&w)s.n=w.mag;player.cd=0},
   draws(){return renderer.info.render.calls},
   setNoRender(v){window.__noRender=!!v},onNode,updateRemotes,renderOnce(){piecesTick(0);mpFlush();syncLimbs();drawScene()},get fxTier(){return fxTier},set fxTier(v){fxTier=v},get lookKey(){return lookKey},mpieces,mpBreak,mpSetHp,resetMap,mpAt,allRuns,brokenBits,applyBits,sendEv,get brokenN(){return brokenN},hash,setMapV(v){mapV=v},get mapV(){return mapV},mapSize:MAP,ICONS,paintControl,get mapBg(){if(!mapBg)buildMapBg();return mapBg},removePiece,wallSpec,pushOut,SPEED,AIR,BODY:{R,H},buildings,rampIn,updateBots,updatePlayer,
-  GUN_GEO,GUN_TIP,GUN_OCT,RTAG,MAT,gunIM,itemIM,flashes,trs,bits,animModel,gunTip,startReload,tickWeapon,sfxShot,sfxReload,sfxPump,sfxBolt,sfxSwitch,isADS,KICK,
+  GUN_GEO,GUN_TIP,GUN_OCT,RTAG,RET,SNIPER_RET,SCOPE,killFeed,MAT,gunIM,itemIM,flashes,trs,bits,animModel,gunTip,startReload,tickWeapon,sfxShot,sfxReload,sfxPump,sfxBolt,sfxSwitch,isADS,KICK,
   STUCK_LOG,landPath,landClear,navShut,NAVN,updateBots,updatePlayer,step(dt){pClock+=dt*1000;practiceTick(dt);if(inPlay()){updatePlayer(dt);updateBots(dt)}},
   landOk,landFit,landUnder,skirtOf,skirtList,pieceBox,buildList,applyBuilds,handleEvent,get bdDirty(){return bdDirty},bdGone,ED_N,edRects,edOk,pieceShape,partsOf,partList,partIM,pieceInst,editPiece,wouldTrap,openEdit,closeEdit,confirmEdit,editKey,editTarget,editTile,updateEdit,canEdit,pieceMatrix,pieceCentre,EDIT_T,EDIT_RANGE,pressCode,get edit(){return edit},get editJob(){return editJob},get editAim(){return editAim},get buildCd(){return buildCd},rampH,rampAt,rampBlocked,solidAt,rayRamp,rhash,COST,JUMP,GRAV:G,STEP,RT,MAXL,terrainH,walkH,terrainSlope,rayTerrain,TH,TN,TS,TM,LVL,LAKE,PADS,SHED_Y,chestSpots,floorSpots,buildings,footprints,get groundMesh(){return groundMesh},
   Face,FACE_STARTS,FACE0,faceOf,faceBits,faceStr,faceRows,faceSpot,faceZ,bagFace,setShowFaces,NOOB,get myFace(){return myFace},get showFaces(){return showFaces},
-  Locker,get LOCKER_ON(){return lockerOn()},lockerSync,OUTFITS,bodyGeo,LEG_GEO,legIM,fitLegIM,fitLegGeo,makeModel,setModelColor,legSpec,STD_LEGS,fitOf,hitboxes,POSES,SWING,posePut,heldFollow,GLIDER_GEO,bodyRig,ARM_H,ARM_E,ARM_P,armIK,get windN(){return windIM.count},TKON,PCOLS,SKINS,get mySkin(){return mySkin}};
+  Locker,get LOCKER_ON(){return lockerOn()},lockerSync,OUTFITS,bodyGeo,LEG_GEO,legIM,fitLegIM,fitLegGeo,makeModel,setModelColor,legSpec,STD_LEGS,fitOf,hitboxes,POSES,SWING,posePut,heldFollow,GLIDER_GEO,bodyRig,ARM_H,ARM_E,ARM_P,armIK,get windN(){return windIM.count},TKON,PCOLS,SKINS,get mySkin(){return mySkin},Plane,get droneV(){return droneV}};
 
 requestAnimationFrame(t=>{last=t;frame(t)});
 })();
