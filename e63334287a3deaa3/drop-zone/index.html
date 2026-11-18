@@ -5341,6 +5341,7 @@ function animModel(e,dt){
   const st=e.swAt?(now-e.swAt)/1000:9;
   if(cb&&st<SWING[SWING.length-1][0]&&!RM){let i=1;while(SWING[i][0]<st)i++;const a=SWING[i-1],b=SWING[i],q=clamp((st-a[0])/(b[0]-a[0]),0,1),ty=b[2]||0,k=ty===1?q*q:ty===2?1-(1-q)*(1-q):q*q*(3-2*q),A0=a[1]||pf,B0=b[1]||pf;
     for(let j=0;j<POSE_N;j++)pf[j]=A0[j]+(B0[j]-A0[j])*k}
+  if(LX&&(e.lxo||e.lxForce))LX.emote(e,u,pf,m,now);   // an emote or a victory pose from the Locker's extras (locker-extra.js)
   posePut(u,pf);
   if(u.glk>.01&&!u.gun.visible){u.glider.updateMatrix();const w=ge*(e.glide?1:clamp(u.glk*2-.6,0,1));for(let k=0;k<2;k++){const h=GS?GS.hands[k]:null;if(GS&&!h)continue;if(h)_ht.set(h[0],h[1],h[2]);else _ht.set(k?.48:-.48,0,0);_ht.applyMatrix4(u.glider.matrix);armIK(u,k,_ht,GS&&GS.pole?GS.pole[k]:GLIDE_POLE[k],w)}}
   // ---- the held item. A weapon sits with its grip in the right hand (HOLD), turned a little toward where the
@@ -5963,7 +5964,9 @@ function lxSync(){
 const LXAPI={THREE,scene,camera,renderer,MAT,store,player,gunIM,GUN_GEO,GUN_TIP,WIDS,WEAP,LIMB_N,plyMat,partMat,pieceInst,partIM,skirtIM,pieces,Locker,STAGE,
   GLIDER_GEO,GLIDE_Y,GLU,ROUND_LO,pose,setModelColor,NOOB,bagRBox,bagRLo,bagBox,bagTurn,POSES,POSE_N,GLIDE_POLE,UNIT_BOX,BS,ICONS,geoPWall,geoPFloor,geoPRamp,animModel,setHeldModel,newEnt,esc,$,lockerOn,myId,RM,
   get ents(){return ents},get state(){return state},get touchUI(){return touchUI},get low(){return touchUI||gfxPref==='fast'},get lookOn(){return lookOn},
-  get myLx(){return myLx},setLx(v){myLx=lockerOn()?lxOf(v):'';store.set('lx',myLx);player.lx=myLx;if(LX)LX.dress(player);if(online)Net.publishSoon()}};
+  get myLx(){return myLx},setLx(v){myLx=lockerOn()?lxOf(v):'';store.set('lx',myLx);player.lx=myLx;if(LX)LX.dress(player);if(online)Net.publishSoon()},
+  setLxNet(v){myLx=lockerOn()?lxOf(v):'';player.lx=myLx;if(LX)LX.dress(player);if(online)Net.publishSoon()},   // the same, not saved (an emote while it plays)
+  get MS(){return MS},canLook:()=>canLook(),kbUsed:c=>KB.actions().some(a=>a.keys.includes(c)),get SPEED(){return SPEED}};
 lockerSync();
 if(CAPTAINS)CAPTAINS.onChange(lockerSync);
 

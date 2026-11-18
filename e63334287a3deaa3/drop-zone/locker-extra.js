@@ -44,10 +44,11 @@ const WRAP_NAMES=['Gold','Chrome','Wood Grain','Forest Camo','Desert Camo','Arct
   'Candy Cane','Lava','Ice','Galaxy','Rust','Graffiti','Bubblegum Pink','Hazard Stripes','Plastic Brick'];
 const BUILD_NAMES=['Cardboard','Frosted Glass','Ice','Candy','Stone','Scrap Metal'];
 const PACK_NAMES=['Rucksack','Jetpack','Teddy Bear','Tortoise Shell','Treasure Chest','Lunchbox','Guitar Case','Fishbowl'];
-const SLOT={g:GLIDER_NAMES,t:TRAIL_NAMES,w:WRAP_NAMES,b:BUILD_NAMES,p:PACK_NAMES};
+const EMOTE_NAMES=['Wave','Dance','Clap','Jumping Jacks','Robot','Twirl'],VICTORY_NAMES=['Champion','Flex','Take a Bow','Jump for Joy'];
+const SLOT={g:GLIDER_NAMES,t:TRAIL_NAMES,w:WRAP_NAMES,b:BUILD_NAMES,p:PACK_NAMES,e:EMOTE_NAMES,v:VICTORY_NAMES};
 // a worn string ('g12t3') as {g:12,t:3}; numbers this file does not know are left out
 function parse(s){const o={};if(typeof s!=='string')return o;for(const m of s.matchAll(/([a-z])([0-9]+)/g)){const L=SLOT[m[1]],n=+m[2];if(L&&n>=1&&n<=L.length)o[m[1]]=n}return o}
-function str(o){let s='';for(const k of 'gtwbp')if(o[k])s+=k+o[k];return s}
+function str(o){let s='';for(const k of 'gtwbpve')if(o[k])s+=k+o[k];return s}
 
 // =====================================================================
 //  Gliders
@@ -544,6 +545,63 @@ function pack(B,n,a){const R=(...v)=>G.bagRBox(B,...v),L=(...v)=>G.bagRLo(B,...v
 }
 
 // =====================================================================
+//  Emotes and victory poses, on the page's own pose system (index.html's pose() and posePut): each gives, for a time t
+//  in seconds, the arms and chest ({lean, turn, roll, L, R} as for pose()), the legs ([x, out, knee] for each), and how
+//  far the body lifts and turns. An emote plays on the ground while you stand still (T on a keyboard, the EMOTE button
+//  on a touch screen; moving, jumping or shooting stops it) and is sent as `e` in your lx while it plays, so others see
+//  it from when they get it. A victory pose plays when you win, for as long as the match's end is shown. Looks only.
+// =====================================================================
+const HANG=[-1.42,.2,-.14,.25],HANGR=[-1.42,-.2,.14,.25];
+const sn=Math.sin,cs=Math.cos;
+const EMOTES=[null,
+  {dur:3,f:t=>({L:HANG,R:[1.85,-.95+.35*sn(t*9),.14,.5+.35*sn(t*9)],turn:-.12,roll:.05})},
+  {dur:6,f:t=>{const b=sn(t*6.3);return{L:[.4+.5*b,.9,-.2,1.2],R:[.4-.5*b,-.9,.2,1.2],roll:.14*b,turn:.25*sn(t*3.15),y:.05*Math.abs(cs(t*6.3)),legs:[.15+.2*Math.max(0,b),-.12,.3+.5*Math.max(0,b),.15+.2*Math.max(0,-b),.12,.3+.5*Math.max(0,-b)]}}},
+  {dur:3,f:t=>{const c=.25*(1+sn(t*14))/2;return{L:[.3,-.15+c,0,1.0],R:[.3,.15-c,0,1.0],lean:-.05}}},
+  {dur:4,f:t=>{const k=(1-cs(t*7))/2;return{L:[-1.42+3.4*k,.2+.9*k,-.14,.25],R:[-1.42+3.4*k,-.2-.9*k,.14,.25],y:.1*sn(t*7)*sn(t*7),legs:[0,-.08-.3*k,.1,0,.08+.3*k,.1]}}},
+  {dur:5,f:t=>{const q=Math.floor(t*3)%4,a=[[1.0,-.8],[-.8,1.0],[1.0,1.0],[-.8,-.8]][q];return{L:[a[0],.6,0,1.57],R:[a[1],-.6,0,1.57],turn:[.4,-.4,0,0][q],y:q>1?.03:0,legs:[q===2?.4:0,-.06,q===2?.7:.05,q===3?.4:0,.06,q===3?.7:.05]}}},
+  {dur:2.4,f:t=>({L:[.2,1.5,-.1,.2],R:[.2,-1.5,.1,.2],spin:t*Math.PI*2/1.2,y:.04,legs:[0,-.04,.05,.6,.05,1.4]})}];
+const VICTORIES=[null,
+  {f:t=>{const b=Math.abs(sn(t*4));return{L:[1.95,.75,-.14,.2+.5*b],R:[1.95,-.75,.14,.2+.5*b],lean:.12,y:.12*b}}},
+  {f:t=>({L:[0,1.5,-.05,1.5+.15*sn(t*3)],R:[0,-1.5,.05,1.5+.15*sn(t*3)],lean:-.08,turn:.15*sn(t*1.5),legs:[0,-.12,.05,0,.12,.05]})},
+  {f:t=>{const k=Math.min(1,(t%3.2)/.6)*(t%3.2<2.4?1:Math.max(0,1-((t%3.2)-2.4)/.8));return{L:[-.2,.4,-.2,1.6*k],R:[-.6,-.3,.2,1.2*k],lean:-.75*k,legs:[.25*k,-.05,.15*k,-.3*k,.05,.25*k]}}},
+  {f:t=>{const p=(t%.8)/.8,h=sn(p*Math.PI);return{L:[1.4+.8*h,.9,-.3,.3],R:[1.4+.8*h,-.9,.3,.3],y:.35*h,legs:[.5*(1-h),-.1-.15*h,.9*(1-h),.5*(1-h),.1+.15*h,.9*(1-h)]}}}];
+const _ep=new Map();
+function poseOf(o){return G.pose({lean:o.lean,turn:o.turn,roll:o.roll,L:o.L,R:o.R})}
+// which emote or victory pose an entity is in now, and since when (stage: e.lxForce from the Locker)
+function emoteOf(e,now){
+  if(e.lxForce)return e.lxForce;
+  const o=e.lxo||{},MS=G.MS;
+  if(o.v&&MS&&MS.ph==='end'&&e.alive&&String(MS.wn||'')===(e===G.player?String(G.myId()):e.id)){if(!e.lxVA||e.lxVM!==MS.id){e.lxVA=now;e.lxVM=MS.id}return{k:'v',n:o.v,t0:e.lxVA}}
+  if(o.e&&e.alive&&e.onGround&&e.st==='ground'){if(e.lxEN!==o.e){e.lxEN=o.e;e.lxEA=now}const E=EMOTES[o.e];if(E&&now-e.lxEA<E.dur*1000)return{k:'e',n:o.e,t0:e.lxEA}}
+  else e.lxEN=0;
+  return null;
+}
+function emote(e,u,pf,m,now){
+  const q=emoteOf(e,now);if(!q){u.lxEw=0;return}
+  const D=(q.k==='v'?VICTORIES:EMOTES)[q.n];if(!D)return;const t=(now-q.t0)/1000,o=D.f(G.RM?0:t),P=poseOf(o);
+  const w=Math.min(1,t/.2)*(q.k==='e'&&!e.lxForce?Math.min(1,(D.dur-t)/.25):1);u.lxEw=w;
+  for(let i=0;i<pf.length;i++)pf[i]+=(P[i]-pf[i])*w;
+  u.gun.visible=false;
+  if(o.legs){const L0=u.legs[0],L1=u.legs[1],g=o.legs;L0.rotation.set(L0.rotation.x+(g[0]-L0.rotation.x)*w,0,L0.rotation.z+(g[1]-L0.rotation.z)*w,'XYZ');L0.k+=(g[2]-L0.k)*w;L1.rotation.set(L1.rotation.x+(g[3]-L1.rotation.x)*w,0,L1.rotation.z+(g[4]-L1.rotation.z)*w,'XYZ');L1.k+=(g[5]-L1.k)*w}
+  if(o.y)m.position.y+=o.y*w*G.BS;if(o.spin)m.rotation.y+=o.spin*w;
+}
+// you: start your chosen emote, and stop it when you move, jump, shoot or it ends
+let emoteBtn=null;
+function canEmote(){const p=G.player;return G.lockerOn()&&G.canLook()&&p.alive&&p.onGround&&p.st==='ground'&&Math.hypot(p.vel.x,p.vel.z)<1}
+function startEmote(){if(!canEmote())return;const n=myEmote(),o=worn();o.e=n;G.setLxNet(str(o));G.player.lxEA=performance.now();G.player.lxEN=n}
+function stopEmote(){const o=worn();if(!o.e)return;delete o.e;G.setLxNet(str(o))}
+const myEmote=()=>{const n=+G.store.get('em','1')|0;return n>=1&&n<=EMOTE_NAMES.length?n:1};
+addEventListener('keydown',e=>{if(e.code!=='KeyT'||e.repeat||e.ctrlKey||e.metaKey||e.altKey||G.kbUsed('KeyT')||!G.lockerOn())return;const a=document.activeElement;if(a&&/INPUT|TEXTAREA/.test(a.tagName))return;if(worn().e)stopEmote();else startEmote()});
+function emoteTick(){
+  const p=G.player,o=parse(G.myLx||'');
+  if(o.e){const E=EMOTES[o.e],t=(performance.now()-(p.lxEA||0))/1000;if(!E||t>E.dur||!p.alive||!p.onGround||Math.hypot(p.vel.x,p.vel.z)>1||G.player.cd>0&&t>.3)stopEmote()}
+  if(G.touchUI&&G.lockerOn()){if(!emoteBtn){emoteBtn=document.createElement('button');emoteBtn.className='tb';emoteBtn.id='tEmote';emoteBtn.type='button';emoteBtn.textContent='EMOTE';
+      emoteBtn.style.cssText='left:calc(10px + env(safe-area-inset-left,0px));top:calc(60px + env(safe-area-inset-top,0px));width:56px;height:30px;border-radius:15px;font-size:11px';
+      emoteBtn.addEventListener('pointerdown',ev=>{ev.preventDefault();ev.stopPropagation();if(worn().e)stopEmote();else startEmote()});const T=G.$('touch');if(T)T.appendChild(emoteBtn)}
+    emoteBtn.hidden=!(canEmote()||o.e)}else if(emoteBtn)emoteBtn.hidden=true;
+}
+
+// =====================================================================
 //  Dressing an entity, the frame's work
 // =====================================================================
 function dress(e){
@@ -555,6 +613,7 @@ function dress(e){
 }
 function gliderSkin(model,n){const u=model.userData,g=n?gliderOf(n):null;if(g){u.glider.geometry=g;u.glider.material=GLX}else{u.glider.geometry=G.GLIDER_GEO;u.glider.material=G.MAT}}
 function tick(dt){
+  emoteTick();
   gT.value+=G.RM?0:dt;uT.value+=G.RM?0:dt;
   if(!!G.MAT.defines&&!!G.MAT.defines.FINE!==!!GLX.defines.FINE){if(G.MAT.defines.FINE)GLX.defines.FINE=1;else delete GLX.defines.FINE;GLX.needsUpdate=true}
   // trails
@@ -584,15 +643,16 @@ const botLx=i=>'g'+(1+(i*7)%24)+'t'+(1+i%6)+'w'+(1+(i*5)%19)+'b'+(1+i%6)+'p'+(1+
 // =====================================================================
 //  The Locker's tabs
 // =====================================================================
-const TABS=[['outfits','Outfits','OUT','FITS'],['p','Backpacks','BACK','PACKS'],['g','Gliders','GLI','DERS'],['t','Trails','TRA','ILS'],['w','Gun skins','GUN ','SKINS'],['b','Builds','BUI','LDS']];
-const LEDE={g:'Pick how you glide down. Every glider is held its own way, but you are the same size and fall at the same speed.',t:'A trail follows you while you skydive and glide. It never hides anyone: it fades out close to the camera.',p:'A backpack goes on over any outfit. It keeps your colour on it, so you can still be told apart.',w:'Your weapons in a pattern. The orange tip, the muzzle flash, the rarity band and the crosshair stay the same.',b:'What your walls, floors and ramps look like to everyone. They are just as strong, and just as hard to see through.'};
-let lede0=null,tab='outfits',built=false,drawnPics=false,stageEnt=null,stageTrail=0,posed=false,disp=null;
+const TABS=[['outfits','Outfits','OUT','FITS'],['p','Backpacks','BACK','PACKS'],['e','Emotes','EMO','TES'],['v','Victory','VIC','TORY'],['g','Gliders','GLI','DERS'],['t','Trails','TRA','ILS'],['w','Gun skins','GUN ','SKINS'],['b','Builds','BUI','LDS']];
+const LEDE={g:'Pick how you glide down. Every glider is held its own way, but you are the same size and fall at the same speed.',t:'A trail follows you while you skydive and glide. It never hides anyone: it fades out close to the camera.',e:'Pick the emote to play in a match: T on a keyboard, the Emote button on a touch screen. Standing still only; moving stops it.',v:'Pick what you do when you win: everyone watching you sees it.',p:'A backpack goes on over any outfit. It keeps your colour on it, so you can still be told apart.',w:'Your weapons in a pattern. The orange tip, the muzzle flash, the rarity band and the crosshair stay the same.',b:'What your walls, floors and ramps look like to everyone. They are just as strong, and just as hard to see through.'};
+let stageA=0,lede0=null,tab='outfits',built=false,drawnPics=false,stageEnt=null,stageTrail=0,posed=false,disp=null;
 const cards={};
 function worn(){return parse(G.myLx)}
 function css(){const st=document.createElement('style');st.textContent=
   '.lk-tabs{display:flex;gap:6px;flex-wrap:wrap}'
   +'.lk-tabs button{flex:none;padding:7px 12px;font-size:15px;letter-spacing:.04em;min-width:0}'
   +'.lk-tabs button[aria-pressed="true"]{border-color:var(--sun);background:rgba(255,201,60,.18);color:var(--ink)}'
+  +'.lk-card .lk-big{font-size:34px;color:var(--sun)}'
   +'.lk-card .lk-none{width:100%;aspect-ratio:2/3;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--ink-dim)}'
   +'@media (orientation:portrait) and (max-width:700px){.lk-tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.lk-tabs button{padding:6px 9px;font-size:14px}}'
   +'@media (orientation:landscape) and (max-height:480px){.lk-tabs button{padding:5px 9px;font-size:13px}}';document.head.appendChild(st)}
@@ -602,14 +662,14 @@ function buildMenu(){
   for(const [id,label] of TABS){const b=document.createElement('button');b.type='button';b.className='ghost-btn';b.dataset.tab=id;b.textContent=label;b.addEventListener('click',()=>setTab(id));bar.appendChild(b)}
   grid0.before(bar);
   for(const [id] of TABS.slice(1)){const gr=document.createElement('div');gr.className='lk-grid';gr.id='lkGrid-'+id;gr.hidden=true;grid0.after(gr);const L=SLOT[id];cards[id]=[];
-    for(let n=0;n<=L.length;n++){const b=document.createElement('button');b.type='button';b.className='lk-card';
-      b.innerHTML=(n?'<img alt="" hidden>':'<span class="lk-none">'+(id==='g'?'Standard':'None')+'</span>')+'<span>'+G.esc(n?L[n-1]:id==='w'?'No skin':id==='t'?'No trail':id==='b'?'Plywood':id==='p'?'Outfit\'s own':'Standard')+'</span>';
-      b.addEventListener('click',()=>pick(id,n));gr.appendChild(b);cards[id].push(b)}}
+    for(let n=id==='e'?1:0;n<=L.length;n++){const b=document.createElement('button');b.type='button';b.className='lk-card';
+      b.innerHTML=(id==='e'||id==='v')?'<span class="lk-none lk-big">'+(n?'&#9654;':'&ndash;')+'</span><span>'+G.esc(n?L[n-1]:'None')+'</span>':(n?'<img alt="" hidden>':'<span class="lk-none">'+(id==='g'?'Standard':'None')+'</span>')+'<span>'+G.esc(n?L[n-1]:id==='w'?'No skin':id==='t'?'No trail':id==='b'?'Plywood':id==='p'?'Outfit\'s own':'Standard')+'</span>';
+      b.addEventListener('click',()=>pick(id,n));gr.appendChild(b);cards[id][n]=b}}
   setTab('outfits');
 }
-function pick(id,n){if(!G.lockerOn())return;const o=worn();if(n)o[id]=n;else delete o[id];G.setLx(str(o));mark()}
-function nameOf(id){const o=worn(),n=o[id];return n?SLOT[id][n-1]:id==='w'?'No skin':id==='t'?'No trail':id==='b'?'Plywood':id==='p'?'The outfit\'s own':'Standard glider'}
-function mark(){if(!built)return;const o=worn();for(const id in cards)cards[id].forEach((b,n)=>b.setAttribute('aria-pressed',(o[id]||0)===n?'true':'false'));
+function pick(id,n){if(!G.lockerOn())return;if(id==='e'){G.store.set('em',String(n||1));stageA=performance.now();mark();return}const o=worn();delete o.e;if(n)o[id]=n;else delete o[id];if(id==='v')stageA=performance.now();G.setLx(str(o));mark()}
+function nameOf(id){const o=worn();o.e=myEmote();const n=o[id];return n?SLOT[id][n-1]:id==='w'?'No skin':id==='t'?'No trail':id==='b'?'Plywood':id==='p'?'The outfit\'s own':'Standard glider'}
+function mark(){if(!built)return;const o=worn();o.e=myEmote();for(const id in cards)cards[id].forEach((b,n)=>b.setAttribute('aria-pressed',(o[id]||0)===n?'true':'false'));
   if(tab!=='outfits')G.$('lkName').textContent=nameOf(tab)}
 function setTab(id){tab=id;const sec=G.Locker.sec;
   for(const b of sec.querySelectorAll('.lk-tabs button'))b.setAttribute('aria-pressed',b.dataset.tab===id?'true':'false');
@@ -653,11 +713,13 @@ function stage(dt,model,yaw){
   if(!stageEnt||stageEnt.model!==model){stageEnt=G.newEnt(model);Object.assign(stageEnt,{id:'stage',present:true,alive:true,local:false})}
   const e=stageEnt;posed=true;const air=tab==='g'||tab==='t';e.pos.set(S[0],S[1]+(air?.55:0),S[2]);e.vel.set(0,0,0);e.yaw=yaw;
   e.st=air?'glide':'ground';e.glide=air;e.onGround=!air;
+  const em=tab==='e'?myEmote():tab==='v'?o.v||0:0;   // an emote (played again and again) or the victory pose
+  if(em){const now=performance.now(),D=tab==='e'?EMOTES[em]:null;if(D&&now-stageA>D.dur*1000+700)stageA=now;e.lxForce={k:tab,n:em,t0:stageA}}else e.lxForce=null;
   e.lxo={g:air?o.g||0:0};gliderSkin(model,air?o.g||0:0);model.userData.gs=tab==='w'?o.w||0:0;
   G.setHeldModel(model,tab==='w'?'ar':'cb',tab==='w'?3:-1);
   G.animModel(e,dt);model.visible=true;
   stageTrail=tab==='t'?o.t||0:0;
-  V.zoom=air?1.6:tab==='w'?.55:2.1;V.y=air?1.0:tab==='w'?.38:1.1;
+  V.zoom=air?1.6:tab==='w'?.55:tab==='b'?2.1:1.15;V.y=air?1.0:tab==='w'?.38:tab==='b'?1.1:.15;
   if(tab==='b'){if(!disp)disp=makeDisp();disp.visible=true;const n=o.b||0;if(disp.userData.n!==n){disp.userData.n=n;for(const m of disp.children)m.material=n?dispMat(n):G.plyMat}
     disp.position.set(S[0],S[1],S[2]);disp.rotation.y=yaw}else if(disp)disp.visible=false;
 }
@@ -666,7 +728,7 @@ function dispMat(n){if(!dmats[n]){const t=new THREE.CanvasTexture(tileCanvas(n))
 function makeDisp(){const g=new THREE.Group();const w=new THREE.Mesh(G.geoPWall,G.plyMat);w.position.set(-1.2,2,1.6);const f=new THREE.Mesh(G.geoPFloor,G.plyMat);f.position.set(.4,.12,1.6);f.scale.set(.6,1,.6);
   const r=new THREE.Mesh(G.geoPRamp,G.plyMat);r.position.set(2.4,1.2,0);r.rotation.set(-Math.PI/4,Math.PI/2,0,'YXZ');r.scale.set(.6,1,.6);g.add(w,f,r);g.visible=false;G.scene.add(g);return g}
 
-return{pack,dress,tick,gunReset,gunIM,gunDone,bsOf,bsk,bsCol,botLx,menu,shown,stage,gstyle,HOLDS,
+return{emote,EMOTES,VICTORIES,startEmote,stopEmote,pack,dress,tick,gunReset,gunIM,gunDone,bsOf,bsk,bsCol,botLx,menu,shown,stage,gstyle,HOLDS,
   // for tests and contact sheets
   parse,str,GLIDER_NAMES,TRAIL_NAMES,WRAP_NAMES,BUILD_NAMES,gliderOf,gliderSkin,gunMesh,GLX,GSK,tp,TRAILS,emit,buildTex,tileCanvas,setTab,get tab(){return tab},gT,uT,gliderPic,gunPic};
 };
