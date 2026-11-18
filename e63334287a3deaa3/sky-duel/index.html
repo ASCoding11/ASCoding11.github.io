@@ -512,8 +512,9 @@ function sfx(name,pos,scale){
     case 'click':tone(520,.04,'square',.05*v);break;
   }
 }
+let engT=0;
 function engineSound(p){
-  if(!eng)return;const t=AC.currentTime,on=p&&p.alive&&!G.paused&&G.mode!=='menu';
+  if(!eng)return;const pn=performance.now();if(pn-engT<90)return;engT=pn;const t=AC.currentTime,on=p&&p.alive&&!G.paused&&G.mode!=='menu';
   eng.g.gain.setTargetAtTime(on?.05+p.thr*.035+(p.boosting?.05:0):0,t,.12);
   eng.wg.gain.setTargetAtTime(on?clamp((p.speed-50)/260,0,.5)*.22:0,t,.15);
   if(on){const f=52+p.speed*.42+p.thr*18;eng.o1.frequency.setTargetAtTime(f,t,.1);eng.o2.frequency.setTargetAtTime(f*.5,t,.1);eng.f.frequency.setTargetAtTime(300+p.thr*260+(p.boosting?500:0),t,.1);eng.wf.frequency.setTargetAtTime(400+p.speed*5,t,.2)}
@@ -1109,7 +1110,9 @@ function drawEnts(dt){
     const pg=PLANE_GEO[e.frame],cr=Math.cos(e.r),sr=Math.sin(e.r),rx=-Math.cos(e.h),rz=Math.sin(e.h);
     if(e.speed>112||e.boosting||Math.abs(e.yr)>.75){
       const al=e.boosting?.42:.24;
-      for(let s=-1;s<=1;s+=2){const w=pg.tip*s*e.vscale;FX.puff(e.pos.x-rx*w*cr-e.fwd.x*3,e.pos.y+w*sr-e.fwd.y*3,e.pos.z-rz*w*cr-e.fwd.z*3,0,0,0,e.boosting?1.7:1.1,1.3*e.vscale,3.4*e.vscale,1,1,1,al,0,0)}
+      const near=e===G.me||d<160,hs=near?e.speed*.018:0,sz=near?.8:1.3*e.vscale,lf=(e.boosting?1.5:1)*(near?.85:1.1);
+      for(let s=-1;s<=1;s+=2){const w=pg.tip*s*e.vscale,x=e.pos.x-rx*w*cr-e.fwd.x*3,y=e.pos.y+w*sr-e.fwd.y*3,z=e.pos.z-rz*w*cr-e.fwd.z*3;
+        FX.puff(x,y,z,0,0,0,lf,sz,sz*2.4,1,1,1,al,0,0);if(near)FX.puff(x-e.fwd.x*hs,y-e.fwd.y*hs,z-e.fwd.z*hs,0,0,0,lf,sz,sz*2.4,1,1,1,al,0,0)}
     }
     if(e.boosting)FX.puff(e.pos.x+e.fwd.x*pg.tail,e.pos.y+e.fwd.y*pg.tail,e.pos.z+e.fwd.z*pg.tail,0,0,0,.14,7,3,1,.72,.3,1,1,0);
     if(e.hp<45)FX.puff(e.pos.x+e.fwd.x*pg.tail*.5,e.pos.y,e.pos.z+e.fwd.z*pg.tail*.5,rand(-3,3),rand(2,8),rand(-3,3),e.hp<22?2.2:1.4,4,e.hp<22?16:11,.16,.16,.18,.55,0,0);
