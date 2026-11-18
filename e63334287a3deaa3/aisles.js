@@ -28,7 +28,7 @@
  * and nobody can join one without an invite (only the leader's browser writes m and iv). An invite code works through the
  * leader's browser: the joiner's node carries ap = SHA-256(K:code:uid), and the leader's browser, which knows the code,
  * moves them into m the next time it is open (it checks every waiting joiner whenever the room changes).
- * Captains remove an Aisle with a bad name from the admin page: entries signed with the admin key (adminkey.js, the same
+ * Captains remove (hide; nobody is let go, so Put back restores it) an Aisle with a bad name from the admin page: entries signed with the admin key (adminkey.js, the same
  * key as leaderboard.js's hours resets) at rooms/xj-ban/players/<uid>, r (JSON { K: { t, x: 1 removed / 0 put back,
  * nm } }) and sig; only correctly signed nodes count, and the latest t per Aisle wins.
  * Like everything on the Back Room it is checked in each browser, not enforced by the server: see README.
@@ -480,8 +480,11 @@
       if (my && my.a) {
         var A = aisles[my.a];
         if (!A) {
-          var why = Object.keys(nodes).some(function (u) { return nodes[u].L[my.a] && nodes[u].L[my.a].dis; }) ? 'Your Aisle was disbanded.' : bans[my.a] && bans[my.a].x ? 'Your Aisle was removed by the Captains.' : '';
-          if (why || !Object.keys(nodes).some(function (u) { return nodes[u].L[my.a]; })) { notice = why || 'Your Aisle is gone.'; await put(function (o) { delete o.a; delete o.aj; delete o.ap; }); }
+          var why = Object.keys(nodes).some(function (u) { return nodes[u].L[my.a] && nodes[u].L[my.a].dis; }) ? 'Your Aisle was disbanded.' : '';
+          // Removed by the Captains: it is only hidden, and nobody is let go, so Put back brings it back as it was.
+          // The Aisle window offers to leave it for good (removedCard).
+          if (!why && bans[my.a] && bans[my.a].x) { /* stay */ }
+          else if (why ||!Object.keys(nodes).some(function (u) { return nodes[u].L[my.a]; })) { notice = why || 'Your Aisle is gone.'; await put(function (o) { delete o.a; delete o.aj; delete o.ap; }); }
         } else if (A.members.indexOf(uid) < 0 && (!my.ap || A.rec.kx[uid])) {
           notice = 'You were removed from ' + A.nm + '.';
           await put(function (o) { delete o.a; delete o.aj; delete o.ap; });
@@ -626,6 +629,15 @@
     });
     ls('aisle:code:' + A.K, null);
   }
+  // Leave an Aisle the Captains removed (it isn't in aisles any more). Its leader also disbands their record of it.
+  async function leaveRemoved(K) {
+    await put(function (o) {
+      var r = o.L[K];
+      if (isObj(r) && r.ld === uid) { r = clone(r); r.dis = 1; delete r.m; delete r.iv; o.L[K] = r; }
+      if (o.a === K) { delete o.a; delete o.aj; delete o.ap; }
+    });
+    ls('aisle:code:' + K, null);
+  }
   async function newCode() {
     var A = mine(); if (!isLeader(A)) return '';
     var code = rand(8), ch = await sha16(A.K + ':' + code);
@@ -766,6 +778,13 @@
     var parts = [head('Aisles')], my = nodes[uid];
     parts.push(el('p', 'ais-sub', 'An Aisle is a crew of up to ' + MAX + ' seats. Its tag shows by every member’s name, and Aisles rank by miles and Elo on the Leaderboards. One Aisle at a time, invite only.'));
     if (notice) { parts.push(el('p', 'ais-note', notice)); }
+    // Our Aisle was removed by the Captains (hidden, not deleted): say so, and let us leave it for good.
+    if (my && my.a && !aisles[my.a] && bans[my.a] && bans[my.a].x) {
+      var rc = el('div', 'ais-card'), rk = my.a, rlb = armBtn('rl', 'Leave it for good', 'Tap again: leave it');
+      rc.append(el('p', 'ais-note', 'Your Aisle' + (bans[rk].nm ? ', ' + bans[rk].nm + ',' : '') + ' was removed by the Captains, so its tag and boards are hidden. If they put it back, you’re still in it. You can also start or join another Aisle.'));
+      rlb.addEventListener('click', function () { if (armed('rl')) run(leaveRemoved(rk), 'You left it.'); });
+      rc.append(rlb); parts.push(rc);
+    }
     invitesForMe().forEach(function (x) { parts.push(inviteCard(x)); });
     var pendA = my && my.a && aisles[my.a];
     if (pendA && pendA.members.indexOf(uid) < 0) {
@@ -886,7 +905,7 @@
   function admin(root, api) {
     var st = { nodes: {}, bans: {}, raw: {} }, cap = false;
     root.textContent = '';
-    var note = el('p', 'ro', 'Every Aisle, from rooms/xj-all (one read). Remove takes an Aisle with a bad name off the site for everyone: its tag stops showing and its members are let go. It is signed with the admin key and saved in rooms/xj-ban, and Put back undoes it. Only Captains signed in on the site can remove (captains.js).');
+    var note = el('p', 'ro', 'Every Aisle, from rooms/xj-all (one read). Remove takes an Aisle with a bad name off the site for everyone: its tag stops showing, it leaves the Aisle boards and nobody can join it. Its members aren’t let go, so Put back brings it back as it was (they can leave it themselves). It is signed with the admin key and saved in rooms/xj-ban. Only Captains signed in on the site can remove (captains.js).');
     var bar = el('div', 'filters'), rf = el('button', 'sm', 'Refresh'); rf.type = 'button'; bar.append(rf);
     var stat = el('p', 'status'); stat.setAttribute('role', 'status');
     var card = el('div', 'card'), tb = el('table'); card.append(el('h2', '', 'Aisles'), el('div', 'scroll')); card.lastChild.append(tb);
@@ -894,7 +913,6 @@
     function show() {
       tb.textContent = '';
       var t = Date.now(), list = resolve(st.nodes, st.bans, t, true), ks = Object.keys(list);
-      // A removed Aisle with no record left (disbanded) still shows, so it can be put back or seen.
       var hd = el('tr'); ['Tag', 'Name', 'Leader', 'Seats', 'Id', ''].forEach(function (h) { hd.append(el('th', '', h)); }); tb.append(hd);
       ks.sort(function (a, b) { return (list[b].removed ? 0 : 1) - (list[a].removed ? 0 : 1) || list[b].members.length - list[a].members.length; });
       ks.forEach(function (K) {
