@@ -231,7 +231,8 @@
   // One GAMES entry per game: its name, the prefix of its ids, and its slots in the order the shop lists them.
   var GAMES = {
     boostball: { name: 'Boostball', prefix: 'bb', slots: [['decal', 'Decals'], ['trail', 'Boost trails'], ['goal', 'Goal explosions'], ['topper', 'Antenna toppers'], ['hat', 'Roof hats'], ['wheels', 'Wheels'], ['engine', 'Engine sounds']] },
-    slipstream: { name: 'Slipstream', prefix: 'ss', slots: [['sponsor', 'Sponsors'], ['livery', 'Liveries'], ['helmet', 'Helmets'], ['effect', 'Boost effects'], ['smoke', 'Tyre smoke'], ['podium', 'Podium celebrations']] }
+    slipstream: { name: 'Slipstream', prefix: 'ss', slots: [['sponsor', 'Sponsors'], ['livery', 'Liveries'], ['helmet', 'Helmets'], ['effect', 'Boost effects'], ['smoke', 'Tyre smoke'], ['podium', 'Podium celebrations']] },
+    'drop-zone': { name: 'Driftfall', prefix: 'dz', slots: [['glider', 'Gliders'], ['trail', 'Glider trails'], ['wrap', 'Gun skins'], ['build', 'Build skins']] },
   };
   var ITEM_PRICE = { common: 6, rare: 10, epic: 16, legendary: 40 };
   var GAME_ITEMS = [], ITEM_BY_ID = {};
@@ -409,6 +410,63 @@
   I('slipstream', 'smoke', 5, 'Gold tyre smoke', 'common', '#FFCC47', '#FFF0B0', 'Gold smoke from the tyres.');
   I('slipstream', 'podium', 1, 'Confetti Podium', 'common', '#FF4FA3', '#3FD2FF', 'Confetti over the results when you finish in the top three.');
   I('slipstream', 'podium', 2, 'Fireworks Podium', 'rare', '#FFD21F', '#B06BFF', 'Fireworks over the results when you finish in the top three.');
+  // ---- Driftfall items ----
+  // Driftfall (drop-zone/locker-extra.js draws them by number): gliders, glider trails, gun skins and build skins. Hidden: worn from the game's Locker by captains only.
+  I('drop-zone', 'glider', 1, 'Umbrella', 'common', '#E23D3D', '#FFFFFF', 'Red and white panels, held up in one hand. It pops open.');
+  I('drop-zone', 'glider', 2, 'Paper Airplane', 'common', '#FBFBF6', '#9CC3EA', 'Folded from a page of ruled notebook paper.');
+  I('drop-zone', 'glider', 3, 'Hang Glider', 'rare', '#E8453C', '#FFCC33', 'A striped delta sail; you hang flat under it.');
+  I('drop-zone', 'glider', 4, 'Kite', 'common', '#2F8FD6', '#FFCC33', 'A four-colour diamond with a tail of bows, flown on two lines.');
+  I('drop-zone', 'glider', 5, 'Bedsheet Parachute', 'common', '#9FD0F0', '#FFFFFF', 'Someone is missing a sheet. Little flowers included.');
+  I('drop-zone', 'glider', 6, 'Trash Bag Parachute', 'common', '#3A3E45', '#FFD23F', 'A black bag with a yellow drawstring. Probably clean.');
+  I('drop-zone', 'glider', 7, 'Cardboard Wings', 'common', '#C69A62', '#D8C79A', 'Cut out of a box and taped to your arms.');
+  I('drop-zone', 'glider', 8, 'Dragon Wings', 'epic', '#2F9E6A', '#E8D8A8', 'Green wings on ivory bones, with a claw at each wrist.');
+  I('drop-zone', 'glider', 9, 'Bat Wings', 'rare', '#5B3F86', '#241A33', 'Purple wings with scalloped edges and quick little flaps.');
+  I('drop-zone', 'glider', 10, 'Bunch of Balloons', 'rare', '#FF4F5E', '#3FA9F5', 'Eleven balloons, strings gathered in your hands.');
+  I('drop-zone', 'glider', 11, 'Lawn Chair with Balloons', 'epic', '#3FAA5C', '#FFC93C', 'Sit back in a folding chair and let the balloons do the work.');
+  I('drop-zone', 'glider', 12, 'Magic Carpet', 'epic', '#B3263A', '#F2C14E', 'A red carpet with a gold border and tassels. Ride it crouched.');
+  I('drop-zone', 'glider', 13, 'Picnic Blanket', 'rare', '#D93B3B', '#FFFFFF', 'Gingham, with the basket still on it.');
+  I('drop-zone', 'glider', 14, 'Surfboard', 'rare', '#1AA7A0', '#FFFFFF', 'Surf the sky, arms out for balance.');
+  I('drop-zone', 'glider', 15, 'Pizza Slice', 'rare', '#FFCF4D', '#C0392B', 'Cheese, pepperoni and a crust to stand on.');
+  I('drop-zone', 'glider', 16, 'Broomstick', 'epic', '#8A5A2E', '#D9B45A', 'Sit astride and hold on with both hands.');
+  I('drop-zone', 'glider', 17, 'Giant Leaf', 'common', '#46A64A', '#B5DF7A', 'A big green leaf, held up by its stalk like a parasol.');
+  I('drop-zone', 'glider', 18, 'Spinning Maple Seed', 'rare', '#D8A65A', '#8B3A2A', 'Its wing whirls round, and you turn slowly with it.');
+  I('drop-zone', 'glider', 19, 'Rubber Duck Float', 'rare', '#FFD23F', '#FF8A1F', 'A bath duck ring round your middle.');
+  I('drop-zone', 'glider', 20, 'Giant Pigeon', 'legendary', '#8D96A3', '#5D8A6E', 'A city pigeon that carries you by the shoulders.');
+  I('drop-zone', 'glider', 21, 'Pterodactyl', 'legendary', '#B8743A', '#C0392B', 'Leathery wings, a long beak and a firm grip.');
+  I('drop-zone', 'glider', 22, 'Flying Squirrel Suit', 'epic', '#B07040', '#F2DFC0', 'Spread your arms and legs; the suit does the gliding.');
+  I('drop-zone', 'glider', 23, 'UFO Disc', 'legendary', '#C8D0D8', '#9DFF9D', 'Stand on a silver saucer with lights going round.');
+  I('drop-zone', 'glider', 24, 'Small Cloud', 'epic', '#F6F9FF', '#C9D6E6', 'A puffy little cloud to stand in.');
+  I('drop-zone', 'trail', 1, 'Smoke', 'common', '#E2E4E8', '#9AA3AD', 'Soft grey puffs behind you.');
+  I('drop-zone', 'trail', 2, 'Sparkles', 'rare', '#FFE45C', '#FFFFFF', 'Twinkling stars as you fall.');
+  I('drop-zone', 'trail', 3, 'Rainbow', 'epic', '#FF4F4F', '#3FA9F5', 'A band of six colours, from both wing tips.');
+  I('drop-zone', 'trail', 4, 'Feathers', 'common', '#FFFFFF', '#E6E8EE', 'White feathers that float down slowly.');
+  I('drop-zone', 'trail', 5, 'Leaves', 'common', '#E8782E', '#8BB04A', 'Autumn leaves tumbling in your wake.');
+  I('drop-zone', 'trail', 6, 'Bubbles', 'rare', '#CFF6FF', '#FFFFFF', 'Soap bubbles that drift up and pop.');
+  I('drop-zone', 'wrap', 1, 'Gold', 'legendary', '#FFC93C', '#C98A12', 'Shiny gold all over. The orange tip stays orange.');
+  I('drop-zone', 'wrap', 2, 'Chrome', 'epic', '#DDE6F0', '#6B7785', 'A mirror finish that catches the sky.');
+  I('drop-zone', 'wrap', 3, 'Wood Grain', 'common', '#9A6A3C', '#6E4A26', 'Polished wood, grain and all.');
+  I('drop-zone', 'wrap', 4, 'Forest Camo', 'common', '#33421F', '#6B4D2E', 'Greens and browns in big blotches.');
+  I('drop-zone', 'wrap', 5, 'Desert Camo', 'common', '#D6B784', '#8C6842', 'Sand, tan and brown.');
+  I('drop-zone', 'wrap', 6, 'Arctic Camo', 'common', '#F4F6FF', '#8FA3B8', 'White and cold greys.');
+  I('drop-zone', 'wrap', 7, 'Pixel Camo', 'rare', '#5C6B4A', '#2E3A2A', 'Blocky camouflage in small squares.');
+  I('drop-zone', 'wrap', 8, 'Neon Outline', 'epic', '#0D0F1C', '#3EE6FF', 'Dark with glowing edges.');
+  I('drop-zone', 'wrap', 9, 'Toy Blaster', 'rare', '#2470F5', '#FF8A1F', 'Bright blue and orange, like a toy from a shop window.');
+  I('drop-zone', 'wrap', 10, 'Cardboard', 'common', '#BF915C', '#E0D1AB', 'Made from a box, with a strip of tape.');
+  I('drop-zone', 'wrap', 11, 'Candy Cane', 'rare', '#DB1A1F', '#F8F4EC', 'Red and white stripes with a thin green line.');
+  I('drop-zone', 'wrap', 12, 'Lava', 'epic', '#2A1410', '#FF7A1F', 'Dark rock with glowing cracks.');
+  I('drop-zone', 'wrap', 13, 'Ice', 'rare', '#BDE6F7', '#FFFFFF', 'Frosty blue with white streaks.');
+  I('drop-zone', 'wrap', 14, 'Galaxy', 'epic', '#2A0F5C', '#FF7AE0', 'Deep space with twinkling stars.');
+  I('drop-zone', 'wrap', 15, 'Rust', 'common', '#A5521E', '#878A8F', 'Old metal going orange.');
+  I('drop-zone', 'wrap', 16, 'Graffiti', 'rare', '#FF4FB4', '#38F2C8', 'Bright paint splashes with dark outlines.');
+  I('drop-zone', 'wrap', 17, 'Bubblegum Pink', 'common', '#FF80B8', '#FFC2DD', 'Pink and shiny.');
+  I('drop-zone', 'wrap', 18, 'Hazard Stripes', 'rare', '#FFCC14', '#121214', 'Yellow and black, keep clear.');
+  I('drop-zone', 'wrap', 19, 'Plastic Brick', 'epic', '#DB1F1A', '#1A5CDB', 'Coloured toy bricks with studs on top.');
+  I('drop-zone', 'build', 1, 'Cardboard', 'common', '#B98B56', '#DECEA0', 'Box card with packing tape and a this-way-up mark.');
+  I('drop-zone', 'build', 2, 'Frosted Glass', 'rare', '#D4EAF3', '#94ADB8', 'Frosted panes in a frame. You still cannot see through it.');
+  I('drop-zone', 'build', 3, 'Ice', 'rare', '#A6D9EE', '#FFFFFF', 'Blocks of ice with cracks and bubbles.');
+  I('drop-zone', 'build', 4, 'Candy', 'epic', '#FF9FC7', '#9FF0D0', 'Pastel stripes with sprinkles.');
+  I('drop-zone', 'build', 5, 'Stone', 'common', '#8D8F94', '#6B6E73', 'Grey blocks and mortar.');
+  I('drop-zone', 'build', 6, 'Scrap Metal', 'rare', '#8E9499', '#9A5A32', 'Patched plates, rivets and a little rust.');
   // Items a game hands over itself are in no pack: give is 'free' (anyone may wear it; the game grants it the first time it
   // is worn) or 'earned' (the game grants it when it is won). grant(id), below, only adds these.
   GAME_ITEMS.forEach(function (it) { if (it.game !== 'slipstream') return; if (it.slot === 'sponsor' || (it.slot === 'helmet' && it.no <= 8)) it.give = 'free'; else if (it.slot === 'livery' && it.no > 8) it.give = 'earned'; });

@@ -540,9 +540,9 @@ function tick(dt){
   if(G.state!=='menu')for(const e of G.ents){const o=e.lxo;if(!o||!o.t||!e.alive||!e.present||(e.st!=='fall'&&e.st!=='glide'))continue;
     if(cam.distanceToSquared(e.pos)>200*200||!e.model.visible&&e!==G.player)continue;trailFrom(e,TRAILS[o.t],dt,0,e.st==='glide')}
   if(stageEnt&&stageTrail){const T=TRAILS[stageTrail];stageEnt.lxAcc=(stageEnt.lxAcc||0)+dt*T.rate;const p=stageEnt.pos;
-    while(stageEnt.lxAcc>=1){stageEnt.lxAcc-=1;for(const ox of [-1.4,1.4]){const bx=p.x+ox*G.BS*Math.cos(stageEnt.yaw),bz=p.z-ox*G.BS*Math.sin(stageEnt.yaw);
-      if(T.band){for(let k=0;k<6;k++)emit(T,bx+(k-2.5)*.14*Math.cos(stageEnt.yaw),p.y+2.3,bz-(k-2.5)*.14*Math.sin(stageEnt.yaw),T.cols[k],0,4,0);continue}
-      emit(T,bx+(Math.random()-.5)*T.spread,p.y+2.3,bz+(Math.random()-.5)*T.spread,T.cols[Math.floor(Math.random()*T.cols.length)],(Math.random()-.5)*.6,4+T.vy*.3,(Math.random()-.5)*.6)}}}
+    while(stageEnt.lxAcc>=1){stageEnt.lxAcc-=1;const bx=p.x,bz=p.z+.15,c=Math.cos(stageEnt.yaw),s2=Math.sin(stageEnt.yaw);   // from the body, streaming up past it as if falling
+      if(T.band){for(let k=0;k<6;k++)emit(T,bx+(k-2.5)*.14*c,p.y+.4,bz-(k-2.5)*.14*s2,T.cols[k],0,3,0);continue}
+      emit(T,bx+(Math.random()-.5)*T.spread,p.y+.4,bz+(Math.random()-.5)*T.spread,T.cols[Math.floor(Math.random()*T.cols.length)],(Math.random()-.5)*.6,3+T.vy*.3,(Math.random()-.5)*.6)}}
   if(tp.n)tStep(dt);
   tPts.visible=tp.n>0;
   if(tp.n){tGeo.setDrawRange(0,tp.n);for(const k of ['position','pcol','size','pdat'])tGeo.attributes[k].needsUpdate=true;
@@ -563,7 +563,8 @@ const botLx=i=>'g'+(1+(i*7)%24)+'t'+(1+i%6)+'w'+(1+(i*5)%19)+'b'+(1+i%6);
 //  The Locker's tabs
 // =====================================================================
 const TABS=[['outfits','Outfits','OUT','FITS'],['g','Gliders','GLI','DERS'],['t','Trails','TRA','ILS'],['w','Gun skins','GUN ','SKINS'],['b','Builds','BUI','LDS']];
-let tab='outfits',built=false,drawnPics=false,stageEnt=null,stageTrail=0,posed=false,disp=null;
+const LEDE={g:'Pick how you glide down. Every glider is held its own way, but you are the same size and fall at the same speed.',t:'A trail follows you while you skydive and glide. It never hides anyone: it fades out close to the camera.',w:'Your weapons in a pattern. The orange tip, the muzzle flash, the rarity band and the crosshair stay the same.',b:'What your walls, floors and ramps look like to everyone. They are just as strong, and just as hard to see through.'};
+let lede0=null,tab='outfits',built=false,drawnPics=false,stageEnt=null,stageTrail=0,posed=false,disp=null;
 const cards={};
 function worn(){return parse(G.myLx)}
 function css(){const st=document.createElement('style');st.textContent=
@@ -580,7 +581,7 @@ function buildMenu(){
   grid0.before(bar);
   for(const [id] of TABS.slice(1)){const gr=document.createElement('div');gr.className='lk-grid';gr.id='lkGrid-'+id;gr.hidden=true;grid0.after(gr);const L=SLOT[id];cards[id]=[];
     for(let n=0;n<=L.length;n++){const b=document.createElement('button');b.type='button';b.className='lk-card';
-      b.innerHTML=(n?'<img alt="" hidden>':'<span class="lk-none">Standard</span>')+'<span>'+G.esc(n?L[n-1]:id==='w'?'No skin':id==='t'?'No trail':id==='b'?'Plywood':'Standard')+'</span>';
+      b.innerHTML=(n?'<img alt="" hidden>':'<span class="lk-none">'+(id==='g'?'Standard':'None')+'</span>')+'<span>'+G.esc(n?L[n-1]:id==='w'?'No skin':id==='t'?'No trail':id==='b'?'Plywood':'Standard')+'</span>';
       b.addEventListener('click',()=>pick(id,n));gr.appendChild(b);cards[id].push(b)}}
   setTab('outfits');
 }
@@ -592,6 +593,7 @@ function setTab(id){tab=id;const sec=G.Locker.sec;
   for(const b of sec.querySelectorAll('.lk-tabs button'))b.setAttribute('aria-pressed',b.dataset.tab===id?'true':'false');
   G.$('lkGrid').hidden=id!=='outfits';for(const k in cards)G.$('lkGrid-'+k).hidden=k!==id;
   const t=TABS.find(x=>x[0]===id),h=sec.querySelector('.lk-title');if(h)h.innerHTML=t[2]+'<span>'+t[3]+'</span>';
+  const le=sec.querySelector('.lk-lede');if(le){if(lede0==null)lede0=le.textContent;le.textContent=id==='outfits'?lede0:LEDE[id]}
   if(id==='outfits'){if(G.Locker.mark)G.Locker.mark()}else{pics();mark()}
 }
 function menu(on){if(on&&!built&&G.Locker.sec)buildMenu();if(built)mark()}
@@ -602,7 +604,8 @@ function render(sc,cam,W,H){const R=G.renderer,rt=new THREE.WebGLRenderTarget(W,
   try{R.setRenderTarget(rt);R.clear();R.render(sc,cam);R.readRenderTargetPixels(rt,0,0,W,H,buf);for(let y=0;y<H;y++)img.data.set(buf.subarray((H-1-y)*W*4,(H-y)*W*4),y*W*4);g.putImageData(img,0,0)}
   finally{R.setRenderTarget(null);R.setClearColor(oc,oa);rt.dispose()}return cv.toDataURL('image/png')}
 function lights(sc){sc.add(new THREE.HemisphereLight(0xffffff,0x9aa0aa,.95));const dl=new THREE.DirectionalLight(0xffffff,.55);dl.position.set(3,6,-4);sc.add(dl)}
-function gliderPic(n,W,H){const sc=new THREE.Scene();lights(sc);const m=new THREE.Mesh(gliderOf(n),GLX);sc.add(m);const cam=new THREE.PerspectiveCamera(30,W/H,.1,50);cam.position.set(3.2,4.6,-6.5);cam.lookAt(0,.95,0);return render(sc,cam,W,H)}
+function gliderPic(n,W,H){const sc=new THREE.Scene();lights(sc);const g=gliderOf(n),m=new THREE.Mesh(g,GLX);sc.add(m);const bb=g.boundingBox,c=bb.getCenter(new V3()),r=bb.getSize(new V3()).length()/2;
+  const cam=new THREE.PerspectiveCamera(30,W/H,.1,80),d=r/Math.sin(15*Math.PI/180)*.95;cam.position.copy(c).add(new V3(.42,.55,-.72).normalize().multiplyScalar(d));cam.lookAt(c);return render(sc,cam,W,H)}
 function gunPic(n,W,H){const sc=new THREE.Scene();lights(sc);const im=gunMesh('ar',1);im.count=1;im.visible=true;im.geometry.attributes.gsk.array[0]=n;im.setMatrixAt(0,new THREE.Matrix4().makeRotationY(-Math.PI/2-.35));sc.add(im);
   const cam=new THREE.OrthographicCamera(-.75,.75,.75*H/W,-.75*H/W,.1,20);cam.position.set(0,1.2,5);cam.lookAt(0,.05,0);const u=render(sc,cam,W,H);im.geometry.dispose();return u}
 function buildPic(n){const W=180,H=270,c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d'),t=tileCanvas(n);
@@ -622,13 +625,13 @@ function stage(dt,model,yaw){
   const V=G.Locker.view,o=worn(),S=G.STAGE.SPOT;
   if(tab==='outfits'||!built){V.zoom=1;V.y=0;stageTrail=0;if(disp)disp.visible=false;if(posed){posed=false;stageEnt=null;G.Locker.fresh()}return}
   if(!stageEnt||stageEnt.model!==model){stageEnt=G.newEnt(model);Object.assign(stageEnt,{id:'stage',present:true,alive:true,local:false})}
-  const e=stageEnt;posed=true;e.pos.set(S[0],S[1],S[2]);e.vel.set(0,0,0);e.yaw=yaw;
-  const air=tab==='g'||tab==='t';e.st=air?'glide':'ground';e.glide=air;e.onGround=!air;
+  const e=stageEnt;posed=true;const air=tab==='g'||tab==='t';e.pos.set(S[0],S[1]+(air?.55:0),S[2]);e.vel.set(0,0,0);e.yaw=yaw;
+  e.st=air?'glide':'ground';e.glide=air;e.onGround=!air;
   e.lxo={g:air?o.g||0:0};gliderSkin(model,air?o.g||0:0);model.userData.gs=tab==='w'?o.w||0:0;
   G.setHeldModel(model,tab==='w'?'ar':'cb',tab==='w'?3:-1);
   G.animModel(e,dt);model.visible=true;
   stageTrail=tab==='t'?o.t||0:0;
-  V.zoom=air?1.32:tab==='w'?.55:2.1;V.y=air?.55:tab==='w'?.38:1.1;
+  V.zoom=air?1.6:tab==='w'?.55:2.1;V.y=air?1.0:tab==='w'?.38:1.1;
   if(tab==='b'){if(!disp)disp=makeDisp();disp.visible=true;const n=o.b||0;if(disp.userData.n!==n){disp.userData.n=n;for(const m of disp.children)m.material=n?dispMat(n):G.plyMat}
     disp.position.set(S[0],S[1],S[2]);disp.rotation.y=yaw}else if(disp)disp.visible=false;
 }
