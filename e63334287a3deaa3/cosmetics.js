@@ -231,7 +231,8 @@
   // One GAMES entry per game: its name, the prefix of its ids, and its slots in the order the shop lists them.
   var GAMES = {
     boostball: { name: 'Boostball', prefix: 'bb', slots: [['decal', 'Decals'], ['trail', 'Boost trails'], ['goal', 'Goal explosions'], ['topper', 'Antenna toppers'], ['hat', 'Roof hats'], ['wheels', 'Wheels'], ['engine', 'Engine sounds']] },
-    slipstream: { name: 'Slipstream', prefix: 'ss', slots: [['sponsor', 'Sponsors'], ['livery', 'Liveries'], ['helmet', 'Helmets'], ['effect', 'Boost effects'], ['smoke', 'Tyre smoke'], ['podium', 'Podium celebrations']] }
+    slipstream: { name: 'Slipstream', prefix: 'ss', slots: [['sponsor', 'Sponsors'], ['livery', 'Liveries'], ['helmet', 'Helmets'], ['effect', 'Boost effects'], ['smoke', 'Tyre smoke'], ['podium', 'Podium celebrations']] },
+    'asteroid-run': { name: 'Asteroid Run', prefix: 'ar', slots: [['alien', 'Aliens'], ['trail', 'Run trails'], ['tunnel', 'Tunnel colours']] },
   };
   var ITEM_PRICE = { common: 6, rare: 10, epic: 16, legendary: 40 };
   var GAME_ITEMS = [], ITEM_BY_ID = {};
@@ -409,6 +410,49 @@
   I('slipstream', 'smoke', 5, 'Gold tyre smoke', 'common', '#FFCC47', '#FFF0B0', 'Gold smoke from the tyres.');
   I('slipstream', 'podium', 1, 'Confetti Podium', 'common', '#FF4FA3', '#3FD2FF', 'Confetti over the results when you finish in the top three.');
   I('slipstream', 'podium', 2, 'Fireworks Podium', 'rare', '#FFD21F', '#B06BFF', 'Fireworks over the results when you finish in the top three.');
+  // ---- Asteroid Run items ----
+  // Asteroid Run: aliens to run as (a new picture on the runner's own plane, same size and hit area), run trails and
+  // tunnel colours, drawn by asteroid-run/wardrobe.js by slot and number. In no pack: captains wear them free in the
+  // game's Wardrobe. Tunnel colours are checked there so holes and special tiles stay as easy to see as with the zone colours.
+  I('asteroid-run', 'alien', 1, 'Little Green', 'common', '#8BE35A', '#1A1D2E', 'The classic: green, big-headed and nearly all eyes.');
+  I('asteroid-run', 'alien', 2, 'One-Eyed Blob', 'common', '#C77DFF', '#FFFFFF', 'One eye, no bones and a lot of wobble.');
+  I('asteroid-run', 'alien', 3, 'Three-Eyed Guy', 'common', '#39C6B0', '#FFE45C', 'Watches left, right and straight ahead at once.');
+  I('asteroid-run', 'alien', 4, 'Tentacle Squid', 'rare', '#FF6F91', '#7A2A4A', 'Runs on its tentacles and hardly ever trips.');
+  I('asteroid-run', 'alien', 5, 'Slime Cube', 'rare', '#7CF29A', '#2E9E5A', 'A wobbly green cube. Something is floating inside.');
+  I('asteroid-run', 'alien', 6, 'Fuzzy Furball', 'common', '#FFB0E0', '#B04A9A', 'Mostly fluff. The rest is also fluff.');
+  I('asteroid-run', 'alien', 7, 'Crystal Alien', 'epic', '#8FF3FF', '#7A5CFF', 'Grown, not born, in the deepest caves of the asteroid.');
+  I('asteroid-run', 'alien', 8, 'Mushroom Alien', 'rare', '#5BD6C8', '#F4E7C8', 'A glowing cap from a damp corner of space.');
+  I('asteroid-run', 'alien', 9, 'Jellyfish', 'rare', '#9FD8FF', '#FF8FD0', 'Floats through space and only runs when it has to.');
+  I('asteroid-run', 'alien', 10, 'Cat Alien', 'epic', '#B9A2FF', '#FF9AD5', 'Always lands on its feet, whichever wall that is.');
+  I('asteroid-run', 'alien', 11, 'Potato Alien', 'common', '#C99A5B', '#7A5A30', 'Came all the way from the stars. Still a potato.');
+  I('asteroid-run', 'alien', 12, 'Star Alien', 'rare', '#FFD84A', '#FF8A3D', 'Five points, and two of them are legs.');
+  I('asteroid-run', 'alien', 13, 'Eyeball with Legs', 'epic', '#F6F3EE', '#3FA9F5', 'Never blinks, so it never misses a hole.');
+  I('asteroid-run', 'alien', 14, 'Brain in a Jar', 'epic', '#FF9EC4', '#9FE8FF', 'Very clever, a little sloshy.');
+  I('asteroid-run', 'alien', 15, 'Robot Suit Pilot', 'legendary', '#B8C2D6', '#7DFF6A', 'A tiny alien driving a very big robot.');
+  I('asteroid-run', 'alien', 16, 'Mustache Disguise', 'legendary', '#C9A26B', '#8BE35A', 'Definitely a normal human. Please stop looking.');
+  I('asteroid-run', 'alien', 17, 'Escaped Cow', 'legendary', '#FFFFFF', '#1A1D2E', 'Beamed up, broke out, still running.');
+  I('asteroid-run', 'alien', 18, 'Astronaut Hamster', 'epic', '#F2C48D', '#EAF2FF', 'Small paws, big helmet, one giant leap.');
+  I('asteroid-run', 'alien', 19, 'Retro Robot', 'rare', '#C8D2DC', '#FF5A5A', 'Wind it up and point it down the tunnel.');
+  I('asteroid-run', 'trail', 1, 'Stardust', 'common', '#FFE9A0', '#FFFFFF', 'Tiny twinkling stars in your footsteps.');
+  I('asteroid-run', 'trail', 2, 'Slime Drips', 'common', '#7CF29A', '#2E9E5A', 'Green drips. Somebody will have to mop that.');
+  I('asteroid-run', 'trail', 3, 'Bubbles', 'common', '#BDF4FF', '#FFFFFF', 'Bubbles that drift up and wobble away.');
+  I('asteroid-run', 'trail', 4, 'Hearts', 'rare', '#FF6FA8', '#FFC2DD', 'Little pink hearts floating behind you.');
+  I('asteroid-run', 'trail', 5, 'Confetti', 'rare', '#FF4FA3', '#FFD23F', 'Every run is a party.');
+  I('asteroid-run', 'trail', 6, 'Pixels', 'rare', '#3FE0FF', '#FF4FA0', 'Square blocks in a neat line, like an old arcade game.');
+  I('asteroid-run', 'trail', 7, 'Snowflakes', 'common', '#FFFFFF', '#BDE6FF', 'Six-armed flakes that spin as they fall.');
+  I('asteroid-run', 'trail', 8, 'Petals', 'rare', '#FFB7D5', '#FFFFFF', 'Pink petals tumbling in the air.');
+  I('asteroid-run', 'trail', 9, 'Zaps', 'epic', '#D8F6FF', '#3FA9FF', 'Quick blue sparks that crackle and vanish.');
+  I('asteroid-run', 'trail', 10, 'Tractor Rings', 'epic', '#7DFF6A', '#C8FFD2', 'Green rings that grow and fade, like a beam from a saucer.');
+  I('asteroid-run', 'tunnel', 1, 'Deep Blue', 'common', '#3D6BFF', '#2A7FD0', 'Every zone in shades of deep blue.');
+  I('asteroid-run', 'tunnel', 2, 'Silver', 'common', '#A0A6C0', '#6D7DA0', 'Cool metal greys from end to end.');
+  I('asteroid-run', 'tunnel', 3, 'Bubblegum', 'rare', '#FF6FB5', '#E0559A', 'Pink tunnels, chewed and stretched.');
+  I('asteroid-run', 'tunnel', 4, 'Ultraviolet', 'rare', '#8A70FF', '#9A88FF', 'Glowing violet all the way down.');
+  I('asteroid-run', 'tunnel', 5, 'Ocean', 'common', '#2A7FD0', '#4B8CF0', 'Sea blues, a very long way from any sea.');
+  I('asteroid-run', 'tunnel', 6, 'Moon Dust', 'rare', '#C0C4D8', '#9AA3BD', 'Pale grey, like running on the Moon.');
+  I('asteroid-run', 'tunnel', 7, 'Treasure', 'epic', '#E0B040', '#A0A6C0', 'Gold and silver tiles. Do not stop to dig.');
+  I('asteroid-run', 'tunnel', 8, 'Checkerboard', 'epic', '#3F7FFF', '#8FA8FF', 'Two blues in a checker pattern.');
+  I('asteroid-run', 'tunnel', 9, 'Candy Checker', 'epic', '#FF6FB5', '#8FA8FF', 'Pink and lilac squares, like a sweet shop floor.');
+  I('asteroid-run', 'tunnel', 10, 'Prism', 'legendary', '#FF6FB5', '#4F68FF', 'The tunnel changes colour every few rows.');
   // Items a game hands over itself are in no pack: give is 'free' (anyone may wear it; the game grants it the first time it
   // is worn) or 'earned' (the game grants it when it is won). grant(id), below, only adds these.
   GAME_ITEMS.forEach(function (it) { if (it.game !== 'slipstream') return; if (it.slot === 'sponsor' || (it.slot === 'helmet' && it.no <= 8)) it.give = 'free'; else if (it.slot === 'livery' && it.no > 8) it.give = 'earned'; });
