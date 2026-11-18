@@ -659,6 +659,17 @@ let sens=parseFloat(store.get('sens','1'))||1;
 const LOCKER_PUBLIC=false;
 const CAPTAINS=window.BackRoomCaptains||null;
 const lockerOn=()=>LOCKER_PUBLIC||!!(CAPTAINS&&CAPTAINS.may(false,'locker','driftfall:locker'));
+// The Locker's extras (gliders, glider trails, gun skins, build skins and the rest: README, "Locker extras"). Everything
+// that draws them is in locker-extra.js beside this page, fetched only when something needs it: the Locker is on for this
+// player, or another player arrives wearing one (`lx` in their node). Until then LX is null and every hook that asks it
+// (look for `LX`) does exactly what it always did. What someone wears is one short string: a letter for each slot and the
+// item's number, 'g12t3w5b2' (g glider, t trail, w gun skin, b build skin; p, e, v, o kept for more slots), each letter
+// at most once, numbers 1 to 99, nothing else; lxOf lets exactly that through and turns anything else into '' (nothing).
+let LX=null,lxAsked=false,myLx='';
+const LX_SLOTS='gtwbpevo';
+function lxOf(v){if(typeof v!=='string'||!v||v.length>24||!/^([a-z][1-9][0-9]?)+$/.test(v))return '';const seen=new Set();for(const m of v.matchAll(/([a-z])([0-9]+)/g)){if(!LX_SLOTS.includes(m[1])||seen.has(m[1]))return '';seen.add(m[1])}return v}
+const savedLx=()=>lockerOn()?lxOf(store.get('lx','')):'';   // read only while the Locker is on, like the outfit
+function lxLoad(){if(lxAsked)return;lxAsked=true;loadScript('locker-extra.js').then(()=>{LX=window.DriftfallExtra(LXAPI);lxSync()}).catch(e=>{lxAsked=false;console.error(e)})}
 let myName=store.get('name','')||('Glider'+Math.floor(100+Math.random()*900));
 
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
@@ -2150,7 +2161,7 @@ let bdDirty=false;const bdGone=new Map();   // (for the list of builds the host 
 const skirtIM=new THREE.InstancedMesh(new THREE.BoxGeometry(4,1,.22),plyMat,PCAP),skirtList=[];
 skirtIM.instanceMatrix.setUsage(THREE.DynamicDrawUsage);skirtIM.setColorAt(0,new THREE.Color(.62,.58,.54));skirtIM.count=0;skirtIM.frustumCulled=false;skirtIM.visible=false;scene.add(skirtIM);
 function skirtSet(pc,i){const s=pc.spec,g=pc.skirt;_o.rotation.set(0,s.o==='H'?0:Math.PI/2,0);_o.scale.set(1,g,1);if(s.o==='H')_o.position.set(s.x*4+2,s.L*4-g/2,s.z*4);else _o.position.set(s.x*4,s.L*4-g/2,s.z*4+2);
-  _o.updateMatrix();skirtIM.setMatrixAt(i,_o.matrix);skirtIM.setColorAt(i,_col.setRGB(.62,.58,.54));_o.scale.set(1,1,1);_o.rotation.set(0,0,0);pc.skirtIx=i;
+  _o.updateMatrix();skirtIM.setMatrixAt(i,_o.matrix);skirtIM.setColorAt(i,_col.setRGB(.62,.58,.54));if(LX)LX.bsk(skirtIM,i,pc.bs);_o.scale.set(1,1,1);_o.rotation.set(0,0,0);pc.skirtIx=i;
   skirtIM.count=skirtList.length;skirtIM.visible=skirtList.length>0;skirtIM.instanceMatrix.needsUpdate=true;skirtIM.instanceColor.needsUpdate=true}
 function skirtAdd(pc){pc.skirt=skirtOf(pc.spec);if(!pc.skirt||skirtList.length>=PCAP)return;skirtList.push(pc);skirtSet(pc,skirtList.length-1)}
 function skirtDrop(pc){if(pc.skirtIx==null)return;const last=skirtList.pop();if(last!==pc){skirtList[pc.skirtIx]=last;skirtSet(last,pc.skirtIx)}pc.skirtIx=null;skirtIM.count=skirtList.length;skirtIM.visible=skirtList.length>0}
@@ -2283,13 +2294,13 @@ function partsOf(s,mask){
 }
 // a piece's own frame, a little small while it pops in (see piecesTick), nothing at all while you are editing it (the grid stands in)
 function pieceFrame(pc){const m=pieceMatrix(pc.spec);return pc.hide?m.scale(_pv.setScalar(0)):pc.pop<1?m.scale(_pv.setScalar(.82+.18*pc.pop)):m}
-function instSet(pc){const P=pieceInst[pc.kind];P.mesh.setMatrixAt(pc.ix,pieceFrame(pc));P.mesh.setColorAt(pc.ix,pieceTint(pc));P.mesh.instanceMatrix.needsUpdate=true;if(P.mesh.instanceColor)P.mesh.instanceColor.needsUpdate=true}
+function instSet(pc){const P=pieceInst[pc.kind];P.mesh.setMatrixAt(pc.ix,pieceFrame(pc));P.mesh.setColorAt(pc.ix,pieceTint(pc));if(LX)LX.bsk(P.mesh,pc.ix,pc.bs);P.mesh.instanceMatrix.needsUpdate=true;if(P.mesh.instanceColor)P.mesh.instanceColor.needsUpdate=true}
 function instIn(pc){const P=pieceInst[pc.kind];pc.ix=P.list.length;P.list.push(pc);P.mesh.count=P.list.length;instSet(pc)}
 function instOut(pc){if(pc.ix<0)return;const P=pieceInst[pc.kind],last=P.list.pop();if(last!==pc){P.list[pc.ix]=last;last.ix=pc.ix;instSet(last)}pc.ix=-1;P.mesh.count=P.list.length;P.mesh.instanceMatrix.needsUpdate=true}
 function partFlush(){
   partDirty=false;let i=0;
   for(const pc of partList){if(pc.hide)continue;const base=pieceFrame(pc),tint=pieceTint(pc);
-    for(const q of pc.parts){if(i>=PART_CAP)break;partIM.setMatrixAt(i,_pm.multiplyMatrices(base,q.m));partIM.setColorAt(i,tint);partUV.setXYZW(i,q.uv[0],q.uv[1],q.uv[2],q.uv[3]);i++}}
+    for(const q of pc.parts){if(i>=PART_CAP)break;partIM.setMatrixAt(i,_pm.multiplyMatrices(base,q.m));partIM.setColorAt(i,tint);partUV.setXYZW(i,q.uv[0],q.uv[1],q.uv[2],q.uv[3]);if(LX)LX.bsk(partIM,i,pc.bs);i++}}
   partIM.count=i;partIM.visible=i>0;partIM.instanceMatrix.needsUpdate=true;partIM.instanceColor.needsUpdate=true;partUV.needsUpdate=true;
 }
 const redraw=pc=>{if(pc.ix>=0)instSet(pc);else partDirty=true};
@@ -2317,7 +2328,7 @@ function shapePiece(pc,ed){
 // oid: who built it (a player's uid, a Practice bot's id, 'me' in Practice), which decides who may edit it
 function makePiece(s,oid){
   const kind=s.kind,P=pieceInst[kind];if(P.n>=PCAP)return null;P.n++;
-  const pc={key:pieceKey(s),spec:s,kind,hp:PHP[kind],max:PHP[kind],ed:0,en:0,owner:oid||null,boxes:[],rps:[],parts:null,ix:-1,pop:1,hide:false,born:performance.now()};
+  const pc={key:pieceKey(s),spec:s,kind,hp:PHP[kind],max:PHP[kind],ed:0,en:0,owner:oid||null,boxes:[],rps:[],parts:null,ix:-1,pop:1,hide:false,born:performance.now(),bs:LX?LX.bsOf(oid):0};   // bs: the builder's build skin (locker-extra.js), 0 for plywood
   if(kind==='wall')skirtAdd(pc);
   shapePiece(pc,0);
   pieces.set(pc.key,pc);bdDirty=true;return pc;
@@ -2327,7 +2338,7 @@ function removePiece(pc,fx){
   pieces.delete(pc.key);skirtDrop(pc);dropShape(pc);pops.delete(pc);pieceInst[pc.kind].n--;
   if(pc.parts){partList.splice(partList.indexOf(pc),1);pc.parts=null;partDirty=true}else instOut(pc);
   bdGone.set(pc.key,performance.now());bdDirty=true;
-  if(fx){const c=pieceCentre(pc.spec);debris(c,0xc7955a,10);sfxBreak(1/(1+camera.position.distanceTo(c)*.07))}
+  if(fx){const c=pieceCentre(pc.spec);debris(c,LX&&pc.bs?LX.bsCol(pc.bs):0xc7955a,10);sfxBreak(1/(1+camera.position.distanceTo(c)*.07))}
 }
 function pieceCentre(s){const b=pieceBox(s);return new V3((b.min[0]+b.max[0])/2,(b.min[1]+b.max[1])/2,(b.min[2]+b.max[2])/2)}
 function clearPieces(){closeEdit();editJob=null;for(const pc of [...pieces.values()])removePiece(pc,false);bdGone.clear();bdDirty=true}
@@ -3184,19 +3195,20 @@ for(const im of [legIM,fitLegIM,rarIM,...Object.values(gunIM)]){im.instanceMatri
 legIM.customDepthMaterial=fitLegIM.customDepthMaterial=LDEPTH;   // the shadow pass bends the knees too
 const _lm=new THREE.Matrix4(),_tm=new THREE.Matrix4(),_iq=new THREE.Quaternion();
 function syncLimbs(){
-  let nl=0,nr=0,nf=0;const lk=legIM.geometry.attributes.legK.array,fk=fitLegIM.geometry.attributes.legK.array;for(const k in gunIM)gunIM[k].count=0;
+  let nl=0,nr=0,nf=0;const lk=legIM.geometry.attributes.legK.array,fk=fitLegIM.geometry.attributes.legK.array;for(const k in gunIM)gunIM[k].count=0;if(LX)LX.gunReset();
   for(const g of limbModels){
     if(!g.visible||g.parent!==scene)continue;
     const u=g.userData;g.updateMatrix();
     if(u.leg){if(u.legs[0].visible&&nf+2<=LIMB_N*2)for(const l of u.legs){l.updateMatrix();fitLegIM.setMatrixAt(nf,_lm.multiplyMatrices(g.matrix,l.matrix));fk[nf]=l.k;legPut(fitLegIM.geometry,nf++,u.leg)}}
     else if(u.legs[0].visible&&nl+2<=LIMB_N*2)for(const l of u.legs){l.updateMatrix();lk[nl]=l.k;legIM.setMatrixAt(nl++,_lm.multiplyMatrices(g.matrix,l.matrix))}
-    const im=gunIM[u.gk];if(u.gun.visible&&im&&im.count<LIMB_N){u.gun.updateMatrix();im.setMatrixAt(im.count++,_lm.multiplyMatrices(g.matrix,u.gun.matrix));
+    const im=u.gs&&LX?LX.gunIM(u.gk,u.gs):gunIM[u.gk];if(u.gun.visible&&im&&im.count<LIMB_N){u.gun.updateMatrix();im.setMatrixAt(im.count++,_lm.multiplyMatrices(g.matrix,u.gun.matrix));
       const T=RTAG[u.gk];if(T&&u.gr>=0&&nr<LIMB_N){rarIM.setMatrixAt(nr,_lm.multiply(_tm.compose(_p.set(0,T[0],T[1]),_iq,_s.set(T[2],T[3],T[4]))));rarIM.setColorAt(nr++,_col.setHex(RARC[u.gr]))}}
   }
   legIM.count=nl;legIM.visible=nl>0;if(nl){legIM.instanceMatrix.needsUpdate=true;legIM.geometry.attributes.legK.needsUpdate=true}
   fitLegIM.count=nf;fitLegIM.visible=nf>0;if(nf){fitLegIM.instanceMatrix.needsUpdate=true;fitLegIM.geometry.attributes.legK.needsUpdate=true}
   rarIM.count=nr;rarIM.visible=nr>0;if(nr){rarIM.instanceMatrix.needsUpdate=true;rarIM.instanceColor.needsUpdate=true}
   for(const k in gunIM){const im=gunIM[k];im.visible=im.count>0;if(im.count)im.instanceMatrix.needsUpdate=true}
+  if(LX)LX.gunDone();   // weapons with a gun skin (locker-extra.js)
 }
 /* Poses: twenty numbers. [0] chest lean (forward is negative), [1] chest turn (left is positive), [2-4] left upper arm
    x, y, z, [5-7] right upper arm x, y, z, [8, 11] the crowbar's pitch (up is positive) and turn (left is positive) in the
@@ -4362,6 +4374,7 @@ function makeBot(id){
   // bots are Noobs like everyone else, each with one of the starter faces (never a player's drawing); with the Locker on,
   // the practice bots wear the outfits instead, so a captain can see each one, and a face on it, in a match
   const b=newEnt(makeModel(hex,i,lockerOn()?1+(i*5+2)%(OUTFITS.length-1):NOOB,FACE_STARTS[i%FACE_STARTS.length].face));b.id=id;b.bot=true;b.hex=hex;b.name=botName(id);b.snaps=[];b.lag=NetSmooth.lag();
+  if(LX&&lockerOn()){b.lx=LX.botLx(i);LX.dress(b)}   // with the Locker on, practice bots show the extras too
   scene.add(b.model);bots.set(id,b);rebuildEnts();return b;
 }
 function clearBots(){for(const b of bots.values()){scene.remove(b.model);disposeModel(b.model)}bots.clear();rebuildEnts()}
@@ -4664,6 +4677,7 @@ function makeRemote(uid,v){
   const fc=showFaces?faceOf(v&&v.fc):'';
   const e=newEnt(makeModel(hexNum(v&&v.c),hashStr(uid)%6,v&&v.sk,fc));
   Object.assign(e,{id:uid,name:cleanName(v&&v.n),snaps:[],lag:NetSmooth.lag(),present:false,alive:false,hex:hexNum(v&&v.c),fit:fitOf(v&&v.sk),face:fc,faceAt:performance.now()});
+  e.lx=lxOf(v&&v.lx);if(e.lx){if(LX)LX.dress(e);else lxLoad()}   // the Locker's extras they wear
   e.model.visible=false;scene.add(e.model);remotes.set(uid,e);rebuildEnts();return e;
 }
 // the viewer's switch: draw other players' own faces, or everyone's default one (bots keep their starter faces: nobody drew those)
@@ -4675,6 +4689,7 @@ function applyNode(e,v){
   e.name=cleanName(v.n);const hx=hexNum(v.c),fit=fitOf(v.sk);let fc=showFaces?faceOf(v.fc):'';
   if(fc!==e.face){const t=performance.now();if(t-e.faceAt<FACE_GAP)fc=e.face;else e.faceAt=t}   // a face is taken at most once every few seconds (a body is rebuilt for it)
   if(hx!==e.hex||fit!==e.fit||fc!==e.face){e.hex=hx;e.fit=fit;e.face=fc;setModelColor(e.model,hx,hashStr(e.id)%6,fit,fc)}
+  {const lx=lxOf(v.lx);if(lx!==e.lx){e.lx=lx;if(LX)LX.dress(e);else if(lx)lxLoad()}}
   if(!curMatch||v.m!==curMatch){e.present=false;if(!roster.includes(e.id))e.alive=false;return}
   const st=ST_FROM[v.st]||'out';
   const s={t:+v.ts||Net.now(),x:+v.x,y:+v.y||0,z:+v.z,h:+v.h||0,p:+v.p||0};
@@ -4802,6 +4817,7 @@ const Net={
       st:stCode(),w:heldKey(p),m:curMatch||0,j:this.j,k:myKills,pl:p.place|0,dm:Math.round(p.dmg),mv:mapV};
     if(mySkin!==NOOB)o.sk=mySkin;   // your outfit's number (its place in OUTFITS), left out for the Noob: a new page that gets none draws the Noob,
                                     // and a page from before draws its standard look in your colour, so players there can still be told apart
+    if(myLx)o.lx=myLx;   // the Locker's extras you wear (see lxOf), left out when none: a page from before ignores it
     if(myFace)o.fc=myFace;   // your drawn face, if you drew one (see "drawn faces"); left out for the outfit's own
     if(curMatch){o.oc=this.oc.join('.');o.pk=this.pk.slice(-400).join(',')}
     if(this.amHost&&MS)o.ms=MS.mv===mapV?MS:Object.assign({},MS,{mv:mapV});
@@ -5146,6 +5162,7 @@ function animModel(e,dt){
   if(e!==player)m.visible=true;
   m.position.copy(e.pos);
   const air=e.st==='fall',far=camera.position.distanceTo(e.pos)>70,now=performance.now(),k8=1-Math.exp(-dt*8),fl=RM?0:1;
+  const GS=LX&&e.lxo&&e.lxo.g?LX.gstyle(e.lxo.g):null;   // a Locker glider's own way of being held (locker-extra.js); null: the standard glider
   // just out of the Drifter: start from the jump (upright, arms up, knees tucked) and spread into the skydive (fT)
   if(air&&u.lst!==e.st){u.fT=u.lst==='bus'||u.lst==='out'||u.lst==null?0:.6;if(!u.fT){u.pb.set(POSES.jump);u.pit=-.25;u.roll=0}}
   if(e.st!==u.lst&&e.onGround&&(u.lst==='glide'||u.lst==='fall'))u.landT=.32;   // touching down: a short crouch
@@ -5157,13 +5174,13 @@ function animModel(e,dt){
   const yr=dt>0?wrapAng(e.yaw-(u.py==null?e.yaw:u.py))/dt:0;u.py=e.yaw;
   const sy=Math.sin(e.yaw),cy=Math.cos(e.yaw),lat=e.vel.x*cy-e.vel.z*sy,fwd=-e.vel.x*sy-e.vel.z*cy;
   const sp=e.onGround?Math.hypot(e.vel.x,e.vel.z):0,rk=Math.min(1,sp/SPEED);
-  const ptg=air?-1.38+1.1*jumpK:e.glide?-.3:-.09*rk*Math.sign(fwd+.01)*Math.min(1,Math.abs(fwd)/(sp+.01)+.2);
+  const ptg=air?-1.38+1.1*jumpK:e.glide?(GS?GS.pit:-.3):-.09*rk*Math.sign(fwd+.01)*Math.min(1,Math.abs(fwd)/(sp+.01)+.2);
   u.pit+=(ptg-u.pit)*(air?1-Math.exp(-dt*5):k8);
   u.roll+=((RM?0:e.glide?clamp(yr*.2-lat*.035,-.42,.42):air?clamp(yr*.22-lat*.02,-.35,.35):0)-u.roll)*k8;
-  m.rotation.set(u.pit,e.yaw,u.roll,'YXZ');
+  m.rotation.set(u.pit,e.yaw,u.roll,'YXZ');if(GS&&u.glk>.01)GS.body(m,u,dt,fl);
   // the glider unfolds over about a fifth of a second when it opens and folds away as you land
   u.glk=clamp(u.glk+(e.glide?dt*5:-dt*6),0,1);const gl=u.glider,ge=u.glk*u.glk*(3-2*u.glk);gl.visible=u.glk>.01;
-  if(gl.visible){gl.scale.set(.08+.92*ge,.4+.6*ge,.3+.7*ge);gl.rotation.set(-u.pit*.8,0,u.roll*.4)}
+  if(gl.visible){if(GS)GS.place(gl,ge,u,e);else{gl.position.set(0,GLIDE_Y,0);gl.scale.set(.08+.92*ge,.4+.6*ge,.3+.7*ge);gl.rotation.set(-u.pit*.8,0,u.roll*.4)}}
   u.legs[0].visible=u.legs[1].visible=!far;u.gun.visible=!far&&!air&&!e.glide&&u.glk<.35;   // (not while the glider is opening or open; it comes back as the glider folds away)
   // ---- legs. On the ground each stride is as long as the ground it covers, so a planted foot doesn't slide (A: how far a
   // leg swings, at most 0.74 rad; LEG_L: hip to sole in metres). The legs swing the way the body is moving (forward,
@@ -5184,6 +5201,7 @@ function animModel(e,dt){
     m.position.y-=(drop+lt*.09)*BS}
   else if(air){const f=Math.sin(now*.017)*.07*fl,g=Math.sin(now*.021+1)*.07*fl;
     L0.rotation.set((1-jumpK)*-.18+jumpK*.32+f,0,-.32*(1-jumpK)-.08*jumpK,'XYZ');L1.rotation.set((1-jumpK)*-.18-jumpK*.12+g,0,.32*(1-jumpK)+.08*jumpK,'XYZ');L0.k=1.25*(1-jumpK)+.95*jumpK+f;L1.k=1.15*(1-jumpK)+.5*jumpK-g}
+  else if(GS&&u.glk>.01)GS.legs(L0,L1,u,now,fl,e.glide);
   else{const gw=e.glide?Math.sin(now*.005)*.06*fl:0;L0.rotation.set(-.28+gw,0,-u.roll*.25,'XYZ');L1.rotation.set(-.36-gw,0,-u.roll*.25,'XYZ');L0.k=.35+gw;L1.k=.45-gw}
   if(e.local)setHeldModel(m,heldKey(e),heldItem(e)?heldItem(e).r:-1);
   // ---- arms and chest (see POSES): the pose for what you're doing, blended over about a fifth of a second (the skydive
@@ -5191,7 +5209,7 @@ function animModel(e,dt){
   // a bot's, or another player's shot event, so it agrees with the hit), and the hands put on the glider's handles or the
   // crowbar's handle (armIK)
   if(far&&!u.gun.visible&&u.pfar)return;u.pfar=far;   // past 70 m the arms keep their last pose
-  const cb=u.gk==='cb'&&!air&&!e.glide,tg=air?POSES.fall:e.glide?POSES.glide:cb?POSES.cb:POSES.rest,pb=u.pb,k12=1-Math.exp(-dt*(air?7:12));
+  const cb=u.gk==='cb'&&!air&&!e.glide,tg=air?POSES.fall:e.glide?(GS?GS.pose:POSES.glide):cb?POSES.cb:POSES.rest,pb=u.pb,k12=1-Math.exp(-dt*(air?7:12));
   for(let i=0;i<POSE_N;i++)pb[i]+=(tg[i]-pb[i])*k12;
   u.cbw=(u.cbw||0)+((cb?1:0)-(u.cbw||0))*k12;
   const pf=u.pf;pf.set(pb);
@@ -5208,7 +5226,7 @@ function animModel(e,dt){
   if(cb&&st<SWING[SWING.length-1][0]&&!RM){let i=1;while(SWING[i][0]<st)i++;const a=SWING[i-1],b=SWING[i],q=clamp((st-a[0])/(b[0]-a[0]),0,1),ty=b[2]||0,k=ty===1?q*q:ty===2?1-(1-q)*(1-q):q*q*(3-2*q),A0=a[1]||pf,B0=b[1]||pf;
     for(let j=0;j<POSE_N;j++)pf[j]=A0[j]+(B0[j]-A0[j])*k}
   posePut(u,pf);
-  if(u.glk>.01&&!u.gun.visible){u.glider.updateMatrix();const w=ge*(e.glide?1:clamp(u.glk*2-.6,0,1));for(let k=0;k<2;k++){_ht.set(k?.48:-.48,0,0).applyMatrix4(u.glider.matrix);armIK(u,k,_ht,GLIDE_POLE[k],w)}}
+  if(u.glk>.01&&!u.gun.visible){u.glider.updateMatrix();const w=ge*(e.glide?1:clamp(u.glk*2-.6,0,1));for(let k=0;k<2;k++){const h=GS?GS.hands[k]:null;if(GS&&!h)continue;if(h)_ht.set(h[0],h[1],h[2]);else _ht.set(k?.48:-.48,0,0);_ht.applyMatrix4(u.glider.matrix);armIK(u,k,_ht,GS&&GS.pole?GS.pole[k]:GLIDE_POLE[k],w)}}
   // ---- the held item. A weapon sits with its grip in the right hand (HOLD), turned a little toward where the
   // crosshair is, and tips up and down with the aim; everything else here is added on top and turns about the hand.
   // All of it is worked out as if the arm were at rest and then carried along with the right arm (heldFollow).
@@ -5400,6 +5418,7 @@ function frame(now){
   if(touchUI)document.body.classList.toggle('inlobby',lobbyShown);
   updateDnums(running?dt:0);
   if(bannerTimer>0){bannerTimer-=dt;if(bannerTimer<=0)hud.banner.hidden=true}
+  if(LX)LX.tick(dt);   // glider trails, moving gliders (locker-extra.js)
   piecesTick(dt);mpFlush();
   if(!window.__noRender){syncLimbs();drawScene()}
   cpuMs=cpuMs*.95+(performance.now()-t0)*.05;
@@ -5767,7 +5786,7 @@ function buildLocker(){
   function show(){
     if(state!=='menu'||Locker.open||Face.open||!lockerOn())return;
     if(!model){model=makeModel(player.hex,tone6(),mySkin,myFace);model.position.set(SPOT[0],SPOT[1],SPOT[2])}else setModelColor(model,player.hex,tone6(),mySkin,myFace);
-    scene.add(model);thumbs();$('menu').hidden=true;sec.hidden=false;Locker.open=true;hold=0;mark();measure();$('lkDone').focus({preventScroll:true});
+    scene.add(model);thumbs();$('menu').hidden=true;sec.hidden=false;Locker.open=true;hold=0;mark();measure();$('lkDone').focus({preventScroll:true});if(LX)LX.shown();
   }
   Locker.close=()=>{
     if(!Locker.open)return;Locker.open=false;sec.hidden=true;scene.remove(model);camera.clearViewOffset();vo='';
@@ -5777,15 +5796,19 @@ function buildLocker(){
   // picture shifted so it stands in the middle of that part (a view offset; taken off again in close)
   Locker.cam=dt=>{
     if(hold>0)hold-=dt;else if(!RM)yaw+=dt*.7;
+    const V=Locker.view;if(LX)LX.stage(dt,model,yaw);   // the extras' tabs pose the character and frame it (V)
     model.rotation.y=yaw;
     if(camera.fov!==FOV){camera.fov=FOV;camera.updateProjectionMatrix()}setNear(.3);
     if(!rect)measure();
-    const t=Math.tan(FOV*Math.PI/360),d=Math.max(2.95*VH/(rect.h*2*t),1.7*VH/(rect.w*2*t)),up=Math.round(rect.h*.035);
-    camera.position.set(SPOT[0]+CAM[0]*d,SPOT[1]+.95+d*.1,SPOT[2]+CAM[1]*d);camera.lookAt(SPOT[0],SPOT[1]+.82,SPOT[2]);
+    const t=Math.tan(FOV*Math.PI/360),d=Math.max(2.95*VH/(rect.h*2*t),1.7*VH/(rect.w*2*t))*V.zoom,up=Math.round(rect.h*.035);
+    camera.position.set(SPOT[0]+CAM[0]*d,SPOT[1]+.95+d*.1+V.y,SPOT[2]+CAM[1]*d);camera.lookAt(SPOT[0],SPOT[1]+.82+V.y,SPOT[2]);
     const k=VW+','+VH+','+Math.round(VW/2-rect.cx)+','+(Math.round(VH/2-rect.cy)+up);
     if(k!==vo){vo=k;camera.setViewOffset(VW,VH,Math.round(VW/2-rect.cx),Math.round(VH/2-rect.cy)+up,VW,VH)}
   };
   Locker.show=show;Locker.pick=pick;Locker.turn=y=>{yaw=y;hold=1e9};Locker.pics=pics;
+  Locker.view={zoom:1,y:0};Locker.sec=sec;Locker.model=()=>model;
+  // a new character for the stage, in the pose it is drawn in (after an extras tab has posed it)
+  Locker.fresh=()=>{if(!model)return;const on=model.parent===scene;scene.remove(model);disposeModel(model);model=makeModel(player.hex,tone6(),mySkin,myFace);model.position.set(SPOT[0],SPOT[1],SPOT[2]);if(on)scene.add(model)};
   $('lockerBtn').addEventListener('click',show);$('lkDone').addEventListener('click',()=>Locker.close());
   addEventListener('resize',()=>{if(Locker.open)measure()});
   addEventListener('keydown',e=>{if(Locker.open&&e.code==='Escape'){e.preventDefault();Locker.close()}});
@@ -5809,7 +5832,22 @@ function lockerSync(){
   const want=savedSkin();
   if(want!==mySkin){mySkin=want;setModelColor(player.model,player.hex,player.model.userData.skinIx,mySkin,myFace);Face.sync();if(online)Net.publishSoon()}
   Locker.mark();
+  if(on)lxLoad();
+  const wl=savedLx();if(wl!==myLx){myLx=wl;if(online)Net.publishSoon()}
+  lxSync();
 }
+// The extras: what you wear (only while the Locker is on), everyone dressed again, and the Locker's tabs. Run when
+// locker-extra.js arrives and whenever the Locker's switch may have changed.
+function lxSync(){
+  player.lx=myLx;if(!LX)return;
+  for(const e of ents)LX.dress(e);
+  LX.menu(lockerOn()&&Locker.built);
+}
+// What the extras are lent from this page (locker-extra.js only draws: nothing here lets it touch the physics or the room).
+const LXAPI={THREE,scene,camera,renderer,MAT,store,player,gunIM,GUN_GEO,GUN_TIP,WIDS,WEAP,LIMB_N,plyMat,partMat,pieceInst,partIM,skirtIM,pieces,Locker,STAGE,
+  GLIDER_GEO,GLIDE_Y,GLU,ROUND_LO,pose,POSES,POSE_N,GLIDE_POLE,UNIT_BOX,BS,ICONS,geoPWall,geoPFloor,geoPRamp,animModel,setHeldModel,newEnt,esc,$,lockerOn,myId,RM,
+  get ents(){return ents},get state(){return state},get touchUI(){return touchUI},get low(){return touchUI||gfxPref==='fast'},get lookOn(){return lookOn},
+  get myLx(){return myLx},setLx(v){myLx=lockerOn()?lxOf(v):'';store.set('lx',myLx);player.lx=myLx;if(LX)LX.dress(player);if(online)Net.publishSoon()}};
 lockerSync();
 if(CAPTAINS)CAPTAINS.onChange(lockerSync);
 
@@ -5844,7 +5882,7 @@ if(navigator.webdriver)window.__dz={get state(){return state},get online(){retur
   STUCK_LOG,landPath,landClear,navShut,NAVN,updateBots,updatePlayer,step(dt){pClock+=dt*1000;practiceTick(dt);if(inPlay()){updatePlayer(dt);updateBots(dt)}},
   landOk,landFit,landUnder,skirtOf,skirtList,pieceBox,buildList,applyBuilds,handleEvent,get bdDirty(){return bdDirty},bdGone,ED_N,edRects,edOk,pieceShape,partsOf,partList,partIM,pieceInst,editPiece,wouldTrap,openEdit,closeEdit,confirmEdit,editKey,editTarget,editTile,updateEdit,canEdit,pieceMatrix,pieceCentre,EDIT_T,EDIT_RANGE,pressCode,get edit(){return edit},get editJob(){return editJob},get editAim(){return editAim},get buildCd(){return buildCd},rampH,rampAt,rampBlocked,solidAt,rayRamp,rhash,COST,JUMP,GRAV:G,STEP,RT,MAXL,terrainH,walkH,terrainSlope,rayTerrain,TH,TN,TS,TM,LVL,LAKE,PADS,SHED_Y,chestSpots,floorSpots,buildings,footprints,get groundMesh(){return groundMesh},
   Face,FACE_STARTS,FACE0,faceOf,faceBits,faceStr,faceRows,faceSpot,faceZ,bagFace,setShowFaces,NOOB,get myFace(){return myFace},get showFaces(){return showFaces},
-  Locker,get LOCKER_ON(){return lockerOn()},lockerSync,OUTFITS,bodyGeo,LEG_GEO,legIM,fitLegIM,fitLegGeo,makeModel,setModelColor,legSpec,STD_LEGS,fitOf,hitboxes,POSES,SWING,posePut,heldFollow,GLIDER_GEO,bodyRig,ARM_H,ARM_E,ARM_P,armIK,get windN(){return windIM.count},TKON,PCOLS,SKINS,get mySkin(){return mySkin},Plane,get droneV(){return droneV}};
+  Locker,get LOCKER_ON(){return lockerOn()},lockerSync,get LX(){return LX},lxLoad,lxOf,lxSync,get myLx(){return myLx},syncLimbs,newEnt,OUTFITS,bodyGeo,LEG_GEO,legIM,fitLegIM,fitLegGeo,makeModel,setModelColor,legSpec,STD_LEGS,fitOf,hitboxes,POSES,SWING,posePut,heldFollow,GLIDER_GEO,bodyRig,ARM_H,ARM_E,ARM_P,armIK,get windN(){return windIM.count},TKON,PCOLS,SKINS,get mySkin(){return mySkin},Plane,get droneV(){return droneV}};
 
 requestAnimationFrame(t=>{last=t;frame(t)});
 })();
