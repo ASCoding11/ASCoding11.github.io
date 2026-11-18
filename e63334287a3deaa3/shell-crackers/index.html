@@ -628,25 +628,32 @@ const BOT_PREF={skillet:5,whisk:9,beater:16,poacher:22,sunny:34};
 // Match rules ("modes"; gmode is free-for-all or capture the flag, which these sit on top of). guns: the only gun
 // everyone (bots too) carries, with no pistol swap and no yolk bombs. g / j: gravity and jump speed multipliers.
 // one: any shot or whack cracks in one (yolk bombs and streak rewards hurt as usual), and the streak rewards need two
-// more cracks each. Only Classic is ranked. Online the room's match node carries the rules (round.gm, missing = Classic).
+// more cracks each. ladder: Gun Game (see GG below). Only Classic is ranked. Online the room's match node carries the
+// rules (round.gm, missing = Classic).
 const GMODES=[
   {id:'classic',n:'Classic',tag:'',g:1,j:1},
   {id:'snipers',n:'Snipers Only',tag:'Snipers',guns:'sunny',g:1,j:1},
   {id:'lowgrav',n:'Low-Gravity Snipers',tag:'Low-grav',guns:'sunny',g:.4,j:1.15},
   {id:'pistols',n:'Pistols Only',tag:'Pistols',guns:'cracker',g:1,j:1},
-  {id:'oneshot',n:'One-Shot',tag:'One-Shot',one:true,g:1,j:1}
+  {id:'oneshot',n:'One-Shot',tag:'One-Shot',one:true,g:1,j:1},
+  {id:'gungame',n:'Gun Game',tag:'Gun Game',ladder:['cracker','whisk','skillet','beater','poacher','sunny','whisk','skillet','poacher','sunny'],g:1,j:1}
 ];
 let RULES=GMODES[0];
 let menuRules=clamp(+store.get('rules','0')|0,0,GMODES.length-1);   // the menu's pick: practice, and a room's match you start
 function setRules(i){RULES=GMODES[clamp(i|0,0,GMODES.length-1)]}
 const rulesIdx=()=>GMODES.indexOf(RULES);
 // the clock box's line ("Snipers · 25") and the start banner's prefix
-function goalText(){const n=mapCtf?CTF_CAPS:target;return RULES.tag?RULES.tag+' · '+n:'First to '+n}
+function goalText(){if(RULES.ladder&&!mapCtf)return RULES.tag+' · '+RULES.ladder.length;   // ("Gun Game · 10": guns on the ladder)
+  const n=mapCtf?CTF_CAPS:target;return RULES.tag?RULES.tag+' · '+n:'First to '+n}
+// the start banner's goal ("first to 20 cracks", or in Gun Game "first through 10 guns")
+function goalLine(){return RULES.ladder?'first through '+RULES.ladder.length+' guns':'first to '+target+' cracks'}
 function rulesPre(){return RULES.tag?RULES.n+' · ':''}
 function gmOf(v){return clamp(v&&v.gm|0,0,GMODES.length-1)}
 const jumpV=()=>JUMP*RULES.j;
-// the gun in the main slot: the mode's gun, or the egg's own pick
-function mainGun(e){return RULES.guns||e.loadout}
+// the gun in the main slot: the mode's gun, the egg's rung of the Gun Game ladder, or the egg's own pick
+function mainGun(e){return RULES.ladder?RULES.ladder[clamp(e.gg|0,0,RULES.ladder.length-1)]:RULES.guns||e.loadout}
+// one gun only (no pistol swap, no yolk bombs): the one-gun modes and Gun Game
+const oneGun=()=>!!(RULES.guns||RULES.ladder);
 const STREAKS={3:['SUNNY STREAK','3 cracks without breaking'],5:['HARD-BOILED','5 in a row'],8:['EGG-STRAORDINARY','8 in a row'],12:['UNCRACKABLE','12 in a row!']};
 
 let myName=store.get('name','')||('Egg'+Math.floor(100+Math.random()*900));
@@ -1789,7 +1796,8 @@ function makeEntity(o){
     model:null,target:null,tVis:false,thinkT:0,react:0,path:null,pathI:0,pathT:0,strafe:1,strafeT:0,errT:0,errY:0,errP:0,trackT:0,semiT:0,stuckT:0,lastP:new V3(),wander:null,
     tpos:new V3(),tyaw:0,tpitch:0,lastSc:-1,net:null,seen:0,snaps:[],lag:null,
     team:0,carry:null,role:'att',goalP:null,goalRun:false,ctfHold:false,post:null,postT:0,   // capture the flag
-    ks:[],ksT:0,candleT:0};   // streak rewards: the ones held (oldest first), a bot's wait before using one, Candler time left
+    ks:[],ksT:0,candleT:0,   // streak rewards: the ones held (oldest first), a bot's wait before using one, Candler time left
+    gg:0};   // Gun Game: the rung of the ladder this egg is on (the ladder's length once it has finished)
   if(o.model!==false){e.model=makeEgg(e.color,e.name)}
   return e;
 }
@@ -1832,7 +1840,7 @@ function respawn(e,at){
   if(entHits(e.pos.x,e.pos.y,e.pos.z)&&!pushOutPos(e.pos))rescue(e);
   e.yaw=Math.atan2(-((s.fx==null?SPAN/2:s.fx)-s.x),-((s.fz==null?SPAN/2:s.fz)-s.z));e.pitch=0;
   e.hp=100;e.alive=true;e.slot=0;e.wkey=mainGun(e);fillAmmo(e);e.reloadT=0;e.switchT=0;e.fireCD=0;e.burstLeft=0;e.bloom=0;
-  e.grenades=RULES.guns?0:2;e.spawnShield=2;e.lastHurt=-99;e.streak=0;e.perch=null;e.holdT=0;e.onGround=true;e.path=null;e.target=null;e.stuckT=0;e.lastP.copy(e.pos);
+  e.grenades=oneGun()?0:2;e.spawnShield=2;e.lastHurt=-99;e.streak=0;e.perch=null;e.holdT=0;e.onGround=true;e.path=null;e.target=null;e.stuckT=0;e.lastP.copy(e.pos);
   if(e.dummy){e.spawnShield=0;e.grenades=0}
   if(e===player){if(mode==='training')e.grenades=TRAIN_NADES;camPitchKick=0;hurtFlash=0;dmgDirs.length=0;$('dirs').textContent='';setVmGun(e.wkey);vmSwitch=1;hudDirty=true}
 }
@@ -2061,7 +2069,7 @@ function startReload(e){
   e.reloadT=w.reload;e.burstLeft=0;if(e===player){sfx('reload');hudDirty=true}
 }
 function switchSlot(e,s){
-  if(!e.alive||e.slot===s||RULES.guns)return;e.slot=s;e.wkey=s===0?mainGun(e):'cracker';e.reloadT=0;e.burstLeft=0;e.switchT=.32;e.fireCD=Math.max(e.fireCD,0);
+  if(!e.alive||e.slot===s||oneGun())return;e.slot=s;e.wkey=s===0?mainGun(e):'cracker';e.reloadT=0;e.burstLeft=0;e.switchT=.32;e.fireCD=Math.max(e.fireCD,0);
   if(e===player){setVmGun(e.wkey);vmSwitch=1;sfx('switch');hudDirty=true}
 }
 function melee(e){
@@ -2097,9 +2105,34 @@ function die(t,att,head,wkey){
   const killerId=att?att.id:t.id;
   deathFx(t);
   if(t===player){killerRef=att&&att!==player?att:null;deathPos.copy(camera.position);deadAt=clock;deathRise=Math.max(0,Math.min(2.2,rayWorld(deathPos,new V3(0,1,0),2.6)-.35));$('deadBy').textContent=killerRef?'by '+killerRef.name+' · '+weaponLabel(wkey):wkey==='nade'?'by your own yolk bomb':wkey==='drop'?'by your own Egg Drop':'';hudDirty=true}
+  // Gun Game: whacked eggs go back a rung (online each browser does this for its own egg; the whacker steps up in creditKill)
+  if(RULES.ladder&&wkey==='melee'&&att&&att!==t&&(!online||t===player)){const g0=t.gg;ggSet(t,g0-1);if(t===player&&t.gg<g0)$('deadBy').textContent+=' · back to the '+WEAPONS[mainGun(t)].name}
   if(online){if(t===player){Net.send({type:'died',kb:killerId,w:wkey||'',hd:head?1:0});addFeed(att&&att!==t&&att.name?att:null,t,head,wkey)}}
   else creditKill(att&&att!==t?att:null,t,head,wkey);
 }
+// ---------- Gun Game ----------
+// Everyone starts on the first gun of RULES.ladder and every crack moves the cracker one gun along it, at once (a whack
+// counts too, and also sends the whacked egg back one). A crack with the last gun finishes the ladder (gg = its length)
+// and wins the match; a whack on the last gun doesn't. In capture the flag the ladder only changes guns: you stay on the
+// last one and the flags decide the match. Online each egg keeps its own rung and puts it in its node (gg).
+function ggSet(e,n){
+  const L=RULES.ladder;if(!L)return;const N=L.length;
+  n=clamp(n|0,0,mapCtf?N-1:N);if(n===e.gg)return;const was=e.gg;e.gg=n;
+  if(n>=N){if(e===player)hudDirty=true;return}   // finished: the match ends (the end check in step)
+  const k=L[n];if(e.isBot)e.loadout=k;
+  if(e.alive&&e.wkey!==k){e.slot=0;e.wkey=k;e.ammo[k]=WEAPONS[k].mag;e.reloadT=0;e.burstLeft=0;e.switchT=.32;
+    if(e===player){setVmGun(k);vmSwitch=1;sfx('switch')}else if(e.model)setEggGun(e.model,k)}
+  if(e===player)hudDirty=true;
+  if(n===N-1&&was<n&&!mapCtf)ggLastFeed(e);
+}
+function ggLastFeed(e){infoFeed(e===player?'Last gun: one '+WEAPONS[RULES.ladder[RULES.ladder.length-1]].name+' crack wins':e.name+' is on the last gun')}
+function ggCredit(k,wkey){
+  const L=RULES.ladder,N=L.length;if(k.gg>=N)return;
+  if(k.gg===N-1){if(!mapCtf&&wkey===L[N-1])ggSet(k,N);return}
+  ggSet(k,k.gg+1);
+}
+// the leader's rung for the HUD and the end check: the highest gg in the standings
+function ggTop(){let t=0;for(const r of standingsNow())t=Math.max(t,r.g);return t}
 function weaponLabel(k){return k==='nade'?'Yolk bomb':k==='melee'?'Whack':KS_LABEL[k]||(WEAPONS[k]?WEAPONS[k].name:'')}
 function deathFx(t){
   const p=t.model?t.model.g.position:t.pos;
@@ -2116,13 +2149,15 @@ function creditKill(k,v,head,wkey){
   // never earn more rewards
   const rw=KS_KILL.has(wkey);
   k.kills++;if(!rw)k.streak++;
+  if(RULES.ladder)ggCredit(k,wkey);
   if(k===player&&(mode==='practice'||mode==='online')&&window.BackRoomStats){BackRoomStats.add('kills',1);BackRoomStats.add('kdkills',1);BackRoomStats.max('mkills',k.kills)}
   const got=rw?null:ksEarn(k);
   if(k===player){
     hitMarker(true);sfx('kill');hudDirty=true;
     multiN=clock-multiT<3.2?multiN+1:1;multiT=clock;
     const st=rw?null:STREAKS[k.streak];
-    if(got){banner(st?st[0]:got.n.toUpperCase()+'!',got.n+' ready · '+ksHow(),2.6);sfx('ksready')}
+    if(RULES.ladder){const N=RULES.ladder.length;if(k.gg<N)banner(k.gg===N-1?'LAST GUN':'',(wkey==='melee'?'Whacked '+v.name+' back a gun · ':'You cracked '+v.name+' · ')+WEAPONS[mainGun(k)].name+' ('+(k.gg+1)+' of '+N+')',1.6)}
+    else if(got){banner(st?st[0]:got.n.toUpperCase()+'!',got.n+' ready · '+ksHow(),2.6);sfx('ksready')}
     else if(st){banner(st[0],st[1],2.4);sfx('streak')}
     else if(multiN===2)banner('DOUBLE CRACK','',1.6);else if(multiN===3)banner('TRIPLE CRACK','',1.8);else if(multiN>=4)banner('OMELETTE!',multiN+' in a row, fast',2);
     else banner('',(head?'Headshot · ':'')+'You cracked '+v.name,1.4);
@@ -2303,6 +2338,7 @@ function botThink(e,dt){
     const want=e.react<=0&&off<Math.max(.05,1.3/d3)+D.err*.4;
     if(want){const w=WEAPONS[e.wkey];e.semiT-=dt;if(w.auto||e.semiT<=0){if(tryFire(e))e.semiT=D.semi*rand(.6,1.4)+(w.auto?0:w.cd*.2)}}
     if(e.grenades>0&&d3>8&&d3<20&&e.react<=0&&Math.random()<dt*D.nade)throwNade(e);
+    if(RULES.ladder&&d3<1.8&&e.react<=0&&off<.4&&Math.random()<dt*3)melee(e);   // Gun Game: a whack sends them back a gun
     if(e.ammo[e.wkey]<=0)startReload(e);
   }else{
     e.trackT=0;e.ads=false;
@@ -2353,7 +2389,7 @@ function ksKey(){const k=KB.keys('reward')[0];return k?KB.name(k):''}
 function ksHow(){return touchUI?'tap the reward button':ksKey()?'press '+ksKey():'set a key in Controls'}
 // a reward for reaching this streak (one of each kind held at a time)
 function ksEarn(e){
-  if(!ksOn())return null;
+  if(!ksOn()||RULES.ladder)return null;   // no streak rewards in Gun Game
   const r=KS.find(x=>ksAt(x)===e.streak);if(!r||e.ks.includes(r.id))return null;
   e.ks.push(r.id);if(e.isBot)e.ksT=rand(.8,2.5);
   return r;
@@ -3108,7 +3144,7 @@ function clearRemotes(){for(const e of ents.slice())if(e.remote)removeEntity(e);
 function addBots(n,teams){
   const names=BOT_NAMES.slice().sort(()=>Math.random()-.5),seen=[0,0];
   for(let i=0;i<n;i++){const tm=teams?teams[i]:0;
-    const b=makeEntity({id:'b'+i,name:names[i],color:teams?TEAM[tm].c:pick(SHELLS).c,bot:true,loadout:RULES.guns||pick(PRIMARIES)});ents.push(b);setEggGun(b.model,b.wkey);b.respawnT=.2+i*.15;b.kills=0;b.deaths=0;
+    const b=makeEntity({id:'b'+i,name:names[i],color:teams?TEAM[tm].c:pick(SHELLS).c,bot:true,loadout:RULES.ladder?RULES.ladder[0]:RULES.guns||pick(PRIMARIES)});ents.push(b);setEggGun(b.model,b.wkey);b.respawnT=.2+i*.15;b.kills=0;b.deaths=0;
     b.team=tm;b.role=teams&&seen[tm]++===0?'def':'att'}
 }
 function resetFx(){
@@ -3132,7 +3168,7 @@ function startPractice(next){
   state='playing';mode='practice';online=false;paused=false;target=TARGET_PRACTICE;setRules(menuRules);
   clearBots();clearRemotes();resetFx();ctfOn=gmode==='ctf';
   buildMap(typeof next==='number'&&next>=0&&next<MAPS.length?next:Math.floor(Math.random()*MAPS.length));
-  player.id='me';player.name=myName;player.color=myColor;player.loadout=myLoadout;player.active=true;player.kills=0;player.deaths=0;player.streak=0;
+  player.id='me';player.name=myName;player.color=myColor;player.loadout=myLoadout;player.active=true;player.kills=0;player.deaths=0;player.streak=0;player.gg=0;
   // capture the flag: three a side, you and two bots against three
   if(mapCtf){player.team=Math.random()<.5?0:1;const a=player.team,b=1-a;addBots(CTF_BOTS,[a,b,b,a,b]);ctfSync(ctfFresh(),true)}
   else addBots(5);
@@ -3140,7 +3176,7 @@ function startPractice(next){
   matchEnds=Date.now()+MATCH_MS;$('goal').textContent=goalText();
   showHud();requestLock();
   if(mapCtf){banner(mapInfo().name.toUpperCase(),rulesPre()+'Capture the flag · first to '+CTF_CAPS,2.6);ctfHello()}
-  else banner(mapInfo().name.toUpperCase(),rulesPre()+'Practice · first to '+target+' cracks',2.4);
+  else banner(mapInfo().name.toUpperCase(),rulesPre()+'Practice · '+goalLine(),2.4);
 }
 function startTraining(){
   initAudio();Net.leave();
@@ -3178,6 +3214,9 @@ function endMatch(){
   $('endTitle').textContent=myRank===1?'Champion egg!':ordinal(myRank)+' place';
   const lead=list[0];
   $('endSub').textContent=(myRank===1?'Most cracks in ':lead.name+' won ')+mapInfo().name+' with '+lead.k+'.';
+  if(RULES.ladder&&!mapCtf){const N=RULES.ladder.length,done=lead.g>=N;
+    $('endSub').textContent=done?(myRank===1?'You':lead.name)+' finished the ladder on '+mapInfo().name+' with the '+WEAPONS[RULES.ladder[N-1]].name+'.':
+      'Time! '+(myRank===1?'You were':lead.name+' was')+' furthest up the ladder: gun '+(lead.g+1)+' of '+N+'.'}
   if(mapCtf){const a=ctfS.s[0],b=ctfS.s[1],w=a===b?-1:a>b?0:1;
     $('endTitle').textContent=w<0?'A draw':w===player.team?'Your team wins!':TEAM[w].n+' team wins';
     $('endSub').textContent='Capture the flag on '+mapInfo().name+': '+TEAM[0].n+' '+a+' – '+b+' '+TEAM[1].n+'.'}
@@ -3199,16 +3238,17 @@ function standingsNow(){if(standFrame!==frameNo){standFrame=frameNo;standCache=s
 function standings(){
   const out=[];
   for(const e of ents){if(e.dummy||!e.active&&e!==player)continue;if(e===player&&!player.active)continue;
-    let k=e.kills,d=e.deaths;if(e.remote){const ok=e.net&&e.net.m===Net.wm();if(!ok)continue;k=+e.net.k||0;d=+e.net.dt||0}
+    let k=e.kills,d=e.deaths,g=e.gg|0;if(e.remote){const ok=e.net&&e.net.m===Net.wm();if(!ok)continue;k=+e.net.k||0;d=+e.net.dt||0;g=clamp(+e.net.gg|0,0,RULES.ladder?RULES.ladder.length:0)}
     const r=e===player?rank.r:e.isBot?BOT_R[diffKey]:clamp(+(e.net&&e.net.r)||RATING_START,100,3000);
-    out.push({id:e.id,name:e.name,k,d,color:mapCtf?TEAM[e.team].c:e.color,me:e===player,human:!e.isBot,r})}
-  out.sort((a,b)=>b.k-a.k||a.d-b.d||(a.me?-1:1));return out;
+    out.push({id:e.id,name:e.name,k,d,color:mapCtf?TEAM[e.team].c:e.color,me:e===player,human:!e.isBot,r,g})}
+  out.sort((a,b)=>(RULES.ladder&&!mapCtf?b.g-a.g:0)||b.k-a.k||a.d-b.d||(a.me?-1:1));return out;   // (Gun Game: furthest up the ladder first)
 }
 function fillTable(tbl,list){
-  tbl.textContent='';const hr=tbl.insertRow();for(const h of ['#','Egg','Cracks','Cracked','K/D']){const th=document.createElement('th');th.textContent=h;hr.appendChild(th)}
+  const gg=RULES.ladder&&!mapCtf?RULES.ladder.length:0;   // Gun Game: a Gun column (how far up the ladder) in place of K/D
+  tbl.textContent='';const hr=tbl.insertRow();for(const h of ['#','Egg','Cracks','Cracked',gg?'Gun':'K/D']){const th=document.createElement('th');th.textContent=h;hr.appendChild(th)}
   list.forEach((r,i)=>{const tr=tbl.insertRow();if(r.me)tr.className='me';
     tr.insertCell().textContent=i+1;const c=tr.insertCell().appendChild(document.createElement('span'));c.className='nm';const dot=document.createElement('span');dot.className='dot';dot.style.background=r.color;c.append(dot,document.createTextNode(r.name+(r.me?' (you)':'')));if(r.human||r.me){const rt=document.createElement('span');rt.className='rt';rt.textContent=Math.round(r.r);c.appendChild(rt)}else{const rt=document.createElement('span');rt.className='rt';rt.textContent='bot';c.appendChild(rt)}
-    tr.insertCell().textContent=r.k;tr.insertCell().textContent=r.d;tr.insertCell().textContent=(r.k/Math.max(1,r.d)).toFixed(2)});
+    tr.insertCell().textContent=r.k;tr.insertCell().textContent=r.d;tr.insertCell().textContent=gg?(r.g>=gg?'Done':(r.g+1)+'/'+gg):(r.k/Math.max(1,r.d)).toFixed(2)});
 }
 
 // =====================================================================
@@ -3375,12 +3415,19 @@ function ksHud(){
   const r=player.ks.length?KS_BY[player.ks[0]]:null;
   setHid('tKs',!(touchUI&&r&&player.alive));if(r)setT('tKs',r.short);
 }
+// Gun Game: your box shows your gun's place on the ladder and its name, the other the top rival's place
+function ggHud(){
+  const N=RULES.ladder.length,g=Math.min(player.gg,N-1);
+  setT('myK',(g+1)+'/'+N);setT('myL',WEAPONS[RULES.ladder[g]].name);
+  let lead=null;for(const r of standingsNow()){if(r.me)continue;if(!lead||r.g>lead.g)lead=r}
+  setT('leadK',lead?Math.min(lead.g+1,N)+'/'+N:'–');setT('leadN',lead?lead.name:'No rivals yet');
+}
 function updateHud(dt){
   if(state!=='playing')return;
   const w=WEAPONS[player.wkey];
   // clock and score
   const rem=Math.max(0,matchEnds-nowMs()),s=Math.ceil(rem/1000);setT('clock',Math.floor(s/60)+':'+String(s%60).padStart(2,'0'));
-  if(mapCtf)ctfHud();else{
+  if(mapCtf)ctfHud();else if(RULES.ladder)ggHud();else{
   setT('myK',String(player.kills));
   let lead=null,lk=-1;for(const r of standingsNow()){if(r.me)continue;if(r.k>lk){lk=r.k;lead=r}}
   setT('leadK',lead?String(lead.k):'–');setT('leadN',lead?lead.name:'No rivals yet');}
@@ -3393,11 +3440,15 @@ function updateHud(dt){
     const n=$('nades');if(+n.dataset.n!==player.grenades){n.dataset.n=player.grenades;n.textContent='';for(let i=0;i<player.grenades;i++)n.appendChild(document.createElement('i'))}
     const tr=mode==='training';
     const sk=id=>{const k=KB.keys(id)[0];return k?KB.name(k)+' ':''};
-    $('sl1').textContent=(tr?PRIMARIES.indexOf(player.loadout)+1+' ':RULES.guns?'':sk('main'))+WEAPONS[mainGun(player)].name;$('sl2').textContent=(tr?'6 ':sk('pistol'))+'Cracker';$('sl2').hidden=!!RULES.guns;$('sl1').className=player.slot===0?'on':'';$('sl2').className=player.slot===1?'on':'';
+    $('sl1').textContent=(tr?PRIMARIES.indexOf(player.loadout)+1+' ':oneGun()?'':sk('main'))+WEAPONS[mainGun(player)].name;$('sl2').textContent=(tr?'6 ':sk('pistol'))+'Cracker';$('sl2').hidden=!!RULES.guns;$('sl1').className=player.slot===0?'on':'';$('sl2').className=player.slot===1?'on':'';
     $('nextW').textContent=WEAPONS[mainGun(player)].name+(RULES.guns?' ('+RULES.n+')':'');
+    if(RULES.ladder){const L=RULES.ladder,N=L.length,g=Math.min(player.gg,N-1);   // Gun Game: the slots show this gun's place and the next one
+      $('sl1').textContent=(g+1)+'/'+N+' '+WEAPONS[L[g]].name;$('sl1').className='on';$('sl2').className='';
+      $('sl2').textContent=g<N-1?'Next: '+WEAPONS[L[g+1]].name:mapCtf?'Last gun':'Last gun: crack to win';
+      $('nextW').textContent=WEAPONS[L[g]].name+' (Gun Game, '+(g+1)+' of '+N+')'}
   }
   setT('magN',player.reloadT>0?'…':String(player.ammo[player.wkey]));
-  const ksShow=mode==='practice'||mode==='online';setHid('ks',!ksShow);
+  const ksShow=(mode==='practice'||mode==='online')&&!RULES.ladder;setHid('ks',!ksShow);   // (no streak rewards in Gun Game)
   if(ksShow)ksHud();else setHid('tKs',true);
   if(mode==='training'){const S=Range.stats;setT('tsAcc',S.shots?Math.round(100*S.hits/S.shots)+'%':'–');setT('tsHits',S.hits+'/'+S.shots);setT('tsHead',String(S.heads));setT('tsCrack',String(player.kills));setT('tsPop',String(S.pops));setT('tsLast',S.lastT>0?S.last:'')}
   if(player.reloadT>0&&player.alive){setHid('rel',false);$('rel').firstChild.style.width=(100*(1-player.reloadT/w.reload))+'%'}else setHid('rel',true);
@@ -3424,14 +3475,14 @@ function updateHud(dt){
   setT('netline',nl);
   setHid('lockHint',!!document.pointerLockElement||paused);
   if(touchUI)$('tAim').classList.toggle('on',!!tAct.aim);
-  setHid('tNade',!!RULES.guns);setHid('tSwap',!!RULES.guns);   // one gun and no yolk bombs in the gun modes
+  setHid('tNade',oneGun());setHid('tSwap',oneGun());   // one gun and no yolk bombs in the gun modes and Gun Game
   if(touchUI&&mode==='training'){
     $('tTrain').style.visibility=player.alive?'':'hidden';
     for(let n=1;n<=6;n++)$('tG'+n).classList.toggle('cur',n===6?player.slot===1:player.slot===0&&player.wkey===PRIMARIES[n-1]);
   }
   // scoreboard
   const showBoard=held('board');setHid('board',!showBoard);
-  if(showBoard){fillTable($('boardTable'),standings());$('boardTitle').textContent=mode==='training'?mapInfo().name+' · unranked, nothing is saved':mapCtf?mapInfo().name+' · '+TEAM[0].n+' '+ctfS.s[0]+' – '+ctfS.s[1]+' '+TEAM[1].n+' · first to '+CTF_CAPS+' captures':mapInfo().name+' · first to '+target+' · '+liveRankInfo()}
+  if(showBoard){fillTable($('boardTable'),standings());$('boardTitle').textContent=mode==='training'?mapInfo().name+' · unranked, nothing is saved':mapCtf?mapInfo().name+' · '+TEAM[0].n+' '+ctfS.s[0]+' – '+ctfS.s[1]+' '+TEAM[1].n+' · first to '+CTF_CAPS+' captures':mapInfo().name+' · '+(RULES.ladder?goalLine():'first to '+target)+' · '+liveRankInfo()}
 }
 
 // =====================================================================
@@ -3449,7 +3500,7 @@ document.addEventListener('pointerlockchange',()=>{
 function showPause(){
   paused=true;$('pause').hidden=false;
   const tr=mode==='training';
-  $('pauseWLabel').textContent=tr?'Weapon (switches right away)':RULES.guns?'Your weapon when the rules allow it ('+RULES.n+': '+WEAPONS[RULES.guns].name+' for everyone)':'Weapon for your next hatch';$('leave').textContent=tr?'Back to menu':'Leave match';
+  $('pauseWLabel').textContent=tr?'Weapon (switches right away)':RULES.ladder?'Your weapon when the rules allow it (Gun Game: everyone climbs the same ladder of guns)':RULES.guns?'Your weapon when the rules allow it ('+RULES.n+': '+WEAPONS[RULES.guns].name+' for everyone)':'Weapon for your next hatch';$('leave').textContent=tr?'Back to menu':'Leave match';
   if(tr)$('pauseSub').textContent='Training range · unranked, nothing is saved. '+(touchUI?'The gun buttons':'Keys 1–5')+' also switch guns.';
   else{
   $('pauseSub').textContent=online?(Net.isPublic?'Public lobby '+Net.room.replace(/^sc-/,'')+' · the match keeps going':'Room '+Net.room+' · the match keeps going'):'Practice on '+MAPS[mapIdx].name+' ('+diffKey+' bots)';
@@ -3579,7 +3630,7 @@ function setLoadout(k){
   // still in spawn protection and holding the main gun: swap right away
   // (on the training range: always, keeping that gun's magazine as it was)
   if(mode==='training'&&player.alive){if(player.slot===1)switchSlot(player,0);else if(player.wkey!==k){player.wkey=k;player.switchT=.32;player.reloadT=0;player.burstLeft=0;setVmGun(k);vmSwitch=1;sfx('switch')}}
-  else if(player.alive&&player.spawnShield>0&&player.slot===0&&!RULES.guns){player.wkey=k;player.ammo[k]=WEAPONS[k].mag;player.reloadT=0;setVmGun(k);vmSwitch=1}
+  else if(player.alive&&player.spawnShield>0&&player.slot===0&&!oneGun()){player.wkey=k;player.ammo[k]=WEAPONS[k].mag;player.reloadT=0;setVmGun(k);vmSwitch=1}
   renderWeapons($('weapons'));if(!$('pause').hidden)renderWeapons($('weapons2'));hudDirty=true;
 }
 
@@ -3614,7 +3665,9 @@ const Net={
   // half: a copy of the game from before capture the flag only draws, hits and hears eggs whose match id equals the
   // round's, so in such a room it sees nobody and nobody sees it (it plays on alone), instead of shooting at teams.
   // Likewise, a match with rules other than Classic adds a quarter, so an older copy (which can't play them) is kept apart.
-  wm(){return this.matchId==null?-1:this.matchId+(this.ctfRoom?.5:0)+(this.gm?.25:0)},
+  // Gun Game adds an eighth instead: a copy from before it reads its gm as One-Shot (the last rules it knows) and adds a
+  // quarter, so it is kept apart too.
+  wm(){return this.matchId==null?-1:this.matchId+(this.ctfRoom?.5:0)+(this.gm?GMODES[this.gm].ladder?.125:.25:0)},
   gm:0,
   // The room's host: the egg that has been in the room longest (jt in its node, the time it joined; an older copy of the
   // game sends none and is never host). The host picks the next match's rules and settles the map vote.
@@ -3647,6 +3700,7 @@ const Net={
     const s={n:myName,c:myColor,x:r2(p.pos.x),y:r2(p.pos.y),z:r2(p.pos.z),h:r3(p.yaw),p:r3(p.pitch),hp:Math.max(0,Math.round(p.hp)),d:p.alive?0:1,
       w:WKEYS.indexOf(p.wkey),sc:p.shotCount,k:p.kills,dt:p.deaths,r:Math.round(rank.r),sp:p.spawnShield>0?1:0,m:this.wm(),mp:mapIdx,ar:mapSm,mc:MAPS.length,jt:Math.round(this.joinT),ts:Math.round(this.now())};
     if(this.ctfRoom)s.tm=p.team;   // capture the flag: this egg's team
+    if(RULES.ladder)s.gg=p.gg;   // Gun Game: this egg's rung of the ladder
     return s;
   },
   async count(room){
@@ -3823,6 +3877,8 @@ function onRemoteState(uid,v){
     e=makeEntity({id:uid,name:cleanName(v.n),color,remote:true});e.alive=!v.d;e.pos.set(v.x,v.y,v.z);e.lastSc=+v.sc||0;
     remotes.set(uid,e);ents.push(e);if(state==='playing')infoFeed(e.name+' joined');
   }
+  // Gun Game: say when another egg reaches the last gun
+  if(RULES.ladder&&!mapCtf&&e.net&&inMyMatch(v)&&+e.net.m===+v.m){const N=RULES.ladder.length;if((+v.gg|0)===N-1&&(+e.net.gg|0)<N-1)ggLastFeed(e)}
   e.net=v;e.seen=performance.now();
   // capture the flag: its team, and its shell in the team's colour
   if(Net.ctfRoom){const tm=v.tm===1?1:0;if(e.team!==tm||e.color!==TEAM[tm].c){e.team=tm;e.color=TEAM[tm].c;if(e.model)e.model.stage=-1}}
@@ -3894,7 +3950,7 @@ function onMatch(v){
   clearTimeout(Net.waitT);if(state!=='playing')setMsg('');
   resetFx();if(!sameMap)buildMap(mi,sm);
   for(const e of remotes.values())e.active=inMyMatch(e.net);
-  player.kills=0;player.deaths=0;player.streak=0;target=TARGET_ONLINE;$('goal').textContent=goalText();
+  player.kills=0;player.deaths=0;player.streak=0;player.gg=0;target=TARGET_ONLINE;$('goal').textContent=goalText();
   // capture the flag: the flags and score as the match has them, and (on arriving) a team
   if(mapCtf){if(first)ctfPick();ctfSync(ctfNorm(v.ctf),true);ctfGone[0]=ctfGone[1]=0;ctfSeen[0]=ctfSeen[1]=false}
   if(mapCtf){if(!(wasIn&&sameMap)){respawn(player);sfx('spawn')}}
@@ -3903,13 +3959,13 @@ function onMatch(v){
     const order=spreadOrder(v.id*7+mi);
     respawn(player,ids.length>1?order[ids.indexOf(Net.uid)%order.length]:null);sfx('spawn');
   }
-  for(const e of remotes.values()){e.kills=0;e.deaths=0}
+  for(const e of remotes.values()){e.kills=0;e.deaths=0;e.gg=0}
   if(!(wasIn&&sameMap&&!ratedThis&&clock-matchJoinClock<15))startRatedMatch();
   if(state!=='playing'){state='playing';showHud();if(!paused)requestLock()}
   else{$('end').hidden=true}
   if(first&&Net.gm!==menuRules)setTimeout(()=>{if(Net.matchId===v.id)infoFeed('This room is playing '+RULES.n)},2800);
   if(mapCtf){banner(MAPS[mapIdx].name.toUpperCase(),rulesPre()+'Capture the flag · '+(Net.isPublic?'public lobby':'room '+Net.room)+' · first to '+CTF_CAPS,2.6);ctfHello()}
-  else banner(MAPS[mapIdx].name.toUpperCase(),rulesPre()+(Net.isPublic?'Public lobby':'Room '+Net.room)+' · first to '+target+' cracks',2.6);
+  else banner(MAPS[mapIdx].name.toUpperCase(),rulesPre()+(Net.isPublic?'Public lobby':'Room '+Net.room)+' · '+goalLine(),2.6);
   // after the banner has gone (on a phone held sideways they'd overlap)
   if(mapSm&&!sameMap){const id=v.id;setTimeout(()=>{if(Net.matchId===id&&mapSm)infoFeed('Small arena for '+SMALL_MAX+' or fewer')},2800)}
 }
@@ -3947,7 +4003,7 @@ function randomRoom(){return pick(['yolk','shell','omelet','scramble','sunny','p
 function busy(on){for(const id of ['quick','joinRoom','practice','training'])$(id).disabled=on}
 function prepOnline(){
   initAudio();clearBots();clearRemotes();resetFx();
-  player.id='me';player.name=myName;player.color=myColor;player.loadout=myLoadout;player.active=true;player.alive=false;player.kills=0;player.deaths=0;
+  player.id='me';player.name=myName;player.color=myColor;player.loadout=myLoadout;player.active=true;player.alive=false;player.kills=0;player.deaths=0;player.gg=0;
   mode='online';
 }
 async function joinPrivate(){
@@ -4035,6 +4091,7 @@ function step(dt){
     // match end (the training range has none): the crack target or the clock; in capture the flag, the captures or the clock
     if(state==='playing'&&mode!=='training'){
       let top=0;if(!mapCtf)for(const r of standingsNow())top=Math.max(top,r.k);
+      if(RULES.ladder&&!mapCtf)top=ggTop()>=RULES.ladder.length?target:0;   // Gun Game: someone has finished the ladder
       if(mapCtf?ctfS.s[0]>=CTF_CAPS||ctfS.s[1]>=CTF_CAPS||nowMs()>=matchEnds:top>=target||nowMs()>=matchEnds)endMatch();
     }
   }
@@ -4237,7 +4294,7 @@ if(inv){if(/^ctf-/.test(inv[1]))setMode('ctf');$('room').value=inv[1];setMsg('Yo
 
 if(navigator.webdriver)window.__sc={get state(){return state},get mode(){return mode},get noRender(){return noRender},set noRender(v){noRender=!!v},player,get ents(){return ents},get map(){return mapIdx},get arena(){return mapSm},get layout(){return mapIdx+(mapSm?"s":"")},findPath,rayWorld,floorBelow,buildMap,MAPS,W,HY,VY,G,GROUND_Y,vox,vget,standV,nodeFor,entHits,get navN(){return navN},get navReach(){return navReach},navAt,get navY(){return navY},get perches(){return perches},spawns:()=>spawns,Net,onRemoteState,handleEvent,onMatch,endMatch,standings,DIFF,WEAPONS,fireShot,damage,throwNade,nades,addFeed,respawn,spawnSplat,keys,setPaused:v=>{paused=v},get rank(){return rank},HUMAN_W,ratingChange,applyRating,get lastRated(){return lastRated},get clock(){return clock},toMenu,loadLeaderboard,renderer,scene,camera,vmScene,vmCam,advance:s=>{noRender=true;try{for(let t=0;t<s;t+=1/30)step(1/30)}finally{noRender=false}},get matchEnds(){return matchEnds},set matchEnds(v){matchEnds=v},get remotes(){return remotes},get range(){return Range},startTraining,tryFire,buildGun,WKEYS,get vmGun(){return vmGun},get tracers(){return tracers},startReload,setLoadout,switchSlot,mapInfo,RANGE_IDX,get paused(){return paused},get hudDirty(){return hudDirty},
   // collision audit: the real movement, push-out and remote-drawing code, driven step by step
-  botMatch:(i,n)=>{clearBots();resetFx();buildMap(i);addBots(n)},get ctf(){return{on:mapCtf,S:ctfS,base:ctfBase,spawns:ctfSpawns,posts:ctfPosts,team:player.team}},ctfDo,ctfReduce,ctfNorm,ctfFresh,ctfSync,setMode,KS,useReward,creditKill,GMODES,get rules(){return RULES},Vote,castVote,voteDecide,setNextRules:i=>pickRules(i),get drops(){return drops},get sentries(){return sentries},get fry(){return fry},TEAM,startPractice,CTF_CAPS,ctfBotMatch:(i,n)=>{clearBots();resetFx();ctfOn=true;buildMap(i);const t=[];for(let k=0;k<n;k++)t.push(k&1);addBots(n,t);ctfSync(ctfFresh(),true);state='playing';mode='practice';player.active=false;player.alive=false;matchEnds=Date.now()+1e9},moveEntity,steer,pushOutPos,rescue,boxSolid,updateRemotes,drawClamp,simulate,simSteps,FRAME_CAP,consts:{PR,PH,STEP,JUMP,GRAV,MAX_FALL},mapSpawns:()=>mapSpawns,los};
+  botMatch:(i,n)=>{clearBots();resetFx();buildMap(i);addBots(n)},get ctf(){return{on:mapCtf,S:ctfS,base:ctfBase,spawns:ctfSpawns,posts:ctfPosts,team:player.team}},ctfDo,ctfReduce,ctfNorm,ctfFresh,ctfSync,setMode,KS,useReward,creditKill,GMODES,get rules(){return RULES},ggSet,ggTop,Vote,castVote,voteDecide,setNextRules:i=>pickRules(i),get drops(){return drops},get sentries(){return sentries},get fry(){return fry},TEAM,startPractice,CTF_CAPS,ctfBotMatch:(i,n)=>{clearBots();resetFx();ctfOn=true;buildMap(i);const t=[];for(let k=0;k<n;k++)t.push(k&1);addBots(n,t);ctfSync(ctfFresh(),true);state='playing';mode='practice';player.active=false;player.alive=false;matchEnds=Date.now()+1e9},moveEntity,steer,pushOutPos,rescue,boxSolid,updateRemotes,drawClamp,simulate,simSteps,FRAME_CAP,consts:{PR,PH,STEP,JUMP,GRAV,MAX_FALL},mapSpawns:()=>mapSpawns,los};
 
 renderSwatches();renderWeapons($('weapons'));renderDiff();renderGfx();renderMode();renderRank();renderRulesUI();
 setupAttract();showAd('adMenu');
