@@ -530,6 +530,25 @@
     if (window.BackRoomLang && BackRoomLang.get() !== 'en') return BackRoomLang.date(x, x.getFullYear() === new Date().getFullYear() ? { month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric', year: 'numeric' });
     return x.getFullYear() === new Date().getFullYear() ? s : s + ', ' + x.getFullYear();
   }
+  // The dates follow the language, and are redrawn when it changes (they're kept out of the automatic translation).
+  function drawDate(e) { var d = e.getAttribute('data-nws-d'); e.textContent = T(rel(d)); e.title = short(d); }
+  function drawDay(h) {
+    var d = h.getAttribute('data-nws-day'), n = daysAgo(d), x = local(d);
+    var full = window.BackRoomLang && BackRoomLang.get() !== 'en' ? BackRoomLang.date(x, { weekday: 'short' }) + ', ' + short(d) : DAY[x.getDay()] + ', ' + short(d);
+    h.textContent = '';
+    if (n === 0 || n === 1) h.append(el('b', '', T(n === 0 ? 'Today' : 'Yesterday')), ' · ' + full); else h.textContent = full;
+  }
+  // Spanish for the entries themselves (titles, tags and bullet points) lives in news-es.js, loaded only while Spanish is on.
+  var esLoaded = false;
+  function loadEs() {
+    if (esLoaded || !window.BackRoomLang || BackRoomLang.get() !== 'es') return; esLoaded = true;
+    var sc = document.createElement('script'); sc.src = BASE + 'news-es.js'; document.head.appendChild(sc);
+  }
+  document.addEventListener('backroom:lang', function () {
+    loadEs();
+    document.querySelectorAll('[data-nws-d]').forEach(drawDate);
+    document.querySelectorAll('[data-nws-day]').forEach(drawDay);
+  });
   function rel(d) { var n = daysAgo(d); return n === 0 ? 'Today' : n === 1 ? 'Yesterday' : short(d); }
   function kindOf(e) { return KIND[e.kind] ? e.kind : 'feature'; }
   function shownVer(e) { return kindOf(e) === 'soon' ? '' : e.version || ''; }  // a teaser shows no version: nothing has gone out yet
@@ -795,7 +814,7 @@
     v.append(vi, shownVer(latest) ? 'v' + shownVer(latest) : KIND[kindOf(latest)]);
     v.title = KIND[kindOf(latest)];
     var t = el('span', 'nws-t', latest.title);
-    var d = el('span', 'nws-d', rel(latest.date)); d.title = short(latest.date);
+    var d = el('span', 'nws-d'); d.setAttribute('data-noi18n', ''); d.setAttribute('data-nws-d', latest.date); drawDate(d);
     var chev = el('span', 'nws-chev'); chev.setAttribute('aria-hidden', 'true');
     var chevB = el('b', '', 'Open'), chevI = el('i', '', '▾'); chev.append(chevB, chevI);
     var snap = imgsOf(latest)[0];
@@ -898,8 +917,7 @@
       for (; shown < end && drawn < CARDS; shown++) {
         var g = groups[shown], day = el('div', 'nws-day'), h = el('h3', 'nws-dh'), n = daysAgo(g.date), x = local(g.date);
         drawn += g.entries.length;
-        var full = window.BackRoomLang && BackRoomLang.get() !== 'en' ? BackRoomLang.date(x, { weekday: 'short' }) + ', ' + short(g.date) : DAY[x.getDay()] + ', ' + short(g.date);
-        if (n === 0 || n === 1) { h.append(el('b', '', n === 0 ? 'Today' : 'Yesterday'), ' · ' + full); } else h.textContent = full;
+        h.setAttribute('data-noi18n', ''); h.setAttribute('data-nws-day', g.date); drawDay(h);
         day.appendChild(h);
         g.entries.forEach(function (it) {
           var e = it.e, kd = kindOf(e), art = el('article', 'nws-e k-' + kd), eh = el('p', 'nws-eh');
@@ -973,4 +991,5 @@
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+  (function waitLang(n) { if (window.BackRoomLang) { loadEs(); document.querySelectorAll('[data-nws-d]').forEach(drawDate); } else if (n < 100) setTimeout(function () { waitLang(n + 1); }, 100); })(0);
 })();
