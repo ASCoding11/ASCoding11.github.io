@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
+<script src="/e63334287a3deaa3/lang.js"></script> <!-- English / Español (see README) -->
+<script src="es.js"></script> <!-- Lanternhold's Spanish words -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Lanternhold</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -238,7 +240,7 @@ details.how ul{margin:8px 0 0;padding-left:18px;font-size:13px;font-weight:700;c
 </head>
 <body>
 <canvas id="view" tabindex="0" aria-label="Game board"></canvas>
-<div id="tags"></div>
+<div id="tags" data-noi18n></div>
 
 <div id="hud" class="hud" hidden>
   <div id="top">
@@ -262,7 +264,7 @@ details.how ul{margin:8px 0 0;padding-left:18px;font-size:13px;font-weight:700;c
     <div id="buildRow"></div>
     <div id="selRow" hidden>
       <div id="selIc"></div>
-      <div id="selInfo"><div id="selName"></div><div id="selOwn"></div><div id="selStats"></div></div>
+      <div id="selInfo"><div id="selName"></div><div id="selOwn" data-noi18n></div><div id="selStats"></div></div>
       <div class="sbtns">
         <button class="sb up" id="bUp" type="button">Upgrade<b id="bUpC"></b></button>
         <button class="sb" id="bMode" type="button">Target<b id="bModeT">First</b></button>
@@ -302,6 +304,7 @@ details.how ul{margin:8px 0 0;padding-left:18px;font-size:13px;font-weight:700;c
       <div class="row"><span class="small" style="font-weight:900">Graphics</span><div class="seg" id="gfxSeg"><button data-q="high" type="button">Pretty</button><button data-q="low" type="button">Fast</button></div></div>
       <div class="row"><span class="small" style="font-weight:900">Sound</span><div class="seg" id="sndSeg"><button data-s="1" type="button">On</button><button data-s="0" type="button">Off</button></div></div>
     </div>
+    <div class="row" style="margin-top:12px"><div data-lang-toggle></div></div>
     <details class="how">
       <summary>How to play</summary>
       <ul>
@@ -330,7 +333,7 @@ details.how ul{margin:8px 0 0;padding-left:18px;font-size:13px;font-weight:700;c
       <h3 style="text-align:left">Difficulty</h3>
       <div class="seg" id="lobDiff"></div>
     </div>
-    <div class="small" id="lobWait" style="margin-top:12px"></div>
+    <div class="small" id="lobWait" style="margin-top:12px" data-noi18n></div>
     <div class="acts"><button class="big ghost" id="lobLeave" type="button">Leave</button><button class="big" id="lobStart" type="button">Start</button></div>
   </div>
 </div>
@@ -346,6 +349,7 @@ details.how ul{margin:8px 0 0;padding-left:18px;font-size:13px;font-weight:700;c
       <button class="big ghost" id="pQuit" type="button">Quit to menu</button>
     </div>
     <div class="row" style="justify-content:center;margin-top:14px"><span class="small" style="font-weight:900">Sound</span><div class="seg" id="sndSeg2"><button data-s="1" type="button">On</button><button data-s="0" type="button">Off</button></div></div>
+    <div class="row" style="justify-content:center;margin-top:10px"><div data-lang-toggle></div></div>
   </div>
 </div>
 
@@ -369,6 +373,7 @@ details.how ul{margin:8px 0 0;padding-left:18px;font-size:13px;font-weight:700;c
 <script>
 (()=>{
 'use strict';
+const LT=window.BackRoomLang?BackRoomLang.t:(s,v)=>s.replace(/\{(\w+)\}/g,(m,n)=>v&&v[n]!=null?v[n]:m);
 // =====================================================================
 //  Helpers
 // =====================================================================
@@ -1518,7 +1523,7 @@ function renderTeam(){
   if(G.mode!=='online'||!S||!S.pl||S.ph==='lobby'){el.hidden=true;return}
   el.hidden=false;
   el.innerHTML=S.pl.map(u=>{const me=u===Net.uid,o=me?{n:myName||'You',c:myColor}:(Net.others.get(u)||{n:'Keeper',c:'#c9c2b5'});
-    return '<div class="tm"><i style="background:'+o.c+'"></i><span class="nm">'+esc(o.n)+(me?' (you)':'')+'</span>'+(u===G.hostUid?'<span class="hs" title="Runs the game">host</span>':'')+'<span class="gd">'+Math.floor(S.money.get(u)||0)+'</span>'+(me?'':'<button type="button" data-give="'+esc(u)+'" title="Give 50 gold">+50</button>')+'</div>'}).join('');
+    return '<div class="tm"><i style="background:'+o.c+'"></i><span class="nm" data-noi18n>'+(me?LT('{n} (you)',{n:esc(o.n)}):esc(o.n))+'</span>'+(u===G.hostUid?'<span class="hs" title="Runs the game">host</span>':'')+'<span class="gd">'+Math.floor(S.money.get(u)||0)+'</span>'+(me?'':'<button type="button" data-give="'+esc(u)+'" title="Give 50 gold">+50</button>')+'</div>'}).join('');
 }
 $('team').addEventListener('click',e=>{const b=e.target.closest('[data-give]');if(!b)return;if(myMoney()<50){toast('Not enough gold');return}sendAct({k:'g',to:b.dataset.give});sfx('coin');toast('Sent 50 gold')});
 let selKey='';
@@ -1528,13 +1533,13 @@ function renderSel(){
   $('selRow').hidden=!t;$('buildRow').hidden=!!t;
   if(!t){rangeG.visible=!!(G.placing&&ghost&&ghost.g.visible);selKey='';return}
   const D=TW[t.k],L=D.lv[t.lv-1],N=D.lv[t.lv],money=myMoney();
-  const own=t.own===myUid()?'Yours':(()=>{const o=Net.others.get(t.own);return o?o.n+'\'s':'Built by a teammate'})();
+  const own=t.own===myUid()?'Yours':(()=>{const o=Net.others.get(t.own);return o?LT('{n}\'s',{n:o.n}):'Built by a teammate'})();
   const key=[t.id,t.lv,t.mode,money,own,t.spent].join('|');
   rangeG.visible=true;rangeG.position.x=wx(t.gx);rangeG.position.z=wz(t.gz);rangeG.scale.set(L.r,1,L.r);rangeFill.material.color.set(0xffffff);rangeRing.material.color.set(0xffffff);
   if(key===selKey)return;selKey=key;
   $('selIc').innerHTML=ICON[t.k];
   $('selName').innerHTML=esc(D.n)+'<span>Lv '+t.lv+'</span>';
-  $('selOwn').textContent=(G.mode==='online'?own+' · ':'')+D.d;
+  $('selOwn').textContent=(G.mode==='online'?LT(own)+' · ':'')+LT(D.d);
   const rate=v=>(1/v).toFixed(1)+'/s';
   const st=[];const add=(l,a,b,f)=>st.push(l+' '+f(a)+(b!=null&&f(b)!==f(a)?' <em>→ '+f(b)+'</em>':''));
   add('Damage',L.dm,N&&N.dm,v=>String(v));add('Range',L.r,N&&N.r,v=>(v/T).toFixed(1)+' tiles');
@@ -1568,7 +1573,7 @@ function tapCell(p,isTouch){
     if(!cellFree(S,gx,gz)){toast('You can\'t build on the road or scenery');sfx('err');return}
     const D=TW[G.placing];
     if(isTouch&&!(G.ghostAt&&G.ghostAt.gx===gx&&G.ghostAt.gz===gz)){G.ghostAt={gx,gz};G.hover={x:wx(gx),z:wz(gz),gx,gz};sfx('click');return}
-    if(myMoney()<D.c){toast('Not enough gold for a '+D.n);sfx('err');return}
+    if(myMoney()<D.c){toast(LT('Not enough gold for a {t}',{t:LT(D.n)}));sfx('err');return}
     const k=G.placing;
     if(sendAct({k:'b',t:k,x:gx,z:gz})){if(!(G.keyShift&&myMoney()-D.c>=D.c))startPlacing(null)}
     return;
@@ -1661,7 +1666,7 @@ function renderMenu(){
   renderDiff($('diffSeg'),menuDiff,i=>{menuDiff=i;store.set('diff',i);renderMenu()});
   $('diffNote').textContent=DIFFS[menuDiff].note;
   const b=+store.get(bestKey(menuMap,menuDiff),0)||0;
-  $('bestLine').textContent=b?'Your best on '+MAPS[menuMap].n+' ('+DIFFS[menuDiff].n+'): wave '+b+(b>=CAMPAIGN?' (won!)':''):'';
+  $('bestLine').textContent=b?LT('Your best on {m} ({d}): wave {b}',{m:MAPS[menuMap].n,d:LT(DIFFS[menuDiff].n),b})+(b>=CAMPAIGN?' '+LT('(won!)'):''):'';
   const sw=$('swatches');sw.innerHTML='';COLORS.forEach(c=>{const b=document.createElement('button');b.type='button';b.style.background=c;b.setAttribute('aria-label','Colour '+c);if(c===myColor)b.className='on';b.onclick=()=>{myColor=c;store.set('color',c);renderMenu();if(Net.refs)Net.upd({c})};sw.appendChild(b)});
   for(const seg of [$('gfxSeg')])for(const b of seg.children)b.classList.toggle('on',b.dataset.q===gfx);
   for(const seg of [$('sndSeg'),$('sndSeg2')])for(const b of seg.children)b.classList.toggle('on',(b.dataset.s==='1')===sound);
@@ -1735,7 +1740,7 @@ function checkEnd(){
     if(G.ended===key)return;G.ended=key;recordBest(S);
     const won=S.ph==='won';
     $('endH').textContent=won?'The lantern held!':'The lantern went out';
-    $('endSub').textContent=won?'You held off all '+CAMPAIGN+' waves on '+MAPS[S.m].n+' ('+DIFFS[S.df].n+').':'On '+MAPS[S.m].n+' ('+DIFFS[S.df].n+').';
+    $('endSub').textContent=won?LT('You held off all {n} waves on {m} ({d}).',{n:CAMPAIGN,m:MAPS[S.m].n,d:LT(DIFFS[S.df].n)}):LT('On {m} ({d}).',{m:MAPS[S.m].n,d:LT(DIFFS[S.df].n)});
     const best=+store.get(bestKey(S.m,S.df),0)||0;
     $('endStats').innerHTML='<div><b>'+S.cw+'</b><span>Waves held</span></div><div><b>'+S.kills+'</b><span>Gloom</span></div><div><b>'+best+'</b><span>Your best</span></div>';
     const online=G.mode==='online';
@@ -1786,10 +1791,10 @@ function renderLobby(){
   const key=[ids.join(),S?S.m+':'+S.df:'',G.host,G.hostUid,myName,myColor,ids.map(u=>u===Net.uid?'':(Net.others.get(u)||{}).n).join()].join('|');
   if(key===lobKey)return;lobKey=key;
   $('lobCode').textContent=(Net.room||'').replace(/^lh-/,'');
-  $('lobList').innerHTML=ids.map(u=>{const me=u===Net.uid,o=me?{n:myName||'You',c:myColor}:Net.others.get(u);return '<li><i style="background:'+o.c+'"></i>'+esc(o.n)+(me?' (you)':'')+(u===G.hostUid?'<span>host</span>':'')+'</li>'}).join('');
+  $('lobList').innerHTML=ids.map(u=>{const me=u===Net.uid,o=me?{n:myName||'You',c:myColor}:Net.others.get(u);return '<li><i style="background:'+o.c+'"></i><span data-noi18n>'+(me?LT('{n} (you)',{n:esc(o.n)}):esc(o.n))+'</span>'+(u===G.hostUid?'<span>host</span>':'')+'</li>'}).join('');
   $('lobHost').hidden=!G.host;$('lobStart').hidden=!G.host;
   if(G.host&&S){renderMaps($('lobMaps'),S.m,i=>{S.m=i;buildWorld(i);lobKey='';hostPublish(true);renderLobby()});renderDiff($('lobDiff'),S.df,i=>{S.df=i;lobKey='';hostPublish(true);renderLobby()})}
-  $('lobWait').textContent=!S?'Connecting to the room…':G.host?'You pick the map. '+(ids.length<2?'Waiting for friends (you can also start on your own).':''):'Waiting for '+((Net.others.get(G.hostUid)||{}).n||'the host')+' to start. Map: '+MAPS[S.m].n+', '+DIFFS[S.df].n+'.';
+  $('lobWait').textContent=!S?LT('Connecting to the room…'):G.host?LT(ids.length<2?'You pick the map. Waiting for friends (you can also start on your own).':'You pick the map.'):LT('Waiting for {n} to start. Map: {m}, {d}.',{n:(Net.others.get(G.hostUid)||{}).n||LT('the host'),m:MAPS[S.m].n,d:LT(DIFFS[S.df].n)});
 }
 $('lobStart').onclick=()=>{if(!G.host||!G.S)return;hostRoster(G.S);hostNewGame(G.S.m,G.S.df);enterGame()};
 $('lobLeave').onclick=()=>toMenu();

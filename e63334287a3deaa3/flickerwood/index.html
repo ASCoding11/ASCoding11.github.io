@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
+<script src="/e63334287a3deaa3/lang.js"></script> <!-- English / Español (see README) -->
+<script src="es.js"></script> <!-- Flickerwood's Spanish words -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Flickerwood</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -91,10 +93,12 @@ body.touch #pad,body.touch .dash{display:block}
     <div class="row"><canvas data-pic="frog" width="16" height="16"></canvas><p><b>Gulp</b> leaps for the spot just ahead of you.</p></div>
     <div class="row"><canvas data-pic="spider" width="16" height="16"></canvas><p><b>Tangle</b> goes for the far side of you from Swoop.</p></div>
     <div class="row"><canvas data-pic="moth" width="16" height="16"></canvas><p><b>Dither</b> comes close, then loses its nerve.</p></div>
-    <div class="row"><canvas data-pic="bloom" width="16" height="16"></canvas><p>A <b>moonbloom</b> dazzles them for a few seconds. Touch a dazzled one to send it home: 100, 250, 500, 1000. They flicker before it wears off.</p></div>
+    <div class="row"><canvas data-pic="bloom" width="16" height="16"></canvas><p id="howBloom" data-noi18n>A <b>moonbloom</b> dazzles them for a few seconds. Touch a dazzled one to send it home: 100, 250, 500, 1000. They flicker before it wears off.</p></div>
     <div class="row"><canvas data-pic="dash" width="16" height="16"></canvas><p><b>Dash</b> is a short burst of speed, then it has to recharge.</p></div>
     <div class="row"><canvas data-pic="chain" width="16" height="16"></canvas><p>Keep eating without a gap to build a <b>chain</b>, up to 5 times the points.</p></div>
     <div class="row"><canvas data-pic="find" width="16" height="16"></canvas><p>Grab the <b>find</b> under the stump before it goes. Tunnels at the edges slow the critters, not you.</p></div>
+    <div style="margin:10px 0" data-lang-toggle></div>
+    <script>(function(){var p=document.getElementById('howBloom'),en=p.innerHTML;function f(){p.innerHTML=window.BackRoomLang&&BackRoomLang.get()==='es'&&window.FW_BLOOM_ES?FW_BLOOM_ES:en}f();document.addEventListener('backroom:lang',f)})();</script>
     <button class="ghost" id="howClose">CLOSE</button>
   </div>
 </div>
@@ -102,6 +106,8 @@ body.touch #pad,body.touch .dash{display:block}
 <script>
 (function(){
 "use strict";
+const T=window.BackRoomLang?BackRoomLang.t:(s,v)=>s.replace(/\{(\w+)\}/g,(m,n)=>v&&v[n]!=null?v[n]:m);
+const LNG=()=>window.BackRoomLang?BackRoomLang.get():'en';
 /* =====================================================================
    Flickerwood: a maze chase by moonlight.
    ==RULES== ... ==END RULES== is the game itself: it never touches the page, the clock, sound or Math.random, so the
@@ -850,17 +856,17 @@ function drawGlim(a){
 // the score bar and the strip under the maze change rarely: drawn into hudL only when something on them changes
 const hudL=mk(W,H),hx=hudL.getContext('2d');let hudSig='';
 function drawHud(){
-  const m=mult(G),sig=[G.score,best,G.level,G.lives,m,G.finds,G.M.i].join('|');
+  const m=mult(G),sig=[G.score,best,G.level,G.lives,m,G.finds,G.M.i,LNG()].join('|');
   if(sig!==hudSig){
     hudSig=sig;hx.clearRect(0,0,W,H);
     const Q=(a,b,w,h,col)=>{hx.fillStyle=col;hx.fillRect(a,b,w,h)};
     Q(0,0,W,TOP,'#070b1c');Q(0,TOP-1,W,1,'#2b3a78');Q(0,TOP+MH,W,FOOT,'#070b1c');Q(0,TOP+MH,W,1,'#2b3a78');
     txt(hx,String(G.score).padStart(6,'0'),3,2,2,'#eef3ff');
-    txt(hx,'GLADE '+G.level,W/2,1,1,'#93a0cf','center');
-    if(m>1)txt(hx,'CHAIN X'+m,W/2,8,1,'#e8f25a','center');else txt(hx,G.M.name,W/2,8,1,'#5d6aa0','center');
-    txt(hx,'BEST',W-3,1,1,'#93a0cf','right');txt(hx,String(Math.max(best,G.score)).padStart(6,'0'),W-3,8,1,'#eef3ff','right');
+    txt(hx,T('GLADE {n}',{n:G.level}),W/2,1,1,'#93a0cf','center');
+    if(m>1)txt(hx,T('CHAIN X{m}',{m}),W/2,8,1,'#e8f25a','center');else txt(hx,G.M.name,W/2,8,1,'#5d6aa0','center');
+    txt(hx,T('BEST'),W-3,1,1,'#93a0cf','right');txt(hx,String(Math.max(best,G.score)).padStart(6,'0'),W-3,8,1,'#eef3ff','right');
     for(let i=0;i<G.lives-1;i++)hx.drawImage(SP.glim[0][1],1+i*14,TOP+MH-3);   // spare Glims
-    txt(hx,'DASH',W/2-30,TOP+MH+3,1,'#93a0cf','right');
+    txt(hx,T('DASH'),W/2-30,TOP+MH+3,1,'#93a0cf','right');
     Q(W/2-26,TOP+MH+2,52,7,'#2b3a78');
     for(let i=0;i<Math.min(G.finds,6);i++)hx.drawImage(SP.find[(G.level-1)%8],W-11-i*11,TOP+MH);
   }
@@ -880,25 +886,25 @@ function banner(a,b,c,d){
 // the title: the cast, the bests and how to start, over the first glade. The still parts are drawn once into titleL.
 const titleL=mk(W,H);let titleSig='';
 function drawTitle(){
-  const sig=best+'|'+bestGlade+'|'+touchUI;
+  const sig=best+'|'+bestGlade+'|'+touchUI+'|'+LNG();
   if(sig!==titleSig){
     titleSig=sig;const x=titleL.getContext('2d');x.clearRect(0,0,W,H);
     x.fillStyle='rgba(5,8,20,.82)';x.fillRect(0,TOP,W,MH);
     txt(x,'FLICKERWOOD',W/2+2,40,3,'#5a3a0c','center');txt(x,'FLICKERWOOD',W/2,38,3,'#e8f25a','center');
-    txt(x,'A MAZE CHASE BY MOONLIGHT',W/2,62,1,'#93a0cf','center');
+    txt(x,T('A MAZE CHASE BY MOONLIGHT'),W/2,62,1,'#93a0cf','center');
     ['GLIM'].concat(CH_NAME).forEach((n,i)=>txt(x,n,26+i*50,114,1,i?'#93a0cf':'#e8f25a','center'));
-    txt(x,'BEST SCORE '+String(best).padStart(6,'0'),W/2,138,1,'#eef3ff','center');
-    txt(x,bestGlade?'BEST GLADE '+bestGlade:'GATHER ALL THE POLLEN',W/2,150,1,'#eef3ff','center');
+    txt(x,T('BEST SCORE {s}',{s:String(best).padStart(6,'0')}),W/2,138,1,'#eef3ff','center');
+    txt(x,bestGlade?T('BEST GLADE {n}',{n:bestGlade}):T('GATHER ALL THE POLLEN'),W/2,150,1,'#eef3ff','center');
     const L=touchUI?['SWIPE OR USE THE PAD TO TURN','TAP THE SCREEN TO DASH']:['ARROWS OR WASD TURN','SPACE DASHES   P PAUSES'];
-    txt(x,L[0],W/2,206,1,'#93a0cf','center');txt(x,L[1],W/2,218,1,'#93a0cf','center');
-    txt(x,'A MOONBLOOM DAZZLES THE CRITTERS',W/2,238,1,'#5d6aa0','center');txt(x,'CATCH THEM WHILE THEY ARE PALE',W/2,250,1,'#5d6aa0','center');
+    txt(x,T(L[0]),W/2,206,1,'#93a0cf','center');txt(x,T(L[1]),W/2,218,1,'#93a0cf','center');
+    txt(x,T('A MOONBLOOM DAZZLES THE CRITTERS'),W/2,238,1,'#5d6aa0','center');txt(x,T('CATCH THEM WHILE THEY ARE PALE'),W/2,250,1,'#5d6aa0','center');
   }
   g2.drawImage(titleL,0,0);
   const t=performance.now()/1000;
   spr(HALO,23,94-TOP);g2.drawImage(SP.glim[0][Math.floor(t*10)%2],18,86);
   for(let k=0;k<4;k++){const img=SP.ch[k][Math.floor(t*CH_HZ[k]/2+k)%2],px=68+k*50,py=86+(Math.floor(t*2+k)%2);
     g2.drawImage(img,px,py);for(const eye of img.eyes)R(px+eye[0],py+eye[1]+1,1,1,'#141a36')}
-  if(Math.floor(t*2)%2===0)txt(g2,touchUI?'TAP TO START':'PRESS SPACE TO START',W/2,176,1,'#f0a030','center');
+  if(Math.floor(t*2)%2===0)txt(g2,T(touchUI?'TAP TO START':'PRESS SPACE TO START'),W/2,176,1,'#f0a030','center');
 }
 function draw(a){
   const M=G.M,st=G.state;
@@ -918,14 +924,14 @@ function draw(a){
   if(flashT>0){g2.fillStyle='rgba(255,255,255,'+(flashT*0.5).toFixed(3)+')';g2.fillRect(0,TOP,W,MH)}
   drawHud();
   if(st==='title')drawTitle();
-  else if(paused)banner('PAUSED','',touchUI?'TAP TO GO ON':'PRESS SPACE TO GO ON');
+  else if(paused)banner(T('PAUSED'),'',T(touchUI?'TAP TO GO ON':'PRESS SPACE TO GO ON'));
   else if(st==='ready'){
-    const s='GLADE '+G.level+'  '+M.name,y=TOP+M.exit[1]*TILE-11;
+    const s=T('GLADE {n}  {m}',{n:G.level,m:M.name}),y=TOP+M.exit[1]*TILE-11;
     R(W/2-s.length*3-3,y-2,s.length*6+5,9,'#070b1c');txt(g2,s,W/2,y,1,'#93a0cf','center');
-    txt(g2,'READY!',W/2,TOP+M.B[1]*TILE+3,1,'#e8f25a','center');
+    txt(g2,T('READY!'),W/2,TOP+M.B[1]*TILE+3,1,'#e8f25a','center');
   }
-  else if(st==='clear'&&G.clearT<=1.5)banner('GLADE CLEAR','BONUS +'+(G.bonus-(G.flawless?300:0)),'',G.flawless?'NOT A SCRATCH +300':'');
-  else if(st==='over')banner('GAME OVER',(newBest?'NEW BEST ':'SCORE ')+G.score+(newBest?'!':''),touchUI?'TAP TO PLAY AGAIN':'PRESS SPACE TO PLAY AGAIN','GLADE '+G.level+'   BEST '+best);
+  else if(st==='clear'&&G.clearT<=1.5)banner(T('GLADE CLEAR'),T('BONUS +{n}',{n:G.bonus-(G.flawless?300:0)}),'',G.flawless?T('NOT A SCRATCH +300'):'');
+  else if(st==='over')banner(T('GAME OVER'),newBest?T('NEW BEST {s}!',{s:G.score}):T('SCORE {s}',{s:G.score}),T(touchUI?'TAP TO PLAY AGAIN':'PRESS SPACE TO PLAY AGAIN'),T('GLADE {n}   BEST {b}',{n:G.level,b:best}));
   vx.imageSmoothingEnabled=false;vx.drawImage(buf,0,0,cv.width,cv.height);
 }
 // the little pictures on the how-to-play card

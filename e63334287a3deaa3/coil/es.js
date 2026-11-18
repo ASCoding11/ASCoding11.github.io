@@ -1,0 +1,43 @@
+// Coil in Spanish (see README and /e63334287a3deaa3/lang.js). English → Spanish, our own words.
+// Wardrobe item names come from cosmetics.js's shared catalogue and stay as they are there.
+if (window.BackRoomLang) BackRoomLang.add({
+  'Arena': 'Arena', 'Leaderboard': 'Posiciones', 'Length': 'Largo', 'Rank': 'Puesto', 'Kills': 'Cortes', 'BOOST': 'TURBO', 'Sound on': 'Sonido encendido',
+  'Sound off': 'Sonido apagado', 'Sound (M)': 'Sonido (M)', 'Online arena': 'Arena online', 'Eat · grow · cut them off': 'Come · crece · córtales el paso',
+  "Steer a glowing snake around the arena. Eat to grow longer, boost to cut in front of bigger snakes, and eat what's left when they crash into you.": 'Guía una serpiente brillante por la arena. Come para crecer, usa el turbo para cruzarte delante de serpientes más grandes y cómete lo que queda cuando chocan contigo.',
+  'Your name': 'Tu nombre', 'Skin': 'Aspecto', 'Previous skin': 'Aspecto anterior', 'Next skin': 'Aspecto siguiente',
+  'Mint': 'Menta', 'Sunset': 'Atardecer', 'Grape': 'Uva', 'Bumblebee': 'Abejorro', 'Candy cane': 'Bastón de caramelo', 'Lagoon': 'Laguna', 'Lime': 'Lima', 'Reef': 'Arrecife',
+  'Ember': 'Brasa', 'Glacier': 'Glaciar', 'Spectrum': 'Espectro', 'Toxic': 'Tóxico', 'Orchid': 'Orquídea', 'Midnight': 'Medianoche',
+  'Online': 'Online', 'Quick match': 'Partida rápida', 'Join the busiest public arena.': 'Entra a la arena pública con más gente.', 'Room code': 'Código de sala',
+  'Play in room': 'Jugar en sala', "Pick a room code and send friends the invite link once you're in.": 'Elige un código de sala y manda la invitación cuando estés adentro.',
+  'Practice vs bots': 'Práctica contra bots', 'Easy': 'Fácil', 'Normal': 'Normal', 'Hard': 'Difícil', 'Practice': 'Práctica', 'How to play': 'Cómo jugar',
+  'Your snake follows the pointer': 'Tu serpiente sigue al puntero', 'Hold to boost (costs length)': 'Mantén para turbo (cuesta largo)', 'Steer with the keyboard': 'Dirigir con el teclado',
+  'TOUCH': 'TÁCTIL', 'Drag to steer, hold Boost to speed up': 'Arrastra para dirigir, mantén Turbo para acelerar', 'Pause, invite link': 'Pausa, invitación', 'Sound on / off': 'Sonido sí / no',
+  'CLICK /': 'CLIC /', 'SPACE': 'ESPACIO', 'Change keys': 'Cambiar teclas',
+  "Run your head into another snake's body and you're out. Get a snake to run into yours and its whole length spills out as food. Stay inside the red ring.": 'Si tu cabeza choca con el cuerpo de otra serpiente, quedas fuera. Si otra choca contra el tuyo, todo su largo se vuelve comida. Quédate dentro del anillo rojo.',
+  'Advertisement': 'Publicidad', 'Best length on this device:': 'Mejor largo en este dispositivo:', 'Privacy': 'Privacidad',
+  'Paused': 'Pausa', 'Resume': 'Seguir', 'Copy invite link': 'Copiar invitación', 'Controls': 'Controles', 'Leave': 'Salir',
+  "The arena keeps going while you're here, so watch out.": 'La arena sigue mientras estás aquí, así que cuidado.', 'The arena is frozen. Take your time.': 'La arena está congelada. Tómate tu tiempo.',
+  'Game over': 'Fin del juego', 'Cut off': 'Te cortaron', 'Cut off by': 'Te cortó', 'Out of bounds': 'Fuera de la arena', 'Final length': 'Largo final', 'Longest': 'Más largo',
+  'Time alive': 'Tiempo vivo', 'Best rank': 'Mejor puesto', 'Personal best': 'Récord personal', 'New best!': '¡Nuevo récord!', 'Play again': 'Jugar otra vez', 'Menu': 'Menú',
+  'Public arena': 'Arena pública', 'Room {r}': 'Sala {r}', 'Practice · easy': 'Práctica · fácil', 'Practice · normal': 'Práctica · normal', 'Practice · hard': 'Práctica · difícil',
+  '· Easy bots': '· bots fáciles', '· Normal bots': '· bots normales', '· Hard bots': '· bots difíciles', 'Public arena {n}': 'Arena pública {n}',
+  '· {n} player': '· {n} jugador', '· {n} players': '· {n} jugadores', 'You cut off {n}!': '¡Le cortaste el paso a {n}!', 'cut off': 'cortó a', 'hit the edge': 'chocó con el borde',
+  'You': 'Tú', 'Guest': 'Invitado',
+  'Steer with the pointer · hold click or {k} to boost': 'Dirige con el puntero · mantén clic o {k} para turbo',
+  'Steer with the pointer · hold click or {k} to boost · Esc to pause': 'Dirige con el puntero · mantén clic o {k} para turbo · Esc para pausa',
+  'Finding an arena…': 'Buscando una arena…', 'Still signing in…': 'Todavía iniciando sesión…',
+  "Couldn't reach the game database. If you're on a school or work network it may be blocking it; try another network, or play Practice.": 'No se pudo llegar a la base de datos del juego. Si estás en la red de la escuela o del trabajo, puede estar bloqueada; prueba otra red o juega Práctica.',
+  'Could not reach the game server. Check your connection, or play Practice.': 'No se pudo llegar al servidor del juego. Revisa tu conexión o juega Práctica.',
+  'Signing in to the game server timed out. Check your connection, or play Practice.': 'Se agotó el tiempo para entrar al servidor. Revisa tu conexión o juega Práctica.',
+  'That room is full ({n} players). Try another code.': 'Esa sala está llena ({n} jugadores). Prueba otro código.',
+  'Invite link copied. Your friends open it and enter the code to join.': 'Invitación copiada. Tus amigos la abren y ponen el código para entrar.',
+  'You were invited to room cl-{c}. Press Play in room to join.': 'Te invitaron a la sala cl-{c}. Pulsa Jugar en sala para entrar.',
+  // keybinds panel
+  'Boost': 'Turbo', 'Hold. Left click works too': 'Mantener. También sirve el clic izquierdo', 'Turn left': 'Girar a la izquierda', 'Turn right': 'Girar a la derecha',
+  // Wardrobe (wardrobe.js)
+  'Wardrobe': 'Vestidor', 'Captains only for now': 'Por ahora solo capitanes', 'Done': 'Listo', 'Take it all off': 'Sacar todo',
+  'Everything is free to wear. Everyone in your room sees it. It only changes how your snake looks, never its size, speed or hit area.': 'Todo es gratis. Todos en tu sala lo ven. Solo cambia cómo se ve tu serpiente, nunca su tamaño, velocidad ni zona de choque.',
+  'Colour': 'Color', 'Pattern': 'Diseño', 'Head': 'Cabeza', 'Extras': 'Extras', 'Colours': 'Colores', 'Skin colours': 'Colores de piel', 'Animal patterns': 'Diseños de animales',
+  'No pattern': 'Sin diseño', 'Design patterns': 'Diseños', 'Object snakes': 'Serpientes objeto', 'Heads': 'Cabezas', 'Plain head': 'Cabeza simple', 'Trail': 'Estela',
+  'No trail': 'Sin estela', 'Death burst': 'Estallido final', 'Sparks': 'Chispas', 'No. {n}': 'N.º {n}', 'Language': 'Idioma', '{a} cut off {b}': '{a} cortó a {b}', '{n} hit the edge': '{n} chocó con el borde'
+});
