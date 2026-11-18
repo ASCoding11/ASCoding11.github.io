@@ -246,6 +246,8 @@
     '.onl-p:hover{border-color:var(--ink-2)}' +
     '.onl-p.me{cursor:default}.onl-p.me:hover{border-color:var(--line)}' +
     '.onl-jl{position:relative}.onl-jl .onl-p{padding-right:76px}.onl-jlp .onl-p{padding-right:100px}.onl-jlp .onl-jb{padding:4px 9px}.onl-jb{position:absolute;right:8px;top:50%;transform:translateY(-50%);min-height:34px;padding:4px 12px}' +
+    // Join and Watch stacked on the right of the row, so the name keeps its room
+    '.onl-jlw .onl-p{padding-right:84px}.onl-jlw .onl-jb{min-height:30px;min-width:68px;padding:2px 9px;top:calc(50% - 16px)}.onl-jlw .onl-jb.onl-wb{top:calc(50% + 16px)}' +
     '.onl-av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:14px;color:#fff;flex:none}' +
     '.onl-who{display:grid;min-width:0;line-height:1.25;flex:1;gap:2px}' +
     '.onl-nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}' +
@@ -1041,6 +1043,8 @@
       var fr = frs[i]; if (!fr.isConnected || fr.closest('[hidden]') || fr.closest('.onl-dr')) continue;
       var path = ''; try { path = fr.contentWindow.location.pathname; } catch (e) {}
       if (!path || path === 'blank') { try { path = new URL(fr.getAttribute('src') || '', location.href).pathname; } catch (e) { continue; } }
+      // A game opened to watch (?watch=1, the Watch buttons) isn't one we're playing: no status, no Join for others.
+      if (/[?&]watch=1(&|#|$)/.test(fr.getAttribute('src') || '')) continue;
       for (var j = 0; j < GAMES.length; j++) {
         var g = GAMES[j], dir = g.abs || BASE + g.d + '/';
         if (path.indexOf(dir) === 0) return { fr: fr, g: g };
@@ -1440,6 +1444,12 @@
     var b = btn(s.label, 'onl-jb' + (s.pri ? ' pri' : ''), 'gjoin'); b.setAttribute('data-u', p.uid); b.disabled = !!s.off;
     b.setAttribute('aria-label', s.label + ': ' + mask(p.n) + ' in ' + s.game);
     li.className = 'onl-jl'; li.append(b);
+    // Games with a spectator mode also get Watch next to Join (playingnow.js opens the game read-only in that room).
+    if (s.watch) {
+      var w = btn('Watch', 'onl-jb onl-wb', 'gwatch'); w.setAttribute('data-u', p.uid);
+      w.setAttribute('aria-label', 'Watch ' + mask(p.n) + ' in ' + s.game + ' without playing');
+      li.className = 'onl-jl onl-jlw'; li.append(w);
+    }
   }
   // The Find box's words: every one must appear in the person's name, seat ("seat 23b" works too) or status line.
   function findQ() { return $find.value.trim().toLowerCase().split(/\s+/).filter(Boolean); }
@@ -1892,6 +1902,7 @@
     else if (a === 'hide') setHidden(!hidden);
     else if (a === 'joinable') setJoinable(!joinable);
     else if (a === 'gjoin') { var gu = b.getAttribute('data-u'), J = window.BackRoomPlaying; if (gu && J && J.act) { if (J.act(gu) && b.closest('.onl-dr')) closeDrawer(); } }
+    else if (a === 'gwatch') { var wu = b.getAttribute('data-u'), JW = window.BackRoomPlaying; if (wu && JW && JW.watch) { if (JW.watch(wu) && b.closest('.onl-dr')) closeDrawer(); } }
     else if (a === 'dismiss') { if (host) host.remove(); }
     else if (a === 'reply') { var u0 = host && host.getAttribute('data-u'); if (host) host.remove(); if (u0) openDrawer({ v: 'dm', u: u0 }); }
     else if (a === 'joinp') {

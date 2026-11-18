@@ -319,20 +319,22 @@ body .pty h2{font-family:var(--f-d);font-weight:800;font-size:30px;letter-spacin
   // An invite link (#<room>) opens its game straight away. Room codes start with the game's prefix; any other code is a Rumble Karts room.
   var PREFIX={tv:'trivium',br:'backrooms-1v1',sc:'shell-crackers',hm:'hail-mary',cl:'coil',ss:'slipstream',bb:'boostball',qy:'quarry',kw:'kartwheel',sd:'showdown',cf:'chromaflage',tw:'spire',up:'updraft',ph:'odd-one-out',ko:'tumble-trials',dw:'deepword',sr:'turbo-trail',er:'escapade',pf:'puffer-party',dz:'drop-zone',gd:'lunge-line',bs:'blockstorm'};
   // Party invites (#pt-<code>) don't open a game: they join the party in the Party panel below.
-  var inv=/^#([a-z0-9-]{1,20})$/.exec(location.hash),party='';
+  // ?watch=1 with a Shell Crackers, Backrooms or Boostball room opens that game as a spectator instead (the game reads ?watch=1).
+  var inv=/^#([a-z0-9-]{1,20})$/.exec(location.hash),party='',watch=/^\?watch=1$/.test(location.search)&&/^#(sc|br|bb)-/.test(location.hash);
   if(inv){
     history.replaceState(null,'',location.pathname);
     var pre=/^([a-z]{2})-/.exec(inv[1]),g=byId[pre&&PREFIX[pre[1]]||'rumble-karts'];
     if(pre&&pre[1]==='pt')party=inv[1].slice(3);
-    else if(g)openGame({id:g.id,name:g.name,land:g.land,url:g.url,scope:g.scope,hash:'#'+inv[1]});
+    else if(g)openGame({id:g.id,name:g.name,land:g.land,url:g.url,scope:g.scope,hash:(watch?'?watch=1':'')+'#'+inv[1]});
   }
   addEventListener('popstate',function(){closeGame()});
 
   // Parties: the same party.js as the computer version, opening games through openGame here.
   window.BackRoom={
     openGame:function(path,name){
-      var m=/\/([a-z0-9-]+)\/(#[a-z0-9-]*)?$/.exec(path),g=m&&byId[m[1]];if(!g||cur)return null;
-      openGame({id:g.id,name:g.name,land:g.land,url:g.url,scope:g.scope,hash:m[2]||''});return $('frame');
+      // (?watch=1: the Watch buttons, a game opened read-only as a spectator)
+      var m=/\/([a-z0-9-]+)\/(\?watch=1)?(#[a-z0-9-]*)?$/.exec(path),g=m&&byId[m[1]];if(!g||cur)return null;
+      openGame({id:g.id,name:g.name,land:g.land,url:g.url,scope:g.scope,hash:(m[2]||'')+(m[3]||'')});return $('frame');
     },
     isOpen:function(){return !!cur},
     invite:party
