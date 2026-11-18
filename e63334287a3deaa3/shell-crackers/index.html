@@ -294,6 +294,34 @@ body.touch #hud.training #banner{top:calc(114px + env(safe-area-inset-top,0px))}
 }
 @media (orientation:landscape) and (max-width:720px){body.touch #trainHud{left:max(50%,calc(258px + 140px + env(safe-area-inset-left,0px)));transform:translateX(-50%) scale(.55)}}
 @media (max-width:640px){#hpbar{width:120px}#mag{font-size:44px}.tbox{min-width:60px;padding:3px 9px}.tbox span{font-size:22px}}
+/* Streak rewards: the streak and the rewards you hold, above the health readout (beside or above the reward button on
+   touch screens). The pips are the three reward steps; a chip is a reward held (the first is the one the key uses) or
+   one running, with its seconds left. */
+#ks{position:absolute;left:18px;bottom:calc(92px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;align-items:flex-start;gap:5px;font-family:var(--f-b);font-weight:900}
+.ksl{display:flex;align-items:center;gap:7px;background:rgba(43,26,16,.62);border-radius:10px;padding:3px 9px 3px 8px}
+#ksN{font-family:var(--f-d);font-weight:400;font-size:24px;line-height:1;min-width:1.1ch;text-align:center;color:var(--yolk)}
+.ksl small{font-size:10px;letter-spacing:.12em;text-transform:uppercase;opacity:.9}
+.ksp{display:flex;gap:4px;margin-left:2px}
+.ksp i{font-style:normal;width:20px;height:24px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--ink);background:rgba(255,248,232,.35);border:2px solid var(--ink);border-radius:50%/60% 60% 40% 40%}
+.ksp i.on{background:var(--yolk)}
+#ksH{display:flex;flex-wrap:wrap;gap:5px;max-width:260px}
+.kc{display:inline-flex;align-items:center;gap:6px;background:var(--cream);color:var(--ink);border:2.5px solid var(--ink);border-radius:999px;padding:2px 10px 2px 4px;font-size:13px;box-shadow:0 3px 0 var(--ink)}
+.kc kbd{font:inherit;font-size:11px;background:var(--ink);color:var(--cream);border-radius:999px;padding:1px 7px}
+.kc.q{opacity:.75}
+.kc.nk{padding-left:10px}
+.kc.act{background:var(--yolk)}
+.kc .ki{width:12px;height:12px;border-radius:50%;border:2px solid var(--ink);background:var(--kc)}
+#ksPulse{position:absolute;left:50%;top:50%;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;border:6px solid rgba(255,190,90,.9);box-shadow:0 0 30px rgba(255,170,60,.8);opacity:0;pointer-events:none}
+#ksPulse.go{animation:ksPulse .9s ease-out}
+@keyframes ksPulse{0%{opacity:1;transform:scale(.3)}100%{opacity:0;transform:scale(30)}}
+@media (prefers-reduced-motion:reduce){#ksPulse.go{animation-duration:.01s}}
+#tKs{left:calc(26px + env(safe-area-inset-left,0px));bottom:calc(172px + env(safe-area-inset-bottom,0px));width:64px;height:64px;font-size:12px;background:var(--yolk)}
+body.touch #ks{left:calc(100px + env(safe-area-inset-left,0px));bottom:calc(174px + env(safe-area-inset-bottom,0px));transform:scale(.8);transform-origin:left bottom}
+body.touch #ks.dead{display:none}
+body.touch #ks .kc kbd{display:none}
+body.touch #ksH{max-width:210px}
+@media (orientation:landscape) and (max-height:340px){body.touch #ks{transform:scale(.72)}}
+@media (orientation:portrait){body.touch #ks{left:calc(26px + env(safe-area-inset-left,0px));bottom:calc(246px + env(safe-area-inset-bottom,0px))}}
 
 /* Side rails: two tall ads beside the game on wide screens (1180px+). The game area shrinks to sit
    between them (body becomes the game's frame), so nothing overlaps play. Off until a slot is set. */
@@ -345,6 +373,11 @@ body.touch #hud.training #banner{top:calc(114px + env(safe-area-inset-top,0px))}
     <div id="netline" class="out"></div>
     <div id="feed"></div>
     <div id="banner"><b></b><span class="out"></span></div>
+    <div id="ksPulse"></div>
+    <div id="ks" class="out" hidden>
+      <div class="ksl"><b id="ksN">0</b><small>Streak</small><span class="ksp"><i id="ksP0">3</i><i id="ksP1">5</i><i id="ksP2">7</i></span></div>
+      <div id="ksH"></div>
+    </div>
     <div id="hpw">
       <svg viewBox="0 0 46 56" aria-hidden="true"><defs><clipPath id="eggClip"><path d="M23 2C11 2 3 22 3 34c0 12 9 20 20 20s20-8 20-20C43 22 35 2 23 2z"/></clipPath></defs><path d="M23 2C11 2 3 22 3 34c0 12 9 20 20 20s20-8 20-20C43 22 35 2 23 2z" fill="#fffdf8"/><rect id="hpEggFill" clip-path="url(#eggClip)" x="0" y="0" width="46" height="56" fill="#ffc93c"/><path d="M23 2C11 2 3 22 3 34c0 12 9 20 20 20s20-8 20-20C43 22 35 2 23 2z" fill="none" stroke="#2b1a10" stroke-width="3"/></svg>
       <div id="hpbar"><i id="hpFill"></i></div>
@@ -374,6 +407,7 @@ body.touch #hud.training #banner{top:calc(114px + env(safe-area-inset-top,0px))}
       <button class="tb" id="tNade" type="button">BOMB</button>
       <button class="tb" id="tSwap" type="button">SWAP</button>
       <button class="tb" id="tMelee" type="button">BONK</button>
+      <button class="tb" id="tKs" type="button" hidden>REWARD</button>
       <button class="tb" id="tPause" type="button" aria-label="Pause">❚❚</button>
       <button class="tb" id="tBoard" type="button" aria-label="Scoreboard">TAB</button>
       <div id="tTrain">
@@ -436,6 +470,7 @@ body.touch #hud.training #banner{top:calc(114px + env(safe-area-inset-top,0px))}
             <div><dt data-kb="nade" data-kb-sep=" or " data-kb-case="upper">G or E</dt><dd>Throw a yolk bomb</dd></div>
             <div><dt data-kb="melee" data-kb-short data-kb-case="upper">V</dt><dd>Melee whack</dd></div>
             <div><dt data-kb="reload" data-kb-short data-kb-case="upper">R</dt><dd>Reload</dd></div>
+            <div><dt data-kb="reward" data-kb-short data-kb-case="upper">X</dt><dd>Use a streak reward</dd></div>
             <div><dt data-kb="board" data-kb-short data-kb-case="upper">TAB</dt><dd>Scoreboard</dd></div>
             <div><dt>ESC</dt><dd>Pause, loadout, invite</dd></div>
             <div><dt>1–5</dt><dd>Pick a weapon while cracked</dd></div>
@@ -1700,7 +1735,8 @@ function makeEntity(o){
     grenades:2,meleeCD:0,spawnShield:0,lastHurt:-99,kills:0,deaths:0,streak:0,shotCount:0,walkPh:0,mspd:0,
     model:null,target:null,tVis:false,thinkT:0,react:0,path:null,pathI:0,pathT:0,strafe:1,strafeT:0,errT:0,errY:0,errP:0,trackT:0,semiT:0,stuckT:0,lastP:new V3(),wander:null,
     tpos:new V3(),tyaw:0,tpitch:0,lastSc:-1,net:null,seen:0,snaps:[],lag:null,
-    team:0,carry:null,role:'att',goalP:null,goalRun:false,ctfHold:false,post:null,postT:0};   // capture the flag
+    team:0,carry:null,role:'att',goalP:null,goalRun:false,ctfHold:false,post:null,postT:0,   // capture the flag
+    ks:[],ksT:0,candleT:0};   // streak rewards: the ones held (oldest first), a bot's wait before using one, Candler time left
   if(o.model!==false){e.model=makeEgg(e.color,e.name)}
   return e;
 }
@@ -2004,11 +2040,11 @@ function die(t,att,head,wkey){
   if(t===player&&(mode==='practice'||mode==='online')&&window.BackRoomStats)BackRoomStats.add('deaths',1);
   const killerId=att?att.id:t.id;
   deathFx(t);
-  if(t===player){killerRef=att&&att!==player?att:null;deathPos.copy(camera.position);deadAt=clock;deathRise=Math.max(0,Math.min(2.2,rayWorld(deathPos,new V3(0,1,0),2.6)-.35));$('deadBy').textContent=killerRef?'by '+killerRef.name+' · '+weaponLabel(wkey):wkey==='nade'?'by your own yolk bomb':'';hudDirty=true}
+  if(t===player){killerRef=att&&att!==player?att:null;deathPos.copy(camera.position);deadAt=clock;deathRise=Math.max(0,Math.min(2.2,rayWorld(deathPos,new V3(0,1,0),2.6)-.35));$('deadBy').textContent=killerRef?'by '+killerRef.name+' · '+weaponLabel(wkey):wkey==='nade'?'by your own yolk bomb':wkey==='drop'?'by your own Egg Drop':'';hudDirty=true}
   if(online){if(t===player){Net.send({type:'died',kb:killerId,w:wkey||'',hd:head?1:0});addFeed(att&&att!==t&&att.name?att:null,t,head,wkey)}}
   else creditKill(att&&att!==t?att:null,t,head,wkey);
 }
-function weaponLabel(k){return k==='nade'?'Yolk bomb':k==='melee'?'Whack':WEAPONS[k]?WEAPONS[k].name:''}
+function weaponLabel(k){return k==='nade'?'Yolk bomb':k==='melee'?'Whack':KS_LABEL[k]||(WEAPONS[k]?WEAPONS[k].name:'')}
 function deathFx(t){
   const p=t.model?t.model.g.position:t.pos;
   if(t!==player)spawnShards(p,t.color);spawnSplat(p.x+rand(-.2,.2),p.z+rand(-.2,.2),p.y+.6);
@@ -2020,13 +2056,18 @@ let multiT=0,multiN=0;
 function creditKill(k,v,head,wkey){
   addFeed(k,v,head,wkey);
   if(!k||k===v)return;
-  k.kills++;k.streak++;
+  // a crack by a streak reward counts like any other (cracks, stats, feed) but doesn't add to the streak, so rewards
+  // never earn more rewards
+  const rw=KS_KILL.has(wkey);
+  k.kills++;if(!rw)k.streak++;
   if(k===player&&(mode==='practice'||mode==='online')&&window.BackRoomStats){BackRoomStats.add('kills',1);BackRoomStats.add('kdkills',1);BackRoomStats.max('mkills',k.kills)}
+  const got=rw?null:ksEarn(k);
   if(k===player){
     hitMarker(true);sfx('kill');hudDirty=true;
     multiN=clock-multiT<3.2?multiN+1:1;multiT=clock;
-    const st=STREAKS[k.streak];
-    if(st){banner(st[0],st[1],2.4);sfx('streak')}
+    const st=rw?null:STREAKS[k.streak];
+    if(got){banner(st?st[0]:got.n.toUpperCase()+'!',got.n+' ready · '+ksHow(),2.6);sfx('ksready')}
+    else if(st){banner(st[0],st[1],2.4);sfx('streak')}
     else if(multiN===2)banner('DOUBLE CRACK','',1.6);else if(multiN===3)banner('TRIPLE CRACK','',1.8);else if(multiN>=4)banner('OMELETTE!',multiN+' in a row, fast',2);
     else banner('',(head?'Headshot · ':'')+'You cracked '+v.name,1.4);
   }
@@ -2149,13 +2190,14 @@ const _be=new V3(),_bc=new V3();
 function botThink(e,dt){
   const D=DIFF[diffKey];
   e.thinkT-=dt;e.pathT-=dt;
+  if(e.ks.length){e.ksT-=dt;if(e.ksT<=0){e.ksT=rand(.5,1.2);botReward(e)}}   // streak rewards
   const eye=eyeOf(e,_be);
   if(e.thinkT<=0){
     e.thinkT=.18+Math.random()*.12;
     let best=null,bs=1e9,vis=false;
     for(const t of ents){if(t===e||!t.active||!t.alive)continue;if(mapCtf&&t.team===e.team)continue;
       const d=t.pos.distanceTo(e.pos);if(d>90)continue;const v=los(eye,centerOf(t,_bc));
-      let s=d+(v?0:35)+(t.spawnShield>0?30:0)+(t===e.target?-6:0)+(t.carry!=null?-14:0);if(s<bs){bs=s;best=t;vis=v}}
+      let s=d+(v||e.candleT>0?0:35)+(t.spawnShield>0?30:0)+(t===e.target?-6:0)+(t.carry!=null?-14:0);if(s<bs){bs=s;best=t;vis=v}}
     if(best!==e.target){e.target=best;e.react=D.react*rand(.7,1.3)}
     e.tVis=vis;
     if(e.perch==null)e.perch=Math.random()<(e.loadout==='sunny'||e.loadout==='poacher'?.65:.25);
@@ -2186,6 +2228,8 @@ function botThink(e,dt){
   }else if(mapCtf&&e.goalP&&!e.ctfHold){
     const dx=e.goalP.x-e.pos.x,dz=e.goalP.z-e.pos.z,d=Math.hypot(dx,dz);if(d>.3&&d<3){mx=dx/d;mz=dz/d}   // the last step onto a flag or a stand
   }
+  // an Egg Drop's ring: get out of it
+  const dz_=drops.length?dropDanger(e.pos,.5+D.react):null;if(dz_){const ax=e.pos.x-dz_.x,az=e.pos.z-dz_.z,d=Math.hypot(ax,az)||1;mx=ax/d;mz=az/d;e.path=null}
   const ml=Math.hypot(mx,mz);if(ml>1){mx/=ml;mz/=ml}
   // stuck: hop and re-plan (the old path is dropped: a bot knocked off a ramp or a roof used to keep walking at its next
   // waypoint, into the wall under it)
@@ -2211,6 +2255,228 @@ function botThink(e,dt){
     if(e.ammo[e.wkey]<WEAPONS[e.wkey].mag*.5)startReload(e);
   }
   steer(e,mx,mz,dt,speedOf(e));
+}
+
+// =====================================================================
+//  Streak rewards
+// =====================================================================
+// Crack 3, 5 and 7 eggs in one life and you earn the Candler, the Egg Drop and Mother Hen. Each is held (even through
+// being cracked) until it is used with the reward key (X by default) or the touch button, oldest first, or until the
+// match ends; being cracked only resets the streak. Cracks made by a reward count like any other (cracks, stats, feed)
+// but don't add to the streak (KS_KILL), so a reward never earns the next one. Rewards are for practice and online
+// matches; the training range has none.
+//  - Candler (3): candling is holding a lamp to an egg to see inside it. For KS_CANDLE s every rival is drawn glowing
+//    through walls (one extra draw call per rival, only while it lasts), and their name tags show at any distance.
+//  - Egg Drop (5): KS_SHELLS eggs fall on the spot you aim at, after a KS_WARN s warning that everyone sees (a red ring
+//    and a beam of light on the spot, and a siren). The shells land on the level you aimed at, punching through any roof
+//    above it, and burst like small yolk bombs. Bots run out of the ring.
+//  - Mother Hen (7): a flying hen with a whisk for a rotor that circles over you for KS_HEN s and shoots any rival she can
+//    see within KS_HEN_RANGE m. She goes when you're cracked.
+// Online: using one sends a 'ks' event ({k:'candle'}, {k:'drop',x,y,z,s} with the random seed, {k:'hen'}); every other
+// browser shows it. An Egg Drop's shells fall in the same places at the same times everywhere (the seed, and the event's
+// server time), and like a yolk bomb each browser only hurts its own egg, sending its own death as usual. Mother Hen is
+// aimed and fired by her owner's browser only, and her hits go out as ordinary hit events (w:'hen'), which every other
+// browser also draws as her shots. Nothing is added to the players' nodes or the match node.
+const KS=[
+  {id:'candle',n:'Candler',at:3,short:'CANDLE',c:'#ffa53a'},
+  {id:'drop',n:'Egg Drop',at:5,short:'DROP',c:'#ef5338'},
+  {id:'hen',n:'Mother Hen',at:7,short:'HEN',c:'#fffdf8'}
+];
+const KS_BY={};for(const r of KS)KS_BY[r.id]=r;
+const KS_KILL=new Set(['drop','hen']),KS_LABEL={drop:'Egg Drop',hen:'Mother Hen'};
+const KS_CANDLE=7,KS_WARN=1.8,KS_SHELLS=7,KS_SPREAD=4.5,KS_SHELL_R=4.5,KS_SHELL_DMG=100,KS_ZONE=8,KS_FALL=.7,KS_DROP_H=32;
+const KS_HEN=20,KS_HEN_RANGE=34,KS_HEN_DMG=16,KS_HEN_CD=.45;
+function ksOn(){return state==='playing'&&(mode==='practice'||mode==='online')}
+function isFoe(a,b){return a!==b&&!(mapCtf&&a.team===b.team)}
+function ksKey(){const k=KB.keys('reward')[0];return k?KB.name(k):''}
+function ksHow(){return touchUI?'tap the reward button':ksKey()?'press '+ksKey():'set a key in Controls'}
+// a reward for reaching this streak (one of each kind held at a time)
+function ksEarn(e){
+  if(!ksOn())return null;
+  const r=KS.find(x=>x.at===e.streak);if(!r||e.ks.includes(r.id))return null;
+  e.ks.push(r.id);if(e.isBot)e.ksT=rand(.8,2.5);
+  return r;
+}
+function ksFeed(e,id){
+  const me=e===player;
+  if(id==='candle')infoFeed(me?'Candler lit: rivals show through walls':e.name+' lit a Candler: you show through walls');
+  else if(id==='drop')infoFeed(me?'Egg Drop on the way: stay out of the ring':e.name+' called an Egg Drop');
+  else if(id==='hen')infoFeed(me?'Mother Hen is up for '+KS_HEN+' s':e.name+' sent a Mother Hen');
+}
+// Use the oldest reward held. at: where a bot wants its Egg Drop (the player's goes where the crosshair is).
+function useReward(e,at){
+  if(!ksOn()||!e.alive||!e.ks.length)return false;
+  const id=e.ks[0];
+  if(id==='hen'&&hens.some(h=>h.owner===e))return false;
+  if(id==='candle'){
+    e.candleT=KS_CANDLE;
+    if(e===player){sfx('candle');const p=$('ksPulse');p.classList.remove('go');void p.offsetWidth;p.classList.add('go');if(online)Net.send({type:'ks',k:'candle'})}
+    if(e===player||isFoe(e,player))ksFeed(e,id);
+  }else if(id==='drop'){
+    const p=at||dropAim(e),seed=(Math.random()*1e9)|0;
+    p.x=clamp(p.x,.5,SPAN-.5);p.z=clamp(p.z,.5,SPAN-.5);p.y=clamp(p.y,0,HY*VY);
+    startDrop(e,p.x,p.y,p.z,seed,KS_WARN);ksFeed(e,id);
+    if(e===player&&online)Net.send({type:'ks',k:'drop',x:r2(p.x),y:r2(p.y),z:r2(p.z),s:seed});
+  }else if(id==='hen'){
+    startHen(e,KS_HEN);ksFeed(e,id);
+    if(e===player&&online)Net.send({type:'ks',k:'hen'});
+  }
+  e.ks.shift();e.spawnShield=0;
+  return true;
+}
+// Bots: the Candler and Mother Hen at once, the Egg Drop on whoever they're after once that egg is far enough off.
+function botReward(e){
+  if(e.ks[0]!=='drop'){useReward(e);return}
+  const t=e.target;if(!t||!t.alive||!t.active)return;
+  if(Math.hypot(t.pos.x-e.pos.x,t.pos.z-e.pos.z)<KS_ZONE+3)return;
+  useReward(e,t.pos.clone());
+}
+// where the crosshair points (into the sky: 40 m ahead)
+function dropAim(e){
+  const o=eyeOf(e),d=dirOf(e.yaw,e.pitch),t=rayWorld(o,d,110);
+  if(t<110)return o.addScaledVector(d,Math.max(0,t-.05));
+  const f=new V3(d.x,0,d.z);if(f.lengthSq()<1e-4)f.set(-Math.sin(e.yaw),0,-Math.cos(e.yaw));f.normalize();
+  const p=o.addScaledVector(f,40);p.y=floorBelow(clamp(p.x,.5,SPAN-.5),p.y+.5,clamp(p.z,.5,SPAN-.5));return p;
+}
+// the highest block in a column (the ceiling a shell punches through), ignoring the small arena's invisible wall
+function topAt(x,z){const ix=Math.floor(x/VX),iz=Math.floor(z/VX);for(let iy=HY-1;iy>=0;iy--){const m=vget(ix,iy,iz);if(m!==0&&m!==M_.BARRIER)return(iy+1)*VY}return 0}
+
+// ---------- Egg Drop ----------
+const drops=[];
+const ringGeo=new THREE.RingGeometry(KS_ZONE-.4,KS_ZONE,48);ringGeo.rotateX(-Math.PI/2);
+const ringMat=new THREE.MeshBasicMaterial({color:0xef5338,transparent:true,opacity:.8,depthWrite:false,fog:false,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4});
+const beamGeo=new THREE.CylinderGeometry(.3,.55,KS_DROP_H,10,1,true);beamGeo.translate(0,KS_DROP_H/2,0);
+const beamMat=new THREE.MeshBasicMaterial({color:0xff7a50,transparent:true,opacity:.35,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,fog:false});
+const dropShellMat=new THREE.MeshLambertMaterial({color:0xfff3d6,emissive:0x3a2a10});
+// warn: seconds until the first shell (less for a browser that heard about it late)
+function startDrop(owner,x,y,z,seed,warn){
+  const rng=mulberry(seed),sh=[];let end=0;
+  for(let i=0;i<KS_SHELLS;i++){
+    const a=rng()*Math.PI*2,r=i===0?0:KS_SPREAD*Math.sqrt(rng()),sx=clamp(x+Math.cos(a)*r,.5,SPAN-.5),sz=clamp(z+Math.sin(a)*r,.5,SPAN-.5);
+    const t=warn+i*.3+rng()*.12;end=Math.max(end,t);
+    sh.push({x:sx,z:sz,y:floorBelow(sx,y+2.5,sz),roof:topAt(sx,sz),t,m:null,done:false,rf:false});
+  }
+  if(end<-.5)return;
+  const ring=new THREE.Mesh(ringGeo,ringMat);ring.position.set(x,y+.06,z);ring.renderOrder=2;scene.add(ring);
+  const beam=new THREE.Mesh(beamGeo,beamMat);beam.position.set(x,y,z);scene.add(beam);
+  drops.push({owner,oid:owner.id,name:owner.name,x,y,z,t:0,end:end+.4,sh,ring,beam});
+  sfx('alarm',{x,y:y+1,z});
+}
+function dropClear(d){scene.remove(d.ring);scene.remove(d.beam);for(const s of d.sh)if(s.m)scene.remove(s.m)}
+function updateDrops(dt){
+  for(let i=drops.length-1;i>=0;i--){const d=drops[i];d.t+=dt;
+    for(const s of d.sh){if(s.done)continue;const left=s.t-d.t;if(left>KS_FALL)continue;
+      if(!s.m){s.m=new THREE.Mesh(eggGeo,dropShellMat);s.m.scale.set(.55,.75,.55);s.m.rotation.x=Math.PI;s.m.castShadow=true;scene.add(s.m);sfx('whistle',{x:s.x,y:s.y+3,z:s.z})}
+      const h=s.y+KS_DROP_H*Math.max(0,left)/KS_FALL;s.m.position.set(s.x,h+.3,s.z);
+      if(!s.rf&&s.roof>s.y+.6&&h<=s.roof){s.rf=true;_kp.set(s.x,s.roof,s.z);emit(_kp,0xd9cbb0,8,4,.07,.6,12,.2)}   // through the roof
+      if(left<=0){s.done=true;scene.remove(s.m);s.m=null;shellBurst(d,s)}
+    }
+    if(d.t>=d.end){dropClear(d);drops.splice(i,1)}
+  }
+  const p=.55+.35*Math.sin(clock*12);ringMat.opacity=p;beamMat.opacity=p*.45;
+}
+const _kp=new V3();
+function shellBurst(d,s){
+  const p=new V3(s.x,s.y+.15,s.z);spawnBoom(p);sfx('boom',p);spawnSplat(s.x,s.z,s.y+.3);
+  const dp=camera.position.distanceTo(p);shake=Math.max(shake,clamp(1-dp/26,0,1)*.7);
+  const att=entById(d.oid)||{id:d.oid,pos:p,name:d.name||'Someone'};
+  const o=p.clone();o.y+=.4;
+  for(const t of ents){
+    if(!t.active||!t.alive)continue;if(online&&t!==player)continue;   // online, each browser hurts only its own egg
+    const c=centerOf(t),dd=c.distanceTo(p);if(dd>KS_SHELL_R)continue;if(!los(o,c))continue;
+    if(mapCtf&&t.id!==d.oid&&att.team===t.team)continue;   // spares team-mates (not whoever called it)
+    let dmg=KS_SHELL_DMG*Math.pow(1-dd/KS_SHELL_R,.8);if(t.id===d.oid)dmg*=.5;if(att.isBot)dmg*=DIFF[diffKey].dmg;
+    damage(t,dmg,att,false,'drop');
+  }
+}
+// a drop ring this spot is in, once it has been there for seen s (bots run out of it, after a moment to notice)
+function dropDanger(p,seen){for(const d of drops)if(d.t>=seen&&d.t<d.end-.3&&Math.abs(p.y-d.y)<6&&Math.hypot(p.x-d.x,p.z-d.z)<KS_ZONE+1)return d;return null}
+
+// ---------- Mother Hen ----------
+// One geometry for the hen and one for her whisk rotor, colours as vertex colours (two draw calls a hen).
+const hens=[];let henGeo=null,rotorGeo=null;
+const _hv=new V3(),_hc=new V3(),UP=new V3(0,1,0);
+function henGeos(){
+  if(henGeo)return;
+  const S=new THREE.SphereGeometry(1,12,9),g=[],C=0xf6eedf,C2=0xe0cfb2,R=0xd8392b,O=0xf4a41c,K=0x2b1a10;
+  const sp=(x,y,z,sx,sy,sz,c)=>g.push({g:S,c,m:partM(x,y,z,sx,sy,sz)});
+  sp(0,0,0,.3,.27,.36,C);sp(0,.24,-.28,.15,.15,.15,C);                      // body and head
+  bx(g,.04,.11,.16,0,.42,-.28,R);bx(g,.07,.05,.11,0,.22,-.45,O);sp(0,.12,-.4,.035,.06,.035,R);   // comb, beak, wattle
+  sp(.085,.28,-.39,.03,.03,.03,K);sp(-.085,.28,-.39,.03,.03,.03,K);          // eyes
+  g.push({g:_box,c:C2,m:partM(.29,.02,.02,.06,.2,.32,0,0,-.35)},{g:_box,c:C2,m:partM(-.29,.02,.02,.06,.2,.32,0,0,.35)});   // wings
+  g.push({g:_box,c:C2,m:partM(0,.2,.34,.22,.22,.06,-.5)});                   // tail
+  cyl(g,.04,.34,0,-.25,-.1,0x2f2b33);peg(g,.025,.24,0,.36,0,0x56525e);       // the gun under her, the rotor mast
+  henGeo=mergeParts(g);
+  const r=[];bx(r,1,.025,.07,0,0,0,0x938f9e);bx(r,.07,.025,1,0,0,0,0x938f9e);peg(r,.06,.06,0,0,0,O);
+  rotorGeo=mergeParts(r);
+}
+function startHen(owner,life){
+  henGeos();
+  const g=new THREE.Group(),body=new THREE.Mesh(henGeo,gunMat);body.castShadow=true;g.add(body);
+  const rot=new THREE.Mesh(rotorGeo,gunMat);rot.position.y=.48;g.add(rot);
+  const p=owner.pos.clone();p.y+=2.2;g.position.copy(p);scene.add(g);
+  hens.push({owner,oid:owner.id,local:!owner.remote,t:life,g,rot,pos:p,ang:Math.random()*6,bob:Math.random()*6,yaw:owner.yaw,target:null,thinkT:0,fireT:.6,aimT:0,ceil:2.2,ceilT:0});
+  sfx('cluck',p);
+}
+function henPick(h){
+  let best=null,bd=KS_HEN_RANGE;
+  for(const t of ents){if(!t.active||!t.alive||t.dummy||t.spawnShield>0||!isFoe(h.owner,t))continue;
+    const d=h.pos.distanceTo(centerOf(t,_hc));if(d<bd&&los(h.pos,_hc)){bd=d;best=t}}
+  return best;
+}
+function henFx(h,end){
+  _hv.set(0,-.25,-.3).applyAxisAngle(UP,h.yaw).add(h.pos);tracer(_hv.clone(),end,.025);sfx('peck',h.pos);
+  h.yaw=Math.atan2(-(end.x-h.pos.x),-(end.z-h.pos.z));h.aimT=.7;
+}
+function henShoot(h,t){
+  const c=centerOf(t),d=h.pos.distanceTo(c),hit=Math.random()<clamp(.92-d/45,.4,.85);
+  if(!hit){c.x+=rand(-1.2,1.2);c.y+=rand(-.5,1);c.z+=rand(-1.2,1.2)}
+  henFx(h,c);
+  if(hit){let dmg=KS_HEN_DMG;if(h.owner.isBot)dmg*=DIFF[diffKey].dmg;hitTarget(h.owner,t,dmg,false,'hen')}
+}
+// another browser's hen hit someone (a hit event with w:'hen'): draw her shot
+function henShotFx(by,to){
+  const h=hens.find(x=>x.oid===by);if(!h)return;
+  const t=to===Net.uid?player:entById(to);if(!t||!t.alive)return;
+  henFx(h,centerOf(t));
+}
+function updateHens(dt){
+  for(let i=hens.length-1;i>=0;i--){const h=hens[i],o=h.owner;h.t-=dt;
+    if(h.t<=0||!o.alive||!ents.includes(o)||o.remote&&!o.active){scene.remove(h.g);hens.splice(i,1);if(o===player&&o.alive)infoFeed('Mother Hen flew home');continue}
+    // circle over the owner, under any ceiling
+    h.ang+=dt*.8;h.bob+=dt*3;
+    h.ceilT-=dt;if(h.ceilT<=0){h.ceilT=.25;eyeOf(o,_hv);h.ceil=Math.max(EYE,Math.min(2.4,EYE+rayWorld(_hv,UP,3)-.6))}
+    let ox=Math.cos(h.ang)*2,oz=Math.sin(h.ang)*2;const ty=o.pos.y+h.ceil+Math.sin(h.bob)*.07;
+    if(solidAt(o.pos.x+ox,ty,o.pos.z+oz)){ox=0;oz=0}
+    _hv.set(o.pos.x+ox,ty,o.pos.z+oz);h.pos.lerp(_hv,1-Math.exp(-dt*5));
+    // her owner's browser aims and shoots
+    if(h.local){
+      h.thinkT-=dt;if(h.thinkT<=0){h.thinkT=.25;h.target=henPick(h)}
+      const t=h.target&&h.target.alive&&h.target.active?h.target:null;h.fireT-=dt;
+      if(t&&h.fireT<=0){h.fireT=KS_HEN_CD;henShoot(h,t)}
+    }
+    h.aimT-=dt;if(h.aimT<=0)h.yaw+=clamp(angDiff(o.yaw,h.yaw),-dt*3,dt*3);
+    h.g.position.copy(h.pos);h.g.rotation.y=h.yaw;h.rot.rotation.y+=dt*38;
+  }
+}
+
+// ---------- Candler ----------
+// A glowing copy of the shell that draws over everything (no depth test) on each rival while your Candler lasts.
+const glowMat=new THREE.MeshBasicMaterial({color:0xffa53a,transparent:true,opacity:.6,depthTest:false,depthWrite:false,fog:false});
+function setGlow(m,on){
+  if(on&&!m.glow){m.glow=new THREE.Mesh(eggGeo,glowMat);m.glow.position.y=.72;m.glow.scale.setScalar(1.1);m.glow.renderOrder=6;m.body.add(m.glow)}
+  if(m.glow)m.glow.visible=on;
+}
+function updateKs(dt){
+  for(const e of ents)if(e.candleT>0)e.candleT=Math.max(0,e.candleT-dt);
+  if(drops.length)updateDrops(dt);
+  if(hens.length)updateHens(dt);
+  if(player.candleT>0)glowMat.opacity=.55+.15*Math.sin(clock*7);
+}
+function ksReset(){
+  for(const d of drops)dropClear(d);drops.length=0;
+  for(const h of hens)scene.remove(h.g);hens.length=0;
+  for(const e of ents){e.candleT=0;if(!e.remote)e.ks=[]}
 }
 
 // =====================================================================
@@ -2578,7 +2844,7 @@ function tone(out,t0,dur,type,f0,f1,vol){
 }
 function sfx(name,pos){
   if(!actx)return;const t=actx.currentTime;
-  const loud={beater:.5,skillet:.75,sunny:.8,whisk:.4,poacher:.5,cracker:.45,boom:1.2,crack:.7,pop:.8}[name]||.5;
+  const loud={beater:.5,skillet:.75,sunny:.8,whisk:.4,poacher:.5,cracker:.45,boom:1.2,crack:.7,pop:.8,alarm:.9,whistle:.7}[name]||.5;
   const out=voice(pos,loud);if(!out)return;
   switch(name){
     case'beater':noise(out,t,.09,'bandpass',1600,.8,1);tone(out,t,.08,'sine',150,55,.8);break;
@@ -2609,6 +2875,12 @@ function sfx(name,pos){
     case'flagcap':[523,659,784,1047,1319].forEach((f,i)=>tone(out,t+i*.08,.22,'triangle',f,f,.28));break;
     case'pop':noise(out,t,.07,'highpass',2600,.7,1);tone(out,t,.06,'square',1100,240,.25);break;
     case'ding':tone(out,t,.3,'triangle',1180,1170,.3);tone(out,t,.2,'sine',2360,2340,.1);break;
+    case'candle':noise(out,t,.5,'highpass',3000,.7,.3,6000);[523,784,1047,1568].forEach((f,i)=>tone(out,t+i*.06,.35,'sine',f,f*1.01,.18));break;
+    case'ksready':[659,880,1175,1568].forEach((f,i)=>tone(out,t+i*.08,.24,'triangle',f,f,.3));break;
+    case'alarm':for(let i=0;i<3;i++){tone(out,t+i*.34,.15,'square',880,880,.1);tone(out,t+i*.34+.17,.15,'square',660,660,.1)}break;
+    case'whistle':tone(out,t,.7,'sine',2300,650,.22);break;
+    case'peck':tone(out,t,.045,'square',1500,900,.16);noise(out,t,.04,'bandpass',2600,1.5,.45);break;
+    case'cluck':[0,.15,.29].forEach((d,i)=>tone(out,t+d,.1,'triangle',i===2?640:480,i===2?420:370,.3));break;
     case'bull':tone(out,t,.3,'triangle',1180,1170,.3);tone(out,t+.09,.35,'triangle',1770,1760,.3);break;
   }
 }
@@ -2663,6 +2935,7 @@ const KB=Keybinds.create({
     {id:'nade',label:'Throw a yolk bomb',group:'Fight',keys:['KeyG','KeyE']},
     {id:'melee',label:'Melee whack',group:'Fight',keys:['KeyV','KeyF']},
     {id:'reload',label:'Reload',group:'Fight',keys:['KeyR']},
+    {id:'reward',label:'Use a streak reward',note:'Candler, Egg Drop, Mother Hen',group:'Fight',keys:['KeyX']},
     {id:'board',label:'Scoreboard',note:'Hold',group:'Match',keys:['Tab']},
     {id:'loadout',label:'Pick a weapon while cracked',group:'Match',text:'1 – 5'},
     {id:'pause',label:'Pause, loadout, invite',group:'Match',keys:['Escape'],fixed:true},
@@ -2692,6 +2965,7 @@ function resetFx(){
   for(let i=0;i<SHARDS;i++){shards[i].life=0;shardMesh.setMatrixAt(i,ZERO_M)}shardMesh.instanceMatrix.needsUpdate=true;
   for(const s of splats){scene.remove(s.g);s.wm.dispose();s.ym.dispose()}splats.length=0;
   for(let i=0;i<parts.length;i++){parts[i].on=false;parts[i].life=0;partMesh.setMatrixAt(i,ZERO_M)}partMesh.instanceMatrix.needsUpdate=true;
+  ksReset();   // streak rewards: none held, running or falling at the start of a match
 }
 function setupAttract(){
   state='menu';mode='attract';online=false;paused=false;
@@ -2706,7 +2980,7 @@ function startPractice(){
   state='playing';mode='practice';online=false;paused=false;target=TARGET_PRACTICE;
   clearBots();clearRemotes();resetFx();ctfOn=gmode==='ctf';
   buildMap(Math.floor(Math.random()*MAPS.length));
-  player.id='me';player.name=myName;player.color=myColor;player.loadout=myLoadout;player.active=true;player.kills=0;player.deaths=0;
+  player.id='me';player.name=myName;player.color=myColor;player.loadout=myLoadout;player.active=true;player.kills=0;player.deaths=0;player.streak=0;
   // capture the flag: three a side, you and two bots against three
   if(mapCtf){player.team=Math.random()<.5?0:1;const a=player.team,b=1-a;addBots(CTF_BOTS,[a,b,b,a,b]);ctfSync(ctfFresh(),true)}
   else addBots(5);
@@ -2919,6 +3193,27 @@ function setT(id,v){if(hudCache[id]!==v){hudCache[id]=v;$(id).textContent=v}}
 // the HUD only touches the page when a value really changes (a style write every frame costs a style recalculation)
 function setSt(id,prop,v){const k=id+'.'+prop;if(hudCache[k]!==v){hudCache[k]=v;if(prop[0]==='-')$(id).style.setProperty(prop,v);else $(id).style[prop]=v}}
 function setHid(id,h){const k=id+'.hidden';if(hudCache[k]!==h){hudCache[k]=h;$(id).hidden=h}}
+function setCls(id,c,on){const k=id+'.c.'+c;if(hudCache[k]!==on){hudCache[k]=on;$(id).classList.toggle(c,on)}}
+// Streak rewards: the streak, a pip for each reward step, and a chip for each reward running (seconds left) or held
+// (the first held one shows its key); rebuilt only when one of those changes.
+function ksHud(){
+  setT('ksN',String(player.streak));
+  for(let i=0;i<KS.length;i++)setCls('ksP'+i,'on',player.streak>=KS[i].at);
+  setCls('ks','dead',!player.alive);
+  const hen=hens.find(h=>h.owner===player),key=touchUI?'':ksKey()||'?';
+  const sig=player.ks.join()+'|'+Math.ceil(player.candleT)+'|'+(hen?Math.ceil(hen.t):0)+'|'+key;
+  if(hudCache.ksH!==sig){hudCache.ksH=sig;const box=$('ksH');box.textContent='';
+    const chip=(cls,text,k,col)=>{const c=document.createElement('span');c.className='kc'+(cls?' '+cls:'');
+      if(k){const b=document.createElement('kbd');b.textContent=k;c.appendChild(b)}else c.classList.add('nk');
+      if(col){const d=document.createElement('i');d.className='ki';d.style.setProperty('--kc',col);c.appendChild(d)}
+      c.appendChild(document.createTextNode(text));box.appendChild(c)};
+    if(player.candleT>0)chip('act','Candler · '+Math.ceil(player.candleT)+' s');
+    if(hen)chip('act','Mother Hen · '+Math.ceil(hen.t)+' s');
+    player.ks.forEach((id,i)=>{const r=KS_BY[id];chip(i?'q':'',r.n,i?'':key,r.c)});
+  }
+  const r=player.ks.length?KS_BY[player.ks[0]]:null;
+  setHid('tKs',!(touchUI&&r&&player.alive));if(r)setT('tKs',r.short);
+}
 function updateHud(dt){
   if(state!=='playing')return;
   const w=WEAPONS[player.wkey];
@@ -2941,6 +3236,8 @@ function updateHud(dt){
     $('nextW').textContent=WEAPONS[player.loadout].name;
   }
   setT('magN',player.reloadT>0?'…':String(player.ammo[player.wkey]));
+  const ksShow=mode==='practice'||mode==='online';setHid('ks',!ksShow);
+  if(ksShow)ksHud();else setHid('tKs',true);
   if(mode==='training'){const S=Range.stats;setT('tsAcc',S.shots?Math.round(100*S.hits/S.shots)+'%':'–');setT('tsHits',S.hits+'/'+S.shots);setT('tsHead',String(S.heads));setT('tsCrack',String(player.kills));setT('tsPop',String(S.pops));setT('tsLast',S.lastT>0?S.last:'')}
   if(player.reloadT>0&&player.alive){setHid('rel',false);$('rel').firstChild.style.width=(100*(1-player.reloadT/w.reload))+'%'}else setHid('rel',true);
   // crosshair
@@ -3024,6 +3321,7 @@ function pressAction(c){
   else if(KB.is('swap',c))switchSlot(player,player.slot?0:1);
   else if(KB.is('nade',c))throwNade(player);
   else if(KB.is('melee',c))melee(player);
+  else if(KB.is('reward',c))useReward(player);
   else if(KB.is('jump',c)&&player.onGround){player.vel.y=JUMP;player.onGround=false;sfx('jump')}
 }
 document.addEventListener('mousedown',e=>{
@@ -3106,6 +3404,7 @@ tButton('tReload',()=>{if(canAct())startReload(player)});
 tButton('tNade',()=>{if(canAct())throwNade(player)});
 tButton('tSwap',()=>{if(canAct())switchSlot(player,player.slot?0:1)});
 tButton('tMelee',()=>{if(canAct())melee(player)});
+tButton('tKs',()=>{if(canAct())useReward(player)});
 tButton('tBoard',()=>{tAct.board=true},()=>{tAct.board=false});
 tButton('tPause',()=>{if(state==='playing'&&!paused){for(const k in tAct)tAct[k]=false;for(const k in keys)keys[k]=false;showPause()}});
 // Training range only: a button for each gun (what keys 1-6 do) and one for Reset training stats (T by default).
@@ -3378,8 +3677,10 @@ function remoteShotFx(e){
   if(e.model.flash){e.model.flash.visible=true;e.model.flashT=.05}
   sfx(e.wkey,e.pos);
 }
+const ksHeard=new Map();
 function handleEvent(ev){
   if(Net.matchId==null||ev.m!==Net.wm()||state==='menu')return;
+  if(ev.type==='hit'&&ev.w==='hen')henShotFx(ev.by,ev.to);   // Mother Hen's shots, drawn for everyone
   if(ev.type==='hit'&&ev.to===Net.uid){
     const att=entById(ev.by)||{id:ev.by,name:'Someone',pos:null};
     if(mapCtf&&att.team===player.team)return;   // never from a team-mate
@@ -3393,6 +3694,15 @@ function handleEvent(ev){
     else addFeed(k&&ev.kb!==ev.by?k:null,victim,!!ev.hd,String(ev.w||''));
   }else if(ev.type==='nade'){
     if([ev.x,ev.y,ev.z,ev.vx,ev.vy,ev.vz].every(n=>typeof n==='number'&&isFinite(n)))spawnNade(ev.x,ev.y,ev.z,clamp(ev.vx,-40,40),clamp(ev.vy,-40,40),clamp(ev.vz,-40,40),ev.by);
+  }else if(ev.type==='ks'){
+    // another egg used a streak reward (at most one of each kind per egg every 2 s is taken)
+    const o=entById(ev.by);if(!o||!o.remote||!o.active||!KS_BY[ev.k])return;
+    const key=ev.by+'|'+ev.k,now=performance.now();if(now-(ksHeard.get(key)||-1e9)<2000)return;ksHeard.set(key,now);if(ksHeard.size>200)ksHeard.clear();
+    const late=clamp((Net.now()-ev.t)/1000,0,30);
+    if(ev.k==='candle'){if(isFoe(o,player))ksFeed(o,'candle')}
+    else if(ev.k==='drop'){if(![ev.x,ev.y,ev.z].every(n=>typeof n==='number'&&isFinite(n)))return;
+      startDrop(o,clamp(ev.x,.5,SPAN-.5),clamp(ev.y,0,HY*VY),clamp(ev.z,.5,SPAN-.5),ev.s|0,KS_WARN-late);ksFeed(o,'drop')}
+    else if(ev.k==='hen'){if(late<KS_HEN-1&&o.alive&&!hens.some(h=>h.owner===o)){startHen(o,KS_HEN-late);ksFeed(o,'hen')}}
   }
 }
 function onMatch(v){
@@ -3530,7 +3840,7 @@ function simulate(dt){
     else if(e.dummy)Range.dummyThink(e,dt);
     moveEntity(e,dt);
   }
-  updateNades(dt);
+  updateNades(dt);updateKs(dt);
   if(mode==='training')Range.update(dt);
 }
 function step(dt){
@@ -3571,7 +3881,8 @@ function updateModel(e,dt){
   if(!e.dummy&&m.gunKey!==e.wkey)setEggGun(m,e.wkey);
   if(e.spawnShield>0){const p=.25+.25*Math.sin(clock*14);m.mat.emissive.setRGB(p*.6,p*.8,p)}else m.mat.emissive.setRGB(0,0,0);
   if(m.flashT>0){m.flashT-=dt;if(m.flashT<=0&&m.flash)m.flash.visible=false}
-  m.tag.visible=e.carry!=null||camera.position.distanceTo(e.pos)<45;
+  const lit=player.candleT>0&&!e.dummy&&isFoe(player,e);if(lit||m.glow)setGlow(m,lit);   // your Candler
+  m.tag.visible=e.carry!=null||lit||camera.position.distanceTo(e.pos)<45;
 }
 function updateCamera(dt){
   camPitchKick*=Math.exp(-dt*10);shake*=Math.exp(-dt*6);
@@ -3682,7 +3993,7 @@ if(inv){if(/^ctf-/.test(inv[1]))setMode('ctf');$('room').value=inv[1];setMsg('Yo
 
 if(navigator.webdriver)window.__sc={get state(){return state},get mode(){return mode},get noRender(){return noRender},set noRender(v){noRender=!!v},player,get ents(){return ents},get map(){return mapIdx},get arena(){return mapSm},get layout(){return mapIdx+(mapSm?"s":"")},findPath,rayWorld,floorBelow,buildMap,MAPS,W,HY,VY,G,GROUND_Y,vox,vget,standV,nodeFor,entHits,get navN(){return navN},get navReach(){return navReach},navAt,get navY(){return navY},get perches(){return perches},spawns:()=>spawns,Net,onRemoteState,handleEvent,onMatch,endMatch,standings,DIFF,WEAPONS,fireShot,damage,throwNade,nades,addFeed,respawn,spawnSplat,keys,setPaused:v=>{paused=v},get rank(){return rank},HUMAN_W,ratingChange,applyRating,get lastRated(){return lastRated},get clock(){return clock},toMenu,loadLeaderboard,renderer,scene,camera,vmScene,vmCam,advance:s=>{noRender=true;try{for(let t=0;t<s;t+=1/30)step(1/30)}finally{noRender=false}},get matchEnds(){return matchEnds},set matchEnds(v){matchEnds=v},get remotes(){return remotes},get range(){return Range},startTraining,tryFire,buildGun,WKEYS,get vmGun(){return vmGun},get tracers(){return tracers},startReload,setLoadout,switchSlot,mapInfo,RANGE_IDX,get paused(){return paused},get hudDirty(){return hudDirty},
   // collision audit: the real movement, push-out and remote-drawing code, driven step by step
-  botMatch:(i,n)=>{clearBots();resetFx();buildMap(i);addBots(n)},get ctf(){return{on:mapCtf,S:ctfS,base:ctfBase,spawns:ctfSpawns,posts:ctfPosts,team:player.team}},ctfDo,ctfReduce,ctfNorm,ctfFresh,ctfSync,setMode,TEAM,startPractice,CTF_CAPS,ctfBotMatch:(i,n)=>{clearBots();resetFx();ctfOn=true;buildMap(i);const t=[];for(let k=0;k<n;k++)t.push(k&1);addBots(n,t);ctfSync(ctfFresh(),true);state='playing';mode='practice';player.active=false;player.alive=false;matchEnds=Date.now()+1e9},moveEntity,steer,pushOutPos,rescue,boxSolid,updateRemotes,drawClamp,simulate,simSteps,FRAME_CAP,consts:{PR,PH,STEP,JUMP,GRAV,MAX_FALL},mapSpawns:()=>mapSpawns,los};
+  botMatch:(i,n)=>{clearBots();resetFx();buildMap(i);addBots(n)},get ctf(){return{on:mapCtf,S:ctfS,base:ctfBase,spawns:ctfSpawns,posts:ctfPosts,team:player.team}},ctfDo,ctfReduce,ctfNorm,ctfFresh,ctfSync,setMode,KS,useReward,creditKill,get drops(){return drops},get hens(){return hens},TEAM,startPractice,CTF_CAPS,ctfBotMatch:(i,n)=>{clearBots();resetFx();ctfOn=true;buildMap(i);const t=[];for(let k=0;k<n;k++)t.push(k&1);addBots(n,t);ctfSync(ctfFresh(),true);state='playing';mode='practice';player.active=false;player.alive=false;matchEnds=Date.now()+1e9},moveEntity,steer,pushOutPos,rescue,boxSolid,updateRemotes,drawClamp,simulate,simSteps,FRAME_CAP,consts:{PR,PH,STEP,JUMP,GRAV,MAX_FALL},mapSpawns:()=>mapSpawns,los};
 
 renderSwatches();renderWeapons($('weapons'));renderDiff();renderGfx();renderMode();renderRank();
 setupAttract();showAd('adMenu');
