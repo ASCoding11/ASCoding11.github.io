@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script src="/e63334287a3deaa3/lang.js"></script> <!-- English / Español (see README) -->
+<script src="es.js"></script>
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
 <script src="/e63334287a3deaa3/captains.js"></script> <!-- who may see the Garage while it is not public (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -274,13 +276,13 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
   <canvas id="ov"></canvas>
 
   <div id="hud" hidden>
-    <div id="tower"><div class="hd"><span id="towerLap">LAP 1/5</span><span id="towerTrk"></span></div><ol id="towerList"></ol></div>
-    <div id="lapbox">
+    <div id="tower" data-noi18n><div class="hd"><span id="towerLap">LAP 1/5</span><span id="towerTrk"></span></div><ol id="towerList"></ol></div>
+    <div id="lapbox" data-noi18n>
       <div class="row1"><div id="lap">LAP <b id="lapN">1</b>/<span id="lapT">5</span></div><div id="pos">P<span id="posN">1</span><small>/22</small></div></div>
       <div id="times"><span>Lap</span><b id="tCur">0:00.000</b><span>Last</span><b id="tLast">–</b><span>Best</span><b id="tBest">–</b></div>
       <div id="stew"></div>
     </div>
-    <div id="dash">
+    <div id="dash" data-noi18n>
       <div id="leds"></div>
       <div id="spd">0<small>KM/H</small></div>
       <div id="gear">N</div>
@@ -292,7 +294,7 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
     <div id="lights" hidden><div class="lt"><span></span><span></span></div><div class="lt"><span></span><span></span></div><div class="lt"><span></span><span></span></div><div class="lt"><span></span><span></span></div><div class="lt"><span></span><span></span></div></div>
     <div id="banner"></div>
     <div id="toasts"></div>
-    <div id="spec" hidden></div>
+    <div id="spec" data-noi18n hidden></div>
     <div id="hint" style="opacity:0"></div>
     <button class="hbtn" id="mute" type="button" aria-label="Mute">🔊</button>
     <button class="hbtn" id="pauseBtn" type="button" aria-label="Pause">❚❚</button>
@@ -328,7 +330,7 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
         <dt>🎮</dt><dd>Gamepad: left stick steer, RT/LT throttle/brake, A boost, X or RB DRS, Y camera</dd>
         <dt data-kb="cam">C</dt><dd>Change camera</dd><dt data-kb="reset">R</dt><dd>Back onto the track</dd><dt>Esc</dt><dd>Pause, invite link</dd>
       </dl>
-      <div class="row"><button class="ghost" id="keysMenu" type="button">Change keys</button></div>
+      <div class="row"><button class="ghost" id="keysMenu" type="button">Change keys</button><div data-lang-toggle></div></div>
       <p class="foot" style="margin-top:10px">Track limits: keep at least one wheel inside the white lines. Running wide costs you nothing but time, so just get back on the track. Cutting a corner to gain time adds 2.5 s to your race time.</p>
       <dl class="keys" hidden>
       </dl>
@@ -361,6 +363,7 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
       <p class="msg" id="pauseMsg" style="margin-top:0"></p>
       <div class="row"><button class="cta" id="resume" type="button">Resume</button><button class="ghost" id="copyInvite" type="button" hidden>Copy invite link</button><button class="ghost" id="keysPause" type="button">Controls</button><button class="ghost" id="leave" type="button">Leave</button></div>
       <p class="msg" id="inviteMsg"></p>
+      <div class="row"><div data-lang-toggle></div></div>
       <dl class="keys">
         <dt data-kb="up">W / ↑</dt><dd>Throttle</dd><dt data-kb="down">S / ↓</dt><dd>Brake / reverse</dd><dt data-kb="left right">A D / ← →</dt><dd>Steer</dd>
         <dt data-kb="boost" data-kb-short>Space</dt><dd>Boost</dd><dt data-kb="drs">E</dt><dd>DRS</dd><dt data-kb="cam">C</dt><dd>Camera</dd><dt data-kb="reset">R</dt><dd>Back onto the track</dd><dt data-kb="mute">M</dt><dd>Mute</dd>
@@ -386,6 +389,8 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
 <script>
 (function(){
 'use strict';
+// Spanish (../lang.js, es.js): T() gives the words in the player's language, for text the page can't leave to lang.js.
+const T=window.BackRoomLang?BackRoomLang.t:(s,v)=>s.replace(/\{(\w+)\}/g,(m,n)=>v&&v[n]!=null?v[n]:m);
 // =====================================================================
 //  Firebase (same project and Realtime Database rules as Rumble Karts).
 //  Online rooms live under rooms/ss-<code>, so the existing rules cover them.
@@ -2283,13 +2288,22 @@ function updateCamera(dt){
 // =====================================================================
 const ledBox=$('leds');for(let i=0;i<15;i++){const l=document.createElement('i');l.className=i<5?'g':i<10?'r':'b';ledBox.appendChild(l)}
 const leds=[...ledBox.children];
+// The HUD's fixed words, in the player's language (lang.js leaves the HUD alone: it changes every frame)
+const HUD_EN={lap:$('lap').firstChild.nodeValue.trim(),times:[...$('times').querySelectorAll('span')].map(e=>e.textContent),tags:['slipTag','boostTag','drsTag'].map(id=>$(id).textContent)};
+function hudWords(){
+  $('lap').firstChild.nodeValue=T(HUD_EN.lap)+' ';
+  $('times').querySelectorAll('span').forEach((e,i)=>{e.textContent=T(HUD_EN.times[i])});
+  ['slipTag','boostTag','drsTag'].forEach((id,i)=>{$(id).textContent=T(HUD_EN.tags[i])});
+  document.querySelectorAll('optgroup[data-en]').forEach(g=>{g.label=T(g.dataset.en)});
+}
+hudWords();document.addEventListener('backroom:lang',hudWords);
 let towerT=0,posMap=new Map(),lastLit=-1,goDone=false,wrongT=0,offHintAt=0;
 function gapText(c,o,i){
   const lead=o[0];
-  if(i===0)return lead.fin?'Winner':'Leader';
+  if(i===0)return T(lead.fin?'Winner':'Leader');
   if(c.fin&&lead.fin)return '+'+(raceTime(c)-raceTime(lead)).toFixed(3);
   const lapsDown=Math.floor((lead.P-c.P)/track.L);
-  if(lapsDown>=1&&!c.fin)return '+'+lapsDown+' lap'+(lapsDown>1?'s':'');
+  if(lapsDown>=1&&!c.fin)return T(lapsDown>1?'+{n} laps':'+{n} lap',{n:lapsDown});
   const g=gapOf(c);return g?'+'+g.toFixed(1):'–';
 }
 function updateTower(){
@@ -2303,7 +2317,7 @@ function updateTower(){
   });
   list.innerHTML=h;
   const lead=o[0],ln=clamp(Math.floor(lead.P/track.L)+1,1,race.laps);
-  $('towerLap').textContent=lead.fin?'FINISH':'LAP '+ln+'/'+race.laps;
+  $('towerLap').textContent=lead.fin?T('FINISH'):T('LAP {n}/{m}',{n:ln,m:race.laps});
   $('towerTrk').textContent=TRACKS[race.track].s.toUpperCase();
 }
 function updateHud(dt){
@@ -2327,7 +2341,7 @@ function updateHud(dt){
     $('tCur').textContent=me.fin?'–':fmtTime(Math.max(0,t-me.lastCross)).replace(/^–$/,'0:00.000');
     $('tLast').textContent=fmtTime(me.lastLap);
     const sig=me.pen||0;
-    if(sig!==me.stewSig){me.stewSig=sig;$('stew').innerHTML=me.pen?'<span class="p">+'+me.pen+'s PEN</span>':''}
+    if(sig!==me.stewSig){me.stewSig=sig;$('stew').innerHTML=me.pen?'<span class="p">'+T('+{n}s PEN',{n:me.pen})+'</span>':''}
     // off the track: a small reminder (not a penalty) that stays up while off and fades once back on
     if(me.offTrack&&!me.fin&&!(me.stuck>2)&&t>=1){const n=performance.now();if(n-offHintAt>400){offHintAt=n;hint('Return to the track',1200)}}
     const tb=$('tBest');tb.textContent=fmtTime(me.best);tb.className=me.best&&race.fastSeat===me.seat?'fl':me.best?'pb':'';
@@ -2352,8 +2366,8 @@ function updateHud(dt){
     if(me){const td=$('tdrs');td.hidden=!(me.drsAvail||me.drsOpen);td.classList.toggle('on',!!me.drsOpen);td.classList.toggle('ready',!!me.drsAvail&&!me.drsOpen)}
   }
   const sp=$('spec');
-  if(!me&&c&&state==='race'){sp.hidden=false;sp.innerHTML='Watching <b>'+esc(c.name)+'</b> · P'+(posMap.get(c)||'–')+' · '+TEAMS[c.team].n+(touchUI?'':'<br><small>← → to switch car</small>')}
-  else if(me&&me.fin&&state==='race'){sp.hidden=false;sp.innerHTML='Finished <b>P'+(posMap.get(me)||'')+'</b> · waiting for the others'}
+  if(!me&&c&&state==='race'){sp.hidden=false;sp.innerHTML=T('Watching <b>{n}</b> · P{p} · {t}',{n:esc(c.name),p:posMap.get(c)||'–',t:TEAMS[c.team].n})+(touchUI?'':T('<br><small>← → to switch car</small>'))}
+  else if(me&&me.fin&&state==='race'){sp.hidden=false;sp.innerHTML=T('Finished <b>P{p}</b> · waiting for the others',{p:posMap.get(me)||''})}
   else sp.hidden=true;
 }
 function esc(s){return String(s).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]))}
@@ -2487,7 +2501,7 @@ function beginRaceView(){
   hideScreens();state='race';showHud(true);keys.clear();
   lastLit=-1;goDone=raceT()>1;towerT=0;cam.watch=-1;cam.ready=false;cam.cut=0;cam.cutT=8;
   $('lights').hidden=true;$('banner').classList.remove('show');
-  if(race.me){const p=race.me.gridPos;hint(touchUI?'Slide your thumb on the steering pad · it accelerates for you · BRAKE to slow':KB.label('up','/')+' throttle · '+KB.label('down','/')+' brake · '+KB.short('left')+' '+KB.short('right')+' steer · '+KB.short('boost')+' boost · '+KB.short('drs')+' DRS · '+KB.short('cam')+' camera',6000);toast('Starting P'+p+' for '+TEAMS[race.me.team].n)}
+  if(race.me){const p=race.me.gridPos;hint(touchUI?'Slide your thumb on the steering pad · it accelerates for you · BRAKE to slow':T('{u} throttle · {d} brake · {l} {r} steer · {b} boost · {e} DRS · {c} camera',{u:KB.label('up','/'),d:KB.label('down','/'),l:KB.short('left'),r:KB.short('right'),b:T(KB.short('boost')),e:T(KB.short('drs')),c:T(KB.short('cam'))}),6000);toast('Starting P'+p+' for '+TEAMS[race.me.team].n)}
 }
 // ---------- practice ----------
 function practiceLobby(){
@@ -2574,9 +2588,9 @@ function renderLobby(){
   else if(!r)st='Connecting…';
   else if(r.ph==='lobby'){
     const ready=hs.filter(h=>h.rd).length;
-    if(Net.isPublic&&r.dl){const s=Math.max(0,Math.ceil((r.dl-Net.now())/1000));st='Race starts in <b>'+s+'s</b>, or as soon as everyone is ready ('+ready+'/'+hs.length+').'}
-    else st='The race starts when everyone is ready (<b>'+ready+'/'+hs.length+'</b>).'+(Net.amHost?' You\'re the host: you pick the track and laps.':'');
-    if(mySeat<0)st+=' No seat picked: you\'ll get a free one.';
+    if(Net.isPublic&&r.dl){const s=Math.max(0,Math.ceil((r.dl-Net.now())/1000));st=T('Race starts in <b>{s}s</b>, or as soon as everyone is ready ({r}/{n}).',{s,r:ready,n:hs.length})}
+    else st=T('The race starts when everyone is ready (<b>{r}/{n}</b>).',{r:ready,n:hs.length})+(Net.amHost?' '+T('You\'re the host: you pick the track and laps.'):'');
+    if(mySeat<0)st+=' '+T('No seat picked: you\'ll get a free one.');
   }else if(r.ph==='race')st='A race is on. You\'ll get a seat in the next one.';
   else st='Results are in. Back to the grid in a moment.';
   $('lbStatus').innerHTML=st;
@@ -2593,7 +2607,7 @@ function renderLobby(){
         const o=own.get(s),d=DRIVERS[s];
         let who,cls='seat',dis=false,rd='';
         if(o&&o.me){who='You'+(myName?' ('+esc(myName)+')':'');cls+=' mine';if(online&&myReady)rd='READY'}
-        else if(o){who='<span class="hum">'+esc(o.n)+'</span>';dis=true;if(o.rd)rd='READY'}
+        else if(o){who='<span class="hum" data-noi18n>'+esc(o.n)+'</span>';dis=true;if(o.rd)rd='READY'}
         else who='<span class="bot">Bot · '+esc(d.n)+'</span>';
         h+='<button type="button" class="'+cls+'" data-s="'+s+'"'+(dis?' disabled':'')+'><span class="num">#'+d.num+'</span><span class="who">'+who+'</span><span class="rd">'+rd+'</span></button>';
       }
@@ -2626,7 +2640,7 @@ function lobbyOpt(el,key){
 for(const id of ['trackSel','lbTrackSel']){
   const sel=$(id);
   for(const [label,real] of [['Grand Prix circuits',1],['Original circuits',0]]){
-    const og=document.createElement('optgroup');og.label=label;
+    const og=document.createElement('optgroup');og.label=T(label);og.dataset.en=label;
     TRACKS.forEach((t,i)=>{if(!!t.real!==!!real)return;const o=document.createElement('option');o.value=i;o.textContent=t.real?t.s+' · '+(t.c===t.s?t.n:t.c):t.s+' · '+t.sub;o.title=t.n;og.appendChild(o)});
     sel.appendChild(og);
   }
