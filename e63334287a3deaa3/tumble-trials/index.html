@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
+<script src="/e63334287a3deaa3/captains.js"></script> <!-- who may open the hidden Closet (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Tumble Trials</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -524,6 +525,29 @@ if(!myLook||!validColor(myLook.c)){myLook={c:pick(COLORS),f:0,p:Math.floor(Math.
 myLook.f=clamp(myLook.f|0,0,FACES.length-1);myLook.p=clamp(myLook.p|0,0,PATTERNS.length-1);if(!validColor(myLook.pc))myLook.pc='#fff8ee';
 const lookStr=l=>[l.f|0,l.p|0,l.pc].join(',');
 function parseLook(c,s){const f=String(s||'').split(',');return{c:validColor(c)?c:'#ff4f9a',f:clamp(f[0]|0,0,FACES.length-1),p:clamp(f[1]|0,0,PATTERNS.length-1),pc:validColor(f[2])?f[2]:'#fff8ee'}}
+// ---------- the Closet (HIDDEN: captains only for now; README, "Closet") ----------
+// Extra colours, patterns, underpants, hats, faces, costumes, victory dances, fall screams and knockout splashes, worn
+// on top of the look above. closetOn() says whether this player may open the Closet: true for the site's captains
+// (../captains.js), and for testing with ?closet=1 on localhost or in an automated browser only (remembered for the
+// browser tab; ?closet=0 forgets it). To open it to everyone, change CLOSET_PUBLIC to true: that one line is all it takes.
+// A player's kit is KIT_LEN item numbers, the `no` of Tumble Trials' items in ../cosmetics.js, 0 for none, in the order
+// [colour, premium colour, pattern, underpants, hat, face, costume, victory dance, fall scream, knockout splash]. It is
+// saved as tumble-kit and sent in the player's own node as ck ('3.0.5.0.12.0.0.2.1.0'); older pages ignore ck. Everything
+// that draws it is in closet.js beside this page, fetched only when it is needed: this player may open the Closet, or a
+// player in the room wears a kit. Until then CL is null and every hook below does what it always did. Looks only.
+const CLOSET_PUBLIC=false;
+const CAPTAINS=window.BackRoomCaptains||null;
+const closetOn=()=>CLOSET_PUBLIC||!!(CAPTAINS&&CAPTAINS.may(false,'closet','tumble-closet'));
+const KIT_LEN=10;
+// a kit from the network or storage: '3.0.5' (up to KIT_LEN whole numbers 0 to 99) or a list; null when it is all zeros
+const kitOf=v=>{
+  const a=Array.isArray(v)?v:typeof v==='string'&&v.length<=40&&/^\d{1,2}(\.\d{1,2}){0,9}$/.test(v)?v.split('.'):null;if(!a||a.length>KIT_LEN)return null;
+  const k=[];let any=0;for(let i=0;i<KIT_LEN;i++){const n=Number(a[i]);k.push(Number.isInteger(n)&&n>0&&n<100?n:0);any|=k[i]}
+  return any?k:null;
+};
+const kitStr=k=>k?k.join('.'):'';
+let CL=null,clAsked=false;
+const myKitNow=()=>CL&&closetOn()?CL.mine():null;
 // camera sensitivity (mouse, trackpad and touch look), saved as tumble-sens; anything odd in storage falls back to 1
 const SENS_MIN=.2,SENS_MAX=3,sensOk=v=>{v=Number(v);return Number.isFinite(v)&&v>0?clamp(v,SENS_MIN,SENS_MAX):1};
 let sens=sensOk(store.get('sens',1)),invY=!!store.get('invY',false),musVol=+store.get('mus',.5),sfxVol=+store.get('sfx',.8),gfx=store.get('gfx',isTouch?'fast':'high');
@@ -1037,7 +1061,9 @@ function resolve(b,dt){
 //  stubby arms and feet, and a springy lean.
 // =====================================================================
 const SKIN_W=512,SKIN_H=256,PXU=SKIN_W/(2*Math.PI*RAD),PXV=SKIN_H/BODY_H;
-function drawSkin(x,look){
+function drawSkin(x,look){drawBody(x,look);drawFace(x,look)}
+// the body colour and pattern (the Closet draws over these before the face goes on)
+function drawBody(x,look){
   const W=SKIN_W,H=SKIN_H,c=look.c,pc=look.pc,P=(ux,uy)=>[W/2+ux*PXU,H*(1-uy/BODY_H)];
   x.fillStyle=c;x.fillRect(0,0,W,H);
   x.fillStyle=pc;x.strokeStyle=pc;
@@ -1047,7 +1073,10 @@ function drawSkin(x,look){
   else if(p===3){x.beginPath();x.ellipse(W/2,H*.98,W*.16,H*.5,0,0,7);x.fill()}
   else if(p===4){x.lineWidth=12;x.beginPath();for(let i=0;i<=24;i++){const xx=i*W/24,yy=H*(i%2?.62:.72);i?x.lineTo(xx,yy):x.moveTo(xx,yy)}x.stroke();x.beginPath();for(let i=0;i<=24;i++){const xx=i*W/24,yy=H*(i%2?.84:.94);i?x.lineTo(xx,yy):x.moveTo(xx,yy)}x.stroke()}
   else if(p===5){for(let i=0;i<14;i++){const cx=(i+.5)*W/14,cy=H*(.55+(i%3)*.14);if(Math.abs(cx-W/2)<60)continue;star(x,cx,cy,13)}}
-  // face: a pale visor with eyes and a mouth
+}
+// face: a pale visor with eyes and a mouth
+function drawFace(x,look){
+  const W=SKIN_W,H=SKIN_H,P=(ux,uy)=>[W/2+ux*PXU,H*(1-uy/BODY_H)];
   const fc=P(0,1.12);x.fillStyle='rgba(255,250,240,.96)';x.beginPath();x.ellipse(fc[0],fc[1],.27*PXU,.2*PXV,0,0,7);x.fill();
   x.lineWidth=3;x.strokeStyle='rgba(36,22,63,.25)';x.stroke();
   const ink='#24163f',e=[P(-.1,1.15),P(.1,1.15)],ex=.055*PXU,ey=.075*PXV;
@@ -1122,7 +1151,7 @@ class Bean{
     scene.add(this.root);scene.add(this.shadow);
   }
   setLook(look){
-    this.look=Object.assign({},look);const x=this.cv.getContext('2d');drawSkin(x,look);this.tex.needsUpdate=true;
+    this.look=Object.assign({},look);if(this.kit&&CL)return CL.repaint(this);const x=this.cv.getContext('2d');drawSkin(x,look);this.tex.needsUpdate=true;
     this.limbMat.color.set(look.c);this.footMat.color.set(shade(look.c,-.3));
   }
   setTag(name,color){
@@ -1183,7 +1212,7 @@ class Bean{
     g.position.y=.84;g.rotation.x=-.12;this.tilt.add(g);this.crown=g;
   }
   set visible(v){this.root.visible=v;if(!v)this.shadow.visible=false}
-  dispose(){if(this.crown)this.crown.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material)o.material.dispose()});scene.remove(this.root);scene.remove(this.shadow);this.shadow.material.dispose();this.tex.dispose();this.mat.dispose();this.limbMat.dispose();this.footMat.dispose();if(this.tag){this.tag.material.map.dispose();this.tag.material.dispose()}}
+  dispose(){if(this.kit&&CL)CL.dress(this,null);if(this.crown)this.crown.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material)o.material.dispose()});scene.remove(this.root);scene.remove(this.shadow);this.shadow.material.dispose();this.tex.dispose();this.mat.dispose();this.limbMat.dispose();this.footMat.dispose();if(this.tag){this.tag.material.map.dispose();this.tag.material.dispose()}}
 }
 const _tmpV=new V3();
 
@@ -2482,7 +2511,7 @@ function makeEnt(o){
   const tr=o.bot&&o.traits?o.traits:null;
   const e={id:o.id,name:o.name||'Bean',look:o.look,bot:!!o.bot,local:!!o.local,b:newBody(),bean:new Bean(o.look,o.name||'Bean',!o.isMe),ai:o.bot?(tr?newAI(tr.skill,tr.nerve,tr.route):newAI(o.skill)):null,spd:o.bot?(tr?tr.spd:o.spd||rand(.86,.98)):1,
     cp:0,fin:false,out:false,hidden:false,respawnT:0,isMe:!!o.isMe,tpos:new V3(),tyaw:0,tvel:new V3(),seen:performance.now(),stc:'move',grabbedT:0,lastSt:'move',lastY:0,lastAir:false};
-  ents.set(e.id,e);return e;
+  ents.set(e.id,e);if(CL)dressEnt(e);return e;
 }
 function removeEnt(e){if(!e)return;e.bean.dispose();ents.delete(e.id);if(e===me)me=null;if(G.spec===e.id)G.spec=null}
 function clearEnts(keepMe){for(const e of [...ents.values()])if(!(keepMe&&e===me))removeEnt(e)}
@@ -2770,7 +2799,7 @@ const Net={
     this.db.ref('.info/serverTimeOffset').on('value',s=>{this.offset=s.val()||0});
     this.ready=true;
   },
-  base(){const b=me?me.b:null;return{n:myName||'Bean',c:myLook.c,x:b?r2(b.pos.x):0,z:b?r2(b.pos.z):0,h:b?r3(b.yaw):0,ts:Math.round(this.now()),y:b?r2(b.pos.y):0,j:this.j,lk:lookStr(myLook),rd:0,k:'',m:''}},
+  base(){const b=me?me.b:null,o={n:myName||'Bean',c:myLook.c,x:b?r2(b.pos.x):0,z:b?r2(b.pos.z):0,h:b?r3(b.yaw):0,ts:Math.round(this.now()),y:b?r2(b.pos.y):0,j:this.j,lk:lookStr(myLook),rd:0,k:'',m:''};const ck=kitStr(myKitNow());if(ck){o.ck=ck;this.ckSent=true}return o},
   async count(room){
     const s=await this.db.ref('rooms/'+room+'/players').once('value');let n=0;
     s.forEach(c=>{const v=c.val();if(c.key!==this.uid&&v&&this.now()-(+v.ts||0)<LIVE_MS)n++});
@@ -2870,7 +2899,7 @@ function sanitizeRS(p){
 function onNode(uid,v){
   if(!v||typeof v!=='object')return;
   const s=k=>typeof v[k]==='string'?v[k]:'';
-  const o={n:cleanName(v.n)||'Player',c:validColor(v.c)?v.c:'#ff4f9a',lk:s('lk'),j:+v.j||+v.ts||0,ts:Math.min(+v.ts||0,Net.now()+5000),rs:s('rs'),he:Math.min(Math.max(+v.he||0,0),1e9),rd:+v.rd||0,k:s('k'),m:s('m'),fin:s('fin'),out:s('out'),tt:s('tt'),gr:s('gr'),fr:s('fr'),bt:s('bt'),sw:s('sw'),hx:s('hx'),
+  const o={n:cleanName(v.n)||'Player',c:validColor(v.c)?v.c:'#ff4f9a',lk:s('lk'),j:+v.j||+v.ts||0,ts:Math.min(+v.ts||0,Net.now()+5000),rs:s('rs'),he:Math.min(Math.max(+v.he||0,0),1e9),rd:+v.rd||0,k:s('k'),m:s('m'),fin:s('fin'),out:s('out'),tt:s('tt'),gr:s('gr'),fr:s('fr'),bt:s('bt'),sw:s('sw'),hx:s('hx'),ck:s('ck'),
     x:clamp(+v.x,-400,400),y:clamp(+v.y||0,-60,80),z:clamp(+v.z,-400,400),h:Number.isFinite(+v.h)?+v.h:0,rt:performance.now()};
   const prev=Net.others.get(uid);o.hr=prev&&prev.ts===o.ts?prev.hr:performance.now();o.fresh=Net.now()-o.ts<60000;Net.others.set(uid,o);
   if(uid===G.hostUid&&!G.host&&o.ts&&(!prev||prev.ts!==o.ts))noteSkew(o.ts-Net.now());
@@ -2897,7 +2926,9 @@ function onNode(uid,v){
     e.seen=performance.now();e.rt=performance.now();
     if(e.name!==o.n){e.name=o.n;e.bean.setTag(o.n,o.c)}
     if(!prev||prev.lk!==o.lk||prev.c!==o.c){const lk=parseLook(o.c,o.lk);if(lookStr(lk)+lk.c!==lookStr(e.look)+e.look.c){e.look=lk;e.bean.setLook(lk)}}
+    if(CL&&(!prev||prev.ck!==o.ck))dressEnt(e);
   }
+  if(o.ck&&!CL&&kitOf(o.ck))closetLoad();   // a captain in the room wears something from the Closet: fetch what draws it
 }
 // make (or find) the body for a remote player, if they belong in what we're showing now
 function ensureRemote(uid){
@@ -3015,7 +3046,7 @@ const fmtMs=ms=>{const s=ms/1000;return Math.floor(s/60)+':'+(s%60).toFixed(2).p
 function fell(e,t){
   const L=G.L,rs=G.rs,kind=mechOf(L.def);
   if(e.isMe||Math.random()<.5)sfx('slime',e.b.pos,e.isMe?1:.6);
-  splash(e.b.pos);
+  splash(e.b.pos);if(e.bean.kit)CL.splash(e);
   e.hidden=true;e.b.vel.set(0,0,0);if(e.isMe&&e.b.grabbing)releaseGrab();
   const knock=rs&&rs.ph==='round'&&t>=0&&(kind==='survival'||kind==='final')&&G.mode!=='practice';
   // practising a survival or the final: say how long you lasted and start it again
@@ -3226,7 +3257,7 @@ function focusEnt(){
 function updateCamera(dt){
   const rs=G.rs,L=G.L;if(!L)return;
   const t=now();
-  if(G.mode==='menu'){const a=t/1000*.07;camera.position.set(Math.sin(a)*24,11,Math.cos(a)*24+2);camera.lookAt(0,0,0);moveSun(0,0,0);return}
+  if(G.mode==='menu'){if(CL&&CL.cam(camera))return;const a=t/1000*.07;camera.position.set(Math.sin(a)*24,11,Math.cos(a)*24+2);camera.lookAt(0,0,0);moveSun(0,0,0);return}
   if(L.podium){const port=camera.aspect<1;camera.position.set(0,port?4.6:3.7,port?12.5:8.6);camera.lookAt(0,port?1.6:2,-1.5);moveSun(0,0,0);return}
   if(rs&&rs.ph==='round'){const rt=(t-rs.go)/1000;if(rt<-3.2&&rt>-9){flyCam(L,rt);return}if(rt<-3.2+.05&&me)camYaw=me.b.yaw+Math.PI}
   const f=focusEnt();if(!f){camera.position.set(0,20,25);camera.lookAt(0,0,0);return}
@@ -3531,13 +3562,15 @@ function step(dt,bg){
     e.bean.visible=!gone;if(gone)continue;
     const turn=angDiff(b.yaw,e.lastYaw||b.yaw)/Math.max(dt,1e-3);e.lastYaw=b.yaw;
     if(b.onGround&&(b.st==='move'||b.st==='slide')){const sp2=b.vel.x*b.vel.x+b.vel.z*b.vel.z;e.dustT=(e.dustT||0)-dt;if(sp2>(b.st==='slide'?4:26)&&e.dustT<=0&&camera.position.distanceToSquared(b.pos)<900){e.dustT=.14;PUFF.spawn(b.pos.x+rand(-.15,.15),b.pos.y+.06,b.pos.z+rand(-.15,.15),-b.vel.x*.12,.5,-b.vel.z*.12,.32,.7)}}
-    e.bean.update(b,dt,{turn,grab:e.isMe?!!b.grabbing:false,grabbed:e.isMe&&!!G.grabbedBy,cheer:e.cheer||(e.fin&&isRace(L))});
+    const cheer=e.cheer||(e.fin&&isRace(L));
+    e.bean.update(b,dt,{turn,grab:e.isMe?!!b.grabbing:false,grabbed:e.isMe&&!!G.grabbedBy,cheer});if(e.bean.kit)CL.tick(e,dt,cheer);
     // with 16 on the course, a bean a long way off is drawn without its hands and feet (they are a few pixels there)
     {const far=camera.position.distanceToSquared(b.pos)>1150;if(e.bean.far!==far){e.bean.far=far;for(const g of e.bean.arms)g.visible=!far;for(const g of e.bean.legs)g.visible=!far}}
     if(e.bean.tag){const d=camera.position.distanceTo(b.pos),k=clamp(d*.03,.26,.62);e.bean.tag.visible=!e.isMe&&G.mode!=='menu'&&d<40&&d>1.5;e.bean.tag.scale.set(k*4,k,1);e.bean.tag.position.y=1.55+k*.4+(e.bean.crown?.35:0)}
     if(gfx!=='high'||!e.bean.body.castShadow)e.bean.place(groundBelow(b.pos.x,b.pos.y+.5,b.pos.z,30),true);else e.bean.shadow.visible=false;
   }
   whooshes(dt);
+  if(CL)CL.frame(dt);
   FX.update(dt);PUFF.update(dt);
   updateCamera(dt);updateHud(dt);
   sky.position.set(camera.position.x,0,camera.position.z);hills.position.set(camera.position.x,21,camera.position.z);
@@ -3629,7 +3662,33 @@ if(navigator.webdriver)window.__ko={sanitizeRS,DBG,G,Net,onNode,onNodeGone,botTr
   advance(s){G.noRender=true;try{for(let i=0;i<Math.round(s*60);i++)step(1/60)}finally{G.noRender=false}},
   setAuto(v){G.auto=!!v;if(me&&v)me.ai=newAI(.95)},startSolo,startPractice,toMenu,goOnline,setRS,newShow,lobbyRS,nextRound,planShow,hostTick,now,roundT,renderer,scene,camera,render(){renderer.render(scene,camera)},showPause,resume,sfx,banner};
 if(navigator.webdriver&&window.__noRender)G.noRender=true;
+// ---- the Closet: fetching closet.js (see CLOSET_PUBLIC near the top) ----
+// What the closet is lent from this page. It only draws and plays sounds: nothing here lets it touch the physics or the show.
+function closetApi(){return{THREE,scene,camera,store,RAD,BODY_H,SKIN_W,SKIN_H,PXU,PXV,drawSkin,drawBody,drawFace,star,Bean,renderer,shade,rng,clamp,lerp,rand,pick,esc,FX,CONF,PUFF,sfx,moveSun,newBody,groundBelow,isRace,
+  KIT_LEN,kitOf,kitStr,COLORS,get THEME(){return THEME},get myLook(){return myLook},get me(){return me},get G(){return G},ents,get closetOn(){return closetOn()},
+  audio:()=>actx&&sfxBus&&!muted?{actx,sfxBus,tone,noise}:null,initAudio,
+  // the Closet changed this player's kit: wear it now, and tell the room
+  kitChanged(){if(me)dressEnt(me);if(G.mode==='online'&&Net.refs){const ck=kitStr(myKitNow());Net.ckSent=!!ck;Net.upd({ck:ck||null})}}}}
+function closetLoad(){
+  if(clAsked)return;clAsked=true;
+  loadScript('closet.js').then(()=>{CL=window.TumbleCloset(closetApi());closetSync()}).catch(e=>{clAsked=false;console.error(e)});
+}
+// who wears what: this player wears their own kit while closetOn(); a remote player what their node says; bots nothing
+function kitFor(e){if(e.isMe)return myKitNow();if(e.bot||e.local)return null;const o=Net.others.get(e.id);return o?kitOf(o.ck):null}
+function dressEnt(e){if(!CL)return;const k=kitFor(e);if(kitStr(k)!==kitStr(e.bean.kit))CL.dress(e.bean,k)}
+// Whether the Closet is open to this player can change after the page has loaded: a captain's account becomes known a
+// moment later, and goes away if they sign out. Off: the button goes, this player wears no kit and the room is told.
+function closetSync(){
+  if(closetOn())closetLoad();
+  if(!CL)return;
+  CL.menu(closetOn());
+  for(const e of ents.values())dressEnt(e);
+  if(G.mode==='online'&&Net.refs){const ck=kitStr(myKitNow());if(ck||Net.ckSent){Net.ckSent=!!ck;Net.upd({ck:ck||null})}}
+}
+if(CAPTAINS)CAPTAINS.onChange(closetSync);
+if(navigator.webdriver)Object.assign(window.__ko,{get CL(){return CL},closetLoad,closetSync,get closetOn(){return closetOn()},kitOf,kitStr,myKitNow,dressEnt});
 renderGfx();renderStats();showMenu();
+if(closetOn())closetLoad();
 requestAnimationFrame(t=>{last=t;frame(t)});
 })();
 </script>
