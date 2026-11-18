@@ -2753,6 +2753,9 @@ function endMatch(){
     $('endTitle').textContent=w<0?'A draw':w===player.team?'Your team wins!':TEAM[w].n+' team wins';
     $('endSub').textContent='Capture the flag on '+mapInfo().name+': '+TEAM[0].n+' '+a+' – '+b+' '+TEAM[1].n+'.'}
   fillTable($('endTable'),list);
+  // A tournament match (tournament.js, in the Back Room page around this one) takes its result from here: won when you
+  // finished ahead of every other real egg, nothing on a tie for first. Free-for-all online only.
+  if(online&&!mapCtf&&window.parent!==window)try{const hu=list.filter(x=>x.human||x.me),i=hu.findIndex(x=>x.me);if(hu.length>1&&i>=0&&!(hu[0].k===hu[1].k&&hu[0].d===hu[1].d))window.parent.postMessage({backroomMatch:1,game:'shell-crackers',room:Net.room||'',won:i===0},location.origin)}catch(e){}
   showEndRank(applyRating(list,false));
   $('hud').hidden=true;$('pause').hidden=true;$('end').hidden=false;
   $('again').disabled=false;$('again').textContent=online?'Next match now':'Play again';

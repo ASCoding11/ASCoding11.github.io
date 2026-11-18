@@ -121,6 +121,9 @@
   function report(o) {
     try {
       if (!o || !Array.isArray(o.opp) || busy) return Promise.resolve(null);
+      // Tell the page around the game (the Back Room's game layer) how the match went, for a tournament match in progress
+      // there (tournament.js checks the game and room). Same origin only; nothing else listens.
+      if (window.parent !== window) try { window.parent.postMessage({ backroomMatch: 1, game: GAME, room: location.hash.slice(1), won: !!o.won }, location.origin); } catch (e) {}
       var id = o.id == null ? null : String(o.id).slice(0, 120);
       if (id !== null && id === lastId) return Promise.resolve(null);   // this match was already rated here
       var opp = o.opp.filter(function (x) { return x && isFinite(+x.s); }).slice(0, 40).map(function (x) {

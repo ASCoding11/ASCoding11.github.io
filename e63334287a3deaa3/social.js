@@ -1084,7 +1084,7 @@
   var scan = { at: 0, busy: false, fr: null, cur: null };
   function partyGame(k) { var pg = null; if (P && P.games) P.games.forEach(function (x) { if (x.k === k) pg = x; }); return pg; }
   function roomCodes(gf, pg) {
-    var out = [], add = function (r) { r = String(r || '').toLowerCase(); if (r && ROOM.test(r) && !/^daily-/.test(r) && out.indexOf(r) < 0) out.push(r); };
+    var out = [], add = function (r) { r = String(r || '').toLowerCase(); if (r && ROOM.test(r) && !/^daily-/.test(r) && !/^tn[a-z0-9]{5}\d[0-9a-f]$/.test(r) && out.indexOf(r) < 0) out.push(r); };
     if (scan.cur && scan.cur.g === pg.k) add(scan.cur.r);
     try { var h = decodeURIComponent(gf.fr.contentWindow.location.hash.slice(1)); if (h.indexOf(pg.pre) === 0) add(h.slice(pg.pre.length)); } catch (e) {}
     var lr = P && P.room; if (lr && lr.k === pg.k) add(lr.r);
