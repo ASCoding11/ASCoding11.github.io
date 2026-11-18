@@ -137,6 +137,7 @@ details[open] summary::before{content:'− '}
 #restartHold{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);text-align:center;font-weight:800}
 #restartHold .ring{width:64px;height:64px;margin:0 auto 6px}
 /* slow motion: darker, cooler edges (opacity set by the game; only drawn while it's on) */
+#warpFx{position:absolute;inset:0;pointer-events:none;background:#06080f}
 #slowFx{position:absolute;inset:0;pointer-events:none;opacity:0;background:radial-gradient(ellipse 75% 70% at 50% 50%,rgba(20,32,70,0) 45%,rgba(14,22,52,.5) 85%,rgba(8,12,32,.72) 100%)}
 /* first person on computers: a small dot in the middle of the screen */
 #fpDot{position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:#fff;box-shadow:0 0 0 1.5px rgba(10,16,32,.75)}
@@ -243,6 +244,7 @@ body.touch #spec{bottom:calc(160px + env(safe-area-inset-bottom,0px))}
 <div id="app">
   <canvas id="view" aria-label="Updraft"></canvas>
   <div id="slowFx" aria-hidden="true"></div>
+  <div id="warpFx" aria-hidden="true" hidden></div>
 
   <div id="hud" hidden>
     <div id="altBox" class="sh">
@@ -1534,6 +1536,21 @@ function build(seed){
     const fr=mulberry(191),fp=a=>a[Math.floor(fr()*a.length)],fq=(a,b)=>a+(b-a)*fr();
     for(let z=5;z<10;z++){const Z=ZONES[z];for(let i=0;i<26;i++){const a=fr()*TAU,r=fq(80,200),y=fq(Z.y0+10,Z.y1+(z===9?80:0));dec({s:'far',k:fp(kinds[z-5]),x:Math.sin(a)*r,y,z:Math.cos(a)*r,sc:fq(.7,1.6)*(r/110),yaw:fq(0,6.3),tilt:fq(-.5,.5),col:fp(['#ffffff','#ffd36b','#9fd6ff','#ff9fd0'])})}}
   }
+  // The express lift (a secret, drawn and run by the page script; added after everything else, uses no random
+  // numbers, so nothing above moves): a plain door at the dead end of an alley on the far west side of the city,
+  // about 190 m from the start, where the block that closes the alley (its -z face) meets the one beside it, with
+  // two crates stacked in the corner. Holding the lift key in front of it takes you through a short dark ride
+  // straight to the Crown. It's the only secret that comes out above the route, so a run that uses it stops
+  // counting for best heights and times (the page script, `run.sc`).
+  {
+    const B=cols.find(q=>q.deco&&q.v==='facade'&&Math.hypot(q.x+158.8,q.z+36.6)<1),P=path[path.length-1];
+    if(B&&P&&P.summit===2){
+      const fz=B.z-(Math.abs(B.sn)*B.hx+Math.abs(B.cs)*B.hz),dx=-162.8;
+      add({t:'box',x:-165.55,z:fz-.9,top:1.7,h:1.7,w:1.7,d:1.7,yaw:.08,v:'crate2',col:'#8fa65a',surf:'wood'});
+      add({t:'box',x:-165.5,z:fz-.95,top:3.4,h:1.7,w:1.7,d:1.7,yaw:-.12,v:'crate2',col:'#c9955a',surf:'wood'});
+      secrets.express={door:[dx,fz],n:[0,-1],tg:[1,0],y0:0,face:B.id,top:P.path,exit:[0,P.y1,5],yaw:Math.PI};
+    }
+  }
   // Scenery that ended up in the way of a jump (or right over a platform) is taken out.
   {
     const W=World({cols,fans}),ck=check({path,cols,fans,W});const bad=new Set();
@@ -1608,6 +1625,11 @@ function check(course){
       for(const c of q){if(c===L||c.dyn||!footHit(c,p[0],p[2],C.R+.15))continue;const tp=topAt(c,p[0],p[2]);if(tp>p[1]+.02&&c.y0<p[1]+C.H){out.issues.push(['secret','updraft path blocked',c.id,c.v,c.path,+p[1].toFixed(1)]);break}}
     }
     if(L.y1>g.y1+130||L.dyn)out.issues.push(['secret','updraft lands too high or on a moving platform'])}
+  // the express lift: you come out on the Crown, and the street in front of its door is clear
+  if(SE.express){const X=SE.express,s=support(W,X.exit[0],X.exit[2],X.exit[1]-.3,X.exit[1]+.3),q=[];
+    if(!s||s[1].path!==X.top)out.issues.push(['secret','express exit is not on the Crown']);
+    for(const f of [.4,.75,1.6]){const x=X.door[0]+X.n[0]*f,z=X.door[1]+X.n[1]*f;W.query(x-.5,X.y0+.05,z-.5,x+.5,X.y0+C.H,z+.5,q);
+      for(const c of q)if(c.id!==X.face&&footHit(c,x,z,C.R)&&c.y0<X.y0+C.H&&c.y1>X.y0+.05){out.issues.push(['secret','express door blocked',c.id,c.v]);break}}}
   // headroom over every path platform
   for(const A of P){
     if(A.dyn||A.big||(A.y1>=SUMMIT-1&&A.y1<SUMMIT+.5)||A.y1>=TOP-1)continue;const q=[];
@@ -1893,6 +1915,7 @@ function sfx(kind,a,b){
   // the secrets: a door sliding, the lift's bell, the rush of the updraft catching you
   else if(kind==='door'){noise(.45,700,.8,.09,'lowpass',0,250);tone(110,.25,.03,'triangle')}
   else if(kind==='ding'){tone(1318,.9,.07,'sine');tone(1047,1.2,.06,'sine',null,.22)}
+  else if(kind==='express'){noise(2.4,160,.6,.16,'bandpass',0,2400);tone(70,2.4,.07,'sine',520)}
   else if(kind==='gust'){noise(1.6,300,.5,.3,'bandpass',0,2600);noise(.9,1800,.8,.12,'highpass',.1);tone(110,1.2,.06,'sine',330)}
   // beyond the beacon: thunder (quieter the farther the bolt), a gust coming, a cannon, a pulse platform about to go dark
   else if(kind==='thunder'){const v=clamp(1.4-(a||200)/300,.3,1);noise(2.4,160,.6,.32*v,'lowpass',0,60);noise(.5,900,.7,.1*v,'lowpass');tone(48,1.6,.12*v,'sine',32)}
@@ -2604,8 +2627,10 @@ function makeTag(name,color){
 const G={mode:'menu',paused:false,winShown:false,spec:null,hold:0,lastSave:0,shake:0,net:false,bot:null,stepDist:0,lastZone:0,pbShown:false,slow:0,timeScale:1};
 const START=PATH[0];
 let me=U.Body(START.x,START.y1,START.z);me.gnd=START;me.yaw=Math.PI/2;
-// run.mile: the run clock when you passed the old summit (0 until then); run.fin: when you reached the Crown
-const run={t:0,falls:0,jumps:0,maxY:0,fin:0,mile:0,zone:0};
+// run.mile: the run clock when you passed the old summit (0 until then); run.fin: when you reached the Crown;
+// run.sc: 1 once this run took the express lift (a secret shortcut to the Crown): from then on maxY stops rising and
+// nothing counts toward best height or times, and others online get only the height you climbed (m) until you restart
+const run={t:0,falls:0,jumps:0,maxY:0,fin:0,mile:0,zone:0,sc:0};
 // best: h best height; time and wins: fastest to the old summit (1000 m) and how many times (the `summit` and `summits`
 // stats, so times from before the course grew still compare); t2 and w2: the same for the Crown (`summit2`)
 const best=(b=>({h:num(b.h,0,0,TOP+5),time:num(b.time,0,0,1e7),wins:num(b.wins,0,0,1e6)|0,t2:num(b.t2,0,0,1e7),w2:num(b.w2,0,0,1e6)|0}))(Object(store.get('best',{})));
@@ -2649,7 +2674,8 @@ function loadRun(){
   if(!s||typeof s!=='object'||!isFinite(s.x)||!isFinite(s.y)||!isFinite(s.z))return false;
   me=placeSaved(s,clamp(+s.x,-400,400),clamp(+s.y,0,TOP+2)+.02,clamp(+s.z,-400,400));
   me.yaw=num(s.yaw,0,-1e4,1e4);me.falls=Math.max(0,s.falls|0);me.jumps=Math.max(0,s.jumps|0);
-  Object.assign(run,{t:num(s.t,0,0,1e7),falls:me.falls,jumps:me.jumps,maxY:Math.max(num(s.maxY,0,0,TOP+5),me.y),fin:num(s.fin,0,0,1e7),mile:num(s.mile,0,0,1e7),zone:U.zoneAt(me.y)});
+  const sc=s.sc?1:0;
+  Object.assign(run,{t:num(s.t,0,0,1e7),falls:me.falls,jumps:me.jumps,maxY:sc?num(s.maxY,0,0,TOP+5):Math.max(num(s.maxY,0,0,TOP+5),me.y),fin:num(s.fin,0,0,1e7),mile:num(s.mile,0,0,1e7),zone:U.zoneAt(me.y),sc});
   // a run saved before the course grew (no ver): reaching the top then was reaching the old summit, so that time is
   // the milestone's, and the run carries on from there with the clock where it stopped
   if(!s.ver&&run.fin){run.mile=run.fin;run.t=Math.max(run.t,run.fin);run.fin=0}
@@ -2659,6 +2685,7 @@ function loadRun(){
 // where the fall started too (so coming back mid-fall carries on with the same fall).
 function saveRun(){
   const o={ver:2,x:r2(me.x),y:r2(me.y),z:r2(me.z),yaw:r3(me.yaw),t:Math.round(run.t*10)/10,falls:me.falls,jumps:me.jumps,maxY:Math.round(run.maxY*10)/10,fin:run.fin,mile:run.mile};
+  if(run.sc)o.sc=1;   // took the express lift (only written when it did)
   const m=me.mantle,g=me.gnd;
   if(ride){const e=ride.ph[ride.ph.length-1].b;o.x=r2(e[0]);o.y=r2(e[1]);o.z=r2(e[2])}   // in the lift or on the stairs: where they come out
   else if(m){o.x=r2(m.tx);o.y=r2(m.ty);o.z=r2(m.tz)}   // halfway up a ledge: the top of it
@@ -2670,7 +2697,7 @@ function saveBest(){store.set('best',best)}
 function newRun(){
   me=U.Body(START.x,START.y1+.02,START.z);me.gnd=START;me.yaw=Math.PI/2;camYaw=Math.PI/2;camPitch=.3;
   if(ride){ride=null;setHum(false);for(const k in doorWant)doorWant[k]=0;if(myAv.root.parent!==scene)scene.add(myAv.root)}
-  Object.assign(run,{t:0,falls:0,jumps:0,maxY:0,fin:0,mile:0,zone:0});G.winShown=false;G.spec=null;G.pbShown=false;G.lastZone=0;
+  Object.assign(run,{t:0,falls:0,jumps:0,maxY:0,fin:0,mile:0,zone:0,sc:0});G.winShown=false;G.spec=null;G.pbShown=false;G.lastZone=0;
   saveRun();for(const k in hudCache)delete hudCache[k];
 }
 let hadRun=loadRun();
@@ -2780,27 +2807,30 @@ function updateCamera(dt,fdt){
 }
 
 // =====================================================================
-//  Secrets. Nothing in the game points to them (the README says where they are). Three rides:
+//  Secrets. Nothing in the game points to them (the README says where they are). Four rides:
 //  - the staff lift: hold the lift key (G; Jump on touch screens) for a second at the foot of the crane's
 //    mast, down on the street, and a cab rides up inside the mast to the top grate, skipping the spiral;
 //  - the service elevator: the same at a plain steel door at the foot of the top tower block, on the terrace
 //    round it on the side away from the crane (you come down onto that terrace off the jib); a cab rides up
 //    inside the block to a lift room on the roof, skipping the ledges round the block;
 //  - the hidden updraft: jump off the first stack of books on its far side, away from the tower, and a rising
-//    current a few metres out catches you and carries you about 100 m up, round the middle, onto a book on the route.
+//    current a few metres out catches you and carries you about 100 m up, round the middle, onto a book on the route;
+//  - the express lift: hold the lift key at a plain door at the dead end of an alley on the far west side of the
+//    city, down on the street; you walk in, the door shuts, a short dark ride, and you step out on the Crown. It's the
+//    only one that comes out above the route, so from then on the run doesn't count for records (`run.sc`).
 //  On a ride the climber follows a scripted path (`ride`) with the physics switched off, so there is nothing to
-//  fall off and slow motion never starts. Every ride comes out on the normal route, no higher than it. Positions are
+//  fall off and slow motion never starts. Every ride but the express comes out on the normal route, no higher than it. Positions are
 //  published during a ride like any other movement, so the others see it (a cab round anyone in the mast, the
 //  elevator's doors opening for anyone going through them, a climber tumbling up the updraft: pose 10). The course
 //  (`course.secrets`) says where they are; the colliders (the grate landing by the mast, the lift room on the roof)
 //  are in the course, so the checker and the climb bot see them, and `check` makes sure the updraft's path is clear.
-//  Found once per browser: updraft:secrets ({lift, elev, gust}; an old save's `roof`, from back stairs that are gone
+//  Found once per browser: updraft:secrets ({lift, elev, gust, express}; an old save's `roof`, from back stairs that are gone
 //  now, is just ignored), and the first find of each adds 1 to a 'secrets' stat (stats.js).
 // =====================================================================
 const SEC=course.secrets||{};
 const secretsFound=Object(store.get('secrets',{}));
 let ride=null,rideCamEnd=null,cabY=SEC.lift?SEC.lift.y0:0,cabWant=cabY,cabBackT=0,ecabY=SEC.elev?SEC.elev.y0:0;
-const doorWant={lift:0,cab:0,ef:0,eb:0},doorK={lift:0,cab:0,ef:0,eb:0},doorOther={ef:0,eb:0};
+const doorWant={lift:0,cab:0,ef:0,eb:0,xd:0},doorK={lift:0,cab:0,ef:0,eb:0,xd:0},doorOther={ef:0,eb:0,xd:0};
 const inScene=new THREE.Scene();inScene.add(new THREE.HemisphereLight(0xfff4e0,0x3a3630,1.05));
 const inSun=new THREE.DirectionalLight(0xffffff,.35);inSun.position.set(.3,1,.5);inScene.add(inSun);
 const LM=(c,map)=>new THREE.MeshLambertMaterial({color:c,map:map||null});
@@ -2873,6 +2903,21 @@ const secretMesh={};
     }
     cab.leaves=leaves;inScene.add(cab);secretMesh.ecab=cab;
   }
+  const X=SEC.express;
+  if(X){
+    // a plain service door in the alley's end wall: a frame, a dark doorway, two dull green leaves that slide apart, a
+    // kick plate, and a small caged bulb over it (no sign: it's a secret; the bulb is what catches your eye down the alley)
+    const g=new THREE.Group();g.position.set(X.door[0],X.y0,X.door[1]);g.rotation.y=Math.atan2(X.n[0],X.n[1]);
+    const fr=LM('#4a4f4c'),lf=LM('#5f6f62'),lfD=LM('#46544a'),B=course.cols.find(q=>q.id===X.face);
+    g.add(bx(LM(shade(B?B.col:'#86766a',1.1),T.concrete),2.1,3,.02,0,1.5,.01));   // a plain panel round it (the facade's windows come down to the street)
+    g.add(bx(fr,1.5,.1,.08,0,2.32,.04));g.add(bx(fr,.1,2.36,.08,-.7,1.18,.04));g.add(bx(fr,.1,2.36,.08,.7,1.18,.04));g.add(bx(fr,1.5,.05,.12,0,.025,.06));
+    const dw=new THREE.Mesh(new THREE.PlaneGeometry(1.3,2.27),LMB('#0b0c10'));dw.position.set(0,1.135,.024);g.add(dw);
+    const leaf=x=>{const l=new THREE.Group();l.position.set(x,0,.05);l.add(bx(lf,.65,2.25,.04,0,1.125,0));l.add(bx(lfD,.58,.3,.05,0,.2,0));l.add(bx(lfD,.04,.04,.06,x<0?.26:-.26,1.05,.01));g.add(l);return l};
+    const l1=leaf(-.325),l2=leaf(.325);
+    g.add(bx(fr,.34,.05,.24,0,2.62,.12));g.add(bx(LMB('#ffe2a0'),.13,.13,.13,0,2.53,.15));
+    for(const s of [-1,1])g.add(bx(fr,.02,.17,.02,s*.08,2.53,.23));
+    scene.add(g);secretMesh.xDoor={g,l1,l2};
+  }
 })();
 // where the player goes on each ride, in order: name, seconds, from, to (x, y, z), facing from/to, eased or steady
 function ridePlan(kind){
@@ -2901,6 +2946,15 @@ function ridePlan(kind){
     P('ride',clamp((E.y1-E.y0)/8,5.6,12),c0,c1,yin,null,true);
     P('ding',.7,c1,c1,yin);P('out',1,c1,out,yin);
     const nx=PATH[E.roof+1];if(nx)P('face',.45,out,out,yin,Math.atan2(nx.x-out[0],nx.z-out[2]));
+  }else if(kind==='express'){
+    // up to the door, open it, step into the dark doorway, it shuts behind you, a dark rush upward (the screen goes
+    // black, then white), and you're standing on the Crown facing its sign
+    const X=SEC.express,n=X.n,yin=Math.atan2(-n[0],-n[1]);
+    const F=[X.door[0]+n[0]*.75,X.y0,X.door[1]+n[1]*.75],I=[X.door[0]-n[0]*.9,X.y0,X.door[1]-n[1]*.9],A=X.exit;
+    const d=Math.hypot(F[0]-here[0],F[2]-here[2]);
+    if(d>.05||Math.abs(here[1]-F[1])>.05)P('in',Math.max(.3,d/3),here,F,d>.05?Math.atan2(F[0]-here[0],F[2]-here[2]):me.yaw);
+    P('open',.6,F,F,ph.length?ph[ph.length-1].ya:me.yaw,yin);P('enter',.9,F,I,yin);P('close',.55,I,I,yin);
+    P('rise',2.4,I,I,yin);P('warp',1.6,A,A,X.yaw);
   }else{
     // the updraft: a short dip as it catches you, then along its path (a smooth curve, at an eased pace, so it settles
     // you onto the book at the end), tumbling on the way up
@@ -2925,6 +2979,8 @@ function liftSpot(){
   const L=SEC.lift;if(L&&me.y-L.y0<4&&me.y-L.y0>-.5&&Math.max(Math.abs(me.x-L.mx),Math.abs(me.z-L.mz))<L.r)return 'lift';
   const E=SEC.elev;
   if(E&&me.y-E.y0>-.3&&me.y-E.y0<2.2){const dx=me.x-E.door[0],dz=me.z-E.door[1],a=dx*E.n[0]+dz*E.n[1],b=dx*E.tg[0]+dz*E.tg[1];if(a>-.1&&a<2.4&&Math.abs(b)<1.5)return 'elev'}
+  const X=SEC.express;
+  if(X&&me.y-X.y0>-.3&&me.y-X.y0<2.2){const dx=me.x-X.door[0],dz=me.z-X.door[1],a=dx*X.n[0]+dz*X.n[1],b=dx*X.tg[0]+dz*X.tg[1];if(a>-.1&&a<2.4&&Math.abs(b)<1.4)return 'express'}
   return null;
 }
 // Falling into the updraft's column off the first stack of books: the last thing you stood on was the stack's top
@@ -2937,7 +2993,7 @@ function inGust(){
 }
 let liftHoldT=0,liftHoldK=null;
 const LIFT_HOLD=1;
-const RIDE_NAME={lift:'the staff lift',elev:'the service elevator',gust:'the hidden updraft'};
+const RIDE_NAME={lift:'the staff lift',elev:'the service elevator',gust:'the hidden updraft',express:'the express lift'};
 function startRide(kind){
   if(ride||!SEC[kind])return false;
   ride={kind,ph:ridePlan(kind),i:-1,t:0,gnd:me.gnd};
@@ -2945,6 +3001,9 @@ function startRide(kind){
   if(kind==='lift'){cabY=cabWant=SEC.lift.y0;cabBackT=0}   // the cab is waiting at the bottom (even if someone just rode it up)
   if(kind==='elev')ecabY=SEC.elev.y0;
   if(kind==='gust'){sfx('gust');puff(me.x,me.y+.6,me.z,22,0xffffff,2.4);G.shake=Math.max(G.shake,.35)}
+  // the express skips the whole climb: from here on this run doesn't count for best heights or times (run.sc,
+  // saved with the run straight away, so reloading mid-ride doesn't get round it)
+  if(kind==='express'){run.sc=1;saveRun()}
   foundSecret(kind,RIDE_NAME[kind]);
   enterPhase();
   if(!fpOn()&&kind!=='gust'){rideCamEnd=null;ride.cam=camera.position.clone()}
@@ -2953,9 +3012,16 @@ function startRide(kind){
 function enterPhase(){
   const r=ride;r.i++;r.t=0;
   if(r.i>=r.ph.length){endRide();return}
-  const n=r.ph[r.i].n,el=r.kind==='elev';
-  if(n==='open'){sfx('door');if(el)doorWant.ef=1;else doorWant.lift=doorWant.cab=1}
-  else if(n==='close'){if(el)doorWant.ef=0;else doorWant.lift=doorWant.cab=0;sfx('door');setHum(true)}
+  const n=r.ph[r.i].n,el=r.kind==='elev',xp=r.kind==='express';
+  if(n==='open'){sfx('door');if(el)doorWant.ef=1;else if(xp)doorWant.xd=1;else doorWant.lift=doorWant.cab=1}
+  else if(n==='close'){if(el)doorWant.ef=0;else if(xp)doorWant.xd=0;else doorWant.lift=doorWant.cab=0;sfx('door');setHum(true)}
+  else if(n==='rise'){sfx('express');G.shake=Math.max(G.shake,.25)}
+  else if(n==='warp'){
+    // the jump to the Crown, all at once while the screen is white: the body, the step it's drawn from, and both
+    // cameras go with it (others see a jump of more than 25 m, which they draw as a fresh start, not a streak)
+    const p=r.ph[r.i].a;me.x=p[0];me.y=p[1];me.z=p[2];me.yaw=me.yawWant=r.ph[r.i].ya;prevP.x=me.x;prevP.y=me.y;prevP.z=me.z;
+    camYaw=me.yaw;camPitch=fpOn()?.05:.3;camPivot.set(me.x,me.y+1.45,me.z);r.cam=null;
+    setHum(false);sfx('ding');puff(me.x,me.y+.4,me.z,18,0xfff4d6,2)}
   else if(n==='ding'){setHum(false);sfx('ding');if(el)doorWant.eb=1;else doorWant.cab=1}
 }
 function endRide(){
@@ -2963,11 +3029,13 @@ function endRide(){
   let g=null;
   if(r.kind==='lift'){g=PATH.find(c=>c.v==='grate'&&c.hx===1.7&&Math.abs(c.y1-L.y1)<.01)||null;doorWant.cab=0;cabBackT=performance.now()+6000}
   else if(r.kind==='elev'){g=PATH[SEC.elev.roof]||null;doorWant.eb=0}
+  else if(r.kind==='express'){g=PATH[SEC.express.top]||null}
   else{g=PATH[SEC.gust.land]||null;sfx('land',8,g&&g.surf);puff(me.x,me.y,me.z,10)}
   const s=U.support(W,me.x,me.z,me.y-.5,me.y+.5);if(s)me.y=s[0];
   me.gnd=(s&&s[1])||g||r.gnd;me.lastLand=me.gnd;me.vx=me.vy=me.vz=0;me.landT=0;me.impact=r.kind==='gust'?8:0;me.peakY=me.fallFrom=me.y;me.yawWant=me.yaw;
   if(!fpOn()&&r.kind!=='gust'){camYaw=clearYaw(me.yaw);camPitch=.3;camPivot.set(me.x,me.y+1.45,me.z);rideCamEnd={p:camera.position.clone(),t:performance.now()}}
   if(myAv.root.parent!==scene)scene.add(myAv.root);
+  if(r.kind==='express'){G.toastHold=performance.now()+5000;toast('The Crown · 3,000 m','You took a shortcut, so this run no longer counts for best height or times. '+(isTouch?'Restart from the pause menu':'Hold '+KB.short('restart'))+' for one that does.',6);feed('Shortcut: this run won\'t count for records')}
   saveRun();
 }
 // a camera direction near `y` with a clear view of the climber (the mast or the lift room is right behind
@@ -2999,7 +3067,7 @@ function rideStep(dt){
     if(r.t>=ph.dur)enterPhase();
     return;
   }
-  const walk=ph.n==='in'||ph.n==='out';
+  const walk=ph.n==='in'||ph.n==='out'||ph.n==='enter';
   me.x=ph.a[0]+(ph.b[0]-ph.a[0])*e;me.y=ph.a[1]+(ph.b[1]-ph.a[1])*e;me.z=ph.a[2]+(ph.b[2]-ph.a[2])*e;
   me.vx=walk?(ph.b[0]-ph.a[0])/ph.dur:0;me.vz=walk?(ph.b[2]-ph.a[2])/ph.dur:0;me.vy=0;
   me.yaw=ph.ya+angDiff(ph.yb,ph.ya)*clamp(k*2.2,0,1);me.yawWant=me.yaw;
@@ -3014,6 +3082,10 @@ function updateSecrets(dt){
   if(E)for(const [,o] of others){if(!o.live())continue;const e=o.ent,dx=e.x-E.cab[0],dz=e.z-E.cab[1],a=dx*E.n[0]+dz*E.n[1];
     if(Math.abs(dx*E.tg[0]+dz*E.tg[1])>1.4)continue;
     if(Math.abs(e.y-E.y0)<1&&a>-1.4&&a<E.D/2+.45)doorOther.ef=1;else if(Math.abs(e.y-E.y1)<1&&a>-E.D/2-.45&&a<1.4)doorOther.eb=1}
+  // the express door opens for anyone else walking up to it, and shuts once they're through
+  const X=SEC.express;doorOther.xd=0;
+  if(X)for(const [,o] of others){if(!o.live())continue;const e=o.ent,dx=e.x-X.door[0],dz=e.z-X.door[1],a=dx*X.n[0]+dz*X.n[1];
+    if(e.y<X.y0+1&&a>-.2&&a<1.3&&Math.abs(dx*X.tg[0]+dz*X.tg[1])<1){doorOther.xd=1;break}}
   for(const key in doorK)doorK[key]+=(Math.max(doorWant[key],doorOther[key]||0)-doorK[key])*k;
   if(M.liftDoor){M.liftDoor.l1.position.z=-.26-doorK.lift*.5;M.liftDoor.l2.position.z=.26+doorK.lift*.5;
     M.cab.leaves[0].position.z=-.28-doorK.cab*.55;M.cab.leaves[1].position.z=.28+doorK.cab*.55;
@@ -3029,6 +3101,14 @@ function updateSecrets(dt){
     const lv=M.ecab.leaves;lv.ef[0].position.x=-.31-f*.6;lv.ef[1].position.x=.31+f*.6;lv.eb[0].position.x=-.31-b*.6;lv.eb[1].position.x=.31+b*.6;
     M.ecab.position.y=ecabY;
   }
+  if(M.xDoor){const f=doorK.xd;M.xDoor.l1.position.x=-.325-f*.64;M.xDoor.l2.position.x=.325+f*.64}
+  // the express ride's screen: darkening as the door shuts behind you, black turning to white on the way up, and
+  // white clearing again on the Crown
+  let wf=0,wc=0;
+  if(ride&&ride.kind==='express'&&G.mode==='play'){const ph=ride.ph[ride.i],k=clamp(ride.t/ph.dur,0,1);
+    if(ph.n==='enter')wf=k*.8;else if(ph.n==='close')wf=.8+.2*k;else if(ph.n==='rise'){wf=1;wc=k*k*k}else if(ph.n==='warp'){const q=clamp((k-.15)/.85,0,1);wf=1-q*q*(3-2*q);wc=1}}
+  const wk=wf.toFixed(2)+'|'+wc.toFixed(2);
+  if(wk!==secretMesh.warp){secretMesh.warp=wk;const el=$('warpFx');el.hidden=!wf;if(wf){el.style.opacity=wf.toFixed(2);el.style.background='rgb('+Math.round(6+249*wc)+','+Math.round(8+242*wc)+','+Math.round(15+225*wc)+')'}}
   // the lift and the elevator: hold the lift key (or Jump on a touch screen) for a second on the spot
   const spot=liftSpot(),hold=!!spot&&(KB.held('lift',keys)||isTouch&&!!tAct.jump);
   if(spot!==liftHoldK){liftHoldK=spot;liftHoldT=0}
@@ -3064,6 +3144,10 @@ function rideCamera(dt){
     // pulled in if a step of the spiral is in the way (from just outside the mast's face, never from inside it)
     const ox=L.mx+.9,oy=cabY+1.2,oz=L.mz+1.25,dx=_rc.x-ox,dy=_rc.y-oy,dz=_rc.z-oz,len=Math.hypot(dx,dy,dz);
     const t=rayHit(ox,oy,oz,dx/len,dy/len,dz/len,len);if(t<len){const f=Math.max(1.2,t-.3)/len;_rc.set(ox+dx*f,oy+dy*f,oz+dz*f)}}
+  else if(r.kind==='express'){const X=SEC.express;
+    // at the door: from out in the alley, looking at it; on the Crown: just behind you
+    if(r.ph[r.i].n==='warp'){const s=Math.sin(me.yaw),c=Math.cos(me.yaw);_rc.set(me.x-s*4.5,me.y+2.5,me.z-c*4.5);_rt.set(me.x,me.y+1.2,me.z)}
+    else{_rc.set(X.door[0]+X.n[0]*4.6+X.tg[0]*1.2,X.y0+2.3,X.door[1]+X.n[1]*4.6+X.tg[1]*1.2);_rt.set(X.door[0],X.y0+1.1,X.door[1])}}
   else{const E=SEC.elev,n=E.n,tg=E.tg,c=E.cab,lz=(me.x-c[0])*n[0]+(me.z-c[1])*n[1],lx=(me.x-c[0])*tg[0]+(me.z-c[1])*tg[1];
     const inCab=lz<E.D/2-.1,cz=inCab?Math.min(lz+2.6,1):lz+2.6,cx=inCab?.85:.3;   // in the cab: up in a front corner
     _rc.set(c[0]+n[0]*cz+tg[0]*cx,me.y+(inCab?2.15:1.8),c[1]+n[1]*cz+tg[1]*cx);_rt.set(me.x,me.y+.95,me.z)}
@@ -3085,7 +3169,7 @@ const KB=Keybinds.create({
     {id:'sprint',label:'Sprint',note:'Hold',group:'Move',keys:['ShiftLeft']},
     {id:'walk',label:'Walk slowly',note:'Hold, for narrow beams',group:'Move',keys:['KeyC']},
     {id:'slowmo',label:'Slow motion',note:'Hold',group:'Move',keys:['KeyF']},
-    {id:'lift',label:'Hold to use',note:'Hold for a second',group:'Move',ctx:'door',keys:['KeyG']},   // the staff lift and the service elevator (secrets: the label says nothing about them)
+    {id:'lift',label:'Hold to use',note:'Hold for a second',group:'Move',ctx:'door',keys:['KeyG']},   // the staff lift, the service elevator and the express lift (secrets: the label says nothing about them)
     {id:'view',label:'First / third person',note:'Zooming all the way in switches too',group:'Camera',keys:['KeyV']},
     {id:'zoomIn',label:'Camera closer',group:'Camera',keys:['Equal','KeyE']},
     {id:'zoomOut',label:'Camera farther',group:'Camera',keys:['Minus','KeyQ']},
@@ -3211,7 +3295,7 @@ function stepOnce(){
   prevP.x=me.x;prevP.y=me.y;prevP.z=me.z;prevP.b=me;
   if(ride)rideStep(C.DT);else{U.step(W,me,i,C.DT);if(inGust())startRide('gust')}
   if(G.mode==='play'&&!run.fin&&!G.paused)run.t+=C.DT;
-  if(me.y>run.maxY)run.maxY=me.y;
+  if(me.y>run.maxY&&!run.sc)run.maxY=me.y;   // after the express lift (run.sc) the height you climbed is all that counts
   for(const e of W.ev)onEvent(e);
   // footsteps
   if(me.gnd&&!me.mantle){const s=Math.hypot(me.vx,me.vz)*C.DT;G.stepDist+=s;const stride=inp.sprint&&Math.hypot(me.vx,me.vz)>C.WALK+.2?1.05:.78;if(G.stepDist>stride){G.stepDist=0;sfx('step',me.gnd.surf,clamp(Math.hypot(me.vx,me.vz)/6,.4,1))}}
@@ -3278,8 +3362,9 @@ function physics(dt){
 }
 function afterSteps(dt){
   // the old summit (a milestone now) and the top
-  if(me.gnd&&me.gnd.summit===1&&!run.mile&&!run.fin){run.mile=Math.max(.1,run.t);onMilestone()}
-  if(me.gnd&&me.gnd.summit===2&&!run.fin){run.fin=Math.max(.1,run.t);onSummit()}
+  // (not on a run that took the express lift: you didn't climb there)
+  if(me.gnd&&me.gnd.summit===1&&!run.mile&&!run.fin&&!run.sc){run.mile=Math.max(.1,run.t);onMilestone()}
+  if(me.gnd&&me.gnd.summit===2&&!run.fin&&!run.sc){run.fin=Math.max(.1,run.t);onSummit()}
   // standing on a pulse platform that's about to go dark: it ticks
   if(me.gnd&&me.gnd.kind==='blink'){const c=me.gnd,left=(c.blink.on-U.blinkU(c,W.t))*c.blink.T,q=Math.floor(left*4);if(left<1.2&&q!==G.tickQ){G.tickQ=q;sfx('tick')}}
   // a new zone (the new ones say what's special about them; not over the old summit's banner: it waits)
@@ -3357,12 +3442,14 @@ function renderBoard(){
   let md=bar.querySelector('.dot.me');if(!md){md=document.createElement('div');md.className='dot me';bar.appendChild(md)}md.style.background=myColor;md.style.bottom=clamp(me.y/TOP*100,0,100)+'%';
   for(const [id,o] of others)if(o.dot&&!want.has(id)){o.dot.remove();o.dot=null}
   if(!on)return;
-  const rows=[{id:Net.uid||'me',n:(myName||'You'),c:myColor,y:me.y,f:run.fin,me:1}];
-  for(const [id,o] of others)if(o.live())rows.push({id,n:o.n,c:o.c,y:o.ent.y,f:o.f});
-  rows.sort((a,b)=>(b.f?1e6-b.f:b.y)-(a.f?1e6-a.f:a.y));
-  const key=rows.map(r=>r.id+Math.floor(r.y)+r.f+r.n).join('|');if(hudCache.board===key)return;hudCache.board=key;
+  // sc: someone well above the highest point they've climbed (m) took the express lift, so they're ranked by m
+  const rows=[{id:Net.uid||'me',n:(myName||'You'),c:myColor,y:me.y,f:run.fin,me:1,sc:run.sc&&me.y>run.maxY+2,m:run.maxY}];
+  for(const [id,o] of others)if(o.live())rows.push({id,n:o.n,c:o.c,y:o.ent.y,f:o.f,sc:o.ent.y>(o.m||0)+3,m:o.m||0});
+  const rk=r=>r.f?1e6-r.f:r.sc?r.m:r.y;
+  rows.sort((a,b)=>rk(b)-rk(a));
+  const key=rows.map(r=>r.id+Math.floor(r.y)+r.f+r.n+(r.sc?'s':'')).join('|');if(hudCache.board===key)return;hudCache.board=key;
   setText('boardTitle',Net.isPublic?'Public room':'Room '+(Net.room||'up-test').replace(/^up-/,''));setText('boardN',rows.length+'/'+MAX_ROOM);
-  $('boardList').innerHTML=rows.map((r,i)=>'<li class="'+(r.me?'me':'')+'"><span class="r">'+(i+1)+'</span><span class="d" style="background:'+r.c+'"></span><span class="n">'+esc(r.n)+(r.me?' (you)':'')+'</span><span class="h">'+(r.f?'★ '+fmtT(r.f):Math.floor(Math.max(0,r.y))+' m')+'</span></li>').join('');
+  $('boardList').innerHTML=rows.map((r,i)=>'<li class="'+(r.me?'me':'')+'"><span class="r">'+(i+1)+'</span><span class="d" style="background:'+r.c+'"></span><span class="n">'+esc(r.n)+(r.me?' (you)':'')+'</span><span class="h">'+(r.f?'★ '+fmtT(r.f):r.sc?'shortcut':Math.floor(Math.max(0,r.y))+' m')+'</span></li>').join('');
 }
 
 // =====================================================================
