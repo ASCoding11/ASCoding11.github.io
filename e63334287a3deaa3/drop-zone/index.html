@@ -724,7 +724,7 @@ const detailTex=(()=>{
 // code and laid on in metres, so planks, bricks and ribs are the same size on every wall. A layer is mostly a pale
 // pattern that the wall's paint (its vertex colour) tints; where its alpha is 0 it keeps its own colour (mortar, nail
 // heads, hazard stripes). One read a pixel on both looks. Needs WebGL 2; without it the island keeps its plain paint.
-const TX={PV:1,PH:2,BR:3,ST:4,CO:5,CN:6,SH:7,LG:8,TI:9,GR:10,GL:11,PN:12,HY:13,SN:14,HZ:15};
+const TX={PV:1,PH:2,BR:3,ST:4,CO:5,CN:6,SH:7,LG:8,TI:9,GR:10,GL:11,PN:12,HY:13,SN:14,HZ:15,RK:16,BK:17,LV:18};
 const KIT_TEX=(()=>{
   if(!renderer.capabilities.isWebGL2||!THREE.DataTexture2DArray)return null;
   const N=matchMedia('(pointer: coarse)').matches?128:256,K=256/N,h=lhash,o=[0,0,0,1];
@@ -766,7 +766,16 @@ const KIT_TEX=(()=>{
     // stone blocks, 1 m x 50 cm
     (x,y)=>{const r=y>>6,X=(x+(r&1)*64)&255,fx=X&127,fy=y&63;if(fx<3||fy<3)return set(.52);set((.76+.24*h(X>>7,r,33))*(.95+.07*h(x,y,34))*(fx<7||fy<7?.9:1)*(.96+.08*(sm(x,y,32,35)-.5)))},
     // hazard stripes
-    (x,y)=>{if(((x+y)&63)<32)set(1,1,.8,.14,0);else set(1,.13,.13,.15,0)}
+    (x,y)=>{if(((x+y)&63)<32)set(1,1,.8,.14,0);else set(1,.13,.13,.15,0)},
+    // (audit, November 2026) natural rock for rocks and boulders: broad mottling, grain, winding cracks, small pits and
+    // pale patches of lichen in its own colour
+    (x,y)=>{const m=sm(x,y,64,40),c=Math.abs(sm(x,y,48,43)-.5),c2=Math.abs(sm(x+90,y,24,44)-.5),L=sm(x,y,40,45);
+      let v=.84+.18*m+.1*(sm(x,y,16,41)-.5)+.08*(h(x,y,42)-.5);if(c<.016)v*=.6;else if(c<.03)v*=.86;if(c2<.01)v*=.75;if(h(x>>2,y>>2,46)>.985)v*=.72;
+      if(L>.77&&h(x>>1,y>>1,47)>.35){const k=.92+.08*h(x,y,48);return set(k,.7,.72,.56,0)}set(v)},
+    // bark: wavy upright ridges with dark furrows
+    (x,y)=>{const w=x+28*(sm(x,y,64,49)-.5),f=((w%22)+22)%22/22;set((.62+.38*Math.pow(Math.sin(f*3.1416),.6))*(.88+.12*h(x>>2,y>>4,50))*(.95+.1*(sm(x,y,32,51)-.5)))},
+    // leaves: lit clumps and shaded gaps, with a fine speckle
+    (x,y)=>{const a=sm(x,y,20,52),b=sm(x+40,y+70,9,53);let v=.84+.22*(sm(x,y,64,54)-.5);v*=a>.6?1.1:a<.34?.82:1;v*=b>.66?1.06:b<.3?.92:1;set(v*(.93+.1*h(x,y,55)))}
   ];
   const NL=F.length,D=new Uint8Array(N*N*4*NL);
   for(let l=0;l<NL;l++)for(let j=0;j<N;j++)for(let i=0;i<N;i++){F[l](Math.floor((i+.5)*K),Math.floor((j+.5)*K));const q=((l*N+j)*N+i)*4;
@@ -1382,13 +1391,13 @@ function fence(x0,z0,x1,z1){
 const CYL=new THREE.CylinderGeometry(1,1,1,9,1).toNonIndexed(),CONE=new THREE.ConeGeometry(1,1,7,1).toNonIndexed(),ICO=new THREE.IcosahedronGeometry(1,0).toNonIndexed(),DODE=new THREE.DodecahedronGeometry(1,0).toNonIndexed();
 function shape(geo,x,y,z,sx,sy,sz,hex,ry,shade,B){_e.set(0,ry||0,0);_q.setFromEuler(_e);_m4.compose(_p.set(x,y,z),_q,_s.set(sx,sy,sz));bagAdd(B||chunkOf(x,z),geo,_m4,hex,shade||1)}
 function pine(x,z,s){brk(170,14,()=>pine0(x,z,s))}
-function pine0(x,z,s){s=s||1;shape(CYL,x,1.4*s,z,.32*s,2.8*s,.32*s,0x6b4a2f);const g=[0x2f7a3f,0x357f45,0x2a6b3a][Math.floor(Math.random()*3)];
-  shape(CONE,x,4.3*s,z,2.3*s,4*s,2.3*s,g,Math.random()*3);shape(CONE,x,6.6*s,z,1.6*s,3.2*s,1.6*s,g,Math.random()*3,1.08);solid(x-.42*s,0,z-.42*s,x+.42*s,5*s,z+.42*s,14)}
+function pine0(x,z,s){s=s||1;const l0=LAY;LAY=TX.BK;shape(CYL,x,1.4*s,z,.32*s,2.8*s,.32*s,0x6b4a2f);const g=[0x2f7a3f,0x357f45,0x2a6b3a][Math.floor(Math.random()*3)];
+  LAY=TX.LV;shape(CONE,x,4.3*s,z,2.3*s,4*s,2.3*s,g,Math.random()*3);shape(CONE,x,6.6*s,z,1.6*s,3.2*s,1.6*s,g,Math.random()*3,1.08);LAY=l0;solid(x-.42*s,0,z-.42*s,x+.42*s,5*s,z+.42*s,14)}
 function oak(x,z,s){brk(170,14,()=>oak0(x,z,s))}
-function oak0(x,z,s){s=s||1;shape(CYL,x,1.5*s,z,.38*s,3*s,.38*s,0x70502f);const g=[0x4f9a3c,0x5aa645,0x478f35][Math.floor(Math.random()*3)];
-  shape(ICO,x,4.4*s,z,2.6*s,2.2*s,2.6*s,g,Math.random()*3);shape(ICO,x+.9*s,5.3*s,z-.4*s,1.6*s,1.5*s,1.6*s,g,Math.random()*3,1.08);solid(x-.48*s,0,z-.48*s,x+.48*s,4*s,z+.48*s,14)}
-function rock(x,z,s,hex){let r;brk(Math.round(80+60*s),6,()=>{shape(DODE,x,s*.55,z,s,s*.8,s*.9,hex||0x8b8f94,Math.random()*3);const k=s*.72;r=solid(x-k,0,z-k,x+k,s*1.15,z+k,6)});return r}
-function bush(x,z,s){shape(ICO,x,.5*s,z,1.1*s,.8*s,1.1*s,0x3f8a39,Math.random()*3)}
+function oak0(x,z,s){s=s||1;const l0=LAY;LAY=TX.BK;shape(CYL,x,1.5*s,z,.38*s,3*s,.38*s,0x70502f);const g=[0x4f9a3c,0x5aa645,0x478f35][Math.floor(Math.random()*3)];
+  LAY=TX.LV;shape(ICO,x,4.4*s,z,2.6*s,2.2*s,2.6*s,g,Math.random()*3);shape(ICO,x+.9*s,5.3*s,z-.4*s,1.6*s,1.5*s,1.6*s,g,Math.random()*3,1.08);LAY=l0;solid(x-.48*s,0,z-.48*s,x+.48*s,4*s,z+.48*s,14)}
+function rock(x,z,s,hex){let r;brk(Math.round(80+60*s),6,()=>{const l0=LAY;LAY=TX.RK;shape(DODE,x,s*.55,z,s,s*.8,s*.9,hex||0x8b8f94,Math.random()*3);LAY=l0;const k=s*.72;r=solid(x-k,0,z-k,x+k,s*1.15,z+k,6)});return r}
+function bush(x,z,s){const l0=LAY;LAY=TX.LV;shape(ICO,x,.5*s,z,1.1*s,.8*s,1.1*s,0x3f8a39,Math.random()*3);LAY=l0}
 
 /* ---------- Gullrock Isle: seven places joined by dirt tracks ---------- */
 // Coordinates are metres from the island's north-west corner (x east, z south). Builds and buildings share the 4 m grid,
