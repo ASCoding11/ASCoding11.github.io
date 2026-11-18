@@ -4254,7 +4254,12 @@ function editTarget(){
   if(!player.alive||player.st!=='ground')return null;
   const f=fwdOf(player.yaw,player.pitch),st=camera.position.clone().addScaledVector(f,camDist);
   const one=d=>{const r=raycast(arr(st),arr(d),EDIT_RANGE,player,false);return r.hit&&r.hit.kind==='piece'?r.hit.piece:null};
-  const pc=one(f);if(pc)return pc;
+  const o=arr(st),dd=arr(f),r=raycast(o,dd,EDIT_RANGE,player,false);let pc=r.hit&&r.hit.kind==='piece'?r.hit.piece:null,best=r.t;
+  // through an opening in an edited build of yours (a door you want to close): the whole piece's outline counts
+  for(const q of pieces.values()){if(!q.ed||!canEdit(q))continue;const w=q.whole||(q.whole=pieceShape(q.spec,0));
+    for(const b of w.boxes){const t=rayBox(o,dd,b.min,b.max,best);if(t>=0&&t<best){best=t;pc=q}}
+    for(const rp of w.rps){const t=rayRamp(o,dd,rp,best);if(t>=0&&t<best){best=t;pc=q}}}
+  if(pc)return pc;
   for(const [a,b] of EDIT_FAN){const q=one(fwdOf(player.yaw+a,clamp(player.pitch+b,-1.5,1.5)));if(canEdit(q))return q}
   return null;
 }
