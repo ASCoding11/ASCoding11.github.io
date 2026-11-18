@@ -333,12 +333,12 @@ details.how[open] summary::before{content:'– '}
         <input id="ans" class="ans" maxlength="40" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="send" placeholder="Wait for your turn…" aria-label="Your answer">
         <button id="send" class="cta" type="submit">Send</button>
       </form>
-      <div id="hint" aria-live="polite"></div>
+      <div id="hint" aria-live="polite" data-noi18n></div>
     </div>
     <div id="stage">
       <div id="ring"></div>
       <div id="say" class="empty" data-noi18n></div>
-      <div id="banner" style="opacity:0"><b id="bnB"></b><small id="bnS"></small></div>
+      <div id="banner" style="opacity:0" data-noi18n><b id="bnB"></b><small id="bnS"></small></div>
     </div>
   </section>
 
@@ -346,7 +346,7 @@ details.how[open] summary::before{content:'– '}
   <section id="over" class="screen" hidden>
     <div class="card center">
       <div class="kicker" style="justify-content:center"><span><b>★</b> Puffer Party</span></div>
-      <h2 class="big" id="oTitle">Game over</h2>
+      <h2 class="big" id="oTitle" data-noi18n>Game over</h2>
       <ol class="rlist" id="oList"></ol>
       <div class="row" style="margin-top:16px;justify-content:center"><button id="rematch" class="cta" type="button">Rematch</button><button id="oLeave" class="ghost" type="button">Leave</button></div>
       <p class="msg" id="oMsg"></p>
@@ -369,7 +369,7 @@ details.how[open] summary::before{content:'– '}
     </div>
   </section>
 
-  <div id="toast" aria-live="polite"></div>
+  <div id="toast" aria-live="polite" data-noi18n></div>
   <canvas id="fx" aria-hidden="true"></canvas>
 </div>
 
@@ -378,6 +378,7 @@ details.how[open] summary::before{content:'– '}
 <script>
 (function(){
 'use strict';
+const LT=window.BackRoomLang?BackRoomLang.t:(s,v)=>s.replace(/\{(\w+)\}/g,(m,n)=>v&&v[n]!=null?v[n]:m);   // names and answers go in as {values}: never translated
 // =====================================================================
 //  Firebase (same project and Realtime Database rules as Rumble Karts and Deepword).
 //  Rooms live under rooms/pf-<code>; Quick match uses rooms/pf-pub-1 … pf-pub-4.
@@ -675,7 +676,7 @@ function show(name){
   if(name==='game')requestAnimationFrame(layout);
 }
 let toastT=0;
-function toast(msg,ms){const el=$('toast');el.textContent=msg;el.style.opacity=1;toastT=(ms||1800)/1000}
+function toast(msg,ms){const el=$('toast');el.textContent=LT(msg);el.style.opacity=1;toastT=(ms||1800)/1000}
 let bannerT=0;
 function banner(b,s,ms,cls){$('bnB').textContent=b;$('bnS').textContent=s||'';const el=$('banner');el.className=cls||'';el.style.opacity=1;bannerT=(ms||1600)/1000}
 function refreshMenuStats(){setText('mWins',String(+store.get('wins',0)||0));setText('mAns',String(+store.get('answers',0)||0));setText('mStreak',String(+store.get('streak',0)||0))}
@@ -804,11 +805,11 @@ function onNode(uid,v){
   if(o.rs){if(prev&&prev.rs===o.rs){o.rsOk=prev.rsOk;o.parsed=prev.parsed}else{let p=null;try{p=JSON.parse(o.rs)}catch(e){}o.parsed=cleanRS(p);o.rsOk=!!o.parsed}}
   Net.others.set(uid,o);
   if(o.rsOk&&o.he>B.maxHe)B.maxHe=o.he;
-  if(!prev&&B.on&&performance.now()-B.joinedAt>2500&&Net.now()-o.ts<LIVE_MS)toast(o.n+' joined',1400);
+  if(!prev&&B.on&&performance.now()-B.joinedAt>2500&&Net.now()-o.ts<LIVE_MS)toast(LT('{n} joined',{n:o.n}),1400);
   if(o.rsOk&&!B.host&&(uid===B.hostUid||!B.hostUid)&&o.rs!==B.rsSeen){B.rsSeen=o.rs;B.lastRS=o.parsed;applyRS(o.parsed)}
   B.dirty=true;
 }
-function onNodeGone(uid){const o=Net.others.get(uid);Net.others.delete(uid);if(uid===B.hostUid)B.hostUid=null;if(o&&B.on&&G.scene!=='menu')toast(o.n+' left',1400);B.dirty=true}
+function onNodeGone(uid){const o=Net.others.get(uid);Net.others.delete(uid);if(uid===B.hostUid)B.hostUid=null;if(o&&B.on&&G.scene!=='menu')toast(LT('{n} left',{n:o.n}),1400);B.dirty=true}
 
 const BOT_NAMES=['Bubbles','Spike','Captain Gill','Finn','Pufferoo','Sir Inflates','Gulp','Squish','Prickles','Coral','Blowie','Barnacle'];
 const B={on:false,host:false,hostUid:null,he:0,maxHe:0,rs:null,lastRS:null,rsSeen:'',joinedAt:0,dirty:true,done:new Set(),k:0,pend:null,rid:-1,tn:-1,ph:'',cs:-1,counted:new Set(),overSeen:-1,tySent:'',tyT:0,tyTimer:0,
@@ -992,7 +993,7 @@ function submit(){
   inp.className='ans ok';hint('✓ '+j.e.raw+' · sending…','ok');
   Net.upd({a:rs.id+'.'+rs.tn+'.'+B.k+'|'+norm(raw).slice(0,40)+'|'+Math.round(t)});
 }
-function hint(t,cls){const h=$('hint');h.textContent=t;h.className=cls||''}
+function hint(t,cls){const h=$('hint');h.textContent=t?LT(t):'';h.className=cls||''}
 // What I'm typing goes to the room (throttled), so everyone sees the hot seat sweat.
 function sendTy(text,state,now){
   if(Net.solo||!Net.refs||!B.rs)return;
@@ -1039,14 +1040,14 @@ function applyRS(rs){
   }
   if(newPh&&rs.ph==='pop'&&rs.pop){
     Fish.burst();buzz(rs.pop.u===Net.uid?[80,40,120]:40);
-    const me=rs.pop.u===Net.uid,nm=me?'You':nameOf(rs.pop.u);
-    if(rs.pop.lf)banner(nameOf(rs.pop.u)+' left','',2000);
-    else banner('POP!',rs.pop.out?(me?'You\'re out!':nm+' is out!'):(me?'You lose a life':nm+' loses a life'),2400,'pop');
+    const me=rs.pop.u===Net.uid,nm=nameOf(rs.pop.u);
+    if(rs.pop.lf)banner(LT('{n} left',{n:nameOf(rs.pop.u)}),'',2000);
+    else banner(LT('POP!'),rs.pop.out?(me?LT('You\'re out!'):LT('{n} is out!',{n:nm})):(me?LT('You lose a life'):LT('{n} loses a life',{n:nm})),2400,'pop');
     hitSeat(rs.pop.u);
   }
   if(newPh&&rs.ph==='count'){
-    const c=CATS[rs.ck];banner(c?c.name:'…',rs.rd>1?'Round '+rs.rd+' · '+nameOf(rs.cur)+' starts':nameOf(rs.cur)+' goes first',rs.dur);Snd.cat();
-  }else if(newCat&&rs.ph==='turn'&&!newMatch){const c=CATS[rs.ck];banner('New category!',c?c.name:'',1500);Snd.cat();$('catBox').classList.remove('flash');void $('catBox').offsetWidth;$('catBox').classList.add('flash')}
+    const c=CATS[rs.ck];banner(c?c.name:'…',rs.rd>1?LT('Round {r} · {n} starts',{r:rs.rd,n:nameOf(rs.cur)}):LT('{n} goes first',{n:nameOf(rs.cur)}),rs.dur);Snd.cat();
+  }else if(newCat&&rs.ph==='turn'&&!newMatch){const c=CATS[rs.ck];banner(LT('New category!'),c?c.name:'',1500);Snd.cat();$('catBox').classList.remove('flash');void $('catBox').offsetWidth;$('catBox').classList.add('flash')}
   // my own pending attempt: done when the turn moves on, or turned down by the host
   if(B.pend){if(rs.tn!==B.pend.tn||rs.ph!=='turn')B.pend=null;else if(rs.nk&&rs.nk.u===Net.uid&&rs.nk.tn===B.pend.tn&&rs.nk.k===B.pend.k){
     const w=rs.nk.w;B.pend=null;$('ans').className='ans '+(w==='late'?'bad':w);hint(w==='dup'?'Someone just said that':w==='late'?'Too late!':'That doesn\'t fit','bad');Snd.bad()}}
@@ -1058,11 +1059,11 @@ function applyRS(rs){
 function setupInput(rs,mine){
   const inp=$('ans'),send=$('send'),inMatch=rs.pl.indexOf(Net.uid)>=0,out=rs.out.indexOf(Net.uid)>=0;
   if(mine){
-    inp.value='';inp.className='ans mine';send.disabled=false;inp.placeholder='Your turn! Type an answer…';hint('Your turn!','mine');
+    inp.value='';inp.className='ans mine';send.disabled=false;inp.placeholder=LT('Your turn! Type an answer…');hint('Your turn!','mine');
     Snd.turn();buzz(30);focusInput(inp);sendTy('','');
   }else if(!myTurn()){
     if(!B.pend){inp.value='';inp.className='ans'}send.disabled=true;
-    inp.placeholder=!inMatch?'Watching · you\'ll play next match':out?'You\'re out · watching':rs.ph==='turn'?nameOf(rs.cur)+'\'s turn…':'Get ready…';
+    inp.placeholder=LT(!inMatch?'Watching · you\'ll play next match':out?'You\'re out · watching':rs.ph==='turn'?'{n}\'s turn…':'Get ready…',{n:nameOf(rs.cur)});
     if(rs.ph!=='turn'||!inMatch||out)hint(!inMatch?'You joined mid-game. You\'re in the next match.':out?'Out of lives. Cheer the others on!':'','');
     else hint('','');
   }
@@ -1143,11 +1144,11 @@ function fitSay(){
 function renderSeats(rs){
   const ring=$('ring');let added=false;
   for(const u of rs.pl){let el=seatEls.get(u);
-    if(!el){el=document.createElement('div');el.className='seat';el.innerHTML='<div class="av"><span></span></div><div class="sn"></div><div class="lv"></div>';ring.appendChild(el);seatEls.set(u,el);added=true;if(isBot(u)){const t=document.createElement('span');t.className='bot';t.textContent='BOT';el.firstChild.appendChild(t)}}
+    if(!el){el=document.createElement('div');el.className='seat';el.innerHTML='<div class="av" data-noi18n><span></span></div><div class="sn" data-noi18n></div><div class="lv"></div>';ring.appendChild(el);seatEls.set(u,el);added=true;if(isBot(u)){const t=document.createElement('span');t.className='bot';t.textContent='BOT';el.firstChild.appendChild(t)}}
     const nm=nameOf(u),out=rs.out.indexOf(u)>=0,lv=rs.lv[u]|0;
     el.style.setProperty('--c',colorOf(u));
     el.firstChild.firstChild.textContent=(nm.trim().charAt(0)||'?').toUpperCase();
-    el.children[1].textContent=nm+(u===Net.uid?' (you)':'');
+    el.children[1].textContent=u===Net.uid?LT('{n} (you)',{n:nm}):nm;
     const sig=lv+'/'+out;if(el.dataset.lv!==sig){el.dataset.lv=sig;const h=el.children[2];h.innerHTML='';if(out)h.textContent='out';else for(let i=0;i<LIVES;i++){if(i<lv)h.appendChild(document.createTextNode('♥'));else{const x=document.createElement('i');x.textContent='♥';h.appendChild(x)}}}
     el.classList.toggle('cur',(rs.ph==='turn'||rs.ph==='count')&&rs.cur===u);el.classList.toggle('out',out);el.classList.toggle('me',u===Net.uid);
   }
@@ -1156,7 +1157,7 @@ function renderSeats(rs){
 }
 function flashSeat(u,text,cls){
   const p=seatPos.get(u);if(!p)return;const st=$('stage').getBoundingClientRect(),app=$('app').getBoundingClientRect();
-  const el=document.createElement('div');el.className='fly '+cls;el.textContent=text;el.style.left=(p.x-(st.left-app.left))+'px';el.style.top=(p.y-(st.top-app.top)-ST.sa*.4)+'px';
+  const el=document.createElement('div');el.className='fly '+cls;el.setAttribute('data-noi18n','');el.textContent=text==='Already said'?LT(text):text;el.style.left=(p.x-(st.left-app.left))+'px';el.style.top=(p.y-(st.top-app.top)-ST.sa*.4)+'px';
   $('stage').appendChild(el);setTimeout(()=>el.remove(),1200);
   // park the bubble just clear of its own seat (inwards, beside or above/below it), never on top of another seat
   const se=seatEls.get(u);if(se){
@@ -1210,7 +1211,7 @@ function sayText(rs,now){
 }
 function renderLobby(){
   const ul=$('lbPlayers');ul.innerHTML='';const ids=liveIds();
-  for(const id of ids){const li=document.createElement('li'),dot=document.createElement('span'),nm=document.createElement('span'),sm=document.createElement('small');dot.className='dot';dot.style.background=colorOf(id);nm.className='nm';nm.textContent=nameOf(id)+(id===Net.uid?' (you)':'');sm.textContent=id===B.hostUid?'host':'';li.append(dot,nm,sm);ul.appendChild(li)}
+  for(const id of ids){const li=document.createElement('li'),dot=document.createElement('span'),nm=document.createElement('span'),sm=document.createElement('small');dot.className='dot';dot.style.background=colorOf(id);nm.className='nm';nm.setAttribute('data-noi18n','');nm.textContent=id===Net.uid?LT('{n} (you)',{n:nameOf(id)}):nameOf(id);sm.textContent=id===B.hostUid?'host':'';li.append(dot,nm,sm);ul.appendChild(li)}
   const rs=B.rs,n=ids.length;
   const bots=rs?!!rs.set.bots:true;
   if(!B.host)$('botsChk').checked=bots;
@@ -1225,12 +1226,12 @@ function renderLobby(){
   $('copyInv').hidden=Net.isPublic;
 }
 function renderOver(rs){
-  const win=rs.win;setText('oTitle',win?(win===Net.uid?'You win!':nameOf(win)+' wins!'):'Game over');
+  const win=rs.win;setText('oTitle',win?(win===Net.uid?LT('You win!'):LT('{n} wins!',{n:nameOf(win)})):LT('Game over'));
   const ol=$('oList');ol.innerHTML='';
   const order=rs.pl.slice().sort((a,b)=>{const ea=a===win?1e9:rs.out.indexOf(a)<0?1e8+(rs.lv[a]|0)*100+(rs.sc[a]|0):(rs.el[a]|0),eb=b===win?1e9:rs.out.indexOf(b)<0?1e8+(rs.lv[b]|0)*100+(rs.sc[b]|0):(rs.el[b]|0);return eb-ea});
   order.forEach((u,i)=>{const li=document.createElement('li');if(u===Net.uid)li.className='me';
     const rk=document.createElement('span'),dot=document.createElement('span'),q=document.createElement('span'),s=document.createElement('span');
-    rk.className='rk'+(u===win?' crown':'');rk.textContent=u===win?'★':String(i+1);dot.className='dot';dot.style.background=colorOf(u);q.className='nm';q.textContent=nameOf(u)+(isBot(u)?' (bot)':'');
+    rk.className='rk'+(u===win?' crown':'');rk.textContent=u===win?'★':String(i+1);dot.className='dot';dot.style.background=colorOf(u);q.className='nm';q.setAttribute('data-noi18n','');q.textContent=nameOf(u)+(isBot(u)?' (bot)':'');
     s.className='st';const a=document.createElement('b');a.textContent=String(rs.sc[u]|0);s.append(a,document.createTextNode(' answers · best run '));const b=document.createElement('b');b.textContent=String(rs.bs[u]|0);s.appendChild(b);
     li.append(rk,dot,q,s);ol.appendChild(li)});
   $('rematch').textContent=B.host?'Play again':'Ask for a rematch';$('oMsg').textContent=Net.isPublic?'The next match starts in a moment.':'';
