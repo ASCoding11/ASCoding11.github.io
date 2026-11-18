@@ -1,0 +1,2 @@
+/* Deepword answer data, built by tools/build.js from prompts.js and free data (see tools/SOURCES.md). Do not edit by hand. */
+DW_EXT.add("flightless","penguin;ostrich;emu;kiwi;chicken;dodo;cassowary;rhea;kakapo;takahe;weka;flightless cormorant;steamer duck;inaccessible island rail;great auk;moa;elephant bird;turkey;guinea fowl;kagu;tasmanian native hen;emperor penguin;king penguin","x6ufpvu0ukpggqfcc6lklklklklklkaslkrdj3lklki4hp");

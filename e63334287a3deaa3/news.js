@@ -74,8 +74,8 @@
  *   img   optional: a picture the advertiser has said we may use, saved inside the Back Room folder (say
  *         'ads/<name>.png'): wide rather than tall, about 600 × 200 (twice its largest size on the page), a
  *         transparent .png or a .jpg/.webp, under about 60 KB. Left empty (or if the file is missing), the tile
- *         shows a little drawing made in code instead, chosen by `art` ('candy', a candy bar, or 'car', a plain
- *         car; never a company's logo). `alt` says what the picture shows.
+ *         shows a little drawing made in code instead, chosen by `art` ('candy', a candy bar, 'car', a plain car, or
+ *         'video', a screen with a play button; never a company's logo). `alt` says what the picture shows.
  *   href  an https:// address; anything else switches the tile off.
  *
  * Several entries can share a date (say 1.7 and then 1.7.1 the same day); they're shown
@@ -451,13 +451,13 @@
     },
     {
       on: true,
-      name: 'Avis',
-      line: 'Rent a car for your next road trip.',
-      button: 'Book a car',
-      href: 'https://www.avis.com/',
-      img: '', alt: '',                                       // no picture: a plain car drawn in code (art), not Avis's logo
-      art: 'car',
-      bg: '#D4002A', ink: '#FFFFFF', btn: '#FFFFFF', btnInk: '#B00023'
+      name: 'Soul\u2019s_Type',                                // the YouTube channel, as its owner writes it
+      line: 'Souleymane\u2019s YouTube channel. Go watch and subscribe.',
+      button: 'Watch',                                        // short, so the channel name fits beside it
+      href: 'https://www.youtube.com/@souls_type',            // his channel page
+      img: '', alt: '',                                       // no picture: a screen with a play button drawn in code (art), not YouTube's logo
+      art: 'video',
+      bg: '#24184A', ink: '#FFFFFF', btn: '#7CF0D0', btnInk: '#1B1338'
     }
   ];
 
@@ -540,9 +540,9 @@
   var ads = (Array.isArray(ADS) ? ADS : []).map(function (A) {
     var txt = function (x, n) { return typeof x === 'string' ? x.trim().slice(0, n) : ''; };
     var hex = function (x, d) { return typeof x === 'string' && /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(x) ? x : d; };
-    if (!A || A.on !== true || !txt(A.name, 28) || typeof A.href !== 'string' || !/^https:\/\/[a-z0-9][a-z0-9.-]*\.[a-z]{2,}(?:\/[\w\-./?=&%#]*)?$/i.test(A.href)) return null;
+    if (!A || A.on !== true || !txt(A.name, 28) || typeof A.href !== 'string' || !/^https:\/\/[a-z0-9][a-z0-9.-]*\.[a-z]{2,}(?:\/[\w\-./?=&%#@]*)?$/i.test(A.href)) return null;
     return { name: txt(A.name, 28), line: txt(A.line, 60), button: txt(A.button, 18) || 'Learn more', href: A.href, img: imgsOf(A)[0] || '', alt: txt(A.alt, 120),
-      art: A.art === 'car' ? 'car' : 'candy',
+      art: A.art === 'car' || A.art === 'video' ? A.art : 'candy',
       bg: hex(A.bg, '#FFD23F'), ink: hex(A.ink, '#2A1608'), btn: hex(A.btn, '#C2185B'), btnInk: hex(A.btnInk, '#FFFFFF') };
   }).filter(Boolean).slice(0, 2);
   window.BackRoomNews.ad = ads[0] ? { name: ads[0].name, href: ads[0].href } : null;
@@ -624,7 +624,15 @@
     '<path d="M168 38h7M34 41h8" stroke="var(--ad-bg)" stroke-opacity=".55" stroke-width="4" stroke-linecap="round"/>' +
     '<circle cx="66" cy="55" r="11" fill="#1d1d1f"/><circle cx="66" cy="55" r="4.5" fill="#c9ccd1"/>' +
     '<circle cx="152" cy="55" r="11" fill="#1d1d1f"/><circle cx="152" cy="55" r="4.5" fill="#c9ccd1"/></svg>';
-  var ARTS = { candy: AD_ART, car: CAR_ART };
+  // video: a plain screen on a stand with a round play button and a progress bar (no site's logo).
+  var VIDEO_ART = '<svg viewBox="0 0 200 70" aria-hidden="true" focusable="false">' +
+    '<rect x="52" y="5" width="96" height="54" rx="8" fill="var(--ad-ink)" fill-opacity=".14" stroke="var(--ad-ink)" stroke-opacity=".55" stroke-width="2.5"/>' +
+    '<path d="M88 66h24M100 59v7" stroke="var(--ad-ink)" stroke-opacity=".55" stroke-width="3" stroke-linecap="round"/>' +
+    '<circle cx="100" cy="28" r="15" fill="var(--ad-btn)"/><path d="M95 20.5v15l12.5-7.5z" fill="var(--ad-bi)"/>' +
+    '<path d="M61 51h78" stroke="var(--ad-ink)" stroke-opacity=".3" stroke-width="3" stroke-linecap="round"/>' +
+    '<path d="M61 51h34" stroke="var(--ad-btn)" stroke-width="3" stroke-linecap="round"/><circle cx="95" cy="51" r="3.5" fill="var(--ad-btn)"/>' +
+    '<path d="M28 22l10 6-10 6zM164 30l8 5-8 5z" fill="var(--ad-btn)" fill-opacity=".55"/></svg>';
+  var ARTS = { candy: AD_ART, car: CAR_ART, video: VIDEO_ART };
 
   function start() {
     if (document.getElementById('news')) return;

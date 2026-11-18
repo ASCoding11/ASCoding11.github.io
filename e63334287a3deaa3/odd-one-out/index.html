@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
+<script src="/e63334287a3deaa3/captains.js"></script> <!-- who may see the Wardrobe while it is not public (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Odd One Out</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -1778,7 +1779,8 @@ const HG=(()=>{
   const gunTip=joinGeos([cyl(.03,.03,.07,10,0,.01,.735,Math.PI/2),bx(.08,.05,.2,0,-.045,.36)]);
   return{leg,legDark,suit,vest,stripe,dark,pack,skin,visor,arms,hands,gun,gunTip};
 })();
-function hunterModel(color){
+function hunterModel(color,wear){
+  if(wear&&WD){const m=WD.hunter(wear);if(m)return m}   // something from the Wardrobe (wardrobe.js); null: the usual hunter
   const g=new THREE.Group(),M=HUNTER_MATS,mk=(geo,mat,par)=>{const m=new THREE.Mesh(geo,mat);m.castShadow=true;(par||g).add(m);return m};
   const legL=mk(HG.leg,M.suit),legR=mk(HG.leg,M.suit);legL.position.set(-.12,.92,0);legR.position.set(.12,.92,0);mk(HG.legDark,M.boot,legL);mk(HG.legDark,M.boot,legR);
   mk(HG.suit,M.suit);const vest=mk(HG.vest,M.vest);mk(HG.stripe,M.stripe);mk(HG.dark,M.boot);mk(HG.pack,M.pack);const head=mk(HG.skin,M.skin);mk(HG.visor,M.visor);
@@ -1791,6 +1793,18 @@ function hunterModel(color){
   g.userData={legL,legR,arms,gun,muzzle,head,blob};
   return g;
 }
+// ---------- the Wardrobe (not public yet): hunter outfits and tools, prop taunts, catch poofs ----------
+// wardOn(): may this player open the Wardrobe and wear things? True for the site's captains (../captains.js: the Google
+// account signed in is one of miles.js's Captains), or with ?wardrobe=1 on localhost or in an automated browser
+// (remembered for the tab; ?wardrobe=0 forgets it). On the live site the address does nothing. To make it public for
+// everyone, change ODD_PUBLIC to true: that one line is all it takes. Everything is drawn and played by wardrobe.js beside
+// this page, which is fetched the first time wardOn() is true, or when another player arrives wearing something (their
+// node's cz, see wearHeard). For everyone else it is never loaded, WD stays null and the game is exactly as it was.
+// Looks and sounds only: no hit box, speed, reach or view changes, and a prop never looks any different.
+const ODD_PUBLIC=false;
+const CAPTAINS=window.BackRoomCaptains||null;
+const wardOn=()=>ODD_PUBLIC||!!(CAPTAINS&&CAPTAINS.may(false,'wardrobe','oddone-wardrobe'));
+let WD=null,wdAsked=false;
 const ents=new Map();
 let me=null,clock=0;
 function cleanName(n){return String(n||'').replace(/[^\w \-.'!?]/g,'').trim().slice(0,14)}
@@ -1809,9 +1823,9 @@ function clearEnts(){for(const e of [...ents.values()])removeEnt(e)}
 function nameOf(id){const e=ents.get(id);return e?e.name:(G.nm.get(id)||'Someone')}
 // how an entity is drawn: 'hunter' or 'prop' (as e.form)
 function setLook(e,look){
-  const key=look==='hunter'?'hunter':'prop:'+(e.form?e.form.id:'');if(e.lookKey===key)return;e.lookKey=key;e.look=look;
+  const key=look==='hunter'?'hunter'+(e.wear&&WD?':'+WD.key(e.wear):''):'prop:'+(e.form?e.form.id:'');if(e.lookKey===key)return;e.lookKey=key;e.look=look;
   if(e.model)e.root.remove(e.model);
-  e.model=look==='hunter'?hunterModel(e.isMe?null:null):propModel(e.form);e.root.add(e.model);
+  e.model=look==='hunter'?hunterModel(null,e.wear):propModel(e.form);e.root.add(e.model);
 }
 function setForm(e,t){e.form=t;if(e.look==='prop')setLook(e,'prop')}
 function hunterStep(e,dt){
@@ -2161,7 +2175,7 @@ function applyRS(rs){
 }
 function onElim(u,by,rs){
   const e=ents.get(u),isH=rs.hu.indexOf(u)>=0;
-  if(e){const c=e.pos.clone();c.y+=e.look==='hunter'?1:(e.form?e.form.h/2:.4);burst(c,e.look==='prop'?e.form:null);sfx('elim',c)}
+  if(e){const c=e.pos.clone();c.y+=e.look==='hunter'?1:(e.form?e.form.h/2:.4);const fd=!isH&&WD?ents.get(by):null;if(!(fd&&fd.wear&&WD.poof(c,fd.wear,e.form)))burst(c,e.look==='prop'?e.form:null);sfx('elim',c)}
   const fn=e&&e.form&&!isH?' <span class="y">('+esc(e.form.name)+')</span>':'';
   const ob=!!(rs.ob&&rs.ob[u]);
   if(ob)feed('<span class="'+(isH?'h':'p')+'">'+esc(nameOf(u))+'</span> was out of bounds'+fn);
@@ -2598,7 +2612,8 @@ const Net={
     this.db.ref('.info/serverTimeOffset').on('value',s=>{this.offset=s.val()||0});
     this.ready=true;
   },
-  base(){const e=me;return{n:myName||'Mystery Box',c:myColor,x:r2(e.pos.x),z:r2(e.pos.z),h:r3(e.yaw),ts:Math.round(this.now()),y:r2(e.pos.y),j:this.j,d:e.form?e.form.id:DEFAULT_FORM,p:0}},
+  base(){const e=me,o={n:myName||'Mystery Box',c:myColor,x:r2(e.pos.x),z:r2(e.pos.z),h:r3(e.yaw),ts:Math.round(this.now()),y:r2(e.pos.y),j:this.j,d:e.form?e.form.id:DEFAULT_FORM,p:0};
+    const cz=WD?WD.wire():'';this.czSent=cz;if(cz)o.cz=cz;return o},   // cz: what this player wears from the Wardrobe (wardrobe.js); never there for anyone else
   async count(room){
     const s=await this.db.ref('rooms/'+room+'/players').once('value');let n=0;
     s.forEach(c=>{const v=c.val();if(c.key!==this.uid&&v&&this.now()-(+v.ts||0)<LIVE_MS)n++});
@@ -2687,6 +2702,7 @@ function onNode(uid,v){
     refreshRoles();
   }
   e.seen=performance.now();e.name=o.n;e.color=o.c;
+  if(v.cz!=null||e.wear||e.czRaw)try{wearHeard(e,v.cz)}catch(err){console.error(err)}   // what it wears from the Wardrobe, and its taunts (wardrobe.js); never in the way of the rest
   if(finN(+v.x)&&finN(+v.z)&&MAP){const bd=MAP.ext;e.tpos.set(clamp(+v.x,bd[0],bd[2]),numIn(+v.y,-1,12,0),clamp(+v.z,bd[1],bd[3]))}
   e.tyaw=wrapA(numIn(+v.h,-1e3,1e3,e.tyaw));e.aimPitch=numIn(+v.p,-1.5,1.5,0);
   pushSnap(e,o.ts,6);
@@ -2818,7 +2834,7 @@ function updateHud(){
   let hint='';const K=id=>'<kbd>'+esc(keyName(id))+'</kbd>';
   if(ph==='end'||ph==='over')hint='';
   else if(role==='hunter')hint=ph==='hunt'?'<span>'+K('fire')+' shoot</span><span>'+K('aim')+' aim</span><span>'+K('reload')+' reload</span><span>'+K('board')+' scores</span>':'<span>Wait for the doors to open</span><span>'+K('board')+' scores</span>';
-  else if(role==='prop'||role==='free')hint='<span>'+K('transform')+' become</span><span class="'+(G.lock?'on':'')+'">'+K('lock')+' lock rotation</span><span>'+K('rotL')+' '+K('rotR')+' turn</span><span>'+K('align')+' line up</span><span>'+K('jump')+' jump</span>'+(G.mode==='practice'&&ph==='hide'?'<span><kbd>Enter</kbd> I\'m hidden</span>':'');
+  else if(role==='prop'||role==='free')hint='<span>'+K('transform')+' become</span><span class="'+(G.lock?'on':'')+'">'+K('lock')+' lock rotation</span><span>'+K('rotL')+' '+K('rotR')+' turn</span><span>'+K('align')+' line up</span><span>'+K('jump')+' jump</span>'+(WD?WD.hint():'')+(G.mode==='practice'&&ph==='hide'?'<span><kbd>Enter</kbd> I\'m hidden</span>':'');
   else hint='<span>'+K('specPrev')+' '+K('specNext')+' watch someone else</span><span>'+K('board')+' scores</span>';
   if(G.mode==='practice'&&ph==='hide'&&role==='hunter')hint+='<span><kbd>Enter</kbd> skip the wait</span>';
   if(hudCache.hint!==hint){hudCache.hint=hint;$('hint').innerHTML=hint}
@@ -2918,7 +2934,7 @@ function setupAttract(){
   $('menu').hidden=false;$('hud').hidden=true;$('touch').hidden=true;$('lobby').hidden=true;$('pause').hidden=true;$('end').hidden=true;
   Music.mood='calm';
 }
-function makeMe(id){me=makeEnt({id,isMe:true,name:myName||'You',color:myColor});return me}
+function makeMe(id){me=makeEnt({id,isMe:true,name:myName||'You',color:myColor});if(WD)me.wear=WD.mine();return me}
 function startPractice(kind){
   initAudio();Music.start();saveProfile();if(Net.refs)Net.leave();
   clearEnts();clearFx();G.mode='practice';G.pmode=kind;G.host=true;G.paused=false;
@@ -3023,7 +3039,7 @@ function updateTags(){
     let show=e!==me&&e.alive&&G.mode!=='menu'&&my&&teamOf(roleOf(e.id))===my&&!(G.role==='spec');
     if(show&&camera.position.distanceTo(e.pos)>30)show=false;
     if(show&&!e.tag){e.tag=makeTag(e);e.root.add(e.tag)}
-    if(e.tag){e.tag.visible=!!show;if(show)e.tag.position.set(0,(e.look==='hunter'?2.05:(e.form?e.form.h:.5)+.35),0)}
+    if(e.tag){e.tag.visible=!!show;if(show)e.tag.position.set(0,(e.look==='hunter'?2.05+(e.model&&e.model.userData.lift||0):(e.form?e.form.h:.5)+.35),0)}
   }
 }
 function step(dt){
@@ -3039,7 +3055,7 @@ function step(dt){
   syncVisuals(dt);
   updateCamera(dt);
   if(G.mode!=='menu'){findTarget();const T=G.target;if(T)showOutline(T.t,T.x,T.y,T.z,T.yaw);else outline.visible=false}
-  updateTags();updateFx(dt);updateHud();setListener();if(navigator.webdriver)syncReady();
+  updateTags();updateFx(dt);if(WD)WD.update(dt);updateHud();setListener();if(navigator.webdriver)syncReady();
   sky.position.copy(camera.position);
   if(!G.noRender)renderer.render(scene,camera);
 }
@@ -3055,6 +3071,7 @@ function pressAction(c){
     if(KB.is('transform',c))doTransform();
     if(KB.is('lock',c))toggleLock();
     if(KB.is('align',c))alignMe();
+    if(c==='KeyT'&&WD&&!KB.actionsFor(c).length)WD.taunt();   // a Wardrobe taunt, if one is chosen (wardrobe.js)
   }else if(role==='hunter'){
     if(KB.is('reload',c))startReload();
     if(KB.is('fire',c))fire();
@@ -3218,6 +3235,41 @@ addEventListener('pagehide',()=>{if(Net.refs)Net.leave()});
 // waiting room by placeMe, and the host would otherwise see it still there, out of bounds)
 setInterval(()=>{if(!document.hidden||G.mode!=='online'||!Net.refs)return;try{onlineTick();Net.pubPos()}catch(err){console.error(err)}},1000);
 
+// ---------- the Wardrobe (see wardOn): wardrobe.js is fetched only when something needs it ----------
+// The page lends it this short list; it hands back the hooks used above (hunter, key, poof, taunt, hint, update) and the
+// screen. A player's look travels as one short field in their own node, cz: 'outfit.tool.taunt.poof.count' (item numbers
+// from ../cosmetics.js; count goes up by one with each taunt). Older pages ignore it; this page draws the usual hunter
+// for a number it doesn't know.
+const WDAPI={THREE,HG,HUNTER_MATS,rbox,hunterModel,blobGeo,blobMatOf,renderer,camera,store,$,KB,fxMesh,fxSphere,ringGeo,puff,
+  get gfx(){return gfx},get touchUI(){return touchUI},get clock(){return clock},get me(){return me},get mode(){return G.mode},
+  get role(){return G.role},get ph(){return G.rs?G.rs.ph:''},get paused(){return G.paused},wardOn,popup,initAudio,
+  audio:()=>actx&&master?{actx,out3d,tone,noise}:null,
+  hidden:()=>G.role==='hunter'&&!!G.rs&&G.rs.ph==='hide',   // a hunter in the waiting room hears no prop sounds (propSfx)
+  near:pos=>camera.position.distanceTo(pos)<=70,
+  heard(pos){G.lastPingPos=pos.clone();G.lastPingClock=clock},   // practice: hunter bots go after a taunt as after a ping
+  push:()=>wdPush(),sync:()=>wdSync(),hudDirty:()=>{hudCache.hint=null;hudDirty()}};
+function wdLoad(){
+  if(wdAsked)return;wdAsked=true;
+  loadScript('wardrobe.js').then(()=>{WD=window.OddWardrobe(WDAPI);for(const e of ents.values())if(e.remote&&e.czRaw)wearHeard(e,e.czRaw);wdSync()}).catch(e=>{wdAsked=false;console.error(e)});
+}
+// what this player wears (nothing unless wardOn()), and the Wardrobe's buttons: again whenever wardOn() may have changed
+function wdSync(){
+  if(!WD)return;WD.sync();
+  if(me&&!me.remote){me.wear=WD.mine();if(me.look==='hunter')setLook(me,'hunter')}
+  wdPush();hudCache.hint=null;
+}
+function wdPush(){if(G.mode!=='online'||!Net.refs||!WD)return;const cz=WD.wire();if(cz!==Net.czSent){Net.czSent=cz;Net.upd({cz:cz||null})}}
+// another player's cz (a string, or nothing): the look they're drawn in when they hunt, and a taunt when its count goes up
+function wearHeard(e,raw){
+  raw=typeof raw==='string'&&raw.length<=20?raw:'';
+  if(!WD){e.czRaw=raw;if(/[1-9]/.test(raw))wdLoad();return}
+  e.czRaw='';const w=WD.parse(raw),k=w?WD.key(w):'';
+  if(k!==(e.wearKey||'')){e.wearKey=k;e.wear=w;if(e.look==='hunter')setLook(e,'hunter')}else e.wear=w;
+  WD.heard(e,w);
+}
+if(wardOn())wdLoad();
+if(CAPTAINS)CAPTAINS.onChange(()=>{if(wardOn())wdLoad();wdSync()});
+
 // An invite opens this page with #ph-<code>: fill in the room and point at the join button.
 const inv=/^#ph-([a-z0-9-]{1,17})$/.exec(location.hash);
 if(inv){$('room').value=inv[1];setMsg('You were invited to room ph-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.remove('alt');$('joinRoom').classList.add('orange');$('quick').classList.remove('orange');$('quick').classList.add('alt')}
@@ -3227,6 +3279,7 @@ if(navigator.webdriver)window.__ph={clearFx,moveEnt,shapeOf,groundAt,pushOut,tur
   get lidAt(){return MAP&&MAP.lidAt},setGfx,get gfx(){return gfx},sky,hostSet,setTouchUI,setForm,G,PT,PT_LIST,MAPS,ents,Net,onNode,get me(){return me},get MAP(){return MAP},get mapIdx(){return mapIdx},loadMap,startPractice,practiceReady,goOnline,toMenu,setRS,newRound,lobbyRS,hostTick,hostHits,roleOf,hpOf,maxHpOf,
   doTransform,toggleLock,alignMe,fire,startReload,findTarget,rayWorld,camRay,cycleSpec,specTarget,showPause,resume,overlapping,keys,tAct,KB,renderer,scene,camera,step,
   get camYaw(){return camYaw},set camYaw(v){camYaw=v},get camPitch(){return camPitch},set camPitch(v){camPitch=v},propModel,
+  get WD(){return WD},wardOn,wdSync,wdLoad,hunterModel,onElim,wearHeard,
   advance(sec,dt){dt=dt||1/30;G.noRender=true;try{for(let t=0;t<sec-1e-9;t+=dt){if(G.mode!=='online'&&!G.paused)G.tOff=(G.tOff||0)+dt*1000;step(dt)}}finally{G.noRender=false}renderer.render(scene,camera)},
   aimAt(x,y,z){if(!me)return;for(let i=0;i<5;i++){me.root.position.copy(me.pos);updateCamera(0);const d=new V3(x,y,z).sub(camera.position);camYaw=Math.atan2(-d.x,-d.z);camPitch=Math.atan2(d.y,Math.hypot(d.x,d.z))}updateCamera(0);findTarget()},
   look(px,py,pz,tx,ty,tz){camera.position.set(px,py,pz);camera.lookAt(tx,ty,tz);renderer.render(scene,camera)},

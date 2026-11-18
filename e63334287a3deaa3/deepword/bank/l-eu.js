@@ -1,0 +1,2 @@
+/* Deepword answer data, built by tools/build.js from prompts.js and free data (see tools/SOURCES.md). Do not edit by hand. */
+DW_EXT.add("eu","france;germany;italy;spain;netherlands;belgium;portugal;sweden;ireland;greece;poland;austria;denmark;finland;hungary;czech republic;romania;croatia;bulgaria;slovakia;slovenia;estonia;latvia;lithuania;luxembourg;malta;cyprus","wiykz9xvohp6tbu0r8smrxlztlorwdo2gqhfi4fcdzeodaitclg1ji");

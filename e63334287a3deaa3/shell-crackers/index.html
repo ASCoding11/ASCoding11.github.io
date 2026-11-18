@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
+<script src="/e63334287a3deaa3/captains.js"></script> <!-- who may see the Locker while it is not public (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Shell Crackers</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -360,6 +361,7 @@ body.touch #ksH{max-width:210px}
 }
 </style>
 <script src="/e63334287a3deaa3/stats.js" data-game="shell-crackers" defer></script>
+<script src="/e63334287a3deaa3/cosmetics.js" defer></script> <!-- switched off (see README): kit.js is only fetched when something needs it -->
 <script src="/e63334287a3deaa3/gamechat.js" data-key="Enter" defer></script>
 <script src="/adrefresh.js" defer></script>
 </head>
@@ -605,6 +607,16 @@ const pick=a=>a[Math.floor(Math.random()*a.length)];
 const store={get(k,d){try{const v=localStorage.getItem('shellcr-'+k);return v===null?d:v}catch(e){return d}},set(k,v){try{localStorage.setItem('shellcr-'+k,String(v))}catch(e){}}};
 
 // ---------- tuning ----------
+// The Locker (not public yet): egg types, hats, gun skins and crack effects, all drawn by kit.js beside this page.
+// lockerOn(): may this player see the Locker and wear things? True for the site's captains (../captains.js: the Google
+// account signed in is one of miles.js's Captains), or with ?locker=1 on localhost or in an automated browser. To make
+// it public for everyone, change SC_PUBLIC to true: that one line is all it takes. kit.js is fetched the first time
+// lockerOn() is true, or when another egg in the room arrives wearing something (its node's ck); for everyone else it is
+// never loaded, KIT stays null and the game is exactly as it was. Everything in it is looks only.
+const SC_PUBLIC=false;
+const CAPTAINS=window.BackRoomCaptains||null;
+const lockerOn=()=>SC_PUBLIC||!!(CAPTAINS&&CAPTAINS.may(false,'locker','shellcr-locker'));
+let KIT=null;
 const EYE=1.22,STEP=0.6,RAD=0.36,GRAV=22,JUMP=7.6,BASE_SPEED=6.3;
 const RESPAWN=3,MATCH_MS=5*60*1000,TARGET_ONLINE=25,TARGET_PRACTICE=20,MAX_ROOM=8;
 const WEAPONS={
@@ -1654,11 +1666,11 @@ function makeEgg(color,name){
 // one more draw call. It is only a look on this computer: hit boxes, headshots and what is sent to the room are the
 // same. The Turkey Week switch on the Back Room page takes it off again; it is read once, when the game loads.
 const EVT=window.BackRoomEvents&&BackRoomEvents.turkey,TK={hat:0x3a2a22,band:0x8a5a2b,gold:0xffc93c,beak:0xf4a41c,red:0xd8392b,rust:0xb5522a,wing:0x8a5a2b,back:0x5a3219};
-let turkeyGeo=null;
+let turkeyGeo=null,turkeyBare=null;   // turkeyBare: the same without the pilgrim hat (an egg wearing a Locker hat, kit.js)
 const TKON=!!(EVT&&EVT.on());
 function turkeyOn(){return TKON}
-function turkeyKit(){
-  if(turkeyGeo)return turkeyGeo;
+function turkeyKit(bare){
+  if(bare?turkeyBare:turkeyGeo)return bare?turkeyBare:turkeyGeo;
   const g=[],taper=new THREE.CylinderGeometry(.72,1,1,14),cone=new THREE.ConeGeometry(1,1,10),ball=eyeGeo,B=1/.09;   // ball: a 1 m sphere once scaled by B
   const part=(geo,c,x,y,z,sx,sy,sz,rx,ry,rz)=>g.push({g:geo,c,m:partM(x,y,z,sx,sy,sz,rx,ry,rz)});
   // tail fan behind the egg: seven feathers over a darker, slightly bigger set
@@ -1674,6 +1686,7 @@ function turkeyKit(){
   // feet
   for(const s of [-1,1])part(_box,TK.beak,.14*s,.02,-.2,.13,.04,.24);
   // pilgrim hat: brim, tapered crown, band and buckle
+  if(bare){turkeyBare=mergeParts(g);taper.dispose();cone.dispose();return turkeyBare}
   part(_cyl,TK.hat,0,1.3,0,.37,.035,.37);
   part(taper,TK.hat,0,1.47,0,.225,.32,.225);
   part(taper,TK.band,0,1.36,0,.238,.075,.238);
@@ -1705,9 +1718,10 @@ function peg(g,r,len,x,y,z,hex){g.push({g:_cyl,c:hex,m:partM(x,y,z,r,len,r)})}  
 // a box on a tilted part (a grip or a magazine), moved off along that part's own length
 function tl(g,w,h,d,x,y,z,hex,rx,off){bx(g,w,h,d,x,y+off*Math.cos(rx),z+off*Math.sin(rx),hex,rx)}
 function hue(hex,f){const c=new THREE.Color(hex);if(f<1)c.multiplyScalar(f);else c.lerp(new THREE.Color(0xffffff),f-1);return c.getHex()}
-function buildGun(key,vm){
+function buildGun(key,vm,skin){
   if(!gunGeos[key]){const g=[];gunGeos[key]={tip:gunParts(g,key)};gunGeos[key].geo=mergeParts(g)}
-  const G_=gunGeos[key],g=new THREE.Group();g.add(new THREE.Mesh(G_.geo,vm&&gfx==='high'?vmGunMat:gunMat));
+  const G_=gunGeos[key],g=new THREE.Group(),S=skin&&KIT?KIT.gunGeo(key,skin):null;   // S: a Locker gun skin (kit.js)
+  g.add(new THREE.Mesh(S?S.geo:G_.geo,vm?(gfx==='high'?vmGunMat:gunMat):S&&S.mat||gunMat));
   const muzzle=new THREE.Object3D();muzzle.position.set(0,.015,G_.tip);g.add(muzzle);
   const fl=new THREE.Sprite(new THREE.SpriteMaterial({map:flashTex,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true}));fl.scale.set(.42,.42,1);fl.visible=false;muzzle.add(fl);
   g.userData={muzzle,flash:fl};
@@ -1790,7 +1804,7 @@ function gunParts(g,key){
 }
 function setEggGun(m,key){
   if(m.gunKey===key)return;if(m.gun){m.gp.remove(m.gun);m.gun.userData.flash.material.dispose()}
-  m.gun=buildGun(key);m.gun.scale.setScalar(.9);m.gp.add(m.gun);m.gunKey=key;m.flash=m.gun.userData.flash;
+  m.gun=buildGun(key,false,m.gunSkin);m.gun.scale.setScalar(.9);m.gp.add(m.gun);m.gunKey=key;m.flash=m.gun.userData.flash;
 }
 
 // =====================================================================
@@ -2112,7 +2126,7 @@ function die(t,att,head,wkey){
   t.alive=false;t.deaths++;t.respawnT=RESPAWN;t.streak=0;t.reloadT=0;t.burstLeft=0;if(!t.remote)ksEnd(t);
   if(t===player&&(mode==='practice'||mode==='online')&&window.BackRoomStats)BackRoomStats.add('deaths',1);
   const killerId=att?att.id:t.id;
-  deathFx(t);
+  deathFx(t,att&&att!==t?att:null);
   if(t===player){killerRef=att&&att!==player?att:null;deathPos.copy(camera.position);deadAt=clock;deathRise=Math.max(0,Math.min(2.2,rayWorld(deathPos,new V3(0,1,0),2.6)-.35));$('deadBy').textContent=killerRef?'by '+killerRef.name+' · '+weaponLabel(wkey):wkey==='nade'?'by your own yolk bomb':wkey==='rocket'?'by your own Yolk Launcher':'';hudDirty=true}
   // Gun Game: whacked eggs go back a rung (online each browser does this for its own egg; the whacker steps up in creditKill)
   if(RULES.ladder&&wkey==='melee'&&att&&att!==t&&(!online||t===player)){const g0=t.gg;ggSet(t,g0-1);if(t===player&&t.gg<g0)$('deadBy').textContent+=' · back to the '+WEAPONS[mainGun(t)].name}
@@ -2144,9 +2158,11 @@ function ggCredit(k,wkey){
 // the leader's rung for the HUD and the end check: the highest gg in the standings
 function ggTop(){let t=0;for(const r of standingsNow())t=Math.max(t,r.g);return t}
 function weaponLabel(k){return k==='nade'?'Yolk bomb':k==='melee'?'Whack':KS_LABEL[k]||(WEAPONS[k]?WEAPONS[k].name:'')}
-function deathFx(t){
+function deathFx(t,k){
   const p=t.model?t.model.g.position:t.pos;
-  if(t!==player)spawnShards(p,t.color);spawnSplat(p.x+rand(-.2,.2),p.z+rand(-.2,.2),p.y+.6);
+  if(t!==player)spawnShards(p,KIT?KIT.shardColor(t):t.color);
+  if(KIT)KIT.cracked(t,k,p);   // the killer's crack effect (kit.js), if it wears one
+  spawnSplat(p.x+rand(-.2,.2),p.z+rand(-.2,.2),p.y+.6);
   emit(new V3(p.x,p.y+.7,p.z),0xffc93c,14,5,.08,.9,14,.5);emit(new V3(p.x,p.y+.7,p.z),0xfffbef,10,4,.07,.8,14,.5);
   sfx('crack',t===player?null:p);
   if(t.model)t.model.g.visible=false;
@@ -2981,7 +2997,7 @@ function sfx(name,pos){
 //  Viewmodel
 // =====================================================================
 let vmGun=null,vmKick=0,vmSwitch=0,vmMelee=0,vmThrow=0,vmBob=0,swayX=0,swayY=0;
-function setVmGun(key){if(vmGun){vmRoot.remove(vmGun);vmGun.userData.flash.material.dispose()}vmGun=buildGun(key,true);vmGun.scale.setScalar(.78);vmRoot.add(vmGun)}
+function setVmGun(key){if(vmGun){vmRoot.remove(vmGun);vmGun.userData.flash.material.dispose()}vmGun=buildGun(key,true,KIT&&KIT.mySkin());vmGun.scale.setScalar(.78);vmRoot.add(vmGun)}
 function updateViewmodel(dt){
   if(!vmGun)return;
   const w=WEAPONS[player.wkey],a=player.adsK;
@@ -3610,6 +3626,7 @@ const Net={
     const s={n:myName,c:myColor,x:r2(p.pos.x),y:r2(p.pos.y),z:r2(p.pos.z),h:r3(p.yaw),p:r3(p.pitch),hp:Math.max(0,Math.round(p.hp)),d:p.alive?0:1,
       w:WKEYS.indexOf(p.wkey),sc:p.shotCount,k:p.kills,dt:p.deaths,r:Math.round(rank.r),sp:p.spawnShield>0?1:0,m:this.wm(),mp:mapIdx,ar:mapSm,mc:MAPS.length,jt:Math.round(this.joinT),ts:Math.round(this.now())};
     if(this.ctfRoom)s.tm=p.team;   // capture the flag: this egg's team
+    if(KIT){const ck=KIT.wire();if(ck)s.ck=ck}   // what this egg wears from the Locker (kit.js); nothing at all for everyone else
     if(RULES.ladder)s.gg=p.gg;   // Gun Game: this egg's rung of the ladder
     return s;
   },
@@ -3790,6 +3807,7 @@ function onRemoteState(uid,v){
   // Gun Game: say when another egg reaches the last gun
   if(RULES.ladder&&!mapCtf&&e.net&&inMyMatch(v)&&+e.net.m===+v.m){const N=RULES.ladder.length;if((+v.gg|0)===N-1&&(+e.net.gg|0)<N-1)ggLastFeed(e)}
   e.net=v;e.seen=performance.now();
+  if(v.ck!=null||e.ck)kitHeard(e,v.ck);   // what it wears from the Locker (kit.js)
   // capture the flag: its team, and its shell in the team's colour
   if(Net.ctfRoom){const tm=v.tm===1?1:0;if(e.team!==tm||e.color!==TEAM[tm].c){e.team=tm;e.color=TEAM[tm].c;if(e.model)e.model.stage=-1}}
   e.active=inMyMatch(v);   // an egg still on another round or map is hidden, can't be hit and makes no sound
@@ -3829,7 +3847,7 @@ function handleEvent(ev){
   }else if(ev.type==='died'){
     // by = the egg that was cracked (it sends its own death), kb = who cracked it
     const v=entById(ev.by),k=entById(ev.kb);
-    if(v&&v!==player){if(v.alive||v.model&&v.model.g.visible){v.alive=false;deathFx(v)}}
+    if(v&&v!==player){if(v.alive||v.model&&v.model.g.visible){v.alive=false;deathFx(v,k)}else if(KIT)KIT.cracked(v,k,null)}   // its node said so first: the crack effect still plays
     const victim=v||{name:'Someone'};
     if(ev.kb===Net.uid)creditKill(player,victim,!!ev.hd,String(ev.w||''));
     else addFeed(k&&ev.kb!==ev.by?k:null,victim,!!ev.hd,String(ev.w||''));
@@ -4015,6 +4033,7 @@ function step(dt){
   updateParts(dt);updateShards(dt);updateSplats(dt);updateTracers(dt);updateSparks(dt);updateBooms(dt);
   for(const c of clouds)c.rotation.y-=.007*dt;
   for(const e of ents)if(e.model)updateModel(e,dt);
+  if(KIT)KIT.update(dt);
   ctfDraw(dt);
   updateCamera(dt);
   if(state==='playing'&&player.alive)updateViewmodel(dt);
@@ -4029,9 +4048,9 @@ function updateModel(e,dt){
   m.body.position.y=Math.abs(Math.sin(e.walkPh))*Math.min(.08,spd*.013)*(e.onGround?1:0);
   m.body.rotation.x=-Math.min(.16,spd*.022);
   m.gp.rotation.x=e.pitch;m.face.rotation.x=e.pitch*.25;
-  const st=e.hp>66?0:e.hp>33?1:2;if(st!==m.stage){m.stage=st;m.mat.map=eggTex(e.color,st)}
+  const st=e.hp>66?0:e.hp>33?1:2;if(st!==m.stage){m.stage=st;m.mat.map=(m.kit&&KIT&&KIT.shellTex(m,st))||eggTex(e.color,st)}
   if(!e.dummy&&m.gunKey!==e.wkey)setEggGun(m,e.wkey);
-  if(e.spawnShield>0){const p=.25+.25*Math.sin(clock*14);m.mat.emissive.setRGB(p*.6,p*.8,p)}else m.mat.emissive.setRGB(0,0,0);
+  if(e.spawnShield>0){const p=.25+.25*Math.sin(clock*14);m.mat.emissive.setRGB(p*.6,p*.8,p)}else if(m.emi)m.mat.emissive.copy(m.emi);else m.mat.emissive.setRGB(0,0,0);
   if(m.flashT>0){m.flashT-=dt;if(m.flashT<=0&&m.flash)m.flash.visible=false}
   const lit=player.candleT>0&&!e.dummy&&isFoe(player,e);if(lit||m.glow)setGlow(m,lit);   // your Candler
   m.tag.visible=e.carry!=null||lit||camera.position.distanceTo(e.pos)<45;
@@ -4203,7 +4222,26 @@ addEventListener('pagehide',()=>{leaveCheck();Net.leave()});
 const inv=/^#sc-([a-z0-9-]{1,17})$/.exec(location.hash);
 if(inv){if(/^ctf-/.test(inv[1]))setMode('ctf');$('room').value=inv[1];setMsg('You were invited to room sc-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.remove('alt');$('quick').classList.add('alt')}
 
-if(navigator.webdriver)window.__sc={get state(){return state},get mode(){return mode},get noRender(){return noRender},set noRender(v){noRender=!!v},player,get ents(){return ents},get map(){return mapIdx},get arena(){return mapSm},get layout(){return mapIdx+(mapSm?"s":"")},findPath,rayWorld,floorBelow,buildMap,MAPS,W,HY,VY,G,GROUND_Y,vox,vget,standV,nodeFor,entHits,get navN(){return navN},get navReach(){return navReach},navAt,get navY(){return navY},get perches(){return perches},spawns:()=>spawns,Net,onRemoteState,handleEvent,onMatch,endMatch,standings,DIFF,WEAPONS,fireShot,damage,throwNade,nades,addFeed,respawn,spawnSplat,keys,setPaused:v=>{paused=v},get rank(){return rank},HUMAN_W,ratingChange,applyRating,get lastRated(){return lastRated},get clock(){return clock},toMenu,loadLeaderboard,renderer,scene,camera,vmScene,vmCam,advance:s=>{noRender=true;try{for(let t=0;t<s;t+=1/30)step(1/30)}finally{noRender=false}},get matchEnds(){return matchEnds},set matchEnds(v){matchEnds=v},get remotes(){return remotes},get range(){return Range},startTraining,tryFire,buildGun,WKEYS,get vmGun(){return vmGun},get tracers(){return tracers},startReload,setLoadout,switchSlot,mapInfo,RANGE_IDX,get paused(){return paused},get hudDirty(){return hudDirty},
+// ---------- the Locker (kit.js; see SC_PUBLIC near the top) ----------
+let kitAsked=false;
+function kitLoad(){
+  if(kitAsked)return;kitAsked=true;
+  loadScript('kit.js').then(()=>{
+    KIT=window.ShellKit({THREE,scene,renderer,store,$,mergeParts,partM,canvasTex,mulberry,hue,eggGeo,eggTex,faceGeos,eyeMat,inkMat,gunMat,vmGunMat,gunGeos,buildGun,setEggGun,
+      WEAPONS,WKEYS,PRIMARIES,SHELLS,TEAM,turkeyKit,turkeyOn,floorBelow,solidAt,GRAV,emit,sfx,player,Net,
+      get on(){return lockerOn()},get ents(){return ents},get gfx(){return gfx},get touch(){return touchUI},get state(){return state},get mode(){return mode},
+      get ctf(){return mapCtf},get clock(){return clock},get myColor(){return myColor},get loadout(){return myLoadout},
+      vmRefresh(){if(vmGun)setVmGun(player.wkey)}});
+    for(const e of ents)if(e.remote&&e.net&&e.net.ck!=null)KIT.heard(e,e.net.ck);
+    KIT.access();
+  }).catch(e=>{kitAsked=false;console.error(e)});
+}
+function kitSync(){if(lockerOn())kitLoad();if(KIT)KIT.access()}
+// Another egg's ck: drawn once kit.js is here (fetched now if this is the first one seen wearing something).
+function kitHeard(e,ck){if(KIT)KIT.heard(e,ck);else if(typeof ck==='string'&&/^[0-9a-z]{4}$/.test(ck)&&ck!=='0000')kitLoad()}
+kitSync();if(CAPTAINS)CAPTAINS.onChange(kitSync);
+
+if(navigator.webdriver)window.__sc={get KIT(){return KIT},lockerOn,kitLoad,get state(){return state},get mode(){return mode},get noRender(){return noRender},set noRender(v){noRender=!!v},player,get ents(){return ents},get map(){return mapIdx},get arena(){return mapSm},get layout(){return mapIdx+(mapSm?"s":"")},findPath,rayWorld,floorBelow,buildMap,MAPS,W,HY,VY,G,GROUND_Y,vox,vget,standV,nodeFor,entHits,get navN(){return navN},get navReach(){return navReach},navAt,get navY(){return navY},get perches(){return perches},spawns:()=>spawns,Net,onRemoteState,handleEvent,onMatch,endMatch,standings,DIFF,WEAPONS,fireShot,damage,throwNade,nades,addFeed,respawn,spawnSplat,keys,setPaused:v=>{paused=v},get rank(){return rank},HUMAN_W,ratingChange,applyRating,get lastRated(){return lastRated},get clock(){return clock},toMenu,loadLeaderboard,renderer,scene,camera,vmScene,vmCam,advance:s=>{noRender=true;try{for(let t=0;t<s;t+=1/30)step(1/30)}finally{noRender=false}},get matchEnds(){return matchEnds},set matchEnds(v){matchEnds=v},get remotes(){return remotes},get range(){return Range},startTraining,tryFire,buildGun,WKEYS,get vmGun(){return vmGun},get tracers(){return tracers},startReload,setLoadout,switchSlot,mapInfo,RANGE_IDX,get paused(){return paused},get hudDirty(){return hudDirty},
   // collision audit: the real movement, push-out and remote-drawing code, driven step by step
   botMatch:(i,n)=>{clearBots();resetFx();buildMap(i);addBots(n)},get ctf(){return{on:mapCtf,S:ctfS,base:ctfBase,spawns:ctfSpawns,posts:ctfPosts,team:player.team}},ctfDo,ctfReduce,ctfNorm,ctfFresh,ctfSync,setMode,KS,useReward,creditKill,GMODES,get rules(){return RULES},ggSet,ggTop,Vote,castVote,voteDecide,setNextRules:i=>pickRules(i),get rockets(){return rockets},get fry(){return fry},TEAM,startPractice,CTF_CAPS,ctfBotMatch:(i,n)=>{clearBots();resetFx();ctfOn=true;buildMap(i);const t=[];for(let k=0;k<n;k++)t.push(k&1);addBots(n,t);ctfSync(ctfFresh(),true);state='playing';mode='practice';player.active=false;player.alive=false;matchEnds=Date.now()+1e9},moveEntity,steer,pushOutPos,rescue,boxSolid,updateRemotes,drawClamp,simulate,simSteps,FRAME_CAP,consts:{PR,PH,STEP,JUMP,GRAV,MAX_FALL},mapSpawns:()=>mapSpawns,los};
 
