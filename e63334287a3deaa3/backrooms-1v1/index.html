@@ -352,6 +352,7 @@ body.touch #find{left:calc(60px + env(safe-area-inset-left,0px));transform:none;
           <div class="seg maps" role="radiogroup" aria-label="Practice map" id="pMapSeg">
             <button type="button" role="radio" data-m="l0">Level 0</button>
             <button type="button" role="radio" data-m="pool">Pools</button>
+            <button type="button" role="radio" data-m="office">Office</button>
             <button type="button" role="radio" data-m="mix">Mix</button>
           </div>
         </div>
@@ -409,6 +410,7 @@ body.touch #find{left:calc(60px + env(safe-area-inset-left,0px));transform:none;
           <div class="seg maps" role="radiogroup" aria-labelledby="mapLbl" id="mapSeg">
             <button type="button" role="radio" data-m="l0">Level 0</button>
             <button type="button" role="radio" data-m="pool">Pools</button>
+            <button type="button" role="radio" data-m="office">Office</button>
             <button type="button" role="radio" data-m="mix">Mix</button>
           </div>
         </div>
@@ -643,8 +645,8 @@ setMapSize(12);
 // A theme swaps the textures on the shared wall, pillar, partition, floor and ceiling materials and sets the fog, the
 // lights and the panel colours. Nothing here changes collision or is sent to anyone. Each theme's textures are made
 // the first time it is used, so a player who only ever sees Level 0 pays nothing for the others.
-const MAPS=['l0','pool'];
-const MAP_NAME={l0:'Level 0',pool:'Poolrooms',mix:'Mix'};
+const MAPS=['l0','pool','office'];
+const MAP_NAME={l0:'Level 0',pool:'Poolrooms',office:'Office',mix:'Mix'};
 const mapOk=m=>m==='mix'||MAPS.includes(m);
 // a "mix" match picks one of the places for every round, from the round's seed (so every player picks the same)
 const mixPick=seed=>MAPS[Math.floor(mulberry((seed^0x51ed270b)>>>0)()*MAPS.length)];
@@ -670,7 +672,23 @@ const THEMES={
         g.fillStyle='rgba(60,140,160,.28)';for(let x=0;x<w;x+=32)g.fillRect(x+2,0,30,32);   // a band of blue tiles along one edge of every cell
         lightPool(g,w,h,'#e6ecea','#aebcba')},N,N);
       const ceil=canvasTex(256,256,tileDraw(32,'#eef3f0','rgba(120,140,138,.45)','60,90,90',false),N,N);
-      return{wall,pillar,low:lowTexOf(wall),floor,ceil}}}
+      return{wall,pillar,low:lowTexOf(wall),floor,ceil}}},
+  // Office: off-white painted walls, blue-grey carpet tiles, grey cubicle partitions, cold buzzing fluorescent light
+  office:{fog:0x7b8078,near:8,far:56,amb:[0xeef3e6,.38],hemi:[0xf1f6ea,0x55594d,.58],sun:[0xf6fbef,.34],fill:[0xc0cfd8,.16],on:0xf2fff0,dead:0x5f645b,off:0x4a4f48,halo:0xeaffea,low:.12,
+    tex(){const wall=canvasTex(256,256,(g,w,h)=>{g.fillStyle='#c9c7b8';g.fillRect(0,0,w,h);
+        for(let x=0;x<w;x+=4){g.fillStyle=`rgba(255,255,245,${Math.random()*.05})`;g.fillRect(x,0,4,h)}
+        noise(g,w,h,9);blot(g,w,h,3,'rgba(90,85,60,.06)')},2,6);
+      const pillar=wall.clone();pillar.needsUpdate=true;pillar.repeat.set(.5,6);
+      const floor=canvasTex(512,512,(g,w,h)=>{g.fillStyle='#5b6571';g.fillRect(0,0,w,h);noise(g,w,h,24);
+        // 1 m carpet tiles laid with the grain turned each time, so the floor reads as a checkerboard up close
+        for(let i=0;i<4;i++)for(let j=0;j<4;j++){const x=i*128,y=j*128;g.fillStyle=(i+j)%2?'rgba(255,255,255,.035)':'rgba(0,0,0,.05)';g.fillRect(x,y,128,128);
+          g.fillStyle='rgba(30,36,44,.22)';for(let k=4;k<128;k+=5)if((i+j)%2)g.fillRect(x,y+k,128,1);else g.fillRect(x+k,y,1,128)}
+        g.fillStyle='rgba(28,32,38,.45)';for(let k=0;k<w;k+=128){g.fillRect(k,0,2,h);g.fillRect(0,k,w,2)}
+        blot(g,w,h,3,'rgba(30,26,18,.12)');lightPool(g,w,h,'#d8dad6','#929791')},N,N);
+      const ceil=canvasTex(256,256,(g,w,h)=>{g.fillStyle='#e2e1d8';g.fillRect(0,0,w,h);
+        for(let i=0;i<1300;i++){g.fillStyle='rgba(110,110,96,.3)';g.fillRect(Math.random()*w,Math.random()*h,1.3,1.3)}
+        g.fillStyle='#a3a397';g.fillRect(0,0,w,4);g.fillRect(0,128,w,4);g.fillRect(0,0,4,h);g.fillRect(128,0,4,h);noise(g,w,h,6);blot(g,w,h,2,'rgba(150,120,60,.12)')},N,N);
+      return{wall,pillar,low:fabricTex,floor,ceil}}}
 };
 // ripples that tile (one repeat per cell, so neighbouring cells of water join without a seam)
 const waterTex=canvasTex(128,128,(g,w,h)=>{g.fillStyle='#fff';g.fillRect(0,0,w,h);g.strokeStyle='rgba(120,190,200,.55)';g.lineWidth=1.6;
@@ -702,7 +720,7 @@ function setTheme(id){
 //    reached is opened up, and the layout is checked for fairness (see fairV2) and redrawn if it fails.
 //  - layoutV1: the original maze (one per match). Online it's still used whenever someone in the room is on an older
 //    copy of the page, which only knows this one, so everyone in a room always builds the same walls.
-//  - layoutV4 (MAP_V 4): the other places, so far Poolrooms (see layoutV4), drawn with their own theme
+//  - layoutV4 (MAP_V 4): the other places, Poolrooms and Office (see layoutV4), drawn with their own theme
 //    (setTheme). A v4 match names its place in round.mp; Level 0 in a v4 page is still layoutV3.
 // Online, a match uses the newest layout every player in the room can build (round.mv: 4, 3, 2, or none for v1).
 const MAP_V=4,LOW_H=1.25;
@@ -715,7 +733,7 @@ function mapSizeV2(players,seed){const r=mulberry((seed^0x2c1b3c6d)>>>0)();const
 function roundSeed(seed,rn){let h=(seed>>>0)^Math.imul((rn|0)+1,0x9E3779B1);h=Math.imul(h^h>>>16,0x85ebca6b);h=Math.imul(h^h>>>13,0xc2b2ae35);return(h^h>>>16)>>>0}
 // n: maze size in cells; cells: spawn cells, each cleared to an open 3 x 3 area (defaults to the two 1v1 corners);
 // v: which layout (1 or true: the original v1 maze from this seed; 2: layoutV2; anything else: layoutV3);
-// mp: with v 4 only, the place ('pool', 'mix', or Level 0 for anything else)
+// mp: with v 4 only, the place ('pool', 'office', 'mix', or Level 0 for anything else)
 function generateMap(seed,n,cells,v,mp){
   setMapSize(n||12);
   cells=cells&&cells.length?cells:[soloCell(0),soloCell(1)];
@@ -1087,6 +1105,8 @@ function doorsV3(L,cells){
    pillars, and solid cells), each furnished its own way:
     - pool: tiled halls of different sizes opening wide onto each other (sometimes with no wall at all), some flooded
       ankle-deep, with colonnades of tiled pillars or low tiled pool edges for cover;
+    - office: open-plan floors of cubicles behind low partitions, small offices and meeting rooms behind full walls,
+      and one-cell corridors between them;
    The whole floor is furnished, then the west half is copied onto the east half turned 180 degrees about the middle
    (mirrorV4), which puts every Red spawn on a Blue one, so it is fair by construction for any roster. Then the spawns
    are cleared and anything sealed off is opened, both halves alike (connectSym). */
@@ -1113,7 +1133,7 @@ function attemptV4(rnd,cells,th){
   const spawnC=grid(N,N,false);for(const c of sym){const [sx,sz]=spawnArea(c);for(let x=sx;x<sx+3;x++)for(let z=sz;z<sz+3;z++)spawnC[x][z]=true}
   const near=(x,z,m)=>sym.some(c=>{const [sx,sz]=spawnArea(c);return x>=sx-m&&x<sx+3+m&&z>=sz-m&&z<sz+3+m});
   const T={rnd,ri,chance,shuffle,L,spawnC,near};
-  furnishPool(T);
+  (th==='pool'?furnishPool:furnishOffice)(T);
   mirrorV4(L);clearSpawns(L,sym);
   // no straight line of sight longer than V4_RUN cells along a row or column: a full wall across it near the middle
   // (and the same on the other half); these places are more open than Level 0, so the limit is longer than V3_RUN
@@ -1218,6 +1238,41 @@ function furnishPool(T){
   flickerV4(T,chance(.45)?1:0,2,()=>{const r=regs[ri(regs.length)];return r.cells});
   L.regs=regs.map(r=>[r.x,r.z,r.w,r.d,r.wet?'pool':'hall']);
 }
+function furnishOffice(T){
+  const {ri,rnd,chance,L,near}=T;
+  const {regs,reg}=splitAreas(T,8,24,.45);
+  for(const r of regs)r.style=r.corr?'corridor':r.w*r.d>=6&&chance(.72)?'open':'rooms';
+  areaWalls(T,regs,reg,(A,B,es)=>A.corr||B.corr?1:A.style==='open'&&B.style==='open'&&es.length>=3&&chance(.35)?-1:es.length<=3?1:1+ri(2));
+  for(const r of regs){
+    if(r.style==='open'){
+      // rows of cubicles back to back behind low partitions, an open aisle after every two rows; the first and last
+      // rows always face an aisle, so no cubicle is shut in
+      const ax=r.w>=r.d?0:1,U=ax?r.d:r.w,Vn=ax?r.w:r.d,ph=1+ri(2);
+      const at=(u,v)=>ax?[r.x+v,r.z+u]:[r.x+u,r.z+v];
+      for(let v=0;v<Vn;v++){
+        const band=(v+ph)%3;if(band===2)continue;
+        if(band===0&&v+2<Vn){const gap=U>3?ri(U):-1;for(let u=0;u<U;u++){if(u===gap)continue;const [x,z]=at(u,v+1);if(!near(x,z,0)){if(ax)lowV[x][z]=true;else lowH[z][x]=true}}}
+        for(let u=1;u<U;u++)if(chance(.8)){const [x,z]=at(u,v);if(!near(x,z,0)){if(ax)lowH[z][x]=true;else lowV[x][z]=true}}
+      }
+      innerCorners(r,(x,z)=>{if(chance(.1))L.pillars.set(x*64+z,.9)});
+    }else if(r.style==='rooms'){
+      // small offices and meeting rooms behind full walls, each with a door or two
+      (function sub(x,z,w,d){
+        if(w*d<=2+ri(3)||(w<2&&d<2))return;
+        let ax=w>d?0:d>w?1:ri(2);if((ax?d:w)<2)ax=1-ax;
+        const len=ax?d:w,p=1+ri(len-1),span=ax?w:d,door=ri(span),door2=span>=3&&chance(.5)?ri(span):-1;
+        for(let s=0;s<span;s++){if(s===door||s===door2)continue;if(!ax)vWall[x+p][z+s]=true;else hWall[z+p][x+s]=true}
+        if(!ax){sub(x,z,p,d);sub(x+p,z,w-p,d)}else{sub(x,z,w,p);sub(x,z+p,w,d-p)}
+      })(r.x,r.z,r.w,r.d);
+    }
+  }
+  // cold, even fluorescent light; some offices left dim; more dead and flickering panels than Level 0
+  for(const r of regs){const dim=r.style==='rooms'&&chance(.35);
+    for(const [x,z] of r.cells){L.light[x][z]=(dim?.74:.97)+rnd()*.07;L.tint[x][z]=[.97,1,.97];
+      if(!T.spawnC[x][z]&&chance(dim?.4:.09)){L.panel[x][z]=2;L.light[x][z]*=.82}}}
+  flickerV4(T,1+(chance(.5)?1:0),3,()=>{const rs=regs.filter(r=>r.style!=='rooms');const r=rs.length?rs[ri(rs.length)]:regs[ri(regs.length)];return r.cells.slice(0,8)});
+  L.regs=regs.map(r=>[r.x,r.z,r.w,r.d,r.style]);
+}
 
 /* building the meshes: every kind of piece is one instanced mesh (one draw call), coloured per piece by the light
    of the cells beside it, so dim and dark areas darken their walls, floor and ceiling too */
@@ -1244,7 +1299,7 @@ function buildMap(L){
   if(L.jambs)inst(geoJamb,wallMat,L.jambs,(m,[o,x,z,e])=>{const t=e?4-JAMB/2:JAMB/2;if(o==='H')m.makeTranslation(x*4+t,CEIL/2,z*4);else m.makeRotationY(Math.PI/2).setPosition(x*4,CEIL/2,z*4+t)},
     ([o,x,z,e])=>{const a=e?4-JAMB:0;return o==='H'?{min:[x*4+a,0,z*4-.15],max:[x*4+a+JAMB,CEIL,z*4+.15]}:{min:[x*4-.15,0,z*4+a],max:[x*4+.15,CEIL,z*4+a+JAMB]}},
     ([o,x,z])=>o==='H'?[[x,z-1],[x,z]]:[[x-1,z],[x,z]]);
-  // low walls: thin partitions, or (pool edges) thicker ones, which are thicker to bump into too
+  // low walls: thin cubicle partitions, or (pool edges) thicker ones, which are thicker to bump into too
   const lt=L.v===4?TH.low:.12,lw=lt/2,thick=lt>.2;
   inst(thick?geoLowH3:geoLowH,lowMat,lhList,(m,[x,z])=>m.makeTranslation(x*4+2,LOW_H/2,z*4),([x,z])=>({min:[x*4,0,z*4-lw],max:[x*4+4,LOW_H,z*4+lw],k:1}),([x,z])=>[[x,z-1],[x,z]]);
   inst(thick?geoLowV3:geoLowV,lowMat,lvList,(m,[x,z])=>m.makeTranslation(x*4,LOW_H/2,z*4+2),([x,z])=>({min:[x*4-lw,0,z*4],max:[x*4+lw,LOW_H,z*4+4],k:1}),([x,z])=>[[x-1,z],[x,z]]);
