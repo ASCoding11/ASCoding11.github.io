@@ -97,6 +97,10 @@
     function open(on) {
       menu.hidden = !on;
       btn.setAttribute('aria-expanded', on ? 'true' : 'false');
+      // the menu hangs from the button's right edge; when the button sits near the left (the top bar wraps Sign in and
+      // the switch onto their own line on a phone held sideways), it hangs from the left edge instead
+      menu.style.left = menu.style.right = '';
+      if (on && btn.getBoundingClientRect().right < menu.offsetWidth + 8) { menu.style.left = '0'; menu.style.right = 'auto'; }
       if (on) { var c = menu.querySelector('[aria-checked="true"]'); if (c) c.focus(); }
     }
     btn.addEventListener('click', function () { open(menu.hidden); });
