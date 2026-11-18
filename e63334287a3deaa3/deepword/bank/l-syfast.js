@@ -1,0 +1,2 @@
+/* Deepword answer data, built by tools/build.js from prompts.js and free data (see tools/SOURCES.md). Do not edit by hand. */
+DW_EXT.add("syfast","quick;speedy;rapid;swift;hasty;fleet;brisk;zippy;nimble;snappy;lively;express;breakneck;lightning;hurried;accelerated;blazing;flying;meteoric;supersonic;turbo;high speed;expeditious;nippy;sprightly;agile;prompt;immediate;instant;speedily;quickly;rapidly;swiftly;fast paced;whirlwind;headlong;precipitate;spry;fleet footed;velocious","zhtcttshobjooshskmm1pgrqektmqbhflorcbqgyf1jbcodmb9idpuqeqve3ukoznkghjsfic7d5aslk");

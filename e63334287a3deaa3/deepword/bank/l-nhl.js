@@ -1,0 +1,2 @@
+/* Deepword answer data, built by tools/build.js from prompts.js and free data (see tools/SOURCES.md). Do not edit by hand. */
+DW_EXT.add("nhl","maple leafs;canadiens;bruins;rangers;blackhawks;red wings;penguins;oilers;flyers;capitals;lightning;avalanche;golden knights;kings;sharks;ducks;stars;blues;wild;predators;jets;flames;canucks;senators;sabres;islanders;devils;hurricanes;panthers;blue jackets;kraken;utah hockey club","lzj3n5hxqmuovueehvigv7peo8qkpxstuko6tzkppcroewh8lvd6iyk4laqidrg0");

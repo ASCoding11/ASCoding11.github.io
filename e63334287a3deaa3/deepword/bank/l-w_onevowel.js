@@ -1,0 +1,2 @@
+/* Deepword answer data, built by tools/build.js from prompts.js and free data (see tools/SOURCES.md). Do not edit by hand. */
+DW_EXT.add("w_onevowel","strength;flights;knights;lengths;scratch;springs;stretch;strings;twelfth;scripts;strands;strengths;growths;prompts;scrolls;thrills;thrusts;borscht;schisms;schists;schmaltz;shrimps;shrinks;splints;sprints;throngs;thwarts","z8wqt4selxmny5w0qzpwn0thjskiq9qzgwc8bilkaseek5ftkvdocy");
