@@ -123,22 +123,22 @@ const BEE = ['#ffd23f', '#ffd23f', '#2d2433'];
 const ANI = [null,
   { // 1 Python: tan with brown saddles down the back and smaller blotches down the sides
     ball: () => '#d9b97a', under: () => U('#d9b97a'), rot: true, head: '#c9a466', pal: ['#c9a466', '#d9b97a', '#7d5130'],
-    ov: k => slice('a1' + k % 3, '#d9b97a', g => {
+    ov: k => slice('a1:' + k % 3, '#d9b97a', g => {
       const u0 = (k % 3) * .84, sad = (x, y, rx, ry) => { ell(g, x, y, rx + .09, ry + .09); g.fillStyle = '#4a2e18'; g.fill(); ell(g, x, y, rx, ry); g.fillStyle = '#7d5130'; g.fill(); ell(g, x - rx * .1, y, rx * .38, ry * .34); g.fillStyle = '#a8763f'; g.fill(); };
       per(u0, 2.52, x => { sad(x, 0, .6, .66); sad(x - 1.26, .95, .4, .34); sad(x - 1.26, -.95, .4, .34); });
     }) },
   { // 2 Rattlesnake: a chain of light-edged dark diamonds, and a rattle at the tail
     ball: (k, i, n) => i > n * .9 ? (k & 1 ? '#6a5a48' : '#ece0c4') : '#c7ae82', under: (i, n) => U(i > n * .9 ? '#ece0c4' : '#c7ae82'), rot: true, head: '#b89a6c', pal: ['#b89a6c', '#c7ae82', '#5a3d24'],
-    ov: (k, i, n) => i > n * .9 ? null : slice('a2' + (k & 1), '#c7ae82', g => {
+    ov: (k, i, n) => i > n * .9 ? null : slice('a2:' + (k & 1), '#c7ae82', g => {
       const dia = (x, hx, hy, c) => { g.fillStyle = c; g.beginPath(); g.moveTo(x + hx, 0); g.lineTo(x, hy); g.lineTo(x - hx, 0); g.lineTo(x, -hy); g.closePath(); g.fill(); };
       per((k & 1) * .84, 1.68, x => { dia(x, .86, .94, '#efe2bd'); dia(x, .72, .8, '#5a3d24'); dia(x, .5, .56, '#8d6842'); dia(x, .2, .24, '#c2a072'); });
     }) },
   { // 3 Coral snake: wide red, thin yellow, black, thin yellow, with dark flecks on the red
     ball: k => CORAL[k % 7], under: () => U('#e8382f'), rot: true, head: '#e8382f', pal: ['#e8382f', '#ffd93a', '#e8382f'],
-    ov: k => { const c = CORAL[k % 7]; return slice('a3' + c + (k & 1), c, g => { for (let j = 0; j < 7; j++) dot(g, -.45 + hr(k & 1, j) * .9, -.85 + hr(j, k & 1) * 1.7, .045, c === '#e8382f' ? '#7a1610' : mixh(c, '#000000', .25)); }); } },
+    ov: k => { const c = CORAL[k % 7]; return slice('a3:' + c + (k & 1), c, g => { for (let j = 0; j < 7; j++) dot(g, -.45 + hr(k & 1, j) * .9, -.85 + hr(j, k & 1) * 1.7, .045, c === '#e8382f' ? '#7a1610' : mixh(c, '#000000', .25)); }); } },
   { // 4 Tiger: orange, with black stripes reaching in from both sides
     ball: () => '#ff8a1f', under: () => U('#ff8a1f'), rot: true, head: '#ff8a1f', pal: ['#ff8a1f', '#ffb05a', '#ff8a1f'],
-    ov: k => slice('a4' + (k & 1), '#ff8a1f', g => {
+    ov: k => slice('a4:' + (k & 1), '#ff8a1f', g => {
       const wedge = (x, s, len, w) => { g.beginPath(); g.moveTo(x - w, s * 1.05); g.quadraticCurveTo(x - w * .2, s * (1.05 - len * .6), x + w * .9, s * (1.05 - len)); g.quadraticCurveTo(x + w * .3, s * (1.05 - len * .45), x + w, s * 1.05); g.closePath(); g.fill(); };
       g.fillStyle = '#ffb05a'; g.fillRect(-.5, -.2, 1, .4);
       g.fillStyle = '#231a14';
@@ -146,42 +146,40 @@ const ANI = [null,
     }) },
   { // 5 Zebra: white with bold black chevrons
     ball: () => '#f6f4ee', under: () => U('#f6f4ee'), rot: true, head: '#f6f4ee', pal: ['#f6f4ee', '#cfd4dc', '#f6f4ee'],
-    ov: k => slice('a5' + (k & 1), '#f6f4ee', g => {
+    ov: k => slice('a5:' + (k & 1), '#f6f4ee', g => {
       const chev = (x, w, v) => { g.beginPath(); g.moveTo(x + v, -1.1); g.lineTo(x, 0); g.lineTo(x + v, 1.1); g.lineTo(x + v - w, 1.1); g.lineTo(x - w, 0); g.lineTo(x + v - w, -1.1); g.closePath(); g.fill(); };
       g.fillStyle = '#1c1c24'; per((k & 1) * .84, 1.68, x => { chev(x + .1, .32, .3); chev(x - .74, .2, .26); });
     }) },
   { // 6 Leopard: gold with dark rosettes
     ball: () => '#e8b04a', under: () => U('#e8b04a'), head: '#e8b04a', pal: ['#e8b04a', '#c27a2c', '#e8b04a'],
-    ov: k => { const v = hv(k, 5); return disc('a6' + v, g => {
-      for (let j = 0; j < 3; j++) {
-        const a = hr(v, j) * TAU, d = .15 + hr(j, v) * .45, x = Math.cos(a) * d, y = Math.sin(a) * d;
-        if (j === 2) { dot(g, x, y, .09, '#3a2614'); continue; }
-        dot(g, x, y, .2, '#c27a2c'); for (let m = 0; m < 5; m++) { const b = m / 5 * TAU + hr(v, m + 9); dot(g, x + Math.cos(b) * .24, y + Math.sin(b) * .24, .08, '#3a2614'); }
-      }
+    ov: k => { const v = hv(k, 6); return v > 3 ? null : disc('a6:' + v, g => {
+      const a = hr(v, 1) * TAU, d = .12 + hr(1, v) * .2, x = Math.cos(a) * d, y = Math.sin(a) * d;
+      dot(g, x, y, .26, '#c27a2c'); for (let m = 0; m < 5; m++) { const b = m / 5 * TAU + hr(v, m + 9) * .6; ell(g, x + Math.cos(b) * .34, y + Math.sin(b) * .34, .14, .09, b + 1.57); g.fillStyle = '#3a2614'; g.fill(); }
+      if (v & 1) dot(g, -x * 2.2, -y * 2.2, .1, '#3a2614');
     }); } },
   { // 7 Cow: white with black patches
     ball: () => '#f7f7f3', under: () => U('#f7f7f3'), head: '#f7f7f3', pal: ['#f7f7f3', '#dfe3ea', '#f7f7f3'],
-    ov: k => { const v = hv(k, 6); return v > 3 ? null : disc('a7' + v, g => { const a = hr(v, 3) * TAU, d = .2 + hr(v, 4) * .25; blob(g, Math.cos(a) * d, Math.sin(a) * d, .38, v * 31 + 5, '#22222a'); if (v & 1) blob(g, -Math.cos(a) * .45, -Math.sin(a) * .45, .2, v * 17 + 2, '#22222a'); }); } },
+    ov: k => { const v = hv(k, 6); return v > 3 ? null : disc('a7:' + v, g => { const a = hr(v, 3) * TAU, d = .2 + hr(v, 4) * .25; blob(g, Math.cos(a) * d, Math.sin(a) * d, .38, v * 31 + 5, '#22222a'); if (v & 1) blob(g, -Math.cos(a) * .45, -Math.sin(a) * .45, .2, v * 17 + 2, '#22222a'); }); } },
   { // 8 Bee: fuzzy yellow and black bands, and two little wings by the head
     ball: k => BEE[k % 3], under: () => U('#ffd23f'), rot: true, head: '#ffd23f', pal: ['#ffd23f', '#ffd23f', '#2d2433'],
-    ov: k => { const c = BEE[k % 3], w = k === 1 || k === 2; return slice('a8' + c + w + (k & 1), c, g => {
+    ov: k => { const c = BEE[k % 3], w = k === 1 || k === 2; return slice('a8:' + c + w + (k & 1), c, g => {
       g.lineWidth = .05; g.strokeStyle = c === '#ffd23f' ? '#ffe98a' : '#4a4058';
       for (let j = 0; j < 16; j++) { const x = -.45 + hr(j, k & 1) * .9, y = -.9 + hr(k & 1, j) * 1.8, a = hr(j, 3) * TAU; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * .1, y + Math.sin(a) * .1); g.stroke(); }
     }, w ? g => { for (const s of [-1, 1]) { ell(g, -.15, s * .55, .42, .24, s * -.5); g.fillStyle = 'rgba(232,246,255,.78)'; g.fill(); g.strokeStyle = 'rgba(110,130,170,.9)'; g.lineWidth = .045; g.stroke(); line(g, [.18, s * .35, -.4, s * .7], .03, 'rgba(110,130,170,.7)'); } } : null); } },
   { // 9 Caterpillar: round green segments with yellow spots and little feet
     ball: () => '#6fbf32', under: () => U('#8bd84a'), rot: true, head: '#9be04a', pal: ['#9be04a', '#8bd84a', '#ffe14a'],
-    ov: k => slice('a9' + (k & 1), '#4f9a24', g => {
+    ov: k => slice('a9:' + (k & 1), '#4f9a24', g => {
       const gr = g.createRadialGradient(.1, -.2, .1, 0, 0, 1); gr.addColorStop(0, '#c4f57a'); gr.addColorStop(.6, '#8bd84a'); gr.addColorStop(1, '#5aa82c');
       ell(g, 0, 0, .47, 1.02); g.fillStyle = gr; g.fill();
       if (k & 1) { dot(g, 0, .62, .11, '#ffe14a'); dot(g, 0, -.62, .11, '#ffe14a'); }
     }, k & 1 ? null : g => { for (const s of [-1, 1]) { ell(g, 0, s * 1.0, .11, .07); g.fillStyle = '#3d6e1e'; g.fill(); } }) },
   { // 10 Centipede: red-brown plates with a pair of legs on every one
     ball: () => '#b4462a', under: () => U('#c85a34'), rot: true, head: '#c85a34', pal: ['#c85a34', '#ffb36b', '#c85a34'],
-    ov: k => slice('a10', '#8a3018', g => { rr(g, -.42, -.94, .86, 1.88, .3); g.fillStyle = '#c85a34'; g.fill(); line(g, [-.36, -.8, -.36, .8], .06, '#ff9a6a'); },
+    ov: k => slice('a10:', '#8a3018', g => { rr(g, -.42, -.94, .86, 1.88, .3); g.fillStyle = '#c85a34'; g.fill(); line(g, [-.36, -.8, -.36, .8], .06, '#ff9a6a'); },
       g => { g.lineCap = 'round'; for (const s of [-1, 1]) line(g, [-.05, s * .78, -.22, s * .96, -.4, s * 1.05], .075, '#ffb36b'); }) },
   { // 11 Dragon: green scales, gold spines down the back
     ball: () => '#2f9e5e', under: () => U('#33b46c'), rot: true, head: '#33b46c', pal: ['#33b46c', '#ffb02e', '#2a9a8a'],
-    ov: () => slice('a11', '#33b46c', g => {
+    ov: () => slice('a11:', '#33b46c', g => {
       g.strokeStyle = '#1f7a4a'; g.lineWidth = .05;
       for (let j = -2; j <= 2; j++) for (const y of [-.66, -.22, .22, .66]) { const x = -j * .42 + (y > -.3 && y < .3 ? .21 : 0); g.beginPath(); g.arc(x, y, .22, -Math.PI / 2, Math.PI / 2); g.stroke(); }
       g.fillStyle = 'rgba(42,154,138,.65)'; g.fillRect(-.5, .82, 1, .18); g.fillRect(-.5, -1, 1, .18);
@@ -195,29 +193,29 @@ const DES = [null,
     ball: (k, i, n, t, B) => { const c = B(i, n, t); return k % 3 < 2 ? c : lightOn(c); }, pal: null },
   { // 2 Candy cane: red twisting round white
     ball: k => k & 1 ? '#fff4f4' : '#e8283c', under: () => U('#e8283c'), rot: true, head: '#fff4f4', pal: ['#fff4f4', '#e8283c', '#fff4f4'],
-    ov: k => slice('d2' + (k & 1), '#fff4f4', g => { diag(g, (k & 1) * .84, 1.68, 0, .56, .55, '#e8283c'); diag(g, (k & 1) * .84, 1.68, .76, .1, .55, '#ff9aa8'); }) },
+    ov: k => slice('d2:' + (k & 1), '#fff4f4', g => { diag(g, (k & 1) * .84, 1.68, 0, .56, .55, '#e8283c'); diag(g, (k & 1) * .84, 1.68, .76, .1, .55, '#ff9aa8'); }) },
   { // 3 Barber pole: red and blue spiralling round white, a silver cap
     ball: k => k & 1 ? '#2a56d8' : '#e02a36', under: () => U('#e02a36'), rot: true, head: '#d8dee8', pal: ['#d8dee8', '#e02a36', '#2a56d8'],
-    ov: k => slice('d3' + (k & 1), '#fafafa', g => { diag(g, (k & 1) * .84, 1.68, 0, .4, .75, '#e02a36'); diag(g, (k & 1) * .84, 1.68, .84, .4, .75, '#2a56d8'); }) },
+    ov: k => slice('d3:' + (k & 1), '#fafafa', g => { diag(g, (k & 1) * .84, 1.68, 0, .4, .75, '#e02a36'); diag(g, (k & 1) * .84, 1.68, .84, .4, .75, '#2a56d8'); }) },
   { // 4 Checker: your colour in squares, four across
     rot: true, pal: null,
-    ov: (k, i, n, t, B) => { const c = B(i, n, t), d = lum(c) > .5 ? mixh(c, '#1a1d2e', .72) : '#f4f6ff'; return slice('d4' + c, c, g => {
+    ov: (k, i, n, t, B) => { const c = B(i, n, t), d = lum(c) > .5 ? mixh(c, '#1a1d2e', .72) : '#f4f6ff'; return slice('d4:' + c, c, g => {
       g.fillStyle = d; for (let j = -2; j <= 1; j++) for (let q = 0; q < 4; q++) if (((j + q) % 2 + 2) % 2) g.fillRect(-(j + 1) * .42, -1 + q * .5, .42, .5);
     }); } },
   { // 5 Polka dots: your colour with white dots
     pal: null,
-    ov: (k, i, n, t, B) => { const w = lightOn(B(i, n, t)), v = hv(k, 4); return disc('d5' + w + v, g => {
+    ov: (k, i, n, t, B) => { const w = lightOn(B(i, n, t)), v = hv(k, 4); return disc('d5:' + w + v, g => {
       const a = hr(v, 1) * TAU; dot(g, Math.cos(a) * .4, Math.sin(a) * .4, .24, w); if (v & 1) dot(g, -Math.cos(a + .6) * .5, -Math.sin(a + .6) * .5, .17, w);
     }); } },
   { // 6 Zigzag: a bright zigzag down the middle of your colour
     rot: true, pal: null,
-    ov: (k, i, n, t, B) => { const c = B(i, n, t), w = lightOn(c), o = mixh(c, SHADE, .45); return slice('d6' + c + (k & 1), c, g => {
+    ov: (k, i, n, t, B) => { const c = B(i, n, t), w = lightOn(c), o = mixh(c, SHADE, .45); return slice('d6:' + c + (k & 1), c, g => {
       const pts = []; per((k & 1) * .84, .84, (x, j) => pts.push(x, j & 1 ? .58 : -.58)); pts.reverse(); for (let q = 0; q < pts.length; q += 2) { const t2 = pts[q]; pts[q] = pts[q + 1]; pts[q + 1] = t2; }
       line(g, pts, .3, o); line(g, pts, .17, w);
     }); } },
   { // 7 Galaxy: deep purple and blue with nebula glow and twinkling stars
     ball: k => GAL[k % 4], under: () => underX('#b07bff', '#cdb8ff', .3), head: '#5a34b0', pal: ['#8a5cff', '#b07bff', '#5fd8ff'],
-    ov: (k, i, n, t) => { const v = hv(k, 4), w = (Math.floor(t / 420) + hv(k, 2, 3)) & 1; return disc('d7' + v + w, g => {
+    ov: (k, i, n, t) => { const v = hv(k, 4), w = (Math.floor(t / 420) + hv(k, 2, 3)) & 1; return disc('d7:' + v + w, g => {
       const a = hr(v, 2) * TAU, gr = g.createRadialGradient(Math.cos(a) * .3, Math.sin(a) * .3, 0, Math.cos(a) * .3, Math.sin(a) * .3, .6);
       gr.addColorStop(0, v & 1 ? 'rgba(255,110,220,.42)' : 'rgba(90,220,255,.38)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.beginPath(); g.arc(0, 0, .9, 0, TAU); g.fill();
       for (let j = 0; j < 6; j++) { const b = hr(v, j + 4) * TAU, d = hr(j, v + 9) * .78; dot(g, Math.cos(b) * d, Math.sin(b) * d, .035 + hr(j, v) * .04, (j + w) % 3 ? 'rgba(255,255,255,.95)' : 'rgba(255,255,255,.35)'); }
@@ -225,20 +223,20 @@ const DES = [null,
     }); } },
   { // 8 Lava: dark rock with glowing cracks; the heat flows down the body
     ball: (k, i, n, t) => LAVA[(((k - Math.floor(t / 140)) % 6) + 6) % 6], under: () => underX('#ff6a1a', '#ff9a5a', .35), head: '#cc3a18', pal: ['#ff6a1a', '#ffb02e', '#cc3a18'],
-    ov: k => { const v = hv(k, 5); return disc('d8' + v, g => {
+    ov: k => { const v = hv(k, 5); return disc('d8:' + v, g => {
       for (let j = 0; j < 2; j++) { const pts = []; let a = hr(v, j) * TAU, x = Math.cos(a) * .7, y = Math.sin(a) * .7; pts.push(x, y); for (let m = 0; m < 4; m++) { a += Math.PI * .8 + (hr(v * 9 + j, m) - .5) * 1.2; x = Math.max(-.7, Math.min(.7, x * .3 + Math.cos(a) * .4)); y = Math.max(-.7, Math.min(.7, y * .3 + Math.sin(a) * .4)); pts.push(x, y); }
         line(g, pts, .16, 'rgba(255,150,40,.4)'); line(g, pts, .07, '#ffd04a'); line(g, pts, .03, '#fff6c0'); }
     }, .6); } },
   { // 9 Ice: pale blue with white cracks and frost sparkles
     ball: k => ICE[k % 3], under: () => U('#a6dcf7'), head: '#d6f3ff', pal: ['#d6f3ff', '#a6dcf7', '#ffffff'],
-    ov: k => { const v = hv(k, 5); return disc('d9' + v, g => {
+    ov: k => { const v = hv(k, 5); return disc('d9:' + v, g => {
       const a = hr(v, 1) * TAU, x = Math.cos(a) * .2, y = Math.sin(a) * .2;
       for (let j = 0; j < 3; j++) { const b = a + j * 2.1 + hr(v, j) * .8; line(g, [x, y, x + Math.cos(b) * .4, y + Math.sin(b) * .4, x + Math.cos(b + .5) * .7, y + Math.sin(b + .5) * .7], .035, 'rgba(255,255,255,.85)'); }
       if (v & 1) star4(g, -x * 2, -y * 2, .16, '#ffffff');
     }, 1.4); } },
   { // 10 Circuit board: green board, gold traces, pads, chips
     ball: () => '#1d8a4e', under: () => U('#2fb86a'), rot: true, head: '#1d8a4e', pal: ['#2fb86a', '#ffd04a', '#2fb86a'],
-    ov: k => { const v = hv(k, 4); return slice('d10' + v, '#1d8a4e', g => {
+    ov: k => { const v = hv(k, 4); return slice('d10:' + v, '#1d8a4e', g => {
       g.strokeStyle = '#ffd04a'; g.lineWidth = .09; g.beginPath(); g.moveTo(-.5, -.62); g.lineTo(.5, -.62); g.moveTo(-.5, .62); g.lineTo(.5, .62); g.moveTo(-.5, 0); g.lineTo(.5, 0); g.stroke();
       if (v === 0) { dot(g, 0, 0, .14, '#ffd04a'); dot(g, 0, 0, .06, '#0f4a2a'); }
       else if (v === 1) { rr(g, -.3, -.38, .6, .76, .06); g.fillStyle = '#22262e'; g.fill(); g.strokeStyle = '#c8ccd6'; g.lineWidth = .05; g.beginPath(); for (const x of [-.18, 0, .18]) { g.moveTo(x, -.38); g.lineTo(x, -.5); g.moveTo(x, .38); g.lineTo(x, .5); } g.stroke(); dot(g, -.18, -.24, .04, '#5a606e'); }
@@ -247,14 +245,14 @@ const DES = [null,
     }); } },
   { // 11 Pixel: your colour in chunky square pixels
     pal: null,
-    ov: (k, i, n, t, B) => { const c = B(i, n, t); return tile('d11' + c, g => {
+    ov: (k, i, n, t, B) => { const c = B(i, n, t); return tile('d11:' + c, g => {
       const L2 = mixh(c, '#ffffff', .35), D = mixh(c, SHADE, .35);
       for (let a = -3; a < 3; a++) for (let b = -3; b < 3; b++) { const x = (a + .5) / 3, y = (b + .5) / 3; if (x * x + y * y > .86) continue; g.fillStyle = a + b < -2 ? L2 : a + b > 1 ? D : c; g.fillRect(a / 3, b / 3, 1 / 3 + .01, 1 / 3 + .01); }
       g.fillStyle = 'rgba(255,255,255,.8)'; g.fillRect(-2 / 3, -2 / 3, 1 / 3, 1 / 3);
     }); } },
   { // 12 Camo: greens and browns in soft patches
     ball: () => '#6f7d3c', under: () => U('#8f9e52'), head: '#6f7d3c', pal: ['#8f9e52', '#b9ad74', '#6f7d3c'],
-    ov: k => { const v = hv(k, 6); return disc('d12' + v, g => { const cs = ['#3f5228', '#8a6a3a', '#b9ad74']; for (let j = 0; j < 3; j++) { const a = hr(v, j) * TAU, d = hr(j, v) * .45; blob(g, Math.cos(a) * d, Math.sin(a) * d, .2 + hr(v, j + 5) * .14, v * 7 + j, cs[(j + v) % 3]); } }); } }
+    ov: k => { const v = hv(k, 6); return disc('d12:' + v, g => { const cs = ['#3f5228', '#8a6a3a', '#b9ad74']; for (let j = 0; j < 3; j++) { const a = hr(v, j) * TAU, d = hr(j, v) * .45; blob(g, Math.cos(a) * d, Math.sin(a) * d, .2 + hr(v, j + 5) * .14, v * 7 + j, cs[(j + v) % 3]); } }); } }
 ];
 
 // Object snakes (slot o)
@@ -271,7 +269,7 @@ const OBJ = [null,
   { // 1 Train cars: cars in your colour with lit windows, a dark coupling between them; the head is the engine
     rot: true, pal: null,
     ball: (k, i, n, t, B) => k % 5 === 4 ? '#2c3040' : B(Math.floor(k / 5) * 10, n, t), under: (i, n, t, B) => U(B(Math.floor((i >> 1) / 5) * 10, n, t)),
-    ov: (k, i, n, t, B) => { const j = k % 5, c = B(Math.floor(k / 5) * 10, n, t); return slice('o1' + c + j, '#2c3040', g => {
+    ov: (k, i, n, t, B) => { const j = k % 5, c = B(Math.floor(k / 5) * 10, n, t); return slice('o1:' + c + j, '#2c3040', g => {
       if (j === 4) { g.fillStyle = '#9aa3b5'; g.fillRect(-.5, -.12, 1, .24); return; }
       const u0 = j * .84; rr(g, u0 - 2.86, -.97, 3.2, 1.94, .3); g.fillStyle = c; g.fill();
       rr(g, u0 - 2.7, -.58, 2.88, 1.16, .2); g.fillStyle = mixh(c, '#ffffff', .28); g.fill();
@@ -280,7 +278,7 @@ const OBJ = [null,
     }); } },
   { // 2 Sausage links: plump sausages twisted together every three tiles
     ball: () => '#c2552e', under: () => U('#d9683a'), rot: true, head: '#d9683a', pal: ['#d9683a', '#c2552e', '#ff9a6a'],
-    ov: k => { const j = k % 3; return slice('o2' + j, '#c2552e', g => {
+    ov: k => { const j = k % 3; return slice('o2:' + j, '#c2552e', g => {
       for (let m = 0; m < 6; m++) dot(g, -.42 + hr(j, m) * .84, -.8 + hr(m, j) * 1.6, .04, '#8e3518');
       ell(g, 0, -.32, .5, .12); g.fillStyle = 'rgba(255,170,120,.35)'; g.fill();
       const crease = x => { const gr = g.createLinearGradient(x, 0, x + (x > 0 ? -.3 : .3), 0); gr.addColorStop(0, 'rgba(60,15,5,.55)'); gr.addColorStop(1, 'rgba(60,15,5,0)'); g.fillStyle = gr; g.fillRect(x > 0 ? x - .3 : x, -1, .3, 2); g.strokeStyle = '#5a200c'; g.lineWidth = .05; g.beginPath(); g.moveTo(x, -1); g.quadraticCurveTo(x + (x > 0 ? .12 : -.12), 0, x, 1); g.stroke(); };
@@ -288,7 +286,7 @@ const OBJ = [null,
     }); } },
   { // 3 Spaghetti noodle: one long glossy noodle with a little sauce and a few herbs
     ball: () => '#f2cf74', under: () => U('#f2cf74'), rot: true, head: '#f2cf74', pal: ['#f2cf74', '#ffe6a0', '#d6342a'],
-    ov: k => { const v = hv(k, 5); return slice('o3' + v, '#f2cf74', g => {
+    ov: k => { const v = hv(k, 5); return slice('o3:' + v, '#f2cf74', g => {
       line(g, [-.5, -.28, .5, -.28], .16, 'rgba(255,255,255,.32)');
       if (v === 0) { blob(g, hr(k, 1) * .2 - .1, .2, .3, 11, '#d6342a'); blob(g, .05, .25, .15, 12, '#f0573f'); }
       else if (v === 1) for (let m = 0; m < 4; m++) { ell(g, -.4 + m * .25, -.6 + hr(m, 2) * 1.2, .07, .035, hr(2, m) * 3); g.fillStyle = '#3f9a3a'; g.fill(); }
@@ -296,27 +294,27 @@ const OBJ = [null,
   { // 4 Gummy worm: jelly red to orange to green, with ridges and sugar
     rot: true, head: '#ff3f5f', pal: ['#ff3f5f', '#ffb02e', '#5fe05a'],
     ball: (k, i, n) => gumAt(i / Math.max(1, n - 1)), under: (i, n) => U(gumAt(i / Math.max(1, n - 1))),
-    ov: (k, i, n) => { const c = gumAt(i / Math.max(1, n - 1)); return slice('o4' + c + (k & 1), c, g => {
+    ov: (k, i, n) => { const c = gumAt(i / Math.max(1, n - 1)); return slice('o4:' + c + (k & 1), c, g => {
       g.fillStyle = rgba(mixh(c, '#ffffff', .45), .55); g.fillRect(-.5, -.3, 1, .6);
       line(g, [0, -1, 0, 1], .07, 'rgba(255,255,255,.35)'); line(g, [-.42, -1, -.42, 1], .05, rgba(mixh(c, SHADE, .3), .5)); line(g, [.42, -1, .42, 1], .05, rgba(mixh(c, SHADE, .3), .5));
       for (let m = 0; m < 7; m++) dot(g, -.45 + hr(k & 1, m) * .9, -.85 + hr(m, 5) * 1.7, .03, 'rgba(255,255,255,.9)');
     }); } },
   { // 5 Licorice: a twisted red licorice rope
     ball: () => '#d41e2c', under: () => U('#e8303e'), rot: true, head: '#d41e2c', pal: ['#e8303e', '#ff6a74', '#d41e2c'],
-    ov: () => slice('o5', '#d41e2c', g => { diag(g, 0, .42, 0, .11, .45, '#8a0f1a'); diag(g, 0, .42, .15, .05, .45, 'rgba(255,120,130,.75)'); }) },
+    ov: () => slice('o5:', '#d41e2c', g => { diag(g, 0, .42, 0, .11, .45, '#8a0f1a'); diag(g, 0, .42, .15, .05, .45, 'rgba(255,120,130,.75)'); }) },
   { // 6 Garden hose: green with a yellow stripe, brass couplings, a nozzle at the tail
     rot: true, head: '#2fa84a', pal: ['#2fa84a', '#ffe14a', '#2fa84a'],
     ball: (k, i, n) => i > n - 5 || k % 8 === 7 ? '#d9a630' : '#2fa84a', under: () => U('#3fc05a'),
-    ov: (k, i, n) => { const v = i > n - 5 ? 2 : k % 8 === 7 ? 1 : 0; return slice('o6' + v, v ? '#d9a630' : '#2fa84a', g => {
+    ov: (k, i, n) => { const v = i > n - 5 ? 2 : k % 8 === 7 ? 1 : 0; return slice('o6:' + v, v ? '#d9a630' : '#2fa84a', g => {
       if (!v) { g.fillStyle = '#ffe14a'; g.fillRect(-.5, .38, 1, .14); return; }
       const cs = v === 2 ? '#3a3f4a' : '#9a6e14'; for (const x of [-.3, -.1, .1, .3]) line(g, [x, -1, x, 1], v === 2 ? .1 : .06, cs);
     }); } },
   { // 7 Rope: tan strands twisted together
     ball: () => '#c9a46a', under: () => U('#d9b47a'), rot: true, head: '#c9a46a', pal: ['#d9b47a', '#e8cc96', '#c9a46a'],
-    ov: () => slice('o7', '#c9a46a', g => { diag(g, 0, .42, 0, .08, .9, '#7d5f34'); diag(g, 0, .42, .2, .07, .9, '#e8cc96'); g.strokeStyle = '#a8844a'; g.lineWidth = .025; g.beginPath(); for (let m = 0; m < 12; m++) { const x = -.45 + hr(m, 1) * .9, y = -.9 + hr(1, m) * 1.8; g.moveTo(x, y); g.lineTo(x - .1, y + .05); } g.stroke(); }) },
+    ov: () => slice('o7:', '#c9a46a', g => { diag(g, 0, .42, 0, .08, .9, '#7d5f34'); diag(g, 0, .42, .2, .07, .9, '#e8cc96'); g.strokeStyle = '#a8844a'; g.lineWidth = .025; g.beginPath(); for (let m = 0; m < 12; m++) { const x = -.45 + hr(m, 1) * .9, y = -.9 + hr(1, m) * 1.8; g.moveTo(x, y); g.lineTo(x - .1, y + .05); } g.stroke(); }) },
   { // 8 Chain: steel links, one flat and the next on its edge
     ball: () => '#6b7584', under: () => U('#9aa4b2'), rot: true, head: '#9aa4b2', pal: ['#c4ccd8', '#9aa4b2', '#eef2f8'],
-    ov: k => slice('o8' + (k & 1), '#6b7584', null, g => {
+    ov: k => slice('o8:' + (k & 1), '#6b7584', null, g => {
       if (k & 1) { rr(g, -.68, -.18, 1.36, .36, .18); g.fillStyle = '#3d4452'; g.fill(); rr(g, -.64, -.14, 1.28, .28, .14); g.fillStyle = '#cfd6e2'; g.fill(); line(g, [-.5, -.04, .5, -.04], .05, '#ffffff'); return; }
       ell(g, 0, 0, .64, .76); g.strokeStyle = '#3d4452'; g.lineWidth = .3; g.stroke(); g.strokeStyle = '#c4ccd8'; g.lineWidth = .22; g.stroke();
       ell(g, 0, 0, .58, .7); g.strokeStyle = '#eef2f8'; g.lineWidth = .05; g.stroke();
@@ -324,7 +322,7 @@ const OBJ = [null,
   { // 9 Measuring tape: yellow with tick marks and numbers, a metal hook at the tail
     rot: true, head: '#ffd23f', pal: ['#ffd23f', '#ffe98a', '#ffd23f'],
     ball: (k, i, n) => i > n - 4 ? '#c9ced8' : '#ffd23f', under: () => U('#ffd23f'),
-    ov: (k, i, n) => { if (i > n - 4) return slice('o9h', '#c9ced8', g => { g.fillStyle = '#8a919e'; g.fillRect(-.5, -1, .22, 2); }); const d = k % 10; return slice('o9' + d, '#ffd23f', g => {
+    ov: (k, i, n) => { if (i > n - 4) return slice('o9:h', '#c9ced8', g => { g.fillStyle = '#8a919e'; g.fillRect(-.5, -1, .22, 2); }); const d = k % 10; return slice('o9:' + d, '#ffd23f', g => {
       g.fillStyle = '#e0a91a'; g.fillRect(-.5, -1, 1, .1); g.fillRect(-.5, .9, 1, .1);
       g.strokeStyle = '#1f1f26'; g.lineWidth = .035; g.beginPath(); for (let j = -5; j <= 5; j++) { const x = -j * .105, L = j % 8 === 0 ? .55 : j % 4 === 0 ? .32 : .16; g.moveTo(x, -.9); g.lineTo(x, -.9 + L); } g.stroke();
       g.save(); g.scale(1 / TU, 1 / TU); g.fillStyle = '#c0182a'; g.font = '800 20px system-ui,sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(d), -.16 * TU, .3 * TU); g.restore();
@@ -332,7 +330,7 @@ const OBJ = [null,
   { // 10 Pencil: yellow six-sided shaft, sharpened wood at the head, a metal band and a pink eraser at the tail
     rot: true, head: '#f3cf9a', pal: ['#ffd23f', '#f3cf9a', '#ff8fa8'],
     ball: (k, i, n) => i / n > .93 ? '#ff8fa8' : i / n > .86 ? '#c9ced8' : k === 0 ? '#f3cf9a' : '#ffd23f', under: () => U('#ffd23f'),
-    ov: (k, i, n) => { const z = i / n > .93 ? 3 : i / n > .86 ? 2 : k === 0 ? 1 : 0; return slice('o10' + z, z === 3 ? '#ff8fa8' : z === 2 ? '#c9ced8' : '#ffd23f', g => {
+    ov: (k, i, n) => { const z = i / n > .93 ? 3 : i / n > .86 ? 2 : k === 0 ? 1 : 0; return slice('o10:' + z, z === 3 ? '#ff8fa8' : z === 2 ? '#c9ced8' : '#ffd23f', g => {
       if (z === 2) { for (const x of [-.3, -.1, .1, .3]) line(g, [x, -1, x, 1], .05, '#8a919e'); return; }
       if (z === 3) return;
       const xb = z === 1 ? -.1 : .6, F = [[-1, -.36, '#f2b51c'], [-.36, .36, '#ffd23f'], [.36, 1, '#e2a010']];
@@ -341,30 +339,30 @@ const OBJ = [null,
       line(g, [-.6, -.36, xb, -.36], .03, '#c68a0c'); line(g, [-.6, .36, xb, .36], .03, '#c68a0c');
     }); } },
   { // 11 String of twinkling lights: a green wire with bulbs in five colours that twinkle
-    ball: () => '#2e7d46', under: i => U(BUL[(i >> 2) % 5]), rot: true, head: '#2e7d46', pal: ['#ff4d4d', '#ffd84a', '#5fff7a', '#4fb8ff', '#ff6bd6'],
-    ov: (k, i, n, t) => { if (k & 1) return slice('o11w', '#2e7d46', g => diag(g, 0, .42, 0, .07, .6, '#1f5a32'));
-      const c = BUL[(k >> 1) % 5], lit = (((k >> 1) * 5 + Math.floor(t / 350)) % 4) ? 1 : 0, s = k & 2 ? 1 : -1;
-      return slice('o11' + c + lit + s, '#2e7d46', g => diag(g, 0, .42, 0, .07, .6, '#1f5a32'), g => {
-        if (lit) { const gr = g.createRadialGradient(0, s * .4, 0, 0, s * .4, .62); gr.addColorStop(0, rgba(c, .75)); gr.addColorStop(1, rgba(c, 0)); g.fillStyle = gr; g.fillRect(-.7, -1.05, 1.4, 2.1); }
-        rr(g, -.16, s > 0 ? -.05 : -.2, .32, .25, .06); g.fillStyle = '#1f4f2c'; g.fill();
-        ell(g, 0, s * .45, .27, .4); g.fillStyle = lit ? mixh(c, '#ffffff', .25) : mixh(c, SHADE, .35); g.fill();
-        ell(g, -.08, s * .38, .07, .14); g.fillStyle = 'rgba(255,255,255,' + (lit ? .8 : .35) + ')'; g.fill();
+    ball: () => '#2e7d46', under: i => U(BUL[(i >> 1) % 5]), rot: true, head: '#2e7d46', pal: ['#ff4d4d', '#ffd84a', '#5fff7a', '#4fb8ff', '#ff6bd6'],
+    ov: (k, i, n, t) => {
+      const c = BUL[k % 5], lit = ((k * 7 + Math.floor(t / 350)) % 5) ? 1 : 0, s = k & 1 ? 1 : -1;
+      return slice('o11:' + c + lit + s, '#2e7d46', g => diag(g, 0, .42, 0, .07, .6, '#1f5a32'), g => {
+        if (lit) { const gr = g.createRadialGradient(0, s * .5, 0, 0, s * .5, .7); gr.addColorStop(0, rgba(c, .75)); gr.addColorStop(1, rgba(c, 0)); g.fillStyle = gr; g.fillRect(-.7, -1.05, 1.4, 2.1); }
+        rr(g, -.18, s > 0 ? -.08 : -.24, .36, .32, .07); g.fillStyle = '#1a4426'; g.fill();
+        ell(g, 0, s * .5, .33, .44); g.fillStyle = lit ? mixh(c, '#ffffff', .3) : mixh(c, SHADE, .3); g.fill();
+        ell(g, -.1, s * .42, .08, .16); g.fillStyle = 'rgba(255,255,255,' + (lit ? .85 : .35) + ')'; g.fill();
       }); } },
   { // 12 Bead necklace: round shiny beads in six colours
     ball: k => mixh(BEADS[k % 6], SHADE, .3), under: i => U(BEADS[(i >> 1) % 6]), head: '#f4f0ff', pal: BEADS.slice(0, 5),
-    ov: k => { const c = BEADS[k % 6]; return tile('o12' + c, g => { const gr = g.createRadialGradient(-.3, -.34, .05, 0, 0, .92); gr.addColorStop(0, mixh(c, '#ffffff', .75)); gr.addColorStop(.35, c); gr.addColorStop(1, mixh(c, SHADE, .35)); dot(g, 0, 0, .9, gr); dot(g, -.32, -.36, .12, 'rgba(255,255,255,.85)'); }); } },
+    ov: k => { const c = BEADS[k % 6]; return tile('o12:' + c, g => { const gr = g.createRadialGradient(-.3, -.34, .05, 0, 0, .92); gr.addColorStop(0, mixh(c, '#ffffff', .75)); gr.addColorStop(.35, c); gr.addColorStop(1, mixh(c, SHADE, .35)); dot(g, 0, 0, .9, gr); dot(g, -.32, -.36, .12, 'rgba(255,255,255,.85)'); }); } },
   { // 13 Piano keys: white keys across the body with the black keys in their pattern
     ball: () => '#f7f7f2', under: () => U('#f7f7f2'), rot: true, head: '#f7f7f2', pal: ['#f7f7f2', '#dfe3ea', '#f7f7f2'],
-    ov: k => { const j = k % 7, bk = j !== 2 && j !== 6; return slice('o13' + bk, '#f7f7f2', g => line(g, [-.42, -1, -.42, 1], .045, '#3a3a44'), bk ? g => { rr(g, -.62, -1, .38, 1.0, .06); g.fillStyle = '#1d1d26'; g.fill(); line(g, [-.56, -.9, -.56, -.12], .04, '#4a4a58'); } : null); } },
+    ov: k => { const j = k % 7, bk = j !== 2 && j !== 6; return slice('o13:' + bk, '#f7f7f2', g => line(g, [-.42, -1, -.42, 1], .045, '#3a3a44'), bk ? g => { rr(g, -.62, -1, .38, 1.0, .06); g.fillStyle = '#1d1d26'; g.fill(); line(g, [-.56, -.9, -.56, -.12], .04, '#4a4a58'); } : null); } },
   { // 14 Film strip: frames with little pictures between rows of sprocket holes
     ball: () => '#3a3a46', under: () => underX('#e8e8f0', '#a8a8b8', .3), rot: true, head: '#d8dce6', pal: ['#e8e8f0', '#8fd3ff', '#ffd84a'],
-    ov: k => { const p = (k >> 1) % 4, h = k & 1; return slice('o14' + p + h, '#26262f', g => {
+    ov: k => { const p = (k >> 1) % 4, h = k & 1; return slice('o14:' + p + h, '#26262f', g => {
       const fc = h ? .42 : -.42; g.save(); g.beginPath(); g.rect(fc - .78, -.6, 1.56, 1.2); g.clip(); FILM[p](g, fc); g.restore();
       g.fillStyle = '#e8e8f0'; for (const x of [-.21, .21]) for (const s of [-1, 1]) { rr(g, x - .1, s * .82 - .07, .2, .14, .04); g.fill(); }
     }); } },
   { // 15 Dominoes: ivory dominoes end to end, each with its own pips
     ball: () => '#f6f1e2', under: () => U('#f6f1e2'), rot: true, head: '#f6f1e2', pal: ['#f6f1e2', '#dcd6c4', '#f6f1e2'],
-    ov: k => { const j = k % 4, D = k >> 2, v = (j < 2 ? hv(D, 7, 11) : hv(D, 7, 13)); return slice('o15' + j + v, '#f6f1e2', g => {
+    ov: k => { const j = k % 4, D = k >> 2, v = (j < 2 ? hv(D, 7, 11) : hv(D, 7, 13)); return slice('o15:' + j + v, '#f6f1e2', g => {
       if (j === 1) line(g, [-.42, -.8, -.42, .8], .05, '#8a8476'); if (j === 2) line(g, [.42, -.8, .42, .8], .05, '#8a8476');
       if (j === 0) line(g, [.45, -1, .45, 1], .1, '#3a3a44'); if (j === 3) line(g, [-.45, -1, -.45, 1], .1, '#3a3a44');
     }, g => {
@@ -375,14 +373,14 @@ const OBJ = [null,
     rot: true, pal: null,
     ball: (k, i, n, t, B) => { const c = B(Math.floor(k / 5) * 10, n, t); return k % 5 < 3 ? c : lum(c) > .6 ? '#e8434e' : '#fff3d6'; },
     under: (i, n, t, B) => U(B(Math.floor((i >> 1) / 5) * 10, n, t)),
-    ov: (k, i, n, t, B) => { const c0 = B(Math.floor(k / 5) * 10, n, t), c = k % 5 < 3 ? c0 : lum(c0) > .6 ? '#e8434e' : '#fff3d6', fr = i > n - 3; return slice('o16' + c + fr, c, g => {
+    ov: (k, i, n, t, B) => { const c0 = B(Math.floor(k / 5) * 10, n, t), c = k % 5 < 3 ? c0 : lum(c0) > .6 ? '#e8434e' : '#fff3d6', fr = i > n - 3; return slice('o16:' + c + fr, c, g => {
       g.strokeStyle = mixh(c, SHADE, .28); g.lineWidth = .05; g.beginPath();
       for (const x of [-.42, -.21, 0, .21, .42]) for (const y of [-.75, -.45, -.15, .15, .45, .75]) { g.moveTo(x + .08, y - .13); g.lineTo(x - .06, y); g.lineTo(x + .08, y + .13); }
       g.stroke();
     }, fr ? g => { g.lineCap = 'round'; for (let y = -.8; y <= .81; y += .2) line(g, [-.3, y, -.95, y * 1.05], .1, c); } : null); } },
   { // 17 Skeleton spine: bone vertebrae and ribs over a shadowy body
     ball: () => '#4a4f7a', under: () => underX('#e9e2cc', '#bdb6d8', .32), rot: true, head: '#f1ead6', pal: ['#e9e2cc', '#bdb6d8', '#f1ead6'],
-    ov: () => slice('o17', '#4a4f7a', g => {
+    ov: () => slice('o17:', '#4a4f7a', g => {
       for (const s of [-1, 1]) { g.beginPath(); g.moveTo(.05, s * .2); g.bezierCurveTo(.05, s * .6, -.2, s * .8, -.3, s * .97); g.strokeStyle = '#8a8470'; g.lineWidth = .2; g.stroke(); g.strokeStyle = '#ece5d0'; g.lineWidth = .13; g.stroke(); }
       rr(g, -.3, -.27, .6, .54, .12); g.fillStyle = '#8a8470'; g.fill(); rr(g, -.26, -.23, .52, .46, .1); g.fillStyle = '#f1ead6'; g.fill(); line(g, [-.18, .1, .18, .1], .04, '#c8bfa4');
     }) }
@@ -435,21 +433,21 @@ function pal(L, skin) { const key = L.str + '|' + skin; let p = pals.get(key); i
 // a little behind the eyes, like the pilgrim hat (which a hat replaces).
 const HATS = { 2: 1, 3: 1, 6: 1 };
 function hat(g, H, x, y, c, si, r, h) {
-  const hx = x - c * r * .28, hy = y - si * r * .28;
+  const hx = x - c * r * .4, hy = y - si * r * .4;
   if (H === 2) { // crown: red velvet inside a gold band, gold points all round, three jewels at the front
-    const R = r * .56; dot(g, hx, hy, R * .78, '#c2283c'); dot(g, hx - c * R * .1, hy - si * R * .1, R * .3, '#e8506a');
+    const R = r * .66; dot(g, hx, hy, R * .78, '#c2283c'); dot(g, hx - c * R * .1, hy - si * R * .1, R * .3, '#e8506a');
     g.beginPath(); g.arc(hx, hy, R * .8, 0, TAU); g.strokeStyle = '#a8740a'; g.lineWidth = R * .36; g.stroke(); g.strokeStyle = '#ffcf3a'; g.lineWidth = R * .26; g.stroke();
     for (let j = 0; j < 7; j++) { const a = h + j / 7 * TAU, px = hx + Math.cos(a) * R * 1.02, py = hy + Math.sin(a) * R * 1.02; dot(g, px, py, R * .17, '#a8740a'); dot(g, px, py, R * .13, '#ffd84a'); dot(g, px - R * .04, py - R * .04, R * .05, '#fff6c8'); }
     ['#3fa0ff', '#ff3f6a', '#3fe08a'].forEach((col, j) => { const a = h + (j - 1) * .75; dot(g, hx + Math.cos(a) * R * .8, hy + Math.sin(a) * R * .8, R * .11, col); });
   } else if (H === 3) { // party hat: a striped cone from above, white rim, a pompom on the point
-    const R = r * .54, cols = ['#ff5fa2', '#ffd84a'];
+    const R = r * .66, cols = ['#ff5fa2', '#ffd84a'];
     for (let j = 0; j < 8; j++) { const a0 = h + j / 8 * TAU, a1 = a0 + TAU / 8; g.beginPath(); g.moveTo(hx, hy); g.quadraticCurveTo(hx + Math.cos(a0 + .5) * R * .6, hy + Math.sin(a0 + .5) * R * .6, hx + Math.cos(a0) * R, hy + Math.sin(a0) * R); g.arc(hx, hy, R, a0, a1); g.quadraticCurveTo(hx + Math.cos(a1 + .5) * R * .6, hy + Math.sin(a1 + .5) * R * .6, hx, hy); g.fillStyle = cols[j & 1]; g.fill(); }
     g.beginPath(); g.arc(hx, hy, R, 0, TAU); g.strokeStyle = '#ffffff'; g.lineWidth = R * .14; g.stroke();
     dot(g, hx, hy, R * .3, '#7ae6ff'); dot(g, hx - R * .08, hy - R * .1, R * .12, '#e8fbff');
   } else if (H === 6) { // tiny cowboy hat: a wide brim across the head, a creased crown and a dark band
     g.save(); g.translate(hx, hy); g.rotate(h);
-    ell(g, 0, 0, r * .46, r * .7); g.fillStyle = '#9a6634'; g.fill(); g.strokeStyle = '#c08a4e'; g.lineWidth = r * .08; g.stroke();
-    ell(g, 0, 0, r * .3, r * .36); g.strokeStyle = '#2e1c10'; g.lineWidth = r * .14; g.stroke(); g.fillStyle = '#7a4e24'; g.fill();
+    ell(g, 0, 0, r * .5, r * .8); g.fillStyle = '#9a6634'; g.fill(); g.strokeStyle = '#c08a4e'; g.lineWidth = r * .09; g.stroke();
+    ell(g, 0, 0, r * .32, r * .38); g.strokeStyle = '#2e1c10'; g.lineWidth = r * .14; g.stroke(); g.fillStyle = '#7a4e24'; g.fill();
     g.strokeStyle = '#5a3618'; g.lineWidth = r * .06; g.beginPath(); g.moveTo(-r * .2, 0); g.lineTo(r * .2, 0); g.stroke();
     g.restore();
   }
@@ -480,8 +478,8 @@ function googly(g, o, x, y, h, la, r, now) {
 }
 // tongue out: always out, long and wiggling
 function tongue(g, x, y, h, r, now) {
-  const c = Math.cos(h), si = Math.sin(h), L = r * (1.55 + .12 * Math.sin(now / 130)), wig = Math.sin(now / 85) * r * .22, tx = x + c * L, ty = y + si * L, fk = r * .32;
-  g.strokeStyle = '#ff5f7e'; g.lineWidth = Math.max(1, r * .15); g.lineCap = 'round'; g.beginPath();
+  const c = Math.cos(h), si = Math.sin(h), L = r * (1.9 + .15 * Math.sin(now / 130)), wig = Math.sin(now / 85) * r * .26, tx = x + c * L, ty = y + si * L, fk = r * .4;
+  g.strokeStyle = '#ff5f7e'; g.lineWidth = Math.max(1.2, r * .18); g.lineCap = 'round'; g.beginPath();
   g.moveTo(x + c * r * .6, y + si * r * .6); g.quadraticCurveTo(x + c * r * 1.1 - si * wig, y + si * r * 1.1 + c * wig, tx, ty);
   g.lineTo(tx + Math.cos(h + .55) * fk, ty + Math.sin(h + .55) * fk); g.moveTo(tx, ty); g.lineTo(tx + Math.cos(h - .55) * fk, ty + Math.sin(h - .55) * fk); g.stroke();
 }
