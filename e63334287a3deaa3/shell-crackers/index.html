@@ -156,6 +156,7 @@ details[open] summary::before{content:'－ '}
 .tbox.you{background:var(--yolk)}
 /* capture the flag: the two score boxes are the two teams, and a marker points at each flag */
 #hud.ctf .tbox small{max-width:16ch}
+#top #goal{max-width:17ch}
 #hud.ctf #myBox,#hud.ctf #leadBox{border-top:7px solid var(--tc,var(--ink))}
 .fmark{position:absolute;left:0;top:0;min-width:62px;height:26px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:5px;padding:0 7px;border:2px solid var(--ink);border-radius:999px;background:var(--bg,var(--cream));color:var(--ink);font-family:var(--f-b);font-weight:900;font-size:13px;line-height:1;pointer-events:none;will-change:transform;white-space:nowrap;box-shadow:0 2px 0 var(--ink);opacity:.94}
 .fmark[hidden]{display:none}
@@ -165,6 +166,15 @@ details[open] summary::before{content:'－ '}
 .fmark u{display:none;width:0;height:0;border-left:9px solid var(--ink);border-top:5px solid transparent;border-bottom:5px solid transparent}
 .moderow{display:flex;margin:0 0 12px}.moderow .seg{flex:1}.moderow .seg button{flex:1;padding:9px 6px}
 #modeNote{margin:-4px 0 12px}
+/* match rules (menu, pause and end cards) and the map vote on the end card */
+.sel{flex:1;min-width:0;font:800 15px var(--f-b);color:var(--ink);background:#fff;border:3px solid var(--ink);border-radius:12px;padding:6px 8px}
+.sel:disabled{opacity:.7}
+.rulesrow{margin:0 0 12px}.rulesrow .setting{margin:0}
+#vote{margin-top:12px}#vote .label{margin:0 0 6px}
+.vrow{display:flex;gap:8px;flex-wrap:wrap}
+.vbtn{flex:1 1 130px;flex-direction:column;gap:0;font-size:17px;padding:8px 10px;white-space:normal;line-height:1.1}
+.vbtn small{font:800 12px var(--f-b);color:var(--ink-2)}
+.vbtn.on{background:var(--yolk)}
 #netline{position:absolute;top:calc(84px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);font-family:var(--f-b);font-weight:900;font-size:14px;white-space:nowrap}
 #feed{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));right:14px;display:flex;flex-direction:column;align-items:flex-end;gap:5px;font-family:var(--f-b);font-weight:900;font-size:14px}
 #feed div{background:rgba(43,26,16,.72);color:#fff;padding:4px 10px;border-radius:10px;transition:opacity .5s;display:flex;gap:7px;align-items:center}
@@ -446,6 +456,7 @@ body.touch #ksH{max-width:210px}
         </div>
         <p class="tag">An egg shooter. Crack the most shells before the clock runs out, or team up and capture the flag.</p>
         <div class="moderow"><div class="seg" id="modeSeg" role="group" aria-label="Game mode"><button type="button" data-m="ffa">Free-for-all</button><button type="button" data-m="ctf">Capture the flag</button></div></div>
+        <div class="rulesrow"><label class="setting"><span>Rules</span><select id="rules" class="sel" aria-label="Match rules"></select></label></div>
         <p id="modeNote" class="note" hidden>Two teams, a flag each. Carry theirs back to your own stand to score: first to 3 captures wins. Unranked.</p>
         <button id="quick" class="btn big" type="button">Quick match</button>
         <div class="roomrow">
@@ -467,7 +478,7 @@ body.touch #ksH{max-width:210px}
             <div><div class="rank-num" id="rankNum">1000</div><div class="rank-tier" id="rankTier">Soft-Boiled</div></div>
             <div class="rank-meta" id="rankMeta">Ranked rating<br>No matches yet</div>
           </div>
-          <p class="rank-how">Every match is ranked. The more <b>real players</b> you face, the more your rating moves:</p>
+          <p class="rank-how">Every Classic free-for-all match is ranked. The more <b>real players</b> you face, the more your rating moves:</p>
           <div class="mult" id="multRow" aria-label="Rating multiplier by number of real opponents"></div>
           <details id="lbBox">
             <summary>Leaderboard</summary>
@@ -523,6 +534,8 @@ body.touch #ksH{max-width:210px}
     <div class="card mini">
       <h2>Paused</h2>
       <p class="sub" id="pauseSub"></p>
+      <label class="setting" id="pauseRulesBox"><span>Next match</span><select id="rulesNextP" class="sel" aria-label="Rules for the next match"></select></label>
+      <p class="note" id="pauseRulesNote"></p>
       <div class="label" id="pauseWLabel">Weapon for your next hatch</div>
       <div class="weapons" id="weapons2" role="group" aria-label="Weapon"></div>
       <div class="row" style="margin-top:18px">
@@ -541,6 +554,9 @@ body.touch #ksH{max-width:210px}
       <p class="sub" id="endSub"></p>
       <table class="standings" id="endTable"></table>
       <div class="rankline" id="endRank" hidden></div>
+      <div id="vote" hidden><div class="label" id="voteLbl">Vote for the next map</div><div class="vrow" id="voteRow"></div></div>
+      <label class="setting" id="endRulesBox"><span>Next match</span><select id="rulesNextE" class="sel" aria-label="Rules for the next match"></select></label>
+      <p class="note" id="endRulesNote"></p>
       <div class="row" style="margin-top:14px">
         <button class="btn" id="again" type="button">Play again</button>
         <button class="btn alt" id="toMenu" type="button">Menu</button>
@@ -611,6 +627,28 @@ const DIFF={
   hard:{react:.24,err:.028,turn:8,semi:.14,dmg:1,jump:.45,nade:.11}
 };
 const BOT_PREF={skillet:5,whisk:9,beater:16,poacher:22,sunny:34};
+// Match rules ("modes"; gmode is free-for-all or capture the flag, which these sit on top of). guns: the only gun
+// everyone (bots too) carries, with no pistol swap and no yolk bombs. g / j: gravity and jump speed multipliers.
+// one: any shot or whack cracks in one (yolk bombs and streak rewards hurt as usual), and the streak rewards need two
+// more cracks each. Only Classic is ranked. Online the room's match node carries the rules (round.gm, missing = Classic).
+const GMODES=[
+  {id:'classic',n:'Classic',tag:'',g:1,j:1},
+  {id:'snipers',n:'Snipers Only',tag:'Snipers',guns:'sunny',g:1,j:1},
+  {id:'lowgrav',n:'Low-Gravity Snipers',tag:'Low-grav',guns:'sunny',g:.4,j:1.15},
+  {id:'pistols',n:'Pistols Only',tag:'Pistols',guns:'cracker',g:1,j:1},
+  {id:'oneshot',n:'One-Shot',tag:'One-Shot',one:true,g:1,j:1}
+];
+let RULES=GMODES[0];
+let menuRules=clamp(+store.get('rules','0')|0,0,GMODES.length-1);   // the menu's pick: practice, and a room's match you start
+function setRules(i){RULES=GMODES[clamp(i|0,0,GMODES.length-1)]}
+const rulesIdx=()=>GMODES.indexOf(RULES);
+// the clock box's line ("Snipers · 25") and the start banner's prefix
+function goalText(){const n=mapCtf?CTF_CAPS:target;return RULES.tag?RULES.tag+' · '+n:'First to '+n}
+function rulesPre(){return RULES.tag?RULES.n+' · ':''}
+function gmOf(v){return clamp(v&&v.gm|0,0,GMODES.length-1)}
+const jumpV=()=>JUMP*RULES.j;
+// the gun in the main slot: the mode's gun, or the egg's own pick
+function mainGun(e){return RULES.guns||e.loadout}
 const STREAKS={3:['SUNNY STREAK','3 cracks without breaking'],5:['HARD-BOILED','5 in a row'],8:['EGG-STRAORDINARY','8 in a row'],12:['UNCRACKABLE','12 in a row!']};
 
 let myName=store.get('name','')||('Egg'+Math.floor(100+Math.random()*900));
@@ -1802,8 +1840,8 @@ function respawn(e,at){
   // never hatch inside a block: shove clear the short way, or go to the nearest spot an egg can stand
   if(entHits(e.pos.x,e.pos.y,e.pos.z)&&!pushOutPos(e.pos))rescue(e);
   e.yaw=Math.atan2(-((s.fx==null?SPAN/2:s.fx)-s.x),-((s.fz==null?SPAN/2:s.fz)-s.z));e.pitch=0;
-  e.hp=100;e.alive=true;e.slot=0;e.wkey=e.loadout;fillAmmo(e);e.reloadT=0;e.switchT=0;e.fireCD=0;e.burstLeft=0;e.bloom=0;
-  e.grenades=2;e.spawnShield=2;e.lastHurt=-99;e.streak=0;e.perch=null;e.holdT=0;e.onGround=true;e.path=null;e.target=null;e.stuckT=0;e.lastP.copy(e.pos);
+  e.hp=100;e.alive=true;e.slot=0;e.wkey=mainGun(e);fillAmmo(e);e.reloadT=0;e.switchT=0;e.fireCD=0;e.burstLeft=0;e.bloom=0;
+  e.grenades=RULES.guns?0:2;e.spawnShield=2;e.lastHurt=-99;e.streak=0;e.perch=null;e.holdT=0;e.onGround=true;e.path=null;e.target=null;e.stuckT=0;e.lastP.copy(e.pos);
   if(e.dummy){e.spawnShield=0;e.grenades=0}
   if(e===player){if(mode==='training')e.grenades=TRAIN_NADES;camPitchKick=0;hurtFlash=0;dmgDirs.length=0;$('dirs').textContent='';setVmGun(e.wkey);vmSwitch=1;hudDirty=true}
 }
@@ -1931,7 +1969,7 @@ function updateNades(dt){
   for(let i=nades.length-1;i>=0;i--){const n=nades[i];n.t-=dt;
     const p=n.m.position;
     // bounce off whatever face it hits, one axis at a time
-    for(let s=0;s<3;s++){const h=dt/3;n.v.y-=GRAV*h;
+    for(let s=0;s<3;s++){const h=dt/3;n.v.y-=GRAV*RULES.g*h;
       for(const ax of AX_XYZ){const d=n.v[ax]*h;if(!d)continue;p[ax]+=d;
         if(solidAt(p.x,p.y-(ax==='y'?.12:0),p.z)){p[ax]-=d;const sp=Math.abs(n.v[ax]);
           if(ax==='y'){n.v.y*=-.38;n.v.x*=.62;n.v.z*=.62}else n.v[ax]*=-.45;
@@ -2032,7 +2070,7 @@ function startReload(e){
   e.reloadT=e.reloadD=w.reload*quickK(e);e.burstLeft=0;if(e===player){sfx('reload');hudDirty=true}
 }
 function switchSlot(e,s){
-  if(!e.alive||e.slot===s||e.wkey==='launcher')return;e.slot=s;e.wkey=s===0?e.loadout:'cracker';e.reloadT=0;e.burstLeft=0;e.switchT=.32*quickK(e);e.fireCD=Math.max(e.fireCD,0);
+  if(!e.alive||e.slot===s||RULES.guns||e.wkey==='launcher')return;e.slot=s;e.wkey=s===0?mainGun(e):'cracker';e.reloadT=0;e.burstLeft=0;e.switchT=.32*quickK(e);e.fireCD=Math.max(e.fireCD,0);
   if(e===player){setVmGun(e.wkey);vmSwitch=1;sfx('switch');hudDirty=true}
 }
 function melee(e){
@@ -2053,6 +2091,7 @@ function hitTarget(att,t,dmg,head,wkey){
 }
 function damage(t,amt,att,head,wkey){
   if(!t.alive||t.spawnShield>0||!(amt>0))return false;
+  if(RULES.one&&wkey!=='nade'&&!KS_KILL.has(wkey))amt=Math.max(amt,999);   // One-Shot: guns and whacks crack in one
   amt*=shellK(t);   // Thick Shell
   t.hp-=amt;t.lastHurt=clock;
   if(t===player){hurtFlash=Math.min(1,hurtFlash+amt/45);sfx('hurt');if(att&&att!==player&&att.pos)addDmgDir(att.pos);hudDirty=true}
@@ -2174,7 +2213,7 @@ function moveEntity(e,dt){
   const n=Math.max(1,Math.ceil(Math.max(Math.abs(e.vel.x),Math.abs(e.vel.z),Math.abs(e.vel.y))*dt/.2)),h=dt/n;
   const wasGround=e.onGround,fallV=e.vel.y;let landed=false;
   for(let s=0;s<n;s++){
-    e.vel.y-=GRAV*h;
+    e.vel.y-=GRAV*RULES.g*h;
     for(const ax of AX_XZ){const d=e.vel[ax]*h;if(!d)continue;
       const nx=ax==='x'?e.pos.x+d:e.pos.x,nz=ax==='z'?e.pos.z+d:e.pos.z;
       if(!entHits(nx,e.pos.y,nz)){e.pos[ax]+=d;continue}
@@ -2247,17 +2286,17 @@ function botThink(e,dt){
     e.strafeT-=dt;if(e.strafeT<=0){e.strafeT=rand(.45,1.4);e.strafe=Math.random()<.15?0:Math.random()<.5?-1:1}
     mx=dx/d*f+(-dz/d)*e.strafe*.85;mz=dz/d*f+(dx/d)*e.strafe*.85;
     if(e.loadout==='sunny'&&d>14&&e.ads){mx*=.25;mz*=.25}
-    if(e.onGround&&Math.random()<dt*D.jump)e.vel.y=JUMP;
+    if(e.onGround&&Math.random()<dt*D.jump)e.vel.y=jumpV();
   }else if(e.path&&e.pathI<e.path.length){
     const wp=e.path[e.pathI],dx=wp.x-e.pos.x,dz=wp.z-e.pos.z,d=Math.hypot(dx,dz),dy=wp.y-e.pos.y;
-    if(d<.45&&Math.abs(dy)<1.6)e.pathI++;else{mx=dx/d;mz=dz/d;if(dy>.65&&e.onGround&&d<1.6)e.vel.y=JUMP}
+    if(d<.45&&Math.abs(dy)<1.6)e.pathI++;else{mx=dx/d;mz=dz/d;if(dy>.65&&e.onGround&&d<1.6)e.vel.y=jumpV()}
   }else if(mapCtf&&e.goalP&&!e.ctfHold){
     const dx=e.goalP.x-e.pos.x,dz=e.goalP.z-e.pos.z,d=Math.hypot(dx,dz);if(d>.3&&d<3){mx=dx/d;mz=dz/d}   // the last step onto a flag or a stand
   }
   const ml=Math.hypot(mx,mz);if(ml>1){mx/=ml;mz/=ml}
   // stuck: hop and re-plan (the old path is dropped: a bot knocked off a ramp or a roof used to keep walking at its next
   // waypoint, into the wall under it)
-  e.stuckT+=dt;if(e.stuckT>1.1){if(ml>.3&&e.pos.distanceTo(e.lastP)<.4){if(e.onGround)e.vel.y=JUMP;e.pathT=0;e.strafe=-e.strafe;e.thinkT=0;if(!(t&&e.tVis))e.path=null}e.stuckT=0;e.lastP.copy(e.pos)}
+  e.stuckT+=dt;if(e.stuckT>1.1){if(ml>.3&&e.pos.distanceTo(e.lastP)<.4){if(e.onGround)e.vel.y=jumpV();e.pathT=0;e.strafe=-e.strafe;e.thinkT=0;if(!(t&&e.tVis))e.path=null}e.stuckT=0;e.lastP.copy(e.pos)}
   // aim
   if(t&&e.tVis){
     const ax=t.pos.x-e.pos.x,ay=t.pos.y+.85-(e.pos.y+EYE),az=t.pos.z-e.pos.z,d3=Math.hypot(ax,ay,az);
@@ -2302,16 +2341,18 @@ function botThink(e,dt){
 // {k:'launcher'}, {k:'fry'}) for the feed line (and The Big Fry's countdown), and each rocket is {k:'rocket',x,y,z,dx,dy,dz}.
 // Kinds a browser doesn't know are ignored.
 const KS=[
-  {id:'candle',n:'Candler',at:3,short:'CANDLE',c:'#ffa53a'},
-  {id:'quick',n:'Quick Hands',at:5,short:'QUICK',c:'#7cc6ff'},
-  {id:'shell',n:'Thick Shell',at:7,short:'SHELL',c:'#fff3d6'},
-  {id:'launcher',n:'Yolk Launcher',at:10,short:'ROCKETS',c:'#ff6f3c'},
-  {id:'fry',n:'The Big Fry',at:15,one:18,short:'FRY',c:'#2b2b30'}   // (one: the step in One-Shot rules)
+  {id:'candle',n:'Candler',at:3,one:5,short:'CANDLE',c:'#ffa53a'},   // (one: the step in One-Shot rules)
+  {id:'quick',n:'Quick Hands',at:5,one:7,short:'QUICK',c:'#7cc6ff'},
+  {id:'shell',n:'Thick Shell',at:7,one:9,short:'SHELL',c:'#fff3d6'},
+  {id:'launcher',n:'Yolk Launcher',at:10,one:12,short:'ROCKETS',c:'#ff6f3c'},
+  {id:'fry',n:'The Big Fry',at:15,one:18,short:'FRY',c:'#2b2b30'}
 ];
 const KS_BY={};for(const r of KS)KS_BY[r.id]=r;
 const KS_KILL=new Set(['rocket','fry']),KS_LABEL={rocket:'Yolk Launcher',fry:'The Big Fry'};
 const KS_CANDLE=3,KS_QUICK=.75,KS_QUICK_T=15,KS_SHELL=.85,KS_SHELL_T=12,KS_FRY=10;
 const KS_ROCKETS=2,KS_ROCKET_R=4,KS_ROCKET_DMG=100,KS_ROCKET_SELF=.4,KS_ROCKET_V=30,KS_ROCKET_LIFE=3;
+// One-Shot cracks come fast, so each reward needs more: 5, 7, 9, 12 and 18
+function ksAt(r){return RULES.one?r.one:r.at}
 function ksOn(){return state==='playing'&&(mode==='practice'||mode==='online')}
 function isFoe(a,b){return a!==b&&!(mapCtf&&a.team===b.team)}
 function ksKey(){const k=KB.keys('reward')[0];return k?KB.name(k):''}
@@ -2322,7 +2363,7 @@ function shellK(e){return e.shellT>0?KS_SHELL:1}
 // a reward for reaching this streak (one of each kind held at a time)
 function ksEarn(e){
   if(!ksOn())return null;
-  const r=KS.find(x=>x.at===e.streak);if(!r||e.ks.includes(r.id))return null;
+  const r=KS.find(x=>ksAt(x)===e.streak);if(!r||e.ks.includes(r.id))return null;
   e.ks.push(r.id);if(e.isBot)e.ksT=rand(.8,2.5);
   return r;
 }
@@ -2357,7 +2398,7 @@ function botReward(e){
 // a cracked egg's buffs end, and its launcher goes
 function ksEnd(e){
   e.candleT=e.quickT=e.shellT=0;e.launchT=0;
-  if(e.wkey==='launcher'&&e.alive)launcherAway(e);else if(e.wkey==='launcher')e.wkey=e.slot===1?'cracker':e.loadout;
+  if(e.wkey==='launcher'&&e.alive)launcherAway(e);else if(e.wkey==='launcher')e.wkey=e.slot===1?'cracker':mainGun(e);
   e.ammo.launcher=0;
 }
 
@@ -2377,7 +2418,7 @@ function launcherOut(e){
 }
 function launcherAway(e){
   if(e.wkey!=='launcher')return;
-  e.wkey=e.slot===1?'cracker':e.loadout;e.switchT=.32*quickK(e);e.reloadT=0;e.ammo.launcher=0;
+  e.wkey=e.slot===1?'cracker':mainGun(e);e.switchT=.32*quickK(e);e.reloadT=0;e.ammo.launcher=0;
   if(e===player){setVmGun(e.wkey);vmSwitch=1;sfx('switch');hudDirty=true}
 }
 function fireRocket(e){
@@ -2971,7 +3012,7 @@ function clearRemotes(){for(const e of ents.slice())if(e.remote)removeEntity(e);
 function addBots(n,teams){
   const names=BOT_NAMES.slice().sort(()=>Math.random()-.5),seen=[0,0];
   for(let i=0;i<n;i++){const tm=teams?teams[i]:0;
-    const b=makeEntity({id:'b'+i,name:names[i],color:teams?TEAM[tm].c:pick(SHELLS).c,bot:true,loadout:pick(PRIMARIES)});ents.push(b);setEggGun(b.model,b.wkey);b.respawnT=.2+i*.15;b.kills=0;b.deaths=0;
+    const b=makeEntity({id:'b'+i,name:names[i],color:teams?TEAM[tm].c:pick(SHELLS).c,bot:true,loadout:RULES.guns||pick(PRIMARIES)});ents.push(b);setEggGun(b.model,b.wkey);b.respawnT=.2+i*.15;b.kills=0;b.deaths=0;
     b.team=tm;b.role=teams&&seen[tm]++===0?'def':'att'}
 }
 function resetFx(){
@@ -2982,31 +3023,32 @@ function resetFx(){
   ksReset();   // streak rewards: none held, running or falling at the start of a match
 }
 function setupAttract(){
-  state='menu';mode='attract';online=false;paused=false;
+  state='menu';mode='attract';online=false;paused=false;setRules(0);
   clearBots();clearRemotes();resetFx();ctfOn=false;
   buildMap(Math.floor(Math.random()*MAPS.length));
   player.active=false;player.alive=false;
   addBots(5);
   matchEnds=Date.now()+1e9;
 }
-function startPractice(){
+// next: the map the end screen's vote picked (a click on the menu button passes an event instead: a random map)
+function startPractice(next){
   initAudio();Net.leave();
-  state='playing';mode='practice';online=false;paused=false;target=TARGET_PRACTICE;
+  state='playing';mode='practice';online=false;paused=false;target=TARGET_PRACTICE;setRules(menuRules);
   clearBots();clearRemotes();resetFx();ctfOn=gmode==='ctf';
-  buildMap(Math.floor(Math.random()*MAPS.length));
+  buildMap(typeof next==='number'&&next>=0&&next<MAPS.length?next:Math.floor(Math.random()*MAPS.length));
   player.id='me';player.name=myName;player.color=myColor;player.loadout=myLoadout;player.active=true;player.kills=0;player.deaths=0;player.streak=0;
   // capture the flag: three a side, you and two bots against three
   if(mapCtf){player.team=Math.random()<.5?0:1;const a=player.team,b=1-a;addBots(CTF_BOTS,[a,b,b,a,b]);ctfSync(ctfFresh(),true)}
   else addBots(5);
   respawn(player);sfx('spawn');startRatedMatch();
-  matchEnds=Date.now()+MATCH_MS;$('goal').textContent='First to '+(mapCtf?CTF_CAPS:target);
+  matchEnds=Date.now()+MATCH_MS;$('goal').textContent=goalText();
   showHud();requestLock();
-  if(mapCtf){banner(mapInfo().name.toUpperCase(),'Capture the flag · first to '+CTF_CAPS,2.6);ctfHello()}
-  else banner(mapInfo().name.toUpperCase(),'Practice · first to '+target+' cracks',2.4);
+  if(mapCtf){banner(mapInfo().name.toUpperCase(),rulesPre()+'Capture the flag · first to '+CTF_CAPS,2.6);ctfHello()}
+  else banner(mapInfo().name.toUpperCase(),rulesPre()+'Practice · first to '+target+' cracks',2.4);
 }
 function startTraining(){
   initAudio();Net.leave();
-  state='playing';mode='training';online=false;paused=false;
+  state='playing';mode='training';online=false;paused=false;setRules(0);
   clearBots();clearRemotes();resetFx();ctfOn=false;
   buildMap(RANGE_IDX);
   player.id='me';player.name=myName;player.color=myColor;player.loadout=myLoadout;player.active=true;player.kills=0;player.deaths=0;
@@ -3051,6 +3093,7 @@ function endMatch(){
   $('hud').hidden=true;$('pause').hidden=true;$('end').hidden=false;
   $('again').disabled=false;$('again').textContent=online?'Next match now':'Play again';
   endTimer=online?12:0;$('endMsg').textContent='';
+  voteStart();renderRulesUI();
   showAd('adEnd');
 }
 function ordinal(n){const s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[v]||s[0])}
@@ -3118,7 +3161,7 @@ function ratingChange(list,leftEarly){
   return{delta:Math.round(K*w*sum/opp.length),humans,w,place:myPos+1,of:list.length};
 }
 function applyRating(list,leftEarly){
-  if(ratedThis||mode==='training'||mapCtf)return null;   // the training range and capture the flag never touch the rating
+  if(ratedThis||mode==='training'||mapCtf||RULES!==GMODES[0])return null;   // the training range, capture the flag and the other modes never touch the rating
   const online_=mode==='online',played=clock-matchJoinClock;
   const {humans}=rankedField(list);
   if(online_&&humans<1)return null;                 // alone in a room: nothing to rate
@@ -3136,6 +3179,7 @@ function startRatedMatch(){matchJoinClock=clock;ratedThis=false}
 function liveRankInfo(){
   if(mode==='training')return 'Unranked';
   if(mapCtf)return 'Capture the flag is unranked';
+  if(RULES!==GMODES[0])return RULES.n+' is unranked';
   const list=standings();const {humans}=rankedField(list);
   if(mode==='online'&&humans<1)return 'Unranked until another real player joins';
   return 'Ranked '+fmtMult(HUMAN_W(humans))+' · '+(humans?humans+' real player'+(humans>1?'s':''):'bots only');
@@ -3174,7 +3218,7 @@ async function loadLeaderboard(){
 }
 function showEndRank(ch){
   const box=$('endRank');box.textContent='';
-  if(!ch){box.hidden=false;const m=document.createElement('span');m.textContent=mapCtf?'Capture the flag is unranked: your rating stays as it was.':mode==='online'?'Unranked: no other real players finished this match.':'Unranked: you joined too late in the match to count.';box.appendChild(m);return}
+  if(!ch){box.hidden=false;const m=document.createElement('span');m.textContent=mapCtf?'Capture the flag is unranked: your rating stays as it was.':RULES!==GMODES[0]?RULES.n+' is unranked: your rating stays as it was.':mode==='online'?'Unranked: no other real players finished this match.':'Unranked: you joined too late in the match to count.';box.appendChild(m);return}
   box.hidden=false;
   const big=document.createElement('span');big.className='big';big.textContent=ch.before+' → '+ch.after;
   const d=document.createElement('span');d.className=ch.delta>=0?'up':'down';d.textContent=(ch.delta>=0?'+':'')+ch.delta;
@@ -3218,7 +3262,7 @@ function setCls(id,c,on){const k=id+'.c.'+c;if(hudCache[k]!==on){hudCache[k]=on;
 // (the first held one shows its key); rebuilt only when one of those changes.
 function ksHud(){
   setT('ksN',String(player.streak));
-  for(let i=0;i<KS.length;i++)setCls('ksP'+i,'on',player.streak>=KS[i].at);
+  for(let i=0;i<KS.length;i++){setCls('ksP'+i,'on',player.streak>=ksAt(KS[i]));setT('ksP'+i,String(ksAt(KS[i])))}
   setCls('ks','dead',!player.alive);
   const key=touchUI?'':ksKey()||'?',P=player,ln=P.wkey==='launcher'?P.ammo.launcher:-1;
   const sig=P.ks.join()+'|'+Math.ceil(P.candleT)+'|'+Math.ceil(P.quickT)+'|'+Math.ceil(P.shellT)+'|'+ln+'|'+(fry?Math.ceil(fry.t):'')+'|'+key;
@@ -3255,8 +3299,8 @@ function updateHud(dt){
     const n=$('nades');if(+n.dataset.n!==player.grenades){n.dataset.n=player.grenades;n.textContent='';for(let i=0;i<player.grenades;i++)n.appendChild(document.createElement('i'))}
     const tr=mode==='training';
     const sk=id=>{const k=KB.keys(id)[0];return k?KB.name(k)+' ':''};
-    $('sl1').textContent=(tr?PRIMARIES.indexOf(player.loadout)+1+' ':sk('main'))+WEAPONS[player.loadout].name;$('sl2').textContent=(tr?'6 ':sk('pistol'))+'Cracker';$('sl1').className=player.slot===0?'on':'';$('sl2').className=player.slot===1?'on':'';
-    $('nextW').textContent=WEAPONS[player.loadout].name;
+    $('sl1').textContent=(tr?PRIMARIES.indexOf(player.loadout)+1+' ':RULES.guns?'':sk('main'))+WEAPONS[mainGun(player)].name;$('sl2').textContent=(tr?'6 ':sk('pistol'))+'Cracker';$('sl2').hidden=!!RULES.guns;$('sl1').className=player.slot===0?'on':'';$('sl2').className=player.slot===1?'on':'';
+    $('nextW').textContent=WEAPONS[mainGun(player)].name+(RULES.guns?' ('+RULES.n+')':'');
   }
   setT('magN',player.reloadT>0?'…':String(player.ammo[player.wkey]));
   const ksShow=mode==='practice'||mode==='online';setHid('ks',!ksShow);
@@ -3286,6 +3330,7 @@ function updateHud(dt){
   setT('netline',nl);
   setHid('lockHint',!!document.pointerLockElement||paused);
   if(touchUI)$('tAim').classList.toggle('on',!!tAct.aim);
+  setHid('tNade',!!RULES.guns);setHid('tSwap',!!RULES.guns);   // one gun and no yolk bombs in the gun modes
   if(touchUI&&mode==='training'){
     $('tTrain').style.visibility=player.alive?'':'hidden';
     for(let n=1;n<=6;n++)$('tG'+n).classList.toggle('cur',n===6?player.slot===1:player.slot===0&&player.wkey===PRIMARIES[n-1]);
@@ -3310,13 +3355,13 @@ document.addEventListener('pointerlockchange',()=>{
 function showPause(){
   paused=true;$('pause').hidden=false;
   const tr=mode==='training';
-  $('pauseWLabel').textContent=tr?'Weapon (switches right away)':'Weapon for your next hatch';$('leave').textContent=tr?'Back to menu':'Leave match';
+  $('pauseWLabel').textContent=tr?'Weapon (switches right away)':RULES.guns?'Your weapon when the rules allow it ('+RULES.n+': '+WEAPONS[RULES.guns].name+' for everyone)':'Weapon for your next hatch';$('leave').textContent=tr?'Back to menu':'Leave match';
   if(tr)$('pauseSub').textContent='Training range · unranked, nothing is saved. '+(touchUI?'The gun buttons':'Keys 1–5')+' also switch guns.';
   else{
   $('pauseSub').textContent=online?(Net.isPublic?'Public lobby '+Net.room.replace(/^sc-/,'')+' · the match keeps going':'Room '+Net.room+' · the match keeps going'):'Practice on '+MAPS[mapIdx].name+' ('+diffKey+' bots)';
-  $('pauseSub').textContent+=' · '+liveRankInfo()+(mode==='online'&&!mapCtf?'. Leaving now counts as last place.':'.');
+  $('pauseSub').textContent+=' · '+liveRankInfo()+(mode==='online'&&!mapCtf&&RULES===GMODES[0]?'. Leaving now counts as last place.':'.');
   }
-  $('copyInvite').hidden=!online;$('inviteMsg').textContent='';renderWeapons($('weapons2'));
+  $('copyInvite').hidden=!online;$('inviteMsg').textContent='';renderWeapons($('weapons2'));renderRulesUI();
 }
 function resumeGame(){initAudio();$('pause').hidden=true;paused=false;requestLock()}
 view.addEventListener('click',()=>{if(state==='playing'&&!document.pointerLockElement){resumeGame()}});
@@ -3345,7 +3390,7 @@ function pressAction(c){
   else if(KB.is('nade',c))throwNade(player);
   else if(KB.is('melee',c))melee(player);
   else if(KB.is('reward',c))useReward(player);
-  else if(KB.is('jump',c)&&player.onGround){player.vel.y=JUMP;player.onGround=false;sfx('jump')}
+  else if(KB.is('jump',c)&&player.onGround){player.vel.y=jumpV();player.onGround=false;sfx('jump')}
 }
 document.addEventListener('mousedown',e=>{
   if(document.pointerLockElement!==view)return;
@@ -3440,7 +3485,7 @@ function setLoadout(k){
   // still in spawn protection and holding the main gun: swap right away
   // (on the training range: always, keeping that gun's magazine as it was)
   if(mode==='training'&&player.alive){if(player.slot===1)switchSlot(player,0);else if(player.wkey!==k){player.wkey=k;player.switchT=.32;player.reloadT=0;player.burstLeft=0;setVmGun(k);vmSwitch=1;sfx('switch')}}
-  else if(player.alive&&player.spawnShield>0&&player.slot===0&&player.wkey!=='launcher'){player.wkey=k;player.ammo[k]=WEAPONS[k].mag;player.reloadT=0;setVmGun(k);vmSwitch=1}
+  else if(player.alive&&player.spawnShield>0&&player.slot===0&&!RULES.guns&&player.wkey!=='launcher'){player.wkey=k;player.ammo[k]=WEAPONS[k].mag;player.reloadT=0;setVmGun(k);vmSwitch=1}
   renderWeapons($('weapons'));if(!$('pause').hidden)renderWeapons($('weapons2'));hudDirty=true;
 }
 
@@ -3451,7 +3496,7 @@ function playerControl(dt){
   const fx=-Math.sin(p.yaw),fz=-Math.cos(p.yaw),rx=Math.cos(p.yaw),rz=-Math.sin(p.yaw);
   let mag=1;if(tMove.on){f=-tMove.y;r=tMove.x;mag=Math.min(1,Math.hypot(f,r))}
   let wx=fx*f+rx*r,wz=fz*f+rz*r;const l=Math.hypot(wx,wz);if(l>0){wx/=l;wz/=l}
-  if(held('jump')&&p.onGround&&(document.pointerLockElement||touchUI)){p.vel.y=JUMP;p.onGround=false;sfx('jump')}
+  if(held('jump')&&p.onGround&&(document.pointerLockElement||touchUI)){p.vel.y=jumpV();p.onGround=false;sfx('jump')}
   p.ads=held('aim')&&p.reloadT<=0&&p.switchT<=0&&vmMelee<=0&&p.carry==null;   // no aiming or scoping with a flag
   steer(p,wx,wz,dt,speedOf(p)*mag);
   if(p.onGround&&l>0){stepT-=dt;if(stepT<=0){stepT=.34/WEAPONS[p.wkey].speed;sfx('step')}}
@@ -3474,7 +3519,16 @@ const Net={
   // The match id as it goes into this egg's node and its events. In a capture-the-flag room it is the round's id plus a
   // half: a copy of the game from before capture the flag only draws, hits and hears eggs whose match id equals the
   // round's, so in such a room it sees nobody and nobody sees it (it plays on alone), instead of shooting at teams.
-  wm(){return this.matchId==null?-1:this.matchId+(this.ctfRoom?.5:0)},
+  // Likewise, a match with rules other than Classic adds a quarter, so an older copy (which can't play them) is kept apart.
+  wm(){return this.matchId==null?-1:this.matchId+(this.ctfRoom?.5:0)+(this.gm?.25:0)},
+  gm:0,
+  // The room's host: the egg that has been in the room longest (jt in its node, the time it joined; an older copy of the
+  // game sends none and is never host). The host picks the next match's rules and settles the map vote.
+  hostUid(){let bu=this.uid,bj=this.joinT;for(const [u,e] of remotes){const q=e.net;if(!q||!e.active)continue;const j=+q.jt;if(!(j>0))continue;if(j<bj||j===bj&&u<bu){bu=u;bj=j}}return bu},
+  isHost(){return !!this.refs&&this.hostUid()===this.uid},
+  // the host sets the rules for the next match (round.ngm; the next round copies it into gm)
+  setNext(i){if(!online||!this.refs||!this.isHost())return;const id=this.matchId;i=clamp(i|0,0,GMODES.length-1);this.refs.round.transaction(c=>c&&c.id===id?Object.assign({},c,{ngm:i}):undefined,undefined,false).catch(()=>{})},
+  nextGm(){const c=this.cur;return c&&c.id===this.matchId&&c.ngm!=null?gmOf({gm:c.ngm}):this.gm},
   async init(){
     if(this.ready)return;
     if(!window.firebase||!firebase.database){
@@ -3497,7 +3551,7 @@ const Net={
   stateOf(){
     const p=player;
     const s={n:myName,c:myColor,x:r2(p.pos.x),y:r2(p.pos.y),z:r2(p.pos.z),h:r3(p.yaw),p:r3(p.pitch),hp:Math.max(0,Math.round(p.hp)),d:p.alive?0:1,
-      w:WKEYS.indexOf(p.wkey),sc:p.shotCount,k:p.kills,dt:p.deaths,r:Math.round(rank.r),sp:p.spawnShield>0?1:0,m:this.wm(),mp:mapIdx,ar:mapSm,mc:MAPS.length,ts:Math.round(this.now())};
+      w:WKEYS.indexOf(p.wkey),sc:p.shotCount,k:p.kills,dt:p.deaths,r:Math.round(rank.r),sp:p.spawnShield>0?1:0,m:this.wm(),mp:mapIdx,ar:mapSm,mc:MAPS.length,jt:Math.round(this.joinT),ts:Math.round(this.now())};
     if(this.ctfRoom)s.tm=p.team;   // capture the flag: this egg's team
     return s;
   },
@@ -3556,7 +3610,7 @@ const Net={
   // nm: how many of the maps every egg in the room can build (the map is picked from the first nm).
   claimRound(sm,nm){
     this.roundErr=null;this.joining=true;const refs=this.refs;nm=clamp(nm|0||MAPS.length,1,MAPS.length);
-    refs.round.transaction(cur=>{const n=this.now();if(cur&&typeof cur.ends==='number'&&typeof cur.id==='number'&&n<roundEnd(cur)+20000)return;return{id:(cur&&+cur.id||0)+1,ends:n,len:MATCH_MS,map:Math.floor(Math.random()*nm),sm}},undefined,false)
+    refs.round.transaction(cur=>{const n=this.now();if(cur&&typeof cur.ends==='number'&&typeof cur.id==='number'&&n<roundEnd(cur)+20000)return;const r={id:(cur&&+cur.id||0)+1,ends:n,len:MATCH_MS,map:Math.floor(Math.random()*nm),sm};if(menuRules)r.gm=menuRules;return r},undefined,false)
       .catch(err=>{this.roundErr=err}).then(()=>{if(this.refs!==refs)return;this.joining=false;if(this.cur)this.takeRound(this.cur)});
   },
   // A value of the room's match node from the server (the listener, or a fresh read). It becomes this browser's copy of
@@ -3576,6 +3630,7 @@ const Net={
     if(this.joining&&this.now()>=roundEnd(v)+20000)return;
     if(this.isNewRound(v))onMatch(v);
     else if(mapCtf&&v.id===this.matchId)ctfSync(ctfNorm(v.ctf));   // the flags or the score changed
+    if(v.id===this.matchId)renderRulesUI();
   },
   // Run with every send (about 12 times a second). The map built here must always be the one in cur; if anything ever
   // left them apart, rebuild now. Once a second, look at the other eggs in this match: if most of them report a different
@@ -3617,14 +3672,18 @@ const Net={
     ref.set(data).catch(()=>{});
     setTimeout(()=>ref.remove().catch(()=>{}),5000);
   },
-  rematch(){
+  // pickMap: the map vote's result (otherwise the next map in turn). The rules carry over, or become the host's ngm.
+  rematch(pickMap){
     if(!online||!this.refs)return;const id=this.matchId;
     // a missing match (the last egg out took it, see dropRound) starts a fresh one too, always numbered past this
     // browser's own match so its listener (which ignores the match it already has) picks it up
     // the next match is a small arena if 4 or fewer eggs are here now (and all of them can build one)
     let n=1,allNew=true;const now=this.now();for(const e of remotes.values()){const q=e.net;if(!q||now-(+q.ts||0)>10000)continue;n++;if(q.ar==null)allNew=false}
     const sm=smallFor(n,allNew),mk=this.mapsHere();   // the next map in turn, among the ones every egg here can build
-    this.refs.round.transaction(cur=>(!cur||cur.id===id)?{id:(+id||0)+1,ends:this.now(),len:MATCH_MS,map:((+(cur&&cur.map)||0)+1)%mk,sm}:undefined,undefined,false).catch(()=>{});
+    const gm0=this.gm;
+    this.refs.round.transaction(cur=>{if(cur&&cur.id!==id)return;
+      const map=pickMap>=0&&pickMap<mk?pickMap:((+(cur&&cur.map)||0)+1)%mk,gm=cur&&cur.ngm!=null?gmOf({gm:cur.ngm}):cur?gmOf(cur):gm0;
+      const r={id:(+id||0)+1,ends:this.now(),len:MATCH_MS,map,sm};if(gm)r.gm=gm;return r},undefined,false).catch(()=>{});
   },
   // The last egg out takes the room's match with it, so a code nobody uses again doesn't keep a stale node. Only when
   // no other egg is here, and only the match this browser saw; an egg that was mid-join re-creates one (its own join
@@ -3633,7 +3692,7 @@ const Net={
   leave(){
     clearInterval(this.pubTimer);clearInterval(this.pruneTimer);
     if(this.refs){const r=this.refs;try{r.players.off();r.events.off();r.round.off();r.me.onDisconnect().cancel();r.me.remove();this.dropRound(r)}catch(e){}}
-    this.refs=null;this.room=null;this.ctfRoom=false;this.matchId=null;this.cur=null;this.joining=false;clearTimeout(this.waitT);online=false;player.id='me';
+    this.refs=null;this.room=null;this.ctfRoom=false;this.gm=0;this.matchId=null;this.cur=null;this.joining=false;clearTimeout(this.waitT);online=false;player.id='me';
     clearRemotes();
   }
 };
@@ -3716,6 +3775,8 @@ function handleEvent(ev){
     else addFeed(k&&ev.kb!==ev.by?k:null,victim,!!ev.hd,String(ev.w||''));
   }else if(ev.type==='nade'){
     if([ev.x,ev.y,ev.z,ev.vx,ev.vy,ev.vz].every(n=>typeof n==='number'&&isFinite(n)))spawnNade(ev.x,ev.y,ev.z,clamp(ev.vx,-40,40),clamp(ev.vy,-40,40),clamp(ev.vz,-40,40),ev.by);
+  }else if(ev.type==='vote'){
+    const v=+ev.v;if(ev.id===Net.matchId&&Number.isInteger(v)&&v>=-1&&v<MAPS.length){Vote.votes.set(ev.by,{id:ev.id,v});if(state==='end')renderVote()}
   }else if(ev.type==='ks'&&ev.k==='rocket'){
     // another egg's Yolk Launcher rocket: fly it here too (it hurts only our own egg when it bursts)
     const o=entById(ev.by);if(!o||!o.remote||!o.active)return;
@@ -3734,13 +3795,13 @@ function handleEvent(ev){
 }
 function onMatch(v){
   const first=Net.matchId==null;
-  Net.matchId=v.id;matchEnds=roundEnd(v);ctfOn=Net.ctfRoom;
+  Net.matchId=v.id;matchEnds=roundEnd(v);ctfOn=Net.ctfRoom;Net.gm=gmOf(v);setRules(Net.gm);
   const mi=mapOf(v),sm=smOf(v);
   const sameMap=mi===mapIdx&&sm===mapSm&&mapCtf===ctfOn;const wasIn=state==='playing'&&player.alive;
   clearTimeout(Net.waitT);if(state!=='playing')setMsg('');
   resetFx();if(!sameMap)buildMap(mi,sm);
   for(const e of remotes.values())e.active=inMyMatch(e.net);
-  player.kills=0;player.deaths=0;player.streak=0;target=TARGET_ONLINE;$('goal').textContent='First to '+(mapCtf?CTF_CAPS:target);
+  player.kills=0;player.deaths=0;player.streak=0;target=TARGET_ONLINE;$('goal').textContent=goalText();
   // capture the flag: the flags and score as the match has them, and (on arriving) a team
   if(mapCtf){if(first)ctfPick();ctfSync(ctfNorm(v.ctf),true);ctfGone[0]=ctfGone[1]=0;ctfSeen[0]=ctfSeen[1]=false}
   if(mapCtf){if(!(wasIn&&sameMap)){respawn(player);sfx('spawn')}}
@@ -3753,8 +3814,9 @@ function onMatch(v){
   if(!(wasIn&&sameMap&&!ratedThis&&clock-matchJoinClock<15))startRatedMatch();
   if(state!=='playing'){state='playing';showHud();if(!paused)requestLock()}
   else{$('end').hidden=true}
-  if(mapCtf){banner(MAPS[mapIdx].name.toUpperCase(),'Capture the flag · '+(Net.isPublic?'public lobby':'room '+Net.room)+' · first to '+CTF_CAPS,2.6);ctfHello()}
-  else banner(MAPS[mapIdx].name.toUpperCase(),(Net.isPublic?'Public lobby':'Room '+Net.room)+' · first to '+target+' cracks',2.6);
+  if(first&&Net.gm!==menuRules)setTimeout(()=>{if(Net.matchId===v.id)infoFeed('This room is playing '+RULES.n)},2800);
+  if(mapCtf){banner(MAPS[mapIdx].name.toUpperCase(),rulesPre()+'Capture the flag · '+(Net.isPublic?'public lobby':'room '+Net.room)+' · first to '+CTF_CAPS,2.6);ctfHello()}
+  else banner(MAPS[mapIdx].name.toUpperCase(),rulesPre()+(Net.isPublic?'Public lobby':'Room '+Net.room)+' · first to '+target+' cracks',2.6);
   // after the banner has gone (on a phone held sideways they'd overlap)
   if(mapSm&&!sameMap){const id=v.id;setTimeout(()=>{if(Net.matchId===id&&mapSm)infoFeed('Small arena for '+SMALL_MAX+' or fewer')},2800)}
 }
@@ -3884,8 +3946,10 @@ function step(dt){
     }
   }
   if(state==='end'&&online){
-    endTimer-=dt;$('endMsg').textContent=endTimer>0?'Next match starts in '+Math.ceil(endTimer)+'…':'Starting…';
-    if(endTimer<=0&&endTimer>-dt*1.5)Net.rematch();
+    endTimer-=dt;const host=Net.isHost();
+    $('endMsg').textContent=endTimer>0?'Vote for the next map · next match in '+Math.ceil(endTimer)+'…':host||endTimer<-5?'Starting…':'Waiting for the host…';
+    $('again').disabled=!host||Vote.sent;
+    if(!Vote.sent&&(host?endTimer<=0:endTimer<=-5)){Vote.sent=true;Net.rematch(voteDecide())}
   }
   updateParts(dt);updateShards(dt);updateSplats(dt);updateTracers(dt);updateSparks(dt);updateBooms(dt);
   for(const c of clouds)c.rotation.y-=.007*dt;
@@ -3944,6 +4008,64 @@ function render(){
 }
 
 // =====================================================================
+//  Map vote and rules for the next match
+// =====================================================================
+// When a match ends, the end card offers the next map: two of the maps every egg here can build (not the one just
+// played), picked the same way in every browser from the match id, plus Random when there are more. Each egg's vote goes
+// to the room as a 'vote' event ({id: the match, v: the map, -1 for Random}); a newer vote replaces its older one. Bots
+// don't vote. When the 12 s are up the host (Net.hostUid) counts them and starts the next match on the winner (Net.rematch);
+// a tie or no votes picks at random among the leaders, and Random picks any other map. If the host has gone, everyone
+// else does the same 5 s later (whichever transaction lands first wins). In practice it just picks the Play again map.
+const Vote={id:null,opts:[],votes:new Map(),mine:null,sent:false,mk:0};
+function voteStart(){
+  const mk=online?Net.mapsHere():MAPS.length,rng=mulberry(online?(Net.matchId|0)*7919+13:(Math.random()*1e9)|0),pool=[];
+  for(let i=0;i<mk;i++)if(i!==mapIdx)pool.push(i);
+  for(let i=pool.length-1;i>0;i--){const j=Math.floor(rng()*(i+1)),t=pool[i];pool[i]=pool[j];pool[j]=t}
+  Vote.opts=pool.slice(0,2);if(mk>3)Vote.opts.push(-1);
+  Vote.id=online?Net.matchId:'practice';Vote.mine=null;Vote.sent=false;Vote.mk=mk;
+  for(const [u,x] of Vote.votes)if(x.id!==Vote.id)Vote.votes.delete(u);
+  $('voteLbl').textContent=online?'Vote for the next map':'Next map';
+  renderVote();
+}
+function castVote(v){
+  if(state!=='end'||Vote.sent||!Vote.opts.includes(v))return;
+  Vote.mine=v;Vote.votes.set(online?Net.uid:'me',{id:Vote.id,v});
+  if(online)Net.send({type:'vote',id:Vote.id,v});
+  renderVote();
+}
+function voteCounts(){const c=new Map(Vote.opts.map(o=>[o,0]));for(const x of Vote.votes.values())if(x.id===Vote.id&&c.has(x.v))c.set(x.v,c.get(x.v)+1);return c}
+function voteDecide(){
+  const c=voteCounts();let top=0;for(const n of c.values())top=Math.max(top,n);
+  let m=pick(Vote.opts.filter(o=>c.get(o)===top).concat(Vote.opts.length?[]:[-1]));
+  if(m<0){const pool=[];for(let i=0;i<(Vote.mk||MAPS.length);i++)if(i!==mapIdx)pool.push(i);m=pool.length?pick(pool):Math.max(0,mapIdx)}
+  return m;
+}
+function renderVote(){
+  const box=$('voteRow'),c=voteCounts();$('vote').hidden=!Vote.opts.length;box.textContent='';
+  for(const o of Vote.opts){const b=document.createElement('button');b.type='button';b.className='btn alt vbtn'+(Vote.mine===o?' on':'');b.setAttribute('aria-pressed',String(Vote.mine===o));
+    const n=document.createElement('span');n.textContent=o<0?'Random':MAPS[o].name;b.appendChild(n);
+    if(online){const k=document.createElement('small');k.textContent=c.get(o)+(c.get(o)===1?' vote':' votes');b.appendChild(k)}
+    b.addEventListener('click',()=>castVote(o));box.appendChild(b)}
+}
+// The rules pickers: the menu's (practice, and a room's match you start), and "Next match" on the pause and end cards,
+// which in a room only the host can change (everyone sees what was picked).
+function rulesOptions(sel){sel.textContent='';GMODES.forEach((m,i)=>{const o=document.createElement('option');o.value=String(i);o.textContent=m.n;sel.appendChild(o)})}
+function pickRules(i){
+  i=clamp(i|0,0,GMODES.length-1);
+  if(online){Net.setNext(i);return}
+  menuRules=i;store.set('rules',String(i));renderRulesUI();
+}
+function renderRulesUI(){
+  $('rules').value=String(menuRules);
+  const room=online&&Net.refs,host=room&&Net.isHost(),next=room?Net.nextGm():menuRules;
+  let note;
+  if(room){const h=entById(Net.hostUid());note=host?'You’re the host: you pick the rules for the next match. Now: '+RULES.n+'.':'Now: '+RULES.n+'. The host'+(h&&h.name?', '+h.name+',':'')+' picks the next match’s rules.'}
+  else note=mode==='practice'?'Now: '+RULES.n+'.':'';
+  for(const [s,n] of [['rulesNextP','pauseRulesNote'],['rulesNextE','endRulesNote']]){$(s).value=String(next);$(s).disabled=!!room&&!host;$(n).textContent=note}
+  const show=mode!=='training';$('pauseRulesBox').hidden=!show;$('pauseRulesNote').hidden=!show;
+}
+
+// =====================================================================
 //  Menu wiring
 // =====================================================================
 function renderWeapons(box){
@@ -3968,6 +4090,7 @@ function renderDiff(){for(const b of $('diffSeg').children)b.setAttribute('aria-
 function renderMode(){for(const b of $('modeSeg').children)b.setAttribute('aria-pressed',String(b.dataset.m===gmode));$('modeNote').hidden=gmode!=='ctf'}
 function setMode(m){gmode=m==='ctf'?'ctf':'ffa';store.set('gmode',gmode);renderMode()}
 $('modeSeg').addEventListener('click',e=>{const m=e.target.dataset&&e.target.dataset.m;if(m)setMode(m)});
+for(const id of ['rules','rulesNextP','rulesNextE']){rulesOptions($(id));$(id).addEventListener('change',e=>pickRules(+e.target.value))}
 function renderGfx(){for(const b of $('gfxSeg').children)b.setAttribute('aria-pressed',String(b.dataset.q===gfx))}
 $('diffSeg').addEventListener('click',e=>{const d=e.target.dataset&&e.target.dataset.d;if(d&&DIFF[d]){diffKey=d;store.set('diff',d);renderDiff()}});
 function applyGfx(q){gfx=q;store.set('gfx',q);renderGfx();
@@ -4001,7 +4124,8 @@ $('training').addEventListener('click',startTraining);
 $('quick').addEventListener('click',quickMatch);
 $('joinRoom').addEventListener('click',joinPrivate);
 $('room').addEventListener('keydown',e=>{if(e.key==='Enter')joinPrivate()});
-$('again').addEventListener('click',()=>{if(online){Net.rematch();$('again').disabled=true;$('endMsg').textContent='Starting…'}else startPractice()});
+// online only the host starts the next match early (on the votes so far); in practice, Play again goes to the voted map
+$('again').addEventListener('click',()=>{if(online){if(Net.isHost())endTimer=Math.min(endTimer,0)}else startPractice(voteDecide())});
 $('toMenu').addEventListener('click',toMenu);
 $('resume').addEventListener('click',resumeGame);
 $('leave').addEventListener('click',toMenu);
@@ -4020,9 +4144,9 @@ if(inv){if(/^ctf-/.test(inv[1]))setMode('ctf');$('room').value=inv[1];setMsg('Yo
 
 if(navigator.webdriver)window.__sc={get state(){return state},get mode(){return mode},get noRender(){return noRender},set noRender(v){noRender=!!v},player,get ents(){return ents},get map(){return mapIdx},get arena(){return mapSm},get layout(){return mapIdx+(mapSm?"s":"")},findPath,rayWorld,floorBelow,buildMap,MAPS,W,HY,VY,G,GROUND_Y,vox,vget,standV,nodeFor,entHits,get navN(){return navN},get navReach(){return navReach},navAt,get navY(){return navY},get perches(){return perches},spawns:()=>spawns,Net,onRemoteState,handleEvent,onMatch,endMatch,standings,DIFF,WEAPONS,fireShot,damage,throwNade,nades,addFeed,respawn,spawnSplat,keys,setPaused:v=>{paused=v},get rank(){return rank},HUMAN_W,ratingChange,applyRating,get lastRated(){return lastRated},get clock(){return clock},toMenu,loadLeaderboard,renderer,scene,camera,vmScene,vmCam,advance:s=>{noRender=true;try{for(let t=0;t<s;t+=1/30)step(1/30)}finally{noRender=false}},get matchEnds(){return matchEnds},set matchEnds(v){matchEnds=v},get remotes(){return remotes},get range(){return Range},startTraining,tryFire,buildGun,WKEYS,get vmGun(){return vmGun},get tracers(){return tracers},startReload,setLoadout,switchSlot,mapInfo,RANGE_IDX,get paused(){return paused},get hudDirty(){return hudDirty},
   // collision audit: the real movement, push-out and remote-drawing code, driven step by step
-  botMatch:(i,n)=>{clearBots();resetFx();buildMap(i);addBots(n)},get ctf(){return{on:mapCtf,S:ctfS,base:ctfBase,spawns:ctfSpawns,posts:ctfPosts,team:player.team}},ctfDo,ctfReduce,ctfNorm,ctfFresh,ctfSync,setMode,KS,useReward,creditKill,get rockets(){return rockets},get fry(){return fry},TEAM,startPractice,CTF_CAPS,ctfBotMatch:(i,n)=>{clearBots();resetFx();ctfOn=true;buildMap(i);const t=[];for(let k=0;k<n;k++)t.push(k&1);addBots(n,t);ctfSync(ctfFresh(),true);state='playing';mode='practice';player.active=false;player.alive=false;matchEnds=Date.now()+1e9},moveEntity,steer,pushOutPos,rescue,boxSolid,updateRemotes,drawClamp,simulate,simSteps,FRAME_CAP,consts:{PR,PH,STEP,JUMP,GRAV,MAX_FALL},mapSpawns:()=>mapSpawns,los};
+  botMatch:(i,n)=>{clearBots();resetFx();buildMap(i);addBots(n)},get ctf(){return{on:mapCtf,S:ctfS,base:ctfBase,spawns:ctfSpawns,posts:ctfPosts,team:player.team}},ctfDo,ctfReduce,ctfNorm,ctfFresh,ctfSync,setMode,KS,useReward,creditKill,GMODES,get rules(){return RULES},Vote,castVote,voteDecide,setNextRules:i=>pickRules(i),get rockets(){return rockets},get fry(){return fry},TEAM,startPractice,CTF_CAPS,ctfBotMatch:(i,n)=>{clearBots();resetFx();ctfOn=true;buildMap(i);const t=[];for(let k=0;k<n;k++)t.push(k&1);addBots(n,t);ctfSync(ctfFresh(),true);state='playing';mode='practice';player.active=false;player.alive=false;matchEnds=Date.now()+1e9},moveEntity,steer,pushOutPos,rescue,boxSolid,updateRemotes,drawClamp,simulate,simSteps,FRAME_CAP,consts:{PR,PH,STEP,JUMP,GRAV,MAX_FALL},mapSpawns:()=>mapSpawns,los};
 
-renderSwatches();renderWeapons($('weapons'));renderDiff();renderGfx();renderMode();renderRank();
+renderSwatches();renderWeapons($('weapons'));renderDiff();renderGfx();renderMode();renderRank();renderRulesUI();
 setupAttract();showAd('adMenu');
 requestAnimationFrame(t=>{last=t;frame(t)});
 })();
