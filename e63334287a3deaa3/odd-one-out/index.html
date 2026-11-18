@@ -1062,6 +1062,10 @@ function buildProps(){
   defProp('sleepBag','Sleeping bag',[['sleepBag',cyl(.17,.17,.62,0,.17,0,16,0,Math.PI/2)],['strapB',cyl(.176,.176,.04,-.18,.17,0,16,0,Math.PI/2)],['strapB',cyl(.176,.176,.04,.18,.17,0,16,0,Math.PI/2)]]);
   defProp('backpack','Backpack',[['pack',b(.34,.44,.2,0,.22,0)],['pack2',b(.26,.18,.07,0,.15,.13)],['pack',sph(.17,0,.44,0,1,.35,.6)]]);
   defProp('campCooler','Camping cooler',[['coolerBox',b(.62,.36,.38,0,.18,0)],['white',b(.64,.06,.4,0,.39,0)],['black',b(.2,.025,.04,0,.43,0)]]);
+  defProp('desk','School desk',[['deskTop',b(.62,.03,.46,0,.715,0)],['steelDark',b(.56,.14,.38,0,.63,-.02)],...chairLegs('steelDark',.6,.44,.56,.015)]);
+  defProp('chairS','School chair',[['chairOrange',b(.4,.04,.38,0,.44,0)],['chairOrange',b(.4,.3,.03,0,.68,-.18,0,-.06)],...chairLegs('steelDark',.38,.36,.42,.013)]);
+  defProp('globe','Globe',[['woodDark',cyl(.12,.14,.04,0,.02,0,14)],['brass',cyl(.012,.012,.18,0,.12,0,6)],['globe',sph(.16,0,.36,0,1,1,1,20,14)]]);
+  defProp('bball','Basketball',[['bball',sph(.12,0,.12,0,1,1,1,16,12)]]);
   // things that are part of the furniture: not on the transform list
   defProp('tray','Food tray',[['chairTeal',b(.44,.02,.32,0,.01,0)],['chairTeal',b(.44,.03,.02,0,.025,.15)],['chairTeal',b(.44,.03,.02,0,.025,-.15)]],{elig:false,ns:true});
 }
@@ -1934,9 +1938,89 @@ function buildCamp(){
   },room));
 }
 
+// ---------- map 6: Hollow Hill School (classrooms, a library, a gym, an art room and a science lab) ----------
+function buildSchool(){
+  const B=new Builder(806),H=3.2,K=kit(B,H),KG=kit(B,4.6),r=B.r;
+  K.floor(0,17,52,23,'lino');K.floor(0,0,14,17,'carpetGreen');K.floor(14,0,28,17,'woodFloor');K.floor(28,0,52,17,'carpetRed');
+  K.floor(0,23,22,40,'gymFloor');K.floor(22,23,36,40,'concrete');K.floor(36,23,52,40,'checker');
+  K.ceil(0,17,52,23);K.ceil(0,0,14,17);K.ceil(14,0,28,17);K.ceil(28,0,52,17);KG.ceil(0,23,22,40,4.6);K.ceil(22,23,36,40);K.ceil(36,23,52,40);
+  K.lights(4,20,48,20,6,1);K.lights(3.5,4,10.5,12.5,3.5,4.25);K.lights(17.5,4,24.5,12.5,3.5,4.25);K.lights(32,4,48,12.5,4,4.25);KG.lights(5,27,17,36,6,4.5,4.6);K.lights(26,27,32,36,6,4.5);K.lights(40,27,48,36,4,4.5);
+  // outside walls
+  K.wallX(0,-.1,52.1,{all:'wallCream','-z':'brick'});K.wallX(40,21.9,52.1,{all:'wallPeach','+z':'brick'});KG.wallX(40,-.1,22.1,{all:'wallWhite','+z':'brick'});
+  K.wallZ(0,0,23,{all:'wallSage','-x':'brick'});KG.wallZ(0,23,40,{all:'wallWhite','-x':'brick'});K.wallZ(52,0,40,{all:'wallSky','+x':'brick'});
+  for(const [a,b2] of [[.8,2.8],[11.2,13.2],[15,17.4],[24.6,27],[30,32.6],[35,37.6],[42,44.6],[47,49.6]])K.deco(a,1,.1,b2,2.3,.14,'win','+z');
+  for(const [a,b2] of [[25,28],[31,34],[39,42],[46,49]])K.deco(a,1,39.86,b2,2.3,39.9,'win','-z');
+  // the hallway and the rooms off it
+  K.wallX(17,0,52,{all:'wallWhite','+z':'wallSky','-z':'wallCream'},[[5,6.4],[19,20.4],[33,35],[44,45.4]]);
+  K.wallZ(14,0,17,{all:'wallWhite','-x':'wallSage','+x':'wallPeach'},[[8,9.4]]);K.wallZ(28,0,17,{all:'wallWhite','-x':'wallPeach','+x':'wallCream'});
+  KG.wallX(23,0,22,{all:'wallWhite','-z':'wallSky'},[[8,11]],{dh:2.6});K.wallX(23,22,52,{all:'wallWhite','-z':'wallSky','+z':'wallPeach'},[[27,28.4],[43,44.4]]);
+  KG.wallZ(22,23,40,{all:'wallWhite','+x':'wallPeach'});K.wallZ(36,23,40,{all:'wallPeach','+x':'wallSky'},[[31,32.4]]);
+  B.box(51.86,0,18.8,51.9,2.5,21.2,'doorGrey',{fit:'-x',ghost:true,ns:true});K.deco(51.86,2.55,17.6,51.9,3.1,22.4,'sSchool','-x');
+  K.deco(8,2.65,23.1,11,3.05,23.14,'sGym','-z');K.deco(32.4,2.55,16.86,35.6,3,16.9,'sLib','+z');K.deco(26.4,2.55,23.1,29,2.95,23.14,'sArt','-z');K.deco(42.4,2.55,23.1,45,2.95,23.14,'sLab','-z');
+  // lockers line the hallway: built into the walls (a wall's top: nobody stands on them)
+  const lockers=(a,b2,z0,z1,f)=>{const n=Math.max(1,Math.round((b2-a)/1.2));for(let i=0;i<n;i++)B.box(a+i*(b2-a)/n,0,z0,a+(i+1)*(b2-a)/n,2.3,z1,{all:'steelDark',[f]:'lockersS'},{fit:f,kind:'wall'})};
+  for(const [a,b2] of [[.2,4.8],[6.6,18.8],[20.6,32.8],[35.2,43.8],[45.6,50]])lockers(a,b2,17.1,17.55,'+z');
+  for(const [a,b2] of [[.2,7.8],[11.2,21.8],[22.2,26.8],[28.6,42.8],[44.6,48.6]])lockers(a,b2,22.45,22.9,'-z');
+  for(const [x,z,id] of [[12,19,'bench'],[30,21,'bench'],[39,19.1,'bench'],[3,21.4,'trash'],[3.8,21.5,'recycle'],[24,18.6,'cooler'],[47,21.6,'plantT'],[41.6,18.2,'wetSign'],[42.4,18.3,'bucket'],[16,21.3,'backpack'],[16.6,21.5,'backpack'],[34,18.4,'ext'],[26,21.5,'trash'],[8,18.3,'backpack'],[50.6,18.2,'plantT'],[36.5,21.6,'boxM']])B.place(id,x,z,id==='bench'?(z<20?0:Math.PI):(r()-.5)*.5);
+  // ---- classroom A: rows of desks facing the chalkboard ----
+  K.deco(3,1,.1,11,2.3,.14,'chalk','+z');
+  B.box(4,0,1.6,7,.76,2.4,{all:'woodDark','+y':'woodLight'});B.place('globe',4.5,2,0,.76);B.place('books',5.5,2,.3,.76);B.place('cup',6.4,1.9,0,.76);B.place('chairO',5.5,1,0);
+  for(const x of [3.2,5.8,8.4,11])for(const z of [5,8,11]){if(r()<.12){B.place('chairS',x+(r()-.5)*.3,z+.5,Math.PI+(r()-.5)*.8);continue}B.place('desk',x,z,Math.PI);B.place('chairS',x,z+.55,Math.PI+(r()-.5)*.25);
+    if(r()<.35)B.place(pick2(r,['books','laptop','cup']),x+(r()-.5)*.2,z,r()*6,.73);if(r()<.3)B.place('backpack',x+.5,z+.6,r()*6)}
+  B.box(.1,0,4,.6,1.1,13,{all:'woodPale','+x':'shelfBook2'},{fit:'+x'});for(const [z,id] of [[4.6,'globe'],[6.2,'plantS'],[8.4,'books'],[10.6,'block'],[12.2,'books']])B.place(id,.35,z,Math.PI/2,1.1);
+  B.box(1,0,16.35,12,1,16.9,{all:'woodPale','-z':'shelfToy'},{fit:'-z'});for(const [x,id] of [[2,'books'],[4.6,'plantS'],[7.4,'block2'],[10.4,'books']])B.place(id,x,16.62,0,1);
+  for(const [x,z,id] of [[2,15.4,'backpack'],[3,15.5,'backpack'],[9.6,15.4,'backpack'],[13.4,.6,'plantT'],[.7,.7,'plantT'],[13.4,15.5,'trash'],[13.4,14.6,'recycle'],[12.6,2.2,'gift'],[12,1.3,'ball'],[1.4,14,'lampF']])B.place(id,x,z,(r()-.5)*.6);
+  // ---- classroom B: desks in groups, a reading corner ----
+  K.deco(16,1,.1,22,2.2,.14,'whiteboard','+z');
+  B.box(23.4,0,1.6,26.6,.76,2.4,{all:'woodDark','+y':'woodLight'});B.place('monitor',25,2,0,.76);B.place('books',24,1.9,.4,.76);B.place('plantS',26.1,2,0,.76);B.place('chairO',25,1,0);
+  for(const [cx,cz] of [[17.4,6.4],[22,6.4],[17.4,11],[22,11]])for(const [dx,dz,a] of [[-.33,-.25,0],[.33,-.25,0],[-.33,.25,Math.PI],[.33,.25,Math.PI]]){
+    B.place('desk',cx+dx*2,cz+dz*2.1,a);B.place('chairS',cx+dx*2,cz+dz*4.5,a+Math.PI+(r()-.5)*.3);if(r()<.3)B.place(pick2(r,['books','cup','globe']),cx+dx*2,cz+dz*2.1,r()*6,.73)}
+  B.box(24.4,0,12.2,27.8,.012,16.6,'rugB',{fit:'+y',solid:false,ghost:true,ns:true});
+  for(const [x,z,id] of [[25,13.4,'pillow'],[26.6,13.2,'pillow2'],[25.6,15.4,'pillow'],[27,15.6,'teddy'],[24.8,14.6,'books'],[26.4,14.4,'ball']])B.place(id,x,z,r()*6);
+  B.box(27.4,0,4,27.9,1.1,11,{all:'woodPale','-x':'shelfBook'},{fit:'-x'});for(const [z,id] of [[4.6,'block'],[6.6,'books'],[8.4,'globe'],[10.2,'plantS']])B.place(id,27.65,z,-Math.PI/2,1.1);
+  for(const [x,z,id] of [[14.6,.6,'plantT'],[14.6,16.4,'trash'],[15.4,16.4,'recycle'],[19,15.8,'backpack'],[20,15.9,'suitcase'],[27.4,.6,'speaker']])B.place(id,x,z,(r()-.5)*.5);stackOn(B,r,22.4,15.8,['boxM','boxS']);
+  // ---- the library ----
+  for(const z of [3.4,7.4])for(const [x0,x1] of [[30,37],[39,45.6]])B.box(x0,0,z-.3,x1,2,z+.3,{all:'woodDark','+z':'shelfBook','-z':'shelfBook2'},{fit:'+z-z',kind:'wall'});
+  B.box(47.4,0,1,51.9,2,1.6,{all:'woodDark','+z':'shelfBook'},{fit:'+z',kind:'wall'});B.box(51.4,0,2,51.9,2,9.6,{all:'woodDark','-x':'shelfBook2'},{fit:'-x',kind:'wall'});
+  for(const [x0,z0,x1,z1] of [[31,11.4,35,13],[38,11.4,42,13]]){B.box(x0,.72,z0,x1,.78,z1,'woodLight');for(const x of [x0+.15,x1-.15])for(const z of [z0+.15,z1-.15])B.box(x-.05,0,z-.05,x+.05,.72,z+.05,'woodDark');
+    for(let i=0;i<3;i++){B.place('chairS',x0+.7+i*1.3,z0-.45,0);B.place('chairS',x0+.7+i*1.3,z1+.45,Math.PI)}
+    for(let i=0;i<3;i++)B.place(pick2(r,['books','books','laptop','globe','cup']),x0+.6+i*1.4+(r()-.5)*.3,(z0+z1)/2+(r()-.5)*.4,r()*6,.78)}
+  B.box(45,0,13.4,49,.95,14.2,{all:'counter','+y':'counterTop'});B.place('monitor',46,13.8,Math.PI,.95);B.place('printer',47.5,13.8,Math.PI,.95);B.place('books',48.5,13.8,0,.95);B.place('chairO',46.6,15,Math.PI);
+  for(const [x,z,id] of [[29,1,'plantT'],[46.4,1.2,'globe'],[50.6,11,'armchair'],[50.6,13.2,'armchair'],[49.4,12,'lampF'],[29,15.8,'trash'],[36.6,15.8,'books'],[37.2,15.6,'books'],[43,9.6,'boxM'],[38,5.4,'books'],[44,5.4,'pillow2'],[33,5.4,'pillow'],[30.4,9.4,'basket'],[44.4,15.8,'plantS'],[36,9.6,'boxT']])B.place(id,x,z,id==='armchair'?-Math.PI/2:(r()-.5)*.6);
+  // ---- the gym ----
+  B.box(2,0,37.4,20,.45,39.9,'bleacher');B.box(2,.45,38.2,20,.9,39.9,'bleacher');B.box(2,.9,39,20,1.35,39.9,'bleacher');
+  const G0={ghost:true,ns:true,solid:false};
+  for(const [a,b2] of [[.1,.2],[21.8,21.9]])B.box(a,2.8,30.2,b2,3.9,32.4,'hoop',G0);
+  {const rims=[tor(.23,.02,.6,3.05,31.3,Math.PI/2),tor(.23,.02,21.4,3.05,31.3,Math.PI/2)];B.mesh(mergeGeos(rims),'hoopRim',0,0,0)}
+  B.box(10.9,.003,24,11.1,.006,36.8,'gymLine',Object.assign({skip:'-y+x-x+z-z'},G0));B.mesh(new THREE.TorusGeometry(1.8,.05,4,40).rotateX(Math.PI/2),'gymLine',11,.006,30.4,{ns:true});
+  for(const [x0,z0,x1,z1] of [[.6,24.6,3.6,28.6],[18.4,24.6,21.4,28.6]])B.box(x0,0,z0,x1,.12,z1,'mat');
+  B.box(14.6,0,24,16.4,.6,25,{all:'steelDark','+y':'rackShelf'});for(let i=0;i<4;i++)B.place('bball',14.9+i*.4,24.5,0,.6);
+  for(const [x,z,id] of [[13.6,24.4,'bball'],[17,24.6,'ball'],[17.6,25.2,'ball'],[6.4,30.8,'bball'],[3.4,29.4,'ball'],[4.6,29,'bball'],[4.4,35.6,'bench'],[17.6,35.6,'bench'],[11,34.4,'cone'],[8,34.4,'cone'],[14,34.4,'cone'],[21.2,24,'cooler'],[.8,36.6,'crate'],[1.6,36.6,'boxM'],[21.2,36.4,'speaker'],[19.4,24,'trash'],[3,24.4,'backpack'],[9,36.8,'backpack']])B.place(id,x,z,id==='bench'?0:(r()-.5)*.6);B.place('ball',2,26,0,.12);B.place('bball',2.8,26.8,0,.12);B.place('pillow2',20.2,26,.4,.12);
+  for(const [x,y,z] of [[5,.45,37.8],[9.6,.9,38.6],[15,.45,37.8],[12.4,1.35,39.45]])B.place(pick2(r,['backpack','bball','cup']),x,z,r()*6,y);
+  // ---- the art room ----
+  for(const [x0,x1,z0] of [[23.6,28.4,27],[29.6,34.4,27],[23.6,28.4,32.6],[29.6,34.4,32.6]]){B.box(x0,.72,z0,x1,.78,z0+1.4,{all:'woodDark','+y':'woodLight'});for(const x of [x0+.15,x1-.15])for(const z of [z0+.15,z0+1.25])B.box(x-.05,0,z-.05,x+.05,.72,z+.05,'woodDark');
+    for(let i=0;i<4;i++){if(r()<.2)continue;B.place(pick2(r,['paint','paint2','bucket','bucket2','block','block2','wcan','basket','books','cup']),x0+.6+i*1.2,z0+.7+(r()-.5)*.6,r()*6,.78)}
+    for(const x of [x0+1,x1-1]){B.place('chairS',x,z0-.45,0);B.place('chairS',x,z0+1.85,Math.PI)}}
+  B.box(35.3,0,25,35.9,.9,30,{all:'cabinetB','+y':'counterTop'});for(const [z,id] of [[25.6,'bucket'],[26.6,'cup'],[27.2,'cup'],[28.4,'bucket2'],[29.4,'paint']])B.place(id,35.6,z,-Math.PI/2,.9);
+  K.deco(22.1,1,25,22.14,2.2,28,'art0','+x');K.deco(22.1,1,30,22.14,2.2,33,'art1','+x');K.deco(26,1,39.86,29,2.2,39.9,'art2','-z');
+  for(const [x,z,id] of [[23,38.8,'mannequin'],[24.4,39.2,'rack'],[34.8,39.2,'boxL'],[33.8,39.3,'boxM'],[22.6,24,'trash'],[35.4,32.4,'recycle'],[30,38.4,'plantT'],[35.2,37.2,'crate'],[28.4,30.8,'gift2'],[31.6,36.6,'paint2']])B.place(id,x,z,id==='mannequin'?Math.PI/2:(r()-.5)*.5);
+  // ---- the science lab ----
+  for(const z of [27.4,31.4,35.4]){B.box(38.4,0,z,49.6,.9,z+.9,{all:'cabinetB','+y':'counterTop'});
+    for(let i=0;i<5;i++){if(r()<.25)continue;B.place(pick2(r,['microwave','laptop','monitor','books','cup','bucket','globe','printer']),39.2+i*2.3+(r()-.5)*.4,z+.45,Math.PI+(r()-.5)*.3,.9)}
+    for(let i=0;i<4;i++)if(r()<.75)B.place('stool',39.6+i*2.9+(r()-.5)*.3,z+1.4,r()*6)}
+  K.deco(51.86,1,27,51.9,2.3,34,'whiteboard','-x');
+  for(const [x,z,id] of [[51.4,24,'ext'],[37,24,'plantT'],[51.4,39.4,'filing'],[50.8,39.4,'filing'],[37,39.4,'trash'],[37.8,39.4,'recycle'],[44,39.3,'boxT'],[45,39.3,'boxM'],[51.2,37.2,'cooler'],[37,30.6,'bucket2'],[36.8,34.2,'wetSign']])B.place(id,x,z,id==='filing'?Math.PI:id==='ext'?-Math.PI/2:(r()-.5)*.5);
+  const room=hunterRoom(B,-15,16);
+  return B.finish(Object.assign({
+    name:'Hollow Hill School',short:'School',bounds:[0,0,52,40],height:H,sky:'#cfe2f0',fog:['#e8edf2',40,170],
+    light:{sky:0xf2f6ff,ground:0x9a9488,hemi:.68,sun:.75,sunColor:0xfff4e0,dir:[-.3,1,-.4],amb:.2,exp:1},
+    propSpawns:[[7,9.5],[20,8.7],[38,10],[33,15.4],[11,30],[6,28],[29,30.6],[29,36.8],[44,29.6],[44,33.6],[24,20],[10,20]],
+    hunterSpawns:[[46,19.2],[47.5,19.2],[49,19.2],[50.5,19.2],[46,20.8],[47.5,20.8],[49,20.8],[50.5,20.8]],
+  },room));
+}
 // menu: where the menu's backdrop camera stands inside the map [x, y, z, the way it faces, how far it turns each way]
 const MAPS=[{name:'Starlight Galleria',short:'Mall',build:buildMall,menu:[30,2.6,22,4.71,.55]},{name:'Willow Lane',short:'House',build:buildHouse,menu:[20,2.1,17,4.71,.4]},{name:'Brightside Office',short:'Office',build:buildOffice,menu:[24,2.2,18,1.57,.5]},
-  {name:'Saltwind Harbor',short:'Harbor',build:buildHarbor,menu:[9,2.3,27,1.1,.6]},{name:'Camp Pinecrest',short:'Camp',build:buildCamp,menu:[26,2.2,26,3.3,.6]}];
+  {name:'Saltwind Harbor',short:'Harbor',build:buildHarbor,menu:[9,2.3,27,1.1,.6]},{name:'Camp Pinecrest',short:'Camp',build:buildCamp,menu:[26,2.2,26,3.3,.6]},{name:'Hollow Hill School',short:'School',build:buildSchool,menu:[49,2,20,4.71,.3]}];
 // Older copies of the page know only the first OLD_MAPS maps (and clamp any other map number to the last of those), so
 // the host only picks a newer map when every page in the room knows it: each page says how many maps it knows in its
 // node (mv; a node without it is an older page, which knows OLD_MAPS).
