@@ -2631,7 +2631,7 @@ function bodyGeo(hex,skin,fit,face){
    line at shoulder height, ARM_SEG) follow that arm; the rest blends from the hips (below 0.96) to the chest (above 1.12),
    so the chest can turn over the hips without a seam. The model's units are the unscaled ones (BS scales the group). */
 const BODY_W=[[.7,1],[.84,.99],[.93,.99],[1.0,.88],[1.08,.76],[1.2,.82],[1.32,.96],[1.44,1.06],[1.75,1.06]];
-const SQ_Y=1.42,sqK=x=>.2+.6*clamp((Math.abs(x)-.12)/.25,0,1),SPINE_Y=1.04,ARM_P=[[-.36,1.38,0],[.35,1.38,0]];
+const BACK_Z=.21,BACK_K=.72,SQ_Y=1.42,sqK=x=>.2+.6*clamp((Math.abs(x)-.12)/.25,0,1),SPINE_Y=1.04,ARM_P=[[-.36,1.38,0],[.35,1.38,0]];
 const ARM_SEG=[[-.398,.064,-.142,-.544],[.3,.08,.3,-.57]];   // each arm's line seen from above (x, z to x, z), at y 1.36 (the left hand, at -0.1, -0.5, is just off its line)
 const tabAt=(T,y)=>{if(y<=T[0][0])return T[0][1];for(let i=1;i<T.length;i++)if(y<=T[i][0]){const a=T[i-1],b=T[i];return a[1]+(b[1]-a[1])*(y-a[0])/(b[0]-a[0])}return T[T.length-1][1]};
 function armOf(x,y,z){if(Math.abs(y-1.36)>.025)return 0;if(Math.abs(x+.1)<.02&&Math.abs(z+.5)<.02)return 2;
@@ -2648,14 +2648,15 @@ const ARM_L1=ARM_E.map((e,k)=>Math.hypot(e[0]-ARM_P[k][0],e[1]-ARM_P[k][1],e[2]-
 function bodyRig(B,nb){
   const n=B.p.length/3,bone=new Uint8Array(n).fill(1),warp=new Uint8Array(n),P=B.p,N=B.n,pt=B.pt||[];
   for(let i=0;i<pt.length;i+=6){const s0=pt[i],c=pt[i+1],x=pt[i+2],y=pt[i+3],z=pt[i+4],a=pt[i+5]===2?(x<0?2:3):pt[i+5]?0:armOf(x,y,z);
-    const w=!a&&!pt[i+5]&&s0<nb&&y<1.7&&z<.27&&!(y>1.5&&z<-.2&&Math.abs(x)<.22);
-    for(let v=s0;v<s0+c;v++){bone[v]=a||1;warp[v]=w?1:0}}
+    const w=!a&&!pt[i+5]&&s0<nb&&y<1.7&&z<.27&&!(y>1.5&&z<-.2&&Math.abs(x)<.22),back=!a&&!pt[i+5]&&s0<nb&&z>=.27&&y>.6&&y<1.75;
+    for(let v=s0;v<s0+c;v++){bone[v]=a||1;warp[v]=w?1:back?2:0}}
   const si=new Uint16Array(n*4),sw=new Float32Array(n*4);
   for(let v=0;v<n;v++){const o=v*3,y=P[o+1];
     if(bone[v]>1){const k=bone[v]-2,S=ARM_P[k],H=ARM_H[k],hx=H[0]-S[0],hy=H[1]-S[1],hz=H[2]-S[2],t=((P[o]-S[0])*hx+(y-S[1])*hy+(P[o+2]-S[2])*hz)/(hx*hx+hy*hy+hz*hz),q=clamp((t-.38)/.24,0,1),f=q*q*(3-2*q);
       si[v*4]=bone[v];sw[v*4]=1-f;si[v*4+1]=bone[v]+2;sw[v*4+1]=f;continue}
     const t=clamp((y-.96)/.16,0,1),k=t*t*(3-2*t);si[v*4]=1;sw[v*4]=k;si[v*4+1]=0;sw[v*4+1]=1-k;   // chest, hips
     if(!warp[v])continue;
+    if(warp[v]===2){P[o+2]=BACK_Z+(P[o+2]-BACK_Z)*BACK_K;const nz=N[o+2]/BACK_K,l=Math.hypot(N[o],N[o+1],nz)||1;N[o]/=l;N[o+1]/=l;N[o+2]=nz/l;continue}   // packs and anything else on the back, pulled in
     const f=tabAt(BODY_W,y),kq=sqK(P[o]);P[o]*=f;let ny=N[o+1];if(y>SQ_Y){P[o+1]=SQ_Y+(y-SQ_Y)*kq;ny/=kq}
     const nx=N[o]/f,nz=N[o+2],l=Math.hypot(nx,ny,nz)||1;N[o]=nx/l;N[o+1]=ny/l;N[o+2]=nz/l}
   const g=bagGeo(B);g.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(si,4));g.setAttribute('skinWeight',new THREE.Float32BufferAttribute(sw,4));return g}
@@ -2981,9 +2982,9 @@ function armsOf(B,sleeve,hand){const b0=BW;BW=2;
 // footballers) over the crown with a short fringe at the front. Every part hugs the head (the head is a 0.48 rounded box at
 // 1.79); under headwear only the back and sides show.
 function hairOf(B,col,top){const b0=BW;BW=1;
-  bagRBox(B,0,1.83,.165,.5,.4,.17,col);                                                                            // the back
-  for(const s of [-1,1])bagRLo(B,s*.248,1.9,.06,.06,.22,.3,col);                                                  // over the ears
-  if(top){bagRBox(B,0,2.0,.03,.5,.13,.5,col);bagRLo(B,0,1.99,-.235,.42,.08,.07,col);for(const s of [-1,1])bagRLo(B,s*.16,1.965,-.245,.1,.07,.05,col)}   // the crown, the fringe and its two ends
+  bagRBox(B,0,1.84,.234,.52,.42,.14,col);                                                                         // the back, from the crown to the nape
+  for(const s of [-1,1])bagRLo(B,s*.296,1.93,.1,.05,.2,.3,col);                                                   // over the ears
+  if(top&&!TKON){bagRBox(B,0,2.03,.03,.52,.14,.52,col);bagRLo(B,0,2.02,-.27,.46,.09,.07,col);for(const s of [-1,1])bagRLo(B,s*.17,1.985,-.278,.1,.07,.05,col)}   // the crown (not under the event's hat), the fringe and its two ends
   BW=b0}
 const OUTFITS=(()=>{
   const R=bagRBox,L=bagRLo,X=bagBox,WHITE=0xf2efe8,CREAM=0xf1e6cf,STEEL=0xb9c2cc,IRON=0x8d96a0,INK=0x2b2f36,GLASS=0x1d2228,GOLD=0xffc93c,DENIM=0x4a78c2,STRAW=0xffd95a,WOOD=0x9a6a3c,LENS=0x8fe3ff,RED=0xe8483f,GREEN=0x7fe06d,VEST=0xd9f24a;
@@ -3042,8 +3043,8 @@ const OUTFITS=(()=>{
   {id:'soldier',name:'Army Soldier',hatFace:{y:1.735,cell:.032},legs:()=>[3,S_CAMO[0],S_CAMO[1],S_CAMO[2],S_BOOT,S_BOOT],
     body(B,c){const st=B.c.length;fitBase(B,c,S_CAMO[0],S_CAMO[0],c.skin,S_CAMO[0]);
       // camouflage over the uniform (not over the head, hair or hands)
-      bagCamo(B,st,S_CAMO);{const sk=new THREE.Color(c.skin),hr=new THREE.Color(c.hair),put=(o,n,k)=>{for(let i=o;i<o+n*9;i+=3){B.c[i]=k.r;B.c[i+1]=k.g;B.c[i+2]=k.b}};
-        put(st+192*9,48,sk);put(st+240*9,192,sk);put(st+432*9,192,hr);put(st+1392*9,96,sk)}
+      bagCamo(B,st,S_CAMO);{const sk=new THREE.Color(c.skin),hr=new THREE.Color(c.hair),pt=B.pt;let h=0;   // the neck and head back to skin, the hair to hair, the hands and thumbs to skin
+        for(let i=0;i<pt.length;i+=6){if(pt[i]<st/3)continue;const k=pt[i+5]===1?(h++<2?sk:hr):pt[i+5]===2&&pt[i+1]===144?sk:null;if(k)for(let v=pt[i];v<pt[i]+pt[i+1];v++){B.c[v*3]=k.r;B.c[v*3+1]=k.g;B.c[v*3+2]=k.b}}}
       c.face||eyes(B,1.76);L(B,0,1.27,-.2,.5,.46,.14,S_VEST);L(B,0,1.27,.2,.5,.46,.14,S_VEST);              // vest, front and back
       X(B,-.17,1.56,0,.07,.2,.5,S_VEST);X(B,.17,1.56,0,.07,.2,.5,S_VEST);                           // its shoulder straps
       for(const x of [-.16,0,.16])L(B,x,1.12,-.27,.13,.16,.08,S_WEB);                               // pouches
@@ -3059,13 +3060,13 @@ const OUTFITS=(()=>{
       R(B,0,.9,0,.73,.08,.45,NAVY_D)},
     hat(B,c){R(B,0,2.13,-.01,.68,.15,.68,NAVY);L(B,0,2.03,0,.55,.08,.55,GOLD);L(B,0,1.99,-.3,.5,.04,.2,NAVY_D);X(B,0,2.14,-.42,.22,.05,.03,GOLD);X(B,0,2.16,-.42,.07,.09,.03,GOLD)}},   // peaked cap: crown, gold band, peak, wings
   {id:'soccer-rb',name:'Soccer Player (Red/Blue)',legs:(h,sk)=>[0,K_NAVY,sk,K_SOCK,WHITE,0x1a2452],
-    body(B,c){fitBase(B,c,K_BLUE,c.skin,c.skin,K_RED,{torso:false});tee(B,K_BLUE);
+    body(B,c){fitBase(B,c,K_BLUE,c.skin,c.skin,K_RED,{torso:false,hair:'top'});tee(B,K_BLUE);
       bagPaint(B,0,1.22,0,.7,.72,.42,[7,4,3],K_BLUE,(f,i)=>f[0]==='z'&&i%2?K_RED:undefined);        // seven stripes, front and back
       L(B,0,1.6,0,.36,.08,.36,K_NAVY);R(B,0,.88,0,.72,.16,.44,K_NAVY);                              // collar, the top of the shorts
       X(B,-.11,1.27,.245,.05,.3,.05,WHITE);X(B,.02,1.27,.245,.05,.3,.05,WHITE);X(B,.18,1.27,.245,.05,.3,.05,WHITE);X(B,.1,1.395,.245,.21,.05,.05,WHITE);X(B,.1,1.145,.245,.21,.05,.05,WHITE);   // 10 on the back
       X(B,.13,.87,.27,.022,.1,.03,WHITE);X(B,.18,.87,.27,.022,.1,.03,WHITE);X(B,.24,.87,.27,.022,.1,.03,WHITE);X(B,.21,.91,.27,.08,.022,.03,WHITE);X(B,.21,.83,.27,.08,.022,.03,WHITE)}},   // and a small 10 on the shorts
   {id:'soccer-red',name:'Soccer Player (All Red)',legs:(h,sk)=>[0,R_RED,sk,WHITE,WHITE,R_DEEP],
-    body(B,c){fitBase(B,c,R_RED,c.skin,c.skin,R_RED);tee(B,R_RED);
+    body(B,c){fitBase(B,c,R_RED,c.skin,c.skin,R_RED,{hair:'top'});tee(B,R_RED);
       L(B,-.262,1.36,-.258,.205,.205,.05,WHITE,-.4);L(B,.3,1.36,-.225,.205,.205,.05,WHITE);                     // white bands at the sleeve ends
       L(B,0,1.6,0,.36,.08,.36,R_DEEP);R(B,0,.88,0,.72,.16,.44,R_DEEP);                              // collar, the top of the shorts
       X(B,.04,1.395,.245,.26,.05,.05,WHITE);X(B,.13,1.25,.245,.05,.3,.05,WHITE)}},                  // 7 on the back
@@ -3073,7 +3074,7 @@ const OUTFITS=(()=>{
     body(B,c){fitBase(B,c,C_YEL,C_YEL,c.skin,C_YEL);
       X(B,-.2,1.22,-.25,.14,.66,.05,C_BLUE);X(B,.2,1.22,-.25,.14,.66,.05,C_BLUE);X(B,-.2,1.22,.25,.14,.66,.05,C_BLUE);X(B,.2,1.22,.25,.14,.66,.05,C_BLUE);   // blue braces, front and back
       L(B,0,1.38,-.25,.13,.13,.1,C_RED);L(B,0,1.16,-.25,.13,.13,.1,C_RED);                          // two big red buttons
-      for(let i=0;i<6;i++){const a=i/6*Math.PI*2;L(B,Math.sin(a)*.25,1.57,Math.cos(a)*.23,.28,.1,.28,WHITE)}   // ruffle collar
+      for(let i=0;i<6;i++){const a=i/6*Math.PI*2;L(B,Math.sin(a)*.22,1.57,Math.cos(a)*.19,.26,.09,.26,WHITE)}   // ruffle collar
       L(B,-.184,1.36,-.443,.21,.21,.12,C_RED,-.4);L(B,.3,1.36,-.44,.21,.21,.12,C_RED);R(B,0,.9,0,.73,.08,.45,C_YEL)},   // red cuffs
     hat(B,c){const W=[C_RED,C_ORANGE,C_YEL,C_GREEN,C_BLUE];   // the wig: curls in an arc over the head, front row and back row, and two more behind the ears
       for(let i=0;i<5;i++){const a=(i-2)*.62,x=Math.sin(a)*.34,y=1.86+Math.cos(a)*.3;L(B,x,y,-.1,.3,.3,.3,W[i]);L(B,x,y,.17,.3,.3,.3,W[i])}
@@ -4787,7 +4788,7 @@ function animModel(e,dt){
     L0.rotation.set(sw*cf+lt*.35,0,sw*cl,'XYZ');L1.rotation.set(-sw*cf+lt*.35,0,-sw*cl,'XYZ');L0.k=st*(A>.05?1:0)+kb*Math.max(0,c)*(A>.05?1:0)+lt*.75;L1.k=st*(A>.05?1:0)+kb*Math.max(0,-c)*(A>.05?1:0)+lt*.75;
     m.position.y-=(.9*(1-Math.cos(Math.abs(sw)))+.03*rk*Math.abs(Math.sin(2*ph))+lt*.09)*BS}
   else if(air){const f=Math.sin(now*.017)*.07*fl,g=Math.sin(now*.021+1)*.07*fl;
-    L0.rotation.set((1-jumpK)*-.18+jumpK*.6+f,0,-.32*(1-jumpK),'XYZ');L1.rotation.set((1-jumpK)*-.18+jumpK*.45+g,0,.32*(1-jumpK),'XYZ');L0.k=1.25*(1-jumpK)+1.3*jumpK+f;L1.k=1.15*(1-jumpK)+1.1*jumpK-g}
+    L0.rotation.set((1-jumpK)*-.18+jumpK*.32+f,0,-.32*(1-jumpK)-.08*jumpK,'XYZ');L1.rotation.set((1-jumpK)*-.18-jumpK*.12+g,0,.32*(1-jumpK)+.08*jumpK,'XYZ');L0.k=1.25*(1-jumpK)+.95*jumpK+f;L1.k=1.15*(1-jumpK)+.5*jumpK-g}
   else{const gw=e.glide?Math.sin(now*.005)*.06*fl:0;L0.rotation.set(-.28+gw,0,-u.roll*.25,'XYZ');L1.rotation.set(-.36-gw,0,-u.roll*.25,'XYZ');L0.k=.35+gw;L1.k=.45-gw}
   if(e.local)setHeldModel(m,heldKey(e),heldItem(e)?heldItem(e).r:-1);
   // ---- arms and chest (see POSES): the pose for what you're doing, blended over about a fifth of a second (the skydive
