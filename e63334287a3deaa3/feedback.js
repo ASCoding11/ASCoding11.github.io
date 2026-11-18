@@ -49,6 +49,22 @@
   var KINDS = [['idea', 'Idea or change'], ['bug', 'Bug'], ['other', 'Something else']];
   var MAX = { msg: 1000, name: 40, contact: 80, page: 200 };
   var GAP = 60e3, PER_DAY = 5;
+  // Spanish (lang.js): this script's words.
+  (function es(n) {
+    if (!window.BackRoomLang) { if (n < 100) setTimeout(function () { es(n + 1); }, 100); return; }
+    BackRoomLang.add({
+      'Suggestions': 'Sugerencias', 'Add any suggestions or report any errors': 'Deja una sugerencia o avisa de un error', 'Suggestion here...': 'Escribe tu sugerencia...',
+      'Send': 'Enviar', 'Only Arjun and the site\'s admins can read these. Please don\'t put passwords or anything private in it.':
+        'Solo Arjun y los administradores del sitio pueden leerlas. No pongas contraseñas ni nada privado.',
+      'Thanks!': '¡Gracias!', 'Arjun will read it.': 'Arjun lo va a leer.', 'Send another': 'Enviar otra', 'Write a few words first.': 'Primero escribe algunas palabras.',
+      'That\'s {n} notes from this browser today. Thanks! Try again tomorrow.': 'Ya van {n} notas desde este navegador hoy. ¡Gracias! Vuelve a intentarlo mañana.',
+      'You just sent one. Wait {n} seconds and try again.': 'Acabas de enviar una. Espera {n} segundos y vuelve a intentarlo.', 'Sending…': 'Enviando…',
+      'Suggestions aren\'t switched on yet. Arjun still has to turn them on, so nothing was sent. Your message is kept here; try again another day.':
+        'Las sugerencias todavía no están activadas. Arjun tiene que activarlas, así que no se envió nada. Tu mensaje queda guardado aquí; inténtalo otro día.',
+      'Too many people are signing in right now. Wait a minute and try again.': 'Hay demasiada gente iniciando sesión ahora. Espera un minuto y vuelve a intentarlo.',
+      'Couldn\'t send it. Check your connection and try again.': 'No se pudo enviar. Revisa tu conexión y vuelve a intentarlo.'
+    });
+  })(0);
 
   window.BackRoomFeedback = { games: GAMES.map(function (g) { return g.slice(); }), kinds: KINDS.map(function (k) { return k.slice(); }) };
   var me = document.currentScript;

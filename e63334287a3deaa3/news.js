@@ -453,6 +453,26 @@
     }
   ];
 
+  // Spanish (lang.js): this script's words, and T() for the labels put together here; dates follow the language the page opened in.
+  var T = function (s, v) { return window.BackRoomLang ? BackRoomLang.t(s, v) : String(s).replace(/\{(\w+)\}/g, function (m, k) { return v && v[k] != null ? v[k] : m; }); };
+  (function es(n) {
+    if (!window.BackRoomLang) { if (n < 100) setTimeout(function () { es(n + 1); }, 100); return; }
+    BackRoomLang.add({
+      'What\'s new': 'Novedades', ' (new)': ' (nuevo)', 'New game': 'Juego nuevo', 'Update': 'Actualización', 'Bug fix': 'Arreglos',
+      'Coming soon': 'Muy pronto', 'Today': 'Hoy', 'Yesterday': 'Ayer', 'New game!': '¡Juego nuevo!', 'New games!': '¡Juegos nuevos!', 'New games': 'Juegos nuevos',
+      'Show older': 'Ver anteriores', 'Show older (1 more day)': 'Ver anteriores (1 día más)', 'Show older ({n} more days)': 'Ver anteriores ({n} días más)',
+      'At a glance': 'De un vistazo', 'Hide this': 'Ocultar', 'Play {g}': 'Jugar {g}', 'Sponsored': 'Patrocinado', 'Learn more': 'Más info',
+      'Ad for {n}: {l} {b} (opens in a new tab)': 'Anuncio de {n}: {l} {b} (se abre en una pestaña nueva)',
+      'Ad for {n}. {b} (opens in a new tab)': 'Anuncio de {n}. {b} (se abre en una pestaña nueva)',
+      // The spotlight and the ads' own words (brand names stay as they are).
+      'New battle royale': 'Nuevo battle royale', 'Up to 30 players': 'Hasta 30 jugadores', 'Drop in · loot · build': 'Cae · saquea · construye',
+      'Last one standing': 'El último en pie', 'Dark chocolate caramel candy bars.': 'Barras de chocolate amargo con caramelo.', 'Find a store': 'Buscar tienda',
+      'Souleymane’s YouTube channel. Go watch and subscribe.': 'El canal de YouTube de Souleymane. Míralo y suscríbete.', 'Watch': 'Ver',
+      // Entry titles and tags shown on the strip (the entries' bullet points stay in English).
+      'Something is coming': 'Algo se viene', 'Top secret': 'Alto secreto', 'Happy holidays: the cabin is open': 'Felices fiestas: la cabaña está abierta',
+      'Three new daily puzzles': 'Tres puzles diarios nuevos'
+    });
+  })(0);
   var KIND = { game: 'New game', feature: 'Update', fix: 'Bug fix', soon: 'Coming soon' };
   var ICON = { game: '🎮', feature: '✨', fix: '🔧', soon: '?' };
   var PAGE = 5;      // days shown at first, and added by each "Show older"...
@@ -507,12 +527,13 @@
   }
   function short(d) {
     var x = local(d), s = MON[x.getMonth()] + ' ' + x.getDate();
+    if (window.BackRoomLang && BackRoomLang.get() !== 'en') return BackRoomLang.date(x, x.getFullYear() === new Date().getFullYear() ? { month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric', year: 'numeric' });
     return x.getFullYear() === new Date().getFullYear() ? s : s + ', ' + x.getFullYear();
   }
-  function rel(d) { var n = daysAgo(d); return n === 0 ? 'Today' : n === 1 ? 'Yesterday' : short(d); }
+  function rel(d) { var n = daysAgo(d); return n === 0 ? T('Today') : n === 1 ? T('Yesterday') : short(d); }
   function kindOf(e) { return KIND[e.kind] ? e.kind : 'feature'; }
   function shownVer(e) { return kindOf(e) === 'soon' ? '' : e.version || ''; }  // a teaser shows no version: nothing has gone out yet
-  function label(e) { return KIND[kindOf(e)] + (shownVer(e) ? ' ' + shownVer(e) : ''); }
+  function label(e) { return T(KIND[kindOf(e)]) + (shownVer(e) ? ' ' + shownVer(e) : ''); }
   function el(tag, cls, text) { var x = document.createElement(tag); if (cls) x.className = cls; if (text != null) x.textContent = text; return x; }
 
   // The spotlight, when it's on today: {g: {n, d}, id, kicker, img, tags}, or null. Closed in this browser: hidden.
@@ -592,7 +613,7 @@
       opens(c, g);
       var tri = el('span', 'nws-play', '▶'); th.appendChild(tri);
       c.append(th, g.n);
-      c.setAttribute('aria-label', 'Play ' + g.n);
+      c.setAttribute('aria-label', T('Play {g}', { g: g.n }));
     } else c.append(th, g.n);
     return c;
   }
@@ -796,7 +817,7 @@
         stx.appendChild(kws);
       }
       var sp = opens(el('a', 'nws-sp'), spot.g), spT = el('span', '', '▶'); spT.setAttribute('aria-hidden', 'true');
-      sp.append(spT, 'Play'); sp.setAttribute('aria-label', 'Play ' + spot.g.n);
+      sp.append(spT, 'Play'); sp.setAttribute('aria-label', T('Play {g}', { g: spot.g.n }));
       var sx = el('button', 'nws-sx', '×'); sx.type = 'button'; sx.setAttribute('aria-label', 'Hide this');
       sx.title = 'Hide this';
       sx.addEventListener('click', function () {
@@ -836,7 +857,7 @@
     function tile(ad) {
       var t = el('a', 'nws-ad'); t.href = ad.href; t.target = '_blank'; t.rel = 'noopener sponsored';
       t.referrerPolicy = 'origin';  // the advertiser sees the site's name, never the page's address
-      t.setAttribute('aria-label', 'Ad for ' + ad.name + (ad.line ? ': ' + ad.line : '.') + ' ' + ad.button + ' (opens in a new tab)');
+      t.setAttribute('aria-label', ad.line ? T('Ad for {n}: {l} {b} (opens in a new tab)', { n: ad.name, l: T(ad.line), b: T(ad.button) }) : T('Ad for {n}. {b} (opens in a new tab)', { n: ad.name, b: T(ad.button) }));
       t.style.setProperty('--ad-bg', ad.bg); t.style.setProperty('--ad-ink', ad.ink); t.style.setProperty('--ad-btn', ad.btn); t.style.setProperty('--ad-bi', ad.btnInk);
       var aIn = el('span', 'nws-ad-in'), aPic = el('span', 'nws-ad-pic'), aTx = el('span', 'nws-ad-tx'), aBtn = el('span', 'nws-ad-btn', ad.button), aGo = el('span', '', '\u2192');
       var drawn = function () { aPic.innerHTML = ARTS[ad.art] || AD_ART; };  // no picture (or it's missing): the drawing made in code
@@ -877,8 +898,8 @@
       for (; shown < end && drawn < CARDS; shown++) {
         var g = groups[shown], day = el('div', 'nws-day'), h = el('h3', 'nws-dh'), n = daysAgo(g.date), x = local(g.date);
         drawn += g.entries.length;
-        var full = DAY[x.getDay()] + ', ' + short(g.date);
-        if (n === 0 || n === 1) { h.append(el('b', '', n === 0 ? 'Today' : 'Yesterday'), ' · ' + full); } else h.textContent = full;
+        var full = window.BackRoomLang && BackRoomLang.get() !== 'en' ? BackRoomLang.date(x, { weekday: 'short' }) + ', ' + short(g.date) : DAY[x.getDay()] + ', ' + short(g.date);
+        if (n === 0 || n === 1) { h.append(el('b', '', n === 0 ? T('Today') : T('Yesterday')), ' · ' + full); } else h.textContent = full;
         day.appendChild(h);
         g.entries.forEach(function (it) {
           var e = it.e, kd = kindOf(e), art = el('article', 'nws-e k-' + kd), eh = el('p', 'nws-eh');
@@ -919,7 +940,7 @@
       }
       var left = groups.length - shown;
       more.hidden = left <= 0;
-      more.textContent = 'Show older (' + left + (left === 1 ? ' more day)' : ' more days)');
+      more.textContent = left === 1 ? T('Show older (1 more day)') : T('Show older ({n} more days)', { n: left });
     }
 
     function setOpen(o) {
