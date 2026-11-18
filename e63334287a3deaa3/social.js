@@ -309,7 +309,7 @@
     '.onl-bar + #turn{margin-left:8px}' +
     '.onl-bar[hidden]{display:none}.onl-pbar:not([hidden]) + .onl-bar{margin-left:0}' +
     '.onl-wn{font:inherit;font-weight:700;color:var(--ink);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px}' +
-    '@media (max-width:600px){.onl{padding:14px}.onl-list{grid-template-columns:minmax(0,1fr) minmax(0,1fr);max-height:252px}.onl-sub{font-size:14px;order:3;flex-basis:100%}.onl-top > .onl-b{margin-left:auto}}' +
+    '@media (max-width:600px){.onl{padding:14px}.onl-list{grid-template-columns:minmax(0,1fr) minmax(0,1fr);max-height:252px}.onl-sub{font-size:14px;order:3;flex-basis:100%}.onl-top > .onl-b{margin-left:auto}.onl-top > .onl-b ~ .onl-b{margin-left:0}.onl-top > h2{flex:1 0 calc(100% - 32px)}}' +
     '@media (max-width:600px){.onl-nt:not(.lock) .onl-nts{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));flex-basis:100%;max-width:400px}.onl-nt:not(.lock) .onl-nts label{width:auto;height:auto;aspect-ratio:1}.onl-nt .onl-b{flex:1 1 100%}}' +
     '@media (max-width:420px){.onl-list{grid-template-columns:minmax(0,1fr)}.onl-me .onl-lbl{display:none}.onl-me input[type=text]{width:10ch}.onl-nt.lock .onl-nts{gap:3px}.onl-nt.lock .onl-nts label{width:11px;height:11px}.onl-nt.lock .onl-nts span{border-radius:3px}}' +
     '@media (max-height:500px){.onl-ts{top:calc(40px + env(safe-area-inset-top,0px))}.onl-dh{padding:8px 12px}.onl-db{padding:8px 12px}.onl-df{padding:8px 12px}}';
@@ -326,7 +326,10 @@
   var $loungeBtn = btn('Cabin chat', '', 'lounge'); $loungeBtn.append(el('span', 'onl-n'));
   // Party chat: only while in a party.
   var $partyBtn = btn('Party chat', '', 'pchat'); $partyBtn.append(el('span', 'onl-n')); $partyBtn.style.display = 'none';
-  top.append(live, $title, $sub, $partyBtn, $loungeBtn);
+  // Badges: miles.js's list of every badge and how to get it (the same window as the Leaderboards' Badges button).
+  var $badgesBtn = btn('Badges', 'onl-bdg'); $badgesBtn.setAttribute('aria-label', 'Every badge and how to get it');
+  $badgesBtn.addEventListener('click', function () { if (window.BackRoomMiles && BackRoomMiles.guide) BackRoomMiles.guide(); });
+  top.append(live, $title, $sub, $badgesBtn, $partyBtn, $loungeBtn);
   var meRow = el('div', 'onl-me');
   var nameLbl = el('label'); nameLbl.append(el('span', 'onl-lbl', 'You'));
   var $name = el('input'); $name.type = 'text'; $name.maxLength = NAME_MAX; $name.autocomplete = 'nickname'; $name.spellcheck = false; $name.placeholder = 'Your name'; $name.setAttribute('aria-label', 'Your name in the Online list');
