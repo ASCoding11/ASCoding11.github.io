@@ -538,7 +538,7 @@ function pvShot(kind,yaw){
     c.position.set(ctr.x+d,ctr.y+d*.3,ctr.z-d*.16);c.lookAt(ctr)}
   else if(kind==='hat'){c.position.set(-.95,1.95,-2.95);c.lookAt(0,1.08,0)}
   else if(kind==='crack'){c.position.set(-1.5,1.75,-3.1);c.lookAt(0,.45,0)}
-  else if(kind==='big'){c.position.set(-1.15,1.35,-3.3);c.lookAt(0,.86,0)}
+  else if(kind==='big'){c.position.set(-1.3,1.6,-3.75);c.lookAt(0,.96,0)}
   else{c.position.set(-.8,1.05,-2.75);c.lookAt(0,.72,0)}
 }
 // A still picture of each crack effect for its tile
@@ -651,7 +651,7 @@ function draw(){
   info(tab,worn);bigPv(true);
 }
 function bigPv(force){
-  if(!ui||ui.sec.hidden)return;const cv=$('kitCv'),r=Math.min(2,devicePixelRatio||1),w=Math.max(160,Math.round(cv.clientWidth*r))||300;
+  if(!ui||ui.sec.hidden)return;const cv=$('kitCv'),r=Math.min(2,devicePixelRatio||1),w=Math.min(400,Math.max(160,Math.round(cv.clientWidth*r)))||300;
   const p=pvInit();if(force){pvSet(myKit,{gun:X.loadout});p.still.visible=false}
   const playing=playT>=0;pvShot('big',playing?.4:.5+spin);p.still.visible=false;p.floor.visible=true;p.gun.visible=false;
   p.egg.g.visible=!playing;pvRender(w,w,cv);
@@ -672,7 +672,7 @@ function update(dt){
   if(ui&&!ui.sec.hidden&&X.state==='menu'){
     spin+=dt*.5;pvT+=dt;
     if(playT>=0){if(playT===0){pvInit().fx.play(myKit.crack,new V3(0,0,0),'#fbf6ea',new V3(.6,0,-.8).normalize())}playT+=dt;pv.fx.step(dt);if(playT>1.9){playT=-1;pv.fx.clear()}bigPv();pvT=0}
-    else if(pvT>1/24){pvT=0;bigPv()}
+    else if(pvT>1/15){pvT=0;bigPv()}   // the preview turns slowly: a new picture 15 times a second is plenty
   }
   if(ui&&!ui.sec.hidden&&X.state!=='menu')close();
 }
