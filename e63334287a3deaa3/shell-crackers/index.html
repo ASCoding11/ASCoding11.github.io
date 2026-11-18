@@ -297,6 +297,31 @@ body.touch #hud.training #banner{top:calc(114px + env(safe-area-inset-top,0px))}
 
 /* Side rails: two tall ads beside the game on wide screens (1180px+). The game area shrinks to sit
    between them (body becomes the game's frame), so nothing overlaps play. Off until a slot is set. */
+/* Spectating (?watch=1): the egg's own readouts and controls give way to the spectator's (#spec) */
+#hud.watch #hpw,#hud.watch #ammo,#hud.watch #xh,#hud.watch #hm,#hud.watch #rel,#hud.watch #scope,#hud.watch #vig,#hud.watch #cracks,#hud.watch #dirs,#hud.watch #dead,#hud.watch #lockHint,#hud.watch #tsLast{display:none!important}
+body.watching #touch .tb,body.watching #tTrain{display:none!important}
+body.watching:not(.freecam) #tStick{display:none}
+#spec{position:absolute;inset:0;pointer-events:none;z-index:5;font-family:var(--f-b);font-weight:900;color:#fff}
+#spec[hidden]{display:none}
+#specTag{position:absolute;left:calc(12px + env(safe-area-inset-left,0px));top:calc(12px + env(safe-area-inset-top,0px));display:flex;align-items:center;gap:7px;background:rgba(43,26,16,.78);border-radius:999px;padding:5px 12px 5px 10px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;max-width:calc(50vw - 190px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#specTag i{width:9px;height:9px;border-radius:50%;background:var(--tomato);flex:0 0 auto;animation:specBlink 1.6s ease-in-out infinite}
+@keyframes specBlink{50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){#specTag i{animation:none}}
+#specBox{position:absolute;left:50%;bottom:calc(14px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:7px;max-width:calc(100vw - 20px)}
+#specWho{font-size:17px;text-align:center;text-shadow:0 2px 0 var(--ink),0 0 3px var(--ink);max-width:calc(100vw - 24px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#specMsg{font-size:14px;text-align:center;text-shadow:0 2px 0 var(--ink),0 0 3px var(--ink);max-width:min(520px,calc(100vw - 24px))}
+#specMsg:empty,#specKeys:empty{display:none}
+#specBtns{display:flex;gap:7px;pointer-events:auto}
+#specBtns button{min-width:56px;height:44px;padding:0 12px;border:3px solid var(--ink);border-radius:14px;background:rgba(255,248,232,.92);color:var(--ink);font:400 14px var(--f-d);letter-spacing:.02em;box-shadow:0 3px 0 var(--ink);cursor:pointer;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+#specBtns button.on{background:var(--yolk)}
+#specBtns #sLeave{background:var(--tomato);color:#fff}
+#specKeys{font-size:12px;opacity:.9;text-align:center;text-shadow:0 1px 0 var(--ink),0 0 3px var(--ink)}
+body.touch #specKeys{display:none}
+body.touch #specTag{max-width:calc(50vw - 140px)}
+@media (orientation:portrait){body.touch #specTag{max-width:calc(100vw - 24px)}}
+body.watching.ended #specBox{display:none}
+@media (max-width:420px){#specBtns{gap:5px}#specBtns button{min-width:0;padding:0 9px;font-size:13px}}
+@media (orientation:portrait){body.touch.watching.freecam #tStick{bottom:calc(112px + env(safe-area-inset-bottom,0px))}}
 :root{--rail:184px}
 .rail{display:none;box-sizing:border-box;position:fixed;top:0;bottom:0;width:var(--rail);background:#1b2a38;flex-direction:column;align-items:center;justify-content:center;gap:6px;z-index:2147483000}
 .rail.l{left:calc(-1 * var(--rail));border-right:1px solid rgba(255,255,255,.12)} .rail.r{right:calc(-1 * var(--rail));border-left:1px solid rgba(255,255,255,.12)}
@@ -308,7 +333,9 @@ body.touch #hud.training #banner{top:calc(114px + env(safe-area-inset-top,0px))}
   html.rails .rail{display:flex}
 }
 </style>
-<script src="/e63334287a3deaa3/stats.js" data-game="shell-crackers" defer></script>
+<!-- Spectators (?watch=1) don't play, so stats.js (play time, bests) isn't loaded for them; everyone else gets it as before. -->
+<script>if(!/[?&]watch=1(&|$)/.test(location.search))document.write('<script src="/e63334287a3deaa3/stats.js" data-game="shell-crackers" defer><\/script>')</script>
+<script src="/e63334287a3deaa3/watchers.js" defer></script>
 <script src="/e63334287a3deaa3/gamechat.js" data-key="Enter" defer></script>
 <script src="/adrefresh.js" defer></script>
 </head>
@@ -499,6 +526,23 @@ body.touch #hud.training #banner{top:calc(114px + env(safe-area-inset-top,0px))}
       <div class="adbox" id="adEnd" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
     </div>
   </section>
+
+  <!-- Spectating (?watch=1): only shown to a spectator, above the HUD and the end card -->
+  <div id="spec" hidden>
+    <div id="specTag"><i></i><span id="specRoom">Spectating</span></div>
+    <div id="specBox">
+      <div id="specWho"></div>
+      <div id="specMsg" role="status">Connecting…</div>
+      <div id="specBtns">
+        <button type="button" id="sPrev" data-no-ad-refresh aria-label="Previous player">◀</button>
+        <button type="button" id="sNext" data-no-ad-refresh aria-label="Next player">▶</button>
+        <button type="button" id="sFree" data-no-ad-refresh>FREE CAM</button>
+        <button type="button" id="sBoard" data-no-ad-refresh>SCORES</button>
+        <button type="button" id="sLeave" data-no-ad-refresh>LEAVE</button>
+      </div>
+      <div id="specKeys"></div>
+    </div>
+  </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -509,6 +553,11 @@ body.touch #hud.training #banner{top:calc(114px + env(safe-area-inset-top,0px))}
 <script>
 (function(){
 'use strict';
+// Spectating: ?watch=1#sc-<code> (the Watch buttons on the Back Room page) watches that room without playing. A spectator
+// writes nothing to the database: the shared rules only let a browser write rooms/<room>/players/<uid>, and every egg
+// counts a node there as a player, so there is no node, no heartbeat, no round, no event, no rating and no stats.js.
+const WATCH_ROOM=new URLSearchParams(location.search).get('watch')==='1'&&(/^#sc-([a-z0-9-]{1,17})$/.exec(location.hash)||[])[1]||'';
+const WATCH=!!WATCH_ROOM;
 // =====================================================================
 //  Firebase (same project and Realtime Database rules as Rumble Karts).
 //  Online rooms live under rooms/sc-<code>, so the existing rules cover them.
@@ -2255,6 +2304,7 @@ function ctfReduce(S,a){
 // back through the node's listener (takeRound -> ctfSync); the same move isn't sent again for 0.7 s.
 const ctfBusy={};
 function ctfDo(a){
+  if(WATCH)return;   // a spectator never moves a flag (the players' own browsers do, including the late returns)
   if(!online){const n=ctfReduce(ctfS,a);if(n)ctfSync(n);return}
   const key=a.a+a.k+(a.by||''),t=performance.now();if(ctfBusy[key]>t||!Net.refs||Net.matchId==null)return;ctfBusy[key]=t+700;
   const id=Net.matchId;
@@ -2323,6 +2373,7 @@ function ctfPick(){
   player.team=n[0]<n[1]?0:n[1]<n[0]?1:Net.uid.charCodeAt(Net.uid.length-1)&1;
 }
 function ctfBalance(){
+  if(WATCH)return;
   const n=[0,0];let mover=true;n[player.team]++;
   for(const e of remotes.values()){if(!e.active)continue;n[e.team]++;if(e.team===player.team&&e.carry==null&&e.id>Net.uid)mover=false}
   ctfOdd=n[player.team]-n[1-player.team]>=2&&mover&&player.carry==null?ctfOdd+1:0;
@@ -2389,7 +2440,7 @@ function ctfHud(){
   for(let k=0;k<2;k++){const id='fm'+k,F=ctfS.f[k];
     if(F.st===1&&F.by===player.id){setHid(id,true);continue}
     setHid(id,false);
-    ctfPos(k,_cf);const d=Math.round(Math.hypot(_cf.x-player.pos.x,_cf.z-player.pos.z));_cf.y+=F.st===1?2.9:2.7;
+    ctfPos(k,_cf);const fr=WATCH?camera.position:player.pos,d=Math.round(Math.hypot(_cf.x-fr.x,_cf.z-fr.z));_cf.y+=F.st===1?2.9:2.7;
     _cf.project(camera);const behind=_cf.z>1;let x=(_cf.x*.5+.5)*Wd,y=(-_cf.y*.5+.5)*Ht;
     let dx=x-cx,dy=y-cy;if(behind){dx=-dx;dy=-dy}
     const off=behind||x<L||x>R||y<T||y>B;
@@ -2735,6 +2786,7 @@ function showHud(){
 // Leaving an online match partway through counts as finishing last against the real players there.
 function leaveCheck(){if(state==='playing'&&mode==='online')applyRating(standings(),true)}
 function toMenu(){
+  if(WATCH){specLeave();return}
   leaveCheck();
   Net.leave();if(document.pointerLockElement)document.exitPointerLock();
   $('hud').hidden=true;$('pause').hidden=true;$('end').hidden=true;$('menu').hidden=false;
@@ -2748,14 +2800,17 @@ function endMatch(){
   const list=standings();const myRank=list.findIndex(x=>x.me)+1;
   $('endTitle').textContent=myRank===1?'Champion egg!':ordinal(myRank)+' place';
   const lead=list[0];
-  $('endSub').textContent=(myRank===1?'Most cracks in ':lead.name+' won ')+mapInfo().name+' with '+lead.k+'.';
+  if(lead)$('endSub').textContent=(myRank===1?'Most cracks in ':lead.name+' won ')+mapInfo().name+' with '+lead.k+'.';
   if(mapCtf){const a=ctfS.s[0],b=ctfS.s[1],w=a===b?-1:a>b?0:1;
     $('endTitle').textContent=w<0?'A draw':w===player.team?'Your team wins!':TEAM[w].n+' team wins';
     $('endSub').textContent='Capture the flag on '+mapInfo().name+': '+TEAM[0].n+' '+a+' – '+b+' '+TEAM[1].n+'.'}
+  // a spectator: who won, nothing about a place of its own; the players' browsers start the next match
+  if(WATCH){$('endTitle').textContent=mapCtf?$('endTitle').textContent.replace(/^Your team wins!$/,TEAM[player.team].n+' team wins'):lead?lead.name+' wins!':'Match over';
+    if(!mapCtf)$('endSub').textContent=lead?lead.name+' won '+mapInfo().name+' with '+lead.k+'.':'Nobody cracked anyone on '+mapInfo().name+'.'}
   fillTable($('endTable'),list);
   showEndRank(applyRating(list,false));
   $('hud').hidden=true;$('pause').hidden=true;$('end').hidden=false;
-  $('again').disabled=false;$('again').textContent=online?'Next match now':'Play again';
+  $('again').disabled=false;$('again').textContent=online?'Next match now':'Play again';$('again').hidden=WATCH;if(WATCH)$('toMenu').textContent='Leave';
   endTimer=online?12:0;$('endMsg').textContent='';
   showAd('adEnd');
 }
@@ -2796,7 +2851,7 @@ let matchJoinClock=0,ratedThis=false,lastRated=null,lbCache=null;
 function saveRank(){store.set('rank',JSON.stringify(rank));pushRank();renderRank()}
 // Ratings live next to the game rooms (rooms/sc-ratings/players/<uid>), which the existing database rules allow.
 function pushRank(){
-  if(!Net.ready||!Net.db||!rank.g)return;
+  if(WATCH||!Net.ready||!Net.db||!rank.g)return;
   Net.db.ref('rooms/sc-ratings/players/'+Net.uid).set({n:myName,c:myColor,x:0,z:0,h:0,ts:Math.round(Net.now()),r:Math.round(rank.r),g:rank.g,wn:rank.wn,pk:Math.round(rank.pk)}).catch(()=>{});
 }
 // Called once the database is reachable: the account's saved rating wins; a brand-new account keeps this browser's.
@@ -2824,7 +2879,7 @@ function ratingChange(list,leftEarly){
   return{delta:Math.round(K*w*sum/opp.length),humans,w,place:myPos+1,of:list.length};
 }
 function applyRating(list,leftEarly){
-  if(ratedThis||mode==='training'||mapCtf)return null;   // the training range and capture the flag never touch the rating
+  if(WATCH||ratedThis||mode==='training'||mapCtf)return null;   // the training range and capture the flag never touch the rating
   const online_=mode==='online',played=clock-matchJoinClock;
   const {humans}=rankedField(list);
   if(online_&&humans<1)return null;                 // alone in a room: nothing to rate
@@ -2880,6 +2935,7 @@ async function loadLeaderboard(){
 }
 function showEndRank(ch){
   const box=$('endRank');box.textContent='';
+  if(WATCH){box.hidden=true;return}   // a spectator has no rating
   if(!ch){box.hidden=false;const m=document.createElement('span');m.textContent=mapCtf?'Capture the flag is unranked: your rating stays as it was.':mode==='online'?'Unranked: no other real players finished this match.':'Unranked: you joined too late in the match to count.';box.appendChild(m);return}
   box.hidden=false;
   const big=document.createElement('span');big.className='big';big.textContent=ch.before+' → '+ch.after;
@@ -2924,7 +2980,10 @@ function updateHud(dt){
   const w=WEAPONS[player.wkey];
   // clock and score
   const rem=Math.max(0,matchEnds-nowMs()),s=Math.ceil(rem/1000);setT('clock',Math.floor(s/60)+':'+String(s%60).padStart(2,'0'));
-  if(mapCtf)ctfHud();else{
+  if(WATCH&&mapCtf){const t=specTarget();if(t)player.team=t.team}   // the followed egg's team shows first
+  if(mapCtf)ctfHud();else if(WATCH){const t=specTarget(),l=standingsNow()[0];   // spectating: the followed egg and the leader
+    setT('myK',t&&t.net?String(+t.net.k||0):'–');setT('myL',t?t.name:'Free camera');setT('leadK',l?String(l.k):'–');setT('leadN',l?'Leader · '+l.name:'No eggs yet')}
+  else{
   setT('myK',String(player.kills));
   let lead=null,lk=-1;for(const r of standingsNow()){if(r.me)continue;if(r.k>lk){lk=r.k;lead=r}}
   setT('leadK',lead?String(lead.k):'–');setT('leadN',lead?lead.name:'No rivals yet');}
@@ -2962,7 +3021,9 @@ function updateHud(dt){
   // network line
   let nl='';
   if(online){const others=ents.filter(e=>e.remote&&e.active).length;if(Net.matchId==null&&Net.roundErr)nl='The database wouldn\'t start this room\'s match ('+(Net.roundErr.code||Net.roundErr.message)+')';else if(!others)nl=Net.isPublic?'Waiting for other eggs to join this lobby…':'Waiting for friends · Esc for the invite link'}
+  if(WATCH)nl='';   // the spectator's own line (#specMsg) says when the room is empty
   if(mapCtf&&!nl&&player.carry!=null)nl=ctfS.f[player.team].st===0?'You have the flag: run it home':'You have the flag, but yours must be home to score';
+  if(!WATCH&&online&&Net.watchN)nl=(nl?nl+' · ':'')+Net.watchN+' watching';   // spectators (../watchers.js), never counted as eggs
   setT('netline',nl);
   setHid('lockHint',!!document.pointerLockElement||paused);
   if(touchUI)$('tAim').classList.toggle('on',!!tAct.aim);
@@ -2972,14 +3033,14 @@ function updateHud(dt){
   }
   // scoreboard
   const showBoard=held('board');setHid('board',!showBoard);
-  if(showBoard){fillTable($('boardTable'),standings());$('boardTitle').textContent=mode==='training'?mapInfo().name+' · unranked, nothing is saved':mapCtf?mapInfo().name+' · '+TEAM[0].n+' '+ctfS.s[0]+' – '+ctfS.s[1]+' '+TEAM[1].n+' · first to '+CTF_CAPS+' captures':mapInfo().name+' · first to '+target+' · '+liveRankInfo()}
+  if(showBoard){fillTable($('boardTable'),standings());$('boardTitle').textContent=WATCH?mapInfo().name+' · spectating'+(mapCtf?' · '+TEAM[0].n+' '+ctfS.s[0]+' – '+ctfS.s[1]+' '+TEAM[1].n:' · first to '+target):mode==='training'?mapInfo().name+' · unranked, nothing is saved':mapCtf?mapInfo().name+' · '+TEAM[0].n+' '+ctfS.s[0]+' – '+ctfS.s[1]+' '+TEAM[1].n+' · first to '+CTF_CAPS+' captures':mapInfo().name+' · first to '+target+' · '+liveRankInfo()}
 }
 
 // =====================================================================
 //  Input
 // =====================================================================
 function requestLock(){
-  if(touchUI)return;
+  if(touchUI||WATCH)return;
   try{const r=view.requestPointerLock();if(r&&r.catch)r.catch(()=>{})}catch(e){}
 }
 document.addEventListener('pointerlockchange',()=>{
@@ -3138,6 +3199,108 @@ function playerControl(dt){
 }
 
 // =====================================================================
+//  Spectating (?watch=1#sc-<code>; WATCH above)
+// =====================================================================
+// A spectator has no egg: `player` stays inactive (never drawn, hit, counted or listed), the room is read through
+// Net.watchRoom, and the match, map, flags and feed follow the round node exactly as in a player's browser. The camera
+// follows one live egg from behind (Q / E or the arrow keys, or Prev / Next, step through them) or flies free (F, Free cam,
+// or just drag the view): WASD and Space / Shift on a keyboard, the move stick on a touch screen, drag to look.
+const Spec={uid:null,free:false,snap:true,pos:new V3(SPAN/2,24,SPAN/2),yaw:0,pitch:-.5,cam:new V3(),k:{},round:null,err:''};
+const _sd=new V3(),_sw=new V3(),_se=new V3();
+// the eggs worth watching: everyone in this match, in a steady order (by name, then id) so Next always means the same egg
+function specList(){return [...remotes.values()].filter(e=>e.active).sort((a,b)=>a.name<b.name?-1:a.name>b.name?1:a.id<b.id?-1:1)}
+function specTarget(){
+  if(Spec.free)return null;
+  let e=Spec.uid?remotes.get(Spec.uid):null;
+  if(!e||!e.active){const l=specList();e=l.find(x=>x.alive)||l[0]||null;Spec.uid=e?e.id:null;Spec.snap=true}
+  return e;
+}
+function specCycle(d){
+  const l=specList();if(!l.length)return;
+  let i=l.findIndex(e=>e.id===Spec.uid);i=i<0?(d>0?0:l.length-1):(i+d+l.length)%l.length;
+  Spec.free=false;Spec.uid=l[i].id;Spec.snap=true;
+}
+function specFree(on){
+  if(on===Spec.free)return;Spec.free=on;
+  if(on){camera.getWorldDirection(_sd);Spec.yaw=Math.atan2(-_sd.x,-_sd.z);Spec.pitch=Math.asin(clamp(_sd.y,-1,1));Spec.pos.copy(camera.position)}
+  else Spec.snap=true;
+}
+function specCam(dt){
+  if(camera.fov!==78){camera.fov=78;camera.updateProjectionMatrix()}
+  const e=specTarget();
+  if(e){
+    // over the shoulder: 4.2 m behind and a little above the egg's eyes, pulled in where a block is in the way
+    eyeOf(e,_se);const pitch=clamp(e.pitch,-1,1);dirOf(e.yaw,pitch*.5,_sd);
+    _sw.copy(_sd).negate();_sw.y+=.5;_sw.normalize();
+    const dist=Math.max(.4,rayWorld(_se,_sw,4.2)-.3);_sw.multiplyScalar(dist).add(_se);
+    if(Spec.snap){Spec.cam.copy(_sw);Spec.snap=false}else Spec.cam.lerp(_sw,1-Math.exp(-dt*14));
+    camera.position.copy(Spec.cam);dirOf(e.yaw,pitch,_sd);camera.lookAt(_se.x+_sd.x*10,_se.y+_sd.y*10,_se.z+_sd.z*10);return;
+  }
+  if(!Spec.free){   // nobody to follow yet: a slow turn over the map until someone is
+    orbit+=dt*.06;const r=SPAN*.6,c=SPAN/2;camera.position.set(c+Math.cos(orbit)*r,30,c+Math.sin(orbit)*r);camera.lookAt(c,2,c);return}
+  // free camera: a ghost (no collision), kept inside the map
+  const K=Spec.k,f=(K.KeyW?1:0)-(K.KeyS?1:0)+(tMove.on?-tMove.y:0),r=(K.KeyD?1:0)-(K.KeyA?1:0)+(tMove.on?tMove.x:0),u=(K.Space?1:0)-(K.ShiftLeft||K.ShiftRight?1:0),sp=14*dt;
+  dirOf(Spec.yaw,Spec.pitch,_sd);Spec.pos.addScaledVector(_sd,f*sp);Spec.pos.x+=Math.cos(Spec.yaw)*r*sp;Spec.pos.z-=Math.sin(Spec.yaw)*r*sp;Spec.pos.y+=u*sp;
+  Spec.pos.set(clamp(Spec.pos.x,1,SPAN-1),clamp(Spec.pos.y,.6,60),clamp(Spec.pos.z,1,SPAN-1));
+  camera.position.copy(Spec.pos);camera.rotation.set(Spec.pitch,Spec.yaw,0);
+}
+// The spectator's own readouts, every frame (setT only touches the page when a value changes).
+function specUi(){
+  const room=WATCH_ROOM,t=state==='playing'||state==='end'?specTarget():null,n=specList().length;
+  setT('specRoom','Spectating · '+(/^(ctf-)?pub-\d$/.test(room)?'public lobby '+room.replace(/^ctf-/,''):'room '+room)+(Net.watchN>1?' · '+Net.watchN+' watching':''));
+  setT('specWho',state==='menu'?'':Spec.free?'Free camera':t?'Following '+t.name+(mapCtf?' · '+TEAM[t.team].n:'')+(t.alive?'':' · cracked'):'');
+  let m='';
+  if(Spec.err)m=Spec.err;else if(!Net.ready)m='Connecting…';
+  else if(state==='menu')m=Spec.round===false?'Nobody is playing in this room right now. Waiting for a match to start…':'Waiting for the room’s match…';
+  else if(!n)m='Nobody is in this match right now. Waiting for players…';
+  setT('specMsg',m);
+  setT('specKeys',touchUI?'':'Q / E or ← → switch player · F free camera · Tab scores · Esc leave'+(Spec.free?' · WASD fly · drag to look · Space / Shift up and down':''));
+  $('sPrev').disabled=$('sNext').disabled=n<(Spec.free?1:2);
+  $('sFree').classList.toggle('on',Spec.free);$('sBoard').classList.toggle('on',!!tAct.board);
+  document.body.classList.toggle('freecam',Spec.free&&state!=='menu');document.body.classList.toggle('ended',state==='end');
+}
+// Leave: inside the Back Room's game layer (an iframe) Back closes it; opened on its own, this goes to the game's menu.
+function specLeave(){
+  Net.leave();
+  try{if(window.parent!==window){history.back();setTimeout(()=>{location.href=location.pathname},800);return}}catch(e){}
+  location.href=location.pathname;
+}
+async function startWatch(){
+  document.body.classList.add('watching');$('spec').hidden=false;$('menu').hidden=true;$('hud').classList.add('watch');
+  state='menu';mode='online';online=false;player.id='watch';player.active=false;player.alive=false;
+  clearBots();clearRemotes();resetFx();ctfOn=/^ctf-/.test(WATCH_ROOM);buildMap(Math.floor(Math.random()*MAPS.length));matchEnds=Date.now()+1e9;
+  try{await Net.watchRoom('sc-'+WATCH_ROOM)}catch(err){Spec.err=(err&&err.message)||String(err)}
+}
+if(WATCH){
+  document.addEventListener('keydown',e=>{
+    if(e.target&&e.target.closest&&e.target.closest('input,textarea,select,[contenteditable]'))return;   // typing in the chat
+    const c=e.code;
+    if(c==='Escape'){e.preventDefault();specLeave();return}
+    if(/^(Key[WASD]|Space|Shift(Left|Right))$/.test(c)){Spec.k[c]=true;if(c==='Space')e.preventDefault();return}
+    if(e.repeat)return;
+    if(c==='KeyQ'||c==='ArrowLeft'){e.preventDefault();specCycle(-1)}
+    else if(c==='KeyE'||c==='ArrowRight'){e.preventDefault();specCycle(1)}
+    else if(c==='KeyF')specFree(!Spec.free);
+  });
+  document.addEventListener('keyup',e=>{Spec.k[e.code]=false});
+  addEventListener('blur',()=>{for(const k in Spec.k)Spec.k[k]=false});
+  // Dragging the view looks around: on the canvas with a mouse, on the touch look layer with a finger. Dragging while
+  // following someone switches to the free camera from where the view is.
+  const drag=new Map();
+  const down=e=>{if(state==='menu')return;drag.set(e.pointerId,[e.clientX,e.clientY,0]);try{e.currentTarget.setPointerCapture(e.pointerId)}catch(_){}};
+  const move=e=>{const q=drag.get(e.pointerId);if(!q)return;const dx=e.clientX-q[0],dy=e.clientY-q[1];q[0]=e.clientX;q[1]=e.clientY;q[2]+=Math.abs(dx)+Math.abs(dy);
+    if(!Spec.free&&q[2]>8)specFree(true);
+    if(Spec.free){const k=(e.pointerType==='touch'?.0042:.0026)*sens;Spec.yaw-=dx*k;Spec.pitch=clamp(Spec.pitch-dy*k,-1.45,1.45)}};
+  const up=e=>drag.delete(e.pointerId);
+  for(const el of [view,$('tLook')]){el.addEventListener('pointerdown',down);el.addEventListener('pointermove',move);el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up)}
+  $('sPrev').addEventListener('click',()=>specCycle(-1));
+  $('sNext').addEventListener('click',()=>specCycle(1));
+  $('sFree').addEventListener('click',()=>specFree(!Spec.free));
+  $('sBoard').addEventListener('click',()=>{tAct.board=!tAct.board});
+  $('sLeave').addEventListener('click',specLeave);
+}
+
+// =====================================================================
 //  Online (Firebase Realtime Database)
 // =====================================================================
 const remotes=new Map();
@@ -3170,7 +3333,7 @@ const Net={
     await new Promise(res=>{setTimeout(res,3000);this.db.ref('.info/serverTimeOffset').once('value',s=>{this.offset=s.val()||0;res()})});
     this.db.ref('.info/serverTimeOffset').on('value',s=>{this.offset=s.val()||0});
     this.ready=true;
-    syncRank();
+    if(!WATCH)syncRank();   // a spectator's rating is never read or written
   },
   stateOf(){
     const p=player;
@@ -3212,6 +3375,7 @@ const Net={
     r.players.on('child_removed',s=>{const e=remotes.get(s.key);if(e){infoFeed(e.name+' left');removeEntity(e);remotes.delete(s.key)}});
     r.events.on('child_added',s=>{const e=s.val();if(!e||typeof e.t!=='number'||e.t<this.joinT-1500||e.by===this.uid||this.seen.has(s.key))return;this.seen.add(s.key);if(this.seen.size>1500)this.seen.delete(this.seen.values().next().value);handleEvent(e)});
     r.round.on('value',s=>this.takeRound(s.val()));
+    this.watchOn(room);
     clearInterval(this.pubTimer);
     // About 12 updates a second while something changes (position, aim, health, shots); when nothing has, a
     // heartbeat a second keeps the node fresh (others drop an egg they haven't heard from for 9 s).
@@ -3230,9 +3394,28 @@ const Net={
     const t0=performance.now();
     await new Promise(res=>{const k=setInterval(()=>{if(!this.refs||this.matchId!=null||performance.now()-t0>8000){clearInterval(k);res()}},100)});
   },
+  // Spectating: the same listeners as joinRoom, read only. No node of our own (refs.me is null), so we're no egg, no count
+  // and no host for anyone; our own uid isn't skipped, since a spectator has no node there (and a test browser shares one
+  // uid between its tabs). The round is taken exactly as a player's browser takes it (takeRound, onMatch), never written.
+  async watchRoom(room){
+    await this.init();
+    const roomRef=this.db.ref('rooms/'+room);
+    this.room=room;this.isPublic=/^sc-(ctf-)?pub-\d$/.test(room);this.ctfRoom=/^sc-ctf-/.test(room);this.matchId=null;this.cur=null;this.seen.clear();
+    this.refs={room:roomRef,players:roomRef.child('players'),events:roomRef.child('events'),round:roomRef.child('round'),me:null};
+    online=true;this.joinT=this.now();
+    const r=this.refs,up=s=>onRemoteState(s.key,s.val());
+    r.players.on('child_added',up);r.players.on('child_changed',up);
+    r.players.on('child_removed',s=>{const e=remotes.get(s.key);if(e){infoFeed(e.name+' left');removeEntity(e);remotes.delete(s.key)}});
+    r.events.on('child_added',s=>{const e=s.val();if(!e||typeof e.t!=='number'||e.t<this.joinT-1500||this.seen.has(s.key))return;this.seen.add(s.key);if(this.seen.size>1500)this.seen.delete(this.seen.values().next().value);handleEvent(e)});
+    r.round.on('value',s=>{Spec.round=s.exists();this.takeRound(s.val())});
+    this.watchOn(room);
+    clearInterval(this.pruneTimer);
+    this.pruneTimer=setInterval(()=>{const t=performance.now();for(const [k,e] of remotes)if(t-e.seen>9000){removeEntity(e);remotes.delete(k)}},2000);
+  },
   // Start the room's match if there is none, or the last one ended more than 20 s ago; otherwise keep it.
   // nm: how many of the maps every egg in the room can build (the map is picked from the first nm).
   claimRound(sm,nm){
+    if(WATCH)return;
     this.roundErr=null;this.joining=true;const refs=this.refs;nm=clamp(nm|0||MAPS.length,1,MAPS.length);
     refs.round.transaction(cur=>{const n=this.now();if(cur&&typeof cur.ends==='number'&&typeof cur.id==='number'&&n<roundEnd(cur)+20000)return;return{id:(cur&&+cur.id||0)+1,ends:n,len:MATCH_MS,map:Math.floor(Math.random()*nm),sm}},undefined,false)
       .catch(err=>{this.roundErr=err}).then(()=>{if(this.refs!==refs)return;this.joining=false;if(this.cur)this.takeRound(this.cur)});
@@ -3245,7 +3428,7 @@ const Net={
       // The last egg out removes the match (dropRound); one that hadn't seen us yet can do that while we're still here.
       // Put back the match we're playing (only if nobody has started another), so a later joiner doesn't start a new one.
       const keep=this.cur;
-      if(keep&&this.matchId===keep.id&&!this.joining&&this.now()<roundEnd(keep))this.refs.round.transaction(c=>c==null?keep:undefined,undefined,false).catch(()=>{});
+      if(!WATCH&&keep&&this.matchId===keep.id&&!this.joining&&this.now()<roundEnd(keep))this.refs.round.transaction(c=>c==null?keep:undefined,undefined,false).catch(()=>{});
       return;
     }
     if(typeof v!=='object'||typeof v.id!=='number')return;
@@ -3289,14 +3472,14 @@ const Net={
   // A round to switch to: a new match, or the same match on a map other than the one built here.
   isNewRound(v){return !!v&&typeof v.id==='number'&&(v.id!==this.matchId||mapOf(v)!==mapIdx||smOf(v)!==mapSm)},
   send(e){
-    if(!online||!this.refs)return;
+    if(WATCH||!online||!this.refs)return;
     const ref=this.refs.events.push();this.seen.add(ref.key);
     const data=JSON.parse(JSON.stringify(e));data.by=this.uid;data.m=this.wm();data.t=firebase.database.ServerValue.TIMESTAMP;
     ref.set(data).catch(()=>{});
     setTimeout(()=>ref.remove().catch(()=>{}),5000);
   },
   rematch(){
-    if(!online||!this.refs)return;const id=this.matchId;
+    if(WATCH||!online||!this.refs)return;const id=this.matchId;
     // a missing match (the last egg out took it, see dropRound) starts a fresh one too, always numbered past this
     // browser's own match so its listener (which ignores the match it already has) picks it up
     // the next match is a small arena if 4 or fewer eggs are here now (and all of them can build one)
@@ -3307,10 +3490,19 @@ const Net={
   // The last egg out takes the room's match with it, so a code nobody uses again doesn't keep a stale node. Only when
   // no other egg is here, and only the match this browser saw; an egg that was mid-join re-creates one (its own join
   // transaction, or rematch).
-  dropRound(r){const id=this.matchId;if(id==null||remotes.size)return;r.round.transaction(cur=>cur==null||cur.id===id?null:undefined).catch(()=>{})},
+  dropRound(r){const id=this.matchId;if(WATCH||id==null||remotes.size)return;r.round.transaction(cur=>cur==null||cur.id===id?null:undefined).catch(()=>{})},
+  // "N watching" (../watchers.js): spectators list themselves in rooms/sc-_watch, never in the room; everyone in the
+  // room (players and spectators) counts the ones watching it.
+  watchN:0,unMe:null,unN:null,
+  watchOn(room){
+    this.watchOff();const W=window.BackRoomWatchers;if(!W||!this.db)return;const code=room.replace(/^sc-/,''),now=()=>this.now();
+    if(WATCH)this.unMe=W.join(this.db,this.uid,'sc',code,now);
+    this.unN=W.count(this.db,'sc',code,now,n=>{this.watchN=n});
+  },
+  watchOff(){if(this.unMe)this.unMe();if(this.unN)this.unN();this.unMe=this.unN=null;this.watchN=0},
   leave(){
-    clearInterval(this.pubTimer);clearInterval(this.pruneTimer);
-    if(this.refs){const r=this.refs;try{r.players.off();r.events.off();r.round.off();r.me.onDisconnect().cancel();r.me.remove();this.dropRound(r)}catch(e){}}
+    clearInterval(this.pubTimer);clearInterval(this.pruneTimer);this.watchOff();
+    if(this.refs){const r=this.refs;try{r.players.off();r.events.off();r.round.off();if(r.me){r.me.onDisconnect().cancel();r.me.remove();this.dropRound(r)}}catch(e){}}
     this.refs=null;this.room=null;this.ctfRoom=false;this.matchId=null;this.cur=null;this.joining=false;clearTimeout(this.waitT);online=false;player.id='me';
     clearRemotes();
   }
@@ -3343,7 +3535,7 @@ function onRemoteState(uid,v){
   if(!v||typeof v.x!=='number'||!isFinite(v.x)||!isFinite(v.z))return;
   let e=remotes.get(uid);
   if(!e){
-    if(Net.now()-(+v.ts||0)>10000||remotes.size>=MAX_ROOM-1)return;
+    if(Net.now()-(+v.ts||0)>10000||remotes.size>=(WATCH?MAX_ROOM:MAX_ROOM-1))return;
     const color=/^#[0-9a-f]{6}$/i.test(v.c)?v.c:'#fbf6ea';
     e=makeEntity({id:uid,name:cleanName(v.n),color,remote:true});e.alive=!v.d;e.pos.set(v.x,v.y,v.z);e.lastSc=+v.sc||0;
     remotes.set(uid,e);ents.push(e);if(state==='playing')infoFeed(e.name+' joined');
@@ -3380,7 +3572,7 @@ function remoteShotFx(e){
 }
 function handleEvent(ev){
   if(Net.matchId==null||ev.m!==Net.wm()||state==='menu')return;
-  if(ev.type==='hit'&&ev.to===Net.uid){
+  if(ev.type==='hit'&&ev.to===Net.uid&&!WATCH){   // (a spectator has no egg to hit)
     const att=entById(ev.by)||{id:ev.by,name:'Someone',pos:null};
     if(mapCtf&&att.team===player.team)return;   // never from a team-mate
     damage(player,clamp(+ev.dmg||0,0,200),att,!!ev.hd,String(ev.w||''));
@@ -3389,7 +3581,7 @@ function handleEvent(ev){
     const v=entById(ev.by),k=entById(ev.kb);
     if(v&&v!==player){if(v.alive||v.model&&v.model.g.visible){v.alive=false;deathFx(v)}}
     const victim=v||{name:'Someone'};
-    if(ev.kb===Net.uid)creditKill(player,victim,!!ev.hd,String(ev.w||''));
+    if(ev.kb===Net.uid&&!WATCH)creditKill(player,victim,!!ev.hd,String(ev.w||''));
     else addFeed(k&&ev.kb!==ev.by?k:null,victim,!!ev.hd,String(ev.w||''));
   }else if(ev.type==='nade'){
     if([ev.x,ev.y,ev.z,ev.vx,ev.vy,ev.vz].every(n=>typeof n==='number'&&isFinite(n)))spawnNade(ev.x,ev.y,ev.z,clamp(ev.vx,-40,40),clamp(ev.vy,-40,40),clamp(ev.vz,-40,40),ev.by);
@@ -3405,8 +3597,9 @@ function onMatch(v){
   for(const e of remotes.values())e.active=inMyMatch(e.net);
   player.kills=0;player.deaths=0;player.streak=0;target=TARGET_ONLINE;$('goal').textContent='First to '+(mapCtf?CTF_CAPS:target);
   // capture the flag: the flags and score as the match has them, and (on arriving) a team
-  if(mapCtf){if(first)ctfPick();ctfSync(ctfNorm(v.ctf),true);ctfGone[0]=ctfGone[1]=0;ctfSeen[0]=ctfSeen[1]=false}
-  if(mapCtf){if(!(wasIn&&sameMap)){respawn(player);sfx('spawn')}}
+  if(mapCtf){if(first&&!WATCH)ctfPick();ctfSync(ctfNorm(v.ctf),true);ctfGone[0]=ctfGone[1]=0;ctfSeen[0]=ctfSeen[1]=false}
+  if(WATCH){Spec.snap=true}   // a spectator has no egg to hatch; the camera jumps to whoever it follows on the new map
+  else if(mapCtf){if(!(wasIn&&sameMap)){respawn(player);sfx('spawn')}}
   else if(!(wasIn&&sameMap)){
     const ids=[Net.uid,...remotes.keys()].sort();
     const order=spreadOrder(v.id*7+mi);
@@ -3416,7 +3609,8 @@ function onMatch(v){
   if(!(wasIn&&sameMap&&!ratedThis&&clock-matchJoinClock<15))startRatedMatch();
   if(state!=='playing'){state='playing';showHud();if(!paused)requestLock()}
   else{$('end').hidden=true}
-  if(mapCtf){banner(MAPS[mapIdx].name.toUpperCase(),'Capture the flag · '+(Net.isPublic?'public lobby':'room '+Net.room)+' · first to '+CTF_CAPS,2.6);ctfHello()}
+  if(WATCH)banner(MAPS[mapIdx].name.toUpperCase(),'Spectating · '+(mapCtf?'capture the flag · first to '+CTF_CAPS:'first to '+target+' cracks'),2.6);
+  else if(mapCtf){banner(MAPS[mapIdx].name.toUpperCase(),'Capture the flag · '+(Net.isPublic?'public lobby':'room '+Net.room)+' · first to '+CTF_CAPS,2.6);ctfHello()}
   else banner(MAPS[mapIdx].name.toUpperCase(),(Net.isPublic?'Public lobby':'Room '+Net.room)+' · first to '+target+' cracks',2.6);
   // after the banner has gone (on a phone held sideways they'd overlap)
   if(mapSm&&!sameMap){const id=v.id;setTimeout(()=>{if(Net.matchId===id&&mapSm)infoFeed('Small arena for '+SMALL_MAX+' or fewer')},2800)}
@@ -3547,7 +3741,7 @@ function step(dt){
     }
   }
   if(state==='end'&&online){
-    endTimer-=dt;$('endMsg').textContent=endTimer>0?'Next match starts in '+Math.ceil(endTimer)+'…':'Starting…';
+    endTimer-=dt;$('endMsg').textContent=endTimer>0?'Next match starts in '+Math.ceil(endTimer)+'…':WATCH?'Waiting for the players to start the next match…':'Starting…';
     if(endTimer<=0&&endTimer>-dt*1.5)Net.rematch();
   }
   updateParts(dt);updateShards(dt);updateSplats(dt);updateTracers(dt);updateSparks(dt);updateBooms(dt);
@@ -3557,6 +3751,7 @@ function step(dt){
   updateCamera(dt);
   if(state==='playing'&&player.alive)updateViewmodel(dt);
   updateHud(dt);
+  if(WATCH)specUi();
   render();
 }
 function updateModel(e,dt){
@@ -3571,10 +3766,11 @@ function updateModel(e,dt){
   if(!e.dummy&&m.gunKey!==e.wkey)setEggGun(m,e.wkey);
   if(e.spawnShield>0){const p=.25+.25*Math.sin(clock*14);m.mat.emissive.setRGB(p*.6,p*.8,p)}else m.mat.emissive.setRGB(0,0,0);
   if(m.flashT>0){m.flashT-=dt;if(m.flashT<=0&&m.flash)m.flash.visible=false}
-  m.tag.visible=e.carry!=null||camera.position.distanceTo(e.pos)<45;
+  m.tag.visible=e.carry!=null||WATCH||camera.position.distanceTo(e.pos)<45;
 }
 function updateCamera(dt){
   camPitchKick*=Math.exp(-dt*10);shake*=Math.exp(-dt*6);
+  if(WATCH&&state!=='menu'){specCam(dt);return}
   if(state==='menu'||mode==='attract'){
     orbit+=dt*.06;const r=SPAN*.72,cx=SPAN/2,cz=SPAN/2;
     camera.position.set(cx+Math.cos(orbit)*r,32+Math.sin(orbit*.7)*5,cz+Math.sin(orbit)*r);
@@ -3677,15 +3873,15 @@ if(touchUI)setTouchUI(true);
 addEventListener('pagehide',()=>{leaveCheck();Net.leave()});
 
 // An invite opens this page with #sc-<code>: fill in the room and point at the join button.
-const inv=/^#sc-([a-z0-9-]{1,17})$/.exec(location.hash);
+const inv=!WATCH&&/^#sc-([a-z0-9-]{1,17})$/.exec(location.hash);
 if(inv){if(/^ctf-/.test(inv[1]))setMode('ctf');$('room').value=inv[1];setMsg('You were invited to room sc-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.remove('alt');$('quick').classList.add('alt')}
 
 if(navigator.webdriver)window.__sc={get state(){return state},get mode(){return mode},get noRender(){return noRender},set noRender(v){noRender=!!v},player,get ents(){return ents},get map(){return mapIdx},get arena(){return mapSm},get layout(){return mapIdx+(mapSm?"s":"")},findPath,rayWorld,floorBelow,buildMap,MAPS,W,HY,VY,G,GROUND_Y,vox,vget,standV,nodeFor,entHits,get navN(){return navN},get navReach(){return navReach},navAt,get navY(){return navY},get perches(){return perches},spawns:()=>spawns,Net,onRemoteState,handleEvent,onMatch,endMatch,standings,DIFF,WEAPONS,fireShot,damage,throwNade,nades,addFeed,respawn,spawnSplat,keys,setPaused:v=>{paused=v},get rank(){return rank},HUMAN_W,ratingChange,applyRating,get lastRated(){return lastRated},get clock(){return clock},toMenu,loadLeaderboard,renderer,scene,camera,vmScene,vmCam,advance:s=>{noRender=true;try{for(let t=0;t<s;t+=1/30)step(1/30)}finally{noRender=false}},get matchEnds(){return matchEnds},set matchEnds(v){matchEnds=v},get remotes(){return remotes},get range(){return Range},startTraining,tryFire,buildGun,WKEYS,get vmGun(){return vmGun},get tracers(){return tracers},startReload,setLoadout,switchSlot,mapInfo,RANGE_IDX,get paused(){return paused},get hudDirty(){return hudDirty},
   // collision audit: the real movement, push-out and remote-drawing code, driven step by step
-  botMatch:(i,n)=>{clearBots();resetFx();buildMap(i);addBots(n)},get ctf(){return{on:mapCtf,S:ctfS,base:ctfBase,spawns:ctfSpawns,posts:ctfPosts,team:player.team}},ctfDo,ctfReduce,ctfNorm,ctfFresh,ctfSync,setMode,TEAM,startPractice,CTF_CAPS,ctfBotMatch:(i,n)=>{clearBots();resetFx();ctfOn=true;buildMap(i);const t=[];for(let k=0;k<n;k++)t.push(k&1);addBots(n,t);ctfSync(ctfFresh(),true);state='playing';mode='practice';player.active=false;player.alive=false;matchEnds=Date.now()+1e9},moveEntity,steer,pushOutPos,rescue,boxSolid,updateRemotes,drawClamp,simulate,simSteps,FRAME_CAP,consts:{PR,PH,STEP,JUMP,GRAV,MAX_FALL},mapSpawns:()=>mapSpawns,los};
+  botMatch:(i,n)=>{clearBots();resetFx();buildMap(i);addBots(n)},get ctf(){return{on:mapCtf,S:ctfS,base:ctfBase,spawns:ctfSpawns,posts:ctfPosts,team:player.team}},ctfDo,ctfReduce,ctfNorm,ctfFresh,ctfSync,setMode,TEAM,startPractice,CTF_CAPS,ctfBotMatch:(i,n)=>{clearBots();resetFx();ctfOn=true;buildMap(i);const t=[];for(let k=0;k<n;k++)t.push(k&1);addBots(n,t);ctfSync(ctfFresh(),true);state='playing';mode='practice';player.active=false;player.alive=false;matchEnds=Date.now()+1e9},moveEntity,steer,pushOutPos,rescue,boxSolid,updateRemotes,drawClamp,simulate,simSteps,FRAME_CAP,consts:{PR,PH,STEP,JUMP,GRAV,MAX_FALL},mapSpawns:()=>mapSpawns,los,get spec(){return Spec},specCycle,specFree,specList,get WATCH(){return WATCH}};
 
 renderSwatches();renderWeapons($('weapons'));renderDiff();renderGfx();renderMode();renderRank();
-setupAttract();showAd('adMenu');
+if(WATCH)startWatch();else{setupAttract();showAd('adMenu')}
 requestAnimationFrame(t=>{last=t;frame(t)});
 })();
 </script>
