@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
 <script src="/e63334287a3deaa3/captains.js"></script> <!-- who may open the hidden Seeker kit (see README) -->
+<script src="/e63334287a3deaa3/lang.js"></script> <!-- English / Español (see README) -->
+<script src="es.js"></script> <!-- Chromaflage's Spanish words -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Chromaflage</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -496,6 +498,7 @@ body.touch #lobby{top:calc(150px + env(safe-area-inset-top,0px));left:12px;right
           <label class="setting"><span>Mouse speed</span><input type="range" id="sens" min="0.2" max="3" step="0.05"><output id="sensOut"></output></label>
           <label class="setting"><span>Volume</span><input type="range" id="vol" min="0" max="1" step="0.05"><output id="volOut"></output></label>
           <div class="setting"><span>Graphics</span><div class="seg" id="gfxSeg" role="group" aria-label="Graphics quality"><button type="button" data-q="high">Pretty</button><button type="button" data-q="fast">Fast</button></div></div>
+          <div class="setting"><span>Language</span><div data-lang-toggle></div></div>
         </details>
         <div class="adbox" id="adMenu" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
       </div>
@@ -515,6 +518,7 @@ body.touch #lobby{top:calc(150px + env(safe-area-inset-top,0px));left:12px;right
       <p class="msg" id="inviteMsg"></p>
       <label class="setting"><span>Mouse speed</span><input type="range" id="sens2" min="0.2" max="3" step="0.05"></label>
       <label class="setting"><span>Volume</span><input type="range" id="vol2" min="0" max="1" step="0.05"></label>
+      <div class="setting"><span>Language</span><div data-lang-toggle></div></div>
       <details>
         <summary>Controls</summary>
         <dl class="keys">
@@ -551,6 +555,7 @@ body.touch #lobby{top:calc(150px + env(safe-area-inset-top,0px));left:12px;right
 <script>
 (function(){
 'use strict';
+var T=window.BackRoomLang?BackRoomLang.t:function(s,v){return s.replace(/\{(\w+)\}/g,function(m,n){return v&&v[n]!=null?v[n]:m})};
 // =====================================================================
 //  Firebase (same project and Realtime Database rules as Rumble Karts).
 //  Online rooms live under rooms/cf-<code>; every player writes only their
@@ -4514,7 +4519,7 @@ function showResults(rs){
   if(G.mode==='practice'&&G.pmode==='hide'&&ai){
     const b=ai.bot;$('saw').hidden=false;
     if(b.bestImg){$('sawImg').src=b.bestImg;$('sawImg').hidden=false;const sc=Math.round((1-b.bestVis)*100);$('sawScore').textContent='Blend '+sc+'%';
-      $('sawTxt').textContent='This is the closest look the seeker got at you, from '+b.closest.toFixed(1)+' m away. It had you in view '+(b.visN===1?'once':b.visN+' times')+'. '+(sc>=75?'Your paint matched what was behind you very well.':sc>=45?'Close, but the colours or pattern didn\'t quite line up.':'You stood out against the background. Try the eyedropper on what\'s right behind you.')}
+      $('sawTxt').textContent=T('This is the closest look the seeker got at you, from {d} m away.',{d:b.closest.toFixed(1)})+' '+(b.visN===1?T('It had you in view once.'):T('It had you in view {n} times.',{n:b.visN}))+' '+T(sc>=75?'Your paint matched what was behind you very well.':sc>=45?'Close, but the colours or pattern didn\'t quite line up.':'You stood out against the background. Try the eyedropper on what\'s right behind you.')}
     else{$('sawImg').hidden=true;$('sawScore').textContent='Never seen';$('sawTxt').textContent='The seeker never even got you in view. A good spot is half the battle.'}
   }else $('saw').hidden=true;
   $('again').hidden=G.mode==='online';$('toMenu').textContent=G.mode==='online'?'Leave room':'Menu';
