@@ -613,7 +613,7 @@ const DIR_YAW=[Math.PI/2,0,-Math.PI/2,Math.PI];
 // col: the body colour of its model, also used for its HUD slot. Aiming (hold Aim) is different for each: fov is the zoom, ad how far
 // behind the camera sits and as how far to the side (pistols, SMGs and shotguns stay over the shoulder, each at its own distance;
 // 0 and 0 puts the camera at the eye, for the rifles' sights and the snipers' scopes), pose where the gun is held while aiming
-// (seen over the shoulder), and SIGHT[id] below is its sight picture.
+// (seen over the shoulder). The reticle is the family's own (RET), the snipers' the scope (SNIPER_RET).
 // name: what it is called everywhere ("<word> <type>", so the kind of gun is always in it); short: just its type (Pistol, SMG, Shotgun,
 // AR, Sniper), shown in a hotbar slot instead when the whole name doesn't fit there (phones). The ids never change (saved data, network).
 const WEAP={
@@ -622,11 +622,11 @@ const WEAP={
   sm:{id:'sm',fam:'sm',name:'SMG',short:'SMG',dmg:12,head:1.5,rate:.075,mag:28,reload:2,hip:.034,ads:.024,range:55,pellets:1,fov:62,ad:3.2,as:.9,pose:[.34,1.45,-.66],am:'L',fall:[18,.55],sd:12,col:0xf2902f},
   ds:{id:'ds',fam:'sm',name:'Drum SMG',short:'SMG',dmg:15,head:1.5,rate:.11,mag:40,reload:2.6,hip:.03,ads:.018,range:65,pellets:1,fov:56,ad:3,as:.85,pose:[.34,1.45,-.66],am:'L',fall:[24,.6],sd:15,col:0xf2c230},
   sg:{id:'sg',fam:'sg',name:'Pump Shotgun',short:'Shotgun',dmg:8,head:1.5,rate:.9,mag:5,reload:2.1,hip:.075,ads:.062,range:40,pellets:9,fov:60,ad:3,as:.9,pose:[.34,1.45,-.66],am:'S',falloff:true,sd:13,col:0xd9483b},
-  as:{id:'as',fam:'sg',name:'Auto Shotgun',short:'Shotgun',dmg:6,head:1.5,rate:.4,mag:8,reload:2.6,hip:.095,ads:.08,range:32,pellets:7,fov:66,ad:3.4,as:.95,pose:[.34,1.45,-.66],am:'S',falloff:true,sd:9,col:0x3d6fd9},
+  as:{id:'as',fam:'sg',name:'Auto Shotgun',short:'Shotgun',dmg:6,head:1.5,rate:.4,mag:8,reload:2.6,hip:.095,ads:.08,range:32,pellets:7,fov:66,ad:3.4,as:.95,pose:[.34,1.45,-.66],am:'S',falloff:true,sd:9,col:0xa8322b},
   ar:{id:'ar',fam:'ar',name:'AR',short:'AR',dmg:18,head:1.5,rate:.12,mag:30,reload:1.9,hip:.022,ads:.006,range:150,pellets:1,fov:46,ad:0,as:0,pose:[.32,1.46,-.64],am:'M',fall:[60,.75],sd:22,col:0x1f9c8f},
-  hr:{id:'hr',fam:'ar',name:'Heavy AR',short:'AR',dmg:34,head:1.6,rate:.28,mag:18,reload:2.2,hip:.03,ads:.003,range:180,pellets:1,fov:34,ad:0,as:0,pose:[.32,1.46,-.64],am:'M',fall:[80,.8],sd:40,col:0x7a8f3a},
+  hr:{id:'hr',fam:'ar',name:'Heavy AR',short:'AR',dmg:34,head:1.6,rate:.28,mag:18,reload:2.2,hip:.03,ads:.003,range:180,pellets:1,fov:34,ad:0,as:0,pose:[.32,1.46,-.64],am:'M',fall:[80,.8],sd:40,col:0x17705f},
   sr:{id:'sr',fam:'sr',name:'Bolt Sniper',short:'Sniper',dmg:82,head:2,rate:1.3,mag:4,reload:2.5,hip:.1,ads:0,range:320,pellets:1,fov:16,ad:0,as:0,pose:[.32,1.46,-.64],am:'H',sd:150,col:0x596078},
-  ss:{id:'ss',fam:'sr',name:'Scout Sniper',short:'Sniper',dmg:44,head:2,rate:.5,mag:8,reload:2.8,hip:.07,ads:.002,range:260,pellets:1,fov:30,ad:0,as:0,pose:[.32,1.46,-.64],am:'H',sd:80,col:0xd9d2c0}
+  ss:{id:'ss',fam:'sr',name:'Scout Sniper',short:'Sniper',dmg:44,head:2,rate:.5,mag:8,reload:2.8,hip:.07,ads:.002,range:260,pellets:1,fov:30,ad:0,as:0,pose:[.32,1.46,-.64],am:'H',sd:80,col:0x8e98b4}
 };
 const WIDS=['pi','hc','sm','ds','sg','as','ar','hr','sr','ss'];
 const famOf=id=>WEAP[id]?WEAP[id].fam:'';
@@ -2642,14 +2642,15 @@ const LEG_GEO=(()=>{const B=Bag();bagRBox(B,0,-.43,0,.26,.86,.28,0x2f3a4a);const
   bagRBox(B,0,-.79,-.03,.3,.16,.36,0x1b1d22);return bagGeo(B)})();
 // Held items. Every weapon is a toy blaster with its own outline, its family's body colour (WEAP[id].col) and an
 // orange toy tip, so you can tell what someone is carrying from behind them, across a field or lying on the ground:
-// Pistol small and cream; Heavy Pistol silver with a fat cylinder, a long ribbed barrel and a wood grip; SMG a stubby
-// orange box with a long straight magazine and a wire stock; Drum SMG yellow with a round drum that sticks out both
-// sides, a finned barrel and a wood stock; Pump Shotgun red with a barrel over a tube, a grooved wood pump and shells
-// on its wood stock; Auto Shotgun blue and square with a carry handle, a slotted heat shield and a big box magazine;
-// Rifle teal with a vented handguard, a curved magazine and a cream stock; Heavy Rifle olive with wood furniture, a
-// long barrel with a brake, a folded bipod and a small red-lensed sight; Bolt Sniper slate, very long, with a big
-// black scope, a bolt with a gold knob and a wood stock; Scout Sniper bone white, slimmer and shorter, with a green
-// scope and an open frame stock.
+// each shaped like the stereotype of its kind, the two of a family in a light and a dark shade of one colour:
+// Pistol short and cream, a slide on a frame; Heavy Pistol a silver revolver with a long ribbed barrel and a wood grip;
+// SMG a stubby orange box with a short barrel, a long straight magazine and a wire stock; Drum SMG yellow with a round
+// drum, a finned barrel and a wood stock; Pump Shotgun red, a thick barrel over a tube, a grooved wood pump and a wood
+// stock; Auto Shotgun dark red and boxy, a thick barrel under a heat shield, a big box magazine and a solid stock; AR
+// teal with a carry handle, a front sight post, a curved magazine and a stock; Heavy AR dark teal and longer, a rail
+// with a small red-dot sight, a front grip, a big curved magazine and a brake; Bolt Sniper slate, very long, a big
+// black scope, a bolt with a gold knob, a bipod and a wood stock with a cheek rest; Scout Sniper pale slate, slimmer
+// and shorter, with a green scope and an open stock with a cheek piece.
 // Each is still one merged mesh (one draw call for everyone holding that weapon, one for all of them on the ground),
 // built from a few kinds of part: bx a box (optionally tilted), ob a bar with its long edges cut off and shaded smooth
 // (so a body reads as rounded plastic, not a brick), cyl / pin / peg a cylinder along the barrel / across / upright,
@@ -2680,13 +2681,13 @@ const GUN_GEO=(()=>{const o={},TIP=0xff8a3a,DK=0x2a2d34,K=0x1b1d22,M=0x5a606b,L=
   const guard=zf=>{zf=zf==null?-.075:zf;bx(.022,.014,.05-zf,0,.012,(zf+.05)/2,K);bx(.022,.064,.014,0,.044,zf,K);bx(.012,.044,.014,0,.048,-.004,L,.3)};
   const mk=(id,tip,f)=>{B=Bag();f(TYPE_COL[id]);GUN_TIP[id]=tip;return bagGeo(B)};
 
-  // Pistol: a cream slide with grip ridges on a dark frame, a little lamp under the barrel.
-  o.pi=mk('pi',[.145,-.385],A=>{const AD=hue(A,.74);
-    ob(.1,.105,.45,0,.145,-.095,A);for(const z of [.04,.07,.1])bx(.105,.074,.013,0,.145,z,AD);       // slide and its ridges
-    bx(.05,.012,.1,.014,.2,-.1,K);bx(.03,.012,.2,0,.2,-.02,AD);for(const z of [-.23,-.265])bx(.105,.05,.014,0,.15,z,AD);bx(.06,.02,.05,0,.1,.13,DK,.35);   // ejection port, top rib, cuts by the muzzle, beaver tail
-    bx(.086,.052,.36,0,.07,-.075,DK);bx(.05,.044,.13,0,.03,-.18,K);bx(.034,.03,.012,0,.03,-.248,RED);   // frame, lamp and its lens
-    cyl(.03,.05,0,.145,-.34,K,6);cyl(.041,.034,0,.145,-.368,TIP);                                    // muzzle, toy tip
-    bx(.016,.022,.024,0,.207,-.285,TIP);for(const s of [-1,1])bx(.014,.022,.02,.022*s,.207,.1,K);bx(.028,.045,.028,0,.19,.14,K,.5);   // sights, hammer
+  // Pistol: short, a cream slide with grip ridges at the back on a dark frame, a dark grip.
+  o.pi=mk('pi',[.145,-.37],A=>{const AD=hue(A,.74);
+    ob(.1,.105,.44,0,.145,-.09,A);for(const z of [.04,.07,.1])bx(.105,.074,.013,0,.145,z,AD);       // slide and its ridges
+    bx(.05,.012,.1,.014,.2,-.1,K);bx(.03,.012,.2,0,.2,-.02,AD);bx(.06,.02,.05,0,.1,.13,DK,.35);    // ejection port, top rib, beaver tail
+    bx(.086,.052,.34,0,.07,-.075,DK);bx(.07,.02,.06,0,.05,-.21,K);                                    // frame and its nose
+    cyl(.03,.05,0,.145,-.33,K,6);cyl(.04,.032,0,.145,-.355,TIP);                                     // muzzle, toy tip
+    bx(.016,.022,.024,0,.207,-.28,TIP);for(const s of [-1,1])bx(.014,.022,.02,.022*s,.207,.1,K);bx(.028,.045,.028,0,.19,.14,K,.5);   // sights, hammer
     grip(DK,A);tl(.082,.09,.05,0,-.022,.132,AD,-.26,-.01);guard()});
   // Heavy Pistol: silver, a fat fluted cylinder, a long barrel with a rib on top and a lug under it, a wood grip.
   o.hc=mk('hc',[.16,-.575],A=>{const AD=hue(A,.72);
@@ -2717,47 +2718,48 @@ const GUN_GEO=(()=>{const o={},TIP=0xff8a3a,DK=0x2a2d34,K=0x1b1d22,M=0x5a606b,L=
     ex([[.13,.215],[.385,.205],[.385,.065],[.31,.082],[.13,.112]],.086,WOOD);bx(.096,.15,.022,0,.135,.398,K);   // stock and pad
     grip(K,A);guard()});
   // Pump Shotgun: red, a barrel over a magazine tube, a grooved wood pump, shells in a holder on the wood stock.
-  o.sg=mk('sg',[.185,-.855],A=>{const AD=hue(A,.7);
+  o.sg=mk('sg',[.188,-.855],A=>{const AD=hue(A,.7);
     ob(.12,.165,.38,0,.14,-.01,A);bx(.02,.05,.13,.056,.165,-.05,K);bx(.07,.014,.2,0,.05,-.07,K);       // receiver, ejection port, loading port
-    cyl(.043,.64,0,.185,-.5,M);bx(.02,.012,.6,0,.23,-.5,K);cyl(.053,.04,0,.185,-.835,TIP);bx(.014,.02,.014,0,.245,-.78,GOLD);   // barrel, rib, toy tip, bead
+    cyl(.052,.64,0,.188,-.5,M);bx(.022,.012,.6,0,.242,-.5,K);cyl(.06,.04,0,.188,-.835,TIP);bx(.014,.02,.014,0,.257,-.78,GOLD);   // barrel, rib, toy tip, bead
     cyl(.035,.5,0,.1,-.44,K);cyl(.039,.022,0,.1,-.7,A);bx(.05,.14,.028,0,.143,-.655,DK);              // tube, its cap, the clamp
     ob(.126,.106,.22,0,.097,-.42,WOOD);for(const z of [-.49,-.45,-.39,-.35])bx(.132,.07,.012,0,.097,z,WK);   // pump
     ex([[.16,.225],[.385,.218],[.385,.06],[.31,.078],[.16,.1]],.09,WOOD);bx(.1,.17,.022,0,.14,.398,AD);   // stock and pad
     bx(.012,.04,.15,.048,.15,.27,K);for(const z of [.22,.265,.31]){peg(.017,.07,.062,.15,z,RED);peg(.0175,.018,.062,.192,z,GOLD)}   // shell holder
     grip(WK);guard()});
-  // Auto Shotgun: blue and square, a fat barrel under a slotted heat shield, a carry handle, a big box magazine.
-  o.as=mk('as',[.165,-.85],A=>{const AD=hue(A,.66);
-    ob(.13,.17,.5,0,.15,-.08,A);bx(.134,.05,.4,0,.088,-.07,K);bx(.02,.045,.13,.061,.17,-.1,K);         // receiver, lower band, port
-    bx(.136,.05,.13,0,.165,.035,hue(A,1.25));for(const z of [-.005,.035,.075])bx(.139,.026,.018,0,.165,z,RED);   // a paler panel each side with three shell marks
-    cyl(.05,.42,0,.165,-.54,DK);bx(.086,.02,.3,0,.223,-.52,L);for(const z of [-.62,-.55,-.48,-.41])bx(.09,.024,.03,0,.223,z,K);   // barrel, heat shield and slots
-    ob(.126,.1,.24,0,.106,-.47,AD);for(const z of [-.53,-.47,-.41])bx(.131,.03,.014,0,.106,z,K);       // handguard
-    bx(.116,.096,.085,0,.165,-.775,K);for(const z of [-.795,-.76])bx(.122,.03,.012,0,.165,z,L);cyl(.047,.03,0,.165,-.832,TIP);   // muzzle brake, toy tip
-    bx(.086,.27,.15,0,-.06,-.175,DK,.1);tl(.091,.018,.155,0,-.06,-.175,M,.1,-.04);tl(.092,.026,.157,0,-.06,-.175,A,.1,-.135);   // magazine
-    for(const z of [-.2,.06])bx(.03,.055,.03,0,.255,z,K);bx(.036,.026,.33,0,.292,-.07,K);              // carry handle
-    ex([[.15,.232],[.385,.222],[.385,.06],[.3,.078],[.15,.1]],.096,DK);bx(.106,.175,.022,0,.143,.398,A);   // stock and pad
+  // Auto Shotgun: dark red and boxy, a thick barrel under a slotted heat shield, a big straight box magazine, a solid stock.
+  o.as=mk('as',[.17,-.86],A=>{const C=.16,AD=hue(A,.7);
+    ob(.135,.18,.5,0,C,-.08,A);bx(.138,.05,.4,0,.09,-.07,K);bx(.02,.045,.13,.064,C+.02,-.1,K);       // receiver, lower band, port
+    bx(.14,.05,.13,0,C+.01,.035,hue(A,1.3));for(const z of [-.005,.035,.075])bx(.143,.026,.018,0,C+.01,z,GOLD);   // a paler panel each side with three shell marks
+    bx(.04,.016,.3,0,C+.098,-.08,K);for(const z of [-.2,-.12,-.04,.04])bx(.046,.008,.014,0,C+.108,z,M);   // low top rail
+    cyl(.062,.44,0,C+.01,-.55,DK);bx(.09,.02,.34,0,C+.078,-.54,L);for(const z of [-.66,-.58,-.5,-.42])bx(.094,.024,.03,0,C+.078,z,K);   // thick barrel, heat shield and slots
+    ob(.13,.1,.2,0,C-.055,-.44,AD);for(const z of [-.49,-.44,-.39])bx(.135,.03,.014,0,C-.055,z,K);    // handguard
+    bx(.12,.1,.08,0,C+.01,-.79,K);for(const z of [-.81,-.77])bx(.126,.03,.012,0,C+.01,z,L);cyl(.05,.03,0,C+.01,-.845,TIP);   // muzzle brake, toy tip
+    bx(.1,.27,.16,0,-.07,-.175,DK,.04);for(const o2 of [.04,-.04])tl(.104,.014,.164,0,-.07,-.175,M,.04,o2);tl(.106,.026,.166,0,-.07,-.175,A,.04,-.135);   // box magazine
+    ex([[.17,.24],[.385,.23],[.385,.06],[.3,.076],[.17,.1]],.098,DK);bx(.108,.175,.022,0,.143,.398,A);   // solid stock and pad
     grip(K,A);guard(-.06)});
-  // Rifle: teal, a vented handguard, a rail with sights, a curved magazine and a cream stock.
-  o.ar=mk('ar',[.155,-.87],A=>{const C=.155,AD=hue(A,.74);
-    ob(.105,.15,.46,0,C,-.05,A);bx(.09,.05,.34,0,.088,-.04,K);bx(.02,.04,.1,.049,C+.012,-.08,K);pin(.014,.03,.062,C+.012,.06,L);   // receiver, lower, port, button
-    ob(.118,.126,.3,0,C,-.43,AD);for(const z of [-.36,-.42,-.48,-.54])bx(.123,.022,.03,0,C+.004,z,K);ob(.1,.106,.022,0,C,-.588,M);   // handguard, vents, cap
-    bx(.036,.016,.5,0,C+.08,-.2,M);for(const z of [-.4,-.33,-.26,-.19,-.12,-.05,.02])bx(.042,.008,.014,0,C+.09,z,K);   // top rail
-    cyl(.024,.2,0,C,-.69,L,6);cyl(.035,.07,0,C,-.81,K);cyl(.041,.03,0,C,-.855,TIP);                    // barrel, flash hider, toy tip
-    bx(.04,.02,.04,0,C+.09,-.56,K);bx(.016,.06,.02,0,C+.125,-.56,K);bx(.05,.02,.05,0,C+.098,.1,K);for(const s of [-1,1])bx(.012,.036,.03,.02*s,C+.124,.1,K);   // sights
+  // AR: teal, a black carry handle with the rear sight on it, a tall front sight post, a round handguard, a curved magazine, a stock.
+  o.ar=mk('ar',[.155,-.875],A=>{const C=.155,AD=hue(A,.74);
+    ob(.105,.15,.44,0,C,-.05,A);bx(.09,.05,.32,0,.088,-.04,K);bx(.02,.04,.1,.049,C+.012,-.08,K);pin(.014,.03,.062,C+.012,.06,L);   // receiver, lower, port, button
+    cyl(.062,.32,0,C-.005,-.43,AD);for(const z of [-.34,-.43,-.52])cyl(.065,.02,0,C-.005,z,K);         // round handguard and its rings
+    cyl(.022,.26,0,C,-.72,DK,6);cyl(.032,.06,0,C,-.82,K);cyl(.038,.03,0,C,-.86,TIP);                   // barrel, flash hider, toy tip
+    bx(.044,.03,.04,0,C+.035,-.665,K);bx(.03,.12,.03,0,C+.1,-.665,K,-.18);bx(.012,.028,.012,0,C+.165,-.676,TIP);   // front sight post
+    for(const z of [-.2,.09])bx(.032,.07,.034,0,C+.1,z,K);bx(.036,.03,.36,0,C+.145,-.055,K);bx(.044,.04,.05,0,C+.175,.08,K);   // carry handle, rear sight
     bx(.11,.016,.03,0,C+.045,.168,L);                                                                // charging handle
     bx(.064,.17,.1,0,0,-.13,M,.18);tl(.064,.12,.1,0,-.0836,-.1452,M,.45,-.055);tl(.07,.022,.106,0,-.0836,-.1452,A,.45,-.118);   // curved magazine
-    bx(.046,.046,.14,0,C+.012,.25,M);ex([[.27,.232],[.385,.226],[.385,.068],[.33,.068],[.27,.118]],.082,TYPE_COL.pi);bx(.092,.17,.02,0,.148,.397,K);   // stock tube, butt, pad
+    bx(.046,.046,.1,0,C+.012,.22,K);ex([[.25,.226],[.385,.215],[.385,.06],[.31,.07],[.25,.118]],.084,DK);bx(.092,.16,.02,0,.142,.397,K);   // buffer tube, stock, pad
     grip(K,A);guard(-.05)});
-  // Heavy Rifle: olive, wood handguard and stock, a long barrel with a brake, a folded bipod, a deep magazine, a small sight.
-  o.hr=mk('hr',[.16,-1.15],A=>{const C=.15,AD=hue(A,.68);
-    ob(.11,.16,.46,0,C,-.05,A);bx(.114,.05,.3,0,.088,-.06,AD);bx(.02,.045,.12,.052,C+.012,-.08,K);     // receiver, lower, port
-    ob(.118,.126,.36,0,.14,-.46,WOOD);for(const z of [-.36,-.56])bx(.124,.132,.024,0,.14,z,K);         // wood handguard and its bands
-    cyl(.03,.44,0,C+.01,-.86,DK);bx(.05,.07,.05,0,C+.02,-.72,M);bx(.014,.05,.014,0,C+.085,-.72,K);     // barrel, gas block, front sight
-    bx(.086,.072,.11,0,C+.01,-1.07,K);for(const z of [-1.095,-1.05])bx(.092,.024,.014,0,C+.01,z,L);cyl(.037,.03,0,C+.01,-1.138,TIP);   // brake, toy tip
-    for(const s of [-1,1])bx(.014,.014,.27,.036*s,.062,-.62,L);bx(.092,.03,.034,0,.07,-.49,K);        // folded bipod
-    bx(.075,.25,.13,0,-.055,-.14,DK,.08);for(const o2 of [.03,-.04])tl(.08,.014,.134,0,-.055,-.14,M,.08,o2);tl(.081,.026,.136,0,-.055,-.14,A,.08,-.125);   // magazine
-    for(const z of [-.1,.04])bx(.04,.045,.03,0,C+.1,z,K);cyl(.04,.2,0,C+.155,-.03,K);cyl(.034,.012,0,C+.155,-.134,0xff5a4a);cyl(.03,.012,0,C+.155,.074,LENS);peg(.018,.03,0,C+.205,-.03,M);   // sight
-    ex([[.16,.232],[.385,.248],[.385,.06],[.31,.078],[.16,.1]],.09,WOOD);bx(.06,.018,.13,0,.25,.3,K);bx(.1,.195,.022,0,.152,.398,K);   // stock, cheek pad, butt pad
-    grip(WK);guard(-.06)});
+  // Heavy AR: dark teal, longer, a top rail with a small boxy red-dot sight, a long square handguard with a front grip, a big
+  // curved magazine, a muzzle brake and a solid stock.
+  o.hr=mk('hr',[.15,-1.105],A=>{const C=.15,AD=hue(A,.72);
+    ob(.11,.16,.46,0,C,-.05,A);bx(.114,.05,.3,0,.088,-.06,K);bx(.02,.045,.12,.052,C+.012,-.08,K);      // receiver, lower, port
+    bx(.04,.018,.46,0,C+.088,-.13,K);for(const z of [-.32,-.24,-.16,-.08,0,.08])bx(.046,.008,.014,0,C+.098,z,M);   // top rail
+    bx(.074,.074,.11,0,C+.135,-.03,K);bx(.06,.054,.008,0,C+.138,-.087,LENS);bx(.016,.016,.006,0,C+.138,-.083,RED);bx(.03,.024,.034,.042,C+.135,-.02,M);   // red-dot sight: housing, glass, dot, knob
+    ob(.12,.12,.4,0,C-.005,-.48,AD);for(const z of [-.36,-.44,-.52,-.6])bx(.125,.024,.03,0,C-.005,z,K); // handguard and slots
+    bx(.05,.13,.055,0,C-.13,-.52,K);                                                                 // front grip
+    cyl(.028,.32,0,C,-.84,DK);bx(.08,.072,.1,0,C,-1.035,K);for(const z of [-1.06,-1.015])bx(.086,.024,.014,0,C,z,L);cyl(.036,.03,0,C,-1.09,TIP);   // barrel, brake, toy tip
+    bx(.07,.19,.11,0,-.005,-.14,K,.18);tl(.07,.13,.11,0,-.095,-.157,K,.45,-.06);tl(.076,.024,.116,0,-.095,-.157,A,.45,-.13);   // big curved magazine
+    ex([[.17,.235],[.385,.24],[.385,.06],[.3,.076],[.17,.105]],.09,DK);bx(.06,.018,.12,0,.247,.3,A);bx(.1,.19,.022,0,.152,.398,K);   // stock, cheek riser, pad
+    grip(K,A);guard(-.06)});
   // Bolt Sniper: slate, a very long barrel, a big black scope, a bolt with a gold knob, a bipod, a wood stock.
   o.sr=mk('sr',[.155,-1.345],A=>{const C=.145,SC=0x1b1d24;
     ob(.095,.13,.5,0,C,-.08,A);ob(.106,.09,.46,0,.085,-.3,WOOD);bx(.07,.06,.12,0,.03,-.14,DK);         // receiver, wood fore-end, magazine
@@ -2766,7 +2768,7 @@ const GUN_GEO=(()=>{const o={},TIP=0xff8a3a,DK=0x2a2d34,K=0x1b1d22,M=0x5a606b,L=
     cyl(.04,.46,0,C+.15,-.1,SC);cyl(.062,.13,0,C+.15,-.37,SC,12);cyl(.054,.012,0,C+.15,-.437,LENS,12);cyl(.052,.09,0,C+.15,.15,SC,12);cyl(.044,.012,0,C+.15,.197,LENS,12);   // scope and its lenses
     peg(.022,.045,0,C+.2,-.1,M);pin(.022,.04,.05,C+.15,-.1,M);for(const z of [-.22,.02])bx(.036,.06,.036,0,C+.09,z,K);   // turrets, mounts
     pin(.012,.07,.075,C+.01,.11,L);ob(.042,.042,.046,.118,C-.004,.11,GOLD);                           // bolt and knob
-    for(const s of [-1,1]){bx(.014,.014,.3,.03*s,.036,-.68,L);bx(.02,.02,.03,.03*s,.036,-.84,K)}bx(.08,.036,.036,0,.046,-.51,K);   // folded bipod
+    bx(.08,.04,.05,0,.06,-.6,K);for(const s of [-1,1]){tl(.018,.26,.018,.032*s,.05,-.6,L,.5,-.13);tl(.026,.03,.03,.032*s,.05,-.6,K,.5,-.26)}   // bipod: clamp, two legs down and forward, feet
     ex([[.15,.215],[.25,.215],[.27,.238],[.385,.238],[.385,.06],[.3,.078],[.15,.096]],.088,WOOD);bx(.07,.016,.1,0,.246,.325,K);bx(.098,.185,.022,0,.15,.398,K);   // stock, cheek pad, butt pad
     grip(WK);guard()});
   // Scout Sniper: bone white, slimmer and shorter, a green scope, a slotted fore-end, a box magazine, an open stock.
@@ -2787,7 +2789,7 @@ const GUN_GEO=(()=>{const o={},TIP=0xff8a3a,DK=0x2a2d34,K=0x1b1d22,M=0x5a606b,L=
 // where the rarity band sits on each weapon (a sleeve round the body, cut-edged like the body): y, z, then its width, height and depth
 const GUN_MID={};for(const k of WIDS){const b=GUN_GEO[k].boundingBox;GUN_MID[k]=new THREE.Matrix4().makeTranslation(0,-(b.min.y+b.max.y)/2,-(b.min.z+b.max.z)/2)}   // floor loot turns about the middle of the model
 const RTAG={pi:[.145,-.2,.112,.117,.04],hc:[.16,-.21,.084,.104,.04],sm:[.155,.115,.122,.157,.05],ds:[.155,.105,.127,.162,.05],sg:[.14,.135,.132,.177,.05],
-  as:[.15,.125,.142,.182,.05],ar:[.155,.135,.117,.162,.05],hr:[.15,.135,.122,.172,.05],sr:[.145,.125,.107,.142,.05],ss:[.145,.1,.102,.132,.05]};
+  as:[.16,.125,.142,.192,.05],ar:[.155,.135,.117,.162,.05],hr:[.15,.135,.122,.172,.05],sr:[.145,.125,.107,.142,.05],ss:[.145,.1,.102,.132,.05]};
 // ---- Icons. Every weapon, the crowbar, the two kinds of heal and the three build pieces are drawn once, when the page loads, from
 // the same geometry the game uses (so an icon can't drift from its model), side on with a little turn, onto a small transparent
 // picture: ICONS[key] is a data URL, used by the hotbar. 18 tiny renders, a few milliseconds.
