@@ -3666,7 +3666,7 @@ const Net={
     const r=this.refs;
     const up=s=>{if(s.key===this.uid)return;onRemoteState(s.key,s.val())};
     r.players.on('child_added',up);r.players.on('child_changed',up);
-    r.players.on('child_removed',s=>{const e=remotes.get(s.key);if(e){infoFeed(e.name+' left');removeEntity(e);remotes.delete(s.key)}});
+    r.players.on('child_removed',s=>{const e=remotes.get(s.key);if(e){infoFeed(TX('{n} left',{n:e.name}));removeEntity(e);remotes.delete(s.key)}});
     r.events.on('child_added',s=>{const e=s.val();if(!e||typeof e.t!=='number'||e.t<this.joinT-1500||e.by===this.uid||this.seen.has(s.key))return;this.seen.add(s.key);if(this.seen.size>1500)this.seen.delete(this.seen.values().next().value);handleEvent(e)});
     r.round.on('value',s=>this.takeRound(s.val()));
     clearInterval(this.pubTimer);
@@ -3808,7 +3808,7 @@ function onRemoteState(uid,v){
     if(Net.now()-(+v.ts||0)>10000||remotes.size>=MAX_ROOM-1)return;
     const color=/^#[0-9a-f]{6}$/i.test(v.c)?v.c:'#fbf6ea';
     e=makeEntity({id:uid,name:cleanName(v.n),color,remote:true});e.alive=!v.d;e.pos.set(v.x,v.y,v.z);e.lastSc=+v.sc||0;
-    remotes.set(uid,e);ents.push(e);if(state==='playing')infoFeed(e.name+' joined');
+    remotes.set(uid,e);ents.push(e);if(state==='playing')infoFeed(TX('{n} joined',{n:e.name}));
   }
   // Gun Game: say when another egg reaches the last gun
   if(RULES.ladder&&!mapCtf&&e.net&&inMyMatch(v)&&+e.net.m===+v.m){const N=RULES.ladder.length;if((+v.gg|0)===N-1&&(+e.net.gg|0)<N-1)ggLastFeed(e)}

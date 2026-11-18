@@ -2229,13 +2229,13 @@ function onNode(uid,v){
   Net.others.set(uid,{v,ts:+v.ts||0});
   names.set(uid,cleanName(v.n));
   if(v.m===curMatch&&curMatch!=null)kills.set(uid,v.k|0);
-  if(fresh&&Net.now()-(+v.ts||0)<LIVE_MS&&performance.now()-Net.joinedAt>2500){feed(esc(cleanName(v.n))+' joined','info');sfxJoin()}
+  if(fresh&&Net.now()-(+v.ts||0)<LIVE_MS&&performance.now()-Net.joinedAt>2500){feed(esc(TX('{n} joined',{n:cleanName(v.n)})),'info');sfxJoin()}
   lobbyDirty=true;
   const e=remotes.get(uid);if(e){e.name=cleanName(v.n);applyNode(e,v)}
 }
 function onNodeGone(uid){
   const o=Net.others.get(uid);Net.others.delete(uid);lobbyDirty=true;
-  if(o)feed(esc(cleanName(o.v.n))+' left','info');
+  if(o)feed(esc(TX('{n} left',{n:cleanName(o.v.n)})),'info');
   const e=remotes.get(uid);if(e){e.present=false;e.alive=false;e.model.visible=false}
 }
 // Other players are drawn a moment in the past, between the updates around that moment; how far back adapts to how

@@ -67,7 +67,7 @@
     'Graphics': 'Gráficos', 'Fast (lower resolution, less rain)': 'Rápido (menos resolución, menos lluvia)', 'Balanced': 'Equilibrado', 'Sharp (high-DPI)': 'Nítido (alta definición)',
     'Reset guns and loadouts': 'Reiniciar armas y equipos', 'Click again to reset': 'Haz clic otra vez para reiniciar',
     'This removes every gun except the starters.': 'Esto borra todas las armas menos las iniciales.', 'Guns and loadouts reset': 'Armas y equipos reiniciados',
-    'Language': 'Idioma',
+    'Language': 'Idioma', '{n} joined': '{n} entró', '{n} left': '{n} se fue',
     // ---- pause, end, lobby ----
     'PAUSED': 'EN PAUSA', 'Click Resume to grab the mouse again.': 'Haz clic en Seguir para volver a usar el mouse.', 'Tap Resume to carry on.': 'Toca Seguir para continuar.',
     'The match keeps going while you are paused.': 'La partida sigue mientras estás en pausa.', 'Invite link': 'Enlace de invitación', 'Copy link': 'Copiar enlace', 'Copied': 'Copiado',

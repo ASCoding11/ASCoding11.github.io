@@ -103,7 +103,7 @@
     'Esc always pauses and cancels, so it stays as it is.': 'Esc siempre pausa y cancela, así que queda como está.',
     'Swapped: {k} is now {a}, {j} is now {b}.': 'Cambiadas: {k} ahora es {a}, {j} ahora es {b}.',
     'Left click': 'Clic izquierdo', 'Right click': 'Clic derecho', 'Middle click': 'Clic del medio', 'Space': 'Espacio', 'unbound': 'sin tecla',
-    'Language': 'Idioma',
+    'Language': 'Idioma', '{n} joined': '{n} entró', '{n} left': '{n} se fue',
 
     // ---- built in code with BackRoomLang.t (HUD, banners, feed, results) ----
     'First to {n}': 'Meta: {n}', 'first through {n} guns': 'el primero en pasar {n} armas', 'first to {n} cracks': 'el primero en cascar {n}',

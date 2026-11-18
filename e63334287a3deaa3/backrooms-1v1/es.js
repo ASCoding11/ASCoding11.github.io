@@ -18,7 +18,7 @@
     'Reload': 'Recargar', 'Menu and invite link': 'Menú e invitación', 'When out: watch the next teammate': 'Si quedas afuera: mira al siguiente compañero',
     'Change keys': 'Cambiar teclas', 'CLICK': 'CLIC', 'SPACE': 'ESPACIO', 'L-CLICK': 'CLIC IZQ.', 'R-CLICK': 'CLIC DER.', 'UNBOUND': 'SIN TECLA', 'LEFT CLICK': 'CLIC IZQ.', 'RIGHT CLICK': 'CLIC DER.', '❚❚ PAUSE': '❚❚ PAUSA', '● LOBBY': '● SALA', '■ STOP': '■ STOP',
     "Playing on a phone? Turn it sideways for the best view. Tap the slots at the top to switch weapons or build. Edit reshapes a build of yours that you're aiming at: hold it, drag another finger over the tiles and let go, or tap Edit, tap tiles, then Done.": '¿Juegas en el celular? Ponlo de costado para ver mejor. Toca las casillas de arriba para cambiar de arma o construir. Editar cambia la forma de una construcción tuya a la que apuntas: mantenlo, pasa otro dedo por las casillas y suelta, o toca Editar, toca casillas y luego Listo.',
-    'Advertisement': 'Publicidad', 'Language': 'Idioma',
+    'Advertisement': 'Publicidad', 'Language': 'Idioma', '{n} joined': '{n} entró', '{n} left': '{n} se fue',
     // ---- lobby ----
     'PICK A': 'ELIGE UN', 'SIDE': 'LADO', 'Red': 'Rojo', 'Blue': 'Azul', 'Join Red': 'Unirse a Rojo', 'Join Blue': 'Unirse a Azul',
     'Host · rounds to win the match': 'Anfitrión · rondas para ganar', 'Start match': 'Empezar partida', 'Randomize teams': 'Mezclar equipos',
