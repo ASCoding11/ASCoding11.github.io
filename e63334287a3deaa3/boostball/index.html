@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script src="/e63334287a3deaa3/lang.js"></script> <!-- English / Español (see README) -->
+<script src="es.js"></script>
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
 <script src="/e63334287a3deaa3/captains.js"></script> <!-- who may see the hidden garage and the Kit while they are not public (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -250,7 +252,7 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
       <svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="bgrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd34a"/><stop offset="1" stop-color="#ff6a1a"/></linearGradient></defs><circle class="trk" cx="60" cy="60" r="50" stroke-dasharray="235.6 314.2"/><circle id="boostArc" cx="60" cy="60" r="50" stroke-dasharray="235.6 314.2" stroke-dashoffset="0"/></svg>
       <b id="boostNum">33</b><span>BOOST</span>
     </div>
-    <div id="speed">0 KM/H</div>
+    <div id="speed" data-noi18n>0 KM/H</div>
     <div id="camTag">BALL CAM · <span data-kb="ballcam" data-kb-short data-kb-case="upper">Y</span></div>
     <div id="hint"></div>
     <div id="flash"></div>
@@ -319,6 +321,7 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
           <div class="setting"><span>Landing marker</span><div class="seg" id="markSeg" role="group" aria-label="Show where the ball will land"><button type="button" data-m="1">On</button><button type="button" data-m="0">Off</button></div></div>
           <div class="setting"><span>Team colours</span><div class="pairs" id="teamSeg" role="group" aria-label="Team colours"></div></div>
           <p class="note" style="margin:0">Online, everyone sees the colours picked by the room's host.</p>
+          <div class="setting"><span>Language</span><div data-lang-toggle></div></div>
         </details>
       </div>
 
@@ -373,6 +376,8 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
 <script>
 (function(){
 'use strict';
+// Spanish (../lang.js, es.js): T() gives the words in the player's language, for text the page can't leave to lang.js.
+const T=window.BackRoomLang?BackRoomLang.t:(s,v)=>s.replace(/\{(\w+)\}/g,(m,n)=>v&&v[n]!=null?v[n]:m);
 // Turkey Week (../events.js): the ball is drawn as a pumpkin with a stem and the grass in autumn colours. Only the
 // drawing changes (the ball's size, bounce and everything sent to the room are the same); the Turkey Week switch on
 // the Back Room page turns it off for this browser. It is read once, here, when the game loads.
@@ -463,6 +468,7 @@ const SCHEMES=[
     ink:lum(c)>.42?'#0d1222':'#fff'},o,{hex:css(c),rgb:[0,1,2].map(i=>ch(c,i)).join(',')})});
 })();
 const TEAM=[{dir:1},{dir:-1}];
+const TN=t=>T(TEAM[t].name);   // a team's colour name, in the player's language
 let schemeIdx=0;
 function useScheme(i){schemeIdx=SCHEMES[i]?i:0;for(let t=0;t<2;t++)Object.assign(TEAM[t],SCHEMES[schemeIdx].t[t])}
 useScheme(0);
@@ -2501,9 +2507,9 @@ function onGoal(v){
   if(sc&&sc===me&&mode!=='attract'&&window.BackRoomStats){BackRoomStats.add('goals',1);BackRoomStats.max('mgoals',me.stats.g)}
   if(as&&!as.remote)as.stats.a++;
   const name=sc?sc.name:'';
-  const sub=(v.bz?'At the buzzer · ':'')+(v.sc?(name||'Someone')+(v.as&&as?' · assist '+as.name:'')+' · '+(v.gs|0)+' km/h':'Own goal');
+  const sub=(v.bz?T('At the buzzer')+' · ':'')+(v.sc?(name||T('Someone'))+(v.as&&as?' · '+T('assist {n}',{n:as.name}):'')+' · '+(v.gs|0)+' km/h':T('Own goal'));
   banner('GOAL!',sub,3,t);
-  addFeed((v.sc?(name||'Someone')+' scored':'Own goal')+' for '+TEAM[t].name,'t'+t);
+  addFeed(v.sc?T('{n} scored for {t}',{n:name||T('Someone'),t:TN(t)}):T('Own goal for {t}',{t:TN(t)}),'t'+t);
 }
 function endMatch(){
   state='end';endShown=true;$('hud').hidden=true;$('board').hidden=true;$('pause').hidden=true;paused=false;
@@ -2511,9 +2517,9 @@ function endMatch(){
   if((mode==='online'||mode==='practice')&&me&&win===mine&&window.BackRoomStats)BackRoomStats.add('wins',1);
   // ranked rating (../elo.js): online matches only; opp is everyone on the other team
   if(mode==='online'&&me&&window.BackRoomElo){try{const s=win===mine?1:0;BackRoomElo.report({id:Net.room+':'+R.id,won:!!s,opp:cars.filter(c=>c!==me&&c.team!==mine&&c.active!==false).map(c=>c.isBot?{bot:1,s}:{u:c.id,s})})}catch(e){}}
-  $('endTitle').textContent=mode==='online'||mode==='practice'?(win===mine?'Victory!':'Defeat'):TEAM[win].name+' wins';
+  $('endTitle').textContent=mode==='online'||mode==='practice'?(win===mine?'Victory!':'Defeat'):T('{t} wins',{t:TN(win)});
   $('endTitle').style.color=TEAM[win].lite;
-  $('endSub').textContent=TEAM[0].name+' '+R.sb+' – '+R.so+' '+TEAM[1].name+(R.rem<=0&&R.g>0&&!R.bz?' · won in overtime':'');
+  $('endSub').textContent=TN(0)+' '+R.sb+' – '+R.so+' '+TN(1)+(R.rem<=0&&R.g>0&&!R.bz?' · '+T('won in overtime'):'');
   renderTeams($('endTeams'),true);
   $('again').hidden=false;$('again').disabled=false;
   $('endMsg').textContent=mode==='online'&&Net.isPublic?'The next match starts in a few seconds.':'';
@@ -3087,7 +3093,7 @@ function updateHud(dt,now){
       if(rem<=0&&R.sb===R.so){setT('clock','+'+fmtClock(-rem));ck.classList.add('ot')}else{setT('clock',fmtClock(rem));ck.classList.remove('ot')}
       // 0:00 with the ball still in the air: say so under the clock until it lands
       const bip=ballInPlay(now);
-      if(bip!==hudCache.bip){hudCache.bip=bip;$('tnames').classList.toggle('bip',bip);$('tnames').textContent=bip?'0:00 · ball in play':TEAM[0].name+' · '+TEAM[1].name}
+      if(bip!==hudCache.bip){hudCache.bip=bip;$('tnames').classList.toggle('bip',bip);$('tnames').textContent=bip?T('0:00 · ball in play'):TN(0)+' · '+TN(1)}
     }
   }
   if(me){
@@ -3141,7 +3147,7 @@ function renderTeams(el,end){
   const esc=s=>String(s).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
   el.innerHTML=[0,1].map(t=>{
     const rows=statsRows(t);
-    return '<table class="tbl t'+t+'"><caption>'+TEAM[t].name+(R?' · '+(t?R.so:R.sb):'')+'</caption><tr><th>Player</th><th>Score</th><th>Goals</th><th>Assists</th><th>Saves</th><th>Shots</th><th>Touches</th></tr>'+
+    return '<table class="tbl t'+t+'"><caption>'+TN(t)+(R?' · '+(t?R.so:R.sb):'')+'</caption><tr><th>Player</th><th>Score</th><th>Goals</th><th>Assists</th><th>Saves</th><th>Shots</th><th>Touches</th></tr>'+
       (rows.length?rows.map(r=>'<tr class="'+(r.c===me?'me':'')+'"><td>'+esc(r.c.name)+(r.c.isBot?'<span class="bot">BOT</span>':'')+(r.c===mvp?'<span class="mvp">MVP</span>':'')+'</td><td>'+r.p+'</td><td>'+r.c.stats.g+'</td><td>'+r.c.stats.a+'</td><td>'+r.c.stats.sv+'</td><td>'+r.c.stats.sh+'</td><td>'+(r.c.stats.t|0)+'</td></tr>').join(''):'<tr><td colspan="7">No one yet</td></tr>')+'</table>';
   }).join('');
 }
@@ -3399,7 +3405,7 @@ function onRemoteState(uid,v){
   if(!c){
     if(cars.filter(x=>x.remote&&!x.isBot).length>=MAX_ROOM-1)return;
     c=remoteCar(uid,{name:cleanName(v.n)||'Player',team,body:bodyId(v.bd),accent:clamp(v.ac|0,0,ACCENTS.length-1)});
-    if(state==='playing')addFeed(c.name+' joined '+TEAM[team].name,'t'+team);
+    if(state==='playing')addFeed(T('{n} joined {t}',{n:c.name,t:TN(team)}),'t'+team);
   }
   c.name=cleanName(v.n)||c.name;c.team=team;c.body=bodyId(v.bd);c.accent=clamp(v.ac|0,0,ACCENTS.length-1);
   c.kit=kitOf(v.kt);if(c.kit)kitLoad();
@@ -3441,7 +3447,7 @@ function remoteDemo(c,dm){
 }
 function onRemoteLeft(uid){
   remoteSeen.delete(uid);
-  const c=carById(uid);if(c){if(state==='playing')addFeed(c.name+' left');removeCar(c)}
+  const c=carById(uid);if(c){if(state==='playing')addFeed(T('{n} left',{n:c.name}));removeCar(c)}
   if(owner===uid)owner=Net.hostUid();
 }
 function handleEvent(ev){
@@ -3548,7 +3554,7 @@ function startLocal(m){
   }
   applyRound(newRoundObj(null,nowMs(),m==='free'?1:teamSize,1));
   if(m==='free'){R.ko=nowMs();setupKickoff();placeCar(me,0,-60,0);me.boost=100}
-  showHud();$('tnames').textContent=m==='free'?'Free play':TEAM[0].name+' · '+TEAM[1].name;
+  showHud();$('tnames').textContent=m==='free'?'Free play':TN(0)+' · '+TN(1);
   $('scorebar').hidden=false;$('waitNote').hidden=true;
   document.body.classList.toggle('free',m==='free');
   const tch=touchIn.active;
@@ -3569,8 +3575,8 @@ function prepOnline(){
   touches=[];lastTouchBt=0;owner='';goalPending=false;
 }
 function enterOnline(){
-  state='playing';showHud();$('scorebar').hidden=false;$('tnames').textContent=TEAM[0].name+' · '+TEAM[1].name;
-  setHint('You\'re on <b style="color:'+TEAM[me.team].lite+'">'+TEAM[me.team].name+'</b>'+(Net.isPublic?' in a public lobby':' in room '+Net.room.replace(/^bb-/,''))+' · <b>Esc</b> to invite or switch team',6);
+  state='playing';showHud();$('scorebar').hidden=false;$('tnames').textContent=TN(0)+' · '+TN(1);
+  setHint('You\'re on <b style="color:'+TEAM[me.team].lite+'">'+TN(me.team)+'</b>'+(Net.isPublic?' in a public lobby':' in room '+Net.room.replace(/^bb-/,''))+' · <b>Esc</b> to invite or switch team',6);
 }
 async function joinPrivate(){
   const code=sanitizeRoom($('room').value)||randomRoom();$('room').value=code;store.set('room',code);
@@ -3603,11 +3609,11 @@ function showPause(){
   paused=true;$('pause').hidden=false;
   for(const k in keys)keys[k]=false;
   const on=mode==='online';
-  $('pauseSub').textContent=on?(Net.isPublic?'Public lobby · the match keeps going':'Room '+Net.room.replace(/^bb-/,'')+' · the match keeps going'):mode==='free'?'Free play':'Practice vs '+DIFF[practiceDiff].name+' bots · '+teamSize+'v'+teamSize;
+  $('pauseSub').textContent=on?(Net.isPublic?'Public lobby · the match keeps going':'Room '+Net.room.replace(/^bb-/,'')+' · the match keeps going'):mode==='free'?'Free play':T('Practice vs {d} bots · {n}v{n}',{d:T(DIFF[practiceDiff].name),n:teamSize});
   $('copyInvite').hidden=!on||Net.isPublic;
   const other=me?1-me.team:1;
   $('switchTeam').hidden=!on||!R||cars.filter(c=>c.team===other&&!c.isBot).length>=R.sz;
-  $('switchTeam').textContent='Join '+TEAM[other].name;
+  $('switchTeam').textContent=T('Join {t}',{t:TN(other)});
   $('inviteMsg').textContent='';
 }
 function resumeGame(){
@@ -3620,7 +3626,7 @@ function switchTeam(){
   if(!me||!online)return;
   me.team=1-me.team;me.placed=false;attachCarMesh(me);
   respawnCar(me);resumeGame();
-  addFeed('You joined '+TEAM[me.team].name,'t'+me.team);
+  addFeed(T('You joined {t}',{t:TN(me.team)}),'t'+me.team);
 }
 $('quick').onclick=quickMatch;$('joinRoom').onclick=joinPrivate;
 $('practice').onclick=()=>startLocal('practice');$('freeplay').onclick=()=>startLocal('free');
