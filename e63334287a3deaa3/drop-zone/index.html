@@ -6195,7 +6195,8 @@ function tagEl(i){while(tagEls.length<=i){const d=document.createElement('div');
 function slotIcon(el,k){if(el._ik===k)return;el._ik=k;el.querySelector('.ic').style.backgroundImage=k&&ICONS[k]?'url('+ICONS[k]+')':'none'}
 function slotLabel(s){if(!s)return[touchUI?'–':T('Empty'),''];const d=WEAP[s.t]||HEALS[s.t];return[T(WEAP[s.t]?d.name:touchUI?d.short:d.name.replace('Shield ','Sh. ')),WEAP[s.t]?s.n+'':'×'+s.n]}
 // a weapon's whole name if it fits its slot, else just its type (so the slot always says what kind of gun it is)
-function fitSlotName(el,it){if(it&&WEAP[it.t]&&el.scrollWidth>el.clientWidth+.5)el.textContent=T(WEAP[it.t].short)}
+function fitSlotName(el,it){if(it&&WEAP[it.t]&&el.scrollWidth>el.clientWidth+.5){const sh=WEAP[it.t].short;el.textContent=T(sh);
+  if(el.scrollWidth>el.clientWidth+.5){const k=sh+' (tight)',v=T(k);if(v!==k)el.textContent=v}}}   // (a language whose word for the type is longer has a shorter one for the narrowest slots)
 addEventListener('resize',()=>{lastHud=''});   // the slots change size with the screen: fit the names again
 let tagClock=0;const _tag=new V3(),_tagD=new V3();
 // The line of help while editing: the shape so far, then what to do next. The first time (until your first edit is
@@ -6300,7 +6301,7 @@ function updateHud(dt){
     if(check&&!mate){const d=_tagD.copy(top).sub(camera.position);const L=d.length();d.divideScalar(L);e.tagVis=!raycast(arr(camera.position),arr(d),L-.4,null,false).hit}
     if(!e.tagVis&&!mate)continue;
     const el=tagEl(ti++);el.hidden=false;const lab=(e.dn?'<em>'+T('DOWN')+'</em>':'')+(e.dummy?'':e.bot?'<em>BOT</em>':''),tc=SQ?(mate?0:null):teams?teamOf(e.id):null;
-    if(el.dzN!==e.name||el.dzB!==lab||el.dzT!==tc){el.dzN=e.name;el.dzB=lab;el.dzT=tc;el.innerHTML=esc(e.name)+lab;el.style.color=tc==null?'':tc?'#ffb27a':'#8fd8ff'}   // (Box Fights: the team's colour; Duos and Trios: your team in blue)
+    if(el.dzN!==e.name||el.dzB!==lab||el.dzT!==tc){el.dzN=e.name;el.dzB=lab;el.dzT=tc;el.innerHTML=esc(e.dummy?T(e.name):e.name)+lab;el.style.color=tc==null?'':tc?'#ffb27a':'#8fd8ff'}   // (Box Fights: the team's colour; Duos and Trios: your team in blue)
     const tx=Math.round(sc.x),ty=Math.round(sc.y);if(el.dzX!==tx||el.dzY!==ty){el.dzX=tx;el.dzY=ty;el.style.transform=`translate(${tx}px,${ty}px) translate(-50%,-100%)`}
   }
   for(let i=ti;i<tagEls.length;i++)tagEls[i].hidden=true;

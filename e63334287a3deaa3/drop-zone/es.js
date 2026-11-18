@@ -166,7 +166,7 @@
   W.forEach(function (w) { d[w[0]] = w[1]; R.forEach(function (r) { d[r[0] + ' ' + w[0]] = w[1] + ' ' + r[w[2] ? 2 : 1]; }); });
   ['Common', 'Común', 'Uncommon', 'Poco común', 'Rare', 'Raro', 'Epic', 'Épico', 'Legendary', 'Legendario'].forEach(function (x, i, a) { if (i % 2 === 0) d[x] = a[i + 1]; });
   var more = {
-    'Shotgun': 'Escopeta', 'Sniper': 'Sniper', 'Crowbar': 'Palanca', 'Bar': 'Barra',
+    'Shotgun': 'Escopeta', 'Shotgun (tight)': 'Escop.', 'SMG (tight)': 'Subfus.', 'Sniper': 'Sniper', 'Crowbar': 'Palanca', 'Bar': 'Barra',
     'Bandage': 'Venda', 'Band.': 'Venda', 'Medkit': 'Botiquín', 'Shield Fizz': 'Gaseosa escudo', 'Fizz': 'Gaseosa', 'Sh. Fizz': 'Gaseosa',
     'Shield Jug': 'Bidón escudo', 'Jug': 'Bidón', 'Sh. Jug': 'Bidón',
     'Light ammo': 'Munición liviana', 'Rifle ammo': 'Munición de rifle', 'Shells': 'Cartuchos', 'Heavy ammo': 'Munición pesada',
@@ -180,8 +180,8 @@
     'Pick what you wear. Every outfit is the same size and just as easy to hit as the standard one.': 'Elige qué te pones. Todos los trajes tienen el mismo tamaño y son igual de fáciles de acertar que el estándar.',
     'Turkey Week: everyone wears the pilgrim hat until {d}. Each outfit’s own headwear comes back after.': 'Semana del Pavo: todos llevan el sombrero de peregrino hasta el {d}. Después vuelve el gorro de cada traje.',
     'Backpacks': 'Mochilas', 'Emotes': 'Gestos', 'Victory': 'Victoria', 'Gliders': 'Planeadores', 'Trails': 'Estelas', 'Gun skins': 'Pinturas', 'Locker sections': 'Secciones del casillero',
-    'BACK': 'MOCHI', 'PACKS': 'LAS', 'EMO': 'GES', 'TES': 'TOS', 'VIC': 'VIC', 'TORY': 'TORIA', 'GLI': 'PLANEA', 'DERS': 'DORES', 'TRA': 'ESTE', 'ILS': 'LAS',
-    'GUN': 'PIN', 'SKINS': 'TURAS', 'BUI': 'PIE', 'LDS': 'ZAS',
+    'BACK': 'MOCHI', 'PACKS': 'LAS', 'EMO': 'GES', 'TES': 'TOS', 'VIC': 'VIC', 'TORY': 'TORIA', 'GLI': 'VUE', 'DERS': 'LO', 'TRA': 'ESTE', 'ILS': 'LAS',
+    'GUN': 'TUS', 'SKINS': 'ARMAS', 'BUI': 'PIE', 'LDS': 'ZAS',
     'Pick how you glide down. Every glider is held its own way, but you are the same size and fall at the same speed.': 'Elige cómo bajas planeando. Cada planeador se sostiene a su manera, pero tienes el mismo tamaño y caes a la misma velocidad.',
     'A trail follows you while you skydive and glide. It never hides anyone: it fades out close to the camera.': 'Una estela te sigue mientras caes y planeas. Nunca tapa a nadie: se desvanece cerca de la cámara.',
     'Pick the emote to play in a match: T on a keyboard, the Emote button on a touch screen. Standing still only; moving stops it.': 'Elige el gesto para hacer en una partida: T en el teclado o el botón Gesto en una pantalla táctil. Solo quieto; si te mueves, se corta.',
