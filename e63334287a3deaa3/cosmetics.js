@@ -231,7 +231,8 @@
   // One GAMES entry per game: its name, the prefix of its ids, and its slots in the order the shop lists them.
   var GAMES = {
     boostball: { name: 'Boostball', prefix: 'bb', slots: [['decal', 'Decals'], ['trail', 'Boost trails'], ['goal', 'Goal explosions'], ['topper', 'Antenna toppers'], ['hat', 'Roof hats'], ['wheels', 'Wheels'], ['engine', 'Engine sounds']] },
-    slipstream: { name: 'Slipstream', prefix: 'ss', slots: [['sponsor', 'Sponsors'], ['livery', 'Liveries'], ['helmet', 'Helmets'], ['effect', 'Boost effects'], ['smoke', 'Tyre smoke'], ['podium', 'Podium celebrations']] }
+    slipstream: { name: 'Slipstream', prefix: 'ss', slots: [['sponsor', 'Sponsors'], ['livery', 'Liveries'], ['helmet', 'Helmets'], ['effect', 'Boost effects'], ['smoke', 'Tyre smoke'], ['podium', 'Podium celebrations']] },
+    'shell-crackers': { name: 'Shell Crackers', prefix: 'sc', slots: [['egg', 'Egg types'], ['hat', 'Hats'], ['gun', 'Gun skins'], ['crack', 'Crack effects']] },
   };
   var ITEM_PRICE = { common: 6, rare: 10, epic: 16, legendary: 40 };
   var GAME_ITEMS = [], ITEM_BY_ID = {};
@@ -409,6 +410,53 @@
   I('slipstream', 'smoke', 5, 'Gold tyre smoke', 'common', '#FFCC47', '#FFF0B0', 'Gold smoke from the tyres.');
   I('slipstream', 'podium', 1, 'Confetti Podium', 'common', '#FF4FA3', '#3FD2FF', 'Confetti over the results when you finish in the top three.');
   I('slipstream', 'podium', 2, 'Fireworks Podium', 'rare', '#FFD21F', '#B06BFF', 'Fireworks over the results when you finish in the top three.');
+  // ---- Shell Crackers items ----
+  // Looks only (shell-crackers/kit.js draws them by number): every egg type is the same size and the same hit box as a
+  // plain egg, and a hat or a gun skin never changes what can be hit or how a gun shoots. Crack effects play where an
+  // egg was cracked by whoever wears one.
+  I('shell-crackers', 'egg', 1, 'White Egg', 'common', '#FBF8F0', '#E2DACB', 'Plain, clean and ready for anything.');
+  I('shell-crackers', 'egg', 2, 'Brown Egg', 'common', '#C07E4E', '#8A5232', 'Farmhouse brown with a few freckles.');
+  I('shell-crackers', 'egg', 3, 'Speckled Quail', 'common', '#EADCC0', '#4A3A2C', 'A small bird with very big spots.');
+  I('shell-crackers', 'egg', 4, 'Robin Blue', 'common', '#8ED2D6', '#5FB5BC', 'The blue of a spring morning.');
+  I('shell-crackers', 'egg', 5, 'Ostrich Egg', 'rare', '#F3E7C8', '#C9B48A', 'Ivory and pitted all over. The same size as everyone else, honest.');
+  I('shell-crackers', 'egg', 6, 'Emu Egg', 'rare', '#3E8A6E', '#2C6A54', 'Deep forest green with a pebbly shell.');
+  I('shell-crackers', 'egg', 7, 'Rotten Egg', 'rare', '#A3B85E', '#6B7D2E', 'Green, whiffy and followed by flies. Smells worse than it shoots.');
+  I('shell-crackers', 'egg', 8, 'Golden Egg', 'epic', '#FFD04A', '#FFF2B0', 'From a goose with very expensive taste.');
+  I('shell-crackers', 'egg', 9, 'Painted Easter Egg', 'rare', '#FF8AC0', '#6FD3FF', 'Zigzags, dots and bands in spring colours.');
+  I('shell-crackers', 'egg', 10, 'Chocolate Egg', 'epic', '#8E5A36', '#F2CF5B', 'Milk chocolate with the foil half peeled off.');
+  I('shell-crackers', 'egg', 11, 'Hard-Boiled', 'rare', '#FFFFFF', '#FFC93C', 'Half peeled, firm all the way through.');
+  I('shell-crackers', 'egg', 12, 'Century Egg', 'epic', '#C9A877', '#8A5A2A', 'A coat of clay and rice husks over an amber middle.');
+  I('shell-crackers', 'egg', 13, 'Dinosaur Egg', 'epic', '#D9C49A', '#7A5C3A', 'Big blotches from a very long time ago.');
+  I('shell-crackers', 'egg', 14, 'Dragon Egg', 'legendary', '#D8433A', '#FFB02E', 'Overlapping scales, warm to the touch.');
+  I('shell-crackers', 'egg', 15, 'Alien Egg', 'legendary', '#8BE08B', '#B46CFF', 'Glowing veins. It hums a little.');
+  I('shell-crackers', 'egg', 16, 'Jeweled Egg', 'legendary', '#3A6FE0', '#FFD04A', 'Gold bands set with gems.');
+  I('shell-crackers', 'egg', 17, 'Disco Ball', 'legendary', '#D8DEE8', '#FFFFFF', 'A thousand tiny mirrors.');
+  I('shell-crackers', 'egg', 18, 'Pixel Egg', 'epic', '#FFD04A', '#36B37E', 'Drawn in big square pixels.');
+  I('shell-crackers', 'egg', 19, 'Bandaged Egg', 'rare', '#FBF6EA', '#F2C49A', 'Cracked once, patched up, still fighting.');
+  I('shell-crackers', 'hat', 1, 'Eggcup Crown', 'epic', '#FFD04A', '#E2503F', 'A golden eggcup with points and jewels.');
+  I('shell-crackers', 'hat', 2, 'Frying Pan', 'common', '#3A3836', '#FFC93C', 'Worn at an angle, with breakfast still in it.');
+  I('shell-crackers', 'hat', 3, 'Nest', 'rare', '#9A6A3A', '#8FD3D0', 'Twigs, straw and three tiny eggs.');
+  I('shell-crackers', 'hat', 4, 'Chef Hat', 'common', '#FFFFFF', '#E6E1D6', 'Tall, white and puffy on top.');
+  I('shell-crackers', 'hat', 5, 'Bacon Headband', 'rare', '#D8564A', '#F6D2B8', 'A crispy strip tied round the middle.');
+  I('shell-crackers', 'hat', 6, 'Baby Chick', 'epic', '#FFD84A', '#F4A41C', 'A fluffy chick taking a ride.');
+  I('shell-crackers', 'hat', 7, 'Sunny-Side-Up Beret', 'rare', '#FFFFFF', '#FFC93C', 'A floppy beret with the yolk on top.');
+  I('shell-crackers', 'gun', 1, 'Cast Iron', 'common', '#3C3A38', '#6A6560', 'Heavy-looking, like a good old skillet.');
+  I('shell-crackers', 'gun', 2, 'Gold Plated', 'epic', '#FFD04A', '#B8860B', 'Shiny gold from muzzle to stock.');
+  I('shell-crackers', 'gun', 3, 'Egg Carton', 'common', '#CDBFA6', '#A89A82', 'Moulded cardboard, cups and all.');
+  I('shell-crackers', 'gun', 4, 'Yolk Drip', 'rare', '#FFF6E2', '#FFC93C', 'Shell white with runny yolk dripping off.');
+  I('shell-crackers', 'gun', 5, 'Bacon Wrap', 'rare', '#D8564A', '#F6D2B8', 'Strips of bacon wrapped round the body.');
+  I('shell-crackers', 'gun', 6, 'Ketchup and Mustard', 'common', '#D62C2C', '#FFD23F', 'Red and yellow, with a squiggle down each side.');
+  I('shell-crackers', 'gun', 7, 'Hot Sauce', 'rare', '#C2261C', '#FF9A2E', 'Deep red with flames up the sides.');
+  I('shell-crackers', 'gun', 8, 'Toaster Chrome', 'epic', '#DCE3EA', '#5A6068', 'Polished like a kitchen toaster, slots and lever included.');
+  I('shell-crackers', 'gun', 9, 'Candy Stripe', 'common', '#FFFFFF', '#E2343F', 'Red and white stripes all the way round.');
+  I('shell-crackers', 'gun', 10, 'Whisk Barrel', 'rare', '#C9D1D9', '#8A939C', 'Wire loops round the barrel, ready to beat.');
+  I('shell-crackers', 'gun', 11, 'Wooden Spoon Stock', 'rare', '#D9B07A', '#9A6A3A', 'A pale wooden stock that ends in a spoon.');
+  I('shell-crackers', 'gun', 12, 'Rubber Chicken', 'legendary', '#FFD23F', '#E2343F', 'Squeaky yellow, with a head, feet and a tail.');
+  I('shell-crackers', 'crack', 1, 'Fried Egg', 'common', '#FFFFFF', '#FFC93C', 'The cracked egg flips over and lands sunny side up.');
+  I('shell-crackers', 'crack', 2, 'Scrambled', 'rare', '#FFD84A', '#FFF3C4', 'A quick whirl of fluffy scrambled egg.');
+  I('shell-crackers', 'crack', 3, 'Chick Hatches', 'epic', '#FFD84A', '#F4A41C', 'A chick hops out and runs off.');
+  I('shell-crackers', 'crack', 4, 'Shell Confetti', 'rare', '#FF5C8A', '#58B4FF', 'The shell bursts into bright confetti.');
+  I('shell-crackers', 'crack', 5, 'Stink Puff', 'common', '#A3B85E', '#5A6B2A', 'A green whiff and two very happy flies.');
   // Items a game hands over itself are in no pack: give is 'free' (anyone may wear it; the game grants it the first time it
   // is worn) or 'earned' (the game grants it when it is won). grant(id), below, only adds these.
   GAME_ITEMS.forEach(function (it) { if (it.game !== 'slipstream') return; if (it.slot === 'sponsor' || (it.slot === 'helmet' && it.no <= 8)) it.give = 'free'; else if (it.slot === 'livery' && it.no > 8) it.give = 'earned'; });
