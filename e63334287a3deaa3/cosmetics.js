@@ -231,7 +231,8 @@
   // One GAMES entry per game: its name, the prefix of its ids, and its slots in the order the shop lists them.
   var GAMES = {
     boostball: { name: 'Boostball', prefix: 'bb', slots: [['decal', 'Decals'], ['trail', 'Boost trails'], ['goal', 'Goal explosions'], ['topper', 'Antenna toppers'], ['hat', 'Roof hats'], ['wheels', 'Wheels'], ['engine', 'Engine sounds']] },
-    slipstream: { name: 'Slipstream', prefix: 'ss', slots: [['sponsor', 'Sponsors'], ['livery', 'Liveries'], ['helmet', 'Helmets'], ['effect', 'Boost effects'], ['smoke', 'Tyre smoke'], ['podium', 'Podium celebrations']] }
+    slipstream: { name: 'Slipstream', prefix: 'ss', slots: [['sponsor', 'Sponsors'], ['livery', 'Liveries'], ['helmet', 'Helmets'], ['effect', 'Boost effects'], ['smoke', 'Tyre smoke'], ['podium', 'Podium celebrations']] },
+    updraft: { name: 'Updraft', prefix: 'up', slots: [['skin', 'Skins'], ['pack', 'Backpacks'], ['reward', 'Height rewards'], ['scream', 'Fall screams'], ['trail', 'Plummet trails']] },
   };
   var ITEM_PRICE = { common: 6, rare: 10, epic: 16, legendary: 40 };
   var GAME_ITEMS = [], ITEM_BY_ID = {};
@@ -409,6 +410,51 @@
   I('slipstream', 'smoke', 5, 'Gold tyre smoke', 'common', '#FFCC47', '#FFF0B0', 'Gold smoke from the tyres.');
   I('slipstream', 'podium', 1, 'Confetti Podium', 'common', '#FF4FA3', '#3FD2FF', 'Confetti over the results when you finish in the top three.');
   I('slipstream', 'podium', 2, 'Fireworks Podium', 'rare', '#FFD21F', '#B06BFF', 'Fireworks over the results when you finish in the top three.');
+  // ---- Updraft items ----
+  // Drawn by updraft/gear.js (by slot and number; 0 there is the climber as before). Captains only for now and nothing is
+  // sold: the game's Gear screen lets them wear everything, except the height rewards, which carry give 'earned' and come
+  // from the player's own best height (1,000 m, 2,200 m where Orbit Yard and space start, and 3,000 m, the Crown).
+  I('updraft', 'skin', 1, 'Jungle Explorer', 'common', '#6B4428', '#C8B48A', 'Fedora, leather jacket and a satchel for the long way up.');
+  I('updraft', 'skin', 2, 'Mountaineer', 'common', '#E0402F', '#2A7FD1', 'A puffy jacket, a bobble hat, goggles and a coil of rope.');
+  I('updraft', 'skin', 3, 'Arctic Explorer', 'common', '#2F7FB8', '#F3EFE6', 'A parka with a fur-trimmed hood and big mittens.');
+  I('updraft', 'skin', 4, 'Safari Guide', 'common', '#C9B07A', '#EFE6CC', 'Pith helmet, khaki pockets, binoculars and knee socks.');
+  I('updraft', 'skin', 5, 'Deep-Sea Diver', 'rare', '#C9923A', '#2D4A5E', 'A brass helmet with portholes and lead boots. Not waterproof up here.');
+  I('updraft', 'skin', 6, 'Aviator', 'rare', '#7A4A2A', '#F6F2EA', 'Leather flying cap, goggles and a long white scarf.');
+  I('updraft', 'skin', 7, 'Cave Explorer', 'common', '#E8742A', '#F4C430', 'A hard hat with a headlamp, orange overalls and a harness.');
+  I('updraft', 'skin', 8, 'Treasure Hunter', 'rare', '#C8302E', '#EFE0B0', 'A red bandana, a vest and a map with an X on it.');
+  I('updraft', 'skin', 9, 'Dusty Archaeologist', 'common', '#E2D3B0', '#7A6A4E', 'Bucket hat, round glasses, a tool belt and a brush for the dust.');
+  I('updraft', 'skin', 10, 'Storm Chaser', 'rare', '#F2C81F', '#2A7A3A', 'A yellow slicker with the hood up, wellies and a wind gauge.');
+  I('updraft', 'skin', 11, 'Balloonist', 'rare', '#E8452F', '#FFD23F', 'A striped jacket, sandbags and a very small balloon for a hat.');
+  I('updraft', 'skin', 12, 'Old-Timey Explorer', 'epic', '#8A6A4A', '#E0B040', 'Bowler hat, monocle, moustache and a walking cane.');
+  I('updraft', 'skin', 13, 'Pirate', 'epic', '#A8232A', '#1D1F24', 'A three-cornered hat, an eye patch, a red coat and a spyglass.');
+  I('updraft', 'skin', 14, 'Park Ranger', 'common', '#9AA47A', '#A07A4A', 'A ranger hat with a pinched top, a badge and a radio.');
+  I('updraft', 'skin', 15, 'Astronaut', 'epic', '#F2F2EE', '#D8A62E', 'A white suit, a gold visor and a life support pack.');
+  I('updraft', 'skin', 16, 'Tourist', 'rare', '#2FB8A8', '#FFD23F', 'Flowery shirt, a camera, sunglasses, and socks with sandals.');
+  I('updraft', 'skin', 17, 'Pizza Delivery', 'rare', '#D8302A', '#FFCF5A', 'A red cap and an insulated pizza bag. Thirty minutes or less.');
+  I('updraft', 'skin', 18, 'Window Washer', 'rare', '#2F6FB8', '#F2C81F', 'Overalls, a harness, a squeegee and a bucket.');
+  I('updraft', 'skin', 19, 'Grandma', 'epic', '#A98BD6', '#C8CCD2', 'A bun, pearls, a cardigan, and her trusty walker.');
+  I('updraft', 'skin', 20, 'Knight', 'epic', '#C8CCD4', '#2A55C8', 'A great helm with a plume, armour and a blue tabard.');
+  I('updraft', 'skin', 21, 'Ninja', 'rare', '#2C2F45', '#E0342F', 'A dark suit, a red headband and a red sash.');
+  I('updraft', 'skin', 22, 'Chicken Suit', 'legendary', '#F6F2E6', '#E0342F', 'The whole chicken: comb, beak, wings and orange feet.');
+  I('updraft', 'pack', 1, 'Parachute Pack', 'common', '#5A6A3A', '#E8452F', 'A parachute pack with a harness and a red ripcord. Purely for show.');
+  I('updraft', 'pack', 2, 'Teddy Bear', 'rare', '#A8743A', '#E0B888', 'A teddy bear hanging on for the climb.');
+  I('updraft', 'pack', 3, 'Picnic Basket', 'common', '#C8995A', '#E8452F', 'A wicker picnic basket with a checked cloth peeking out.');
+  I('updraft', 'pack', 4, 'Giant Sandwich', 'rare', '#D89A4A', '#5AB83A', 'Bread, lettuce, tomato, cheese, ham, and a pick with an olive.');
+  I('updraft', 'pack', 5, 'Fake Jetpack', 'epic', '#C8CCD4', '#FF9A2A', 'Two cans and painted cardboard flames. It does not fly.');
+  I('updraft', 'pack', 6, 'Rolled-Up Tent', 'common', '#3A8A4A', '#8A6A3A', 'A rolled-up tent, its poles and a bag.');
+  I('updraft', 'reward', 1, '1,000 m Badge', 'rare', '#E8B830', '#2F7FD6', 'A gold medal for reaching the old summit, 1,000 m up.');
+  I('updraft', 'reward', 2, 'Space Helmet', 'epic', '#CFEAFF', '#FF5A5A', 'A glass bubble helmet for reaching Orbit Yard at 2,200 m, where space starts.');
+  I('updraft', 'reward', 3, 'Golden Crown', 'legendary', '#F2C443', '#FF4D6A', 'A golden crown for finishing the climb: the Crown at 3,000 m.');
+  I('updraft', 'scream', 1, 'Aaaah!', 'common', '#FFB347', '#F4F6FB', 'A long, falling "Aaaah!" when you drop a long way.');
+  I('updraft', 'scream', 2, 'Yodel', 'rare', '#5BE0A8', '#F4F6FB', 'Yo-de-lay-ee-oo, all the way down.');
+  I('updraft', 'scream', 3, 'Slide Whistle', 'common', '#5EC2FF', '#F4F6FB', 'A cartoon slide whistle, high to low.');
+  I('updraft', 'scream', 4, 'Opera Note', 'epic', '#A98BFF', '#F4F6FB', 'One grand, wobbling high note.');
+  I('updraft', 'scream', 5, 'Wheee!', 'common', '#FF5D8F', '#F4F6FB', 'A happy "Wheee!" that rises as you drop.');
+  I('updraft', 'trail', 1, 'Rainbow Streamer', 'rare', '#FF4D4D', '#4DB8FF', 'Every colour, streaming out above you as you plummet.');
+  I('updraft', 'trail', 2, 'Comet Tail', 'rare', '#FFFFFF', '#3A4AFF', 'A white-hot tail that cools to blue.');
+  I('updraft', 'trail', 3, 'Smoke Trail', 'common', '#F2F2F2', '#9AA0A8', 'A puffy grey smoke trail that spreads out.');
+  I('updraft', 'trail', 4, 'Gold Sparkles', 'epic', '#FFD23F', '#FFF8D0', 'A ribbon of twinkling gold.');
+  GAME_ITEMS.forEach(function (it) { if (it.game === 'updraft' && it.slot === 'reward') it.give = 'earned'; });
   // Items a game hands over itself are in no pack: give is 'free' (anyone may wear it; the game grants it the first time it
   // is worn) or 'earned' (the game grants it when it is won). grant(id), below, only adds these.
   GAME_ITEMS.forEach(function (it) { if (it.game !== 'slipstream') return; if (it.slot === 'sponsor' || (it.slot === 'helmet' && it.no <= 8)) it.give = 'free'; else if (it.slot === 'livery' && it.no > 8) it.give = 'earned'; });
