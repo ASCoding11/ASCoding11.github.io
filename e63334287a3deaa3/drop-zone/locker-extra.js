@@ -103,6 +103,9 @@ function sheet(B,nu,nv,f,col,back,out){
       for(const x of [k[0],k[2],k[1]]){const p=P[x],n=N[x];vert(B,p.x-n.x*.006,p.y-n.y*.006,p.z-n.z*.006,-n.x,-n.y,-n.z,bh)}
     }}
 }
+// turns everything added since `st` about the upright through the origin
+function rotY(B,st,a){const c=Math.cos(a),s=Math.sin(a);for(let i=st;i<B.p.length;i+=3){for(const A of [B.p,B.n]){const x=A[i],z=A[i+2];A[i]=c*x+s*z;A[i+2]=-s*x+c*z}}}
+const SURF=1.35;   // the surf stance: the body turned this far, the board turned back the other way so it still points ahead
 function kitGeo(B){const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(B.p,3));g.setAttribute('normal',new THREE.Float32BufferAttribute(B.n,3));
   g.setAttribute('color',new THREE.Float32BufferAttribute(B.c,3));g.setAttribute('gan',new THREE.Float32BufferAttribute(B.a,3));g.computeBoundingSphere();g.computeBoundingBox();return g}
 
@@ -212,27 +215,41 @@ const GLIDERS=[null,
   B=>{board(B,16,16,(u,v)=>[(u-.5)*2.3,(v-.5)*2.3,.08*Math.pow(Math.max(Math.abs(u-.5),Math.abs(v-.5))*2,3)],(u,v,i,j)=>{const k=(i>>1&1)+(j>>1&1);return k===0?WH:k===1?0xf09090:0xd93b3b},(u,v,i,j)=>((i>>1&1)+(j>>1&1))===2?0xb83030:0xe0d8d0,.02,.06);
     put(B,PR.box,.62,FEET+.13,.55,.46,.24,.32,0xb07a3c);put(B,PR.box,.62,FEET+.26,.55,.5,.03,.36,0x8a5a2a);bar(B,.44,FEET+.26,.55,.62,FEET+.44,.55,.02,0x8a5a2a);bar(B,.8,FEET+.26,.55,.62,FEET+.44,.55,.02,0x8a5a2a);
     put(B,PR.slo,-.6,FEET+.06,.6,.16,.12,.16,0xe8453c);put(B,PR.cyl8,-.66,FEET+.06,-.6,.12,.12,.12,0xf2f2f2)},
-  // 14 Surfboard: a long white board with a teal stripe and an orange nose band; you ride it crouched, arms out
-  B=>{const hw=v=>.52*Math.pow(Math.max(0,Math.sin(Math.PI*Math.min(1,v*1.05+.02))),.7);
-    board(B,6,18,(u,v)=>[(u-.5)*2*hw(v),(v-.5)*2.9,.16*Math.pow(1-v,2)],(u,v)=>Math.abs(u-.5)<.09?0x1aa7a0:v<.16&&v>.1?0xff8a3d:WH,()=>0xe4ecec,.07);
-    tri2(B,v3(0,FEET-.07,.9),v3(0,FEET-.3,1.08),v3(0,FEET-.07,1.2),0x1aa7a0)},
+  // 14 Surfboard: a real board (pointed nose with rocker, squared tail with a kick, rails, a teal stripe, an orange nose band,
+  // three fins); you ride it in a surf stance, turned side on, feet along the board, knees bent, arms out
+  B=>{const st=B.p.length,L=3.0,hw=v=>v<.5?.5*Math.pow(Math.sin(v/.5*Math.PI/2),.75):.5-.13*Math.pow((v-.5)/.5,2),
+      rk=v=>(v<.3?.34*Math.pow(1-v/.3,2):0)+(v>.82?.07*Math.pow((v-.82)/.18,2):0),P=(u,v,dy)=>[(u-.5)*2*hw(v),FEET-.02+rk(v)+dy,(v-.53)*L];
+    const top=(u,v,i,j)=>Math.abs(u-.5)<.07?0x1aa7a0:(j===2||j===3)?0xff8a3d:Math.abs(u-.5)<.12?0xd6f2ef:WH;
+    sheet(B,8,24,(u,v)=>P(u,v,0),top,()=>0xdfe8e8);sheet(B,8,24,(u,v)=>P(u,v,-.075),()=>0xe8eeee,()=>WH,()=>v3(0,-1,0));
+    for(const e of [0,1])sheet(B,1,24,(t,v)=>{const a=P(e,v,0),b=P(e,v,-.075);return [a[0],a[1]+(b[1]-a[1])*t,a[2]]},()=>0x1aa7a0,()=>0x1aa7a0,p=>v3(p.x,0,0));
+    tri2(B,v3(0,FEET-.09,1.0),v3(0,FEET-.36,1.2),v3(0,FEET-.09,1.32),0x1aa7a0);for(const s of [-1,1])tri2(B,v3(s*.26,FEET-.09,1.02),v3(s*.3,FEET-.24,1.18),v3(s*.28,FEET-.09,1.24),0x1aa7a0);
+    rotY(B,st,-SURF)},
   // 15 Pizza Slice: cheese, pepperoni and a crust; you crouch on it, the tip drooping forward
   B=>{const pep=[[-.35,.25],[.4,.4],[0,-.35],[-.15,.7],[.15,-.85],[.65,.82],[-.7,.8]];
     const P=(u,v)=>{const tip=v3(0,0,-1.5),L=v3(-1.2,0,1.0),R=v3(1.2,0,1.0);return tip.lerp(L.lerp(R,u),v)};
     board(B,10,14,(u,v)=>{const p=P(u,v);return [p.x,p.z,-.18*Math.pow(1-v,2)]},(u,v)=>{const p=P(u,v);for(const q of pep)if(Math.hypot(p.x-q[0],p.z-q[1])<.16)return 0xc0392b;return v>.9?0xd89a4a:0xffcf4d},()=>0xe8b363,.05);
     bar(B,-1.2,FEET+.02,1.05,1.2,FEET+.02,1.05,.11,0xc77a2e,PR.cyl8);for(const x of [-.55,.1,.7])put(B,PR.cone,x,FEET-.12,-.2+x*.2,.07,.14,.07,0xffcf4d,Math.PI)},
-  // 16 Broomstick: a witch-style broom you sit astride, both hands on the stick, straw bristles bound in red behind
-  B=>{const yb=HIP-.06,F=v3(0,yb+.22,-1.25),Rr=v3(0,yb-.04,.55);bar(B,F.x,F.y,F.z,Rr.x,Rr.y,Rr.z,.045,0x8a5a2e,PR.cyl8);put(B,PR.slo,F.x,F.y,F.z,.11,.11,.11,0x6e4424);
-    put(B,PR.cone,0,yb-.08,1.0,.6,.9,.6,0xd9b45a,-Math.PI/2+.05);put(B,PR.cyl8,0,yb-.04,.56,.18,.1,.18,0xc0392b,Math.PI/2);put(B,PR.cyl8,0,yb-.06,.76,.32,.06,.32,0xc0392b,Math.PI/2);
-    for(let k=0;k<5;k++)put(B,PR.box,(k-2)*.08,yb-.1-((k*7)%3)*.04,1.45,.03,.03,.25,0xc9a248,(k-2)*.1)},
+  // 16 Broomstick: a witch-style broom you sit astride, leaning forward with both hands on the stick: a grained stick with
+  // knots and a knob, a red band and twine binding, and a full brush of straw fanning out behind
+  B=>{const F=v3(0,-.76,-1.32),Rr=v3(0,-1.07,.6),N=12;
+    for(let k=0;k<N;k++){const a=F.clone().lerp(Rr,k/N),b=F.clone().lerp(Rr,(k+1)/N);bar(B,a.x,a.y,a.z,b.x,b.y,b.z,.045,k%2?0x8a5a2e:0x7c4f28,PR.cyl8)}
+    for(const t of [.2,.55,.8]){const p=F.clone().lerp(Rr,t);put(B,PR.slo,p.x+.04,p.y+.02,p.z,.05,.04,.06,0x5e3a1c)}
+    put(B,PR.slo,F.x,F.y+.02,F.z-.02,.13,.12,.13,0x6e4424);
+    const C=Rr.clone();bar(B,0,C.y,C.z-.04,0,C.y-.01,C.z+.16,.13,0xc0392b,PR.cyl8);for(const z of [-.06,.06,.18])bar(B,0,C.y-.005,C.z+z,0,C.y-.005,C.z+z+.02,.135,0x6b4a2a,PR.cyl8);
+    const r=rng(16),cols=[0xd9b45a,0xe6c46a,0xc9a248,0xebd27c];
+    for(let k=0;k<34;k++){const a=k/34*TAU+r()*.2,rr=k%2?.1:.05,ex=.2+r()*.16;bar(B,Math.cos(a)*rr,C.y+Math.sin(a)*rr*.8,C.z+.1,Math.cos(a)*ex,C.y-.06+Math.sin(a)*ex*.75,C.z+.85+r()*.2,.018,cols[k%4])}
+    bar(B,0,C.y-.03,C.z+.1,0,C.y-.07,C.z+.95,.12,0xd9b45a,PR.cyl8)},
   // 17 Giant Leaf: a big green leaf held up by its stalk like a parasol, paler veins, edges curling up
   B=>{bar(B,-.12,.12,-.05,.12,.12,-.05,.035,0x6a8a2a);bar(B,0,.12,-.05,0,1.0,.2,.04,0x6a8a2a);AN=(x,y,z)=>[4,.04*Math.abs(x),0];
     const hw=v=>1.15*Math.pow(Math.sin(Math.PI*v),.8);
     sheet(B,10,18,(u,v)=>{const x=(u-.5)*2*hw(v);return [x,1.1+.28*x*x/1.3-.15*Math.pow(v-.5,2),(v-.6)*3.1]},(u,v)=>{const d=Math.abs(u-.5);if(d<.06)return 0xb5df7a;return (((v*8-d*1.6)%1)+1)%1<.14?0x7cc75a:0x46a64a},()=>0x5fb85d);AN=null},
-  // 18 Spinning Maple Seed: one seed and its long papery wing whirling over your head; you hold on and turn slowly with it
+  // 18 Spinning Maple Seed: a pair of maple keys joined at the seed, their papery wings whirling round over your head like
+  // a propeller; you hold the stalk with both hands and turn slowly with it
   B=>{bar(B,-.16,.16,-.04,.16,.16,-.04,.03,0x7a4a2a);bar(B,0,.16,-.04,0,.86,0,.035,0x7a4a2a);
-    anim(1,7);put(B,PR.slo,0,.98,0,.42,.32,.58,0x8b3a2a);put(B,PR.slo,.02,1.04,-.08,.16,.1,.2,0xa8503a);
-    sheet(B,16,4,(u,v)=>{const w=.28+.34*Math.sin(Math.PI*Math.min(1,u*1.05)),c=(v-.5)*2*w;return [.14+u*1.9,.98+.05*u+c*.36,c*.93-.06*u]},(u,v,i,j)=>j===0||j===3?0xc46a3a:i%3===1?0xc78a4a:0xd8a65a,()=>0xc9965a);anim(0)},
+    anim(1,7);for(const s of [-1,1]){put(B,PR.slo,s*.15,.98,0,.34,.28,.4,0x9b4430);put(B,PR.slo,s*.17,1.03,-.06,.14,.1,.16,0xb85c40);
+      sheet(B,16,5,(u,v)=>{const w=.22+.36*Math.sin(Math.PI*Math.min(1,u*1.08)),c=(v-.5)*2*w,len=.25+u*1.85;return [s*len,.98+.12*u+s*c*.32,c*.95-.1*u*s]},
+        (u,v,i,j)=>j===0||j===4?0xa85a34:(i%3===1&&j>0&&j<4)?0xc88848:u<.18?0xc4643a:u<.45?0xd88a50:0xe6b468,()=>0xd09858)}
+    put(B,PR.slo,0,1.0,0,.18,.18,.18,0x6e3a22);anim(0)},
   // 19 Rubber Duck Float: a yellow inflatable duck ring round your middle, head, beak and tail and all, your hands on its rim
   B=>{const y=HIP+.22;put(B,PR.tor,0,y,0,.6,.6,.6,0xffd23f);put(B,PR.sph,0,y+.32,-.72,.42,.42,.42,0xffd23f);put(B,PR.box,0,y+.26,-.96,.18,.06,.16,0xff8a1f);
     for(const s of [-1,1]){put(B,PR.slo,s*.11,y+.39,-.86,.08,.08,.05,WH);put(B,PR.slo,s*.11,y+.39,-.89,.04,.05,.03,0x15171b);put(B,PR.slo,s*.62,y+.08,.1,.12,.2,.4,0xffc21f)}
@@ -252,18 +269,23 @@ const GLIDERS=[null,
     for(const s of [-1,1])put(B,PR.slo,s*.16,y+.34,-.8,.08,.08,.06,0x15171b);
     for(const s of [-1,1]){anim(6,.22,.24);const j=v3(s*1.15,y+.2,-.2);membrane(B,v3(s*.22,y-.02,.0),j,[v3(s*2.15,y+.1,.1),v3(s*1.3,y-.14,.6),v3(s*.25,y-.06,.55)],.25,0xd18b4d,0x8a5226,.024);anim(0)}
     put(B,PR.cone,0,y-.04,.85,.12,.6,.12,BR,Math.PI/2)},
-  // 22 Flying Squirrel Suit: brown skin from your wrists to your ankles, cream underneath, a hood with ears and a big tail
-  B=>{const ank=-1.62;AN=(x,y,z)=>[7,.36,.05];
-    for(const s of [-1,1]){sheet(B,6,8,(u,v)=>{const xt=s*(.3+.62*(1-v*.55)),x=s*.3+(xt-s*.3)*u;return [x,SH+.02-(SH+.02-ank)*v-.06*u*Math.sin(Math.PI*v),.1]},(u,v,i,j)=>i===5||j===7?0xf2dfc0:0xb07040,()=>0xf2dfc0,()=>v3(0,0,1));
-      put(B,PR.slo,s*.92,SH,.06,.14,.12,.14,0xf0c8b0)}AN=null;
-    for(const s of [-1,1])put(B,PR.cone,s*.15,.38,.04,.11,.2,.08,0xa0663a);put(B,PR.box,0,.06,.2,.5,.5,.06,0xa0663a);
-    for(let k=0;k<4;k++)put(B,PR.slo,0,HIP-.15-k*.24,.32+k*.16,.3+k*.07,.4,.26+k*.04,k===3?0xf2dfc0:0x9a5f34)},
-  // 23 UFO Disc: a silver saucer you stand on, a little glass dome at its nose and a ring of coloured lights going round
-  B=>{const y=FEET;
-    sheet(B,24,3,polar(v=>.2+1.25*v,v=>y-.16*Math.pow(v,1.5)),(u,v,i)=>i%4===0?0x9aa3ad:0xc8d0d8,null,outward(0,y-1,0));
-    sheet(B,24,3,polar(v=>.2+1.25*v,v=>y-.42+.26*v),(u,v,i,j)=>j===0?0x9dff9d:0x8a929c,()=>0x8a929c,()=>v3(0,-1,0));
-    put(B,PR.sph,0,y+.02,-.85,.5,.34,.5,0x8fe8ff);put(B,PR.slo,0,y-.4,0,.4,.1,.4,0x9dff9d);
-    anim(1,1.6);const LC=[0xff4f5e,0xffd23f,0x5fd068,0x3ee6ff];for(let k=0;k<12;k++){const a=k/12*TAU;put(B,PR.slo,Math.cos(a)*1.42,y-.18,Math.sin(a)*1.42,.1,.09,.1,LC[k%4])}anim(0)},
+  // 22 Flying Squirrel Suit: a brown gliding skin from your wrists to your ankles with a cream edge, squirrel ears on top of
+  // your head and a big bushy tail curling up behind; you lie flat with your arms and legs spread
+  B=>{const ank=-1.62,BR=0xc07a45,CR=0xf2dfc0;AN=(x,y,z)=>[7,.36,.05*Math.min(1,Math.abs(x))];
+    for(const s of [-1,1]){sheet(B,6,10,(u,v)=>{const xo=.98-.56*v+.14*Math.sin(Math.PI*v),x=s*(.28+(xo-.28)*u),y=SH+.02+(ank-SH-.02)*v;return [x,y-.05*u*Math.sin(Math.PI*v),.1]},
+        (u,v,i,j)=>i===5||j===9?CR:(i===4&&j>1&&j<8)?0xa8683a:BR,()=>CR,()=>v3(0,0,1));
+      put(B,PR.slo,s*.95,SH,.06,.15,.13,.15,0xf0c8b0);put(B,PR.slo,s*.42,ank,.08,.15,.12,.15,0xf0c8b0)}AN=null;
+    for(const s of [-1,1]){put(B,PR.cone,s*.15,.4,.02,.12,.22,.09,BR);put(B,PR.cone,s*.15,.39,-.005,.07,.15,.04,0xf0b0a0)}
+    const T=[[0,HIP-.1,.3,.22],[0,-1.18,.42,.28],[0,-1.36,.6,.33],[0,-1.46,.84,.36],[0,-1.44,1.1,.34],[0,-1.32,1.3,.28]];
+    T.forEach((t,k)=>put(B,PR.slo,t[0],t[1],t[2],t[3]*1.9,t[3]*1.5,t[3]*1.9,k===5?CR:k%2?0xb06a3a:0xa8603a))},
+  // 23 UFO Disc: a proper flying saucer you ride standing on its top: a gently domed silver top with panel lines, a rim band
+  // with a ring of coloured lights going round, a darker cone underneath with a glowing green ring, a glass bubble at its nose
+  B=>{const y=FEET-.02,R=1.3;
+    sheet(B,24,4,polar(v=>R*v,v=>y-.13*v*v),(u,v,i,j)=>i%4===0||j===2?0x9aa3ad:0xd2d9e0,null,outward(0,y-2,0));
+    sheet(B,24,2,polar(v=>R+.05*Math.sin(Math.PI*v),v=>y-.13-.14*v),(u,v,i)=>i%2?0x8a929c:0xaab2bc,()=>0x6a727c,p=>v3(p.x,0,p.z));
+    sheet(B,24,3,polar(v=>R-(R-.38)*v,v=>y-.27-.22*v),(u,v,i,j)=>j===2?0x9dff9d:0x7d8590,()=>0x6a727c,p=>v3(p.x*.3,-1,p.z*.3));
+    put(B,PR.sph,0,y-.5,0,.62,.22,.62,0x9dff9d);put(B,PR.sph,0,y+.02,-.86,.62,.42,.56,0x8fe8ff);put(B,PR.cyl8,0,y-.01,-.86,.68,.05,.62,0xb8c0c8);
+    anim(1,1.6);const LC=[0xff4f5e,0xffd23f,0x5fd068,0x3ee6ff];for(let k=0;k<16;k++){const a=k/16*TAU;put(B,PR.slo,Math.cos(a)*(R+.06),y-.2,Math.sin(a)*(R+.06),.11,.1,.11,LC[k%4])}anim(0)},
   // 24 Small Cloud: a puffy white cloud you stand in, a little grey underneath, bobbing gently
   B=>{AN=()=>[3,.04,0];NSH=(nx,ny)=>ny<-.3?.82:1;const C=[[0,-.1,0,.55],[-.55,-.05,.1,.42],[.58,-.06,-.05,.44],[-1.0,-.18,0,.32],[1.02,-.16,.08,.33],[-.25,.08,-.3,.36],[.3,.06,.32,.36],[0,-.18,.48,.36],[0,-.16,-.5,.38]];
     for(const c of C)put(B,PR.sph,c[0],FEET+c[1],c[2],c[3]*2,c[3]*1.5,c[3]*1.9,0xf6f9ff);NSH=null;AN=null}
@@ -282,6 +304,7 @@ const LEGS={
   sit:(u,t)=>[1.45+t*.04,-.08,1.5,1.4-t*.04,.08,1.45],
   astride:(u,t)=>[.95,-.3,1.25,.95,.3,1.25],
   spread:(u,t)=>[t*.04,-.22,.08,-t*.04,.22,.08],
+  surf:(u,t)=>[-u.pit+.32,-.3,.85+t*.03,-u.pit+.32,.3,.85-t*.03],
   ring:(u,t)=>[.25+t*.1,-.06,.5+t*.1,.15-t*.1,.06,.4-t*.1]};
 const ARMS_UP={L:[2.0,.3,-.25,.4],R:[2.0,0,.25,.4]},ARMS_OUT={L:[.15,1.5,-.1,.25],R:[.15,-1.5,.1,.25]},ARMS_WING={L:[0,1.57,0,0],R:[0,-1.57,0,0]},ARMS_HANG={L:[-1.42,.2,-.14,.25],R:[-1.42,-.2,.14,.25]};
 const PLACE={
@@ -311,9 +334,9 @@ const HOLDS=[null,
   {pose:{L:[-.9,.2,-.1,.8],R:[-.9,-.2,.1,.8]},hands:[[-.45,HIP+.18,-.2],[.45,HIP+.18,-.2]],pit:.06,legs:'sit',place:'rise',sway:.04},
   {pose:Object.assign({lean:-.15},ARMS_OUT),hands:[null,null],pit:-.04,legs:'stand',place:'board'},
   {pose:Object.assign({lean:-.15},ARMS_OUT),hands:[null,null],pit:-.04,legs:'stand',place:'board'},
-  {pose:Object.assign({lean:-.15,turn:.45},ARMS_OUT),hands:[null,null],pit:-.04,legs:'stand',place:'board'},
+  {pose:{lean:-.28,turn:.15,L:[.35,1.45,-.1,.35],R:[-.15,-1.45,.1,.35]},hands:[null,null],pit:-.04,legs:'surf',place:'board',face:SURF},
   {pose:Object.assign({lean:-.15},ARMS_OUT),hands:[null,null],pit:-.04,legs:'stand',place:'board'},
-  {pose:{lean:-.35,L:[-.4,.3,-.1,.6],R:[-.4,-.3,.1,.6]},hands:[[-.08,HIP+.2,-.5],[.08,HIP+.17,-.36]],pit:-.25,legs:'astride',place:'body'},
+  {pose:{lean:-.55,L:[-.4,.3,-.1,.6],R:[-.4,-.3,.1,.6]},hands:[[-.1,-.8,-.47],[.1,-.83,-.32]],pit:-.22,legs:'astride',place:'body',sway:.03},
   {pose:ARMS_UP,hands:[[-.12,.14,-.05],[.12,.14,-.05]],pit:-.05,legs:'dangle',place:'pop',sway:.05},
   {pose:ARMS_UP,hands:[[-.16,.16,-.04],[.16,.16,-.04]],pit:-.04,legs:'dangle',place:'unfold',spin:.9},
   {pose:{L:[-.9,.2,-.1,.8],R:[-.9,-.2,.1,.8]},hands:[[-.32,HIP+.3,-.42],[.32,HIP+.3,-.42]],pit:-.1,legs:'ring',place:'body',sway:.05},
@@ -325,7 +348,7 @@ const HOLDS=[null,
 const gstyles=[];
 function gstyle(n){if(!HOLDS[n])return null;if(gstyles[n])return gstyles[n];const H=HOLDS[n],L=LEGS[H.legs]||LEGS.trail,pl=PLACE[H.place]||PLACE.unfold;
   return gstyles[n]={pose:G.pose(H.pose),hands:H.hands,pit:H.pit,pole:null,
-    body(m,u,dt,fl){if(H.spin){u.lxSp=(u.lxSp||0)+dt*H.spin*fl;m.rotation.y+=u.lxSp*u.glk}if(H.sway&&fl)m.rotation.z+=Math.sin(performance.now()*.0015+(u.hex&7))*H.sway*u.glk},
+    body(m,u,dt,fl){if(H.face)m.rotation.y+=H.face*u.glk;if(H.spin){u.lxSp=(u.lxSp||0)+dt*H.spin*fl;m.rotation.y+=u.lxSp*u.glk}if(H.sway&&fl)m.rotation.z+=Math.sin(performance.now()*.0015+(u.hex&7))*H.sway*u.glk},
     place:pl,
     legs(L0,L1,u,now,fl){const t=Math.sin(now*.004)*fl,v=L(u,t),k=u.glk;   // blended in from the standard trail as it opens
       const d=LEGS.trail(u,t);L0.rotation.set(d[0]+(v[0]-d[0])*k,0,d[1]+(v[1]-d[1])*k,'XYZ');L0.k=d[2]+(v[2]-d[2])*k;L1.rotation.set(d[3]+(v[3]-d[3])*k,0,d[4]+(v[4]-d[4])*k,'XYZ');L1.k=d[5]+(v[5]-d[5])*k}}}
