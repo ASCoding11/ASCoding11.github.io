@@ -489,7 +489,6 @@ function pctl(entries, key) { // percentile (0..1, 1 = largest) among entries th
   while (i < n) { let j = i; while (j + 1 < n && xs[j + 1][key] === xs[i][key]) j++; const p = n === 1 ? 1 : ((i + j) / 2) / (n - 1); for (let k = i; k <= j; k++) xs[k]['p_' + key] = p; i = j + 1; }
 }
 const WT = { pv: 3, w: 2, fam: 2, sl: 1, pop: 2 };
-const PV_FLOOR = 1; // median English Wikipedia views a day
 const enc = v => { const x = Math.max(0, Math.min(1294, Math.round(v * 1294))); return x.toString(36).padStart(2, '0'); };
 
 function buildList(key, coreStr) {
@@ -515,15 +514,16 @@ function buildList(key, coreStr) {
   // last names count when only one person in the list has that last name
   const lastCount = new Map(); for (const e of merged) if (e.lastCand) lastCount.set(e.lastCand, (lastCount.get(e.lastCand) || 0) + 1);
   for (const e of merged) if (e.lastCand && lastCount.get(e.lastCand) === 1 && !byAlias.has(e.lastCand)) { e.al.push(e.lastCand); e.raws.push(e.lastRaw); byAlias.set(e.lastCand, e); }
-  // Drop added answers almost nobody reads about (under one English Wikipedia view a day, as the research behind
-  // this suggested: about 30 a month): they make the files big and are not answers anyone could be expected to know.
-  for (let i = merged.length - 1; i >= 0; i--) { const e = merged[i]; if (!e.core && !e.hand && e.pv != null && e.pv < PV_FLOOR) merged.splice(i, 1); }
   for (const e of merged) { e.fam = famOf(e.al); if (e.pv != null) e.pv = Math.log1p(e.pv); }
   for (const k in WT) if (k !== 'w') pctl(merged, k);
   // The hand-written answers were chosen as the ones people say, so being on that list is itself a sign of fame:
   // weight 5..1 -> 1.0..0.6, and an answer only the data knows about -> 0.25 (when the list has hand answers).
   const anyHand = merged.some(e => e.w != null);
   for (const e of merged) e.p_w = e.w != null ? 0.5 + e.w * 0.1 : anyHand ? 0.25 : null;
+  // the same for familiarity: an added answer that isn't even in Linguabase's 400,000 familiar words and phrases
+  // is probably not one people know (otherwise a missing signal would count in its favour)
+  const anyFam = merged.some(e => e.p_fam != null);
+  for (const e of merged) if (e.p_fam == null && anyFam && !e.core && !e.hand) e.p_fam = 0.1;
   for (const e of merged) {
     let s = 0, wsum = 0;
     for (const k in WT) if (e['p_' + k] != null) { s += WT[k] * e['p_' + k]; wsum += WT[k]; }

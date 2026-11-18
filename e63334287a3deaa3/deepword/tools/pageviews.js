@@ -17,7 +17,7 @@ const UA = 'DeepwordBankBuilder/1.0 (offline list build for a school-safe word g
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const have = {};
 for (const f of fs.readdirSync(CACHE)) if (/^pageviews.*\.json$/.test(f)) { const d = JSON.parse(fs.readFileSync(path.join(CACHE, f), 'utf8')); for (const k in d) if (d[k] > 0 || !(k in have)) have[k] = d[k]; }
-const mine = {};
+const mine = fs.existsSync(OUT) ? JSON.parse(fs.readFileSync(OUT, 'utf8')) : {}; // this run's own file, kept
 const titles = new Map(); // title -> sitelinks
 const add = (t, sl) => { if (t && !t.startsWith('http')) titles.set(t, Math.max(titles.get(t) || 0, +sl || 0)); };
 for (const f of fs.readdirSync(CACHE)) {
@@ -42,7 +42,7 @@ const median = a => { a = a.filter(x => x != null).sort((x, y) => x - y); return
         try {
           const r = await fetch(url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(60000) });
           if (r.ok) { j = await r.json(); if (j.error) { j = null; slow++; await sleep(5000); } }
-          else { slow++; gap = Math.min(4000, gap + 250); await sleep(5000 * (t + 1)); }
+          else { slow++; gap = Math.min(3000, gap + 100); await sleep(5000 * (t + 1)); }
         } catch (e) { await sleep(5000 * (t + 1)); }
       }
       if (!j || !j.query) break;
@@ -50,7 +50,7 @@ const median = a => { a = a.filter(x => x != null).sort((x, y) => x - y); return
       for (const x of (j.query.normalized || [])) back[x.to] = x.from;
       for (const x of (j.query.redirects || [])) back[x.to] = back[x.from] || x.from;
       for (const pg of j.query.pages || []) if (pg.pageviews) { const asked = back[pg.title] || pg.title; mine[asked] = median(Object.values(pg.pageviews)); }
-      cont = j.continue && j.continue.pvipcontinue; rounds++;
+      cont = j.continue && j.continue.pvipcontinue; rounds++; gap = Math.max(700, gap - 20);
       await sleep(gap);
     } while (cont && rounds < 12);
     if (++n % 10 === 0) { fs.writeFileSync(OUT, JSON.stringify(mine)); console.log('  ' + Math.min(i + 50, todo.length) + ' / ' + todo.length + ' (' + Math.round((i + 50) / (Date.now() - t0) * 1000) + '/s, ' + slow + ' slowed)'); }
