@@ -361,7 +361,7 @@ details.how[open] summary::before{content:'– '}
   <div id="stage">
     <div id="table">
       <div class="rail"><div class="felt"><div class="mark">Showdown</div></div></div>
-      <div id="center"><div id="pot"></div><div id="board"></div><div id="tmsg"></div></div>
+      <div id="center"><div id="pot"></div><div id="board"></div><div id="tmsg" data-noi18n></div></div>
     </div>
   </div>
 
@@ -385,14 +385,14 @@ details.how[open] summary::before{content:'– '}
       <button type="button" role="tab" data-tab="chat" aria-selected="false" id="tabChat">Chat</button>
       <button type="button" role="tab" data-tab="plist" aria-selected="false">Players</button>
     </div>
-    <div class="pane" id="log"></div>
-    <div class="pane" id="chat" hidden><div id="chatLog"></div></div>
+    <div class="pane" id="log" data-noi18n></div>
+    <div class="pane" id="chat" hidden><div id="chatLog" data-noi18n></div></div>
     <form id="chatForm" hidden autocomplete="off"><input id="chatIn" maxlength="80" placeholder="Say something" aria-label="Chat message"><button class="tb" type="submit">Send</button></form>
     <div class="pane" id="plist" hidden></div>
   </aside>
 
   <div id="actions" hidden></div>
-  <div id="dockmsg" aria-hidden="true"></div>
+  <div id="dockmsg" aria-hidden="true" data-noi18n></div>
 
   <section id="menu" class="overlay menu">
     <div class="inner">
@@ -1451,10 +1451,13 @@ function renderPot(S){
   let m='';
   if(S.ph==='wait')m=S.msg||'Next hand starting…';
   else if(S.ph==='show'&&S.win&&S.win.length){
-    m=S.win.map(([i,a,hn])=>{const s=S.seats[i];const x=(s?(s.u===G.me?'You win ':s.n+' wins '):'')+fmt(a)+(hn?' · '+hn:'');return window.SD_TR?SD_TR(x):x}).join(' · ');
+    m=S.win.map(([i,a,hn])=>{const s=S.seats[i];const x=(s?(s.u===G.me?'You win ':s.n+' wins '):'')+fmt(a)+(hn?' · '+hn:'');return window.SD_TR?SD_TR(x,sdNames()):x}).join(' · ');
   }
-  if(window.SD_TR&&S.ph==='wait')m=SD_TR(m);$('tmsg').textContent=m;$('dockmsg').textContent=G.mode==='attract'?'':m;
+  if(window.SD_TR&&S.ph==='wait')m=SD_TR(m,sdNames());$('tmsg').textContent=m;$('dockmsg').textContent=G.mode==='attract'?'':m;
 }
+// every name seen at this table (seats, the queue and chat), for SD_TR in es.js: names are never translated
+const sdSeen=new Set();
+function sdNames(){const S=G.S;if(S&&S.seats)for(const s of S.seats)if(s&&s.n)sdSeen.add(s.n);if(myName)sdSeen.add(myName);for(const m of G.chat||[])if(m&&m.n)sdSeen.add(m.n);return [...sdSeen]}
 function seatSig(S,i){
   const s=S.seats[i];if(!s)return 'e';
   return [s.u,s.n,s.av,s.s,s.f,s.a,s.i,s.o,s.l,s.sh,s.w,s.h,s.g,S.turn===i,S.ph,S.id,i===S.btn].join('~');
@@ -1493,7 +1496,7 @@ function renderSeats(){
       const ini=(s.n||'?').trim().charAt(0).toUpperCase();
       const status=s.g?'Away':s.o?(s.s<=0?'Busted':'Sitting out'):'';
       plate.innerHTML='<div class="av" style="background:'+AVC[s.av]+'">'+esc(ini)+'<svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18.4" stroke="transparent"/></svg></div>'+
-        '<div class="meta"><b>'+esc(s.n)+'</b><span>'+(status?'<em style="font-style:normal;color:var(--ink-3)">'+status+'</em>':stack)+(s.bot?'<i>BOT</i>':'')+'</span></div>';
+        '<div class="meta"><b data-noi18n>'+esc(s.n)+'</b><span>'+(status?'<em style="font-style:normal;color:var(--ink-3)">'+status+'</em>':stack)+(s.bot?'<i>BOT</i>':'')+'</span></div>';
     }
     // hole cards
     let cards=null,cls='',reveal=false;
@@ -1531,7 +1534,7 @@ function renderSeats(){
     if(tag.textContent!==tg)tag.textContent=tg;if(tag.className!==tc)tag.className=tc;
     // chat bubble
     const bubs=G.bubbles&&G.bubbles.get(s.u);let bub=el.querySelector('.bubble');
-    if(bubs&&bubs.until>now){if(!bub){bub=document.createElement('div');bub.className='bubble';el.appendChild(bub)}if(bub.textContent!==bubs.t)bub.textContent=bubs.t}
+    if(bubs&&bubs.until>now){if(!bub){bub=document.createElement('div');bub.className='bubble';bub.setAttribute('data-noi18n','');el.appendChild(bub)}if(bub.textContent!==bubs.t)bub.textContent=bubs.t}
     else if(bub)bub.remove();
   }
 }
@@ -1735,7 +1738,7 @@ function renderLog(){
     for(const t of G.logs.get(id)){
       if(/^Hand #/.test(t))continue;
       const cls=/^(Flop|Turn|River):/.test(t)?'st':/ (wins|split) /.test(t)?'wn':'';
-      h+='<p'+(cls?' class="'+cls+'"':'')+'>'+esc(window.SD_TR?SD_TR(t):t)+'</p>';
+      h+='<p'+(cls?' class="'+cls+'"':'')+'>'+esc(window.SD_TR?SD_TR(t,sdNames()):t)+'</p>';
     }
   }
   $('log').innerHTML=h;
@@ -1744,12 +1747,12 @@ function renderPlayers(){
   const S=G.S;if(!S||!G.side||G.tab!=='plist')return;
   const rows=S.seats.filter(Boolean).map(s=>{const inPlay=s.i&&BETTING.includes(S.ph)?s.t:0;const net=s.s+inPlay-s.y;return{n:s.n,bot:s.bot,me:s.u===G.me,st:s.s,net}}).sort((a,b)=>b.net-a.net);
   const sig=JSON.stringify(rows);if($('plist').dataset.sig===sig)return;$('plist').dataset.sig=sig;
-  $('plist').innerHTML='<table><tr><td style="color:var(--ink-3)">Player</td><td style="color:var(--ink-3)">Stack</td><td style="color:var(--ink-3)">Net</td></tr>'+rows.map(r=>'<tr><td'+(r.me?' style="color:var(--gold-2)"':'')+'>'+esc(r.n)+(r.bot?' <span style="color:var(--ink-3);font-size:11px">BOT</span>':'')+'</td><td>'+fmt(r.st)+'</td><td class="'+(r.net>0?'pos':r.net<0?'neg':'')+'">'+(r.net>0?'+':'')+fmt(r.net)+'</td></tr>').join('')+'</table>'+
+  $('plist').innerHTML='<table><tr><td style="color:var(--ink-3)">Player</td><td style="color:var(--ink-3)">Stack</td><td style="color:var(--ink-3)">Net</td></tr>'+rows.map(r=>'<tr><td'+(r.me?' style="color:var(--gold-2)"':'')+'><span data-noi18n>'+esc(r.n)+'</span>'+(r.bot?' <span style="color:var(--ink-3);font-size:11px">BOT</span>':'')+'</td><td>'+fmt(r.st)+'</td><td class="'+(r.net>0?'pos':r.net<0?'neg':'')+'">'+(r.net>0?'+':'')+fmt(r.net)+'</td></tr>').join('')+'</table>'+
     '<p class="msg">Net counts rebuys. Everyone starts with '+fmt(S.set.stack)+' play chips.</p>';
 }
 function renderChat(){
   if(!G.side||G.tab!=='chat')return;
-  $('chatLog').innerHTML=G.chat.length?G.chat.map(m=>'<p><b>'+esc(m.n)+':</b> '+esc(m.t)+'</p>').join(''):'<p style="color:var(--ink-3)">Say hi to the table.</p>';
+  $('chatLog').innerHTML=G.chat.length?G.chat.map(m=>'<p><b>'+esc(m.n)+':</b> '+esc(m.t)+'</p>').join(''):'<p style="color:var(--ink-3)">'+esc(window.BackRoomLang?BackRoomLang.t('Say hi to the table.'):'Say hi to the table.')+'</p>';
   $('chat').scrollTop=1e6;
 }
 function setTab(t){

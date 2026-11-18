@@ -19,7 +19,21 @@
     [new RegExp('\\b(' + RN + ') high', 'g'), function (m, a) { return 'Carta alta: ' + R[a]; }]
   ];
   window.SD_HAND = function (s) { if (L.get() === 'en') return s; for (var i = 0; i < HANDS.length; i++) s = s.replace(HANDS[i][0], HANDS[i][1]); return s; };
-  window.SD_TR = function (s) { if (L.get() === 'en') return s; return L.t(window.SD_HAND(s)); };
+  // names: the players' names at the table. Each is swapped for a token before the lookup and put back after it, so a
+  // name is never translated (a player called "Ready" or "Ace high" stays as typed).
+  window.SD_TR = function (s, names) {
+    if (L.get() === 'en') return s;
+    var keep = [];
+    (names || []).slice().sort(function (a, b) { return b.length - a.length; }).forEach(function (n) {
+      if (!n || s.indexOf(n) < 0) return;
+      // whole names only (not "Al" inside "All in")
+      var re = new RegExp('(^|[^\\p{L}\\p{N}])' + n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![\\p{L}\\p{N}])', 'gu');
+      var tok = '\u0001' + keep.length + '\u0001', t2 = s.replace(re, function (m, pre) { return pre + tok; });
+      if (t2 !== s) { keep.push(n); s = t2; }
+    });
+    s = L.t(window.SD_HAND(s));
+    return s.replace(/\u0001(\d+)\u0001/g, function (m, i) { return keep[+i]; });
+  };
   L.add({
     // table and bar
     'Invite': 'Invitar', 'Coach': 'Coach', 'Coach: odds and hand strength (H)': 'Coach: probabilidades y fuerza de la mano (H)', 'Log': 'Registro',
