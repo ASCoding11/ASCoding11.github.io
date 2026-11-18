@@ -2,7 +2,8 @@
  * Back Room status tiers: "miles with us". Every player is Economy, Business Class, First Class or Private Jet,
  * except the site's owners (OWNERS below), who always show as Captain, a tier above Private Jet (Arjun, in FOUNDER_LIST,
  * shows as Arjun, the site founder's own tier, one above Captain), and the people in
- * VICE_CAPTAINS, who show as Vice Captain, between Private Jet and Captain. Tiers are worked out
+ * VICE_CAPTAINS, who show as Vice Captain, between Private Jet and Captain, and the people in DEVELOPERS, who show as
+ * Developer, at Captain's level. Tiers are worked out
  * from their leaderboard node (rooms/lb-all/players/<uid>, written by stats.js): play time plus points for
  * doing well in the games. A small badge next to names in the Online panel, the Party panel, the Leaderboards and the
  * admin page. Tiers are for fun: the data is self-reported by each player's own browser (see README: stats.js).
@@ -18,7 +19,8 @@
  *   tierOf(miles)       the tier for a number of miles (never Captain or Vice Captain: those come from the uid)
  *   isOwner(uid)        whether a uid is in OWNERS
  *   isFounder(uid)         whether a uid is in FOUNDER_LIST (and OWNERS): shown as Arjun (the founder's tier), owner true and founder true
- *   isVice(uid)         whether a uid is in VICE_CAPTAINS (and not in OWNERS: an owner is always Captain)
+ *   isVice(uid)         whether a uid is in VICE_CAPTAINS (and not in OWNERS: an owner is always Captain; nor in DEVELOPERS)
+ *   isDev(uid)          whether a uid is in DEVELOPERS (and not in OWNERS): shown as Developer, dev true (owner stays false)
  *   badge(result, opts) a <span class="bra-tier"> pill for it (opts.miles: show the miles too). For the top three on the
  *                       Leaderboards' Miles board it is a <span class="bra-tw"> holding the pill and a "#1 all time",
  *                       "#2 this week" … tag: gold, silver, bronze (see "#1 on the Miles board" below). For someone
@@ -128,6 +130,15 @@
     'jHIYq4Viwbg8ni944R6z91kqk7q2',   // Cooper Yang (Google sign-in, "Cooper")
     '7KFEzAVFO5bu1pmImvSmHOdvRJn2'    // Wesley Smith (Google sign-in, "Wesley")
   ];
+  // Developers, by account uid, the same way: always shown as Developer, at Captain's level (above Private Jet and
+  // Vice Captain), for the people who build games for the site. Only the badge: being a Developer doesn't make an
+  // account a captain in captains.js (that is still OWNERS alone). Someone in OWNERS shows as Captain instead.
+  // Add or remove them exactly like OWNERS above.
+  var DEVELOPERS = [
+    'yFxY9DKD3YaFpNaKHs6MB0nFOc42',   // Sxmpley ("Sxmpley")
+    'JCQ5JucUFNUw03DGVkXfbrPYmVz1',   // Sxmpley ("Sxmpley")
+    'adtezwSQqGW1AQ6kB70JQicZy3A2'    // Sxmpley ("sxmpley")
+  ];
   // Arjun: one step above Captain, for the site founder alone, named for him (and for Arjuna, the archer of the Mahabharata,
   // hence the bow). Captain flies the plane; the founder built the airline it flies
   // in. Each uid here must also be in OWNERS above, so everything a Captain gets (captains.js) still applies; only the
@@ -140,9 +151,11 @@
   var CAPTAIN = { k: 'captain', n: 'Captain', min: Infinity };
   var FOUNDER = { k: 'founder', n: 'Arjun', min: Infinity };   // above Captain: the site founder
   var VICE_CAPTAIN = { k: 'vice', n: 'Vice Captain', min: Number.MAX_VALUE };   // above every miles tier, below Captain
+  var DEVELOPER = { k: 'dev', n: 'Developer', min: Infinity };   // at Captain's level: builds the games
   function isOwner(uid) { return typeof uid === 'string' && OWNERS.indexOf(uid) >= 0; }
   function isFounder(uid) { return isOwner(uid) && FOUNDER_LIST.indexOf(uid) >= 0; }
-  function isVice(uid) { return typeof uid === 'string' && !isOwner(uid) && VICE_CAPTAINS.indexOf(uid) >= 0; }
+  function isVice(uid) { return typeof uid === 'string' && !isOwner(uid) && !isDev(uid) && VICE_CAPTAINS.indexOf(uid) >= 0; }
+  function isDev(uid) { return typeof uid === 'string' && !isOwner(uid) && DEVELOPERS.indexOf(uid) >= 0; }
   // ---- Awards: honours the owners give to particular players. Not a tier and not a rank: a small ribbon after the tier
   // pill (and after any #1 tags), everywhere the badge is drawn, whatever the player's miles. ----
   // The kinds of award. n: the words on the ribbon (short); tip: the tooltip; icon: the mark on the round medal, drawn
@@ -191,7 +204,7 @@
   // One node → miles. Anything leaderboard.js wouldn't show (stale, oversized, from the future, impossible numbers) is Economy.
   // An owner (OWNERS) shows as Captain whatever the node says, even with no node at all; their miles stay real.
   function of(node, uid, now) {
-    var out = { miles: 0, tier: TIERS[0], next: nextOf(0), hours: 0, play: 0, bonus: 0, ok: false, owner: false, founder: false, vice: false, real: TIERS[0], uid: '', ids: [] };
+    var out = { miles: 0, tier: TIERS[0], next: nextOf(0), hours: 0, play: 0, bonus: 0, ok: false, owner: false, founder: false, vice: false, dev: false, real: TIERS[0], uid: '', ids: [] };
     var p = null, B = LB();
     try {
       if (parsed(node)) p = node;
@@ -203,6 +216,7 @@
     // accounts (load hands that over), and the entry leaderboard.js's collapse folded it into.
     [who, p && p.uid, p && p.into].forEach(function (u) { if (typeof u === 'string' && u && out.ids.indexOf(u) < 0) out.ids.push(u); });
     if (isOwner(who)) { out.owner = true; out.founder = isFounder(who); out.tier = out.founder ? FOUNDER : CAPTAIN; out.next = null; }
+    else if (isDev(who)) { out.dev = true; out.tier = DEVELOPER; out.next = null; }
     else if (isVice(who)) { out.vice = true; out.tier = VICE_CAPTAIN; out.next = null; }
     if (!p) return out;
     var play = Math.max(0, num(p.total) || 0), bonus = 0;
@@ -233,7 +247,7 @@
     bonus += avis;
     var miles = Math.floor(play / 3600 * HOUR + bonus);
     out.miles = miles; out.real = tierOf(miles);
-    if (!out.owner && !out.vice) { out.tier = out.real; out.next = nextOf(miles); }
+    if (!out.owner && !out.vice && !out.dev) { out.tier = out.real; out.next = nextOf(miles); }
     out.hours = play / 3600; out.play = Math.floor(play / 3600 * HOUR); out.bonus = Math.floor(bonus); out.avis = Math.floor(avis); out.ok = true;
     return out;
   }
@@ -248,17 +262,19 @@
     // Vice Captain: the same wings with a plain bar across the middle in place of the star.
     vice: '<path d="M4.5 5.5L.3 3.2l.6 1.6-.5.1 1 1.2-.5.2 1.4 1 2.2.3zM7.5 5.5l4.2-2.3-.6 1.6.5.1-1 1.2.5.2-1.4 1-2.2.3z" fill="currentColor"/><circle cx="6" cy="6.4" r="2" fill="currentColor"/><rect x="4.9" y="6" width="2.2" height=".8" rx=".3" fill="#13233F"/>',
     captain: '<path d="M4.5 5.5L.3 3.2l.6 1.6-.5.1 1 1.2-.5.2 1.4 1 2.2.3zM7.5 5.5l4.2-2.3-.6 1.6.5.1-1 1.2.5.2-1.4 1-2.2.3z" fill="currentColor"/><circle cx="6" cy="6.4" r="2" fill="currentColor"/><path d="M6 5.2l.4.8.9.1-.65.6.15.9L6 7.2l-.8.4.15-.9-.65-.6.9-.1z" fill="#141B2D"/>',
+    // Developer: code brackets, a slash between them.
+    dev: '<path d="M3.8 3.2L1 6l2.8 2.8M8.2 3.2L11 6 8.2 8.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.9 2.4L5.1 9.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>',
     // Arjun (the founder): a drawn bow in gold, Arjuna's Gandiva, with an arrow nocked and pointing right.
     founder: '<path d="M3.4 1C8 2.6 8 9.4 3.4 11" fill="none" stroke="#FFD84D" stroke-width="1.15" stroke-linecap="round"/><path d="M3.4 1L2.4 6 3.4 11" fill="none" stroke="#FFF6C9" stroke-width=".5" stroke-linejoin="round"/><path d="M2.4 6h7.2" stroke="#FFF6C9" stroke-width=".75" stroke-linecap="round"/><path d="M11.3 6L9 4.7v2.6z" fill="#FFD84D"/><path d="M2.6 6L1.1 4.9M2.6 6L1.1 7.1" stroke="#FFD84D" stroke-width=".6" stroke-linecap="round"/>'
   };
   function badge(res, opts) {
-    var t = res && res.tier && ICON[res.tier.k] ? res.tier : TIERS[0], zs = t.k === 'founder', cap = t.k === 'captain' || zs, vc = t.k === 'vice';
+    var t = res && res.tier && ICON[res.tier.k] ? res.tier : TIERS[0], zs = t.k === 'founder', cap = t.k === 'captain' || zs, vc = t.k === 'vice', dv = t.k === 'dev';
     var s = document.createElement('span');
     s.className = 'bra-tier bra-tier-' + t.k;
     s.innerHTML = '<svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true" focusable="false">' + ICON[t.k] + '</svg>';   // fixed markup, no text from anyone
     var label = document.createElement('span'); label.textContent = t.n; s.appendChild(label);
     if (opts && opts.miles && res && res.ok) { var m = document.createElement('span'); m.className = 'bra-mi'; m.textContent = '· ' + fmt(res.miles) + ' mi'; s.appendChild(m); }
-    s.title = t.n + (zs ? ' · site founder' : cap ? ' · flies the plane' : vc ? ' · co-pilot' : '') + (res && res.ok ? ' · ' + fmt(res.miles) + ' miles' + ((cap || vc) && res.real ? ' (' + res.real.n + ' by miles alone)' : '') : '') + (res && res.next ? ' · ' + fmt(res.next.miles) + ' to ' + res.next.tier.n : '');
+    s.title = t.n + (zs ? ' · site founder' : cap ? ' · flies the plane' : dv ? ' · builds the games' : vc ? ' · co-pilot' : '') + (res && res.ok ? ' · ' + fmt(res.miles) + ' miles' + ((cap || vc || dv) && res.real ? ' (' + res.real.n + ' by miles alone)' : '') : '') + (res && res.next ? ' · ' + fmt(res.next.miles) + ' to ' + res.next.tier.n : '');
     // First on the Miles board: the pill and its "#1" tags in one wrapper. Everyone else gets the pill alone, as before.
     // An award holder gets the same wrapper, with a ribbon for each award after the tags.
     // The earned award (the Slipstream ace) comes last, after any award that was given.
@@ -364,6 +380,7 @@
     var mi = res.ok ? fmt(res.miles) + ' miles · ' : '';
     if (res.founder) return mi + 'site founder';   // next to the Arjun badge
     if (res.owner) return mi + 'flies the plane';   // next to the Captain badge: "Captain 12,000 miles · flies the plane"
+    if (res.dev) return mi + 'builds the games';    // next to the Developer badge
     if (res.vice) return mi + 'co-pilot';           // next to the Vice Captain badge
     return res.ok ? mi + (res.next ? fmt(res.next.miles) + ' to ' + res.next.tier.n : 'the top tier') : '';
   }
@@ -378,6 +395,8 @@
     // Captain: gold on near-black navy with a gold rim, so it reads as above Private Jet's purple in light and dark mode.
     // Vice Captain: silver on steel blue with a silver rim: Captain's shape and glow, clearly not gold.
     '.bra-tier-vice{color:#E3E9F2;background:linear-gradient(135deg,#2F4E7E,#13233F);border-color:#AEB9C9;box-shadow:0 0 0 1px rgba(208,217,230,.18),0 1px 4px rgba(120,150,200,.35);letter-spacing:.08em}' +
+    // Developer: terminal green on near-black with a green rim, Captain's weight and glow in a colour of its own.
+    '.bra-tier-dev{color:#5CF2A0;background:linear-gradient(135deg,#0F2A20,#05110C);border-color:#2FBF71;box-shadow:0 0 0 1px rgba(92,242,160,.18),0 1px 4px rgba(47,191,113,.35);letter-spacing:.1em}' +
     '.bra-tier-captain{color:#F7C948;background:linear-gradient(135deg,#1F2A44,#0B1020);border-color:#D4A72C;box-shadow:0 0 0 1px rgba(247,201,72,.18),0 1px 4px rgba(212,167,44,.35);letter-spacing:.1em}' +
     // Arjun, the founder (above Captain): his gold bow and pale gold on a violet storm with a gold rim and a purple glow, and a flash of light that
     // sweeps across it every few seconds (still for anyone who asks for reduced motion). Same size as every pill.
@@ -579,6 +598,7 @@
     l = gSec(box, 'Crew', 'Given, not earned: these sit above every miles tier, whatever someone’s miles.');
     gRow(l, [pill(VICE_CAPTAIN)], 'Vice Captain', 'The co-pilot. Given by the Captains.');
     gRow(l, [pill(CAPTAIN)], 'Captain', 'Flies the plane: the people who run the site.');
+    gRow(l, [pill(DEVELOPER)], 'Developer', 'Builds the games. At the same level as Captain. Given by the Captains.');
     gRow(l, [pill(FOUNDER)], FOUNDER.n, 'The site founder. There is only one.');
     l = gSec(box, 'Miles board places', 'Shown after the tier for the top three on the Leaderboards’ Miles board. They change hands as the board does.');
     gRow(l, [topTag('all', 1), topTag('all', 2), topTag('all', 3)], 'All time', 'First, second or third in miles of all time.');
@@ -619,7 +639,7 @@
   (document.head || document.documentElement).appendChild(gcss);
 
   window.BackRoomMiles = { of: of, tierOf: tierOf, isOwner: isOwner, badge: badge, guide: guide, line: line, peek: peek, load: load, fmt: fmt, TIERS: TIERS, RULES: RULES, PATH: PATH, HOUR: HOUR,
-    CAPTAIN: CAPTAIN, OWNERS: OWNERS.slice(), FOUNDER: FOUNDER, isFounder: isFounder, isVice: isVice, VICE_CAPTAIN: VICE_CAPTAIN, VICE_CAPTAINS: VICE_CAPTAINS.slice(), forget: function (uid) { if (uid) delete cache[uid]; else cache = {}; },
+    CAPTAIN: CAPTAIN, OWNERS: OWNERS.slice(), FOUNDER: FOUNDER, isFounder: isFounder, isVice: isVice, isDev: isDev, DEVELOPER: DEVELOPER, DEVELOPERS: DEVELOPERS.slice(), VICE_CAPTAIN: VICE_CAPTAIN, VICE_CAPTAINS: VICE_CAPTAINS.slice(), forget: function (uid) { if (uid) delete cache[uid]; else cache = {}; },
     setTops: setTops, topOf: topOf, needTops: needTops,
     awardsOf: awardsOf, aceOf: aceOf, ACE_MIN: ACE_MIN, AWARD_KINDS: JSON.parse(JSON.stringify(AWARD_KINDS)), AWARDS: JSON.parse(JSON.stringify(AWARDS)) };
   // Test hook for the automated checks; harmless in normal play. put: a result for a uid without a read.
