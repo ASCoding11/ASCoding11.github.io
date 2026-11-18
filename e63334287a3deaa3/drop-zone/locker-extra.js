@@ -620,7 +620,7 @@ addEventListener('keydown',e=>{if(e.code!=='KeyT'||e.repeat||e.ctrlKey||e.metaKe
 function emoteTick(){
   const p=G.player,o=parse(G.myLx||'');
   if(o.e){const E=EMOTES[o.e],t=(performance.now()-(p.lxEA||0))/1000;if(!E||t>E.dur||!p.alive||!p.onGround||Math.hypot(p.vel.x,p.vel.z)>1||G.player.cd>0&&t>.3)stopEmote()}
-  if(G.touchUI&&G.lockerOn()){if(!emoteBtn){emoteBtn=document.createElement('button');emoteBtn.className='tb';emoteBtn.id='tEmote';emoteBtn.type='button';emoteBtn.textContent='EMOTE';
+  if(G.touchUI&&G.lockerOn()){if(!emoteBtn){emoteBtn=document.createElement('button');emoteBtn.className='tb';emoteBtn.id='tEmote';emoteBtn.type='button';emoteBtn.textContent=lxT('EMOTE');
       emoteBtn.addEventListener('pointerdown',ev=>{ev.preventDefault();ev.stopPropagation();if(worn().e)stopEmote();else startEmote()});const T=G.$('touch');if(T)T.appendChild(emoteBtn)}
     emoteBtn.hidden=!(canEmote()||o.e)}else if(emoteBtn)emoteBtn.hidden=true;
 }
@@ -669,7 +669,10 @@ const botLx=i=>'g'+(1+(i*7)%24)+'t'+(1+i%6)+'w'+(1+(i*5)%19)+'b'+(1+i%6)+'p'+(1+
 //  The Locker's tabs
 // =====================================================================
 const TABS=[['outfits','Outfits','OUT','FITS'],['p','Backpacks','BACK','PACKS'],['e','Emotes','EMO','TES'],['v','Victory','VIC','TORY'],['g','Gliders','GLI','DERS'],['t','Trails','TRA','ILS'],['w','Gun skins','GUN ','SKINS'],['b','Builds','BUI','LDS']];
-const LEDE={g:'Pick how you glide down. Every glider is held its own way, but you are the same size and fall at the same speed.',t:'A trail follows you while you skydive and glide. It never hides anyone: it fades out close to the camera.',e:'Pick the emote to play in a match: T on a keyboard, the Emote button on a touch screen. Standing still only; moving stops it.',v:'Pick what you do when you win: everyone watching you sees it.',p:'A backpack goes on over any outfit. It keeps your colour on it, so you can still be told apart.',w:'Your weapons in a pattern. The orange tip, the muzzle flash, the rarity band and the crosshair stay the same.',b:'What your walls, floors and ramps look like to everyone. They are just as strong, and just as hard to see through.'};
+// (the HUD the Emote button sits in is left alone by ../lang.js, so it's put in the player's language here; the Locker's own words
+// are translated by lang.js, from the page's es.js)
+const lxT=s=>window.BackRoomLang?window.BackRoomLang.t(s):s;
+const LEDE={outfits:'Pick what you wear. Every outfit is the same size and just as easy to hit as the standard one.',g:'Pick how you glide down. Every glider is held its own way, but you are the same size and fall at the same speed.',t:'A trail follows you while you skydive and glide. It never hides anyone: it fades out close to the camera.',e:'Pick the emote to play in a match: T on a keyboard, the Emote button on a touch screen. Standing still only; moving stops it.',v:'Pick what you do when you win: everyone watching you sees it.',p:'A backpack goes on over any outfit. It keeps your colour on it, so you can still be told apart.',w:'Your weapons in a pattern. The orange tip, the muzzle flash, the rarity band and the crosshair stay the same.',b:'What your walls, floors and ramps look like to everyone. They are just as strong, and just as hard to see through.'};
 let stageA=0,lede0=null,tab='outfits',built=false,drawnPics=false,stageEnt=null,stageTrail=0,posed=false,disp=null;
 const cards={};
 function worn(){return parse(G.myLx)}
@@ -703,7 +706,7 @@ function setTab(id){tab=id;const sec=G.Locker.sec;
   for(const b of sec.querySelectorAll('.lk-tabs button')){b.setAttribute('aria-pressed',b.dataset.tab===id?'true':'false');if(b.dataset.tab===id&&sec.offsetParent!==null){const bar=b.parentNode;if(b.offsetLeft<bar.scrollLeft||b.offsetLeft+b.offsetWidth>bar.scrollLeft+bar.clientWidth)bar.scrollLeft=b.offsetLeft-12}}
   G.$('lkGrid').hidden=id!=='outfits';for(const k in cards)G.$('lkGrid-'+k).hidden=k!==id;
   const t=TABS.find(x=>x[0]===id),h=sec.querySelector('.lk-title');if(h)h.innerHTML=t[2]+'<span>'+t[3]+'</span>';
-  const le=sec.querySelector('.lk-lede');if(le){if(lede0==null)lede0=le.textContent;le.textContent=id==='outfits'?lede0:LEDE[id]}
+  const le=sec.querySelector('.lk-lede');if(le)le.textContent=LEDE[id];   // (in English: lang.js shows it in Spanish)
   if(id==='outfits'){if(G.Locker.mark)G.Locker.mark()}else{pics();mark()}
   if(id==='w'&&G.Locker.turn){const C=G.STAGE.CAM;G.Locker.turn(Math.atan2(-C[1],C[0])-.45)}   // side on, so the rifle shows (drag still turns it)
 }
@@ -770,7 +773,7 @@ function dispMat(n){if(!dmats[n]){const t=new THREE.CanvasTexture(tileCanvas(n))
 function makeDisp(){const g=new THREE.Group();const w=new THREE.Mesh(G.geoPWall,G.plyMat);w.position.set(-1.2,2,1.6);const f=new THREE.Mesh(G.geoPFloor,G.plyMat);f.position.set(.4,.12,1.6);f.scale.set(.6,1,.6);
   const r=new THREE.Mesh(G.geoPRamp,G.plyMat);r.position.set(2.4,1.2,0);r.rotation.set(-Math.PI/4,Math.PI/2,0,'YXZ');r.scale.set(.6,1,.6);g.add(w,f,r);g.visible=false;G.scene.add(g);return g}
 
-return{canEmote,pick,emote,EMOTES,VICTORIES,startEmote,stopEmote,pack,dress,tick,gunReset,gunIM,gunDone,bsOf,bsk,bsCol,bsMat,botLx,menu,shown,stage,gstyle,HOLDS,
+return{relang(){if(emoteBtn)emoteBtn.textContent=lxT('EMOTE')},canEmote,pick,emote,EMOTES,VICTORIES,startEmote,stopEmote,pack,dress,tick,gunReset,gunIM,gunDone,bsOf,bsk,bsCol,bsMat,botLx,menu,shown,stage,gstyle,HOLDS,
   // for tests and contact sheets
   parse,str,GLIDER_NAMES,TRAIL_NAMES,WRAP_NAMES,BUILD_NAMES,gliderOf,setGlider,gunMesh,GLX,GSK,tp,TRAILS,emit,buildTex,tileCanvas,setTab,get tab(){return tab},gT,uT,gliderPic,gunPic};
 };

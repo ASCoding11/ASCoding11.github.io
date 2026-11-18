@@ -166,7 +166,7 @@
   W.forEach(function (w) { d[w[0]] = w[1]; R.forEach(function (r) { d[r[0] + ' ' + w[0]] = w[1] + ' ' + r[w[2] ? 2 : 1]; }); });
   ['Common', 'Común', 'Uncommon', 'Poco común', 'Rare', 'Raro', 'Epic', 'Épico', 'Legendary', 'Legendario'].forEach(function (x, i, a) { if (i % 2 === 0) d[x] = a[i + 1]; });
   var more = {
-    'Shotgun': 'Escopeta', 'Sniper': 'Sniper', 'Crowbar': 'Palanca', 'Bar': 'Palanca',
+    'Shotgun': 'Escopeta', 'Sniper': 'Sniper', 'Crowbar': 'Palanca', 'Bar': 'Barra',
     'Bandage': 'Venda', 'Band.': 'Venda', 'Medkit': 'Botiquín', 'Shield Fizz': 'Gaseosa escudo', 'Fizz': 'Gaseosa', 'Sh. Fizz': 'Gaseosa',
     'Shield Jug': 'Bidón escudo', 'Jug': 'Bidón', 'Sh. Jug': 'Bidón',
     'Light ammo': 'Munición liviana', 'Rifle ammo': 'Munición de rifle', 'Shells': 'Cartuchos', 'Heavy ammo': 'Munición pesada',
@@ -254,8 +254,8 @@
     'JUMP': 'SALTO', 'NEXT ▸': 'SIGUIENTE ▸', 'FLY': 'VOLAR', 'DOWN (fly)': 'BAJAR', 'DOWN': 'CAÍDO', 'OPEN': 'ABRIR', 'TAKE': 'TOMAR', 'SWAP': 'CAMBIO', 'REVIVE': 'REVIVIR',
     'TILE': 'MARCAR', 'PLACE': 'PONER', 'USE': 'USAR', 'HIT': 'GOLPE', 'FIRE': 'FUEGO', 'DONE': 'LISTO', 'EDIT': 'EDITAR', 'RESET': 'BORRAR', 'RELOAD': 'RECARGA',
     'CANCEL': 'SALIR', 'AIM': 'MIRA', 'Pause': 'Pausa', 'Map': 'Mapa', 'N NE E SE S SW W NW': 'N NE E SE S SO O NO',
-    'Boarding · {n}': 'Embarque · {n}', 'Closing · {t}': 'Se cierra · {t}', 'Closing {t}': 'Se cierra {t}', 'Storm closing · {t}': 'Tormenta cerrándose · {t}',
-    'Storm in {t}': 'Tormenta en {t}', 'Storm moves in {t}': 'La tormenta avanza en {t}', 'Final storm': 'Tormenta final', 'Round clock {t}': 'Reloj de la ronda {t}',
+    'Boarding · {n}': 'Embarque · {n}', 'Closing · {t}': 'Se cierra · {t}', 'Closing {t}': 'Se cierra {t}', 'Storm closing · {t}': 'Se cierra · {t}',
+    'Storm in {t}': 'Tormenta en {t}', 'Storm moves in {t}': 'Tormenta en {t}', 'Final storm': 'Tormenta final', 'Round clock {t}': 'Reloj de la ronda {t}',
     'Round over': 'Fin de la ronda', 'Get ready': 'Prepárate',
     'STORM CLOSING': 'LA TORMENTA SE CIERRA', 'Follow the marker on the compass to the safe zone': 'Sigue la marca de la brújula hasta la zona segura',
     'You\'re inside the next circle': 'Estás dentro del próximo círculo', 'IN THE STORM': 'EN LA TORMENTA',
