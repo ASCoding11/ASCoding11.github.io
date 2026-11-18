@@ -1,0 +1,2 @@
+/* Deepword answer data, built by tools/build.js from prompts.js and free data (see tools/SOURCES.md). Do not edit by hand. */
+DW_EXT.add("arctic","polar bear;penguin;seal;walrus;arctic fox;reindeer;narwhal;beluga;orca;snowy owl;musk ox;arctic hare;lemming;puffin;moose;wolf;ermine;wolverine;ptarmigan;arctic tern;bowhead whale;humpback whale;harp seal;leopard seal;elephant seal;emperor penguin;albatross;krill;snow goose;eider;gyrfalcon;dall sheep;bison;sea otter;husky;sled dog;snow leopard;yeti","vqx3xmvii3u8ixmmrekihvlklwkbr6ukcdjsbuf0lkmycwdygmfjj9dfi7bbaslknhmfp2ldo0ho");

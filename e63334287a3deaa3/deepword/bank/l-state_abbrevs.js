@@ -1,0 +1,2 @@
+/* Deepword answer data, built by tools/build.js from prompts.js and free data (see tools/SOURCES.md). Do not edit by hand. */
+DW_EXT.add("state_abbrevs","CA;TX;NY;FL;WA;IL;PA;OH;GA;NC;MI;NJ;VA;AZ;MA;CO;HI;AK;NV;OR;TN;IN;MO;MD;WI;MN;SC;AL;LA;KY;OK;CT;UT;IA;MS;AR;KS;NM;NE;ID;WV;NH;ME;MT;RI;DE;SD;ND;VT;WY","q7qpubzywdwdqzvlg6ndjstjpylbrzqgx4irgpxnm3utpos9srsrsrnmr8k1ubkjsrsrsrihfxsrp6rhh7j9ukdmfoenp6p6p6p6");
