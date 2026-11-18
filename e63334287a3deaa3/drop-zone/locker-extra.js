@@ -330,6 +330,7 @@ function gstyle(n){if(!HOLDS[n])return null;if(gstyles[n])return gstyles[n];cons
     legs(L0,L1,u,now,fl){const t=Math.sin(now*.004)*fl,v=L(u,t),k=u.glk;   // blended in from the standard trail as it opens
       const d=LEGS.trail(u,t);L0.rotation.set(d[0]+(v[0]-d[0])*k,0,d[1]+(v[1]-d[1])*k,'XYZ');L0.k=d[2]+(v[2]-d[2])*k;L1.rotation.set(d[3]+(v[3]-d[3])*k,0,d[4]+(v[4]-d[4])*k,'XYZ');L1.k=d[5]+(v[5]-d[5])*k}}}
 // The gliders' material: the page's own (its look, MAT's grain on Pretty), plus the moving parts on the clock gT.
+css();
 const gT={value:0};
 const GLX=new THREE.MeshLambertMaterial({vertexColors:true});GLX.defines={};
 GLX.onBeforeCompile=sh=>{G.MAT.onBeforeCompile(sh);sh.uniforms.gT=gT;
@@ -597,7 +598,6 @@ function emoteTick(){
   const p=G.player,o=parse(G.myLx||'');
   if(o.e){const E=EMOTES[o.e],t=(performance.now()-(p.lxEA||0))/1000;if(!E||t>E.dur||!p.alive||!p.onGround||Math.hypot(p.vel.x,p.vel.z)>1||G.player.cd>0&&t>.3)stopEmote()}
   if(G.touchUI&&G.lockerOn()){if(!emoteBtn){emoteBtn=document.createElement('button');emoteBtn.className='tb';emoteBtn.id='tEmote';emoteBtn.type='button';emoteBtn.textContent='EMOTE';
-      emoteBtn.style.cssText='left:calc(10px + env(safe-area-inset-left,0px));top:calc(60px + env(safe-area-inset-top,0px));width:56px;height:30px;border-radius:15px;font-size:11px';
       emoteBtn.addEventListener('pointerdown',ev=>{ev.preventDefault();ev.stopPropagation();if(worn().e)stopEmote();else startEmote()});const T=G.$('touch');if(T)T.appendChild(emoteBtn)}
     emoteBtn.hidden=!(canEmote()||o.e)}else if(emoteBtn)emoteBtn.hidden=true;
 }
@@ -650,15 +650,18 @@ let stageA=0,lede0=null,tab='outfits',built=false,drawnPics=false,stageEnt=null,
 const cards={};
 function worn(){return parse(G.myLx)}
 function css(){const st=document.createElement('style');st.textContent=
-  '.lk-tabs{display:flex;gap:6px;flex-wrap:wrap}'
+  '.lk-tabs{display:flex;gap:6px;flex-wrap:wrap;flex:none}'
   +'.lk-tabs button{flex:none;padding:7px 12px;font-size:15px;letter-spacing:.04em;min-width:0}'
   +'.lk-tabs button[aria-pressed="true"]{border-color:var(--sun);background:rgba(255,201,60,.18);color:var(--ink)}'
-  +'.lk-card .lk-big{font-size:34px;color:var(--sun)}'
+  +'.lk-card .lk-none.lk-big{font-size:34px;color:var(--sun)}'
   +'.lk-card .lk-none{width:100%;aspect-ratio:2/3;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--ink-dim)}'
   +'@media (orientation:portrait) and (max-width:700px){.lk-tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.lk-tabs button{padding:6px 9px;font-size:14px}}'
-  +'@media (orientation:landscape) and (max-height:480px){.lk-tabs button{padding:5px 9px;font-size:13px}}';document.head.appendChild(st)}
+  +'@media (orientation:landscape) and (max-height:480px){.lk-tabs button{padding:5px 9px;font-size:13px}}'
+  // the Emote button: beside the move stick (above it on an upright phone), clear of the kill feed and the other buttons
+  +'#tEmote{left:calc(166px + env(safe-area-inset-left,0px));bottom:calc(30px + env(safe-area-inset-bottom,0px));width:62px;height:32px;border-radius:16px;font-size:11px}'
+  +'@media (orientation:portrait){#tEmote{left:calc(26px + env(safe-area-inset-left,0px));bottom:calc(168px + env(safe-area-inset-bottom,0px))}}';document.head.appendChild(st)}
 function buildMenu(){
-  built=true;css();const sec=G.Locker.sec,grid0=G.$('lkGrid');
+  built=true;const sec=G.Locker.sec,grid0=G.$('lkGrid');
   const bar=document.createElement('div');bar.className='lk-tabs';bar.setAttribute('role','group');bar.setAttribute('aria-label','Locker sections');
   for(const [id,label] of TABS){const b=document.createElement('button');b.type='button';b.className='ghost-btn';b.dataset.tab=id;b.textContent=label;b.addEventListener('click',()=>setTab(id));bar.appendChild(b)}
   grid0.before(bar);
@@ -673,7 +676,7 @@ function nameOf(id){const o=worn();o.e=myEmote();const n=o[id];return n?SLOT[id]
 function mark(){if(!built)return;const o=worn();o.e=myEmote();for(const id in cards)cards[id].forEach((b,n)=>b.setAttribute('aria-pressed',(o[id]||0)===n?'true':'false'));
   if(tab!=='outfits')G.$('lkName').textContent=nameOf(tab)}
 function setTab(id){tab=id;const sec=G.Locker.sec;
-  for(const b of sec.querySelectorAll('.lk-tabs button'))b.setAttribute('aria-pressed',b.dataset.tab===id?'true':'false');
+  for(const b of sec.querySelectorAll('.lk-tabs button')){b.setAttribute('aria-pressed',b.dataset.tab===id?'true':'false');if(b.dataset.tab===id&&sec.offsetParent!==null){const bar=b.parentNode;if(b.offsetLeft<bar.scrollLeft||b.offsetLeft+b.offsetWidth>bar.scrollLeft+bar.clientWidth)bar.scrollLeft=b.offsetLeft-12}}
   G.$('lkGrid').hidden=id!=='outfits';for(const k in cards)G.$('lkGrid-'+k).hidden=k!==id;
   const t=TABS.find(x=>x[0]===id),h=sec.querySelector('.lk-title');if(h)h.innerHTML=t[2]+'<span>'+t[3]+'</span>';
   const le=sec.querySelector('.lk-lede');if(le){if(lede0==null)lede0=le.textContent;le.textContent=id==='outfits'?lede0:LEDE[id]}
@@ -720,7 +723,7 @@ function stage(dt,model,yaw){
   G.setHeldModel(model,tab==='w'?'ar':'cb',tab==='w'?3:-1);
   G.animModel(e,dt);model.visible=true;
   stageTrail=tab==='t'?o.t||0:0;
-  V.zoom=air?1.6:tab==='w'?.55:tab==='b'?2.1:1.15;V.y=air?1.0:tab==='w'?.38:tab==='b'?1.1:.15;
+  V.zoom=air?1.85:tab==='w'?.55:tab==='b'?2.1:1.15;V.y=air?1.0:tab==='w'?.38:tab==='b'?1.1:.15;
   if(tab==='b'){if(!disp)disp=makeDisp();disp.visible=true;const n=o.b||0;if(disp.userData.n!==n){disp.userData.n=n;for(const m of disp.children)m.material=n?dispMat(n):G.plyMat}
     disp.position.set(S[0],S[1],S[2]);disp.rotation.y=yaw}else if(disp)disp.visible=false;
 }
