@@ -20,7 +20,7 @@ if (window.BackRoomLang) BackRoomLang.add({
   'FINISHED!': '¡LLEGASTE!', '{t} · new best': '{t} · ¡récord!', '{t} · best {b}': '{t} · récord {b}', 'Checkpoint!': '¡Punto de control!',
   'PINK': 'ROSA', 'BLUE': 'AZUL', 'YELLOW': 'AMARILLO', 'GREEN': 'VERDE', 'pink': 'rosa', 'blue': 'azul', 'yellow': 'amarilla', 'green': 'verde',
   'Remember where it is!': '¡Recuerda dónde está!', 'Get on a {c} tile': 'Párate en una baldosa {c}',
-  'Show in progress.': 'Show en curso.', "You'll play in the next one": 'Vas a jugar en el próximo', '{n} joined': '{n} se unió', '{n} left': '{n} se fue',
+  'Show in progress.': 'Show en curso.', "You'll play in the next one": 'Vas a jugar en el próximo', 'qualified': 'clasificó', 'is out': 'quedó afuera', '{n} joined': '{n} se unió', '{n} left': '{n} se fue',
   "You're the host now": 'Ahora eres el anfitrión', 'Music off': 'Música apagada', 'Music on': 'Música encendida', 'You': 'Tú', '(you)': '(tú)', 'Bean': 'Frijolito', 'Player': 'Jugador',
   // results and podium
   'Round over': 'Ronda terminada', '{n} is over': 'Terminó {n}', '{a} of {b} go through to the final': 'Pasan {a} de {b} a la final',
