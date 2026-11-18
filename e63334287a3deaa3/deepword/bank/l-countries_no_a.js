@@ -1,0 +1,2 @@
+/* Deepword answer data, built by tools/build.js from prompts.js and free data (see tools/SOURCES.md). Do not edit by hand. */
+DW_EXT.add("countries_no_a","mexico;united kingdom;egypt;turkey;greece;sweden;philippines;belgium;chile;peru;morocco;czech republic;luxembourg;cyprus;montenegro;kosovo;yemen;niger;congo;republic of the congo;togo;benin;djibouti;burundi;lesotho;seychelles;comoros;belize;fiji;brunei;liechtenstein","umwmwty5vhw5p1qdvpppodjwh9l8fxhxileskklklkcsc4orasdglkhglwbgo3");
