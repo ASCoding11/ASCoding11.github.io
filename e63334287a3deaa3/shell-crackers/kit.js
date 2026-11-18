@@ -134,19 +134,29 @@ const EGGS=[null,
     g.fillStyle='#e2503f';g.fillRect(0,196,TW,14);g.fillStyle='#ffe68a';for(let x=0;x<TW;x+=20)g.fillRect(x,200,8,6);
     g.strokeStyle='#5a3418';g.lineWidth=3;g.beginPath();for(let x=0;x<=TW;x+=6)g.lineTo(x,edge(x));g.stroke();
     g.fillStyle='#f2cf5b';for(let k=0;k<3;k++){const x=60+k*170;g.beginPath();g.moveTo(x,edge(x));g.lineTo(x+18,edge(x)-26);g.lineTo(x+34,edge(x+34));g.fill()}}},
-  // 11 Hard-Boiled: peeled glossy white, a few pieces of shell still stuck on round the bottom
-  {shard:'#efe2c8',mat:'shiny',spec:0x3c3c3c,shin:40,paint(g,r){grad(g,'#ffffff','#f1f2f4');
-    g.fillStyle='rgba(200,215,235,.35)';g.fillRect(0,170,TW,86);
-    for(let i=0;i<9;i++){const x=r()*TW,y=170+r()*80,s=18+r()*22;wrap(x,xx=>{blob(g,r,xx,y,s,'#efe2c8',7);g.strokeStyle='#cdb894';g.lineWidth=2.5;g.stroke()})}
-    dots(g,r,40,['#d9c7a2'],1,2.5,.6,.9)}},
-  // 12 Century Egg: clay and rice husk outside, a patch fallen away to show amber with frosty pine patterns
-  {shard:'#b89a6e',paint(g,r){grad(g,'#c9ab7e','#a88a5e');
-    for(let i=0;i<500;i++){const x=r()*TW,y=r()*TH,a=r()*3,l=4+r()*7;g.strokeStyle=r()<.5?'rgba(235,205,140,.85)':'rgba(110,80,40,.7)';g.lineWidth=1.6;g.beginPath();g.moveTo(x,y);g.lineTo(x+Math.cos(a)*l,y+Math.sin(a)*l);g.stroke()}
-    const win=(cx,cy)=>{g.save();g.beginPath();for(let k=0;k<14;k++){const a=k/14*Math.PI*2,q=46+r()*14;g.lineTo(cx+Math.cos(a)*q*1.4,cy+Math.sin(a)*q)}g.closePath();
-      g.fillStyle='#a8692c';g.fill();g.clip();const rg=g.createRadialGradient(cx-12,cy-10,4,cx,cy,70);rg.addColorStop(0,'#e0a050');rg.addColorStop(1,'#8a5524');g.fillStyle=rg;g.fillRect(cx-90,cy-70,180,140);
-      g.strokeStyle='rgba(255,240,200,.75)';g.lineWidth=1.5;for(let f=0;f<6;f++){const fx=cx+pr(-50,50),fy=cy+pr(-30,30);for(let k=0;k<6;k++){const a=k/6*Math.PI*2;g.beginPath();g.moveTo(fx,fy);g.lineTo(fx+Math.cos(a)*8,fy+Math.sin(a)*8);g.stroke()}}
-      g.restore();g.strokeStyle='#6b4a22';g.lineWidth=3;g.stroke()};
-    win(120,120);win(400,96)}},
+  // 11 Hard-Boiled: the top half peeled to glossy white, the cracked shell still on below, and a chip on the back with the yolk showing
+  {shard:'#efe2c8',mat:'shiny',spec:0x3c3c3c,shin:40,paint(g,r){grad(g,'#ffffff','#eef2f6');
+    const edge=x=>150+Math.sin(x/19)*9+Math.sin(x/7.3)*6;
+    g.fillStyle='#dcb98c';g.beginPath();g.moveTo(0,TH);for(let x=0;x<=TW;x+=4)g.lineTo(x,edge(x));g.lineTo(TW,TH);g.fill();
+    dots(g,r,160,['#c79f70','#ead0a8'],1,2.6,.5,.9);
+    g.strokeStyle='#7a5532';g.lineWidth=2.5;g.lineJoin='round';
+    for(let i=0;i<14;i++){let x=r()*TW,y=edge(x)+6;g.beginPath();g.moveTo(x,y);for(let k=0;k<4;k++){x+=pr(-12,12);y+=pr(8,18);g.lineTo(x,y)}g.stroke()}
+    g.strokeStyle='#5a3a1e';g.lineWidth=4;g.beginPath();for(let x=0;x<=TW;x+=4)g.lineTo(x,edge(x));g.stroke();
+    for(let i=0;i<5;i++){const x=r()*TW,y=edge(x)-14-r()*30;g.fillStyle='#dcb98c';g.strokeStyle='#7a5532';g.lineWidth=2;g.beginPath();for(let k=0;k<5;k++){const a=k/5*Math.PI*2;g.lineTo(x+Math.cos(a)*(5+r()*4),y+Math.sin(a)*(4+r()*3))}g.closePath();g.fill();g.stroke()}
+    wrap(470,xx=>{g.fillStyle='#fffdf6';g.beginPath();g.ellipse(xx,96,40,30,0,0,7);g.fill();g.strokeStyle='#d6dbe2';g.lineWidth=3;g.stroke();
+      g.fillStyle='#f4a41c';g.beginPath();g.ellipse(xx,98,26,19,0,0,7);g.fill();g.fillStyle='#ffc93c';g.beginPath();g.ellipse(xx-3,95,20,14,0,0,7);g.fill();
+      g.fillStyle='rgba(255,255,255,.7)';g.beginPath();g.ellipse(xx-9,90,6,4,0,0,7);g.fill()});
+    g.fillStyle='rgba(255,255,255,.9)';g.fillRect(0,34,TW,9)}},
+  // 12 Century Egg: glossy deep amber-brown with pale pine-branch crystals (no darker than the Charcoal shell)
+  {shard:'#8e5c2e',mat:'shiny',spec:0x5a4020,shin:55,paint(g,r){grad(g,'#ad7339','#80532a');
+    for(let i=0;i<16;i++){g.globalAlpha=.35;wrap(r()*TW,xx=>blob(g,r,xx,r()*TH,22+r()*30,r()<.5?'#c88a44':'#6e4824',11))}g.globalAlpha=1;
+    g.lineCap='round';
+    const branch=(x,y,a,len,w,d)=>{const ex=x+Math.cos(a)*len,ey=y+Math.sin(a)*len;g.lineWidth=w;g.beginPath();g.moveTo(x,y);g.lineTo(ex,ey);g.stroke();
+      if(d<2)for(let k=1;k<=3;k++){const t=k/4,bx=x+(ex-x)*t,by=y+(ey-y)*t;branch(bx,by,a+.7,len*.42,w*.65,d+1);branch(bx,by,a-.7,len*.42,w*.65,d+1)}};
+    for(let i=0;i<30;i++){const x=r()*TW,y=r()*TH,a=r()*Math.PI*2,len=24+r()*24;g.strokeStyle=r()<.6?'rgba(255,240,205,.95)':'rgba(255,250,232,.75)';
+      wrap(x,xx=>branch(xx,y,a,len,3.2,0))}
+    for(let i=0;i<10;i++){const x=r()*TW,y=r()*TH;g.strokeStyle='rgba(255,244,215,.8)';g.lineWidth=1.6;wrap(x,xx=>{for(let k=0;k<6;k++){const a=k/6*Math.PI*2;g.beginPath();g.moveTo(xx,y);g.lineTo(xx+Math.cos(a)*7,y+Math.sin(a)*7);g.stroke()}})}
+    g.fillStyle='rgba(255,235,190,.4)';g.fillRect(0,40,TW,10)}},
   // 13 Dinosaur Egg: sandy with big dark blotches and little pits
   {shard:'#d9c49a',paint(g,r){grad(g,'#e3cfa4','#c9b184');
     for(let i=0;i<30;i++){const x=r()*TW,y=r()*TH,s=10+r()*24;wrap(x,xx=>{g.globalAlpha=.85;blob(g,r,xx,y,s,r()<.5?'#8a6a40':'#6e5232',10)})}g.globalAlpha=1;
@@ -181,12 +191,18 @@ const EGGS=[null,
     for(let x=0;x<TW;x+=P){const k=(x/P)%8,yy=96+(k<4?k:8-k)*P;g.fillStyle='#36b37e';g.fillRect(x,yy,P,P);g.fillStyle='#2a8c62';g.fillRect(x,yy+P,P,P)}
     g.fillStyle='#ffffff';g.fillRect(208,32,P,P);g.fillRect(224,32,P,P);g.fillRect(208,48,P,P);
     g.fillStyle='#ef5338';for(let x=0;x<TW;x+=4*P)g.fillRect(x+P,192,P,P),g.fillRect(x+3*P,208,P,P)}},
-  // 19 Bandaged Egg: a mended crack with two crossed plasters, on the side so the face stays clear
+  // 19 Bandaged Egg: a dark zig-zag crack across the front under the face, a big plaster stuck over it, and a small cross on the back
   {shard:'#fbf6ea',paint(g,r){grad(g,'#fffaf0','#efe6d4');dots(g,r,100,['#d9cdb4'],.8,2,.3,.6);
-    g.strokeStyle='#5a4632';g.lineWidth=3;g.lineJoin='round';g.beginPath();let x=300,y=30;g.moveTo(x,y);for(let k=0;k<7;k++){x+=pr(4,12);y+=k%2?12:-4;g.lineTo(x,y+k*6)}g.stroke();
-    const plaster=(cx,cy,a)=>{g.save();g.translate(cx,cy);g.rotate(a);g.fillStyle='#f2c49a';g.fillRect(-46,-12,92,24);g.fillStyle='#e8b080';g.fillRect(-14,-12,28,24);
-      g.fillStyle='rgba(150,100,60,.55)';for(const px of [-36,-26,26,36])for(const py of [-5,5]){g.beginPath();g.arc(px,py,1.8,0,7);g.fill()}g.strokeStyle='#c99064';g.lineWidth=2;g.strokeRect(-46,-12,92,24);g.restore()};
-    plaster(330,62,.6);plaster(330,62,-.6)}}
+    g.lineJoin='round';g.lineCap='round';
+    const crack=w=>{g.lineWidth=w;g.beginPath();let x=118,y=160;g.moveTo(x,y);for(let k=0;k<14;k++){x+=20;y=160+(k%2?-30:28)+pr(-3,3);g.lineTo(x,y)}g.stroke()};
+    g.strokeStyle='#2b1a10';crack(7);g.strokeStyle='#5a4632';crack(3);
+    for(const [x,y,a] of [[180,150,-1.2],[260,172,1.1],[330,148,-1.4]]){g.strokeStyle='#2b1a10';g.lineWidth=3.5;g.beginPath();g.moveTo(x,y);g.lineTo(x+Math.cos(a)*16,y+Math.sin(a)*16);g.stroke()}
+    const plaster=(cx,cy,a,L,H)=>{g.save();g.translate(cx,cy);g.rotate(a);g.fillStyle='#f0c49a';g.beginPath();g.roundRect?g.roundRect(-L/2,-H/2,L,H,H/2):g.rect(-L/2,-H/2,L,H);g.fill();
+      g.strokeStyle='#b98656';g.lineWidth=2.5;g.stroke();g.fillStyle='#fbe6cf';g.fillRect(-L*.17,-H/2+4,L*.34,H-8);g.strokeStyle='#d9a878';g.lineWidth=2;g.strokeRect(-L*.17,-H/2+4,L*.34,H-8);
+      g.fillStyle='rgba(140,90,50,.6)';for(const sx of [-1,1])for(let i=0;i<3;i++)for(const py of [-H*.18,H*.18]){g.beginPath();g.arc(sx*(L*.26+i*L*.07),py,2,0,7);g.fill()}g.restore()};
+    plaster(262,162,-.12,112,36);
+    wrap(10,xx=>{plaster(xx,96,.7,74,22);plaster(xx,96,-.7,74,22)})}}
+
 ];
 // The same cracks as a plain egg's (index.html's eggTex), drawn over the type's picture as it is hurt.
 function crackOver(g,r,stage){
