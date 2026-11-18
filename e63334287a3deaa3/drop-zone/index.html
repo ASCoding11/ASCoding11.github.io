@@ -222,6 +222,8 @@ details.ctrl[open] .keys{margin-top:10px}
 .rank li .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rank li .k{color:var(--ink-dim);font-variant-numeric:tabular-nums}
 .rank li.me{color:var(--sun)}
+/* a short screen (a phone on its side): the buttons come before the results list so they're on screen without scrolling */
+@media (max-height:520px){#end .menu-inner{gap:8px;padding-block:calc(14px + env(safe-area-inset-top,0px)) 14px}#end .title{font-size:44px!important}#end .row{order:1}#end .rank{order:2}}
 /* The Locker (only built for a player who may see it, see lockerOn): the outfits on the left and your
    character turning on the right, over the island; on an upright phone the character is on top and the outfits scroll
    underneath. */
@@ -345,7 +347,7 @@ body.touch #ammo small{font-size:13px}
 body.touch #mapBox{width:112px;top:calc(8px + env(safe-area-inset-top,0px));right:calc(8px + env(safe-area-inset-right,0px))}
 body.touch #mini{width:112px;height:112px}
 body.touch #stormT{font-size:13px;padding:2px 6px}
-body.touch #feed{right:auto;left:calc(10px + env(safe-area-inset-left,0px));align-items:flex-start;top:calc(60px + env(safe-area-inset-top,0px));font-size:12px;max-width:180px}
+body.touch #feed{right:auto;left:calc(10px + env(safe-area-inset-left,0px));align-items:flex-start;top:calc(60px + env(safe-area-inset-top,0px));font-size:12px;max-width:250px}
 body.touch #hint{bottom:auto;top:calc(86px + env(safe-area-inset-top,0px));font-size:12px}
 body.touch #prompt{font-size:14px;top:calc(50% + 34px)}
 body.touch #topc{top:calc(58px + env(safe-area-inset-top,0px));gap:4px}
@@ -4131,7 +4133,7 @@ let myKills=0;
 function gotKill(victim){myKills++;hitmark(false,true);sfxKO();player.kills=myKills;banner((victim.name||'Someone').toUpperCase()+' DOWN',myKills+' knockout'+(myKills===1?'':'s'),1.8);Net.publishSoon()}
 function killFeed(k,v,w){
   const nm=u=>u===myId()?'You':esc(nameOf(u))+(isBotId(u)?'<span class="bt">BOT</span>':'');
-  const how=w==='storm'||!k?(w==='storm'?' · storm':' · fell'):' · '+(WEAP[w]?WEAP[w].name:w==='cb'?'Crowbar':'');
+  const how=w==='storm'||!k?(w==='storm'?' · storm':' · fell'):' · '+(WEAP[w]?(touchUI?WEAP[w].short:WEAP[w].name):w==='cb'?'Crowbar':'');   // (the phone's narrow feed has room for the type only)
   feed((k?nm(k)+' <b>⟶</b> ':'')+nm(v)+how,k===myId()?'you':v===myId()?'them':'info');
 }
 function muzzleOf(e){return e.pos.clone().add(new V3(0,MUZ_Y,0)).addScaledVector(rightOf(e.yaw),.3*BS).addScaledVector(fwdOf(e.yaw,e.pitch),.5*BS)}
@@ -4265,7 +4267,7 @@ function useHeld(e){
 function dropFromBus(e){
   const t=matchT();busPos(t,e.pos);e.pos.y-=4;e.st='fall';e.float=true;e.onGround=false;
   e.vel.set(busLine.dx*BUS_V*.35,-8,busLine.dz*BUS_V*.35);e.present=true;
-  if(e===player){Net.publishSoon();banner('JUMP!','Steer with '+(touchUI?'the stick':'WASD')+' · '+(touchUI?'Jump':'Space')+' opens the glider',1.6)}
+  if(e===player){Net.publishSoon();banner('JUMP!','Steer with '+(touchUI?'the stick':'WASD'),1.6)}
 }
 function stepAir(e,dt,ix,iz,openNow){
   const g=groundAt(e.pos.x,e.pos.z,e.pos.y);
