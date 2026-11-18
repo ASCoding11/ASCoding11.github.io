@@ -20,6 +20,15 @@
  */
 (function () {
   if (window.__gameSearch) return; window.__gameSearch = 1;
+  // Spanish (lang.js): this script's words, and T() for the line under the box.
+  var T = function (s, v) { return window.BackRoomLang ? BackRoomLang.t(s, v) : String(s).replace(/\{(\w+)\}/g, function (m, k) { return v && v[k] != null ? v[k] : m; }); };
+  (function es(n) {
+    if (!window.BackRoomLang) { if (n < 100) setTimeout(function () { es(n + 1); }, 100); return; }
+    BackRoomLang.add({
+      'Search games': 'Buscar juegos', 'Clear search': 'Borrar búsqueda', '1 game matches.': 'Coincide 1 juego.',
+      '{n} games match.': 'Coinciden {n} juegos.', 'No games match “{q}”.': 'Ningún juego coincide con “{q}”.', 'Clear the search': 'Borrar la búsqueda'
+    });
+  })(0);
   var phone = !!document.getElementById('lists');
   function navEl() { return document.querySelector(phone ? '.gnav' : '.br-games .gs-nav'); }
   function norm(s) { return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ' ').trim(); }
@@ -115,10 +124,10 @@
       document.querySelectorAll('.br-games .gs-ask-sm').forEach(hide);   // the puzzle-request note; the general ideas note stays
     }
     msg.hidden = false; msg.textContent = '';
-    if (n) msg.textContent = n === 1 ? '1 game matches.' : n + ' games match.';
+    if (n) msg.textContent = n === 1 ? T('1 game matches.') : T('{n} games match.', { n: n });
     else {
-      msg.append('No games match “' + q.value.trim() + '”. ');
-      var b = document.createElement('button'); b.type = 'button'; b.textContent = 'Clear the search';
+      msg.append(T('No games match “{q}”.', { q: q.value.trim() }) + ' ');
+      var b = document.createElement('button'); b.type = 'button'; b.textContent = T('Clear the search');
       b.addEventListener('click', clear); msg.append(b);
     }
   }
