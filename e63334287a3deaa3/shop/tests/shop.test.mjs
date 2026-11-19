@@ -130,7 +130,8 @@ for (const [sz, vp] of SIZES) {
     await page.waitForURL(/checkout\.stripe\.com/, { timeout: 8000 });
     assert.equal(st.sessions[st.sessions.length - 1].params['metadata[sku]'], 'emeralds_7');
     // a captain who signs out: back to "not open yet"
-    await page.goto(SHOP); await page.evaluate(id => window.__captains.as(id), CAP); await page.waitForSelector('.topbar');
+    // (?preview=0 first: a tab that still has the preview flag reloads itself once captains.js's own check says "no captain")
+    await page.goto(SHOP + '?preview=0'); await page.evaluate(id => window.__captains.as(id), CAP); await page.waitForSelector('.topbar');
     await Promise.all([page.waitForNavigation(), page.evaluate(() => window.__captains.as(null))]);
     await page.waitForTimeout(300);
     assert.equal(await page.isVisible('#closed'), true);
