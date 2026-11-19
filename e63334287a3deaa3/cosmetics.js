@@ -418,7 +418,7 @@
   I('boostball', 'decal', 60, 'Paisley', 'rare', '#FF8A3D', '#FFFFFF', 'Curled teardrops and dots, like a bandana.');
   I('boostball', 'decal', 61, 'Golf Argyle', 'uncommon', '#3F8CFF', '#FFFFFF', 'Diamonds in two shades with thin crossing lines.');
   I('boostball', 'decal', 62, 'Title Belt', 'legendary', '#E9B93A', '#17151B', 'A black strap round the car with a big gold plate and gems.');
-  I('boostball', 'trail', 33, 'Green Flame', 'common', '#46E39A', '#D8FF8A', 'Fire, but green.');
+  I('boostball', 'trail', 33, 'Green Flame', 'common', '#46E39A', '#D8FF8A', 'Tall green tongues of fire that lick upward, with sparks and embers.');
   I('boostball', 'trail', 34, 'Violet Flame', 'uncommon', '#B46CFF', '#FFB0F8', 'Flickering purple fire with white sparks.');
   I('boostball', 'trail', 35, 'Afterburner', 'rare', '#8FD6FF', '#FFFFFF', 'A tight blue-white jet with rings, like a fighter plane.');
   I('boostball', 'trail', 36, 'Sports Balls', 'epic', '#FFFFFF', '#E8742A', 'Footballs, basketballs and tennis balls bouncing out behind.');
