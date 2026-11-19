@@ -22,7 +22,10 @@
     this.R = E.rng(seed || 1); this.buckets = {}; this.colliders = []; this.decals = [];
   }
   const P = Builder.prototype;
-  P.bucket = function (mat) { return this.buckets[mat] || (this.buckets[mat] = { p: [], n: [], u: [], a: [], i: [] }); };
+  // Detail pieces (arch voussoirs, quoins, loose bricks, ridge tiles, glazing bars, furniture...) go into separate
+  // meshes that IVEnv.update hides beyond Q.detailDist. detail 2 = also left out entirely on Low.
+  P.bucket = function (mat) { if (this.detail) mat += '#d'; return this.buckets[mat] || (this.buckets[mat] = { p: [], n: [], u: [], a: [], i: [] }); };
+  P.det = function (level, fn) { const prev = this.detail; if (level === 2 && E.Q.name === 'low') return; this.detail = level; try { fn(); } finally { this.detail = prev; } };
   // push one vertex
   function vtx(B, x, y, z, nx, ny, nz, u, v, t, foot) {
     B.p.push(x, y, z); B.n.push(nx, ny, nz); B.u.push(u, v);
@@ -103,14 +106,31 @@
       geo.setAttribute('uv', new THREE.Float32BufferAttribute(B.u, 2)); geo.setAttribute('aEnv', new THREE.Float32BufferAttribute(B.a, 4));
       geo.setIndex(B.p.length / 3 > 65535 ? new THREE.Uint32BufferAttribute(B.i, 1) : new THREE.Uint16BufferAttribute(B.i, 1));
       geo.computeBoundingSphere();
-      const m = new THREE.Mesh(geo, mat === 'glass_lit' ? E.mat('glass', 'lit') : E.mat(mat));
-      m.castShadow = o.castShadow !== false && mat !== 'glass' && mat !== 'glass_lit'; m.receiveShadow = true; m.name = mat;
+      const det = mat.endsWith('#d'), mn = det ? mat.slice(0, -2) : mat;
+      const m = new THREE.Mesh(geo, mn === 'glass_lit' ? E.mat('glass', 'lit') : E.mat(mn));
+      m.castShadow = o.castShadow !== false && !det && mn !== 'glass' && mn !== 'glass_lit'; m.receiveShadow = true; m.name = mn;
+      if (det) E.registerDetail(m);
       g.add(m);
     }
-    if (this.decals.length) g.add(E.decalMesh(this.decals));
+    if (this.decals.length) { const dm = E.decalMesh(this.decals); E.registerDetail(dm, 40); g.add(dm); }
     return g;
   };
   E.builder = (seed) => new Builder(seed);
+  E._detail = [];
+  E.registerDetail = function (mesh, dist) { mesh.userData.detail = dist || true; E._detail.push(mesh); };
+  const _c = new THREE.Vector3(); let _last = 0;
+  E._updaters = E._updaters || [];
+  E._updaters.push(function (dt, cam) {
+    const now = performance.now(); if (now - _last < 200) return; _last = now;
+    const D = E.Q.detailDist || 25, list = E._detail;
+    for (let i = list.length - 1; i >= 0; i--) {
+      const m = list[i]; if (!m.parent) { if (m.userData.dead) list.splice(i, 1); continue; }
+      if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
+      _c.copy(m.geometry.boundingSphere.center).applyMatrix4(m.matrixWorld);
+      const lim = (m.userData.detail === true ? D : m.userData.detail) + m.geometry.boundingSphere.radius;
+      m.visible = _c.distanceToSquared(cam.position) < lim * lim;
+    }
+  });
   E.Builder = Builder;
 
   // ------------------------------------------------------------------ static decal mesh (atlas, merged)
@@ -169,9 +189,10 @@
       let p = o.parent; while (p && p !== root) { if (p.userData.dynamic) return; p = p.parent; }
       const mat = o.material; if (Array.isArray(mat)) return;
       // merge per material AND per spatial cell (opts.cell metres), so frustum culling still drops what is out of view
-      let k = mat.uuid;
-      if (opts.cell) { if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere(); const c = o.geometry.boundingSphere.center.clone().applyMatrix4(o.matrixWorld); k += ':' + Math.floor(c.x / opts.cell) + ':' + Math.floor(c.z / opts.cell); }
-      if (!groups.has(k)) groups.set(k, { mat, list: [], cast: o.castShadow, order: o.renderOrder, depth: o.customDepthMaterial });
+      let k = mat.uuid + (o.userData.detail ? '#d' : '');
+      const cellSize = o.userData.detail ? Math.min(opts.cell || 32, 32) : opts.cell;
+      if (cellSize) { if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere(); const c = o.geometry.boundingSphere.center.clone().applyMatrix4(o.matrixWorld); k += ':' + Math.floor(c.x / cellSize) + ':' + Math.floor(c.z / cellSize); }
+      if (!groups.has(k)) groups.set(k, { mat, list: [], cast: o.castShadow, order: o.renderOrder, depth: o.customDepthMaterial, detail: o.userData.detail });
       groups.get(k).list.push(o); victims.push(o);
     });
     const out = new THREE.Group(); out.name = 'IVEnv.merged';
@@ -199,10 +220,10 @@
       for (const k in names) geo.setAttribute(k, new THREE.BufferAttribute(arr[k], names[k]));
       geo.setIndex(new THREE.BufferAttribute(idx, 1));
       geo.computeBoundingSphere();
-      const mesh = new THREE.Mesh(geo, G.mat); mesh.castShadow = G.cast; if (G.depth) mesh.customDepthMaterial = G.depth; mesh.receiveShadow = true; mesh.renderOrder = G.order; mesh.name = 'merged:' + (G.mat.userData.ivenv || G.mat.type);
+      const mesh = new THREE.Mesh(geo, G.mat); mesh.castShadow = G.cast; if (G.depth) mesh.customDepthMaterial = G.depth; if (G.detail) E.registerDetail(mesh, G.detail); mesh.receiveShadow = true; mesh.renderOrder = G.order; mesh.name = 'merged:' + (G.mat.userData.ivenv || G.mat.type);
       out.add(mesh);
     }
-    for (const o of victims) { o.parent.remove(o); if (opts.dispose !== false) o.geometry.dispose(); }
+    for (const o of victims) { o.parent.remove(o); o.userData.dead = true; if (opts.dispose !== false) o.geometry.dispose(); }
     return out;
   };
 })();

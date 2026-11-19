@@ -174,7 +174,7 @@
   E.atmosphere = function (scene, renderer, preset, opts) {
     opts = opts || {};
     installFogChunks();
-    const A = { scene, renderer, sun: null, hemi: null, mistBase: opts.mistBase != null ? opts.mistBase : 0, shadowR: opts.shadowRadius || 40 };
+    const A = { scene, renderer, sun: null, hemi: null, mistBase: opts.mistBase != null ? opts.mistBase : 0, shadowR: opts.shadowRadius || (E.Q.name === 'low' ? 24 : 40) };
     const sun = A.sun = new THREE.DirectionalLight(0xffffff, 1);
     const hemi = A.hemi = new THREE.HemisphereLight(0xffffff, 0x000000, 0.3);
     scene.add(sun); scene.add(sun.target); scene.add(hemi);

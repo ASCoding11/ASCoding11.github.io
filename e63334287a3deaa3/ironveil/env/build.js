@@ -35,7 +35,8 @@
   }
   // a loose brick (or any small block) lying at a random angle
   function looseBlock(B, mat, x, y, z, R, sx, sy, sz, tint) {
-    B.box(mat, x, y, z, sx || 0.215, sy || 0.065, sz || 0.1025, R() * TAU, { rx: R.range(-0.4, 0.4), rz: R.range(-0.4, 0.4), tint });
+    if (E.Q.name === 'low') { R(); R(); R(); return; }
+    B.det(2, () => B.box(mat, x, y, z, sx || 0.215, sy || 0.065, sz || 0.1025, R() * TAU, { rx: R.range(-0.4, 0.4), rz: R.range(-0.4, 0.4), tint }));
   }
   E.looseBlock = looseBlock;
   // rubble pile: bricks, stone lumps and dust, a low mound
@@ -44,7 +45,7 @@
     for (let i = 0; i < n; i++) {
       const a = R() * TAU, d = Math.sqrt(R()) * r, hx = x + Math.cos(a) * d, hz = z + Math.sin(a) * d, hy = y0 + (1 - d / r) * r * 0.35 * R();
       if (R() < 0.6) looseBlock(B, mats.brick || 'brick_red', hx, hy, hz, R, null, null, null, tintJ(R, 0.12));
-      else placeRock(B, mats.stone || 'fieldstone', hx, hy, hz, R.range(0.08, 0.22), (R() * 1000) | 0, [R() * 3, R() * 3, R() * 3]);
+      else { const rs = R.range(0.08, 0.22), sd = (R() * 1000) | 0, rr = [R() * 3, R() * 3, R() * 3]; B.det(2, () => placeRock(B, mats.stone || 'fieldstone', hx, hy, hz, rs, sd, rr)); }
     }
     // the mound under it
     placeRock(B, 'mud', x, y0 - r * 0.15, z, r * 0.8, (R() * 1000) | 0, [0, R() * 3, 0]);
@@ -103,8 +104,7 @@
     B.box(wood, fp[0], o.y1 - fw, fp[1], o.w, fw, fd, rot, { tint });
     for (const s of [-1, 1]) { const q = [fp[0] + o.dx * s * (o.w / 2 - fw / 2), fp[1] + o.dz * s * (o.w / 2 - fw / 2)]; B.box(wood, q[0], o.y0, q[1], fw, o.y1 - o.y0, fd, rot, { tint }); }
     const mid = (o.y0 + o.y1) / 2;
-    B.box(wood, fp[0], mid - 0.02, fp[1], o.w, 0.035, 0.04, rot, { tint });
-    B.box(wood, fp[0], o.y0, fp[1], 0.035, o.y1 - o.y0, 0.04, rot, { tint });
+    B.det(1, () => { B.box(wood, fp[0], mid - 0.02, fp[1], o.w, 0.035, 0.04, rot, { tint }); B.box(wood, fp[0], o.y0, fp[1], 0.035, o.y1 - o.y0, 0.04, rot, { tint }); });
     // glass panes (four), some broken out when damaged
     const gp = out(o.T / 2 - inset - 0.03 - 0.01), hw = o.w / 2 - fw, panes = [[-1, 0], [1, 0], [-1, 1], [1, 1]];
     for (const [sx, sy] of panes) {
@@ -130,7 +130,8 @@
       const rad = o.head === 'pointed' ? span * 0.8 : (span * span / 4 + rise * rise) / (2 * rise), depth = o.head === 'pointed' ? 0.3 : 0.215;
       const n = Math.max(7, Math.round((span + rise) / (o.head === 'pointed' ? 0.22 : 0.075)));
       const cy = o.y1 + rise - rad;
-      for (let i = 0; i < n; i++) {
+      if (E.Q.name === 'low') B.box(mat, hp[0] + nx * 0.02, o.y1, hp[1] + nz * 0.02, span + 0.1, o.head === 'pointed' ? rise * 0.7 : 0.24, 0.06, rot, {});
+      B.det(2, () => { for (let i = 0; i < n; i++) {
         const t = (i + 0.5) / n;
         let ang, cxo;
         if (o.head === 'pointed') { const side = t < 0.5 ? -1 : 1, tt = t < 0.5 ? t * 2 : (1 - t) * 2; const a0 = Math.acos((rad - span / 2) / rad); ang = Math.PI / 2 + side * (a0 * (1 - tt)); cxo = -side * (rad - span / 2); ang = side < 0 ? Math.PI - (a0 * (1 - tt)) : a0 * (1 - tt); }
@@ -148,7 +149,7 @@
         const q2 = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), tang);
         _Q.multiply(q2); _P.set(wx + nx * 0.035, py, wz + nz * 0.035); _S.set(1, 1, 1);
         B.geo(mat, g, _M.compose(_P, _Q, _S), { tint: tintJ(R, 0.14) });
-      }
+      } });
     } else if (o.head === 'lintel') {
       B.box('ashlar', hp[0] + nx * 0.015, o.y1, hp[1] + nz * 0.015, o.w + 0.36, 0.24, 0.12, rot, { tint: tintJ(R, 0.08) });
     } else if (o.head === 'timber') {
@@ -160,7 +161,7 @@
       const q = [hp[0] + nx * 0.03 + o.dx * s * (o.w / 2 + sw / 2 + 0.02), hp[1] + nz * 0.03 + o.dz * s * (o.w / 2 + sw / 2 + 0.02)];
       B.box(wood, q[0], o.y0 + (hang ? -0.15 : 0), q[1], sw, o.y1 - o.y0, 0.035, rot, { rz: hang ? s * 0.35 : 0, tint });
       // ledges on the shutter
-      for (const yy of [0.15, 0.5, 0.85]) B.box(wood, q[0] + nx * 0.025, o.y0 + (o.y1 - o.y0) * yy + (hang ? -0.15 : 0), q[1] + nz * 0.025, sw * 0.9, 0.08, 0.02, rot, { rz: hang ? s * 0.35 : 0, tint });
+      for (const yy of [0.15, 0.5, 0.85]) B.det(1, () => B.box(wood, q[0] + nx * 0.025, o.y0 + (o.y1 - o.y0) * yy + (hang ? -0.15 : 0), q[1] + nz * 0.025, sw * 0.9, 0.08, 0.02, rot, { rz: hang ? s * 0.35 : 0, tint }));
       if (R() < 0.6) B.decal('chipped', [q[0] + nx * 0.05, o.y0 + (o.y1 - o.y0) * 0.4, q[1] + nz * 0.05], [nx, 0, nz], sw * 0.8, 0.5, R() * 3);
     }
     // soot streak over a lit / once-burnt window, crack from a corner
@@ -206,7 +207,7 @@
     const R = S.R, ov = P.over || 0.35, gov = P.gable || 0.25, w = P.w, d = P.d, eave = P.eave, pitch = P.pitch || 0.72, mat = P.mat, th = 0.07;
     const run = d / 2 + ov, rise = run * Math.tan(pitch), ridge = eave + (d / 2) * Math.tan(pitch);
     const x0 = -w / 2 - gov, x1 = w / 2 + gov, L = x1 - x0, slope = Math.hypot(run, rise);
-    const sag = (x) => -P.sag * Math.sin(Math.PI * (x - x0) / L);
+    const sag = (x) => -P.sag * Math.sin(Math.PI * (x - x0) / L), eaveW = (x, side) => 0.035 * Math.sin(x * 1.3 + side * 2.1) * Math.sin(x * 0.37 + 1.0);
     const holes = new Set();
     const NX = Math.max(2, Math.round(L / 1.0)), NS = Math.max(2, Math.round(slope / 0.9));
     if (S.damage > 0.25) { const nh = Math.round(S.damage * S.damage * NX * NS * 0.12); for (let k = 0; k < nh; k++) holes.add(((1 + R.int(NX - 2)) + ':' + (R.int(NS - 1)) + ':' + (R() < 0.5 ? 1 : -1))); }
@@ -214,7 +215,7 @@
       for (let i = 0; i < NX; i++) for (let j = 0; j < NS; j++) {
         const xa = x0 + L * i / NX, xb = x0 + L * (i + 1) / NX, ta = j / NS, tb = (j + 1) / NS;
         const yE = eave - (ov * Math.tan(pitch));
-        const pt = (x, t, off) => { const z = side * (run - t * run), y = yE + t * (ridge - yE) + sag(x) * t + off; return [x, y, z]; };
+        const pt = (x, t, off) => { const z = side * (run - t * run), y = yE + t * (ridge - yE) + sag(x) * t + (1 - t) * eaveW(x, side) + off; return [x, y, z]; };
         const nOff = (p, k) => [p[0], p[1] + k * Math.cos(pitch), p[2] + side * k * Math.sin(pitch)];
         const hole = holes.has(i + ':' + j + ':' + side);
         const a = pt(xa, ta, 0), b = pt(xb, ta, 0), c = pt(xb, tb, 0), dd = pt(xa, tb, 0);
@@ -249,7 +250,8 @@
     }
     // ridge: a row of half-round ridge tiles, each a little out of line
     const rN = Math.ceil(L / 0.42);
-    for (let i = 0; i < rN; i++) {
+    B.box(P.ridgeMat || 'roof_tile', 0, ridge + th - 0.04, 0, L, 0.16, 0.22, 0, { noFoot: true });   // plain ridge (all qualities)
+    B.det(2, () => { for (let i = 0; i < rN; i++) {
       const x = x0 + (i + 0.5) * L / rN, g = new THREE.CylinderGeometry(0.13, 0.13, L / rN + 0.01, 8, 1, false, 0, Math.PI);
       _Eu.set(R.range(-0.03, 0.03), 0, Math.PI / 2 + R.range(-0.02, 0.02)); _Q.setFromEuler(_Eu);
       // cylinder axis is Y; turned to X, opening downward
@@ -257,7 +259,7 @@
       _Q.multiply(q2);
       _P.set(x, ridge + sag(x) + th + 0.02, R.range(-0.01, 0.01)); _S.set(1, 1, 1);
       B.geo(P.ridgeMat || 'roof_tile', g, _M.compose(_P, _Q, _S), { tint: tintJ(R, 0.1), noFoot: true });
-    }
+    } });
     return { ridge, eave, x0, x1, run };
   }
   // the triangular gable wall above the eaves (outer + inner faces), local x = +-w/2
@@ -274,7 +276,8 @@
     }
   }
   // corner quoins: alternating long and short dressed stones, slightly proud
-  function quoins(B, S, w, d, H, T) {
+  function quoins(B, S, w, d, H, T) { B.det(2, () => quoins0(B, S, w, d, H, T)); }
+  function quoins0(B, S, w, d, H, T) {
     const R = S.R; let y = 0, k = 0;
     while (y < H - 0.1) {
       const h = Math.min(0.3, H - y), long = k % 2 === 0;
@@ -290,13 +293,14 @@
     const R = S.R, mat = sooty ? 'brick_sooty' : 'brick_red';
     B.box(mat, x, base, z, 0.62, top - base, 0.5, 0, { noFoot: true });
     B.box(mat, x, top - 0.12, z, 0.72, 0.14, 0.6, 0, { noFoot: true });
-    for (const s of [-0.13, 0.15]) { const g = new THREE.CylinderGeometry(0.075, 0.09, 0.32 + R() * 0.1, 10); B.geo('roof_tile', g, _M.compose(_P.set(x + s, top + 0.16, z), _Q.identity(), _S.set(1, 1, 1)), { noFoot: true, tint: tintJ(R, 0.1) }); }
+    for (const s of [-0.13, 0.15]) B.det(2, () => { const g = new THREE.CylinderGeometry(0.075, 0.09, 0.32 + R() * 0.1, 10); B.geo('roof_tile', g, _M.compose(_P.set(x + s, top + 0.16, z), _Q.identity(), _S.set(1, 1, 1)), { noFoot: true, tint: tintJ(R, 0.1) }); });
     B.decal('soot', [x, top - 0.45, z + 0.252], [0, 0, 1], 0.6, 0.9, 0); B.decal('soot', [x, top - 0.45, z - 0.252], [0, 0, -1], 0.6, 0.9, 0);
     B.decal('soot', [x + 0.312, top - 0.45, z], [1, 0, 0], 0.5, 0.9, 0); B.decal('soot', [x - 0.312, top - 0.45, z], [-1, 0, 0], 0.5, 0.9, 0);
   }
 
   // ------------------------------------------------------------------ interiors
-  function furn(B, S, kind, x, z, rot) {
+  function furn(B, S, kind, x, z, rot) { B.det(1, () => furn0(B, S, kind, x, z, rot)); }
+  function furn0(B, S, kind, x, z, rot) {
     const R = S.R, c = Math.cos(rot || 0), s = Math.sin(rot || 0), L = (lx, lz) => [x + lx * c + lz * s, z - lx * s + lz * c];
     const add = (mat, lx, y0, lz, sx, sy, sz, o) => { const p = L(lx, lz); B.box(mat, p[0], y0 + (S.fy || 0), p[1], sx, sy, sz, rot || 0, Object.assign({ grain: 'long', foot: S.fy || 0 }, o || {})); };
     const col = (sx, sz, h) => B.col(x, z, sx, sz, S.fy || 0, (S.fy || 0) + h, rot || 0, 'wood', 'furniture');
@@ -328,7 +332,7 @@
     const pieces = hole ? [[-iw / 2, hole.x0, -id / 2, id / 2], [hole.x1, iw / 2, -id / 2, id / 2], [hole.x0, hole.x1, -id / 2, hole.z0], [hole.x0, hole.x1, hole.z1, id / 2]] : [[-iw / 2, iw / 2, -id / 2, id / 2]];
     for (const [xa, xb, za, zb] of pieces) if (xb - xa > 0.01 && zb - za > 0.01) { B.box(mat, (xa + xb) / 2, y - 0.03, (za + zb) / 2, xb - xa, 0.03, zb - za, 0, { grain: 'long', noFoot: true }); B.col((xa + xb) / 2, (za + zb) / 2, xb - xa, zb - za, y - 0.25, y, 0, 'wood', 'floor'); }
     // joists across the depth, seen from the room below
-    for (let x = -iw / 2 + 0.3; x < iw / 2 - 0.1; x += 0.6) { if (hole && x > hole.x0 && x < hole.x1) continue; B.box('timber', x, y - 0.23, 0, 0.12, 0.2, id, 0, { grain: 'long', noFoot: true }); }
+    B.det(1, () => { for (let x = -iw / 2 + 0.3; x < iw / 2 - 0.1; x += 0.6) { if (hole && x > hole.x0 && x < hole.x1) continue; B.box('timber', x, y - 0.23, 0, 0.12, 0.2, id, 0, { grain: 'long', noFoot: true }); } });
     B.box('timber', 0, y - 0.3, 0, iw, 0.26, 0.24, 0, { grain: 'long', noFoot: true });   // the main beam
   }
   function stairs(B, S, x0, z0, dirX, y0, y1, width) {
@@ -389,7 +393,7 @@
     }
     if (H.quoins) quoins(B, S, w, d, wallH, T);
     // roof and gables
-    const roof = gableRoof(B, S, { w, d, eave: wallH, pitch: H.pitch || 0.75, mat: H.roof, sag: H.sag != null ? H.sag : 0.04 + S.damage * 0.08, over: H.over, gable: H.gableOver });
+    const roof = gableRoof(B, S, { w, d, eave: wallH, pitch: H.pitch || 0.75, mat: H.roof, sag: H.sag != null ? H.sag : 0.07 + S.damage * 0.1 + S.R() * 0.04, over: H.over, gable: H.gableOver });
     for (const xs of [1, -1]) gableWall(B, S, { w: w - T, d: d - 0.001, T, eave: wallH, ridge: roof.ridge - 0.05, out: H.out, in: H.in, uStart: 0 }, xs);
     B.col(-w / 2 + T / 2, 0, T, d, wallH, roof.ridge, 0, H.surf || 'stone', 'gable'); B.col(w / 2 - T / 2, 0, T, d, wallH, roof.ridge, 0, H.surf || 'stone', 'gable');
     S.roofTop = roof.ridge;
@@ -431,7 +435,7 @@
     furn(B, S, 'desk', w / 2 - T - 1.0, d / 2 - T - 0.8, Math.PI); furn(B, S, 'chair', w / 2 - T - 1.0, d / 2 - T - 1.4, 0.3); furn(B, S, 'cupboard', px + 0.45, -d / 2 + T + 1.6, -Math.PI / 2);
     furn(B, S, 'barrel', -w / 2 + T + 1.6, d / 2 - T - 0.5);
     if (floors > 1) { S.fy = storey; furn(B, S, 'bed', -w / 2 + T + 2.0, -d / 2 + T + 1.1, 0); furn(B, S, 'bed', -0.5, -d / 2 + T + 1.1, 0); furn(B, S, 'cupboard', 1.8, d / 2 - T - 0.35, Math.PI); furn(B, S, 'chair', -2.5, 1.5, 1.0); S.fy = 0; }
-    S.lights.push({ x: -1.2, y: 2.2, z: 0.6, color: 0xffa860, r: 6, power: sp.lit ? 1.2 : 0, interior: true });
+    S.lights.push({ x: -1.2, y: 2.1, z: 0.6, color: 0xffa860, r: 10, power: sp.lit ? 2.4 : 0, interior: true }); if (sp.lit) lantern(B, -1.2, 0.78, 0.6);
   };
   KINDS.cottage = function (B, S, sp) {
     const w = sp.w || 8, d = sp.d || 6, T = 0.3, storey = 2.6, R = S.R, floors = sp.floors || 1;
@@ -466,11 +470,11 @@
   function signMesh(text, w, h, R) {
     const c = document.createElement('canvas'); c.width = 512; c.height = Math.round(512 * h / w);
     const g = c.getContext('2d'); g.fillStyle = '#2c3a33'; g.fillRect(0, 0, c.width, c.height);
-    g.font = 'bold ' + Math.round(c.height * 0.6) + 'px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#c9b98a'; g.fillText(text, c.width / 2, c.height * 0.55);
+    g.font = 'bold ' + Math.round(c.height * 0.62) + 'px Georgia, "Times New Roman", serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#e8dcb4'; g.fillText(text, c.width / 2, c.height * 0.55, c.width * 0.92); g.strokeStyle = '#bba873'; g.lineWidth = 2; g.strokeRect(6, 6, c.width - 12, c.height - 12);
     // weathering: flaked paint and grime
-    for (let i = 0; i < 400; i++) { g.fillStyle = `rgba(${R() < 0.5 ? '20,18,14' : '90,80,64'},${R() * 0.35})`; g.fillRect(R() * c.width, R() * c.height, R() * 6, R() * 3); }
+    for (let i = 0; i < 160; i++) { g.fillStyle = `rgba(${R() < 0.5 ? '20,18,14' : '90,80,64'},${R() * 0.25})`; g.fillRect(R() * c.width, R() * c.height, R() * 5, R() * 2); }
     const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = 4;
-    const m = new THREE.MeshStandardMaterial({ map: t, roughness: 0.85 }); m.userData.linear = true;
+    const m = new THREE.MeshStandardMaterial({ map: t, roughness: 0.85, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: 0.06 }); m.userData.linear = true;
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m); mesh.receiveShadow = true; return mesh;
   }
   KINDS.barn = function (B, S, sp) {
@@ -545,7 +549,7 @@
     const roof = gableRoof(B, S, { w: L, d: Wd, eave, pitch: 0.82, mat: sp.roof === 'tile' ? 'roof_tile' : 'slate', sag: 0.1 + S.damage * 0.1, over: 0.4, gable: 0.3 });
     // boarded gables
     for (const xs of [1, -1]) gableWall(B, S, { w: L - 0.04, d: Wd, T: 0.04, eave, ridge: roof.ridge - 0.05, out: 'planks', in: 'planks' }, xs);
-    S.lights.push({ x: 0, y: 3, z: 0, color: 0xffa860, r: 8, power: sp.lit ? 1 : 0, interior: true });
+    S.lights.push({ x: -2.5, y: 2.2, z: 0.8, color: 0xffa050, r: 13, power: sp.lit ? 2.8 : 0, interior: true }); if (sp.lit) lantern(B, -2.5, 1.9, 0.8, true);
     S.roofTop = roof.ridge;
   };
   KINDS.shed = function (B, S, sp) {
@@ -634,7 +638,7 @@
         const ops = sd.ops.map(o => ({ a0: o.a0 - a, a1: o.a1 - a, y0: o.y0, y1: o.y1 })).filter(o => o.a1 > 0 && o.a0 < a1 - a);
         wallRun(B, { x0: x0 + sd.dx * a, z0: z0 + sd.dz * a, dx: sd.dx, dz: sd.dz, L: a1 - a, T, H: top, ops, mats: { out: 'brick_red', in: 'brick_sooty' }, uStart: u + a, surf: 'stone' });
         // ragged course on top: some bricks of the next course still sitting there, half-bricks proud
-        if (R() < 0.6) B.box('brick_red', x0 + sd.dx * (a + bw / 2) + R.range(-0.02, 0.02), top, z0 + sd.dz * (a + bw / 2), along ? 0.215 : T * 0.9, 0.065, along ? T * 0.9 : 0.215, R.range(-0.08, 0.08), { tint: tintJ(R, 0.12), uvOff: [R() * 3, R() * 3] });
+        if (R() < 0.6) B.det(2, () => B.box('brick_red', x0 + sd.dx * (a + bw / 2) + R.range(-0.02, 0.02), top, z0 + sd.dz * (a + bw / 2), along ? 0.215 : T * 0.9, 0.065, along ? T * 0.9 : 0.215, R.range(-0.08, 0.08), { tint: tintJ(R, 0.12), uvOff: [R() * 3, R() * 3] }));
         if (R() < 0.25) looseBlock(B, 'brick_red', x0 + sd.dx * (a + bw / 2) + nx * R.range(-0.1, 0.1), top + 0.07, z0 + sd.dz * (a + bw / 2) + nz * R.range(-0.1, 0.1), R, null, null, null, tintJ(R, 0.12));
       }
       // soot above the openings, scorch, pocks, a big crack
@@ -696,6 +700,20 @@
     B.col(x, z, 0.55, 0.33, y, y + 0.17, rot, 'cloth', 'sandbag');
   };
   E.placeRock = placeRock; E.rubble = rubble; E.tintJ = tintJ;
+  // a hanging oil lantern (lit glass, iron frame) at an interior light
+  function lantern(B, x, y, z, hook) { B.box('metal_rust', x, y, z, 0.16, 0.03, 0.16, 0, { noFoot: true }); B.geo('glass_lit', new THREE.CylinderGeometry(0.06, 0.06, 0.16, 10), _M.compose(_P.set(x, y + 0.11, z), _Q.identity(), _S.set(1, 1, 1)), { noFoot: true }); B.box('metal_rust', x, y + 0.19, z, 0.14, 0.04, 0.14, 0, { noFoot: true }); if (hook) B.box('metal_rust', x, y + 0.23, z, 0.01, 0.6, 0.01, 0, { noFoot: true }); }
+  // ivy climbing one end wall: leaf cards flat against the stone, ragged top, thicker at the foot
+  function ivy(spec, R, kind) {
+    const w = spec.w || 10, d = spec.d || 8, x = (kind === 'church' ? 1 : -1) * (w / 2 + 0.03), z0 = R.range(-d / 2 + 0.6, 0), wd = R.range(1.8, 3.2), top = R.range(2.6, 4.2);
+    const P = [], N = [], U = [], C = [], Wd = [], I = [], cu = 0.0, cv = 0.5;
+    for (let k = 0; k < 220; k++) {
+      const zz = z0 + R() * wd, yy = Math.pow(R(), 1.4) * top * (0.7 + 0.3 * Math.sin(zz * 3.1)), s = R.range(0.35, 0.6), base = P.length / 3, a = R() * 6.283, ca = Math.cos(a), sa = Math.sin(a);
+      for (const [i, j] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { P.push(x + Math.sign(x) * R.range(0, 0.06), yy + (i * sa + j * ca) * s / 2, zz + (i * ca - j * sa) * s / 2); N.push(Math.sign(x), 0.3, 0); U.push(0.0 + (i * 0.5 + 0.5) * 0.25, 0.5 + (j * 0.5 + 0.5) * 0.5); const sh = 0.55 + 0.4 * R(); C.push(sh * 0.9, sh, sh * 0.85); Wd.push(R() * 6, 0.1, 0.4, 0.2); }
+      I.push(base, base + 1, base + 2, base, base + 2, base + 3);
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); g.setAttribute('color', new THREE.Float32BufferAttribute(C, 3)); g.setAttribute('aWind', new THREE.Float32BufferAttribute(Wd, 4)); g.setIndex(I);
+    const m = new THREE.Mesh(g, E.leafMaterial('ivy', { stiff: 0.05, trans: 0.6 })); m.receiveShadow = true; m.name = 'ivy'; E.registerDetail(m, 60); return m;
+  }
 
   // ------------------------------------------------------------------ the public building call
   E.building = function (spec) {
@@ -709,6 +727,13 @@
     // paint tint is relative to the texture's own paint (about 0.36 of white): keep it near 1
     S.paintTint.r = E.clamp(S.paintTint.r * 0.36 / 0.3, 0.6, 1.5); S.paintTint.g = E.clamp(S.paintTint.g * 0.36 / 0.36, 0.6, 1.5); S.paintTint.b = E.clamp(S.paintTint.b * 0.36 / 0.32, 0.6, 1.5);
     fn(B, S, spec);
+    // old walls are not true: a slight lean and a bulge at mid height on the long walls (house-like kinds)
+    if (kind === 'farmhouse' || kind === 'cottage' || kind === 'church' || kind === 'barn') {
+      const lx = R.range(-0.008, 0.008), lz = R.range(-0.006, 0.006), bul = R.range(0.02, 0.045), H = Math.max(2, (S.roofTop || 6) * 0.7), w = spec.w || 10, d = spec.d || 8;
+      const D2 = kind === 'barn' ? w / 2 : d / 2, W2 = kind === 'barn' ? d / 2 : w / 2;
+      for (const k in B.buckets) { const p = B.buckets[k].p; for (let i = 0; i < p.length; i += 3) { const y = p[i + 1]; if (y <= 0.05) continue; p[i] += lx * y; p[i + 2] += lz * y; if (Math.abs(Math.abs(p[i + 2]) - D2) < 0.8 && y < H) p[i + 2] += Math.sign(p[i + 2]) * bul * Math.sin(Math.PI * y / H) * Math.cos(Math.PI * 0.5 * E.clamp(p[i] / W2, -1, 1)); } }
+    }
+    if (kind === 'farmhouse' || kind === 'cottage' || kind === 'church') group.add(ivy(spec, R, kind));
     const g = B.finish(); group.add(g);
     group.name = 'IVEnv.building:' + kind; group.userData.kind = kind;
     const colliders = B.colliders.concat(S.extraCols);
@@ -737,8 +762,9 @@
         B.box(mat, cx, y - 0.25, cz, len, h * 0.45 + 0.25, opts.t, rot, { foot: y, uvOff: [sm, 0] });
         B.box(mat, cx, y + h * 0.45, cz, len, h * 0.45, opts.t * 0.82, rot, { foot: y, uvOff: [sm, 0] });
         B.col(cx, cz, len, opts.t, y - 0.2, y + h * 0.9, rot, 'stone', 'wall');
-        if (stone) { // coping: stones set on edge ("cock and hen"), each tilted a little
-          for (let c = 0; c < Math.round(len / 0.16); c++) {
+        if (stone) { // coping: stones set on edge ("cock and hen"), each tilted a little; a plain cap on Low
+          if (E.Q.name === 'low') B.box('fieldstone', cx, y + h * 0.9 - 0.02, cz, len, 0.22, opts.t * 0.8, rot, { foot: y });
+          else for (let c = 0; c < Math.round(len / 0.16); c++) {
             const off = -len / 2 + (c + 0.5) * len / Math.round(len / 0.16), px = cx + dx * off, pz = cz + dz * off, tall = R() < 0.35;
             B.box('fieldstone', px, y + h * 0.9 - 0.02, pz, R.range(0.09, 0.15), tall ? R.range(0.26, 0.34) : R.range(0.17, 0.24), opts.t * R.range(0.7, 0.9), rot, { rz: R.range(-0.15, 0.15), tint: tintJ(R, 0.14), foot: y, uvOff: [R() * 9, R() * 9] });
           }

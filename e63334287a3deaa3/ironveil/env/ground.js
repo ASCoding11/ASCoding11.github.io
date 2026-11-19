@@ -28,7 +28,7 @@
       uMacro: E.U.uMacro, uWet: E.U.uWet, uRain: E.U.uRain, uTime: E.U.uTime,
       uA0: { value: T[0].alb }, uA1: { value: T[1].alb }, uA2: { value: T[2].alb }, uA3: { value: T[3].alb }, uA4: { value: T[4].alb },
       uN0: { value: T[0].nri }, uN1: { value: T[1].nri }, uN2: { value: T[2].nri }, uN3: { value: T[3].nri }, uN4: { value: T[4].nri },
-      uSz: { value: [2.5, 3.0, 3.0, 1.5, 2.0].map(s => 1 / s) },
+      uSz: { value: [2.5, 3.0, 3.0, 0.85, 2.0].map(s => 1 / s) },
       uCarry: { value: new THREE.Vector2(E.Q.grassNear * 0.45, E.Q.grassMid * 0.95) }
     };
     m.userData.uniforms = uni;
@@ -94,7 +94,7 @@
         .replace('#include <roughnessmap_fragment>', 'float roughnessFactor = clamp(grough, 0.03, 1.0);')
         .replace('#include <normal_fragment_maps>', `
           vec3 mapN = vec3(gn.xy * 2.0 - 1.0, 0.0);
-          mapN.xy *= (1.0 - ivPud * 0.97) * (1.0 - vGC.a * 0.2);
+          mapN.xy *= (1.0 - ivPud * 0.97) * (1.0 - vGC.a * 0.2) * (1.0 - 0.45 * b3 / bs);
           mapN.z = sqrt(max(0.05, 1.0 - dot(mapN.xy, mapN.xy)));
           normal = perturbNormal2Arb(-vViewPosition, normal, normalize(mapN), faceDirection);
           if (uRain > 0.0 && ivPud > 0.01) { vec2 rp = ivRipple(vGW.xz * 3.0, uTime) + ivRipple(vGW.xz * 5.3 + 7.0, uTime * 1.13) * 0.7; normal = normalize(normal + (viewMatrix * vec4(rp.x, 0.0, rp.y, 0.0)).xyz * 0.35 * ivPud * uRain); }`)
@@ -112,7 +112,7 @@
   E.ground = function (heightFn, opts) {
     opts = opts || {};
     const surfaceAt = opts.surfaceAt || (() => 'grass');
-    const step = opts.step || (E.Q.name === 'low' ? 2.5 : E.Q.name === 'medium' ? 2 : 1.5);
+    const step = opts.step || (E.Q.name === 'low' ? 3.5 : 2);
     const half = (opts.size || 200) / 2;
     const x0 = opts.x0 != null ? opts.x0 : -half, z0 = opts.z0 != null ? opts.z0 : -half, x1 = opts.x1 != null ? opts.x1 : half, z1 = opts.z1 != null ? opts.z1 : half;
     const CH = opts.chunk || 64;
