@@ -11,6 +11,23 @@
  *   bone(name), height, setVisible(b), update(dt), dispose(), plus: actor.clipLength(name), actor.isPlaying(name),
  *   actor.onFinished = fn(name) for one-shot clips, actor.leftHandIK (0..1 override, default automatic).
  * If any file fails, a code-made skinned human with procedural animation is used instead (info.fallback = true).
+ *
+ * Integration notes for the game:
+ *  - Skeleton (all kinds share it): root, pelvis, spine_01..03, neck_01, Head, clavicle_l/r, upperarm_l/r, lowerarm_l/r,
+ *    hand_l/r, finger bones, thigh_l/r, calf_l/r, foot_l/r, ball_l/r, plus weapon_r (a prop bone under hand_r that
+ *    attach(obj,'handR') uses, so reload/bolt clips can move the gun independently of the hand).
+ *  - Clips are in place (no root motion). vault: move the root ~1.3 m forward over its 1.1 s. takedown/takedownVictim:
+ *    place the victim 0.42 m in front of the attacker, same facing, start both together (2.6 s).
+ *    Deaths, hit, throw, reload, fire* etc. play once and hold their last frame (see ONESHOT); actor.onFinished(name).
+ *  - Extra clips beyond the brief: holdRifle, holdPistol, aimPistol, firePistol, fire, fireCrouch, fireCover, aimCover,
+ *    sprintRifle, stackUp, wallLean, breachKick, signalMoveUp, stagger, deathRun, limp. IVChars.clips lists them all.
+ *  - A long gun or pistol in handR automatically layers holdRifle/holdPistol on the upper body unless setUpper() is used
+ *    or the full-body clip already carries the weapon. The left hand is pulled onto weapon.userData.gripL by IK in the
+ *    aim/hold/fire clips (actor.leftHandIK = 0..1 forces it).
+ *  - Set IVChars.camera = yourCamera for the enemy LOD switch (IVChars.lodDistance, default 22 m) and for updating far
+ *    actors (beyond IVChars.throttleDistance, default 45 m) every other frame.
+ *  - Weapons: barrel along +Z, up +Y, origin at the right-hand grip; userData.muzzle (Object3D, use its world position),
+ *    userData.gripR / gripL (hand frames). Drop a gun on death with actor.detach(gun) and add it to the scene.
  * Assets and their licences: CREDITS.md. Pipeline notes: README section "Ironveil characters".
  */
 (function () {
@@ -53,7 +70,7 @@
     info: { loaded: false, fallback: false, files: {}, bytes: 0, errors: [], version: VERSION },
     clips: [], camera: null, lodDistance: 22, throttleDistance: 45
   };
-  var gltf = {}, CLIPS = {}, UPPER = {}, LOWER = {}, TEMPLATES = {}, WTEMPLATES = {}, TRIS = {}, upperSet = null;
+  var META = {}, gltf = {}, CLIPS = {}, UPPER = {}, LOWER = {}, TEMPLATES = {}, WTEMPLATES = {}, TRIS = {}, upperSet = null;
 
   // ---------- script loading (own copies of the r128 example loaders)
   function addScript(src) {
@@ -87,11 +104,10 @@
     if (/Hair/.test(m.name)) {
       m.alphaTest = 0.5; m.transparent = false; m.depthWrite = true; m.side = T.DoubleSide;
       m.roughness = 0.55; m.metalness = 0;
-    } else if (/Weapon/.test(m.name)) {
-      m.metalness = 0.45;
-    } else {
+    } else if (!m.metalnessMap) {
       m.metalness = 0;
     }
+    if (m.normalMap) m.normalScale.set(1, 1);
     if (m.map) m.map.anisotropy = 4;
   }
 
@@ -201,6 +217,8 @@
       }));
     }).then(function () {
       if (gltf.anims) prepClips(gltf.anims.animations);
+      return fetch(ASSETS + 'anims.json?v=' + VERSION).then(function (r) { return r.json(); }).then(function (j) { META = j; }, function () { META = {}; });
+    }).then(function () {
       if (gltf.weapons) prepWeapons(gltf.weapons);
       Object.keys(KINDS).forEach(function (k) {
         var t = buildTemplate(k);
@@ -336,6 +354,10 @@
     var self = this;
     this.mixer.addEventListener('finished', function (e) {
       var n = e.action._ivName;
+      if (self.driven && n && !/^death|takedownVictim/.test(n)) {
+        self.base.forEach(function (b) { if (b.full === e.action) { b.target = 0; b.rate = 1 / 0.25; } });
+        if (self.cur && self.cur.full === e.action) self.cur = null;
+      }
       if (self.onFinished && n) self.onFinished(n);
     });
     this.play('idle', { fade: 0 });
@@ -368,7 +390,9 @@
       a.setEffectiveWeight(0); a.play();
     });
     lower._ivName = null;
-    for (var i = 0; i < this.base.length; i++) this.base[i].target = 0;
+    var rate = fade > 0 ? 1 / fade : 1e9;
+    // fade everything else out at the same rate so the weights always sum to one (no blend toward the bind pose)
+    for (var i = 0; i < this.base.length; i++) { this.base[i].target = 0; this.base[i].rate = rate; }
     var e = { name: name, clip: c, full: full, lower: lower, w: fade > 0 ? 0 : 1, target: 1, rate: fade > 0 ? 1 / fade : 1e9 };
     this.base = this.base.filter(function (b) { return b.full !== full; });
     if (fade <= 0) this.base.forEach(function (b) { b.w = 0; });
@@ -380,7 +404,7 @@
     o = o || {};
     var fade = o.fade == null ? 0.2 : o.fade;
     if (this.curUpper && this.curUpper.name === name) return this;
-    for (var i = 0; i < this.upper.length; i++) this.upper[i].target = 0;
+    for (var i = 0; i < this.upper.length; i++) { this.upper[i].target = 0; this.upper[i].rate = fade > 0 ? 1 / fade : 1e9; }
     this.curUpper = null;
     if (name) {
       var c = clipName(name);
@@ -461,11 +485,19 @@
     // automatic weapon hold when nothing is layered on top
     var held = this.held, autoName = null;
     if (held && (!this.curUpper || this._autoUpper)) {
-      var cn = this.cur ? this.cur.name : '';
+      var cn = this.cur && this.cur.w > 0.5 ? this.cur.name : '';
       var needs = !/^(aim|crouchAim|prone|death|takedown|vault|sit|salute|throw|melee|hit|stagger|reload|bolt|fire|sprintRifle|stackUp|breach|signal|wallLean|limp|alert)/.test(cn);
-      autoName = needs ? (held.userData.long ? 'holdRifle' : (held.userData.kind === 'pistol' ? 'holdPistol' : null)) : null;
+      var pistol = held.userData.kind === 'pistol';
+      if (this.driven && !cn) {
+        var st = this.ds;
+        needs = st.stance !== 'prone' && this._stW.prone < 0.5;
+        this._upperFade = 0.3;
+        if (needs && st.aiming) autoName = pistol ? 'aimPistol' : 'aimIdle';
+        else if (needs && !pistol && this._sprintW > 0.5) autoName = 'sprintRifle';
+      }
+      if (!autoName) autoName = needs ? (held.userData.long ? 'holdRifle' : (pistol ? 'holdPistol' : null)) : null;
       if (autoName && !clipName(autoName)) autoName = null;
-      if (autoName && (!this.curUpper || this.curUpper.name !== autoName)) this.setUpper(autoName, { auto: true });
+      if (autoName && (!this.curUpper || this.curUpper.name !== autoName)) this.setUpper(autoName, { auto: true, fade: this._upperFade || 0.2 });
       if (!autoName && this._autoUpper && this.curUpper) this.setUpper(null);
     }
     // weights
@@ -478,20 +510,25 @@
     U = Math.min(1, U);
     for (i = 0; i < this.upper.length; i++) this.upper[i].action.setEffectiveWeight(this.upper[i].w);
     this.upper = this.upper.filter(function (u) { if (u.w <= 0 && u.target === 0) { u.action.stop(); return false; } return true; });
+    var baseTot = 0;
     for (i = 0; i < this.base.length; i++) {
       e = this.base[i];
       e.w += Math.sign(e.target - e.w) * Math.min(Math.abs(e.target - e.w), e.rate * dt);
       e.full.setEffectiveWeight(e.w * (1 - U));
       e.lower.setEffectiveWeight(e.w * U);
+      baseTot += e.w;
     }
+    if (this.driven) this._graph(dt, Math.max(0, 1 - baseTot), U);
     this.base = this.base.filter(function (b) { if (b.w <= 0 && b.target === 0) { b.full.stop(); b.lower.stop(); return false; } return true; });
     this.mixer.update(dt);
     for (i = 0; i < this.base.length; i++) { e = this.base[i]; e.lower.time = e.full.time; }
+    if (this.driven) for (var gk in this.gr) { e = this.gr[gk]; e.lower.time = e.full.time; }
     this.root.updateMatrixWorld(true);
     // aim offset over spine, neck and head
     var k = 1 - Math.exp(-dt * 14);
     this.aimP += (this.aimPT - this.aimP) * k; this.aimY += (this.aimYT - this.aimY) * k;
     if (Math.abs(this.aimP) > 1e-4 || Math.abs(this.aimY) > 1e-4) this._applyAim();
+    if (this.driven) this._post(dt, far);
     // left hand onto the fore-end
     var want = 0;
     if (held && held.userData.gripL && held.userData.long !== undefined) {
@@ -499,13 +536,191 @@
       want = on ? 1 : 0;
       if (this.leftHandIK != null) want = this.leftHandIK;
     }
-    this._lhW += (want - this._lhW) * Math.min(1, dt * 10);
+    this._lhW = approach(this._lhW, want, 3, dt);
     if (this._lhW > 0.01 && held) {
       held.userData.gripL.updateMatrixWorld(true);
       var tp = worldPos(held.userData.gripL, new T.Vector3()), tq = worldQuat(held.userData.gripL, new T.Quaternion());
       twoBone(this.bones.upperarm_l, this.bones.lowerarm_l, this.bones.hand_l, tp, tq, this._lhW);
     }
     return this;
+  };
+  // ---------------- driven locomotion graph (actor.drive) ----------------
+  var DIRS = [['F', 0], ['FL', 45], ['L', 90], ['BL', 135], ['B', 180], ['BR', -135], ['R', -90], ['FR', -45]];
+  var SPEED = { walk: 1.5, jog: 3.8, sprint: 6.4, crouch: 1.3, prone: 0.6 };
+  function ease01(x) { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); }
+  function approach(v, t, rate, dt) { return v + Math.sign(t - v) * Math.min(Math.abs(t - v), rate * dt); }
+  AP.drive = function (st) {
+    if (this.fb) { FB.play(this, (st.speed || 0) > 0.3 ? (st.stance === 'crouch' ? 'crouchWalk' : (st.speed > 3 ? 'run' : 'walk')) : 'idle'); return this; }
+    if (!this.driven) {
+      this.driven = true; this.gr = {}; this.phase = 0; this._move = 0; this._stW = { stand: 1, crouch: 0, prone: 0 };
+      this._sprintW = 0; this._turnW = 0; this._lean = 0; this._pitchLean = 0; this._lastSpeed = 0; this._acc = 0; this._t = 0;
+      this._dirA = 0; this._tier = 0; this._pelDrop = 0;
+      for (var i = 0; i < this.base.length; i++) { this.base[i].target = 0; this.base[i].rate = 1 / 0.3; }
+      this.cur = null;
+    }
+    this.ds = st;
+    if (st.aimPitch != null || st.aimYawOffset != null) this.setAim(st.aimPitch || 0, st.aimYawOffset || 0);
+    return this;
+  };
+  AP.undrive = function () { this.driven = false; for (var k in this.gr) { this.gr[k].full.stop(); this.gr[k].lower.stop(); } this.gr = {}; return this; };
+  AP._gEntry = function (name) {
+    var e = this.gr[name];
+    if (e) return e;
+    var c = clipName(name); if (!c) return null;
+    var full = this._action(CLIPS[c], null), lower = this._action(LOWER[c], null);
+    [full, lower].forEach(function (a) { a.enabled = true; a.setLoop(T.LoopRepeat, Infinity); a.setEffectiveWeight(0); a.play(); });
+    var m = META[c] || {};
+    e = this.gr[name] = { full: full, lower: lower, w: 0, tw: 0, loco: !!m.stride || /turnStep|proneCrawl/.test(name), meta: m, dur: CLIPS[c].duration };
+    return e;
+  };
+  AP._graph = function (dt, scale, U) {
+    var st = this.ds, i, k, e;
+    var vx = st.vx || 0, vz = st.vz || 0, speed = Math.hypot(vx, vz);
+    var stance = st.stance || 'stand';
+    // stance super-state weights, eased (~0.25 s)
+    for (k in this._stW) this._stW[k] = approach(this._stW[k], k === stance ? 1 : 0, 4, dt);
+    var sw = this._stW, swSum = sw.stand + sw.crouch + sw.prone || 1;
+    // moving weight; when stopping, keep stepping until the next foot contact so the feet come together
+    var wantMove = speed > 0.12 ? 1 : 0;
+    if (!wantMove && this._move > 0.05) {
+      var ph2 = (this.phase * 2) % 1; if (ph2 > 0.12 && ph2 < 0.9) wantMove = this._move;   // finish the step
+    }
+    this._move = approach(this._move, wantMove ? Math.min(1, 0.35 + speed) : 0, 5, dt);
+    var mv = ease01(this._move);
+    // direction (local: +x left, +z forward) and speed tier
+    if (speed > 0.05) {
+      var a = Math.atan2(vx, vz) * 180 / Math.PI, da = ((a - this._dirA + 540) % 360) - 180;
+      this._dirA += da * Math.min(1, dt * 10);
+    }
+    var dirA = ((this._dirA + 540) % 360) - 180;
+    var tierT = Math.max(0, Math.min(1, (speed - SPEED.walk) / (SPEED.jog - SPEED.walk)));
+    this._tier = approach(this._tier, tierT, 4, dt);
+    var fwdish = Math.abs(dirA) < 35;
+    this._sprintW = approach(this._sprintW, st.sprinting && fwdish && speed > SPEED.jog * 0.9 && stance === 'stand' ? 1 : 0, 4, dt);
+    var turnWant = speed < 0.15 && Math.abs(st.yawRate || 0) > 0.9 && stance !== 'prone' ? 1 : 0;
+    this._turnW = approach(this._turnW, turnWant, 5, dt);
+    // two nearest of the eight directions
+    var ia = 0, ib = 0, fb = 0;
+    for (i = 0; i < 8; i++) {
+      var d0 = DIRS[i][1], d1 = DIRS[(i + 1) % 8][1];
+      var span = ((d1 - d0 + 540) % 360) - 180, off = ((dirA - d0 + 540) % 360) - 180;
+      if (span < 0 ? (off <= 0 && off >= span) : (off >= 0 && off <= span)) { ia = i; ib = (i + 1) % 8; fb = off / span; break; }
+    }
+    var tw = {};
+    function add(n, w) { if (w > 1e-4) tw[n] = (tw[n] || 0) + w; }
+    var idleW = 1 - mv;
+    var sStand = sw.stand / swSum, sCrouch = sw.crouch / swSum, sProne = sw.prone / swSum;
+    add(this._turnW > 0.01 ? 'turnStep' : 'idle', sStand * idleW * Math.max(this._turnW, 0) );
+    add('idle', sStand * idleW * (1 - this._turnW));
+    add(this._turnW > 0.01 ? 'crouchTurnStep' : 'crouchIdle', sCrouch * idleW * this._turnW);
+    add('crouchIdle', sCrouch * idleW * (1 - this._turnW));
+    add('proneIdle', sProne * idleW);
+    add('proneCrawl', sProne * mv);
+    var dA = DIRS[ia][0], dB = DIRS[ib][0];
+    var walkW = (1 - this._tier) * (1 - this._sprintW), jogW = this._tier * (1 - this._sprintW);
+    add('walk' + dA, sStand * mv * walkW * (1 - fb)); add('walk' + dB, sStand * mv * walkW * fb);
+    add('jog' + dA, sStand * mv * jogW * (1 - fb)); add('jog' + dB, sStand * mv * jogW * fb);
+    add('sprintF', sStand * mv * this._sprintW);
+    add('crouch' + dA, sCrouch * mv * (1 - fb)); add('crouch' + dB, sCrouch * mv * fb);
+    // ease every graph weight toward its target, then renormalise so the total is exactly one (no blend toward the bind pose)
+    for (k in tw) this._gEntry(k);
+    var tot = 0;
+    for (k in this.gr) { e = this.gr[k]; e.w = approach(e.w, tw[k] || 0, 6, dt); tot += e.w; }
+    var strideW = 0, strideSum = 0;
+    for (k in this.gr) {
+      e = this.gr[k];
+      var w = tot > 0 ? e.w / tot : 0;
+      e.full.setEffectiveWeight(w * scale * (1 - U)); e.lower.setEffectiveWeight(w * scale * U);
+      if (e.loco && e.meta.stride) { strideSum += w * e.meta.stride; strideW += w; }
+    }
+    // one shared phase: advanced by ground speed over the blended stride (no foot sliding)
+    var prev = this.phase;
+    var gs = speed > 0.05 ? speed : (this._move > 0.05 ? Math.max(this._lastSpeed * 0.6, 0.6) : 0);
+    if (strideW > 0.01) this.phase += gs * dt / (strideSum / strideW);
+    else if (this._turnW > 0.05) this.phase += dt / 0.9;
+    if (sProne > 0.5 && speed > 0.05) this.phase += dt * speed / 0.6 * 0.0;   // crawl uses its own clock (below)
+    this.phase %= 1;
+    for (k in this.gr) {
+      e = this.gr[k];
+      if (e.loco) { e.full.timeScale = 0; e.full.time = this.phase * e.dur; }
+      if (k === 'proneCrawl') { e.full.timeScale = 0; e.full.time = (this.phase) * e.dur; }
+    }
+    // foot contact events from phase windows (left at 0, right at 0.5)
+    if (this.onFoot && mv > 0.3 && sProne < 0.5) {
+      var crossed = function (p0, p1, c) { return p0 <= p1 ? (c > p0 && c <= p1) : (c > p0 || c <= p1); };
+      var str = Math.min(1, 0.25 + speed / SPEED.sprint);
+      if (crossed(prev, this.phase, 0.0001)) try { this.onFoot('l', str); } catch (er) {}
+      if (crossed(prev, this.phase, 0.5)) try { this.onFoot('r', str); } catch (er) {}
+    }
+    // remove dead entries
+    for (k in this.gr) { e = this.gr[k]; if (e.w <= 0 && !tw[k]) { e.full.stop(); e.lower.stop(); delete this.gr[k]; } }
+    // lean: roll into turns, pitch into acceleration
+    var accel = (speed - this._lastSpeed) / Math.max(dt, 1e-3);
+    this._lastSpeed = speed;
+    this._lean += (Math.max(-0.14, Math.min(0.14, -(st.yawRate || 0) * speed * 0.035)) - this._lean) * Math.min(1, dt * 6);
+    this._pitchLean += (Math.max(-0.1, Math.min(0.1, accel * 0.018)) - this._pitchLean) * Math.min(1, dt * 5);
+    this._t += dt;
+  };
+  AP._post = function (dt, far) {
+    var b = this.bones, q = new T.Quaternion();
+    var rq = worldQuat(this.root, new T.Quaternion());
+    var fwd = new T.Vector3(0, 0, 1).applyQuaternion(rq), left = new T.Vector3(1, 0, 0).applyQuaternion(rq);
+    // lean (spine) and breathing (additive, small)
+    if (b.spine_01) {
+      q.setFromAxisAngle(fwd, this._lean * 0.5); rotWorld(b.spine_01, q);
+      q.setFromAxisAngle(left, this._pitchLean * 0.5); rotWorld(b.spine_01, q);
+      q.setFromAxisAngle(fwd, this._lean * 0.5); rotWorld(b.spine_02, q);
+      var br = Math.sin(this._t * 2 * Math.PI / 3.6) * 0.012 * (1 - Math.min(1, this._move));
+      q.setFromAxisAngle(left, -br); rotWorld(b.spine_03, q);
+    }
+    // foot IK with pelvis drop against actor.groundAt(x, z) (if the game provides it), near the camera only
+    var ikOK = far < (IV.footIKDistance || 25) && this._stW.prone < 0.5;
+    if (this.groundAt && ikOK) this._footIK(dt);
+    if (ikOK && IV.footLock && far < (IV.footLockDistance || 12)) this._footLock(dt);   // experimental, off: knee flips on straight legs
+  };
+  // planted-foot lock: while a foot is in its contact window (from the shared phase) it stays where it landed,
+  // so direction changes and turns do not skate it; eased in and out at the window edges
+  var LOCKW = { l: [0.0, 0.30], r: [0.5, 0.80] };
+  AP._footLock = function (dt) {
+    var b = this.bones, m = Math.min(1, this._move * 1.5);
+    if (!this._lock) this._lock = { l: null, r: null };
+    for (var i = 0; i < 2; i++) {
+      var s = i ? 'r' : 'l', w0 = LOCKW[s][0], w1 = LOCKW[s][1], ph = this.phase;
+      var inWin = ph >= w0 && ph <= w1, foot = b['foot_' + s];
+      if (!foot || m < 0.05 || !inWin) { this._lock[s] = null; continue; }
+      var cur = worldPos(foot, new T.Vector3());
+      if (!this._lock[s]) this._lock[s] = cur.clone();
+      var u = (ph - w0) / (w1 - w0), edge = Math.min(1, u / 0.15, (1 - u) / 0.15);
+      var w = Math.max(0, edge) * m;
+      if (w < 0.01) continue;
+      var tgt = cur.clone(); tgt.x = this._lock[s].x; tgt.z = this._lock[s].z;
+      if (tgt.distanceTo(cur) > 0.5) { this._lock[s] = cur.clone(); continue; }   // teleported: re-plant
+      var fq = worldQuat(foot, new T.Quaternion());
+      twoBone(b['thigh_' + s], b['calf_' + s], foot, tgt, fq, w);
+    }
+  };
+  AP._footIK = function (dt) {
+    var b = this.bones, root = this.root, ry = new T.Vector3().setFromMatrixPosition(root.matrixWorld).y;
+    var sides = ['l', 'r'], off = {}, pos = {}, i;
+    for (i = 0; i < 2; i++) {
+      var s = sides[i], f = b['foot_' + s]; if (!f) return;
+      var p = worldPos(f, new T.Vector3());
+      var g = this.groundAt(p.x, p.z);
+      pos[s] = p; off[s] = (g == null ? ry : g) - ry;
+    }
+    var drop = Math.min(0, Math.min(off.l, off.r));
+    this._pelDrop += (drop - this._pelDrop) * Math.min(1, dt * 12);
+    var pel = b.pelvis, wp = worldPos(pel, new T.Vector3());
+    wp.y += this._pelDrop;
+    var inv = new T.Matrix4().copy(pel.parent.matrixWorld).invert();
+    pel.position.copy(wp.applyMatrix4(inv)); pel.updateMatrixWorld(true);
+    for (i = 0; i < 2; i++) {
+      var s2 = sides[i], foot = b['foot_' + s2];
+      var cur = worldPos(foot, new T.Vector3());
+      var target = cur.clone(); target.y = pos[s2].y + off[s2];   // animated height above local ground
+      var fq = worldQuat(foot, new T.Quaternion());
+      twoBone(b['thigh_' + s2], b['calf_' + s2], foot, target, fq, 1);
+    }
   };
   var AIM_P = [['spine_01', 0.15], ['spine_02', 0.2], ['spine_03', 0.35], ['neck_01', 0.12], ['Head', 0.18]];
   var AIM_Y = [['spine_01', 0.18], ['spine_02', 0.22], ['spine_03', 0.3], ['neck_01', 0.12], ['Head', 0.18]];
