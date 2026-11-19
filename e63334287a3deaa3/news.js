@@ -375,7 +375,7 @@
       'Party chat: message your party straight away, with no chat request first, in its own Party chat channel.',
       'Chat inside the games: when you\'re in a party, press T in an online game to send a message, and your party\'s messages show at the side of the screen. On a phone, tap Chat in the top bar.',
       'The Back Room is now in sections, Puzzles, Parkour, Shooter / Action, Multiplayer and Single player, on the computer and on the phone version.',
-      'Leaderboards: hours played no longer go up and down when you play on two devices, and if you played as a guest before signing in with Google, your two entries now merge into one.'
+      'Leaderboards: play time no longer goes up and down when you play on two devices, and if you played as a guest before signing in with Google, your two entries now merge into one.'
     ]},
     {date: '2026-10-29', version: '1.11', title: 'Turbo Trail, Escapade and Spire', kind: 'game', games: ['Turbo Trail', 'Escapade'],
      img: ['m/thumbs/turbo-trail.jpg', 'm/thumbs/escapade.jpg', 'm/thumbs/spire.jpg'], tags: ['Obby', 'Escape rooms', 'Online races'], items: [
