@@ -201,6 +201,12 @@
     'Lumberjack': 'Leñador', 'Park Ranger': 'Guardaparques', 'Scuba Diver': 'Submarinista', 'Head Chef': 'Jefe de cocina', 'Hazmat Suit': 'Traje de protección',
     'Castle Knight': 'Caballero del castillo', 'Astronaut': 'Astronauta', 'Farmer': 'Granjero', 'Mail Carrier': 'Cartero', 'Lifeguard': 'Guardavidas',
     'Ninja': 'Ninja', 'Scarecrow': 'Espantapájaros', 'Skeleton': 'Esqueleto', 'Banana Suit': 'Traje de banana', 'Cardboard Box Robot': 'Robot de caja de cartón',
+    // wave two outfits
+    'Goalkeeper': 'Arquero', 'Basketball Player': 'Basquetbolista', 'Linebacker': 'Apoyador', 'Baseball Batter': 'Bateador', 'Hockey Player': 'Jugador de hockey',
+    'Tennis Pro': 'Tenista', 'Boxer': 'Boxeador', 'Cyclist': 'Ciclista', 'Swim Team': 'Equipo de natación', 'Golfer': 'Golfista',
+    'Skateboarder': 'Skater', 'Surfer': 'Surfista', 'Skier': 'Esquiador', 'Pit Crew': 'Mecánico de boxes', 'Referee': 'Árbitro',
+    'Coach': 'Entrenador', 'Team Mascot': 'Mascota del equipo', 'Fencer': 'Esgrimista', 'Karate': 'Karateca', 'Cheer Captain': 'Capitana de porristas',
+    'Jockey': 'Jockey',
     // gliders
     'Umbrella': 'Paraguas', 'Paper Airplane': 'Avión de papel', 'Hang Glider': 'Ala delta', 'Kite': 'Barrilete', 'Bedsheet Parachute': 'Paracaídas de sábana',
     'Trash Bag Parachute': 'Paracaídas de bolsa', 'Cardboard Wings': 'Alas de cartón', 'Dragon Wings': 'Alas de dragón', 'Bat Wings': 'Alas de murciélago',

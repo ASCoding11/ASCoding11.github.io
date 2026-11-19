@@ -1012,6 +1012,27 @@
   I('drop-zone', 'victory', 2, 'Flex', 'uncommon', '#E8742A', '#FFFFFF', 'Show those arms.');
   I('drop-zone', 'victory', 3, 'Take a Bow', 'rare', '#8A5A2B', '#F2EFE8', 'A deep, slow bow to the crowd.');
   I('drop-zone', 'victory', 4, 'Jump for Joy', 'epic', '#5FD068', '#FFD23F', 'Jumping up and down with arms wide.');
+  I('drop-zone', 'outfit', 41, 'Goalkeeper', 'uncommon', '#FFB43A', '#3A9BDC', 'A zigzag keeper shirt, big gloves and the number 1.');
+  I('drop-zone', 'outfit', 42, 'Basketball Player', 'common', '#3A9BDC', '#F08A2A', 'A vest in your colour, a headband and a ball on your back.');
+  I('drop-zone', 'outfit', 43, 'Linebacker', 'uncommon', '#3A9BDC', '#FFFFFF', 'Shoulder pads, a helmet with a face guard and white pants.');
+  I('drop-zone', 'outfit', 44, 'Baseball Batter', 'common', '#F2EFE8', '#3A9BDC', 'Pinstripes, a batting helmet and a bat in your bag.');
+  I('drop-zone', 'outfit', 45, 'Hockey Player', 'uncommon', '#3A9BDC', '#FFFFFF', 'A long striped jersey, padded gloves and a caged helmet.');
+  I('drop-zone', 'outfit', 46, 'Tennis Pro', 'common', '#F2EFE8', '#3A9BDC', 'Tennis whites, a cap and two rackets in a bag.');
+  I('drop-zone', 'outfit', 47, 'Boxer', 'rare', '#3A9BDC', '#E8453C', 'A satin robe with gold trim, gloves and a head guard.');
+  I('drop-zone', 'outfit', 48, 'Cyclist', 'common', '#3A9BDC', '#FFD23F', 'An aero helmet, orange glasses and two bottles.');
+  I('drop-zone', 'outfit', 49, 'Swim Team', 'common', '#3A9BDC', '#FFD23F', 'A long team parka, a towel, a swim cap and goggles.');
+  I('drop-zone', 'outfit', 50, 'Golfer', 'rare', '#3A9BDC', '#E8453C', 'A diamond sweater vest, a flat cap and a bag of clubs.');
+  I('drop-zone', 'outfit', 51, 'Skateboarder', 'common', '#E8453C', '#FFD23F', 'A long tee, a beanie and a board strapped on.');
+  I('drop-zone', 'outfit', 52, 'Surfer', 'common', '#3A9BDC', '#2FB8B0', 'A rash guard, board shorts and a surfboard.');
+  I('drop-zone', 'outfit', 53, 'Skier', 'uncommon', '#3A9BDC', '#FF8A1F', 'A puffy jacket, goggles and crossed skis.');
+  I('drop-zone', 'outfit', 54, 'Pit Crew', 'common', '#3A9BDC', '#FFFFFF', 'Overalls, a headset and a spare tyre.');
+  I('drop-zone', 'outfit', 55, 'Referee', 'uncommon', '#F2EFE8', '#5A606B', 'Stripes, a whistle and a yellow card ready.');
+  I('drop-zone', 'outfit', 56, 'Coach', 'common', '#3A9BDC', '#F2EFE8', 'A tracksuit, a whistle, a stopwatch and a bag of balls.');
+  I('drop-zone', 'outfit', 57, 'Team Mascot', 'legendary', '#FFC93C', '#FF8A1F', 'A big friendly bird with a crest in your colour.');
+  I('drop-zone', 'outfit', 58, 'Fencer', 'rare', '#F2EFE8', '#8D96A0', 'A white jacket, a mesh mask and a long kit bag.');
+  I('drop-zone', 'outfit', 59, 'Karate', 'common', '#F2EFE8', '#3A9BDC', 'A white suit, a belt in your colour and a rolled mat.');
+  I('drop-zone', 'outfit', 60, 'Cheer Captain', 'common', '#3A9BDC', '#FFD23F', 'A pleated skirt, a ponytail bow and pom-poms.');
+  I('drop-zone', 'outfit', 61, 'Jockey', 'rare', '#3A9BDC', '#FFD23F', 'Diamond racing silks and a silk cap.');
   // Items a game hands over itself are in no pack: give is 'free' (anyone may wear it; the game grants it the first time it
   // is worn) or 'earned' (the game grants it when it is won). grant(id), below, only adds these.
   GAME_ITEMS.forEach(function (it) { if (it.game !== 'slipstream') return; if (it.slot === 'sponsor' || (it.slot === 'helmet' && it.no <= 8)) it.give = 'free'; else if (it.slot === 'livery' && it.no > 8) it.give = 'earned'; });
