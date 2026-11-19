@@ -254,6 +254,7 @@
     chromaflage: { name: 'Chromaflage', prefix: 'cf', slots: [['hat', 'Seeker hats'], ['tool', 'Seeker tools'], ['splash', 'Catch splashes'], ['caught', 'Caught animations']] },
     'odd-one-out': { name: 'Odd One Out', prefix: 'oo', slots: [['outfit', 'Hunter outfits'], ['tool', 'Hunter tools'], ['taunt', 'Prop taunts'], ['poof', 'Catch poofs']] },
     'drop-zone': { name: 'Driftfall', prefix: 'dz', slots: [['outfit', 'Outfits'], ['pack', 'Backpacks'], ['glider', 'Gliders'], ['trail', 'Glider trails'], ['wrap', 'Gun skins'], ['build', 'Build skins'], ['emote', 'Emotes'], ['victory', 'Victory poses']] },
+    showdown: { name: 'Showdown', prefix: 'sd', slots: [['seat', 'Seat looks'], ['back', 'Card backs'], ['felt', 'Felts'], ['win', 'Win flourishes']] },
   };
   var GAME_ITEMS = [], ITEM_BY_ID = {};
   function I(game, slot, no, name, rarity, c1, c2, desc) {
@@ -1012,6 +1013,45 @@
   I('drop-zone', 'victory', 2, 'Flex', 'uncommon', '#E8742A', '#FFFFFF', 'Show those arms.');
   I('drop-zone', 'victory', 3, 'Take a Bow', 'rare', '#8A5A2B', '#F2EFE8', 'A deep, slow bow to the crowd.');
   I('drop-zone', 'victory', 4, 'Jump for Joy', 'epic', '#5FD068', '#FFD23F', 'Jumping up and down with arms wide.');
+  // ---- Showdown items ----
+  // Showdown (showdown/wardrobe.js draws them by slot and number): seat looks (a portrait in your seat's circle, on your own
+  // colour), card backs (your face-down cards as the table sees them), felts (your own screen only) and win flourishes.
+  // Hidden: worn from the game's Wardrobe by captains only.
+  I('showdown', 'seat', 1, 'Striker', 'common', '#E2352F', '#FFFFFF', 'A red kit with a white collar and a ball tucked under the arm.');
+  I('showdown', 'seat', 2, 'Point Guard', 'common', '#6B3FC9', '#F0822A', 'A purple vest, a striped headband and a basketball.');
+  I('showdown', 'seat', 3, 'Gridiron', 'uncommon', '#1F4FB8', '#D5DAE2', 'A blue helmet with a white stripe and a face cage.');
+  I('showdown', 'seat', 4, 'Slugger', 'common', '#22315F', '#F4F1E8', 'A navy cap turned to the side and a pinstriped shirt.');
+  I('showdown', 'seat', 5, 'Goalie Mask', 'rare', '#F7F7F2', '#C42D3A', 'A white hockey mask with a cage over the eyes.');
+  I('showdown', 'seat', 6, 'Tennis Ace', 'common', '#26B868', '#D9F23A', 'A green visor, a white collar and a bright yellow ball.');
+  I('showdown', 'seat', 7, 'Boxing Champ', 'uncommon', '#D7262F', '#F2C230', 'Red headgear and a robe with gold trim.');
+  I('showdown', 'seat', 8, 'Racing Driver', 'rare', '#E23B3B', '#20283A', 'A full-face helmet with a dark visor and two white stripes.');
+  I('showdown', 'seat', 9, 'Referee', 'common', '#15151A', '#FFFFFF', 'Black and white stripes, a black cap and a whistle.');
+  I('showdown', 'seat', 10, 'Tin Robot', 'uncommon', '#BCC6D1', '#FFE45C', 'A square tin head, round yellow eyes and an aerial.');
+  I('showdown', 'seat', 11, 'Chrome Android', 'epic', '#F4F7FA', '#38E8FF', 'A smooth white head with a dark visor and glowing eyes.');
+  I('showdown', 'seat', 12, 'Pirate Captain', 'epic', '#1B1820', '#B8282F', 'A three-cornered hat with gold trim, a feather and an eye patch.');
+  I('showdown', 'seat', 13, 'Deckhand', 'rare', '#D7262F', '#2FB84F', 'A red bandana, an eye patch, a striped shirt and a parrot.');
+  I('showdown', 'seat', 14, 'The Boss', 'legendary', '#555A66', '#C21E2A', 'A grey fedora, a pinstriped suit and a red tie.');
+  I('showdown', 'seat', 15, 'Bodyguard', 'uncommon', '#17181E', '#DADDE4', 'Dark glasses, an earpiece and a black suit.');
+  I('showdown', 'seat', 16, 'Secret Agent', 'rare', '#121318', '#FFFFFF', 'Slicked-back hair, a dinner jacket and a bow tie.');
+  I('showdown', 'seat', 17, 'Tracksuit Tough', 'common', '#1F3FA8', '#F2C230', 'A flat cap, a striped tracksuit and a gold chain.');
+  I('showdown', 'seat', 18, 'Wizard', 'epic', '#5A2FA8', '#FFD23F', 'A tall starry hat and a very long white beard.');
+  I('showdown', 'back', 1, 'Pitch', 'common', '#2E9A4A', '#FFFFFF', 'Mown stripes, the halfway line and both boxes.');
+  I('showdown', 'back', 2, 'Hardwood', 'common', '#D9A15E', '#E8742A', 'Court boards, a painted key and the centre circle.');
+  I('showdown', 'back', 3, 'Gridiron', 'uncommon', '#2F8A3E', '#1F4FB8', 'Yard lines, two end zones and a ball on the fifty.');
+  I('showdown', 'back', 4, 'Checkered Flag', 'uncommon', '#15151A', '#E23B3B', 'Black and white checks with a red band across.');
+  I('showdown', 'back', 5, 'Circuit Board', 'rare', '#0F5A3E', '#E6B84A', 'Gold traces running to a glowing chip.');
+  I('showdown', 'back', 6, 'Treasure Map', 'epic', '#E9D3A0', '#C21E2A', 'An island, a dotted trail and a red X.');
+  I('showdown', 'back', 7, 'Pinstripe', 'common', '#2C2F38', '#D9B25C', 'Suit cloth with fine stripes and a small gold diamond.');
+  I('showdown', 'felt', 1, 'Midnight Blue', 'common', '#1F5A96', '#08203C', 'A deep blue cloth for your own table.');
+  I('showdown', 'felt', 2, 'Casino Red', 'common', '#93253A', '#370912', 'A dark red cloth, like the big rooms.');
+  I('showdown', 'felt', 3, 'Striped Pitch', 'uncommon', '#1C8A4C', '#073420', 'Green cloth mown in stripes, like match day.');
+  I('showdown', 'felt', 4, 'Purple Velvet', 'rare', '#6A3A9E', '#240E3C', 'The cloth in the back room where the big hands are played.');
+  I('showdown', 'felt', 5, "Ship's Deck", 'rare', '#8A5A32', '#3A230F', 'Deal on the planks of a pirate ship.');
+  I('showdown', 'win', 1, 'Confetti', 'common', '#FF4F8B', '#3FA9F5', 'Bright paper bursts out from both sides of your seat.');
+  I('showdown', 'win', 2, 'Coin Shower', 'uncommon', '#FFC93C', '#C98A12', 'Gold coins rain down beside your seat.');
+  I('showdown', 'win', 3, 'Trophy', 'rare', '#FFC93C', '#6A3A1A', 'A gold cup rises beside your seat in a sparkle.');
+  I('showdown', 'win', 4, 'Fireworks', 'epic', '#FF4F8B', '#3FD2FF', 'Three little bursts go off round your seat.');
+  I('showdown', 'win', 5, 'Treasure Chest', 'legendary', '#A8662F', '#F2C230', 'A chest pops up and spills gold coins.');
   // Items a game hands over itself are in no pack: give is 'free' (anyone may wear it; the game grants it the first time it
   // is worn) or 'earned' (the game grants it when it is won). grant(id), below, only adds these.
   GAME_ITEMS.forEach(function (it) { if (it.game !== 'slipstream') return; if (it.slot === 'sponsor' || (it.slot === 'helmet' && it.no <= 8)) it.give = 'free'; else if (it.slot === 'livery' && it.no > 8) it.give = 'earned'; });

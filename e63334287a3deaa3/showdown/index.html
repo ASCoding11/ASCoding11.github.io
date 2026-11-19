@@ -5,6 +5,7 @@
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
 <script src="/e63334287a3deaa3/lang.js"></script> <!-- English / Español (see README) -->
 <script src="es.js"></script> <!-- Showdown's Spanish words -->
+<script src="/e63334287a3deaa3/captains.js"></script> <!-- who may open the hidden Wardrobe (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Showdown</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -1092,6 +1093,7 @@ const Net={
     // n, c, x, z, h and ts are always sent: the shared database rules expect that shape
     const o={n:myName||'Player',c:AVC[myAv],x:0,z:0,h:0,ts:Math.round(this.now()),j:this.j,av:myAv,pk:Keys.pub,sit:this.me.sit,rb:this.me.rb,ac:this.me.ac,ch:this.me.ch};
     if(G.host){o.tb=this.tb;o.hc=this.hc;o.he=G.he}
+    if(WD){const cz=WD.wire();if(cz)o.cz=cz}   // cz: what this player wears from the Wardrobe (wardrobe.js); never there for anyone else
     return o;
   },
   async count(room){
@@ -1274,7 +1276,10 @@ function onNode(uid,v){
   if(!v||typeof v!=='object')return;
   const o={n:cleanName(v.n)||'Player',av:clamp(v.av|0,0,AVC.length-1),j:+v.j||+v.ts||0,ts:+v.ts||0,pk:typeof v.pk==='string'?v.pk:'',
     sit:typeof v.sit==='string'?v.sit:'0:1',rb:+v.rb||0,ac:typeof v.ac==='string'?v.ac:'',ch:typeof v.ch==='string'?v.ch:'',tb:typeof v.tb==='string'?v.tb:'',hc:typeof v.hc==='string'?v.hc:'',he:+v.he||0};
+  // cz: what they wear from the Wardrobe (wardrobe.js); older pages never read it
+  o.cz=typeof v.cz==='string'&&v.cz.length<=16?v.cz:'';const czWas=(Net.others.get(uid)||{}).cz||'';
   Net.others.set(uid,o);
+  if(o.cz!==czWas){if(!WD&&/[1-9]/.test(o.cz))wdLoad();else if(WD&&G.S)renderSeats()}
   if(o.tb&&o.he>G.maxHe)G.maxHe=o.he;
   // chat
   if(o.ch&&o.ch!==G.seenCh.get(uid)){const first=!G.seenCh.has(uid);G.seenCh.set(uid,o.ch);if(!first||performance.now()-G.joinedAt>3000)gotChat(uid,o.n,o.ch.split('|').slice(1).join('|'))}
@@ -1490,12 +1495,13 @@ function renderSeats(){
     el.classList.toggle('won',!!winner);
     // plate
     const stack=s.a&&s.s===0&&s.i?'All-in':fmt(s.s);
-    const psig=[s.n,s.av,stack,s.bot,s.o,s.g,s.i].join('~');
+    const wr=wearOf(s),wa=wr?wr[0]:0,wb=wr?wr[1]:0;   // what they wear from the Wardrobe (wardrobe.js): nothing for nearly everyone
+    const psig=[s.n,s.av,stack,s.bot,s.o,s.g,s.i,wa].join('~');
     if(plate.dataset.sig!==psig){
       plate.dataset.sig=psig;
       const ini=(s.n||'?').trim().charAt(0).toUpperCase();
       const status=s.g?'Away':s.o?(s.s<=0?'Busted':'Sitting out'):'';
-      plate.innerHTML='<div class="av" style="background:'+AVC[s.av]+'">'+esc(ini)+'<svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18.4" stroke="transparent"/></svg></div>'+
+      plate.innerHTML='<div class="av" style="background:'+AVC[s.av]+'">'+(wa?WD.avHTML(wa):esc(ini))+'<svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18.4" stroke="transparent"/></svg></div>'+
         '<div class="meta"><b data-noi18n>'+esc(s.n)+'</b><span>'+(status?'<em style="font-style:normal;color:var(--ink-3)">'+status+'</em>':stack)+(s.bot?'<i>BOT</i>':'')+'</span></div>';
     }
     // hole cards
@@ -1506,7 +1512,7 @@ function renderSeats(){
       else if(!s.f&&!muck)cards=[-1,-1];
       if(me&&(s.f||muck)&&G.hole&&G.holeId===S.id){cards=G.hole;cls='dim'}
     }
-    const hsig=cards?S.id+':'+cards.join(',')+':'+cls+':'+(best?best.join(','):''):'';
+    const hsig=cards?S.id+':'+cards.join(',')+':'+cls+':'+(best?best.join(','):'')+(wb?':'+wb:''):'';
     if(holeEl.dataset.sig!==hsig){
       const prev=holeEl.dataset.sig||'';const prevId=prev.split(':')[0];
       const fresh=prevId!==String(S.id);
@@ -1521,6 +1527,7 @@ function renderSeats(){
           let st='';
           if(fresh){c2+=' dl';st='--dx:'+dx+';--dy:'+dy+';animation-delay:'+(order*.06+k*.06*(S.seats.filter(Boolean).length))+'s'}
           else if((reveal||me)&&wasBack&&c>=0){c2+=' in'}
+          if(c<0&&wb)c2+=' '+WD.backCls(wb);
           h+=cardHTML(c,c2,st);
         });
         if(fresh&&G.mode!=='attract'&&order===0)sfx('deal');
@@ -1572,7 +1579,7 @@ function animate(P,S){
     // pot to winners
     if(S.win&&!P.win){
       S.win.forEach(([i,a],k)=>{const p=L.pos[i];if(!p)return;flyChips(center,[p[0],p[1]],a,350+k*120);
-        setTimeout(()=>{const g=document.createElement('div');g.className='gain';g.textContent='+'+fmt(a);seatEls[i].appendChild(g);setTimeout(()=>g.remove(),2500)},500+k*120)});
+        setTimeout(()=>{const g=document.createElement('div');g.className='gain';g.textContent='+'+fmt(a);seatEls[i].appendChild(g);setTimeout(()=>g.remove(),2500);wdWin(i)},500+k*120)});
       const mine=S.win.some(w=>S.seats[w[0]]&&S.seats[w[0]].u===G.me);
       setTimeout(()=>sfx(mine?'win':'chip'),380);
     }
@@ -1840,6 +1847,29 @@ addEventListener('resize',()=>layout());
 addEventListener('pointerdown',()=>initAudio(),{once:true});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&G.mode==='online')Net.publish()});
 
+// ---------- the Wardrobe (not public yet): seat looks, card backs, felts and win flourishes ----------
+// wardOn(): may this player open the Wardrobe and wear things? True for the site's captains (../captains.js: the Google
+// account signed in is one of miles.js's Captains), or with ?wardrobe=1 on localhost or in an automated browser
+// (remembered for the tab; ?wardrobe=0 forgets it). On the live site the address does nothing. To make it public for
+// everyone, change SD_PUBLIC to true: that one line is all it takes. Everything is drawn by wardrobe.js beside this page,
+// which is fetched the first time wardOn() is true, or when a player at the table wears something (their node's cz,
+// see onNode). For everyone else it is never loaded, WD stays null and the table is exactly as it was.
+// Looks only: no rule, card face, timer or chip changes.
+const SD_PUBLIC=false;
+const CAPTAINS=window.BackRoomCaptains||null;
+const wardOn=()=>SD_PUBLIC||!!(CAPTAINS&&CAPTAINS.may(false,'wardrobe','sd-wardrobe'));
+let WD=null,wdAsked=false;
+function wdLoad(){
+  if(wdAsked)return;wdAsked=true;
+  loadScript('wardrobe.js').then(()=>{WD=window.SDWardrobe({$,store,esc,AVC,cardHTML,wardOn,get myAv(){return myAv},get myName(){return myName},changed:wdChanged});wdChanged()}).catch(e=>{wdAsked=false;console.error(e)});
+}
+// what a seat wears: [seat look, card back, felt, win flourish] item numbers, or null (bots and nearly everyone)
+function wearOf(s){if(!WD||!s||s.bot)return null;if(s.u===G.me)return WD.mine();const o=Net.others.get(s.u);return o&&o.cz?WD.parse(o.cz):null}
+function wdChanged(){if(!WD)return;WD.sync();if(G.mode==='online')Net.dirty();if(G.S)renderSeats()}
+function wdWin(i){const S=G.S,w=S&&wearOf(S.seats[i]);if(w&&w[3])WD.flourish(seatEls[i],w[3])}
+if(wardOn())wdLoad();
+if(CAPTAINS)CAPTAINS.onChange(()=>{if(wardOn())wdLoad();wdChanged()});
+
 // =====================================================================
 //  Ads
 // =====================================================================
@@ -1868,7 +1898,7 @@ requestAnimationFrame(ringLoop);
 // An invite opens this page with #sd-<code>: fill in the room and point at the join button.
 const inv=/^#sd-([a-z0-9-]{1,17})$/.exec(location.hash);
 if(inv&&!/^pub-/.test(inv[1])){$('room').value=inv[1];setMsg('You were invited to room sd-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.replace('ghost','cta');$('quick').classList.replace('cta','ghost')}
-if(TEST)window.__sd={Table,evalHand,handName,best5,equity,strCards,cardsStr,botDecide,G,Net,startPractice,doAct,myView,pfPct,get PF(){return PF}};
+if(TEST)window.__sd={get WD(){return WD},wardOn,wdLoad,wearOf,Table,evalHand,handName,best5,equity,strCards,cardsStr,botDecide,G,Net,startPractice,doAct,myView,pfPct,get PF(){return PF}};
 })();
 </script>
 <aside class="rail-ad l" aria-label="Advertisement"><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></aside>
