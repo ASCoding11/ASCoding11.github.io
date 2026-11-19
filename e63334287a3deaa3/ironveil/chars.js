@@ -63,7 +63,7 @@
   var TWO_HAND = { aimIdle: 1, aimWalk: 1, crouchAim: 1, holdRifle: 1, sprintRifle: 1, fire: 1, fireCrouch: 1, fireCover: 1,
     proneAim: 1, proneIdle: 1, stackUp: 1, boltCycle: 0, aimPistol: 1, firePistol: 1, holdPistol: 0, wallLean: 1, limp: 1, aimCover: 1 };
   // clips that play once and hold their last frame unless {loop:true} is passed
-  var ONESHOT = { reload: 1, boltCycle: 1, throw: 1, melee: 1, takedown: 1, takedownVictim: 1, vault: 1, hit: 1, deathFront: 1, deathBack: 1,
+  var ONESHOT = { deathLeft: 1, deathRight: 1, deathCover: 1, reload: 1, boltCycle: 1, throw: 1, melee: 1, takedown: 1, takedownVictim: 1, vault: 1, hit: 1, deathFront: 1, deathBack: 1,
     deathRun: 1, salute: 1, fire: 1, firePistol: 1, fireCrouch: 1, fireCover: 1, breachKick: 1, signalMoveUp: 1, stagger: 1 };
 
   var IV = window.IVChars = {
@@ -528,7 +528,7 @@
     var k = 1 - Math.exp(-dt * 14);
     this.aimP += (this.aimPT - this.aimP) * k; this.aimY += (this.aimYT - this.aimY) * k;
     if (Math.abs(this.aimP) > 1e-4 || Math.abs(this.aimY) > 1e-4) this._applyAim();
-    if (this.driven) this._post(dt, far);
+    if (this.driven) this._post(dt, far); else this._flinch(dt);
     // left hand onto the fore-end
     var want = 0;
     if (held && held.userData.gripL && held.userData.long !== undefined) {
@@ -582,15 +582,20 @@
     var sw = this._stW, swSum = sw.stand + sw.crouch + sw.prone || 1;
     // moving weight; when stopping, keep stepping until the next foot contact so the feet come together
     var wantMove = speed > 0.12 ? 1 : 0;
-    if (!wantMove && this._move > 0.05) {
+    // pivot: when the travel direction flips by more than ~100 degrees, plant (blend out to the stance idle with the
+    // feet together), swap the blend direction while still, then step off the other way
+    var aNow = Math.atan2(vx, vz) * 180 / Math.PI, dFlip = Math.abs(((aNow - this._dirA + 540) % 360) - 180);
+    if (speed > 0.12 && dFlip > 100 && this._move > 0.12) { wantMove = 0; this._pivot = true; }
+    if (this._pivot && this._move <= 0.12) { this._dirA = aNow; this._pivot = false; }
+    if (!wantMove && !this._pivot && this._move > 0.05) {
       var ph2 = (this.phase * 2) % 1; if (ph2 > 0.12 && ph2 < 0.9) wantMove = this._move;   // finish the step
     }
-    this._move = approach(this._move, wantMove ? Math.min(1, 0.35 + speed) : 0, 5, dt);
+    this._move = approach(this._move, wantMove ? Math.min(1, 0.35 + speed) : 0, this._pivot ? 7 : 5, dt);
     var mv = ease01(this._move);
     // direction (local: +x left, +z forward) and speed tier
-    if (speed > 0.05) {
+    if (speed > 0.05 && !this._pivot) {
       var a = Math.atan2(vx, vz) * 180 / Math.PI, da = ((a - this._dirA + 540) % 360) - 180;
-      this._dirA += da * Math.min(1, dt * 10);
+      this._dirA += da * (1 - Math.exp(-dt / 0.18));
     }
     var dirA = ((this._dirA + 540) % 360) - 180;
     var tierT = Math.max(0, Math.min(1, (speed - SPEED.walk) / (SPEED.jog - SPEED.walk)));
@@ -658,10 +663,33 @@
     var accel = (speed - this._lastSpeed) / Math.max(dt, 1e-3);
     this._lastSpeed = speed;
     this._lean += (Math.max(-0.14, Math.min(0.14, -(st.yawRate || 0) * speed * 0.035)) - this._lean) * Math.min(1, dt * 6);
-    this._pitchLean += (Math.max(-0.1, Math.min(0.1, accel * 0.018)) - this._pitchLean) * Math.min(1, dt * 5);
+    this._pitchLean += (Math.max(-0.06, Math.min(0.06, accel * 0.012)) - this._pitchLean) * Math.min(1, dt * 5);
     this._t += dt;
   };
+  // additive hit flinch (no physics): dir = world direction the bullet travels, part = 'head'|'chest'|'arm_l'|'arm_r'|'leg'
+  AP.flinch = function (dir, part, strength) {
+    var rq = worldQuat(this.root, new T.Quaternion()).invert();
+    var d = (dir ? dir.clone() : new T.Vector3(0, 0, -1)).applyQuaternion(rq); d.y = 0; if (d.lengthSq() < 1e-6) d.set(0, 0, -1); d.normalize();
+    this._fl = { t: 0, d: d, part: part || 'chest', k: strength == null ? 1 : strength };
+    return this;
+  };
+  AP._flinch = function (dt) {
+    var f = this._fl; if (!f) return;
+    f.t += dt; var T1 = 0.45; if (f.t > T1) { this._fl = null; return; }
+    // fast hit, damped spring back
+    var x = f.t / T1, a = Math.sin(Math.min(1, f.t / 0.06) * Math.PI / 2) * Math.exp(-x * 4) * f.k;
+    var rq = worldQuat(this.root, new T.Quaternion());
+    var up = new T.Vector3(0, 1, 0).applyQuaternion(rq);
+    // bend away from the shot: rotate about the axis perpendicular to the shot direction
+    var axis = new T.Vector3().crossVectors(up, f.d.clone().applyQuaternion(rq)).normalize();
+    var q = new T.Quaternion(), b = this.bones;
+    var map = { head: [['neck_01', 0.25], ['Head', 0.45], ['spine_03', 0.08]], chest: [['spine_02', 0.18], ['spine_03', 0.22], ['Head', 0.1]],
+      arm_l: [['clavicle_l', 0.35], ['upperarm_l', 0.3], ['spine_03', 0.08]], arm_r: [['clavicle_r', 0.35], ['upperarm_r', 0.3], ['spine_03', 0.08]],
+      leg: [['pelvis', 0.08], ['spine_01', 0.1], ['thigh_l', 0.1], ['thigh_r', 0.1]] }[f.part] || [['spine_03', 0.2]];
+    for (var i = 0; i < map.length; i++) { var bn = b[map[i][0]]; if (!bn) continue; q.setFromAxisAngle(axis, a * map[i][1]); rotWorld(bn, q); }
+  };
   AP._post = function (dt, far) {
+    this._flinch(dt);
     var b = this.bones, q = new T.Quaternion();
     var rq = worldQuat(this.root, new T.Quaternion());
     var fwd = new T.Vector3(0, 0, 1).applyQuaternion(rq), left = new T.Vector3(1, 0, 0).applyQuaternion(rq);
@@ -676,27 +704,54 @@
     // foot IK with pelvis drop against actor.groundAt(x, z) (if the game provides it), near the camera only
     var ikOK = far < (IV.footIKDistance || 25) && this._stW.prone < 0.5;
     if (this.groundAt && ikOK) this._footIK(dt);
-    if (ikOK && IV.footLock && far < (IV.footLockDistance || 12)) this._footLock(dt);   // experimental, off: knee flips on straight legs
+    if (ikOK && IV.footLock && far < (IV.footLockDistance || 12)) this._footLock(dt);   // experimental, off: measured worse than phase sync alone
   };
   // planted-foot lock: while a foot is in its contact window (from the shared phase) it stays where it landed,
   // so direction changes and turns do not skate it; eased in and out at the window edges
   var LOCKW = { l: [0.0, 0.30], r: [0.5, 0.80] };
+  // analytic two-bone leg IK with an explicit knee pole (the pelvis forward), so the knee can never flip
+  function legIK(thigh, calf, foot, target, pole, w) {
+    var fq = worldQuat(foot, new T.Quaternion());
+    var A = worldPos(thigh, new T.Vector3()), B = worldPos(calf, new T.Vector3()), C = worldPos(foot, new T.Vector3());
+    var l1 = A.distanceTo(B), l2 = B.distanceTo(C);
+    var tgt = C.clone().lerp(target, w);
+    var d = tgt.clone().sub(A), dist = Math.min(d.length(), (l1 + l2) * 0.985); d.normalize();
+    tgt.copy(A).addScaledVector(d, dist);
+    var cosA = Math.max(-1, Math.min(1, (l1 * l1 + dist * dist - l2 * l2) / (2 * l1 * dist))), sinA = Math.sqrt(1 - cosA * cosA);
+    var pv = pole.clone().addScaledVector(d, -pole.dot(d)); if (pv.lengthSq() < 1e-8) return; pv.normalize();
+    var K = A.clone().addScaledVector(d, cosA * l1).addScaledVector(pv, sinA * l1);
+    var q = new T.Quaternion();
+    q.setFromUnitVectors(B.clone().sub(A).normalize(), K.clone().sub(A).normalize()); rotWorld(thigh, q);
+    var C2 = worldPos(foot, new T.Vector3()), K2 = worldPos(calf, new T.Vector3());
+    q.setFromUnitVectors(C2.sub(K2).normalize(), tgt.clone().sub(K2).normalize()); rotWorld(calf, q);
+    setWorldQuat(foot, fq);
+  }
+  // planted-foot lock: while a foot is in its contact window (shared phase) it keeps the ground point where it landed,
+  // so blend direction changes do not skate it; eased in and out at the window edges, reach capped, knee pole fixed
+  var LOCKW = { l: [0.0, 0.30], r: [0.5, 0.80] };
   AP._footLock = function (dt) {
     var b = this.bones, m = Math.min(1, this._move * 1.5);
     if (!this._lock) this._lock = { l: null, r: null };
+    var rq = worldQuat(this.root, new T.Quaternion()), fwd = new T.Vector3(0, 0, 1).applyQuaternion(rq);
     for (var i = 0; i < 2; i++) {
       var s = i ? 'r' : 'l', w0 = LOCKW[s][0], w1 = LOCKW[s][1], ph = this.phase;
-      var inWin = ph >= w0 && ph <= w1, foot = b['foot_' + s];
-      if (!foot || m < 0.05 || !inWin) { this._lock[s] = null; continue; }
-      var cur = worldPos(foot, new T.Vector3());
-      if (!this._lock[s]) this._lock[s] = cur.clone();
-      var u = (ph - w0) / (w1 - w0), edge = Math.min(1, u / 0.15, (1 - u) / 0.15);
-      var w = Math.max(0, edge) * m;
+      var inWin = ph >= w0 && ph <= w1, foot = b['foot_' + s], ball = b['ball_' + s];
+      if (!foot || !ball || m < 0.05 || !inWin) { this._lock[s] = null; continue; }
+      // lock the ball of the foot (the contact point that stays put while the heel peels up)
+      var bp = worldPos(ball, new T.Vector3()), ap = worldPos(foot, new T.Vector3());
+      if (!this._lock[s]) this._lock[s] = bp.clone();
+      var L = this._lock[s];
+      var u = (ph - w0) / (w1 - w0), w = Math.max(0, Math.min(1, u / 0.15, (1 - u) / 0.3)) * m;
+      var shift = new T.Vector3(L.x - bp.x, 0, L.z - bp.z);
+      if (shift.length() > 0.2) { L.x = bp.x; L.z = bp.z; continue; }
       if (w < 0.01) continue;
-      var tgt = cur.clone(); tgt.x = this._lock[s].x; tgt.z = this._lock[s].z;
-      if (tgt.distanceTo(cur) > 0.5) { this._lock[s] = cur.clone(); continue; }   // teleported: re-plant
-      var fq = worldQuat(foot, new T.Quaternion());
-      twoBone(b['thigh_' + s], b['calf_' + s], foot, tgt, fq, w);
+      var tgt = ap.clone().add(shift);
+      // pole = the animated knee's own bend direction (so the solve stays in the clip's plane and cannot flip)
+      var hip = worldPos(b['thigh_' + s], new T.Vector3()), knee = worldPos(b['calf_' + s], new T.Vector3());
+      var axis = ap.clone().sub(hip).normalize(), kd = knee.clone().sub(hip);
+      var pole = kd.addScaledVector(axis, -kd.dot(axis));
+      if (pole.lengthSq() < 1e-6) pole.copy(fwd);
+      legIK(b['thigh_' + s], b['calf_' + s], foot, tgt, pole.normalize(), w);
     }
   };
   AP._footIK = function (dt) {
