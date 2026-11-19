@@ -30,7 +30,8 @@
  *     and the sniper's lens are unchanged;
  *   build skins: only the picture on a piece changes: as opaque, the same frame and brace round the edge, and measured to
  *     be at least as far from the walls, the carpet and both team colours as plywood. Damage still darkens it the same way;
- *   elimination effects: small pieces round the body that is falling over, gone in 1.5 s (the body takes 2.2 s);
+ *   elimination effects: small pieces round the body that is falling over, gone in 1.5 s (the body takes 2.2 s); none with
+ *     the browser's reduced-motion setting on (the game's own sparks are left out then too), and celebrations hold still;
  *   celebrations: only while the round is over (every enemy is out), and they stop as soon as the player moves.
  *
  * Cost. An outfit is fewer draw calls than the plain suit (one mesh per moving part: two legs, body, head, arms, plus
@@ -147,7 +148,7 @@ const OUTFITS=[null,
   torso:[F(0,1.22,.04,.7,W),...[1.45,1.3,1.15,1.0].map(y=>F(0,y,.03,.03,0xdedede,1)),band(.9,.08,INK),F(0,.9,.08,.06,SILVER,1),band(1.56,.04,W),...num(27,0,1.25,.06,W,true,16),F(.18,1.4,.14,.04,W),...pack(T,[Bk(0,1.4,.42,.05,W,16)])],
   head:[[.58,.3,.58,0,.14,0,T],[.5,.04,.2,0,.04,-.36,T],[.12,.2,.2,.29,-.04,0,T],[.07,.02,.07,0,.3,0,W]],
   arms:[...arms2(i=>aBand(i,-.12,.05,W))]},
-{id:'puck',home:[0xc41f3a,0x55101b],hat:1,base:{leg:T,boot:SHOE,sleeve:T,glove:0x8a2c1c},
+{id:'puck',home:[0xc41f3a,0x55101b],hat:1,base:{leg:T,boot:SHOE,sleeve:T,glove:D},
   leg:s=>[[.32,.32,.34,0,-.16,0,K],LB(-.12,.03,W,1),LB(-.45,.05,W),LB(-.53,.05,W),[.31,.14,.36,0,-.74,-.02,SHOE],[.03,.05,.4,0,-.835,-.02,SILVER]],
   torso:[[.8,.74,.5,0,1.2,0,T],[.82,.06,.52,0,1.0,0,W],[.82,.04,.52,0,.92,0,W],[.82,.05,.52,0,1.5,0,W],...num(17,0,1.26,.055,W,true,16),...pack(K,[Bk(0,1.1,.42,.06,W,16)])],
   head:[[.58,.3,.58,0,.13,0,T],[.03,.32,.04,-.18,-.05,-.31,SILVER],[.03,.32,.04,.18,-.05,-.31,SILVER],[.03,.32,.04,0,-.05,-.31,SILVER],[.39,.03,.04,0,-.06,-.315,SILVER],[.39,.03,.04,0,-.16,-.315,SILVER],[.39,.03,.04,0,.1,-.315,SILVER]],
@@ -262,7 +263,7 @@ const OUTFITS=[null,
   leg:s=>[[.33,.12,.36,0,-.55,0,D],LB(-.12,.02,D,1)],
   torso:[F(0,1.22,.18,.72,L),[.27,.74,.03,-.24,1.21,-.235,T],[.27,.74,.03,.24,1.21,-.235,T],Bk(0,1.22,.74,.72,T),Sd(-1,1.22,.44,.72,T),Sd(1,1.22,.44,.72,T),band(.95,.12,K,2),[.1,.24,.04,.25,.8,-.24,K],F(-.14,1.48,.04,.04,GOLD,4),
     ...pack(K,[Bk(0,1.34,.42,.05,INK,16)])],
-  head:[[.58,.2,.58,0,.18,0,0xe8453c],...[[-.12,-.12],[.12,.08],[-.04,.16],[.16,-.14]].map(([x,z])=>HT(x,z,.05,.05,W,1)),[.1,.08,.1,.22,.1,.3,0xe8453c],...PATCH],
+  head:[[.58,.2,.58,0,.18,0,K],...[[-.12,-.12],[.12,.08],[-.04,.16],[.16,-.14]].map(([x,z])=>HT(x,z,.05,.05,W,1)),[.1,.08,.1,.22,.1,.3,K],...PATCH],
   arms:[onArm(0,0,0,-.21,.12,.12,.06,SILVER),onArm(0,0,-.01,-.29,.04,.04,.12,SILVER),onArm(0,0,.05,-.355,.04,.12,.04,SILVER),onArm(0,0,.1,-.31,.04,.04,.1,SILVER),onArm(1,0,0,-.15,.2,.2,.06,L)],
   noGlove:[1,0]},
 {id:'ghostpirate',home:[0x3a8a8a,0x123838],hat:1,visor:false,base:{leg:L,boot:L,sleeve:T,glove:L},
@@ -542,7 +543,7 @@ const fxMain=()=>mainFx||(mainFx=makeFx({scene:X.scene,floor:(x,z,y)=>X.floorAt(
 const teamHex=e=>{const k=e.model&&e.model.userData.key;const S=X.SUITS[k]||X.SUITS.me;return S[0]};
 // victim was eliminated by killer: the killer's effect plays once where the victim fell
 function elim(victim,killer){
-  if(!victim||!killer||killer===victim)return;const k=killer.model&&killer.model.userData.lk,n=k&&k.e|0;if(!(n>=1&&n<=N.e))return;
+  if(!victim||!killer||killer===victim||X.RM)return;const k=killer.model&&killer.model.userData.lk,n=k&&k.e|0;if(!(n>=1&&n<=N.e))return;
   const T=now();if(victim._lkFx&&T-victim._lkFx<2)return;victim._lkFx=T;
   fxMain().play(n,victim.pos.clone(),teamHex(victim));
 }
@@ -580,7 +581,7 @@ function anim(e,dt){
   if(n===CEL_TROPHY){if(!u._celP&&w>0){u._celP=new THREE.Mesh(GEOS.trophy(),bodyMat);u._celP.position.set(.05,2.42,-.2);m.add(u._celP)}if(u._celP){u._celP.visible=w>.05;u._celP.scale.setScalar(Math.max(.001,w))}}
   if(!w){if(u._celH){u.head.rotation.y=0;u._celH=0}return}
   u._celH=1;
-  POSES[n](u,u._celT,m,w);
+  POSES[n](u,X.RM?.35:u._celT,m,w);   // reduced motion: the pose, held still
   if(n===CEL_FIRE&&on&&!X.RM){u._celF=(u._celF||0)-dt;if(u._celF<=0){u._celF=.7;const p=e.pos.clone().add(new V3(rnd(-.6,.6),3.2+Math.random()*.6,rnd(-.6,.6)));const cols=[0xff5c8a,0x58b4ff,0xffd23f,0x7dff8a,0xffffff],c=cols[Math.floor(Math.random()*5)];
     const F=fxMain();for(let i=0;i<22;i++){const a=Math.random()*TAU,b=Math.acos(rnd(-1,1)),sp=rnd(1.4,2.2);F.add(F.glo,c,p,{v:new V3(Math.sin(b)*Math.cos(a)*sp,Math.cos(b)*sp,Math.sin(b)*Math.sin(a)*sp),life:rnd(.6,.9),s:.06,g:2,drag:1.5,k:0})}}}
 }
