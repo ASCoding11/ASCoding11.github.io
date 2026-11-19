@@ -369,7 +369,7 @@ var BV = (function () {
           if (last) for (q = 0; q < 4; q++) add(b0 + 2 + q / 2, 0.5, 't', note(c + 4 - q, -1), 0.45);
         }
         // pad: the chord, held for the bar
-        var pv = ty === 'break' ? 0.55 : ty === 'intro' ? 0.8 : big ? 0.24 : 0.32;
+        var pv = ty === 'break' ? 0.55 : ty === 'intro' ? 0.6 : big ? 0.24 : 0.32;
         add(b0, 4, 'pad', [note(c, 0), note(c + 2, 0), note(c + 4, 0)], pv);
         // bass
         if (ty === 'build' || big) {
@@ -1218,8 +1218,7 @@ var BV = (function () {
     b.sec('break');
     b.g('................').g('....^.......^...');
     b.size(1).g(`
-.........k......
-................
+..........k.....
 ....^^....^^....`);
     b.g('..^.^...^.^.....').size(0);
     b.sec('build').form('spring');
@@ -1318,7 +1317,7 @@ var BV = (function () {
     return ctx;
   }
   var MUSIC_GAIN = 0.55;   // the music bus at 100% volume (rendered songs are checked at this level for clipping)
-  function makeComp(c) { var k = c.createDynamicsCompressor(); k.threshold.value = -16; k.knee.value = 4; k.ratio.value = 12; k.attack.value = 0.002; k.release.value = 0.12; return k; }
+  function makeComp(c) { var k = c.createDynamicsCompressor(); k.threshold.value = -11; k.knee.value = 3; k.ratio.value = 10; k.attack.value = 0.002; k.release.value = 0.12; return k; }
   function makeNoise(ctx) { var n = ctx.sampleRate * 2, b = ctx.createBuffer(1, n, ctx.sampleRate), d = b.getChannelData(0), r = BV.rng(99); for (var i = 0; i < n; i++) d[i] = r() * 2 - 1; return b; }
   function setVolumes() {
     if (!A.ctx) return;
@@ -2021,6 +2020,7 @@ var BV = (function () {
       if (KB.is('cpDel', c) && !e.repeat) { cpDel(); return; }
     } else if (GAME.state === 'paused') {
       if ((c === 'Escape' || KB.is('pause', c)) && !e.repeat) resumeGame();
+      else if (!e.repeat && (c === 'Enter' || KB.is('act', c)) && (!document.activeElement || document.activeElement === document.body || document.activeElement.id === 'resume')) resumeGame();
     } else if (GAME.state === 'results') {
       if (!e.repeat && (c === 'Enter' || KB.is('act', c)) && performance.now() - GAME.resAt > 400) $('resNext').hidden ? $('resAgain').click() : $('resNext').click();
       if (!e.repeat && KB.is('restart', c)) $('resAgain').click();
