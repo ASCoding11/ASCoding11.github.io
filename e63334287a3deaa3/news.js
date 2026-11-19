@@ -85,6 +85,13 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-19', version: '1.30', title: 'Offline mode', kind: 'feature',
+     tags: ['Offline', 'Every game'], items: [
+      'Games you\'ve played on a device now open on it again with no internet, along with the home page, the Back Room and the phone page.',
+      'Practice, bots and single-player modes work offline. Online matches, leaderboards, chat and the Marketplace come back when you reconnect.',
+      'While you\'re offline, a note at the bottom says so and games not saved on that device yet are faded, so you can see what you can play.',
+      'On a phone, add the phone page to your home screen to use it like an app, with or without internet.'
+    ]},
     {date: '2026-11-19', version: '1.29.25', title: 'An Aisles tab on the Leaderboards', kind: 'feature',
      tags: ['Leaderboards', 'Aisles'], items: [
       'The Leaderboards now have two tabs, Players and Aisles.',

@@ -6,6 +6,12 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Offline mode": "Modo sin conexión",
+    "Offline": "Sin conexión",
+    "Games you've played on a device now open on it again with no internet, along with the home page, the Back Room and the phone page.": "Los juegos que ya jugaste en un dispositivo ahora vuelven a abrirse en él sin internet, junto con la página principal, The Back Room y la página para teléfonos.",
+    "Practice, bots and single-player modes work offline. Online matches, leaderboards, chat and the Marketplace come back when you reconnect.": "La práctica, los bots y los modos de un jugador funcionan sin conexión. Las partidas online, las tablas de posiciones, el chat y el Marketplace vuelven cuando te reconectas.",
+    "While you're offline, a note at the bottom says so and games not saved on that device yet are faded, so you can see what you can play.": "Mientras estás sin conexión, un aviso abajo lo indica y los juegos que todavía no están guardados en ese dispositivo se ven atenuados, para que sepas a qué puedes jugar.",
+    "On a phone, add the phone page to your home screen to use it like an app, with or without internet.": "En un teléfono, agrega la página para teléfonos a tu pantalla de inicio para usarla como una app, con o sin internet.",
     "An Aisles tab on the Leaderboards": "Una pestaña de Aisles en las Tablas de posiciones",
     "The Leaderboards now have two tabs, Players and Aisles.": "Las Tablas de posiciones ahora tienen dos pestañas, Jugadores y Aisles.",
     "Aisles has Aisle Miles (with this week's contest) and Aisle Elo side by side, instead of at the bottom of the Board menu.": "Aisles tiene Aisle Miles (con el concurso de esta semana) y Aisle Elo uno al lado del otro, en vez de al final del menú Tabla.",
