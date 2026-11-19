@@ -534,6 +534,7 @@
     rampline: { name: 'Rampline', prefix: 'rl', slots: [['car', 'Cars'], ['paint', 'Paints'], ['wheels', 'Wheels'], ['smoke', 'Tyre smoke'], ['horn', 'Horns']] },
     chromaflage: { name: 'Chromaflage', prefix: 'cf', slots: [['hat', 'Seeker hats'], ['tool', 'Seeker tools'], ['splash', 'Catch splashes'], ['caught', 'Caught animations']] },
     'odd-one-out': { name: 'Odd One Out', prefix: 'oo', slots: [['outfit', 'Hunter outfits'], ['tool', 'Hunter tools'], ['taunt', 'Prop taunts'], ['poof', 'Catch poofs']] },
+    'drop-zone': { name: 'Driftfall', prefix: 'dz', slots: [['outfit', 'Outfits'], ['pack', 'Backpacks'], ['glider', 'Gliders'], ['trail', 'Glider trails'], ['wrap', 'Gun skins'], ['build', 'Build skins'], ['emote', 'Emotes'], ['victory', 'Victory poses']] },    'backrooms-1v1': { name: 'Backrooms 1v1–4v4', prefix: 'br', slots: [['outfit', 'Outfits'], ['wrap', 'Gun skins'], ['build', 'Build skins'], ['elim', 'Elimination effects'], ['celebrate', 'Round-win celebrations']] },
     'drop-zone': { name: 'Driftfall', prefix: 'dz', slots: [['outfit', 'Outfits'], ['pack', 'Backpacks'], ['glider', 'Gliders'], ['trail', 'Glider trails'], ['wrap', 'Gun skins'], ['build', 'Build skins'], ['emote', 'Emotes'], ['victory', 'Victory poses'], ['pick', 'Pickaxes']] },
     'sky-duel': { name: 'Sky Duel', prefix: 'sd', slots: [['paint', 'Paints'], ['nose', 'Noses'], ['trail', 'Trails'], ['boom', 'Shoot-downs']] },
     blockstorm: { name: 'Blockstorm', prefix: 'bs', slots: [['outfit', 'Outfits'], ['hat', 'Hats'], ['gun', 'Gun skins']] },
@@ -1716,6 +1717,86 @@
   I('drop-zone', 'victory', 2, 'Flex', 'uncommon', '#E8742A', '#FFFFFF', 'Show those arms.');
   I('drop-zone', 'victory', 3, 'Take a Bow', 'rare', '#8A5A2B', '#F2EFE8', 'A deep, slow bow to the crowd.');
   I('drop-zone', 'victory', 4, 'Jump for Joy', 'epic', '#5FD068', '#FFD23F', 'Jumping up and down with arms wide.');
+  // ---- Backrooms 1v1 items ----
+  // Backrooms 1v1–4v4's Locker (backrooms-1v1/locker.js draws them, by slot and number). Online every outfit is in the
+  // player's team colour; c1 and c2 here are only the shop picture (and the outfit's colours in practice).
+  I('backrooms-1v1', 'outfit', 1, 'Striker', 'common', '#1F9E5A', '#FFFFFF', 'A football kit with white sleeves, black shorts, lime boots and a big 10.');
+  I('backrooms-1v1', 'outfit', 2, 'Hoops', 'common', '#FF7A1A', '#FFFFFF', 'A basketball vest with a big 31, baggy shorts, a headband and white high-tops.');
+  I('backrooms-1v1', 'outfit', 3, 'Gridiron', 'uncommon', '#6A2BC8', '#E8E6DC', 'A gold helmet with a black face cage, big shoulder pads and a number on each side.');
+  I('backrooms-1v1', 'outfit', 4, 'Slugger', 'common', '#2153B8', '#ECEAE2', 'A black batting helmet, a pinstriped jersey and white baseball trousers.');
+  I('backrooms-1v1', 'outfit', 5, 'Puck', 'common', '#C41F3A', '#FFFFFF', 'A hooped hockey jersey, a white caged helmet, striped socks and skates.');
+  I('backrooms-1v1', 'outfit', 6, 'Ace', 'common', '#18B4A6', '#FFFFFF', 'A tennis polo, white shorts, a white visor and a racket on the back.');
+  I('backrooms-1v1', 'outfit', 7, 'Champ', 'uncommon', '#D62828', '#FFFFFF', 'Head guard, big gloves, white trunks and a gold title belt.');
+  I('backrooms-1v1', 'outfit', 8, 'Sprinter', 'common', '#FF3D7F', '#3EE6D0', 'A running vest with a sash, a race number, sport shades and bright spikes.');
+  I('backrooms-1v1', 'outfit', 9, 'Lap Swimmer', 'common', '#1689E0', '#9FF2FF', 'A white swim cap, goggles, a racing suit and a pink towel round the neck.');
+  I('backrooms-1v1', 'outfit', 10, 'Fairway', 'uncommon', '#2E8C5A', '#CFD3D8', 'A white flat cap, a diamond jumper and bold black-and-white checked trousers.');
+  I('backrooms-1v1', 'outfit', 11, 'Skater', 'common', '#E0402A', '#8A9098', 'A black beanie, a tee with a bolt, purple shorts and a board on the back.');
+  I('backrooms-1v1', 'outfit', 12, 'Downhill', 'uncommon', '#2F6FD8', '#FFB04A', 'A white helmet, big glowing orange goggles and a quilted ski jacket.');
+  I('backrooms-1v1', 'outfit', 13, 'Pit Racer', 'rare', '#E8202A', '#FFFFFF', 'A racing suit with chequered sides and a white full-face helmet.');
+  I('backrooms-1v1', 'outfit', 14, 'Referee', 'common', '#3F8FE0', '#FFFFFF', 'A striped shirt, a whistle and a cap. Still in your team colour.');
+  I('backrooms-1v1', 'outfit', 15, 'Coach', 'uncommon', '#8A2BE2', '#FFFFFF', 'A track jacket, a white cap, a headset and a whistle for the big talk.');
+  I('backrooms-1v1', 'outfit', 16, 'Bear Mascot', 'rare', '#C8641E', '#F0B87A', 'A big friendly bear head, round ears, a gold bow tie and white paws.');
+  I('backrooms-1v1', 'outfit', 17, 'Martial Artist', 'common', '#2A5FD0', '#24242A', 'A coloured training suit with white lapels, a black belt and a headband.');
+  I('backrooms-1v1', 'outfit', 18, 'Cheer Captain', 'uncommon', '#E8327A', '#FFFFFF', 'A chevron top, a pleated skirt and a big bow.');
+  I('backrooms-1v1', 'outfit', 19, 'Tin Bot', 'rare', '#D04A3A', '#C9D0D6', 'A painted tin robot with an antenna, square eyes and a chest of dials.');
+  I('backrooms-1v1', 'outfit', 20, 'Sleek Android', 'epic', '#8A96A8', '#6FF4FF', 'Smooth white panels with glowing seams and one long eye.');
+  I('backrooms-1v1', 'outfit', 21, 'Mech Pilot', 'epic', '#E0A020', '#8FE0FF', 'A white helmet with a big visor, armour plates and twin glowing thrusters.');
+  I('backrooms-1v1', 'outfit', 22, 'Junkyard Bot', 'rare', '#3A9A7A', '#B5522A', 'Patched plates, rusty bits, mismatched eyes and an exhaust pipe.');
+  I('backrooms-1v1', 'outfit', 23, 'Pirate Captain', 'legendary', '#B3263A', '#E8B22E', 'Tricorn hat, long coat with gold buttons, an eye patch and a parrot.');
+  I('backrooms-1v1', 'outfit', 24, 'Deckhand', 'common', '#2A6FD0', '#FFFFFF', 'A striped shirt, a spotty bandana and an eye patch.');
+  I('backrooms-1v1', 'outfit', 25, 'First Mate', 'uncommon', '#2B8A6E', '#C9D0D6', 'A waistcoat and sash, an eye patch and a hook for a hand.');
+  I('backrooms-1v1', 'outfit', 26, 'Ghost Pirate', 'epic', '#3A8A8A', '#7DFFC8', 'A pale sea spook in a ragged coat, with glowing green eyes.');
+  I('backrooms-1v1', 'outfit', 27, 'Pinstripe Suit', 'rare', '#4A5A7A', '#E8E8E8', 'A 1920s pinstripe suit, a white fedora and white spats.');
+  I('backrooms-1v1', 'outfit', 28, 'The Boss', 'legendary', '#5A3A8A', '#ECE6DA', 'A long coat with a white fur collar, a white fur hat, dark glasses and a gold chain.');
+  I('backrooms-1v1', 'outfit', 29, 'Tracksuit and Chain', 'uncommon', '#2A3A8A', '#E8B22E', 'A two-stripe tracksuit, a flat cap and a big gold chain.');
+  I('backrooms-1v1', 'outfit', 30, 'Bodyguard', 'uncommon', '#3A4A5A', '#34465C', 'A sharp suit and tie, dark glasses and an earpiece.');
+  I('backrooms-1v1', 'outfit', 31, 'Tuxedo', 'rare', '#2E3A6A', '#FFFFFF', 'A tuxedo with a bow tie, a top hat and a monocle.');
+  I('backrooms-1v1', 'outfit', 32, 'Detective', 'uncommon', '#6A5A8A', '#24242A', 'A belted trench coat, a checked deerstalker hat and a magnifying glass.');
+  I('backrooms-1v1', 'outfit', 33, 'Astronaut', 'rare', '#3A7AE0', '#FFFFFF', 'A space suit, a big white helmet with a gold visor and a life-support pack.');
+  I('backrooms-1v1', 'outfit', 34, 'Wizard', 'epic', '#5A3AD0', '#FFE27A', 'A starry robe, a tall pointed hat and a long white beard.');
+  I('backrooms-1v1', 'outfit', 35, 'Firefighter', 'uncommon', '#D83A1A', '#C9D0D6', 'A black helmet with a gold badge, a coat with white bands and big boots.');
+  I('backrooms-1v1', 'outfit', 36, 'Knight', 'epic', '#2A5AC8', '#C9D0D6', 'Costume armour, a plumed helmet and a tabard with a diamond.');
+  I('backrooms-1v1', 'wrap', 1, 'Gold', 'legendary', '#FFC928', '#6A3A1A', 'Polished bright gold with walnut grips and a shine that runs along the barrel.');
+  I('backrooms-1v1', 'wrap', 2, 'Chrome', 'epic', '#F2F7FF', '#A8C4EC', 'Mirror chrome with cool blue reflections and a running shine.');
+  I('backrooms-1v1', 'wrap', 3, 'Wood Grain', 'common', '#D08A44', '#9A5A28', 'Warm honey wood with darker grain.');
+  I('backrooms-1v1', 'wrap', 4, 'Forest Camo', 'common', '#4FA040', '#9AE070', 'Bright jungle-green patches.');
+  I('backrooms-1v1', 'wrap', 5, 'Neon Pulse', 'epic', '#FF3FD8', '#3FFCFF', 'Black with magenta and cyan bands that pulse.');
+  I('backrooms-1v1', 'wrap', 6, 'Frostbite', 'rare', '#DFF4FF', '#4FE8FF', 'Pale ice with glowing blue cracks.');
+  I('backrooms-1v1', 'wrap', 7, 'Pixel Camo', 'uncommon', '#3A6AD8', '#8AD0FF', 'Blocky blue, sky and white squares.');
+  I('backrooms-1v1', 'wrap', 8, 'Candy Cane', 'uncommon', '#FFFFFF', '#FF2A3A', 'Bright red and white stripes the whole way along.');
+  I('backrooms-1v1', 'wrap', 9, 'Hazard Stripes', 'common', '#FFD21A', '#18181C', 'Yellow and black warning stripes.');
+  I('backrooms-1v1', 'wrap', 10, 'Lava', 'epic', '#2A1E1A', '#FF6A10', 'Black rock with orange cracks that glow and throb.');
+  I('backrooms-1v1', 'wrap', 11, 'Toy Blaster', 'common', '#2F8AFF', '#FFD23F', 'Bright toy-box plastic in blue, yellow, orange and green.');
+  I('backrooms-1v1', 'wrap', 12, 'Galaxy', 'legendary', '#5A2AB8', '#3FD8FF', 'Purple and cyan space with stars that twinkle.');
+  I('backrooms-1v1', 'wrap', 13, 'Checkered Flag', 'rare', '#FFFFFF', '#18181C', 'Crisp black and white checks.');
+  I('backrooms-1v1', 'wrap', 14, 'Pirate Brass', 'uncommon', '#F0B840', '#7A2A1A', 'Bright brass fittings on dark red ship timber.');
+  I('backrooms-1v1', 'wrap', 15, 'Football Leather', 'uncommon', '#C06A30', '#FFFFFF', 'Tan leather with white lacing along the top.');
+  I('backrooms-1v1', 'wrap', 16, 'Rainbow Flow', 'legendary', '#FF5A8A', '#5AE0FF', 'Every colour of the rainbow, flowing down the barrel.');
+  I('backrooms-1v1', 'wrap', 17, 'Circuit Board', 'epic', '#1A7A4A', '#6FFFB0', 'A green board with gold pads and traces that light up.');
+  I('backrooms-1v1', 'wrap', 18, 'Comic Halftone', 'rare', '#FFE23A', '#FF4A4A', 'Comic-book yellow and red with black ink lines.');
+  I('backrooms-1v1', 'wrap', 19, 'Graffiti', 'uncommon', '#FF4FD0', '#9AFF3A', 'Pink, sky and lime spray paint on white.');
+  I('backrooms-1v1', 'build', 1, 'Concrete', 'common', '#C9C7C0', '#6E6C66', 'Pale grey slabs with little air holes.');
+  I('backrooms-1v1', 'build', 2, 'Ice Block', 'uncommon', '#E4F4FB', '#6E9CB4', 'Frosted ice with cracks. You still cannot see through it.');
+  I('backrooms-1v1', 'build', 3, 'Candy Stripes', 'rare', '#F27AA8', '#FBE8EF', 'Pink and white stripes with sprinkles.');
+  I('backrooms-1v1', 'build', 4, 'Scrap Metal', 'uncommon', '#A4ABB2', '#5A6068', 'Bolted grey plates with a little rust.');
+  I('backrooms-1v1', 'build', 5, 'Bubble Wrap', 'common', '#DFE9EF', '#7F9CB0', 'Rows of little air bubbles. Please do not pop them in a fight.');
+  I('backrooms-1v1', 'build', 6, 'Marble', 'rare', '#EEECE8', '#8A8A94', 'White stone with grey veins.');
+  I('backrooms-1v1', 'elim', 1, 'Confetti Pop', 'common', '#FF5C8A', '#58B4FF', 'A small burst of paper confetti where they fall.');
+  I('backrooms-1v1', 'elim', 2, 'Noclip Glitch', 'epic', '#6FF4FF', '#FF4FD8', 'They flicker into glowing blocks, as if they slipped out of the level.');
+  I('backrooms-1v1', 'elim', 3, 'Ghost Away', 'rare', '#F4F6FF', '#2A2A38', 'A little ghost floats up and fades.');
+  I('backrooms-1v1', 'elim', 4, 'Red Card', 'uncommon', '#E8262E', '#FFFFFF', 'A red card pops up over them. Off you go.');
+  I('backrooms-1v1', 'elim', 5, 'Treasure Coins', 'rare', '#F2C41A', '#FFE27A', 'Gold coins jump out and bounce on the carpet.');
+  I('backrooms-1v1', 'elim', 6, 'Nuts and Bolts', 'uncommon', '#9AA3AB', '#C9D0D6', 'Bolts and washers rattle out across the floor.');
+  I('backrooms-1v1', 'elim', 7, 'Balloon Pop', 'common', '#FF5C5C', '#FFD23F', 'Three balloons float up and pop.');
+  I('backrooms-1v1', 'elim', 8, 'Rubber Ducks', 'legendary', '#FFD23F', '#FF8A1A', 'Five rubber ducks hop out in every direction.');
+  I('backrooms-1v1', 'celebrate', 1, 'Fist Pump', 'common', '#FFD23F', '#E8453C', 'Arms up and pumping when your team takes the round.');
+  I('backrooms-1v1', 'celebrate', 2, 'Victory Hop', 'common', '#5FD068', '#FFFFFF', 'Little jumps on the spot.');
+  I('backrooms-1v1', 'celebrate', 3, 'Spin Move', 'uncommon', '#58B4FF', '#FFFFFF', 'One smooth turn on the spot.');
+  I('backrooms-1v1', 'celebrate', 4, 'Robot Dance', 'rare', '#B9C2CC', '#3A7AD0', 'Stiff arms, sharp turns, beep boop.');
+  I('backrooms-1v1', 'celebrate', 5, 'Pirate Jig', 'uncommon', '#8A5A2B', '#E8B22E', 'A hopping, rocking sea dance.');
+  I('backrooms-1v1', 'celebrate', 6, 'Take a Bow', 'common', '#8A5A2B', '#F2EFE8', 'A slow bow to an empty room.');
+  I('backrooms-1v1', 'celebrate', 7, 'Trophy Lift', 'epic', '#F2C41A', '#6A4A2C', 'A gold cup appears over your head.');
+  I('backrooms-1v1', 'celebrate', 8, 'Fireworks', 'legendary', '#FF5C8A', '#FFD23F', 'Little fireworks pop over your head.');
   // ---- Sky Duel items ----
   // Sky Duel (sky-duel/hangar.js draws them by number): paints, noses (spinner and propeller), trails and shoot-down effects.
   // Looks only: every plane keeps its size and hit sphere, and in 2v2 its plain team colour. Hidden: captains only.
