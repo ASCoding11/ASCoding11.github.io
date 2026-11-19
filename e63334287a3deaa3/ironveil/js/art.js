@@ -83,7 +83,9 @@
   // sky, moon or sun, fog and mist (world.js asks first)
   A.atmosphere = function (cfg) {
     const E = env(); if (!E || !E.atmosphere) return null;
-    const a = E.atmosphere(W.scene, W.renderer, cfg.day ? 'day_overcast' : 'night_moon', { mistBase: 0, shadows: W.P.shadow > 0, fogMul: W.P.fogMul });
+    // flashes: lightning on dusk_rain; off when the player has asked for reduced effects (Settings, "Reduced motion")
+    const preset = cfg.rain ? 'dusk_rain' : cfg.day ? 'day_overcast' : 'night_moon';
+    const a = E.atmosphere(W.scene, W.renderer, preset, { mistBase: 0, shadows: W.P.shadow > 0, fogMul: W.P.fogMul, flashes: !IV.settings.motion });
     if (a && a.sun) { W.moonDir.copy(a.sun.position).normalize(); }
     return a;
   };

@@ -161,7 +161,9 @@
       hint(t('Hold {k} to aim a rock, let go to throw. Land it away from where you want to go.', { k: key('rock') }));
       let distracted = false;
       M.when(() => M.guard && (M.guard.state === 'investigating'), () => { distracted = true; M.done('s8'); M.obj('s9', 'Sneak up behind him and take him down'); hint(t('Behind him and close: {k}', { k: key('knife') })); });
-      M.when(() => M.guard && M.guard.state === 'combat', () => { M.radio('Cpl. Hale', t('Seen you! Back out and try again.')); M.after(2.5, () => { if (M.guard && M.guard.alive) { M.guard.actor.dispose(); IV.ai.list.splice(IV.ai.list.indexOf(M.guard), 1); spawnGuard(); P.pos.set(26, W.height(26, 14), 14); P.prev.copy(P.pos); } }); }, { once: false });
+      // seen: one reset at a time (the condition stays true until the new guard is in, so guard against queueing a reset every step)
+      let resetting = false;
+      M.when(() => !resetting && M.guard && M.guard.alive && M.guard.state === 'combat', () => { resetting = true; M.radio('Cpl. Hale', t('Seen you! Back out and try again.')); M.after(2.5, () => { resetting = false; if (M.guard && M.guard.alive) { M.guard.actor.dispose(); IV.ai.list.splice(IV.ai.list.indexOf(M.guard), 1); spawnGuard(); P.pos.set(26, W.height(26, 14), 14); P.prev.copy(P.pos); } }); }, { once: false });
       go(() => M.guard && !M.guard.alive, () => { M.done('s9'); M.radio('Cpl. Hale', t('Ow. Alright, that\'ll do.')); });
     });
     // binoculars
