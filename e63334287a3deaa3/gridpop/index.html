@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <script src="/e63334287a3deaa3/lang.js"></script>
 <script src="/e63334287a3deaa3/gridpop/es.js"></script>
+<script src="/e63334287a3deaa3/captains.js"></script> <!-- who may open Styles while they are not public (see README) -->
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Gridpop</title>
@@ -485,6 +486,7 @@ const calm=()=>RM.matches;
 // Light comes from the top-left everywhere: blocks, the board frame, the wells and the tray.
 // Shading shifts hue as well as brightness (highlights lean warm, shadows lean cool), so no colour goes muddy.
 // Blocks are plain: nothing is drawn on them (see the note at COLORS about telling the colours apart).
+let WR=null;   // a captain's Styles (styles.js, see the end of this script); null for everyone else, so nothing changes
 const ART={
   rad:0.2,            // block corner, as a share of its size
   lip:0.085,          // the block's thickness, seen along its bottom and right edges
@@ -512,7 +514,7 @@ function tint(hex,dl,ds){
 function rr(g,x,y,w,h,r){r=Math.min(r,w/2,h/2);g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath()}
 // A pressed tile: its thickness shows along the bottom and right, the top face runs from a warm light corner
 // to a cool dark one, and the centre is a plain shallow dish.
-function makeBlock(hex,s){
+function makeBlock(hex,s,ci){
   const d=Math.max(2,Math.round(s*L.dpr)),c=document.createElement('canvas');c.width=c.height=d;
   const g=c.getContext('2d'),R=d*ART.rad,lip=Math.max(1,d*ART.lip),w=d-lip;
   const hi=tint(hex,0.2,0.05),lo=tint(hex,-0.12,0.04),side=tint(hex,-0.3,-0.05);
@@ -529,6 +531,7 @@ function makeBlock(hex,s){
     const gi=g.createLinearGradient(m,m,m+iw,m+iw);gi.addColorStop(0,lo);gi.addColorStop(0.55,hex);gi.addColorStop(1,tint(hex,0.1,0.03));
     rr(g,m,m,iw,iw,R*0.5);g.fillStyle=gi;g.fill();
   }
+  if(WR&&ci)WR.blockArt(g,w,ci);   // a captain's block set (styles.js): art in white or black, the colour is kept
   return c;
 }
 function makeFlat(color,s,rad){
@@ -548,7 +551,8 @@ function well(g,x,y,w,h,r,fill){
   rr(g,x,y,w,h,r);g.fillStyle=ig;g.fill();
 }
 function buildSprites(){
-  for(let i=1;i<=NCOL;i++){spr[i]=makeBlock(COLORS[i],L.cell);sprT[i]=makeBlock(COLORS[i],L.tc);pip[i]=makePip(COLORS[i])}
+  const A=Object.assign({},ART,(WR&&WR.board())||{});   // a captain's board (styles.js), its wells as dark as these
+  for(let i=1;i<=NCOL;i++){spr[i]=makeBlock(COLORS[i],L.cell,i);sprT[i]=makeBlock(COLORS[i],L.tc,i);pip[i]=makePip(COLORS[i])}
   sprRed=makeFlat('rgba(255,59,79,0.62)',L.cell,ART.rad);
   sprWhite=makeFlat('#ffffff',L.cell,ART.rad);
   sprGrey=makeBlock('#4a5577',L.cell);
@@ -557,13 +561,13 @@ function buildSprites(){
   const d=L.dpr,bs=L.bs,c=document.createElement('canvas');BM=Math.max(10,Math.round(bs*0.05));
   c.width=Math.round((bs+2*BM)*d);c.height=Math.round((bs+2*BM)*d);
   const g=c.getContext('2d');g.scale(d,d);g.translate(BM,BM);
-  g.save();g.shadowColor='rgba(0,0,0,0.5)';g.shadowBlur=BM*0.8*d;g.shadowOffsetY=BM*0.3*d;rr(g,0,0,bs,bs,L.rad);g.fillStyle=ART.frameLo;g.fill();g.restore();
-  const fg=g.createLinearGradient(0,0,bs,bs);fg.addColorStop(0,ART.frameHi);fg.addColorStop(0.45,ART.frameMid);fg.addColorStop(1,ART.frameLo);
+  g.save();g.shadowColor='rgba(0,0,0,0.5)';g.shadowBlur=BM*0.8*d;g.shadowOffsetY=BM*0.3*d;rr(g,0,0,bs,bs,L.rad);g.fillStyle=A.frameLo;g.fill();g.restore();
+  const fg=g.createLinearGradient(0,0,bs,bs);fg.addColorStop(0,A.frameHi);fg.addColorStop(0.45,A.frameMid);fg.addColorStop(1,A.frameLo);
   rr(g,0,0,bs,bs,L.rad);g.fillStyle=fg;g.fill();
   const off=L.gx-L.bx,fw=Math.max(2,Math.round(off*0.42)),cs=L.cell,cr=cs*0.18;
-  rr(g,fw,fw,bs-2*fw,bs-2*fw,Math.max(2,L.rad-fw));g.fillStyle=ART.bed;g.fill();
+  rr(g,fw,fw,bs-2*fw,bs-2*fw,Math.max(2,L.rad-fw));g.fillStyle=A.bed;g.fill();
   // the four quarters of the board alternate between two close tones, which makes rows and columns easier to count
-  for(let r=0;r<N;r++)for(let k=0;k<N;k++)well(g,off+k*L.pitch,off+r*L.pitch,cs,cs,cr,((r>>2)+(k>>2))&1?ART.wellB:ART.wellA);
+  for(let r=0;r<N;r++)for(let k=0;k<N;k++)well(g,off+k*L.pitch,off+r*L.pitch,cs,cs,cr,((r>>2)+(k>>2))&1?A.wellB:A.wellA);
   boardBg=c;
   // gold glow round the board for big clears, blurred once here rather than every frame
   const gc=document.createElement('canvas'),gw=bs+2*GLOW;gc.width=Math.round(gw*d);gc.height=Math.round(gw*d);
@@ -1322,9 +1326,44 @@ if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{layout()}
 startLoop();
 bump(500);
 
+/* ---------- Styles (captains only for now; README, "Gridpop") ----------
+   Block sets and boards, drawn by styles.js beside this page. stylesOn() says whether this player may open it:
+   GRIDPOP_PUBLIC (the one line that opens it to everyone), one of the site's captains (../captains.js), or ?styles=1 on
+   localhost or in an automated browser (remembered for the tab; ?styles=0 forgets it). styles.js (and ../cosmetics.js,
+   for the item names) is fetched only when it is true; until then WR is null and everything is drawn exactly as
+   before. Looks only: every block keeps its colour. Saved in this browser as gridpop:look. */
+const GRIDPOP_PUBLIC=false;
+const CAPTAINS=window.BackRoomCaptains||null;
+const stylesOn=()=>GRIDPOP_PUBLIC||!!(CAPTAINS&&CAPTAINS.may(false,'styles','gridpop-styles'));
+let wrAsked=false;
+function wrRebuild(){if(L&&L.cell)buildSprites();dirty=true}
+// a little 3 x 3 corner of the board for the Styles screen, in the look the Styles screen has on at the moment
+function wrPreview(cv){
+  const g=cv.getContext('2d'),W=cv.width,A=Object.assign({},ART,WR.board()||{});
+  g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,W,W);
+  const fg=g.createLinearGradient(0,0,W,W);fg.addColorStop(0,A.frameHi);fg.addColorStop(0.45,A.frameMid);fg.addColorStop(1,A.frameLo);
+  rr(g,0,0,W,W,14);g.fillStyle=fg;g.fill();rr(g,8,8,W-16,W-16,10);g.fillStyle=A.bed;g.fill();
+  const n=3,gap=5,cs=(W-16-gap*(n+1))/n;
+  for(let r=0;r<n;r++)for(let k=0;k<n;k++){const x=8+gap+k*(cs+gap),y=8+gap+r*(cs+gap),j=r*n+k;
+    well(g,x,y,cs,cs,cs*0.18,(r+k)&1?A.wellB:A.wellA);
+    if(j<8)g.drawImage(makeBlock(COLORS[j+1],cs/L.dpr,j+1),x,y,cs,cs)}
+}
+function wrLoad(){
+  if(wrAsked)return;wrAsked=true;
+  const add=src=>new Promise((res,rej)=>{const e=document.createElement('script');e.src=src;e.onload=res;e.onerror=rej;document.head.appendChild(e)});
+  (window.BackRoomCosmetics?Promise.resolve():add('../cosmetics.js')).then(()=>add('styles.js')).then(()=>{
+    if(!window.GridpopStyles||!window.BackRoomCosmetics)throw new Error('styles did not load');
+    WR=window.GridpopStyles({C:window.BackRoomCosmetics,store,$,preview:wrPreview,get on(){return stylesOn()},rebuild:wrRebuild});
+    wrSync();
+  }).catch(e=>{wrAsked=false;console.error(e)});
+}
+function wrSync(){if(stylesOn())wrLoad();if(WR){WR.access();wrRebuild()}}
+wrSync();
+if(CAPTAINS)CAPTAINS.onChange(wrSync);
+
 // Test hook (webdriver only): the pure rules plus a few handles on the live game.
 if(navigator.webdriver){
-  window.__gp={
+  window.__gp={get WR(){return WR},stylesOn,
     N,SHAPES,BY_ID,COLORS,canPlace,fitsAnywhere,fullLines,lineScore,cheer,deal,newState,applyMove,anyFits,serialize,deserialize,mulberry,
     LS:{SAVE:LS_SAVE,BEST:LS_BEST},
     get state(){return state},

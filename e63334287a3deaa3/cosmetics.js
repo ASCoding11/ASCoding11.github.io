@@ -260,6 +260,7 @@
     stackfall: { name: 'Stackfall', prefix: 'sf', slots: [['blocks', 'Block sets'], ['board', 'Boards'], ['clear', 'Clear effects']] },
     'melon-merge': { name: 'Melon Merge', prefix: 'mm', slots: [['fruit', 'Fruit sets'], ['wall', 'Walls'], ['pop', 'Merge pops']] },
     '2048': { name: '2048', prefix: 'tf', slots: [['tiles', 'Tile sets'], ['board', 'Boards']] },
+    gridpop: { name: 'Gridpop', prefix: 'gp', slots: [['blocks', 'Block sets'], ['board', 'Boards']] },
   };
   var GAME_ITEMS = [], ITEM_BY_ID = {};
   function I(game, slot, no, name, rarity, c1, c2, desc) {
@@ -1163,6 +1164,18 @@
   I('2048', 'board', 2, 'Pirate Deck', 'uncommon', '#B89A74', '#7F6650', 'Deck planks with dark seams.');
   I('2048', 'board', 3, 'Robot Steel', 'rare', '#9CA0A8', '#6A6E78', 'Brushed steel with a row of rivets top and bottom.');
   I('2048', 'board', 4, 'Velvet and Gold', 'legendary', '#B49AA8', '#E8B84A', 'Plum velvet with a gold rim.');
+  // ---- Gridpop items ----
+  // Gridpop: block sets and boards, drawn by gridpop/styles.js by slot and number. In no pack: captains pick them free in the
+  // game's Styles. Every block keeps its own colour (only white or black art and the same brass on every colour is added),
+  // and every board keeps its wells as dark as the game's own.
+  I('gridpop', 'blocks', 1, 'Sports Balls', 'uncommon', '#FE0047', '#FFFFFF', 'A different ball for every colour.');
+  I('gridpop', 'blocks', 2, 'Circuit Rivets', 'common', '#62BFFF', '#C8D2E0', 'A trace, two pads and four rivets on every block.');
+  I('gridpop', 'blocks', 3, 'Treasure Corners', 'rare', '#F48D00', '#D6A83A', 'Brass corners and a plank seam, like a pirate\'s chest.');
+  I('gridpop', 'blocks', 4, 'Pinstripe', 'epic', '#4E56FF', '#F0C85A', 'Fine pinstripes and a thin gold square.');
+  I('gridpop', 'board', 1, 'Stadium Night', 'common', '#EEF3FA', '#0C1C12', 'A floodlit white frame round a dark pitch.');
+  I('gridpop', 'board', 2, 'Pirate Deck', 'uncommon', '#C89058', '#0C1624', 'A wooden frame over dark water.');
+  I('gridpop', 'board', 3, 'Robot Steel', 'rare', '#D0D8E4', '#0E141C', 'A brushed steel frame.');
+  I('gridpop', 'board', 4, 'Gold Pinstripe', 'legendary', '#FFE08A', '#121018', 'A gold frame round a charcoal board.');
   // Items a game hands over itself are in no pack: give is 'free' (anyone may wear it; the game grants it the first time it
   // is worn) or 'earned' (the game grants it when it is won). grant(id), below, only adds these.
   GAME_ITEMS.forEach(function (it) { if (it.game !== 'slipstream') return; if (it.slot === 'sponsor' || (it.slot === 'helmet' && it.no <= 8)) it.give = 'free'; else if (it.slot === 'livery' && it.no > 8) it.give = 'earned'; });
