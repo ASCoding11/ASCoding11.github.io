@@ -321,7 +321,7 @@ const GLIDERS=[null,
     put(B,PR.cyl8,0,Rr.y-.32,Rr.z+.85,.24,.08,.24,0x3a3e45)},
   // 29 Robot Rotor: a metal mast with three spinning blades over your head and a blinking hub; you hold the T-bar
   B=>{bar(B,-.18,.16,-.04,.18,.16,-.04,.035,0x5a606b);bar(B,0,.16,-.04,0,1.0,0,.045,SIL,PR.cyl8);put(B,PR.cyl8,0,.62,0,.16,.22,.16,0x8d96a0);put(B,PR.box,0,.62,-.09,.08,.06,.02,0x3ee6ff);
-    anim(1,9);for(let k=0;k<3;k++){const a=k/3*TAU;put(B,PR.box,Math.cos(a)*.95,1.06,Math.sin(a)*.95,1.8,.035,.2,0xb8c0c8,0,-a,0);put(B,PR.box,Math.cos(a)*1.78,1.065,Math.sin(a)*1.78,.18,.04,.21,0xffd23f,0,-a,0)}
+    anim(1,9);for(let k=0;k<3;k++){const a=k/3*TAU;put(B,PR.box,Math.cos(a)*.95,1.06,Math.sin(a)*.95,1.8,.06,.28,0xc9d1da,0,-a,0);put(B,PR.box,Math.cos(a)*1.78,1.065,Math.sin(a)*1.78,.18,.07,.29,0xffd23f,0,-a,0)}
     put(B,PR.sph,0,1.08,0,.3,.2,.3,0xdfe4ea);anim(0);put(B,PR.slo,0,1.2,0,.1,.08,.1,0xe8453c)},
   // 30 Briefcase Parachute: a striped canopy bursting out of a briefcase just over your head, held by its two straps
   B=>{const cy=.36,top=2.15;for(const s of [-1,1]){rope(B,s*.33,.14,-.02,s*.3,cy-.06,0,0x5a3a2a);put(B,PR.slo,s*.33,.14,-.02,.07,.07,.07,0x5a3a2a)}
