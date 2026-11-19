@@ -538,6 +538,32 @@
   I('coil', 'trail', 1, 'Sparkle Trail', 'epic', '#FFE27A', '#8FE8FF', 'Stars and sparkles drift off the tail.');
   I('coil', 'burst', 1, 'Candy Burst', 'epic', '#FF5FA2', '#3FF0B6', 'Crash into a shower of wrapped sweets.');
   I('coil', 'burst', 2, 'Coin Burst', 'legendary', '#FFCF3A', '#A8740A', 'Crash into a shower of spinning gold coins.');
+  // second wave (Nov 2026): sports, pirates, suits and robots
+  I('coil', 'color', 26, 'Jersey Blue', 'common', '#1F5FD6', '#1F5FD6', 'A strong team blue.');
+  I('coil', 'color', 27, 'Turf Green', 'common', '#2F9E44', '#2F9E44', 'The green of a freshly cut pitch.');
+  I('coil', 'color', 28, 'Varsity Red', 'common', '#C8344E', '#C8344E', 'A deep letter-jacket red.');
+  I('coil', 'color', 29, 'Gold Chain', 'rare', '#FFE27A', '#B8860B', 'Bright gold at the head, old gold at the tail.');
+  I('coil', 'design', 13, 'Tennis Ball', 'common', '#D6EC3A', '#FFFFFF', 'Fuzzy yellow with a white seam winding along.');
+  I('coil', 'design', 14, 'Jersey Stripes', 'common', '#3F8CFF', '#FFFFFF', 'Your colour with two white stripes down the length.');
+  I('coil', 'design', 15, 'Racing Checker', 'uncommon', '#F4F4F4', '#1B1D26', 'The chequered flag, three squares across.');
+  I('coil', 'design', 16, 'Medal Ribbon', 'rare', '#D8262F', '#FFCF3A', 'A striped ribbon with a gold medal on the tail.');
+  I('coil', 'design', 17, 'Pinstripe', 'uncommon', '#2F3140', '#B4B8CC', 'Charcoal suit cloth with chalk stripes.');
+  I('coil', 'design', 18, 'Necktie', 'uncommon', '#22305E', '#FF4D5E', 'Navy with diagonal stripes in your colour.');
+  I('coil', 'design', 19, 'LED Strip', 'epic', '#1C2030', '#3FD2FF', 'Lights in your colour chasing down a dark strip.');
+  I('coil', 'design', 20, 'Basketball', 'common', '#E8742A', '#2A1810', 'Orange with black seams.');
+  I('coil', 'design', 21, 'Football', 'common', '#F6F6F6', '#1D1D26', 'White with black patches.');
+  I('coil', 'object', 18, 'Tennis Balls', 'uncommon', '#D6EC3A', '#FFFFFF', 'A chain of fuzzy tennis balls.');
+  I('coil', 'object', 19, 'Rope and Anchors', 'rare', '#C9A46A', '#4A505E', 'A ship\'s rope with a steel anchor every so often.');
+  I('coil', 'object', 20, 'Robot Segments', 'rare', '#B8BCCF', '#3FD2FF', 'Riveted steel plates with joints and little screens.');
+  I('coil', 'object', 21, 'Cable', 'common', '#2A2D36', '#FF4D5E', 'A braided cable with a plug on the tail.');
+  I('coil', 'object', 22, 'Gold Chain', 'legendary', '#FFCF3A', '#7A5606', 'Heavy gold links, flat then on edge.');
+  I('coil', 'head', 7, 'Eye Patch', 'uncommon', '#15161C', '#FFFFFF', 'A pirate patch over one eye.');
+  I('coil', 'head', 8, 'Tricorn', 'epic', '#2A2440', '#E0B040', 'A three-cornered captain\'s hat with gold trim and a red feather.');
+  I('coil', 'head', 9, 'Fedora', 'rare', '#4A4560', '#15161C', 'A wide brim, a pinched crown and a black band.');
+  I('coil', 'head', 10, 'Bandana', 'common', '#D8262F', '#FFFFFF', 'Red with white spots, knotted at the back.');
+  I('coil', 'head', 11, 'Sweatband', 'common', '#F4F6FA', '#3F8CFF', 'Ready for the fifth set.');
+  I('coil', 'head', 12, 'Bow Tie', 'uncommon', '#D8262F', '#8A1018', 'A red bow tie at the neck.');
+  I('coil', 'head', 13, 'Robot Visor', 'epic', '#1C2030', '#3FD2FF', 'A glowing visor across both eyes, and an antenna.');
   // ---- Updraft items ----
   // Drawn by updraft/gear.js (by slot and number; 0 there is the climber as before). Captains only for now and nothing is
   // sold: the game's Gear screen lets them wear everything, except the height rewards, which carry give 'earned' and come
