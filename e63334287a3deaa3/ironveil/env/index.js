@@ -56,6 +56,10 @@
    IVEnv.fence(points, 'rail'|'picket'|'barbed'|'hurdle', { heightFn, seed, damage }) -> { group, colliders }
    IVEnv.mergeStatic(root, { cell: 48 }) -> Group: one mesh per material per 48 m cell for everything static under
      root (skips objects with userData.dynamic, e.g. door pivots). Call after placing buildings, walls, props, hedges.
+     Small detail pieces (arch voussoirs, quoins, ridge tiles, loose bricks, glazing bars, furniture, decals, ivy) are
+     kept in separate meshes (32 m cells) that IVEnv.update hides beyond IVEnv.Q.detailDist (Low 18 m, Medium 25 m,
+     High 35 m); on Low the purely decorative ones are not built at and a plain ridge / lintel stands in.
+   IVEnv.wetnessAt(x, z) -> 0..1 and IVEnv.surfaceAt(x, z) -> kind: for footstep sounds and splash effects.
 
    ---------------------------------------------------------------- nature  (env/nature.js)
    IVEnv.tree(kind, seed) -> Group     kinds: oak, ash, poplar, apple, pine, dead, sapling

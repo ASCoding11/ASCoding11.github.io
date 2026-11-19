@@ -117,7 +117,7 @@
         sh.fragmentShader = 'uniform float uTrans;\nvec3 ivTransCol; float ivTransAmt;\n' + sh.fragmentShader
           .replace('#include <lights_physical_pars_fragment>', THREE.ShaderChunk.lights_physical_pars_fragment.replace('vec3 irradiance = dotNL * directLight.color;', `vec3 irradiance = dotNL * directLight.color;
             { float back = saturate(dot(-geometry.normal, directLight.direction)); float scat = pow(saturate(dot(-geometry.viewDir, directLight.direction)), 4.0);
-              vec3 tr = ivTransCol * directLight.color * (back * 0.45 + scat * 0.8) * ivTransAmt;
+              vec3 tr = ivTransCol * directLight.color * (back * 0.35 + scat * 0.5) * ivTransAmt;
               #ifndef PHYSICALLY_CORRECT_LIGHTS
                 tr *= PI;
               #endif
@@ -132,7 +132,7 @@
   const leafMats = {}, barkMats = {};
   E.leafMaterial = function (key, o) {
     if (leafMats[key]) return leafMats[key];
-    const m = new THREE.MeshStandardMaterial({ map: makeAtlas(), alphaTest: 0.5, side: THREE.DoubleSide, vertexColors: true, roughness: 0.85, metalness: 0, envMapIntensity: 0.25 });
+    const m = new THREE.MeshStandardMaterial({ map: makeAtlas(), alphaTest: 0.5, side: THREE.DoubleSide, vertexColors: true, roughness: 0.95, metalness: 0, envMapIntensity: 0.12 });
     m.alphaToCoverage = !!(E.renderer && E.renderer.capabilities.isWebGL2 && E.Q.post);
     m.userData.linear = true;
     foliagePatch(m, Object.assign({ leaf: true, key }, o || {}));
@@ -186,10 +186,11 @@
       }
       for (let k = 0; k < pts.length - 1; k++) for (let j = 0; j < s; j++) { const a = base + k * (s + 1) + j, b = a + s + 1; bark.i.push(a, b, a + 1, a + 1, b, b + 1); }
     }
-    function card(p, size, cell, phase, sway, rotRand) {
+    function card(p, size, cell, phase, sway, rotRand, along) {
       // a leaf-cluster card facing a random direction, normal pointing out of the crown
       const base = leaves.p.length / 3, rel = new V3().subVectors(p, crownC), out = rel.clone().normalize();
-      const nrm = new V3(R.range(-1, 1), R.range(-0.4, 1), R.range(-1, 1)).normalize().lerp(out, 0.4).normalize();
+      let nrm = new V3(R.range(-1, 1), R.range(-0.4, 1), R.range(-1, 1)).normalize().lerp(out, 0.4).normalize();
+      if (along) { const side = new V3().crossVectors(along, new V3(0, 1, 0)).normalize(); nrm = side.multiplyScalar(R() < 0.5 ? 1 : -1).add(new V3(0, R.range(0.2, 0.6), 0)).normalize(); }
       const up = Math.abs(nrm.y) > 0.9 ? new V3(1, 0, 0) : new V3(0, 1, 0), tx = new V3().crossVectors(up, nrm).normalize(), ty = new V3().crossVectors(nrm, tx).normalize();
       const ang = rotRand ? R() * TAU : R.range(-0.5, 0.5), ca = Math.cos(ang), sa = Math.sin(ang), ax = tx.clone().multiplyScalar(ca).addScaledVector(ty, sa), ay = ty.clone().multiplyScalar(ca).addScaledVector(tx, -sa);
       const [u0, v0, du, dv] = cellUV(cell);
@@ -227,10 +228,11 @@
       if (depth >= K.depth || rad < 0.02) {
         // leaf clusters around the tip and along the last part of the branch
         if (K.cards > 0) {
-          const nc = Math.round((lod ? 2 : 5) * K.cards * (1 + len * 0.4)), size = (lod ? 1.5 : 1.0) * (kind === 'poplar' ? 0.9 : kind === 'pine' ? 1.1 : kind === 'sapling' ? 0.55 : kind === 'apple' ? 0.8 : 1.2);
+          const nc = Math.round((lod ? 3 : 9) * K.cards * (1 + len * 0.4)), size = (lod ? 1.5 : 1.05) * (kind === 'poplar' ? 0.9 : kind === 'pine' ? 1.1 : kind === 'sapling' ? 0.55 : kind === 'apple' ? 0.8 : 1.2);
           for (let c = 0; c < nc; c++) {
-            const t = R.range(0.35, 1.1), p = pts[0].clone().lerp(tip, Math.min(1, t)).add(new V3(R.range(-1, 1), R.range(-0.5, 0.8), R.range(-1, 1)).multiplyScalar(size * 0.45));
-            card(p, size * R.range(0.8, 1.2), K.cell, phase + R() * 0.5, 1, kind !== 'pine');
+            // clustered around the twig ends (pines: spread along the whole branch, hanging off it)
+            const t = kind === 'pine' ? R.range(0.1, 1) : 0.55 + 0.5 * Math.sqrt(R()), p = pts[0].clone().lerp(tip, Math.min(1, t)).add(new V3(R.range(-1, 1), R.range(-0.4, 0.7), R.range(-1, 1)).multiplyScalar(size * (kind === 'pine' ? 0.2 : 0.4)));
+            card(p, size * R.range(0.8, 1.2), K.cell, phase + R() * 0.5, 1, kind !== 'pine', kind === 'pine' ? d : null);
           }
         }
         return;
@@ -283,7 +285,7 @@
     const k = kind + ':' + variant; if (impCache[k]) return impCache[k];
     const t = treeGeo(kind, variant, 0), r = E.renderer, S = 256;
     const rt = new THREE.WebGLRenderTarget(S, S, { minFilter: THREE.LinearMipmapLinearFilter, generateMipmaps: true });
-    const sc = new THREE.Scene(); sc.add(new THREE.AmbientLight(0xffffff, 1.0));
+    const sc = new THREE.Scene(); sc.add(new THREE.AmbientLight(0xffffff, 0.55));
     const b = new THREE.Mesh(t.bark, new THREE.MeshLambertMaterial({ color: new THREE.Color(0x4a4038) })); sc.add(b);
     if (t.leaves) { const lm = new THREE.MeshLambertMaterial({ map: makeAtlas(), alphaTest: 0.5, side: THREE.DoubleSide, vertexColors: true }); sc.add(new THREE.Mesh(t.leaves, lm)); }
     const w = Math.max(t.radius * 1.15, t.height * 0.32) + 0.5, h = t.height * 1.08 + 0.5;
@@ -321,13 +323,13 @@
         for (const lod of [0, 1]) {
           const t = treeGeo(kind, variant, lod);
           mkI(t.bark, E.barkMaterial(KIND[kind].bark), lod, 'bark');
-          if (t.leaves) { const lm = E.leafMaterial(kind); mkI(t.leaves, lm, lod, 'leaves', lm.userData.depth); }
+          if (t.leaves) { const lm = E.leafMaterial(kind); const lm2 = mkI(t.leaves, lm, lod, 'leaves', lm.userData.depth); if (E.Q.name === 'low') lm2.castShadow = false; }
         }
         const imp = impostor(kind, variant); mkI(imp.geo, imp.mat, 2, 'imp', imp.depth);
       }
       s.items.push({ x: it.x, y: it.y || 0, z: it.z, rot: it.rot != null ? it.rot : (it.x * 12.9898 + it.z * 78.233) % TAU, scale: it.scale || 1, lod: -1 });
     }
-    const T = { group, sets, last: -1, near: Q.treeLod, mid: Q.treeLod * 3 };
+    const T = { group, sets, last: -1, near: Q.treeLod, mid: Q.treeLod * (Q.name === 'low' ? 2 : 3) };
     T.update = function (camera, force) {
       const now = performance.now(); if (!force && now - T.last < 250) return; T.last = now;
       const cx = camera.position.x, cz = camera.position.z;
@@ -357,7 +359,7 @@
     let total = 0; const segs = [];
     for (let i = 0; i < points.length - 1; i++) { const a = points[i], b = points[i + 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]); segs.push({ a, b, L, s0: total }); total += L; }
     const inGap = (s) => opts.gaps.some(g => s > g[0] && s < g[1]);
-    const CH = 16, perM = E.Q.name === 'low' ? 14 : E.Q.name === 'medium' ? 30 : 42;
+    const CH = 16, perM = E.Q.name === 'low' ? 9 : E.Q.name === 'medium' ? 28 : 34;
     const lm = E.leafMaterial('hedge', { stiff: 0.4 }), bm = E.barkMaterial('bark_oak', 0.3);
     for (let c0 = 0; c0 < total; c0 += CH) {
       const L = { p: [], n: [], u: [], c: [], w: [], i: [] }, Bk = E.builder(opts.seed + c0);
@@ -385,7 +387,7 @@
       // stems and a few thicker hazel/hawthorn trunks seen in the gaps and at the foot
       for (let k = 0; k < Math.round((c1 - c0) * 1.2); k++) {
         const s = R.range(c0, c1); if (inGap(s)) continue; const [px, pz] = at(s), y0 = hf(px, pz);
-        Bk.box('bark_oak', px + R.range(-0.4, 0.4), y0 - 0.1, pz + R.range(-0.4, 0.4), 0.05, opts.h * R.range(0.4, 0.8), 0.05, R() * TAU, { rx: R.range(-0.35, 0.35), rz: R.range(-0.35, 0.35), noFoot: true, tint: new THREE.Color(0.75, 0.72, 0.68) });
+        const sx = R.range(-0.4, 0.4); Bk.det(1, () => Bk.box('bark_oak', px + sx, y0 - 0.1, pz + R.range(-0.4, 0.4), 0.05, opts.h * R.range(0.4, 0.8), 0.05, R() * TAU, { rx: R.range(-0.35, 0.35), rz: R.range(-0.35, 0.35), noFoot: true, tint: new THREE.Color(0.75, 0.72, 0.68) }));
       }
       // leaf litter and dead leaves at the foot of the hedge
       for (let k = 0; k < Math.round((c1 - c0) / 2); k++) { const s = R.range(c0, c1), [px, pz, dx, dz] = at(s), sd = R.range(-1, 1) * opts.w * 0.7; Bk.decal('leaves', [px - dz * sd, hf(px - dz * sd, pz + dx * sd) + 0.03, pz + dx * sd], [0, 1, 0], R.range(1, 2), R.range(1, 2), R() * 6); }
@@ -393,7 +395,7 @@
         const g = new THREE.BufferGeometry();
         g.setAttribute('position', new THREE.Float32BufferAttribute(L.p, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(L.n, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(L.u, 2));
         g.setAttribute('color', new THREE.Float32BufferAttribute(L.c, 3)); g.setAttribute('aWind', new THREE.Float32BufferAttribute(L.w, 4)); g.setIndex(L.i); g.computeBoundingSphere();
-        const m = new THREE.Mesh(g, lm); m.castShadow = true; m.receiveShadow = true; m.customDepthMaterial = lm.userData.depth; m.name = 'hedge-leaves'; group.add(m);
+        const m = new THREE.Mesh(g, lm); m.castShadow = E.Q.name !== 'low'; m.receiveShadow = true; m.customDepthMaterial = lm.userData.depth; m.name = 'hedge-leaves'; group.add(m);
       }
       const st = Bk.finish(); st.traverse(o => { if (o.isMesh && o.material === E.mat('bark_oak')) o.material = bm; }); group.add(st);
       // colliders: sight-blocking boxes along the hedge (the game decides flags)
@@ -432,7 +434,7 @@
     return g;
   }
   const PLANTS = {
-    wheat: { dens: 7, r: [25, 35, 45], scale: [0.7, 1.15], tint: 0x8e8468, cell: 7, stiff: 1.4 },
+    wheat: { dens: 7, r: [25, 35, 45], scale: [0.7, 1.15], tint: 0xa09070, cell: 7, stiff: 1.4 },
     reeds: { dens: 3, r: [20, 30, 40], scale: [0.8, 1.2], tint: 0x8a9a5a, stiff: 1.2 },
     ferns: { dens: 1.2, r: [18, 25, 35], scale: [0.7, 1.3], tint: 0x6a8040, stiff: 0.6 },
     brambles: { dens: 0.8, r: [18, 25, 35], scale: [0.8, 1.4], tint: 0x5a6a38, stiff: 0.5 },
@@ -463,7 +465,7 @@
       for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
         const gi = tx * n + i, gj = tz * n + j, x = tx * TS + (i + E.hash(gi, gj, 61 + opts.seed)) * cell, z = tz * TS + (j + E.hash(gi, gj, 62 + opts.seed)) * cell;
         const a = areaTest(x, z); if (!a || E.hash(gi, gj, 63 + opts.seed) > a) continue;
-        const s = P.scale[0] + (P.scale[1] - P.scale[0]) * E.hash(gi, gj, 64), patch = E.fbm2(x / 9, z / 9, 66 + opts.seed, 2);
+        const patch = E.fbm2(x / 9, z / 9, 66 + opts.seed, 2), s = (P.scale[0] + (P.scale[1] - P.scale[0]) * E.hash(gi, gj, 64)) * (0.85 + 0.3 * E.fbm2(x / 3.5, z / 3.5, 67 + opts.seed, 2));
         out.push(x, hf(x, z) - 0.02, z, E.hash(gi, gj, 65) * TAU, s * (0.85 + 0.3 * patch), patch);
       }
       return new Float32Array(out);
@@ -501,7 +503,7 @@
   function objectField(kind, areaTest, hf, opts) {
     const b = opts.bounds || [-50, -50, 50, 50], R = E.rng(opts.seed * 17 + kind.length), B = E.builder(opts.seed), group = new THREE.Group();
     const area = (b[2] - b[0]) * (b[3] - b[1]), dens = { rocks: 0.006, logs: 0.004, stumps: 0.004, litter: 0.02, puddles: 0.006 }[kind] || 0.01;
-    const n = Math.round(area * dens * opts.density), colliders = [];
+    const n = Math.round(area * dens * opts.density * (E.Q.name === 'low' && kind !== 'puddles' ? 0.45 : 1)), colliders = [];
     const puddles = [];
     let placed = 0;
     for (let k = 0; k < n * 6 && placed < n; k++) {
@@ -513,7 +515,7 @@
       else if (kind === 'litter') B.decal('leaves', [x, y + 0.02, z], [0, 1, 0], R.range(1, 2.5), R.range(1, 2.5), R() * 6);
       else if (kind === 'puddles') puddles.push([x, y, z, R.range(0.6, 2.2), R.range(0.4, 1.4), R() * TAU]);
     }
-    const g = B.finish(); group.add(g); group.name = 'IVEnv.scatter:' + kind;
+    const g = B.finish({ castShadow: kind === 'logs' }); group.add(g); group.name = 'IVEnv.scatter:' + kind;
     if (puddles.length) group.add(E.puddleMesh(puddles));
     return { group, colliders, update() { }, info() { return {}; } };
   }
@@ -521,7 +523,7 @@
   let pudMat = null;
   E.puddleMaterial = function () {
     if (pudMat) return pudMat;
-    const m = new THREE.MeshStandardMaterial({ color: 0x0a0c0d, roughness: 0.04, metalness: 0, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2, envMapIntensity: 1.4 }); m.defines = { USE_UV: '' };
+    const m = new THREE.MeshStandardMaterial({ color: 0x07080a, roughness: 0.06, metalness: 0, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2, envMapIntensity: 0.55 }); m.defines = { USE_UV: '' };
     const uni = { uTime: E.U.uTime, uWet: E.U.uWet };
     m.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, uni);
