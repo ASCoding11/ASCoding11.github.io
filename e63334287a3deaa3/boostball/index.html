@@ -78,6 +78,8 @@ h2{font-family:var(--f-d);font-weight:400;font-style:italic;font-size:34px;margi
 .seg button[aria-pressed="true"]{background:var(--blue);color:#fff}
 .opts{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin-top:10px}
 .opts .lbl{font-size:14px;color:var(--ink-2);min-width:62px}
+.opts .nobots{font-size:13px;font-weight:600;color:var(--ink-2)}
+.seg button:disabled{cursor:not-allowed;opacity:.6}
 .split{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
 .split .btn{flex:1}
 .msg{min-height:1.3em;margin:12px 0 0;color:var(--ink-2);font-size:16px;line-height:1.35}
@@ -284,6 +286,7 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
           <span class="lbl">Teams</span>
           <div class="seg" id="sizeSeg" role="group" aria-label="Team size"><button type="button" data-s="1">1v1</button><button type="button" data-s="2">2v2</button><button type="button" data-s="3">3v3</button></div>
           <div class="seg" id="botSeg" role="group" aria-label="Fill empty spots with bots"><button type="button" data-b="1">Bots fill in</button><button type="button" data-b="0">No bots</button></div>
+          <span class="nobots" id="noBotsNote" hidden>No bots in party games</span>
         </div>
         <div class="opts">
           <span class="lbl">Bots</span>
@@ -3352,7 +3355,7 @@ const Net={
   },
   rematch(){
     if(!online||!this.refs||!R)return;const id=R.id,sz=R.sz,bo=R.bo;
-    this.refs.round.transaction(cur=>(!cur||cur.id===id)?newRoundObj(cur||R,this.now(),sz,bo):undefined).catch(()=>{});
+    this.refs.round.transaction(cur=>(!cur||cur.id===id)?newRoundObj(cur||R,this.now(),sz,bo&&!isPartyRoom(this.room)):undefined).catch(()=>{});
   },
   leave(){
     if(this.refs){const r=this.refs;try{r.players.off();r.events.off();r.round.off();r.me.onDisconnect().cancel();r.me.remove()}catch(e){}}
@@ -3480,7 +3483,7 @@ function hostDuties(now){
   // a player who joins with a bot's name: that bot takes another one
   for(const b of cars)if(b.isBot&&!b.remote&&cars.some(h=>!h.isBot&&String(h.name).toLowerCase()===b.name.toLowerCase()))b.name=botName(b);
   // keep each team topped up with bots
-  const want=R.bo?R.sz:0;
+  const want=R.bo&&!isPartyRoom(Net.room)?R.sz:0;
   for(const t of [0,1]){
     const humans=cars.filter(c=>c.team===t&&!c.isBot).length;
     let bots=cars.filter(c=>c.team===t&&c.isBot);
@@ -3529,6 +3532,9 @@ function updateRemotes(dt){
 //  Modes
 // =====================================================================
 function setMsg(t,err){const m=$('netMsg');m.textContent=t;m.classList.toggle('err',!!err)}
+// A party launch (party.js, Play together) opens a room named p + 6 characters from party.js's own alphabet. Those
+// rooms are for the party's people only: no bots, whatever this browser's Bots fill in says or the round's bo says.
+function isPartyRoom(r){return /^p[a-hjkmnp-z2-9]{6}$/.test(sanitizeRoom(r))}
 function sanitizeRoom(s){return String(s||'').toLowerCase().replace(/^bb-/,'').replace(/[^a-z0-9-]/g,'').slice(0,17)}
 function randomRoom(){return pick(['nitro','kickoff','turbo','aerial','flip','boost','bicycle','ceiling'])+'-'+Math.floor(100+Math.random()*900)}
 function busy(on){for(const id of ['quick','joinRoom','practice','freeplay'])$(id).disabled=on}
@@ -3581,7 +3587,7 @@ function enterOnline(){
 async function joinPrivate(){
   const code=sanitizeRoom($('room').value)||randomRoom();$('room').value=code;store.set('room',code);
   busy(true);setMsg('Connecting…');
-  try{Net.leave();prepOnline();await Net.joinRoom('bb-'+code,false,teamSize,botsOn);enterOnline();setMsg('')}
+  try{Net.leave();prepOnline();await Net.joinRoom('bb-'+code,false,teamSize,botsOn&&!isPartyRoom(code));enterOnline();setMsg('')}
   catch(err){Net.leave();setupAttract();setMsg(err.message||String(err),true)}
   finally{busy(false)}
 }
@@ -3650,7 +3656,14 @@ function segBind(id,attr,get,set){
   el.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;set(b.dataset[attr]);paint();sfx('click')});paint();
 }
 segBind('sizeSeg','s',()=>teamSize,v=>{teamSize=+v;store.set('size',teamSize)});
-segBind('botSeg','b',()=>botsOn?1:0,v=>{botsOn=v==='1';store.set('bots',botsOn?1:0)});
+segBind('botSeg','b',()=>botsOn&&!isPartyRoom($('room').value)?1:0,v=>{botsOn=v==='1';store.set('bots',botsOn?1:0)});
+// A party code in the room box: Bots fill in shows off and can't be changed (the saved choice is kept for other rooms).
+function paintBotLock(){
+  const party=isPartyRoom($('room').value);
+  $('botSeg').querySelectorAll('button').forEach(b=>{b.disabled=party;b.setAttribute('aria-pressed',String(b.dataset.b===(botsOn&&!party?'1':'0')))});
+  $('noBotsNote').hidden=!party;
+}
+$('room').addEventListener('input',paintBotLock);
 segBind('diffSeg','d',()=>practiceDiff,v=>{practiceDiff=v;store.set('diff',v)});
 segBind('gfxSeg','q',()=>gfx,v=>{gfx=v;store.set('gfx',v);fxTier=2;resize()});
 segBind('markSeg','m',()=>markerOn?1:0,v=>{markerOn=v==='1';store.set('marker',markerOn?1:0)});
@@ -3847,7 +3860,7 @@ function stepVisuals(dt,now,freeze){
 // An invite opens this page with #bb-<code>: fill in the room and point at the join button.
 const inv=/^#bb-([a-z0-9-]{1,17})$/.exec(location.hash);
 $('room').value=inv?inv[1]:store.get('room','')||'';
-$('name').value=myName;
+$('name').value=myName;paintBotLock();
 if(inv){setMsg('You were invited to room bb-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.remove('alt');$('quick').classList.add('alt')}
 
 // ---- fetching kit.js (see KIT near the top) ----
