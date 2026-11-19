@@ -80,17 +80,6 @@ function cheer(kit, x, y, z, n, color) {
 }
 
 // ---------------------------------------------------------------- the Wardrobe screen
-function cheerIcon(no, cv) {
-  cv.width = 96; cv.height = 120; const g = cv.getContext('2d'); g.clearRect(0, 0, 96, 120);
-  const T = X.color || '#ff5e6c';
-  const pals = { 0: ['#ff5e6c', '#ffcf3d', '#2fd39a', '#4c8dff', '#7c5cff', '#f15bb5'], 1: [T, mix(T, '#ffffff', .55), mix(T, '#000000', .35), '#ffffff'], 2: ['#ffd23f', '#ffe98a', '#e8343c', '#2fd39a', '#4c8dff'], 3: ['#5ce1ff', '#b6ff5c'], 4: ['#ff5e6c', '#4c8dff', '#ffd23f'] };
-  const pal = pals[no] || pals[0];
-  if (no === 3) { pal.forEach((col, k) => { g.strokeStyle = col; g.lineWidth = 5; g.setLineDash([4, 6]); g.beginPath(); g.ellipse(48, 70 - k * 22, 40 - k * 6, 13 - k * 2, 0, 0, TAU); g.stroke(); }); g.setLineDash([]); return cv; }
-  if (no === 4) { pal.forEach((col, k) => { const x = 22 + k * 26, y = 34 + (k % 2) * 18; g.strokeStyle = col; g.lineWidth = 3.5; for (let i = 0; i < 10; i++) { const a = i / 10 * TAU; g.beginPath(); g.moveTo(x + Math.cos(a) * 5, y + Math.sin(a) * 5); g.lineTo(x + Math.cos(a) * 15, y + Math.sin(a) * 15); g.stroke(); } }); }
-  let s = no * 97 + 13; const r = () => (s = (s * 9301 + 49297) % 233280) / 233280;
-  for (let i = 0; i < (no === 4 ? 10 : 26); i++) { g.save(); g.translate(8 + r() * 80, (no === 4 ? 70 : 10) + r() * (no === 4 ? 44 : 104)); g.rotate(r() * 3); g.fillStyle = pal[i % pal.length]; g.fillRect(-5, -3.5, 10, 7); g.strokeStyle = 'rgba(24,22,58,.35)'; g.lineWidth = 1; g.strokeRect(-5, -3.5, 10, 7); g.restore(); }
-  return cv;
-}
 let panel = null;
 function openPanel() {
   const C = cos(); if (!C) return;
@@ -99,7 +88,7 @@ function openPanel() {
     title: TX('Wardrobe'), note: TX('Captains only'), rarity: RC,
     slots: [
       { id: 'o', name: TX('Outfits'), items: items('outfit'), back: true, drawNone: true, noneName: TX('Your climber'), noneDesc: TX('Your own colour and hat.'), draw: (no, cv, back) => BF.icon(no, X.color, back, 96, cv) },
-      { id: 'c', name: TX('Celebrations'), items: items('cheer'), drawNone: true, noneName: TX('Usual confetti'), noneDesc: TX('The confetti everyone gets.'), draw: (no, cv) => cheerIcon(no, cv) }
+      { id: 'c', name: TX('Celebrations'), items: items('cheer'), drawNone: true, noneName: TX('Usual confetti'), noneDesc: TX('The confetti everyone gets.'), draw: (no, cv) => window.BlockFits.cheerIcon(no, cv, X.color) }
     ],
     worn: slot => look[slot],
     pick(slot, no) {

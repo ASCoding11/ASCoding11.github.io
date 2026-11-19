@@ -556,6 +556,7 @@ window.BlockFits = function (THREE) {
     if (av.__bf && av.__bf.no === no && av.__bf.T === T && !!av.__bf.ghost === !!opts.ghost) return no > 0;
     undress(av);
     if (!no) return false;
+    if (!av.__bfDispose) { const d = av.dispose; av.__bfDispose = true; if (d) av.dispose = function () { undress(av); return d.apply(av, arguments); }; }   // the page's dispose() takes the outfit off first
     const def = OUTFITS[no], glow = Math.max(opts.glow || 0, def.glow || 0);
     const mat = opts.ghost ? material(glow, opts.ghost) : material(glow);
     const w = { no, T, ghost: opts.ghost, meshes: [], hidden: [], ghostMat: opts.ghost ? mat : null };
@@ -627,7 +628,7 @@ window.BlockFits = function (THREE) {
 function panel(opts) {
   if (!document.getElementById('bf-css')) {
     const st = document.createElement('style'); st.id = 'bf-css';
-    st.textContent = '#bfWr{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;padding:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));background:rgba(16,14,40,.55);font-family:inherit;color:#18163a}' +
+    st.textContent = '#bfWr{position:fixed;inset:0;z-index:2147481500;display:flex;align-items:center;justify-content:center;padding:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));background:rgba(16,14,40,.55);font-family:inherit;color:#18163a}' +
       '#bfWr[hidden]{display:none}#bfWr .bf-card{background:#fffaf2;border:3px solid #18163a;border-radius:20px;box-shadow:0 6px 0 #18163a;width:min(860px,100%);max-height:100%;display:flex;flex-direction:column;overflow:hidden}' +
       '#bfWr .bf-head{display:flex;align-items:center;gap:10px;padding:12px 14px 8px}#bfWr h2{margin:0;font-size:22px;line-height:1}#bfWr .bf-cap{font-size:11px;font-weight:900;background:#ffcf3d;border:2px solid #18163a;border-radius:999px;padding:2px 8px;white-space:nowrap}' +
       '#bfWr .bf-x{margin-left:auto;font:inherit;font-weight:900;font-size:15px;border:2.5px solid #18163a;border-radius:12px;background:#fff;padding:7px 14px;box-shadow:0 2px 0 #18163a;cursor:pointer;color:inherit}' +
@@ -656,7 +657,9 @@ function panel(opts) {
   const RC = opts.rarity || {};
   function showPrev(slot, no) {
     const s = slotOf(slot), it = s.items.find(i => i.no === no) || null, cs = root.querySelectorAll('.bf-pics canvas');
-    s.draw(no, cs[0], false); if (s.back) { cs[1].hidden = false; s.draw(no, cs[1], true); } else cs[1].hidden = true;
+    if (!no && !s.drawNone) {   // nothing worn, and no picture of the game's own look: an empty frame
+      cs[1].hidden = true; cs[0].width = 96; cs[0].height = 120; const g = cs[0].getContext('2d'); g.font = '900 44px system-ui,sans-serif'; g.textAlign = 'center'; g.fillStyle = 'rgba(24,22,58,.35)'; g.fillText('∅', 48, 76);
+    } else { s.draw(no, cs[0], false); if (s.back) { cs[1].hidden = false; s.draw(no, cs[1], true); } else cs[1].hidden = true; }
     q('.bf-name').textContent = it ? TX(it.name) : (s.noneName || TX('None'));
     q('.bf-rar').textContent = it ? TX(it.rarity.charAt(0).toUpperCase() + it.rarity.slice(1)) : ''; q('.bf-rar').style.color = it ? (RC[it.rarity] || '') : '';
     q('.bf-desc').textContent = it ? TX(it.desc) : (s.noneDesc || '');
@@ -694,6 +697,19 @@ function panel(opts) {
     refresh() { if (!root.hidden) render(); }
   };
 }
+// a little picture of a celebration (1 to 4, 0 the usual confetti) for the Wardrobe, in colour T
+function cheerIcon(no, cv, T) {
+  cv.width = 96; cv.height = 120; const g = cv.getContext('2d'); g.clearRect(0, 0, 96, 120);
+  T = T || '#ff5e6c';
+  const pals = { 0: ['#ff5e6c', '#ffcf3d', '#2fd39a', '#4c8dff', '#7c5cff', '#f15bb5'], 1: [T, mixHex(T, '#ffffff', .55), mixHex(T, '#000000', .35), '#ffffff'], 2: ['#ffd23f', '#ffe98a', '#e8343c', '#2fd39a', '#4c8dff'], 3: ['#5ce1ff', '#b6ff5c'], 4: ['#ff5e6c', '#4c8dff', '#ffd23f'] };
+  const pal = pals[no] || pals[0];
+  if (no === 3) { pal.forEach((col, k) => { g.strokeStyle = col; g.lineWidth = 5; g.setLineDash([4, 6]); g.beginPath(); g.ellipse(48, 70 - k * 22, 40 - k * 6, 13 - k * 2, 0, 0, TAU); g.stroke(); }); g.setLineDash([]); return cv; }
+  if (no === 4) { pal.forEach((col, k) => { const x = 22 + k * 26, y = 34 + (k % 2) * 18; g.strokeStyle = col; g.lineWidth = 3.5; for (let i = 0; i < 10; i++) { const a = i / 10 * TAU; g.beginPath(); g.moveTo(x + Math.cos(a) * 5, y + Math.sin(a) * 5); g.lineTo(x + Math.cos(a) * 15, y + Math.sin(a) * 15); g.stroke(); } }); }
+  let s = no * 97 + 13; const r = () => (s = (s * 9301 + 49297) % 233280) / 233280;
+  for (let i = 0; i < (no === 4 ? 10 : 26); i++) { g.save(); g.translate(8 + r() * 80, (no === 4 ? 70 : 10) + r() * (no === 4 ? 44 : 104)); g.rotate(r() * 3); g.fillStyle = pal[i % pal.length]; g.fillRect(-5, -3.5, 10, 7); g.strokeStyle = 'rgba(24,22,58,.35)'; g.lineWidth = 1; g.strokeRect(-5, -3.5, 10, 7); g.restore(); }
+  return cv;
+}
 window.BlockFits.panel = panel;
+window.BlockFits.cheerIcon = cheerIcon;
 window.BlockFits.COUNT = COUNT;
 })();

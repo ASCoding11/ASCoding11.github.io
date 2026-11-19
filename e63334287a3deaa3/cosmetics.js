@@ -255,6 +255,7 @@
     'odd-one-out': { name: 'Odd One Out', prefix: 'oo', slots: [['outfit', 'Hunter outfits'], ['tool', 'Hunter tools'], ['taunt', 'Prop taunts'], ['poof', 'Catch poofs']] },
     'drop-zone': { name: 'Driftfall', prefix: 'dz', slots: [['outfit', 'Outfits'], ['pack', 'Backpacks'], ['glider', 'Gliders'], ['trail', 'Glider trails'], ['wrap', 'Gun skins'], ['build', 'Build skins'], ['emote', 'Emotes'], ['victory', 'Victory poses']] },
     spire: { name: 'Spire', prefix: 'sp', slots: [['outfit', 'Outfits'], ['cheer', 'Celebrations']] },
+    'turbo-trail': { name: 'Turbo Trail', prefix: 'tr', slots: [['outfit', 'Outfits'], ['cheer', 'Celebrations']] },
   };
   var GAME_ITEMS = [], ITEM_BY_ID = {};
   function I(game, slot, no, name, rarity, c1, c2, desc) {
@@ -1053,6 +1054,46 @@
   I('spire', 'cheer', 2, 'Treasure', 'uncommon', '#FFD23F', '#E8343C', 'Gold, ruby and emerald confetti and a shower of gold sparks.');
   I('spire', 'cheer', 3, 'Circuit Sparks', 'rare', '#5CE1FF', '#B6FF5C', 'Rings of cyan and green sparks instead of confetti.');
   I('spire', 'cheer', 4, 'Fireworks', 'epic', '#FF5E6C', '#4C8DFF', 'Three bursts high overhead, one after another.');
+  // ---- Turbo Trail items ----
+  // Turbo Trail: 33 outfits for the blocky runners (the same outfits, with the same numbers, as the other two parkour games;
+  // drawn by ../outfits.js) and 4 celebrations, worn from the game's Wardrobe by captains only (in no pack; see turbo-trail/wardrobe.js).
+  I('turbo-trail', 'outfit', 1, 'Striker', 'common', '#FF5E6C', '#FFFFFF', 'A football kit in your colour: V-neck, number 9 on the back, white shorts.');
+  I('turbo-trail', 'outfit', 2, 'Hoops', 'common', '#3B82F6', '#FFFFFF', 'A sleeveless basketball jersey, long shorts, a headband and high socks.');
+  I('turbo-trail', 'outfit', 3, 'Gridiron', 'uncommon', '#22C55E', '#FFFFFF', 'Helmet with a face mask, big shoulder pads and a number 7.');
+  I('turbo-trail', 'outfit', 4, 'Slugger', 'common', '#F7F5EE', '#F59E0B', 'A pinstriped baseball jersey, a cap, grey trousers and a glove.');
+  I('turbo-trail', 'outfit', 5, 'Puck Hound', 'uncommon', '#A855F7', '#20222C', 'A thick striped hockey jersey, a caged helmet and skates.');
+  I('turbo-trail', 'outfit', 6, 'Ace', 'common', '#FBFBFD', '#14B8A6', 'A white tennis polo with a coloured collar, headband and wristbands.');
+  I('turbo-trail', 'outfit', 7, 'Champ', 'uncommon', '#D6262E', '#F4F4F6', 'Big red boxing gloves, a headguard and shiny shorts.');
+  I('turbo-trail', 'outfit', 8, 'Sprinter', 'common', '#FF5E6C', '#FFFFFF', 'A running vest with a race number pinned on, and bright spikes.');
+  I('turbo-trail', 'outfit', 9, 'Lap Swimmer', 'common', '#3B82F6', '#4FD0FF', 'A swim cap, goggles and a swimsuit in your colour.');
+  I('turbo-trail', 'outfit', 10, 'Fairway', 'uncommon', '#22C55E', '#E9E2CF', 'A flat cap, an argyle jumper, checked trousers and one white glove.');
+  I('turbo-trail', 'outfit', 11, 'Kickflip', 'common', '#F59E0B', '#20222C', 'A hoodie, a cap on backwards, baggy jeans and pads for the falls.');
+  I('turbo-trail', 'outfit', 12, 'Wave Rider', 'rare', '#20222C', '#14B8A6', 'A wetsuit with a coloured flash and a surfboard on your back.');
+  I('turbo-trail', 'outfit', 13, 'Slope Star', 'uncommon', '#FF5E6C', '#F4F4F6', 'A puffy ski jacket with a race bib, a helmet and orange goggles.');
+  I('turbo-trail', 'outfit', 14, 'Pole Position', 'rare', '#3B82F6', '#FFFFFF', 'A striped race suit and a full helmet with a dark visor.');
+  I('turbo-trail', 'outfit', 15, 'Referee', 'common', '#F7F7F9', '#16161C', 'Black and white stripes, a cap and a whistle on a cord.');
+  I('turbo-trail', 'outfit', 16, 'Team Mascot', 'epic', '#B07A4A', '#F59E0B', 'A big friendly bear head on a team jersey. Fuzzy all over.');
+  I('turbo-trail', 'outfit', 17, 'Black Belt', 'common', '#FBFBFD', '#16161C', 'A white karate suit, a black belt and a headband in your colour.');
+  I('turbo-trail', 'outfit', 18, 'Tin Bot', 'common', '#A7B2BF', '#FFD54A', 'A tin-can robot with lamp eyes, an antenna and claw hands.');
+  I('turbo-trail', 'outfit', 19, 'Android', 'epic', '#EEF2F8', '#5CE1FF', 'A sleek white android with glowing blue lines and a visor.');
+  I('turbo-trail', 'outfit', 20, 'Mech Pilot', 'rare', '#5F6E52', '#FFB43A', 'A flight suit, a harness and a helmet with a radio aerial.');
+  I('turbo-trail', 'outfit', 21, 'Pirate Captain', 'legendary', '#A3202A', '#E2B23A', 'A tricorn hat, a long red coat, an eye patch and a parrot.');
+  I('turbo-trail', 'outfit', 22, 'Deckhand', 'common', '#1F3C78', '#D6262E', 'A striped shirt, a spotted bandana, an eye patch and bare feet.');
+  I('turbo-trail', 'outfit', 23, 'First Mate', 'uncommon', '#4A2E1E', '#E8EDF4', 'A leather vest, a bandana, an eye patch and a shiny hook.');
+  I('turbo-trail', 'outfit', 24, 'Ghost Pirate', 'epic', '#8FE3C0', '#D9FFF0', 'A pale, glowing pirate with an eye patch. Mostly harmless.');
+  I('turbo-trail', 'outfit', 25, 'Roaring Twenties', 'rare', '#3A3D48', '#B8202C', 'A pinstripe suit, a fedora and two-tone shoes.');
+  I('turbo-trail', 'outfit', 26, 'The Boss', 'legendary', '#20222C', '#5A4636', 'A long dark coat with a fur collar, a tall fur hat and gloves.');
+  I('turbo-trail', 'outfit', 27, 'Tracksuit Tough', 'uncommon', '#22C55E', '#F2C230', 'A tracksuit with stripes, a flat cap and a big gold chain.');
+  I('turbo-trail', 'outfit', 28, 'Bodyguard', 'uncommon', '#16161C', '#E8E8EE', 'A black suit, dark glasses and an earpiece.');
+  I('turbo-trail', 'outfit', 29, 'Tuxedo', 'rare', '#16161C', '#FFFFFF', 'A black jacket, a white shirt front and a bow tie.');
+  I('turbo-trail', 'outfit', 30, 'Business Suit', 'common', '#22325A', '#FF5E6C', 'A navy suit with a tie in your colour and a pocket square.');
+  I('turbo-trail', 'outfit', 31, 'Star Wizard', 'epic', '#3B2F9E', '#FFD54A', 'A starry robe, a tall pointed hat and a long white beard.');
+  I('turbo-trail', 'outfit', 32, 'Astronaut', 'rare', '#EEF0F4', '#FFB43A', 'A white space suit with a gold visor and a life-support pack.');
+  I('turbo-trail', 'outfit', 33, 'Knight', 'legendary', '#B7C0CC', '#22C55E', 'Costume armour, a helm with a plume and a tabard in your colour.');
+  I('turbo-trail', 'cheer', 1, 'Team Colours', 'common', '#FF5E6C', '#FFFFFF', 'Confetti in your own colour, lighter and darker, with white.');
+  I('turbo-trail', 'cheer', 2, 'Treasure', 'uncommon', '#FFD23F', '#E8343C', 'Gold, ruby and emerald confetti and a shower of gold sparks.');
+  I('turbo-trail', 'cheer', 3, 'Circuit Sparks', 'rare', '#5CE1FF', '#B6FF5C', 'Rings of cyan and green sparks instead of confetti.');
+  I('turbo-trail', 'cheer', 4, 'Fireworks', 'epic', '#FF5E6C', '#4C8DFF', 'Three bursts high overhead, one after another.');
   // Items a game hands over itself are in no pack: give is 'free' (anyone may wear it; the game grants it the first time it
   // is worn) or 'earned' (the game grants it when it is won). grant(id), below, only adds these.
   GAME_ITEMS.forEach(function (it) { if (it.game !== 'slipstream') return; if (it.slot === 'sponsor' || (it.slot === 'helmet' && it.no <= 8)) it.give = 'free'; else if (it.slot === 'livery' && it.no > 8) it.give = 'earned'; });
