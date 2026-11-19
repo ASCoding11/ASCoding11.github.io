@@ -363,6 +363,7 @@
   I('boostball', 'engine', 2, 'Buzz', 'uncommon', '#FFD23F', '#FF8A1F', 'High and angry, like a go-kart.');
   I('boostball', 'engine', 3, 'Rumble', 'rare', '#7A5230', '#FF4D6D', 'A big lazy burble.');
   I('boostball', 'engine', 4, 'Whirr', 'epic', '#3EE6FF', '#FFFFFF', 'Electric: it sings as it speeds up.');
+  I('boostball', 'goal', 22, 'Carbon Star', 'legendary', '#2A1048', '#FF6A2E', 'Made for Carbon: a red giant flares in the goal and the whole arena drifts into deep space.'); ITEM_BY_ID['bb-goal-carbon-star'].give = 'exclusive';   // an exclusive gift (../captains.js GIFTS): in no pack or chest, never sold or gifted on
   // Slipstream sponsors (all made up): signing with one is free, and its sticker goes on the car. c1 and c2 are its colours.
   I('slipstream', 'sponsor', 1, 'Zoomi Cola', 'common', '#12B5A6', '#FFF3D6', 'Fizzy, fast and slightly too sweet.');
   I('slipstream', 'sponsor', 2, 'Burnout Coffee', 'common', '#3B2416', '#FFB347', 'Roasted until the tyres smoke.');
