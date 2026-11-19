@@ -121,7 +121,7 @@ details[open] summary::before{content:'− '}
 #bar .mile{position:absolute;left:-5px;right:-5px;height:3px;margin-bottom:-1px;border-radius:2px;background:#ffd36b;box-shadow:0 0 6px #ffd36b}
 #bar .mile.gate{background:#c9b4ff;box-shadow:0 0 7px #a98bff}
 #bar .tick.gate{color:#e2d6ff}
-.btn.gaterun{border-color:rgba(201,180,255,.55);background:linear-gradient(180deg,rgba(150,120,255,.28),rgba(90,60,200,.22))}
+.btn.gaterun{white-space:normal;line-height:1.2;text-align:center;border-color:rgba(201,180,255,.55);background:linear-gradient(180deg,rgba(150,120,255,.28),rgba(90,60,200,.22))}
 /* the flash going through the gate, and going under in the river */
 #gateFx{position:absolute;inset:0;pointer-events:none;opacity:0;background:radial-gradient(ellipse 60% 55% at 50% 50%,rgba(240,235,255,.95),rgba(170,140,255,.75) 45%,rgba(60,40,140,.6) 100%)}
 #riverFx{position:absolute;inset:0;pointer-events:none;opacity:0;background:radial-gradient(ellipse 70% 65% at 50% 55%,rgba(10,40,34,.85),rgba(2,10,9,1) 80%)}
@@ -2405,6 +2405,8 @@ const scene=new THREE.Scene();
 // Only the side the camera's climber is on is drawn (VD, set every frame by setView... see applyDim). DRAW_DIM: which
 // side the piece being built now goes to.
 const DR=[new THREE.Group(),new THREE.Group()];scene.add(DR[0]);scene.add(DR[1]);DR[1].visible=false;
+// (the side not drawn isn't walked every frame either: Three.js would otherwise update every matrix in it)
+for(const d of DR){const up=d.updateMatrixWorld;d.updateMatrixWorld=function(f){if(this.visible)up.call(this,f)}}
 let DRAW_DIM=0,VD=0;
 const camera=new THREE.PerspectiveCamera(62,1,.1,4200);
 const hemi=new THREE.HemisphereLight(0xdfefff,0x8a7f70,.75);scene.add(hemi);
