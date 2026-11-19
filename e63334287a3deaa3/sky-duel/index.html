@@ -585,8 +585,11 @@ const renderer=new THREE.WebGLRenderer({canvas,antialias:!touchUI,powerPreferenc
 const scene=new THREE.Scene();
 const camera=new THREE.PerspectiveCamera(64,1,1.5,14000);
 camera.position.set(0,500,900);
-let VW=1,VH=1;
-function applyGfx(){renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,gfx==='high'?2:touchUI?1.25:1))}
+let VW=1,VH=1,waterMesh=null;
+// The water: Pretty has a sun glint (per-pixel Phong); Fast lights it per vertex, the same colour without the glint.
+const WATER_MAT=[new THREE.MeshLambertMaterial({color:0x2b7bb5,transparent:true,opacity:.84}),new THREE.MeshPhongMaterial({color:0x2b7bb5,transparent:true,opacity:.84,shininess:90,specular:0x9fc8e8})];
+// Pretty draws at up to 1.5 pixels per CSS pixel (2 was 78% more pixels for little to see), Fast at 1 (1.25 on phones).
+function applyGfx(){renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,gfx==='high'?1.5:touchUI?1.25:1));if(waterMesh)waterMesh.material=WATER_MAT[gfx==='high'?1:0]}
 function resize(){VW=window.innerWidth;VH=window.innerHeight;renderer.setSize(VW,VH,false);camera.aspect=VW/VH;camera.updateProjectionMatrix()}
 applyGfx();resize();addEventListener('resize',resize);
 if(window.visualViewport)visualViewport.addEventListener('resize',resize);
@@ -603,9 +606,11 @@ const skyMat=new THREE.ShaderMaterial({
   uniforms:{top:{value:new THREE.Color()},hor:{value:new THREE.Color()},sunDir:{value:new V3()},sunCol:{value:new THREE.Color()}},
   vertexShader:'varying vec3 vD;void main(){vD=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
   fragmentShader:'uniform vec3 top,hor,sunDir,sunCol;varying vec3 vD;void main(){vec3 d=normalize(vD);float t=pow(max(d.y,0.),.5);vec3 c=mix(hor,top,t);float s=max(dot(d,sunDir),0.);c+=sunCol*(pow(s,420.)*1.6+pow(s,14.)*.28);if(d.y<0.)c=mix(hor,hor*.86,min(-d.y*4.,1.));gl_FragColor=vec4(c,1.);}',
-  side:THREE.BackSide,depthWrite:false,depthTest:false,fog:false
+  side:THREE.BackSide,depthWrite:false,fog:false
 });
-const skyDome=new THREE.Mesh(new THREE.SphereGeometry(9000,24,12),skyMat);skyDome.renderOrder=-10;skyDome.frustumCulled=false;scene.add(skyDome);
+// Drawn after the land, clouds and planes (renderOrder 1, still before anything see-through), with the depth test on, so
+// the sky shader only runs on the pixels nothing covers. Everything solid is closer than 9 km, so the picture is the same.
+const skyDome=new THREE.Mesh(new THREE.SphereGeometry(9000,24,12),skyMat);skyDome.renderOrder=1;skyDome.frustumCulled=false;scene.add(skyDome);
 let skyIdx=-1;
 function setSky(i){
   i=clamp(i|0,0,SKIES.length-1);if(i===skyIdx)return;skyIdx=i;const s=SKIES[i];
@@ -645,12 +650,13 @@ function setSky(i){
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));g.setAttribute('normal',new THREE.BufferAttribute(nor,3));g.setAttribute('color',new THREE.BufferAttribute(col,3));
   const m=new THREE.Mesh(g,new THREE.MeshLambertMaterial({vertexColors:true}));m.frustumCulled=false;scene.add(m);
   // water, and a skirt of haze-coloured ground far out so the horizon never shows a hole
-  const w=new THREE.Mesh(new THREE.PlaneGeometry(30000,30000),new THREE.MeshPhongMaterial({color:0x2b7bb5,transparent:true,opacity:.84,shininess:90,specular:0x9fc8e8}));
-  w.rotation.x=-Math.PI/2;w.position.y=0;scene.add(w);
+  const w=new THREE.Mesh(new THREE.PlaneGeometry(30000,30000),WATER_MAT[gfx==='high'?1:0]);
+  w.rotation.x=-Math.PI/2;w.position.y=0;scene.add(w);waterMesh=w;
 })();
 
 // ---------- trees (one instanced mesh) and clouds (one merged mesh you can fly through) ----------
 const cloudBlobs=[];   // [x, y, z, radius] for the whiteout when the camera is inside one
+let CLOUD_Y0=1e9,CLOUD_Y1=-1e9;   // the lowest and highest any cloud reaches
 (function buildScenery(){
   const rng=mulberry(4242);
   const nT=gfx==='high'?1500:600,cone=new THREE.ConeGeometry(7,22,5);cone.translate(0,11,0);
@@ -673,7 +679,7 @@ const cloudBlobs=[];   // [x, y, z, radius] for the whiteout when the camera is 
     for(let b=0;b<nb;b++){
       const bx=cx+(rng()-.5)*230*big,by=cy+(rng()-.5)*36,bz=cz+(rng()-.5)*150*big,rx=(70+rng()*70)*big,ry=rx*(.42+rng()*.2),rz=rx*(.7+rng()*.4);
       for(let t=0;t<ia.count;t++){v.fromBufferAttribute(ia,t);pos.push(bx+v.x*rx,by+v.y*ry,bz+v.z*rz)}
-      cloudBlobs.push([bx,by,bz,rx,ry,rz]);
+      cloudBlobs.push([bx,by,bz,rx,ry,rz]);CLOUD_Y0=Math.min(CLOUD_Y0,by-ry);CLOUD_Y1=Math.max(CLOUD_Y1,by+ry);
     }
   }
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.computeVertexNormals();
@@ -711,12 +717,12 @@ const FX=(function(){
     transparent:true,depthWrite:false,blending:THREE.CustomBlending,blendSrc:THREE.OneFactor,blendDst:THREE.OneMinusSrcAlphaFactor,blendSrcAlpha:THREE.OneFactor,blendDstAlpha:THREE.OneMinusSrcAlphaFactor
   });
   const pts=new THREE.Points(g,mat);pts.frustumCulled=false;pts.renderOrder=5;scene.add(pts);
-  let next=0;
+  let next=0,colDirty=true;   // colours only change when a puff is added, so they are only re-sent then
   // add: 0 for smoke (covers what is behind), 1 for fire and sparks (adds light)
   function puff(x,y,z,vx,vy,vz,lf,sz0,sz1,r,gc,b,a,add,gv){
     const i=next;next=(next+1)%N;const j=i*3;
     pos[j]=x;pos[j+1]=y;pos[j+2]=z;vel[j]=vx;vel[j+1]=vy;vel[j+2]=vz;col[j]=r;col[j+1]=gc;col[j+2]=b;
-    life[i]=max[i]=lf;s0[i]=sz0;s1[i]=sz1;a0[i]=a;aux[j+2]=add;grav[i]=gv||0;
+    colDirty=true;life[i]=max[i]=lf;s0[i]=sz0;s1[i]=sz1;a0[i]=a;aux[j+2]=add;grav[i]=gv||0;
   }
   function update(dt){
     for(let i=0;i<N;i++){
@@ -726,7 +732,7 @@ const FX=(function(){
       vel[j+1]-=grav[i]*dt;pos[j]+=vel[j]*dt;pos[j+1]+=vel[j+1]*dt;pos[j+2]+=vel[j+2]*dt;
       aux[j]=s0[i]+(s1[i]-s0[i])*u;aux[j+1]=a0[i]*(1-u)*(u<.08?u/.08:1);
     }
-    aP.needsUpdate=aC.needsUpdate=aA.needsUpdate=true;
+    aP.needsUpdate=aA.needsUpdate=true;if(colDirty){aC.needsUpdate=true;colDirty=false}
     mat.uniforms.sc.value=renderer.domElement.height/(2*Math.tan(camera.fov*Math.PI/360));
   }
   // tracers
@@ -799,13 +805,18 @@ const TRIM_MAT=new THREE.MeshLambertMaterial({color:0x23324a,emissive:0x0a1220})
 const PROP_MAT=new THREE.MeshBasicMaterial({color:0xdfe8f2,transparent:true,opacity:.28,side:THREE.DoubleSide,depthWrite:false});
 const SHIELD_MAT=new THREE.MeshBasicMaterial({color:0x9fe3ff,transparent:true,opacity:.13,depthWrite:false});
 const SHIELD_GEO=new THREE.SphereGeometry(9,14,10),PROP_GEO=new THREE.CircleGeometry(1,14);
+// Every plane is drawn through instanced meshes: one body and one trim per airframe, one for all the propellers and
+// one for the spawn shields, so 8 planes cost at most 10 draw calls instead of 3 or 4 each. e.mesh only holds where
+// a plane is (position, YXZ rotation, scale); drawEnts copies that into the instances every frame.
+const PLANE_MAX=16,BODY_MAT=new THREE.MeshLambertMaterial({color:0xffffff});
+// (the colour buffer is made by the first setColorAt, sized by count, so count only drops to 0 after that)
+const instMesh=(geo,mat,n,col)=>{const m=new THREE.InstancedMesh(geo,mat,n);m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);m.frustumCulled=false;
+  if(col){const c=new THREE.Color(1,1,1);for(let i=0;i<n;i++)m.setColorAt(i,c);m.instanceColor.setUsage(THREE.DynamicDrawUsage)}m.count=0;m.visible=false;scene.add(m);return m};
+const PLANE_INST=PLANE_GEO.map(pg=>({body:instMesh(pg.body,BODY_MAT,PLANE_MAX,true),trim:instMesh(pg.trim,TRIM_MAT,PLANE_MAX,false)}));
+const PROP_INST=instMesh(PROP_GEO,PROP_MAT,PLANE_MAX,false),SHIELD_INST=instMesh(SHIELD_GEO,SHIELD_MAT,PLANE_MAX,false);
 function makeMesh(e){
-  const pg=PLANE_GEO[e.frame],grp=new THREE.Group();
-  const body=new THREE.Mesh(pg.body,new THREE.MeshLambertMaterial({color:new THREE.Color(entColor(e)),emissive:0x000000}));grp.add(body);
-  grp.add(new THREE.Mesh(pg.trim,TRIM_MAT));
-  if(pg.prop){const pr=new THREE.Mesh(PROP_GEO,PROP_MAT);pr.position.z=pg.prop;pr.scale.setScalar(pg.propR);grp.add(pr)}
-  const sh=new THREE.Mesh(SHIELD_GEO,SHIELD_MAT);sh.visible=false;grp.add(sh);
-  grp.rotation.order='YXZ';grp.visible=false;grp.userData={body,sh,col:entColor(e)};scene.add(grp);return grp;
+  const grp=new THREE.Object3D();
+  grp.rotation.order='YXZ';grp.visible=false;grp.userData={col:'',c3:new THREE.Color(),propA:0};return grp;
 }
 function entColor(e){return e.team>=0?TEAM_COL[e.team]:e.color}
 
@@ -817,8 +828,8 @@ function mkEnt(id,o){
     ctl:{boost:false,fire:false,roll:0},ai:null,lag:null,snaps:[],mesh:null,vscale:1,seenT:0};
   e.mesh=makeMesh(e);G.ents.set(id,e);return e;
 }
-function dropEnt(e){if(e.mesh){scene.remove(e.mesh);e.mesh.userData.body.material.dispose()}G.ents.delete(e.id);if(G.tgt===e)G.tgt=null;if(G.spec===e)G.spec=null}
-function clearEnts(){for(const e of [...G.ents.values()])dropEnt(e);G.me=null;G.tgt=null;G.spec=null;for(const m of G.missiles)scene.remove(m.mesh);G.missiles.length=0;for(const f of G.flares)f.life=0;G.flares.length=0;FX.clear()}
+function dropEnt(e){G.ents.delete(e.id);if(G.tgt===e)G.tgt=null;if(G.spec===e)G.spec=null}
+function clearEnts(){for(const e of [...G.ents.values()])dropEnt(e);G.me=null;G.tgt=null;G.spec=null;G.missiles.length=0;for(const f of G.flares)f.life=0;G.flares.length=0;FX.clear()}
 function enemies(a,b){return a!==b&&(a.team<0||a.team!==b.team)}
 
 // ---------- spawning ----------
@@ -884,9 +895,9 @@ function shoot(e,local){
   if(e===G.me)sfx('gun');else sfx('gunfar',e.pos);
 }
 // Bullets this browser owns (mine and my bots') decide their own hits against where the other planes are drawn.
-const hitAcc=new Map();let hitFlushT=0;
+const hitAcc=new Map(),ENTS=[];let hitFlushT=0;
 function updateBullets(dt){
-  const live=simLive();
+  const live=simLive(),ents=ENTS;ents.length=0;for(const e of G.ents.values())ents.push(e);   // one list per frame, not an iterator per bullet
   for(const b of FX.bullets){
     if(!b.on)continue;
     const x0=b.x,y0=b.y,z0=b.z,dx=b.vx*dt,dy=b.vy*dt,dz=b.vz*dt;
@@ -896,7 +907,7 @@ function updateBullets(dt){
     if(!b.local||!live)continue;
     const by=G.ents.get(b.by);if(!by){continue}
     const L2=dx*dx+dy*dy+dz*dz;
-    for(const t of G.ents.values()){
+    for(let n=0;n<ents.length;n++){const t=ents[n];
       if(!t.alive||t===by||!enemies(by,t))continue;
       const R=HIT_R*(by===G.me?Math.min(2,t.vscale):1.25);
       const px=t.pos.x-x0,py=t.pos.y-y0,pz=t.pos.z-z0,u=clamp((px*dx+py*dy+pz*dz)/L2,0,1),qx=px-dx*u,qy=py-dy*u,qz=pz-dz*u;
@@ -931,7 +942,7 @@ function handleEvent(ev,mine){
       addMissile({id:ev.mid.slice(0,60),by:by.id,to:String(ev.to||''),local:false},by);break}
     case 'x':{const i=G.missiles.findIndex(m=>m.id===ev.mid);if(i<0)break;const m=G.missiles[i];
       if(!mine&&finN(ev.x)&&finN(ev.y)&&finN(ev.z))m.pos.set(ev.x,ev.y,ev.z);
-      boom(m.pos,ev.r===1);scene.remove(m.mesh);G.missiles.splice(i,1);break}
+      boom(m.pos,ev.r===1);G.missiles.splice(i,1);break}
     case 'c':{const m=G.missiles.find(q=>q.id===ev.mid);if(m&&!m.local){m.to='';m.life=Math.min(m.life,1.6)}break}
     case 'f':{const by=G.ents.get(ev.by);if(!by)break;
       if(!mine)dropFlareFx(by);
@@ -950,11 +961,11 @@ function kill(e,byId,w){
 
 // ---------- missiles and flares ----------
 const MSL_GEO=(function(){const b=new THREE.CylinderGeometry(.5,.5,6,6);b.rotateX(Math.PI/2);const n=new THREE.ConeGeometry(.5,1.6,6);n.rotateX(Math.PI/2);n.translate(0,0,3.8);return mergeGeo([b,n])})();
-const MSL_MAT=new THREE.MeshLambertMaterial({color:0xf4f6fa,emissive:0x553322});
+const MSL_MAT=new THREE.MeshLambertMaterial({color:0xf4f6fa,emissive:0x553322}),MSL_MAX_DRAWN=48,MSL_INST=instMesh(MSL_GEO,MSL_MAT,MSL_MAX_DRAWN,false);
 let mslSeq=0;
 function addMissile(m,by){
   m.pos=by.pos.clone();m.pos.y-=2.5;m.dir=by.fwd.clone();m.speed=by.speed+50;m.life=MSL_LIFE;m.decoy=null;m.rollChk=false;m.smT=0;
-  m.mesh=new THREE.Mesh(MSL_GEO,MSL_MAT);m.mesh.scale.setScalar(1.6);scene.add(m.mesh);G.missiles.push(m);
+  m.mesh=new THREE.Object3D();m.mesh.scale.setScalar(1.6);m.mesh.position.copy(m.pos);G.missiles.push(m);   // drawn by drawEnts (MSL_INST)
   sfx('missile',m.pos);
   if(G.me&&m.to===G.me.id){sfx('warn')}
 }
@@ -988,7 +999,7 @@ function updateMissiles(dt){
     m.mesh.position.copy(m.pos);T2.copy(m.pos).add(m.dir);m.mesh.lookAt(T2);
     m.smT-=dt;if(m.smT<=0){m.smT=FX.low()?.05:.028;FX.puff(m.pos.x-m.dir.x*5,m.pos.y-m.dir.y*5,m.pos.z-m.dir.z*5,rand(-2,2),rand(-2,2),rand(-2,2),1.1,3.5,9,.93,.93,.95,.5,0,0);FX.puff(m.pos.x-m.dir.x*4,m.pos.y-m.dir.y*4,m.pos.z-m.dir.z*4,0,0,0,.09,7,4,1,.7,.3,1,1,0)}
     if(m.local){if(m.life<=0||m.pos.y<groundH(m.pos.x,m.pos.z)){endMissile(m,m.life<=0?2:1);continue}}
-    else if(m.life<-1.5){scene.remove(m.mesh);G.missiles.splice(i,1)}
+    else if(m.life<-1.5)G.missiles.splice(i,1);
   }
   if(inc>0&&G.incoming===0)sfx('warn');
   G.incoming=inc;
@@ -1007,16 +1018,19 @@ function updateFlares(dt){
 
 // ---------- pickups: rings to fly through ----------
 const PICK_RGB=[[.3,.86,.48],[1,.6,.16],[.95,.97,1]],PICK_HEX=[0x4ddc7a,0xff9a2a,0xf2f6ff],PICK_NAME=['Repairs','Missiles','Flares'];
+// All twelve rings are two instanced meshes (the rings, and the gems in them), so they cost 2 draw calls, not 24.
+const PICK_RING=instMesh(new THREE.TorusGeometry(17,1.7,8,28),new THREE.MeshBasicMaterial({color:0xffffff,fog:false}),12,true);
+const PICK_CORE=instMesh(new THREE.OctahedronGeometry(4),new THREE.MeshBasicMaterial({color:0xffffff}),12,true);
 const PICKS=[[-900,-620,170],[1040,-60,70],[-1500,420,190],[810,-1350,75],[-560,1300,170],[1395,1170,80],[0,0,330],[1470,-530,75],[-1750,-1250,200],[515,945,75],[-320,-1750,180],[-1150,1750,200]].map((q,i)=>{
   const kind=i%3,y=Math.max(groundH(q[0],q[1]),0)+q[2];
-  const mesh=new THREE.Mesh(new THREE.TorusGeometry(17,1.7,8,28),new THREE.MeshBasicMaterial({color:PICK_HEX[kind],fog:false}));mesh.position.set(q[0],y,q[1]);scene.add(mesh);
-  const core=new THREE.Mesh(new THREE.OctahedronGeometry(4),new THREE.MeshBasicMaterial({color:PICK_HEX[kind]}));mesh.add(core);
-  return {x:q[0],y,z:q[1],kind,until:0,mesh,i};
+  const mesh=new THREE.Object3D();mesh.position.set(q[0],y,q[1]);
+  return {x:q[0],y,z:q[1],kind,until:0,mesh,i,c3:new THREE.Color(PICK_HEX[kind])};
 });
 function updatePicks(dt){
-  const now=netNow(),live=G.phase==='play';
+  const now=netNow(),live=G.phase==='play';let np=0;
   for(const p of PICKS){
     const on=now>=p.until;p.mesh.visible=on;if(!on)continue;p.mesh.rotation.y+=dt*1.2;
+    p.mesh.updateMatrix();PICK_RING.setMatrixAt(np,p.mesh.matrix);PICK_CORE.setMatrixAt(np,p.mesh.matrix);PICK_RING.setColorAt(np,p.c3);PICK_CORE.setColorAt(np,p.c3);np++;
     if(!live)continue;
     for(const e of G.ents.values()){
       if(!e.local||!e.alive)continue;const dx=e.pos.x-p.x,dy=e.pos.y-p.y,dz=e.pos.z-p.z;
@@ -1027,6 +1041,7 @@ function updatePicks(dt){
       }
     }
   }
+  PICK_RING.count=PICK_CORE.count=np;PICK_RING.visible=PICK_CORE.visible=np>0;PICK_RING.instanceMatrix.needsUpdate=PICK_CORE.instanceMatrix.needsUpdate=PICK_RING.instanceColor.needsUpdate=PICK_CORE.instanceColor.needsUpdate=true;
 }
 
 // =====================================================================
@@ -1091,7 +1106,7 @@ function botThink(e,dt){
 }
 
 // ---------- planes other browsers fly ----------
-const SMP={x:0,y:0,z:0,h:0,p:0,r:0};
+const SMP={x:0,y:0,z:0,h:0,p:0,r:0},SMP_LIN=['x','y','z'],SMP_ANG=['h','p','r'];
 function pushSnap(e,ts,x,y,z,h,p,r,now){
   if(!e.lag){e.lag=NetSmooth.lag();e.snaps=[]}
   if(!e.lag.note(ts,now))return;
@@ -1101,21 +1116,27 @@ function pushSnap(e,ts,x,y,z,h,p,r,now){
 }
 function sampleRemote(e,dt,now){
   if(!e.lag||!e.snaps.length)return;
-  NetSmooth.sample(e.snaps,e.lag.time(now),SMP,['x','y','z'],['h','p','r']);
+  NetSmooth.sample(e.snaps,e.lag.time(now),SMP,SMP_LIN,SMP_ANG);
   e.pos.set(SMP.x,SMP.y,SMP.z);e.h=SMP.h;e.p=SMP.p;e.r=SMP.r;dirOf(e.h,e.p,e.fwd);e.vel.copy(e.fwd).multiplyScalar(e.speed);
   if(e.alive&&e.firing){e.gunT-=dt;let n=0;while(e.gunT<=0&&n++<3){e.gunT+=GUN_RATE;shoot(e,false)}}else e.gunT=0;
 }
 
 // ---------- drawing the planes, their trails and smoke ----------
+const PM=new THREE.Matrix4(),PM2=new THREE.Matrix4();
 function drawEnts(dt){
   const cp=camera.position;
+  for(const q of PLANE_INST){q.body.count=q.trim.count=0}
+  let np=0,ns=0;
   for(const e of G.ents.values()){
     const m=e.mesh,show=e.alive&&!e.out;m.visible=show;if(!show)continue;
     const d=e.pos.distanceTo(cp);e.vscale=e===G.me?1:clamp(d/260,1,3);
-    m.position.copy(e.pos);m.rotation.set(-e.p,e.h,e.r);m.scale.setScalar(e.vscale);
-    const u=m.userData,col=entColor(e);if(u.col!==col){u.col=col;u.body.material.color.set(col)}
-    u.sh.visible=e.shield>0;
-    const pr=m.children[2];if(pr&&pr!==u.sh)pr.rotation.z+=dt*40;
+    m.position.copy(e.pos);m.rotation.set(-e.p,e.h,e.r);m.scale.setScalar(e.vscale);m.updateMatrix();
+    const u=m.userData,col=entColor(e);if(u.col!==col){u.col=col;u.c3.set(col)}
+    const q=PLANE_INST[e.frame],k=q.body.count;
+    if(k<PLANE_MAX){q.body.setMatrixAt(k,m.matrix);q.body.setColorAt(k,u.c3);q.trim.setMatrixAt(k,m.matrix);q.body.count=q.trim.count=k+1}
+    if(e.shield>0&&ns<PLANE_MAX)SHIELD_INST.setMatrixAt(ns++,m.matrix);
+    const pg0=PLANE_GEO[e.frame];
+    if(pg0.prop&&np<PLANE_MAX){u.propA+=dt*40;PM2.makeRotationZ(u.propA).scale(T4.set(pg0.propR,pg0.propR,pg0.propR)).setPosition(0,0,pg0.prop);PM.multiplyMatrices(m.matrix,PM2);PROP_INST.setMatrixAt(np++,PM)}
     e.trailT-=dt;if(e.trailT>0||d>2600)continue;e.trailT=FX.low()?.07:.035;
     const pg=PLANE_GEO[e.frame],cr=Math.cos(e.r),sr=Math.sin(e.r),rx=-Math.cos(e.h),rz=Math.sin(e.h);
     if(e.speed>112||e.boosting||Math.abs(e.yr)>.75){
@@ -1127,6 +1148,12 @@ function drawEnts(dt){
     if(e.boosting)FX.puff(e.pos.x+e.fwd.x*pg.tail,e.pos.y+e.fwd.y*pg.tail,e.pos.z+e.fwd.z*pg.tail,0,0,0,.14,7,3,1,.72,.3,1,1,0);
     if(e.hp<45)FX.puff(e.pos.x+e.fwd.x*pg.tail*.5,e.pos.y,e.pos.z+e.fwd.z*pg.tail*.5,rand(-3,3),rand(2,8),rand(-3,3),e.hp<22?2.2:1.4,4,e.hp<22?16:11,.16,.16,.18,.55,0,0);
   }
+  // an instanced mesh with nothing in it is hidden, so it costs no draw call
+  for(const q of PLANE_INST){const on=q.body.count>0;q.body.visible=q.trim.visible=on;if(on){q.body.instanceMatrix.needsUpdate=q.body.instanceColor.needsUpdate=q.trim.instanceMatrix.needsUpdate=true}}
+  PROP_INST.count=np;PROP_INST.visible=np>0;if(np)PROP_INST.instanceMatrix.needsUpdate=true;SHIELD_INST.count=ns;SHIELD_INST.visible=ns>0;if(ns)SHIELD_INST.instanceMatrix.needsUpdate=true;
+  // missiles: one instanced mesh for all of them
+  let nm=0;for(const ms of G.missiles){if(nm>=MSL_MAX_DRAWN)break;ms.mesh.updateMatrix();MSL_INST.setMatrixAt(nm++,ms.mesh.matrix)}
+  MSL_INST.count=nm;MSL_INST.visible=nm>0;if(nm)MSL_INST.instanceMatrix.needsUpdate=true;
 }
 
 // =====================================================================
@@ -1336,7 +1363,7 @@ function applyRS(rs){
 }
 function beginMatch(){
   const rs=G.rs;G.matchId=rs.id;G.phase='play';G.flewFrom=Math.max(netNow(),rs.t0);G.ended=false;G.paused=false;setSky(rs.sky);
-  for(const m of G.missiles)scene.remove(m.mesh);G.missiles.length=0;G.flares.length=0;hitAcc.clear();
+  G.missiles.length=0;G.flares.length=0;hitAcc.clear();
   let i=0;
   for(const e of G.ents.values())if(e.local){e.kills=0;e.deaths=0;e.alive=false;e.respT=.05+(e.bot?.12*(++i):0);e.mesh.visible=false}
   for(const p of PICKS)p.until=0;
@@ -1571,7 +1598,7 @@ function updateCamera(dt){
   camera.updateMatrixWorld();
   // inside a cloud everything goes white
   let w=0;const p=camera.position;
-  for(const b of cloudBlobs){const dx=(p.x-b[0])/b[3],dy=(p.y-b[1])/b[4],dz=(p.z-b[2])/b[5],q=dx*dx+dy*dy+dz*dz;if(q<1){w=Math.max(w,1-q)}}
+  if(p.y>CLOUD_Y0&&p.y<CLOUD_Y1)for(let i=0;i<cloudBlobs.length;i++){const b=cloudBlobs[i],dy=(p.y-b[1])/b[4];if(dy>=1||dy<=-1)continue;const dx=(p.x-b[0])/b[3],dz=(p.z-b[2])/b[5],q=dx*dx+dy*dy+dz*dz;if(q<1&&1-q>w)w=1-q}
   G.white+=(Math.min(.82,w*1.6)-G.white)*Math.min(1,dt*6);
   skyDome.position.copy(p);
 }
@@ -1584,10 +1611,14 @@ function toScreen(v){
   T1.copy(v).applyMatrix4(camera.matrixWorldInverse);const f=(VH/2)/Math.tan(camera.fov*Math.PI/360);
   SC.cx=T1.x;SC.cy=T1.y;SC.front=T1.z<-1;const z=Math.max(-T1.z,1);SC.x=VW/2+T1.x/z*f;SC.y=VH/2-T1.y/z*f;return SC;
 }
-const put=(el,x,y)=>{el.style.transform='translate('+x.toFixed(1)+'px,'+y.toFixed(1)+'px)'};
+// HUD writes only go to the page when the value changed (half-pixel steps for positions), so a still HUD costs nothing.
+const put=(el,x,y)=>{x=Math.round(x*2);y=Math.round(y*2);if(el._x===x&&el._y===y)return;el._x=x;el._y=y;el.style.transform='translate('+x/2+'px,'+y/2+'px)'};
+const setOp=(el,v)=>{if(el._o!==v){el._o=v;el.style.opacity=v}};
+const setBar=(el,v)=>{v=Math.round(v*500);if(el._b!==v){el._b=v;el.style.transform='scaleX('+v/500+')'}};
 const marks=[];
 (function(){const box=$('marks');for(let i=0;i<8;i++){const d=document.createElement('div');d.className='mark';d.hidden=true;d.innerHTML='<u><i></i></u><span></span>';box.appendChild(d);marks.push({el:d,name:d.querySelector('span'),hp:d.querySelector('i'),txt:'',hpv:-1,cls:''})}})();
 let hudT=0,bannerT=0,hitT=0;
+const HE={};for(const id of ['vign','white','reticle','nose','lead','lockRing','hpF','boF','heF'])HE[id]=$(id);
 function banner(t,sub,ms){const b=$('banner');b.textContent=TX(t);if(sub){const s=document.createElement('small');s.textContent=TX(sub);b.appendChild(s)}b.classList.add('on');bannerT=(ms||1500)/1000}
 function hitMark(){hitT=.12;$('hitm').classList.add('on')}
 function feedLine(by,v,w){
@@ -1605,11 +1636,11 @@ function updateHud(dt){
   if(bannerT>0){bannerT-=dt;if(bannerT<=0)$('banner').classList.remove('on')}
   if(hitT>0){hitT-=dt;if(hitT<=0)$('hitm').classList.remove('on')}
   G.hurtFlash=Math.max(0,G.hurtFlash-dt*1.6);
-  $('vign').style.opacity=(fly?Math.max(G.hurtFlash,me.hp<30?.35:0):0).toFixed(2);
-  $('white').style.opacity=G.white.toFixed(2);
+  setOp(HE.vign,(fly?Math.max(G.hurtFlash,me.hp<30?.35:0):0).toFixed(2));
+  setOp(HE.white,G.white.toFixed(2));
   // aim ring, gun cross, lead diamond, lock ring
-  const ret=$('reticle'),nose=$('nose'),lead=$('lead'),lr=$('lockRing');
-  ret.hidden=nose.hidden=!fly;
+  const ret=HE.reticle,nose=HE.nose,lead=HE.lead,lr=HE.lockRing;
+  if(ret.hidden===fly)ret.hidden=nose.hidden=!fly;
   let tg=fly?G.tgt:null;if(tg&&!tg.alive)tg=null;
   let nx=0,ny=0,leadOn=false;
   if(fly){
@@ -1622,7 +1653,7 @@ function updateHud(dt){
         s=toScreen(T3);if(s.front){leadOn=true;put(lead,s.x,s.y);lead.classList.toggle('on',Math.hypot(s.x-nx,s.y-ny)<16)}}
     }
   }
-  lead.hidden=!leadOn;
+  if(lead.hidden===leadOn)lead.hidden=!leadOn;
   // boxes round the other planes, arrows for the ones off screen
   let mi=0;const edge=Math.min(VW,VH)*.4;
   if(G.phase==='play'&&G.mode!=='menu')for(const e of G.ents.values()){
@@ -1631,21 +1662,21 @@ function updateHud(dt){
     const on=s.front&&s.x>10&&s.x<VW-10&&s.y>10&&s.y<VH-10;
     if(!on&&!isT&&(!foe||d>1300))continue;
     mi++;let cls='mark'+(foe?'':' fr')+(isT?' tg':'')+(on?'':' off');
-    if(on){const sz=clamp(2600/d,24,64);m.el.style.width=m.el.style.height=sz.toFixed(0)+'px';m.el.style.margin=(-sz/2).toFixed(0)+'px 0 0 '+(-sz/2).toFixed(0)+'px';put(m.el,s.x,s.y)}
-    else{let ax=s.cx,ay=-s.cy;if(!s.front&&Math.hypot(ax,ay)<1e-3)ay=1;const a=Math.atan2(ay,ax);m.el.style.width=m.el.style.height='';m.el.style.margin='';m.el.style.setProperty('--a',(a*57.2958).toFixed(0)+'deg');put(m.el,VW/2+Math.cos(a)*edge,VH/2+Math.sin(a)*edge)}
+    if(on){const sz=Math.round(clamp(2600/d,24,64));if(m.sz!==sz){m.sz=sz;m.el.style.width=m.el.style.height=sz+'px';m.el.style.margin=(-sz/2).toFixed(0)+'px 0 0 '+(-sz/2).toFixed(0)+'px'}put(m.el,s.x,s.y)}
+    else{let ax=s.cx,ay=-s.cy;if(!s.front&&Math.hypot(ax,ay)<1e-3)ay=1;const a=Math.atan2(ay,ax),deg=Math.round(a*57.2958);if(m.sz!==0){m.sz=0;m.el.style.width=m.el.style.height='';m.el.style.margin=''}if(m.deg!==deg){m.deg=deg;m.el.style.setProperty('--a',deg+'deg')}put(m.el,VW/2+Math.cos(a)*edge,VH/2+Math.sin(a)*edge)}
     if(m.cls!==cls){m.cls=cls;m.el.className=cls}
-    const txt=e.name+' '+Math.round(d/10)*10+'m';if(m.txt!==txt){m.txt=txt;m.name.textContent=txt}
+    const dm=Math.round(d/10)*10;if(m.e!==e||m.dm!==dm||m.nm!==e.name){m.e=e;m.dm=dm;m.nm=e.name;m.name.textContent=e.name+' '+dm+'m'}
     const hv=Math.round(e.hp/5);if(m.hpv!==hv){m.hpv=hv;m.hp.style.width=clamp(e.hp,0,100)+'%'}
-    m.el.hidden=false;
+    if(m.el.hidden)m.el.hidden=false;
     if(isT){
       const lk=fly&&me.lock.id===e.id?me.lock.t/LOCK_T:0;
-      if(lk>0&&on){lr.hidden=false;put(lr,s.x,s.y);const full=lk>=1;lr.classList.toggle('locked',full);const lt=TX(full?'LOCKED':'LOCKING');if(lr.firstElementChild.textContent!==lt)lr.firstElementChild.textContent=lt;lr.style.opacity=full?1:(.4+lk*.6).toFixed(2)}else lr.hidden=true;
+      if(lk>0&&on){lr.hidden=false;put(lr,s.x,s.y);const full=lk>=1;lr.classList.toggle('locked',full);const lt=TX(full?'LOCKED':'LOCKING');if(lr.firstElementChild.textContent!==lt)lr.firstElementChild.textContent=lt;setOp(lr,full?'1':(.4+lk*.6).toFixed(2))}else if(!lr.hidden)lr.hidden=true;
     }
   }
-  if(!tg)lr.hidden=true;
+  if(!tg&&!lr.hidden)lr.hidden=true;
   for(let i=mi;i<marks.length;i++)if(!marks[i].el.hidden)marks[i].el.hidden=true;
   // bars every frame, text a few times a second
-  if(fly){$('hpF').style.transform='scaleX('+(me.hp/100).toFixed(3)+')';$('boF').style.transform='scaleX('+me.boostM.toFixed(3)+')';$('heF').style.transform='scaleX('+me.heat.toFixed(3)+')'}
+  if(fly){setBar(HE.hpF,me.hp/100);setBar(HE.boF,me.boostM);setBar(HE.heF,me.heat)}
   hudT-=dt;if(hudT>0)return;hudT=.12;
   if(touch.fill&&me)touch.fill.style.height=(me.thr*100).toFixed(0)+'%';
   const now=netNow();
@@ -1884,7 +1915,7 @@ function frame(t){
 setSky(0);showMenu();requestAnimationFrame(frame);
 addEventListener('pagehide',()=>{if(G.online)Net.leave()});
 // A hook for automated tests only (browsers driven by a test tool say so with navigator.webdriver).
-if(navigator.webdriver)window.__skd={ff(s){for(let i=0;i<s*30;i++)simStep(1/30,performance.now())},G,Net,FX,PICKS,KB,camera,spawn,kill,emit,hostStart,hostTick,groundH,keys,touch,standings,fireMissile,dropFlare,setSky,onlineCfg,solo,DIFF,mkEnt,endMatch,rateMatch,startSolo};
+if(navigator.webdriver)window.__skd={ff(s){for(let i=0;i<s*30;i++)simStep(1/30,performance.now())},G,Net,FX,PICKS,KB,camera,spawn,kill,emit,hostStart,hostTick,groundH,keys,touch,standings,fireMissile,dropFlare,setSky,onlineCfg,solo,DIFF,mkEnt,endMatch,rateMatch,startSolo,renderer,scene,simStep,updateHud,drawEnts,updateCamera,frame,PLANE_GEO};
 })();
 </script>
 </body>
