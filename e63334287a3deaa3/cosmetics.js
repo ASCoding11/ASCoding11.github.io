@@ -1070,7 +1070,7 @@
   I('backrooms-1v1', 'build', 2, 'Ice Block', 'uncommon', '#E4F4FB', '#6E9CB4', 'Frosted ice with cracks. You still cannot see through it.');
   I('backrooms-1v1', 'build', 3, 'Candy Stripes', 'rare', '#F27AA8', '#FBE8EF', 'Pink and white stripes with sprinkles.');
   I('backrooms-1v1', 'build', 4, 'Scrap Metal', 'uncommon', '#A4ABB2', '#5A6068', 'Bolted grey plates with a little rust.');
-  I('backrooms-1v1', 'build', 5, 'Cardboard', 'common', '#D6B98A', '#8A6A40', 'A flattened box, tape and all.');
+  I('backrooms-1v1', 'build', 5, 'Bubble Wrap', 'common', '#DFE9EF', '#7F9CB0', 'Rows of little air bubbles. Please do not pop them in a fight.');
   I('backrooms-1v1', 'build', 6, 'Marble', 'rare', '#EEECE8', '#8A8A94', 'White stone with grey veins.');
   I('backrooms-1v1', 'elim', 1, 'Confetti Pop', 'common', '#FF5C8A', '#58B4FF', 'A small burst of paper confetti where they fall.');
   I('backrooms-1v1', 'elim', 2, 'Noclip Glitch', 'epic', '#6FF4FF', '#FF4FD8', 'They flicker into glowing blocks, as if they slipped out of the level.');
