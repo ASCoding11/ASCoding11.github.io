@@ -6,7 +6,9 @@
  * <header>, so the home page's reveal(), which copies that header, gets it too; the phone page has one right under
  * its header). Nothing is moved by layout.js, because it isn't one of its blocks.
  *
- * The list of schools is SCHOOLS below: Avenues (New York) and St. Andrew's Scots School (Olivos, Buenos Aires). Add a school by adding a row:
+ * The list of schools is SCHOOLS below: Avenues (New York) and St. Andrew's Scots School (Olivos, Buenos Aires). Only rows
+ * with `suggest: true` (Avenues) show before a search; every other school is found by searching, and Add my school asks us
+ * to add one that isn't there. Add a school by adding a row:
  * { id: short lowercase id that never changes, name, place }. The last button is always "Not listed".
  *
  * Storage: localStorage `school:v1` = the chosen school's id ('avenues'), or 'other' for Not listed; no key means
@@ -29,7 +31,7 @@
       'Not listed': 'No está', 'My school isn’t here yet': 'Mi escuela todavía no está',
       'Not listed yet. More schools are coming soon.': 'Todavía no está en la lista. Pronto habrá más escuelas.',
       'You go to {s}. More schools are coming soon.': 'Vas a {s}. Pronto habrá más escuelas.',
-      'Search for your school': 'Busca tu escuela', 'Search schools': 'Buscar escuelas',
+      'Search for your school': 'Busca tu escuela', 'Pick your school, or search for it.': 'Elige tu escuela o búscala.', 'Search schools': 'Buscar escuelas',
       'Add my school': 'Agregar mi escuela', 'Ask us to add it': 'Pídenos que la agreguemos',
       'No school matches “{q}”.': 'Ninguna escuela coincide con “{q}”.',
       'Add your school': 'Agrega tu escuela',
@@ -52,7 +54,7 @@
 
   var KEY = 'school:v1';
   var SCHOOLS = [
-    { id: 'avenues', name: 'Avenues', place: 'New York' },
+    { id: 'avenues', name: 'Avenues', place: 'New York', suggest: true },   // suggest: shown before any search
     { id: 'standrews', name: 'St. Andrew\u2019s Scots School', place: 'Buenos Aires' }
   ];
   var OTHER = { id: 'other', name: 'Not listed', place: 'My school isn’t here yet' };
@@ -144,7 +146,7 @@
       '<label class="sch-find">' + SEARCH + '<input type="search" class="sch-q" placeholder="Search for your school" aria-label="Search schools" autocomplete="off" spellcheck="false"></label>' +
       '<div class="sch-opts" role="radiogroup" aria-labelledby="' + id + '">' +
       SCHOOLS.map(function (s) {
-        return '<button type="button" class="sch-opt" role="radio" aria-checked="false" data-id="' + esc(s.id) + '" data-k="' + esc(norm(s.name + ' ' + s.place + ' ' + (s.k || ''))) + '"><b>' + esc(s.name) + '</b><small>' + esc(s.place) + '</small></button>';
+        return '<button type="button" class="sch-opt" role="radio" aria-checked="false" data-id="' + esc(s.id) + '" data-k="' + esc(norm(s.name + ' ' + s.place + ' ' + (s.k || ''))) + '"' + (s.suggest ? ' data-suggest' : '') + '><b>' + esc(s.name) + '</b><small>' + esc(s.place) + '</small></button>';
       }).join('') +
       '<button type="button" class="sch-opt sch-add-b" role="radio" aria-checked="false" data-id="other"><b>Add my school</b><small>Ask us to add it</small></button>' +
       '</div><p class="sch-none" hidden></p>' +
@@ -162,10 +164,12 @@
     var q = el.querySelector('.sch-q'), none = el.querySelector('.sch-none'), form = el.querySelector('.sch-form');
     var fn = el.querySelector('.sch-fn'), fc = el.querySelector('.sch-fc'), fk = el.querySelector('.sch-fk'), msg = el.querySelector('.sch-msg'), go = form.querySelector('.go');
     function filter() {
-      var w = norm(q.value).split(' ').filter(Boolean), shown = 0;
+      // Before any search only the suggested schools (and the one you picked) show; every other school is found by searching.
+      var w = norm(q.value).split(' ').filter(Boolean), shown = 0, c = current();
       [].forEach.call(el.querySelectorAll('.sch-opt[data-k]'), function (b) {
-        var ok = w.every(function (x) { return b.getAttribute('data-k').indexOf(x) >= 0; });
-        b.hidden = !ok; if (ok) shown++;
+        var ok = w.length ? w.every(function (x) { return b.getAttribute('data-k').indexOf(x) >= 0; })
+          : b.hasAttribute('data-suggest') || !!(c && c.id === b.getAttribute('data-id'));
+        b.hidden = !ok; if (ok && w.length) shown++;
       });
       none.hidden = !(w.length && !shown);
       if (!none.hidden) none.textContent = T('No school matches “{q}”.', { q: clean(q.value, 60) });
@@ -177,6 +181,7 @@
       (fn.value ? fc : fn).focus();
     }
     q.addEventListener('input', filter);
+    el._filter = filter;
     q.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && q.value) { e.preventDefault(); q.value = ''; filter(); }
       if (e.key === 'Enter') { e.preventDefault(); var v = el.querySelector('.sch-opt[data-k]:not([hidden])'); if (v && q.value) { set(v.getAttribute('data-id')); v.focus(); } else openForm(); }
@@ -221,6 +226,7 @@
     draw(el);
   }
   function draw(el) {
+    if (el._filter) el._filter();
     var c = current(), sub = el.querySelector('.sch-sub'), any = false, r = req();
     [].forEach.call(el.querySelectorAll('.sch-opt'), function (b) {
       var on = !!c && b.getAttribute('data-id') === c.id;
@@ -228,7 +234,7 @@
       b.tabIndex = on ? 0 : -1; if (on) any = true;
     });
     if (!any) { var f = el.querySelector('.sch-opt'); if (f) f.tabIndex = 0; }
-    if (!c) sub.textContent = 'Pick where you go. More schools are coming soon.';
+    if (!c) sub.textContent = 'Pick your school, or search for it.';
     else if (c === OTHER && r) sub.textContent = T('You asked us to add {s} ({p}). We’ll add it soon.', { s: r.n, p: r.p });
     else if (c === OTHER) sub.textContent = 'Not listed yet. More schools are coming soon.';
     else sub.innerHTML = T('You go to {s}. More schools are coming soon.', { s: '<b>' + esc(c.name) + '</b>' });

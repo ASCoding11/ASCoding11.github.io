@@ -74,8 +74,9 @@
  *   img   optional: a picture the advertiser has said we may use, saved inside the Back Room folder (say
  *         'ads/<name>.png'): wide rather than tall, about 600 × 200 (twice its largest size on the page), a
  *         transparent .png or a .jpg/.webp, under about 60 KB. Left empty (or if the file is missing), the tile
- *         shows a little drawing made in code instead, chosen by `art` ('candy', a candy bar, 'car', a plain car, or
- *         'video', a screen with a play button; never a company's logo). `alt` says what the picture shows.
+ *         shows a little drawing made in code instead, chosen by `art` ('candy', a candy bar, 'car', a plain car,
+ *         'video', a screen with a play button, or 'youtube', YouTube's own icon, only for a link to a YouTube channel,
+ *         as YouTube's brand guidelines allow; never any other company's logo). `alt` says what the picture shows.
  *   href  an https:// address; anything else switches the tile off.
  *
  * Several entries can share a date (say 1.7 and then 1.7.1 the same day); they're shown
@@ -447,9 +448,9 @@
       line: 'Souleymane\u2019s YouTube channel. Go watch and subscribe.',
       button: 'Watch',                                        // short, so the channel name fits beside it
       href: 'https://www.youtube.com/@souls_type',            // his channel page
-      img: '', alt: '',                                       // no picture: a screen with a play button drawn in code (art), not YouTube's logo
-      art: 'video',
-      bg: '#24184A', ink: '#FFFFFF', btn: '#7CF0D0', btnInk: '#1B1338'
+      img: '', alt: '',                                       // no picture: YouTube's own icon, drawn in code (art 'youtube')
+      art: 'youtube',
+      bg: '#0F0F0F', ink: '#FFFFFF', btn: '#FF0000', btnInk: '#FFFFFF'   // YouTube's near-black and red
     }
   ];
 
@@ -574,7 +575,7 @@
     var hex = function (x, d) { return typeof x === 'string' && /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(x) ? x : d; };
     if (!A || A.on !== true || !txt(A.name, 28) || typeof A.href !== 'string' || !/^https:\/\/[a-z0-9][a-z0-9.-]*\.[a-z]{2,}(?:\/[\w\-./?=&%#@]*)?$/i.test(A.href)) return null;
     return { name: txt(A.name, 28), line: txt(A.line, 60), button: txt(A.button, 18) || 'Learn more', href: A.href, img: imgsOf(A)[0] || '', alt: txt(A.alt, 120),
-      art: A.art === 'car' || A.art === 'video' ? A.art : 'candy',
+      art: A.art === 'car' || A.art === 'video' || A.art === 'youtube' ? A.art : 'candy',
       bg: hex(A.bg, '#FFD23F'), ink: hex(A.ink, '#2A1608'), btn: hex(A.btn, '#C2185B'), btnInk: hex(A.btnInk, '#FFFFFF') };
   }).filter(Boolean).slice(0, 2);
   window.BackRoomNews.ad = ads[0] ? { name: ads[0].name, href: ads[0].href } : null;
@@ -664,7 +665,13 @@
     '<path d="M61 51h78" stroke="var(--ad-ink)" stroke-opacity=".3" stroke-width="3" stroke-linecap="round"/>' +
     '<path d="M61 51h34" stroke="var(--ad-btn)" stroke-width="3" stroke-linecap="round"/><circle cx="95" cy="51" r="3.5" fill="var(--ad-btn)"/>' +
     '<path d="M28 22l10 6-10 6zM164 30l8 5-8 5z" fill="var(--ad-btn)" fill-opacity=".55"/></svg>';
-  var ARTS = { candy: AD_ART, car: CAR_ART, video: VIDEO_ART };
+  // youtube: YouTube's icon (the red rounded play button), drawn to YouTube's own shape and colours, unaltered, with
+  // clear space round it. YouTube's brand guidelines let a creator's channel link use it; it only ever links to a
+  // YouTube channel, and never with another site's name.
+  var YT_ART = '<svg viewBox="0 0 200 70" aria-hidden="true" focusable="false"><g transform="translate(58 6) scale(3)">' +
+    '<path d="M27.4 3.1A3.5 3.5 0 0 0 24.9.6C22.7 0 14 0 14 0S5.3 0 3.1.6A3.5 3.5 0 0 0 .6 3.1C0 5.3 0 10 0 10s0 4.7.6 6.9a3.5 3.5 0 0 0 2.5 2.5C5.3 20 14 20 14 20s8.7 0 10.9-.6a3.5 3.5 0 0 0 2.5-2.5C28 14.7 28 10 28 10s0-4.7-.6-6.9z" fill="#FF0000"/>' +
+    '<path d="M11.2 14.3 18.5 10l-7.3-4.3z" fill="#FFFFFF"/></g></svg>';
+  var ARTS = { candy: AD_ART, car: CAR_ART, video: VIDEO_ART, youtube: YT_ART };
 
   function start() {
     if (document.getElementById('news')) return;
