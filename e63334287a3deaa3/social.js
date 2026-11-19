@@ -394,7 +394,7 @@
     '.onl-dsub{padding:8px 14px;border-bottom:1px solid var(--line);font-size:13px;color:var(--ink-2);flex:none;display:grid;gap:8px}' +
     '.onl-acts{display:flex;flex-wrap:wrap;gap:6px}' +
     '.onl-db{flex:1;overflow:auto;overscroll-behavior:contain;padding:12px 14px;display:flex;flex-direction:column;gap:8px;min-height:0}' +
-    '.onl-db .onl-list{max-height:none;grid-template-columns:minmax(0,1fr)}' +
+    '.onl-db .onl-list{max-height:none;overflow:visible;flex:none;grid-template-columns:minmax(0,1fr)}' +   // full height: the drawer body scrolls, and keeps its place when redrawn
     '.onl-m{max-width:85%;align-self:flex-start;background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:6px 10px;overflow-wrap:anywhere}' +
     '.onl-m.mine{align-self:flex-end;background:color-mix(in srgb,var(--accent) 16%,var(--panel))}' +
     '.onl-m .who{display:block;font-family:var(--mono,monospace);font-size:11px;font-weight:600;letter-spacing:.04em;color:var(--ink-2)}' +
@@ -1489,7 +1489,19 @@
 
   // ---------------- Drawing ----------------
   var drawT = 0;
-  function schedule() { if (!drawT) drawT = setTimeout(function () { drawT = 0; draw(); }, 60); }
+  function schedule() {
+    if (!drawT) drawT = setTimeout(function () {
+      drawT = 0;
+      if (pressing && now() - pressing < 3000) { held = true; return; }   // a click is under way: draw once it lands
+      draw();
+    }, 60);
+  }
+  // From a mouse button or finger going down in the Online panel or drawer until it comes up, nothing there is redrawn,
+  // so the button being pressed is still there when the click lands. (A press longer than 3 seconds stops holding.)
+  var pressing = 0, held = false;
+  function pressEnd() { if (!pressing) return; pressing = 0; if (held) { held = false; setTimeout(schedule, 0); } }
+  document.addEventListener('pointerdown', function (e) { var t = e.target; if (t && t.closest && t.closest('.onl, .onl-dr')) pressing = now(); }, true);
+  ['pointerup', 'pointercancel', 'dragend', 'blur'].forEach(function (ev) { (ev === 'blur' ? window : document).addEventListener(ev, function () { setTimeout(pressEnd, 0); }, true); });
   function label(p) { return mask(p.n) + ' · ' + p.seat; }
   function statusText(p) {
     var g = p.g && gameOf(p.g), bits = [];
@@ -1565,12 +1577,29 @@
   // On phones the panel's list isn't a scroll box of its own (a finger on it couldn't scroll the page past it), so
   // it shows the first few people and a Show everyone button; Find still searches the whole list.
   var PHONE_FEW = 6, showAll = false, phoneMq = window.matchMedia ? window.matchMedia('(max-width:600px)') : null;
-  function fillList(ul, withMe, all0) {
-    ul.textContent = '';
+  // Put what build() makes into box, but only when it differs from what box got last time: the list is redrawn every time
+  // anyone online changes anything (each person's 15-second heartbeat included), and rebuilding it each time threw away
+  // the button under a mouse that was mid-click (so the click never happened) and the list's scroll position.
+  // Compared with what was built last time, not with box's own HTML, because aisles.js and lang.js change the drawn copy.
+  // avatar.js gives each avatar drawing's clip path a new id ("bra" + a counter) every time one is made: not a change.
+  function sameAs(h) { return h.replace(/(id="|url\(#)bra[0-9a-z]+/g, '$1bra'); }
+  function swapIn(box, build) {
+    var tmp = document.createElement(box.tagName); build(tmp);
+    var h = sameAs(tmp.innerHTML); if (box.__built === h) return false;
+    box.__built = h;
+    var st = box.scrollTop; box.textContent = ''; while (tmp.firstChild) box.appendChild(tmp.firstChild); box.scrollTop = st;
+    return true;
+  }
+  function fillList(ul0, withMe, all0) {
+    var n = 0;
+    swapIn(ul0, function (ul) { n = fillInto(ul, ul0, withMe, all0); });
+    return n;
+  }
+  function fillInto(ul, ul0, withMe, all0) {
     var me = el('li'); me.append(personBtn(meEntry(), true));
     var q = all0 ? [] : findQ(), all = others(), os = all.filter(function (p) { return matches(p, q); });
     if (uid && withMe && !q.length) ul.append(me);
-    var cut = ul === $list && !q.length && phoneMq && phoneMq.matches && os.length > PHONE_FEW + 2;
+    var cut = ul0 === $list && !q.length && phoneMq && phoneMq.matches && os.length > PHONE_FEW + 2;
     (cut && !showAll ? os.slice(0, PHONE_FEW) : os).forEach(function (p) { var li = el('li'); li.append(personBtn(p, false)); joinBtn(li, p); ul.append(li); });
     if (cut) {
       var mli = el('li', 'onl-more'), mb = btn(showAll ? 'Show fewer' : 'Show everyone (' + os.length + ')');
@@ -1582,6 +1611,7 @@
       mli.append(mb); ul.append(mli);
     }
     if (q.length && all.length && !os.length) ul.append(el('li', 'onl-nomatch', 'Nobody online matches \u201c' + $find.value.trim() + '\u201d.'));
+    if (ul0 === $list && uid && !all.length) { var li = el('li'); li.append(el('p', 'onl-empty', hidden ? 'You’re hidden, so nobody can see you. Nobody else is around right now either.' : 'Nobody else is here right now. Leave this open and you’ll see people as they arrive.')); ul.append(li); }
     return all.length;
   }
   $find.addEventListener('input', function () { fillList($list); });
@@ -1612,17 +1642,17 @@
     }
     drawTile();
     var mt = uid ? tierOf(uid) : null;
-    $tier.textContent = '';
-    if (mt) { $tier.append(BackRoomMiles.badge(mt)); var ml = milesLine(mt); if (ml) $tier.append(el('span', '', ml)); }
-    // Avis miles (avismiles.js): claim bonus miles for a car booked through Avis.
-    if (uid && window.BackRoomAvisMiles && BackRoomAvisMiles.button) { try { $tier.append(BackRoomAvisMiles.button()); } catch (e) {} }
+    swapIn($tier, function (tb) {
+      if (mt) { tb.append(BackRoomMiles.badge(mt)); var ml = milesLine(mt); if (ml) tb.append(el('span', '', ml)); }
+      // Avis miles (avismiles.js): claim bonus miles for a car booked through Avis.
+      if (uid && window.BackRoomAvisMiles && BackRoomAvisMiles.button) { try { tb.append(BackRoomAvisMiles.button()); } catch (e) {} }
+    });
     $hide.checked = hidden; $join.checked = joinable; $join.disabled = hidden;
     joinLbl.title = hidden ? 'You’re hidden, so nobody sees your games anyway' : 'When you’re in an online game, people here can see it and join you (Playing now, and a Join button by your name)';
     var lu = loungeUnread(); $loungeBtn.lastChild.textContent = lu ? String(lu) : '';
     findRow.hidden = !uid || !os.length;           // nothing to search with nobody else here
     if (findRow.hidden && $find.value) $find.value = '';
     fillList($list);
-    if (uid && !os.length) { var li = el('li'); li.append(el('p', 'onl-empty', hidden ? 'You’re hidden, so nobody can see you. Nobody else is around right now either.' : 'Nobody else is here right now. Leave this open and you’ll see people as they arrive.')); $list.append(li); }
     var dmTotal = 0; Object.keys(threads).forEach(function (u) { dmTotal += unreadOf(u); });
     document.querySelectorAll('.onl-bar:not(.onl-pbar)').forEach(function (b) { b.firstChild.textContent = 'Online ' + n; b.lastChild.textContent = dmTotal + lu ? String(dmTotal + lu) : ''; });
     // Party chat buttons: the Online panel, the Party panel (party.js) and the open game's top bar.
@@ -1657,8 +1687,8 @@
     }
     Array.prototype.forEach.call($ntSw.querySelectorAll('input'), function (inp, i) { inp.checked = open && i === cur; inp.disabled = !open; });
     if (open) $ntSw.removeAttribute('aria-hidden'); else $ntSw.setAttribute('aria-hidden', 'true');   // a guest's colours are only a picture of what's on offer
-    $ntCard.hidden = !open; $ntCard.textContent = '';
-    if (open) $ntCard.append(personBtn(meEntry(), true, 'div'));
+    $ntCard.hidden = !open;
+    swapIn($ntCard, function (c) { if (open) c.append(personBtn(meEntry(), true, 'div')); });
     $ntLine.hidden = open; $ntGo.hidden = open || !A; $ntLink.hidden = open || !!A;
     var line = A ? 'Sign in with Google to choose your colour and edit your avatar.' : 'Sign in with Google on the main site to choose your colour and edit your avatar.';
     if (!open && $ntLine.getAttribute('data-l') !== line) {
@@ -1715,15 +1745,15 @@
     if (v && v.v === 'party') toasts.querySelectorAll('.onl-t[data-k="g"]').forEach(function (t) { t.remove(); });
     view = v; drawnView = ''; dr.classList.add('open'); drawDrawer(); setTimeout(function () { var i = dr.querySelector('.onl-df input[type=text]'); if (i && matchMedia('(pointer: fine)').matches) i.focus(); }, 220); }
   function closeDrawer() { dr.classList.remove('open'); view = null; drawnView = ''; schedule(); }
+  var drawnSig = '';
   function drawDrawer() {
     if (!view) return;
     var key = view.v + ':' + (view.u || '');
     var stick = true, body = dr.querySelector('.onl-db');
     if (body) stick = body.scrollHeight - body.scrollTop - body.clientHeight < 40;
-    var keep = drawnView === key ? dr.querySelector('.onl-df') : null;
-    var prevScroll = body ? body.scrollTop : 0;
-    if (!keep) dr.textContent = '';
-    else { Array.prototype.slice.call(dr.children).forEach(function (c) { if (c !== keep) c.remove(); }); }
+    if (view.v === 'people') stick = false;   // a list of people, not a chat: opens at the top and stays where it was scrolled
+    var keep = drawnView === key ? dr.querySelector('.onl-df') : null, keep0 = keep, same = drawnView === key;
+    var prevScroll = body && same ? body.scrollTop : 0;
     drawnView = key;
     var head = el('div', 'onl-dh');
     if (view.v !== 'people') { var back = el('button', 'onl-x', '‹'); back.type = 'button'; back.setAttribute('aria-label', 'Back to the list'); back.setAttribute('data-act', 'list'); head.append(back); }
@@ -1875,6 +1905,13 @@
       var sb = keep.querySelector('[data-act=send]'); if (sb) sb.disabled = !!why;
       var lm = msgs.length ? msgs[msgs.length - 1].t : 0; if (lm > (seen[u] || 0)) { seen[u] = lm; saveSeen(); }
     }
+    // Nothing in it changed (most redraws are someone's heartbeat): leave the drawer alone, so its scroll position and a
+    // button mid-click stay put. Compared with what was built last time, since aisles.js and lang.js change the drawn copy.
+    var sig = sameAs(key + '\n' + parts.map(function (c) { return c === keep0 ? '' : c.outerHTML; }).join('\n'));
+    if (same && sig === drawnSig) return;
+    drawnSig = sig;
+    if (!keep0) dr.textContent = '';
+    else { Array.prototype.slice.call(dr.children).forEach(function (c) { if (c !== keep0) c.remove(); }); }
     if (keep && keep.parentNode !== dr) parts.push(keep);
     parts.forEach(function (c) { if (c !== keep || keep.parentNode !== dr) dr.insertBefore(c, keep && keep.parentNode === dr ? keep : null); });
     if (stick) body.scrollTop = body.scrollHeight; else body.scrollTop = prevScroll;
