@@ -21,6 +21,26 @@
     catch (e) { console.warn('chars.js failed, using the stand-in', e); window.IVChars = null; await loadScript('js/chars-standin.js'); await IVChars.load(); }
     W.init($('view'));
     if (window.IVChars) IVChars.camera = W.camera;          // chars.js uses it for LOD and far-actor throttling
+    // Workaround for chars.js (reported to its helper): three r128's mixer only writes a bone when its animated value
+    // changes, so the aim offset and IK that chars.js applies after mixer.update() pile up frame after frame while a
+    // pose is still (the body folds forward). Each frame we put the bones back to last frame's mixer result before
+    // update() runs, so the post-mixer passes always start from the animation.
+    if (window.IVChars && !IVChars.standin && !IVChars.__noAccum) {
+      const spawn0 = IVChars.spawn.bind(IVChars);
+      IVChars.spawn = function (kind) {
+        const a = spawn0(kind); if (!a || a.fb) return a;
+        const bones = []; a.root.traverse(o => { if (o.isBone) bones.push(o); });
+        const snap = bones.map(() => [new THREE.Quaternion(), new THREE.Vector3()]); let have = false, taken = false;
+        const take = () => { if (taken) return; taken = true; have = true; for (let i = 0; i < bones.length; i++) { snap[i][0].copy(bones[i].quaternion); snap[i][1].copy(bones[i].position); } };
+        for (const k of ['_applyAim', '_post']) if (typeof a[k] === 'function') { const f = a[k]; a[k] = function () { take(); return f.apply(this, arguments); }; }
+        const up0 = a.update;
+        a.update = function (dt) {
+          if (have) for (let i = 0; i < bones.length; i++) { bones[i].quaternion.copy(snap[i][0]); bones[i].position.copy(snap[i][1]); }
+          taken = false; return up0.call(this, dt);
+        };
+        return a;
+      };
+    }
     // the environment art (ironveil/env/env.js, window.IVEnv) if it is there; the code-made stand-ins otherwise
     if (!IV.params.has('noenv')) { try { await loadScript('env/index.js'); } catch (e) { /* not there yet */ } }
     if (window.IVEnv && IVEnv.init) {
