@@ -7,6 +7,7 @@
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#0b1026">
+<script src="/e63334287a3deaa3/lang.js"></script> <!-- English / Español (only the payment-help words are translated here so far) -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
@@ -167,6 +168,21 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
 #giftdlg .who small{color:var(--ink-3);font-weight:700}
 #giftdlg .err{color:var(--bad);font-size:13.5px;min-height:1em;margin:0}
 #giftdlg .row{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+/* All sales are final, and the Payment help form (sent through feedback.js to the owners, who email back). */
+.pack .final{font-size:12px;color:var(--ink-3);margin:0;text-align:center}
+.payhelp{margin:10px 0 0;font-size:13.5px;color:var(--ink-2)}
+.payhelp .late{display:block;margin-bottom:4px;color:var(--ink)}
+.linkbtn{font:inherit;color:var(--em-2);background:none;border:0;padding:0;text-decoration:underline;cursor:pointer}
+#helpdlg{position:fixed;inset:0;z-index:55;display:flex;background:rgba(4,6,18,.8);padding:16px;overflow:auto}
+#helpdlg .box{margin:auto;width:min(440px,100%);background:var(--panel-2);border:1px solid var(--line);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:10px}
+#helpdlg h2{font-family:var(--f-d);font-weight:600;font-size:20px;margin:0}
+#helpdlg label{display:flex;flex-direction:column;gap:4px;font-size:13.5px;font-weight:700;color:var(--ink-2)}
+#helpdlg input,#helpdlg textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--night);border:1px solid var(--line);border-radius:10px;padding:9px 11px;width:100%;box-sizing:border-box}
+#helpdlg textarea{min-height:96px;resize:vertical}
+@media (max-height:500px){#helpdlg{padding:8px}#helpdlg .box{gap:6px;padding:12px}#helpdlg textarea{min-height:56px}}
+#helpdlg .err{color:var(--bad);font-size:13.5px;min-height:1em;margin:0}
+#helpdlg .ok{color:var(--em-2);font-size:14px;margin:0}
+#helpdlg .row{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
 /* The server wallet: the captains' preview and Stripe test mode bar, and the signed-out note */
 .modebar{display:flex;flex-wrap:wrap;gap:4px 10px;justify-content:center;align-items:center;padding:6px max(16px,env(safe-area-inset-right)) 6px max(16px,env(safe-area-inset-left));font-size:12.5px;font-weight:800;color:var(--ink-2);background:rgba(255,178,56,.08);border-bottom:1px solid var(--line);text-align:center}
 .modebar .tag{display:inline-block;background:var(--mango);color:#2a1700;border-radius:999px;padding:2px 9px;font-size:12px;letter-spacing:.02em;margin-right:4px}
@@ -253,6 +269,22 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
   }
 
   function ls(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  // Spanish (lang.js) for the words added with Payment help and "All sales are final"; lang.js translates them as they
+  // appear (and back), so they are written in English below.
+  if (window.BackRoomLang) BackRoomLang.add({
+    'All sales are final. No refunds.': 'Todas las ventas son finales. No hay reembolsos.',
+    'Payment help': 'Ayuda con un pago', 'Your emeralds haven’t arrived yet.': 'Tus esmeraldas todavía no llegaron.',
+    'Tell us what happened and we’ll email you. We only use your email to answer this. Don’t put card numbers or passwords here.':
+      'Cuéntanos qué pasó y te escribiremos por email. Solo usamos tu email para responderte. No pongas números de tarjeta ni contraseñas.',
+    'Your email': 'Tu email', 'What happened?': '¿Qué pasó?', 'Send request': 'Enviar pedido', 'Sending…': 'Enviando…',
+    'Write a real email address so we can answer.': 'Escribe un email válido para que podamos responderte.',
+    'Say what happened (up to 500 characters).': 'Cuenta qué pasó (hasta 500 caracteres).',
+    "Sent. We'll email you, usually within a few days.": 'Enviado. Te escribiremos por email, normalmente en unos días.',
+    'You already sent a payment help request today. We’ll email you.': 'Ya enviaste un pedido de ayuda con un pago hoy. Te escribiremos por email.',
+    'You’ve sent a lot of notes today. Try again tomorrow.': 'Hoy mandaste muchas notas. Inténtalo mañana.',
+    'Requests aren’t switched on yet, so nothing was sent.': 'Los pedidos todavía no están activados, así que no se envió nada.',
+    'Couldn’t send it. Check your connection and try again.': 'No se pudo enviar. Revisa tu conexión e inténtalo de nuevo.'
+  });
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function el(tag, cls, html) { var e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
   var EM = '<svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1 L14 6 L8 15 L2 6 Z" fill="#2FBF71"/><path d="M8 1 L10.5 6 L8 15 L5.5 6 Z" fill="#7CF0B0" opacity=".7"/><path d="M2 6 L14 6" stroke="#1d8a50" stroke-width=".8"/></svg>';
@@ -371,6 +403,7 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
         if (S) {                                        // the server wallet: Stripe Checkout (store.js), credited by the webhook
           var sb = el('button', 'btn go', 'Buy for $' + p.usd.toFixed(2)); sb.type = 'button'; sb.setAttribute('data-emerald', p.id);
           c.appendChild(sb);
+          c.appendChild(el('p', 'final', 'All sales are final. No refunds.'));   // also on Stripe's page (checkout.js FINAL_TEXT)
           return c;
         }
         // Only a pack with a Payment Link pasted in wallet.js AND PAYMENTS switched on links anywhere; today none does.
@@ -394,8 +427,89 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
         var grid = el('div', 'grid'); grid.style.marginTop = '10px';
         (g[0] === 'emeralds' ? (W.EMERALD_PACKS || []).map(function (e) { return Object.assign({ kind: 'emeralds' }, e); }) : C.PACKS).filter(function (p) { return p.kind === g[0] && (!g[3] || p.game === g[3]); }).forEach(function (p) { grid.appendChild(packCard(p)); });
         t.appendChild(grid);
+        if (g[0] === 'emeralds' && S) {
+          var ph = el('p', 'payhelp');
+          if (late) ph.appendChild(el('span', 'late', 'Your emeralds haven’t arrived yet.'));
+          var lb = el('button', 'linkbtn', 'Payment help'); lb.type = 'button'; lb.setAttribute('data-payhelp', ''); ph.appendChild(lb);
+          t.appendChild(ph);
+        }
       });
     }
+    // ---------- Payment help ----------
+    // All sales are final: the site offers no refunds. Someone with a problem (a charge with no emeralds, a mistake)
+    // sends this form; it goes through feedback.js (BackRoomFeedback.send, sealed for the admin page like every note)
+    // as one note starting "Payment help:", with their email, their account id and the ids, times and amounts of the
+    // wallet's last 5 ledger lines (emerald purchases carry the Stripe Checkout session id), so the owners can find the
+    // payment in Stripe and email them. No card data: the site never has any. One request a day per account here, on
+    // top of feedback.js's own limits.
+    var late = '', hdlg = null, HELP_KEY = 'payhelp:v1', EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
+    function helpTimes() { try { var o = JSON.parse(ls(HELP_KEY) || '{}'); return o && typeof o === 'object' && !Array.isArray(o) ? o : {}; } catch (e) { return {}; } }
+    function signedUid() {
+      try { var St = window.Store; if (St && St.user) return Promise.resolve(St.user()).then(function (u) { return (u && u.uid) || ''; }, function () { return ''; }); } catch (e) {}
+      return Promise.resolve('');
+    }
+    function feedback() {
+      if (window.BackRoomFeedback && BackRoomFeedback.send) return Promise.resolve(BackRoomFeedback);
+      return new Promise(function (res, rej) {
+        var sc = document.createElement('script'); sc.src = '/e63334287a3deaa3/feedback.js';   // the shop has no #home or .wrap, so no suggestion box is added
+        sc.onload = function () { if (window.BackRoomFeedback && BackRoomFeedback.send) res(BackRoomFeedback); else rej(new Error('net')); };
+        sc.onerror = function () { rej(new Error('net')); };
+        document.head.appendChild(sc);
+      });
+    }
+    function helpText(email, what, id) {
+      var out = 'Payment help: ' + what.replace(/\s+/g, ' ').trim() + '\nEmail: ' + email + '\nAccount: ' + (id || 'not signed in') + (late ? '\nCheckout: ' + late : '');
+      var rec = ((W.state && W.state().recent) || []).slice(-5).reverse();
+      if (rec.length) out += '\nLast ' + rec.length + ' wallet lines (time UTC, change in mangos, what, ref):';
+      rec.forEach(function (l) {
+        var line = '\n' + new Date(l[0]).toISOString().slice(0, 16).replace('T', ' ') + ' ' + (l[1] > 0 ? '+' : '') + l[1] + ' ' + String(l[3] || '').slice(0, 40) + (l[4] ? ' [' + String(l[4]).slice(0, 80) + ']' : '');
+        if ((out + line).length <= 1000) out += line;
+      });
+      return out;
+    }
+    function payHelp() {
+      if (hdlg) hdlg.remove();
+      hdlg = el('div'); hdlg.id = 'helpdlg'; hdlg.setAttribute('role', 'dialog'); hdlg.setAttribute('aria-modal', 'true'); hdlg.setAttribute('aria-label', 'Payment help');
+      hdlg.innerHTML = '<form class="box" novalidate><h2>Payment help</h2>' +
+        '<p class="note">Tell us what happened and we’ll email you. We only use your email to answer this. Don’t put card numbers or passwords here.</p>' +
+        '<label><span>Your email</span><input type="email" id="hmail" maxlength="120" autocomplete="email" required placeholder="you@example.com" data-noi18n></label>' +
+        '<label><span>What happened?</span><textarea id="hwhat" maxlength="500" required data-noi18n></textarea></label>' +
+        '<p class="err" id="herr" role="alert"></p><p class="ok" id="hok" role="status" hidden></p>' +
+        '<div class="row"><button type="button" class="btn" id="hno">Cancel</button><button type="submit" class="btn go" id="hyes">Send request</button></div></form>';
+      document.body.appendChild(hdlg);
+      var f = hdlg.querySelector('form'), err = hdlg.querySelector('#herr'), ok = hdlg.querySelector('#hok'), yes = hdlg.querySelector('#hyes');
+      var close = function () { if (hdlg) { hdlg.remove(); hdlg = null; } };
+      hdlg.querySelector('#hno').addEventListener('click', close);
+      hdlg.addEventListener('click', function (e) { if (e.target === hdlg) close(); });
+      hdlg.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+      hdlg.querySelector('#hmail').focus();
+      f.addEventListener('submit', function (e) {
+        e.preventDefault(); if (yes.disabled) return;
+        var email = hdlg.querySelector('#hmail').value.trim(), what = hdlg.querySelector('#hwhat').value.trim();
+        err.textContent = '';
+        if (!EMAIL_RE.test(email) || email.length > 120) { err.textContent = 'Write a real email address so we can answer.'; return; }
+        if (!what || what.length > 500) { err.textContent = 'Say what happened (up to 500 characters).'; return; }
+        yes.disabled = true; yes.textContent = 'Sending…';
+        signedUid().then(function (id) {
+          var times = helpTimes(), key = id || 'signed-out', now = Date.now();
+          if (times[key] && now - times[key] < 864e5) { var x = new Error('today'); x.code = 'today'; throw x; }
+          return feedback().then(function (F) { return F.send(helpText(email, what, id)); }).then(function () {
+            Object.keys(times).forEach(function (k) { if (!(now - times[k] < 864e5)) delete times[k]; });
+            times[key] = now; try { localStorage.setItem(HELP_KEY, JSON.stringify(times)); } catch (e2) {}
+          });
+        }).then(function () {
+          f.querySelectorAll('label').forEach(function (l) { l.hidden = true; });
+          ok.textContent = "Sent. We'll email you, usually within a few days."; ok.hidden = false;
+          yes.hidden = true; hdlg.querySelector('#hno').textContent = 'Close';
+        }, function (x) {
+          var c = x && x.code;
+          err.textContent = c === 'today' ? 'You already sent a payment help request today. We’ll email you.' : c === 'limit' ? 'You’ve sent a lot of notes today. Try again tomorrow.' :
+            c === 'denied' ? 'Requests aren’t switched on yet, so nothing was sent.' : 'Couldn’t send it. Check your connection and try again.';
+          yes.disabled = false; yes.textContent = 'Send request';
+        });
+      });
+    }
+    document.addEventListener('click', function (e) { if (e.target.closest('[data-payhelp]')) payHelp(); });
     function drawDrawBtns() {
       var box = document.getElementById('drawbtns'); box.innerHTML = '';
       [1, 5, 10].forEach(function (n) { var p = C.PACKS_BY_ID['draw-' + n], lab = n === 1 ? '1 chest' : n + ' chests', b = buyBtn(p, lab); b.setAttribute('data-label', lab); box.appendChild(b); setBuyState(b); });
@@ -596,7 +710,7 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
       document.addEventListener('keydown', function esc1(e) { if (!rv) { document.removeEventListener('keydown', esc1); return; } if (e.key === 'Escape') { if (!shown) showCards(); else close(); } });
       setTimeout(showCards, still ? 0 : 1400);
     }
-    if (navigator.webdriver) window.__shop = { reveal: reveal, draw: draw, toast: toast, giftDialog: giftDialog };
+    if (navigator.webdriver) window.__shop = { reveal: reveal, draw: draw, toast: toast, giftDialog: giftDialog, payHelp: payHelp, late: function (s) { late = s; draw(); } };
 
     // ---------- The server wallet: sign-in changes and coming back from Stripe ----------
     if (S) {
@@ -618,7 +732,7 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
       (function poll() {
         var hit = W.state().recent.some(function (l) { return l[4] === ses; });
         if (hit) { toast('Added ' + (pk ? pk.emeralds.toLocaleString('en-US') + ' emeralds' : 'your emeralds') + '. You have ' + W.format() + '.'); draw(); return; }
-        if (Date.now() > end) { toast('Your emeralds are on their way: it can take a minute. Reload the page to check.'); return; }
+        if (Date.now() > end) { late = ses; draw(); toast('Your emeralds are on their way: it can take a minute. Reload the page to check, or use Payment help under the emerald packs.'); return; }
         setTimeout(function () { W.refresh().then(poll); }, 2000);
       })();
     }

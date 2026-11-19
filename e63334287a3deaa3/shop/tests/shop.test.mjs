@@ -43,6 +43,10 @@ async function open(viewport, o) {
   const ctx = await browser.newContext({ viewport, deviceScaleFactor: 1, hasTouch: viewport.width < 600, isMobile: viewport.width < 600 });
   // Nothing real: no database, no Google, no analytics, no fonts.
   await ctx.route(/firebaseio\.com|gstatic\.com|googleapis\.com|googlesyndication|analytics\/tracker|fonts\.g/, r => r.abort());
+  // feedback.js is never loaded for real: its send() is stubbed, so no test note can reach the live feedback collection.
+  await ctx.route('**/e63334287a3deaa3/feedback.js', r => r.fulfill({ contentType: 'text/javascript', body:
+    'window.__sent = window.__sent || []; window.BackRoomFeedback = { send: function (t) { window.__sent.push(t); return window.__feedbackFails ? Promise.reject(Object.assign(new Error("x"), { code: window.__feedbackFails })) : Promise.resolve(); } };' }));
+  if (o.lang) await ctx.addInitScript(l => { try { localStorage.setItem('lang:v1', l); } catch (e) {} }, o.lang);
   await ctx.route('**/account/account.js', r => r.fulfill({ contentType: 'text/javascript', body: '/* the test stand-in for account.js is in the init script */' }));
   await ctx.route('https://checkout.stripe.com/**', r => r.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Stripe Checkout (test stand-in)</title><h1>Stripe Checkout (test stand-in)</h1>' }));
   if (o.paymentsOn) await ctx.route('**/e63334287a3deaa3/wallet.js', async r => { const res = await r.fetch(); r.fulfill({ response: res, body: (await res.text()).replace('enabled: false,', 'enabled: true,') }); });
@@ -228,6 +232,73 @@ test('everything off: the shop and the Back Room page are the same as before thi
     assert.deepEqual(b.api, []);
     if (url === SHOP) assert.ok(a.png.equals(b.png), 'shop screenshot is pixel-identical: ' + url + ' ' + uid);
   }
+});
+
+// ---------- All sales are final, and Payment help ----------
+for (const [sz, vp] of SIZES.concat([['phone-sideways', { width: 844, height: 390 }]])) {
+  test(sz + ': "All sales are final" under every emerald Buy button; Payment help validates, sends one "Payment help:" note a day', async () => {
+    world(); CATALOG.PUBLIC = true;
+    seed(ALICE, { balance: 2000, recent: [{ t: Date.now() - 60000, d: 663, b: 2000, w: 'Bought Emerald Pouch (39 emeralds)', r: 'cs_test_helpme' }] });
+    const { browser, page } = await open(vp, { uid: ALICE, paymentsOn: true });
+    await openShop(page, {});
+    const finals = await page.$$eval('.pack button[data-emerald]', bs => bs.map(b => (b.nextElementSibling && b.nextElementSibling.className === 'final' && b.nextElementSibling.textContent) || ''));
+    assert.equal(finals.length, 6); finals.forEach(f => assert.equal(f, 'All sales are final. No refunds.'));
+    await page.locator('[data-payhelp]').scrollIntoViewIfNeeded();
+    assert.equal(await page.isVisible('[data-payhelp]'), true);
+    assert.deepEqual(await noOverlap(page), []);
+    await page.click('[data-payhelp]');
+    await page.waitForSelector('#helpdlg form');
+    const fits = await page.evaluate(() => { const r = document.querySelector('#helpdlg .box').getBoundingClientRect(), d = document.getElementById('helpdlg'); return r.left >= 0 && r.right <= innerWidth + 1 && r.top >= 0 && (r.bottom <= innerHeight + 1 || d.scrollHeight > d.clientHeight) && document.documentElement.scrollWidth <= innerWidth + 1; });
+    assert.ok(fits, 'the form fits the screen');
+    await shot(page, sz + '-payhelp');
+    const err = () => page.textContent('#herr');
+    await page.click('#hyes'); assert.match(await err(), /real email/);
+    await page.fill('#hmail', 'not an email'); await page.click('#hyes'); assert.match(await err(), /real email/);
+    await page.fill('#hmail', 'parent@example.com'); await page.click('#hyes'); assert.match(await err(), /what happened/);
+    assert.equal(await page.getAttribute('#hwhat', 'maxlength'), '500');
+    await page.fill('#hwhat', 'I was charged $4.99 but no emeralds showed up.');
+    assert.equal(await page.evaluate(() => (window.__sent || []).length), 0, 'nothing sent while the form was invalid');
+    await page.click('#hyes');
+    await page.waitForSelector('#hok:not([hidden])');
+    assert.equal(await page.textContent('#hok'), "Sent. We'll email you, usually within a few days.");
+    const sent = await page.evaluate(() => window.__sent);
+    assert.equal(sent.length, 1);
+    assert.ok(sent[0].startsWith('Payment help: I was charged $4.99 but no emeralds showed up.'));
+    assert.match(sent[0], /\nEmail: parent@example\.com\n/); assert.ok(sent[0].includes('Account: ' + ALICE));
+    assert.ok(sent[0].includes('[cs_test_helpme]') && sent[0].includes('+663'), 'the last ledger lines, with the Checkout session id');
+    assert.ok(sent[0].length <= 1000);
+    await page.click('#hno'); await page.waitForSelector('#helpdlg', { state: 'detached' });
+    // a second request the same day is refused here, before feedback.js
+    await page.click('[data-payhelp]');
+    await page.fill('#hmail', 'parent@example.com'); await page.fill('#hwhat', 'Again'); await page.click('#hyes');
+    await page.waitForFunction(() => /already sent a payment help request today/.test(document.getElementById('herr').textContent));
+    assert.equal(await page.evaluate(() => window.__sent.length), 1);
+    await page.click('#hno');
+    // the "didn't arrive" state shows the line next to the link
+    await page.evaluate(() => window.__shop.late('cs_test_late'));
+    assert.match(await page.textContent('.payhelp'), /haven’t arrived yet/);
+    // a refused send keeps the form and says why
+    await page.evaluate(() => { localStorage.removeItem('payhelp:v1'); window.__feedbackFails = 'limit'; });
+    await page.click('[data-payhelp]'); await page.fill('#hmail', 'parent@example.com'); await page.fill('#hwhat', 'Help'); await page.click('#hyes');
+    await page.waitForFunction(() => /a lot of notes today/.test(document.getElementById('herr').textContent));
+    assert.match(await page.evaluate(() => window.__sent[1]), /\nCheckout: cs_test_late/);
+    await browser.close();
+  });
+}
+test('Spanish: the new shop words follow the Back Room language', async () => {
+  world(); CATALOG.PUBLIC = true; seed(ALICE, { balance: 10 });
+  const { browser, page } = await open(SIZES[1][1], { uid: ALICE, paymentsOn: true, lang: 'es' });
+  await openShop(page, {});
+  await page.waitForFunction(() => document.querySelector('.pack .final') && document.querySelector('.pack .final').textContent === 'Todas las ventas son finales. No hay reembolsos.');
+  assert.equal((await page.textContent('[data-payhelp]')).trim(), 'Ayuda con un pago');
+  await page.click('[data-payhelp]');
+  await page.fill('#hmail', 'x'); await page.click('#hyes');
+  await page.waitForFunction(() => document.getElementById('herr').textContent === 'Escribe un email válido para que podamos responderte.');
+  await page.fill('#hmail', 'parent@example.com'); await page.fill('#hwhat', 'No llegaron'); await page.click('#hyes');
+  await page.waitForFunction(() => document.getElementById('hok').textContent === 'Enviado. Te escribiremos por email, normalmente en unos días.');
+  assert.ok((await page.evaluate(() => window.__sent[0])).startsWith('Payment help: No llegaron'), 'the note itself stays "Payment help:" for the admin filter');
+  await shot(page, 'phone-payhelp-es');
+  await browser.close();
 });
 
 for (const [name, fn] of tests) {
