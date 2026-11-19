@@ -42,14 +42,15 @@ function build() {
   const C = ctx.BackRoomCosmetics, W = ctx.BackRoomWallet;
   if (!C || !W) throw new Error('cosmetics.js or wallet.js did not load');
   const items = {};
-  const add = (id, rarity, kind, give) => {
+  // ITEMS: { id: [rarity, kind ('s' skin, 'a' accessory, 'g' game item), name, give ('free' / 'earned': never sold)] }
+  const add = (id, rarity, kind, name, give) => {
     if (items[id]) throw new Error('two items share the id ' + id + ' (the server keeps one owned list for all of them)');
     if (!C.PRICE[rarity]) throw new Error(id + ': unknown rarity ' + rarity);
-    items[id] = give ? [rarity, kind, give] : [rarity, kind];
+    items[id] = give ? [rarity, kind, name, give] : [rarity, kind, name];
   };
-  C.SKINS.forEach(s => add(s.id, s.rarity, 's'));
-  C.ACCESSORIES.forEach(a => add(a.id, a.rarity, 'a'));
-  C.GAME_ITEMS.forEach(g => add(g.id, g.rarity, 'g', g.give || ''));
+  C.SKINS.forEach(s => add(s.id, s.rarity, 's', s.name));
+  C.ACCESSORIES.forEach(a => add(a.id, a.rarity, 'a', a.name));
+  C.GAME_ITEMS.forEach(g => add(g.id, g.rarity, 'g', g.name, g.give || ''));
   const packs = {};
   C.PACKS.forEach(p => {
     const c = {};

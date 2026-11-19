@@ -4,6 +4,7 @@
 // checkout.session.async_payment_succeeded; its signing secret is STRIPE_WEBHOOK_SECRET.
 import { json, stripeEvent, grant, SKU_RE } from '../_lib.js';
 import { marketPaid } from '../_market.js';
+import { CATALOG, creditEmeralds } from '../_wallet.js';
 
 export async function onRequestPost({ request, env }) {
   const raw = await request.text();
@@ -17,6 +18,14 @@ export async function onRequestPost({ request, env }) {
     try { await marketPaid(env, s, (ev.created || Math.floor(Date.now() / 1000)) * 1000); }
     catch (e) { return json({ error: 'could not record the sale' }, 500); }   // Stripe retries
     return json({ ok: true });
+  }
+  // An emerald pack (functions/_wallet.js): credits wallets/{uid} once per Checkout session, only when the amount and
+  // currency paid match the pack. A mismatch is recorded in orders/{session id} with nothing credited, and not retried.
+  if (s.metadata && Object.prototype.hasOwnProperty.call(CATALOG.EMERALDS, String(s.metadata.sku || ''))) {
+    let r;
+    try { r = await creditEmeralds(env, s, (ev.created || Math.floor(Date.now() / 1000)) * 1000); }
+    catch (e) { return json({ error: 'could not record the purchase' }, 500); }   // Stripe retries
+    return json(Object.assign({ ok: true }, r));
   }
   const uid = String((s.metadata && s.metadata.uid) || s.client_reference_id || ''), sku = String((s.metadata && s.metadata.sku) || '');
   if (!uid || uid.length > 128 || /[/]/.test(uid) || !SKU_RE.test(sku)) return json({ ok: true, skipped: 'no player or item' });
