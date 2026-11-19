@@ -1076,6 +1076,34 @@
   I('drop-zone', 'emote', 8, 'Tip the Hat', 'common', '#B4BAC6', '#3A9BDC', 'A hand to the brim and a polite nod.');
   I('drop-zone', 'emote', 9, 'Pirate Arr', 'uncommon', '#FF6A55', '#FFC93C', 'A fist on your hip, pointing out to sea.');
   I('drop-zone', 'emote', 10, 'Power Down', 'rare', '#C9D1DA', '#3EE6FF', 'Slump, hang, then jerk back on like a robot.');
+  I('drop-zone', 'outfit', 84, 'Race Car Driver', 'rare', '#F2EFE8', '#E8453C', 'A full helmet with a gold visor, a chevron suit and a big 8.');
+  I('drop-zone', 'outfit', 85, 'Beach Volleyball', 'common', '#3A9BDC', '#FFD23F', 'A sleeveless top, a sun visor and a big ball on your back.');
+  I('drop-zone', 'outfit', 86, 'Rugby Player', 'common', '#3A9BDC', '#FFD23F', 'Gold hoops, a padded scrum cap and an oval ball.');
+  I('drop-zone', 'outfit', 87, 'Baseball Catcher', 'uncommon', '#FF8A1F', '#F2EFE8', 'A chest protector, a cage mask and a huge mitt.');
+  I('drop-zone', 'outfit', 88, 'Sprinter', 'common', '#3A9BDC', '#FF6FB5', 'A race bib, pink shorts and a headband with little wings.');
+  I('drop-zone', 'outfit', 89, 'Bowler', 'common', '#F1E6CF', '#3A9BDC', 'A two-tone bowling shirt and a ball and pins on your back.');
+  I('drop-zone', 'outfit', 90, 'Snowboarder', 'uncommon', '#FF8A1F', '#FF9FC7', 'A baggy orange jacket, a beanie with ears and big goggles.');
+  I('drop-zone', 'outfit', 91, 'Hockey Goalie', 'rare', '#F2EFE8', '#FFD23F', 'A painted mask, a blocker, a catching glove and a 30.');
+  I('drop-zone', 'outfit', 92, 'Golden Robot', 'epic', '#FFC93C', '#E8453C', 'Shiny gold from head to toe, with a red eye bar.');
+  I('drop-zone', 'outfit', 93, 'Arcade Bot', 'rare', '#FF9FC7', '#5CE1FF', 'A TV-screen head with a smile and buttons on its chest.');
+  I('drop-zone', 'outfit', 94, 'Wind-Up Robot', 'uncommon', '#FF6A55', '#FFD23F', 'A tin toy in red and white with a big key on its back.');
+  I('drop-zone', 'outfit', 95, 'Pirate Queen', 'legendary', '#FF6A55', '#FFC93C', 'A long red coat, an eye patch and a wide hat with a big plume.');
+  I('drop-zone', 'outfit', 96, 'Pirate Lookout', 'common', '#E8453C', '#F2EFE8', 'A striped shirt, an eye patch, a bandana and a brass spyglass.');
+  I('drop-zone', 'outfit', 97, 'Pirate Cook', 'uncommon', '#F2EFE8', '#FFD23F', 'An eye patch, a floppy cook\'s hat and a pot on your back.');
+  I('drop-zone', 'outfit', 98, 'The Don', 'epic', '#C8B4FF', '#FFC93C', 'A lilac double-breasted suit, a red rose and a white fedora.');
+  I('drop-zone', 'outfit', 99, 'Getaway Driver', 'common', '#FFC13A', '#FF8A1F', 'A mustard driving jacket, a flat cap and orange shades.');
+  I('drop-zone', 'outfit', 100, 'Card Dealer', 'uncommon', '#E8453C', '#FFD23F', 'A red waistcoat, armbands, a gold visor and a fan of cards.');
+  I('drop-zone', 'outfit', 101, 'Winter Tracksuit', 'rare', '#F2EFE8', '#FAF6EE', 'A white tracksuit, a gold chain and a fur hat with ear flaps.');
+  I('drop-zone', 'outfit', 102, 'Retro Rocketeer', 'rare', '#DFE6EE', '#FF6A55', 'A glass bubble helmet and a rocket pack with fins.');
+  I('drop-zone', 'outfit', 103, 'Star Hero', 'epic', '#5CE1FF', '#E8453C', 'A cyan suit, a red mask, a gold star and a red cape.');
+  I('drop-zone', 'outfit', 104, 'Golden Knight', 'legendary', '#FFC93C', '#F2EFE8', 'Gold armour, a great helm with a plume and a shield.');
+  I('drop-zone', 'outfit', 105, 'Jester', 'uncommon', '#FFD23F', '#FF6A55', 'Patches of colour, a zigzag collar and a two-horned cap with bells.');
+  I('drop-zone', 'outfit', 106, 'Disco Star', 'rare', '#FFD23F', '#FF6FB5', 'A sparkly gold shirt, a wide collar, a big hairdo and a mirror ball.');
+  I('drop-zone', 'outfit', 107, 'Shark Onesie', 'common', '#7CC8F8', '#F2EFE8', 'A shark hood with teeth and a fin on your back.');
+  I('drop-zone', 'outfit', 108, 'Unicorn Onesie', 'uncommon', '#F2EFE8', '#FF9FC7', 'A golden horn and a rainbow mane.');
+  I('drop-zone', 'outfit', 109, 'Dino Onesie', 'common', '#FF8A1F', '#5CE1FF', 'An orange dino hood, spikes and a tail.');
+  I('drop-zone', 'outfit', 110, 'Burger Mascot', 'common', '#FFD23F', '#F2C27A', 'A bun head with seeds, cheese, tomato and a lettuce frill.');
+  I('drop-zone', 'outfit', 111, 'Hot Dog Mascot', 'common', '#FFE4B0', '#FF6A55', 'A bun hood, a sausage and a mustard zigzag.');
   // Items a game hands over itself are in no pack: give is 'free' (anyone may wear it; the game grants it the first time it
   // is worn) or 'earned' (the game grants it when it is won). grant(id), below, only adds these.
   GAME_ITEMS.forEach(function (it) { if (it.game !== 'slipstream') return; if (it.slot === 'sponsor' || (it.slot === 'helmet' && it.no <= 8)) it.give = 'free'; else if (it.slot === 'livery' && it.no > 8) it.give = 'earned'; });
