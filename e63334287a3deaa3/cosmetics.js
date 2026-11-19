@@ -752,9 +752,9 @@
   I('shell-crackers', 'egg', 28, 'Golf Ball Egg', 'common', '#FFFFFF', '#AAB2C0', 'Rows and rows of dimples.');
   I('shell-crackers', 'egg', 29, 'Pirate Egg', 'epic', '#D8343A', '#2E2E34', 'A spotted bandana, a gold earring and an eye patch.');
   I('shell-crackers', 'egg', 30, 'Pinstripe Suit Egg', 'rare', '#5E647C', '#C8323A', 'A sharp pinstripe jacket, a red tie and a pocket square.');
-  I('shell-crackers', 'egg', 31, 'Tuxedo Egg', 'epic', '#5C5C68', '#FFFFFF', 'Dressed for the gala, bow tie and all.');
+  I('shell-crackers', 'egg', 31, 'Tuxedo Egg', 'uncommon', '#5C5C68', '#FFFFFF', 'Dressed for the gala, bow tie and all.');
   I('shell-crackers', 'egg', 32, 'Tin Robot Egg', 'epic', '#D6DBE2', '#E2503F', 'Rivets, blinking lights and a wind-up key on the back.');
-  I('shell-crackers', 'egg', 33, 'Android Egg', 'legendary', '#FFFFFF', '#3EC8E8', 'Glossy white panels with thin glowing seams.');
+  I('shell-crackers', 'egg', 33, 'Android Egg', 'epic', '#FFFFFF', '#3EC8E8', 'Glossy white panels with thin glowing seams.');
   I('shell-crackers', 'egg', 34, 'Junkyard Bot Egg', 'uncommon', '#B4B0A8', '#B07A4C', 'Patched together from whatever was lying around.');
   I('shell-crackers', 'hat', 8, 'Fedora', 'uncommon', '#7C8192', '#2E2E36', 'Grey felt with a dark band. Very old-movie.');
   I('shell-crackers', 'hat', 9, 'Pirate Tricorn', 'rare', '#3E302A', '#E8B830', 'Three turned-up sides, gold trim and a red plume.');
@@ -769,7 +769,7 @@
   I('shell-crackers', 'gun', 13, 'Red Team Kit', 'common', '#D8433A', '#FFFFFF', 'Team red with two white stripes down each side.');
   I('shell-crackers', 'gun', 14, 'Blue Team Kit', 'common', '#3D7FE0', '#FFD04A', 'Team blue with gold stripes.');
   I('shell-crackers', 'gun', 15, 'Pirate Brass', 'epic', '#C9A040', '#6A4426', 'Polished brass, ship timber, rope and a flared muzzle.');
-  I('shell-crackers', 'gun', 16, 'Pinstripe', 'uncommon', '#5A6078', '#E8B830', 'Slate grey with thin stripes and a gold band.');
+  I('shell-crackers', 'gun', 16, 'Pinstripe', 'common', '#5A6078', '#E8B830', 'Slate grey with thin stripes and a gold band.');
   I('shell-crackers', 'gun', 17, 'Chrome Briefcase', 'legendary', '#DCE3EA', '#5A3E2A', 'Chrome and leather, gold latches and a handle underneath.');
   I('shell-crackers', 'gun', 18, 'Robot Plating', 'rare', '#EEF2F6', '#3EC8E8', 'White plates with a cyan light down each side.');
   I('shell-crackers', 'gun', 19, 'Junkyard', 'common', '#8A8478', '#B07A4C', 'Odd metals bolted together, held with tape.');
@@ -931,9 +931,9 @@
   I('chromaflage', 'hat', 16, 'Champion Headband', 'common', '#E2433A', '#FFFFFF', 'A red band with long tails that flap as you run.');
   I('chromaflage', 'hat', 17, 'Hockey Helmet', 'uncommon', '#F4F6F8', '#4A4E5C', 'A white helmet with vents and a chin strap.');
   I('chromaflage', 'hat', 18, 'Bowler Hat', 'common', '#7A5E46', '#3A2C22', 'Round and brown, for detectives and bankers.');
-  I('chromaflage', 'hat', 19, 'Mascot Ears', 'legendary', '#B8834E', '#3A7FE0', 'A fuzzy mascot hood with round bear ears.');
+  I('chromaflage', 'hat', 19, 'Mascot Ears', 'epic', '#B8834E', '#3A7FE0', 'A fuzzy mascot hood with round bear ears.');
   I('chromaflage', 'tool', 5, 'Foam Finger', 'common', '#FFD23F', '#2F6FD8', 'A big yellow foam hand. Number one seeker.');
-  I('chromaflage', 'tool', 6, 'Pirate Hook', 'epic', '#C9D0D8', '#6A4426', 'A shiny hook on a wooden grip. Arr.');
+  I('chromaflage', 'tool', 6, 'Pirate Hook', 'uncommon', '#C9D0D8', '#6A4426', 'A shiny hook on a wooden grip. Arr.');
   I('chromaflage', 'tool', 7, 'Walking Cane', 'rare', '#2E2E36', '#FFCF3F', 'Black with a gold knob, for a boss on a stroll.');
   I('chromaflage', 'tool', 8, 'Whistle', 'common', '#C9D0D8', '#E2433A', "The coach's whistle. Time out, you've been found.");
   I('chromaflage', 'tool', 9, 'Tennis Racket', 'uncommon', '#FFFFFF', '#E8F4A0', 'A white frame and a tight string bed.');
@@ -993,7 +993,7 @@
   I('odd-one-out', 'outfit', 27, 'Ghost Pirate', 'legendary', '#7FD8C8', '#C8FF6A', 'Pale sea green from hat to boots. One eye glows.');
   I('odd-one-out', 'outfit', 28, 'The Boss', 'legendary', '#B08A5C', '#EFE4D0', 'A long camel coat, a fur collar and a grey fedora.');
   I('odd-one-out', 'outfit', 29, 'Pinstripe Suit', 'rare', '#5E6680', '#C8323A', 'A 1920s suit, a red tie and a flower in the lapel.');
-  I('odd-one-out', 'outfit', 30, 'Tracksuit', 'uncommon', '#2F58C8', '#FFCF3F', 'Stripes down the sides, a gold chain and a flat cap.');
+  I('odd-one-out', 'outfit', 30, 'Tracksuit', 'common', '#2F58C8', '#FFCF3F', 'Stripes down the sides, a gold chain and a flat cap.');
   I('odd-one-out', 'outfit', 31, 'Bodyguard', 'uncommon', '#5A5E6E', '#1D1F26', 'A grey suit, sunglasses and an earpiece.');
   I('odd-one-out', 'outfit', 32, 'Butler', 'rare', '#4E505E', '#FBFBFB', 'A tailcoat, a bow tie and spotless white gloves.');
   I('odd-one-out', 'outfit', 33, 'Tin Robot', 'epic', '#C9CED6', '#FFE27A', 'Rivets, lamp eyes and a little aerial.');
@@ -1004,7 +1004,7 @@
   I('odd-one-out', 'tool', 10, 'Golf Club', 'uncommon', '#C9D0D8', '#5A6070', 'A long shaft and a polished driver head.');
   I('odd-one-out', 'tool', 11, 'Spyglass', 'rare', '#D8B04A', '#8A5A34', 'Three brass tubes for spotting the odd one out.');
   I('odd-one-out', 'tool', 12, 'Walking Cane', 'rare', '#2E2E36', '#FFCF3F', 'Black with a gold top. For bosses only.');
-  I('odd-one-out', 'tool', 13, 'Serving Tray', 'epic', '#DFE5EC', '#FFB43C', 'A covered dish and a glass of juice. Dinner is served.');
+  I('odd-one-out', 'tool', 13, 'Serving Tray', 'uncommon', '#DFE5EC', '#FFB43C', 'A covered dish and a glass of juice. Dinner is served.');
   I('odd-one-out', 'tool', 14, 'Megaphone', 'common', '#FBFBFB', '#E2433A', "The coach's megaphone, for shouting tips.");
   I('odd-one-out', 'tool', 15, 'Robot Claw', 'epic', '#C9D0D8', '#3EC8E8', 'Three claw fingers and a glowing core.');
   // ---- Driftfall items ----
