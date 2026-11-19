@@ -207,6 +207,11 @@
     'Skateboarder': 'Skater', 'Surfer': 'Surfista', 'Skier': 'Esquiador', 'Pit Crew': 'Mecánico de boxes', 'Referee': 'Árbitro',
     'Coach': 'Entrenador', 'Team Mascot': 'Mascota del equipo', 'Fencer': 'Esgrimista', 'Karate': 'Karateca', 'Cheer Captain': 'Capitana de porristas',
     'Jockey': 'Jockey',
+    'Pirate Captain': 'Capitán pirata', 'Pirate Deckhand': 'Grumete pirata', 'Pirate First Mate': 'Segundo de a bordo', 'Ghost Pirate': 'Pirata fantasma', 'Pinstripe Suit': 'Traje a rayas',
+    'The Boss': 'El Jefe', 'Tracksuit and Chain': 'Chándal y cadena', 'Bodyguard': 'Guardaespaldas', 'White Tuxedo': 'Esmoquin blanco', 'Business Suit': 'Traje de oficina',
+    'Secret Agent': 'Agente secreto', 'Detective': 'Detective', 'Android': 'Androide', 'Mech Pilot': 'Piloto de robot gigante', 'Junkyard Bot': 'Robot de chatarra',
+    'Vacuum Bot': 'Robot aspiradora', 'Firefighter': 'Bombero', 'Rock Star': 'Estrella de rock', 'DJ': 'DJ', 'Superhero': 'Superhéroe',
+    'Masked Wrestler': 'Luchador enmascarado', 'Samurai Armour': 'Armadura de samurái',
     // gliders
     'Umbrella': 'Paraguas', 'Paper Airplane': 'Avión de papel', 'Hang Glider': 'Ala delta', 'Kite': 'Barrilete', 'Bedsheet Parachute': 'Paracaídas de sábana',
     'Trash Bag Parachute': 'Paracaídas de bolsa', 'Cardboard Wings': 'Alas de cartón', 'Dragon Wings': 'Alas de dragón', 'Bat Wings': 'Alas de murciélago',

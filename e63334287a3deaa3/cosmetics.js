@@ -1033,6 +1033,28 @@
   I('drop-zone', 'outfit', 59, 'Karate', 'common', '#F2EFE8', '#3A9BDC', 'A white suit, a belt in your colour and a rolled mat.');
   I('drop-zone', 'outfit', 60, 'Cheer Captain', 'common', '#3A9BDC', '#FFD23F', 'A pleated skirt, a ponytail bow and pom-poms.');
   I('drop-zone', 'outfit', 61, 'Jockey', 'rare', '#3A9BDC', '#FFD23F', 'Diamond racing silks and a silk cap.');
+  I('drop-zone', 'outfit', 62, 'Pirate Captain', 'legendary', '#FF6A55', '#FFC93C', 'A long red coat, a three-cornered hat, an eye patch and a parrot.');
+  I('drop-zone', 'outfit', 63, 'Pirate Deckhand', 'common', '#F2EFE8', '#3A7AD0', 'A striped shirt, a spotted bandana, an eye patch and a barrel.');
+  I('drop-zone', 'outfit', 64, 'Pirate First Mate', 'rare', '#8A5AB0', '#DFE4EA', 'A feathered hat, an eye patch, a hook and a coil of rope.');
+  I('drop-zone', 'outfit', 65, 'Ghost Pirate', 'epic', '#BFEEE6', '#6AB8B0', 'Pale and ragged, with one glowing eye.');
+  I('drop-zone', 'outfit', 66, 'Pinstripe Suit', 'rare', '#B4BAC6', '#E8ECF2', 'An old-time pinstripe suit, a fedora and white spats.');
+  I('drop-zone', 'outfit', 67, 'The Boss', 'legendary', '#A8B4CC', '#F4ECE0', 'A long coat, a fur collar, a tall fur hat and dark glasses.');
+  I('drop-zone', 'outfit', 68, 'Tracksuit and Chain', 'uncommon', '#3A9BDC', '#FFC93C', 'A tracksuit, a flat cap, a chunky gold chain and a boombox.');
+  I('drop-zone', 'outfit', 69, 'Bodyguard', 'uncommon', '#B0C4EA', '#3A3E45', 'A suit, dark glasses, an earpiece and an umbrella.');
+  I('drop-zone', 'outfit', 70, 'White Tuxedo', 'epic', '#F2EFE8', '#9AA1AE', 'A white dinner jacket with tails, a bow tie and a top hat.');
+  I('drop-zone', 'outfit', 71, 'Business Suit', 'common', '#BCCCE8', '#A8384A', 'A suit and tie, a name badge and a briefcase.');
+  I('drop-zone', 'outfit', 72, 'Secret Agent', 'rare', '#B9C2CC', '#3A9BDC', 'A turtleneck, a harness, goggles and a winch pack.');
+  I('drop-zone', 'outfit', 73, 'Detective', 'uncommon', '#B8C2D0', '#FFC93C', 'A trench coat, a fedora and a big magnifying glass.');
+  I('drop-zone', 'outfit', 74, 'Android', 'epic', '#EEF2F6', '#3A9BDC', 'Smooth white panels with glowing seams.');
+  I('drop-zone', 'outfit', 75, 'Mech Pilot', 'epic', '#FF8A3A', '#F2EFE8', 'A padded suit, chest armour and a power frame.');
+  I('drop-zone', 'outfit', 76, 'Junkyard Bot', 'rare', '#D0743A', '#5AB8B0', 'Patched tin, odd eyes and a spring for an aerial.');
+  I('drop-zone', 'outfit', 77, 'Vacuum Bot', 'uncommon', '#9AB0D0', '#C9E6F4', 'A dome head, a bumper and a dust tank.');
+  I('drop-zone', 'outfit', 78, 'Firefighter', 'common', '#F2C84A', '#E8453C', 'A coat with bright bands, a helmet and an air tank.');
+  I('drop-zone', 'outfit', 79, 'Rock Star', 'rare', '#FFA090', '#C4BAF8', 'A studded jacket, spiky hair and a guitar.');
+  I('drop-zone', 'outfit', 80, 'DJ', 'rare', '#3A9BDC', '#FFD23F', 'A hoodie, big headphones and a crate of records.');
+  I('drop-zone', 'outfit', 81, 'Superhero', 'epic', '#3A9BDC', '#FFD23F', 'A mask, a lightning emblem, a cape and yellow boots.');
+  I('drop-zone', 'outfit', 82, 'Masked Wrestler', 'uncommon', '#3A9BDC', '#FFC93C', 'A mask with a crest, a cape and a championship belt.');
+  I('drop-zone', 'outfit', 83, 'Samurai Armour', 'epic', '#FF7A68', '#FFC93C', 'Costume armour with gold lacing and a small banner.');
   // Items a game hands over itself are in no pack: give is 'free' (anyone may wear it; the game grants it the first time it
   // is worn) or 'earned' (the game grants it when it is won). grant(id), below, only adds these.
   GAME_ITEMS.forEach(function (it) { if (it.game !== 'slipstream') return; if (it.slot === 'sponsor' || (it.slot === 'helmet' && it.no <= 8)) it.give = 'free'; else if (it.slot === 'livery' && it.no > 8) it.give = 'earned'; });
