@@ -472,7 +472,7 @@ const DECALS=[null,
     else if(P.panel==='side'){rect(g,-1.5,-.42,3,.3,K);rect(g,-1.5,-.13,3,.02,W)}
     else rect(g,-1,-.42,2,.5,K);
   },
-  // 36 Circuit Board: gold traces, pads and little chips
+  // 36 Gold Circuit: gold traces, pads and little chips
   (g,P)=>{
     const au='#e0b54a',w=P.panel==='side'||P.panel==='top'?3:2,x0=w===3?-1.5:-1,y0=P.panel==='top'?-1:-.42,h=P.panel==='top'?2:1.32;
     for(let i=0;i<16;i++){let x=x0+P.r()*w,y=y0+P.r()*h;const pts=[[x,y]];for(let k=0;k<3;k++){if(k%2)y=clamp(y+(P.r()-.5)*.8,y0,y0+h);else x=clamp(x+(P.r()-.5)*1.2,x0,x0+w);pts.push([x,y])}line(g,pts,.025,au);dot(g,pts[0][0],pts[0][1],.04,au);dot(g,x,y,.04,au)}
