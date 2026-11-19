@@ -123,6 +123,9 @@ details[open] summary::before{content:"– "}
 .ad-lbl{display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);margin-bottom:4px}
 .adbox ins{display:block;min-height:90px}
 .card.mini{width:min(560px,100%);max-height:100%;overflow:auto}
+#locker{z-index:20}.lockercard h2{margin:0 0 4px}#lockerView{display:block;width:100%;aspect-ratio:16/9;max-height:42vh;border-radius:10px;background:#060a18}
+.giftrow{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0 0}.giftrow b{font-size:18px}.giftrow .note{margin:2px 0 0}
+.lockercard .row{display:flex;gap:10px;justify-content:flex-end;margin-top:10px}
 .sub{color:var(--ink-2);margin:0 0 12px;font-size:17px}
 
 /* ---------- scoreboard tables ---------- */
@@ -336,6 +339,7 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
         <div class="bodies" id="bodies" role="group" aria-label="Car body"></div>
         <div class="label">Accent colour</div>
         <div class="swatches" id="swatches" role="group" aria-label="Accent colour"></div>
+        <button class="btn alt" id="lockerBtn" type="button" hidden style="margin-top:12px">Locker</button>
         <p class="note" style="margin:12px 0 0">Your car takes your team's colour in a match. Every body has the same hitbox.</p>
         <div class="adbox" id="adMenu" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
       </div>
@@ -354,6 +358,20 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
         <button class="btn red" id="leave" type="button">Leave match</button>
       </div>
       <p class="msg" id="inviteMsg"></p>
+    </div>
+  </section>
+
+  <section id="locker" class="overlay center" hidden role="dialog" aria-modal="true" aria-labelledby="lockerTitle">
+    <div class="card mini lockercard">
+      <h2 id="lockerTitle">Locker</h2>
+      <div class="label">Goal explosions</div>
+      <canvas id="lockerView" aria-label="Carbon Star preview"></canvas>
+      <div class="giftrow">
+        <div><b>Carbon Star</b><p class="note">Made for Carbon.</p></div>
+        <div class="seg" id="giftSeg" role="group" aria-label="Carbon Star"><button type="button" data-g="1">On</button><button type="button" data-g="0">Off</button></div>
+      </div>
+      <p class="note">When you score, a dying red star flares in the goal and a ripple carries the whole arena out into deep space until the kickoff. Everyone in the match sees it.</p>
+      <div class="row"><button class="btn alt" id="giftReplay" type="button">Replay</button><button class="btn" id="lockerClose" type="button">Done</button></div>
     </div>
   </section>
 
@@ -518,7 +536,7 @@ const bodyId=v=>{v=v|0;return v>=0&&v<BODIES.length?v:0};
 // free to wear, saved as boostball-kit) or with
 // the cosmetics switch in ../cosmetics.js (then you wear what your locker owns). A kit is looks only.
 const KIT_LEN=6;
-let KIT=null,myKit=null;
+let KIT=null,myKit=null,CS=null;   // CS: Carbon Star (carbon-star.js), null until it is needed
 const cosOn=()=>!!(window.BackRoomCosmetics&&BackRoomCosmetics.on());
 const hiddenOn=()=>garageOn()||cosOn();
 // a kit from the network or storage: '3.0.12' or a list, as six whole numbers 0 to 255, or null when it is all zeros
@@ -528,6 +546,30 @@ const kitOf=v=>{
   return any?k:null;
 };
 const kitStr=k=>k?k.join('.').replace(/(\.0)+$/,''):'';
+// ---- Carbon Star: an exclusive gift (README, "Carbon Star"; ../captains.js GIFTS) ----
+// A goal explosion made for one player, Carbon. He wears it from his Locker (a button under the garage that only he
+// sees; the screen holds that one item); the captains may wear it too, from their Kit. It travels like any goal
+// explosion, as goal number GIFT_NO in the kit (kt), and is drawn by carbon-star.js, fetched only when it can be needed.
+// Whatever a player's data claims, a page draws it only for a goal by an account that has the gift (giftScorer: its own
+// account here, or the scorer's account id in the room); anyone else, and every bot, gets the plain fireball. The test
+// switch ?carbonstar=1 (localhost or an automated browser only) shows the Locker for testing.
+const GIFT_ID='bb-goal-carbon-star',GIFT_NO=22;
+const giftTest=()=>!!(CAPTAINS&&CAPTAINS.test('carbonstar','boostball-carbonstar'));
+const giftOk=id=>id===GIFT_ID&&(giftTest()||!!(CAPTAINS&&CAPTAINS.gift&&CAPTAINS.gift(GIFT_ID)));   // this player has it
+const giftLocker=()=>giftOk(GIFT_ID)&&!hiddenOn();   // the Locker: the gift's owner (with the Kit open, it is listed there instead)
+const giftWorn=()=>store.get('gift','1')!=='0';      // the Locker's on/off (on until he turns it off)
+function giftScorer(c){
+  if(!c||c.isBot)return false;
+  if(!c.remote)return giftOk(GIFT_ID);
+  return !!(CAPTAINS&&CAPTAINS.gift&&CAPTAINS.gift(GIFT_ID,c.id));   // a remote player's car is keyed by their account id
+}
+// the kit to wear: with the Locker, Carbon Star in the goal slot while it is on; never the gift for anyone without it
+function withGift(k){
+  const a=k?k.slice():[0,0,0,0,0,0];
+  if(giftLocker())a[2]=giftWorn()?GIFT_NO:a[2]===GIFT_NO?0:a[2];
+  else if(a[2]===GIFT_NO&&!giftOk(GIFT_ID))a[2]=0;
+  return kitOf(a);
+}
 // Bot names. Each match the bots get names picked at random from this list: no two the same, and never the name of
 // a human player in the room. Online, the host's bots send their name as a position in this list (bh), so other
 // players see the host's names: add new names at the end and don't reorder or remove any.
@@ -1357,6 +1399,9 @@ function recolorGoals(){
   scene.add(new THREE.Points(sg,new THREE.PointsMaterial({color:0xcfdcff,size:1.6,sizeAttenuation:false,transparent:true,opacity:.7,fog:false,depthWrite:false})));
   scene.add(sky);
 })();
+// Everything that makes up the map (the pitch, walls, goals, stands, towers and sky; the boost pads join below), for
+// Carbon Star (carbon-star.js), which draws the whole map as outlines in space while it plays.
+const MAP=scene.children.filter(o=>!o.isLight);
 
 // ---------- bloom (Pretty graphics) ----------
 // Bright things (floodlights, goal frames, neon strips, boost, the goal fireball) bleed a soft glow into the picture
@@ -1554,6 +1599,7 @@ const PADS=[];
     PADS.push({i,x,z,big,t:0,g,orb,dim:dimM,lit:orbM});
   });
 })();
+for(const p of PADS)MAP.push(p.g);
 function padsVisual(now,time){
   for(const p of PADS){
     const up=now>=p.t;
@@ -2141,7 +2187,8 @@ function fxUnit(up){ // a random direction (in _v1), tipped upward by `up`
   _v1.normalize();_v1.y=Math.abs(_v1.y)*(1-up)+up*.7;return _v1.normalize();
 }
 function goalExplosion(p,team,by){
-  if(KIT&&by&&by.kit&&KIT.goal(by.kit[2],p,team))return; // the scorer's own goal explosion (kit.js)
+  if(by&&by.kit&&by.kit[2]===GIFT_NO){if(CS&&giftScorer(by)&&CS.play(p))return} // Carbon Star, only for a scorer who has it; else the fireball
+  else if(KIT&&by&&by.kit&&KIT.goal(by.kit[2],p,team))return; // the scorer's own goal explosion (kit.js)
   fxColours();
   const low=touchIn.active||gfx==='fast',T=TEAM[team];
   const at=boom.at.copy(p),toField=at.z>0?-1:1;
@@ -2447,7 +2494,7 @@ function kickoffSpot(c){
   return c.team===0?[x,z]:[-x,-z];
 }
 function setupKickoff(){
-  clearSkids();for(const c of cars)c.skid=null;if(KIT)KIT.clearGoal();
+  clearSkids();for(const c of cars)c.skid=null;if(KIT)KIT.clearGoal();if(CS)CS.stop();
   ball.pos.set(0,BR,0);ball.vel.set(0,0,0);ball.ang.set(0,0,0);ballVisOff.set(0,0,0);ballHidden=false;ballBack=0;
   touches=[];lastTouchBt=R?R.ko:0;owner=online?Net.hostUid():'local';goalPending=false;
   for(const p of PADS)p.t=0;
@@ -2515,6 +2562,7 @@ function onGoal(v){
   addFeed(v.sc?T('{n} scored for {t}',{n:name||T('Someone'),t:TN(t)}):T('Own goal for {t}',{t:TN(t)}),'t'+t);
 }
 function endMatch(){
+  if(CS)CS.stop();
   state='end';endShown=true;$('hud').hidden=true;$('board').hidden=true;$('pause').hidden=true;paused=false;
   const win=R.sb>R.so?0:1,mine=me?me.team:0;
   if((mode==='online'||mode==='practice')&&me&&win===mine&&window.BackRoomStats)BackRoomStats.add('wins',1);
@@ -3412,6 +3460,7 @@ function onRemoteState(uid,v){
   }
   c.name=cleanName(v.n)||c.name;c.team=team;c.body=bodyId(v.bd);c.accent=clamp(v.ac|0,0,ACCENTS.length-1);
   c.kit=kitOf(v.kt);if(c.kit)kitLoad();
+  if(c.kit&&c.kit[2]===GIFT_NO){csLoad();if(CAPTAINS&&CAPTAINS.giftsReady)CAPTAINS.giftsReady()}   // Carbon Star may be needed: get ready to check and draw it
   setRemoteKin(c,+v.x,+v.y||CAR_Y,+v.z,parseVec(v.q,4),parseVec(v.v,3),ts);
   c.netGround=v.g===undefined?(+v.y||CAR_Y)<CAR_Y+.1:!!v.g;
   c.boosting=!!v.bo;c.boost=clamp(+v.bs||0,0,100);c.placed=v.pl!==0;
@@ -3568,7 +3617,7 @@ function startLocal(m){
     :(tch?'Push the stick up to drive · <b>JUMP</b> twice with the stick tilted to flip · hold <b>BOOST</b> · hold <b>DRIFT</b> and steer':'<b>'+KB.short('forward')+'/'+KB.short('back')+'</b> drive · <b>'+KB.short('jump')+'</b> jump, again with a direction to flip · <b>'+KB.short('boost')+'</b> boost · hold <b>'+KB.short('slide')+'</b> and steer to drift · <b>'+KB.short('ballcam')+'</b> ball cam'),7);
 }
 function setupAttract(){
-  document.body.classList.remove('free');Net.leave();clearCars(false);mode='attract';state='menu';paused=false;R=null;me=null;if(KIT)KIT.clearGoal();
+  document.body.classList.remove('free');Net.leave();clearCars(false);mode='attract';state='menu';paused=false;R=null;me=null;if(KIT)KIT.clearGoal();if(CS)CS.stop();
   for(let t=0;t<2;t++)for(let i=0;i<2;i++)addBot(t,'normal');
   applyRound(newRoundObj(null,nowMs(),2,1));R.rem=1e12;
   $('hud').hidden=true;$('menu').hidden=false;$('end').hidden=true;$('pause').hidden=true;
@@ -3849,6 +3898,7 @@ function stepVisuals(dt,now,freeze){
   if(!freeze){updateParts(dt);updateRings(dt);updateFx(dt);if(KIT)KIT.update(dt)}
   updateSkids(clock);
   updateCamera(dt);
+  if(CS&&!freeze)CS.update(dt);   // Carbon Star: after everything else has moved, so it can dress the cars as drawn
   updateHud(dt,now);
   if(state==='playing'&&online){
     const wn=$('waitNote');const others=cars.filter(c=>c!==me).length;
@@ -3868,7 +3918,7 @@ if(inv){setMsg('You were invited to room bb-'+inv[1]+'. Press Play in room to jo
 const KITAPI={THREE,scene,camera,renderer,TEAM,ACCENTS,BODY_SHAPES,SHARED_G,joinGeoms,loft,stadiumEnv,glossOn,wheelG,hubCapG,spokesG,BR,AW,AL,AH,GW,GH,ballMesh,store,get garageOn(){return garageOn()},cosOn,hiddenOn,KIT_LEN,kitOf,
   low:()=>touchIn.active||gfx==='fast',flash,shake,sfx,audio:()=>actx&&volume>0?{actx,master,tone,noise}:null,reduced:()=>REDUCED_MOTION,
   get garage(){return garage},get state(){return state},get myKit(){return myKit},get myAccent(){return myAccent},
-  setKit(k){myKit=kitOf(k);if(me&&!me.remote)me.kit=myKit}};
+  setKit(k){myKit=withGift(kitOf(k));if(me&&!me.remote)me.kit=myKit},giftOk,giftPreview:()=>giftPreview(),giftFrame:(Gr,dt)=>giftFrame(Gr,dt)};
 let kitAsked=false;
 function kitLoad(){
   if(kitAsked)return;kitAsked=true;
@@ -3878,7 +3928,7 @@ function kitLoad(){
 function kitSync(){
   if(!KIT)return;
   const on=hiddenOn(),had=!!$('kit');
-  myKit=KIT.mine();if(me&&!me.remote)me.kit=myKit;   // mine() is null whenever the hidden things are off for this player
+  myKit=withGift(KIT.mine());if(me&&!me.remote)me.kit=myKit;   // mine() is null whenever the hidden things are off for this player (withGift: Carbon Star)
   if(on)KIT.menu();
   const box=$('kit');if(box)box.hidden=!on;
   if(mode==='attract'&&(on||had))for(const c of cars)if(c.isBot&&!c.remote)c.kit=on?KIT.botKit():null;
@@ -3892,11 +3942,84 @@ function garageSync(){
   renderGarageUI();
   if(hiddenOn())kitLoad();
   kitSync();
+  giftSync();
 }
 if(CAPTAINS)CAPTAINS.onChange(garageSync);
+if(CAPTAINS&&CAPTAINS.onAccount)CAPTAINS.onAccount(()=>giftSync());
 // cosmetics.js is deferred, so its switch can only be read once the page has been parsed
 if(garageOn())kitLoad();else if(document.readyState==='loading')addEventListener('DOMContentLoaded',()=>{if(cosOn())kitLoad()});else if(cosOn())kitLoad();
-if(navigator.webdriver)window.__bb={get KIT(){return KIT},get myKit(){return myKit},kitOf,kitStr,kitLoad,get hiddenOn(){return hiddenOn()},get fxTier(){return fxTier},get state(){return state},get mode(){return mode},get me(){return me},get cars(){return cars},ball,get R(){return R},set R(v){R=v},PADS,Net,stepCar,carCar,physStep,makeCar,newInput,stepBall,carBall,predictGoal,applyRound,onRemoteState,handleEvent,applyBallSnap,startLocal,setupAttract,keys,phaseOf,nowMs,
+
+// ---- Carbon Star (see GIFT_ID near the top) ----
+// What carbon-star.js is lent. Like the kit, it only draws.
+const CSAPI={THREE,scene,camera,renderer,MAP,ballMesh,AW,AL,GW,GH,GD,CIRCLE:15,buildCarModel,dropModel,
+  get myBody(){return myBody},get myAccent(){return myAccent},
+  carModels:()=>cars.map(c=>c.mesh),
+  junk:()=>{const j=[skMesh,ballShadow,pointsObj];if(KIT&&KIT.sprites)j.push(KIT.sprites.pts);return j},
+  low:()=>touchIn.active||gfx==='fast',reduced:()=>REDUCED_MOTION,shake,audio:()=>actx&&volume>0?{actx,master,tone,noise}:null,
+  // seconds until the arena must be back to normal: the countdown (or the final whistle); free play has no kickoff (null)
+  holdLeft(){
+    if(mode==='free'||!R)return null;
+    const now=nowMs(),end=remainingAt(now)<=0&&R.sb!==R.so?R.ko-COUNT_MS-900:R.ko-COUNT_MS;
+    return (end-now)/1000;
+  }};
+let csAsked=false;
+function csLoad(){
+  if(csAsked)return;csAsked=true;
+  loadScript('carbon-star.js').then(()=>{CS=window.BoostballCarbonStar(CSAPI);setTimeout(()=>{try{CS.warm()}catch(e){console.error(e)}},400)}).catch(e=>{csAsked=false;console.error(e)});
+}
+function csReady(){csLoad();return new Promise(res=>{const t0=performance.now();(function w(){if(CS||performance.now()-t0>8000)return res(CS);setTimeout(w,50)})()})}
+// whether this player has it, the Locker button, and what their car wears: again whenever the account may have changed
+function giftSync(){
+  myKit=withGift(KIT?KIT.mine():myKit);if(me&&!me.remote)me.kit=myKit;
+  $('lockerBtn').hidden=!giftLocker();
+  if(giftOk(GIFT_ID)||myKit&&myKit[2]===GIFT_NO)csLoad();
+  if($('locker')&&!$('locker').hidden&&!giftLocker())lockerClose();
+}
+// The Locker: one screen, one item. Its picture is drawn by its own small renderer while the screen is open.
+let lk=null;
+function lockerPaint(){
+  const on=giftWorn();
+  for(const b of document.querySelectorAll('#giftSeg button'))b.setAttribute('aria-pressed',String((b.dataset.g==='1')===on));
+}
+function lockerOpen(){
+  if(!giftLocker())return;
+  $('locker').hidden=false;lockerPaint();sfx('click');$('lockerClose').focus({preventScroll:true});$('locker').querySelector('.lockercard').scrollTop=0;
+  csReady().then(C=>{
+    if(!C||$('locker').hidden||lk)return;
+    const cv=$('lockerView');let r;
+    try{r=new THREE.WebGLRenderer({canvas:cv,antialias:true})}catch(e){return}
+    lk={r,pv:C.Preview(r),raf:0,last:performance.now(),idle:0};
+    const loop=t=>{
+      if(!lk)return;
+      const w=cv.clientWidth,h=cv.clientHeight,pr=Math.min(2,devicePixelRatio||1);
+      if(w&&h&&(cv.width!==Math.round(w*pr)||cv.height!==Math.round(h*pr))){lk.r.setPixelRatio(pr);lk.r.setSize(w,h,false)}
+      const dt=Math.min(.05,(t-lk.last)/1000);lk.last=t;
+      if(w&&h&&!lk.pv.frame(dt,w/h)&&(lk.idle+=dt)>2.5){lk.idle=0;lk.pv.play(true)}   // it plays again by itself every few seconds, quietly
+      lk.raf=requestAnimationFrame(loop);
+    };
+    lk.raf=requestAnimationFrame(loop);
+    initAudio();lk.pv.play();
+  });
+}
+function lockerClose(){
+  $('locker').hidden=true;
+  if(lk){cancelAnimationFrame(lk.raf);lk.pv.dispose();lk.r.dispose();try{lk.r.forceContextLoss()}catch(e){}lk=null}
+}
+$('lockerBtn').addEventListener('click',lockerOpen);
+$('lockerClose').addEventListener('click',()=>{sfx('click');lockerClose()});
+$('giftReplay').addEventListener('click',()=>{initAudio();if(lk)lk.pv.play()});
+$('giftSeg').addEventListener('click',e=>{
+  const b=e.target.closest('[data-g]');if(!b)return;
+  store.set('gift',b.dataset.g);sfx('click');lockerPaint();giftSync();
+  if(b.dataset.g==='1'){initAudio();if(lk)lk.pv.play()}
+});
+$('locker').addEventListener('keydown',e=>{if(e.key==='Escape'){e.stopPropagation();lockerClose();$('lockerBtn').focus()}});
+// a captain's Kit: Preview plays it in the garage picture
+let gpv=null;
+function giftPreview(){csReady().then(C=>{if(!C||!garage)return;if(!gpv)gpv=C.Preview(garage.r);initAudio();gpv.play()})}
+function giftFrame(Gr,dt){if(!gpv||!gpv.live)return false;gpv.frame(dt,Gr.cam.aspect);return true}
+giftSync();
+if(navigator.webdriver)window.__bb={get KIT(){return KIT},get CS(){return CS},get lk(){return lk},get gpv(){return gpv},giftSync,giftScorer,csReady,lockerOpen,lockerClose,CSAPI,get myKit(){return myKit},kitOf,kitStr,kitLoad,get hiddenOn(){return hiddenOn()},get fxTier(){return fxTier},get state(){return state},get mode(){return mode},get me(){return me},get cars(){return cars},ball,get R(){return R},set R(v){R=v},PADS,Net,stepCar,carCar,physStep,makeCar,newInput,stepBall,carBall,predictGoal,applyRound,onRemoteState,handleEvent,applyBallSnap,startLocal,setupAttract,keys,phaseOf,nowMs,
   get owner(){return owner},fast(sec){for(let i=0;i<sec*60;i++){warp+=1000/60;simulate(1/60,false)}},get lastTouchBt(){return lastTouchBt},setPaused:v=>{paused=v},camera,renderer,scene,toggleBallCam,touches:()=>touches,scoreGoal,remainingAt,demolish,botThink,
   // fixed-step driving for tests: manual(true) stops the real-time loop; advance() runs whole frames (physics, camera,
   // HUD, landing marker) at 60 Hz without drawing; render() draws one frame.

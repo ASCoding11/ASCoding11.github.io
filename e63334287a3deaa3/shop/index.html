@@ -372,6 +372,7 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
     // A Gift button for a pack, a chest or one item ('item:<id>'): same price as buying it, for someone else.
     function giftBtn(id, cls) { var b = el('button', cls || 'btn igift', 'Gift'); b.type = 'button'; b.setAttribute('data-gift', id); return b; }
     function giftHtml(id) { var gi = C.GAME_ITEMS_BY_ID && C.GAME_ITEMS_BY_ID[id]; return gi && gi.give ? '' : giftBtn('item:' + id).outerHTML; }
+    function shown(it) { return it.give !== 'exclusive'; }   // exclusive gifts (../captains.js) are shown only in their own game
     function drawLocker() {
       var t = document.getElementById('t-locker'), own = C.owned(), eq = C.equipped();
       var sk = eq.skin && C.SKINS_BY_ID[eq.skin];
@@ -380,7 +381,7 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
       C.SLOTS.forEach(function (k) { if (eq.accessories[k]) wear.push([k, C.ACCESSORIES_BY_ID[eq.accessories[k]].name]); });
       // game items (worn inside one game, not on the avatar): a chip per game slot, filter keys 'g:<game>:<slot>'
       var games = Object.keys(C.GAMES || {}), gchips = [];
-      games.forEach(function (gm) { var ge = C.gameEquipped(gm); C.GAMES[gm].slots.forEach(function (sl) { var all = C.gameItems(gm, sl[0]); if (!all.length) return; if (ge[sl[0]]) wear.push([gm + ':' + sl[0], C.GAMES[gm].name + ': ' + ge[sl[0]].name]);
+      games.forEach(function (gm) { var ge = C.gameEquipped(gm); C.GAMES[gm].slots.forEach(function (sl) { var all = C.gameItems(gm, sl[0]).filter(shown); if (!all.length) return; if (ge[sl[0]]) wear.push([gm + ':' + sl[0], C.GAMES[gm].name + ': ' + ge[sl[0]].name]);
         gchips.push(['g:' + gm + ':' + sl[0], C.GAMES[gm].name + ' ' + sl[1].toLowerCase() + ' ' + all.filter(function (it) { return own.items.indexOf(it.id) >= 0; }).length + '/' + all.length]); }); });
       var html = '<div class="locker"><div class="stage"><span class="big">' + C.avatarSvg(uid, 180) + '</span><div><div class="sn">' + esc(sk ? sk.name : 'Your own look') + '</div>' +
         '<div class="sd">' + esc(sk ? sk.desc : 'Pick a skin and accessories from your locker.') + '</div><ul class="wearing">' +
@@ -390,7 +391,7 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
         return [k, C.SLOT_NAMES[k] + ' ' + n + '/' + all.length];
       }), gchips).map(function (c) { return '<button type="button" data-filter="' + c[0] + '" aria-pressed="' + (filter === c[0]) + '">' + esc(c[1]) + '</button>'; }).join('') + '</div><div class="items">';
       var gf = /^g:/.test(filter) ? filter.split(':') : null, gworn = gf ? C.gameEquipped(gf[1]) : {};
-      var list = filter === 'skins' ? C.SKINS : gf ? C.gameItems(gf[1], gf[2]) : C.ACCESSORIES.filter(function (a) { return a.slot === filter; });
+      var list = filter === 'skins' ? C.SKINS : gf ? C.gameItems(gf[1], gf[2]).filter(shown) : C.ACCESSORIES.filter(function (a) { return a.slot === filter; });
       list.forEach(function (it) {
         if (gf) {
           var ghas = own.items.indexOf(it.id) >= 0, gon = !!gworn[it.slot] && gworn[it.slot].id === it.id, gr = RC[it.rarity];

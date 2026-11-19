@@ -38,6 +38,19 @@
  * comes back into view, when account.js says the account changed (on this page or the page around this frame) and
  * when another tab signs in or out (account.js's 'acct' entry in localStorage changes).
  *
+ * EXCLUSIVE GIFTS: a few items are made for one player (GIFTS below: account id -> item ids). They are not for sale,
+ * not in any chest or pack and cannot be gifted on; the captains get the ones in CAPTAIN_GIFTS too. A game asks:
+ *   gift(item)                  does the account signed in here have this gift? (false while the first check runs)
+ *   gift(item, uid)             does another player's account have it? Used to check who scored before drawing a
+ *                               gift for them: a page draws it only for a goal by a player whose id is in the table
+ *                               (or a captain, for CAPTAIN_GIFTS), whatever that player's data claims. A captain is
+ *                               known only once miles.js is here: call giftsReady() first (it fetches miles.js once).
+ *   account()                   the id of the Google account signed in here ('' for a guest or signed out)
+ *   onAccount(fn)               fn(uid) whenever the signed-in account changes (captain or not)
+ * To add another gift: put '<account id>': ['<item id>'] in GIFTS (the account id is the player's Google account uid on this
+ * site's Firebase project), add the item to cosmetics.js with give: 'exclusive', and make its game draw it only when
+ * gift(item, scorer) is true. See README, captains.js.
+ *
  * THIS IS NOT A LOCK. The check runs in the visitor's own browser and the account ids are public, so someone who
  * edits the page in their browser can still open these screens. It keeps the options out of sight; nothing on the
  * server enforces it. What a player wears is looks only in every game.
@@ -49,6 +62,14 @@
   // THE ONE LINE: who counts as a captain here. true: Captains and Vice Captains (everyone with a captain's badge).
   // false: Captains only (miles.js's OWNERS).
   var VICE_CAPTAINS_TOO = false;   // Captains only: Vice Captains see nothing, like everyone else
+
+  // EXCLUSIVE GIFTS (see the top): account id -> the item ids made for that player alone. Nobody else is offered them,
+  // and pages draw them only for these accounts. Ids are the cosmetics.js item ids.
+  var GIFTS = {
+    'BExn2DzDMQYrXn4AVp7BjzQT5dP2': ['bb-goal-carbon-star']   // Carbon: Boostball's Carbon Star goal explosion
+  };
+  // Gifts the captains (the same captains as above) may wear too, in their own Kit, labelled as made for their owner.
+  var CAPTAIN_GIFTS = ['bb-goal-carbon-star'];
 
   var API_KEY = 'AIzaSyDZD_Ku8cixteXfwkDYzGv3GKiZFF8sRSM';   // the site's Firebase project (public; the same one as in stats.js)
   var AUTH_KEY = 'firebase:authUser:' + API_KEY + ':[DEFAULT]';
@@ -126,15 +147,28 @@
   }
 
   // ---------------- The answer ----------------
-  var cap = false, known = false, uid = '', seq = 0, listeners = [], readyDone, ready = new Promise(function (r) { readyDone = r; });
+  var cap = false, known = false, uid = '', seq = 0, listeners = [], accountListeners = [], readyDone, ready = new Promise(function (r) { readyDone = r; });
   function settle(n, c, u) {
     if (n !== seq) return;                 // a newer check is running: its answer is the one that counts
-    var changed = c !== cap;
+    var changed = c !== cap, moved = u !== uid;
     cap = c; uid = u;
     if (!known) { known = true; readyDone(cap); }
+    if (moved) accountListeners.forEach(function (f) { try { f(uid); } catch (e) { try { console.error(e); } catch (_) {} } });
     if (!changed) return;
     listeners.forEach(function (f) { try { f(cap); } catch (e) { try { console.error(e); } catch (_) {} } });
     try { document.dispatchEvent(new CustomEvent('backroom:captain', { detail: { captain: cap } })); } catch (e) {}
+  }
+  function isCaptain(M, id) { return !!M && !!id && (M.isOwner(id) || (VICE_CAPTAINS_TOO && M.isVice(id))); }
+  // Has account `id` the gift `item`? Its own entry in GIFTS, or a captain for CAPTAIN_GIFTS. `id` omitted: the account
+  // signed in here (a captain as answered by the check above).
+  function gift(item, id) {
+    var mine = id === undefined;
+    id = mine ? uid : String(id || '');
+    if (!id || !/^[A-Za-z0-9]{1,128}$/.test(id)) return false;
+    var own = Object.prototype.hasOwnProperty.call(GIFTS, id) ? GIFTS[id] : null;
+    if (own && own.indexOf(item) >= 0) return true;
+    if (CAPTAIN_GIFTS.indexOf(item) < 0) return false;
+    return mine ? cap : isCaptain(miles(), id);
   }
   function check() {
     var n = ++seq;
@@ -142,7 +176,7 @@
       var id = u && u.isAnonymous === false && typeof u.uid === 'string' && /^[A-Za-z0-9]{1,128}$/.test(u.uid) ? u.uid : '';
       if (!id) return settle(n, false, '');            // signed out, or one of the games' guest accounts
       if (known && id === uid) return settle(n, cap, uid);
-      return lists().then(function (M) { settle(n, !!M && (M.isOwner(id) || (VICE_CAPTAINS_TOO && M.isVice(id))), id); });
+      return lists().then(function (M) { settle(n, isCaptain(M, id), id); });
     }).catch(function () { settle(n, false, ''); });
   }
   var again = 0;
@@ -169,13 +203,18 @@
     known: function () { return known; },
     ready: ready,
     onChange: function (f) { if (typeof f === 'function') listeners.push(f); },
-    check: check
+    check: check,
+    gift: gift,
+    giftsReady: function () { return lists().then(function () {}, function () {}); },
+    account: function () { return uid; },
+    onAccount: function (f) { if (typeof f === 'function') accountListeners.push(f); }
   };
   // Test hook (automated browsers only): stand in for the signed-in account. as(uid) a Google account, as(uid, false)
   // a guest (anonymous) account, as(null) signed out, real() the browser's own again. Each returns a promise for the check.
   if (navigator.webdriver) window.__captains = {
     as: function (id, google) { standIn = id ? { uid: String(id), isAnonymous: google === false } : null; return check().then(function () { return cap; }); },
     real: function () { standIn = undefined; return check().then(function () { return cap; }); },
+    gift: function (id, items) { GIFTS[String(id)] = items ? [].concat(items) : []; },   // add or empty a GIFTS entry, for tests
     peek: peek, AUTH_KEY: AUTH_KEY, get uid() { return uid; }, get viceToo() { return VICE_CAPTAINS_TOO; }
   };
   if (SWITCHES_ONLY) { known = true; readyDone(false); } else check();
