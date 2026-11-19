@@ -411,6 +411,7 @@ body.touch #death p{font-size:15px;text-align:center;padding:0 16px}
       <select id="lobbyMode"><option value="ffa">Free-for-all: most kills wins</option><option value="ctf">Capture the flag: Blue vs Red</option></select>
       <label for="lobbyBots">Bots in this lobby</label>
       <select id="lobbyBots"><option value="0">No bots (players only, good for 1v1)</option><option value="1">Medium bots</option><option value="2">Hard bots</option><option value="3">Extreme bots</option></select></div>
+    <p class="muted" id="noBotsNote" hidden style="font-size:14px;margin:6px 0 0">No bots in party games</p>
     <p class="muted" id="lobbyBotsText" hidden></p>
     <ul class="lobby-list" id="lobbyList"></ul>
     <div class="row">
@@ -2124,6 +2125,7 @@ function becomeHost(was) {
   const rs = NET.rs && typeof NET.rs.id === 'number' ? Object.assign({}, NET.rs) : null;
   if (!rs) NET.rs = { id: 0, st: 'lobby', md: roomMode(), bl: botLevelSetting(), nb: NET.isPublic ? PUB_BOTS : profile.settings.bots, t0: 0, len: 0, et: 0 };
   else NET.rs = rs;
+  if (partyRoom() && (NET.rs.bl | 0)) NET.rs = Object.assign({}, NET.rs, { bl: 0 });
   if (rs && rs.st === 'play' && G.state === 'play' && G.matchId === rs.id) takeOverMatch();
   else if (rs && rs.st === 'play') hostStartMatch();
   if (was) addFeedNote("You're the host now");
@@ -2146,7 +2148,7 @@ function hostStartMatch() {
   if (NET.mode !== 'host') return;
   const old = NET.rs || {};
   const minutes = NET.isPublic ? PUB_MINUTES : profile.settings.minutes;
-  NET.rs = { id: (old.id | 0) + 1, st: 'play', md: NET.isPublic ? roomMode() : (old.md === 'ctf' ? 'ctf' : old.md === 'ffa' ? 'ffa' : roomMode()), bl: old.bl ?? botLevelSetting(), nb: old.nb || (NET.isPublic ? PUB_BOTS : profile.settings.bots), t0: Math.round(netNow()), len: minutes * 60000, et: 0 };
+  NET.rs = { id: (old.id | 0) + 1, st: 'play', md: NET.isPublic ? roomMode() : (old.md === 'ctf' ? 'ctf' : old.md === 'ffa' ? 'ffa' : roomMode()), bl: partyRoom() ? 0 : old.bl ?? botLevelSetting(), nb: old.nb || (NET.isPublic ? PUB_BOTS : profile.settings.bots), t0: Math.round(netNow()), len: minutes * 60000, et: 0 };
   startMatch(); NET.soon = true;
 }
 function hostTick() {
@@ -2209,7 +2211,9 @@ function renderLobby() {
   $('#lobbyStatus').textContent = status;
   $('#btnLobbyStart').hidden = !(host && !NET.isPublic && rs.st !== 'play');
   $('#lobbyBotsWrap').hidden = !(host && !NET.isPublic);
-  $('#lobbyMode').value = rs.md === 'ctf' ? 'ctf' : 'ffa'; $('#lobbyBots').value = String(rs.bl ?? botLevelSetting());
+  const party = partyRoom();
+  $('#lobbyMode').value = rs.md === 'ctf' ? 'ctf' : 'ffa'; $('#lobbyBots').value = party ? '0' : String(rs.bl ?? botLevelSetting());
+  $('#lobbyBots').disabled = party; $('#noBotsNote').hidden = !party;
   $('#lobbyBotsText').hidden = host && !NET.isPublic;
   $('#lobbyBotsText').textContent = TX((rs.md === 'ctf' ? 'Capture the flag' : 'Free-for-all') + ' · Bots: {b}', { b: TX((rs.bl | 0) ? BOT_LEVELS[rs.bl | 0] : 'none, players only') });
   const html = list.map(p => `<li><span>${esc(p.name)}${p.id === NET.uid ? ' <span class="muted">(you)</span>' : ''}</span>${p.id === NET.hostUid ? '<b>HOST</b>' : ''}</li>`).join('');
@@ -2221,6 +2225,10 @@ function updateEndWait() {
 }
 
 /* ---------- the menu's online buttons ---------- */
+// A party launch (party.js, Play together) opens a room named p + 6 characters from party.js's own alphabet. Those
+// rooms are for the party's people only: bot level 0 (players only), whoever hosts.
+function isPartyRoom(r) { return /^p[a-hjkmnp-z2-9]{6}$/.test(sanitizeRoom(r)); }
+function partyRoom() { return !!NET.room && !NET.isPublic && isPartyRoom(NET.code); }
 function sanitizeRoom(s) { return String(s || '').toLowerCase().replace(/^bs-/, '').replace(/[^a-z0-9-]/g, '').slice(0, 17); }
 function randomRoom() { return pick(['storm', 'tower', 'bolt', 'neon', 'block', 'maze', 'rain', 'sky']) + '-' + Math.floor(100 + Math.random() * 900); }
 function setBusy(on) { for (const id of ['#quick', '#joinRoom', '#btnSolo', '#btnCreate']) { const b = $(id); if (b) b.disabled = on; } }
@@ -2311,7 +2319,7 @@ function botLevel() { return netActive() && NET.rs ? clamp(NET.rs.bl | 0, 0, 3) 
 function botDiff() { return DIFF[Math.max(1, botLevel()) - 1]; }
 // "No bots" applies to online lobbies; a solo match always gets bots (medium)
 function wantedBots(humans) {
-  if (netActive()) { const rs = NET.rs || {}; return (rs.bl | 0) === 0 ? 0 : Math.max(0, (rs.nb || profile.settings.bots) - humans); }
+  if (netActive()) { const rs = NET.rs || {}; return (rs.bl | 0) === 0 || partyRoom() ? 0 : Math.max(0, (rs.nb || profile.settings.bots) - humans); }
   return Math.max(0, profile.settings.bots - humans);
 }
 
@@ -3439,7 +3447,7 @@ function bindInput() {
   $('#btnLobbyLeave').onclick = () => quitToMenu();
   // the host's choices go into the room's match node, so everyone's lobby shows them
   $('#lobbyMode').onchange = e => { profile.settings.mode = e.target.value === 'ctf' ? 'ctf' : 'ffa'; saveProfile(); if (NET.mode === 'host' && NET.rs) { NET.rs = Object.assign({}, NET.rs, { md: profile.settings.mode }); NET.soon = true; } renderLobby(); };
-  $('#lobbyBots').onchange = e => { profile.settings.botLevel = clamp(+e.target.value, 0, 3); saveProfile(); if (NET.mode === 'host' && NET.rs) { NET.rs = Object.assign({}, NET.rs, { bl: profile.settings.botLevel, nb: profile.settings.bots }); NET.soon = true; } renderLobby(); };
+  $('#lobbyBots').onchange = e => { if (partyRoom()) { e.target.value = '0'; return; } profile.settings.botLevel = clamp(+e.target.value, 0, 3); saveProfile(); if (NET.mode === 'host' && NET.rs) { NET.rs = Object.assign({}, NET.rs, { bl: profile.settings.botLevel, nb: profile.settings.bots }); NET.soon = true; } renderLobby(); };
   $('#btnMenu').onclick = quitToMenu;
   bindTouch();
 }
