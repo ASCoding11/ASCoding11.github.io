@@ -10,9 +10,9 @@
   // ------------------------------------------------------------------ quality
   // tex: hero texture size, texLo: everything else. grass*: see grass.js. post / pom / shadows decided here too.
   E.QUALITY = {
-    low: { name: 'low', tex: 512, texLo: 512, texGround: 512, texMinor: 256, texDecal: 512, pom: false, post: false, aniso: 4, grassNear: 9, grassMid: 24, grassDens: 50, grassMidDens: 8, bladeSegs: 1, seedHeads: false, carpetDens: 150, carpetR: 6, treeLod: 26, decals: 64 },
+    low: { name: 'low', tex: 512, texLo: 512, texGround: 512, texMinor: 256, texDecal: 512, pom: false, post: false, aniso: 4, grassNear: 8, grassMid: 22, grassDens: 40, grassMidDens: 5, bladeSegs: 1, seedHeads: false, carpetDens: 110, carpetR: 5, treeLod: 18, plantKinds: ['wheat', 'reeds'], decals: 64 },
     medium: { name: 'medium', tex: 1024, texLo: 512, texGround: 512, texMinor: 256, texDecal: 512, pom: false, post: true, aniso: 8, grassNear: 12, grassMid: 42, grassDens: 40, grassMidDens: 6, bladeSegs: 3, seedHeads: false, carpetDens: 230, carpetR: 7, treeLod: 40, decals: 160 },
-    high: { name: 'high', tex: 1024, texLo: 512, texGround: 512, texMinor: 512, texDecal: 1024, pom: true, post: true, aniso: 16, grassNear: 15, grassMid: 45, grassDens: 70, grassMidDens: 10, bladeSegs: 3, seedHeads: true, carpetDens: 300, carpetR: 10, treeLod: 60, decals: 256 }
+    high: { name: 'high', tex: 1024, texLo: 512, texGround: 512, texMinor: 512, texDecal: 1024, pom: true, post: true, aniso: 16, grassNear: 15, grassMid: 45, grassDens: 55, grassMidDens: 9, bladeSegs: 3, seedHeads: true, carpetDens: 230, carpetR: 9, treeLod: 60, decals: 256 }
   };
   E.Q = E.QUALITY.medium;
 
@@ -22,6 +22,8 @@
     uWind: { value: new THREE.Vector3(0.8, 0.6, 0.35) },        // direction x, z (normalised), strength 0..2
     uPush: { value: [] },                                       // 8 x vec4 (x, z, radius, strength)
     uWet: { value: 0 },
+    uRain: { value: 0 },
+    uDust: { value: 0.35 },
     uMacro: { value: null },
     uGrime: { value: 1 }
   };
@@ -219,7 +221,7 @@
     if (!R.noFoot) defs.ENV_FOOT = '';
     m.defines = Object.assign(m.defines || {}, defs);
     const uni = {
-      uMacro: U.uMacro, uWet: U.uWet, uGrime: U.uGrime,
+      uMacro: U.uMacro, uWet: U.uWet, uGrime: U.uGrime, uDust: U.uDust,
       uIdAmt: { value: R.id || 0 }, uMacroAmt: { value: R.macro || 0.15 }, uTexSize: { value: S },
       uNS: { value: R.ns || 1 }, uPomDepth: { value: R.pom ? R.pom / R.size : 0 }, uAOAmt: { value: 0.85 }
     };
@@ -232,7 +234,7 @@
           envWP = instanceMatrix * envWP;
         #endif
         vEnvW = (modelMatrix * envWP).xyz; vEnvA = aEnv;`);
-      sh.fragmentShader = 'uniform sampler2D uMacro; uniform float uWet, uGrime, uIdAmt, uMacroAmt, uTexSize, uNS, uPomDepth, uAOAmt;\nvarying vec4 vEnvA;\nvarying vec3 vEnvW;\n' +
+      sh.fragmentShader = 'uniform sampler2D uMacro; uniform float uDust; uniform float uWet, uGrime, uIdAmt, uMacroAmt, uTexSize, uNS, uPomDepth, uAOAmt;\nvarying vec4 vEnvA;\nvarying vec3 vEnvW;\n' +
         sh.fragmentShader
           .replace('#include <map_fragment>', MAP_FRAG)
           .replace('#include <roughnessmap_fragment>', 'float roughnessFactor = clamp(envRough, 0.03, 1.0);')
@@ -309,6 +311,19 @@
       envAlb = mix(envAlb, vec3(0.05, 0.04, 0.03), splash * 0.6);
     }
     #endif
+    // weathering shared by every material, lined up in world space: rain streaks down walls, sun fading, and dust
+    // on upward faces (sills, crate tops, ledges) that kills shine and fills the relief; rain washes the dust away
+    {
+      vec3 wn = inverseTransformDirection(normalize(vNormal), viewMatrix);
+      float vert = 1.0 - abs(wn.y);
+      float streak = texture2D(uMacro, vec2((wp.x + wp.z) * 0.9, wp.y * 0.08)).a;
+      envAlb *= 1.0 - vert * smoothstep(0.55, 0.85, streak) * 0.22 * uGrime;
+      float lum = dot(envAlb, vec3(0.3, 0.55, 0.15));
+      envAlb = mix(envAlb, vec3(lum) * vec3(1.04, 1.0, 0.94), 0.12);
+      float dustAmt = smoothstep(0.65, 0.95, wn.y) * smoothstep(0.35, 0.7, m2 * 0.6 + m1 * 0.4 + envH * 0.3) * uDust * (1.0 - uWet);
+      envAlb = mix(envAlb, vec3(0.30, 0.235, 0.155) * (0.8 + 0.4 * m1), dustAmt * 0.7);
+      envRough = mix(envRough, 1.0, dustAmt);
+    }
     envAlb *= 1.0 - uWet * 0.38 * (0.6 + 0.4 * envH);
     envRough = mix(envRough, envRough * 0.4, uWet);
     diffuseColor.rgb *= envAlb;

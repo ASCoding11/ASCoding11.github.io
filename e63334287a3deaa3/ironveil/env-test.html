@@ -34,6 +34,9 @@
 <script src="env/ground.js"></script>
 <script src="env/builder.js"></script>
 <script src="env/build.js"></script>
+<script src="env/nature.js"></script>
+<script src="env/props.js"></script>
+<script src="env/decals.js"></script>
 <script src="env/post.js"></script>
 <script src="env/index.js"></script>
 <script>
@@ -129,6 +132,27 @@
     brick5m: { p: [22, 0, -87.5], look: [20.5, 1.8, -92.6], eye: 1.7 },
     brick30m: { p: [28, 0, -64], look: [20, 2.2, -95], eye: 1.7 },
     inside: { p: [50.5, 0, -79.5], look: [46, 1.2, -82], eye: 1.65 },
+    t_orchard: { p: [44, 0, -106], look: [45, 1.5, -124], eye: 1.7 },
+    t_oak: { p: [-20, 0, 38], look: [-30, 4, 30], eye: 1.7 },
+    t_ash: { p: [22, 0, 4], look: [12, 5, -2], eye: 1.7 },
+    t_poplar: { p: [-12, 0, 62], look: [-27, 8, 70], eye: 1.7 },
+    t_pine: { p: [98, 0, -56], look: [114, 5, -70], eye: 1.7 },
+    t_dead: { p: [-70, 0, 18], look: [-80, 4, 10], eye: 1.7 },
+    t_sapling: { p: [-36, 0, -16], look: [-42, 1.2, -22], eye: 1.7 },
+    t_far: { p: [-10, 0, 30], look: [40, 3, -90], eye: 1.7 },
+    hedge: { p: [-46, 0, 46], look: [-58, 1, 40], eye: 1.7 },
+    wheat: { p: [42, 0, 4], look: [70, 0.5, 30], eye: 1.7 },
+    stream: { p: [-36, 0, 2], look: [-27, -1.4, 18], eye: 1.7 },
+    yard: { p: [56, 0, -50], look: [64, 1, -72], eye: 1.7 },
+    props: { p: [52, 0, -68], look: [44, 0.5, -74], eye: 1.7 },
+    wall: { p: [62, 0, -40], look: [76, 0.8, -46], eye: 1.7 },
+    decals: { p: [52, 0, -73.5], look: [52, 1.4, -76.24], eye: 1.5 },
+    fs_close: { p: [49.5, 0, -75.0], look: [49.5, -0.2, -76.3], eye: 1.4 },
+    planks_close: { p: [79.2, 0, -63], look: [77.6, 0.3, -63], eye: 1.9 },
+    roof_close: { p: [53, 0, -73], look: [53, 3.6, -78.6], eye: 6.3 },
+    inside_barn: { p: [72, 0, -56], look: [72, 1.4, -66], eye: 1.7 },
+    door_close: { p: [52.2, 0, -74.9], look: [52.0, -0.3, -76.2], eye: 1.3 },
+    ruin_close: { p: [77.5, 0, -88.9], look: [79.5, 0.4, -91.8], eye: 1.6 },
     figlong10: { p: [-70, 0, -30], look: [-60, 0, -30], eye: 1.65 }
   };
   const pitchYaw = { yaw: 0, pitch: 0 };
@@ -160,13 +184,12 @@
     window.T.post = E.post(renderer, scene, camera, quality); resize();
     grass = E.grass(surfaceAt, height, { longAt });
     scene.add(grass.group);
-    // stand-in lamps (the real lamp posts come from IVEnv.prop)
-    [[-6, 12], [14, -18]].forEach(p => {
-      const L = new THREE.PointLight(0xffb060, 2.2, 16, 2); L.position.set(p[0], height(p[0], p[1]) + 3.1, p[1]); scene.add(L); lamps.push(L);
-      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 3.2, 8), new THREE.MeshStandardMaterial({ color: 0x1b1c1e, roughness: 0.6, metalness: 0.6 }));
-      post.position.set(p[0] + 0.3, height(p[0], p[1]) + 1.6, p[1]); post.castShadow = true; scene.add(post);
-      const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffd9a0 })); bulb.position.copy(L.position); scene.add(bulb);
-    });
+    // lamp posts along the lane and in the yard (real props, each with a point light and a glow)
+    const addProp = (kind, x, z, rot, seed, opts) => { const p = E.prop(kind, seed || 1, opts); const y = height(x, z); p.group.position.set(x, y, z); p.group.rotation.y = rot || 0; scene.add(p.group);
+      for (const l of p.lights) if (l.power > 0) { const c = Math.cos(rot || 0), sn = Math.sin(rot || 0); const L = new THREE.PointLight(l.color, l.power, l.r, 2); L.position.set(x + l.x * c + l.z * sn, y + l.y, z - l.x * sn + l.z * c); scene.add(L); lamps.push(L); }
+      return p; };
+    window.T.addProp = addProp;
+    [[-6, 12, 0.6], [14, -18, 2.2], [48, -64, 0]].forEach(([x, z, r], i) => addProp('lamppost', x, z, r, 40 + i));
     // stand-in person-sized figure (field grey) for readability checks
     figure = new THREE.Group();
     const fm = new THREE.MeshStandardMaterial({ color: new THREE.Color(0x5c6152).convertSRGBToLinear(), roughness: 0.85 });
@@ -189,7 +212,7 @@
     window.T.lampsUsed = 2;
     if (!qs.get('nobuild')) {
       place({ kind: 'farmhouse', w: 12, d: 7.5, floors: 2, seed: 3, damage: 0.15, lit: 0.35 }, 52, -80, 0);
-      place({ kind: 'barn', w: 10, d: 16, seed: 4, damage: 0.35 }, 72, -60, -Math.PI / 2);
+      place({ kind: 'barn', w: 10, d: 16, seed: 4, damage: 0.35, lit: 1 }, 72, -60, -Math.PI / 2);
       place({ kind: 'shed', w: 4, d: 3, seed: 5, damage: 0.2 }, 40, -62, Math.PI / 2);
       place({ kind: 'cottage', w: 8, d: 6, seed: 6, damage: 0.1, lit: 0.5 }, 20, -95, 0.15);
       place({ kind: 'ruin', w: 9, d: 7, seed: 7, damage: 0.8 }, 80, -95, -0.2);
@@ -197,8 +220,56 @@
       place({ kind: 'church', w: 16, d: 8, seed: 9, damage: 0.2, lit: 0.2 }, 100, -120, 0.1);
       place({ kind: 'shoprow', units: 3, d: 8, seed: 10, damage: 0.25, lit: 0.4 }, 60, -115, 0);
     }
+    if (!qs.get('nonature')) {
+      // hedgerows on the lane banks and along field edges, with gaps for gates
+      for (let i = 0; i < HEDGES.length; i++) { const h = E.hedge(HEDGES[i], { h: i < 2 ? 2.2 : 2.6, w: 1.7, seed: 30 + i, heightFn: height, gaps: i === 0 ? [[60, 66]] : i === 2 ? [[20, 25]] : [] }); scene.add(h.group); }
+      // trees: an orchard behind the farmhouse, hedgerow oaks and ashes, poplars by the stream, pines, a dead tree, saplings
+      const trees = [];
+      for (let i = 0; i < 6; i++) for (let j = 0; j < 4; j++) trees.push({ kind: 'apple', x: 30 + i * 6 + (j % 2) * 3, y: 0, z: -118 - j * 6, scale: 0.85 + E.hash(i, j, 3) * 0.3 });
+      [[-30, 30, 'oak'], [-62, 46, 'oak'], [12, -2, 'ash'], [44, -16, 'oak'], [94, -10, 'ash'], [-50, -52, 'oak'], [-15, -47, 'ash'], [70, 22, 'oak']].forEach(([x, z, k]) => trees.push({ kind: k, x, z }));
+      [[-26, 46], [-27, 56], [-25, 68], [-29, 84], [-34, 100]].forEach(([x, z]) => trees.push({ kind: 'poplar', x, z }));
+      [[110, -70], [116, -64], [112, -80], [122, -72]].forEach(([x, z]) => trees.push({ kind: 'pine', x, z }));
+      trees.push({ kind: 'dead', x: -80, z: 10 }); [[-40, -20], [-44, -25], [64, -30]].forEach(([x, z]) => trees.push({ kind: 'sapling', x, z }));
+      for (const t of trees) t.y = height(t.x, t.z);
+      window.T.trees = E.trees(trees); scene.add(window.T.trees.group);
+      // the stream with reeds on its banks
+      const st = E.stream(STREAM, { width: 2.6, heightFn: height, waterY: (x, z) => base(x, z) - 1.35 - 0.0 }); scene.add(st.group);
+      const near = (pts, a, b) => (x, z) => { const d = segDist(x, z, pts); return d > a && d < b ? 1 : 0; };
+      window.T.scat = [
+        E.scatter('wheat', (x, z) => inPoly(x, z, WHEAT) ? 1 : 0, { heightFn: height }),
+        E.scatter('reeds', near(STREAM, 1.0, 3.0), { heightFn: height }),
+        E.scatter('nettles', (x, z) => hedgeD(x, z) < 2.4 && hedgeD(x, z) > 1.0 ? 0.6 : 0, { heightFn: height }),
+        E.scatter('brambles', (x, z) => hedgeD(x, z) < 2.2 ? 0.5 : 0, { heightFn: height }),
+        E.scatter('ferns', (x, z) => hedgeD(x, z) < 2.6 && E.vnoise(x / 6, z / 6, 4) > 0.5 ? 0.7 : 0, { heightFn: height }),
+        E.scatter('dock', (x, z) => surfaceAt(x, z) === 'grass' && E.vnoise(x / 9, z / 9, 5) > 0.7 ? 0.5 : 0, { heightFn: height }),
+        E.scatter('flowers', (x, z) => surfaceAt(x, z) === 'meadow' ? 0.4 : 0, { heightFn: height })
+      ];
+      for (const sc of window.T.scat) scene.add(sc.group);
+      for (const [k, b] of [['rocks', [-130, -130, 130, 130]], ['logs', [-80, -80, 120, 40]], ['stumps', [-80, -80, 120, 40]]]) { const o = E.scatter(k, (x, z) => { const s = surfaceAt(x, z); return s === 'grass' || s === 'meadow' || s === 'verge' || s === 'tussock' ? 1 : 0; }, { heightFn: height, bounds: b, seed: k.length }); o.group.name = 'IVEnv.prop:scatter-' + k; scene.add(o.group); }
+      { const o = E.scatter('litter', (x, z) => trees.some(t => Math.hypot(t.x - x, t.z - z) < 5) ? 1 : 0, { heightFn: height, bounds: [-90, -130, 130, 110], density: 3 }); o.group.name = 'IVEnv.prop:litter'; scene.add(o.group); }
+      { const pud = []; const R = E.rng(9); for (let s = 0; s < 160; s += R.range(4, 12)) { let acc = 0; for (let i = 0; i < LANE.length - 1; i++) { const a = LANE[i], b = LANE[i + 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]); if (acc + L >= s) { const t = (s - acc) / L, x = a[0] + (b[0] - a[0]) * t, z = a[1] + (b[1] - a[1]) * t, dx = (b[0] - a[0]) / L, dz = (b[1] - a[1]) / L, side = R() < 0.5 ? -0.85 : 0.85; pud.push([x - dz * side, height(x - dz * side, z + dx * side), z + dx * side, R.range(0.5, 1.6), 0.28, Math.atan2(-dz, dx)]); break; } acc += L; } }
+        for (let k = 0; k < 10; k++) { const a = R() * 6.28, d = R() * YARD.r * 0.8, x = YARD.x + Math.cos(a) * d, z = YARD.z + Math.sin(a) * d; pud.push([x, height(x, z), z, R.range(0.6, 1.8), R.range(0.4, 1.2), R() * 3]); }
+        const pm = E.puddleMesh(pud); scene.add(pm); }
+      // walls and fences round the farm: a stone wall with a gateway and a broken end, a brick wall by the ruin, a gate
+      const sw = E.wall([[30, -50], [40, -45], [70, -44], [84, -50]], { type: 'stone', h: 1.3, gaps: [[14, 18]], brokenEnd: true, seed: 3, heightFn: height }); sw.group.name = 'IVEnv.wall:stone'; scene.add(sw.group);
+      const bw = E.wall([[70, -104], [92, -106]], { type: 'brick', h: 1.8, t: 0.34, brokenStart: true, seed: 4, heightFn: height }); bw.group.name = 'IVEnv.wall:brick'; scene.add(bw.group);
+      const f1 = E.fence([[36, -100], [36, -130], [70, -132]], 'rail', { heightFn: height, seed: 6, damage: 0.3 }); f1.group.name = 'IVEnv.fence:rail'; scene.add(f1.group);
+      const f2 = E.fence([[-60, -60], [-60, -90]], 'barbed', { heightFn: height, seed: 7 }); f2.group.name = 'IVEnv.fence:barbed'; scene.add(f2.group);
+      addProp('gate', 56.0, -44.3, 0, 8, { width: 3.4, open: 0.9 });
+      // yard props
+      addProp('cart', 62, -70, 0.4, 1); addProp('haystack', 82, -72, 1.5, 2); addProp('well', 60, -58, 0, 3); addProp('trough', 50, -66, 0.1, 4);
+      addProp('crates', 44, -74, 0.2, 5); addProp('barrels', 46, -72.5, 0, 6); addProp('drums', 66, -84, 0.3, 7); addProp('ammo', 8.5, -61.5, 0.2, 8);
+      addProp('sandbags', 6, -61.5, 0.3, 9, { length: 3.5, rows: 4 }); addProp('truck', 70, -76, 2.6, 10); addProp('logpile', 40, -86, 1.2, 11); addProp('tarp', 75, -88, 0.5, 12);
+      addProp('ladder', 63.2, -64.6, Math.PI, 13); addProp('bottles', 50.3, -78.9, 0, 14);
+      // telegraph poles along the lane with sagging wires
+      const poles = []; for (let i = 0; i < 6; i++) { const t = i / 5, x = -60 + t * 72, z = 44 - t * 56 + 5; const p = addProp('telegraph', x, z, -0.7, 20 + i); poles.push({ p, x, z, y: height(x, z) }); }
+      const wires = []; for (let i = 0; i < poles.length - 1; i++) for (const tp of poles[i].p.group.userData.wireTop) { const a = poles[i], b = poles[i + 1], c = Math.cos(-0.7), sn = Math.sin(-0.7); wires.push([a.x + tp[0] * c, a.y + tp[1], a.z - tp[0] * sn, b.x + tp[0] * c, b.y + tp[1], b.z - tp[0] * sn]); }
+      const wm = E.wireMesh(wires, 0.006, 0.35); wm.name = 'IVEnv.prop:wires'; scene.add(wm);
+      // a few wear decals from the runtime pool, as the game would on impacts
+      [[52, 1.4, -76.24], [52.4, 1.1, -76.24], [51.7, 1.7, -76.24]].forEach((p) => E.impact('stone', p, [0, 0, 1]));
+    }
     // one mesh per material for everything static (buildings, walls, fences, props)
-    if (!qs.get('nomerge')) { const statics = new THREE.Group(); for (const o of scene.children.slice()) if (o.name && /^IVEnv\.(building|wall|fence|prop)/.test(o.name)) { scene.remove(o); statics.add(o); } scene.add(statics); scene.add(E.mergeStatic(statics)); }
+    if (!qs.get('nomerge')) { const statics = new THREE.Group(); for (const o of scene.children.slice()) if (o.name && /^IVEnv\.(building|wall|fence|prop|hedge)/.test(o.name)) { scene.remove(o); statics.add(o); } scene.add(statics); scene.add(E.mergeStatic(statics, { cell: quality === 'low' ? 160 : 96 })); }
     window.T.ready = true;
   });
 

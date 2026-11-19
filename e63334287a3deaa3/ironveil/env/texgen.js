@@ -284,14 +284,15 @@
       y += hgt;
     }
     pts.forEach((p, i) => { p.col = R(); p.k = 1 + R.int(27); p.tint = R.range(0.88, 1.1); p.sz = p.w * 60; });
-    const W = worley(S, pts, 1.35, true);
+    const W = worley(S, pts, 1.8, true);
     const n1 = fbm(S, 32, 4, seed + 1), n2 = fbm(S, 8, 4, seed + 2), grit = fbm(S, 256, 2, seed + 3), lich = fbm(S, 48, 3, seed + 4);
     const pal = [[126, 122, 112], [134, 124, 104], [116, 108, 94], [108, 104, 98], [130, 126, 116], [120, 112, 98]];
     for (let q = 0; q < S * S; q++) {
       const p = pts[W.ID[q]], e = (W.F2[q] - W.F1[q]) * p.w, r = W.F1[q] * p.w / p.sz;
       const edge = e + (n1[q] - 0.5) * 9 * S / 1024 - (n2[q] - 0.5) * 10 * S / 1024;
-      const inside = sstep(5 * S / 1024, 13 * S / 1024, edge);
-      const dome = 1 - r * r * 0.5;
+      const jw = (0.6 + 0.9 * n2[(q + 77 * S) % (S * S)]);
+      const inside = sstep(4 * S / 1024 * jw, 13 * S / 1024 * jw, edge);
+      const dome = 1 - r * r * 0.5 + (p.col - 0.5) * 0.18 * ((q % S) / S - 0.5);
       const strata = Math.sin((Math.floor(q / S) / S + n1[q] * 0.04) * 90 + p.col * 40) * 0.5 + 0.5;
       const face = 0.48 + 0.36 * dome * (0.75 + 0.25 * n2[q]) + 0.12 * (n1[q] - 0.5) + 0.07 * (grit[q] - 0.5) + 0.012 * strata - 0.12 * sstep(0.8, 0.95, grit[q]) * (1 - dome * 0.5);
       const mortar = 0.12 + 0.1 * n2[q] + 0.05 * grit[q];

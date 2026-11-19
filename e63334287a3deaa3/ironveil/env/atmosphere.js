@@ -14,13 +14,13 @@
   E.PRESETS = {
     night_moon: {
       skyTop: 0x070a12, skyHor: 0x26303f, ground: 0x0e1014, fog: 0x1d2531, fogD: 0.0105, mist: 0.55, mistTop: 1.8,
-      sunDir: [-0.42, 0.62, 0.48], sunCol: 0xb4c6ea, sunI: 1.3, sunShadow: true, moon: 1, stars: 1, cloud: 0.4, cloudCol: 0x2b3442,
-      hemiSky: 0x5f7298, hemiGround: 0x3a3630, hemiI: 0.85, env: 0.6, exposure: 0.9, wind: 0.35, wet: 0.15, rain: 0, grade: 'night'
+      sunDir: [-0.42, 0.62, 0.48], sunCol: 0xb4c6ea, sunI: 1.2, sunShadow: true, moon: 1, stars: 1, cloud: 0.4, cloudCol: 0x2b3442,
+      hemiSky: 0x5f7298, hemiGround: 0x3a3630, hemiI: 1.1, env: 0.6, exposure: 0.9, wind: 0.35, wet: 0.15, rain: 0, grade: 'night'
     },
     night_overcast: {
       skyTop: 0x080a0d, skyHor: 0x1b1f25, ground: 0x0b0c0d, fog: 0x171b20, fogD: 0.0135, mist: 0.7, mistTop: 2.2,
       sunDir: [-0.3, 0.8, 0.4], sunCol: 0x8a96aa, sunI: 0.16, sunShadow: false, moon: 0.15, stars: 0, cloud: 1.0, cloudCol: 0x1d2128,
-      hemiSky: 0x6a7488, hemiGround: 0x2a2826, hemiI: 0.48, env: 0.6, exposure: 1.05, wind: 0.5, wet: 0.3, rain: 0, grade: 'night'
+      hemiSky: 0x6a7488, hemiGround: 0x34322e, hemiI: 1.0, env: 0.6, exposure: 1.1, wind: 0.5, wet: 0.3, rain: 0, grade: 'night'
     },
     dawn_mist: {
       skyTop: 0x3c4e66, skyHor: 0xb39a86, ground: 0x2a2a28, fog: 0x8c8e8e, fogD: 0.016, mist: 1.0, mistTop: 3.2,
@@ -140,23 +140,31 @@
   }
 
   // ------------------------------------------------------------------ rain
+  // Rain: line streaks in a box that wraps round the camera, all motion in the vertex shader. Nearly invisible in
+  // the dark, they flare inside lamp light (the four nearest point lights are passed in each frame).
   function makeRain(n) {
-    const g = new THREE.BufferGeometry(), p = new Float32Array(n * 6), s = new Float32Array(n * 2), R = E.rng(5);
-    for (let i = 0; i < n; i++) { const x = R.range(-1, 1), y = R(), z = R.range(-1, 1), sp = R.range(0.8, 1.2); p.set([x, y, z, x, y, z], i * 6); s[i * 2] = 0; s[i * 2 + 1] = 1; s[i * 2] = sp; s[i * 2 + 1] = -sp; }
-    g.setAttribute('position', new THREE.BufferAttribute(p, 3)); g.setAttribute('aS', new THREE.BufferAttribute(s, 1));
+    const g = new THREE.BufferGeometry(), p = new Float32Array(n * 6), e = new Float32Array(n * 2), R = E.rng(5);
+    for (let i = 0; i < n; i++) { const x = R(), y = R(), z = R(); p.set([x, y, z, x, y, z], i * 6); e[i * 2] = 0; e[i * 2 + 1] = 1; }
+    g.setAttribute('position', new THREE.BufferAttribute(p, 3)); g.setAttribute('aEnd', new THREE.BufferAttribute(e, 1));
     const m = new THREE.ShaderMaterial({
-      uniforms: { uTime: E.U.uTime, uCam: { value: new THREE.Vector3() }, uWind: E.U.uWind, uAmt: { value: 1 } },
-      vertexShader: `uniform float uTime; uniform vec3 uCam; uniform vec3 uWind; uniform float uAmt; attribute float aS; varying float vA;
-        void main(){ float sp = abs(aS); float B = 14.0;
-          vec3 p = position; p.y = fract(p.y - uTime * 0.9 * sp) ;
-          vec3 w = vec3(p.x * B, p.y * 16.0 - 4.0, p.z * B);
-          w.xz += uCam.xz - mod(uCam.xz, 2.0 * B) * 0.0; w.x = mod(w.x - uCam.x + B, 2.0 * B) - B + uCam.x; w.z = mod(w.z - uCam.z + B, 2.0 * B) - B + uCam.z; w.y += uCam.y;
-          vec3 v = vec3(uWind.x * uWind.z * 2.0, -9.0 * sp, uWind.y * uWind.z * 2.0);
-          if (aS < 0.0) w -= v * 0.045;
-          vA = 0.2 * uAmt * (aS < 0.0 ? 0.0 : 1.0);
-          gl_Position = projectionMatrix * viewMatrix * vec4(w, 1.0); }`,
-      fragmentShader: 'varying float vA; void main(){ gl_FragColor = vec4(vec3(0.55,0.6,0.68), vA); }',
-      transparent: true, depthWrite: false, fog: false
+      uniforms: { uTime: E.U.uTime, uWind: E.U.uWind, uAmt: { value: 1 }, uLamp: { value: [0, 1, 2, 3].map(() => new THREE.Vector4()) }, uLampC: { value: [0, 1, 2, 3].map(() => new THREE.Color()) }, uFlash: { value: 0 } },
+      vertexShader: `uniform float uTime, uAmt, uFlash; uniform vec3 uWind; uniform vec4 uLamp[4]; uniform vec3 uLampC[4]; attribute float aEnd; varying vec3 vC; varying float vA;
+        void main(){
+          vec3 B = vec3(26.0, 16.0, 26.0);
+          vec3 vel = vec3(uWind.x * uWind.z * 2.2, -9.5 - position.x * 2.5, uWind.y * uWind.z * 2.2);
+          vec3 p = position * B + vel * uTime;
+          p = mod(p - cameraPosition + 0.5 * B, B) - 0.5 * B + cameraPosition;
+          p -= normalize(vel) * aEnd * 0.3;
+          vec3 c = vec3(0.32, 0.36, 0.42) * 0.25; float a = 0.07;
+          for (int i = 0; i < 4; i++) { float d = length(p - uLamp[i].xyz); float gl = uLamp[i].w * smoothstep(9.0, 0.5, d); c += uLampC[i] * gl * 0.9; a += gl * 0.5; }
+          c += vec3(0.6, 0.65, 0.8) * uFlash; a += uFlash * 0.3;
+          float dc = length(p - cameraPosition);
+          vA = a * step(position.y, uAmt) * smoothstep(0.4, 1.5, dc) * smoothstep(13.0, 7.0, dc);
+          vC = c;
+          gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0);
+        }`,
+      fragmentShader: 'varying vec3 vC; varying float vA; void main(){ gl_FragColor = vec4(vC * vA, vA); }',
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false
     });
     const ls = new THREE.LineSegments(g, m); ls.frustumCulled = false; ls.renderOrder = 5;
     return ls;
@@ -203,7 +211,7 @@
       fog.color.copy(L(P.fog)); fog.near = P.fogD * (opts.fogMul || 1); fog.far = packMist(A.mistBase + P.mistTop - 1.8, P.mist * 0.99);
       scene.background = null;
       renderer.toneMappingExposure = P.exposure * (A.brightness || 1) * (E.Q.post ? 1 : 1.45);   // Low has no grade/lift pass
-      E.U.uWet.value = P.wet;
+      E.U.uWet.value = P.wet; E.U.uRain.value = P.rain ? 1 : 0; E.U.uDust.value = P.rain ? 0 : P.grade === 'day' ? 0.5 : 0.35;
       E.setWind(E.U.uWind.value.x, E.U.uWind.value.y, P.wind);
       rain.visible = !!P.rain && Q.name !== 'low' || (!!P.rain && opts.rainOnLow);
       // environment map: the sky (no stars, no sun disc glare) scaled by env
@@ -229,7 +237,18 @@
         const fy = Math.round(camera.position.y);
         sun.target.position.set(fx, fy, fz); sun.position.set(fx + A.dir.x * 120, fy + A.dir.y * 120, fz + A.dir.z * 120);
       } else { sun.position.copy(A.dir).multiplyScalar(100); sun.target.position.set(0, 0, 0); }
-      if (rain.visible) rain.material.uniforms.uCam.value.copy(camera.position);
+      if (rain.visible) {
+        const U = rain.material.uniforms, cp = camera.position; let k = 0;
+        const ls = []; scene.traverse(o => { if (o.isPointLight && o.intensity > 0 && o.visible) ls.push(o); });
+        ls.sort((a, b) => a.position.distanceToSquared(cp) - b.position.distanceToSquared(cp));
+        for (; k < 4; k++) { const l = ls[k]; if (l) { U.uLamp.value[k].set(l.position.x, l.position.y, l.position.z, Math.min(1.5, l.intensity * 0.5)); U.uLampC.value[k].copy(l.color); } else U.uLamp.value[k].w = 0; }
+        // lightning: a double flicker every 12-25 s, cool white, on the hemisphere light and the rain
+        A.flashT = (A.flashT == null ? 8 : A.flashT) - dt;
+        if (A.flashT < 0) { A.flashT = 12 + Math.random() * 13; A.flashAge = 0; }
+        A.flashAge = (A.flashAge == null ? 99 : A.flashAge + dt);
+        const f = A.flashAge < 0.07 ? 1 : A.flashAge < 0.16 ? 0 : A.flashAge < 0.24 ? 0.55 : Math.max(0, 0.55 - (A.flashAge - 0.24) * 2.5);
+        hemi.intensity = A.P.hemiI * (1 + f * 2.5); U.uFlash.value = f;
+      }
     };
     A.set(preset || 'night_moon');
     E.atmo = A;

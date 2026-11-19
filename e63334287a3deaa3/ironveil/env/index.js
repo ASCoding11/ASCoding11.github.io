@@ -3,8 +3,9 @@
    code at load time (env/texgen.js, in Web Workers when the page is served over http).
 
    Load order (plain script tags, after three.min.js):
-     env/texgen.js env/core.js env/atmosphere.js env/grass.js env/ground.js env/nature.js env/build.js env/props.js
-     env/decals.js env/post.js env/index.js
+     env/texgen.js env/core.js env/atmosphere.js env/grass.js env/ground.js env/builder.js env/build.js env/nature.js
+     env/props.js env/decals.js env/post.js env/index.js
+   Typical frame:  IVEnv.update(dt, camera); post ? post.render(dt) : renderer.render(scene, camera);
 
    ---------------------------------------------------------------- setup
    IVEnv.init(renderer, quality)            quality 'low' | 'medium' | 'high'. Call once, before load.
@@ -39,10 +40,43 @@
      Sets sky, stars, moon, cloud, fog + ground mist, lights, environment map, exposure, wetness and rain.
    IVEnv.post(renderer, scene, camera, quality) -> { render(dt), setSize(w, h) } or null on low.
 
-   ---------------------------------------------------------------- world pieces (see the files for options)
-   IVEnv.building(spec)  IVEnv.wall(points, opts)  IVEnv.fence(points, kind)  IVEnv.tree(kind, seed)  IVEnv.trees(list)
-   IVEnv.hedge(points, opts)  IVEnv.scatter(kind, areaTest, opts)  IVEnv.stream(points, opts)  IVEnv.prop(kind, seed)
-   IVEnv.decal(type, position, normal, size, seed)
+     grass.setScale(0.3..1) shrinks every ring without a reload (for autores.js: lower grass range first when the
+     frame time is bad); grass.counts() gives the current radii and densities; grass.info() draw calls / triangles.
+   IVEnv.setPushers([{ x, z, r, s }])       up to 8 things that flatten grass (r metres, s strength 0..1).
+
+   ---------------------------------------------------------------- buildings, walls, fences  (env/build.js)
+   IVEnv.building({ kind, w, d, floors, seed, damage 0..1, lit 0..1, roof 'tile'|'slate', units (shoprow) })
+     -> { group, colliders, doors, windows, lights, height }
+     kinds: farmhouse, barn, shed, cottage, church (with tower), shoprow, ruin, bunker (= pillbox). Farmhouse and barn
+     have interiors. Local space: origin on the ground at the footprint centre, front door faces +Z.
+     colliders: [{ x, z, hx, hz, y0, y1, rot, surf, kind }] (local, rot about Y) ready for the game's W.addBox.
+     doors: [{ pivot, width, open(angle) }]  windows: [{ x, y, z, nx, nz, w, h, lit }]
+     lights: [{ x, y, z, color, r, power, interior? }] for the game's pooled point lights (power 0 = unlit).
+   IVEnv.wall(points [[x,z]...], { type 'stone'|'brick', h, t, gaps [[from,to]], brokenStart, brokenEnd, seed, heightFn })
+   IVEnv.fence(points, 'rail'|'picket'|'barbed'|'hurdle', { heightFn, seed, damage }) -> { group, colliders }
+   IVEnv.mergeStatic(root, { cell: 48 }) -> Group: one mesh per material per 48 m cell for everything static under
+     root (skips objects with userData.dynamic, e.g. door pivots). Call after placing buildings, walls, props, hedges.
+
+   ---------------------------------------------------------------- nature  (env/nature.js)
+   IVEnv.tree(kind, seed) -> Group     kinds: oak, ash, poplar, apple, pine, dead, sapling
+   IVEnv.trees([{ kind, x, y, z, rot, scale, seed }]) -> { group, colliders, info() }  instanced, LOD swaps every 0.25 s
+     (full mesh, reduced mesh, crossed-quad impostor baked once at load). Needs IVEnv.init(renderer) first.
+   IVEnv.hedge(points, { h, w, gaps, seed, heightFn }) -> { group, colliders }   (colliders: kind 'hedge', sight only)
+   IVEnv.scatter(kind, areaTest(x,z)->0..1, { heightFn, density, radius, bounds [x0,z0,x1,z1], seed })
+     plants that stream round the camera: wheat, reeds, ferns, brambles, nettles, dock, flowers
+     objects placed once over bounds: rocks, logs, stumps, litter, puddles (-> { group, colliders })
+   IVEnv.stream(points, { width, heightFn, waterY(x,z) | level, flow }) -> { group }
+   IVEnv.puddleMesh([[x, y, z, rx, rz, rot]...]) -> Mesh   standing water that reflects lamps and sky.
+
+   ---------------------------------------------------------------- props and decals
+   IVEnv.prop(kind, seed, opts) -> { group, colliders, lights, door? }   kinds: crate, crates, barrel, barrels, drums,
+     sandbags ({ length, rows }), cart, haybale, haystack, well, trough, telegraph (group.userData.wireTop), lamppost
+     (lights[0]), gate ({ width, open }), ladder, ammo, truck (no markings), logpile, tarp, bottles.
+   IVEnv.wireMesh([[x0,y0,z0,x1,y1,z1]...], radius, sag) -> Group   wires between telegraph poles, barbed wire.
+   IVEnv.decal(type, position, normal, size, seed) -> index   pooled runtime decals, one draw call.
+     types: scratches, gouges, chipped, pocks, scorch, soot, damp, moss, rust, mud, crack, bullethole, leaves,
+     waterstain, chalk, grime.   IVEnv.impact(surface, position, normal) picks one per material for a bullet hit.
+     IVEnv.clearDecals() on level change.
 */
 (function () {
   'use strict';

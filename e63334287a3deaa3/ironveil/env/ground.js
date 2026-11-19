@@ -25,7 +25,7 @@
     const m = new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0, normalMap: T[0].nri, envMapIntensity: 1 });
     m.userData.linear = true;
     const uni = {
-      uMacro: E.U.uMacro, uWet: E.U.uWet,
+      uMacro: E.U.uMacro, uWet: E.U.uWet, uRain: E.U.uRain, uTime: E.U.uTime,
       uA0: { value: T[0].alb }, uA1: { value: T[1].alb }, uA2: { value: T[2].alb }, uA3: { value: T[3].alb }, uA4: { value: T[4].alb },
       uN0: { value: T[0].nri }, uN1: { value: T[1].nri }, uN2: { value: T[2].nri }, uN3: { value: T[3].nri }, uN4: { value: T[4].nri },
       uSz: { value: [2.5, 3.0, 3.0, 1.5, 2.0].map(s => 1 / s) },
@@ -38,7 +38,9 @@
       sh.vertexShader = 'attribute vec4 aW0; attribute vec4 aW1; attribute vec4 aGC;\nvarying vec4 vW0; varying vec4 vW1; varying vec4 vGC; varying vec3 vGW;\n' +
         sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n vW0 = aW0; vW1 = aW1; vGC = aGC; vGW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
       sh.fragmentShader = `
-        uniform sampler2D uMacro, uA0, uA1, uA2, uA3, uA4, uN0, uN1, uN2, uN3, uN4; uniform float uSz[5]; uniform float uWet; uniform vec2 uCarry;
+        uniform sampler2D uMacro, uA0, uA1, uA2, uA3, uA4, uN0, uN1, uN2, uN3, uN4; uniform float uSz[5]; uniform float uWet, uRain, uTime; uniform vec2 uCarry;
+        vec2 ivRipple(vec2 p, float t) { vec2 cell = floor(p), f = fract(p) - 0.5; float r = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453); float ph = fract(t * 1.4 + r * 7.0);
+          vec2 d = f - (vec2(fract(r * 13.1), fract(r * 27.7)) - 0.5) * 0.5; float dist = length(d); float ring = sin((dist - ph * 0.45) * 45.0) * smoothstep(0.06, 0.0, abs(dist - ph * 0.45)) * (1.0 - ph); return normalize(d + 1e-5) * ring; }
         varying vec4 vW0; varying vec4 vW1; varying vec4 vGC; varying vec3 vGW;
         void ivLay(sampler2D A, sampler2D N, float s, vec2 p, float m, out vec4 a, out vec4 n) {
           vec2 uv = p * s;
@@ -94,7 +96,8 @@
           vec3 mapN = vec3(gn.xy * 2.0 - 1.0, 0.0);
           mapN.xy *= (1.0 - ivPud * 0.97) * (1.0 - vGC.a * 0.2);
           mapN.z = sqrt(max(0.05, 1.0 - dot(mapN.xy, mapN.xy)));
-          normal = perturbNormal2Arb(-vViewPosition, normal, normalize(mapN), faceDirection);`)
+          normal = perturbNormal2Arb(-vViewPosition, normal, normalize(mapN), faceDirection);
+          if (uRain > 0.0 && ivPud > 0.01) { vec2 rp = ivRipple(vGW.xz * 3.0, uTime) + ivRipple(vGW.xz * 5.3 + 7.0, uTime * 1.13) * 0.7; normal = normalize(normal + (viewMatrix * vec4(rp.x, 0.0, rp.y, 0.0)).xyz * 0.35 * ivPud * uRain); }`)
         .replace('#include <aomap_fragment>', `
           float gao = 0.45 + 0.55 * smoothstep(0.05, 0.6, gh);
           reflectedLight.indirectDiffuse *= gao; reflectedLight.indirectSpecular *= mix(gao, 1.0, ivPud);`);
@@ -103,10 +106,13 @@
     return m;
   }
 
+  // For the game's footsteps and splashes: how wet / muddy the ground is here, 0..1, and its kind.
+  E.wetnessAt = function (x, z) { const g = E._ground; if (!g) return E.U.uWet.value; const w = W[g.surfaceAt(x, z)] || W.none; return Math.min(1, w[5] + E.U.uWet.value * 0.5); };
+  E.surfaceAt = function (x, z) { const g = E._ground; return g ? g.surfaceAt(x, z) : 'grass'; };
   E.ground = function (heightFn, opts) {
     opts = opts || {};
     const surfaceAt = opts.surfaceAt || (() => 'grass');
-    const step = opts.step || (E.Q.name === 'low' ? 2 : E.Q.name === 'medium' ? 1.5 : 1);
+    const step = opts.step || (E.Q.name === 'low' ? 2.5 : E.Q.name === 'medium' ? 2 : 1.5);
     const half = (opts.size || 200) / 2;
     const x0 = opts.x0 != null ? opts.x0 : -half, z0 = opts.z0 != null ? opts.z0 : -half, x1 = opts.x1 != null ? opts.x1 : half, z1 = opts.z1 != null ? opts.z1 : half;
     const CH = opts.chunk || 64;
@@ -150,6 +156,7 @@
       g.setIndex(new THREE.BufferAttribute(idx, 1)); g.computeBoundingSphere(); g.computeBoundingBox();
       const mesh = new THREE.Mesh(g, mat); mesh.receiveShadow = true; mesh.name = 'ground'; group.add(mesh); meshes.push(mesh);
     }
+    E._ground = { surfaceAt };
     return { group, material: mat, meshes, heightFn, surfaceAt };
   };
 })();

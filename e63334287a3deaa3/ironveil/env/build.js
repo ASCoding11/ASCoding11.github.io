@@ -31,7 +31,7 @@
   const _M = new THREE.Matrix4(), _Q = new THREE.Quaternion(), _Eu = new THREE.Euler(), _P = new THREE.Vector3(), _S = new THREE.Vector3();
   function placeRock(B, mat, x, y, z, s, seed, rot, tint) {
     _Eu.set(rot ? rot[0] : 0, rot ? rot[1] : 0, rot ? rot[2] : 0); _Q.setFromEuler(_Eu); _P.set(x, y, z); _S.set(s, s, s);
-    B.geo(mat, E.rockGeo(seed % 23, s > 0.25 ? 1 : 0), _M.compose(_P, _Q, _S), { tint });
+    B.geo(mat, E.rockGeo(seed % 23, s > 0.35 ? 1 : 0), _M.compose(_P, _Q, _S), { tint });
   }
   // a loose brick (or any small block) lying at a random angle
   function looseBlock(B, mat, x, y, z, R, sx, sy, sz, tint) {
