@@ -1055,6 +1055,27 @@
   I('drop-zone', 'outfit', 81, 'Superhero', 'epic', '#3A9BDC', '#FFD23F', 'A mask, a lightning emblem, a cape and yellow boots.');
   I('drop-zone', 'outfit', 82, 'Masked Wrestler', 'uncommon', '#3A9BDC', '#FFC93C', 'A mask with a crest, a cape and a championship belt.');
   I('drop-zone', 'outfit', 83, 'Samurai Armour', 'epic', '#FF7A68', '#FFC93C', 'Costume armour with gold lacing and a small banner.');
+  I('drop-zone', 'pack', 9, 'Sports Bag', 'common', '#3A9BDC', '#F2EFE8', 'A duffel in your colour with a ball patch.');
+  I('drop-zone', 'pack', 10, 'Briefcase', 'uncommon', '#A8384A', '#FFC93C', 'Gold trim, two clasps and a name tag.');
+  I('drop-zone', 'pack', 11, 'Robot Power Pack', 'epic', '#C9D1DA', '#3A9BDC', 'Thrusters, vents and a glowing core. For looks only.');
+  I('drop-zone', 'pack', 12, 'Bag of Balls', 'common', '#F2EFE8', '#F08A2A', 'A net bag of three balls.');
+  I('drop-zone', 'pack', 13, 'Spyglass and Map', 'rare', '#B85A3A', '#FFC93C', 'A brass spyglass and a rolled-up map.');
+  I('drop-zone', 'pack', 14, 'Lucky Mascot', 'rare', '#FFC93C', '#FF8A1F', 'A plush bird that hugs you from behind.');
+  I('drop-zone', 'glider', 25, 'Pirate Sail', 'rare', '#F4ECD8', '#D23B30', 'A square sail on a mast, with a red pennant.');
+  I('drop-zone', 'glider', 26, 'Giant Football', 'uncommon', '#A8562C', '#FFFFFF', 'A huge inflatable ball on four cords.');
+  I('drop-zone', 'glider', 27, 'Soccer Goal', 'rare', '#FFFFFF', '#C9D1DA', 'Hold the bar; the net fills with air.');
+  I('drop-zone', 'glider', 28, 'Hockey Stick', 'epic', '#F2EFE8', '#2A2D34', 'Ride a giant stick like a broom.');
+  I('drop-zone', 'glider', 29, 'Robot Rotor', 'epic', '#B8C0C8', '#FFD23F', 'Three spinning blades over your head.');
+  I('drop-zone', 'glider', 30, 'Briefcase Parachute', 'legendary', '#3A7AD0', '#A8384A', 'A striped canopy bursts out of a briefcase.');
+  I('drop-zone', 'wrap', 20, 'Team Stripes', 'common', '#1A8CBF', '#FF8C1A', 'Team-colour bands with a white stripe.');
+  I('drop-zone', 'wrap', 21, 'Pinstripe', 'uncommon', '#808A99', '#EBEDF2', 'Grey with fine light stripes.');
+  I('drop-zone', 'wrap', 22, 'Treasure Map', 'rare', '#EDD6A3', '#B8291A', 'Old paper with a dotted red route.');
+  I('drop-zone', 'wrap', 23, 'Circuit Board', 'epic', '#0F3861', '#FFCC4D', 'Gold traces that pulse with light.');
+  I('drop-zone', 'wrap', 24, 'Basketball', 'common', '#F07A1F', '#141414', 'Orange and pebbly, with black seams.');
+  I('drop-zone', 'emote', 7, 'Goal Celebration', 'uncommon', '#3A9BDC', '#FFD23F', 'A lap with your arms out, then both fists up.');
+  I('drop-zone', 'emote', 8, 'Tip the Hat', 'common', '#B4BAC6', '#3A9BDC', 'A hand to the brim and a polite nod.');
+  I('drop-zone', 'emote', 9, 'Pirate Arr', 'uncommon', '#FF6A55', '#FFC93C', 'A fist on your hip, pointing out to sea.');
+  I('drop-zone', 'emote', 10, 'Power Down', 'rare', '#C9D1DA', '#3EE6FF', 'Slump, hang, then jerk back on like a robot.');
   // Items a game hands over itself are in no pack: give is 'free' (anyone may wear it; the game grants it the first time it
   // is worn) or 'earned' (the game grants it when it is won). grant(id), below, only adds these.
   GAME_ITEMS.forEach(function (it) { if (it.game !== 'slipstream') return; if (it.slot === 'sponsor' || (it.slot === 'helmet' && it.no <= 8)) it.give = 'free'; else if (it.slot === 'livery' && it.no > 8) it.give = 'earned'; });

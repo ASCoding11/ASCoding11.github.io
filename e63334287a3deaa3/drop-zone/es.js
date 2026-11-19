@@ -233,7 +233,14 @@
     'Treasure Chest': 'Cofre del tesoro', 'Lunchbox': 'Lonchera', 'Guitar Case': 'Estuche de guitarra', 'Fishbowl': 'Pecera',
     // emotes and victory poses
     'Wave': 'Saludo', 'Dance': 'Baile', 'Clap': 'Aplauso', 'Jumping Jacks': 'Saltos de tijera', 'Twirl': 'Giro', 'Champion': 'Campeón', 'Flex': 'Músculos',
-    'Take a Bow': 'Reverencia', 'Jump for Joy': 'Salto de alegría'
+    'Take a Bow': 'Reverencia', 'Jump for Joy': 'Salto de alegría',
+    // wave two extras
+    'Sports Bag': 'Bolso deportivo', 'Briefcase': 'Maletín', 'Robot Power Pack': 'Batería de robot', 'Bag of Balls': 'Bolsa de pelotas',
+    'Spyglass and Map': 'Catalejo y mapa', 'Lucky Mascot': 'Mascota de la suerte', 'Pirate Sail': 'Vela pirata', 'Giant Football': 'Pelota de fútbol americano gigante',
+    'Soccer Goal': 'Arco de fútbol', 'Hockey Stick': 'Palo de hockey', 'Robot Rotor': 'Rotor de robot', 'Briefcase Parachute': 'Paracaídas de maletín',
+    'Team Stripes': 'Rayas de equipo', 'Pinstripe': 'Raya diplomática', 'Treasure Map': 'Mapa del tesoro', 'Circuit Board': 'Placa de circuitos',
+    'Basketball': 'Pelota de básquet', 'Goal Celebration': 'Festejo de gol', 'Tip the Hat': 'Saludo con el sombrero', 'Pirate Arr': '¡Arrr pirata!',
+    'Power Down': 'Apagón'
   };
   for (var k2 in lk) d[k2] = lk[k2];
 
