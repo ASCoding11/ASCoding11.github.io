@@ -540,7 +540,7 @@ const DECALS=[null,
   // 44 Pinstriping: thin hand-painted curls over the bonnet and along the sides
   (g,P)=>{
     const curl=(pts,c,w)=>{g.beginPath();g.moveTo(pts[0][0],pts[0][1]);for(let i=1;i+2<pts.length;i+=3)g.bezierCurveTo(pts[i][0],pts[i][1],pts[i+1][0],pts[i+1][1],pts[i+2][0],pts[i+2][1]);g.lineWidth=w;g.strokeStyle=c;g.lineCap='round';g.stroke()};
-    const both=pts=>{curl(pts,P.ac,.04);curl(pts,'#f4f6ff',.014)};
+    const both=pts=>{curl(pts,P.ac,.07);curl(pts,'#f4f6ff',.026)};
     if(P.panel==='top'){for(const s of[-1,1]){both([[1.42,0],[1.1,s*.05],[.85,s*.45],[.55,s*.38],[.3,s*.3],[.35,s*.12],[.5,s*.16],[.6,s*.2],[.55,s*.3],[.45,s*.28]]);both([[-1.4,s*.72],[-.6,s*.74],[.2,s*.72],[.7,s*.6]])}}
     else if(P.panel==='side'){both([[-1.35,.3],[-.5,.34],[.4,.34],[.9,.22],[1.1,.14],[1.25,.24],[1.18,.32],[1.1,.36],[1.02,.3],[1.06,.26]]);both([[-1.3,-.18],[-.3,-.2],[.5,-.2],[1.2,-.16]])}
     else if(P.panel==='rear'){for(const s of[-1,1])both([[0,.15],[s*.2,.35],[s*.55,.3],[s*.45,.1],[s*.35,-.05],[s*.2,.05],[s*.28,.15]])}
@@ -550,7 +550,7 @@ const DECALS=[null,
     const c=.42,nx=Math.ceil((P.u1-P.u0)/c),ny=Math.ceil((P.v1-P.v0)/c),pt=[];
     for(let j=0;j<=ny;j++){pt.push([]);for(let i=0;i<=nx;i++)pt[j].push([P.u0+i*c+(i&&i<nx?(P.r()-.5)*c*.7:0),P.v0+j*c+(j&&j<ny?(P.r()-.5)*c*.7:0)])}
     for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){const q=[pt[j][i],pt[j][i+1],pt[j+1][i+1],pt[j+1][i]];
-      for(const t of(P.r()>.5?[[q[0],q[1],q[2]],[q[0],q[2],q[3]]]:[[q[0],q[1],q[3]],[q[1],q[2],q[3]]])){const k=P.r();poly(g,t);g.fillStyle=k<.45?P.lt:P.dk;g.globalAlpha=.12+P.r()*.3;g.fill();g.globalAlpha=1}}
+      for(const t of(P.r()>.5?[[q[0],q[1],q[2]],[q[0],q[2],q[3]]]:[[q[0],q[1],q[3]],[q[1],q[2],q[3]]])){const k=P.r();poly(g,t);g.fillStyle=k<.45?P.lt:P.dk;g.globalAlpha=.22+P.r()*.4;g.fill();g.globalAlpha=1}}
   },
   // 46 Chevrons: big arrowheads pointing at the nose
   (g,P)=>{
@@ -571,8 +571,8 @@ const DECALS=[null,
   (g,P)=>{
     const paw=(x,y,s,a)=>{g.save();g.translate(x,y);g.rotate(a);g.fillStyle='rgba(255,255,255,.95)';g.beginPath();g.ellipse(-s*.25,0,s*.42,s*.48,0,0,TAU);g.fill();
       for(const [tx,ty] of[[.42,-.5],[.66,-.17],[.66,.17],[.42,.5]]){g.beginPath();g.ellipse(tx*s,ty*s,s*.17,s*.14,0,0,TAU);g.fill()}g.restore()};
-    if(P.panel==='side')for(let i=0;i<7;i++)paw(-1.35+i*.45,.12+(i%2?.13:-.05),.13,.15);
-    else if(P.panel==='top')for(let i=0;i<7;i++)paw(-1.35+i*.45,(i%2?.18:-.18)+Math.sin(i*.9)*.25,.15,(i%2?-.1:.1));
+    if(P.panel==='side')for(let i=0;i<5;i++)paw(-1.2+i*.6,.14+(i%2?.12:-.04),.19,.15);
+    else if(P.panel==='top')for(let i=0;i<5;i++)paw(-1.2+i*.6,(i%2?.22:-.22)+Math.sin(i*.9)*.2,.22,(i%2?-.1:.1));
     else if(P.panel==='rear'){paw(-.3,.1,.14,Math.PI/2);paw(.3,.3,.14,Math.PI/2)}
   },
   // 49 Big Waves: rolling waves along the bottom of the car, in pale shades of your team colour with white curls of foam
@@ -581,17 +581,17 @@ const DECALS=[null,
       const f=x=>base+amp*Math.sin(x*4.4)+amp*.3*Math.sin(x*9.1+1),S=flip?-1:1;
       g.fillStyle=P.lt;g.globalAlpha=.8;g.beginPath();g.moveTo(x0,S*-1.2);for(let x=x0;x<=x1;x+=.03)g.lineTo(x,S*f(x));g.lineTo(x1,S*-1.2);g.closePath();g.fill();g.globalAlpha=1;
       g.fillStyle=P.dk;g.globalAlpha=.55;g.beginPath();g.moveTo(x0,S*-1.2);for(let x=x0;x<=x1;x+=.03)g.lineTo(x,S*(f(x+.4)-amp*2.2));g.lineTo(x1,S*-1.2);g.closePath();g.fill();g.globalAlpha=1;
-      const pts=[];for(let x=x0;x<=x1;x+=.03)pts.push([x,S*f(x)]);line(g,pts,.035,'#f4f6ff');
+      const pts=[];for(let x=x0;x<=x1;x+=.03)pts.push([x,S*f(x)]);line(g,pts,.05,'#f4f6ff');
       for(let k=Math.ceil((x0*4.4/Math.PI-.5)/2);;k++){const xc=(Math.PI*(2*k+.5))/4.4;if(xc>x1)break;if(xc<x0)continue;const yc=S*f(xc);
         g.beginPath();g.arc(xc-.07,yc-S*.06,.075,S>0?-.3:.3,S>0?Math.PI*1.4:-Math.PI*1.4,S<0);g.lineWidth=.03;g.strokeStyle='#f4f6ff';g.stroke();dot(g,xc+.06,yc+S*.03,.02,'#f4f6ff')}
     };
-    if(P.panel==='side')band(-1.5,1.5,-.12,.07,0);
+    if(P.panel==='side')band(-1.5,1.5,.2,.1,0);
     else if(P.panel==='top'){band(-1.5,1.5,-.7,.06,0);band(-1.5,1.5,-.7,.06,1)}
     else band(-1,1,-.18,.06,0);
   },
   // 50 Sunburst: pale rays fanning out from the nose
   (g,P)=>{
-    const fan=(x,y,n,r,a0,a1)=>{for(let i=0;i<n;i++){const a=lerp(a0,a1,i/n),b=lerp(a0,a1,(i+.5)/n);poly(g,[[x,y],[x+Math.cos(a)*r,y+Math.sin(a)*r],[x+Math.cos(b)*r,y+Math.sin(b)*r]]);g.fillStyle=P.lt;g.globalAlpha=.42;g.fill();g.globalAlpha=1}dot(g,x,y,.13,P.ac);g.beginPath();g.arc(x,y,.13,0,TAU);g.lineWidth=.025;g.strokeStyle='#f4f6ff';g.stroke()};
+    const fan=(x,y,n,r,a0,a1)=>{for(let i=0;i<n;i++){const a=lerp(a0,a1,i/n),b=lerp(a0,a1,(i+.5)/n);poly(g,[[x,y],[x+Math.cos(a)*r,y+Math.sin(a)*r],[x+Math.cos(b)*r,y+Math.sin(b)*r]]);g.fillStyle=P.lt;g.globalAlpha=.62;g.fill();g.globalAlpha=1}dot(g,x,y,.13,P.ac);g.beginPath();g.arc(x,y,.13,0,TAU);g.lineWidth=.025;g.strokeStyle='#f4f6ff';g.stroke()};
     if(P.panel==='side')fan(1.5,.15,9,3.6,Math.PI*.55,Math.PI*1.45);
     else if(P.panel==='top')fan(1.55,0,11,3.6,Math.PI*.5,Math.PI*1.5);
     else if(P.panel==='front')fan(0,.2,16,2,0,TAU);
@@ -640,12 +640,12 @@ const DECALS=[null,
     else if(P.panel==='side'){rect(g,-1.5,-.42,3,.16,P.dkr);rect(g,-1.5,-.26,3,.018,'#f6f6f6');for(const x of[.15,.35])dot(g,x,-.34,.03,'#c8ccd6')}
     else{rect(g,-1,-.42,2,.16,P.dkr);rect(g,-.012,-.42,.024,.4,P.dkr)}
   },
-  // 55 Hazard Stripes: yellow and black bands along the sills and bumpers
+  // 55 Hazard Stripes: yellow and black bands round the doors, the nose and the tail
   (g,P)=>{
     const band=(x,y,w,h)=>{g.save();g.beginPath();g.rect(x,y,w,h);g.clip();rect(g,x,y,w,h,'#ffd21f');for(let k=x-h-1;k<x+w+1;k+=.18){poly(g,[[k,y],[k+.09,y],[k+.09+h,y+h],[k+h,y+h]]);g.fillStyle='#14161f';g.fill()}g.restore();rect(g,x,y+h-.012,w,.012,'#14161f')};
-    if(P.panel==='side')band(-1.5,-.42,3,.15);
-    else if(P.panel==='top'){band(1.3,-1,.2,2);band(-1.5,-1,.2,2)}
-    else band(-1,-.42,2,.2);
+    if(P.panel==='side')band(-1.5,-.1,3,.22);
+    else if(P.panel==='top'){band(1.18,-1,.32,2);band(-1.5,-1,.32,2)}
+    else band(-1,0,2,.24);
   },
   // 56 Barcode: a white label with black bars on each rear wing and on the roof
   (g,P)=>{
@@ -672,13 +672,13 @@ const DECALS=[null,
   // 59 Music Staff: five lines and a run of notes along each side
   (g,P)=>{
     const W='rgba(255,255,255,.95)';
-    const staff=(x0,x1,y,gap,n,flip)=>{for(let k=0;k<5;k++)rect(g,x0,y+k*gap-.006,x1-x0,.012,W);
+    const staff=(x0,x1,y,gap,n,flip)=>{for(let k=0;k<5;k++)rect(g,x0,y+k*gap-.011,x1-x0,.022,W);
       const S=flip?-1:1;let last=null;for(let i=0;i<n;i++){const x=x0+.25+i*(x1-x0-.4)/n,step=[2,4,3,5,6,4,7,5,3,6][i%10],yy=y+step*gap/2;
         g.save();g.translate(x,yy);g.rotate(-.35);g.beginPath();g.ellipse(0,0,gap*.62,gap*.44,0,0,TAU);g.fillStyle=W;g.fill();g.restore();
         const sx=x+gap*.55,top=yy+S*gap*3.2;rect(g,sx-.007,Math.min(yy,top),.014,Math.abs(top-yy),W);
         if(i%2===1&&last){poly(g,[[last[0],last[1]],[sx+.007,top],[sx+.007,top-S*gap*.5],[last[0],last[1]-S*gap*.5]]);g.fillStyle=W;g.fill()}else if(i%2===0)last=[sx-.007,top];}
       g.beginPath();g.arc(x0+.1,y+gap*1.5,gap*1.1,0,TAU*.9);g.lineWidth=.02;g.strokeStyle=W;g.stroke();rect(g,x0+.09,y-gap,.014,gap*6,W)};
-    if(P.panel==='side')staff(-1.4,1.4,.02,.055,8);
+    if(P.panel==='side')staff(-1.4,1.4,-.04,.07,7);
     else if(P.panel==='top'){staff(-1.4,1.3,.6,.05,7);staff(-1.4,1.3,-.82,.05,7)}
     else if(P.panel==='rear')staff(-.8,.8,.1,.05,3);
   },
@@ -689,7 +689,7 @@ const DECALS=[null,
       path(1);g.fillStyle=P.lt;g.globalAlpha=.7;g.fill();g.globalAlpha=1;g.lineWidth=.06;g.strokeStyle='#f4f6ff';g.stroke();path(.55);g.fillStyle=P.ac;g.fill();
       dot(g,0,0,.12,'#f4f6ff');for(let i=0;i<9;i++){const t=i/9*TAU;dot(g,Math.cos(t)*.78,Math.sin(t)*.72+.1,.045,'#f4f6ff')}g.restore()};
     const w=P.u1-P.u0,h=P.v1-P.v0,n=Math.max(2,Math.round(7*w*h/4));
-    for(let i=0;i<n;i++)drop(P.u0+((i%4)+.5)/4*w+(P.r()-.5)*.2,P.v0+(Math.floor(i/4)%3+.5)/3*h+(P.r()-.5)*.15,.17+P.r()*.05,P.r()*TAU);
+    for(let i=0;i<n;i++)drop(P.u0+((i%4)+.5)/4*w+(P.r()-.5)*.2,P.v0+(Math.floor(i/4)%3+.5)/3*h+(P.r()-.5)*.15,.23+P.r()*.05,P.r()*TAU);
   },
   // 61 Golf Argyle: diamonds in two shades of your colour with thin white lines crossing them
   (g,P)=>{
@@ -862,7 +862,7 @@ const TOPPERS=[null,
   /* 22 Wizard Hat */ (b,x,y,z)=>{const N=0x2a2a7a;b.cyl(.19,.19,.018,N,x,y-.02,z,0,0,0,16);b.cyl(.075,.12,.15,N,x,y+.06,z,0,0,0,12);b.cyl(.122,.122,.025,0xe0b040,x,y,z,0,0,0,12);
     b.add(new THREE.ConeGeometry(.076,.17,12),N,x-.03,y+.2,z,0,0,.35);for(const [dx,dy,dz] of[[.08,.06,.07],[-.07,.1,.06],[.02,.14,-.07],[-.03,.03,-.11]])b.sph(.016,0xffe23f,x+dx,y+dy,z+dz,1,1,1,6);b.sph(.018,0xffe23f,x-.09,y+.28,z,1,1,1,6)},
   /* 23 Smiley Ball */ (b,x,y,z)=>{b.sph(.12,0xffe23f,x,y,z);for(const s of[-1,1])b.sph(.016,0x14161f,x+s*.038,y+.03,z+.108,1,1.7,.6,6);b.add(new THREE.TorusGeometry(.05,.009,5,10,Math.PI),0x14161f,x,y-.005,z+.103,-.35,0,Math.PI)},
-  /* 24 Racing Helmet */ (b,x,y,z,ac)=>{b.sph(.12,ac,x,y,z,1,.92,1.05);b.sph(.1,0x15171b,x,y+.005,z+.055,.92,.45,.6,12);b.tor(.121,.012,0xffffff,x,y,z,0,Math.PI/2,0);b.box(.14,.03,.08,0x2a2f3a,x,y-.1,z+.03)},
+  /* 24 Racing Helmet */ (b,x,y,z,ac)=>{b.sph(.12,ac,x,y,z,1,.92,1.05);b.sph(.1,0x15171b,x,y+.01,z+.07,1,.5,.62,12);b.tor(.121,.012,0xffffff,x,y,z,0,Math.PI/2,0);b.box(.14,.03,.08,0x2a2f3a,x,y-.1,z+.03)},
   /* 25 Baseball Cap */ (b,x,y,z,ac)=>{b.add(new THREE.SphereGeometry(.11,14,7,0,TAU,0,Math.PI/2),ac,x,y-.03,z,0,0,0,1,.75,1);b.cyl(.112,.112,.02,ac,x,y-.035,z,0,0,0,14);
     b.add(new THREE.CylinderGeometry(.1,.1,.014,12,1,false,-Math.PI/2,Math.PI),mixHex(ac,0,.3),x,y-.03,z+.07,-.12,0,0,1,1,1.2);b.sph(.016,0xffffff,x,y+.055,z,1,.6,1,6)},
   /* 26 Boxing Glove */ (b,x,y,z)=>{const R=0xd8262f;b.sph(.1,R,x,y+.03,z,1,1.15,1.1,12);b.sph(.045,R,x+.085,y+.0,z+.05,1,1.3,1,8);b.cyl(.07,.075,.08,0xffffff,x,y-.1,z,0,0,0,12);b.box(.012,.06,.012,0xffffff,x,y+.04,z+.11)},
@@ -1119,20 +1119,20 @@ const TRAILS=[null,
   /* 33 Green Flame */ {rate:80,life:.32,cells:[CELL.flame,CELL.flame,CELL.glow],cols:[0xd8ff8a,0x46e39a,0x14a870],size:[.7,1.2],back:9,inh:0.8,spread:1.1,up:.3,w:.22,o:O({add:1,grow:-.6,fade:0,rot:0})},
   /* 34 Violet Flame */ {rate:70,life:.4,cells:[CELL.flame,CELL.flame,CELL.spark],cols:[0xffb0f8,0xb46cff,0xffffff],size:[.6,1.15],back:7,inh:0.8,spread:.9,up:.9,w:.2,o:O({add:1,grow:-.5,fade:2,rot:0,wob:2.5})},
   /* 35 Afterburner */ {rate:96,life:.26,cells:[CELL.glow,CELL.glow,CELL.disc,CELL.ring],cols:[0x8fd6ff,0xffffff,0xffffff,0xbfe8ff],size:[.45,.8],back:11,inh:0.9,spread:.25,up:0,w:.06,o:O({add:1,grow:-.55,fade:0,rot:0}),core:.3},
-  /* 36 Sports Balls */ {rate:14,life:1.2,cells:[CELL.soccer,CELL.basket,CELL.tennis,CELL.soccer],cols:[0xffffff],size:[.6,.75],back:3,inh:0.72,spread:1.6,up:4,w:.2,o:O({grav:12,bounce:.55,spin:5})},
-  /* 37 Cannon Smoke */ {rate:34,life:.75,cells:[CELL.puff,CELL.puff,CELL.glow],cols:[0xd0d4dc,0xb4bac6,0xffa040],size:[.4,.75],back:4,inh:0.7,spread:.9,up:.6,w:.25,o:O({a:.55,grow:1.1,drag:2,fade:0})},
+  /* 36 Sports Balls */ {rate:14,life:1.2,cells:[CELL.soccer,CELL.basket,CELL.tennis,CELL.soccer],cols:[0xffffff],size:[.45,.55],back:3,inh:0.72,spread:1.6,up:3,w:.2,o:O({grav:12,bounce:.55,spin:5})},
+  /* 37 Cannon Smoke */ {rate:34,life:.75,cells:[CELL.puff,CELL.puff,CELL.glow],cols:[0xd0d4dc,0xb4bac6,0xffa040],size:[.5,.85],back:4,inh:0.7,spread:.9,up:.6,w:.25,o:O({a:.75,grow:1.1,drag:2,fade:0})},
   /* 38 Gems */ {rate:28,life:.95,cells:[CELL.gem,CELL.gem,CELL.gem,CELL.spark],cols:[0xff5c9a,0x5cc8ff,0x46e39a,0xffd23f,0xb46cff],size:[.35,.55],back:3,inh:0.72,spread:1.8,up:3,w:.25,o:O({grav:10,spin:4,bounce:.4})},
   /* 39 Paw Prints */ {rate:12,life:.9,cells:[CELL.paw],cols:[0xffffff,0xfff1e0],size:[.45,.55],back:1,inh:0.25,spread:0,up:.2,w:.35,o:O({rot:0,drag:3,a:.9})},
   /* 40 Paper Planes */ {rate:11,life:1.3,cells:[CELL.plane],cols:[0xffffff,0xeaf2ff,0xffe9a8],size:[.6,.8],back:3,inh:0.72,spread:1.2,up:1.5,w:.25,o:O({grav:-.4,wob:3,rot:0,drag:1})},
   /* 41 Spare Parts */ {rate:30,life:1,cells:[CELL.gear,CELL.nut,CELL.gear],cols:[0xc8d2dc,0x9aa3b0,0xffd23f],size:[.3,.5],back:3,inh:0.72,spread:1.8,up:3,w:.25,o:O({grav:13,spin:8,bounce:.45})},
-  /* 42 Pizza Slices */ {rate:13,life:1.2,cells:[CELL.pizza],cols:[0xffffff],size:[.7,.85],back:3,inh:0.75,spread:1.5,up:5,w:.2,o:O({grav:11,spin:6,bounce:.3})},
+  /* 42 Pizza Slices */ {rate:13,life:1.2,cells:[CELL.pizza],cols:[0xffffff],size:[.45,.55],back:3,inh:0.75,spread:1.5,up:3,w:.2,o:O({grav:11,spin:6,bounce:.3})},
   /* 43 Comet Tail */ {rate:96,life:.5,cells:[CELL.glow,CELL.glow,CELL.star,CELL.spark],cols:[0xfff2c2,0x8fd6ff,0xffffff,0xb8a6ff],size:[.45,.95],back:4,inh:0.92,spread:.35,up:0,w:.08,o:O({add:1,fade:0,grow:-.75})},
   /* 44 Cherry Blossoms */ {rate:34,life:1.1,cells:[CELL.blossom,CELL.blossom,CELL.seed],cols:[0xffc2dd,0xffffff,0xff9ac8],size:[.35,.6],back:3,inh:0.7,spread:1.8,up:1.2,w:.3,o:O({grav:1.6,spin:3,wob:3.5,drag:1})},
-  /* 45 Ghosts */ {rate:9,life:1.3,cells:[CELL.ghost],cols:[0xffffff,0xe6f0ff],size:[.7,.9],back:2,inh:0.7,spread:1.2,up:.8,w:.3,o:O({grav:-2,wob:5,rot:0,drag:1,a:.82})},
+  /* 45 Ghosts */ {rate:9,life:1.3,cells:[CELL.ghost],cols:[0xffffff,0xe6f0ff],size:[.55,.7],back:2,inh:0.7,spread:1.2,up:.8,w:.3,o:O({grav:-2,wob:5,rot:0,drag:1,a:.82})},
   /* 46 Pixel Fire */ {rate:70,life:.45,cells:[CELL.square],cols:[0xffd23f,0xff8a1f,0xff3b1c,0xfff2a8],size:[.25,.45],back:6,inh:0.8,spread:1,up:1.5,w:.2,o:O({grav:-4,grow:-.6,rot:0})},
   /* 47 Ice Shards */ {rate:46,life:.6,cells:[CELL.ice,CELL.ice,CELL.flake],cols:[0xffffff,0xbfe4ff,0xe6f6ff],size:[.3,.55],back:4,inh:0.75,spread:1.4,up:1.5,w:.25,o:O({grav:8,spin:6,bounce:.2})},
   /* 48 Hockey Pucks */ {rate:14,life:1.1,cells:[CELL.puck],cols:[0xffffff],size:[.45,.55],back:5,inh:0.6,spread:1.4,up:2.5,w:.2,o:O({grav:14,bounce:.15,rot:0,drag:.4})},
-  /* 49 Fire and Ice */ {rate:90,life:.42,cells:[CELL.flame,CELL.glow],cols:[0xff8a1f,0x8fd6ff],size:[.45,.8],back:7,inh:0.85,spread:.25,up:0,w:0,o:O({add:1,grow:-.5,fade:0,rot:0}),helix:.38}
+  /* 49 Fire and Ice */ {rate:96,life:.42,cells:[CELL.flame,CELL.ice],cols:[0xff7a1a,0x7fc8ff],size:[.45,.75],back:7,inh:0.85,spread:.2,up:0,w:0,o:O({grow:-.5,fade:0,rot:0}),helix:.45}
 ];
 const _f=new V3(),_r=new V3(),_u=new V3();
 // emits what a trail owes for dt seconds from a nozzle at the back of a car at p, facing q, moving at v

@@ -410,7 +410,7 @@
   I('boostball', 'decal', 52, 'Eye Patch', 'rare', '#121318', '#FFFFFF', 'A black patch over one headlight. Arr.');
   I('boostball', 'decal', 53, 'Tracksuit and Chain', 'common', '#FFFFFF', '#E9B93A', 'Two white stripes a side and a gold chain over the nose.');
   I('boostball', 'decal', 54, 'Suit and Tie', 'uncommon', '#2F3140', '#F6F6F6', 'Dark lapels, a white shirt and a long tie in your accent colour.');
-  I('boostball', 'decal', 55, 'Hazard Stripes', 'common', '#FFD21F', '#14161F', 'Yellow and black bands on the sills and bumpers.');
+  I('boostball', 'decal', 55, 'Hazard Stripes', 'common', '#FFD21F', '#14161F', 'Yellow and black bands round the doors, the nose and the tail.');
   I('boostball', 'decal', 56, 'Barcode', 'common', '#F4F6FF', '#14161F', 'Scan before use.');
   I('boostball', 'decal', 57, 'Synthwave Sunset', 'epic', '#FF3FA4', '#FFE45C', 'A striped sun setting behind a glowing pink grid.');
   I('boostball', 'decal', 58, 'Polka Dots', 'common', '#FFFFFF', '#FF5C9A', 'White dots, evenly spaced.');
