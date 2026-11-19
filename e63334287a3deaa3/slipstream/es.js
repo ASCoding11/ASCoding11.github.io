@@ -140,6 +140,11 @@
     'Your old sticker is still on the car.': 'Tu calcomanía anterior sigue en el auto.',
     'Pick at least one place for it to go.': 'Elige al menos un lugar donde ponerla.', 'Saved. "{t}" is on your car.': 'Guardado. "{t}" ya está en tu auto.',
     'Sticker removed.': 'Calcomanía quitada.',
+    // second wave of Garage items (sponsors' names stay as they are)
+    'Home Jersey': 'Camiseta de local', 'Varsity': 'Universitaria', 'Courtside': 'Junto a la cancha', 'Pitch': 'Cancha', 'Ice Rink': 'Pista de hielo', 'Centre Court': 'Cancha central',
+    'Black Sails': 'Velas negras', "Ship's Hull": 'Casco de barco', 'Pinstripe Suit': 'Traje a rayas', 'Tuxedo': 'Esmoquin', 'Circuit Board': 'Placa de circuito', 'Robot Plating': 'Blindaje de robot',
+    'Eye Patch': 'Parche en el ojo', 'Bandana': 'Pañuelo', 'Gridiron': 'Fútbol americano', 'Baseball': 'Béisbol', 'Football': 'Fútbol', 'Pinstripe': 'A rayas', 'Robot': 'Robot',
+    'Coin Shower': 'Lluvia de monedas', 'Sea Spray': 'Espuma de mar', 'Data Stream': 'Flujo de datos', 'Ticker Tape Podium': 'Podio con serpentinas', 'Balloons Podium': 'Podio con globos',
     '{n} emeralds': '{n} esmeraldas'   // last: the longer patterns that end in 'emeralds' go first
   });
 })();
