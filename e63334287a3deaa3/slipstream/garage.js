@@ -151,7 +151,7 @@ function heard(uid,v){
   if(remote.size>80)remote.clear();
   remote.set(uid,{raw:s,L:readWire(s)});
   const r=X.race;
-  if(r&&r.online&&!r.attract&&r.uidSeat){const seat=r.uidSeat.get(uid);if(seat!=null){const c=r.cars[seat];if(c.mesh&&!c.bot&&c.owner===uid)applyTo(c,c.mesh)}}
+  if(r&&r.online&&!r.attract&&r.uidSeat){const seat=r.uidSeat.get(uid);if(seat!=null){const c=(r.seatCar||r.cars)[seat];if(c&&c.mesh&&!c.bot&&c.owner===uid)applyTo(c,c.mesh)}}
 }
 let pvLook=null;                     // the look on the Garage's turning car
 function lookOf(c){
@@ -903,7 +903,10 @@ function onActClick(e){
   }
   if(act==='st-remove'){setSticker(null);G.draft.t='';$('gsText').value='';m.className='msg';m.textContent='Sticker removed.';renderAct();refreshPv();return}
   const it=BY_ID[G.sel];if(!it)return;
-  if(act==='buy'){const pk=packOf(it),r=pk?C.buy(pk.id):{ok:false};if(!r.ok){renderAct();return}wear(it)}
+  if(act==='buy'){const pk=packOf(it),r=pk?C.buy(pk.id):{ok:false};
+    // the server wallet (wallet.js PAYMENTS.enabled): buy() answers with a promise
+    if(r&&typeof r.then==='function'){r.then(x=>{if(x&&x.ok)wear(it);mine=null;G.tryOn={};showBalance();keepScroll(render);refreshPv()});return}
+    if(!r.ok){renderAct();return}wear(it)}
   else if(act==='wear')wear(it);
   else if(act==='off')takeOff(it.id);
   mine=null;G.tryOn={};showBalance();keepScroll(render);refreshPv();

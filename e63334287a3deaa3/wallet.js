@@ -18,8 +18,14 @@
  * (cosmetics.js PRICE). Play pays nothing and there is no welcome gift (PLAY_PAYS below is false, on purpose; the EARN
  * table is kept in case that ever changes).
  *
- * Money. There is no way to put real money in yet and there is no payment code here: PAYMENTS is a switched-off hook
- * that says what a real setup needs. Read it before turning it on.
+ * Money. Emeralds are sold for real money by the server (functions/: Stripe Checkout, the webhook and Firestore
+ * wallets/{uid}; see functions/_wallet.js and README). Whenever cosmetics.js says the server wallet is in use
+ * (BackRoomCosmetics.server(): PAYMENTS.enabled below, or the captains' preview on the shop page), this file keeps NO
+ * balance of its own: it reads the balance, what's owned, gift notices and the last ledger lines from GET /api/wallet,
+ * and sends every purchase, chest and gift to the server ("The server wallet" below). Earning, syncing into the stats
+ * node, weekly titles, the Aisle reward and the old node gifts are all off then. Everything else in this file (the
+ * browser-only balance, the node mirror, rewards) is the old local mode, kept only for the localhost test switch
+ * (?cosmetics=1 on localhost or in an automated browser).
  *
  * Earning. Games already report wins, kills, escapes, laps and bests through stats.js (BackRoomStats.add / max / min).
  * This file wraps those three functions (in the page itself, and in any same-origin game frame a hub page opens) and
@@ -156,25 +162,20 @@
   ];
 
   /*
-   * PAYMENTS: the hook for buying emeralds with real money. SWITCHED OFF, and there is deliberately no payment code here.
-   *
-   * A static site can't take money safely: anything the browser does, the player can change, so the browser must never be
-   * the one that says "paid, add 7 emeralds". A real setup needs:
-   *   1. Stripe prices (or Payment Links) for the EMERALD_PACKS above (e.g. lookup key emeralds_7).
-   *   2. A server (a Cloud Function, or the Cloudflare Pages Functions this repo already has for the item shop: store.js
-   *      and functions/api/checkout.js, see README) that checks the player's Google sign-in and creates a Stripe Checkout
-   *      Session for the pack. checkout() below would call it and send the player to Stripe's page (store.js shows how).
-   *   3. A Stripe webhook (like functions/api/stripe-webhook.js) that, only when Stripe says the payment finished, adds
-   *      the pack's mangos to a server-held ledger (e.g. Firestore wallets/{uid}, written only with a service account).
-   *   4. Security rules so players can read but never write that ledger, and this file reading the balance from it.
-   *      While the balance lives in the player's own stats node (today), bought emeralds could be faked, so turning this
-   *      on without steps 3 and 4 would be selling nothing.
-   * Until then checkout() only answers that buying isn't available.
+   * PAYMENTS: THE ONE SWITCH for the real shop. enabled: true opens the shop to every signed-in player, with the server
+   * wallet (functions/_wallet.js): emeralds bought through Stripe Checkout (store.js's Store.buy with the pack's lookup
+   * key, emeralds_7 … emeralds_4000), credited only by the Stripe webhook, and every purchase, chest and gift made on the
+   * server. Whether the money is real is decided only by the Stripe key in Cloudflare (sk_test_… is the sandbox; the shop
+   * then shows a "Test mode" tag). After changing enabled, run node e63334287a3deaa3/shop/tools/server-data.js and commit
+   * functions/_catalog.js: the server reads the switch from there (while it says false, only captains get in).
+   * While enabled is false the public site is exactly as before: the shop says it isn't open, except the captains'
+   * preview (cosmetics.js CAPTAIN_PREVIEW). The `link` fields of EMERALD_PACKS above are not used.
    */
   var PAYMENTS = {
     provider: 'stripe',
     enabled: false,
     checkout: function (packId) {
+      if (server()) return buyEmeralds(packId);
       return Promise.resolve({ ok: false, reason: 'not-available', pack: String(packId || ''), message: 'Buying emeralds isn’t available yet.' });
     }
   };
@@ -244,7 +245,7 @@
   }
   // One change to the balance, read fresh from storage (another tab may have changed it a moment ago).
   function change(delta, reason, game) {
-    if (!on() || !int(delta) || delta === 0) return false;
+    if (!on() || server() || !int(delta) || delta === 0) return false;
     var w = load(), b = bal(w);
     if (delta < 0 && b + delta < 0) return false;
     if (delta > 0 && game) {
@@ -263,7 +264,7 @@
     return after;
   }
 
-  function balance() { return on() ? bal(load()) : 0; }
+  function balance() { return on() ? (server() ? SV.balance : bal(load())) : 0; }
   function inEmeralds(m) { m = m == null ? balance() : m; if (!int(m) || m < 0) m = 0; return { emeralds: Math.floor(m / MANGOS_PER_EMERALD), mangos: m % MANGOS_PER_EMERALD }; }
   function format(m, short) {
     if (m == null && unlimited()) return '∞';            // a captain: no balance to show
@@ -272,9 +273,9 @@
     var s = e.emeralds.toLocaleString('en-US') + (e.emeralds === 1 ? ' emerald' : ' emeralds');
     return e.mangos ? s + ' ' + e.mangos + (e.mangos === 1 ? ' mango' : ' mangos') : s;
   }
-  function earn(mangos, reason) { if (!int(mangos) || mangos < 1 || mangos > MAX_GRANT) return false; return change(mangos, reason || 'earned'); }
+  function earn(mangos, reason) { if (server() || !int(mangos) || mangos < 1 || mangos > MAX_GRANT) return false; return change(mangos, reason || 'earned'); }
   function spend(mangos, reason) {
-    if (!int(mangos) || mangos < 1) return false;
+    if (server() || !int(mangos) || mangos < 1) return false;     // the server wallet: purchases go to the server
     if (unlimited()) { var b = bal(load()); addLog(0, b, why('Free (captain): ' + (reason || 'spent'))); fire(b, 0, why(reason)); return b; }   // captains are never charged
     return change(-mangos, reason || 'spent');
   }
@@ -282,7 +283,7 @@
   // ---------------- Earning from play (stats.js's hooks) ----------------
   function baseStat(k) { return String(k).split(':')[0].replace(/-(w\d+|easy|medium|hard)$/, ''); }
   function onStat(game, how, k, v) {
-    if (!PLAY_PAYS || !on() || !okGame(game) || typeof k !== 'string') return;
+    if (!PLAY_PAYS || !on() || server() || !okGame(game) || typeof k !== 'string') return;
     var rule = EARN[game] || EARN['*'], name = baseStat(k), pay = 0;
     if (how === 'add') {
       var n = Number(v == null ? 1 : v);
@@ -329,6 +330,11 @@
   }
   function start() {
     if (!on()) return;
+    if (server()) {                                           // the server wallet: just read it, now and on coming back
+      refresh();
+      document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') refresh(); });
+      return;
+    }
     var tries = 0;
     (function look() { if (!hookStats(window.BackRoomStats) && ++tries < 20) setTimeout(look, 500); })();
     watchFrames();
@@ -380,6 +386,7 @@
   // One sync: add this browser's pend to the node's balance, join the lockers, all in one transaction on w.
   function sync() {
     if (!on()) return Promise.resolve(false);
+    if (server()) return refresh().then(function () { return true; });
     if (syncing) { again = true; return syncing; }
     syncing = getConn().then(function (c) {
       var u = c.user();
@@ -444,7 +451,7 @@
   // Captains (captains.js, which asks miles.js's OWNERS; Vice Captains are not captains here) have no limit: their
   // balance shows ∞, spending never charges them, they own everything (cosmetics.js) and gift for free.
   function captain() { try { return !!(window.BackRoomCaptains && window.BackRoomCaptains.captain && window.BackRoomCaptains.captain()); } catch (e) { return false; } }
-  function unlimited() { return on() && captain(); }
+  function unlimited() { return on() && (captain() || (server() && SV.captain)); }
   function isCaptainUid(u) { try { var M = window.BackRoomMiles; return !!(M && M.isOwner && M.isOwner(u)); } catch (e) { return false; } }
   function cleanText(t, max) {
     t = String(t == null ? '' : t).replace(/[|<>\u0000-\u001f\u007f​-‏‪-‮⁦-⁩]/g, '').replace(/\s+/g, ' ').trim().slice(0, max);
@@ -515,7 +522,7 @@
    * Returns { mangos, ... } or false.
    */
   function grant(kind, d) {
-    if (!on() || !obj(d)) return false;
+    if (!on() || server() || !obj(d)) return false;        // the server wallet: no claims from the browser (README)
     var w = load();
     if (kind === 'title' || kind === 'aisle') {
       var key = kind === 'title' ? 'tw' : 'aw';
@@ -615,6 +622,7 @@
   function gift(what, to, toName, note) {
     var C = window.BackRoomCosmetics;
     if (!on() || !C || !C.pack) return Promise.resolve({ ok: false, reason: 'off' });
+    if (server()) return svGift(what, to, toName, note);
     return getConn().then(function (c) { return c.user(); }, function () { return null; }).then(function (u) {
       if (!googleOk(u) || !okUid(u.uid)) return { ok: false, reason: 'signin' };
       if (!okUid(to) || to === u.uid) return { ok: false, reason: 'self' };
@@ -650,6 +658,7 @@
   var scanning = null;
   function scan(force) {
     if (!on()) return Promise.resolve(false);
+    if (server()) return refresh().then(function () { return true; });   // gift notices come with the wallet
     if (scanning) return scanning;
     var at = +(ls('wallet:scan') || 0);
     if (!force && Date.now() - at < SCAN_MS && lastVal) return Promise.resolve(false);
@@ -706,13 +715,110 @@
     }).catch(function () { return []; });
   }
 
+  // ---------------- The server wallet (functions/_wallet.js, on ascoding11.com) ----------------
+  // In use whenever BackRoomCosmetics.server() says so. SV is the last answer from GET /api/wallet (or from a purchase,
+  // which returns the same state); nothing of it is saved in this browser. Requests carry the Google sign-in's ID token
+  // (store.js's Store.user(): the page's account.js sign-in), the same as the item shop.
+  var API = /(^|\.)ascoding11\.com$/.test(location.hostname) ? '/api/' : 'https://ascoding11.com/api/';
+  var SV = { ready: false, signedIn: null, closed: false, error: '', balance: 0, owned: [], recent: [], notices: [], captain: false, test: false };
+  function server() { try { var C = window.BackRoomCosmetics; return !!(C && C.server && C.server()); } catch (e) { return false; } }
+  var storeP = null;
+  function store() {
+    if (window.Store) return Promise.resolve(window.Store);
+    if (!storeP) { storeP = load1('/store.js').then(function () { return window.Store || null; }); storeP.catch(function () { storeP = null; }); }
+    return storeP;
+  }
+  function rid() { var s = ''; try { var a = new Uint8Array(16); crypto.getRandomValues(a); for (var i = 0; i < 16; i++) s += 'abcdefghijklmnopqrstuvwxyz0123456789'.charAt(a[i] % 36); } catch (e) { s = (Math.random().toString(36) + Math.random().toString(36)).replace(/[^a-z0-9]/g, '').slice(0, 16); } return s; }
+  function apiCall(path, body) {
+    return store().then(function (St) { return St ? St.user() : null; }).then(function (u) {
+      if (!u) { var e = new Error('Buying needs a Google sign-in.'); e.reason = 'signin'; throw e; }
+      return u.getIdToken().then(function (t) {
+        var h = { Authorization: 'Bearer ' + t }; if (body) h['Content-Type'] = 'application/json';
+        return fetch(API + path, { method: body ? 'POST' : 'GET', headers: h, body: body ? JSON.stringify(body) : undefined });
+      });
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (d) {
+        if (!r.ok) { var e = new Error(d.error || 'Something went wrong. Try again in a minute.'); e.reason = d.reason || (r.status === 401 ? 'signin' : 'server'); e.status = r.status; e.data = d; throw e; }
+        return d;
+      });
+    });
+  }
+  function adoptState(st) {
+    if (!obj(st) || !int(st.balance)) return;
+    var before = SV.balance;
+    SV.ready = true; SV.signedIn = true; SV.closed = false; SV.error = '';
+    SV.balance = st.balance; SV.captain = !!st.captain; SV.test = !!st.test;
+    SV.owned = Array.isArray(st.owned) ? st.owned.filter(function (x) { return typeof x === 'string'; }) : [];
+    SV.recent = Array.isArray(st.recent) ? st.recent.filter(function (e) { return Array.isArray(e) && int(e[0]) && int(e[1]) && int(e[2]); }) : [];
+    SV.notices = Array.isArray(st.notices) ? st.notices.filter(obj) : [];
+    fire(SV.balance, SV.balance - before, 'server');
+    showNotices();
+  }
+  var refreshing = null;
+  // Read the wallet again. Resolves with SV whatever happens (signed out: SV.signedIn false; not open to this account:
+  // SV.closed; anything else: SV.error).
+  function refresh() {
+    if (!server()) return Promise.resolve(null);
+    if (refreshing) return refreshing;
+    refreshing = apiCall('wallet').then(function (d) { adoptState(d); return SV; }, function (e) {
+      if (e.reason === 'signin') { SV.signedIn = false; SV.balance = 0; SV.owned = []; SV.recent = []; SV.notices = []; SV.captain = false; }
+      else if (e.reason === 'closed') { SV.signedIn = true; SV.closed = true; }
+      else SV.error = e.message;
+      SV.ready = true; fire(SV.balance, 0, 'server');
+      return SV;
+    }).then(function (r) { refreshing = null; return r; });
+    return refreshing;
+  }
+  // One purchase, chest or gift. -> { ok: true, ... } or { ok: false, reason, message, need }
+  function svPost(path, body) {
+    if (!server()) return Promise.resolve({ ok: false, reason: 'off' });
+    body.req = rid();                                          // the server does each request id once
+    return apiCall(path, body).then(function (d) { if (d.state) adoptState(d.state); return d; }, function (e) {
+      if (e.reason === 'signin') SV.signedIn = false;
+      return { ok: false, reason: e.reason || 'server', message: e.message, need: e.data && e.data.need };
+    });
+  }
+  function svBuy(what) { return svPost('wallet/buy', { what: String(what) }); }
+  function svChest(n) { return svPost('wallet/chest', { n: n }); }
+  function svGift(what, to, toName, note) {
+    if (!okUid(to)) return Promise.resolve({ ok: false, reason: 'self' });
+    return svPost('wallet/gift', { what: String(what), to: to, toName: cleanText(toName, 14), fromName: myName(), note: cleanText(note, NOTE_MAX) });
+  }
+  // Gift notices from the server: shown once, then marked seen.
+  var shownN = {};
+  function showNotices() {
+    var fresh = SV.notices.filter(function (n) { return typeof n.id === 'string' && !shownN[n.id]; });
+    if (!fresh.length) return;
+    fresh.forEach(function (n) {
+      shownN[n.id] = 1;
+      notice(cleanText(n.from, 14) + ' sent you a gift: ' + cleanText(n.what, 60) + (n.note ? ' “' + cleanText(n.note, NOTE_MAX) + '”' : ''));
+      try { document.dispatchEvent(new CustomEvent('backroom:gift', { detail: { from: n.from, name: n.what, note: n.note, got: n.got, refund: n.refund } })); } catch (e) {}
+    });
+    apiCall('wallet/seen', { ids: fresh.map(function (n) { return n.id; }) }).catch(function () {});
+  }
+  // Buy an emerald pack (wallet's EMERALD_PACKS id): Stripe Checkout through store.js, which signs the player in with
+  // Google first if needed and then sends the tab to Stripe; Stripe brings it back with ?purchase=success&sku=…&session=….
+  function buyEmeralds(packId) {
+    var p = EMERALD_PACKS.filter(function (e) { return e.id === packId; })[0];
+    if (!p) return Promise.resolve({ ok: false, reason: 'unknown' });
+    return store().then(function (St) {
+      if (!St) throw new Error('Couldn’t reach the shop. Try again in a minute.');
+      return St.buy(p.id.replace(/-/g, '_'));
+    }).then(function (d) { return { ok: true, url: d.url }; }, function (e) {
+      return { ok: false, reason: e.status === 401 || /sign in/i.test(e.message || '') ? 'signin' : e.status === 403 ? 'closed' : 'server', message: e.message };
+    });
+  }
+
   // ---------------- API ----------------
   window.BackRoomWallet = {
     balance: balance, inEmeralds: inEmeralds, format: format, earn: earn, spend: spend,
-    log: function () { return readLog(); }, on: on, sync: sync,
+    log: function () { return server() ? SV.recent.map(function (e) { return [e[0], e[1], e[2], String(e[3] || '')]; }) : readLog(); }, on: on, sync: sync,
+    // The server wallet (see above): whether it is in use, read it again, its state, and buying through it.
+    server: server, refresh: refresh, signedIn: function () { return SV.signedIn; }, testMode: function () { return server() && SV.test; },
+    state: function () { return SV; }, buyEmeralds: buyEmeralds, _owned: function () { return SV.owned.slice(); }, _buy: svBuy, _chest: svChest,
     unlimited: unlimited, gift: gift, giftPeople: giftPeople, scan: scan, NOTE_MAX: NOTE_MAX, GIFT_MAX: GS_MAX,
     // The welcome gift (once per browser), given by the shop page the first time it opens.
-    welcome: function () { if (!on() || !(WELCOME > 0)) return false; var w = load(); if (w.gift) return false; w.gift = 1; save(w); return change(WELCOME, 'Welcome gift'); },
+    welcome: function () { if (!on() || server() || !(WELCOME > 0)) return false; var w = load(); if (w.gift) return false; w.gift = 1; save(w); return change(WELCOME, 'Welcome gift'); },
     MANGOS_PER_EMERALD: MANGOS_PER_EMERALD, EMERALD_PACKS: EMERALD_PACKS, EARN: EARN, PLAY_PAYS: PLAY_PAYS, PAYMENTS: PAYMENTS
   };
   if (navigator.webdriver) window.__wallet = {

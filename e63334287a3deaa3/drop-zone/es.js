@@ -67,7 +67,7 @@
     'Teams against practice bots, just in this browser.': 'Equipos contra bots de práctica, solo en este navegador.',
     'You against 7 practice bots, just in this browser.': 'Tú contra 7 bots de práctica, solo en este navegador.',
     '{a}v{b} against practice bots, first to {c}, just in this browser.': '{a} contra {b} con bots de práctica, gana el primero en llegar a {c}, solo en este navegador.',
-    'Teams': 'Equipos', 'First to': 'Gana con', 'Fill in': 'Completan', 'Off': 'No',
+    'Teams': 'Equipos', 'First to': 'Gana con', 'Fill in': 'Completan', 'Off': 'No', 'No bots in party games': 'Sin bots en partidas de grupo',
     'Practice Duos': 'Práctica de Dúos', 'Practice Trios': 'Práctica de Tríos', 'Practice Creative': 'Práctica de Creativo',
     'Practice Box Fights': 'Práctica de Box Fights', 'Practice Zone Wars': 'Práctica de Zone Wars',
     'Start match': 'Empezar partida', 'Start Duos': 'Empezar Dúos', 'Start Trios': 'Empezar Tríos', 'Start Creative': 'Empezar Creativo',

@@ -21,7 +21,7 @@ if (window.BackRoomLang) BackRoomLang.add({
   'Public room': 'Sala pública', 'Room {r}': 'Sala {r}', 'Finding a room…': 'Buscando una sala…', 'Joining pf-{r}…': 'Entrando a pf-{r}…',
   'Starting in {n}…': 'Empieza en {n}…', 'Starting soon…': 'Empieza pronto…', 'Waiting for another player, or press Start to play the bots now.': 'Esperando a otro jugador, o pulsa Empezar para jugar ya con bots.',
   'Press Start when everyone is in.': 'Pulsa Empezar cuando estén todos.', 'Press Start when everyone is in. Bots fill the ring to 4.': 'Pulsa Empezar cuando estén todos. Los bots completan hasta 4.',
-  'Waiting for a friend, or tick the bots box.': 'Esperando a un amigo, o marca la casilla de bots.', 'Waiting for the host to start.': 'Esperando a que empiece el anfitrión.',
+  'Waiting for a friend, or tick the bots box.': 'Esperando a un amigo, o marca la casilla de bots.', 'Waiting for your party to join.': 'Esperando a que entre tu grupo.', 'No bots in party games': 'Sin bots en partidas de grupo', 'Waiting for the host to start.': 'Esperando a que empiece el anfitrión.',
   "You're the host now": 'Ahora eres el anfitrión', 'You': 'Tú', '{n} (you)': '{n} (tú)', '{n} (bot)': '{n} (bot)', '{n} (host)': '{n} (anfitrión)',
   'All public rooms are full right now. Try a room code.': 'Todas las salas públicas están llenas. Prueba con un código.',
   'Invite link copied. Friends open it and press Play in room.': 'Invitación copiada. Tus amigos la abren y pulsan Jugar en sala.',

@@ -68,6 +68,7 @@ h2{font-family:var(--f-d);font-weight:400;font-size:28px;margin:0 0 4px}
 .seg button.on{background:var(--ink);color:#fff}
 .seg button[disabled]{opacity:.4;cursor:default}
 .opts{display:grid;grid-template-columns:auto 1fr;gap:8px 12px;align-items:center;font-size:14.5px}
+.opts>.nobots{grid-column:2;font-size:13px;font-weight:600;opacity:.75;margin-top:-4px}
 .msg{min-height:20px;margin:10px 0 0;font-size:14.5px;color:var(--ink-2)}
 .msg.err{color:#c22a1e}
 .note{font-size:13.5px;color:var(--ink-2);line-height:1.4;margin:8px 0 0}
@@ -343,6 +344,7 @@ body.touch #banner{top:30%}
         <span>Win at</span><span class="seg" id="setKl"><button type="button" data-v="5">5 kills</button><button type="button" data-v="10">10</button><button type="button" data-v="15">15</button><button type="button" data-v="20">20</button></span>
         <span>Time</span><span class="seg" id="setTl"><button type="button" data-v="180">3 min</button><button type="button" data-v="300">5 min</button><button type="button" data-v="480">8 min</button></span>
         <span>Bots</span><span class="seg" id="setFill"><button type="button" data-v="0">Off</button><button type="button" data-v="4">Fill to 4</button><button type="button" data-v="6">6</button><button type="button" data-v="8">8</button></span>
+        <span class="nobots" id="noBotsNote" hidden>No bots in party games</span>
         <span>Bot level</span><span class="seg" id="setLvl"><button type="button" data-v="0">Rookie</button><button type="button" data-v="1">Veteran</button><button type="button" data-v="2">Ace</button></span>
       </div>
       <p class="note" id="lobbyNote"></p>
@@ -1295,24 +1297,26 @@ function humanIds(){
 function hostStart(){
   const c=G.cfg,hs=humanIds();let md=c.md;if(md===0&&hs.length>2)md=1;if(md===2&&hs.length>4)md=1;
   let total=md===1?(c.fill>0?Math.max(c.fill,hs.length):hs.length):(c.fill>0?(md===0?2:4):hs.length);
-  total=clamp(total,2,MAX_ROOM);
+  total=partyRoom()?hs.length:clamp(total,2,MAX_ROOM);
   const tm={},bl=[];for(let s=0;hs.length+bl.length<total&&s<7;s++)bl.push(s);
   if(md!==1)hs.concat(bl.map(s=>'b'+s)).forEach((id,i)=>{tm[id]=i%2});
   const now=netNow();
   rsDirty=true;
-  applyRS({id:Math.round(now),st:1,md,kl:c.kl,tl:c.tl,lvl:c.lvl,fill:c.fill,t0:Math.round(now+3500),sky:Math.floor(Math.random()*SKIES.length),tm,bl,rev:0,et:0,win:''});
+  applyRS({id:Math.round(now),st:1,md,kl:c.kl,tl:c.tl,lvl:c.lvl,fill:partyRoom()?0:c.fill,t0:Math.round(now+3500),sky:Math.floor(Math.random()*SKIES.length),tm,bl,rev:0,et:0,win:''});
 }
 // People come and go mid-match: a newcomer takes a bot's seat, and a bot takes the seat of someone who left.
 function fixRoster(rs){
   const hs=humanIds(),bl=rs.bl.slice(),tm=Object.assign({},rs.tm);let ch=false;
   const freeSlot=()=>{for(let s=0;s<7;s++)if(bl.indexOf(s)<0)return s;return -1};
+  const party=partyRoom();
+  if(party&&bl.length){for(const s of bl)delete tm['b'+s];bl.length=0;ch=true}
   if(rs.md===1){
-    const want=Math.max(rs.fill>0?Math.max(rs.fill,hs.length):hs.length,2);
+    const want=party?hs.length:Math.max(rs.fill>0?Math.max(rs.fill,hs.length):hs.length,2);
     while(hs.length+bl.length>want&&bl.length){bl.pop();ch=true}
     while(hs.length+bl.length<want&&bl.length<7){const s=freeSlot();if(s<0)break;bl.push(s);ch=true}
   }else{
     const cap=rs.md===0?2:4;
-    for(const id of Object.keys(tm))if(!/^b\d$/.test(id)&&hs.indexOf(id)<0){const t=tm[id];delete tm[id];ch=true;const s=freeSlot();if(s>=0&&(rs.fill>0||Object.keys(tm).length<2)){bl.push(s);tm['b'+s]=t}}
+    for(const id of Object.keys(tm))if(!/^b\d$/.test(id)&&hs.indexOf(id)<0){const t=tm[id];delete tm[id];ch=true;const s=freeSlot();if(s>=0&&!party&&(rs.fill>0||Object.keys(tm).length<2)){bl.push(s);tm['b'+s]=t}}
     for(const id of hs){
       if(id in tm)continue;const bots=bl.filter(s=>('b'+s) in tm);
       if(bots.length){const c0=bots.filter(s=>tm['b'+s]===0).length,pick=bots.find(s=>tm['b'+s]===(c0>=bots.length-c0?0:1));tm[id]=tm['b'+pick];delete tm['b'+pick];bl.splice(bl.indexOf(pick),1);ch=true}
@@ -1779,6 +1783,11 @@ function startSolo(){
   G.cfg={md:solo.mode,kl:solo.kl,tl:solo.tl,lvl:solo.lvl,fill:solo.mode===1?6:1};
   hostStart();
 }
+// A party launch (party.js, Play together) opens a room named p + 6 characters from party.js's own alphabet. Those
+// rooms are for the party's people only: no bots, not even the one that makes a lone pilot's match two (a party of
+// one flies alone), whoever hosts.
+function isPartyRoom(r){return /^p[a-hjkmnp-z2-9]{6}$/.test(sanitizeRoom(r))}
+function partyRoom(){return !!(G.online&&!Net.isPublic&&Net.room&&isPartyRoom(Net.room))}
 function sanitizeRoom(s){return String(s||'').toLowerCase().trim().replace(/^vq-/,'').replace(/[^a-z0-9-]/g,'').slice(0,17)}
 function randomRoom(){const a='abcdefghjkmnpqrstuvwxyz23456789';let s='';for(let i=0;i<4;i++)s+=a[Math.floor(Math.random()*a.length)];return s}
 let joining=false;
@@ -1817,7 +1826,9 @@ function renderLobby(){
     ul.appendChild(li);
   }
   $('lobbySub').textContent=TX('Room {r} · {n} of {m} pilots',{r:Net.room,n:ids.length,m:MAX_ROOM});
-  for(const b of $('lobbyOpts').querySelectorAll('button'))b.disabled=!mine;
+  const party=partyRoom();
+  for(const b of $('lobbyOpts').querySelectorAll('button'))b.disabled=!mine||party&&!!b.closest('#setFill');
+  $('noBotsNote').hidden=!party;
   $('startMatch').disabled=!mine||Net.isPublic;
   const hn=mine?'':(Net.others.get(host)||{}).name||TX('the host');
   $('lobbyNote').textContent=Net.isPublic?'The match starts by itself in a moment.':G.rs&&G.rs.st===2?(mine?'The last match is over. Take off when everyone is ready.':'The last match is over. Waiting for '+hn+' to start the next one.'):mine?'You are the host. A duel is for two pilots and 2v2 for four; with more in the room it becomes a free-for-all. Bots take the empty seats.':'Waiting for '+hn+' to start the match.';
@@ -1856,7 +1867,7 @@ function syncSettings(){
   seg('setMode',()=>lobbyCfg().md,v=>{onlineCfg.md=+v;store.set('omd',v)});
   seg('setKl',()=>lobbyCfg().kl,v=>{onlineCfg.kl=+v;store.set('okl',v)});
   seg('setTl',()=>lobbyCfg().tl,v=>{onlineCfg.tl=+v;store.set('otl',v)});
-  seg('setFill',()=>lobbyCfg().fill,v=>{onlineCfg.fill=+v;store.set('ofill',v)});
+  seg('setFill',()=>partyRoom()?0:lobbyCfg().fill,v=>{onlineCfg.fill=+v;store.set('ofill',v)});
   seg('setLvl',()=>lobbyCfg().lvl,v=>{onlineCfg.lvl=+v;store.set('olvl',v)});
   const setGfx=v=>{gfx=v==='low'?'low':'high';store.set('gfx',gfx);applyGfx();resize()};
   seg('gfxSeg',()=>gfx,setGfx);seg('gfxSeg2',()=>gfx,setGfx);

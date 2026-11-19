@@ -36,7 +36,7 @@
     'Sharpness and effects change at once; the number of trees and clouds changes the next time the page loads.': 'La nitidez y los efectos cambian al instante; la cantidad de árboles y nubes cambia la próxima vez que cargue la página.',
     'Language': 'Idioma',
     // ---- lobby ----
-    'Briefing room': 'Sala de reunión', 'Match': 'Partida', 'Off': 'No', 'Fill to 4': 'Llenar a 4', 'Bot level': 'Nivel de bots',
+    'Briefing room': 'Sala de reunión', 'Match': 'Partida', 'Off': 'No', 'No bots in party games': 'Sin bots en partidas de grupo', 'Fill to 4': 'Llenar a 4', 'Bot level': 'Nivel de bots',
     'Take off': 'Despegar', 'Copy invite': 'Copiar invitación', 'host': 'anfitrión', 'you': 'tú', 'host, you': 'anfitrión, tú',
     'Room {r} · {n} of {m} pilots': 'Sala {r} · {n} de {m} pilotos', 'The match starts by itself in a moment.': 'La partida empieza sola en un momento.',
     'The last match is over. Take off when everyone is ready.': 'Terminó la partida. Despeguen cuando todos estén listos.',
